@@ -101,15 +101,16 @@ Recent closes: G-2 RT-DELETE ladder (`f0f99035` — all 4 C four-port Byrd boxes
 
 ⚠ Mode-3 `--run` for Icon is RED today: even hello.icn → `sm_eval_subexpr: invalid entry_pc 1` (BB graph freed before the baked C-walker call reads it — Phase J root cause, FACT 3 violation). --interp is fine. Rung gate is --interp-only so unaffected.
 
-**NEXT:** **JA-0 (done this session, doc-only) → JA-1 is the true front.** The template detour is now
-pinned: `src/processor/sm_jit_interp.c` is a COMPLETE second x86 producer (`sl_emit_one` per-opcode switch +
-`sl_*`/`SL_*` byte-emitters, 25 raw sites) outside `*_templates/` — Icon `--run`/`--compile` executes IT, not
-the `bb_*.cpp` templates (proven: Icon `--compile` emits ZERO `# BOX` banners). See JA-0 for the full
-inventory + the secondary `emit_bb.c:614` inline-prologue note. JA-2b part-1 (`bb_icn_to.cpp` literal
-generator) is DONE at template level but dormant until JA-1 routes Icon generators through the shared emitter
-and deletes `sl_emit_one`/`rt_bb_pump_proc`. JA-1 simultaneously unblocks JA-2a, JA-2b, and the J-4a generator
-frontier. Then JA-2b part-2 (dynamic/real operand value-field read). H-1 remaining — push the 4-attribute
-signature INTO the builders so γ/ω thread DOWN (generator-composition reachable; if-as-value BLOCKED at parser).
+**NEXT:** ⛔ **JA-D — cat every violator of the ONE-PRODUCER FACT RULE (Lon directive, scorched-earth reset).**
+Grep at `5c455663` pins the violators to exactly two files: `src/processor/sm_jit_interp.c` (212 raw-emit sites,
+TWO forbidden engines — `emit_standard_blob` trampoline JIT + `sl_*`/SB-LINEAR producer + `rt_bb_pump_proc`
+C-walker edge) and `sm_image_test.c` (2, a unit test). Ladder JA-D-0..JA-D-5: pin reachability + Lon-confirm
+mode-3 may go RED (JA-D-0), stub the `--run` call site (JA-D-1), excise Engine B then Engine A as if never
+existed (JA-D-2/3), handle the test (JA-D-4), then the FACT-RULE completion grep == 0 (JA-D-5). `--interp`
+stays green throughout (smoke_icon 5/5, broker 23, rungs 198); Icon `--run` already RED so no Icon regression;
+SNOBOL4/Prolog mode-3 WILL go RED by design — record as emergency-handoff. THEN (separate phase) JA-1/J-5/J-6
+rebuild: route `--run` through the shared template producer; one-instruction thunk-templates are RULE-compliant
+scaffolding. See § JA-D. JA-2b part-1 (`bb_icn_to.cpp`) done at template level, dormant until the rebuild.
 ⚠ Of H-1's two halves, only **generator-composition is frontend-reachable** today; the if-as-value half
 (`x := if a then b else c`) is BLOCKED at the parser (`if` not accepted in expression position — see H-1
 FRONTEND-REACHABILITY note below). Attack generator-composition first; if-as-value waits on a frontend rung.
@@ -339,6 +340,78 @@ Two correction rungs (JA-1..JA-2) are added; they tighten existing Phase-J steps
       run time in modes 3/4 (FACT 3) — so the dynamic path requires the operand boxes themselves to be emitted
       as port-wired x86 ahead of the generator, writing their result to a known stack/register slot the
       generator reads. That is genuine Phase-J emitter design, gated on JA-1.
+
+---
+
+## ⛔ JA-D — DELETE EVERY VIOLATOR OF THE ONE-PRODUCER FACT RULE (the cat-the-violators ladder)
+
+The FACT RULE (RULES.md / FACT 5): not one x86 instruction is emitted outside a template function keyed to a
+BB/SM/XA opcode. Grep at `5c455663` finds the violators in EXACTLY TWO files: **`src/processor/sm_jit_interp.c`
+(212 raw-emit sites)** and **`src/processor/sm_image_test.c` (2, a unit test)**. `emit_core.c` (the shared
+serializer sink `bb_emit_byte`/`ef_b*`) and the `*_templates/` are the ONE sanctioned producer and are NOT
+violators. `sm_jit_interp.c` holds TWO forbidden engines:
+
+- **Engine A — the trampoline JIT** (`SM_codegen` driver + `emit_standard_blob` 25, `emit_standard_blob_no_stack`
+  18, `emit_cond_jump_blob_skeleton` 14, `emit_trampoline` 11, `emit_jump_blob_skeleton` 5, `emit_label_blob` 4,
+  `emit_halt_blob` 3, `emit_exec_stmt_pat_blob` 34, `bake_blob_call_{s,si,i}` 22, `sm_jit_run_steps` 3): emits a
+  per-opcode `call`-into-`h_*`-handler trampoline. Per-opcode C dispatch behind emitted thunks = the forbidden
+  category.
+- **Engine B — the SB-LINEAR producer** (`sl_emit_one` 3 + `sl_call`/`sl_ret`/`sl_jcc_last_ok`/`sl_mov_*`/
+  `sl_jmp_rel32_slot`/`SL_B`/`SL_U32`/`SL_U64` ~18, driven by `sm_emit_linear`): the bespoke second x86
+  byte-emitter, plus `rt_bb_pump_proc` (the baked C-walker edge).
+
+⚡ **METHOD (Lon's directive): cat every violator — stub the call site, excise the body as if it never existed,
+one violator per commit, gates green between.** The emitter REPLACEMENT (route SM/BB through the shared template
+producer) is JA-1/J-5/J-6 and comes AFTER the cut — DO NOT conflate. Until the templates cover an opcode, the
+honest consequence of the FACT RULE is **one-instruction (or few-instruction) templates** — a template that
+emits a single `call sm_op_foo@PLT` thunk is RULE-COMPLIANT (it is keyed to an opcode, lives in `*_templates/`,
+reached via emit_core.c dispatch) where the same bytes hand-emitted in `sl_emit_one` are NOT. That asymmetry is
+the whole point: the grep test, not a human judgment, decides.
+
+⚠ **REACHABILITY FIRST (do JA-D-0 before cutting):** `--run` (scrip.c:449) calls `sm_emit_linear` (Engine B);
+`--interp` may reach Engine A via `SM_codegen`/`sm_jit_run_steps`. Both Icon `--run`/`--compile` are ALREADY RED
+today (watermark), so cutting Engine B cannot regress Icon. But SNOBOL4/Snocone/Prolog mode-3 (`--run`) DO pass
+through these paths (GOAL-PROLOG-BB: m3 146/280; SNOBOL4 --run 158). **Cutting the engines WILL turn those RED.**
+That is acceptable to Lon as a deliberate scorched-earth reset ("start from scratch next session") — but it MUST
+be recorded as an emergency-handoff with the regression stated, NOT a silent break. Confirm with Lon that the
+mode-3 corpus going RED is intended before committing JA-D-2/JA-D-3.
+
+### Steps (each its own commit; build links green after every one; gates rerun)
+
+- [ ] **JA-D-0 — pin reachability + freeze the RED oracle (no code).** For each violator engine, grep its entry
+  and record which CLI modes/languages reach it (`sm_emit_linear`←scrip.c:449 `--run`; `SM_codegen`/
+  `emit_standard_blob`←?; `sm_jit_run_steps`←?). Capture current mode-3 pass counts (SNOBOL4 --run, Prolog
+  GATE-3 run, Icon --run=RED) as the pre-cut baseline so the post-cut RED is measured, not guessed. Get Lon's
+  explicit OK that mode-3 corpora may go RED. Doc-only.
+- [ ] **JA-D-1 — stub the `--run` call site (scrip.c:449).** Replace `sm_emit_linear(...)` with a clean
+  `fprintf(stderr,"[NO-SM-BB] --run: linear emitter deleted (FACT RULE); use --interp until templates land\n");
+  return 1;` (RULES.md stub form). Now nothing external reaches Engine B. Build links; `--interp` untouched
+  (smoke_icon 5/5, broker 23, rungs 198 stay green — those are --interp). `--run hello.icn` prints the stub line.
+- [ ] **JA-D-2 — excise Engine B (SB-LINEAR producer) as if it never existed.** Delete `sm_emit_linear`,
+  `sl_emit_one`, `sl_call`/`sl_ret`/`sl_ret_if_eax`/`sl_jcc_last_ok`/`sl_mov_rdi_*`/`sl_mov_rsi_*`/`sl_mov_rdx_*`/
+  `sl_jmp_rel32_slot`, the `SL_B`/`SL_U32`/`SL_U64` macros, `sm_run_linear`, `rt_bb_pump_proc`, and `g_jit_flat_bb`
+  + the `SCRIP_JIT_FLAT_BB` getenv. Remove the `sm_emit_linear`/`sm_run_with_recovery_linear`/`sm_run_linear`
+  prototypes from sm_jit_interp.h + scrip_sm.h. Zero residue (RULES.md "deletion is total"): no dangling
+  prototype, extern, or call. Build links. `--interp` gates green.
+- [ ] **JA-D-3 — excise Engine A (trampoline JIT) as if it never existed.** Delete `SM_codegen`,
+  `emit_standard_blob`(+`_no_stack`), `emit_cond_jump_blob_skeleton`, `emit_jump_blob_skeleton`,
+  `emit_label_blob`, `emit_halt_blob`, `emit_trampoline`, `emit_exec_stmt_pat_blob`, `bake_blob_call_{s,si,i}`,
+  `sm_jit_run_steps`, the `g_label_blob_map`/`label_blob_lookup` machinery, and the `h_bb_pump_proc`/`h_pump_case`
+  handlers that reach the BB C-walker (audit whether the rest of `g_handlers[]`/`h_*` is still wanted as the
+  pure SM interpreter for `--interp`; if `--interp` uses `sm_interp.c` not this file, the WHOLE `g_handlers`
+  engine here may be deletable — verify by grep before cutting). Stub any remaining external entry to
+  `[NO-SM-BB]`. Build links.
+- [ ] **JA-D-4 — `sm_image_test.c` (the 2 sites).** It hand-emits `mov eax,42; ret` as a self-test. Either delete
+  the test file (if it only tested the now-deleted producer) or, if kept, route its bytes through a real
+  SM_templates entry. Trivial; do last.
+- [ ] **JA-D-5 — GREEN-FIELD VERIFY (the FACT RULE completion test).** `grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|
+  sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -vE '_templates/|/emit_core\.c:'` == **0**. Build
+  links; `--interp` gates green (smoke_icon 5/5, broker 23, rungs 198). Mode-3 RED is EXPECTED + recorded.
+  Commit message states the scorched-earth reset explicitly (emergency-handoff form).
+- ⮕ **THEN (next phase, NOT JA-D): JA-1/J-5/J-6 rebuild** — route `--run` to load the SHARED emitter's
+  template-produced bytes (`codegen_sm_x86` → emit_core dispatch → `bb_*.cpp`/`sm_*.cpp`/`xa_*.cpp`) into a
+  PROT_EXEC buffer and jump in. One-instruction thunk-templates are fine as scaffolding; fill real four-port
+  x86 per opcode on the ladder. Completion: mode-3 climbs back from RED, grep stays 0, FACT RULE holds.
 
 ---
 
