@@ -49,7 +49,7 @@ Mapping doc (LFJ-0) is the contract — transcription does not deviate from it.
 | LFJ-1a-iii | Extract TT_IF, TT_TO, TT_TO_BY, TT_EVERY, TT_WHILE, TT_UNTIL, TT_REPEAT, TT_LIMIT. | ✅ `b252409f`. rungs 198. TT_WHILE/TT_UNTIL share one helper. |
 | LFJ-1a-iv | Extract binop group (TT_ADD..TT_NE, TT_CAT, TT_LCONCAT, TT_LLT..TT_LNE), TT_NOT, TT_ALTERNATE, TT_AUGOP. | ✅ `320f1eea`. rungs 198. 13-label arith/relop shared one helper; 6-label string-relop shared one helper. |
 | LFJ-1a-v  | Extract TT_GLOBAL/LOCAL/STATIC_DECL, TT_INITIAL, TT_RETURN, TT_SUSPEND, TT_IDENTICAL, TT_NONNULL, TT_NULL, TT_RANDOM, TT_MATCH_UNARY, TT_MNS, TT_PLS, TT_CSET_*. | ✅ `092f7862`. rungs 198. 3-label DECL shared one helper; 3-label CSET binop shared one helper. |
-| LFJ-1a-vi | Extract TT_SIZE, TT_IDX, TT_SECTION/SECTION_PLUS/SECTION_MINUS, TT_CASE, TT_FIELD, TT_RECORD, TT_MAKELIST, TT_ITERATE. Final 1a sub-rung — mega-switch is now a pure dispatcher. | rungs 198. |
+| LFJ-1a-vi | Extract TT_SIZE, TT_IDX, TT_SECTION/SECTION_PLUS/SECTION_MINUS, TT_CASE, TT_FIELD, TT_RECORD, TT_MAKELIST, TT_ITERATE. Final 1a sub-rung — mega-switch is now a pure dispatcher. | ✅ `0ed7ace3`. rungs 198. 3-label SECTION shared one helper. Mega-switch every arm is a one-line `return lower_icn_legacy_<KIND>(cfg, e);`. |
 | LFJ-1b | Introduce `lower_kind_table[TT_MAX]` of `BB_t* (*)(BB_graph_t*, tree_t*)`. `lower_kind_table_init()` populates every slot with the matching `lower_icn_legacy_<KIND>`. Dispatcher reads the table instead of switching directly. | rungs 198 unchanged. |
 | LFJ-1c | Create empty `lower_icn_new.c` + `lower_icn_new.h`. No new functions yet. Wire it into the build. | rungs 198 unchanged. |
 | LFJ-2  | Transcribe `ir_a_NoOp` → `lower_icn_new_NoOp`. Table slot for `TT_NULL` (or whichever AST kind is Icon's NoOp) flips to the new function. Legacy function remains compiled, unreached. | rungs 198. Manual verify: ASCII print of a NoOp-containing program shows the BB graph came from the new function (one-time `printf("[new]")` then removed). |
@@ -293,7 +293,7 @@ bash scripts/test_icon_mode4_rung.sh       # PASS=5
 | Family 1 BB_ASSIGN sidecar | `78e4c067` |
 | Family 2 BB_CALL sidecar | `78e4c067` |
 
-**WATERMARK:** one4all `092f7862`. Gates: smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5.
+**WATERMARK:** one4all `0ed7ace3`. Gates: smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5.
 
 ---
 
