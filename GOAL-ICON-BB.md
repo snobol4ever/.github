@@ -14,7 +14,61 @@ boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `7ff8fce8` — Opus 4.7 session 2026-05-27c; ICN-XA-1 done + ICN-M4 binop-gen cross-product; mode4_rung PASS=2→5)
+## ⛔⛔ NEXT SESSION — START HERE. FIRST RUNG, FIRST STEP. (added 2026-05-27c, Opus 4.7)
+
+**RUNG ICN-Z-2b — leaf + BB_SEQ/COMPOUND true-port slice. The ONE safely-sliceable piece of the ICN-Z
+port rewire. Do this FIRST, before anything else, the moment the session opens. No re-orientation —
+the entry point is fully specified below.**
+
+### Why this rung (one paragraph, read once)
+The 4-port AG zipper (ICN-Z) needs `lower_icn.c`'s ~68 `lower_icn_expr_node(cfg,e)` sites rewired so
+α/β are CONTROL-FLOW ports (not operand-child pointers), AND `bb_exec.c` re-expressed as a pure
+port-follower (no `a=a->γ` operand-tree recursion). That full pass is ONE atomic change and cannot be
+half-done (the shared `bb_exec_node` driver recurses α/β as children for EVERY composite, so a hybrid
+won't walk). **EXCEPTION: the leaf + BB_SEQ/COMPOUND group is already forward-correct** (handoff
+2026-05-25, ICN-Z-2 "substantial"): `lower_icn_proc_body` builds the stmt chain back-to-front with
+`succ` threading; `bb_exec.c` BB_SEQ (line 613) walks `st=st->γ` forward, intermediate failure
+advances (irgen ir_a_Compound). The ONLY thing missing is the EXPLICIT `stmt[i].ω → stmt[i+1].α` port
+wire (today the advance is structural via the loop, not via ω). That edge is additive, mode-2-safe,
+and gateable — it does NOT touch the operand-bearing composites (BINOP/CALL/IF/ALT) that force the
+atomic pass.
+
+### EXACT STEPS (do in order, gate after EACH)
+1. **Read** `lower_icn.c` `lower_icn_proc_body` (the stmt-chain builder; uses
+   `lower_icn_expr_threaded_b(..., bounded=1)` per stmt — call site near line 1014/1033) and
+   `bb_exec.c` `case BB_SEQ:` (line 613) + `case BB_SEQ_EXPR:` (line 625). Confirm the `succ` thread.
+2. **Wire the explicit ω-advance edge** in `lower_icn_proc_body`: when building stmt[i] back-to-front,
+   set `stmt[i]->ω = stmt[i+1]` (its α — the next stmt's fresh entry), with the LAST stmt's γ AND ω
+   propagating to the proc terminal (proc.γ / proc.ω). Mirror irgen `ir_a_Compound`: intermediate
+   failure ADVANCES (ω→next.α), only the last stmt's ports flow outward. Do NOT apply the Prolog
+   back-to-front RETRY zipper here (compound advances, it does not backtrack).
+3. **Re-express `bb_exec.c` BB_SEQ to FOLLOW the ω port** instead of (or alongside) the structural
+   `st=st->γ` loop: on a non-returning intermediate stmt, advance via `st->ω` (now == next.α) rather
+   than `st->γ`. Keep BB_SEQ_EXPR's value-of-last + pump-last semantics intact (it is a DIFFERENT
+   construct — do NOT merge). The proc-fall-off `return nd->ω` at line 622/623 stays.
+4. **GATE after step 2 AND after step 3:** `bash scripts/test_smoke_icon.sh` PASS=5 ·
+   `bash scripts/test_icon_all_rungs.sh` PASS≥198 · `bash scripts/test_smoke_prolog.sh` PASS=5 ·
+   `grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -v _templates/ | grep -v emit_core | wc -l` == 0.
+5. **Mark ICN-Z-2 `[x]` complete** (the "REMAINING: explicit ω→α port wire" checkbox) and commit.
+
+### DO NOT, this rung
+- Do NOT touch BINOP / BINOP_GEN / CALL / IF / ALT / ASSIGN / CONJ operand cases. Those α/β are
+  operand-children and need the ATOMIC full pass (ICN-Z-3..9 + bb_exec port-follower). Touching one
+  breaks the shared driver. This rung is leaves + SEQ ONLY.
+
+### After ICN-Z-2b lands — the full atomic pass entry point (so the NEXT-next session opens cold too)
+`lower_icn.c` 2-arg `lower_icn_expr_node(cfg,e)` call sites to convert to 4-port threaded (68 total):
+lines 184 188 203 205 217 219 221 235 237 253 255 268 285 308 325 345 350 354 381 382 402 403 424 428
+460 464 486 505 507 546 548 577 590 605 607 617 628 630 645 647 649 668 681 683 705 714 730 745 747
+759 761 790 810 812 822 834 843 853 864 874 885 898 900 916 950 969 1033 1115.
+`bb_exec.c` composite cases to convert to port-follower: BB_CALL(54/478) BB_ASSIGN(422) BB_SEQ(613)
+BB_BINOP(672) BB_BINOP_GEN(688) BB_IF(822) BB_CONJ(849) BB_EVERY(866) BB_ALT(983) BB_TO_BY(1036)
+BB_TO(1949). Read each construct's `ir_a_*` in `/home/claude/corpus/programs/icon/jcon-ref/irgen.icn`
+BEFORE wiring it. ONE pass, mode-2 green at each group, cannot half-zip.
+
+---
+
+
 
 ⛔ **SESSION 2026-05-27c (Opus 4.7) — ICN-XA-1 LANDED + the `lt`/`mult`/`compound` mode-4 FAILs FIXED. mode4_rung PASS=2→5 FAIL=0.**
 
