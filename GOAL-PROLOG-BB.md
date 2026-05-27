@@ -236,12 +236,20 @@ For each `case BB_FOO:` in `bb_exec.c`:
   (deterministic). PL_ENTRY emits each non-entry predicate as a callable flat block under that label.
   `walk_bb_flat` BB_PL_CALL case added. Gate: EMPTY 3→2; m4-call PASS (GATE-4 2/4). write(atom) fixed.
 
-#### PL-AGW-9B-2 — `XA_PL_CHOICE_DRIVE` + `bb_pl_choice.cpp` ⏳
-- [ ] `bb_pl_choice.cpp` TEXT body: emit `call rt_trail_mark@PLT` inline; for each clause emit body α entry; on clause ω → next clause α; last clause ω → `call rt_trail_unwind@PLT` + jump ω_in. No `rt_*` port helpers — only non-port effect helpers are OK (RULES.md / GOAL-PROLOG-BB rules).
-- [ ] Gate: `EMPTY 2→1`. Multi-clause predicate passes mode-4.
+#### PL-AGW-9B-2 — `flat_drive_pl_choice` + `bb_pl_choice.cpp` ✅ (2026-05-27, Sonnet)
+- [x] `bb_pl_choice.cpp` FILLED: emits per-clause `.Lplch<id>_c<i>_pre:` dispatcher with
+  `call rt_pl_trail_mark_push@PLT` (clause 0) / `call rt_pl_trail_unwind_top@PLT` (subsequent)
+  then `jmp body[i]`. β routes to ω (deterministic first-solution; resumable redo is later).
+- [x] `flat_drive_pl_choice` in `emit_bb.c` — byte-free driver mints `pre/body/beta` labels,
+  recurses into each clause sub-graph's entry via `walk_bb_flat` with shared γ_in,
+  ω chained to next clause's `pre`, last → ω_in.
+- [x] Effect helpers `rt_pl_trail_mark_push / unwind_top / mark_pop` in rt.c (saved-mark stack).
+- [x] Gate: `EMPTY 2→1`. m4-choice `p(a). p(b). main :- p(X), write(X), nl.` PASSes (prints `a`).
 
-#### PL-AGW-9B-3 — `XA_PL_ALT_DRIVE` + `bb_pl_alt.cpp` ⏳
-- [ ] Gate: `EMPTY 1→0`. `;` disjunction passes mode-4.
+#### PL-AGW-9B-3 — `flat_drive_pl_alt` + `bb_pl_alt.cpp` ✅ (2026-05-27, Sonnet)
+- [x] Mirror of AGW-9B-2 but n=2 (nd->α, nd->β branches; branch γ/ω already wired by lower_pl).
+- [x] Gate: `EMPTY 1→0`. m4-alt `main :- ( true ; true ), write(ok), nl.` PASSes (prints `ok`).
+  Also unblocked: BB_SUCCEED (Prolog `true`) — new `bb_succeed.cpp` template added.
 
 ---
 
@@ -278,14 +286,25 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
   goals if needed to confirm. **Gate:** m4-seq emits `call rt_pl_arith@PLT`; `test_prolog_mode4_rung.sh`
   m4-seq PASS (`3`). FIRST GREEN four-port mode-4 Prolog.
 
-- [~] **V-3 — Structural four-port templates EMPTY (choice/alt remain; call DONE).**
-  `util_prolog_template_emptiness_audit.sh` = EMPTY 2 (seq + call now FILLED at `449f4ca3`).
-  **call ✅ 2026-05-27 (Opus):** `bb_pl_call.cpp` FILLED + `walk_bb_flat` BB_PL_CALL case +
-  PL_ENTRY callee-block emission (`.Lplpred_<name>_<arity>` callable blocks). m4-call PASSes.
-  Remaining: `bb_pl_choice.cpp` → `bb_pl_alt.cpp`, each EMPTY→FILLED with inline four-port x86
-  (trail_mark/trail_unwind permitted effect helpers; NO `rt_*` port-logic helpers). They have NO
-  `walk_bb_flat` case yet (fall to `default:` → 0xe9 abort, exactly the bug call had). **Gate:** audit
-  EMPTY→0; m4-choice/alt PASS in `test_prolog_mode4_rung.sh`.
+- [x] **V-3 — Structural four-port templates EMPTY (CLOSED 2026-05-27, Sonnet).**
+  All four AGW-9 structural templates now FILLED: `bb_pl_seq`, `bb_pl_call`, `bb_pl_choice`, `bb_pl_alt`,
+  `bb_pl_cut` (audit EMPTY=0 / FILLED=5). `walk_bb_flat` dispatches BB_CHOICE/BB_PL_ALT to new
+  byte-free drivers `flat_drive_pl_choice` / `flat_drive_pl_alt` (mirror `flat_drive_alt`). Templates
+  emit the dispatcher: per-clause `.Lplch<id>_c<i>_pre:` label with `call rt_pl_trail_mark_push@PLT`
+  (clause 0) / `call rt_pl_trail_unwind_top@PLT` (later), then `jmp body[i]`. Effect helpers
+  `rt_pl_trail_mark_push` / `rt_pl_trail_unwind_top` / `rt_pl_trail_mark_pop` added to rt.c
+  (saved-mark stack, no port logic). GATE-4 4/4 — m4-choice + m4-alt both green. Three latent
+  pre-existing bugs fixed in passing:
+    (a) BB_SUCCEED (Prolog `true`) had no `walk_bb_flat` case → fell to default → 0xe9 abort.
+        New `bb_succeed.cpp` template + emit_core routing.
+    (b) BB_PL_CALL emitted no arg-passing — call-site now builds caller-Terms via
+        `rt_pl_node_to_term`, calls `pl_bb_env_save_push` + per-arg `pl_bb_bind_arg` (unify
+        callee slot to caller Term, trail-aliased), restores env via `pl_bb_env_pop` after call.
+        Callee block's redundant `pl_bb_env_push` removed.
+    (c) `bb_prepare_pl` swapped channel for (VAR,ATOM) unify — put atom's sval in `bb_pl_ls`
+        instead of `bb_pl_rs`; the BB_ATOM operand then defaulted to NULL sval → `"[]"`.
+        And `rt.c` lacked `prolog_atom.h` include → `prolog_atom_name` return defaulted to int
+        and got 32-bit truncated; plus `rt_init` didn't call `prolog_atom_init`. All three fixed.
 
 - [ ] **V-4 — Mode 4 rebuilds the BB graph at runtime via `rt_pl_b_*` (RULES "no runtime BB walk").**
   `xa_pl_builder.cpp` emits x86 calling `rt_pl_b_begin/_node/_kids/_entry/_end_register` (rt.c:233+) to
