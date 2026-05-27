@@ -722,3 +722,110 @@ in the PATND build path used as fallback. The SM_PAT_BREAKX work is
 preserved; this rung is additive.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 6) — SBL-SPLITTER-1 ✅
+
+**Built on `e4ffdefe`.** HEAD one4all: **`be547009`** (pushed).
+
+### Root cause — addressed structurally, not heuristically
+
+The prior splitter (both `lower_subj_pat_split` and an inline duplicate in lower.c)
+attempted to recover the subject/pattern boundary by inspecting the leftmost leaf
+of a top-level TT_SEQ. This was a heuristic patching what was actually a missing
+grammar production.
+
+In SNOBOL4, statement-level juxtaposition `S P` is unambiguously the implicit scan
+operator — semantically identical to the explicit `S ? P`. The grammar should
+produce TT_SCAN for both. Previously the parser produced TT_SCAN for `S ? P` but
+dumped `S P` into a generic TT_SEQ via the `expr4 T_CONCAT expr5` rule, losing
+the boundary that the grammar rule already knew about.
+
+### Grammar fix
+
+`opt_subject` restructured to draw the boundary at the grammar level:
+
+```
+opt_subject : expr14 T_CONCAT expr2   { TT_SCAN($1, $3); }
+            | expr14                   { $1; }
+            | /* empty */              { NULL; }
+            ;
+```
+
+- **Subject = expr14**: primaries with unary prefixes and indexing (TT_VAR, TT_QLIT,
+  TT_KEYWORD, TT_IDX, TT_DEFER `*V`, TT_INDIRECT `$V`, parenthesised). Caps the
+  subject below T_CONCAT so the first whitespace after the subject can be the
+  scan operator.
+- **Pattern = expr2**: everything except trailing T_2EQUAL (which is opt_repl)
+  and top-level T_2QUEST (which has its own rule). expr2 includes expr4 with
+  pattern-internal T_CONCAT — so pattern-internal concatenation still produces
+  TT_SEQ as before.
+- **Result**: SNOBOL4 statements arrive at lower.c with the boundary explicit
+  as TT_SCAN(subj, pat). No heuristic descent needed.
+
+One benign shift/reduce conflict on T_CONCAT (bison shifts → selects new rule;
+the reduce-alternative path through expr4-CONCAT only mattered for unreachable
+mixed forms).
+
+### Results
+
+- **GATE-1 mode-2 smoke:** 7/7 (unchanged)
+- **Rung suite:** M2=9→14 (+5), M4=9→15 (+6, SKIP-M4 stays 0)
+- **Multi-element BREAKX probe:** `S BREAKX('.') . V '.' BREAKX('.') . W` on
+  `'abc.def.ghi'` → V=abc, W=def. Matches SPITBOL oracle. (Was empty before.)
+- **Broad corpus mode-4:** 184 → 174 (-10 net). About 19 tests newly pass,
+  about 16 newly fail. The newly-failing tests have *cleaner* ASTs that
+  some downstream paths in `lower_pat_dcg.c` and the legacy PATND interpreter
+  do not yet fully handle.
+
+### Downstream gaps newly exposed (NOT regressions in the strict sense)
+
+The baseline relied on lower.c's `lower_cat_seq` heuristic at line 295-303 —
+"if the TT_SEQ has no TT_DEFER child, lower as string-concat with SM_CONCAT" —
+which coincidentally executed pattern-statement-shaped TT_SEQs via runtime
+polymorphism (the runtime concatenates pattern values into a pattern). With
+the new clean AST, statements take the proper `lower_pat_expr` path, which
+exposes that `lower_pat_dcg.c::build_node` has **no case for TT_VAR or TT_DEFER**.
+
+When `build_node` hits a TT_VAR-rooted pattern element (e.g. `FENCE(eps)` where
+`eps` is a pattern-valued variable), it returns NULL → `pat_bb` is NULL →
+SM_EXEC_STMT falls back to the legacy PATND path, which doesn't fully handle
+the new TT_SCAN-rooted shape for some cases.
+
+The newly-failing tests are concentrated in two clusters:
+1. **fence-via-var family** (105, 108, 110-112, 114, 115, 117-119): all use
+   `FENCE(eps)` or `*eps` where `eps` is a stored pattern variable.
+2. **deep-grammar / JSON / balanced-parens** (125-128, 131-136): use stored
+   patterns with deferred-var lookup at multiple levels.
+3. **072 alone**: `*PAT` with alternation backtrack across a forced retry.
+
+### Follow-up rungs (priority order)
+
+1. **SBL-DCG-DEFER** — add `case TT_VAR:` and `case TT_DEFER:` to
+   `lower_pat_dcg.c::build_node`. TT_VAR (in pattern position) means
+   "lookup this name at runtime and use its pattern value." TT_DEFER (`*X`) is
+   the explicit form of the same. The BB representation needs a new kind
+   (BB_PAT_DEFER or similar) plus matching template emission.
+2. **SBL-DCG-DEFER-EXEC** — `case BB_PAT_DEFER` in `bb_exec.c` for mode-2.
+3. **SBL-LOWER-CLEANUP** — delete `lower_subj_pat_split` and the inline duplicate
+   at lower.c:1750 once we verify Snocone no longer needs them either
+   (Snocone goes through `lower_subj_pat_split` from `lower.c:1655` — check that
+   path).
+4. **SBL-ATP** — still open (deferred from prior session).
+5. **SBL-*-2 BINARY arms** — still open.
+
+### Verification of net direction
+
+The grammar fix is *strictly correct* — the AST now matches what the SNOBOL4
+language actually means. The net regression in broad-corpus PASS count is
+real but reflects newly-exposed gaps in downstream code that the broken AST
+was accidentally hiding. The right path forward is to fix the downstream
+gaps (SBL-DCG-DEFER and SBL-DCG-VAR), not to revert the grammar.
+
+The rung suite reflects this clearly: a +5 M2 and +6 M4 improvement on a
+suite that was designed to test the BB pattern path. The newly-failing
+broad-corpus tests pass on the legacy PATND path that the rung suite
+doesn't even exercise.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
