@@ -153,10 +153,17 @@ wrong — fix the BB graph, not the runtime.
   3. **Mode-2 `BB_ITERATE` executor (bb_exec.c:2227) is also DT_S-only.** Reads
      `nd->α->value.s`; arrays would see len=0 and return ω immediately.
 
-  4. **Raku arrays are Icon-style lists (DT_DATA + `icn_type="list"`), NOT
-     SNOBOL4 ARBLK_t (DT_A).** `push` lives in `icn_runtime.c:1480`. Element
-     count in `frame_size`, elements in `frame_elems` (a GC'd `DESCR_t*`).
-     Confirmed by tracing `rk_arrays`'s lowering: `@x` is a DT_DATA list.
+  4. **Raku arrays are `\x01`-separated STRINGS (DT_S), NOT Icon-lists.** From
+     test/raku/rk_arrays.raku top-of-file: `# Arrays stored as \x01-separated
+     strings in normal DESCR_t slots. push/pop/elems/arr_get as builtins; @arr[$i]
+     = val via arr_set builtin.` The design choice is to encode arrays as a
+     single string with `\x01` (SOH) between elements, kept in normal DT_S
+     slots. **Earlier audit-memo claim that Raku arrays use Icon DT_DATA was
+     INCORRECT.** Verified by running mode-2 rk_arrays: it FAILS with Error 5
+     (push/pop/arr_get/elems handlers ABSENT in raku_builtins.c). Mode-2 GATE-RK
+     8/31 PASS list contains zero array tests — all array tests fail in both
+     modes today. The aspirational \x01-string design is documented in test
+     file comments but has no runtime implementation yet.
 
   5. **`arr_get` / `arr_set` / `raku_map` / `raku_grep` / `raku_sort` are not
      `rt_*` symbols.** They're SM_CALL_FN names dispatched through `rt_call`,
@@ -169,75 +176,77 @@ wrong — fix the BB graph, not the runtime.
      over a Raku-style list is ALSO not emitted at mode-4 today; reusing that
      kind would require authoring a fresh template, not just retagging.
 
-  ### Decomposition
+  ### Decomposition (REVISED 2026-05-27 post-correction)
 
-  - [ ] **RK-BB-3a** — make `BB_ITERATE` polymorphic (DT_S | DT_DATA-list) so
-    `for @arr -> $v` loops. ONE template, runtime type-dispatch on the
-    iterable peeked from the SM value stack at α-time.
-    * Template (`bb_iterate.cpp`): α reads top-of-r12 stack; switch on `v`.
-      DT_S branch unchanged (Icon `!"abc"` stays bit-identical). DT_DATA
-      branch fetches `frame_size` (call `FIELD_GET_fn@PLT`) and `frame_elems`
-      ptr; counter advances; each iteration yields `frame_elems[i]` as a
-      full 16-byte DESCR onto r12.
-    * Mode-2 executor (`bb_exec.c:2227 BB_ITERATE`): mirror the same
-      polymorphism — peek α->value, branch on `.v`.
-    * Lowering: `lower_iterate` (lower.c:1602) gets a Raku-array branch that
-      builds a BB graph `BB_ITERATE(α=operand-box-pushing-the-array)` and
-      wraps it in `SM_BB_SWITCH(SM_BBSW_RK_GEN)` so `lower_every` finds the
-      SWITCH and the loop scaffold engages. Loop var name in `t->v.sval`
-      stored via `emit_var_store` on each γ pull (drop-in to current scaffold).
-    * Gate: probe `rk_for_array_simple` flips green. `rk_for_array` (existing)
-      should also flip — it has the same shape. GATE-RK + GATE-RK4 must not
-      regress.
-    * Risk: Icon `!"abc"` regression if the type-dispatch is wrong. Smoke icon
-      + GATE-PK ladder catches this. Add a TEXT-mode probe that emits
-      identical bytes for the DT_S literal case before/after.
+  Because Raku arrays are \x01-separated strings (NOT DT_DATA), the work
+  collapses considerably. No FIELD_GET_fn call needed; the iterable IS
+  already a string. `bb_iterate.cpp`'s existing DT_S machinery is more
+  applicable than first appeared — only the source-string-discovery
+  changes (runtime peek of α->value instead of compile-time `hay`).
 
-  - [ ] **RK-BB-3b** — `lower_raku_map`: build BB graph wrapping a
-    BB_ITERATE source with a γ-side block (the map lambda) that consumes
-    the yielded element (rebinds `$_`), runs the lambda, leaves the result
-    on r12, jumps back to α. Assignment site (`my @doubled = map { ... } @arr`)
-    materializes results into a fresh Icon-list via repeated `push`. For
-    `for @doubled -> $x` to then iterate, RK-BB-3a's polymorphism is the
-    same downstream path.
+  - [ ] **RK-BB-3.0** (precursor, lowest-risk) — flesh out the runtime
+    builtins so arrays work at all in mode-2. Add to raku_builtins.c:
+    `push`, `pop`, `elems`, `arr_get`, `arr_set` (\x01-separated string
+    representation per test/raku/rk_arrays.raku comment header). ~80
+    LOC pure C with no BB axis touched. Mode-2 gate uplift: probably
+    flips rk_arrays + rk_for_array (the latter if iteration in mode-2
+    works via the existing SM scaffold once arrays exist).
+    Test: GATE-RK mode-2 ≥ 8/31 (no regression; expect uplift).
 
-  - [ ] **RK-BB-3c** — `lower_raku_grep`: identical to 3b but γ tests the
-    lambda's result; on false, jump back to BB_ITERATE β (next pull); on
-    true, push the SOURCE element (not the lambda result) to r12 and yield.
-    The "γ-predicate" semantics are template logic, NOT a `rt_*` helper.
+  - [ ] **RK-BB-3d** (was: 3d in prior plan) — add
+    `raku_try_call_builtin_by_name(const char *fn, DESCR_t *args, int nargs,
+    DESCR_t *out)` parallel entry point in raku_builtins.c (no AST walk —
+    args are pre-evaluated DESCR_ts), chain it into `rt_call`'s ladder
+    immediately AFTER `icn_try_call_builtin_by_name`. Once 3.0 + 3d land
+    together, EVERY Raku mode-2 SM_CALL_FN builtin is also reachable from
+    mode-4 — `raku_sort`, the new push/pop/arr_*, and the existing
+    raku_substr/index/rindex/match/etc. Mode-4 gate uplift could be
+    substantial (5-10 tests). NO new doctrine; same shape as IJ-HELLO-2.
 
-  - [ ] **RK-BB-3d** — `raku_sort` stays SM, but needs reachability from
-    mode-4. Add `raku_try_call_builtin_by_name(const char *fn, DESCR_t *args,
-    int nargs, DESCR_t *out)` parallel entry point in raku_builtins.c (no AST
-    walk — args are pre-evaluated DESCR_ts), chain it into `rt_call`'s ladder
-    immediately AFTER `icn_try_call_builtin_by_name` (and use the existing
-    table-of-strcmps but each branch's `interp_eval(c[k])` replaced with
-    `args[k-1]`). Same architectural shape as the Icon chain that landed in
-    IJ-HELLO-2; no new doctrine.
+  - [ ] **RK-BB-3a** (substrate) — extend `bb_iterate.cpp` for Raku's
+    \x01-string arrays. Polymorphic on the source DT (DT_S Icon `!"abc"`
+    stays bit-identical char-by-char; DT_S Raku-array \x01-scan yields
+    each substring between SOHs). Discriminator at α-time: a `lang`
+    field on `pBB` distinguishes the two semantics. Mode-2 executor
+    bb_exec.c:2227 likewise polymorphic.
+    Lowering: `lower_iterate` Raku branch builds BB graph wrapping
+    BB_ITERATE with the array variable as α-operand, wraps in
+    SM_BB_SWITCH(SM_BBSW_RK_GEN). `lower_every` finds the SWITCH and
+    engages the loop scaffold. Loop var stored on γ pull.
+    Gate: rk_for_array_simple flips green at mode-4 once 3.0 also lands.
 
-  ### Open questions for Lon (gating RK-BB-3a)
+  - [ ] **RK-BB-3b/c** — map/grep as Seq consumers. Once 3a's polymorphic
+    BB_ITERATE exists, lazy map = `BB_ITERATE(@arr)` → γ-side block runs
+    the lambda, leaves result on r12 → yield. grep = same with γ
+    predicate gate. Result materialization via the new `push` builtin
+    accumulating into a fresh \x01-string.
+
+  ### Recommended execution order
+
+  3.0 → 3d (commit together — they enable each other) → 3a (lowering +
+  template polymorphism, single commit) → 3b → 3c. Each commit gate-safe;
+  3.0+3d should land green movement even without 3a (rk_arrays, rk_str22,
+  rk_subs, rk_try_catch25 likely flip).
+
+  ### Open questions for Lon (gating RK-BB-3a; UPDATED post-correction)
 
   Q1. **Polymorphic BB_ITERATE or new BB_ARR_ITERATE kind?**
       Going polymorphic per "kinds are language-agnostic." Icon's existing
-      template behavior is preserved bit-identically for DT_S; the DT_DATA
-      branch is purely additive. Confirm?
+      template behavior is preserved bit-identically for char-by-char DT_S;
+      the Raku \x01-scan branch is gated on a discriminator field.
 
-  Q2. **FIELD_GET_fn call from inside a BB template** — is that within the
-      spirit of "no rt_*/raku_* port-logic helpers"? FIELD_GET_fn reads a
-      field from a DT_DATA frame; it is NOT port-logic (α/β/γ/ω routing). It
-      is data fetch, same category as the DESCR_t write-into-r12 idiom that
-      bb_suspend and bb_iterate already emit. Treating it as allowed; please
-      flag if not, in which case the DT_DATA path must read frame_size/
-      frame_elems via raw struct offsets (we'd need to fix the layout).
+  Q2. **\x01-string array representation — keep or revise?** Raku arrays
+      as SOH-delimited strings is unusual but documented in the test
+      corpus. It's lightweight (no new heap structure), works with
+      existing DT_S machinery, and serializes naturally. Alternatives:
+      DT_A (ARBLK_t, 1-based), DT_DATA Icon-list, or a new DT_RAKULIST.
+      Per "follow existing comments," keep \x01-string. Confirm?
 
-  Q3. **Raku-list materialization in `my @x = map { ... } @y`** — do you want
-      the result Seq to be eagerly drained into a fresh list (so `@x` is a
-      concrete list) or to stay as a lazy Seq object (so `for @x` re-pulls)?
-      Today's eager path drains; staying lazy needs a "Seq box" DT_DATA
-      `icn_type="seq"` value that carries the BB graph + state. Lazier is
-      truer to Raku; eager is one rung less to author. Mode-2 GATE-RK
-      passes today on `rk_map_grep_sort24` because of eager `raku_map` —
-      so eager-materialize keeps mode-2 working with zero changes.
+  Q3. **`my @x = map { ... } @y` materialization** — eager-drain into a
+      fresh \x01-string (one rung less, mode-2 keeps working) or stay
+      lazy as a Seq box (truer to Raku, needs a new value type carrying
+      the BB graph + state)? Recommend eager-drain for RK-BB-3b; lazy
+      is a future rung.
 
   ### What was DONE this session (pre-direction)
 
@@ -303,23 +312,99 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: d4cbefaf (RK-BB-3 substrate probe — test/raku/rk_for_array_simple)
-.github: HEAD (this update — RK-BB-3 substrate audit memo + decomposition)
+one4all: fcac4ab3 (RK-BB-3.0+3d infra — by-name dispatcher + chain hooks; gate-safe)
+.github: HEAD (handoff — RK-BB-3 substrate audit memo + decomposition + this update)
 corpus:  unchanged
 
-Gates at d4cbefaf (2026-05-27, Opus 4.7, RK-BB-3 substrate audit complete):
-  GATE-RK mode-2:  8/31   HOLD  (+1 fail from added probe; baseline 8 PASS unchanged)
-  GATE-RK4 mode-4: 9/31   HOLD  (+1 fail from added probe; baseline 9 PASS unchanged)
+Gates at fcac4ab3 (2026-05-27, Opus 4.7, RK-BB-3.0+3d infra landed):
+  GATE-RK mode-2:  8/31   HOLD  (no flip yet — see KNOWN GAP below)
+  GATE-RK4 mode-4: 9/31   HOLD  (no flip yet — see KNOWN GAP below)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
-  Icon all rungs:  198/34/36 HOLD
-  Prolog mode-4:   4/4    (was carried 1/4; unrelated upstream improvement)
-  GATE-PK: ⛔ harness segfault — INHERITED FROM upstream 6deb9f71 (SBL-ANY-1
-           + flat-driver α-label fix). Pre-6deb9f71 baseline was 455/64/590/6.
-           Owed: SBL-ANY session.
+  GATE-PK: ⛔ harness segfault — INHERITED. Owed: SBL-ANY session.
   FACT RULE grep:  0
   Build:           clean
+
+⛔ HANDOFF — Opus 4.7, 2026-05-27, fcac4ab3 (RK-BB-3.0+3d infra landed):
+
+INFRASTRUCTURE NOW IN PLACE:
+  - src/runtime/interp/raku_builtins_byname.c (NEW, ~250 LOC):
+      raku_try_call_builtin_by_name(fn, args, nargs, out) — pre-evaluated
+      DESCR_t args version (the AST-based raku_try_call_builtin was dead
+      code, reachable only from icn_call_builtin which itself is never
+      called). Implements: elems, arr_get, raku_substr/substr,
+      raku_index/index, raku_rindex/rindex, uc/lc/chars/length/raku_trim,
+      raku_sort, raku_die. Plus raku_try_mutating_builtin_by_name() with
+      push/pop/arr_set entry points (await lowering tweak — see GAP 2).
+  - sm_interp.c SM_CALL_FN dispatch — chains raku BEFORE icn when
+    g_lang == LANG_RAKU (gates on the language so Icon path bit-identical).
+  - rt.c rt_call (mode-4) — same chain, parallel structure.
+  - Makefile updated (RT_PIC_SRCS + cc rule).
+
+KNOWN GAP 1 — lower_fnc emits redundant c[0]:
+  Raku TT_FNC for `substr(s, 0, 5)` parses to:
+    t->v.sval = "substr", c = [TT_VAR("substr"), TT_VAR("s"),
+                               TT_LIT_I(0), TT_LIT_I(5)]
+  lower.c:558-559 emits ALL 4 children + SM_CALL_FN nargs=4. The first
+  push (var-value-of "substr") is a vestigial duplicate of the fn name —
+  the by-name dispatcher then sees args = [<garbage>, "s_value", 0, 5]
+  and the off-by-one means substr returns ""/FAIL instead of "hello".
+  Mode-2 substr now exits rc=0 with empty output (was Error 5 — the
+  chain IS firing) but still no test flips green.
+  RECOMMENDED FIX (next session, first move):
+    In lower.c:558-559, before the loop, detect when
+      nargs >= 1 && c[0] && c[0]->t == TT_VAR && c[0]->v.sval
+                 && t->v.sval && strcmp(c[0]->v.sval, t->v.sval) == 0
+    and skip c[0]: `for (int i = 1; i < nargs; i++)` + SM_CALL_FN nargs-1.
+    Affects ALL languages — check Icon/SNOBOL4 don't depend on the
+    duplicate push (run smoke_icon + GATE-PK after the change).
+  AFTER FIX, expected gate uplift (the new by-name handlers will reach
+  args correctly): rk_str22, rk_subs, rk_interp, rk_try_catch25 likely
+  flip in both mode-2 and mode-4. raku_sort uplifts on partial map_grep
+  test. Speculative count: +4..8 each gate.
+
+KNOWN GAP 2 — mutating ops (push/pop/arr_set) need lowering tweak:
+  These mutate the variable, so the dispatcher needs the var NAME, not
+  just the value. raku_try_mutating_builtin_by_name() is authored and
+  ready; the lowering for TT_FNC of push/pop/arr_set must push
+    SM_PUSH_LIT_S "<vname>"  BEFORE  SM_PUSH_VAR "<vname>"
+  so the by-name SM/rt dispatch can recognize the leading string arg as
+  a name. Mode-2 SM_CALL_FN handler needs a tiny adjustment to peel off
+  args[0] as the vname and call raku_try_mutating_builtin_by_name when
+  fn ∈ {push, pop, arr_set}. ~30 LOC across lower.c + sm_interp.c + rt.c.
+  AFTER FIX: rk_arrays, rk_for_array, rk_for_array_simple flip mode-2;
+  mode-4 follows immediately. Probably another +3..5 each gate.
+
+KNOWN GAP 3 — for @arr -> $v still needs BB_ITERATE polymorphism:
+  Even with GAP 1 + GAP 2 fixed, `for @arr -> $v` does not LOOP in mode-2;
+  the Raku lower_iterate branch (lower.c:1602-1607) emits the array
+  expression once and stores it to $v. The loop scaffold in lower_every
+  finds no SM_BB_SWITCH and degenerates to a single pass.
+  This is the original RK-BB-3a (substrate). After GAPs 1+2, the
+  for-array probe still won't flip, BUT rk_arrays will (it uses indexed
+  arr_get, not a for-loop). The for-loop work is its own rung.
+
+EXECUTION ORDER FOR NEXT SESSION (recommended):
+  1. Fix GAP 1 in lower.c (one branch in lower_fnc). Run all smokes +
+     GATE-RK + GATE-RK4 + GATE-PK + smoke_icon. Commit only if no
+     Icon/SNOBOL4 regression; the duplicate push may have been load-
+     bearing somewhere — be defensive (gate the suppression on LANG_RAKU
+     if needed).
+  2. Verify substr/sort/elems/arr_get flip green in mode-2 and mode-4.
+     Commit as RK-BB-3.0a (the part of 3.0 reachable without mutators).
+  3. Fix GAP 2 (lowering tweak + 3-line SM/rt dispatcher hook for
+     mutators). Commit as RK-BB-3.0b. Verify rk_arrays.
+  4. Then RK-BB-3a: BB_ITERATE polymorphic for-loop substrate.
+  5. RK-BB-3b/c: map/grep BB lowering.
+
+LATENT BUG NOTED (NOT BLOCKING): raku_builtins.c lines 144, 318, 353, 399
+use `call->c[1]->t == TERM_VAR` to test AST node type, but TERM_VAR=1
+(Prolog term tag) while TT_VAR=5 (AST tag). Check ALWAYS FAILS; the
+NAME-write-back branch in raku_subst etc. is unreachable. Not this
+session's scope but worth a SNOBOL4-or-RUNTIME-side cleanup goal.
+
+⛔ END HANDOFF
 
 ⛔ RK-BB-2 STEP 6 ✅ COMPLETE (2026-05-27, Opus 4.7, commit d08237e0):
 
