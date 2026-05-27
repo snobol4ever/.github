@@ -34,6 +34,7 @@ cd /home/claude/one4all && apt-get install -y libgc-dev && bash scripts/build_sc
 bash scripts/test_smoke_prolog.sh        # GATE-1: 5/5
 bash scripts/test_prolog_rung_suite.sh   # GATE-3: >= 85
 bash scripts/test_crosscheck_prolog.sh   # GATE-2: 132/0
+bash scripts/test_prolog_mode4_rung.sh   # GATE-4 (mode-4): PASS>=1 gates AGW-9 rungs (currently 0/4)
 ```
 
 **NEXT builtin targets (lower_pl.c recognizer + bb_exec.c BB_BUILTIN arm):**
@@ -103,38 +104,38 @@ For each `case BB_FOO:` in `bb_exec.c`:
 **Root diagnosis (three structural defects — read before any AGW-9 session):**
 
 1. **PL-1 — MODE-2/MODE-4 GAP IS WIDENING, NOT NARROWING.** Every new builtin added as `BB_BUILTIN` in `bb_exec.c` works in mode 2 and defers mode 4 further. There is no systematic plan for the transition. Sessions keep climbing the rung ladder (good) while the emitter gap grows (bad). Fix: designate a gate-guarded emitter track (AGW-9A..D) that runs in parallel and is required to keep pace — each new rung that lands in mode 2 must also land in mode 4 within two sessions, or it is flagged as debt.
-2. **PL-2 — `flat_drive_pl_seq` IN `emit_bb.c` VIOLATES TEMPLATE-PURITY (HQ Invariant 15).** The AGW-9 plan says to add a new driver function `flat_drive_pl_seq` in `walk_bb_flat`. But HQ Invariant 15 says ALL code emission goes through the template system via an XA_* opcode — no free-standing driver functions outside templates. `flat_drive_cat` was already eliminated by routing through `g_emit.xa_bb_ep_*` + XA opcodes. The correct AGW-9 pattern is: `bb_pl_seq.cpp` collects child boxes via `g_emit.xa_bb_ep_*` (same mechanism as `flat_drive_cat`/`flat_drive_fence`) and drives them through a new `XA_PL_SEQ_DRIVE` opcode in `XA_templates/`. NOT a new driver function in `emit_bb.c`.
-3. **PL-3 — NO GATE MEASURES MODE-4 PROLOG CORRECTNESS.** GATE-3 runs `--interp` only. Sessions cannot verify emitter work without a mode-4 rung gate. Fix: `test_prolog_mode4_rung.sh` (see PL-G-1 below), required before any AGW-9 rung is marked complete.
+2. **PL-2 — `flat_drive_pl_seq` IN `emit_bb.c` VIOLATES TEMPLATE-PURITY (HQ Invariant 15).** ⚠️ **CORRECTED 2026-05-27 (verified against tree at `87ed9b24`):** The original claim here — that `flat_drive_cat` "was already eliminated by routing through `g_emit.xa_bb_ep_*` + XA opcodes" — is FALSE. `flat_drive_cat/alt/fence` are LIVE driver functions in `emit_bb.c` (lines 271/321/343 at `87ed9b24`) and are the *established, working* pattern. The real, documented invariant (see header comment atop `xa_flat.cpp`): **the driver in `emit_bb.c` owns label minting + `emit_label_define_bb` + recursive `walk_bb_flat`/`walk_bb_node` calls and emits ZERO machine-code bytes; the leaf `.cpp` template (`bb_pat_cat.cpp` etc.) reads `g_emit.xa_bb_ep_*` and emits ALL the glue bytes.** This satisfies the FACT RULE (every byte comes from a template; the driver is byte-free). Therefore the correct AGW-9 pattern is to **mirror `flat_drive_cat`**: add `flat_drive_pl_seq` to `emit_bb.c` (byte-free recursion/label driver) + fill `bb_pl_seq.cpp` (emits the glue). DO NOT invent a new `XA_PL_SEQ_DRIVE` opcode — that would be an *unprecedented* pattern with no analog in the tree. `grep -n 'flat_drive' src/emitter/emit_bb.c` confirms the live drivers.
+3. **PL-3 — NO GATE MEASURES MODE-4 PROLOG CORRECTNESS.** GATE-3 runs `--interp` only. Sessions cannot verify emitter work without a mode-4 rung gate. Fix: `test_prolog_mode4_rung.sh` (see PL-G-1 below), required before any AGW-9 rung is marked complete. ✅ **DONE 2026-05-27** (PL-G-1).
+
+**PL-4 — MODE-4 TODAY REBUILDS THE BB GRAPH AT RUNTIME (the real AGW-9 target). ⚠️ ADDED 2026-05-27.** Verified at `87ed9b24`: mode-4 Prolog does NOT emit four-port Byrd-box logic. `xa_pl_builder.cpp` emits x86 that calls `rt_pl_b_begin/_node/_kids/_entry/_end_register` (rt.c:233+) to **reconstruct the `BB_graph_t` at standalone-binary startup**, then drives it at runtime via `bb_exec_once`/`bb_exec_resume` (the C walker in `pl_runtime.c`). This is the **sanctioned-temporary AGW-1c exception** noted in RULES.md ("Prolog `--run` routed through `sm_interp_run` … until the `bb_pl_*.cpp` templates land"). **Consequence for AGW-9:** filling `bb_pl_seq.cpp` in isolation will NOT make `m4-seq` pass, because the emit pipeline routes Prolog predicates through `xa_pl_builder` (graph-rebuild), NOT through `walk_bb_flat`/the `bb_pl_*` templates. AGW-9 is therefore a *two-part* job: (a) fill the `bb_pl_*` templates with real port logic (mirroring `flat_drive_cat` + `bb_pat_cat.cpp`), AND (b) re-route the Prolog mode-4 emit path from `xa_pl_builder` graph-rebuild to a `walk_bb_flat` port-DFS that drives the templates. Part (b) is the larger structural change and needs a Lon directive on sequencing. **Recommended order:** seq driver+template first (purely structural, lowest risk — `BB_PL_SEQ` bb_exec case is trivial "enter at α"), then call, then the stateful choice/alt (which need inline `trail_mark`/`trail_unwind`/env handling emitted as x86, the hard part).
 
 ---
 
 ### Phase PL-G — Gate infrastructure (PREREQUISITE for all AGW-9 work)
 
-#### PL-G-1 — Build `test_prolog_mode4_rung.sh` ⏳
-- [ ] Create `scripts/test_prolog_mode4_rung.sh`: for a minimal Prolog program (e.g. `main :- X is 1+2, write(X), nl.`) run `scrip --compile --target=x86 file.pl` → assemble → link → execute, diff stdout against `scrip --interp file.pl`. PASS=N FAIL=M format.
-- [ ] Wire into Session Setup. Zero passing initially is fine — the script just needs to exist.
-- [ ] **Gate threshold: mode-4 PASS ≥ 1 before any AGW-9 rung is marked complete.** (HQ Invariant 0: a stub returning empty string is NOT done.)
+#### PL-G-1 — Build `test_prolog_mode4_rung.sh` ✅ (2026-05-27)
+- [x] Create `scripts/test_prolog_mode4_rung.sh`: for 4 minimal Prolog programs (m4-seq `main :- X is 1+2, write(X), nl.`; m4-call; m4-choice; m4-alt) run `scrip --compile --target=x86 file.pl` → assemble → link → execute (via `run_prolog_via_x86_backend.sh`), diff stdout against `scrip --interp file.pl`. PASS=N FAIL=M format.
+- [x] Script exists and runs. **Baseline: PASS=0 FAIL=4** (all four structural constructs fail — segfault — because `bb_pl_seq/call/choice/alt.cpp` are empty stubs; interp gives the correct answers `3`/`hi`/`a`/`ok`). This correctly measures the AGW-9 gap.
+- [x] **Gate threshold recorded: mode-4 PASS ≥ 1 before any AGW-9 rung is marked complete.** (HQ Invariant 0: a stub returning empty string is NOT done.)
 
 ---
 
-### Phase PL-AGW-9A — Seq emitter via XA opcode (NOT a `flat_drive_*` driver)
+### Phase PL-AGW-9A — Seq emitter (mirror `flat_drive_cat` + `bb_pat_cat.cpp`)
 
-**Architecture mandate:** `bb_pl_seq.cpp` does NOT add a `flat_drive_pl_seq` function to `emit_bb.c`. Instead it collects child-box labels via `g_emit.xa_bb_ep_*` and fires an `XA_PL_SEQ_DRIVE` opcode, mirroring how `xa_flat.cpp` handles `flat_drive_cat/alt/fence` (see IFT-4 work that de-drove them). This keeps `emit_bb.c` driver-free.
+**Architecture mandate (CORRECTED 2026-05-27):** mirror the LIVE `flat_drive_cat` pattern. Add `flat_drive_pl_seq` to `emit_bb.c` (byte-free: mints labels, recursively `walk_bb_flat`s the conjunction goals following the lower-time γ-chain, populates `g_emit.xa_bb_ep_*` glue via `EP_*` macros, then `EP_FILL` → `walk_bb_node` → `bb_pl_seq.cpp`). Fill `bb_pl_seq.cpp` to read `g_emit.xa_bb_ep_*` and emit the glue (label-defs + `jmp`s), exactly like `bb_pat_cat_str`'s TEXT arm. **No `XA_PL_SEQ_DRIVE` opcode — that pattern does not exist in the tree.** ALSO requires PL-4 part (b): re-route the Prolog mode-4 emit entry from `xa_pl_builder` graph-rebuild to a `walk_bb_flat` port-DFS (Lon directive needed on sequencing).
 
-#### PL-AGW-9A-1 — Read `xa_flat.cpp` and IFT-4 precedent before writing any code ⏳
-- [ ] `view /home/claude/one4all/src/emitter/XA_templates/xa_flat.cpp` — understand the `XA_BB_EP_*` collection pattern and how `flat_drive_cat` was eliminated.
-- [ ] `grep -n "xa_bb_ep\|XA_BB_EP\|flat_drive" /home/claude/one4all/src/emitter/emit_bb.c` — confirm `flat_drive_cat/alt/fence` are gone; `g_emit.xa_bb_ep_*` is the collection mechanism.
-- [ ] Document the pattern in a comment at top of `bb_pl_seq.cpp` before writing any emission code.
+#### PL-AGW-9A-1 — Read precedent before writing any code ✅ (2026-05-27)
+- [x] `view xa_flat.cpp` — header documents the real invariant (driver owns labels; template emits bytes). `flat_drive_cat/alt/fence` are LIVE in `emit_bb.c`.
+- [x] `grep -n flat_drive emit_bb.c` — confirms drivers present (271/321/343), NOT eliminated. `g_emit.xa_bb_ep_*` + `EP_*` macros are the glue-collection mechanism; `bb_pat_cat.cpp` TEXT arm is the model to copy.
+- [x] Read `lower_pl.c` BB_PL_SEQ construction (line 198): SEQ is pure structural, α=first goal, goals chained via their own pre-wired γ/ω port pointers. Read `bb_exec.c` BB_PL_SEQ case (2096): trivial "enter at α."
 
-#### PL-AGW-9A-2 — Add `XA_PL_SEQ_DRIVE` opcode + `xa_pl_seq_drive.cpp` ⏳
-- [ ] Add `XA_PL_SEQ_DRIVE` to the `XA_op_t` enum (next available slot). Wire into `xa_dispatch` in `emit_core.c`.
-- [ ] Create `src/emitter/XA_templates/xa_pl_seq_drive.cpp`. TEXT body: walk collected child boxes back-to-front (goal[n-1] first with γ=γ_in; i=n-2..0 with γ=goal_α[i+1]); wire `goal[i].ω=goal_β[i-1]`; emit each child via `walk_bb_node`. Return concatenated string.
-- [ ] Gate: build clean. `util_template_purity_audit.sh` AUDIT GREEN.
+#### PL-AGW-9A-2 — Re-route Prolog mode-4 emit to port-DFS ⏳ (NEW — was the bogus XA opcode step; blocks 9A-3)
+- [ ] **Lon decision needed:** how to sequence retiring the `xa_pl_builder` graph-rebuild path. Until Prolog predicates emit via `walk_bb_flat`, filling `bb_pl_seq.cpp` is dead code (gate stays PASS=0).
+- [ ] Add a `walk_bb_flat`-based predicate emitter that follows the four-port graph and drives `bb_pl_*` templates, replacing the `rt_pl_b_*` reconstruct-at-runtime calls for the covered constructs.
 
-#### PL-AGW-9A-3 — Fill `bb_pl_seq.cpp` via `XA_PL_SEQ_DRIVE` ⏳
-- [ ] `bb_pl_seq.cpp` TEXT body: collect child goals into `g_emit.xa_bb_ep_*`; set α/β/γ/ω labels; fire `XA_PL_SEQ_DRIVE`. Return the produced string.
-- [ ] BINARY body: stub (two `jmp` placeholder) — fill after TEXT is verified.
-- [ ] Gate: `util_prolog_template_emptiness_audit.sh` EMPTY 4→3. `test_prolog_mode4_rung.sh` PASS ≥ 1 (a conjunction must pass). GATE-1 5/5. GATE-3 ≥ 85.
+#### PL-AGW-9A-3 — Fill `bb_pl_seq.cpp` (mirror `bb_pat_cat_str` TEXT arm) ⏳
+- [ ] `bb_pl_seq.cpp` TEXT body: `FOR(0, g_emit.xa_bb_ep_n, ...)` emitting `define:` + `jmp` per glue entry (copy `bb_pat_cat_str`). `flat_drive_pl_seq` in `emit_bb.c` does the recursion + label minting.
+- [ ] Gate: `util_prolog_template_emptiness_audit.sh` EMPTY 4→3. `test_prolog_mode4_rung.sh` m4-seq PASS (≥1 total). GATE-1 5/5. GATE-3 ≥ 85.
 
 ---
 
