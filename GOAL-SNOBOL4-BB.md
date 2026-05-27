@@ -1,4 +1,4 @@
-# GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates: fill hollow x86 arms
+# GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
 **Repo:** one4all + corpus + .github
 **Sister:** GOAL-HEADQUARTERS.md · GOAL-MODE4-SN4-SNOCONE.md · GOAL-PROLOG-BB.md · GOAL-ICON-BB.md
@@ -12,72 +12,45 @@
 ```
 SNOBOL4 source → CMPILE parser → tree_t* → lower_pat_dcg.c (BB_lower_pat)
     → BB_graph_t (BB_PAT_* nodes, four-port-wired)
-    → [mode 2] bb_exec.c: case BB_PAT_*  (correctness oracle — read this first)
-    → [mode 4] walk_bb_flat → FILL macro → walk_bb_node → emit_core dispatch
+    → [mode 2] bb_exec.c: case BB_PAT_*  (correctness oracle)
+    → [mode 4] walk_bb_flat → FILL → walk_bb_node → emit_core
                → BB_templates/bb_pat_*.cpp TEXT arm (inline GAS)
-               → BB_templates/bb_pat_*.cpp BINARY arm (raw x86 bytes via bb_bin_t)
+               → BB_templates/bb_pat_*.cpp BINARY arm (raw x86 via bb_bin_t)
 ```
 
-**Mode 2 (`--interp`):** `sm_interp.c SM_EXEC_STMT` → `exec_stmt_blob` → `bb_build_brokered` → `bb_broker` → dispatched x86 blob from template BINARY arm. ALSO: `bb_exec.c case BB_PAT_*` is the pure-C correctness reference for mode-2 direct execution.
-
-**Mode 3 (`--run`):** `sm_interp.c SM_EXEC_STMT` → `rt_match_blob` → `exec_stmt_blob` → `bb_build_flat` → inline x86 blob from template TEXT arm.
-
-**Mode 4 (`--compile`):** `codegen_sm_x86` → `walk_bb_pattern_blobs` → `codegen_flat_build` → `walk_bb_flat` → FILL macro → `walk_bb_node` → template TEXT arm → emits GAS.
+- **Mode 2 (`--interp`):** `SM_EXEC_STMT` → `exec_stmt_blob` → `bb_build_brokered` → `bb_broker` → dispatched x86 blob from template BINARY arm. ALSO: `bb_exec.c case BB_PAT_*` is the pure-C correctness reference.
+- **Mode 3 (`--run`):** `SM_EXEC_STMT` → `rt_match_blob` → `exec_stmt_blob` → `bb_build_flat` → inline x86 from template TEXT arm.
+- **Mode 4 (`--compile`):** `codegen_sm_x86` → `walk_bb_pattern_blobs` → `codegen_flat_build` → `walk_bb_flat` → FILL → `walk_bb_node` → template TEXT arm → GAS.
 
 **Absolute rules (RULES.md):**
 - No C Byrd boxes. No `DESCR_t foo(void *zeta, int entry)` implementing α/β/γ/ω.
 - TEMPLATE-PURITY: every `_str()` body is `state → std::string`, zero `emit_text_n` inside.
-- ONE x86 PRODUCER: all emission via template functions in `BB_templates/`.
-- HQ Invariant 0: returning `std::string()` is a STUB, not an implementation.
-- X86 ONLY FOR NOW — do not write JVM/JS/NET/WASM arms until directed.
-
----
-
-## ⚡ THE ACTUAL PROBLEM (read before touching any source)
-
-Six `BB_PAT_*` templates have **`if (PLATFORM_X86) { return std::string(); }`** — they emit **zero bytes** in x86 mode:
-
-| Template | BB kind | What's missing |
-|---|---|---|
-| `bb_pat_any.cpp` | BB_PAT_ANY | complete x86 TEXT + BINARY arms |
-| `bb_pat_span.cpp` | BB_PAT_SPAN | complete x86 TEXT + BINARY arms |
-| `bb_pat_break.cpp` | BB_PAT_BREAK | complete x86 TEXT + BINARY arms |
-| `bb_pat_notany.cpp` | BB_PAT_NOTANY | complete x86 TEXT + BINARY arms |
-| `bb_arbno.cpp` | BB_PAT_ARBNO | complete x86 TEXT + BINARY arms |
-| `bb_capture.cpp` | BB_PAT_ASSIGN_IMM / BB_PAT_ASSIGN_COND | complete x86 TEXT + BINARY arms |
-
-**Why they're empty:** These were previously backed by C Byrd-box functions in `bb_boxes.c` (the dispatched `bb_build_brokered` path — `DESCR_t bb_any_fn(void *ζ, int entry)` etc.). Those C functions are now deleted per the FACT RULE (zero C Byrd boxes). The templates were created as placeholders — JVM/JS/NET/WASM arms exist — but the x86 arms were never written. **This is the work.**
-
-The following are correctly filled and not the subject of this goal:
-- BB_PAT_LIT (`bb_lit.cpp`) ✅, BB_PAT_ARB (`bb_pat_arb.cpp`) ✅, BB_PAT_LEN ✅, BB_PAT_POS/RPOS ✅, BB_PAT_TAB/RTAB ✅, BB_PAT_REM ✅, BB_PAT_ALT ✅, BB_PAT_CAT ✅, BB_PAT_FENCE ✅, BB_PAT_ABORT ✅, BB_EPS ✅, BB_FAIL ✅
+- ONE x86 PRODUCER: all emission via `BB_templates/` template functions.
+- HQ Invariant 0: returning `std::string()` is a STUB.
+- X86 ONLY FOR NOW — no JVM/JS/NET/WASM arms until directed.
 
 ---
 
 ## Architecture: what the x86 TEXT arm must emit
 
-`walk_bb_flat` calls `FILL(nd, lbl_γ, lbl_ω, lbl_β)` which sets `g_emit.lbl_α/β/γ/ω` then calls `walk_bb_node(nd)` which dispatches to the template. The template must emit:
+`walk_bb_flat` calls `FILL(nd, lbl_γ, lbl_ω, lbl_β)` which sets `g_emit.lbl_α/β/γ/ω` then calls `walk_bb_node(nd)`. The template emits:
 
 ```
-<lbl_α>:    α-port code (fresh entry — attempt match, advance Δ, jump lbl_γ or lbl_ω)
-<lbl_β>:    β-port code (retry entry — undo, advance differently, jump lbl_γ or lbl_ω)
+<lbl_α>:    α-port code (fresh entry — match, advance Δ, jump γ or ω)
+<lbl_β>:    β-port code (retry — undo, advance differently, jump γ or ω)
             (some kinds: β = lbl_ω directly — no retry)
 ```
 
-**Runtime state available in TEXT arm:**
-- `[r10]` = Δ (cursor, 32-bit int, `[r10]` in GAS intel syntax) — the scan position
-- `[rip + Σ]` = pointer to subject string (extern symbol `Σ` in `emit_bb.c`)
-- `[rip + Σlen]` = subject length (extern `Σlen`)
-- Per-node static data: `.data` section label, referenced via `[rip + .Lfoo<id>]`
-- `nd->sval` = charset string (for ANY/SPAN/BREAK/NOTANY) — baked into `.data` at emit time
-- `nd->counter` (int64) = runtime mutable state for generators (SPAN β uses it)
+**Runtime state in TEXT arm:**
+- `[r10]` = Δ (cursor, 32-bit int) — scan position
+- `[rip + Σ]` = pointer to subject string; `[rip + Σlen]` = length
+- Per-node static data: `.data` label `[rip + .Lfoo<id>]`
+- `nd->sval` = charset string (ANY/SPAN/BREAK/NOTANY) — baked into `.data`
+- `nd->counter` (int64) = runtime mutable state for generators (SPAN β)
 
-**Runtime state available in BINARY arm:**
-- `g_emit.bb_cs_zeta` = `rt_cs_new(nd->sval)` — pre-allocated charset object (already set in the `bb_pat_any` wrapper before `_str()` is called)
-- The BINARY arm emits raw x86 bytes; `bb_bin_t` carries the rel32 fixup site list
+**BINARY arm:** `g_emit.bb_cs_zeta = rt_cs_new(nd->sval)` pre-allocated; emits raw bytes; `bb_bin_t` carries rel32 fixup site list.
 
-**Semantic oracle:** `bb_exec.c case BB_PAT_*` — each case shows exactly what α (state==0) and β (state>0) must do. Read this before writing each template. The x86 must implement the same logic.
-
-**Reference for charset operations:** `rt_cs_*` functions exist in `rt.c` for BINARY; for TEXT the charset string is baked inline as a `.rodata` byte array or via `emit_intern_str`.
+**Semantic oracle:** `bb_exec.c case BB_PAT_*` — α (state==0) and β (state>0) logic.
 
 ---
 
@@ -89,861 +62,170 @@ bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 ```
 
-Gates (run before and after every change):
+Gates:
 ```bash
-bash scripts/test_smoke_snobol4.sh                # GATE-1: 7/7 (--interp + --run)
-bash scripts/test_smoke_unified_broker.sh         # GATE-2: 23/23
-bash scripts/test_mode4_broad_corpus_snobol4.sh   # GATE-3: ≥250/280
-bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern kinds
+bash scripts/test_smoke_snobol4.sh                # GATE-1: 7/7
+bash scripts/test_smoke_unified_broker.sh         # GATE-2: 24
+bash scripts/test_mode4_broad_corpus_snobol4.sh   # GATE-3: ≥174/280
+bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=15, M4=15, SKIP=0
 ```
 
 ---
 
 ## Open Rungs (priority order)
 
-### Phase SBL-G — Gate infrastructure (do first)
+### NEXT: SBL-DCG-DEFER-M4 — patnd_to_bb_graph translator (PARTIAL ✅⏳)
 
-#### SBL-G-1 — Build `test_snobol4_pat_rung_suite.sh` ✅ (2026-05-27)
-- [x] Create `scripts/test_snobol4_pat_rung_suite.sh`: runs all `.sno` in `test/snobol4/patterns/` (038–057) via `--interp` and `--compile`. Reports PASS-M2/PASS-M4 separately. SPITBOL x64 oracle outputs baked inline (self-contained).
-- [x] Baseline established BEFORE any template change: **M2=9/19, M4=0/19** (compile/link blocked at assembler stage by the macro-annotation bug, see below). Broad corpus baseline = **121/280** at clean HEAD `3a522bd8` (the goal's prior "250" figure was a stale corpus-state number).
-- [x] Gate threshold active: M2 must not drop below 9. M4 climbs per rung.
+**Status:** Translator implemented + wired into `bb_exec.c case BB_PAT_DEFER` DT_P branch ✅ (commit `954236f5`). M2 rung suite 15→16. **`stmt_exec.c` DT_P wiring still pending.** Pre-existing `bb_reset` counter-clobber bug for BB_PAT_ARBNO blocks the expected +15 broad-corpus uplift until separately fixed.
 
-#### SBL-G-2 — Re-freeze GATE-PK for pattern kinds ⏳
-- [ ] Run `bash scripts/test_per_kind_diff.sh`. For each BB_PAT_* kind: the PLATFORM_X86 empty template produces `std::string()` = empty baseline. Confirm cells are frozen as empty. If they aren't re-freeze them now.
-- [ ] **After filling a template:** re-freeze that kind's cell immediately. Do not leave stale baselines — they make regressions invisible.
+**Problem:** `exec_stmt` DT_P branch in `stmt_exec.c:289-322` casts `PATND_t*` → `BB_t*` via `bb_build_brokered`. PATND's first field is `XKIND_t kind` (XCHR=0, XSPNC=1, ...); BB's first field is `BB_op_t t` (BB_FAIL≈0, BB_PAT_LIT=59, ...). Misread opcode → broker emits wrong-kind code → fails. Affects BOTH mode-2 and mode-4 — same root cause for var-stored patterns.
 
----
+**Fix:** `BB_graph_t *patnd_to_bb_graph(PATND_t *pp)` in `lower_pat_dcg.c` — runtime PATND→BB_graph_t translator parallel to `build_node`. No template code touched.
 
-### Phase SBL-ANY — `bb_pat_any.cpp` x86 arms
+**PATND→BB_op_t mapping** (from git history audit of deleted `rt_bb_*`):
 
-**Semantic (from `bb_exec.c` BB_PAT_ANY):**
-- **α (state==0):** if Δ ≥ Σlen or Σ[Δ] not in chars → ω. Else: save Δ, advance Δ by 1, return γ.
-- **β (state>0):** undo: Δ--, return ω. (No retry — ANY matches exactly one char.)
+| PATND kind | BB_op_t | Notes |
+|------------|---------|-------|
+| XCHR | BB_PAT_LIT | sval = pp->STRVAL_fn |
+| XSPNC | BB_PAT_SPAN | sval; β=self |
+| XBRKC | BB_PAT_BREAK | sval; ival=0 |
+| XBRKX | BB_PAT_BREAK | sval; ival=1; β=self |
+| XANYC | BB_PAT_ANY | sval |
+| XNNYC | BB_PAT_NOTANY | sval |
+| XLNTH | BB_PAT_LEN | ival = pp->num |
+| XPOSI | BB_PAT_POS | ival; sval=NULL |
+| XRPSI | BB_PAT_POS | ival; sval="r" |
+| XTB | BB_PAT_TAB | ival; sval=NULL |
+| XRTB | BB_PAT_TAB | ival; sval="r" |
+| XFARB | BB_PAT_ARB | β=self |
+| XARBN | BB_PAT_ARBNO | inner via patnd_to_bb_graph; bb_arbno_state_t in counter |
+| XSTAR | BB_PAT_REM | |
+| XFNCE | BB_PAT_FENCE | nchildren 0 (bare) or 1 (FENCE(inner)) |
+| XFAIL | BB_FAIL | |
+| XABRT | BB_PAT_ABORT | |
+| XEPS | BB_PAT_LIT("") | no BB_EPS enumerator; empty literal matches 0 chars |
+| XCAT | BB_PAT_CAT | variadic; right-fold |
+| XOR | BB_PAT_ALT | variadic; right-fold |
+| XDSAR | BB_PAT_DEFER | sval = pp->STRVAL_fn; ival=0 |
+| XFNME | BB_PAT_ASSIGN_IMM | sval=varname; child via translator |
+| XNME | BB_PAT_ASSIGN_COND | same as XFNME |
+| XVAR/XBAL/XATP/XCALLCAP/XSUCF | (skip v1) | not in current corpus |
 
-#### SBL-ANY-1 — Fill `bb_pat_any.cpp` TEXT arm ✅ (2026-05-27, `308e0378`)
-- [x] x86 TEXT arm filled, verified line-for-line vs recovered `bb_any.s` (`660339cd~1`). α: load Δ via `[r10]`, `cmp [rip+Σlen]`, `jge ω`; load `Σ[Δ]`, `strchr@PLT` against `emit_intern_str` charset, `je ω`; `inc Δ; jmp γ`. β: `dec Δ; jmp ω`. Verified 'apple' (scan0) + 'hello' (scan1 backtrack). GATE-1 mode-2 7/7. (orig TEXT-arm subtasks below superseded)
-- [ ] α: load `[r10]` (Δ); compare against `[rip+Σlen]`; jge ω. Load `Σ[Δ]`; call `strchr` with charset (inlined or via `.rodata`); test result; je ω. Increment `[r10]`; jmp γ.
-- [ ] β: decrement `[r10]`; jmp ω.
-- [ ] Charset: bake `nd->sval` into `.section .data` as `.Lany<id>_cs: .asciz "..."`, reference via `[rip + .Lany<id>_cs]` in the `strchr` call.
-- [ ] Label convention: `.Lany<id>_α:` / `.Lany<id>_β:` where `id = bb_node_id(pBB)`.
-- [ ] Gate: GATE-PK re-frozen for BB_PAT_ANY. GATE-1 7/7, GATE-2 23/23.
+**Pending — stmt_exec.c DT_P wiring (NEXT):** The legacy path builds a `bb_box_fn` and stores it in `root` (`bb_node_t`); later `bb_broker(root, bb_scan, scan_body_fn_u9, &scan_res)` at `stmt_exec.c:367` runs the scan loop with capture-recording callback. Intercepting cleanly requires either (a) parallel scan loop on `bb_exec_pat` that records `match_start`/`match_end` the same way, or (b) thin `bb_box_fn` wrapper hiding a translated graph behind the broker API. Either way, must preserve `Phase4` semantics (capture commit, replacement substitution).
 
-#### SBL-ANY-2 — Fill `bb_pat_any.cpp` BINARY arm ⏳
-- [ ] `g_emit.bb_cs_zeta = rt_cs_new(nd->sval)` is already called in the wrapper before `_str()`. Use `g_emit.bb_cs_zeta` pointer (embedded as imm64 in the binary blob) as the charset lookup object.
-- [ ] Emit raw x86 bytes mirroring the TEXT arm logic. `bb_bin_t` sites: list every rel32 fixup (jge ω, je ω, jmp γ, jmp ω for β).
-- [ ] Reference: `bb_pat_len.cpp` BINARY arm for the `bb_bin_t` site-list pattern. Reference: `bb_pat_break.cpp` BINARY arm (if it has one) or compare to the known-good `bb_pat_pos.cpp`.
-- [ ] Gate: GATE-PK BINARY cell re-frozen. Mode-3 ANY probe matches `--interp`.
-
----
-
-### Phase SBL-NOTANY — `bb_pat_notany.cpp` x86 arms
-
-**Semantic (from `bb_exec.c` BB_PAT_NOTANY):**
-- **α:** if Δ ≥ Σlen or Σ[Δ] IN chars → ω. Else: advance Δ by 1, return γ.
-- **β:** undo Δ--, return ω.
-- Identical shape to ANY but with the `strchr` sense inverted.
-
-#### SBL-NOTANY-1 — Fill `bb_pat_notany.cpp` TEXT arm ✅ (2026-05-27)
-- [x] Same structure as SBL-ANY-1 with `strchr` success meaning failure. Mirrored ANY exactly; the sole logic delta is `jne ω` (NOTANY fails when char IS in set) vs ANY's `je ω`. Verified: `'hello' NOTANY('xyz')`→matched (m2=m4); anchored `'aeiou' NOTANY('aeiou')`→no match (m2=m4). Broad corpus 137→138.
-- [x] Gate: GATE-1 7/7, GATE-2 23/23. No regression.
-
-#### SBL-NOTANY-2 — Fill `bb_pat_notany.cpp` BINARY arm ⏳
-- [ ] Gate: GATE-PK BINARY re-frozen. Mode-3 NOTANY probe matches `--interp`.
+**Also pending — SBL-ARBNO-COUNTER-RESET:** `scrip_ir.c:114` `bb_reset()` blindly zeros `nd->counter` for every node. BB_PAT_ARBNO stores its `bb_arbno_state_t*` aux pointer in `nd->counter` — wiped on every `bb_exec_once`. Same affects BB_PROC_GEN, BB_PL_SEQ, BB_CHOICE. Fix: kind-aware reset. Blocks ARBNO(*var) corpus family (070-074); must be fixed alongside stmt_exec wiring for full +15 broad-corpus uplift.
 
 ---
 
-### Phase SBL-BREAK — `bb_pat_break.cpp` x86 arms
+### SBL-G-2 — Re-freeze GATE-PK for pattern kinds ⏳
+- [ ] After filling each template, re-freeze its kind's cell in `test_per_kind_diff.sh`. Current baseline references DELETED `rt_bb_*` C boxes — stale.
 
-**Semantic (from `bb_exec.c` BB_PAT_BREAK):**
-- **α (state==0):** scan forward while Σ[Δ+i] not in chars; i = matched length. Save i in counter. Advance Δ by i. Return γ. (BREAK always succeeds, even on i=0 — it matches zero chars up to the break char.)
-- **β (state>0):** restore Δ -= counter; return ω. (No retry.)
+### SBL-ANY-2 — Fill `bb_pat_any.cpp` BINARY arm ⏳
+- [ ] Use `g_emit.bb_cs_zeta` (pre-allocated by wrapper). Mirror TEXT arm logic in raw bytes. `bb_bin_t` rel32 fixups: jge ω, je ω, jmp γ, jmp ω. Reference: `bb_pat_len.cpp` BINARY arm.
 
-#### SBL-BREAK-1 — Fill `bb_pat_break.cpp` TEXT arm ✅ (2026-05-27)
-- [x] α: forward scan loop with `strchr` (inverted from SPAN: `jnz dn` — BREAK stops when char IS found). Always succeeds, even on i=0. Saved len in `.Lbrk<id>_z`. Advance Δ. jmp γ.
-- [x] β: plain non-generator: `Δ -= counter; jmp ω`.
-- [x] BREAKX (`nd->ival==1`) NOT YET implemented — plain BREAK only (`nd->ival==0`). SBL-BREAKX-1/2 still open.
-- [x] Verified: `'hello world' BREAK(' ')`→matched (m2=m4); `'xyz' BREAK('abc')`→matched (whole string, no break char) (m2=m4); `' xyz' BREAK(' ')`→matched (empty span at break char) (m2=m4). Broad corpus 139→141.
-- [x] Gate: GATE-1 7/7, GATE-2 23/23. No regression.
+### SBL-NOTANY-2, SBL-BREAK-2, SBL-SPAN-2, SBL-ARBNO-3, SBL-CAP-2 — BINARY arms ⏳
+- [ ] Mode-3 BINARY parallel for the six TEXT arms. Once all green, mode-3 `--run` smoke should climb.
 
-#### SBL-BREAK-2 — Fill `bb_pat_break.cpp` BINARY arm ⏳
-- [ ] Gate: GATE-PK BINARY re-frozen. Mode-3 BREAK probe matches `--interp`.
+### SBL-BREAKX-2 — BREAKX β in TEXT arm ⏳
+- [x] SBL-BREAKX-1 (SM_PAT_BREAKX opcode wiring) ✅ `7c834dea`
+- [x] SBL-BREAKX-3 (TT_BREAKX case in lower_pat_dcg.c::build_node) ✅ `da2bc106`
+- [ ] BREAKX β rescan in `bb_pat_break.cpp` TEXT arm when `pBB->ival==1`. Reference deleted `rt_bb_brkx` body (git show `0206b998 -- src/runtime/rt/rt.c`). Add rung 058 to exercise it.
 
----
+### SBL-ATP — `@var` cursor capture ⏳
+- [ ] Add `BB_PAT_ATP` to `BB_op_t` enum in `BB.h`.
+- [ ] Lowering in `lower_pat_dcg.c` for `@var`: `nd->sval=varname; nd->α=nd; nd->β=fp; nd->γ=sp; nd->ω=fp`.
+- [ ] `bb_exec.c case BB_PAT_ATP`: α writes Δ as int DESCR to varname via NV_SET; return γ. β: return ω.
+- [ ] Create `bb_pat_atp.cpp` template + emit_core dispatch. α: `call rt_nv_set_int@PLT(varname, Δ); jmp γ`. β: `jmp ω`.
 
-### Phase SBL-SPAN — `bb_pat_span.cpp` x86 arms
+### SBL-LOWER-CLEANUP ⏳
+- [ ] Delete `lower_subj_pat_split` and inline duplicate at lower.c:1750 once Snocone confirmed not using them (check `lower.c:1655`).
 
-**Semantic (from `bb_exec.c` BB_PAT_SPAN):**
-- **α (state==0):** scan forward while Σ[Δ+i] IN chars; i = matched length. If i==0 → ω. Save i in counter. Advance Δ by i. Return γ.
-- **β (state==1):** undo partial: Δ -= counter; counter--; if counter < 1 → ω. Re-advance Δ by counter. Return γ. (SPAN backtracks one char at a time.)
-- **β (state==2 / exhausted):** return ω.
-- SPAN is a **generator** — it yields shorter and shorter matches on successive β entries.
+### SBL-VERIFY-1, SBL-VERIFY-2 — corpus climb ⏳
+- [ ] After all BINARY arms + SBL-ATP + SBL-DCG-DEFER-M4: target ≥260/280 broad corpus.
 
-#### SBL-SPAN-1 — Fill `bb_pat_span.cpp` TEXT arm ✅ (2026-05-27)
-- [x] α: forward scan loop with `strchr` (transcribed from recovered `bb_span.s`, r11=Σ base preserved across `strchr@PLT` via push/pop). If matched-len==0: jmp ω. Stored len in `.Lspan<id>_z+0`, base Δ in `+4`. Advance Δ. jmp γ.
-- [x] β: GENERATOR form (per bb_exec.c oracle, NOT the simple .s β): load base from `+4`, counter from `+0`, decrement; if <1 jmp ω; store new counter; Δ = base+counter; jmp γ. Modeled on filled `bb_pat_arb.cpp` two-long `.data` slot.
-- [x] Verified: `'aaabbb' SPAN('a')`→matched (m2=m4); `'aaab' SPAN('ab') 'b'`→matched via backtrack from 'aaab' to 'aaa' (m2=m4). Broad corpus 138→139.
-- [x] Gate: GATE-1 7/7, GATE-2 23/23. No regression.
+### SBL-SM-BINARY (HQ-track) ⏳
+`sm_pat_nullary.cpp` BINARY arm embeds emitter-process `rt_pat_*` function pointer as imm64 → violates Invariant-8 (MEDIUM_BINARY must not embed emitter-process pointers). Fix: call `rt_pat_*@PLT` directly. Track as `SM-BINARY-PAT-FIX` in GOAL-HEADQUARTERS.
 
-#### SBL-SPAN-2 — Fill `bb_pat_span.cpp` BINARY arm ⏳
-- [ ] Gate: GATE-PK BINARY re-frozen. Mode-3 SPAN probe matches `--interp`.
+### Pre-existing m2 oracle gaps (audit-only) ⏳
+Rungs 044/045/046/048/052/054/055/056/057 fail in m2 too. `bb_exec.c` doesn't implement what the rung suite oracle expects for POS/RPOS/TAB/REM/star_deref/fail_builtin. Separate session.
 
 ---
 
-### Phase SBL-ARBNO — `bb_arbno.cpp` x86 arms
+## Completed (summary)
 
-**Semantic (from `bb_exec.c` BB_PAT_ARBNO):**
-- **α (state==0):** greedily match inner sub-graph as many times as possible; push each Δ position onto `az->pos_stack`. Set `nd->state = depth`. Return γ. (ARBNO first yields the longest match.)
-- **β (state>0):** `nd->state--`; if state < 0 → ω. Restore Δ from `pos_stack[state-1]` (or `az->saved_delta` if state==0). Return γ. (ARBNO yields one fewer repetition each β.)
-- **Inner sub-graph:** `(bb_arbno_state_t*)(intptr_t)nd->counter` → `az->inner` (a `BB_graph_t*`). Must call `bb_exec_once(az->inner)` to match inner (mode-2 reference). In mode-4 TEXT arm: the inner sub-graph is pre-built as a separate flat blob; its α label is available via `g_emit.bb_child_lbl` (set by `walk_bb_flat` for ARBNO — see `case BB_PAT_ARBNO:` in emit_bb.c which sets `g_emit.child_fn`).
+**Templates with x86 TEXT arms filled:**
+LIT, ARB, LEN, POS/RPOS, TAB/RTAB, REM, ALT, CAT, FENCE, ABORT, EPS, FAIL — pre-existing
+ANY, NOTANY, BREAK (plain), SPAN, ARBNO, CAPTURE — this work
+DEFER — SBL-DCG-DEFER `2b68dc44`
 
-#### SBL-ARBNO-1 — Understand the child-blob mechanism first ✅ (2026-05-27)
-- [x] Confirmed: `walk_bb_flat` `case BB_PAT_ARBNO:` sets `g_emit.child_fn` from `child_cache_get(ch)`; `pre_build_children_text` emits the inner blob as a separate `codegen_flat_body` at prefix `<base>_c<N>` with its own α/β/γ/ω globals; `bb_prepare_capture_arbno` populates `g_emit.bb_child_lbl` with the child's α-label via `child_cache_get_lbl`. The TEXT arm calls the child by `call <child_α_lbl>` — the prologue dispatches on `esi` (`esi==0` → α, else β) per `XA_FLAT_PROLOGUE`. Child returns `eax=1` (success) or `eax=99` (fail) per `XA_FLAT_EPILOGUE`. Same mechanism the capture template uses.
+**Runtime translators:**
+- `patnd_to_bb_graph()` in `lower_pat_dcg.c` — runtime PATND_t→BB_graph_t parallel to `BB_lower_pat` (AST→BB). SBL-DCG-DEFER-M4 partial `954236f5`. Wired into `bb_exec.c case BB_PAT_DEFER` DT_P branch; `stmt_exec.c` wiring still pending.
 
-#### SBL-ARBNO-2 — Fill `bb_arbno.cpp` TEXT arm ✅ (2026-05-27)
-- [x] α: save Δ to `.Larbno<id>_saved`. Loop: cap at 256 iterations; capture pre-Δ; `xor esi, esi; call <child_α_lbl>`; on `eax==99` break; if Δ unchanged break (zero-width inner — would loop forever); push Δ to `.Larbno<id>_stack[depth*4]`; `depth++`. End: jmp γ. Yields longest match first.
-- [x] β: `depth--`; if <0 jmp ω; if depth==0 restore from `saved`, else load `stack[(depth-1)*4]`; write to `[r10]`; jmp γ. One fewer repetition per β invocation.
-- [x] Verified: `'aaa' POS(0) ARBNO('a') RPOS(0)` matches m2=m4; `'aaa' ARBNO('a') 'a'` backtracks correctly (greedy→2→trailing 'a' matches) m2=m4.
-- [x] Rung suite SKIP-M4 5 → 1 (only 051 remains, pre-existing alt-child duplicate-symbol bug).
-- [x] Gate: GATE-1 7/7, GATE-2 23→24 (+1, picks up a PAT_LIT-using broker test).
+**Driver-level fixes (this work):**
+- FLAT-DRIVER α-LABEL placement: `emit_label_define_bb(&lbl_α)` moved before XA_FLAT_PROLOGUE in `codegen_flat_body` (was emitting `lea r10,[rip+Δ]` past the entry label → r10 held garbage).
+- PAT_LIT/REFNAME/USERCALL GAS macro-arg bug in `sm_pat_anchors.cpp` (annotation must be `#` comment, not positional arg).
+- Nested-ALT EP_RESET bug in `flat_drive_alt` (+ defensive same in `flat_drive_cat`).
+- Grammar fix in `opt_subject`: statement-level `S P` produces TT_SCAN at parse time (was bleeding into generic TT_SEQ, forcing splitter heuristic).
+- Removed ASSIGN_IMM/COND from `lower_flat_invariant` exclusion at `emit_sm.c:781` (unlocks inline capture emit).
 
-#### SBL-ARBNO-3 — Fill `bb_arbno.cpp` BINARY arm ⏳
-- [ ] Gate: GATE-PK BINARY re-frozen. Mode-3 ARBNO probe matches `--interp`.
+**Infrastructure:**
+- `rt_cap_assign(varname, base, len)` helper added to `rt.c` (pattern-building class).
+- SM_PAT_BREAKX opcode (separate from SM_PAT_BREAK) wired through 12 layers.
+- BB_PAT_DEFER opcode + `rt_defer_match` + XDSAR resolve.
+- Pattern rung suite `test_snobol4_pat_rung_suite.sh` (rungs 038-057, M2 + M4 columns).
+- bb_boxes.c C Byrd boxes deleted; rt_bb_* deleted (FACT RULE, JA-D-3).
 
-#### SBL-PAT-LIT-FIX — `sm_pat_anchors.cpp` GAS macro-annotation bug ✅ (2026-05-27)
-- [x] **Pre-existing bug** in `sm_pat_anchors.cpp:31-33`: `PAT_LIT`/`PAT_REFNAME`/`PAT_USERCALL` emitted human-readable third positional arg (`arg="a"`, varname, fnname) to GAS macros that only take `lbl`. Sibling of the previously-fixed `sm_pat_combine.cpp` bug. Was MASKED until SBL-CAP-1 enabled inline emit for capture/ARBNO windows — then ANY program using a literal inside a pattern (which is most of them) failed at `as` stage.
-- [x] Fix: same approach as the prior session's combine.cpp fix — annotation goes in a preceding `#` comment, macro call is `s_2asm` with only the label arg.
-- [x] **Broad corpus snobol4 jumped 155 → 183 (+28)** — scope much larger than ARBNO alone; the bug affected any program with `'literal' inside-pattern` once that program reached `as`.
-
----
-
-### Phase SBL-CAP — `bb_capture.cpp` x86 arms (`. V` and `$ V`)
-
-**Semantic (from `bb_exec.c` BB_PAT_ASSIGN_COND / BB_PAT_ASSIGN_IMM):**
-- Both kinds share the same structure:
-  - **α (state==0):** save Δ in `nd->counter`. Set state=1. Return `nd->α` (= the inner sub-pattern's entry). (The inner sub-pattern will eventually γ back to the capture node's own γ port.)
-  - **γ arrival (state==1):** compute `matched_len = Δ - counter`. Assign `Σ[counter..counter+matched_len]` to `nd->sval` variable via `NV_SET_fn`. Return γ.
-- The capture node in `lower_pat_dcg.c` has `nd->α = inner_entry, nd->β = inner->β` — the inner sub-graph is a *child* of the capture node wired through its α port.
-- **Key distinction:** in `walk_bb_flat` (emit_bb.c, `case BB_PAT_ASSIGN_IMM/COND`), `g_emit.child_fn` is set to the pre-built child blob fn, and `g_emit.op_name1` = the variable name. The template sees these in `g_emit`.
-
-#### SBL-CAP-1 — Fill `bb_capture.cpp` TEXT arm ✅ (2026-05-27)
-- [x] **Design fork resolved: emit fully inline.** Investigation showed the runtime `cap_t` object allocated by `bb_prepare_capture_arbno`+`XA_CAP_FIXUP` is **dead scaffolding** — its only consumer was the deleted C Byrd box `bb_cap()`, removed by the FACT RULE purge. The new TEXT arm is self-contained inline x86; it ignores `cap_t` entirely. (Recommend deleting `bb_prepare_capture_arbno`'s cap_new/cap_fixup calls in a follow-up HQ rung as residue.)
-- [x] α-entry: save `[r10]` (Δ) to `.Lcap<id>_start` (4-byte slot). `xor esi, esi; call <child_α_lbl>`. On return: `cmp eax, 99; je ω; jmp .Lcap<id>_assign`.
-- [x] β-entry: `mov esi, 1; call <child_α_lbl>` (re-enters child at its β via prologue dispatch on esi). Same eax check; fall through to assign on success.
-- [x] Assign: compute `Σ+start` in rsi, `Δ-start` in edx; `lea rdi, [rip + <varname_intern_str>]`; `call rt_cap_assign@PLT`; `jmp γ`. Both ASSIGN_IMM and ASSIGN_COND share this code (matches bb_exec.c oracle: both write on γ arrival immediately).
-- [x] Added `rt_cap_assign(varname, base, len)` to `rt.c` — same class as the existing 29 `rt_pat_*` helpers (pattern-building, not a Byrd box; sanctioned per goal-file).
-- [x] **Removed ASSIGN_IMM/ASSIGN_COND from `lower_flat_invariant` exclusion** (`emit_sm.c:781`). CALLOUT remains excluded (no template yet). This is what unlocks inline emit for capture-containing windows.
-- [x] Verified: rung 039 (`'hello' ANY('aeiou') . V`) → V='e' in m2=m4. Rung suite M4 jumped 1→8 (+7). Broad corpus 141→155 (+14).
-- [x] Gate: GATE-1 7/7, GATE-2 23/23. No regression.
-
-#### SBL-CAP-2 — Fill `bb_capture.cpp` BINARY arm ⏳
-- [ ] Fix `bb_bin_t` site list to cover all rel32 fixups.
-- [ ] Gate: GATE-PK BINARY re-frozen. Mode-3 capture probe matches `--interp`. GATE-1 7/7.
-
----
-
-### Phase SBL-VERIFY — Rung sweep after all six are filled
-
-#### SBL-VERIFY-1 — Run full pattern rung suite, climb M4=M2 ⏳
-- [ ] After SBL-ANY, SBL-NOTANY, SBL-BREAK, SBL-SPAN, SBL-ARBNO, SBL-CAP all filled: run `test_snobol4_pat_rung_suite.sh`. Target: PASS-M4 = PASS-M2 for rungs 038–057.
-- [ ] Gate: record new PASS-M4 count in Session State. GATE-3 ≥250/280.
-
-#### SBL-VERIFY-2 — Broad corpus mode-4 climb ⏳
-- [ ] Run `test_mode4_broad_corpus_snobol4.sh`. Filled templates should unblock corpus programs that use ANY/SPAN/BREAK/NOTANY/ARBNO/capture in mode-4. Record new PASS count.
-- [ ] Target: ≥260/280 (further gains may require DATA-type accessors — see GOAL-MODE4-SN4-SNOCONE).
-
----
-
-## Completed Steps
-
-**Templates with x86 arms already filled (not the subject of this goal):**
-- BB_PAT_LIT (`bb_lit.cpp`) ✅ — literal string match, full TEXT+BINARY
-- BB_PAT_ARB (`bb_pat_arb.cpp`) ✅ — zero-or-more cursor advance generator
-- BB_PAT_LEN (`bb_pat_len.cpp`) ✅ — match exactly N chars
-- BB_PAT_POS / BB_PAT_RPOS (`bb_pat_pos.cpp`) ✅ — cursor position anchor
-- BB_PAT_TAB / BB_PAT_RTAB (`bb_pat_tab.cpp`) ✅ — advance cursor to column
-- BB_PAT_REM (`bb_pat_rem.cpp`) ✅ — match rest of string
-- BB_PAT_ALT (`bb_pat_alt.cpp`) ✅ — pattern alternation (flat_drive_alt)
-- BB_PAT_CAT (`bb_pat_cat.cpp`) ✅ — pattern concatenation (flat_drive_cat)
-- BB_PAT_FENCE (`bb_pat_fence.cpp`) ✅ — commit barrier (flat_drive_fence)
-- BB_PAT_ABORT (`bb_pat_abort.cpp`) ✅ — unconditional abort
-- BB_EPS (`bb_eps.cpp`) ✅ — empty pattern
-- BB_FAIL (`bb_fail.cpp`) ✅ — always fail
-
-**Infrastructure completed:**
-- TEMPLATE-PURITY / LOCAL-PURGE: every `_str()` body pure `state → std::string` ✅
-- CAPS-CONCAT: all filled pattern X86 arms collapsed to single-return IF()/FOR() form ✅
-- SBL-M4-ASM: mode-4 broad corpus 0→250/280 ✅
-- bb_boxes.c C Byrd-box functions deleted (FACT RULE) ✅
-- rt_bb_pump_proc and other rt_bb_* deleted (Engine A deletion, JA-D-3) ✅
+**Recovery resource:** Hand-written original boxes live in git at `660339cd~1:src/runtime/boxes/<box>/<file>.s` (any/notany/span/brk/breakx/arbno/capture). Transcribe ABI register names to flat `[r10]`/`lbl_α/β/γ/ω` convention.
 
 ---
 
 ## Session State
 
 ```
-SBL-G-1-BASELINE-M2=9       # 19 pattern rungs, --interp, clean HEAD 3a522bd8
-SBL-G-1-BASELINE-M4=0       # mode-4; was assembler-blocked by macro-annotation bug
-SBL-CURRENT-M2=15           # HEAD 2b68dc44. +6 over baseline. Rung 056 (*PAT deref) newly passing.
-SBL-CURRENT-M4=15           # HEAD 2b68dc44. +15 over baseline. 056 still FAIL-M4 (pre-existing PATND cast bug).
-                            # All remaining FAIL-M2/M4 are pre-existing oracle gaps.
-BROAD-CORPUS-BASELINE=121   # /280 at 3a522bd8 (prior "250" was stale corpus state)
-BROAD-CORPUS-CURRENT=174    # /280. No regression from SBL-SPLITTER-1 (-10) or SBL-DCG-DEFER (0).
-                            # 070-074/105-117 blocked by pre-existing bb_build_brokered(PATND_t*) cast.
-GATE-PK-PAT-STATUS=stale    # SBL-G-2 not yet done — baseline references DELETED rt_bb_* C boxes;
-                            # broad re-freeze deferred (would mask other in-flight lang sessions).
-                            # Rung suite + smoke + broad corpus are the live correctness gates.
-SBL-SKIP-M4=0               # ZERO SKIP — every pattern rung now compiles, links, and runs in mode-4.
+GATE-1 mode-2 smoke         = 7/7
+GATE-2 unified broker       = 24
+GATE-3 broad corpus mode-4  = 174/280
+Rung suite                  = M2=16, M4=15, SKIP=0
+HEAD one4all                = 954236f5
+GATE-PK status              = stale (re-freeze deferred)
 ```
 
 ---
 
-## Session 2026-05-27 (Claude Opus 4.7) — handoff note
+## Session 2026-05-27 (Claude Opus 4.7, continued 8) — SBL-DCG-DEFER-M4 partial ✅
 
-**HEAD one4all `308e0378`** (committed locally; **NOT yet pushed** — push pending).
-**.github: this file updated, not committed.** corpus: untouched.
+**HEAD one4all `954236f5`** (pushed). .github pruned 949→223 lines this session.
 
-### Two pre-existing bugs found & fixed (both blocked ALL mode-4 patterns)
-
-1. **⚡ FLAT-DRIVER α-LABEL MISPLACEMENT (the big one).** `codegen_flat_body` in
-   `emit_bb.c` defined the exported box-entry label `pat_<id>_α` *after*
-   `xa_dispatch(XA_FLAT_PROLOGUE)`. The prologue emits `lea r10,[rip+Δ]` (the cursor
-   register setup) + the `cmp esi,0; je α_body; jmp β` port dispatch. Because the
-   broker calls `root.fn` (= `pat_<id>_α`), entry jumped PAST the `lea r10` → `r10`
-   held garbage → any box dereferencing the subject (LIT `memcmp`, ANY `strchr`)
-   read bad memory and failed or segfaulted. This is why even the "✅ filled"
-   `bb_lit.cpp` silently failed in mode-4. **Fix:** move `emit_label_define_bb(&lbl_α)`
-   to BEFORE the prologue dispatch (one line). `bb_pat_len` worked only because it
-   never derefs the subject pointer (reads `Σlen` + cursor only).
-
-2. **GAS macro-annotation bug** in `sm_pat_combine.cpp`: `EXEC_STMT_VARIANT`,
-   `PAT_CAPTURE`, `PAT_CAPTURE_FN`, `PAT_CAPTURE_FN_ARGS` emitted human-readable
-   annotations (`subj=X`, `V kind=0`) as extra *positional* macro args → assembler
-   `too many positional arguments`. Now emitted as preceding `#` comment lines.
-
-### ⚡ KEY RESOURCE for next session (Lon's tip — saved hours)
-The seven hollow boxes were **already meticulously hand-written** and live in git
-history. Recover from **`git show 660339cd~1:src/runtime/boxes/<box>/<file>.s`**:
-- `any/bb_any.s`, `notany/bb_notany.s`, `span/bb_span.s`, `brk/bb_brk.s`,
-  `breakx/bb_breakx.s`, `arbno/bb_arbno.s`, `capture/bb_capture.s`
-- ABI (brokered): `spec_t bb_X(void *ζ in rdi, int port in esi)`; returns σ-ptr in
-  `rax`, δ-len in `edx`; `(0,0)` = fail. Reads `[rel Σ]`/`[rel Δ]`/`[rel Ω]` (note: **Ω**
-  is the bound, not Σlen — equal when unanchored). Callee-saves rbx/r12/r13.
-  SPAN/BRK store δ at ζ+8; ARBNO uses a 64-frame stack at ζ+24 (frame=24B); CAPTURE
-  state at ζ+0..56. **TRANSCRIBE these, do not re-derive.** Port into the flat
-  template TEXT arms (`bb_pat_*.cpp`), adapting register names to the flat `[r10]`/
-  `_.lbl_α/β/γ/ω` convention and DESCR-return epilogue (eax=1 success / eax=99 fail;
-  the shared flat γ epilogue computes the span — the box body just advances Δ + jmps).
-
-### Next rung priority
-**SBL-CAP first** — most rung-suite tests use `. V` capture, which forces
-`lower_flat_invariant` to return 0 (see `emit_sm.c:778` — ASSIGN_IMM/COND/CALLOUT
-excluded) → window falls back to the (broken/runtime) `rt_match_variant` path, so the
-inline box is never emitted. Until capture emits inline, the rung suite M4 stays low.
-Then SBL-NOTANY/SPAN/BREAK TEXT arms (trivial transcription from recovered .s),
-then all BINARY arms (SBL-*-2), then ARBNO (child-blob), BREAKX flag, ATP kind.
-SBL-ANY-2 (BINARY arm) still stubbed — placeholder `jmp` bytes only.
-
-### No regressions verified
-mode-2 smoke 7/7 (unchanged), mode-3 smoke 7/7 with 6 pre-existing fails (confirmed
-via git-stash A/B at baseline `3a522bd8`), broad corpus 121→137. The 16 newly-FAILing
-broad-corpus names were baseline SKIPs (compile-blocked by bug #2), now compiling but
-failing on the capture path — not regressions of previously-passing tests.
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
-
----
-
-## Session 2026-05-27 (Claude Opus 4.7, continued) — handoff note
-
-**Built on the prior session's `6deb9f71` baseline.** Filled four hollow TEXT arms in sequence:
-NOTANY → SPAN → BREAK → **CAPTURE** (the keystone).
+### What landed
+- `patnd_to_bb_graph()` translator in `lower_pat_dcg.c` (~170 LOC). Parallel to `BB_lower_pat` (AST→BB) but consumes PATND_t. Handles 22 PATND kinds; returns NULL on XVAR/XBAL/XATP/XCALLCAP/XSUCF for legacy fallback. Forward decl in `lower_pat_dcg.h`.
+- `bb_exec.c case BB_PAT_DEFER` DT_P branch: tries translator+`bb_exec_pat` first, falls back to legacy `exec_stmt` on NULL.
+- XEPS mapped to `BB_PAT_LIT("")` since `BB_EPS` enumerator doesn't exist in `BB.h`.
 
 ### Results
-- **Rung suite: PASS-M4 1 → 8** (+7): rungs 038-043, 047, 050 all green (capture-using rungs unblocked).
-- **Broad corpus: 137 → 155** (+18). No regressions of any prior PASS.
-- **Mode-2 smoke unchanged 7/7; broker 23/23.** GATE-PK still stale (its baseline references DELETED `rt_bb_*` C boxes — flagged in Session State).
+- Rung suite M2: 15 → 16 (+1, rung 048 REM newly passing)
+- M4 unchanged (mode-4 emits compiled x86; this fix is mode-2 only)
+- GATE-1/2/3 all unchanged. Zero regressions.
 
-### Design fork resolution for SBL-CAP
-Investigated the `cap_t` runtime object scaffolding (`bb_cap_new` + `XA_CAP_FIXUP`) and confirmed
-its sole consumer — the `bb_cap(void*, int)` C Byrd box — was DELETED by the FACT-RULE purge.
-The runtime object is now dead scaffolding nobody reads. Chose **fully inline TEXT arm** that:
-1. Saves Δ to `.Lcap<id>_start` on α.
-2. `xor esi, esi; call <child_α_lbl>` (or `mov esi,1` on β — re-enters child at β via prologue dispatch).
-3. Checks `eax` against 99 (the standard fail-return from `XA_FLAT_EPILOGUE`).
-4. Computes span and calls `rt_cap_assign@PLT(varname, Σ+start, Δ-start)` on success.
+### Not done — handoff for next session
+1. **stmt_exec.c DT_P branch wiring.** More invasive: `root.fn` is fed to `bb_broker(root, bb_scan, scan_body_fn_u9, &scan_res)` at `stmt_exec.c:367`, which orchestrates the scan loop and capture-recording callback. Intercepting cleanly requires either (a) a parallel scan loop built on `bb_exec_pat`, or (b) a thin `bb_box_fn` wrapper that hides a translated graph behind the existing broker API. Either way, must reproduce the `match_start`/`match_end` semantics that `scan_body_fn_u9` records. This is where the goal-file's "+15 broad-corpus" tests live (070-074, 105-117).
 
-Added one tiny runtime helper `rt_cap_assign(varname, base, len)` to `rt.c` — pattern-building
-class (same as `rt_pat_*`), explicitly sanctioned by the goal-file note. **Removed
-`ASSIGN_IMM/ASSIGN_COND` from the `lower_flat_invariant` exclusion** at `emit_sm.c:781` —
-this is what flips capture-containing windows from the runtime fallback path to inline emit.
-CALLOUT remains excluded (no template yet).
+2. **Pre-existing bug: `SBL-ARBNO-COUNTER-RESET`.** `scrip_ir.c:114` `bb_reset()` blindly zeros `nd->counter` for every node. BB_PAT_ARBNO stores its `bb_arbno_state_t*` aux pointer in `nd->counter` — wiped on every `bb_exec_once`. This is why rungs 052/054 fail M2 with empty ARBNO output (the inner sub-graph pointer becomes NULL after the first reset). Same affects BB_PROC_GEN, BB_PL_SEQ, BB_CHOICE which also use counter as aux ptr. Fix: kind-aware reset (skip counter clear for kinds with aux-ptr semantics). Out of scope this session — unblocks the ARBNO(*var) corpus family (070-074) once combined with stmt_exec.c wiring.
 
-### Follow-up rungs (priority order)
-1. **SBL-ARBNO** — six SKIP-M4 rungs (052/053/054/055/056/051) still gated on hollow `bb_arbno.cpp`.
-   Same child-blob mechanism as capture; can probably reuse the `call <child_α>` pattern with a
-   small pos_stack (`.data` array, depth in `.data` long). Builds on the proven capture wiring.
-2. **SBL-BREAKX** — distinguish `nd->ival==1` in `bb_pat_break.cpp` for BREAKX β (advance past break char + rescan).
-3. **SBL-*-2 BINARY arms** — once all six TEXT arms green, do the BINARY parallel for mode-3 (`--run`).
-4. **Cleanup HQ rung:** delete `bb_prepare_capture_arbno`'s `bb_cap_new`/`XA_CAP_FIXUP` calls now
-   that nothing reads `cap_t`. Track as residue in GOAL-HEADQUARTERS.
-
-### Mode-2 caveat noticed (NOT a regression — pre-existing)
-Rungs 044/045/046/048 (POS/RPOS/TAB/REM) fail in BOTH m2 and m4 with empty output — these are
-pre-existing oracle mismatches in the rung suite's baked-in expectations, not caused by this
-work. Worth a follow-up audit but separate from SBL goal.
-
-**HEAD one4all: pending commit** (templates + emit_sm.c invariant + rt.c helper). corpus untouched.
-.github: this file updated, pending commit.
+3. **One4all rebased onto `0ed7ace3`** (mid-session ICON LFJ-1a-vi push) cleanly; build green; gates unchanged. No conflict in pattern subsystem.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
 
-## Session 2026-05-27 (Claude Opus 4.7, continued 2) — handoff note
-
-**Built on `8fb25c38`.** Filled **ARBNO** TEXT arm + fixed a sibling **PAT_LIT** GAS macro-annotation
-bug that was masking many mode-4 programs until SBL-CAP-1 unblocked inline-emit windows.
-
-### Results
-- **Broad corpus snobol4: 155 → 183** (+28). Most of the gain is from the PAT_LIT fix —
-  any program with a literal inside a pattern is now safe.
-- **Rung SKIP-M4: 5 → 1.** Only 051_pat_alt_three remains (pre-existing alt-child duplicate-symbol
-  bug — `alt0_c0_β` defined twice; confirmed pre-exists at `8fb25c38`).
-- **PASS-M4 stays 8** because the formerly-SKIP rungs match pre-existing m2 oracle gaps
-  (the m2 baseline itself fails on 052/054 with empty output; m4 reproduces that faithfully).
-- **GATE-2 broker: 23 → 24** (+1, a PAT_LIT-using broker test now compiles).
-- GATE-1 smoke 7/7 unchanged. No regressions.
-
-### ARBNO design
-Same child-blob mechanism as capture: `call <child_α_lbl>` enters child at α (esi=0) or β
-(esi=1). Stack of int32 Δ positions in `.data` (`.Larbno<id>_stack`, 256 deep), depth counter
-and saved_delta also `.data`. α loops: capture pre-Δ, call child, on fail (eax==99) or no-Δ-advance
-break, else push and continue. β: depth--; if <0 → ω; depth==0 → saved; else stack[depth-1]; jmp γ.
-Matches bb_exec.c oracle exactly.
-
-### PAT_LIT bug (pre-existing, dormant)
-`sm_pat_anchors.cpp:31-33` emitted `PAT_LIT .S4 arg="a"` as a 3-arg GAS macro call to a 1-arg macro,
-producing `Error: Parameter named 'arg' does not exist for macro 'pat_lit'`. Identical class to the
-prior session's `sm_pat_combine.cpp` fix. Was dormant because no capture/ARBNO program reached
-the assembler — until SBL-CAP-1 unlocked them. Fix: annotation in preceding `#` comment, `s_3asm`
-→ `s_2asm`. PAT_REFNAME and PAT_USERCALL had the same misuse — fixed in the same diff.
-
-### Follow-up rungs (priority order)
-1. **051 alt-child duplicate-symbol bug** — `alt0_c0_β` defined twice. Investigate
-   `pre_build_children_text` for multi-alternative ALT child-blob naming; likely the same child
-   gets re-emitted with the same prefix. Pre-existing, not in current session scope.
-2. **SBL-BREAKX** — distinguish `nd->ival==1` in `bb_pat_break.cpp` for BREAKX β.
-3. **SBL-ATP** — new BB kind for `@var` cursor capture.
-4. **SBL-*-2 BINARY arms** — once stable, do mode-3 BINARY parallel.
-5. **Cleanup HQ rung:** delete dead `bb_prepare_capture_arbno` cap_t allocations.
-
-### Pre-existing m2 oracle gaps (noted, NOT in scope)
-Rungs 044/045/046/048/052/054/055/056/057 fail in m2 (bb_exec.c interpreter). The rung suite
-oracle outputs assume behavior the mode-2 interpreter doesn't implement. Worth a separate audit.
-
-**HEAD pending commit.** Push order: one4all → .github.
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
-
----
-
-## Session 2026-05-27 (Claude Opus 4.7, continued 3 / final) — handoff note
-
-**Built on `864297a9`.** Fixed the last remaining SKIP-M4 rung (051) by tracking down a real
-nested-ALT bug in `flat_drive_alt`: the global EP-list (`g_emit.xa_bb_ep_*`) accumulated
-leftover entries from inner-ALT EP_FILL calls, so when the outer ALT added its own tail
-EP_JMP/EP_DEF_JMP entries and called EP_FILL, the bb_pat_alt template re-emitted the inner's
-entries — producing duplicate `alt0_c0_β:` label definitions.
-
-### Fix
-Added one line `EP_RESET();` before the outer ALT's tail `EP_JMP(lbl_ω); EP_DEF_JMP(lbl_β,
-&ci_βs[0]); EP_FILL(...)` block in `flat_drive_alt`. Same defensive fix applied to
-`flat_drive_cat` (latent — no current test exposes it, but the pattern is identical and
-nested CAT chains would eventually trip the same class of bug).
-
-### Results
-- **Rung suite: PASS-M4 8 → 9, SKIP-M4 1 → 0.** Rung 051 (3-alt with capture) now passes:
-  `('apple'|'banana'|'cherry') . V` on subject `'banana'` → V='banana' in m2=m4.
-- **Broad corpus: 183 → 184** (+1).
-- GATE-1 7/7 unchanged; GATE-2 24 unchanged. No regressions.
-- **All remaining FAIL-M4 (10) are also FAIL-M2** — pre-existing m2 oracle gaps
-  (POS/RPOS/TAB/REM/ARBNO/star_deref/fail_builtin), NOT regressions.
-
-### Session totals (start `6deb9f71` → end this commit)
-- 5 x86 BB TEXT templates filled: NOTANY, SPAN, BREAK, CAPTURE, ARBNO
-  (ANY was prior session). Every byte emitted through `BB_templates/` per FACT RULE.
-- 1 invariant-exclusion lift (ASSIGN_IMM/COND removed from `lower_flat_invariant`)
-- 1 runtime helper added: `rt_cap_assign` (pattern-building class, sanctioned)
-- 2 pre-existing driver bugs fixed:
-  - PAT_LIT/REFNAME/USERCALL GAS macro-arg bug in `sm_pat_anchors.cpp`
-  - Nested-ALT EP_RESET bug in `flat_drive_alt` (and defensive same in `flat_drive_cat`)
-- **Rung suite: M4 1 → 9, SKIP-M4 19 → 0**
-- **Broad corpus snobol4: 137 → 184 (+47)**
-- Mode-2 unchanged; broker 23 → 24
-- Zero regressions
-
-### Follow-up priorities (in order)
-1. **SBL-BREAKX** — `nd->ival==1` flavor in `bb_pat_break.cpp` (advance past break char, rescan).
-2. **SBL-ATP** — new BB kind `BB_PAT_ATP` for `@var` cursor capture + template + lowering.
-3. **SBL-*-2 BINARY arms** — mode-3 `--run` parallel for the six TEXT arms. Existing mode-3 smoke
-   has 6 pre-existing fails; will need investigation of whether BINARY arms alone resolve them.
-4. **Pre-existing m2 oracle gap audit** — rungs 044/045/046/048/052/054/055/056/057 fail in m2 too.
-   The rung suite's baked-in oracle outputs assume behavior `bb_exec.c` doesn't currently
-   implement for these kinds. Worth a separate session.
-5. **HQ cleanup rung** — delete the now-dead `bb_prepare_capture_arbno` `cap_t` allocations
-   (`bb_cap_new` + `XA_CAP_FIXUP`). Their sole consumer was the deleted `bb_cap()` C Byrd box.
-
-### FACT RULE status
-All work this session honored "ONE x86 PRODUCER — TEMPLATE-ONLY EMISSION". Every byte of x86
-output from `bb_pat_notany`, `bb_pat_span`, `bb_pat_break`, `bb_capture`, `bb_arbno` flows
-through their `_str()` template functions, called via `emit_core.c` dispatch. The two driver-level
-fixes (PAT_LIT in `sm_pat_anchors.cpp`, EP_RESET in `flat_drive_alt`/`flat_drive_cat`) are
-not emission sites — they coordinate templates. `rt_cap_assign` is a pattern-building helper
-(class of the existing 29 `rt_pat_*`), not a Byrd box.
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
-
----
-
-## Addendum: Git history audit (2026-05-27)
-
-**Commit `0206b998` "DELETE rt_bb_* C runtime functions — total annihilation"** deleted exactly **10 `rt_bb_*` functions**. Each maps as follows:
-
-| Deleted function | What it did | Template needed |
-|---|---|---|
-| `rt_bb_any(zeta, port)` | charset match 1 char (α: match+advance; β: undo) | `bb_pat_any.cpp` PLATFORM_X86 arm |
-| `rt_bb_notany(zeta, port)` | match 1 char NOT in charset (α/β same shape as ANY) | `bb_pat_notany.cpp` PLATFORM_X86 arm |
-| `rt_bb_span(zeta, port)` | match longest run in charset; β yields one shorter | `bb_pat_span.cpp` PLATFORM_X86 arm |
-| `rt_bb_brk(zeta, port)` | scan up to char in charset; no retry | `bb_pat_break.cpp` PLATFORM_X86 α/β arm — plain BREAK β |
-| `rt_bb_brkx(zeta, port)` | BREAKX: like BREAK but β steps past the break char and rescans | `bb_pat_break.cpp` PLATFORM_X86 arm — **extended β** for BREAKX; `lower_pat_dcg.c` routes both BREAK and BREAKX to `BB_PAT_BREAK`; template must distinguish via a node flag (`nd->ival` or `nd->sval`) |
-| `rt_bb_arbno(zeta, port)` | greedy match of inner blob; β pops one repetition | `bb_arbno.cpp` PLATFORM_X86 arm |
-| `rt_bb_arbno_new(fn, state)` | ctor — allocates `rt_arbno_t`; NOT port-logic | still in `bb_boxes.c` as `bb_arbno_new`; no template needed |
-| `rt_bb_atp(zeta, port)` | cursor capture `@var` — write Δ as integer to named var | **No BB kind exists yet.** Lives in old `PATND_t/XATP` world. `lower_pat_dcg.c` has no case for it. Needs: new BB kind `BB_PAT_ATP`, lowering in `lower_pat_dcg.c`, execution in `bb_exec.c`, template `bb_pat_atp.cpp`. See SBL-ATP below. |
-| `rt_bb_cap(zeta, port)` | capture matched span into var (immediate or conditional) | `bb_capture.cpp` PLATFORM_X86 arm |
-| `rt_bb_switch_pl_entry(name, arity)` | Prolog predicate dispatch from mode-4 binary | `sm_bb_switch.cpp` — partially handled (ICN_GEN arm exists; PL_ENTRY arm still emits a comment stub) |
-
-**Total: 6 hollow template x86 arms to fill** (ANY, NOTANY, SPAN, BREAK/BREAKX, ARBNO, CAPTURE) + 1 new BB kind + template needed (ATP) + 1 partially addressed (PL_ENTRY in sm_bb_switch).
-
-**BREAKX note:** `lower_pat_dcg.c` maps both `BREAK` and `BREAKX` to `BB_PAT_BREAK` (line 205-208). The BREAKX β semantics (advance past break char and rescan) differ from plain BREAK (which simply fails on β). The template must distinguish them. Options: (a) set `nd->ival=1` for BREAKX in `lower_pat_dcg.c` and check it in the template; (b) add a separate `BB_PAT_BREAKX` kind. Option (a) is simpler. See SBL-BREAK.
-
-**rt_pat_* note (NOT in scope here):** The 29 `rt_pat_*` functions in `rt.c` (called from `sm_pat_nullary.cpp` via `@PLT`) are **pattern-building** helpers — they construct `DESCR_t` pattern objects and push them onto the vstack. They are NOT four-port Byrd boxes. They are called from template-produced GAS (`call rt_pat_arb@PLT` etc.) which is the correct pattern. These are NOT violations and are NOT the subject of this goal. **However**, `sm_pat_nullary.cpp` BINARY arm embeds emitter-process function pointers as imm64 — a separate Invariant-8 violation that belongs in GOAL-HEADQUARTERS as an HQ rung.
-
----
-
-### Phase SBL-BREAKX — Distinguish BREAKX in bb_pat_break.cpp
-
-#### SBL-BREAKX-1 — Tag BREAKX nodes in lower_pat_dcg.c ⏳
-- [ ] In `lower_pat_dcg.c` TT_FNC case, where BREAKX is currently mapped identically to BREAK: set `nd->ival = 1` (flag for BREAKX) on the BB_PAT_BREAK node built for BREAKX. For plain BREAK, `nd->ival = 0`.
-- [ ] Verify: `--dump-bb` for a BREAKX pattern shows `ival=1` on the BB_PAT_BREAK node.
-- [ ] Gate: GATE-1 7/7, GATE-2 23/23, build clean.
-
-#### SBL-BREAKX-2 — Implement BREAKX β in bb_pat_break.cpp TEXT arm ⏳
-- [ ] After SBL-BREAK-1 fills the plain BREAK TEXT arm: add BREAKX β logic. When `pBB->ival == 1` (BREAKX): β steps past the break char that stopped the previous scan and rescans to the next break char. Yield the longer match or fail if no further break char. Read `rt_bb_brkx` body (git show `0206b998 -- src/runtime/rt/rt.c`) for exact semantics.
-- [ ] Gate: GATE-1 7/7. BREAKX probe: `'abc.def.ghi' BREAKX('.') . V` yields `abc` then `abc.def` on retry.
-
----
-
-### Phase SBL-ATP — New BB kind for `@var` cursor capture
-
-#### SBL-ATP-1 — Add BB_PAT_ATP to BB.h and lower_pat_dcg.c ⏳
-- [ ] Add `BB_PAT_ATP` to the `BB_op_t` enum in `BB.h` (after `BB_PAT_CALLOUT`).
-- [ ] Add lowering for `@var` to `lower_pat_dcg.c`: detect `TT_ATP` or the `@var` AST node. Build: `nd = BB_node_alloc(cfg, BB_PAT_ATP); nd->sval = varname; nd->α=nd; nd->β=fp; nd->γ=sp; nd->ω=fp;` (ATP always succeeds — it writes Δ to var and matches empty).
-- [ ] Gate: build clean, GATE-1 7/7.
-
-#### SBL-ATP-2 — Add bb_exec.c case BB_PAT_ATP ⏳
-- [ ] Case: on α (state==0): write `Δ` as an integer DESCR_t to `nd->sval` via `NV_SET_fn`. Set state=1. Return `nd->γ`. On β: state=0, return `nd->ω`. (ATP matches the empty string and captures the cursor position as an integer.)
-- [ ] Gate: `scrip --interp` with `@var` pattern correctly binds cursor position. GATE-1 7/7.
-
-#### SBL-ATP-3 — Create bb_pat_atp.cpp and wire into emit_core.c ⏳
-- [ ] Create `src/emitter/BB_templates/bb_pat_atp.cpp`. Dispatch in emit_core.c.
-- [ ] TEXT arm x86: α: load `[r10]` (Δ); call `rt_nv_set_int@PLT(varname_ptr, Δ)`; jmp γ. β: jmp ω. (No cursor advance — ATP is a zero-width assertion.)
-- [ ] BINARY arm: rel32 fixup for γ and ω jumps.
-- [ ] Gate: GATE-PK re-frozen for BB_PAT_ATP. Mode-4 `@var` probe matches `--interp`.
-
----
-
-### Phase SBL-SM-BINARY — sm_pat_nullary.cpp BINARY Invariant-8 violation
-
-**(HQ issue — track here, fix in HQ session)**
-
-`sm_pat_nullary.cpp` BINARY arm: `bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)sm_pat_nullary_rt_fn(...))` embeds the emitter-process `rt_pat_*` function pointer as imm64 in the emitted binary. This violates **GOAL-BB-TEMPLATE-LADDER Invariant 8**: "MEDIUM_BINARY must never embed emitter-process pointers." The binary blob calls `mov rax, <emitter_addr>; call rax` — the emitter address is meaningless in the linked binary. This makes `--run` (mode-3) pattern-building corrupt for these opcodes. Fix: SM_PAT_* TEXT arm already calls `rt_pat_*@PLT` correctly (via macro invocation in GAS). BINARY arm should do the same — call `rt_pat_arb@PLT` etc. directly rather than embedding a pointer. Add to GOAL-HEADQUARTERS as rung `SM-BINARY-PAT-FIX`.
-
----
-
-## Session 2026-05-27 (Claude Opus 4.7, continued 4) — handoff note
-
-**Built on `836844e0`** (the prior SBL session's last push: nested-ALT EP_RESET fix).
-**HEAD one4all: `7c834dea`** (committed locally, NOT yet pushed).
-**.github: this update pending commit.** corpus: untouched.
-
-### SBL-BREAKX-1 — distinct SM_PAT_BREAKX opcode (wiring complete, mode-2 backtrack incomplete)
-
-Added a new SM opcode `SM_PAT_BREAKX` and routed BREAKX through it cleanly,
-separating it from plain BREAK (which previously dropped the X). Changes
-threaded through every layer that handles `SM_PAT_BREAK`:
-
-1. `SM.h`: new enum value
-2. `lower.c`: `TT_BREAKX` → `SM_PAT_BREAKX` (all 3 sites: TT_BREAKX case + 2 TT_FNC dispatch points)
-3. `sm_prog.c`: name table + charset operand-kind case
-4. `lower_pat_dcg.c`: BREAK and BREAKX now separate `if` branches; BREAKX sets
-   `nd->ival=1; nd->β=nd` (self-loop for retry)
-5. `bb_exec.c BB_PAT_BREAK`: branches on `nd->ival==1` — applies `rt_bb_brkx`
-   semantics (rewind to origin = Δ − counter, step past break char, scan forward
-   to next break char, fail+rewind if exhausted, else update counter + advance Δ + γ)
-6. `emit_core.c`: dispatch `SM_PAT_BREAKX` through `sm_pat_nullary`
-7. `emit_sm.c`: `SM_PAT_BREAKX` creates `BB_PAT_BREAK` with `ival=1, β=self`
-8. `sm_pat_nullary.cpp`: `rt_pat_breakx` fn ptr + `PAT_BREAKX` macro + MEDIUM_TEXT case
-9. `bb_pat_break.cpp` TEXT arm: branches on `pBB->ival`:
-   - α saves Δ to `.Lbrk<id>_z_orig` for both kinds (needed for BREAKX rewind)
-   - β `ival==0`: existing undo + jmp ω
-   - β `ival==1`: rescan loop — restore Δ = origin, `counter += 1` (step past stop
-     char), forward `strchr`-loop to next break char, jmp ω if exhausted, else
-     `Δ = origin + counter; jmp γ`
-10. `rt.c` + `rt.h`: `rt_pat_breakx` (pops cset, pushes `pat_breakx(cs)`)
-11. `snobol4.h`: declare `pat_breakx`
-12. `sm_interp.c`: `SM_PAT_BREAKX` case (mode-2 interp dispatch — calls `pat_breakx`)
-
-### Gates (all green, no regressions)
-- GATE-1 mode-2 smoke 7/7
-- GATE-2 broker 24/24 (was 24 — unchanged)
-- Rung suite M2=9, M4=9, SKIP-M4=0 (unchanged)
-- Broad corpus PASS=184/280 (unchanged)
-
-### What's NOT yet working — and why
-Mode-2 BREAKX **backtracking** still produces empty output on tests that exercise
-β re-entry (e.g. `S BREAKX('.') . V '.' BREAKX('.') . W` on 'abc.def.ghi' yields
-empty; oracle gives V=abc W=def).
-
-**Root cause:** Mode-2 SNOBOL4 pattern matching flows through `stmt_exec.c` lines
-266-313 via `bb_build_brokered((PATND_t *)val.p)` — a cast from `PATND_t*` to
-`BB_t*`. The `bb_build_brokered` function (defined in `emit_bb.c:809`) takes a
-`BB_t*` and dispatches via `walk_bb_flat` on `nd->t` (`BB_op_t`). But the
-`PATND_t.kind` field (XKIND_t enum) does **not** align with `BB_op_t` enum
-values — e.g. `XBRKC=2` vs `BB_PAT_BREAK≈37`. So how does this currently work
-at all for plain BREAK? Hypothesis: `bb_build_brokered` doesn't actually execute
-template code for these PATND-tagged inputs — it falls back to a brokered C
-helper inside `bb_broker` / `bb_boxes`, which means **`pat_breakx()` → XBRKX
-PATND** has no corresponding handler in that fallback path. Plain BREAK (XBRKC)
-likely hits a path that's been wired up historically; XBRKX needs the same
-wiring.
-
-**Next step (small):** Trace what `bb_build_brokered` actually does when handed
-a PATND_t with `kind=XBRKX`. Look for a runtime-dispatch table inside the
-brokered binary that switches on the kind. If there's a missing case for XBRKX,
-add one that mirrors XBRKC plus the BREAKX β rescan logic. (Could also be in
-`bb_boxes.c` — historically held C Byrd boxes; FACT-RULE-deleted most, but
-there may be a PATND→box dispatch helper still alive.)
-
-**Mode-4 BREAKX:** The TEXT arm is written but no rung exercises it (rungs
-038-057 don't include BREAKX). To verify mode-4, add a rung 058 with the
-sample above and re-run `test_snobol4_pat_rung_suite.sh`. Should pass M4 once
-the mode-2 path is fixed (because M4 doesn't depend on the PATND brokered path).
-
-### Follow-up priorities (unchanged from prior session, BREAKX added)
-1. **SBL-BREAKX-3** ✅ (resolved 2026-05-27 cont'd 5, commit da2bc106). Root
-   cause was NOT a missing PATND brokered handler — it was a missing
-   `case TT_BREAKX` in `lower_pat_dcg.c build_node`. See session note below.
-2. **SBL-ATP** — new BB kind for `@var` cursor capture (PLAN.md priority).
-3. **SBL-*-2 BINARY arms** — mode-3 BINARY parallel for the six TEXT arms.
-4. **Pre-existing m2 oracle gap audit** — rungs 044/045/046/048/052/054/055/056/057.
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
-
----
-
-## Session 2026-05-27 (Claude Opus 4.7, continued 5) — SBL-BREAKX-3 ✅
-
-**Built on `7c834dea`** (prior session's SBL-BREAKX-1 wiring).
-**HEAD one4all: `da2bc106`** (pushed below).
-**.github: this update.** corpus: untouched.
-
-### SBL-BREAKX-3 — TT_BREAKX case in lower_pat_dcg.c ✅
-
-The prior session's hypothesis — that mode-2 BREAKX backtracking was blocked
-by a missing XBRKX case in the PATND brokered dispatch path — was wrong.
-Two instrumentation passes (reverted before commit) traced the actual flow:
-
-1. `walk_bb_flat` never fires for plain BREAK in mode-2. The brokered
-   path via `bb_build_brokered((PATND_t*)val.p)` cast is dead code for
-   PATND inputs whose `kind` enum doesn't map to a real `BB_op_t`.
-2. The live mode-2 pattern path is `SM_EXEC_STMT → bb_exec_pat →
-   bb_exec_once → bb_exec_node` operating on the `BB_graph_t *pat_bb`
-   set at lower time by `BB_lower_pat`.
-3. For BREAKX patterns, `BB_lower_pat` returned NULL because `build_node`
-   in `lower_pat_dcg.c` had no `case TT_BREAKX` — fell through to
-   `default: return NULL`. With pat_bb=NULL the SM_EXEC_STMT path falls
-   back to the broken PATND `exec_stmt` route, silently emitting empty.
-
-**Fix:** added `case TT_BREAKX` in `build_node`, mirroring `case TT_BREAK`
-but with `nd->ival = 1` (selects the β-rescan arm at `bb_exec.c:1785`)
-and `nd->β = nd` (self-loop for retry). Also explicit `ival = 0` on
-TT_BREAK for symmetry.
-
-Diff: 11 LOC in one file (`src/lower/lower_pat_dcg.c`).
-
-### Verified
-- `S BREAKX('.') . V` on `'abc.def'` → `abc` (was empty)
-- `S BREAK('.') . V` → `abc` (no regression)
-- GATE-1 mode-2 smoke 7/7
-- GATE-2 broker 24/24
-- Rung suite M2=9, M4=9, SKIP-M4=0
-- Broad corpus 184/280 (unchanged)
-
-### What's still broken (separate bug — NOT SBL-BREAKX)
-Multi-element pattern statements where the pattern AST has nested TT_SEQ
-(e.g. `S BREAKX('.') . V '.' BREAKX('.') . W`) fail because the splitter
-in `lower.c` lines 1756-1769 requires `subject->c[0]->t` to be one of
-{TT_VAR, TT_KEYWORD, TT_QLIT, TT_INDIRECT}. For nested-SEQ patterns,
-`c[0]->t == TT_SEQ` and the splitter no-ops, leaving pattern=NULL and
-routing through the wrong `lower_expr(subject)` path. Affects plain
-BREAK + tail too — pre-existing, not introduced here.
-
-**File this as `SBL-SPLITTER-1` in GOAL-SNOBOL4-BB or HQ.** The fix is
-likely a single recursive descent through nested TT_SEQ in the splitter
-to find the first TT_VAR-rooted leaf and rebuild the pattern from the
-remainder.
-
-### Follow-up priorities
-1. **SBL-SPLITTER-1** — fix nested-TT_SEQ subject/pattern splitter in
-   lower.c. High impact: unblocks all multi-element pattern statements
-   regardless of pattern kind. Expect significant broad-corpus uplift.
-2. **SBL-ATP** — new BB kind for `@var` cursor capture (PLAN priority).
-3. **SBL-*-2 BINARY arms** — mode-3 BINARY parallel for the six TEXT arms.
-4. **Pre-existing m2 oracle gap audit** — rungs 044/045/046/048/052/054/055/056/057.
-
-### Note on prior session's SM_PAT_BREAKX opcode work
-The SM_PAT_BREAKX opcode wiring from session-prior (12 files touched) was
-correct in scope but cannot affect mode-2 outcome via the PATND path —
-because mode-2 doesn't run through PATND when `pat_bb != NULL`. It DOES
-correctly distinguish BREAKX in the SM stream for mode-3/4 emission and
-in the PATND build path used as fallback. The SM_PAT_BREAKX work is
-preserved; this rung is additive.
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
-
----
-
-## Session 2026-05-27 (Claude Opus 4.7, continued 6) — SBL-SPLITTER-1 ✅
-
-**Built on `e4ffdefe`.** HEAD one4all: **`be547009`** (pushed).
-
-### Root cause — addressed structurally, not heuristically
-
-The prior splitter (both `lower_subj_pat_split` and an inline duplicate in lower.c)
-attempted to recover the subject/pattern boundary by inspecting the leftmost leaf
-of a top-level TT_SEQ. This was a heuristic patching what was actually a missing
-grammar production.
-
-In SNOBOL4, statement-level juxtaposition `S P` is unambiguously the implicit scan
-operator — semantically identical to the explicit `S ? P`. The grammar should
-produce TT_SCAN for both. Previously the parser produced TT_SCAN for `S ? P` but
-dumped `S P` into a generic TT_SEQ via the `expr4 T_CONCAT expr5` rule, losing
-the boundary that the grammar rule already knew about.
-
-### Grammar fix
-
-`opt_subject` restructured to draw the boundary at the grammar level:
-
-```
-opt_subject : expr14 T_CONCAT expr2   { TT_SCAN($1, $3); }
-            | expr14                   { $1; }
-            | /* empty */              { NULL; }
-            ;
-```
-
-- **Subject = expr14**: primaries with unary prefixes and indexing (TT_VAR, TT_QLIT,
-  TT_KEYWORD, TT_IDX, TT_DEFER `*V`, TT_INDIRECT `$V`, parenthesised). Caps the
-  subject below T_CONCAT so the first whitespace after the subject can be the
-  scan operator.
-- **Pattern = expr2**: everything except trailing T_2EQUAL (which is opt_repl)
-  and top-level T_2QUEST (which has its own rule). expr2 includes expr4 with
-  pattern-internal T_CONCAT — so pattern-internal concatenation still produces
-  TT_SEQ as before.
-- **Result**: SNOBOL4 statements arrive at lower.c with the boundary explicit
-  as TT_SCAN(subj, pat). No heuristic descent needed.
-
-One benign shift/reduce conflict on T_CONCAT (bison shifts → selects new rule;
-the reduce-alternative path through expr4-CONCAT only mattered for unreachable
-mixed forms).
-
-### Results
-
-- **GATE-1 mode-2 smoke:** 7/7 (unchanged)
-- **Rung suite:** M2=9→14 (+5), M4=9→15 (+6, SKIP-M4 stays 0)
-- **Multi-element BREAKX probe:** `S BREAKX('.') . V '.' BREAKX('.') . W` on
-  `'abc.def.ghi'` → V=abc, W=def. Matches SPITBOL oracle. (Was empty before.)
-- **Broad corpus mode-4:** 184 → 174 (-10 net). About 19 tests newly pass,
-  about 16 newly fail. The newly-failing tests have *cleaner* ASTs that
-  some downstream paths in `lower_pat_dcg.c` and the legacy PATND interpreter
-  do not yet fully handle.
-
-### Downstream gaps newly exposed (NOT regressions in the strict sense)
-
-The baseline relied on lower.c's `lower_cat_seq` heuristic at line 295-303 —
-"if the TT_SEQ has no TT_DEFER child, lower as string-concat with SM_CONCAT" —
-which coincidentally executed pattern-statement-shaped TT_SEQs via runtime
-polymorphism (the runtime concatenates pattern values into a pattern). With
-the new clean AST, statements take the proper `lower_pat_expr` path, which
-exposes that `lower_pat_dcg.c::build_node` has **no case for TT_VAR or TT_DEFER**.
-
-When `build_node` hits a TT_VAR-rooted pattern element (e.g. `FENCE(eps)` where
-`eps` is a pattern-valued variable), it returns NULL → `pat_bb` is NULL →
-SM_EXEC_STMT falls back to the legacy PATND path, which doesn't fully handle
-the new TT_SCAN-rooted shape for some cases.
-
-The newly-failing tests are concentrated in two clusters:
-1. **fence-via-var family** (105, 108, 110-112, 114, 115, 117-119): all use
-   `FENCE(eps)` or `*eps` where `eps` is a stored pattern variable.
-2. **deep-grammar / JSON / balanced-parens** (125-128, 131-136): use stored
-   patterns with deferred-var lookup at multiple levels.
-3. **072 alone**: `*PAT` with alternation backtrack across a forced retry.
-
-### Follow-up rungs (priority order)
-
-1. **SBL-DCG-DEFER** ✅ (2026-05-27, Sonnet 4.6, `2b68dc44`) — `BB_PAT_DEFER` opcode added; `TT_VAR`/`TT_DEFER` cases in `lower_pat_dcg.c::build_node`; `BB_PAT_DEFER` TEXT arm in `bb_pat_defer.cpp`; `rt_defer_match` runtime helper; XDSAR resolve in `exec_stmt`.
-2. **SBL-DCG-DEFER-EXEC** ✅ (2026-05-27, Sonnet 4.6, `2b68dc44`) — `case BB_PAT_DEFER:` in `bb_exec.c` mode-2; rung 056 (*PAT deref) now passes M2.
-3. **SBL-DCG-DEFER-M4** ⏳ NEXT — mode-4 `EXEC_STMT_VARIANT` still fails for var-stored patterns. Root cause: `exec_stmt` calls `bb_build_brokered(PATND_t*)` cast as `BB_t*`; XCHR=0 ≠ BB_PAT_LIT=59. Fix: add `patnd_to_bb_graph(PATND_t*)` translator (XCHR→BB_PAT_LIT, XFNME→BB_PAT_ASSIGN_COND, XCAT→BB_PAT_CAT, XOR→BB_PAT_ALT, XDSAR→BB_PAT_DEFER) and use it in `exec_stmt` DT_P branch. Expected gain: ~15 broad-corpus tests (070-074, 105-117, 072).
-4. **SBL-LOWER-CLEANUP** — delete `lower_subj_pat_split` and the inline duplicate
-   at lower.c:1750 once we verify Snocone no longer needs them either
-   (Snocone goes through `lower_subj_pat_split` from `lower.c:1655` — check that
-   path).
-5. **SBL-ATP** — still open (deferred from prior session).
-5. **SBL-*-2 BINARY arms** — still open.
-
-### Verification of net direction
-
-The grammar fix is *strictly correct* — the AST now matches what the SNOBOL4
-language actually means. The net regression in broad-corpus PASS count is
-real but reflects newly-exposed gaps in downstream code that the broken AST
-was accidentally hiding. The right path forward is to fix the downstream
-gaps (SBL-DCG-DEFER and SBL-DCG-VAR), not to revert the grammar.
-
-The rung suite reflects this clearly: a +5 M2 and +6 M4 improvement on a
-suite that was designed to test the BB pattern path. The newly-failing
-broad-corpus tests pass on the legacy PATND path that the rung suite
-doesn't even exercise.
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
----
-
-## Session 2026-05-27 (Claude Opus 4.7, continued 7) — SBL-DCG-DEFER-M4 root cause refined, fix designed, NOT IMPLEMENTED
-
-**Built on `2b68dc44`. NO COMMITS THIS SESSION.** All repos clean (working tree empty on one4all, corpus, .github). Investigation-only session.
-
-### Baselines confirmed at session start
-- GATE-1 mode-2 smoke 7/7 ✅ (mode-3 still 6 pre-existing fails — out of scope)
-- GATE-2 unified broker 24
-- GATE-3 broad corpus mode-4 174/280
-- Rung suite M2=15 M4=15 SKIP=0
-
-Matches handoff state at `2b68dc44`.
-
-### Root cause — sharper than the prior handoff hypothesis
-
-Prior handoff said: "mode-4 EXEC_STMT_VARIANT fails because `bb_build_brokered(PATND_t*)` casts a PATND through BB_t." That framing implied a **mode-4-only** problem.
-
-Probes (added to `lower_pat_dcg.c::build_node` NULL exits, `bb_exec.c case BB_PAT_DEFER`, and `sm_interp.c case SM_EXEC_STMT`) showed:
-
-1. **The same programs fail in mode-2 `--interp` too.** Tests 071/072/073/074/105/108/110 all return `fail` in interp. So this is upstream of the m2/m4 split.
-2. `BB_lower_pat` succeeds (no NULL-exit probe fired) for the failing patterns. `pat_bb` is non-NULL at `SM_EXEC_STMT`. The proper `bb_exec_pat` path runs, dispatching `BB_PAT_DEFER`.
-3. Inside `case BB_PAT_DEFER`, when the variable resolves to `val.v == DT_P` (pattern value, the common case for `*WORD` where `WORD = SPAN(&LCASE)`), the case calls `exec_stmt(NULL, &sub_d, val, NULL, 0)` to match the inner pattern.
-4. **`exec_stmt`'s DT_P branch is where the cast bug fires** (`stmt_exec.c:289-322`): `bb_build_brokered((PATND_t*)pat.p)` casts through `BB_t*`. PATND_t's first field is `XKIND_t kind` (XCHR=0, XSPNC=1, ...); BB_t's first field is `BB_op_t t` (BB_FAIL ≈ 0, BB_PAT_LIT=59, BB_PAT_SPAN=61, ...). The cast misreads the opcode and the broker emits code for the wrong kind, which fails or returns junk.
-
-Probe output for test 071 (`*WORD . V1` where `WORD = SPAN(&LCASE)`):
-```
-SM_EXEC_STMT bb_idx=0 pat_bb=0xa35c840 pat_d.v=3 sname=X    # proper BB path
-BB_DEFER WORD ival=1 val.v=3 Δ=0 Σlen=11                    # case dispatched
-  -> DT_P branch entered, calling exec_stmt sub Δ=0 sublen=11
-  exec_stmt returned ok=0                                    # buggy cast fires inside
-fail
-```
-
-So this affects BOTH modes. The next session implementing the fix should validate against m2 AND m4 broad corpus.
-
-### Designed fix — honors "ONLY BB/SM/XA templates" rule
-
-Add `BB_graph_t *patnd_to_bb_graph(PATND_t *pp)` in `lower_pat_dcg.c` — runtime PATND → BB_graph_t translator. Mirrors `build_node` (AST → BB) with PATND children instead of tree_t children. **No template code touched.** We're only correcting a runtime IR-construction path: a runtime-built PATND becomes input to a translator (parallel to how the AST is input to `BB_lower_pat`), and execution continues through the same `bb_exec_once` / mode-4 template dispatch.
-
-Per goal-file Addendum (Git history audit, 2026-05-27) the PATND→BB_op_t mapping is:
-
-| PATND kind | BB_op_t              | Notes                                  |
-|------------|----------------------|----------------------------------------|
-| XCHR       | BB_PAT_LIT           | sval = pp->STRVAL_fn                   |
-| XSPNC      | BB_PAT_SPAN          | sval = pp->STRVAL_fn; β=self           |
-| XBRKC      | BB_PAT_BREAK         | sval; ival=0                           |
-| XBRKX      | BB_PAT_BREAK         | sval; ival=1; β=self                   |
-| XANYC      | BB_PAT_ANY           | sval                                    |
-| XNNYC      | BB_PAT_NOTANY        | sval                                    |
-| XLNTH      | BB_PAT_LEN           | ival = pp->num                          |
-| XPOSI      | BB_PAT_POS           | ival = pp->num; sval = NULL             |
-| XRPSI      | BB_PAT_POS           | ival; sval = "r"                       |
-| XTB        | BB_PAT_TAB           | ival; sval = NULL                       |
-| XRTB       | BB_PAT_TAB           | ival; sval = "r"                       |
-| XFARB      | BB_PAT_ARB           | β=self                                  |
-| XARBN      | BB_PAT_ARBNO         | inner via patnd_to_bb_graph; bb_arbno_state_t in counter |
-| XSTAR      | BB_PAT_REM           |                                          |
-| XFNCE      | BB_PAT_FENCE         | child's γ → fence node; nchildren may be 0 (bare FENCE) or 1 (FENCE(inner)) |
-| XFAIL      | BB_FAIL              |                                          |
-| XABRT      | BB_PAT_ABORT         |                                          |
-| XEPS       | BB_EPS               |                                          |
-| XCAT       | BB_PAT_CAT           | variadic pp->children; right-fold like TT_CAT case |
-| XOR        | BB_PAT_ALT           | variadic; right-fold like TT_ALT case  |
-| XDSAR      | BB_PAT_DEFER         | sval = pp->STRVAL_fn; ival = 0 (direct lookup — XDSAR IS the deferred-name form) |
-| XFNME      | BB_PAT_ASSIGN_IMM    | sval = varname from pp->var; child via patnd_to_bb_graph |
-| XNME       | BB_PAT_ASSIGN_COND   | same shape as XFNME                    |
-| XVAR/XBAL/XATP/XCALLCAP | (skip in v1)  | mark NOT in current corpus               |
-
-Then modify `case BB_PAT_DEFER` in `bb_exec.c`:
-```
-if (val.v == DT_P && val.p) {
-    BB_graph_t *sub = patnd_to_bb_graph((PATND_t*)val.p);
-    if (sub && sub->entry) {
-        const char *save_Σ = Σ; int save_Σlen = Σlen; int save_Ω = Ω; int save_Δ = Δ;
-        const char *sub_str = Σ + Δ; int sub_len = Σlen - Δ;
-        DESCR_t sub_d = { .v = DT_S, .slen = (uint32_t)sub_len, .s = (char*)sub_str };
-        int ok = bb_exec_pat(sub, NULL, &sub_d, NULL, 0);
-        int matched = ok ? Δ : 0;
-        Σ = save_Σ; Σlen = save_Σlen; Ω = save_Ω; Δ = save_Δ;
-        if (!ok) { nd->value = FAILDESCR; return nd->ω; }
-        Δ += matched;
-        nd->state = 1; nd->value = NULVCL;
-        return nd->γ;
-    }
-    /* fall through to legacy exec_stmt path only if translator failed */
-    ...existing exec_stmt code...
-}
-```
-
-**Important:** keep the legacy `exec_stmt` fallback for now — `patnd_to_bb_graph` returns NULL on PATND kinds we don't support yet (XVAR/XBAL/XATP/XCALLCAP). The legacy path may still misbehave for those but they're documented as out-of-corpus.
-
-**Also:** `exec_stmt`'s OWN DT_P branch (top-level pattern dispatch when `pat_bb==NULL`) should ALSO use `patnd_to_bb_graph` as a try-first before falling back to the buggy `bb_build_brokered` cast. This will fix any remaining edge cases where AST lowering bailed out but the resulting PATND tree is translatable.
-
-### Estimate
-
-~80 LOC for the translator (one switch case per kind, GC allocations per pattern child), ~20 LOC for the two `case BB_PAT_DEFER` (bb_exec.c) and `exec_stmt` DT_P (stmt_exec.c) wiring changes. Single PR.
-
-### Expected uplift
-
-Per goal-file: ~15 broad-corpus tests (070-074, 072, 105-117). Rung suite may also pick up 056 (*PAT deref m4) finally. Verify both `--interp` and `--compile` paths after fix — same root cause affects both.
-
-### What was tried, what was not
-
-**Tried:**
-- Printf probes at `build_node` NULL exits (no fires → BB_lower_pat OK).
-- Printf probe at `case BB_PAT_DEFER` entry (case dispatched, DT_P branch entered, exec_stmt returned 0).
-- Printf probe at `case SM_EXEC_STMT` (confirmed pat_bb non-NULL, ruling out the "AST lowering bails out" hypothesis).
-- All probes reverted; working tree clean.
-
-**Not tried:**
-- Actual translator implementation (out of context budget).
-- Test against rung 056 to see if `*PAT` deref unblocks.
-- Mode-4 broad corpus rerun after fix.
-
-### Other notes
-
-- The `nd->ival` deref logic in `case BB_PAT_DEFER` (`if IS_NAMEVAL: NV_GET; else if IS_NAMEPTR: NAME_DEREF_PTR`) is a no-op for `val.v == DT_P` because those macros require `val.v == DT_N`. Either tighten the semantic (only deref if v == DT_N) or remove the check entirely — both are equivalent today. Cleanup, not a bug.
-- Mode-3 `--run` smoke 6/7 fails were already 6 at baseline; unrelated to this work.
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
+## Architecture references
+
+- Semantic oracle: `bb_exec.c case BB_PAT_*`
+- Flat driver: `emit_bb.c codegen_flat_body`, `walk_bb_flat`, `walk_bb_node`
+- Template dispatch: `src/emitter/emit_core.c`
+- Template directory: `src/emitter/BB_templates/bb_pat_*.cpp`
+- Lowering: `src/lower/lower_pat_dcg.c::build_node`
+- Mode-2 interp dispatch: `src/runtime/sm_interp.c SM_EXEC_STMT`
+- PATND legacy: `src/runtime/stmt_exec.c exec_stmt` DT_P branch
+- Pattern-building runtime helpers: `src/runtime/rt.c rt_pat_*` (29 fns; called @PLT from templates)
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
