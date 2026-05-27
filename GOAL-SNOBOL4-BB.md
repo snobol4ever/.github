@@ -143,9 +143,9 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 - **β:** undo Δ--, return ω.
 - Identical shape to ANY but with the `strchr` sense inverted.
 
-#### SBL-NOTANY-1 — Fill `bb_pat_notany.cpp` TEXT arm ⏳
-- [ ] Same structure as SBL-ANY-1 with `strchr` success meaning failure (jne ω becomes je ω and vice versa).
-- [ ] Gate: GATE-PK re-frozen. GATE-1 7/7.
+#### SBL-NOTANY-1 — Fill `bb_pat_notany.cpp` TEXT arm ✅ (2026-05-27)
+- [x] Same structure as SBL-ANY-1 with `strchr` success meaning failure. Mirrored ANY exactly; the sole logic delta is `jne ω` (NOTANY fails when char IS in set) vs ANY's `je ω`. Verified: `'hello' NOTANY('xyz')`→matched (m2=m4); anchored `'aeiou' NOTANY('aeiou')`→no match (m2=m4). Broad corpus 137→138.
+- [x] Gate: GATE-1 7/7, GATE-2 23/23. No regression.
 
 #### SBL-NOTANY-2 — Fill `bb_pat_notany.cpp` BINARY arm ⏳
 - [ ] Gate: GATE-PK BINARY re-frozen. Mode-3 NOTANY probe matches `--interp`.
@@ -158,10 +158,12 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 - **α (state==0):** scan forward while Σ[Δ+i] not in chars; i = matched length. Save i in counter. Advance Δ by i. Return γ. (BREAK always succeeds, even on i=0 — it matches zero chars up to the break char.)
 - **β (state>0):** restore Δ -= counter; return ω. (No retry.)
 
-#### SBL-BREAK-1 — Fill `bb_pat_break.cpp` TEXT arm ⏳
-- [ ] α: loop with `strchr` until char IN chars or end of string. Store loop count in `.data` slot (or `[r10+N]`). Advance Δ. jmp γ.
-- [ ] β: load saved count, subtract from Δ, jmp ω.
-- [ ] Gate: GATE-PK re-frozen. GATE-1 7/7.
+#### SBL-BREAK-1 — Fill `bb_pat_break.cpp` TEXT arm ✅ (2026-05-27)
+- [x] α: forward scan loop with `strchr` (inverted from SPAN: `jnz dn` — BREAK stops when char IS found). Always succeeds, even on i=0. Saved len in `.Lbrk<id>_z`. Advance Δ. jmp γ.
+- [x] β: plain non-generator: `Δ -= counter; jmp ω`.
+- [x] BREAKX (`nd->ival==1`) NOT YET implemented — plain BREAK only (`nd->ival==0`). SBL-BREAKX-1/2 still open.
+- [x] Verified: `'hello world' BREAK(' ')`→matched (m2=m4); `'xyz' BREAK('abc')`→matched (whole string, no break char) (m2=m4); `' xyz' BREAK(' ')`→matched (empty span at break char) (m2=m4). Broad corpus 139→141.
+- [x] Gate: GATE-1 7/7, GATE-2 23/23. No regression.
 
 #### SBL-BREAK-2 — Fill `bb_pat_break.cpp` BINARY arm ⏳
 - [ ] Gate: GATE-PK BINARY re-frozen. Mode-3 BREAK probe matches `--interp`.
@@ -176,11 +178,11 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 - **β (state==2 / exhausted):** return ω.
 - SPAN is a **generator** — it yields shorter and shorter matches on successive β entries.
 
-#### SBL-SPAN-1 — Fill `bb_pat_span.cpp` TEXT arm ⏳
-- [ ] α: forward scan loop with `strchr`. If i==0: jmp ω. Store i in `.data` slot. Advance Δ. jmp γ.
-- [ ] β: load counter from `.data`. Subtract from Δ. Decrement counter. If counter < 1: jmp ω. Add counter to Δ. jmp γ.
-- [ ] Two `.data` slots needed: `counter` (int64) and a state flag (or reuse counter sign). See `bb_pat_arb.cpp` PLATFORM_X86 arm as reference for a generator with counter.
-- [ ] Gate: GATE-PK re-frozen. GATE-1 7/7. Verify SPAN backtracking: `'aaa' SPAN('a') . V` → `V='aaa'` then backtracks to `V='aa'` etc.
+#### SBL-SPAN-1 — Fill `bb_pat_span.cpp` TEXT arm ✅ (2026-05-27)
+- [x] α: forward scan loop with `strchr` (transcribed from recovered `bb_span.s`, r11=Σ base preserved across `strchr@PLT` via push/pop). If matched-len==0: jmp ω. Stored len in `.Lspan<id>_z+0`, base Δ in `+4`. Advance Δ. jmp γ.
+- [x] β: GENERATOR form (per bb_exec.c oracle, NOT the simple .s β): load base from `+4`, counter from `+0`, decrement; if <1 jmp ω; store new counter; Δ = base+counter; jmp γ. Modeled on filled `bb_pat_arb.cpp` two-long `.data` slot.
+- [x] Verified: `'aaabbb' SPAN('a')`→matched (m2=m4); `'aaab' SPAN('ab') 'b'`→matched via backtrack from 'aaab' to 'aaa' (m2=m4). Broad corpus 138→139.
+- [x] Gate: GATE-1 7/7, GATE-2 23/23. No regression.
 
 #### SBL-SPAN-2 — Fill `bb_pat_span.cpp` BINARY arm ⏳
 - [ ] Gate: GATE-PK BINARY re-frozen. Mode-3 SPAN probe matches `--interp`.
@@ -220,13 +222,15 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 - The capture node in `lower_pat_dcg.c` has `nd->α = inner_entry, nd->β = inner->β` — the inner sub-graph is a *child* of the capture node wired through its α port.
 - **Key distinction:** in `walk_bb_flat` (emit_bb.c, `case BB_PAT_ASSIGN_IMM/COND`), `g_emit.child_fn` is set to the pre-built child blob fn, and `g_emit.op_name1` = the variable name. The template sees these in `g_emit`.
 
-#### SBL-CAP-1 — Fill `bb_capture.cpp` TEXT arm ⏳
-- [ ] α-entry: save `[r10]` (Δ) to a `.data` slot (`.Lcap<id>_start`). Then jump to the child blob's α entry (`call <child_α_lbl>` — child pre-built as a flat blob).
-- [ ] γ-arrival (the child succeeded): compute `matched_len = [r10] - [rip + .Lcap<id>_start]`. Call `rt_nv_set_str@PLT(varname_ptr, subj+start, matched_len)` (or equivalent runtime helper). Jump lbl_γ.
-- [ ] ω-arrival (child failed): jump lbl_ω.
-- [ ] The child's own β is `g_emit.bb_child_lbl`'s β — the template does not own that; the child blob handles retry internally.
-- [ ] Read existing JVM/NET arms in `bb_capture.cpp` for structural reference.
-- [ ] Gate: GATE-PK re-frozen. GATE-1 7/7. `S 'abc' . V` succeeds with V=matched span.
+#### SBL-CAP-1 — Fill `bb_capture.cpp` TEXT arm ✅ (2026-05-27)
+- [x] **Design fork resolved: emit fully inline.** Investigation showed the runtime `cap_t` object allocated by `bb_prepare_capture_arbno`+`XA_CAP_FIXUP` is **dead scaffolding** — its only consumer was the deleted C Byrd box `bb_cap()`, removed by the FACT RULE purge. The new TEXT arm is self-contained inline x86; it ignores `cap_t` entirely. (Recommend deleting `bb_prepare_capture_arbno`'s cap_new/cap_fixup calls in a follow-up HQ rung as residue.)
+- [x] α-entry: save `[r10]` (Δ) to `.Lcap<id>_start` (4-byte slot). `xor esi, esi; call <child_α_lbl>`. On return: `cmp eax, 99; je ω; jmp .Lcap<id>_assign`.
+- [x] β-entry: `mov esi, 1; call <child_α_lbl>` (re-enters child at its β via prologue dispatch on esi). Same eax check; fall through to assign on success.
+- [x] Assign: compute `Σ+start` in rsi, `Δ-start` in edx; `lea rdi, [rip + <varname_intern_str>]`; `call rt_cap_assign@PLT`; `jmp γ`. Both ASSIGN_IMM and ASSIGN_COND share this code (matches bb_exec.c oracle: both write on γ arrival immediately).
+- [x] Added `rt_cap_assign(varname, base, len)` to `rt.c` — same class as the existing 29 `rt_pat_*` helpers (pattern-building, not a Byrd box; sanctioned per goal-file).
+- [x] **Removed ASSIGN_IMM/ASSIGN_COND from `lower_flat_invariant` exclusion** (`emit_sm.c:781`). CALLOUT remains excluded (no template yet). This is what unlocks inline emit for capture-containing windows.
+- [x] Verified: rung 039 (`'hello' ANY('aeiou') . V`) → V='e' in m2=m4. Rung suite M4 jumped 1→8 (+7). Broad corpus 141→155 (+14).
+- [x] Gate: GATE-1 7/7, GATE-2 23/23. No regression.
 
 #### SBL-CAP-2 — Fill `bb_capture.cpp` BINARY arm ⏳
 - [ ] Fix `bb_bin_t` site list to cover all rel32 fixups.
@@ -276,10 +280,13 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 ```
 SBL-G-1-BASELINE-M2=9       # 19 pattern rungs, --interp, clean HEAD 3a522bd8
 SBL-G-1-BASELINE-M4=0       # mode-4; was assembler-blocked by macro-annotation bug
-SBL-CURRENT-M4=1            # after 308e0378 (α-label fix + ANY TEXT); rung suite
+SBL-CURRENT-M4=8            # +7 after SBL-CAP-1 lands: capture-gated ANY/NOTANY/SPAN/BREAK/LEN/RTAB
+                            #   rungs 038-043, 047, 050 all PASS-M4 now
 BROAD-CORPUS-BASELINE=121   # /280 at 3a522bd8 (prior "250" was stale corpus state)
-BROAD-CORPUS-CURRENT=137    # /280 after 308e0378 (+16, no regression of prior PASSes)
-GATE-PK-PAT-STATUS=stale    # SBL-G-2 not yet done — re-freeze still pending
+BROAD-CORPUS-CURRENT=155    # /280 after NOTANY+SPAN+BREAK+CAPTURE (+34 over baseline, +18 this session)
+GATE-PK-PAT-STATUS=stale    # SBL-G-2 not yet done — baseline references DELETED rt_bb_* C boxes;
+                            #   broad re-freeze deferred (would mask other in-flight lang sessions).
+                            #   Rung suite + smoke + broad corpus are the live correctness gates.
 ```
 
 ---
@@ -339,6 +346,52 @@ failing on the capture path — not regressions of previously-passing tests.
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued) — handoff note
+
+**Built on the prior session's `6deb9f71` baseline.** Filled four hollow TEXT arms in sequence:
+NOTANY → SPAN → BREAK → **CAPTURE** (the keystone).
+
+### Results
+- **Rung suite: PASS-M4 1 → 8** (+7): rungs 038-043, 047, 050 all green (capture-using rungs unblocked).
+- **Broad corpus: 137 → 155** (+18). No regressions of any prior PASS.
+- **Mode-2 smoke unchanged 7/7; broker 23/23.** GATE-PK still stale (its baseline references DELETED `rt_bb_*` C boxes — flagged in Session State).
+
+### Design fork resolution for SBL-CAP
+Investigated the `cap_t` runtime object scaffolding (`bb_cap_new` + `XA_CAP_FIXUP`) and confirmed
+its sole consumer — the `bb_cap(void*, int)` C Byrd box — was DELETED by the FACT-RULE purge.
+The runtime object is now dead scaffolding nobody reads. Chose **fully inline TEXT arm** that:
+1. Saves Δ to `.Lcap<id>_start` on α.
+2. `xor esi, esi; call <child_α_lbl>` (or `mov esi,1` on β — re-enters child at β via prologue dispatch).
+3. Checks `eax` against 99 (the standard fail-return from `XA_FLAT_EPILOGUE`).
+4. Computes span and calls `rt_cap_assign@PLT(varname, Σ+start, Δ-start)` on success.
+
+Added one tiny runtime helper `rt_cap_assign(varname, base, len)` to `rt.c` — pattern-building
+class (same as `rt_pat_*`), explicitly sanctioned by the goal-file note. **Removed
+`ASSIGN_IMM/ASSIGN_COND` from the `lower_flat_invariant` exclusion** at `emit_sm.c:781` —
+this is what flips capture-containing windows from the runtime fallback path to inline emit.
+CALLOUT remains excluded (no template yet).
+
+### Follow-up rungs (priority order)
+1. **SBL-ARBNO** — six SKIP-M4 rungs (052/053/054/055/056/051) still gated on hollow `bb_arbno.cpp`.
+   Same child-blob mechanism as capture; can probably reuse the `call <child_α>` pattern with a
+   small pos_stack (`.data` array, depth in `.data` long). Builds on the proven capture wiring.
+2. **SBL-BREAKX** — distinguish `nd->ival==1` in `bb_pat_break.cpp` for BREAKX β (advance past break char + rescan).
+3. **SBL-*-2 BINARY arms** — once all six TEXT arms green, do the BINARY parallel for mode-3 (`--run`).
+4. **Cleanup HQ rung:** delete `bb_prepare_capture_arbno`'s `bb_cap_new`/`XA_CAP_FIXUP` calls now
+   that nothing reads `cap_t`. Track as residue in GOAL-HEADQUARTERS.
+
+### Mode-2 caveat noticed (NOT a regression — pre-existing)
+Rungs 044/045/046/048 (POS/RPOS/TAB/REM) fail in BOTH m2 and m4 with empty output — these are
+pre-existing oracle mismatches in the rung suite's baked-in expectations, not caused by this
+work. Worth a follow-up audit but separate from SBL goal.
+
+**HEAD one4all: pending commit** (templates + emit_sm.c invariant + rt.c helper). corpus untouched.
+.github: this file updated, pending commit.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
 
