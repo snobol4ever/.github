@@ -58,7 +58,7 @@ Mapping doc (LFJ-0) is the contract — transcription does not deviate from it.
 | LFJ-5  | Transcribe `ir_binary` helper + `ir_a_Binop`. Flip the binop slots. | ✅ rungs 198. One function `lower_icn_new_Binop` covers all 20 binop AST kinds (TT_ADD..TT_NE, TT_CAT, TT_LCONCAT, TT_LLT..TT_LNE), mirroring JCON's single ir_a_Binop dispatch on p.op. AG-pure step-3 intercept in `lower_icn_expr_threaded_b` (lines 1414-1436) is producer-agnostic and catches the new fn's tree-shape transparently. `lower_icn_expr_node` de-`static`'d for cross-file recursion. Probe exercised arith/relop/string-relop/list-concat. |
 | LFJ-6  | Transcribe `ir_a_If`. Flip TT_IF. | ✅ rungs 198. AG-pure step-5 intercept already realizes JCON's wiring in CFG-routing form (`cond.γ=cond.ω=nd_if; nd_if.γ=then.α; nd_if.ω=else.α`). JCON-only state (tmp/tiu/xiu/yiu, ir_max_st/ir_union_inuse, MoveLabel/IndirectGoto continuation) has no SCRIP analog. Pre-existing semantic divergence noted: JCON synthesizes `else := &fail` for missing else; SCRIP intercept routes cond.failure→γ_in (correct for if-as-statement; differs for if-as-expression in unbounded context). |
 | LFJ-7  | Transcribe `ir_a_ToBy` (+ `ir_a_To` shim if separate). Flip TT_TO, TT_TO_BY. | ✅ rungs 198. JCON has NO separate ir_a_To — `i to j` is `i to j by 1` with byexpr defaulted. New function dispatches on `e->t` to allocate BB_TO vs BB_TO_BY. Preserves both SCRIP optimization paths: static-literal fast (both bounds TT_ILIT → ival/dval, α/β NULL) and dynamic (α/β as boxes, 8.2 intercept upgrades to AG-pure). `icn_fold_signed_lit` de-`static`'d for cross-file use (handles `by -3` parsed as TT_MNS(TT_ILIT 3)). Probe: 1+2+3+4+5=15; 1,3,5,7,9. |
-| LFJ-8  | Transcribe `ir_a_Every`. Flip TT_EVERY. | rungs 198. |
+| LFJ-8  | Transcribe `ir_a_Every`. Flip TT_EVERY. | ✅ `3d8aae8c` rungs 198. 1:1 transcription of legacy_EVERY (which already encodes JCON's flat-wire generator topology). Preserves AG-pure step 8.1 literal-bound gating (`gen->α==NULL && gen->β==NULL`) and step 8.2 TT_TO/TT_TO_BY dynamic-bound routing via `lower_icn_expr_threaded_b`. JCON's 6 Goto chunks collapse onto 4 CFG port assignments per the SCRIP encoding (gen.γ=body, body.γ=gen, body.ω=gen, gen.ω=nd). JCON-only state with no SCRIP analog documented: ir_init_loop/ir_loop_stack (SCRIP uses chain-walker FRAME for break/next), per-chunk label allocations (SCRIP labels are box identities), bounded-suspend chunks (chain walker's ω-on-resume default), ir_coord (no current SCRIP debug-source). `lower_icn_expr_threaded_b` extern'd in lower_icn_new.c (already non-static in lower_icn.c). |
 | LFJ-9  | Transcribe `ir_a_Compound`, `ir_a_ProcBody`. Flip the relevant slots. | rungs 198. |
 | LFJ-10 | Transcribe `ir_a_Call`, `ir_a_Field`, `ir_a_Sectionop`. Flip the slots. | rungs 198. |
 | LFJ-11 | Transcribe `ir_a_Alt`, `ir_conjunction`, `ir_a_Not`. Flip the slots. | rungs 198. |
@@ -293,7 +293,7 @@ bash scripts/test_icon_mode4_rung.sh       # PASS=5
 | Family 1 BB_ASSIGN sidecar | `78e4c067` |
 | Family 2 BB_CALL sidecar | `78e4c067` |
 
-**WATERMARK:** one4all `0b3b331d`. Gates: smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5.
+**WATERMARK:** one4all `3d8aae8c`. Gates: smoke_icon 5/5 · broker 25 · rungs 198 · smoke_prolog 5/5.
 
 ---
 
