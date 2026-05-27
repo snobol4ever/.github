@@ -92,7 +92,18 @@ Recent closes: G-2 RT-DELETE ladder (`f0f99035` — all 4 C four-port Byrd boxes
 
 ⚠ Mode-3 `--run` for Icon is RED today: even hello.icn → `sm_eval_subexpr: invalid entry_pc 1` (BB graph freed before the baked C-walker call reads it — Phase J root cause, FACT 3 violation). --interp is fine. Rung gate is --interp-only so unaffected.
 
-**NEXT:** H-1 remaining — push the 4-attribute signature INTO the builders so γ/ω thread DOWN into then/else/body for nested non-leaf IF (if-as-value `x := if a then b else c`) + deep generator composition (not just the post-hoc parent stamp). Then rung06 scan-`?` resume (`every (S ? write(upto(c)))` loops — scan subj/pos not resuming). BB_CONJ still needs a bb_*.cpp emitter template (mode-3/4, with Phase J).
+**NEXT:** JA-2b (dynamic/real `to`/`by` operand path via H-3 value-field read; then `bb_icn_to.cpp`), then
+JA-1 (flip flat-BB default + delete `rt_bb_pump_proc` C-walker edge so the new `bb_to_by` template is actually
+exercised by `--run`). H-1 remaining — push the 4-attribute signature INTO the builders so γ/ω thread DOWN into
+then/else/body for nested non-leaf IF (if-as-value `x := if a then b else c`) + deep generator composition.
+
+### JA-2a CLOSED — 2026-05-26 (literal integer to/by generator)
+`bb_to_by.cpp` now emits a real four-port literal-integer `to`/`by` generator (TEXT+BINARY), replacing the
+passthrough stub. The dead orphan `bb_icn_to_by.cpp` (never in Makefile, never dispatched) was DELETED + its
+stale prototype removed from `bb_templates.h`. Emitted TEXT assembles (`as --64`); BINARY rel32 relocs
+hand-decoded. Gates green: smoke 5/5, broker 23, rungs 196. NOT a GATE-PK rung (BB_TO_BY cell uses
+relink-unstable node-id labels — left at 471/40, like BB_UPTO/BB_ITERATE/BB_PAT_POS). NOT yet reachable from
+`--run` (flat-BB JIT still uses `rt_bb_pump_proc` C-walker for proc-body BB nodes — JA-1).
 
 ### J-4 GENERATOR FRONTIER — diagnosed 2026-05-26 (Opus 4.7, diagnosis-only, one4all tree CLEAN @ 9be28a5d)
 Empirically pinned the J-4 "GENERATORS" blocker with no code change. Repro: `every write(1 to 3)` → `--interp` prints `1 2 3`; `--run SCRIP_JIT_FLAT_BB=1` → `sm_interp: stack underflow`. Scalar flat path is fine (`hello.icn` + `double(21)=42` work flag-on). ROOT CAUSE: `every`/`to`/`by` are BB_EVERY/BB_TO_BY graph nodes driven in mode 2 by bb_exec.c's four-port C walker via SM_BB_PUMP_PROC. The flat-BB JIT (sl_emit_one SM_BB_PUMP_PROC, sm_jit_interp.c:2115) correctly emits `call rel32` to the proc entry_pc + frame setup/teardown — BUT the proc body's generator BB nodes have NO flat-x86 emitter template: **`src/emitter/BB_templates/bb_icn_to_by.cpp` is a literal STUB** (`bb_icn_to_by_str` returns `std::string()` — emits zero bytes). So no values reach the vstack and `write`'s consumer underflows. sl_emit_one DOES wire SM_SUSPEND_VALUE/SM_SUSPEND/SM_PUSH_EXPRESSION/SM_CALL_EXPRESSION (suspend plumbing present); the gap is the empty BB generator TEMPLATES, not the SM opcode dispatch. (NOTE: no `SM_GEN_TICK` opcode exists in this tree — that was older nomenclature; Icon generators are BB nodes, not a dedicated SM opcode.)
@@ -214,12 +225,25 @@ Two correction rungs (JA-1..JA-2) are added; they tighten existing Phase-J steps
   sites (1666, 2144/2149). (d) FACT-2 completion test: `grep`-prove reachability from any `--run`/`--compile`
   entry to `icn_bb_dcg`/`bb_exec_once`/`bb_exec_resume` == 0 (they stay DEFINED for Mode 2). Gate: smoke 5/5,
   broker ≥19, rungs ≥196, `--run hello.icn` (no env) prints `hello`, mode-1/mode-4 byte-identical, ASAN clean.
-- [ ] **JA-2** — Generators onto the emitted-x86 path (the J-4/J-5 "NEXT: GENERATORS" item, made concrete).
-  `bb_icn_to.cpp` + `bb_icn_to_by.cpp` currently emit no port logic (C-walker delegation). Translate the
-  `to`/`by` four-port generator (`bb_exec.c` `BB_TO`/`BB_TO_BY` cases) into inline x86 TEXT+BINARY arms with
-  a `bb_bin_t` reloc table, so `every`/`to`/`by` run native in Mode 3. Add the same per-template emptiness
-  audit as Prolog PA-2 covering `bb_icn_to`/`bb_icn_to_by`. Anchor: `rung01_paper_to_by` runs under flat-BB
-  (was `stack underflow`). Gate: smoke 5/5, broker ≥19, rungs ≥196, anchor PASS, mode-4 byte-identical.
+- [~] **JA-2** — Generators onto the emitted-x86 path (the J-4/J-5 "NEXT: GENERATORS" item, made concrete).
+  Translate the `to`/`by` four-port generator (`bb_exec.c` `BB_TO`/`BB_TO_BY` cases) into inline x86 TEXT+BINARY
+  arms with a `bb_bin_t` reloc table, so `every`/`to`/`by` run native in Mode 3. Anchor: `rung01_paper_to_by`.
+  Gate: smoke 5/5, broker ≥19, rungs ≥196, mode-4 byte-identical.
+  - [x] **JA-2a (PARTIAL, this session)** — `bb_to_by.cpp` (the LIVE template dispatched by emit_core.c for
+    BB_TO_BY; the file the audit called `bb_icn_to_by.cpp` was a dead orphan — DELETED, prototype removed)
+    now emits a REAL **literal integer** `to`/`by` four-port generator (TEXT + BINARY), replacing the
+    α→γ/β→ω passthrough stub. α: cur=lo; β: cur+=by; check `(by>=0?jg:jl) → ω`; yield DT_I(cur) onto r12 → γ.
+    Counter in per-node `.data` quad (TEXT) / `&pBB->counter` (BINARY); `bin` reloc table {ω,γ,β}. Mirrors
+    bb_iterate/bb_upto idiom. Per-kind audit node for BB_TO_BY added (literal-int operands, sval="i", step=1);
+    cell re-frozen (GATE-PK 471→472, BB_TO_BY x86/text was FAILing vs stale `icn_to_by_rt` baseline). Emitted
+    TEXT verified assembles (`as --64`); BINARY reloc offsets verified by hand-decode. Gates: smoke 5/5,
+    broker 23, rungs 196. ⚠ NOT a GATE-PK rung — the BB_TO_BY cell's node-id-derived labels (`bbNNNN_α` entry +
+    `.Ltoby<id>_*`) drift across relinks and aren't masked by normalize_per_kind_cell.py, so the cell can't be
+    address-stably re-frozen on this branch (same pre-existing fragility as BB_UPTO/BB_ITERATE/BB_PAT_POS, all
+    already in FAIL=40). GATE-PK left at 471/40; re-freeze deferred to a build that masks the entry-label drift.
+  - [ ] **JA-2b** — Dynamic/real operand path: lower α/β operand-box `value` fields into the generator (H-3
+    value-field read). Currently dynamic+real bounds fall to the documented passthrough arm (yields nothing).
+    Then `bb_icn_to.cpp` (BB_TO, the `lo to hi` no-step form) gets the same literal+dynamic treatment.
 
 ---
 
