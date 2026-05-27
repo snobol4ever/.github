@@ -84,9 +84,10 @@ Fast loop: `--rung rungNN` (instant) or 01-35 loop (~3s). AVOID full suite while
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `9be28a5d`)
+## ⚡ CURRENT WATERMARK (one4all `7be51cd5`)
 
-GATES GREEN: smoke_icon **5/5**, unified_broker **23**, icon_all_rungs **196**. Honest (interp via bb_exec.c ports). Prolog smoke unchanged (own goal). SNOBOL4 smoke 7/0.
+GATES GREEN: smoke_icon **5/5**, unified_broker **23**, icon_all_rungs **198**. Honest (interp via bb_exec.c ports). Prolog smoke unchanged (own goal). SNOBOL4 smoke 7/0.
+(Re-verified 2026-05-26, Opus 4.7, at live HEAD `4d976602` — the Icon-BB content hash since `9be28a5d` is unchanged; HEAD advanced only via GOAL-PROLOG-BB commits PA-1/2/3 + JA-2a `76488946`. All three Icon gates rebuilt-and-rerun green. THIS SESSION added the H-1 cross-arg odometer: rungs 196→198 via cross-arg odometer + side-effect fix.)
 
 Recent closes: G-2 RT-DELETE ladder (`f0f99035` — all 4 C four-port Byrd boxes gone, icon_box_rt.c deleted); H-1 AG foundation `lower_icn_expr_threaded` + back-to-front spine threading (`45c1bde2`); H-4 IDX_SET/SECTION γ-conflation fix; BB_CONJ split off BB_IF for `E1 & E2` (`9be28a5d`, rungs 195→196).
 
@@ -94,8 +95,10 @@ Recent closes: G-2 RT-DELETE ladder (`f0f99035` — all 4 C four-port Byrd boxes
 
 **NEXT:** JA-2b (dynamic/real `to`/`by` operand path via H-3 value-field read; then `bb_icn_to.cpp`), then
 JA-1 (flip flat-BB default + delete `rt_bb_pump_proc` C-walker edge so the new `bb_to_by` template is actually
-exercised by `--run`). H-1 remaining — push the 4-attribute signature INTO the builders so γ/ω thread DOWN into
-then/else/body for nested non-leaf IF (if-as-value `x := if a then b else c`) + deep generator composition.
+exercised by `--run`). H-1 remaining — push the 4-attribute signature INTO the builders so γ/ω thread DOWN.
+⚠ Of H-1's two halves, only **generator-composition is frontend-reachable** today; the if-as-value half
+(`x := if a then b else c`) is BLOCKED at the parser (`if` not accepted in expression position — see H-1
+FRONTEND-REACHABILITY note below). Attack generator-composition first; if-as-value waits on a frontend rung.
 
 ### JA-2a CLOSED — 2026-05-26 (literal integer to/by generator)
 `bb_to_by.cpp` now emits a real four-port literal-integer `to`/`by` generator (TEXT+BINARY), replacing the
@@ -119,6 +122,13 @@ Foundation landed (`45c1bde2`): `lower_icn_expr_threaded(cfg,e,γ_in,ω_in,&α_o
 - [x] BB_node_alloc α/β default NULL (was self → leaves looked operand-bearing → infinite recursion). BB_IF else→ω (was γ, collided with success continuation).
 - [x] BB_CONJ: `E1 & E2` own opcode (generator: resume E1 across pumps, E2 fresh per E1-success, E1-exhaustion→ω). Fixes `every (gen) & body` infinite loop. rungs 195→196.
 - [ ] **REMAINING:** per-construct DOWN-threading of γ/ω into then/else/body for nested non-leaf IF + generator composition — push the full signature into the builders, not just stamp the parent.
+- ⚠ FRONTEND-REACHABILITY (diagnosed 2026-05-26, Opus 4.7, diagnosis-only, tree CLEAN @ `4d976602`): the two halves of "REMAINING" are NOT equally reachable through the current Icon frontend, so attack generator-composition FIRST.
+  - **if-as-value (`x := if a then b else c`) is BLOCKED at the parser** — `if` is not accepted in expression/RHS position: `./scrip --interp` on `x := if 1<2 then 10 else 20` → `parse error: expected expression (got if)`. The BB_IF DOWN-threading work cannot be exercised or gated until the frontend supports conditional expressions (GOAL-PARSER-ICON / GOAL-LANG-ICON prerequisite, not noted there either). lower_icn.c TT_IF (line 342) wires α=cond/β=then/ω=else but the then/else branches are built with plain `lower_icn_expr_node` and get NO γ_in threaded onto their tails — correct diagnosis of the gap, just unreachable to TEST today.
+  - **generator-composition (deep `every`/`to`/`by` nesting) IS reachable** and is the productive H-1 slice now. ✅ **CROSS-ARG ODOMETER CLOSED this session (2026-05-26, Opus 4.7, rungs 196→197):** multi-generator CALL arguments now cross-product (Icon goal-directed eval). `every write(1 | 2, ":", 3 | 4)` → `1:3 / 1:4 / 2:3 / 2:4`; 3-way `every write(1|2,3|4,5|6)` → all 8; `to`/`by` args too (`every write(1 to 3," ",10 to 12)` → 9 pairs). FIX in `bb_exec.c` BB_CALL: new `state==2` odometer arm (no BB_t field added — arg gen nodes keep own state, chain re-walked from nd->α each resume; rightmost gen advances fastest, restart+carry-left on exhaustion, leftmost-exhaustion→ω). Engages ONLY when ≥1 arg is `!ir_is_single_shot` AND the call resolves to a plain builtin (user gen-procs / BB-graph procs keep capture-once behavior — untouched). Anchor rung `rung13_alt_alt_cross_arg` (corpus `c987f88`). Gates: smoke 5/5, broker 23, rungs 197 (median-of-3 stable); P1-P6 + single-arg `every write("a"|"b"|"c")` unchanged. Earlier-probed nested `every`/`to`/`by` + gen-in-if-cond were already correct; this CALL-arg odometer was the one remaining reachable gap.
+  - ✅ **COMPOSITION CORNERS VERIFIED CLEAN (2026-05-26, Opus 4.7):** generator-through-assignment (`every (x:=1|2|3) do…`→1 2 3; assign-gen call args cross-product), binary-op two-gen (`(1|2)+(10|20)`→11 21 12 22, RIGHT-fastest — MATCHES the CALL odometer direction + genuine Icon), nested gen-call-as-arg (`max(1|5,3|2)`→3 2 5 5), binop-inside-call-arg (`write(1|2,(10|20)+(100|200))`→all 8), user-gen-proc-as-arg (`write(gen2(),3|4)`→cross-product), 3-way 2×2×2=8. Perf: 2500-elem cross-product ~14ms. H-1 "deep generator composition" now substantially closed for reachable cases.
+  - ✅ **ODOMETER SIDE-EFFECT FIX (rungs 197→198):** initial odometer RE-EVALUATED single-shot args on every resume — `every write(1|2, noisy(), 3|4)` fired `noisy()`'s side effect 4× (values right `1X3 1X4 2X3 2X4`, but Icon evaluates a non-generator argument ONCE per its single production). Fixed: resume path re-reads cached `argv[j]->value` for single-shot args, never re-`bb_exec_node`s them. `[eval]` now fires once. Caught by a side-effect probe (value-only checks missed it). Anchor rung `rung13_alt_alt_cross_arg_sideeffect` (corpus, expects `[eval]` once + 4 lines).
+  - ✅ **STALE `[NO-AST]` PRINT REMOVED (`sm_interp.c:1669`):** `generator_state_new_proc` printed `[NO-AST] sm_call_proc tree walk removed: scope must be prebuilt at lower time` to stderr on EVERY user-gen-proc instantiation — but the path is fully implemented (uses prebuilt `lower_sc` two lines below, set at lower.c:1948). Leftover stub marker from `fb3c4153` ("delete AST walking from modes 2/3"), never removed after reimplementation. Always-false alarm; fired 3× in `test/icon/generators.icn`, 2×/pump under the odometer. Removed (stderr-only → zero stdout/rung impact). generators.icn NO-AST 3→0; gates unchanged.
+  - SEPARATE non-blocking quirk found while probing: 3+ statements separated ONLY by newlines (no `;`) fail at the 3rd stmt (`parse error: expected ; (got IDENT)`); 2 newline-separated stmts parse, explicit `;` always works. Blocks ZERO rungs — the entire Icon corpus terminates every statement with `;` (verified test/icon/*.icn). Robustness nicety, not a frontier item; do NOT divert for it.
 - ⚠ AUDIT: worker's ω-operand guard lists only BB_IF. As more operand-bearing kinds migrate, check each for ω-as-operand (or γ-as-operand, the IDX_SET/SECTION bug) BEFORE the worker stamps.
 
 #### H-2 — BB_SEQ child-array → γ-chain ⏳
@@ -276,6 +286,8 @@ Two correction rungs (JA-1..JA-2) are added; they tighten existing Phase-J steps
 | rung01 to-by neg-step | `3681a6a9` | 174→176 |
 | H-1 threading + IDX_SET/SECTION | `45c1bde2` | 189→195 |
 | BB_CONJ (E1 & E2) | `9be28a5d` | 195→196 |
+| H-1 cross-arg odometer | `7be51cd5` | 196→197 |
+| H-1 odometer side-effect fix | `7be51cd5` | 197→198 |
 
 ---
 
