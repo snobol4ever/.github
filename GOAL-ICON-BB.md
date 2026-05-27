@@ -84,10 +84,10 @@ Fast loop: `--rung rungNN` (instant) or 01-35 loop (~3s). AVOID full suite while
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `e67bc975`)
+## ⚡ CURRENT WATERMARK (one4all `5c455663`)
 
 GATES GREEN: smoke_icon **5/5**, unified_broker **23**, icon_all_rungs **198**. Honest (interp via bb_exec.c ports). Prolog smoke unchanged (own goal). SNOBOL4 smoke 7/0.
-(2026-05-26, Opus 4.7: JA-2b part-1 — `bb_icn_to.cpp` literal-integer `lo to hi` four-port generator FILLED (`e67bc975`), assembled+disassembled-verified, gates unchanged. Empirically reconfirmed Icon `--compile` emits ZERO `# BOX` banners → JA-1 is the true front. Prior session `fcfc7a73`: H-1 cross-arg odometer rungs 196→198.)
+(2026-05-26, Opus 4.7: JA-2b part-1 — `bb_icn_to.cpp` literal-integer `lo to hi` four-port generator FILLED (`5c455663`), assembled+disassembled-verified, gates unchanged. Empirically reconfirmed Icon `--compile` emits ZERO `# BOX` banners → JA-1 is the true front. Prior session `fcfc7a73`: H-1 cross-arg odometer rungs 196→198.)
 
 Recent closes: G-2 RT-DELETE ladder (`f0f99035` — all 4 C four-port Byrd boxes gone, icon_box_rt.c deleted); H-1 AG foundation `lower_icn_expr_threaded` + back-to-front spine threading (`45c1bde2`); H-4 IDX_SET/SECTION γ-conflation fix; BB_CONJ split off BB_IF for `E1 & E2` (`9be28a5d`, rungs 195→196).
 
@@ -242,7 +242,7 @@ Two correction rungs (JA-1..JA-2) are added; they tighten existing Phase-J steps
   - **THE DETOUR = `src/processor/sm_jit_interp.c`** is a COMPLETE second x86 byte-emitter living entirely
     outside `*_templates/`, in direct violation of FACT-4 ("a second x86 producer is FORBIDDEN — two copies
     drift") and RULES.md ("NO TEMPLATE CODE IN ... ANY NON-TEMPLATE FILE"). Surface (grep-verified at
-    `e67bc975`):
+    `e67bc975`, pushed as `5c455663`):
     - Raw byte primitives: `SL_B` / `SL_U32` / `SL_U64` (macros, sm_jit_interp.c:1776-1778) — **25 raw
       byte-emit sites**.
     - Register/flow helpers: `sl_call` (1782, emits `mov rax,imm64; call rax`), `sl_mov_rdi_ptr` (1795),
