@@ -77,6 +77,15 @@ src/emitter/SM_templates/sm_bb_switch.cpp (α/β dispatch — mode-4, deferred).
 **GATE-PK still RED/stale (455/62/592) since `a5775d1a` — owner decision on re-freeze pending. With
 mode 4 deferred, GATE-PK is not a blocking gate; revisit when mode 4 resumes.**
 
+⛔ **SESSION 2026-05-27 (Opus 4.7) — ICN-G-1 mode-4 Icon gate built + bug precisely located.**
+Added `scripts/test_icon_mode4_rung.sh`: full native pipeline (`--compile --target=x86` → `as` GAS
+Intel-syntax → `gcc -no-pie -L out -lscrip_rt`) diffed against `--interp`. Runs clean, honest
+`PASS=0 FAIL=5`. Wired into Session Setup. ALL prior gates non-regressing (smoke_icon 5/5, broker 23,
+rungs 198, smoke_prolog 5/5; FACT RULE 0). The mode-4 every-loop underflow is now located to the
+emitted-asm line: generator γ AND ω both fall through to `CALL_FN write` before the `JUMP_F`
+loop-exit test (see ICN-G-1 finding below). Fix deferred to ICN-Z-4/Z-9 (ω becomes a port wire, not
+a template special-case). Files: `scripts/test_icon_mode4_rung.sh` (NEW). one4all uncommitted at note time.
+
 ---
 
 (prior NEXT, still valid follow-on) fill hollow pattern arms SPAN→ANY→NOTANY→BREAK→CAP→ARBNO.
@@ -122,10 +131,22 @@ The irgen.icn in `/home/claude/corpus/programs/icon/jcon-ref/irgen.icn` is the c
 
 ### Phase ICN-G — Gate infrastructure (PREREQUISITE for all emitter rungs)
 
-#### ICN-G-1 — Build `test_icon_mode4_rung.sh` ⏳
-- [ ] Create `scripts/test_icon_mode4_rung.sh`: for a small set of Icon programs (at minimum `every write(1 to 3)`, `every write(1 to 5 by 2)`, and three others from rungs 1..5), run `scrip --compile --target=x86 file.icn` → assemble → link → execute, diff stdout against `scrip --interp file.icn`. PASS=N FAIL=M format. Zero programs needed to pass initially — the gate just needs to exist and run without crashing the harness.
-- [ ] Wire into Session Setup below alongside `test_icon_all_rungs.sh`.
-- [ ] **Gate threshold: mode-4 PASS ≥ 1 before any emitter rung is marked complete.** A template returning an empty string or stub jumps is NOT done (HQ Invariant 0).
+#### ICN-G-1 — Build `test_icon_mode4_rung.sh` ✅ (2026-05-27, Opus 4.7)
+- [x] Create `scripts/test_icon_mode4_rung.sh`: for a seed set of rung01 generator programs, runs `scrip --compile --target=x86 file.icn` → `as` (GAS, Intel syntax) → `gcc -no-pie file.o -L out -lscrip_rt -Wl,-rpath,out -lm` → execute, diff stdout against `scrip --interp file.icn` (mode-2 oracle). PASS=N FAIL=M format. emit/assemble/link/run failures are caught and counted FAIL, never fatal — harness always exits 0. **Verified: gate runs clean, reports `PASS=0 FAIL=5`** (mode-4 generators currently emit no output — the documented ω-exhaustion fall-through bug; see below).
+- [x] Wire into Session Setup below alongside `test_icon_all_rungs.sh`.
+- [x] **Gate threshold: mode-4 PASS ≥ 1 before any emitter rung is marked complete.** A template returning an empty string or stub jumps is NOT done (HQ Invariant 0). (Threshold is documented in the script; not yet met — that is the next emitter rung's job.)
+
+**ICN-G-1 finding — the mode-4 every-loop underflow, now precisely located.** Emitted asm for
+`every write(1 to 5)` shows BOTH the generator's `.Licngen0_γ` (success) and `.Licngen0_ω`
+(exhausted, last_ok=0, NOTHING pushed) fall through into `.Licngen0_done:` → `CALL_FN write` →
+`JUMP_F .L7`. On exhaustion `write` is called on an empty value-stack BEFORE the `JUMP_F` loop-exit
+test runs → underflow. Root cause is structural in `lower_every` (lower.c): `lower_expr(gen_expr)`
+lowers the WHOLE consuming call `write(1 to 5)`, welding `CALL_FN write` immediately after the
+`SM_BB_SWITCH` inside one `lower_expr`; the `SM_JUMP_F` loop-exit is emitted AFTER and tests too
+late. Correct fix belongs with ICN-Z-4/ICN-Z-9: the generator's ω port must be a control-flow edge
+to loop-exit (a real port wire), not a fall-through into the consumer. Do NOT special-case a
+loop-exit label into the switch template — that would seed a second control-flow scheme that drifts
+from the zipper. Bring ω-as-port-wire up via the zipper, then this gate climbs from PASS=0.
 
 #### ICN-G-2 — Re-freeze GATE-PK ⏳
 - [ ] Run `bash scripts/test_per_kind_diff.sh`. For every FAIL cell: if the template body is an honest stub (returns `std::string()`), the baseline should be empty — re-freeze. If the body claims to emit real x86 but diffs fail, it is a real bug — fix first.
@@ -255,7 +276,7 @@ Gates:
 bash scripts/test_smoke_icon.sh            # PASS=5
 bash scripts/test_smoke_unified_broker.sh  # PASS=23
 bash scripts/test_icon_all_rungs.sh        # PASS=198
-bash scripts/test_icon_mode4_rung.sh       # PASS≥1 (once ICN-G-1 exists)
+bash scripts/test_icon_mode4_rung.sh       # ICN-G-1 ✅ exists; currently PASS=0 FAIL=5 (ω-exhaustion bug). PASS≥1 gates emitter rungs.
 ```
 
 ---
