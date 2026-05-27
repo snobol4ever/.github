@@ -552,6 +552,42 @@ These are the same topology JCON's `ir_a_*` procedures encode (in irgen.icn) for
   per-kind `bb_pl_*.cpp` inline-x86 templates (AGW-9), which makes the registry-builder reconstruction
   unnecessary. Gate target: `--compile --target=x86` single-clause predicate runs via run_prolog_via_x86_backend.sh.
 - [ ] **PJ-AGW-9** — Per-kind `bb_pl_*.cpp` inline-x86 templates: for each Prolog four-port kind (`bb_pl_seq`, `bb_choice`/clause-alt, `bb_pl_call`, `bb_pl_unify`, `bb_pl_cut`, `bb_pat_arbno`), translate the matching `bb_exec.c` case into TEXT+BINARY x86 arms with a `bb_bin_t` reloc table (offsets for the port rel32 sites + β-define), emitting via `bb_emit_asm_result` (the SBL-PAT-PRIM pattern). NO C Byrd box, NO new `rt_*` port helper — only the KEEP conversion/effect helpers. One kind per commit; gate each.
+
+> **⛔ ARCHITECTURE SCOPING (2026-05-26, Opus 4.7 — verified against live source `56889242`).** The
+> four REMAINING templates (`bb_pl_seq`/`bb_pl_call`/`bb_choice`/`bb_pl_alt`) are **structural**, not
+> leaf — they CANNOT be filled in isolation the way `bb_pl_cut`/`bb_atom`/`bb_builtin` were. Why:
+> - The emit pipeline has TWO layers. (1) Per-kind dispatch (`emit_core.c:502/540/542/543`) calls
+>   `bb_pl_seq(nd)` etc. — these emit ONE box. (2) The **port-DFS walker** `walk_bb_flat` (emit_bb.c:466)
+>   is what recursively emits a node's CHILD boxes and wires each child's γ/ω/β labels to the right
+>   targets (see `flat_drive_cat`/`flat_drive_alt`/`flat_drive_fence` for the SNOBOL4-pattern analogs).
+> - `walk_bb_flat` currently has **only `BB_PAT_*` cases**; ALL Prolog kinds hit its `default:` arm
+>   (emit_bb.c) which emits a degenerate β→ω passthrough (no real wiring). So there is no machinery
+>   today that emits a SEQ's goal chain, a CALL's callee entry, or a CHOICE's clause bodies as wired
+>   x86 boxes.
+> - After AGW-2, the `bb_exec.c BB_PL_SEQ` case is *trivial in the interpreter* (`nd->value=INTVAL(1);
+>   return nd->α;` — the C trampoline `bb_exec_once` then follows the γ-chain). But "return nd->α" in
+>   emitted x86 means **`jmp <the α-box's entry label>`** — which requires the α box (and the whole
+>   γ/ω/β-wired chain) to have been emitted with stable labels. That wiring is exactly the missing
+>   `walk_bb_flat` Prolog driver.
+> - **Therefore AGW-9-structural ≡ AGW-8 done right.** The correct unit of work is: add Prolog
+>   `flat_drive_*` drivers to `walk_bb_flat` (a `flat_drive_pl_seq` that walks goals back-to-front
+>   wiring goal[i].γ→goal[i+1].α and goal[i].ω→goal[i-1].β per the per-construct table above; a
+>   `flat_drive_pl_choice` for clause alternatives; `flat_drive_pl_call`; `flat_drive_pl_alt`), each
+>   recursing via `walk_bb_flat` into children and ending with `FILL`/`EP_FILL`. The per-kind
+>   `bb_pl_*.cpp` template then only emits that ONE node's local glue (set value, jump to its α), with
+>   the cross-box rel32 sites supplied by the driver's label args — mirroring how `flat_drive_cat`
+>   calls `walk_bb_flat(kid, ...)` then `EP_FILL(pBB, ...)`.
+> - **Recommended next-session order:** (1) `bb_pl_seq` + `flat_drive_pl_seq` (simplest structural —
+>   pure γ/ω chain, no trail/snapshot of its own); gate `go :- a, b, c.` style via
+>   `run_prolog_via_x86_backend.sh`. (2) `bb_pl_call` + driver (callee entry jump; the
+>   snapshot/restore for recursion is a RUNTIME concern handled by the callee's own emitted graph —
+>   verify whether Mode-4 needs an emitted equivalent or whether single-activation suffices for the
+>   rung corpus). (3) `bb_choice` (clause β-chain + trail unwind between clauses — needs
+>   `trail_mark`/`trail_unwind` KEEP-side calls inline). (4) `bb_pl_alt` (the `;` two-way, state==2
+>   skip-left path). Each decrements EMPTY by 1 in `util_prolog_template_emptiness_audit.sh`.
+> - **DO NOT** fill these four as self-contained leaf boxes — that emits a box that jumps to a
+>   never-emitted α label → assembler "undefined label" or a runtime jump into garbage (the AGW-8
+>   segfault class). The driver-first approach is mandatory.
 - [ ] **PJ-AGW-10** — EMITTER sweep + parity: every Prolog rung that passes the proper-LOWER path (Mode 2) also produces byte-identical output in Mode 4 (`--compile --target=x86`); `grep -rnE "DESCR_t\s+\w+\s*\(\s*(void\s*\*\s*(zeta|ζ|z))\s*,\s*int\s+entry\s*\)" src/runtime/rt/ src/emitter/BB_templates/` shows no Prolog four-port C Byrd box. Gate: GATE-1..4 green; Mode-4 Prolog rung count ≥ Mode-2 rung count.
 
 **Done when (both halves):** **LOWER** — Prolog `--interp` (Mode 2) executes via the 4-port BB graph with NO persistent aux in a reset-cleared slot (persistent pointers bit-cast into `ival`/`dval`; only transient state in `counter`/`state`); **smoke_prolog 5/5** restored *by construction*; `bb_exec.c` Prolog cases dispatch purely on ports. **EMITTER** — the emitter port-DFS walks the same graph; each Prolog four-port kind emits inline x86 from its `bb_pl_*.cpp` template with a `bb_bin_t` reloc table; ZERO Prolog four-port C Byrd box or new `rt_*` port helper remains (RULES.md / INVARIANT 9 / Icon's G-2 RT-DELETE precedent); every Mode-2-passing rung is byte-identical in Mode 4. **Gates:** GATE-1..4 green; crosscheck_prolog non-regressive; the other five smoke gates (snobol4 13/13, icon 5/5, snocone 5/5, rebus 4/4, raku 5/5) non-regressive. This supersedes the option-(b) `counter`-overload representation and resolves the HANDOFF decision in favor of option (A) (bit-cast persistent aux into payload), matching Icon's BB_INITIAL precedent.
@@ -584,8 +620,36 @@ Audit of the live source tree at one4all `9be28a5` against RULES.md + GOAL-HEADQ
 ## Watermark
 
 ```
+=== 2026-05-26 Opus 4.7 — AGW-9 structural-template SCOPING (doc-only; no one4all code) ===
+one4all: 56889242 (unchanged — TREE CLEAN). .github: (this session).
+Investigated filling the next AGW-9 template (bb_pl_seq) and found the four REMAINING templates
+(seq/call/choice/alt) are STRUCTURAL, not leaf — they cannot be filled the way bb_pl_cut was.
+KEY FINDING (verified against live source): the emit pipeline has two layers — per-kind dispatch
+(emit_core.c, emits ONE box) and the port-DFS walker walk_bb_flat (emit_bb.c:466, recursively emits
++ wires CHILD boxes). walk_bb_flat has ONLY BB_PAT_* cases; ALL Prolog kinds hit its default: arm
+(degenerate β→ω passthrough). So nothing emits a SEQ goal-chain / CALL callee-entry / CHOICE clause
+bodies as wired x86. After AGW-2 the bb_exec.c BB_PL_SEQ case is trivial (return nd->α) BUT "return
+nd->α" in x86 = jmp to the α-box's label, which requires that box + the whole γ/ω/β chain to be
+emitted with stable labels — exactly the missing walk_bb_flat Prolog driver.
+CONCLUSION: AGW-9-structural ≡ AGW-8-done-right. Correct unit of work = add Prolog flat_drive_*
+drivers to walk_bb_flat (flat_drive_pl_seq wiring goal[i].γ→goal[i+1].α, goal[i].ω→goal[i-1].β per
+the per-construct table; flat_drive_pl_choice/call/alt), each recursing via walk_bb_flat into
+children + ending with FILL/EP_FILL — mirroring flat_drive_cat. The per-kind bb_pl_*.cpp template
+then only emits that node's local glue; cross-box rel32 sites come from the driver's label args.
+Did NOT ship a wrong leaf-style template (would emit a jmp to a never-emitted α label → assembler
+undefined-label or the AGW-8 runtime-segfault class). Recorded the full scoping in the PJ-AGW-9
+step block (driver-first approach + recommended order seq→call→choice→alt).
+GATES (re-verified, unchanged from cut-fill commit): smoke_prolog 5/5; rung suite 16;
+  crosscheck_prolog 127/0; icon 5/5, snocone 5/5, rebus 4/4, raku 5/5, snobol4 13/13.
+  Emptiness audit EMPTY=4 FILLED=1 (bb_pl_cut).
+NEXT: implement flat_drive_pl_seq in walk_bb_flat + fill bb_pl_seq.cpp glue; gate via
+  run_prolog_via_x86_backend.sh on `go :- a, b, c.`-style. THE big structural rung — needs the
+  driver-first approach above, NOT a standalone leaf template.
+```
+
+```
 === 2026-05-26 Opus 4.7 — AGW-9 / PA-2-part2: bb_pl_cut FILLED (EMPTY 5→4) ===
-one4all: <this commit> — BUILD GREEN. .github: (this session).
+one4all: 56889242 — BUILD GREEN. .github: (this session).
 First of the five empty Prolog four-port templates filled. bb_pl_cut.cpp translates the
 bb_exec.c BB_CUT case (g_pl_cut_flag=1; return nd->γ) to inline x86:
   MACRO_DEF: no form (comment). BINARY: `mov rax,0; call rax` + two rel32 port jumps,
