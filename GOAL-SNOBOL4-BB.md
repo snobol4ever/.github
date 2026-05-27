@@ -283,14 +283,16 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 ```
 SBL-G-1-BASELINE-M2=9       # 19 pattern rungs, --interp, clean HEAD 3a522bd8
 SBL-G-1-BASELINE-M4=0       # mode-4; was assembler-blocked by macro-annotation bug
-SBL-CURRENT-M4=8            # rungs 038-043, 047, 050 PASS-M4 (capture-gated wins).
-                            # ARBNO-using rungs 052/054 now compile+link+run but match pre-existing m2 oracle gaps.
+SBL-CURRENT-M4=9            # +8 over baseline. Rungs 038-043, 047, 050, 051 PASS-M4.
+                            # All remaining FAIL-M4 (10) are also FAIL-M2 — pre-existing m2 oracle gaps,
+                            # NOT regressions. POS/RPOS/TAB/REM/ARBNO/star_deref/fail_builtin.
 BROAD-CORPUS-BASELINE=121   # /280 at 3a522bd8 (prior "250" was stale corpus state)
-BROAD-CORPUS-CURRENT=183    # /280 after ARBNO TEXT + PAT_LIT bugfix (+62 over baseline, +28 from prior 155).
+BROAD-CORPUS-CURRENT=184    # /280 (+63 over baseline). +47 this session from NOTANY+SPAN+BREAK+CAPTURE+ARBNO TEXT arms
+                            # + the PAT_LIT macro-arg fix + the nested-ALT EP_RESET fix.
 GATE-PK-PAT-STATUS=stale    # SBL-G-2 not yet done — baseline references DELETED rt_bb_* C boxes;
-                            #   broad re-freeze deferred (would mask other in-flight lang sessions).
-                            #   Rung suite + smoke + broad corpus are the live correctness gates.
-SBL-SKIP-M4=1               # only 051_pat_alt_three remains SKIP — pre-existing alt-child duplicate-symbol bug.
+                            # broad re-freeze deferred (would mask other in-flight lang sessions).
+                            # Rung suite + smoke + broad corpus are the live correctness gates.
+SBL-SKIP-M4=0               # ZERO SKIP — every pattern rung now compiles, links, and runs in mode-4.
 ```
 
 ---
@@ -442,6 +444,64 @@ Rungs 044/045/046/048/052/054/055/056/057 fail in m2 (bb_exec.c interpreter). Th
 oracle outputs assume behavior the mode-2 interpreter doesn't implement. Worth a separate audit.
 
 **HEAD pending commit.** Push order: one4all → .github.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 3 / final) — handoff note
+
+**Built on `864297a9`.** Fixed the last remaining SKIP-M4 rung (051) by tracking down a real
+nested-ALT bug in `flat_drive_alt`: the global EP-list (`g_emit.xa_bb_ep_*`) accumulated
+leftover entries from inner-ALT EP_FILL calls, so when the outer ALT added its own tail
+EP_JMP/EP_DEF_JMP entries and called EP_FILL, the bb_pat_alt template re-emitted the inner's
+entries — producing duplicate `alt0_c0_β:` label definitions.
+
+### Fix
+Added one line `EP_RESET();` before the outer ALT's tail `EP_JMP(lbl_ω); EP_DEF_JMP(lbl_β,
+&ci_βs[0]); EP_FILL(...)` block in `flat_drive_alt`. Same defensive fix applied to
+`flat_drive_cat` (latent — no current test exposes it, but the pattern is identical and
+nested CAT chains would eventually trip the same class of bug).
+
+### Results
+- **Rung suite: PASS-M4 8 → 9, SKIP-M4 1 → 0.** Rung 051 (3-alt with capture) now passes:
+  `('apple'|'banana'|'cherry') . V` on subject `'banana'` → V='banana' in m2=m4.
+- **Broad corpus: 183 → 184** (+1).
+- GATE-1 7/7 unchanged; GATE-2 24 unchanged. No regressions.
+- **All remaining FAIL-M4 (10) are also FAIL-M2** — pre-existing m2 oracle gaps
+  (POS/RPOS/TAB/REM/ARBNO/star_deref/fail_builtin), NOT regressions.
+
+### Session totals (start `6deb9f71` → end this commit)
+- 5 x86 BB TEXT templates filled: NOTANY, SPAN, BREAK, CAPTURE, ARBNO
+  (ANY was prior session). Every byte emitted through `BB_templates/` per FACT RULE.
+- 1 invariant-exclusion lift (ASSIGN_IMM/COND removed from `lower_flat_invariant`)
+- 1 runtime helper added: `rt_cap_assign` (pattern-building class, sanctioned)
+- 2 pre-existing driver bugs fixed:
+  - PAT_LIT/REFNAME/USERCALL GAS macro-arg bug in `sm_pat_anchors.cpp`
+  - Nested-ALT EP_RESET bug in `flat_drive_alt` (and defensive same in `flat_drive_cat`)
+- **Rung suite: M4 1 → 9, SKIP-M4 19 → 0**
+- **Broad corpus snobol4: 137 → 184 (+47)**
+- Mode-2 unchanged; broker 23 → 24
+- Zero regressions
+
+### Follow-up priorities (in order)
+1. **SBL-BREAKX** — `nd->ival==1` flavor in `bb_pat_break.cpp` (advance past break char, rescan).
+2. **SBL-ATP** — new BB kind `BB_PAT_ATP` for `@var` cursor capture + template + lowering.
+3. **SBL-*-2 BINARY arms** — mode-3 `--run` parallel for the six TEXT arms. Existing mode-3 smoke
+   has 6 pre-existing fails; will need investigation of whether BINARY arms alone resolve them.
+4. **Pre-existing m2 oracle gap audit** — rungs 044/045/046/048/052/054/055/056/057 fail in m2 too.
+   The rung suite's baked-in oracle outputs assume behavior `bb_exec.c` doesn't currently
+   implement for these kinds. Worth a separate session.
+5. **HQ cleanup rung** — delete the now-dead `bb_prepare_capture_arbno` `cap_t` allocations
+   (`bb_cap_new` + `XA_CAP_FIXUP`). Their sole consumer was the deleted `bb_cap()` C Byrd box.
+
+### FACT RULE status
+All work this session honored "ONE x86 PRODUCER — TEMPLATE-ONLY EMISSION". Every byte of x86
+output from `bb_pat_notany`, `bb_pat_span`, `bb_pat_break`, `bb_capture`, `bb_arbno` flows
+through their `_str()` template functions, called via `emit_core.c` dispatch. The two driver-level
+fixes (PAT_LIT in `sm_pat_anchors.cpp`, EP_RESET in `flat_drive_alt`/`flat_drive_cat`) are
+not emission sites — they coordinate templates. `rt_cap_assign` is a pattern-building helper
+(class of the existing 29 `rt_pat_*`), not a Byrd box.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
