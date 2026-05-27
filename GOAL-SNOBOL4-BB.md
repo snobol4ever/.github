@@ -283,12 +283,12 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 ```
 SBL-G-1-BASELINE-M2=9       # 19 pattern rungs, --interp, clean HEAD 3a522bd8
 SBL-G-1-BASELINE-M4=0       # mode-4; was assembler-blocked by macro-annotation bug
-SBL-CURRENT-M4=9            # +8 over baseline. Rungs 038-043, 047, 050, 051 PASS-M4.
-                            # All remaining FAIL-M4 (10) are also FAIL-M2 — pre-existing m2 oracle gaps,
-                            # NOT regressions. POS/RPOS/TAB/REM/ARBNO/star_deref/fail_builtin.
+SBL-CURRENT-M2=15           # HEAD 2b68dc44. +6 over baseline. Rung 056 (*PAT deref) newly passing.
+SBL-CURRENT-M4=15           # HEAD 2b68dc44. +15 over baseline. 056 still FAIL-M4 (pre-existing PATND cast bug).
+                            # All remaining FAIL-M2/M4 are pre-existing oracle gaps.
 BROAD-CORPUS-BASELINE=121   # /280 at 3a522bd8 (prior "250" was stale corpus state)
-BROAD-CORPUS-CURRENT=184    # /280 (+63 over baseline). +47 this session from NOTANY+SPAN+BREAK+CAPTURE+ARBNO TEXT arms
-                            # + the PAT_LIT macro-arg fix + the nested-ALT EP_RESET fix.
+BROAD-CORPUS-CURRENT=174    # /280. No regression from SBL-SPLITTER-1 (-10) or SBL-DCG-DEFER (0).
+                            # 070-074/105-117 blocked by pre-existing bb_build_brokered(PATND_t*) cast.
 GATE-PK-PAT-STATUS=stale    # SBL-G-2 not yet done — baseline references DELETED rt_bb_* C boxes;
                             # broad re-freeze deferred (would mask other in-flight lang sessions).
                             # Rung suite + smoke + broad corpus are the live correctness gates.
@@ -802,17 +802,14 @@ The newly-failing tests are concentrated in two clusters:
 
 ### Follow-up rungs (priority order)
 
-1. **SBL-DCG-DEFER** — add `case TT_VAR:` and `case TT_DEFER:` to
-   `lower_pat_dcg.c::build_node`. TT_VAR (in pattern position) means
-   "lookup this name at runtime and use its pattern value." TT_DEFER (`*X`) is
-   the explicit form of the same. The BB representation needs a new kind
-   (BB_PAT_DEFER or similar) plus matching template emission.
-2. **SBL-DCG-DEFER-EXEC** — `case BB_PAT_DEFER` in `bb_exec.c` for mode-2.
-3. **SBL-LOWER-CLEANUP** — delete `lower_subj_pat_split` and the inline duplicate
+1. **SBL-DCG-DEFER** ✅ (2026-05-27, Sonnet 4.6, `2b68dc44`) — `BB_PAT_DEFER` opcode added; `TT_VAR`/`TT_DEFER` cases in `lower_pat_dcg.c::build_node`; `BB_PAT_DEFER` TEXT arm in `bb_pat_defer.cpp`; `rt_defer_match` runtime helper; XDSAR resolve in `exec_stmt`.
+2. **SBL-DCG-DEFER-EXEC** ✅ (2026-05-27, Sonnet 4.6, `2b68dc44`) — `case BB_PAT_DEFER:` in `bb_exec.c` mode-2; rung 056 (*PAT deref) now passes M2.
+3. **SBL-DCG-DEFER-M4** ⏳ NEXT — mode-4 `EXEC_STMT_VARIANT` still fails for var-stored patterns. Root cause: `exec_stmt` calls `bb_build_brokered(PATND_t*)` cast as `BB_t*`; XCHR=0 ≠ BB_PAT_LIT=59. Fix: add `patnd_to_bb_graph(PATND_t*)` translator (XCHR→BB_PAT_LIT, XFNME→BB_PAT_ASSIGN_COND, XCAT→BB_PAT_CAT, XOR→BB_PAT_ALT, XDSAR→BB_PAT_DEFER) and use it in `exec_stmt` DT_P branch. Expected gain: ~15 broad-corpus tests (070-074, 105-117, 072).
+4. **SBL-LOWER-CLEANUP** — delete `lower_subj_pat_split` and the inline duplicate
    at lower.c:1750 once we verify Snocone no longer needs them either
    (Snocone goes through `lower_subj_pat_split` from `lower.c:1655` — check that
    path).
-4. **SBL-ATP** — still open (deferred from prior session).
+5. **SBL-ATP** — still open (deferred from prior session).
 5. **SBL-*-2 BINARY arms** — still open.
 
 ### Verification of net direction
