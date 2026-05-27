@@ -196,20 +196,23 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 - **β (state>0):** `nd->state--`; if state < 0 → ω. Restore Δ from `pos_stack[state-1]` (or `az->saved_delta` if state==0). Return γ. (ARBNO yields one fewer repetition each β.)
 - **Inner sub-graph:** `(bb_arbno_state_t*)(intptr_t)nd->counter` → `az->inner` (a `BB_graph_t*`). Must call `bb_exec_once(az->inner)` to match inner (mode-2 reference). In mode-4 TEXT arm: the inner sub-graph is pre-built as a separate flat blob; its α label is available via `g_emit.bb_child_lbl` (set by `walk_bb_flat` for ARBNO — see `case BB_PAT_ARBNO:` in emit_bb.c which sets `g_emit.child_fn`).
 
-#### SBL-ARBNO-1 — Understand the child-blob mechanism first ⏳
-- [ ] Read `emit_bb.c` `case BB_PAT_ARBNO:` in `walk_bb_flat` (line ~493): it calls `child_cache_get(ch)` and stores the child `bb_box_fn` in `g_emit.child_fn`. In TEXT mode, `pre_build_children_text` pre-emits the inner blob under a `<prefix>_c0` label; `g_emit.bb_child_lbl` is set to the child's α-entry label. **The template calls the child by `call [rip + <child_α_label>]` — not via a C function pointer.**
-- [ ] Read `bb_arbno.cpp` current JVM/JS arms to understand the structure the template is expected to have.
-- [ ] Read `bb_pat_arb.cpp` PLATFORM_X86 arm — it is a generator and uses a counter in `.data`. ARBNO is similar but uses a stack.
-- [ ] Gate: read-only; no code change.
+#### SBL-ARBNO-1 — Understand the child-blob mechanism first ✅ (2026-05-27)
+- [x] Confirmed: `walk_bb_flat` `case BB_PAT_ARBNO:` sets `g_emit.child_fn` from `child_cache_get(ch)`; `pre_build_children_text` emits the inner blob as a separate `codegen_flat_body` at prefix `<base>_c<N>` with its own α/β/γ/ω globals; `bb_prepare_capture_arbno` populates `g_emit.bb_child_lbl` with the child's α-label via `child_cache_get_lbl`. The TEXT arm calls the child by `call <child_α_lbl>` — the prologue dispatches on `esi` (`esi==0` → α, else β) per `XA_FLAT_PROLOGUE`. Child returns `eax=1` (success) or `eax=99` (fail) per `XA_FLAT_EPILOGUE`. Same mechanism the capture template uses.
 
-#### SBL-ARBNO-2 — Fill `bb_arbno.cpp` TEXT arm ⏳
-- [ ] α: loop calling inner blob via `call <child_α_lbl>@PLT` (TEXT mode) or `call [rip + .Larbno<id>_child]`; check result (last_ok or return val); push Δ to stack; break when inner fails or Δ doesn't advance. Then return γ.
-- [ ] β: pop one entry from stack. If stack empty: restore `saved_delta`, return ω. Else: set Δ from top of stack, return γ.
-- [ ] Stack: the `az->pos_stack` is a runtime GC-allocated array; access via the `bb_arbno_state_t*` pointer baked into the blob (as imm64 in BINARY, or via a `.data` pointer slot in TEXT).
-- [ ] Gate: GATE-PK re-frozen. GATE-1 7/7. GATE-2 23/23. `'aaa' ARBNO('a')` succeeds.
+#### SBL-ARBNO-2 — Fill `bb_arbno.cpp` TEXT arm ✅ (2026-05-27)
+- [x] α: save Δ to `.Larbno<id>_saved`. Loop: cap at 256 iterations; capture pre-Δ; `xor esi, esi; call <child_α_lbl>`; on `eax==99` break; if Δ unchanged break (zero-width inner — would loop forever); push Δ to `.Larbno<id>_stack[depth*4]`; `depth++`. End: jmp γ. Yields longest match first.
+- [x] β: `depth--`; if <0 jmp ω; if depth==0 restore from `saved`, else load `stack[(depth-1)*4]`; write to `[r10]`; jmp γ. One fewer repetition per β invocation.
+- [x] Verified: `'aaa' POS(0) ARBNO('a') RPOS(0)` matches m2=m4; `'aaa' ARBNO('a') 'a'` backtracks correctly (greedy→2→trailing 'a' matches) m2=m4.
+- [x] Rung suite SKIP-M4 5 → 1 (only 051 remains, pre-existing alt-child duplicate-symbol bug).
+- [x] Gate: GATE-1 7/7, GATE-2 23→24 (+1, picks up a PAT_LIT-using broker test).
 
 #### SBL-ARBNO-3 — Fill `bb_arbno.cpp` BINARY arm ⏳
 - [ ] Gate: GATE-PK BINARY re-frozen. Mode-3 ARBNO probe matches `--interp`.
+
+#### SBL-PAT-LIT-FIX — `sm_pat_anchors.cpp` GAS macro-annotation bug ✅ (2026-05-27)
+- [x] **Pre-existing bug** in `sm_pat_anchors.cpp:31-33`: `PAT_LIT`/`PAT_REFNAME`/`PAT_USERCALL` emitted human-readable third positional arg (`arg="a"`, varname, fnname) to GAS macros that only take `lbl`. Sibling of the previously-fixed `sm_pat_combine.cpp` bug. Was MASKED until SBL-CAP-1 enabled inline emit for capture/ARBNO windows — then ANY program using a literal inside a pattern (which is most of them) failed at `as` stage.
+- [x] Fix: same approach as the prior session's combine.cpp fix — annotation goes in a preceding `#` comment, macro call is `s_2asm` with only the label arg.
+- [x] **Broad corpus snobol4 jumped 155 → 183 (+28)** — scope much larger than ARBNO alone; the bug affected any program with `'literal' inside-pattern` once that program reached `as`.
 
 ---
 
@@ -280,13 +283,14 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 ```
 SBL-G-1-BASELINE-M2=9       # 19 pattern rungs, --interp, clean HEAD 3a522bd8
 SBL-G-1-BASELINE-M4=0       # mode-4; was assembler-blocked by macro-annotation bug
-SBL-CURRENT-M4=8            # +7 after SBL-CAP-1 lands: capture-gated ANY/NOTANY/SPAN/BREAK/LEN/RTAB
-                            #   rungs 038-043, 047, 050 all PASS-M4 now
+SBL-CURRENT-M4=8            # rungs 038-043, 047, 050 PASS-M4 (capture-gated wins).
+                            # ARBNO-using rungs 052/054 now compile+link+run but match pre-existing m2 oracle gaps.
 BROAD-CORPUS-BASELINE=121   # /280 at 3a522bd8 (prior "250" was stale corpus state)
-BROAD-CORPUS-CURRENT=155    # /280 after NOTANY+SPAN+BREAK+CAPTURE (+34 over baseline, +18 this session)
+BROAD-CORPUS-CURRENT=183    # /280 after ARBNO TEXT + PAT_LIT bugfix (+62 over baseline, +28 from prior 155).
 GATE-PK-PAT-STATUS=stale    # SBL-G-2 not yet done — baseline references DELETED rt_bb_* C boxes;
                             #   broad re-freeze deferred (would mask other in-flight lang sessions).
                             #   Rung suite + smoke + broad corpus are the live correctness gates.
+SBL-SKIP-M4=1               # only 051_pat_alt_three remains SKIP — pre-existing alt-child duplicate-symbol bug.
 ```
 
 ---
@@ -390,6 +394,54 @@ work. Worth a follow-up audit but separate from SBL goal.
 
 **HEAD one4all: pending commit** (templates + emit_sm.c invariant + rt.c helper). corpus untouched.
 .github: this file updated, pending commit.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 2) — handoff note
+
+**Built on `8fb25c38`.** Filled **ARBNO** TEXT arm + fixed a sibling **PAT_LIT** GAS macro-annotation
+bug that was masking many mode-4 programs until SBL-CAP-1 unblocked inline-emit windows.
+
+### Results
+- **Broad corpus snobol4: 155 → 183** (+28). Most of the gain is from the PAT_LIT fix —
+  any program with a literal inside a pattern is now safe.
+- **Rung SKIP-M4: 5 → 1.** Only 051_pat_alt_three remains (pre-existing alt-child duplicate-symbol
+  bug — `alt0_c0_β` defined twice; confirmed pre-exists at `8fb25c38`).
+- **PASS-M4 stays 8** because the formerly-SKIP rungs match pre-existing m2 oracle gaps
+  (the m2 baseline itself fails on 052/054 with empty output; m4 reproduces that faithfully).
+- **GATE-2 broker: 23 → 24** (+1, a PAT_LIT-using broker test now compiles).
+- GATE-1 smoke 7/7 unchanged. No regressions.
+
+### ARBNO design
+Same child-blob mechanism as capture: `call <child_α_lbl>` enters child at α (esi=0) or β
+(esi=1). Stack of int32 Δ positions in `.data` (`.Larbno<id>_stack`, 256 deep), depth counter
+and saved_delta also `.data`. α loops: capture pre-Δ, call child, on fail (eax==99) or no-Δ-advance
+break, else push and continue. β: depth--; if <0 → ω; depth==0 → saved; else stack[depth-1]; jmp γ.
+Matches bb_exec.c oracle exactly.
+
+### PAT_LIT bug (pre-existing, dormant)
+`sm_pat_anchors.cpp:31-33` emitted `PAT_LIT .S4 arg="a"` as a 3-arg GAS macro call to a 1-arg macro,
+producing `Error: Parameter named 'arg' does not exist for macro 'pat_lit'`. Identical class to the
+prior session's `sm_pat_combine.cpp` fix. Was dormant because no capture/ARBNO program reached
+the assembler — until SBL-CAP-1 unlocked them. Fix: annotation in preceding `#` comment, `s_3asm`
+→ `s_2asm`. PAT_REFNAME and PAT_USERCALL had the same misuse — fixed in the same diff.
+
+### Follow-up rungs (priority order)
+1. **051 alt-child duplicate-symbol bug** — `alt0_c0_β` defined twice. Investigate
+   `pre_build_children_text` for multi-alternative ALT child-blob naming; likely the same child
+   gets re-emitted with the same prefix. Pre-existing, not in current session scope.
+2. **SBL-BREAKX** — distinguish `nd->ival==1` in `bb_pat_break.cpp` for BREAKX β.
+3. **SBL-ATP** — new BB kind for `@var` cursor capture.
+4. **SBL-*-2 BINARY arms** — once stable, do mode-3 BINARY parallel.
+5. **Cleanup HQ rung:** delete dead `bb_prepare_capture_arbno` cap_t allocations.
+
+### Pre-existing m2 oracle gaps (noted, NOT in scope)
+Rungs 044/045/046/048/052/054/055/056/057 fail in m2 (bb_exec.c interpreter). The rung suite
+oracle outputs assume behavior the mode-2 interpreter doesn't implement. Worth a separate audit.
+
+**HEAD pending commit.** Push order: one4all → .github.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
