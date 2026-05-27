@@ -18,6 +18,14 @@
 ║     consumers. Mode 4 writes bytes to a binary; mode 3 loads SAME bytes into a   ║
 ║     PROT_EXEC buffer in-process. Differ ONLY in the process boundary. A second   ║
 ║     x86 producer (e.g. JIT sl_* byte-emitters) is FORBIDDEN — two copies drift.  ║
+║  5. ⚡ TEMPLATE-ONLY EMISSION (the FACT RULE, see RULES.md). Not one single x86   ║
+║     instruction — binary OR text — is emitted outside a template function keyed  ║
+║     to a BB, SM, or XA opcode (bb_<kind>/sm_<op>/xa_<kind> in *_templates/,       ║
+║     reached only via emit_core.c dispatch). ONE producer. FORBIDDEN outside a    ║
+║     template: raw bytes, seg_byte(SEG_CODE,…), SL_B, sl_emit_one,                ║
+║     emit_standard_blob, sl_*/SL_*/bake_blob_call_*. Test: grep -rnE              ║
+║     'seg_byte\(SEG_CODE|SL_B\(|sl_emit_one|emit_standard_blob' src/ outside       ║
+║     *_templates/ + emit_core.c == 0.                                              ║
 ║                                                                                  ║
 ║  COMPLETION TEST: from any --run/--compile entry, reachability to icn_bb_dcg /   ║
 ║  pl_bb_dcg / bb_exec_once / bb_exec_resume == ZERO.                              ║
