@@ -84,7 +84,9 @@ bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=15, M4=15, SKIP=0
 
 **Why narrowed:** The unconditional translator path traded 6 ARBNO wins for 6 fence/capture/func regressions (146/147/152/1011/1013/1017). Non-ARBNO PATND trees rely on the legacy cast's accidentally-benign garbage-opcode behaviour and break under the translator. XARBN-gating isolates the wins cleanly.
 
-**Known follow-up — SBL-ARBNO-NOTANY-CORRECTNESS (NEW):** `ARBNO(NOTANY(...))` against any string yields empty match (`m=""`) where SPITBOL yields full greedy match. Probe: `pat = ARBNO(NOTANY("'")); s = 'abc'; s pat . m` → m="" (should be "abc"). Affects Qize_driver in GATE-3 mode-4 (newly segfaults; legacy path also produces wrong output, just doesn't crash). Likely in `bb_exec.c case BB_PAT_ARBNO` loop or how `lower_pat_dcg.c::build_patnd(inner_blk, ..., NULL, NULL)` wires the inner sub-graph's success-port behaviour vs `bb_exec_once` termination semantics. Out of scope for SBL-DCG-DEFER-M4; carve as its own rung.
+**Widened (this session, follow-up commit `26913b08`):** Extended the translator gate from XARBN-only to also accept single-atom PATND roots (XCHR/XSPNC/XBRKC/XBRKX/XANYC/XNNYC/XLNTH/XPOSI/XRPSI/XTB/XRTB/XFARB/XSTAR) via new `patnd_is_simple_atom` + `patnd_needs_xlate` helpers. These atoms were broken on the legacy cast (opcode misread → broker fails fast) but the translator produces correct BB_PAT_<KIND> nodes that the broker handles. Mode-4 broad 173 → 175 (+2): Qize_driver restored + W02_seq_basic + W02_seq_nested. Mode-2 broad unchanged at 218. Rung suite unchanged.
+
+**Known follow-up — SBL-ARBNO-NOTANY-CORRECTNESS:** Still open as a separate concern but the mode-4 Qize_driver regression is GONE. Probe `pat = ARBNO(NOTANY("'")); s = 'abc'; s pat . m` → m="" matches the SPITBOL oracle (m="" is correct under unanchored leftmost-shortest semantics). The bug is actually that **inline** `ARBNO(NOTANY)` returns m="abc" — opposite of var-stored. Trace cause: inline pattern flat-driver uses different code path. Carve as fresh rung if it affects corpus tests.
 
 ---
 
@@ -155,12 +157,37 @@ DEFER — SBL-DCG-DEFER `2b68dc44`
 ```
 GATE-1 mode-2 smoke         = 7/7
 GATE-2 unified broker       = 24
-GATE-3 broad corpus mode-4  = 173/280 (-1 vs prior baseline: Qize_driver newly segfaults — see SBL-ARBNO-NOTANY-CORRECTNESS below)
-GATE-4 broad corpus mode-2  = 218/280 (was 210, +8 net: 052/054/070/075/116/142/W04_arbno_*)
+GATE-3 broad corpus mode-4  = 175/280 (was 174 baseline; +1 net via widened translator gate)
+GATE-4 broad corpus mode-2  = 218/280 (was 210, +8 net)
 Rung suite                  = M2=18, M4=15, SKIP=0
-HEAD one4all                = (this commit)
+HEAD one4all                = 26913b08 (widen gate to single-atom PATND roots)
 GATE-PK status              = stale (re-freeze deferred)
 ```
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 10) — translator gate widened ✅
+
+**HEAD one4all `26913b08`** (pushed).
+
+### What landed
+- `stmt_exec.c`: new static `patnd_is_simple_atom()` and `patnd_needs_xlate()` helpers (union of `patnd_contains_arbno || patnd_is_simple_atom`). Single-atom PATND root kinds — XCHR, XSPNC, XBRKC, XBRKX, XANYC, XNNYC, XLNTH, XPOSI, XRPSI, XTB, XRTB, XFARB, XSTAR — now route through `patnd_to_bb_graph` instead of the broken legacy cast. Both call-sites (`BB_MODE_LIVE`, `BB_MODE_BROKERED/DRIVER`) updated.
+
+### Results
+- GATE-3 mode-4: 173 → **175** (+2). Restored Qize_driver. Added W02_seq_basic, W02_seq_nested.
+- GATE-4 mode-2: 218 (unchanged).
+- Rung suite: M2=18, M4=15 (unchanged).
+- GATE-1: 7/7. GATE-2: 24. All clean.
+
+### Investigation findings
+- Probe `pat = NOTANY("'"); s = 'abc'; s pat . m` → "no match" in both baseline and post-fix. SPITBOL gives `match:[a]`. **Pre-existing bug** in scrip's brokered-blob path for single-atom var patterns — bug survives both the legacy cast (opcode misread → fail) and the translator (correct codegen, but broker still reports `ticks=0`). Root cause is deeper in the broker/blob-wiring, not the cast or translator. Out of scope.
+- Probe `pat = ARBNO(NOTANY("'")); s = 'abc'; s pat . m` → m="" both in scrip and SPITBOL — **the post-fix output now matches the oracle**. The original "SBL-ARBNO-NOTANY-CORRECTNESS" framing was based on a wrong mental oracle; what is actually anomalous is that **inline** `s ARBNO(NOTANY("'")) . m` returns m="abc" in scrip — diverging from SPITBOL. That's a separate inline-path bug.
+
+### Not done — handoff
+1. **Investigate inline-path divergence:** `s ARBNO(NOTANY("'")) . m` returns m="abc" inline but m="" via var. SPITBOL says m="" for both. The inline path uses a different lowering (probably the AST-driven `BB_lower_pat`); audit its anchoring semantics.
+2. **Widen translator gate to XCAT/XOR composites:** This would likely lift more broad-corpus tests (the 070-074 family includes XCAT(ARBNO, ...)). Carefully — the 6 fence/capture regressions originally came from XFNCE/XFNME composites. The right wedge may be: `patnd_contains_arbno(any subtree) || (root is XCAT/XOR AND all kids are atoms-or-XARBN)`.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
 
