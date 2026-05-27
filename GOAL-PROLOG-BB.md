@@ -71,6 +71,22 @@ paths, in this order:
 proper LOWER path (Mode 2 AG-wired ports) AND, when EMITTER work reaches it, Mode 4 agrees.
 Track every rung honestly via the aggregate gate (GATE-3 below); no "done" without green numbers.
 
+> **WATERMARK 2026-05-26 (Opus 4.7) — GATE-3 48 → 57 (+9). main/0 auto-run LANDED.** `one4all 62ce5788`.
+> Driver-only fix in `lower()`: a Prolog program that defines `main/0` but emits NO `:- initialization`
+> directive now auto-runs `main/0` (the rung13..18 corpus convention; `swipl -t main script.pl`). Guarded
+> on `LANG_PL` (SNOBOL4/Icon untouched); a tracked flag `g_pl_initialization_seen` suppresses auto-run when
+> any `:- initialization` is present (verified: no double-run, and an explicit init to a non-`main` goal does
+> NOT auto-run `main`). Both `--interp` and `--run` auto-run identically. **This resolves the long-pending
+> path-(A) "main/0 auto-run — NEEDS LON DECISION" in favor of the DRIVER fix (RULES.md forbids patching the
+> corpus).** Unblocked: rung16 `@<`/`@>`/`@=<`/`@>=`/`@sort` term-comparison x5 (operators were already done,
+> just unreachable); rung18 `succ` forward/backward x2; +2. smoke_prolog 5/5; crosscheck_prolog 132/0 (3 modes
+> agree); icon/snocone/raku 5/5, rebus 4/4, snobol4 7/6 (pre-existing).
+> **NEXT:** (B) rung13/14/15 `assertz`/`asserta`/`retract`/`abolish` directives (currently `[NO-AST] PL
+> directive … skipped at lower time` — 15 tests blocked on dynamic-predicate support); rung17 `sort`/`msort`;
+> rung18 `plus/3` (3 remaining — multi-mode arithmetic relation); rung19 `format`; rung20 `numbervars`; rung22
+> `writeq`/`write_canonical`; rung27 aggregate; rung28 exceptions (`catch`/`throw`). (C) rung25_arith
+> `term_to_atom(1+2,A)` operator-notation term writer. Then EMITTER AGW-9 (`flat_drive_pl_seq`).
+
 > **WATERMARK 2026-05-26 (Opus 4.7) — GATE-3 32 → 48 (+16). Builtin coverage wave 2.** `one4all cf17fd90`.
 > All on the PJ-AGW unify pattern (bidirectional via `unify`+trail, outputs unified exactly as
 > functor/arg/atom_* do). NEW builtins: **`char_type/2`** (rung21 5/5 — type tests alpha/alnum/digit/
