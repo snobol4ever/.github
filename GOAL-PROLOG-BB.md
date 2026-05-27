@@ -128,9 +128,50 @@ labels in test/diagnostic OUTPUT and comments with the flag name of the mode it 
 | **SBL-M4-ASM** | Fix Mode-4 (`--compile --target=x86`) assembler + link failures. **Landed 2026-05-26 (Opus).** TWO bug classes: (1) **bare-annotation macro args** — emitter templates appended human-readable annotations as space-separated tokens after GAS macro calls (`STORE_VAR .S0 A`, `CALL_FN .S2, 0 TIME`, `PUSH_STR .S8, 0 "..."`, `RETURN_VARIANT 0,1,20 SM_RETURN_S`, `CALL_EXPRESSION .L5 name...`, `DEFINE_ENTRY FIB`) → `as` "too many positional arguments". Fix: emit the annotation as a `#`-comment line (`s_2asm/s_1asm + s_comment`), not a bare arg. 6 files: `sm_push_pop_lits.cpp`, `sm_calls.cpp`, `sm_returns.cpp` (×3), `sm_bb_calls.cpp`, `sm_defines.cpp`. (2) **unresolved enum symbol** — arith macros emitted `mov edi, SM_ADD` (a C enum NAME with no assembler/linker definition) → `R_X86_64_32S against undefined symbol SM_ADD`. Fix (`sm_arith.cpp`): emit numeric immediate `mov edi, %d` via `(int)SM_ADD` (enum resolves at emitter compile time, always correct). **Result: Mode-4 broad corpus 0 → 126 PASS** (FAIL=26 SKIP=128), matching Mode 3's reach. Bench 3-mode equivalence achieved: arith_loop/eval_dynamic/eval_fixed/string_concat/fibonacci all OK(3). Verified end-to-end: A+B→13, arith_loop→1000000, fibonacci→832040 (recursion+DEFINE work in Mode 4). | ✅ done — 0→126 |
 | **SBL-M4-OPDISPATCH** ✅ | `op_dispatch.sno` aborted at runtime ("SM value stack overflow cap=65536"). **FIXED 2026-05-26 (Opus 4.7) `5a8bf79d`.** Root cause was NOT comparison-builtin correctness — it was a missing per-statement vstack reset. Mode 2 `sm_interp.c` SM_STNO does `st->sp=0` every statement; Mode 4 `rt_set_stno` did not, so a statement failing mid-eval (GE/LT → DT_FAIL) left operands on the vstack; over a tight loop the residue overflowed. Fix: `rt_set_stno` resets to `g_vframe_base` (NOT absolute 0 — that regressed recursion; frame base is set by `call_native_chunk` to the caller's `saved_vtop`). op_dispatch m4 `result:122172` == m2 == m3 OK(3). Mode-4 broad corpus 126/26 unchanged; 3 recursion tests confirmed still passing. | ✅ done |
 
-### Session watermark 2026-05-26 (Opus 4.7) — DCG phrase/2,3 + compound-write landed (GATE-3 16→19)
+### Session watermark 2026-05-26 (Opus 4.7) — PJ-AGW shared-var unify binding LANDED (honest 123→128, GATE-3 19→20)
 ```
-one4all: f43aff1d — BUILD GREEN
+one4all: HEAD — BUILD GREEN
+GATE-1 smoke_prolog 5/5 · prolog_bb_honest 128/0/0 · smoke_icon 5/5 · smoke_snobol4 13/13
+GATE-3 prolog_rung_suite: 19 → 20 / 107  (rung06_lists_lists: append/3 + reverse/2 + length/2)
+ASAN: CLEAN (touched paths + deep recursion; detect_use_after_free=1)
+
+THE MEATY FIX (the open NEXT from HANDOFF-2026-05-26-OPUS-PROLOG-DCG-PHRASE.md) — DONE.
+src/lower/bb_exec.c BB_PL_CALL: replaced slot-copy writeback with WAM-style shared-var
+unification (control state in bb_snapshot, ALL binding state in the trail). Three coords:
+  (1) Fresh call: build each caller-arg TERM via pl_node_to_term against the CALLER env,
+      then unify(callee_param, caller_term). Aliasing through unify's TERM_REF chains lets
+      callee bindings propagate back — INCLUDING vars nested in compound args (append's
+      [H|R] tail). Trail mark taken BEFORE binding. Both slot-copy writeback loops DELETED.
+  (2) `is` builtin: unify(lhs, result) instead of raw g_pl_env[slot]=vt overwrite (the raw
+      overwrite severed the shared-var ref link + bypassed the trail).
+  (3) Resume path: do NOT pre-unwind the trail — the callee graph's own live choice points
+      (BB_CHOICE / nested BB_PL_CALL) own their bindings during bb_exec_resume; pre-unwinding
+      ripped them out (was the prior attempt's rung05 blank over-generation). Unwind to
+      trail_mark ONLY on call exhaustion.
+Result: append([a],[b],L)=[a,b]; rung06 = [a,b,c,d]/4/[d,c,b,a]; member terminates a,b,c;
+rung10 puzzle_14 segfault GONE. The prior attempt's rung05/rung10 regressions are AVOIDED.
+
+BONUS: succ/2 builtin (lower_pl.c recognizes succ/2 as BB_BUILTIN; bb_exec.c bidirectional
+arm via unify). CORRECT in isolation (succ(0,A)=1, succ(2,3)=ok, multi-goal conjunctions)
+but rung18 still FAILS — orthogonal pre-existing gap: rung18*.pl have NO `:- initialization
+(main).` and scrip does NOT auto-run main/0, so they produce no output. This blocks a whole
+block (~rung12–28, mostly builtin-coverage rungs that otherwise just need builtins + auto-run).
+
+⛔ NEXT candidates:
+ (A) main/0 auto-run: when a Prolog file has no `:- initialization` directive, run main/0.
+     RULES.md forbids patching corpus to work around runtime bugs → fix the DRIVER (likely
+     src/driver/scrip.c or pl_runtime.c initialization handling). Lights up rung12–28 as
+     builtins land. NEEDS LON DECISION (driver auto-run vs. directive-in-corpus).
+ (B) findall/3 in the live BB path: rung11_findall_* (5) + rung30_dcg_generate. The AST-path
+     impl at pl_runtime.c:1647 uses pl_box_goal_from_ir (DELETED mode-1 AST path — NOT usable).
+     Reusable: pl_copy_term (pl_runtime.c:597, AST-free). Needs lower-time recognition (like
+     phrase) + exec arm running the goal subgraph to exhaustion collecting template copies.
+ (C) builtin coverage: functor/3, arg/3, =.. (rung09); @</@>/@=< term-order (rung16); sort/
+     msort (rung17) — all now shared-var-safe to add via the unify pattern `is`/`succ` use.
+```
+
+
+
 GATE-1 smoke_prolog 5/5 · prolog_bb_honest 124/0/0 · smoke_icon 5/5 · smoke_snobol4 13/13
 GATE-3 prolog_rung_suite: 16 → 19 / 107
 
