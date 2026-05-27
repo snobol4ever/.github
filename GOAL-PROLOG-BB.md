@@ -49,7 +49,9 @@ proven end-to-end — GATE-4 still 0/4):**
    the four-port graph (mirrors the working `SM_BBSW_ICN_GEN` arm). γ→last_ok=1, ω→last_ok=0, both
    fall through to `_done`. The `[NO-SM-BB]`/`HALT` stub is GONE — real flat x86 now emits.
 
-**TWO BLOCKERS to first green m4-seq (`main :- X is 1+2, write(X), nl.`):**
+**TWO BLOCKERS to first green m4-seq (`main :- X is 1+2, write(X), nl.`):** see VIOLATIONS LEDGER
+V-1 (clause-body `BB_PL_SEQ` wrapper) and V-2 (`is/2`→`BB_ARITH`) in "Open steps" — that ledger is the
+canonical, gated fix list for every deviation found this session (V-1..V-6). Summary below.
 
 - **B-1 — clause body has NO `BB_PL_SEQ` wrapper; `cfg->entry` is the FIRST GOAL.**
   `lower_pl_clause_body` (lower_pl.c:471) threads body statements directly via their own node-pointer
@@ -235,6 +237,66 @@ For each `case BB_FOO:` in `bb_exec.c`:
 - [ ] Current debt: rungs 1–85 mode-2 passing; zero verified mode-4. First paydown: make rungs 01..10 (atoms, arithmetic, unification, write) pass mode-4 via PL-AGW-9A-3.
 
 ## Open steps (priority order)
+
+### 🔴 VIOLATIONS LEDGER (found session 2026-05-27 — fix BEFORE writing more rungs)
+
+These are confirmed deviations from RULES.md, verified against the tree at `701403cb`. They are
+the "get it right before we write 100 more wrong" list. Each has an exact fix + gate. Order matters:
+V-1/V-2 unblock the first green mode-4 execution; V-3..V-6 retire the C-walker dependency that makes
+modes 3/4 non-compliant. **No new rung/builtin work should be marked complete on a mode-4 claim until
+V-1 and V-2 land and GATE-4 ≥ 1.**
+
+- [ ] **V-1 — Clause body has no `BB_PL_SEQ` wrapper (blocks all mode-4 flat-seq emission).**
+  `lower_pl_clause_body` (lower_pl.c:471) threads body statements via node-pointer γ/ω and sets
+  `cfg->entry = nα[0]` (first goal). So `flat_drive_pl_seq` never fires; `walk_bb_flat` emits only the
+  first goal. **FIX:** after the threading loop (after lower_pl.c:537), allocate a `BB_PL_SEQ` node,
+  populate `bb_pl_seq_state_t->goals[] = gnodes[]` / `ngoals = n_stmts`, set `seq->α = nα[0]`,
+  `seq->γ/ω` = clause continuations, and `cfg->entry = seq`. Mirror the explicit-conjunction case
+  (lower_pl.c:198-203). **Gate:** GATE-3 unchanged (88/107 — the executor's `BB_PL_SEQ` case is
+  trivial "enter at α", so wrapping is transparent to mode 2); GATE-4 emits all goals of m4-seq.
+
+- [ ] **V-2 — `is/2` lowers to `BB_BUILTIN` (stub) not `BB_ARITH` in the clause-body path.**
+  Observed emit: `# BOX PL_BUILTIN(is/2) … # PL_BUILTIN: unknown 'is' — stub`. The working four-port
+  arith template `bb_pl_arith.cpp` (calls effect helper `rt_pl_arith`) is keyed to `BB_ARITH`.
+  **FIX:** in the clause-body lowering path (lower_pl.c:511 `lower_pl_goal(...)`), ensure `X is Expr`
+  produces `BB_ARITH` exactly as the conjunction/interp path does. Add a printf of `nd->t` for main's
+  goals if needed to confirm. **Gate:** m4-seq emits `call rt_pl_arith@PLT`; `test_prolog_mode4_rung.sh`
+  m4-seq PASS (`3`). FIRST GREEN four-port mode-4 Prolog.
+
+- [ ] **V-3 — Structural four-port templates still EMPTY (call/choice/alt).**
+  `util_prolog_template_emptiness_audit.sh` = EMPTY 3 (seq now FILLED at `701403cb`). Until these are
+  filled, mode-4 cannot emit any predicate with a call, multi-clause, or `;`. **FIX:** AGW-9B (below):
+  `bb_pl_call.cpp` → `bb_pl_choice.cpp` → `bb_pl_alt.cpp`, each EMPTY→FILLED with inline four-port x86
+  (trail_mark/trail_unwind are permitted effect helpers; NO `rt_*` port-logic helpers). **Gate:** audit
+  EMPTY→0; m4-call/choice/alt PASS in `test_prolog_mode4_rung.sh`.
+
+- [ ] **V-4 — Mode 4 rebuilds the BB graph at runtime via `rt_pl_b_*` (RULES "no runtime BB walk").**
+  `xa_pl_builder.cpp` emits x86 calling `rt_pl_b_begin/_node/_kids/_entry/_end_register` (rt.c:233+) to
+  reconstruct `BB_graph_t` at standalone-binary startup. The standalone binary must hold NO BB graph.
+  **FIX:** once V-1..V-3 make every predicate flat-emit (each predicate's graph emitted once under a
+  stable `.Lpl_<name>_<arity>_α` entry label, reached by PL_ENTRY and `BB_PL_CALL` via `jmp`), DELETE
+  the `XA_PL_BUILDER` / `XA_PL_REGISTRY_TABLE` emission from `codegen_pl_predicate_registry`
+  (emit_sm.c:394) and the `rt_register_predicates_pl` call from emitted `main`. Then delete the now-dead
+  `rt_pl_b_*` family from rt.c/rt.h. **Gate:** emitted `.s` contains zero `rt_pl_b_*` and zero
+  `rt_register_predicates_pl`; GATE-4 still passes; `grep rt_pl_b_ out.s` == 0.
+
+- [ ] **V-5 — Mode 3 (`--run`) Prolog runs the C SM+BB walker, not flat x86 (AGW-1c exception).**
+  `scrip.c:432/441/446` route Prolog `--run` through `sm_run_with_recovery(&s2->sm, sm_interp_run)`,
+  which dispatches `SM_BB_SWITCH` → `pl_bb_dcg` → `bb_exec_once` (C walker). RULES.md sanctions this as
+  the *temporary* AGW-1c exception "until the bb_pl_*.cpp templates land." Mode 3 is therefore currently
+  identical to mode 2 at runtime — NOT the `sm_emit_linear`→`sm_run_linear` flat-blob path. **FIX:**
+  after V-3/V-4, route Prolog `--run` through the same flat-emit path as mode 4 (in-proc: emit to a
+  PROT_EXEC buffer and jump in), delete the Prolog branch at scrip.c:423-446, and REMOVE the AGW-1c
+  exception text from RULES.md. **Gate:** Prolog `--run` emits/enters flat x86 (no `sm_interp_run`,
+  no `bb_exec_*` reached from the `--run` path); GATE-1..4 green; ASAN clean.
+
+- [ ] **V-6 — C Byrd box `pl_bb_dcg` (DESCR_t fn(void*,int)) must die with the C walker.**
+  `pl_bb_dcg` (pl_runtime.c:36) is a C Byrd box that calls `bb_exec_once`/`bb_exec_resume` — exactly the
+  shape RULES.md "NO C BYRD-BOX FUNCTIONS" forbids (only `icn_bb_dcg` is exempt). It is sanctioned ONLY
+  as the mode-2 reference path. **FIX:** it stays as the mode-2 reference walker (legal), but must NOT be
+  reachable from modes 3/4 once V-4/V-5 land. After V-5, confirm no mode-3/4 run path reaches `pl_bb_dcg`
+  or `bb_exec_*`. (Do NOT delete `bb_exec_*` — mode 2 needs it.) **Gate:** `grep` shows `pl_bb_dcg` /
+  `bb_exec_*` callers are mode-2-only (`sm_interp_run` dispatch); document the audit in the watermark.
 
 ### Rung ladder builtins (Mode 2/3, lower_pl.c + bb_exec.c)
 - [~] **rung15-ABOLISH** — `abolish(Name/Arity)` ✅ 3/5 (87ed9b24). Implemented as BB_BUILTIN: parse `/`(Name,Arity) compound, `pl_bb_lookup`, zero `zc->nbodies` on the predicate's BB_CHOICE; always succeeds. 2 remaining blocked: **one_of_two** (ITE backtracking loop — see PJ-AGW-5 below) + **then_reassert** (runtime assertz-in-body, unimplemented).
