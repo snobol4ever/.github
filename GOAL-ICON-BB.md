@@ -62,14 +62,16 @@ MODE-PRIORITY directive): bring `--run` (mode 3) up via the shared template prod
 functions mode 4 uses, so mode 3 and mode 4 stay byte-identical. Until `--run` exists, generator
 correctness can only be validated in mode 2.
 
-🟡 **MODE 4 (`--compile`) — DEFERRED (Lon, 2026-05-26).** Progress was made this session before
-the defer directive: `sm_bb_switch.cpp` ICN_GEN arm now emits an α/β entry-state dispatch (per-
-switch `.data` flag mirroring the interp's `a[0].i`: first entry → α fresh, re-entry → β retry),
-fixing the infinite-`1` restart. REMAINING mode-4 bug (do NOT pursue until un-deferred): the
-generator-exhaustion (ω) path falls through to `SM_CALL_FN write` before the loop-exit `SM_JUMP_F`,
-so `write` runs on an empty value-stack on the final iteration → underflow. Fix when resumed:
-restructure `lower_every` so the ω test gates the consumer (emit SWITCH → `SM_JUMP_F loop_exit`
-BEFORE the consumer body), OR have the ω path skip to loop-exit directly.
+🟡 **MODE 4 (`--compile`) — ω-exhaustion fall-through FIXED (2026-05-27, Opus 4.7).** The
+generator-exhaustion (ω) path no longer falls through to the consumer. Per irgen ir_a_Every
+(`p.expr.failure → p.ir.failure`), `lower_every` now stamps the loop-exit PC on the SWITCH's free
+`a[0].i`, and `sm_bb_switch.cpp`'s ω arm emits `jmp .L<exit_pc>` (after `last_ok=0`), skipping the
+welded consumer entirely. `every write(1 to 5)` → `1 2 3 4 5` in mode-4, byte-matching `--interp`.
+**ICN-G-1 gate PASS=1** (was 0). Emitted inside the template — no second producer (FACT RULE 0).
+REMAINING mode-4 generator gaps are NOT this bug: filter/cross-product cases (`every write(2<(1 to
+4))`, `(1 to 3)*(1 to 2)`) run clean (no underflow) but emit no output because `SM_ACOMP` and the
+binop-generator opcodes lack honest mode-4 templates — a separate rung (ICN-M4-* / per-opcode), not
+every-loop wiring. `to_by` filter likewise.
 
 **Files touched this session (Opus 4.7, mode 2/3 focus):** src/lower/lower.c (lower_every scan fix),
 src/emitter/SM_templates/sm_bb_switch.cpp (α/β dispatch — mode-4, deferred). NOT yet committed.
@@ -77,14 +79,16 @@ src/emitter/SM_templates/sm_bb_switch.cpp (α/β dispatch — mode-4, deferred).
 **GATE-PK still RED/stale (455/62/592) since `a5775d1a` — owner decision on re-freeze pending. With
 mode 4 deferred, GATE-PK is not a blocking gate; revisit when mode 4 resumes.**
 
-⛔ **SESSION 2026-05-27 (Opus 4.7) — ICN-G-1 mode-4 Icon gate built + bug precisely located.**
-Added `scripts/test_icon_mode4_rung.sh`: full native pipeline (`--compile --target=x86` → `as` GAS
-Intel-syntax → `gcc -no-pie -L out -lscrip_rt`) diffed against `--interp`. Runs clean, honest
-`PASS=0 FAIL=5`. Wired into Session Setup. ALL prior gates non-regressing (smoke_icon 5/5, broker 23,
-rungs 198, smoke_prolog 5/5; FACT RULE 0). The mode-4 every-loop underflow is now located to the
-emitted-asm line: generator γ AND ω both fall through to `CALL_FN write` before the `JUMP_F`
-loop-exit test (see ICN-G-1 finding below). Fix deferred to ICN-Z-4/Z-9 (ω becomes a port wire, not
-a template special-case). Files: `scripts/test_icon_mode4_rung.sh` (NEW). one4all uncommitted at note time.
+⛔ **SESSION 2026-05-27 (Opus 4.7) — ICN-G-1 mode-4 Icon gate built + ω-exhaustion FIXED.**
+Added `scripts/test_icon_mode4_rung.sh` (full native pipeline diffed vs `--interp`). Then fixed the
+mode-4 every-loop underflow: per irgen ir_a_Every (`p.expr.failure → p.ir.failure`), `lower_every`
+stamps the loop-exit PC on the SWITCH's free `a[0].i` and `sm_bb_switch.cpp`'s ω arm emits
+`jmp .L<exit_pc>`, skipping the welded consumer. `every write(1 to 5)` → `1 2 3 4 5` in mode-4
+(byte-matches `--interp`). **ICN-G-1 PASS=1** (was 0). ALL prior gates non-regressing (smoke_icon
+5/5, broker 23, rungs 198, smoke_prolog 5/5); FACT RULE 0 (jump emitted inside template). Remaining
+4 gate FAILs are filter/cross-product/to_by cases needing honest `SM_ACOMP`/binop-gen mode-4
+templates — a separate rung, not every-loop wiring. Files: `scripts/test_icon_mode4_rung.sh` (NEW),
+`src/lower/lower.c` (lower_every a[0].i stamp), `src/emitter/SM_templates/sm_bb_switch.cpp` (ω jump).
 
 ---
 
@@ -192,7 +196,13 @@ from the zipper. Bring ω-as-port-wire up via the zipper, then this gate climbs 
 - [ ] This IS a backtracking conjunction: E2 failure re-drives E1. Lower E1 unbounded; lower E2 with caller's bounded. Node α=E1.α, β=E1.β (E1 is the generator). On β: resume E1; on E1 success: re-run E2 from fresh.
 - [ ] Gate: smoke_icon 5/5, rungs ≥198.
 
-#### ICN-Z-4 — Rewire BB_EVERY ⏳
+#### ICN-Z-4 — Rewire BB_EVERY ⏳ (mode-4 ω-edge landed 2026-05-27, Opus 4.7)
+- [x] **Mode-4 `p.expr.failure → p.ir.failure` wired** for the direct-consumer every case: `lower_every`
+  stamps loop-exit PC on SWITCH `a[0].i`; `sm_bb_switch.cpp` ω arm emits `jmp .L<exit_pc>`, skipping
+  the consumer. `every write(1 to N)` correct in mode-4 (ICN-G-1 PASS=1). FACT RULE 0.
+- [ ] Remaining: filter/cross-product/`to_by` every cases need honest `SM_ACOMP` + binop-generator
+  mode-4 templates (separate rung — they run clean but emit no output today). The full irgen edge set
+  (`body.γ→expr.β`, `body.ω→expr.β`) is mode-2-correct via BB_PUMP_PROC; mode-4 zipper still pending.
 - [ ] **irgen `ir_a_Every` — read it carefully before implementing.**
   - `p.ir.start → expr.ir.start`
   - `expr.ir.success → body.ir.start`
