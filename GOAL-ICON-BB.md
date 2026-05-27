@@ -47,7 +47,7 @@ Mapping doc (LFJ-0) is the contract — transcription does not deviate from it.
 | LFJ-1a-i  | Extract 9 leaf cases (ILIT/FLIT/QLIT/CSET/VAR/KEYWORD/LOOP_BREAK/LOOP_NEXT/PROC_FAIL) into `lower_icn_legacy_<KIND>` static fns. Switch arms become one-line dispatches. ZERO logic change. | ✅ `f79ea9ba`. rungs 198. |
 | LFJ-1a-ii | Extract next batch: TT_SCAN, TT_ASSIGN, TT_SWAP, TT_FNC, TT_SEQ, TT_SEQ_EXPR. Switch arms one-line. | ✅ `013703ff`. rungs 198. |
 | LFJ-1a-iii | Extract TT_IF, TT_TO, TT_TO_BY, TT_EVERY, TT_WHILE, TT_UNTIL, TT_REPEAT, TT_LIMIT. | ✅ `b252409f`. rungs 198. TT_WHILE/TT_UNTIL share one helper. |
-| LFJ-1a-iv | Extract binop group (TT_ADD..TT_NE, TT_CAT, TT_LCONCAT, TT_LLT..TT_LNE), TT_NOT, TT_ALTERNATE, TT_AUGOP. | rungs 198. |
+| LFJ-1a-iv | Extract binop group (TT_ADD..TT_NE, TT_CAT, TT_LCONCAT, TT_LLT..TT_LNE), TT_NOT, TT_ALTERNATE, TT_AUGOP. | ✅ `320f1eea`. rungs 198. 13-label arith/relop shared one helper; 6-label string-relop shared one helper. |
 | LFJ-1a-v  | Extract TT_GLOBAL/LOCAL/STATIC_DECL, TT_INITIAL, TT_RETURN, TT_SUSPEND, TT_IDENTICAL, TT_NONNULL, TT_NULL, TT_RANDOM, TT_MATCH_UNARY, TT_MNS, TT_PLS, TT_CSET_*. | rungs 198. |
 | LFJ-1a-vi | Extract TT_SIZE, TT_IDX, TT_SECTION/SECTION_PLUS/SECTION_MINUS, TT_CASE, TT_FIELD, TT_RECORD, TT_MAKELIST, TT_ITERATE. Final 1a sub-rung — mega-switch is now a pure dispatcher. | rungs 198. |
 | LFJ-1b | Introduce `lower_kind_table[TT_MAX]` of `BB_t* (*)(BB_graph_t*, tree_t*)`. `lower_kind_table_init()` populates every slot with the matching `lower_icn_legacy_<KIND>`. Dispatcher reads the table instead of switching directly. | rungs 198 unchanged. |
@@ -293,7 +293,7 @@ bash scripts/test_icon_mode4_rung.sh       # PASS=5
 | Family 1 BB_ASSIGN sidecar | `78e4c067` |
 | Family 2 BB_CALL sidecar | `78e4c067` |
 
-**WATERMARK:** one4all `b252409f`. Gates: smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5.
+**WATERMARK:** one4all `320f1eea`. Gates: smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5.
 
 ---
 
