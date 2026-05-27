@@ -4,13 +4,13 @@
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `0206b998`)
+## ⚡ CURRENT WATERMARK (one4all `289d4aa1`)
 
 GATES: smoke_icon **5/5** ✅ · broker **23** (pattern rungs RED — expected) · icon_all_rungs **198** ✅
-(2026-05-26, Sonnet 4.6: all 10 `rt_bb_*` deleted + `sm_image_test.c` deleted. one4all `289d4aa1`.)
-✅ **FACT RULE FULLY CLEAN:** `grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/` outside `*_templates/`+`emit_core.c` == **0**. All DATA+CODE+EXEC section violators gone.
+(2026-05-26, Sonnet 4.6: all 10 `rt_bb_*` deleted + `sm_image_test.c` deleted. FACT RULE fully clean.)
+✅ `grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/` outside `*_templates/`+`emit_core.c` == **0**.
 
-⛔ **NEXT: fill inline-x86 four-port bodies** in the hollow `PLATFORM_X86 { return std::string(); }` arms.
+⛔ **NEXT — ICON WORK: fill inline-x86 four-port bodies** in the hollow `PLATFORM_X86 { return std::string(); }` arms.
 Order: SPAN → ANY → NOTANY → BREAK → CAP → ARBNO (simplest first; each its own commit, gates green between).
 
 Files to fill:
