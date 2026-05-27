@@ -184,19 +184,23 @@ wrong — fix the BB graph, not the runtime.
   applicable than first appeared — only the source-string-discovery
   changes (runtime peek of α->value instead of compile-time `hay`).
 
-  - [~] **RK-BB-3.0** (precursor, lowest-risk) — flesh out the runtime
-    builtins so arrays work at all in mode-2. Add to raku_builtins.c:
-    `push`, `pop`, `elems`, `arr_get`, `arr_set` (\x01-separated string
-    representation per test/raku/rk_arrays.raku comment header). ~80
-    LOC pure C with no BB axis touched. Mode-2 gate uplift: probably
-    flips rk_arrays + rk_for_array (the latter if iteration in mode-2
-    works via the existing SM scaffold once arrays exist).
-    Test: GATE-RK mode-2 ≥ 8/31 (no regression; expect uplift).
-    STATUS: NON-MUTATING half (elems, arr_get, substr, index/rindex,
-    uc/lc/chars/length/trim, sort) authored in raku_builtins_byname.c
-    at fcac4ab3 and made REACHABLE by RK-BB-3.0a (ba481112). Mutating
-    half (push/pop/arr_set) authored but lowering tweak still pending
-    — see GAP 2 in RK-BB-3.0a's handoff.
+  - [x] **RK-BB-3.0** ✅ (2026-05-27, Opus 4.7, one4all `7a60d30e`) — fleshed
+    out the runtime builtins so arrays work in both mode-2 and mode-4.
+    Non-mutating half (elems, arr_get, substr, index/rindex, uc/lc/chars/
+    length/trim, sort) authored at fcac4ab3, made REACHABLE by RK-BB-3.0a
+    (ba481112). Mutating half (push/pop/arr_set) authored at fcac4ab3,
+    made REACHABLE by RK-BB-3.0b (7a60d30e). All ops use \x01-separated
+    string representation per test/raku/rk_arrays.raku spec.
+
+  - [x] **RK-BB-3.0b** ✅ (2026-05-27, Opus 4.7, one4all `7a60d30e`) —
+    GAP 2 mutators wired. lower.c lower_fnc (push/pop): prepend
+    SM_PUSH_LIT_S vname when first real arg is TT_VAR; nargs+1.
+    lower.c case TT_ARR_SET: same prepend; nargs 3→4. sm_interp.c
+    SM_CALL_FN + rt.c rt_call: mutating branch above the non-mutating
+    raku chain peels args[0].s as vname when fn ∈ {push, pop, arr_set}
+    AND args[0].v == DT_S, calls raku_try_mutating_builtin_by_name.
+    GATE-RK 9→10 (+rk_arrays), GATE-RK4 10→11 (+rk_arrays). All
+    smokes/broker hold. FACT RULE clean.
 
   - [x] **RK-BB-3d** ✅ (2026-05-27, Opus 4.7, one4all `fcac4ab3` +
     `ba481112`) — `raku_try_call_builtin_by_name(fn, args, nargs, out)`
@@ -324,11 +328,83 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: ba481112 (RK-BB-3.0a — c[0]-dup suppression + rt_set_lang prologue; +1 mode-2 +1 mode-4)
-.github: HEAD (handoff — RK-BB-3.0a landed; GAP 2 next per handoff block below)
+one4all: 7a60d30e (RK-BB-3.0b GAP 2 — push/pop/arr_set mutators; +1 mode-2 +1 mode-4)
+.github: HEAD (handoff — RK-BB-3.0b landed; RK-BB-3a next: BB_ITERATE polymorphism for `for @arr -> $v`)
 corpus:  unchanged
 
-Gates at ba481112 (2026-05-27, Opus 4.7, RK-BB-3.0a landed):
+Gates at 7a60d30e (2026-05-27, Opus 4.7, RK-BB-3.0a + RK-BB-3.0b landed):
+  GATE-RK mode-2:  10/31  (cumulative +2: rk_str22 + rk_arrays)
+  GATE-RK4 mode-4: 11/31  (cumulative +2: rk_str22 + rk_arrays)
+  Smoke raku:      5/0    HOLD
+  Smoke icon:      5/5    HOLD
+  Smoke prolog:    5/5    HOLD
+  Broker Icon:     198    HOLD
+  GATE-PK: ⛔ harness segfault — INHERITED. Owed: SBL-ANY session.
+  FACT RULE grep:  0
+  Build:           clean
+
+⛔ RK-BB-3.0b ✅ COMPLETE (2026-05-27, Opus 4.7, one4all 7a60d30e):
+
+Completes the mutating half of RK-BB-3.0. The non-mutating half landed
+in RK-BB-3.0a (ba481112). 3.0b makes push/pop/arr_set reachable in both
+mode-2 and mode-4 by routing them through the existing
+raku_try_mutating_builtin_by_name dispatcher (authored fcac4ab3).
+
+Four-file commit (+66/-4):
+  (1) lower.c lower_fnc (after the RK-BB-3.0a skip0 gate):
+      Detect mutator-by-name (push/pop) in LANG_RAKU and emit
+      SM_PUSH_LIT_S vname BEFORE the regular args loop when first
+      real arg (after skip0) is TT_VAR. SM_CALL_FN nargs+=1.
+  (2) lower.c case TT_ARR_SET (@arr[i] = v doesn't go through TT_FNC):
+      Same prepend; c[0] is the array variable TT_VAR. nargs 3→4.
+  (3) src/processor/sm_interp.c SM_CALL_FN — mutating branch above
+      the existing raku_try_call_builtin_by_name chain. Peels
+      args[0].s as vname; passes &args[1] / nargs-1. Gated on
+      g_lang == LANG_RAKU AND args[0].v == DT_S.
+  (4) src/runtime/rt/rt.c rt_call — mirror dispatch for mode-4.
+      Same vname-peel. NAMEPTR/NAMEVAL deref on out before push.
+      rt_set_lang prologue from RK-BB-3.0a ensures g_lang ==
+      LANG_RAKU in the mode-4 binary's libscrip_rt.so.
+
+Verified mode-2 + mode-4 rk_arrays byte-exact to .expected.
+
+⛔ NEXT — RK-BB-3a (BB_ITERATE polymorphism for `for @arr -> $v`):
+
+Runtime substrate is now COMPLETE (arr_get/elems/push/pop/arr_set all
+work mode-2 + mode-4). The remaining gap is iteration: `for @arr -> $v`
+currently doesn't loop in either mode — lower_iterate's Raku branch
+(lower.c:1602-1607) emits the array expression once and stores it to
+$v without a loop.
+
+Decomposition (per prior audit memo):
+  - lower.c lower_iterate Raku branch: build a BB graph wrapping
+    BB_ITERATE with the @arr variable as α-operand; wrap in
+    SM_BB_SWITCH(SM_BBSW_RK_GEN). lower_every finds the SWITCH and
+    engages the loop scaffold. Loop var stored on γ pull.
+  - bb_iterate.cpp template: extend for \x01-string DT_S Raku-array
+    semantics. Polymorphic discriminator at α-time. Icon's DT_S
+    char-by-char path stays bit-identical (gated on cfg->lang ==
+    BB_LANG_ICN); Raku path scans for SOH (\x01) and yields each
+    substring as a fresh DESCR_t.
+  - bb_exec.c BB_ITERATE executor (~L2227): same polymorphism for
+    mode-2 (so for-loop works in --interp too).
+
+Gates probe: rk_for_array_simple should flip mode-2 + mode-4 once 3a
+lands. Then rk_for_array (which mixes for-loop with arr_get etc.)
+likely flips too. RK-BB-3b/c (lazy map/grep) follow.
+
+Pre-existing segfault cluster (rk_subs, rk_interp, rk_try_catch25)
+remains a separate concern — verified at baseline pre-RK-BB-3.0a.
+Consider RK-BB-SEGFAULT-CLUSTER as a new rung if Lon prioritizes.
+
+⛔ END RK-BB-3.0b HANDOFF
+
+⛔ PRIOR HANDOFFS RETAINED FOR HISTORY:
+   RK-BB-3.0a HANDOFF + Gates-at-ba481112 trailer is below; the original
+   fcac4ab3 RK-BB-3.0+3d infra HANDOFF block is below that. Both retained
+   for context — GAP 1 was solved in 3.0a, GAP 2 was solved in 3.0b.
+
+⛔ HANDOFF — Opus 4.7, 2026-05-27, ba481112 (RK-BB-3.0a, Gates trailer):
   GATE-RK mode-2:  9/31   (+1: rk_str22)
   GATE-RK4 mode-4: 10/31  (+1: rk_str22)
   Smoke raku:      5/0    HOLD
