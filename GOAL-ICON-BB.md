@@ -14,7 +14,7 @@ boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `821640c8` — Opus 4.7 session 2026-05-27b; ICN-Z-0/1 + BINOP_GEN target corrected)
+## ⚡ CURRENT WATERMARK (one4all `ce649c14` — Opus 4.7 session 2026-05-27b; ICN-Z-0/1 + BINOP_GEN target corrected; rebased onto upstream Prolog mode-4 `058f7846`)
 
 ⛔ **SESSION 2026-05-27b (Opus 4.7) — ICN-Z-0 + ICN-Z-1 landed; ICN-Z-2 substantial; ICN-Z-3 found BLOCKED.**
 ICN-Z-0: `icn_leaf(nd, γ_in, ω_in, &α_out, &β_out, bounded)` + bounded-aware
