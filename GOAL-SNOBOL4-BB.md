@@ -74,46 +74,17 @@ bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=15, M4=15, SKIP=0
 
 ## Open Rungs (priority order)
 
-### NEXT: SBL-DCG-DEFER-M4 — patnd_to_bb_graph translator (PARTIAL ✅⏳)
+### NEXT: SBL-DCG-DEFER-M4 stmt_exec.c wiring ✅ (narrowed) + SBL-ARBNO-COUNTER-RESET ✅
 
-**Status:** Translator implemented + wired into `bb_exec.c case BB_PAT_DEFER` DT_P branch ✅ (commit `954236f5`). M2 rung suite 15→16. **`stmt_exec.c` DT_P wiring still pending.** Pre-existing `bb_reset` counter-clobber bug for BB_PAT_ARBNO blocks the expected +15 broad-corpus uplift until separately fixed.
+**Status:** Both landed (this session).
 
-**Problem:** `exec_stmt` DT_P branch in `stmt_exec.c:289-322` casts `PATND_t*` → `BB_t*` via `bb_build_brokered`. PATND's first field is `XKIND_t kind` (XCHR=0, XSPNC=1, ...); BB's first field is `BB_op_t t` (BB_FAIL≈0, BB_PAT_LIT=59, ...). Misread opcode → broker emits wrong-kind code → fails. Affects BOTH mode-2 and mode-4 — same root cause for var-stored patterns.
+**SBL-ARBNO-COUNTER-RESET ✅:** `scrip_ir.c bb_reset()` — one-line guard `if (nd->t != BB_PAT_ARBNO) nd->counter = 0;` Preserves the `bb_arbno_state_t*` aux pointer across `bb_exec_once` calls. Rung suite M2 16 → 18 (rungs 052, 054 newly pass).
 
-**Fix:** `BB_graph_t *patnd_to_bb_graph(PATND_t *pp)` in `lower_pat_dcg.c` — runtime PATND→BB_graph_t translator parallel to `build_node`. No template code touched.
+**SBL-DCG-DEFER-M4 stmt_exec.c wiring ✅ (narrowed):** Added `lower_pat_dcg.h` include + `patnd_contains_arbno()` static helper + gated translator path in both `BB_MODE_LIVE` and `BB_MODE_BROKERED/DRIVER` branches. When the PATND root tree contains XARBN anywhere, `patnd_to_bb_graph(pp)` builds a proper BB graph and `bb_build_brokered/flat` walks its `entry` (a real `BB_t*`). Else falls back to legacy cast. Mode-2 broad corpus 210 → 218 (+8: 052/054/070/075/116/142/W04_arbno_basic/backtrack/zero).
 
-**PATND→BB_op_t mapping** (from git history audit of deleted `rt_bb_*`):
+**Why narrowed:** The unconditional translator path traded 6 ARBNO wins for 6 fence/capture/func regressions (146/147/152/1011/1013/1017). Non-ARBNO PATND trees rely on the legacy cast's accidentally-benign garbage-opcode behaviour and break under the translator. XARBN-gating isolates the wins cleanly.
 
-| PATND kind | BB_op_t | Notes |
-|------------|---------|-------|
-| XCHR | BB_PAT_LIT | sval = pp->STRVAL_fn |
-| XSPNC | BB_PAT_SPAN | sval; β=self |
-| XBRKC | BB_PAT_BREAK | sval; ival=0 |
-| XBRKX | BB_PAT_BREAK | sval; ival=1; β=self |
-| XANYC | BB_PAT_ANY | sval |
-| XNNYC | BB_PAT_NOTANY | sval |
-| XLNTH | BB_PAT_LEN | ival = pp->num |
-| XPOSI | BB_PAT_POS | ival; sval=NULL |
-| XRPSI | BB_PAT_POS | ival; sval="r" |
-| XTB | BB_PAT_TAB | ival; sval=NULL |
-| XRTB | BB_PAT_TAB | ival; sval="r" |
-| XFARB | BB_PAT_ARB | β=self |
-| XARBN | BB_PAT_ARBNO | inner via patnd_to_bb_graph; bb_arbno_state_t in counter |
-| XSTAR | BB_PAT_REM | |
-| XFNCE | BB_PAT_FENCE | nchildren 0 (bare) or 1 (FENCE(inner)) |
-| XFAIL | BB_FAIL | |
-| XABRT | BB_PAT_ABORT | |
-| XEPS | BB_PAT_LIT("") | no BB_EPS enumerator; empty literal matches 0 chars |
-| XCAT | BB_PAT_CAT | variadic; right-fold |
-| XOR | BB_PAT_ALT | variadic; right-fold |
-| XDSAR | BB_PAT_DEFER | sval = pp->STRVAL_fn; ival=0 |
-| XFNME | BB_PAT_ASSIGN_IMM | sval=varname; child via translator |
-| XNME | BB_PAT_ASSIGN_COND | same as XFNME |
-| XVAR/XBAL/XATP/XCALLCAP/XSUCF | (skip v1) | not in current corpus |
-
-**Pending — stmt_exec.c DT_P wiring (NEXT):** The legacy path builds a `bb_box_fn` and stores it in `root` (`bb_node_t`); later `bb_broker(root, bb_scan, scan_body_fn_u9, &scan_res)` at `stmt_exec.c:367` runs the scan loop with capture-recording callback. Intercepting cleanly requires either (a) parallel scan loop on `bb_exec_pat` that records `match_start`/`match_end` the same way, or (b) thin `bb_box_fn` wrapper hiding a translated graph behind the broker API. Either way, must preserve `Phase4` semantics (capture commit, replacement substitution).
-
-**Also pending — SBL-ARBNO-COUNTER-RESET:** `scrip_ir.c:114` `bb_reset()` blindly zeros `nd->counter` for every node. BB_PAT_ARBNO stores its `bb_arbno_state_t*` aux pointer in `nd->counter` — wiped on every `bb_exec_once`. Same affects BB_PROC_GEN, BB_PL_SEQ, BB_CHOICE. Fix: kind-aware reset. Blocks ARBNO(*var) corpus family (070-074); must be fixed alongside stmt_exec wiring for full +15 broad-corpus uplift.
+**Known follow-up — SBL-ARBNO-NOTANY-CORRECTNESS (NEW):** `ARBNO(NOTANY(...))` against any string yields empty match (`m=""`) where SPITBOL yields full greedy match. Probe: `pat = ARBNO(NOTANY("'")); s = 'abc'; s pat . m` → m="" (should be "abc"). Affects Qize_driver in GATE-3 mode-4 (newly segfaults; legacy path also produces wrong output, just doesn't crash). Likely in `bb_exec.c case BB_PAT_ARBNO` loop or how `lower_pat_dcg.c::build_patnd(inner_blk, ..., NULL, NULL)` wires the inner sub-graph's success-port behaviour vs `bb_exec_once` termination semantics. Out of scope for SBL-DCG-DEFER-M4; carve as its own rung.
 
 ---
 
@@ -184,11 +155,36 @@ DEFER — SBL-DCG-DEFER `2b68dc44`
 ```
 GATE-1 mode-2 smoke         = 7/7
 GATE-2 unified broker       = 24
-GATE-3 broad corpus mode-4  = 174/280
-Rung suite                  = M2=16, M4=15, SKIP=0
-HEAD one4all                = 954236f5
+GATE-3 broad corpus mode-4  = 173/280 (-1 vs prior baseline: Qize_driver newly segfaults — see SBL-ARBNO-NOTANY-CORRECTNESS below)
+GATE-4 broad corpus mode-2  = 218/280 (was 210, +8 net: 052/054/070/075/116/142/W04_arbno_*)
+Rung suite                  = M2=18, M4=15, SKIP=0
+HEAD one4all                = (this commit)
 GATE-PK status              = stale (re-freeze deferred)
 ```
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 9) — SBL-DCG-DEFER-M4 stmt_exec wiring + SBL-ARBNO-COUNTER-RESET ✅
+
+**HEAD one4all** = this commit. Rebased onto LFJ-1b (`e5eb34b0`) cleanly.
+
+### What landed
+- `scrip_ir.c bb_reset()`: one-line guard — `if (nd->t != BB_PAT_ARBNO) nd->counter = 0;`. Preserves the `bb_arbno_state_t*` aux pointer that ARBNO stashes in counter. NOT touching BB_PROC_GEN/BB_PL_SEQ/BB_CHOICE here (Prolog kinds; out of scope for SNOBOL4 goal).
+- `stmt_exec.c`: `#include "lower_pat_dcg.h"`; new static helper `patnd_contains_arbno(const PATND_t *)`; both `BB_MODE_LIVE` (line ~292) and `BB_MODE_BROKERED/DRIVER` (line ~316) DT_P branches now do `int needs_xlate = patnd_contains_arbno(pp); BB_graph_t *pp_cfg = needs_xlate ? patnd_to_bb_graph(pp) : NULL; BB_t *pp_bb = (pp_cfg && pp_cfg->entry) ? pp_cfg->entry : (BB_t *)pp;` then pass `pp_bb` to `bb_build_flat/brokered` instead of the raw `(BB_t*)PATND_t*` cast.
+
+### Results
+- Rung suite M2: 16 → 18 (rungs 052_pat_arbno, 054_pat_arbno_alt newly pass)
+- Mode-2 broad corpus: 210 → 218 (+8: 052, 054, 070, 075, 116, 142, W04_arbno_basic, W04_arbno_backtrack, W04_arbno_zero — minus the single mode-2 carryover)
+- Mode-4 broad corpus: 174 → 173 (-1 Qize_driver — see follow-up below)
+- GATE-1 7/7, GATE-2 24, rungs M4=15 — all unchanged
+
+### Why the translator path is narrowed
+First attempt: unconditionally route every DT_P PATND through `patnd_to_bb_graph`. Mode-2 broad corpus 210 → 211 (+1 net) but composition was +6 ARBNO / -6 fence/capture/func (146/147/152/1011/1013/1017). Conclusion: the legacy `(BB_t*)(PATND_t*)` cast misreads opcodes but happened to compensate for unrelated bugs in non-ARBNO paths. Narrowing to `patnd_contains_arbno(pp)` keeps the 8 ARBNO wins clean.
+
+### Known follow-up — SBL-ARBNO-NOTANY-CORRECTNESS
+`ARBNO(NOTANY(...))` against a fully-non-matching subject yields empty match (`m=""`) instead of greedy full consumption. Probe `pat = ARBNO(NOTANY("'")); s = 'abc'; s pat . m` → m="" (oracle says "abc"). Affects Qize_driver in GATE-3 mode-4. Likely cause: `bb_exec.c case BB_PAT_ARBNO` loop semantics or `build_patnd(inner_blk, ..., NULL, NULL)` inner sub-graph success-port wiring. Carve as new rung; not in scope for SBL-DCG-DEFER-M4.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
 
