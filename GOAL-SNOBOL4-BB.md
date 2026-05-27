@@ -642,12 +642,83 @@ sample above and re-run `test_snobol4_pat_rung_suite.sh`. Should pass M4 once
 the mode-2 path is fixed (because M4 doesn't depend on the PATND brokered path).
 
 ### Follow-up priorities (unchanged from prior session, BREAKX added)
-1. **SBL-BREAKX-3** — bridge PATND XBRKX through the brokered runtime path
-   (the actual remaining work for SBL-BREAKX). Trace the PATND→BB conversion
-   inside `bb_build_brokered`. May involve adding an XBRKX case to whatever
-   dispatch table the brokered binary uses internally.
+1. **SBL-BREAKX-3** ✅ (resolved 2026-05-27 cont'd 5, commit da2bc106). Root
+   cause was NOT a missing PATND brokered handler — it was a missing
+   `case TT_BREAKX` in `lower_pat_dcg.c build_node`. See session note below.
 2. **SBL-ATP** — new BB kind for `@var` cursor capture (PLAN.md priority).
 3. **SBL-*-2 BINARY arms** — mode-3 BINARY parallel for the six TEXT arms.
 4. **Pre-existing m2 oracle gap audit** — rungs 044/045/046/048/052/054/055/056/057.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 5) — SBL-BREAKX-3 ✅
+
+**Built on `7c834dea`** (prior session's SBL-BREAKX-1 wiring).
+**HEAD one4all: `da2bc106`** (pushed below).
+**.github: this update.** corpus: untouched.
+
+### SBL-BREAKX-3 — TT_BREAKX case in lower_pat_dcg.c ✅
+
+The prior session's hypothesis — that mode-2 BREAKX backtracking was blocked
+by a missing XBRKX case in the PATND brokered dispatch path — was wrong.
+Two instrumentation passes (reverted before commit) traced the actual flow:
+
+1. `walk_bb_flat` never fires for plain BREAK in mode-2. The brokered
+   path via `bb_build_brokered((PATND_t*)val.p)` cast is dead code for
+   PATND inputs whose `kind` enum doesn't map to a real `BB_op_t`.
+2. The live mode-2 pattern path is `SM_EXEC_STMT → bb_exec_pat →
+   bb_exec_once → bb_exec_node` operating on the `BB_graph_t *pat_bb`
+   set at lower time by `BB_lower_pat`.
+3. For BREAKX patterns, `BB_lower_pat` returned NULL because `build_node`
+   in `lower_pat_dcg.c` had no `case TT_BREAKX` — fell through to
+   `default: return NULL`. With pat_bb=NULL the SM_EXEC_STMT path falls
+   back to the broken PATND `exec_stmt` route, silently emitting empty.
+
+**Fix:** added `case TT_BREAKX` in `build_node`, mirroring `case TT_BREAK`
+but with `nd->ival = 1` (selects the β-rescan arm at `bb_exec.c:1785`)
+and `nd->β = nd` (self-loop for retry). Also explicit `ival = 0` on
+TT_BREAK for symmetry.
+
+Diff: 11 LOC in one file (`src/lower/lower_pat_dcg.c`).
+
+### Verified
+- `S BREAKX('.') . V` on `'abc.def'` → `abc` (was empty)
+- `S BREAK('.') . V` → `abc` (no regression)
+- GATE-1 mode-2 smoke 7/7
+- GATE-2 broker 24/24
+- Rung suite M2=9, M4=9, SKIP-M4=0
+- Broad corpus 184/280 (unchanged)
+
+### What's still broken (separate bug — NOT SBL-BREAKX)
+Multi-element pattern statements where the pattern AST has nested TT_SEQ
+(e.g. `S BREAKX('.') . V '.' BREAKX('.') . W`) fail because the splitter
+in `lower.c` lines 1756-1769 requires `subject->c[0]->t` to be one of
+{TT_VAR, TT_KEYWORD, TT_QLIT, TT_INDIRECT}. For nested-SEQ patterns,
+`c[0]->t == TT_SEQ` and the splitter no-ops, leaving pattern=NULL and
+routing through the wrong `lower_expr(subject)` path. Affects plain
+BREAK + tail too — pre-existing, not introduced here.
+
+**File this as `SBL-SPLITTER-1` in GOAL-SNOBOL4-BB or HQ.** The fix is
+likely a single recursive descent through nested TT_SEQ in the splitter
+to find the first TT_VAR-rooted leaf and rebuild the pattern from the
+remainder.
+
+### Follow-up priorities
+1. **SBL-SPLITTER-1** — fix nested-TT_SEQ subject/pattern splitter in
+   lower.c. High impact: unblocks all multi-element pattern statements
+   regardless of pattern kind. Expect significant broad-corpus uplift.
+2. **SBL-ATP** — new BB kind for `@var` cursor capture (PLAN priority).
+3. **SBL-*-2 BINARY arms** — mode-3 BINARY parallel for the six TEXT arms.
+4. **Pre-existing m2 oracle gap audit** — rungs 044/045/046/048/052/054/055/056/057.
+
+### Note on prior session's SM_PAT_BREAKX opcode work
+The SM_PAT_BREAKX opcode wiring from session-prior (12 files touched) was
+correct in scope but cannot affect mode-2 outcome via the PATND path —
+because mode-2 doesn't run through PATND when `pat_bb != NULL`. It DOES
+correctly distinguish BREAKX in the SM stream for mode-3/4 emission and
+in the PATND build path used as fallback. The SM_PAT_BREAKX work is
+preserved; this rung is additive.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
