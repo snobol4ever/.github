@@ -14,49 +14,101 @@ boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 
 
 ---
 
-## ⛔⛔ NEXT SESSION — START HERE. FIRST RUNG, FIRST STEP. (added 2026-05-27c, Opus 4.7)
+## ⛔⛔ NEXT SESSION — START HERE. FIRST RUNG, FIRST STEP. (added 2026-05-27e, Opus 4.7)
 
-**RUNG ICN-Z-2b — leaf + BB_SEQ/COMPOUND true-port slice. The ONE safely-sliceable piece of the ICN-Z
-port rewire. Do this FIRST, before anything else, the moment the session opens. No re-orientation —
-the entry point is fully specified below.**
+**RUNG ICN-Z-ATOMIC — wholesale conversion of operand-bearing composites to 4-port threaded form,
+ONE pass. Do this FIRST, the moment the session opens. Fresh context required (~80%+); the surface
+is ~68 `lower_icn_expr_node` sites + ~11 `bb_exec.c` composite cases + a storage-convention change.**
 
-### Why this rung (one paragraph, read once)
-The 4-port AG zipper (ICN-Z) needs `lower_icn.c`'s ~68 `lower_icn_expr_node(cfg,e)` sites rewired so
-α/β are CONTROL-FLOW ports (not operand-child pointers), AND `bb_exec.c` re-expressed as a pure
-port-follower (no `a=a->γ` operand-tree recursion). That full pass is ONE atomic change and cannot be
-half-done (the shared `bb_exec_node` driver recurses α/β as children for EVERY composite, so a hybrid
-won't walk). **EXCEPTION: the leaf + BB_SEQ/COMPOUND group is already forward-correct** (handoff
-2026-05-25, ICN-Z-2 "substantial"): `lower_icn_proc_body` builds the stmt chain back-to-front with
-`succ` threading; `bb_exec.c` BB_SEQ (line 613) walks `st=st->γ` forward, intermediate failure
-advances (irgen ir_a_Compound). The ONLY thing missing is the EXPLICIT `stmt[i].ω → stmt[i+1].α` port
-wire (today the advance is structural via the loop, not via ω). That edge is additive, mode-2-safe,
-and gateable — it does NOT touch the operand-bearing composites (BINOP/CALL/IF/ALT) that force the
-atomic pass.
+### Why wholesale, NOT incremental (read once)
+`bb_exec_node` is a SHARED driver. Today's composite cases (BB_BINOP line 677, BB_BINOP_GEN 693,
+BB_CALL 54/478, BB_ASSIGN 422, BB_IF 827, BB_CONJ 854, BB_EVERY 871, BB_ALT 988, BB_TO_BY 1041,
+BB_TO 1954) all treat `nd->α` and `nd->β` as **operand-child pointers** — the operand SUBTREES are
+stored in α/β and reached by recursive `bb_exec_node(nd->α)`. Convert ONE construct's α/β to be a
+control-flow port while its siblings keep operand-child semantics → the shared driver cannot
+distinguish "recurse this child" from "follow this port," because both are `BB_t*`. Hybrid breaks.
+Either all composites use α/β as ports, or none do. 100 small-rung iterations cannot reach a
+self-consistent state — only a wholesale change can.
 
-### EXACT STEPS (do in order, gate after EACH)
-1. **Read** `lower_icn.c` `lower_icn_proc_body` (the stmt-chain builder; uses
-   `lower_icn_expr_threaded_b(..., bounded=1)` per stmt — call site near line 1014/1033) and
-   `bb_exec.c` `case BB_SEQ:` (line 613) + `case BB_SEQ_EXPR:` (line 625). Confirm the `succ` thread.
-2. **Wire the explicit ω-advance edge** in `lower_icn_proc_body`: when building stmt[i] back-to-front,
-   set `stmt[i]->ω = stmt[i+1]` (its α — the next stmt's fresh entry), with the LAST stmt's γ AND ω
-   propagating to the proc terminal (proc.γ / proc.ω). Mirror irgen `ir_a_Compound`: intermediate
-   failure ADVANCES (ω→next.α), only the last stmt's ports flow outward. Do NOT apply the Prolog
-   back-to-front RETRY zipper here (compound advances, it does not backtrack).
-3. **Re-express `bb_exec.c` BB_SEQ to FOLLOW the ω port** instead of (or alongside) the structural
-   `st=st->γ` loop: on a non-returning intermediate stmt, advance via `st->ω` (now == next.α) rather
-   than `st->γ`. Keep BB_SEQ_EXPR's value-of-last + pump-last semantics intact (it is a DIFFERENT
-   construct — do NOT merge). The proc-fall-off `return nd->ω` at line 622/623 stays.
-4. **GATE after step 2 AND after step 3:** `bash scripts/test_smoke_icon.sh` PASS=5 ·
-   `bash scripts/test_icon_all_rungs.sh` PASS≥198 · `bash scripts/test_smoke_prolog.sh` PASS=5 ·
-   `grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -v _templates/ | grep -v emit_core | wc -l` == 0.
-5. **Mark ICN-Z-2 `[x]` complete** (the "REMAINING: explicit ω→α port wire" checkbox) and commit.
+### The storage convention (the structural insight — read twice)
+JCON's irgen does NOT have an operand-child relation. Every operand chunk is a peer in the chunk
+list, glued by `ir_Goto`. The 4 ports of a binop in irgen are LABELS on the parent's chunk; the
+operand subtrees are reached by `Goto` to their `.start`. `BB.h`'s GOLDEN BB RULE comment forbids
+adding `lhs/rhs/c[]/n` to `BB_t` ("DO NOT add c[], n, lhs, rhs, operand..."). So the conversion is:
+stop storing operand subtrees in `BB_t.α/β`. Build operands as separate `BB_t` nodes in the SAME
+`cfg->all[]` pool. Parent's `α`/`β` become PURE CONTROL-FLOW PORTS (continuation labels). Operand
+graphs are reached the same way JCON reaches them: by Goto from the parent's α-chunk to the
+operand's α, and the operand's γ/ω fold back into the parent's next-port continuation. The graph
+of α-entries and γ/ω-continuations forms the runtime CFG; there is no operand-child tree.
+
+The runtime payload for the operand binding is the operand's `value` field (the result the parent
+reads after the operand's γ port fires). `bb_exec.c` becomes a pure port-follower: dispatch on `nd`,
+write `nd->value`, return the next port. NO `bb_exec_node(nd->α)` recursive call anywhere.
+
+### EXACT STEPS (do in order, gate after EACH group)
+
+**Step 1 — Read the AG (no code yet).** Open `/home/claude/jcon/jcon-master/tran/irgen.icn` (cloned
+from the JCON master in HANDOFF-2026-05-27-OPUS-ICON-BB-ICN-Z-2B context) and read these procedures
+in full: `ir_a_Binop` (472), `ir_binary` (430), `ir_a_Call` (360), `ir_a_If` (577), `ir_a_Every`
+(309), `ir_a_Alt` (167), `ir_a_ToBy` (1168), `ir_conjunction` (405), `ir_a_Compound` (1231),
+`ir_a_ProcBody` (774), and `ir_init` (1426). Build the port-wiring table on paper before touching C.
+
+**Step 2 — Storage convention.** In `lower_icn.c`, change every `lower_icn_*` builder that today
+sets `nd->α = lhs_subtree` / `nd->β = rhs_subtree` to instead: (a) allocate the operand subtrees as
+PEER `BB_t` nodes via `BB_node_alloc`, (b) thread `nd->α` to the lhs-operand's `α` (its start), (c)
+wire lhs-operand's `γ` to the rhs-operand's `α` (or to a synthesized "after-lhs" continuation that
+caches `lhs->value`), (d) rhs-operand's `γ` to the parent's apply-chunk, which writes `nd->value`
+and returns `nd->γ`. Failure ports fold to `nd->ω`. Mirror `ir_a_Binop` exactly — DO NOT invent.
+
+**Step 3 — bb_exec.c.** Delete the operand recursion in every composite case. Each case becomes:
+read `nd->value` (already set by the predecessor port-firing), apply the per-kind operation if any,
+write the result to `nd->value`, return the appropriate port. NO `bb_exec_node(nd->α)` calls. The
+driver is now a pure port-follower: `while (nd) { nd = bb_exec_node(nd); }`.
+
+**Step 4 — Gate ALL of these after each construct family lands, NOT after each site:**
+- `bash scripts/test_smoke_icon.sh` PASS=5
+- `bash scripts/test_icon_all_rungs.sh` PASS ≥ 198 (target: monotonic increase)
+- `bash scripts/test_smoke_prolog.sh` PASS=5
+- `bash scripts/test_smoke_unified_broker.sh` PASS ≥ 23
+- `grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -v _templates/ | grep -v emit_core | wc -l` == 0
+- Sanity: `printf 'procedure main()\n write("a")\n write("b")\nend\n' | ./scrip --interp /dev/stdin` MUST print `a\nb\n` (today prints only `a` — this is the litmus for the whole rung)
+
+**Step 5 — Construct families, do in THIS order (each is one gate cycle):**
+1. **BB_ASSIGN** (simplest non-leaf with 1 operand subtree — `target := value`). Bridge from leaf.
+2. **BB_CALL** (the multi-write blocker). Operands are the argument list; gluing each arg's γ to
+   the next arg's α, last arg's γ to the call's apply chunk, all ω to the call's ω.
+3. **BB_BINOP** (2 operand subtrees, well-known shape; irgen `ir_binary`).
+4. **BB_IF** (note: `ir_a_If` — condition's success→then.α, failure→else.α; then/else γ both →
+   parent.γ, ω → parent.ω). `icn_kind_owns_omega_operand` retires when IF stops using ω as operand.
+5. **BB_CONJ** (`ir_conjunction` — e1.γ→e2.α; e2.γ→parent.γ; e1.ω→parent.ω; e2.ω→e1.β).
+6. **BB_ALT** (`ir_a_Alt` — e1.γ→parent.γ; e1.ω→e2.α; e2.γ→parent.γ; e2.ω→parent.ω; β→e1.β
+   for re-entry).
+7. **BB_EVERY** / **BB_TO** / **BB_TO_BY** / **BB_BINOP_GEN** (generator kinds — read `ir_a_Every`
+   and `ir_a_ToBy`; resumable β=self stays per `icn_kind_is_resumable`).
+
+**Step 6 — Retirements.** When step 5.4 lands, delete `icn_kind_owns_omega_operand` (and its
+forward declaration added by ICN-Z-2b) — IF no longer owns ω as operand. The BB_IF guard in
+ICN-Z-2b's `lower_icn_proc_body` post-pass and in BB_SEQ's port-follower can both go.
 
 ### DO NOT, this rung
-- Do NOT touch BINOP / BINOP_GEN / CALL / IF / ALT / ASSIGN / CONJ operand cases. Those α/β are
-  operand-children and need the ATOMIC full pass (ICN-Z-3..9 + bb_exec port-follower). Touching one
-  breaks the shared driver. This rung is leaves + SEQ ONLY.
+- Do NOT touch SNOBOL4 / Snocone / Rebus / Raku BB families (different ports/semantics).
+- Do NOT touch BB_PAT_* or pattern-matching (different driver).
+- Do NOT add `lhs/rhs/c[]/n` to `BB_t` — the GOLDEN BB RULE forbids it; operands are PEERS not
+  children.
+- Do NOT half-zip across step 5's families. Either a family is fully converted and green, or it is
+  not started this session.
 
-### After ICN-Z-2b lands — the full atomic pass entry point (so the NEXT-next session opens cold too)
+### Acceptance — the rung is done when:
+1. The 6-gate set in step 4 is green AND the multi-write sanity passes (`a\nb` not just `a`).
+2. `grep -rnE 'bb_exec_node\(nd->[αβ]\)' src/lower/bb_exec.c | wc -l` == 0 (no operand recursion).
+3. `icn_kind_owns_omega_operand` removed.
+4. rungs PASS ≥ 198 holds; ideally rises (more multi-stmt programs now work).
+
+---
+
+
+
+
 `lower_icn.c` 2-arg `lower_icn_expr_node(cfg,e)` call sites to convert to 4-port threaded (68 total):
 lines 184 188 203 205 217 219 221 235 237 253 255 268 285 308 325 345 350 354 381 382 402 403 424 428
 460 464 486 505 507 546 548 577 590 605 607 617 628 630 645 647 649 668 681 683 705 714 730 745 747
@@ -335,16 +387,20 @@ from the zipper. Bring ω-as-port-wire up via the zipper, then this gate climbs 
 - [x] Gate: smoke_icon 5/5, broker 23, icon_all_rungs 198, smoke_prolog 5/5, mode4_rung PASS=2,
   FACT-RULE grep 0. Non-regressing. `icn_tree_is_leaf` is live (defined + called).
 
-#### ICN-Z-2 — Rewire BB_COMPOUND / BB_SEQ (Icon statement sequence) 🟡 (substantial; 2026-05-27, Opus 4.7)
+#### ICN-Z-2 — Rewire BB_COMPOUND / BB_SEQ (Icon statement sequence) ✅ (ICN-Z-2b landed 2026-05-27d, Opus 4.7)
 - [x] **Forward chain already correct.** `lower_icn_proc_body` builds the statement chain
   back-to-front with `succ` threading and lowers each statement `bounded=1` (down payment landed
   ICN-Z-0 session). `bb_exec.c` BB_SEQ walks `st = st->γ` (the γ-chain hung off α) — exactly the
   forward, non-backtracking advance irgen ir_a_Compound prescribes; intermediate failure continues
   the loop (advances), not retries.
-- [ ] REMAINING: make the failure-advance edge an explicit `stmt[i].ω → stmt[i+1].α` port wire
-  (currently `bb_exec.c` advances structurally via the loop rather than via ω). Needed for mode-3/4
-  flat-wiring; mode-2 is already correct. Fold in when BB_SEQ gets its emitter template.
-- [ ] Gate: smoke_icon 5/5, rungs ≥198 (holding).
+- [x] DONE (ICN-Z-2b): explicit `stmt[i].ω → stmt[i+1].α` port wire added in `lower_icn_proc_body`
+  as a post-build pass (guarded by `icn_kind_owns_omega_operand`, so BB_IF keeps ω as its else-branch
+  operand). `bb_exec.c` BB_SEQ re-expressed as a PORT-FOLLOWER: advances via `st->ω` (the explicit
+  edge; for ω-operand kinds advances via `st->γ`); last stmt has ω==NULL → proc terminal → FAILDESCR.
+  Mirrors irgen ir_a_ProcBody (both success+failure of intermediate → next.α). Behaviour byte-identical
+  to baseline (stash diff), additive, mode-2 safe. Operand composites (BINOP/CALL/IF/ALT) untouched —
+  those need the full atomic ICN-Z pass.
+- [x] Gate: smoke_icon 5/5, smoke_prolog 5/5, rungs 198, broker 23, FACT 0 (all holding).
 
 #### ICN-Z-3 — Rewire BB_CONJ (E1 & E2 — conjunction generator) ⛔ BLOCKED — lockstep finding (2026-05-27, Opus 4.7)
 - [ ] irgen `ir_conjunction`: start→E1.start; E1.success→E2.start; E1.failure→p.failure; E2.success→p.success; E2.failure→E1.resume.
