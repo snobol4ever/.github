@@ -184,7 +184,7 @@ wrong — fix the BB graph, not the runtime.
   applicable than first appeared — only the source-string-discovery
   changes (runtime peek of α->value instead of compile-time `hay`).
 
-  - [ ] **RK-BB-3.0** (precursor, lowest-risk) — flesh out the runtime
+  - [~] **RK-BB-3.0** (precursor, lowest-risk) — flesh out the runtime
     builtins so arrays work at all in mode-2. Add to raku_builtins.c:
     `push`, `pop`, `elems`, `arr_get`, `arr_set` (\x01-separated string
     representation per test/raku/rk_arrays.raku comment header). ~80
@@ -192,16 +192,28 @@ wrong — fix the BB graph, not the runtime.
     flips rk_arrays + rk_for_array (the latter if iteration in mode-2
     works via the existing SM scaffold once arrays exist).
     Test: GATE-RK mode-2 ≥ 8/31 (no regression; expect uplift).
+    STATUS: NON-MUTATING half (elems, arr_get, substr, index/rindex,
+    uc/lc/chars/length/trim, sort) authored in raku_builtins_byname.c
+    at fcac4ab3 and made REACHABLE by RK-BB-3.0a (ba481112). Mutating
+    half (push/pop/arr_set) authored but lowering tweak still pending
+    — see GAP 2 in RK-BB-3.0a's handoff.
 
-  - [ ] **RK-BB-3d** (was: 3d in prior plan) — add
-    `raku_try_call_builtin_by_name(const char *fn, DESCR_t *args, int nargs,
-    DESCR_t *out)` parallel entry point in raku_builtins.c (no AST walk —
-    args are pre-evaluated DESCR_ts), chain it into `rt_call`'s ladder
-    immediately AFTER `icn_try_call_builtin_by_name`. Once 3.0 + 3d land
-    together, EVERY Raku mode-2 SM_CALL_FN builtin is also reachable from
-    mode-4 — `raku_sort`, the new push/pop/arr_*, and the existing
-    raku_substr/index/rindex/match/etc. Mode-4 gate uplift could be
-    substantial (5-10 tests). NO new doctrine; same shape as IJ-HELLO-2.
+  - [x] **RK-BB-3d** ✅ (2026-05-27, Opus 4.7, one4all `fcac4ab3` +
+    `ba481112`) — `raku_try_call_builtin_by_name(fn, args, nargs, out)`
+    parallel entry point added to raku_builtins_byname.c; chained into
+    `rt_call` AND `sm_interp.c` SM_CALL_FN dispatch, BEFORE icn fallback,
+    gated on `g_lang == LANG_RAKU`. RK-BB-3.0a (ba481112) added the
+    `rt_set_lang` prologue emission so mode-4's libscrip_rt.so g_lang
+    is stamped before any rt_call runs.
+
+  - [x] **RK-BB-3.0a** ✅ (2026-05-27, Opus 4.7, one4all `ba481112`) —
+    unblock for fcac4ab3's infra: (1) lower.c lower_fnc c[0]-dup
+    suppression (LANG_RAKU-gated, name-equality guard); (2) rt_set_lang(int)
+    + XA_FILE_HEADER prologue emits `mov edi, <g_lang>; call rt_set_lang@PLT`
+    so mode-4's libscrip_rt.so g_lang is stamped before any rt_call;
+    (3) `trim` aliased onto `raku_trim` in byname dispatcher. GATE-RK
+    8→9 (+rk_str22), GATE-RK4 9→10 (+rk_str22). All smokes hold. FACT
+    RULE clean. 100% template emission preserved.
 
   - [ ] **RK-BB-3a** (substrate) — extend `bb_iterate.cpp` for Raku's
     \x01-string arrays. Polymorphic on the source DT (DT_S Icon `!"abc"`
@@ -312,19 +324,109 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: fcac4ab3 (RK-BB-3.0+3d infra — by-name dispatcher + chain hooks; gate-safe)
-.github: HEAD (handoff — RK-BB-3 substrate audit memo + decomposition + this update)
+one4all: ba481112 (RK-BB-3.0a — c[0]-dup suppression + rt_set_lang prologue; +1 mode-2 +1 mode-4)
+.github: HEAD (handoff — RK-BB-3.0a landed; GAP 2 next per handoff block below)
 corpus:  unchanged
 
-Gates at fcac4ab3 (2026-05-27, Opus 4.7, RK-BB-3.0+3d infra landed):
-  GATE-RK mode-2:  8/31   HOLD  (no flip yet — see KNOWN GAP below)
-  GATE-RK4 mode-4: 9/31   HOLD  (no flip yet — see KNOWN GAP below)
+Gates at ba481112 (2026-05-27, Opus 4.7, RK-BB-3.0a landed):
+  GATE-RK mode-2:  9/31   (+1: rk_str22)
+  GATE-RK4 mode-4: 10/31  (+1: rk_str22)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
+  Broker Icon:     198    HOLD
   GATE-PK: ⛔ harness segfault — INHERITED. Owed: SBL-ANY session.
   FACT RULE grep:  0
   Build:           clean
+
+⛔ RK-BB-3.0a ✅ COMPLETE (2026-05-27, Opus 4.7, one4all ba481112):
+
+Two-part unblock for the RK-BB-3.0+3d infra landed in fcac4ab3.
+
+PART 1 — lower.c lower_fnc c[0]-dup suppression (lower.c:~L562-572):
+  Raku frontend make_call() (raku.y:59-64) intentionally constructs TT_FNC
+  with v.sval=name AND c[0]=TT_VAR(name) — pre-dating the by-name dispatch
+  path. lower_fnc iterated all children, pushing the function name as the
+  first stack arg, so CALL_FN saw nargs+1 args with the function name in
+  args[0]. Suppression gated LANG_RAKU + c[0]==TT_VAR + c[0]->v.sval ==
+  t->v.sval. Icon (v.sval=NULL, c[0]=callable) and SNOBOL4 (v.sval=name,
+  no dup) bit-identical. Confirmed by inspection of all frontends'
+  TT_FNC construction.
+
+PART 2 — rt_set_lang + XA_FILE_HEADER prologue emission:
+  g_lang is in libscrip_rt.so's BSS (zero-init = LANG_SNO=0). Mode-4
+  binaries link libscrip_rt directly without going through scrip's
+  frontend, so the LANG_RAKU-gated raku-builtin chain in rt_call
+  (fcac4ab3) was DEAD CODE in mode-4 — g_lang never got set.
+  Fix: rt_set_lang(int) added to rt.c after rt_gc_init. XA_FILE_HEADER
+  template extended to emit `mov edi, <g_lang>; call rt_set_lang@PLT`
+  between rt_gc_init and rt_register_expressions. The compiler's
+  current g_lang (LANG_RAKU=3 for .raku source) is baked into the
+  prologue, runs before any rt_call, stamps libscrip_rt's g_lang.
+  This is the doctrinally-correct 100% template emission path —
+  every new byte goes through xa_file_header.cpp via xa_dispatch
+  (no emit_textf / seg_byte additions). FACT RULE grep stays 0.
+
+PART 3 — raku_builtins_byname.c trim alias (+1 char):
+  trim handler only matched "raku_trim" (mangled); user code writes
+  plain trim(...). Aliased per peer pattern (uc/lc/chars/length).
+
+Diagnostic path:
+  - mode-2 rk_str22 was producing "  hello" instead of "hello" for
+    the trim($padded) call after PART 1 alone — exposed the missing
+    alias. With PART 3, mode-2 flipped green.
+  - mode-4 still errored "Error 5 Undefined function" because
+    g_lang=0. Inspected nm out/libscrip_rt.so: g_lang at BSS offset
+    0x56cec0 (B = uninitialized). Verified only one definition site
+    (lower.c:1710 g_lang=lang) which runs in scrip's process, not
+    the mode-4 binary's process. Added PART 2 → mode-4 flipped.
+
+NOT this session: Q5 union-clobber proper fix (open in goal); the
+defensive v.ival=0 from RK-BB-2 step 6 (d08237e0) still load-bearing.
+
+⛔ NEXT — GAP 2 from prior handoff (mutators):
+
+  push($arr, $val) / pop($arr) / arr_set($arr, $i, $val) mutate a
+  variable. The raku_try_mutating_builtin_by_name() entry point is
+  already authored in raku_builtins_byname.c — it expects args[0]
+  to be a STRING containing the variable NAME (not the var value).
+
+  Lowering tweak in lower.c (lower_fnc, near the new skip0 gate):
+    if (LANG_RAKU && t->v.sval && is_mutator(t->v.sval)) {
+        /* Push variable NAME as args[0] instead of c[0]'s value-push */
+        SM_emit_s(g_p, SM_PUSH_LIT_S, c[0]->v.sval);  /* var name as string */
+        for (int i = 0; i < nargs - skip0; i++) lower_expr(t->c[i + skip0]);
+        SM_emit_si(g_p, SM_CALL_FN, t->v.sval, nargs - skip0 + 1);
+        return;
+    }
+  where is_mutator(fn) = strcmp(fn,"push")==0 || ..."pop"==0 || "arr_set"==0.
+
+  Mode-2 sm_interp.c SM_CALL_FN dispatch + rt.c rt_call both need a
+  tiny adjustment: when fn ∈ mutator set AND args[0] is DT_S (name),
+  call raku_try_mutating_builtin_by_name(fn, args[0].s, &args[1],
+  nargs-1, out) and write back via _rt_nv_fold_set on success.
+
+  Expected uplift: rk_arrays, rk_for_array_simple, rk_for_array flip
+  mode-2 (then mode-4 follows immediately given rt_set_lang now stamps
+  g_lang in mode-4 too). Probably +3..5 each gate.
+
+  After GAP 2: pre-existing segfaults in rk_subs / rk_interp /
+  rk_try_catch25 (verified at baseline pre-RK-BB-3.0a) are SEPARATE
+  bugs unrelated to this thread. Cluster them into a new step
+  (RK-BB-SEGFAULT-CLUSTER?) or leave for later.
+
+  THEN — RK-BB-3a (BB_ITERATE polymorphism for `for @arr -> $v`)
+  as already scoped in the goal body. With \x01-string array repr
+  confirmed and arr_get/elems/push working from GAP 2, RK-BB-3a is
+  just the lowering pass + bb_iterate.cpp polymorphism + mode-2
+  bb_exec.c BB_ITERATE polymorphism, all per the existing 4-rung
+  decomposition above (3a → 3b → 3c).
+
+⛔ END RK-BB-3.0a HANDOFF
+
+⛔ PRIOR HANDOFF (fcac4ab3, RK-BB-3.0+3d infra) — RETAINED FOR HISTORY:
+   GAP 1 SOLVED in RK-BB-3.0a (above). GAP 2 + GAP 3 still open and
+   are the explicit "NEXT" in RK-BB-3.0a's handoff block.
 
 ⛔ HANDOFF — Opus 4.7, 2026-05-27, fcac4ab3 (RK-BB-3.0+3d infra landed):
 
