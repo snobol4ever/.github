@@ -116,7 +116,7 @@ first green four-port mode-4 Prolog. Update PL-DEBT-1 ledger: `rung-seq mode-4 �
 
 ## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
 
-**Current state: GATE-3 = 88/107, GATE-4 = 4/4, GATE-2 = 36/96 (real, post-CAT-A).** Next HEAD on hand-off commit (Opus 4.7, 2026-05-27).
+**Current state: GATE-1 = 5/5, GATE-2 = 36/96 (real, post-CAT-A-2), GATE-3 = 88/107, GATE-4 = 4/4.** HEAD `471ab202` (Opus 4.7, 2026-05-27). CAT-A-2 landed as a gate-safe structural prerequisite for CAT-A-3; numeric GATE-2 lift comes when CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume) lands.
 
 **Session setup:**
 ```
@@ -297,7 +297,14 @@ target; each has a measurable gate (GATE-2 PASS lift).
   must re-enter a multi-clause callee (rung05_backtrack, rung02 facts, rung06 lists/member, etc.).**
   `bb_pl_call.cpp:97`: `s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω)`. With CAT-A-2 landed,
   the SEQ now correctly wires `fail.γ → fact/1.β`, but `fact/1.β` immediately jumps to ω, so the
-  caller's outer SEQ exits to its own ω and the disjunction's `; true` branch fires. **Fix sketch:**
+  caller's outer SEQ exits to its own ω and the disjunction's `; true` branch fires.
+  **TWO STUB SITES, NOT ONE** (verified 2026-05-27 Opus 4.7, post-CAT-A-2): the same `β: jmp ω`
+  pattern also lives at `bb_pl_choice.cpp:58` (line: `s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω)`),
+  documented in that file's header comment as a deferred AGW-9B-2 cut: "β (redo) currently fails:
+  full resumable choice is a later rung (stateful redo)." So a complete CAT-A-3 needs BOTH:
+  (i) the callee block (`BB_CHOICE` inside `.Lplpred_<name>_<arity>`) to honor β by advancing to
+  the next clause's `pre[k+1]`, and (ii) the call site (`bb_pl_call.cpp`) to forward its own β to
+  the callee block's β rather than to ω. **Fix sketch:**
   the callee block emitted under `.Lplpred_<name>_<arity>` contains a multi-clause `BB_CHOICE`
   driven by `flat_drive_pl_choice` (already FILLED, AGW-9B-2). The choice driver's β label
   (`plch<id>_β`) is the right re-entry point. The call template needs to (a) export that label
@@ -312,9 +319,44 @@ target; each has a measurable gate (GATE-2 PASS lift).
         cursor) in a register; the call site stashes it; on β, restores env+cursor and re-calls
         the same block, which uses the cursor to skip already-tried clauses. Cleaner; matches the
         interp model (`zc->cur`); requires extending `pl_bb_choice_state_t` access from emitted
-        code.
+        code. Also requires the callee block to NOT pop the saved env on γ (the call site owns it).
   Decision deferred to Lon. Estimated GATE-2 lift: large — most CAT-A-2-unblocked failures resolve
   once callee β actually re-enters.
+
+#### Failure categorization (2026-05-27 Opus 4.7, post-CAT-A-2, by sample inspection)
+
+GATE-2 reports 36/96. **Important semantics note:** the crosscheck script (`test_crosscheck_prolog.sh`)
+diffs `--interp` vs `--run`, NOT against `.ref`. So a test PASSes if both modes agree, even if both
+are wrong vs the oracle (ORACLE_MISS is reported separately but informationally). Several of the 36
+"PASSes" therefore mask same-mode-bugs (e.g. rung27/rung28 PASS in crosscheck despite GATE-3 reporting
+0/5 there — both modes fail the same way through the same C interp path for those builtins). The
+"real" PASS-with-correctness count is lower than 36.
+
+Sampled failures cluster:
+- **CAT-A-3** (multi-clause callee redo): rung02 facts, rung05 backtrack, rung08 recursion, simple
+  `backtrack` crosscheck case. Symptom: prints first solution only; subsequent backtracks fall through.
+- **CAT-B** (compound-term unify): rung03 `f(X,a)=f(b,Y)` prints `_ _`. Confirmed.
+- **CAT-C** (lists/cons): rung06 lists, member/2 — segfaults under `--run` (Sigsegv in child binary).
+- **CAT-D** (builtin coverage in flat-emit): rung11 findall (prints `_` instead of `[red,green,blue]`),
+  rung12 atom_codes/upcase_atom (prints `_`), rung09 builtins. The flat `bb_builtin.cpp` template
+  knows write/nl/is/comparisons; everything else stub-comments + jmp γ, so the call silently succeeds
+  without effect, leaving outputs as unbound `_`.
+- **PJ-AGW-5** (ITE / `->`): rung04 arith ITE, rung07 cut. Symptom: ITE branches not taken.
+- **Recursion** (CAT-A-3 plus stack): rung08 fib/factorial likely needs CAT-A-3 to recurse over choice
+  points.
+
+Estimated impact ordering (rough; verify by closing each category in order and re-running GATE-2):
+1. **CAT-D** (builtin coverage) — many small wins; mostly mechanical port of `bb_exec.c BB_BUILTIN` arms
+   into `bb_builtin.cpp`. Probably +15-25 PASS.
+2. **CAT-A-3** (callee β-resume) — large structural unlock; +15-25 PASS once landed (every
+   `pred(X), …, fail` pattern).
+3. **CAT-B** (compound terms) — moderate; prerequisite for CAT-C and several rung builtins.
+4. **CAT-C** (lists/cons) — small set, but high visibility (member/2 is canonical).
+5. **PJ-AGW-5** (ITE) — moderate; closes rung04, rung07, and several puzzles.
+
+Best next session order: CAT-D (cheapest per PASS) → CAT-A-3 (largest single-step unlock; needs Lon
+directive) → CAT-B → CAT-C → PJ-AGW-5.
+
 
 - [ ] **CAT-B — Compound-term unify binds nothing.** `bb_unify.cpp build_term_text` calls
   `rt_pl_node_to_term(kind, ival, sval, dval)` with only the operand's own scalar fields; for a
@@ -475,11 +517,13 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
 - abolish/1 ✅ (2026-05-27, 87ed9b24 — zeros BB_CHOICE nbodies)
 - assertz/asserta directives (lower-time static fold) ✅
 
-**Gates at HEAD (post-CAT-A, 2026-05-27 Opus 4.7 — pending commit):** GATE-1 5/5, GATE-2 36/96
-(was 31/101, +5 from CAT-A `*α_out=seq` fix; CAT-A-2 is the next blocker — `flat_drive_pl_seq`
-ω-wiring ignores resumability, loops on FAIL), GATE-3 88/19, **GATE-4 4/4**. Earlier at 449f4ca3:
-GATE-2 132/0 (fake parity), GATE-4 2/4. snobol4 --interp smoke 7/13 (pre-existing). icon/snocone/raku
-smoke 5/5, rebus 4/4.
+**Gates at HEAD (post-CAT-A-2, 2026-05-27 Opus 4.7, one4all `471ab202`):** GATE-1 5/5, GATE-2
+**36/96** (UNCHANGED from CAT-A baseline; CAT-A-2 is structurally correct/gate-safe but does not
+surface as a numeric lift on its own — see CAT-A-3 below for why), GATE-3 88/19, **GATE-4 4/4**.
+Earlier landings: 449f4ca3 GATE-2 132/0 (fake parity), CAT-A `*α_out=seq` af5c5ecd GATE-2 +5 →
+36/96 real. snobol4 --interp smoke 7/13 (pre-existing). icon/snocone/raku smoke 5/5, rebus 4/4.
+Next blocker: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume stubs); needs Lon directive on design
+(inline-on-demand vs resumable-call protocol).
 
 ---
 
