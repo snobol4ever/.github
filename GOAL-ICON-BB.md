@@ -79,16 +79,21 @@ src/emitter/SM_templates/sm_bb_switch.cpp (α/β dispatch — mode-4, deferred).
 **GATE-PK still RED/stale (455/62/592) since `a5775d1a` — owner decision on re-freeze pending. With
 mode 4 deferred, GATE-PK is not a blocking gate; revisit when mode 4 resumes.**
 
-⛔ **SESSION 2026-05-27 (Opus 4.7) — ICN-G-1 mode-4 Icon gate built + ω-exhaustion FIXED.**
-Added `scripts/test_icon_mode4_rung.sh` (full native pipeline diffed vs `--interp`). Then fixed the
-mode-4 every-loop underflow: per irgen ir_a_Every (`p.expr.failure → p.ir.failure`), `lower_every`
-stamps the loop-exit PC on the SWITCH's free `a[0].i` and `sm_bb_switch.cpp`'s ω arm emits
-`jmp .L<exit_pc>`, skipping the welded consumer. `every write(1 to 5)` → `1 2 3 4 5` in mode-4
-(byte-matches `--interp`). **ICN-G-1 PASS=1** (was 0). ALL prior gates non-regressing (smoke_icon
-5/5, broker 23, rungs 198, smoke_prolog 5/5); FACT RULE 0 (jump emitted inside template). Remaining
-4 gate FAILs are filter/cross-product/to_by cases needing honest `SM_ACOMP`/binop-gen mode-4
-templates — a separate rung, not every-loop wiring. Files: `scripts/test_icon_mode4_rung.sh` (NEW),
-`src/lower/lower.c` (lower_every a[0].i stamp), `src/emitter/SM_templates/sm_bb_switch.cpp` (ω jump).
+⛔ **SESSION 2026-05-27 (Opus 4.7) — ICN-G-1 gate + mode-4 generator fixes; gate PASS=0→2.**
+(1) Added `scripts/test_icon_mode4_rung.sh` (full native pipeline vs `--interp`). (2) Fixed every-loop
+ω-exhaustion: `lower_every` stamps loop-exit PC on SWITCH `a[0].i`; `sm_bb_switch.cpp` ω arm emits
+`jmp .L<exit>`, skipping the consumer (`every write(1 to N)` → correct). (3) `emit_sm.c` now registers
+the SWITCH's ICN_GEN `a[0].i` exit PC as a jump target so `.L<exit>:` is emitted (label-analysis only,
+not codegen — FACT RULE intact). (4) Fixed `sm_compare.cpp` ACOMP/LCOMP GAS macro: was `mov edi, 0`
+discarding its kind arg → every comparison ran as op 0; now `mov edi, \n` (+ BINARY arm passes the
+real kind). (5) Fixed `bb_to_by.cpp` TEXT yield: was raw-r12 (BINARY/brokered convention) →
+SEGFAULT in mode-4; now `mov rdi,rcx; call rt_push_int@PLT` (Goal trap #2; mirrors bb_icn_to).
+**ICN-G-1 PASS=2** (`to5`, `to_by`). ALL regression gates non-regressing (smoke_icon 5/5, broker 23,
+rungs 198, smoke_prolog 5/5); FACT RULE 0. Remaining 3 FAILs (`lt`/`mult`/`compound`) are
+filter/cross-product cases needing the BB-port-graph zipper (operand re-eval across the back-edge —
+the flat SM scaffold cannot express it; documented in lower_every). Files: scripts/test_icon_mode4_rung.sh
+(NEW), src/lower/lower.c, src/emitter/SM_templates/sm_bb_switch.cpp, src/emitter/emit_sm.c,
+src/emitter/SM_templates/sm_compare.cpp, src/emitter/BB_templates/bb_to_by.cpp.
 
 ---
 
