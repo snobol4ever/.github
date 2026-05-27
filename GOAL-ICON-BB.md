@@ -43,9 +43,14 @@ Mapping doc (LFJ-0) is the contract — transcription does not deviate from it.
 
 | Rung | Scope | Acceptance |
 |------|-------|------------|
-| LFJ-0  | Write `LOWER-IRGEN-MAPPING.md` in `.github`. Pure documentation: JCON `ir_chunk(label,insns)` → SCRIP `BB_t` alloc; JCON `ir_Goto(L)` → port assignment; the four labels (start/resume/failure/success) → ports (α/β/ω/γ); ir_info record → BB_t fields. No C yet. | Doc committed. Next rung reads it before writing one line. |
-| LFJ-1a | Mechanical refactor: extract each `case TT_*` body in `lower_icn_expr_node`'s mega-switch into a separate static function `lower_icn_legacy_<kind>(cfg, e)`. The switch in `lower_icn_expr_node` becomes a thin dispatcher that calls the extracted function. ZERO logic change. | rungs 198 unchanged. |
-| LFJ-1b | Introduce `lower_kind_table[TT_MAX]` of `BB_t* (*)(BB_graph_t*, tree_t*)`. `lower_kind_table_init()` populates every slot with the matching `lower_icn_legacy_<kind>`. Dispatcher now reads the table instead of switching directly. | rungs 198 unchanged. |
+| LFJ-0  | Write `LOWER-IRGEN-MAPPING.md` in `.github`. Pure documentation: JCON `ir_chunk(label,insns)` → SCRIP `BB_t` alloc; JCON `ir_Goto(L)` → port assignment; the four labels (start/resume/failure/success) → ports (α/β/ω/γ); ir_info record → BB_t fields. No C yet. | ✅ `bc7dae2a` |
+| LFJ-1a-i  | Extract 9 leaf cases (ILIT/FLIT/QLIT/CSET/VAR/KEYWORD/LOOP_BREAK/LOOP_NEXT/PROC_FAIL) into `lower_icn_legacy_<KIND>` static fns. Switch arms become one-line dispatches. ZERO logic change. | ✅ `f79ea9ba`. rungs 198. |
+| LFJ-1a-ii | Extract next batch: TT_SCAN, TT_ASSIGN, TT_SWAP, TT_FNC, TT_SEQ, TT_SEQ_EXPR. Switch arms one-line. | rungs 198. |
+| LFJ-1a-iii | Extract TT_IF, TT_TO, TT_TO_BY, TT_EVERY, TT_WHILE, TT_UNTIL, TT_REPEAT, TT_LIMIT. | rungs 198. |
+| LFJ-1a-iv | Extract binop group (TT_ADD..TT_NE, TT_CAT, TT_LCONCAT, TT_LLT..TT_LNE), TT_NOT, TT_ALTERNATE, TT_AUGOP. | rungs 198. |
+| LFJ-1a-v  | Extract TT_GLOBAL/LOCAL/STATIC_DECL, TT_INITIAL, TT_RETURN, TT_SUSPEND, TT_IDENTICAL, TT_NONNULL, TT_NULL, TT_RANDOM, TT_MATCH_UNARY, TT_MNS, TT_PLS, TT_CSET_*. | rungs 198. |
+| LFJ-1a-vi | Extract TT_SIZE, TT_IDX, TT_SECTION/SECTION_PLUS/SECTION_MINUS, TT_CASE, TT_FIELD, TT_RECORD, TT_MAKELIST, TT_ITERATE. Final 1a sub-rung — mega-switch is now a pure dispatcher. | rungs 198. |
+| LFJ-1b | Introduce `lower_kind_table[TT_MAX]` of `BB_t* (*)(BB_graph_t*, tree_t*)`. `lower_kind_table_init()` populates every slot with the matching `lower_icn_legacy_<KIND>`. Dispatcher reads the table instead of switching directly. | rungs 198 unchanged. |
 | LFJ-1c | Create empty `lower_icn_new.c` + `lower_icn_new.h`. No new functions yet. Wire it into the build. | rungs 198 unchanged. |
 | LFJ-2  | Transcribe `ir_a_NoOp` → `lower_icn_new_NoOp`. Table slot for `TT_NULL` (or whichever AST kind is Icon's NoOp) flips to the new function. Legacy function remains compiled, unreached. | rungs 198. Manual verify: ASCII print of a NoOp-containing program shows the BB graph came from the new function (one-time `printf("[new]")` then removed). |
 | LFJ-3  | Transcribe `ir_a_Intlit`, `ir_a_Reallit`, `ir_a_Stringlit`, `ir_a_Csetlit`. Flip 4 table slots. | rungs 198. |
