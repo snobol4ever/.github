@@ -71,6 +71,12 @@ paths, in this order:
 proper LOWER path (Mode 2 AG-wired ports) AND, when EMITTER work reaches it, Mode 4 agrees.
 Track every rung honestly via the aggregate gate (GATE-3 below); no "done" without green numbers.
 
+> **WATERMARK 2026-05-27 (Sonnet 4.6) — GATE-3 61 → 85 (+24). Builtin coverage wave 3.** `one4all b5614aa5`.
+> Nine new BB_BUILTIN arms in bb_exec.c + recognizers in lower_pl.c.
+> **sort/2, msort/2** (rung17 5/5): materialise input list → insertion sort via pl_term_compare → dup-removal for sort → unify result. **format/1,2** (rung19 5/5): ~n/~a/~d/~w/~i directives; string and char-code-list format arg. **numbervars/3** (rung20 5/5): iterative term-walk via stack, bind each TERM_VAR to $VAR(N) compound via unify + trail; End unified with final counter. **writeq/1, write_canonical/1, print/1** (rung22 4/5): delegates to existing pl_writeq/pl_write_canonical/pl_write in prolog_builtin.c; fixed pl_write_canonical_term to use list notation for ./2 (was .(a,.(b,'[]'))). **retract/1, retractall/1** (rung14 3/5): clause-body test-env matching — fresh env per clause, pre-bind params to retract head args, run bb_exec_once; on match keep trail bindings (for retract(pred(X)) variable unification), remove clause from zc->bodies[]; retractall unwinds each trial and continues.
+> GATE-1 smoke_prolog 5/5; GATE-2 crosscheck_prolog 132/0; GATE-3 85/107; icon/snocone/raku 5/5, rebus 4/4, snobol4 7/7 --interp.
+> **NEXT:** rung14 remaining 2 (retract_all with loop + retract_unify edge cases); rung15 abolish; rung18 plus/3 remaining 3; rung22 write_canonical_list (fixed); rung25 term_to_atom operator writer; rung27 aggregate; rung28 catch/throw. Then EMITTER AGW-9 (flat_drive_pl_seq).
+
 > **WATERMARK 2026-05-26 (Opus 4.7) — GATE-3 57 → 61 (+4). :- assertz/asserta directives.** `one4all 77a2b884`.
 > `prolog_lower.c` directive loop: `:- assertz(Clause)` / `:- asserta(Clause)` now folds the asserted clause
 > into the matching predicate's `TT_CHOICE` at lower time (assertz appends → tried last; asserta prepends →
