@@ -277,20 +277,44 @@ target; each has a measurable gate (GATE-2 PASS lift).
   `gα[0]` value it emitted only the first goal of the left conjunction; with `seq` it dispatches
   to `flat_drive_pl_seq` and emits all goals. Mode 2 unaffected (as predicted).
 
-- [ ] **CAT-A-2 — `flat_drive_pl_seq` mechanical ω-wiring loops on FAIL (next-session blocker).**
-  The CAT-A fix unblocked emission of the full conjunction but exposed this: `flat_drive_pl_seq`
-  in `emit_bb.c:401-403` wires `gi_ω = (i==0) ? lbl_ω : &gβ[i-1]` mechanically for every i,
-  without accounting for **resumability**. The interp lowerer Pass 3 (`lower_pl.c:191-194`) computes
-  `gβ[i]` correctly: resumable nodes (BB_PL_CALL/BB_CHOICE/BB_PL_ALT) are their own β; non-resumable
-  goals inherit the left neighbor's effective β. The flat driver doesn't replicate this. Consequence:
-  the `backtrack` test (`main :- fact(X), write(X), nl, fail ; true.`) — fact(X) is the only
-  resumable goal — emits a chain where `fail.γ→plseq_g2_β` and `plseq_g2_β: jmp plseq_g3_α` →
-  infinite loop on FAIL (the test went from silent-empty-output to a 5s timeout — louder, but
-  still wrong). **Fix:** in `flat_drive_pl_seq`, mirror `lower_pl.c:191-194` to compute an effective
-  β label per goal: walk goals[], for each `goals[i]`, if `goals[i]->t` is BB_PL_CALL/BB_CHOICE/BB_PL_ALT
-  use `&gβ[i]`, else use the previous effective label. Then `gi_ω = (i==0) ? lbl_ω : gβ_eff[i-1]`.
-  Should push GATE-2 substantially higher — most remaining failures involve `fail`/`,` patterns
-  where backtrack needs to find the nearest resumable predecessor.
+- [x] **CAT-A-2 — `flat_drive_pl_seq` mechanical ω-wiring fixed.** ✅ 2026-05-27 (Opus 4.7).
+  Replaced `gi_ω = (i==0) ? lbl_ω : &gβ[i-1]` in `emit_bb.c flat_drive_pl_seq` with a
+  resumability-aware `eff_β[]` table that mirrors `lower_pl.c:191-197` exactly: resumable nodes
+  (BB_PL_CALL/BB_CHOICE/BB_PL_ALT) carry `eff_β[i]=&gβ[i]`, non-resumable goals propagate the left
+  neighbor's effective β, goal[0] non-resumable collapses to `lbl_ω`. Outer `lbl_β` now redirects
+  to `eff_β[n-1]` instead of `&gβ[n-1]`. **Diff against the `backtrack` test
+  (`main :- fact(X), write(X), nl, fail ; true.`):** before → `fail.γ jmp plseq2_g2_β` /
+  `plseq2_g3_β: jmp plseq2_g2_β` (every β walks one step left); after → `fail.γ jmp plseq2_g0_β` /
+  `plseq2_g3_β: jmp plseq2_g0_β` (every β jumps directly to the leftmost resumable goal,
+  `fact(X)`). Structurally correct. **GATE-2 UNCHANGED at 36/96** — the fix is gate-safe and
+  necessary, but does not surface as a numeric lift on its own because BB_PL_CALL's β implementation
+  in `bb_pl_call.cpp:97` is `lbl_β: jmp lbl_ω` (documented AGW-9B-1 deferral). So the wiring now
+  correctly delivers redo to `fact(X)`'s β, but `fact(X)`'s β doesn't re-enter the callee. That is
+  the next layer — see CAT-A-3 below. All other gates HELD: GATE-1 5/5, GATE-3 88/19, GATE-4 4/4;
+  sibling smokes Icon 5/5, Raku 5/5, Snocone 5/5, Rebus 4/4; FACT RULE 0.
+
+- [ ] **CAT-A-3 — `BB_PL_CALL` β port is a stub (`jmp ω`); blocks every test where backtracking
+  must re-enter a multi-clause callee (rung05_backtrack, rung02 facts, rung06 lists/member, etc.).**
+  `bb_pl_call.cpp:97`: `s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω)`. With CAT-A-2 landed,
+  the SEQ now correctly wires `fail.γ → fact/1.β`, but `fact/1.β` immediately jumps to ω, so the
+  caller's outer SEQ exits to its own ω and the disjunction's `; true` branch fires. **Fix sketch:**
+  the callee block emitted under `.Lplpred_<name>_<arity>` contains a multi-clause `BB_CHOICE`
+  driven by `flat_drive_pl_choice` (already FILLED, AGW-9B-2). The choice driver's β label
+  (`plch<id>_β`) is the right re-entry point. The call template needs to (a) export that label
+  per-callee (or use a stable per-callee `.Lplpred_<name>_<arity>_β`), (b) at the call site, on β,
+  push the saved-env back, jump to the callee's β label rather than ω. That requires the callee
+  block to leave its saved-env recoverable across the redo (currently `pl_bb_env_pop` runs on the
+  γ/ω returns, destroying it). Two designs possible:
+    (a) **Inline-on-demand:** rather than emitting each predicate as a separate callable block,
+        inline multi-clause predicates at each call site. Simplest, but bloats code for repeated
+        callees and breaks single-emit. Useful as a stepping stone.
+    (b) **Resumable-call protocol:** the callee block returns a continuation token (e.g. clause
+        cursor) in a register; the call site stashes it; on β, restores env+cursor and re-calls
+        the same block, which uses the cursor to skip already-tried clauses. Cleaner; matches the
+        interp model (`zc->cur`); requires extending `pl_bb_choice_state_t` access from emitted
+        code.
+  Decision deferred to Lon. Estimated GATE-2 lift: large — most CAT-A-2-unblocked failures resolve
+  once callee β actually re-enters.
 
 - [ ] **CAT-B — Compound-term unify binds nothing.** `bb_unify.cpp build_term_text` calls
   `rt_pl_node_to_term(kind, ival, sval, dval)` with only the operand's own scalar fields; for a
