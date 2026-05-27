@@ -14,7 +14,26 @@ boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `3a522bd8` — pushed 2026-05-27, Opus 4.7 session; rebased onto upstream Prolog AGW-9A `701403cb`)
+## ⚡ CURRENT WATERMARK (one4all `ba46ac5c` — Opus 4.7 session 2026-05-27b; ICN-Z-0 zipper foundation)
+
+⛔ **SESSION 2026-05-27b (Opus 4.7) — ICN-Z-0 landed: zipper foundation (`icn_leaf` + bounded flag).**
+Added `icn_leaf(nd, γ_in, ω_in, &α_out, &β_out, bounded)` and bounded-aware
+`lower_icn_expr_threaded_b` to `lower_icn.c` (both exported). Bounded rule mirrors irgen +
+lower_pl.c: `β=(!bounded && icn_kind_is_resumable) ? self : ω_in`. Legacy `lower_icn_expr_threaded`
+delegates with `bounded=0` (existing call site unchanged). **Exercised** via `lower_icn_proc_body`,
+which now lowers statement-position exprs `bounded=1` (irgen ir_a_Compound — top-level statements
+are always-bounded, no outer resume). ALL gates non-regressing: smoke_icon 5/5, broker 23,
+icon_all_rungs 198, smoke_prolog 5/5, mode4_rung PASS=2, FACT-RULE grep 0. Files: src/lower/lower_icn.c,
+src/lower/lower_icn.h, .github/GOAL-ICON-BB.md. **NEXT: ICN-Z-1** (rewire leaves through `icn_leaf`),
+then ICN-Z-2..9. The 3 mode-4 FAILs (`lt`/`mult`/`compound`) remain — they need the full zipper so
+BB ports carry generator nesting (gen.ω→outer.β cross-product odometer); the flat SM scaffold
+re-drives only the innermost generator. Semantic oracle for the odometer: `bb_exec.c` case
+BB_BINOP_GEN (lines 669-744) — advance β; on β-exhaust reset β.state=0 and advance α. Mode-4 must
+emit that as four-port x86.
+
+---
+
+## ⚡ PRIOR WATERMARK (one4all `3a522bd8` — pushed 2026-05-27, Opus 4.7 session; rebased onto upstream Prolog AGW-9A `701403cb`)
 
 GATES: smoke_icon **5/5** ✅ · broker **23** · icon_all_rungs **198** ✅ · smoke_prolog **5/5** ✅
 (2026-05-26, Opus 4.7: every-loop control ports FLAT-WIRED per ir_a_Every — `gen.γ→body`,
@@ -171,20 +190,18 @@ from the zipper. Bring ω-as-port-wire up via the zipper, then this gate climbs 
 **Before writing any code for a construct: read its `ir_a_*` procedure in irgen.icn.**
 `/home/claude/corpus/programs/icon/jcon-ref/irgen.icn` — the canonical port-wiring source.
 
-#### ICN-Z-0 — Add `icn_leaf` helper + bounded context flag ⏳
-- [ ] Add to `lower_icn.c`:
-  ```c
-  /* icn_leaf — wire a leaf node. In always-bounded context β=ω_in (no retry).
-     In unbounded context, generators get β=self; non-generators get β=ω_in. */
-  static BB_t *icn_leaf(BB_t *nd, BB_t *γ_in, BB_t *ω_in, BB_t **α_out, BB_t **β_out, int bounded) {
-      if (!nd) return NULL;
-      nd->γ = γ_in; nd->ω = ω_in;
-      if (α_out) *α_out = nd;
-      if (β_out) *β_out = (!bounded && icn_kind_is_resumable(nd->t)) ? nd : ω_in;
-      return nd; }
-  ```
-- [ ] Add `bounded` parameter to `lower_icn_expr_node` signature: `lower_icn_expr_node(cfg, e, γ_in, ω_in, α_out, β_out, bounded)`. `bounded=0` = unbounded (can resume); `bounded=1` = always bounded (no resume chunk needed).
-- [ ] Gate: build clean, smoke_icon 5/5, rungs ≥198.
+#### ICN-Z-0 — Add `icn_leaf` helper + bounded context flag ✅ (2026-05-27, Opus 4.7)
+- [x] Added `icn_leaf(nd, γ_in, ω_in, &α_out, &β_out, bounded)` to `lower_icn.c` (exported in
+  `lower_icn.h`). Honours bounded rule: `β=(!bounded && icn_kind_is_resumable) ? self : ω_in`.
+  γ/ω stamped only when NULL and not an operand slot (mode-2 safe). Twin of `pl_leaf`.
+- [x] Added `lower_icn_expr_threaded_b(..., int bounded)` bounded-aware wrapper; the legacy
+  `lower_icn_expr_threaded` now delegates with `bounded=0` so the existing call site is unchanged.
+- [x] **Exercised (not dead infra):** `lower_icn_proc_body` statement loop now lowers each
+  statement via `lower_icn_expr_threaded_b(..., bounded=1)` — irgen `ir_a_Compound` statement
+  position is always-bounded (no outer expr can resume a top-level statement). Down payment on
+  ICN-Z-2.
+- [x] Gate: build clean, smoke_icon 5/5, broker 23, icon_all_rungs 198, smoke_prolog 5/5,
+  mode4_rung PASS=2, FACT-RULE grep 0. Non-regressing.
 
 #### ICN-Z-1 — Rewire leaves: BB_LIT_I/F/S, BB_VAR, BB_KEYWORD, BB_FAIL, BB_BREAK, BB_NEXT ⏳
 - [ ] All leaf cases: `BB_node_alloc + payload + icn_leaf(nd, γ_in, ω_in, α_out, β_out, bounded)`.
