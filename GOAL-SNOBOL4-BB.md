@@ -166,7 +166,37 @@ GATE-PK status              = stale (re-freeze deferred)
 
 ---
 
-## Session 2026-05-27 (Claude Opus 4.7, continued 10) — translator gate widened ✅
+## Session 2026-05-27 (Claude Opus 4.7, continued 11) — XCAT/XOR widening attempted, REVERTED ⛔
+
+**HEAD one4all `26913b08`** (unchanged — change was reverted before commit).
+
+### Goal
+Execute the explicit handoff item from continued-10: widen translator gate to XCAT/XOR composites. Previous session predicted this would lift 070-074 (XCAT(ARBNO, ...) family) without re-triggering the 146/147/152 fence regressions, by gating on "root is XCAT/XOR AND all kids are atoms-or-XARBN".
+
+### What was attempted
+`stmt_exec.c`: new `patnd_is_xlate_safe(pp)` recursive predicate. Safe set: simple atoms ∪ {XARBN, XCAT, XOR, XDSAR, XEPS, XFAIL, XABRT}. Explicitly excludes XFNCE/XNME/XFNME/XCALLCAP/XVAR/XATP/XBAL/XSUCF. `patnd_needs_xlate` extended with `(pp->kind == XCAT || pp->kind == XOR) && patnd_is_xlate_safe(pp)`.
+
+### Results: pure regression
+- GATE-3 mode-4: **175 → 164 (-11)**.
+- 11 newly failed: 057_pat_fail_builtin, 068_pat_fence_fn_via_var, 109_pat_fence_via_var_seal_blocks_retry, 113_pat_fence_via_var_two_with_seal_retry, 118_pat_arbno_of_star_var_fence_seal_blocks, 119_pat_arbno_of_fence_via_var_via_outer, 129_pat_arbno_star_var_fence_with_alts, 130_pat_two_star_fence_concat_outer, 148_pat_arbno_star_var_fence_short, 149_pat_arbno_star_var_fence_outer_pre_match, 150_pat_star_var_fence_alts_no_arbno.
+- 0 newly passed. The predicted wins (070-074) did NOT materialise — those tests still fail.
+
+### Why the previous handoff's prediction was wrong
+The handoff theory: XFNCE is the only regression vector, exclude it from the safe set and wins follow. Reality: even XCAT(XCHR, XFAIL) (test 057, no fence anywhere) regresses. The legacy `(BB_t*)(PATND_t*)` cast doesn't merely "misread opcodes when fence is present" — for XCAT/XOR composites it produces a garbage opcode value (XCAT=19 → BB_WHILE; XOR=20 → BB_UNTIL when cast to BB_op_t) that the broker treats as a no-op (returning success or fail-through) which **accidentally satisfies many pattern semantics that the semantically-correct translator path does not**. The translator emits proper four-port-wired BB_PAT_CAT/BB_PAT_ALT chains, but the brokered-blob execution of those chains diverges from what the legacy cast accidentally did. The wins in 070-074 require a different mechanism — likely XDSAR runtime deref handling in the brokered path, not gate widening.
+
+### Action taken
+`git checkout src/runtime/snobol4/stmt_exec.c` to revert. All four gates re-verified against watermark post-revert: GATE-1 7/7, GATE-2 25, GATE-3 175/280, GATE-4 218/280, M2=18 M4=15.
+
+### Forward guidance for next session
+1. **Do NOT retry naive XCAT/XOR gate widening.** The "exclude XFNCE" heuristic is insufficient; non-fence composites also regress because of the garbage-opcode compensation effect. Any XCAT/XOR widening must come WITH a corresponding fix to the brokered-blob execution of XCAT/XOR chains, not as a gate-only change.
+2. **Higher-confidence next steps:**
+   - **SBL-ANY-2** (and SBL-NOTANY-2 / SBL-BREAK-2 / SBL-SPAN-2 / SBL-ARBNO-3 / SBL-CAP-2) — fill the BINARY arms. Currently each is `bytes(1, "\xE9") + u32le(0) + bytes(1, "\xE9") + u32le(0)` (2 stub jumps). The TEXT arms are correct and serve as the spec. Reference templates with filled BINARY arms: `bb_lit.cpp`, `bb_pat_len.cpp`, `bb_pat_pos.cpp` (all use `bytes()` + `u32le(0)` rel32 placeholders + `bb_bin_t.sites` listing the offset of each rel32). Caveat: mode-3 `--run` currently returns `[NO-SM-BB] --run: linear emitter deleted (FACT RULE); use --interp until templates land`, so BINARY arms are dormant from the user-facing side. They will not move GATE numbers in this state — pure infrastructure prep for mode-3 reactivation. The mode-2 brokered path also exercises them via `bb_build_brokered → EMIT_BINARY_BROKERED`, but the C oracle in `bb_exec.c case BB_PAT_*` may be the path actually consulted (var-stored ANY probe returned correct `"a"` despite the stub BINARY arm — confirms the brokered blob is either not taken on this path or its failure is masked).
+   - **Inline-path ARBNO(NOTANY) divergence** (still open from continued-10): `s ARBNO(NOTANY("'")) . m` returns m=`"abc"` inline but m=`""` via var. SPITBOL says m=`""` for both. Audit inline lowering's anchoring semantics — different code path than var-stored.
+3. **SBL-G-2** (re-freeze GATE-PK) remains stale bookkeeping; low-leverage but unblocks per-kind regression detection going forward.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
+
+
 
 **HEAD one4all `26913b08`** (pushed).
 
