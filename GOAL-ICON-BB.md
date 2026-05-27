@@ -31,19 +31,31 @@ any single rung or template.** Verified three ways this session: (1) **Scaffold:
 via `SM_BB_PUMP_PROC` (C graph-walk that nests generators); mode-4 runs the flat SM scaffold whose
 `SM_JUMP` back-edge re-drives only the innermost generator (emits `2,4,6` not the cross-product).
 (2) **Template:** `bb_binop_gen.cpp` is a port-wired stub (α→γ, β→ω; real odometer marked
-`TODO(mode-4)`). It CANNOT be filled honestly alone — it would read `pBB->α->value`/`pBB->β->value`,
-but the operand generators are emitted as separate `SM_BB_SWITCH ICN_GEN` boxes elsewhere in the SM
-stream, NOT reachable as callable sub-boxes from inside the template. Reaching them = the zipper.
-(3) **BB_CONJ (ICN-Z-3):** `BB_t` is FINAL; α/β already carry E1/E2 operands, leaving no slot for
-E1's retry port → requires the `bb_exec.c` port-follower conversion, which cannot be partial.
-**Bottom line for next session: ICN-Z-3..9 + the `bb_exec.c` port-follower rewrite are ONE atomic
-pass (Phase H-5 + ICN-Z block). Do not attempt isolated construct rewires or isolated BINOP_GEN
-template fills — both produce stubs (HQ Invariant 0) or break the mode-2 oracle.** The odometer
-semantic oracle for that pass: `bb_exec.c` case BB_BINOP_GEN (669-744) — advance β; on β-exhaust
-reset β.state=0 + advance α; on relop-fail retry.
+`TODO(mode-4)`). (3) **BB_CONJ (ICN-Z-3):** isolated rewire blocked by FINAL `BB_t` + operand-bearing
+α/β.
 
-**NEXT: the atomic ICN-Z-3..9 + bb_exec.c port-follower pass** (large; budget a full focused
-session). Files this session: src/lower/lower_icn.c, src/lower/lower_icn.h.
+⚡⚡ **CORRECTION + SHARPER TARGET (2026-05-27b, Opus 4.7 — supersedes the BINOP_GEN half of the
+finding above).** Re-checked the lowering: for `(1 to 3)*(1 to 2)` the BINOP_GEN node holds its TWO
+operand generators DIRECTLY — `nd->α` = the `1 to 3` BB_TO box, `nd->β` = the `1 to 2` BB_TO box
+(lower_icn.c:513-514). They ARE reachable from `bb_binop_gen(nd)` at emit time; the emitter walks the
+graph. So `mult`/`lt`/`compound` are NOT blocked on the driver/scaffold — they are a **template-only**
+fix: make `bb_binop_gen.cpp` emit the cross-product odometer inline, recursively emitting its α and β
+operand boxes via the same inline-walk `sm_bb_switch.cpp` uses (set `g_emit.lbl_α/β/γ/ω`, then
+`walk_bb_node`). The odometer oracle is `bb_exec.c` BB_BINOP_GEN (677-743): seed both on α; on β
+advance inner (β), on inner-exhaust reset inner.state=0 + advance outer (α); on relop-fail retry the
+loop; outer-exhaust → ω.
+**THE ONE REAL PREREQUISITE is ICN-XA-1's `walk_bb_node_str` (a `BB_t* → std::string` variant of
+`walk_bb_node`, which currently writes only to `FILE*`).** Without it, a parent template that emits
+child boxes inline must interleave `emit_text_n(...)` + `walk_bb_node(...)` mid-body — exactly the
+LOCAL-PURGE / template-purity violation ICN-XA-1 names (sm_bb_switch.cpp:78 does this; do NOT copy it
+into a clean BB template). **Next-session plan, small + template-only: (a) ICN-XA-1 — add
+`walk_bb_node_str` (refactor emit_core.c:476 `walk_bb_node` to build a string via open_memstream or a
+string sink, with the FILE* version a thin wrapper); (b) fill `bb_binop_gen.cpp` odometer using it; (c)
+gate climbs mode4_rung PASS=2→5.** This is far smaller than the driver rewrite the ICN-Z-3 finding
+implied for the conjunction case — CONJ still needs the full pass, but the gate-moving binop cases do
+NOT.
+
+⛔ **SESSION 2026-05-27b (Opus 4.7) — ICN-Z-0 + ICN-Z-1 landed; ICN-Z-2 substantial; ICN-Z-3 BLOCKED finding; BINOP_GEN target corrected.**
 
 ---
 
@@ -306,7 +318,10 @@ from the zipper. Bring ω-as-port-wire up via the zipper, then this gate climbs 
 
 ### Phase ICN-XA — Template purity fix for sm_bb_switch ICN_GEN arm
 
-#### ICN-XA-1 — Route ICN_GEN walk through `XA_ICN_GEN_DRIVE` opcode ⏳
+#### ICN-XA-1 — Route ICN_GEN walk through `XA_ICN_GEN_DRIVE` opcode ⏳ ⚡ NOW THE PRIORITY PREREQ
+**⚡ This (specifically the `walk_bb_node_str` half) is the ONE prerequisite for the mode-4
+`lt`/`mult`/`compound` gate movers — see the BINOP_GEN CORRECTION in the watermark. Build
+`walk_bb_node_str` first, then fill `bb_binop_gen.cpp`'s odometer; mode4_rung climbs PASS=2→5.**
 - [ ] **Diagnosis:** `sm_bb_switch_str` ICN_GEN arm calls `emit_text_n(pre.data(), pre.size())` then `walk_bb_node(gen, emit_outf())` mid-body — LOCAL-PURGE violation. `_str()` must be `state → std::string`, zero `emit_text_n` inside.
 - [ ] **Fix:** create `src/emitter/XA_templates/xa_icn_gen_drive.cpp` with opcode `XA_ICN_GEN_DRIVE`. Its `_str()` body: (a) build pre-amble string; (b) call `walk_bb_node_str(gen)` → returns `std::string` (add this variant to walk_bb_node if it doesn't exist); (c) return concatenation. Dispatch via `xa_dispatch` in `emit_core.c`.
 - [ ] Wire `sm_bb_switch_str` ICN_GEN arm to return `XA_ICN_GEN_DRIVE` output — zero `emit_text_n` inside.
