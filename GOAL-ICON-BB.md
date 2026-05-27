@@ -10,8 +10,52 @@ GATES: smoke_icon **5/5** ✅ · broker **23** (pattern rungs RED — expected) 
 (2026-05-26, Sonnet 4.6: all 10 `rt_bb_*` deleted + `sm_image_test.c` deleted. FACT RULE fully clean.)
 ✅ `grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/` outside `*_templates/`+`emit_core.c` == **0**.
 
-⛔ **NEXT — ICON WORK: fill inline-x86 four-port bodies** in the hollow `PLATFORM_X86 { return std::string(); }` arms.
-Order: SPAN → ANY → NOTANY → BREAK → CAP → ARBNO (simplest first; each its own commit, gates green between).
+⛔ **SESSION 2026-05-26 (Sonnet) — J-4a LOWER + SM template + BB box reached; ONE bug remains.**
+
+**DONE (real, verified, non-regressing — smoke_icon 5/5, rungs 198, smoke_prolog 5/5, FACT-RULE 0):**
+1. **LOWER fixed (mode-2 generators now correct end-to-end).** `lower_to`/`lower_to_by` (lower.c)
+   were building the BB graph then FREEING it + emitting `SM_PUSH_NULL` — the root cause of dead
+   generators. Now they `SM_seq_bb_add(g_p,cfg)` to register the graph and emit `SM_BB_SWITCH`
+   carrying the bb_idx, tagged `SM_BBSW_ICN_GEN` (new tag in SM.h, twin of SM_BBSW_PL_ENTRY).
+   `sm_interp.c` SM_BB_SWITCH consumer got the Icon-gen arm: `bb_exec_once` first / `bb_exec_resume`
+   after, γ pushes value + last_ok=1, ω resets a[0].i + last_ok=0. SM dump now shows `SM_BB_SWITCH`
+   at the generator slot (was `SM_PUSH_NULL`); `every write(1 to 3)` prints `1 2 3` in --interp.
+2. **SM template created** `src/emitter/SM_templates/sm_bb_switch.cpp` (wired: sm_templates.h,
+   emit_core.c dispatch de-stubbed, both Makefile lists + per-file compile rule). MACRO_DEF/BINARY/
+   TEXT arms. ICN_GEN TEXT arm fetches `g_stage2.sm.bb_table[idx]->entry`, sets α/β/γ/ω labels, and
+   calls `walk_bb_node(gen)` — emitting the generator box's four-port x86 INLINE at emit time
+   (no runtime BB walk, no C Byrd box — RULES-clean).
+3. **BB box now reached + emits valid x86.** Fixed `bb_icn_to.cpp` TEXT yield: was raw-r12 push
+   (brokered convention) → segfault in SM mode-4 ABI; now `mov rdi,rcx; call rt_push_int@PLT`
+   matching bb_upto's TEXT convention. mode-4 emit of `every write(1 to 3)` now contains the real
+   `# BOX TO(lo=1 hi=3)` inline four-port body (α sets cur, β increments, chk `jg ω`, yields via
+   rt_push_int); assembles + links clean.
+
+⛔ **OPEN BUG (emergency handoff — mode-4 NOT end-to-end yet): `lower_every` back-edge target.**
+mode-4 `every write(1 to 3)` aborts `SM value stack underflow`. ROOT CAUSE diagnosed, not fixed:
+in `lower_every` (lower.c:1377-1388), `switch_pc = SM_label(g_p)-1` is captured AFTER
+`lower_expr(gen_expr)`. For `every write(1 to 3)`, gen_expr is the WHOLE call `write(1 to 3)`, so
+`lower_expr` emits `SM_BB_SWITCH` (for inner `1 to 3`) THEN `SM_CALL_FN write` — so `switch_pc`
+points at the CALL (PC3), not the SWITCH (PC2). The loop back-edge `SM_JUMP -> switch_pc` therefore
+re-enters at the CALL with an empty value-stack on iteration 2 → underflow. (SM dump confirms:
+PC2 SM_BB_SWITCH, PC3 CALL_FN, PC7 SM_JUMP->3.) **FIX:** lower_every must re-enter at the GENERATOR's
+SM_BB_SWITCH PC, not the post-switch consumer. Either (a) capture the switch PC by scanning for the
+SM_BB_SWITCH emitted within gen_expr, or (b) restructure so the bare generator is lowered separately
+from its consuming body so the back-edge targets the switch. mode-2 is unaffected (it drives the
+whole proc via SM_BB_PUMP_PROC → C graph walk, ignoring the SM loop scaffold). Once the back-edge is
+fixed, `bb_icn_to`/`bb_to_by` literal generators should run in mode-4; then wire dynamic-operand arms
+and remaining generator kinds (bb_binop_gen still a passthrough stub), and a mode-4 Icon rung gate.
+
+**Files touched (NOT committed by prior turn — committed this handoff):** src/include/SM.h,
+src/lower/lower.c, src/processor/sm_interp.c, src/emitter/SM_templates/sm_bb_switch.cpp (new),
+src/emitter/SM_templates/sm_templates.h, src/emitter/emit_core.c, src/emitter/BB_templates/bb_icn_to.cpp,
+Makefile.
+
+**GATE-PK still RED/stale (455/62/592) since `a5775d1a` — owner decision on re-freeze pending (see below).**
+
+---
+
+(prior NEXT, still valid follow-on) fill hollow pattern arms SPAN→ANY→NOTANY→BREAK→CAP→ARBNO.
 
 Files to fill:
 - `src/emitter/BB_templates/bb_pat_span.cpp` — SPAN(cset)
