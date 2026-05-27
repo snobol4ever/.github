@@ -14,7 +14,68 @@ boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 
 
 ---
 
-## ⛔⛔ NEXT SESSION — START HERE. FIRST RUNG, FIRST STEP. (added 2026-05-27e, Opus 4.7)
+## ⛔⛔ NEXT SESSION — START HERE. ICN-Z-ATOMIC FAMILIES 3-7. (added 2026-05-27, Opus 4.7)
+
+**Status**: PEERS RULE landed (`78e4c067`). Families 1 (BB_ASSIGN) and 2 (BB_CALL)
+migrated to the sidecar. All gates green. See `SESSION-2026-05-27-OPUS-PEERS-RULE.md`
+in one4all for the full handoff.
+
+### THE PEERS RULE (new HQ Invariant 17, supersedes the GOLDEN BB RULE)
+
+BB_t stays LEAN. Per-kind auxiliary structure that correlates to BB nodes lives in
+CFG-OWNED SIDECARS, not in BB_t fields:
+
+1. **α/β/γ/ω**: control-flow ONLY (four AG attributes).
+2. **Operand-value references**: `BB_graph_t.operand_aux` sidecar, keyed by `BB_t*`,
+   holding an ordered list of peers whose `->value` the apply step reads.
+3. **sval/ival/dval**: IR payload (unchanged).
+4. **value/counter/state**: runtime per-activation state (unchanged).
+
+API:
+```c
+int bb_operand_aux_set(BB_graph_t *cfg, BB_t *nd, BB_t * const *src, int n);
+BB_t * const *bb_operand_aux_get(const BB_graph_t *cfg, const BB_t *nd, int *out_n);
+```
+
+`bb_exec.c` has `g_current_cfg` (module-static) set with save/restore around each
+public `bb_exec_*` entry so recursive callees don't clobber the caller's sidecar.
+
+DO NOT add fields to BB_t. New per-kind aux → new sidecar in BB_graph_t.
+
+### Families 3-7 — mechanical pattern (each is one gate cycle)
+
+3. **BB_BINOP** — 2 operands. Lower: `lhs.γ = rhs.α; rhs.γ = apply; both ω = ω_in;
+   bb_operand_aux_set(cfg, nd, {lhs,rhs}, 2)`. Exec: read `ops[0]->value`,
+   `ops[1]->value`, apply `icn_binop_apply`. Suspendable operand → BB_BINOP_GEN
+   (Family 7).
+4. **BB_IF** — 1 operand (condition). Then `icn_kind_owns_omega_operand` retires
+   (BB_IF stops using ω as the else-branch operand; ω becomes pure failure port).
+5. **BB_CONJ** — 2 operands. Per `ir_conjunction` (irgen.icn:405).
+6. **BB_ALT** — N operands. Per `ir_a_Alt` (irgen.icn:167).
+7. **BB_EVERY / BB_TO / BB_TO_BY / BB_BINOP_GEN** — generator kinds. β=self for
+   resumability (`icn_kind_is_resumable`).
+
+### Gate set after EACH family
+- `bash scripts/test_smoke_icon.sh` PASS=5
+- `bash scripts/test_icon_all_rungs.sh` PASS ≥ 198
+- `bash scripts/test_smoke_prolog.sh` PASS=5
+- `bash scripts/test_smoke_unified_broker.sh` PASS ≥ 24
+- `grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -v _templates/ | grep -v emit_core | wc -l` == 0
+
+### Acceptance for the whole rung
+1. All 7 families on the sidecar; each apply step reads via `bb_operand_aux_get`.
+2. `grep -nE 'bb_exec_node\(nd->[αβ]\)' src/lower/bb_exec.c | wc -l` == 0 in composite cases.
+3. `icn_kind_owns_omega_operand` removed.
+4. rungs PASS ≥ 198 holds.
+
+### DO NOT, this rung
+- Do NOT touch SNOBOL4 / Snocone / Rebus / Raku BB families.
+- Do NOT touch BB_PAT_*.
+- Do NOT add fields to BB_t — sidecars only.
+
+---
+
+## ⛔⛔ PRIOR SESSION CHECKPOINT — RUNG ICN-Z-ATOMIC. FIRST RUNG, FIRST STEP. (added 2026-05-27e, Opus 4.7)
 
 **RUNG ICN-Z-ATOMIC — wholesale conversion of operand-bearing composites to 4-port threaded form,
 ONE pass. Do this FIRST, the moment the session opens. Fresh context required (~80%+); the surface
