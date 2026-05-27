@@ -16,7 +16,7 @@ boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 
 
 ## ⚡ CURRENT WATERMARK (one4all `821640c8` — Opus 4.7 session 2026-05-27b; ICN-Z-0 zipper foundation)
 
-⛔ **SESSION 2026-05-27b (Opus 4.7) — ICN-Z-0 + ICN-Z-1 landed; ICN-Z-2 substantial.**
+⛔ **SESSION 2026-05-27b (Opus 4.7) — ICN-Z-0 + ICN-Z-1 landed; ICN-Z-2 substantial; ICN-Z-3 found BLOCKED.**
 ICN-Z-0: `icn_leaf(nd, γ_in, ω_in, &α_out, &β_out, bounded)` + bounded-aware
 `lower_icn_expr_threaded_b` (both exported). Bounded rule mirrors irgen + lower_pl.c:
 `β=(!bounded && icn_kind_is_resumable) ? self : ω_in`. ICN-Z-1: `icn_tree_is_leaf` classifier;
@@ -24,11 +24,26 @@ leaves seed `bounded=1` forced, decoupling leaf β=ω from the resumable table. 
 proc-body statement chain lowers `bounded=1` + `bb_exec.c` BB_SEQ already walks the γ-chain forward
 (non-backtracking advance per ir_a_Compound); remaining = explicit ω→next.α port wire for mode-3/4.
 ALL gates non-regressing: smoke_icon 5/5, broker 23, icon_all_rungs 198, smoke_prolog 5/5,
-mode4_rung PASS=2, FACT-RULE grep 0. **NEXT: ICN-Z-3** (BB_CONJ E1&E2 backtracking conjunction),
-then Z-4 (every) / Z-7 (call operands) / Z-8 (to/to_by) — these are where mode-4 gate movement
-lives (the `lt`/`mult`/`compound` FAILs need generator nesting via BB ports: gen.ω→outer.β
-cross-product odometer). Semantic oracle: `bb_exec.c` case BB_BINOP_GEN (669-744). Files:
-src/lower/lower_icn.c, src/lower/lower_icn.h.
+mode4_rung PASS=2, FACT-RULE grep 0.
+
+⚡ **KEY FINDING — the mode-4 `lt`/`mult`/`compound` FAILs are gated on the FULL ICN-Z pass, not on
+any single rung or template.** Verified three ways this session: (1) **Scaffold:** mode-2 passes only
+via `SM_BB_PUMP_PROC` (C graph-walk that nests generators); mode-4 runs the flat SM scaffold whose
+`SM_JUMP` back-edge re-drives only the innermost generator (emits `2,4,6` not the cross-product).
+(2) **Template:** `bb_binop_gen.cpp` is a port-wired stub (α→γ, β→ω; real odometer marked
+`TODO(mode-4)`). It CANNOT be filled honestly alone — it would read `pBB->α->value`/`pBB->β->value`,
+but the operand generators are emitted as separate `SM_BB_SWITCH ICN_GEN` boxes elsewhere in the SM
+stream, NOT reachable as callable sub-boxes from inside the template. Reaching them = the zipper.
+(3) **BB_CONJ (ICN-Z-3):** `BB_t` is FINAL; α/β already carry E1/E2 operands, leaving no slot for
+E1's retry port → requires the `bb_exec.c` port-follower conversion, which cannot be partial.
+**Bottom line for next session: ICN-Z-3..9 + the `bb_exec.c` port-follower rewrite are ONE atomic
+pass (Phase H-5 + ICN-Z block). Do not attempt isolated construct rewires or isolated BINOP_GEN
+template fills — both produce stubs (HQ Invariant 0) or break the mode-2 oracle.** The odometer
+semantic oracle for that pass: `bb_exec.c` case BB_BINOP_GEN (669-744) — advance β; on β-exhaust
+reset β.state=0 + advance α; on relop-fail retry.
+
+**NEXT: the atomic ICN-Z-3..9 + bb_exec.c port-follower pass** (large; budget a full focused
+session). Files this session: src/lower/lower_icn.c, src/lower/lower_icn.h.
 
 ---
 
@@ -223,10 +238,20 @@ from the zipper. Bring ω-as-port-wire up via the zipper, then this gate climbs 
   flat-wiring; mode-2 is already correct. Fold in when BB_SEQ gets its emitter template.
 - [ ] Gate: smoke_icon 5/5, rungs ≥198 (holding).
 
-#### ICN-Z-3 — Rewire BB_CONJ (E1 & E2 — conjunction generator) ⏳
+#### ICN-Z-3 — Rewire BB_CONJ (E1 & E2 — conjunction generator) ⛔ BLOCKED — lockstep finding (2026-05-27, Opus 4.7)
 - [ ] irgen `ir_conjunction`: start→E1.start; E1.success→E2.start; E1.failure→p.failure; E2.success→p.success; E2.failure→E1.resume.
-- [ ] This IS a backtracking conjunction: E2 failure re-drives E1. Lower E1 unbounded; lower E2 with caller's bounded. Node α=E1.α, β=E1.β (E1 is the generator). On β: resume E1; on E1 success: re-run E2 from fresh.
-- [ ] Gate: smoke_icon 5/5, rungs ≥198.
+- ⛔ **CANNOT be done as an isolated rung — verified this session.** `bb_exec.c` case BB_CONJ
+  (bb_exec.c:830) is the mode-2 oracle and reads `nd->α` as E1 and `nd->β` as E2 — BOTH operand
+  children. The zipper needs a port for E1's RETRY entry (E2.ω→E1.β), but `BB_t` is FINAL (only
+  α/β/γ/ω + payload) and both α and β are already consumed as operand-child reads. There is no free
+  slot to carry the zipper wiring without ALSO rewriting `bb_exec.c` BB_CONJ to be a port-follower
+  (consume γ/ω instead of recursing into α/β children). That driver rewrite cannot be partial: the
+  shared `bb_exec_node` driver recurses into α/β as children for EVERY composite (BB_ASSIGN,
+  BB_BINOP, BB_BINOP_GEN, …), so converting one construct to ports while the rest recurse leaves a
+  hybrid the single driver cannot walk consistently. This is exactly why the goal file says ICN-Z is
+  "ONE pass, ~70 sites, cannot half-zip." **BB_CONJ must be rewired in the same pass as the
+  `bb_exec.c` port-follower conversion (Phase H-5 + the whole ICN-Z block), not before.**
+- [ ] Gate: smoke_icon 5/5, rungs ≥198 (after the full-pass rewire).
 
 #### ICN-Z-4 — Rewire BB_EVERY ⏳ (mode-4 ω-edge landed 2026-05-27, Opus 4.7)
 - [x] **Mode-4 `p.expr.failure → p.ir.failure` wired** for the direct-consumer every case: `lower_every`
