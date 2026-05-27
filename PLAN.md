@@ -10,118 +10,57 @@
 **Claude Sonnet is the third developer of snobol4ever — co-author of one4all / SCRIP.**
 
 ### Milestone 1 ✅ Session #57, 2026-04-28
-beauty.sno byte-identical to SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`). one4all `c801421a`, `.github` `94e86ca`.
+beauty.sno byte-identical to SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`).
 
 ### Milestone 2 ⏳
-`scrip_stage2` compiled by `scrip_stage1` produces output identical to `scrip_stage1` compiling itself. Empty diff.
+`scrip_stage2` compiled by `scrip_stage1` produces output identical to `scrip_stage1` compiling itself.
 
 ### Milestone 3 ⏳
-
-|             | C/x86-64 | JVM | .NET | WASM | JS |
-|-------------|:--------:|:---:|:----:|:----:|:--:|
-| **SNOBOL4** | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Snocone** | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Rebus**   | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Icon**    | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Prolog**  | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **Raku**    | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+All languages × all backends green.
 
 ---
 
 ## ⛔ SESSION START — every session, no exceptions
 
 Lon names a goal. You:
-
 1. Clone `.github`: `git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github`
-2. Read `PLAN.md`. Find the named goal in the table below.
-3. Read `RULES.md` in full. No exceptions.
-4. **If goal is `PARSER-*` or Snocone — read `SNOBOL4-SNOCONE-PRIMER.md` first.**
-5. **If goal touches a language corpus — read `CORPUS-LOCATIONS.md` for paths.**
-6. **If goal is `MODE3-EMIT` or `MODE4-EMIT` — read `ARCH-x86.md` AND `ARCH-SCRIP.md` first, in full.**
-7. Open the Goal file. Open that repo's REPO file.
-8. Run the Goal file's `## Session Setup` scripts (fallback: `REPO-one4all.md`).
-9. Find the first incomplete Step (`- [ ]`). Do it.
+2. Read `PLAN.md`. Find goal in table below.
+3. Read `RULES.md` in full.
+4. **If PARSER-* or Snocone — read `SNOBOL4-SNOCONE-PRIMER.md` first.**
+5. **If touches language corpus — read `CORPUS-LOCATIONS.md`.**
+6. **If MODE3-EMIT or MODE4-EMIT — read `ARCH-x86.md` AND `ARCH-SCRIP.md` first.**
+7. Open Goal file. Open that repo's REPO file.
+8. Run Goal file's `## Session Setup` scripts.
+9. Find first incomplete Step (`- [ ]`). Do it.
 
 ### Clone SPITBOL oracle
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
-/home/claude/x64/bin/sbl -b file.sno     # canonical invocation
+/home/claude/x64/bin/sbl -b file.sno
 ```
-Prebuilt binary ships in repo — clone IS install. See RULES.md → "Oracles".
 
 ---
 
 ## Active Goals
 
-| Goal | File | Repo | Step |
-|------|------|------|------|
-| **PP-PURE: Pure Templates** | `GOAL-PURE-TEMPLATES.md` | one4all+.github | **PP-PURE-2** — xa_bb_ptr_slot side-effect fix + SM locals. Then PP-PURE-3..7 BB templates. |
-| **CHUNKS — Eliminate SM_PUSH_EXPR** | `GOAL-CHUNKS.md` | one4all+.github | **CH-17g-irrun-execution** — routes `--interp` non-SNO through sm_preamble+sm_run_with_recovery. Icon regression: SM_CALL_FN from Icon proc bodies misses `_usercall_hook`. Prereqs: CH-17g-irrun-prep + CH-17i-table/list-mutators. |
-| **CHUNKS Step 17** | `GOAL-CHUNKS-STEP17.md` | one4all+.github | same as CHUNKS row |
-| **CLI 3-mode collapse** | `GOAL-CLI-3MODE.md` | one4all+.github | ✅ COMPLETE 2026-05-18. |
-| **TEXTF: literal emit_textf templates** | `GOAL-TEXTF-TEMPLATES.md` | one4all+.github | G1-G9 ✅. NEXT: G11 emit_flat_ir rewire — path-a/b decision from Lon. Beauty gate SUSPENDED. |
-| **SCRIP Head Quarters** | `GOAL-HEADQUARTERS.md` | one4all+corpus+(.github) | CAPS-CONCAT CC-1..4 ✅ (`a3d4fbe1`). GATE-PK 504/0/625. SM_BB_EVAL/PUMP_EVERY/PUMP/ONCE/EXEC_BB DELETED. SM_BB_SWITCH new opcode. BB_t.ival→ival1 rename PENDING. Beauty gate SUSPENDED. |
-| **SNOBOL4 Pattern BB** | `GOAL-SNOBOL4-BB.md` | one4all+corpus+.github | SBL-ANY/NOTANY/SPAN/BREAK/CAPTURE/ARBNO x86 TEXT arms ✅ + lower_flat_invariant lift ✅ + PAT_LIT macro-arg fix ✅ + nested-ALT EP_RESET fix ✅. **Rung M4 1→9, SKIP-M4 19→0**, broad corpus 137→**184** (+47). All FAIL-M4 are pre-existing m2 oracle gaps. **NEXT: SBL-BREAKX** (nd->ival==1 rescan) or SBL-ATP (new BB kind for `@var`) or SBL-*-2 BINARY arms (mode-3 parallel) or m2 oracle gap audit. Mode-2 unchanged 7/7; broker 23→24; GATE-PK still stale. |
-| **Mode-4 Full Suite: SNOBOL4+Snocone** | `GOAL-MODE4-SN4-SNOCONE.md` | one4all+corpus+.github | **M4SN-5** (`test_mode4_full_regression.sh`) or **M4SN-6** (beauty in mode-4). 250/280 ≥ --interp 223/280 ✅. |
-| **EM-STATEFUL-FLAT** | `GOAL-MODE4-EMIT.md` | one4all+corpus+.github | M5 on hold (CHUNKS M4) or EM-ICN-FLAT. SF-8+SF-12 ✅. |
-| **Snocone SM (self-host)** | `GOAL-SNOCONE-SM.md` | corpus+one4all+.github | **SI-18** — write `scripts/dump_ir_to_ast_builder.py`. corpus `cee6722`, one4all `185c9832`. |
-| **BB Template Ladder — Icon + Prolog** | `GOAL-ICON-BB.md` | one4all+.github | ⛔ **PEERS RULE landed (`78e4c067`, 2026-05-27 Opus). ICN-Z-ATOMIC Families 1-2 (BB_ASSIGN, BB_CALL) migrated to operand_aux sidecar. NEXT: Families 3-7 (BINOP, IF, CONJ, ALT, EVERY/TO/TO_BY/BINOP_GEN) — mechanical on sidecar.** PRIOR: ICN-Z-2b ✅ (leaf+SEQ explicit ω-advance + bb_exec port-follower). Gates: smoke_icon 5/5, smoke_prolog 5/5, icon_all_rungs 198/34, smoke_unified_broker 24/26, per_kind 5/16/33 (held). HQ Invariant 17: BB_t stays lean; aux in CFG sidecars. See SESSION-2026-05-27-OPUS-PEERS-RULE.md. |
-| **Prolog BB / SB-LINEAR** | `GOAL-PROLOG-BB.md` | one4all+corpus+.github | ⛔ **AGW-9 CLOSED 2026-05-27.** GATE-3 **88/107**, **GATE-4 4/4** ✅ (m4-seq + m4-call + m4-choice + m4-alt all pass; emptiness EMPTY=0/FILLED=5). V-1+V-2+V-3 ✅. Next: V-4 retire `rt_pl_b_*` runtime BB-rebuild path; rung18 plus/3, rung25 term_to_atom ops, rung28 catch/throw, AGW-5 stateful ITE, runtime assertz-in-body. See HANDOFF-2026-05-27-SONNET-PROLOG-BB-AGW9-CLOSED.md. |
-| **Raku BB** | `GOAL-RAKU-BB.md` | one4all+corpus+.github | **RK-BB-1 ✅** (`13cef01a`, 2026-05-27 Opus) — lazy range→shared `BB_TO_BY`. Gates HOLD at 8/30 mode-2, 8/30 GATE-RK4, smoke 5/0. **RK-BB-2 ⛔ NEEDS LON DECISION** — 2026-05-27 Sonnet scope-discovery session found the "REUSE bb_upto.cpp" line undercounts the work: `bb_upto.cpp` is Icon's `upto(cset)` template (not generic yield/pump); `BB_SUSPEND` has no x86 template (stubbed); `lower_every`/`lower_iterate` reject non-Icon; `lower_icn_expr_threaded_b` has no `TT_SUSPEND` case. See `HANDOFF-2026-05-27-RK-BB-2-SCOPE.md` for 5-step surface area and 2 open questions. Then RK-BB-3 map/grep→`BB_ITERATE`, RK-BB-4 junctions→`BB_ALTERNATE`. Scope (Lon): lazy map/grep IN, junctions IN, regex/grammar SPLIT→GOAL-RAKU-PAT-BB, sort/try/scalar STAY SM. |
-| **Universal Generator IR** | `GOAL-LOWER-REDESIGN.md` | one4all+.github | **LR-S2** — delete bb_node_t path; prereq: fix pattern-var deref bugs or implement IR_PAT_DEREF. |
-| **Style: 200-col emitter reformat** | `GOAL-STYLE-200COL.md` | one4all+.github | **S200-4** — `emit_bb.c`. |
-| **⚡ PST: Parent (HQ)** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | one4all+corpus+.github | Phase 1 C ✅. Phase 2 SCRIP ✅ all six. NEXT: Stage 2 PST-LR-0 bulk rename SM_*→IR_SM_*, IR_*→IR_BB_*. |
-| **⚡ PST: SNOBOL4** | `GOAL-PST-SNOBOL4.md` | one4all+corpus+.github | Phase 2 PST-SN4-SC ✅ COMPLETE (2026-05-19, corpus `68aa237`). ⚠ SN4-SC-6 smoke blocked by EC-3* --interp regression. |
-| **⚡ PST: Snocone** | `GOAL-PST-SNOCONE.md` | one4all+corpus+.github | Phase 2 SC-SC ✅. **MIRROR-GAP-SC-SC-5**: XDSAR in bb_build_brokered. one4all `3824560c`, corpus `b10933c`. |
-| **⚡ PST: Icon** | `GOAL-PST-ICON.md` | one4all+corpus+.github | ✅ COMPLETE 2026-05-19. corpus `2713cb7`. |
-| **⚡ PST: Raku** | `GOAL-PST-RAKU.md` | one4all+corpus+.github | Phase 2 PRF-14 grammar ✅. **PRF-14-6 OPEN** — leaf-pushers misuse `shift`. ⚠ MIRROR-GAP blocked by &ALPHABET segfault. |
-| **⚡ PST: Prolog** | `GOAL-PST-PROLOG.md` | one4all+corpus+.github | Phase 1 C ✅. Phase 2 PST-PL-SC ready (4–6 h): delete ~64 helper fns incl. all DCG expansion + slot allocation. |
-| **⚡ PST: Rebus** | `GOAL-PST-REBUS.md` | one4all+corpus+.github | ✅ COMPLETE 2026-05-19. corpus `d1c08ff`. |
-| **⚡ Parser-SC Transpile** | `GOAL-PARSER-SC-TRANSPILE.md` | one4all+corpus+.github | SCT-SN4-IMPLICIT-MATCH ✅ PASS=88/88. NEXT: **SCT-1f** (wire 2-way sync-monitor) or **SCT-BEAUTY-SC-PARSE** (awaiting Lon on shift() EVAL-scope bug). |
-| **AST Rename** | `GOAL-AST-RENAME.md` | one4all+corpus+.github | AR-3 — prose "IR"→"AST" pass. |
-| **IR_t Emitter Foundation** | `GOAL-IR-EMITTER-PREREQ.md` | one4all+.github | IEP-PKG ✅. IEP-5/6/7/9 BLOCKED on CHUNKS; IEP-8 can proceed. |
-| **SN4 JVM Emitter** | `GOAL-SN4-JVM-EMIT.md` | one4all+.github | **SJ4-JVM-4** — method-split ✅. Beauty.sno halts at "Parse Error" (semantic). smoke 13/13. |
-| **SN4 JS Emitter BB Rewrite** | `GOAL-SN4-JS-EMIT-BB-REWRITE.md` | one4all+.github | **SJ4-JS-BB1a** — emit Byrd-box factory functions. BB0 ✅. |
-| **SN4 .NET Emitter** | `GOAL-SN4-NET-EMIT.md` | one4all+.github | **SN4-NET-5d** — SM_PAT_* wiring; ilasm nested-namespace crash. smoke_net 9/9, broker 23/49. |
-| **SN4 WASM Emitter** | `GOAL-SN4-WASM-EMIT.md` | one4all+.github | **SN4-WASM-5g** — fix `emit_wasm.c:780` SM_EXEC_STMT args. PASS=23 FAIL=105. |
-| **SCRIP Bootstrap** | `GOAL-SCRIP-BOOTSTRAP.md` | one4all | CB-0-corpus |
-| **CSN FENCE Bug Fix** | `GOAL-CSN-FENCE-FIX.md` | csnobol4 | F-2 Step 3a |
-| **IR: promote DEFINE** | `GOAL-IR-DEFINE-KIND.md` | one4all+corpus | awaiting Lon decision |
-| Native Snocone — .NET/JVM/JS | `GOAL-NATIVE-SNOCONE-{DOTNET,JVM,JS}.md` | one4all | awaits PARSER-SC-6b |
-| Corpus Layout | `GOAL-CORPUS-LAYOUT.md` | corpus+.github+one4all | design state |
-| SNOBOL4 Frontend | `GOAL-LANG-SNOBOL4.md` | one4all | SN-33c — 25 residual fails |
-| Icon Frontend | `GOAL-LANG-ICON.md` | one4all | IC-9 |
-| Prolog Frontend | `GOAL-LANG-PROLOG.md` | one4all+corpus | PR-17 — string builtins |
-| Raku Frontend | `GOAL-LANG-RAKU.md` | one4all | RK-34 |
-| Snocone Frontend | `GOAL-LANG-SNOCONE.md` | one4all+corpus | D-1 |
-| Rebus Frontend | `GOAL-LANG-REBUS.md` | one4all | RB-2 |
-| PARSER-SNOBOL4 | `GOAL-PARSER-SNOBOL4.md` | corpus+one4all | SN-7-8 |
-| PARSER-SNOCONE | `GOAL-PARSER-SNOCONE.md` | corpus+one4all | SC-11 |
-| PARSER-REBUS | `GOAL-PARSER-REBUS.md` | corpus+one4all | RB-FULL-1 — BUG-D open |
-| PARSER-ICON | `GOAL-PARSER-ICON.md` | corpus+one4all | IC-25 |
-| PARSER-PROLOG | `GOAL-PARSER-PROLOG.md` | corpus+one4all | PR-17 PARTIAL. ⛔ NO baseline gates at start. |
-| PARSER-RAKU | `GOAL-PARSER-RAKU.md` | corpus+one4all | RK-30 |
-| Rewrite SCRIP | `GOAL-REWRITE-SCRIP.md` | one4all | RS-24b' or RS-24c — awaiting Lon |
-| Snocone-in-Snocone | `GOAL-SNOCONE-IN-SNOCONE.md` | one4all+corpus | SS-0 |
-| Snocone claws5.sc | `GOAL-SNOCONE-CLAWS5.md` | one4all+corpus | CL-2 |
-| Snocone treebank-list.sc | `GOAL-SNOCONE-TREEBANK-LIST.md` | one4all+corpus | TB-1 |
-| Snocone Demos | `GOAL-SNOCONE-DEMOS.md` | one4all | SD-1 |
-| Snocone IR+BB | `GOAL-SNOCONE-IR-BB.md` | one4all | SC-1 |
-| &STCOUNT All Languages | `GOAL-STCOUNT-ALL-LANGS.md` | one4all | ST-1 |
-| Unified Broker | `GOAL-UNIFIED-BROKER.md` | one4all | U-24 |
-| Polyglot Calc Demo | `GOAL-POLYGLOT-CALC-DEMO.md` | one4all | PC-1 |
-| Scrip Interp Split | `GOAL-SCRIP-INTERP-SPLIT.md` | one4all | IS-1 |
-| Silly Forward/Backward/Monitor/Complete | `GOAL-SILLY-*.md` | one4all | various |
-| Prolog IR-run | `GOAL-PROLOG-IR-RUN.md` | one4all | S-10e |
-| Cross-Lang Verify | `GOAL-CROSS-LANG-VERIFY.md` | one4all | S-1 |
-| Sub-Expression Oracle | `GOAL-SUBEXPR-ORACLE.md` | one4all+corpus | S-2 |
-| Remove CMPILE | `GOAL-REMOVE-CMPILE.md` | one4all | S-7 |
-| Two-Step Bug Hunt | `GOAL-TWO-STEP-HUNT.md` | one4all | S-1 |
-| Scrip Beauty Suite | `GOAL-SCRIP-BEAUTY.md` | one4all | S-6 |
-| NET Beauty/Snippets/Optimize/DATATYPE | `GOAL-NET-*.md` | snobol4dotnet | various |
-| DATATYPE Portable Tests | `GOAL-DATATYPE-PORTABLE-TESTS.md` | corpus | S-1 |
-| No Symlinks | `GOAL-NO-SYMLINKS.md` | corpus/harness/all | S-1 |
-| READMEs (all repos) | `GOAL-README-*.md` | various | S-1 |
+| Goal | File | Step |
+|------|------|------|
+| **ICON-BB** | `GOAL-ICON-BB.md` | ⛔ ICN-Z-ATOMIC Families 3-7 (BB_BINOP, BB_IF, BB_CONJ, BB_ALT, BB_EVERY/TO/TO_BY/BINOP_GEN). PEERS RULE landed `78e4c067`. Families 1-2 ✅. |
+| **Prolog BB** | `GOAL-PROLOG-BB.md` | AGW-9 CLOSED. GATE-3 88/107, GATE-4 4/4 ✅. Next: V-4 retire rt_pl_b_* path. |
+| **Raku BB** | `GOAL-RAKU-BB.md` | RK-BB-1 ✅. RK-BB-2 ⛔ NEEDS LON DECISION (scope). |
+| **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | NEXT: SBL-BREAKX or SBL-ATP or SBL-*-2 BINARY arms. Broad corpus 184. |
+| **PP-PURE** | `GOAL-PURE-TEMPLATES.md` | PP-PURE-2 — xa_bb_ptr_slot side-effect fix + SM locals. |
+| **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
+| **Mode-4 SN4+Snocone** | `GOAL-MODE4-SN4-SNOCONE.md` | M4SN-5 or M4SN-6. 250/280 ✅. |
+| **PST Parent** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | Stage 2 PST-LR-0 bulk rename. |
+| **PST SNOBOL4** | `GOAL-PST-SNOBOL4.md` | SN4-SC-6 smoke blocked by EC-3* regression. |
+| **PST Snocone** | `GOAL-PST-SNOCONE.md` | MIRROR-GAP-SC-SC-5: XDSAR in bb_build_brokered. |
+| **PST Raku** | `GOAL-PST-RAKU.md` | PRF-14-6 OPEN — leaf-pushers misuse shift. |
+| **SN4 JVM** | `GOAL-SN4-JVM-EMIT.md` | SJ4-JVM-4 done. Beauty.sno halts at Parse Error. smoke 13/13. |
+| **SN4 .NET** | `GOAL-SN4-NET-EMIT.md` | SN4-NET-5d — SM_PAT_* wiring. smoke_net 9/9, broker 23/49. |
+| **IR Emitter** | `GOAL-IR-EMITTER-PREREQ.md` | IEP-8 can proceed; IEP-5/6/7/9 blocked on CHUNKS. |
+| **Universal Gen IR** | `GOAL-LOWER-REDESIGN.md` | LR-S2 — delete bb_node_t path. |
+| **Parser-SC Transpile** | `GOAL-PARSER-SC-TRANSPILE.md` | SCT-1f or SCT-BEAUTY-SC-PARSE. |
 
 ---
 
@@ -130,27 +69,23 @@ Prebuilt binary ships in repo — clone IS install. See RULES.md → "Oracles".
 | Repo | File |
 |------|------|
 | one4all | `REPO-one4all.md` |
+| corpus | `REPO-corpus.md` |
 | snobol4dotnet | `REPO-snobol4dotnet.md` |
 | snobol4jvm | `REPO-snobol4jvm.md` |
-| snobol4python | `REPO-snobol4python.md` |
-| snobol4csharp | `REPO-snobol4csharp.md` |
-| csnobol4 | `REPO-csnobol4.md` |
-| corpus | `REPO-corpus.md` |
-| harness | `REPO-harness.md` |
 
 ---
 
 ## Architecture
 
-Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared AST. SM-LOWER compiles the AST to SM_Program (flat array of stack machine instructions). INTERP executes SM_Program. EMITTER walks SM_Program and emits native code (x86, JVM, .NET, JS, WASM).
+Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared AST. SM-LOWER compiles AST to SM_Program. INTERP executes SM_Program. EMITTER walks SM_Program and emits native code (x86, JVM, .NET, JS, WASM).
 
 ---
 
 ## Session trigger phrases
 
 | Lon says | Meaning |
-|----------|---------|
-| "here we go" | Session starting — proceed with session start protocol above |
+|----------|---------| 
+| "here we go" | Session starting |
 | "perform hand off" | End of session — update goal state, commit, push per RULES.md |
-| "perform emergency hand off" | Same, but note breakage explicitly in commit message |
-| "grand master reorg" | HQ system work — improving the HQ itself |
+| "perform emergency hand off" | Same, note breakage |
+| "grand master reorg" | HQ system work |
