@@ -103,10 +103,10 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 
 ### Phase SBL-G — Gate infrastructure (do first)
 
-#### SBL-G-1 — Build `test_snobol4_pat_rung_suite.sh` ⏳
-- [ ] Create `scripts/test_snobol4_pat_rung_suite.sh`: run all `.sno` files in `test/snobol4/patterns/` (038–057) via `--interp` and `--compile`. Report PASS-M2 and PASS-M4 separately.
-- [ ] Establish baseline BEFORE touching any template. Record as `SBL-G-1-BASELINE-M2=N SBL-G-1-BASELINE-M4=M` in Session State below.
-- [ ] Gate threshold: M2 must not drop below baseline. M4 starts at current level and must climb with each rung.
+#### SBL-G-1 — Build `test_snobol4_pat_rung_suite.sh` ✅ (2026-05-27)
+- [x] Create `scripts/test_snobol4_pat_rung_suite.sh`: runs all `.sno` in `test/snobol4/patterns/` (038–057) via `--interp` and `--compile`. Reports PASS-M2/PASS-M4 separately. SPITBOL x64 oracle outputs baked inline (self-contained).
+- [x] Baseline established BEFORE any template change: **M2=9/19, M4=0/19** (compile/link blocked at assembler stage by the macro-annotation bug, see below). Broad corpus baseline = **121/280** at clean HEAD `3a522bd8` (the goal's prior "250" figure was a stale corpus-state number).
+- [x] Gate threshold active: M2 must not drop below 9. M4 climbs per rung.
 
 #### SBL-G-2 — Re-freeze GATE-PK for pattern kinds ⏳
 - [ ] Run `bash scripts/test_per_kind_diff.sh`. For each BB_PAT_* kind: the PLATFORM_X86 empty template produces `std::string()` = empty baseline. Confirm cells are frozen as empty. If they aren't re-freeze them now.
@@ -120,8 +120,8 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 - **α (state==0):** if Δ ≥ Σlen or Σ[Δ] not in chars → ω. Else: save Δ, advance Δ by 1, return γ.
 - **β (state>0):** undo: Δ--, return ω. (No retry — ANY matches exactly one char.)
 
-#### SBL-ANY-1 — Fill `bb_pat_any.cpp` TEXT arm ⏳
-- [ ] Replace `if (PLATFORM_X86) { return std::string(); }` with a real x86 TEXT arm.
+#### SBL-ANY-1 — Fill `bb_pat_any.cpp` TEXT arm ✅ (2026-05-27, `308e0378`)
+- [x] x86 TEXT arm filled, verified line-for-line vs recovered `bb_any.s` (`660339cd~1`). α: load Δ via `[r10]`, `cmp [rip+Σlen]`, `jge ω`; load `Σ[Δ]`, `strchr@PLT` against `emit_intern_str` charset, `je ω`; `inc Δ; jmp γ`. β: `dec Δ; jmp ω`. Verified 'apple' (scan0) + 'hello' (scan1 backtrack). GATE-1 mode-2 7/7. (orig TEXT-arm subtasks below superseded)
 - [ ] α: load `[r10]` (Δ); compare against `[rip+Σlen]`; jge ω. Load `Σ[Δ]`; call `strchr` with charset (inlined or via `.rodata`); test result; je ω. Increment `[r10]`; jmp γ.
 - [ ] β: decrement `[r10]`; jmp ω.
 - [ ] Charset: bake `nd->sval` into `.section .data` as `.Lany<id>_cs: .asciz "..."`, reference via `[rip + .Lany<id>_cs]` in the `strchr` call.
@@ -274,10 +274,69 @@ bash scripts/test_per_kind_diff.sh                # GATE-PK: FAIL=0 for pattern 
 ## Session State
 
 ```
-SBL-G-1-BASELINE-M2=?       # set when gate script first run — before any template change
-SBL-G-1-BASELINE-M4=?       # set when gate script first run — before any template change
-GATE-PK-PAT-STATUS=stale    # set GREEN after SBL-G-2 complete
+SBL-G-1-BASELINE-M2=9       # 19 pattern rungs, --interp, clean HEAD 3a522bd8
+SBL-G-1-BASELINE-M4=0       # mode-4; was assembler-blocked by macro-annotation bug
+SBL-CURRENT-M4=1            # after 308e0378 (α-label fix + ANY TEXT); rung suite
+BROAD-CORPUS-BASELINE=121   # /280 at 3a522bd8 (prior "250" was stale corpus state)
+BROAD-CORPUS-CURRENT=137    # /280 after 308e0378 (+16, no regression of prior PASSes)
+GATE-PK-PAT-STATUS=stale    # SBL-G-2 not yet done — re-freeze still pending
 ```
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7) — handoff note
+
+**HEAD one4all `308e0378`** (committed locally; **NOT yet pushed** — push pending).
+**.github: this file updated, not committed.** corpus: untouched.
+
+### Two pre-existing bugs found & fixed (both blocked ALL mode-4 patterns)
+
+1. **⚡ FLAT-DRIVER α-LABEL MISPLACEMENT (the big one).** `codegen_flat_body` in
+   `emit_bb.c` defined the exported box-entry label `pat_<id>_α` *after*
+   `xa_dispatch(XA_FLAT_PROLOGUE)`. The prologue emits `lea r10,[rip+Δ]` (the cursor
+   register setup) + the `cmp esi,0; je α_body; jmp β` port dispatch. Because the
+   broker calls `root.fn` (= `pat_<id>_α`), entry jumped PAST the `lea r10` → `r10`
+   held garbage → any box dereferencing the subject (LIT `memcmp`, ANY `strchr`)
+   read bad memory and failed or segfaulted. This is why even the "✅ filled"
+   `bb_lit.cpp` silently failed in mode-4. **Fix:** move `emit_label_define_bb(&lbl_α)`
+   to BEFORE the prologue dispatch (one line). `bb_pat_len` worked only because it
+   never derefs the subject pointer (reads `Σlen` + cursor only).
+
+2. **GAS macro-annotation bug** in `sm_pat_combine.cpp`: `EXEC_STMT_VARIANT`,
+   `PAT_CAPTURE`, `PAT_CAPTURE_FN`, `PAT_CAPTURE_FN_ARGS` emitted human-readable
+   annotations (`subj=X`, `V kind=0`) as extra *positional* macro args → assembler
+   `too many positional arguments`. Now emitted as preceding `#` comment lines.
+
+### ⚡ KEY RESOURCE for next session (Lon's tip — saved hours)
+The seven hollow boxes were **already meticulously hand-written** and live in git
+history. Recover from **`git show 660339cd~1:src/runtime/boxes/<box>/<file>.s`**:
+- `any/bb_any.s`, `notany/bb_notany.s`, `span/bb_span.s`, `brk/bb_brk.s`,
+  `breakx/bb_breakx.s`, `arbno/bb_arbno.s`, `capture/bb_capture.s`
+- ABI (brokered): `spec_t bb_X(void *ζ in rdi, int port in esi)`; returns σ-ptr in
+  `rax`, δ-len in `edx`; `(0,0)` = fail. Reads `[rel Σ]`/`[rel Δ]`/`[rel Ω]` (note: **Ω**
+  is the bound, not Σlen — equal when unanchored). Callee-saves rbx/r12/r13.
+  SPAN/BRK store δ at ζ+8; ARBNO uses a 64-frame stack at ζ+24 (frame=24B); CAPTURE
+  state at ζ+0..56. **TRANSCRIBE these, do not re-derive.** Port into the flat
+  template TEXT arms (`bb_pat_*.cpp`), adapting register names to the flat `[r10]`/
+  `_.lbl_α/β/γ/ω` convention and DESCR-return epilogue (eax=1 success / eax=99 fail;
+  the shared flat γ epilogue computes the span — the box body just advances Δ + jmps).
+
+### Next rung priority
+**SBL-CAP first** — most rung-suite tests use `. V` capture, which forces
+`lower_flat_invariant` to return 0 (see `emit_sm.c:778` — ASSIGN_IMM/COND/CALLOUT
+excluded) → window falls back to the (broken/runtime) `rt_match_variant` path, so the
+inline box is never emitted. Until capture emits inline, the rung suite M4 stays low.
+Then SBL-NOTANY/SPAN/BREAK TEXT arms (trivial transcription from recovered .s),
+then all BINARY arms (SBL-*-2), then ARBNO (child-blob), BREAKX flag, ATP kind.
+SBL-ANY-2 (BINARY arm) still stubbed — placeholder `jmp` bytes only.
+
+### No regressions verified
+mode-2 smoke 7/7 (unchanged), mode-3 smoke 7/7 with 6 pre-existing fails (confirmed
+via git-stash A/B at baseline `3a522bd8`), broad corpus 121→137. The 16 newly-FAILing
+broad-corpus names were baseline SKIPs (compile-blocked by bug #2), now compiling but
+failing on the capture path — not regressions of previously-passing tests.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
 
