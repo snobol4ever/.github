@@ -161,25 +161,43 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 13cef01a (RK-BB-1 ✅, rebased onto 6deb9f71)
-.github: HEAD (this prune; RK-BB-1 marked done; PLAN row reflects 13cef01a)
+one4all: 158394fb (ICN-Z-2b — RK-BB-1 still at 13cef01a in history)
+.github: HEAD (this update; RK-BB-2 scope-discovery handoff committed)
+corpus:  unchanged
 
-Gates at 13cef01a:
-  GATE-RK mode-2: 8/30  (was 7/29 — +1 from rk_range_for)
-  GATE-RK4 mode-4: 8/30 (rk_range_for, rk_forloop, rk_arith, rk_strings,
-                         rk_typed_vars, rk_unless_until, rk_vars, rk_control)
-  Smoke: 5/0 HOLD
-  Prolog mode-4: 1/4 HOLD
+Gates at 158394fb (2026-05-27, Sonnet, scope-discovery session):
+  GATE-RK mode-2:  8/30   HOLD (matches RK-BB-1 watermark)
+  GATE-RK4 mode-4: 8/30   HOLD (rk_range_for, rk_forloop, rk_arith, rk_strings,
+                                rk_typed_vars, rk_unless_until, rk_vars, rk_control)
+  Smoke raku:      5/0    HOLD
+  Prolog mode-4:   1/4    HOLD
   GATE-PK: ⛔ harness segfault — INHERITED FROM upstream 6deb9f71 (SBL-ANY-1
-           + flat-driver α-label fix), bisect-confirmed independent of RK-BB-1.
-           Pre-6deb9f71 baseline was 455/64/590/6. Owed: SBL-ANY session.
+           + flat-driver α-label fix). Pre-6deb9f71 baseline was 455/64/590/6.
+           Owed: SBL-ANY session.
 
 NOTE on SWITCH a[0].i: carries every-loop exit PC (mode-4 ω jmp) AND mode-2
   fresh/resume flag. Same overlap Icon's lower_every has and tolerates
   (bb_exec_resume self-inits an unstarted graph). Revisit only if a future
   rung needs a[0].i for a third purpose.
 
-NEXT: RK-BB-2 (gather/take Seq box on bb_upto.cpp).
+⛔ RK-BB-2 SCOPE DISCOVERY (2026-05-27 session, Sonnet): see
+  HANDOFF-2026-05-27-RK-BB-2-SCOPE.md. The "REUSE bb_upto.cpp" line in this
+  goal undercounts the work. Concretely:
+    - bb_upto.cpp is the Icon upto(cset) string-position generator — its
+      sval/ival fields carry cset/slen. Not a generic yield/pump primitive.
+      Cannot be literally reused.
+    - BB_SUSPEND has NO x86 template — emit_core.c:532 dispatches to bb_stub.
+      A new src/emitter/BB_templates/bb_suspend.cpp must be written.
+    - lower_every (lower.c:1461) and lower_iterate (lower.c:1557) both gate
+      on `g_lang != LANG_ICN` and call lower_unhandled for Raku.
+    - lower_icn_expr_threaded_b has no TT_SUSPEND case → the hoisted
+      __gather_N proc body's bb_idx stays -1.
+  Demo of current failure: `./scrip --interp test/raku/rk_gather.raku` prints
+  "unhandled AST kinds: TT_EVERY\ndone" instead of "10\n20\n30\ndone".
+  Five-step surface area (A–E) detailed in the handoff.
+
+NEXT: RK-BB-2 — needs Lon decision on the two open questions below before
+  fresh-context implementation session.
 SCOPE (Lon, 2026-05-27): lazy map/grep IN; junctions IN; regex/grammar
   SPLIT→GOAL-RAKU-PAT-BB; sort/try/scalar STAY eager SM.
 ```
@@ -187,12 +205,18 @@ SCOPE (Lon, 2026-05-27): lazy map/grep IN; junctions IN; regex/grammar
 ## Open questions for Lon
 
 1. `lower_gather_hoist_pass`: retarget `__gather_N` sub output to feed the
-   Seq box (RK-BB-2, lower-risk), or replace the pass with direct `BB_SUSPEND`
-   lowering?
-2. Junction Boolean-collapse: port policy in shared `BB_ALTERNATE` (guarded
+   Seq box (Path α, lower-risk), or replace the pass with direct `BB_SUSPEND`
+   lowering (Path β, cleaner BB graph)? See HANDOFF-2026-05-27-RK-BB-2-SCOPE.md
+   §"Concrete surface area" for the tradeoff.
+2. **`bb_upto.cpp` REUSE** — does "REUSE bb_upto.cpp" in the RK-BB-2 step
+   mean (a) literal reuse (won't work — it's the Icon `upto(cset)` template
+   with cset/slen payload), or (b) use its loop+yield structure as the
+   reference for a new `bb_suspend.cpp` template? Answer determines whether
+   RK-BB-2 is a small wire-up or a full new template.
+3. Junction Boolean-collapse: port policy in shared `BB_ALTERNATE` (guarded
    `lang==BB_LANG_RKU`), or SM wrapper opcode? Determines whether RK-BB-4
    touches a shared template.
-3. GOAL-RAKU-PAT-BB (regex/grammar): stub sibling now, or defer until
+4. GOAL-RAKU-PAT-BB (regex/grammar): stub sibling now, or defer until
    SNOBOL4-BB and PROLOG-BB land more rungs (it reuses their `BB_SCAN`/`BB_ONCE`
    machinery)?
 
