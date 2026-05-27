@@ -45,7 +45,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
-| **ICON-BB** | `GOAL-ICON-BB.md` | ⛔ ICN-Z-ATOMIC Families 3-7 (BB_BINOP, BB_IF, BB_CONJ, BB_ALT, BB_EVERY/TO/TO_BY/BINOP_GEN). PEERS RULE landed `78e4c067`. Families 1-2 ✅. |
+| **ICON-BB** | `GOAL-ICON-BB.md` | AG-PURE rewrite Steps 1-7 ✅ landed on branch `ag-pure-icn` `de11aef2`. Pure four-port CFG model: BB_BINOP/BB_SEQ/BB_IF/BB_CONJ/BB_ALT. Next: Step 8.1 BB_EVERY (dispatcher) → 8.2 generators → 9 N-ary → 10 sidecar cleanup. Gates: smoke 5/5, broker 24, rungs 198. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | V-4 ✅ (one4all `b95e4318`, rt_pl_b_* retired, GATE-4 4/4). Next: V-5 retire AGW-1c (Prolog --run via flat-emit). |
 | **Raku BB** | `GOAL-RAKU-BB.md` | RK-BB-1 ✅. RK-BB-2 prereq ✅ `50370f5a` (proc_table c[0] fallback). RK-BB-2 proper ⛔ NEXT: 6 steps in SESSION-2026-05-27-OPUS-RK-BB-2-PREREQ.md. |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | SBL-BREAKX-3 ✅ (TT_BREAKX case added to lower_pat_dcg). Single-element BREAKX patterns now match. Multi-element pattern+tail blocked by pre-existing nested-TT_SEQ splitter bug (file as SBL-SPLITTER-1). Broad corpus 184. |
