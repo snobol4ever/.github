@@ -96,6 +96,107 @@ ARBNO needs a growable frame stack; stash ptr in `pBB->counter` (intptr cast), o
 
 ---
 
+---
+
+## ⚡ CORRECTIVE RUNGS — ZIPPER + GATE (added 2026-05-27, analysis by Claude Sonnet 4.6)
+
+**Root diagnosis (five structural defects — read before any session):**
+
+1. **ICN-1 / ICN-2 — WRONG SIGNATURE + OPERAND-AS-PORT.** `lower_icn_expr_node(cfg, e)` has no `γ_in/ω_in/α_out/β_out`. It is the un-threaded signature. `lower_icn_expr_threaded` wraps it and patches ports afterward, but composites (BB_IF, BB_CALL, BB_ALT, BB_ASSIGN...) leave α/β as operand-child pointers, not control-flow ports. `bb_exec.c` walks those as a child tree — AST-walking-in-disguise. Mode 3/4 flat-wired x86 has nowhere to fall back. Fix: one-pass replacement of `lower_icn_expr_node` with the full zipper (see ICN-Z-1..5 below).
+2. **ICN-3 — NO MODE-3/4 RUNG GATE.** `test_icon_all_rungs.sh` is `--interp` only. Emitter work (bb_icn_to, sm_bb_switch) has no falsifiable gate. Fix: build `test_icon_mode4_rung.sh` (see ICN-G-1).
+3. **ICN-4 — sm_bb_switch TEXT ARM VIOLATES TEMPLATE PURITY.** The ICN_GEN arm calls `emit_text_n` mid-body then returns a string — mixing side-effect and return-value emission. Violates LOCAL-PURGE / TEMPLATE-PURITY invariant (every `_str()` body is `state → std::string`, zero `emit_text_n` inside). Fix: route the walk through an `XA_ICN_GEN_DRIVE` opcode (ICN-XA-1).
+4. **ICN-5 — every-loop SM SCAFFOLD IS REDUNDANT POST-ZIPPER.** Once lower_icn is fully zipper-wired, `every`'s back-edge is a BB port wire (`body.γ→expr.β`), not an `SM_JUMP`. The `lower_every` scan-for-SM_BB_SWITCH fix was a bandage. Post-zipper, `lower_every` emits only `SM_BB_SWITCH` (the generator entry), and the loop body is fully BB-graph-internal. Fix: rung ICN-Z-5 deletes the SM back-edge after zipper lands.
+
+---
+
+### Phase ICN-G — Gate infrastructure (PREREQUISITE for all emitter rungs)
+
+#### ICN-G-1 — Build `test_icon_mode4_rung.sh` ⏳
+- [ ] Create `scripts/test_icon_mode4_rung.sh`: for a small set of Icon programs (at minimum `every write(1 to 3)`, `every write(1 to 5 by 2)`, and three others from rungs 1..5), run `scrip --compile --target=x86 file.icn` → assemble → link → execute, diff stdout against `scrip --interp file.icn`. PASS=N FAIL=M format. Zero programs needed to pass initially — the gate just needs to exist and run without crashing the harness.
+- [ ] Wire into Session Setup below alongside `test_icon_all_rungs.sh`.
+- [ ] **Gate threshold: mode-4 PASS ≥ 1 before any emitter rung is marked complete.** A template that returns an empty string or stub jumps is NOT done (HQ Invariant 0).
+
+#### ICN-G-2 — Re-freeze GATE-PK ⏳
+- [ ] Run `bash scripts/test_per_kind_diff.sh`. For every FAIL cell, inspect: if the template body is an honest stub (returns `std::string()`), the baseline should be empty — re-freeze that cell. If the body claims to emit real x86 but the diff fails, it is a real bug — fix first.
+- [ ] Target: GATE-PK FAIL=0 (stubs have empty baselines; filled templates match). NEW=0 GONE=0.
+- [ ] Gate: `test_per_kind_diff.sh` PASS ≥ 504 FAIL=0 before any HQ emitter work resumes.
+
+---
+
+### Phase ICN-Z — Zipper rewire of lower_icn (the ONE-PASS signature change)
+
+**⚠ This is NOT additive.** The signature of `lower_icn_expr_node` changes and all ~70 call sites inside it change in ONE pass. Do not attempt partial completion. Gate: `test_icon_all_rungs.sh` ≥198 after each sub-rung. `bb_exec.c` remains the mode-2 oracle throughout.
+
+#### ICN-Z-0 — Add `icn_leaf` helper (twin of `pl_leaf`) ⏳
+- [ ] In `lower_icn.c`, add (immediately above `lower_icn_expr_threaded`):
+  ```c
+  static BB_t *icn_leaf(BB_t *nd, BB_t *γ_in, BB_t *ω_in, BB_t **α_out, BB_t **β_out) {
+      if (!nd) return NULL;
+      nd->γ = γ_in; nd->ω = ω_in;
+      if (α_out) *α_out = nd;
+      if (β_out) *β_out = icn_kind_is_resumable(nd->t) ? nd : ω_in;
+      return nd; }
+  ```
+- [ ] Gate: build clean, smoke_icon 5/5, rungs ≥198.
+
+#### ICN-Z-1 — Rewire leaves: BB_LIT_I/F/S, BB_VAR, BB_KEYWORD, BB_FAIL, BB_BREAK, BB_NEXT ⏳
+- [ ] Change `lower_icn_expr_node` signature to `lower_icn_expr_node(cfg, e, γ_in, ω_in, α_out, β_out)`.
+- [ ] All leaf cases: replace `BB_node_alloc + payload` with `BB_node_alloc + payload + icn_leaf(nd, γ_in, ω_in, α_out, β_out)`. Leaves set `α: emit-lit-then-jmp-γ` semantically (already correct via γ_in wire); `β: jmp ω` (β=ω_in per `icn_leaf`).
+- [ ] Update every internal recursive call site to pass `γ_in, ω_in, &sub_α, &sub_β`.
+- [ ] Gate: smoke_icon 5/5, rungs ≥198.
+
+#### ICN-Z-2 — Rewire seq / conjunctions: BB_SEQ, BB_CONJ, BB_EVERY (statement-level) ⏳
+- [ ] `BB_SEQ`: back-to-front zipper (mirror `lower_pl_goal` conjunction, lower_pl.c:160-203). Build stmt[n-1] first with γ=γ_in; i=n-2..0 with `my_γ = stmt_α[i+1]`. Wire `stmt[i].ω = stmt_β[i-1]` (fail→redo nearest left generator). β-by-kind: resumable→β=self; non-resumable→β=left neighbor's β.
+- [ ] `BB_CONJ` (E1 & E2): lower E2 first (γ_in, ω_in); lower E1 with γ=E2.α, ω=ω_in. Node α=E1.α, β=E1.β (E1 is the generator), γ/ω=γ_in/ω_in.
+- [ ] `BB_EVERY` (statement-level): lower expr (generator) and body. Wire `expr.γ→body.α`, `body.γ→expr.β` (the loop back-edge — a PORT WIRE, not SM_JUMP), `expr.ω→ω_in`. Node α=expr.α. **After this rung, `lower_every` in lower.c emits only `SM_BB_SWITCH` (generator entry) with no SM_JUMP back-edge — the loop is wholly BB-internal.**
+- [ ] Gate: smoke_icon 5/5, rungs ≥198.
+
+#### ICN-Z-3 — Rewire conditionals: BB_IF, BB_ALT (alternation) ⏳
+- [ ] `BB_IF`: lower cond (γ=then.α, ω=else.α or ω_in); lower then (γ=γ_in, ω=ω_in); lower else if present (γ=γ_in, ω=ω_in). Node α=cond.α, β=cond.β (cond is the generator). γ/ω=γ_in/ω_in. **`nd->ω` is no longer the else-branch operand; it is the failure continuation.**
+- [ ] `BB_ALT` (n-ary): mirror `lower_pl_goal` disjunction (lower_pl.c:206-217). Lower arms right-to-left: last arm gets (γ_in, ω_in); arm[i] gets (γ_in, arm[i+1].α as ω). Node α=arm[0].α, β=arm[0].β (left is tried first). **Arms wired ω-chain by lowering, NOT by the executor post-hoc.**
+- [ ] Gate: smoke_icon 5/5, rungs ≥198.
+
+#### ICN-Z-4 — Rewire operand-chains: BB_CALL, BB_ASSIGN, BB_BINOP, BB_IDENTICAL, BB_FIELD_GET/SET, BB_IDX, BB_IDX_SET ⏳
+- [ ] These all currently use α/β as operand-child pointers. Convert to separate operand boxes wired `operand.γ→next_operand.α`, last operand's γ→op-node's own logic then→γ_in. **α/β on the op-node become control-flow: α=first-operand.α (entry), β=ω_in (no retry on a call result).**
+- [ ] `BB_CALL`: lower each arg separately (arg[j].γ→arg[j+1].α; last arg.γ→call-node body→γ_in). Node α=arg[0].α (or body α if 0 args). `nd->α` is no longer the head-of-args-γ-chain.
+- [ ] Re-express `bb_exec.c` BB_CALL/ASSIGN/BINOP to follow ports rather than walking `nd->α` as a child-linked list. These must be pure port-followers after the zipper lands.
+- [ ] Gate: smoke_icon 5/5, rungs ≥198.
+
+#### ICN-Z-5 — Delete SM back-edge from `lower_every`; verify every-loop is BB-internal ⏳
+- [ ] After ICN-Z-2 lands, `lower_every` in `lower.c` no longer emits `SM_JUMP` (the back-edge was replaced by `body.γ→expr.β` port wire in ICN-Z-2). Remove the `switch_pc` capture + `SM_label()` + `SM_JUMP` from `lower_every`. The SM carries only `SM_BB_SWITCH` (the generator entry).
+- [ ] Verify: `--dump-sm` for `every write(1 to 3)` shows NO `SM_JUMP` targeting the switch PC.
+- [ ] Gate: smoke_icon 5/5, rungs ≥198, `every write(1 to 3)` → `1 2 3` in --interp.
+
+---
+
+### Phase ICN-XA — Template purity fix for sm_bb_switch ICN_GEN arm
+
+#### ICN-XA-1 — Route ICN_GEN walk through `XA_ICN_GEN_DRIVE` opcode ⏳
+- [ ] **Diagnosis:** `sm_bb_switch_str` ICN_GEN TEXT arm calls `emit_text_n(pre.data(), pre.size())` then `walk_bb_node(gen, emit_outf())` mid-body — this is a LOCAL-PURGE violation (side-effecting emission inside a `_str()` body). TEMPLATE-PURITY requires `_str()` to be `state → std::string` with zero `emit_text_n` calls inside.
+- [ ] **Fix:** create `src/emitter/XA_templates/xa_icn_gen_drive.cpp` with opcode `XA_ICN_GEN_DRIVE`. Its `_str()` body: (a) collect the pre-amble string; (b) iterate `walk_bb_node_str(gen)` → accumulate into a string (requires `walk_bb_node` to have a `_str` variant that returns `std::string` instead of calling the sink); (c) return concatenation. Dispatch through `xa_dispatch` in `emit_core.c`.
+- [ ] If `walk_bb_node_str` does not exist, add it (mirrors `walk_bb_node` but returns string, does not call sink).
+- [ ] Wire `sm_bb_switch_str` ICN_GEN arm to emit `XA_ICN_GEN_DRIVE` and return the result — zero `emit_text_n` inside.
+- [ ] Gate: AUDIT GREEN (`util_template_purity_audit.sh`), GATE-PK holds, smoke_icon 5/5.
+
+---
+
+### Phase ICN-M4 — Mode-4 emitter rungs (only after ICN-G-1 gate exists + ICN-Z complete)
+
+**Do NOT begin these until ICN-G-1 gate script exists AND ICN-Z-1..5 are complete.**
+
+#### ICN-M4-1 — `bb_icn_to.cpp` literal generator: honest TEXT + BINARY x86 ⏳
+- [ ] The LITERAL fast-path TEXT arm exists and is non-empty. Verify it produces correct x86 for `every write(1 to 3)` via `test_icon_mode4_rung.sh`. If PASS ≥ 1, mark done.
+- [ ] BINARY arm: implement the raw x86 bytes mirroring the TEXT arm (counter in `&pBB->counter`; `cmp; jg ω; push value; jmp γ; β: add; jmp check`). Gate: GATE-PK re-frozen cell holds.
+- [ ] DYNAMIC operand arm: implement value-field read from operand boxes (H-3 — reads `lo_box->value.i` / `hi_box->value.i` after walking lo/hi subtrees). Gate: `every write(x to y)` with variable bounds passes mode-4.
+
+#### ICN-M4-2 — `bb_to_by.cpp` literal generator: honest BINARY + dynamic arms ⏳
+- [ ] Same pattern as ICN-M4-1 but for `lo to hi by step`. Literal TEXT arm exists; verify via gate. Add BINARY arm and dynamic arm.
+
+#### ICN-M4-3 — `bb_icn_to.cpp` + `bb_to_by.cpp`: real MEDIUM_TEXT values via rt_push_int@PLT ⏳
+- [ ] **The #1 trap (from HOW AG-LOWERING section):** TEXT arm (mode-4) must use `mov rdi,<v>; call rt_push_int@PLT`, not raw r12 push. BINARY arm uses raw r12. Audit both templates for this; fix any TEXT arm that uses r12 directly.
+
+---
+
 ## Session Setup
 ```bash
 cd /home/claude/one4all
@@ -108,6 +209,7 @@ Gates:
 bash scripts/test_smoke_icon.sh            # PASS=5
 bash scripts/test_smoke_unified_broker.sh  # PASS=23
 bash scripts/test_icon_all_rungs.sh        # PASS=198
+bash scripts/test_icon_mode4_rung.sh       # PASS≥1 (once ICN-G-1 exists)
 ```
 
 ---
