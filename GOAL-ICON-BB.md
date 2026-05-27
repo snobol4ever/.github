@@ -14,22 +14,21 @@ boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `ba46ac5c` — Opus 4.7 session 2026-05-27b; ICN-Z-0 zipper foundation)
+## ⚡ CURRENT WATERMARK (one4all `821640c8` — Opus 4.7 session 2026-05-27b; ICN-Z-0 zipper foundation)
 
-⛔ **SESSION 2026-05-27b (Opus 4.7) — ICN-Z-0 landed: zipper foundation (`icn_leaf` + bounded flag).**
-Added `icn_leaf(nd, γ_in, ω_in, &α_out, &β_out, bounded)` and bounded-aware
-`lower_icn_expr_threaded_b` to `lower_icn.c` (both exported). Bounded rule mirrors irgen +
-lower_pl.c: `β=(!bounded && icn_kind_is_resumable) ? self : ω_in`. Legacy `lower_icn_expr_threaded`
-delegates with `bounded=0` (existing call site unchanged). **Exercised** via `lower_icn_proc_body`,
-which now lowers statement-position exprs `bounded=1` (irgen ir_a_Compound — top-level statements
-are always-bounded, no outer resume). ALL gates non-regressing: smoke_icon 5/5, broker 23,
-icon_all_rungs 198, smoke_prolog 5/5, mode4_rung PASS=2, FACT-RULE grep 0. Files: src/lower/lower_icn.c,
-src/lower/lower_icn.h, .github/GOAL-ICON-BB.md. **NEXT: ICN-Z-1** (rewire leaves through `icn_leaf`),
-then ICN-Z-2..9. The 3 mode-4 FAILs (`lt`/`mult`/`compound`) remain — they need the full zipper so
-BB ports carry generator nesting (gen.ω→outer.β cross-product odometer); the flat SM scaffold
-re-drives only the innermost generator. Semantic oracle for the odometer: `bb_exec.c` case
-BB_BINOP_GEN (lines 669-744) — advance β; on β-exhaust reset β.state=0 and advance α. Mode-4 must
-emit that as four-port x86.
+⛔ **SESSION 2026-05-27b (Opus 4.7) — ICN-Z-0 + ICN-Z-1 landed; ICN-Z-2 substantial.**
+ICN-Z-0: `icn_leaf(nd, γ_in, ω_in, &α_out, &β_out, bounded)` + bounded-aware
+`lower_icn_expr_threaded_b` (both exported). Bounded rule mirrors irgen + lower_pl.c:
+`β=(!bounded && icn_kind_is_resumable) ? self : ω_in`. ICN-Z-1: `icn_tree_is_leaf` classifier;
+leaves seed `bounded=1` forced, decoupling leaf β=ω from the resumable table. ICN-Z-2 substantial:
+proc-body statement chain lowers `bounded=1` + `bb_exec.c` BB_SEQ already walks the γ-chain forward
+(non-backtracking advance per ir_a_Compound); remaining = explicit ω→next.α port wire for mode-3/4.
+ALL gates non-regressing: smoke_icon 5/5, broker 23, icon_all_rungs 198, smoke_prolog 5/5,
+mode4_rung PASS=2, FACT-RULE grep 0. **NEXT: ICN-Z-3** (BB_CONJ E1&E2 backtracking conjunction),
+then Z-4 (every) / Z-7 (call operands) / Z-8 (to/to_by) — these are where mode-4 gate movement
+lives (the `lt`/`mult`/`compound` FAILs need generator nesting via BB ports: gen.ω→outer.β
+cross-product odometer). Semantic oracle: `bb_exec.c` case BB_BINOP_GEN (669-744). Files:
+src/lower/lower_icn.c, src/lower/lower_icn.h.
 
 ---
 
@@ -203,15 +202,26 @@ from the zipper. Bring ω-as-port-wire up via the zipper, then this gate climbs 
 - [x] Gate: build clean, smoke_icon 5/5, broker 23, icon_all_rungs 198, smoke_prolog 5/5,
   mode4_rung PASS=2, FACT-RULE grep 0. Non-regressing.
 
-#### ICN-Z-1 — Rewire leaves: BB_LIT_I/F/S, BB_VAR, BB_KEYWORD, BB_FAIL, BB_BREAK, BB_NEXT ⏳
-- [ ] All leaf cases: `BB_node_alloc + payload + icn_leaf(nd, γ_in, ω_in, α_out, β_out, bounded)`.
-- [ ] Leaves: α=β=self in unbounded context (irgen: start→emit lit→goto success; resume→goto failure). In bounded context β=ω_in (no resume). `icn_leaf` handles this.
-- [ ] Gate: smoke_icon 5/5, rungs ≥198.
+#### ICN-Z-1 — Rewire leaves: BB_LIT_I/F/S, BB_VAR, BB_KEYWORD, BB_FAIL, BB_BREAK, BB_NEXT ✅ (2026-05-27, Opus 4.7)
+- [x] Added `icn_tree_is_leaf(e)` classifier (TT_ILIT/FLIT/QLIT/CSET/VAR/KEYWORD/LOOP_BREAK/
+  LOOP_NEXT/PROC_FAIL). `lower_icn_expr_threaded_b` now seeds leaf kinds with `bounded=1` forced
+  into `icn_leaf`, so a leaf's β=ω_in is guaranteed regardless of the `icn_kind_is_resumable`
+  table — the leaf β-contract (irgen: a leaf's resume chunk is just Goto failure) is decoupled from
+  that table. Composites keep the caller's bounded flag.
+- [x] Leaves: α=self, β=ω_in (no retry). γ/ω stamped via icn_leaf when NULL + not an operand slot.
+- [x] Gate: smoke_icon 5/5, broker 23, icon_all_rungs 198, smoke_prolog 5/5, mode4_rung PASS=2,
+  FACT-RULE grep 0. Non-regressing. `icn_tree_is_leaf` is live (defined + called).
 
-#### ICN-Z-2 — Rewire BB_COMPOUND / BB_SEQ (Icon statement sequence) ⏳
-- [ ] **Icon statement sequences are NOT backtracking.** irgen `ir_a_Compound`: `L[i].failure → L[i+1].start` (advances). `L[i].success → L[i+1].start` (also advances). Only last statement's success/failure propagate to the compound's success/failure.
-- [ ] Implementation: forward pass only, no back-to-front zipper. Lower stmt[0..n-2] with `bounded=1` (always-bounded, no retry). Lower stmt[n-1] with caller's bounded. Wire stmt[i].γ→stmt[i+1].α AND stmt[i].ω→stmt[i+1].α (failure advances). Last stmt.γ→γ_in; last stmt.ω→ω_in.
-- [ ] Gate: smoke_icon 5/5, rungs ≥198.
+#### ICN-Z-2 — Rewire BB_COMPOUND / BB_SEQ (Icon statement sequence) 🟡 (substantial; 2026-05-27, Opus 4.7)
+- [x] **Forward chain already correct.** `lower_icn_proc_body` builds the statement chain
+  back-to-front with `succ` threading and lowers each statement `bounded=1` (down payment landed
+  ICN-Z-0 session). `bb_exec.c` BB_SEQ walks `st = st->γ` (the γ-chain hung off α) — exactly the
+  forward, non-backtracking advance irgen ir_a_Compound prescribes; intermediate failure continues
+  the loop (advances), not retries.
+- [ ] REMAINING: make the failure-advance edge an explicit `stmt[i].ω → stmt[i+1].α` port wire
+  (currently `bb_exec.c` advances structurally via the loop rather than via ω). Needed for mode-3/4
+  flat-wiring; mode-2 is already correct. Fold in when BB_SEQ gets its emitter template.
+- [ ] Gate: smoke_icon 5/5, rungs ≥198 (holding).
 
 #### ICN-Z-3 — Rewire BB_CONJ (E1 & E2 — conjunction generator) ⏳
 - [ ] irgen `ir_conjunction`: start→E1.start; E1.success→E2.start; E1.failure→p.failure; E2.success→p.success; E2.failure→E1.resume.
