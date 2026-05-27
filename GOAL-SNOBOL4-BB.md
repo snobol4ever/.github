@@ -74,6 +74,44 @@ bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=18, M4=15, SKIP=0
 
 ## Open Rungs (priority order)
 
+### SBL-MODE-PURITY — eliminate inter-mode brokered/flat fallbacks ⏳
+
+**Architectural rule (Lon, 2026-05-27):** Modes do NOT silently fall back between themselves. If the user runs `--run` (mode-3, BB_MODE_LIVE), patterns must be built via `bb_build_flat`. If the user runs `--interp` (mode-2, BB_MODE_BROKERED), patterns must be built via `bb_build_brokered`. Inter-mode fallback corrupts the test signal: a green test cannot be trusted to have actually run in the mode it claims, because a hidden fallback may have substituted a different builder behind the back of the measurement.
+
+**Known leak sites:**
+
+`src/runtime/snobol4/stmt_exec.c`:
+- L309: DT_S/DT_SNUL post-XDSAR coercion → `bb_build_brokered` unconditionally (mode-blind)
+- L311: EPS rescue when L309 fails → `bb_build_brokered` (mode-blind)
+- L327: **BB_MODE_LIVE branch fallback** — `if (!bb_build_flat) bb_build_brokered` (the flagship leak)
+- L354: post-dispatch `!bin_done` rescue → `bb_build_brokered` (mode-blind)
+- L361: DT_P but `pat.p` NULL → `bb_build_brokered` (mode-blind)
+- L367: DT_S literal coercion → `bb_build_brokered` (mode-blind)
+- L377: `!bin_done` rescue in DT_S branch → `bb_build_brokered` (mode-blind)
+- L384: catch-all → `bb_build_brokered` (mode-blind)
+
+`src/emitter/emit_bb.c`:
+- L846: `pre_build_children` mixes brokered/flat per node-kind (ARBNO/ASSIGN_*/CALLOUT split)
+- L847: `if (!fn) fn = bb_build_brokered(ch)` — silent fallback in pre-build path
+
+**Probe results (this session):**
+- GATE-1 smoke under `--run`: zero fallback hits at L327. The LIVE flat path is actually carrying these tests.
+- Rung suite: zero L327 hits. The rungs that fail M4 are failing in `bb_build_flat` itself, not the dispatcher.
+- DT_S coercion probe (L367): zero hits under `--run` smoke. Literal patterns reach stmt_exec.c as DT_P (already lowered to PATND).
+- L309/L311/L354/L361/L377/L384 leaks unmeasured — likely zero hits in current corpus but cannot be assumed.
+
+**Strategy:** carve sub-steps, fix one site at a time, re-gate after each.
+
+- [x] **SBL-MODE-PURITY-1**: Remove L327 LIVE→brokered fallback. Replace with honest NULL propagation; assert `bin_done==0` keeps `!bin_done` path; `g_bin_misses++` already increments. Expectation: GATE-1 holds (probe showed no hits); GATE-3 unchanged (mode-4 binary doesn't traverse this branch in scrip's process). Rung M4 unchanged. If anything regresses, the regression is REAL — it surfaces a previously-masked flat builder failure. **DONE 2026-05-27 (Opus 4.7, continued 13):** removed `if (!bfn) bfn = bb_build_brokered(pp_bb);` at stmt_exec.c:327. All five gates hold at watermark (13/13, 26, 175/280, 218/280, M2=18 M4=15). Probe instrumentation confirmed zero fallback hits in GATE-1 smoke and rung suite — the fallback was unreachable under current corpus.
+- [ ] **SBL-MODE-PURITY-2**: Mode-gate L309/L311/L367/L377 literal-coercion paths. Under LIVE call `bb_build_flat`; under BROKERED call `bb_build_brokered`. The literal-coercion EPS rescues (L311 / `!bin_done` paths) also become mode-gated.
+- [ ] **SBL-MODE-PURITY-3**: Mode-gate L354 / L361 / L384 catch-alls.
+- [ ] **SBL-MODE-PURITY-4**: Fix emit_bb.c:846-847. Per-node-kind builder split is arguably correct (some kinds genuinely need the brokered ABI for child recursion) but the L847 fallback is unconditional and must go. Investigate whether the per-kind split is intentional architecture or another latent leak.
+- [ ] **SBL-MODE-PURITY-5**: Audit any cache_insert path (L334) that may cache a brokered blob under LIVE mode. The cache must be mode-tagged or cleared on mode transitions, or the cache itself becomes a fallback vector.
+
+**Do NOT proceed to SBL-ANY-2 (BINARY arm filling) until SBL-MODE-PURITY-1 lands** — filling BINARY arms while a brokered-fallback exists in the LIVE path means the new bytes will also be silently substituted by brokered behavior if any flat-build fails, defeating the purpose of the fill.
+
+---
+
 ### NEXT: SBL-DCG-DEFER-M4 stmt_exec.c wiring ✅ (narrowed) + SBL-ARBNO-COUNTER-RESET ✅
 
 **Status:** Both landed (this session).
@@ -155,14 +193,45 @@ DEFER — SBL-DCG-DEFER `2b68dc44`
 ## Session State
 
 ```
-GATE-1 SNOBOL4 smoke        = 13/13 (mode-2 7/7 + mode-3 6/6) — mode-3 reactivated 380b4683
-GATE-2 unified broker       = 25
+GATE-1 SNOBOL4 smoke        = 13/13 (mode-2 7/7 + mode-3 6/6)
+GATE-2 unified broker       = 26
 GATE-3 broad corpus mode-4  = 175/280
 GATE-4 broad corpus mode-2  = 218/280
 Rung suite                  = M2=18, M4=15, SKIP=0
-HEAD one4all                = 380b4683 (SBL-MODE3-REACTIVATE)
+HEAD one4all                = 24df0702 (SBL-MODE-PURITY-1)
 GATE-PK status              = stale (re-freeze deferred)
 ```
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 13) — SBL-MODE-PURITY-1 ✅
+
+### Architectural rule (Lon directive)
+**Modes do NOT silently fall back between themselves.** If the user runs `--run` (mode-3, BB_MODE_LIVE), patterns are built via `bb_build_flat`. If the user runs `--interp` (mode-2, BB_MODE_BROKERED), patterns are built via `bb_build_brokered`. A cross-mode fallback corrupts the test signal: a green test cannot be trusted to have run in the mode it claims, because a hidden fallback may have substituted a different builder behind the back of the measurement. This bit us once already with the XCAT/XOR widening attempt (continued-11) where the legacy garbage-opcode cast was accidentally compensating for unrelated bugs. The principle: **the mode the user asked for is the mode the user gets, or the run fails honestly.**
+
+### What landed
+`src/runtime/snobol4/stmt_exec.c:327`: removed the line `if (!bfn) bfn = bb_build_brokered(pp_bb);` from the `BB_MODE_LIVE` branch of the DT_P pattern dispatch in `exec_stmt`. Under LIVE, if `bb_build_flat(pp_bb)` returns NULL, `bin_done` stays 0 and the existing `!bin_done` rescue at L352 takes over (constructs an EPS — already in place). The leak: under `--run` (mode-3 / LIVE) the code was secretly building a brokered pattern whenever `bb_build_flat` failed, making `--run` a mixed-mode runner with no way for the test signal to tell which mode actually executed.
+
+Probe instrumentation (transient, reverted before commit) confirmed: GATE-1 smoke under `--run` triggers zero fallback hits at L327; rung suite triggers zero hits. The flat path is genuinely carrying the current corpus.
+
+### Results — all gates hold at watermark
+- GATE-1 SNOBOL4 smoke: **13/13** ✓
+- GATE-2 unified broker: **26** ✓
+- GATE-3 broad corpus mode-4: **175/280** ✓
+- GATE-4 broad corpus mode-2: **218/280** ✓
+- Rung suite: **M2=18, M4=15, SKIP=0** ✓
+
+The fix is mechanically safe because the fallback was unreachable under current corpus. The gain is structural: from now on, any `--run` test that exercises a pattern kind `bb_build_flat` can't handle will surface as a real failure rather than masking under brokered substitution.
+
+### Remaining SBL-MODE-PURITY sub-steps
+- **SBL-MODE-PURITY-2** (next): mode-gate L309/L311/L367/L377 literal-coercion paths. Currently all four sites call `bb_build_brokered` unconditionally regardless of `g_bb_mode`.
+- **SBL-MODE-PURITY-3**: mode-gate L354/L361/L384 catch-alls.
+- **SBL-MODE-PURITY-4**: audit `src/emitter/emit_bb.c:846-847` `pre_build_children` — per-kind brokered/flat split plus an unconditional brokered fallback.
+- **SBL-MODE-PURITY-5**: audit `cache_insert(pp, root)` at L334; a brokered blob cached under LIVE mode would permanently mask subsequent flat misses for the same PATND.
+
+**Hold SBL-ANY-2 (BINARY arm fill) and other BINARY-arm work until SBL-MODE-PURITY-2 through 5 land.** Otherwise newly-filled BINARY arms can be silently substituted by brokered behavior if any flat-build fails, defeating the purpose of the fill.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
 
