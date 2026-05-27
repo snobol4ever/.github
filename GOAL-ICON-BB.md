@@ -92,44 +92,28 @@ Fast loop: `--rung rungNN` (instant) or 01-35 loop (~3s). AVOID full suite while
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `c352bf4d`)
+## ⚡ CURRENT WATERMARK (one4all `e842b724`)
 
-GATES GREEN: smoke_icon **5/5**, unified_broker **23**, icon_all_rungs **198**. Honest (interp via bb_exec.c ports). Prolog smoke unchanged (own goal). SNOBOL4 smoke 7/0.
-(2026-05-26, Sonnet 4.6: JA-D-0 baseline pinned + JA-D-1 `--run` call site stubbed (`c352bf4d`). Engine B (sm_emit_linear) now has zero CLI entry points. Pre-cut mode-3 baseline: SNOBOL4 --run 10/11, Snocone --run 3/10, Icon --run RED, Prolog --run 123/123 AGW-1c unchanged. Violator grep: 192. JA-D-6 added: total annihilation of "jit"/"JIT" naming after JA-D-5 — this project does NOT do just-in-time compilation, ever.)
+GATES GREEN: smoke_icon **5/5**, unified_broker **23**, icon_all_rungs **198**.
+(2026-05-26, Sonnet 4.6: JA-D COMPLETE — all six steps done in one session.)
 
-**⛔ NEXT SESSION STARTS COLD AT JA-D-2.** Delete the entire SB-LINEAR block from `sm_jit_interp.c`: the double `/*===*/` separator through `sm_run_linear`'s closing `}` (lines ~1759–2252), the `#define SL_B/U32/U64` macros, all `sl_*` functions, `sl_emit_one`, `sm_emit_linear`, `sm_run_linear`, `g_jit_flat_bb`. Delete `sm_run_with_recovery_linear` from `scrip_sm.c`. Remove prototypes from `sm_jit_interp.h` and `scrip_sm.h`. Keep `rt_bb_pump_proc` (Engine A still references it; deleted in JA-D-3). One commit, build links, gates green.
+**JA-D CLOSED.** Both repos pushed. one4all `e842b724`.
 
-Recent closes: G-2 RT-DELETE ladder (`f0f99035` — all 4 C four-port Byrd boxes gone, icon_box_rt.c deleted); H-1 AG foundation `lower_icn_expr_threaded` + back-to-front spine threading (`45c1bde2`); H-4 IDX_SET/SECTION γ-conflation fix; BB_CONJ split off BB_IF for `E1 & E2` (`9be28a5d`, rungs 195→196).
+Session JA-D ladder:
+- JA-D-1 `c352bf4d` (prev session): `--run` call site stubbed [NO-SM-BB]
+- JA-D-2 `22a17fa3`: Engine B (SB-LINEAR, 630 lines) deleted. 192→166 violators.
+- JA-D-3 `2073c081`: Engine A (trampoline, 1641 lines) deleted. 166→2 violators.
+- JA-D-4+D-5 `b14a3312`: sm_image_test cleaned. Violator grep = **0**.
+- JA-D-6 `e842b724`: Total annihilation of jit/JIT — 35 files, 5 renames,
+  sm_jit_interp.c→sm_codegen.c, g_jit_*→g_codegen_*, verify grep == 0.
 
-⚠ Mode-3 `--run` for Icon is RED today: even hello.icn → `sm_eval_subexpr: invalid entry_pc 1` (BB graph freed before the baked C-walker call reads it — Phase J root cause, FACT 3 violation). --interp is fine. Rung gate is --interp-only so unaffected.
+Net: **2271 lines deleted**, zero illegal x86 producers, zero JIT anywhere.
+`--interp` gates unchanged throughout. `--run` RED (expected, stub).
 
-**NEXT:** ⛔ **JA-D — cat every violator of the ONE-PRODUCER FACT RULE (Lon directive, scorched-earth reset).**
-Grep at `5c455663` pins the violators to exactly two files: `src/processor/sm_jit_interp.c` (212 raw-emit sites,
-TWO forbidden engines — `emit_standard_blob` trampoline JIT + `sl_*`/SB-LINEAR producer + `rt_bb_pump_proc`
-C-walker edge) and `sm_image_test.c` (2, a unit test). Ladder JA-D-0..JA-D-5: pin reachability + Lon-confirm
-mode-3 may go RED (JA-D-0), stub the `--run` call site (JA-D-1), excise Engine B then Engine A as if never
-existed (JA-D-2/3), handle the test (JA-D-4), then the FACT-RULE completion grep == 0 (JA-D-5). `--interp`
-stays green throughout (smoke_icon 5/5, broker 23, rungs 198); Icon `--run` already RED so no Icon regression;
-SNOBOL4/Prolog mode-3 WILL go RED by design — record as emergency-handoff. THEN (separate phase) JA-1/J-5/J-6
-rebuild: route `--run` through the shared template producer; one-instruction thunk-templates are RULE-compliant
-scaffolding. See § JA-D. JA-2b part-1 (`bb_icn_to.cpp`) done at template level, dormant until the rebuild.
-⚠ Of H-1's two halves, only **generator-composition is frontend-reachable** today; the if-as-value half
-(`x := if a then b else c`) is BLOCKED at the parser (`if` not accepted in expression position — see H-1
-FRONTEND-REACHABILITY note below). Attack generator-composition first; if-as-value waits on a frontend rung.
-
-### JA-2a CLOSED — 2026-05-26 (literal integer to/by generator)
-`bb_to_by.cpp` now emits a real four-port literal-integer `to`/`by` generator (TEXT+BINARY), replacing the
-passthrough stub. The dead orphan `bb_icn_to_by.cpp` (never in Makefile, never dispatched) was DELETED + its
-stale prototype removed from `bb_templates.h`. Emitted TEXT assembles (`as --64`); BINARY rel32 relocs
-hand-decoded. Gates green: smoke 5/5, broker 23, rungs 196. NOT a GATE-PK rung (BB_TO_BY cell uses
-relink-unstable node-id labels — left at 471/40, like BB_UPTO/BB_ITERATE/BB_PAT_POS). NOT yet reachable from
-`--run` (flat-BB JIT still uses `rt_bb_pump_proc` C-walker for proc-body BB nodes — JA-1).
-
-### J-4 GENERATOR FRONTIER — diagnosed 2026-05-26 (Opus 4.7, diagnosis-only, one4all tree CLEAN @ 9be28a5d)
-Empirically pinned the J-4 "GENERATORS" blocker with no code change. Repro: `every write(1 to 3)` → `--interp` prints `1 2 3`; `--run SCRIP_JIT_FLAT_BB=1` → `sm_interp: stack underflow`. Scalar flat path is fine (`hello.icn` + `double(21)=42` work flag-on). ROOT CAUSE: `every`/`to`/`by` are BB_EVERY/BB_TO_BY graph nodes driven in mode 2 by bb_exec.c's four-port C walker via SM_BB_PUMP_PROC. The flat-BB JIT (sl_emit_one SM_BB_PUMP_PROC, sm_jit_interp.c:2115) correctly emits `call rel32` to the proc entry_pc + frame setup/teardown — BUT the proc body's generator BB nodes have NO flat-x86 emitter template: **`src/emitter/BB_templates/bb_icn_to_by.cpp` is a literal STUB** (`bb_icn_to_by_str` returns `std::string()` — emits zero bytes). So no values reach the vstack and `write`'s consumer underflows. sl_emit_one DOES wire SM_SUSPEND_VALUE/SM_SUSPEND/SM_PUSH_EXPRESSION/SM_CALL_EXPRESSION (suspend plumbing present); the gap is the empty BB generator TEMPLATES, not the SM opcode dispatch. (NOTE: no `SM_GEN_TICK` opcode exists in this tree — that was older nomenclature; Icon generators are BB nodes, not a dedicated SM opcode.)
-**J-4a (next, the real work):** implement `bb_icn_to_by` flat-x86 emission per FACT 4 (four-port door/trampoline discipline, counter in pBB, relocs in bytes — same x86 mode 4 must also emit), then BB_EVERY composition driving it. Substantial: this is genuine emitter work, NOT a one-edit fix. Gate each: smoke 5/5, broker ≥23, rungs ≥196 (rung gate is --interp-only so unaffected during JIT iteration; verify flag-on `every write(1 to 3)`→`1 2 3` as the J-4a completion probe).
-
----
+**⛔ NEXT SESSION: JA-1 rebuild** — route `--run` to load template-produced bytes
+(`codegen_sm_x86` → emit_core → bb_*.cpp/sm_*.cpp/xa_*.cpp) into a PROT_EXEC
+buffer and jump in. One-instruction thunk-templates as scaffolding; fill real
+four-port x86 per opcode on the ladder.
 
 ## Phase H — Attribute Grammar (pointers, no label IR)
 
@@ -399,13 +383,13 @@ mode-3 corpus going RED is intended before committing JA-D-2/JA-D-3.
   `fprintf(stderr,"[NO-SM-BB] --run: linear emitter deleted (FACT RULE); use --interp until templates land\n");
   return 1;` (RULES.md stub form). Now nothing external reaches Engine B. Build links; `--interp` untouched
   (smoke_icon 5/5, broker 23, rungs 198 stay green — those are --interp). `--run hello.icn` prints the stub line.
-- [ ] **JA-D-2 — excise Engine B (SB-LINEAR producer) as if it never existed.** Delete `sm_emit_linear`,
+- [x] **JA-D-2 — excise Engine B (SB-LINEAR producer) as if it never existed.** Delete `sm_emit_linear`,
   `sl_emit_one`, `sl_call`/`sl_ret`/`sl_ret_if_eax`/`sl_jcc_last_ok`/`sl_mov_rdi_*`/`sl_mov_rsi_*`/`sl_mov_rdx_*`/
   `sl_jmp_rel32_slot`, the `SL_B`/`SL_U32`/`SL_U64` macros, `sm_run_linear`, `rt_bb_pump_proc`, and `g_jit_flat_bb`
   + the `SCRIP_JIT_FLAT_BB` getenv. Remove the `sm_emit_linear`/`sm_run_with_recovery_linear`/`sm_run_linear`
   prototypes from sm_jit_interp.h + scrip_sm.h. Zero residue (RULES.md "deletion is total"): no dangling
   prototype, extern, or call. Build links. `--interp` gates green.
-- [ ] **JA-D-3 — excise Engine A (trampoline JIT) as if it never existed.** Delete `SM_codegen`,
+- [x] **JA-D-3 — excise Engine A (trampoline JIT) as if it never existed.** Delete `SM_codegen`,
   `emit_standard_blob`(+`_no_stack`), `emit_cond_jump_blob_skeleton`, `emit_jump_blob_skeleton`,
   `emit_label_blob`, `emit_halt_blob`, `emit_trampoline`, `emit_exec_stmt_pat_blob`, `bake_blob_call_{s,si,i}`,
   `sm_jit_run_steps`, the `g_label_blob_map`/`label_blob_lookup` machinery, and the `h_bb_pump_proc`/`h_pump_case`
@@ -413,14 +397,14 @@ mode-3 corpus going RED is intended before committing JA-D-2/JA-D-3.
   pure SM interpreter for `--interp`; if `--interp` uses `sm_interp.c` not this file, the WHOLE `g_handlers`
   engine here may be deletable — verify by grep before cutting). Stub any remaining external entry to
   `[NO-SM-BB]`. Build links.
-- [ ] **JA-D-4 — `sm_image_test.c` (the 2 sites).** It hand-emits `mov eax,42; ret` as a self-test. Either delete
+- [x] **JA-D-4 — `sm_image_test.c` (the 2 sites).** It hand-emits `mov eax,42; ret` as a self-test. Either delete
   the test file (if it only tested the now-deleted producer) or, if kept, route its bytes through a real
   SM_templates entry. Trivial; do last.
-- [ ] **JA-D-5 — GREEN-FIELD VERIFY (the FACT RULE completion test).** `grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|
+- [x] **JA-D-5 — GREEN-FIELD VERIFY (the FACT RULE completion test).** `grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|
   sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -vE '_templates/|/emit_core\.c:'` == **0**. Build
   links; `--interp` gates green (smoke_icon 5/5, broker 23, rungs 198). Mode-3 RED is EXPECTED + recorded.
   Commit message states the scorched-earth reset explicitly (emergency-handoff form).
-- [ ] **JA-D-6 — TOTAL ANNIHILATION of "jit" / "JIT" everywhere.** This project does NOT perform just-in-time
+- [x] **JA-D-6 — TOTAL ANNIHILATION of "jit" / "JIT" everywhere.** This project does NOT perform just-in-time
   compilation. It lowers to native x86 from the starting gate — whole-program, one pass, done. The word "JIT"
   is a lie borrowed from a prior design that never shipped and every occurrence is now actively misleading.
   Scope: ALL of `src/`, ALL of `scripts/`, ALL of `test/`, ALL header files, ALL comments, ALL identifiers,
