@@ -49,6 +49,12 @@ proven end-to-end — GATE-4 still 0/4):**
    the four-port graph (mirrors the working `SM_BBSW_ICN_GEN` arm). γ→last_ok=1, ω→last_ok=0, both
    fall through to `_done`. The `[NO-SM-BB]`/`HALT` stub is GONE — real flat x86 now emits.
 
+**✅ UPDATE 2026-05-27 (Opus): m4-call GREEN — GATE-4 1/4 → 2/4.** AGW-9B-call landed (`449f4ca3`):
+`bb_pl_call.cpp` FILLED, `walk_bb_flat` BB_PL_CALL case, PL_ENTRY emits each predicate as a callable
+`.Lplpred_<name>_<arity>` flat block. write(atom) mode-4 bug also FIXED (intern-str hook wired
+unconditionally + `strtab_label` fallback when the text-only hook is inactive). m4-choice/alt still FAIL
+(empty templates, no walk_bb_flat case — AGW-9B-2/3 next). See HANDOFF-2026-05-27-OPUS-PROLOG-BB-AGW9B-CALL.md.
+
 **✅ UPDATE 2026-05-27 (Opus): FIRST GREEN m4-seq — GATE-4 0/4 → 1/4.** `main :- X is 1+2, write(X), nl.`
 compiles to standalone x86 and prints `3`. V-1 + V-2 CLOSED (uncommitted; see
 HANDOFF-2026-05-27-OPUS-PROLOG-BB-GATE4-FIRST-GREEN.md). Two infra fixes were also required and landed:
@@ -225,9 +231,10 @@ For each `case BB_FOO:` in `bb_exec.c`:
 
 ### Phase PL-AGW-9B — Call, Choice, Alt emitters (same XA pattern)
 
-#### PL-AGW-9B-1 — `XA_PL_CALL_DRIVE` + `bb_pl_call.cpp` ⏳
-- [ ] Same XA-opcode pattern as AGW-9A. `bb_pl_call.cpp` TEXT body: resolve callee predicate label from `g_pl_bb_table`; emit `jmp callee.α`; callee γ → local γ_in; callee ω → local ω_in. α=callee.α, β=callee.β.
-- [ ] Gate: `EMPTY 3→2`. `test_prolog_mode4_rung.sh` PASS climbs (a single predicate call must pass).
+#### PL-AGW-9B-1 — `bb_pl_call.cpp` ✅ (2026-05-27, Opus, `449f4ca3`)
+- [x] `bb_pl_call.cpp` FILLED: emits `call .Lplpred_<name>_<arity>` + `rt_last_ok` test → γ/ω, β→ω
+  (deterministic). PL_ENTRY emits each non-entry predicate as a callable flat block under that label.
+  `walk_bb_flat` BB_PL_CALL case added. Gate: EMPTY 3→2; m4-call PASS (GATE-4 2/4). write(atom) fixed.
 
 #### PL-AGW-9B-2 — `XA_PL_CHOICE_DRIVE` + `bb_pl_choice.cpp` ⏳
 - [ ] `bb_pl_choice.cpp` TEXT body: emit `call rt_trail_mark@PLT` inline; for each clause emit body α entry; on clause ω → next clause α; last clause ω → `call rt_trail_unwind@PLT` + jump ω_in. No `rt_*` port helpers — only non-port effect helpers are OK (RULES.md / GOAL-PROLOG-BB rules).
@@ -271,12 +278,14 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
   goals if needed to confirm. **Gate:** m4-seq emits `call rt_pl_arith@PLT`; `test_prolog_mode4_rung.sh`
   m4-seq PASS (`3`). FIRST GREEN four-port mode-4 Prolog.
 
-- [ ] **V-3 — Structural four-port templates still EMPTY (call/choice/alt).**
-  `util_prolog_template_emptiness_audit.sh` = EMPTY 3 (seq now FILLED at `701403cb`). Until these are
-  filled, mode-4 cannot emit any predicate with a call, multi-clause, or `;`. **FIX:** AGW-9B (below):
-  `bb_pl_call.cpp` → `bb_pl_choice.cpp` → `bb_pl_alt.cpp`, each EMPTY→FILLED with inline four-port x86
-  (trail_mark/trail_unwind are permitted effect helpers; NO `rt_*` port-logic helpers). **Gate:** audit
-  EMPTY→0; m4-call/choice/alt PASS in `test_prolog_mode4_rung.sh`.
+- [~] **V-3 — Structural four-port templates EMPTY (choice/alt remain; call DONE).**
+  `util_prolog_template_emptiness_audit.sh` = EMPTY 2 (seq + call now FILLED at `449f4ca3`).
+  **call ✅ 2026-05-27 (Opus):** `bb_pl_call.cpp` FILLED + `walk_bb_flat` BB_PL_CALL case +
+  PL_ENTRY callee-block emission (`.Lplpred_<name>_<arity>` callable blocks). m4-call PASSes.
+  Remaining: `bb_pl_choice.cpp` → `bb_pl_alt.cpp`, each EMPTY→FILLED with inline four-port x86
+  (trail_mark/trail_unwind permitted effect helpers; NO `rt_*` port-logic helpers). They have NO
+  `walk_bb_flat` case yet (fall to `default:` → 0xe9 abort, exactly the bug call had). **Gate:** audit
+  EMPTY→0; m4-choice/alt PASS in `test_prolog_mode4_rung.sh`.
 
 - [ ] **V-4 — Mode 4 rebuilds the BB graph at runtime via `rt_pl_b_*` (RULES "no runtime BB walk").**
   `xa_pl_builder.cpp` emits x86 calling `rt_pl_b_begin/_node/_kids/_entry/_end_register` (rt.c:233+) to
@@ -358,7 +367,9 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
 - abolish/1 ✅ (2026-05-27, 87ed9b24 — zeros BB_CHOICE nbodies)
 - assertz/asserta directives (lower-time static fold) ✅
 
-**Gates at 87ed9b24:** GATE-1 5/5, GATE-2 132/0, GATE-3 88/107, icon/snocone/raku smoke 5/5, rebus 4/4, snobol4 --interp smoke 7/13 (pre-existing, unchanged from b5614aa5).
+**Gates at 449f4ca3 (2026-05-27, Opus):** GATE-1 5/5, GATE-2 132/0, GATE-3 88/107, **GATE-4 2/4**
+(m4-seq + m4-call), emptiness EMPTY=2 (seq+call FILLED; choice/alt remain). Earlier at 87ed9b24:
+GATE-4 was 1/4. snobol4 --interp smoke 7/13 (pre-existing). icon/snocone/raku smoke 5/5, rebus 4/4.
 
 ---
 
