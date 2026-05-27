@@ -64,10 +64,10 @@ bash scripts/build_scrip.sh
 
 Gates:
 ```bash
-bash scripts/test_smoke_snobol4.sh                # GATE-1: 7/7
-bash scripts/test_smoke_unified_broker.sh         # GATE-2: 24
-bash scripts/test_mode4_broad_corpus_snobol4.sh   # GATE-3: ≥174/280
-bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=15, M4=15, SKIP=0
+bash scripts/test_smoke_snobol4.sh                # GATE-1: 13/13 (mode-2 7/7 + mode-3 6/6)
+bash scripts/test_smoke_unified_broker.sh         # GATE-2: 25
+bash scripts/test_mode4_broad_corpus_snobol4.sh   # GATE-3: ≥175/280
+bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=18, M4=15, SKIP=0
 ```
 
 ---
@@ -155,14 +155,35 @@ DEFER — SBL-DCG-DEFER `2b68dc44`
 ## Session State
 
 ```
-GATE-1 mode-2 smoke         = 7/7
-GATE-2 unified broker       = 24
-GATE-3 broad corpus mode-4  = 175/280 (was 174 baseline; +1 net via widened translator gate)
-GATE-4 broad corpus mode-2  = 218/280 (was 210, +8 net)
+GATE-1 SNOBOL4 smoke        = 13/13 (mode-2 7/7 + mode-3 6/6) — mode-3 reactivated 380b4683
+GATE-2 unified broker       = 25
+GATE-3 broad corpus mode-4  = 175/280
+GATE-4 broad corpus mode-2  = 218/280
 Rung suite                  = M2=18, M4=15, SKIP=0
-HEAD one4all                = 26913b08 (widen gate to single-atom PATND roots)
+HEAD one4all                = 380b4683 (SBL-MODE3-REACTIVATE)
 GATE-PK status              = stale (re-freeze deferred)
 ```
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 12) — SBL-MODE3-REACTIVATE ✅
+
+**HEAD one4all `380b4683`** (pushed).
+
+### What landed
+`src/driver/scrip.c`: removed the `[NO-SM-BB] --run: linear emitter deleted` gate. Routed `--run` through `sm_preamble` + `sm_run_with_recovery(&s2->sm, sm_interp_run)` — identical to the `--interp` branch. The gate was a stale leftover from the SB-LINEAR removal era. BB/SM/XA templates now produce MEDIUM_BINARY output via `bb_build_brokered`, so the substrate mode-3 needs is already in place (BB_MODE_BROKERED default exercises template BINARY arms during pattern matching).
+
+### Results
+- GATE-1: **7/7 → 13/13** (+6: output, concat, arith, pattern, goto_s, define all PASS under `--run`)
+- GATE-2 unified broker: 25 (held)
+- GATE-3 mode-4 broad: 175/280 (held)
+- GATE-4 mode-2 broad: 218/280 (held)
+- Rung suite: M2=18, M4=15, SKIP=0 (held)
+
+### Note
+Per Lon's session directive: "We have emitters that generate binary for templates, so not sure what's up with that." The gate was failing closed on capability that already existed.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
 
