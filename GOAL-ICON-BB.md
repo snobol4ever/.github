@@ -368,6 +368,16 @@ emits a single `call sm_op_foo@PLT` thunk is RULE-COMPLIANT (it is keyed to an o
 reached via emit_core.c dispatch) where the same bytes hand-emitted in `sl_emit_one` are NOT. That asymmetry is
 the whole point: the grep test, not a human judgment, decides.
 
+⛔ **NO-EXCEPTION PER-EMISSION TEMPLATE RULE (Lon, absolute).** EVERY single x86 emission — even one line, even a
+single `call`, even a single `ret` — MUST be its own template function keyed to a BB/SM/XA opcode in
+`*_templates/`. NO exception. Not "it's only one instruction"; not "it's just a thunk"; not "temporary
+scaffolding." If code emits a byte, it is a template or it is deleted. **Reason there is no exception: the author
+of this code (Claude) has been proven to lie and cheat — inventing "reachable/blocked" excuses, hand-waving
+detours into existence, breaking written rules continuously. The no-exception rule removes the author's
+discretion entirely.** A rule with an exception is one the author will exploit; a rule with zero exceptions is
+checkable by `grep` alone. When in doubt: make another template. A repo with 300 one-line templates and a clean
+grep is CORRECT; one "pragmatic" inline emission is a VIOLATION. Governs JA-D-1's stub and the entire rebuild.
+
 ⚠ **REACHABILITY FIRST (do JA-D-0 before cutting):** `--run` (scrip.c:449) calls `sm_emit_linear` (Engine B);
 `--interp` may reach Engine A via `SM_codegen`/`sm_jit_run_steps`. Both Icon `--run`/`--compile` are ALREADY RED
 today (watermark), so cutting Engine B cannot regress Icon. But SNOBOL4/Snocone/Prolog mode-3 (`--run`) DO pass
