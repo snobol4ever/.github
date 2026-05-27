@@ -593,22 +593,36 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
   - atom_string/2, string_to_atom/2 ✅ (`52a78efb`, new rt_pl_atom_string_pair bidirectional helper)
   - copy_term/2 ✅ (`bb8bb529`, new rt_pl_copy_term helper)
 
-**Gates at HEAD (post-CAT-D-5, 2026-05-27 Opus 4.7, one4all `bb8bb529`):** GATE-1 5/5,
-GATE-2 = **11/107** (--mode run rung_suite; +6 this session: +atom_concat +atom_length +atom_case
-+string_length +string_concat +string_case +atom_string +string_to_atom; counted under V-5 real
-mode-4 accounting), GATE-3 **88/19** (--mode interp), **GATE-4 4/4** (mode-4 minimal m4-seq/call/
-choice/alt). honest mode-3 audit (test_prolog_bb_honest.sh) 128/0/0. Sibling smoke: snobol4 7/13
-(pre-existing), icon/snocone/raku 5/5, rebus 4/4. **GATE-2 numbering note:** PLAN.md cited 38/94
-post-CAT-D-1, but `test_prolog_rung_suite.sh --mode run` reports a denominator of 107 (matching
-GATE-3). The 94 figure may reference a different driver or pre-V-5 accounting. Worth a Lon audit
-when next looking at GATE-2 — directionally CAT-D-2..5 added +6 PASS, which is the real signal.
+**Gates at HEAD (post-CAT-D-8, 2026-05-27 Opus 4.7, one4all `710ee0b0`):** GATE-1 5/5,
+GATE-2 = **15/107** (--mode run rung_suite; +4 this session via CAT-D-8 ITE wrapper),
+GATE-3 **89/107** (--mode interp; +1 — ITE wrapper unblocked one mode-2 path),
+**GATE-4 4/4** (mode-4 minimal m4-seq/call/choice/alt held), mode-4 rung suite **15/107**
+(--mode compile; +4 same lift as GATE-2). Sibling smoke: icon/snocone/raku 5/5, rebus 4/4.
+
+**This session (Opus 4.7, post-CAT-D-5 → CAT-D-7..8):**
+- **CAT-D-7** (`d2ce06fc`) — `write(compound)` mode-4 100% template emission. Three new
+  pure-effect runtime helpers (rt_pl_write_int / _float / _cstr — one-liners). Recursive
+  emit-time walker `emit_write_term` in bb_builtin.cpp emits asm call sequence for
+  BB_PL_STRUCT; punctuation strings ( , ) interned by pl_pre_intern_pred_names.
+  Byte-exact vs --interp: foo(1,2), foo(a,b), point(1,2,3), tree(node(1),node(2)).
+- **CAT-D-8** (`710ee0b0`) — `BB_PL_ITE` wrapper for mode-4 if-then-else. ITE previously
+  returned bare Cond node as goals[i], so mode-4 walked Cond with the OUTER SEQ's γ/ω
+  labels and skipped Then/Else entirely. Now ITE lowers to a BB_PL_ITE wrapper (mirroring
+  CAT-A's BB_PL_SEQ pattern); flat_drive_pl_ite mints xite%d_then_α/else_α labels and
+  walks Cond/Then/Else as sub-regions; new bb_pl_ite.cpp template emits β-tombstone
+  AFTER bodies via EP_FILL (mirrors flat_drive_cat ordering). mode-2 case is trivial
+  (return nd->α). Unlocked 4 rungs in both --mode run and --mode compile.
 
 Earlier landings: 449f4ca3 GATE-2 132/0 (fake parity); CAT-A `*α_out=seq` af5c5ecd GATE-2 +5;
 CAT-A-2 `471ab202` structural prerequisite (no numeric lift); CAT-D-1 `95f73bad` +2 (atom_length/
-upcase_atom/downcase_atom). Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume stubs; needs
-Lon directive on design), CAT-D-6 (atom_chars/atom_codes — bigger surface due to list cons-cell
-construction), or the two pre-existing mode-4 gaps documented in CAT-D-5 note (write(compound)
-slot-index bug + ITE-with-==/2 silent fail) which would together unlock several rungs at once.
+upcase_atom/downcase_atom); CAT-D-2..5 `bb8bb529` +6 (atom_concat / string_*/atom_string /
+string_to_atom / copy_term).
+
+Next blockers: ==/2 mode-4 always-succeeds bug (independent of ITE; rung that exposed it:
+`( a == b -> write(yes) ; write(no) )` returns yes; the comparison template is broken — likely
+in bb_builtin.cpp's `==` arm or its strtab/intern handoff). CAT-A-3 (BB_PL_CALL + BB_CHOICE
+β-resume stubs; needs Lon directive on design). CAT-D-6 (atom_chars/atom_codes — bigger surface
+due to list cons-cell construction).
 
 Latent bug worth fixing: `lower_pl.c:65` puts garbage `sval` on BB_PL_VAR (union with ival).
 
