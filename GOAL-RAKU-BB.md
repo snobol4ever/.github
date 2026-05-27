@@ -132,6 +132,121 @@ wrong — fix the BB graph, not the runtime.
   Migrate `lower.c:1872-1881` off eager `SM_CALL_FN raku_map`/`raku_grep` for
   the lazy path. `rk_map_grep_sort24.raku` under `--compile` (sort stays eager).
 
+  ## RK-BB-3 substrate analysis — Opus 4.7, 2026-05-27 (post-RK-BB-2 audit)
+
+  Inspecting the failing target `rk_map_grep_sort24.raku` uncovered four substrate
+  gaps that block RK-BB-3 as originally scoped. The scope as written ("lower the
+  map/grep ops, reuse bb_iterate") underestimates the work because `bb_iterate.cpp`
+  is not yet a polymorphic iterator: it hard-codes Icon's `!"literal"` semantics.
+
+  ### Gaps (verified by probing, not from memory)
+
+  1. **`for @arr -> $v` does not loop in mode-4 or mode-2.** `lower_iterate`
+     RAKU branch (lower.c:1602-1607) emits the array expr once and stores it
+     into `$v` with no loop. New probe `test/raku/rk_for_array_simple.raku` is
+     a 3-line `push;push;push; for { say }` — FAILS both modes with Error 5.
+
+  2. **`bb_iterate.cpp` is DT_S-only.** Template assumes a compile-time `hay`
+     string and reads `pBB->ival` for slen. No runtime type-dispatch on the
+     iterable.
+
+  3. **Mode-2 `BB_ITERATE` executor (bb_exec.c:2227) is also DT_S-only.** Reads
+     `nd->α->value.s`; arrays would see len=0 and return ω immediately.
+
+  4. **Raku arrays are Icon-style lists (DT_DATA + `icn_type="list"`), NOT
+     SNOBOL4 ARBLK_t (DT_A).** `push` lives in `icn_runtime.c:1480`. Element
+     count in `frame_size`, elements in `frame_elems` (a GC'd `DESCR_t*`).
+     Confirmed by tracing `rk_arrays`'s lowering: `@x` is a DT_DATA list.
+
+  5. **`arr_get` / `arr_set` / `raku_map` / `raku_grep` / `raku_sort` are not
+     `rt_*` symbols.** They're SM_CALL_FN names dispatched through `rt_call`,
+     which chains only `icn_try_call_builtin_by_name` then `INVOKE_fn`. The
+     existing `raku_try_call_builtin(tree_t*, DESCR_t*)` takes an AST node
+     (mode-2 only) and calls `interp_eval`, so it can't be chained from
+     `rt_call` without a parallel by-name-by-args entry point.
+
+  6. **`BB_LIST_BANG` mode-4 template is `bb_icn_stub` too.** So Icon's `!L`
+     over a Raku-style list is ALSO not emitted at mode-4 today; reusing that
+     kind would require authoring a fresh template, not just retagging.
+
+  ### Decomposition
+
+  - [ ] **RK-BB-3a** — make `BB_ITERATE` polymorphic (DT_S | DT_DATA-list) so
+    `for @arr -> $v` loops. ONE template, runtime type-dispatch on the
+    iterable peeked from the SM value stack at α-time.
+    * Template (`bb_iterate.cpp`): α reads top-of-r12 stack; switch on `v`.
+      DT_S branch unchanged (Icon `!"abc"` stays bit-identical). DT_DATA
+      branch fetches `frame_size` (call `FIELD_GET_fn@PLT`) and `frame_elems`
+      ptr; counter advances; each iteration yields `frame_elems[i]` as a
+      full 16-byte DESCR onto r12.
+    * Mode-2 executor (`bb_exec.c:2227 BB_ITERATE`): mirror the same
+      polymorphism — peek α->value, branch on `.v`.
+    * Lowering: `lower_iterate` (lower.c:1602) gets a Raku-array branch that
+      builds a BB graph `BB_ITERATE(α=operand-box-pushing-the-array)` and
+      wraps it in `SM_BB_SWITCH(SM_BBSW_RK_GEN)` so `lower_every` finds the
+      SWITCH and the loop scaffold engages. Loop var name in `t->v.sval`
+      stored via `emit_var_store` on each γ pull (drop-in to current scaffold).
+    * Gate: probe `rk_for_array_simple` flips green. `rk_for_array` (existing)
+      should also flip — it has the same shape. GATE-RK + GATE-RK4 must not
+      regress.
+    * Risk: Icon `!"abc"` regression if the type-dispatch is wrong. Smoke icon
+      + GATE-PK ladder catches this. Add a TEXT-mode probe that emits
+      identical bytes for the DT_S literal case before/after.
+
+  - [ ] **RK-BB-3b** — `lower_raku_map`: build BB graph wrapping a
+    BB_ITERATE source with a γ-side block (the map lambda) that consumes
+    the yielded element (rebinds `$_`), runs the lambda, leaves the result
+    on r12, jumps back to α. Assignment site (`my @doubled = map { ... } @arr`)
+    materializes results into a fresh Icon-list via repeated `push`. For
+    `for @doubled -> $x` to then iterate, RK-BB-3a's polymorphism is the
+    same downstream path.
+
+  - [ ] **RK-BB-3c** — `lower_raku_grep`: identical to 3b but γ tests the
+    lambda's result; on false, jump back to BB_ITERATE β (next pull); on
+    true, push the SOURCE element (not the lambda result) to r12 and yield.
+    The "γ-predicate" semantics are template logic, NOT a `rt_*` helper.
+
+  - [ ] **RK-BB-3d** — `raku_sort` stays SM, but needs reachability from
+    mode-4. Add `raku_try_call_builtin_by_name(const char *fn, DESCR_t *args,
+    int nargs, DESCR_t *out)` parallel entry point in raku_builtins.c (no AST
+    walk — args are pre-evaluated DESCR_ts), chain it into `rt_call`'s ladder
+    immediately AFTER `icn_try_call_builtin_by_name` (and use the existing
+    table-of-strcmps but each branch's `interp_eval(c[k])` replaced with
+    `args[k-1]`). Same architectural shape as the Icon chain that landed in
+    IJ-HELLO-2; no new doctrine.
+
+  ### Open questions for Lon (gating RK-BB-3a)
+
+  Q1. **Polymorphic BB_ITERATE or new BB_ARR_ITERATE kind?**
+      Going polymorphic per "kinds are language-agnostic." Icon's existing
+      template behavior is preserved bit-identically for DT_S; the DT_DATA
+      branch is purely additive. Confirm?
+
+  Q2. **FIELD_GET_fn call from inside a BB template** — is that within the
+      spirit of "no rt_*/raku_* port-logic helpers"? FIELD_GET_fn reads a
+      field from a DT_DATA frame; it is NOT port-logic (α/β/γ/ω routing). It
+      is data fetch, same category as the DESCR_t write-into-r12 idiom that
+      bb_suspend and bb_iterate already emit. Treating it as allowed; please
+      flag if not, in which case the DT_DATA path must read frame_size/
+      frame_elems via raw struct offsets (we'd need to fix the layout).
+
+  Q3. **Raku-list materialization in `my @x = map { ... } @y`** — do you want
+      the result Seq to be eagerly drained into a fresh list (so `@x` is a
+      concrete list) or to stay as a lazy Seq object (so `for @x` re-pulls)?
+      Today's eager path drains; staying lazy needs a "Seq box" DT_DATA
+      `icn_type="seq"` value that carries the BB graph + state. Lazier is
+      truer to Raku; eager is one rung less to author. Mode-2 GATE-RK
+      passes today on `rk_map_grep_sort24` because of eager `raku_map` —
+      so eager-materialize keeps mode-2 working with zero changes.
+
+  ### What was DONE this session (pre-direction)
+
+  - Cloned + built. All gates HOLD at baseline (no regressions).
+  - Added test/raku/rk_for_array_simple.raku + .expected as the RK-BB-3a
+    probe. Mode-4: 9/31 (was 9/30, +1 fail by added test). Mode-2: 8/31.
+  - Inspected substrate; this memo is the deliverable. Zero code changes.
+  - NO commits — waiting on Q1/Q2/Q3 directives before authoring 3a.
+
 - [ ] **RK-BB-4** — junctions + infix `|`/`&` → `BB_ALTERNATE` with Bool-collapse
   policy on ω/γ. REUSE `bb_gen_alt.cpp`/`bb_alt.cpp`. Add junction test.
 
@@ -188,13 +303,13 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: d08237e0 (RK-BB-2 step 6 ✅ — three-edit unblock: union-clobber fix + body-orphan suppress)
-.github: HEAD (this update)
+one4all: d4cbefaf (RK-BB-3 substrate probe — test/raku/rk_for_array_simple)
+.github: HEAD (this update — RK-BB-3 substrate audit memo + decomposition)
 corpus:  unchanged
 
-Gates at d08237e0 (2026-05-27, Opus 4.7, RK-BB-2 ✅ rk_gather PASSES mode-4):
-  GATE-RK mode-2:  8/30   HOLD  (BB_SUSPEND has no bb_exec.c executor — separate Icon goal)
-  GATE-RK4 mode-4: 9/30   ✅ rk_gather flipped 8→9
+Gates at d4cbefaf (2026-05-27, Opus 4.7, RK-BB-3 substrate audit complete):
+  GATE-RK mode-2:  8/31   HOLD  (+1 fail from added probe; baseline 8 PASS unchanged)
+  GATE-RK4 mode-4: 9/31   HOLD  (+1 fail from added probe; baseline 9 PASS unchanged)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
@@ -252,6 +367,25 @@ NEXT: RK-BB-3 — lazy map/grep as Seq CONSUMERS. BB_ITERATE consumer +
 γ-port predicate test for grep. Migrate lower.c:1872-1881 off eager
 SM_CALL_FN raku_map / raku_grep for the lazy path. Reuse bb_iterate.cpp
 (Icon proved most cases). Verify rk_map_grep_sort24.raku under --compile.
+
+⛔ RK-BB-3 SUBSTRATE AUDIT (2026-05-27, Opus 4.7, post-RK-BB-2 session):
+
+Findings from inspecting rk_map_grep_sort24's failure path: six substrate
+gaps make RK-BB-3 a multi-rung effort, NOT a one-commit "reuse bb_iterate".
+See the full memo embedded under "Ladder steps → RK-BB-3" above for:
+  - 6 gaps verified by probing (bb_iterate is DT_S-only template AND
+    DT_S-only mode-2 executor; lower_iterate RAKU branch doesn't loop;
+    Raku arrays are Icon-list DT_DATA not DT_A; raku_*/arr_* builtins
+    aren't rt_* symbols and rt_call has no raku-chain; BB_LIST_BANG
+    mode-4 template is also still bb_icn_stub).
+  - 4-rung decomposition: 3a (polymorphic BB_ITERATE substrate) →
+    3b (map) → 3c (grep) → 3d (sort reachability).
+  - 3 open questions for Lon (Q1 polymorphic kind, Q2 FIELD_GET_fn in
+    template, Q3 eager vs lazy materialization on `my @x = map { ... }`).
+
+This session added test/raku/rk_for_array_simple.raku + .expected (RK-BB-3a
+probe). Mode-4: 9/31 (+1 fail by added test). Mode-2: 8/31. All gates HOLD.
+NO commits this session — design memo only; waiting on Q1/Q2/Q3 directives.
 ```
 
 ## Open questions for Lon
@@ -276,5 +410,23 @@ NEW open item (deferred to a separate session):
    (leading TT_VLIST child, TT_ATTR, or separate tree_t field) so
    `v.sval = name` semantics is restored, and retire the polyglot.c c[0]
    fallback. Touches every TT_SUB_DECL reader.
+
+RK-BB-3 open items (gating RK-BB-3a; full context in the in-line memo
+under "Ladder steps → RK-BB-3"):
+
+6. **Polymorphic BB_ITERATE or new BB_ARR_ITERATE kind?** Recommend
+   polymorphic (DT_S | DT_DATA-list branch) per "kinds are
+   language-agnostic." Icon's DT_S template path stays bit-identical;
+   DT_DATA is purely additive.
+
+7. **FIELD_GET_fn call from inside a BB template** — does this fit the
+   "no port-logic helpers" rule? FIELD_GET_fn is a data-fetch, not
+   α/β/γ/ω routing. Treating as allowed unless flagged.
+
+8. **`my @x = map { ... } @y` materialization** — eager-drain into a
+   fresh list (one rung less, mode-2 keeps working unchanged) or stay
+   lazy as a Seq box (truer to Raku, needs `icn_type="seq"` DT_DATA
+   carrying the BB graph)? Recommend eager-drain for RK-BB-3b; lazy is
+   a future rung.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
