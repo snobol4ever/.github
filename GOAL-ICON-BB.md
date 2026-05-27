@@ -65,7 +65,11 @@ static inline void    ag_ring_clear(BB_graph_t *cfg);                /* by bb_re
 5. **Step 5** ✅ `687d6694` — BB_IF AG-pure. cond.γ = cond.ω = nd_if; nd_if.γ = then.α; nd_if.ω = else.α. Executor reads peek(0) = cond value, routes via γ/ω.
 6. **Step 6** ✅ `76453c56` — BB_CONJ AG-pure. left.γ=right.α; left.ω=ω_in; right.γ=apply; right.ω=ω_in. Executor reads peek(0) = right value.
 7. **Step 7** ✅ `e8217005` — BB_ALT AG-pure. arms chained via ω (legacy already did this); arm.γ=nd_alt. Executor AG branch (nd->α==NULL) reads peek(0) = winning arm's value.
-8. **Step 8 — Generators** ⛔ NEXT. BB_EVERY / BB_TO / BB_TO_BY / BB_BINOP_GEN. β=self (resumable kinds). EVERY drives its child generator to exhaustion. Critical: generators interact with the chain walker via β resume entries, not just γ-on-success.
+8. **Step 8 — Generators** ⛔ NEXT. Sub-ordered:
+   - **8.1 BB_EVERY** first — it's a DISPATCHER like BB_SEQ, internally drives its child generator via recursive `bb_exec_node(nd->α)` which swallows chain visibility. Must become AG-pure passthrough so the child generator's operand chain pushes to the ring properly.
+   - **8.2 BB_TO / BB_TO_BY** — once EVERY drives via the chain walker, these can have AG-pure dynamic-bound paths. Cache lo+hi on first run (state==0) into counter (int pos) + dval-bit-cast (int hi) for int mode, dval (real pos) + counter-bit-cast (real hi) for real mode.
+   - **8.3 BB_BINOP_GEN** — cross-product odometer. Major rework. Defer.
+   - **Dispatchers to consider for AG-pure conversion at this step:** BB_LIMIT, BB_REPEAT, BB_WHILE, BB_UNTIL, BB_SCAN — same swallowing pattern.
 9. **Step 9 — N-ary applies**: BB_CALL / BB_LCONCAT / BB_SECTION / BB_IDX_SET. Args chain via γ, last arg's γ → apply; apply reads peek(N-1..0).
 10. **Step 10 — Sidecar cleanup**: delete `bb_operand_aux_set/get` calls from Icon lower path. Sidecar struct stays for Prolog/SNOBOL4.
 
