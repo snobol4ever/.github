@@ -306,15 +306,17 @@ V-1 and V-2 land and GATE-4 ≥ 1.**
         And `rt.c` lacked `prolog_atom.h` include → `prolog_atom_name` return defaulted to int
         and got 32-bit truncated; plus `rt_init` didn't call `prolog_atom_init`. All three fixed.
 
-- [ ] **V-4 — Mode 4 rebuilds the BB graph at runtime via `rt_pl_b_*` (RULES "no runtime BB walk").**
-  `xa_pl_builder.cpp` emits x86 calling `rt_pl_b_begin/_node/_kids/_entry/_end_register` (rt.c:233+) to
-  reconstruct `BB_graph_t` at standalone-binary startup. The standalone binary must hold NO BB graph.
-  **FIX:** once V-1..V-3 make every predicate flat-emit (each predicate's graph emitted once under a
-  stable `.Lpl_<name>_<arity>_α` entry label, reached by PL_ENTRY and `BB_PL_CALL` via `jmp`), DELETE
-  the `XA_PL_BUILDER` / `XA_PL_REGISTRY_TABLE` emission from `codegen_pl_predicate_registry`
-  (emit_sm.c:394) and the `rt_register_predicates_pl` call from emitted `main`. Then delete the now-dead
-  `rt_pl_b_*` family from rt.c/rt.h. **Gate:** emitted `.s` contains zero `rt_pl_b_*` and zero
-  `rt_register_predicates_pl`; GATE-4 still passes; `grep rt_pl_b_ out.s` == 0.
+- [x] **V-4 — Mode 4 rebuilds the BB graph at runtime via `rt_pl_b_*` (RULES "no runtime BB walk"). ✅ 2026-05-27 (Sonnet 4.7, `88f03a41`).**
+  Predicate BB graphs are now inlined as flat x86 by SM_BB_SWITCH PL_ENTRY at emit time. The
+  runtime rebuild via `rt_register_predicates_pl` + `rt_pl_b_*` was dead (0 `bb_exec_*` calls in
+  emitted .s) — it built a graph nothing read. Deletions: `xa_pl_{builder,sub_builder,registry_table,kids_rodata}.cpp`;
+  `codegen_pl_predicate_registry` + 4 helpers in `emit_sm.c` (~180 LOC); `rt_register_predicates_pl`
+  + `rt_pl_b_*` + `rt_pl_b_sub_*` family in `rt.c`/`rt.h` (~210 LOC); ~30 dead `xa_pl_*` scalars in
+  `emit_globals.h`. Retirements: 4 XA_PL_* opcodes kept as no-op dispatch entries (mirrors existing
+  `XA_PL_PREDICATE_REGISTRY` RETIRED pattern) — keeps enum slots stable. Emitted .s for
+  `main :- X is 1+2, write(X), nl.`: 449 → 345 lines (-23%); rt_pl_b_* calls 16 → 0;
+  rt_register_predicates_pl calls 1 → 0; bb_exec_* 0 → 0. Gates HELD: GATE-1 5/5, GATE-2 132/0,
+  GATE-3 88/107, GATE-4 4/4, Icon smoke/rungs/mode-4 unchanged, FACT RULE 0.
 
 - [ ] **V-5 — Mode 3 (`--run`) Prolog runs the C SM+BB walker, not flat x86 (AGW-1c exception).**
   `scrip.c:432/441/446` route Prolog `--run` through `sm_run_with_recovery(&s2->sm, sm_interp_run)`,
