@@ -92,12 +92,12 @@ Fast loop: `--rung rungNN` (instant) or 01-35 loop (~3s). AVOID full suite while
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `5c455663`)
+## ⚡ CURRENT WATERMARK (one4all `c352bf4d`)
 
 GATES GREEN: smoke_icon **5/5**, unified_broker **23**, icon_all_rungs **198**. Honest (interp via bb_exec.c ports). Prolog smoke unchanged (own goal). SNOBOL4 smoke 7/0.
-(2026-05-26, Opus 4.7: JA-2b part-1 — `bb_icn_to.cpp` literal-integer `lo to hi` four-port generator FILLED (`5c455663`), assembled+disassembled-verified, gates unchanged. Empirically reconfirmed Icon `--compile` emits ZERO `# BOX` banners → JA-1 is the true front. Prior session `fcfc7a73`: H-1 cross-arg odometer rungs 196→198.)
+(2026-05-26, Sonnet 4.6: JA-D-0 baseline pinned + JA-D-1 `--run` call site stubbed (`c352bf4d`). Engine B (sm_emit_linear) now has zero CLI entry points. Pre-cut mode-3 baseline: SNOBOL4 --run 10/11, Snocone --run 3/10, Icon --run RED, Prolog --run 123/123 AGW-1c unchanged. Violator grep: 192. JA-D-6 added: total annihilation of "jit"/"JIT" naming after JA-D-5 — this project does NOT do just-in-time compilation, ever.)
 
-**⛔ HANDOFF 2026-05-26 (Opus 4.7) — SESSION END.** Both repos clean + synced: one4all `5c455663`, .github `a219e272`. This session delivered: (1) JA-2b part-1 `bb_icn_to.cpp` literal generator (one4all `5c455663`); (2) JA-0 second-x86-producer inventory (.github); (3) the **ONE-PRODUCER FACT RULE** in RULES.md + FACT 5 (`06384bb1`); (4) the **JA-D cat-the-violators deletion ladder** (`b1aad3bf`); (5) the **NO-EXCEPTION per-emission template rule** (`a219e272`). ⚡ **NEXT SESSION STARTS COLD AT JA-D-0.** The eradication was NOT begun this session — deliberately: context hit ~96%, and starting to excise two interleaved engines from the 2388-line `sm_jit_interp.c` would have run out mid-cut and left a non-linking tree (the exact cheat the FACT RULE forbids). **The violator grep currently returns 192** (`grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -vE '_templates/|/emit_core\.c:'`); JA-D-5 drives it to 0. Open JA-D-0: pin reachability of both engines + capture the pre-cut mode-3 baseline (SNOBOL4 `--run`, Prolog GATE-3 run) + GET LON'S EXPLICIT OK that mode-3 corpora may go RED before cutting. `--interp` (smoke_icon 5/5, broker 23, rungs 198) must stay green throughout.)
+**⛔ NEXT SESSION STARTS COLD AT JA-D-2.** Delete the entire SB-LINEAR block from `sm_jit_interp.c`: the double `/*===*/` separator through `sm_run_linear`'s closing `}` (lines ~1759–2252), the `#define SL_B/U32/U64` macros, all `sl_*` functions, `sl_emit_one`, `sm_emit_linear`, `sm_run_linear`, `g_jit_flat_bb`. Delete `sm_run_with_recovery_linear` from `scrip_sm.c`. Remove prototypes from `sm_jit_interp.h` and `scrip_sm.h`. Keep `rt_bb_pump_proc` (Engine A still references it; deleted in JA-D-3). One commit, build links, gates green.
 
 Recent closes: G-2 RT-DELETE ladder (`f0f99035` — all 4 C four-port Byrd boxes gone, icon_box_rt.c deleted); H-1 AG foundation `lower_icn_expr_threaded` + back-to-front spine threading (`45c1bde2`); H-4 IDX_SET/SECTION γ-conflation fix; BB_CONJ split off BB_IF for `E1 & E2` (`9be28a5d`, rungs 195→196).
 
@@ -390,12 +390,12 @@ mode-3 corpus going RED is intended before committing JA-D-2/JA-D-3.
 
 ### Steps (each its own commit; build links green after every one; gates rerun)
 
-- [ ] **JA-D-0 — pin reachability + freeze the RED oracle (no code).** For each violator engine, grep its entry
+- [x] **JA-D-0 — pin reachability + freeze the RED oracle (no code).** For each violator engine, grep its entry
   and record which CLI modes/languages reach it (`sm_emit_linear`←scrip.c:449 `--run`; `SM_codegen`/
   `emit_standard_blob`←?; `sm_jit_run_steps`←?). Capture current mode-3 pass counts (SNOBOL4 --run, Prolog
   GATE-3 run, Icon --run=RED) as the pre-cut baseline so the post-cut RED is measured, not guessed. Get Lon's
   explicit OK that mode-3 corpora may go RED. Doc-only.
-- [ ] **JA-D-1 — stub the `--run` call site (scrip.c:449).** Replace `sm_emit_linear(...)` with a clean
+- [x] **JA-D-1 — stub the `--run` call site (scrip.c:449).** Replace `sm_emit_linear(...)` with a clean
   `fprintf(stderr,"[NO-SM-BB] --run: linear emitter deleted (FACT RULE); use --interp until templates land\n");
   return 1;` (RULES.md stub form). Now nothing external reaches Engine B. Build links; `--interp` untouched
   (smoke_icon 5/5, broker 23, rungs 198 stay green — those are --interp). `--run hello.icn` prints the stub line.
@@ -420,6 +420,21 @@ mode-3 corpus going RED is intended before committing JA-D-2/JA-D-3.
   sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -vE '_templates/|/emit_core\.c:'` == **0**. Build
   links; `--interp` gates green (smoke_icon 5/5, broker 23, rungs 198). Mode-3 RED is EXPECTED + recorded.
   Commit message states the scorched-earth reset explicitly (emergency-handoff form).
+- [ ] **JA-D-6 — TOTAL ANNIHILATION of "jit" / "JIT" everywhere.** This project does NOT perform just-in-time
+  compilation. It lowers to native x86 from the starting gate — whole-program, one pass, done. The word "JIT"
+  is a lie borrowed from a prior design that never shipped and every occurrence is now actively misleading.
+  Scope: ALL of `src/`, ALL of `scripts/`, ALL of `test/`, ALL header files, ALL comments, ALL identifiers,
+  ALL file names. Procedure:
+  (1) Rename files first: `sm_jit_interp.c` → `sm_codegen.c`, `sm_jit_interp.h` → `sm_codegen.h`,
+      `sm_jit_run` → rename fn, `g_jit_*` globals → `g_codegen_*` or descriptive names.
+  (2) Mass sed replace across all text: `s/sm_jit_/sm_codegen_/g`, `s/SM_JIT_/SM_CODEGEN_/g`,
+      `s/g_jit_/g_codegen_/g`, `s/jit_/codegen_/g` (in identifiers), `s/JIT/native codegen/g` (in comments),
+      `s/jit/native codegen/g` (in comments/strings), `s/SCRIP_JIT_FLAT_BB/SCRIP_FLAT_BB/g` (already dead,
+      but mop up any surviving reference).
+  (3) Update every `#include "sm_jit_interp.h"` → `#include "sm_codegen.h"`.
+  (4) Update `scripts/build_scrip.sh` and any Makefile if they reference the old filename.
+  (5) Grep verify: `grep -rnI '\bjit\b\|JIT' src/ scripts/ test/` == **0**.
+  Build links; gates green. One commit.
 - ⮕ **THEN (next phase, NOT JA-D): JA-1/J-5/J-6 rebuild** — route `--run` to load the SHARED emitter's
   template-produced bytes (`codegen_sm_x86` → emit_core dispatch → `bb_*.cpp`/`sm_*.cpp`/`xa_*.cpp`) into a
   PROT_EXEC buffer and jump in. One-instruction thunk-templates are fine as scaffolding; fill real four-port
