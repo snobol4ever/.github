@@ -59,17 +59,24 @@ static inline void    ag_ring_clear(BB_graph_t *cfg);                /* by bb_re
 **Correct order:**
 
 1. **Step 1** ✅ `64805e16` — ring fields dormant in BB_graph_t.
-2. **Step 2** ✅ `e2850a98` — chain walker pushes `cur->value` to ring after each successful step. `bb_reset` clears ring.
-3. **Step 3** ✅ `9d4d25b0` — BB_BINOP AG-pure. Works at TOP-LEVEL expression position (e.g., `lower_icn_expr_top`). Inside BB_SEQ-wrapped statement position the inner BINOP sub-expr still uses legacy α/β (which is fine because legacy BINOP works recursively and produces a correct nd->value, which the outer chain walker then pushes).
-4. **Step 4 — BB_SEQ AG-pure** ⛔ NEXT. Replace the executor's recursive stmt-dispatch loop with a γ-chain layout: stmt[i].γ = stmt[i+1].α, last_stmt.γ = NULL (chain end). BB_SEQ becomes a passthrough that just returns `nd->α` (the first stmt entry). The proc_body lowerer already builds this chain — the executor change is the trigger.
-5. **Step 5 — BB_IF**: cond.γ = BB_IF; cond.ω = BB_IF; BB_IF.γ = then.α; BB_IF.ω = else.α; then.γ/else.γ = γ_in; then.ω/else.ω = ω_in. nd->α = nd->β = NULL.
-6. **Step 6 — BB_CONJ**: left.γ=right.α; left.ω=ω_in; right.γ=apply; right.ω=left.β.
-7. **Step 7 — BB_ALT**: arm[i].ω=arm[i+1].α; arm[i].γ=γ_in; nd->counter=current arm index.
-8. **Step 8 — BB_EVERY / BB_TO / BB_TO_BY / BB_BINOP_GEN**: generator kinds. β=self (resumable).
-9. **Step 9 — BB_CALL / BB_LCONCAT / BB_SECTION / BB_IDX_SET / N-ary apply**: read peek(N-1..0).
-10. **Step 10 — DELETE** `bb_operand_aux_set/get` calls from Icon path.
+2. **Step 2** ✅ `e2850a98` — chain walker pushes `cur->value` to ring after each step (EVERY step including FAIL — needed so routing boxes like BB_IF see actual cond value via peek(0)). `bb_reset` clears ring.
+3. **Step 3** ✅ `9d4d25b0` — BB_BINOP AG-pure. lhs→rhs→apply chain, apply reads peek(1)/peek(0).
+4. **Step 4** ✅ `245ae97e` — BB_SEQ AG-pure (passthrough) + BB_FAIL terminal allocated PRE-loop and passed as initial `succ` so composite branches inheriting γ_in/ω_in end at the terminal. Chain walker honors FRAME.returning. Excluded set: BB_RETURN/BB_FAIL/BB_BREAK/BB_NEXT keep their ω as termination signal (not stmt-advance).
+5. **Step 5** ✅ `687d6694` — BB_IF AG-pure. cond.γ = cond.ω = nd_if; nd_if.γ = then.α; nd_if.ω = else.α. Executor reads peek(0) = cond value, routes via γ/ω.
+6. **Step 6** ✅ `76453c56` — BB_CONJ AG-pure. left.γ=right.α; left.ω=ω_in; right.γ=apply; right.ω=ω_in. Executor reads peek(0) = right value.
+7. **Step 7** ✅ `e8217005` — BB_ALT AG-pure. arms chained via ω (legacy already did this); arm.γ=nd_alt. Executor AG branch (nd->α==NULL) reads peek(0) = winning arm's value.
+8. **Step 8 — Generators** ⛔ NEXT. BB_EVERY / BB_TO / BB_TO_BY / BB_BINOP_GEN. β=self (resumable kinds). EVERY drives its child generator to exhaustion. Critical: generators interact with the chain walker via β resume entries, not just γ-on-success.
+9. **Step 9 — N-ary applies**: BB_CALL / BB_LCONCAT / BB_SECTION / BB_IDX_SET. Args chain via γ, last arg's γ → apply; apply reads peek(N-1..0).
+10. **Step 10 — Sidecar cleanup**: delete `bb_operand_aux_set/get` calls from Icon lower path. Sidecar struct stays for Prolog/SNOBOL4.
 
-**Failed attempt log:** Step 4-attempted-as-BB_IF on 2026-05-27 (reverted): broke smoke `if_expr` 5→4 because BB_SEQ's recursive dispatch hid BINOP's push from the ring. Lesson recorded above. Sequencer-first ordering enforced.
+**Failed attempt log:** Step-4-attempted-as-BB_IF on 2026-05-27 (reverted): smoke if_expr 5→4 because BB_SEQ's recursive dispatch hid BINOP's push from the ring. Lesson: sequencer-first ordering enforced.
+
+**Key invariants discovered during the migration:**
+- The chain walker MUST push every step (even FAIL) so routing boxes see the actual predecessor value via peek(0).
+- The fail_term must be allocated BEFORE the stmt-build loop and passed as initial succ, so composite branches at the proc's tail end at the terminal.
+- BB_RETURN / BB_FAIL / BB_BREAK / BB_NEXT must be excluded from stmt-advance ω-rewrites: their ω is a termination signal, not a CFG edge to a next stmt. Recursion will segfault otherwise.
+- The chain walker checks FRAME.returning each step and bails with g_ir_return_val (defense in depth against any BB_RETURN.ω wiring accident).
+- AG intercepts fire AT THE WRAPPER LEVEL (`lower_icn_expr_threaded_b`), not inside `lower_icn_expr_node`. Inner sub-expressions retain legacy α/β-as-tree wiring until their own kind's intercept catches them. Both shapes coexist because the chain walker treats either form as a single chain step producing one value.
 
 ### Per-step gate
 ```bash
