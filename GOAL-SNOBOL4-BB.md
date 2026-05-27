@@ -826,3 +826,124 @@ broad-corpus tests pass on the legacy PATND path that the rung suite
 doesn't even exercise.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 7) — SBL-DCG-DEFER-M4 root cause refined, fix designed, NOT IMPLEMENTED
+
+**Built on `2b68dc44`. NO COMMITS THIS SESSION.** All repos clean (working tree empty on one4all, corpus, .github). Investigation-only session.
+
+### Baselines confirmed at session start
+- GATE-1 mode-2 smoke 7/7 ✅ (mode-3 still 6 pre-existing fails — out of scope)
+- GATE-2 unified broker 24
+- GATE-3 broad corpus mode-4 174/280
+- Rung suite M2=15 M4=15 SKIP=0
+
+Matches handoff state at `2b68dc44`.
+
+### Root cause — sharper than the prior handoff hypothesis
+
+Prior handoff said: "mode-4 EXEC_STMT_VARIANT fails because `bb_build_brokered(PATND_t*)` casts a PATND through BB_t." That framing implied a **mode-4-only** problem.
+
+Probes (added to `lower_pat_dcg.c::build_node` NULL exits, `bb_exec.c case BB_PAT_DEFER`, and `sm_interp.c case SM_EXEC_STMT`) showed:
+
+1. **The same programs fail in mode-2 `--interp` too.** Tests 071/072/073/074/105/108/110 all return `fail` in interp. So this is upstream of the m2/m4 split.
+2. `BB_lower_pat` succeeds (no NULL-exit probe fired) for the failing patterns. `pat_bb` is non-NULL at `SM_EXEC_STMT`. The proper `bb_exec_pat` path runs, dispatching `BB_PAT_DEFER`.
+3. Inside `case BB_PAT_DEFER`, when the variable resolves to `val.v == DT_P` (pattern value, the common case for `*WORD` where `WORD = SPAN(&LCASE)`), the case calls `exec_stmt(NULL, &sub_d, val, NULL, 0)` to match the inner pattern.
+4. **`exec_stmt`'s DT_P branch is where the cast bug fires** (`stmt_exec.c:289-322`): `bb_build_brokered((PATND_t*)pat.p)` casts through `BB_t*`. PATND_t's first field is `XKIND_t kind` (XCHR=0, XSPNC=1, ...); BB_t's first field is `BB_op_t t` (BB_FAIL ≈ 0, BB_PAT_LIT=59, BB_PAT_SPAN=61, ...). The cast misreads the opcode and the broker emits code for the wrong kind, which fails or returns junk.
+
+Probe output for test 071 (`*WORD . V1` where `WORD = SPAN(&LCASE)`):
+```
+SM_EXEC_STMT bb_idx=0 pat_bb=0xa35c840 pat_d.v=3 sname=X    # proper BB path
+BB_DEFER WORD ival=1 val.v=3 Δ=0 Σlen=11                    # case dispatched
+  -> DT_P branch entered, calling exec_stmt sub Δ=0 sublen=11
+  exec_stmt returned ok=0                                    # buggy cast fires inside
+fail
+```
+
+So this affects BOTH modes. The next session implementing the fix should validate against m2 AND m4 broad corpus.
+
+### Designed fix — honors "ONLY BB/SM/XA templates" rule
+
+Add `BB_graph_t *patnd_to_bb_graph(PATND_t *pp)` in `lower_pat_dcg.c` — runtime PATND → BB_graph_t translator. Mirrors `build_node` (AST → BB) with PATND children instead of tree_t children. **No template code touched.** We're only correcting a runtime IR-construction path: a runtime-built PATND becomes input to a translator (parallel to how the AST is input to `BB_lower_pat`), and execution continues through the same `bb_exec_once` / mode-4 template dispatch.
+
+Per goal-file Addendum (Git history audit, 2026-05-27) the PATND→BB_op_t mapping is:
+
+| PATND kind | BB_op_t              | Notes                                  |
+|------------|----------------------|----------------------------------------|
+| XCHR       | BB_PAT_LIT           | sval = pp->STRVAL_fn                   |
+| XSPNC      | BB_PAT_SPAN          | sval = pp->STRVAL_fn; β=self           |
+| XBRKC      | BB_PAT_BREAK         | sval; ival=0                           |
+| XBRKX      | BB_PAT_BREAK         | sval; ival=1; β=self                   |
+| XANYC      | BB_PAT_ANY           | sval                                    |
+| XNNYC      | BB_PAT_NOTANY        | sval                                    |
+| XLNTH      | BB_PAT_LEN           | ival = pp->num                          |
+| XPOSI      | BB_PAT_POS           | ival = pp->num; sval = NULL             |
+| XRPSI      | BB_PAT_POS           | ival; sval = "r"                       |
+| XTB        | BB_PAT_TAB           | ival; sval = NULL                       |
+| XRTB       | BB_PAT_TAB           | ival; sval = "r"                       |
+| XFARB      | BB_PAT_ARB           | β=self                                  |
+| XARBN      | BB_PAT_ARBNO         | inner via patnd_to_bb_graph; bb_arbno_state_t in counter |
+| XSTAR      | BB_PAT_REM           |                                          |
+| XFNCE      | BB_PAT_FENCE         | child's γ → fence node; nchildren may be 0 (bare FENCE) or 1 (FENCE(inner)) |
+| XFAIL      | BB_FAIL              |                                          |
+| XABRT      | BB_PAT_ABORT         |                                          |
+| XEPS       | BB_EPS               |                                          |
+| XCAT       | BB_PAT_CAT           | variadic pp->children; right-fold like TT_CAT case |
+| XOR        | BB_PAT_ALT           | variadic; right-fold like TT_ALT case  |
+| XDSAR      | BB_PAT_DEFER         | sval = pp->STRVAL_fn; ival = 0 (direct lookup — XDSAR IS the deferred-name form) |
+| XFNME      | BB_PAT_ASSIGN_IMM    | sval = varname from pp->var; child via patnd_to_bb_graph |
+| XNME       | BB_PAT_ASSIGN_COND   | same shape as XFNME                    |
+| XVAR/XBAL/XATP/XCALLCAP | (skip in v1)  | mark NOT in current corpus               |
+
+Then modify `case BB_PAT_DEFER` in `bb_exec.c`:
+```
+if (val.v == DT_P && val.p) {
+    BB_graph_t *sub = patnd_to_bb_graph((PATND_t*)val.p);
+    if (sub && sub->entry) {
+        const char *save_Σ = Σ; int save_Σlen = Σlen; int save_Ω = Ω; int save_Δ = Δ;
+        const char *sub_str = Σ + Δ; int sub_len = Σlen - Δ;
+        DESCR_t sub_d = { .v = DT_S, .slen = (uint32_t)sub_len, .s = (char*)sub_str };
+        int ok = bb_exec_pat(sub, NULL, &sub_d, NULL, 0);
+        int matched = ok ? Δ : 0;
+        Σ = save_Σ; Σlen = save_Σlen; Ω = save_Ω; Δ = save_Δ;
+        if (!ok) { nd->value = FAILDESCR; return nd->ω; }
+        Δ += matched;
+        nd->state = 1; nd->value = NULVCL;
+        return nd->γ;
+    }
+    /* fall through to legacy exec_stmt path only if translator failed */
+    ...existing exec_stmt code...
+}
+```
+
+**Important:** keep the legacy `exec_stmt` fallback for now — `patnd_to_bb_graph` returns NULL on PATND kinds we don't support yet (XVAR/XBAL/XATP/XCALLCAP). The legacy path may still misbehave for those but they're documented as out-of-corpus.
+
+**Also:** `exec_stmt`'s OWN DT_P branch (top-level pattern dispatch when `pat_bb==NULL`) should ALSO use `patnd_to_bb_graph` as a try-first before falling back to the buggy `bb_build_brokered` cast. This will fix any remaining edge cases where AST lowering bailed out but the resulting PATND tree is translatable.
+
+### Estimate
+
+~80 LOC for the translator (one switch case per kind, GC allocations per pattern child), ~20 LOC for the two `case BB_PAT_DEFER` (bb_exec.c) and `exec_stmt` DT_P (stmt_exec.c) wiring changes. Single PR.
+
+### Expected uplift
+
+Per goal-file: ~15 broad-corpus tests (070-074, 072, 105-117). Rung suite may also pick up 056 (*PAT deref m4) finally. Verify both `--interp` and `--compile` paths after fix — same root cause affects both.
+
+### What was tried, what was not
+
+**Tried:**
+- Printf probes at `build_node` NULL exits (no fires → BB_lower_pat OK).
+- Printf probe at `case BB_PAT_DEFER` entry (case dispatched, DT_P branch entered, exec_stmt returned 0).
+- Printf probe at `case SM_EXEC_STMT` (confirmed pat_bb non-NULL, ruling out the "AST lowering bails out" hypothesis).
+- All probes reverted; working tree clean.
+
+**Not tried:**
+- Actual translator implementation (out of context budget).
+- Test against rung 056 to see if `*PAT` deref unblocks.
+- Mode-4 broad corpus rerun after fix.
+
+### Other notes
+
+- The `nd->ival` deref logic in `case BB_PAT_DEFER` (`if IS_NAMEVAL: NV_GET; else if IS_NAMEPTR: NAME_DEREF_PTR`) is a no-op for `val.v == DT_P` because those macros require `val.v == DT_N`. Either tighten the semantic (only deref if v == DT_N) or remove the check entirely — both are equivalent today. Cleanup, not a bug.
+- Mode-3 `--run` smoke 6/7 fails were already 6 at baseline; unrelated to this work.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
