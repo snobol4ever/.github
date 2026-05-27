@@ -161,16 +161,18 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 158394fb (ICN-Z-2b — RK-BB-1 still at 13cef01a in history)
-.github: HEAD (this update; RK-BB-2 scope-discovery handoff committed)
+one4all: 50370f5a (RK-BB-2 prereq — proc_table TT_SUB_DECL c[0] fallback)
+.github: HEAD (this update)
 corpus:  unchanged
 
-Gates at 158394fb (2026-05-27, Sonnet, scope-discovery session):
-  GATE-RK mode-2:  8/30   HOLD (matches RK-BB-1 watermark)
-  GATE-RK4 mode-4: 8/30   HOLD (rk_range_for, rk_forloop, rk_arith, rk_strings,
-                                rk_typed_vars, rk_unless_until, rk_vars, rk_control)
+Gates at 50370f5a (2026-05-27, Opus 4.7, prereq session):
+  GATE-RK mode-2:  8/30   HOLD
+  GATE-RK4 mode-4: 8/30   HOLD
   Smoke raku:      5/0    HOLD
-  Prolog mode-4:   1/4    HOLD
+  Smoke icon:      5/5    HOLD
+  Smoke prolog:    5/5    HOLD
+  Icon all rungs:  198/34/36 HOLD
+  Prolog mode-4:   1/4    HOLD (carried)
   GATE-PK: ⛔ harness segfault — INHERITED FROM upstream 6deb9f71 (SBL-ANY-1
            + flat-driver α-label fix). Pre-6deb9f71 baseline was 455/64/590/6.
            Owed: SBL-ANY session.
@@ -180,44 +182,47 @@ NOTE on SWITCH a[0].i: carries every-loop exit PC (mode-4 ω jmp) AND mode-2
   (bb_exec_resume self-inits an unstarted graph). Revisit only if a future
   rung needs a[0].i for a third purpose.
 
-⛔ RK-BB-2 SCOPE DISCOVERY (2026-05-27 session, Sonnet): see
-  HANDOFF-2026-05-27-RK-BB-2-SCOPE.md. The "REUSE bb_upto.cpp" line in this
-  goal undercounts the work. Concretely:
-    - bb_upto.cpp is the Icon upto(cset) string-position generator — its
-      sval/ival fields carry cset/slen. Not a generic yield/pump primitive.
-      Cannot be literally reused.
-    - BB_SUSPEND has NO x86 template — emit_core.c:532 dispatches to bb_stub.
-      A new src/emitter/BB_templates/bb_suspend.cpp must be written.
-    - lower_every (lower.c:1461) and lower_iterate (lower.c:1557) both gate
-      on `g_lang != LANG_ICN` and call lower_unhandled for Raku.
-    - lower_icn_expr_threaded_b has no TT_SUSPEND case → the hoisted
-      __gather_N proc body's bb_idx stays -1.
-  Demo of current failure: `./scrip --interp test/raku/rk_gather.raku` prints
-  "unhandled AST kinds: TT_EVERY\ndone" instead of "10\n20\n30\ndone".
-  Five-step surface area (A–E) detailed in the handoff.
+⛔ RK-BB-2 PREREQ DONE (2026-05-27, Opus 4.7): Raku TT_SUB_DECL proc_table
+  registration was BROKEN — leaf_sval set v.sval, then e->v.ival = nparams
+  clobbered the union word. polyglot.c now falls back to c[0]->v.sval (the
+  TT_VAR child). proc_count > 0 for Raku now; lower_proc_skeletons fires
+  and emits LABEL/RETURN skeletons. No counter movement — body lowering
+  for TT_SUB_DECL still needs work (lower_icn_proc_body accepts only
+  TT_PROC_DECL today).
 
-NEXT: RK-BB-2 — needs Lon decision on the two open questions below before
-  fresh-context implementation session.
-SCOPE (Lon, 2026-05-27): lazy map/grep IN; junctions IN; regex/grammar
-  SPLIT→GOAL-RAKU-PAT-BB; sort/try/scalar STAY eager SM.
+⛔ RK-BB-2 PROPER (next session): six concrete steps in
+  SESSION-2026-05-27-OPUS-RK-BB-2-PREREQ.md §"Concrete step list". Lon
+  directive (2026-05-27): 100% template emission via BB/SM/XA — Path β
+  (direct BB_SUSPEND lowering), new bb_suspend.cpp template, new bb_seq.cpp
+  if scope permits. Recommended order: loosen lower_icn_proc_body → add
+  TT_SUSPEND case → widen lower_every → bb_suspend.cpp → wire emit_core →
+  fix sm_bb_switch BB_SEQ-rooted graph handling. Each step independently
+  gate-able.
+
+NEXT: RK-BB-2 step 1 (loosen lower_icn_proc_body for TT_SUB_DECL).
 ```
 
 ## Open questions for Lon
 
-1. `lower_gather_hoist_pass`: retarget `__gather_N` sub output to feed the
-   Seq box (Path α, lower-risk), or replace the pass with direct `BB_SUSPEND`
-   lowering (Path β, cleaner BB graph)? See HANDOFF-2026-05-27-RK-BB-2-SCOPE.md
-   §"Concrete surface area" for the tradeoff.
-2. **`bb_upto.cpp` REUSE** — does "REUSE bb_upto.cpp" in the RK-BB-2 step
-   mean (a) literal reuse (won't work — it's the Icon `upto(cset)` template
-   with cset/slen payload), or (b) use its loop+yield structure as the
-   reference for a new `bb_suspend.cpp` template? Answer determines whether
-   RK-BB-2 is a small wire-up or a full new template.
-3. Junction Boolean-collapse: port policy in shared `BB_ALTERNATE` (guarded
-   `lang==BB_LANG_RKU`), or SM wrapper opcode? Determines whether RK-BB-4
-   touches a shared template.
-4. GOAL-RAKU-PAT-BB (regex/grammar): stub sibling now, or defer until
-   SNOBOL4-BB and PROLOG-BB land more rungs (it reuses their `BB_SCAN`/`BB_ONCE`
-   machinery)?
+ALL FOUR RESOLVED (2026-05-27, Lon): 100% template emission via BB/SM/XA only.
+
+1. ~~`lower_gather_hoist_pass` retarget (Path α) vs replace (Path β)?~~
+   **→ Path β** (direct BB_SUSPEND lowering — cleaner BB graph; eager-SM
+   intermediate would need unwinding later).
+2. ~~`bb_upto.cpp` REUSE — literal vs structural?~~ **→ Structural.**
+   Write new `bb_suspend.cpp` using `bb_upto.cpp`'s loop+yield as reference.
+3. ~~Junction Boolean-collapse — shared `BB_ALTERNATE` guard vs SM wrapper?~~
+   **→ Shared `BB_ALTERNATE` with `lang==BB_LANG_RKU` guard.** Port logic
+   belongs in the template.
+4. ~~GOAL-RAKU-PAT-BB — stub now vs defer?~~ **→ Defer.** Wait for
+   SNOBOL4-BB and PROLOG-BB BB_SCAN/BB_ONCE machinery to mature.
+
+NEW open item (deferred to a separate session):
+
+5. **Union-clobber proper fix.** TT_SUB_DECL currently uses `v.ival` for
+   nparams AND wants `v.sval` for name. Move nparams to a side-channel
+   (leading TT_VLIST child, TT_ATTR, or separate tree_t field) so
+   `v.sval = name` semantics is restored, and retire the polyglot.c c[0]
+   fallback. Touches every TT_SUB_DECL reader.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
