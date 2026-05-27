@@ -14,7 +14,7 @@ boundary). Do NOT spend a session round-tripping mode-4 binaries while mode 2/3 
 
 ---
 
-## ⚡ CURRENT WATERMARK (one4all `7bfd1178` + uncommitted)
+## ⚡ CURRENT WATERMARK (one4all `3a522bd8` — pushed 2026-05-27, Opus 4.7 session; rebased onto upstream Prolog AGW-9A `701403cb`)
 
 GATES: smoke_icon **5/5** ✅ · broker **23** · icon_all_rungs **198** ✅ · smoke_prolog **5/5** ✅
 (2026-05-26, Opus 4.7: every-loop control ports FLAT-WIRED per ir_a_Every — `gen.γ→body`,
