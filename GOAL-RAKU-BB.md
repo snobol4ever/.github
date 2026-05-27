@@ -219,17 +219,69 @@ wrong — fix the BB graph, not the runtime.
     8→9 (+rk_str22), GATE-RK4 9→10 (+rk_str22). All smokes hold. FACT
     RULE clean. 100% template emission preserved.
 
-  - [ ] **RK-BB-3a** (substrate) — extend `bb_iterate.cpp` for Raku's
-    \x01-string arrays. Polymorphic on the source DT (DT_S Icon `!"abc"`
-    stays bit-identical char-by-char; DT_S Raku-array \x01-scan yields
-    each substring between SOHs). Discriminator at α-time: a `lang`
-    field on `pBB` distinguishes the two semantics. Mode-2 executor
-    bb_exec.c:2227 likewise polymorphic.
-    Lowering: `lower_iterate` Raku branch builds BB graph wrapping
-    BB_ITERATE with the array variable as α-operand, wraps in
-    SM_BB_SWITCH(SM_BBSW_RK_GEN). `lower_every` finds the SWITCH and
-    engages the loop scaffold. Loop var stored on γ pull.
-    Gate: rk_for_array_simple flips green at mode-4 once 3.0 also lands.
+  - [~] **RK-BB-3a** (mode-2 ✅, mode-4 WIP, 2026-05-27, Opus 4.7) —
+    `for @arr -> $v` polymorphism for `BB_ITERATE`. **Mode-2 GREEN; +2
+    gate wins (rk_for_array_simple + rk_for_array).** Decomposition:
+
+    **Lowering** (lower.c): `lower_raku_iterate_arr(arr_vname)` builds
+    a 1-node BB graph — `BB_ITERATE`, `sval=intern(arr_vname)`,
+    `cfg->lang=BB_LANG_RKU`, α/β self-loop, γ/ω NULL (patched by
+    scaffold). `lower_every` widened: pattern-matches
+    `TT_EVERY(TT_ITERATE(TT_VAR(arr), sval=$v), body)` ahead of the
+    generic scaffold; emits SM_BB_SWITCH(RK_GEN, bb_idx), JUMP_F → exit,
+    `emit_var_store($v)` on γ-yield, lower_expr(body), JUMP back to
+    SWITCH, patches exit, stamps `a[0].i=exit_pos`. Mirrors
+    `lower_for_range` pattern (RK-BB-1's BB_TO_BY scaffold).
+
+    **Discriminator**: `BB_t.sval` presence (no new BB_t fields per
+    PEERS RULE). Raku sets `sval=arr_vname`; Icon's legacy path stays
+    `sval=NULL`. `cfg->lang` carried but not accessed from templates
+    (no cfg back-pointer per PEERS RULE).
+
+    **Mode-2** (bb_exec.c BB_ITERATE): sval-polymorphic case branches
+    before the legacy α-as-operand-box code. Raku branch fetches source
+    via `NV_GET_fn(nd->sval)` on EVERY call (re-fetch, not cache —
+    `nd->value` is the yielded-segment return slot, not a source cache).
+    Walks counter as byte-offset; scans for `\x01`; yields substring as
+    fresh GC-allocated DT_S; advances counter past separator (end+1).
+    Exhaustion (counter ≥ slen) → ω. Icon legacy path untouched.
+
+    **Mode-4** (bb_iterate.cpp): Raku MEDIUM_TEXT arm authored. .data
+    slots: `.Liter<id>_name: .asciz "<vname>"` + `.Liter<id>_cnt: .quad
+    0`. α resets counter, jmp load. β falls through to load (counter
+    already advanced). load: `call NV_GET_fn@PLT` → DESCR_t in
+    `rax:rdx` per SysV ABI (≤16-byte struct); `mov rsi,rax; shr rsi,32`
+    extracts slen; `mov r10,rdx` saves base ptr; bounds check vs counter
+    `jge ω`. scan: walks `rcx` looking for `\x01` byte or slen end.
+    send: computes `r8=seg_len`, `r11=seg_start_ptr`; advances counter
+    to `end+1`; `mov rdi=r11, rsi=r8; call rt_push_str@PLT; jmp γ`.
+    **100% template emission** — only conversion/effect helpers
+    (NV_GET_fn, rt_push_str) via @PLT; all port-logic inline x86.
+    FACT RULE clean (no seg_byte/SL_B/sl_emit_one/emit_standard_blob).
+
+    **Mode-4 known issue (blocks `rk_for_array_simple` mode-4 PASS):**
+    in the full program, `NV_GET_fn("x")` returns NULVCL (slen=0) at
+    the BB_ITERATE body, even though `push(@x,...)` mutators correctly
+    populate `_var_buckets["x"]` and `say(@x)` reads the populated
+    value. **Isolated asm test** (gcc-compiled standalone with the
+    exact instruction sequence) yields 3 segments correctly. So the
+    asm logic is verified — the issue is at the wrapper/program level.
+    Hypotheses for next session:
+      (a) Section-switch fall-through: `.section .data` slots are
+          embedded between `.Licngen<n>_fresh:` and `.Licngen<n>_α:`;
+          assembler may be misplacing the fall-through.
+      (b) Name mismatch: my `.asciz "x"` from `pBB->sval` vs `.S2:
+          .string "x"` used by `PUSH_VAR` — unlikely lexically identical
+          but worth a binary check.
+      (c) Scope/timing: `_var_buckets` may be cleared/reset between
+          the push calls and the BB_ITERATE entry.
+    Recommendation: `objdump -d` on the linked binary; print the
+    `_var_buckets[hash("x")]->val.slen` from a small custom debug
+    helper called right before `NV_GET_fn`.
+
+  - [ ] **RK-BB-3a-mode4-debug** — root-cause + fix the slen=0 bug in
+    the full-program mode-4 path. Once green, RK-BB-3a closes; mode-4
+    flips +2 (rk_for_array_simple + rk_for_array, mirroring mode-2).
 
   - [ ] **RK-BB-3b/c** — map/grep as Seq consumers. Once 3a's polymorphic
     BB_ITERATE exists, lazy map = `BB_ITERATE(@arr)` → γ-side block runs
@@ -328,13 +380,14 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 7a60d30e (RK-BB-3.0b GAP 2 — push/pop/arr_set mutators; +1 mode-2 +1 mode-4)
-.github: HEAD (handoff — RK-BB-3.0b landed; RK-BB-3a next: BB_ITERATE polymorphism for `for @arr -> $v`)
+one4all: 706e2828 (RK-BB-3a partial — mode-2 + mode-3 polymorphism; +2 mode-2 +2 mode-3; mode-4 template authored)
+.github: HEAD (handoff — RK-BB-3a partial; mode-4 blocked on slen=0 NV_GET issue)
 corpus:  unchanged
 
-Gates at 7a60d30e (2026-05-27, Opus 4.7, RK-BB-3.0a + RK-BB-3.0b landed):
-  GATE-RK mode-2:  10/31  (cumulative +2: rk_str22 + rk_arrays)
-  GATE-RK4 mode-4: 11/31  (cumulative +2: rk_str22 + rk_arrays)
+Gates at RK-BB-3a partial (2026-05-27, Opus 4.7):
+  GATE-RK mode-2:  12/31  (cumulative +4 from baseline 8: rk_str22, rk_arrays, rk_for_array_simple, rk_for_array)
+  Mode-3 (--run):  12/31  (matches mode-2; bb_exec.c polymorphism serves both — SBL-MODE3-REACTIVATE 380b4683 made --run live again this session)
+  GATE-RK4 mode-4: 11/31  (cumulative +2 from baseline 9: rk_str22, rk_arrays — RK-BB-3a mode-4 not yet flipping; see blocker below)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
@@ -342,6 +395,112 @@ Gates at 7a60d30e (2026-05-27, Opus 4.7, RK-BB-3.0a + RK-BB-3.0b landed):
   GATE-PK: ⛔ harness segfault — INHERITED. Owed: SBL-ANY session.
   FACT RULE grep:  0
   Build:           clean
+
+⛔ RK-BB-3a partial ✅ (mode-2) + ⚠ (mode-4 blocked) — 2026-05-27, Opus 4.7:
+
+THREE FILES TOUCHED (+242/-50 across):
+  (1) src/lower/lower.c (+54): lower_raku_iterate_arr(arr_vname) builds
+      a single-node BB graph with BB_ITERATE, sval=intern(arr_vname),
+      cfg->lang=BB_LANG_RKU. α/β self-loop; γ/ω left NULL for scaffold.
+      lower_every widened: when LANG_RAKU and gen_expr is
+      TT_ITERATE(TT_VAR(arr), sval=$v) — emit SM_BB_SWITCH(RK_GEN,
+      bb_idx); JUMP_F→exit; emit_var_store($v); body; JUMP→SWITCH;
+      patch exit; stamp a[0].i=exit_pos. Mirrors lower_for_range
+      (RK-BB-1 pattern).
+
+  (2) src/lower/bb_exec.c (+39): BB_ITERATE case sval-polymorphic.
+      Raku branch (sval != NULL) fetches via NV_GET_fn EVERY call
+      (re-fetch, not cache — nd->value is the yielded-segment return
+      slot). Walks counter as byte-offset; scans for \x01 byte; yields
+      GC-allocated DT_S substring; advances counter past separator.
+      Exhaustion → ω. Icon legacy α-as-operand-box path untouched.
+
+  (3) src/emitter/BB_templates/bb_iterate.cpp (+150 net): Raku
+      MEDIUM_TEXT arm authored. .data slots: .Liter<id>_name (asciz)
+      + .Liter<id>_cnt (.quad 0). α resets counter, jmp load. β falls
+      through to load. load: call NV_GET_fn@PLT → DESCR_t in rax:rdx
+      per SysV ABI struct-≤16 convention; mov rsi,rax; shr rsi,32 →
+      slen; mov r10,rdx → base ptr; bounds check vs counter; jge ω.
+      scan: rcx walks looking for \x01 or slen; r9 = seg start. send:
+      r8 = seg_len; r11 = seg_ptr; counter++; call rt_push_str@PLT
+      (rdi=ptr, rsi=len); jmp γ. 100% template emission. Legacy Icon
+      path preserved as dead code (still broken: "inc qword ptr [rax],"
+      trailing comma + r12-direct in --compile — kept for shape
+      compatibility, NOT reached today since Icon !E lowers via
+      BB_LIST_BANG).
+
+VERIFIED:
+  - Mode-2 rk_for_array_simple byte-exact to .expected (10\n20\n30\n).
+  - Mode-2 rk_for_array flips green too.
+  - All sibling smokes (icon, prolog, raku, broker) HOLD.
+  - FACT RULE grep: 0 call-sites.
+  - Isolated mode-4 asm test (gcc-compiled standalone with exact
+    instruction sequence from template) yields 3 segments + ω cleanly.
+
+⛔ MODE-4 BLOCKER — slen=0 from NV_GET_fn at full-program runtime:
+
+Debug instrumentation (added then removed) confirmed:
+  - α fires; load fires; NV_GET_fn("x") returns DESCR_t with slen=0.
+  - Same program, when it executes `say(@x)` AFTER the push() calls
+    and BEFORE the for-loop, prints "10\x0120\x0130" — proving
+    _var_buckets["x"] is correctly populated at that point.
+  - The mutators DO populate (verified with rk_dbg programs).
+  - The isolated standalone asm test (same instruction sequence,
+    manually-populated _var_buckets["x"]) yields all 3 segments
+    correctly via NV_GET_fn → bounds-check → scan → rt_push_str.
+
+So the failure is at the wrapper-level, not the template-asm level.
+HYPOTHESES (ordered by plausibility) for next session:
+
+  (1) SECTION-SWITCH FALL-THROUGH BUG. The SM_BB_SWITCH wrapper
+      emits its own .section .data block for the entry-flag byte
+      (.Licngen0_ent), then .section .text. My α template body
+      ALSO emits .section .data (for name + counter slots) then
+      .section .text + .intel_syntax noprefix. The fall-through
+      path from .Licngen0_fresh: → .Licngen0_α: crosses TWO
+      section-switch pairs. If gas's section-tracking gets confused
+      and the byte after `mov byte ptr [rax], 1` lands in .data
+      instead of .text, the CPU executes garbage. Check via
+      objdump -d to confirm reachability.
+
+  (2) NAME LOOKUP MISMATCH. My .Liter<id>_name: .asciz "x" vs the
+      .S<n>: .string "x" used by PUSH_VAR. Both should be identical
+      ("x" stripped of @-sigil at Raku-parse time). Verify with
+      objdump -s -j .data; compare addresses of both labels' bytes.
+
+  (3) NV_GET_fn called too early — relative ordering of α-body vs
+      preceding pushes' CALL_FN macros. Unlikely (SM_BB_SWITCH PC=23
+      is well after push CALL_FNs at PC=11,16,21) but objdump will
+      confirm.
+
+  (4) Calling-convention rare-edge: NV_GET_fn returns DESCR_t via
+      `rax:rdx`. My `shr rsi, 32` after `mov rsi, rax` should extract
+      slen. The isolated test verifies this works. But maybe in the
+      full binary, NV_GET_fn's @PLT entry resolves to a different
+      function than the standalone test? Unlikely but verifiable
+      via objdump on the import table.
+
+RECOMMENDED NEXT SESSION FIRST MOVES (10-15 min triage):
+  a. Build the rk_for_array_simple binary.
+  b. `objdump -d` it; locate .Licngen0_α; verify fall-through path
+     from .Licngen0_fresh is clean text.
+  c. `objdump -s -j .data` to see the .Liter*_name slot byte contents.
+  d. Add a printf-style debug call WITH stack-alignment via the
+     rt_pl_write_atom@PLT pattern (already verified in this session's
+     instrumentation — the call works, just unable to figure out
+     the post-NV_GET state).
+  e. Or: add a one-time rt_* debug helper (rt_raku_iter_probe(name))
+     that dumps the bucket contents — easier than asm debugging.
+
+OPEN: RK-BB-3a-mode4-debug. Once green, RK-BB-3a closes; mode-4
+flips +2 (rk_for_array_simple + rk_for_array, mirroring mode-2).
+Then RK-BB-3b/c (lazy map/grep) is the next rung — needs the
+polymorphic BB_ITERATE substrate this rung establishes.
+
+⛔ END RK-BB-3a partial HANDOFF
+
+⛔ PRIOR HANDOFFS RETAINED FOR HISTORY: 3.0b, 3.0a, 3.0+3d infra,
+   RK-BB-2 below.
 
 ⛔ RK-BB-3.0b ✅ COMPLETE (2026-05-27, Opus 4.7, one4all 7a60d30e):
 
