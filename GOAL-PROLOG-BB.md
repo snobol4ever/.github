@@ -28,7 +28,7 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`6cf5a429`, post-arith-fixes)
+## State at HEAD (`3c384e25`, post-CAT-D-format)
 
 | Gate | Count | Notes |
 |---|---|---|
@@ -37,7 +37,7 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 | GATE-3 mode-2 (`--interp`) | **91/107** | stable since CAT-D-12-S1 |
 | GATE-3 mode-3 (`--run`) | 90/107 | transparent via sm_interp_run |
 | GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt |
-| **Full mode-4 corpus** | **48/107** | +20 since CAT-D-11 (28); +8 this session |
+| **Full mode-4 corpus** | **53/107** | +25 since CAT-D-11 (28); +13 this session |
 | FACT RULE grep | 0 | full compliance |
 | `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix held |
 
@@ -195,7 +195,6 @@ Open families:
   needs dedicated template path (emit goal sub-graph inline or route through `sm_interp_run`).
 - **`retract/1` `retractall/1`** (rung14, 5 tests) — mode-2 arm exists, mode-4 emit gap.
 - **`abolish/1`** (rung15, 4 tests) — PL_BI_CHAIN_ABOLISH wired in lower_pl, emit gap.
-- **`format/1` `format/2`** (rung19, 5 tests) — mode-2 model `pl_runtime.c:1223`.
 - **`numbervars/3`** (rung20, 5 tests)
 - **`char_type/2`** (rung21, 4 tests)
 - **`writeq/1` `write_canonical/1` `print/1`** (rung22, 4 tests)
@@ -299,13 +298,16 @@ ceiling/floor/`\`/msb), all 12 comparison ops (CAT-D-9/9b), functor/arg/=.. (CAT
 type-tests (CAT-D-10), atom_length/upcase/downcase (CAT-D-1), atom_concat/string_* (CAT-D-2/3),
 atom_string/string_to_atom (CAT-D-4), copy_term (CAT-D-5), atom_chars/atom_codes/string_chars/
 string_codes (CAT-D-6), write(compound) (CAT-D-7), if-then-else (CAT-D-8), sort/msort (CAT-D-11),
-**succ/2 + plus/3** (PROLOG-BB-arith-fixes `6cf5a429`), BB_CUT (CAT-RUNG07-1).
+**succ/2 + plus/3** (PROLOG-BB-arith-fixes `6cf5a429`), **format/1 + format/2** (CAT-D-format
+`3c384e25`), BB_CUT (CAT-RUNG07-1).
 
 **Mode-2 only (mode-4 emit gap):** findall, atomic_list_concat, term_to_atom (forward),
-term_string (forward), atom_number, format, numbervars, writeq, write_canonical, print,
+term_string (forward), atom_number, numbervars, writeq, write_canonical, print,
 retract, retractall, abolish, assertz/asserta (directive fold).
 
 **Recent fixes (top-of-cycle):**
+- `3c384e25` Opus 4.7 — CAT-D-format: format/1 + format/2 mode-4 emit. Two-path (scalar /
+  compound args1). Mode-4 corpus 48→53 (+5). rung19 0/5→5/5.
 - `6cf5a429` Opus 4.7 — arith `**` prefix clash fix, unary arith mode-4, succ/2 + plus/3 mode-4.
   Mode-4 corpus 40→48 (+8). rung18 0/5→5/5; rung23 ext 3/5→5/5.
 - `b1e27f56` Sonnet 4.6 — rt_pl_arith bitwise/shift/max/min/mod/rem/power.
