@@ -396,3 +396,171 @@ CP record. Buffer-in-isolation γ-leak and cut gaps resolved by the stack model 
 
 **SNOBOL4 BB infrastructure (cross-cutting):** SBL-FN-RET/ARGS/EXEC-PATD/PAT-BLOB/IDX ✅;
 SBL-PAT-PRIM ✅ (TAB still open); SBL-M4-ASM ✅ (mode-4 broad corpus 0→126); SBL-M4-OPDISPATCH ✅.
+
+---
+
+## ⏳ SWI-PLUNIT — SWI conformance test suite integration (CURRENT TRACK)
+
+**Goal:** Drive `scripts/test_prolog_swi_suite.sh` from 0% → ≥80% coverage across all 9 SWI test
+files (57 suite-lines). All gates: mode-2 first, then crosscheck mode-3, mode-4 where applicable.
+
+**Baseline (2026-05-28 Sonnet 4.6, `8c556f29`):**
+Suite coverage: **0/57 (0%)**. Three-mode baseline: mode-2=104/107, mode-3=104/107, mode-4=54/107.
+Root causes of 0/57: (A) `begin_tests`/`end_tests` directives silently dropped by `lower.c` →
+test registration never happens; (B) `test/2` clauses never register in `pj_test/4` (no
+term_expansion equivalent — `clause/2` needed); (C) `:- if/else/endif` conditional compilation
+not implemented; (D) bare `Var==Val` option form in `test(Name, Var==Val) :- Body` not normalised
+to `[true(Var==Val)]`; (E) `pj_run_suite` false-positive PASS when 0 tests run (SF=:=0 check).
+
+**Three-mode rule (applies to every SWI rung and gate):** run `--interp` (mode-2), `--run`
+(mode-3), and `--compile --target=x86` (mode-4) on every program. Mode-3 must agree with mode-2.
+Mode-4 allowed to report SKIP (not FAIL) when a builtin is unimplemented.
+Commit message format: `Gate-SWI mode-2=X/Y mode-3=X/Y mode-4=X/Y`.
+
+### SWI-1 — Fix directive execution: `begin_tests`/`end_tests` call at load time
+
+**Problem:** `lower.c` hits the "unrecognized directive" path for `:- begin_tests(Suite).` and
+`:- end_tests(Suite).`, emitting a `[NO-AST]` stderr breadcrumb and doing nothing. Result: no
+suite is registered, `run_tests` finds an empty table, 0 PASS/FAIL lines output, 0/57 match.
+
+**Fix:** In the `lower.c` `LANG_PL` unrecognized-directive branch (around line 2097, the `else if
+(subject && subject->t == TT_FNC ...)` block that currently only prints `[NO-AST]` and drops),
+add a whitelist before the `fprintf`. Pattern mirrors the `initialization` arm: build the key
+string, emit `SM_BB_PL_INVOKE(key, arity)` so the call fires at load time.
+Whitelist: `begin_tests/1`, `begin_tests/2`, `end_tests/1`, `dynamic/1` (dynamic/2 as needed),
+`use_module/1`, `use_module/2`, `module/2`, `ensure_loaded/1` — all are no-ops or registrations
+in `plunit.pl` and are safe to call.
+
+**Gate SWI-G1:** `bash scripts/test_prolog_swi_suite.sh --file test_list` produces
+`PASS test_list 1/1`. (test_list has a single `begin_tests(memberchk,[])` block — simplest case.)
+
+- [ ] **SWI-1a:** Add directive whitelist to `lower.c`. Build + verify `[NO-AST]` gone for
+  `begin_tests`/`end_tests`. Run SWI-G1. Run all three modes.
+- [ ] **SWI-1b:** Extend whitelist to `dynamic/1`. Run full `test_prolog_swi_suite.sh`.
+  Record new GATE-SWI baseline (mode-2, mode-3, mode-4).
+
+### SWI-2 — Fix `test/2` clause registration via `clause/2`
+
+**Problem:** `test(Name, Opts) :- Body` is registered by our parser as a normal predicate
+`test/2`. SWI uses `term_expansion` to convert these to `assertz(pj_test(Suite,Name,Opts,Body))`.
+We have no term_expansion. `pj_test/4` stays empty → `findall(t(N,O,G), pj_test(S,N,O,G), [])`
+→ 0 tests run → false-positive PASS (issue E above).
+
+**Fix:** Replace `findall(t(N,O,G), pj_test(Suite,N,O,G), Tests)` in `pj_run_suite` with
+`findall(t(N,O,G), clause(test(N,O),G), Tests)`. This uses `clause/2` to enumerate the bodies
+of `test/2` clauses directly from the predicate table — no assertz needed. Requires:
+1. Implement `clause/2` in `bb_exec.c` mode-2: look up `pl_bb_table` for the functor, enumerate
+   clause bodies by walking `zc->bodies[]` and materialising head unification + body as term.
+2. Update `plunit.pl` `pj_run_suite` to call `clause(test(N,O),G)`.
+3. Add `test/1` normaliser: `test(Name) :- Body` (no opts) treated as `test(Name,[]) :- Body`.
+
+**Gate SWI-G2:** `bash scripts/test_prolog_swi_suite.sh --file test_list` shows actual test body
+running — `X==y` check fires, `memberchk` binds correctly, `match=1/1`. All three modes.
+
+- [ ] **SWI-2a:** Implement `clause/2` mode-2 in `bb_exec.c`. Gate: `clause(append([],L,L),true)`
+  succeeds; `clause(append([H|T],L,[H|R]),Body)` returns the body term.
+- [ ] **SWI-2b:** Update `plunit.pl` `pj_run_suite` to use `clause(test(N,O),G)` enumeration.
+  Add `test/1` normaliser. Run SWI-G2. Record new GATE-SWI baseline (all three modes).
+
+### SWI-3 — Normalise bare `Var==Val` option form in `test/2` heads
+
+**Problem:** Many test clauses use a bare comparison as the options argument (not a list):
+`test(arith_1, A == 10) :- A is 5+5.`
+SWI normalises to `[true(A==10)]` via term_expansion. Our `pj_run_one` only handles list forms.
+
+**Fix in `plunit.pl`:** Add `pj_norm_opts/2` and call it in `pj_run_tests` before dispatch:
+```prolog
+pj_norm_opts(fail,     [fail])    :- !.
+pj_norm_opts(false,    [fail])    :- !.
+pj_norm_opts(true,     [])        :- !.
+pj_norm_opts(X==Y,     [true(X==Y)]) :- !.
+pj_norm_opts(X=:=Y,    [true(X=:=Y)]) :- !.
+pj_norm_opts(L,        L)         :- is_list(L), !.
+pj_norm_opts(X,        [X]).
+```
+
+- [ ] **SWI-3a:** Add `pj_norm_opts/2` to `plunit.pl`. Call in `pj_run_tests` before dispatch.
+  Verify `test(arith_1, A==10) :- A is 5+5.` passes. Run `test_arith`. Record new baseline.
+
+### SWI-4 — Implement `:- if/else/endif` conditional compilation
+
+**Problem:** `test_arith.pl` has 9 `:- if(current_prolog_flag(bounded,false)).` blocks. We skip
+these directives, so the bigint/rational clauses inside are always compiled even though
+`bounded=true` in scrip. Those tests then fail at runtime.
+
+**Fix in `lower.c`:** Add conditional-compilation state: `g_pl_if_depth` (nesting depth) and
+`g_pl_if_skip` (>0 = suppressing). Add to directive whitelist:
+- `:- if(Cond)` — evaluate `Cond` statically (only `current_prolog_flag(F,V)` needed, matched
+  against the same table as `current_prolog_flag/2` in `pl_runtime.c`); if false increment both
+  depth and skip; if true increment depth only.
+- `:- else` — at depth 1: toggle skip (false↔true). At depth>1: no-op.
+- `:- endif` — decrement depth; if depth reaches 0 clear skip.
+When `g_pl_if_skip > 0`: suppress all clause registration (`goto emit_gotos`) and directive
+emission (`goto emit_gotos`) — exact same effect as the old `[NO-AST]` skip but intentional.
+
+- [ ] **SWI-4a:** Add `g_pl_if_skip`/`g_pl_if_depth` globals + `if/1`, `else/0`, `endif/0`
+  handling to `lower.c`. Test: `test_arith.pl` bigint blocks skipped. Run full suite.
+- [ ] **SWI-4b:** Verify all three modes agree after conditional-compilation fix. Record baseline.
+
+### SWI-5 — Fix `pj_run_suite` false-positive PASS on 0 tests
+
+**Problem:** `pj_suite_verdict(Suite, SF)` prints `PASS` when `SF=:=0` regardless of whether
+any tests ran. After SWI-1 fixes directive firing, a suite with no `test/2` clauses (or whose
+clause/2 enumeration returns []) will still print `PASS`. This masks missing test bodies.
+
+**Fix in `plunit.pl`:** Track test count `pj_tc` (nb_setval). Increment in `pj_run_tests`. Change
+`pj_suite_verdict` to: print `PASS` only if `TC > 0 && SF =:= 0`; print `EMPTY` if `TC =:= 0`.
+Update `.ref` files if any currently-expected `PASS` becomes `EMPTY` for genuinely empty suites.
+
+- [ ] **SWI-5a:** Add `pj_tc` counter to `plunit.pl`. Update `pj_suite_verdict`. Update any
+  `.ref` files for suites that genuinely have no test bodies. Verify no regression. All 3 modes.
+
+### SWI-6 — Per-suite 3-mode rung scripts
+
+Each SWI test file gets its own rung script running mode-2, mode-3, and mode-4. Mode-4 marks
+individual tests SKIP (not FAIL) when a required builtin is missing.
+
+- [ ] **SWI-6a:** `scripts/test_prolog_swi_rung_list.sh` — mode-2/3/4 for `test_list` (1 suite).
+- [ ] **SWI-6b:** `scripts/test_prolog_swi_rung_misc.sh` — mode-2/3/4 for `test_misc` (1 suite).
+- [ ] **SWI-6c:** `scripts/test_prolog_swi_rung_exception.sh` — mode-2/3/4 (2 suites).
+- [ ] **SWI-6d:** `scripts/test_prolog_swi_rung_string.sh` — mode-2/3/4 (2 suites).
+- [ ] **SWI-6e:** `scripts/test_prolog_swi_rung_term.sh` — mode-2/3/4 (5 suites).
+- [ ] **SWI-6f:** `scripts/test_prolog_swi_rung_bips.sh` — mode-2/3/4 (6 suites).
+- [ ] **SWI-6g:** `scripts/test_prolog_swi_rung_call.sh` — mode-2/3/4 (9 suites).
+- [ ] **SWI-6h:** `scripts/test_prolog_swi_rung_dcg.sh` — mode-2/3/4 (5 suites).
+- [ ] **SWI-6i:** `scripts/test_prolog_swi_rung_arith.sh` — mode-2/3/4 (26 suites; largest).
+- [ ] **SWI-6j:** Add `GATE-SWI` entry to `test_prolog_rung_suite.sh` aggregating all SWI rung
+  scripts. Target ≥80% per suite, ≥80% overall.
+
+### SWI-7 — Gap-fill: builtins needed by SWI suites
+
+Audit each SWI file for predicates returning `existence_error`. Add mode-2 arms in `bb_exec.c`
+and (where feasible) mode-4 templates in `bb_builtin.cpp`. Priority by tests unlocked:
+
+- [ ] **SWI-7a:** `clause/2` — needed by SWI-2; also unlocks `test_call` `call1` suite. (SWI-2a)
+- [ ] **SWI-7b:** `variant/2` (`=@=`) debug — `test_term` `variant` suite shows `FAIL variant`
+  in `.ref`. `=@=` defined in `plunit.pl` via `numbervars`. Trace why it fails for shared vars.
+- [ ] **SWI-7c:** `char_type/2` — needed by `test_bips`. Mode-2 arm. 4 tests.
+- [ ] **SWI-7d:** `succ_or_zero/2` corpus gap — add `.pl` definition to rung27 corpus. 1 test.
+- [ ] **SWI-7e:** `read_term/2`, `term_to_atom/2` direction B — needed by `test_term`.
+- [ ] **SWI-7f:** `string_to_atom/2` reverse — needed by `test_string`.
+
+### SWI-8 — Extend `test_prolog_swi_suite.sh` for 3-mode output
+
+Currently runs only `--interp`. Extend to run all three modes in sequence.
+
+- [ ] **SWI-8a:** Add outer mode loop to `test_prolog_swi_suite.sh`. Print separate `[mode-2]`,
+  `[mode-3]`, `[mode-4]` sections. Gate: mode-3 agrees with mode-2; mode-4 ≥50%.
+
+---
+
+## 📊 Gate table (current — `8c556f29`)
+
+| Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
+|---|---|---|---|---|
+| GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5/5 ✅ | |
+| GATE-2 crosscheck | 132/0 ✅ | (part of G2) | n/a | |
+| GATE-3 rung suite | **104/107** | **104/107** | **54/107** | |
+| GATE-4 mode-4 minimal | 4/4 ✅ | n/a | 4/4 ✅ | |
+| GATE-SWI plunit suite | **0/57** | **0/57** | **0/57** | SWI-1..8 target ≥80% |
+| FACT RULE grep | 0 ✅ | — | — | |
