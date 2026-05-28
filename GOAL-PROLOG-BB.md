@@ -26,6 +26,91 @@
 
 ---
 
+## ✅ CAT-B — COMPOUND-TERM UNIFY (BB_UNIFY MODE-4) (2026-05-27, Opus 4.7)
+
+**Closed.** `f(X, a) = f(b, Y)` now binds X=b, Y=a in mode-4 (previously printed `_ _`).
+Compound operands of `BB_UNIFY` are materialized as full `Term*` trees via the existing
+`emit_build_compound_term` post-order walker (CAT-D-9b precedent) instead of falling through
+`rt_pl_node_to_term`'s `default: term_new_int(ival)` arm, which had been returning the arity as
+an integer rather than the actual compound.
+
+**Files touched:**
+- `src/emitter/BB_templates/bb_builtin.cpp` — 1-character delete: `static std::string
+  emit_build_compound_term` → `std::string emit_build_compound_term`. Plus one comment line
+  documenting the de-staticization for cross-template linkage. No behavioral change to the
+  walker itself; it remains the same post-order Term*-tree builder used by CAT-D-9b's
+  `==/\\==/@</@>/@=</@>=`, CAT-D-10's type-tests, CAT-D-12-S2's functor/arg/=.. — and now
+  BB_UNIFY too.
+- `src/emitter/BB_templates/bb_unify.cpp` — three changes:
+  1. `extern std::string emit_build_compound_term(const BB_t *)` forward declaration.
+  2. New static dispatcher `build_operand_term(nd, lbl)`: routes `BB_PL_STRUCT` operands to
+     `emit_build_compound_term`, everything else (BB_PL_VAR, BB_ATOM, BB_LIT_I, BB_LIT_F) to
+     the original `build_term_text`. Scalar operands still take the fast 4-arg
+     `rt_pl_node_to_term` path; only compound operands pay the walker cost.
+  3. Replaced the `push rax` / `pop rdi` pattern in `MEDIUM_TEXT` with a 16-aligned scratch
+     frame (`sub rsp, 16` / `mov [rsp+0], rax` / ... / `mov rdi, [rsp+0]` / `add rsp, 16`).
+     Required because `emit_build_compound_term` internally uses `sub rsp, frame` where
+     `frame = (arity*8 + 15) & ~15` — a multiple of 16 — and assumes 16-aligned entry rsp so
+     its recursive `rt_pl_compound_build_n@PLT` call satisfies SysV. The old `push rax` would
+     have left rsp 8B-misaligned for the second build's walker recursion. New pattern mirrors
+     the precedent in `bb_builtin.cpp`'s `functor_term` (line 562), `arg_term` (614),
+     `univ_term` (689), `univ_term_term` (705) arms — all of which sub rsp by 16 before
+     `emit_build_compound_term`.
+
+**MEDIUM_BINARY left untouched** — like CAT-D-9b / CAT-D-12, compound-term work is text-only
+for now. The in-process monitor / hot-loop binary path inlines scalar operand builds and does
+not exercise BB_PL_STRUCT operands (which would never appear via the SM-binary fast path
+because lower_pl produces compound operands only for full mode-4 emit).
+
+**No new symbols, no new helpers** — pure refactor of existing infrastructure. The unify
+helper `rt_pl_unify_terms` was already correct; the bug was strictly in operand construction
+ahead of the unify call. Zero LOC delta in `bb_exec.c` and `rt.c`.
+
+**Gate impact:**
+| Gate | Before | After |
+|---|---|---|
+| GATE-1 (smoke) | 5/5 | 5/5 |
+| GATE-2 (3-mode cross-check) | 132/132 | 132/132 |
+| GATE-3 mode-2 | 89/107 | 89/107 |
+| GATE-3 mode-3 | 89/107 | 89/107 |
+| GATE-4 (mode-4 micro-rung) | 4/4 | 4/4 |
+| **Full mode-4 corpus** | 22/107 | **23/107** (+1: rung03_unify_unify) |
+| FACT RULE grep | 0 | 0 |
+| Sibling smokes | icon 5/5, raku 5/5, snobol4 13/13, snocone 5/5, rebus 4/4, prolog 5/5 | all hold |
+
+**Probe battery (mode-2 / mode-4 byte-identical):**
+- `f(X, a) = f(b, Y), write(X), write(' '), write(Y), nl.` → `b a`
+- `pt(X, Y) = pt(1, 2), write(X), write(' '), write(Y), nl.` → `1 2`
+- `T = foo(a,b,c), T = foo(X,Y,Z), write(X), write(Y), write(Z), nl.` → `a b c`
+
+The third probe matters: it's the upstream binding case CAT-D-12-S2's scalar
+`rt_pl_functor`/`rt_pl_arg`/`rt_pl_univ` helpers were waiting on. With CAT-B closed,
+`T = foo(...)` now genuinely binds `T` to the compound, so the scalar paths of those helpers
+light up automatically — no template change needed in `bb_builtin.cpp`.
+
+**Honest accounting on the +1 delta** (estimate was +10-20): most other rung failures cluster
+in orthogonal categories — CAT-A-3 (multi-clause β-resume: rung02/05/08), CAT-C (cons-list
+member/2 segfault: rung06), unported CAT-D-* builtins (rung11/13/14/15/17/19-25/30), and
+PJ-AGW-5 ITE (rung07). The single rung that the ledger explicitly named for CAT-B
+(rung03_unify_unify) is now green, which is the correct unit measurement; the larger
+cascade the ledger anticipated assumed CAT-A-3 was already closed.
+
+**Pure-template compliance verified:** the FACT RULE completion grep across all of `src/`
+(excluding `*_templates/` and `emit_core.c`) returns 0 hits.
+
+**Next steps:**
+- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume) — still blocked on Lon directive. Largest
+  single-step unlock (estimated +15-25 PASS once landed; many rung02/05/06/08 cases gated on
+  multi-clause retry through the β port).
+- **CAT-C** (cons-list `member/2` segfault under `--run` / mode-4). Compound-term root now
+  shared with CAT-B (so the cons-cell construction itself is sound); remaining work is in
+  `bb_pl_call.cpp` arg-passing (env push/save + `pl_bb_bind_arg`) for compound args with
+  unbound tail variables. Needs `gdb` on a child binary.
+- **CAT-D-11** (sort/2 + msort/2) — RT helper does term-array build + insertion-sort via
+  `pl_term_compare` + dedup + cons-list build + unify; zero port logic, template owns γ/ω.
+
+---
+
 ## ✅ CAT-D-12-S2 — FUNCTOR/3 + ARG/3 + =../2 MODE-4 TEMPLATES (2026-05-27, Opus 4.7)
 
 **Landed:** mode-4 templates for `functor/3`, `arg/3`, `=../2` in `bb_builtin.cpp` + RT effect
@@ -487,15 +572,10 @@ Best next session order: CAT-D (cheapest per PASS) → CAT-A-3 (largest single-s
 directive) → CAT-B → CAT-C → PJ-AGW-5.
 
 
-- [ ] **CAT-B — Compound-term unify binds nothing.** `bb_unify.cpp build_term_text` calls
-  `rt_pl_node_to_term(kind, ival, sval, dval)` with only the operand's own scalar fields; for a
-  `BB_PL_STRUCT` the argument nodes hanging off α + γ-chain (per `BB.h:84`) are never built or
-  attached. `f(X, a) = f(b, Y)` prints `_ _` instead of binding X=b, Y=a. **Fix sketch:**
-  recursively materialize args (walk `nd->α` + `nd->α->γ` for `ival` arity) via
-  `rt_pl_node_to_term`, push, then call a new effect helper `rt_pl_compound_build(functor_label,
-  arity, args)` — same shape as `rt_pl_arith` precedent (no port logic). Estimated +10–20 PASS.
-  Also prerequisite for several rung-ladder builtins that construct return terms (rung28
-  catch/throw, rung25 term_to_atom output).
+- [x] **CAT-B — Compound-term unify binds nothing.** ✅ CLOSED (`2026-05-27`, Opus 4.7). See
+  CAT-B ledger entry at top of file for details. `f(X,a) = f(b,Y)` now binds correctly in mode-4
+  (X=b, Y=a). Full mode-4 corpus 22/107 → 23/107 (+1, rung03_unify_unify); GATE-2 132/132 hold,
+  GATE-3 mode-2/3 89/107 hold, GATE-4 4/4 hold, FACT RULE 0, all sibling smokes hold.
 
 - [ ] **CAT-C — List/cons walking + `member/2` segfault.** Lists lower as nested `BB_PL_STRUCT`
   cons-cells (`lower_pl.c:80`). `member(X, [a,b,c]), write(X), fail ; true` segfaults in the
