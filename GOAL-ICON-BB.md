@@ -143,7 +143,7 @@ bash scripts/test_icon_all_rungs.sh        # PASS=198
 
 ---
 
-**WATERMARK:** one4all `5d5bf85d`+ (10b complete + 10a-4 partial, Opus 4.7, 2026-05-28). Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0.
+**WATERMARK:** one4all `09353f25` (10b complete + 10a-4 partial, Opus 4.7, 2026-05-28; hash is post-rebase — landed on top of parallel Raku/SNOBOL4 commits). Gates: smoke_icon 5/5 · broker **36** (raised by parallel Raku/SNOBOL4 work; Icon-owned share unchanged) · rungs 198 · smoke_prolog 5/5 · FACT RULE 0.
 
 **✅ Step 10b COMPLETE — sidecar deletion + ring-peek migration done.** All four acceptance criteria met:
 1. `bb_operand_aux_set` in lower_icn.c == **0** ✅ (both Family-1 BB_ASSIGN + Family-2 BB_CALL sidecar writes deleted)
