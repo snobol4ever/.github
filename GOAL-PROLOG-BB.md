@@ -26,6 +26,98 @@
 
 ---
 
+## ✅ rung25-TERM-STRING — term_string/2 REGISTERED AS BB_BUILTIN (2026-05-27, Opus 4.7)
+
+**Closed.** `term_string/2` is now a recognized builtin in mode-2 (and mode-3 transparently via
+the V-5 routing through `sm_interp_run`). Previously the predicate wasn't recognized at all —
+corpus rungs fell through silently with exit 0 and empty output. GATE-3 mode-2 90/107 → **91/107**
+(+1: `rung25_term_string_term_string`). one4all `66d283ad`.
+
+**The gap:** rung25 has three fixtures —
+- `rung25_term_string_term_to_atom.pl` (uses `term_to_atom/2`)
+- `rung25_term_string_term_to_atom_arith.pl` (uses `term_to_atom/2` with `+`/`-` operator notation)
+- `rung25_term_string_term_string.pl` (uses `term_string/2`)
+
+The previous session's rung25-TERM2ATOM-OPS landed `pl_write_to_file`'s operator-notation block,
+closing the first two. The third still failed because `term_string` had no recognizer in
+`lower_pl.c` and no arm in `bb_exec.c`. The mode-2 lift was the cheap one — same shape as
+`term_to_atom`, same output text (since SCRIP models strings as atoms throughout the runtime;
+there is no separate `TERM_STRING` tag), same `pl_term_to_string` plumbing.
+
+**What landed (mirror of `term_to_atom`; minimal +17/-1):**
+
+### `lower_pl.c` — recognizer (line 366)
+```c
+|| (strcmp(fn,"term_to_atom")==0 && e->n==2)  || (strcmp(fn,"term_string")==0 && e->n==2)
+|| (strcmp(fn,"atom_number")==0 && e->n==2)
+```
+
+### `bb_exec.c` — outer string-builtin dispatcher fn-match (line 3367)
+One-line append to the if-condition so the term_string call reaches the inner per-builtin chain.
+
+### `bb_exec.c` — term_string arm (12 lines, inserted directly after the term_to_atom arm)
+```c
+/* term_string/2: forward-only mirror of term_to_atom. SCRIP strings == atoms (text).        */
+/* Same pl_term_to_string path: operator-notation writer landed in rung25-TERM2ATOM-OPS.    */
+if (strcmp(fn,"term_string")==0) {
+    if (d0 && d0->tag!=TERM_VAR) {
+        extern char *pl_term_to_string(Term *);
+        char *s = pl_term_to_string(d0);
+        if (!s) { nd->value=FAILDESCR; return nd->ω; }
+        Term *at = term_new_atom(prolog_atom_intern(s)); free(s);
+        if (!unify(t1, at, &g_pl_trail)) { trail_unwind(&g_pl_trail,mark); nd->value=FAILDESCR; return nd->ω; }
+    } else {
+        nd->value=FAILDESCR; return nd->ω;
+    }
+    nd->value=INTVAL(1); return nd->γ;
+}
+```
+
+Reverse direction (string → term parse) deliberately unsupported; fails cleanly, identical
+to `term_to_atom`'s reverse stub. Needs a Prolog-term parser when wanted.
+
+**Output (byte-identical to .expected):**
+```
+$ ./scrip --interp .../rung25_term_string_term_string.pl
+point(3,4)
+42
+```
+
+**Gate impact:**
+
+| Gate | Before | After |
+|---|---|---|
+| GATE-1 (smoke) | 5/5 | 5/5 |
+| GATE-2 (3-mode crosscheck) | 132/0 | 132/0 |
+| **GATE-3 mode-2** | **90/107** | **91/107** (+1) |
+| GATE-3 mode-3 (`--run`) | 89/107 | **90/107** (+1) |
+| GATE-4 (mode-4 minimal) | 4/4 | 4/4 |
+| Full mode-4 corpus | 28/107 | 28/107 |
+| FACT RULE grep | 0 | 0 |
+| Sibling smokes | all hold | all hold (icon 5/5, snocone 5/5, raku 5/5, rebus 4/4) |
+
+**Why this fix is the right shape:**
+- The exec helper `pl_term_to_string` already exists and already produces operator notation
+  (the rung25-TERM2ATOM-OPS work from the same day).
+- `term_to_atom` is the structural twin — same dispatcher block, same bidirectional shape, same
+  forward-only fallback. Mirroring it is mechanical and matches the goal-file's NEXT directive:
+  *"Same shape as term_to_atom — just calls pl_term_to_string and unifies."*
+- Touched no emitter code, so FACT RULE compliance is mechanically preserved.
+- Mode-4 emit gap remains (same as `term_to_atom` forward — both fall through to `_`); this is
+  a paired CAT-D-* future item that should land both at once.
+
+**Files touched:** `src/lower/lower_pl.c` (+1, -1 line) · `src/lower/bb_exec.c` (+16 lines).
+Net diff `+17 / -1`.
+
+**Next steps (unchanged from prior session, less term_string):**
+- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume) — still Lon-directive blocked.
+- **PJ-AGW-5** (cut-barrier ω-rewiring) — separate semantic work.
+- **rung18 plus/3** (bidirectional arith) — goal file claims `bb_exec.c` has mode-2 arm but
+  3 rungs still OPEN; investigate gap.
+- **term_to_atom + term_string mode-4 emit** (paired CAT-D-* candidate; both fall through to `_`).
+
+---
+
 ## ✅ CAT-RUNG07-1 — BB_CUT WIRED INTO walk_bb_flat (FACT-RULE-ADJACENT FIX) (2026-05-27, Opus 4.7)
 
 **Closed.** rung07_cut_cut no longer aborts during `--target=x86` emit with the diagnostic
@@ -244,23 +336,26 @@ above as CAT-RUNG07-1.
 
 ## 🔴 Open work (priority order)
 
-### CAT-A-3 — BB_PL_CALL + BB_CHOICE β-resume (BLOCKED ON LON DIRECTIVE)
+### CAT-A-3 — BB_PL_CALL + BB_CHOICE β-resume (DIRECTIVE: option (b); Step A landed)
 
 Largest single-step unlock; estimated +15-25 mode-4 corpus PASS once landed. Every `pred(X), …, fail`
 pattern (rung02 facts, rung05 backtrack, rung06 lists, etc.) gated on this.
 
-Two stub β sites: `bb_pl_call.cpp:97` (`lbl_β: jmp lbl_ω`) and `bb_pl_choice.cpp:58` (same). Caller's
-β jump goes to ω, so caller can never re-enter callee on redo. Two design options:
+**Lon chose option (b): resumable-call protocol** (not (a) inline-on-demand) — preserves single-emit.
 
-**(a) Inline-on-demand.** Inline multi-clause predicates at each call site instead of emitting once as a
-callable block. Simplest, but bloats code for repeated callees and breaks single-emit. Stepping stone.
+**Step A DONE (`58142007`).** Runtime substrate, behavior-neutral: reused existing
+`rt_pl_trail_mark()`/`rt_pl_trail_unwind(int)` (mark-by-value, per-call-site checkpoint, no LIFO
+aliasing); added `pl_bb_env_install(Term**)` — non-freeing env install (counterpart to env_pop which
+frees), needed because the resumable path keeps the callee env alive across redo. Not yet called by
+any template. Full Steps B-D design in HANDOFF-2026-05-27-OPUS-PROLOG-BB-CAT-A3-STEPA.md.
 
-**(b) Resumable-call protocol.** Callee block returns a continuation token (e.g. clause cursor) in a
-register; call site stashes it; on β, restores env+cursor and re-calls; callee uses cursor to skip already-
-tried clauses. Cleaner; matches interp model (`zc->cur`). Requires `pl_bb_choice_state_t` access from
-emitted code and the callee block to NOT pop saved env on γ (call site owns it).
-
-**Awaiting Lon directive on (a) vs (b).**
+**Steps B-D (NEXT, fresh context):** B = `bb_pl_choice.cpp` cursor-driven dispatcher (stack or r12
+slots: cursor + trail_mark; clause-body ω rewired to dispatcher re-entry; cursor++ in pre advances).
+C = `bb_pl_call.cpp` + PL_ENTRY arm: r12 resume-buffer ABI (state/cursor/trail_mark/callee_env) +
+`.Lplpred_<name>_<arity>_redo` entry. D = verify rung02/05/06 + full corpus. Scope first cut to a
+single rightmost BB_CHOICE per callee body (nested choices = follow-up). Recommend always-r12 (main
+allocates a buffer too) to unify B and C. Two stub β sites remain until C: `bb_pl_call.cpp:97`,
+`bb_pl_choice.cpp:58` (`β: jmp ω`).
 
 ### PJ-AGW-5 — Cut-barrier ω-rewiring for non-deterministic ITE conditions
 
@@ -280,8 +375,8 @@ Stops the simplest re-evaluate-Cond loops (+3 net). **Still open:**
 - **term_to_atom/2 operator-notation writer ✅** (rung25 — done `b0093cd1`). pl_write_to_file now
   applies the same op-prec block as pl_writeq_term. Mode-2 only; mode-4 emit still TODO (term_to_atom
   not in the bb_builtin.cpp template; falls through to mode-4 `_` output).
-- **term_string/2** (rung25 — open). Not registered as a builtin at all; needs lower_pl.c recognizer +
-  bb_exec.c arm. Same shape as term_to_atom — just calls pl_term_to_string and unifies.
+- **term_string/2 ✅** (rung25 — done `66d283ad`). Registered as BB_BUILTIN forward-only mirror of
+  term_to_atom; mode-2 +1. Mode-4 emit still TODO (same gap as term_to_atom).
 - **catch/throw** (rung28 — 0/5). Lower as 3-arg BB_BUILTIN; exec arm uses setjmp/longjmp or global
   exception flag.
 - **aggregate** (rung27 — 0/5). bagof/setof.
@@ -301,22 +396,21 @@ Stops the simplest re-evaluate-Cond loops (+3 net). **Still open:**
 
 ---
 
-## Rung state at HEAD (`b0093cd1`, post-rung25-TERM2ATOM-OPS)
+## Rung state at HEAD (`58142007`, post-CAT-A-3-StepA)
 
 | Gate | Count | Notes |
 |---|---|---|
 | GATE-1 (smoke) | 5/5 | unchanged |
 | GATE-2 (3-mode crosscheck) | 132/0 | post V-5 real agreement |
-| GATE-3 mode-2 (`--interp`) | **90/107** | +1 (rung25 term_to_atom operator notation) |
-| GATE-3 mode-3 (`--run`) | 89/107 | unchanged |
+| GATE-3 mode-2 (`--interp`) | **91/107** | +1 (rung25 term_string/2 registered) |
+| GATE-3 mode-3 (`--run`) | **90/107** | +1 (transparent via sm_interp_run post-V-5) |
 | GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt all green |
-| **Full mode-4 corpus** | **28/107** | +4 this session (CAT-D-11 sort/msort) |
+| **Full mode-4 corpus** | **28/107** | unchanged (term_string mode-4 emit still TODO) |
 | FACT RULE grep | 0 | full compliance |
-| `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix |
+| `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix held |
 
-**Mode-2 OPEN rungs (17/107):** rung15 (2 — one_of_two, then_reassert), rung18 (3 — plus/3), rung23 (1),
-rung25 (1 — term_string/2 not implemented; term_to_atom op-notation now ✅), rung27 (5 — aggregate),
-rung28 (5 — catch/throw), rung30 (1 — dcg_pushback_rest).
+**Mode-2 OPEN rungs (16/107):** rung15 (2 — one_of_two, then_reassert), rung18 (3 — plus/3), rung23 (1),
+rung27 (5 — aggregate), rung28 (5 — catch/throw), rung30 (1 — dcg_pushback_rest).
 
 ---
 
@@ -391,9 +485,9 @@ atom_concat/string_* (CAT-D-2/3), atom_string/string_to_atom (CAT-D-4), copy_ter
 atom_chars/atom_codes/string_chars/string_codes (CAT-D-6), write(compound) (CAT-D-7), if-then-else
 (CAT-D-8), **sort/msort (CAT-D-11)**, BB_CUT (CAT-RUNG07-1).
 
-**Mode-2 only (mode-4 emit gap):** findall, atomic_list_concat, term_to_atom (forward), atom_number,
-format, numbervars, writeq, write_canonical, print, retract, retractall, abolish, assertz/asserta
-(directive fold).
+**Mode-2 only (mode-4 emit gap):** findall, atomic_list_concat, term_to_atom (forward),
+**term_string (forward)**, atom_number, format, numbervars, writeq, write_canonical, print,
+retract, retractall, abolish, assertz/asserta (directive fold).
 
 **SNOBOL4 BB infrastructure landings (cross-cutting):** SBL-FN-RET/ARGS/EXEC-PATD/PAT-BLOB/IDX ✅;
 SBL-PAT-PRIM ✅ (TAB still open); SBL-M4-ASM ✅ (mode-4 broad corpus 0→126); SBL-M4-OPDISPATCH ✅.
