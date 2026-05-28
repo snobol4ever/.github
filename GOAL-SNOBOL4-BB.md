@@ -196,11 +196,109 @@ DEFER — SBL-DCG-DEFER `2b68dc44`
 GATE-1 SNOBOL4 smoke        = 13/13 (mode-2 7/7 + mode-3 6/6)
 GATE-2 unified broker       = 28
 GATE-3 broad corpus mode-4  = 175/280
-GATE-4 broad corpus mode-2  = 218/280
-Rung suite                  = M2=18, M4=15, SKIP=0
-HEAD one4all                = e7e7bd63 (SBL-MODE-PURITY-2/3/4)
+GATE-4 broad corpus mode-2  = 238/280  (+20 SBL-ANY-2-CORRECTNESS)
+Rung suite                  = M2=19, M4=15, SKIP=0  (+1 rung 053 M2)
+HEAD one4all                = 3eb09ba0 (SBL-ANY-2-CORRECTNESS)
 GATE-PK status              = stale (re-freeze deferred)
 ```
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 14) — SBL-ANY-2-CORRECTNESS ✅ (one4all `3eb09ba0`)
+
+### The dispatch trace landed the bug, not the BINARY arm
+
+Continued-13C left the next-session task as **SBL-ANY-2-DISPATCH-TRACE**: map the actual dispatch path before filling any BINARY arm, because probes had shown `bb_pat_any` and `exec_stmt` were never called for `S PAT . M` under `--interp`. Tracing this session revealed the dispatch path AND a pair of latent bugs that, fixed, climbed mode-2 broad corpus by **+20** without touching any BINARY arm.
+
+### Dispatch path (the answer to SBL-ANY-2-DISPATCH-TRACE)
+
+For `S PAT . M` under `--interp`:
+
+```
+sm_interp.c:582 SM_EXEC_STMT
+  → pat_bb = g_stage2.sm.bb_table[ins->a[2].i]   (precompiled BB_graph_t*)
+  → bb_exec_pat(pat_bb, "S", &subj_d, NULL, 0)
+      → outer position-scan loop (start = 0..Ω if !kw_anchor)
+      → bb_reset(cfg); bb_exec_once(cfg)
+        → bb_exec_node walking by ports
+        → case BB_PAT_ASSIGN_COND   (the '. M' capture, entry node, t=42)
+          → α-port
+          → case BB_PAT_DEFER       (the 'PAT' var-ref)
+            → NV_GET("PAT") → val.v == DT_P → patnd_to_bb_graph(val.p)
+            → bb_exec_once(sub_bb)   [post-fix; was bb_exec_pat(...) pre-fix]
+              → case BB_PAT_ANY in bb_exec.c   (the C oracle)
+```
+
+The template file `bb_pat_any.cpp` is **NOT exercised** under `--interp` for var-deref patterns. The C oracle in `bb_exec.c case BB_PAT_ANY` is the executor. This explains why continued-13C's BINARY-arm probes saw zero hits on `bb_pat_any`.
+
+### Bug #1 — DESCR_t union clobber (bb_exec.c:2378, rt.c:560)
+
+```c
+DESCR_t sub_d; sub_d.v = DT_S; sub_d.s = (char *)sub; sub_d.slen = ...; sub_d.i = 0;
+```
+
+`.s` and `.i` share a union in `DESCR_t` (descr.h). The trailing `sub_d.i = 0` clobbered `sub_d.s` to NULL. The recursive `bb_exec_pat` then saw `Σ=NULL Σlen=9`. BB_PAT_ANY read past NULL and ran on **stale** Σ from the OUTER scope — returning the first character of `'xyzabcdef'` ('x') instead of failing or matching 'a'.
+
+This bug was the root of `match=x`. The handoff's prior framing "pre-existing mode-independent bug in ANY" was wrong-tree — ANY's code was correct, the substrate handed it garbage.
+
+**Fix:** designated initializer:
+```c
+DESCR_t sub_d = { .v = DT_S, .slen = (uint32_t)sublen, .s = (char *)sub };
+```
+
+After fix #1, `match=xyza`. Closer but still wrong.
+
+### Bug #2 — Architectural double-scan (bb_exec.c:2382)
+
+`BB_PAT_DEFER` was calling `bb_exec_pat(sub_bb, NULL, &sub_d, NULL, 0)` recursively for the inner sub-pattern. But `bb_exec_pat` has its OWN position-scan loop (`for start = 0..Ω`). So the inner pattern was scanning the entire sub-subject independently of the outer's position scan. With outer start=0, the inner ANY scanned 'xyzabcdef' from position 0, found 'a' at position 3, returned matched=4. M was bound to "xyza" (positions 0..4 of outer Σ).
+
+**Fix:** replace inner call with anchored single-shot match:
+```c
+DESCR_t result = bb_exec_once(sub_bb);
+int ok = !IS_FAIL_fn(result);
+```
+
+`bb_exec_once` walks the cfg ONCE at the current Δ=0 of the sub-Σ; no anchor scan. The OUTER `bb_exec_pat` keeps the position-scan responsibility.
+
+After fix #2: `match=a` byte-identical to SPITBOL across all three modes.
+
+### Validation across pattern kinds (all SPITBOL-oracle byte-identical, all three modes)
+
+```snobol
+S = 'xyzabcdef'
+PAT_ANY    = ANY('cab')     ;  S PAT_ANY . MA       →  MA=a
+PAT_NOTANY = NOTANY('xyz')  ;  S PAT_NOTANY . MN    →  MN=a
+PAT_SPAN   = SPAN('cab')    ;  S PAT_SPAN . MS      →  MS=abc
+PAT_BREAK  = BREAK('c')     ;  S PAT_BREAK . MB     →  MB=xyzab
+```
+
+### Gates
+
+| Gate | Before | After | Δ |
+|------|--------|-------|---|
+| GATE-1 SNOBOL4 smoke   | 13/13  | 13/13  | hold |
+| GATE-2 unified broker  | 28     | 28     | hold |
+| GATE-3 mode-4 broad    | 175    | 175    | hold |
+| GATE-4 mode-2 broad    | 218    | **238**| **+20** |
+| Rung suite M2          | 18     | **19** | **+1** (053) |
+| Rung suite M4          | 15     | 15     | hold |
+
+### Two locations patched (mechanically identical bug)
+
+- `src/lower/bb_exec.c:2378` (translator path) — fixes #1 + #2
+- `src/runtime/rt/rt.c:560` (legacy `rt_pat_*` runtime helper called from emitted x86) — fixes #1 only (this site already called `exec_stmt` not `bb_exec_pat`, so no double-scan to undo)
+
+### Architectural takeaway
+
+The pre-existing union-clobber pattern in `DESCR_t` literal-init was a latent landmine. The designated-initializer form is structurally immune. Any future site doing similar inline DESCR_t construction should use designated init. There is no remaining occurrence of the `sub_d; sub_d.x = ...` pattern with `.i = 0` after `.s = ...` in the SNOBOL4 dispatch surface (grep clean post-fix).
+
+### Next-session priority
+
+- **SBL-ANY-2 BINARY arm** (continued-13C reusable artifact still valid for mode-3 `--run` flat path): the BINARY arm of `bb_pat_any.cpp` is still a stub. But now we know it's exercised only via the template path under `--run` (mode-3) or `--compile` (mode-4), NOT under `--interp`. Mode-2 var-deref patterns are now correct via the C oracle. Filling the BINARY arm is still work, but its scope is narrower than continued-13C assumed: it doesn't unblock `--interp` (already green); it unblocks `--run` of compiled patterns.
+- **SBL-NOTANY-2, SBL-BREAK-2, SBL-SPAN-2, SBL-ARBNO-3, SBL-CAP-2** BINARY arms — same scope clarification: mode-3/mode-4 only.
+- **Investigate why 042/044/045/046/047/048 mode-4 rungs pass** despite stub BINARY arms in their templates — there is some other path producing correct mode-4 output for these (inline-pattern lowering? AST-driven BB_lower_pat?). Mapping that path is the prereq for confidently filling the BINARY arms knowing what they replace.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
 
