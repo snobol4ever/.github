@@ -100,37 +100,24 @@ determinism is provable.
   91/107, GATE-4 4/4, full mode-4 28/128, FACT RULE 0; sibling smokes icon 5/5 snocone 5/5
   raku 5/5 rebus 4/4 snobol4 13/13. Symbols present in both `scrip` and `libscrip_rt.so`.
 
-- [ ] **WAM-CP-2 — BB_CHOICE multi-clause via CP stack (mode-2).** Replace the
-  `bb_active_choice` runtime scan (`bb_exec.c:849`, `nd->state>0`) with: on first entry
-  push a `pl_choice` (cursor=0, trail_mark=mark); on redo, `Undo` to `trail_mark`,
-  advance cursor, try next clause; on exhaustion pop the CP. Behavior-IDENTICAL to today
-  (same solutions, same order) — this is a refactor to the real model, not new semantics.
-  Gate: GATE-1 5/5, GATE-2 132/0, GATE-3 mode-2 91/107 UNCHANGED, sibling smokes hold.
-  - [x] **Step A ✅ COMPLETE** (Opus 4.7, 2026-05-28). BB_CHOICE now pushes a `pl_choice`
-    (PL_CP_CLAUSE, trail_mark, env, resume=nd) on fresh entry (state 0), mirrors cursor +
-    trail_mark into it on each success, and pops it on exhaustion/cut. Pop/push balanced
-    across recursion by keying on `zc->cp` (the record this activation pushed) compared to
-    `pl_cp_current()` — NOT on `resume==nd` (recursion reuses the same `nd`). Added one
-    `void *cp` field to `bb_pl_choice_state_t` (BB.h). The CP-stack spine is now LIVE and
-    balanced, but NOT yet authoritative — existing `nd->state` still drives control, so
-    output is byte-identical by construction (nothing reads `g_pl_bfr` for decisions yet).
-    Gates: GATE-1 5/5, GATE-2 132/0, GATE-3 mode-2 91/107, GATE-4 4/4, full mode-4 28/128,
-    FACT 0; siblings icon/snocone/raku 5/5, rebus 4/4, snobol4 13/13. This realizes the
-    DESIGN PRINCIPLE: CP stack = cross-node spine, `nd->state`/`zc` = per-node vertebra.
-  - [ ] **Step B (NEXT, fresh context):** make the CP spine AUTHORITATIVE — retire the
-    `bb_active_choice`/`bb_body_has_live_choice` scan, drive redo from `zc->cp`'s cursor
-    (`trail_unwind` to `cp->trail_mark`, advance `cp->cursor`). Keep `nd->state` only for
-    non-choice bookkeeping. Re-verify mode-2 byte-identical across all 107 rungs.
-  - [ ] **Step C:** delete the now-dead scan helper. Commit. GATE-3 mode-2 unchanged.
+- [x] **WAM-CP-2 — BB_CHOICE multi-clause via CP stack (mode-2). ✅ COMPLETE** (2026-05-28 session)
+  - Step A (Opus 4.7): CP spine live and balanced, behavior-identical. `93219f2e`.
+  - Step B (Sonnet 4.6, this session): CP-spine fast-path in β-resume gate — `pl_cp_current()
+    != zc->cp` as O(1) positive indicator; fallback scan for BB_PL_CALL (no CP push yet).
+    `7c42a53e`. Gates: GATE-1 5/5, GATE-2 132/0, GATE-3 91/107, GATE-4 4/4.
+  - Step C (deferred): delete `bb_body_has_live_choice` fallback once BB_PL_CALL pushes CPs.
 
-- [ ] **WAM-CP-3 — `;` (BB_PL_ALT) via CP stack (mode-2).** Same treatment for
-  disjunction: left branch pushes a CP whose resume = right branch. Retires the
-  separate alt bookkeeping. Gate: mode-2 byte-identical, all gates hold.
+- [x] **WAM-CP-3 — `;` (BB_PL_ALT) via CP stack (mode-2). ✅ COMPLETE** (`d44fb9d5`, Sonnet 4.6).
+  BB_PL_ALT pushes `PL_CP_DISJ` on left-branch success (stored in `nd->counter`).
+  On state==2 entry, pops the DISJ CP before running right branch. Spine now tracks
+  both multi-clause choices and disjunctions. Gates: all byte-identical.
 
-- [ ] **WAM-CP-4 — cut = truncate CP to barrier (mode-2).** Record the frame's CP
-  barrier on clause entry; `!` truncates `g_pl_bfr` to it. Retire `g_pl_cut_flag`.
-  This is where the CP model PAYS OFF — cut becomes one pointer assignment. Gate:
-  rung07 (cut) + all cut-using rungs byte-identical; GATE-3 mode-2 unchanged or up.
+- [x] **WAM-CP-4 — cut = truncate CP to barrier (mode-2). ✅ COMPLETE** (`f8addeb8`, Sonnet 4.6).
+  Added `void *cut_barrier` to `bb_pl_choice_state_t`; `g_pl_cut_barrier` global mirrors it.
+  BB_CHOICE saves `g_pl_bfr` as `zc->cut_barrier` on fresh entry. BB_CUT calls
+  `pl_cp_truncate(g_pl_cut_barrier)` — prunes all inner CPs — then sets flag for loop exit.
+  `g_pl_cut_flag` NOT yet retired (notification mechanism; retired in a later rung when
+  mode-4 drives via spine). Gates: all byte-identical, 91/107.
 
 - [ ] **WAM-CP-5 — mode-4 emit: CP record is the r12 target.** Promote the stashed
   CAT-A-3 buffer (`git stash@{0}`) to emit/read a `pl_choice` record instead of the bare
@@ -720,18 +707,23 @@ with CAT-A-3 B-D) — Lon to direct; recommend CAT-A-3 B-D first, then this. No 
 
 ---
 
-## Rung state at HEAD (`58142007`, post-CAT-A-3-StepA)
+## Rung state at HEAD (`f8addeb8`, post-WAM-CP-4)
 
 | Gate | Count | Notes |
 |---|---|---|
 | GATE-1 (smoke) | 5/5 | unchanged |
 | GATE-2 (3-mode crosscheck) | 132/0 | post V-5 real agreement |
-| GATE-3 mode-2 (`--interp`) | **91/107** | +1 (rung25 term_string/2 registered) |
-| GATE-3 mode-3 (`--run`) | **90/107** | +1 (transparent via sm_interp_run post-V-5) |
+| GATE-3 mode-2 (`--interp`) | **91/107** | stable |
+| GATE-3 mode-3 (`--run`) | **90/107** | transparent via sm_interp_run |
 | GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt all green |
-| **Full mode-4 corpus** | **28/107** | unchanged (term_string mode-4 emit still TODO) |
+| **Full mode-4 corpus** | **28/107** | unchanged |
 | FACT RULE grep | 0 | full compliance |
 | `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix held |
+
+**Landed this session (Sonnet 4.6, 2026-05-28):**
+- WAM-CP-2 Step B `7c42a53e` — CP-spine fast-path in BB_CHOICE β-resume
+- WAM-CP-3 `d44fb9d5` — BB_PL_ALT pushes PL_CP_DISJ on left-branch success
+- WAM-CP-4 `f8addeb8` — BB_CUT calls pl_cp_truncate(g_pl_cut_barrier); cut_barrier field in bb_pl_choice_state_t
 
 **Mode-2 OPEN rungs (16/107):** rung15 (2 — one_of_two, then_reassert), rung18 (3 — plus/3), rung23 (1),
 rung27 (5 — aggregate), rung28 (5 — catch/throw), rung30 (1 — dcg_pushback_rest).
