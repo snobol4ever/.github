@@ -143,7 +143,27 @@ bash scripts/test_icon_all_rungs.sh        # PASS=198
 
 ---
 
-**WATERMARK:** one4all `b2f773bc`. Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Step 10a-1/2/3 ✅ · 10a-5 ✅ (Binop) · 10a-6/7/8 ✅ (Lconcat/Section/Idx) · 10a-9 ✅ (Idx_set, `b2f773bc`) · 10a-10 ✅ (ToBy verify). ⚠️ **10a-4 (Every_ag) BLOCKED** (cyclic flat-wire) — the ONLY remaining 10a sub-blocker. Next: **Step 10b** (sidecar deletion + ring-peek), best done together with 10a-4 since removing executor recursion is what unblocks the Every double-eval. Gate: rungs 198, broker ≥34.
+**WATERMARK:** one4all `4485d647`+ (10b complete this session, Opus 4.7, 2026-05-28). Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0.
+
+**✅ Step 10b COMPLETE — sidecar deletion + ring-peek migration done.** All four acceptance criteria met:
+1. `bb_operand_aux_set` in lower_icn.c == **0** ✅ (both Family-1 BB_ASSIGN + Family-2 BB_CALL sidecar writes deleted)
+2. `bb_exec_node(nd->[αβ])` in bb_exec.c == **0** ✅
+3. `icn_kind_owns_omega_operand` == **0** ✅ (removed; BB_IF ω-as-else now preserved by plain `!ω`-set guards since If_ag always sets nd->ω)
+4. rungs == **198** ✅
+
+Commits this session: `8f887fa1` (10b-easy: BB_ASSIGN executor → ag_ring_peek(0), `nd->ival=1` AG-threaded marker survives bb_reset) · `359c5754` (10b-hard: BB_CALL deep-arg executor → ag_ring_peek(nargs-1-j), `nd->dval=1.0` deep marker) · `4485d647` (icn_kind_owns_omega_operand removal).
+
+**KEY DESIGN NOTES for the BB_CALL conversion (non-obvious):**
+- The deep-thread discriminator could NOT be re-derived at runtime: `is_suspendable` (lower) flags ALL TT_FNC calls as generators, but `ir_is_single_shot` (exec) does NOT — so a runtime re-derivation mismatches for nested calls like `write(dbl(5))`. Fixed by stamping `nd->dval=1.0` in lower's Family-2 `!any_gen` branch (immutable IR payload, survives `bb_reset`, faithful to what lower actually did).
+- `nd->state` is NOT usable as a lower→exec marker: `bb_reset` zeroes `state` (and `value`/`counter`) on every node. Use `ival`/`dval` IR-payload fields instead. The BB.h comment referencing `ival3` is STALE — no such field exists on BB_t (only `ival`, `dval`).
+- Deep args push exactly ONE ring value each (nested binop args are legacy single boxes via `lower_icn_expr_node`, which recurse internally without top-level ring pushes), so consecutive `peek(nargs-1-j)` is correct.
+
+**SWITCH-OVER STATUS:** the operand_aux sidecar API (`bb_operand_aux_set/get` in `scrip_ir.c`, struct fields in `BB.h`) now has ZERO live callers across ALL languages. It is dead code. NOT deleted here because it is shared PEERS-RULE infrastructure in `scrip_ir.c`/`BB.h` (outside GOAL-ICON-BB file ownership; RULES forbids touching cross-language BB families). Deletion is an HQ "grand master reorg" task.
+
+### ⚠️ Step 10a-4 (Every_ag body threading) — STILL BLOCKED, and NOT a 10b acceptance criterion
+Re-attempted this session after the BB_CALL ring-peek landed (hypothesis: removing BB_CALL arg-recursion would unblock it). It STILL regresses (198→194, rung13_table_iterate goes silent). Threading the Every body via `lower_icn_expr_threaded_b` and wiring the flat-wire cycle (`gen.γ=body_entry; body.γ=gen; body.ω=gen`) through the threaded body's entry desyncs the ring on the loop back-edges. Reverted to clean 198. **10a-4 is purely architectural purity (the body works correctly via the single-box `lower_icn_expr_node` path); it is NOT required by any 10b acceptance criterion and provides no behavioral benefit.** Defer indefinitely or treat as its own research rung. The cyclic-flat-wire / ring-desync interaction is the open problem.
+
+
 
 ## File ownership
 `src/lower/lower_icn.c` · `src/lower/bb_exec.c` · `src/emitter/{emit_bb.c,emit_sm.c,emit_core.c}` · `src/emitter/BB_templates/bb_*.cpp` · `src/processor/sm_codegen.c` · `src/processor/sm_interp.c` · `baselines/icon-bb/`
