@@ -108,6 +108,8 @@ Never add `raku_seq_pull` / `rk_take_yield` / `raku_grep_step` / junction dispat
 
 - [x] **RK-BB-SM-FRAME-MODE4** ✅ — Opus 4.7, 2026-05-28. Mode-4 named-sub dispatch+return. Pieces 4a (rt_frame_enter/leave/load/store in libscrip_rt, `d6fe17e2`), 4b (SM_LOAD/STORE_FRAME x86 templates, `7c9d4570`), 1-scaffold (rk_sub_lookup/rk_sub_label helpers, `3eece6a3`), and **1-WIRING** (`18c4820f`): sm_label_str emits `.Lrksub_<name>:`; sm_call_str emits `mov edi,np; call rt_frame_enter@PLT; call .Lrksub_<name>; call rt_frame_leave@PLT` for Raku user-subs (builtins fall through to CALL_FN/rt_call); void subs push SM_PUSH_NULL before trailing SM_RETURN for callsite VOID_POP balance. rk_subs == .expected. Recursion fact(5)=120, nested outer(4)=50. GATE-RK4 15→18 (+rk_subs/rk_combinator/rk_interp). All other gates HOLD. FACT RULE 0.
 
+- [x] **RK-GIVEN-MODE4** ✅ — Opus 4.7, 2026-05-28 (one4all `5950356f`). Raku `given`/`when` mode-4. Was emitting `SM_PUMP_CASE` + `emit_thunk` subexprs — no x86 arm, and driving it would need runtime `sm_eval_subexpr` SM-walking (forbidden mode-4). Rewrote `lower_case` `is_raku` branch to a straight if-chain over already-templated opcodes (mirrors the non-raku CASE branch): topic → per-site-unique `__rk_case_topic_<seq>__` (nesting-safe); per arm PUSH topic; lower wval; `SM_ACOMP TT_EQ` (numeric) or `SM_LCOMP TT_LEQ` (string literal); `JUMP_F`; body (TT_PROGRAM walk); `JUMP end`; default last; trailing `PUSH_NULL` for callsite VOID_POP balance. SM_PUMP_CASE now has zero emit sites. rk_given == .expected. rk_given18 still FAILs but on a pre-existing for-over-pushed-array segfault (test_case fails identically on clean baseline; verified via stash-rebuild) — orthogonal. GATE-RK4 18→19 (+rk_given). All other gates HOLD. FACT RULE 0.
+
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers, one rung each. `zip`/`cross` = multi-Seq drivers (later).
 
 ## Rung methodology (mostly REUSE)
@@ -149,13 +151,13 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 18c4820f (RK-BB-SM-FRAME-MODE4 piece 1 WIRING — Raku subs dispatch+return mode-4)
-.github: HEAD (handoff — wiring landed; GATE-RK4 15->18)
+one4all: 5950356f (RK-GIVEN-MODE4 — Raku given/when via mode-4-safe if-chain)
+.github: HEAD (handoff — given/when landed; GATE-RK4 18->19)
 corpus:  unchanged
 
-Gates at RK-BB-SM-FRAME-MODE4 WIRING DONE (2026-05-28, Opus 4.7):
+Gates at RK-GIVEN-MODE4 DONE (2026-05-28, Opus 4.7):
   GATE-RK mode-2:  18/33  HOLD
-  GATE-RK4 mode-4: 18/33  +3 (rk_subs, rk_combinator, rk_interp now pass)
+  GATE-RK4 mode-4: 19/33  +1 (rk_given; prior session +3 rk_subs/rk_combinator/rk_interp)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
@@ -184,9 +186,20 @@ NESTED CALLS VERIFIED: outer(4)=inner(4)*10=50.
 rk_try_catch25 still fails (separate try/CATCH issue, untouched).
 ```
 
-⛔ NEXT SESSION — RK-BB-SM-FRAME-MODE4 is FUNCTIONALLY COMPLETE for named subs.
+⛔ NEXT SESSION — Remaining 14 mode-4 Raku FAILs, triaged into families (2026-05-28):
+  - REGEX/NFA (6): rk_re32/33/34/35/37, rk_regex23 — DEFERRED to GOAL-RAKU-PAT-BB per goal doc.
+  - HASHES (2): rk_hash17, rk_hashes — %h<k>, keys/values/exists/delete (runtime hash builtins).
+  - JUNCTIONS (1): rk_junctions — BLOCKED on Lon Q9-Q12 (RK-BB-4 directives).
+  - I/O (2): rk_fileio38, rk_stdio39 — file handles, $*STDOUT/STDERR.
+  - EXCEPTIONS (1): rk_try_catch25 — try/CATCH/die.
+  - given18 (1): rk_given18 — given/when itself WORKS; blocked on a separate
+    pre-existing for-loop-over-pushed-array segfault (also kills test_case in
+    the SNOBOL4 broad corpus). Best next Raku rung: fix that array/for path,
+    which unblocks rk_given18 AND likely several array tests.
+  HASHES or the array/for-loop fix are the best next rungs (self-contained, no
+  external directive needed). Regex deferred; junctions blocked on Lon.
 
-Remaining mode-4 Raku FAILs (15) to triage next, likely candidates:
+  (historical) Remaining mode-4 Raku FAILs to triage, likely candidates:
   - rk_try_catch25 — try/CATCH (separate exception-machinery issue, pre-existing).
   - Inspect the other failing goldens via:
       for f in test/raku/*.raku; do
