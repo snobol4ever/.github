@@ -109,12 +109,13 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: RK-IO (fileio38+stdio39 PASS; GATE-RK4 23->25; 753d85e2)
+one4all: RK-IO+fixup (3-mode correct; GATE-RK4 25/33; 4b4e3a11)
 .github: HEAD
 corpus:  unchanged
 
-GATE-RK mode-2:  22/33  +1
-GATE-RK4 mode-4: 25/33  +2 (rk_fileio38, rk_stdio39)
+GATE-RK mode-2:  22/33  +2 vs session start
+GATE-RK4 mode-4: 25/33  +3 (rk_try_catch25, rk_fileio38, rk_stdio39)
+Crosscheck:      37/37  modes 2+3 agree on all tests
 Smoke raku:      5/5    HOLD
 Smoke prolog:    5/5    HOLD
 Smoke snobol4:   13/13  HOLD
