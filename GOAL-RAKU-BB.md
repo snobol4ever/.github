@@ -151,13 +151,13 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 5950356f (RK-GIVEN-MODE4 — Raku given/when via mode-4-safe if-chain)
-.github: HEAD (handoff — given/when landed; GATE-RK4 18->19)
+one4all: c2a0830d (RK-HASH+POLYGLOT-FIX — hash builtins + TT_FNC skip; GATE-RK4 20->22)
+.github: HEAD (handoff — hash builtins landed; GATE-RK4 22/33)
 corpus:  unchanged
 
-Gates at RK-GIVEN-MODE4 DONE (2026-05-28, Opus 4.7):
-  GATE-RK mode-2:  18/33  HOLD
-  GATE-RK4 mode-4: 19/33  +1 (rk_given; prior session +3 rk_subs/rk_combinator/rk_interp)
+Gates at RK-HASH DONE (2026-05-28, Claude Sonnet 4.6):
+  GATE-RK mode-2:  20/33  +2
+  GATE-RK4 mode-4: 22/33  +3 (rk_given18, rk_hashes, rk_hash17)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
@@ -168,24 +168,26 @@ Gates at RK-GIVEN-MODE4 DONE (2026-05-28, Opus 4.7):
   FACT RULE grep:  0
   Build:           clean
 
-PROGRESS THIS SESSION (1 commit, all gates HOLD/improve, no regressions):
-  WIRING  18c4820f  Two template edits + one void-sub lowering fix:
-    - sm_jumps.cpp sm_label_str: .Lrksub_<name>: emitted at named SM_LABEL
-      site when rk_sub_lookup(name)>=0. Includes stage2.h + emit_bb.h added.
-    - sm_calls.cpp sm_call_str: mov edi,np; call rt_frame_enter@PLT;
-      call .Lrksub_<name>; call rt_frame_leave@PLT for Raku user-subs;
-      builtins fall through to unchanged CALL_FN/rt_call path. Same includes.
-    - lower.c lower_proc_skeletons: void Raku subs push SM_PUSH_NULL before
-      trailing SM_RETURN (call-as-stmt VOID_POP balance). Value-returning subs
-      ret early, unaffected.
+PROGRESS THIS SESSION (2 commits, all gates HOLD/improve, no regressions):
+  a974db77 RK-ARRAY-FRAME-WRITEBACK+ACOMP-COERCE (+rk_given18, GATE-RK4 19->20):
+    BUG1: raku_to_cstring snprintf SSE alignment crash — hand-rolled raku_itos/raku_rtos.
+    BUG2: stale frame slot after push in named sub — SM_STORE_FRAME writeback in lower_fnc.
+    BUG3: rt_acomp DT_S not coerced numerically — strtod for both operands.
+  c2a0830d RK-HASH+POLYGLOT-FIX (+rk_hashes, +rk_hash17, GATE-RK4 20->22):
+    polyglot.c: Raku TT_FNC call sites not registered as procs (dup label fix).
+    raku_builtins_byname.c: hash_set/hash_delete/hash_get/hash_exists/hash_keys/
+      hash_values/hash_pairs builtins with SOH/STX encoding.
+    lower.c: hash_set/hash_delete mutating gate + TT_HASH_SET/DELETE vname prepend.
+    rt.c + sm_interp.c: mutating dispatch wired for hash ops.
 
-rk_subs mode-4: 14 / hello raku / 7 / positive / zero / negative == .expected.
-RECURSION VERIFIED: fact(5)=120 (256-frame stack + call/ret nesting holds).
-NESTED CALLS VERIFIED: outer(4)=inner(4)*10=50.
-
-rk_try_catch25 still fails (separate try/CATCH issue, untouched).
+NEXT SESSION — Remaining 11 mode-4 FAILs:
+  REGEX/NFA (6): rk_re32/33/34/35/37, rk_regex23 — DEFERRED to GOAL-RAKU-PAT-BB.
+  I/O (2): rk_fileio38, rk_stdio39 — file handles, $*STDOUT/$*STDERR.
+  EXCEPTIONS (1): rk_try_catch25 — try/CATCH/die.
+  JUNCTIONS (1): rk_junctions — BLOCKED on Lon Q9-Q12.
+  CLASS (1): rk_class26 — OOP class/method dispatch.
+  Best next targets: I/O (self-contained) or EXCEPTIONS.
 ```
-
 ⛔ NEXT SESSION — Remaining 14 mode-4 Raku FAILs, triaged into families (2026-05-28):
   - REGEX/NFA (6): rk_re32/33/34/35/37, rk_regex23 — DEFERRED to GOAL-RAKU-PAT-BB per goal doc.
   - HASHES (2): rk_hash17, rk_hashes — %h<k>, keys/values/exists/delete (runtime hash builtins).
