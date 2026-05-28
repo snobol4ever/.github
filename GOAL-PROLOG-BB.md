@@ -119,19 +119,12 @@ determinism is provable.
   `g_pl_cut_flag` NOT yet retired (notification mechanism; retired in a later rung when
   mode-4 drives via spine). Gates: all byte-identical, 91/107.
 
-- [ ] **WAM-CP-5 — mode-4 emit: CP record is the r12 target.** Promote the stashed
-  CAT-A-3 buffer (`git stash@{0}`) to emit/read a `pl_choice` record instead of the bare
-  5-qword pool buffer. The cursor-dispatcher in `bb_pl_choice.cpp` already has the right
-  shape; point it at `g_pl_bfr`. Det/nondet split in `bb_pl_call.cpp` stays; the
-  resumable path pushes a CP instead of `rt_pl_resume_alloc`. **This fixes the γ-leak**
-  (CP is on a stack the frame teardown truncates — no dangling r12). FACT RULE stays 0
-  (all bytes template-emitted). Gate: GATE-4 4/4 incl m4-choice, full mode-4 ≥ 28 +
-  rung02/05/06/08 (expected mid-30s–45), GATE-1/2/3 unchanged, FACT RULE 0.
-  - Step A: rebuild stash on current HEAD; apply the rt.h `Term`→`void*` fix (the one
-    pending build error from the pre-pivot session: `rt_pl_env_current` decl in rt.h).
-  - Step B: swap pool-buffer for CP-record push/pop; m4-choice canary must pass.
-  - Step C: rung02/05/06/08 via x86 backend → PASS. Full mode-4 loop.
-  - Step D: GATE-1/2/3 + sibling smokes + FACT RULE grep. Commit.
+- [x] **WAM-CP-5 — mode-4 emit: BB_CHOICE + BB_PL_CALL migrate rsp-frame cursor to heap pl_choice. ✅ COMPLETE** (Sonnet 4.6, 2026-05-28, `414d5da3`/`60dea34f`/`b1e27f56`).
+  BB_CHOICE: `pl_cp_push` on α (env+trail_mark stored); dispatch reads `cp->cursor` via `pl_cp_current()`; `pre[i>0]` unwinds to `cp->trail_mark`; `exit_γ` keeps CP alive for redo; exhausted pops CP. β jmps dispatch.
+  BB_PL_CALL: no own CP. On α success: `pl_bb_env_install(caller_env)` + `rt_pl_cp_save_caller_env()` stashes caller_env into `g_pl_bfr->saved_args`. β: `pl_cp_current()->env` = callee_env (reinstall), `_redo` with NO pre-unwind (CHOICE `pre[i]` handles it), on success restore caller_env from `cp->saved_args`. Compound args (BB_PL_STRUCT) built via `emit_build_compound_term` (WAM-CP-5b, `60dea34f`).
+  rt.c/rt.h: `rt_pl_cp_save_caller_env(void*)`. Also `rt_pl_arith`: bitwise `/\`, `\/`, `xor`, `>>`, `<<`, `max`, `min`, `mod`/`rem`, `**`/`^` (`b1e27f56`).
+  Gates: GATE-1 5/5, GATE-2 132/0, GATE-3 mode-2 91/107, GATE-4 4/4, full mode-4 (with .expected) 40/107 (+7 vs baseline 33), FACT RULE 0. Sibling smokes all hold.
+  **Open bugs for next session:** `**` power dispatch (char-prefix clash with `*` in `rt_pl_arith`); unary `sign`/`truncate`/`integer`/`float` (go through different BB path — not BB_ARITH).
 
 - [ ] **WAM-CP-6 — Last-Call Optimization.** At the last goal of a clause body, if
   `g_pl_bfr` is older than the current frame (no CP created since entry) and the call is
