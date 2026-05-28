@@ -110,6 +110,37 @@
 
 ## Active Rungs
 
+### 📌 WAM-CP-EMIT — emission obligations from the Prolog WAM-CP track (2026-05-28, Opus 4.7)
+
+**Pointer rung (sister to `GOAL-PROLOG-BB.md` WAM-CP ladder).** The Prolog goal is migrating
+choice points to a parent-linked `pl_choice` record + `g_pl_bfr` register (substrate landed
+WAM-CP-1, gate-clean). Several downstream rungs emit x86 and therefore fall under HQ's FACT
+RULE + template invariants (4, 9, 11, 15, 16). Recorded here so the emission side is planned,
+not bolted on:
+
+- **WAM-CP-5** (mode-4: CP record is the r12 target) — promotes the stashed CAT-A-3 buffer to
+  emit/read a `pl_choice`. New emit must stay inside `bb_pl_choice.cpp` / `bb_pl_call.cpp`
+  template bodies; the push/pop/truncate become `rt_pl_cp_*` **effect helpers** (serializable-
+  scalar ABI, NO port logic) so Invariant 16 (every emitted byte carries a BB/SM/XA opcode)
+  holds. Verify with the FACT-RULE grep == 0 and the three-section AUDIT.
+- **WAM-CP-13** (mode-4 parity for committed-ITE / catch/throw / deep arg-restore) — needs a
+  new `bb_pl_catch.cpp` template (one-file-per-Byrd-Box, Invariant 9) + arms in
+  `bb_pl_ite.cpp`. CP ops emit via `rt_pl_cp_push/pop/truncate@PLT` calls; the template owns
+  the `test/je ω/jmp γ` port triplet. Same two-path (scalar / compound-literal) shape as the
+  CAT-D family. Gate: GATE-PK byte-identical for non-Prolog, prolog mode-4 corpus +N, AUDIT
+  GREEN, FACT RULE 0.
+- **HQ design note:** the CP record carries dynamic-only fields (trail_mark, resume, env,
+  saved_args, parent, stamp) — NO WAM environment frame (the BB graph is the env stack). So
+  the emitter never grows env-stack push/pop bytes; only the lean CP-ledger ops. This keeps
+  the template inventory small. When WAM-CP-13 lands its `rt_pl_cp_*` helpers, add them to the
+  effect-helper allowlist (they are conversion/effect helpers, NOT `rt_*` port-logic helpers,
+  so RULES.md permits them).
+
+No HQ code change yet — this rung activates when WAM-CP-5/13 reach the emitter. Until then it
+is a planning anchor so the Prolog track's emit work inherits HQ's purity discipline.
+
+---
+
 ### 🔄 CAPS-CONCAT — one `return` per X86 arm via `IF(...)`/`FOR(...)` selectors
 
 **Principle.** Every template's `PLATFORM_X86` block collapses from a sequence of

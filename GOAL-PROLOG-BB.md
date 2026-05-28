@@ -106,11 +106,22 @@ determinism is provable.
   advance cursor, try next clause; on exhaustion pop the CP. Behavior-IDENTICAL to today
   (same solutions, same order) — this is a refactor to the real model, not new semantics.
   Gate: GATE-1 5/5, GATE-2 132/0, GATE-3 mode-2 91/107 UNCHANGED, sibling smokes hold.
-  - Step A: mode-2 BB_CHOICE arm pushes/reads CP instead of nd->state. Diff mode-2
-    outputs byte-identical vs HEAD across all 107 rungs.
-  - Step B: delete the now-dead `bb_active_choice` scan + `nd->state` choice bookkeeping
-    (keep nd->state for non-choice uses). Re-verify byte-identical.
-  - Step C: commit. GATE-3 mode-2 unchanged.
+  - [x] **Step A ✅ COMPLETE** (Opus 4.7, 2026-05-28). BB_CHOICE now pushes a `pl_choice`
+    (PL_CP_CLAUSE, trail_mark, env, resume=nd) on fresh entry (state 0), mirrors cursor +
+    trail_mark into it on each success, and pops it on exhaustion/cut. Pop/push balanced
+    across recursion by keying on `zc->cp` (the record this activation pushed) compared to
+    `pl_cp_current()` — NOT on `resume==nd` (recursion reuses the same `nd`). Added one
+    `void *cp` field to `bb_pl_choice_state_t` (BB.h). The CP-stack spine is now LIVE and
+    balanced, but NOT yet authoritative — existing `nd->state` still drives control, so
+    output is byte-identical by construction (nothing reads `g_pl_bfr` for decisions yet).
+    Gates: GATE-1 5/5, GATE-2 132/0, GATE-3 mode-2 91/107, GATE-4 4/4, full mode-4 28/128,
+    FACT 0; siblings icon/snocone/raku 5/5, rebus 4/4, snobol4 13/13. This realizes the
+    DESIGN PRINCIPLE: CP stack = cross-node spine, `nd->state`/`zc` = per-node vertebra.
+  - [ ] **Step B (NEXT, fresh context):** make the CP spine AUTHORITATIVE — retire the
+    `bb_active_choice`/`bb_body_has_live_choice` scan, drive redo from `zc->cp`'s cursor
+    (`trail_unwind` to `cp->trail_mark`, advance `cp->cursor`). Keep `nd->state` only for
+    non-choice bookkeeping. Re-verify mode-2 byte-identical across all 107 rungs.
+  - [ ] **Step C:** delete the now-dead scan helper. Commit. GATE-3 mode-2 unchanged.
 
 - [ ] **WAM-CP-3 — `;` (BB_PL_ALT) via CP stack (mode-2).** Same treatment for
   disjunction: left branch pushes a CP whose resume = right branch. Retires the
