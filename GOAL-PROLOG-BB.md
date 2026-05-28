@@ -26,6 +26,81 @@
 
 ---
 
+## ✅ CAT-D-11 — SORT/2 + MSORT/2 MODE-4 TEMPLATE (2026-05-27, Opus 4.7)
+
+**Closed.** `sort/2` and `msort/2` now emit real four-port x86 in mode-4 (previously fell through
+the `bb_pl_builtin` "unknown 'sort'" stub-comment + `jmp γ` arm, silently succeeding with the
+result variable unbound → `_` output). All five `rung17_sort_*` corpus tests pass mode-4
+byte-identical to `--interp` and to the `.expected` oracle.
+
+**Pattern:** verbatim mirror of CAT-D-6 (`atom_chars/atom_codes`) two-path approach. Two effect
+helpers in `bb_exec.c`:
+- `rt_pl_sort_msort(int do_msort, int k0,i0,s0, int k1,i1,s1)` — 7 serializable scalars, 1 stack
+  slot. Path A: scalar a0 (BB_PL_VAR bound to a list — future-proofing; corpus doesn't exercise
+  this today since rung17 fixtures all pass list literals).
+- `rt_pl_sort_msort_term(int do_msort, void *t0, int k1,i1,s1)` — 1 ptr + 3 scalars, all in regs.
+  Path B: literal cons-cell a0 (BB_PL_STRUCT) built via `emit_build_compound_term` post-order
+  walker, Term* arrives in rax post-build and moved to rsi.
+- Shared static `sort_msort_common(int do_msort, Term *t0, Term *t1)` — direct port of
+  `bb_exec.c` BB_BUILTIN sort/msort arm at lines 3505-3539. Walks cons list to collect elements
+  (cap 4096); insertion-sort by `pl_term_compare` (stable for msort); dedup pass for sort
+  (skipped for msort); builds reverse cons-list; unifies into t1 under trail mark.
+
+`do_msort` flag (rdi) selects sort (0) vs msort (1); fn-name match in template picks the value.
+No port logic in helpers — template owns the `test eax,eax / je ω / jmp γ / β:jmp ω` decision
+triplet exactly like CAT-D-6 / CAT-D-10.
+
+**Files touched:**
+- `src/lower/bb_exec.c` — +56 lines: CAT-D-11 helper block (static `sort_msort_common` + two
+  linkage entries) inserted between CAT-D-10 (`type_test_common`) and CAT-D-9 (`rt_pl_term_cmp`).
+- `src/lower/bb_exec.h` — +5 lines: declarations for `rt_pl_sort_msort` and `rt_pl_sort_msort_term`.
+- `src/emitter/BB_templates/bb_builtin.cpp` — +50 lines: CAT-D-11 dispatcher arm inserted between
+  CAT-D-10 type-test arm and CAT-D-9b compound-term-cmp arm. Path B (BB_PL_STRUCT a0) checked
+  first; falls through to Path A (scalar) otherwise. Both paths use `sub rsp,16` for SysV 16B
+  alignment at call (Path A needs the slot for `s1`; Path B needs alignment for
+  `emit_build_compound_term`'s internal `sub rsp,frame` recursion).
+
+**Gate impact:**
+
+| Gate | Before | After |
+|---|---|---|
+| GATE-1 (smoke) | 5/5 | 5/5 |
+| GATE-2 (3-mode crosscheck) | 132/0 | 132/0 |
+| GATE-3 mode-2 | 89/107 | 89/107 |
+| GATE-3 mode-3 | 89/107 | 89/107 |
+| GATE-4 (mode-4 minimal) | 4/4 | 4/4 |
+| **Full mode-4 corpus** | 24/107 | **28/107** (+4) |
+| FACT RULE grep | 0 | 0 |
+| Sibling smokes | icon 5/5, raku 5/5, snobol4 13/13, snocone 5/5, rebus 4/4, prolog 5/5 | all hold |
+
+**New mode-4 PASSes (+4):**
+- `rung17_sort_sort_basic` — `sort([c,a,b,a], S), S = [A,B,C]` → `a\nb\nc`
+- `rung17_sort_sort_already_sorted` — `sort([apple,banana,cherry], S)` → `apple\nbanana\ncherry`
+- `rung17_sort_msort_basic` — `msort([c,a,b,a], S), S = [A,B,C,D]` → `a\na\nb\nc` (dupes preserved)
+- `rung17_sort_msort_dupes` — `msort([b,b,a,a,c], S)` → `a\na\nb\nb\nc`
+
+(`rung17_sort_sort_empty` was already passing — no list-pattern step downstream.)
+
+**Verification:**
+- `rt_pl_sort_msort_term@PLT` confirmed in emitted `.s` for all four newly-passing rungs (no
+  stub-comment, no `unknown 'sort'` fallthrough).
+- Downstream list-pattern unify in mode-4 (`S = [A,B,C]` after sort returns the bound list)
+  works correctly — pre-validated with a `[a,b,c] = [X,Y,Z]` probe before committing the
+  template arm to confirm the ledger's "verify list-pattern unify works downstream" concern
+  was a no-op for the current tree.
+- Mode-2 (`--interp`) unchanged for all five rung17 cases: identical byte-output before/after
+  CAT-D-11.
+
+**Next steps:**
+- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume) — still blocked on Lon directive on design
+  (inline-on-demand vs resumable-call protocol). Largest single-step unlock (estimated +15-25
+  PASS) — every `pred(X), …, fail` pattern, rung02/05/06 lists.
+- **Pre-existing rung07_cut_cut** `bb_emit_byte: non-BINARY-mode reach (mode=0, b=0xe9)` —
+  surfaced by CAT-C as a FACT-RULE-adjacent issue (raw `bb_emit_byte` callsite outside
+  BINARY mode). Worth investigating as a clean side target.
+
+---
+
 ## ✅ CAT-C — BB_PL_VAR GARBAGE-SVAL FIX (2026-05-27, Opus 4.7)
 
 **Closed.** Multi-clause recursive predicates (rung06 length/append/reverse, rung08 fib/factorial,
@@ -769,21 +844,13 @@ directive) → CAT-B → CAT-C → PJ-AGW-5.
   test lines now read `yes yes no no` instead of all-yes. **All sibling smokes held; FACT
   RULE 0; GATE-1 5/5; mode-2 89/107; mode-3 21/107; mode-4 21/107.**
 
-  **CAT-D-11 — NEXT TARGET — sort/2 + msort/2.** RT helper does the work (term-array build
-  from cons list via cur=term_deref(cur->compound.args[1]) loop; insertion sort comparing
-  via pl_term_compare; dedup for sort/2 not msort/2; cons-list build in reverse with
-  term_new_compound(ATOM_DOT,2,c); unify result into arg1 under a trail mark). ZERO port
-  logic in the helper — template owns the γ/ω jump as in CAT-D-1..10. Two-path template
-  needed because corpus rung17 fixtures always pass list-literal a0 (BB_PL_STRUCT):
-  rt_pl_sort_msort(int do_msort, int k0,i0,s0, int k1,i1,s1) for the scalar (BB_PL_VAR)
-  case and rt_pl_sort_msort_term(int do_msort, Term* t0, int k1,i1,s1) for the struct case
-  built via emit_build_compound_term. Mode-2 oracle: bb_exec.c near "/*--- sort/2, msort/2
-  ---*/" already present and tested. Estimated +4 mode-3 rung + +4 mode-4 rung if the
-  result-list pattern unification step (e.g. `S = [A,B,C]`) also works in mode-4 — needs
-  verification; if list-cons unify is broken downstream the sort call itself will land but
-  the pattern step will still fail. Test with rung17_sort_sort_basic, rung17_sort_msort_basic,
-  rung17_sort_sort_already_sorted, rung17_sort_msort_dupes (rung17_sort_sort_empty already
-  PASSes mode-4 because no list-pattern step).
+  **CAT-D-11 ✅ COMPLETED 2026-05-27 (Opus 4.7) — see top-of-file ledger entry for details.**
+  Mode-4 corpus 24/107 → 28/107 (+4: rung17_sort_sort_basic, rung17_sort_sort_already_sorted,
+  rung17_sort_msort_basic, rung17_sort_msort_dupes). All gates held; FACT RULE 0. Two-path
+  effect helper exactly as designed (scalar `rt_pl_sort_msort` 7-scalar / compound-literal
+  `rt_pl_sort_msort_term` 1 ptr + 3 scalars). Downstream list-pattern unify (`S = [A,B,C]`
+  after sort) confirmed working in mode-4 via pre-commit probe — the ledger's verification
+  concern was a no-op for the current tree.
 
   **CAT-D-12 — alternative NEXT — functor/3 + arg/3 + =../2.** Unblocks rung09_builtins
   directly. functor/3 has decompose path (TERM_COMPOUND → unify name+arity) and construct
