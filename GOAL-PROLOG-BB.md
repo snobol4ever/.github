@@ -28,23 +28,22 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`549c7fca`, post-WAM-CP-9-partial)
+## State at HEAD (`5427e12e`, post-WAM-CP-10)
 
 | Gate | Count | Notes |
 |---|---|---|
 | GATE-1 (smoke) | 5/5 | |
 | GATE-2 (3-mode crosscheck) | 132/0 | 5 ORACLE_MISS (frontend gap, not mode) |
-| GATE-3 mode-2 (`--interp`) | **91/107** | stable since CAT-D-12-S1 |
+| GATE-3 mode-2 (`--interp`) | **96/107** | +5 (rung28 catch/throw, WAM-CP-10) |
 | GATE-3 mode-3 (`--run`) | 90/107 | transparent via sm_interp_run |
 | GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt |
-| **Full mode-4 corpus** | **54/107** | +1 (rung07_cut_cut) this session |
+| **Full mode-4 corpus** | **54/107** | unchanged (rung28 mode-4 stub fails — WAM-CP-13 territory) |
 | FACT RULE grep | 0 | full compliance |
 | `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix held |
 
-**Mode-2 OPEN classes (16/107):** rung15 (1 — then_reassert), rung18 (3 — succ/plus xy/xz/yz),
-rung23 (1 float-unary), rung27 (5 — aggregate/bagof/setof), rung28 (5 — catch/throw),
-rung30 (1 — dcg_pushback_rest). NOTE: rung07 cut_cut already passes mode-2 since WAM-CP-4;
-the previous header line listing it was stale.
+**Mode-2 OPEN classes (11/107):** rung15 (1 — then_reassert), rung18 (3 — succ/plus xy/xz/yz),
+rung23 (1 float-unary), rung27 (5 — aggregate/bagof/setof), rung30 (1 — dcg_pushback_rest).
+rung28 catch/throw closed this session (WAM-CP-10).
 
 ---
 
@@ -66,7 +65,7 @@ WAM-CP-9  committed-ITE node + cut=truncate (fixes rung07/15 PJ-AGW-5 class)    
 WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?")
 WAM-CP-7  unify specialization B_UNIFY_{FF,VF,FV,VV,FC,VC}   (speed; any time)
 WAM-CP-8  JIT first-arg indexing (needs CP model to know when a CP was elided)
-WAM-CP-10 catch/throw via CP-barrier unwind, no setjmp (rung28)
+WAM-CP-10 catch/throw via CP-barrier unwind (rung28)                            🟡 PARTIAL — mode-2 correctness 5/5 via Pl_CatchFrame+setjmp; longjmp-free CP-barrier unwind deferred to WAM-CP-13 alongside mode-4 emit
 WAM-CP-11 deep-backtracking arg restore (saved_args) + nested choices (rung02/05/06)
 WAM-CP-12 determinism detection → CP elision (BB-native fast path)
 WAM-CP-13 mode-4 parity for 9/10/11 (emit CP ops via templates, FACT-clean)
@@ -103,6 +102,26 @@ the LATER tagged-word track.
   WAM-CP-9 step):** disjunction-side cut (`!` in `(A ; B)`) — bb_pl_alt.cpp uses the
   trail_mark stack, not pl_choice, so disjunction CPs survive `!`; needs separate wiring or
   the committed-ITE node design.
+- **WAM-CP-10 partial** 🟡 Opus 4.7 (`5427e12e`) — catch/throw mode-2 via new `BB_PL_CATCH`
+  node + `bb_pl_catch_state_t {goal_g, catcher, rec_g}`. Goal and Recovery each lower into
+  their own self-contained `BB_graph_t`; Catcher is a term-tree BB node in the OUTER graph
+  so its vars share the surrounding clause's env. `lower_pl.c` recognises `catch/3` and
+  `throw/1` before the generic call fall-through. `pl_runtime.c` exposes public wrappers
+  around the previously-static `Pl_CatchFrame` stack: `pl_catch_push` (returns `jmp_buf*`
+  so caller setjmps), `pl_catch_pop_top`, `pl_throw_term`, `pl_catch_take_exception`,
+  `pl_catch_top_trail_mark`, `pl_catch_top_env`. Mode-2 `bb_exec.c BB_PL_CATCH` setjmps the
+  frame, runs `goal_g`; on normal exit pops and returns goal's result; on longjmp(1) re-entry
+  **restores `g_pl_env`** from the saved frame (CRITICAL — a throw originating in a sub-call
+  leaves `g_pl_env` pointing at the inner callee env at longjmp time, so any `BB_PL_VAR` read
+  in Recovery would otherwise index the wrong slot table), unwinds the trail to the frame's
+  mark, unifies Catcher with the exception, runs `rec_g`; rethrows if catcher doesn't match.
+  Mode-4: minimal FACT-clean stub template (`bb_pl_catch.cpp`) — α/β both `jmp ω` (catch/3
+  in mode-4 always fails until WAM-CP-13). rung28 mode-2: **0/5 → 5/5**. GATE-3 mode-2:
+  **91 → 96**. **Remaining (folded into WAM-CP-13):** the original WAM-CP-10 plan called for
+  longjmp-free CP-barrier unwind via templates. This session kept setjmp/Pl_CatchFrame because
+  the existing static infra was already throw-error-capable and reusing it isolated the change
+  to mode-2 with one new BB node. The longjmp-free CP-barrier design + mode-4 native emit are
+  now both WAM-CP-13's deliverable.
 
 ### Open rungs
 
@@ -138,10 +157,17 @@ the LATER tagged-word track.
   Gate (full step): rung07 cut_cut → `yes\nno` ✅ (already passes); a new corpus test exercising
   `!` inside `(A ; B)` would prove Step C.
 
-- [ ] **WAM-CP-10 — catch/throw via CP-barrier + longjmp-free unwind (rung28, 0/5).** On entry
-  record `(pl_cp_current(), trail_mark, env)` as CATCH barrier in `g_pl_catch` chain (parallel
-  to `g_pl_bfr`). `throw(Ball)` walks to nearest matching catch, `pl_cp_truncate`s + `trail_unwind`s,
-  enters Recovery. No setjmp. Mode-2 first; mode-4 follow. Gate: rung28 0/5 → ≥3/5 mode-2.
+- [ ] **WAM-CP-10 — catch/throw via CP-barrier + longjmp-free unwind (rung28 mode-2: 5/5 ✅
+  partial completion `5427e12e`).** DONE this session: mode-2 correctness end-to-end via new
+  `BB_PL_CATCH` BB node + `bb_pl_catch_state_t {goal_g, catcher, rec_g}`, `lower_pl.c` recognises
+  `catch/3` and `throw/1`, `bb_exec.c BB_PL_CATCH` setjmps `Pl_CatchFrame` and runs goal/recovery
+  sub-graphs (with critical `g_pl_env` restore on longjmp), `bb_pl_catch.cpp` mode-4 stub.
+  rung28 0/5 → 5/5 mode-2. GATE-3 91 → 96. See WAM-CP-10 partial entry above. REMAINING (now
+  folded into WAM-CP-13): longjmp-free CP-barrier unwind via templates — record
+  `(pl_cp_current(), trail_mark, env)` as CATCH barrier in `g_pl_catch` chain (parallel to
+  `g_pl_bfr`); `throw(Ball)` walks to nearest matching catch, `pl_cp_truncate`s +
+  `trail_unwind`s, jumps to Recovery's α via emitted indirect jump; no setjmp; mode-4 native
+  emit reuses the WAM-CP-9 partial pattern (r12 + saved-state slots in pl_choice).
 
 - [ ] **WAM-CP-11 — deep-backtracking arg restore + nested choices.** On CP push, snapshot live
   arg registers into `pl_choice.saved_args` (gprolog AB); on retry restore; on pop discard.
@@ -324,9 +350,16 @@ string_codes (CAT-D-6), write(compound) (CAT-D-7), if-then-else (CAT-D-8), sort/
 
 **Mode-2 only (mode-4 emit gap):** findall, atomic_list_concat, term_to_atom (forward),
 term_string (forward), atom_number, numbervars, writeq, write_canonical, print,
-retract, retractall, abolish, assertz/asserta (directive fold).
+retract, retractall, abolish, assertz/asserta (directive fold), catch/3 + throw/1 (WAM-CP-10).
 
 **Recent fixes (top-of-cycle):**
+- `5427e12e` Opus 4.7 — WAM-CP-10 partial: catch/throw mode-2. New BB node BB_PL_CATCH +
+  bb_pl_catch_state_t; lower_pl recognises catch/3 and throw/1; bb_exec.c BB_PL_CATCH
+  setjmps Pl_CatchFrame, restores g_pl_env on longjmp re-entry (sub-call-throw critical
+  fix), unwinds trail, unifies catcher↔exception, runs recovery sub-graph. bb_pl_catch.cpp
+  mode-4 stub (α/β both jmp ω; full emit is WAM-CP-13). pl_runtime exposes catch frame stack
+  via public wrappers (pl_catch_push/_pop_top/_top_trail_mark/_top_env, pl_throw_term,
+  pl_catch_take_exception). rung28: 0/5 → 5/5 mode-2. GATE-3 91 → 96.
 - `549c7fca` Opus 4.7 — WAM-CP-9 partial: mode-4 cut-scope in pl_choice. New fields
   saved_cut_flag (+56), saved_cut_barrier (+64); 4 rt helpers; bb_pl_choice.cpp restructured
   (α/β cut_enter, exit_γ/exhausted cut_exit, body-cut detection at β + exit_γ → cut_unwind);
