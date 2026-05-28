@@ -26,6 +26,93 @@
 
 ---
 
+## ✅ CAT-D-12-S2 — FUNCTOR/3 + ARG/3 + =../2 MODE-4 TEMPLATES (2026-05-27, Opus 4.7)
+
+**Landed:** mode-4 templates for `functor/3`, `arg/3`, `=../2` in `bb_builtin.cpp` + RT effect
+helpers in `bb_exec.c`. Pattern mirrors CAT-D-10's `rt_pl_type_test` + CAT-D-6's
+`rt_pl_atom_chars_codes` two-path approach (scalar args via flat (k,i,s) triples; compound
+literals via `emit_build_compound_term` post-order walker → `_term` variants accepting
+prebuilt `Term*`). Zero port logic in templates — every helper trail-marks on entry,
+unwinds on fail, returns 1=γ / 0=ω; the emit owns only the `test/je/jmp` decision triplet.
+
+**Files touched:**
+- `src/lower/bb_exec.c` — +144 lines. New static helpers `functor_common(t0,t1,t2)`,
+  `arg_common(tN,tT,tA)`, `univ_common(t0,t1)` — direct ports of the BB_BUILTIN exec arms at
+  lines 2977 / 3012 / 3026. Eight new linkage symbols:
+  - `rt_pl_functor(k0,i0,s0, k1,i1,s1, k2,i2,s2)` — 9-scalar / 3-stack-arg SysV.
+  - `rt_pl_functor_term(t0, k1,i1,s1, k2,i2,s2)` — compound a0 path.
+  - `rt_pl_arg(k0,i0,s0, k1,i1,s1, k2,i2,s2)` — 9-scalar.
+  - `rt_pl_arg_term(k0,i0,s0, t1, k2,i2,s2)` — compound a1 path.
+  - `rt_pl_univ(k0,i0,s0, k1,i1,s1)` — 6-scalar (all reg).
+  - `rt_pl_univ_term(t0, k1,i1,s1)` — compound a0.
+  - `rt_pl_univ_term_list(k0,i0,s0, t1)` — compound a1 (list literal).
+  - `rt_pl_univ_term_term(t0, t1)` — both compound.
+- `src/emitter/BB_templates/bb_builtin.cpp` — +197 lines. Three new dispatcher blocks inserted
+  before the unknown-fn stub: `functor/3` (compound test on a0), `arg/3` (compound test on a1),
+  `=../2` (four-way: both-scalar / compound-a0 / compound-a1 / both-compound). All call
+  `emit_build_compound_term` (CAT-D-9b) for compound-literal materialization. Standard SysV
+  stack discipline: `sub rsp, 32` for 9-arg calls (3 stack args + 8B pad), `sub rsp, 16` for
+  7-arg calls (1 stack arg + 8B pad), `sub rsp, 8` for 5–6-arg calls (alignment only).
+
+**Gate impact:**
+| Gate | Before S2 | After S2 |
+|---|---|---|
+| GATE-1 (smoke) | 5/5 | 5/5 |
+| GATE-2 (3-mode cross-check) | 132/132 | 132/132 |
+| GATE-3 mode-2 | 89/107 | 89/107 |
+| GATE-3 mode-3 | 89/107 | 89/107 |
+| GATE-4 (mode-4 micro-rung) | 4/4 | 4/4 |
+| **Full mode-4 corpus** | 21/89 (per pre-S2 baseline) | **22/89** (+1: rung09_builtins_builtins) |
+| `PL_BUILTIN: unknown 'functor'/'arg'/'=..'` stubs in r09 emit | 3 | **0** |
+| FACT RULE grep | 0 | 0 |
+| `.S_ERR` undefined-symbol count in r09 emit | 0 | 0 |
+
+Other language smokes (icon 5/5, raku 5/5, snobol4 5/6 — `beauty_omega` FAIL is pre-existing
+Milestone-2 territory, snocone 8/8, rebus 4/4) all hold.
+
+**rung09 mode-4 stdout byte-exact match to oracle:**
+```
+foo 2          ← functor(foo(a,b), N, A) decompose
+b              ← arg(2, foo(a,b), X)
+[foo,a,b]      ← foo(a,b) =.. L   (decompose)
+yes            ← atom(hello)      (CAT-D-10)
+yes            ← integer(42)      (CAT-D-10)
+no             ← atom(42)         (CAT-D-10)
+no             ← integer(hello)   (CAT-D-10)
+```
+Templates emitted in r09: `rt_pl_functor_term`, `rt_pl_arg_term`, `rt_pl_univ_term` — all three
+compound-literal paths exercised because rung09's term args are inline `foo(a,b)` literals
+that lower to `BB_PL_STRUCT` in the IR.
+
+**Investigated and documented (NOT a regression — pre-existing CAT-B):** the scalar paths
+(`rt_pl_functor` / `rt_pl_arg` / `rt_pl_univ` proper, not the `_term` variants) succeed only
+when the term-position arg is a literal at the call site. When the term comes through a
+`BB_PL_VAR` previously bound to a compound (e.g. `T = foo(x,y,z), arg(1, T, A)`), the scalar
+path fails because `rt_pl_node_to_term` in `src/runtime/rt/rt.c:965-980` has no `BB_PL_STRUCT`
+case (falls through `default: term_new_int(ival)`). The compound was therefore never properly
+constructed at the upstream `T = foo(...)` unify either — `g_pl_env[T_slot]` ends up bound to
+`term_new_int(3)` (the arity), not the real compound. This is **CAT-B from the V-5 handoff doc**
+("Compound-term unify binds nothing"), a known PL-DEBT-1 item upstream of CAT-D-12. Fix scope is
+in `bb_unify.cpp`'s emit path for `BB_PL_STRUCT` RHS (route through `emit_build_compound_term`
+instead of `rt_pl_node_to_term`), not in this CAT-D-12-S2 work. Once CAT-B lands, all three of
+my new scalar helpers light up automatically — no template change needed.
+
+**Pure-template compliance verified:** the FACT RULE completion grep across all of `src/`
+(excluding `*_templates/` and `emit_core.c`) returns 0 hits for `seg_byte(SEG_CODE`, `SL_B(`,
+`sl_emit_one`, `emit_standard_blob`. All effect helpers in `rt_pl_*` follow the same
+convention as CAT-D-6 / CAT-D-9 / CAT-D-10: trail-marked, deterministic, no port logic, exactly
+one γ-or-ω outcome encoded in return value.
+
+**Next steps:**
+- **CAT-B** (compound-term unify) is the natural next target — small surface area in
+  `bb_unify.cpp`, immediate cascade across rung02_facts / rung03_unify / rung05_backtrack /
+  rung06_lists. Estimated +10-20 mode-4 PASS.
+- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume) still blocked on Lon directive on design.
+- **CAT-D-11** (sort/2 + msort/2) — RT helper does term-array build + insertion-sort via
+  `pl_term_compare` + dedup + cons-list build + unify; zero port logic, template owns γ/ω.
+
+---
+
 ## ✅ CAT-D-12-S1 — PROLOG MODE-3 ARCHITECTURE RESTORED (2026-05-27, Opus 4.7)
 
 **The lie:** scrip.c `mode_run && is_prolog` branch (V-5) bypassed `sm_interp_run` and invoked
