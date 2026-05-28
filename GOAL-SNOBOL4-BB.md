@@ -77,6 +77,38 @@ bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=19, M4=15, SKIP=0
 
 ## Open Rungs (priority order)
 
+### SBL-M3-FLATWIRE — mode-3 must FLAT-WIRE the BB graph, not walk it in C ⛔ ROOT CAUSE / TOP PRIORITY ⏳
+
+**This is the real goal and has been all along (Lon, 2026-05-28). Mode 3 = SM runs live EXEC code + BB FLAT-WIRED native bytes. Filling BINARY template arms was a dead end because NOTHING ON THE MODE-3 PATH INVOKES THEM.**
+
+**Traced reality (Opus 4.7, 2026-05-28, marker-instrumented + reverted):**
+- Mode-3 (`--run`) runs SM live via `sm_interp_run`. ✅ correct half.
+- For a pattern statement, `sm_interp.c case SM_EXEC_STMT` (line ~582) does:
+  ```c
+  BB_graph_t *pat_bb = (a[2].i >= 0) ? g_stage2.sm.bb_table[a[2].i] : NULL;
+  if (pat_bb) ok = bb_exec_pat(pat_bb, ...);   // ← C ORACLE GRAPH WALKER (bb_exec.c). WRONG for mode 3.
+  else        ok = exec_stmt(...);             // ← runtime-PATND path: bb_build_flat → bb_broker → native box
+  ```
+- **`bb_exec_pat` is the C oracle** (`bb_exec.c`, walks BB_t graph in C via `bb_exec_once`/`bb_exec_node`). So compiled-in (graph-table) patterns under `--run` are INTERPRETED IN C, never flat-wired. This is the exact thing RULES.md forbids ("NO SM/BB WALKING AT RUNTIME IN MODES 3/4").
+- Confirmed by instrumentation: `[TEMP-BRK-ORACLE-EXEC]` fired under `--run` for `PAT=BREAK; S PAT`; the BREAK template (`bb_pat_break_str`) entry marker NEVER fired in mode-2 OR mode-3. `bb_broker` (`src/processor/bb_broker.c`) has NO oracle fallback (`if(!root.fn) return 0;` then jumps into `root.fn`), so the oracle was reached via `SM_EXEC_STMT`→`bb_exec_pat`, not via `bb_broker`.
+- The flat-wire machinery already exists and is correct: `bb_build_flat` (`emit_bb.c:878`) → `codegen_flat_body` → templates → sealed RX box; `bb_broker(root, bb_scan, ...)` jumps into it. It is used TODAY by the `exec_stmt` runtime-PATND branch (the `else` arm above) — but `SM_EXEC_STMT` never takes that arm for graph-table patterns.
+
+**Steps:**
+
+- [ ] **M3-FLATWIRE-1 — prove the gap.** Re-instrument `SM_EXEC_STMT` (pat_bb branch) + `bb_pat_break_str` entry + `bb_exec_pat` entry with stderr markers. Run `./scrip --run /tmp/brk_var.sno`. Expected (pre-fix): `bb_exec_pat` fires, template does NOT. Capture as the baseline. Revert markers.
+- [ ] **M3-FLATWIRE-2 — wire flat under LIVE.** In `sm_interp.c case SM_EXEC_STMT`, when `g_bb_mode == BB_MODE_LIVE` AND `pat_bb` is present: build the flat box from the graph (`bb_build_flat(pat_bb->entry)`) and execute via `bb_broker(root, bb_scan, scan_body, &res)` instead of `bb_exec_pat`. Mirror the subj/repl/commit handling that `exec_stmt`/`bb_exec_pat` already do (study both). Keep `bb_exec_pat` as the mode-2 (`--interp`) path only. NO oracle fallback under LIVE (MODE-PURITY): if `bb_build_flat` returns NULL, fail honestly (`last_ok=0`).
+- [ ] **M3-FLATWIRE-3 — verify template now reached.** Re-add the `bb_pat_break_str` entry marker; under `--run` it MUST now fire for `S BREAK('c')`. THIS is the validation harness that was missing — only now is "BINARY arm verified by execution under --run" a true statement. Revert marker.
+- [ ] **M3-FLATWIRE-4 — gate sweep.** Flipping mode-3 to flat-wire will move GATE-1 mode-3 smokes (6/6) and possibly GATE-4-adjacent counts. Run ALL gates. Honest signal: any template kind whose flat-wire box is a stub/wrong will now FAIL under `--run` (previously masked by the oracle). Record which kinds regress — that list IS the real remaining template work.
+- [ ] **M3-FLATWIRE-5 — corpus.** Re-run mode-3 over the broad corpus (add a mode-3 column if absent). Target: mode-3 flat-wire matches mode-2 oracle output, kind by kind.
+
+**Only after M3-FLATWIRE lands does filling BINARY arms (SPAN/ARBNO/BREAKX/CAPTURE) have an observable, validatable effect under `--run`.** The earlier "filled + verified" arms (ANY/NOTANY/LEN/BREAK) were verified ONLY against the C oracle and (for BREAK) the mode-4 brokered standalone — NOT against a mode-3 flat-wire execution, because that path did not exist yet.
+
+**Mode-4 note (separate, do NOT fix in this rung):** `--compile` emits `call rt_pat_break@PLT`; the standalone binary's `rt_init` (`rt.c:335`) forces `g_bb_mode = BB_MODE_BROKERED` → patterns are rebuilt + brokered at the binary's runtime. Lon flagged this as wrong (mode-4 should be flat-wired only). Tracked separately as SBL-M4-FLATWIRE; do not conflate with M3.
+
+### SBL-M4-FLATWIRE — mode-4 standalone must be FLAT-WIRED, not broker at runtime ⏳ (separate from M3)
+
+Lon (2026-05-28): "MODE 4 is FLAT-WIRED BBs ONLY. Prevent using BROKERED BBs in --compile mode." Current state (traced): `--compile` emits `call rt_pat_break@PLT` for pattern atoms; the linked `libscrip_rt` `rt_init` (`src/runtime/rt/rt.c:335`) sets `g_bb_mode = BB_MODE_BROKERED`; at the standalone binary's runtime `exec_stmt` (`stmt_exec.c:332-337`) calls `bb_build_brokered(pp_bb)` — rebuilding + brokering pattern blobs IN THE RUNNING COMPILED PROCESS. Confirmed: a `--compile`d binary matched WITHOUT firing the `bb_exec` oracle marker (so not oracle) — it ran the brokered template path at its own runtime. Per ARCH-SCRIP.md the standalone binary should hold NO graph and build nothing; pattern code should be flat-wired into the emitted `.s` at compile time. DO NOT just flip `rt.c:335` to LIVE in isolation (default `BB_MODE_DRIVER` ALSO routes to `bb_build_brokered` per `emit_bb.c:928` + `stmt_exec.c:332`; both arms must be addressed, and the emitter must actually flat-wire pattern bytes into the asm rather than emit `call rt_pat_*`). Design first; trace the full `--compile` pattern-emit path before cutting. Defer until after SBL-M3-FLATWIRE (shared flat-wire infrastructure).
+
 ### SBL-XNME-XLATE + SBL-CAP-2 — paired (must land together) ⏳
 
 Probe wedge `probe_xnme.sno`: `PAT = ANY('cab'); S = 'xyzabcdef'; S PAT . M`. Oracle: `M=a`. Mode-2/-3 already green via C oracle. Mode-4 prints `no match`.
@@ -264,13 +296,15 @@ GATE-2 unified broker       = 34 (sibling-influenced)
 GATE-3 broad corpus mode-4  = 175/280
 GATE-4 broad corpus mode-2  = 238/280
 Rung suite                  = M2=19, M4=15, SKIP=0
-HEAD one4all                = 58c7cab9 (SBL-BREAK-VERIFY; ANY/NOTANY/LEN/BREAK BINARY arms now VERIFIED-BY-EXECUTION via --run)
+HEAD one4all                = 58c7cab9 (SBL-BREAK-VERIFY; see CORRECTION below — BREAK no-terminator FIX is real + gate-clean, but the "verified via --run BINARY arm" claim was WRONG: --run routes graph-table patterns to bb_exec_pat C ORACLE, not flat-wired template bytes. See SBL-M3-FLATWIRE.)
 GATE-PK status              = stale (re-freeze deferred)
 ```
 
 ---
 
 ## Session log (terse)
+
+- **2026-05-28 Opus 4.7 (e) — ROOT-CAUSE FOUND (SBL-M3-FLATWIRE carved). No code committed; investigation + goal correction only.** Lon: "Mode 3 should be SM run live EXEC + BB FLAT-WIRED. That is what you were supposed to be doing for two days." Traced (marker-instrumented, all reverted): mode-3 `--run` runs SM live (`sm_interp_run` ✅) BUT `sm_interp.c case SM_EXEC_STMT` routes graph-table patterns (`pat_bb != NULL`) to **`bb_exec_pat` — the C ORACLE graph walker in `bb_exec.c`** — NOT to flat-wired native template bytes. So compiled-in patterns under `--run` are INTERPRETED IN C (RULES.md violation). `bb_broker` has no oracle fallback; the oracle was reached via `SM_EXEC_STMT`→`bb_exec_pat`. **CONSEQUENCE: every "BINARY arm" filled/verified to date (ANY/NOTANY/LEN/BREAK) was NEVER exercised by mode-3** — the `bb_pat_break_str` entry marker did not fire in mode-2 OR mode-3. The prior-session and this-session-(a–d) "verified via --run" claims were verifying the C oracle, not flat-wire. The BREAK no-terminator FIX (commit 58c7cab9) IS real and gate-clean (it fixed the oracle + TEXT + BINARY uniformly), but the verification MECHANISM claim was wrong. Carved **SBL-M3-FLATWIRE** (top priority: wire `SM_EXEC_STMT` under LIVE to `bb_build_flat`+`bb_broker` instead of `bb_exec_pat`) and **SBL-M4-FLATWIRE** (separate: `--compile` brokers patterns at the standalone binary's runtime via `rt.c:335` BB_MODE_BROKERED — must become flat-wired). Tree clean at 58c7cab9; no new commits to one4all this session.
 
 - **2026-05-28 Opus 4.7 (d) — SBL-BREAK-VERIFY ✅.** Resolved the prior caveat that NOTANY/BREAK BINARY arms were UNVERIFIED-BY-EXECUTION. Confirmed in `scrip.c` that `--run` forces `bb_live=1` → `bb_build_flat` writes MEDIUM_BINARY+WIRED into the sealed RX `bb_pool` slab and jumps in — so `--run` IS the harness that executes the new BINARY bytes (SM-level still `sm_interp_run`, but pattern BB nodes are flat-wired BINARY). Validated ANY/NOTANY/LEN BINARY arms under `--run`: all byte-correct vs C oracle AND SPITBOL (positive + negative cases). **BREAK: found a latent correctness bug** uniform across oracle + TEXT + BINARY: `BREAK(set)` with the terminator ABSENT from the subject must FAIL (SPITBOL), but the α-logic unconditionally succeeded after scanning to end-of-subject (SBL-BREAK-2 had faithfully mirrored the already-buggy TEXT semantics). Fixed in three coordinated edits: (1) `bb_exec.c` α — return ω when no break char found before Σlen; (2) `bb_pat_break.cpp` BINARY arm — retarget loop `jge` from success epilogue to a new `jmp ω` fail epilogue (183B, was 178; jge disp 66→114; 4th site at operand 179→ω); (3) `bb_pat_break.cpp` TEXT arm — route end-of-subject `jge` to `lbl_ω` instead of success `done`. Validated vs SPITBOL on 6 BREAK cases (positive, terminator-absent, terminator-at-first/last/end, long-no-terminator) across mode-2, mode-3 WIRED, AND mode-4 (standalone compiled binary + brokered runtime rebuild). All five gates hold at watermark (G1 13/13, G2 34, G3 175/280, G4 238/280, M2=19 M4=15), FACT RULE=0. HEAD `58c7cab9`. NEXT: ANY/NOTANY/LEN/BREAK now trustworthy — resume SBL-SPAN-2 with absolute-z_orig + GC-rooted scratch (register `rt_cs_t` as GC root — same facility SBL-CAP-2's saved_Δ needs), OR fill SBL-BREAKX-2 BINARY arm (now that the plain-BREAK BINARY layout is proven), validating each new arm under `--run`.
 - **2026-05-28 Opus 4.7 (c) — HANDOFF (partial, see caveats):** Session attempted SBL-SPAN-2 and clarified a mode misunderstanding. NET RESULT: no new code landed beyond (a)/(b); SPAN reverted.
