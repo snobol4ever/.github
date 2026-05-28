@@ -26,6 +26,48 @@
 
 ---
 
+## ✅ CAT-D-12-S1 — PROLOG MODE-3 ARCHITECTURE RESTORED (2026-05-27, Opus 4.7)
+
+**The lie:** scrip.c `mode_run && is_prolog` branch (V-5) bypassed `sm_interp_run` and invoked
+`scrip_run_via_x86_pipeline` — an in-process fork(as)+fork(gcc)+fork(prog) of a built binary.
+That was mode-4 dressed up as mode-3 and broke the three-mode contract SNOBOL4 has honored
+all along.
+
+**The truth (per Lon, 2026-05-27):**
+- **mode 2 (`--interp`):** SM interp + BB graph interp (brokered) — `bb_build_brokered`
+- **mode 3 (`--run`):** SM interp + BB flat-wired in bb_pool slab, sealed RX, jumped into via
+  `(bb_box_fn)slab` from `SM_BB_SWITCH` — `bb_build_flat`. THIS IS THE IN-PROCESS JIT.
+- **mode 4 (`--compile --target=x86`):** `sm_codegen_text` → external as+gcc → standalone binary
+
+**Landed:** scrip.c V-5 branch + `scrip_run_via_x86_pipeline` + `scrip_locate_rt_lib` +
+`scrip_spawn_wait` DELETED. Prolog `--run` now folds into the same `sm_run_with_recovery(sm,
+sm_interp_run)` path SNOBOL4 uses. `bb_live=1` is forced at scrip.c:217 so `bb_build_flat`
+(not brokered) is the BB sink under `--run`. Identical 18-rung fail set in mode-2 and mode-3
+(`comm -12` of fail lists = 18 / `comm -23` = 0 / `comm -13` = 0).
+
+**Gate impact:**
+| Gate | Before | After |
+|---|---|---|
+| GATE-1 (smoke) | 5/5 | 5/5 |
+| GATE-2 (3-mode cross-check) | 31/132 PASS | **132/132 PASS** |
+| GATE-3 mode-2 | 89/107 | 89/107 |
+| GATE-3 mode-3 | 89/107 (via fake fork/exec) | 89/107 (via real flat-wired BB) |
+| GATE-4 (mode-4) | 4/4 | 4/4 |
+
+GATE-2 went from PASS=31/FAIL=101 to PASS=132/FAIL=0 — three-mode agreement is now total.
+Rung09 mode-3 (functor/arg/=..) turned green as a byproduct: the BB_BUILTIN exec arm in
+`bb_exec.c` lines 2977/3012/3026 already implemented functor/3 / arg/3 / =../2 correctly;
+it was just never reached under `--run` because the fake pipeline shunted execution into a
+mode-4-style external binary whose template was empty for these builtins.
+
+**Remaining for CAT-D-12 (next session):** mode-4 templates for `functor/3`, `arg/3`, `=../2`
+in `bb_builtin.cpp` (MEDIUM_TEXT arm for the `.s` codegen path). Mode-2 + mode-3 are already
+green. New RT helpers `rt_pl_functor` / `rt_pl_arg` / `rt_pl_univ` (+ `_term` variants for
+compound-literal args) in `bb_exec.c`, mirroring CAT-D-10's `rt_pl_type_test`/`rt_pl_type_test_term`
+pattern verbatim. New `test_prolog_mode4_rung.sh` row for rung09 once template lands.
+
+---
+
 ## 🔴🔴🔴 PRIORITY #1 (2026-05-27, Lon directive) — FINISH FOUR-PORT BB MODE-4 EXECUTION
 
 **THE WHOOPS:** mode-4 Prolog has *never executed*. The top-level query `?- main` lowers to an
