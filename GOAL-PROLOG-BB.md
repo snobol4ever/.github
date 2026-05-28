@@ -39,8 +39,15 @@ instinct, wrong scope. SWIPL's `struct choice { type; parent; mark; frame; value
 on a parent-linked stack with one `BFR` backtrack register is the genuine article; it
 makes cut trivial (truncate to barrier), unifies `;`/multi-clause/retry under one
 primitive, and is the prerequisite for Last-Call Optimization (the principled fix for
-the SEGFAULT-CLUSTER). **Next session: study GNU Prolog (its WAM is closer to what we
-emit — register-based, compiled-to-native) before locking the CP record layout.**
+the SEGFAULT-CLUSTER). **GNU Prolog study DONE** (`doc/GPROLOG-STUDY-2026-05-28-OPUS.md`,
+2026-05-28): gprolog confirmed the exact CP frame layout (`wam_inst.h:90-104` — negative
+offsets from register `B`: ALTB/CPB/EB/BB/HB/TRB/CSB/AB), the in-place-update retry
+discipline (`retry_me_else` mutates ALTB, `trust_me` pops — the real model our `nd->state`
+scan crudely emulates), one-assignment cut (`Pl_Cut: B = saved_B`), and the first-arg
+indexing scheme (`switch_on_term` tag-dispatch over try/retry/trust chains — the WAM-CP-8
+blueprint). It refined the WAM-CP-1 struct with `saved_args` (AB) + `stamp` (STAMP, for LCO).
+**WAM-CP-1 substrate LANDED & gate-clean. NEXT: WAM-CP-2 (route BB_CHOICE through the CP
+stack, mode-2, byte-identical).**
 
 **Strategy: build the choice-point stack on TOP of our existing `Term*` boxes first
 (no tagged-word rewrite yet), so every rung is small and nothing breaks. The big
@@ -62,15 +69,23 @@ WAM-CP-8  JIT first-arg indexing (needs CP model to know when a CP was elided)
 
 ### Rungs & steps
 
-- [ ] **WAM-CP-1 — choice-point record + `g_pl_bfr`, mode-2 only.** Add
-  `struct pl_choice { int type; struct pl_choice *parent; int trail_mark; Term **env;
-  void *resume; int cursor; }` + `g_pl_bfr` register + push/pop/truncate helpers in
-  `pl_runtime.c`. NOT wired to anything yet — pure substrate, zero behavior change.
-  Gate: full suite byte-identical (this commit changes NO output). Verify the struct
-  compiles into mode-2 and mode-4 builds. *Smallest possible first step.*
-  - Step A: define struct + register + `pl_cp_push/pop/truncate/current` (no callers).
-  - Step B: unit-assert the helpers in a throwaway test (push 3, truncate to 1, check).
-  - Step C: commit substrate. All gates unchanged (nothing calls it).
+- [x] **WAM-CP-1 — choice-point record + `g_pl_bfr`, mode-2 only. ✅ COMPLETE** (Opus 4.7,
+  2026-05-28). GNU Prolog study landed first (`doc/GPROLOG-STUDY-2026-05-28-OPUS.md`) — it
+  validated the layout as gprolog's CP frame (`wam_inst.h:90-104`) reduced to the live
+  Term*-box subset, and added two fields the original sketch omitted: `saved_args` (gprolog
+  AB — arg-register restore for WAM-CP-2) and `stamp` (gprolog STAMP — monotonic age for the
+  WAM-CP-6 LCO "is B older than this frame?" test, so LCO needs no later struct change).
+  Final record in `pl_runtime.h`: `typedef struct pl_choice { pl_cp_type type; struct
+  pl_choice *parent; int trail_mark; Term **env; void *resume; Term **saved_args; int cursor;
+  int stamp; }` + `pl_cp_type {PL_CP_CLAUSE,PL_CP_DISJ,PL_CP_RETRY}`. Register `pl_choice
+  *g_pl_bfr=NULL` + `int g_pl_cp_stamp`. Helpers in `pl_runtime.c`: `pl_cp_push` (=gprolog
+  Create: parent=old bfr, bump stamp), `pl_cp_current` (=B/Pl_Get_Current_Choice), `pl_cp_pop`
+  (=Delete: bfr=BB), `pl_cp_truncate` (=Pl_Cut: bfr=barrier, frees younger frames). Reuses
+  `g_pl_trail`+`trail_unwind` as TR/Pl_Untrail (no parallel trail). NO callers — pure
+  substrate. Step B throwaway test (push3/truncate-to-1/pop/cut-to-null + stamp/cursor) all
+  PASS. **All gates byte-identical:** GATE-1 5/5, GATE-2 132/0 (5 ORACLE_MISS), GATE-3 mode-2
+  91/107, GATE-4 4/4, full mode-4 28/128, FACT RULE 0; sibling smokes icon 5/5 snocone 5/5
+  raku 5/5 rebus 4/4 snobol4 13/13. Symbols present in both `scrip` and `libscrip_rt.so`.
 
 - [ ] **WAM-CP-2 — BB_CHOICE multi-clause via CP stack (mode-2).** Replace the
   `bb_active_choice` runtime scan (`bb_exec.c:849`, `nd->state>0`) with: on first entry
