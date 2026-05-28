@@ -61,23 +61,21 @@ Step 10a is the architectural pre-work that splits across multiple `_ag` lowerer
 | 10a-6 ✅ | Lconcat_ag (lhs/rhs) | this session (rungs 198, broker 34) |
 | 10a-7 ✅ | Section_ag (base/i1/i2) | this session (rungs 198, broker 34) |
 | 10a-8 ✅ | Idx_ag (base/idx) | this session (rungs 198, broker 34) |
-| 10a-9 | Idx_set_ag (base/idx/rhs) | NEEDS `_ag` VARIANT — see note |
+| 10a-9 ✅ | Idx_set_ag (base/idx/rhs) | this session (rungs 198, broker 34); new `_ag` variant + threaded_b early-exit; executor AG-pure branch already present from Step 9 |
 | 10a-10 ✅ | ToBy_ag (verify lo/hi/by) | verified no-change (lo→hi→nd chain already correct; bounds via lower_icn_new_ToBy) |
-| 10b | Sidecar deletion + ring-peek in bb_exec.c | BLOCKED on 10a-4, 10a-9 |
+| 10b | Sidecar deletion + ring-peek in bb_exec.c | BLOCKED on 10a-4 only |
 
 Each 10a-N is independent and zero-impact when applied alone (legacy executor recursion still handles operand eval) — commit each separately, gate ≥198 throughout.
 
 ### ⚠️ Step 10a-4 (Every_ag) — BLOCKED, NOT zero-impact (Opus 4.7, 2026-05-28)
 Bisected thoroughly: threading the non-TO gen and/or body via `lower_icn_expr_threaded_b` REGRESSES rungs (198→190/191/194 across variants; `rung13_table_iterate` = `every v := !t do write(v)` goes silent). Unlike If/Conjunction/Alt (forward continuations), EVERY's flat-wire gate (`nd->ival==1`, `bb_exec.c:1414`) builds a CYCLIC graph: body's γ/ω ports are reused as loop back-edges (`gen.γ=body; body.γ=gen; body.ω=gen; gen.ω=nd`). When `threaded_b` Family 2 deep-threads the body BB_CALL's args (`ax->γ=nd`), the chain-walker path AND BB_CALL's own executor arg-recursion DOUBLE-EVALUATE the generator-resume → desync → no output. `gen->γ` targeting the apply node skips arg eval; targeting the entry double-evals. **Conclusion: 10a-4 is entangled with executor behavior and effectively requires Step 10b (ring-peek replacing executor recursion) FIRST.** Defer 10a-4 until after 10b lands the ring-peek, OR special-case the flat-wire executor (`bb_exec.c` BB_EVERY `ival==1` branch) to suppress BB_CALL arg-recursion when the body was threaded. All attempts reverted to clean 198.
 
-### Next: Step 10a-9 (Idx_set_ag) then Step 10b
-**10a-6/7/8 ✅, 10a-10 ✅ (verify) this session.** Forward-chain `_ag` lowerers (Binop/Lconcat/Section/Idx) all migrated to `lower_icn_expr_threaded_b` with entry-capture wiring; ToBy already correct.
+### Next: Step 10b (sidecar deletion + ring-peek) — only 10a-4 remains as a sub-blocker
+**10a-9 ✅ this session.** `lower_icn_new_Idx_set_ag` added (lower_icn.c, right after Idx_ag): flat base→idx→rhs→apply γ-chain, operands via threaded_b, α=β=NULL on apply. New early-exit in threaded_b for `TT_ASSIGN` with `TT_IDX` lhs, before the Family-1 BB_ASSIGN(TT_VAR) block. The BB_IDX_SET executor's AG-pure branch (bb_exec.c, `if (!nd->α && !nd->β)` → peek 2/1/0) was already in place from Step 9, so no executor change. Verified: `L[2]:=99`, `t["k"]:=7`, rung13 5/5.
 
-**10a-9 (Idx_set_ag) — NEEDS A NEW `_ag` VARIANT FIRST.** Unlike the others, `base[idx] := rhs` has NO dedicated `_ag` function: it's handled inside `lower_icn_new_Assign` (lower_icn.c:1388) using the LEGACY operand-port model (`nd->α=base; nd->β=idx; idx->γ=rhs`) reached via `lower_icn_expr_node`, not via a γ-chain `_ag` variant called from `threaded_b`. To migrate: (1) factor the TT_IDX-lhs branch into `lower_icn_new_Idx_set_ag(cfg,e,γ_in,ω_in,&α,&β)` building a flat base→idx→rhs→apply γ-chain (mirror Section_ag's 3-operand shape, apply reads peek(2)=base/peek(1)=idx/peek(0)=rhs); (2) add a TT_ASSIGN-with-TT_IDX-lhs early-exit in `threaded_b`; (3) update the BB_IDX_SET executor in bb_exec.c to read operands via ring-peek under the new shape (or keep legacy recursion until 10b). Est. medium; coordinate with 10b.
+All forward/operand-chain `_ag` lowerers are now migrated (Binop/Lconcat/Section/Idx/Idx_set; ToBy verified). The ONLY remaining 10a sub-blocker is **10a-4 (Every_ag)**, the cyclic flat-wire case (see blocker note below).
 
-**10a-4 (Every_ag) — BLOCKED**, see blocker note below (cyclic flat-wire).
-
-Once 10a-9 lands, only the two cyclic/structural cases (10a-4, BB_IDX_SET executor) gate 10b sidecar deletion + ring-peek.
+**10b plan.** Acceptance grep targets: (1) `grep -nE 'bb_operand_aux_set' src/lower/lower_icn.c | wc -l` == 0; (2) `grep -nE 'bb_exec_node\(nd->[αβ]\)' src/lower/bb_exec.c | wc -l` == 0; (3) `icn_kind_owns_omega_operand` removed; (4) rungs ≥198. To get there: replace the executor's legacy operand-recursion branches (the `else` arms in BB_BINOP/LCONCAT/SECTION/IDX/IDX_SET and the Family-1/2 BB_ASSIGN/BB_CALL paths) with ring-peek-only reads, then delete `bb_operand_aux_set/get` calls from lower_icn.c (Families 1/2 in threaded_b). 10a-4 must be solved FIRST or in the same pass, because removing the executor recursion is exactly what unblocks the Every flat-wire double-eval problem — once the body is read via ring-peek instead of `bb_exec_node`, threading it no longer double-fires the generator. So 10a-4 and 10b are best done together: thread Every_ag's gen/body, switch the BB_EVERY `ival==1` executor to drive the chain purely via ports + ring (no `bb_exec_node(nd->β)`), and verify rung13_table_iterate + the every-suite hold at 198.
 
 Acceptance (whole migration):
 1. `grep -nE 'bb_operand_aux_set' src/lower/lower_icn.c | wc -l` == 0
@@ -136,7 +134,7 @@ bash scripts/test_icon_all_rungs.sh        # PASS=198
 
 ---
 
-**WATERMARK:** one4all `6f41527f`. Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Step 10a-1 ✅ (If_ag) · 10a-2 ✅ (Conjunction_ag) · 10a-3 ✅ (Alt_ag) · 10a-5 ✅ (Binop_ag, `c6529c75`) · **10a-6/7/8 ✅ (Lconcat/Section/Idx, `6f41527f`)** · **10a-10 ✅ (ToBy verify)**. ⚠️ **10a-4 (Every_ag) BLOCKED** (cyclic flat-wire). **10a-9 (Idx_set_ag) needs new `_ag` variant** (legacy operand-port today). Next: **10a-9** then **10b** (sidecar deletion + ring-peek). Gate: rungs 198, broker ≥34.
+**WATERMARK:** one4all `b2f773bc`. Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Step 10a-1/2/3 ✅ · 10a-5 ✅ (Binop) · 10a-6/7/8 ✅ (Lconcat/Section/Idx) · 10a-9 ✅ (Idx_set, `b2f773bc`) · 10a-10 ✅ (ToBy verify). ⚠️ **10a-4 (Every_ag) BLOCKED** (cyclic flat-wire) — the ONLY remaining 10a sub-blocker. Next: **Step 10b** (sidecar deletion + ring-peek), best done together with 10a-4 since removing executor recursion is what unblocks the Every double-eval. Gate: rungs 198, broker ≥34.
 
 ## File ownership
 `src/lower/lower_icn.c` · `src/lower/bb_exec.c` · `src/emitter/{emit_bb.c,emit_sm.c,emit_core.c}` · `src/emitter/BB_templates/bb_*.cpp` · `src/processor/sm_codegen.c` · `src/processor/sm_interp.c` · `baselines/icon-bb/`
