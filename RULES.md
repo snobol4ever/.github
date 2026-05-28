@@ -16,6 +16,8 @@
 
 **X86 ONLY FOR NOW.** IS_JVM/IS_JS/IS_NET/IS_WASM arms stub out.
 
+**ICON SM = TWO OPCODES ONLY.** When `SCRIP_ICN_BB=1` (Icon-BB path), an Icon program's SM stream may contain ONLY `SM_BB_INVOKE` and `SM_HALT`. Any other SM opcode emitted by the Icon path is a violation. The entire Icon program is one connected port-graph rooted at main's BB graph; the SM around it is a two-op boot. See `GOAL-ICON-BB.md` for the canonical statement.
+
 **PEERS RULE (HQ Invariant 17).** BB_t stays LEAN. Operand-value refs go in `BB_graph_t.operand_aux` sidecar via `bb_operand_aux_set/get`. DO NOT add fields to BB_t.
 
 ## Commit identity
