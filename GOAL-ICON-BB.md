@@ -150,7 +150,7 @@ static inline void    ag_ring_clear(BB_graph_t *cfg);                /* by bb_re
    - **8.2 BB_TO / BB_TO_BY** ✅ `7acc7849` — dynamic-bound paths via ring. TT_EVERY routes gen through `lower_icn_expr_threaded_b` when c[0]->t is TT_TO/TT_TO_BY (scoped option 1). 8.2 intercept scrubs gen->α/β, chains lo→hi→gen via γ, stamps sval ("ag" / "ai" / "ar"). Executor's AG-pure branch reads peek(1)=lo, peek(0)=hi on state==0, caches in counter/dval. nd_every.α = chain_entry (= lo); flat-wire back-edges still attach to gen (BB_TO/BB_TO_BY) so loop re-enters at counter step, not at lo/hi. Verified: bare `every lo to hi [by N] [do body]` exercises 8.2 path; assign-wrapped `every i := lo to hi do body` stays legacy (c[0]=TT_ASSIGN, scope of 8.2 followup). Gates green throughout. See HANDOFF-2026-05-27-OPUS-ICON-BB-AG-STEP-8-2.md.
    - **8.3 BB_BINOP_GEN** — cross-product odometer. Major rework. Defer.
    - **Dispatchers to consider for AG-pure conversion at this step:** BB_LIMIT, BB_REPEAT, BB_WHILE, BB_UNTIL, BB_SCAN — same swallowing pattern.
-9. **Step 9 — N-ary applies**: BB_CALL / BB_LCONCAT / BB_SECTION / BB_IDX_SET. Args chain via γ, last arg's γ → apply; apply reads peek(N-1..0).
+9. **Step 9 — N-ary applies** ✅ `1dfe9631` (Claude Sonnet 4.6, 2026-05-27): BB_LCONCAT, BB_SECTION, BB_IDX, BB_IDX_SET. _ag lower variants + executor AG-pure branches (gated on nd->α==NULL). peek reads: LCONCAT peek(1/0), SECTION peek(2/1/0), IDX peek(1/0), IDX_SET peek(2/1/0). Early-exits in _threaded_b for TT_LCONCAT/SECTION/PLUS/MINUS/IDX. Gates: 5/5 · 198 · 5/5 · 30 · FACT RULE 0.
 10. **Step 10 — Sidecar cleanup**: delete `bb_operand_aux_set/get` calls from Icon lower path. Sidecar struct stays for Prolog/SNOBOL4.
 
 **Failed attempt log:** Step-4-attempted-as-BB_IF on 2026-05-27 (reverted): smoke if_expr 5→4 because BB_SEQ's recursive dispatch hid BINOP's push from the ring. Lesson: sequencer-first ordering enforced.
@@ -294,7 +294,7 @@ bash scripts/test_icon_mode4_rung.sh       # PASS=5
 | Family 1 BB_ASSIGN sidecar | `78e4c067` |
 | Family 2 BB_CALL sidecar | `78e4c067` |
 
-**WATERMARK:** one4all `6a631124`. Gates: smoke_icon 5/5 · broker 30 · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. LFJ COMPLETE (15/15 · 100%). **LFJ-15b DONE.** ICON-BB LFJ staircase complete.
+**WATERMARK:** one4all `1dfe9631`. Gates: smoke_icon 5/5 · broker 30 · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Step 9 done. Next: Step 10 — sidecar cleanup (delete bb_operand_aux_set/get from Icon lower path; Fam-1 BB_ASSIGN and Fam-2 BB_CALL).
 
 ---
 
