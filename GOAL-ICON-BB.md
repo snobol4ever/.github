@@ -56,7 +56,7 @@ Step 10a is the architectural pre-work that splits across multiple `_ag` lowerer
 | 10a-1 ✅ | If_ag (cond/then/else) | `a9b326f0` |
 | 10a-2 ✅ | Conjunction_ag (left/right) | `6992c58d` (broker 30→34) |
 | 10a-3 ✅ | Alt_ag (arms) | `d181c92e` |
-| 10a-4 | Every_ag (gen for non-TO; body) | BLOCKED — see note below |
+| 10a-4 | Every_ag (gen for non-TO; body) | PARTIAL ✅ `5d5bf85d` — streaming gens (`!t`/`!L`/`key`/alt) flat-wire via ival=2; static-TO + block (BB_SEQ_EXPR) bodies stay legacy by design |
 | 10a-5 ✅ | Binop_ag (lhs/rhs) | this session (rungs 198, broker 34) |
 | 10a-6 ✅ | Lconcat_ag (lhs/rhs) | this session (rungs 198, broker 34) |
 | 10a-7 ✅ | Section_ag (base/i1/i2) | this session (rungs 198, broker 34) |
@@ -143,7 +143,7 @@ bash scripts/test_icon_all_rungs.sh        # PASS=198
 
 ---
 
-**WATERMARK:** one4all `4485d647`+ (10b complete this session, Opus 4.7, 2026-05-28). Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0.
+**WATERMARK:** one4all `5d5bf85d`+ (10b complete + 10a-4 partial, Opus 4.7, 2026-05-28). Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0.
 
 **✅ Step 10b COMPLETE — sidecar deletion + ring-peek migration done.** All four acceptance criteria met:
 1. `bb_operand_aux_set` in lower_icn.c == **0** ✅ (both Family-1 BB_ASSIGN + Family-2 BB_CALL sidecar writes deleted)
@@ -160,8 +160,18 @@ Commits this session: `8f887fa1` (10b-easy: BB_ASSIGN executor → ag_ring_peek(
 
 **SWITCH-OVER STATUS:** the operand_aux sidecar API (`bb_operand_aux_set/get` in `scrip_ir.c`, struct fields in `BB.h`) now has ZERO live callers across ALL languages. It is dead code. NOT deleted here because it is shared PEERS-RULE infrastructure in `scrip_ir.c`/`BB.h` (outside GOAL-ICON-BB file ownership; RULES forbids touching cross-language BB families). Deletion is an HQ "grand master reorg" task.
 
-### ⚠️ Step 10a-4 (Every_ag body threading) — STILL BLOCKED, and NOT a 10b acceptance criterion
-Re-attempted this session after the BB_CALL ring-peek landed (hypothesis: removing BB_CALL arg-recursion would unblock it). It STILL regresses (198→194, rung13_table_iterate goes silent). Threading the Every body via `lower_icn_expr_threaded_b` and wiring the flat-wire cycle (`gen.γ=body_entry; body.γ=gen; body.ω=gen`) through the threaded body's entry desyncs the ring on the loop back-edges. Reverted to clean 198. **10a-4 is purely architectural purity (the body works correctly via the single-box `lower_icn_expr_node` path); it is NOT required by any 10b acceptance criterion and provides no behavioral benefit.** Defer indefinitely or treat as its own research rung. The cyclic-flat-wire / ring-desync interaction is the open problem.
+### ✅ Step 10a-4 (Every_ag) — PARTIAL: streaming generators now flat-wire (Opus 4.7, 2026-05-28, `5d5bf85d`)
+The earlier "STILL BLOCKED" conclusion assumed the body had to be threaded via `lower_icn_expr_threaded_b` (which double-evaluates the generator-resume on the cyclic back-edge → 198→194 regression). That framing was wrong. The body does NOT need threading. The fix:
+- New `lic_is_gen_node` in lower_icn.c recognises a STREAMING generator (`BB_LIST_BANG`/`BB_KEY_GEN`/`BB_FIND_GEN`/`BB_SEQ_GEN`/`BB_PROC_GEN`/`BB_ALT`/`BB_ALTERNATE`/`BB_BINOP_GEN`/`BB_ITERATE`/`BB_LIMIT`), seeing through a `BB_ASSIGN` wrapper (so `v := !t` matches).
+- `Every_ag` now stamps a NEW marker `nd->ival = 2` and flat-wires `gen.γ=body; body.γ=gen; body.ω=gen; gen.ω=nd` when gen is generator-bearing. The chain walker drives the loop purely through ports — gen re-pumps its self-stateful generator via its own rhs-recursion (state survives because the walker never `bb_reset`s mid-pass). The body is kept as the single-box `lower_icn_expr_node` (NOT threaded). `bb_exec.c` BB_EVERY passthrough accepts `ival==1 || ival==2`.
+- **Two deliberate exclusions** (stay on the legacy executor-recursion path, which is correct for them): (a) static-bound TO/TO_BY/UPTO — `every x := 1 to 3 do B`; re-pumping a static TO through the assign rhs-recursion stalls it at its first value (rung35). (b) multi-statement block bodies, which lower to `BB_SEQ_EXPR` whose executor has head/tail GENERATOR semantics (`state==1` ⇒ pump tail only); on a pure-port back-edge the walker re-enters at `state==1` and skips the head stmts (`every v:=!L do {w:=v+100; write(w)}` → `105,105` not `105,106`). The legacy executor resets `body->state=0` each iteration; the pure-port walker has no back-edge hook to do so.
+
+Verified mode-2 AND mode-3: `!t`=99, `!L`=10/20/30, `key(t)`=a, `(1|2|3)`=1/2/3, nested-every=10/20/20/40, block-body=105/106, break=10, post-loop=7/8/done. Gates: smoke_icon 5/5, broker 34, rungs 198, prolog 5/5, FACT RULE 0.
+
+**Remaining (genuinely architectural, not behavioral):** to bring the two excluded cases onto the flat-wire path needs a back-edge hook that resets a stateful body's `state` per iteration (or a statement-context `BB_SEQ_EXPR` variant that always re-fires head stmts). Both work correctly today via legacy; this is purity, not a gate criterion.
+
+### ⚠️ ACCEPTANCE-GREP CAVEAT (discovered this session)
+The 10b acceptance grep `grep -nE 'bb_exec_node\(nd->[αβ]\)' src/lower/bb_exec.c | wc -l` returns 0 — but NOT because the calls are gone. The POSIX bracket class `[αβ]` does NOT match the multi-byte UTF-8 sequences for α/β, so the grep silently matches nothing regardless of file contents. The correct grep is `grep -nP 'bb_exec_node\(nd->(α|β)\)'`, which finds **75** real matches (most are legitimate MODE-2 interpreter walkers, which RULES permits; the BB_EVERY legacy path at the loop body is among them). Criterion (2) as written passes by accident, not by satisfaction. Future "criterion (2) satisfied" claims must use `grep -P`.
 
 
 
