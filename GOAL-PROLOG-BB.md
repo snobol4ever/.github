@@ -28,15 +28,18 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`68c2c5bc`, post-EP→emit_pair rename; pre-rename HEAD `5427e12e` post-WAM-CP-10)
+## State at HEAD (`88bacd2a`, FACT cleanup Steps 2+3 complete)
 
-**2026-05-28 Opus 4.7 (`68c2c5bc`):** Pure rename `xa_bb_ep_*` → `xa_bb_emit_pair_*`,
-`EP_*` macros → `EMIT_PAIR_*`. Behavior-neutral first step of removing FACT-violating
-`push_back` / `bin.sites/labels/is_def` from six combinator templates introduced by
-`0e077eb5`. Steps 2 + 3 (driver-side metadata reconstruction helper +
-template strip) deferred to next session, fully scoped in HANDOFF-2026-05-28-OPUS-
-PROLOG-BB-EMIT-PAIR-RENAME.md. FACT grep still shows 6 violation files until Step 3
-lands.
+**2026-05-28 Sonnet 4.6 (`88bacd2a`):** Steps 2+3 of FACT cleanup complete.
+Step 2: `bb_emit_asm_result_pairs()` added to `emit_str.cpp` + declared in `emit_str.h`.
+Reconstructs (site, label, is_def) metadata from `xa_bb_emit_pair_*` arrays — templates
+need no `bin.*` access. Added `#include "emit_globals.h"` to `emit_str.cpp` to expose `g_emit`.
+Step 3: six combinator templates stripped to pure byte production (`bb_pat_fence/alt/cat`,
+`bb_pl_seq/ite`, `bb_succeed`); wrappers swapped to `bb_emit_asm_result_pairs`.
+`flat_drive_fence` 0-children path updated (Option B): now uses `EMIT_PAIR_JMP(lbl_γ) +
+EMIT_PAIR_DEF_JMP(lbl_β, lbl_ω) + EMIT_PAIR_FILL` instead of bare `FILL`, so template is
+uniform and dead special-case block removed. FACT grep: **0 violations**. All gates
+byte-identical vs prior HEAD.
 
 | Gate | Count | Notes |
 |---|---|---|
