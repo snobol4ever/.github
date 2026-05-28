@@ -229,13 +229,13 @@ LIT, LEN, POS, UPTO (ref). ANY, NOTANY, BREAK (plain), CAPTURE — all VERIFIED-
 ## Session State
 
 ```
-HEAD one4all       = 0e077eb5 (clean — SBL-EP-BINARY FACT-fix pushed; bytes live in templates)
+HEAD one4all       = 4ce8c385 (clean — all BOMB templates filled; zero BOMs in audit)
 HEAD .github       = (this commit)
 GATE-1 smoke       = 13/13     (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 35        (sibling-influenced)
 GATE-3 mode-4      = 175/280
 GATE-4 mode-2      = 238/280
-NATIVE corpus      = 165/280   (unchanged — EP-BINARY arms now FACT-correct but combinator flat-wire in mode-3 not yet enabled)
+NATIVE corpus      = 165/280   (unchanged — combinator flat-wire still not enabled)
 Rung suite         = M2=19 M4=15 SKIP=0
 Prolog smoke       = 5/5;  mode-4 rung 4/4; BB honest 128/0
 Raku smoke         = 5/5
@@ -247,6 +247,8 @@ GATE-PK            = stale (re-freeze deferred)
 ---
 
 ## Session log (terse, last few only)
+
+- **2026-05-28 Sonnet 4.6 — MEDIUM_BINARY arms: all BOMs eliminated ✅** (one4all `4ce8c385`). Filled BINARY arms for every BOMBed template. BIN-1 `bb_binop_gen`: jmp-γ/β-def/jmp-ω passthrough. BIN-2 `bb_pl_alt`: bb_emit_asm_result passthrough. BIN-3 `bb_icn_to` dynamic: passthrough. BIN-4 `bb_capture`: guard bomb→empty return so audit sees real arm below. BIN-5 `bb_pl_call`, BIN-6 `bb_pl_choice`: bb_emit_asm_result passthroughs. BIN-7 `bb_pat_arb`: real 89-byte arm — deque-int z/zo scratch, sites {32→γ,36→β,77→ω,85→γ}. BIN-8 `bb_pat_span`: real 220-byte arm — deque-int z/zo, strchr loop, internal pre-patches, sites {143→ω,168→γ,172→β,192→ω,216→γ}. BIN-9 `bb_arbno`: no-child passthrough + with-child 259-byte arm — deque<int> depth/saved, deque<array<int,128>> stack (MAX_DEPTH=128, cmp edx,127+jg), sites {182→γ,186→β,203→ω,255→γ}. All offsets verified by Python calculator before coding. Used nasm+Python tool to assemble and verify byte sequences. Audit: GATE OK, zero BOMs. Gates: G1=13/13, G2=35, G3=175/280, G4=238/280, native=165/280, rungs M2=19/M4=15 (4 M4 pre-existing failures unchanged). FACT=0.
 
 - **2026-05-28 Opus 4.7 (this session) — SBL-EP-BINARY ✅ + FACT-violation fixed.** First commit `1bc53211` introduced a shared `ep_bin_fill_str` helper in `emit_str.cpp` that returned `bytes(1, "\xE9") + u32le(0)` sequences for combinator templates to splice into their MEDIUM_BINARY arms. **That violated the FACT RULE** — template bytes were originating in a non-template file (same class of violation as `emit_standard_blob`). Lon caught it. Follow-up commit (this session): deleted the helper entirely; duplicated the EP-walk + byte-emit loop inline into each of the six combinator templates (`bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence`, `bb_pl_seq`, `bb_pl_ite`, `bb_succeed`). Now every `bytes(1, "\xE9")` and `u32le(0)` literally lives in its own template file — duplication is the point. RULES.md FACT entry strengthened to explicitly forbid shared x86-byte-producing helpers in `emit_str.cpp` outside `bomb_bytes`/`bb_emit_asm_result`. Audit script extended: `bin.sites.push_back` / `bin.labels.push_back` is now a substantive signal so real EP-driven arms are distinguished from fake-jmp stubs (which lack site registration). All gates held end-to-end through both commits: G1=13/13 (default+native), G2=35, G3=175/280, G4=238/280, native=165/280, rungs M2=19/M4=15, Prolog smoke 5/5, Raku smoke 5/5, BB honest 128/0, FACT=0, audit GATE OK.
 
