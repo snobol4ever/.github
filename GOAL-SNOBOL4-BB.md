@@ -258,6 +258,90 @@ If `bb_pat_any` is truly never called under `--interp`, then **SBL-ANY-2 is misn
 - `bb_pat_len.cpp` / `bb_pat_pos.cpp` BINARY arms are working references for the rel32-fixup `bb_bin_t` pattern.
 - `xa_flat.cpp` FLAT_PROLOGUE sets `r10 = &Δ`; templates read/write Δ via `[r10]`.
 
+### Reusable artifact — bb_pat_any.cpp BINARY arm source (GAS-verified, ready to drop in after SBL-ANY-2-DISPATCH-TRACE maps the path)
+
+Add to top of file (under existing `#include <string>`):
+```cpp
+#include <cstring>
+#include <cstdint>
+```
+
+Inside `bb_pat_any_str` PLATFORM_X86 block, replace the stub `bin = { {1, 2}, ... }` + stub BINARY fragment with:
+
+```cpp
+        const char *cs = pBB->sval ? pBB->sval : "";
+        const char *cs_label = emit_intern_str(cs);
+        /* SBL-ANY-2: BINARY arm filled. Mirrors TEXT arm byte-for-byte.
+         * MEDIUM_BINARY runs in-process so emitter addresses for &Σ, &Σlen, pBB->sval, strchr are valid imm64 loads.
+         * Layout (104 bytes total):
+         *   off  bytes                  asm
+         *    0   41 8B 02               mov eax, [r10]                ; eax = Δ
+         *    3   48 B9 [&Σlen u64]      movabs rcx, &Σlen
+         *   13   3B 01                  cmp eax, [rcx]                ; cmp Δ, Σlen
+         *   15   0F 8D [rel32]          jge lbl_ω                     ; site 17 → ω
+         *   21   48 B9 [&Σ u64]         movabs rcx, &Σ
+         *   31   48 8B 01               mov rax, [rcx]                ; rax = subject ptr
+         *   34   49 63 0A               movsxd rcx, dword [r10]       ; rcx = Δ sign-extended
+         *   37   0F B6 34 08            movzx esi, byte [rax+rcx]     ; esi = subject[Δ]
+         *   41   48 BF [cs_ptr u64]     movabs rdi, &cset_chars       ; rdi = cset (1st strchr arg)
+         *   51   41 52                  push r10                      ; preserve r10 across call
+         *   53   48 B8 [strchr u64]     movabs rax, &strchr
+         *   63   FF D0                  call rax
+         *   65   41 5A                  pop r10
+         *   67   48 85 C0               test rax, rax
+         *   70   0F 84 [rel32]          je lbl_ω                      ; site 72 → ω (strchr NULL)
+         *   76   41 8B 02               mov eax, [r10]
+         *   79   83 C0 01               add eax, 1
+         *   82   41 89 02               mov [r10], eax                ; Δ++
+         *   85   E9 [rel32]             jmp lbl_γ                     ; site 86 → γ
+         *   90   (lbl_β definition)                                   ; site 90, is_def=true
+         *   90   41 8B 02               mov eax, [r10]
+         *   93   83 E8 01               sub eax, 1
+         *   96   41 89 02               mov [r10], eax                ; Δ--
+         *   99   E9 [rel32]             jmp lbl_ω                     ; site 100 → ω
+         *  104   (end)
+         */
+        bin = { {17, 72, 86, 90, 100},
+                {_.lbl_ω_p, _.lbl_ω_p, _.lbl_γ_p, _.lbl_β_p, _.lbl_ω_p},
+                {false, false, false, true, false} };
+        uint64_t strchr_addr;
+        { const char *(*fp)(const char *, int) = strchr; strchr_addr = (uint64_t)(uintptr_t)(void *)fp; }
+        uint64_t cs_addr = (uint64_t)(uintptr_t)(const void *)cs;
+        return IF(MEDIUM_MACRO_DEF, s_comment("# no macro form — ANY"))
+             + IF(MEDIUM_BINARY,
+                   bytes(3, "\x41\x8B\x02")                                       /*  0: mov eax,[r10]                */
+                 + bytes(2, "\x48\xB9") + u64le(TEMPLATE_ADDR_SIGLEN)             /*  3: movabs rcx,&Σlen             */
+                 + bytes(2, "\x3B\x01")                                           /* 13: cmp eax,[rcx]                */
+                 + bytes(2, "\x0F\x8D") + u32le(0)                                /* 15: jge ω (rel32 @17)            */
+                 + bytes(2, "\x48\xB9") + u64le(TEMPLATE_ADDR_SIGMA)              /* 21: movabs rcx,&Σ                */
+                 + bytes(3, "\x48\x8B\x01")                                       /* 31: mov rax,[rcx]                */
+                 + bytes(3, "\x49\x63\x0A")                                       /* 34: movsxd rcx,dword[r10]        */
+                 + bytes(4, "\x0F\xB6\x34\x08")                                   /* 37: movzx esi,byte[rax+rcx]      */
+                 + bytes(2, "\x48\xBF") + u64le(cs_addr)                          /* 41: movabs rdi,&cs               */
+                 + bytes(2, "\x41\x52")                                           /* 51: push r10                     */
+                 + bytes(2, "\x48\xB8") + u64le(strchr_addr)                      /* 53: movabs rax,&strchr           */
+                 + bytes(2, "\xFF\xD0")                                           /* 63: call rax                     */
+                 + bytes(2, "\x41\x5A")                                           /* 65: pop r10                      */
+                 + bytes(3, "\x48\x85\xC0")                                       /* 67: test rax,rax                 */
+                 + bytes(2, "\x0F\x84") + u32le(0)                                /* 70: je ω  (rel32 @72)            */
+                 + bytes(3, "\x41\x8B\x02")                                       /* 76: mov eax,[r10]                */
+                 + bytes(3, "\x83\xC0\x01")                                       /* 79: add eax,1                    */
+                 + bytes(3, "\x41\x89\x02")                                       /* 82: mov [r10],eax                */
+                 + bytes(1, "\xE9") + u32le(0)                                    /* 85: jmp γ (rel32 @86)            */
+                                                                                  /* 90: lbl_β: (label_define)        */
+                 + bytes(3, "\x41\x8B\x02")                                       /* 90: mov eax,[r10]                */
+                 + bytes(3, "\x83\xE8\x01")                                       /* 93: sub eax,1                    */
+                 + bytes(3, "\x41\x89\x02")                                       /* 96: mov [r10],eax                */
+                 + bytes(1, "\xE9") + u32le(0))                                   /* 99: jmp ω (rel32 @100)           */
+             + IF(MEDIUM_TEXT, /* … existing TEXT arm unchanged … */ std::string());
+```
+
+**Caveats for the next session:**
+- The TEXT arm shown ends with `std::string()` — use the existing TEXT arm from the file verbatim (omitted here to avoid bloat).
+- The C++ overload resolution for `strchr` needs the `const char *(*fp)(const char *, int) = strchr;` trick — taking the address of `strchr` directly fails with "overloaded function with no contextual type information".
+- After dropping in, run `bash scripts/build_scrip.sh` then `bash scripts/test_smoke_snobol4.sh` (GATE-1 should hold at 13/13).
+- ONLY AFTER SBL-ANY-2-DISPATCH-TRACE confirms `bb_pat_any` is actually being invoked, exercise with the ANY-specific probe (`PAT = ANY('cab'); 'xyzabcdef' PAT . M` should give `match=a` per SPITBOL oracle).
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
