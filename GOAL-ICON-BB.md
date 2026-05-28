@@ -46,15 +46,29 @@ No operands on BB nodes. CFG of boxes wired by four ports only. Operand values f
 | 8.2 | BB_TO/TO_BY dynamic-bound chain (sval ag/ai/ar) | `7acc7849` |
 | LFJ-15b | All 6 _threaded_b intercepts → _ag variants | `6a631124` |
 | 9 | BB_LCONCAT/SECTION/IDX/IDX_SET _ag + executor branches | `1dfe9631` |
+| 10a-1 | If_ag lowers cond/then/else via lower_icn_expr_threaded_b | `a9b326f0` |
 
-### Next: Step 10 — Sidecar cleanup
-Delete `bb_operand_aux_set/get` from Icon lower path. Sidecar stays for Prolog/SNOBOL4.
+### Step 10b unblocked progressively by Step 10a
+Step 10a is the architectural pre-work that splits across multiple `_ag` lowerers. Each `_ag` family that currently lowers sub-expressions via bare `lower_icn_expr_node` must switch to `lower_icn_expr_threaded_b` so Family 1 / Family 2 γ-chain wiring runs for nested BB_CALL / BB_ASSIGN. Once **all** are migrated, Step 10b (sidecar deletion + ring-peek in bb_exec.c) becomes safe.
 
-Remaining Icon sidecar users:
-- `lower_icn.c` Family 1 (BB_ASSIGN): `bb_operand_aux_set(cfg, nd, &peer_one, 1)` → replace with ring: peek(0)=rhs after chain walker runs rhs.
-- `lower_icn.c` Family 2 (BB_CALL non-gen): `bb_operand_aux_set(cfg, nd, peer_buf, nargs)` → args already γ-chained; apply reads peek(N-1..0).
-- `bb_exec.c:845` BB_ASSIGN apply reads sidecar → read peek(0) instead.
-- `bb_exec.c:922` BB_CALL reads sidecar → read peek(N-1..0) instead. Generator-arg odometer path stays on current path.
+| Sub-step | Lowerer | Status |
+|----------|---------|--------|
+| 10a-1 ✅ | If_ag (cond/then/else) | `a9b326f0` |
+| 10a-2 | Conjunction_ag (left/right) | TODO |
+| 10a-3 | Alt_ag (arms) | TODO |
+| 10a-4 | Every_ag (gen for non-TO; body) | TODO |
+| 10a-5 | Binop_ag (lhs/rhs) | TODO |
+| 10a-6 | Lconcat_ag (lhs/rhs) | TODO |
+| 10a-7 | Section_ag (base/i1/i2) | TODO |
+| 10a-8 | Idx_ag (base/idx) | TODO |
+| 10a-9 | Idx_set_ag (base/idx/rhs) | TODO |
+| 10a-10 | ToBy_ag (verify lo/hi/by) | TODO |
+| 10b | Sidecar deletion + ring-peek in bb_exec.c | BLOCKED on 10a-2..10 |
+
+Each 10a-N is independent and zero-impact when applied alone (legacy executor recursion still handles operand eval) — commit each separately, gate ≥198 throughout.
+
+### Next: Step 10a-2 — Conjunction_ag
+Mirror this session's If_ag pattern: replace `lower_icn_expr_node` with `lower_icn_expr_threaded_b` for left and right, capture α_out, wire `left.γ = right_entry` and `right.γ = nd` (or carefully, since the existing wiring already does `left.γ = right; right.γ = nd` — the change is to use right_entry as the wire target when right is threaded). Test smoke + rungs hold at 198.
 
 Acceptance (whole migration):
 1. `grep -nE 'bb_operand_aux_set' src/lower/lower_icn.c | wc -l` == 0
@@ -113,7 +127,7 @@ bash scripts/test_icon_all_rungs.sh        # PASS=198
 
 ---
 
-**WATERMARK:** one4all `1dfe9631`. Gates: smoke_icon 5/5 · broker 30 · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Next: **Step 10** — sidecar cleanup (bb_operand_aux_set/get from Icon Fam-1 BB_ASSIGN + Fam-2 BB_CALL).
+**WATERMARK:** one4all `a9b326f0`. Gates: smoke_icon 5/5 · broker 30 · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Step 10a-1 ✅ (If_ag via _threaded_b, pre-work for sidecar removal). Next: **Step 10a-2** — Conjunction_ag (left/right) via _threaded_b (zero-impact, gate 198 must hold).
 
 ## File ownership
 `src/lower/lower_icn.c` · `src/lower/bb_exec.c` · `src/emitter/{emit_bb.c,emit_sm.c,emit_core.c}` · `src/emitter/BB_templates/bb_*.cpp` · `src/processor/sm_codegen.c` · `src/processor/sm_interp.c` · `baselines/icon-bb/`
