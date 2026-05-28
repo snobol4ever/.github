@@ -392,6 +392,33 @@ Gates: smoke_icon 5/5, smoke_prolog 5/5, broker 36/17, FACT 0, --dump-sm count=0
 
 - **IBB-23 (suspend at top-level):** `procedure g() suspend 1; suspend 2; end; procedure main() every write(g()) end` prints nothing under both SCRIP_ICN_BB **and** legacy. Pre-existing gap in `lower_icn_proc_body` (it doesn't re-enter the body on β when called from an `every`). Not a regression. Will need a focused fix — likely the GeneratorState bridge from `lower_icn_proc_gen` needs to wire through to the `every` loop.
 
+### BB kinds actually used by the 26 verified programs
+
+Harvested by walking `s2->sm.bb_table[main_bb_idx]->all[]` (driver-side diagnostic added under env `SCRIP_ICN_BB_KINDS=1`, then reverted — not committed). Frequency across the 29 measurements (incl. arith multi-stmt and recursion stress):
+
+| Count | Kind |
+|------|------|
+| 29 | `BB_SEQ` — statement-chain wrapper (every program's root) |
+| 29 | `BB_FAIL` — terminal sentinel at the seq tail |
+| 29 | `BB_CALL` — calls to `write` and user procs |
+| 19 | `BB_LIT_I` |
+| 13 | `BB_LIT_S` |
+| 10 | `BB_EVERY` |
+| 6 | `BB_VAR`, `BB_BINOP`, `BB_ASSIGN` (each) |
+| 3 | `BB_SEQ_EXPR`, `BB_IF` (each) |
+| 2 | `BB_SUSPEND`, `BB_PROC` (each) |
+| 1 | `BB_WHILE`, `BB_TO_BY`, `BB_NONNULL`, `BB_LIMIT`, `BB_FIND_GEN`, `BB_CONJ` (each) |
+
+Also exercised (each appearing in its dedicated program): `BB_TO`, `BB_BINOP_GEN`, `BB_LIST_BANG`, `BB_IDX`, `BB_SECTION`, `BB_IDX_SET`, `BB_GEN_SCAN`.
+
+**Spine:** `BB_SEQ → BB_CALL → BB_FAIL`. Present in every Icon program. Other kinds are sub-trees hanging off the spine.
+
+**No new BB kinds were added** by this work. Every kind here pre-existed in `lower_icn_proc_body`'s repertoire. Pulling SM out of the way revealed the BB graph was already complete.
+
+### Side-issue (30-second fix next session)
+
+`scrip_ir.c`'s `kind_names[]` table is incomplete — many kinds (`BB_TO`, `BB_UPTO`, `BB_ITERATE`, `BB_GEN_ALT`, `BB_GEN_BINOP`, `BB_TO_NESTED`, `BB_PROC_GEN`, `BB_CSET_*`, `BB_GEN_SCAN`, `BB_KEYWORD`, `BB_BINOP_GEN`, `BB_IDX`, `BB_SECTION`, `BB_LIST_BANG`, `BB_IDX_SET`, `BB_KEY_GEN`, etc.) aren't named in the lookup table, so `bb_op_name()` returns NULL for them. Patch: extend the array with the designated-initializer entries that the existing tail already uses.
+
 ### NEXT
 
 **IBB-5 — mode-4 (native) for `every write(1 to 3)`.** The architecture target. Real x86 BB templates per `ARCH-x86.md`. Bring the same zero-SM thinking to mode 4: the compiled binary should also have zero SM presence — direct jmp into root BB's α label, BB templates emit flat x86, no dispatch loop in the linked binary.
