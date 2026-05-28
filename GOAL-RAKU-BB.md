@@ -355,8 +355,146 @@ wrong — fix the BB graph, not the runtime.
   - Inspected substrate; this memo is the deliverable. Zero code changes.
   - NO commits — waiting on Q1/Q2/Q3 directives before authoring 3a.
 
-- [ ] **RK-BB-4** — junctions + infix `|`/`&` → `BB_ALTERNATE` with Bool-collapse
-  policy on ω/γ. REUSE `bb_gen_alt.cpp`/`bb_alt.cpp`. Add junction test.
+- [~] **RK-BB-4 substrate audit** ✅ (test added, code DEFERRED pending Lon directive;
+  2026-05-27, Opus 4.7). Probe-based audit of the substrate the goal text
+  promised to REUSE. Findings make RK-BB-4 a multi-rung effort, NOT the
+  "REUSE bb_gen_alt.cpp/bb_alt.cpp" one-commit the goal text implied.
+
+  ### Gaps (verified by inspection, not from memory)
+
+  1. **Frontend has no junction syntax.** raku.l has no KW_ANY / KW_ALL /
+     KW_ONE / KW_NONE tokens, and no single-char `|`/`&` infix tokens
+     (only `||`/`&&` two-char OP_OR / OP_AND). Test `rk_junctions.raku`
+     fails at lex with `raku lex error line 23: unexpected char '|'`.
+     The grammar in raku.y has no junction-constructor rules.
+
+  2. **TT_ALT is overloaded.** SNOBOL4 patterns produce TT_ALT for `P1 | P2`.
+     raku.y:426 reuses TT_ALT for Raku `||` (cmp_expr OP_OR add_expr →
+     TT_ALT). The top-level lowering at lower.c:2104 unconditionally
+     routes TT_ALT through `lower_pat_expr`, which emits SM_PAT_DEREF
+     + SM_PAT_ALT. So today's Raku `$a || $b` accidentally compiles to
+     a SNOBOL4 pattern expression that "works" only by coincidence (any
+     non-null operand makes the pattern truthy). Not this goal's scope
+     to fix — separate concern (see Open Q9 below) — but flagged to
+     avoid colliding when junction lowering arrives.
+
+  3. **BB_ALTERNATE mode-2 executor is a NO-OP STUB.** bb_exec.c:1618-1620:
+        case BB_ALTERNATE:
+            nd->value = FAILDESCR;
+            return nd->ω;
+     Unconditional ω. No mode-2 substrate exists.
+
+  4. **`bb_alternate.cpp` mode-4 template does not exist.** No file by
+     that name in src/emitter/BB_templates/. BB_ALTERNATE is mentioned
+     only in bb_binop_gen.cpp's `operand_is_gen` kind-set (treated as a
+     restartable generator operand alongside BB_ALT, BB_TO, etc.) — but
+     there's no template that owns BB_ALTERNATE emission. If BB_ALTERNATE
+     reaches walk_bb_node, it falls into the default stub (a comment +
+     two passthrough jumps), same shape as bb_stub.
+
+  5. **`bb_alt.cpp` mode-4 template IS A STUB.** 37 lines total. Body
+     comment: `# BOX BB_ALT [port-wired, inline-x86 gen TODO]`. Emits
+     only α-label → `jmp γ` and β-label → `jmp ω`. No actual n-ary
+     alternation logic (no operand-chain walk, no ω-chain advance, no
+     restart). All Icon programs that "work" with BB_ALT today work
+     because the surrounding loop scaffold (lower_every / lower_iterate)
+     hands single values without needing the alt to actually multi-yield.
+
+  6. **`bb_gen_alt.cpp` mode-4 template IS A STUB.** 11 lines total.
+     `static std::string bb_gen_alt_str(BB_t *, bb_bin_t &)` returns
+     empty string unconditionally. Header comment: `STUB — x86 Byrd-box
+     inline asm not yet written. RULES.md: one file per BB kind.`
+
+  7. **Icon's TT_ALTERNATE lowers to BB_ALT, not BB_ALTERNATE.** Verified:
+     lower_icn.c:1095 `lower_kind_table[TT_ALTERNATE] = lower_icn_new_Alt`,
+     and lower_icn_new_Alt builds a BB_ALT node (n-ary chain), not a
+     BB_ALTERNATE node. BB_ALTERNATE appears only in is-gen-kind sets and
+     as the no-op mode-2 case. **BB_ALTERNATE is effectively orphan.**
+     The reusable substrate for n-ary alternation is BB_ALT — but per
+     gap 5, even BB_ALT mode-4 is a stub.
+
+  ### What the goal text vs. reality looks like
+
+  Goal text: "REUSE bb_gen_alt.cpp/bb_alt.cpp. Add junction test." 2 LOC?
+
+  Reality: any working RK-BB-4 needs ALL of:
+    A. Lexer/grammar: KW_ANY/KW_ALL/KW_ONE/KW_NONE + infix `|`/`&`
+       tokens, junction-constructor + infix-junction grammar rules,
+       NEW AST kinds (TT_JUNCT_ANY etc.) so we don't collide with
+       overloaded TT_ALT.
+    B. Mode-2 executor for whichever BB kind we pick (BB_ALTERNATE
+       or BB_ALT) — author n-ary alternation: walk arms via ω-chain,
+       restart state per-arm, Bool-collapse on ω/γ per junction kind.
+    C. Mode-4 template — same logic in inline x86; cf. RK-BB-3a's
+       per-arm state machine + GC_malloc + rt_push_str pattern.
+    D. Lowering: `lower_raku_junction` that builds the BB graph and
+       wraps in SM_BB_SWITCH(RK_GEN, bb_idx); `lower_expr` for `==`
+       against a junction value uses junction-type discrimination
+       to fan out the comparison across arms.
+    E. `==` autothreading: when LHS or RHS is a junction value, the
+       comparison fans out across the junction's arms with Bool-
+       collapse policy: any=∃, all=∀, one=∃!, none=¬∃.
+
+  ### Open questions for Lon (gating any of A–E)
+
+  Q9. **Pre-existing TT_ALT overload (Raku `||`).** Today Raku `||`
+      compiles through lower_pat_expr → SM_PAT_ALT. It produces
+      correct-looking output for truthiness via SNOBOL4 pattern
+      semantics by coincidence. Should RK-BB-4 introduce a NEW TT
+      kind (e.g. TT_LOR / TT_LAND) for Raku `||`/`&&` to disentangle
+      them from SNOBOL4 patterns, so that junctions (which DO want
+      n-ary alt) don't get tangled with short-circuit Booleans? Or
+      defer that to a separate fix and only target `|`/`&` (single
+      char) + `any/all/one/none` here?
+
+  Q10. **BB kind choice.** Author junctions onto BB_ALT (existing
+       n-ary substrate, used by Icon but mode-4 stub) or finish
+       BB_ALTERNATE (currently no-op, orphaned)? Recommend BB_ALT —
+       Icon already uses it for alternation chains, sharing a template
+       across languages matches "kinds are language-agnostic." A
+       lang-guard would distinguish Bool-collapse (Raku) from
+       generator-restart (Icon).
+
+  Q11. **Substrate-first vs frontend-first.** Two valid orderings:
+       (a) Substrate-first — author BB_ALT mode-2 executor + mode-4
+           template now (also benefits Icon `(e1|e2|e3)` mode-4), then
+           wire Raku frontend on top. Higher upfront cost, broader
+           benefit.
+       (b) Frontend-first eager — lex/parse junctions, lower eagerly
+           to SM_PAT_ALT-style or to a fresh SM_CALL_FN "raku_junct_*"
+           builtin chain (mirror the RK-BB-3.0 by-name dispatcher
+           pattern). Defer BB_ALT/BB_ALTERNATE substrate. Lower cost,
+           parallel to RK-BB-3.0+3d's path.
+       Recommend (b) for first cut — matches Goal Q3 spirit ("first
+       cut") and unblocks the rest of the Raku ladder. Substrate
+       upgrade is its own rung.
+
+  Q12. **Junction value representation.** When `my $j = any(1,2,3)` is
+       assigned, $j holds a JUNCTION value. Options:
+       (i)   Encode as a tagged \x02-string `\x02any\x02 1\x01 2\x01 3`
+             reusing the \x01-array pattern; junction kind in tag byte.
+       (ii)  New DT_JUNCT type tag in DESCR_t.
+       (iii) DT_DATA with icn_type="junct".
+       Recommend (i) — lightest, mirrors RK-BB-3.0's choice for arrays
+       and doesn't require runtime type-tag additions. Bool-collapse
+       on `==` autothread parses the tag and fans the comparison.
+
+  ### What was DONE this session
+
+  - Verified all seven gaps above by direct inspection (not memory).
+  - Added `test/raku/rk_junctions.raku` + `.expected` as the RK-BB-4
+    target probe. FAILS today at lex (expected); flips when RK-BB-4
+    fully lands. GATE-RK mode-2: 14/33, GATE-RK4 mode-4: 15/33.
+  - Side-discovery probe (one-off, not committed) confirmed Raku `||`
+    and `&&` compile through SNOBOL4 pattern path today. See Q9.
+  - This audit memo is the deliverable. ZERO BB / SM / template changes.
+
+- [ ] **RK-BB-4-frontend** — pending Lon directive on Q9–Q12.
+  Best case (path b answers Q11): lexer + grammar + new TT_JUNCT_*
+  kinds + a lower_raku_junction that does eager SM (mirror RK-BB-3.0
+  by-name dispatcher pattern). Defer BB_ALT/BB_ALTERNATE substrate.
+  Worst case (path a answers Q11): substrate-first session — author
+  BB_ALT mode-2 executor + bb_alt.cpp mode-4 template + then frontend.
 
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers, one rung
   each. `zip`/`cross` = multi-Seq drivers (later).
@@ -411,14 +549,14 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: af0df613 (RK-BB-3b/c-binding-fix — sigil mismatch in lower_raku_map_or_grep; $_ → "_")
-.github: HEAD (handoff — RK-BB-3b/c CLOSED + RK-BB-3b/c-binding-fix CLOSED)
+one4all: 4ee45eb7 (RK-BB-4 substrate audit — junction test added, code DEFERRED pending Lon directive)
+.github: HEAD (handoff — RK-BB-4 substrate audit memo)
 corpus:  unchanged
 
-Gates at RK-BB-3b/c-binding-fix (2026-05-27, Opus 4.7):
-  GATE-RK mode-2:  14/32  ✅ (+2: rk_map_grep_sort24 flipped + new probe rk_for_array_underscore)
-  Mode-3 (--run):  14/32  ✅ (+2, same set)
-  GATE-RK4 mode-4: 15/32  ✅ (+2: rk_map_grep_sort24 flipped + new probe rk_for_array_underscore)
+Gates at RK-BB-4 substrate audit (2026-05-27, Opus 4.7):
+  GATE-RK mode-2:  14/33  HOLD (rk_junctions added, fails at lex as expected)
+  Mode-3 (--run):  14/33  HOLD (same set; rk_junctions also fails at lex)
+  GATE-RK4 mode-4: 15/33  HOLD (rk_junctions added, fails at lex; +1 TOTAL only)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
@@ -427,8 +565,78 @@ Gates at RK-BB-3b/c-binding-fix (2026-05-27, Opus 4.7):
   FACT RULE grep:  0
   Build:           clean
 
-rk_map_grep_sort24 byte-exact across all three modes (--interp, --run, --compile/x86).
+ZERO code changes. Only test/raku/rk_junctions.{raku,expected} added (+12 lines),
+documenting the RK-BB-4 target. See in-line audit memo under "Ladder steps →
+RK-BB-4 substrate audit" for the seven verified substrate gaps and Q9–Q12
+open questions gating the next session.
 ```
+
+⛔ RK-BB-4 SUBSTRATE AUDIT — 2026-05-27, Opus 4.7, one4all 4ee45eb7:
+
+The goal text says: "junctions + infix `|`/`&` → BB_ALTERNATE with Bool-
+collapse policy on ω/γ. REUSE `bb_gen_alt.cpp`/`bb_alt.cpp`. Add junction
+test." Implies a small REUSE rung.
+
+Reality after probe-based inspection: substrate is mostly missing. The
+audit took the same shape as the post-RK-BB-2 RK-BB-3 substrate audit
+(which found 6 gaps and led to the 3.0+3d → 3.0a → 3.0b → 3a → 3b/c
+decomposition). Same pattern: write the test first, document gaps,
+defer to Lon for directives.
+
+SEVEN GAPS, verified by direct file inspection:
+
+  1. raku.l has no KW_ANY/KW_ALL/KW_ONE/KW_NONE tokens; no single-char
+     `|`/`&` (only `||`/`&&`).
+  2. TT_ALT is overloaded — Raku `||` reuses SNOBOL4's pattern-alt
+     AST kind (raku.y:426). Today `$a || $b` accidentally compiles
+     through lower_pat_expr → SM_PAT_DEREF + SM_PAT_ALT. Works by
+     coincidence on truthiness. Out of scope but flagged.
+  3. bb_exec.c:1618-1620 BB_ALTERNATE mode-2 executor is a no-op:
+     `nd->value = FAILDESCR; return nd->ω;`.
+  4. bb_alternate.cpp mode-4 template DOES NOT EXIST. BB_ALTERNATE
+     would fall through default stub in walk_bb_node.
+  5. bb_alt.cpp mode-4 template IS A STUB. 37 lines; body comment:
+     `# BOX BB_ALT [port-wired, inline-x86 gen TODO]`. Only emits
+     α→γ, β→ω passthrough jumps.
+  6. bb_gen_alt.cpp IS A STUB. 11 lines; returns empty string.
+  7. Icon's TT_ALTERNATE lowers to BB_ALT (not BB_ALTERNATE) per
+     lower_icn.c:1095 + lower_icn_new_Alt. **BB_ALTERNATE is orphan.**
+     The reusable substrate is BB_ALT — but per gap 5, even BB_ALT
+     mode-4 is a stub.
+
+WHAT WAS DONE THIS SESSION:
+  - test/raku/rk_junctions.raku + .expected: target probe with 6
+    expected output lines (any-hit / all-hit / none-hit / one-hit /
+    pipe-hit / amp-hit). Fails today at lex on the single-char `|`.
+  - In-line audit memo authored under ladder step (see above).
+  - Q9–Q12 open questions documented inline.
+  - ZERO code changes. ZERO BB / SM / template / runtime modifications.
+
+NEXT — pending Lon directive on Q9–Q12:
+
+  Recommended path (path b for Q11): frontend-first eager-collapse.
+  Mirror RK-BB-3.0+3d's pattern — add KW_ANY/KW_ALL/KW_ONE/KW_NONE
+  + single-char `|`/`&` infix tokens, NEW AST kinds TT_JUNCT_ANY /
+  TT_JUNCT_ALL / TT_JUNCT_ONE / TT_JUNCT_NONE / TT_JUNCT_PIPE /
+  TT_JUNCT_AMP (don't reuse TT_ALT — see Q9), then `lower_raku_junction`
+  that eager-collapses into a chain of SM_CALL_FN for first cut.
+  Junction value as \x02-tag-\x02-elem-\x01 string (Q12 path i,
+  mirroring \x01 arrays). `==` autothreading via raku_eq_junction
+  builtin chained into rt_call via the existing by-name dispatcher
+  (RK-BB-3.0a's rt_set_lang prologue already ensures g_lang stamping).
+  Substrate (BB_ALT mode-2 + mode-4 template) becomes its own rung,
+  benefits Icon too.
+
+  Alternate path (path a for Q11): substrate-first. Author BB_ALT
+  mode-2 n-ary executor + bb_alt.cpp full mode-4 template first
+  (per-arm restart, ω-chain walk; mirror Icon's needs); then wire
+  Raku frontend on top. Higher upfront, broader benefit (Icon mode-4
+  alt would also light up).
+
+  Other deferred segfault cluster (rk_subs, rk_interp, rk_try_catch25)
+  still separate.
+
+⛔ END RK-BB-4 SUBSTRATE AUDIT
 
 ⛔ RK-BB-3b/c-binding-fix ✅ CLOSED — 2026-05-27, Opus 4.7, one4all af0df613:
 
