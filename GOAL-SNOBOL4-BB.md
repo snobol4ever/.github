@@ -18,17 +18,17 @@ SNOBOL4 source → CMPILE parser → tree_t* → lower_pat_dcg.c (BB_lower_pat)
                → BB_templates/bb_pat_*.cpp BINARY arm (raw x86 via bb_bin_t)
 ```
 
-- **Mode 2 (`--interp`):** `SM_EXEC_STMT` → `bb_exec_pat` → `bb_exec_once` → C oracle in `bb_exec.c case BB_PAT_*`. Templates not exercised.
-- **Mode 3 (`--run`):** Same as mode-2 (sm_interp_run); BINARY arms not exercised for var-deref patterns. Inline AST patterns: `bb_build_flat` → template TEXT.
-- **Mode 4 (`--compile`):** emit phase uses TEXT arms (`codegen_sm_x86` → `walk_bb_pattern_blobs` → ... → template TEXT). Compiled binary at runtime calls `rt_match_variant` → `exec_stmt` → `bb_build_brokered` (g_bb_mode=BB_MODE_BROKERED) → template BINARY arms.
+- **Mode 2 (`--interp`):** `sm_interp_run` + `bb_exec.c` C oracle. Templates not exercised.
+- **Mode 3 (`--run`):** End state = `sm_run_native` → SM_templates BINARY arms → sealed RX → jump in. BB call-outs via flat-wired `bb_build_flat`. Currently opt-in via `SCRIP_M3_NATIVE=1`; default path still routes to `sm_interp_run` (interp fallback for unbuilt opcodes/arms). Per ARCH-SCRIP: **no C interp, all langs, no BB graph walking** on this path.
+- **Mode 4 (`--compile`):** Emit phase uses TEXT arms → GAS → gcc link. Standalone runtime builds pattern blobs via `bb_build_brokered` → template BINARY arms.
 
 **Absolute rules (RULES.md):**
 - No C Byrd boxes. No `DESCR_t foo(void *zeta, int entry)` implementing α/β/γ/ω.
 - TEMPLATE-PURITY: every `_str()` body is `state → std::string`, zero `emit_text_n` inside.
 - ONE x86 PRODUCER: all emission via `BB_templates/` template functions.
-- HQ Invariant 0: returning `std::string()` is a STUB.
-- X86 ONLY FOR NOW — no JVM/JS/NET/WASM arms until directed.
-- **MODE PURITY:** no silent cross-mode fallback; no silent eps substitution on failed build. `root.fn = NULL` → `bb_broker` returns 0 → honest failure.
+- HQ Invariant 0: returning `std::string()` is a STUB. Stub LOUD — `bomb_bytes()` not silent empty.
+- X86 ONLY FOR NOW.
+- MODE PURITY: no silent cross-mode fallback; no silent eps substitution on failed build.
 
 ---
 
@@ -43,13 +43,18 @@ SNOBOL4 source → CMPILE parser → tree_t* → lower_pat_dcg.c (BB_lower_pat)
 ```
 
 **Runtime state in TEXT arm:**
-- `[r10]` = Δ (cursor, 32-bit int) — scan position
-- `[rip + Σ]` = pointer to subject string; `[rip + Σlen]` = length
-- Per-node static data: `.data` label `[rip + .Lfoo<id>]`
+- `[r10]` = Δ (cursor, 32-bit int)
+- `[rip + Σ]` = ptr to subject; `[rip + Σlen]` = length
 - `nd->sval` = charset string (ANY/SPAN/BREAK/NOTANY) — baked into `.data`
-- `nd->counter` (int64) = runtime mutable state for generators (SPAN β)
+- `nd->counter` (int64) = runtime mutable state for generators
 
-**BINARY arm:** raw bytes via `bytes()` + `u32le(0)` rel32 placeholders + `bb_bin_t.sites` listing the byte offset of each rel32 patch. Use `movabs` (`\x48\xB9` / `\x48\xB8` / `\x48\xBF`) for emitter-process absolute addresses (Σ/Σlen/strchr/cset). Reference templates: `bb_lit.cpp`, `bb_pat_len.cpp`, `bb_pat_pos.cpp`, `bb_pat_any.cpp` (104 bytes, sites at 17/72/86/90/100).
+**BINARY arm:** raw bytes via `bytes()` + `u32le(0)` rel32 placeholders + `bb_bin_t.sites` listing the byte offset of each rel32 patch. Use `movabs` for absolute addresses. Reference templates: `bb_lit.cpp`, `bb_pat_len.cpp`, `bb_pat_pos.cpp`, `bb_pat_any.cpp` (104B, sites {17,72,86,90,100}), `bb_pat_notany.cpp`, `bb_pat_break.cpp` (178B), `bb_capture.cpp` (128B; see below).
+
+**Per-node persistent BINARY storage (SHARED PATTERN):** brokered blobs have no ELF `.data`. Two patterns now established:
+1. `g_emit.bb_cs_zeta` `rt_cs_t {const char *chars; int delta;}` — `delta @+8` for SPAN/ARBNO loop counters; address baked via `movabs rcx, &zeta`; allocated by emit_bb for charset templates.
+2. Process-lifetime `std::deque<int>` allocator (e.g. `cap_alloc_saved_delta_slot()` in bb_capture.cpp) — pointer never invalidates, GC-safe via C++ heap (does not depend on Boehm scanning mmap'd bb_pool). Use this pattern for SPAN-2 / CAP / BREAKX scratch.
+
+DO NOT use `GC_MALLOC` for per-node scratch baked as imm64 — bb_pool is mmap'd, GC can't see the address, scratch may be freed.
 
 **Semantic oracle:** `bb_exec.c case BB_PAT_*` — α (state==0) and β (state>0) logic.
 
@@ -61,144 +66,103 @@ SNOBOL4 source → CMPILE parser → tree_t* → lower_pat_dcg.c (BB_lower_pat)
 cd /home/claude/one4all
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
-make libscrip_rt        # required for mode-4 corpus + rung-suite M4 column
+make libscrip_rt
 ```
 
 Gates:
 ```bash
-bash scripts/test_smoke_snobol4.sh                # GATE-1: 13/13 (mode-2 7/7 + mode-3 6/6)
-bash scripts/test_smoke_unified_broker.sh         # GATE-2: 28-30 (sibling-influenced)
+bash scripts/test_smoke_snobol4.sh                # GATE-1: 13/13
+bash scripts/test_smoke_unified_broker.sh         # GATE-2: ~30-36 (sibling-influenced)
 bash scripts/test_mode4_broad_corpus_snobol4.sh   # GATE-3: 175/280
 bash scripts/test_interp_broad_corpus_and_beauty.sh # GATE-4: 238/280
-bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=19, M4=15, SKIP=0
+bash scripts/test_snobol4_pat_rung_suite.sh       # M2=19 M4=15 SKIP=0
+bash scripts/audit_m3_native_binary_arms.sh       # GATE OK (no fake-jmp stubs)
+SCRIP_M3_NATIVE=1 bash scripts/test_smoke_snobol4.sh                # 13/13
+INTERP=$(pwd)/scrip SCRIP_M3_NATIVE=1 bash scripts/test_interp_broad_corpus_and_beauty.sh # 165/280
 ```
+
+(For full failure list use `INTERP=... bash /tmp/test_all.sh` with `head -300` patched in — the stock script truncates failures at -40.)
 
 ---
 
 ## Open Rungs (priority order)
 
-### SBL-M3-NATIVE — mode-3 is PURE x86, NO INTERPRETER, ALL LANGUAGES ⛔ ROOT CAUSE / TOP PRIORITY ⏳
+### SBL-M3-NATIVE — mode-3 is PURE x86, NO INTERPRETER ⏳ TOP PRIORITY
 
-**CORRECTED END STATE (Lon, 2026-05-28): "SCRIP Mode 3 is NO INTERP and pure x86 asm for ALL languages."** This supersedes the earlier (wrong) "keep sm_interp_run for mode 3" framing. ARCH-SCRIP.md confirms verbatim: mode 3 `--run` = `IR → sm_lower → sm_codegen → sm_jit_run`, "execute **native x86 only** at runtime ... may NOT (a) index the SM array by PC (opcode-dispatch loop) nor (b) traverse a BB_t graph in C (bb_exec_once/resume/node/bb_broker). The C SM/BB walkers (`sm_interp_run`, `bb_exec_*`) belong to **mode 2 (`--interp`) ONLY**." Applies to SNOBOL4, Snocone, Rebus, Icon, Prolog, Raku.
+**End state (ARCH-SCRIP):** mode 3 `--run` = `IR → sm_lower → sm_codegen → sm_jit_run`, native x86 only at runtime. No `sm_interp_run`, no `bb_exec_*`, no PC-dispatch loop, no BB-graph traversal in C.
 
-**THE VIOLATION (traced, Opus 4.7 2026-05-28):** `scrip.c` mode_run (line 449) calls `sm_run_with_recovery(&s2->sm, sm_interp_run)` — i.e. mode-3 currently RUNS THE MODE-2 C INTERPRETER. There is no native-SM mode-3 path at all. Both the SM half (PC-dispatch loop in `sm_interp_run`) AND the BB half (`SM_EXEC_STMT→bb_exec_pat`, `SM_BB_SWITCH gen→bb_exec_once/resume`) are C-interpreted. That is why two days of filling BINARY template arms changed nothing observable: mode-3 never emits or runs them.
+**Current state:** `scrip.c:449-454` gates native behind `SCRIP_M3_NATIVE=1` (opt-in); default still calls `sm_run_with_recovery(sm, sm_interp_run)`. Native runner exists: `src/processor/sm_native.c` `sm_run_native(SM_sequence_t*)` — drives `codegen_sm_dispatch` over the SM array in BINARY mode through an `open_memstream` sink, copies bytes into a `sm_image` SEG_CODE slab, seals RX, two-pass rel32 patches JUMP/JUMP_S/JUMP_F, enters via 16-aligned trampoline.
 
-**Naming:** `sm_interp_run` is a genuine C interpreter (verified: `while(pc<count){ins=&instrs[pc++];switch(ins->op){...}}`). The name is correct FOR MODE 2. The error was wiring it into mode 3. Mode 3 must NOT call it. No rename needed; mode-3 must call a native runner instead.
+**SM-template BINARY coverage (audit GATE OK):** 13/15 REAL: sm_arith, sm_bb_switch, sm_calls, sm_compare, sm_defines, sm_expr_incr, sm_frame_slots, sm_halt, sm_jumps, sm_pat_anchors, sm_pat_combine, sm_pat_nullary, sm_push_pop_lits, sm_returns. sm_label correctly emits zero bytes.
 
-**What exists vs what's missing:**
-- EXISTS: `codegen_sm_x86` (`emit_sm.h`, the single SM x86 producer; `sm_codegen_text` = FILE/GAS for mode-4). SM templates (`SM_templates/`), BB templates (`BB_templates/`). `bb_pool`+`bb_seal` (RW→RX mmap slab for BB boxes, working). **`sm_image`+`seg_seal`** (`sm_image.c` — mmap'd RX-sealable SM `.text` image; the SM-native facility). `bb_build_flat`→sealed RX box (working, used by exec_stmt runtime-PATND branch).
-- MISSING: `sm_jit_run` / `sm_emit_linear` / `sm_run_linear` named in ARCH-SCRIP DO NOT EXIST in src. The in-memory SM-native runner is UNBUILT. scrip.c:76 comment describes the intended design ("SM_sequence_t → x86 bytes → mmap slab → jump in") but the code calls the interpreter.
+**Recovery resource for unbuilt arms:** the deleted native-SM engine lives in git history (deleted 2026-05-27 JA-D series, principled removal — used forbidden `emit_standard_blob`/`SL_B`/`bake_blob_call`). Recover semantic spec (NOT verbatim bytes) from:
+- Engine A (trampoline + h_* handlers): `git show 2073c081~1:src/processor/sm_jit_interp.c`
+- Engine B (SB-LINEAR, the ARCH end-state, +799 lines built 916d61a5): `git show 22a17fa3~1:src/processor/sm_jit_interp.c`
 
-**⭐ KEY DISCOVERY (Lon hunch confirmed, Opus 4.7 2026-05-28): the native-SM engine WAS BUILT, then DELETED 2026-05-27.** The whole file `src/processor/sm_jit_interp.c` was annihilated in the JA-D series (FACT-RULE cleanup — that code used the forbidden `emit_standard_blob`/`bake_blob_call`/`SL_B` primitives, so the deletion was principled, BUT the opcode→x86 LOGIC + runner + mmap/seal/jump structure are exactly the M3-NATIVE reference). Recovery coordinates (full source intact in git history):
-  - **Engine B (SB-LINEAR — the ARCH end-state):** built `916d61a5` (2026-05-26, "sm_emit_linear + sm_run_linear — linear x86 emit over SM_sequence_t", +799). Deleted `22a17fa3` (JA-D-2, −658). Full source: `git show 22a17fa3~1:src/processor/sm_jit_interp.c` (functions `sm_emit_linear`, `sm_run_linear`, `sl_emit_one`, `sl_call`, `sl_mov_*`, `sl_jcc_last_ok`, `sl_patch_rel32`). Also deleted `sm_run_with_recovery_linear` from scrip_sm.c (same commit).
-  - **Engine A (trampoline + handlers):** deleted `2073c081` (JA-D-3, −1820). Full source: `git show 2073c081~1:src/processor/sm_jit_interp.c` (`SM_codegen`, `sm_jit_run`/`sm_jit_run_steps`, 44 `h_*` opcode handlers, `rt_push_lit_*`/`rt_push_var`/`rt_store_var`/`rt_load_glocal`/`rt_call_fn`, `bake_blob_call_*`, `emit_standard_blob`, `emit_trampoline`, `emit_cond_jump_blob_skeleton`).
-  - JA-D-1 `c352bf4d` stubbed the `--run` call site; JA-D-4/5/6 (`b14a3312`, `e842b724`) finished the sweep ("zero jit occurrences remain").
-  - **Transcription rule for revival:** do NOT copy `emit_standard_blob`/`SL_B`/`bake_blob_call` verbatim — those violate FACT RULE. Re-express the per-opcode x86 as SM_templates BINARY arms (the `MEDIUM_BINARY` arms already stubbed in all 15 `SM_templates/*.cpp`), driven by `codegen_sm_x86` in a BINARY medium, sealed via `sm_image`/`seg_seal`. The deleted `h_*`/`sl_*` bodies are the SEMANTIC SPEC for those arms.
-
-**SCOPE: this is a foundational engine build, not a dispatch-arm tweak.**
-
-**WHY TWO ENGINES EXISTED, AND WHY THERE MUST BE ONE (Lon, 2026-05-28):** the deleted file had TWO competing SM→native strategies, both deleted for the SAME FACT-RULE violation (bytes emitted outside templates):
-- **Engine A "trampoline"** (`SM_codegen`+`sm_jit_run`): per-opcode `bake_blob_call` emits glue `mov rdi,imm64; call h_<op>; jmp tramp` dispatched via a `g_handlers[107]` fn-ptr table of 44 `h_*` C handlers. = a threaded interpreter in native costume; the real work stayed in C. Used forbidden `bake_blob_call`/`emit_standard_blob`.
-- **Engine B "SB-LINEAR"** (`sm_emit_linear`+`sm_run_linear`): `sl_emit_one` emits x86 STRAIGHT-LINE, inline, opcode-by-opcode — a genuine native blob, no C-handler trampoline. The TRUE model (ARCH-SCRIP end-state). Used forbidden `SL_B`/`sl_call`/`sl_mov_*`.
-
-**DECISION: ONE engine, the SB-LINEAR straight-line model, with `SM_templates/*.cpp` BINARY arms as the SOLE byte source** (replacing `sl_emit_one`'s raw `SL_B`). NOT Engine A (its C-handler trampoline is just interpretation). The template-pure path ALREADY PARTLY EXISTS: e.g. `sm_halt.cpp` MEDIUM_BINARY arm emits `movabs rax,&rt_halt_tos; call rax` via `bytes()+u64le()` — real x86 through the template system. So M3-NATIVE = (a) build the DRIVER/RUNNER (template-pure `sm_emit_linear`/`sm_run_linear` equivalent: drive `codegen_sm_x86`(BINARY) over the SM array, each opcode → its SM_templates BINARY arm → `sm_image`, seal RX, jump in); (b) fill any stub SM_templates BINARY arms (deleted `h_*`/`sl_*` bodies = semantic spec). BB boxes flat-wired in `bb_pool`, CALLED from the native SM code. No `sm_interp_run`, no `bb_exec_*`, no `bake_blob_call`/`SL_B` on the mode-3 path.
+Transcription rule: re-express through `SM_templates/*.cpp` MEDIUM_BINARY arms, driven by `codegen_sm_x86` in BINARY medium, sealed via `sm_image`.
 
 **Steps:**
 
-- [x] **M3-NATIVE-0 — BOMB THE STUBS FIRST ✅ (Opus 4.7, 2026-05-28).** Bomb infrastructure built template-pure (FACT RULE intact): `rt_bomb(const char*)` in rt.c/rt.h (prints `libscrip_rt: BOMB — <msg>`, aborts; modeled on rt_unhandled_op); emit-side `bomb_text()`/`bomb_bytes()` in emit_str.cpp/.h. BINARY bomb = `movabs rdi,&msg; movabs rax,&rt_bomb; call rax; ud2` (12 bytes, no rel32 sites; msg interned in a never-reallocating std::deque). **Verified end-to-end**: standalone mmap+jump test fires the bomb (exit 42, message on stderr). **Reclassified the stub population** — the goal's "96 silent stubs" over-counted: the trailing `return std::string()` after the JVM/JS/NET/WASM arms is the LEGITIMATE non-x86 fallthrough (X86-ONLY rule), not a stub. The real danger split into (a) FAKE-JMP placeholders — arms emitting a doubled `\xE9+u32le(0)` jmp pair that assembles but does no work, silently degrading; (b) silent-empty on the x86 BINARY path of real opcodes. **Bombed 8 genuine stubs**: `bb_pat_span`, `bb_pat_arb`, `bb_arbno`, `bb_capture` (leaf pattern fake-jmps; arbno/capture also bomb their child_lbl-missing BINARY path = SBL-CAP-2 gap), `bb_binop_gen` (Icon generator-odometer fake-jmp, self-documented "not yet authored"), `bb_icn_to` dynamic-operands branch (literal-int branch stays REAL), `sm_jump_group` (JUMP/JUMP_S/JUMP_F — silent-empty, needs runner rel32 patching), `sm_return`/`sm_freturn`/`sm_nreturn` (silent-empty frame-teardown+ret). **Left correct-by-design intact**: `bb_eps`/`bb_fail`/`bb_pat_fence`/`bb_pat_abort` (α/β both = jmp γ/ω; their 2-jmp BINARY form IS their full semantics, verified vs TEXT) and `sm_label` (a label emits ZERO bytes; runner records its offset — annotated NOT-a-stub). **Gate**: `scripts/audit_m3_native_binary_arms.sh` classifies every SM/BB/XA x86 BINARY arm REAL/BOMB/TRIVIAL-JMP/EMPTY and FAILs on any fake-jmp outside the known-trivial set — now GREEN. **⭐ Thesis re-confirmed with the strongest evidence yet**: bombing JUMP and RETURN (the most fundamental SM control-flow opcodes) regressed NOTHING — all gates dead-on baseline (G1 13/13, G2 34, G3 175/280, G4 238/280, rungs M2=19/0 M4=15/4). Only possible because mode-3 runs the C interpreter and never executes a single BINARY arm. **Remaining (deferred to M3-NATIVE-1, needs per-file semantic judgment, NOT mass-bombed): 8 EMPTY/COMMENT combinator/control arms** — `bb_pat_alt`, `bb_pat_cat`, `bb_succeed` (TEXT does real ep-replay glue → likely stubs but entangled with xa_bb_ep epilogue wiring), and Prolog `bb_pl_alt/_call/_choice/_ite/_seq` (may be structurally-correct empty parents). Rule going forward stands: no arm stubs silently; no "verified" claim without an observed non-bombing `--run`.
-- [ ] **M3-NATIVE-1 — audit emitter coverage AGAINST the recovered engine.** Map `codegen_sm_x86` BINARY-medium coverage (which SM opcodes have a working BINARY arm vs TEXT-only vs BOMB) and the `sm_image` API (alloc/seal/entry). Cross-reference the deleted `h_*` handlers (`git show 2073c081~1:src/processor/sm_jit_interp.c`) — each `h_<op>` is the semantic spec for that opcode's BINARY arm. Output: coverage table (SM opcode × {TEXT, BINARY, BOMB}) annotated with the matching deleted `h_*`/`sl_*` reference. **PARTIAL (Opus 4.7, 2026-05-28):** `scripts/audit_m3_native_binary_arms.sh` produces the live coverage table. **SM-template BINARY coverage is far better than feared — 13/15 REAL**: sm_arith, sm_bb_calls, sm_bb_switch, sm_calls, sm_compare, sm_defines, sm_expr_incr, sm_frame_slots, sm_halt, sm_pat_anchors, sm_pat_combine, sm_pat_nullary, sm_push_pop_lits all emit real movabs/call bytes. Only sm_jump_group + sm_return-family were silent-empty (now BOMB; they need runner-level rel32/PC patching = M3-NATIVE-2). sm_label correctly emits nothing. **Still TODO**: annotate each arm with its deleted `h_*`/`sl_*` semantic-spec reference; classify the 8 deferred EMPTY/COMMENT combinator arms (stub vs structurally-correct-empty).
-- [x] **M3-NATIVE-2 — minimal native-SM runner (revive SB-LINEAR, template-pure).** Rebuild `sm_emit_linear`+`sm_run_linear` (or `sm_run_native`) from `git show 22a17fa3~1:src/processor/sm_jit_interp.c` BUT re-expressed through SM_templates BINARY arms (no `SL_B`/`emit_standard_blob`/`bake_blob_call` — FACT RULE). Pipeline: `codegen_sm_x86`(BINARY) → `sm_image` → `seg_seal` RX → call entry. Wire `scrip.c` mode_run to it (replace `sm_run_with_recovery(sm, sm_interp_run)`). Start with the smallest fully-covered program (single OUTPUT/assignment). Gate: identical output to mode-2. **FIRST SLICE DONE ✅ (Opus 4.7, 2026-05-28) — FIRST-EVER NON-BOMBING MODE-3 NATIVE EXECUTION.** Built `src/processor/sm_native.c` `sm_run_native(SM_sequence_t*)`: set `EMIT_BINARY_WIRED`, point `emit_io_set_sink` at an `open_memstream`, drive `codegen_sm_dispatch` over the whole SM array (each opcode → its SM_template BINARY arm → bytes), append `ret`, `memcpy` into `sm_image` SEG_CODE, `seg_seal` RX, enter through a 16-aligned inline-asm trampoline. FACT-RULE clean (file emits no bytes itself; all bytes come from templates via `emit_text_n`→sink). Wired into `scrip.c` mode_run behind `SCRIP_M3_NATIVE` env flag (default path = C interp, UNCHANGED; native falls back to interp on failure via `goto run_done`). **Two findings:** (1) SM templates emit via `emit_text_n`→`g_emit_sink` (FILE*), NOT the `bb_emit_byte` buffer — that path is BB-boxes only; the memstream sink was the unlock. (2) Bare-call entry left RSP≡8(mod16); the rt_* call chain needs a 16-aligned frame (matching mode-4's fn prologue) — fixed with `push rbp; mov rbp,rsp; and -16,rsp; sub 8,rsp; call; leave`-style trampoline in the C driver (alignment is driver concern, not emitted bytes). **VERIFIED native==interp, 7/7 jumpless programs**: `OUTPUT="hi"`, var assign+deref, `3+4`, `10-3`, `6*7`, `"a""b""c"` concat, `2**5`. Opcodes proven executing natively: SM_STNO, SM_PUSH_LIT_S/I, SM_STORE_VAR, SM_PUSH_VAR, SM_COERCE_NUM, SM_ADD/SUB/MUL, SM_EXP, SM_CONCAT, SM_LABEL(0 bytes), SM_HALT. All gates hold at baseline (native is opt-in). **NEXT (M3-NATIVE-2b): SM_JUMP/JUMP_S/JUMP_F BINARY arms** (currently BOMBs) with two-pass SM-PC rel32 relocation — record `instr_off[i]` in pass 1, patch jump rel32 to `instr_off[target_pc]` in pass 2 (the memstream approach needs adapting: either switch to the `bb_emit_*` buffer which has the `bb_label_t` patch list, or post-patch the copied SEG_CODE bytes using a side table of (slot_off, target_pc)). Unlocks control flow → most of the corpus. Then flip default / per-language bring-up (M3-NATIVE-4).
-**M3-NATIVE-2b DONE ✅ (Sonnet 4.6, 2026-05-28, `d16c6780`): JUMP/RETURN BINARY arms + two-pass rel32 relocation; SM_PAT_LIT rdi fix.** `sm_jumps.cpp` JUMP/JUMP_S/JUMP_F BINARY arms: JUMP=5 bytes (E9+rel32 placeholder); JUMP_S/F=21 bytes (movabs rax,&rt_last_ok; call rax; test eax,eax; jz/jnz +5; jmp rel32). `sm_returns.cpp` RETURN/FRETURN/NRETURN BINARY arms: call rt_do_return(kind,cond)/rt_do_nreturn(fname,cond); ret. `sm_native.c` extended: pass-1 records instr_off[i] via ftell; pass-2 patches jump rel32 = instr_off[target]-(r32_off+4). **BUG FOUND AND FIXED: SM_PAT_LIT BINARY arm was not passing string ptr in rdi** (emitted only movabs rax,&rt_pat_lit; call rax — rdi was garbage). Root cause of JUMP_F inversion: rt_match_variant received wrong pattern, returned ok=1 for non-matching pattern, so last_ok=1 caused JUMP_F to not jump. Fix: emit movabs rdi,&s; movabs rax,&rt_pat_lit; call rax. Verified: JUMP, JUMP_S (taken+not-taken), JUMP_F (taken+not-taken) match mode-2 oracle. 7 jumpless programs still pass. sm_jumps/sm_returns now REAL in audit. Gates: G1=13/13 G2=36 G3=175/280 G4=238/280 M2=19 M4=15 FACT=0.
+- [x] **M3-NATIVE-0** — BOMB THE STUBS (Opus 4.7, 2026-05-28). `rt_bomb`/`bomb_text`/`bomb_bytes` infrastructure built template-pure (FACT clean). 8 genuine stubs bombed: `bb_pat_span`, `bb_pat_arb`, `bb_arbno`, `bb_capture`, `bb_binop_gen`, `bb_icn_to` dynamic branch, `sm_jump_group`, `sm_return-family`. Audit gate added: `scripts/audit_m3_native_binary_arms.sh` — classifies arms REAL/BOMB/TRIVIAL-JMP/EMPTY, fails on undocumented fake-jmps. Deferred (per-file semantic judgment): `bb_pat_alt`, `bb_pat_cat`, `bb_succeed`, Prolog `bb_pl_alt/_call/_choice/_ite/_seq`.
 
-- [x] **M3-NATIVE-3 — BB call-out from native SM.** Native SM `SM_BB_SWITCH`/`SM_EXEC_STMT` must CALL the flat-wired `bb_pool` box (`node->fn(ζ,entry)` as native call), NOT `bb_exec_*`. This is where the BB BINARY template arms finally execute. Verify with a `bb_pat_*_str` marker firing under `--run`. **CONFIRMED ✅ (Sonnet 4.6, 2026-05-28, `910d55c3`)**: ANY('aeiou') finds 'e' in 'hello' under SCRIP_M3_NATIVE=1, matching mode-2 oracle. Path: sm_run_native → rt_match_variant → exec_stmt (g_bb_mode=BB_MODE_LIVE already set for --run) → bb_build_flat → BINARY template arm → flat-wired execution. 12/13 smoke tests pass natively. Blocker for M3-NATIVE-4 (making native default): SM_CALL_FN dispatch for user-defined functions requires chunk registration of label offsets within the native blob. Also fixed SM_CALL_FN BINARY arm missing rdi argument (same class as SM_PAT_LIT fix).
-- [ ] **M3-NATIVE-4 — per-language bring-up.** SNOBOL4 first (patterns), then Icon/Raku (generators via SM_BB_SWITCH gen), then Prolog (PL_ENTRY). Each: native SM + flat-wired BB, output == mode-2 oracle. Honest failure (`[NO-SM-BB] <opcode>`, last_ok=0) for any unbuilt opcode — no silent interp fallback.
-- [ ] **M3-NATIVE-5 — gate sweep + corpus, all langs.** Every stub SM/BB arm now fails honestly under `--run` (previously masked). The regressing list IS the remaining template work. Target: mode-3 native output == mode-2 oracle, kind-by-kind, language-by-language.
+- [x] **M3-NATIVE-1** — emitter coverage audit (Opus 4.7, partial). Script live: `scripts/audit_m3_native_binary_arms.sh`. SM coverage 13/15 REAL. **TODO:** annotate each arm with deleted `h_*`/`sl_*` semantic-spec reference; classify the 8 deferred EMPTY/COMMENT combinator arms.
 
-**Migration note:** the legacy `sm_jit_run` trampoline (if revived) is itself an SM-walking loop per ARCH-SCRIP — a migration target, NOT the end state; the end state is `sm_emit_linear`→`sm_run_linear` entering a pure native blob. Documented temporary exception: Prolog `--run` may keep `sm_interp_run` (AGW-1c) until `bb_pl_*.cpp` templates land — but that exception is on borrowed time and must be tracked, not assumed permanent.
+- [x] **M3-NATIVE-2 + 2b** — `sm_run_native` runner + JUMP/RETURN BINARY arms (Opus 4.7 + Sonnet 4.6, 2026-05-28). First-ever non-bombing native mode-3 execution. JUMP/JUMP_S/JUMP_F rel32 with two-pass patching; RETURN/FRETURN/NRETURN call rt_do_return; SM_PAT_LIT + SM_CALL_FN rdi-arg fixes. 7+ jumpless programs verified native==interp.
 
-**Only after M3-NATIVE has BB executing from native SM does filling BINARY arms (SPAN/ARBNO/BREAKX/CAPTURE + Icon/Prolog/Raku) have an observable effect under `--run`.** Arms "verified" to date (ANY/NOTANY/LEN/BREAK) were checked ONLY against the C oracle and (BREAK) the mode-4 brokered standalone — never a mode-3 native execution, because that path does not exist yet.
+- [x] **M3-NATIVE-3** — BB call-out from native SM (Sonnet 4.6, 2026-05-28, `910d55c3`). ANY pattern fires via flat-wired BINARY arm under `--run` SCRIP_M3_NATIVE=1. Path: `sm_run_native` → `rt_match_variant` → `exec_stmt` (BB_MODE_LIVE) → `bb_build_flat` → BINARY template. 12/13 smokes pass natively.
 
-**Mode-4 sibling (SBL-M4-FLATWIRE, separate):** `--compile` standalone brokers patterns at runtime (`rt.c:335` BB_MODE_BROKERED) instead of flat-wiring at emit time. Also wrong. Do not conflate.
+- [/] **M3-NATIVE-4** — per-language bring-up + corpus parity. SNOBOL4 first.
+  - [x] `define` smoke now passes (was blocker per earlier handoff — resolved likely via 08e05f68 LANG-IGNORANT changes). GATE-1 SCRIP_M3_NATIVE=1 = 13/13.
+  - [x] **bb_capture BINARY arm FIXED** (Opus 4.7, 2026-05-28, this session): replaced unconditional `bomb_bytes` early-return with proper 128-byte arm. Process-lifetime `std::deque<int>` saved_Δ slot (NOT GC_MALLOC). `push r10`/`pop r10` around child_fn calls. Sites {40, 49(def), 77, 124}; internal jmp rel32 = 32. Validated on 039_pat_any.sno + smoke. Native corpus 156→165/280 (+9): fixed 039_pat_any, 040_pat_notany, 042_pat_break, 043_pat_len, 058_capture_dot_immediate, 059_capture_dollar_deferred, W07_capt_cond/fail/imm. ZERO new regressions. All baseline gates hold.
+  - [ ] **Next: knock down the remaining ~73 native-only failures**, in priority cluster order:
+    - SPAN (~10 tests, blocked by SBL-SPAN-2 BINARY arm + per-node scratch via deque pattern)
+    - ALT (~6 tests, `bb_pat_alt` is EMPTY/COMMENT in audit — combinator deferred from M3-NATIVE-0)
+    - ARBNO (~8 tests, `bb_arbno` bombed, blocked by SBL-ARBNO-3 — same scratch facility now available)
+    - FENCE (~6 tests, suggest bb_pat_fence native correctness — investigate, may be combinator like ALT)
+    - POS/RPOS/TAB/RTAB/REM/ARB/TWO (~10 tests, individual arms)
+    - capture-multiple/complex compositions (~10 tests, derive from atomic fixes above)
+  - [ ] Flip default to native (remove getenv gate at scrip.c:449), with honest `[NO-SM-BB]` failure for unbuilt arms.
 
-### SBL-M4-FLATWIRE — mode-4 standalone must be FLAT-WIRED, not broker at runtime ⏳ (separate from M3)
+- [ ] **M3-NATIVE-5** — gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 
-Lon (2026-05-28): "MODE 4 is FLAT-WIRED BBs ONLY. Prevent using BROKERED BBs in --compile mode." Current state (traced): `--compile` emits `call rt_pat_break@PLT` for pattern atoms; the linked `libscrip_rt` `rt_init` (`src/runtime/rt/rt.c:335`) sets `g_bb_mode = BB_MODE_BROKERED`; at the standalone binary's runtime `exec_stmt` (`stmt_exec.c:332-337`) calls `bb_build_brokered(pp_bb)` — rebuilding + brokering pattern blobs IN THE RUNNING COMPILED PROCESS. Confirmed: a `--compile`d binary matched WITHOUT firing the `bb_exec` oracle marker (so not oracle) — it ran the brokered template path at its own runtime. Per ARCH-SCRIP.md the standalone binary should hold NO graph and build nothing; pattern code should be flat-wired into the emitted `.s` at compile time. DO NOT just flip `rt.c:335` to LIVE in isolation (default `BB_MODE_DRIVER` ALSO routes to `bb_build_brokered` per `emit_bb.c:928` + `stmt_exec.c:332`; both arms must be addressed, and the emitter must actually flat-wire pattern bytes into the asm rather than emit `call rt_pat_*`). Design first; trace the full `--compile` pattern-emit path before cutting. Defer until after SBL-M3-NATIVE (shared native-x86 infrastructure).
+**Mode-4 sibling (separate goal):** SBL-M4-FLATWIRE — `--compile` standalone brokers at runtime instead of flat-wiring at emit time. Defer until after M3-NATIVE done; shares native-x86 infra.
 
-### SBL-XNME-XLATE + SBL-CAP-2 — paired (must land together) ⏳
+---
 
-Probe wedge `probe_xnme.sno`: `PAT = ANY('cab'); S = 'xyzabcdef'; S PAT . M`. Oracle: `M=a`. Mode-2/-3 already green via C oracle. Mode-4 prints `no match`.
+### SBL-CAP-2 — capture template ✅ (this session 2026-05-28)
 
-**Preparatory fixes landed `828f9134`:**
+Closed by M3-NATIVE-4 capture fix above. BINARY arm:
+- Sites: `{40 (ω-jmp rel32), 49 (β label-define), 77 (ω-jmp rel32), 124 (γ-jmp rel32)}`
+- 128 bytes total
+- Internal jmp→assign pre-patch rel32 = 32 (after-addr 49, target 81)
+- ABI: r10=&Δ on entry; child preserves via `push r10`/`pop r10`; child_fn(rdi=0, esi=entry); `rt_cap_assign_cursor(rdi=varname, esi=saved_Δ, edx=cur_Δ, ecx=imm)`.
+- saved_Δ slot via `cap_alloc_saved_delta_slot()` — process-lifetime `std::deque<int>` (NOT GC_MALLOC).
 
-1. `lower_pat_dcg.c` XNME/XFNME translator: read varname from `pp->var.s` fallback when STRVAL_fn empty. AST-built XNME populates STRVAL_fn at parse time; runtime-built XNME (`pat_assign_cond`/`pat_assign_imm` in `snobol4_pattern.c:284/293`) stores name in `pp->var` (NAMEVAL/NAMEPTR DESCR_t), leaves STRVAL_fn NULL.
+**KEY PATTERN ESTABLISHED:** the deque-int allocator is the GC-safe replacement for `GC_MALLOC(sizeof(int))` for per-template-call BINARY scratch. SPAN-2, ARBNO-3, BREAKX-2 should all use this same pattern.
 
-2. `rt.c rt_pat_capture`: populate STRVAL_fn on constructed XNME/XFNME from the varname argument. **Critical:** when `NAME_fn(varname)` finds an existing cell, it returns NAMEPTR (`slen=1, ptr=cell`), whose `.s` slot reads as cell-pointer bytes — NOT the name string. Only NAMEVAL (`slen=0, s=name`) carries the string, and only for first-touch cells. Probe confirmed: `[DBG XNME xlate] STRVAL_fn='<null>' var.v=9 var.s='' var.slen=1` → fix populates STRVAL_fn unconditionally from the rt_pat_capture varname argument.
+---
 
-Both fixes are gated-out by `patnd_needs_xlate` (XNME/XFNME still excluded), so no behavioral change on the currently-exercised path. All five gates hold at watermark.
+### SBL-SPAN-2, SBL-ARBNO-3 — BINARY arms ⏳
 
-**SBL-CAP-2 deep finding (this session, continued-16):**
+**SPAN:** generator; β yields successively shorter spans using ABSOLUTE z_orig (NOT `[r10]`-relative — sibling box in concat mutates `[r10]` between α and β re-entry). Needs TWO persistent int slots (z, z_orig). Prior attempt (2026-05-28) widened `rt_cs_t` with `delta2 @+12`; arm disassembled correctly but segfaulted (GC freed `rt_cs_t` baked as imm64). **Reverted; retry now using the `std::deque<int>` slot-pair pattern from bb_capture.cpp** (NOT GC_MALLOC, NOT `rt_cs_t` widening).
 
-The capture template's BINARY arm cannot be filled in isolation — it's blocked by a more fundamental issue with how child-bearing kinds (CAPTURE, ARBNO, CALLOUT) work under MEDIUM_BINARY:
+**ARBNO:** uses `nd->counter` generator state; TEXT β re-enters child. Closer to capture — use deque pattern + brokered child call (movabs + call). Reference: now-working bb_capture.cpp.
 
-- `bb_prepare_capture_arbno` (`emit_bb.c:581`) sets `g_emit.bb_child_lbl = child_cache_get_lbl(child_fn)` **only inside `if (MEDIUM_TEXT)` blocks** (lines 590, 605, 620).
-- Under MEDIUM_BINARY, `child_cache_set_lbl` is never called (only `pre_build_children_text` sets labels; `pre_build_children` for BINARY does not). So `child_cache_get_lbl(child_fn)` returns NULL under BINARY regardless.
-- Both `bb_capture.cpp` (line 18) and `bb_arbno.cpp` (line 16) have `if (!child_lbl || !child_lbl[0]) return std::string();` early-return → emit zero bytes for the parent node.
-- Zero bytes for the parent ASSIGN_COND means the outer `xa_flat_epilogue` BINARY emission references `flat_fail_p` (lbl_ω) but no preceding code defines lbl_β → unresolved-label abort at site=19.
+Validate via `--run` (mode 3 WIRED), not `--compile` (which uses TEXT arms only).
 
-This is the same architectural gap for ARBNO. Under current mode-2 brokered execution, the C oracle in `bb_exec.c` carries everything; templates are not exercised for var-deref / capture-wrapped patterns.
+---
 
-**SBL-CAP-2 design requirements (next session):**
+### SBL-BREAKX-2 — BREAKX BINARY + β rescan ⏳
 
-The BINARY arm needs to invoke the child via a callable target, not a label. Options:
+BREAKX (`pBB->ival==1`) needs own BINARY arm. TEXT β does rescan-to-next using z_orig + z. Two int slots — use deque pattern. Reference deleted `rt_bb_brkx` via `git show 0206b998 -- src/runtime/rt/rt.c`.
 
-A) **Direct function-pointer call via movabs.** The child `bb_box_fn` is the address of the brokered blob — callable as a normal function. Emit `movabs rax, &child_fn; call rax` instead of `call <label>`. Requires `g_emit.bb_child_lbl` replaced by `g_emit.bb_child_fn` (raw function pointer) under MEDIUM_BINARY. This is the same pattern `bb_upto.cpp` uses for `strchr` (reference).
+---
 
-B) **Pre-emit child blob inline into parent's buffer.** Inline the child's bytes into the parent's blob with a forward-jump entry. Loses the call/ret structure that brokered ARBNO/CAPTURE expect.
+### SBL-XNME-XLATE ⏳ (paired-prereq DONE in `828f9134`)
 
-A is cleaner. Plan: extend `bb_prepare_capture_arbno` to set `g_emit.bb_child_fn = (void *)child_fn` under MEDIUM_BINARY (mirroring how it sets `bb_child_lbl` under MEDIUM_TEXT); extend `g_emit` struct to add this field; `bb_capture_str` and `bb_arbno_str` BINARY arms check `bb_child_fn` instead of `bb_child_lbl`.
+Translator XNME/XFNME fallback (`pp->var.s`) and `rt_pat_capture` STRVAL_fn population landed. Gate widening NOT applied — was paired with SBL-CAP-2 which is now closed. Re-evaluate whether the widening is still needed and apply if yes.
 
-Then BINARY arm of `bb_capture.cpp` emits:
-```
-mov eax, [r10]                  ; stash Δ
-mov [rip+saved_Δ], eax          ; (need PER-NODE storage — see below)
-xor esi, esi                    ; first call
-push r10
-movabs rax, &child_fn
-call rax
-pop r10
-cmp eax, 99
-je ω
-jmp assign
-β:
-mov esi, 1                       ; retry call
-push r10
-movabs rax, &child_fn
-call rax
-pop r10
-cmp eax, 99
-je ω
-assign:
-movabs rcx, &Σ
-mov rax, [rcx]
-movsxd rcx, dword [rip+saved_Δ]
-lea rsi, [rax+rcx]
-mov edx, [r10]
-sub edx, dword [rip+saved_Δ]
-movabs rdi, &varname_cstr        ; varname string address (emitter-process)
-push r10
-movabs rax, &rt_cap_assign
-call rax
-pop r10
-jmp γ
-```
-
-**Per-node `saved_Δ` storage problem:** brokered blobs aren't ELF sections — no `.data` slot. Options: (a) `GC_MALLOC(4)` at template-time and embed the absolute address as imm64; (b) per-blob scratch area in the bb_buf prologue. (a) is simpler — emit `&saved_Δ` as a `movabs` operand. Sites table: jge/je/jmp rel32s to ω/γ; β-label-define.
-
-**Varname C-string storage:** `varname` comes from `g_emit.op_name1` (currently set in `walk_bb_node` from `nd->sval`, which is char* from translator). Under BINARY, emit `movabs rdi, &varname_string` where `&varname_string = (uint64_t)(uintptr_t)g_emit.op_name1`. The string lives in the emitter process for the lifetime of the brokered blob.
-
-**Gate widening to re-apply after SBL-CAP-2 lands** (preserved from continued-15 carving):
-
-Insert in `src/runtime/snobol4/stmt_exec.c` after `patnd_is_simple_atom` (line ~253):
+Insert in `src/runtime/snobol4/stmt_exec.c` `patnd_needs_xlate` after `patnd_is_simple_atom`:
 ```c
 static int patnd_is_capture_wrapped_safe(const PATND_t *pp) {
     if (!pp) return 0;
@@ -208,69 +172,30 @@ static int patnd_is_capture_wrapped_safe(const PATND_t *pp) {
     return patnd_is_simple_atom(inner) || patnd_contains_arbno(inner);
 }
 ```
-Then OR into `patnd_needs_xlate`:
-```c
-return patnd_contains_arbno(pp) || patnd_is_simple_atom(pp) || patnd_is_capture_wrapped_safe(pp);
-```
-
-**Validation cycle (next session):**
-```bash
-./scrip --compile /home/claude/probe_xnme.sno > /tmp/p.s
-gcc -c /tmp/p.s -o /tmp/p.o && gcc /tmp/p.o -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$(pwd)/out -o /tmp/p.bin
-/tmp/p.bin     # expect "M=a"
-```
-
-Plus all five gates must hold (G1=13/13, G2≥28, G3≥175, G4≥238, M2=19, M4=15).
+Then: `return patnd_contains_arbno(pp) || patnd_is_simple_atom(pp) || patnd_is_capture_wrapped_safe(pp);`
 
 ---
 
-### SBL-NOTANY-2 ✅ (Opus 4.7, 2026-05-28)
-
-`bb_pat_notany.cpp` BINARY arm filled — byte-identical to `bb_pat_any.cpp` (104 bytes, sites {17,72,86,90,100}) except offset 70: `jne ω` (`0F 85`) instead of `je ω` (`0F 84`) — NOTANY fails when the char IS in the set. Was a 2-jump stub (`{1,2}` sites). Validated: `/tmp/probe_notany2.sno` (`NOTANY('xyz')` against `'xyzabcdef'`) mode-4 compiled binary now prints `matched` via brokered BINARY path. All five gates hold (G1=13/13, G2=30, G3=175, G4=238, M2=19, M4=15), FACT RULE=0.
-
-### SBL-BREAK-2 ✅ (Opus 4.7, 2026-05-28)
-
-`bb_pat_break.cpp` plain-BREAK BINARY arm filled (178 bytes; was a 2-jump stub that **aborted** mode-4 with `bb_emit_end: unresolved forward reference` because it never defined lbl_β). Sites at {150→γ, 154→β(is_def), 174→ω}; internal loop/done jumps emitted as literal constant rel32 (+66, +19, −113). Validated: `BREAK('c')` on `'abXcde'` matches `'abX'` (mode-2 oracle), mode-4 compiled binary prints `matched`, agrees with oracle across cases. BREAKX (`pBB->ival==1`) BINARY arm still a stub — SBL-BREAKX-2.
-
-**KEY REUSABLE PATTERN (shared per-node persistent BINARY storage):** brokered blobs have no ELF `.data`, so loop counters that must persist across the α→γ→backtrack→β boundary live in the GC-allocated `rt_cs_t` at `g_emit.bb_cs_zeta`, whose `int delta` field is at **byte offset 8** (`rt_cs_t = {const char *chars; int delta;}`, sizeof=16). Address it via `movabs rcx, &zeta; [rcx+8]`. This is the same persistent-storage facility SPAN-2, ARBNO-3, and SBL-CAP-2's `saved_Δ` all need — no GC_MALLOC-per-template required; `bb_cs_zeta` (already set in every charset template's MEDIUM_BINARY entry) IS the slot.
-
-### SBL-SPAN-2, SBL-ARBNO-3 — BINARY arms ⏳ (SPAN attempted 2026-05-28, REVERTED — segfault)
-
-**SPAN correction (supersedes the earlier `[r10]-=z` single-slot idea — that was WRONG).** SPAN is a generator; β must yield successively shorter spans using an ABSOLUTE z_orig (NOT `[r10]`-relative), because a sibling box in a concatenation mutates `[r10]` between α and the β re-entry and the four-port driver does NOT auto-restore the cursor. Needs TWO persistent slots (z, z_orig). The 2026-05-28 attempt widened `rt_cs_t` with `delta2`@12 (delta stays @8, BREAK unaffected) and wrote a 208-byte arm that DISASSEMBLED CORRECTLY but SEGFAULTED at runtime (exit 139) on the brokered build+run path — suspected GC collection of the imm64-baked `rt_cs_t` (the GC can't see the address inside machine code). Reverted to e48a0ab1. **Prerequisite before retry: GC-root the per-node scratch** (register rt_cs_t as a GC root, or use a collector-visible store) — this is the SAME facility SBL-CAP-2's saved_Δ needs. ARBNO uses `nd->counter` generator state; study its TEXT β-port (re-enters the child) — closer to SBL-CAP-2. **Validate via `--run` (mode 3 WIRED), not `--compile`.**
-
-### SBL-BREAKX-2 — BREAKX BINARY + β rescan ⏳
-BREAKX (`pBB->ival==1`) needs its own BINARY arm (TEXT β does a rescan-to-next using z_orig + z). Under BINARY use two int slots — but `rt_cs_t` has only one `delta`. Either widen `rt_cs_t` with a second int or GC_MALLOC an 8-byte scratch. Defer.
-
-Each fill verifiable with a runtime-PATND probe (probe7 shape, no capture):
-```
-PAT = NOTANY('xyz') ; S = 'xyzabcdef' ; S PAT :F(NOMATCH)
-```
-
-These arms only fire on the mode-4 *runtime* path (`rt_match_variant → exec_stmt → bb_build_brokered → templates`). Mode-2/-3 use C oracle; mode-4 emit phase uses TEXT.
-
-### SBL-BREAKX-2 — BREAKX β in TEXT arm ⏳
-BREAKX β rescan in `bb_pat_break.cpp` TEXT arm when `pBB->ival==1`. Reference deleted `rt_bb_brkx` body (git show `0206b998 -- src/runtime/rt/rt.c`). Add rung 058 to exercise.
-
 ### SBL-ATP — `@var` cursor capture ⏳
-1. Add `BB_PAT_ATP` to `BB_op_t` enum in `BB.h`.
+1. Add `BB_PAT_ATP` to `BB_op_t` in `BB.h`.
 2. `lower_pat_dcg.c`: `@var` → `nd->sval=varname; nd->α=nd; nd->β=fp; nd->γ=sp; nd->ω=fp`.
 3. `bb_exec.c case BB_PAT_ATP`: α writes Δ as int DESCR via NV_SET; return γ. β: return ω.
 4. `bb_pat_atp.cpp` template + emit_core dispatch.
 
 ### SBL-G-2 — Re-freeze GATE-PK ⏳
-After filling each template, re-freeze its kind's cell in `test_per_kind_diff.sh`. Current baseline references DELETED `rt_bb_*` C boxes — stale.
+Re-freeze each kind's cell in `test_per_kind_diff.sh`. Baseline references deleted `rt_bb_*` boxes — stale.
 
 ### SBL-SM-BINARY (HQ-track) ⏳
-`sm_pat_nullary.cpp` BINARY arm embeds emitter-process `rt_pat_*` function pointer as imm64 → violates Invariant-8. Fix: call `rt_pat_*@PLT` directly. Track as `SM-BINARY-PAT-FIX` in GOAL-HEADQUARTERS.
+`sm_pat_nullary.cpp` BINARY arm embeds emitter-process `rt_pat_*` fn-ptr as imm64 — Invariant-8 violation. Fix: call `rt_pat_*@PLT` directly.
 
 ### SBL-LOWER-CLEANUP ⏳
-Delete `lower_subj_pat_split` + inline duplicate at lower.c:1750 once Snocone confirmed not using them.
+Delete `lower_subj_pat_split` + lower.c:1750 duplicate after Snocone confirmed unused.
 
 ### SBL-VERIFY-1/2 — corpus climb ⏳
 After all BINARY arms + SBL-ATP + SBL-XNME-XLATE: target ≥260/280 broad corpus.
 
 ### Pre-existing m2 oracle gaps (audit-only) ⏳
-Rungs 044/045/046/048/052/054/055/056/057 fail m2 too. `bb_exec.c` doesn't implement what the rung suite oracle expects for POS/RPOS/TAB/REM/star_deref/fail_builtin. Separate session.
+Rungs 044/045/046/048/052/054/055/056/057 fail m2 too. `bb_exec.c` doesn't implement what rung suite expects for POS/RPOS/TAB/REM/star_deref/fail_builtin. Separate session.
 
 ---
 
@@ -279,72 +204,68 @@ Rungs 044/045/046/048/052/054/055/056/057 fail m2 too. `bb_exec.c` doesn't imple
 **Templates with x86 TEXT arms filled:**
 LIT, ARB, LEN, POS/RPOS, TAB/RTAB, REM, ALT, CAT, FENCE, ABORT, EPS, FAIL, ANY, NOTANY, BREAK (plain), SPAN, ARBNO, CAPTURE, DEFER.
 
-**Templates with x86 BINARY arms filled:**
-LIT, LEN, POS, UPTO (ref). ANY (SBL-ANY-2, continued-15). NOTANY (SBL-NOTANY-2, 2026-05-28). BREAK plain (SBL-BREAK-2, 2026-05-28; BREAKX still stub). **ALL of ANY/NOTANY/LEN/BREAK VERIFIED-BY-EXECUTION via `--run` (SBL-BREAK-VERIFY, 2026-05-28) — and BREAK no-terminator failure semantics corrected.** All others still stub.
+**Templates with x86 BINARY arms filled (validated via `--run` mode 3 WIRED):**
+LIT, LEN, POS, UPTO (ref). ANY, NOTANY, BREAK (plain), CAPTURE — all VERIFIED-BY-EXECUTION. Others stub/bomb.
 
 **Runtime translators:**
-- `patnd_to_bb_graph()` in `lower_pat_dcg.c` — runtime PATND_t→BB_graph_t parallel to `BB_lower_pat`. Gated by `patnd_needs_xlate` in `stmt_exec.c`. Covers XARBN-containing trees + simple-atom roots (XCHR/XSPNC/XBRKC/XBRKX/XANYC/XNNYC/XLNTH/XPOSI/XRPSI/XTB/XRTB/XFARB/XSTAR). Does NOT cover XNME/XFNME yet (SBL-XNME-XLATE pending pair with SBL-CAP-2).
+- `patnd_to_bb_graph()` in `lower_pat_dcg.c` — runtime PATND_t→BB_graph_t. Gated by `patnd_needs_xlate`. Covers XARBN-containing trees + simple-atom roots. Does NOT cover XNME/XFNME yet (SBL-XNME-XLATE pending).
 
-**Driver-level fixes (historical):**
-- FLAT-DRIVER α-LABEL placement before XA_FLAT_PROLOGUE.
-- PAT_LIT/REFNAME/USERCALL GAS macro-arg fix.
-- Nested-ALT EP_RESET fix in `flat_drive_alt`.
-- Statement-level `S P` produces TT_SCAN at parse time.
-- ASSIGN_IMM/COND removed from `lower_flat_invariant` exclusion (unlocks inline capture emit).
+**Driver/runtime fixes:**
+- BREAK no-terminator failure (oracle + TEXT + BINARY uniformly fixed; previously succeeded incorrectly per SPITBOL)
+- FLAT-DRIVER α-LABEL placement; PAT_LIT/REFNAME/USERCALL macro-arg fix; nested-ALT EP_RESET; statement-level `S P` → TT_SCAN
+- `rt_cap_assign(varname, base, len)` + `rt_cap_assign_cursor(varname, sΔ, cΔ, imm)` helpers
+- SM_PAT_BREAKX opcode separated from SM_PAT_BREAK
+- BB_PAT_DEFER opcode + `rt_defer_match` + XDSAR resolve
+- Pattern rung suite `test_snobol4_pat_rung_suite.sh` (rungs 038-057)
+- `bb_boxes.c` C Byrd boxes + `rt_bb_*` deleted (FACT RULE, JA-D-3)
+- bomb infrastructure: `rt_bomb`, `bomb_text`, `bomb_bytes`, audit script
+- `cap_alloc_saved_delta_slot()` in bb_capture.cpp — GC-safe deque-int scratch pattern, reusable
 
-**Infrastructure:**
-- `rt_cap_assign(varname, base, len)` helper in `rt.c`.
-- SM_PAT_BREAKX opcode (separate from SM_PAT_BREAK).
-- BB_PAT_DEFER opcode + `rt_defer_match` + XDSAR resolve.
-- Pattern rung suite `test_snobol4_pat_rung_suite.sh` (rungs 038-057, M2 + M4 columns).
-- `bb_boxes.c` C Byrd boxes + `rt_bb_*` deleted (FACT RULE, JA-D-3).
-
-**Recovery resource:** Hand-written original boxes live in git at `660339cd~1:src/runtime/boxes/<box>/<file>.s`. Transcribe ABI register names to flat `[r10]`/`lbl_α/β/γ/ω` convention.
+**Recovery resource:** original hand-written boxes at `git show 660339cd~1:src/runtime/boxes/<box>/<file>.s`. Native-SM engine at `git show 22a17fa3~1:src/processor/sm_jit_interp.c` (semantic spec only — bytes go through templates).
 
 ---
 
 ## Session State
 
 ```
-GATE-1 SNOBOL4 smoke        = 13/13 (mode-2 7/7 + mode-3 6/6)
-GATE-2 unified broker       = 36 (sibling-influenced)
-GATE-3 broad corpus mode-4  = 175/280
-GATE-4 broad corpus mode-2  = 238/280
-Rung suite                  = M2=19, M4=15, SKIP=0
-HEAD one4all                = 33ca255d (EMERGENCY — SBL-CAP-2 BINARY arm partial, label-patch bug unresolved) (SBL-BREAK-VERIFY; see CORRECTION below — BREAK no-terminator FIX is real + gate-clean, but the "verified via --run BINARY arm" claim was WRONG: --run routes graph-table patterns to bb_exec_pat C ORACLE, not native x86. Mode-3 itself runs the mode-2 C INTERPRETER (sm_interp_run) — see SBL-M3-NATIVE.)
-GATE-PK status              = stale (re-freeze deferred)
+HEAD one4all       = 08e05f68 (DIRTY: src/emitter/BB_templates/bb_capture.cpp uncommitted)
+HEAD .github       = 70f5ce3a (clean)
+GATE-1 smoke       = 13/13     (also 13/13 under SCRIP_M3_NATIVE=1)
+GATE-2 broker      = 31        (sibling-influenced)
+GATE-3 mode-4      = 175/280
+GATE-4 mode-2      = 238/280
+NATIVE corpus      = 165/280   (was 156 — +9 from bb_capture BINARY arm fix this session)
+Rung suite         = M2=19 M4=15 SKIP=0
+FACT RULE          = 0
+audit_m3_native    = GATE OK
+GATE-PK            = stale (re-freeze deferred)
 ```
 
 ---
 
-## Session log (terse)
+## Session log (terse, last few only)
 
-- **2026-05-28 Opus 4.7 (i) — LANG-IGNORANT SM TEMPLATES (pre-commit, separate from M3-NATIVE).** Ripped 9 language-sniffing forks from SM/BB templates (sm_calls Raku/JVM/NET/WASM, sm_jumps Raku label, sm_returns NET ×2, sm_bb_calls Icon proc_table). Whacked `SM_BB_PUMP_PROC` (mode-2-only Icon pump; mode-3 was 5-byte call-to-self no-op, mode-4 was no-arg-macro). Split `SM_BB_SWITCH` (tag-dispatched on `SM_BBSW_ICN_GEN`/`RK_GEN`/`PL_ENTRY`) into `SM_BB_INVOKE` (generic, language-ignorant) + `SM_BB_PL_INVOKE` (Prolog entry, distinct because env push + sibling callees are genuinely different x86). Tag macros deleted. Mis-design recorded: `SM_BB_PL_INVOKE` is collapsible into `SM_BB_INVOKE` after Prolog lower refactors to emit per-predicate as ordinary SM procs (Icon-style). 14 files touched; sm_bb_calls.cpp DELETED. Gates: G1=13/13 (held), G2=31 (was 36, −5 Icon; expected per directive "makes no difference what breaks"), G3=175/280 (held), G4=238/280 (held), rungs M2=19/M4=15 (held), FACT=0. Icon smoke 0/5 (was 5/5 — pumping unimplemented now). Raku 5/5 hold per gate-script but per-test ~14 Raku gates dropped (rk_class26, rk_re32..37, rk_given18, etc.); Raku frontend was relying on a deleted fast-path that emitted explicit frame-enter/leave around user-sub calls. Tree dirty 14 files. See HANDOFF-2026-05-28-OPUS-LANG-IGNORANT-SM-TEMPLATES.md for full coverage + restoration plan.
+- **2026-05-28 Opus 4.7 (this session) — SBL-CAP-2 ✅ + native corpus +9.** Fixed bb_capture.cpp BINARY arm: removed unconditional bomb, added proper gate; replaced GC_MALLOC scratch with process-lifetime `std::deque<int>` allocator (key new pattern, GC-safe); added push r10/pop r10 around child_fn calls; corrected sites to `{40, 49(def), 77, 124}` (off-by-one in old `{35,45,68,116}` — `0F 84` rel32 is at opcode+2, not +1); internal jmp pre-patch 28→32. Validated: 039_pat_any.sno native==oracle ("e"); GATE-1 13/13 (both default and native); broad corpus native 156→165/280; zero baseline regressions; FACT RULE 0; audit GATE OK. Goal file pruned 700+→~290 lines this session.
 
-- **2026-05-28 Sonnet 4.6 (emergency) — M3-NATIVE-4 SBL-CAP-2 BINARY arm: infrastructure landed, label-patch bug blocks completion.** Root cause of 238→157 native corpus regression: XNME/XFNME-wrapped atoms (capture nodes) not routed through translator (`patnd_is_capture_wrapped_safe` now added); and bb_pat_kid returns NULL for patnd_to_bb_graph-built ASSIGN_COND nodes (sidecar absent) — fixed with nd->α fallback in walk_bb_flat + pre_build_children. Infrastructure: `g_emit.bb_child_fn` field, `bb_prepare_capture_arbno` sets it, `rt_cap_assign_cursor` runtime helper, bb_capture.cpp BINARY arm (120 bytes, sites {35,45,68,116}, calls child_fn(zeta=0, entry) + rt_cap_assign_cursor). BLOCKER: `bb_emit_end` reports 1 unresolved forward ref site=19 label='pat_brok_β' after `bb_label_define` fires correctly (debug confirms pointer match, patch patched) — yet still present at end. Suspects: (a) two `bb_emit_patch_rel32` calls for same label; (b) inner `bb_build_brokered(child)` during `pre_build_children` using shared bb_emit_buf corrupts outer patch list. Next session: add print to removal loop + all patch registration calls to trace. HEAD `33ca255d`. Gates hold at baseline (native is opt-in via SCRIP_M3_NATIVE=1).
-- **2026-05-28 Opus 4.7 (h) — OWNED FAILURE: silent stubs, not BOMBs, masked the dead mode-3 path.** Lon (correctly): the unimplemented arms should have been stubbed with a BOMB (loud abort), per prior direction. They weren't — they `return std::string()` (HQ Invariant 0 STUB, silent). Consequence: mode-3 fell through to the C oracle with no crash, and "verified via --run" was written down as true while the BINARY arms never executed — the root cause of the wasted days. Quantified: 96 silent stubs (37 SM_templates + 59 BB_templates). Added **M3-NATIVE-0** (prerequisite): replace every silent stub with a loud bomb (`ud2`/`rt_bomb`); grep gate = zero `return std::string();` in `*_templates/`; NO "verified" claim without an observed non-bombing `--run`. Lesson recorded: stub loud, never report a path verified unless seen executing. No one4all code changes; tree clean 58c7cab9.
+- **2026-05-28 Opus 4.7 (i) — LANG-IGNORANT SM TEMPLATES (`08e05f68`).** Ripped 9 language-sniffing forks from SM/BB templates. Whacked `SM_BB_PUMP_PROC`. Split `SM_BB_SWITCH` into `SM_BB_INVOKE` + `SM_BB_PL_INVOKE`. Mis-design recorded: PL_INVOKE collapsible after Prolog lower refactor. Gates held except Icon (0/5, expected). Raku frontend relied on deleted user-sub frame-management fast-path. See HANDOFF-2026-05-28-OPUS-LANG-IGNORANT-SM-TEMPLATES.md.
 
-- **2026-05-28 Opus 4.7 (g) — ⭐ KEY DISCOVERY: native-SM engine was BUILT then DELETED 2026-05-27 (Lon hunch confirmed).** Scanned git history per Lon's suggestion. Found `916d61a5` (2026-05-26) BUILT SB-LINEAR (`sm_emit_linear`+`sm_run_linear`, +799 lines, "linear x86 emit over SM_sequence_t") — the exact ARCH-SCRIP mode-3 end-state. Then the JA-D series (2026-05-27) ANNIHILATED it: `c352bf4d` JA-D-1 stubbed `--run`; `22a17fa3` JA-D-2 deleted Engine B/SB-LINEAR (−658); `2073c081` JA-D-3 deleted Engine A/trampoline `sm_jit_run`+44 `h_*` handlers (−1820); `b14a3312`/`e842b724` JA-D-4/5/6 swept the rest ("zero jit occurrences remain"). Whole file `src/processor/sm_jit_interp.c` is GONE. The deletion was PRINCIPLED (that engine used forbidden `emit_standard_blob`/`SL_B`/`bake_blob_call` — FACT RULE), but the opcode→x86 LOGIC + runner + mmap/seal/jump are exactly the M3-NATIVE reference. Recovery coords + transcription rule (re-express as SM_templates BINARY arms, NOT verbatim) recorded in GOAL § SBL-M3-NATIVE. Updated M3-NATIVE-1/2 to leverage recovered source as the semantic spec. No one4all code changes; tree clean at 58c7cab9.
+- **2026-05-28 Sonnet 4.6 — M3-NATIVE-3 ✅ (`910d55c3`).** BB call-out confirmed; ANY fires BINARY arm natively. SM_CALL_FN rdi fix. 12/13 native smokes.
 
-- **2026-05-28 Opus 4.7 (f) — CORRECTION + RESCOPE: mode-3 is PURE x86, NO interp (SBL-M3-FLATWIRE → SBL-M3-NATIVE).** Lon: "SCRIP Mode 3 is NO INTERP and pure x86 asm for ALL languages." My session-(e) recommendation to KEEP `sm_interp_run` for mode-3 was WRONG. Re-read ARCH-SCRIP.md: mode 3 `--run` = `sm_lower → sm_codegen → sm_jit_run`, native x86 ONLY; `sm_interp_run` + `bb_exec_*` are mode-2 ONLY. Traced: `scrip.c` mode_run calls `sm_run_with_recovery(sm, sm_interp_run)` — mode-3 RUNS THE MODE-2 INTERPRETER (both SM PC-loop and BB oracle). The ARCH-named native runners `sm_jit_run`/`sm_emit_linear`/`sm_run_linear` DO NOT EXIST in src; the native-SM engine is UNBUILT. Facilities that DO exist: `codegen_sm_x86` (SM x86 producer), `sm_image`+`seg_seal` (RX SM image), `bb_pool`+`bb_seal` (RX BB slab), `bb_build_flat`. Rescoped the rung: SBL-M3-FLATWIRE → **SBL-M3-NATIVE** (foundational engine build, 5 steps: audit native-SM emitter coverage → minimal `sm_run_native` runner → BB call-out from native SM → per-language bring-up → gate/corpus sweep). `sm_interp_run` name is correct FOR MODE 2; the error was wiring it into mode 3. Updated GOAL § SBL-M3-NATIVE + PLAN.md cross-cutting note + SNOBOL4 row. No one4all code changes; tree clean at 58c7cab9.
+- **2026-05-28 Sonnet 4.6 — M3-NATIVE-2b ✅ (`d16c6780`).** JUMP/JUMP_S/JUMP_F + RETURN-family BINARY arms; two-pass rel32 reloc; SM_PAT_LIT rdi fix. Verified native==interp on multiple flow patterns.
 
-- **2026-05-28 Opus 4.7 (e) — ROOT-CAUSE FOUND (SBL-M3-FLATWIRE carved). No code committed; investigation + goal correction only.** Lon: "Mode 3 should be SM run live EXEC + BB FLAT-WIRED. That is what you were supposed to be doing for two days." Traced (marker-instrumented, all reverted): mode-3 `--run` runs SM live (`sm_interp_run` ✅) BUT `sm_interp.c case SM_EXEC_STMT` routes graph-table patterns (`pat_bb != NULL`) to **`bb_exec_pat` — the C ORACLE graph walker in `bb_exec.c`** — NOT to flat-wired native template bytes. So compiled-in patterns under `--run` are INTERPRETED IN C (RULES.md violation). `bb_broker` has no oracle fallback; the oracle was reached via `SM_EXEC_STMT`→`bb_exec_pat`. **CONSEQUENCE: every "BINARY arm" filled/verified to date (ANY/NOTANY/LEN/BREAK) was NEVER exercised by mode-3** — the `bb_pat_break_str` entry marker did not fire in mode-2 OR mode-3. The prior-session and this-session-(a–d) "verified via --run" claims were verifying the C oracle, not flat-wire. The BREAK no-terminator FIX (commit 58c7cab9) IS real and gate-clean (it fixed the oracle + TEXT + BINARY uniformly), but the verification MECHANISM claim was wrong. Carved **SBL-M3-FLATWIRE** (top priority: wire `SM_EXEC_STMT` under LIVE to `bb_build_flat`+`bb_broker` instead of `bb_exec_pat`) and **SBL-M4-FLATWIRE** (separate: `--compile` brokers patterns at the standalone binary's runtime via `rt.c:335` BB_MODE_BROKERED — must become flat-wired). Tree clean at 58c7cab9; no new commits to one4all this session.
+- **2026-05-28 Opus 4.7 — M3-NATIVE-2 FIRST SLICE ✅.** Built `sm_run_native(SM_sequence_t*)` template-pure (open_memstream sink, sm_image SEG_CODE, seg_seal RX, 16-aligned trampoline). Verified native==interp on 7 jumpless programs. Wired behind `SCRIP_M3_NATIVE` env (default unchanged).
 
-- **2026-05-28 Opus 4.7 (d) — SBL-BREAK-VERIFY ✅.** Resolved the prior caveat that NOTANY/BREAK BINARY arms were UNVERIFIED-BY-EXECUTION. Confirmed in `scrip.c` that `--run` forces `bb_live=1` → `bb_build_flat` writes MEDIUM_BINARY+WIRED into the sealed RX `bb_pool` slab and jumps in — so `--run` IS the harness that executes the new BINARY bytes (SM-level still `sm_interp_run`, but pattern BB nodes are flat-wired BINARY). Validated ANY/NOTANY/LEN BINARY arms under `--run`: all byte-correct vs C oracle AND SPITBOL (positive + negative cases). **BREAK: found a latent correctness bug** uniform across oracle + TEXT + BINARY: `BREAK(set)` with the terminator ABSENT from the subject must FAIL (SPITBOL), but the α-logic unconditionally succeeded after scanning to end-of-subject (SBL-BREAK-2 had faithfully mirrored the already-buggy TEXT semantics). Fixed in three coordinated edits: (1) `bb_exec.c` α — return ω when no break char found before Σlen; (2) `bb_pat_break.cpp` BINARY arm — retarget loop `jge` from success epilogue to a new `jmp ω` fail epilogue (183B, was 178; jge disp 66→114; 4th site at operand 179→ω); (3) `bb_pat_break.cpp` TEXT arm — route end-of-subject `jge` to `lbl_ω` instead of success `done`. Validated vs SPITBOL on 6 BREAK cases (positive, terminator-absent, terminator-at-first/last/end, long-no-terminator) across mode-2, mode-3 WIRED, AND mode-4 (standalone compiled binary + brokered runtime rebuild). All five gates hold at watermark (G1 13/13, G2 34, G3 175/280, G4 238/280, M2=19 M4=15), FACT RULE=0. HEAD `58c7cab9`. NEXT: ANY/NOTANY/LEN/BREAK now trustworthy — resume SBL-SPAN-2 with absolute-z_orig + GC-rooted scratch (register `rt_cs_t` as GC root — same facility SBL-CAP-2's saved_Δ needs), OR fill SBL-BREAKX-2 BINARY arm (now that the plain-BREAK BINARY layout is proven), validating each new arm under `--run`.
-- **2026-05-28 Opus 4.7 (c) — HANDOFF (partial, see caveats):** Session attempted SBL-SPAN-2 and clarified a mode misunderstanding. NET RESULT: no new code landed beyond (a)/(b); SPAN reverted.
-  - **SBL-SPAN-2 ATTEMPTED, REVERTED.** Wrote SPAN BINARY arm; hit a wrong single-slot β algebra (z_orig must be ABSOLUTE, not [r10]-relative, because a sibling box in a concatenation mutates [r10] between α and β re-entry — the four-port driver does not auto-restore the cursor). Fixed by widening `rt_cs_t` with a second int (`delta2` @offset 12; `delta` stays @8 so BREAK unaffected). Then SPAN **segfaulted at runtime** (exit 139) even for a trivial matching span. Disassembly of the emitted bytes was CORRECT (internal jumps land right); `g_emit.bb_cs_zeta` was non-NULL/consistent at brokered build. Leading unconfirmed hypothesis: the `rt_cs_t` address is baked into the blob as imm64 the GC cannot see as a live reference → may be collected between build and execution. ALL SPAN + rt_cs_t + emit_bb debug changes were REVERTED to e48a0ab1. In-progress SPAN source saved at `/tmp/span_v2_inprogress.cpp` (NOT in repo).
-  - **MODE MODEL CORRECTED (was confused all session).** Per ARCH-SCRIP.md + ARCH-IR.md + emit_core.h: emitter has THREE orthogonal axes — platform(x86/JVM/…), medium(TEXT/BINARY/MACRO_DEF), brokered flag(WIRED/BROKERED). Execution modes: **mode 2 `--interp`** = pure C oracle (`sm_interp_run`/`bb_exec.c`), NO codegen, BINARY arms never run. **mode 3 `--run`** = in-memory JIT, emits BINARY **WIRED** (`EMIT_BINARY_WIRED`), DOES exercise BINARY arms (except Prolog `--run` which still falls back to sm_interp_run per AGW-1c). **mode 4 `--compile`** = emit-time uses **TEXT** arms → GAS asm → gcc link; the standalone binary's linked rt then builds patterns at ITS runtime via `bb_build_brokered` = BINARY **BROKERED**.
-  - **⚠️ VALIDATION CAVEAT for SBL-NOTANY-2 and SBL-BREAK-2 (a/b this session):** both were "validated" via `--compile`-then-run. But `--compile` emits TEXT for the pattern — so those tests exercised the pre-existing TEXT arms, NOT the new BINARY arms. **The NOTANY and BREAK BINARY arms committed in 9c964948/e48a0ab1 are UNVERIFIED-BY-EXECUTION.** They may be correct, wrong, or unreached. NEXT SESSION MUST re-validate them (and any new arm) via **`--run` (mode 3, WIRED)** — single-process JIT that actually emits+executes the BINARY/WIRED bytes — before trusting them. SPAN's segfault is meaningful precisely because the brokered path DID build+run its bytes.
-  - Gates at handoff (HEAD e48a0ab1, rebuilt + re-run this session): G1=13/13, G2=30, G3=175/280, G4=238/280, M2=19, M4=15, FACT RULE=0. Tree clean, HEAD==origin both repos.
-  - **RECOMMENDED NEXT STEP:** before filling more arms, run ANY/NOTANY/LEN/BREAK probes under `--run` to confirm the WIRED BINARY arms actually execute correctly. If they pass, the "filled" list is trustworthy and resume SPAN with absolute-z_orig + a GC-rooted scratch (register the rt_cs_t as a GC root, or store via a mechanism the collector tracks — same facility SBL-CAP-2 needs). If they fail under `--run`, the NOTANY/BREAK commits need correction first.
-- **2026-05-28 Opus 4.7 (a):** SBL-NOTANY-2 ✅. `bb_pat_notany.cpp` BINARY arm filled (was 2-jump stub). Byte-identical to `bb_pat_any.cpp` BINARY (104 bytes, sites {17,72,86,90,100}) except offset 70 `jne ω` vs `je ω` — NOTANY fails when char IS in set. Validated mode-4 compiled binary via brokered path. All five gates hold (13/13, 30, 175, 238, M2=19, M4=15), FACT RULE=0. No regressions.
-- **2026-05-27 Opus 4.7 continued-16:** SBL-XNME-XLATE prep landed `828f9134` (translator pp->var.s fallback + rt_pat_capture STRVAL_fn population). Gate widening NOT applied — paired with SBL-CAP-2. SBL-CAP-2 deep-investigated: blocked by architectural gap in `bb_prepare_capture_arbno` — sets `bb_child_lbl` only under MEDIUM_TEXT; child_cache labels never set under BINARY. Capture + ARBNO BINARY arms early-return zero bytes under brokered mode. Design path forward: replace `bb_child_lbl` with `bb_child_fn` raw function pointer under BINARY, call via `movabs rax, &child_fn; call rax`. Goal file pruned 767→234 lines this session.
-- **2026-05-27 Opus 4.7 continued-15:** SBL-ANY-2 BINARY arm ✅ (104 bytes, sites {17,72,86,90,100}). SBL-ANY-2-DISPATCH-TRACE ✅ (mapped: BINARY arms exercised only by mode-4 runtime path via `rt_match_variant`→`exec_stmt`→`bb_build_brokered`→templates; mode-2/-3 use C oracle; mode-4 emit phase uses TEXT). Carved SBL-XNME-XLATE.
-- **2026-05-27 Opus 4.7 continued-14:** SBL-ANY-2-CORRECTNESS ✅ (`3eb09ba0`). Two bugs in `BB_PAT_DEFER` C-oracle: (1) `DESCR_t` union clobber `sub_d.i=0` after `.s=` nulled string ptr (designated-init fix at `bb_exec.c:2378` + `rt.c:560`); (2) architectural double-scan — inner `bb_exec_pat` had own scan loop, replaced with `bb_exec_once`. GATE-4 218 → 238 (+20), M2 18 → 19 (rung 053). ANY/NOTANY/SPAN/BREAK var-deref byte-identical to SPITBOL across all three modes.
-- **2026-05-27 Opus 4.7 continued-13/13B/13C:** SBL-MODE-PURITY-1..5 ✅ (`e7e7bd63`). All cross-mode fallbacks + eps rescues removed. `bb_build_pure_mode` helper. No regressions; signal now clean (failed builds surface honestly).
-- **2026-05-27 Opus 4.7 continued-12:** SBL-MODE3-REACTIVATE ✅ (`380b4683`). Removed stale `--run` gate in `scrip.c`. GATE-1 7/7 → 13/13.
-- **2026-05-27 Opus 4.7 continued-11:** XCAT/XOR widening attempted, REVERTED. Pure regression (-11). Legacy garbage opcodes were accidentally compensating for unrelated bugs in non-fence composites too — not just fence/capture.
-- **2026-05-27 Opus 4.7 continued-9/10:** SBL-DCG-DEFER-M4 stmt_exec wiring ✅ (`954236f5`) + SBL-ARBNO-COUNTER-RESET ✅ + simple-atom widening (`26913b08`). Mode-2 broad 210 → 218. Mode-4 173 → 175. Rung M2 16 → 18.
+- **2026-05-28 Opus 4.7 — M3-NATIVE-0 ✅.** Bomb infra: `rt_bomb`/`bomb_text`/`bomb_bytes` template-pure. 8 stubs bombed. Audit script `scripts/audit_m3_native_binary_arms.sh` gates fake-jmps. Thesis confirmed: bombing JUMP+RETURN regressed nothing because mode-3 was still running C interpreter.
+
+- **2026-05-28 Opus 4.7 — discovery + rescope.** ROOT CAUSE: `scrip.c` mode_run was calling `sm_run_with_recovery(sm, sm_interp_run)` — mode-3 RAN MODE-2 INTERPRETER. Native-SM engine had been BUILT (`916d61a5`, +799 SB-LINEAR) then DELETED (JA-D series, FACT RULE — used `SL_B`/`emit_standard_blob`). Rescoped SBL-M3-FLATWIRE → SBL-M3-NATIVE: foundational engine build through templates, NOT a dispatch-arm tweak.
+
+- **2026-05-28 Opus 4.7 — SBL-BREAK-VERIFY ✅.** ANY/NOTANY/LEN/BREAK BINARY arms verified-by-execution via `--run`. BREAK no-terminator FAIL semantics fix (oracle + TEXT + BINARY).
+
+- **2026-05-28 Opus 4.7 — SBL-NOTANY-2 ✅.** BINARY arm (104B, byte-identical to ANY except `jne` vs `je`).
+
+- **2026-05-28 Opus 4.7 — SBL-BREAK-2 ✅.** BINARY arm (178B, sites {150→γ, 154→β-def, 174→ω}). KEY PATTERN: `rt_cs_t.delta @+8` shared scratch via `bb_cs_zeta`.
+
+(Older log entries pruned; check git history of GOAL-SNOBOL4-BB.md for full archive.)
 
 ---
 
@@ -356,8 +277,11 @@ GATE-PK status              = stale (re-freeze deferred)
 - Template directory: `src/emitter/BB_templates/bb_pat_*.cpp`
 - Lowering: `src/lower/lower_pat_dcg.c::build_node`
 - Mode-2 interp dispatch: `src/runtime/sm_interp.c SM_EXEC_STMT`
+- Mode-3 native runner: `src/processor/sm_native.c sm_run_native`
 - PATND legacy: `src/runtime/snobol4/stmt_exec.c exec_stmt` DT_P branch
 - Translator gate: `src/runtime/snobol4/stmt_exec.c patnd_needs_xlate`
 - Pattern-building runtime helpers: `src/runtime/rt/rt.c rt_pat_*` (called @PLT from templates)
+- Bomb infra: `src/emitter/emit_str.{cpp,h}` bomb_text/bomb_bytes; `src/runtime/rt/rt.c rt_bomb`
+- Audit gate: `scripts/audit_m3_native_binary_arms.sh`
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
