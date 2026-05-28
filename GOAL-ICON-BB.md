@@ -83,7 +83,7 @@ Acceptance greps (measured at `aa3e403f`):
 BB_ASSIGN reads rhs via `ag_ring_peek(0)`; BB_CALL deep-args via `ag_ring_peek(nargs-1-j)`; BB_IF ω-as-else preserved by `!ω-set` guards (If_ag always sets nd->ω). All other operand kinds (BINOP/LCONCAT/SECTION/IDX/IDX_SET/CONJ/ALT) already read via ring-peek.
 
 ### Next options
-- **Generator-body Every_ag** — the last legacy-path exclusion (`every <gen> do <generator>`). Needs a flat-wire scheme that drives a suspending body to exhaustion per outer value without the BB_SEQ_EXPR head/tail trap. (Note: a pre-existing bounded-context corner case exists here — `every v:=!"ab" do write(!"xy")` yields `x y` not `x x` on the legacy path; orthogonal to AG-purity, predates this goal.)
+- **Generator-body Every_ag** — the last legacy-path exclusion (`every <gen> do <generator>`). Needs a flat-wire scheme that drives a suspending body to exhaustion per outer value without the BB_SEQ_EXPR head/tail trap. (✅ The bounded-context corner case `every v:=!"ab" do write(!"xy")` is FIXED, `64ca51b7`, Opus 4.7 2026-05-28: it was wrongly taking the ival=2 flat-wire path because the root-only `lic_is_gen_node` body guard missed a generator inside a BB_CALL argument. New `lic_body_bears_gen` deep-checks the body; generator-BEARING single-node bodies now correctly fall to the legacy per-iteration-reset arm → `x x`. Verified modes 2+3. This is a correctness fix within the documented legacy exclusion, NOT a new migration — acceptance greps unchanged 45/30.)
 - **MODE3 (`--run`) BB_CALL/EVERY native parity** — per PLAN "Next:". Mode-2 + mode-3 already verified for all migrated constructs incl. block bodies/break/next.
 - Take up another goal.
 1. `grep -nE 'bb_operand_aux_set' src/lower/lower_icn.c | wc -l` == 0
@@ -145,7 +145,7 @@ bash scripts/test_icon_all_rungs.sh        # PASS=198
 
 ---
 
-**WATERMARK:** one4all `09353f25` (10b complete + 10a-4 partial, Opus 4.7, 2026-05-28; hash is post-rebase — landed on top of parallel Raku/SNOBOL4 commits). Gates: smoke_icon 5/5 · broker **36** (raised by parallel Raku/SNOBOL4 work; Icon-owned share unchanged) · rungs 198 · smoke_prolog 5/5 · FACT RULE 0.
+**WATERMARK:** one4all `64ca51b7` (10b complete + 10a-4: streaming gens + block bodies + gen-bearing single-node body corner FIXED, Opus 4.7, 2026-05-28). Gates: smoke_icon 5/5 · broker **36** · rungs **199** · smoke_prolog 5/5 · FACT RULE 0.
 
 **✅ Step 10b COMPLETE — sidecar deletion + ring-peek migration done.** All four acceptance criteria met:
 1. `bb_operand_aux_set` in lower_icn.c == **0** ✅ (both Family-1 BB_ASSIGN + Family-2 BB_CALL sidecar writes deleted)
