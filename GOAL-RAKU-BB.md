@@ -1,36 +1,23 @@
 # GOAL-RAKU-BB.md — Raku: goal-directed ~20% onto shared BB generators
 
 **Repo:** one4all + corpus + .github
-**Sister:** GOAL-ICON-BB.md (kinds REUSED) · GOAL-RAKU-FRONTEND.md.
+**Sister:** GOAL-ICON-BB.md (kinds REUSED) · GOAL-RAKU-FRONTEND.md
 **Prereq:** HEADQUARTERS PP-1..6 ✅. BB-TEMPLATE-LADDER invariants 0..9 apply.
 
 ## Two IRs
 
 - **SM** — flat stack-machine spine (`src/include/SM.h`).
-- **BB** — four-port Byrd-box graph (`src/include/BB.h`). Kinds are **language-agnostic**.
-  `BB_graph_t.lang` tags origin (`BB_LANG_RKU=6`); node kinds are reused.
+- **BB** — four-port Byrd-box graph (`src/include/BB.h`). Kinds are **language-agnostic**. `BB_graph_t.lang` tags origin (`BB_LANG_RKU=6`); node kinds are reused.
 
-SM emits `SM_BB_SWITCH` with `a[2].i` tag handing control to a BB graph.
-Tags: `SM_BBSW_ICN_GEN` (0x49434E47), `SM_BBSW_PL_ENTRY` (0x504C454E),
-`SM_BBSW_RK_GEN` (0x524B474E "RKGN"). Raku reuses the ICN_GEN emit-time
-contract verbatim — `sm_bb_switch.cpp` / `emit_sm.c` / `sm_interp.c` arms
-accept both tags.
+SM emits `SM_BB_SWITCH` with `a[2].i` tag handing control to a BB graph. Tags: `SM_BBSW_ICN_GEN` (0x49434E47), `SM_BBSW_PL_ENTRY` (0x504C454E), `SM_BBSW_RK_GEN` (0x524B474E "RKGN"). Raku reuses the ICN_GEN emit-time contract verbatim — `sm_bb_switch.cpp` / `emit_sm.c` / `sm_interp.c` arms accept both tags.
 
-**Where Raku sits:** Icon/Prolog are ~100% BB. SNOBOL4/Snocone/Rebus are mixed.
-Raku today is ~100% eager SM in practice; the goal-directed ~20% is what
-this goal moves onto shared BB kinds.
+**Where Raku sits:** Icon/Prolog are ~100% BB. SNOBOL4/Snocone/Rebus are mixed. Raku today is ~100% eager SM in practice; the goal-directed ~20% is what this goal moves onto shared BB kinds.
 
-**Rules (RULES.md):** no C Byrd boxes; no SM/BB walking at runtime in modes 3/4;
-ports are α/β/γ/ω; no `rt_*`/`raku_*` *port-logic* helpers (conversion/effect
-helpers via `@PLT` are fine). X86 arms only.
+**Rules (RULES.md):** no C Byrd boxes; no SM/BB walking at runtime in modes 3/4; ports are α/β/γ/ω; no `rt_*`/`raku_*` *port-logic* helpers (conversion/effect helpers via `@PLT` are fine). X86 arms only.
 
 ## The insight (validated by RK-BB-1)
 
-Per docs.raku.org: almost everything generative in Raku produces a **`Seq`**.
-`gather`/`take`, `…`, lazy ranges, `map`, `grep` — all "generate a Seq" on demand.
-ONE four-port pull protocol (yield-one-at-β = Icon `BB_SUSPEND`/`BB_EVERY` PUMP)
-suffices; every generative construct is a PRODUCER or CONSUMER of it. A would-be
-10-kind ladder collapses to ~3 rungs on already-templated shared kinds.
+Per docs.raku.org: almost everything generative in Raku produces a **`Seq`**. `gather`/`take`, `…`, lazy ranges, `map`, `grep` — all "generate a Seq" on demand. ONE four-port pull protocol (yield-one-at-β = Icon `BB_SUSPEND`/`BB_EVERY` PUMP) suffices; every generative construct is a PRODUCER or CONSUMER of it. A would-be 10-kind ladder collapses to ~3 rungs on already-templated shared kinds.
 
 ## Port semantics (identical to Icon generators)
 
@@ -62,495 +49,76 @@ Raku source → frontend (raku.y/.l)
 | Raku construct | shared BB kind | rung |
 |---|---|---|
 | lazy range `$a..$b`, `$a,$b ... $c` | `BB_TO_BY` | RK-BB-1 ✅ |
-| `gather { … take … }`, `…` operator | `BB_SUSPEND` + `BB_EVERY` PUMP | RK-BB-2 |
-| lazy `map` / `grep` | `BB_ITERATE` consumer (γ predicate for grep) | RK-BB-3 |
+| `gather { … take … }`, `…` operator | `BB_SUSPEND` + `BB_EVERY` PUMP | RK-BB-2 ✅ |
+| lazy `map` / `grep` | `BB_ITERATE` consumer (γ predicate for grep) | RK-BB-3 ✅ |
 | junctions `any`/`all`/`one`/`none`, infix `\|`/`&` | `BB_ALTERNATE` + Bool-collapse on ω/γ | RK-BB-4 |
 
-**STAYS eager SM:** scalar builtins (`uc`/`lc`/`substr`/`trim`/`index`/`rindex`),
-`say`/`print`, arithmetic, hash/array element ops, class/method dispatch,
-`sort` (whole-list), `try`/`CATCH` (the existing inline `raku_exc_*` SM is the
-right shape).
+**STAYS eager SM:** scalar builtins (`uc`/`lc`/`substr`/`trim`/`index`/`rindex`), `say`/`print`, arithmetic, hash/array element ops, class/method dispatch, `sort` (whole-list), `try`/`CATCH` (existing inline `raku_exc_*` SM is the right shape).
 
-**SPLIT OUT to GOAL-RAKU-PAT-BB:** regex / grammar backtracking. SNOBOL4 pattern
-axis (`BB_SCAN`+`BB_PAT_*`) plus Prolog `BB_ONCE`+OR-retry for rule selection.
-Heaviest lift; defer until SNOBOL4-BB and PROLOG-BB land more rungs. Today's
-eager `raku_nfa_exec` stays.
+**SPLIT OUT to GOAL-RAKU-PAT-BB:** regex / grammar backtracking. Defer until SNOBOL4-BB and PROLOG-BB land more rungs.
 
 ## ⛔ No `rt_*`/`raku_*` port-logic helpers
 
-Never add `raku_seq_pull` / `rk_take_yield` / `raku_grep_step` / junction
-dispatch helpers. Port logic (α/β/γ/ω) lives in the shared `bb_*.cpp` templates,
-emitted inline as x86. If a rung "needs" a new `raku_*` helper, the lowering is
-wrong — fix the BB graph, not the runtime.
+Never add `raku_seq_pull` / `rk_take_yield` / `raku_grep_step` / junction dispatch helpers. Port logic (α/β/γ/ω) lives in the shared `bb_*.cpp` templates, emitted inline as x86. If a rung "needs" a new `raku_*` helper, the lowering is wrong — fix the BB graph, not the runtime.
 
 ## Ladder steps
 
-- [x] **RK-BB-1** ✅ (2026-05-27, Opus, one4all `13cef01a`) — lazy inclusive range
-  `for $a..$b -> $i` → shared `BB_TO_BY`. `lower_raku_range` synthesizes
-  `TT_TO_BY`, reuses `lower_icn_expr_top`, retags `BB_LANG_RKU`. `lower_for_range`
-  gated `LANG_RAKU && !exclusive`. Arms widened in `sm_bb_switch.cpp` /
-  `emit_sm.c` / `sm_interp.c`. `bb_to_by.cpp` REUSED unchanged. GATE-RK4 +
-  `run_raku_via_x86_backend.sh` + `rk_range_for` test added. Shared runtime fix:
-  `rt_nv_set` made non-consuming (peek) so mode-4 STORE_VAR matches mode-2.
-  Open follow-on (RK-BB-1b): exclusive `..^` + non-literal-bound ranges
-  (currently fall through to eager SM).
+- [x] **RK-BB-1** ✅ (Opus, one4all `13cef01a`) — `for $a..$b -> $i` → shared `BB_TO_BY`. `lower_raku_range` synthesizes `TT_TO_BY`, reuses `lower_icn_expr_top`, retags `BB_LANG_RKU`. `lower_for_range` gated `LANG_RAKU && !exclusive`. Arms widened in `sm_bb_switch.cpp` / `emit_sm.c` / `sm_interp.c`. Shared runtime fix: `rt_nv_set` made non-consuming (peek). Follow-on (RK-BB-1b): exclusive `..^` + non-literal-bound ranges fall through to eager SM.
 
-- [x] **RK-BB-2** ✅ (2026-05-27, Opus 4.7, one4all `d08237e0`) — KEYSTONE lazy `Seq` box.
-  `gather`/`take` + `…` → `BB_SUSPEND`+`BB_EVERY` PUMP. REUSE `bb_upto.cpp`.
-  `test/raku/rk_gather.raku` PASSES `--compile` (mode-4): byte-exact `10\n20\n30\ndone\n`.
-  - Step 1 ✅ (one4all `2f2aed25`) — `lower_icn_proc_body` accepts TT_SUB_DECL;
-    hoist registers `__gather_N` in proc_table.
-  - Step 2 ✅ (one4all `340b804d`) — `TT_SUSPEND` case in `lower_icn_expr_node`
-    emits `BB_SUSPEND` node (Raku-gated via `cfg->lang`).
-  - Step 3 ✅ (one4all `8a046af1`) — `lower_every`/`lower_iterate` accept
-    LANG_RAKU; have_switch guard prevents PUSH_VAR a[0] clobber.
-  - Step 4 ✅ (one4all `e8568ee4`) — `bb_suspend.cpp` template authored:
-    literal-int fast-path pushes DESCR_t{DT_I, val_i} onto r12 via
-    `rt_push_int@PLT` (TEXT) or inline 16-byte stack push (BINARY).
-  - Step 5 ✅ (one4all `e8568ee4`) — `emit_core.c` walk_bb_node: BB_SUSPEND
-    peeled off bb_stub group → routes to `bb_suspend(nd)`.
-  - Step 6 ✅ (one4all `d08237e0`) — UNBLOCKED. Three-edit patch in lower.c:
-    (a) `lower_hoist_gather_in_expr`: `def->v.sval = intern(gname)` →
-        `def->v.ival = 0`. The v.sval/v.ival union-clobber was causing
-        `lower_icn_proc_body` to read garbage as nparams (Open Q5).
-    (b) `lower_stmt` RAKU+TT_SUB_DECL branch: skip body emission when the
-        proc name starts with `__gather_`. Body lives in the BB graph;
-        emitting at top-level orphans it (stack underflow on startup).
-    (c) `lower_expr_inner` TT_SUB_DECL case: same defensive skip; keeps
-        `SM_PUSH_NULL` contract intact.
-    lower_icn_proc_body builds the BB graph (BB_SEQ→3×BB_SUSPEND); lower_fnc
-    routing emits `SM_BB_SWITCH(SM_BBSW_RK_GEN, bb_idx)` at every call site;
-    sm_bb_switch.cpp dispatches via bb_seq → bb_suspend (template emission).
-    NOT needed: the separate `lower_raku_proc_body()` the handoff anticipated.
-    The existing path works once nparams is correct. Open follow-on
-    (RK-BB-2b): mode-2 still stack-underflows on `rk_gather` (bb_exec.c has
-    no executor for BB_SUSPEND) — a separate Icon-shared goal per the
-    handoff's gating comment in TT_SUSPEND.
+- [x] **RK-BB-2** ✅ (Opus 4.7, one4all `d08237e0`) — KEYSTONE lazy `Seq` box. `gather`/`take` + `…` → `BB_SUSPEND`+`BB_EVERY` PUMP. REUSE `bb_upto.cpp`. `bb_suspend.cpp` authored (`e8568ee4`). `lower_icn_proc_body` accepts TT_SUB_DECL. `bb_seq.cpp` multi-yield driver via `.data resume_addr` slot. `rk_gather.raku` PASSES `--compile` byte-exact `10\n20\n30\ndone\n`. Open follow-on (RK-BB-2b): mode-2 BB_SUSPEND executor missing — Icon-shared cross-language session.
 
-- [ ] **RK-BB-3** — lazy `map`/`grep` as Seq CONSUMERS. REUSE `bb_iterate.cpp`;
-  grep adds γ-port predicate test (loop on false, γ on true, ω on source ω).
-  Migrate `lower.c:1872-1881` off eager `SM_CALL_FN raku_map`/`raku_grep` for
-  the lazy path. `rk_map_grep_sort24.raku` under `--compile` (sort stays eager).
+- [x] **RK-BB-3** ✅ (Opus 4.7) — lazy `map`/`grep` as Seq CONSUMERS. Decomposed into:
+  - **3.0+3d infra** (`fcac4ab3`) — `raku_try_call_builtin_by_name` + `raku_try_mutating_builtin_by_name` dispatchers chained into `sm_interp.c` SM_CALL_FN + `rt.c` rt_call. Handlers for elems/arr_get/substr/index/rindex/uc/lc/chars/length/trim/sort + push/pop/arr_set.
+  - **3.0a** (`ba481112`) — (1) `lower_fnc` c[0]-dup suppression for LANG_RAKU (raku.y vestigial duplicate). (2) `rt_set_lang(int)` + XA_FILE_HEADER prologue emits `mov edi, <g_lang>; call rt_set_lang@PLT` so mode-4 libscrip_rt.so stamps g_lang before any rt_call. (3) `trim` aliased to `raku_trim`. 8→9 mode-2, 9→10 mode-4.
+  - **3.0b** (`7a60d30e`) — mutators wired: `lower_fnc` push/pop prepends `SM_PUSH_LIT_S vname` when first real arg is TT_VAR; nargs+1. TT_ARR_SET same prepend, nargs 3→4. SM_CALL_FN + rt_call peel args[0].s as vname when fn ∈ {push, pop, arr_set} AND args[0].v == DT_S. 9→10 mode-2, 10→11 mode-4 (+rk_arrays).
+  - **3a** (`706e2828` mode-2/3 + `cc6c1a06` mode-4) — `for @arr -> $v` polymorphism for `BB_ITERATE`. `lower_raku_iterate_arr` builds 1-node BB graph (`sval=intern(arr_vname)`, `cfg->lang=BB_LANG_RKU`, α/β self-loop). `lower_every` pattern-matches `TT_EVERY(TT_ITERATE(TT_VAR(arr), sval=$v), body)`. Discriminator: `BB_t.sval` presence (no new fields per PEERS RULE). Mode-2 `bb_exec.c`: sval-polymorphic branch, fetches via `NV_GET_fn` every call, scans `\x01`-bytes, yields GC-allocated substring. Mode-4 `bb_iterate.cpp` Raku MEDIUM_TEXT arm: `.data` slots (name asciz + counter quad), NV_GET_fn@PLT call, **slen-fallback strlen@PLT** (STRVAL hardcodes `.slen=0`), GC_malloc fresh NUL-terminated segment copy (rt_push_str needs ptr to NUL not (ptr,len) — downstream fputs reads to NUL).
+  - **3b/c** (`42d2a367` + binding-fix `af0df613`) — pure lowering transform `lower_raku_map_or_grep`. Eager-drain materialization: synthesizes `__map_acc_N`/`__grep_acc_N`, builds BB graph via `lower_raku_iterate_arr`, γ-body stores yielded elem → `_` then for map lowers body + 3-arg push; for grep JUMP_F-gates the push (pushes `_`, not pred). ZERO new BB kinds, ZERO new runtime helpers, 100% template emission. Binding-fix: `strip_sigil` rewrites VAR_SCALAR pre-AST so body's `$_ * 2` parses to `TT_BINOP(TT_VAR("_"), …)`. Hardcoded `"$_"` at γ-store and grep push arg → bare `"_"`. `rk_for_array_underscore.raku` added as permanent regression probe.
 
-  ## RK-BB-3 substrate analysis — Opus 4.7, 2026-05-27 (post-RK-BB-2 audit)
+- [x] **RK-BB-SEGFAULT-CLUSTER** ✅ ALL THREE BUGS — Opus 4.7, 2026-05-27:
 
-  Inspecting the failing target `rk_map_grep_sort24.raku` uncovered four substrate
-  gaps that block RK-BB-3 as originally scoped. The scope as written ("lower the
-  map/grep ops, reuse bb_iterate") underestimates the work because `bb_iterate.cpp`
-  is not yet a polymorphic iterator: it hard-codes Icon's `!"literal"` semantics.
+  - **bug 1** (`0f3561c0`) — union-clobber dereference in `polyglot_init`. `proc->v.sval && *proc->v.sval` UNSAFE for TT_SUB_DECL because raku.y:340 clobbers v.sval via `v.ival=np` union write. np>0 → union reads as 0x1, 0x2 → passes NULL check, segfaults at `*v.sval`. Fix: for TT_SUB_DECL, never trust v.sval — always use `c[0]->v.sval`. polyglot.c +20/-3.
 
-  ### Gaps (verified by probing, not from memory)
+  - **bug 2+3** (`2a70abed`, Opus 4.7) — multi-sub Raku now structurally correct. Three surgical edits in `src/lower/lower.c` (+56/-8):
+    - **2a (`lower_stmt` ~L1987):** RAKU+TT_SUB_DECL inline emission gated on `_is_main` only. Other subs emit no top-level body; reached via SM_CALL_FN to named LABEL skeleton. `__gather_*` still skips per RK-BB-2.
+    - **2b (`lower_proc_skeletons` ~L2370):** TT_SUB_DECL body extraction from `proc->c[nparams+1..]` (not `c[2]`). `g_lang=LANG_RAKU` during body lowering (was unconditional LANG_ICN). Skip `main` and `__gather_*` from skeleton-body emission (main is inlined at top level; __gather_* lives in BB graph).
+    - **3 (`build_proc_scope` ~L2288):** TT_SUB_DECL branch — params at `proc->c[1..v.ival]` as flat TT_VAR children, body walk at `proc->c[nparams+1..]` for local-var slots. scope_add idempotent by name.
+    
+    Gates: GATE-RK mode-2 14 → **16** (+rk_interp, +rk_map_grep_sort24), GATE-RK4 15 HOLD, smokes 5/5/5/13 HOLD, broker Icon 198 HOLD, FACT RULE 0.
 
-  1. **`for @arr -> $v` does not loop in mode-4 or mode-2.** `lower_iterate`
-     RAKU branch (lower.c:1602-1607) emits the array expr once and stores it
-     into `$v` with no loop. New probe `test/raku/rk_for_array_simple.raku` is
-     a 3-line `push;push;push; for { say }` — FAILS both modes with Error 5.
+  - **bug 4: lower_return discards Raku return value** ⛔ NEXT SESSION. SM dump of rk_subs shows correctly-shaped skeleton at PC 1-8: `LABEL "double"; LOAD_FRAME; COERCE_NUM; PUSH_LIT_I 2; COERCE_NUM; MUL; VOID_POP; RETURN`. The **VOID_POP before RETURN** discards the multiply result. `lower_return` (lower.c:1240) for the bare branch (no `g_sc_func_name`) emits `lower_expr; SM_VOID_POP; SM_RETURN`. SM_RETURN handler at sm_interp.c:1432 reads `st->stack[st->sp - 1]` as retval when `fr->retval_name` NULL — i.e., expects stack-top to be retval. **Fix:** add `LANG_RAKU` branch in `lower_return` that emits `lower_expr(t->c[0]); SM_RETURN` with NO VOID_POP. Without this, `return $n * 2` discards result; `say(double(7))` prints nothing, `add(3,4)` returns 0, `classify` returns garbage. Expected uplift: rk_subs + rk_try_catch25 flip green in mode-2; mode-4 follows (mode-4 also blocked on SM_LOAD_FRAME template missing — separate concern).
 
-  2. **`bb_iterate.cpp` is DT_S-only.** Template assumes a compile-time `hay`
-     string and reads `pBB->ival` for slen. No runtime type-dispatch on the
-     iterable.
+- [~] **RK-BB-4 substrate audit** — Opus 4.7, 2026-05-27. Probe-based audit found goal text's "REUSE bb_gen_alt.cpp/bb_alt.cpp" is unfounded. SEVEN GAPS verified by inspection:
+  1. raku.l no KW_ANY/KW_ALL/KW_ONE/KW_NONE; no single-char `|`/`&` (only `||`/`&&`).
+  2. TT_ALT overloaded — Raku `||` reuses SNOBOL4 pattern-alt AST kind (raku.y:426). Works by coincidence on truthiness via lower_pat_expr → SM_PAT_ALT. Out of scope but flagged.
+  3. bb_exec.c:1618-1620 BB_ALTERNATE mode-2 executor is a no-op: `nd->value = FAILDESCR; return nd->ω;`.
+  4. bb_alternate.cpp mode-4 template DOES NOT EXIST. Would fall through default stub.
+  5. bb_alt.cpp mode-4 template IS A STUB (37 lines, α→γ/β→ω passthrough only).
+  6. bb_gen_alt.cpp IS A STUB (11 lines, returns empty string).
+  7. Icon's TT_ALTERNATE lowers to BB_ALT (not BB_ALTERNATE) per lower_icn.c:1095. **BB_ALTERNATE is orphan.** Reusable substrate is BB_ALT — but mode-4 is a stub.
+  
+  `test/raku/rk_junctions.raku` + .expected committed as target probe (`4ee45eb7`). Fails at lex today (expected).
 
-  3. **Mode-2 `BB_ITERATE` executor (bb_exec.c:2227) is also DT_S-only.** Reads
-     `nd->α->value.s`; arrays would see len=0 and return ω immediately.
+  **Open questions for Lon (Q9–Q12, gating any work):**
+  - Q9: Introduce NEW TT kinds (TT_LOR/TT_LAND) for Raku `||`/`&&` to disentangle from SNOBOL4 patterns? Or defer.
+  - Q10: BB_ALT (existing n-ary substrate, mode-4 stub) or finish orphan BB_ALTERNATE? Recommend BB_ALT.
+  - Q11: Substrate-first (author BB_ALT mode-2 + mode-4, benefits Icon too) vs frontend-first eager (lex/parse + eager SM_CALL_FN, defer substrate)? Recommend (b) frontend-first.
+  - Q12: Junction value representation. (i) tagged `\x02any\x02 1\x01 2\x01 3` string mirroring \x01-arrays, (ii) DT_JUNCT type tag, (iii) DT_DATA icn_type="junct". Recommend (i).
 
-  4. **Raku arrays are `\x01`-separated STRINGS (DT_S), NOT Icon-lists.** From
-     test/raku/rk_arrays.raku top-of-file: `# Arrays stored as \x01-separated
-     strings in normal DESCR_t slots. push/pop/elems/arr_get as builtins; @arr[$i]
-     = val via arr_set builtin.` The design choice is to encode arrays as a
-     single string with `\x01` (SOH) between elements, kept in normal DT_S
-     slots. **Earlier audit-memo claim that Raku arrays use Icon DT_DATA was
-     INCORRECT.** Verified by running mode-2 rk_arrays: it FAILS with Error 5
-     (push/pop/arr_get/elems handlers ABSENT in raku_builtins.c). Mode-2 GATE-RK
-     8/31 PASS list contains zero array tests — all array tests fail in both
-     modes today. The aspirational \x01-string design is documented in test
-     file comments but has no runtime implementation yet.
+- [ ] **RK-BB-4-frontend** — pending Lon directive on Q9–Q12. Best case (path b): lexer + grammar + new TT_JUNCT_* kinds + `lower_raku_junction` eager SM mirror of RK-BB-3.0+3d. Worst case (path a): substrate-first — BB_ALT mode-2 executor + bb_alt.cpp mode-4 template + then frontend.
 
-  5. **`arr_get` / `arr_set` / `raku_map` / `raku_grep` / `raku_sort` are not
-     `rt_*` symbols.** They're SM_CALL_FN names dispatched through `rt_call`,
-     which chains only `icn_try_call_builtin_by_name` then `INVOKE_fn`. The
-     existing `raku_try_call_builtin(tree_t*, DESCR_t*)` takes an AST node
-     (mode-2 only) and calls `interp_eval`, so it can't be chained from
-     `rt_call` without a parallel by-name-by-args entry point.
-
-  6. **`BB_LIST_BANG` mode-4 template is `bb_icn_stub` too.** So Icon's `!L`
-     over a Raku-style list is ALSO not emitted at mode-4 today; reusing that
-     kind would require authoring a fresh template, not just retagging.
-
-  ### Decomposition (REVISED 2026-05-27 post-correction)
-
-  Because Raku arrays are \x01-separated strings (NOT DT_DATA), the work
-  collapses considerably. No FIELD_GET_fn call needed; the iterable IS
-  already a string. `bb_iterate.cpp`'s existing DT_S machinery is more
-  applicable than first appeared — only the source-string-discovery
-  changes (runtime peek of α->value instead of compile-time `hay`).
-
-  - [x] **RK-BB-3.0** ✅ (2026-05-27, Opus 4.7, one4all `7a60d30e`) — fleshed
-    out the runtime builtins so arrays work in both mode-2 and mode-4.
-    Non-mutating half (elems, arr_get, substr, index/rindex, uc/lc/chars/
-    length/trim, sort) authored at fcac4ab3, made REACHABLE by RK-BB-3.0a
-    (ba481112). Mutating half (push/pop/arr_set) authored at fcac4ab3,
-    made REACHABLE by RK-BB-3.0b (7a60d30e). All ops use \x01-separated
-    string representation per test/raku/rk_arrays.raku spec.
-
-  - [x] **RK-BB-3.0b** ✅ (2026-05-27, Opus 4.7, one4all `7a60d30e`) —
-    GAP 2 mutators wired. lower.c lower_fnc (push/pop): prepend
-    SM_PUSH_LIT_S vname when first real arg is TT_VAR; nargs+1.
-    lower.c case TT_ARR_SET: same prepend; nargs 3→4. sm_interp.c
-    SM_CALL_FN + rt.c rt_call: mutating branch above the non-mutating
-    raku chain peels args[0].s as vname when fn ∈ {push, pop, arr_set}
-    AND args[0].v == DT_S, calls raku_try_mutating_builtin_by_name.
-    GATE-RK 9→10 (+rk_arrays), GATE-RK4 10→11 (+rk_arrays). All
-    smokes/broker hold. FACT RULE clean.
-
-  - [x] **RK-BB-3d** ✅ (2026-05-27, Opus 4.7, one4all `fcac4ab3` +
-    `ba481112`) — `raku_try_call_builtin_by_name(fn, args, nargs, out)`
-    parallel entry point added to raku_builtins_byname.c; chained into
-    `rt_call` AND `sm_interp.c` SM_CALL_FN dispatch, BEFORE icn fallback,
-    gated on `g_lang == LANG_RAKU`. RK-BB-3.0a (ba481112) added the
-    `rt_set_lang` prologue emission so mode-4's libscrip_rt.so g_lang
-    is stamped before any rt_call runs.
-
-  - [x] **RK-BB-3.0a** ✅ (2026-05-27, Opus 4.7, one4all `ba481112`) —
-    unblock for fcac4ab3's infra: (1) lower.c lower_fnc c[0]-dup
-    suppression (LANG_RAKU-gated, name-equality guard); (2) rt_set_lang(int)
-    + XA_FILE_HEADER prologue emits `mov edi, <g_lang>; call rt_set_lang@PLT`
-    so mode-4's libscrip_rt.so g_lang is stamped before any rt_call;
-    (3) `trim` aliased onto `raku_trim` in byname dispatcher. GATE-RK
-    8→9 (+rk_str22), GATE-RK4 9→10 (+rk_str22). All smokes hold. FACT
-    RULE clean. 100% template emission preserved.
-
-  - [x] **RK-BB-3a** ✅ (mode-2 + mode-3 + mode-4 all green; 2026-05-27,
-    Opus 4.7, one4all `cc6c1a06`) — `for @arr -> $v` polymorphism for
-    `BB_ITERATE`. Decomposition (mode-2/-3 landed at `706e2828`; mode-4
-    completed at `cc6c1a06`):
-
-    **Lowering** (lower.c): `lower_raku_iterate_arr(arr_vname)` builds
-    a 1-node BB graph — `BB_ITERATE`, `sval=intern(arr_vname)`,
-    `cfg->lang=BB_LANG_RKU`, α/β self-loop, γ/ω NULL (patched by
-    scaffold). `lower_every` widened: pattern-matches
-    `TT_EVERY(TT_ITERATE(TT_VAR(arr), sval=$v), body)` ahead of the
-    generic scaffold; emits SM_BB_SWITCH(RK_GEN, bb_idx), JUMP_F → exit,
-    `emit_var_store($v)` on γ-yield, lower_expr(body), JUMP back to
-    SWITCH, patches exit, stamps `a[0].i=exit_pos`. Mirrors
-    `lower_for_range` pattern (RK-BB-1's BB_TO_BY scaffold).
-
-    **Discriminator**: `BB_t.sval` presence (no new BB_t fields per
-    PEERS RULE). Raku sets `sval=arr_vname`; Icon's legacy path stays
-    `sval=NULL`. `cfg->lang` carried but not accessed from templates
-    (no cfg back-pointer per PEERS RULE).
-
-    **Mode-2** (bb_exec.c BB_ITERATE): sval-polymorphic case branches
-    before the legacy α-as-operand-box code. Raku branch fetches source
-    via `NV_GET_fn(nd->sval)` on EVERY call (re-fetch, not cache —
-    `nd->value` is the yielded-segment return slot, not a source cache).
-    Walks counter as byte-offset; scans for `\x01`; yields substring as
-    fresh GC-allocated DT_S; advances counter past separator (end+1).
-    Exhaustion (counter ≥ slen) → ω. Icon legacy path untouched.
-
-    **Mode-4** (bb_iterate.cpp): Raku MEDIUM_TEXT arm. .data slots:
-    `.Liter<id>_name: .asciz "<vname>"` + `.Liter<id>_cnt: .quad 0`.
-    α resets counter, jmp load. β falls through to load. load:
-    `call NV_GET_fn@PLT` → DESCR_t in `rax:rdx` (SysV ABI ≤16-byte
-    struct); extracts slen from rax high32, base ptr from rdx.
-    **slen-fallback** (added cc6c1a06): if slen==0 and base ptr is
-    non-NULL, call `strlen@PLT` inline — the codebase-wide convention
-    is that STRVAL() hardcodes .slen=0 and every consumer recovers via
-    strlen. Bounds check vs counter `jge ω`. scan: walks `rcx` looking
-    for `\x01` byte or slen end. send: computes `r8=seg_len`,
-    `r11=seg_start_ptr`; advances counter to `end+1`; **allocates a
-    fresh NUL-terminated copy** via `GC_malloc@PLT` + inline `rep
-    movsb` + NUL-terminate (required: downstream `write`/`say` use
-    `fputs(s)` which prints from ptr to NUL — passing a mid-string
-    ptr+len pair would yield the whole tail). Then `rt_push_str(new,
-    seg_len)`; jmp γ. Stack discipline 16-aligned across PLT calls
-    via paired push/sub or 2-push patterns.
-
-    **100% template emission** — only conversion/effect helpers
-    (NV_GET_fn, strlen, GC_malloc, rt_push_str) via @PLT; all port-
-    logic (α/β/γ/ω routing, scan, NUL-terminate) inline x86. FACT
-    RULE clean (no seg_byte/SL_B/sl_emit_one/emit_standard_blob).
-
-    **Mode-4 debug history (for context):** initial mode-4 emission
-    (706e2828) hit slen=0 from NV_GET_fn at the BB body. Three
-    hypotheses listed in the prior handoff (section-switch fall-
-    through, name lookup mismatch, scope/timing). Root cause turned
-    out to be NONE of those: it was the codebase-wide convention that
-    STRVAL() macro hardcodes .slen=0 in stored DESCR_t values, with
-    every downstream consumer recovering via strlen(s). The template
-    now honors that convention (slen-fallback) AND adds a NUL-
-    terminated segment copy because rt_push_str writes the raw ptr
-    directly into the DESCR — without the copy, mid-string ptrs leak
-    the rest of the array via downstream NUL-bounded reads.
-
-  - [x] **RK-BB-3b/c** ✅ (scaffold `42d2a367`, binding-fix `af0df613`,
-    2026-05-27, Opus 4.7). Pure lowering transform —
-    `lower_raku_map_or_grep(t, is_grep)` in lower.c desugars `map { body }
-    @src` / `grep { pred } @src` onto the RK-BB-3a polymorphic BB_ITERATE
-    substrate + RK-BB-3.0b push by-name dispatch. Per Open Q3, eager-drain
-    materialization: synthesizes `__map_acc_N`/`__grep_acc_N`, builds BB
-    graph via `lower_raku_iterate_arr`, emits SM_BB_SWITCH(RK_GEN), γ-body
-    stores yielded elem → `_` then for map lowers body + 3-arg push; for
-    grep lowers pred + JUMP_F-gates the push (pushes `_`, not pred). β
-    re-enters SWITCH; exit_pos stamped on a[0].i. ZERO new BB kinds,
-    ZERO new runtime helpers, 100% template emission preserved.
-
-  - [x] **RK-BB-3b/c-binding-fix** ✅ (`af0df613`, 2026-05-27, Opus 4.7).
-    Two-line surgical fix in lower.c. The handoff's three hypotheses
-    (scope registration / stack order / closure aliasing) were ALL wrong.
-    Actual root cause: **sigil mismatch**. raku.y:46 `strip_sigil`
-    rewrites every Raku VAR_SCALAR to its bare name pre-AST, so the
-    body's `$_ * 2` parses to `TT_BINOP(TT_VAR("_"), 2, *)` — bare
-    `"_"`, no dollar sign. The for-loop binding in `lower_every`
-    (L1547) uses `gen_expr->v.sval` which is already sigil-stripped,
-    so `emit_var_store("_")` and the body's `emit_var_load("_")`
-    agree. But `lower_raku_map_or_grep` hardcoded `"$_"` at L1684
-    (γ-store) and L1701 (grep push arg). Store went to `"$_"`, body's
-    load went to `"_"` — two different variables; reads returned
-    null → numeric coerce to 0 → `0 * 2 = 0`.
-
-    Diagnostic path that found it: hand-desugared probe
-    `test/raku/rk_for_array_underscore.raku` (uses `for @nums -> $_`)
-    passed byte-exact in both modes, isolating the bug to
-    `lower_raku_map_or_grep`'s divergence from the for-loop pattern.
-    Then `scrip --interp --dump-sm rk_map_min.raku` showed PC 28
-    `STORE_VAR s="$_"` vs PC 32 `PUSH_VAR s="_"` — the smoking gun.
-
-    Fix: replace `"$_"` → `"_"` at L1684 and L1701. Added comment
-    explaining the strip_sigil pre-rewrite so future authors don't
-    rediscover this. rk_for_array_underscore.raku committed as a
-    permanent regression probe.
-
-  ### Recommended execution order
-
-  3.0 → 3d (commit together — they enable each other) → 3a (lowering +
-  template polymorphism, single commit) → 3b → 3c. Each commit gate-safe;
-  3.0+3d should land green movement even without 3a (rk_arrays, rk_str22,
-  rk_subs, rk_try_catch25 likely flip).
-
-  ### Open questions for Lon (gating RK-BB-3a; UPDATED post-correction)
-
-  Q1. **Polymorphic BB_ITERATE or new BB_ARR_ITERATE kind?**
-      Going polymorphic per "kinds are language-agnostic." Icon's existing
-      template behavior is preserved bit-identically for char-by-char DT_S;
-      the Raku \x01-scan branch is gated on a discriminator field.
-
-  Q2. **\x01-string array representation — keep or revise?** Raku arrays
-      as SOH-delimited strings is unusual but documented in the test
-      corpus. It's lightweight (no new heap structure), works with
-      existing DT_S machinery, and serializes naturally. Alternatives:
-      DT_A (ARBLK_t, 1-based), DT_DATA Icon-list, or a new DT_RAKULIST.
-      Per "follow existing comments," keep \x01-string. Confirm?
-
-  Q3. **`my @x = map { ... } @y` materialization** — eager-drain into a
-      fresh \x01-string (one rung less, mode-2 keeps working) or stay
-      lazy as a Seq box (truer to Raku, needs a new value type carrying
-      the BB graph + state)? Recommend eager-drain for RK-BB-3b; lazy
-      is a future rung.
-
-  ### What was DONE this session (pre-direction)
-
-  - Cloned + built. All gates HOLD at baseline (no regressions).
-  - Added test/raku/rk_for_array_simple.raku + .expected as the RK-BB-3a
-    probe. Mode-4: 9/31 (was 9/30, +1 fail by added test). Mode-2: 8/31.
-  - Inspected substrate; this memo is the deliverable. Zero code changes.
-  - NO commits — waiting on Q1/Q2/Q3 directives before authoring 3a.
-
-- [~] **RK-BB-4 substrate audit** ✅ (test added, code DEFERRED pending Lon directive;
-  2026-05-27, Opus 4.7). Probe-based audit of the substrate the goal text
-  promised to REUSE. Findings make RK-BB-4 a multi-rung effort, NOT the
-  "REUSE bb_gen_alt.cpp/bb_alt.cpp" one-commit the goal text implied.
-
-  ### Gaps (verified by inspection, not from memory)
-
-  1. **Frontend has no junction syntax.** raku.l has no KW_ANY / KW_ALL /
-     KW_ONE / KW_NONE tokens, and no single-char `|`/`&` infix tokens
-     (only `||`/`&&` two-char OP_OR / OP_AND). Test `rk_junctions.raku`
-     fails at lex with `raku lex error line 23: unexpected char '|'`.
-     The grammar in raku.y has no junction-constructor rules.
-
-  2. **TT_ALT is overloaded.** SNOBOL4 patterns produce TT_ALT for `P1 | P2`.
-     raku.y:426 reuses TT_ALT for Raku `||` (cmp_expr OP_OR add_expr →
-     TT_ALT). The top-level lowering at lower.c:2104 unconditionally
-     routes TT_ALT through `lower_pat_expr`, which emits SM_PAT_DEREF
-     + SM_PAT_ALT. So today's Raku `$a || $b` accidentally compiles to
-     a SNOBOL4 pattern expression that "works" only by coincidence (any
-     non-null operand makes the pattern truthy). Not this goal's scope
-     to fix — separate concern (see Open Q9 below) — but flagged to
-     avoid colliding when junction lowering arrives.
-
-  3. **BB_ALTERNATE mode-2 executor is a NO-OP STUB.** bb_exec.c:1618-1620:
-        case BB_ALTERNATE:
-            nd->value = FAILDESCR;
-            return nd->ω;
-     Unconditional ω. No mode-2 substrate exists.
-
-  4. **`bb_alternate.cpp` mode-4 template does not exist.** No file by
-     that name in src/emitter/BB_templates/. BB_ALTERNATE is mentioned
-     only in bb_binop_gen.cpp's `operand_is_gen` kind-set (treated as a
-     restartable generator operand alongside BB_ALT, BB_TO, etc.) — but
-     there's no template that owns BB_ALTERNATE emission. If BB_ALTERNATE
-     reaches walk_bb_node, it falls into the default stub (a comment +
-     two passthrough jumps), same shape as bb_stub.
-
-  5. **`bb_alt.cpp` mode-4 template IS A STUB.** 37 lines total. Body
-     comment: `# BOX BB_ALT [port-wired, inline-x86 gen TODO]`. Emits
-     only α-label → `jmp γ` and β-label → `jmp ω`. No actual n-ary
-     alternation logic (no operand-chain walk, no ω-chain advance, no
-     restart). All Icon programs that "work" with BB_ALT today work
-     because the surrounding loop scaffold (lower_every / lower_iterate)
-     hands single values without needing the alt to actually multi-yield.
-
-  6. **`bb_gen_alt.cpp` mode-4 template IS A STUB.** 11 lines total.
-     `static std::string bb_gen_alt_str(BB_t *, bb_bin_t &)` returns
-     empty string unconditionally. Header comment: `STUB — x86 Byrd-box
-     inline asm not yet written. RULES.md: one file per BB kind.`
-
-  7. **Icon's TT_ALTERNATE lowers to BB_ALT, not BB_ALTERNATE.** Verified:
-     lower_icn.c:1095 `lower_kind_table[TT_ALTERNATE] = lower_icn_new_Alt`,
-     and lower_icn_new_Alt builds a BB_ALT node (n-ary chain), not a
-     BB_ALTERNATE node. BB_ALTERNATE appears only in is-gen-kind sets and
-     as the no-op mode-2 case. **BB_ALTERNATE is effectively orphan.**
-     The reusable substrate for n-ary alternation is BB_ALT — but per
-     gap 5, even BB_ALT mode-4 is a stub.
-
-  ### What the goal text vs. reality looks like
-
-  Goal text: "REUSE bb_gen_alt.cpp/bb_alt.cpp. Add junction test." 2 LOC?
-
-  Reality: any working RK-BB-4 needs ALL of:
-    A. Lexer/grammar: KW_ANY/KW_ALL/KW_ONE/KW_NONE + infix `|`/`&`
-       tokens, junction-constructor + infix-junction grammar rules,
-       NEW AST kinds (TT_JUNCT_ANY etc.) so we don't collide with
-       overloaded TT_ALT.
-    B. Mode-2 executor for whichever BB kind we pick (BB_ALTERNATE
-       or BB_ALT) — author n-ary alternation: walk arms via ω-chain,
-       restart state per-arm, Bool-collapse on ω/γ per junction kind.
-    C. Mode-4 template — same logic in inline x86; cf. RK-BB-3a's
-       per-arm state machine + GC_malloc + rt_push_str pattern.
-    D. Lowering: `lower_raku_junction` that builds the BB graph and
-       wraps in SM_BB_SWITCH(RK_GEN, bb_idx); `lower_expr` for `==`
-       against a junction value uses junction-type discrimination
-       to fan out the comparison across arms.
-    E. `==` autothreading: when LHS or RHS is a junction value, the
-       comparison fans out across the junction's arms with Bool-
-       collapse policy: any=∃, all=∀, one=∃!, none=¬∃.
-
-  ### Open questions for Lon (gating any of A–E)
-
-  Q9. **Pre-existing TT_ALT overload (Raku `||`).** Today Raku `||`
-      compiles through lower_pat_expr → SM_PAT_ALT. It produces
-      correct-looking output for truthiness via SNOBOL4 pattern
-      semantics by coincidence. Should RK-BB-4 introduce a NEW TT
-      kind (e.g. TT_LOR / TT_LAND) for Raku `||`/`&&` to disentangle
-      them from SNOBOL4 patterns, so that junctions (which DO want
-      n-ary alt) don't get tangled with short-circuit Booleans? Or
-      defer that to a separate fix and only target `|`/`&` (single
-      char) + `any/all/one/none` here?
-
-  Q10. **BB kind choice.** Author junctions onto BB_ALT (existing
-       n-ary substrate, used by Icon but mode-4 stub) or finish
-       BB_ALTERNATE (currently no-op, orphaned)? Recommend BB_ALT —
-       Icon already uses it for alternation chains, sharing a template
-       across languages matches "kinds are language-agnostic." A
-       lang-guard would distinguish Bool-collapse (Raku) from
-       generator-restart (Icon).
-
-  Q11. **Substrate-first vs frontend-first.** Two valid orderings:
-       (a) Substrate-first — author BB_ALT mode-2 executor + mode-4
-           template now (also benefits Icon `(e1|e2|e3)` mode-4), then
-           wire Raku frontend on top. Higher upfront cost, broader
-           benefit.
-       (b) Frontend-first eager — lex/parse junctions, lower eagerly
-           to SM_PAT_ALT-style or to a fresh SM_CALL_FN "raku_junct_*"
-           builtin chain (mirror the RK-BB-3.0 by-name dispatcher
-           pattern). Defer BB_ALT/BB_ALTERNATE substrate. Lower cost,
-           parallel to RK-BB-3.0+3d's path.
-       Recommend (b) for first cut — matches Goal Q3 spirit ("first
-       cut") and unblocks the rest of the Raku ladder. Substrate
-       upgrade is its own rung.
-
-  Q12. **Junction value representation.** When `my $j = any(1,2,3)` is
-       assigned, $j holds a JUNCTION value. Options:
-       (i)   Encode as a tagged \x02-string `\x02any\x02 1\x01 2\x01 3`
-             reusing the \x01-array pattern; junction kind in tag byte.
-       (ii)  New DT_JUNCT type tag in DESCR_t.
-       (iii) DT_DATA with icn_type="junct".
-       Recommend (i) — lightest, mirrors RK-BB-3.0's choice for arrays
-       and doesn't require runtime type-tag additions. Bool-collapse
-       on `==` autothread parses the tag and fans the comparison.
-
-  ### What was DONE this session
-
-  - Verified all seven gaps above by direct inspection (not memory).
-  - Added `test/raku/rk_junctions.raku` + `.expected` as the RK-BB-4
-    target probe. FAILS today at lex (expected); flips when RK-BB-4
-    fully lands. GATE-RK mode-2: 14/33, GATE-RK4 mode-4: 15/33.
-  - Side-discovery probe (one-off, not committed) confirmed Raku `||`
-    and `&&` compile through SNOBOL4 pattern path today. See Q9.
-  - This audit memo is the deliverable. ZERO BB / SM / template changes.
-
-- [ ] **RK-BB-4-frontend** — pending Lon directive on Q9–Q12.
-  Best case (path b answers Q11): lexer + grammar + new TT_JUNCT_*
-  kinds + a lower_raku_junction that does eager SM (mirror RK-BB-3.0
-  by-name dispatcher pattern). Defer BB_ALT/BB_ALTERNATE substrate.
-  Worst case (path a answers Q11): substrate-first session — author
-  BB_ALT mode-2 executor + bb_alt.cpp mode-4 template + then frontend.
-
-- [~] **RK-BB-SEGFAULT-CLUSTER** — bug 1 ✅ CLOSED (`0f3561c0`,
-  2026-05-27, Opus 4.7); bugs 2 + 3 documented for next session.
-
-  - [x] **bug 1: union-clobber dereference in polyglot_init** ✅
-    (`0f3561c0`). `proc->v.sval && *proc->v.sval` for TT_SUB_DECL
-    crashed when raku.y intentionally clobbers v.sval with v.ival=np
-    via the union (small non-NULL pointer 0x1, 0x2 passes the NULL
-    check). Fix: TT_SUB_DECL always reads c[0]->v.sval (TT_VAR child
-    where parser puts surviving name). One file (+20/-3). Three
-    tests no longer SIGSEGV: rk_subs, rk_interp, rk_try_catch25.
-
-  - [ ] **bug 2: double body emission for multi-sub Raku programs**.
-    lower_stmt (L1987) emits Raku sub bodies inline at top level;
-    lower_proc_skeletons (L2328) emits empty named skeletons because
-    its bnd-extraction only handles TT_PROC_DECL. For multi-sub
-    programs, every sub's body runs at startup against an empty
-    stack; first `return` halts. Single-sub `sub main()` works by
-    accident. Fix shape documented in watermark — two-edit patch:
-    gate top-level inline on `_is_main`, extend skeletons to walk
-    proc->c[nparams+1..] for TT_SUB_DECL.
-
-  - [ ] **bug 3: no parameter→scope binding for Raku TT_SUB_DECL**.
-    build_proc_scope (L2287) only handles TT_PROC_DECL shape
-    (`proc->c[1]` as a TT_VLIST param list). Raku TT_SUB_DECL has
-    params as TT_VAR children at `proc->c[1..nparams]` with no
-    enclosing VLIST. Fix: extend build_proc_scope with a TT_SUB_DECL
-    branch that walks `proc->c[1..proc->v.ival]` and scope_add's
-    each param TT_VAR sval. Without this, even after bug 2 lands,
-    `greet('raku')` reaches the skeleton but `$name` reads empty.
-
-- [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers, one rung
-  each. `zip`/`cross` = multi-Seq drivers (later).
+- [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers, one rung each. `zip`/`cross` = multi-Seq drivers (later).
 
 ## Rung methodology (mostly REUSE)
 
-Per rung: (1) lower the Raku construct to the shared BB kind via
-`lower_raku_*` (parallel `lower_icn_*`); (2) confirm existing `bb_<kind>.cpp`
-covers it (Icon proved most cases); (3) only if Raku semantics differ, extend
-the shared template behind a `lang==BB_LANG_RKU` guard (last resort — prefer
-making the lowering match the template); (4) run GATE-RK4 + GATE-PK + GATE-RK
-(mode-2) + smoke. Commit when the Mode-4 golden matches and nothing regresses.
+Per rung: (1) lower the Raku construct to the shared BB kind via `lower_raku_*` (parallel `lower_icn_*`); (2) confirm existing `bb_<kind>.cpp` covers it (Icon proved most cases); (3) only if Raku semantics differ, extend the shared template behind a `lang==BB_LANG_RKU` guard (last resort — prefer making the lowering match the template); (4) run GATE-RK4 + GATE-PK + GATE-RK (mode-2) + smoke. Commit when the Mode-4 golden matches and nothing regresses.
 
 ## Test corpus — REUSE
 
-`test/raku/*.{raku,expected}` (30 cases). The job is mode-4 conformance to
-those goldens (the Prolog GATE-4 pattern), not correctness-from-zero — mode-2
-already runs them. Add NEW flat files only for laziness probes the eager suite
-can't express (e.g. `(1..Inf)[4]` that must terminate).
+`test/raku/*.{raku,expected}` (33 cases). The job is mode-4 conformance to those goldens (the Prolog GATE-4 pattern), not correctness-from-zero — mode-2 already runs them. Add NEW flat files only for laziness probes the eager suite can't express (e.g. `(1..Inf)[4]` that must terminate).
 
 ## Mode-3 (`--run`) — needs a Lon directive
 
-RULES.md sanctions exactly one temporary SM-walk exception (Prolog `--run`,
-AGW-1c). Do NOT route Raku `--run` through `sm_interp_run` without a Lon
-directive. Mode-4 is this ladder's target; Mode-3 follows for free when the
-templates land (same `bb_*.cpp` serves both per ARCH-SCRIP §"Mode 4").
+RULES.md sanctions exactly one temporary SM-walk exception (Prolog `--run`, AGW-1c). Do NOT route Raku `--run` through `sm_interp_run` without a Lon directive. Mode-4 is this ladder's target; Mode-3 follows for free when the templates land.
 
 ## Session Setup
 
@@ -570,7 +138,7 @@ bash scripts/test_smoke_raku.sh       # smoke baseline
 ## Gates
 
 ```
-GATE-PK    test_per_kind_diff.sh        # currently segfaults (NOT this goal — see watermark)
+GATE-PK    test_per_kind_diff.sh        # currently segfaults (NOT this goal)
 GATE-RK    test_raku_ir_rungs.sh        # mode-2, must hold/improve
 GATE-RK4   test_raku_mode4_rung.sh      # mode-4 vs .expected, must hold/improve
 GATE-RK-SM test_smoke_raku.sh           # smoke must hold
@@ -579,13 +147,12 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 0f3561c0 (RK-BB-SEGFAULT-CLUSTER bug 1 — union-clobber deref in polyglot_init)
-.github: HEAD (handoff — segfault eliminated; Bugs 2+3 documented for next session)
+one4all: 2a70abed (RK-BB-SEGFAULT-CLUSTER bug 2+3 — TT_SUB_DECL skeleton + scope)
+.github: HEAD (handoff — bugs 2+3 closed; bug 4 (lower_return) documented for next session)
 corpus:  unchanged
 
-Gates at RK-BB-SEGFAULT-CLUSTER bug-1 (2026-05-27, Opus 4.7):
-  GATE-RK mode-2:  14/33  HOLD (segfault → wrong-output; PASS unchanged)
-  Mode-3 (--run):  14/33  HOLD
+Gates at RK-BB-SEGFAULT-CLUSTER bug 2+3 (2026-05-27, Opus 4.7):
+  GATE-RK mode-2:  16/33  (+rk_interp, +rk_map_grep_sort24)
   GATE-RK4 mode-4: 15/33  HOLD
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
@@ -596,991 +163,63 @@ Gates at RK-BB-SEGFAULT-CLUSTER bug-1 (2026-05-27, Opus 4.7):
   FACT RULE grep:  0
   Build:           clean
 
-rk_subs / rk_interp / rk_try_catch25 no longer SIGSEGV at startup.
-They now exit cleanly with wrong output (Bugs 2+3, documented below).
-Memory-safety improvement; PASS counts unchanged.
+rk_subs / rk_try_catch25 still fail (wrong output, not segfault):
+  rk_subs:        prints only "hello raku" — bug 4 (lower_return VOID_POPs retval).
+  rk_try_catch25: "Error 5 Undefined function" — try/CATCH-specific, separate.
+  rk_interp:      now PASSES.
 ```
 
-⛔ RK-BB-SEGFAULT-CLUSTER bug 1 ✅ CLOSED — 2026-05-27, Opus 4.7, one4all 0f3561c0:
-
-ONE FILE TOUCHED: src/driver/polyglot.c (+20/-3).
-
-ROOT CAUSE — UNION-CLOBBER DEREFERENCE:
-
-The check at polyglot_init L123:
-    const char *name = (proc->v.sval && *proc->v.sval) ? proc->v.sval : ...
-is UNSAFE for TT_SUB_DECL. raku.y line 340 constructs:
-    tree_t *e = leaf_sval(TT_SUB_DECL, $2);   /* sets v.sval = name */
-    e->v.ival = (long long)np;                  /* CLOBBERS via union */
-When np > 0, the union slot reads as a SMALL NON-NULL POINTER (0x1,
-0x2, etc.) that PASSES the `proc->v.sval` NULL check, then SEGFAULTS
-at `*proc->v.sval`.
-
-Why some tests segfaulted and others didn't:
-  - rk_arrays, rk_str22, rk_for_array_underscore, rk_map_grep_sort24,
-    etc. — ONLY `sub main()` (np=0 → v.ival=0 → v.sval reads as
-    NULL → caught by `proc->v.sval &&` → falls to c[0] path). WORK.
-  - rk_subs, rk_interp, rk_try_catch25 — first sub has np > 0
-    (`sub double($n)`, `sub titled($name, $title)`, `sub might_die($x)`).
-    v.sval reads as 0x1, 0x2 → NULL check passes → SEGFAULT.
-
-FIX:
-For TT_SUB_DECL, NEVER trust v.sval (union is known-clobbered to v.ival).
-ALWAYS use c[0]->v.sval (TT_VAR child where parser puts surviving name).
-TT_FNC and TT_PROC_DECL paths (Icon) keep the original fallback chain
-unchanged.
-
-DIAGNOSTIC PATH:
-1. gdb backtrace pointed at polyglot.c:123.
-2. fprintf probe in the same function printed:
-       proc=0x... t=131 n=3 v.sval=0x1 v.ival=1 c[0]=0x...
-   v.sval=0x1 (non-NULL invalid ptr), v.ival=1 → confirmed union clobber.
-3. Cross-referenced raku.y:340 to confirm parser intentionally writes
-   both union members in sequence (sval first via leaf_sval, then ival).
-
-VERIFICATION:
-  All three formerly-segfaulting tests now exit rc=0 with wrong output:
-    rk_subs           → "hello \n" (was: SIGSEGV)
-    rk_interp         → 5 lines of partial output (was: SIGSEGV)
-    rk_try_catch25    → "Error 5 Undefined function" (was: SIGSEGV)
-  Memory safety restored; bugs 2+3 (below) are tractable from here.
-  All sibling smokes HOLD (icon 5/5, prolog 5/5, raku 5/0, snobol4 13/0).
-  GATE-RK and GATE-RK4 PASS counts unchanged.
-  FACT RULE grep: 0.
-  Build: clean.
-
-⛔ BUGS 2 AND 3 — DOCUMENTED, NOT FIXED:
-
-The segfault eliminated, two architectural bugs surfaced underneath
-that were previously masked. Documented here so the next session has
-a clear target.
-
-### Bug 2: Double body emission for Raku multi-sub programs
-
-For a Raku program with multiple subs (e.g. `sub double($n) {...}`
-followed by `sub main() {...}`), TWO independent code paths emit
-each sub's body:
-
-(a) `lower_stmt` (lower.c:1987, LANG_RAKU + TT_SUB_DECL branch)
-    emits the body inline at top level: walks subject->c[nparams+1..]
-    children as statements.
-(b) `lower_proc_skeletons` (lower.c:2328) DOES NOT extract body
-    from TT_SUB_DECL — its bnd lookup at L2372 only triggers for
-    TT_PROC_DECL: `(proc->t == TT_PROC_DECL && proc->n >= 3) ?
-    proc->c[2] : NULL`. So the named SM_LABEL skeleton has body
-    = LABEL + RETURN with no actual body.
-
-Effect on multi-sub programs:
-  - Top-level inline emission produces:
-      double's body code (uses $n unset)
-      greet's body code (uses $name unset)
-      add's body code
-      classify's body code (contains an early RETURN)
-      main's body code
-    All run sequentially at startup. First `return` in any non-main
-    sub HALTS the program before main's body code is reached.
-  - Single-sub `sub main()` programs work BY ACCIDENT: their only
-    body IS main's, executed inline as top-level code. There's no
-    actual `CALL_FN "main"` — the convention is that top-level IS main.
-
-EXPERIMENTAL FIX ATTEMPTED THIS SESSION (REVERTED — exposed Bug 3):
-  - lower.c L1987 lower_stmt: gate body inline on `_is_main` so only
-    `sub main()` inlines at top level (other subs get a no-op).
-  - lower.c L2370+ lower_proc_skeletons: extend bnd extraction with
-    a TT_SUB_DECL branch that walks proc->c[nparams+1..]. Set
-    g_lang = LANG_RAKU when proc is TT_SUB_DECL (was LANG_ICN
-    unconditionally) so body lowering uses Raku semantics.
-  - rk_arrays, rk_str22, etc. continued to work (single-sub case).
-  - rk_subs now reached greet via CALL_FN — but $name read empty
-    (Bug 3 below). Reverted because partial fix obscures more than
-    it reveals; clean re-do recommended next session.
-
-### Bug 3: Raku TT_SUB_DECL has no parameter→scope binding
-
-After Bug 2 is fixed and `greet('raku')` reaches the skeleton, the
-body's `$name` read returns empty (sigil-stripped to bare "name"
-per RK-BB-3b/c-binding-fix's discovery). No mechanism wires
-args[0]→$name for Raku subs.
-
-Icon path (TT_PROC_DECL): build_proc_scope at lower.c:2288 walks
-proc->c[1] (the param list TT_VLIST) and scope_add's each param
-name into IcnScope sc. Then emit_var_load/store route through
-SM_LOAD_FRAME/SM_STORE_FRAME slot indices. SM_CALL_FN at runtime
-pops args into those frame slots.
-
-Raku TT_SUB_DECL has no analog. Params live as TT_VAR children at
-proc->c[1..nparams] (per raku.y:341-342), but build_proc_scope at
-L2287-2293 has:
-    tree_t *plist = (proc->t == TT_PROC_DECL && proc->n >= 2)
-                      ? proc->c[1] : NULL;
-plist is NULL for TT_SUB_DECL → zero params registered → frame is
-empty → body's $name reads from global scope where it's unset.
-
-FIX SHAPE (next session):
-  (a) Extend build_proc_scope to handle TT_SUB_DECL:
-        if (proc->t == TT_SUB_DECL) {
-            int np = (int)proc->v.ival;
-            for (int i = 1; i <= np && i < proc->n; i++) {
-                tree_t *pn = proc->c[i];
-                if (pn && pn->t == TT_VAR && pn->v.sval)
-                    scope_add(sc, pn->v.sval);
-            }
-        }
-  (b) Similarly extend the param-iteration in lower_proc_skeletons
-      that today only reads TT_PROC_DECL shape, so SM_CALL_FN can
-      pop the correct number of args into frame slots.
-  (c) Verify SM_CALL_FN handler in sm_interp.c already does the
-      right thing for a named target with a known nparams — likely
-      yes, since this is the same path Icon procs use.
-
-EXECUTION ORDER (next session, recommended):
-  1. Reapply Bug 2 fix (the two-edit patch above).
-  2. Apply Bug 3 fix (build_proc_scope extension).
-  3. Verify rk_subs / rk_interp / rk_try_catch25 byte-exact.
-  4. Run full GATE-RK / GATE-RK4 / smokes / broker. Expected +3 each.
-  5. Commit as RK-BB-SEGFAULT-CLUSTER bug-2+3.
-
-⛔ END RK-BB-SEGFAULT-CLUSTER bug 1 HANDOFF
-
-⛔ RK-BB-4 SUBSTRATE AUDIT — 2026-05-27, Opus 4.7, one4all 4ee45eb7:
-
-The goal text says: "junctions + infix `|`/`&` → BB_ALTERNATE with Bool-
-collapse policy on ω/γ. REUSE `bb_gen_alt.cpp`/`bb_alt.cpp`. Add junction
-test." Implies a small REUSE rung.
-
-Reality after probe-based inspection: substrate is mostly missing. The
-audit took the same shape as the post-RK-BB-2 RK-BB-3 substrate audit
-(which found 6 gaps and led to the 3.0+3d → 3.0a → 3.0b → 3a → 3b/c
-decomposition). Same pattern: write the test first, document gaps,
-defer to Lon for directives.
-
-SEVEN GAPS, verified by direct file inspection:
-
-  1. raku.l has no KW_ANY/KW_ALL/KW_ONE/KW_NONE tokens; no single-char
-     `|`/`&` (only `||`/`&&`).
-  2. TT_ALT is overloaded — Raku `||` reuses SNOBOL4's pattern-alt
-     AST kind (raku.y:426). Today `$a || $b` accidentally compiles
-     through lower_pat_expr → SM_PAT_DEREF + SM_PAT_ALT. Works by
-     coincidence on truthiness. Out of scope but flagged.
-  3. bb_exec.c:1618-1620 BB_ALTERNATE mode-2 executor is a no-op:
-     `nd->value = FAILDESCR; return nd->ω;`.
-  4. bb_alternate.cpp mode-4 template DOES NOT EXIST. BB_ALTERNATE
-     would fall through default stub in walk_bb_node.
-  5. bb_alt.cpp mode-4 template IS A STUB. 37 lines; body comment:
-     `# BOX BB_ALT [port-wired, inline-x86 gen TODO]`. Only emits
-     α→γ, β→ω passthrough jumps.
-  6. bb_gen_alt.cpp IS A STUB. 11 lines; returns empty string.
-  7. Icon's TT_ALTERNATE lowers to BB_ALT (not BB_ALTERNATE) per
-     lower_icn.c:1095 + lower_icn_new_Alt. **BB_ALTERNATE is orphan.**
-     The reusable substrate is BB_ALT — but per gap 5, even BB_ALT
-     mode-4 is a stub.
-
-WHAT WAS DONE THIS SESSION:
-  - test/raku/rk_junctions.raku + .expected: target probe with 6
-    expected output lines (any-hit / all-hit / none-hit / one-hit /
-    pipe-hit / amp-hit). Fails today at lex on the single-char `|`.
-  - In-line audit memo authored under ladder step (see above).
-  - Q9–Q12 open questions documented inline.
-  - ZERO code changes. ZERO BB / SM / template / runtime modifications.
-
-NEXT — pending Lon directive on Q9–Q12:
-
-  Recommended path (path b for Q11): frontend-first eager-collapse.
-  Mirror RK-BB-3.0+3d's pattern — add KW_ANY/KW_ALL/KW_ONE/KW_NONE
-  + single-char `|`/`&` infix tokens, NEW AST kinds TT_JUNCT_ANY /
-  TT_JUNCT_ALL / TT_JUNCT_ONE / TT_JUNCT_NONE / TT_JUNCT_PIPE /
-  TT_JUNCT_AMP (don't reuse TT_ALT — see Q9), then `lower_raku_junction`
-  that eager-collapses into a chain of SM_CALL_FN for first cut.
-  Junction value as \x02-tag-\x02-elem-\x01 string (Q12 path i,
-  mirroring \x01 arrays). `==` autothreading via raku_eq_junction
-  builtin chained into rt_call via the existing by-name dispatcher
-  (RK-BB-3.0a's rt_set_lang prologue already ensures g_lang stamping).
-  Substrate (BB_ALT mode-2 + mode-4 template) becomes its own rung,
-  benefits Icon too.
-
-  Alternate path (path a for Q11): substrate-first. Author BB_ALT
-  mode-2 n-ary executor + bb_alt.cpp full mode-4 template first
-  (per-arm restart, ω-chain walk; mirror Icon's needs); then wire
-  Raku frontend on top. Higher upfront, broader benefit (Icon mode-4
-  alt would also light up).
-
-  Other deferred segfault cluster (rk_subs, rk_interp, rk_try_catch25)
-  still separate.
-
-⛔ END RK-BB-4 SUBSTRATE AUDIT
-
-⛔ RK-BB-3b/c-binding-fix ✅ CLOSED — 2026-05-27, Opus 4.7, one4all af0df613:
-
-ONE FILE TOUCHED: src/lower/lower.c (+9/-2). Plus regression probe:
-test/raku/rk_for_array_underscore.{raku,expected} (+12 lines).
-
-ROOT CAUSE — SIGIL MISMATCH (NONE of the three prior hypotheses):
-
-raku.y:46 `strip_sigil` rewrites every Raku VAR_SCALAR pre-AST:
-  $_   → "_"
-  $x   → "x"
-  @arr → "arr"
-
-So the closure body `$_ * 2` parses to TT_BINOP(TT_VAR("_"), 2, *) —
-bare "_" with NO dollar. The for-loop binding in `lower_every` (L1547)
-uses gen_expr->v.sval which is already sigil-stripped, so its
-emit_var_store("_") and the body's emit_var_load("_") agree.
-
-But my `lower_raku_map_or_grep` (scaffold commit 42d2a367) had hardcoded
-"$_" with sigil at two sites:
-  L1684: emit_var_store("$_")             ← γ-yield → "$_"
-  L1701: SM_emit_s(SM_PUSH_VAR, "$_")    ← grep push arg
-
-The body's lower_expr() loads `"_"` (sigil-stripped). Store and load
-target TWO DIFFERENT VARIABLES. The bare "_" is unset → numeric coerce
-returns 0 → `0 * 2 == 0`. grep predicate similarly yields false on the
-unset "_" variable, then the push branch reads the also-unset "$_".
-
-DIAGNOSTIC PATH (in the order the handoff recommended):
-
-  1. Hand-desugared probe rk_for_array_underscore.raku:
-       sub main() {
-           my @nums = '';
-           push(@nums, 1); push(@nums, 2); push(@nums, 3);
-           my @r = '';
-           for @nums -> $_ { push(@r, $_ * 2); }
-           for @r -> $x { say($x); }
-       }
-     PASSED byte-exact 2\n4\n6\n in both mode-2 and mode-4.
-     → Isolates the bug to lower_raku_map_or_grep's divergence from
-     the for-loop+push pattern. Rules out hypothesis "$_ itself broken".
-
-  2. Created minimal map probe rk_map_min.raku, dumped SM with
-     `./scrip --interp --dump-sm rk_map_min.raku`. Output showed:
-       PC 28  SM_STORE_VAR  s="$_"     ← γ-yield store
-       PC 32  SM_PUSH_VAR   s="_"      ← body's $_ * 2 load
-
-     The sigil mismatch was visible in two adjacent SM instructions.
-     Diagnostic time: ~5 minutes. No printf instrumentation needed.
-
-FIX:
-  L1684: emit_var_store("$_") → emit_var_store("_")
-  L1701: SM_PUSH_VAR  "$_"    → SM_PUSH_VAR  "_"
-
-Added a comment block at L1684 explaining the strip_sigil convention so
-future authors don't rediscover this.
-
-The probe rk_map_min.raku was a one-shot debug artifact and was REMOVED
-before commit (no .expected, would skew the gate's TOTAL). The probe
-rk_for_array_underscore.raku was COMMITTED as a permanent regression
-test because it covers `for ARR -> $_` topic-variable binding under
-the BB_ITERATE substrate — a useful invariant to keep tracked.
-
-VERIFICATION:
-  - rk_map_min.raku                    mode-2 + mode-4 byte-exact (before rm).
-  - rk_for_array_underscore.raku       mode-2 + mode-4 byte-exact.
-  - rk_map_grep_sort24.raku            mode-2 + mode-3 + mode-4 byte-exact.
-  - All sibling smokes HOLD (icon 5/5, prolog 5/5, raku 5/0).
-  - Broker Icon 198/268 HOLD (no regression in legacy Icon).
-  - FACT RULE grep:                    0 (no seg_byte / SL_B / etc).
-  - Build:                             clean.
-
-DOCTRINAL STATUS: 100% template/lowering emission preserved.
-  - ZERO new BB kinds.
-  - ZERO new runtime helpers.
-  - ZERO new emit_textf or seg_byte sites.
-  - The fix is purely textual inside the existing lowering scaffold.
-
-NEXT — RK-BB-4 (junctions + infix `|`/`&` → BB_ALTERNATE + Bool-collapse
-policy on ω/γ). REUSE bb_gen_alt.cpp / bb_alt.cpp. Add junction test.
-
-Pre-existing segfault cluster (rk_subs, rk_interp, rk_try_catch25)
-remains a separate concern. Cluster into RK-BB-SEGFAULT-CLUSTER as a
-new rung when Lon prioritizes.
-
-The Open Q5 union-clobber proper fix (TT_SUB_DECL v.ival vs v.sval)
-also remains deferred; the RK-BB-2 step 6 defensive v.ival=0 is still
-load-bearing for gather/take.
-
-⛔ END RK-BB-3b/c-binding-fix HANDOFF
-
-⛔ PRIOR HANDOFFS RETAINED FOR HISTORY: RK-BB-3b/c WIP (42d2a367) below
-   documents the scaffold pre-fix; superseded by the closed binding-fix
-   above but retained for the three-hypothesis discussion and decomposition
-   that led to the diagnostic path. RK-BB-3a-mode4-debug, RK-BB-3a partial,
-   3.0b, 3.0a, 3.0+3d infra, and RK-BB-2 step 6 follow below in turn.
-
-⛔ RK-BB-3b/c WIP — 2026-05-27, Opus 4.7, one4all 42d2a367:
-
-ONE FILE TOUCHED: src/lower/lower.c (+117).
-
-Pure lowering transform. ZERO new BB kinds, ZERO new runtime helpers.
-Desugars Raku map/grep into the for-loop+push shape that RK-BB-3a +
-RK-BB-3.0b already implement:
-
-    my @r = '';
-    for @src -> $_ { push(@r, body_or_$_); }
-    # leaves @r on stack as the result
-
-IMPLEMENTATION:
-  - New helper lower_raku_map_or_grep(t, is_grep) in lower.c synthesizes
-    a unique __map_acc_N / __grep_acc_N accumulator (g_raku_map_acc_seq
-    counter, reset per lower_program pass).
-  - Calls lower_raku_iterate_arr (RK-BB-3a's BB graph builder) on the
-    @source variable.
-  - Emits SM_BB_SWITCH(NULL, bb_idx, SM_BBSW_RK_GEN), JUMP_F → exit.
-  - γ body: emit_var_store("$_") + VOID_POP, then:
-      * map: lower_expr(body); push pattern (PUSH_LIT_S vname,
-        PUSH_VAR vname, body_result_already_on_stack, CALL_FN "push" 3,
-        VOID_POP). Wait — actually the implementation lowers body
-        INSIDE the push pattern (PUSH_LIT_S, PUSH_VAR, lower_expr,
-        CALL_FN), with the body's result becoming args[2]. See
-        hypothesis (b) in the diagnostic notes.
-      * grep: lower_expr(pred); JUMP_F → skip; VOID_POP (truthy
-        case); push pattern with PUSH_VAR "$_" as args[2]; JUMP →
-        after; patch skip; VOID_POP (falsy case); patch after.
-  - JUMP → switch_pc (β-resume).
-  - Patch exit; stamp switch_pc instr a[0].i = exit_pos (mode-4 ω).
-  - PUSH_VAR acc_vname → final result on stack.
-  - TT_MAP / TT_GREP case bodies in lower.c now try this helper first;
-    on fall-through (non-TT_VAR source, non-LANG_RAKU) the legacy
-    SM_CALL_FN raku_map/raku_grep emission is preserved (dead path
-    today since icn_call_builtin has zero callers).
-
-⛔ OPEN BLOCKER — `$_` BINDING:
-
-The body / predicate reads `$_` as 0 in every iteration:
-  map { $_ * 2 } @nums   → emits 0\n0\n0\n0\n0\n (expected 2\n4\n6\n8\n10\n)
-  grep { $_ % 2 == 0 } @nums → yields all of @nums (1,2,3,4,5)
-
-Reproduces in mode-2 `--interp` AND mode-4 `--compile` identically.
-Mode is NOT the variable. The SM stream itself is mis-emitting $_.
-
-THREE HYPOTHESES (ordered by plausibility, untested):
-
-(a) IMPLICIT $_ SCOPE REGISTRATION. Some pre-lowering pass
-    (polyglot.c proc-skeleton, or another phase) may register `$_`
-    into g_proc_scope. If `emit_var_store("$_")` then goes through
-    SM_STORE_FRAME slot, but `lower_expr(body)` was tree-traversed
-    BEFORE the store and resolved `$_` against the prior scope
-    state, store/load could target different storage. Check via
-    printf `scope_get(g_proc_scope, "$_")` at entry of
-    lower_raku_map_or_grep AND right before lower_expr(body).
-
-(b) STACK-ORDER INTERACTION. For map I emit:
-        SM_PUSH_LIT_S acc_vname
-        SM_PUSH_VAR   acc_vname
-        lower_expr(body)
-        SM_CALL_FN    "push", 3
-    If body's lowering involves $_ load + arithmetic that touches
-    stack state in a way that mis-orders args at CALL_FN, args[2]
-    may end up as something other than the body's intended result.
-    Recommended check: dump the SM stream with `--sm-dump` (if
-    such flag exists; if not, add a one-shot printf in SM_emit_*
-    just for the map block).
-
-(c) CLOSURE BODY tree_t* ALIASING. TT_MAP's c[0] (the body) may
-    have stale internal state from a prior pass (e.g., v.ival slot
-    indices set by polyglot in an outer scope) that produces wrong
-    SM at re-lowering time inside the loop body.
-
-RECOMMENDED DIAGNOSTIC PATH:
-
-  1. Hand-desugared probe — write rk_for_array_underscore.raku:
-        sub main() {
-            my @nums = '';
-            push(@nums, 1); push(@nums, 2); push(@nums, 3);
-            my @r = '';
-            for @nums -> $_ { push(@r, $_ * 2); }
-            for @r -> $x { say($x); }
-        }
-     If this prints 2\n4\n6\n then RK-BB-3a + RK-BB-3.0b machinery
-     does see $_ correctly under for-loop binding — the bug is
-     ISOLATED to how lower_raku_map_or_grep differs from the
-     for-loop+push pattern (rules in (a) or (b)). If this ALSO
-     fails, `$_` itself has issues independent of map/grep.
-
-  2. Probe scope state:
-       fprintf(stderr, "[map enter] in_proc=%d $_slot=%d\\n",
-               g_in_proc_body,
-               g_proc_scope ? scope_get(g_proc_scope, \"\\$_\") : -2);
-     placed at entry of lower_raku_map_or_grep and just before
-     lower_expr(body). Diff between the two readings.
-
-  3. If (a) is root cause: fix by either explicitly registering
-     `$_` in the scope at entry of lower_raku_map_or_grep (calling
-     scope_add or whatever the equivalent is) so both sides agree,
-     OR bypassing the scope entirely for `$_` (emit SM_STORE_VAR /
-     SM_PUSH_VAR unconditionally for `$_`).
-
-  4. If (b) is root cause: capture body result into a temp first:
-       lower_expr(body);
-       SM_emit_s(g_p, SM_STORE_VAR, "__map_body_tmp");
-       SM_emit  (g_p, SM_VOID_POP);
-       SM_emit_s(g_p, SM_PUSH_LIT_S, acc_vname);
-       SM_emit_s(g_p, SM_PUSH_VAR,   acc_vname);
-       SM_emit_s(g_p, SM_PUSH_VAR,   "__map_body_tmp");
-       SM_emit_si(g_p, SM_CALL_FN,   "push", 3);
-     This is the more cautious push-pattern; the in-the-current-code
-     pattern interleaves lower_expr between the two PUSHes, which
-     is the kind of thing that can perturb stack assumptions.
-
-NEXT SESSION FIRST MOVES:
-
-  1. Probe (1) above — hand-desugared test. ~5 min.
-  2. Based on outcome, pursue (a) or (b) probe. ~15 min.
-  3. Apply the corresponding fix. ~10-30 min.
-  4. Verify rk_map_grep_sort24 byte-exact across all three modes.
-  5. Full gate sweep; commit as RK-BB-3b/c-binding-fix + push.
-
-EXPECTED UPLIFT after binding fix lands:
-  GATE-RK mode-2:  12 → 13  (+1: rk_map_grep_sort24)
-  Mode-3 (--run):  12 → 13  (+1)
-  GATE-RK4 mode-4: 13 → 14  (+1)
-  All other gates HOLD.
-
-DOCTRINAL STATUS: 100% template/lowering emission preserved.
-No new BB kinds. No new runtime helpers. The fix is entirely
-inside the lowering scaffold.
-
-⛔ END RK-BB-3b/c WIP HANDOFF
-
-⛔ PRIOR HANDOFFS RETAINED FOR HISTORY: RK-BB-3a-mode4-debug
-   (cc6c1a06), RK-BB-3a partial (706e2828), RK-BB-3.0b (7a60d30e),
-   RK-BB-3.0a (ba481112), RK-BB-3.0+3d infra (fcac4ab3), RK-BB-2
-   step 6 (d08237e0) below.
-
-⛔ RK-BB-3a-mode4-debug ✅ CLOSED — 2026-05-27, Opus 4.7, one4all cc6c1a06:
-
-ONE FILE TOUCHED (+58/-4): src/emitter/BB_templates/bb_iterate.cpp
-
-TWO BUGS, BOTH ROOTED IN CODEBASE-WIDE STRING CONVENTION:
-
-(1) slen=0 from NV_GET_fn was NOT a wrapper-level issue at all. STRVAL()
-    in src/runtime/snobol4/snobol4.h:20 hard-codes `.slen=0` for every
-    DT_S DESCR built via STRVAL(s_) — the codebase convention is that
-    consumers recover length via strlen(s) at use-time. say/write does
-    `fputs(s, dest)`; elems does `strchr(s, SOH)`; arr_get does
-    `strchr(seg, SOH)`. The mutating push handler (raku_builtins_byname.c
-    L220 `NV_SET_fn(vname, STRVAL(acc))` after manually NUL-terminating
-    `acc`) produces a slen=0 DESCR with valid NUL-terminated string.
-    So when our template did `cmp rcx, rsi (where rsi=slen=0); jge ω`,
-    it jumped straight to ω and yielded nothing.
-
-    The prior handoff's three hypotheses (section-switch fall-through,
-    name mismatch, scope/timing) were ALL wrong. The trace evidence
-    that pointed there (LD_PRELOAD shim returning slen=0) was technically
-    correct, but the conclusion was reversed: slen=0 is the NORMAL
-    return from NV_GET_fn for any DT_S string built via STRVAL — every
-    other consumer just doesn't care.
-
-    Fix: template adds slen-fallback after the rax-high32 extract — if
-    slen==0 AND base ptr non-NULL, call strlen@PLT inline. Stack
-    discipline: push r10 + sub rsp, 8 keeps rsp 16-aligned across the
-    PLT call; symmetric add/pop on the other side.
-
-(2) After (1), the for-loop iterated but each yield contained the WHOLE
-    REMAINING STRING from the segment start onward. Diagnosis via a
-    second LD_PRELOAD shim wrapping rt_push_str showed slen=2 was being
-    passed correctly for "10", "20", "30" — but the printed output
-    was "10\\x0120\\x0130", "20\\x0130", "30". Root cause: rt_push_str
-    stores (ptr, slen) into the DESCR with .s=ptr and .slen=slen, but
-    downstream write/say use fputs(s) which reads the raw ptr to the
-    nearest NUL — and our seg_start_ptr pointed INTO the source string
-    (which has a NUL only at the END of the whole \\x01-joined array).
-
-    Fix: send block now allocates a fresh seg_len+1 buffer via
-    GC_malloc@PLT, copies the segment via inline rep movsb, NUL-
-    terminates at [rax + r8], then pushes that fresh buffer via
-    rt_push_str. GC_malloc is a memory-conversion helper (already used
-    throughout the runtime — raku_builtins_byname.c's push handler at
-    L213 does the same). rep movsb is purely inline (no PLT). Stack
-    discipline: 2 pushes before GC_malloc maintain 16-alignment; the
-    rep block uses 1 push+pop with no intervening call so 8-misalign
-    is harmless there.
-
-VERIFIED:
-  - rk_for_array_simple mode-4 byte-exact: 10\\n20\\n30\\n
-  - rk_for_array        mode-4 byte-exact: 10\\n20\\n30\\n60\\nalpha\\nbeta\\ngamma\\n
-  - rk_for_array_simple + rk_for_array mode-2 + mode-3 still byte-exact (no regression).
-  - All sibling smokes HOLD: icon 5/5, prolog 5/5, raku 5/0, broker 198.
-  - FACT RULE grep: 0 (no seg_byte, SL_B, sl_emit_one, emit_standard_blob).
-  - Build clean.
-
-NEXT — RK-BB-3b/c (lazy map/grep as Seq consumers):
-
-The polymorphic BB_ITERATE substrate is now COMPLETE in mode-2, mode-3,
-and mode-4. Both convention quirks (slen=0 DESCRs, NUL-bounded fputs)
-are now properly handled by the template. The next rung is lazy map/grep.
-
-Per Open Q3 (recommendation: eager-drain for first cut, lazy as future
-rung): `my @x = map { ... } @y` materializes into a fresh \\x01-string
-by walking the BB_ITERATE on @y, running the lambda body on each γ
-yield, accumulating results via the same push-builtin path. grep is
-the same with a γ-side predicate gate.
-
-The two follow-on segfault clusters from the prior handoff (rk_subs,
-rk_interp, rk_try_catch25 — verified at baseline pre-RK-BB-3.0a)
-remain a separate concern, not blocking RK-BB-3b/c.
-
-The Open Q5 union-clobber proper fix (TT_SUB_DECL v.ival vs v.sval)
-also remains deferred; the RK-BB-2 step 6 defensive `v.ival=0` is
-still load-bearing for gather/take.
-
-⛔ END RK-BB-3a-mode4-debug HANDOFF
-
-⛔ PRIOR HANDOFFS RETAINED FOR HISTORY: RK-BB-3a partial (706e2828),
-   RK-BB-3.0b (7a60d30e), RK-BB-3.0a (ba481112), RK-BB-3.0+3d infra
-   (fcac4ab3), RK-BB-2 step 6 (d08237e0) below.
-
-⛔ RK-BB-3a partial ✅ (mode-2) + ⚠ (mode-4 blocked) — 2026-05-27, Opus 4.7:
-
-THREE FILES TOUCHED (+242/-50 across):
-  (1) src/lower/lower.c (+54): lower_raku_iterate_arr(arr_vname) builds
-      a single-node BB graph with BB_ITERATE, sval=intern(arr_vname),
-      cfg->lang=BB_LANG_RKU. α/β self-loop; γ/ω left NULL for scaffold.
-      lower_every widened: when LANG_RAKU and gen_expr is
-      TT_ITERATE(TT_VAR(arr), sval=$v) — emit SM_BB_SWITCH(RK_GEN,
-      bb_idx); JUMP_F→exit; emit_var_store($v); body; JUMP→SWITCH;
-      patch exit; stamp a[0].i=exit_pos. Mirrors lower_for_range
-      (RK-BB-1 pattern).
-
-  (2) src/lower/bb_exec.c (+39): BB_ITERATE case sval-polymorphic.
-      Raku branch (sval != NULL) fetches via NV_GET_fn EVERY call
-      (re-fetch, not cache — nd->value is the yielded-segment return
-      slot). Walks counter as byte-offset; scans for \x01 byte; yields
-      GC-allocated DT_S substring; advances counter past separator.
-      Exhaustion → ω. Icon legacy α-as-operand-box path untouched.
-
-  (3) src/emitter/BB_templates/bb_iterate.cpp (+150 net): Raku
-      MEDIUM_TEXT arm authored. .data slots: .Liter<id>_name (asciz)
-      + .Liter<id>_cnt (.quad 0). α resets counter, jmp load. β falls
-      through to load. load: call NV_GET_fn@PLT → DESCR_t in rax:rdx
-      per SysV ABI struct-≤16 convention; mov rsi,rax; shr rsi,32 →
-      slen; mov r10,rdx → base ptr; bounds check vs counter; jge ω.
-      scan: rcx walks looking for \x01 or slen; r9 = seg start. send:
-      r8 = seg_len; r11 = seg_ptr; counter++; call rt_push_str@PLT
-      (rdi=ptr, rsi=len); jmp γ. 100% template emission. Legacy Icon
-      path preserved as dead code (still broken: "inc qword ptr [rax],"
-      trailing comma + r12-direct in --compile — kept for shape
-      compatibility, NOT reached today since Icon !E lowers via
-      BB_LIST_BANG).
-
-VERIFIED:
-  - Mode-2 rk_for_array_simple byte-exact to .expected (10\n20\n30\n).
-  - Mode-2 rk_for_array flips green too.
-  - All sibling smokes (icon, prolog, raku, broker) HOLD.
-  - FACT RULE grep: 0 call-sites.
-  - Isolated mode-4 asm test (gcc-compiled standalone with exact
-    instruction sequence from template) yields 3 segments + ω cleanly.
-
-⛔ MODE-4 BLOCKER — slen=0 from NV_GET_fn at full-program runtime:
-
-Debug instrumentation (added then removed) confirmed:
-  - α fires; load fires; NV_GET_fn("x") returns DESCR_t with slen=0.
-  - Same program, when it executes `say(@x)` AFTER the push() calls
-    and BEFORE the for-loop, prints "10\x0120\x0130" — proving
-    _var_buckets["x"] is correctly populated at that point.
-  - The mutators DO populate (verified with rk_dbg programs).
-  - The isolated standalone asm test (same instruction sequence,
-    manually-populated _var_buckets["x"]) yields all 3 segments
-    correctly via NV_GET_fn → bounds-check → scan → rt_push_str.
-
-So the failure is at the wrapper-level, not the template-asm level.
-HYPOTHESES (ordered by plausibility) for next session:
-
-  (1) SECTION-SWITCH FALL-THROUGH BUG. The SM_BB_SWITCH wrapper
-      emits its own .section .data block for the entry-flag byte
-      (.Licngen0_ent), then .section .text. My α template body
-      ALSO emits .section .data (for name + counter slots) then
-      .section .text + .intel_syntax noprefix. The fall-through
-      path from .Licngen0_fresh: → .Licngen0_α: crosses TWO
-      section-switch pairs. If gas's section-tracking gets confused
-      and the byte after `mov byte ptr [rax], 1` lands in .data
-      instead of .text, the CPU executes garbage. Check via
-      objdump -d to confirm reachability.
-
-  (2) NAME LOOKUP MISMATCH. My .Liter<id>_name: .asciz "x" vs the
-      .S<n>: .string "x" used by PUSH_VAR. Both should be identical
-      ("x" stripped of @-sigil at Raku-parse time). Verify with
-      objdump -s -j .data; compare addresses of both labels' bytes.
-
-  (3) NV_GET_fn called too early — relative ordering of α-body vs
-      preceding pushes' CALL_FN macros. Unlikely (SM_BB_SWITCH PC=23
-      is well after push CALL_FNs at PC=11,16,21) but objdump will
-      confirm.
-
-  (4) Calling-convention rare-edge: NV_GET_fn returns DESCR_t via
-      `rax:rdx`. My `shr rsi, 32` after `mov rsi, rax` should extract
-      slen. The isolated test verifies this works. But maybe in the
-      full binary, NV_GET_fn's @PLT entry resolves to a different
-      function than the standalone test? Unlikely but verifiable
-      via objdump on the import table.
-
-RECOMMENDED NEXT SESSION FIRST MOVES (10-15 min triage):
-  a. Build the rk_for_array_simple binary.
-  b. `objdump -d` it; locate .Licngen0_α; verify fall-through path
-     from .Licngen0_fresh is clean text.
-  c. `objdump -s -j .data` to see the .Liter*_name slot byte contents.
-  d. Add a printf-style debug call WITH stack-alignment via the
-     rt_pl_write_atom@PLT pattern (already verified in this session's
-     instrumentation — the call works, just unable to figure out
-     the post-NV_GET state).
-  e. Or: add a one-time rt_* debug helper (rt_raku_iter_probe(name))
-     that dumps the bucket contents — easier than asm debugging.
-
-OPEN: RK-BB-3a-mode4-debug. Once green, RK-BB-3a closes; mode-4
-flips +2 (rk_for_array_simple + rk_for_array, mirroring mode-2).
-Then RK-BB-3b/c (lazy map/grep) is the next rung — needs the
-polymorphic BB_ITERATE substrate this rung establishes.
-
-⛔ END RK-BB-3a partial HANDOFF
-
-⛔ PRIOR HANDOFFS RETAINED FOR HISTORY: 3.0b, 3.0a, 3.0+3d infra,
-   RK-BB-2 below.
-
-⛔ RK-BB-3.0b ✅ COMPLETE (2026-05-27, Opus 4.7, one4all 7a60d30e):
-
-Completes the mutating half of RK-BB-3.0. The non-mutating half landed
-in RK-BB-3.0a (ba481112). 3.0b makes push/pop/arr_set reachable in both
-mode-2 and mode-4 by routing them through the existing
-raku_try_mutating_builtin_by_name dispatcher (authored fcac4ab3).
-
-Four-file commit (+66/-4):
-  (1) lower.c lower_fnc (after the RK-BB-3.0a skip0 gate):
-      Detect mutator-by-name (push/pop) in LANG_RAKU and emit
-      SM_PUSH_LIT_S vname BEFORE the regular args loop when first
-      real arg (after skip0) is TT_VAR. SM_CALL_FN nargs+=1.
-  (2) lower.c case TT_ARR_SET (@arr[i] = v doesn't go through TT_FNC):
-      Same prepend; c[0] is the array variable TT_VAR. nargs 3→4.
-  (3) src/processor/sm_interp.c SM_CALL_FN — mutating branch above
-      the existing raku_try_call_builtin_by_name chain. Peels
-      args[0].s as vname; passes &args[1] / nargs-1. Gated on
-      g_lang == LANG_RAKU AND args[0].v == DT_S.
-  (4) src/runtime/rt/rt.c rt_call — mirror dispatch for mode-4.
-      Same vname-peel. NAMEPTR/NAMEVAL deref on out before push.
-      rt_set_lang prologue from RK-BB-3.0a ensures g_lang ==
-      LANG_RAKU in the mode-4 binary's libscrip_rt.so.
-
-Verified mode-2 + mode-4 rk_arrays byte-exact to .expected.
-
-⛔ NEXT — RK-BB-3a (BB_ITERATE polymorphism for `for @arr -> $v`):
-
-Runtime substrate is now COMPLETE (arr_get/elems/push/pop/arr_set all
-work mode-2 + mode-4). The remaining gap is iteration: `for @arr -> $v`
-currently doesn't loop in either mode — lower_iterate's Raku branch
-(lower.c:1602-1607) emits the array expression once and stores it to
-$v without a loop.
-
-Decomposition (per prior audit memo):
-  - lower.c lower_iterate Raku branch: build a BB graph wrapping
-    BB_ITERATE with the @arr variable as α-operand; wrap in
-    SM_BB_SWITCH(SM_BBSW_RK_GEN). lower_every finds the SWITCH and
-    engages the loop scaffold. Loop var stored on γ pull.
-  - bb_iterate.cpp template: extend for \x01-string DT_S Raku-array
-    semantics. Polymorphic discriminator at α-time. Icon's DT_S
-    char-by-char path stays bit-identical (gated on cfg->lang ==
-    BB_LANG_ICN); Raku path scans for SOH (\x01) and yields each
-    substring as a fresh DESCR_t.
-  - bb_exec.c BB_ITERATE executor (~L2227): same polymorphism for
-    mode-2 (so for-loop works in --interp too).
-
-Gates probe: rk_for_array_simple should flip mode-2 + mode-4 once 3a
-lands. Then rk_for_array (which mixes for-loop with arr_get etc.)
-likely flips too. RK-BB-3b/c (lazy map/grep) follow.
-
-Pre-existing segfault cluster (rk_subs, rk_interp, rk_try_catch25)
-remains a separate concern — verified at baseline pre-RK-BB-3.0a.
-Consider RK-BB-SEGFAULT-CLUSTER as a new rung if Lon prioritizes.
-
-⛔ END RK-BB-3.0b HANDOFF
-
-⛔ PRIOR HANDOFFS RETAINED FOR HISTORY:
-   RK-BB-3.0a HANDOFF + Gates-at-ba481112 trailer is below; the original
-   fcac4ab3 RK-BB-3.0+3d infra HANDOFF block is below that. Both retained
-   for context — GAP 1 was solved in 3.0a, GAP 2 was solved in 3.0b.
-
-⛔ HANDOFF — Opus 4.7, 2026-05-27, ba481112 (RK-BB-3.0a, Gates trailer):
-  GATE-RK mode-2:  9/31   (+1: rk_str22)
-  GATE-RK4 mode-4: 10/31  (+1: rk_str22)
-  Smoke raku:      5/0    HOLD
-  Smoke icon:      5/5    HOLD
-  Smoke prolog:    5/5    HOLD
-  Broker Icon:     198    HOLD
-  GATE-PK: ⛔ harness segfault — INHERITED. Owed: SBL-ANY session.
-  FACT RULE grep:  0
-  Build:           clean
-
-⛔ RK-BB-3.0a ✅ COMPLETE (2026-05-27, Opus 4.7, one4all ba481112):
-
-Two-part unblock for the RK-BB-3.0+3d infra landed in fcac4ab3.
-
-PART 1 — lower.c lower_fnc c[0]-dup suppression (lower.c:~L562-572):
-  Raku frontend make_call() (raku.y:59-64) intentionally constructs TT_FNC
-  with v.sval=name AND c[0]=TT_VAR(name) — pre-dating the by-name dispatch
-  path. lower_fnc iterated all children, pushing the function name as the
-  first stack arg, so CALL_FN saw nargs+1 args with the function name in
-  args[0]. Suppression gated LANG_RAKU + c[0]==TT_VAR + c[0]->v.sval ==
-  t->v.sval. Icon (v.sval=NULL, c[0]=callable) and SNOBOL4 (v.sval=name,
-  no dup) bit-identical. Confirmed by inspection of all frontends'
-  TT_FNC construction.
-
-PART 2 — rt_set_lang + XA_FILE_HEADER prologue emission:
-  g_lang is in libscrip_rt.so's BSS (zero-init = LANG_SNO=0). Mode-4
-  binaries link libscrip_rt directly without going through scrip's
-  frontend, so the LANG_RAKU-gated raku-builtin chain in rt_call
-  (fcac4ab3) was DEAD CODE in mode-4 — g_lang never got set.
-  Fix: rt_set_lang(int) added to rt.c after rt_gc_init. XA_FILE_HEADER
-  template extended to emit `mov edi, <g_lang>; call rt_set_lang@PLT`
-  between rt_gc_init and rt_register_expressions. The compiler's
-  current g_lang (LANG_RAKU=3 for .raku source) is baked into the
-  prologue, runs before any rt_call, stamps libscrip_rt's g_lang.
-  This is the doctrinally-correct 100% template emission path —
-  every new byte goes through xa_file_header.cpp via xa_dispatch
-  (no emit_textf / seg_byte additions). FACT RULE grep stays 0.
-
-PART 3 — raku_builtins_byname.c trim alias (+1 char):
-  trim handler only matched "raku_trim" (mangled); user code writes
-  plain trim(...). Aliased per peer pattern (uc/lc/chars/length).
-
-Diagnostic path:
-  - mode-2 rk_str22 was producing "  hello" instead of "hello" for
-    the trim($padded) call after PART 1 alone — exposed the missing
-    alias. With PART 3, mode-2 flipped green.
-  - mode-4 still errored "Error 5 Undefined function" because
-    g_lang=0. Inspected nm out/libscrip_rt.so: g_lang at BSS offset
-    0x56cec0 (B = uninitialized). Verified only one definition site
-    (lower.c:1710 g_lang=lang) which runs in scrip's process, not
-    the mode-4 binary's process. Added PART 2 → mode-4 flipped.
-
-NOT this session: Q5 union-clobber proper fix (open in goal); the
-defensive v.ival=0 from RK-BB-2 step 6 (d08237e0) still load-bearing.
-
-⛔ NEXT — GAP 2 from prior handoff (mutators):
-
-  push($arr, $val) / pop($arr) / arr_set($arr, $i, $val) mutate a
-  variable. The raku_try_mutating_builtin_by_name() entry point is
-  already authored in raku_builtins_byname.c — it expects args[0]
-  to be a STRING containing the variable NAME (not the var value).
-
-  Lowering tweak in lower.c (lower_fnc, near the new skip0 gate):
-    if (LANG_RAKU && t->v.sval && is_mutator(t->v.sval)) {
-        /* Push variable NAME as args[0] instead of c[0]'s value-push */
-        SM_emit_s(g_p, SM_PUSH_LIT_S, c[0]->v.sval);  /* var name as string */
-        for (int i = 0; i < nargs - skip0; i++) lower_expr(t->c[i + skip0]);
-        SM_emit_si(g_p, SM_CALL_FN, t->v.sval, nargs - skip0 + 1);
-        return;
+⛔ NEXT SESSION — RK-BB-SEGFAULT-CLUSTER bug 4 (lower_return Raku return-value):
+
+ONE FILE TO TOUCH: src/lower/lower.c, function `lower_return` at L1240.
+
+PROBLEM:
+`return $n * 2` in a Raku sub produces SM `lower_expr(n*2); SM_VOID_POP; SM_RETURN`. The VOID_POP discards the multiply result. SM_RETURN handler at sm_interp.c:1432 reads `st->stack[st->sp - 1]` as retval when `fr->retval_name` is NULL — expects stack-top to be retval. So result is lost.
+
+FIX SHAPE:
+```c
+static void lower_return(const tree_t *t)
+{
+    if (t->n > 0 && t->c[0] && g_sc_func_name) {
+        lower_expr(t->c[0]);
+        SM_emit_s(g_p, SM_STORE_VAR, g_sc_func_name);
+        SM_emit(g_p, SM_VOID_POP);
+    } else if (t->n > 0 && t->c[0] && g_lang == LANG_RAKU) {
+        /* Raku: leave result on stack-top; SM_RETURN reads stack[sp-1]. */
+        lower_expr(t->c[0]);
+    } else if (t->n > 0 && t->c[0]) {
+        lower_expr(t->c[0]); SM_emit(g_p, SM_VOID_POP);
     }
-  where is_mutator(fn) = strcmp(fn,"push")==0 || ..."pop"==0 || "arr_set"==0.
-
-  Mode-2 sm_interp.c SM_CALL_FN dispatch + rt.c rt_call both need a
-  tiny adjustment: when fn ∈ mutator set AND args[0] is DT_S (name),
-  call raku_try_mutating_builtin_by_name(fn, args[0].s, &args[1],
-  nargs-1, out) and write back via _rt_nv_fold_set on success.
-
-  Expected uplift: rk_arrays, rk_for_array_simple, rk_for_array flip
-  mode-2 (then mode-4 follows immediately given rt_set_lang now stamps
-  g_lang in mode-4 too). Probably +3..5 each gate.
-
-  After GAP 2: pre-existing segfaults in rk_subs / rk_interp /
-  rk_try_catch25 (verified at baseline pre-RK-BB-3.0a) are SEPARATE
-  bugs unrelated to this thread. Cluster them into a new step
-  (RK-BB-SEGFAULT-CLUSTER?) or leave for later.
-
-  THEN — RK-BB-3a (BB_ITERATE polymorphism for `for @arr -> $v`)
-  as already scoped in the goal body. With \x01-string array repr
-  confirmed and arr_get/elems/push working from GAP 2, RK-BB-3a is
-  just the lowering pass + bb_iterate.cpp polymorphism + mode-2
-  bb_exec.c BB_ITERATE polymorphism, all per the existing 4-rung
-  decomposition above (3a → 3b → 3c).
-
-⛔ END RK-BB-3.0a HANDOFF
-
-⛔ PRIOR HANDOFF (fcac4ab3, RK-BB-3.0+3d infra) — RETAINED FOR HISTORY:
-   GAP 1 SOLVED in RK-BB-3.0a (above). GAP 2 + GAP 3 still open and
-   are the explicit "NEXT" in RK-BB-3.0a's handoff block.
-
-⛔ HANDOFF — Opus 4.7, 2026-05-27, fcac4ab3 (RK-BB-3.0+3d infra landed):
-
-INFRASTRUCTURE NOW IN PLACE:
-  - src/runtime/interp/raku_builtins_byname.c (NEW, ~250 LOC):
-      raku_try_call_builtin_by_name(fn, args, nargs, out) — pre-evaluated
-      DESCR_t args version (the AST-based raku_try_call_builtin was dead
-      code, reachable only from icn_call_builtin which itself is never
-      called). Implements: elems, arr_get, raku_substr/substr,
-      raku_index/index, raku_rindex/rindex, uc/lc/chars/length/raku_trim,
-      raku_sort, raku_die. Plus raku_try_mutating_builtin_by_name() with
-      push/pop/arr_set entry points (await lowering tweak — see GAP 2).
-  - sm_interp.c SM_CALL_FN dispatch — chains raku BEFORE icn when
-    g_lang == LANG_RAKU (gates on the language so Icon path bit-identical).
-  - rt.c rt_call (mode-4) — same chain, parallel structure.
-  - Makefile updated (RT_PIC_SRCS + cc rule).
-
-KNOWN GAP 1 — lower_fnc emits redundant c[0]:
-  Raku TT_FNC for `substr(s, 0, 5)` parses to:
-    t->v.sval = "substr", c = [TT_VAR("substr"), TT_VAR("s"),
-                               TT_LIT_I(0), TT_LIT_I(5)]
-  lower.c:558-559 emits ALL 4 children + SM_CALL_FN nargs=4. The first
-  push (var-value-of "substr") is a vestigial duplicate of the fn name —
-  the by-name dispatcher then sees args = [<garbage>, "s_value", 0, 5]
-  and the off-by-one means substr returns ""/FAIL instead of "hello".
-  Mode-2 substr now exits rc=0 with empty output (was Error 5 — the
-  chain IS firing) but still no test flips green.
-  RECOMMENDED FIX (next session, first move):
-    In lower.c:558-559, before the loop, detect when
-      nargs >= 1 && c[0] && c[0]->t == TT_VAR && c[0]->v.sval
-                 && t->v.sval && strcmp(c[0]->v.sval, t->v.sval) == 0
-    and skip c[0]: `for (int i = 1; i < nargs; i++)` + SM_CALL_FN nargs-1.
-    Affects ALL languages — check Icon/SNOBOL4 don't depend on the
-    duplicate push (run smoke_icon + GATE-PK after the change).
-  AFTER FIX, expected gate uplift (the new by-name handlers will reach
-  args correctly): rk_str22, rk_subs, rk_interp, rk_try_catch25 likely
-  flip in both mode-2 and mode-4. raku_sort uplifts on partial map_grep
-  test. Speculative count: +4..8 each gate.
-
-KNOWN GAP 2 — mutating ops (push/pop/arr_set) need lowering tweak:
-  These mutate the variable, so the dispatcher needs the var NAME, not
-  just the value. raku_try_mutating_builtin_by_name() is authored and
-  ready; the lowering for TT_FNC of push/pop/arr_set must push
-    SM_PUSH_LIT_S "<vname>"  BEFORE  SM_PUSH_VAR "<vname>"
-  so the by-name SM/rt dispatch can recognize the leading string arg as
-  a name. Mode-2 SM_CALL_FN handler needs a tiny adjustment to peel off
-  args[0] as the vname and call raku_try_mutating_builtin_by_name when
-  fn ∈ {push, pop, arr_set}. ~30 LOC across lower.c + sm_interp.c + rt.c.
-  AFTER FIX: rk_arrays, rk_for_array, rk_for_array_simple flip mode-2;
-  mode-4 follows immediately. Probably another +3..5 each gate.
-
-KNOWN GAP 3 — for @arr -> $v still needs BB_ITERATE polymorphism:
-  Even with GAP 1 + GAP 2 fixed, `for @arr -> $v` does not LOOP in mode-2;
-  the Raku lower_iterate branch (lower.c:1602-1607) emits the array
-  expression once and stores it to $v. The loop scaffold in lower_every
-  finds no SM_BB_SWITCH and degenerates to a single pass.
-  This is the original RK-BB-3a (substrate). After GAPs 1+2, the
-  for-array probe still won't flip, BUT rk_arrays will (it uses indexed
-  arr_get, not a for-loop). The for-loop work is its own rung.
-
-EXECUTION ORDER FOR NEXT SESSION (recommended):
-  1. Fix GAP 1 in lower.c (one branch in lower_fnc). Run all smokes +
-     GATE-RK + GATE-RK4 + GATE-PK + smoke_icon. Commit only if no
-     Icon/SNOBOL4 regression; the duplicate push may have been load-
-     bearing somewhere — be defensive (gate the suppression on LANG_RAKU
-     if needed).
-  2. Verify substr/sort/elems/arr_get flip green in mode-2 and mode-4.
-     Commit as RK-BB-3.0a (the part of 3.0 reachable without mutators).
-  3. Fix GAP 2 (lowering tweak + 3-line SM/rt dispatcher hook for
-     mutators). Commit as RK-BB-3.0b. Verify rk_arrays.
-  4. Then RK-BB-3a: BB_ITERATE polymorphic for-loop substrate.
-  5. RK-BB-3b/c: map/grep BB lowering.
-
-LATENT BUG NOTED (NOT BLOCKING): raku_builtins.c lines 144, 318, 353, 399
-use `call->c[1]->t == TERM_VAR` to test AST node type, but TERM_VAR=1
-(Prolog term tag) while TT_VAR=5 (AST tag). Check ALWAYS FAILS; the
-NAME-write-back branch in raku_subst etc. is unreachable. Not this
-session's scope but worth a SNOBOL4-or-RUNTIME-side cleanup goal.
-
-⛔ END HANDOFF
-
-⛔ RK-BB-2 STEP 6 ✅ COMPLETE (2026-05-27, Opus 4.7, commit d08237e0):
-
-Three surgical edits in src/lower/lower.c (only file touched, +27/-5):
-
-(1) lower_hoist_gather_in_expr (~L2202): the Open Q5 union-clobber.
-    `def->v.sval = intern(gname)` clobbered v.ival (same union), so
-    lower_icn_proc_body read garbage as nparams → body_off overshot
-    proc->n → NULL return on every Raku TT_SUB_DECL. Fix: v.ival = 0
-    (nparams=0). Name lives in c[0]->v.sval (TT_VAR), already correct.
-
-(2) lower_stmt RAKU+TT_SUB_DECL branch (~L1787): skip body emission
-    when proc name starts with __gather_. Hoisted gather procs are
-    driven via SM_BB_SWITCH(RK_GEN) at the call site; their body lives
-    in the BB graph. Emitting at top-level orphaned it before main
-    started → stack underflow on startup.
-
-(3) lower_expr_inner TT_SUB_DECL case (~L1965): same defensive skip.
-    SM_PUSH_NULL still emitted to preserve the contract.
-
-Diagnostic path (probes removed before commit):
-  [DBG-procbody] both main AND __gather_0 → body_irb=(nil) initially.
-  [DBG-subdecl] __gather_0 had proc->n=4 children:
-    [TT_VAR(5), TT_SUSPEND(50), TT_SUSPEND(50), TT_SUSPEND(50)] —
-    BB graph should have been trivial to build.
-  After v.ival=0 fix: body_irb=0x37bdbad0 — BB graph built.
-  SM dump count: 49 → 25 after orphan-emit suppression.
-
-NOT needed: the separate lower_raku_proc_body() the prior handoff
-anticipated. lower_icn_proc_body widened in Step 1 already handles
-TT_SUB_DECL correctly once nparams is right.
-
-End-to-end verification via run_raku_via_x86_backend.sh:
-  ./scrip --compile rk_gather.raku → .s → as → ld → ./a.out
-  Output: 10\n20\n30\ndone\n — byte-exact to .expected.
-
-OPEN: RK-BB-2b — mode-2 still stack-underflows on rk_gather. bb_exec.c
-has no executor for BB_SUSPEND (TT_SUSPEND case in lower_icn.c gates on
-BB_LANG_RKU specifically because Icon `suspend` would break rung03 if
-BB_SUSPEND emitted with no mode-2 handler). Adding a mode-2 BB_SUSPEND
-executor is a separate cross-language session (Icon-shared) — see the
-gating comment in lower_icn.c TT_SUSPEND case (~L651).
-
-NEXT: RK-BB-3 — lazy map/grep as Seq CONSUMERS. BB_ITERATE consumer +
-γ-port predicate test for grep. Migrate lower.c:1872-1881 off eager
-SM_CALL_FN raku_map / raku_grep for the lazy path. Reuse bb_iterate.cpp
-(Icon proved most cases). Verify rk_map_grep_sort24.raku under --compile.
-
-⛔ RK-BB-3 SUBSTRATE AUDIT (2026-05-27, Opus 4.7, post-RK-BB-2 session):
-
-Findings from inspecting rk_map_grep_sort24's failure path: six substrate
-gaps make RK-BB-3 a multi-rung effort, NOT a one-commit "reuse bb_iterate".
-See the full memo embedded under "Ladder steps → RK-BB-3" above for:
-  - 6 gaps verified by probing (bb_iterate is DT_S-only template AND
-    DT_S-only mode-2 executor; lower_iterate RAKU branch doesn't loop;
-    Raku arrays are Icon-list DT_DATA not DT_A; raku_*/arr_* builtins
-    aren't rt_* symbols and rt_call has no raku-chain; BB_LIST_BANG
-    mode-4 template is also still bb_icn_stub).
-  - 4-rung decomposition: 3a (polymorphic BB_ITERATE substrate) →
-    3b (map) → 3c (grep) → 3d (sort reachability).
-  - 3 open questions for Lon (Q1 polymorphic kind, Q2 FIELD_GET_fn in
-    template, Q3 eager vs lazy materialization on `my @x = map { ... }`).
-
-This session added test/raku/rk_for_array_simple.raku + .expected (RK-BB-3a
-probe). Mode-4: 9/31 (+1 fail by added test). Mode-2: 8/31. All gates HOLD.
-NO commits this session — design memo only; waiting on Q1/Q2/Q3 directives.
+    SM_emit(g_p, SM_RETURN);
+}
 ```
+
+EXPECTED UPLIFT (mode-2): rk_subs flips (14→17 expected). rk_try_catch25 may flip too if its Error 5 is downstream of return-value loss; otherwise it's a separate try/CATCH issue.
+
+MODE-4 BLOCKER (separate, also needs attention next session):
+After bug 4, mode-4 rk_subs hits `as: Error: no such instruction: 'unhandled SM_LOAD_FRAME'` at multiple sites. The frame-slot read/write isn't emitted in mode-4 for Raku. SM_LOAD_FRAME / SM_STORE_FRAME templates either don't exist or aren't routed for LANG_RAKU. Search `sm_load_frame.cpp` / `walk_sm_instr` LOAD_FRAME branch in `emit_sm.c` — likely needs Raku-arm or polymorphic dispatch. Same shape as SM_LOAD_VAR but indexed via slot not name.
+
+⛔ END NEXT-SESSION GUIDANCE
 
 ## Open questions for Lon
 
-ALL FOUR RESOLVED (2026-05-27, Lon): 100% template emission via BB/SM/XA only.
+ALL FOUR RESOLVED (Lon, 2026-05-27): 100% template emission via BB/SM/XA only.
 
-1. ~~`lower_gather_hoist_pass` retarget (Path α) vs replace (Path β)?~~
-   **→ Path β** (direct BB_SUSPEND lowering — cleaner BB graph; eager-SM
-   intermediate would need unwinding later).
+1. ~~`lower_gather_hoist_pass` retarget vs replace?~~ **→ Path β** (direct BB_SUSPEND lowering).
 2. ~~`bb_upto.cpp` REUSE — literal vs structural?~~ **→ Structural.**
-   Write new `bb_suspend.cpp` using `bb_upto.cpp`'s loop+yield as reference.
-3. ~~Junction Boolean-collapse — shared `BB_ALTERNATE` guard vs SM wrapper?~~
-   **→ Shared `BB_ALTERNATE` with `lang==BB_LANG_RKU` guard.** Port logic
-   belongs in the template.
-4. ~~GOAL-RAKU-PAT-BB — stub now vs defer?~~ **→ Defer.** Wait for
-   SNOBOL4-BB and PROLOG-BB BB_SCAN/BB_ONCE machinery to mature.
+3. ~~Junction Boolean-collapse — shared `BB_ALTERNATE` guard?~~ **→ Shared with `lang==BB_LANG_RKU` guard.**
+4. ~~GOAL-RAKU-PAT-BB — stub now vs defer?~~ **→ Defer** until SNOBOL4-BB/PROLOG-BB mature.
 
-NEW open item (deferred to a separate session):
+NEW open items:
 
-5. **Union-clobber proper fix.** TT_SUB_DECL currently uses `v.ival` for
-   nparams AND wants `v.sval` for name. Move nparams to a side-channel
-   (leading TT_VLIST child, TT_ATTR, or separate tree_t field) so
-   `v.sval = name` semantics is restored, and retire the polyglot.c c[0]
-   fallback. Touches every TT_SUB_DECL reader.
+5. **Union-clobber proper fix.** TT_SUB_DECL uses `v.ival` for nparams AND wants `v.sval` for name. Move nparams to a side-channel (leading TT_VLIST child, TT_ATTR, or separate tree_t field) so `v.sval = name` semantics is restored. Touches every TT_SUB_DECL reader.
 
-RK-BB-3 open items (gating RK-BB-3a; full context in the in-line memo
-under "Ladder steps → RK-BB-3"):
+6. **Polymorphic BB_ITERATE or new BB_ARR_ITERATE kind?** Recommend polymorphic per "kinds are language-agnostic." (Resolved in RK-BB-3a — went polymorphic via `BB_t.sval` presence discriminator.)
 
-6. **Polymorphic BB_ITERATE or new BB_ARR_ITERATE kind?** Recommend
-   polymorphic (DT_S | DT_DATA-list branch) per "kinds are
-   language-agnostic." Icon's DT_S template path stays bit-identical;
-   DT_DATA is purely additive.
+7. **FIELD_GET_fn / NV_GET_fn call from inside a BB template** — fits "no port-logic helpers" rule? They're data-fetch, not α/β/γ/ω routing. Treating as allowed. (Used by RK-BB-3a.)
 
-7. **FIELD_GET_fn call from inside a BB template** — does this fit the
-   "no port-logic helpers" rule? FIELD_GET_fn is a data-fetch, not
-   α/β/γ/ω routing. Treating as allowed unless flagged.
+8. **`my @x = map { ... } @y` materialization** — eager-drain (resolved in RK-BB-3b: chose eager-drain for first cut) or stay lazy as a Seq box (future rung).
 
-8. **`my @x = map { ... } @y` materialization** — eager-drain into a
-   fresh list (one rung less, mode-2 keeps working unchanged) or stay
-   lazy as a Seq box (truer to Raku, needs `icn_type="seq"` DT_DATA
-   carrying the BB graph)? Recommend eager-drain for RK-BB-3b; lazy is
-   a future rung.
+9–12. **RK-BB-4 directives** — see "RK-BB-4 substrate audit" above. Pending.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
