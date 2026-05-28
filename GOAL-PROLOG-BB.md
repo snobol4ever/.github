@@ -28,24 +28,23 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`88bacd2a`, FACT cleanup Steps 2+3 complete)
+## State at HEAD (`8c556f29`, post-full-Sonnet-4.6-session)
 
-**2026-05-28 Sonnet 4.6 (`88bacd2a`):** Steps 2+3 of FACT cleanup complete.
-Step 2: `bb_emit_asm_result_pairs()` added to `emit_str.cpp` + declared in `emit_str.h`.
-Reconstructs (site, label, is_def) metadata from `xa_bb_emit_pair_*` arrays — templates
-need no `bin.*` access. Added `#include "emit_globals.h"` to `emit_str.cpp` to expose `g_emit`.
-Step 3: six combinator templates stripped to pure byte production (`bb_pat_fence/alt/cat`,
-`bb_pl_seq/ite`, `bb_succeed`); wrappers swapped to `bb_emit_asm_result_pairs`.
-`flat_drive_fence` 0-children path updated (Option B): now uses `EMIT_PAIR_JMP(lbl_γ) +
-EMIT_PAIR_DEF_JMP(lbl_β, lbl_ω) + EMIT_PAIR_FILL` instead of bare `FILL`, so template is
-uniform and dead special-case block removed. FACT grep: **0 violations**. All gates
-byte-identical vs prior HEAD.
+**2026-05-28 Sonnet 4.6 (`8c556f29`):** Four commits landed this session.
+(1) FACT cleanup Steps 2+3 (`88bacd2a`): `bb_emit_asm_result_pairs()` helper + six templates
+stripped to pure byte production — `flat_drive_fence` Option B, FACT grep 0 violations.
+(2) WAM-CP-6 LCO attempted, reverted — root cause documented in
+HANDOFF-2026-05-28-SONNET-PROLOG-BB-WAM-CP-6-ANALYSIS.md (C stack grows O(N);
+needs `bb_exec_once` non-recursive refactor via explicit call-descriptor stack).
+(3) `plus/3` bidirectional builtin + `**` integer power (`abdf4290`): GATE-3 96→100.
+(4) `nb_setval/getval` non-backtrackable globals + `aggregate_all` count/sum/max/min
+(`8c556f29`): GATE-3 100→104. FACT: 0 violations. All gates green.
 
 | Gate | Count | Notes |
 |---|---|---|
 | GATE-1 (smoke) | 5/5 | |
 | GATE-2 (3-mode crosscheck) | 132/0 | 5 ORACLE_MISS (frontend gap, not mode) |
-| GATE-3 mode-2 (`--interp`) | **96/107** | +5 (rung28 catch/throw, WAM-CP-10) |
+| GATE-3 mode-2 (`--interp`) | **104/107** | +8 this session (plus/3 ×3, ** int power, nb_setval/getval, aggregate_all ×3) |
 | GATE-3 mode-3 (`--run`) | 90/107 | transparent via sm_interp_run |
 | GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt |
 | **Full mode-4 corpus** | **54/107** | unchanged (rung28 mode-4 stub fails — WAM-CP-13 territory) |
