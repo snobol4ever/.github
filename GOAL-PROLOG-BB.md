@@ -64,7 +64,20 @@ WAM-CP-5  mode-4 emit: CP record is the r12 target (promote stashed CAT-A-3 buff
 WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?" → reuse frame)
 WAM-CP-7  unify specialization B_UNIFY_{FF,VF,FV,VV,FC,VC}  (independent speed; any time)
 WAM-CP-8  JIT first-arg indexing (needs CP model to know when a CP was elided)
+WAM-CP-9  committed-ITE node + cut=truncate (fixes rung07/15 PJ-AGW-5 class)
+WAM-CP-10 catch/throw via CP-barrier unwind, no setjmp (rung28)
+WAM-CP-11 deep-backtracking arg restore (saved_args) + nested choices (rung02/05/06)
+WAM-CP-12 determinism detection → CP elision (BB-native fast path; complements 6/8)
+WAM-CP-13 mode-4 parity for 9/10/11 (emit CP ops via templates, FACT-clean)
+WAM-CP-14 [bridge] tagged-word migration readiness audit (doc only, no code)
 [LATER track] tagged-word terms + global stack (SWIPL #1/#3) — separate goal file when ready
+
+Note: 1–8 are the foundation (CP substrate + control + speed). 9–13 close the OPEN
+correctness classes (cut/ITE, exceptions, deep backtracking) on top of that foundation.
+14 is the read-only bridge to the LATER tagged-word track. Per the DESIGN PRINCIPLE
+below: the BB graph already replaces the WAM *environment* stack; these rungs add only
+the lean *choice-point* ledger the graph can't encode statically, and elide it wherever
+determinism is provable.
 ```
 
 ### Rungs & steps
@@ -138,6 +151,116 @@ WAM-CP-8  JIT first-arg indexing (needs CP model to know when a CP was elided)
   NO choice point. Needs the CP model to know when a CP was elided. Big determinism +
   speed lever. Gate: indexed predicates produce identical solutions; semidet calls leave
   no CP (assert g_pl_bfr unchanged across a deterministic indexed call).
+
+### ⚠️ DESIGN PRINCIPLE — BB graph replaces the WAM *environment* stack, NOT the *choice-point* ledger (Lon, 2026-05-28)
+
+Lon's framing, recorded so later sessions don't reintroduce stack machinery the BB model
+makes unnecessary. The WAM keeps two stacks; SCRIP needs only one of the two concepts:
+
+- **Environment stack (WAM reg E) — WE DO NOT NEED IT.** It holds a clause's local vars +
+  continuation, pushed on call and popped on return. The BB graph already IS that: each
+  predicate's BB-local allocations are the locals, and the α/β/γ/ω ports are the
+  continuation wiring. "A list of local allocations pushed and popped" — exactly; that's
+  call/return over BB nodes, not a separate control stack. So `EB`/`E`/the WAM env frame
+  have NO SCRIP analogue and must not be built. (This is why `pl_choice.env` is just a
+  `Term**` snapshot, not a stack frame.)
+
+- **Choice-point ledger (WAM reg B) — WE DO NEED THE MINIMUM OF IT.** A choice point is
+  NOT a local allocation: its purpose is to OUTLIVE the BB that created it and be
+  re-entered AFTER failure has unwound back to it. The BB graph encodes the *static* shape
+  of alternatives (β = where retry re-enters); it CANNOT encode the *dynamic* facts "which
+  suspended alternative is live right now" and "what was the trail mark when it suspended"
+  — and two calls to the same predicate are the same BB nodes but distinct live choice
+  points. `g_pl_bfr` + the parent-linked `pl_choice` chain is precisely that irreducible
+  dynamic ledger, kept LEAN (one register, one record per genuine suspension), not a fat
+  WAM stack. It lives exactly as long as pending alternatives exist.
+
+**Operational consequences for every rung below:**
+1. **Never materialize a `pl_choice` when the alternative is statically dead.** If lowering
+   or indexing proves a call is deterministic (single matching clause, last clause, cut
+   already fired), emit the BB path with NO push. This is the BB advantage gprolog pays
+   runtime cost to recover via indexing — we can often see it at lower time. (WAM-CP-8 and
+   WAM-CP-12 lean on this.)
+2. **The CP record carries only what a BB node can't reconstruct:** trail_mark, the live
+   cursor/resume target, the arg snapshot, the parent link, the age stamp. No env frame,
+   no code-stream PC, no H/HB (those are WAM-stack artifacts).
+3. **Prefer BB-resident state over CP-resident state.** Where a single rightmost choice can
+   live in the owning BB node's persistent fields (`nd->state`/`nd->cursor`), keep it there
+   and let `g_pl_bfr` hold only the cross-node suspension chain. The CP stack is the
+   *spine*; BB nodes are the *vertebrae*. (WAM-CP-2 Step A keeps cursor BB-resident; the CP
+   record references it rather than duplicating it.)
+
+### Extended ladder — correctness + completeness rungs (2026-05-28, Opus 4.7)
+
+These follow the CP foundation (1–8) and close the remaining mode-2/mode-4 OPEN classes
+using the same lean-ledger discipline. Ordered for non-breaking incremental landing; each
+holds all gates green and is bisectable. Best-of-both-engines provenance noted per rung.
+
+- [ ] **WAM-CP-9 — committed-ITE node (retire ALT-style if-then-else chaining).** The
+  open PJ-AGW-5 class (rung07 cut_cut → `yes\nyes` not `yes\nno`, rung15 one_of_two loop)
+  is the if-then-else / cut-prune gap. With the CP stack this becomes clean: lower
+  `(Cond -> Then ; Else)` to a dedicated stateful node that, on first entry, records the
+  CP barrier (`pl_cp_current()`), runs Cond; on Cond's FIRST success it `pl_cp_truncate`s
+  back to the barrier (commits — discards Cond's alternatives, SWIPL `C_IFTHEN`/`I_CUT`
+  semantics) and enters Then; if Cond never succeeds, enters Else. Mirror Icon's stateful
+  `BB_IF` (`bb_exec.c:803`) rather than ALT port-chaining. **This is also the real
+  rung07 cut fix:** `!` inside a clause = `pl_cp_truncate(frame_barrier)` (WAM-CP-4
+  machinery) applied at the committed point. Mode-2 first.
+  Gate: rung07 cut_cut → `yes\nno`; rung15 one_of_two terminates; GATE-3 mode-2 ≥ 91 (+1–3);
+  all else byte-identical.
+  - Step A: capture `frame_barrier = pl_cp_current()` on clause/ITE entry (BB-resident
+    field, no new stack).
+  - Step B: lower committed-ITE to the stateful node; Cond-success truncates to barrier.
+  - Step C: route bare `!` through the same truncate. Retire `g_pl_cut_flag` reads here
+    (folds into WAM-CP-4). Verify rung07 + cut-using rungs.
+
+- [ ] **WAM-CP-10 — catch/throw via CP-barrier + longjmp-free unwind (rung28, 0/5).**
+  `catch(Goal, Catcher, Recovery)`: on entry record `(pl_cp_current(), trail_mark, env)`
+  as a CATCH barrier in a small `g_pl_catch` chain (parallel to `g_pl_bfr`, same
+  parent-link discipline). `throw(Ball)` walks to the nearest catch whose Catcher unifies
+  with a copy of Ball, `pl_cp_truncate`s to that barrier, `trail_unwind`s to its mark,
+  binds, and enters Recovery. No setjmp/longjmp — the CP stack already gives us the
+  unwind target and trail restoration (this is the lean-ledger paying off; SWIPL uses a
+  similar `PL_throw` that unwinds the environment+CP to the catch frame). Mode-2 first,
+  mode-4 follow. Gate: rung28 0/5 → ≥3/5 mode-2; ball-copy semantics correct
+  (thrown term survives the unwind via copy_term onto a safe area).
+
+- [ ] **WAM-CP-11 — deep-backtracking arg restore (`saved_args` wired) + nested choices.**
+  WAM-CP-2 scoped to a single rightmost BB_CHOICE per body. This rung generalizes: on CP
+  push, snapshot the live arg registers into `pl_choice.saved_args` (gprolog AB); on retry
+  (Update), restore them before trying the next clause; on pop (Delete) discard. This is
+  what makes NESTED choice points and `pred(X), goal(Y), fail`-style exhaustive
+  backtracking correct (rung02 facts, rung05 backtrack, rung06 lists). gprolog's
+  Create/Update copy `A(0..arity-1)` to/from `AB` for exactly this reason. Mode-2 first.
+  Gate: rung02/05/06 mode-2 byte-identical AND exhaustive (all solutions, correct order);
+  GATE-3 mode-2 unchanged or up; nested-choice probe (`a(1).a(2). b(1).b(2). ?- a(X),b(Y),fail`
+  enumerates all 4 then fails) correct.
+
+- [ ] **WAM-CP-12 — determinism detection → CP elision (BB-native fast path).** Realize
+  Design-Principle #1 directly: a lower-time analysis pass marks calls that provably leave
+  no live alternative (single clause, or last clause reached, or first-arg index hits a
+  unique bucket) so the BB path emits with NO `pl_cp_push`. This is the BB-graph advantage
+  over a pure-runtime WAM — we often know determinism statically. Complements WAM-CP-8
+  (indexing) and WAM-CP-6 (LCO): indexing picks the clause, this elides the CP, LCO reuses
+  the frame. Gate: deterministic predicates leave `g_pl_bfr` unchanged across the call
+  (assert in mode-2); solutions identical; measurable CP-push reduction on rung08 recursion.
+
+- [ ] **WAM-CP-13 — mode-4 parity for WAM-CP-9/10/11 (emit the CP ops).** Once the CP
+  control constructs (committed-ITE, catch/throw, deep arg-restore) are correct in mode-2,
+  emit their x86 via templates: `pl_cp_push/pop/truncate` become `rt_pl_cp_*` effect-helper
+  calls (serializable-scalar ABI, no port logic — FACT RULE clean), the committed-ITE arm
+  and catch barrier emit through `bb_pl_ite.cpp` / a new `bb_pl_catch.cpp`. Reuses WAM-CP-5's
+  CP-record-as-r12-target. Gate: full mode-4 corpus +N (target the rung07/15/28 cases that
+  went green in mode-2); GATE-4 holds; FACT RULE 0.
+
+- [ ] **WAM-CP-14 — [BRIDGE to LATER track] tagged-word migration readiness audit.** NOT
+  the migration itself — a read-only audit + doc confirming the CP record survives the
+  eventual tagged-word/global-stack rewrite (SWIPL idea #1, gprolog H/HB). Verify every
+  `pl_choice` field has a defined meaning post-migration (trail_mark→trail ptr, env→frame
+  ptr, resume unchanged, add HB when H exists) and that no rung 1–13 baked in a
+  `Term*`-box assumption the migration breaks. Output: `doc/WAM-CP-TAGGED-WORD-BRIDGE.md`
+  + a checklist gating the separate LATER goal file. Zero code change. This keeps the
+  "CP model designed to survive the migration" promise honest before we commit to it.
 
 ### Decision recorded
 Stashed CAT-A-3 B–C (`git stash@{0}`, r12 buffer) is NOT abandoned — it is absorbed by
