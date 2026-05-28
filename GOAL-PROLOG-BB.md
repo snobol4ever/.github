@@ -26,6 +26,47 @@
 
 ---
 
+## ⏳ LOWER-PIVOT — lower_pl.c → one-function-per-node (Icon style) (2026-05-28, Opus 4.7) ← CURRENT
+
+**Lon-directed PIVOT.** Migrate `lower_pl.c` from the ~460-line `lower_pl_goal`
+mega-switch to Icon's named per-node builders (`lower_icn.c`'s `lower_icn_new_*_ag`,
+which transcribe JCON `irgen.icn`'s `ir()`→`ir_a_*` shape). Behavior-neutral; every
+commit byte-identical graphs. **Motivation: `lower_pl_new_Call` becomes the clean home
+for CAT-A-3 β-resume (redo) — fix backtracking in the node that owns it.**
+
+### Done — 2 commits at full watermark
+- `7119e41d` — `lower_pl_new_Alt` (`;`, twin of `lower_icn_new_Alt_ag`), `lower_pl_new_Ite`
+  (if-then-else, twin of `lower_icn_new_If_ag`), `lower_pl_new_Unify` (`=`),
+  `lower_pl_new_Compare` (`>,<,>=,<=,=:=,=\=`).
+- `4e555954` — `lower_pl_new_Conj` (`,` → BB_PL_SEQ, twin of `lower_icn_new_Conjunction_ag`;
+  back-to-front γ/ω threading + resumable-β table + `bb_pl_seq_state_t` publishing),
+  `lower_pl_new_Call` (0-arity atom-goal + general N-ary unified → BB_PL_CALL, twin of
+  `ir_a_Call`/`bb_pl_call.cpp`). Forward-decl'd `flatten_comma` for Conj.
+
+Trivial leaves (cut, true/fail/nl atom-goals) stay inline (Icon does too).
+
+### Gates (held across BOTH commits)
+GATE-1 5/5 · GATE-2 132/0 (5 ORACLE_MISS) · GATE-3 mode-2 91/107 · GATE-4 4/4 ·
+full mode-4 28/107 · FACT RULE 0 · sibling smokes 5/5/5/4.
+
+### NEXT — `lower_pl_new_Builtin` (the one remaining piece)
+Everything control/relational/structural is now a named builder. What remains inline in
+`lower_pl_goal` is the **builtin family** (~12 arms, "builtins: write…" through "findall/3").
+Collapse the ~10 "args-on-α-γ-chain" arms into ONE table-driven `lower_pl_new_Builtin`
+(functor table + 3 arg-wiring styles: α/β-operands · all-args-on-α-γ-chain · 1-arg type-test).
+Keep `phrase/2,3` and `findall/3` as their OWN builders (phrase rewrites to a call; findall
+builds a sub-graph). **Detail-sensitive — diff per-family rung OUTPUTS, not just gate counts
+(arg-mis-wiring is count-invisible).** Deferred to fresh context for this reason.
+Full detail: `HANDOFF-2026-05-28-OPUS-PROLOG-LOWER-PIVOT.md`.
+
+After the builtin collapse → back to **CAT-A-3 Steps B–D** (mode-4 backtracking, +15–25
+corpus), now with `lower_pl_new_Call` as its home. Design:
+`HANDOFF-2026-05-27-OPUS-PROLOG-BB-CAT-A3-STEPA.md` (always-r12 resume-buffer; JCON study
+confirmed cursor-in-caller-allocated-state is right — JCON's MoveLabel/IndirectGoto `t`
+adapted to a call/return ABI).
+
+---
+
 ## ✅ rung25-TERM-STRING — term_string/2 REGISTERED AS BB_BUILTIN (2026-05-27, Opus 4.7)
 
 **Closed.** `term_string/2` is now a recognized builtin in mode-2 (and mode-3 transparently via
