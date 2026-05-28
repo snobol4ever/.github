@@ -26,6 +26,96 @@
 
 ---
 
+## ✅ CAT-RUNG07-1 — BB_CUT WIRED INTO walk_bb_flat (FACT-RULE-ADJACENT FIX) (2026-05-27, Opus 4.7)
+
+**Closed.** rung07_cut_cut no longer aborts during `--target=x86` emit with the diagnostic
+`bb_emit_byte: non-BINARY-mode reach (mode=0, b=0xe9) — convert caller to a named bb_insn_*
+helper`. The cut now routes through `bb_pl_cut.cpp` (already FILLED from AGW-9B-1 era) instead
+of falling through `walk_bb_flat`'s `default:` arm.
+
+**Bug:** `emit_bb.c walk_bb_flat` had no `case BB_CUT`. The default arm at line 775-779 calls
+`emit_jmp_label(lbl_ω, JMP_JMP)` twice — `emit_jmp_label` is a BINARY-mode helper that
+ultimately calls `bb_emit_byte(0xe9)` (the raw `JMP rel32` opcode). When `--target=x86` emits
+text-mode `.s`, `bb_emit_mode != EMIT_BINARY_WIRED`, so the guard at `emit_core.c:109` aborts.
+
+This bug was previously masked by CAT-C's pre-existing `BB_PL_VAR` garbage-sval segfault in
+multi-clause recursive predicates — the rung07 emit crashed earlier in the pipeline before
+ever reaching the cut. CAT-C's one-char fix at `lower_pl.c:65` unblocked emission, surfacing
+the cut wiring gap. The ledger flagged it as "not a regression, flag for separate investigation."
+
+**gdb trace** (rung07_cut_cut emit; breakpoint on `bb_emit_byte` when `bb_emit_mode != 1`):
+```
+#0 bb_emit_byte (b=233 '\351')                  emit_core.c:109
+#1 ef_b1                                         emit_core.c:147
+#2 emit_jmp_label (kind=JMP_JMP)                 emit_core.c:185
+#3 walk_bb_flat (default arm)                    emit_bb.c:777
+#4 flat_drive_pl_seq                             emit_bb.c:422
+#5 walk_bb_flat                                  emit_bb.c:742
+#6 flat_drive_pl_choice                          emit_bb.c:468
+#7 walk_bb_flat                                  emit_bb.c:751
+#8 pl_emit_callee_block_body (differ/2)          emit_bb.c:571
+#9 sm_bb_switch                                  SM_templates/sm_bb_switch.cpp:42
+```
+
+The `!` (cut) inside `differ(X,X) :- !, fail.` lowers to `BB_CUT` (verified at
+`lower_pl.c:306,313`); the dispatcher at `emit_core.c:542` already has the `BB_CUT → bb_pl_cut`
+routing for the `walk_bb_node` path. The gap was only in `walk_bb_flat`'s switch.
+
+**Fix:** one-line addition to `emit_bb.c walk_bb_flat`:
+```c
+case BB_CUT:        FILL(nd, lbl_γ, lbl_ω, lbl_β); break;
+```
+plus a 7-line block comment documenting the trace + scope. `FILL` calls `walk_bb_node` →
+`codegen_bb_dispatch` → `bb_pl_cut(nd)`. The template's TEXT arm emits:
+```asm
+α: # BOX PL_CUT
+   call rt_pl_cut_set@PLT
+   jmp γ
+β: jmp γ
+```
+
+**Gate impact:**
+
+| Gate | Before | After |
+|---|---|---|
+| GATE-1 (smoke) | 5/5 | 5/5 |
+| GATE-2 (3-mode crosscheck) | 132/0 | 132/0 |
+| GATE-3 mode-2 | 89/107 | 89/107 |
+| GATE-3 mode-3 | 89/107 | 89/107 |
+| GATE-4 (mode-4 minimal) | 4/4 | 4/4 |
+| **Full mode-4 corpus** | 28/107 | 28/107 |
+| **`bb_emit_byte` aborts in full corpus** | 1 (rung07_cut_cut) | **0** |
+| FACT RULE grep | 0 | 0 |
+| Sibling smokes | all hold | all hold |
+
+**Scope honest accounting (0 PASS lift):** rung07_cut_cut still FAILs with wrong output
+(`yes\nyes` instead of `yes\nno`) — the cut emits cleanly but doesn't actually block
+backtracking through the `differ(X,X) :- !, fail. differ(_,_).` choice point. This is the
+**PJ-AGW-5-CUT-BARRIER** ledger item — the full BB_CUT ω-rewiring for non-deterministic
+conditions. CAT-RUNG07-1 fixes the FACT-RULE-adjacent emit-time abort; the semantic correctness
+work continues under PJ-AGW-5.
+
+**Why this fix is the right shape:**
+- The template (`bb_pl_cut.cpp`) already exists and is correct for the deterministic case
+  (its ledger predates this session; AGW-9B-1 era).
+- The dispatcher (`emit_core.c codegen_bb_dispatch`) already routes BB_CUT to `bb_pl_cut`.
+- The only gap was `walk_bb_flat`'s switch, which is precisely the byte-free recursion driver
+  the FACT RULE blesses for owning labels but NOT bytes. Falling through to `default:` would
+  emit bytes from the driver — itself a FACT-RULE-adjacent violation that the `bb_emit_byte`
+  guard catches.
+
+**Files touched:** `src/emitter/emit_bb.c` only — one substantive line (`case BB_CUT` arm),
+seven-line block comment documenting trace + scope. Net diff `+8 / 0`.
+
+**Next steps (unchanged from prior session):**
+- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume) — still blocked on Lon directive. Biggest
+  single-step unlock (estimated +15-25 PASS).
+- **PJ-AGW-5** (cut-barrier ω-rewiring for non-deterministic conditions) — separate semantic
+  work to make rung07 actually produce `yes\nno` not `yes\nyes`. The emit machinery is now
+  ready; the semantics still need the cut to retroactively prune the choice frame above it.
+
+---
+
 ## ✅ CAT-D-11 — SORT/2 + MSORT/2 MODE-4 TEMPLATE (2026-05-27, Opus 4.7)
 
 **Closed.** `sort/2` and `msort/2` now emit real four-port x86 in mode-4 (previously fell through
@@ -101,1035 +191,206 @@ triplet exactly like CAT-D-6 / CAT-D-10.
 
 ---
 
-## ✅ CAT-C — BB_PL_VAR GARBAGE-SVAL FIX (2026-05-27, Opus 4.7)
+## ✅ Closed milestones (terse, this dev cycle — full details in git log)
 
-**Closed.** Multi-clause recursive predicates (rung06 length/append/reverse, rung08 fib/factorial,
-and any pattern with a `pred(...) :- ..., pred_recursive(X, Y), ...` shape involving variable
-args) previously SIGSEGV'd inside `bb_pl_call.cpp:50` during mode-4 emit. Root cause was the
-latent `BB_PL_VAR` garbage-sval bug already documented at the bottom of CAT-D-1's ledger entry
-(line 607-614, pre-fix wording).
+**CAT-D-12-S1** (`b95e4318`, Opus 4.7) — mode-3 (`--run`) routes through `sm_interp_run` (not the fork+exec
+sham). scrip.c V-5 fake pipeline + `scrip_run_via_x86_pipeline` + `scrip_locate_rt_lib` deleted.
+`bb_live=1` forces flat-wired BB. GATE-2 went 31/132 → 132/132 (real agreement).
 
-**The bug (one-line diagnosis):** `tree_t.v` is a union of `sval/ival/dval` (src/include/ast.h);
-the parser's `tr_assign_slots` pass and `prolog_lower.c`'s `lower_term`/TERM_VAR arm both write
-`v.ival = slot` LAST, destroying the variable-name string previously stored at `v.sval`. Then
-`lower_pl.c:65` did `nd->sval = e->v.sval` and propagated the resulting wild char* pointer
-(slot number cast to char*, e.g. `0x1` for slot 1) into `BB_t` (whose sval/ival ARE separate
-fields, not a union). `bb_pl_call.cpp:50`'s `if (sval && *sval) strtab_label(...)` passes the
-non-NULL guard and then `strcmp` inside `strtab_label` dereferences address `0x1` → SIGSEGV.
+**CAT-D-12-S2** (Opus 4.7) — mode-4 `functor/3`, `arg/3`, `=../2`. Eight new rt linkage symbols (scalar +
+`_term` compound variants); three dispatcher blocks in `bb_builtin.cpp`. Pattern mirrors CAT-D-10. +1 corpus
+(rung09_builtins).
 
-**gdb confirmation** (rung06 emit, frame 0):
-```
-sval = 0x1 <error: Cannot access memory at address 0x1>
-kind = 57 (BB_PL_VAR)
-ival = 1   ← the actual slot number; sval is the same value via union punning
-```
+**CAT-B** (`48ef0182`, Opus 4.7) — compound-term unify in BB_UNIFY mode-4. `f(X,a) = f(b,Y)` binds X=b, Y=a.
+De-staticize `emit_build_compound_term` + new `build_operand_term` dispatcher in `bb_unify.cpp` routing
+BB_PL_STRUCT operands through the walker; `push rax`/`pop rdi` swapped to 16-aligned scratch frame for
+SysV. Zero new RT helpers. +1 corpus (rung03_unify).
 
-**Files touched:** `src/lower/lower_pl.c` only.
-- 1 substantive char change at line 65: `nd->sval = e->v.sval` → `nd->sval = NULL` for the
-  `case TT_VAR` arm.
-- 9-line block comment added above `lower_pl_term` documenting cause + fix + which downstream
-  sites are safe (none of them need sval on BB_PL_VAR; rt.c:969 / bb_pl_var.cpp /
-  bb_pl_call.cpp term-build / bb_unify.cpp term-build all read only ival).
-- Net diff: `+10 / -1`.
+**CAT-C** (`73dc587b`, Opus 4.7) — BB_PL_VAR garbage-sval SIGSEGV. `tree_t.v` is a union of sval/ival;
+`tr_assign_slots` writes `v.ival = slot` LAST, destroying `v.sval`. `lower_pl.c:65` propagated the
+resulting wild char* (e.g. `0x1` for slot 1) into BB_t (whose sval/ival are NOT a union); `bb_pl_call.cpp:50`
+`strtab_label` SIGSEGV'd dereferencing it. One-char fix: `nd->sval = e->v.sval` → `nd->sval = NULL` for
+`case TT_VAR`. +1 corpus (rung08_recursion). Surfaced the pre-existing rung07 `bb_emit_byte` issue closed
+above as CAT-RUNG07-1.
 
-**Why this is the right boundary fix:** the `tree_t.v` union is destructively written by
-design (the AST is "promoted" from name-form to slot-form by `tr_assign_slots` in-place). That's
-fine WITHIN the AST layer. The bug is the boundary translation in `lower_pl.c` that didn't
-respect the AST's post-pass invariant. Setting `sval=NULL` at that boundary is the minimal,
-local, low-risk fix; it matches the actual usage pattern downstream (only `ival` is read for
-BB_PL_VAR nodes).
+**Earlier this cycle (one-liners):**
+- **CAT-A** `af5c5ecd` — `*α_out = seq` (SEQ-in-ALT α-channel bug), +5 GATE-2.
+- **CAT-A-2** `471ab202` — `flat_drive_pl_seq` resumability-aware ω-wiring; no numeric lift (gated on CAT-A-3).
+- **CAT-D-1** `95f73bad` — atom_length/upcase_atom/downcase_atom, +2 GATE-2.
+- **CAT-D-2..5** `bb8bb529` `ecb3b229` `52a78efb` — atom_concat / string_*  / atom_string / string_to_atom /
+  copy_term mode-4 emit; aliased helpers, +6 rung.
+- **CAT-D-6** `b60ebfa4` — atom_chars/atom_codes/string_chars/string_codes bidirectional; the two-path
+  scalar/compound-literal template pattern that every subsequent CAT-D rung mirrors.
+- **CAT-D-7** `d2ce06fc` — write(compound) recursive emit-time walker; rt_pl_write_var TERM_COMPOUND fix.
+- **CAT-D-8** `710ee0b0` — BB_PL_ITE structural wrapper + flat_drive_pl_ite + bb_pl_ite.cpp.
+- **CAT-D-9** `b1a37351` — 12 comparison ops (==, \\==, @<, @>, @=<, @>=, =:=, =\\=, <, >, <=, >=); was
+  always-succeeds stub. +4 honest, -1 spurious. rt_pl_term_cmp + rt_pl_arith_cmp.
+- **CAT-D-9b** `e15e86b0` — compound-term `==` correctness; emit_build_compound_term post-order walker;
+  rt_pl_compound_build_n + rt_pl_term_cmp_terms. The reusable walker subsequent rungs lean on.
+- **CAT-D-10** `c5fc7d3c`/`060aad55` — 11 1-arg type-tests (var/nonvar/atom/atomic/number/integer/float/
+  compound/callable/is_list/ground); was silent always-succeeds. rt_pl_type_test + _term.
 
-**Gate impact:**
-| Gate | Pre-CAT-C | Post-CAT-C |
+**Structural V-1..V-5 (RULES.md compliance, all CLOSED):**
+- V-1: BB_PL_SEQ wrapper around clause body (lower_pl.c).
+- V-2: `is/2` lowers to BB_ARITH (effect helper `rt_pl_is` for binary RHS).
+- V-3: four structural templates filled (bb_pl_seq/call/choice/alt/cut all FILLED; EMPTY=0).
+- V-4 `b95e4318`: mode-4 stopped rebuilding BB graph at runtime; `xa_pl_builder`+`rt_pl_b_*` family deleted
+  (~390 LOC removed); each predicate flat-emits once under `.Lplpred_<name>_<arity>`.
+- V-5: mode-3 (`--run`) collapsed to `sm_interp_run` (see CAT-D-12-S1 above).
+- V-6 (open): confirm `pl_bb_dcg`/`bb_exec_*` only reachable from mode-2 dispatch. Audit grep, no code
+  change expected.
+
+---
+
+## 🔴 Open work (priority order)
+
+### CAT-A-3 — BB_PL_CALL + BB_CHOICE β-resume (BLOCKED ON LON DIRECTIVE)
+
+Largest single-step unlock; estimated +15-25 mode-4 corpus PASS once landed. Every `pred(X), …, fail`
+pattern (rung02 facts, rung05 backtrack, rung06 lists, etc.) gated on this.
+
+Two stub β sites: `bb_pl_call.cpp:97` (`lbl_β: jmp lbl_ω`) and `bb_pl_choice.cpp:58` (same). Caller's
+β jump goes to ω, so caller can never re-enter callee on redo. Two design options:
+
+**(a) Inline-on-demand.** Inline multi-clause predicates at each call site instead of emitting once as a
+callable block. Simplest, but bloats code for repeated callees and breaks single-emit. Stepping stone.
+
+**(b) Resumable-call protocol.** Callee block returns a continuation token (e.g. clause cursor) in a
+register; call site stashes it; on β, restores env+cursor and re-calls; callee uses cursor to skip already-
+tried clauses. Cleaner; matches interp model (`zc->cur`). Requires `pl_bb_choice_state_t` access from
+emitted code and the callee block to NOT pop saved env on γ (call site owns it).
+
+**Awaiting Lon directive on (a) vs (b).**
+
+### PJ-AGW-5 — Cut-barrier ω-rewiring for non-deterministic ITE conditions
+
+Partial (`87ed9b24`): Prolog ITE β port routes to ω_in (lower_pl.c TT_IF) instead of re-entering Cond.
+Stops the simplest re-evaluate-Cond loops (+3 net). **Still open:**
+- rung07 cut_cut: `differ(X,X) :- !, fail. differ(_,_).` produces `yes\nyes` not `yes\nno`. The cut emits
+  cleanly (CAT-RUNG07-1) but doesn't prune the choice frame above.
+- rung15 one_of_two: ITE with abolished-pred Cond loops.
+- Fix shape: dedicated stateful committed-ITE BB node (mirror Icon `BB_IF` at bb_exec.c:803) that runs
+  Cond+chosen-branch in one node call and records the committed branch, rather than ALT-style port chaining.
+
+### CAT-D — remaining mode-4 builtin coverage
+
+- **CAT-D-11 ✅** (this session, see top-of-file).
+- **plus/3 bidirectional** (rung18 — 3 remaining). If X+Y bound → unify Z; if X+Z bound → unify Y; etc.
+  `bb_exec.c` has the mode-2 arm; template + 7-scalar effect helper needed.
+- **term_to_atom/2 operator-notation writer** (rung25 — 1 remaining). `pl_term_to_string` currently
+  renders `+(1,2)` instead of `1+2`. Fix in `prolog_builtin.c` (mirror `pl_writeq_term`).
+- **catch/throw** (rung28 — 0/5). Lower as 3-arg BB_BUILTIN; exec arm uses setjmp/longjmp or global
+  exception flag.
+- **aggregate** (rung27 — 0/5). bagof/setof.
+- **findall/3** mode-4 emit (currently mode-2 only). Effect helper + template arm.
+
+### Other open
+
+- **PL-RT-ASSERTZ** — runtime `assertz/asserta` inside a goal body (not just `:-` directive fold).
+  Materialise fresh clause body BB graph at runtime and append to predicate's BB_CHOICE `zc->bodies[]`
+  (inverse of abolish). Blocks rung15_then_reassert.
+- **rung14** — `retract_all` loop, `retract_nonexistent` edge cases.
+- **rung26_copy_term independent gap** — copy_term doesn't share var identity between A and B in mode-4
+  (`copy_term(f(X,X), f(A,B))` → `A==B` should hold but doesn't); orthogonal to CAT-D-9b.
+- **PJ-AGW-6b** — `BB_PAT_ARBNO`/DCG repetition port wiring (rung30 dcg_pushback_rest).
+- **PJ-AGW-7** — LOWER sweep: no persistent aux in reset-cleared slots.
+- **PJ-DEL-PUMP** (PP-1..10) — Tombstone `SM_BB_PUMP_PROC/SM/CASE` → `SM_UNUSED_7/8/9`.
+
+---
+
+## Rung state at HEAD (`462aafa1`, post-CAT-RUNG07-1)
+
+| Gate | Count | Notes |
 |---|---|---|
-| GATE-1 (smoke) | 5/5 | 5/5 |
-| GATE-2 (3-mode crosscheck) | 132/132 | 132/132 |
-| GATE-3 mode-2 | 89/107 | 89/107 |
-| GATE-3 mode-3 | 89/107 | 89/107 |
-| GATE-4 (mode-4 minimal) | 4/4 | 4/4 |
-| **Full mode-4 corpus** | 23/107 | **24/107** (+1: rung08_recursion_recursion) |
-| FACT RULE grep | 0 | 0 |
-| Sibling smokes | icon 5/5, raku 5/5, snobol4 13/13, snocone 5/5, rebus 4/4, prolog 5/5 | all hold |
+| GATE-1 (smoke) | 5/5 | unchanged |
+| GATE-2 (3-mode crosscheck) | 132/0 | post V-5 real agreement |
+| GATE-3 mode-2 (`--interp`) | 89/107 | unchanged |
+| GATE-3 mode-3 (`--run`) | 89/107 | unchanged |
+| GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt all green |
+| **Full mode-4 corpus** | **28/107** | +4 this session (CAT-D-11 sort/msort) |
+| FACT RULE grep | 0 | full compliance |
+| `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix |
 
-**rung08 byte-exact mode-2 / mode-4:** `fib(6,F)` → `F=8`; `factorial(3,G)` → `G=6`. Output
-`8\n6\n` in both modes. The multi-clause β-resume machinery is at least partially working —
-`fib(N,F) :- N > 1, ...` correctly skips `fib(0,0)` and `fib(1,1)` clause heads and recurses
-through the third clause. (Why the more elaborate cons-cell cases like rung06 don't pass is
-orthogonal — they still hit CAT-A-3's incomplete multi-clause β-resume for compound argument
-patterns. Probe results document this explicitly: rung02 facts prints only first solution,
-rung05 backtrack/rung06 lists print empty.)
-
-**Pre-existing issue surfaced (NOT a regression):** rung07_cut_cut now produces
-`bb_emit_byte: non-BINARY-mode reach (mode=0, b=0xe9) — convert caller to a named bb_insn_*
-helper` during emit. This was masked by an earlier crash before CAT-C; rung07 was already FAIL
-in the 22/107 baseline, just for a different reason. The new error indicates a FACT-RULE-adjacent
-issue (a code path is calling raw `bb_emit_byte` outside BINARY mode) — flag for separate
-investigation, not part of CAT-C scope.
-
-**Probe battery (CAT-A-3-blocked rungs, characterization for next session):**
-- rung02_facts_facts: want `brown\njones\nsmith` got `brown` — first solution only.
-- rung05_backtrack_backtrack: want `a\nb\nc` got `` — empty.
-- rung06_lists_lists: want `[a,b,c,d]\n4\n[d,c,b,a]` got `` — empty, no segfault.
-- rung08_recursion_recursion: ✅ `8\n6\n` PASS.
-- rung11_findall_findall_basic: want `[red,green,blue]` got `_` — CAT-D missing findall.
-- rung25_term_string_term_to_atom: want compound stringify, got `_\n_\n_` — CAT-D missing.
-
-**Next steps:**
-- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume) — biggest single-step unlock. Now that CAT-C
-  has shown rung08-shape multi-clause IS partially working, the gap is likely in the cons-cell
-  argument pattern propagation through β-resume, not the β-resume protocol itself. Still needs
-  Lon directive on inline-on-demand vs resumable-call design choice before any code change.
-- **CAT-D-11** (sort/2 + msort/2) — clean target, no design directive needed.
-- **Pre-existing rung07 issue**: investigate the `bb_emit_byte: non-BINARY-mode reach` callsite;
-  CAT-C didn't introduce this but it's now the visible failure mode.
+**Mode-2 OPEN rungs (18/107):** rung15 (2 — one_of_two, then_reassert), rung18 (3 — plus/3), rung23 (1),
+rung25 (2 — term_to_atom ops), rung27 (5 — aggregate), rung28 (5 — catch/throw), rung30 (1 —
+dcg_pushback_rest).
 
 ---
 
-## ✅ CAT-B — COMPOUND-TERM UNIFY (BB_UNIFY MODE-4) (2026-05-27, Opus 4.7)
+## Session setup
 
-**Closed.** `f(X, a) = f(b, Y)` now binds X=b, Y=a in mode-4 (previously printed `_ _`).
-Compound operands of `BB_UNIFY` are materialized as full `Term*` trees via the existing
-`emit_build_compound_term` post-order walker (CAT-D-9b precedent) instead of falling through
-`rt_pl_node_to_term`'s `default: term_new_int(ival)` arm, which had been returning the arity as
-an integer rather than the actual compound.
-
-**Files touched:**
-- `src/emitter/BB_templates/bb_builtin.cpp` — 1-character delete: `static std::string
-  emit_build_compound_term` → `std::string emit_build_compound_term`. Plus one comment line
-  documenting the de-staticization for cross-template linkage. No behavioral change to the
-  walker itself; it remains the same post-order Term*-tree builder used by CAT-D-9b's
-  `==/\\==/@</@>/@=</@>=`, CAT-D-10's type-tests, CAT-D-12-S2's functor/arg/=.. — and now
-  BB_UNIFY too.
-- `src/emitter/BB_templates/bb_unify.cpp` — three changes:
-  1. `extern std::string emit_build_compound_term(const BB_t *)` forward declaration.
-  2. New static dispatcher `build_operand_term(nd, lbl)`: routes `BB_PL_STRUCT` operands to
-     `emit_build_compound_term`, everything else (BB_PL_VAR, BB_ATOM, BB_LIT_I, BB_LIT_F) to
-     the original `build_term_text`. Scalar operands still take the fast 4-arg
-     `rt_pl_node_to_term` path; only compound operands pay the walker cost.
-  3. Replaced the `push rax` / `pop rdi` pattern in `MEDIUM_TEXT` with a 16-aligned scratch
-     frame (`sub rsp, 16` / `mov [rsp+0], rax` / ... / `mov rdi, [rsp+0]` / `add rsp, 16`).
-     Required because `emit_build_compound_term` internally uses `sub rsp, frame` where
-     `frame = (arity*8 + 15) & ~15` — a multiple of 16 — and assumes 16-aligned entry rsp so
-     its recursive `rt_pl_compound_build_n@PLT` call satisfies SysV. The old `push rax` would
-     have left rsp 8B-misaligned for the second build's walker recursion. New pattern mirrors
-     the precedent in `bb_builtin.cpp`'s `functor_term` (line 562), `arg_term` (614),
-     `univ_term` (689), `univ_term_term` (705) arms — all of which sub rsp by 16 before
-     `emit_build_compound_term`.
-
-**MEDIUM_BINARY left untouched** — like CAT-D-9b / CAT-D-12, compound-term work is text-only
-for now. The in-process monitor / hot-loop binary path inlines scalar operand builds and does
-not exercise BB_PL_STRUCT operands (which would never appear via the SM-binary fast path
-because lower_pl produces compound operands only for full mode-4 emit).
-
-**No new symbols, no new helpers** — pure refactor of existing infrastructure. The unify
-helper `rt_pl_unify_terms` was already correct; the bug was strictly in operand construction
-ahead of the unify call. Zero LOC delta in `bb_exec.c` and `rt.c`.
-
-**Gate impact:**
-| Gate | Before | After |
-|---|---|---|
-| GATE-1 (smoke) | 5/5 | 5/5 |
-| GATE-2 (3-mode cross-check) | 132/132 | 132/132 |
-| GATE-3 mode-2 | 89/107 | 89/107 |
-| GATE-3 mode-3 | 89/107 | 89/107 |
-| GATE-4 (mode-4 micro-rung) | 4/4 | 4/4 |
-| **Full mode-4 corpus** | 22/107 | **23/107** (+1: rung03_unify_unify) |
-| FACT RULE grep | 0 | 0 |
-| Sibling smokes | icon 5/5, raku 5/5, snobol4 13/13, snocone 5/5, rebus 4/4, prolog 5/5 | all hold |
-
-**Probe battery (mode-2 / mode-4 byte-identical):**
-- `f(X, a) = f(b, Y), write(X), write(' '), write(Y), nl.` → `b a`
-- `pt(X, Y) = pt(1, 2), write(X), write(' '), write(Y), nl.` → `1 2`
-- `T = foo(a,b,c), T = foo(X,Y,Z), write(X), write(Y), write(Z), nl.` → `a b c`
-
-The third probe matters: it's the upstream binding case CAT-D-12-S2's scalar
-`rt_pl_functor`/`rt_pl_arg`/`rt_pl_univ` helpers were waiting on. With CAT-B closed,
-`T = foo(...)` now genuinely binds `T` to the compound, so the scalar paths of those helpers
-light up automatically — no template change needed in `bb_builtin.cpp`.
-
-**Honest accounting on the +1 delta** (estimate was +10-20): most other rung failures cluster
-in orthogonal categories — CAT-A-3 (multi-clause β-resume: rung02/05/08), CAT-C (cons-list
-member/2 segfault: rung06), unported CAT-D-* builtins (rung11/13/14/15/17/19-25/30), and
-PJ-AGW-5 ITE (rung07). The single rung that the ledger explicitly named for CAT-B
-(rung03_unify_unify) is now green, which is the correct unit measurement; the larger
-cascade the ledger anticipated assumed CAT-A-3 was already closed.
-
-**Pure-template compliance verified:** the FACT RULE completion grep across all of `src/`
-(excluding `*_templates/` and `emit_core.c`) returns 0 hits.
-
-**Next steps:**
-- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume) — still blocked on Lon directive. Largest
-  single-step unlock (estimated +15-25 PASS once landed; many rung02/05/06/08 cases gated on
-  multi-clause retry through the β port).
-- **CAT-C** (cons-list `member/2` segfault under `--run` / mode-4). Compound-term root now
-  shared with CAT-B (so the cons-cell construction itself is sound); remaining work is in
-  `bb_pl_call.cpp` arg-passing (env push/save + `pl_bb_bind_arg`) for compound args with
-  unbound tail variables. Needs `gdb` on a child binary.
-- **CAT-D-11** (sort/2 + msort/2) — RT helper does term-array build + insertion-sort via
-  `pl_term_compare` + dedup + cons-list build + unify; zero port logic, template owns γ/ω.
-
----
-
-## ✅ CAT-D-12-S2 — FUNCTOR/3 + ARG/3 + =../2 MODE-4 TEMPLATES (2026-05-27, Opus 4.7)
-
-**Landed:** mode-4 templates for `functor/3`, `arg/3`, `=../2` in `bb_builtin.cpp` + RT effect
-helpers in `bb_exec.c`. Pattern mirrors CAT-D-10's `rt_pl_type_test` + CAT-D-6's
-`rt_pl_atom_chars_codes` two-path approach (scalar args via flat (k,i,s) triples; compound
-literals via `emit_build_compound_term` post-order walker → `_term` variants accepting
-prebuilt `Term*`). Zero port logic in templates — every helper trail-marks on entry,
-unwinds on fail, returns 1=γ / 0=ω; the emit owns only the `test/je/jmp` decision triplet.
-
-**Files touched:**
-- `src/lower/bb_exec.c` — +144 lines. New static helpers `functor_common(t0,t1,t2)`,
-  `arg_common(tN,tT,tA)`, `univ_common(t0,t1)` — direct ports of the BB_BUILTIN exec arms at
-  lines 2977 / 3012 / 3026. Eight new linkage symbols:
-  - `rt_pl_functor(k0,i0,s0, k1,i1,s1, k2,i2,s2)` — 9-scalar / 3-stack-arg SysV.
-  - `rt_pl_functor_term(t0, k1,i1,s1, k2,i2,s2)` — compound a0 path.
-  - `rt_pl_arg(k0,i0,s0, k1,i1,s1, k2,i2,s2)` — 9-scalar.
-  - `rt_pl_arg_term(k0,i0,s0, t1, k2,i2,s2)` — compound a1 path.
-  - `rt_pl_univ(k0,i0,s0, k1,i1,s1)` — 6-scalar (all reg).
-  - `rt_pl_univ_term(t0, k1,i1,s1)` — compound a0.
-  - `rt_pl_univ_term_list(k0,i0,s0, t1)` — compound a1 (list literal).
-  - `rt_pl_univ_term_term(t0, t1)` — both compound.
-- `src/emitter/BB_templates/bb_builtin.cpp` — +197 lines. Three new dispatcher blocks inserted
-  before the unknown-fn stub: `functor/3` (compound test on a0), `arg/3` (compound test on a1),
-  `=../2` (four-way: both-scalar / compound-a0 / compound-a1 / both-compound). All call
-  `emit_build_compound_term` (CAT-D-9b) for compound-literal materialization. Standard SysV
-  stack discipline: `sub rsp, 32` for 9-arg calls (3 stack args + 8B pad), `sub rsp, 16` for
-  7-arg calls (1 stack arg + 8B pad), `sub rsp, 8` for 5–6-arg calls (alignment only).
-
-**Gate impact:**
-| Gate | Before S2 | After S2 |
-|---|---|---|
-| GATE-1 (smoke) | 5/5 | 5/5 |
-| GATE-2 (3-mode cross-check) | 132/132 | 132/132 |
-| GATE-3 mode-2 | 89/107 | 89/107 |
-| GATE-3 mode-3 | 89/107 | 89/107 |
-| GATE-4 (mode-4 micro-rung) | 4/4 | 4/4 |
-| **Full mode-4 corpus** | 21/89 (per pre-S2 baseline) | **22/89** (+1: rung09_builtins_builtins) |
-| `PL_BUILTIN: unknown 'functor'/'arg'/'=..'` stubs in r09 emit | 3 | **0** |
-| FACT RULE grep | 0 | 0 |
-| `.S_ERR` undefined-symbol count in r09 emit | 0 | 0 |
-
-Other language smokes (icon 5/5, raku 5/5, snobol4 5/6 — `beauty_omega` FAIL is pre-existing
-Milestone-2 territory, snocone 8/8, rebus 4/4) all hold.
-
-**rung09 mode-4 stdout byte-exact match to oracle:**
-```
-foo 2          ← functor(foo(a,b), N, A) decompose
-b              ← arg(2, foo(a,b), X)
-[foo,a,b]      ← foo(a,b) =.. L   (decompose)
-yes            ← atom(hello)      (CAT-D-10)
-yes            ← integer(42)      (CAT-D-10)
-no             ← atom(42)         (CAT-D-10)
-no             ← integer(hello)   (CAT-D-10)
-```
-Templates emitted in r09: `rt_pl_functor_term`, `rt_pl_arg_term`, `rt_pl_univ_term` — all three
-compound-literal paths exercised because rung09's term args are inline `foo(a,b)` literals
-that lower to `BB_PL_STRUCT` in the IR.
-
-**Investigated and documented (NOT a regression — pre-existing CAT-B):** the scalar paths
-(`rt_pl_functor` / `rt_pl_arg` / `rt_pl_univ` proper, not the `_term` variants) succeed only
-when the term-position arg is a literal at the call site. When the term comes through a
-`BB_PL_VAR` previously bound to a compound (e.g. `T = foo(x,y,z), arg(1, T, A)`), the scalar
-path fails because `rt_pl_node_to_term` in `src/runtime/rt/rt.c:965-980` has no `BB_PL_STRUCT`
-case (falls through `default: term_new_int(ival)`). The compound was therefore never properly
-constructed at the upstream `T = foo(...)` unify either — `g_pl_env[T_slot]` ends up bound to
-`term_new_int(3)` (the arity), not the real compound. This is **CAT-B from the V-5 handoff doc**
-("Compound-term unify binds nothing"), a known PL-DEBT-1 item upstream of CAT-D-12. Fix scope is
-in `bb_unify.cpp`'s emit path for `BB_PL_STRUCT` RHS (route through `emit_build_compound_term`
-instead of `rt_pl_node_to_term`), not in this CAT-D-12-S2 work. Once CAT-B lands, all three of
-my new scalar helpers light up automatically — no template change needed.
-
-**Pure-template compliance verified:** the FACT RULE completion grep across all of `src/`
-(excluding `*_templates/` and `emit_core.c`) returns 0 hits for `seg_byte(SEG_CODE`, `SL_B(`,
-`sl_emit_one`, `emit_standard_blob`. All effect helpers in `rt_pl_*` follow the same
-convention as CAT-D-6 / CAT-D-9 / CAT-D-10: trail-marked, deterministic, no port logic, exactly
-one γ-or-ω outcome encoded in return value.
-
-**Next steps:**
-- **CAT-B** (compound-term unify) is the natural next target — small surface area in
-  `bb_unify.cpp`, immediate cascade across rung02_facts / rung03_unify / rung05_backtrack /
-  rung06_lists. Estimated +10-20 mode-4 PASS.
-- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume) still blocked on Lon directive on design.
-- **CAT-D-11** (sort/2 + msort/2) — RT helper does term-array build + insertion-sort via
-  `pl_term_compare` + dedup + cons-list build + unify; zero port logic, template owns γ/ω.
-
----
-
-## ✅ CAT-D-12-S1 — PROLOG MODE-3 ARCHITECTURE RESTORED (2026-05-27, Opus 4.7)
-
-**The lie:** scrip.c `mode_run && is_prolog` branch (V-5) bypassed `sm_interp_run` and invoked
-`scrip_run_via_x86_pipeline` — an in-process fork(as)+fork(gcc)+fork(prog) of a built binary.
-That was mode-4 dressed up as mode-3 and broke the three-mode contract SNOBOL4 has honored
-all along.
-
-**The truth (per Lon, 2026-05-27):**
-- **mode 2 (`--interp`):** SM interp + BB graph interp (brokered) — `bb_build_brokered`
-- **mode 3 (`--run`):** SM interp + BB flat-wired in bb_pool slab, sealed RX, jumped into via
-  `(bb_box_fn)slab` from `SM_BB_SWITCH` — `bb_build_flat`. THIS IS THE IN-PROCESS JIT.
-- **mode 4 (`--compile --target=x86`):** `sm_codegen_text` → external as+gcc → standalone binary
-
-**Landed:** scrip.c V-5 branch + `scrip_run_via_x86_pipeline` + `scrip_locate_rt_lib` +
-`scrip_spawn_wait` DELETED. Prolog `--run` now folds into the same `sm_run_with_recovery(sm,
-sm_interp_run)` path SNOBOL4 uses. `bb_live=1` is forced at scrip.c:217 so `bb_build_flat`
-(not brokered) is the BB sink under `--run`. Identical 18-rung fail set in mode-2 and mode-3
-(`comm -12` of fail lists = 18 / `comm -23` = 0 / `comm -13` = 0).
-
-**Gate impact:**
-| Gate | Before | After |
-|---|---|---|
-| GATE-1 (smoke) | 5/5 | 5/5 |
-| GATE-2 (3-mode cross-check) | 31/132 PASS | **132/132 PASS** |
-| GATE-3 mode-2 | 89/107 | 89/107 |
-| GATE-3 mode-3 | 89/107 (via fake fork/exec) | 89/107 (via real flat-wired BB) |
-| GATE-4 (mode-4) | 4/4 | 4/4 |
-
-GATE-2 went from PASS=31/FAIL=101 to PASS=132/FAIL=0 — three-mode agreement is now total.
-Rung09 mode-3 (functor/arg/=..) turned green as a byproduct: the BB_BUILTIN exec arm in
-`bb_exec.c` lines 2977/3012/3026 already implemented functor/3 / arg/3 / =../2 correctly;
-it was just never reached under `--run` because the fake pipeline shunted execution into a
-mode-4-style external binary whose template was empty for these builtins.
-
-**Remaining for CAT-D-12 (next session):** mode-4 templates for `functor/3`, `arg/3`, `=../2`
-in `bb_builtin.cpp` (MEDIUM_TEXT arm for the `.s` codegen path). Mode-2 + mode-3 are already
-green. New RT helpers `rt_pl_functor` / `rt_pl_arg` / `rt_pl_univ` (+ `_term` variants for
-compound-literal args) in `bb_exec.c`, mirroring CAT-D-10's `rt_pl_type_test`/`rt_pl_type_test_term`
-pattern verbatim. New `test_prolog_mode4_rung.sh` row for rung09 once template lands.
-
----
-
-## 🔴🔴🔴 PRIORITY #1 (2026-05-27, Lon directive) — FINISH FOUR-PORT BB MODE-4 EXECUTION
-
-**THE WHOOPS:** mode-4 Prolog has *never executed*. The top-level query `?- main` lowers to an
-`SM_BB_SWITCH PL_ENTRY` instruction whose mode-4 template arm was a stub emitting a `[NO-SM-BB]`
-comment + `HALT`. The `xa_pl_builder` path *rebuilds* the BB graph at runtime via `rt_pl_b_*` but
-then nothing runs it — execution hit `HALT`. So GATE-4 = 0/4 was not "templates empty," it was
-"the entry never dispatched into any code." This is now fixed at the entry (see LANDED below); two
-concrete blockers remain before the first green m4-seq.
-
-**LANDED this session (built clean, gates green GATE-1 5/5 / GATE-2 132/0 / GATE-3 88/107, NOT yet
-proven end-to-end — GATE-4 still 0/4):**
-1. `flat_drive_pl_seq` in `emit_bb.c` — byte-free driver mirroring `flat_drive_cat`. Walks
-   `bb_pl_seq_state_t->goals[]` (via new `pl_seq_goals_em`), mints `plseq%d_g%d_α/β`, chains
-   `goal[i].γ=goal[i+1].α` / `goal[i].ω=goal[i-1].β`, then `EP_FILL`→`bb_pl_seq.cpp`.
-2. `bb_pl_seq.cpp` FILLED — emits collected `xa_bb_ep_*` glue (copy of `bb_pat_cat_str` TEXT arm).
-   Emptiness audit EMPTY 4→3, FILLED 1→2.
-3. `walk_bb_flat` arms added: `BB_PL_SEQ`→`flat_drive_pl_seq`; `BB_ARITH/BB_BUILTIN/BB_UNIFY/BB_ATOM`
-   →`FILL` (their leaf templates already emit real four-port x86 reading `_.lbl_α/γ/β/ω`).
-4. `sm_bb_switch.cpp` PL_ENTRY arm REWRITTEN — looks up the predicate at EMIT time via new
-   `pl_bb_entry_node(name,arity)` (in `pl_runtime.c`), then `walk_bb_flat(entry, γ,ω,β)` to inline
-   the four-port graph (mirrors the working `SM_BBSW_ICN_GEN` arm). γ→last_ok=1, ω→last_ok=0, both
-   fall through to `_done`. The `[NO-SM-BB]`/`HALT` stub is GONE — real flat x86 now emits.
-
-**✅ UPDATE 2026-05-27 (Opus): m4-call GREEN — GATE-4 1/4 → 2/4.** AGW-9B-call landed (`449f4ca3`):
-`bb_pl_call.cpp` FILLED, `walk_bb_flat` BB_PL_CALL case, PL_ENTRY emits each predicate as a callable
-`.Lplpred_<name>_<arity>` flat block. write(atom) mode-4 bug also FIXED (intern-str hook wired
-unconditionally + `strtab_label` fallback when the text-only hook is inactive). m4-choice/alt still FAIL
-(empty templates, no walk_bb_flat case — AGW-9B-2/3 next). See HANDOFF-2026-05-27-OPUS-PROLOG-BB-AGW9B-CALL.md.
-
-**✅ UPDATE 2026-05-27 (Opus): FIRST GREEN m4-seq — GATE-4 0/4 → 1/4.** `main :- X is 1+2, write(X), nl.`
-compiles to standalone x86 and prints `3`. V-1 + V-2 CLOSED (uncommitted; see
-HANDOFF-2026-05-27-OPUS-PROLOG-BB-GATE4-FIRST-GREEN.md). Two infra fixes were also required and landed:
-(a) `pl_bb_env_push` emitted on the PL_ENTRY flat path (g_pl_env was NULL → segfault); (b) `rt_gc_init`
-(`GC_INIT()`) emitted as main's first instruction (Boehm GC faulted during the pre-rt_init graph-rebuild
-under -no-pie). m4-call/choice/alt still FAIL (V-3 — empty call/choice/alt templates). NEW bug found:
-write(atom) mode-4 emits NULL atom (bb_pl_ls channel loss on the BB_BUILTIN path; var-arg write works).
-
-**TWO BLOCKERS to first green m4-seq (`main :- X is 1+2, write(X), nl.`):** ✅ BOTH CLOSED. see VIOLATIONS LEDGER
-V-1 (clause-body `BB_PL_SEQ` wrapper) and V-2 (`is/2`→`BB_ARITH`) in "Open steps" — that ledger is the
-canonical, gated fix list for every deviation found this session (V-1..V-6). Summary below.
-
-- **B-1 — clause body has NO `BB_PL_SEQ` wrapper; `cfg->entry` is the FIRST GOAL.**
-  `lower_pl_clause_body` (lower_pl.c:471) threads body statements directly via their own node-pointer
-  γ/ω and sets `cfg->entry = nα[0]` (the first goal). It does NOT build a `BB_PL_SEQ`. So
-  `flat_drive_pl_seq` never fires for a clause; `walk_bb_flat` enters the first goal with
-  `γ=.Lplent_γ` and emits ONLY that one goal (observed: emitted just `is`, jmp γ). **FIX (pick one):**
-  (a) PREFERRED — in `lower_pl_clause_body`, after threading, wrap the statement list in a
-  `BB_PL_SEQ` node (populate `bb_pl_seq_state_t->goals[]` = the `gnodes[]`/`nα[]` list, set
-  `seq->α=nα[0]`) and `cfg->entry = seq`. Then `flat_drive_pl_seq` drives the whole chain. Mirror the
-  explicit-conjunction case at lower_pl.c:198-203. Verify mode-2 (GATE-3) unaffected — the executor's
-  `BB_PL_SEQ` case is trivial "enter at α," so wrapping should be transparent to interp.
-  OR (b) in `sm_bb_switch.cpp` PL_ENTRY, if `entry->t != BB_PL_SEQ`, walk the goal chain as a seq at
-  emit time (follow node-pointer γ to collect goals, then drive like `flat_drive_pl_seq`). (a) is
-  cleaner and reuses the driver; do (a).
-
-- **B-2 — `is/2` lowers to `BB_BUILTIN` (template prints "unknown 'is' — stub"), not `BB_ARITH`.**
-  The working four-port arith template is `bb_pl_arith.cpp` (`BB_ARITH`, calls `rt_pl_arith`). The
-  `is` goal is reaching `bb_pl_builtin.cpp` which has no `is` arm. **FIX:** check `lower_pl_goal`'s
-  recognizer — `X is Expr` must lower to `BB_ARITH` (it does in the interp path; confirm the
-  clause-body path at lower_pl.c:511 `lower_pl_goal(...)` produces `BB_ARITH` for `is`). If it already
-  does and the kind is right, then the issue is `walk_bb_flat`'s `BB_ARITH` arm vs what `cfg` actually
-  holds — dump `nd->t` for main's goals (`scrip --dump-bb` or a printf in `pl_bb_entry_node`). Likely
-  `is` is lowering as builtin in the *clause-body* path specifically; align it with the conjunction path.
-
-**THEN:** rebuild, `bash scripts/test_prolog_mode4_rung.sh` → m4-seq must PASS (`3`). That is the
-first green four-port mode-4 Prolog. Update PL-DEBT-1 ledger: `rung-seq mode-4 ✅`.
-
-**AFTER m4-seq green — AGW-9B (call/choice/alt), each EMPTY→FILLED + a GATE-4 row:**
-- `bb_pl_call.cpp` (EMPTY): predicate→predicate linkage. PL_ENTRY pattern generalises — emit
-  `jmp <callee entry label>`; callee γ→caller γ_in, callee ω→caller ω_in. Needs a stable per-predicate
-  entry label (emit each predicate's flat graph once under `.Lpl_<name>_<arity>_α`, have PL_ENTRY and
-  BB_PL_CALL both `jmp` it). This RETIRES the `xa_pl_builder` runtime-rebuild path — delete
-  `rt_pl_b_*` calls from the emit once all predicates flat-emit (RULES.md no-runtime-walk).
-- `bb_pl_choice.cpp` (EMPTY): multi-clause. Inline `trail_mark`/`trail_unwind` (effect helpers OK);
-  clause[i].ω→clause[i+1].α; last ω→ω_in. STATEFUL — hardest; mirror `bb_exec.c` BB_CHOICE.
-- `bb_pl_alt.cpp` (EMPTY): `;` disjunction. Same trail discipline, two branches.
-
-**GATE for each:** `util_prolog_template_emptiness_audit.sh` EMPTY count drops by 1; corresponding
-`test_prolog_mode4_rung.sh` row (m4-call/choice/alt) PASSes; GATE-1/2/3 unchanged.
-
-**Files touched this session (uncommitted at handoff — committed in emergency handoff):**
-`src/emitter/emit_bb.c` (flat_drive_pl_seq + pl_seq_goals_em + walk_bb_flat arms),
-`src/emitter/BB_templates/bb_pl_seq.cpp` (filled),
-`src/emitter/SM_templates/sm_bb_switch.cpp` (PL_ENTRY flat emit),
-`src/runtime/interp/pl_runtime.c` (pl_bb_entry_node accessor).
-
----
-
-## ⛔⛔ TOP PRIORITY — Prolog RUNG LADDER
-
-**Current state: GATE-1 = 5/5, GATE-2 = 54/132 (held), GATE-3 = 89/107, GATE-4 = 4/4, mode-3 rung suite = 21/107, mode-4 rung suite = 21/107.** HEAD `060aad55` (Sonnet 4.7, 2026-05-27). CAT-D-7 landed (`d2ce06fc`): write(compound) mode-4 via emit-time recursive walker. CAT-D-8 landed (`710ee0b0`): BB_PL_ITE wrapper for mode-4 if-then-else. CAT-D-9 landed (`b1a37351`): all 12 comparison ops (was the always-succeeds stub); +4 honest rungs. CAT-D-9b landed (`e15e86b0`): compound-term `==` correctness via emit-time post-order Term builder walker + two new helpers (rt_pl_compound_build_n / rt_pl_term_cmp_terms); no rung delta, correctness fix only (corpus doesn't yet exercise compound-`==` directly). **CAT-D-6 landed (`b60ebfa4`, Sonnet 4.7, 2026-05-27):** atom_chars/atom_codes/string_chars/string_codes bidirectional list↔atom mode-4 emission via two-path template (scalar a1 → rt_pl_atom_chars_codes 7-scalar helper; literal cons-cell a1 → rt_pl_atom_chars_codes_term + emit_build_compound_term). Shared static atom_chars_codes_common(t0,t1) factors decompose/compose logic. Plus rt_pl_write_var TERM_COMPOUND → pl_write 1-line fix (was dropping to "_"). +2 mode-3 rung (rung12_atom_chars + rung12_atom_codes), +2 mode-4 rung. **CAT-D-10 landed (`c5fc7d3c`/`060aad55`, Sonnet 4.7, 2026-05-27):** 11 1-arg type-test builtins (var/nonvar/atom/atomic/number/integer/float/compound/callable/is_list/ground) — fixed silent always-succeeds bug. Two-path template (scalar arg via rt_pl_type_test 4-arg; compound-literal arg via rt_pl_type_test_term + emit_build_compound_term). Mode-2/3/4 byte-identical across full battery. No rung-count delta (type tests live inside ITEs whose branches still depend on unimplemented functor/arg/=..). Next blockers: CAT-A-3 (BB_PL_CALL + BB_CHOICE β-resume; needs Lon directive on design); CAT-D-11 (sort/msort — RT helper does term-array build + insertion-sort via pl_term_compare + dedup + cons-list build + unify, ZERO port logic, template owns γ/ω); CAT-D-12 (functor/3 + arg/3 + =../2 — unblocks rung09).
-
-**Session setup:**
-```
-cd /home/claude/one4all && apt-get install -y libgc-dev && bash scripts/build_scrip.sh
-bash scripts/test_smoke_prolog.sh        # GATE-1: 5/5
-bash scripts/test_prolog_rung_suite.sh   # GATE-3: >= 85
-bash scripts/test_crosscheck_prolog.sh   # GATE-2: 132/0
-bash scripts/test_prolog_mode4_rung.sh   # GATE-4 (mode-4): PASS>=1 gates AGW-9 rungs (currently 0/4)
+```bash
+cd /home/claude/one4all && bash scripts/install_system_packages.sh
+bash scripts/build_scrip.sh
+make libscrip_rt
+bash scripts/test_smoke_prolog.sh        # GATE-1
+bash scripts/test_prolog_rung_suite.sh   # GATE-3
+bash scripts/test_crosscheck_prolog.sh   # GATE-2
+bash scripts/test_prolog_mode4_rung.sh   # GATE-4
 ```
 
-**NEXT builtin targets (lower_pl.c recognizer + bb_exec.c BB_BUILTIN arm):**
-- rung14: 2 remaining (retract_all loop, retract_nonexistent edge cases — see below)
-- rung15: `abolish/1` ✅ 3/5 (87ed9b24). 2 remaining BLOCKED: one_of_two needs full stateful committed-ITE node (AGW-5); then_reassert needs runtime assertz-in-body (unimplemented — only lower-time directive fold exists).
-- rung18: `plus/3` — bidirectional arithmetic (X+Y=Z, any two bound)
-- rung25: `term_to_atom/2` operator-notation writer (currently renders `+(1,2)` instead of `1+2`)
-- rung27: aggregate builtins
-- rung28: `catch/throw` — exception handling
-
-**Pattern for new BB_BUILTIN:** recognizer in `lower_pl.c` before the `findall` block; exec arm in `bb_exec.c` BB_BUILTIN case before final `nd->value=FAILDESCR`. Args hang off `nd->α` γ-chain (same as `atom_length`). Use `pl_node_to_term(nd->α)` to materialise args.
-
-**NEXT emitter target: AGW-9 — `flat_drive_pl_seq` in `walk_bb_flat` (emit_bb.c)**
-The four structural templates (seq/call/choice/alt) are EMPTY stubs. They cannot be filled as leaf boxes — they require `flat_drive_*` drivers in `walk_bb_flat` (emit_bb.c:466) that recursively emit+wire child boxes, mirroring `flat_drive_cat`. Only then does `bb_pl_seq.cpp` emit the local glue (`jmp nd->α`). Order: seq → call → choice → alt. Gate each with `util_prolog_template_emptiness_audit.sh` (EMPTY=4 currently; `bb_pl_cut` is the only FILLED one).
+Full mode-4 corpus: shell loop over `/home/claude/corpus/programs/prolog/rung*.pl` calling
+`bash scripts/run_prolog_via_x86_backend.sh $f` and diffing against `.expected`.
 
 ---
 
-## Rung ladder state (88/107 passing)
+## Architecture reference
 
-**PASSING (no action needed):** rung01-14 ✅, rung16 ✅, rung17 ✅, rung18 (2/5) ✅, rung19 ✅, rung20 ✅, rung21 ✅, rung22 ✅, rung23 (4/5) ✅, rung24 ✅, rung26 ✅, rung29 ✅, rung30 (4/5) ✅
-
-**OPEN:**
-- rung15: 3/5 (abolish ✅ — existing/nonexistent/then_query_fail pass). 2 remaining: one_of_two (ITE backtracking loop — needs full stateful committed-ITE, AGW-5); then_reassert (needs runtime assertz-in-body).
-- rung18: 2/5 remaining (plus/3 bidirectional)
-- rung23: 4/5 (1 fail — pre-existing, not ITE-related)
-- rung25: 1/3 (term_to_atom operator-notation writer)
-- rung27: 0/5 (aggregate)
-- rung28: 0/5 (catch/throw)
-- rung30: 4/5 (dcg_pushback_rest — `[NO-AST] SM_BB_SWITCH`)
-
----
-
-## Retract implementation note (2026-05-27)
-
-`retract/1` and `retractall/1` are in `bb_exec.c` BB_BUILTIN. They work by:
-1. Materialise head term from `nd->α`
-2. Look up predicate via `pl_bb_lookup(key, arity)` → BB_CHOICE node → `bb_pl_choice_state_t *zc`
-3. For each clause body in `zc->bodies[]`: push fresh env, pre-bind params to retract head args, run `bb_exec_once(body)` in test env
-4. On match: for `retract` keep trail bindings (caller gets `X=25` etc.), remove clause, break. For `retractall`: unwind and continue.
-
-**rung14 remaining 2:** `retract_all` uses a loop calling `retract(item(_))` until failure — this should work but may have an issue with the choice-node `cur` cursor not resetting after retraction. `retract_nonexistent` calls `retract(ghost(x))` on a non-existent predicate — currently returns FAIL correctly (should PASS).
-
----
-
-## Architecture: bb_exec.c ↔ x86 template translation method
+### bb_exec.c ↔ x86 template translation
 
 For each `case BB_FOO:` in `bb_exec.c`:
-1. State in `BB_t` fields: `nd->state` (int), `nd->counter` (int64), `nd->value` (DESCR_t), `nd->ival` (persistent payload — survives `bb_reset`)
-2. `entry==α → nd->state==0` (fresh); `entry==β → nd->state>0` (redo)
-3. Return: store in `nd->value`, tail-call `nd->γ(nd)` or `nd->ω(nd)`
-4. No `rt_*` port helpers. Only: `trail_mark`, `trail_unwind`, `unify`, `prolog_atom_intern`, `term_new_*`
+1. State in `BB_t` fields: `nd->state`, `nd->counter`, `nd->value`, `nd->ival` (persistent payload —
+   survives `bb_reset`).
+2. `entry==α → nd->state==0` (fresh); `entry==β → nd->state>0` (redo).
+3. Return: store in `nd->value`, tail-call `nd->γ(nd)` or `nd->ω(nd)`.
+4. No `rt_*` port helpers. Only effect helpers: `trail_mark`, `trail_unwind`, `unify`,
+   `prolog_atom_intern`, `term_new_*`.
 
-**Per-construct wiring:**
+### Per-construct port wiring
+
 | Construct | α | β | γ | ω |
 |---|---|---|---|---|
 | `BB_PL_SEQ` | first goal's α | last failing goal's β | `goal[i].γ = goal[i+1].α` | `goal[i].ω = goal[i-1].β` |
 | `BB_CHOICE` | first alt's α | next clause α | each alt `.γ = γ_in` | `alt[i].ω = alt[i+1].α`; last `.ω = ω_in` |
-| `BB_PL_CALL` | callee's α | callee's β | callee success → `γ_in` | callee exhausted → `ω_in` |
-| `BB_PL_UNIFY` | self | — | bind/match → `γ_in` | mismatch → `ω_in` |
-| `BB_CUT` | self | — | `γ_in` | cut barrier → `ω_in` |
-| leaf | self | — | `γ_in` | `ω_in` |
+| `BB_PL_CALL` | callee's α | callee's β | callee success → γ_in | callee exhausted → ω_in |
+| `BB_UNIFY` | self | — | bind/match → γ_in | mismatch → ω_in |
+| `BB_CUT` | self | — | γ_in | cut barrier → ω_in |
+| leaf | self | — | γ_in | ω_in |
+
+### Mode-4 emit pattern (CAT-D-1..11 verbatim)
+
+1. **Effect helper** in `bb_exec.c`: serializable scalars only, calls `rt_pl_node_to_term` to materialize
+   args, returns 1/0. NO port logic.
+2. **Two-path template** in `bb_builtin.cpp` (or sibling):
+   - Path A (scalar args): N-scalar SysV call (rdi/rsi/rdx/rcx/r8/r9, stack at `[rsp+0]` if >6 args).
+   - Path B (compound-literal args, BB_PL_STRUCT): `emit_build_compound_term` post-order walker builds
+     Term* in rax → moved to register; call `*_term` variant.
+3. **Trail mark** on entry, **trail unwind** on fail.
+4. Template owns `test eax, eax / je ω / jmp γ / β: jmp ω`.
+
+### Pattern for new BB_BUILTIN
+
+- Recognizer in `lower_pl.c` before the `findall` block.
+- Exec arm in `bb_exec.c BB_BUILTIN` case before final `nd->value=FAILDESCR`.
+- Args hang off `nd->α` γ-chain.
+- Use `pl_node_to_term(nd->α)` to materialise args.
 
 ---
 
-## ⚡ CORRECTIVE RUNGS — AGW-9 PATH FIX + GATE (added 2026-05-27, analysis by Claude Sonnet 4.6)
-
-**Root diagnosis (three structural defects — read before any AGW-9 session):**
-
-1. **PL-1 — MODE-2/MODE-4 GAP IS WIDENING, NOT NARROWING.** Every new builtin added as `BB_BUILTIN` in `bb_exec.c` works in mode 2 and defers mode 4 further. There is no systematic plan for the transition. Sessions keep climbing the rung ladder (good) while the emitter gap grows (bad). Fix: designate a gate-guarded emitter track (AGW-9A..D) that runs in parallel and is required to keep pace — each new rung that lands in mode 2 must also land in mode 4 within two sessions, or it is flagged as debt.
-2. **PL-2 — `flat_drive_pl_seq` IN `emit_bb.c` VIOLATES TEMPLATE-PURITY (HQ Invariant 15).** ⚠️ **CORRECTED 2026-05-27 (verified against tree at `87ed9b24`):** The original claim here — that `flat_drive_cat` "was already eliminated by routing through `g_emit.xa_bb_ep_*` + XA opcodes" — is FALSE. `flat_drive_cat/alt/fence` are LIVE driver functions in `emit_bb.c` (lines 271/321/343 at `87ed9b24`) and are the *established, working* pattern. The real, documented invariant (see header comment atop `xa_flat.cpp`): **the driver in `emit_bb.c` owns label minting + `emit_label_define_bb` + recursive `walk_bb_flat`/`walk_bb_node` calls and emits ZERO machine-code bytes; the leaf `.cpp` template (`bb_pat_cat.cpp` etc.) reads `g_emit.xa_bb_ep_*` and emits ALL the glue bytes.** This satisfies the FACT RULE (every byte comes from a template; the driver is byte-free). Therefore the correct AGW-9 pattern is to **mirror `flat_drive_cat`**: add `flat_drive_pl_seq` to `emit_bb.c` (byte-free recursion/label driver) + fill `bb_pl_seq.cpp` (emits the glue). DO NOT invent a new `XA_PL_SEQ_DRIVE` opcode — that would be an *unprecedented* pattern with no analog in the tree. `grep -n 'flat_drive' src/emitter/emit_bb.c` confirms the live drivers.
-3. **PL-3 — NO GATE MEASURES MODE-4 PROLOG CORRECTNESS.** GATE-3 runs `--interp` only. Sessions cannot verify emitter work without a mode-4 rung gate. Fix: `test_prolog_mode4_rung.sh` (see PL-G-1 below), required before any AGW-9 rung is marked complete. ✅ **DONE 2026-05-27** (PL-G-1).
-
-**PL-4 — MODE-4 TODAY REBUILDS THE BB GRAPH AT RUNTIME (the real AGW-9 target). ⚠️ ADDED 2026-05-27.** Verified at `87ed9b24`: mode-4 Prolog does NOT emit four-port Byrd-box logic. `xa_pl_builder.cpp` emits x86 that calls `rt_pl_b_begin/_node/_kids/_entry/_end_register` (rt.c:233+) to **reconstruct the `BB_graph_t` at standalone-binary startup**, then drives it at runtime via `bb_exec_once`/`bb_exec_resume` (the C walker in `pl_runtime.c`). This is the **sanctioned-temporary AGW-1c exception** noted in RULES.md ("Prolog `--run` routed through `sm_interp_run` … until the `bb_pl_*.cpp` templates land"). **Consequence for AGW-9:** filling `bb_pl_seq.cpp` in isolation will NOT make `m4-seq` pass, because the emit pipeline routes Prolog predicates through `xa_pl_builder` (graph-rebuild), NOT through `walk_bb_flat`/the `bb_pl_*` templates. AGW-9 is therefore a *two-part* job: (a) fill the `bb_pl_*` templates with real port logic (mirroring `flat_drive_cat` + `bb_pat_cat.cpp`), AND (b) re-route the Prolog mode-4 emit path from `xa_pl_builder` graph-rebuild to a `walk_bb_flat` port-DFS that drives the templates. Part (b) is the larger structural change and needs a Lon directive on sequencing. **Recommended order:** seq driver+template first (purely structural, lowest risk — `BB_PL_SEQ` bb_exec case is trivial "enter at α"), then call, then the stateful choice/alt (which need inline `trail_mark`/`trail_unwind`/env handling emitted as x86, the hard part).
-
----
-
-### Phase PL-G — Gate infrastructure (PREREQUISITE for all AGW-9 work)
-
-#### PL-G-1 — Build `test_prolog_mode4_rung.sh` ✅ (2026-05-27)
-- [x] Create `scripts/test_prolog_mode4_rung.sh`: for 4 minimal Prolog programs (m4-seq `main :- X is 1+2, write(X), nl.`; m4-call; m4-choice; m4-alt) run `scrip --compile --target=x86 file.pl` → assemble → link → execute (via `run_prolog_via_x86_backend.sh`), diff stdout against `scrip --interp file.pl`. PASS=N FAIL=M format.
-- [x] Script exists and runs. **Baseline: PASS=0 FAIL=4** (all four structural constructs fail — segfault — because `bb_pl_seq/call/choice/alt.cpp` are empty stubs; interp gives the correct answers `3`/`hi`/`a`/`ok`). This correctly measures the AGW-9 gap.
-- [x] **Gate threshold recorded: mode-4 PASS ≥ 1 before any AGW-9 rung is marked complete.** (HQ Invariant 0: a stub returning empty string is NOT done.)
-
----
-
-### Phase PL-AGW-9A — Seq emitter (mirror `flat_drive_cat` + `bb_pat_cat.cpp`)
-
-**Architecture mandate (CORRECTED 2026-05-27):** mirror the LIVE `flat_drive_cat` pattern. Add `flat_drive_pl_seq` to `emit_bb.c` (byte-free: mints labels, recursively `walk_bb_flat`s the conjunction goals following the lower-time γ-chain, populates `g_emit.xa_bb_ep_*` glue via `EP_*` macros, then `EP_FILL` → `walk_bb_node` → `bb_pl_seq.cpp`). Fill `bb_pl_seq.cpp` to read `g_emit.xa_bb_ep_*` and emit the glue (label-defs + `jmp`s), exactly like `bb_pat_cat_str`'s TEXT arm. **No `XA_PL_SEQ_DRIVE` opcode — that pattern does not exist in the tree.** ALSO requires PL-4 part (b): re-route the Prolog mode-4 emit entry from `xa_pl_builder` graph-rebuild to a `walk_bb_flat` port-DFS (Lon directive needed on sequencing).
-
-#### PL-AGW-9A-1 — Read precedent before writing any code ✅ (2026-05-27)
-- [x] `view xa_flat.cpp` — header documents the real invariant (driver owns labels; template emits bytes). `flat_drive_cat/alt/fence` are LIVE in `emit_bb.c`.
-- [x] `grep -n flat_drive emit_bb.c` — confirms drivers present (271/321/343), NOT eliminated. `g_emit.xa_bb_ep_*` + `EP_*` macros are the glue-collection mechanism; `bb_pat_cat.cpp` TEXT arm is the model to copy.
-- [x] Read `lower_pl.c` BB_PL_SEQ construction (line 198): SEQ is pure structural, α=first goal, goals chained via their own pre-wired γ/ω port pointers. Read `bb_exec.c` BB_PL_SEQ case (2096): trivial "enter at α."
-
-#### PL-AGW-9A-2 — Re-route Prolog mode-4 emit to port-DFS ⏳ (NEW — was the bogus XA opcode step; blocks 9A-3)
-- [ ] **Lon decision needed:** how to sequence retiring the `xa_pl_builder` graph-rebuild path. Until Prolog predicates emit via `walk_bb_flat`, filling `bb_pl_seq.cpp` is dead code (gate stays PASS=0).
-- [ ] Add a `walk_bb_flat`-based predicate emitter that follows the four-port graph and drives `bb_pl_*` templates, replacing the `rt_pl_b_*` reconstruct-at-runtime calls for the covered constructs.
-
-#### PL-AGW-9A-3 — Fill `bb_pl_seq.cpp` (mirror `bb_pat_cat_str` TEXT arm) ⏳
-- [ ] `bb_pl_seq.cpp` TEXT body: `FOR(0, g_emit.xa_bb_ep_n, ...)` emitting `define:` + `jmp` per glue entry (copy `bb_pat_cat_str`). `flat_drive_pl_seq` in `emit_bb.c` does the recursion + label minting.
-- [ ] Gate: `util_prolog_template_emptiness_audit.sh` EMPTY 4→3. `test_prolog_mode4_rung.sh` m4-seq PASS (≥1 total). GATE-1 5/5. GATE-3 ≥ 85.
-
----
-
-### Phase PL-AGW-9B — Call, Choice, Alt emitters (same XA pattern)
-
-#### PL-AGW-9B-1 — `bb_pl_call.cpp` ✅ (2026-05-27, Opus, `449f4ca3`)
-- [x] `bb_pl_call.cpp` FILLED: emits `call .Lplpred_<name>_<arity>` + `rt_last_ok` test → γ/ω, β→ω
-  (deterministic). PL_ENTRY emits each non-entry predicate as a callable flat block under that label.
-  `walk_bb_flat` BB_PL_CALL case added. Gate: EMPTY 3→2; m4-call PASS (GATE-4 2/4). write(atom) fixed.
-
-#### PL-AGW-9B-2 — `flat_drive_pl_choice` + `bb_pl_choice.cpp` ✅ (2026-05-27, Sonnet)
-- [x] `bb_pl_choice.cpp` FILLED: emits per-clause `.Lplch<id>_c<i>_pre:` dispatcher with
-  `call rt_pl_trail_mark_push@PLT` (clause 0) / `call rt_pl_trail_unwind_top@PLT` (subsequent)
-  then `jmp body[i]`. β routes to ω (deterministic first-solution; resumable redo is later).
-- [x] `flat_drive_pl_choice` in `emit_bb.c` — byte-free driver mints `pre/body/beta` labels,
-  recurses into each clause sub-graph's entry via `walk_bb_flat` with shared γ_in,
-  ω chained to next clause's `pre`, last → ω_in.
-- [x] Effect helpers `rt_pl_trail_mark_push / unwind_top / mark_pop` in rt.c (saved-mark stack).
-- [x] Gate: `EMPTY 2→1`. m4-choice `p(a). p(b). main :- p(X), write(X), nl.` PASSes (prints `a`).
-
-#### PL-AGW-9B-3 — `flat_drive_pl_alt` + `bb_pl_alt.cpp` ✅ (2026-05-27, Sonnet)
-- [x] Mirror of AGW-9B-2 but n=2 (nd->α, nd->β branches; branch γ/ω already wired by lower_pl).
-- [x] Gate: `EMPTY 1→0`. m4-alt `main :- ( true ; true ), write(ok), nl.` PASSes (prints `ok`).
-  Also unblocked: BB_SUCCEED (Prolog `true`) — new `bb_succeed.cpp` template added.
-
----
-
-### Phase PL-DEBT — Mode-2/4 parity accounting
-
-#### PL-DEBT-1 — Rung debt ledger ⏳
-- [ ] After every session that adds a mode-2 builtin rung: add an entry: `rung<N> <desc>: mode-2 ✅ YYYY-MM-DD | mode-4 ⏳`. Sessions are NOT allowed to let the open ledger exceed 5 entries before addressing mode-4 gaps.
-- [ ] Current debt: rungs 1–85 mode-2 passing; zero verified mode-4. First paydown: make rungs 01..10 (atoms, arithmetic, unification, write) pass mode-4 via PL-AGW-9A-3.
-
-#### PL-DEBT-1 — Seeded ledger (2026-05-27, Opus 4.7, post-V-5)
-
-V-5 retired the AGW-1c fake-parity; GATE-2 now measures real mode-3/mode-4 agreement and reports
-**36/96**. The 96 failures sort into four structural categories. Each is a discrete next-session
-target; each has a measurable gate (GATE-2 PASS lift).
-
-- [x] **CAT-A — `BB_PL_SEQ`-in-`BB_PL_ALT` α channel bug.** ✅ 2026-05-27 (Opus 4.7).
-  `lower_pl.c:213` was returning `*α_out = gα[0]` (first goal) instead of `*α_out = seq` (the
-  SEQ wrapper). Fixed to `*α_out = seq`. **GATE-2 +5: 31 → 36 PASS, 101 → 96 FAIL** (exactly
-  the 36/96 figure ledgered). GATE-1 5/5, GATE-3 88/19, GATE-4 4/4 all held. **Diagnostic
-  refinement vs original write-up:** the bug was strictly mode-3/4 (emitter), not mode-2. In
-  mode 2, BB_PL_ALT is not actually entered for simple disjunctions — the lowerer wires goal
-  ω-port shortcuts (left-conj `goals[0].ω = bα` = right branch's α) so the outer `bb_exec_once`
-  follows the chain through both branches without ever calling the ALT executor. The mode-4
-  emitter, however, calls `flat_drive_pl_alt` which walks `pBB->α` exactly once — with the old
-  `gα[0]` value it emitted only the first goal of the left conjunction; with `seq` it dispatches
-  to `flat_drive_pl_seq` and emits all goals. Mode 2 unaffected (as predicted).
-
-- [x] **CAT-A-2 — `flat_drive_pl_seq` mechanical ω-wiring fixed.** ✅ 2026-05-27 (Opus 4.7).
-  Replaced `gi_ω = (i==0) ? lbl_ω : &gβ[i-1]` in `emit_bb.c flat_drive_pl_seq` with a
-  resumability-aware `eff_β[]` table that mirrors `lower_pl.c:191-197` exactly: resumable nodes
-  (BB_PL_CALL/BB_CHOICE/BB_PL_ALT) carry `eff_β[i]=&gβ[i]`, non-resumable goals propagate the left
-  neighbor's effective β, goal[0] non-resumable collapses to `lbl_ω`. Outer `lbl_β` now redirects
-  to `eff_β[n-1]` instead of `&gβ[n-1]`. **Diff against the `backtrack` test
-  (`main :- fact(X), write(X), nl, fail ; true.`):** before → `fail.γ jmp plseq2_g2_β` /
-  `plseq2_g3_β: jmp plseq2_g2_β` (every β walks one step left); after → `fail.γ jmp plseq2_g0_β` /
-  `plseq2_g3_β: jmp plseq2_g0_β` (every β jumps directly to the leftmost resumable goal,
-  `fact(X)`). Structurally correct. **GATE-2 UNCHANGED at 36/96** — the fix is gate-safe and
-  necessary, but does not surface as a numeric lift on its own because BB_PL_CALL's β implementation
-  in `bb_pl_call.cpp:97` is `lbl_β: jmp lbl_ω` (documented AGW-9B-1 deferral). So the wiring now
-  correctly delivers redo to `fact(X)`'s β, but `fact(X)`'s β doesn't re-enter the callee. That is
-  the next layer — see CAT-A-3 below. All other gates HELD: GATE-1 5/5, GATE-3 88/19, GATE-4 4/4;
-  sibling smokes Icon 5/5, Raku 5/5, Snocone 5/5, Rebus 4/4; FACT RULE 0.
-
-- [ ] **CAT-A-3 — `BB_PL_CALL` β port is a stub (`jmp ω`); blocks every test where backtracking
-  must re-enter a multi-clause callee (rung05_backtrack, rung02 facts, rung06 lists/member, etc.).**
-  `bb_pl_call.cpp:97`: `s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω)`. With CAT-A-2 landed,
-  the SEQ now correctly wires `fail.γ → fact/1.β`, but `fact/1.β` immediately jumps to ω, so the
-  caller's outer SEQ exits to its own ω and the disjunction's `; true` branch fires.
-  **TWO STUB SITES, NOT ONE** (verified 2026-05-27 Opus 4.7, post-CAT-A-2): the same `β: jmp ω`
-  pattern also lives at `bb_pl_choice.cpp:58` (line: `s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω)`),
-  documented in that file's header comment as a deferred AGW-9B-2 cut: "β (redo) currently fails:
-  full resumable choice is a later rung (stateful redo)." So a complete CAT-A-3 needs BOTH:
-  (i) the callee block (`BB_CHOICE` inside `.Lplpred_<name>_<arity>`) to honor β by advancing to
-  the next clause's `pre[k+1]`, and (ii) the call site (`bb_pl_call.cpp`) to forward its own β to
-  the callee block's β rather than to ω. **Fix sketch:**
-  the callee block emitted under `.Lplpred_<name>_<arity>` contains a multi-clause `BB_CHOICE`
-  driven by `flat_drive_pl_choice` (already FILLED, AGW-9B-2). The choice driver's β label
-  (`plch<id>_β`) is the right re-entry point. The call template needs to (a) export that label
-  per-callee (or use a stable per-callee `.Lplpred_<name>_<arity>_β`), (b) at the call site, on β,
-  push the saved-env back, jump to the callee's β label rather than ω. That requires the callee
-  block to leave its saved-env recoverable across the redo (currently `pl_bb_env_pop` runs on the
-  γ/ω returns, destroying it). Two designs possible:
-    (a) **Inline-on-demand:** rather than emitting each predicate as a separate callable block,
-        inline multi-clause predicates at each call site. Simplest, but bloats code for repeated
-        callees and breaks single-emit. Useful as a stepping stone.
-    (b) **Resumable-call protocol:** the callee block returns a continuation token (e.g. clause
-        cursor) in a register; the call site stashes it; on β, restores env+cursor and re-calls
-        the same block, which uses the cursor to skip already-tried clauses. Cleaner; matches the
-        interp model (`zc->cur`); requires extending `pl_bb_choice_state_t` access from emitted
-        code. Also requires the callee block to NOT pop the saved env on γ (the call site owns it).
-  Decision deferred to Lon. Estimated GATE-2 lift: large — most CAT-A-2-unblocked failures resolve
-  once callee β actually re-enters.
-
-#### Failure categorization (2026-05-27 Opus 4.7, post-CAT-A-2, by sample inspection)
-
-GATE-2 reports 36/96. **Important semantics note:** the crosscheck script (`test_crosscheck_prolog.sh`)
-diffs `--interp` vs `--run`, NOT against `.ref`. So a test PASSes if both modes agree, even if both
-are wrong vs the oracle (ORACLE_MISS is reported separately but informationally). Several of the 36
-"PASSes" therefore mask same-mode-bugs (e.g. rung27/rung28 PASS in crosscheck despite GATE-3 reporting
-0/5 there — both modes fail the same way through the same C interp path for those builtins). The
-"real" PASS-with-correctness count is lower than 36.
-
-Sampled failures cluster:
-- **CAT-A-3** (multi-clause callee redo): rung02 facts, rung05 backtrack, rung08 recursion, simple
-  `backtrack` crosscheck case. Symptom: prints first solution only; subsequent backtracks fall through.
-- **CAT-B** (compound-term unify): rung03 `f(X,a)=f(b,Y)` prints `_ _`. Confirmed.
-- **CAT-C** (lists/cons): rung06 lists, member/2 — segfaults under `--run` (Sigsegv in child binary).
-- **CAT-D** (builtin coverage in flat-emit): rung11 findall (prints `_` instead of `[red,green,blue]`),
-  rung12 atom_codes/upcase_atom (prints `_`), rung09 builtins. The flat `bb_builtin.cpp` template
-  knows write/nl/is/comparisons; everything else stub-comments + jmp γ, so the call silently succeeds
-  without effect, leaving outputs as unbound `_`.
-- **PJ-AGW-5** (ITE / `->`): rung04 arith ITE, rung07 cut. Symptom: ITE branches not taken.
-- **Recursion** (CAT-A-3 plus stack): rung08 fib/factorial likely needs CAT-A-3 to recurse over choice
-  points.
-
-Estimated impact ordering (rough; verify by closing each category in order and re-running GATE-2):
-1. **CAT-D** (builtin coverage) — many small wins; mostly mechanical port of `bb_exec.c BB_BUILTIN` arms
-   into `bb_builtin.cpp`. Probably +15-25 PASS.
-2. **CAT-A-3** (callee β-resume) — large structural unlock; +15-25 PASS once landed (every
-   `pred(X), …, fail` pattern).
-3. **CAT-B** (compound terms) — moderate; prerequisite for CAT-C and several rung builtins.
-4. **CAT-C** (lists/cons) — small set, but high visibility (member/2 is canonical).
-5. **PJ-AGW-5** (ITE) — moderate; closes rung04, rung07, and several puzzles.
-
-Best next session order: CAT-D (cheapest per PASS) → CAT-A-3 (largest single-step unlock; needs Lon
-directive) → CAT-B → CAT-C → PJ-AGW-5.
-
-
-- [x] **CAT-B — Compound-term unify binds nothing.** ✅ CLOSED (`2026-05-27`, Opus 4.7). See
-  CAT-B ledger entry at top of file for details. `f(X,a) = f(b,Y)` now binds correctly in mode-4
-  (X=b, Y=a). Full mode-4 corpus 22/107 → 23/107 (+1, rung03_unify_unify); GATE-2 132/132 hold,
-  GATE-3 mode-2/3 89/107 hold, GATE-4 4/4 hold, FACT RULE 0, all sibling smokes hold.
-
-- [x] **CAT-C — List/cons walking + multi-clause recursive segfault.** ✅ CLOSED (`2026-05-27`,
-  Opus 4.7). See CAT-C ledger entry at top of file for details. Actual root cause was NOT
-  `bb_pl_call.cpp` arg-passing (env push/save / `pl_bb_bind_arg` are sound) — it was the latent
-  `BB_PL_VAR` garbage-sval bug documented at the bottom of CAT-D-1's ledger entry. `tree_t.v` is
-  a union of `sval/ival/dval`; the parser's `tr_assign_slots` pass writes `v.ival = slot` LAST,
-  destroying the variable name in `v.sval`; `lower_pl.c:65` then propagated the resulting wild
-  pointer (slot number cast to char*) into BB_t. `bb_pl_call.cpp:50`'s `if (sval && *sval)
-  strtab_label(...)` SIGSEGV'd on every multi-clause recursive predicate. One-character fix:
-  `nd->sval = e->v.sval` → `nd->sval = NULL`. Mode-4 corpus 23/107 → 24/107 (+1: rung08
-  recursion/fib/factorial). rung06 lists no longer segfaults at compile time; correctness still
-  blocked on CAT-A-3's multi-clause β-resume for cons-cell append/length/reverse cascade
-  (orthogonal). rung07_cut_cut now surfaces a pre-existing `bb_emit_byte: non-BINARY-mode
-  reach (mode=0, b=0xe9)` error — was masked by the earlier segfault, not a regression. All
-  other gates hold; FACT RULE 0.
-
-- [~] **CAT-D — Builtin coverage in flat-emit (STARTED 2026-05-27).** `bb_builtin.cpp` covers `write/1`,
-  `nl/0`, `is/2`, **and now `atom_length/2`, `upcase_atom/2`, `downcase_atom/2`** (CAT-D-1, see below).
-  Remaining builtin set (findall/3, sort/2, format/2, atom_codes/2, atom_concat/3, retract/retractall,
-  assertz/asserta, abolish/1, succ/plus/3, catch/throw, etc.) exists ONLY in `bb_exec.c BB_BUILTIN`
-  (mode-2). Each unknown name in the template emits a stub-comment + `jmp γ`, so the call silently
-  succeeds without effect. Each builtin needs an arm in `bb_builtin.cpp` (template byte emission only
-  — effect helpers `rt_pl_*` stay in `rt.c`/`bb_exec.c`). Recommend ordering: write/print-class first
-  (rung06, rung09), then atom_*-class (rung12), then findall/sort/format (rung11/aggregates).
-
-  **CAT-D-1 ✅ (2026-05-27, Opus 4.7, one4all `95f73bad`)** — `atom_length/2`, `upcase_atom/2`,
-  `downcase_atom/2`. Single template arm in `bb_builtin.cpp` dispatches all three to per-builtin rt
-  helpers via the `rt_pl_is` precedent: flatten each of the two args to (kind, ival, sval) scalars,
-  pass in `rdi/rsi/rdx/rcx/r8/r9` (x86-64 calling convention), call the helper, branch `eax` → γ/ω.
-  Helpers `rt_pl_atom_length` / `rt_pl_upcase_atom` / `rt_pl_downcase_atom` added to `bb_exec.c`
-  (declared in `bb_exec.h`) with shared `rt_pl_atomic_text_helper` + `rt_pl_case_atom_common`. Each
-  materializes Terms via `rt_pl_node_to_term`, reads the atomic text, computes the result, unifies
-  into arg1 under a trail mark, returns 1/0. Template owns the γ/ω jumps; helper has no port logic
-  (RULES-compliant effect helper). **GATE-2: 36/96 → 38/94 (+2)** — `rung12_atom_case` and
-  `rung12_atom_length` both flipped to PASS, zero regressions. GATE-1 5/5, GATE-3 88/19, GATE-4 4/4
-  all held; sibling smokes (Icon/Raku/Snocone/Rebus 5/5/5/4) held; FACT RULE 0 held.
-
-  **Latent bug discovered (FIXED 2026-05-27, Opus 4.7 — see CAT-C ledger entry at top of file):**
-  `BB_PL_VAR` nodes carry **garbage `sval`** because `lower_pl.c:65` did `nd->sval = e->v.sval`
-  where the AST union slot holds the variable slot index as `ival` (the union shares storage with
-  `sval`). So e.g. variable in slot 1 had `nd->sval = 0x1` (slot index reinterpreted as char
-  pointer). Manifested as a segfault in `bb_pl_call.cpp:50` (`strtab_label`/`strcmp` derefs the
-  wild pointer) on every multi-clause recursive predicate. CAT-D-1 template had guarded
-  `strtab_label` calls on `k == BB_ATOM` to avoid this; CAT-C now fixes at the source by setting
-  `nd->sval = NULL` for `BB_PL_VAR` in `lower_pl.c:65` (slot index is in `ival` only, as
-  documented). One-character substantive change.
-
-  **Empty-atom edge:** `''` has `sval = ""` (non-NULL, empty), `[]` has `sval = NULL` →
-  defaults to `"[]"` in `rt_pl_node_to_term`. The template check is now `k==BB_ATOM && sval`
-  (not `*sval`), so empty atom routes through strtab properly; `atom_length('', 0)` correct.
-
-  **CAT-D-2 ✅ landed (`ecb3b229`):** atom_concat/3 via new rt_pl_atom_concat 9-arg helper.
-  Template uses System V ABI (rdi/rsi/rdx/rcx/r8/r9) + 3 stack args at [rsp+0/+8/+16] under
-  `sub rsp,32` / `add rsp,32` for 16B call alignment; rax scratch for the 64-bit i2 immediate
-  and optional s2 strtab label. Helper materializes a0+a1 via rt_pl_node_to_term, reads
-  atomic text via shared helper, concats under GC_MALLOC, interns, unifies into a2. Gate
-  effect: `rung12_atom_builtins_atom_concat` PASSES --mode run (was FAIL=`_`).
-
-  **CAT-D-3 ✅ landed (`ecb3b229`):** string_length/string_upper/string_lower/string_concat
-  aliased onto existing CAT-D-1/D-2 rt helpers. SCRIP Terms make NO atom-vs-string distinction
-  (both TERM_ATOM, both intern through prolog_atom_intern); mode-2 paths in bb_exec.c:2877-2900
-  also bottom out identically. Pure template-arm name-match extension — ZERO new rt code.
-  Gate effect: +3 in --mode run (rung24_string_length/string_case/string_concat all PASS).
-
-  **CAT-D-4 ✅ landed (`52a78efb`):** atom_string/2 + string_to_atom/2 bidirectional via new
-  rt_pl_atom_string_pair helper. Detects which side is ground (term_deref + tag != TERM_VAR
-  test) and unifies the atom-interned text into the OTHER side. Same 6-scalar shape as CAT-D-1.
-  Gate effect: +2 in --mode run (rung24_atom_string + rung26_string_to_atom both PASS).
-
-  **CAT-D-5 ✅ landed (`bb8bb529`):** copy_term/2 via new rt_pl_copy_term helper (calls static
-  bb_copy_term — deep clone with fresh-var renaming, then unify into arg1). Joined the CAT-D-4
-  arm in bb_builtin.cpp; dispatch on fn-name between rt_pl_copy_term and rt_pl_atom_string_pair.
-  Gate effect: 0 on the rung_suite (the rung26_copy_term fixture requires write(compound) +
-  ITE-with-==/2, both pre-existing mode-4 gaps below). Standalone /tmp/test_copy.pl with
-  copy_term(hello,C),write(C) outputs 'hello' byte-identical to --interp. The helper is correct
-  and will pull rung26_copy_term over once those orthogonal gaps land.
-
-  **CAT-D-6 ✅ landed (`b60ebfa4`, Sonnet 4.7, 2026-05-27):** atom_chars/2, atom_codes/2,
-  string_chars/2, string_codes/2 — bidirectional list↔atom via two-path template. Path A
-  (scalar a1 = BB_PL_VAR or BB_ATOM): 7-scalar `rt_pl_atom_chars_codes(as_codes, k0,i0,s0,
-  k1,i1,s1)` — 6 regs + 1 stack slot under `sub rsp,16`. Path B (literal cons-cell a1 =
-  BB_PL_STRUCT): emit `emit_build_compound_term(a1)` to build Term* tree at runtime, pass
-  pointer in r8, call `rt_pl_atom_chars_codes_term(as_codes, k0,i0,s0, Term*)`. Shared static
-  `atom_chars_codes_common(as_codes, t0, t1)` factors decompose (arg0 ground → build cons
-  list, unify into arg1) vs compose (arg0 unbound → walk cons list, build atom text, unify
-  into arg0). Term* forward-declared as void* in bb_exec.h (transitive include scope
-  doesn't have Term); cast at the .c entry. ALSO landed in same commit: rt_pl_write_var
-  TERM_COMPOUND case now routes to pl_write (was falling through to fputs("_"), pre-existing
-  CAT-D-7 follow-up).
-  Gate effect: **+2 mode-3 rung (rung12_atom_chars + rung12_atom_codes); +2 mode-4 rung
-  (same two). Mode-3 and mode-4 byte-identical across full edge-case battery (atom_codes
-  ([97,98,99]) → abc; atom_chars('',[]) → []; round-trip atom_codes(abc,Cs),atom_codes(Y,Cs)
-  → abc).**
-
-  **CAT-D-10 ✅ landed (`c5fc7d3c`/`060aad55`, Sonnet 4.7, 2026-05-27):** all 11 1-arg type
-  tests (var, nonvar, atom, atomic, number, integer, float, compound, callable, is_list,
-  ground). Previously fell through to bb_pl_builtin's stub-comment + succ_back, so every
-  test returned `yes` silently — correctness horror in any ITE-conditioned program. Two-path
-  emission mirrors CAT-D-9b: scalar arg → 4-arg `rt_pl_type_test(fn, k,i,s)` (all 4 regs,
-  no stack); compound-literal arg (e.g. `is_list([1,2,3])`) → `emit_build_compound_term`
-  + `rt_pl_type_test_term(fn, Term*)` under `sub rsp,16` for walker scratch. Both helpers
-  share static `type_test_common(fn, Term*)` mirroring bb_exec.c:2899-2909. Op string interned
-  via strtab_label. **Mode-2/3/4 byte-identical** across full 9-test scalar battery
-  (atom/integer/number/atomic/compound/var/nonvar/etc.) AND the 4-test compound battery.
-  Gate: no rung-count delta — type tests are conditions inside ITEs whose true/else branches
-  still depend on functor/arg/=.. (still stub-comment). Diff against rung09_builtins: type-
-  test lines now read `yes yes no no` instead of all-yes. **All sibling smokes held; FACT
-  RULE 0; GATE-1 5/5; mode-2 89/107; mode-3 21/107; mode-4 21/107.**
-
-  **CAT-D-11 ✅ COMPLETED 2026-05-27 (Opus 4.7) — see top-of-file ledger entry for details.**
-  Mode-4 corpus 24/107 → 28/107 (+4: rung17_sort_sort_basic, rung17_sort_sort_already_sorted,
-  rung17_sort_msort_basic, rung17_sort_msort_dupes). All gates held; FACT RULE 0. Two-path
-  effect helper exactly as designed (scalar `rt_pl_sort_msort` 7-scalar / compound-literal
-  `rt_pl_sort_msort_term` 1 ptr + 3 scalars). Downstream list-pattern unify (`S = [A,B,C]`
-  after sort) confirmed working in mode-4 via pre-commit probe — the ledger's verification
-  concern was a no-op for the current tree.
-
-  **CAT-D-12 — alternative NEXT — functor/3 + arg/3 + =../2.** Unblocks rung09_builtins
-  directly. functor/3 has decompose path (TERM_COMPOUND → unify name+arity) and construct
-  path (Name+Arity → build fresh-var compound, unify); arg/3 indexes into compound.args[];
-  =../2 builds a cons-list of [functor|args]. All three need compound construction/decomp
-  which is well-trodden territory (emit_build_compound_term + rt_pl_compound_build_n exist).
-
-  **Pre-existing mode-4 gaps blocking compound-using rungs (worth fixing for big lifts):**
-  (a) `write(compound)` renders the slot index, not the term shape. Minimal repro:
-      `main :- copy_term(f(a,b),D), write(D), nl.` outputs `2` (slot index) instead of `f(a,b)`.
-      The bb_pl_builtin.cpp `write` arm at line 38-58 only handles BB_ATOM and BB_PL_VAR — the
-      VAR arm calls `rt_pl_write_var(slot)` which DOES render compounds in mode-2 but its
-      mode-4 emission must be loading the wrong value. Look at `rt_pl_write_var` first.
-  (b) ITE-with-`==/2` in mode-4 evaluates as silent fail. Minimal repro:
-      `main :- X=a,Y=a,(X==Y->write(same);write(diff)), nl.` outputs blank line. The PJ-AGW-5
-      partial fix (β→ω_in) handles re-evaluate-Cond loops; this is a different path where
-      `==/2` BB_BUILTIN itself doesn't reach γ. Verify the `==` arm is reached in mode-4
-      (it may be falling through to "unknown 'is' — stub" path).
-
-
-
-## Open steps (priority order)
-
-### 🔴 VIOLATIONS LEDGER (found session 2026-05-27 — fix BEFORE writing more rungs)
-
-These are confirmed deviations from RULES.md, verified against the tree at `701403cb`. They are
-the "get it right before we write 100 more wrong" list. Each has an exact fix + gate. Order matters:
-V-1/V-2 unblock the first green mode-4 execution; V-3..V-6 retire the C-walker dependency that makes
-modes 3/4 non-compliant. **No new rung/builtin work should be marked complete on a mode-4 claim until
-V-1 and V-2 land and GATE-4 ≥ 1.**
-
-- [x] **V-1 — Clause body has no `BB_PL_SEQ` wrapper (blocks all mode-4 flat-seq emission).** ✅ 2026-05-27 (Opus, uncommitted).
-  `lower_pl_clause_body` (lower_pl.c:471) threads body statements via node-pointer γ/ω and sets
-  `cfg->entry = nα[0]` (first goal). So `flat_drive_pl_seq` never fires; `walk_bb_flat` emits only the
-  first goal. **FIX:** after the threading loop (after lower_pl.c:537), allocate a `BB_PL_SEQ` node,
-  populate `bb_pl_seq_state_t->goals[] = gnodes[]` / `ngoals = n_stmts`, set `seq->α = nα[0]`,
-  `seq->γ/ω` = clause continuations, and `cfg->entry = seq`. Mirror the explicit-conjunction case
-  (lower_pl.c:198-203). **Gate:** GATE-3 unchanged (88/107 — the executor's `BB_PL_SEQ` case is
-  trivial "enter at α", so wrapping is transparent to mode 2); GATE-4 emits all goals of m4-seq.
-
-- [x] **V-2 — `is/2` lowers to `BB_BUILTIN` (stub) not `BB_ARITH` in the clause-body path.** ✅ 2026-05-27 (Opus, uncommitted). Resolved via serializable-scalar `rt_pl_is` effect helper rather than re-shaping BB_ARITH (binary-arith RHS; non-binary RHS still TODO).
-  Observed emit: `# BOX PL_BUILTIN(is/2) … # PL_BUILTIN: unknown 'is' — stub`. The working four-port
-  arith template `bb_pl_arith.cpp` (calls effect helper `rt_pl_arith`) is keyed to `BB_ARITH`.
-  **FIX:** in the clause-body lowering path (lower_pl.c:511 `lower_pl_goal(...)`), ensure `X is Expr`
-  produces `BB_ARITH` exactly as the conjunction/interp path does. Add a printf of `nd->t` for main's
-  goals if needed to confirm. **Gate:** m4-seq emits `call rt_pl_arith@PLT`; `test_prolog_mode4_rung.sh`
-  m4-seq PASS (`3`). FIRST GREEN four-port mode-4 Prolog.
-
-- [x] **V-3 — Structural four-port templates EMPTY (CLOSED 2026-05-27, Sonnet).**
-  All four AGW-9 structural templates now FILLED: `bb_pl_seq`, `bb_pl_call`, `bb_pl_choice`, `bb_pl_alt`,
-  `bb_pl_cut` (audit EMPTY=0 / FILLED=5). `walk_bb_flat` dispatches BB_CHOICE/BB_PL_ALT to new
-  byte-free drivers `flat_drive_pl_choice` / `flat_drive_pl_alt` (mirror `flat_drive_alt`). Templates
-  emit the dispatcher: per-clause `.Lplch<id>_c<i>_pre:` label with `call rt_pl_trail_mark_push@PLT`
-  (clause 0) / `call rt_pl_trail_unwind_top@PLT` (later), then `jmp body[i]`. Effect helpers
-  `rt_pl_trail_mark_push` / `rt_pl_trail_unwind_top` / `rt_pl_trail_mark_pop` added to rt.c
-  (saved-mark stack, no port logic). GATE-4 4/4 — m4-choice + m4-alt both green. Three latent
-  pre-existing bugs fixed in passing:
-    (a) BB_SUCCEED (Prolog `true`) had no `walk_bb_flat` case → fell to default → 0xe9 abort.
-        New `bb_succeed.cpp` template + emit_core routing.
-    (b) BB_PL_CALL emitted no arg-passing — call-site now builds caller-Terms via
-        `rt_pl_node_to_term`, calls `pl_bb_env_save_push` + per-arg `pl_bb_bind_arg` (unify
-        callee slot to caller Term, trail-aliased), restores env via `pl_bb_env_pop` after call.
-        Callee block's redundant `pl_bb_env_push` removed.
-    (c) `bb_prepare_pl` swapped channel for (VAR,ATOM) unify — put atom's sval in `bb_pl_ls`
-        instead of `bb_pl_rs`; the BB_ATOM operand then defaulted to NULL sval → `"[]"`.
-        And `rt.c` lacked `prolog_atom.h` include → `prolog_atom_name` return defaulted to int
-        and got 32-bit truncated; plus `rt_init` didn't call `prolog_atom_init`. All three fixed.
-
-- [x] **V-4 — Mode 4 rebuilds the BB graph at runtime via `rt_pl_b_*` (RULES "no runtime BB walk"). ✅ 2026-05-27 (Sonnet 4.7, `b95e4318`).**
-  Predicate BB graphs are now inlined as flat x86 by SM_BB_SWITCH PL_ENTRY at emit time. The
-  runtime rebuild via `rt_register_predicates_pl` + `rt_pl_b_*` was dead (0 `bb_exec_*` calls in
-  emitted .s) — it built a graph nothing read. Deletions: `xa_pl_{builder,sub_builder,registry_table,kids_rodata}.cpp`;
-  `codegen_pl_predicate_registry` + 4 helpers in `emit_sm.c` (~180 LOC); `rt_register_predicates_pl`
-  + `rt_pl_b_*` + `rt_pl_b_sub_*` family in `rt.c`/`rt.h` (~210 LOC); ~30 dead `xa_pl_*` scalars in
-  `emit_globals.h`. Retirements: 4 XA_PL_* opcodes kept as no-op dispatch entries (mirrors existing
-  `XA_PL_PREDICATE_REGISTRY` RETIRED pattern) — keeps enum slots stable. Emitted .s for
-  `main :- X is 1+2, write(X), nl.`: 449 → 345 lines (-23%); rt_pl_b_* calls 16 → 0;
-  rt_register_predicates_pl calls 1 → 0; bb_exec_* 0 → 0. Gates HELD: GATE-1 5/5, GATE-2 132/0,
-  GATE-3 88/107, GATE-4 4/4, Icon smoke/rungs/mode-4 unchanged, FACT RULE 0.
-
-- [x] **V-5 — Mode 3 (`--run`) Prolog now runs flat x86 via fork+exec pipeline (AGW-1c RETIRED). ✅ 2026-05-27 (Opus 4.7).**
-  `scrip.c:422-432` rewired: Prolog `--run` no longer routes through `sm_interp_run`. New static
-  helper `scrip_run_via_x86_pipeline(s2, input_path)` mkdtemps `/tmp/scrip_run_XXXXXX`, chdirs in,
-  calls `sm_codegen_text` to write `prog.s`, runs `stage2_free_bb_after_emit`, spawns external `as`
-  + `gcc` (linking against libscrip_rt.so located via `$SCRIP_RT_LIB` or `/proc/self/exe` dirname
-  search), then forks + execvs `prog.bin` in a child and waits. Child exit status propagated to the
-  scrip driver's return. Sibling helpers `scrip_locate_rt_lib` and `scrip_spawn_wait` added. The
-  AGW-1c comment block ("Mode 3 (--run) routes through sm_interp_run … until the bb_pl_*.cpp
-  emitter templates are filled") is DELETED from the branch and replaced with the V-5 commentary.
-  **GATE-2 collapses from a fake 132/0 to a real 36/96** — the prior parity was meaningless
-  because both `--interp` and `--run` walked the same C code; the 96 new failures are the
-  genuine mode-3/mode-4 gap, ledgered as PL-DEBT-1 below. GATE-1 5/5, GATE-3 88/107, GATE-4 4/4
-  held. Sibling smoke (Icon/Snocone/Raku/Rebus) 5/5/5/4 held. FACT RULE grep 0. **RULES.md TODO:**
-  delete the "Exception: Prolog `--run` via `sm_interp_run` … AGW-1c" sanction line — V-5 closes it.
-
-- [ ] **V-6 — C Byrd box `pl_bb_dcg` (DESCR_t fn(void*,int)) must die with the C walker.**
-  `pl_bb_dcg` (pl_runtime.c:36) is a C Byrd box that calls `bb_exec_once`/`bb_exec_resume` — exactly the
-  shape RULES.md "NO C BYRD-BOX FUNCTIONS" forbids (only `icn_bb_dcg` is exempt). It is sanctioned ONLY
-  as the mode-2 reference path. **FIX:** it stays as the mode-2 reference walker (legal), but must NOT be
-  reachable from modes 3/4 once V-4/V-5 land. After V-5, confirm no mode-3/4 run path reaches `pl_bb_dcg`
-  or `bb_exec_*`. (Do NOT delete `bb_exec_*` — mode 2 needs it.) **Gate:** `grep` shows `pl_bb_dcg` /
-  `bb_exec_*` callers are mode-2-only (`sm_interp_run` dispatch); document the audit in the watermark.
-
-### Rung ladder builtins (Mode 2/3, lower_pl.c + bb_exec.c)
-- [~] **rung15-ABOLISH** — `abolish(Name/Arity)` ✅ 3/5 (87ed9b24). Implemented as BB_BUILTIN: parse `/`(Name,Arity) compound, `pl_bb_lookup`, zero `zc->nbodies` on the predicate's BB_CHOICE; always succeeds. 2 remaining blocked: **one_of_two** (ITE backtracking loop — see PJ-AGW-5 below) + **then_reassert** (runtime assertz-in-body, unimplemented).
-- [ ] **rung18-PLUS3** — `plus(X,Y,Z)` bidirectional: if X+Y bound → unify Z; if X+Z bound → unify Y; etc. Gate: rung18 5/5.
-- [ ] **rung25-TERM2ATOM-OPS** — `term_to_atom/2` operator writer: current `pl_term_to_string` renders `+(1,2)` instead of `1+2`. Fix `pl_term_to_string` in `prolog_builtin.c` to use operator notation (same logic as `pl_writeq_term`). Gate: rung25 3/3.
-- [ ] **rung28-CATCH-THROW** — `catch(Goal,Catcher,Recovery)` / `throw(Term)`. Lower as BB_BUILTIN with 3-arg γ-chain; exec arm uses `setjmp`/`longjmp` or a global exception term + flag. Gate: rung28 5/5.
-- [ ] **PL-RT-ASSERTZ** — runtime `assertz/asserta` *inside a goal body* (not just `:-` directive fold). Currently a body-level `assertz(foo(x))` produces no effect. Must materialise a fresh clause body BB graph at runtime and append/prepend to the predicate's `BB_CHOICE` `zc->bodies[]` (inverse of abolish). Blocks rung15 then_reassert.
-
-### Emitter (Mode 4, AGW-9)
-- [ ] **AGW-9-SEQ** — Add `flat_drive_pl_seq` to `walk_bb_flat` (emit_bb.c). Walks goals back-to-front, wires `goal[i].γ→goal[i+1].α`, `goal[i].ω→goal[i-1].β`. Fill `bb_pl_seq.cpp` glue (emit `jmp nd->α`). Gate: `go :- a, b, c.` runs via `run_prolog_via_x86_backend.sh`; EMPTY 4→3.
-- [ ] **AGW-9-CALL** — `flat_drive_pl_call` + `bb_pl_call.cpp`. Gate: single predicate call in Mode 4. EMPTY 3→2.
-- [ ] **AGW-9-CHOICE** — `flat_drive_pl_choice` + `bb_pl_choice.cpp`. Needs `trail_mark`/`trail_unwind` inline. Gate: multi-clause predicate in Mode 4. EMPTY 2→1.
-- [ ] **AGW-9-ALT** — `flat_drive_pl_alt` + `bb_pl_alt.cpp`. Gate: `;` disjunction in Mode 4. EMPTY 1→0.
-- [ ] **AGW-10** — Mode-4 parity: every Mode-2-passing rung byte-identical in Mode 4. Gate: GATE-1..4 green; Mode-4 rung count ≥ Mode-2 count.
-
-### Cleanup (lower priority)
-- [~] **PJ-AGW-5-CUT-BARRIER** — Proper `BB_CUT` ω-rewiring for non-deterministic if-then-else conditions (cut-on-cond commit). **Partial (87ed9b24):** Prolog ITE `β` (redo) port now routes to `ω_in` (lower_pl.c TT_IF block) instead of re-entering Cond — stops the simplest re-evaluate-Cond loops (+3 net on suite). **Still open:** rung15 one_of_two still loops — when Cond is a *real* predicate (even with 0 clauses after abolish) the redo path is not fully determinate, and a stale `cat_found` appears on first solve. Needs a dedicated stateful committed-ITE BB node (mirror Icon `BB_IF` at bb_exec.c:803) that runs Cond+chosen-branch in one node call and records the committed branch, rather than pure ALT-style port chaining. Currently deterministic ITE works; non-det / abolished-pred conditions don't fully commit.
-- [ ] **PJ-AGW-6b** — `BB_PAT_ARBNO`/DCG repetition port wiring. Gate: DCG pushback_rest.
-- [ ] **PJ-AGW-7** — LOWER sweep: no persistent aux in reset-cleared slots.
-- [ ] **PJ-DEL-PUMP** (PP-1..10) — Tombstone `SM_BB_PUMP_PROC/SM/CASE` → `SM_UNUSED_7/8/9`. Keep `SM_BB_SWITCH` only. Site map in archived watermarks.
-- [ ] **SBL-PAT-PRIM** — TAB pattern-primitive `bb_bin_t` reloc + `. V` capture segfault (Mode 3 SNOBOL4).
-- [ ] **SBL-BENCH-ALL** — All 16 SNOBOL4 benches m2=m3=m4=N DIFF=0.
-
----
-
-## Completed steps (summary — details in git log)
-
-**PJ-1..14 ✅** — BB infrastructure: pl_bb_dcg, lower_pl.c/h, SM_BB_SWITCH wiring, AG lowering (AGW-1..6), mode-name eradication, Greek port names, alpha labels.
-
-**PJ-AGW-1..6 ✅** — Full AG lower_pl: aux→ival, SM_BB_SWITCH entry, Mode-3 routes interp, 4-attr signature, SEQ port-chain, CHOICE β-chain + exhaustion handshake, activation-safe recursion, ITE lowering, compound terms + float arith.
-
-**PA-1 ✅** — `rt_pl_unify_{var_atom,var_var,generic}` deleted; BB_UNIFY γ/ω inline.
-**PA-2 (1/5) ✅** — `util_prolog_template_emptiness_audit.sh` + `bb_pl_cut.cpp` filled.
-**PA-3 ✅** — `pl_broker.h` dead include removed from `sm_jit_interp.c`.
-
-**PJ-DEL-ONCEPROC ✅** — `SM_BB_ONCE_PROC` → `SM_UNUSED_6`; `rt_pl_once` deleted.
-**PJ-10a/b ✅** — `BB_PL_*` → `BB_*` rename (colliding names kept with PL_ prefix).
-**PJ-12 ✅** — SM/BB freed after emission in Modes 3/4.
-
-**SBL-FN-RET/ARGS/EXEC-PATD/PAT-BLOB/IDX ✅** — SNOBOL4 Mode-3 fixes.
-**SBL-PAT-PRIM ✅** — ANY/NOTANY/SPAN/BREAK `bb_bin_t` reloc (TAB still open).
-**SBL-M4-ASM ✅** — Mode-4 broad corpus 0→126.
-**SBL-M4-OPDISPATCH ✅** — vstack reset in `rt_set_stno`.
-
-**Builtins landed (all as BB_BUILTIN in bb_exec.c, with mode-4 emission via bb_builtin.cpp template arms + rt_pl_* effect helpers):**
-- write/writeln/nl/is/comparisons/succ/== ✅
-- functor/arg/=../type-tests/atom_*/char_type ✅
-- findall/atomic_list_concat ✅ (mode-2 only)
-- term_to_atom(forward)/atom_number ✅ (mode-2 only)
-- sort/msort/format/numbervars/writeq/write_canonical/print/retract/retractall ✅ (2026-05-27)
-- abolish/1 ✅ (2026-05-27, 87ed9b24 — zeros BB_CHOICE nbodies)
-- assertz/asserta directives (lower-time static fold) ✅
-- **Mode-4 emit (new in this session, CAT-D-2..5, 2026-05-27 Opus 4.7):**
-  - atom_concat/3 ✅ (`ecb3b229`, new rt_pl_atom_concat 9-arg helper)
-  - string_length/2, string_upper/2, string_lower/2, string_concat/3 ✅ (`ecb3b229`, aliased onto CAT-D-1/D-2 helpers — ZERO new rt code)
-  - atom_string/2, string_to_atom/2 ✅ (`52a78efb`, new rt_pl_atom_string_pair bidirectional helper)
-  - copy_term/2 ✅ (`bb8bb529`, new rt_pl_copy_term helper)
-  - write(compound) ✅ (`d2ce06fc`, CAT-D-7 — emit_write_term recursive walker)
-  - if-then-else ✅ (`710ee0b0`, CAT-D-8 — BB_PL_ITE wrapper + flat_drive_pl_ite + bb_pl_ite.cpp)
-  - 12 comparison ops ==, \\==, @<, @>, @=<, @>=, =:=, =\\=, <, >, <=, >= ✅ (`b1a37351`, CAT-D-9 — rt_pl_term_cmp + rt_pl_arith_cmp; single 7-scalar arm)
-  - compound-term `==`/`\\==`/`@<`/`@>`/`@=<`/`@>=` correctness ✅ (`e15e86b0`, CAT-D-9b — emit_build_compound_term post-order walker + rt_pl_compound_build_n + rt_pl_term_cmp_terms; no rung delta, correctness fix only)
-  - atom_chars/2, atom_codes/2, string_chars/2, string_codes/2 ✅ (`b60ebfa4`, CAT-D-6, Sonnet 4.7 — two-path: scalar rt_pl_atom_chars_codes 7-scalar / cons-cell rt_pl_atom_chars_codes_term + emit_build_compound_term; shared static atom_chars_codes_common; rt_pl_write_var TERM_COMPOUND → pl_write fix included; +2 mode-3 + +2 mode-4 rung)
-  - 11 1-arg type tests var/nonvar/atom/atomic/number/integer/float/compound/callable/is_list/ground ✅ (`060aad55`, CAT-D-10, Sonnet 4.7 — fixed silent always-succeeds; two-path scalar 4-arg rt_pl_type_test / compound-literal rt_pl_type_test_term; shared static type_test_common; no rung delta, correctness fix gating downstream ITEs)
-
-**Gates at HEAD (post-CAT-D-10, 2026-05-27 Sonnet 4.7, one4all `060aad55`):** GATE-1 5/5,
-GATE-2 = **54/132** (crosscheck mode-2/3 agreement, held),
-GATE-3 **89/107** (--mode interp; held), **GATE-4 4/4** (mode-4 minimal held),
-mode-3 rung suite **21/107** (--mode run; +2 from 19 baseline via CAT-D-6),
-mode-4 rung suite **21/107** (--mode compile; +2 from 19 baseline via CAT-D-6),
-crosscheck 54 PASS held.
-Sibling smoke: icon/snocone/raku 5/5, rebus 4/4.
-
-**This session (Sonnet 4.7, 2026-05-27, after CAT-D-9b handoff):**
-- **CAT-D-6** (`b60ebfa4`) — atom_chars/2, atom_codes/2, string_chars/2, string_codes/2
-  mode-4 emission. Two-path template (scalar a1 → rt_pl_atom_chars_codes / literal cons-cell
-  a1 → rt_pl_atom_chars_codes_term + emit_build_compound_term). Shared static
-  atom_chars_codes_common(t0,t1) factors decompose vs compose. Term* forward-decl'd as void*
-  in bb_exec.h. Plus rt_pl_write_var TERM_COMPOUND → pl_write (1-line, was dropping to "_").
-  Verified byte-identical across all three SCRIP modes on full edge battery: ground
-  decompose (`atom_chars(hello,Cs)` → `[h,e,l,l,o]`); ground compose with code list
-  (`atom_codes(X,[97,98,99])` → `abc`); empty atom (`atom_chars('',Cs)` → `[]`); round-trip
-  (`atom_codes(abc,Cs),atom_codes(Y,Cs)` → `abc`). **+2 mode-3 rung, +2 mode-4 rung
-  (rung12_atom_chars + rung12_atom_codes).**
-
-- **CAT-D-10** (`c5fc7d3c`/`060aad55`) — 11 1-arg type-test builtins (var, nonvar, atom,
-  atomic, number, integer, float, compound, callable, is_list, ground) mode-4 emission.
-  Previously fell through to bb_pl_builtin stub-comment + succ_back, so every type test
-  returned `yes` silently — correctness horror in ITE-conditioned programs. Two-path emission
-  mirrors CAT-D-9b: scalar arg → 4-arg `rt_pl_type_test(fn,k,i,s)` (all 4 regs, no stack);
-  compound-literal arg → emit_build_compound_term + `rt_pl_type_test_term(fn,Term*)` under
-  sub rsp,16. Both share static `type_test_common(fn,Term*)` mirroring bb_exec.c:2899-2909.
-  Op string interned via strtab_label (BB_BUILTIN already in pl_ir_kind_uses_sval).
-  **Mode-2/3/4 byte-identical** across full 9-test scalar battery AND 4-test compound battery
-  (compound(foo(a,b)), is_list([1,2,3]), is_list(notlist), ground(f(a,b))). No rung-count
-  delta (type tests live inside ITEs whose true/else branches still depend on functor/arg/=..
-  which remain stubs). Diff against rung09_builtins fixture: type-test lines now read
-  `yes yes no no` correctly instead of all-yes silent always-succeed.
-
-Earlier landings: 449f4ca3 GATE-2 132/0 (fake parity); CAT-A `*α_out=seq` af5c5ecd GATE-2 +5;
-- **CAT-D-7** (`d2ce06fc`) — `write(compound)` mode-4 100% template emission. Three new
-  pure-effect runtime helpers (rt_pl_write_int / _float / _cstr — one-liners). Recursive
-  emit-time walker `emit_write_term` in bb_builtin.cpp emits asm call sequence for
-  BB_PL_STRUCT; punctuation strings ( , ) interned by pl_pre_intern_pred_names.
-  Byte-exact vs --interp: foo(1,2), foo(a,b), point(1,2,3), tree(node(1),node(2)).
-- **CAT-D-8** (`710ee0b0`) — `BB_PL_ITE` wrapper for mode-4 if-then-else. ITE previously
-  returned bare Cond node as goals[i], so mode-4 walked Cond with the OUTER SEQ's γ/ω
-  labels and skipped Then/Else entirely. Now ITE lowers to a BB_PL_ITE wrapper (mirroring
-  CAT-A's BB_PL_SEQ pattern); flat_drive_pl_ite mints xite%d_then_α/else_α labels and
-  walks Cond/Then/Else as sub-regions; new bb_pl_ite.cpp template emits β-tombstone
-  AFTER bodies via EP_FILL (mirrors flat_drive_cat ordering). mode-2 case is trivial
-  (return nd->α). Unlocked 4 rungs in both --mode run and --mode compile.
-- **CAT-D-9** (`b1a37351`) — all 12 mode-4 comparison ops. Previously all of ==, \\==, @<,
-  @>, @=<, @>=, =:=, =\\=, <, >, <=, >= fell through to bb_pl_builtin's "unknown stub"
-  arm + succ_back, so every comparison silently succeeded. The CAT-D-8 handoff caught
-  one symptom (a==b → yes); the wider truth was that `5 < 3` also returned yes, `b @< a`
-  also returned yes, etc. Two new effect helpers (rt_pl_term_cmp / rt_pl_arith_cmp,
-  +48 LOC bb_exec.c). Single template arm (+41 LOC bb_pl_builtin.cpp) dispatches both
-  via System V 7-scalar layout (op + 2×(k,i,s) — 6 regs + 1 stack slot, sub rsp,16).
-  Op string interned by existing pl_pre_intern_pred_names flow (BB_BUILTIN is in
-  pl_ir_kind_uses_sval). +5 new genuine PASSes (rung04 arith; rung16_atop @<,@>,@=<,@>=)
-  and -1 spurious PASS (rung26_copy_term — was relying on the always-succeeds bug, now
-  reveals a pre-existing copy_term var-identity gap that surfaces only when == tells the
-  truth). Net +4 honest. Scope: scalar args (LIT_I/LIT_F/ATOM/PL_VAR). Compound term
-  comparison (`f(a) == f(a)`) needs emit-time term walk like CAT-D-7's emit_write_term;
-  closed by CAT-D-9b below.
-- **CAT-D-9b** (`e15e86b0`) — compound-term mode-4 correctness for the six term-compare
-  ops. CAT-D-9's flat scalar path squashed compound operands into `term_new_int(arity)`
-  via `rt_pl_node_to_term`'s default arm, so every compound looked equal (`f(a,b)==f(a,c)`
-  returned `same` instead of `diff`). New emit-time walker `emit_build_compound_term` in
-  bb_pl_builtin.cpp post-order builds a Term* tree: leaves dispatch to rt_pl_node_to_term;
-  BB_PL_STRUCT subs rsp by aligned(arity*8), recursively builds each child into a slot,
-  calls new helper `rt_pl_compound_build_n(functor_name, arity, rsp)` — which GC-allocates
-  the args array and term_new_compounds it. Outer == arm builds t0, saves to [rsp+0]
-  across t1's build, then calls new helper `rt_pl_term_cmp_terms(op, t0, t1)`. Wired
-  BEFORE the CAT-D-9 scalar fast path so leaf-leaf compares stay fast. No rung delta
-  (corpus doesn't exercise compound-== directly today) but verified byte-identical
-  against --interp across a 7-test probe battery: f(a,b)==f(a,b)/f(a,c),
-  [1,2,3]==[1,2,3]/[1,2,4], nested f(g(x),y)==f(g(x),y)/f(g(z),y), point(1,2)@<point(1,3),
-  mixed atom-vs-compound. All gates and sibling smokes held. FACT RULE 0.
-
-Earlier landings: 449f4ca3 GATE-2 132/0 (fake parity); CAT-A `*α_out=seq` af5c5ecd GATE-2 +5;
-CAT-A-2 `471ab202` structural prerequisite (no numeric lift); CAT-D-1 `95f73bad` +2 (atom_length/
-upcase_atom/downcase_atom); CAT-D-2..5 `bb8bb529` +6 (atom_concat / string_*/atom_string /
-string_to_atom / copy_term).
-
-Next blockers (Sonnet 4.7 handoff, 2026-05-27, post-CAT-D-10):
-- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume stubs; needs Lon directive on design).
-  Largest single-step unlock (estimated +15-25 PASS). Blocked on choice between inline-on-
-  demand vs resumable-call protocol — see CAT-A-3 ledger entry above.
-- **CAT-D-11** (sort/2 + msort/2). RT helper does term-array build from cons list +
-  insertion-sort via pl_term_compare + dedup (sort only) + reverse cons-list build + unify
-  into arg1 under trail mark. ZERO port logic in helper — template owns γ/ω as in CAT-D-1..10.
-  Two-path template needed: rung17 fixtures always pass list-literal a0 (BB_PL_STRUCT), so
-  emit_build_compound_term path is primary. Helper signatures:
-  `rt_pl_sort_msort(int do_msort, int k0,i0,s0, int k1,i1,s1)` (path A — scalar a0 with bound
-  list, future-proofing) and `rt_pl_sort_msort_term(int do_msort, Term* t0, int k1,i1,s1)`
-  (path B — literal cons-cell a0 built via emit_build_compound_term). Estimated +4 mode-3 rung
-  + +4 mode-4 rung IF list-pattern unification (e.g. `S = [A,B,C]`) also works in mode-4 — if
-  list-cons unify is broken downstream, sort itself lands but the pattern step still fails;
-  worth a probe BEFORE committing. Test fixtures: rung17_sort_sort_basic, rung17_sort_msort_basic,
-  rung17_sort_sort_already_sorted, rung17_sort_msort_dupes (rung17_sort_sort_empty already passes
-  mode-4 — no list-pattern step).
-- **CAT-D-12** (functor/3 + arg/3 + =../2). Unblocks rung09_builtins directly. All three need
-  compound construction/decomposition — territory already covered by emit_build_compound_term
-  + rt_pl_compound_build_n. functor/3 has decompose (TERM_COMPOUND → name+arity) and construct
-  (Name+Arity → fresh-var compound) paths; arg/3 indexes compound.args[]; =../2 builds
-  cons-list of [functor|args]. Helpers: rt_pl_functor / rt_pl_arg / rt_pl_univ (with _term
-  variants for compound-literal args).
-- **rung26_copy_term independent gap:** copy_term doesn't share var identity between A and B in
-  mode-4 (`copy_term(f(X,X), f(A,B))` → A==B should hold but doesn't); orthogonal to CAT-D-9b.
-
-Latent bug worth fixing: `lower_pl.c:65` puts garbage `sval` on BB_PL_VAR (union with ival).
-
----
-
-## SBL-BENCH baseline (for reference; Mode-4 bench resumed after Prolog rung ladder)
-```
-m2=10/16 m3=12/16 m4=0/16 | equiv PASS=9 DIFF=1(artifact)
-m3 ~1.5–2× faster than m2 on compute benches.
-```
+## Completed milestones (one-line summary)
+
+**Infrastructure:** PJ-1..14 ✅ (BB substrate, lower_pl, SM_BB_SWITCH); PJ-AGW-1..6 ✅ (full AG lower_pl);
+PA-1..3 ✅; PJ-DEL-ONCEPROC ✅; PJ-10a/b ✅ (BB_PL_* → BB_* rename); PJ-12 ✅ (SM/BB freed after emit).
+
+**Builtins landed (mode-2 + mode-4):** write/writeln/nl, is/2, arith, all 12 comparison ops (CAT-D-9/9b),
+functor/arg/=.. (CAT-D-12-S2), 11 type-tests (CAT-D-10), atom_length/upcase/downcase (CAT-D-1),
+atom_concat/string_* (CAT-D-2/3), atom_string/string_to_atom (CAT-D-4), copy_term (CAT-D-5),
+atom_chars/atom_codes/string_chars/string_codes (CAT-D-6), write(compound) (CAT-D-7), if-then-else
+(CAT-D-8), **sort/msort (CAT-D-11)**, BB_CUT (CAT-RUNG07-1).
+
+**Mode-2 only (mode-4 emit gap):** findall, atomic_list_concat, term_to_atom (forward), atom_number,
+format, numbervars, writeq, write_canonical, print, retract, retractall, abolish, assertz/asserta
+(directive fold).
+
+**SNOBOL4 BB infrastructure landings (cross-cutting):** SBL-FN-RET/ARGS/EXEC-PATD/PAT-BLOB/IDX ✅;
+SBL-PAT-PRIM ✅ (TAB still open); SBL-M4-ASM ✅ (mode-4 broad corpus 0→126); SBL-M4-OPDISPATCH ✅.
