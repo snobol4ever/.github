@@ -347,4 +347,10 @@ NEW open items:
 
 9–12. **RK-BB-4 directives** — see "RK-BB-4 substrate audit" above. Pending.
 
+13. **rk_try_catch25 — correct approach for try/die mode-4.** Session 2026-05-28 (Sonnet 4.6) attempted `setjmp`/`longjmp` via `SM_CALL_FN "rt_try_enter"` injected by `lower_try`. REJECTED by Lon: **templates are platform-only, not language-specific**. No language guards (`lang==BB_LANG_RKU`, `g_lang==LANG_RAKU`) belong in SM/BB/XA templates or in template-dispatched SM opcodes. The correct path for `rk_try_catch25`:
+
+   - The SSE alignment crash in `snprintf(g_raku_exception, ...)` inside `raku_die` byname is the root blocker. Fix: replace `snprintf` with a manual byte-copy loop (no libc call, no SSE risk) — confirmed safe pattern used elsewhere (`raku_itos`, `raku_rtos`).
+   - After the SSE fix, `raku_die` in mode-4 will run correctly: it sets `g_raku_exception`, pushes FAILDESCR, returns. The sub continues executing past `die` (say($x) fires) — but the existing per-stmt `raku_exc_check` in `lower_try` detects the flag and jumps to the catch path AFTER the sub returns to the try body. This is correct for all cases where `die` is the LAST stmt in the sub (the sub's trailing PUSH_NULL/RETURN still fires, but the exception flag is set so the try catches it).
+   - **Remaining gap:** `die` in the MIDDLE of a sub (statements after `die` execute before sub returns). Correct fix: `lower_stmt` for `TT_DIE` emits `SM_RETURN` afterward **only when inside a named sub body** (`g_in_proc_body` flag). This is pure lowering logic — no template change, no language guard in any template. Gate: `rk_try_catch25` test case has `die` as the last stmt in each sub, so the per-stmt check alone may be sufficient.
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
