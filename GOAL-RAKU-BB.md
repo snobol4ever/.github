@@ -496,6 +496,36 @@ wrong — fix the BB graph, not the runtime.
   Worst case (path a answers Q11): substrate-first session — author
   BB_ALT mode-2 executor + bb_alt.cpp mode-4 template + then frontend.
 
+- [~] **RK-BB-SEGFAULT-CLUSTER** — bug 1 ✅ CLOSED (`0f3561c0`,
+  2026-05-27, Opus 4.7); bugs 2 + 3 documented for next session.
+
+  - [x] **bug 1: union-clobber dereference in polyglot_init** ✅
+    (`0f3561c0`). `proc->v.sval && *proc->v.sval` for TT_SUB_DECL
+    crashed when raku.y intentionally clobbers v.sval with v.ival=np
+    via the union (small non-NULL pointer 0x1, 0x2 passes the NULL
+    check). Fix: TT_SUB_DECL always reads c[0]->v.sval (TT_VAR child
+    where parser puts surviving name). One file (+20/-3). Three
+    tests no longer SIGSEGV: rk_subs, rk_interp, rk_try_catch25.
+
+  - [ ] **bug 2: double body emission for multi-sub Raku programs**.
+    lower_stmt (L1987) emits Raku sub bodies inline at top level;
+    lower_proc_skeletons (L2328) emits empty named skeletons because
+    its bnd-extraction only handles TT_PROC_DECL. For multi-sub
+    programs, every sub's body runs at startup against an empty
+    stack; first `return` halts. Single-sub `sub main()` works by
+    accident. Fix shape documented in watermark — two-edit patch:
+    gate top-level inline on `_is_main`, extend skeletons to walk
+    proc->c[nparams+1..] for TT_SUB_DECL.
+
+  - [ ] **bug 3: no parameter→scope binding for Raku TT_SUB_DECL**.
+    build_proc_scope (L2287) only handles TT_PROC_DECL shape
+    (`proc->c[1]` as a TT_VLIST param list). Raku TT_SUB_DECL has
+    params as TT_VAR children at `proc->c[1..nparams]` with no
+    enclosing VLIST. Fix: extend build_proc_scope with a TT_SUB_DECL
+    branch that walks `proc->c[1..proc->v.ival]` and scope_add's
+    each param TT_VAR sval. Without this, even after bug 2 lands,
+    `greet('raku')` reaches the skeleton but `$name` reads empty.
+
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers, one rung
   each. `zip`/`cross` = multi-Seq drivers (later).
 
@@ -549,27 +579,168 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 4ee45eb7 (RK-BB-4 substrate audit — junction test added, code DEFERRED pending Lon directive)
-.github: HEAD (handoff — RK-BB-4 substrate audit memo)
+one4all: 0f3561c0 (RK-BB-SEGFAULT-CLUSTER bug 1 — union-clobber deref in polyglot_init)
+.github: HEAD (handoff — segfault eliminated; Bugs 2+3 documented for next session)
 corpus:  unchanged
 
-Gates at RK-BB-4 substrate audit (2026-05-27, Opus 4.7):
-  GATE-RK mode-2:  14/33  HOLD (rk_junctions added, fails at lex as expected)
-  Mode-3 (--run):  14/33  HOLD (same set; rk_junctions also fails at lex)
-  GATE-RK4 mode-4: 15/33  HOLD (rk_junctions added, fails at lex; +1 TOTAL only)
+Gates at RK-BB-SEGFAULT-CLUSTER bug-1 (2026-05-27, Opus 4.7):
+  GATE-RK mode-2:  14/33  HOLD (segfault → wrong-output; PASS unchanged)
+  Mode-3 (--run):  14/33  HOLD
+  GATE-RK4 mode-4: 15/33  HOLD
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
+  Smoke snobol4:   13/0   HOLD
   Broker Icon:     198    HOLD
   GATE-PK: ⛔ harness segfault — INHERITED. Owed: SBL-ANY session.
   FACT RULE grep:  0
   Build:           clean
 
-ZERO code changes. Only test/raku/rk_junctions.{raku,expected} added (+12 lines),
-documenting the RK-BB-4 target. See in-line audit memo under "Ladder steps →
-RK-BB-4 substrate audit" for the seven verified substrate gaps and Q9–Q12
-open questions gating the next session.
+rk_subs / rk_interp / rk_try_catch25 no longer SIGSEGV at startup.
+They now exit cleanly with wrong output (Bugs 2+3, documented below).
+Memory-safety improvement; PASS counts unchanged.
 ```
+
+⛔ RK-BB-SEGFAULT-CLUSTER bug 1 ✅ CLOSED — 2026-05-27, Opus 4.7, one4all 0f3561c0:
+
+ONE FILE TOUCHED: src/driver/polyglot.c (+20/-3).
+
+ROOT CAUSE — UNION-CLOBBER DEREFERENCE:
+
+The check at polyglot_init L123:
+    const char *name = (proc->v.sval && *proc->v.sval) ? proc->v.sval : ...
+is UNSAFE for TT_SUB_DECL. raku.y line 340 constructs:
+    tree_t *e = leaf_sval(TT_SUB_DECL, $2);   /* sets v.sval = name */
+    e->v.ival = (long long)np;                  /* CLOBBERS via union */
+When np > 0, the union slot reads as a SMALL NON-NULL POINTER (0x1,
+0x2, etc.) that PASSES the `proc->v.sval` NULL check, then SEGFAULTS
+at `*proc->v.sval`.
+
+Why some tests segfaulted and others didn't:
+  - rk_arrays, rk_str22, rk_for_array_underscore, rk_map_grep_sort24,
+    etc. — ONLY `sub main()` (np=0 → v.ival=0 → v.sval reads as
+    NULL → caught by `proc->v.sval &&` → falls to c[0] path). WORK.
+  - rk_subs, rk_interp, rk_try_catch25 — first sub has np > 0
+    (`sub double($n)`, `sub titled($name, $title)`, `sub might_die($x)`).
+    v.sval reads as 0x1, 0x2 → NULL check passes → SEGFAULT.
+
+FIX:
+For TT_SUB_DECL, NEVER trust v.sval (union is known-clobbered to v.ival).
+ALWAYS use c[0]->v.sval (TT_VAR child where parser puts surviving name).
+TT_FNC and TT_PROC_DECL paths (Icon) keep the original fallback chain
+unchanged.
+
+DIAGNOSTIC PATH:
+1. gdb backtrace pointed at polyglot.c:123.
+2. fprintf probe in the same function printed:
+       proc=0x... t=131 n=3 v.sval=0x1 v.ival=1 c[0]=0x...
+   v.sval=0x1 (non-NULL invalid ptr), v.ival=1 → confirmed union clobber.
+3. Cross-referenced raku.y:340 to confirm parser intentionally writes
+   both union members in sequence (sval first via leaf_sval, then ival).
+
+VERIFICATION:
+  All three formerly-segfaulting tests now exit rc=0 with wrong output:
+    rk_subs           → "hello \n" (was: SIGSEGV)
+    rk_interp         → 5 lines of partial output (was: SIGSEGV)
+    rk_try_catch25    → "Error 5 Undefined function" (was: SIGSEGV)
+  Memory safety restored; bugs 2+3 (below) are tractable from here.
+  All sibling smokes HOLD (icon 5/5, prolog 5/5, raku 5/0, snobol4 13/0).
+  GATE-RK and GATE-RK4 PASS counts unchanged.
+  FACT RULE grep: 0.
+  Build: clean.
+
+⛔ BUGS 2 AND 3 — DOCUMENTED, NOT FIXED:
+
+The segfault eliminated, two architectural bugs surfaced underneath
+that were previously masked. Documented here so the next session has
+a clear target.
+
+### Bug 2: Double body emission for Raku multi-sub programs
+
+For a Raku program with multiple subs (e.g. `sub double($n) {...}`
+followed by `sub main() {...}`), TWO independent code paths emit
+each sub's body:
+
+(a) `lower_stmt` (lower.c:1987, LANG_RAKU + TT_SUB_DECL branch)
+    emits the body inline at top level: walks subject->c[nparams+1..]
+    children as statements.
+(b) `lower_proc_skeletons` (lower.c:2328) DOES NOT extract body
+    from TT_SUB_DECL — its bnd lookup at L2372 only triggers for
+    TT_PROC_DECL: `(proc->t == TT_PROC_DECL && proc->n >= 3) ?
+    proc->c[2] : NULL`. So the named SM_LABEL skeleton has body
+    = LABEL + RETURN with no actual body.
+
+Effect on multi-sub programs:
+  - Top-level inline emission produces:
+      double's body code (uses $n unset)
+      greet's body code (uses $name unset)
+      add's body code
+      classify's body code (contains an early RETURN)
+      main's body code
+    All run sequentially at startup. First `return` in any non-main
+    sub HALTS the program before main's body code is reached.
+  - Single-sub `sub main()` programs work BY ACCIDENT: their only
+    body IS main's, executed inline as top-level code. There's no
+    actual `CALL_FN "main"` — the convention is that top-level IS main.
+
+EXPERIMENTAL FIX ATTEMPTED THIS SESSION (REVERTED — exposed Bug 3):
+  - lower.c L1987 lower_stmt: gate body inline on `_is_main` so only
+    `sub main()` inlines at top level (other subs get a no-op).
+  - lower.c L2370+ lower_proc_skeletons: extend bnd extraction with
+    a TT_SUB_DECL branch that walks proc->c[nparams+1..]. Set
+    g_lang = LANG_RAKU when proc is TT_SUB_DECL (was LANG_ICN
+    unconditionally) so body lowering uses Raku semantics.
+  - rk_arrays, rk_str22, etc. continued to work (single-sub case).
+  - rk_subs now reached greet via CALL_FN — but $name read empty
+    (Bug 3 below). Reverted because partial fix obscures more than
+    it reveals; clean re-do recommended next session.
+
+### Bug 3: Raku TT_SUB_DECL has no parameter→scope binding
+
+After Bug 2 is fixed and `greet('raku')` reaches the skeleton, the
+body's `$name` read returns empty (sigil-stripped to bare "name"
+per RK-BB-3b/c-binding-fix's discovery). No mechanism wires
+args[0]→$name for Raku subs.
+
+Icon path (TT_PROC_DECL): build_proc_scope at lower.c:2288 walks
+proc->c[1] (the param list TT_VLIST) and scope_add's each param
+name into IcnScope sc. Then emit_var_load/store route through
+SM_LOAD_FRAME/SM_STORE_FRAME slot indices. SM_CALL_FN at runtime
+pops args into those frame slots.
+
+Raku TT_SUB_DECL has no analog. Params live as TT_VAR children at
+proc->c[1..nparams] (per raku.y:341-342), but build_proc_scope at
+L2287-2293 has:
+    tree_t *plist = (proc->t == TT_PROC_DECL && proc->n >= 2)
+                      ? proc->c[1] : NULL;
+plist is NULL for TT_SUB_DECL → zero params registered → frame is
+empty → body's $name reads from global scope where it's unset.
+
+FIX SHAPE (next session):
+  (a) Extend build_proc_scope to handle TT_SUB_DECL:
+        if (proc->t == TT_SUB_DECL) {
+            int np = (int)proc->v.ival;
+            for (int i = 1; i <= np && i < proc->n; i++) {
+                tree_t *pn = proc->c[i];
+                if (pn && pn->t == TT_VAR && pn->v.sval)
+                    scope_add(sc, pn->v.sval);
+            }
+        }
+  (b) Similarly extend the param-iteration in lower_proc_skeletons
+      that today only reads TT_PROC_DECL shape, so SM_CALL_FN can
+      pop the correct number of args into frame slots.
+  (c) Verify SM_CALL_FN handler in sm_interp.c already does the
+      right thing for a named target with a known nparams — likely
+      yes, since this is the same path Icon procs use.
+
+EXECUTION ORDER (next session, recommended):
+  1. Reapply Bug 2 fix (the two-edit patch above).
+  2. Apply Bug 3 fix (build_proc_scope extension).
+  3. Verify rk_subs / rk_interp / rk_try_catch25 byte-exact.
+  4. Run full GATE-RK / GATE-RK4 / smokes / broker. Expected +3 each.
+  5. Commit as RK-BB-SEGFAULT-CLUSTER bug-2+3.
+
+⛔ END RK-BB-SEGFAULT-CLUSTER bug 1 HANDOFF
 
 ⛔ RK-BB-4 SUBSTRATE AUDIT — 2026-05-27, Opus 4.7, one4all 4ee45eb7:
 
