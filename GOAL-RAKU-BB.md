@@ -282,11 +282,51 @@ wrong — fix the BB graph, not the runtime.
     directly into the DESCR — without the copy, mid-string ptrs leak
     the rest of the array via downstream NUL-bounded reads.
 
-  - [ ] **RK-BB-3b/c** — map/grep as Seq consumers. Once 3a's polymorphic
-    BB_ITERATE exists, lazy map = `BB_ITERATE(@arr)` → γ-side block runs
-    the lambda, leaves result on r12 → yield. grep = same with γ
-    predicate gate. Result materialization via the new `push` builtin
-    accumulating into a fresh \x01-string.
+  - [~] **RK-BB-3b/c WIP** (lowering scaffold landed `42d2a367`, 2026-05-27,
+    Opus 4.7; `$_` binding bug unresolved). Pure lowering transform —
+    `lower_raku_map_or_grep(t, is_grep)` in lower.c desugars `map { body }
+    @src` / `grep { pred } @src` onto the RK-BB-3a polymorphic BB_ITERATE
+    substrate + RK-BB-3.0b push by-name dispatch. Per Open Q3, eager-drain
+    materialization: synthesizes `__map_acc_N`/`__grep_acc_N`, builds BB
+    graph via `lower_raku_iterate_arr`, emits SM_BB_SWITCH(RK_GEN), γ-body
+    stores yielded elem → $_ then for map lowers body + 3-arg push; for
+    grep lowers pred + JUMP_F-gates the push (pushes $_, not pred). β
+    re-enters SWITCH; exit_pos stamped on a[0].i. ZERO new BB kinds,
+    ZERO new runtime helpers, 100% template emission preserved.
+
+    **Status**: scaffold structurally works on rk_map_grep_sort24 in all
+    three modes — BB_ITERATE fires, push accumulates, sort segments green.
+    But `$_` reads as **0** in every body/predicate iteration. The bug
+    reproduces in mode-2 `--interp`, ruling out mode-4-specific codegen.
+    The SM stream itself is mis-emitting `$_` somehow.
+
+    **Three hypotheses** (untested, ordered by plausibility):
+    (a) Implicit `$_` scope registration: some pre-pass may register
+        `$_` into g_proc_scope only on one side (store vs load) so
+        emit_var_store goes via SM_STORE_FRAME while lower_expr(body)
+        was tree-traversed earlier under a different scope state.
+    (b) Stack-order interaction in the map push pattern:
+        PUSH_LIT_S/PUSH_VAR/lower_expr(body) — if body has side-effects
+        on the value stack between the two earlier pushes, args could
+        be misaligned at SM_CALL_FN "push", 3.
+    (c) Closure body tree_t* aliasing — TT_MAP's c[0] may carry stale
+        internal state (slot indices from a prior context) re-used at
+        BB-loop body lowering time.
+
+    **Recommended diagnostic** (in this order):
+    1. Side-by-side hand-desugared probe — `my @r=''; for @nums -> $_
+       { push(@r, $_ * 2); }` — verify it works. If yes, the BB
+       scaffold differs from the for-loop+push pattern → hypothesis
+       (a) or (b). If no, `$_` itself is broken independent of map.
+    2. printf-probe `emit_var_store("$_")` and `emit_var_load("$_")`
+       to log scope_get slot values per call. Diff between the two
+       sides.
+    3. Dump the emitted SM stream for the map case; walk through it
+       comparing to the hand-desugared version.
+
+  - [ ] **RK-BB-3b/c-binding-fix** — diagnose and fix the `$_` binding
+    bug per the hypotheses above. Once green, rk_map_grep_sort24
+    likely flips all three modes (+1 each gate).
 
   ### Recommended execution order
 
@@ -379,14 +419,14 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: cc6c1a06 (RK-BB-3a CLOSED — mode-4 slen-fallback + segment NUL-copy; +2 GATE-RK4)
-.github: HEAD (handoff — RK-BB-3a closed; ladder advances to RK-BB-3b/c lazy map/grep)
+one4all: 42d2a367 (RK-BB-3b/c WIP — map/grep eager-drain lowering scaffold; $_ binding bug open)
+.github: HEAD (handoff — RK-BB-3b/c WIP; structural scaffold works, $_ reads as 0)
 corpus:  unchanged
 
-Gates at RK-BB-3a closed (2026-05-27, Opus 4.7):
-  GATE-RK mode-2:  12/31  HOLD (cumulative +4 from baseline 8 across 3.0a/3.0b/3a)
-  Mode-3 (--run):  12/31  HOLD (matches mode-2)
-  GATE-RK4 mode-4: 13/31  (+2 from prior 11: rk_for_array_simple, rk_for_array)
+Gates at RK-BB-3b/c WIP (2026-05-27, Opus 4.7):
+  GATE-RK mode-2:  12/31  HOLD (no regressions)
+  Mode-3 (--run):  12/31  HOLD
+  GATE-RK4 mode-4: 13/31  HOLD (RK-BB-3a closure gains preserved)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
@@ -394,6 +434,151 @@ Gates at RK-BB-3a closed (2026-05-27, Opus 4.7):
   GATE-PK: ⛔ harness segfault — INHERITED. Owed: SBL-ANY session.
   FACT RULE grep:  0
   Build:           clean
+
+rk_map_grep_sort24 partial: sort (string + numeric) green; map/grep
+execute through the scaffold but emit wrong values because `$_` reads
+as 0 — bug present in BOTH mode-2 `--interp` AND mode-4 `--compile`,
+so it's an SM-stream emission bug not codegen.
+
+⛔ RK-BB-3b/c WIP — 2026-05-27, Opus 4.7, one4all 42d2a367:
+
+ONE FILE TOUCHED: src/lower/lower.c (+117).
+
+Pure lowering transform. ZERO new BB kinds, ZERO new runtime helpers.
+Desugars Raku map/grep into the for-loop+push shape that RK-BB-3a +
+RK-BB-3.0b already implement:
+
+    my @r = '';
+    for @src -> $_ { push(@r, body_or_$_); }
+    # leaves @r on stack as the result
+
+IMPLEMENTATION:
+  - New helper lower_raku_map_or_grep(t, is_grep) in lower.c synthesizes
+    a unique __map_acc_N / __grep_acc_N accumulator (g_raku_map_acc_seq
+    counter, reset per lower_program pass).
+  - Calls lower_raku_iterate_arr (RK-BB-3a's BB graph builder) on the
+    @source variable.
+  - Emits SM_BB_SWITCH(NULL, bb_idx, SM_BBSW_RK_GEN), JUMP_F → exit.
+  - γ body: emit_var_store("$_") + VOID_POP, then:
+      * map: lower_expr(body); push pattern (PUSH_LIT_S vname,
+        PUSH_VAR vname, body_result_already_on_stack, CALL_FN "push" 3,
+        VOID_POP). Wait — actually the implementation lowers body
+        INSIDE the push pattern (PUSH_LIT_S, PUSH_VAR, lower_expr,
+        CALL_FN), with the body's result becoming args[2]. See
+        hypothesis (b) in the diagnostic notes.
+      * grep: lower_expr(pred); JUMP_F → skip; VOID_POP (truthy
+        case); push pattern with PUSH_VAR "$_" as args[2]; JUMP →
+        after; patch skip; VOID_POP (falsy case); patch after.
+  - JUMP → switch_pc (β-resume).
+  - Patch exit; stamp switch_pc instr a[0].i = exit_pos (mode-4 ω).
+  - PUSH_VAR acc_vname → final result on stack.
+  - TT_MAP / TT_GREP case bodies in lower.c now try this helper first;
+    on fall-through (non-TT_VAR source, non-LANG_RAKU) the legacy
+    SM_CALL_FN raku_map/raku_grep emission is preserved (dead path
+    today since icn_call_builtin has zero callers).
+
+⛔ OPEN BLOCKER — `$_` BINDING:
+
+The body / predicate reads `$_` as 0 in every iteration:
+  map { $_ * 2 } @nums   → emits 0\n0\n0\n0\n0\n (expected 2\n4\n6\n8\n10\n)
+  grep { $_ % 2 == 0 } @nums → yields all of @nums (1,2,3,4,5)
+
+Reproduces in mode-2 `--interp` AND mode-4 `--compile` identically.
+Mode is NOT the variable. The SM stream itself is mis-emitting $_.
+
+THREE HYPOTHESES (ordered by plausibility, untested):
+
+(a) IMPLICIT $_ SCOPE REGISTRATION. Some pre-lowering pass
+    (polyglot.c proc-skeleton, or another phase) may register `$_`
+    into g_proc_scope. If `emit_var_store("$_")` then goes through
+    SM_STORE_FRAME slot, but `lower_expr(body)` was tree-traversed
+    BEFORE the store and resolved `$_` against the prior scope
+    state, store/load could target different storage. Check via
+    printf `scope_get(g_proc_scope, "$_")` at entry of
+    lower_raku_map_or_grep AND right before lower_expr(body).
+
+(b) STACK-ORDER INTERACTION. For map I emit:
+        SM_PUSH_LIT_S acc_vname
+        SM_PUSH_VAR   acc_vname
+        lower_expr(body)
+        SM_CALL_FN    "push", 3
+    If body's lowering involves $_ load + arithmetic that touches
+    stack state in a way that mis-orders args at CALL_FN, args[2]
+    may end up as something other than the body's intended result.
+    Recommended check: dump the SM stream with `--sm-dump` (if
+    such flag exists; if not, add a one-shot printf in SM_emit_*
+    just for the map block).
+
+(c) CLOSURE BODY tree_t* ALIASING. TT_MAP's c[0] (the body) may
+    have stale internal state from a prior pass (e.g., v.ival slot
+    indices set by polyglot in an outer scope) that produces wrong
+    SM at re-lowering time inside the loop body.
+
+RECOMMENDED DIAGNOSTIC PATH:
+
+  1. Hand-desugared probe — write rk_for_array_underscore.raku:
+        sub main() {
+            my @nums = '';
+            push(@nums, 1); push(@nums, 2); push(@nums, 3);
+            my @r = '';
+            for @nums -> $_ { push(@r, $_ * 2); }
+            for @r -> $x { say($x); }
+        }
+     If this prints 2\n4\n6\n then RK-BB-3a + RK-BB-3.0b machinery
+     does see $_ correctly under for-loop binding — the bug is
+     ISOLATED to how lower_raku_map_or_grep differs from the
+     for-loop+push pattern (rules in (a) or (b)). If this ALSO
+     fails, `$_` itself has issues independent of map/grep.
+
+  2. Probe scope state:
+       fprintf(stderr, "[map enter] in_proc=%d $_slot=%d\\n",
+               g_in_proc_body,
+               g_proc_scope ? scope_get(g_proc_scope, \"\\$_\") : -2);
+     placed at entry of lower_raku_map_or_grep and just before
+     lower_expr(body). Diff between the two readings.
+
+  3. If (a) is root cause: fix by either explicitly registering
+     `$_` in the scope at entry of lower_raku_map_or_grep (calling
+     scope_add or whatever the equivalent is) so both sides agree,
+     OR bypassing the scope entirely for `$_` (emit SM_STORE_VAR /
+     SM_PUSH_VAR unconditionally for `$_`).
+
+  4. If (b) is root cause: capture body result into a temp first:
+       lower_expr(body);
+       SM_emit_s(g_p, SM_STORE_VAR, "__map_body_tmp");
+       SM_emit  (g_p, SM_VOID_POP);
+       SM_emit_s(g_p, SM_PUSH_LIT_S, acc_vname);
+       SM_emit_s(g_p, SM_PUSH_VAR,   acc_vname);
+       SM_emit_s(g_p, SM_PUSH_VAR,   "__map_body_tmp");
+       SM_emit_si(g_p, SM_CALL_FN,   "push", 3);
+     This is the more cautious push-pattern; the in-the-current-code
+     pattern interleaves lower_expr between the two PUSHes, which
+     is the kind of thing that can perturb stack assumptions.
+
+NEXT SESSION FIRST MOVES:
+
+  1. Probe (1) above — hand-desugared test. ~5 min.
+  2. Based on outcome, pursue (a) or (b) probe. ~15 min.
+  3. Apply the corresponding fix. ~10-30 min.
+  4. Verify rk_map_grep_sort24 byte-exact across all three modes.
+  5. Full gate sweep; commit as RK-BB-3b/c-binding-fix + push.
+
+EXPECTED UPLIFT after binding fix lands:
+  GATE-RK mode-2:  12 → 13  (+1: rk_map_grep_sort24)
+  Mode-3 (--run):  12 → 13  (+1)
+  GATE-RK4 mode-4: 13 → 14  (+1)
+  All other gates HOLD.
+
+DOCTRINAL STATUS: 100% template/lowering emission preserved.
+No new BB kinds. No new runtime helpers. The fix is entirely
+inside the lowering scaffold.
+
+⛔ END RK-BB-3b/c WIP HANDOFF
+
+⛔ PRIOR HANDOFFS RETAINED FOR HISTORY: RK-BB-3a-mode4-debug
+   (cc6c1a06), RK-BB-3a partial (706e2828), RK-BB-3.0b (7a60d30e),
+   RK-BB-3.0a (ba481112), RK-BB-3.0+3d infra (fcac4ab3), RK-BB-2
+   step 6 (d08237e0) below.
 
 ⛔ RK-BB-3a-mode4-debug ✅ CLOSED — 2026-05-27, Opus 4.7, one4all cc6c1a06:
 
