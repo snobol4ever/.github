@@ -190,9 +190,25 @@ THE FOUR PIECES MISSING IN MODE-4:
      SNOBOL4 dispatch, and ends in "Undefined function". Solution: in
      `sm_calls.cpp` MEDIUM_TEXT X86 arm, look up `pSM->a[0].s` in
      `g_stage2.proc_table[]` (already visible to emitter per emit_sm.c:886);
-     if found with entry_pc >= 0, emit `call .L<entry_pc>` directly. Args
-     already on vstack via prior PUSH_LIT_*/PUSH_VAR. The SM_LABEL emits
-     `.L<pc>:` automatically (emit_sm.c:1042).
+     if found with entry_pc >= 0, emit a direct intra-binary call.
+
+     ⚠ LABEL OFF-BY-ONE — VERIFIED THIS SESSION (do NOT use `call .L<entry_pc>`):
+       `proc_table[].entry_pc` resolves to the **named SM_LABEL's own pc**
+       (e.g. double=1, greet=12, add=21, classify=32 in rk_subs), via
+       `sm_label_pc_lookup` returning `instrs[i].a[1].i`. BUT the named
+       SM_LABEL emits NO `.L<pc>:` symbol — the `LABEL` macro expands to
+       empty (sm_jumps.cpp:116). The `.L<pc>:` that DOES get emitted is at
+       `entry_pc + 1` (the first body instr), because `pc_used_mark(pc+1)`
+       fires for named labels (emit_sm.c:881). Empirically: `.L1` is NOT in
+       the .s, but `.L2` IS. So `call .L<entry_pc>` → assembler "undefined
+       label .L1" error.
+     RECOMMENDED FIX (cleaner than pc-arithmetic): make the named SM_LABEL
+       emit a real symbol at its own site. In `sm_jumps.cpp` sm_label_str
+       MEDIUM_TEXT arm, when `pSM->a[0].s` non-empty, prepend a stable
+       symbol like `.L_sub_<name>:` (or reuse `.L<entry_pc+1>`). Then the
+       callsite emits `call .L_sub_<name>` — no pc arithmetic, robust against
+       label renumbering. `pSM->a[0].s` is already available in that arm
+       (currently unused via `(void)pSM`).
 
   2. **Frame push at proc entry.** Args sit on vstack at callsite; callee
      needs them in slots 0..nparams-1. Two options:
@@ -208,6 +224,28 @@ THE FOUR PIECES MISSING IN MODE-4:
      (a) `lower_return` for LANG_RAKU emits `SM_FRAME_LEAVE` before `SM_RETURN`.
      (b) New combined `SM_RETURN_FRAME` op.
      Recommend (a) — keeps SM_RETURN simple, paired with (b) of #2.
+
+     ⚠ CALL/RET CONVENTION — VERIFIED THIS SESSION:
+       The `RETURN` macro (sm_returns.cpp:26) is bare x86 `ret`. SM_RETURN
+       MEDIUM_TEXT (op==SM_RETURN) emits `RETURN` preceded by `pop rbp` ONLY
+       when `g_in_define_body` is set (sm_returns.cpp:43). So if Raku subs
+       are entered via plain x86 `call .L_sub_<name>` (recommended piece #1),
+       the matching `ret` pops the call's return address and returns to the
+       caller — works natively, NO setjmp/longjmp needed. TWO CONSTRAINTS:
+         (i) The proc body must leave the MACHINE stack (rsp) balanced — it
+             must NOT net-push anything on the x86 stack. The SM vstack is
+             heap/separate so SM pushes are fine; only watch for any template
+             that does raw `push` without matching `pop`.
+         (ii) `g_in_define_body` MUST be false during Raku sub-skeleton
+             emission, else SM_RETURN emits a spurious `pop rbp` with no
+             matching `push rbp` (Raku subs entered via `call` have no
+             rbp prologue) → stack corruption. VERIFY the lower_proc_skeletons
+             Raku path leaves g_in_define_body unset. If it can't be guaranteed,
+             gate the `pop rbp` on a new g_in_raku_sub flag instead.
+       TRAILING DEAD RETURN: proc bodies emit `[explicit ret]; VOID_POP; RETURN`.
+       With call/ret the explicit return's `ret` fires first; the trailing
+       VOID_POP;RETURN is dead (harmless). Subs with no explicit return (e.g.
+       greet) fall through to the single trailing RETURN=ret. Both correct.
 
   4. **`rt_load_frame` / `rt_store_frame` in libscrip_rt.** New small file
      `src/runtime/rt/rt_frame.c` mirroring the icn_runtime.c shape (a frame

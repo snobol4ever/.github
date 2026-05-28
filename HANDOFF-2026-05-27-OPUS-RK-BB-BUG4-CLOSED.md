@@ -134,3 +134,38 @@ session:
   but worth a sweep if mode-4 frame work lands.
 
 Authors: Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
+
+---
+
+## Addendum — de-risking probes (same session, no code changes)
+
+Two load-bearing assumptions of the RK-BB-SM-FRAME-MODE4 design were
+verified empirically before close, to save the next session debugging time.
+No source files in one4all were modified by these probes (read-only
+analysis); findings folded into GOAL-RAKU-BB.md design pieces #1 and #3.
+
+**Probe 1 — label resolution off-by-one (would have broken `call .L<entry_pc>`).**
+`proc_table[].entry_pc` resolves to the named SM_LABEL's own pc
+(double=1, greet=12, add=21, classify=32 in rk_subs), via
+`sm_label_pc_lookup` → `instrs[i].a[1].i`. But the named SM_LABEL emits NO
+`.L<pc>:` symbol (the LABEL macro is empty, sm_jumps.cpp:116). The emitted
+`.L<pc>:` lands at `entry_pc + 1` because `pc_used_mark(pc+1)` fires for
+named labels. Empirically `.L1` is absent from the .s but `.L2` present.
+⟹ `call .L<entry_pc>` would assemble-fail with "undefined label .L1".
+FIX recorded: emit a stable `.L_sub_<name>:` symbol in sm_jumps.cpp
+sm_label_str MEDIUM_TEXT arm (pSM->a[0].s already available, currently
+`(void)pSM`), callsite emits `call .L_sub_<name>`. No pc arithmetic.
+
+**Probe 2 — call/ret machine-stack convention.**
+The RETURN macro is bare x86 `ret`. SM_RETURN emits `pop rbp` before it
+ONLY under `g_in_define_body`. So Raku subs entered via plain `call`
+return natively via the paired `ret` — no setjmp/longjmp. Two constraints
+recorded in goal: (i) proc body must keep rsp balanced (SM vstack is heap,
+so SM pushes are safe; watch raw machine `push`); (ii) `g_in_define_body`
+must be FALSE during Raku skeleton emission or SM_RETURN emits a spurious
+`pop rbp` (no matching push) → corruption. Verify, or gate pop rbp on a
+new g_in_raku_sub flag.
+
+Net effect: piece #1 and #3 of the design are now concrete and de-risked;
+piece #2 (frame enter) and #4 (rt_frame.c + templates) remain as specified.
+
