@@ -282,51 +282,43 @@ wrong — fix the BB graph, not the runtime.
     directly into the DESCR — without the copy, mid-string ptrs leak
     the rest of the array via downstream NUL-bounded reads.
 
-  - [~] **RK-BB-3b/c WIP** (lowering scaffold landed `42d2a367`, 2026-05-27,
-    Opus 4.7; `$_` binding bug unresolved). Pure lowering transform —
+  - [x] **RK-BB-3b/c** ✅ (scaffold `42d2a367`, binding-fix `af0df613`,
+    2026-05-27, Opus 4.7). Pure lowering transform —
     `lower_raku_map_or_grep(t, is_grep)` in lower.c desugars `map { body }
     @src` / `grep { pred } @src` onto the RK-BB-3a polymorphic BB_ITERATE
     substrate + RK-BB-3.0b push by-name dispatch. Per Open Q3, eager-drain
     materialization: synthesizes `__map_acc_N`/`__grep_acc_N`, builds BB
     graph via `lower_raku_iterate_arr`, emits SM_BB_SWITCH(RK_GEN), γ-body
-    stores yielded elem → $_ then for map lowers body + 3-arg push; for
-    grep lowers pred + JUMP_F-gates the push (pushes $_, not pred). β
+    stores yielded elem → `_` then for map lowers body + 3-arg push; for
+    grep lowers pred + JUMP_F-gates the push (pushes `_`, not pred). β
     re-enters SWITCH; exit_pos stamped on a[0].i. ZERO new BB kinds,
     ZERO new runtime helpers, 100% template emission preserved.
 
-    **Status**: scaffold structurally works on rk_map_grep_sort24 in all
-    three modes — BB_ITERATE fires, push accumulates, sort segments green.
-    But `$_` reads as **0** in every body/predicate iteration. The bug
-    reproduces in mode-2 `--interp`, ruling out mode-4-specific codegen.
-    The SM stream itself is mis-emitting `$_` somehow.
+  - [x] **RK-BB-3b/c-binding-fix** ✅ (`af0df613`, 2026-05-27, Opus 4.7).
+    Two-line surgical fix in lower.c. The handoff's three hypotheses
+    (scope registration / stack order / closure aliasing) were ALL wrong.
+    Actual root cause: **sigil mismatch**. raku.y:46 `strip_sigil`
+    rewrites every Raku VAR_SCALAR to its bare name pre-AST, so the
+    body's `$_ * 2` parses to `TT_BINOP(TT_VAR("_"), 2, *)` — bare
+    `"_"`, no dollar sign. The for-loop binding in `lower_every`
+    (L1547) uses `gen_expr->v.sval` which is already sigil-stripped,
+    so `emit_var_store("_")` and the body's `emit_var_load("_")`
+    agree. But `lower_raku_map_or_grep` hardcoded `"$_"` at L1684
+    (γ-store) and L1701 (grep push arg). Store went to `"$_"`, body's
+    load went to `"_"` — two different variables; reads returned
+    null → numeric coerce to 0 → `0 * 2 = 0`.
 
-    **Three hypotheses** (untested, ordered by plausibility):
-    (a) Implicit `$_` scope registration: some pre-pass may register
-        `$_` into g_proc_scope only on one side (store vs load) so
-        emit_var_store goes via SM_STORE_FRAME while lower_expr(body)
-        was tree-traversed earlier under a different scope state.
-    (b) Stack-order interaction in the map push pattern:
-        PUSH_LIT_S/PUSH_VAR/lower_expr(body) — if body has side-effects
-        on the value stack between the two earlier pushes, args could
-        be misaligned at SM_CALL_FN "push", 3.
-    (c) Closure body tree_t* aliasing — TT_MAP's c[0] may carry stale
-        internal state (slot indices from a prior context) re-used at
-        BB-loop body lowering time.
+    Diagnostic path that found it: hand-desugared probe
+    `test/raku/rk_for_array_underscore.raku` (uses `for @nums -> $_`)
+    passed byte-exact in both modes, isolating the bug to
+    `lower_raku_map_or_grep`'s divergence from the for-loop pattern.
+    Then `scrip --interp --dump-sm rk_map_min.raku` showed PC 28
+    `STORE_VAR s="$_"` vs PC 32 `PUSH_VAR s="_"` — the smoking gun.
 
-    **Recommended diagnostic** (in this order):
-    1. Side-by-side hand-desugared probe — `my @r=''; for @nums -> $_
-       { push(@r, $_ * 2); }` — verify it works. If yes, the BB
-       scaffold differs from the for-loop+push pattern → hypothesis
-       (a) or (b). If no, `$_` itself is broken independent of map.
-    2. printf-probe `emit_var_store("$_")` and `emit_var_load("$_")`
-       to log scope_get slot values per call. Diff between the two
-       sides.
-    3. Dump the emitted SM stream for the map case; walk through it
-       comparing to the hand-desugared version.
-
-  - [ ] **RK-BB-3b/c-binding-fix** — diagnose and fix the `$_` binding
-    bug per the hypotheses above. Once green, rk_map_grep_sort24
-    likely flips all three modes (+1 each gate).
+    Fix: replace `"$_"` → `"_"` at L1684 and L1701. Added comment
+    explaining the strip_sigil pre-rewrite so future authors don't
+    rediscover this. rk_for_array_underscore.raku committed as a
+    permanent regression probe.
 
   ### Recommended execution order
 
@@ -419,14 +411,14 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 42d2a367 (RK-BB-3b/c WIP — map/grep eager-drain lowering scaffold; $_ binding bug open)
-.github: HEAD (handoff — RK-BB-3b/c WIP; structural scaffold works, $_ reads as 0)
+one4all: af0df613 (RK-BB-3b/c-binding-fix — sigil mismatch in lower_raku_map_or_grep; $_ → "_")
+.github: HEAD (handoff — RK-BB-3b/c CLOSED + RK-BB-3b/c-binding-fix CLOSED)
 corpus:  unchanged
 
-Gates at RK-BB-3b/c WIP (2026-05-27, Opus 4.7):
-  GATE-RK mode-2:  12/31  HOLD (no regressions)
-  Mode-3 (--run):  12/31  HOLD
-  GATE-RK4 mode-4: 13/31  HOLD (RK-BB-3a closure gains preserved)
+Gates at RK-BB-3b/c-binding-fix (2026-05-27, Opus 4.7):
+  GATE-RK mode-2:  14/32  ✅ (+2: rk_map_grep_sort24 flipped + new probe rk_for_array_underscore)
+  Mode-3 (--run):  14/32  ✅ (+2, same set)
+  GATE-RK4 mode-4: 15/32  ✅ (+2: rk_map_grep_sort24 flipped + new probe rk_for_array_underscore)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
@@ -435,10 +427,104 @@ Gates at RK-BB-3b/c WIP (2026-05-27, Opus 4.7):
   FACT RULE grep:  0
   Build:           clean
 
-rk_map_grep_sort24 partial: sort (string + numeric) green; map/grep
-execute through the scaffold but emit wrong values because `$_` reads
-as 0 — bug present in BOTH mode-2 `--interp` AND mode-4 `--compile`,
-so it's an SM-stream emission bug not codegen.
+rk_map_grep_sort24 byte-exact across all three modes (--interp, --run, --compile/x86).
+```
+
+⛔ RK-BB-3b/c-binding-fix ✅ CLOSED — 2026-05-27, Opus 4.7, one4all af0df613:
+
+ONE FILE TOUCHED: src/lower/lower.c (+9/-2). Plus regression probe:
+test/raku/rk_for_array_underscore.{raku,expected} (+12 lines).
+
+ROOT CAUSE — SIGIL MISMATCH (NONE of the three prior hypotheses):
+
+raku.y:46 `strip_sigil` rewrites every Raku VAR_SCALAR pre-AST:
+  $_   → "_"
+  $x   → "x"
+  @arr → "arr"
+
+So the closure body `$_ * 2` parses to TT_BINOP(TT_VAR("_"), 2, *) —
+bare "_" with NO dollar. The for-loop binding in `lower_every` (L1547)
+uses gen_expr->v.sval which is already sigil-stripped, so its
+emit_var_store("_") and the body's emit_var_load("_") agree.
+
+But my `lower_raku_map_or_grep` (scaffold commit 42d2a367) had hardcoded
+"$_" with sigil at two sites:
+  L1684: emit_var_store("$_")             ← γ-yield → "$_"
+  L1701: SM_emit_s(SM_PUSH_VAR, "$_")    ← grep push arg
+
+The body's lower_expr() loads `"_"` (sigil-stripped). Store and load
+target TWO DIFFERENT VARIABLES. The bare "_" is unset → numeric coerce
+returns 0 → `0 * 2 == 0`. grep predicate similarly yields false on the
+unset "_" variable, then the push branch reads the also-unset "$_".
+
+DIAGNOSTIC PATH (in the order the handoff recommended):
+
+  1. Hand-desugared probe rk_for_array_underscore.raku:
+       sub main() {
+           my @nums = '';
+           push(@nums, 1); push(@nums, 2); push(@nums, 3);
+           my @r = '';
+           for @nums -> $_ { push(@r, $_ * 2); }
+           for @r -> $x { say($x); }
+       }
+     PASSED byte-exact 2\n4\n6\n in both mode-2 and mode-4.
+     → Isolates the bug to lower_raku_map_or_grep's divergence from
+     the for-loop+push pattern. Rules out hypothesis "$_ itself broken".
+
+  2. Created minimal map probe rk_map_min.raku, dumped SM with
+     `./scrip --interp --dump-sm rk_map_min.raku`. Output showed:
+       PC 28  SM_STORE_VAR  s="$_"     ← γ-yield store
+       PC 32  SM_PUSH_VAR   s="_"      ← body's $_ * 2 load
+
+     The sigil mismatch was visible in two adjacent SM instructions.
+     Diagnostic time: ~5 minutes. No printf instrumentation needed.
+
+FIX:
+  L1684: emit_var_store("$_") → emit_var_store("_")
+  L1701: SM_PUSH_VAR  "$_"    → SM_PUSH_VAR  "_"
+
+Added a comment block at L1684 explaining the strip_sigil convention so
+future authors don't rediscover this.
+
+The probe rk_map_min.raku was a one-shot debug artifact and was REMOVED
+before commit (no .expected, would skew the gate's TOTAL). The probe
+rk_for_array_underscore.raku was COMMITTED as a permanent regression
+test because it covers `for ARR -> $_` topic-variable binding under
+the BB_ITERATE substrate — a useful invariant to keep tracked.
+
+VERIFICATION:
+  - rk_map_min.raku                    mode-2 + mode-4 byte-exact (before rm).
+  - rk_for_array_underscore.raku       mode-2 + mode-4 byte-exact.
+  - rk_map_grep_sort24.raku            mode-2 + mode-3 + mode-4 byte-exact.
+  - All sibling smokes HOLD (icon 5/5, prolog 5/5, raku 5/0).
+  - Broker Icon 198/268 HOLD (no regression in legacy Icon).
+  - FACT RULE grep:                    0 (no seg_byte / SL_B / etc).
+  - Build:                             clean.
+
+DOCTRINAL STATUS: 100% template/lowering emission preserved.
+  - ZERO new BB kinds.
+  - ZERO new runtime helpers.
+  - ZERO new emit_textf or seg_byte sites.
+  - The fix is purely textual inside the existing lowering scaffold.
+
+NEXT — RK-BB-4 (junctions + infix `|`/`&` → BB_ALTERNATE + Bool-collapse
+policy on ω/γ). REUSE bb_gen_alt.cpp / bb_alt.cpp. Add junction test.
+
+Pre-existing segfault cluster (rk_subs, rk_interp, rk_try_catch25)
+remains a separate concern. Cluster into RK-BB-SEGFAULT-CLUSTER as a
+new rung when Lon prioritizes.
+
+The Open Q5 union-clobber proper fix (TT_SUB_DECL v.ival vs v.sval)
+also remains deferred; the RK-BB-2 step 6 defensive v.ival=0 is still
+load-bearing for gather/take.
+
+⛔ END RK-BB-3b/c-binding-fix HANDOFF
+
+⛔ PRIOR HANDOFFS RETAINED FOR HISTORY: RK-BB-3b/c WIP (42d2a367) below
+   documents the scaffold pre-fix; superseded by the closed binding-fix
+   above but retained for the three-hypothesis discussion and decomposition
+   that led to the diagnostic path. RK-BB-3a-mode4-debug, RK-BB-3a partial,
+   3.0b, 3.0a, 3.0+3d infra, and RK-BB-2 step 6 follow below in turn.
 
 ⛔ RK-BB-3b/c WIP — 2026-05-27, Opus 4.7, one4all 42d2a367:
 
