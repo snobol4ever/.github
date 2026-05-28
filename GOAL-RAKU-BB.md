@@ -85,7 +85,7 @@ Never add `raku_seq_pull` / `rk_take_yield` / `raku_grep_step` / junction dispat
     
     Gates: GATE-RK mode-2 14 → **16** (+rk_interp, +rk_map_grep_sort24), GATE-RK4 15 HOLD, smokes 5/5/5/13 HOLD, broker Icon 198 HOLD, FACT RULE 0.
 
-  - **bug 4: lower_return discards Raku return value** ⛔ NEXT SESSION. SM dump of rk_subs shows correctly-shaped skeleton at PC 1-8: `LABEL "double"; LOAD_FRAME; COERCE_NUM; PUSH_LIT_I 2; COERCE_NUM; MUL; VOID_POP; RETURN`. The **VOID_POP before RETURN** discards the multiply result. `lower_return` (lower.c:1240) for the bare branch (no `g_sc_func_name`) emits `lower_expr; SM_VOID_POP; SM_RETURN`. SM_RETURN handler at sm_interp.c:1432 reads `st->stack[st->sp - 1]` as retval when `fr->retval_name` NULL — i.e., expects stack-top to be retval. **Fix:** add `LANG_RAKU` branch in `lower_return` that emits `lower_expr(t->c[0]); SM_RETURN` with NO VOID_POP. Without this, `return $n * 2` discards result; `say(double(7))` prints nothing, `add(3,4)` returns 0, `classify` returns garbage. Expected uplift: rk_subs + rk_try_catch25 flip green in mode-2; mode-4 follows (mode-4 also blocked on SM_LOAD_FRAME template missing — separate concern).
+  - **bug 4 ✅** (Opus 4.7, 2026-05-27, one4all `ecd561b1`) — `lower_return` Raku return-value preservation. One-file change to `src/lower/lower.c` `lower_return` (+2 -0): added `else if (t->n > 0 && t->c[0] && g_lang == LANG_RAKU) { lower_expr(t->c[0]); }` branch between the `g_sc_func_name` (Snocone) branch and the generic VOID_POP branch. Leaves the result on stack-top where `SM_RETURN` (sm_interp.c:1432) expects it — no VOID_POP. Gates: GATE-RK mode-2 **16 → 18** (+rk_subs, +rk_combinator). GATE-RK4 mode-4 **15 HOLD** (still blocked on SM_LOAD_FRAME template absence). Smokes raku/icon/prolog/snobol4 **5/5/5/13 HOLD**. Broker Icon **198 HOLD**. FACT RULE 0. Build clean. `rk_try_catch25` is a separate try/CATCH issue, not return-value-related.
 
 - [~] **RK-BB-4 substrate audit** — Opus 4.7, 2026-05-27. Probe-based audit found goal text's "REUSE bb_gen_alt.cpp/bb_alt.cpp" is unfounded. SEVEN GAPS verified by inspection:
   1. raku.l no KW_ANY/KW_ALL/KW_ONE/KW_NONE; no single-char `|`/`&` (only `||`/`&&`).
@@ -147,12 +147,12 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 2a70abed (RK-BB-SEGFAULT-CLUSTER bug 2+3 — TT_SUB_DECL skeleton + scope)
-.github: HEAD (handoff — bugs 2+3 closed; bug 4 (lower_return) documented for next session)
+one4all: ecd561b1 (RK-BB-SEGFAULT-CLUSTER bug 4 — lower_return Raku branch)
+.github: HEAD (handoff — bug 4 closed; SM_LOAD_FRAME mode-4 design analyzed, deferred)
 corpus:  unchanged
 
-Gates at RK-BB-SEGFAULT-CLUSTER bug 2+3 (2026-05-27, Opus 4.7):
-  GATE-RK mode-2:  16/33  (+rk_interp, +rk_map_grep_sort24)
+Gates at RK-BB-SEGFAULT-CLUSTER bug 4 (2026-05-27, Opus 4.7):
+  GATE-RK mode-2:  18/33  (+rk_subs, +rk_combinator)
   GATE-RK4 mode-4: 15/33  HOLD
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
@@ -163,41 +163,80 @@ Gates at RK-BB-SEGFAULT-CLUSTER bug 2+3 (2026-05-27, Opus 4.7):
   FACT RULE grep:  0
   Build:           clean
 
-rk_subs / rk_try_catch25 still fail (wrong output, not segfault):
-  rk_subs:        prints only "hello raku" — bug 4 (lower_return VOID_POPs retval).
-  rk_try_catch25: "Error 5 Undefined function" — try/CATCH-specific, separate.
-  rk_interp:      now PASSES.
+rk_try_catch25 still fails (separate issue: try/CATCH-specific "Error 5 Undefined function";
+not return-value related — bug 4 fix didn't touch it as predicted).
 ```
 
-⛔ NEXT SESSION — RK-BB-SEGFAULT-CLUSTER bug 4 (lower_return Raku return-value):
+⛔ NEXT SESSION — RK-BB-SM-FRAME-MODE4 (SM_LOAD_FRAME / SM_STORE_FRAME mode-4 templates).
 
-ONE FILE TO TOUCH: src/lower/lower.c, function `lower_return` at L1240.
+ARCHITECTURAL ANALYSIS COMPLETED THIS SESSION (Opus 4.7, 2026-05-27):
 
-PROBLEM:
-`return $n * 2` in a Raku sub produces SM `lower_expr(n*2); SM_VOID_POP; SM_RETURN`. The VOID_POP discards the multiply result. SM_RETURN handler at sm_interp.c:1432 reads `st->stack[st->sp - 1]` as retval when `fr->retval_name` is NULL — expects stack-top to be retval. So result is lost.
+The mode-4 x86 backend has ZERO frame-slot mechanism. `emit_sm.c:1076` emits the literal
+text `"UNHANDLED SM_LOAD_FRAME"` for unrecognized opcodes — when the assembler hits this
+it errors `no such instruction: 'unhandled SM_LOAD_FRAME'` (the as-error in earlier sessions).
 
-FIX SHAPE:
-```c
-static void lower_return(const tree_t *t)
-{
-    if (t->n > 0 && t->c[0] && g_sc_func_name) {
-        lower_expr(t->c[0]);
-        SM_emit_s(g_p, SM_STORE_VAR, g_sc_func_name);
-        SM_emit(g_p, SM_VOID_POP);
-    } else if (t->n > 0 && t->c[0] && g_lang == LANG_RAKU) {
-        /* Raku: leave result on stack-top; SM_RETURN reads stack[sp-1]. */
-        lower_expr(t->c[0]);
-    } else if (t->n > 0 && t->c[0]) {
-        lower_expr(t->c[0]); SM_emit(g_p, SM_VOID_POP);
-    }
-    SM_emit(g_p, SM_RETURN);
-}
-```
+WHY RAKU IS THE FIRST CASE TO HIT THIS:
+  - Icon mode-4 corpus passes 5/5 because Icon procs route through BB graphs and
+    `icn_bb_pump_proc_by_name` (bypassing SM entirely per "Icon/Prolog are ~100% BB").
+  - Raku eager subs route through SM_CALL_FN → SM_LABEL → body using SM_LOAD_FRAME,
+    which has no x86 dispatch arm.
 
-EXPECTED UPLIFT (mode-2): rk_subs flips (14→17 expected). rk_try_catch25 may flip too if its Error 5 is downstream of return-value loss; otherwise it's a separate try/CATCH issue.
+THE FOUR PIECES MISSING IN MODE-4:
 
-MODE-4 BLOCKER (separate, also needs attention next session):
-After bug 4, mode-4 rk_subs hits `as: Error: no such instruction: 'unhandled SM_LOAD_FRAME'` at multiple sites. The frame-slot read/write isn't emitted in mode-4 for Raku. SM_LOAD_FRAME / SM_STORE_FRAME templates either don't exist or aren't routed for LANG_RAKU. Search `sm_load_frame.cpp` / `walk_sm_instr` LOAD_FRAME branch in `emit_sm.c` — likely needs Raku-arm or polymorphic dispatch. Same shape as SM_LOAD_VAR but indexed via slot not name.
+  1. **User-sub callsite dispatch.** Today SM_CALL_FN template emits
+     `lea rdi,[name]; mov esi,nargs; call rt_call@PLT`. `rt_call` resolves
+     user-subs via `chunk_reg_lookup` (SNOBOL4 `Define()` chunks) — which doesn't
+     contain Raku named subs. So the call falls through to INVOKE_fn which is
+     SNOBOL4 dispatch, and ends in "Undefined function". Solution: in
+     `sm_calls.cpp` MEDIUM_TEXT X86 arm, look up `pSM->a[0].s` in
+     `g_stage2.proc_table[]` (already visible to emitter per emit_sm.c:886);
+     if found with entry_pc >= 0, emit `call .L<entry_pc>` directly. Args
+     already on vstack via prior PUSH_LIT_*/PUSH_VAR. The SM_LABEL emits
+     `.L<pc>:` automatically (emit_sm.c:1042).
+
+  2. **Frame push at proc entry.** Args sit on vstack at callsite; callee
+     needs them in slots 0..nparams-1. Two options:
+     (a) Callsite emits frame-enter helper before call: `rt_frame_enter(nparams)`
+         pops nparams from vstack, copies to slot[0..nparams-1], pushes the
+         frame. Then `call .L<pc>`. Cleaner separation; works.
+     (b) Lowering emits `SM_FRAME_ENTER nparams` op right after SM_LABEL for
+         each user sub, template emits `mov edi,nparams; call rt_frame_enter@PLT`.
+         Cleaner from SM dump perspective; needs new SM opcode.
+     Recommend (b) — clean SM-level visibility.
+
+  3. **Frame pop at proc exit.** Symmetric. Either:
+     (a) `lower_return` for LANG_RAKU emits `SM_FRAME_LEAVE` before `SM_RETURN`.
+     (b) New combined `SM_RETURN_FRAME` op.
+     Recommend (a) — keeps SM_RETURN simple, paired with (b) of #2.
+
+  4. **`rt_load_frame` / `rt_store_frame` in libscrip_rt.** New small file
+     `src/runtime/rt/rt_frame.c` mirroring the icn_runtime.c shape (a frame
+     stack of small DESCR_t arrays). Functions:
+       `void rt_frame_enter(int nparams)` — pops nparams from vstack into a
+         new IcnFrame (or local equivalent); pushes frame.
+       `void rt_frame_leave(void)` — pops frame. Return value is already on
+         vstack from `lower_return` LANG_RAKU branch (bug 4 fix).
+       `void rt_load_frame(int slot)` — peeks current frame, pushes slot[i]
+         onto vstack.
+       `void rt_store_frame(int slot)` — pops vstack into slot[i].
+
+  5. **Templates.** New file `src/emitter/SM_templates/sm_frame_slots.cpp`
+     with `sm_load_frame` / `sm_store_frame` (and optionally `sm_frame_enter`
+     / `sm_frame_leave`) functions, each with MEDIUM_MACRO_DEF + MEDIUM_TEXT
+     arms. Wire into `sm_op_is_dispatched` in `emit_core.c:821`. Wire into
+     `codegen_sm_dispatch` in the place where existing templates are listed.
+
+ESTIMATED SCOPE: 6-10 hours careful work. High risk of regressing Icon
+mode-4 corpus (5/5) and broker Icon (198) if SM_CALL_FN template touches
+arms other than the user-sub one. Must run all four smokes + GATE-RK4 +
+GATE-PK4 (icon mode-4) + broker after EVERY substantive edit.
+
+ALTERNATIVE LIGHTWEIGHT PATH (NOT recommended but documented):
+Bypass slots — modify lowering to emit `SM_PUSH_VAR vname` / `SM_STORE_VAR vname`
+for Raku params instead of `SM_LOAD_FRAME slot` / `SM_STORE_FRAME slot`.
+Mode-4 `rt_nv_get`/`rt_nv_set` then "just works". Cost: params live in
+global name table, not stack frame — broken for recursion, broken for
+nested sub calls. Cheap demo win but architecturally wrong; reject.
 
 ⛔ END NEXT-SESSION GUIDANCE
 
