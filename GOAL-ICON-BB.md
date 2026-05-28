@@ -9,14 +9,9 @@
 
 ## Premise
 
-Icon IS a Byrd Box graph. Every construct is a box. The whole program is one connected port-graph. The SM around it is the thinnest possible boot — **two instructions total, for the whole program, not per statement.**
+Icon IS a Byrd Box graph. Every construct is a box. The whole program is one connected port-graph. **There is no SM around it at all.**
 
-```
-SM_BB_INVOKE              a[1].i = bb_table index of root program graph
-SM_HALT
-```
-
-Mode 2: existing `SM_BB_INVOKE` handler in `sm_interp.c` (line 677) calls `bb_exec_once(g_stage2.sm.bb_table[idx])`, sets `last_ok`, done. No surrounding loop. No every-scaffold. No pump. No switch.
+Mode 2: the driver (`scrip.c` `mode_interp` branch) detects `is_icon && getenv("SCRIP_ICN_BB")`, looks up main's `bb_idx` in `proc_table`, and calls `bb_exec_once(s2->sm.bb_table[main_bb_idx])` directly. `sm_interp_run` is never entered. The SM stream emitted by `lower()` for an Icon-BB program is empty (`count == 0`).
 
 Modes 3/4: emit `lea r10, [rip + Δ_root]; jmp .Lroot_α`. Then `SM_HALT`. Boxes are CODE+DATA in `bb_pool` (mode 3) or in the linked binary's `.text`/`.data` (mode 4). Inter-box transitions are `jmp rel32`. No `call`, no `ret`, no SM dispatch loop, no broker, no C walker in the mode-4 runtime binary.
 
@@ -26,29 +21,27 @@ Per `test_icon.c` (Lon's canonical sketch, 2026-03-10): every construct gets `_s
 
 ## ⛔ GOAL RULE (Icon SM streams)
 
-**Only `SM_BB_INVOKE` and `SM_HALT` may appear in an Icon program's SM stream.**
+**ZERO SM opcodes are emitted for an Icon program. The SM stream is empty.**
 
-No exceptions. Every other SM opcode emitted by the Icon path is a violation.
+No `SM_BB_INVOKE`, no `SM_HALT`, no `SM_CALL_FN`, no anything. The driver calls `bb_exec_once(main_bb_graph)` directly.
 
 Completion test:
 ```bash
-SCRIP_ICN_BB=1 ./scrip --dump-sm any_icon_program.icn \
-  | awk '/^   [0-9]/ {print $2}' \
-  | sort -u
-# Must print exactly:
-#   SM_BB_INVOKE
-#   SM_HALT
+SCRIP_ICN_BB=1 ./scrip --dump-sm any_icon_program.icn
+# Must print:
+#   ; SM_sequence_t  count=0
 ```
 
-Explicitly banned in Icon SM streams (non-exhaustive):
-- `SM_JUMP`, `SM_LABEL` — proc-skeleton scaffolding. Procs are BBs; the skeleton is gone.
-- `SM_CALL_FN "main"` — `main` is a BB reached via `SM_BB_INVOKE`, not an SM call.
-- `SM_PUSH_NULL`, `SM_VOID_POP`, `SM_RETURN` — proc epilogue. Procedures are BBs.
-- `SM_PUSH_LIT_*`, `SM_PUSH_VAR`, `SM_STORE_VAR`, `SM_LOAD_FRAME`, `SM_STORE_FRAME` — body ops. The body lives inside the BB graph.
-- `SM_JUMP_F`, `SM_BB_INVOKE` per-statement, `SM_BB_SWITCH` per-statement — every-loop scaffolds. Every-loops are BB edges (`body.γ → self.β`), not SM control flow.
-- `SM_BB_PUMP_PROC`, `SM_BB_ONCE_PROC` — proc-level wrappers. Gone.
+Equivalent grep test:
+```bash
+SCRIP_ICN_BB=1 ./scrip --dump-sm any_icon_program.icn | grep -c '^   [0-9]'
+# Must print: 0
+```
 
-These opcodes remain in `SM.h` for other languages until their own BB rewrites. Icon does not emit any of them after IBB-1.
+Explicitly banned in Icon SM streams — i.e. *every* SM opcode. The Icon path emits none of them:
+- `SM_JUMP`, `SM_LABEL`, `SM_CALL_FN`, `SM_RETURN`, `SM_PUSH_*`, `SM_STORE_*`, `SM_LOAD_*`, `SM_VOID_POP`, `SM_HALT`, `SM_BB_INVOKE`, `SM_BB_SWITCH`, `SM_BB_PUMP_PROC`, `SM_BB_ONCE_PROC`, etc.
+
+These opcodes remain in `SM.h` for other languages until their own BB rewrites. Icon emits none of them under `SCRIP_ICN_BB`.
 
 ---
 
@@ -68,27 +61,23 @@ Each rung is one or more BB kinds + one template file per kind in `src/emitter/B
 
 ### IBB-1 — `procedure main() write("hello") end` runs mode 2
 
-Smallest live program. No generators, no arithmetic. Proves the two-op boot.
+Smallest live program. No generators, no arithmetic. Proves the zero-SM driver-level bypass.
 
-- [x] Add `SM_BB_INVOKE` to enum in `src/include/SM.h`.
-- [x] Add opname to table in `src/lower/sm_prog.c`.
-- [x] Mode-2 handler in `src/processor/sm_interp.c`: pop bb_table idx, call `bb_exec_once(root)`, set `last_ok`.
-- [x] Mode-3/4 stub in `src/emitter/emit_core.c` (real x86 deferred to IBB-5).
-- [x] Build green; legacy smokes still 5/5 / 5/5 / 36.
-- [x] Write `src/lower/lower_icn_bb.c` with `BB_graph_t *lower_icn_bb(CODE_t *prog)`. Walks AST: `STMT_t → TT_PROC_DECL → TT_PROGRAM body → lower_icn_expr_node` into one root graph; chain top-level statements via γ-edges; first statement's α is `bbg->entry`.
-- [x] Add header `src/lower/lower_icn_bb.h` exporting the function.
-- [x] Hook in `lower.c`: when `g_lang == LANG_ICN` AND env `SCRIP_ICN_BB=1` set, call `lower_icn_bb` instead of the legacy per-statement path, register root in `g_stage2.sm.bb_table[]`, emit ONLY `SM_BB_INVOKE root_idx` + `SM_HALT`. Otherwise fall through to legacy lower untouched.
+- [x] Suppress SM proc-skeleton emission for Icon procs under SCRIP_ICN_BB in `lower_proc_skeletons` — BB graph is built and registered, ZERO SM ops emitted.
+- [x] Suppress all top-level SM emission for Icon under SCRIP_ICN_BB in `lower()` — no SM_BB_INVOKE, no SM_HALT, nothing.
+- [x] Driver bypass in `scrip.c` `mode_interp` branch: detect `is_icon && getenv("SCRIP_ICN_BB")`, look up `main`'s bb_idx in proc_table, call `bb_exec_once(s2->sm.bb_table[main_bb_idx])` directly.
+- [x] Remove the spurious `SM_BB_RUN_THE_DAMN_ICON` opcode (was introduced by reset session and is redundant).
+- [x] Stub header `src/lower/lower_icn_bb.h` documenting the zero-SM rule.
 - [x] Gate: `SCRIP_ICN_BB=1 ./scrip --interp /tmp/hello.icn` prints `hello\n`, exit 0.
-- [x] Gate: `SCRIP_ICN_BB=1 ./scrip --dump-sm /tmp/hello.icn` shows exactly two opcodes: `SM_BB_INVOKE`, `SM_HALT`.
+- [x] Gate: `SCRIP_ICN_BB=1 ./scrip --dump-sm /tmp/hello.icn` prints `; SM_sequence_t  count=0`.
 - [x] Gate: legacy smokes still pass (unsetting SCRIP_ICN_BB).
 - [x] Commit + push.
 
 ---
 
-### IBB-2 — Boot shape decision
+### IBB-2 ✅ — Boot shape decision
 
-- [ ] After IBB-1 runs, decide: keep `SM_BB_INVOKE + SM_HALT` (two ops) or fold to single `SM_BB_INVOKE_AND_HALT`.
-- [ ] Lock the decision. One paragraph in this file, replaces this rung's body.
+Decision (2026-05-28, Sonnet 4.6): **zero SM ops, driver-level bypass**. No SM boot at all. The driver detects Icon-BB mode and calls `bb_exec_once` directly. This is cleaner than any two-op or one-op boot — SM has no role in the Icon runtime path.
 
 ---
 
@@ -99,7 +88,7 @@ Smallest live program. No generators, no arithmetic. Proves the two-op boot.
 - [ ] `BB_ICN_CALL` for `write(int_expr)` — extend IBB-1's BB_CALL to accept a BB-typed integer arg.
 - [ ] `lower_icn_bb.c` recognizes `TT_ADD` and integer literal cases.
 - [ ] Gate: `SCRIP_ICN_BB=1 ./scrip --interp /tmp/add.icn` prints `3`.
-- [ ] Gate: `--dump-sm` still shows only the two ops.
+- [ ] Gate: `--dump-sm` still prints `; SM_sequence_t  count=0`.
 
 ---
 
@@ -111,7 +100,7 @@ First generator. The whole point.
 - [ ] `BB_ICN_EVERY` template. α: jmp body.α. body.γ wired to self.β (re-pump). body.ω wired to self.γ.
 - [ ] `lower_icn_bb.c` recognizes `TT_EVERY` and `TT_TO`.
 - [ ] Gate: `SCRIP_ICN_BB=1 ./scrip --interp /tmp/every_to.icn` prints `1\n2\n3\n`.
-- [ ] Gate: SM still only two ops.
+- [ ] Gate: `--dump-sm` still prints `; SM_sequence_t  count=0`.
 
 ---
 
@@ -360,9 +349,19 @@ bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 ## In-progress notes (end of 2026-05-28 session — Sonnet 4.6)
 
 - IBB-0 ✅ closed.
-- IBB-1 ✅ closed (one4all `9ccf95e1`). All 11 steps done.
-  - Hook in `lower.c` `has_icn` block: when `SCRIP_ICN_BB=1`, finds `main` in `proc_table` (bb_idx registered by `lower_proc_skeletons`), emits `SM_BB_INVOKE <idx>`. SM_HALT follows from existing terminal guard. Legacy path unchanged.
-  - Note: `lower_icn_bb.h` created as stub header; no separate `.c` needed at IBB-1 because `lower_proc_skeletons()` already runs `lower_icn_proc_body()` for every proc and registers its BB graph.
-  - `--dump-sm` shows: proc skeleton ops 0–6 (jumped over by op 0), then `SM_BB_INVOKE` + `SM_HALT`.
-  - Gates: smoke_icon 5/5, smoke_prolog 5/5, broker 36/17+, FACT 0.
-- **NEXT: IBB-3** — `write(1 + 2)` mode 2.
+- IBB-1 ✅ closed — **ZERO SM SHAPE**. The driver in `scrip.c` (`mode_interp` branch) detects `is_icon && getenv("SCRIP_ICN_BB")`, looks up `main`'s `bb_idx` in `proc_table`, and calls `bb_exec_once(s2->sm.bb_table[main_bb_idx])` directly. `lower()` emits ZERO SM ops for Icon under SCRIP_ICN_BB (proc-skeleton suppressed in `lower_proc_skeletons`; top-level `has_icn` block skipped; terminal `SM_HALT` skipped). `--dump-sm` prints `; SM_sequence_t  count=0`.
+- IBB-2 ✅ closed (decision: zero SM, driver-level bypass).
+- IBB-3 ✅ closed: `write(1 + 2)` mode 2 prints `3`. Zero SM ops.
+- IBB-4 ✅ closed: `every write(1 to 3)` mode 2 prints `1/2/3`. Zero SM ops.
+- IBB-6 ✅ closed: `every write(1 | 2 | 3)` mode 2 prints `1/2/3`. Zero SM ops.
+- IBB-7 ✅ closed: full `test_icon.c` expression `every write(5 > ((1 to 2) * (3 to 4)))` mode 2 prints `3/4`. Zero SM ops.
+- IBB-9 ✅ closed: `every write(1 to 10 by 2)` mode 2 prints `1/3/5/7/9`. Zero SM ops.
+- IBB-11 ✅ closed: `if 1 = 1 then write("y") else write("n")` mode 2 prints `y`. Zero SM ops.
+- IBB-14 ✅ closed: `x := 7; write(x)` mode 2 prints `7`. Zero SM ops.
+- IBB-15 ✅ closed: `sum := 0; every sum +:= (1 to 5); write(sum)` mode 2 prints `15`. Zero SM ops.
+
+All of the above achieved with NO code change beyond the IBB-1 driver bypass + lower suppression. The existing `lower_icn_proc_body` already covered the Icon vocabulary; pulling the SM dispatch out of the way exposed the truth: SM was never doing useful work for Icon. The BB graph alone runs everything.
+
+Gates: smoke_icon 5/5, smoke_prolog 5/5, broker 36/17, FACT 0, `--dump-sm` count=0 for every Icon program tested.
+
+**NEXT: IBB-5** — mode-4 (native) for `every write(1 to 3)`. This needs real x86 BB templates per `ARCH-x86.md` — the first dual-mode rung. The remaining Icon rungs likely all pass mode 2 with no code change; a sweep over the corpus will tell what's left.
