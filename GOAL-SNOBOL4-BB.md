@@ -114,11 +114,12 @@ Transcription rule: re-express through `SM_templates/*.cpp` MEDIUM_BINARY arms, 
 - [/] **M3-NATIVE-4** — per-language bring-up + corpus parity. SNOBOL4 first.
   - [x] `define` smoke now passes (was blocker per earlier handoff — resolved likely via 08e05f68 LANG-IGNORANT changes). GATE-1 SCRIP_M3_NATIVE=1 = 13/13.
   - [x] **bb_capture BINARY arm FIXED** (Opus 4.7, 2026-05-28, this session): replaced unconditional `bomb_bytes` early-return with proper 128-byte arm. Process-lifetime `std::deque<int>` saved_Δ slot (NOT GC_MALLOC). `push r10`/`pop r10` around child_fn calls. Sites {40, 49(def), 77, 124}; internal jmp rel32 = 32. Validated on 039_pat_any.sno + smoke. Native corpus 156→165/280 (+9): fixed 039_pat_any, 040_pat_notany, 042_pat_break, 043_pat_len, 058_capture_dot_immediate, 059_capture_dollar_deferred, W07_capt_cond/fail/imm. ZERO new regressions. All baseline gates hold.
-  - [ ] **Next: knock down the remaining ~73 native-only failures**, in priority cluster order:
+  - [x] **SBL-EP-BINARY ✅** (Opus 4.7, 2026-05-28, one4all `1bc53211`): universal EP→BINARY emitter for combinator templates. New `ep_bin_fill_str(bin, prelude_lbl)` helper in emit_str.{cpp,h} walks the same `g_emit.xa_bb_ep_*[]` arrays the TEXT arms walk, emits `\xE9 + u32le(0)` (5 bytes) per jmp, records define-sites at byte offsets for label-defs. Optional prelude_lbl defines an entry label at offset 0 (used by FENCE/SUCCEED whose TEXT prepends `lbl_α:`). `xa_bb_ep_define/jmp` arrays changed from `const char *` → `bb_label_t *` so BINARY can patch rel32 directly; TEXT derefs `->name`. EP_DEF/EP_JMP/EP_DEF_JMP macros updated. Combinators converted (audit now REAL): bb_pat_alt, bb_pat_cat, bb_pat_fence (unifies both 0-child and N-child cases — old hardcoded 10-byte arm was missing α-define site), bb_pl_seq, bb_pl_ite, bb_succeed. Procedural Prolog templates bombed (audit now BOMB, was silent EMPTY): bb_pl_alt, bb_pl_call, bb_pl_choice — these emit trail_mark/CP-record assembly, not EP-driven; need dedicated BINARY ports if mode-3 Prolog native is ever scoped. `audit_m3_native_binary_arms.sh` updated to recognise `ep_bin_fill_str` as a real-arm signal. Gates held: G1=13/13 (default+native), G2=31, G3=175/280, G4=238/280, native=165/280 (unchanged — combinator flat-wire in mode-3 not yet enabled, this is foundation for next rung), rungs M2=19/M4=15, FACT=0, audit GATE OK, Prolog smoke 5/5 + mode-4 rung 4/4 + BB honest 128/0, Raku smoke 5/5.
+  - [ ] **Next: enable combinator flat-wire in mode-3** so ALT/CAT/FENCE/SUCCEED actually fire their new BINARY arms during `--run` SCRIP_M3_NATIVE=1. The bytes are ready; the build path needs `bb_build_flat` to be invoked when sealing the RX page for a pattern containing combinator nodes. Today's `M3-NATIVE-3` wired ANY/single-leaf BB call-out — extend to combinator trees.
+  - [ ] **Then: knock down remaining ~73 native-only failures**, in priority cluster order:
     - SPAN (~10 tests, blocked by SBL-SPAN-2 BINARY arm + per-node scratch via deque pattern)
-    - ALT (~6 tests, `bb_pat_alt` is EMPTY/COMMENT in audit — combinator deferred from M3-NATIVE-0)
-    - ARBNO (~8 tests, `bb_arbno` bombed, blocked by SBL-ARBNO-3 — same scratch facility now available)
-    - FENCE (~6 tests, suggest bb_pat_fence native correctness — investigate, may be combinator like ALT)
+    - ARBNO (~8 tests, `bb_arbno` bombed, blocked by SBL-ARBNO-3 — same deque scratch pattern now available)
+    - FENCE (~6 tests — bytes ready via EP-BINARY, gate on flat-wire mode-3 enablement above)
     - POS/RPOS/TAB/RTAB/REM/ARB/TWO (~10 tests, individual arms)
     - capture-multiple/complex compositions (~10 tests, derive from atomic fixes above)
   - [ ] Flip default to native (remove getenv gate at scrip.c:449), with honest `[NO-SM-BB]` failure for unbuilt arms.
@@ -228,16 +229,18 @@ LIT, LEN, POS, UPTO (ref). ANY, NOTANY, BREAK (plain), CAPTURE — all VERIFIED-
 ## Session State
 
 ```
-HEAD one4all       = 08e05f68 (DIRTY: src/emitter/BB_templates/bb_capture.cpp uncommitted)
-HEAD .github       = 70f5ce3a (clean)
+HEAD one4all       = 1bc53211 (clean — SBL-EP-BINARY pushed)
+HEAD .github       = (this commit)
 GATE-1 smoke       = 13/13     (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 31        (sibling-influenced)
 GATE-3 mode-4      = 175/280
 GATE-4 mode-2      = 238/280
-NATIVE corpus      = 165/280   (was 156 — +9 from bb_capture BINARY arm fix this session)
+NATIVE corpus      = 165/280   (unchanged — EP-BINARY plumbed but combinator flat-wire not yet enabled)
 Rung suite         = M2=19 M4=15 SKIP=0
+Prolog smoke       = 5/5;  mode-4 rung 4/4; BB honest 128/0
+Raku smoke         = 5/5
 FACT RULE          = 0
-audit_m3_native    = GATE OK
+audit_m3_native    = GATE OK (ep_bin_fill_str recognised as real-arm signal)
 GATE-PK            = stale (re-freeze deferred)
 ```
 
@@ -245,7 +248,9 @@ GATE-PK            = stale (re-freeze deferred)
 
 ## Session log (terse, last few only)
 
-- **2026-05-28 Opus 4.7 (this session) — SBL-CAP-2 ✅ + native corpus +9.** Fixed bb_capture.cpp BINARY arm: removed unconditional bomb, added proper gate; replaced GC_MALLOC scratch with process-lifetime `std::deque<int>` allocator (key new pattern, GC-safe); added push r10/pop r10 around child_fn calls; corrected sites to `{40, 49(def), 77, 124}` (off-by-one in old `{35,45,68,116}` — `0F 84` rel32 is at opcode+2, not +1); internal jmp pre-patch 28→32. Validated: 039_pat_any.sno native==oracle ("e"); GATE-1 13/13 (both default and native); broad corpus native 156→165/280; zero baseline regressions; FACT RULE 0; audit GATE OK. Goal file pruned 700+→~290 lines this session.
+- **2026-05-28 Opus 4.7 (this session) — SBL-EP-BINARY ✅** (one4all `1bc53211`). Universal EP→BINARY emitter for combinator templates. New `ep_bin_fill_str(bin, prelude_lbl)` in emit_str.{cpp,h} walks `g_emit.xa_bb_ep_*[]` (the same epilogue arrays the TEXT arms already use), emits `\xE9 + u32le(0)` per jmp, records define-sites at byte offsets. Optional prelude defines an entry label at offset 0 (FENCE/SUCCEED). `xa_bb_ep_define/jmp` arrays retyped from `const char *` to `bb_label_t *` (TEXT derefs `->name`); EP_DEF/JMP/DEF_JMP macros updated. Six combinators converted (audit REAL): bb_pat_alt, bb_pat_cat, bb_pat_fence (unifies 0-child and N-child cases — old hardcoded 10-byte form lacked α-define site), bb_pl_seq, bb_pl_ite, bb_succeed. Three procedural Prolog templates bombed (audit BOMB, was silent EMPTY): bb_pl_alt, bb_pl_call, bb_pl_choice — they emit trail_mark/CP-record assembly, not EP-driven; need dedicated BINARY ports if mode-3 Prolog native scoped. audit_m3_native_binary_arms.sh: detect ep_bin_fill_str. All gates held: G1=13/13 (default+native), G2=31, G3=175/280, G4=238/280, native=165/280 (unchanged — combinator flat-wire in mode-3 not yet enabled), rungs M2=19/M4=15, FACT=0, audit GATE OK, Prolog smoke 5/5 + mode-4 rung 4/4 + BB honest 128/0, Raku smoke 5/5. **Next session:** wire `bb_build_flat` for combinator nodes through the mode-3 sealed-RX path so ALT/CAT/FENCE actually fire their new BINARY arms during `--run` SCRIP_M3_NATIVE=1; bytes are ready, build path needs the extension.
+
+- **2026-05-28 Opus 4.7 — SBL-CAP-2 ✅ + native corpus +9** (one4all `e9a9d7f3`). Fixed bb_capture.cpp BINARY arm: removed unconditional bomb, added proper gate; replaced GC_MALLOC scratch with process-lifetime `std::deque<int>` allocator (key new pattern, GC-safe); added push r10/pop r10 around child_fn calls; corrected sites to `{40, 49(def), 77, 124}` (off-by-one in old `{35,45,68,116}` — `0F 84` rel32 is at opcode+2, not +1); internal jmp pre-patch 28→32. Validated: 039_pat_any.sno native==oracle ("e"); GATE-1 13/13 (both default and native); broad corpus native 156→165/280; zero baseline regressions; FACT RULE 0; audit GATE OK.
 
 - **2026-05-28 Opus 4.7 (i) — LANG-IGNORANT SM TEMPLATES (`08e05f68`).** Ripped 9 language-sniffing forks from SM/BB templates. Whacked `SM_BB_PUMP_PROC`. Split `SM_BB_SWITCH` into `SM_BB_INVOKE` + `SM_BB_PL_INVOKE`. Mis-design recorded: PL_INVOKE collapsible after Prolog lower refactor. Gates held except Icon (0/5, expected). Raku frontend relied on deleted user-sub frame-management fast-path. See HANDOFF-2026-05-28-OPUS-LANG-IGNORANT-SM-TEMPLATES.md.
 
