@@ -129,13 +129,18 @@ bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=18, M4=15, SKIP=0
 ### SBL-G-2 — Re-freeze GATE-PK for pattern kinds ⏳
 - [ ] After filling each template, re-freeze its kind's cell in `test_per_kind_diff.sh`. Current baseline references DELETED `rt_bb_*` C boxes — stale.
 
-### SBL-ANY-2 — Fill `bb_pat_any.cpp` BINARY arm ⏳ (BLOCKED — dispatch investigation needed)
-- [ ] Use `g_emit.bb_cs_zeta` (pre-allocated by wrapper) or `pBB->sval` directly. Mirror TEXT arm logic in raw bytes. `bb_bin_t` rel32 fixups: jge ω, je ω, jmp γ, jmp ω. Reference: `bb_pat_len.cpp` BINARY arm, `bb_upto.cpp` BINARY arm (movabs+call-indirect pattern).
-- **2026-05-27 attempted (Opus 4.7, continued 13C):** wrote 104-byte BINARY arm, GAS-disassembly verified. NOT COMMITTED. Probes showed `bb_pat_any` is never called and `exec_stmt` is never entered for `S PAT . M` under `--interp`. The pattern dispatch goes through `sm_interp.c:582 case SM_EXEC_STMT` directly to some other path. Pre-existing wrong behavior (`match=x` instead of oracle `match=a` for `ANY('cab')` over `'xyzabcdef'`) is mode-independent — affects all four mode combinations identically. **DO NOT fill BINARY arms until the actual dispatch path is mapped** — otherwise the fill is unverifiable and we don't know what we ran.
-- [ ] **Prereq: SBL-ANY-2-DISPATCH-TRACE** — instrument `sm_interp.c:582 case SM_EXEC_STMT` to print the pat.v, pat.p->kind, and resulting code path. Identify which `bb_build_*` is called, which template wrappers fire. Only THEN safe to fill BINARY arms.
+### SBL-ANY-2 — Fill `bb_pat_any.cpp` BINARY arm ✅ (Opus 4.7, continued 15, 2026-05-27)
+- [x] 104-byte BINARY arm landed, mirrors TEXT arm byte-for-byte. Pattern after `bb_lit.cpp` (TEMPLATE_ADDR_SIGMA/SIGLEN, `bytes()+u32le()+u64le()`, `bb_bin_t` site list). 5 sites: jge ω@17, je ω@72, jmp γ@86, β label-define@90, jmp ω@100. See SBL-ANY-2-DISPATCH-TRACE section for the dispatch picture.
+- [x] **SBL-ANY-2-DISPATCH-TRACE ✅** (see below). Investigation found the BINARY arm is exercised ONLY by the mode-4 *runtime* path (compiled binary executing pattern stmt → rt_match_variant → exec_stmt → bb_build_brokered → walk_bb_flat → bb_pat_any). Mode-2/-3 `--interp`/`--run` and mode-4 emit phase do NOT exercise it.
 
 ### SBL-NOTANY-2, SBL-BREAK-2, SBL-SPAN-2, SBL-ARBNO-3, SBL-CAP-2 — BINARY arms ⏳
 - [ ] Mode-3 BINARY parallel for the six TEXT arms. Once all green, mode-3 `--run` smoke should climb.
+- **Scope clarified (continued-15, SBL-ANY-2-DISPATCH-TRACE):** these BINARY arms are exercised ONLY by the runtime-PATND mode-4 path (compiled binary → `rt_match_variant` → `exec_stmt` → `bb_build_brokered/flat` → templates). Mode-2/-3 `--interp`/`--run` use the C oracle (`bb_exec.c`); mode-4 emit phase uses TEXT arms. Verify each fill with a runtime-PATND probe (template in continued-15 session notes — probe7.sno shape).
+
+### SBL-XNME-XLATE — translator coverage for capture wrappers ⏳ (carved by continued-15)
+- [ ] Extend `patnd_needs_xlate` (`stmt_exec.c:255`) and/or `patnd_to_bb_graph` (`lower_pat_dcg.c`) to cover XNME and XFNME (the conditional and immediate capture wrappers — `PAT . VAR` and `PAT $ VAR`). Currently XNME falls through to the legacy `(BB_t *)pp` cast; XNME=23 in XKIND_t collides with BB_ALT=23 in BB_op_t (NOT BB_PAT_ALT), `walk_bb_flat` hits `default:`, emits a 2-jump fail stub. Match always fails under mode-4 runtime-PATND.
+- [ ] Wedge probe: `PAT = ANY('cab'); S = 'xyzabcdef'; S PAT . M; OUTPUT = "M=" M`. Pre-fix mode-4 prints `M=` empty; oracle and mode-2/-3 print `M=a`. Carve as rung 058.
+- [ ] **High risk:** continued-9/10/11 documented that translator-gate widening breaks fence/capture/func tests because legacy-cast garbage opcodes accidentally satisfy unrelated semantics. XNME has `nchildren≥1` and `var` field; `lower_pat_dcg.c:490 case XNME` already exists and produces `BB_PAT_ASSIGN_COND` with proper four-port wiring. The gate widening should be staged: first run the full broad-corpus FAIL list pre-widening, then widen, then diff. Accept only widenings that net positive without losing previously-green tests.
 
 ### SBL-BREAKX-2 — BREAKX β in TEXT arm ⏳
 - [x] SBL-BREAKX-1 (SM_PAT_BREAKX opcode wiring) ✅ `7c834dea`
@@ -196,11 +201,105 @@ DEFER — SBL-DCG-DEFER `2b68dc44`
 GATE-1 SNOBOL4 smoke        = 13/13 (mode-2 7/7 + mode-3 6/6)
 GATE-2 unified broker       = 28
 GATE-3 broad corpus mode-4  = 175/280
-GATE-4 broad corpus mode-2  = 238/280  (+20 SBL-ANY-2-CORRECTNESS)
-Rung suite                  = M2=19, M4=15, SKIP=0  (+1 rung 053 M2)
-HEAD one4all                = 3eb09ba0 (SBL-ANY-2-CORRECTNESS)
+GATE-4 broad corpus mode-2  = 238/280
+Rung suite                  = M2=19, M4=15, SKIP=0
+HEAD one4all                = 3b78f297 (SBL-ANY-2 BINARY arm)
 GATE-PK status              = stale (re-freeze deferred)
 ```
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 15) — SBL-ANY-2 BINARY arm ✅ + SBL-ANY-2-DISPATCH-TRACE ✅
+
+### What landed
+`src/emitter/BB_templates/bb_pat_any.cpp`: replaced the 2-jump stub BINARY arm (`bin = { {1, 2}, {ω, γ}, {false, false} }` emitting only `jmp ω`) with a 104-byte fill mirroring the TEXT arm byte-for-byte. Pattern follows `bb_lit.cpp` exactly: `TEMPLATE_ADDR_SIGMA/SIGLEN` macros for runtime globals, `(uint64_t)(uintptr_t)cs` for cset string address, `const char *(*fp)(const char *, int) = strchr` trick for strchr address (C++ overload resolution), `bytes() + u32le() + u64le()` concat, `bb_bin_t` site list. Five sites: `{17, 72, 86, 90, 100}` with labels `{ω, ω, γ, β, ω}` and is_def `{false, false, false, true, false}`. Added `<cstring>` + `<cstdint>` includes.
+
+### Dispatch trace — the answer to SBL-ANY-2-DISPATCH-TRACE
+
+| Mode | Pattern path | BINARY arm? | TEXT arm? |
+|------|-------------|-------------|-----------|
+| `--interp` / `--run` (any pattern, AST or runtime) | `SM_EXEC_STMT` → `bb_exec_pat` → `bb_exec_once` → C oracle in `bb_exec.c case BB_PAT_*` | No | No |
+| `--compile` emit phase | `codegen_sm_x86` → `walk_bb_pattern_blobs` → `codegen_flat_build` → `walk_bb_flat` → FILL → `walk_bb_node` → `bb_pat_any` template (TEXT_MODE set at `emit_sm.c:936`) | No | **Yes** |
+| `--compile` *runtime* (compiled binary executing) | compiled binary calls `rt_match_variant` (in libscrip_rt.so) → `exec_stmt` → for DT_P runtime PATND, `patnd_needs_xlate` gate → `patnd_to_bb_graph` translator → `bb_build_brokered` (g_bb_mode=BB_MODE_BROKERED via rt_init at `rt.c:335`) → `walk_bb_flat` → `bb_pat_any` template | **Yes** | No |
+
+This resolves continued-14's open puzzle ("investigate why 042-048 mode-4 rungs pass despite stub BINARY arms"): the TEXT arms carry mode-4 emit-time output; the BINARY arms only matter for the narrow runtime-PATND-under-compiled-mode-4 path, which current corpus rungs don't exercise.
+
+`sm_interp.c:582 SM_EXEC_STMT`: when `pat_bb` (from `bb_table[ins->a[2].i]`, set by `SM_seq_bb_add` during AST→BB lowering at `lower.c:692`) is non-NULL, dispatch is `bb_exec_pat` (C oracle). When NULL (rare — `BB_lower_pat` failed at compile time), falls through to `exec_stmt`. For runtime-constructed patterns (`PAT = ANY('cab'); S PAT . M`), `pat_bb` is non-NULL (lowering compiled the outer wrapper) but the inner runtime PATND_t resolves at runtime via `BB_PAT_DEFER` C-oracle path, never reaching templates.
+
+`rt_match_variant → exec_stmt` is invoked from compiled x86 (via the `EXEC_STMT_VARIANT` GAS macro emitted by `xa_exec_stmt_blob.cpp`). That's how mode-4 binaries get into `exec_stmt` and from there into `bb_build_brokered/flat → templates`.
+
+### Verification — probe7.sno (runtime-PATND mode-4 path, byte-identical to SPITBOL oracle)
+
+```snobol
+	PAT = ANY('cab')
+	S = 'xyzabcdef'
+	S PAT					:F(NOMATCH)
+	OUTPUT = "matched"			:(THEEND)
+NOMATCH OUTPUT = "no match"
+THEEND
+END
+```
+
+| Path | Pre-fill | Post-fill | Oracle |
+|------|----------|-----------|--------|
+| `sbl -b probe7.sno` (SPITBOL) | — | — | `matched` |
+| `scrip --interp probe7.sno` | `matched` | `matched` (C oracle, unchanged) | match |
+| `scrip --compile probe7.sno` + gcc link + run | `no match` (stub jmp ω) | **`matched`** | match |
+
+The corresponding inline-AST control (`S ANY('cab')`) continues to print `matched` under mode-4 via the TEXT-arm path (unchanged). Literal-pattern control (`PAT = 'ab'; S PAT`) confirms `bb_lit` BINARY arm + the runtime-PATND→brokered-blob path is end-to-end functional.
+
+### Investigation methodology
+
+Per Lon's continued-13C directive (do not commit code we cannot prove ran), the BINARY-arm fill was bracketed by transient stderr probes in the `bb_pat_any` C wrapper: (a) entry-trace to confirm the template is invoked at runtime, and (b) hexdump of the 104 emitted bytes + sites to confirm `bb_emit_asm_result` interprets the `bb_bin_t` correctly. Both probes fired with the expected output (medium=BINARY, sval='cab', bytes-and-sites byte-identical to the hand-computed layout). Probes reverted before commit; only the fill itself ships.
+
+Initial test (`probe1.sno` with capture `S PAT . M`) gave `M=` empty post-fill — the stderr probe revealed `bb_pat_any` was NOT invoked for that case. Root cause: the capture wrapper `M . S` builds an XNME PATND at root. `patnd_needs_xlate` (`stmt_exec.c:255`) does not include XNME → falls through to the legacy `(BB_t *)pp` cast. XNME=23 in PATND enum collides with BB_ALT=23 in BB_op_t (NOT BB_PAT_ALT). `walk_bb_flat` has no `case BB_ALT:` → hits `default:` arm emitting a 2-jump fail stub. Match always fails. This is a SEPARATE bug (see SBL-XNME-XLATE below), unrelated to `bb_pat_any` BINARY arm correctness.
+
+### Gates — all hold at watermark
+
+| Gate | Before | After |
+|------|--------|-------|
+| GATE-1 SNOBOL4 smoke   | 13/13 | 13/13 ✓ |
+| GATE-2 unified broker  | 28    | 28 ✓ |
+| GATE-3 mode-4 broad    | 175   | 175 ✓ |
+| GATE-4 mode-2 broad    | 238   | 238 ✓ |
+| Rung suite M2          | 19    | 19 ✓ |
+| Rung suite M4          | 15    | 15 ✓ |
+
+No regressions. No gate movement either — expected, because the rung suite and broad corpus exercise patterns whose `BB_lower_pat` succeeds at compile time (TEXT-arm path) rather than runtime-constructed PATND patterns. probe7.sno would be a candidate new rung to capture the runtime-PATND mode-4 lift formally.
+
+### Next-session priorities
+
+1. **SBL-XNME-XLATE** (newly carved): extend `patnd_needs_xlate` to include XNME/XFNME (the capture wrappers `PAT . M` and `PAT $ M`) and/or extend the translator to cover them at the runtime-PATND level. Continued-9/10/11 documented that gate-widening is high-risk because legacy-cast accidents compensate for unrelated bugs — must be staged with rung-level proofs. Wedge: probe1.sno (`PAT = ANY('cab'); S PAT . M; OUTPUT = "M=" M`) currently prints `M=` under mode-4 (vs oracle `M=a`); the same probe under `--interp`/`--run` is correct via the C-oracle path. Carve as rung 058 (or appropriate next slot).
+
+2. **SBL-NOTANY-2 / SBL-SPAN-2 / SBL-BREAK-2 / SBL-ARBNO-3 / SBL-CAP-2** — fill remaining BINARY arms. Same template as SBL-ANY-2: mirror TEXT arm byte-for-byte, use `TEMPLATE_ADDR_*` macros, follow `bb_lit.cpp` pattern. Each fill should be verified with a runtime-PATND probe (analogous to probe7) before commit.
+
+3. **SBL-G-2** (re-freeze GATE-PK) — stale bookkeeping; low-leverage but unblocks per-kind regression detection going forward.
+
+4. **probe7.sno → rung 058**: formalize the runtime-PATND-under-mode-4 test pattern as a rung. Without a rung exercising this path, future regressions to BINARY-arm correctness will be invisible to the gate signal.
+
+### Reusable probe template (probe7.sno) for verifying other BINARY-arm fills
+
+```snobol
+	PAT = ANY('cab')          ; ← change to NOTANY / SPAN / BREAK / etc.
+	S = 'xyzabcdef'           ; ← change subject to match the predicate
+	S PAT					:F(NOMATCH)
+	OUTPUT = "matched"			:(THEEND)
+NOMATCH OUTPUT = "no match"
+THEEND
+END
+```
+
+Test cycle:
+```bash
+./scrip --compile probe7.sno > /tmp/p.s
+gcc -c /tmp/p.s -o /tmp/p.o
+gcc /tmp/p.o -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$(pwd)/out -o /tmp/p.bin
+/tmp/p.bin               # should print "matched"
+```
+
+Pre-fill: prints `no match` (or empty). Post-fill: prints `matched`. Cross-check against `/home/claude/x64/bin/sbl -b probe7.sno`.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
 
