@@ -394,6 +394,31 @@ Stops the simplest re-evaluate-Cond loops (+3 net). **Still open:**
 - **PJ-AGW-7** — LOWER sweep: no persistent aux in reset-cleared slots.
 - **PJ-DEL-PUMP** (PP-1..10) — Tombstone `SM_BB_PUMP_PROC/SM/CASE` → `SM_UNUSED_7/8/9`.
 
+### PL-LOWER-REVAMP — bring Prolog LOWER to Icon-LOWER (irgen.icn) fidelity
+
+Investigation (Opus 4.7, 2026-05-28) vs the canonical four-port reference `tran/irgen.icn` (Jcon) and
+our faithful Icon mirror `lower_icn.c`. irgen model: `ir_info(start,resume,failure,success)` = α/γ/ω/β;
+`ir_init` mints all 4 labels per node; each `ir_a_*` proc wires its ports to children via `ir_chunk`
+suspensions (logical labels → physical blocks). 43 `ir_a_*` procs, flat `case` dispatcher. `ir_a_Alt`
+is the choice-point pattern (`MoveLabel`/`IndirectGoto` saved resume target). `lower_icn.c` hits this
+bar: 9 `_ag` threaded fns (sig `cfg,e,γ_in,ω_in,&α_out,&β_out` = ir_info made physical) + 104
+per-construct `_new_` dispatchers, 343 port refs. **`lower_pl.c` (624 lines, 219 port refs) gaps:**
+(1) **monolithic** — all goal lowering in 2 mega-fns (`lower_pl_goal` ~340 lines, lines 166-508) vs
+one-per-node; (2) **β by heuristic** — conjunction (lines 196-206) computes resume as "nearest
+resumable predecessor" over a hardcoded {BB_PL_CALL,BB_CHOICE,BB_PL_ALT} set instead of irgen's
+explicit per-node `resume` port — likely the root structural cause of the CAT-A-3 backtracking class
+(rung02/05/06); (3) **no `bounded`/determinacy flag** (irgen threads one; we don't — cut/once handling
+is ad-hoc). **Staged 0-4:** (0) add `bounded` int to the threaded sig + plumb everywhere, zero behavior
+change — safe first commit; (1) split the monolith into per-construct fns (`lower_pl_conj/disj/ite/cut/
+call/builtin`) mirroring lower_icn's `_new_`/`_ag` split; (2) replace the β-heuristic with explicit
+per-node resume ports (deterministic node's β points to a fail-continuation, not a smeared neighbor;
+conjunction then wires `goal[i].ω=goal[i-1].β` unconditionally per irgen); (3) make BB_CHOICE a
+transliteration of `ir_a_Alt` (MoveLabel/IndirectGoto) — **unifies with CAT-A-3 Step C**: the r12
+resume-buffer cursor is the run-time realization of irgen's saved-resume-label; (4) re-verify corpus
+(same +15-25 unlock as CAT-A-3 — LOWER makes β edges precise, CAT-A-3 emitter lays them down; two
+halves of one correctness story, they meet at the Alt model). Sequencing (before/after/interleaved
+with CAT-A-3 B-D) — Lon to direct; recommend CAT-A-3 B-D first, then this. No code written yet.
+
 ---
 
 ## Rung state at HEAD (`58142007`, post-CAT-A-3-StepA)
