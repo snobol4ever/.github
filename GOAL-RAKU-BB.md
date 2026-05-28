@@ -109,20 +109,20 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: RK-IO+fixup (3-mode correct; GATE-RK4 25/33; 4b4e3a11)
+one4all: RK-CLASS partial (lower_field fix; 77e84268)
 .github: HEAD
 corpus:  unchanged
 
-GATE-RK mode-2:  22/33  +2 vs session start
-GATE-RK4 mode-4: 25/33  +3 (rk_try_catch25, rk_fileio38, rk_stdio39)
-Crosscheck:      37/37  modes 2+3 agree on all tests
-Smoke raku:      5/5    HOLD
-Smoke prolog:    5/5    HOLD
-Smoke snobol4:   13/13  HOLD
-Smoke icon:      5/5    HOLD
-FACT RULE grep:  0
-Templates lang-sniffing grep: 0
-Build:           clean
+GATE-RK  mode-2:  22/33  HOLD
+GATE-RK4 mode-4:  25/33  HOLD (rk_class26 still FAIL — 3 blockers, see HANDOFF doc)
+Crosscheck:       37/37  all 3 modes agree
+Smoke raku:       5/5    HOLD
+Smoke prolog:     5/5    HOLD
+Smoke snobol4:    13/13  HOLD
+Smoke icon:       5/5    HOLD
+FACT RULE grep:   0
+Templates lang-sniffing: 0
+Build:            clean
 ```
 
 ## Remaining 8 mode-4 FAILs
