@@ -26,6 +26,90 @@
 
 ---
 
+## ✅ CAT-C — BB_PL_VAR GARBAGE-SVAL FIX (2026-05-27, Opus 4.7)
+
+**Closed.** Multi-clause recursive predicates (rung06 length/append/reverse, rung08 fib/factorial,
+and any pattern with a `pred(...) :- ..., pred_recursive(X, Y), ...` shape involving variable
+args) previously SIGSEGV'd inside `bb_pl_call.cpp:50` during mode-4 emit. Root cause was the
+latent `BB_PL_VAR` garbage-sval bug already documented at the bottom of CAT-D-1's ledger entry
+(line 607-614, pre-fix wording).
+
+**The bug (one-line diagnosis):** `tree_t.v` is a union of `sval/ival/dval` (src/include/ast.h);
+the parser's `tr_assign_slots` pass and `prolog_lower.c`'s `lower_term`/TERM_VAR arm both write
+`v.ival = slot` LAST, destroying the variable-name string previously stored at `v.sval`. Then
+`lower_pl.c:65` did `nd->sval = e->v.sval` and propagated the resulting wild char* pointer
+(slot number cast to char*, e.g. `0x1` for slot 1) into `BB_t` (whose sval/ival ARE separate
+fields, not a union). `bb_pl_call.cpp:50`'s `if (sval && *sval) strtab_label(...)` passes the
+non-NULL guard and then `strcmp` inside `strtab_label` dereferences address `0x1` → SIGSEGV.
+
+**gdb confirmation** (rung06 emit, frame 0):
+```
+sval = 0x1 <error: Cannot access memory at address 0x1>
+kind = 57 (BB_PL_VAR)
+ival = 1   ← the actual slot number; sval is the same value via union punning
+```
+
+**Files touched:** `src/lower/lower_pl.c` only.
+- 1 substantive char change at line 65: `nd->sval = e->v.sval` → `nd->sval = NULL` for the
+  `case TT_VAR` arm.
+- 9-line block comment added above `lower_pl_term` documenting cause + fix + which downstream
+  sites are safe (none of them need sval on BB_PL_VAR; rt.c:969 / bb_pl_var.cpp /
+  bb_pl_call.cpp term-build / bb_unify.cpp term-build all read only ival).
+- Net diff: `+10 / -1`.
+
+**Why this is the right boundary fix:** the `tree_t.v` union is destructively written by
+design (the AST is "promoted" from name-form to slot-form by `tr_assign_slots` in-place). That's
+fine WITHIN the AST layer. The bug is the boundary translation in `lower_pl.c` that didn't
+respect the AST's post-pass invariant. Setting `sval=NULL` at that boundary is the minimal,
+local, low-risk fix; it matches the actual usage pattern downstream (only `ival` is read for
+BB_PL_VAR nodes).
+
+**Gate impact:**
+| Gate | Pre-CAT-C | Post-CAT-C |
+|---|---|---|
+| GATE-1 (smoke) | 5/5 | 5/5 |
+| GATE-2 (3-mode crosscheck) | 132/132 | 132/132 |
+| GATE-3 mode-2 | 89/107 | 89/107 |
+| GATE-3 mode-3 | 89/107 | 89/107 |
+| GATE-4 (mode-4 minimal) | 4/4 | 4/4 |
+| **Full mode-4 corpus** | 23/107 | **24/107** (+1: rung08_recursion_recursion) |
+| FACT RULE grep | 0 | 0 |
+| Sibling smokes | icon 5/5, raku 5/5, snobol4 13/13, snocone 5/5, rebus 4/4, prolog 5/5 | all hold |
+
+**rung08 byte-exact mode-2 / mode-4:** `fib(6,F)` → `F=8`; `factorial(3,G)` → `G=6`. Output
+`8\n6\n` in both modes. The multi-clause β-resume machinery is at least partially working —
+`fib(N,F) :- N > 1, ...` correctly skips `fib(0,0)` and `fib(1,1)` clause heads and recurses
+through the third clause. (Why the more elaborate cons-cell cases like rung06 don't pass is
+orthogonal — they still hit CAT-A-3's incomplete multi-clause β-resume for compound argument
+patterns. Probe results document this explicitly: rung02 facts prints only first solution,
+rung05 backtrack/rung06 lists print empty.)
+
+**Pre-existing issue surfaced (NOT a regression):** rung07_cut_cut now produces
+`bb_emit_byte: non-BINARY-mode reach (mode=0, b=0xe9) — convert caller to a named bb_insn_*
+helper` during emit. This was masked by an earlier crash before CAT-C; rung07 was already FAIL
+in the 22/107 baseline, just for a different reason. The new error indicates a FACT-RULE-adjacent
+issue (a code path is calling raw `bb_emit_byte` outside BINARY mode) — flag for separate
+investigation, not part of CAT-C scope.
+
+**Probe battery (CAT-A-3-blocked rungs, characterization for next session):**
+- rung02_facts_facts: want `brown\njones\nsmith` got `brown` — first solution only.
+- rung05_backtrack_backtrack: want `a\nb\nc` got `` — empty.
+- rung06_lists_lists: want `[a,b,c,d]\n4\n[d,c,b,a]` got `` — empty, no segfault.
+- rung08_recursion_recursion: ✅ `8\n6\n` PASS.
+- rung11_findall_findall_basic: want `[red,green,blue]` got `_` — CAT-D missing findall.
+- rung25_term_string_term_to_atom: want compound stringify, got `_\n_\n_` — CAT-D missing.
+
+**Next steps:**
+- **CAT-A-3** (BB_PL_CALL + BB_CHOICE β-resume) — biggest single-step unlock. Now that CAT-C
+  has shown rung08-shape multi-clause IS partially working, the gap is likely in the cons-cell
+  argument pattern propagation through β-resume, not the β-resume protocol itself. Still needs
+  Lon directive on inline-on-demand vs resumable-call design choice before any code change.
+- **CAT-D-11** (sort/2 + msort/2) — clean target, no design directive needed.
+- **Pre-existing rung07 issue**: investigate the `bb_emit_byte: non-BINARY-mode reach` callsite;
+  CAT-C didn't introduce this but it's now the visible failure mode.
+
+---
+
 ## ✅ CAT-B — COMPOUND-TERM UNIFY (BB_UNIFY MODE-4) (2026-05-27, Opus 4.7)
 
 **Closed.** `f(X, a) = f(b, Y)` now binds X=b, Y=a in mode-4 (previously printed `_ _`).
@@ -577,11 +661,20 @@ directive) → CAT-B → CAT-C → PJ-AGW-5.
   (X=b, Y=a). Full mode-4 corpus 22/107 → 23/107 (+1, rung03_unify_unify); GATE-2 132/132 hold,
   GATE-3 mode-2/3 89/107 hold, GATE-4 4/4 hold, FACT RULE 0, all sibling smokes hold.
 
-- [ ] **CAT-C — List/cons walking + `member/2` segfault.** Lists lower as nested `BB_PL_STRUCT`
-  cons-cells (`lower_pl.c:80`). `member(X, [a,b,c]), write(X), fail ; true` segfaults in the
-  child. Same compound-term root as CAT-B, plus `bb_pl_call.cpp` arg-passing (env push/save +
-  `pl_bb_bind_arg`) may not unify head/tail slots correctly when the arg is a cons compound with
-  unbound tail variable. Needs `gdb` on a child binary to localize precisely. Closes after CAT-B.
+- [x] **CAT-C — List/cons walking + multi-clause recursive segfault.** ✅ CLOSED (`2026-05-27`,
+  Opus 4.7). See CAT-C ledger entry at top of file for details. Actual root cause was NOT
+  `bb_pl_call.cpp` arg-passing (env push/save / `pl_bb_bind_arg` are sound) — it was the latent
+  `BB_PL_VAR` garbage-sval bug documented at the bottom of CAT-D-1's ledger entry. `tree_t.v` is
+  a union of `sval/ival/dval`; the parser's `tr_assign_slots` pass writes `v.ival = slot` LAST,
+  destroying the variable name in `v.sval`; `lower_pl.c:65` then propagated the resulting wild
+  pointer (slot number cast to char*) into BB_t. `bb_pl_call.cpp:50`'s `if (sval && *sval)
+  strtab_label(...)` SIGSEGV'd on every multi-clause recursive predicate. One-character fix:
+  `nd->sval = e->v.sval` → `nd->sval = NULL`. Mode-4 corpus 23/107 → 24/107 (+1: rung08
+  recursion/fib/factorial). rung06 lists no longer segfaults at compile time; correctness still
+  blocked on CAT-A-3's multi-clause β-resume for cons-cell append/length/reverse cascade
+  (orthogonal). rung07_cut_cut now surfaces a pre-existing `bb_emit_byte: non-BINARY-mode
+  reach (mode=0, b=0xe9)` error — was masked by the earlier segfault, not a regression. All
+  other gates hold; FACT RULE 0.
 
 - [~] **CAT-D — Builtin coverage in flat-emit (STARTED 2026-05-27).** `bb_builtin.cpp` covers `write/1`,
   `nl/0`, `is/2`, **and now `atom_length/2`, `upcase_atom/2`, `downcase_atom/2`** (CAT-D-1, see below).
@@ -604,14 +697,15 @@ directive) → CAT-B → CAT-C → PJ-AGW-5.
   `rung12_atom_length` both flipped to PASS, zero regressions. GATE-1 5/5, GATE-3 88/19, GATE-4 4/4
   all held; sibling smokes (Icon/Raku/Snocone/Rebus 5/5/5/4) held; FACT RULE 0 held.
 
-  **Latent bug discovered (NOT FIXED — worked around in CAT-D-1 template):** `BB_PL_VAR` nodes
-  carry **garbage `sval`** because `lower_pl.c:65` does `nd->sval = e->v.sval` where the AST
-  union slot holds the variable slot index as `ival` (the union shares storage with `sval`). So
-  e.g. variable in slot 1 has `nd->sval = 0x1` (slot index reinterpreted as char pointer).
-  Manifests as a segfault when any emit-time code dereferences `nd->sval` on a `BB_PL_VAR`. CAT-D-1
-  template guards `strtab_label` calls on `k == BB_ATOM` to avoid this; the helper only uses ival
-  for VAR args anyway. **Follow-up: `lower_pl.c:65` should set `sval = NULL` for `BB_PL_VAR` (slot
-  index is in `ival` only).** Estimated low-risk fix; do it before more CAT-D arms land.
+  **Latent bug discovered (FIXED 2026-05-27, Opus 4.7 — see CAT-C ledger entry at top of file):**
+  `BB_PL_VAR` nodes carry **garbage `sval`** because `lower_pl.c:65` did `nd->sval = e->v.sval`
+  where the AST union slot holds the variable slot index as `ival` (the union shares storage with
+  `sval`). So e.g. variable in slot 1 had `nd->sval = 0x1` (slot index reinterpreted as char
+  pointer). Manifested as a segfault in `bb_pl_call.cpp:50` (`strtab_label`/`strcmp` derefs the
+  wild pointer) on every multi-clause recursive predicate. CAT-D-1 template had guarded
+  `strtab_label` calls on `k == BB_ATOM` to avoid this; CAT-C now fixes at the source by setting
+  `nd->sval = NULL` for `BB_PL_VAR` in `lower_pl.c:65` (slot index is in `ival` only, as
+  documented). One-character substantive change.
 
   **Empty-atom edge:** `''` has `sval = ""` (non-NULL, empty), `[]` has `sval = NULL` →
   defaults to `"[]"` in `rt_pl_node_to_term`. The template check is now `k==BB_ATOM && sval`
