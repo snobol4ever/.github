@@ -79,6 +79,8 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared AST. SM-LOWER compiles AST to SM_Program. INTERP executes SM_Program. EMITTER walks SM_Program and emits native code (x86, JVM, .NET, JS, WASM).
 
+**⛔ CROSS-CUTTING (Lon, 2026-05-28) — MODE-3 FLAT-WIRE, ALL LANGUAGES.** Mode 3 (`--run`) = SM runs live + **BB FLAT-WIRED native bytes**, for SNOBOL4, Snocone, Rebus, Icon, Prolog, AND Raku. Traced reality: mode-3 currently walks BB graphs in C via `bb_exec_*` (SNOBOL4 `SM_EXEC_STMT`→`bb_exec_pat`; Icon/Raku `SM_BB_SWITCH` gen arms→`bb_exec_once/resume`), so filled BINARY template arms are NEVER exercised under `--run`. `sm_interp_run` is a genuine C interpreter (name accurate; SM interp sanctioned for modes 2/3) — the fix is at the BB-dispatch arms, which must jump into flat-wired native boxes (`node->fn(ζ,entry)` / `bb_build_flat`+`bb_broker`) under `BB_MODE_LIVE`. Design + 8 steps in `GOAL-SNOBOL4-BB.md` § SBL-M3-FLATWIRE. Mode-4 has a sibling issue (SBL-M4-FLATWIRE: standalone binary brokers patterns at runtime via `rt.c:335`). Until M3-FLATWIRE lands, "verified via --run" is FALSE — it verifies the C oracle, not flat-wire.
+
 ---
 
 ## Session trigger phrases
