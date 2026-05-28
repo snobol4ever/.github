@@ -181,9 +181,18 @@ Plus all five gates must hold (G1=13/13, G2≥28, G3≥175, G4≥238, M2=19, M4=
 
 `bb_pat_notany.cpp` BINARY arm filled — byte-identical to `bb_pat_any.cpp` (104 bytes, sites {17,72,86,90,100}) except offset 70: `jne ω` (`0F 85`) instead of `je ω` (`0F 84`) — NOTANY fails when the char IS in the set. Was a 2-jump stub (`{1,2}` sites). Validated: `/tmp/probe_notany2.sno` (`NOTANY('xyz')` against `'xyzabcdef'`) mode-4 compiled binary now prints `matched` via brokered BINARY path. All five gates hold (G1=13/13, G2=30, G3=175, G4=238, M2=19, M4=15), FACT RULE=0.
 
-### SBL-BREAK-2, SBL-SPAN-2, SBL-ARBNO-3 — BINARY arms ⏳
+### SBL-BREAK-2 ✅ (Opus 4.7, 2026-05-28)
 
-Same template as SBL-ANY-2/SBL-NOTANY-2. Mirror TEXT arm byte-for-byte; sites table; `movabs` for in-process addresses; `bb_bin_t` listing rel32 offsets. Reference: `bb_pat_any.cpp` / `bb_pat_notany.cpp` (104 bytes, sites {17,72,86,90,100}). NOTE: SPAN/ARBNO use `nd->counter` runtime state in the β-port (generator semantics) — not a pure byte-copy of ANY; study the TEXT arm β-port of each before mirroring.
+`bb_pat_break.cpp` plain-BREAK BINARY arm filled (178 bytes; was a 2-jump stub that **aborted** mode-4 with `bb_emit_end: unresolved forward reference` because it never defined lbl_β). Sites at {150→γ, 154→β(is_def), 174→ω}; internal loop/done jumps emitted as literal constant rel32 (+66, +19, −113). Validated: `BREAK('c')` on `'abXcde'` matches `'abX'` (mode-2 oracle), mode-4 compiled binary prints `matched`, agrees with oracle across cases. BREAKX (`pBB->ival==1`) BINARY arm still a stub — SBL-BREAKX-2.
+
+**KEY REUSABLE PATTERN (shared per-node persistent BINARY storage):** brokered blobs have no ELF `.data`, so loop counters that must persist across the α→γ→backtrack→β boundary live in the GC-allocated `rt_cs_t` at `g_emit.bb_cs_zeta`, whose `int delta` field is at **byte offset 8** (`rt_cs_t = {const char *chars; int delta;}`, sizeof=16). Address it via `movabs rcx, &zeta; [rcx+8]`. This is the same persistent-storage facility SPAN-2, ARBNO-3, and SBL-CAP-2's `saved_Δ` all need — no GC_MALLOC-per-template required; `bb_cs_zeta` (already set in every charset template's MEDIUM_BINARY entry) IS the slot.
+
+### SBL-SPAN-2, SBL-ARBNO-3 — BINARY arms ⏳
+
+Same family as SBL-BREAK-2. SPAN is nearly identical to BREAK but the loop continues while char IS in set (invert the strchr test: `jz done` instead of `jnz done`) and there's no β-undo subtlety beyond `[r10] -= z` — use the `bb_cs_zeta[+8]` count slot exactly as BREAK does. ARBNO uses `nd->counter` generator state; study its TEXT β-port (it re-enters the child) before mirroring — closer to SBL-CAP-2 in shape.
+
+### SBL-BREAKX-2 — BREAKX BINARY + β rescan ⏳
+BREAKX (`pBB->ival==1`) needs its own BINARY arm (TEXT β does a rescan-to-next using z_orig + z). Under BINARY use two int slots — but `rt_cs_t` has only one `delta`. Either widen `rt_cs_t` with a second int or GC_MALLOC an 8-byte scratch. Defer.
 
 Each fill verifiable with a runtime-PATND probe (probe7 shape, no capture):
 ```
@@ -224,7 +233,7 @@ Rungs 044/045/046/048/052/054/055/056/057 fail m2 too. `bb_exec.c` doesn't imple
 LIT, ARB, LEN, POS/RPOS, TAB/RTAB, REM, ALT, CAT, FENCE, ABORT, EPS, FAIL, ANY, NOTANY, BREAK (plain), SPAN, ARBNO, CAPTURE, DEFER.
 
 **Templates with x86 BINARY arms filled:**
-LIT, LEN, POS, UPTO (ref). ANY (SBL-ANY-2, continued-15). NOTANY (SBL-NOTANY-2, 2026-05-28). All others still stub.
+LIT, LEN, POS, UPTO (ref). ANY (SBL-ANY-2, continued-15). NOTANY (SBL-NOTANY-2, 2026-05-28). BREAK plain (SBL-BREAK-2, 2026-05-28; BREAKX still stub). All others still stub.
 
 **Runtime translators:**
 - `patnd_to_bb_graph()` in `lower_pat_dcg.c` — runtime PATND_t→BB_graph_t parallel to `BB_lower_pat`. Gated by `patnd_needs_xlate` in `stmt_exec.c`. Covers XARBN-containing trees + simple-atom roots (XCHR/XSPNC/XBRKC/XBRKX/XANYC/XNNYC/XLNTH/XPOSI/XRPSI/XTB/XRTB/XFARB/XSTAR). Does NOT cover XNME/XFNME yet (SBL-XNME-XLATE pending pair with SBL-CAP-2).
@@ -263,7 +272,8 @@ GATE-PK status              = stale (re-freeze deferred)
 
 ## Session log (terse)
 
-- **2026-05-28 Opus 4.7:** SBL-NOTANY-2 ✅. `bb_pat_notany.cpp` BINARY arm filled (was 2-jump stub). Byte-identical to `bb_pat_any.cpp` BINARY (104 bytes, sites {17,72,86,90,100}) except offset 70 `jne ω` vs `je ω` — NOTANY fails when char IS in set. Validated mode-4 compiled binary via brokered path. All five gates hold (13/13, 30, 175, 238, M2=19, M4=15), FACT RULE=0. No regressions.
+- **2026-05-28 Opus 4.7 (b):** SBL-BREAK-2 ✅. `bb_pat_break.cpp` plain-BREAK BINARY arm filled (178 bytes; was 2-jump stub that aborted mode-4 with unresolved-β-label). Per-node loop count persisted via `g_emit.bb_cs_zeta` rt_cs_t.delta @offset 8 (movabs rcx,&zeta; [rcx+8]) — discovered this is the shared persistent-storage facility for SPAN/ARBNO/CAP-2. Sites {150→γ,154→β-def,174→ω}; internal jumps literal rel32. Validated BREAK('c')/'abXcde'→'abX'. All five gates hold (13/13,30,175,238,M2=19,M4=15), FACT RULE=0.
+- **2026-05-28 Opus 4.7 (a):** SBL-NOTANY-2 ✅. `bb_pat_notany.cpp` BINARY arm filled (was 2-jump stub). Byte-identical to `bb_pat_any.cpp` BINARY (104 bytes, sites {17,72,86,90,100}) except offset 70 `jne ω` vs `je ω` — NOTANY fails when char IS in set. Validated mode-4 compiled binary via brokered path. All five gates hold (13/13, 30, 175, 238, M2=19, M4=15), FACT RULE=0. No regressions.
 - **2026-05-27 Opus 4.7 continued-16:** SBL-XNME-XLATE prep landed `828f9134` (translator pp->var.s fallback + rt_pat_capture STRVAL_fn population). Gate widening NOT applied — paired with SBL-CAP-2. SBL-CAP-2 deep-investigated: blocked by architectural gap in `bb_prepare_capture_arbno` — sets `bb_child_lbl` only under MEDIUM_TEXT; child_cache labels never set under BINARY. Capture + ARBNO BINARY arms early-return zero bytes under brokered mode. Design path forward: replace `bb_child_lbl` with `bb_child_fn` raw function pointer under BINARY, call via `movabs rax, &child_fn; call rax`. Goal file pruned 767→234 lines this session.
 - **2026-05-27 Opus 4.7 continued-15:** SBL-ANY-2 BINARY arm ✅ (104 bytes, sites {17,72,86,90,100}). SBL-ANY-2-DISPATCH-TRACE ✅ (mapped: BINARY arms exercised only by mode-4 runtime path via `rt_match_variant`→`exec_stmt`→`bb_build_brokered`→templates; mode-2/-3 use C oracle; mode-4 emit phase uses TEXT). Carved SBL-XNME-XLATE.
 - **2026-05-27 Opus 4.7 continued-14:** SBL-ANY-2-CORRECTNESS ✅ (`3eb09ba0`). Two bugs in `BB_PAT_DEFER` C-oracle: (1) `DESCR_t` union clobber `sub_d.i=0` after `.s=` nulled string ptr (designated-init fix at `bb_exec.c:2378` + `rt.c:560`); (2) architectural double-scan — inner `bb_exec_pat` had own scan loop, replaced with `bb_exec_once`. GATE-4 218 → 238 (+20), M2 18 → 19 (rung 053). ANY/NOTANY/SPAN/BREAK var-deref byte-identical to SPITBOL across all three modes.
