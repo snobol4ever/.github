@@ -28,7 +28,15 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`5427e12e`, post-WAM-CP-10)
+## State at HEAD (`68c2c5bc`, post-EP→emit_pair rename; pre-rename HEAD `5427e12e` post-WAM-CP-10)
+
+**2026-05-28 Opus 4.7 (`68c2c5bc`):** Pure rename `xa_bb_ep_*` → `xa_bb_emit_pair_*`,
+`EP_*` macros → `EMIT_PAIR_*`. Behavior-neutral first step of removing FACT-violating
+`push_back` / `bin.sites/labels/is_def` from six combinator templates introduced by
+`0e077eb5`. Steps 2 + 3 (driver-side metadata reconstruction helper +
+template strip) deferred to next session, fully scoped in HANDOFF-2026-05-28-OPUS-
+PROLOG-BB-EMIT-PAIR-RENAME.md. FACT grep still shows 6 violation files until Step 3
+lands.
 
 | Gate | Count | Notes |
 |---|---|---|
