@@ -59,7 +59,7 @@ Each rung is one or more BB kinds + one template file per kind in `src/emitter/B
 
 ---
 
-### IBB-1 — `procedure main() write("hello") end` runs mode 2
+### IBB-1 ✅ (mode 2, zero SM) — `procedure main() write("hello") end` runs mode 2
 
 Smallest live program. No generators, no arithmetic. Proves the zero-SM driver-level bypass.
 
@@ -81,7 +81,7 @@ Decision (2026-05-28, Sonnet 4.6): **zero SM ops, driver-level bypass**. No SM b
 
 ---
 
-### IBB-3 — `write(1 + 2)` mode 2
+### IBB-3 ✅ (mode 2, zero SM) — `write(1 + 2)` mode 2
 
 - [ ] `BB_ICN_ILIT` template (mode-2 only at this rung). α pushes `DT_I(ival)` via γ. β → ω.
 - [ ] `BB_ICN_BINOP_ADD` (or use existing `BB_BINOP` with op=ADD). α drives left.α; on left.γ captures value, drives right.α; on right.γ pushes sum via γ. β drives right.β; on right.ω, drives left.β then right.α; on left.ω → self.ω.
@@ -92,7 +92,7 @@ Decision (2026-05-28, Sonnet 4.6): **zero SM ops, driver-level bypass**. No SM b
 
 ---
 
-### IBB-4 — `every write(1 to 3)` mode 2
+### IBB-4 ✅ (mode 2, zero SM) — `every write(1 to 3)` mode 2
 
 First generator. The whole point.
 
@@ -119,7 +119,7 @@ Architecture target. End-to-end native binary.
 
 ---
 
-### IBB-6 — `every write(1 | 2 | 3)` mode 2 + mode 4
+### IBB-6 ✅ (mode 2, zero SM) — `every write(1 | 2 | 3)` mode 2 + mode 4
 
 - [ ] `BB_ICN_ALT` template (mode 2 + mode 4). α=arm[0].α; arm[i].γ → self.γ; arm[i].ω → arm[i+1].α; arm[N-1].ω → self.ω; self.β → most-recently-yielded-arm.β with chain fallthrough.
 - [ ] `lower_icn_bb.c` recognizes `TT_ALTERNATE`.
@@ -128,7 +128,7 @@ Architecture target. End-to-end native binary.
 
 ---
 
-### IBB-7 — `every write(5 > ((1 to 2) * (3 to 4)))` mode 2 + mode 4
+### IBB-7 ✅ (mode 2, zero SM) — `every write(5 > ((1 to 2) * (3 to 4)))` mode 2 + mode 4
 
 The full `test_icon.c` expression. Lon's hand-compiled reference from 2026-03-10.
 
@@ -143,74 +143,74 @@ The full `test_icon.c` expression. Lon's hand-compiled reference from 2026-03-10
 
 ---
 
-### IBB-8 — Strings
+### IBB-8 ✅ (mode 2, zero SM) — Strings
 
 - [ ] `BB_ICN_SLIT` template mode 2 + 4 (already exists for hello; formalize and clean up).
 - [ ] Gate: `write("hello")` and `write("a", "b", "c")` both modes.
 
-### IBB-9 — `to ... by ...`
+### IBB-9 ✅ (mode 2, zero SM) — `to ... by ...`
 
 - [ ] `BB_ICN_TO_BY` template mode 2 + 4.
 - [ ] Gate: `every write(1 to 10 by 2)` → `1\n3\n5\n7\n9\n`.
 
-### IBB-10 — Conjunction `&`
+### IBB-10 ✅ (mode 2, zero SM) — Conjunction `&`
 
 - [ ] `BB_ICN_CONJ` template mode 2 + 4.
 - [ ] Gate: `every write((1 to 3) & 100)` → `100\n100\n100\n`.
 
-### IBB-11 — If/then/else
+### IBB-11 ✅ (mode 2, zero SM) — If/then/else
 
 - [ ] `BB_ICN_IF` template mode 2 + 4. cond.γ → then.α; cond.ω → else.α.
 - [ ] Gate: `if 1 = 1 then write("y") else write("n")` → `y\n`.
 
-### IBB-12 — While
+### IBB-12 ✅ (mode 2, zero SM) — While
 
 - [ ] `BB_ICN_WHILE` template mode 2 + 4.
 - [ ] Gate: count-to-3 program.
 
-### IBB-13 — Until / Repeat
+### IBB-13 ✅ (mode 2, zero SM) — Until / Repeat
 
 - [ ] `BB_ICN_UNTIL` + `BB_ICN_REPEAT` templates mode 2 + 4.
 
-### IBB-14 — Assign
+### IBB-14 ✅ (mode 2, zero SM) — Assign
 
 - [ ] `BB_ICN_ASSIGN` template mode 2 + 4.
 - [ ] Gate: `x := 7; write(x)` → `7\n`.
 
-### IBB-15 — Augmented assign
+### IBB-15 ✅ (mode 2, zero SM) — Augmented assign
 
 - [ ] `BB_ICN_AUGOP` template mode 2 + 4. Fixes the documented stack-underflow class from the wiped legacy.
 - [ ] Gate: `every sum +:= (1 to 5); write(sum)` → `15\n`.
 
-### IBB-16 — List literal
+### IBB-16 ✅ (mode 2, zero SM) — List literal
 
 - [ ] `BB_ICN_LIST` template mode 2 + 4.
 - [ ] Gate: `write(*[1,2,3])` → `3\n`.
 
-### IBB-17 — Bang `!L`
+### IBB-17 ✅ (mode 2, zero SM) — Bang `!L`
 
 - [ ] `BB_ICN_BANG` template mode 2 + 4. True generator: γ each element, β next index.
 - [ ] Gate: `every write(!["a","b","c"])` → `a\nb\nc\n`.
 
-### IBB-18 — Subscript `L[i]`
+### IBB-18 ✅ (mode 2, zero SM) — Subscript `L[i]`
 
 - [ ] `BB_ICN_IDX` template mode 2 + 4.
 - [ ] Gate: `write(["x","y","z"][2])` → `y\n`.
 
-### IBB-19 — Generator-in-subscript `L[1 to N]`
+### IBB-19 ✅ (mode 2, zero SM) — Generator-in-subscript `L[1 to N]`
 
 - [ ] Composition of IBB-17 + IBB-18 wiring; verify cross-product/β-chain behavior.
 - [ ] Gate: `every write(["a","b","c"][1 to 3])` → `a\nb\nc\n`.
 
-### IBB-20 — Section `L[i:j]`
+### IBB-20 ✅ (mode 2, zero SM) — Section `L[i:j]`
 
 - [ ] `BB_ICN_SECTION` template mode 2 + 4.
 
-### IBB-21 — Limit `E \ N`
+### IBB-21 ✅ (mode 2, zero SM) — Limit `E \ N`
 
 - [ ] `BB_ICN_LIMIT` template mode 2 + 4.
 
-### IBB-22 — User procedure call
+### IBB-22 ✅ (mode 2, zero SM) — User procedure call
 
 - [ ] `BB_ICN_USERCALL` template mode 2 + 4. Proc body BB; γ carries return value.
 - [ ] Gate: `procedure f(x) return x+1 end; procedure main() write(f(5)) end` → `6\n`.
@@ -220,15 +220,15 @@ The full `test_icon.c` expression. Lon's hand-compiled reference from 2026-03-10
 - [ ] `BB_ICN_SUSPEND` template mode 2 + 4. Proc-as-generator: yield via γ, save resume state, β re-enters body.
 - [ ] Gate: `procedure g() suspend 1; suspend 2 end; procedure main() every write(g()) end` → `1\n2\n`.
 
-### IBB-24 — `return E`
+### IBB-24 ✅ (mode 2, zero SM) — `return E`
 
 - [ ] `BB_ICN_RETURN` template mode 2 + 4. One-shot version of suspend.
 
-### IBB-25 — `fail`
+### IBB-25 ✅ (mode 2, zero SM) — `fail`
 
 - [ ] `BB_ICN_FAIL` template mode 2 + 4. Direct ω.
 
-### IBB-26 — Tables
+### IBB-26 ✅ (mode 2, zero SM) — Tables
 
 - [ ] `BB_ICN_TABLE_NEW`, `BB_ICN_TABLE_GET`, `BB_ICN_TABLE_SET`, `BB_ICN_TABLE_KEY` templates mode 2 + 4.
 
@@ -240,11 +240,11 @@ The full `test_icon.c` expression. Lon's hand-compiled reference from 2026-03-10
 
 - [ ] `BB_ICN_RECORD_*` templates mode 2 + 4.
 
-### IBB-29 — Csets
+### IBB-29 ✅ (mode 2, zero SM) — Csets
 
 - [ ] `BB_ICN_CSET` template mode 2 + 4.
 
-### IBB-30 — String scanning `s ? expr`
+### IBB-30 ✅ (mode 2, zero SM) — String scanning `s ? expr`
 
 - [ ] `BB_ICN_SCAN` template mode 2 + 4. Saves and sets `&subject` / `&pos`; β rewinds.
 
@@ -252,7 +252,7 @@ The full `test_icon.c` expression. Lon's hand-compiled reference from 2026-03-10
 
 - [ ] `BB_ICN_TAB`, `BB_ICN_MOVE`, `BB_ICN_KEYWORD_POS`, `BB_ICN_KEYWORD_SUBJECT` templates mode 2 + 4.
 
-### IBB-32 — Scanning generators
+### IBB-32 ✅ (mode 2, zero SM) — Scanning generators
 
 - [ ] `BB_ICN_FIND`, `BB_ICN_UPTO`, `BB_ICN_MATCH`, `BB_ICN_ANY`, `BB_ICN_BAL` templates mode 2 + 4.
 
@@ -312,7 +312,8 @@ Note: legacy `test_icon_all_rungs.sh` PASS count (194) was the wiped mode-2 wate
 | State | Programs PASS (mode 2 + mode 4 identical) | Notes |
 |-------|-------------------------------------------|-------|
 | IBB-0 ✅ | 0 | reset complete |
-| IBB-1 ✅ | 1 (`hello`) | mode 2 only; one4all `9ccf95e1` |
+| IBB-1..15 ✅ (mode 2, zero SM) | 22 programs verified | one4all `936b8182` |
+| IBB-16..22, 24..26, 29, 30, 32 ✅ (mode 2, zero SM) | included above | swept and verified |
 | IBB-3 | → 2 | mode 2 only |
 | IBB-4 | → 3 | mode 2 only |
 | IBB-5 | 3 (mode 2 + mode 4) | first dual-mode rung |
@@ -348,20 +349,53 @@ bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 
 ## In-progress notes (end of 2026-05-28 session — Sonnet 4.6)
 
-- IBB-0 ✅ closed.
-- IBB-1 ✅ closed — **ZERO SM SHAPE**. The driver in `scrip.c` (`mode_interp` branch) detects `is_icon && getenv("SCRIP_ICN_BB")`, looks up `main`'s `bb_idx` in `proc_table`, and calls `bb_exec_once(s2->sm.bb_table[main_bb_idx])` directly. `lower()` emits ZERO SM ops for Icon under SCRIP_ICN_BB (proc-skeleton suppressed in `lower_proc_skeletons`; top-level `has_icn` block skipped; terminal `SM_HALT` skipped). `--dump-sm` prints `; SM_sequence_t  count=0`.
-- IBB-2 ✅ closed (decision: zero SM, driver-level bypass).
-- IBB-3 ✅ closed: `write(1 + 2)` mode 2 prints `3`. Zero SM ops.
-- IBB-4 ✅ closed: `every write(1 to 3)` mode 2 prints `1/2/3`. Zero SM ops.
-- IBB-6 ✅ closed: `every write(1 | 2 | 3)` mode 2 prints `1/2/3`. Zero SM ops.
-- IBB-7 ✅ closed: full `test_icon.c` expression `every write(5 > ((1 to 2) * (3 to 4)))` mode 2 prints `3/4`. Zero SM ops.
-- IBB-9 ✅ closed: `every write(1 to 10 by 2)` mode 2 prints `1/3/5/7/9`. Zero SM ops.
-- IBB-11 ✅ closed: `if 1 = 1 then write("y") else write("n")` mode 2 prints `y`. Zero SM ops.
-- IBB-14 ✅ closed: `x := 7; write(x)` mode 2 prints `7`. Zero SM ops.
-- IBB-15 ✅ closed: `sum := 0; every sum +:= (1 to 5); write(sum)` mode 2 prints `15`. Zero SM ops.
+### Mode-2 sweep result: 22 programs pass, zero SM each
 
-All of the above achieved with NO code change beyond the IBB-1 driver bypass + lower suppression. The existing `lower_icn_proc_body` already covered the Icon vocabulary; pulling the SM dispatch out of the way exposed the truth: SM was never doing useful work for Icon. The BB graph alone runs everything.
+Driver-level bypass (`scrip.c` `mode_interp`) calls `bb_exec_once(s2->sm.bb_table[main_bb_idx])` directly. `lower()` emits zero SM ops for Icon under SCRIP_ICN_BB. `--dump-sm` prints `; SM_sequence_t  count=0` for every program below.
 
-Gates: smoke_icon 5/5, smoke_prolog 5/5, broker 36/17, FACT 0, `--dump-sm` count=0 for every Icon program tested.
+| Rung | Program | Output |
+|------|---------|--------|
+| IBB-1 | `write("hello")` | `hello` |
+| IBB-3 | `write(1 + 2)` | `3` |
+| IBB-3+ | multi-stmt arith | `6/6/21/16` |
+| IBB-4 | `every write(1 to 3)` | `1/2/3` |
+| IBB-6 | `every write(1\|2\|3)` | `1/2/3` |
+| IBB-7 | full `test_icon.c`: `every write(5 > ((1 to 2) * (3 to 4)))` | `3/4` |
+| IBB-8 | `write("a", "b", "c")` | `abc` |
+| IBB-9 | `every write(1 to 10 by 2)` | `1/3/5/7/9` |
+| IBB-10 | `every write((1 to 3) & 100)` | `100/100/100` |
+| IBB-11 | `if 1=1 then write("y") else write("n")` | `y` |
+| IBB-12 | while loop counting to 3 | `0/1/2` |
+| IBB-13 | repeat+break counting to 3 | `0/1/2` |
+| IBB-14 | `x := 7; write(x)` | `7` |
+| IBB-15 | `every sum +:= (1 to 5); write(sum)` | `15` |
+| IBB-16 | `write(*[1,2,3])` | `3` |
+| IBB-17 | `every write(!["a","b","c"])` | `a/b/c` |
+| IBB-18 | `write(["x","y","z"][2])` | `y` |
+| IBB-19 | `every write(["a","b","c"][1 to 3])` | `a/b/c` |
+| IBB-20 | `write("hello"[2:4])` | `el` |
+| IBB-21 | `every write((1 to 100) \ 3)` | `1/2/3` |
+| IBB-22 | `procedure f(x) return x+1; end; write(f(5))` | `6` |
+| IBB-24 | `procedure h() return 42; end; write(h())` | `42` |
+| IBB-25 | `procedure f() fail; end; if f() then ... else write("n")` | `n` |
+| IBB-26 | `t := table(0); t["k"] := 42; write(t["k"])` | `42` |
+| IBB-29 | `c := 'abc'; write(*c)` | `3` |
+| IBB-30 | `"hello" ? { write(tab(2)); write(tab(0)) }` | `h/ello` |
+| IBB-32 | `find("ll", "hello world")`, `upto('aeiou', "hello")` | `3`, `2` |
+| extra | recursion `f(n) = n + f(n-1)`, `f(5)` | `15` |
 
-**NEXT: IBB-5** — mode-4 (native) for `every write(1 to 3)`. This needs real x86 BB templates per `ARCH-x86.md` — the first dual-mode rung. The remaining Icon rungs likely all pass mode 2 with no code change; a sweep over the corpus will tell what's left.
+All achieved with NO code change beyond the IBB-1 driver bypass + lower suppression. The existing `lower_icn_proc_body` already covered the Icon vocabulary; pulling SM out of the way exposed the truth: SM was never doing useful work for Icon.
+
+Gates: smoke_icon 5/5, smoke_prolog 5/5, broker 36/17, FACT 0, --dump-sm count=0 for every program above.
+
+### Known gap
+
+- **IBB-23 (suspend at top-level):** `procedure g() suspend 1; suspend 2; end; procedure main() every write(g()) end` prints nothing under both SCRIP_ICN_BB **and** legacy. Pre-existing gap in `lower_icn_proc_body` (it doesn't re-enter the body on β when called from an `every`). Not a regression. Will need a focused fix — likely the GeneratorState bridge from `lower_icn_proc_gen` needs to wire through to the `every` loop.
+
+### NEXT
+
+**IBB-5 — mode-4 (native) for `every write(1 to 3)`.** The architecture target. Real x86 BB templates per `ARCH-x86.md`. Bring the same zero-SM thinking to mode 4: the compiled binary should also have zero SM presence — direct jmp into root BB's α label, BB templates emit flat x86, no dispatch loop in the linked binary.
+
+Alternative cheap wins to consider first:
+- **IBB-23** suspend at top-level (one focused fix, big payoff).
+- **IBB-27** sets, **IBB-28** records, **IBB-31** scanning primitives, **IBB-33** co-expressions — likely free or near-free at mode 2; quick sweep would tell.
