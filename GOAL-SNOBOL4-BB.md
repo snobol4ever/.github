@@ -117,6 +117,19 @@ Transcription rule: re-express through `SM_templates/*.cpp` MEDIUM_BINARY arms, 
   - [x] **SBL-EP-BINARY ✅** (Opus 4.7, 2026-05-28, one4all `1bc53211` + FACT-fix follow-up). Six combinator templates (ALT/CAT/FENCE/PL_SEQ/PL_ITE/SUCCEED) now emit real bytes in their MEDIUM_BINARY arm by walking the existing `g_emit.xa_bb_ep_*[]` epilogue arrays (same data the TEXT arm consumes). **FACT-correct shape (mandatory per strengthened RULES.md, see this session's emit_str.cpp violation + fix):** the byte-producing loop is **duplicated inline in each template file** — every `bytes(1, "\xE9")` + `u32le(0)` literally appears in `bb_pat_alt.cpp`, `bb_pat_cat.cpp`, etc. NO shared `ep_bin_fill_str` helper in `emit_str.cpp` — that would put template bytes outside templates (same violation as `emit_standard_blob` with extra steps). Each arm: walks `xa_bb_ep_n` entries, for each `define[i]` pushes a zero-width define site, for each `jmp[i]` emits `\xE9` + records rel32 patch site + emits `u32le(0)`. FENCE/SUCCEED prepend a `_.lbl_α_p` define site at offset 0; FENCE handles 0-children specially (synthesised `lbl_α: jmp γ ; lbl_β: jmp ω`). `xa_bb_ep_define[]/_jmp[]` retyped `const char *` → `bb_label_t *` (TEXT derefs `->name`). Procedural Prolog templates bombed in BINARY (audit BOMB, was silent EMPTY): bb_pl_alt, bb_pl_call, bb_pl_choice — they emit trail_mark/CP-record assembly, not EP-driven; need dedicated BINARY ports if mode-3 Prolog native is ever scoped. `audit_m3_native_binary_arms.sh` extended: `bin.sites.push_back` / `bin.labels.push_back` counts as substantive (distinguishes real EP-driven arms from fake-jmp stubs that lack site registration). Gates held: G1=13/13 (default+native), G2=35 (sibling-influenced), G3=175/280, G4=238/280, native=165/280 (unchanged — combinator flat-wire in mode-3 not yet enabled, this is foundation for next rung), rungs M2=19/M4=15, FACT=0, audit GATE OK, Prolog smoke 5/5 + mode-4 rung 4/4 + BB honest 128/0, Raku smoke 5/5.
   - [ ] **Next: enable combinator flat-wire in mode-3** so ALT/CAT/FENCE/SUCCEED actually fire their new BINARY arms during `--run` SCRIP_M3_NATIVE=1. The bytes are ready; the build path needs `bb_build_flat` to be invoked when sealing the RX page for a pattern containing combinator nodes. Today's `M3-NATIVE-3` wired ANY/single-leaf BB call-out — extend to combinator trees.
 
+    **2026-05-28 Opus 4.7 — label arena landed (`744ae342`):** Prerequisite #2 from the prior diagnosis is now resolved. `emit_label_alloc(fmt, ...)` in `emit_core.{h,c}` provides session-stable `bb_label_t *`; pool reset on `bb_emit_begin`. All six flat drivers in `emit_bb.c` migrated off stack-local `bb_label_t`/`alloca` arrays. Behavior-neutral landing — all gates byte-identical. Now the `patnd_to_bb_tree` retry can be done without lifetime confound: any remaining regression will be a pure graph-shape issue (Prerequisite #1, below).
+
+    **Next session — retry the `patnd_to_bb_tree` experiment:**
+    1. Add `patnd_to_bb_tree(PATND_t *)` in `lower_pat_dcg.c` building emit_sm.c-shaped graphs: leaf nodes with no port wiring, combinator nodes with `pat_set_children` (so `bb_pat_nkids`/`bb_pat_kid` can read children through `bb_pat_kids_state_t`). Mirror the structure `emit_sm.c::SM_PAT_CAT` produces.
+    2. Extend `patnd_needs_xlate` in `src/runtime/snobol4/stmt_exec.c` to return 1 for combinator roots (XALTR/XCONC/XFENC), but only when paired with the new tree builder. Keep the old `patnd_to_bb_graph` (γ-chain) path for mode-2 `bb_exec.c`.
+    3. Decision point: `exec_stmt` currently routes both mode-2 and mode-3 through `patnd_needs_xlate` / `patnd_to_bb_graph`. Mode-3 needs tree-shape; mode-2 needs γ-chain. Either (a) keep two builders and dispatch on `g_bb_mode`, or (b) make `bb_exec.c::case BB_PAT_CAT/ALT` understand tree-shape via `bb_pat_kids_state_t`. Option (a) is the safe surgical move; option (b) is the eventual unification.
+    4. Validate on the two known-good probes: `050_pat_alt_two` (expected `dog`) and `055_pat_concat_seq` (expected `ab cd ef`) under `--run SCRIP_M3_NATIVE=1`.
+    5. Run all five gates; expect mode-2 unchanged (option a) or up (option b), and native climbs from 165 toward the SBL-EP-BINARY ceiling.
+
+    **Blocker before broad corpus retry:** the M3-NATIVE audit currently FAILs because six combinator templates (`bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence`, `bb_pl_seq`, `bb_pl_ite`, `bb_succeed`) were stripped of EP-walk byte production by Prolog FACT-cleanup commit `88bacd2a`. Those arms now register as FAKE-JMP STUB. Restoring them (per the FACT-correct pattern recorded in 2026-05-28 Opus 4.7 SBL-EP-BINARY entry: duplicate the EP-walk + byte-emit loop inline in each of the six template files — no shared helper) is a prerequisite to a meaningful corpus retry.
+
+    The previous session's diagnosis text below — recorded before the arena landed — remains accurate about the *graph-shape* issue (Prerequisite #1); the *label-lifetime* concern (Prerequisite #2) is now closed.
+
     **2026-05-28 Opus 4.7 — investigation handoff (no commit):** Diagnosed two distinct architectural prerequisites that block the naive "just open the gate" approach:
 
     *Diagnosis 1 — graph-shape mismatch.* `lower_pat_dcg.c::patnd_to_bb_graph` builds γ-chain graphs (XCAT/XOR γ-chain children, no wrapper node) suitable for `bb_exec.c::case BB_PAT_CAT/ALT` (mode-2). But `walk_bb_flat`'s `flat_drive_cat`/`flat_drive_alt`/`flat_drive_fence` drivers — the producers of the bytes the SBL-EP-BINARY combinator arms consume — REQUIRE tree-shaped graphs with `c[] children` populated via `bb_pat_kids_state_t` (the same shape `emit_sm.c::SM_PAT_CAT` builds via `pat_set_children`). Simply opening `patnd_needs_xlate` to combinator roots routes them into `bb_build_flat`, but the γ-chain children are invisible to `bb_pat_nkids`/`bb_pat_kid` (which read `nd->counter` as `bb_pat_kids_state_t *`), so `flat_drive_*` see zero kids and emit the nc==0 ε-path (effectively always-fail). Empirically confirmed: gate expansion alone regressed 237→229 mode-2, 165→144 native.
@@ -250,24 +263,32 @@ LIT, LEN, POS, UPTO (ref). ANY, NOTANY, BREAK (plain), CAPTURE — all VERIFIED-
 ## Session State
 
 ```
-HEAD one4all       = 5427e12e (clean — no code changes this session)
+HEAD one4all       = 744ae342 (label arena landed)
 HEAD .github       = (this commit)
 GATE-1 smoke       = 13/13     (also 13/13 under SCRIP_M3_NATIVE=1)
-GATE-2 broker      = 35        (sibling-influenced)
+GATE-2 broker      = 36        (sibling-influenced)
 GATE-3 mode-4      = 175/280
-GATE-4 mode-2      = 237/280   (-1 drift from prior 238 watermark; recorded as new baseline)
-NATIVE corpus      = 165/280   (unchanged — combinator flat-wire blocked, see Opus 4.7 diagnosis above)
+GATE-4 mode-2      = 237/280
+NATIVE corpus      = 165/280
 Rung suite         = M2=19 M4=15 SKIP=0
-Prolog smoke       = 5/5;  mode-4 rung 4/4; BB honest 128/0
+Prolog smoke       = 5/5
 Raku smoke         = 5/5
+Icon smoke         = 5/5
+Rebus smoke        = 4/4
 FACT RULE          = 0
-audit_m3_native    = GATE OK
+audit_m3_native    = GATE FAIL (NOT caused by 744ae342 — surfaced after rebase against
+                     concurrent Prolog FACT-cleanup work that stripped EP-walk byte
+                     production from six combinator templates. Separate fix required.
+                     My arena commit is purely additive, all gates byte-identical at
+                     moment of commit.)
 GATE-PK            = stale (re-freeze deferred)
 ```
 
 ---
 
 ## Session log (terse, last few only)
+
+- **2026-05-28 Opus 4.7 — label arena landed ✅** (one4all `744ae342`). Pure-infrastructure prerequisite for the next M3-NATIVE-4 attempt. New `emit_label_alloc(fmt, ...)` in `emit_core.{h,c}` returns a heap-backed `bb_label_t *` with stable address across the entire emit session; pool freed and reset by `bb_emit_begin()`. Migrated all six flat drivers in `emit_bb.c` off stack-local `bb_label_t`/`alloca` arrays: `flat_drive_cat` / `_alt` / `_fence` / `_pl_seq` / `_pl_choice` / `_pl_alt` / `_pl_ite` (+ standalone `exit_γ` in pl_choice). Refined diagnosis of prior session's "dangling label" claim: trace shows current AST/SM-built combinator graphs survive only by leaf-self-definition of β (e.g. `bb_lit.cpp` line 18 has `is_def[3]=true` at site 109 = `_.lbl_β_p`), which resolves and removes patches before stack unwinds; the bug surfaces only when combinators nest deeply enough that a β stays live across a driver return — which is exactly what `patnd_to_bb_tree` would have done. Plus `alloca` arrays reused across nested calls would silently corrupt label name strings. Arena eliminates both modes. Behavior-neutral: all baseline gates byte-identical (G1=13/13 default+native, G2=36, G3=175/280, G4=237/280, native=165/280, rungs M2=19/M4=15, Prolog/Raku/Icon smokes 5/5, Rebus 4/4, FACT=0). Pure infrastructure — zero x86 bytes produced, FACT RULE n/a. **NEXT:** with stable labels in place, re-attempt `patnd_to_bb_tree` (emit_sm.c-shaped graphs with `pat_set_children`) + extend `patnd_needs_xlate` to combinator roots. Validate on 050_pat_alt_two / 055_pat_concat_seq native (expected: "dog" / "ab cd ef"). **Note:** audit_m3_native gate currently FAIL due to concurrent Prolog FACT-cleanup commit (`88bacd2a`) that stripped EP-walk byte production from six combinator templates — separate fix needed before broad corpus retry, unrelated to arena work.
 
 - **2026-05-28 Opus 4.7 — investigation handoff (no commit)**, combinator flat-wire DIAGNOSIS. Started M3-NATIVE-4 "next" step ("enable combinator flat-wire in mode-3"). First attempt (extend `patnd_needs_xlate` to combinator roots) regressed mode-2 237→229 and native 165→144 because γ-chain graphs lack `bb_pat_kids_state_t` so `flat_drive_*` see zero kids. Second attempt (parallel `patnd_to_bb_tree` producing emit_sm.c-shaped trees with `pat_set_children`) made 050_pat_alt_two/055_pat_concat_seq produce CORRECT native output ("dog"/"ab cd ef") proving the SBL-EP-BINARY combinator arms work, BUT broad corpus dropped 237→229 mode-2 due to a deeper architectural issue: `flat_drive_alt/cat/fence` declare per-child `bb_label_t` on the C stack, then `bin.labels` (which lives until `bb_emit_end`) stores pointers into that stack frame. After driver returns, addresses dangle. Existing AST/SM-built combinator tests survive only because their drivers happen to stay on stack until `bb_emit_end` finishes — the bug was latent, masked by ordering. Reverted both attempts; tree clean at 5427e12e. Full diagnosis + two fix-paths recorded in the "Next: enable combinator flat-wire" rung above. Recommended next session: implement `BB_graph_t.lbl_pool` + `bb_label_alloc(cfg, fmt, ...)`, migrate flat drivers off `alloca`, then re-attempt the `patnd_to_bb_tree` path. Gates all hold baseline: G1=13/13 default+native, G2=35, G3=175/280, G4=237/280, native=165/280, rungs M2=19/M4=15, audit GATE OK, FACT=0.
 
