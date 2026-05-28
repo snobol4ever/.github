@@ -277,8 +277,11 @@ Stops the simplest re-evaluate-Cond loops (+3 net). **Still open:**
 - **CAT-D-11 ✅** (this session, see top-of-file).
 - **plus/3 bidirectional** (rung18 — 3 remaining). If X+Y bound → unify Z; if X+Z bound → unify Y; etc.
   `bb_exec.c` has the mode-2 arm; template + 7-scalar effect helper needed.
-- **term_to_atom/2 operator-notation writer** (rung25 — 1 remaining). `pl_term_to_string` currently
-  renders `+(1,2)` instead of `1+2`. Fix in `prolog_builtin.c` (mirror `pl_writeq_term`).
+- **term_to_atom/2 operator-notation writer ✅** (rung25 — done `b0093cd1`). pl_write_to_file now
+  applies the same op-prec block as pl_writeq_term. Mode-2 only; mode-4 emit still TODO (term_to_atom
+  not in the bb_builtin.cpp template; falls through to mode-4 `_` output).
+- **term_string/2** (rung25 — open). Not registered as a builtin at all; needs lower_pl.c recognizer +
+  bb_exec.c arm. Same shape as term_to_atom — just calls pl_term_to_string and unifies.
 - **catch/throw** (rung28 — 0/5). Lower as 3-arg BB_BUILTIN; exec arm uses setjmp/longjmp or global
   exception flag.
 - **aggregate** (rung27 — 0/5). bagof/setof.
@@ -298,22 +301,22 @@ Stops the simplest re-evaluate-Cond loops (+3 net). **Still open:**
 
 ---
 
-## Rung state at HEAD (`462aafa1`, post-CAT-RUNG07-1)
+## Rung state at HEAD (`b0093cd1`, post-rung25-TERM2ATOM-OPS)
 
 | Gate | Count | Notes |
 |---|---|---|
 | GATE-1 (smoke) | 5/5 | unchanged |
 | GATE-2 (3-mode crosscheck) | 132/0 | post V-5 real agreement |
-| GATE-3 mode-2 (`--interp`) | 89/107 | unchanged |
+| GATE-3 mode-2 (`--interp`) | **90/107** | +1 (rung25 term_to_atom operator notation) |
 | GATE-3 mode-3 (`--run`) | 89/107 | unchanged |
 | GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt all green |
 | **Full mode-4 corpus** | **28/107** | +4 this session (CAT-D-11 sort/msort) |
 | FACT RULE grep | 0 | full compliance |
 | `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix |
 
-**Mode-2 OPEN rungs (18/107):** rung15 (2 — one_of_two, then_reassert), rung18 (3 — plus/3), rung23 (1),
-rung25 (2 — term_to_atom ops), rung27 (5 — aggregate), rung28 (5 — catch/throw), rung30 (1 —
-dcg_pushback_rest).
+**Mode-2 OPEN rungs (17/107):** rung15 (2 — one_of_two, then_reassert), rung18 (3 — plus/3), rung23 (1),
+rung25 (1 — term_string/2 not implemented; term_to_atom op-notation now ✅), rung27 (5 — aggregate),
+rung28 (5 — catch/throw), rung30 (1 — dcg_pushback_rest).
 
 ---
 
