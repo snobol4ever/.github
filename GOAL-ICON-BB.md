@@ -1,119 +1,331 @@
-# GOAL-ICON-BB.md — All Icon Byrd-Box constructs, modes 1/2/3/4
+# GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-**Repo:** one4all + .github
-**Mode priority:** Mode 2 (`--interp`) first, then Mode 3 (`--run`). Mode 4 deferred.
+**Reset:** 2026-05-28. Two and a half months of mode-2 `SM_BB_INVOKE`-per-statement watermark hunting is over. The previous content of this file (rungs accumulating PASS counts in the wrong shape) is wiped. Start over.
 
----
-
-## Model
-
-No operands on BB nodes. CFG of boxes wired by **four ports**. Operand values flow through `BB_graph_t.ring`.
-
-| Port | Direction | Meaning |
-|------|-----------|---------|
-| α | UP (synthesized) | fresh-entry |
-| β | UP (synthesized) | retry-entry (self for resumable, else ω_in) |
-| γ | DOWN (inherited) | success continuation |
-| ω | DOWN (inherited) | failure continuation |
-
-**BB_t has ONLY:** `t`, `α β γ ω`, `sval/ival/dval`, `value/counter/state`. PEERS sidecar `operand_aux` LEGACY for Icon (kept for Prolog/SNOBOL4).
-
-**Lowering signature:** `lower(cfg, tree, γ_in, ω_in, &α_out, &β_out, bounded)`. Each `lower_icn_new_<KIND>_ag` produces AG-pure output directly.
-
-**FACT RULE:** all emitted x86 via templates only. `grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -v _templates/ | grep -v emit_core | wc -l` == 0.
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
+**Architecture pointers:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c` · `.github/jcon_irgen.icn`.
 
 ---
 
-## ✅ DONE
+## Premise
 
-- **LFJ-0..15b** (`1dfe9631`/`6a631124`): all `ir_a_*` from `irgen.icn` transcribed to `lower_icn_new_<KIND>`; legacy lower deleted; six `_threaded_b` AG-pure intercepts folded into `_ag` variants. Reference: `corpus/programs/icon/jcon-ref/irgen.icn`.
-- **Steps 1–9** (ring fields, chain walker, BINOP, SEQ+FAIL, IF, CONJ, ALT, EVERY flat-wire `ival=1`, TO/TO_BY, LCONCAT/SECTION/IDX/IDX_SET).
-- **Step 10a-1..10** — all `_ag` lowerers thread sub-expressions via `lower_icn_expr_threaded_b`.
-- **Step 10a-4 (Every_ag)** — streaming gens flat-wire via `ival=2`+`lic_is_gen_node` (`09353f25`/`5d5bf85d`); block bodies via BODY-MEDIATED `ival=3` w/ phase machine honoring break/next/return (`cba1dc4d`/`aa3e403f`); gen-bearing single-node body corner fixed (`64ca51b7`). **Exclusions stay on legacy (correct, not bugs):** static-bound TO bodies, suspending generator bodies.
-- **Step 10b — sidecar deletion + ring-peek** (`d209c93e`/`9fb1dbb8`/`b55bc261`/`ffd55d4f`/`8f887fa1`/`359c5754`/`4485d647`): BB_ASSIGN reads rhs via `ag_ring_peek(0)`; BB_CALL deep-args via `ag_ring_peek(nargs-1-j)` w/ `nd->dval=1.0` deep marker; `icn_kind_owns_omega_operand` removed.
-- **MAIN-BOOT** (this session, Opus 4.7, 2026-05-28): restored Icon top-level execution after `08e05f68` whacked `SM_BB_PUMP_PROC`. Two coordinated fixes: (a) lower epilogue emits `SM_CALL_FN "main" nargs=0; SM_VOID_POP` (per `08e05f68` handoff guidance); (b) every-loop `exit_pc` moved from `BB_INVOKE.a[0]` → `a[2]` because `a[0]` was the α/β state flag and collided silently; mode-2 interp now honors `a[2].i` exit-jump on FAIL. Sites: 4 lower stamps + `sm_bb_switch.cpp` template + interp handler.
-- **ALT-EXPR** (Opus 4.7, 2026-05-28, `8b0ad2ba`): `lower.c case TT_ALTERNATE` was half-finished — built CFG via `lower_icn_expr_top` then immediately freed it and called `lower_unhandled` (`SM_PUSH_NULL`). So `1|2|3` reaching `lower_expr` (call-arg, `:=` RHS, bare stmt) collapsed to a single null. Fixed by matching `lower_to` shape: build CFG, `SM_seq_bb_add`, emit `SM_BB_INVOKE`. `BB_ALT` mode-2 exec already handled the first-success-arm semantics and β-resume; the surrounding `lower_every` scans for `SM_BB_INVOKE` to wire its loop. Recovered 4 rungs: `rung08_strbuiltins_match`, `rung13_alt_alt_int`, `rung13_alt_alt_every_write`, `rung32_strretval_strret_every`. Watermark 161 → **165**, zero regressions.
-- **RENAME** (Opus 4.7, 2026-05-28, `b84153c3`): `src/lower/` only — `BB_graph_t *cfg` → `*bbg`, `BB_t *nd` → `*bb` via strict-word-boundary sed. ~2765 sites across 10 files. One collision: `Pl_PredEntry_BB *bb` at `bb_exec.c:3196` (inside a function whose `BB_t *nd` parameter also renamed to `bb`) → renamed Prolog-entry local to `*pe`. Pure rename — gates identical to pre-rename.
-- **CASE-EXPR** (Opus 4.7, 2026-05-28, `d1031b0c`): Icon `TT_CASE` was misrouted through Snocone-shaped branches in `lower_case`. Two bugs: (a) when Icon's trailing default body was `TT_QLIT` (e.g. `default: "other"`), the legacy-Snocone branch interpreted it as an end-label name and silently dropped it; (b) modern-Snocone branch did `lower_expr(body); SM_VOID_POP` per arm then final `SM_PUSH_NULL`, destroying case-as-expression value. Fix: gate both branches on `g_lang == LANG_SNO`. Icon now falls through to the `!is_raku` branch (line ~1419), which already handles `has_def = (t->n - 1) % 2` and preserves arm values. Recovered all 5 rung33 cases. Watermark 165 → **170**, zero regressions. Pre-existing Snocone `semantic` failures (3) confirmed unrelated via stash-and-test.
-- **PARAM-SHADOW** (Opus 4.7, 2026-05-28, `4d5fe69e`): applied the diagnosis from CASE-EXPR session. In `src/lower/lower.c::emit_var_load`, the LANG_ICN proc-as-value fallback fired BEFORE `scope_get(g_proc_scope, vn)`. Any parameter whose name happened to satisfy the proc-table walk or `icn_proc_as_value(vn).v == DT_S` was emitted as `SM_PUSH_VAR` instead of `SM_LOAD_FRAME` — parameters were not shadowing proc names. Symmetric with `emit_var_store` (line 153) which already checked scope first. Fix: reorder. Recovered `rung32_strretval_basic_strret` (was printing `hello name` instead of `hello world`). Watermark 170 → **171**. NOT a 20+ pickup as the diagnosis estimated — `rung36_jcon_*` family still FAILs on `** Error 5` (different code path).
-- **LIMIT-EXPR + rung37 runner glob** (Opus 4.7, 2026-05-28, `471ac1c9`): two fixes. (a) `src/lower/lower.c::lower_limit` was `lower_unhandled` stub, so TT_LIMIT in lower_expr context (`every write((1 to 5) \ 3)`, call-arg, `:=` RHS, bare stmt) emitted SM_PUSH_NULL and the every-loop scanned no SM_BB_INVOKE — entire rung14 dark. Fix mirrors `lower_to` / ALT-EXPR (`8b0ad2ba`) / CASE-EXPR (`d1031b0c`): build BB CFG, SM_seq_bb_add, SM_BB_INVOKE. `lower_icn_new_Limitation` + `bb_exec.c::BB_LIMIT` were already present. Recovered 5/5 rung14 + bonus `rung30_builtins_misc_seq`. (b) `scripts/test_icon_all_rungs.sh` runner glob covered `rung0[1-9]/rung1[0-9]/rung2[0-9]/rung3[0-5]` + explicit `rung36_*`, but `rung37` was silently absent — added `rung37_*` loop, 14 tests now visible (6 PASS / 8 FAIL). TOTAL 269 → 283.
-- **BANG-EXPR** (Opus 4.7, 2026-05-28, `381df169`): `src/lower/lower.c::lower_iterate` for LANG_ICN was the SAME anti-pattern as pre-fix `lower_alt` and pre-fix `lower_limit` — building bbg via `lower_icn_expr_top` then immediately `BB_free(bbg)` and calling `lower_unhandled(t)`. So TT_ITERATE in lower_expr context (`every write(!L)`, call-arg, `:=` RHS, bare stmt) emitted SM_PUSH_NULL — entire rung22 bang_list/put_bang + entire rung31 sort/sortf dark because the enclosing every-loop scanned no SM_BB_INVOKE. The path that worked all along: when TT_ITERATE is a child of TT_EVERY the every-loop wrapper rebuilds it via `lower_icn_expr_top`, which is why rung15/16 partially worked. Plain bare-arg path was broken. Fix mirrors `lower_to` / `lower_limit`. Recovered 10 rungs across 5 rung-files: rung11_bang_augconcat_bang_str, rung13_table_iterate, rung15_iterate_string, rung22 (2), rung31 (5).
-- **GEN-BUILTIN find()/key()** (Opus 4.7, 2026-05-28, `8cc487e9`): `src/lower/lower.c::lower_fnc` shape-2 dispatch (`t->v.sval == NULL`, name in `t->c[0]->v.sval`) emitted SM_CALL_FN for every function call, including Icon TRUE generators like `find()` and `key()` that already had BB_FIND_GEN / BB_KEY_GEN infrastructure in `lower_icn.c::lower_icn_new_Call` + bb_exec executors. Without SM_BB_INVOKE in the SM stream, enclosing every-loop saw no generator switch and pumped only the first value (`every write(find('a','banana'))` → `2` instead of `2 4 6`). Fix: in the shape-2 branch, if `g_lang==LANG_ICN` and call target is `find` or `key`, build BB CFG via `lower_icn_expr_top` and emit SM_BB_INVOKE instead. Recovered `rung08_strbuiltins_find_gen`. `key(t)` as standalone generator works now (`every write(key(t))` emits 3 keys); `rung23_table_table_key` still FAILs because `key(t)` is now generating but the result feeds `t[key(t)]` subscript and hits a SEPARATE stack-underflow (same family as `rung16 s[1 to 3]`). Different failure mode, not a regression.
-- **rung36 category sidecar + per-category runner subtotals** (Opus 4.7, 2026-05-28, corpus `e89681b` + one4all `64c7530c`): the 75-test rung36 JCON pool was a single opaque bucket. Sidecar `corpus/programs/icon/rung36_categories.txt` maps each test to one of 8 intent categories (control 13, gens 12, strings 11, scan 9, reflection 9, numbers 8, structures 7, io 6, sum=75). Runner reads sidecar and emits per-category subtotals between rung body and overall total. Triage now visible by area: `rung36_strings` already moving (5 PASS), `rung36_scan` is best signal/noise pure-FAIL pool (6 FAIL, 3 XFAIL), `rung36_gens` needs mode-4 zipper. Zero file renames, zero git history disturbance, JCON provenance preserved.
+Icon IS a Byrd Box graph. Every construct is a box. The whole program is one connected port-graph. The SM around it is the thinnest possible boot — **two instructions total, for the whole program, not per statement.**
+
+```
+SM_BB_RUN_THE_DAMN_ICON   a[1].i = bb_table index of root program graph
+SM_HALT
+```
+
+Mode 2: handler in `sm_interp.c` calls `bb_exec_once(root)`, sets `last_ok`, done. No surrounding loop. No every-scaffold. No pump. No switch.
+
+Modes 3/4: emit `lea r10, [rip + Δ_root]; jmp .Lroot_α`. Then `SM_HALT`. Boxes are CODE+DATA in `bb_pool` (mode 3) or in the linked binary's `.text`/`.data` (mode 4). Inter-box transitions are `jmp rel32`. No `call`, no `ret`, no SM dispatch loop, no broker, no C walker in the mode-4 runtime binary.
+
+Per `test_icon.c` (Lon's canonical sketch, 2026-03-10): every construct gets `_start` / `_resume` / `_succeed` / `_fail` labels. Wired by flat `goto`. Three-column form: `LABEL / ACTION / GOTO`. That is the target shape. Everything else is wrong.
 
 ---
 
-## Watermarks
+## Banned in Icon SM streams
 
-- **Pre-MAIN-BOOT:** `64ca51b7` — smoke_icon 5/5 · broker 36 · rungs 199 · smoke_prolog 5/5 · FACT 0.
-- **Post-SNOBOL4 LANG-IGNORANT** (`08e05f68`): smoke_icon **0/5** (PUMP_PROC whacked).
-- **MAIN-BOOT** (Opus 4.7, 2026-05-28, `80d0d5ee`): smoke_icon **5/5** · smoke_prolog 5/5 · broker 35 · rungs **161** · FACT 0.
-- **ALT-EXPR** (Opus 4.7, 2026-05-28, `8b0ad2ba`): rungs **165** · broker 35 · FACT 0.
-- **CASE-EXPR** (Opus 4.7, 2026-05-28, `d1031b0c`): rungs **170** · broker 35 · FACT 0.
-- **PARAM-SHADOW** (Opus 4.7, 2026-05-28, `4d5fe69e`): rungs **171** · broker 35 · FACT 0.
-- **LIMIT-EXPR + rung37 glob** (Opus 4.7, 2026-05-28, `471ac1c9`): rungs **183** PASS / TOTAL 283 · broker 35 · FACT 0.
-- **BANG-EXPR** (Opus 4.7, 2026-05-28, `381df169`): rungs **193** PASS / TOTAL 283 · broker **36** (+1) · FACT 0.
-- **GEN-BUILTIN** (Opus 4.7, 2026-05-28, `8cc487e9`): rungs **194** PASS / FAIL 53 / XFAIL 36 / TOTAL 283 · broker 36 · FACT 0.
-- **rung36 category split** (Opus 4.7, 2026-05-28, one4all `64c7530c` + corpus `e89681b`): runner-only change, outcomes unchanged. Per-category snapshot at this watermark:
-  ```
-  rung36_control       total=13  PASS= 0  FAIL= 4  XFAIL= 9
-  rung36_gens          total=12  PASS= 0  FAIL= 6  XFAIL= 6
-  rung36_io            total= 6  PASS= 0  FAIL= 3  XFAIL= 3
-  rung36_numbers       total= 8  PASS= 0  FAIL= 3  XFAIL= 5
-  rung36_reflection    total= 9  PASS= 1  FAIL= 4  XFAIL= 4
-  rung36_scan          total= 9  PASS= 0  FAIL= 6  XFAIL= 3
-  rung36_strings       total=11  PASS= 5  FAIL= 4  XFAIL= 2
-  rung36_structures    total= 7  PASS= 0  FAIL= 3  XFAIL= 4
-  ```
+- `SM_BB_INVOKE` per-statement. Wrong granularity.
+- `SM_BB_SWITCH` per-statement. Wrong granularity.
+- `SM_BB_PUMP_PROC`, `SM_BB_ONCE_PROC` proc-level wrappers.
+- `SM_CALL_FN "main"` boot. `main` is a BB, not an SM call.
+- Every-loop scanner in `lower.c` that wraps `SM_BB_INVOKE` with `SM_JUMP_F` + back-edge harness. Every-loops are BB edges (`body.γ → self.β`), not SM control flow.
+- `SM_PUSH_NULL` + `SM_VOID_POP` + `SM_RETURN` proc epilogue. Procedures are BBs.
+
+These opcodes remain in `sm.h` for other languages until their own BB rewrites. Icon does not use them after this goal closes.
 
 ---
 
-## Acceptance greps
+## Rungs
 
-Use `grep -P` or fixed-strings. POSIX `[αβ]` doesn't match UTF-8 → false 0.
-1. `grep -nE 'bb_operand_aux_set' src/lower/lower_icn.c | wc -l` == 0 ✅
-2. `grep -cF 'bb_exec_node(nd->α)' src/lower/bb_exec.c` + `grep -cF 'bb_exec_node(nd->β)' src/lower/bb_exec.c` — legacy-arm count; ~45+30 remain in unmigrated WHILE/UNTIL/REPEAT/CASE/SCAN/EVERY-fallback. The migrated set (BINOP/LCONCAT/SECTION/IDX/IDX_SET/CONJ/ALT/IF/ASSIGN/CALL + flat-wire EVERY incl. block bodies) is α/β-free.
-3. `icn_kind_owns_omega_operand` removed ✅
-4. rungs PASS at/near watermark.
+Each rung is one or more BB kinds + one template file per kind in `src/emitter/BB_templates/`, mode 2 + mode 4 from the start. **No mode-2-only debt.** A rung is not closed until both modes produce byte-identical output for the rung's test program. Steps within a rung are checkboxes; the rung closes when all steps tick.
 
 ---
 
-## Next options
+### IBB-0 — Reset
 
-1. **rung36_scan cluster (6 FAIL, 3 XFAIL).** Best signal-to-noise pure-FAIL pool. Icon scanning environment (`?`, `&pos`, `&subject`, `tab`, `move`, `upto`) is a coherent feature; fixing scan plumbing could clear several together. Probes: `rung36_jcon_scan`, `scan1`, `scan2`, `concord`, `diffwrds`, `endetab`, `subjpos`, `wordcnt`, `parse`. Per-category subtotals from `test_icon_all_rungs.sh` will measure progress directly.
-2. **`every <var> <augop>:= <gen>` stack underflow** — affects rung10_augop_break_repeat (`every sum +:= (1 to 5)`), rung11_bang_augconcat_bang_concat (`every result ||:= !s`). Pre-existing, reproducible with bare `every sum +:= (1 to 3)`. Symptom: `sm_interp: stack underflow`. Likely the augmented-assign SM_DUP sequence is wrong inside the every β-resume — the LHS pointer is consumed without re-pushing. Goal file flagged this for sessions. Worth a focused dig.
-3. **Generator-in-subscript stack underflow** — affects rung16_subscript_sub_every (`s[1 to 3]`) and the post-GEN-BUILTIN rung23_table_table_key (`t[key(t)]`). Same family. The subscript lowering doesn't engage the generator pump on the index expression.
-4. **Block-body BREAK/NEXT on the new BANG-EXPR path** — rung35_block_body_every_gen_block. The `every v := !L do { ... break/next ... }` now runs (BANG-EXPR fix), but the inner break/next don't honor the phase machine that BODY-MEDIATED `ival=3` set up in TO/TO_BY (`cba1dc4d`/`aa3e403f`). BB_LIST_BANG executor needs the same phase machine, or `lower_iterate` needs to route through the block-body-aware scaffolding when there's a do-body.
-5. **rung37 newly-visible tactical fails (8).** `augop_pow`, `coerce`, `cset_ops`, `keywords`, `mutual`, `neg_pos`, `proc_lookup`, `scan_alt`. Each is a focused construct; some may be quick. Two tests have no `.expected` file (`rung37_every_do_hello`, `rung37_every_in_arg`) — could be intentional (silent-skip via runner's `[ -f "$exp" ] || return 0`).
-6. **rung13 cartesian product alt** (4 FAIL) — `alt_alt_nested`, `alt_alt_augconcat`, `alt_alt_cross_arg`, `alt_alt_cross_arg_sideeffect`. Needs mode-4 ICN-Z zipper / BB-port-graph. NOT quick.
-7. **rung03 suspend_gen family** (3 FAIL) — generator-proc semantics on `SM_CALL_FN` path. Needs GeneratorState wiring on the call side. NOT quick.
-8. **Audit the same anti-pattern in remaining `lower_X` functions.** This session cleared LIMIT, ITERATE, find/key — same shape as ALT-EXPR and CASE-EXPR from prior sessions. Pattern: `lower_X` for LANG_ICN builds `bbg` via `lower_icn_expr_top`, immediately `BB_free(bbg)`, calls `lower_unhandled`. Still present at `lower.c:1559 lower_bang_binary` (binary `!` — proc-apply, e.g. `(!plist) ! alist` in rung36_jcon_args). The binary-bang doesn't have a `lower_icn_new_BangBinary` entry in `lower_icn.c`, so a fix here would need new BB infrastructure. Lower priority — only rung36_jcon_args and a couple others use it.
-9. Take up another goal.
+- [x] Wipe legacy contents of this file.
+- [x] Carve new rung structure.
+- [x] PLAN.md row updated.
 
 ---
 
-## Per-step gate
+### IBB-1 — `procedure main() write("hello") end` runs mode 2
+
+Smallest live program. No generators, no arithmetic. Proves the two-op boot.
+
+- [x] Add `SM_BB_RUN_THE_DAMN_ICON` to enum in `src/include/SM.h`.
+- [x] Add opname to table in `src/lower/sm_prog.c`.
+- [x] Mode-2 handler in `src/processor/sm_interp.c`: pop bb_table idx, call `bb_exec_once(root)`, set `last_ok`.
+- [x] Mode-3/4 stub in `src/emitter/emit_core.c` (real x86 deferred to IBB-5).
+- [x] Build green; legacy smokes still 5/5 / 5/5 / 36.
+- [ ] Write `src/lower/lower_icn_bb.c` with `BB_graph_t *lower_icn_bb(CODE_t *prog)`. Walks AST: `STMT_t → TT_PROC_DECL → TT_PROGRAM body → lower_icn_expr_node` into one root graph; chain top-level statements via γ-edges; first statement's α is `bbg->entry`.
+- [ ] Add header `src/lower/lower_icn_bb.h` exporting the function.
+- [ ] Hook in `lower.c`: when `g_lang == LANG_ICN` AND env `SCRIP_ICN_BB=1` set, call `lower_icn_bb` instead of the legacy per-statement path, register root in `g_stage2.sm.bb_table[]`, emit ONLY `SM_BB_RUN_THE_DAMN_ICON root_idx` + `SM_HALT`. Otherwise fall through to legacy lower untouched.
+- [ ] Gate: `SCRIP_ICN_BB=1 ./scrip --interp /tmp/hello.icn` prints `hello\n`, exit 0.
+- [ ] Gate: `SCRIP_ICN_BB=1 ./scrip --dump-sm /tmp/hello.icn` shows exactly two opcodes: `SM_BB_RUN_THE_DAMN_ICON`, `SM_HALT`.
+- [ ] Gate: legacy smokes still pass (unsetting SCRIP_ICN_BB).
+- [ ] Commit + push.
+
+---
+
+### IBB-2 — Boot shape decision
+
+- [ ] After IBB-1 runs, decide: keep `SM_BB_RUN_THE_DAMN_ICON + SM_HALT` (two ops) or fold to single `SM_BB_RUN_THE_DAMN_ICON_AND_HALT`.
+- [ ] Lock the decision. One paragraph in this file, replaces this rung's body.
+
+---
+
+### IBB-3 — `write(1 + 2)` mode 2
+
+- [ ] `BB_ICN_ILIT` template (mode-2 only at this rung). α pushes `DT_I(ival)` via γ. β → ω.
+- [ ] `BB_ICN_BINOP_ADD` (or use existing `BB_BINOP` with op=ADD). α drives left.α; on left.γ captures value, drives right.α; on right.γ pushes sum via γ. β drives right.β; on right.ω, drives left.β then right.α; on left.ω → self.ω.
+- [ ] `BB_ICN_CALL` for `write(int_expr)` — extend IBB-1's BB_CALL to accept a BB-typed integer arg.
+- [ ] `lower_icn_bb.c` recognizes `TT_ADD` and integer literal cases.
+- [ ] Gate: `SCRIP_ICN_BB=1 ./scrip --interp /tmp/add.icn` prints `3`.
+- [ ] Gate: `--dump-sm` still shows only the two ops.
+
+---
+
+### IBB-4 — `every write(1 to 3)` mode 2
+
+First generator. The whole point.
+
+- [ ] `BB_ICN_TO` template. State `cur` in node-local data. α: `cur = lo; if cur > hi → ω; γ`. β: `cur += 1; if cur > hi → ω; γ`.
+- [ ] `BB_ICN_EVERY` template. α: jmp body.α. body.γ wired to self.β (re-pump). body.ω wired to self.γ.
+- [ ] `lower_icn_bb.c` recognizes `TT_EVERY` and `TT_TO`.
+- [ ] Gate: `SCRIP_ICN_BB=1 ./scrip --interp /tmp/every_to.icn` prints `1\n2\n3\n`.
+- [ ] Gate: SM still only two ops.
+
+---
+
+### IBB-5 — `every write(1 to 3)` mode 4
+
+Architecture target. End-to-end native binary.
+
+- [ ] Extend `src/emitter/BB_templates/bb_icn_to.cpp` literal-bounds path: `MEDIUM_TEXT` + `MEDIUM_BINARY` produce real flat x86 per `ARCH-x86.md`. State `cur` at `[r10+0]`, hi as immediate. α: `mov rax, lo_imm; mov [r10+0], rax; cmp rax, hi_imm; jg .Lω; jmp .Lγ`. β: `mov rax, [r10+0]; inc rax; mov [r10+0], rax; cmp rax, hi_imm; jg .Lω; jmp .Lγ`.
+- [ ] New `bb_icn_every.cpp` — TEXT + BINARY. Tiny: α jmps body.α; body.γ jmps self.β; body.ω jmps self.γ.
+- [ ] New `bb_icn_call.cpp` — TEXT + BINARY. For builtin `write(int)`: drive arg to γ, capture int in rdi, `call rt_icn_write_int@PLT`, jmp γ.
+- [ ] New `bb_icn_program.cpp` + `bb_icn_proc.cpp` — TEXT + BINARY. Program preamble `lea r10, [rip + Δ_root_data]`; proc as named label; body BB inline.
+- [ ] Mode-4 entry: `SM_BB_RUN_THE_DAMN_ICON` emits the lea + jmp into root.α, followed by `SM_HALT`.
+- [ ] Gate: `SCRIP_ICN_BB=1 ./scrip --compile /tmp/every_to.icn && ./a.out` prints `1\n2\n3\n`, byte-identical to mode 2.
+- [ ] Gate: `objdump -d a.out` shows zero refs to `sm_interp_run`, `bb_exec_*`, `bb_broker`. Only `rt_icn_write_int`, `_start`, and the BB blob.
+- [ ] FACT RULE: 0 violations outside `*_templates/` and `emit_core`.
+
+---
+
+### IBB-6 — `every write(1 | 2 | 3)` mode 2 + mode 4
+
+- [ ] `BB_ICN_ALT` template (mode 2 + mode 4). α=arm[0].α; arm[i].γ → self.γ; arm[i].ω → arm[i+1].α; arm[N-1].ω → self.ω; self.β → most-recently-yielded-arm.β with chain fallthrough.
+- [ ] `lower_icn_bb.c` recognizes `TT_ALTERNATE`.
+- [ ] Gate mode 2: `1\n2\n3\n`.
+- [ ] Gate mode 4: `1\n2\n3\n`, byte-identical.
+
+---
+
+### IBB-7 — `every write(5 > ((1 to 2) * (3 to 4)))` mode 2 + mode 4
+
+The full `test_icon.c` expression. Lon's hand-compiled reference from 2026-03-10.
+
+- [ ] `BB_ICN_BINOP_MUL` (or use BB_BINOP/BB_BINOP_GEN with op=MUL).
+- [ ] `BB_ICN_COMPARE_GT` (or use BB_BINOP/BB_BINOP_GEN with op=GT, is_relop=1).
+- [ ] Cartesian-product β-chains: `mult.β → to2.β`; on `to2.ω → to1.β`; on `to1.ω → mult.ω`. Eight lines per binop per `test_icon.c`.
+- [ ] Gate mode 2: `3\n4\n` (both satisfy 5 > x for x ∈ {1*3, 1*4, 2*3, 2*4} = {3, 4, 6, 8}).
+- [ ] Gate mode 4: byte-identical to mode 2.
+- [ ] Inspect mode-4 `.s` file — structurally close to `test_icon.c` pass 1.
+
+**Flip default after IBB-7:** drop `SCRIP_ICN_BB` env-gate. `lower_icn_bb` becomes the default Icon lower path. Legacy `lower_icn_new_*` enters scheduled deletion.
+
+---
+
+### IBB-8 — Strings
+
+- [ ] `BB_ICN_SLIT` template mode 2 + 4 (already exists for hello; formalize and clean up).
+- [ ] Gate: `write("hello")` and `write("a", "b", "c")` both modes.
+
+### IBB-9 — `to ... by ...`
+
+- [ ] `BB_ICN_TO_BY` template mode 2 + 4.
+- [ ] Gate: `every write(1 to 10 by 2)` → `1\n3\n5\n7\n9\n`.
+
+### IBB-10 — Conjunction `&`
+
+- [ ] `BB_ICN_CONJ` template mode 2 + 4.
+- [ ] Gate: `every write((1 to 3) & 100)` → `100\n100\n100\n`.
+
+### IBB-11 — If/then/else
+
+- [ ] `BB_ICN_IF` template mode 2 + 4. cond.γ → then.α; cond.ω → else.α.
+- [ ] Gate: `if 1 = 1 then write("y") else write("n")` → `y\n`.
+
+### IBB-12 — While
+
+- [ ] `BB_ICN_WHILE` template mode 2 + 4.
+- [ ] Gate: count-to-3 program.
+
+### IBB-13 — Until / Repeat
+
+- [ ] `BB_ICN_UNTIL` + `BB_ICN_REPEAT` templates mode 2 + 4.
+
+### IBB-14 — Assign
+
+- [ ] `BB_ICN_ASSIGN` template mode 2 + 4.
+- [ ] Gate: `x := 7; write(x)` → `7\n`.
+
+### IBB-15 — Augmented assign
+
+- [ ] `BB_ICN_AUGOP` template mode 2 + 4. Fixes the documented stack-underflow class from the wiped legacy.
+- [ ] Gate: `every sum +:= (1 to 5); write(sum)` → `15\n`.
+
+### IBB-16 — List literal
+
+- [ ] `BB_ICN_LIST` template mode 2 + 4.
+- [ ] Gate: `write(*[1,2,3])` → `3\n`.
+
+### IBB-17 — Bang `!L`
+
+- [ ] `BB_ICN_BANG` template mode 2 + 4. True generator: γ each element, β next index.
+- [ ] Gate: `every write(!["a","b","c"])` → `a\nb\nc\n`.
+
+### IBB-18 — Subscript `L[i]`
+
+- [ ] `BB_ICN_IDX` template mode 2 + 4.
+- [ ] Gate: `write(["x","y","z"][2])` → `y\n`.
+
+### IBB-19 — Generator-in-subscript `L[1 to N]`
+
+- [ ] Composition of IBB-17 + IBB-18 wiring; verify cross-product/β-chain behavior.
+- [ ] Gate: `every write(["a","b","c"][1 to 3])` → `a\nb\nc\n`.
+
+### IBB-20 — Section `L[i:j]`
+
+- [ ] `BB_ICN_SECTION` template mode 2 + 4.
+
+### IBB-21 — Limit `E \ N`
+
+- [ ] `BB_ICN_LIMIT` template mode 2 + 4.
+
+### IBB-22 — User procedure call
+
+- [ ] `BB_ICN_USERCALL` template mode 2 + 4. Proc body BB; γ carries return value.
+- [ ] Gate: `procedure f(x) return x+1 end; procedure main() write(f(5)) end` → `6\n`.
+
+### IBB-23 — `suspend E`
+
+- [ ] `BB_ICN_SUSPEND` template mode 2 + 4. Proc-as-generator: yield via γ, save resume state, β re-enters body.
+- [ ] Gate: `procedure g() suspend 1; suspend 2 end; procedure main() every write(g()) end` → `1\n2\n`.
+
+### IBB-24 — `return E`
+
+- [ ] `BB_ICN_RETURN` template mode 2 + 4. One-shot version of suspend.
+
+### IBB-25 — `fail`
+
+- [ ] `BB_ICN_FAIL` template mode 2 + 4. Direct ω.
+
+### IBB-26 — Tables
+
+- [ ] `BB_ICN_TABLE_NEW`, `BB_ICN_TABLE_GET`, `BB_ICN_TABLE_SET`, `BB_ICN_TABLE_KEY` templates mode 2 + 4.
+
+### IBB-27 — Sets
+
+- [ ] `BB_ICN_SET_*` templates mode 2 + 4.
+
+### IBB-28 — Records
+
+- [ ] `BB_ICN_RECORD_*` templates mode 2 + 4.
+
+### IBB-29 — Csets
+
+- [ ] `BB_ICN_CSET` template mode 2 + 4.
+
+### IBB-30 — String scanning `s ? expr`
+
+- [ ] `BB_ICN_SCAN` template mode 2 + 4. Saves and sets `&subject` / `&pos`; β rewinds.
+
+### IBB-31 — Scanning primitives
+
+- [ ] `BB_ICN_TAB`, `BB_ICN_MOVE`, `BB_ICN_KEYWORD_POS`, `BB_ICN_KEYWORD_SUBJECT` templates mode 2 + 4.
+
+### IBB-32 — Scanning generators
+
+- [ ] `BB_ICN_FIND`, `BB_ICN_UPTO`, `BB_ICN_MATCH`, `BB_ICN_ANY`, `BB_ICN_BAL` templates mode 2 + 4.
+
+### IBB-33 — Co-expressions
+
+- [ ] `BB_ICN_COEXP_CREATE`, `BB_ICN_COEXP_ACTIVATE`, `BB_ICN_COEXP_REFRESH` templates mode 2 + 4. BB graph for body + ucontext for transfer (per `ARCH-ICON.md` decision 2026-05-15).
+
+### IBB-34 — Remaining JCON `ir_a_*` constructs
+
+- [ ] Walk `.github/jcon_irgen.icn`'s 43 procedures, confirm full coverage. Add any missing kind as a separate rung-step.
+
+---
+
+## Closeout
+
+After IBB-34:
+
+- [ ] All Icon constructs lower exclusively via `lower_icn_bb`.
+- [ ] Legacy `lower_icn_new_*` functions deleted.
+- [ ] Legacy Icon arms in `bb_exec.c` shrink to one dispatch table OR are deleted entirely (mode-2 itself running flat x86 via templates).
+- [ ] `SM_BB_INVOKE` / `SM_BB_PUMP_PROC` / `SM_BB_ONCE_PROC` removed from Icon path (still present for other langs until their own BB ground-zero).
+- [ ] Watermark: "all programs PASS mode 2 + mode 4, byte-identical, FACT 0."
+
+---
+
+## Per-rung gate
 
 ```bash
 bash scripts/build_scrip.sh
-bash scripts/test_smoke_icon.sh              # PASS=5
-bash scripts/test_icon_all_rungs.sh          # PASS at/near watermark
-bash scripts/test_smoke_prolog.sh            # PASS=5
-bash scripts/test_smoke_unified_broker.sh    # PASS≥30
-grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -v _templates/ | grep -v emit_core | wc -l  # ==0
-grep -cF 'bb_exec_node(nd->α)' src/lower/bb_exec.c
-grep -cF 'bb_exec_node(nd->β)' src/lower/bb_exec.c
+
+# Functional gate
+SCRIP_ICN_BB=1 ./scrip --interp   /tmp/rung_NN.icn  > out_m2.txt
+SCRIP_ICN_BB=1 ./scrip --compile  /tmp/rung_NN.icn ; ./a.out  > out_m4.txt
+diff out_m2.txt out_m4.txt    # must be empty
+
+# SM-shape gate (Icon programs)
+SCRIP_ICN_BB=1 ./scrip --dump-sm /tmp/rung_NN.icn   # only SM_BB_RUN_THE_DAMN_ICON + SM_HALT
+
+# FACT gate
+grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ \
+  | grep -v _templates/ | grep -v emit_core | wc -l   # == 0
+
+# Legacy smoke gates (must hold throughout this work, run WITHOUT SCRIP_ICN_BB)
+bash scripts/test_smoke_icon.sh                # PASS=5
+bash scripts/test_smoke_prolog.sh              # PASS=5
+bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 ```
+
+Note: legacy `test_icon_all_rungs.sh` PASS count (194) was the wiped mode-2 watermark. It will be allowed to fall during transition. The new measurement is dual-mode program count.
+
+---
+
+## Watermark
+
+**Programs PASS, both modes, byte-identical.**
+
+| State | Programs PASS (mode 2 + mode 4 identical) | Notes |
+|-------|-------------------------------------------|-------|
+| IBB-0 ✅ | 0 | reset complete |
+| IBB-1 | 0 → 1 (`hello`) | mode 2 only at this rung |
+| IBB-3 | → 2 | mode 2 only |
+| IBB-4 | → 3 | mode 2 only |
+| IBB-5 | 3 (mode 2 + mode 4) | first dual-mode rung |
+| IBB-6 | 4 (dual) | |
+| IBB-7 | 5 (dual) — full test_icon.c | **flip default** |
+| IBB-22 | ~15 (dual) | user procs working |
+| IBB-34 | full Icon | legacy deleted |
 
 ---
 
 ## DO NOT
+
 - Touch SNOBOL4 / Snocone / Rebus / Raku / Prolog lower or BB families.
-- Touch BB_PAT_*.
-- Add fields to BB_t.
-- Use `nd->α` / `nd->β` as tree pointers for new Icon code.
-- Rely on POSIX `[αβ]` grep — use `grep -P` or fixed strings.
-- Stamp anything on `SM_BB_INVOKE.a[0]` — it's the α/β state flag at runtime. Use `a[2]`.
+- Use `SM_BB_INVOKE` for Icon programs going through `lower_icn_bb`.
+- Write `DESCR_t foo(void *zeta, int entry)` C Byrd box functions. See `GOAL-ICON-BB-NATIVE.md` banner.
+- Add fields to `BB_t`.
+- Walk SM or BB at runtime in modes 3/4 (FOUR FACTS).
 
 ---
 
@@ -123,29 +335,26 @@ grep -cF 'bb_exec_node(nd->β)' src/lower/bb_exec.c
 cd /home/claude/one4all
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
-bash scripts/test_smoke_icon.sh
-bash scripts/test_smoke_unified_broker.sh
-bash scripts/test_icon_all_rungs.sh
+bash scripts/test_smoke_icon.sh                # PASS=5
+bash scripts/test_smoke_prolog.sh              # PASS=5
+bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 ```
 
 ---
 
-## Architecture
+## In-progress notes (end of 2026-05-28 session)
 
-```
-.icn → icon_parse() → AST_t*
-  --interp   → execute_program() → interp_eval()        Mode 2 (SM+BB C walker, reference)
-  --run      → lower() → sm_codegen_x64() → exec        Mode 3 (in-proc, PROT_EXEC)
-  --compile  → lower() → sm_codegen_x64() → binary      Mode 4 (separate process)
-```
-
-## THE FOUR FACTS
-1. C WALKERS: MODE 2 ONLY.
-2. NO C WALKERS IN MODE 3/4.
-3. SM + BB DO NOT EXIST AT RUNTIME IN MODE 3/4.
-4. ONE x86 PRODUCER — templates only (FACT RULE).
-
----
-
-## File ownership
-`src/lower/lower_icn.c` · `src/lower/lower.c` (epilogue/every-scaffold) · `src/lower/bb_exec.c` · `src/emitter/{emit_bb.c,emit_sm.c,emit_core.c}` · `src/emitter/BB_templates/bb_*.cpp` · `src/emitter/SM_templates/sm_bb_switch.cpp` · `src/processor/sm_codegen.c` · `src/processor/sm_interp.c` · `baselines/icon-bb/`
+- IBB-0 closed.
+- IBB-1 steps 1–5 done in `one4all` (uncommitted at session end):
+  - `src/include/SM.h` — added `SM_BB_RUN_THE_DAMN_ICON` enum.
+  - `src/lower/sm_prog.c` — added opname.
+  - `src/processor/sm_interp.c` — added mode-2 handler.
+  - `src/emitter/emit_core.c` — added stub dispatch + is_dispatched membership.
+- Build green. Legacy smokes 5/5 + 5/5 + 36/17 — no regression.
+- **Next session picks up at IBB-1 step 6:** write `src/lower/lower_icn_bb.c` with `lower_icn_bb(CODE_t*) → BB_graph_t*`. Then step 7 (header), step 8 (hook in `lower.c` gated by `SCRIP_ICN_BB=1`), then steps 9–11 (gates), then commit.
+- Pointers for next session:
+  - `BB_alloc(N, BB_LANG_ICN)` creates a graph; set `bbg->entry`.
+  - `lower_icn_expr_node(bbg, tree)` lowers an expression node into the graph (existing, in `lower_icn.c`).
+  - `g_stage2.sm.bb_table[idx] = bbg; g_stage2.sm.bb_count++;` registers for `SM_BB_RUN_THE_DAMN_ICON` to find.
+  - Top-level lower entry: `lower_stmt` in `src/lower/lower.c`. Hook BEFORE the existing Icon path at line 133.
+  - For IBB-1's hello: AST shape is `STMT.subject = TT_PROC_DECL(name, params, body)` where `body = TT_PROGRAM(TT_FNC(write, "hello"))`. The TT_FNC lowers via existing `lower_icn_new_Call` to `BB_CALL` which `bb_exec.c case BB_CALL` already routes to the `write` builtin.
