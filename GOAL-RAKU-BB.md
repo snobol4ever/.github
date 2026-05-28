@@ -147,13 +147,13 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: ecd561b1 (RK-BB-SEGFAULT-CLUSTER bug 4 — lower_return Raku branch)
-.github: HEAD (handoff — bug 4 closed; SM_LOAD_FRAME mode-4 design analyzed, deferred)
+one4all: 3eece6a3 (RK-BB-SM-FRAME-MODE4 piece 1 scaffolding)
+.github: HEAD (handoff — pieces 4a/4b done + piece 1 scaffolded; wiring remains)
 corpus:  unchanged
 
-Gates at RK-BB-SEGFAULT-CLUSTER bug 4 (2026-05-27, Opus 4.7):
-  GATE-RK mode-2:  18/33  (+rk_subs, +rk_combinator)
-  GATE-RK4 mode-4: 15/33  HOLD
+Gates at RK-BB-SM-FRAME-MODE4 pieces 4a+4b+1-scaffold (2026-05-28, Opus 4.7):
+  GATE-RK mode-2:  18/33  HOLD
+  GATE-RK4 mode-4: 15/33  HOLD (will move once piece 1 wiring lands + frames run)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
@@ -163,13 +163,82 @@ Gates at RK-BB-SEGFAULT-CLUSTER bug 4 (2026-05-27, Opus 4.7):
   FACT RULE grep:  0
   Build:           clean
 
-rk_try_catch25 still fails (separate issue: try/CATCH-specific "Error 5 Undefined function";
-not return-value related — bug 4 fix didn't touch it as predicted).
+PROGRESS THIS SESSION (3 commits, all gates HOLD, no regressions):
+  piece 4a  d6fe17e2  rt_frame_enter/leave/load_frame/store_frame in libscrip_rt
+  piece 4b  7c9d4570  SM_LOAD_FRAME/STORE_FRAME x86 templates (sm_frame_slots.cpp)
+                       => ORIGINAL BLOCKER GONE: rk_subs mode-4 now emits zero
+                          UNHANDLED, emits LOAD_FRAME 0/1, ASSEMBLES CLEANLY.
+  piece 1   3eece6a3  rk_sub_lookup + rk_sub_label helpers (SCAFFOLDING, not wired)
+
+rk_subs mode-4 currently: assembles + runs but prints "Error 5 Undefined
+function" — callsite still does rt_call(name); body never entered. The two
+template wirings below complete the path.
+
+rk_try_catch25 still fails (separate try/CATCH issue, untouched).
 ```
 
-⛔ NEXT SESSION — RK-BB-SM-FRAME-MODE4 (SM_LOAD_FRAME / SM_STORE_FRAME mode-4 templates).
+⛔ NEXT SESSION — RK-BB-SM-FRAME-MODE4 piece 1 WIRING (the last mile).
 
-ARCHITECTURAL ANALYSIS COMPLETED THIS SESSION (Opus 4.7, 2026-05-27):
+Pieces 4a (runtime), 4b (slot templates), and the piece-1 helpers are DONE and
+committed. Two template edits remain to make Raku subs actually dispatch+return
+in mode-4. Helpers rk_sub_lookup(name)->nparams|-1 and rk_sub_label(d,sz,name)
+are declared in emit_sm.h / emit_bb.h and ready to call.
+
+  WIRE 1 — sm_jumps.cpp, sm_label_str, X86 MEDIUM_TEXT arm (currently
+    `return s_1asm("LABEL");`, pSM is `(void)`'d). Change to: if
+    rk_sub_lookup(pSM->a[0].s) >= 0, build label via rk_sub_label and return
+    s_directive("<label>:") + s_1asm("LABEL"). Else unchanged. Add
+    `#include "emit_bb.h"` (for rk_sub_label) and `#include "stage2.h"` inside
+    the extern "C" block (like sm_bb_calls.cpp). Stop `(void)pSM`.
+
+  WIRE 2 — sm_calls.cpp, sm_call_str, X86 MEDIUM_TEXT arm (currently emits
+    CALL_FN .Sx, n). Change to: int np = rk_sub_lookup(pSM->a[0].s); if np>=0,
+    return (using rk_sub_label for <lbl>):
+      s_2asm("mov", "edi, <np>")      ... but prefer a macro: see note below
+      + s_1asm("call rt_frame_enter@PLT")
+      + s_1asm("call <lbl>")
+      + s_1asm("call rt_frame_leave@PLT")
+    Else the existing CALL_FN path unchanged. Add includes as in WIRE 1.
+    NOTE on macro purity (FACT RULE): raw `mov edi,<imm>; call ...@PLT` text
+    is fine in MEDIUM_TEXT (it's assembler text, not hand-assembled bytes —
+    same as PUSH_INT's macro body). But to stay consistent with the codebase
+    style, consider a MEDIUM_MACRO_DEF arm `.macro RK_CALL np, lbl` emitting
+    the 4 lines, and MEDIUM_TEXT emits `RK_CALL <np>, <lbl>`. Register that
+    macro in emit_sm.c one_per_group (add SM_CALL_FN already present? it is:
+    SM_CALL_FN is in one_per_group — but the RK_CALL macro is a NEW macro, so
+    either fold it into the existing CALL_FN macro-def arm in sm_calls.cpp or
+    add a dedicated prelude entry). SIMPLEST: emit the 4 raw text lines
+    directly in MEDIUM_TEXT (no new macro); proven safe for PLT calls.
+
+  ARG ORDER: callsite pushes args source-order (arg0 deepest). rt_frame_enter
+    pops nparams and writes slot[nparams-1-i] so slot0=arg0. Already handled in
+    rt.c piece 4a — do NOT re-reverse at the callsite.
+
+  CALL/RET: SM_RETURN = bare `ret` (verified). The `call .Lrksub_<name>` pushes
+    return addr; the body's SM_RETURN `ret`s back. Retval left on vstack by the
+    bug-4 lower_return LANG_RAKU branch. rt_frame_leave runs AFTER the call
+    returns (at callsite), so SM_RETURN stays untouched. NO new SM opcodes.
+
+  G_IN_DEFINE_BODY HAZARD: verified SM_RETURN emits `pop rbp` only under
+    g_in_define_body. Confirm it is FALSE during Raku skeleton emission (Raku
+    subs entered via plain `call`, no rbp prologue). If a `pop rbp` appears in
+    a Raku sub body in the .s, that is the bug — gate it out.
+
+  AFTER WIRING — verify in order:
+    1. ./scrip --compile --target=x86 rk_subs.raku | grep -c UNHANDLED  (==0)
+    2. grep '.Lrksub_double:' in the .s (label defined once)
+    3. grep 'call .Lrksub_double' in the .s (callsite present)
+    4. bash scripts/run_raku_via_x86_backend.sh $PWD/test/raku/rk_subs.raku
+       expect: 14 / hello raku / 7 / positive / zero / negative
+    5. ALL gates: GATE-RK4 (expect +1+ → rk_subs, maybe rk_combinator),
+       Icon mode-4 5/5 HOLD, broker 198 HOLD, smokes 5/5/13/5 HOLD, FACT 0.
+  Commit as "piece 1 WIRING" only when run output matches + no regressions.
+
+  RECURSION/NESTED-CALL SANITY: rk_subs has classify() calling nothing nested
+    but main() calls 5 subs. After it passes, test a recursive Raku sub
+    (factorial) to confirm the fixed 256-frame stack + call/ret nesting holds.
+
+ORIGINAL FULL DESIGN (4 pieces) retained below for context.
 
 The mode-4 x86 backend has ZERO frame-slot mechanism. `emit_sm.c:1076` emits the literal
 text `"UNHANDLED SM_LOAD_FRAME"` for unrecognized opcodes — when the assembler hits this
