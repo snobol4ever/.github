@@ -56,8 +56,8 @@ Step 10a is the architectural pre-work that splits across multiple `_ag` lowerer
 | 10a-1 ✅ | If_ag (cond/then/else) | `a9b326f0` |
 | 10a-2 ✅ | Conjunction_ag (left/right) | `6992c58d` (broker 30→34) |
 | 10a-3 ✅ | Alt_ag (arms) | `d181c92e` |
-| 10a-4 | Every_ag (gen for non-TO; body) | TODO |
-| 10a-5 | Binop_ag (lhs/rhs) | TODO |
+| 10a-4 | Every_ag (gen for non-TO; body) | BLOCKED — see note below |
+| 10a-5 ✅ | Binop_ag (lhs/rhs) | this session (rungs 198, broker 34) |
 | 10a-6 | Lconcat_ag (lhs/rhs) | TODO |
 | 10a-7 | Section_ag (base/i1/i2) | TODO |
 | 10a-8 | Idx_ag (base/idx) | TODO |
@@ -67,8 +67,11 @@ Step 10a is the architectural pre-work that splits across multiple `_ag` lowerer
 
 Each 10a-N is independent and zero-impact when applied alone (legacy executor recursion still handles operand eval) — commit each separately, gate ≥198 throughout.
 
-### Next: Step 10a-2 — Conjunction_ag
-Mirror this session's If_ag pattern: replace `lower_icn_expr_node` with `lower_icn_expr_threaded_b` for left and right, capture α_out, wire `left.γ = right_entry` and `right.γ = nd` (or carefully, since the existing wiring already does `left.γ = right; right.γ = nd` — the change is to use right_entry as the wire target when right is threaded). Test smoke + rungs hold at 198.
+### ⚠️ Step 10a-4 (Every_ag) — BLOCKED, NOT zero-impact (Opus 4.7, 2026-05-28)
+Bisected thoroughly: threading the non-TO gen and/or body via `lower_icn_expr_threaded_b` REGRESSES rungs (198→190/191/194 across variants; `rung13_table_iterate` = `every v := !t do write(v)` goes silent). Unlike If/Conjunction/Alt (forward continuations), EVERY's flat-wire gate (`nd->ival==1`, `bb_exec.c:1414`) builds a CYCLIC graph: body's γ/ω ports are reused as loop back-edges (`gen.γ=body; body.γ=gen; body.ω=gen; gen.ω=nd`). When `threaded_b` Family 2 deep-threads the body BB_CALL's args (`ax->γ=nd`), the chain-walker path AND BB_CALL's own executor arg-recursion DOUBLE-EVALUATE the generator-resume → desync → no output. `gen->γ` targeting the apply node skips arg eval; targeting the entry double-evals. **Conclusion: 10a-4 is entangled with executor behavior and effectively requires Step 10b (ring-peek replacing executor recursion) FIRST.** Defer 10a-4 until after 10b lands the ring-peek, OR special-case the flat-wire executor (`bb_exec.c` BB_EVERY `ival==1` branch) to suppress BB_CALL arg-recursion when the body was threaded. All attempts reverted to clean 198.
+
+### Next: Step 10a-6 — Lconcat_ag
+Mirror this session's Binop_ag (10a-5) pattern exactly: replace `lower_icn_expr_node` with `lower_icn_expr_threaded_b` for lhs and rhs, capture α_out as `lhs_entry`/`rhs_entry`, wire `lhs->γ = rhs_entry` and `rhs->γ = nd`, set `α_out = lhs_entry`. Lconcat_ag is a forward 2-operand chain (same shape as Binop_ag) — clean, zero-impact. Then 10a-7 Section_ag (3-operand: base/i1/i2 forward chain), 10a-8 Idx_ag, 10a-9 Idx_set_ag, 10a-10 ToBy_ag verify. Gate rungs ≥198, broker ≥34 each.
 
 Acceptance (whole migration):
 1. `grep -nE 'bb_operand_aux_set' src/lower/lower_icn.c | wc -l` == 0
@@ -127,7 +130,7 @@ bash scripts/test_icon_all_rungs.sh        # PASS=198
 
 ---
 
-**WATERMARK:** one4all `d181c92e`. Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Step 10a-1 ✅ (If_ag) · 10a-2 ✅ (Conjunction_ag, broker 30→34) · 10a-3 ✅ (Alt_ag). Next: **Step 10a-4** — Every_ag (gen for non-TO via _threaded_b; body via _threaded_b) — note Every already threads TO/TO_BY gen; widen to non-TO gen + body. Gate: rungs 198, broker ≥34.
+**WATERMARK:** one4all `c6529c75`. Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Step 10a-1 ✅ (If_ag) · 10a-2 ✅ (Conjunction_ag) · 10a-3 ✅ (Alt_ag) · **10a-5 ✅ (Binop_ag, this session)**. ⚠️ **10a-4 (Every_ag) BLOCKED** — not zero-impact (cyclic flat-wire + BB_CALL arg double-eval; needs 10b ring-peek first; see blocker note above). Next: **Step 10a-6** — Lconcat_ag (forward 2-operand chain, mirror Binop_ag). Gate: rungs 198, broker ≥34.
 
 ## File ownership
 `src/lower/lower_icn.c` · `src/lower/bb_exec.c` · `src/emitter/{emit_bb.c,emit_sm.c,emit_core.c}` · `src/emitter/BB_templates/bb_*.cpp` · `src/processor/sm_codegen.c` · `src/processor/sm_interp.c` · `baselines/icon-bb/`
