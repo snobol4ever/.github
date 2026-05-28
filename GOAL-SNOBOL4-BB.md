@@ -233,7 +233,7 @@ Rungs 044/045/046/048/052/054/055/056/057 fail m2 too. `bb_exec.c` doesn't imple
 LIT, ARB, LEN, POS/RPOS, TAB/RTAB, REM, ALT, CAT, FENCE, ABORT, EPS, FAIL, ANY, NOTANY, BREAK (plain), SPAN, ARBNO, CAPTURE, DEFER.
 
 **Templates with x86 BINARY arms filled:**
-LIT, LEN, POS, UPTO (ref). ANY (SBL-ANY-2, continued-15). NOTANY (SBL-NOTANY-2, 2026-05-28). BREAK plain (SBL-BREAK-2, 2026-05-28; BREAKX still stub). All others still stub.
+LIT, LEN, POS, UPTO (ref). ANY (SBL-ANY-2, continued-15). NOTANY (SBL-NOTANY-2, 2026-05-28). BREAK plain (SBL-BREAK-2, 2026-05-28; BREAKX still stub). **ALL of ANY/NOTANY/LEN/BREAK VERIFIED-BY-EXECUTION via `--run` (SBL-BREAK-VERIFY, 2026-05-28) — and BREAK no-terminator failure semantics corrected.** All others still stub.
 
 **Runtime translators:**
 - `patnd_to_bb_graph()` in `lower_pat_dcg.c` — runtime PATND_t→BB_graph_t parallel to `BB_lower_pat`. Gated by `patnd_needs_xlate` in `stmt_exec.c`. Covers XARBN-containing trees + simple-atom roots (XCHR/XSPNC/XBRKC/XBRKX/XANYC/XNNYC/XLNTH/XPOSI/XRPSI/XTB/XRTB/XFARB/XSTAR). Does NOT cover XNME/XFNME yet (SBL-XNME-XLATE pending pair with SBL-CAP-2).
@@ -260,11 +260,11 @@ LIT, LEN, POS, UPTO (ref). ANY (SBL-ANY-2, continued-15). NOTANY (SBL-NOTANY-2, 
 
 ```
 GATE-1 SNOBOL4 smoke        = 13/13 (mode-2 7/7 + mode-3 6/6)
-GATE-2 unified broker       = 30 (sibling-influenced)
+GATE-2 unified broker       = 34 (sibling-influenced)
 GATE-3 broad corpus mode-4  = 175/280
 GATE-4 broad corpus mode-2  = 238/280
 Rung suite                  = M2=19, M4=15, SKIP=0
-HEAD one4all                = e48a0ab1 (SBL-BREAK-2; NOTANY/BREAK BINARY arms UNVERIFIED-BY-EXECUTION — see handoff caveat)
+HEAD one4all                = 58c7cab9 (SBL-BREAK-VERIFY; ANY/NOTANY/LEN/BREAK BINARY arms now VERIFIED-BY-EXECUTION via --run)
 GATE-PK status              = stale (re-freeze deferred)
 ```
 
@@ -272,6 +272,7 @@ GATE-PK status              = stale (re-freeze deferred)
 
 ## Session log (terse)
 
+- **2026-05-28 Opus 4.7 (d) — SBL-BREAK-VERIFY ✅.** Resolved the prior caveat that NOTANY/BREAK BINARY arms were UNVERIFIED-BY-EXECUTION. Confirmed in `scrip.c` that `--run` forces `bb_live=1` → `bb_build_flat` writes MEDIUM_BINARY+WIRED into the sealed RX `bb_pool` slab and jumps in — so `--run` IS the harness that executes the new BINARY bytes (SM-level still `sm_interp_run`, but pattern BB nodes are flat-wired BINARY). Validated ANY/NOTANY/LEN BINARY arms under `--run`: all byte-correct vs C oracle AND SPITBOL (positive + negative cases). **BREAK: found a latent correctness bug** uniform across oracle + TEXT + BINARY: `BREAK(set)` with the terminator ABSENT from the subject must FAIL (SPITBOL), but the α-logic unconditionally succeeded after scanning to end-of-subject (SBL-BREAK-2 had faithfully mirrored the already-buggy TEXT semantics). Fixed in three coordinated edits: (1) `bb_exec.c` α — return ω when no break char found before Σlen; (2) `bb_pat_break.cpp` BINARY arm — retarget loop `jge` from success epilogue to a new `jmp ω` fail epilogue (183B, was 178; jge disp 66→114; 4th site at operand 179→ω); (3) `bb_pat_break.cpp` TEXT arm — route end-of-subject `jge` to `lbl_ω` instead of success `done`. Validated vs SPITBOL on 6 BREAK cases (positive, terminator-absent, terminator-at-first/last/end, long-no-terminator) across mode-2, mode-3 WIRED, AND mode-4 (standalone compiled binary + brokered runtime rebuild). All five gates hold at watermark (G1 13/13, G2 34, G3 175/280, G4 238/280, M2=19 M4=15), FACT RULE=0. HEAD `58c7cab9`. NEXT: ANY/NOTANY/LEN/BREAK now trustworthy — resume SBL-SPAN-2 with absolute-z_orig + GC-rooted scratch (register `rt_cs_t` as GC root — same facility SBL-CAP-2's saved_Δ needs), OR fill SBL-BREAKX-2 BINARY arm (now that the plain-BREAK BINARY layout is proven), validating each new arm under `--run`.
 - **2026-05-28 Opus 4.7 (c) — HANDOFF (partial, see caveats):** Session attempted SBL-SPAN-2 and clarified a mode misunderstanding. NET RESULT: no new code landed beyond (a)/(b); SPAN reverted.
   - **SBL-SPAN-2 ATTEMPTED, REVERTED.** Wrote SPAN BINARY arm; hit a wrong single-slot β algebra (z_orig must be ABSOLUTE, not [r10]-relative, because a sibling box in a concatenation mutates [r10] between α and β re-entry — the four-port driver does not auto-restore the cursor). Fixed by widening `rt_cs_t` with a second int (`delta2` @offset 12; `delta` stays @8 so BREAK unaffected). Then SPAN **segfaulted at runtime** (exit 139) even for a trivial matching span. Disassembly of the emitted bytes was CORRECT (internal jumps land right); `g_emit.bb_cs_zeta` was non-NULL/consistent at brokered build. Leading unconfirmed hypothesis: the `rt_cs_t` address is baked into the blob as imm64 the GC cannot see as a live reference → may be collected between build and execution. ALL SPAN + rt_cs_t + emit_bb debug changes were REVERTED to e48a0ab1. In-progress SPAN source saved at `/tmp/span_v2_inprogress.cpp` (NOT in repo).
   - **MODE MODEL CORRECTED (was confused all session).** Per ARCH-SCRIP.md + ARCH-IR.md + emit_core.h: emitter has THREE orthogonal axes — platform(x86/JVM/…), medium(TEXT/BINARY/MACRO_DEF), brokered flag(WIRED/BROKERED). Execution modes: **mode 2 `--interp`** = pure C oracle (`sm_interp_run`/`bb_exec.c`), NO codegen, BINARY arms never run. **mode 3 `--run`** = in-memory JIT, emits BINARY **WIRED** (`EMIT_BINARY_WIRED`), DOES exercise BINARY arms (except Prolog `--run` which still falls back to sm_interp_run per AGW-1c). **mode 4 `--compile`** = emit-time uses **TEXT** arms → GAS asm → gcc link; the standalone binary's linked rt then builds patterns at ITS runtime via `bb_build_brokered` = BINARY **BROKERED**.
