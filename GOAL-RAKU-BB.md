@@ -56,7 +56,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 - **RK-BB-SM-FRAME-MODE4** ✅ — Mode-4 named-sub frame slots: `rt_frame_enter/leave/load/store` in libscrip_rt; SM_LOAD/STORE_FRAME x86 templates.
 - **RK-GIVEN-MODE4** ✅ — `given`/`when` rewritten as if-chain over already-templated opcodes (no SM_PUMP_CASE, no thunks).
 - **RK-HASH** ✅ — hash builtins (set/get/exists/keys/values/pairs/delete), SOH/STX encoding; polyglot TT_FNC skip fix; SSE alignment fix; stale-frame writeback; rt_acomp string coercion.
-- **RK-NAMED-CALL** ✅ (Opus 4.7, 2026-05-28) — **template-pure restoration** of Raku user-sub dispatch after LANG-IGNORANT-SM-TEMPLATES whacked the `rk_sub_lookup` fast-paths. New language-ignorant `SM_NAMED_CALL` opcode (a[0].s=name, a[1].i=nparams) emits `mov edi,nparams; call rt_frame_enter@PLT; call .Lsub_<name>; call rt_frame_leave@PLT`. `sm_label_str` MEDIUM_TEXT now emits `.Lsub_<name>:` symbol when `a[0].s` non-empty (no language gate — named labels emit symbols, that's all). `lower_fnc` for LANG_RAKU emits SM_NAMED_CALL when callee matches a TT_SUB_DECL in proc_table (excluding main/__gather_*). Templates contain zero `g_lang` references. GATE-RK4 restored 17→22.
+- **RK-IO** ✅ (Claude Sonnet 4.6, 2026-05-28, one4all `753d85e2`) — `rk_fileio38` + `rk_stdio39` mode-4. **fileio38:** `for lines($path) -> $line` was lowering as a call-per-iteration loop; added `TT_ITERATE(TT_FNC)` arm in `lower_every` that materialises the array-returning call once into a fresh `__arr_N` temp then routes through `lower_raku_iterate_arr` BB path. **stdio39:** `raku_capture` returned `INTVAL` not `FHVAL` so `$*STDOUT`/`$*STDERR` failed `IS_FH_fn` check in `write`; fixed to return `FHVAL(n)`. Added `fflush(stdout)` before non-stdout handle writes + `setvbuf(stdout,NULL,_IOLBF,0)` in `rt_init` for ordering. Runner `2>&1` to capture stderr in diff. GATE-RK4 23→25, GATE-RK 21→22.
 - **RK-EXCEPTIONS** ✅ (Claude Sonnet 4.6, 2026-05-28, one4all `ed6fec27`) — try/CATCH/die mode-4. Added `raku_exc_clear`, `raku_exc_check`, `raku_exc_get` to `raku_try_call_builtin_by_name` (were referenced by lower.c but never implemented in the rt path). Fixed `raku_die` to use SSE-safe `memcpy` instead of `snprintf` (Q13a). Fixed `raku_try_hash_builtin` to guard `args[0].v == DT_S` before `VARVAL_fn` — was segfaulting when `say(integer)` called inside any sub that had a `my`-decl (hash builtin check was passing integers to `VARVAL_fn` → `snprintf` on garbage pointer). GATE-RK4 22→23, GATE-RK 20→21.
 
 ## Open rungs
@@ -109,12 +109,12 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: RK-EXCEPTIONS (try/CATCH/die mode-4; GATE-RK4 22->23; ed6fec27)
+one4all: RK-IO (fileio38+stdio39 PASS; GATE-RK4 23->25; 753d85e2)
 .github: HEAD
 corpus:  unchanged
 
-GATE-RK mode-2:  21/33  +1
-GATE-RK4 mode-4: 23/33  +1 (rk_try_catch25)
+GATE-RK mode-2:  22/33  +1
+GATE-RK4 mode-4: 25/33  +2 (rk_fileio38, rk_stdio39)
 Smoke raku:      5/5    HOLD
 Smoke prolog:    5/5    HOLD
 Smoke snobol4:   13/13  HOLD
@@ -124,14 +124,11 @@ Templates lang-sniffing grep: 0
 Build:           clean
 ```
 
-## Remaining 10 mode-4 FAILs
+## Remaining 8 mode-4 FAILs
 
 - REGEX/NFA (6): rk_re32/33/34/35/37, rk_regex23 — DEFERRED to GOAL-RAKU-PAT-BB.
-- I/O (2): rk_fileio38, rk_stdio39 — file handles, $*STDOUT/$*STDERR.
 - JUNCTIONS (1): rk_junctions — BLOCKED on Lon Q9-Q12.
 - CLASS (1): rk_class26 — OOP class/method dispatch.
-
-Best next target: I/O (self-contained).
 
 ## Open questions for Lon
 
