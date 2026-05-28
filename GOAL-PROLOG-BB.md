@@ -7,6 +7,9 @@
 
 **Pipeline:** `Prolog AST → lower_pl (AG-wired BB_t graph) → bb_exec.c (Mode 2/3) → bb_pl_*.cpp → x86 (Mode 4)`
 
+**Target model (read before CP work):** `one4all/doc/SWIPL-STUDY-2026-05-28-OPUS.md` —
+SWIPL engine study. The CP-stack model (idea #4) is the current track (WAM-CP rungs).
+
 **Three modes:**
 - **Mode 2 (`--interp`):** `sm_interp_run` → `SM_BB_SWITCH` → `pl_bb_dcg` → `bb_exec_once`. Correctness reference.
 - **Mode 3 (`--run`):** routes through `sm_interp_run` for Prolog (AGW-1c) until `bb_pl_*.cpp` templates land (AGW-9). DO NOT TOUCH.
@@ -26,7 +29,110 @@
 
 ---
 
-## ⏳ LOWER-PIVOT — lower_pl.c → one-function-per-node (Icon style) (2026-05-28, Opus 4.7) ← CURRENT
+## ⏳ WAM-CP — SWIPL-informed choice-point track (2026-05-28, Opus 4.7) ← CURRENT
+
+**Lon-directed PIVOT.** After studying SWI-Prolog's engine (`pl-data.h`, `pl-vmi.c`,
+`pl-wam.c`, `pl-incl.h`, `pl-index.c`) we have a target model. Full findings:
+`one4all/doc/SWIPL-STUDY-2026-05-28-OPUS.md`. The headline: our stashed CAT-A-3 r12
+resume-buffer is a *single choice-point record without the parent link* — the right
+instinct, wrong scope. SWIPL's `struct choice { type; parent; mark; frame; value }`
+on a parent-linked stack with one `BFR` backtrack register is the genuine article; it
+makes cut trivial (truncate to barrier), unifies `;`/multi-clause/retry under one
+primitive, and is the prerequisite for Last-Call Optimization (the principled fix for
+the SEGFAULT-CLUSTER). **Next session: study GNU Prolog (its WAM is closer to what we
+emit — register-based, compiled-to-native) before locking the CP record layout.**
+
+**Strategy: build the choice-point stack on TOP of our existing `Term*` boxes first
+(no tagged-word rewrite yet), so every rung is small and nothing breaks. The big
+tagged-word/global-stack migration (SWIPL idea #1) is a SEPARATE later track; the CP
+model is designed to survive it.** Each rung holds ALL gates green and is bisectable.
+
+### Dependency order (from the study)
+```
+WAM-CP-1  choice-point record + g_pl_bfr register (mode-2 first, Term* boxes)   ← foundation
+WAM-CP-2  route BB_CHOICE multi-clause through the CP stack (replaces nd->state scan)
+WAM-CP-3  route ;  (BB_PL_ALT) through the same CP stack
+WAM-CP-4  cut = truncate CP list to frame barrier (retire g_pl_cut_flag)
+WAM-CP-5  mode-4 emit: CP record is the r12 target (promote stashed CAT-A-3 buffer)
+WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?" → reuse frame)
+WAM-CP-7  unify specialization B_UNIFY_{FF,VF,FV,VV,FC,VC}  (independent speed; any time)
+WAM-CP-8  JIT first-arg indexing (needs CP model to know when a CP was elided)
+[LATER track] tagged-word terms + global stack (SWIPL #1/#3) — separate goal file when ready
+```
+
+### Rungs & steps
+
+- [ ] **WAM-CP-1 — choice-point record + `g_pl_bfr`, mode-2 only.** Add
+  `struct pl_choice { int type; struct pl_choice *parent; int trail_mark; Term **env;
+  void *resume; int cursor; }` + `g_pl_bfr` register + push/pop/truncate helpers in
+  `pl_runtime.c`. NOT wired to anything yet — pure substrate, zero behavior change.
+  Gate: full suite byte-identical (this commit changes NO output). Verify the struct
+  compiles into mode-2 and mode-4 builds. *Smallest possible first step.*
+  - Step A: define struct + register + `pl_cp_push/pop/truncate/current` (no callers).
+  - Step B: unit-assert the helpers in a throwaway test (push 3, truncate to 1, check).
+  - Step C: commit substrate. All gates unchanged (nothing calls it).
+
+- [ ] **WAM-CP-2 — BB_CHOICE multi-clause via CP stack (mode-2).** Replace the
+  `bb_active_choice` runtime scan (`bb_exec.c:849`, `nd->state>0`) with: on first entry
+  push a `pl_choice` (cursor=0, trail_mark=mark); on redo, `Undo` to `trail_mark`,
+  advance cursor, try next clause; on exhaustion pop the CP. Behavior-IDENTICAL to today
+  (same solutions, same order) — this is a refactor to the real model, not new semantics.
+  Gate: GATE-1 5/5, GATE-2 132/0, GATE-3 mode-2 91/107 UNCHANGED, sibling smokes hold.
+  - Step A: mode-2 BB_CHOICE arm pushes/reads CP instead of nd->state. Diff mode-2
+    outputs byte-identical vs HEAD across all 107 rungs.
+  - Step B: delete the now-dead `bb_active_choice` scan + `nd->state` choice bookkeeping
+    (keep nd->state for non-choice uses). Re-verify byte-identical.
+  - Step C: commit. GATE-3 mode-2 unchanged.
+
+- [ ] **WAM-CP-3 — `;` (BB_PL_ALT) via CP stack (mode-2).** Same treatment for
+  disjunction: left branch pushes a CP whose resume = right branch. Retires the
+  separate alt bookkeeping. Gate: mode-2 byte-identical, all gates hold.
+
+- [ ] **WAM-CP-4 — cut = truncate CP to barrier (mode-2).** Record the frame's CP
+  barrier on clause entry; `!` truncates `g_pl_bfr` to it. Retire `g_pl_cut_flag`.
+  This is where the CP model PAYS OFF — cut becomes one pointer assignment. Gate:
+  rung07 (cut) + all cut-using rungs byte-identical; GATE-3 mode-2 unchanged or up.
+
+- [ ] **WAM-CP-5 — mode-4 emit: CP record is the r12 target.** Promote the stashed
+  CAT-A-3 buffer (`git stash@{0}`) to emit/read a `pl_choice` record instead of the bare
+  5-qword pool buffer. The cursor-dispatcher in `bb_pl_choice.cpp` already has the right
+  shape; point it at `g_pl_bfr`. Det/nondet split in `bb_pl_call.cpp` stays; the
+  resumable path pushes a CP instead of `rt_pl_resume_alloc`. **This fixes the γ-leak**
+  (CP is on a stack the frame teardown truncates — no dangling r12). FACT RULE stays 0
+  (all bytes template-emitted). Gate: GATE-4 4/4 incl m4-choice, full mode-4 ≥ 28 +
+  rung02/05/06/08 (expected mid-30s–45), GATE-1/2/3 unchanged, FACT RULE 0.
+  - Step A: rebuild stash on current HEAD; apply the rt.h `Term`→`void*` fix (the one
+    pending build error from the pre-pivot session: `rt_pl_env_current` decl in rt.h).
+  - Step B: swap pool-buffer for CP-record push/pop; m4-choice canary must pass.
+  - Step C: rung02/05/06/08 via x86 backend → PASS. Full mode-4 loop.
+  - Step D: GATE-1/2/3 + sibling smokes + FACT RULE grep. Commit.
+
+- [ ] **WAM-CP-6 — Last-Call Optimization.** At the last goal of a clause body, if
+  `g_pl_bfr` is older than the current frame (no CP created since entry) and the call is
+  deterministic, reuse the frame instead of pushing. Mode-2 first, then mode-4. This is
+  the principled fix for the SEGFAULT-CLUSTER (deep tail recursion). Gate: a tail-rec
+  rung (e.g. `count(0). count(N):-N>0,N1 is N-1,count(N1).` to 1e6) runs in O(1) stack.
+
+- [ ] **WAM-CP-7 — unify specialization (independent, any time).** Lower the common
+  unify shapes (var-vs-const, first-occurrence-var, var-vs-var) into distinct BB nodes
+  with tiny templates instead of routing all through generic `unify()`. Pure speed,
+  fully independent of CP work. Gate: byte-identical solutions, faster.
+
+- [ ] **WAM-CP-8 — JIT first-arg clause indexing.** Build a first-argument hash index
+  on multi-clause predicates so `p(b)` against `p(a)./p(b)./p(c).` jumps to clause 2 with
+  NO choice point. Needs the CP model to know when a CP was elided. Big determinism +
+  speed lever. Gate: indexed predicates produce identical solutions; semidet calls leave
+  no CP (assert g_pl_bfr unchanged across a deterministic indexed call).
+
+### Decision recorded
+Stashed CAT-A-3 B–C (`git stash@{0}`, r12 buffer) is NOT abandoned — it is absorbed by
+WAM-CP-5, which reuses its emit machinery (cursor-dispatcher, det/nondet split, _redo
+trampoline) but backs it with the real CP record. The buffer-in-isolation γ-leak and
+cut gaps are resolved by the stack model rather than patched.
+
+---
+
+## ⏳ LOWER-PIVOT — lower_pl.c → one-function-per-node (Icon style) (2026-05-28, Opus 4.7) — COMPLETE, superseded by WAM-CP
 
 **Lon-directed PIVOT.** Migrate `lower_pl.c` from the ~460-line `lower_pl_goal`
 mega-switch to Icon's named per-node builders (`lower_icn.c`'s `lower_icn_new_*_ag`,
