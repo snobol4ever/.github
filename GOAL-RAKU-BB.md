@@ -106,6 +106,8 @@ Never add `raku_seq_pull` / `rk_take_yield` / `raku_grep_step` / junction dispat
 
 - [ ] **RK-BB-4-frontend** — pending Lon directive on Q9–Q12. Best case (path b): lexer + grammar + new TT_JUNCT_* kinds + `lower_raku_junction` eager SM mirror of RK-BB-3.0+3d. Worst case (path a): substrate-first — BB_ALT mode-2 executor + bb_alt.cpp mode-4 template + then frontend.
 
+- [x] **RK-BB-SM-FRAME-MODE4** ✅ — Opus 4.7, 2026-05-28. Mode-4 named-sub dispatch+return. Pieces 4a (rt_frame_enter/leave/load/store in libscrip_rt, `d6fe17e2`), 4b (SM_LOAD/STORE_FRAME x86 templates, `7c9d4570`), 1-scaffold (rk_sub_lookup/rk_sub_label helpers, `3eece6a3`), and **1-WIRING** (`18c4820f`): sm_label_str emits `.Lrksub_<name>:`; sm_call_str emits `mov edi,np; call rt_frame_enter@PLT; call .Lrksub_<name>; call rt_frame_leave@PLT` for Raku user-subs (builtins fall through to CALL_FN/rt_call); void subs push SM_PUSH_NULL before trailing SM_RETURN for callsite VOID_POP balance. rk_subs == .expected. Recursion fact(5)=120, nested outer(4)=50. GATE-RK4 15→18 (+rk_subs/rk_combinator/rk_interp). All other gates HOLD. FACT RULE 0.
+
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers, one rung each. `zip`/`cross` = multi-Seq drivers (later).
 
 ## Rung methodology (mostly REUSE)
@@ -147,96 +149,58 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: 3eece6a3 (RK-BB-SM-FRAME-MODE4 piece 1 scaffolding)
-.github: HEAD (handoff — pieces 4a/4b done + piece 1 scaffolded; wiring remains)
+one4all: 18c4820f (RK-BB-SM-FRAME-MODE4 piece 1 WIRING — Raku subs dispatch+return mode-4)
+.github: HEAD (handoff — wiring landed; GATE-RK4 15->18)
 corpus:  unchanged
 
-Gates at RK-BB-SM-FRAME-MODE4 pieces 4a+4b+1-scaffold (2026-05-28, Opus 4.7):
+Gates at RK-BB-SM-FRAME-MODE4 WIRING DONE (2026-05-28, Opus 4.7):
   GATE-RK mode-2:  18/33  HOLD
-  GATE-RK4 mode-4: 15/33  HOLD (will move once piece 1 wiring lands + frames run)
+  GATE-RK4 mode-4: 18/33  +3 (rk_subs, rk_combinator, rk_interp now pass)
   Smoke raku:      5/0    HOLD
   Smoke icon:      5/5    HOLD
   Smoke prolog:    5/5    HOLD
   Smoke snobol4:   13/0   HOLD
-  Broker Icon:     198    HOLD
-  GATE-PK: ⛔ harness segfault — INHERITED. Owed: SBL-ANY session.
+  Broker Icon:     198    HOLD (test_icon_all_rungs PASS=198)
+  Icon mode-4:     5/5    HOLD
+  GATE-PK: ⛔ harness segfault — INHERITED (not this goal).
   FACT RULE grep:  0
   Build:           clean
 
-PROGRESS THIS SESSION (3 commits, all gates HOLD, no regressions):
-  piece 4a  d6fe17e2  rt_frame_enter/leave/load_frame/store_frame in libscrip_rt
-  piece 4b  7c9d4570  SM_LOAD_FRAME/STORE_FRAME x86 templates (sm_frame_slots.cpp)
-                       => ORIGINAL BLOCKER GONE: rk_subs mode-4 now emits zero
-                          UNHANDLED, emits LOAD_FRAME 0/1, ASSEMBLES CLEANLY.
-  piece 1   3eece6a3  rk_sub_lookup + rk_sub_label helpers (SCAFFOLDING, not wired)
+PROGRESS THIS SESSION (1 commit, all gates HOLD/improve, no regressions):
+  WIRING  18c4820f  Two template edits + one void-sub lowering fix:
+    - sm_jumps.cpp sm_label_str: .Lrksub_<name>: emitted at named SM_LABEL
+      site when rk_sub_lookup(name)>=0. Includes stage2.h + emit_bb.h added.
+    - sm_calls.cpp sm_call_str: mov edi,np; call rt_frame_enter@PLT;
+      call .Lrksub_<name>; call rt_frame_leave@PLT for Raku user-subs;
+      builtins fall through to unchanged CALL_FN/rt_call path. Same includes.
+    - lower.c lower_proc_skeletons: void Raku subs push SM_PUSH_NULL before
+      trailing SM_RETURN (call-as-stmt VOID_POP balance). Value-returning subs
+      ret early, unaffected.
 
-rk_subs mode-4 currently: assembles + runs but prints "Error 5 Undefined
-function" — callsite still does rt_call(name); body never entered. The two
-template wirings below complete the path.
+rk_subs mode-4: 14 / hello raku / 7 / positive / zero / negative == .expected.
+RECURSION VERIFIED: fact(5)=120 (256-frame stack + call/ret nesting holds).
+NESTED CALLS VERIFIED: outer(4)=inner(4)*10=50.
 
 rk_try_catch25 still fails (separate try/CATCH issue, untouched).
 ```
 
-⛔ NEXT SESSION — RK-BB-SM-FRAME-MODE4 piece 1 WIRING (the last mile).
+⛔ NEXT SESSION — RK-BB-SM-FRAME-MODE4 is FUNCTIONALLY COMPLETE for named subs.
 
-Pieces 4a (runtime), 4b (slot templates), and the piece-1 helpers are DONE and
-committed. Two template edits remain to make Raku subs actually dispatch+return
-in mode-4. Helpers rk_sub_lookup(name)->nparams|-1 and rk_sub_label(d,sz,name)
-are declared in emit_sm.h / emit_bb.h and ready to call.
+Remaining mode-4 Raku FAILs (15) to triage next, likely candidates:
+  - rk_try_catch25 — try/CATCH (separate exception-machinery issue, pre-existing).
+  - Inspect the other failing goldens via:
+      for f in test/raku/*.raku; do
+        b=$(basename "$f" .raku)
+        bash scripts/run_raku_via_x86_backend.sh "$f" 2>&1 \
+          | diff - "test/raku/$b.expected" >/dev/null 2>&1 \
+          && echo "PASS $b" || echo "FAIL $b"
+      done
+  - Group failures by construct; each is its own rung.
 
-  WIRE 1 — sm_jumps.cpp, sm_label_str, X86 MEDIUM_TEXT arm (currently
-    `return s_1asm("LABEL");`, pSM is `(void)`'d). Change to: if
-    rk_sub_lookup(pSM->a[0].s) >= 0, build label via rk_sub_label and return
-    s_directive("<label>:") + s_1asm("LABEL"). Else unchanged. Add
-    `#include "emit_bb.h"` (for rk_sub_label) and `#include "stage2.h"` inside
-    the extern "C" block (like sm_bb_calls.cpp). Stop `(void)pSM`.
-
-  WIRE 2 — sm_calls.cpp, sm_call_str, X86 MEDIUM_TEXT arm (currently emits
-    CALL_FN .Sx, n). Change to: int np = rk_sub_lookup(pSM->a[0].s); if np>=0,
-    return (using rk_sub_label for <lbl>):
-      s_2asm("mov", "edi, <np>")      ... but prefer a macro: see note below
-      + s_1asm("call rt_frame_enter@PLT")
-      + s_1asm("call <lbl>")
-      + s_1asm("call rt_frame_leave@PLT")
-    Else the existing CALL_FN path unchanged. Add includes as in WIRE 1.
-    NOTE on macro purity (FACT RULE): raw `mov edi,<imm>; call ...@PLT` text
-    is fine in MEDIUM_TEXT (it's assembler text, not hand-assembled bytes —
-    same as PUSH_INT's macro body). But to stay consistent with the codebase
-    style, consider a MEDIUM_MACRO_DEF arm `.macro RK_CALL np, lbl` emitting
-    the 4 lines, and MEDIUM_TEXT emits `RK_CALL <np>, <lbl>`. Register that
-    macro in emit_sm.c one_per_group (add SM_CALL_FN already present? it is:
-    SM_CALL_FN is in one_per_group — but the RK_CALL macro is a NEW macro, so
-    either fold it into the existing CALL_FN macro-def arm in sm_calls.cpp or
-    add a dedicated prelude entry). SIMPLEST: emit the 4 raw text lines
-    directly in MEDIUM_TEXT (no new macro); proven safe for PLT calls.
-
-  ARG ORDER: callsite pushes args source-order (arg0 deepest). rt_frame_enter
-    pops nparams and writes slot[nparams-1-i] so slot0=arg0. Already handled in
-    rt.c piece 4a — do NOT re-reverse at the callsite.
-
-  CALL/RET: SM_RETURN = bare `ret` (verified). The `call .Lrksub_<name>` pushes
-    return addr; the body's SM_RETURN `ret`s back. Retval left on vstack by the
-    bug-4 lower_return LANG_RAKU branch. rt_frame_leave runs AFTER the call
-    returns (at callsite), so SM_RETURN stays untouched. NO new SM opcodes.
-
-  G_IN_DEFINE_BODY HAZARD: verified SM_RETURN emits `pop rbp` only under
-    g_in_define_body. Confirm it is FALSE during Raku skeleton emission (Raku
-    subs entered via plain `call`, no rbp prologue). If a `pop rbp` appears in
-    a Raku sub body in the .s, that is the bug — gate it out.
-
-  AFTER WIRING — verify in order:
-    1. ./scrip --compile --target=x86 rk_subs.raku | grep -c UNHANDLED  (==0)
-    2. grep '.Lrksub_double:' in the .s (label defined once)
-    3. grep 'call .Lrksub_double' in the .s (callsite present)
-    4. bash scripts/run_raku_via_x86_backend.sh $PWD/test/raku/rk_subs.raku
-       expect: 14 / hello raku / 7 / positive / zero / negative
-    5. ALL gates: GATE-RK4 (expect +1+ → rk_subs, maybe rk_combinator),
-       Icon mode-4 5/5 HOLD, broker 198 HOLD, smokes 5/5/13/5 HOLD, FACT 0.
-  Commit as "piece 1 WIRING" only when run output matches + no regressions.
-
-  RECURSION/NESTED-CALL SANITY: rk_subs has classify() calling nothing nested
-    but main() calls 5 subs. After it passes, test a recursive Raku sub
-    (factorial) to confirm the fixed 256-frame stack + call/ret nesting holds.
+OPTIONAL HARDENING (not blocking): rt_load_frame/rt_store_frame already exist
+(piece 4a) and SM_LOAD_FRAME/STORE_FRAME templates exist (piece 4b); deeper
+recursion / >RT_FRAME_SLOT_MAX-param stress untested but architecturally bounded
+(RT_FRAME_STACK_MAX=256, RT_FRAME_SLOT_MAX=64).
 
 ORIGINAL FULL DESIGN (4 pieces) retained below for context.
 
