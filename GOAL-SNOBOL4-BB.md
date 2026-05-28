@@ -95,7 +95,13 @@ bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=19, M4=15, SKIP=0
   - JA-D-1 `c352bf4d` stubbed the `--run` call site; JA-D-4/5/6 (`b14a3312`, `e842b724`) finished the sweep ("zero jit occurrences remain").
   - **Transcription rule for revival:** do NOT copy `emit_standard_blob`/`SL_B`/`bake_blob_call` verbatim — those violate FACT RULE. Re-express the per-opcode x86 as SM_templates BINARY arms (the `MEDIUM_BINARY` arms already stubbed in all 15 `SM_templates/*.cpp`), driven by `codegen_sm_x86` in a BINARY medium, sealed via `sm_image`/`seg_seal`. The deleted `h_*`/`sl_*` bodies are the SEMANTIC SPEC for those arms.
 
-**SCOPE: this is a foundational engine build, not a dispatch-arm tweak.** Mode 3 must: emit SM as x86 BINARY (via `codegen_sm_x86` BINARY medium) into `sm_image`, seal RX, jump in; BB boxes flat-wired into `bb_pool`, CALLED FROM the SM native code (not from C). No `sm_interp_run`, no `bb_exec_*` on the mode-3 path.
+**SCOPE: this is a foundational engine build, not a dispatch-arm tweak.**
+
+**WHY TWO ENGINES EXISTED, AND WHY THERE MUST BE ONE (Lon, 2026-05-28):** the deleted file had TWO competing SM→native strategies, both deleted for the SAME FACT-RULE violation (bytes emitted outside templates):
+- **Engine A "trampoline"** (`SM_codegen`+`sm_jit_run`): per-opcode `bake_blob_call` emits glue `mov rdi,imm64; call h_<op>; jmp tramp` dispatched via a `g_handlers[107]` fn-ptr table of 44 `h_*` C handlers. = a threaded interpreter in native costume; the real work stayed in C. Used forbidden `bake_blob_call`/`emit_standard_blob`.
+- **Engine B "SB-LINEAR"** (`sm_emit_linear`+`sm_run_linear`): `sl_emit_one` emits x86 STRAIGHT-LINE, inline, opcode-by-opcode — a genuine native blob, no C-handler trampoline. The TRUE model (ARCH-SCRIP end-state). Used forbidden `SL_B`/`sl_call`/`sl_mov_*`.
+
+**DECISION: ONE engine, the SB-LINEAR straight-line model, with `SM_templates/*.cpp` BINARY arms as the SOLE byte source** (replacing `sl_emit_one`'s raw `SL_B`). NOT Engine A (its C-handler trampoline is just interpretation). The template-pure path ALREADY PARTLY EXISTS: e.g. `sm_halt.cpp` MEDIUM_BINARY arm emits `movabs rax,&rt_halt_tos; call rax` via `bytes()+u64le()` — real x86 through the template system. So M3-NATIVE = (a) build the DRIVER/RUNNER (template-pure `sm_emit_linear`/`sm_run_linear` equivalent: drive `codegen_sm_x86`(BINARY) over the SM array, each opcode → its SM_templates BINARY arm → `sm_image`, seal RX, jump in); (b) fill any stub SM_templates BINARY arms (deleted `h_*`/`sl_*` bodies = semantic spec). BB boxes flat-wired in `bb_pool`, CALLED from the native SM code. No `sm_interp_run`, no `bb_exec_*`, no `bake_blob_call`/`SL_B` on the mode-3 path.
 
 **Steps:**
 
