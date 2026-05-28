@@ -61,6 +61,17 @@ Use `grep -P` or fixed-strings. POSIX `[αβ]` doesn't match UTF-8 → false 0.
 ## Next options
 
 1. **Recover the missing 54 rungs.** Real lowering bugs in `every <expr>` as the last statement of a proc — the `SM_PUSH_NULL` (every-as-expression result) followed by stranded `SM_VOID_POP` swallows the subsequent `return total`'s value. Was masked when `SM_BB_PUMP_PROC` bypassed SM. Affects rung02/03/13/14/22/31/32/33 patterns.
+
+   **DIAGNOSIS (Opus 4.7, 2026-05-28, analysis-only, no commit):** `rung32_strretval_basic_strret` reduces to a 6-line repro: `procedure greet(name); return name; end; procedure main(); write(greet("world")); end` → prints `name` instead of `world`. SM dump shows `SM_PUSH_VAR "name"` inside `greet` body — should be `SM_LOAD_FRAME 0` (param slot 0). Bug is in `src/lower/lower.c::emit_var_load` (line 128): the LANG_ICN proc-as-value fallback at lines 138-143 fires **before** the `scope_get(g_proc_scope, vn)` check at line 145. So any parameter or local that happens to satisfy `icn_proc_as_value(vn).v == DT_S` (i.e. the resolver thinks the identifier *could* be a proc reference) gets emitted as `SM_PUSH_VAR` and the frame slot is never consulted. Parameters/locals must shadow proc names — check the scope first. **Proposed reorder:**
+   ```c
+   if (g_in_proc_body && g_proc_scope && vn[0] && vn[0] != '&') {
+       int slot = scope_get(g_proc_scope, vn);
+       if (slot >= 0) { SM_emit_i(g_p, SM_LOAD_FRAME, slot); return; }  /* shadow first */
+       if (g_lang == LANG_ICN) { /* existing proc-as-value fallback */ }
+   }
+   SM_emit_s(g_p, SM_PUSH_VAR, vn);
+   ```
+   Pure SM-lowering reorder. Zero x86 bytes touched. Templates untouched. FACT-clean. Expected to recover most of rung36_jcon_* family (heavy parameter usage) plus rung32_basic_strret, rung08/16/22 patterns where param names collide with the proc-resolver's eager match. Quick gate after fix: `procedure greet(name); return name; end; procedure main(); write(greet("world")); end` must print `world`. Then smoke 5/5, then rungs (target: 170 → 190+). NOT-YET-VERIFIED that this reorder doesn't regress the proc-as-first-class-value paths that originally motivated the early-out — needs a test where an *un-shadowed* proc name is read inside a body (e.g. assigning `f := some_other_proc` where `some_other_proc` is not a local/param). The reorder preserves that path (falls through to LANG_ICN block when slot < 0) so it should be safe.
 2. **MODE3 (`--run`) BB_CALL/EVERY native parity** — mode-2 + mode-3 already verified for migrated constructs.
 3. **Migrate remaining loop kinds** (WHILE/UNTIL/REPEAT/CASE/SCAN) — would zero out the 45+30 legacy α/β calls.
 4. **Generator-body Every_ag** — last legacy-path exclusion; needs flat-wire scheme for suspending body w/o BB_SEQ_EXPR head/tail trap.
