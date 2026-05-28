@@ -55,7 +55,7 @@ Step 10a is the architectural pre-work that splits across multiple `_ag` lowerer
 |----------|---------|--------|
 | 10a-1 ✅ | If_ag (cond/then/else) | `a9b326f0` |
 | 10a-2 ✅ | Conjunction_ag (left/right) | `6992c58d` (broker 30→34) |
-| 10a-3 | Alt_ag (arms) | TODO |
+| 10a-3 ✅ | Alt_ag (arms) | `d181c92e` |
 | 10a-4 | Every_ag (gen for non-TO; body) | TODO |
 | 10a-5 | Binop_ag (lhs/rhs) | TODO |
 | 10a-6 | Lconcat_ag (lhs/rhs) | TODO |
@@ -127,7 +127,7 @@ bash scripts/test_icon_all_rungs.sh        # PASS=198
 
 ---
 
-**WATERMARK:** one4all `6992c58d`. Gates: smoke_icon 5/5 · broker **34** (↑ from 30 at 10a-2) · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Step 10a-1 ✅ (If_ag) · 10a-2 ✅ (Conjunction_ag). Next: **Step 10a-3** — Alt_ag (arms) via _threaded_b (gate: rungs 198, broker ≥34 must hold). NOTE new broker watermark is 34.
+**WATERMARK:** one4all `d181c92e`. Gates: smoke_icon 5/5 · broker **34** · rungs 198 · smoke_prolog 5/5 · FACT RULE 0. Step 10a-1 ✅ (If_ag) · 10a-2 ✅ (Conjunction_ag, broker 30→34) · 10a-3 ✅ (Alt_ag). Next: **Step 10a-4** — Every_ag (gen for non-TO via _threaded_b; body via _threaded_b) — note Every already threads TO/TO_BY gen; widen to non-TO gen + body. Gate: rungs 198, broker ≥34.
 
 ## File ownership
 `src/lower/lower_icn.c` · `src/lower/bb_exec.c` · `src/emitter/{emit_bb.c,emit_sm.c,emit_core.c}` · `src/emitter/BB_templates/bb_*.cpp` · `src/processor/sm_codegen.c` · `src/processor/sm_interp.c` · `baselines/icon-bb/`
