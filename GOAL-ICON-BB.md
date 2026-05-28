@@ -56,37 +56,36 @@ Step 10a is the architectural pre-work that splits across multiple `_ag` lowerer
 | 10a-1 ✅ | If_ag (cond/then/else) | `a9b326f0` |
 | 10a-2 ✅ | Conjunction_ag (left/right) | `6992c58d` (broker 30→34) |
 | 10a-3 ✅ | Alt_ag (arms) | `d181c92e` |
-| 10a-4 | Every_ag (gen for non-TO; body) | PARTIAL ✅ `5d5bf85d` — streaming gens (`!t`/`!L`/`key`/alt) flat-wire via ival=2; static-TO + block (BB_SEQ_EXPR) bodies stay legacy by design |
+| 10a-4 | Every_ag (gen for non-TO; body) | ✅ `09353f25` (streaming gens via ival=2) + `295108a4` (BB_SEQ_EXPR block bodies via reset-shim, break/next honored). Only generator-bodies (`lic_is_gen_node(body)`) remain on the legacy path. |
 | 10a-5 ✅ | Binop_ag (lhs/rhs) | this session (rungs 198, broker 34) |
 | 10a-6 ✅ | Lconcat_ag (lhs/rhs) | this session (rungs 198, broker 34) |
 | 10a-7 ✅ | Section_ag (base/i1/i2) | this session (rungs 198, broker 34) |
 | 10a-8 ✅ | Idx_ag (base/idx) | this session (rungs 198, broker 34) |
 | 10a-9 ✅ | Idx_set_ag (base/idx/rhs) | this session (rungs 198, broker 34); new `_ag` variant + threaded_b early-exit; executor AG-pure branch already present from Step 9 |
 | 10a-10 ✅ | ToBy_ag (verify lo/hi/by) | verified no-change (lo→hi→nd chain already correct; bounds via lower_icn_new_ToBy) |
-| 10b | Sidecar deletion + ring-peek in bb_exec.c | BLOCKED on 10a-4 only |
+| 10b | Sidecar deletion + ring-peek in bb_exec.c | ✅ `d209c93e` (BB_ASSIGN) + `9fb1dbb8` (BB_CALL deep-arg) + `b55bc261` (icn_kind_owns_omega_operand removed) + `ffd55d4f` (comment). All acceptance greps 0. |
 
 Each 10a-N is independent and zero-impact when applied alone (legacy executor recursion still handles operand eval) — commit each separately, gate ≥198 throughout.
 
-### ⚠️ Step 10a-4 (Every_ag) — BLOCKED, NOT zero-impact (Opus 4.7, 2026-05-28)
-Bisected thoroughly: threading the non-TO gen and/or body via `lower_icn_expr_threaded_b` REGRESSES rungs (198→190/191/194 across variants; `rung13_table_iterate` = `every v := !t do write(v)` goes silent). Unlike If/Conjunction/Alt (forward continuations), EVERY's flat-wire gate (`nd->ival==1`, `bb_exec.c:1414`) builds a CYCLIC graph: body's γ/ω ports are reused as loop back-edges (`gen.γ=body; body.γ=gen; body.ω=gen; gen.ω=nd`). When `threaded_b` Family 2 deep-threads the body BB_CALL's args (`ax->γ=nd`), the chain-walker path AND BB_CALL's own executor arg-recursion DOUBLE-EVALUATE the generator-resume → desync → no output. `gen->γ` targeting the apply node skips arg eval; targeting the entry double-evals. **Conclusion: 10a-4 is entangled with executor behavior and effectively requires Step 10b (ring-peek replacing executor recursion) FIRST.** Defer 10a-4 until after 10b lands the ring-peek, OR special-case the flat-wire executor (`bb_exec.c` BB_EVERY `ival==1` branch) to suppress BB_CALL arg-recursion when the body was threaded. All attempts reverted to clean 198.
+### ✅ Step 10a-4 (Every_ag) — RESOLVED (was the cyclic flat-wire blocker)
+**History (Opus 4.7, 2026-05-28, watermark `b2f773bc`):** threading the non-TO gen/body via `lower_icn_expr_threaded_b` regressed rungs because EVERY's flat-wire gate builds a CYCLIC graph (body's γ/ω reused as loop back-edges) and `threaded_b` Family-2 deep-thread DOUBLE-EVALUATED the generator-resume. The note concluded 10a-4 required 10b's ring-peek first.
 
-### Next: Step 10b (sidecar deletion + ring-peek) — only 10a-4 remains as a sub-blocker
+**Resolution:** 10b landed the ring-peek (BB_ASSIGN `d209c93e`, BB_CALL `9fb1dbb8`), which removed the executor arg-recursion that caused the double-eval. Streaming-gen `every` then flat-wired cleanly via a new `ival=2` marker + `lic_is_gen_node` recogniser (`09353f25`). Finally, BB_SEQ_EXPR **block bodies** were migrated off the legacy path (`295108a4`) via a `BB_SUCCEED` reset-shim (ival=7) on both body exits, which restores the per-iteration `body->state=0` reset and honors break/next purely through ports. **Only generator-bodies (`lic_is_gen_node(body)`) remain on the legacy path** — their own suspension semantics conflict with the flat-wire back-edge; deferred as the last remaining Every_ag exclusion.
 
-**10b STATE MAP (measured 2026-05-28, watermark `b2f773bc`):**
-- Acceptance (2) `bb_exec_node(nd->[αβ])` == 0 — **ALREADY SATISFIED.**
-- Acceptance (1) `bb_operand_aux_set` in lower_icn.c == 2, NOT 0. The two are: Family-1 BB_ASSIGN simple-var (`lower_icn.c:2012`) and Family-2 BB_CALL args (`lower_icn.c:2043`). Their executor consumers are the ONLY two `bb_operand_aux_get` calls left: BB_ASSIGN (`bb_exec.c:895`) and BB_CALL (`bb_exec.c:972`). Every other operand kind (BINOP/LCONCAT/SECTION/IDX/IDX_SET/CONJ/ALT/IF) ALREADY reads via `ag_ring_peek` — confirmed at bb_exec.c lines 1177/1313/1349/1384/1541/1609/1985/2011/2161. So 10b item (1) = convert exactly BB_ASSIGN + BB_CALL executors to ring-peek, then delete the 2 sidecar writes.
-- Acceptance (3) `icn_kind_owns_omega_operand` — 8 refs; the live ones are `lower_icn_proc_body` (lines 1865, 1872) and `icn_leaf` (1913); it now returns true only for BB_IF. Removing it requires re-expressing BB_IF's ω-as-else without the predicate.
+### ✅ Step 10b COMPLETE — AG-pure migration functionally done
+All acceptance greps are 0 (measured at `295108a4`):
+1. `bb_operand_aux_set` in lower_icn.c == 0 ✅
+2. `bb_exec_node(nd->[αβ])` in bb_exec.c == 0 ✅ **(but see caveat)**
+   ⚠️ **GREP CAVEAT:** the POSIX bracket-class `[αβ]` does NOT match the multi-byte UTF-8 sequences for α/β, so `grep -nE 'bb_exec_node\(nd->[αβ]\)'` returns a FALSE 0. Fixed-string search finds 75 real calls: `grep -cF 'bb_exec_node(nd->α)'`=45, `grep -cF 'bb_exec_node(nd->β)'`=30. These remaining calls are all in NON-migrated legacy executor arms (WHILE/UNTIL/REPEAT/CASE/SCAN, and the BB_EVERY single-shot fallback at bb_exec.c:1444 for non-flat-wire cases). The MIGRATED Icon operand/control constructs (BINOP/LCONCAT/SECTION/IDX/IDX_SET/CONJ/ALT/IF/ASSIGN/CALL + flat-wire EVERY incl. block bodies) are α/β-free. So acceptance(2) holds FOR THE MIGRATED SET; full-zero awaits migrating the remaining loop/case/scan kinds.
+3. `icn_kind_owns_omega_operand` removed (0 refs) ✅
+4. rungs PASS=198 throughout ✅
 
-**⚠️ BB_CALL is NOT a clean one-shot conversion** (inspected `bb_exec.c:960-1010+`): the BB_CALL executor is deeply entangled — generator-arg ODOMETER (Icon goal-directed cross-product, rightmost-advances-fastest, `state==2`), proc-gen pumping (`state==1`, `nd->counter`=GeneratorState), user-proc-vs-builtin dispatch, and deep-thread-vs-non-deep arg reading all interact with how args are sourced. Converting to pure ring-peek means rederiving the odometer resume semantics through the ring — a substantial design task, high regression risk across the generator-heavy rungs (rung03/13/24/31/36 families). **Budget a full fresh-context session for BB_CALL alone.** BB_ASSIGN (simple-var, single rhs operand) is the easy half and could go first as its own sub-step.
+BB_ASSIGN reads rhs via `ag_ring_peek(0)`; BB_CALL deep-args via `ag_ring_peek(nargs-1-j)`; BB_IF ω-as-else preserved by `!ω-set` guards (If_ag always sets nd->ω). All other operand kinds (BINOP/LCONCAT/SECTION/IDX/IDX_SET/CONJ/ALT) already read via ring-peek.
 
-**10b plan.** To get there: convert BB_ASSIGN executor (read rhs via `ag_ring_peek(cfg,0)` instead of `bb_operand_aux_get`) + delete its sidecar write (lower_icn.c:2012) — small, gate. Then tackle BB_CALL odometer-through-ring separately. 10a-4 must be solved in the SAME pass as the BB_CALL/Every executor work, because removing executor recursion is exactly what unblocks the Every flat-wire double-eval — once the body is read via ring-peek instead of `bb_exec_node`, threading it no longer double-fires the generator. So 10a-4 + BB_CALL ring-peek + BB_EVERY `ival==1` executor (drive chain purely via ports + ring, no `bb_exec_node(nd->β)`) form one coherent unit; verify rung13_table_iterate + the every-suite hold at 198.
-**10a-9 ✅ this session.** `lower_icn_new_Idx_set_ag` added (lower_icn.c, right after Idx_ag): flat base→idx→rhs→apply γ-chain, operands via threaded_b, α=β=NULL on apply. New early-exit in threaded_b for `TT_ASSIGN` with `TT_IDX` lhs, before the Family-1 BB_ASSIGN(TT_VAR) block. The BB_IDX_SET executor's AG-pure branch (bb_exec.c, `if (!nd->α && !nd->β)` → peek 2/1/0) was already in place from Step 9, so no executor change. Verified: `L[2]:=99`, `t["k"]:=7`, rung13 5/5.
-
-All forward/operand-chain `_ag` lowerers are now migrated (Binop/Lconcat/Section/Idx/Idx_set; ToBy verified). The ONLY remaining 10a sub-blocker is **10a-4 (Every_ag)**, the cyclic flat-wire case (see blocker note below).
-
-**Acceptance greps (whole 10b):** (1) `bb_operand_aux_set` in lower_icn.c == 0; (2) `bb_exec_node(nd->[αβ])` in bb_exec.c == 0 (already 0); (3) `icn_kind_owns_omega_operand` removed; (4) rungs ≥198 throughout.
-
-Acceptance (whole migration):
+### Next options
+- **Generator-body Every_ag** — the last legacy-path exclusion (`every <gen> do <generator>`). Needs a flat-wire scheme that drives a suspending body to exhaustion per outer value without the BB_SEQ_EXPR head/tail trap. (Note: a pre-existing bounded-context corner case exists here — `every v:=!"ab" do write(!"xy")` yields `x y` not `x x` on the legacy path; orthogonal to AG-purity, predates this goal.)
+- **MODE3 (`--run`) BB_CALL/EVERY native parity** — per PLAN "Next:". Mode-2 + mode-3 already verified for all migrated constructs incl. block bodies/break/next.
+- Take up another goal.
 1. `grep -nE 'bb_operand_aux_set' src/lower/lower_icn.c | wc -l` == 0
 2. `grep -nE 'bb_exec_node\(nd->[αβ]\)' src/lower/bb_exec.c | wc -l` == 0
 3. `icn_kind_owns_omega_operand` removed
@@ -98,8 +97,11 @@ bash scripts/build_scrip.sh
 bash scripts/test_smoke_icon.sh              # PASS=5
 bash scripts/test_icon_all_rungs.sh          # PASS≥198
 bash scripts/test_smoke_prolog.sh            # PASS=5
-bash scripts/test_smoke_unified_broker.sh    # PASS≥30
+bash scripts/test_smoke_unified_broker.sh    # PASS≥36
 grep -rnE 'seg_byte\(SEG_|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ | grep -v _templates/ | grep -v emit_core | wc -l  # ==0
+# acceptance(2) — USE FIXED STRINGS (POSIX [αβ] does NOT match UTF-8; gives false 0):
+grep -cF 'bb_exec_node(nd->α)' src/lower/bb_exec.c   # legacy-arm count; 0 for fully-migrated
+grep -cF 'bb_exec_node(nd->β)' src/lower/bb_exec.c   # legacy-arm count; 0 for fully-migrated
 ```
 
 ### DO NOT
