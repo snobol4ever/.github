@@ -129,8 +129,10 @@ bash scripts/test_snobol4_pat_rung_suite.sh       # Rungs: M2=18, M4=15, SKIP=0
 ### SBL-G-2 — Re-freeze GATE-PK for pattern kinds ⏳
 - [ ] After filling each template, re-freeze its kind's cell in `test_per_kind_diff.sh`. Current baseline references DELETED `rt_bb_*` C boxes — stale.
 
-### SBL-ANY-2 — Fill `bb_pat_any.cpp` BINARY arm ⏳
-- [ ] Use `g_emit.bb_cs_zeta` (pre-allocated by wrapper). Mirror TEXT arm logic in raw bytes. `bb_bin_t` rel32 fixups: jge ω, je ω, jmp γ, jmp ω. Reference: `bb_pat_len.cpp` BINARY arm.
+### SBL-ANY-2 — Fill `bb_pat_any.cpp` BINARY arm ⏳ (BLOCKED — dispatch investigation needed)
+- [ ] Use `g_emit.bb_cs_zeta` (pre-allocated by wrapper) or `pBB->sval` directly. Mirror TEXT arm logic in raw bytes. `bb_bin_t` rel32 fixups: jge ω, je ω, jmp γ, jmp ω. Reference: `bb_pat_len.cpp` BINARY arm, `bb_upto.cpp` BINARY arm (movabs+call-indirect pattern).
+- **2026-05-27 attempted (Opus 4.7, continued 13C):** wrote 104-byte BINARY arm, GAS-disassembly verified. NOT COMMITTED. Probes showed `bb_pat_any` is never called and `exec_stmt` is never entered for `S PAT . M` under `--interp`. The pattern dispatch goes through `sm_interp.c:582 case SM_EXEC_STMT` directly to some other path. Pre-existing wrong behavior (`match=x` instead of oracle `match=a` for `ANY('cab')` over `'xyzabcdef'`) is mode-independent — affects all four mode combinations identically. **DO NOT fill BINARY arms until the actual dispatch path is mapped** — otherwise the fill is unverifiable and we don't know what we ran.
+- [ ] **Prereq: SBL-ANY-2-DISPATCH-TRACE** — instrument `sm_interp.c:582 case SM_EXEC_STMT` to print the pat.v, pat.p->kind, and resulting code path. Identify which `bb_build_*` is called, which template wrappers fire. Only THEN safe to fill BINARY arms.
 
 ### SBL-NOTANY-2, SBL-BREAK-2, SBL-SPAN-2, SBL-ARBNO-3, SBL-CAP-2 — BINARY arms ⏳
 - [ ] Mode-3 BINARY parallel for the six TEXT arms. Once all green, mode-3 `--run` smoke should climb.
@@ -199,6 +201,64 @@ Rung suite                  = M2=18, M4=15, SKIP=0
 HEAD one4all                = e7e7bd63 (SBL-MODE-PURITY-2/3/4)
 GATE-PK status              = stale (re-freeze deferred)
 ```
+
+---
+
+## Session 2026-05-27 (Claude Opus 4.7, continued 13C) — SBL-ANY-2 attempted, NOT COMMITTED ⛔ (investigation findings)
+
+**HEAD one4all** unchanged at `e7e7bd63` (PURITY-2/3/4). No commit landed this segment.
+
+### Goal
+Fill `bb_pat_any.cpp` BINARY arm. With PURITY-1..5 landed, the hold on BINARY-arm work is lifted — the signal is clean enough that a real BINARY-arm failure would surface honestly.
+
+### What was attempted
+Wrote a 104-byte BINARY arm in `bb_pat_any_str` that mirrors the TEXT arm byte-for-byte. Encoding verified against GAS disassembly of an equivalent `.s` file. `bb_bin_t.sites` = `{17, 72, 86, 90, 100}` with labels `{ω, ω, γ, β, ω}` and is_def `{false, false, false, true, false}`. Uses `movabs` for in-process absolute addresses of Σ/Σlen/cset_chars/strchr (per `bb_upto.cpp` precedent — all valid because mode-2/mode-3 brokered blobs run in the emitter process).
+
+### Why NOT committed
+**Probe instrumentation proved `bb_pat_any` is never called for `S PAT . M` patterns under `--interp --bb=brokered`.** Worse, `exec_stmt` itself is never entered for these patterns — the entry-point fprintf (above all branches in stmt_exec.c::exec_stmt) emitted zero output across multiple runs.
+
+Per the architectural rule Lon established this session: *do not commit code we cannot prove ran*. Same epistemic hazard as cross-mode fallback — a green test that runs different code than we think corrupts the signal. So the BINARY arm fill is reverted along with all probes.
+
+### Diagnostic test case
+```snobol
+        S = 'xyzabcdef'
+        PAT = ANY('cab')
+        S PAT . M
+        OUTPUT = "match=" M
+END
+```
+SPITBOL oracle: `match=a` (first char in 'cab' found in S, at position 3).
+Current scrip: `match=x` under `--interp`, `--interp --bb=brokered`, `--interp --bb=wired`, AND `--run`. ALL modes wrong.
+
+This is a **pre-existing, mode-independent bug** — not introduced by PURITY work; PURITY runs (this session pre-attempt) had identical FAIL list to baseline.
+
+### Where the actual dispatch lives
+`grep SM_EXEC_STMT src/processor/sm_interp.c` → hit at line 582. This is the SM-level pattern-statement handler that processes `S PAT . M`. It bypasses `exec_stmt` entirely under `--interp`. The dispatch chain to investigate next session is approximately:
+- `sm_interp_run` walks SM instructions
+- `case SM_EXEC_STMT` at sm_interp.c:582 — figure out what it does for DT_P pat operand
+- Likely path: builds a brokered blob via `bb_build_brokered` and invokes `bb_broker` directly, NOT via `exec_stmt`
+- Find which BB template ends up being walked; it may be a different code path through `walk_bb_node` that wraps BB_PAT_ANY differently, OR may be hitting a stub elsewhere
+
+### What was NOT learned
+- Whether the OLD ANY BINARY-arm stub (`E9 0 E9 0`) was reaching the JIT'd blob path at all, or whether the `match=x` was coming from somewhere else entirely (e.g., a separate inline-pattern lowering that uses TEXT-arm-derived bytes via `codegen_flat_build` → ldscript → some other broker entry).
+- Whether the `xa_flat_epilogue` success-half (which emits the spec-build code) is what was producing `match=x` for the old stub fall-through case.
+
+### Next-session strategy
+1. **Trace `SM_EXEC_STMT` in sm_interp.c:582** first. Place a printf there. Confirm which path the test case takes.
+2. **THEN** instrument `bb_build_brokered` to see what BB_PAT_* kinds get JIT'd.
+3. **THEN** instrument `bb_pat_any` (the wrapper, not the body) to confirm whether MY new BINARY arm bytes would even be reached.
+4. Only after that triangle is mapped: re-apply the SBL-ANY-2 BINARY arm fill and re-test.
+
+If `bb_pat_any` is truly never called under `--interp`, then **SBL-ANY-2 is misnamed** — there's some OTHER ANY implementation that handles the live brokered blob path. Find it first.
+
+### Working set of intel from this segment
+- `bb_pat_any.cpp` TEXT arm IS correct (mirrors hand-written `bb_any.s` from git `660339cd~1`).
+- BINARY-arm encoding I designed is correct (GAS-disassembly-verified against the TEXT arm).
+- `bb_upto.cpp` BINARY arm is the working reference for movabs+call-indirect patterns.
+- `bb_pat_len.cpp` / `bb_pat_pos.cpp` BINARY arms are working references for the rel32-fixup `bb_bin_t` pattern.
+- `xa_flat.cpp` FLAT_PROLOGUE sets `r10 = &Δ`; templates read/write Δ via `[r10]`.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 ---
 
