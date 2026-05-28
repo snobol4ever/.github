@@ -28,7 +28,7 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`3c384e25`, post-CAT-D-format)
+## State at HEAD (`549c7fca`, post-WAM-CP-9-partial)
 
 | Gate | Count | Notes |
 |---|---|---|
@@ -37,13 +37,14 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 | GATE-3 mode-2 (`--interp`) | **91/107** | stable since CAT-D-12-S1 |
 | GATE-3 mode-3 (`--run`) | 90/107 | transparent via sm_interp_run |
 | GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt |
-| **Full mode-4 corpus** | **53/107** | +25 since CAT-D-11 (28); +13 this session |
+| **Full mode-4 corpus** | **54/107** | +1 (rung07_cut_cut) this session |
 | FACT RULE grep | 0 | full compliance |
 | `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix held |
 
-**Mode-2 OPEN classes (16/107):** rung15 (2 — one_of_two, then_reassert), rung23 (1 float-unary),
-rung27 (5 — aggregate/bagof/setof), rung28 (5 — catch/throw), rung30 (1 — dcg_pushback_rest),
-plus rung07 cut_cut (wrong output).
+**Mode-2 OPEN classes (16/107):** rung15 (1 — then_reassert), rung18 (3 — succ/plus xy/xz/yz),
+rung23 (1 float-unary), rung27 (5 — aggregate/bagof/setof), rung28 (5 — catch/throw),
+rung30 (1 — dcg_pushback_rest). NOTE: rung07 cut_cut already passes mode-2 since WAM-CP-4;
+the previous header line listing it was stale.
 
 ---
 
@@ -61,10 +62,10 @@ WAM-CP-2  route BB_CHOICE multi-clause via CP stack (replaces nd->state scan)   
 WAM-CP-3  route ; (BB_PL_ALT) via same CP stack                                 ✅ COMPLETE
 WAM-CP-4  cut = truncate CP list to frame barrier                               ✅ COMPLETE
 WAM-CP-5  mode-4 emit: CP record is the r12 target (CHOICE+PL_CALL)             ✅ COMPLETE
+WAM-CP-9  committed-ITE node + cut=truncate (fixes rung07/15 PJ-AGW-5 class)    🟡 PARTIAL — mode-4 cut-scope landed; ITE/lexical-! refinement open
 WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?")
 WAM-CP-7  unify specialization B_UNIFY_{FF,VF,FV,VV,FC,VC}   (speed; any time)
 WAM-CP-8  JIT first-arg indexing (needs CP model to know when a CP was elided)
-WAM-CP-9  committed-ITE node + cut=truncate (fixes rung07/15 PJ-AGW-5 class)
 WAM-CP-10 catch/throw via CP-barrier unwind, no setjmp (rung28)
 WAM-CP-11 deep-backtracking arg restore (saved_args) + nested choices (rung02/05/06)
 WAM-CP-12 determinism detection → CP elision (BB-native fast path)
@@ -73,8 +74,8 @@ WAM-CP-14 [bridge] tagged-word migration readiness audit (doc only, no code)
 [LATER]   tagged-word terms + global stack (SWIPL #1/#3) — separate goal file
 ```
 
-1–8 are the foundation (CP substrate + control + speed). 9–13 close OPEN correctness classes
-(cut/ITE, exceptions, deep backtracking) on that foundation. 14 is the read-only bridge to
+1–9 are the foundation (CP substrate + control + speed + cut). 10–13 close OPEN correctness
+classes (exceptions, deep backtracking) on that foundation. 14 is the read-only bridge to
 the LATER tagged-word track.
 
 ### Completed rungs (one-line each)
@@ -91,6 +92,17 @@ the LATER tagged-word track.
   on α; dispatch reads `cp->cursor`; `pre[i>0]` unwinds to `cp->trail_mark`; β jmps dispatch.
   BB_PL_CALL: no own CP, delegates to callee CHOICE's CP; caller_env stashed in `cp->saved_args`.
   Compound args via `emit_build_compound_term`.
+- **WAM-CP-9 partial** 🟡 Opus 4.7 (`549c7fca`) — mode-4 cut-scope nested in `pl_choice`. Added
+  fields `saved_cut_flag` (+56) and `saved_cut_barrier` (+64); helpers `rt_pl_choice_cut_enter/
+  _exit/_unwind` and `rt_pl_get_cut_flag`. `bb_pl_choice.cpp` saves outer cut state into cp on
+  α and on legitimate β (after flag-check), restores on exit_γ / exhausted, detects body-fired
+  cut at β-entry and exit_γ (flag-check BEFORE _enter) → `cut_unwind_{γ,ω}` truncates to
+  `cp->parent`. `bb_pl_cut.cpp` defers the truncate (sets flag only) so cp outlives CUT and its
+  saved slots remain readable. Mode-2 BB_CUT in `bb_exec.c` unchanged (C-stack locals).
+  rung07_cut_cut: `yes\nyes` → `yes\nno`. Mode-4 corpus 53→54. **Remaining (folded into open
+  WAM-CP-9 step):** disjunction-side cut (`!` in `(A ; B)`) — bb_pl_alt.cpp uses the
+  trail_mark stack, not pl_choice, so disjunction CPs survive `!`; needs separate wiring or
+  the committed-ITE node design.
 
 ### Open rungs
 
@@ -107,15 +119,24 @@ the LATER tagged-word track.
   predicates so `p(b)` against `p(a)./p(b)./p(c).` jumps to clause 2 with no CP. Gate:
   semidet calls leave `g_pl_bfr` unchanged.
 
-- [ ] **WAM-CP-9 — committed-ITE node (retire ALT-style ITE chaining).** Lower
-  `(Cond -> Then ; Else)` to a stateful node that records the CP barrier on entry, runs Cond;
-  on Cond's FIRST success `pl_cp_truncate`s back to the barrier (commits — SWIPL `C_IFTHEN`/
-  `I_CUT` semantics) and enters Then. Mirror Icon's stateful `BB_IF` (`bb_exec.c:803`).
-  Also the real rung07 cut fix: `!` = `pl_cp_truncate(frame_barrier)` at the committed point.
-  Gate: rung07 cut_cut → `yes\nno`; rung15 one_of_two terminates.
-  - Step A: capture `frame_barrier = pl_cp_current()` on clause/ITE entry (BB-resident).
-  - Step B: lower committed-ITE; Cond-success truncates to barrier.
-  - Step C: route bare `!` through same truncate; retire `g_pl_cut_flag` reads.
+- [ ] **WAM-CP-9 — committed-ITE node + disjunction-cut + cut-by-design (partial: `549c7fca`).**
+  DONE this session: mode-4 cut for the BB_CHOICE clause path via per-CP saved cut state (see
+  WAM-CP-9 partial completion above). REMAINING:
+  - Step A: capture `frame_barrier = pl_cp_current()` on lexical clause entry (BB-resident) for
+    the lexical-! design; currently the implicit barrier is `cp->parent` of the enclosing CHOICE,
+    which is correct for the common case but doesn't model meta-call transparency.
+  - Step B: lower committed-ITE; Cond-success truncates to barrier. Mirror Icon's stateful
+    `BB_IF` (`bb_exec.c:803`). Today `(Cond -> Then ; Else)` lowers to ALT/IFTHEN nodes; a
+    dedicated stateful node would let mode-4 commit cleanly without flag-juggling through ALT.
+  - Step C: route bare `!` inside `(A ; B)` through truncate. `bb_pl_alt.cpp` uses
+    `rt_pl_trail_mark_push/pop` (a separate small mark stack), not `pl_choice`, so a `!` in
+    the left branch of a disjunction does not currently truncate the disjunction CP. Either
+    migrate BB_PL_ALT to push a `PL_CP_DISJ` `pl_choice` (and apply the same cut-scope nesting
+    as BB_CHOICE), or fold disjunction into the committed-ITE node in Step B.
+  - Step D: retire `g_pl_cut_flag` global once mode-4 drives entirely off `pl_cp_current()`
+    identity comparisons. Currently the flag is the only signal CHOICE has that body fired `!`.
+  Gate (full step): rung07 cut_cut → `yes\nno` ✅ (already passes); a new corpus test exercising
+  `!` inside `(A ; B)` would prove Step C.
 
 - [ ] **WAM-CP-10 — catch/throw via CP-barrier + longjmp-free unwind (rung28, 0/5).** On entry
   record `(pl_cp_current(), trail_mark, env)` as CATCH barrier in `g_pl_catch` chain (parallel
@@ -306,6 +327,10 @@ term_string (forward), atom_number, numbervars, writeq, write_canonical, print,
 retract, retractall, abolish, assertz/asserta (directive fold).
 
 **Recent fixes (top-of-cycle):**
+- `549c7fca` Opus 4.7 — WAM-CP-9 partial: mode-4 cut-scope in pl_choice. New fields
+  saved_cut_flag (+56), saved_cut_barrier (+64); 4 rt helpers; bb_pl_choice.cpp restructured
+  (α/β cut_enter, exit_γ/exhausted cut_exit, body-cut detection at β + exit_γ → cut_unwind);
+  bb_pl_cut.cpp defers truncate (sets flag only). Mode-4 corpus 53→54. rung07_cut_cut fixed.
 - `3c384e25` Opus 4.7 — CAT-D-format: format/1 + format/2 mode-4 emit. Two-path (scalar /
   compound args1). Mode-4 corpus 48→53 (+5). rung19 0/5→5/5.
 - `6cf5a429` Opus 4.7 — arith `**` prefix clash fix, unary arith mode-4, succ/2 + plus/3 mode-4.
