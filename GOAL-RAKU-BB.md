@@ -73,7 +73,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 - [ ] **RK-BB-4-frontend** — pending Q9-Q12.
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers; `zip`/`cross` = multi-Seq drivers (later).
-- [ ] **MODE3-NO-INTERP** — see `MODE3-DISPATCH-GAP.md` (now with 2026-05-28 addendum). Per-language ladder to remove `sm_interp_run` from `--run` path. Suggested order: Raku (this goal's responsibility), then Prolog, Snocone, Rebus. SNOBOL4 already has `SCRIP_M3_NATIVE`; flip the default. **20 mode-3 crashes triaged into 3 clusters:** (1) 7 underflows from `SM_BB_INVOKE` `MEDIUM_BINARY` no-op stub at `sm_bb_switch.cpp:35-36` — architectural, ~1-2 sessions; (2) 7 SEGV-other needing per-opcode bisection — 3-5 sessions; (3) 6 regex — DEFERRED to GOAL-RAKU-PAT-BB. Latent bug noted: `sm_named_call.cpp:35` emits `movabs rax, 0; call rax` with no linker pass in `sm_run_native` — will trip first test that uses `SM_NAMED_CALL` in native mode.
+- [~] **MODE3-NO-INTERP** — see `MODE3-DISPATCH-GAP.md` (2026-05-28 addendum, updated). Per-language ladder to remove `sm_interp_run` from `--run` path. Suggested order: Raku (this goal's responsibility), then Prolog, Snocone, Rebus. SNOBOL4 already has `SCRIP_M3_NATIVE`; flip the default. **Progress 2026-05-28:** **M3-RK-NOINTERP-3 ✅** (SM_NAMED_CALL absolute-target patching in `sm_run_native` Pass 3) closed Cluster 2 — 11/33 → 18/33 native (+7 tests). **Remaining:** Cluster 1 (8 tests, includes rk_given18 revealed behind Cluster 2): `SM_BB_INVOKE` `MEDIUM_BINARY` no-op stub at `sm_bb_switch.cpp:35-36` — architectural, est. 1-2 sessions (M3-RK-NOINTERP-1); Cluster 3 (6 regex, DEFERRED to GOAL-RAKU-PAT-BB).
 
 ## Rung methodology
 
@@ -112,13 +112,13 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: RK-CLASS done modes-2+4; mode-3 honest baseline established (uncommitted at hand off)
-.github: HEAD + MODE3-DISPATCH-GAP.md (2026-05-28 addendum: 20-crash triage by cluster + root-cause loci) + GOAL-RAKU-BB.md (MODE3-NO-INTERP rung now backed by triage)
+one4all: M3-RK-NOINTERP-3 ✅ (Sonnet, 2026-05-28 follow-up) — SM_NAMED_CALL absolute-target patching in sm_run_native. Cluster 2 closed (7 tests). Mode-3 native 11/33 → 18/33 (+7).
+.github: HEAD + MODE3-DISPATCH-GAP.md (addendum updated with Cluster 2 outcome) + GOAL-RAKU-BB.md (watermark + MODE3-NO-INTERP rung updated)
 corpus:  unchanged
 
-GATE-RK   mode-2:                23/33  (+1 rk_class26)
-GATE-RK3  --run SCRIP_M3_NATIVE: 11/33 + 2 FAIL + 20 CRASH  (new honest baseline)
-GATE-RK4  mode-4:                26/33  (+1 rk_class26; not re-measured this hand off per Lon "mode 2 and 3 only")
+GATE-RK   mode-2:                23/33  HOLD
+GATE-RK3  --run SCRIP_M3_NATIVE: 18/33 + 1 FAIL + 14 CRASH  (+7 from M3-RK-NOINTERP-3)
+GATE-RK4  mode-4:                26/33  HOLD
 Smoke raku:       5/5    HOLD
 Smoke prolog:     5/5    HOLD
 Smoke snobol4:    13/13  HOLD
@@ -133,11 +133,13 @@ Build:            clean
 - REGEX/NFA (6): rk_re32/33/34/35/37, rk_regex23 — DEFERRED to GOAL-RAKU-PAT-BB.
 - JUNCTIONS (1): rk_junctions — BLOCKED on Lon Q9-Q12.
 
-## Mode-3 (SCRIP_M3_NATIVE=1) status — 20 crashes to triage
+## Mode-3 (SCRIP_M3_NATIVE=1) status — 18 PASS, 1 FAIL, 14 CRASH
 
-PASS (11): rk_arith rk_arrays rk_control rk_forloop rk_hash17 rk_hashes rk_str22 rk_strings rk_typed_vars rk_unless_until rk_vars
-FAIL (2): rk_junctions rk_stdio39
-CRASH (20): rk_class26 rk_combinator rk_fileio38 rk_for_array rk_for_array_simple rk_for_array_underscore rk_gather rk_given rk_given18 rk_interp rk_map_grep_sort24 rk_range_for rk_re32 rk_re33 rk_re34 rk_re35 rk_re37 rk_regex23 rk_subs rk_try_catch25
+PASS (18): rk_arith rk_arrays rk_class26 rk_combinator rk_control rk_forloop rk_given rk_hash17 rk_hashes rk_interp rk_stdio39 rk_str22 rk_strings rk_subs rk_try_catch25 rk_typed_vars rk_unless_until rk_vars
+FAIL (1): rk_junctions
+CRASH (14): rk_fileio38 rk_for_array rk_for_array_simple rk_for_array_underscore rk_gather rk_given18 rk_map_grep_sort24 rk_range_for rk_re32 rk_re33 rk_re34 rk_re35 rk_re37 rk_regex23
+
+Remaining crash structure: 8 in Cluster 1 (SM_BB_INVOKE BINARY no-op stub — rk_given18 now revealed as belonging here behind its prior Cluster 2 SEGV), 6 in Cluster 3 (regex, deferred to GOAL-RAKU-PAT-BB).
 
 ## Open questions for Lon
 
