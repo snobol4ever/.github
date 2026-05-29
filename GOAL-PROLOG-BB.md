@@ -28,6 +28,24 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-Opus-4.8-PLR-J-PLAN, 2026-05-29)
+
+**2026-05-29 Opus 4.8 (PLANNING session — no code change; one4all HEAD unchanged at `b408b086`).**
+Read the JCON/ICON master sources in full (`jcon-master/tran/irgen.icn` 43 `ir_a_*` four-port
+procedures, `tran/ir.icn` IR-node vocabulary, `jcon/vClosure.java` box-as-object) and the Prolog
+references (`gprolog-master/src/EnginePl/wam_inst.{c,h}` CP frame + create/retry/trust). Converted
+the four M3-PL-NOINTERP blockers into a sequenced, citation-backed rung ladder **PLR-J-0..5** under
+`PL-LOWER-REVAMP`, each transliterating a specific `irgen.icn` procedure and verifiable against
+mode-2. Findings doc: `one4all/doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`. NEXT pointer (top of this
+file) and PLAN.md row repointed at the ladder. **Recommended first landing: PLR-J-1** (type-test
+builtin BINARY arm — smallest, standalone; corroborated live this session: `rung09` native prints
+`atom(42)→yes`/`integer(hello)→yes` falsely because CAT-D-10 is TEXT-only and its asm emits as raw
+bytes in MEDIUM_BINARY — same bug class as the 1e comparison fix). Baseline re-confirmed:
+mode-3 crosscheck **10 PASS / 122 FAIL** (unchanged), FACT 0, build green, `--interp` sanity OK.
+No bytes produced, no source touched.
+
+---
+
 ## State at HEAD (post-Opus-4.8-M3-PL-NOINTERP-1a..1e, 2026-05-29)
 
 **2026-05-29 Opus 4.8 (one4all `b408b086`): native `--run` LIVE — mode-3 0→10 PASS.** Implemented
@@ -73,13 +91,20 @@ All 10 are 3-mode agreement (not degenerate empty-match). rung04 verified byte-i
 (`6 / true / false`) before trusting the gate. **No regressions:** GATE-3 m2 104/107, GATE-SWI m2
 57/57, siblings icon/raku/snobol4 5/5/13, FACT 0 (all emitted bytes inside `*_templates/`).
 
-**NEXT (multi-session, in value order):** the 122 remaining native FAILs split into four blockers:
-(a) **CALLEE-BLOCK LOOP** — port the TEXT arm's `pl_emit_callee_block_body` sweep (every non-entry
-user predicate gets a block; γ/ω/redo labels) into the 1a BINARY arm; unblocks EVERY multi-predicate
-program at once (rung02 facts, rung05 member, rung06 lists, ...). Highest value. (b) **COMPOUND-TERM
-BUILDER** — port `emit_build_compound_term` (recursive `rt_pl_compound_build_n`) to raw bytes;
-unblocks rung03 + compound unify/functor/arg/univ. (c) **BB_PL_CHOICE / backtracking** BINARY arms
-(CP-stack). (d) **DCG**. Develop and verify against mode-2 (the correctness reference) throughout.
+**NEXT (current next steps — see `PL-LOWER-REVAMP → PLR-J` rung ladder below, and
+`doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`):** the four blockers from the M3-PL-NOINTERP handoff are
+now sequenced as a JCON/ICON-derived rung ladder **PLR-J-0..5**, each transliterating a specific
+`irgen.icn` four-port procedure and verifiable against mode-2:
+- **PLR-J-1 (recommended first — smallest, standalone):** type-test builtin BINARY arm. `bb_builtin.cpp`
+  CAT-D-10 is TEXT-only → native `atom(42)`/`integer(hello)` falsely succeed (corroborated by `rung09`).
+- **PLR-J-0 → PLR-J-2:** lower-time `bounded`/determinacy flag (irgen.icn `bounded`) then explicit
+  per-node resume replacing the β heuristic (the PL-LOWER-REVAMP structural fix).
+- **PLR-J-3:** compound-term builder in raw bytes (`ir_a_ListConstructor` → `ir_MakeList`).
+- **PLR-J-4:** callee-block sweep + `bb_pl_call` binary call protocol (`ir_a_ProcBody` + sentinel)
+  — the original "highest value" item; unblocks all multi-predicate programs.
+- **PLR-J-5:** `BB_CHOICE` as `ir_a_Alt` transliteration with gprolog untrail-before-retry ordering.
+
+Then **DCG**. Develop and verify against mode-2 (the correctness reference) throughout.
 
 **one4all commit:** `b408b086`. (Prior: `94bbd9eb` NO-MODE-FALLBACK; `855cbee2` m3 reporting;
 `2fae45ec` print/1; `0019cc7b` B3.)
@@ -1148,6 +1173,79 @@ likely structural root of CAT-A-3 backtracking class; (3) no `bounded`/determina
 **Partially DONE — LOWER-PIVOT (3 commits, see Closed milestones).** Remaining staged work:
 β-heuristic replacement with explicit per-node resume; BB_CHOICE as transliteration of
 `ir_a_Alt` (MoveLabel/IndirectGoto). Lon to sequence — recommend after WAM-CP-6/9 land.
+
+#### PLR-J — JCON/ICON four-port transliteration rungs ★ CURRENT NEXT STEPS ★
+
+Derived from a full read of `jcon-master/tran/irgen.icn` (43 `ir_a_*` procs), `tran/ir.icn`
+(IR-node vocabulary), `jcon/vClosure.java` (box-as-object), and `gprolog-master/src/EnginePl/
+wam_inst.{c,h}` (CP frame). Full findings + citations: `one4all/doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`.
+Each rung is independently verifiable against mode-2 (`--interp`, the correctness reference) and
+lands no bytes outside `*_templates/` (FACT rule). Sequenced so cheap correctness wins land first
+and the structural lower-time work (which the byte arms depend on) lands before the harder binary
+arms.
+
+- [ ] **PLR-J-0 — `bounded`/determinacy flag at lower time (irgen.icn `bounded` param, F1).**
+  Thread a `bounded` (cannot-resume) flag through `lower_pl_goal` mirroring irgen.icn's pervasive
+  `/bounded & suspend ir_chunk(p.ir.resume, …)`. A goal is bounded when it provably offers ≤1
+  solution (e.g. arithmetic, type tests, `!`, deterministic builtins). DOC + lower-time only — no
+  byte change, no behaviour change yet; the flag is *read* by PLR-J-2/5. Gate: build green, all
+  GATEs byte-identical (this rung adds an unused field + populates it). This is the prerequisite
+  the existing PL-LOWER-REVAMP note calls "no `bounded`/determinacy flag".
+
+- [ ] **PLR-J-1 — type-test builtin BINARY arm (corroborated by rung09, smallest correctness win).**
+  `bb_builtin.cpp` CAT-D-10 (`var/nonvar/atom/integer/float/number/compound/atomic/callable/
+  is_list/ground`) has a MEDIUM_TEXT arm only → in MEDIUM_BINARY the asm strings emit as raw bytes,
+  so `atom(42)`/`integer(hello)` falsely succeed (same bug class as the M3-PL-NOINTERP-1e
+  comparison fix). Port the scalar path to raw bytes: SysV `rdi=fn, rsi=k0, rdx=i0, rcx=s0`,
+  `call rt_pl_type_test`, `test eax,eax; je ω; jmp γ; β→ω` — identical shape to the 1e comparison
+  arm (`bb_builtin.cpp` ~234-286). BB_PL_STRUCT (compound-literal arg) stays honest-abort-guarded
+  until PLR-J-3. Gate: `rung09` type-test lines (`yes/yes/no/no`) byte-match mode-2; no regression
+  to the existing 10 PASS; FACT 0. **Note:** rung09's `functor/arg/=..` lines still fail (need
+  PLR-J-3) — this rung fixes only the 4 type-test lines, so rung09 stays FAIL but is provably
+  closer; verify the *type-test sub-lines* directly, not the whole-program diff.
+
+- [ ] **PLR-J-2 — explicit per-node resume port, replacing the β heuristic (irgen.icn F2, F3).**
+  Replace `lower_pl.c`'s "nearest resumable predecessor" β wiring with explicit per-node resume,
+  transliterating `ir_a_Binop`/`ir_a_Mutual`/`ir_a_Call` (irgen.icn 472-511, 1201-1228, 360-403):
+  conjunction goal `i` on failure routes to goal `i-1`'s resume; first goal's failure → ω.
+  Reads the PLR-J-0 `bounded` flag to skip resume wiring for bounded goals. Verify in mode-2 first
+  (the lower graph feeds bb_exec.c directly), THEN confirm mode-3/4 unchanged. Gate: CAT-A-3
+  backtracking rungs (rung05) mode-2 must not regress; targeted check that a 2-goal conjunction
+  with a failing 2nd goal redrives the 1st. This is the structural fix flagged as
+  PL-LOWER-REVAMP gap (2).
+
+- [ ] **PLR-J-3 — compound-term builder in raw bytes (irgen.icn `ir_a_ListConstructor`, F4).**
+  Port `emit_build_compound_term` (currently TEXT-only) to a MEDIUM_BINARY arm following
+  irgen.icn 1313-1354: build each arg into a slot (recursing for nested compounds, each arg with
+  its own resume chain), then one `rt_pl_compound_build_n(functor, argc, args…)` at the trailing
+  sentinel (mirror `ir_MakeList`, line 1346). Unblocks `functor/3`, `arg/3`, `=../2`, compound
+  unify, and the PLR-J-1 BB_PL_STRUCT abort-guard. Gate: `rung03_unify` + `rung09` `functor/arg/=..`
+  lines byte-match mode-2; FACT 0. Hardest of the "value priority #2" items — the recursion +
+  16-byte stack alignment per the M3-PL-NOINTERP rsp-offset warnings.
+
+- [ ] **PLR-J-4 — callee-block sweep in `SM_BB_PL_INVOKE` BINARY arm (irgen.icn `ir_a_ProcBody`
+  + `ir_make_sentinel`, F5).** Port the TEXT callee-block loop (`sm_bb_switch.cpp` ~376-418, via
+  `pl_emit_callee_block_body`) into the 1a BINARY arm, emitting all callee blocks into the SAME
+  scratch buffer as the entry so `bb_emit_end()` resolves the cross-block `call .Lplpred_*` and
+  `_redo → β` patches. PRECONDITION: the `bb_pl_call.cpp` MEDIUM_BINARY arm is currently a
+  double-jump stub (lines 39-43) — it must be ported in lockstep (the entry emits the block, the
+  call site must actually `call` it). Remove the M3-PL-NOINTERP-1a `others>0` DEFER GUARD only when
+  both halves land. Unblocks EVERY multi-predicate program (rung02/05/06/08…). Gate: `rung02_facts`
+  + `rung08_recursion` mode-3 byte-match mode-2; the 10 existing PASS unaffected; FACT 0. Largest
+  rung — split into PLR-J-4a (port `bb_pl_call` binary call protocol) and PLR-J-4b (callee sweep
+  + drop guard) if a session can't hold both.
+
+- [ ] **PLR-J-5 — `BB_CHOICE` as `ir_a_Alt` transliteration + gprolog retry/trust ordering
+  (irgen.icn `ir_a_Alt` 167-199, F6).** Lower `BB_CHOICE` clause iteration as a direct
+  transliteration of `ir_a_Alt`'s `MoveLabel`/`IndirectGoto` over alternatives, and make the
+  binary CP arm honour gprolog's invariant: **untrail to `trail_mark` BEFORE retry**, restore
+  `env`, update `resume`(ALTB) to next clause; on last clause (trust) pop the CP
+  (`g_pl_bfr = parent`). Cite `wam_inst.c` `UPDATE_CHOICE_COMMON_PART` / `DELETE_CHOICE_COMMON_PART`.
+  Gate: `rung05_backtrack` (multi-solution) mode-3 byte-match mode-2; nested-choice rung; FACT 0.
+  Depends on PLR-J-2 (explicit resume) and PLR-J-4 (callee blocks to backtrack into).
+
+**Dependency order:** PLR-J-0 → {PLR-J-1 standalone} → PLR-J-2 → PLR-J-3 → PLR-J-4 → PLR-J-5.
+PLR-J-1 is independent and is the recommended first landing (smallest, corroborated by rung09).
 
 ---
 
