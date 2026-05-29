@@ -28,6 +28,71 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-K-3/4/5/6, 2026-05-29 — Opus 4.8, one4all `f6223d74` / corpus `4a7d2dd`)
+
+**2026-05-29 Opus 4.8: PLR-K-3/4/5 LANDED + PLR-K-6 honest-abort (architectural boundary).**
+Four mode-3-native MEDIUM_BINARY rungs continuing the PLR-K ladder. **GATE-2 crosscheck 47 → 61
+PASS (+14).** GATE-3 m2 104/107 → **108/111** (rung40 enrolled). All other gates byte-identical:
+GATE-1 5/5, GATE-4 4/4, GATE-SWI 57/57, siblings icon/raku/snobol4 5/5/13, FACT arm1 0 / arm2 12.
+
+- **PLR-K-3 — numbervars/3 + write/1 compound BINARY arm (+5, rung20).** New effect helper
+  `rt_pl_numbervars_term` (`bb_exec.c`, after `rt_pl_char_type`) — faithful transliteration of the
+  mode-2 numbervars oracle: walk the built term, bind unbound vars to `$VAR(N)`, unify End under a
+  trail mark. The BINARY arm builds the term via `emit_build_compound_term_bin` (so its TERM_VARs
+  alias the live env slots → a later `write` shows the binding) then calls the helper. **Discovered
+  + fixed blocker:** the `write/1` BINARY arm only handled `BB_ATOM`/`BB_PL_VAR`; every compound/
+  int/float arg fell through to a no-op, so `write(f(a,b))` printed EMPTY in mode-3 even for a
+  fully-ground literal (this masked numbervars: End was already correct, only the compound `write`
+  rendered empty). Added `rt_pl_write_term_ptr` (`rt.c` — renders any built `Term*` via the shared
+  `pl_write`) + an `else` branch in the write arm that builds + renders compound/int/float. rung20
+  ×5 now 3-mode AGREE.
+- **PLR-K-4 — writeq/1 + write_canonical/1 + print/1 BINARY arm (+5, rung22).** New quoting writers
+  `rt_pl_writeq_term_ptr` / `rt_pl_write_canonical_term_ptr` (`rt.c` — route built `Term*` through
+  `pl_writeq` / `pl_write_canonical`, the mode-2 oracle's own writers). New writeq/write_canonical
+  BINARY arm (build via `emit_build_compound_term_bin`, call the matching writer, always-succeed γ
+  tail); `print` added to the write arm condition (it was bundled with write in MEDIUM_TEXT but the
+  BINARY arm only matched write/writeln). **General builder strengthening:** added a `BB_ARITH`
+  branch to `emit_build_compound_term_bin` (an arith functor in TERM position is a compound, e.g.
+  `write_canonical(1+2)` → `+(1,2)`; operands on α/β, mirrors `pl_node_to_term`'s BB_ARITH case) —
+  benefits any BINARY path materializing operator terms. rung22 ×5 now 3-mode AGREE.
+- **PLR-K-5 — compound-arg type-test BINARY arm (+4, NEW rung40).** Replaced the J-1/J-3
+  honest-abort (`if (a0->t == BB_PL_STRUCT) return double-jump-stub`) with the compound path: build
+  via `emit_build_compound_term_bin` (now covers `BB_PL_STRUCT` + `BB_ARITH`), call the existing
+  `rt_pl_type_test_term` helper the TEXT arm already used. `is_list([1,2,3])`/`compound(f(a))`/
+  `ground(g(a,X))`/`callable(f(x))` now 3-mode AGREE (mode-4 TEXT arm already existed → mode-3 now
+  at parity). **No prior corpus coverage existed for compound type-tests** → added corpus
+  `rung40_typetest_compound_{is_list,compound,ground,callable}` (.expected from mode-2 reference)
+  and extended the GATE-3 rung-suite glob to `rung4[0-9]` so they enroll in mode-2 (108/111).
+- **PLR-K-6 — retract/1 + retractall/1: ARCHITECTURAL BOUNDARY, honest-abort (no +N; turned
+  silent-wrong + segfault into honest NATIVE-ABORT).** Clause REMOVAL cannot be delivered in mode-3
+  native against the current statically-compiled clause model: the `BB_CHOICE` dispatcher
+  (`bb_pl_choice.cpp`) bakes the clause count as a compile-time constant (`cmp edi, n`,
+  `n = _.pl_choice_n`) and emits each clause as a fixed flat block, so a runtime `zc->nbodies--` is
+  INVISIBLE to the emitted enumerator (a later `color(X)` still tries all originally-emitted
+  clauses). This is the same boundary `PL-RT-ASSERTZ` faces → needs a runtime-mutable clause store
+  the native dispatcher consults (multi-session substrate, NOT a template arm). Per NO-MODE-FALLBACK
+  the retract/retractall BINARY arm now sets `g_sm_native_unsupported` (honest NATIVE-ABORT, rc 134,
+  named diagnostic) instead of silently no-op'ing removal and reporting the clause as gone (the
+  prior stub also segfaulted the recursive `retract_loop` case). **Mode-2 oracle untouched** (rung14
+  m2 5/5). A correct structural head-matcher was built + debugged en route (descends through the
+  clause-body `BB_PL_SEQ` to the head-unify chain; proved `retract(age(bob,X))`→X=25 and
+  `retract(ghost(x))`→fail) but only mutates the runtime `zc` the native enumerator ignores, so it
+  was removed as dead code once the arm became an abort. **Two clause-shape findings (recorded for
+  the future mutable-store work):** (1) a single-clause predicate lowers to a bare `BB_PL_SEQ` body
+  with NO `BB_CHOICE`/`zc->bodies[]`; (2) within a multi-clause `BB_CHOICE`, each clause body is
+  itself `BB_PL_SEQ`-wrapped (head-unify nodes in `bb_pl_seq_state_t->goals[]`, not at
+  `body->entry`). **Also a reusable finding:** `snprintf` faulted in deep mode-3 native context
+  (SSE varargs alignment) — a manual digit-build sidesteps it; note for future native helpers.
+
+**NEXT:** string_io (rung24), format/2 compound (rung19 remainder), term_to_atom/term_string mode-4
+emit, atom_number mode-4 — all tractable BINARY/TEXT arms. **findall/3** last (own protocol —
+`nd->ival` is `bb_pl_findall_state_t*`, not arity). **PL-RT-ASSERTZ mutable clause store** is the
+real home for both assertz and retract in mode-3/4 (multi-session; native dispatcher must read
+clause count/bodies from a runtime structure instead of compile-time `_.pl_choice_n`). Handoff
+`HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRK3456.md`.
+
+---
+
 ## State at HEAD (post-PLR-K-2, 2026-05-29 — Opus 4.8)
 
 **2026-05-29 Opus 4.8: PLR-K-2 LANDED — char_type/2 mode-3 native + mode-4 emit.** `char_type/2`
