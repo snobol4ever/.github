@@ -259,12 +259,12 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 3b1af0ba  SBL-1016-EVAL-SLEN  (SBL-1010 = 1aa0b3c5, same session, in history)
+HEAD one4all       = 2b5a2e77  SBL-M2-CAT-FLATTEN+DEFER-GROW+CAP-REGROW  (28a720f2 SBL-CAP-OUTPUT-R10 in history)
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 51       (sibling-influenced; up from 49 via sibling Prolog/Raku, not this change)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 252/280  (+2 this session: 1010 alias/alt-entry, 1016 EVAL deferred-expr)
-true --interp      = 252/280  (both fixes native-only; oracle already passed these)
+DEFAULT/NATIVE     = 255/280  (unchanged this session; native untouched)
+true --interp      = 248/280  (+2 this session: word2, word3; real baseline was 246, NOT the stale 252)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
 FACT RULE          = 0
@@ -277,6 +277,8 @@ GATE-PK            = stale
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — SBL-M2-CAT-FLATTEN+DEFER-GROW+CAP-REGROW ✅** (one4all `2b5a2e77`). Mode-2 (`--interp`) oracle parity for ARB-in-CAT + capture. Prior DEFER hypothesis was WRONG (bare ARB compiles to SM_PAT_ARB/XFARB, and the failing path is the bb_exec.c ORACLE via SM_EXEC_STMT bb_table — BB_lower_pat succeeds — NOT the broker). Three real fixes: (1) lower_pat_dcg.c CAT-FLATTEN — parser emits left-nested binary CAT(CAT(a,b),c); the TT_CAT retry fixup wired successor.ω→a->β where a is the inner CAT entry (FIRST element β), never the buried middle generator, so 'xx' ARB 'xx' could not grow ARB. Flatten nested TT_SEQ/TT_CAT into one flat leaf chain (concat associative) → flat fixup wires kid[i+1].ω→kid[i].β. (2) bb_exec.c BB_PAT_DEFER growable — persist sub-graph ptr (dval) + outer-Δ origin (counter) in α, bb_exec_resume on β; β=self in the two DEFER lowering sites. (3) bb_exec.c ASSIGN_COND/IMM capture-regrow — node reset state=0 after commit so a regrown inner re-recorded a fresh start (captured var empty/wrong); discriminate fresh vs inner-return on inner state (bb->α->state), preserve start. **mode-2 246→248 (+2: word2, word3 byte-correct; FAIL-diff = exactly those two, zero regression).** native 255 unchanged; smoke 13/13 ×2; rung M2=19/0 M4=18/1 (053 pre-existing); cross-lang 5/5/5/5; FACT=0. Pure C control-flow/state, no byte code. NOTE: real mode-2 baseline is 246 (re-measured clean 28a720f2), the prior "252" was stale. audit GATE FAIL is pre-existing bb_nfa.cpp (Raku NFA sibling), present on clean baseline — not this change.
 
 - **2026-05-29 Opus 4.8 — SBL-CAP-OUTPUT-R10 ✅** (one4all `28a720f2`). `bb_capture.cpp` BINARY arm
   called `rt_cap_assign_cursor` WITHOUT preserving `r10`. The brokered blob holds `&Δ` in `r10`
