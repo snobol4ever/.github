@@ -220,7 +220,7 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = (this commit) SBL-1016-EVAL-SLEN  (on sibling base, post SBL-1010)
+HEAD one4all       = 3b1af0ba  SBL-1016-EVAL-SLEN  (SBL-1010 = 1aa0b3c5, same session, in history)
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 51       (sibling-influenced; up from 49 via sibling Prolog/Raku, not this change)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
