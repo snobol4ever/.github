@@ -99,6 +99,31 @@ For full failure list patch `head -40` to `head -300` in test_interp_broad_corpu
   before/after — sibling-influenced, not from this change), cross-lang icon/prolog/raku/snocone
   5/5/5/5, FACT 0, audit GATE OK. Not template work, as predicted.
 
+- [x] **1016 EVAL SEGV (deferred-expression dispatch) ✅** (2026-05-29 Opus 4.8). `*expr`
+  (unevaluated expression) lowers to `SM_PUSH_EXPRESSION entry_pc`, which builds a `DT_E`
+  descriptor. Mode-2 (`sm_interp.c`) builds `{slen=1, i=entry_pc}` → `EXPVAL_fn` slen==1 path →
+  `sm_eval_subexpr(entry_pc)` (runs the subexpr via the interpreter on the SM program). The
+  mode-3 native MEDIUM_BINARY arm of `sm_push_expression_str` (`sm_expr_incr.cpp`) passed
+  `mov esi, 2` (slen=2 = THUNK) with `movabs rdi, <entry_pc>` — but entry_pc (e.g. 5) is an SM PC,
+  NOT a code address, so `EXPVAL_fn` slen==2 did `call *5` → SIGSEGV at PC 0x5. The MACRO/TEXT arms
+  legitimately use slen=2 because mode-4 emits the subexpr as a real callable address
+  (`lea rdi,[rip+.L<entry>]`); only the BINARY (mode-3-native, raw-SM-PC) arm was wrong. Fix:
+  `u32le(2u)`→`u32le(1u)` in the BINARY arm only — descriptor now `{slen=1, i=entry_pc}` identical
+  to mode-2 → `sm_eval_subexpr`. **Native 251→252 (+1: 1016_eval 3/3 byte-exact, all three EVAL
+  forms — concat / var-ref / failing-expr); zero regression** (FAIL-diff = exactly 1016 newly
+  green; mode-2 oracle 252 unchanged; smoke 13/13 ×2; rung M2=19/0 M4=18/1; cross-lang
+  icon/prolog/raku/snocone 5/5/5/5; FACT 0; audit GATE OK). Not template-byte work beyond the
+  one immediate-operand correction.
+
+- [ ] **NOTE — 1011/1013/1017 are m2 oracle gaps, NOT native-only** (triaged 2026-05-29 Opus 4.8).
+  All three FAIL in `--interp` (mode-2) too, so they are NOT native-dispatch bugs and do not
+  belong to this M3-NATIVE cluster: **1011_func_redefine** (`FAIL 1011/003: redefined myfunc(4)=24`
+  both modes — DEFINE-redefinition semantics), **1013_func_nreturn** (mode-2 even raises Error 5
+  "Undefined function or operation" then `FAIL 1013/002` — NRETURN-as-lvalue assignment),
+  **1017_arg_local** (`FAIL 1017/001: ARG(.jlab,1) = A` both modes — ARG/local introspection).
+  Move to the "Pre-existing m2 oracle gaps (audit-only)" bucket below; fix the oracle first, then
+  native parity follows for free as with 1016.
+
 - [ ] **Then knock down remaining ~57 native-only failures**, by cluster:
   - [x] **046/047 TAB/RTAB SIGSEGV native ✅** (2026-05-29 Opus 4.7). `bb_pat_tab.cpp` BINARY arm
     had two bug classes carried in from `c01959f4` (the bb_bin_t conversion). (1) Same off-by-one
@@ -163,12 +188,12 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = (this commit) SBL-1010-ALIAS-ALTENTRY-FIX  (on sibling base e2d99c3d)
+HEAD one4all       = (this commit) SBL-1016-EVAL-SLEN  (on sibling base, post SBL-1010)
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
-GATE-2 broker      = 49       (sibling-influenced; identical before/after this change)
+GATE-2 broker      = 51       (sibling-influenced; up from 49 via sibling Prolog/Raku, not this change)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 251/280  (+1 this session: 1010_func_recursion via _usercall_hook alias/alt-entry resolution)
-true --interp      = 251/280  (1010 already passed mode-2; native now matches the oracle)
+DEFAULT/NATIVE     = 252/280  (+2 this session: 1010 alias/alt-entry, 1016 EVAL deferred-expr)
+true --interp      = 252/280  (both fixes native-only; oracle already passed these)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
 FACT RULE          = 0
@@ -181,6 +206,8 @@ GATE-PK            = stale
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — SBL-1016-EVAL-SLEN ✅.** `*expr` (unevaluated/deferred expression, EVAL target) lowers to `SM_PUSH_EXPRESSION entry_pc` → builds a `DT_E` descriptor consumed by `EXPVAL_fn` (eval_code.c). slen==1 → `sm_eval_subexpr(entry_pc)` (SM-PC path); slen==2 → treat `i` as a callable code pointer and `call *i` (thunk path, used by mode-4 where the subexpr is emitted as a real `lea rdi,[rip+.L<entry>]` address). The mode-3 native MEDIUM_BINARY arm of `sm_push_expression_str` (`SM_templates/sm_expr_incr.cpp`) wrongly emitted `mov esi, 2` (slen=2) while `rdi`=`movabs <entry_pc>` (a raw SM PC, e.g. 5) → `EXPVAL_fn` did `call *5` → SIGSEGV at PC 0x5 (gdb: `EXPVAL_fn:431` → 0x5). Mode-2 `sm_interp.c` builds the descriptor with `slen=1`. Fix: BINARY arm `u32le(2u)`→`u32le(1u)` (one immediate operand) so the native descriptor is `{slen=1, i=entry_pc}` identical to mode-2 → routes to `sm_eval_subexpr` (strong def in sm_interp.c; EVAL is a runtime builtin, mode-agnostic). MACRO/TEXT arms untouched (mode-4 thunk path stays correct). **Native 251→252 (+1: 1016_eval 3/3 byte-exact — concat `*('abc' 'def')`, var-ref `*q`, failing `*IDENT(1,2)`); FAIL-diff = exactly 1016 newly green, zero regression.** Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053 pre-existing), mode-2 oracle 252 unchanged, broker 51/11 (sibling-up, not this change), cross-lang 5/5/5/5, FACT 0, audit GATE OK. Also triaged 1011/1013/1017 as m2 oracle gaps (fail both modes) — reclassified out of this native cluster.
 
 - **2026-05-29 Opus 4.8 — SBL-1010-ALIAS-ALTENTRY-FIX ✅.** The two bisected 1010 sub-bugs (OPSYN-alias recursion `OPSYN(.facto,'fact');facto(4)` and alternate entry point `DEFINE('fact2(n)',.fact2_entry)`+recursion) turned out NOT to be call/return frame setup — they were a single name-resolution infinite loop in `src/driver/interp_hooks.c::_usercall_hook`. The early `if(!_body && FNCEX_fn(name))` guard bounced to `APPLY_fn` whenever `sm_label_pc_lookup(&g_stage2.sm, name) < 0` — i.e. whenever there was no SM label under the function's OWN name. An alias (`facto`: SM body lives under entry label `fact`) and an alt-entry fn (`fact2`: body under `fact2_entry`) both lack a direct same-name SM label, so both bounced; `APPLY_fn` found the FNCBLK but `fn==NULL` (interpreted, not a C builtin) → `g_user_call_hook` → `_usercall_hook` → ∞ → stack-overflow SIGSEGV (gdb showed pure `_usercall_hook`↔`APPLY_fn` alternation on `name="facto"`). Block-1 (the `if(1)` SM-PC resolver lower down) ALREADY handles both via `FUNC_ENTRY_fn` (`facto`→`fact`, `fact2`→`fact2_entry`), but the early guard never let control reach it. Fix: before bouncing, try uppercase-name then `FUNC_ENTRY_fn(name)` SM PCs (mirrors block-1's own ladder); only bounce to `APPLY_fn` when NO SM PC resolves by any means — i.e. genuine C builtins, the only case `APPLY_fn` can service without bouncing. +13 lines, one file, no template/byte work. **Native 250→251 (+1: 1010_func_recursion, 4/4 byte-exact); FAIL-list diff = exactly 1010 newly green, zero drops.** Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053 pre-existing), mode-2 251 unchanged, broker 49/11 (identical before/after — proved by stash/remeasure), cross-lang icon/prolog/raku/snocone 5/5/5/5, FACT 0, audit GATE OK.
 
