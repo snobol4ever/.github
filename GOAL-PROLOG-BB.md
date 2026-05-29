@@ -28,7 +28,17 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`8c556f29`, post-full-Sonnet-4.6-session)
+## State at HEAD (`cda40a70`, post-Opus-4.7-SWI-2-pre)
+
+**2026-05-28 Opus 4.7 (`cda40a70`):** SWI-2-pre — findall determinism guard. One-line fix in
+`bb_exec.c` findall loop: `if (!bb_body_has_live_choice(fs->gcfg)) break;` after each collected
+solution, mirroring BB_PL_CALL discipline at line 3340. Closes handoff bug (C): findall resume
+looping on deterministic bodies. Verified: bare fact returns one element, non-det collects all.
+All gates byte-identical to `86abe166`. Unblocks SWI-2b plunit.pl rewrite.
+
+**2026-05-28 Sonnet 4.6 (`86abe166`):** SWI-1a directive whitelist in `lower.c` — `begin_tests`/
+`end_tests`/`dynamic`/`nb_setval`/`initialization` fire via `SM_BB_PL_INVOKE` at load time.
+Three blockers identified for SWI-2 in HANDOFF-2026-05-28-SONNET-PROLOG-BB-SWI-1A-LANDED.md.
 
 **2026-05-28 Sonnet 4.6 (`8c556f29`):** Four commits landed this session.
 (1) FACT cleanup Steps 2+3 (`88bacd2a`): `bb_emit_asm_result_pairs()` helper + six templates
@@ -457,6 +467,12 @@ of `test/2` clauses directly from the predicate table — no assertz needed. Req
 **Gate SWI-G2:** `bash scripts/test_prolog_swi_suite.sh --file test_list` shows actual test body
 running — `X==y` check fires, `memberchk` binds correctly, `match=1/1`. All three modes.
 
+- [x] **SWI-2-pre:** Findall determinism guard landed (`cda40a70`, Opus 4.7, 2026-05-28).
+  `bb_exec.c` findall loop now checks `bb_body_has_live_choice(fs->gcfg)` after each collected
+  solution and breaks when the goal body is deterministic — mirrors BB_PL_CALL discipline at
+  line 3340. Stops `findall(N, det_goal(N), _)` returning N copies of N (handoff bug C).
+  Verified: bare fact → `[only_one]`, non-det color → `[red,green,blue]`. All gates byte-identical
+  (G1=5/5, G2=132/0, G3 m2/m3=104/107, G4=4/4, m4 corpus=54/107, FACT=0). Unblocks SWI-2b.
 - [ ] **SWI-2a:** Implement `clause/2` mode-2 in `bb_exec.c`. Gate: `clause(append([],L,L),true)`
   succeeds; `clause(append([H|T],L,[H|R]),Body)` returns the body term.
 - [ ] **SWI-2b:** Update `plunit.pl` `pj_run_suite` to use `clause(test(N,O),G)` enumeration.
