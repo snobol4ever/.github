@@ -75,7 +75,8 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 - [x] **RK-BB-4 mode-2 ✅** (4a constructors + 4b infix, see completed rungs). **Full `rk_junctions` probe PASS mode-2.** Q9-Q12 ANSWERED by Lon (2026-05-29): **Q9** reuse existing kinds; break out new SM/BB opcodes ONLY if language-specific behavior diverges. **Q10** build on `BB_ALT` (live substrate Icon uses); split later if needed. **Q11** substrate-first. **Q12** tagged-string rep. Substrate proven: `BB_ALT` mode-2 is a complete n-ary alternation engine (empirically `x=(1|2|3)`→hit, `x=(7|8|9)`→miss, `every write(10|20|30)`→10/20/30); `BB_ALT` mode-4 `MEDIUM_BINARY` is a real counter-state dispatch slab (NOT a stub — the probe header's stale assumptions #3/#4 refer to the orphan `BB_ALTERNATE`, and only the `MEDIUM_TEXT` arm is a passthrough). Junction VALUE rep is the tagged string; the boolean collapse currently lives in mode-2 `SM_ACOMP`/`SM_LCOMP` (NOT yet on `BB_ALT`).
 - [x] **RK-BB-4c (mode-4 junctions) ✅** (Opus 4.8, 2026-05-29, one4all `216f22cd`). Route (i): junction collapse added to shared `rt_acomp`/`rt_lcomp` (`src/runtime/rt/rt.c`), mirroring the mode-2 `SM_ACOMP`/`SM_LCOMP` interpreter cases. The `SM_ACOMP`/`SM_LCOMP` x86 templates already emit `mov edi,<op>; call rt_acomp`/`rt_lcomp` — the work lives in those runtime helpers, so this is FACT-clean (no template byte change). When a popped operand is `rk_junction_is()` true → `rk_junction_collapse(scalar,jct,op,numeric)` (1 acomp / 0 lcomp); push scalar+`LAST_OK=1` on hit else FAIL. `rk_junctions` mode-4 GREEN. Mode-3 junctions correct too (same helpers) but dormant (MODE3-DISPATCH-GAP).
 - [x] **RK-BB-4d edges — precedence + nesting ✅** (Opus 4.8, 2026-05-29, one4all `0a5352e3`+`1652aeb9`). (2) PRECEDENCE: new `jct_expr` grammar tier (`raku.y`) makes infix `|`/`&` bind tighter than comparison (real Raku); `$x == 1|2|5` → `$x == any(1,2,5)`. Comparisons take `jct_expr` operands; parser regenerated, net-zero new conflicts. (1) NESTED MIXED-FLAVOR: SOH-leak fixed via EOT(`\x04`)-terminated junction rep — builder appends `\x04`; `rk_junction_collapse` scans scalars to SOH-or-EOT and skips nested `\x03…\x04` spans by depth count, recursing on the opaque span. `50&(50|60)` etc. now correct. Probes `rk_junction_prec`, `rk_junction_nest` added. (3) var round-trip + string-relop collapse already worked. REMAINING sliver: `^`(one) infix not lexed; only `one(...)` constructor.
-- [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers; `zip`/`cross` = multi-Seq drivers (later).
+- [x] **RK-BB-5.0..5.3 ✅** (Opus 4.8, 2026-05-29, one4all `36e41ed6`). List/array Seq consumers landed as pure value helpers in `raku_builtins_byname.c` (flatten SOH-array args into segments; no emitted x86, FACT-clean; reachable mode-2 `sm_interp` + mode-4 `rt_call`; byte-identical across modes). **5.0 `reverse`** (`a4bc02d4`) eager-drain reorderer; `for reverse(...)` rides the existing `for CALL(...)→$v` materialization branch. **5.1 `unique`+`sum`** (`8b10f978`) dedup-first-occurrence + numeric fold (INTVAL all-integral else REALVAL). **5.2 `join`** (`ed321adc`) `join(SEP,LIST)` fold-to-string; composes with reverse. **5.x array-arg coverage** (`f9425b68`, test-only) — confirmed reverse/unique/sum/join all work on push-built `@arrays`. **5.3 comma-list array initializer `my @a = e1,e2,...`** (`36e41ed6`) — the REAL gap behind `my @a=1,2,3` parse errors (NOT @-args, which already worked). Two `raku.y` productions (untyped+typed) build `ASSIGN(@a, __rk_arr(...))`; lookahead `;`(single-expr) vs `,`(comma-list) is a clean LALR split → **net-zero new conflicts (still 30 s/r)**; parser regenerated via `scripts/regenerate_parser_and_lexer_from_sources.sh` recipe (bison 3.8.2). New `__rk_arr` builtin packs args into an in-order SOH-array. Probes: rk_reverse, rk_unique_sum, rk_join, rk_seq_consumers_arr, rk_array_literal. **GATE-RK mode-2 28→33/40, GATE-RK4 mode-4 29→34/40; smoke 5/5, siblings icon/prolog/snobol4/snocone 5/5/13/5, FACT 0, all commits, no regressions.** DEFERRED: parenthesized `my @a=(1,2,3)` (list-atom, conflict-prone); `.method(N)` forms (`.tail`/`.head`/`.reverse`) need method-call-with-args parsing; `zip`/`cross` multi-Seq drivers need a nested-tuple representation.
+- [ ] **RK-BB-5.4..N** — `zip`/`cross` = multi-Seq drivers (need nested-tuple rep); `.tail`/`.head`/`.reverse` method forms (need `.method(N)` parsing); parenthesized array literal `my @a = (1,2,3)`.
 
 ## mode-2 fixes (non-ladder, this session)
 
@@ -121,27 +122,31 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: RK-BB-4c (mode-4 junctions) + RK-BB-4d (precedence + nested mixed-flavor) COMPLETE
-  (Opus 4.8, 2026-05-29, one4all `1652aeb9`). GATE-RK mode-2 26→28/35, GATE-RK4 mode-4 26→29/35.
-  THREE commits: (4c `216f22cd`) junction collapse into shared rt_acomp/rt_lcomp mirroring mode-2
-  SM_ACOMP/SM_LCOMP — FACT-clean (templates already emit `call rt_acomp/rt_lcomp`); rk_junctions
-  mode-4 GREEN. (4d-prec `0a5352e3`) new jct_expr grammar tier — infix |/& binds tighter than
-  comparison; `$x==1|2|5`→`$x==any(1,2,5)`; parser regen net-zero new conflicts; +rk_junction_prec.
-  (4d-nest `1652aeb9`) SOH-leak fixed via EOT(\x04)-terminated junction rep — builder appends \x04,
-  rk_junction_collapse depth-skips nested \x03…\x04 spans + scalars stop at SOH-or-EOT; mixed-flavor
-  nesting (50&(50|60) etc.) correct; +rk_junction_nest. Mode-3 junctions correct-but-dormant
-  (MODE3-DISPATCH-GAP). Zero regression (smoke 5/5/5/13/5, crosschecks baseline-identical, FACT 0).
+one4all: RK-BB-5.0..5.3 (list/array Seq consumers + comma-list array initializer) COMPLETE
+  (Opus 4.8, 2026-05-29, one4all `36e41ed6`). GATE-RK mode-2 28→33/40, GATE-RK4 mode-4 29→34/40.
+  FIVE commits, all pure value helpers in raku_builtins_byname.c (flatten SOH-array args; no emitted
+  x86, FACT-clean; mode-2 sm_interp + mode-4 rt_call; byte-identical across modes):
+  (5.0 `a4bc02d4`) reverse(LIST/@arr) eager-drain reorderer — for reverse(...) rides existing
+  for-CALL→$v materialization. (5.1 `8b10f978`) unique (dedup first-occurrence) + sum (INTVAL if all
+  integral else REALVAL). (5.2 `ed321adc`) join(SEP,LIST) fold-to-string; composes w/ reverse.
+  (5.x `f9425b68`, test-only) array-arg coverage — reverse/unique/sum/join all work on push-built
+  @arrays. (5.3 `36e41ed6`) comma-list array initializer `my @a = e1,e2,...` — the REAL gap behind
+  `my @a=1,2,3` parse errors (NOT @-args, which already worked). Two raku.y productions build
+  ASSIGN(@a,__rk_arr(...)); lookahead ;(single) vs ,(comma-list) is a clean LALR split → NET-ZERO
+  new conflicts (still 30 s/r); parser regenerated via regenerate_parser_and_lexer_from_sources.sh
+  (bison 3.8.2); new __rk_arr builtin packs args into in-order SOH-array. No regressions any commit.
 
-.github: GOAL-RAKU-BB.md — RK-BB-4c + RK-BB-4d marked ✅ in open rungs; watermark + gates updated.
-  HANDOFF-2026-05-29-OPUS48-RAKU-BB-4C-4D-JUNCTIONS-MODE4-NEST.md added. PLAN.md row updated.
+.github: GOAL-RAKU-BB.md — RK-BB-5.0..5.3 marked ✅ in open rungs; watermark + gates updated; new
+  RK-BB-5.4..N rung added (zip/cross, .method(N) forms, parenthesized literal).
+  HANDOFF-2026-05-29-OPUS48-RAKU-BB-5-SEQ-CONSUMERS.md added. PLAN.md row updated.
 
 corpus:  unchanged
 
-GATE-RK   mode-2:                28/35  (+rk_junction_prec +rk_junction_nest; rk_junctions already)
-GATE-RK4  mode-4:                29/35  (+rk_junctions +rk_junction_prec +rk_junction_nest)
-GATE-RK3  mode-3 native:         not re-run (junctions correct but dormant — MODE3-DISPATCH-GAP)
+GATE-RK   mode-2:                33/40  (+rk_reverse +rk_unique_sum +rk_join +rk_seq_consumers_arr +rk_array_literal)
+GATE-RK4  mode-4:                34/40  (same five new probes; FAIL still 6 = deferred regex cluster)
+GATE-RK3  mode-3 native:         not re-run (consumers are value-helper/eager; MODE3-DISPATCH-GAP unrelated)
 Smoke raku/icon/prolog/snobol4/snocone: 5/5/5/13/5  HOLD
-Crosschecks (stash/rebuild verified): SNOBOL4 5/1 · Icon 3/1 · Prolog 0/132 · Raku 36/1 (all baseline)
+bison s/r conflicts: 30 (unchanged — comma-list init added zero)
 FACT RULE grep:   0
 Build:            clean
 ```
@@ -152,12 +157,16 @@ Build:            clean
 - `rk_junctions` mode-3: junctions correct (collapse in rt_acomp/rt_lcomp) but Raku `--run` emits no
   output for ANY program (MODE3-DISPATCH-GAP, pre-existing) — lights up free when that gap closes.
 
-## NEXT — RK-BB-5 (or RK-BB-4c mode-3 when MODE3-DISPATCH-GAP closes)
+## NEXT — RK-BB-5.4..N (or RK-BB-4c mode-3 when MODE3-DISPATCH-GAP closes)
 
-RK-BB-4 junctions are COMPLETE for the corpus (mode-2 + mode-4, incl. nested mixed-flavor).
-Remaining slivers peripheral: `^`(one) infix not lexed (only `one(...)` constructor); cross-flavor
-unparenthesized chains untested at the precedence edge. Substantive next:
-**RK-BB-5** — `reverse`/`tail`/`from-loop` as Seq consumers; `zip`/`cross` = multi-Seq drivers.
+RK-BB-5.0..5.3 COMPLETE: reverse/unique/sum/join consumers + comma-list array initializer.
+Substantive next, in rough order of leverage:
+**(a)** `.method(N)` parsing (`@a.tail(2)`, `@a.head(N)`, `@a.reverse`) — unblocks the method-form
+  consumers the goal names; method-call-with-args is the parser gap.
+**(b)** parenthesized array literal `my @a = (1,2,3)` — needs a list-atom (more conflict-prone than
+  the bare comma-list, which is why 5.3 did bare first).
+**(c)** `zip`/`cross` multi-Seq drivers — each output element is itself a list, so needs a nested-tuple
+  representation (STX-within-SOH or similar); the goal groups these as "(later)".
 Or the deferred regex cluster under GOAL-RAKU-PAT-BB.
 
 
