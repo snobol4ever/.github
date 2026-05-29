@@ -1,6 +1,6 @@
 # ARCH-WASM.md — WASM Backend
 
-Backend: WebAssembly. Emitter: `src/backend/emit_wasm.c` (one4all).
+Backend: WebAssembly. Emitter: unified `emit_core.c` (`IS_WASM` arms in `SM_templates/` + `BB_templates/`); the former silo `emit_wasm.c` was deleted in the EC series — see ARCH-EMITTER.md.
 Tools: `wabt` (`apt-get install -y wabt`), `wat2wasm`, `node`.
 
 ## Byrd Box model

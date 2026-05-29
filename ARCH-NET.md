@@ -1,8 +1,10 @@
 # ARCH-NET.md — .NET Backend
 
-Backend: .NET (MSIL → CLR). Two implementations:
-- `one4all/src/driver/scrip.cs` — tree-walk interpreter
-- `snobol4dotnet` — Jeffrey Cooper's full C# runtime
+Backend: .NET (MSIL → CLR).
+Emitter: unified `emit_core.c` (`IS_NET` arms in `SM_templates/` + `BB_templates/`); MSIL boxes assemble to `boxes.dll` via `ilasm`.
+Two related implementations to keep distinct:
+- `one4all/src/driver/scrip.cs` — tree-walk interpreter (one4all)
+- `snobol4dotnet` — Jeffrey Cooper's full C# runtime (separate repo; semantic oracle, tracked by its own GOAL-NET-* files)
 
 ## snobol4dotnet model
 

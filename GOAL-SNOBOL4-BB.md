@@ -1,7 +1,7 @@
 # GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
 **Repo:** one4all + corpus + .github
-**Sister:** GOAL-HEADQUARTERS.md · GOAL-MODE4-SN4-SNOCONE.md · GOAL-PROLOG-BB.md · GOAL-ICON-BB.md
+**Sister:** GOAL-HEADQUARTERS.md · GOAL-TEMPLATES-X86.md · GOAL-PROLOG-BB.md · GOAL-ICON-BB.md
 **Carved:** 2026-05-27
 
 ---

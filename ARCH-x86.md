@@ -1,7 +1,7 @@
 # ARCH-x86.md — x86 Backend
 
-Backend: x86 (native binary). Emitter file: `src/backend/emit_x64.c`.
-Human name: x86. File/folder name: x64 (historical).
+Backend: x86 (native binary). Emitter: unified `emit_core.c` (`IS_X86` arms) + `emit_sm.c` / `emit_bb.c` (binary SM/BB) + `SM_templates/` + `BB_templates/`.
+Human name: x86. File/folder name: x64 (historical). (The former silo `emit_x64.c` was folded into the unified emitter in the EC series — see ARCH-EMITTER.md.)
 
 ## Byrd Box model
 
