@@ -100,12 +100,8 @@ For full failure list patch `head -40` to `head -300` in test_interp_broad_corpu
     SPAN-in-ARBNO (re-entrant), SPAN capture, and "071 minus deref" (inline SPAN+POS+CAT+capture) — all
     PASS m2==m3. The "SPAN cluster" native fails (071/124/138/139/expr_eval) fail on a DIFFERENT feature
     (nested `*var` deref — see below), NOT on SPAN. Do not spend a session on SBL-SPAN-2.
-  - **REAL BLOCKER — nested XDSAR (`*var`) inside a combinator under sm_run_native** (Opus 4.8 isolation).
-    Top-level deref works native (resolved early at `stmt_exec.c:335`); nested deref `POS(0) *WORD` →
-    NOMATCH native, MATCH m2, with identical g_bb_mode=BROKERED builder. Only sm_run_native vs
-    sm_interp_run differs. Smallest repro: a single XDSAR child of XCAT. Unblocks 056/070-074/108-115/
-    140-141/147 (largest native-only cluster). Dig order: SM_PAT_CAT arm → SM_EXEC_STMT globals at entry
-    → patnd_to_bb_graph of XCAT-over-XDSAR. Full map: `HANDOFF-2026-05-29-OPUS48-SBL-SPAN-VERIFIED-DEFER-NESTED-XDSAR.md`.
+  - [x] **REAL BLOCKER — nested XDSAR (`*var`) inside a combinator under sm_run_native — RESOLVED ✅** (2026-05-29 Opus 4.8).
+    Three-part root cause: (1) `walk_bb_flat` (src/emitter/emit_bb.c) had **no `case BB_PAT_DEFER`** → fell to `default` (define β; jmp ω; jmp ω), never FILLing the template → DEFER degenerated to a zero-width no-op (false matches, e.g. `POS(0) *WORD RPOS(0)` on a non-matching subject said MATCH). (2) The BROKERED branch of `exec_stmt` routed defer trees through `patnd_to_bb_graph` (γ-pointer chain) but the flat driver traverses **kids**, not γ — so POS→DEFER collapsed to bare POS. (3) The `bb_pat_defer.cpp` MEDIUM_BINARY arm was empty, and once filled, a single `push r10` before `call rt_defer_match` left rsp mis-aligned → SIGSEGV when the deref resolved to a *pattern* (run via exec_stmt→bb_broker→SSE). Fix: add the `walk_bb_flat` DEFER→FILL case; make XDSAR a `patnd_is_simple_atom` (tree-eligible); route **defer-bearing combinator roots** through `patnd_to_bb_tree` (kid-tree) surgically (non-defer trees keep the legacy-cast path, so fence/capture trees are undisturbed); implement the BINARY arm with bulletproof 16-byte alignment (`push r10; push rbx; mov rbx,rsp; and rsp,-16; call; mov rsp,rbx; pop rbx; pop r10`). **Native 223→243 (+20), zero mode-2/3 regression** (m2 flat 252, smoke 13/13 ×2, rung M2=19, FACT=0, audit OK). Newly native: 056/070-073/108/110-112/115/128/132-138/144/147 + fence/arbno-over-defer (068/117/143/150 no longer SIGSEGV). NOTE: mode-4 not gated this session (deferred per Lon); the TEXT arm still uses the old `push r10; call; pop r10` and needs the same alignment fix when mode-4 work resumes.
     Ruled out (reverted): bb_pat_defer flat BINARY arm + lower_flat_invariant gate — both off this path.
   - SPAN ~10 tests (SBL-SPAN-2 BINARY arm + deque pattern)
   - ARBNO ~8 tests (SBL-ARBNO-3 — deque pattern available)
@@ -154,10 +150,10 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 HEAD one4all       = (this commit)  SBL-TAB-RTAB-FIX
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 39
-GATE-3 mode-4      = 184/280
-GATE-4 mode-2      = 252/280
-NATIVE corpus      = 223/280  (+3 from TAB/RTAB sites + RTAB writeback fix)
-Rung suite         = M2=19/19 M4=17 SKIP=0  (failing M4: 053, 056)
+GATE-3 mode-4      = (not gated this session — deferred per Lon; was 184/280)
+GATE-4 mode-2      = 243/280  ⚠ down from 252 at baf8397d — a SIBLING Raku commit (one4all 30e7c0a1 "mode-2 gather + ACOMP coercion + junctions") regressed SNOBOL4 m2 252→223 via shared bb_exec.c/coerce; THIS goal's defer fix then recovered 223→243. The residual 243<252 gap is the sibling's, NOT this commit's — flag for cross-goal investigation.
+NATIVE corpus      = 243/280  (+20 from nested-XDSAR/DEFER fix: walk_bb_flat dispatch + aligned BINARY arm + tree-route gate; measured against sibling base 30e7c0a1 which was 223 native)
+Rung suite         = M2=19/19 SKIP=0
 Prolog/Raku/Icon smokes = 5/5/5
 FACT RULE          = 0
 audit_m3_native    = GATE OK
@@ -167,6 +163,8 @@ GATE-PK            = stale
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — SBL-DEFER-NESTED ✅** (this commit). Nested `*var` (XDSAR→BB_PAT_DEFER) under a combinator failed under `sm_run_native`. Root cause was three gaps: missing `case BB_PAT_DEFER` in `walk_bb_flat` (→ no-op zero-width false matches); BROKERED branch used the γ-chain builder `patnd_to_bb_graph` where the flat driver needs the kid-tree `patnd_to_bb_tree`; empty + then mis-aligned BINARY arm in `bb_pat_defer.cpp` (single `push r10` → SIGSEGV when the deref ran a sub-pattern). Fixes: `walk_bb_flat` DEFER→FILL; XDSAR added to `patnd_is_simple_atom`; surgical `defer_combinator` gate routes only defer-bearing combinator roots through the tree builder (legacy-cast trees untouched); BINARY arm rewritten with `and rsp,-16` 16-byte alignment around `rt_defer_match`. Native 223→243 (+20) and m2 also 223→243 (+20) measured against the live sibling base one4all 30e7c0a1 (which a Raku commit had regressed from the 252 baseline); zero mode-2/3 regression introduced by THIS commit (empty FAIL-line regression diff). smoke 13/13 ×2, rung M2=19, FACT=0, audit GATE OK. Mode-4 deferred per Lon (not gated); `bb_pat_defer.cpp` TEXT arm still needs the same alignment fix for the mode-4 session.
 
 - **2026-05-29 Opus 4.7 — SBL-TAB-RTAB-FIX ✅** (this commit). Three-bug fix in
   `bb_pat_tab.cpp` BINARY arm: (1) TAB sites `{9, 23, 28, 29}` → `{10, 23, 27, 28}` —
