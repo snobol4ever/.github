@@ -84,24 +84,48 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
 
 ### Next phase: ORACLE-PARITY (lifts both modes)
 
-- [ ] **ARB-capture deferred-assignment bug (word1/word2/word3 + 139/140/141 + expr_eval)**
-  — analysis 2026-05-29 Opus 4.8, FIX NOT YET DONE. `ARB . VAR` conditional-capture yields the
-  WRONG substring in BOTH modes. Minimal repro: `U='xxNAMExx'; U ? 'xx' ARB . W 'xx'` → `W=[]`
-  (expect `W=[NAME]`); contrast `LEN(2) . P` which captures correctly (`P=[ab]`) because LEN does
-  not backtrack. The defect is in the conditional-assignment (`.`) interaction with a
-  *backtracking* child (ARB grows its match on retry). Investigation findings to save the next
-  session time: (1) this CAT-with-ARB pattern does NOT route through `bb_exec.c`
-  `BB_PAT_ASSIGN_COND` (added a TRC print there — never fires) NOR through `eval_pat.c` (184 lines,
-  no XNME logic); (2) `exec_stmt` (stmt_exec.c:320) calls `reset_capture_registry()` — SNOBOL4
-  `.` is DEFERRED assignment (committed only on full-match success), so the locus is the
-  **capture-registry / deferred-commit mechanism** plus the flat/brokered byte path that
-  `bb_build_pure_mode` runs even under `--interp` when `g_bb_mode==BB_MODE_LIVE`; (3) `pat_assign_cond`
-  is defined at `snobol4_pattern.c:306` (runtime XNME builder) and reached via `eval_code.c:245`.
-  NEXT-SESSION PLAN: clone the SPITBOL oracle (`git clone .../x64`) to lock exact expected
-  semantics, then trace which matcher actually executes `'xx' ARB . W 'xx'` (put a print in
-  `bb_broker`/the flat driver, not just bb_exec), find where the deferred capture range is
-  recorded, and fix the start/extent bookkeeping so ARB's final (longest-successful) extent is the
-  one committed. Likely a high-leverage fix (≥3 corpus programs, maybe the calc/eval cluster too).
+- [x] **SBL-ARB-CAT-BACKTRACK (mode-3 native + mode-4 flat) ✅** (2026-05-29 Opus 4.8). The prior
+  session's "capture-registry / deferred-commit" hypothesis was **WRONG** — disproved by the no-capture
+  repro `U='xxNAMExx'; U ? 'xx' ARB 'xx'` which ALSO fails (oracle: MATCH). The real defect is **ARB
+  failing to backtrack/grow when it is a NON-LAST element of a 3+ element CAT**, and it lived in
+  `flat_drive_cat` (`emit_bb.c`): the multi-kid loop wired **every** kid's ω-port to the shared
+  `right_ω → left_β` (= kid[0].β), so when the trailing `'xx'` failed it jumped back to the FIRST
+  element and SKIPPED the middle generator's β (its grow-retry). Correct four-port wiring: a CAT
+  element that fails must retry the *immediately preceding* element (`kid[i].ω → kid[i-1].β`), so a
+  middle generator (ARB/SPAN/ARBNO) gets to grow. Fix (2 lines): in the loop, `kid_ω = (i==1) ? left_β
+  : betas[i-2]` and pass it as kid[i]'s ω instead of `right_ω`. 2-kid path already correct (its single
+  fail path is kid[0].β); only 3+ was broken — which is why most corpus passed but the
+  word/calc/eval cluster failed. **Native broad 252→255 (+3: 124_pat_regex_keyword_seal, word2, word3),
+  zero regressions** (FAIL-list diff: exactly those 3 newly green, none dropped). word2 (`POS(0) LEN(4)
+  . WHEN TAB(6) ARB . WHO " :" TAB(24) REM . WHAT`) now byte-identical to `.ref` AND SPITBOL oracle.
+  Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053 pre-existing), mode-4 194 unchanged, broker 51/11,
+  audit GATE OK, FACT seg_byte=0, cross-lang icon/prolog/raku/snocone 5/5/5/5. Pure C control-flow
+  (label pointers) — zero byte-producing code added. Capture works through the fix for free (mode-3
+  `W=[NAME]`), confirming this was never a capture bug.
+
+- [ ] **ARB-as-pattern-VARIABLE backtracking in mode-2 oracle (`bb_exec_pat` / `BB_PAT_DEFER`)**
+  — DIAGNOSED 2026-05-29 Opus 4.8, mode-2 FIX NOT YET DONE (mode-3/4 already fixed above). True
+  `--interp` does NOT use `flat_drive_cat` — it runs a **pre-lowered `BB_graph_t`** (built by
+  `BB_lower_pat` in `lower_pat_dcg.c`, sp=NULL/fp=NULL) through the `bb_exec.c` oracle
+  (`bb_exec_pat → bb_exec_once → bb_exec_node`, following γ/ω/β pointers). Root cause of the mode-2
+  failure: the bare keyword `ARB` lowers to a **`BB_PAT_DEFER`** node (sval="ARB", a *variable*
+  reference — confirmed via pointer trace: enum offset +13, t=50=DEFER, t=36=the real embedded
+  BB_PAT_ARB built at runtime). `BB_PAT_DEFER` in `bb_exec.c` (case at line ~2893) is **single-shot**:
+  α runs the embedded sub-pattern once via `bb_exec_once(sub_bb)` (finds ARB's shortest = empty),
+  β just `return bb->ω` (comment: "no retry — treated as a single-attempt sub-match like LIT"). So
+  the embedded generator can never grow across the DEFER boundary. Compounding: the DEFER node's
+  `β=NULL` in the lowering (the TT_VAR/TT_DEFER `build_node` case), so the TT_CAT fixup
+  `b->ω = a->β ? a->β : fp` sets the successor's ω to NULL and the walk halts. **TWO-part fix needed:**
+  (1) lowering: give the DEFER node `β = bb` (self) so the CAT fixup wires successor.ω → DEFER;
+  (2) `bb_exec.c BB_PAT_DEFER`: on β (state>0), persist the embedded `sub_bb` graph pointer + the
+  outer-Δ origin across α→β (e.g. via `bb->counter`/a side slot), restore the sub-Σ context, and call
+  `bb_exec_resume(sub_bb)` (NOT `bb_exec_once`, which `bb_reset`s) to obtain the generator's NEXT
+  (longer) match; on success update outer Δ and `return bb->γ`, else `return bb->ω`. This is the
+  general, principled fix (any pattern-valued variable holding a backtracking generator), matching
+  mode-3 where the PATND path resolves ARB to a real XARB/BB_PAT_ARB. Risk: oracle DEFER semantics +
+  embedded-graph state — test against all gates. Expected to lift word1/139/140/141/expr_eval cluster
+  in mode-2 to match mode-3. (Note: the corpus harness `test_interp_broad_corpus_and_beauty.sh` runs
+  mode-3 NATIVE by default — `bare scrip` = mode_run=1; true mode-2 needs explicit `--interp`.)
 
 ### Open work
 
@@ -238,6 +262,22 @@ GATE-PK            = stale
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — SBL-ARB-CAT-BACKTRACK ✅** (one4all, flat driver). Corrected the prior
+  session's WRONG "capture-registry" hypothesis: `'xx' ARB 'xx'` fails to match even with NO capture
+  (oracle: MATCH), so it's an ARB-backtracking bug, not a capture bug. Root cause in
+  `flat_drive_cat` (`emit_bb.c`) multi-kid loop: every kid's ω wired to the shared `right_ω → left_β`
+  (= kid[0].β), so a failing trailing element jumped to the FIRST element and skipped a *middle*
+  generator's β (grow-retry). Fix (2 lines): `kid_ω = (i==1) ? left_β : betas[i-2]`, so
+  `kid[i].ω → kid[i-1].β` (retry the immediately-preceding element). 2-kid was already correct; only
+  3+ element CATs with a non-last generator (ARB/SPAN/ARBNO) were broken — hence most corpus passed.
+  **Mode-3 native broad 252→255 (+3: 124_pat_regex_keyword_seal, word2, word3); mode-4 194 unchanged;
+  zero regressions** (FAIL-diff = exactly those 3, none dropped). word2 byte-identical to `.ref` +
+  SPITBOL oracle. Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053 pre-existing), broker 51/11, audit
+  GATE OK, FACT 0, cross-lang 5/5/5/5. Pure C label-pointer control flow — no byte-producing code.
+  Mode-2 (`--interp`) NOT fixed by this — it uses `bb_exec_pat` (lowered-graph oracle), where the bare
+  `ARB` keyword lowers to a single-shot `BB_PAT_DEFER` that can't grow the embedded generator; the
+  two-part mode-2 follow-up is documented in Open work above (DEFER β=self + `bb_exec_resume` on β).
 
 - **2026-05-29 Opus 4.8 — SBL-1016-EVAL-SLEN ✅.** `*expr` (unevaluated/deferred expression, EVAL target) lowers to `SM_PUSH_EXPRESSION entry_pc` → builds a `DT_E` descriptor consumed by `EXPVAL_fn` (eval_code.c). slen==1 → `sm_eval_subexpr(entry_pc)` (SM-PC path); slen==2 → treat `i` as a callable code pointer and `call *i` (thunk path, used by mode-4 where the subexpr is emitted as a real `lea rdi,[rip+.L<entry>]` address). The mode-3 native MEDIUM_BINARY arm of `sm_push_expression_str` (`SM_templates/sm_expr_incr.cpp`) wrongly emitted `mov esi, 2` (slen=2) while `rdi`=`movabs <entry_pc>` (a raw SM PC, e.g. 5) → `EXPVAL_fn` did `call *5` → SIGSEGV at PC 0x5 (gdb: `EXPVAL_fn:431` → 0x5). Mode-2 `sm_interp.c` builds the descriptor with `slen=1`. Fix: BINARY arm `u32le(2u)`→`u32le(1u)` (one immediate operand) so the native descriptor is `{slen=1, i=entry_pc}` identical to mode-2 → routes to `sm_eval_subexpr` (strong def in sm_interp.c; EVAL is a runtime builtin, mode-agnostic). MACRO/TEXT arms untouched (mode-4 thunk path stays correct). **Native 251→252 (+1: 1016_eval 3/3 byte-exact — concat `*('abc' 'def')`, var-ref `*q`, failing `*IDENT(1,2)`); FAIL-diff = exactly 1016 newly green, zero regression.** Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053 pre-existing), mode-2 oracle 252 unchanged, broker 51/11 (sibling-up, not this change), cross-lang 5/5/5/5, FACT 0, audit GATE OK. Also triaged 1011/1013/1017 as m2 oracle gaps (fail both modes) — reclassified out of this native cluster.
 
