@@ -76,7 +76,9 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 - [x] **RK-BB-4c (mode-4 junctions) ✅** (Opus 4.8, 2026-05-29, one4all `216f22cd`). Route (i): junction collapse added to shared `rt_acomp`/`rt_lcomp` (`src/runtime/rt/rt.c`), mirroring the mode-2 `SM_ACOMP`/`SM_LCOMP` interpreter cases. The `SM_ACOMP`/`SM_LCOMP` x86 templates already emit `mov edi,<op>; call rt_acomp`/`rt_lcomp` — the work lives in those runtime helpers, so this is FACT-clean (no template byte change). When a popped operand is `rk_junction_is()` true → `rk_junction_collapse(scalar,jct,op,numeric)` (1 acomp / 0 lcomp); push scalar+`LAST_OK=1` on hit else FAIL. `rk_junctions` mode-4 GREEN. Mode-3 junctions correct too (same helpers) but dormant (MODE3-DISPATCH-GAP).
 - [x] **RK-BB-4d edges — precedence + nesting ✅** (Opus 4.8, 2026-05-29, one4all `0a5352e3`+`1652aeb9`). (2) PRECEDENCE: new `jct_expr` grammar tier (`raku.y`) makes infix `|`/`&` bind tighter than comparison (real Raku); `$x == 1|2|5` → `$x == any(1,2,5)`. Comparisons take `jct_expr` operands; parser regenerated, net-zero new conflicts. (1) NESTED MIXED-FLAVOR: SOH-leak fixed via EOT(`\x04`)-terminated junction rep — builder appends `\x04`; `rk_junction_collapse` scans scalars to SOH-or-EOT and skips nested `\x03…\x04` spans by depth count, recursing on the opaque span. `50&(50|60)` etc. now correct. Probes `rk_junction_prec`, `rk_junction_nest` added. (3) var round-trip + string-relop collapse already worked. REMAINING sliver: `^`(one) infix not lexed; only `one(...)` constructor.
 - [x] **RK-BB-5.0..5.3 ✅** (Opus 4.8, 2026-05-29, one4all `36e41ed6`). List/array Seq consumers landed as pure value helpers in `raku_builtins_byname.c` (flatten SOH-array args into segments; no emitted x86, FACT-clean; reachable mode-2 `sm_interp` + mode-4 `rt_call`; byte-identical across modes). **5.0 `reverse`** (`a4bc02d4`) eager-drain reorderer; `for reverse(...)` rides the existing `for CALL(...)→$v` materialization branch. **5.1 `unique`+`sum`** (`8b10f978`) dedup-first-occurrence + numeric fold (INTVAL all-integral else REALVAL). **5.2 `join`** (`ed321adc`) `join(SEP,LIST)` fold-to-string; composes with reverse. **5.x array-arg coverage** (`f9425b68`, test-only) — confirmed reverse/unique/sum/join all work on push-built `@arrays`. **5.3 comma-list array initializer `my @a = e1,e2,...`** (`36e41ed6`) — the REAL gap behind `my @a=1,2,3` parse errors (NOT @-args, which already worked). Two `raku.y` productions (untyped+typed) build `ASSIGN(@a, __rk_arr(...))`; lookahead `;`(single-expr) vs `,`(comma-list) is a clean LALR split → **net-zero new conflicts (still 30 s/r)**; parser regenerated via `scripts/regenerate_parser_and_lexer_from_sources.sh` recipe (bison 3.8.2). New `__rk_arr` builtin packs args into an in-order SOH-array. Probes: rk_reverse, rk_unique_sum, rk_join, rk_seq_consumers_arr, rk_array_literal. **GATE-RK mode-2 28→33/40, GATE-RK4 mode-4 29→34/40; smoke 5/5, siblings icon/prolog/snobol4/snocone 5/5/13/5, FACT 0, all commits, no regressions.** DEFERRED: parenthesized `my @a=(1,2,3)` (list-atom, conflict-prone); `.method(N)` forms (`.tail`/`.head`/`.reverse`) need method-call-with-args parsing; `zip`/`cross` multi-Seq drivers need a nested-tuple representation.
-- [ ] **RK-BB-5.4..N** — `zip`/`cross` = multi-Seq drivers (need nested-tuple rep); `.tail`/`.head`/`.reverse` method forms (need `.method(N)` parsing); parenthesized array literal `my @a = (1,2,3)`.
+- [x] **RK-BB-5.4a (`.method` list-method forms) ✅** (Opus 4.8, 2026-05-29). `.reverse`/`.unique`/`.sum`/`.elems`/`.head(N)`/`.tail(N)` routed from `TT_METHCALL` (after class static-resolution miss) and `TT_FIELD` (bare postfix) to the list-context value helpers, ahead of the class-oriented `raku_mcall`/`FIELD_GET` fallbacks (`raku_is_listmeth` whitelist, gated `g_lang==LANG_RAKU`). New `head`/`tail` value builtins in `raku_builtins_byname.c` (trailing arg = count N; bare form defaults N=1) modelled on `reverse`. Also widened the `for`-CALL materialise guard (`lower_every`) to accept `TT_METHCALL`/`TT_FIELD` list-method invocants (`raku_methform_listmeth`), so `for @a.reverse -> $x`/`for @a.head(N) -> $x` materialise-then-iterate (previously ran away — guard keyed only on `TT_FNC`). Pure value helpers, no emitted x86 (FACT-clean); byte-identical mode-2/mode-4. Class methods/fields untouched (rk_class26 unchanged). Probe `rk_listmeth`. Commits `dbb3d15f` (postfix) + `91bfae91` (for-form). DEFERRED: `.join` (invocant/arg order swapped vs free-fn `join`, which already works).
+- [x] **RK-BB-5.4b (parenthesized array literal) ✅** (Opus 4.8, 2026-05-29, `56a30122`). `my @a = (e1, e2, ...)` via two initializer-only `raku.y` productions (untyped + typed) mirroring the 5.3 bare comma-list: `KW_MY [IDENT] VAR_ARRAY '=' '(' expr ',' arg_list ')' ';'` → `ASSIGN(@a, __rk_arr(...))`. Restricting the paren-list to the **initializer RHS** (NOT a general atom) keeps it **NET-ZERO new conflicts (still 30 s/r)** — a general-atom `'(' expr ',' arg_list ')'` form added +2 (method-chain/hash-subscript interactions) and was reverted. Single-element paren `(7)` stays scalar via the unchanged `'(' expr ')'`; bare comma-list + scalar paren coexist. Parser regenerated (bison 3.8.2). Probe `rk_paren_array`.
+- [ ] **RK-BB-5.4c (`zip`/`cross`) — DEFERRED, own session** — multi-Seq drivers where each output element is itself a list, so it needs a **nested-tuple representation** (STX-within-SOH or similar) that `for`/`say`/`.elems` consumers must understand. NOT a pure value helper (broad blast radius); the goal groups these as "(later)". Recommend a fresh session with full budget.
 
 ## mode-2 fixes (non-ladder, this session)
 
@@ -122,31 +124,29 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: RK-BB-5.0..5.3 (list/array Seq consumers + comma-list array initializer) COMPLETE
-  (Opus 4.8, 2026-05-29, one4all `36e41ed6`). GATE-RK mode-2 28→33/40, GATE-RK4 mode-4 29→34/40.
-  FIVE commits, all pure value helpers in raku_builtins_byname.c (flatten SOH-array args; no emitted
-  x86, FACT-clean; mode-2 sm_interp + mode-4 rt_call; byte-identical across modes):
-  (5.0 `a4bc02d4`) reverse(LIST/@arr) eager-drain reorderer — for reverse(...) rides existing
-  for-CALL→$v materialization. (5.1 `8b10f978`) unique (dedup first-occurrence) + sum (INTVAL if all
-  integral else REALVAL). (5.2 `ed321adc`) join(SEP,LIST) fold-to-string; composes w/ reverse.
-  (5.x `f9425b68`, test-only) array-arg coverage — reverse/unique/sum/join all work on push-built
-  @arrays. (5.3 `36e41ed6`) comma-list array initializer `my @a = e1,e2,...` — the REAL gap behind
-  `my @a=1,2,3` parse errors (NOT @-args, which already worked). Two raku.y productions build
-  ASSIGN(@a,__rk_arr(...)); lookahead ;(single) vs ,(comma-list) is a clean LALR split → NET-ZERO
-  new conflicts (still 30 s/r); parser regenerated via regenerate_parser_and_lexer_from_sources.sh
-  (bison 3.8.2); new __rk_arr builtin packs args into in-order SOH-array. No regressions any commit.
+one4all: RK-BB-5.4a + 5.4b COMPLETE (Opus 4.8, 2026-05-29, one4all `56a30122`).
+  GATE-RK mode-2 33→35/42, GATE-RK4 mode-4 34→36/42. Three commits, all green/regression-free.
+  5.4a `.method` list-method forms (`dbb3d15f` postfix + `91bfae91` for-form): .reverse/.unique/
+  .sum/.elems/.head(N)/.tail(N) routed from TT_METHCALL (post class-resolution-miss) + TT_FIELD
+  (bare) to the list-context value helpers via the raku_is_listmeth whitelist, ahead of the
+  class raku_mcall/FIELD_GET fallbacks; new head/tail value builtins (trailing arg=N, bare N=1);
+  for-CALL materialise guard widened (raku_methform_listmeth) so `for @a.reverse -> $x` iterates.
+  Pure value helpers, FACT-clean, byte-identical m2/m4; class methods/fields untouched.
+  5.4b parenthesized array literal `my @a=(1,2,3)` (`56a30122`): two initializer-only raku.y
+  productions mirroring 5.3 bare comma-list → NET-ZERO new conflicts (still 30; general-atom form
+  added +2, reverted). Single-paren (7) stays scalar. New probes rk_listmeth, rk_paren_array.
 
-.github: GOAL-RAKU-BB.md — RK-BB-5.0..5.3 marked ✅ in open rungs; watermark + gates updated; new
-  RK-BB-5.4..N rung added (zip/cross, .method(N) forms, parenthesized literal).
-  HANDOFF-2026-05-29-OPUS48-RAKU-BB-5-SEQ-CONSUMERS.md added. PLAN.md row updated.
+.github: GOAL-RAKU-BB.md — 5.4a/5.4b marked ✅ in open rungs; 5.4c (zip/cross) deferred to own
+  session (needs nested-tuple rep). Watermark + gates + NEXT updated. PLAN.md row updated.
+  HANDOFF-2026-05-29-OPUS48-RAKU-BB-5-4-METHODS-AND-PAREN.md added.
 
 corpus:  unchanged
 
-GATE-RK   mode-2:                33/40  (+rk_reverse +rk_unique_sum +rk_join +rk_seq_consumers_arr +rk_array_literal)
-GATE-RK4  mode-4:                34/40  (same five new probes; FAIL still 6 = deferred regex cluster)
-GATE-RK3  mode-3 native:         not re-run (consumers are value-helper/eager; MODE3-DISPATCH-GAP unrelated)
+GATE-RK   mode-2:                35/42  (+rk_listmeth +rk_paren_array)
+GATE-RK4  mode-4:                36/42  (same two new probes; FAIL still 6 = deferred regex cluster)
+GATE-RK3  mode-3 native:         not re-run (5.4a/b are value-helper/grammar; MODE3-DISPATCH-GAP unrelated)
 Smoke raku/icon/prolog/snobol4/snocone: 5/5/5/13/5  HOLD
-bison s/r conflicts: 30 (unchanged — comma-list init added zero)
+bison s/r conflicts: 30 (unchanged — initializer-only paren-list added zero)
 FACT RULE grep:   0
 Build:            clean
 ```
@@ -157,17 +157,17 @@ Build:            clean
 - `rk_junctions` mode-3: junctions correct (collapse in rt_acomp/rt_lcomp) but Raku `--run` emits no
   output for ANY program (MODE3-DISPATCH-GAP, pre-existing) — lights up free when that gap closes.
 
-## NEXT — RK-BB-5.4..N (or RK-BB-4c mode-3 when MODE3-DISPATCH-GAP closes)
+## NEXT — RK-BB-5.4c (zip/cross) or the deferred regex cluster
 
-RK-BB-5.0..5.3 COMPLETE: reverse/unique/sum/join consumers + comma-list array initializer.
-Substantive next, in rough order of leverage:
-**(a)** `.method(N)` parsing (`@a.tail(2)`, `@a.head(N)`, `@a.reverse`) — unblocks the method-form
-  consumers the goal names; method-call-with-args is the parser gap.
-**(b)** parenthesized array literal `my @a = (1,2,3)` — needs a list-atom (more conflict-prone than
-  the bare comma-list, which is why 5.3 did bare first).
-**(c)** `zip`/`cross` multi-Seq drivers — each output element is itself a list, so needs a nested-tuple
-  representation (STX-within-SOH or similar); the goal groups these as "(later)".
-Or the deferred regex cluster under GOAL-RAKU-PAT-BB.
+RK-BB-5.4a (`.method` list-method forms) and 5.4b (parenthesized array literal) COMPLETE.
+Substantive next:
+**(c)** `zip`/`cross` multi-Seq drivers — each output element is itself a list → needs a
+  **nested-tuple representation** (STX-within-SOH or similar) understood by the `for`/`say`/
+  `.elems` consumers. NOT a pure value helper; broad blast radius. Recommend a fresh session
+  with full budget; design the nested-tuple rep first (how `say` renders a tuple, how `.elems`
+  counts the outer list, how `for` binds each tuple to `$x` or destructures to `-> $a, $b`).
+Or the deferred regex cluster under GOAL-RAKU-PAT-BB (`rk_re32/33/34/35/37`, `rk_regex23` — the
+only remaining mode-2/mode-4 FAILs and mode-3 CRASHes).
 
 
 ## Open questions for Lon
