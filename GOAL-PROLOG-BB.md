@@ -28,6 +28,30 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-J-2, 2026-05-29 — one4all `751c5f10`)
+
+**2026-05-29 Opus 4.8: PLR-J-2 LANDED — explicit per-node resume predicate.** `lower_pl.c` only,
++~24 lines (one helper + two call-site swaps), lower-time only, NO emitter/template/FACT change,
+byte-identical output. Replaced the inline `(t==BB_PL_CALL||t==BB_CHOICE||t==BB_PL_ALT)` resumable
+tests scattered in `lower_pl_new_Conj` (the `gβ[]` redo wiring) and `lower_pl_clause_body` (the body
+backtrack chain) with one named predicate `pl_node_is_resumable(const BB_t *)`, transliterating JCON
+irgen.icn F2/F3: the resume/redo edge is wired by name, not by a runtime nearest-resumable-predecessor
+search. Dual of PLR-J-0's `pl_goal_is_bounded` — a bounded goal's β port is dead → non-resumable; an
+unbounded goal (user call, clause choice, inline disjunction) is resumable → the conjunction threads a
+redo edge into it. BYTE-IDENTICAL to the structural test it replaces for every node kind emitted today
+(`BB_PL_ITE` stays non-resumable to the enclosing SEQ, owning its own internal β, as before). Closes
+PL-LOWER-REVAMP gap (2). Redo edge verified: `pick(1).pick(2).pick(3). main:-pick(X),X>=2,write(X),nl.`
+prints `2`; backtrack-all variant enumerates `2`/`3`. **Gates byte-identical to `e2d99c3d`:** GATE-1
+5/5, GATE-2 11 PASS/121, GATE-3 m2 104/107, GATE-4 4/4, GATE-SWI 57/57, FACT 0, siblings
+icon/raku/snobol4 5/5/13. **NEXT: PLR-J-4** (callee-block sweep in `SM_BB_PL_INVOKE` BINARY arm +
+`bb_pl_call.cpp` MEDIUM_BINARY call protocol in lockstep — the `bb_pl_call.cpp` binary arm is still a
+double-jump stub; unblocks all multi-predicate programs, the largest single win for the 121 open
+mode-3 crosscheck failures; split into PLR-J-4a port the call protocol / PLR-J-4b callee sweep + drop
+the DEFER GUARD if one session can't hold both) or PLR-J-5 (BB_CHOICE as ir_a_Alt + gprolog
+retry/trust ordering — depends on PLR-J-2 ✅ and PLR-J-4).
+
+---
+
 ## State at HEAD (post-PLR-J-0, 2026-05-29 — one4all `e2d99c3d`)
 
 **2026-05-29 Opus 4.8: PLR-J-0 LANDED — `bounded`/determinacy flag at lower time.** `lower_pl.c`
@@ -1307,15 +1331,24 @@ arms.
   **LANDED (Sonnet 4.6, 2026-05-29, one4all `efbdd61c`).** rung09 `yes/yes/no/no` type-test
   sub-lines byte-match mode-2. FACT=0, GATE-3 m2 104/107, GATE-SWI 57/57, smoke 5/5/5/13.
 
-- [ ] **PLR-J-2 — explicit per-node resume port, replacing the β heuristic (irgen.icn F2, F3).**
-  Replace `lower_pl.c`'s "nearest resumable predecessor" β wiring with explicit per-node resume,
-  transliterating `ir_a_Binop`/`ir_a_Mutual`/`ir_a_Call` (irgen.icn 472-511, 1201-1228, 360-403):
-  conjunction goal `i` on failure routes to goal `i-1`'s resume; first goal's failure → ω.
-  Reads the PLR-J-0 `bounded` flag to skip resume wiring for bounded goals. Verify in mode-2 first
-  (the lower graph feeds bb_exec.c directly), THEN confirm mode-3/4 unchanged. Gate: CAT-A-3
-  backtracking rungs (rung05) mode-2 must not regress; targeted check that a 2-goal conjunction
-  with a failing 2nd goal redrives the 1st. This is the structural fix flagged as
-  PL-LOWER-REVAMP gap (2).
+- [x] **PLR-J-2 — explicit per-node resume port, replacing the β heuristic (irgen.icn F2, F3).**
+  **LANDED (Opus 4.8, 2026-05-29, one4all `751c5f10`).** Replaced the inline
+  `(t==BB_PL_CALL||t==BB_CHOICE||t==BB_PL_ALT)` resumable tests scattered in `lower_pl_new_Conj`
+  (the `gβ[]` wiring) and `lower_pl_clause_body` (the body backtrack chain) with one named predicate
+  `pl_node_is_resumable(const BB_t *)`, transliterating JCON's F2/F3: the resume/redo edge is wired
+  by name, not by a runtime nearest-resumable-predecessor search. It is the dual of PLR-J-0's
+  `pl_goal_is_bounded` — a bounded goal's β/resume port is dead so it is non-resumable; an unbounded
+  goal (user call, clause choice, inline disjunction) is resumable and the conjunction threads a redo
+  edge into it. **BYTE-IDENTICAL** to the structural test it replaces for every node kind the lowerer
+  emits today (resumable set unchanged: `{BB_PL_CALL, BB_CHOICE, BB_PL_ALT}`; `BB_PL_ITE` stays
+  non-resumable to the enclosing SEQ since it owns its own internal β, exactly as before). The rung's
+  value is making the redo edge explicit and local (the PL-LOWER-REVAMP gap 2) and giving PLR-J-5 /
+  WAM-CP-12 a single named seam to extend when negation / findall-goal land. **Redo edge verified
+  directly:** `pick(1).pick(2).pick(3). main:-pick(X),X>=2,write(X),nl.` prints `2` (the failing
+  `X>=2` redrives `pick/1` past `X=1`); the `…,fail. main.` backtrack-all variant enumerates `2`
+  then `3`. **Gates byte-identical:** GATE-1 5/5, GATE-2 11 PASS/121, GATE-3 m2 104/107, GATE-4 4/4,
+  GATE-SWI 57/57, FACT 0, siblings icon/raku/snobol4 5/5/13. This closes PL-LOWER-REVAMP gap (2).
+  **NEXT in ladder: PLR-J-4** (callee-block sweep + `bb_pl_call` binary call protocol — largest win).
 
 - [x] **PLR-J-3 — compound-term builder in raw bytes (irgen.icn `ir_a_ListConstructor`, F4).**
   Ported `emit_build_compound_term` to a MEDIUM_BINARY twin `emit_build_compound_term_bin`
