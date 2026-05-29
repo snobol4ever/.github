@@ -73,8 +73,8 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 - [ ] **M3-RK-NOINTERP-1e (regex cluster)** — `rk_re32/33/34/35/37`, `rk_regex23` (6 CRASH). DEFERRED to GOAL-RAKU-PAT-BB (regex/grammar backtracking). These are the only remaining mode-3 native CRASHes.
 - [x] **RK-BB-4 mode-2 ✅** (4a constructors + 4b infix, see completed rungs). **Full `rk_junctions` probe PASS mode-2.** Q9-Q12 ANSWERED by Lon (2026-05-29): **Q9** reuse existing kinds; break out new SM/BB opcodes ONLY if language-specific behavior diverges. **Q10** build on `BB_ALT` (live substrate Icon uses); split later if needed. **Q11** substrate-first. **Q12** tagged-string rep. Substrate proven: `BB_ALT` mode-2 is a complete n-ary alternation engine (empirically `x=(1|2|3)`→hit, `x=(7|8|9)`→miss, `every write(10|20|30)`→10/20/30); `BB_ALT` mode-4 `MEDIUM_BINARY` is a real counter-state dispatch slab (NOT a stub — the probe header's stale assumptions #3/#4 refer to the orphan `BB_ALTERNATE`, and only the `MEDIUM_TEXT` arm is a passthrough). Junction VALUE rep is the tagged string; the boolean collapse currently lives in mode-2 `SM_ACOMP`/`SM_LCOMP` (NOT yet on `BB_ALT`).
-- [ ] **RK-BB-4c (mode-3/4 junctions)** — port the junction collapse to native: emit `__rk_jct_*` builder calls (already lowered language-agnostically) and a `rk_junction_collapse` call (movabs+call mode-3 / @PLT mode-4) at the `SM_ACOMP`/`SM_LCOMP` template sites, OR wire `any`/`|` through the proven `BB_ALT` binary slab as Q11 substrate-first intends. `rk_junctions` currently FAILs mode-4 (mode-2-only collapse). Builders are pure conversion/effect helpers (FACT-clean).
-- [ ] **RK-BB-4d (junction edges)** — (1) MIXED-flavor NESTED junctions (`1 | (2 & 3)`) break the flat SOH tagged-string (inner `\x01` leaks into outer split); needs a length-prefixed member rep or SOH-escaping. Same-flavor chains already flatten at parse time so the probe is unaffected. (2) Unparenthesized precedence of `$x == 1|2|3` (probe always parenthesizes; `|`/`&` currently `%left` between `OP_AND` and `'!'`). (3) Junction stored in a var / threaded through non-`==` relops (numeric LT/GT collapse exists; string + var round-trip untested).
+- [x] **RK-BB-4c (mode-4 junctions) ✅** (Opus 4.8, 2026-05-29, one4all `216f22cd`). Route (i): junction collapse added to shared `rt_acomp`/`rt_lcomp` (`src/runtime/rt/rt.c`), mirroring the mode-2 `SM_ACOMP`/`SM_LCOMP` interpreter cases. The `SM_ACOMP`/`SM_LCOMP` x86 templates already emit `mov edi,<op>; call rt_acomp`/`rt_lcomp` — the work lives in those runtime helpers, so this is FACT-clean (no template byte change). When a popped operand is `rk_junction_is()` true → `rk_junction_collapse(scalar,jct,op,numeric)` (1 acomp / 0 lcomp); push scalar+`LAST_OK=1` on hit else FAIL. `rk_junctions` mode-4 GREEN. Mode-3 junctions correct too (same helpers) but dormant (MODE3-DISPATCH-GAP).
+- [x] **RK-BB-4d edges — precedence + nesting ✅** (Opus 4.8, 2026-05-29, one4all `0a5352e3`+`1652aeb9`). (2) PRECEDENCE: new `jct_expr` grammar tier (`raku.y`) makes infix `|`/`&` bind tighter than comparison (real Raku); `$x == 1|2|5` → `$x == any(1,2,5)`. Comparisons take `jct_expr` operands; parser regenerated, net-zero new conflicts. (1) NESTED MIXED-FLAVOR: SOH-leak fixed via EOT(`\x04`)-terminated junction rep — builder appends `\x04`; `rk_junction_collapse` scans scalars to SOH-or-EOT and skips nested `\x03…\x04` spans by depth count, recursing on the opaque span. `50&(50|60)` etc. now correct. Probes `rk_junction_prec`, `rk_junction_nest` added. (3) var round-trip + string-relop collapse already worked. REMAINING sliver: `^`(one) infix not lexed; only `one(...)` constructor.
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers; `zip`/`cross` = multi-Seq drivers (later).
 
 ## mode-2 fixes (non-ladder, this session)
@@ -121,62 +121,45 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: RK-BB-4 mode-2 junctions COMPLETE + mode-2 gather + ACOMP coercion (Opus 4.8,
-  2026-05-29, one4all `30e7c0a1`). GATE-RK mode-2 23→26/33 (+rk_gather, +rk_given18,
-  +rk_junctions). FOUR pieces: (1) RK-M2-GATHER — bb_exec.c BB_SEQ gather multi-yield
-  driver (counter resume-cursor, lang==RKU && α==SUSPEND gate), mirrors mode-3
-  bb_seq_gather_binary. (2) RK-M2-ACOMP — SM_ACOMP coerces DT_S via to_real (mirrors
-  SM_ADD); fixed given-on-loop-var arm misses. Shared path, zero regression (before/after
-  stash on SNOBOL4 crosscheck). (3) RK-BB-4a — lower.c intercepts any/all/one/none →
-  __rk_jct_* builders (per-language lowering, dup-name skip); raku_builtins_byname.c packs
-  tagged-string junction (ETX+flavor+SOH members, Q12) + rk_junction_collapse (recursive,
-  per-flavor any=OR/all=AND/one=1/none=0); sm_interp.c SM_ACOMP/SM_LCOMP junction guard.
-  (4) RK-BB-4b — raku.l single-char |/&, raku.y mk_junction builds any()/all() TT_FNC
-  (same lowering as 4a), same-flavor chains flatten at parse time; parser/lexer regenerated
-  clean. Full rk_junctions probe PASS mode-2. Q9-Q12 answered; BB_ALT substrate proven
-  (mode-2 complete engine + mode-4 binary slab real). Mode-3/4 junctions = RK-BB-4c (next).
+one4all: RK-BB-4c (mode-4 junctions) + RK-BB-4d (precedence + nested mixed-flavor) COMPLETE
+  (Opus 4.8, 2026-05-29, one4all `1652aeb9`). GATE-RK mode-2 26→28/35, GATE-RK4 mode-4 26→29/35.
+  THREE commits: (4c `216f22cd`) junction collapse into shared rt_acomp/rt_lcomp mirroring mode-2
+  SM_ACOMP/SM_LCOMP — FACT-clean (templates already emit `call rt_acomp/rt_lcomp`); rk_junctions
+  mode-4 GREEN. (4d-prec `0a5352e3`) new jct_expr grammar tier — infix |/& binds tighter than
+  comparison; `$x==1|2|5`→`$x==any(1,2,5)`; parser regen net-zero new conflicts; +rk_junction_prec.
+  (4d-nest `1652aeb9`) SOH-leak fixed via EOT(\x04)-terminated junction rep — builder appends \x04,
+  rk_junction_collapse depth-skips nested \x03…\x04 spans + scalars stop at SOH-or-EOT; mixed-flavor
+  nesting (50&(50|60) etc.) correct; +rk_junction_nest. Mode-3 junctions correct-but-dormant
+  (MODE3-DISPATCH-GAP). Zero regression (smoke 5/5/5/13/5, crosschecks baseline-identical, FACT 0).
 
-.github: GOAL-RAKU-BB.md — 4 new completed rungs (RK-M2-GATHER, RK-M2-ACOMP, RK-BB-4a,
-  RK-BB-4b); open rungs restructured (RK-BB-4 mode-2 ✅, Q9-Q12 recorded, RK-BB-4c mode-3/4
-  + RK-BB-4d edges added); mode-2 fixes note (incl. rk_stdio39 test-fidelity flag); watermark
-  + gates updated. HANDOFF-2026-05-29-OPUS48-RAKU-BB-JUNCTIONS-MODE2.md added.
+.github: GOAL-RAKU-BB.md — RK-BB-4c + RK-BB-4d marked ✅ in open rungs; watermark + gates updated.
+  HANDOFF-2026-05-29-OPUS48-RAKU-BB-4C-4D-JUNCTIONS-MODE4-NEST.md added. PLAN.md row updated.
 
 corpus:  unchanged
 
-GATE-RK   mode-2:                26/33  (was 23; +rk_gather +rk_given18 +rk_junctions)
-GATE-RK4  mode-4:                26/33  HOLD (rk_junctions still mode-2-only; no regression)
-GATE-RK3  mode-3 native:         26/33  HOLD (not re-run this session; no native code touched)
-Smoke raku:       5/5    HOLD
-Smoke prolog:     5/5    HOLD
-Smoke snobol4:    13/13  HOLD
-Smoke icon:       5/5    HOLD
-Broad broker:     6/6
-SNOBOL4 crosscheck: 5/1 (beauty_omega pre-existing, isolated via before/after stash)
+GATE-RK   mode-2:                28/35  (+rk_junction_prec +rk_junction_nest; rk_junctions already)
+GATE-RK4  mode-4:                29/35  (+rk_junctions +rk_junction_prec +rk_junction_nest)
+GATE-RK3  mode-3 native:         not re-run (junctions correct but dormant — MODE3-DISPATCH-GAP)
+Smoke raku/icon/prolog/snobol4/snocone: 5/5/5/13/5  HOLD
+Crosschecks (stash/rebuild verified): SNOBOL4 5/1 · Icon 3/1 · Prolog 0/132 · Raku 36/1 (all baseline)
 FACT RULE grep:   0
 Build:            clean
 ```
 
-## Remaining mode-3 native (CRASH 6 + FAIL 1)
+## Remaining mode-3 native (CRASH 6)
 
 - CRASH `rk_re32/33/34/35/37`, `rk_regex23` — Cluster 3 regex; DEFERRED to GOAL-RAKU-PAT-BB.
-- FAIL `rk_junctions` — BLOCKED on Lon Q9-Q12.
+- `rk_junctions` mode-3: junctions correct (collapse in rt_acomp/rt_lcomp) but Raku `--run` emits no
+  output for ANY program (MODE3-DISPATCH-GAP, pre-existing) — lights up free when that gap closes.
 
-## NEXT — RK-BB-4c (mode-3/4 junctions)
+## NEXT — RK-BB-5 (or RK-BB-4c mode-3 when MODE3-DISPATCH-GAP closes)
 
-RK-BB-4 mode-2 is COMPLETE (full `rk_junctions` probe green mode-2). The mode-2 surface is now
-exhausted except the deferred regex cluster (1e → GOAL-RAKU-PAT-BB). Substantive next work:
+RK-BB-4 junctions are COMPLETE for the corpus (mode-2 + mode-4, incl. nested mixed-flavor).
+Remaining slivers peripheral: `^`(one) infix not lexed (only `one(...)` constructor); cross-flavor
+unparenthesized chains untested at the precedence edge. Substantive next:
+**RK-BB-5** — `reverse`/`tail`/`from-loop` as Seq consumers; `zip`/`cross` = multi-Seq drivers.
+Or the deferred regex cluster under GOAL-RAKU-PAT-BB.
 
-**RK-BB-4c** — make `rk_junctions` pass mode-4 (then mode-3). The `__rk_jct_*` builder lowering is
-already language-agnostic (plain `SM_CALL_FN`), so it should emit in mode-4 via the existing
-SM_CALL_FN template; the missing piece is the collapse at the `SM_ACOMP`/`SM_LCOMP` template sites.
-Two routes: (i) emit a `rt_junction_collapse` call (@PLT mode-4 / movabs+call mode-3) guarded on a
-junction-tagged operand — minimal, reuses the mode-2 helper; (ii) Q11 substrate-first — lower `any`/`|`
-through the proven `BB_ALT` binary dispatch slab (first-success = any), with all/none/one as collapse
-variants. (i) is faster; (ii) is the architecturally-blessed path. Recommend (i) to flip mode-4 green,
-then refactor to (ii) if Lon wants the BB_ALT substrate exercised.
-
-Then **RK-BB-4d** edges (mixed-flavor nesting rep, unparenthesized precedence, var round-trip), or
-pick up the deferred regex cluster under GOAL-RAKU-PAT-BB.
 
 ## Open questions for Lon
 
