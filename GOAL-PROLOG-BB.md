@@ -28,6 +28,32 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-K-8, 2026-05-29 — Opus 4.8, one4all `e0ce19ef` / corpus `e422738`)
+
+**2026-05-29 Opus 4.8: PLR-K-8 LANDED — format/1 + format/2 MEDIUM_BINARY arm (mode-3 native).**
+`format` was MEDIUM_TEXT-only → in mode-3 native (`--run`) the asm strings emitted as raw bytes →
+format produced EMPTY output (the whole printf-style emit silently did nothing; all 5 rung19 tests
+printed nothing at rc 0). Ported both paths of the TEXT arm to raw bytes (`bb_pl_builtin.cpp` only,
+one template file, FACT-clean):
+- **Path A** (scalar/absent args1): `rt_pl_format(arity,k0,i0,s0, k1,i1,s1)` — 7 scalars, s1 on the
+  stack at `[rsp+0]`. format/1 falls here (arity=1, dummy args1).
+- **Path B** (compound args1, e.g. `[world]` / `[foo,bar,99]`): build the args-list Term* via
+  `emit_build_compound_term_bin` into r8, call `rt_pl_format_term(arity,k0,i0,s0, args*)`.
+
+`sub rsp,16` holds the stack arg + keeps 16B alignment across the build's and helper's internal
+calls; `movabs` absolute pointers (in-process) for helper + atom sval; std bin-patch tail. Added
+extern decls for `rt_pl_format`/`rt_pl_format_term` (the TEXT arm referenced them only by `@PLT`
+string, never by address). **GATE-2 crosscheck 62 → 67 PASS (+5)** — rung19 format1_nl + format2_
+a/d/i/w now 3-mode AGREE. Path B verified with multi-element `[foo,bar,99]`→`foo-bar-99`.
+
+**Gates:** GATE-1 5/5, GATE-2 **67**/ (was 62), GATE-3 m2 108/111, GATE-4 4/4, GATE-SWI 57/57,
+mode-4 corpus 64/111 (TEXT arm untouched), FACT arm1 0 / arm2 12, siblings icon/raku/snobol4
+5/5/13. **NEXT:** term_to_atom/term_string mode-4 emit (mode-2 ✅, fall through to `_`); atom_number
+mode-4 ✅ (landed PLR-K-7); then findall/3 last (own protocol — `nd->ival` is
+`bb_pl_findall_state_t*`, not arity).
+
+---
+
 ## State at HEAD (post-PLR-K-7, 2026-05-29 — Opus 4.8, one4all `5a55ac7b` / corpus `e422738`)
 
 **2026-05-29 Opus 4.8: PLR-K-7 LANDED — number_string/2 + atom_number/2 mode-3 BINARY + mode-4
