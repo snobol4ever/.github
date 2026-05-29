@@ -34,6 +34,20 @@ EM-REWRITE complete (RW-0..RW-6, RW-OPCODES, RW-STYLE-1/2, EM-SNOCONE-PREP, S200
 
 ---
 
+## Template purity invariant (from GOAL-PURE-TEMPLATES, consolidated)
+
+Every template `_str()` function is a pure function `g_emit → std::string`: no side
+effects, no local variables except loop indices. Body = ONE expression built from
+**CONCAT** (`A + B + C`), **IF** (`cond ? A : B`), and **FOR**
+(`emit_for(lo, hi, [](int i){ return ...; })`, defined in `emit_str.h`). All inputs come
+from the `g_emit` argument; no mutation inside `_str()`. Side effects (label allocation,
+file writes) belong in the driver, before `xa_dispatch`. Helpers: `emit_for` in
+`emit_str.h`; `strtab_label_s(s)→std::string` in `sm_template_common.h` (eliminates
+`char buf[64]` locals). This pairs with the RULES.md TEMPLATE-ONLY EMISSION rule: byte
+production lives only inside `*_templates/` files.
+
+---
+
 ## Key globals
 
 | Name | Role |

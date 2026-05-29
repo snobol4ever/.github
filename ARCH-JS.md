@@ -1,6 +1,6 @@
 # ARCH-JS.md — JS Backend
 
-Backend: JavaScript. Emitter: `src/backend/emit_js.c` (one4all).
+Backend: JavaScript. Emitter: unified `emit_core.c` (`IS_JS` arms in `SM_templates/` + `BB_templates/`); the former silo `emit_js.c` was deleted in the EC series — see ARCH-EMITTER.md.
 
 ## Why JavaScript
 
