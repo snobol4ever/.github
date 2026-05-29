@@ -94,6 +94,19 @@ For full failure list patch `head -40` to `head -300` in test_interp_broad_corpu
     (3 bytes: `41 89 0A`). Three-bug fix: TAB sites `{10, 23, 27, 28}`; RTAB writeback corrected
     (+1 byte); RTAB sites `{26, 34, 38, 39}` accounting for the shift. **Native +3
     (046_pat_tab, 047_pat_rtab, W06_tab), zero regressions, all other gates unchanged.**
+  - [x] **SPAN — ALREADY COMPLETE, "SBL-SPAN-2" was a phantom ✅** (2026-05-29 Opus 4.8, analysis).
+    `bb_pat_span.cpp` MEDIUM_BINARY arm (committed `4ce8c385`, escape `44766d91`) already has the full
+    deque z/z_orig slots + working β backtracking. Verified native: deep backtrack, two SPAN boxes,
+    SPAN-in-ARBNO (re-entrant), SPAN capture, and "071 minus deref" (inline SPAN+POS+CAT+capture) — all
+    PASS m2==m3. The "SPAN cluster" native fails (071/124/138/139/expr_eval) fail on a DIFFERENT feature
+    (nested `*var` deref — see below), NOT on SPAN. Do not spend a session on SBL-SPAN-2.
+  - **REAL BLOCKER — nested XDSAR (`*var`) inside a combinator under sm_run_native** (Opus 4.8 isolation).
+    Top-level deref works native (resolved early at `stmt_exec.c:335`); nested deref `POS(0) *WORD` →
+    NOMATCH native, MATCH m2, with identical g_bb_mode=BROKERED builder. Only sm_run_native vs
+    sm_interp_run differs. Smallest repro: a single XDSAR child of XCAT. Unblocks 056/070-074/108-115/
+    140-141/147 (largest native-only cluster). Dig order: SM_PAT_CAT arm → SM_EXEC_STMT globals at entry
+    → patnd_to_bb_graph of XCAT-over-XDSAR. Full map: `HANDOFF-2026-05-29-OPUS48-SBL-SPAN-VERIFIED-DEFER-NESTED-XDSAR.md`.
+    Ruled out (reverted): bb_pat_defer flat BINARY arm + lower_flat_invariant gate — both off this path.
   - SPAN ~10 tests (SBL-SPAN-2 BINARY arm + deque pattern)
   - ARBNO ~8 tests (SBL-ARBNO-3 — deque pattern available)
   - FENCE ~6 tests (bytes ready via EP-BINARY)
