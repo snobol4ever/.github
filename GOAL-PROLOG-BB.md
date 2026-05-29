@@ -28,7 +28,33 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`953f981d`, post-Opus-4.7-PL-RT-USER-FROM-SYNTH-partial)
+## State at HEAD (`61187cc7`, post-Opus-4.7-PL-RT-USER-FROM-SYNTH-2)
+
+**2026-05-28 Opus 4.7 (`61187cc7`):** **PL-RT-USER-FROM-SYNTH-2 ✅** — closes the partial fix from
+`953f981d`. **rung33_bridge_callN: 2/5 → 5/5** (mode-2 AND mode-3 transparent). Three latent
+type-domain bugs in `src/runtime/interp/pl_runtime.c`, all in the synthesized-tree path used by
+`pl_invoke_var_goal` (BB_PL_CALL call/N meta-fallback for user predicates), all inert until
+output-mode vars and integer literals reached the synth path simultaneously: (1) **L789**
+`case TT_VAR:` (tree_e=5) matched `t->tag == 5` = `TermTag::TERM_REF` (never seen post-deref), so a
+caller's `TERM_VAR` (=1) fell through to default → `pl_synth_new(TT_FNC)` v.sval=NULL → downstream
+`pl_unified_term_from_expr` read functor name "f" → body's `unify(atom_f, int_7)` failed → DT_FAIL=99
+from `bb_exec_once`. Fixed to `case TERM_VAR:`. (2) **L791** `pl_synth_new(TERM_VAR)` (=1) produced
+a tree_t with `t = TT_ILIT`; fixed to `pl_synth_new(TT_VAR)`. (3) **L770** `pl_synth_free` freed
+`e->v.sval` for every node unconditionally — with bugs (1)+(2) fixed, real TT_VAR/TT_ILIT/TT_FLIT
+leaves exist with union-overlapped `v.ival`/`v.dval` set, free()'d as pointers → segfault on
+free(0x3) for literal 3 in `add(3, 4, R)`. Gated to TT_FNC/TT_QLIT only (the only kinds where
+`pl_term_to_synth_expr`'s `strdup` actually produces an sval). **Why latent under the partial:**
+all-input-mode cases (the only ones the partial reached without failing) had no TERM_VAR caller
+terms and only strdup'd atom leaves; output-var case surfaced all three at once. **Approach B not
+needed:** with the type-domain bugs corrected, the synth round-trip works fine — caller's TERM_VAR
+Term goes into tenv[slot] as itself, alias via unify on the trail, output bindings propagate back
+through the TERM_REF chain. Approach B would be tidier code but not a correctness fix. Gates
+byte-identical to `953f981d` baseline (GATE-1 5/5, GATE-2 132/0, GATE-3 mode-2 104/107, GATE-SWI
+53/57, GATE-4 4/4, BB-honest 128/0, FACT 0). Rebased onto concurrent upstream `debb8a4e` (SBL
+M3-NATIVE-4 ARBNO) — no conflict, post-rebase re-verified green. See HANDOFF-2026-05-28-OPUS-
+PROLOG-BB-PL-RT-USER-FROM-SYNTH-2.md. **NEXT options:** (a) WAM-CP-6 LCO (segfault-cluster fix per
+Sonnet 4.6 analysis); (b) SWI-5 EMPTY verdict (close the 4 SWI failures); (c) PL-RT-ASSERTZ
+(dynamic clause support); (d) WAM-CP-13 (full mode-4 corpus 54/107 long-arc).
 
 **2026-05-28 Opus 4.7 (`953f981d`):** PL-RT-USER-FROM-SYNTH partial 🟡 — replaced the `[NO-AST]
 interp_eval stub` at `pl_runtime.c:931` (in `interp_exec_pl_builtin`'s TT_FNC user-call branch)
@@ -114,9 +140,12 @@ needs `bb_exec_once` non-recursive refactor via explicit call-descriptor stack).
 |---|---|---|
 | GATE-1 (smoke) | 5/5 | |
 | GATE-2 (3-mode crosscheck) | 132/0 | 5 ORACLE_MISS (frontend gap, not mode) |
-| GATE-3 mode-2 (`--interp`) | **104/107** | +8 this session (plus/3 ×3, ** int power, nb_setval/getval, aggregate_all ×3) |
+| GATE-3 mode-2 (`--interp`) | **104/107** | byte-identical at PL-RT-USER-FROM-SYNTH-2 (61187cc7) |
 | GATE-3 mode-3 (`--run`) | 90/107 | transparent via sm_interp_run |
 | GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt |
+| GATE-SWI (`test_prolog_swi_suite.sh`) | 53/57 (92%) | byte-identical |
+| BB-honest mode-3 | 128/0 | byte-identical |
+| **rung33_bridge_callN** | **5/5** | **PL-RT-USER-FROM-SYNTH-2 closed 02/04/05 (was 2/5)** |
 | **Full mode-4 corpus** | **54/107** | unchanged (rung28 mode-4 stub fails — WAM-CP-13 territory) |
 | FACT RULE grep | 0 | full compliance |
 | `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix held |
