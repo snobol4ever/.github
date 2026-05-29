@@ -28,7 +28,56 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.8-WAM-CP-8-FIRST-ARG-INDEXING, 2026-05-29)
+## State at HEAD (post-Opus-4.8-WAM-CP-6-B2-INDEXED-LCO, 2026-05-29)
+
+**2026-05-29 Opus 4.8:** **WAM-CP-6 Phase B2 indexed-LCO frame reuse LANDED ✅** —
+pairs WAM-CP-8 first-arg indexing with the WAM-CP-6 B1 redirect sentinel so a
+uniquely-indexed tail-position multi-clause call flattens to O(1) C stack.
+`src/lower/bb_exec.c` ONLY, +95/−22, additive, NO emitter/template/FACT change.
+**The benchmark `count(0). count(N):-N>0,N1 is N-1,count(N1).` to 1e6 now runs in
+constant C stack** — verified `count(1000000)` prints `done` at a **1MB** stack
+(O(N) recursion dies ~6k frames), `count(10000000)` at 8MB, and
+`sumto(500000,0,R)=125000250000` at 1MB (accumulator binding propagation through
+flattened frames correct).
+
+**Two changes:** (1) BB_CHOICE index path — the no-CP commit gate extended from
+`bb_body_single_solution` to ALSO accept `bb_body_cp_free_except_tail`, so the unique
+matching clause runs WITHOUT `pl_cp_push`, leaving `g_pl_bfr` unchanged so the body's own
+tail call sees a clean CP spine (the clause CP the normal scan would push is exactly the
+live CP that defeated the tail-call LCO gate — that is the unlock). (2) BB_PL_CALL B1 gate
+— new static `pl_choice_unique_indexed_body()` resolves a BB_CHOICE callee to its unique
+index-selected cp-free-except-tail clause body; at tail position with `g_pl_bfr==NULL`,
+redirect into THAT clause body graph (not the BB_CHOICE, which would re-nest a frame per
+iteration) via the existing redirect sentinel. B1 covered single-clause callees; B2 covers
+indexable multi-clause callees.
+
+**Safety:** `count(0)`-style base cases take the unchanged CP-pushing scan (ncand==2 — the
+INT(0) clause AND the var-headed wildcard clause both match), so the cut still governs them;
+B2 fires only when exactly one clause matches and its body is cp-free-except-tail. GATE-SWI
+held at 57/57 — the regression sentinel from the WAM-CP-8 first cut (memberchk 57→56) stays
+green because the gate never commits a clause that has a live alternative other than its own
+tail call. `SCRIP_LCO_TRACE=2` shows `[LCO] ACTED count/1 frame-reuse redirect (B2 indexed)`
+(19 for `count(20)`).
+
+**Gates (all byte-identical to `d9062238`, ZERO regressions):** GATE-1 5/5, GATE-2 132/0
+(5 ORACLE_MISS), GATE-3 m2 104/107, GATE-4 4/4, GATE-SWI 57/57 (100%), mode-4 corpus 54/107
+(unchanged — B2 is mode-2 only), FACT 0/12, sibling smokes icon/raku 5/5/5, snobol4 13/13.
+
+**NEXT — heap is now the ceiling, not stack.** `sumto(10000000,…)` is Killed (OOM): each
+iteration GC-allocates fresh Term cells reachable through the trail until the top call
+returns, so the trail + live-term set grows O(N) even though the C stack is flat. This is the
+LATER tagged-word/global-stack track (SWIPL idea #1). Candidate **Phase B3: trail reclamation
+on deterministic redirect** — when B2 redirects (caller frame provably dead), truncate the
+trail to the pre-call mark after copying live bindings forward (the deferred
+`copyFrameArguments` analogue, now needed since the C stack no longer bounds depth).
+Alternatives: WAM-CP-13 mode-4 corpus (54→~60, mechanical); WAM-CP-7 unify specialization.
+
+**one4all commit:** `167f31cb` (parent `d9062238`). Handoff
+`HANDOFF-2026-05-29-OPUS48-PROLOG-BB-WAM-CP-6-B2-INDEXED-LCO.md`.
+
+---
+
+## Prior HEAD (post-Opus-4.8-WAM-CP-8-FIRST-ARG-INDEXING, 2026-05-29)
 
 **2026-05-29 Opus 4.8:** **WAM-CP-8 first-arg clause indexing LANDED ✅** —
 137 lines, additive, three files (`src/lower/bb_exec.c`, `src/lower/lower_pl.c`,
@@ -702,13 +751,16 @@ the LATER tagged-word track.
 
 ### Open rungs
 
-- [ ] **WAM-CP-6 — Last-Call Optimization (Step A ✅ `860d1163`, Step B Phase B1 ✅ this commit).**
-  Step B Phase B1 LANDED: frame-reuse via redirect sentinel for tail+det singleton callees
-  (`bb_exec.c` driver loops; gate = γ==NULL && g_pl_bfr==NULL && entry!=BB_CHOICE &&
-  bb_body_cp_free_except_tail). All gates byte-identical. REMAINING (Phase B2): extend gate to
-  multi-clause deterministic calls once WAM-CP-8 first-arg indexing elides the clause-selection
-  CP — that unlocks the benchmark below.
-  Gate: `count(0). count(N):-N>0,N1 is N-1,count(N1).` to 1e6 runs in O(1) stack. (Needs B2/WAM-CP-8.)
+- [ ] **WAM-CP-6 — Last-Call Optimization (Step A ✅ `860d1163`, Step B Phase B1 ✅, Phase B2 ✅ `167f31cb`).**
+  Phase B2 LANDED: tail-call frame-reuse extended to indexable multi-clause callees. Two changes in
+  `bb_exec.c`: (1) BB_CHOICE index path runs the unique cp-free-except-tail clause WITHOUT pl_cp_push
+  (gate extended from bb_body_single_solution to also accept bb_body_cp_free_except_tail); (2)
+  BB_PL_CALL B1 gate gains a B2 arm via new `pl_choice_unique_indexed_body()` that redirects into the
+  index-resolved clause body of a BB_CHOICE callee. **Benchmark UNLOCKED:** `count(1e6)` runs in O(1)
+  C stack (verified at 1MB stack; count(1e7) at 8MB; sumto(500000)=125000250000 at 1MB). All gates
+  byte-identical, GATE-SWI 57/57 held. REMAINING (Phase B3): trail reclamation — heap/trail still
+  grows O(N) for accumulators (sumto 1e7 OOMs); truncate trail on deterministic redirect.
+  Gate: `count(0). count(N):-N>0,N1 is N-1,count(N1).` to 1e6 runs in O(1) stack ✅ (DONE).
 
 - [ ] **WAM-CP-7 — unify specialization.** Lower common unify shapes (var-vs-const,
   first-occurrence-var, var-vs-var) into distinct BB nodes with tiny templates instead of
