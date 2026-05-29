@@ -1,5 +1,57 @@
 # RK-NFA-4 / G1-1 — RESOLVED ENTRY CONTRACT (drop-in spec)
 
+## ⚠️ UPDATE (Opus 4.8, 2026-05-29 — S1 LANDED + S2 CONTRACT CORRECTED, one4all `c8aeb90d`)
+
+**S1 DONE and pushed.** The gated `~~` rewiring is in `lower.c` TT_SMATCH (NOT ~line 2488 — the real
+case is ~line 2492). `getenv("RK_NFA_BB") && flavor==match` → `raku_nfa_build(t->c[1]->v.sval)` (the
+compile fn is `raku_nfa_build`, **NOT** `raku_nfa_compile` as this note originally said) →
+`raku_nfa_to_bb` → `lower_expr(c[0])` (subject) → `SM_seq_bb_add` + `SM_BB_INVOKE`; `raku_nfa_free(nfa)`
+after (the builder copies everything out — safe). Verified by `--dump-sm`: flag OFF → `SM_CALL_FN
+raku_match`; flag ON → `SM_BB_INVOKE`. Default path untouched; all gates at baseline (m2 41/42, m4 42/42,
+m3 41/42 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0).
+
+**⛔ S2 CONTRACT WAS WRONG — corrected here (the real blocker for the next session).** The "S2 —
+`flat_drive_nfa` arm in `walk_bb_flat`" plan below targets the **WRONG entry**. Traced the live mode-4
+Raku `~~` path against real code:
+
+- `SM_BB_INVOKE` → `emit_core.c:858 sm_bb_invoke(pSM)` → `SM_templates/sm_bb_switch.cpp` **MEDIUM_BINARY**
+  arm. That arm builds a per-site entry-flag dispatch (fresh-α vs β-resume), then calls
+  **`walk_bb_node(gen, NULL)`** (emit_core.c:528) — a **SINGLE-NODE** dispatcher that emits ONLY the
+  entry node's template and returns — then a γ-postamble (`rt_set_last_ok(1)`) / ω-postamble (reset flag,
+  `rt_set_last_ok(0)`). `SM_BB_INVOKE` is always followed by `SM_JUMP_F` reading `last_ok`.
+- `walk_bb_flat` (the `flat_drive_*` family) is the **Icon flat-codegen** path (`codegen_flat_body`),
+  reached for Icon's `--run`/BB slabs — NOT the Raku `SM_BB_INVOKE` path. So adding `flat_drive_nfa`
+  there would never be hit by Raku `~~`.
+- Why `bb_to_by`/`bb_iterate` work as single `walk_bb_node` nodes: each is **self-contained** — bounds
+  baked compile-time (`bb_to_by`: `movabs rax,hi`) or read from a **named var** (`bb_iterate`:
+  `NV_GET_fn(pBB->sval)`), state in `&pBB->counter`. The NFA graph from `raku_nfa_to_bb` is genuinely
+  **multi-node** (CHAR→ACCEPT, SPLIT branching) with γ/β pointers between nodes — one `walk_bb_node`
+  call cannot traverse it.
+
+**Corrected S2 (the design the next session must build):** add an NFA-graph walker **inside the
+`sm_bb_switch.cpp` MEDIUM_BINARY arm**, gated on `gen->t ∈ BB_NFA_*` (and `gen` graph lang == RKU),
+that:
+1. **Subject preamble (α):** pop the subject DESCR off the SM value stack (the subject was pushed by S1's
+   `lower_expr(c[0])`). Unpack to base ptr + slen. Model the unpack on `bb_iterate.cpp`'s DESCR handling
+   (`low32=v, hi32=slen; rdx=base ptr`) but the *source* is the vstack (`rt_pop`-style), not `NV_GET`.
+   Hold subject base / slen / pos in callee-saved regs (r14/r15d/r13 still fine — the slab prologue
+   `sub rsp,8` clobbers none).
+2. **Leftmost sweep:** wrap the node walk in a `for sp in 0..slen` loop (mirror `raku_nfa_bb_match`);
+   leaf-ω → sweep-continue, ACCEPT-γ → outer γ-postamble, sweep-exhausted → outer ω-postamble.
+3. **Node-keyed walk:** mint a label per graph node (mirror `flat_drive_seq`'s node→label table,
+   `emit_bb.c:745`), emit each leaf via its `bb_nfa_*` template, wire γ→next-node-label,
+   β→SPLIT-out2-label. The templates (S3) own only their own leaf bytes (FACT); the walker owns the
+   wiring + preamble + sweep. The cap block (`GC_malloc`) for `$0`/`$1` lands with RK-NFA-3 captures;
+   L1 (`/x/`) needs none.
+
+This is a NEW node-keyed walker in the BINARY arm — **NOT pure transcription**; budget a fresh session.
+First atom unchanged: **L1 `/x/`~"x" = S1(done) + S2-walker + bb_nfa_char + bb_nfa_accept** (no SPLIT).
+
+The original (now-superseded for the entry-point question) analysis follows; its template *byte sketches*
+and matcher *spec* (`nfa_bt`) remain valid — only the "where the driver lives" claim changed.
+
+---
+
 **Status:** contract resolved by reading the real code paths (Opus 4.8, 2026-05-29). NO code committed
 — this note converts G1-1 from "register model proposed" to "pure transcription." Execute as one
 env-gated unit so the default path is never at risk.
