@@ -28,7 +28,61 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.8-WAM-CP-6-Step-B-FRAME-REUSE, 2026-05-29)
+## State at HEAD (post-Opus-4.8-WAM-CP-8-FIRST-ARG-INDEXING, 2026-05-29)
+
+**2026-05-29 Opus 4.8:** **WAM-CP-8 first-arg clause indexing LANDED ✅** —
+137 lines, additive, three files (`src/lower/bb_exec.c`, `src/lower/lower_pl.c`,
+`src/include/BB.h`), zero deletions, NO emitter/template/FACT change (pure
+mode-2 interpreter logic).
+
+**Mechanism:** each multi-clause predicate's `bb_pl_choice_state_t` now carries
+`idx_key[]` (one class-tagged `long` per clause, computed at lower time from the
+clause head's first arg `c[0]`) + `idx_ok`. On BB_CHOICE fresh entry, if the
+caller's first arg (`g_pl_env[0]`) derefs to a bound non-var term, its runtime
+key filters the clause set. EXACTLY-ONE matching clause whose body is statically
+single-solution → dispatch with NO `pl_cp_push` (g_pl_bfr unchanged — the
+WAM-CP-8 gate). Zero matches → fast-fail. >1 or non-single-solution candidate →
+fall through to the unchanged CP-pushing scan (zero behavior change).
+
+**Key encoding (`BB.h`):** 3-bit class tag in bits 60-62 (ATOM/INT/FLT/CMP) so
+atom_id / int value / float-class / packed-functor(`fn<<16|arity`) key spaces
+never collide; `PL_IDX_VAR`=0 (var-headed wildcard clause), `PL_IDX_NOKEY`=-1
+(caller arg unbound). Compile (`pl_clause_first_arg_key`) and runtime
+(`pl_term_first_arg_key`) use the same macros → match is an exact `long` compare.
+
+**Safety gate (the lesson — mirrors Phase-B1 gate 4):** the no-CP commit only
+fires when the single candidate body is `bb_body_single_solution` (NO
+BB_CHOICE/BB_PL_ALT/BB_PL_CALL at all — STRICTER than
+`bb_body_cp_free_except_tail`, which exempts tail calls). First cut omitted this
+gate → GATE-SWI 57→56: `memberchk` committed deterministically to `member/2`
+clause 2 and stranded the recursive member tail-call's backtrack. Adding the
+gate restored 57/57. A clause-selection commit is NOT determinacy of the body.
+
+**Proof (`SCRIP_IDX_TRACE=1`, default OFF, no control-flow change):**
+`[IDX] CP-ELIDED` fires for unique-key fact lookups (`color(grape,X)`→clause 2,
+`color(banana,Y)`→clause 1), does NOT fire for a multi-clause key (`p(a,_)` with
+3 matching clauses enumerates 1/2/4 via normal scan), `color(cherry,_)` zero-
+candidate fast-fails. Backtracking through same-key clauses fully preserved.
+
+**Gates (all byte-identical to the WAM-CP-6-Step-B baseline, ZERO regressions):**
+GATE-1 5/5, GATE-2 132/0 (5 ORACLE_MISS), GATE-3 m2 104/107, GATE-SWI 57/57
+(100%), FACT 0/12, sibling smokes icon/raku 5/5/5, snobol4 13/13.
+
+**NEXT — Phase B2 (pairs WAM-CP-8 with WAM-CP-6 LCO).** The CP-elision path now
+makes a uniquely-indexed deterministic call leave `g_pl_bfr` unchanged, so the
+LCO gate (2) passes for it. To unlock `count(1e6)` in O(1) C stack, B2 must
+combine this index-CP-elision with the B1 **redirect sentinel** (frame-reuse)
+INSTEAD of the deterministic-commit-and-return used here: the current
+`bb_body_single_solution` gate excludes ALL BB_PL_CALL including the tail
+recursion B2 wants to flatten. B2 = "when index proves a unique clause AND that
+clause's body is tail-position-CALL-only, redirect via the B1 sentinel rather
+than recursing through `bb_exec_once`." Extend the gate + reuse the B1 mechanism.
+
+**one4all commit:** `d9062238` (parent `e9f09fdc`).
+
+---
+
+## Prior HEAD (post-Opus-4.8-WAM-CP-6-Step-B-FRAME-REUSE, 2026-05-29)
 
 **2026-05-29 Opus 4.8:** **WAM-CP-6 Step B Phase B1 LANDED ✅** — actual
 frame-reuse for tail-position deterministic singleton-callee `BB_PL_CALL`.
@@ -660,7 +714,40 @@ the LATER tagged-word track.
   first-occurrence-var, var-vs-var) into distinct BB nodes with tiny templates instead of
   generic `unify()`. Independent of CP work. Gate: byte-identical, faster.
 
-- [ ] **WAM-CP-8 — JIT first-arg clause indexing.** First-arg hash index on multi-clause
+- [x] **WAM-CP-8 — JIT first-arg clause indexing ✅** (Opus 4.8, 2026-05-29). First-arg index
+  on multi-clause predicates so a bound first arg dispatches to matching clauses only; when
+  EXACTLY ONE clause matches and its body is statically single-solution, dispatch with NO
+  `pl_cp_push` (g_pl_bfr unchanged — the gate). 137 lines, additive, three files
+  (`bb_exec.c`/`lower_pl.c`/`BB.h`), zero deletions, NO emitter/template/FACT change (pure
+  mode-2 interpreter logic — both FACT grep arms byte-identical: 0 and 12). **Encoding:**
+  class-tagged `long` keys in `BB.h` (bits 60-62 = ATOM/INT/FLT/CMP class, payload below) so
+  atom_id / int value / float-class / packed-functor key spaces never collide; `PL_IDX_VAR`=0
+  wildcard (var-headed clause), `PL_IDX_NOKEY`=-1 (caller arg unbound → no filter). Compile-time
+  `pl_clause_first_arg_key()` populates `zc->idx_key[]` from clause head `c[0]`; runtime
+  `pl_term_first_arg_key()` keys the deref'd caller `g_pl_env[0]`. **Safety gate (the lesson,
+  mirrors Phase-B1 gate 4):** the no-CP commit only fires when the single candidate body is
+  `bb_body_single_solution` (NO BB_CHOICE/BB_PL_ALT/BB_PL_CALL — stricter than
+  `bb_body_cp_free_except_tail`, which exempts tail calls; here a tail recursive call is a live
+  generator the caller may backtrack into). First cut without this gate regressed GATE-SWI 57→56
+  (`memberchk`: committed to member/2 clause 2 deterministically, stranding the recursive
+  member tail-call's backtrack); gated → 57/57 restored. ncand==0 → fast-fail; ncand>1 or
+  non-single-solution candidate → fall through to unchanged CP-pushing scan (zero behavior
+  change). **Proof** (`SCRIP_IDX_TRACE=1`, default OFF): `[IDX] CP-ELIDED` fires for unique-key
+  fact lookups (`color(grape,X)`→clause 2, `color(banana,Y)`→clause 1), does NOT fire for a
+  multi-clause key (`p(a,_)` with 3 matching clauses enumerates 1/2/4 via normal scan), and
+  `color(cherry,_)` zero-candidate fast-fails to `none`. Backtracking fully preserved.
+  **Gates byte-identical:** GATE-1 5/5, GATE-2 132/0 (5 ORACLE_MISS), GATE-3 m2 104/107,
+  GATE-SWI 57/57, FACT 0/12, sibling smokes icon/raku 5/5/5, snobol4 13/13. **NEXT:** Phase B2
+  can now extend the WAM-CP-6 LCO gate to the indexed-deterministic case — when this CP-elision
+  path fires on a tail-position multi-clause call (e.g. `count/1` after the base/recursive
+  clauses become first-arg distinguishable), `g_pl_bfr` is unchanged so gate (2) passes and the
+  callee is now a singleton-equivalent → frame-reuse applies. The remaining piece for the
+  `count(1e6)` benchmark: make the index path also cover the tail-call case (currently
+  `bb_body_single_solution` excludes ALL BB_PL_CALL, including the tail recursion B2 wants to
+  flatten — B2 must combine index-CP-elision with the B1 redirect sentinel rather than the
+  deterministic-commit-and-return used here).
+
+- [ ] **WAM-CP-8 (superseded by completion above; original text):** First-arg hash index on multi-clause
   predicates so `p(b)` against `p(a)./p(b)./p(c).` jumps to clause 2 with no CP. Gate:
   semidet calls leave `g_pl_bfr` unchanged.
 
