@@ -126,7 +126,7 @@ Transcription rule: re-express through `SM_templates/*.cpp` MEDIUM_BINARY arms, 
     4. Validate on the two known-good probes: `050_pat_alt_two` (expected `dog`) and `055_pat_concat_seq` (expected `ab cd ef`) under `--run SCRIP_M3_NATIVE=1`.
     5. Run all five gates; expect mode-2 unchanged (option a) or up (option b), and native climbs from 165 toward the SBL-EP-BINARY ceiling.
 
-    **Blocker before broad corpus retry:** ~~the M3-NATIVE audit currently FAILs because six combinator templates~~ **CLEARED ✅** by Opus 4.7 `df8e6126` (2026-05-28). Five combinator templates restored to FACT-correct inline EP-walk shape. `audit_m3_native_binary_arms.sh` GATE OK. Remaining prerequisite before the `patnd_to_bb_tree` retry: the XNME/XFNME varname plumbing bug discovered this session — see session log entry below for full diagnosis + fix sketch. Fix is local to `pat_assign_imm/cond` (populate `STRVAL_fn` from NAMEVAL `.s` OR via `NV_NAME_fn(cell)` reverse-lookup for NAMEPTR), behavior-neutral with current routing. Land that, then `patnd_to_bb_tree`, then validate 050/055 native.
+    **Blocker before broad corpus retry:** ~~the M3-NATIVE audit currently FAILs because six combinator templates~~ **CLEARED ✅** by Opus 4.7 `df8e6126` (2026-05-28). Five combinator templates restored to FACT-correct inline EP-walk shape. `audit_m3_native_binary_arms.sh` GATE OK. ~~Remaining prerequisite before the `patnd_to_bb_tree` retry: the XNME/XFNME varname plumbing bug~~ **XNME varname prereq CLEARED ✅** by Opus 4.7 `48409299` (2026-05-28). `_assign_varname_str` in `snobol4_pattern.c` populates `STRVAL_fn` at `pat_assign_imm/cond` construction time via `NV_name_from_ptr` reverse-lookup for NAMEPTR. Behavior-neutral with current routing as predicted, but yielded **+8 mode-2 wins** (json_number/keyvalue/calc_add/boolean_expr_grammar/etc. — runtime-built captures DID reach `bb_exec.c` XNME/XFNME execution; the empty STRVAL_fn was silently failing there too). Now: `patnd_to_bb_tree` retry, then validate 050/055 native.
 
     The previous session's diagnosis text below — recorded before the arena landed — remains accurate about the *graph-shape* issue (Prerequisite #1); the *label-lifetime* concern (Prerequisite #2) is now closed.
 
@@ -263,26 +263,30 @@ LIT, LEN, POS, UPTO (ref). ANY, NOTANY, BREAK (plain), CAPTURE — all VERIFIED-
 ## Session State
 
 ```
-HEAD one4all       = df8e6126 (SBL-EP-BINARY restore — 5 combinator templates)
+HEAD one4all       = 48409299 (SBL-XNME-VARNAME — populate STRVAL_fn at construction)
 HEAD .github       = (this commit)
 GATE-1 smoke       = 13/13     (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 37        (sibling-influenced)
-GATE-3 mode-4      = 175/280
-GATE-4 mode-2      = 237/280
-NATIVE corpus      = 165/280
-Rung suite         = M2=19 M4=15 SKIP=0
-Prolog smoke       = 5/5
-Raku smoke         = 5/5
-Icon smoke         = 5/5
-Rebus smoke        = 4/4
+GATE-3 mode-4      = (deferred — Lon's call: full mode-4 sweep at the very end)
+GATE-4 mode-2      = 245/280   pre-rebase post-patch (+8 from XNME fix, ZERO regressions)
+                   = 237/280   post-rebase (upstream f2c4058e ABORT broke 8 SNOBOL4 drivers — see log)
+NATIVE corpus      = 165/280   pre-rebase post-patch (unchanged, behavior-neutral as predicted)
+                   = 142/280   post-rebase (upstream f2c4058e ABORT — see log)
+Rung suite         = M2=19/19 M4=14 SKIP=0   (M4 -1 from upstream f2c4058e)
+Prolog smoke       = (not run this session — modes 2+3 SNOBOL4 focus)
+Raku smoke         = (not run this session)
+Icon smoke         = (not run this session)
+Rebus smoke        = (not run this session)
 FACT RULE          = 0
-audit_m3_native    = GATE OK   (was FAIL pre-session — fixed by this commit)
+audit_m3_native    = GATE FAIL (bb_lit_scalar.cpp, upstream f387a7b9 — NOT this patch)
 GATE-PK            = stale (re-freeze deferred)
 ```
 
 ---
 
 ## Session log (terse, last few only)
+
+- **2026-05-28 Opus 4.7 — SBL-XNME-VARNAME ✅** (one4all `48409299`). Closed the XNME/XFNME varname plumbing prerequisite that the previous Opus 4.7 SBL-EP-BINARY entry called out. New static `_assign_varname_str(DESCR_t var)` in `snobol4_pattern.c` extracts the varname uniformly: NAMEVAL (`.slen==0`) reads `.s`; NAMEPTR (`.slen==1`) reverse-looks-up via existing `NV_name_from_ptr` (`snobol4.c:2574`, already exported, already used at `snobol4_pattern.c:601` by `opsyn()`). Called from both `pat_assign_imm` and `pat_assign_cond` to populate `STRVAL_fn` at construction time. **Net: +8 mode-2 wins, ZERO regressions, mode-3 unchanged** — exactly the "behavior-neutral with current routing" outcome predicted; the +8 surfaces because mode-2 `bb_exec.c` XNME/XFNME execution ALSO reads `STRVAL_fn` and was silently failing too. The 8 newly-passing tests all exercise runtime-built captures with NAMEPTR vars: `120_pat_calc_add`, `126_pat_json_number`, `127_pat_json_keyvalue`, `131_pat_boolean_expr_grammar`, `145_pat_left_assoc_via_arbno_fence`, `146_pat_fence_alt_with_capture`, `152_pat_json_keyvalue_renamed`, `word4`. Gates (modes 2+3, mode 4 deferred per Lon's call): G1=13/13 default+native, M2 rung=19/19, FACT=0, **mode 2 broad corpus 237→245 (+8)**, **mode 3 native 165→165 (unchanged)**. Cosmetic followup deferred: `lower_pat_dcg.c:484/498` defensive fallbacks can now collapse to `bb->sval = pp->STRVAL_fn ? pp->STRVAL_fn : ""` — left as documentation until `patnd_to_bb_tree` lands. **Upstream interaction (NOT this patch):** concurrent `f387a7b9`/`f2c4058e` (IBB ground-zero Icon + ABORT-on-unfilled-BINARY) landed mid-session. Post-rebase the same patch shows mode-2 237/280, native 142/280, audit GATE FAIL (`bb_lit_scalar.cpp`) — the `f2c4058e` ABORT change broke 8 SNOBOL4 drivers (ShiftReduce/assign/fence/global/match/stack/trace/tree) that previously relied on empty-BINARY-arm interp fallback. Cross-language ABORT discipline interacting with SBL's unfilled arms. See HANDOFF-2026-05-28-OPUS-SBL-XNME-VARNAME.md for full remediation analysis. **NEXT:** (1) cosmetic `lower_pat_dcg.c:484/498` collapse; (2) `patnd_to_bb_tree(PATND_t*)` parallel to `patnd_to_bb_graph` — must left-fold n-ary XCAT into binary CAT chain per `emit_sm.c:582 lower_flat_invariant` constraint (`bb_pat_nkids <= 2`); (3) dispatch in `patnd_needs_xlate` on `g_bb_mode`, mode-3=tree, mode-2=γ-chain; (4) validate 050_pat_alt_two ("dog") / 055_pat_concat_seq ("ab cd ef") native.
 
 - **2026-05-28 Opus 4.7 — SBL-EP-BINARY restore ✅** (one4all `df8e6126`). audit_m3_native GATE FAIL → GATE OK. Five combinator templates (`bb_pat_alt`, `bb_pat_cat`, `bb_pl_seq`, `bb_pl_ite`, `bb_succeed`) had their MEDIUM_BINARY EP-walk byte production stripped by `88bacd2a` (Prolog FACT cleanup); restored to FACT-correct inline shape — `_str(BB_t*, bb_bin_t&)`, loop walks `g_emit.xa_bb_emit_pair_*[]` emitting both bytes (`\xE9 + u32le(0)` for each `jmp`, zero bytes for each `define`) AND populating `bin.sites/labels/is_def` inline. Duplication is the point per RULES.md FACT entry. Wrapper reverts to `bb_emit_asm_result(str, bin)`. `bb_emit_asm_result_pairs()` left in `emit_str.cpp` (unused, FACT-clean — removal is housekeeping). All gates byte-identical to pre-session watermark: G1=13/13 default+native, G2=37, G3=175/280, G4=237/280, native=165/280, rungs M2=19 M4=15, sister smokes prolog/raku/icon 5/5 + rebus 4/4, FACT=0. **Investigation note (NOT committed):** attempted `patnd_to_bb_tree` + combinator-root dispatch — revealed latent XNME/XFNME varname bug. `NV_PTR_fn` always creates the cell on first lookup, so `NAME_fn(varname)` always returns `NAMEPTR(cell)` (not `NAMEVAL(varname)`); legacy `build_patnd` XNME/XFNME fallback reads `var.s` which for NAMEPTR is the cell pointer reinterpreted as `char*` (garbage, first byte happens to be 0) → `bb->sval=""` → bb_capture honest-skip → undefined `lbl_β` → `bb_emit_end` abort. Fix is local to `pat_assign_imm/cond` + a new `NV_NAME_fn(cell)` reverse-lookup in `snobol4.c` — full sketch in `HANDOFF-2026-05-28-OPUS-SBL-EP-BINARY-RESTORE.md`. Bug is **pre-existing latent** (XCAT roots never went through `patnd_to_bb_graph` before, so STRVAL_fn was never read); combinator flat-wire would surface it immediately. Recommended NEXT: land XNME varname fix first (behavior-neutral with current routing), THEN re-attempt `patnd_to_bb_tree` + `patnd_needs_xlate` extension. Validate on 050_pat_alt_two/055_pat_concat_seq native.
 
