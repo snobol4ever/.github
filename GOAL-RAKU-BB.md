@@ -100,8 +100,81 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
   - **Isolation gate every step:** `bash scripts/test_snobol4_pat_rung_suite.sh` must stay M2 19/0 M4 18/1 (no SNOBOL4 pattern template touched), FACT grep 0, GATE-RK4 must not regress from 42/42, GATE-RK3 from 41/42.
   - **Standalone oracle:** the L1-L15 verdicts + captures are already proven by the C matcher (mode-2/3/4 41/41/42); RK-NFA-4's job is byte-for-byte parity of the EMITTED path against those goldens, not new semantics.
 - [ ] **RK-NFA-5 — mode-3 native.** `SCRIP_M3_NATIVE=1`; mode-3 already PASSES regex 41/42 CRASH 0 through the C matcher + byname dispatch, so this MOVES `~~` onto the emitted isolated `BB_NFA_*` slab (architectural ladder completion, not a crash-fix); flip default `~~`→BB.
-- [ ] **RK-NFA-6..9 (Phase 2, DEFERRED):** `{m,n}`/`*?`; LTM `|`→`BB_NFA_LTM`; subrules `<rule>`→`BB_NFA_SUBCALL`; `:ratchet`+grammar dispatch+actions.
-- [ ] **RK-NFA-CONV (DEFERRED):** collapse `BB_NFA_CHAR/CLASS/ANY/BOL/EOL` ↔ SNOBOL4's `LIT/ANY/LEN/POS/RPOS` pattern opcodes into `BB_MATCH_*` where byte+semantics identical; `SPLIT`+captures stay separate.
+- [ ] **RK-NFA-6..9 → SUPERSEDED by the RK-GRAM ladder below.** The old plan routed subrules `<rule>`→`BB_NFA_SUBCALL` (an NFA-internal opcode). DROPPED per the 2026-05-29 tier-seam decision (locked w/ Lon): keep the NFA slab **leaf-only**; route subrule/rule/grammar backtracking through the **EXISTING** four-port generators (`BB_SUSPEND`/`BB_ALT`/`BB_PUMP`), NOT a new NFA opcode — a `BB_NFA_SUBCALL` would re-implement the backtracking + recursion + Match-tree build the generators already do. `{m,n}`/frugal → RK-GRAM-2; LTM `|`→`BB_NFA_LTM` STAYS Tier-A (declarative/DFA, not backtracking); subrules/grammar/proto/actions → RK-GRAM-3..6. See **Full grammar-feature ladder — RK-GRAM** below.
+- [ ] **RK-NFA-CONV (DEFERRED):** collapse `BB_NFA_CHAR/CLASS/ANY/BOL/EOL` ↔ SNOBOL4's `LIT/ANY/LEN/POS/RPOS` pattern opcodes into `BB_MATCH_*` where byte+semantics identical; `SPLIT`+captures stay separate. (Now also tracked as RK-GRAM-6 G6-1.)
+
+## Full grammar-feature ladder — RK-GRAM (the ENTIRE Raku regex + grammar surface)
+
+**⭐ TOP PRIORITY (Lon, 2026-05-29).** Getting the full grammar feature working is the #1 goal now. **Reason:** the grammar surface FLUSHES OUT all the BB kinds. The SM spine is ~99% complete; what's missing for a full all-language back-end development cycle is a COMPLETE collection of BB kinds. Raku grammars exercise the generator/backtracking BBs the hardest (subrule recursion, LTM, choice points), so finishing this ladder gives every back-end (x86/JVM/.NET/JS/WASM) the full BB template set to emit against. Drive RK-GRAM to completion ahead of the other Raku rungs.
+
+**Decision (locked w/ Lon, 2026-05-29): TWO TIERS, ONE SEAM.**
+
+- **Tier A — NFA leaf (single pattern).** One named regex's *body*: literals, classes, anchors, quantifiers, `|` LTM, `||` ordered, in-pattern captures/assertions/adverbs/backrefs. Rides the ISOLATED `BB_NFA_*` family (`nfa_bt` depth-first; `SPLIT.out2` = β backtrack edge). Covers `token` (`:ratchet`, pure forward scan = what an NFA does best), `rule` (`:ratchet` + `:sigspace`), AND the leaf level of `regex` (backtracks via SPLIT). This is the DFA-convertible part and the target of the `BB_MATCH_*` convergence.
+- **Tier B — BB-generator grammar structure.** The seam is the **subrule call `<name>`** — per docs.raku.org subrules ARE backtrackable *method calls*. When an outer match fails, the subrule must yield its NEXT match = the four-port β-pump protocol. So subrule / rule-composition / grammar backtracking rides the **EXISTING** generators (`BB_SUSPEND`/`BB_ALT`/`BB_PUMP` — the live Icon substrate; recursive across subrules like Prolog WAM-CP choice points). **A grammar = a namespace of generators; `token TOP` is the entry.**
+
+**Declarator semantics (the whole distinction is two adverbs):** `regex` = `:ratchet` OFF (backtracks) + `:sigspace` OFF · `token` = `:ratchet` ON + `:sigspace` OFF · `rule` = `:ratchet` ON + `:sigspace` ON. `:sigspace` turns significant whitespace into a `<.ws>` subrule call.
+
+**`|` vs `||`:** `|` = declarative **longest-token-match** (parallel, order-independent, picks longest declarative prefix; a `{}` code block terminates a prefix) → Tier-A `BB_NFA_LTM`. `||` = **ordered** (textual order, backtracking) → Tier-B generator alternation. Only `||` and subrule-retry are backtracking; `|` is DFA.
+
+**Isolation gate EVERY rung (unchanged invariant):** `scripts/test_snobol4_pat_rung_suite.sh` stays M2 19/0 M4 18/1 (no SNOBOL4 pattern template touched); FACT grep 0; GATE-RK4 no regress; GATE-RK3 no regress; smoke 5/5/5/13/5 HOLD.
+
+**Test corpus note:** the corpus has NO grammar/subrule tests today (the 6 regex tests are PLAIN single-pattern). Each RK-GRAM rung adds `test/raku/*.{raku,expected}` probes; mode-2 (GATE-RK) and mode-4 (GATE-RK4) byte-identical is the per-rung gate (Prolog GATE-4 pattern).
+
+### Phase 1 — NFA leaf, core single-pattern (RK-NFA-1..5) — IN FLIGHT
+Tracked in the RK-NFA rungs above (1a–1e ✅, 4 SCAFFOLD ✅). Restated here as the ladder's first phase:
+- [ ] **G1-1** RK-NFA-4 — the 7 consuming/branching templates (CHAR/ANY/CLASS/SPLIT/BOL/EOL/ACCEPT) with the pos/subject/slen register model. See the RK-NFA-4 DESIGN block above.
+- [ ] **G1-2** RK-NFA-5 — `~~` onto the emitted slab in mode-3 native.
+- [ ] **G1-3** mode-4 `~~` default flip to BB once G1-1+G1-2 green (retire the C-matcher fallback behind `RK_NFA_BB`).
+
+### Phase 2 — NFA leaf, FULL single-pattern surface (RK-GRAM-2, Tier A)
+All lower to the `BB_NFA_*` slab; most are compile-time cset/loop shaping, NOT new opcodes.
+- [ ] **G2-1 quantifiers** — `**{m,n}`, `**{m..n}`, `**{m..*}`, `**N`; greedy default.
+  - [ ] a. counted SPLIT loop with counter-state (model on `bb_pump` MEDIUM_BINARY).
+  - [ ] b. separator quantifier `<thing>+ % <sep>` / `%%` (loop modifier).
+- [ ] **G2-2 frugal** — `*?` `+?` `??` `**{m,n}?` (SPLIT preference flips: try-fewer-first).
+- [ ] **G2-3 grouping** — `[ … ]` non-capturing bracket (structural EPS); `( … )` capturing already at NFA CAP_OPEN/CLOSE.
+- [ ] **G2-4 anchors + boundaries** — `^^`/`$$` (line), `<<`/`>>` (= `«`/`»`, word), `<|w>`/`<?wb>`. (`^`/`$` already BOL/EOL.)
+- [ ] **G2-5 predefined classes** — `\d \w \s \h \v \t \n \r` + negations `\D \W \S \H \V` → CLASS csets at compile (no new opcode).
+- [ ] **G2-6 enumerated classes** — `<[a..z]>`, `<-[ … ]>` negated, `<[…]+[…]>` / `<+[…]-[…]>` set algebra → cset at compile; unicode props (`<:Letter>`) → G6-4.
+- [ ] **G2-7 lookahead** — `<?before p>` `<!before p>` `<?after p>` `<!after p>`: zero-width sub-match (run sub-NFA, restore pos, verdict only) → NEW `BB_NFA_ASSERT`.
+- [ ] **G2-8 boolean / code assertions** — `<?{ code }>` `<!{ code }>` zero-width predicate (lowered Raku expr → call into value layer; mode-4 @PLT) → NEW `BB_NFA_PRED`; `<?>`/`<!>` constants.
+- [ ] **G2-9 conjunction** — `&`/`&&` (all alternatives match the same span; longest governs). Leaf form.
+- [ ] **G2-10 in-pattern adverbs** — `:i`/`:ignorecase` (cset case-fold at compile), scoped `:s`/`:sigspace`, scoped `:r`/`:ratchet`; `:m`/`:ignoremark` → G6-4. Scope = remainder of the group.
+- [ ] **G2-11 backrefs (in-pattern)** — `$0`/`$1`/`$<name>` USED inside the pattern (re-match captured text) → NEW `BB_NFA_BACKREF` (read cap slot, literal-compare run).
+- [ ] **G2-12 interpolation** — `$var` (literal), `<$var>` / `<{ code }>` dynamic subpattern, `@array` (LTM over elements). Dynamic/`@array` build the NFA at match time → later sub-rung.
+- [ ] **G2-13 capture markers** — `<( … )>` keep-delimiters (set match start/end within a larger pattern).
+
+### Phase 3 — BB-generator grammar STRUCTURE (RK-GRAM-3, Tier B) — THE SEAM
+- [ ] **G3-1 named-regex decl** — `my regex/token/rule name { … }` lowers each to a four-port BB **generator** (NOT a free fn) whose body is the Tier-A NFA slab. `token` = ratchet generator (β never re-pumps past first match); `regex` = backtracking generator (β re-pumps); `rule` = token + `:sigspace`.
+  - [ ] a. `lower_raku_named_regex` → `SM_BB_INVOKE` over the generator graph.
+  - [ ] b. `:sigspace` rewrite: insert a `<.ws>` generator at each significant boundary (rule only).
+- [ ] **G3-2 subrule call** — `<name>` inside a pattern → β-pumpable generator invocation (**THE SEAM**). Forms: `<name>` (capturing), `<.name>` (suppress), `<&name>` (lexical), `<name=other>` (alias), `<Pkg::name>` (qualified).
+  - [ ] a. plain `<name>` — invoke + capture-by-name into the Match tree (G5).
+  - [ ] b. `<.name>` — structure only, no capture.
+  - [ ] c. retry — outer fail re-enters the subrule's β for its next match (recursive choice point; mirror the Prolog WAM-CP frame-reuse model).
+- [ ] **G3-3 subrule args** — `<name(expr, …)>` (e.g. `token start($c) { $c+ }`); thread args through the generator's α as bound params.
+- [ ] **G3-4 grammar decl** — `grammar G { … }` = namespace of named-regex generators (subclass of `Grammar is Match`); resolve `<name>` against the method table.
+  - [ ] a. inheritance `grammar G is Base` / roles `does` — MRO over generator tables.
+- [ ] **G3-5 entry points** — `G.parse($s)` enters `TOP` (anchored whole-string); `G.subparse` (unanchored prefix); `:rule`/`:pos`/`:args` named args. Top driver = anchored variant of the NFA leftmost sweep.
+- [ ] **G3-6 default `<ws>`** — built-in whitespace token, grammar-overridable `token ws { … }`; wire `rule` sigspace to the in-scope `ws`.
+
+### Phase 4 — LTM + proto dispatch (RK-GRAM-4)
+- [ ] **G4-1 grammar-level LTM** — `|` across subrule alternatives picks the longest declarative prefix (NOT ordered). LTM dispatcher over the generator set; `BB_NFA_LTM` builds the prefix DFA, the winning branch then runs as a generator.
+- [ ] **G4-2 proto / multi** — `proto token X {*}` + `multi token X:sym<foo> { … }`; `<sym>` literal; dispatch by LTM over the `:sym` prefixes.
+- [ ] **G4-3 `||` at grammar level** — ordered alternation across subrules (textual order, full backtrack across the generator tree).
+
+### Phase 5 — actions + Match tree + captures (RK-GRAM-5)
+- [ ] **G5-1 Match object** — `$/` as the match TREE built post-order as generators succeed; positional `$0/$1` (= `$/[0]`) and named `$<name>` (= `$/<name>`) slices. (RK-NFA-3 captured FLAT; this builds the tree.)
+- [ ] **G5-2 action methods** — `:actions` object; per successful named match call `method <name>($/)` in post-order (sub-match actions fire before the caller's).
+- [ ] **G5-3 make / made** — `make X` stashes `$/.made`; outer action reads `.made`; `TOP` action returns the built AST.
+- [ ] **G5-4 aliased captures** — `<key=identifier>` / numbered alias capture into the tree.
+
+### Phase 6 — convergence + control + adverbs (RK-GRAM-6, DEFERRED)
+- [ ] **G6-1 `BB_MATCH_*` convergence** — = RK-NFA-CONV. Collapse `BB_NFA_{CHAR,CLASS,ANY,BOL,EOL}` ↔ SNOBOL4 `LIT/ANY/LEN/POS/RPOS` where byte+semantics identical; SPLIT + captures stay separate.
+- [ ] **G6-2 backtrack control** — `:` (ratchet point), `::` (fail group), `:::` (fail rule), `<commit>`, `<cut>`.
+- [ ] **G6-3 match adverbs** — `:g`/`:global` (partial via `raku_match_global`), `:ov`/`:overlap`, `:ex`/`:exhaustive`, `:nth`, `:x`, `:c`/`:continue` on `~~`/`.match`.
+- [ ] **G6-4 unicode props** — `<:Letter>`, `<:Nd>`, `:ignoremark`/`:m`; full property tables.
+- [ ] **G6-5 `:Perl5`/`:P5`** — Perl5-compat regex mode (separate compile path; very deferred).
 
 **Test ladder L1-L15** (GATE-NFA-O = mode-2 `raku_nfa_bb_match` verdict == `raku_nfa_exec` verdict, then `.expected`): L1 `/x/`~"x"; L2 `/.*/`~""; L3 `/.*/`~"xyz"; L4 `/[a-z]+/`~"hello"; L5 `/[a-z]+/`~"123"(no); L6 `/\d+/`~"abc123"; L7 `/\d+/`~"abc"(no); L8 `/a||b/`~"cat"; L9 `/a||b/`~"dog"(no); L10 `/^x$/`~"x"; L11 `/^x$/`~"xy"(no); L12 `/^x$/`~""(no); L13 `/([A-Za-z]+)/`→$0; L14 two caps; L15 `<word>(...)`. **L1-L12 verdict-green standalone; L13-L15 at RK-NFA-3.** Isolation guard every rung — run the SNOBOL4 cross-language regression suite (`scripts/test_snobol4_pat_rung_suite.sh`, a SNOBOL4-owned artifact; the only place a SNOBOL4 `pat` name appears, intentionally, as the thing this Raku ladder must NOT perturb) — it must stay M2 19/0 M4 18/1.
 - [x] **RK-BB-4 mode-2 ✅** (4a constructors + 4b infix, see completed rungs). **Full `rk_junctions` probe PASS mode-2.** Q9-Q12 ANSWERED by Lon (2026-05-29): **Q9** reuse existing kinds; break out new SM/BB opcodes ONLY if language-specific behavior diverges. **Q10** build on `BB_ALT` (live substrate Icon uses); split later if needed. **Q11** substrate-first. **Q12** tagged-string rep. Substrate proven: `BB_ALT` mode-2 is a complete n-ary alternation engine (empirically `x=(1|2|3)`→hit, `x=(7|8|9)`→miss, `every write(10|20|30)`→10/20/30); `BB_ALT` mode-4 `MEDIUM_BINARY` is a real counter-state dispatch slab (NOT a stub — the probe header's stale assumptions #3/#4 refer to the orphan `BB_ALTERNATE`, and only the `MEDIUM_TEXT` arm is a passthrough). Junction VALUE rep is the tagged string; the boolean collapse currently lives in mode-2 `SM_ACOMP`/`SM_LCOMP` (NOT yet on `BB_ALT`).
@@ -156,6 +229,24 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+RK-GRAM LADDER AUTHORED (Opus 4.8, 2026-05-29, .github only — NO code change, NO regression).
+  Planning landing, not a code rung. Wrote the full Raku grammar-feature ladder into this
+  goal file: TWO-TIER decision (Tier A NFA leaf / Tier B BB-generator structure), ONE SEAM
+  (subrule call <name> = β-pumpable generator invocation). SUPERSEDED the old RK-NFA-6..9
+  <rule>→BB_NFA_SUBCALL plan — keep the NFA slab leaf-only; subrule/rule/grammar backtracking
+  rides the EXISTING four-port generators (BB_SUSPEND/BB_ALT/BB_PUMP). Six phases, every rung
+  with `- [ ]` steps: P1 NFA core (=RK-NFA-1..5, in flight); P2 full single-pattern surface
+  (G2-1..13: quantifiers/frugal/grouping/anchors/classes/lookahead/assertions/conjunction/
+  adverbs/backrefs/interp/markers); P3 grammar STRUCTURE (G3-1..6: named-regex-as-generator,
+  subrule forms, args, grammar decl, entry points, default ws); P4 LTM+proto (G4-1..3);
+  P5 actions+Match-tree (G5-1..4); P6 convergence/control/adverbs (G6-1..5, deferred).
+  STRATEGIC PRIORITY recorded (Lon): RK-GRAM is #1 — the grammar surface flushes out the full
+  BB-kind collection; SM spine ~99% done; a complete BB set is the prereq for the all-language
+  back-end cycle (x86/JVM/.NET/JS/WASM). NEXT CODE RUNG UNCHANGED: G1-1 = RK-NFA-4's 7
+  consuming/branching templates (CHAR/ANY/CLASS/SPLIT/BOL/EOL/ACCEPT), per the RK-NFA-4 DESIGN
+  block. Gates at this landing (code unchanged from ac1bc66b): m2 41/42, m3-native 41/42 CRASH 0,
+  m4 42/42, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0.
+
 RK-NFA-4 SCAFFOLD LANDED (Opus 4.8, 2026-05-29, one4all `ac1bc66b`). Begins the
   mode-4 emission rung for the ISOLATED BB_NFA_* family. NEW bb_nfa.cpp: trivial
   passthrough templates bb_nfa_eps/cap_open/cap_close (pure jmp γ, clone of bb_eps).
