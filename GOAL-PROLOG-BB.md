@@ -71,7 +71,23 @@ GATE-1 5/5, GATE-2 132/0 (5 ORACLE_MISS), GATE-3 m2 104/107, GATE-4 4/4,
 **GATE-SWI m2 57/57 (100%)**, **GATE-SWI m3 57/57 (100%)**, FACT 0,
 sibling smokes icon/raku 5/5/5, snobol4 13/13.
 
-**NEXT — Step B (next session, scope 1-2 sessions):** convert `eligible=1`
+**NEXT — Step B (next session, scope 1-2 sessions): DESIGN SETTLED** in
+`doc/WAM-CP-6-STEP-B-DESIGN-2026-05-29-OPUS.md` (`ce99d578`) — both open
+design questions resolved, ready to implement directly. Summary: use a
+**driver-recognized redirect sentinel, NOT a `BB_PL_TAIL_CALL` op** (audit:
+new op = 5 dispatch sites + FACT-clean template + audit gate; sentinel =
+`bb_exec.c` only, zero enum churn). Key finding: the clause-body driver loop
+is ALREADY flat (`BB_PL_SEQ` returns `bb->α`; the single `bb_exec_once`
+while-loop walks the whole goal chain), so the trampoline just redirects
+`cur` to `_bcfg->entry` in the current driver frame. Arg-aliasing needs NO
+explicit copy (unlike SWIPL's `copyFrameArguments`) because our Term cells
+are GC-allocated and arg `unify` records on the global trail before the
+redirect; the abandoned caller env is the frame being reclaimed. Phase B1
+acts only on `eligible=1` singleton-clause callees (today's `det=1` cases,
+observationally identical, just no C-stack growth); Phase B2 extends to
+multi-clause after WAM-CP-8 indexing — that is where `count(1e6)` unlocks.
+Files: `bb_exec.c` only, ~40-60 lines. Detailed spec, test plan, and
+valgrind spot-check in the design doc. — convert `eligible=1`
 cases to actual frame-reuse:
 - No `calloc(callee_env)`.
 - No `malloc(PlCallSt)` push (eligible by definition means resume impossible).
