@@ -28,6 +28,33 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-K-7, 2026-05-29 — Opus 4.8, one4all `5a55ac7b` / corpus `e422738`)
+
+**2026-05-29 Opus 4.8: PLR-K-7 LANDED — number_string/2 + atom_number/2 mode-3 BINARY + mode-4
+TEXT arms.** Both predicates had NO emitter arm at all (neither MEDIUM_TEXT nor MEDIUM_BINARY) —
+recognized in `lower_pl.c` and handled by the mode-2 oracle, but in mode-3 native AND mode-4 emit
+both printed `_ _` (the double-jump-stub bug class: result var never bound). **GATE-2 crosscheck
+61 → 62 PASS (+1); rung24 string_io 4/5 → 5/5** (number_string was the lone gap — atom_string/
+string_case/string_concat/string_length already 3-mode AGREE). atom_number verified 3-mode AGREE
+(no corpus rung). mode-4 corpus +1.
+- **New effect helper `rt_pl_number_string_pair(num_first,k0,i0,s0,k1,i1,s1)`** (`bb_exec.c`, after
+  `rt_pl_atom_string_pair`) — faithful transliteration of the mode-2 number_string/atom_number
+  oracle. `num_first=1` for number_string (arg0=num arg1=text); `=0` for atom_number (arg0=text
+  arg1=num). Number arg bound → render its text (`rt_pl_atomic_text_helper`) and unify into the
+  text arg; text arg bound → parse it (`strtol` int else `strtod` float) and unify the number into
+  the number arg. Trail mark/unwind on fail. Decl in `bb_exec.h`.
+- **MEDIUM_BINARY arm** (mode-3): 7 scalars — `num_first` prepended shifts the SysV layout vs the
+  6-scalar atom_string arm: rdi=num_first esi=k0 rdx=i0 rcx=s0 r8d=k1 r9=i1, `[rsp+0]=s1`
+  (`sub rsp,16` for 16B alignment); `movabs` absolute pointers (in-process). Std bin-patch tail.
+- **MEDIUM_TEXT arm** (mode-4): byte-twin via `@PLT` + `lea [rip+strtab]`.
+
+**Gates:** GATE-1 5/5, GATE-2 **62**/ (was 61), GATE-3 m2 108/111, GATE-4 4/4, GATE-SWI 57/57,
+FACT arm1 0 / arm2 12, siblings icon/raku/snobol4 5/5/13. **NEXT:** format/2 compound (rung19
+remainder), term_to_atom/term_string mode-4 emit (mode-2 ✅, fall through to `_`), then findall/3
+last (own protocol — `nd->ival` is `bb_pl_findall_state_t*`, not arity).
+
+---
+
 ## State at HEAD (post-PLR-K-3/4/5/6, 2026-05-29 — Opus 4.8, one4all `f6223d74` / corpus `4a7d2dd`)
 
 **2026-05-29 Opus 4.8: PLR-K-3/4/5 LANDED + PLR-K-6 honest-abort (architectural boundary).**
