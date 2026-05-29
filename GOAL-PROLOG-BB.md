@@ -28,6 +28,44 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-Sonnet-4.6-ENGINE-PARITY-STUDY, 2026-05-29)
+
+**2026-05-29 Sonnet 4.6 (STUDY session — no engine code change; one4all HEAD at `efbdd61c`).**
+Read GNU Prolog (`gprolog-master/src/EnginePl/wam_inst.h`, `Pl2Wam/indexing.pl`) and SWI-Prolog
+(`swipl-devel-master/src/pl-incl.h`, `pl-index.c`) line-by-line and compared each major SCRIP
+Prolog feature (term model, unify/trail, choice points, cut, catch/throw, first-arg indexing)
+against both. Three real divergences found where BOTH references do something we don't, all
+mode-2 interpreter logic (zero emitted x86, FACT unchanged):
+1. **Conditional trailing** — refs trail only vars older than the youngest CP (gprolog
+   `Word_Needs_Trailing` `wam_inst.h:472`; SWI `GTrail` `pl-incl.h:2194`); SCRIP trails
+   unconditionally (`prolog_unify.c` `bind()`). → new rung family **PL-TRAIL-COND**.
+2. **Level-2 hash indexing** — WAM-CP-8 is Level-1 + O(N) linear filter; refs hash-dispatch O(1)
+   (`indexing.pl`, `pl-index.c` Fibonacci hash). → new rung family **PL-INDEX-L2**.
+3. **HB choice-point field** — the one deferred CP-frame field with a real consumer (it IS what
+   conditional trailing needs). → folded into **PL-CP-FRAME-0**.
+Findings doc: `one4all/doc/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md`. New rung families
+added under `PL-ENGINE-PARITY` (this file). ARCH-PROLOG.md fleshed out from stub to engine-model
++ parity-gap reference. **Recommended first landing: PL-TRAIL-COND-1** (smallest, corroborated by
+both references, pure win). Features verified ALIGNED (no action): term/deref model, cut barrier,
+catch/throw scratch-trail. No engine source touched this session.
+
+---
+
+## State at HEAD (post-Sonnet-4.6-PLR-J-1, 2026-05-29)
+
+**2026-05-29 Sonnet 4.6 (one4all `efbdd61c`): PLR-J-1 LANDED — CAT-D-10 type-test BINARY arm.**
+`bb_builtin.cpp` CAT-D-10 (`var/nonvar/atom/integer/float/number/compound/atomic/callable/is_list/ground`)
+was MEDIUM_TEXT-only; in MEDIUM_BINARY the asm strings emitted as raw bytes, so `atom(42)` and
+`integer(hello)` falsely succeeded. Ported the scalar path: `movabs rax,&rt_pl_type_test; call rax`
+with SysV `rdi=fn rsi=k0 rdx=i0 rcx=s0`; `test eax; je ω; jmp γ; β→ω`. BB_PL_STRUCT (compound-literal
+arg, e.g. `is_list([1,2,3])`) stays honest-abort-guarded until PLR-J-3.
+rung09 type-test sub-lines (`yes/yes/no/no`) now byte-match mode-2. rung09 stays FAIL overall (functor/arg/=..
+still need PLR-J-3) but is provably closer. No regressions.
+FACT=0, GATE-3 m2 104/107, GATE-SWI 57/57, smoke prolog/icon/raku/snobol4 5/5/5/13.
+**NEXT: PLR-J-2** — explicit per-node resume, replacing β heuristic (irgen.icn F2/F3).
+
+---
+
 ## State at HEAD (post-Opus-4.8-PLR-J-PLAN, 2026-05-29)
 
 **2026-05-29 Opus 4.8 (PLANNING session — no code change; one4all HEAD unchanged at `b408b086`).**
@@ -1192,17 +1230,13 @@ arms.
   GATEs byte-identical (this rung adds an unused field + populates it). This is the prerequisite
   the existing PL-LOWER-REVAMP note calls "no `bounded`/determinacy flag".
 
-- [ ] **PLR-J-1 — type-test builtin BINARY arm (corroborated by rung09, smallest correctness win).**
+- [x] **PLR-J-1 — type-test builtin BINARY arm (corroborated by rung09, smallest correctness win).**
   `bb_builtin.cpp` CAT-D-10 (`var/nonvar/atom/integer/float/number/compound/atomic/callable/
-  is_list/ground`) has a MEDIUM_TEXT arm only → in MEDIUM_BINARY the asm strings emit as raw bytes,
-  so `atom(42)`/`integer(hello)` falsely succeed (same bug class as the M3-PL-NOINTERP-1e
-  comparison fix). Port the scalar path to raw bytes: SysV `rdi=fn, rsi=k0, rdx=i0, rcx=s0`,
-  `call rt_pl_type_test`, `test eax,eax; je ω; jmp γ; β→ω` — identical shape to the 1e comparison
-  arm (`bb_builtin.cpp` ~234-286). BB_PL_STRUCT (compound-literal arg) stays honest-abort-guarded
-  until PLR-J-3. Gate: `rung09` type-test lines (`yes/yes/no/no`) byte-match mode-2; no regression
-  to the existing 10 PASS; FACT 0. **Note:** rung09's `functor/arg/=..` lines still fail (need
-  PLR-J-3) — this rung fixes only the 4 type-test lines, so rung09 stays FAIL but is provably
-  closer; verify the *type-test sub-lines* directly, not the whole-program diff.
+  is_list/ground`) MEDIUM_TEXT-only → MEDIUM_BINARY asm strings emitted as raw bytes → false success.
+  Ported scalar path: SysV `rdi=fn rsi=k0 rdx=i0 rcx=s0`, `movabs rax,&rt_pl_type_test; call rax`,
+  `test eax; je ω; jmp γ; β→ω`. BB_PL_STRUCT honest-abort until PLR-J-3.
+  **LANDED (Sonnet 4.6, 2026-05-29, one4all `efbdd61c`).** rung09 `yes/yes/no/no` type-test
+  sub-lines byte-match mode-2. FACT=0, GATE-3 m2 104/107, GATE-SWI 57/57, smoke 5/5/5/13.
 
 - [ ] **PLR-J-2 — explicit per-node resume port, replacing the β heuristic (irgen.icn F2, F3).**
   Replace `lower_pl.c`'s "nearest resumable predecessor" β wiring with explicit per-node resume,
@@ -1246,6 +1280,87 @@ arms.
 
 **Dependency order:** PLR-J-0 → {PLR-J-1 standalone} → PLR-J-2 → PLR-J-3 → PLR-J-4 → PLR-J-5.
 PLR-J-1 is independent and is the recommended first landing (smallest, corroborated by rung09).
+
+---
+
+### PL-ENGINE-PARITY — gprolog/SWI feature-parity rungs ★ NEW 2026-05-29 ★
+
+Grounded in `doc/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md` — a line-by-line read of
+GNU Prolog (`gprolog-master/src/EnginePl/wam_inst.h`, `Pl2Wam/indexing.pl`) and SWI-Prolog
+(`swipl-devel-master/src/pl-incl.h`, `pl-index.c`) against SCRIP's engine. Three real
+divergences found where BOTH references do something we don't. All three are mode-2 interpreter
+logic: zero emitted x86, FACT unchanged, verified against mode-2 as the correctness reference.
+
+#### PL-TRAIL-COND — conditional trailing (the headline parity win)
+
+Both references trail a binding ONLY when the bound var is older than the youngest live choice
+point (gprolog `Word_Needs_Trailing(adr): adr < HB1` `wam_inst.h:472`; SWI `GTrail(p): if (p <
+LD->mark_bar)` `pl-incl.h:2194`). We trail UNCONDITIONALLY (`prolog_unify.c` `bind()` always
+`trail_push`es a slotted var). A var created after the current CP is discarded wholesale on
+backtrack, so trailing it is pure waste — yet we record it, inflating GC trail memory and the
+`trail_unwind` walk on every backtrack (O(all bindings) vs O(bindings older than the CP)).
+
+- [ ] **PL-TRAIL-COND-1 — var birth-stamp + conditional trail (mode-2).**
+  Add `int birth_stamp` to `Term` (`term.h`), set in `term_new_var` from a monotonic global
+  `g_pl_var_stamp` (parallels gprolog HB / SWI mark_bar). In `bind()` (`prolog_unify.c`), push
+  the var on the trail ONLY if `var->birth_stamp <= youngest_live_cp_stamp` (read the youngest
+  `pl_choice->stamp` via `pl_cp_current()`; if no live CP, the binding is at the top level and
+  still needs trailing for catch/throw unwind — trail it). Everything else unchanged. Gate:
+  GATE-3 m2 104/107 byte-identical, GATE-SWI 57/57, smoke 5/5/5/13, FACT 0; AND a new
+  backtracking probe (`rung*` with a fail-driven loop) shows a strictly smaller peak trail top
+  (instrument `trail_mark_fn` max) with identical program output. This is the proof the skipped
+  pushes were genuinely redundant. **Smallest, corroborated by BOTH references — recommended
+  first landing of this family.**
+
+- [ ] **PL-TRAIL-COND-2 — stamp reset on backtrack + CP-stamp coherence.**
+  When a CP is popped (`pl_cp_pop`/`pl_cp_truncate`), vars born after it are now dead; ensure
+  `g_pl_var_stamp` is rewound to the CP's snapshot so reused stamps stay monotone within a
+  branch (gprolog gets this free from heap-pointer reuse; our boxed model must rewind the counter
+  explicitly). Snapshot `g_pl_var_stamp` into `pl_choice` at push; restore at pop. Gate: same as
+  -1 plus a probe that backtracks then re-binds (verifies no stale-stamp under-trailing — a
+  correctness trap: under-trailing loses a binding that SHOULD survive). Verify mode-2 output
+  byte-identical before trusting.
+
+#### PL-INDEX-L2 — Level-2 hash dispatch for first-arg indexing
+
+WAM-CP-8 gave us Level-1 first-arg indexing (class-tagged key + CP elision) but selects among N
+same-class clauses by a LINEAR filter scan — O(N). gprolog Level 2 (`indexing.pl:60-78`) and SWI
+(`pl-index.c` Fibonacci hash, line 177) both select in O(1) via a hash bucket from key→clause(s).
+For a predicate with hundreds of facts this is the difference between O(N) and O(1) per call.
+
+- [ ] **PL-INDEX-L2-1 — hash bucket built at lower time (mode-2).**
+  At lower time, when a `BB_CHOICE` has > a threshold (say 8) clauses with computed `idx_key`s,
+  build a small open-addressing or chained hash `key → list-of-clause-indices` and stash it on the
+  BB_CHOICE sidecar (PEERS RULE: NOT a new BB_t field — use `operand_aux` or a parallel map keyed
+  by node). At runtime in the `BB_CHOICE` fresh-entry dispatch (`bb_exec.c`), if a hash exists and
+  the caller key is bound, look up the bucket (O(1)) instead of scanning `bodies[]`. The
+  surviving-candidate set + CP-elision decision is then made over the bucket, not the full list —
+  identical semantics to WAM-CP-8, faster selection. Var-headed (wildcard) clauses must still be
+  merged in (gprolog's group G0). Gate: GATE-3 m2 104/107 byte-identical, GATE-SWI 57/57, FACT 0;
+  AND a many-fact probe (e.g. 200 `color/2` facts) shows identical output with selection no longer
+  scanning all 200 (instrument the candidate-scan counter). Mode-2 first.
+
+- [ ] **PL-INDEX-L2-2 (DEFERRED, study first) — multi-argument / most-discriminating arg.**
+  SWI picks the best argument to index, not always the first (`find_multi_argument_hash`,
+  `pl-index.c:115`). Defer until L2-1 lands and a probe motivates it (a predicate that is
+  non-deterministic on arg1 but deterministic on arg2). Re-read `pl-index.c` before scoping.
+
+#### PL-CP-FRAME — choice-point frame parity (mostly folded)
+
+gprolog's 8-word CP frame (`wam_inst.h:96-104`) carries HB/CPB/BCIB/CSB which our `pl_choice`
+defers (`pl_runtime.h:48-49`). Of these, only **HB** (heap/birth boundary) has a known consumer
+in SCRIP — it IS what PL-TRAIL-COND needs (HB ≡ the CP's `stamp` in our boxed model). CPB/BCIB
+(continuation/cut-info) are already handled by `resume`/`saved_cut_barrier`; CSB (constraint
+stack) has no consumer (no CLP). So this folds into PL-TRAIL-COND rather than standing alone.
+
+- [ ] **PL-CP-FRAME-0 — reserve + document HB-as-stamp (bookkeeping, lands WITH PL-TRAIL-COND-2).**
+  The `pl_choice->stamp` snapshot added in PL-TRAIL-COND-2 IS the HB port; add a header comment in
+  `pl_runtime.h` recording that HB is now realized as the var-stamp snapshot, and that CPB/BCIB/CSB
+  remain deferred with no current consumer. No behaviour change. Gate: build green, FACT 0.
+
+**Dependency order:** PL-TRAIL-COND-1 → PL-TRAIL-COND-2 (+ PL-CP-FRAME-0) ; PL-INDEX-L2-1
+independent of the trail family (can land in either order). Recommended first landing of the whole
+PL-ENGINE-PARITY family: **PL-TRAIL-COND-1** (smallest, corroborated by both references, pure win).
 
 ---
 
