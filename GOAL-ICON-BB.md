@@ -2,10 +2,48 @@
 
 **Reset:** 2026-05-28. Two and a half months of mode-2 `SM_BB_INVOKE`-per-statement watermark hunting is over. The previous content of this file (rungs accumulating PASS counts in the wrong shape) is wiped. Start over.
 
+**Second reset (later same day, Opus 4.7 + Lon directive, one4all `e572ecce`):** All Icon legacy SM dispatch wiring DELETED — no env-gate `SCRIP_ICN_BB`, no `SM_CALL_FN "main"+SM_VOID_POP`, `icn_call_builtin` body excised and ABORTs on entry, every BB template MEDIUM_BINARY arm that is not a verified real implementation now ABORTs loudly. The BB-graph lowering itself is UNCHANGED, so the prior session's mode-2 corpus result holds: **mode-2 PASS=200 FAIL=47 XFAIL=36 TOTAL=283** via `bb_exec_once` C tree-walker (re-verified post-reset). The prior tick-list (IBB-1, 3, 4, 6–22, 24–26, 29–30, 32) was scored against a driver bypass that called `bb_exec_once` for BOTH mode 2 AND mode 3 — proven empirically with an stderr trace, that was the C interpreter masquerading as flat-wired x86. Mode 3 now actually calls `bb_build_flat` → seal RX → call slab. We proceed one BB at a time; each unsupported case ABORTs at a named site so reality is visible.
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7 · Claude Sonnet 4.6
 **Architecture pointers:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c` · `.github/jcon_irgen.icn`.
 
 ---
+
+## Ground-zero score (2026-05-28, Opus 4.7, one4all `e572ecce`)
+
+Canonical 5 programs: `hello.icn` (`write("hello")`), `add.icn` (`write(1+2)`), `every_to.icn` (`every write(1 to 3)`), `alt.icn` (`every write(1 | 2 | 3)`), `full.icn` (`every write(5 > ((1 to 2) * (3 to 4)))`).
+
+| Mode | Path | Canonical-5 | Full corpus |
+|------|------|-------------|-------------|
+| 2 (`--interp`) | `bb_exec_once` (C tree-walker over BB graph) | **5 / 5** | **200 / 283** (unchanged post-reset) |
+| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **0 / 5** — all abort at named gaps | not run |
+| 4 (`--compile`) | deferred per Lon directive ("complete pass at very end") | `hello.icn` passes (commit `f387a7b9`) | not run |
+
+**Mode-3 abort map** (each gap names the precise next step):
+- `hello.icn` → ABORT `bb_lit_scalar` MEDIUM_BINARY (not verified under EP-pair regime)
+- `add.icn` → ABORT `bb_call`: `write(BB_BINOP)` shape unsupported
+- `every_to.icn` / `alt.icn` / `full.icn` → ABORT `walk_bb_flat`: BB_EVERY needs `flat_drive_every`
+
+**Templates and their honest MEDIUM_BINARY state** (post-reset; "literal bytes + g_emit args only" rule enforced):
+
+| Template | MEDIUM_TEXT | MEDIUM_BINARY |
+|---|---|---|
+| `bb_fail.cpp` | real | **real** (`\xE9 + u32le(0) + \xE9 + u32le(0)` with bin `{ω_p, β_p, ω_p}`) |
+| `bb_seq.cpp` n==0 (empty seq) | real | **real** (`\xE9 + u32le(0) + \xE9 + u32le(0)` with bin `{γ_p, β_p, ω_p}`) |
+| `bb_seq.cpp` n>0 (children) | real (flat-in-order or gather-driver per structural detection) | ABORT — needs EP-pair iteration like `bb_pl_seq` |
+| `bb_call.cpp` | real for `write(string_literal)` only; all other shapes ABORT in TEXT too | ABORT — needs label-patch for runtime-fn-addr / literal-string-addr |
+| `bb_every.cpp` | real (pump driver) | ABORT |
+| `bb_lit_scalar.cpp` | empty (no-op leaf is correct) | ABORT until consistency with `bb_fill_alpha` semantics is verified |
+| `bb_program.cpp` | empty stub | empty stub |
+| `bb_proc.cpp` | empty stub | empty stub |
+
+**Mode-3 dispatch wiring** added to `walk_bb_flat` (was SNOBOL4-pattern + Prolog only):
+- `BB_LIT_I/S/F/NUL`, `BB_CALL` → route to template via `FILL`
+- `BB_SEQ` → new `flat_drive_seq` (γ-chain walk + per-child label mint + recurse, mirrors `flat_drive_pl_seq`)
+- `BB_EVERY` → abort pending `flat_drive_every`
+
+---
+
 
 ## Premise
 
