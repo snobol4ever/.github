@@ -28,7 +28,60 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.7-WAM-CP-6-Step-A-LCO-DETECT, 2026-05-29)
+## State at HEAD (post-Opus-4.8-WAM-CP-6-Step-B-FRAME-REUSE, 2026-05-29)
+
+**2026-05-29 Opus 4.8:** **WAM-CP-6 Step B Phase B1 LANDED ✅** — actual
+frame-reuse for tail-position deterministic singleton-callee `BB_PL_CALL`.
+94 lines, `src/lower/bb_exec.c` ONLY. No enum/emitter/lowering/FACT change.
+
+**Mechanism (as designed in `ce99d578`):** driver-recognized redirect sentinel,
+NOT a new `BB_PL_TAIL_CALL` op. Two file-scope globals
+(`g_pl_tail_redirect_cfg`/`_entry`); BB_PL_CALL fresh path binds args into a
+fresh callee env (unify records on the trail BEFORE redirect), sets
+`g_pl_env = callee_env`, `bb_reset(_bcfg)`, trips the sentinel, `return NULL`
+(no PlCallSt, no `state=1` — a det tail call has no resume). Both driver loops
+(`bb_exec_once` + `bb_exec_resume`) check the sentinel after `bb_exec_node`,
+BEFORE the `!next` terminal branch, and reuse their own C frame (redirect `cur`
+to callee entry, `continue`). C stack stays flat across deep singleton tail
+recursion.
+
+**Phase-B1 gate (4 conditions, all statically decidable at fresh-call entry):**
+(1) `bb->γ == NULL` (tail position); (2) `g_pl_bfr == NULL` (no live CP on the
+spine); (3) `_bcfg->entry->t != BB_CHOICE` (singleton callee — no clause-
+selection CP); (4) `bb_body_cp_free_except_tail(_bcfg)` (new static helper:
+body has no BB_CHOICE/BB_PL_ALT and no non-tail BB_PL_CALL).
+
+**Two regressions found+fixed during implementation (the gate is the lesson):**
+first cut used only (1)+(3) → GATE-3 104→103 (rung11 findall_filter `[2,4]`→`[2]`:
+a singleton callee with a CP in its BODY was flattened, stranding findall's
+backtrack — fixed by gate (4)) AND GATE-SWI 57→56 (memberchk
+`f(X,a),[f(x,b),f(y,a)]` lost the backtrack from `f(x,b)` into `f(y,a)` because
+the tail `member(X,T)` ran with `member`'s multi-clause CP live — fixed by gate
+(2)). After both fixes ALL gates byte-identical.
+
+**Mechanism proof:** `SCRIP_LCO_TRACE=2` logs `[LCO] ACTED name/arity
+frame-reuse redirect`. On `greet:-hello. hello:-world. world:-write(ok),nl.`
+both `hello/0` and `world/0` redirect, reusing one C frame; `ok` prints.
+
+**Gates (all byte-identical to `860d1163` baseline, ZERO regressions):**
+GATE-1 5/5, GATE-2 132/0 (5 ORACLE_MISS), GATE-3 m2 104/107, GATE-4 4/4,
+GATE-SWI m2 57/57 (100%), FACT 0, sibling smokes icon/raku 5/5/5, snobol4 13/13.
+
+**Safety (Design Q#2 — no copy needed):** tail path NEVER calls `free()`; the
+abandoned caller env is GC-reclaimed when unreachable; bindings live on the
+global trail recorded before the redirect. No SWIPL-style `copyFrameArguments`.
+
+**NEXT — Phase B2 pairs with WAM-CP-8.** The benchmark `count(N)` is STILL not
+eligible: multi-clause (`entry->t == BB_CHOICE`, fails gate 3) AND runs with a
+live clause-selection CP (`g_pl_bfr != NULL`, fails gate 2). WAM-CP-8 first-arg
+indexing must elide the clause CP and dispatch to one clause before B2 can
+flatten `count/1` to O(1) C stack. The B1 mechanism is exactly what B2 reuses —
+extend the GATE, not the mechanism. Handoff
+`HANDOFF-2026-05-29-OPUS-PROLOG-BB-WAM-CP-6-STEP-B-FRAME-REUSE.md`.
+
+---
+
+## Prior HEAD (post-Opus-4.7-WAM-CP-6-Step-A-LCO-DETECT, 2026-05-29)
 
 **2026-05-29 Opus 4.7:** **WAM-CP-6 Step A LCO-DETECT ✅** — 24-line audit
 instrumentation in `src/lower/bb_exec.c` BB_PL_CALL fresh-call success path
@@ -519,7 +572,7 @@ WAM-CP-3  route ; (BB_PL_ALT) via same CP stack                                 
 WAM-CP-4  cut = truncate CP list to frame barrier                               ✅ COMPLETE
 WAM-CP-5  mode-4 emit: CP record is the r12 target (CHOICE+PL_CALL)             ✅ COMPLETE
 WAM-CP-9  committed-ITE node + cut=truncate (fixes rung07/15 PJ-AGW-5 class)    🟡 PARTIAL — mode-4 cut-scope landed; ITE/lexical-! refinement open
-WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?")        🟡 STEP A LANDED — LCO-DETECT (audit only, no semantic change); Step B = frame-reuse next session, Step C pairs with WAM-CP-8 for tail-recursive multi-clause
+WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?")        🟡 STEP B LANDED — Phase B1 frame-reuse for tail+det singleton callees (redirect sentinel in bb_exec.c driver loops, zero enum churn); Step C/Phase B2 pairs with WAM-CP-8 for tail-recursive multi-clause
 WAM-CP-7  unify specialization B_UNIFY_{FF,VF,FV,VV,FC,VC}   (speed; any time)
 WAM-CP-8  JIT first-arg indexing (needs CP model to know when a CP was elided)
 WAM-CP-10 catch/throw via CP-barrier unwind (rung28)                            🟡 PARTIAL — mode-2 correctness 5/5 via Pl_CatchFrame+setjmp; longjmp-free CP-barrier unwind deferred to WAM-CP-13 alongside mode-4 emit
@@ -595,10 +648,13 @@ the LATER tagged-word track.
 
 ### Open rungs
 
-- [ ] **WAM-CP-6 — Last-Call Optimization.** At the last goal of a clause body, if `g_pl_bfr` is
-  older than the current frame (no CP created since entry) and the call is deterministic, reuse
-  the frame. Mode-2 first, then mode-4. Principled fix for SEGFAULT-CLUSTER (deep tail recursion).
-  Gate: `count(0). count(N):-N>0,N1 is N-1,count(N1).` to 1e6 runs in O(1) stack.
+- [ ] **WAM-CP-6 — Last-Call Optimization (Step A ✅ `860d1163`, Step B Phase B1 ✅ this commit).**
+  Step B Phase B1 LANDED: frame-reuse via redirect sentinel for tail+det singleton callees
+  (`bb_exec.c` driver loops; gate = γ==NULL && g_pl_bfr==NULL && entry!=BB_CHOICE &&
+  bb_body_cp_free_except_tail). All gates byte-identical. REMAINING (Phase B2): extend gate to
+  multi-clause deterministic calls once WAM-CP-8 first-arg indexing elides the clause-selection
+  CP — that unlocks the benchmark below.
+  Gate: `count(0). count(N):-N>0,N1 is N-1,count(N1).` to 1e6 runs in O(1) stack. (Needs B2/WAM-CP-8.)
 
 - [ ] **WAM-CP-7 — unify specialization.** Lower common unify shapes (var-vs-const,
   first-occurrence-var, var-vs-var) into distinct BB nodes with tiny templates instead of
