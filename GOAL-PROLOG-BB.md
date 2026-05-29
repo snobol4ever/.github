@@ -28,6 +28,40 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-K-9, 2026-05-29 — Opus 4.8, one4all `8be5f202` / corpus `5354a66`)
+
+**2026-05-29 Opus 4.8: PLR-K-9 LANDED — term_to_atom/2 + term_string/2 mode-3 BINARY + mode-4 TEXT
+arms + BB_ARITH TEXT-walker fix.** Both predicates had NO emitter arm (neither TEXT nor BINARY) →
+mode-3 native + mode-4 emit printed `_` (result var never bound); mode-2 correct.
+- **New effect helper `rt_pl_term_to_atom_term(t0, k1,i1,s1)`** (`bb_exec.c`, after the number_string
+  helper) — forward-only, mirrors the mode-2 oracle: render arg0's term via `pl_term_to_string` (the
+  operator-notation writer the oracle uses), intern the atom, unify into the text arg. The arm builds
+  arg0's Term* via `emit_build_compound_term[_bin]` and passes the pointer (writeq/numbervars _term
+  idiom). Decl in `bb_exec.h`.
+- **MEDIUM_BINARY arm** (mode-3): build a0 → rdi, esi=k1 rdx=i1 rcx=s1, `movabs` absolute pointers.
+  **MEDIUM_TEXT arm** (mode-4): byte-twin via `@PLT` + `lea [rip+strtab]`.
+- **ALIGNMENT FINDING (reusable):** `rt_pl_term_to_atom_term` → `pl_term_to_string` →
+  `open_memstream`, which is SSE-alignment-sensitive and SIGSEGVs if rsp is not 16-aligned at the
+  call. The numbervars/writeq `_term` arms use `sub rsp,8` (their helpers do no alignment-sensitive
+  glibc work, so the off-by-8 was tolerated); this arm needs `sub rsp,16` (both BINARY + TEXT) to keep
+  rsp 16-aligned through the build's and helper's internal calls. Found via gdb backtrace into
+  `open_memstream`. (Note for future native helpers calling glibc stdio/memstream/printf-family.)
+- **BB_ARITH TEXT-WALKER FIX:** `emit_build_compound_term` (the MEDIUM_TEXT walker) had NO BB_ARITH
+  branch → fell to the `unhandled kind` comment → an operator literal like `1+2` produced no
+  term-build code (rax garbage) and rendered EMPTY in mode-4. The MEDIUM_BINARY twin already had the
+  branch (PLR-K-4); added the matching branch to the TEXT walker (functor=sval, operands on α/β,
+  arity 0→atom/1→f(a)/2→f(a,b)). Benefits any mode-4 arm feeding an operator term through the TEXT
+  walker (functor/arg/=../write_canonical with operator literals).
+
+**GATE-2 crosscheck 67 → 70 PASS (+3)** — rung25 term_string/term_to_atom/term_to_atom_arith now all
+3-mode AGREE. **mode-4 corpus 64 → 67 (+3).** All other gates byte-identical: GATE-1 5/5, GATE-3 m2
+108/111, GATE-4 4/4, GATE-SWI 57/57, FACT arm1 0 / arm2 12, siblings icon/raku/snobol4 5/5/13.
+**NEXT:** findall/3 (own protocol — `nd->ival` is `bb_pl_findall_state_t*`, not arity; needs a
+dedicated mode-3/4 path, emit the goal sub-graph inline or route specially). Other small mode-4 gaps:
+retract/retractall (the PL-RT-ASSERTZ mutable-store boundary), abolish/1 (rung15).
+
+---
+
 ## State at HEAD (post-PLR-K-8, 2026-05-29 — Opus 4.8, one4all `123878af` / corpus `e422738`)
 
 **2026-05-29 Opus 4.8: PLR-K-8 LANDED — format/1 + format/2 MEDIUM_BINARY arm (mode-3 native).**
