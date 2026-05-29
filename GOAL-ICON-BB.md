@@ -9,31 +9,32 @@
 
 ---
 
-## Ground-zero score (2026-05-28, Opus 4.7, one4all `e572ecce`)
+## Ground-zero score (2026-05-28, Opus 4.7 follow-up, one4all `6393c743`)
 
 Canonical 5 programs: `hello.icn` (`write("hello")`), `add.icn` (`write(1+2)`), `every_to.icn` (`every write(1 to 3)`), `alt.icn` (`every write(1 | 2 | 3)`), `full.icn` (`every write(5 > ((1 to 2) * (3 to 4)))`).
 
 | Mode | Path | Canonical-5 | Full corpus |
 |------|------|-------------|-------------|
-| 2 (`--interp`) | `bb_exec_once` (C tree-walker over BB graph) | **5 / 5** | **200 / 283** (unchanged post-reset) |
-| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **0 / 5** — all abort at named gaps | not run |
+| 2 (`--interp`) | `bb_exec_once` (C tree-walker over BB graph) | **5 / 5** | **200 / 283** (unchanged) |
+| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **1 / 5** — hello.icn PASS (byte-identical to mode 2); add/every_to/alt/full abort at named gaps | not run |
 | 4 (`--compile`) | deferred per Lon directive ("complete pass at very end") | `hello.icn` passes (commit `f387a7b9`) | not run |
 
 **Mode-3 abort map** (each gap names the precise next step):
-- `hello.icn` → ABORT `bb_lit_scalar` MEDIUM_BINARY (not verified under EP-pair regime)
-- `add.icn` → ABORT `bb_call`: `write(BB_BINOP)` shape unsupported
-- `every_to.icn` / `alt.icn` / `full.icn` → ABORT `walk_bb_flat`: BB_EVERY needs `flat_drive_every`
+- `hello.icn` → ✅ PASS via `6393c743`
+- `add.icn` → ABORT `bb_call`: `write(BB_BINOP)` shape unsupported (needs value-passing convention)
+- `every_to.icn` / `alt.icn` / `full.icn` → ABORT `walk_bb_flat`: BB_EVERY needs `flat_drive_every` (also needs value-passing convention)
 
-**Templates and their honest MEDIUM_BINARY state** (post-reset; "literal bytes + g_emit args only" rule enforced):
+**Templates and their honest MEDIUM_BINARY state** (post-`6393c743`):
 
 | Template | MEDIUM_TEXT | MEDIUM_BINARY |
 |---|---|---|
 | `bb_fail.cpp` | real | **real** (`\xE9 + u32le(0) + \xE9 + u32le(0)` with bin `{ω_p, β_p, ω_p}`) |
 | `bb_seq.cpp` n==0 (empty seq) | real | **real** (`\xE9 + u32le(0) + \xE9 + u32le(0)` with bin `{γ_p, β_p, ω_p}`) |
-| `bb_seq.cpp` n>0 (children) | real (flat-in-order or gather-driver per structural detection) | ABORT — needs EP-pair iteration like `bb_pl_seq` |
-| `bb_call.cpp` | real for `write(string_literal)` only; all other shapes ABORT in TEXT too | ABORT — needs label-patch for runtime-fn-addr / literal-string-addr |
-| `bb_every.cpp` | real (pump driver) | ABORT |
-| `bb_lit_scalar.cpp` | empty (no-op leaf is correct) | ABORT until consistency with `bb_fill_alpha` semantics is verified |
+| `bb_seq.cpp` n>0 (children) | real (flat-in-order or gather-driver per structural detection) | **real (NEW `6393c743`)** — EP-pair iteration mirroring `bb_pl_seq.cpp` |
+| `bb_call.cpp` write(strlit) | real | **real (NEW `6393c743`)** — 37-byte movabs/call sequence with rt_write_str_nl |
+| `bb_call.cpp` other shapes | ABORT in TEXT too | ABORT — needs value-passing convention |
+| `bb_every.cpp` | real (pump driver) | ABORT — needs `flat_drive_every` + value-passing |
+| `bb_lit_scalar.cpp` | empty (no-op leaf is correct in TEXT) | **real (NEW `3d85c4de`)** — 10-byte pass-through (`α: jmp γ ; β: jmp ω`) |
 | `bb_program.cpp` | empty stub | empty stub |
 | `bb_proc.cpp` | empty stub | empty stub |
 
