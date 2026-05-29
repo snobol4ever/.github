@@ -28,7 +28,45 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.8-M3-NATIVE-REPORTING, 2026-05-29)
+## State at HEAD (post-Opus-4.8-NO-MODE-FALLBACK, 2026-05-29)
+
+**2026-05-29 Opus 4.8 (Lon directive — one4all `0f4fcfde`):** **ALL mode-fallback paths REMOVED —
+a mode runs FULLY or ABORTS.** Cross-mode fallback is dangerous: it reports one engine's result as
+if it were another's. Changes:
+- **`src/driver/scrip.c` mode_run branch:** removed the `SCRIP_M3_NATIVE` env-gate AND the
+  native→`sm_interp_run` fallback. `--run` (mode 3) for non-Icon now calls `sm_run_native`
+  unconditionally; on failure it ABORTS (no interpreter fallback). Previously default `--run` for
+  Prolog silently ran `sm_interp_run` (mode-2's C interpreter) — that lie is gone.
+- **`sm_run_native` (`src/processor/sm_native.c`):** new `g_sm_native_unsupported` flag (declared
+  `emit_core.h`, defined `emit_core.c`). Reset before the emit loop, checked after; if any SM/BB
+  template's MEDIUM_BINARY arm is an unimplemented stub, `sm_run_native` returns -1 → driver aborts.
+  Stops a stub from reporting bogus success and doing nothing.
+- **`SM_BB_PL_INVOKE` MEDIUM_BINARY arm (`sm_bb_switch.cpp`):** the no-op stub now SETS
+  `g_sm_native_unsupported = 1` (still returns its 5 stub bytes — FACT unchanged, the set is a C
+  statement not emitted bytes). So Prolog `--run` aborts honestly instead of printing nothing at rc 0.
+- **Gate scripts:** `test_crosscheck_prolog.sh` + `test_prolog_rung_suite.sh` run mode-3 as plain
+  `--run` (now unconditionally native); crosscheck counts an abort (rc≥128) as **NATIVE-ABORT**,
+  never a pass.
+
+**Honest mode-3 picture:** `test_crosscheck_prolog.sh` = **0/132** native (all NATIVE-ABORT) — the
+native Prolog program entry is unimplemented (`SM_BB_PL_INVOKE` MEDIUM_BINARY is a stub; the real
+env-push+`walk_bb_flat` entry exists only in MEDIUM_TEXT). The earlier "22 pass" was degenerate
+empty-output matching and is correctly gone. **SNOBOL4/Icon `--run` still pass** (their native
+paths are genuinely implemented; sibling smokes icon/raku/snobol4 5/5/5/13 green). **Mode-2 is the
+correctness reference and is unchanged:** GATE-1 5/5, GATE-3 m2 104/107, GATE-SWI 57/57.
+
+**NEXT (headline, multi-session): M3-PL-NOINTERP** — implement the native (MEDIUM_BINARY/WIRED)
+Prolog program entry so `--run` runs and stops aborting: port the MEDIUM_TEXT `pl_bb_env_push` +
+`walk_bb_flat` + γ-tail `rt_set_last_ok` into raw bytes, and populate the BB_PL_* template
+MEDIUM_BINARY arms (audit which exist from WAM-CP-5 mode-4 work vs which are TEXT-only). Mirrors the
+Raku M3-RK-NOINTERP-1a..1d arc. Until then mode-3 native for Prolog correctly aborts; develop and
+verify against mode-2.
+
+**one4all commit:** `0f4fcfde`. (Prior: `855cbee2` mode-3 reporting; `2fae45ec` print/1; `0019cc7b` B3.)
+
+---
+
+## Prior HEAD (post-Opus-4.8-M3-NATIVE-REPORTING, 2026-05-29)
 
 **2026-05-29 Opus 4.8 (testing/reporting, one4all `855cbee2`):** **mode-3 reporting switched to
 NATIVE — major honest finding.** Per Lon directive, the gate scripts now run mode-3 as genuinely
