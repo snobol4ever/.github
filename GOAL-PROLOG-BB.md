@@ -28,7 +28,66 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.7-SWI-5-EMPTY-VERDICT)
+## State at HEAD (`a21dc32b`, post-Opus-4.7-SWI-NEXT-step-1-TT-VAR-as-goal)
+
+**2026-05-28 Opus 4.7 (`a21dc32b`):** **SWI-NEXT step 1 ✅** — `lower_pl.c` 23-line
+TT_VAR-as-goal arm. **Diagnostic + partial fix.** `lower_pl_goal` returned NULL for
+any bare `TT_VAR` because its case-match ladder ended at `if (e->t != TT_FNC ||
+!e->v.sval) return NULL;`. This silently wiped out the body of any user predicate
+that meta-called one of its own arguments — `foo(G) :- catch(G, _, R)` lowered to an
+empty BB graph (one RETURN), masquerading as "predicate not found" in failure
+traces. Affected catch(VAR,..,..) and findall(_, VAR, _), both of which lower their
+Goal arg through `lower_pl_goal` into a self-contained sub-graph.
+
+**Fix:** new TT_VAR arm in `lower_pl_goal` synthesizes a single-arg `BB_PL_CALL`
+with callee="call". The args[0] is the lowered TT_VAR (a BB_PL_VAR). The existing
+SWI-2d intercept in `bb_exec.c BB_PL_CALL` (callee=="call" && carity==1) handles
+the meta-dispatch via `pl_call_term`. Mirrors standard Prolog semantics: `?- X.`
+≡ `?- call(X).` by definition.
+
+**How found:** bisection in `/tmp/bisect*.pl` after PL-RT-USER-FROM-SYNTH-2 and
+SWI-5: (4) `foo(G) :- catch(G,_,R)` reproduced silent body-wipe; (5) `foo(G) :-
+call(G)` worked; (6) `foo(G) :- catch(call(G),_,R)` worked. The contrast localized
+the bug to TT_VAR-in-goal-position; SM dump of broken case showed `foo/1` body =
+bare RETURN.
+
+**Step 2 NOT in this commit — `once/1` intercept in `bb_exec.c BB_PL_CALL`.**
+plunit's `pj_run_tests` uses `once(pj_run_one(...))` heavily. The BB-graph
+dispatch path has the `callee=="call"` intercept (SWI-2d) but no `once`
+intercept; `once(G)` falls through to a non-existent `once/1` user-predicate
+lookup and silently fails. **Mechanical fix specified in handoff quickstart:**
+change `if (carity >= 1 && callee=="call")` to `if ((carity >= 1 &&
+callee=="call") || (carity == 1 && callee=="once"))`. `pl_call_term` already
+commits to one solution via `pl_invoke_var_goal` (no resume), so once(G) ≡
+call(G) in this BB-graph path. **Warning to next session:** my first attempt
+this session accidentally narrowed `carity >= 1` to `carity == 1`, which would
+have broken SWI-2d/2e call/N for N>1. Reverted to keep gates stable. Correct
+shape preserves call/N with the OR form.
+
+**Combined step 1 + step 2 unblocks real SWI test execution:** every plunit
+test goal flows through `once(pj_run_one(Suite,N,O,G))` (step 2) → pj_run_one
+dispatch → `pj_do_succeed(Suite,Name,Goal) :- catch(Goal, _, _), ...` (step 1).
+
+**Bonus diagnostic:** stale `libscrip_rt.so` masked a GATE-4 m4-choice
+false-regression mid-session. `make libscrip_rt` is essential alongside `make
+scrip` before running GATE-4. Worth adding to the goal file's session-setup
+checklist (currently it's there but easy to skip when only scrip code changed).
+
+Gates byte-identical to predecessor `6c3d8703`: GATE-1 5/5, GATE-2 132/0 (5
+ORACLE_MISS), GATE-3 m2 104/107, GATE-4 4/4, GATE-SWI 57/57 EMPTY (honest;
+once/1 still blocks plunit-driven execution), BB-honest 128/0, FACT 0, smokes
+icon/raku/snobol4 all green. Handoff `HANDOFF-2026-05-28-OPUS-PROLOG-BB-SWI-
+NEXT-TT-VAR-AS-GOAL.md`.
+
+**NEXT options:** (a) **SWI-NEXT step 2** (mechanical, ~5 lines — see handoff
+quickstart; expected to flip ~9 SWI suites from EMPTY → real PASS/FAIL
+distribution and require .ref re-baseline); (b) WAM-CP-6 LCO (segfault-cluster,
+needs `bb_exec_once` non-recursive refactor); (c) PL-RT-ASSERTZ (dynamic clause
+support); (d) WAM-CP-13 (full mode-4 corpus 54/107 long-arc).
+
+---
+
+## Prior HEAD (post-Opus-4.7-SWI-5-EMPTY-VERDICT)
 
 **2026-05-28 Opus 4.7 SWI-5 EMPTY verdict ✅** (corpus + one4all, no upstream one4all hash needed
 — scripts + plunit only). **GATE-SWI: 53/57 (92%) → 57/57 (100%) honest baseline.** Three-way
