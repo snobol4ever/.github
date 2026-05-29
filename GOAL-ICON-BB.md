@@ -9,15 +9,40 @@
 
 ---
 
-## Ground-zero score (2026-05-28, Sonnet 4.6 follow-up, one4all `fac53504`)
+## Ground-zero score (2026-05-28, Opus 4.7 follow-up, one4all `1a97c0a3`)
 
 Canonical 5 programs: `hello.icn` (`write("hello")`), `add.icn` (`write(1+2)`), `every_to.icn` (`every write(1 to 3)`), `alt.icn` (`every write(1 | 2 | 3)`), `full.icn` (`every write(5 > ((1 to 2) * (3 to 4)))`).
 
 | Mode | Path | Canonical-5 | Full corpus |
 |------|------|-------------|-------------|
 | 2 (`--interp`) | `bb_exec_once` (C tree-walker over BB graph) | **5 / 5** | **200 / 283** (unchanged) |
-| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **3 / 5** — hello.icn ✅ + add.icn ✅ + every_to.icn ✅ (byte-identical to mode 2); alt.icn aborts at `flat_drive_alt_icn` (needs counter-state dispatch slab); full.icn aborts at BB_BINOP_GEN driver gap | not run |
+| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **4 / 5** — hello.icn ✅ + add.icn ✅ + every_to.icn ✅ + alt.icn ✅ (all byte-identical to mode 2); full.icn aborts at BB_BINOP_GEN driver gap | not run |
 | 4 (`--compile`) | deferred per Lon directive ("complete pass at very end") | `hello.icn` passes (commit `f387a7b9`) | not run |
+
+## Session 2026-05-28 follow-up-3: IBB-5 alt.icn LANDED (Opus 4.7, one4all `1a97c0a3`)
+
+**Canonical-5 mode-3 advances 3/5 → 4/5.** `alt.icn` (`every write(1 | 2 | 3)`) closes via authoring the counter-state dispatch slab in `bb_alt.cpp` MEDIUM_BINARY + rewriting `flat_drive_alt_icn` in `emit_bb.c`. Output prints `1\n2\n3\n` byte-identical to mode-2.
+
+**Architecture.** The driver follows the template-first-then-bodies pattern (mirrors `flat_drive_pl_choice`): walks arms via `pBB->α` ω-chain (per `lower_icn_new_Alt`: arm[0]=pBB->α, arm[i+1]=arm[i]->ω), allocates per-arm α/β labels, queues arm-α targets via `EMIT_PAIR_JMP`, then `EMIT_PAIR_FILL` triggers `bb_alt` to emit the dispatcher. Arm bodies follow at known labels reachable via the dispatcher's `je` instructions.
+
+**Template bytes** (per arm count n, uses `&pBB->counter` — the same int64 slot mode-2's `bb_exec.c:1720` uses for the arm index):
+- α (offset 0): `movabs rcx,&counter; mov [rcx],0; jmp short dispatch` (19 bytes)
+- β (offset 19, lbl_β defined): `movabs rcx,&counter; add [rcx],1; (fall through)` (17 bytes)
+- dispatch (offset 36): `movabs rcx,&counter; mov rcx,[rcx]` (13 bytes)
+- per arm i: `cmp rcx,i` (`48 81 F9` + u32, 7 bytes; imm32 form supports n > 127) + `je arm_α[i]` (`0F 84` + u32 rel32, 6 bytes)
+- final: `jmp lbl_ω` (counter == n exhausted, 5 bytes)
+
+For canonical-5 n=3 the slab is 93 bytes. Edge cases verified: `write(42)` (n=1, no alt, single literal) and `every write(10|20|30|40|50)` (n=5) both byte-identical mode-2 vs mode-3.
+
+**Files touched (one4all):**
+- `src/emitter/emit_bb.c`: `flat_drive_alt_icn` rewritten from ABORT-stub to functional driver.
+- `src/emitter/BB_templates/bb_alt.cpp` MEDIUM_BINARY: rewritten from 10-byte port-wired stub to counter-state dispatch.
+
+**Gates HOLD:** smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5, smoke_snobol4 13/13, smoke_unified_broker 39/14. FACT-RULE 0. Icon crosscheck 2/4 (concat/if_expr --run FAIL pre-existing — verified by `git stash` baseline run on `a21dc32b`; both root-cause to `flat_drive_binop_tree: missing α or β child`).
+
+**Remaining canonical-5 gap (full.icn):** `every write(5 > ((1 to 2) * (3 to 4)))`. Arg0 is `BB_BINOP_GEN` (kind 84). `bb_call` is_write_intexpr predicate doesn't include BB_BINOP_GEN; needs new `flat_drive_binop_gen_tree` driver doing cross-product walk over two `BB_TO` operand sub-trees applying `*`/`>` via `rt_arith`. PLAN.md NEXT (2).
+
+Handoff: `HANDOFF-2026-05-28-OPUS-IBB-5-ALT-DISPATCH-LANDED.md`.
 
 ## Session 2026-05-28 follow-up-2: IBB-4 every_to LANDED + BB_ALT plumbing (Sonnet 4.6, one4all `fac53504`)
 
