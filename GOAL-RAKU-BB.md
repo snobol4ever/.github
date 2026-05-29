@@ -81,9 +81,9 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 **Family 1:1 from `Nfa_kind`:** `BB_NFA_{CHAR,ANY,CLASS,SPLIT,EPS,BOL,EOL,CAP_OPEN,CAP_CLOSE,ACCEPT}` (Phase 1); `{ASSERT,PRED,SUBCALL,LTM}` (Phase 2). Driver `BB_PUMP`, β = next-state/backtrack edge.
 
-- [ ] **RK-NFA-1 — wire family + mode-2 backtracking walk.** PARTIAL.
+- [ ] **RK-NFA-1 — wire family + mode-2 backtracking walk.** 1a/1b/1c/1d/1e ✅; remaining: gate the BB graph into mode-4 (RK-NFA-4 below).
   - [x] 1a. `BB_NFA_*` enum block in `src/include/BB.h` (isolated; SNOBOL4's pattern opcodes untouched).
-  - [ ] 1b. `raku_nfa_to_bb(Raku_nfa*) → BB_graph_t*` state→node walk via `Nfa_state.bb_id`. **TODO** (gate to mode-4).
+  - [x] 1b. **DONE (RK-NFA-1b ✅, Opus 4.8, 2026-05-29, one4all `6b593da8`).** `raku_nfa_to_bb(Raku_nfa*) → BB_graph_t*` state→node walk in `raku_nfa_bb.c` (isolated; zero `snobol4_pattern.c` contact). `nfa_kind_to_bb` 1:1 `Nfa_kind`→`BB_NFA_*`; one `BB_t` per NFA state; ports γ=out1-node (advance), β=out2-node (SPLIT backtrack), ω=NULL for the consumer scaffold; payload CHAR ival=char, CLASS sval=32-byte cset blob, CAP_OPEN/CLOSE ival=group idx; `bbg->entry`=start node; returns NULL on Phase-2 kinds (NK_CODE/NK_SUB_CALL) so callers fall back. Verified standalone: graph faithfully mirrors the NFA across the full L1-L15 pattern set (node count == state count, ports wired, entry correct, csets/chars/caps carried). Pure graph construction, NO x86, dead-code-until-RK-NFA-4. Gates unchanged.
   - [x] 1c. Isolated mode-2 backtracking matcher `raku_nfa_bb_match` (`src/frontend/raku/raku_nfa_bb.c`, `nfa_bt` depth-first, β=`SPLIT.out2`); `raku_nfa_start/accept` accessors + `raku_nfa_states` defined; Makefile wired; `RK_NFA_BB=1` gate in tree-walk handler.
   - [x] 1d. Standalone oracle: backtracking BB verdict == parallel NFA verdict on **L1-L12, 12/12, zero mismatches.** Thesis proven.
   - [x] 1e. **CLOSED (RK-NFA-1e ✅, Opus 4.8, 2026-05-29, one4all `0d94e255`).** SM dispatch gap closed and the WHOLE mode-2/mode-4 regex cluster lit up (went past option-A name-registration). `~~` lowered to `SM_CALL_FN raku_match` but the only handler `raku_try_call_builtin(tree_t*)` was the legacy tree-walk; `--interp` (`sm_interp.c:1387`) and `rt_call` (`rt.c:1598`) reach `raku_try_call_builtin_by_name`, which never knew the name → all 6 regex tests failed BOTH modes. **(1)** `raku_builtins_byname.c`: by-name twins using pre-eval'd `args[]` — `raku_match`, `raku_match_global`, `raku_subst`, `raku_nfa_compile`, `raku_re_capture`, `raku_named_capture`; all route through the ISOLATED `raku_nfa_*` matcher (`raku_re.c`/`raku_nfa_bb.c`), zero SNOBOL4-pattern-opcode contact. **(2)** Capture name-collision: the lexer mapped BOTH `$*STDOUT`/`$*STDERR` (FH) and `$0`/`$1` (regex) to `VAR_CAPTURE→TT_CAPTURE→raku_capture`, and the RK-IO `FHVAL` handler shadowed the regex slice. Split at the lexer: `$*STD*`→new `VAR_FH`→`TT_FH_CAPTURE`→`raku_capture` (FH, byte-identical); `$0`/`$1`→`VAR_CAPTURE`→`TT_CAPTURE`→new `raku_re_capture` (group slice). Net-zero new grammar conflicts (still 30). **(3)** Subst write-back: `s/pat/repl/` mutates its subject; by-name args are pre-eval'd values (var identity erased, unlike the AST handler's frame inspection). When the smatch-subst LHS is a plain `TT_VAR`, `lower_expr` emits `STORE_VAR`+re-`PUSH_VAR` after the call → subject rebound, statement still yields a value. **GATE-RK m2 35→41/42** (only rk_stdio39 fidelity non-bug remains), **GATE-RK4 m4 36→42/42 PERFECT**. Smoke 5/5/5/13/5 HOLD; SNOBOL4 pattern-rung suite BYTE-IDENTICAL M2 19/0 M4 18/1 (isolation proven); FACT 0 (mode-2/4-dispatch rung, no emitter/template bytes). This subsumes the mode-2/mode-4 verdict+capture+global+subst goals of RK-NFA-2/RK-NFA-3 as well; what remains for those rungs is the BB_NFA_* emission path (RK-NFA-1b → RK-NFA-4/5).
@@ -147,7 +147,22 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-RK-NFA-1e CLOSED (Opus 4.8, 2026-05-29, one4all `0d94e255`). Whole mode-2/mode-4
+RK-NFA-1b DONE (Opus 4.8, 2026-05-29, one4all `6b593da8`). raku_nfa_to_bb — NFA →
+  ISOLATED BB_NFA_* graph builder (BB_LANG_RKU), the prereq for mode-4 emission. In
+  raku_nfa_bb.c: nfa_kind_to_bb 1:1 Nfa_kind→BB_NFA_* (CHAR/ANY/CLASS/SPLIT/EPS/BOL/
+  EOL/CAP_OPEN/CAP_CLOSE/ACCEPT), one BB_t per state, γ=out1-node β=out2-node(SPLIT)
+  ω=NULL, payload CHAR ival=char / CLASS sval=32-byte cset / CAP ival=group-idx,
+  entry=start node; NULL on Phase-2 kinds. raku_re.h fwd-decls it (no BB.h pull-in).
+  Verified standalone: graph faithfully mirrors the NFA across L1-L15 (node count ==
+  state count, ports wired, entry correct, csets/chars/caps carried). Pure graph
+  construction, NO x86, dead-code-until-RK-NFA-4 (no caller yet) → can't regress.
+  Gates unchanged: m2 41/42, m4 42/42, smoke 5/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0.
+  NEXT: RK-NFA-4 — NEW src/emitter/BB_templates/bb_nfa_*.cpp (FACT-pure, four-port,
+  isolated; opcode names from Nfa_kind) + SM_BB_INVOKE over the raku_nfa_to_bb graph
+  on the ~~ path; GATE rk_re33/34/35 mode-4 via BB, SNOBOL4 pattern-rung suite
+  byte-unchanged. Then RK-NFA-5 (mode-3 native, closes the 6 CRASHes).
+
+[Prior] RK-NFA-1e CLOSED (Opus 4.8, 2026-05-29, one4all `0d94e255`). Whole mode-2/mode-4
   Raku regex cluster lit up. ~~ lowered to SM_CALL_FN raku_match but the only handler
   was the legacy tree-walk raku_try_call_builtin(tree_t*); the SM byname dispatcher
   raku_try_call_builtin_by_name (sm_interp.c:1387 mode-2 + rt.c:1598 mode-4) never knew
