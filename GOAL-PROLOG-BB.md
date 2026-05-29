@@ -28,7 +28,82 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`52f80293`, post-Opus-4.7-SWI-NEXT-step-2-and-stack-redux)
+## State at HEAD (post-Opus-4.7-bb=0x3-GC-UNCOLLECTABLE-FIX, 2026-05-29)
+
+**2026-05-29 Opus 4.7:** **bb=0x3 corruption FIXED ✅** — 8 `GC_MALLOC →
+GC_MALLOC_UNCOLLECTABLE` swaps in `src/lower/lower_pl.c` at 4 sites: three
+`bb_pl_call_state_t` allocations (lines 170/172, 455/457, 487/489) and one
+`bb_pl_choice_state_t` allocation (lines 672/673). Each swaps both the
+struct (`zc`) and its sub-array (`zc->args` or `zc->bodies`).
+
+**Root cause (refined from prior handoff's lead-#2 hypothesis):** `BB_t` is
+libc-`calloc`'d (`scrip_ir.c:43`). The sidecar state structs
+(`bb_pl_call_state_t`, `bb_pl_choice_state_t`) are `GC_MALLOC`'d. The
+sidecar is reachable from C ONLY through `bb->ival` — an `int64_t` field of
+a libc-malloc'd struct. **libgc cannot trace through libc memory** (it
+scans only its own heap regions for roots). Under deep recursion that
+triggers a GC cycle, libgc sweeps these "orphaned" sidecars and recycles
+their backing pages for new `Term` allocations. Reading the page back as
+`BB_t **` later → bogus pointers → SIGSEGV.
+
+The corruption signature confirms it: `zc->args[0]=0x3, [1]=0x61`. `0x3` is
+the enum value of `TERM_INT`; the first 8 bytes of
+`Term{tag=TERM_INT, saved_slot=0, ival=...}` read as `uint64_t` are exactly
+`0x3`. The 8 bytes at offset +8 carry `ival`; `0x61 = 97 = 'a'` is a
+plausible interned atom id from the live test (`[a,b]` in the just-failed
+`string_chars` test). Reading these bytes back as `BB_t *` → SIGSEGV at
+`pl_node_to_term:bb_exec.c:122`.
+
+**Prior handoff's lead-#2 experiment tried first this session and failed.**
+The `callee_env` `calloc → GC_MALLOC` change at `bb_exec.c:3317` and
+`pl_runtime.c:955` gave an identical crash signature. Reverted cleanly.
+Lead-#2's *theory* (GC sweep) was correct; the *target pointer* was wrong.
+The leaky pointer is the BB sidecar `zc/zc->args/zc->bodies`, not
+`callee_env`.
+
+**Effect:** `test_string.pl` mode-2 and mode-3 now run to completion
+(`13 passed, 8 failed, 0 skipped`, exit 0). Both `string` and `string_bytes`
+suites complete cleanly. Was a hard SIGSEGV at the 9th test
+(`string_chars`) on prior baseline. The two-line `test_string.ref` was
+re-baselined `EMPTY string / EMPTY string_bytes` → `FAIL string /
+PASS string_bytes` (honest). `string_bytes` is genuine PASS — was
+unreachable behind the segfault.
+
+**Gates:** GATE-1 5/5, GATE-2 132/0 (5 ORACLE_MISS), GATE-3 m2 104/107
+(byte-identical), GATE-4 4/4, **GATE-SWI m2 57/57 (100%) up from 55/57
+(96%)**, GATE-SWI m3 57/57 (100%), FACT 0, sibling smokes icon/raku 5/5/5
+all green. NO regressions.
+
+**Why GC_MALLOC_UNCOLLECTABLE specifically:** marks the allocation as
+permanently reachable (libgc never collects) while keeping it GC-aware for
+*tracing into* (the BB_t pointers stored in `zc->args` still get scanned
+correctly). Functionally equivalent to a leak that libgc tolerates —
+appropriate here because BB graphs live for the whole program's lifetime
+in mode 2/3; mode-4 `stage2_free_bb_after_emit` walks the graph explicitly.
+Considered and rejected: `GC_add_roots` (higher surface area, perf cost),
+switching `BB_node_alloc` to GC heap (multi-session refactor), and
+`GC_MALLOC_ATOMIC` (wrong direction — atomic blocks are scanned-free).
+
+**Known broader pattern, NOT fixed this session — prophylactic NEXT step
+(~10 min):** four other `lower_pl.c` state-struct allocations have the SAME
+hazard pattern (sidecar reachable only through `bb->ival`): line 77
+`bb_pl_ite_state_t`, line 148 + 648 `bb_pl_seq_state_t`, line 527
+`bb_pl_catch_state_t`, line 553 `bb_pl_findall_state_t`. They don't trigger
+today only because the plunit pj_rev deep-recursion path doesn't go through
+them — but a future test using catch or findall inside a deep recursive
+predicate will hit identical `bb=0xN` / `bbg=0xN` corruption. Apply the
+same one-token swap to all five and re-run gates.
+
+**NEXT options:** (a) **prophylactic UNCOLLECTABLE swap** for the other
+four state-struct sites (10 min, high leverage); (b) WAM-CP-6 LCO proper
+(bb_exec_once non-recursive refactor, multi-session); (c) WAM-CP-13
+(mode-4 corpus 54/107 long-arc); (d) PL-RT-ASSERTZ (dynamic clause).
+
+Handoff `HANDOFF-2026-05-29-OPUS-PROLOG-BB-GC-UNCOLLECTABLE.md`.
+
+---
+
+## Prior HEAD (`52f80293`, post-Opus-4.7-SWI-NEXT-step-2-and-stack-redux)
 
 **2026-05-28 Opus 4.7:** **SWI-NEXT step 2 ✅ + WAM-CP-6-prelude ✅** — two
 independent surgical changes in `bb_exec.c`.
