@@ -187,12 +187,114 @@ All fail with Error 5 "Undefined function" then SEGV. Per
 1. **M3-RK-NOINTERP-1** — close Cluster 1. Add `MEDIUM_BINARY` arm to
    `sm_bb_invoke_str` that drives `walk_bb_node` through an in-memory sink
    and records BB-internal label offsets, plus a parallel patch pass in
-   `sm_run_native` for those offsets. Target: 11/33 → 18/33 native.
+   `sm_run_native` for those offsets. Target: 18/33 → 26/33 native (after
+   M3-RK-NOINTERP-3).
 2. **M3-RK-NOINTERP-2** — Cluster 2 bisection. Probe each candidate opcode
-   in isolation with a minimal `.raku` reducer per opcode.
-3. **M3-RK-NOINTERP-3** — close `SM_NAMED_CALL` latent gap (linker pass for
-   named-call absolute addresses).
+   in isolation with a minimal `.raku` reducer per opcode.  **SUPERSEDED
+   by M3-RK-NOINTERP-3: Cluster 2 was entirely caused by the latent
+   SM_NAMED_CALL gap, not a per-opcode bisection problem.**
+3. **M3-RK-NOINTERP-3** ✅ — close `SM_NAMED_CALL` latent gap (linker pass
+   for named-call absolute addresses).
 4. **M3-RK-NOINTERP-4** — flip default per gap-doc step 2.
 
 — Sonnet, 2026-05-28 (continue)
+
+---
+
+## ADDENDUM 2 — M3-RK-NOINTERP-3 LANDED (Sonnet, 2026-05-28 follow-up-2)
+
+**Mode-3 native Raku: 11/33 → 18/33 PASS (+7 tests, full Cluster 2 closed).**
+
+### Diagnosis correction from Addendum 1
+
+Addendum 1 claimed Cluster 2 was 7 SEGV-other tests "with root cause not yet
+bisected" and separately noted the `sm_named_call.cpp:35` zero-call as a
+"latent bug" with "no test in the current Raku corpus currently exercises this
+opcode (verified: 0/33 dumps contain it)."
+
+**That verification was wrong.** The `opnames[]` table in
+`src/lower/sm_prog.c:252` mislabels the enum slot at position of `SM_NAMED_CALL`
+as `"SM_UNUSED_8"`:
+
+  SM.h enum order (lines 83-92):  ..., SM_EXEC_STMT, SM_UNUSED_2, SM_UNUSED_3,
+                                     SM_UNUSED_1, SM_UNUSED_6, SM_NAMED_CALL,
+                                     SM_PUMP_CASE, ...
+  sm_prog.c opnames order:        ..., SM_EXEC_STMT, "SM_UNUSED_2","SM_UNUSED_3",
+                                     "SM_UNUSED_1","SM_UNUSED_6","SM_UNUSED_8",
+                                     "SM_PUMP_CASE", ...
+
+The opnames table is missing the rename to `"SM_NAMED_CALL"` (drift since the
+opcode was added). Every dump showing `SM_UNUSED_8` was in fact showing
+`SM_NAMED_CALL`. Re-counted post-correction:
+
+  rk_class26 has 3 NAMED_CALLs, rk_combinator 18, rk_given 6, rk_given18 9,
+  rk_interp 1, rk_subs 6, rk_try_catch25 4. All Cluster 2 tests use it; no
+  Cluster 1 test does; no PASSing test does. Binary-clean signal.
+
+The "latent bug" was the live root cause.
+
+### Fix
+
+Two edits to `src/processor/sm_native.c` (no template files touched, FACT-RULE
+intact):
+
+1. Added `find_label_index_by_name(prog, name)` helper and
+   `#define SM_NAMED_CALL_TARGET_OFFSET 19` constant matching the
+   `sm_named_call.cpp` MEDIUM_BINARY layout (placeholder 8 bytes at offset 19
+   from start of the 41-byte SM_NAMED_CALL emission).
+2. Added Pass 3 between `memcpy(code, buf, buf_n)` and `seg_seal(SEG_CODE)` —
+   SEG_CODE is still RW at this point. For each SM_NAMED_CALL instruction i,
+   look up the matching SM_LABEL instruction j by name, compute
+   `(uintptr_t)(code + instr_off[j])`, write into
+   `code + instr_off[i] + 19`. Deferred `free(instr_off)` to after Pass 3.
+
+29 lines added net; no other files changed.
+
+### Verification
+
+| Test | Before | After |
+|---|---|---|
+| rk_class26 | CRASH (3 NAMED_CALL) | **PASS** |
+| rk_combinator | CRASH (18 NAMED_CALL) | **PASS** |
+| rk_given | CRASH (6 NAMED_CALL) | **PASS** |
+| rk_interp | CRASH (1 NAMED_CALL) | **PASS** |
+| rk_subs | CRASH (6 NAMED_CALL) | **PASS** |
+| rk_try_catch25 | CRASH (4 NAMED_CALL) | **PASS** |
+| rk_stdio39 | FAIL | **PASS** (also was hit by gap) |
+| rk_given18 | CRASH (9 NAMED_CALL + 1 BB_INVOKE) | CRASH (Cluster 1 surfaces) |
+
+**Outcome:** Cluster 2 fully closed. rk_given18 now belongs to Cluster 1
+(BB_INVOKE no-op stub), exactly the prior-session prediction. The
+"perceived" Cluster 1 grew from 7 to 8 only because given18 was previously
+crashing earlier in Cluster 2 territory.
+
+### Gates after fix (2026-05-28)
+
+| Gate | Before | After |
+|---|---|---|
+| GATE-RK mode-2 | 23/33 | 23/33 (HOLD) |
+| GATE-RK4 mode-4 | 26/33 | 26/33 (HOLD) |
+| **mode-3 native** | 11/33 + 2F + 20C | **18/33 + 1F + 14C** |
+| smoke raku | 5/5 | 5/5 |
+| smoke prolog | 5/5 | 5/5 |
+| smoke icon | 5/5 | 5/5 |
+| smoke snobol4 | 13/13 | 13/13 |
+| FACT-RULE grep | 0 | 0 |
+
+### Suggested next move
+
+Address the opnames drift in `src/lower/sm_prog.c:252` — rename
+`"SM_UNUSED_8"` to `"SM_NAMED_CALL"` so future SM dumps read truthfully.
+This would have prevented the prior-session miscount. Tiny low-risk edit;
+no behavior change.
+
+Then M3-RK-NOINTERP-1: open Cluster 1 (8 tests). The architectural shape
+is now clear — extend `sm_bb_invoke_str` MEDIUM_BINARY arm to drive
+`walk_bb_node` through the binary sink, recording per-BB-node label
+offsets, and add a Pass 4 in `sm_run_native` that patches those (rel32 for
+short jumps, absolute for indirect). The existing 42 `BB_templates/*.cpp`
+MEDIUM_BINARY arms are the model.
+
+— Sonnet, 2026-05-28 (continue, follow-up-2)
+
 
