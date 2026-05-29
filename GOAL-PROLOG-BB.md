@@ -28,7 +28,65 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.7-bb=0x3-GC-UNCOLLECTABLE-FIX, 2026-05-29)
+## State at HEAD (post-Opus-4.7-UNCOLLECTABLE-PROPHYLACTIC, 2026-05-29)
+
+**2026-05-29 Opus 4.7:** **prophylactic UNCOLLECTABLE sweep COMPLETE ✅** —
+7 more `GC_MALLOC → GC_MALLOC_UNCOLLECTABLE` swaps in `src/lower/lower_pl.c`
+at the four state-struct sites flagged in the predecessor handoff
+(`HANDOFF-2026-05-29-OPUS-PROLOG-BB-GC-UNCOLLECTABLE.md`'s NEXT step).
+
+**Sites swapped (all in `src/lower/lower_pl.c`):**
+- Line 77: `bb_pl_ite_state_t *zi` (`lower_pl_new_Ite`).
+- Lines 148+150: `bb_pl_seq_state_t *zs` + `zs->goals` (`lower_pl_new_Conj`).
+- Line 527: `bb_pl_catch_state_t *zc` (catch/3 in `lower_pl_goal`).
+- Line 553: `bb_pl_findall_state_t *fs` (findall/3 in `lower_pl_goal`).
+- Lines 648+650: `bb_pl_seq_state_t *zs` + `zs->goals`
+  (`lower_pl_clause_body` top-level seq wrapper).
+
+**Same hazard pattern as `98c2f974`:** sidecar struct reachable from C only
+through `bb->ival` (`int64_t` field of libc-`calloc`'d `BB_t`); libgc cannot
+trace through libc memory and sweeps the sidecar under collection; pages get
+recycled for fresh `Term` allocations; reading back as the sidecar pointer
+type returns garbage. Past corruption signature `zc->args[0]=0x3` was a
+`Term{tag=TERM_INT}` first 8 bytes aliased over the freed sidecar.
+
+**Why these four were latent in `98c2f974`:** the pj_rev `string_chars`
+deep-recursion path that surfaced the bug at the call/choice sites does NOT
+traverse ite/catch/findall/seq nodes. They were a ticking time bomb — any
+recursive predicate using if-then-else, catch/3, findall/3, or a multi-goal
+body at depth would have triggered identical `bb=0xN` / `bbg=0xN` corruption.
+The entire sidecar-via-`bb->ival` hazard class in `lower_pl.c` is now closed.
+
+**Working arrays NOT swapped (intentional):** lines 126/127/128 `gα`/`gβ`/
+`gnodes` in `lower_pl_new_Conj` — stack-scoped, copied into the now-
+UNCOLLECTABLE `zs->goals[]` at line 152, then unreachable. No libc struct
+holds references to them. Could be upgraded for paranoid uniformity but not
+in the hazard class.
+
+**Gates (all byte-identical to `98c2f974` baseline, ZERO regressions):**
+GATE-1 5/5, GATE-2 132/0 (5 ORACLE_MISS), GATE-3 m2 104/107, GATE-4 4/4,
+**GATE-SWI m2 57/57 (100%)**, **GATE-SWI m3 57/57 (100%)**, FACT 0,
+sibling smokes icon/raku 5/5/5, snobol4 13/13.
+
+**NEXT (3 long-arc options):**
+(a) **WAM-CP-6 LCO proper (RECOMMENDED, multi-session).** Refactor
+`bb_exec_once` from recursive C-tail-calls into an explicit trampoline /
+non-recursive loop. UNCOLLECTABLE now protects sidecars across GC cycles,
+but C stack still grows linearly with goal-chain depth. The 80 KB
+`stack-redux` from `52f80293` was a stopgap. LCO would remove the ceiling
+entirely and unlock `count/1` 1e6 (currently O(N) C-stack). Architectural
+compass: `doc/SWIPL-STUDY-2026-05-28-OPUS.md` CP-stack idea #4 +
+`doc/GPROLOG-STUDY-2026-05-28-OPUS.md` CP-frame layout (grounded WAM-CP-1).
+(b) **WAM-CP-13 mode-4 corpus.** Push from 4/4 minimal to ~50-60/107 by
+emitting per-builtin mode-4 arms. Mechanical, broad, well-understood.
+(c) **PL-RT-ASSERTZ.** Wire `assertz/1`/`asserta/1`/`retract/1` into
+`pl_runtime.c` clause-table. Independent of CP work.
+
+**one4all commit:** `5bf88205` (parent `98c2f974`).
+
+---
+
+## Prior HEAD (`98c2f974`, post-Opus-4.7-bb=0x3-GC-UNCOLLECTABLE-FIX, 2026-05-29)
 
 **2026-05-29 Opus 4.7:** **bb=0x3 corruption FIXED ✅** — 8 `GC_MALLOC →
 GC_MALLOC_UNCOLLECTABLE` swaps in `src/lower/lower_pl.c` at 4 sites: three
