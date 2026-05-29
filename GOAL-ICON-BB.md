@@ -16,13 +16,13 @@ Canonical 5 programs: `hello.icn` (`write("hello")`), `add.icn` (`write(1+2)`), 
 | Mode | Path | Canonical-5 | Full corpus |
 |------|------|-------------|-------------|
 | 2 (`--interp`) | `bb_exec_once` (C tree-walker over BB graph) | **5 / 5** | **200 / 283** (unchanged) |
-| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **1 / 5** — hello.icn PASS (byte-identical to mode 2); add/every_to/alt/full abort at named gaps | not run |
+| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **2 / 5** — hello.icn + add.icn PASS (byte-identical to mode 2); every_to/alt/full abort at `flat_drive_every` gap | not run |
 | 4 (`--compile`) | deferred per Lon directive ("complete pass at very end") | `hello.icn` passes (commit `f387a7b9`) | not run |
 
 **Mode-3 abort map** (each gap names the precise next step):
 - `hello.icn` → ✅ PASS via `6393c743`
-- `add.icn` → ABORT `bb_call`: `write(BB_BINOP)` shape unsupported (needs value-passing convention)
-- `every_to.icn` / `alt.icn` / `full.icn` → ABORT `walk_bb_flat`: BB_EVERY needs `flat_drive_every` (also needs value-passing convention)
+- `add.icn` → ✅ PASS via `e612d519` (BB_LIT_I push + bb_binop + flat drivers; vstack convention)
+- `every_to.icn` / `alt.icn` / `full.icn` → ABORT `walk_bb_flat`: BB_EVERY needs `flat_drive_every` + BB_TO / BB_ALTERNATE generator-leaf templates under vstack convention
 
 **Templates and their honest MEDIUM_BINARY state** (post-`6393c743`):
 
@@ -120,14 +120,18 @@ Decision (2026-05-28, Sonnet 4.6): **zero SM ops, driver-level bypass**. No SM b
 
 ---
 
-### IBB-3 ✅ (mode 2, zero SM) — `write(1 + 2)` mode 2
+### IBB-3 ✅ (mode 2 + mode 3) — `write(1 + 2)`
 
-- [ ] `BB_ICN_ILIT` template (mode-2 only at this rung). α pushes `DT_I(ival)` via γ. β → ω.
-- [ ] `BB_ICN_BINOP_ADD` (or use existing `BB_BINOP` with op=ADD). α drives left.α; on left.γ captures value, drives right.α; on right.γ pushes sum via γ. β drives right.β; on right.ω, drives left.β then right.α; on left.ω → self.ω.
-- [ ] `BB_ICN_CALL` for `write(int_expr)` — extend IBB-1's BB_CALL to accept a BB-typed integer arg.
-- [ ] `lower_icn_bb.c` recognizes `TT_ADD` and integer literal cases.
-- [ ] Gate: `SCRIP_ICN_BB=1 ./scrip --interp /tmp/add.icn` prints `3`.
-- [ ] Gate: `--dump-sm` still prints `; SM_sequence_t  count=0`.
+Mode 2 was already passing per the post-reset corpus (200/283). Mode 3 landed in commit `e612d519` (Opus 4.7, 2026-05-28).
+
+- [x] `bb_lit_scalar` MEDIUM_BINARY BB_LIT_I arm: pushes `pBB->ival` via `rt_push_int` (32 bytes; movabs rdi,ival; movabs rax,&rt_push_int; call rax; jmp γ; β: jmp ω). Patch sites 23/27/28. Other lit kinds (S/F/NUL) remain pass-through.
+- [x] `bb_binop.cpp` (new template, dispatched out of the BB_VAR/ASSIGN/AUGOP group in `emit_core.c`). 32-byte rt_arith apply. ICN_BINOP → SM_op mapping via `icn_to_sm` mirroring `bb_binop_gen.cpp:binop_runtime_arg`. Arithmetic only (ADD/SUB/MUL/DIV/MOD/EXP); relops route via different path, deferred. Companion driver `flat_drive_binop_tree` in `emit_bb.c` walks lhs (pBB->α) then rhs (pBB->β) before the apply.
+- [x] `bb_call` MEDIUM_BINARY `write(int_expr)` arm: 22-byte trailer (movabs rax,&rt_pop_write_int_nl; call rax; jmp γ; β: jmp ω). Patch sites 13/17/18. Driver `flat_drive_call_intexpr` in `emit_bb.c` walks pBB->α before the trailer.
+- [x] `walk_bb_flat` BB_CALL arm shape-dispatches on a0->t. BB_BINOP arm routes to flat_drive_binop_tree.
+- [x] Runtime additions in `src/runtime/rt/rt.c`: `rt_write_int_nl(int64_t)` and `rt_pop_write_int_nl(void)`.
+- [x] Gate: `SCRIP_ICN_BB=1 ./scrip --interp /tmp/add.icn` prints `3`. ✅
+- [x] Gate: `SCRIP_ICN_BB=1 ./scrip --run /tmp/add.icn` prints `3`. ✅ (NEW)
+- [x] Gate: `--dump-sm` still prints `; SM_sequence_t  count=0` for add.icn. ✅
 
 ---
 
