@@ -39,7 +39,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 **STAYS eager SM:** scalar builtins, `say`/`print`, arithmetic, hash/array element ops, class/method dispatch, `sort` (whole-list), `try`/`CATCH`.
 
-**REGEX / GRAMMAR (RK-PAT rungs, this file):** regex backtracking onto an isolated `BB_NFA_*` family. Grammar/LTM deferred (Phase 2). See the RK-PAT rungs in Open rungs below.
+**REGEX / GRAMMAR (RK-NFA rungs, this file):** regex backtracking onto an isolated `BB_NFA_*` family. Grammar/LTM deferred (Phase 2). See the RK-NFA rungs in Open rungs below.
 
 ## ⛔ Rules
 
@@ -71,30 +71,30 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 ## Open rungs
 
-- [ ] **M3-RK-NOINTERP-1e (regex cluster) → SUPERSEDED by the RK-PAT rungs below.** `rk_re32/33/34/35/37`, `rk_regex23` (6 tests). NOTE: these FAIL in mode-2 too (not only mode-3 CRASH) — see RK-PAT-1 dispatch-gap finding.
+- [ ] **M3-RK-NOINTERP-1e (regex cluster) → SUPERSEDED by the RK-NFA rungs below.** `rk_re32/33/34/35/37`, `rk_regex23` (6 tests). NOTE: these FAIL in mode-2 too (not only mode-3 CRASH) — see RK-NFA-1 dispatch-gap finding.
 
-### RK-PAT — Raku regex onto an ISOLATED `BB_NFA_*` family
+### RK-NFA — Raku regex onto an ISOLATED `BB_NFA_*` family
 
-**Decision (locked w/ Lon, 2026-05-29):** build a NEW isolated `BB_NFA_*` opcode family, do NOT reuse SNOBOL4 `BB_PAT_*`. Reasons: (1) isolation removes the chief regression risk (shared templates would let a Raku bug hit SNOBOL4's hot path); (2) NFA kinds are the more-generic basis (PAT `SPAN`/`BREAK` derive from `CLASS+`); (3) captures genuinely diverge — SNOBOL4 `$`/`.` write GLOBALS, Raku `$0`/`$<n>` are scoped match-object captures, var model not unified; (4) the mode-2 PAT executor (`snobol4_pattern.c`) is SNOBOL4-runtime-bound. Convergence into language-agnostic `BB_MATCH_*` is DEFERRED (RK-PAT-CONV) only where byte+semantics identical; `SPLIT` + captures stay separate.
+**Decision (locked w/ Lon, 2026-05-29):** build a NEW isolated `BB_NFA_*` opcode family, do NOT reuse SNOBOL4's shared pattern opcodes. Reasons: (1) isolation removes the chief regression risk (shared templates would let a Raku bug hit SNOBOL4's hot path); (2) NFA kinds are the more-generic basis (SNOBOL4's `SPAN`/`BREAK` derive from `CLASS+`); (3) captures genuinely diverge — SNOBOL4 `$`/`.` write GLOBALS, Raku `$0`/`$<n>` are scoped match-object captures, var model not unified; (4) the mode-2 SNOBOL4 matcher (`snobol4_pattern.c`) is SNOBOL4-runtime-bound. Convergence into language-agnostic `BB_MATCH_*` is DEFERRED (RK-NFA-CONV) only where byte+semantics identical; `SPLIT` + captures stay separate.
 
 **Raku semantics (verified docs.raku.org + S05):** HYBRID — quantifiers/`||`(ordered)/`regex`-decl/subrule-retry = backtracking (→`BB_NFA_*`); `|` = declarative LONGEST-TOKEN + proto = parallel/forward (→Phase 2). Grammars are the SAME engine (namespace of `token`/`rule`/`regex`; subrule `<name>` = backtrackable method call). The 6 tests are PLAIN regex (only single-char `a|b` where LTM≡ordered) → Phase 1 needs no LTM machinery.
 
 **Family 1:1 from `Nfa_kind`:** `BB_NFA_{CHAR,ANY,CLASS,SPLIT,EPS,BOL,EOL,CAP_OPEN,CAP_CLOSE,ACCEPT}` (Phase 1); `{ASSERT,PRED,SUBCALL,LTM}` (Phase 2). Driver `BB_PUMP`, β = next-state/backtrack edge.
 
-- [ ] **RK-PAT-1 — wire family + mode-2 backtracking walk.** PARTIAL.
-  - [x] 1a. `BB_NFA_*` enum block in `src/include/BB.h` (isolated; no `BB_PAT_*` touched).
+- [ ] **RK-NFA-1 — wire family + mode-2 backtracking walk.** PARTIAL.
+  - [x] 1a. `BB_NFA_*` enum block in `src/include/BB.h` (isolated; SNOBOL4's pattern opcodes untouched).
   - [ ] 1b. `raku_nfa_to_bb(Raku_nfa*) → BB_graph_t*` state→node walk via `Nfa_state.bb_id`. **TODO** (gate to mode-4).
-  - [x] 1c. Isolated mode-2 backtracking matcher `raku_nfa_bb_match` (`src/frontend/raku/raku_nfa_bb.c`, `nfa_bt` depth-first, β=`SPLIT.out2`); `raku_nfa_start/accept` accessors + `raku_nfa_states` defined; Makefile wired; `RK_PAT_BB=1` gate in tree-walk handler.
+  - [x] 1c. Isolated mode-2 backtracking matcher `raku_nfa_bb_match` (`src/frontend/raku/raku_nfa_bb.c`, `nfa_bt` depth-first, β=`SPLIT.out2`); `raku_nfa_start/accept` accessors + `raku_nfa_states` defined; Makefile wired; `RK_NFA_BB=1` gate in tree-walk handler.
   - [x] 1d. Standalone oracle: backtracking BB verdict == parallel NFA verdict on **L1-L12, 12/12, zero mismatches.** Thesis proven.
-  - [x] 1e. **CLOSED (RK-PAT-1e ✅, Opus 4.8, 2026-05-29, one4all `0d94e255`).** SM dispatch gap closed and the WHOLE mode-2/mode-4 regex cluster lit up (went past option-A name-registration). `~~` lowered to `SM_CALL_FN raku_match` but the only handler `raku_try_call_builtin(tree_t*)` was the legacy tree-walk; `--interp` (`sm_interp.c:1387`) and `rt_call` (`rt.c:1598`) reach `raku_try_call_builtin_by_name`, which never knew the name → all 6 regex tests failed BOTH modes. **(1)** `raku_builtins_byname.c`: by-name twins using pre-eval'd `args[]` — `raku_match`, `raku_match_global`, `raku_subst`, `raku_nfa_compile`, `raku_re_capture`, `raku_named_capture`; all route through the ISOLATED `raku_nfa_*` matcher (`raku_re.c`/`raku_nfa_bb.c`), zero `BB_PAT_*` contact. **(2)** Capture name-collision: the lexer mapped BOTH `$*STDOUT`/`$*STDERR` (FH) and `$0`/`$1` (regex) to `VAR_CAPTURE→TT_CAPTURE→raku_capture`, and the RK-IO `FHVAL` handler shadowed the regex slice. Split at the lexer: `$*STD*`→new `VAR_FH`→`TT_FH_CAPTURE`→`raku_capture` (FH, byte-identical); `$0`/`$1`→`VAR_CAPTURE`→`TT_CAPTURE`→new `raku_re_capture` (group slice). Net-zero new grammar conflicts (still 30). **(3)** Subst write-back: `s/pat/repl/` mutates its subject; by-name args are pre-eval'd values (var identity erased, unlike the AST handler's frame inspection). When the smatch-subst LHS is a plain `TT_VAR`, `lower_expr` emits `STORE_VAR`+re-`PUSH_VAR` after the call → subject rebound, statement still yields a value. **GATE-RK m2 35→41/42** (only rk_stdio39 fidelity non-bug remains), **GATE-RK4 m4 36→42/42 PERFECT**. Smoke 5/5/5/13/5 HOLD; SNOBOL4 pat suite BYTE-IDENTICAL M2 19/0 M4 18/1 (isolation proven); FACT 0 (mode-2/4-dispatch rung, no emitter/template bytes). This subsumes the mode-2/mode-4 verdict+capture+global+subst goals of RK-PAT-2/RK-PAT-3 as well; what remains for those rungs is the BB_NFA_* emission path (RK-PAT-1b → RK-PAT-4/5).
-- [ ] **RK-PAT-2 — mode-2: csets + anchors + ordered alt** (rk_re32/33, L4-L12). Verdict logic already oracled; needs RK-PAT-1e plumbing.
-- [ ] **RK-PAT-3 — mode-2: captures** `$0`/`$1`/`$<name>` → `BB_NFA_CAP_*` (rk_re34/35, L13-L15).
-- [ ] **RK-PAT-4 — mode-4 emission.** NEW `src/emitter/BB_templates/bb_nfa_*.cpp` (FACT-pure, four-port, isolated). GATE: rk_re33/34/35 mode-4; SNOBOL4 pat suite byte-unchanged.
-- [ ] **RK-PAT-5 — mode-3 native.** `SCRIP_M3_NATIVE=1`; closes rk_re32/33/34/35/37, rk_regex23 CRASH→PASS; default `~~`→BB; NFA→harness oracle.
-- [ ] **RK-PAT-6..9 (Phase 2, DEFERRED):** `{m,n}`/`*?`; LTM `|`→`BB_NFA_LTM`; subrules `<rule>`→`BB_NFA_SUBCALL`; `:ratchet`+grammar dispatch+actions.
-- [ ] **RK-PAT-CONV (DEFERRED):** collapse `BB_NFA_CHAR/CLASS/ANY/BOL/EOL` ↔ `BB_PAT_LIT/ANY/LEN/POS/RPOS` into `BB_MATCH_*` where byte+semantics identical; `SPLIT`+captures stay separate.
+  - [x] 1e. **CLOSED (RK-NFA-1e ✅, Opus 4.8, 2026-05-29, one4all `0d94e255`).** SM dispatch gap closed and the WHOLE mode-2/mode-4 regex cluster lit up (went past option-A name-registration). `~~` lowered to `SM_CALL_FN raku_match` but the only handler `raku_try_call_builtin(tree_t*)` was the legacy tree-walk; `--interp` (`sm_interp.c:1387`) and `rt_call` (`rt.c:1598`) reach `raku_try_call_builtin_by_name`, which never knew the name → all 6 regex tests failed BOTH modes. **(1)** `raku_builtins_byname.c`: by-name twins using pre-eval'd `args[]` — `raku_match`, `raku_match_global`, `raku_subst`, `raku_nfa_compile`, `raku_re_capture`, `raku_named_capture`; all route through the ISOLATED `raku_nfa_*` matcher (`raku_re.c`/`raku_nfa_bb.c`), zero SNOBOL4-pattern-opcode contact. **(2)** Capture name-collision: the lexer mapped BOTH `$*STDOUT`/`$*STDERR` (FH) and `$0`/`$1` (regex) to `VAR_CAPTURE→TT_CAPTURE→raku_capture`, and the RK-IO `FHVAL` handler shadowed the regex slice. Split at the lexer: `$*STD*`→new `VAR_FH`→`TT_FH_CAPTURE`→`raku_capture` (FH, byte-identical); `$0`/`$1`→`VAR_CAPTURE`→`TT_CAPTURE`→new `raku_re_capture` (group slice). Net-zero new grammar conflicts (still 30). **(3)** Subst write-back: `s/pat/repl/` mutates its subject; by-name args are pre-eval'd values (var identity erased, unlike the AST handler's frame inspection). When the smatch-subst LHS is a plain `TT_VAR`, `lower_expr` emits `STORE_VAR`+re-`PUSH_VAR` after the call → subject rebound, statement still yields a value. **GATE-RK m2 35→41/42** (only rk_stdio39 fidelity non-bug remains), **GATE-RK4 m4 36→42/42 PERFECT**. Smoke 5/5/5/13/5 HOLD; SNOBOL4 pattern-rung suite BYTE-IDENTICAL M2 19/0 M4 18/1 (isolation proven); FACT 0 (mode-2/4-dispatch rung, no emitter/template bytes). This subsumes the mode-2/mode-4 verdict+capture+global+subst goals of RK-NFA-2/RK-NFA-3 as well; what remains for those rungs is the BB_NFA_* emission path (RK-NFA-1b → RK-NFA-4/5).
+- [ ] **RK-NFA-2 — mode-2: csets + anchors + ordered alt** (rk_re32/33, L4-L12). Verdict logic already oracled; needs RK-NFA-1e plumbing.
+- [ ] **RK-NFA-3 — mode-2: captures** `$0`/`$1`/`$<name>` → `BB_NFA_CAP_*` (rk_re34/35, L13-L15).
+- [ ] **RK-NFA-4 — mode-4 emission.** NEW `src/emitter/BB_templates/bb_nfa_*.cpp` (FACT-pure, four-port, isolated). GATE: rk_re33/34/35 mode-4; SNOBOL4 pattern-rung suite byte-unchanged.
+- [ ] **RK-NFA-5 — mode-3 native.** `SCRIP_M3_NATIVE=1`; closes rk_re32/33/34/35/37, rk_regex23 CRASH→PASS; default `~~`→BB; NFA→harness oracle.
+- [ ] **RK-NFA-6..9 (Phase 2, DEFERRED):** `{m,n}`/`*?`; LTM `|`→`BB_NFA_LTM`; subrules `<rule>`→`BB_NFA_SUBCALL`; `:ratchet`+grammar dispatch+actions.
+- [ ] **RK-NFA-CONV (DEFERRED):** collapse `BB_NFA_CHAR/CLASS/ANY/BOL/EOL` ↔ SNOBOL4's `LIT/ANY/LEN/POS/RPOS` pattern opcodes into `BB_MATCH_*` where byte+semantics identical; `SPLIT`+captures stay separate.
 
-**Test ladder L1-L15** (GATE-PAT-O = mode-2 `raku_nfa_bb_match` verdict == `raku_nfa_exec` verdict, then `.expected`): L1 `/x/`~"x"; L2 `/.*/`~""; L3 `/.*/`~"xyz"; L4 `/[a-z]+/`~"hello"; L5 `/[a-z]+/`~"123"(no); L6 `/\d+/`~"abc123"; L7 `/\d+/`~"abc"(no); L8 `/a||b/`~"cat"; L9 `/a||b/`~"dog"(no); L10 `/^x$/`~"x"; L11 `/^x$/`~"xy"(no); L12 `/^x$/`~""(no); L13 `/([A-Za-z]+)/`→$0; L14 two caps; L15 `<word>(...)`. **L1-L12 verdict-green standalone; L13-L15 at RK-PAT-3.** Isolation guard every rung: `test_snobol4_pat_rung_suite.sh` must stay M2 19/0 M4 18/1.
+**Test ladder L1-L15** (GATE-NFA-O = mode-2 `raku_nfa_bb_match` verdict == `raku_nfa_exec` verdict, then `.expected`): L1 `/x/`~"x"; L2 `/.*/`~""; L3 `/.*/`~"xyz"; L4 `/[a-z]+/`~"hello"; L5 `/[a-z]+/`~"123"(no); L6 `/\d+/`~"abc123"; L7 `/\d+/`~"abc"(no); L8 `/a||b/`~"cat"; L9 `/a||b/`~"dog"(no); L10 `/^x$/`~"x"; L11 `/^x$/`~"xy"(no); L12 `/^x$/`~""(no); L13 `/([A-Za-z]+)/`→$0; L14 two caps; L15 `<word>(...)`. **L1-L12 verdict-green standalone; L13-L15 at RK-NFA-3.** Isolation guard every rung — run the SNOBOL4 cross-language regression suite (`scripts/test_snobol4_pat_rung_suite.sh`, a SNOBOL4-owned artifact; the only place a SNOBOL4 `pat` name appears, intentionally, as the thing this Raku ladder must NOT perturb) — it must stay M2 19/0 M4 18/1.
 - [x] **RK-BB-4 mode-2 ✅** (4a constructors + 4b infix, see completed rungs). **Full `rk_junctions` probe PASS mode-2.** Q9-Q12 ANSWERED by Lon (2026-05-29): **Q9** reuse existing kinds; break out new SM/BB opcodes ONLY if language-specific behavior diverges. **Q10** build on `BB_ALT` (live substrate Icon uses); split later if needed. **Q11** substrate-first. **Q12** tagged-string rep. Substrate proven: `BB_ALT` mode-2 is a complete n-ary alternation engine (empirically `x=(1|2|3)`→hit, `x=(7|8|9)`→miss, `every write(10|20|30)`→10/20/30); `BB_ALT` mode-4 `MEDIUM_BINARY` is a real counter-state dispatch slab (NOT a stub — the probe header's stale assumptions #3/#4 refer to the orphan `BB_ALTERNATE`, and only the `MEDIUM_TEXT` arm is a passthrough). Junction VALUE rep is the tagged string; the boolean collapse currently lives in mode-2 `SM_ACOMP`/`SM_LCOMP` (NOT yet on `BB_ALT`).
 - [x] **RK-BB-4c (mode-4 junctions) ✅** (Opus 4.8, 2026-05-29, one4all `216f22cd`). Route (i): junction collapse added to shared `rt_acomp`/`rt_lcomp` (`src/runtime/rt/rt.c`), mirroring the mode-2 `SM_ACOMP`/`SM_LCOMP` interpreter cases. The `SM_ACOMP`/`SM_LCOMP` x86 templates already emit `mov edi,<op>; call rt_acomp`/`rt_lcomp` — the work lives in those runtime helpers, so this is FACT-clean (no template byte change). When a popped operand is `rk_junction_is()` true → `rk_junction_collapse(scalar,jct,op,numeric)` (1 acomp / 0 lcomp); push scalar+`LAST_OK=1` on hit else FAIL. `rk_junctions` mode-4 GREEN. Mode-3 junctions correct too (same helpers) but dormant (MODE3-DISPATCH-GAP).
 - [x] **RK-BB-4d edges — precedence + nesting ✅** (Opus 4.8, 2026-05-29, one4all `0a5352e3`+`1652aeb9`). (2) PRECEDENCE: new `jct_expr` grammar tier (`raku.y`) makes infix `|`/`&` bind tighter than comparison (real Raku); `$x == 1|2|5` → `$x == any(1,2,5)`. Comparisons take `jct_expr` operands; parser regenerated, net-zero new conflicts. (1) NESTED MIXED-FLAVOR: SOH-leak fixed via EOT(`\x04`)-terminated junction rep — builder appends `\x04`; `rk_junction_collapse` scans scalars to SOH-or-EOT and skips nested `\x03…\x04` spans by depth count, recursing on the opaque span. `50&(50|60)` etc. now correct. Probes `rk_junction_prec`, `rk_junction_nest` added. (3) var round-trip + string-relop collapse already worked. REMAINING sliver: `^`(one) infix not lexed; only `one(...)` constructor.
@@ -147,23 +147,23 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-RK-PAT-1e CLOSED (Opus 4.8, 2026-05-29, one4all `0d94e255`). Whole mode-2/mode-4
+RK-NFA-1e CLOSED (Opus 4.8, 2026-05-29, one4all `0d94e255`). Whole mode-2/mode-4
   Raku regex cluster lit up. ~~ lowered to SM_CALL_FN raku_match but the only handler
   was the legacy tree-walk raku_try_call_builtin(tree_t*); the SM byname dispatcher
   raku_try_call_builtin_by_name (sm_interp.c:1387 mode-2 + rt.c:1598 mode-4) never knew
   the name → all 6 regex tests failed BOTH modes. Closed past option-A: (1) by-name twins
   of raku_match/_global/raku_subst/raku_nfa_compile/raku_re_capture/raku_named_capture in
-  raku_builtins_byname.c, all via the ISOLATED raku_nfa_* matcher (NO BB_PAT_* contact);
+  raku_builtins_byname.c, all via the ISOLATED raku_nfa_* matcher (no SNOBOL4-pattern-opcode contact);
   (2) capture name-collision fix — lexer split $*STD* (→VAR_FH→TT_FH_CAPTURE→raku_capture,
   FH byte-identical) from $0/$1 (→VAR_CAPTURE→TT_CAPTURE→new raku_re_capture, group slice),
   net-zero new grammar conflicts (still 30); (3) subst write-back — lower_expr emits
   STORE_VAR+PUSH_VAR after raku_subst when the LHS is a plain TT_VAR (by-name args are
   pre-eval'd, var identity gone). GATE-RK m2 35→41/42 (only rk_stdio39 fidelity non-bug
-  left); GATE-RK4 m4 36→42/42 PERFECT. Smoke 5/5/5/13/5 HOLD; SNOBOL4 pat suite
+  left); GATE-RK4 m4 36→42/42 PERFECT. Smoke 5/5/5/13/5 HOLD; SNOBOL4 pattern-rung suite
   BYTE-IDENTICAL M2 19/0 M4 18/1 (isolation proven); FACT 0 (no emitter/template bytes).
-  Parser/lexer regenerated (bison 3.8.2). NEXT: BB_NFA_* emission path — RK-PAT-1b
-  (raku_nfa_to_bb state→node walk) then RK-PAT-4 (bb_nfa_*.cpp mode-4 templates) /
-  RK-PAT-5 (mode-3 native), the real BB ladder destination; OR RK-BB-5.4c (zip/cross,
+  Parser/lexer regenerated (bison 3.8.2). NEXT: BB_NFA_* emission path — RK-NFA-1b
+  (raku_nfa_to_bb state→node walk) then RK-NFA-4 (bb_nfa_*.cpp mode-4 templates) /
+  RK-NFA-5 (mode-3 native), the real BB ladder destination; OR RK-BB-5.4c (zip/cross,
   needs nested-tuple rep, own session).
 
 [Prior] RK-BB-5.4a + 5.4b COMPLETE (Opus 4.8, 2026-05-29, one4all `56a30122`).
@@ -184,10 +184,10 @@ corpus:  unchanged
 
 GATE-RK   mode-2:                41/42  (+all 6 regex; only rk_stdio39 fidelity non-bug left)
 GATE-RK4  mode-4:                42/42  PERFECT (all regex + rk_stdio39 pass on the byname path)
-GATE-RK3  mode-3 native:         not re-run (RK-PAT-1e is mode-2/4-dispatch + lowering; mode-3 regex
+GATE-RK3  mode-3 native:         not re-run (RK-NFA-1e is mode-2/4-dispatch + lowering; mode-3 regex
                                  still CRASH via MODE3-DISPATCH-GAP — closes when BB_NFA_* emission lands)
 Smoke raku/icon/prolog/snobol4/snocone: 5/5/5/13/5  HOLD
-SNOBOL4 pat suite:               BYTE-IDENTICAL M2 19/0 M4 18/1 (isolation proven)
+SNOBOL4 pattern-rung suite:               BYTE-IDENTICAL M2 19/0 M4 18/1 (isolation proven)
 bison s/r conflicts: 30 (unchanged — VAR_FH split + FH/regex production added zero)
 FACT RULE grep:   0
 Build:            clean
@@ -195,26 +195,26 @@ Build:            clean
 
 ## Remaining mode-3 native (CRASH 6)
 
-- CRASH `rk_re32/33/34/35/37`, `rk_regex23` — regex now PASSES mode-2 AND mode-4 (RK-PAT-1e), but
+- CRASH `rk_re32/33/34/35/37`, `rk_regex23` — regex now PASSES mode-2 AND mode-4 (RK-NFA-1e), but
   mode-3 `--run` still CRASHes: Raku `--run` emits no output for ANY program (MODE3-DISPATCH-GAP,
   pre-existing) and the regex builtins are on the SM byname path, which the honest mode-3 native
-  flow (`SCRIP_M3_NATIVE=1`) doesn't reach. Lights up when the BB_NFA_* emission path (RK-PAT-4/5)
+  flow (`SCRIP_M3_NATIVE=1`) doesn't reach. Lights up when the BB_NFA_* emission path (RK-NFA-4/5)
   lands OR the dispatch gap closes.
 - `rk_junctions` mode-3: junctions correct (collapse in rt_acomp/rt_lcomp) but Raku `--run` emits no
   output for ANY program (MODE3-DISPATCH-GAP, pre-existing) — lights up free when that gap closes.
 
 ## NEXT — BB_NFA_* emission path, or RK-BB-5.4c (zip/cross)
 
-RK-PAT-1e CLOSED the whole mode-2/mode-4 regex cluster via the SM byname dispatch path (+ capture
+RK-NFA-1e CLOSED the whole mode-2/mode-4 regex cluster via the SM byname dispatch path (+ capture
 disambiguation + subst write-back). The verdict/capture/global/subst SEMANTICS are now proven in
 modes 2 and 4. What remains is the BB ladder destination — moving regex onto the ISOLATED `BB_NFA_*`
-opcode family (NOT `BB_PAT_*`), so mode-3/mode-4 run through emitted templates rather than the C
+opcode family (NOT SNOBOL4's pattern opcodes), so mode-3/mode-4 run through emitted templates rather than the C
 matcher:
-**(a)** RK-PAT-1b — `raku_nfa_to_bb(Raku_nfa*) → BB_graph_t*` state→node walk via `Nfa_state.bb_id`.
-**(b)** RK-PAT-4 — NEW `src/emitter/BB_templates/bb_nfa_*.cpp` (FACT-pure, four-port, isolated;
+**(a)** RK-NFA-1b — `raku_nfa_to_bb(Raku_nfa*) → BB_graph_t*` state→node walk via `Nfa_state.bb_id`.
+**(b)** RK-NFA-4 — NEW `src/emitter/BB_templates/bb_nfa_*.cpp` (FACT-pure, four-port, isolated;
   derive every opcode name from `Nfa_kind`: `BB_NFA_CHAR/ANY/CLASS/SPLIT/EPS/BOL/EOL/CAP_OPEN/
-  CAP_CLOSE/ACCEPT`). GATE: rk_re33/34/35 mode-4 via BB; SNOBOL4 pat suite byte-unchanged.
-**(c)** RK-PAT-5 — mode-3 native, closes the 6 CRASHes; default `~~`→BB.
+  CAP_CLOSE/ACCEPT`). GATE: rk_re33/34/35 mode-4 via BB; SNOBOL4 pattern-rung suite byte-unchanged.
+**(c)** RK-NFA-5 — mode-3 native, closes the 6 CRASHes; default `~~`→BB.
 Or **RK-BB-5.4c** (`zip`/`cross`) — multi-Seq drivers, each output element a list → needs a
 nested-tuple rep (STX-within-SOH); NOT a pure value helper, broad blast radius, own session.
 
