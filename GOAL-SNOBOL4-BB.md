@@ -147,12 +147,12 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = (this commit)  SBL-TAB-RTAB-FIX
+HEAD one4all       = 5d5cede1  SBL-NATIVE-FN-1 NRETURN read-deref
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 39
-GATE-3 mode-4      = (not gated this session — deferred per Lon; was 184/280)
-GATE-4 mode-2      = 243/280  ⚠ down from 252 at baf8397d — a SIBLING Raku commit (one4all 30e7c0a1 "mode-2 gather + ACOMP coercion + junctions") regressed SNOBOL4 m2 252→223 via shared bb_exec.c/coerce; THIS goal's defer fix then recovered 223→243. The residual 243<252 gap is the sibling's, NOT this commit's — flag for cross-goal investigation.
-NATIVE corpus      = 243/280  (+20 from nested-XDSAR/DEFER fix: walk_bb_flat dispatch + aligned BINARY arm + tree-route gate; measured against sibling base 30e7c0a1 which was 223 native)
+GATE-3 mode-4      = (not gated this session — deferred per Lon; rung M4=18/19, 053_pat_alt_commit pre-existing)
+DEFAULT/NATIVE     = 245/280  (+2 this commit: 213_indirect_name + assign_driver, via NRETURN read-deref in rt_call INVOKE_fn fallthrough)
+true --interp      = 246/280  (unchanged by this commit — fix is native-only; rt_call is the native-emitted runtime call path, not the sm_interp consumer)
 Rung suite         = M2=19/19 SKIP=0
 Prolog/Raku/Icon smokes = 5/5/5
 FACT RULE          = 0
@@ -160,11 +160,15 @@ audit_m3_native    = GATE OK
 GATE-PK            = stale
 ```
 
+**WATERMARK CORRECTION (2026-05-29 Opus 4.8 audit, bisection-verified).** The prior claim that Raku commit `30e7c0a1` regressed SNOBOL4 m2 252→223 via shared bb_exec.c/coerce is **FALSE** — that commit's bb_exec.c change is `BB_LANG_RKU`-gated and its parent already scored 223. The real story: the default corpus harness (`bare scrip f.sno`) is **mode-3 native by default** (`scrip.c:135` mode_run=1), NOT mode-2; commit `0f4fcfde` ("Remove all mode fallback paths", Lon no-fallback directive) removed the mode_run→sm_interp_run fallback, **honestly exposing native-arm gaps** previously masked. There is no Raku-induced shared-path regression to chase. Full evidence: `HANDOFF-2026-05-29-OPUS48-SBL-NATIVE-GAP-AUDIT-AND-WATERMARK-CORRECTION.md`. Remaining native gaps (oracle-pass / native-fail): Cluster A native user-functions (1010 recursion SEGV, 1016 eval SEGV, 1013 NRETURN-lvalue, 1011 redefine, 1017 arg_local, 094 DATA accessor), Cluster B BREAKX wiring+BINARY arm (W05_breakx, word4 — unresolved-fwd-ref aborts; the pending SBL-BREAKX-2), Cluster C drivers (fence_driver, match_driver — derivative of A).
+
 ---
 
 ## Session log (last few, terse)
 
-- **2026-05-29 Opus 4.8 — SBL-DEFER-NESTED ✅** (this commit). Nested `*var` (XDSAR→BB_PAT_DEFER) under a combinator failed under `sm_run_native`. Root cause was three gaps: missing `case BB_PAT_DEFER` in `walk_bb_flat` (→ no-op zero-width false matches); BROKERED branch used the γ-chain builder `patnd_to_bb_graph` where the flat driver needs the kid-tree `patnd_to_bb_tree`; empty + then mis-aligned BINARY arm in `bb_pat_defer.cpp` (single `push r10` → SIGSEGV when the deref ran a sub-pattern). Fixes: `walk_bb_flat` DEFER→FILL; XDSAR added to `patnd_is_simple_atom`; surgical `defer_combinator` gate routes only defer-bearing combinator roots through the tree builder (legacy-cast trees untouched); BINARY arm rewritten with `and rsp,-16` 16-byte alignment around `rt_defer_match`. Native 223→243 (+20) and m2 also 223→243 (+20) measured against the live sibling base one4all 30e7c0a1 (which a Raku commit had regressed from the 252 baseline); zero mode-2/3 regression introduced by THIS commit (empty FAIL-line regression diff). smoke 13/13 ×2, rung M2=19, FACT=0, audit GATE OK. Mode-4 deferred per Lon (not gated); `bb_pat_defer.cpp` TEXT arm still needs the same alignment fix for the mode-4 session. Handoff `HANDOFF-2026-05-29-OPUS48-SBL-DEFER-NESTED-LANDED.md`.
+- **2026-05-29 Opus 4.8 — SBL-NATIVE-FN-1 NRETURN read-deref ✅ + watermark correction** (one4all 5d5cede1). `rt_call` (rt.c:1339, the native SM_CALL_FN runtime helper) deref'd NRETURN results ONLY in the `if(cfn)` chunk branch; the bottom `INVOKE_fn` fallthrough — which native user-function dispatch actually takes — pushed the returned NAME with no deref, so `OUTPUT = ref_b()` (ref_b returns `.A` via :(NRETURN)) printed the name `A` instead of the value `77`. The mode-2 sm_interp consumer derefs correctly; native didn't. Fix: 4 lines mirroring the `cfn` branch, guarded by `kw_rtntype=="NRETURN"` + `IS_NAMEPTR/IS_NAMEVAL` (no-op for every non-NRETURN call → zero risk to other paths). **Native 243→245 (+2: 213_indirect_name, assign_driver); true --interp 246 unchanged (native-only fix); smoke 13/13 ×2; FACT 0; audit GATE OK; rung M2=19/0.** 1013_func_nreturn now reaches assertion 2 (NRETURN-as-lvalue, a separate sub-feature — next). **Also corrected a false watermark** (see Session State + HANDOFF-...-NATIVE-GAP-AUDIT): the "Raku 30e7c0a1 regressed m2 252→223" claim is wrong; the 252→243 drop is `0f4fcfde`'s deliberate no-fallback exposure of native gaps. Handoffs: `HANDOFF-2026-05-29-OPUS48-SBL-NATIVE-GAP-AUDIT-AND-WATERMARK-CORRECTION.md`.
+
+- **2026-05-29 Opus 4.8 — SBL-DEFER-NESTED ✅** (prior commit). Nested `*var` (XDSAR→BB_PAT_DEFER) under a combinator failed under `sm_run_native`. Root cause was three gaps: missing `case BB_PAT_DEFER` in `walk_bb_flat` (→ no-op zero-width false matches); BROKERED branch used the γ-chain builder `patnd_to_bb_graph` where the flat driver needs the kid-tree `patnd_to_bb_tree`; empty + then mis-aligned BINARY arm in `bb_pat_defer.cpp` (single `push r10` → SIGSEGV when the deref ran a sub-pattern). Fixes: `walk_bb_flat` DEFER→FILL; XDSAR added to `patnd_is_simple_atom`; surgical `defer_combinator` gate routes only defer-bearing combinator roots through the tree builder (legacy-cast trees untouched); BINARY arm rewritten with `and rsp,-16` 16-byte alignment around `rt_defer_match`. Native 223→243 (+20) and m2 also 223→243 (+20) measured against the live sibling base one4all 30e7c0a1 (which a Raku commit had regressed from the 252 baseline); zero mode-2/3 regression introduced by THIS commit (empty FAIL-line regression diff). smoke 13/13 ×2, rung M2=19, FACT=0, audit GATE OK. Mode-4 deferred per Lon (not gated); `bb_pat_defer.cpp` TEXT arm still needs the same alignment fix for the mode-4 session. Handoff `HANDOFF-2026-05-29-OPUS48-SBL-DEFER-NESTED-LANDED.md`.
 
 - **2026-05-29 Opus 4.7 — SBL-TAB-RTAB-FIX ✅** (this commit). Three-bug fix in
   `bb_pat_tab.cpp` BINARY arm: (1) TAB sites `{9, 23, 28, 29}` → `{10, 23, 27, 28}` —
