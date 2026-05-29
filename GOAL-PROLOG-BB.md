@@ -1291,37 +1291,27 @@ GNU Prolog (`gprolog-master/src/EnginePl/wam_inst.h`, `Pl2Wam/indexing.pl`) and 
 divergences found where BOTH references do something we don't. All three are mode-2 interpreter
 logic: zero emitted x86, FACT unchanged, verified against mode-2 as the correctness reference.
 
-#### PL-TRAIL-COND — conditional trailing (the headline parity win)
+#### PL-TRAIL-COND — conditional trailing ⛔ CLOSED (verified unsound, 2026-05-29 Sonnet 4.6)
 
 Both references trail a binding ONLY when the bound var is older than the youngest live choice
 point (gprolog `Word_Needs_Trailing(adr): adr < HB1` `wam_inst.h:472`; SWI `GTrail(p): if (p <
-LD->mark_bar)` `pl-incl.h:2194`). We trail UNCONDITIONALLY (`prolog_unify.c` `bind()` always
-`trail_push`es a slotted var). A var created after the current CP is discarded wholesale on
-backtrack, so trailing it is pure waste — yet we record it, inflating GC trail memory and the
-`trail_unwind` walk on every backtrack (O(all bindings) vs O(bindings older than the CP)).
+LD->mark_bar)` `pl-incl.h:2194`). We trail UNCONDITIONALLY.
 
-- [ ] **PL-TRAIL-COND-1 — var birth-stamp + conditional trail (mode-2).**
-  Add `int birth_stamp` to `Term` (`term.h`), set in `term_new_var` from a monotonic global
-  `g_pl_var_stamp` (parallels gprolog HB / SWI mark_bar). In `bind()` (`prolog_unify.c`), push
-  the var on the trail ONLY if `var->birth_stamp <= youngest_live_cp_stamp` (read the youngest
-  `pl_choice->stamp` via `pl_cp_current()`; if no live CP, the binding is at the top level and
-  still needs trailing for catch/throw unwind — trail it). Everything else unchanged. Gate:
-  GATE-3 m2 104/107 byte-identical, GATE-SWI 57/57, smoke 5/5/5/13, FACT 0; AND a new
-  backtracking probe (`rung*` with a fail-driven loop) shows a strictly smaller peak trail top
-  (instrument `trail_mark_fn` max) with identical program output. This is the proof the skipped
-  pushes were genuinely redundant. **Smallest, corroborated by BOTH references — recommended
-  first landing of this family.**
+**ATTEMPTED AND REVERTED.** Implemented exactly as designed (Term `birth_stamp`, `g_pl_var_stamp`,
+HB register `g_pl_hb_stamp` snapshot/restore on CP push/pop/truncate, conditional `bind()`). It
+BROKE BACKTRACKING — GATE-3 104→102, `rung05` recursive member yielded only `a`, `rung11` findall
+collected only `[1]`. **Root cause:** the WAM optimization presupposes heap-segment reclamation (on
+backtrack H resets to HB, physically discarding post-CP cells/bindings) as a SECOND undo mechanism.
+SCRIP's boxed GC model has only `trail_unwind` — there is no heap reclamation, vars are never freed
+on backtrack — so EVERY mutable binding must be trailed; skipping "young" ones leaves them bound
+across the backtrack. Reverted in full to 104/107. **CLOSED as won't-fix-as-designed**; only viable
+after a (large, unmotivated) per-CP heap-reclamation substrate exists. Full analysis:
+`doc/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md`.
 
-- [ ] **PL-TRAIL-COND-2 — stamp reset on backtrack + CP-stamp coherence.**
-  When a CP is popped (`pl_cp_pop`/`pl_cp_truncate`), vars born after it are now dead; ensure
-  `g_pl_var_stamp` is rewound to the CP's snapshot so reused stamps stay monotone within a
-  branch (gprolog gets this free from heap-pointer reuse; our boxed model must rewind the counter
-  explicitly). Snapshot `g_pl_var_stamp` into `pl_choice` at push; restore at pop. Gate: same as
-  -1 plus a probe that backtracks then re-binds (verifies no stale-stamp under-trailing — a
-  correctness trap: under-trailing loses a binding that SHOULD survive). Verify mode-2 output
-  byte-identical before trusting.
+- [x] **PL-TRAIL-COND-1 — ⛔ tried, verified unsound in boxed GC model, reverted. See above.**
+- [x] **PL-TRAIL-COND-2 — ⛔ moot (depended on -1). Closed with the family.**
 
-#### PL-INDEX-L2 — Level-2 hash dispatch for first-arg indexing
+#### PL-INDEX-L2 — Level-2 hash dispatch for first-arg indexing ★ RECOMMENDED NEXT ★
 
 WAM-CP-8 gave us Level-1 first-arg indexing (class-tagged key + CP elision) but selects among N
 same-class clauses by a LINEAR filter scan — O(N). gprolog Level 2 (`indexing.pl:60-78`) and SWI
@@ -1358,9 +1348,11 @@ stack) has no consumer (no CLP). So this folds into PL-TRAIL-COND rather than st
   `pl_runtime.h` recording that HB is now realized as the var-stamp snapshot, and that CPB/BCIB/CSB
   remain deferred with no current consumer. No behaviour change. Gate: build green, FACT 0.
 
-**Dependency order:** PL-TRAIL-COND-1 → PL-TRAIL-COND-2 (+ PL-CP-FRAME-0) ; PL-INDEX-L2-1
-independent of the trail family (can land in either order). Recommended first landing of the whole
-PL-ENGINE-PARITY family: **PL-TRAIL-COND-1** (smallest, corroborated by both references, pure win).
+**Dependency order:** PL-TRAIL-COND ⛔ CLOSED (verified unsound, see above). **PL-INDEX-L2-1 is now
+the live recommended next landing** — it is pure dispatch-speed (no binding-undo semantics), so it
+has none of the heap-reclamation precondition that sank PL-TRAIL-COND, and is verifiable as
+byte-identical mode-2 output with a reduced candidate-scan count. PL-CP-FRAME-0 is also moot now
+(HB had no other consumer once PL-TRAIL-COND closed).
 
 ---
 
