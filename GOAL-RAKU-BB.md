@@ -229,6 +229,15 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+HYGIENE: template files renamed to match contained opcode/function (Opus 4.8, 2026-05-29,
+  one4all 8e59f6b2). NOTE for RK-NFA-4 work: the NFA walker now lives in
+  SM_templates/sm_bb_invoke.cpp (was sm_bb_switch.cpp — the pre-split SM_BB_SWITCH opcode is
+  gone; file holds sm_bb_invoke_str + sm_bb_pl_invoke_str). Also the four mislabeled Prolog
+  templates bb_arith/atom/builtin/unify.cpp → bb_pl_*.cpp (their fns were already bb_pl_* and
+  the Makefile already emitted bb_pl_*.o). The 5 remaining flagged files (sm_jumps, sm_expr_incr,
+  sm_push_pop_lits, sm_pat_anchors, sm_pat_combine) are intentional multi-opcode CATEGORY files,
+  left as-is. Pure rename, no behavior change; all gates baseline, RK-NFA-4 L1 still green.
+
 RK-NFA-4 / G1-1 — bb_nfa_any/bol/eol leaves landed (Opus 4.8, 2026-05-29, one4all a0346ec5).
   Three more isolated BB_NFA_* leaves up the ladder, reusing the L1 walker register model
   (r13=pos r14=base r15d=slen) with NO walker change (γ/ω wired per node): bb_nfa_any (`.`,
