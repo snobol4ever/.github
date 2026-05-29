@@ -28,7 +28,52 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.8-WAM-CP-6-B2-INDEXED-LCO, 2026-05-29)
+## State at HEAD (post-Opus-4.8-WAM-CP-6-B3-TRAIL-RECLAMATION, 2026-05-29)
+
+**2026-05-29 Opus 4.8:** **WAM-CP-6 Phase B3 trail reclamation LANDED ✅** — closes the heap
+ceiling that B2 left open. `src/lower/bb_exec.c` ONLY, +45 lines (11 code, 34 comment), additive,
+mode-2 only, NO emitter/template/FACT change. **`sumto(10000000,0,R)=50000005000000` now runs in
+O(1) trail/heap** (was OOM-Killed at `baf8397d`).
+
+**Root cause (probe-confirmed):** every B1/B2 LCO redirect binds the fresh callee-arg vars via
+`unify`, which `bind()`-pushes each `term_new_var(ai)` onto `g_pl_trail` (a `Term **stack` array).
+The trail array kept every pushed `Term*` reachable for the top call's lifetime → O(N) trail and
+O(N) live Term cells. `sumto`'s accumulator chain stayed alive (OOM); `count` discarded its
+bindings (already completed at 1e7).
+
+**Fix (the "slide"):** the redirect has already proven the caller frame DEAD (`lco_tail_pos &&
+g_pl_bfr == NULL` + cp-free-except-tail gate ⇒ no CP can backtrack into pre-call bindings). New
+file-scope `int g_pl_b3_call_mark` holds the fixed trail baseline for the current flat
+tail-recursion chain (captured once, held constant). Each redirect captures `b3_base =
+g_pl_trail.top` before the arg-bind loop, lets the loop push forward arg vars at `[b3_base, top)`,
+then slides those forward entries DOWN onto `g_pl_b3_call_mark` and resets `g_pl_trail.top`,
+discarding the dead slab below. The slid arg vars stay BOUND (never `trail_unwind`-ed); the
+reclaimed region's vars go unreachable → GC'd. The accumulator value survives via `at->ref`
+(direct, not through the trail). The normal non-redirect fall-through resets the baseline to -1 so
+an independent later recursion starts fresh. NOT a `trail_unwind` (that would un-bind the live
+forward args) — a memmove-down of the live region.
+
+**Proof:** `SCRIP_B3_TRACE=1` (temp, removed before commit) on `sumto(1e7)` showed trail top
+PINNED at 13, baseline 5, `GC_get_heap_size()` FLAT at 3MB across all 10M iterations. The earlier
+~1.5GB peak RSS was transient GC page churn, not live retention.
+
+**Gates (all byte-identical to `baf8397d`, ZERO regressions):** GATE-1 5/5, GATE-2 132/0 (5
+ORACLE_MISS), GATE-3 m2 104/107, GATE-4 4/4, GATE-SWI 57/57 (100% — memberchk sentinel held),
+mode-4 corpus 54/107 (unchanged — B3 is mode-2 only), FACT 0/12, sibling smokes icon/raku 5/5/5,
+snobol4 13/13. B2 benchmarks still correct (`count(1e6)`→`done`, `sumto(5e5)`→`125000250000` at
+1MB).
+
+**NEXT — the LCO/CP stack-and-heap track is now CLOSED.** Substantive next rung is **WAM-CP-13
+mode-4 corpus (54→~60, mechanical)** — emit per-builtin mode-4 arms following the CAT-D pattern.
+Alternatives: WAM-CP-7 unify specialization; PL-RT-ASSERTZ dynamic clause. (Pushing `sumto(1e8)`
+to tight RSS is a GC-tuning chore, not a correctness gap — heap is already O(1); orthogonal.)
+
+**one4all commit:** `0019cc7b` (parent `0be6e78d`). Handoff
+`HANDOFF-2026-05-29-OPUS48-PROLOG-BB-WAM-CP-6-B3-TRAIL-RECLAMATION.md`.
+
+---
+
+## Prior HEAD (post-Opus-4.8-WAM-CP-6-B2-INDEXED-LCO, 2026-05-29)
 
 **2026-05-29 Opus 4.8:** **WAM-CP-6 Phase B2 indexed-LCO frame reuse LANDED ✅** —
 pairs WAM-CP-8 first-arg indexing with the WAM-CP-6 B1 redirect sentinel so a
@@ -675,7 +720,7 @@ WAM-CP-3  route ; (BB_PL_ALT) via same CP stack                                 
 WAM-CP-4  cut = truncate CP list to frame barrier                               ✅ COMPLETE
 WAM-CP-5  mode-4 emit: CP record is the r12 target (CHOICE+PL_CALL)             ✅ COMPLETE
 WAM-CP-9  committed-ITE node + cut=truncate (fixes rung07/15 PJ-AGW-5 class)    🟡 PARTIAL — mode-4 cut-scope landed; ITE/lexical-! refinement open
-WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?")        🟡 STEP B LANDED — Phase B1 frame-reuse for tail+det singleton callees (redirect sentinel in bb_exec.c driver loops, zero enum churn); Step C/Phase B2 pairs with WAM-CP-8 for tail-recursive multi-clause
+WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?")        ✅ COMPLETE — B1 singleton frame-reuse + B2 indexed multi-clause (count(1e6) O(1) stack) + B3 trail reclamation (sumto(1e7) O(1) heap)
 WAM-CP-7  unify specialization B_UNIFY_{FF,VF,FV,VV,FC,VC}   (speed; any time)
 WAM-CP-8  JIT first-arg indexing (needs CP model to know when a CP was elided)
 WAM-CP-10 catch/throw via CP-barrier unwind (rung28)                            🟡 PARTIAL — mode-2 correctness 5/5 via Pl_CatchFrame+setjmp; longjmp-free CP-barrier unwind deferred to WAM-CP-13 alongside mode-4 emit
@@ -751,16 +796,18 @@ the LATER tagged-word track.
 
 ### Open rungs
 
-- [ ] **WAM-CP-6 — Last-Call Optimization (Step A ✅ `860d1163`, Step B Phase B1 ✅, Phase B2 ✅ `167f31cb`).**
-  Phase B2 LANDED: tail-call frame-reuse extended to indexable multi-clause callees. Two changes in
-  `bb_exec.c`: (1) BB_CHOICE index path runs the unique cp-free-except-tail clause WITHOUT pl_cp_push
-  (gate extended from bb_body_single_solution to also accept bb_body_cp_free_except_tail); (2)
-  BB_PL_CALL B1 gate gains a B2 arm via new `pl_choice_unique_indexed_body()` that redirects into the
-  index-resolved clause body of a BB_CHOICE callee. **Benchmark UNLOCKED:** `count(1e6)` runs in O(1)
-  C stack (verified at 1MB stack; count(1e7) at 8MB; sumto(500000)=125000250000 at 1MB). All gates
-  byte-identical, GATE-SWI 57/57 held. REMAINING (Phase B3): trail reclamation — heap/trail still
-  grows O(N) for accumulators (sumto 1e7 OOMs); truncate trail on deterministic redirect.
-  Gate: `count(0). count(N):-N>0,N1 is N-1,count(N1).` to 1e6 runs in O(1) stack ✅ (DONE).
+- [x] **WAM-CP-6 — Last-Call Optimization COMPLETE ✅ (Step A ✅ `860d1163`, B1 ✅, B2 ✅ `167f31cb`, B3 ✅ `0019cc7b`).**
+  Phase B2 extended tail-call frame-reuse to indexable multi-clause callees (count(1e6) O(1) C stack).
+  Phase B3 (`0019cc7b`) closed the heap ceiling B2 left: on a deterministic redirect (caller frame
+  provably dead — `lco_tail_pos && g_pl_bfr == NULL` + cp-free-except-tail), slide the freshly-bound
+  callee-arg trail entries down onto a fixed per-chain baseline (`g_pl_b3_call_mark`) and reset the
+  trail top, discarding the dead caller bindings. The accumulator value survives via `at->ref`; the
+  reclaimed vars go unreachable → GC'd. `src/lower/bb_exec.c` only, +45 lines, mode-2, FACT 0/12.
+  **`sumto(10000000,0,R)=50000005000000` now runs in O(1) trail/heap** (was OOM-Killed) — probe
+  confirmed trail top pinned at 13 and GC heap flat at 3MB across all 10M iterations. All gates
+  byte-identical, GATE-SWI 57/57 held.
+  Gate: `count(0). count(N):-N>0,N1 is N-1,count(N1).` to 1e6 in O(1) stack ✅ AND `sumto(1e7)` in
+  O(1) heap ✅ (DONE).
 
 - [ ] **WAM-CP-7 — unify specialization.** Lower common unify shapes (var-vs-const,
   first-occurrence-var, var-vs-var) into distinct BB nodes with tiny templates instead of
@@ -1266,13 +1313,15 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-SWI-NEXT-step-2-and-stack-redux)
+## 📊 Gate table (current — post-WAM-CP-6-B3-TRAIL-RECLAMATION)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5/5 ✅ | |
-| GATE-2 crosscheck | 132/0 ✅ | (part of G2) | n/a | |
+| GATE-2 crosscheck | 132/0 ✅ | (part of G2) | n/a | 5 ORACLE_MISS |
 | GATE-3 rung suite | **104/107** | **104/107** | **54/107** | |
 | GATE-4 mode-4 minimal | 4/4 ✅ | n/a | 4/4 ✅ | |
-| GATE-SWI plunit suite | **55/57 (96%)** ✅ | **55/57 (96%)** ✅ | n/a | SWI-NEXT step 2 honest baseline; test_string 0/2 blocked by bb=0x3 pj_rev recursion bug |
-| FACT RULE grep | 0 ✅ | — | — | |
+| GATE-SWI plunit suite | **57/57 (100%)** ✅ | **57/57 (100%)** ✅ | n/a | memberchk sentinel held through WAM-CP-8/B2/B3 |
+| FACT RULE grep | 0 ✅ | — | — | arm2 = 12 (bomb_bytes / bb_emit_asm_result baseline) |
+
+
