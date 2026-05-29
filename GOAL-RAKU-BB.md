@@ -132,7 +132,7 @@ done
 bash scripts/test_raku_ir_rungs.sh    # GATE-RK mode-2 baseline
 bash scripts/test_raku_mode4_rung.sh  # GATE-RK4 mode-4 baseline
 bash scripts/test_smoke_raku.sh       # smoke baseline
-bash /tmp/gate_rk3.sh                  # GATE-RK3 mode-3 native (recreate from prior handoff if absent)
+bash scripts/test_raku_mode3_native.sh  # GATE-RK3 mode-3 native (SCRIP_M3_NATIVE=1 --run)
 ```
 
 ## Gates
@@ -140,7 +140,7 @@ bash /tmp/gate_rk3.sh                  # GATE-RK3 mode-3 native (recreate from p
 ```
 GATE-RK    test_raku_ir_rungs.sh        # mode-2, must hold/improve
 GATE-RK4   test_raku_mode4_rung.sh      # mode-4 vs .expected, must hold/improve
-GATE-RK3   /tmp/gate_rk3.sh             # mode-3 native, must hold/improve
+GATE-RK3   test_raku_mode3_native.sh    # mode-3 native (SCRIP_M3_NATIVE=1 --run), must hold/improve
 GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ```
 
@@ -156,11 +156,11 @@ RK-NFA-1b DONE (Opus 4.8, 2026-05-29, one4all `6b593da8`). raku_nfa_to_bb — NF
   Verified standalone: graph faithfully mirrors the NFA across L1-L15 (node count ==
   state count, ports wired, entry correct, csets/chars/caps carried). Pure graph
   construction, NO x86, dead-code-until-RK-NFA-4 (no caller yet) → can't regress.
-  Gates unchanged: m2 41/42, m4 42/42, smoke 5/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0.
+  Gates unchanged: m2 41/42, m3-native 41/42 (CRASH 0), m4 42/42, smoke 5/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0.
   NEXT: RK-NFA-4 — NEW src/emitter/BB_templates/bb_nfa_*.cpp (FACT-pure, four-port,
   isolated; opcode names from Nfa_kind) + SM_BB_INVOKE over the raku_nfa_to_bb graph
   on the ~~ path; GATE rk_re33/34/35 mode-4 via BB, SNOBOL4 pattern-rung suite
-  byte-unchanged. Then RK-NFA-5 (mode-3 native, closes the 6 CRASHes).
+  byte-unchanged. Then RK-NFA-5 (mode-3 native via emitted BB templates; mode-3 already PASSES regex 41/42 CRASH 0 through the C matcher, so this MOVES it onto the isolated BB_NFA_* slab — architectural, not a crash-fix).
 
 [Prior] RK-NFA-1e CLOSED (Opus 4.8, 2026-05-29, one4all `0d94e255`). Whole mode-2/mode-4
   Raku regex cluster lit up. ~~ lowered to SM_CALL_FN raku_match but the only handler
@@ -197,10 +197,9 @@ RK-NFA-1b DONE (Opus 4.8, 2026-05-29, one4all `6b593da8`). raku_nfa_to_bb — NF
 
 corpus:  unchanged
 
-GATE-RK   mode-2:                41/42  (+all 6 regex; only rk_stdio39 fidelity non-bug left)
-GATE-RK4  mode-4:                42/42  PERFECT (all regex + rk_stdio39 pass on the byname path)
-GATE-RK3  mode-3 native:         not re-run (RK-NFA-1e is mode-2/4-dispatch + lowering; mode-3 regex
-                                 still CRASH via MODE3-DISPATCH-GAP — closes when BB_NFA_* emission lands)
+GATE-RK   mode-2 (--interp):     41/42  (+all 6 regex; only rk_stdio39 fidelity non-bug left)
+GATE-RK4  mode-4 (--compile x86): 42/42  PERFECT (all regex + rk_stdio39 pass on the byname path)
+GATE-RK3  mode-3 native (--run):  41/42  CRASH 0 (only rk_stdio39; verified honest native — see below)
 Smoke raku/icon/prolog/snobol4/snocone: 5/5/5/13/5  HOLD
 SNOBOL4 pattern-rung suite:               BYTE-IDENTICAL M2 19/0 M4 18/1 (isolation proven)
 bison s/r conflicts: 30 (unchanged — VAR_FH split + FH/regex production added zero)
@@ -208,15 +207,18 @@ FACT RULE grep:   0
 Build:            clean
 ```
 
-## Remaining mode-3 native (CRASH 6)
+## Mode-3 native is HONEST and 41/42 — MODE3-DISPATCH-GAP / "CRASH 6" claims were STALE
 
-- CRASH `rk_re32/33/34/35/37`, `rk_regex23` — regex now PASSES mode-2 AND mode-4 (RK-NFA-1e), but
-  mode-3 `--run` still CRASHes: Raku `--run` emits no output for ANY program (MODE3-DISPATCH-GAP,
-  pre-existing) and the regex builtins are on the SM byname path, which the honest mode-3 native
-  flow (`SCRIP_M3_NATIVE=1`) doesn't reach. Lights up when the BB_NFA_* emission path (RK-NFA-4/5)
-  lands OR the dispatch gap closes.
-- `rk_junctions` mode-3: junctions correct (collapse in rt_acomp/rt_lcomp) but Raku `--run` emits no
-  output for ANY program (MODE3-DISPATCH-GAP, pre-existing) — lights up free when that gap closes.
+Re-measured 2026-05-29 (Opus 4.8) with `scripts/test_raku_mode3_native.sh` (= `SCRIP_M3_NATIVE=1 ./scrip --run`
+over the corpus). Result: **mode-3 native 41/42, CRASH 0** — the regex cluster (rk_re32/33/34/35/37, rk_regex23)
+PASSES natively too, not just mode-2/mode-4. The prior watermark's "Raku --run emits no output for ANY program
+(MODE3-DISPATCH-GAP)" and "CRASH 6" were stale: that dispatch betrayal was RETIRED. `scrip.c` lines 554-567 —
+for non-Icon `--run`, the driver calls `sm_run_native(&s2->sm)` with NO interpreter fallback (abort-on-failure;
+`SCRIP_M3_NATIVE` isn't even consulted — `--run` is always native for Raku). Honesty verified: `sm_native.c`
+has ZERO `sm_interp_run` references; the `SM_CALL_FN` template emits `call rt_call` (mode-3 absolute movabs+call /
+mode-4 @PLT) → `rt_call` (rt.c:1705) → `raku_try_call_builtin_by_name` (the SAME byname table RK-NFA-1e extended).
+So all three modes share one dispatcher; the mode-3 regex passes are genuine (rk_re34 emits the real multi-line
+capture output, not a silent empty pass). Only rk_stdio39 fails (the known stderr→fd-1 fidelity non-bug, all modes).
 
 ## NEXT — BB_NFA_* emission path, or RK-BB-5.4c (zip/cross)
 
@@ -229,7 +231,7 @@ matcher:
 **(b)** RK-NFA-4 — NEW `src/emitter/BB_templates/bb_nfa_*.cpp` (FACT-pure, four-port, isolated;
   derive every opcode name from `Nfa_kind`: `BB_NFA_CHAR/ANY/CLASS/SPLIT/EPS/BOL/EOL/CAP_OPEN/
   CAP_CLOSE/ACCEPT`). GATE: rk_re33/34/35 mode-4 via BB; SNOBOL4 pattern-rung suite byte-unchanged.
-**(c)** RK-NFA-5 — mode-3 native, closes the 6 CRASHes; default `~~`→BB.
+**(c)** RK-NFA-5 — mode-3 native via emitted BB_NFA_* templates; default `~~`→BB. (Mode-3 already runs regex natively 41/42 CRASH 0 through the C matcher + byname dispatch; this rung MOVES it onto the isolated slab — architectural ladder completion, not a crash-fix.)
 Or **RK-BB-5.4c** (`zip`/`cross`) — multi-Seq drivers, each output element a list → needs a
 nested-tuple rep (STX-within-SOH); NOT a pure value helper, broad blast radius, own session.
 
