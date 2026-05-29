@@ -308,7 +308,7 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 0c7f9cfb  SBL-BREAK-VAR (chain: SBL-SIZE-SHADOW acc9ae77, SBL-SPAN-VAR 3278f60f, SBL-POS-VAR 36fe8ab9)
+HEAD one4all       = 55a92d39  SBL-BREAK-VAR (chain post-rebase: 84842223 SIZE-SHADOW, 6361a742 SPAN-VAR, 55ad3eda POS-VAR)
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 57/5     (sibling-influenced)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
