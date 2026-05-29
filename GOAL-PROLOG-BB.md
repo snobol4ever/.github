@@ -28,62 +28,77 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`a21dc32b`, post-Opus-4.7-SWI-NEXT-step-1-TT-VAR-as-goal)
+## State at HEAD (`52f80293`, post-Opus-4.7-SWI-NEXT-step-2-and-stack-redux)
+
+**2026-05-28 Opus 4.7:** **SWI-NEXT step 2 ✅ + WAM-CP-6-prelude ✅** — two
+independent surgical changes in `bb_exec.c`.
+
+**Change A — once/1 intercept** (~10 lines, mechanical). Extended the existing
+call/N meta-fallback in BB_PL_CALL (~line 3270) from
+`if (carity >= 1 && callee=="call")` to
+`if ((carity >= 1 && callee=="call") || (carity == 1 && callee=="once"))`.
+`pl_call_term` commits to one solution via `pl_invoke_var_goal` (no resume CP),
+so `once(G) ≡ call(G)` under this dispatch path. OR-form preserves call/N for
+N>1 (SWI-2d/2e); the prior session's warning about accidentally narrowing
+`carity >= 1` was honored.
+
+**Change B — bb_exec_node stack frame reduction.** Three large stack arrays in
+`bb_exec_node` moved to `GC_MALLOC` heap: `Term *acc[4096]` (32 KB, findall arm
+~L3455), `Term *elems[4096]` (32 KB, sort/msort arm ~L4066), `int out_idx[4096]`
+(16 KB, sort/msort arm ~L4075). Net: ~80 KB removed from the function's `-O0`
+stack frame (was ~111 KB measured via gdb, now ~30 KB), roughly 3×
+`bb_exec_once` mutual-recursion depth headroom. NOT a full WAM-CP-6 LCO — the
+proper non-recursive `bb_exec_once` refactor (per
+`HANDOFF-2026-05-28-SONNET-PROLOG-BB-WAM-CP-6-ANALYSIS.md`) is still pending.
+This is the prelude.
+
+**Honest .ref re-baseline (3 files in corpus):**
+`test_exception.ref`, `test_list.ref`, `test_misc.ref` all flipped `EMPTY` →
+`FAIL` lines. `test_string.ref` left at EMPTY — that suite still segfaults
+mid-execution (separate bb=0x3 bug; see below).
+
+**Gates:** GATE-1 5/5, GATE-2 132/0 (5 ORACLE_MISS), GATE-3 m2 104/107
+(byte-identical), GATE-3 m3 104/107, GATE-4 4/4, **GATE-SWI m2 55/57 (96%) up
+from 57/57 EMPTY-dishonest, GATE-SWI m3 55/57 byte-identical**, BB-honest
+mode-3 128/0, FACT 0, sibling smokes icon/raku/snobol4 all green.
+
+**Bug surfaced (NOT introduced by this session — confirmed by reverting both
+changes and re-running): `bb=0x3` in `pl_node_to_term` during deep `pj_rev/3`
+recursion.** Test_string.pl prints 8 lines, then segfaults at `bb_exec.c:3323`
+(`pl_node_to_term(zc->args[ai])`). gdb shows `zc = {args=0x7ffff7ede540 in GC
+heap, nargs=3, callee="pj_rev", arity=3}` but `zc->args[0]=0x3, [1]=0x61, [2]=0x0`
+— bogus small-integer values overwriting valid BB_t pointers. Theory: `calloc`
+at `bb_exec.c:3317` and `pl_runtime.c:955` (`Term **callee_env = calloc(...)`)
+puts the callee env outside libgc's reachability graph; under deep recursion
+GC may sweep freshly-built compound terms still reachable only through
+callee_env. Smallest experiment for next session: change those two `calloc`s
+to `GC_MALLOC` and the matching `free`s to no-op. Full diagnostic +
+reproducer in `HANDOFF-2026-05-28-OPUS-PROLOG-BB-SWI-NEXT-STEP2-AND-STACK-REDUX.md`.
+
+**NEXT options:** (a) **`bb=0x3` corruption fix** — calloc→GC_MALLOC one-line
+experiment first; if that resolves it, the bug class likely affects other
+deep-recursion cases too; (b) WAM-CP-6 LCO proper (bb_exec_once non-recursive
+refactor, multi-session); (c) WAM-CP-13 (full mode-4 corpus 54/107 long-arc);
+(d) PL-RT-ASSERTZ (dynamic clause support).
+
+---
+
+## Prior HEAD (`a21dc32b`, post-Opus-4.7-SWI-NEXT-step-1-TT-VAR-as-goal)
 
 **2026-05-28 Opus 4.7 (`a21dc32b`):** **SWI-NEXT step 1 ✅** — `lower_pl.c` 23-line
-TT_VAR-as-goal arm. **Diagnostic + partial fix.** `lower_pl_goal` returned NULL for
-any bare `TT_VAR` because its case-match ladder ended at `if (e->t != TT_FNC ||
-!e->v.sval) return NULL;`. This silently wiped out the body of any user predicate
-that meta-called one of its own arguments — `foo(G) :- catch(G, _, R)` lowered to an
-empty BB graph (one RETURN), masquerading as "predicate not found" in failure
-traces. Affected catch(VAR,..,..) and findall(_, VAR, _), both of which lower their
-Goal arg through `lower_pl_goal` into a self-contained sub-graph.
-
-**Fix:** new TT_VAR arm in `lower_pl_goal` synthesizes a single-arg `BB_PL_CALL`
-with callee="call". The args[0] is the lowered TT_VAR (a BB_PL_VAR). The existing
-SWI-2d intercept in `bb_exec.c BB_PL_CALL` (callee=="call" && carity==1) handles
-the meta-dispatch via `pl_call_term`. Mirrors standard Prolog semantics: `?- X.`
-≡ `?- call(X).` by definition.
-
-**How found:** bisection in `/tmp/bisect*.pl` after PL-RT-USER-FROM-SYNTH-2 and
-SWI-5: (4) `foo(G) :- catch(G,_,R)` reproduced silent body-wipe; (5) `foo(G) :-
-call(G)` worked; (6) `foo(G) :- catch(call(G),_,R)` worked. The contrast localized
-the bug to TT_VAR-in-goal-position; SM dump of broken case showed `foo/1` body =
-bare RETURN.
-
-**Step 2 NOT in this commit — `once/1` intercept in `bb_exec.c BB_PL_CALL`.**
-plunit's `pj_run_tests` uses `once(pj_run_one(...))` heavily. The BB-graph
-dispatch path has the `callee=="call"` intercept (SWI-2d) but no `once`
-intercept; `once(G)` falls through to a non-existent `once/1` user-predicate
-lookup and silently fails. **Mechanical fix specified in handoff quickstart:**
-change `if (carity >= 1 && callee=="call")` to `if ((carity >= 1 &&
-callee=="call") || (carity == 1 && callee=="once"))`. `pl_call_term` already
-commits to one solution via `pl_invoke_var_goal` (no resume), so once(G) ≡
-call(G) in this BB-graph path. **Warning to next session:** my first attempt
-this session accidentally narrowed `carity >= 1` to `carity == 1`, which would
-have broken SWI-2d/2e call/N for N>1. Reverted to keep gates stable. Correct
-shape preserves call/N with the OR form.
-
-**Combined step 1 + step 2 unblocks real SWI test execution:** every plunit
-test goal flows through `once(pj_run_one(Suite,N,O,G))` (step 2) → pj_run_one
-dispatch → `pj_do_succeed(Suite,Name,Goal) :- catch(Goal, _, _), ...` (step 1).
-
-**Bonus diagnostic:** stale `libscrip_rt.so` masked a GATE-4 m4-choice
-false-regression mid-session. `make libscrip_rt` is essential alongside `make
-scrip` before running GATE-4. Worth adding to the goal file's session-setup
-checklist (currently it's there but easy to skip when only scrip code changed).
-
-Gates byte-identical to predecessor `6c3d8703`: GATE-1 5/5, GATE-2 132/0 (5
-ORACLE_MISS), GATE-3 m2 104/107, GATE-4 4/4, GATE-SWI 57/57 EMPTY (honest;
-once/1 still blocks plunit-driven execution), BB-honest 128/0, FACT 0, smokes
-icon/raku/snobol4 all green. Handoff `HANDOFF-2026-05-28-OPUS-PROLOG-BB-SWI-
-NEXT-TT-VAR-AS-GOAL.md`.
-
-**NEXT options:** (a) **SWI-NEXT step 2** (mechanical, ~5 lines — see handoff
-quickstart; expected to flip ~9 SWI suites from EMPTY → real PASS/FAIL
-distribution and require .ref re-baseline); (b) WAM-CP-6 LCO (segfault-cluster,
-needs `bb_exec_once` non-recursive refactor); (c) PL-RT-ASSERTZ (dynamic clause
-support); (d) WAM-CP-13 (full mode-4 corpus 54/107 long-arc).
+TT_VAR-as-goal arm. `lower_pl_goal` returned NULL for any bare `TT_VAR` because
+its case-match ladder ended at `if (e->t != TT_FNC || !e->v.sval) return NULL;`.
+This silently wiped out the body of any user predicate that meta-called one of
+its own arguments — `foo(G) :- catch(G, _, R)` lowered to an empty BB graph
+(one RETURN), masquerading as "predicate not found." Affected catch(VAR,..,..)
+and findall(_, VAR, _). Fix: new TT_VAR arm in `lower_pl_goal` synthesizes a
+single-arg `BB_PL_CALL` with callee="call", piggy-backing on the SWI-2d
+intercept in `bb_exec.c BB_PL_CALL`. Standard Prolog semantics:
+`?- X.` ≡ `?- call(X).` Bisection via `/tmp/bisect*.pl`: (4)
+`foo(G) :- catch(G,_,R)` reproduced silent body-wipe; (5) `foo(G) :- call(G)`
+worked; (6) `foo(G) :- catch(call(G),_,R)` worked → localized to catch lowering
+/ TT_VAR fall-through. Handoff
+`HANDOFF-2026-05-28-OPUS-PROLOG-BB-SWI-NEXT-TT-VAR-AS-GOAL.md`.
 
 ---
 
@@ -249,7 +264,7 @@ needs `bb_exec_once` non-recursive refactor via explicit call-descriptor stack).
 | GATE-3 mode-2 (`--interp`) | **104/107** | byte-identical at PL-RT-USER-FROM-SYNTH-2 (61187cc7) |
 | GATE-3 mode-3 (`--run`) | 90/107 | transparent via sm_interp_run |
 | GATE-4 (mode-4 minimal) | 4/4 | m4-seq/call/choice/alt |
-| GATE-SWI (`test_prolog_swi_suite.sh`) | **57/57 (100%)** | SWI-5 EMPTY verdict — honest baseline; all 9 suites emit EMPTY (zero test bodies execute due to `pj_run_one` silent-fail; SWI-NEXT) |
+| GATE-SWI (`test_prolog_swi_suite.sh`) | **55/57 (96%)** | SWI-NEXT step 2 — once/1 intercept landed; 3 .ref files re-baselined EMPTY → FAIL (test_exception, test_list, test_misc); test_string 0/2 due to deeper pj_rev recursion bug (bb=0x3 corruption, see State at HEAD) |
 | BB-honest mode-3 | 128/0 | byte-identical |
 | **rung33_bridge_callN** | **5/5** | **PL-RT-USER-FROM-SYNTH-2 closed 02/04/05 (was 2/5)** |
 | **Full mode-4 corpus** | **54/107** | unchanged (rung28 mode-4 stub fails — WAM-CP-13 territory) |
@@ -703,11 +718,21 @@ running — `X==y` check fires, `memberchk` binds correctly, `match=1/1`. All th
   > at `pl_runtime.c:845`; `pl_term_to_synth_expr` TERM_ATOM at line 805;
   > `interp_exec_pl_builtin` `true` arm at line 894 should return 1 but
   > evidently doesn't. **Highest leverage NEXT step.**
-- [ ] **SWI-2e:** Extend SWI-2d to call/N for N>1 (partial application).
-  Mechanical extension of the BB_PL_CALL fallback: convert goal Term via
-  `pl_node_to_term`, walk its compound args, append extras from `zc->args[1..]`,
-  build new compound, dispatch through `pl_call_term`. Likely closes
-  `rung33_bridge_callN` (currently 1/5). Recommended next step.
+- [x] **SWI-2e:** Extend SWI-2d to call/N for N>1 (`3de01576`, Opus 4.7,
+  2026-05-28). BB_PL_CALL intercept widened from `carity == 1` to `carity >= 1`;
+  new `pl_call_term_n(gt, n_extra, extras)` reconstructs the goal compound and
+  dispatches via `pl_invoke_var_goal`. rung33_bridge_callN 1/5 → 2/5 (01 atom +
+  03 call/2 builtin+arg). Tests 02/04/05 needed PL-RT-USER-FROM-SYNTH-2
+  (closed at `61187cc7`, full 5/5).
+- [x] **SWI-2f / SWI-NEXT step 2:** once/1 mode-2 intercept (`52f80293`, Opus 4.7,
+  2026-05-28). BB_PL_CALL intercept widened from
+  `carity >= 1 && callee=="call"` to
+  `(carity >= 1 && callee=="call") || (carity == 1 && callee=="once")`. Since
+  `pl_call_term` commits to one solution (no resume CP), `once(G) ≡ call(G)` in
+  this dispatch. Honest GATE-SWI baseline: 57/57 EMPTY (dishonest) → 55/57
+  (96%, honest). 3 `.ref` files re-baselined EMPTY → FAIL (test_exception,
+  test_list, test_misc). test_string still segfaults on a deeper pj_rev
+  recursion bug — see State at HEAD.
 
 ### SWI-3 — Normalise bare `Var==Val` option form in `test/2` heads
 
@@ -806,7 +831,7 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — `8c556f29`)
+## 📊 Gate table (current — post-SWI-NEXT-step-2-and-stack-redux)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
@@ -814,5 +839,5 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 | GATE-2 crosscheck | 132/0 ✅ | (part of G2) | n/a | |
 | GATE-3 rung suite | **104/107** | **104/107** | **54/107** | |
 | GATE-4 mode-4 minimal | 4/4 ✅ | n/a | 4/4 ✅ | |
-| GATE-SWI plunit suite | **57/57** ✅ (EMPTY) | **57/57** ✅ (EMPTY) | n/a | SWI-5 honest baseline; all suites EMPTY until SWI-NEXT (`pj_run_one`) unblocks real test execution |
+| GATE-SWI plunit suite | **55/57 (96%)** ✅ | **55/57 (96%)** ✅ | n/a | SWI-NEXT step 2 honest baseline; test_string 0/2 blocked by bb=0x3 pj_rev recursion bug |
 | FACT RULE grep | 0 ✅ | — | — | |
