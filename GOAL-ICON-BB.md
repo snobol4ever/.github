@@ -30,24 +30,31 @@ Completion tests:
 
 ---
 
-## Current state (2026-05-29, IBB-11 record field get/set landed — corpus 134 PASS)
+## Current state (2026-05-29, IBB-12 `!E` list/table/record/string generator landed — corpus 140 PASS)
 
 **Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
 (293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
 **56 (pre-IBB-9-2) → 62 → 69 → 82 (IBB-9-6) → 93 (IBB-9-SIZE) → 95 (IBB-9-TOBY) → 100 (IBB-9-INITIAL)
-→ 105 (IBB-9-CASE) → 130 (IBB-10) → 134 PASS / 0 SEGV / 0 FAIL after IBB-11.**
-Latest sweep after IBB-11: Total 293, M2-skip 33, PASS 134, SEGV 0, ABORT 69, FAIL 0, MISMATCH 56, TIMEOUT 1.
+→ 105 (IBB-9-CASE) → 130 (IBB-10) → 134 (IBB-11) → 140 PASS / 0 SEGV / 0 FAIL after IBB-12.**
+Latest sweep after IBB-12: Total 293, M2-skip 33, PASS 140, SEGV 0, ABORT 62, FAIL 1, MISMATCH 56.
 
-**Landed this session (Opus 4.8, build+run verified, exact corpus deltas, 0 regressions, FACT 0, zero-SM, smokes 5/5·5/5, broker 57):**
-- IBB-11 — Icon record field get/set (`obj.field`, `obj.field := rhs`) → 130→134 (+4)
+**Landed this session (Opus 4.8, build+run verified, exact corpus deltas, 0 regressions via full pass-list diff, FACT 0, zero-SM, smokes 5/5·5/5, broker 57):**
+- IBB-12 — Icon `!E` list/table/record/string generator (BB_LIST_BANG) → 134→140 (+6)
 
-**NEXT (largest residue, by the same-sweep after IBB-11):** the 69 ABORTs split into clusters.
+**NEXT (largest residue, by the same-sweep after IBB-12):** the 62 ABORTs split into clusters.
 (1) **`every` do-body ival=2/3** (`flat_drive_every: do-body ival=0/2/3 not yet flat-wired`) — the
-generator-bearing two-port split (IBB-9-4/5); also unblocks rung24_records_record_loop (`every c.n := 1 to 3 do`)
-and the rung10/rung13 augop-in-every mismatches. (2) **I/O + generator builtins** — `open`/`read`/`reads`
-(need file-handle plumbing), `upto`/`max`/`point` (generator or not-yet-listed builtins). The 56 mismatches are
-dominated by string scanning (`rung05_scan`, `rung06_cset`, `rung08` match/move/tab) which need the BB_SCAN /
-cset-match generator path.
+generator-bearing two-port split (IBB-9-4/5); now also unblocks `every v := !t do B` (rung13_table_iterate),
+`every c.n := 1 to 3 do` (rung24_records_record_loop), the rung10/rung13 augop-in-every mismatches. With the
+`!E` generator landed, IBB-9-4 (the two-port every/do split) is the highest-leverage next step. (2) **I/O +
+generator builtins** — `open`/`read`/`reads` (file-handle plumbing), `upto`/`max`/`point`/`push`/`put`
+(generator or multi-arg builtins). (3) **`interp_eval stub`** — `sortf` (record-field sort comparator),
+augop-in-some-contexts. The 56 mismatches are dominated by string scanning (`rung05_scan`, `rung06_cset`,
+`rung08` match/move/tab) which need the BB_SCAN / cset-match generator path, plus subscript (`rung16` BB_IDX)
+and table-subscript (`rung23`/`rung13` BB_IDX/IDX_SET).
+
+---
+
+## Prior state (2026-05-29, IBB-11 record field get/set landed — corpus 134 PASS)
 
 ---
 
@@ -319,6 +326,31 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
   rung24_records_{basic,field_assign,two_types,proc_arg}. Gates: FACT 0, canonical-5 byte-identical + zero-SM,
   smoke icon/prolog 5/5, broker 57. **Deferred:** record_loop (rung24_records_record_loop — has an
   `every c.n := 1 to 3 do` body, blocked on IBB-9-4 generator-bearing every).
+- [x] **IBB-12 — `!E` list/table/record/string generator (BB_LIST_BANG). LANDED (2026-05-29, Opus 4.8) `da798a11`.**
+  `BB_LIST_BANG` was routed to the `bb_stub` no-op in mode-3 (emitted 0 bytes → the value never reached the
+  vstack → the enclosing `write` popped an empty stack: `libscrip_rt: SM value stack underflow`). Rerouted to
+  new `bb_list_bang.cpp` template + `flat_drive_list_bang` driver. **Single source of truth:** extracted
+  `icn_list_bang_at(obj, idx, *out)` from the inline mode-2 BB_LIST_BANG arm (DT_DATA list frame_elems / record
+  fields / DT_T table bucket-walk / string per-char), and refactored the mode-2 arm to call it (behavior-preserving,
+  m2-as-oracle 0 regressions). The mode-3 `rt_icn_list_bang(obj_slot, idx_slot, state_slot, reset)` calls the SAME
+  function → m2==m3 byte-identical by construction. **Generator state** lives in the per-node `&pBB->value`
+  (cached iterable), `&pBB->counter` (index), `&pBB->state` (phase) slots — stable emit-time addresses, the same
+  idiom bb_to/bb_initial use for `&pBB->counter`; PEERS-compliant, NO new BB_t fields. The template has a live α
+  (reset=1: pop iterable, idx 0) and live β (reset=0: ++idx) entry, both `call rt_icn_list_bang; test rax; jz ω;
+  jmp γ` (hit pushes element + LAST_OK 1 → γ; exhaustion resets state + pushes FAIL + LAST_OK 0 → ω). The driver
+  walks `pBB->α` (iterable) ONCE then FILLs the node (the iterable is evaluated once and cached; β only advances
+  the index, it does NOT re-pump the iterable). `BB_LIST_BANG` added to `is_intexpr_shape` (emit_bb.c) so
+  `write(!E)` routes through `flat_drive_call_intexpr`, which wires `call.β → arg.β` so the enclosing `every`
+  re-pump cascades into the bang's β-advance; plus `is_write_intexpr` + `arg_is_any` (bb_call.cpp) so the yielded
+  value flows through the any-write trailer. **Corpus same-sweep 134→140 (+6), SEGV 0, FAIL 1, ABORT 68→62,
+  0 regressions (full pass-list diff: stash baseline rebuilt + captured + diffed, 0 of 134 prior passes lost).**
+  Newly passing: rung15_iterate_string (`!s`), rung22_lists_bang_list (`!L`), rung31_sort_sort_basic /
+  sort_already_sorted / sort_every (`!sort(L)`), rung11_bang_augconcat_bang_str. Gates: FACT 0,
+  bytes-outside-templates 12 (unchanged — driver byte-free, template bytes inside `*_templates/`), zero-SM holds,
+  smoke icon/prolog 5/5, broker 57. **Deferred:** `every v := !t do B` (rung13_table_iterate — ival=2 generator-
+  bearing do-body, IBB-9-4); `put(L, !x)` / generator-arg builtins (rung22_lists_put_bang); `sortf` field-sort
+  (rung31_sort_sortf_* — `interp_eval` stub, separate). With `!E` landed, IBB-9-4 (the two-port every/do split)
+  is the highest-leverage next step — it unblocks the ival=2 generator-bearing do-bodies across the corpus.
   cond-true ⇒ exit, cond-false ⇒ body). Fix once in the shared driver and both forms work. **JCON `ir_a_Until` (irgen.icn:981-1005)**:
   `expr.success→ir.failure` (cond true ⇒ until ENDS), `expr.failure→body.start` (cond false ⇒ run body). Body
   success/failure → `expr.start`. The inverse-sense twin of while. Most corpus `until` tests
@@ -469,7 +501,7 @@ Programs PASS, both modes, byte-identical.
 
 | State | Programs PASS | Notes |
 |-------|---------------|-------|
-| IBB-11 ✅ | 5/5 smoke; corpus same-sweep 130→134 (+4), SEGV 0, FAIL 0, 0 regressions | `2aac6fad` (Opus 4.8, 2026-05-29). **Icon record field get/set (`obj.field`, `obj.field := rhs`).** BB_FIELD_GET/SET routed off the `bb_stub` no-op (emitted nothing → hit the `[NO-AST] interp_eval stub`) to new `bb_field.cpp` templates (`bb_field_get`/`bb_field_set`, the proven 32-byte movabs/movabs/call/jmp/β-jmp shape from bb_var/bb_assign — only the called fn ptr differs) + byte-free `flat_drive_field_get`/`flat_drive_field_set` drivers. GET driver walks α (object) → [obj]; SET driver walks β (rhs) THEN α (obj) → [rhs,obj] (obj on top), matching the mode-2 oracle's eval order. Runtime `rt_icn_field_get`/`rt_icn_field_set` resolve the cell via `data_field_ptr` — the SAME fn the mode-2 bb_exec.c arms call → m2==m3 by construction (failed operand/unknown field → FAIL+LAST_OK 0). `write(obj.field)` routed through is_write_intexpr/arg_is_any (bb_call.cpp) + is_intexpr_shape (emit_bb.c). `data_field_ptr` declared extern in rt.c (interp_data.o already in the same binary). kind_names + bb_print (scrip_ir.c) get BB_FIELD_GET/SET entries (fixes `--dump-bb` `(null)`; dump-path only). Newly passing: rung24_records_{basic,field_assign,two_types,proc_arg}. Gates: FACT 0, canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57. **Deferred:** rung24_records_record_loop (`every c.n := 1 to 3 do` body — blocked on IBB-9-4). |
+| IBB-12 ✅ | 5/5 smoke; corpus same-sweep 134→140 (+6), SEGV 0, FAIL 1, ABORT 68→62, 0 regressions | `da798a11` (Opus 4.8, 2026-05-29). **Icon `!E` list/table/record/string generator (BB_LIST_BANG).** Routed off the `bb_stub` no-op (emitted 0 bytes → enclosing `write` popped an empty vstack: `SM value stack underflow`) to new `bb_list_bang.cpp` template + `flat_drive_list_bang` driver. Single source of truth: extracted `icn_list_bang_at(obj,idx,*out)` from the inline mode-2 BB_LIST_BANG arm (list frame_elems / record fields / table bucket-walk / string per-char); mode-2 arm refactored to call it (behavior-preserving); mode-3 `rt_icn_list_bang(obj_slot,idx_slot,state_slot,reset)` calls the SAME fn → m2==m3 by construction. Generator state in per-node `&pBB->value`/`&pBB->counter`/`&pBB->state` (stable emit-time addresses, same idiom as bb_to/bb_initial; PEERS-compliant, no new BB_t fields). Template: live α (reset=1, idx 0) + live β (reset=0, ++idx), both `call; test rax; jz ω; jmp γ`. Driver walks `pBB->α` (iterable) ONCE then FILLs (iterable cached; β advances index only, does not re-pump). `BB_LIST_BANG` added to `is_intexpr_shape` (emit_bb.c — `write(!E)` → flat_drive_call_intexpr wires call.β→arg.β for every-resume) + `is_write_intexpr`/`arg_is_any` (bb_call.cpp — any-write trailer). Regression proof: stashed work, rebuilt clean baseline, captured 134-passlist, restored, diffed — LOST empty, GAINED exactly the 6 bang programs. Newly passing: rung15_iterate_string (`!s`), rung22_lists_bang_list (`!L`), rung31_sort_sort_{basic,already_sorted,every} (`!sort(L)`), rung11_bang_augconcat_bang_str. Gates: FACT 0, bytes-outside-templates 12 (unchanged), zero-SM holds, smoke icon/prolog 5/5, broker 57. **Deferred:** `every v:=!t do B` (ival=2, IBB-9-4); `put(L,!x)` generator-arg builtin; `sortf` (interp_eval stub). **NEXT:** IBB-9-4 two-port every/do split (highest leverage — unblocks ival=2 generator-bearing do-bodies). | **Icon record field get/set (`obj.field`, `obj.field := rhs`).** BB_FIELD_GET/SET routed off the `bb_stub` no-op (emitted nothing → hit the `[NO-AST] interp_eval stub`) to new `bb_field.cpp` templates (`bb_field_get`/`bb_field_set`, the proven 32-byte movabs/movabs/call/jmp/β-jmp shape from bb_var/bb_assign — only the called fn ptr differs) + byte-free `flat_drive_field_get`/`flat_drive_field_set` drivers. GET driver walks α (object) → [obj]; SET driver walks β (rhs) THEN α (obj) → [rhs,obj] (obj on top), matching the mode-2 oracle's eval order. Runtime `rt_icn_field_get`/`rt_icn_field_set` resolve the cell via `data_field_ptr` — the SAME fn the mode-2 bb_exec.c arms call → m2==m3 by construction (failed operand/unknown field → FAIL+LAST_OK 0). `write(obj.field)` routed through is_write_intexpr/arg_is_any (bb_call.cpp) + is_intexpr_shape (emit_bb.c). `data_field_ptr` declared extern in rt.c (interp_data.o already in the same binary). kind_names + bb_print (scrip_ir.c) get BB_FIELD_GET/SET entries (fixes `--dump-bb` `(null)`; dump-path only). Newly passing: rung24_records_{basic,field_assign,two_types,proc_arg}. Gates: FACT 0, canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57. **Deferred:** rung24_records_record_loop (`every c.n := 1 to 3 do` body — blocked on IBB-9-4). |
 | IBB-10 ✅ | 5/5 smoke; corpus same-sweep 105→130 (+25), SEGV 0, ABORT 127→68, FAIL 0, 0 regressions | (Opus 4.8, 2026-05-29). **Icon builtin dispatch + record-constructor recognition.** The analogue of IBB-9-6's user-proc arm for the BUILTIN case; killed the single largest ABORT cluster (120 of 127 `bb_call: unsupported call shape`). 5 files: `rt.c` (`rt_icn_call_builtin` pops args arg0-deepest → `icn_try_call_builtin_by_name` mode-2 oracle → push result; `rt_icn_builtin_is_known` allow-list gate excluding generator builtins find/upto/any/many/bal/key/seq + recognising registered record types via `sc_dat_find_type`), `rt.h`, `bb_call.cpp` (`is_builtin` arm, byte layout cloned from the userproc arm), `emit_bb.c` (`flat_drive_call_builtin` byte-free driver + `icn_call_args_single_shot`/`icn_bb_is_gen_arg` guards + dispatch wiring), `scrip.c` (driver pre-registers record types from BB_RECORD_DEF nodes so a constructor is recognised at emit time). Two bugs fixed: (a) mode-2 STRVAL(buf) returns slen=0 → mode-3 `rt_pop_write_any_nl` `%.*s` printed nothing → normalize `out.slen=strlen` in rt_icn_call_builtin; (b) record ctor neither user-proc nor table name at emit → driver pre-reg + sc_dat_find_type gate. Newly passing (25): rung28_builtins_str_{char_ord,pad,repl,reverse,trim_map}, rung29_builtins_type_{copy,image,mixed,numeric,type}, rung30_builtins_misc_{abs,sqrt}, rung22_lists_{get,pull}, rung13_table_member, rung17_real_arith_{integer,real_conv,string_conv}, rung15_real_swap_real_literal, rung36_jcon_{center,concord,diffwrds,nargs,radix,trim}. Gates: FACT 0, bytes-outside-templates 12 (unchanged from baseline; driver+driver byte-free), canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57 (5 pre-existing non-Icon fails). 0 regressions (full pass-list diff). **Deferred:** record field get/set (IBB-11, interp_eval stub); generator-arg builtin calls (IBB-9-4/5); I/O builtins open/read/reads; generator builtins find/upto (odometer). |
 | IBB-9-CASE ✅ | 5/5 smoke; corpus same-sweep 100→105 (+5), SEGV 0, ABORT 0, 0 regressions | `c117aa16` (Opus 4.8, 2026-05-29). **`case E of {...}` selector + clause-equality + `write(case)`.** New `bb_case.cpp` glue (`bb_case_store`/`bb_case_gate`) + `flat_drive_case` driver. Selector evaluated ONCE → `&pBB->value` (new `rt_pop_store_descr`); each clause key walked then gated by new `rt_case_eq` (numeric-eq iff both DT_I else string-eq via `VARVAL_fn`) + `rt_last_ok` `jne` to that clause's value body; no-match falls through; trailing chain node = default. Value bodies after the gate chain (→γ); matched body leaves result on vstack for the rvalue context. Driver owns all control flow (no node-template emit; defines its own β-stub like `flat_drive_seq`). `BB_CASE` added to `is_write_intexpr`/`arg_is_any` + walk_bb_flat write dispatch so `write(case …)` routes the matched value through the any-write trailer. Newly passing: rung33_case_{arith,int,str,in_proc,no_default}. Gates: FACT 0, bytes-outside-templates 0, canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57 (5 pre-existing non-Icon fails). |
 | IBB-9-INITIAL ✅ | 5/5 smoke; corpus same-sweep 95→100 (+5), SEGV 0, 0 regressions | `6d78e915` (Opus 4.8, 2026-05-29). **`initial expr` once-guard.** New `bb_initial.cpp` template + `flat_drive_initial`; moved `BB_INITIAL` off the `bb_stub` no-op (it emitted nothing → clause never ran). Runtime once-flag in `&pBB->counter` (calloc-zeroed, persists across slab re-entries — proc slab built once, `rt_icn_call_proc` never resets). Guard: read slot; `jne` γ (skip); else set slot=1; `jmp` body_entry. Driver walks `pBB->α` at body_entry (success→γ, failure→ω, propagating initial-clause failure as in mode-2). Newly passing: rung21_global_initial_{global_initial,initial_once}, rung25_global_{global_initial,initial_once,initial_zero}. Gates: FACT 0, zero-SM, smoke icon/prolog 5/5. |
