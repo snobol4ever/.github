@@ -97,6 +97,11 @@ Each session reads:
 5. Reference: `PST-SCRIP-AUDIT.md` (full per-file breakdown — already
    inlined into each goal file's step list).
 
+**Handoff rule (mirrors RULES.md):** a per-language PST session updates its
+own `GOAL-PST-<LANG>.md` only. Do NOT edit this parent file's tables on routine
+handoff — they are a static index; live state lives in the per-language goal
+file. Touch this file only on a `grand master reorg`.
+
 ---
 
 ## ⛔ Strict rule for every Phase 2 session
@@ -124,14 +129,17 @@ session**.
 
 ## Phase 1 closed — frontend status
 
-| Frontend | Phase 1 C | Phase 2 SCRIP | Per-language goal |
-|----------|-----------|---------------|-------------------|
-| SNOBOL4 | ✅ | ⏳ PST-SN4-SC | `GOAL-PST-SNOBOL4.md` |
-| Icon    | ✅ | ⏳ PST-ICN-SC | `GOAL-PST-ICON.md` |
-| Raku    | ✅ | ✅ PRF-14     | `GOAL-PST-RAKU.md` |
-| Snocone | ✅ | ⏳ PST-SC-SC  | `GOAL-PST-SNOCONE.md` |
-| Rebus   | ✅ | ⏳ PST-RB-SC  | `GOAL-PST-REBUS.md` |
-| Prolog  | ✅ | ⏳ PST-PL-SC  | `GOAL-PST-PROLOG.md` |
+**Live Phase-2 status lives in each per-language goal file — that is the single source of truth.**
+Do not track ⏳/✅ progress here; this table is a static index only.
+
+| Frontend | Phase 1 C | Per-language goal (live state) |
+|----------|-----------|-------------------|
+| SNOBOL4 | ✅ | `GOAL-PST-SNOBOL4.md` |
+| Icon    | ✅ | `GOAL-PST-ICON.md` |
+| Raku    | ✅ | `GOAL-PST-RAKU.md` |
+| Snocone | ✅ | `GOAL-PST-SNOCONE.md` |
+| Rebus   | ✅ | `GOAL-PST-REBUS.md` |
+| Prolog  | ✅ | `GOAL-PST-PROLOG.md` |
 
 **Recommended Phase 2 ordering** (smallest first, biggest last; lets
 later sessions benefit from the idioms established in earlier ones):
