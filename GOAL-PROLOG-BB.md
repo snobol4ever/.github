@@ -28,7 +28,27 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`3de01576`, post-Opus-4.7-SWI-2e)
+## State at HEAD (`953f981d`, post-Opus-4.7-PL-RT-USER-FROM-SYNTH-partial)
+
+**2026-05-28 Opus 4.7 (`953f981d`):** PL-RT-USER-FROM-SYNTH partial 🟡 — replaced the `[NO-AST]
+interp_eval stub` at `pl_runtime.c:931` (in `interp_exec_pl_builtin`'s TT_FNC user-call branch)
+with real BB-graph dispatch via `pl_bb_lookup` + `bb_exec_once`. The old stub used
+`pl_pred_table_lookup` to retrieve the clause AST and would have walked it directly — RULES.md
+forbids AST walking in modes 2/3/4. New path goes BB-table only, mirroring BB_PL_CALL's
+post-intercept logic in `bb_exec.c`. **Two fixes that did land:** (1) `pl_bb_lookup` key format —
+registration stores `e->key = "name/arity"` as the *name* field, so lookup must pass the full
+slash-form (`"add/3"`), not just the bare name; (2) zero AST walking. **Partial:** works for
+user predicates with all-input-mode args (verified `greet3(A,B,C) :- write(A),write(B),write(C),
+nl.` via `call(G, hi, ho, hum)` prints `hihohum`). FAILS for output-mode vars — even the
+simplest non-arithmetic case `bind3(A,B,C) :- C = wow.` via `call(G, x, y, R)` returns
+`DT_FAIL=99` from `bb_exec_once`. The Term* round trip (caller BB_PL_VAR → `pl_node_to_term` →
+`tenv[slot]` → `pl_unified_term_from_expr` → `unify` with `term_new_var(ai)`) doesn't connect
+the body's local-var read to the caller's R cell. rung33_bridge_callN unchanged at 2/5 (no
+regression, no progress on this metric). Gates byte-identical to `3de01576`. See HANDOFF-
+2026-05-28-OPUS-PROLOG-BB-PL-RT-USER-FROM-SYNTH-PARTIAL.md. **NEXT recommended is Approach B:**
+redesign `pl_call_term_n` to dispatch *directly* through `pl_bb_lookup` + `bb_exec_once` with a
+Term*-built callee env, bypassing `pl_term_to_synth_expr` entirely for user predicates. Mirrors
+BB_PL_CALL exactly and avoids the synthesis-layer fidelity loss.
 
 **2026-05-28 Opus 4.7 (`3de01576`):** SWI-2e — call/N mode-2 fallback for N>1 (partial application
 with appended args). BB_PL_CALL call-meta intercept widened from `carity == 1` to `carity >= 1`;
