@@ -3,7 +3,7 @@
 **Reset:** 2026-05-28. All Icon legacy SM dispatch deleted. No env-gate `SCRIP_ICN_BB`. The BB-graph lowering is the only path. Every BB template MEDIUM_BINARY arm that isn't real ABORTs loudly at a named site.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7 · Claude Sonnet 4.6
-**Architecture pointers:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c` · `.github/jcon_irgen.icn`.
+**Architecture pointers:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c` · `.github/jcon_irgen.icn` · `STUDY-JCON-ICON-CONTROL-FLOW-2026-05-29-OPUS48.md` (three-way control-flow comparison; basis for the IBB-9-2 rewrite + IBB-9-RELOP-PORTS).
 
 ---
 
@@ -30,13 +30,25 @@ Completion tests:
 
 ---
 
-## Current state (2026-05-29, IBB-9-1 every-x-assign-do landed, one4all `e8f66866`)
+## Current state (2026-05-29, IBB-9-2 while/until + swap + alt-write landed, one4all `aeb83416`)
 
-| Mode | Path | Canonical-5 | Full corpus (m2-OK filter) |
+**Note on the corpus baseline:** the `213→216` figures below are from the `e8f66866` snapshot. Re-measured
+on the live default branch `c7529bad` (this handoff's parent), the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
+(293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical) is the authoritative number:
+**baseline 56 PASS / 0 SEGV → after this session 62 PASS / 0 SEGV (+6, 0 regressions).** The 216 used a
+different/older corpus snapshot. 158 of the 169 aborts are `bb_call: unsupported call shape` = user-proc dispatch (IBB-9-6).
+
+| Mode | Path | Canonical (hello) | Full corpus (same-sweep, `c7529bad` base) |
 |------|------|-------------|---------------------------------|
-| 2 (`--interp`) | `bb_exec_once` C tree-walker | **5 / 5** | — |
-| 3 (`--run`) | `bb_build_flat` → seal RX → call slab | **5 / 5** | **same-sweep 213→216 PASS (+3), SEGV 0** |
+| 2 (`--interp`) | `bb_exec_once` C tree-walker | **pass** | oracle (m2-OK filter) |
+| 3 (`--run`) | `bb_build_flat` → seal RX → call slab | **pass** | **56 → 62 PASS (+6), SEGV 0** |
 | 4 (`--compile`) | deferred per Lon directive | hello.icn ✅ (`f387a7b9`) | n/a |
+
+**Landed this session (Opus 4.8, all verified by build + run with exact before/after corpus diffs, 0 regressions, 0 SEGV, FACT 0, smokes 5/5·5/5·44/11):**
+- IBB-9-2 relop-cond `while`/`until` (var/literal/pure-arith/assignment-rvalue operands) → +3
+- IBB-9-SWAP `x :=: y` (two-`BB_VAR`) → +2
+- IBB-9-ALTWRITE `write(ALT)` any-type fix (was pointer-garbage) → +1
+
 
 **GATE METHODOLOGY (canonical, use this exact script every session):** same-sweep over `/home/claude/corpus/programs/icon/*.icn`: for each, run `--interp` (skip if rc≠0 — m2-OK filter), then `--run`; PASS iff `m3 rc==0 && m2==m3` (byte-identical). Count PASS / SEGV(rc=139) / ABORT(rc≥134) / FAIL(other). Baseline `30e7c0a1`=213 PASS; `e8f66866`=216. The earlier "22→28"/"28→46" rows used a NARROWER filter (subset dirs) — the 213/216 absolute counts are the whole-tree measure; trust deltas within one methodology only.
 
@@ -84,6 +96,31 @@ Two distinct fronts:
 
 ### IBB-9 (CURRENT) — JCON-grounded control-flow completion
 
+**⚠ 2026-05-29 (Opus 4.8) COMPARATIVE REVIEW — read `STUDY-JCON-ICON-CONTROL-FLOW-2026-05-29-OPUS48.md`.**
+A full read of `jcon/tran/irgen.icn`, canonical Icon `icon-master/src/runtime/ocomp.r`, and the LIVE
+SCRIP tree (one4all `c7529bad`) found three things the text below this banner gets wrong because the
+emitters were refactored after it was written:
+1. **The `flat_drive_*` references are stale.** `flat_drive_while` (claimed `emit_bb.c:1029`),
+   `flat_drive_seq`, `flat_drive_binop_tree` do **not exist** in the live tree. Icon BB emission is now
+   per-kind templates in `src/emitter/BB_templates/*.cpp` dispatched from `emit_core.c`.
+2. **`BB_WHILE`/`BB_UNTIL`/`BB_REPEAT` currently route to `bb_alt(nd)`** (`emit_core.c:561-565`) — the
+   *alternation* driver. There is no while driver; the cond never gates. This is the real IBB-9-2 state,
+   not "driver exists, JCON-faithful, cond doesn't gate."
+3. **The compound `{...}` divergence is already closed.** `bb_seq.cpp` (header lines 4-6) already
+   implements JCON `ir_a_Compound` both-ports-advance semantics; the old `flat_drive_seq` BFS hack is gone.
+
+**Spine finding (verified three ways).** A relational op is NOT a boolean. Canonical Icon declares
+`operator{0,1} <= cmplte(x,y)` → `return y` / `fail` (`ocomp.r:10-42`); JCON emits
+`ir_opfn(<=, args, failLabel)` so failure jumps to `failLabel`, success falls through (`ir_binary:430`,
+funcs set `ir_a_Binop:480`). **SCRIP is the outlier:** the relop sets a `LAST_OK` flag and jumps to a
+`BB_IF` router (`bb_if_str`: `rt_pop_void; rt_last_ok; test eax,eax; jz ω; jmp γ`) that tests it. This
+works for `if` (BB_IF *is* the router) but leaves `while`/`until`/`case` with no gate. The fix is NOT to
+add a second bespoke router (the old IBB-9-2 plan, which doubles down on the outlier and caused the
+26-program regression) — it is to make the relop carry its own γ/ω edges as both references do. See the
+rewritten IBB-9-2 and the new IBB-9-RELOP-PORTS below.
+
+---
+
 **Source-of-truth:** `jcon/tran/irgen.icn` (the Icon→IR translator SCRIP's lowering mirrors). Read the cited
 `ir_a_*` procedure BEFORE implementing each step; the chunk-wiring in JCON is the canonical CFG and SCRIP's
 BB port-graph (α=start, β=resume, γ=success, ω=failure) is a direct transcription. The recurring JCON pattern:
@@ -106,31 +143,32 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
   `ir_binary:438-444` routes `expr.resume → right.resume` — the assign is transparent to resume, forwarding it
   into the generator. SCRIP transcription: interpose a BB_ASSIGN store node (ival=1, β=gen for the mode-2 null
   guard) on the ival=1 every topology; `flat_drive_every` emits gen→store→body→gen_β. Corpus 213→216.
-- [ ] **IBB-9-2 — `while C do B`: fix cond-result routing (driver exists, JCON-faithful, but cond does not gate).**
-  `flat_drive_while` (emit_bb.c:1029, IBB-9-2 partial) already transcribes JCON `ir_a_While` (irgen.icn:1008-1032)
-  correctly: `ir.start→expr.start`; `expr.success→body.start`; `expr.failure→ir.failure`; **`body.success→expr.START`**
-  and **`body.failure→expr.START`** (NOT resume — the while/every distinction). BUT the relop condition's RESULT is
-  not gating the loop. **Probe-confirmed bug (2026-05-29, Opus 4.8):** `i:=5; while i<=3 do write(i); write(99)` prints
-  `5 5 5…` in m3 (infinite) vs `99` in m2. The cond walk routes the relop's γ straight to body unconditionally.
-  **ROOT CAUSE:** same shape as IBB-8b BB_IF — a relop-in-condition needs a ROUTER that tests the comparison result
-  and branches body (true) vs exit (false). **CONFIRMED CRITICAL DETAIL (do not repeat my dead-end):** the while-cond
-  relop is a **TREE-SHAPE BB_BINOP** (α/β operand children NON-NULL, `ival` = the relop opcode, observed `ival=6`),
-  NOT the AG-pure (α==β==NULL) shape that BB_IF conds use. So detecting the relop via `α==NULL && β==NULL` FAILS —
-  must detect by the BB_BINOP **opcode** (`ival` ∈ relop-op set: `<,<=,=,~=,>=,>` numeric + `<<,<<=,==,…` string).
-  Must FIRST verify whether `flat_drive_binop_tree` (emit_bb.c:805) sets LAST_OK + does unconditional jmp γ (→ router
-  needed, reuse `bb_if.cpp`) or already routes on result via γ/ω (→ no router, just wire cond.ω=cond_false). Inspect
-  the relop apply arm in `bb_binop.cpp` tree-shape path before coding. **REGRESSION WARNING (cost me 26 programs this
-  session):** the router must fire ONLY for relop conds. A NON-relop cond — assignment (`while line := read() do …`),
-  generator, or plain call — signals truth via its OWN γ (produced a value) / ω (none) and does NOT set LAST_OK;
-  inserting a LAST_OK router there sends control on garbage. Gate the router strictly on relop-opcode detection;
-  `while line := read()` (BB_ASSIGN cond), `while c := a[i]` etc. MUST keep the direct γ/ω routing. Verify against the
-  full corpus sweep (`/tmp/sweep.sh` shape: m2-OK filter, m2==m3 && m3 rc=0) — baseline at `e8f66866` is **216 PASS**;
-  any drop below 216 means the router is over-firing. Then the augop (`+:=`) body — JCON `ir_augmented_assignment:417-428`
-  (`tmp := lv op rv; target := lv := tmp`); `rung35_block_body_while_do_block` already has `i +:= 1` and works once the
-  cond gates (verified: with an unconditional router it goes 1 2 3, but that router regresses the 26 read-loop programs).
-  Target: `rung35_block_body_while_do_block` (m3 infinite today → `1 2 3`, +1) WITHOUT dropping the 216.
-- [ ] **IBB-9-3 — `until C do B`.** Shares `flat_drive_while` (BB_UNTIL flips cond_true/cond_false). Inherits the SAME
-  cond-routing bug as IBB-9-2 — fix once in the shared driver and both forms work. **JCON `ir_a_Until` (irgen.icn:981-1005)**:
+- [x] **IBB-9-2 — `while C do B` / `until C do B`: relop-cond driver LANDED (2026-05-29 Opus 4.8).**
+  Implemented `flat_drive_while` in `emit_bb.c` (NOT a new template — the gate reuses `bb_if`'s exact
+  `LAST_OK` bytes, routed via `emit_core.c` `BB_WHILE`/`BB_UNTIL`→`bb_if`; `bb_if` ignores `pBB`).
+  Topology = JCON `ir_a_While`: `cond_entry → cond(jmp gate) → gate(test LAST_OK: true→body / false→exit)
+  → body(γ=ω=cond_entry, re-test)`. **`until` swaps the gate's true/false targets.** Two bugs the first
+  cut had (caught by build+run, not by the single gate program):
+  (a) the loop must exit via **`lbl_γ`** (the node's γ-successor = next statement), NOT `lbl_ω` — `flat_drive_seq`
+      sends a non-`BB_IF` node's ω to the seq's outer fail, so exiting via ω dropped the statement after the loop;
+  (b) the gate fires ONLY for relop conds with simple operands (`icn_while_operand_simple`: var / literal /
+      pure-arith tree); non-relop/generator conds (`while line:=read()`) stay on the degenerate path (they
+      crashed otherwise — those read-loops pass trivially under /dev/null and must not regress).
+  Cond operands include **assignment-as-rvalue** (`(i:=i+1)>N`): fixed generally in `flat_drive_binop_tree`
+  by re-pushing the stored value via `bb_var` after the consuming `bb_assign` (`rt_pop_nv_set` consumes).
+  **Verified gains** (corpus same-sweep at `c7529bad`, m2==m3 byte-identical, rc 0): `rung35_block_body_while_do_block`,
+  `rung09_loops_until_gen`, `rung09_loops_repeat_break`. zero-SM holds, FACT 0, smokes hold, 0 regressions, 0 SEGV.
+  **Still deferred:** non-relop/generator conds (`while line:=read()`), string-relop conds, loop `break`/`next`
+  (not wired in mode-3), and the fully reference-faithful no-flag/no-router form (**IBB-9-RELOP-PORTS** below).
+- [x] **IBB-9-SWAP — `x :=: y` LANDED (2026-05-29 Opus 4.8).** New template `BB_templates/bb_swap.cpp`
+  (two `rt_pop_nv_set`: push x, push y → pop y→x, pop x→y) + `flat_drive_swap`; wired through `Makefile`,
+  `bb_templates.h`, `emit_core.c` (moved `BB_SWAP` off the `bb_stub` path). Both operands must be `BB_VAR`.
+  Verified gains: `rung15_real_swap_swap_basic`, `rung15_real_swap_swap_str`. (lconcat-`||` swap form deferred.)
+- [x] **IBB-9-ALTWRITE — `write(ALT)` any-type fix LANDED (2026-05-29 Opus 4.8).** `bb_call.cpp` `arg_is_any`
+  now includes `BB_ALT`, so `write("a"|"b"|"c")` uses `rt_pop_write_any_nl` (was int-write → printed string
+  descriptors as pointer garbage). Int-alts unaffected (any-write does DT_I via %lld). Gain: `rung13_alt_alt_every_write`.
+- [ ] **IBB-9-3 — `until C do B`.** Shares the IBB-9-2 `bb_while`/`bb_loop` driver (BB_UNTIL swaps the two gate targets:
+  cond-true ⇒ exit, cond-false ⇒ body). Fix once in the shared driver and both forms work. **JCON `ir_a_Until` (irgen.icn:981-1005)**:
   `expr.success→ir.failure` (cond true ⇒ until ENDS), `expr.failure→body.start` (cond false ⇒ run body). Body
   success/failure → `expr.start`. The inverse-sense twin of while. Most corpus `until` tests
   (`rung09_loops_until*`) ALSO need user-proc dispatch (they wrap the loop in a `procedure countdown(n)`) — so they
@@ -138,15 +176,21 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
 - [ ] **IBB-9-4 — `every E do B` ival=2 (gen-bearing chain, simple body).** `every v := !t do B`, `every (i to j) do B`
   where the gen is a streaming generator (BB_ALT/BB_LIST_BANG/BB_BINOP_GEN/BB_ITERATE). JCON: identical `ir_a_Every`
   wiring — there is no ival distinction in JCON, the generator's own resume chain handles re-pumping. SCRIP's ival=2
-  branch exists in lower; the gap is the mode-3 `flat_drive_every` ival=2 emit (gen-bearing β-chain). Body must be a
-  non-generator (lic_body_bears_gen guard already in lower).
+  branch exists in lower; the gap is the mode-3 `bb_every` ival=2 emit (gen-bearing β-chain). Body must be a
+  non-generator (lic_body_bears_gen guard already in lower). **STUDY note (2026-05-29):** adopt JCON's two-port split —
+  generator `expr` and do-`body` are SEPARATE boxes with `expr.γ→body.α`, `body.γ→expr.β` (re-pump the generator's
+  RESUME, irgen 327-331) — rather than extending `bb_every.cpp`'s single-`pBB->α` pump (whose own header calls itself
+  "the simplest correct shape"). The single-α model conflates generator-resume with body-execution and will not
+  re-pump a generator-bearing body correctly.
 - [ ] **IBB-9-5 — `every E do { block }` ival=3 (BODY-MEDIATED).** `every x := 1 to 3 do { y := x*2; write(y) }`.
   The hardest: bb sits ON the back-edge (gen.γ=bb, gen.ω=bb, body.γ=bb, body.ω=bb) with a phase machine on bb->state
   (1=just-dispatched-gen, 2=just-dispatched-body) and per-pass BB_SEQ_EXPR state reset. Mode-2 ival=3 executor
-  exists (bb_exec.c:1710); mode-3 flat_drive_every ival=3 is the gap. NOTE: corpus `rung35_block_body_every_do_block`
-  currently exposes a **mode-2 bug** (`every x:=1 to 3 do {y:=x*2;write(y)}` prints `2 2 2` in m2, correct `2 4 6`
-  in m3) — fix mode-2 ival=3 x-rebind alongside, or the byte-identical gate will never pass. Honor break/next/return
-  via FRAME flags (JCON `ir_a_Break:1107`/`ir_a_Next:1082` route to `curloop.ir.x.nextlabel`).
+  exists (bb_exec.c:1710); mode-3 `bb_every` ival=3 is the gap. **Prefer the JCON two-port split (IBB-9-4 note)
+  over the phase machine** — JCON needs no per-state bb because generator and body are distinct boxes; the phase
+  machine is a SCRIP artifact of fusing them. NOTE: corpus `rung35_block_body_every_do_block` currently exposes a
+  **mode-2 bug** (`every x:=1 to 3 do {y:=x*2;write(y)}` prints `2 2 2` in m2, correct `2 4 6` in m3) — fix mode-2
+  ival=3 x-rebind alongside, or the byte-identical gate will never pass. Honor break/next/return via FRAME flags
+  (JCON `ir_a_Break:1107`/`ir_a_Next:1082` route to `curloop.ir.x.nextlabel`).
 - [ ] **IBB-9-6 — user-proc dispatch (non-write fn calls).** Transcribe **JCON `ir_a_Call` (irgen.icn:360-403)**: args
   lowered via `ir_value`, chained `L=[fn]|||args` with `L[i].success→L[i+1].start`, `L[i].failure→L[i-1].resume`
   (generator args re-pump through the chain), then `ir_Call(closure, fn, args, resume); Move(target,closure)`. SCRIP:
@@ -160,6 +204,18 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
   program assigns a generator-bearing if/case/alt to a variable and resumes it (`x := if … then (1 to 3); every write(x)`).
   Implement JCON's `ir_MoveLabel(t, arm.resume)` + `ir_IndirectGoto(t)` (`ir_a_If:596`, `ir_a_Alt:183`). This is the
   `bounded` flag SCRIP currently ignores. Big; do not start until forced.
+- [ ] **IBB-9-RELOP-PORTS — DEFERRED REFACTOR: relop routes via its own γ/ω; retire the flag+router (NEW 2026-05-29).**
+  The reference-faithful endgame for the Section-1 spine finding. Today a relop sets a global `LAST_OK` and jumps to a
+  `BB_IF` router that tests it (`bb_if_str`); IBB-9-2 reuses that router for while/until. Both references instead make the
+  comparison route control directly: canonical Icon `operator{0,1} <=` → `return y`/`fail` (`ocomp.r:10-42`); JCON
+  `ir_opfn(<=, args, failLabel)` → fail-edge/success-edge (`ir_binary:430`). **Refactor:** bake the branch into the relop
+  template (`bb_binop.cpp` relop arm) — `rt_acomp`/`rt_lcomp; jz ω; jmp γ` — so the relop carries its own edges and NO
+  router node and NO `LAST_OK` flag exist. Then `if`/`while`/`until`/`case` all just wire `cond.γ`/`cond.ω`; the two relop
+  shapes (AG-pure vs tree, a SCRIP-only bifurcation) collapse to one; `lower_icn_new_If_ag`'s funnel of both cond ports
+  into `BB_IF` is removed; `BB_IF` is retired for the relop case (keep only if a non-relop value-test remains). Larger
+  blast radius (relop template + If lowering + BB_IF dispatch) — land only after IBB-9-2/9-3 hold the corpus, and gate the
+  full same-sweep against the then-current baseline (expect ≥0 regressions and possible new passes from `case`/expression
+  relops that the router never reached). Removes the recurring "two relop shapes" trap that has cost multiple sessions.
 
 ### IBB-23 (open) — `suspend E`
 
