@@ -28,6 +28,39 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-K-1, 2026-05-29 — Opus 4.8)
+
+**2026-05-29 Opus 4.8: PLR-K-1 LANDED — atom-builtin MEDIUM_BINARY arms.** `bb_builtin.cpp` only
+(one template file), FACT-clean (arm1 0 / arm2 12). Ported the atom/string builtin family from
+MEDIUM_TEXT-only to MEDIUM_BINARY so they run natively under `--run` instead of emitting their
+assembly strings AS raw bytes (the double-jump-stub bug class — result var stayed unbound, `write`
+printed `_`). Each is a byte-twin of its existing CAT-D MEDIUM_TEXT arm but raw bytes with absolute
+`movabs` for in-process pointers (atom `sval` loaded direct, like the `write` arm, not
+`lea [rip+strtab_label]`):
+- **CAT-D-1/3:** `atom_length`/`upcase_atom`/`downcase_atom` (+`string_` aliases) — 6-scalar SysV,
+  no stack → `rt_pl_atom_length`/`_upcase`/`_downcase`.
+- **CAT-D-4/5:** `atom_string`/`string_to_atom`→`rt_pl_atom_string_pair`; `copy_term`→`rt_pl_copy_term`.
+- **CAT-D-2/3:** `atom_concat`/`string_concat`→`rt_pl_atom_concat` — 9 scalars (6 reg + `(k2,i2,s2)`
+  stack triplet, `sub rsp,32`).
+- **CAT-D-6:** `atom_chars`/`atom_codes`/`string_chars`/`string_codes` — Path A scalar `a1`
+  (`rt_pl_atom_chars_codes`, `s1` on stack, `sub rsp,16`); Path B literal cons-cell `a1`
+  (BB_PL_STRUCT → `emit_build_compound_term_bin` into r8 → `rt_pl_atom_chars_codes_term`, 8-byte
+  scratch frame for 16B alignment). Added 8 `extern "C"` rt-helper forward decls (BINARY arm
+  references by address). Standard bin-patch tail (`test eax`/`je ω`/`jmp γ`/`β→ω`).
+
+**GATE-2 crosscheck 33 → 43 PASS (+10); mode-3 native rung suite 29 → 39 (+10).** Newly green:
+rung12 ×5 (all 3-mode AGREE incl. path-B list literals `atom_chars(A,[w,o,r,l,d])`→`world`,
+`atom_codes(A,[104,...])`→`hello`), ripple gains in rung13/16/24/26 (reuse atom_concat/copy_term/
+string_to_atom/atom_chars). **Gates:** GATE-1 5/5, GATE-3 m2 104/107 (byte-identical — mode-2
+untouched), GATE-4 4/4, GATE-SWI 57/57, FACT 0/12, siblings icon/raku/snobol4 5/5/13, mode-4 TEXT
+arm untouched (atom_length mode-4 still `5/0`). **NEXT:** remaining TEXT-only builtin arms — small
+ones first (type-test BB_PL_STRUCT compound arg `rt_pl_type_test_term`; char_type/2; numbervars/3),
+then format/1,2 compound, retract/retractall, writeq/write_canonical; findall/3 last (needs its own
+protocol — `nd->ival` is `bb_pl_findall_state_t*`, not arity). Handoff
+`HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRK1-ATOM-BUILTINS-BINARY.md`.
+
+---
+
 ## State at HEAD (post-PLR-J-5, 2026-05-29 — Opus 4.8, one4all `0b77ba71`)
 
 **2026-05-29 Opus 4.8: PLR-J-5 LANDED — native multi-clause / disjunction / recursive dispatch.**
