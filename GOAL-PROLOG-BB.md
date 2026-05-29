@@ -28,6 +28,33 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-K-2, 2026-05-29 — Opus 4.8)
+
+**2026-05-29 Opus 4.8: PLR-K-2 LANDED — char_type/2 mode-3 native + mode-4 emit.** `char_type/2`
+had a mode-2 oracle arm in `bb_exec.c` but NO emitter arm in `bb_builtin.cpp` — fell to the
+double-jump stub in BOTH mode-3 (MEDIUM_BINARY) and mode-4 (MEDIUM_TEXT): boolean tests wrongly
+succeeded (`char_type('3',alpha)`→`yes`), extractor forms printed `_` (output var never bound).
+- **New `rt_pl_char_type` effect helper** (`bb_exec.c`, after `rt_pl_downcase_atom`), faithful
+  transliteration of the mode-2 oracle: `(k0,i0,s0)`=char arg, `ty`=type name, `is_compound` flag,
+  `(ki,ii,si)`=inner var. Boolean tests (alpha/alnum/digit/space/white/upper/lower/punct/graph/
+  csym/csymf/end_of_line/newline)→1/0; extractors (digit(V)/to_lower/to_upper/upper/lower/code)→
+  derive + `unify` into inner var under a trail mark. Decl in `bb_exec.h`.
+- **MEDIUM_BINARY arm** (mode-3): rdi=k0 rsi=i0 rdx=s0 rcx=ty r8=is_compound r9=ki, `[rsp+0]=ii`
+  `[rsp+8]=si` (`sub rsp,16`); string ptrs absolute `movabs` (in-process). Std bin-patch tail.
+- **MEDIUM_TEXT arm** (mode-4): byte-twin via `@PLT` + `lea [rip+strtab_label]`.
+
+**GATE-2 crosscheck 43 → 47 PASS (+4); mode-3 native rung 39 → 43 (+4); mode-4 rung21 → 5/5**
+(closes the CAT-D char_type/2 mode-4 emit gap). All 5 rung21 char_type 3-mode AGREE byte-identical
+(alpha→yes/no; digit_val→7; space_alnum→yes/yes/yes; to_upper_lower→A/z; upper_lower→a/B). **Gates:**
+GATE-1 5/5, GATE-3 m2 104/107 byte-identical (mode-2 oracle refactored into shared helper, output
+identical), GATE-4 4/4, FACT 0/12, siblings icon/raku/snobol4 5/5/13. **NEXT:** numbervars/3
+(rung20); type-test BB_PL_STRUCT compound arg (`rt_pl_type_test_term`, the J-1/J-3 honest-abort);
+writeq/write_canonical (rung22); format compound (rung19); retract (rung14); string_io (rung24);
+findall/3 last (own protocol). Handoff
+`HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRK2-CHARTYPE.md`.
+
+---
+
 ## State at HEAD (post-PLR-K-1, 2026-05-29 — Opus 4.8)
 
 **2026-05-29 Opus 4.8: PLR-K-1 LANDED — atom-builtin MEDIUM_BINARY arms.** `bb_builtin.cpp` only
