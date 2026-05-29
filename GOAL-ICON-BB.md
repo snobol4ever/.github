@@ -30,7 +30,31 @@ Completion tests:
 
 ---
 
-## Current state (2026-05-29, IBB-9-6 user-proc dispatch landed)
+## Current state (2026-05-29, IBB-9-CASE landed — corpus 105 PASS)
+
+**Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
+(293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
+**56 (pre-IBB-9-2) → 62 → 69 → 82 (IBB-9-6) → 93 (IBB-9-SIZE) → 95 (IBB-9-TOBY) → 100 (IBB-9-INITIAL)
+→ 105 PASS / 0 SEGV / 0 ABORT after IBB-9-CASE (HEAD `c117aa16`).**
+Latest sweep at `c117aa16`: Total 293, M2-skip 34, PASS 105, SEGV 0, ABORT 0, FAIL 127, MISMATCH 26, TIMEOUT 1.
+
+**Landed this session (Opus 4.8, build+run verified, exact corpus deltas, 0 regressions, FACT 0, zero-SM, smokes 5/5·5/5, broker 57):**
+- IBB-9-TOBY — `write(lo to hi by step)` (BB_TO_BY in write lists) → 93→95 (+2)
+- IBB-9-INITIAL — `initial expr` once-guard (new bb_initial.cpp + flat_drive_initial; runtime once-flag in &pBB->counter) → 95→100 (+5)
+- IBB-9-CASE — `case E of {...}` selector store + clause-equality + `write(case)` (new bb_case.cpp glue + flat_drive_case + rt_pop_store_descr/rt_case_eq) → 100→105 (+5)
+
+**NEXT (largest residue, by the same-sweep at `c117aa16`):** the 127 FAILs are dominated by `bb_call:
+unsupported call shape` for Icon BUILTINS — `write` with not-yet-handled arg0 kinds, plus `table`/`MAKELIST`/
+`set`/`list`/string fns (`map`/`trim`/`left`/`center`/`reverse`/`repl`/`integer`/`image`/`type`/`abs`/`sqrt`
+etc.). A builtin-dispatch rung (route registered Icon builtins to runtime helpers, mirroring the user-proc
+arm of IBB-9-6) is the biggest single lever. After that: `every ival=2/3` (IBB-9-4/5, the generator-bearing
+`do`-body two-port split — also unblocks the augop-in-every `rung10`/`rung13` mismatches and generator-bearing
+concat); generator-proc dispatch (`suspend`); `until` proc-free repro (IBB-9-3); BB_SCAN/cset family (rung05/06
+mismatches); the `rung35_block_body_every_do_block` mode-2 `2 2 2` vs `2 4 6` bug noted under IBB-9-5.
+
+---
+
+## Prior state (2026-05-29, IBB-9-6 user-proc dispatch landed)
 
 **Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
 (293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
@@ -217,6 +241,36 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
   `emit_bb.c` flat_drive_unop dispatch + BB_CALL arg0 routing; `bb_call.cpp` is_write_intexpr + arg_is_any.
   Corpus 92→93 (+1: rung12_strrelop_size_size `write(*s)`). Gates: FACT 0, canonical-5 byte-identical +
   zero-SM, smoke icon/prolog 5/5. **`?E` (BB_RANDOM) deferred** (no corpus coverage; same template slot).
+- [x] **IBB-9-TOBY — `write(lo to hi by step)` LANDED (2026-05-29 Opus 4.8).** `BB_TO_BY` was missing from
+  the `write` arg-recognition lists, so `every write(1 to 10 by 3)` ABORTed (`bb_call: unsupported call
+  shape — arg0_kind=17`). Two-line fix: added `BB_TO_BY` to `is_write_intexpr` (`bb_call.cpp`) and the
+  `walk_bb_flat` BB_CALL write dispatch (`emit_bb.c`). The existing `flat_drive_call_intexpr` re-pump
+  (`EMIT_PAIR_DEF_JMP(lbl_β, arg_β)`) already cascades the every-resume into the BB_TO_BY's β-advance, so
+  no new driver was needed. Corpus 93→95 (+2: rung01_paper_to_by + sibling). Gates: FACT 0, zero-SM, smoke 5/5.
+- [x] **IBB-9-INITIAL — `initial expr` once-guard LANDED (2026-05-29 Opus 4.8).** New `bb_initial.cpp`
+  template + `flat_drive_initial` driver (`emit_bb.c`); moved `BB_INITIAL` off the `bb_stub` no-op in
+  `emit_core.c` (it had emitted nothing → the clause never ran in mode-3). JCON `ir_a_Initial` / mode-2
+  oracle: run the clause body on FIRST proc entry only. Mode-3 transcription uses a RUNTIME once-flag in
+  `&pBB->counter` (calloc-zeroed at node alloc; persists across slab re-entries since the proc slab is built
+  once and `rt_icn_call_proc` never resets it). Guard bytes: `movabs rax,&counter; mov rcx,[rax]; test; jne
+  γ` (already ran → skip) `; mov qword [rax],1; jmp body_entry`; `β: jmp ω`. Driver walks `pBB->α` at
+  body_entry (success→γ, failure→ω — initial-clause failure propagates as in mode-2). Corpus 95→100 (+5:
+  rung21_global_initial_{global_initial,initial_once}, rung25_global_{global_initial,initial_once,initial_zero}).
+  Gates: FACT 0, zero-SM, smoke icon/prolog 5/5.
+- [x] **IBB-9-CASE — `case E of {...}` selector + clause-equality + `write(case)` LANDED (2026-05-29 Opus 4.8).**
+  New `bb_case.cpp` glue (`bb_case_store` + `bb_case_gate`) + `flat_drive_case` driver. JCON `ir_a_Case` /
+  mode-2 BB_CASE oracle: selector evaluated ONCE → stored in `&pBB->value` via new `rt_pop_store_descr`;
+  each clause key walked, then gated by new `rt_case_eq` (numeric-eq iff both DT_I, else string-eq via
+  `VARVAL_fn`) + `rt_last_ok` `jne` to that clause's value body; no-match falls through to the next clause's
+  key walk; trailing lone chain node = default (→γ, or `jmp ω` if none). Value bodies emitted after the gate
+  chain (each `val_entry_i:` → walk → γ); the matched body leaves the case result on the vstack for the
+  rvalue context. The chain γ-links are STRUCTURAL (selector→key1→val1→key2→…); `walk_bb_flat` routes
+  control via passed labels, so the driver traverses the chain manually. Driver owns ALL control flow — no
+  node-template emit (would route to the `bb_limit` stub and splice dead bytes); defines its own β-stub like
+  `flat_drive_seq`. `BB_CASE` added to `is_write_intexpr`/`arg_is_any` (`bb_call.cpp`) + the `walk_bb_flat`
+  write dispatch so `write(case …)` routes the matched value through the any-write trailer. Corpus 100→105
+  (+5: rung33_case_{arith,int,str,in_proc,no_default}). Gates: FACT 0, bytes-outside-templates 0, canonical-5
+  byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57 (5 pre-existing non-Icon fails, unchanged).
 - [ ] **IBB-9-3 — `until C do B`.** Shares the IBB-9-2 `bb_while`/`bb_loop` driver (BB_UNTIL swaps the two gate targets:
   cond-true ⇒ exit, cond-false ⇒ body). Fix once in the shared driver and both forms work. **JCON `ir_a_Until` (irgen.icn:981-1005)**:
   `expr.success→ir.failure` (cond true ⇒ until ENDS), `expr.failure→body.start` (cond false ⇒ run body). Body
@@ -368,6 +422,9 @@ Programs PASS, both modes, byte-identical.
 
 | State | Programs PASS | Notes |
 |-------|---------------|-------|
+| IBB-9-CASE ✅ | 5/5 smoke; corpus same-sweep 100→105 (+5), SEGV 0, ABORT 0, 0 regressions | `c117aa16` (Opus 4.8, 2026-05-29). **`case E of {...}` selector + clause-equality + `write(case)`.** New `bb_case.cpp` glue (`bb_case_store`/`bb_case_gate`) + `flat_drive_case` driver. Selector evaluated ONCE → `&pBB->value` (new `rt_pop_store_descr`); each clause key walked then gated by new `rt_case_eq` (numeric-eq iff both DT_I else string-eq via `VARVAL_fn`) + `rt_last_ok` `jne` to that clause's value body; no-match falls through; trailing chain node = default. Value bodies after the gate chain (→γ); matched body leaves result on vstack for the rvalue context. Driver owns all control flow (no node-template emit; defines its own β-stub like `flat_drive_seq`). `BB_CASE` added to `is_write_intexpr`/`arg_is_any` + walk_bb_flat write dispatch so `write(case …)` routes the matched value through the any-write trailer. Newly passing: rung33_case_{arith,int,str,in_proc,no_default}. Gates: FACT 0, bytes-outside-templates 0, canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57 (5 pre-existing non-Icon fails). |
+| IBB-9-INITIAL ✅ | 5/5 smoke; corpus same-sweep 95→100 (+5), SEGV 0, 0 regressions | `6d78e915` (Opus 4.8, 2026-05-29). **`initial expr` once-guard.** New `bb_initial.cpp` template + `flat_drive_initial`; moved `BB_INITIAL` off the `bb_stub` no-op (it emitted nothing → clause never ran). Runtime once-flag in `&pBB->counter` (calloc-zeroed, persists across slab re-entries — proc slab built once, `rt_icn_call_proc` never resets). Guard: read slot; `jne` γ (skip); else set slot=1; `jmp` body_entry. Driver walks `pBB->α` at body_entry (success→γ, failure→ω, propagating initial-clause failure as in mode-2). Newly passing: rung21_global_initial_{global_initial,initial_once}, rung25_global_{global_initial,initial_once,initial_zero}. Gates: FACT 0, zero-SM, smoke icon/prolog 5/5. |
+| IBB-9-TOBY ✅ | 5/5 smoke; corpus same-sweep 93→95 (+2), SEGV 0, 0 regressions | `6d78e915` (Opus 4.8, 2026-05-29). **`write(lo to hi by step)`.** `BB_TO_BY` was missing from the write arg-recognition lists → `every write(1 to 10 by 3)` ABORTed (arg0_kind=17). Two-line fix: `BB_TO_BY` added to `is_write_intexpr` (`bb_call.cpp`) + `walk_bb_flat` BB_CALL write dispatch (`emit_bb.c`). Existing `flat_drive_call_intexpr` re-pump already cascades the every-resume into BB_TO_BY's β-advance — no new driver. Newly passing: rung01_paper_to_by + sibling. Gates: FACT 0, zero-SM, smoke 5/5. |
 | IBB-9-SIZE ✅ | 5/5 smoke; corpus same-sweep 92→93 (+1), SEGV 0, 0 regressions | `254c93a6` (Opus 4.8, 2026-05-29). **`*E` (size) as a value-producing unop.** BB_SIZE routed to the STUB `bb_limit` in mode-3 (emitted nothing → write trailer ABORTed on arg0_kind=23). Rerouted to `bb_unop` + new `rt_unop_size`. Extracted `icn_size_value(DESCR_t,int*)` from the inline mode-2 BB_SIZE arm (string/list/record/table/cset length) as the single source of truth both modes call → byte-identical by construction; mode-2 refactor behavior-preserving (m2-as-oracle, 0 regressions). Newly passing: rung12_strrelop_size_size (`write(*s)`). Gates: FACT 0, canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5. `?E` (RANDOM) deferred (no corpus coverage). |
 | IBB-9-CONCAT ✅ | 5/5 smoke; corpus same-sweep 82→92 (+10), SEGV 0, ABORT 146→133, 0 regressions | (Opus 4.8, 2026-05-29). **`||` string concatenation** — `s1\|\|s2` lowers to a tree-shape `BB_BINOP` op=ICN_BINOP_CONCAT (ival=11), the same shape as arith, driven by the op-agnostic `flat_drive_binop_tree`. The single largest concrete ABORT cluster (13 programs, `bb_binop: unsupported op ival=11`) is GONE. Fix: CONCAT arm in `bb_binop.cpp` (proven 32-byte arith layout, dead `movabs rdi,0`, calls `rt_icn_concat`) + new `rt_icn_concat` in `rt.c` routing through `icn_binop_apply` (the mode-2 oracle's CONCAT arm) so m2==m3 byte-identical by construction. Distinct from the SNOBOL4 `rt_concat`/`CONCAT_fn` (different descriptor convention, cross-family). Newly passing: rung04_string_concat{,_chain}, rung04_string_str_var, rung11_bang_augconcat_augconcat{,_chain,_loop}, rung32_strretval_{basic_strret,chain,strret_assign,two_str_params}. Gates: FACT 0, canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 51/11. **Deferred (→ IBB-9-4/5):** generator-bearing concat (rung11_bang_augconcat_bang_concat, rung13_alt_alt_augconcat, rung32_strretval_strret_every) now RUN but emit only the first generated value — needs generator re-pumping through the binop (the two-port `every` split). **NEXT:** the same-sweep ABORT residue is dominated by `bb_call: unsupported call shape` (Icon builtins: table/MAKELIST/set/list/string fns trim/reverse/repl/map/etc, write with non-int/non-str arg kinds); plus `every ival=2/3` (IBB-9-4/5); generator-proc dispatch; finish unop family (SIZE/RANDOM); BB_CASE; BB_AUGOP-in-every (rung10). |
 | IBB-9-6 ✅ | 5/5 smoke; corpus same-sweep 69→82 (+13), SEGV 0, ABORT 0, 0 regressions | `8d4c2c2f` (Opus 4.8, 2026-05-29). **User-procedure dispatch** — JCON `ir_a_Call`/`ir_a_Return` in the flat-slab model. A user proc compiles to a `bb_build_flat` slab that leaves its return value on the vstack; `rt_icn_call_proc` binds params as named vars, invokes the slab (built LAZILY on first call), reads the result by vstack depth-delta, restores bindings. New `bb_return.cpp` template; `flat_drive_return` (routes to slab-level exit `flat_succ_p`, not next stmt); `flat_drive_call_userproc`; `BB_BINOP_GEN` non-streaming collapse (`n * fact(n-1)` → plain binop since a registered proc call is single-shot, matching the mode-2 oracle); `bb_call.cpp` userproc arm + `write(proc())` via any-write trailer; driver registers all proc entries + lazy builder. The `bb_call: unsupported call shape` ABORT cluster (~158 aborts) is eliminated. Newly passing: rung02_proc_add_proc/fact, rung03_suspend_fail/return, rung09_loops_repeat_counter/until_while, rung21_global_initial_×3, rung25_global_×4. Lazy build fixed 5 transient regressions (unreached procs with unsupported shapes). Gates: FACT 0, smoke icon/prolog 5/5, broker 51/11, zero-SM holds. **Deferred:** generator procs (`suspend` → needs odometer); rung02_proc_locals (blocked on `every ival=2`, IBB-9-4). |
