@@ -28,7 +28,7 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-PLR-K-8, 2026-05-29 — Opus 4.8, one4all `e0ce19ef` / corpus `e422738`)
+## State at HEAD (post-PLR-K-8, 2026-05-29 — Opus 4.8, one4all `123878af` / corpus `e422738`)
 
 **2026-05-29 Opus 4.8: PLR-K-8 LANDED — format/1 + format/2 MEDIUM_BINARY arm (mode-3 native).**
 `format` was MEDIUM_TEXT-only → in mode-3 native (`--run`) the asm strings emitted as raw bytes →
