@@ -71,6 +71,38 @@ For full failure list patch `head -40` to `head -300` in test_interp_broad_corpu
 
 ## Active rung: M3-NATIVE-4 — per-language bring-up + corpus parity (SNOBOL4)
 
+### ⭐ MILESTONE (2026-05-29 Opus 4.8): NATIVE-ONLY GAP CLOSED
+
+After SBL-1010 + SBL-1016, the broad-corpus partition has **ZERO native-only failures**:
+every one of the 28 remaining native FAILs **also fails in `--interp` (mode-2)**. Native ==
+mode-2 oracle == **252/280**. The "knock down remaining native-only failures" objective of this
+rung is therefore effectively DONE — there are no more native-dispatch bugs in the broad corpus.
+All further corpus climb now requires fixing the **mode-2 ORACLE** (which lifts BOTH modes
+simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Verified via
+`comm -23 native_fails m2_fails` = empty. To re-confirm: run the broad corpus under
+`SCRIP_M3_NATIVE=1` and under plain `--interp`, sort the two FAIL lists, diff them.
+
+### Next phase: ORACLE-PARITY (lifts both modes)
+
+- [ ] **ARB-capture deferred-assignment bug (word1/word2/word3 + 139/140/141 + expr_eval)**
+  — analysis 2026-05-29 Opus 4.8, FIX NOT YET DONE. `ARB . VAR` conditional-capture yields the
+  WRONG substring in BOTH modes. Minimal repro: `U='xxNAMExx'; U ? 'xx' ARB . W 'xx'` → `W=[]`
+  (expect `W=[NAME]`); contrast `LEN(2) . P` which captures correctly (`P=[ab]`) because LEN does
+  not backtrack. The defect is in the conditional-assignment (`.`) interaction with a
+  *backtracking* child (ARB grows its match on retry). Investigation findings to save the next
+  session time: (1) this CAT-with-ARB pattern does NOT route through `bb_exec.c`
+  `BB_PAT_ASSIGN_COND` (added a TRC print there — never fires) NOR through `eval_pat.c` (184 lines,
+  no XNME logic); (2) `exec_stmt` (stmt_exec.c:320) calls `reset_capture_registry()` — SNOBOL4
+  `.` is DEFERRED assignment (committed only on full-match success), so the locus is the
+  **capture-registry / deferred-commit mechanism** plus the flat/brokered byte path that
+  `bb_build_pure_mode` runs even under `--interp` when `g_bb_mode==BB_MODE_LIVE`; (3) `pat_assign_cond`
+  is defined at `snobol4_pattern.c:306` (runtime XNME builder) and reached via `eval_code.c:245`.
+  NEXT-SESSION PLAN: clone the SPITBOL oracle (`git clone .../x64`) to lock exact expected
+  semantics, then trace which matcher actually executes `'xx' ARB . W 'xx'` (put a print in
+  `bb_broker`/the flat driver, not just bb_exec), find where the deferred capture range is
+  recorded, and fix the start/extent bookkeeping so ARB's final (longest-successful) extent is the
+  one committed. Likely a high-leverage fix (≥3 corpus programs, maybe the calc/eval cluster too).
+
 ### Open work
 
 - [x] **POS/RPOS-NON-FIRST-IN-CAT ✅** (2026-05-29 Opus 4.7). Bisection led to a *different*
