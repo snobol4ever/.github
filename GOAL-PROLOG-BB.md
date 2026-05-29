@@ -28,7 +28,25 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.8-WAM-CP-6-B3-TRAIL-RECLAMATION, 2026-05-29)
+## State at HEAD (post-Opus-4.8-WAM-CP-13-PRINT1 + B3, 2026-05-29)
+
+**2026-05-29 Opus 4.8 (follow-on, one4all `2fae45ec`):** **WAM-CP-13 print/1 mode-4 emit ✅** —
+one-line widening of the MEDIUM_TEXT `write` arm in `src/emitter/BB_templates/bb_builtin.cpp` to
+also match `print` (`strcmp(fn,"print")==0`). `print/1` on atoms/ints/compounds is write-equivalent
+for the corpus cases, and the existing arm already routes BB_ATOM→`rt_pl_write_atom`,
+BB_PL_VAR→`rt_pl_write_var`, BB_LIT_I/BB_PL_STRUCT→`emit_write_term`; `print` is not `writeln` so it
+takes no nl-suffix. **mode-4 corpus 54→55** (rung22_print). FACT 0/12 (no new byte producer — a
+widened strcmp inside the same template arm), all interp gates byte-identical, siblings 5/5/5/13.
+**NEXT mechanical (WAM-CP-13 cont'd):** `writeq/1` + `write_canonical/1` need the quoting / operator-
+notation writer in the emit path — materialize the arg via `rt_pl_node_to_term` (+ `rt_pl_compound_
+build_n` for compounds, mirroring the CAT-D-7 `emit_write_term` recursion) then call the existing
+`pl_writeq` / `pl_write_canonical` effect helpers (both already exist, used by mode-2 `bb_exec.c:4481`).
+That closes the rest of rung22 (4 more tests). Other cheap CAT-D mode-4 gaps: char_type/2 (rung21, 4),
+numbervars/3 (rung20, 3) — both need compound-arg construction.
+
+---
+
+## Prior HEAD (post-Opus-4.8-WAM-CP-6-B3-TRAIL-RECLAMATION, 2026-05-29)
 
 **2026-05-29 Opus 4.8:** **WAM-CP-6 Phase B3 trail reclamation LANDED ✅** — closes the heap
 ceiling that B2 left open. `src/lower/bb_exec.c` ONLY, +45 lines (11 code, 34 comment), additive,
@@ -695,7 +713,7 @@ needs `bb_exec_once` non-recursive refactor via explicit call-descriptor stack).
 | GATE-SWI (`test_prolog_swi_suite.sh`) | **55/57 (96%)** | SWI-NEXT step 2 — once/1 intercept landed; 3 .ref files re-baselined EMPTY → FAIL (test_exception, test_list, test_misc); test_string 0/2 due to deeper pj_rev recursion bug (bb=0x3 corruption, see State at HEAD) |
 | BB-honest mode-3 | 128/0 | byte-identical |
 | **rung33_bridge_callN** | **5/5** | **PL-RT-USER-FROM-SYNTH-2 closed 02/04/05 (was 2/5)** |
-| **Full mode-4 corpus** | **54/107** | unchanged (rung28 mode-4 stub fails — WAM-CP-13 territory) |
+| **Full mode-4 corpus** | **55/107** | print/1 landed (WAM-CP-13); writeq/write_canonical next |
 | FACT RULE grep | 0 | full compliance |
 | `bb_emit_byte` aborts in corpus | 0 | CAT-RUNG07-1 fix held |
 
@@ -956,7 +974,7 @@ Open families:
 - **`abolish/1`** (rung15, 4 tests) — PL_BI_CHAIN_ABOLISH wired in lower_pl, emit gap.
 - **`numbervars/3`** (rung20, 5 tests)
 - **`char_type/2`** (rung21, 4 tests)
-- **`writeq/1` `write_canonical/1` `print/1`** (rung22, 4 tests)
+- **`writeq/1` `write_canonical/1`** (rung22, 4 tests) — `print/1` ✅ landed `2fae45ec`. writeq/canonical need quoting + operator-notation writer (call existing pl_writeq/pl_write_canonical effect helpers after rt_pl_node_to_term materialize).
 - **`number_string/2`** + string ops (rung24-26)
 - **`term_to_atom/2` `term_string/2`** mode-4 emit (mode-2 ✅, both fall through to `_`).
 - **`atom_number/2`** mode-4 emit (mode-2 ✅).
