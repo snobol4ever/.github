@@ -129,6 +129,21 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
 
 ### Open work
 
+- [ ] **DEFERRED capture-commit (word1 + any OUTPUT/side-effecting/mid-pattern-ref capture)** —
+  pre-existing, SHARED (mode-2 oracle AND native template), NOT yet fixed. SNOBOL4 `.`/`$` is
+  DEFERRED: the assignment commits ONCE, on FULL-pattern-match success, with the final matched
+  substring. Both engines commit IMMEDIATELY at each capture-node execution: mode-2 `bb_exec.c`
+  `BB_PAT_ASSIGN_COND` (line ~2840) calls `NV_SET_fn` inline; native `rt_cap_assign_cursor`
+  (`rt.c`) calls `NV_SET_fn` inline. For a backtracking child (ARB grows on each β), the capture
+  re-fires at every step → OUTPUT prints `''`,`c`,`ca`,`cat` (word1 expects just `cat`). Invisible
+  for ordinary vars (last write wins) but wrong for OUTPUT / any associated or mid-pattern-referenced
+  var. FIX: route capture through the existing capture-registry (`rt_cap_*` rt.c:1842,
+  `reset_capture_registry` stmt_exec.c) — RECORD `(varname, start, extent)` on capture-node success,
+  and COMMIT all recorded captures only when the whole pattern matches (commit hook in `bb_exec_pat`
+  / the native match epilogue), rewinding/overwriting the record on backtrack so the final
+  (successful) extent wins. Touches both engines; verify against word1 + all gates. Prereq
+  SBL-CAP-OUTPUT-R10 ✅ (the native commit no longer SEGVs).
+
 - [x] **POS/RPOS-NON-FIRST-IN-CAT ✅** (2026-05-29 Opus 4.7). Bisection led to a *different*
   bug: `bb_pat_pos.cpp:14` (and `bb_pat_tab.cpp:14`) used `int rpos = (pBB->ival != 0)`
   to distinguish RPOS from POS. Wrong — POS/RPOS (and TAB/RTAB) are distinguished by
@@ -262,6 +277,22 @@ GATE-PK            = stale
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — SBL-CAP-OUTPUT-R10 ✅** (one4all `28a720f2`). `bb_capture.cpp` BINARY arm
+  called `rt_cap_assign_cursor` WITHOUT preserving `r10`. The brokered blob holds `&Δ` in `r10`
+  (caller-saved, SysV); `NV_SET_fn` on the **OUTPUT** (or any associated) variable enters the print
+  path (printf/fwrite) which clobbers `r10`; the post-assign consumer of `[r10]` (broker final-cursor
+  read / following CAT element) then SIGSEGVs — the print itself succeeds (`cat` emitted) then the blob
+  crashes. Minimal repro: `S='cat'; S ? 'cat' . OUTPUT` → prints `cat` then SEGV (native only; `--interp`
+  fine). Fix: `push r10` TWICE around the call (preserve r10 AND keep rsp 16-aligned so the print's
+  aligned SSE does not fault) + `pop r10` twice; γ site 124→132, blob 128→136 B; matches the child-fn
+  calls' own r10 convention. **Native broad 255 unchanged** (word1's SEGV → clean fail), zero
+  regressions: word2/word3 capture PASS, smoke 13/13 native, rung M2=19/0 M4=18/1 (053 pre-existing),
+  broker 57/5, cross-lang 5/5/5/5, audit GATE OK, FACT 0. **word1's REMAINING failure is a separate
+  pre-existing bug — DEFERRED-vs-immediate capture commit** (see Open work): native commits the `.`
+  assignment at EVERY ARB backtracking step (`''`,`c`,`ca`,`cat`) instead of ONCE on full-match success,
+  so capturing to OUTPUT prints every intermediate. Invisible for regular vars (last write wins) but
+  observable for OUTPUT / any side-effecting or mid-pattern-referenced var.
 
 - **2026-05-29 Opus 4.8 — SBL-ARB-CAT-BACKTRACK ✅** (one4all, flat driver). Corrected the prior
   session's WRONG "capture-registry" hypothesis: `'xx' ARB 'xx'` fails to match even with NO capture
