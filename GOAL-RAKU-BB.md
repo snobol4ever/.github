@@ -109,7 +109,7 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: RK-CLASS partial (lower_field fix; 77e84268)
+one4all: RK-CLASS partial-2 (prescan+bodies+byname; 456cc7d0)
 .github: HEAD
 corpus:  unchanged
 
