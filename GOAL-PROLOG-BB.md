@@ -28,6 +28,31 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-J-0, 2026-05-29 — one4all `e2d99c3d`)
+
+**2026-05-29 Opus 4.8: PLR-J-0 LANDED — `bounded`/determinacy flag at lower time.** `lower_pl.c`
+only, +~50 lines, lower-time only, NO emitter/template/FACT change, byte-identical output. Added the
+pure classifier `pl_goal_is_bounded(const tree_t *e)` (above `lower_pl_goal`) that answers "does this
+goal offer ≤1 solution?" as a function of the parse tree — the structural prerequisite for PLR-J-2's
+explicit per-node resume. Mirrors irgen.icn F1 (`/bounded & suspend ir_chunk(p.ir.resume,…)`): JCON
+computes `bounded` inline during IR-gen, not on the box, so this needs no `BB_t` field (PEERS RULE
+clean) and no sidecar. Bounded = cut, true/fail/nl, unification, arithmetic comparison, every
+`pl_builtin_style` table builtin, and conj/ITE all of whose parts are bounded. NOT bounded =
+disjunction `;`, user-predicate calls, bare-var meta-calls, unrecognized (conservative — a wrong
+answer only keeps today's unconditional-β). POPULATED-BUT-UNUSED: nothing reads it for control flow
+this rung (PLR-J-2/WAM-CP-12 will); populated + provable via env-gated trace `SCRIP_PL_BOUNDED_TRACE=1`
+(default OFF, stderr, no bytes — same pattern as `SCRIP_LCO_TRACE`/`SCRIP_IDX_TRACE`). Proof:
+`is/write/nl/>/=:= → bounded=1`, `foo (user call) → 0`, `; → 0`; program output unchanged. **Gates
+all byte-identical baseline:** GATE-1 5/5, GATE-2 11 PASS/121, GATE-3 m2 104/107, GATE-4 4/4,
+GATE-SWI 57/57, FACT 0 (arm2 12), siblings icon/raku/snobol4 5/5/13. **NEXT: PLR-J-2** (explicit
+per-node resume replacing the β heuristic — now unblocked; transliterate irgen.icn F2/F3
+`ir_a_Binop`/`ir_a_Call`, reading `pl_goal_is_bounded` to skip resume wiring for bounded goals) or
+**PLR-J-4** (callee-block sweep + `bb_pl_call` binary call protocol — largest win, 121 open mode-3
+crosscheck failures; the `bb_pl_call.cpp` MEDIUM_BINARY arm is still a double-jump stub and must port
+in lockstep with the `SM_BB_PL_INVOKE` BINARY callee-block loop).
+
+---
+
 ## State at HEAD (post-PLR-J-3, 2026-05-29)
 
 **2026-05-29 (one4all `bbf60667`): PLR-J-3 LANDED — compound-term builder in raw bytes.**
@@ -1253,13 +1278,26 @@ lands no bytes outside `*_templates/` (FACT rule). Sequenced so cheap correctnes
 and the structural lower-time work (which the byte arms depend on) lands before the harder binary
 arms.
 
-- [ ] **PLR-J-0 — `bounded`/determinacy flag at lower time (irgen.icn `bounded` param, F1).**
-  Thread a `bounded` (cannot-resume) flag through `lower_pl_goal` mirroring irgen.icn's pervasive
-  `/bounded & suspend ir_chunk(p.ir.resume, …)`. A goal is bounded when it provably offers ≤1
-  solution (e.g. arithmetic, type tests, `!`, deterministic builtins). DOC + lower-time only — no
-  byte change, no behaviour change yet; the flag is *read* by PLR-J-2/5. Gate: build green, all
-  GATEs byte-identical (this rung adds an unused field + populates it). This is the prerequisite
-  the existing PL-LOWER-REVAMP note calls "no `bounded`/determinacy flag".
+- [x] **PLR-J-0 — `bounded`/determinacy flag at lower time (irgen.icn `bounded` param, F1).**
+  **LANDED (Opus 4.8, 2026-05-29).** Added pure classifier `pl_goal_is_bounded(const tree_t *e)` in
+  `src/lower/lower_pl.c` (above `lower_pl_goal`) + forward decl. Mirrors irgen.icn's `bounded` as a
+  property of the construct being lowered, computed inline from the parse tree — NOT a `BB_t` field
+  (PEERS RULE clean) and NOT a sidecar; JCON itself computes `bounded` during IR-gen, not on the box.
+  Bounded (≤1 solution → β/resume port is dead code): cut, true/fail/otherwise/nl, unification,
+  arithmetic comparison (`> < >= <= =:= =\=`), every `pl_builtin_style` table builtin
+  (write/is/type-test/atom-string/sort/format/...), and a conjunction or ITE all of whose components
+  are bounded. NOT bounded (must keep β): disjunction `;`, user-predicate calls (multi-clause can
+  re-satisfy), bare-var meta-calls, anything unrecognized — conservative, so a misclassification only
+  ever keeps today's unconditional-β behaviour. **POPULATED-BUT-UNUSED this rung:** nothing reads it
+  for control flow yet (PLR-J-2 will call it from `lower_pl_goal` to skip resume wiring; WAM-CP-12
+  reads the same property for CP elision), so output is byte-identical. Populated via an env-gated
+  trace `SCRIP_PL_BOUNDED_TRACE=1` (default OFF, stderr only, no emitted bytes — same pattern as
+  `SCRIP_LCO_TRACE`/`SCRIP_IDX_TRACE`). **Proof:** trace on `main :- X is 2+3, X>4, write(X), nl,
+  (X=:=5;X=:=6), foo(X). foo(Y):-Y>0.` shows `is/write/nl/>/=:= → bounded=1`, `foo (user call) → 0`,
+  `; (disjunction) → 0`; program output `5` unchanged. **Gates (all byte-identical baseline):**
+  GATE-1 5/5, GATE-2 11 PASS/121, GATE-3 m2 104/107, GATE-4 4/4, GATE-SWI 57/57 (100%), FACT 0 (arm2
+  12 baseline), siblings icon/raku/snobol4 5/5/13. This is the prerequisite the PL-LOWER-REVAMP note
+  called "no `bounded`/determinacy flag"; PLR-J-2 is now unblocked.
 
 - [x] **PLR-J-1 — type-test builtin BINARY arm (corroborated by rung09, smallest correctness win).**
   `bb_builtin.cpp` CAT-D-10 (`var/nonvar/atom/integer/float/number/compound/atomic/callable/
