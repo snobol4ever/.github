@@ -503,16 +503,34 @@ running — `X==y` check fires, `memberchk` binds correctly, `match=1/1`. All th
   now correctly populated — verified by direct `findall`. SWI-2a/2b path remains valid but
   is no longer strictly required to register `test/2` bodies. Gate unchanged at 53/57 because
   of new-blocker SWI-2d below.
-- [ ] **SWI-2d:** Fix `call(X)` where X is a bound atom in mode-2 `--interp`. Currently
-  `call(true)` fails — even literal `call(true)`, no variable binding involved. Blocks
-  `pj_run_one` from executing any test body (the goal is stored in `pj_test/4`'s 4th arg
-  and reached via `catch(Goal, _, ...)` which routes through `call/1`). Hooks:
-  `pl_invoke_var_goal` at `src/runtime/interp/pl_runtime.c:845`; `pl_term_to_synth_expr`
-  TERM_ATOM branch at line 805 (builds `TT_FNC(sval="true", n=0)`); `interp_exec_pl_builtin`
-  `true` arm at line 894 should return 1 but evidently doesn't. Trace to find which return-0
-  fires on the path back up. **Highest leverage NEXT step** — without it, the plunit shim
-  can never execute test bodies regardless of any other fix; gate stays at "53/57 by
-  accident" indefinitely.
+- [x] **SWI-2d:** call/1 mode-2 fallback (`d805b0fe`, Opus 4.7, 2026-05-28). The
+  prior step text below described the bug as a `pl_runtime.c` issue — that
+  diagnosis was wrong: under `--interp`, the real path is
+  `SM_BB_PL_INVOKE` → `bb_broker` → `BB_PL_CALL` in `bb_exec.c:3259`, and the
+  three `pl_runtime.c` hooks named in the prior handoff are dead code there
+  (verified via `SCRIP_TRACE_CALL1` env-gated fprintfs — none fired). Fix
+  intercepts `callee=="call" && carity==1` in BB_PL_CALL handler before lookup,
+  converts `zc->args[0]` via existing `pl_node_to_term`, dispatches via new
+  public `pl_call_term` wrapper (formerly-static `pl_invoke_var_goal`).
+  Lowering unchanged → mode-3/4 byte output unchanged → FACT-safe. Empirically
+  verified on 6 test programs (`call(true)`, `call(fail)`, `call(G)` with G
+  bound to atom or compound). Does **not** handle call/N for N>1 — natural
+  next step. Gate stays at 53/57: of the 53 PASSes, most still pass via
+  `SF=:=0` false-positive (test bodies use call/N for N≥2 or other unimplemented
+  features). Critical path is unblocked nonetheless. See
+  `HANDOFF-2026-05-28-OPUS-PROLOG-BB-SWI-2D-CALL1-FALLBACK.md`.
+  Original step text (with WRONG diagnosis, kept for archaeology):
+  > Fix `call(X)` where X is a bound atom in mode-2 `--interp`. Currently
+  > `call(true)` fails — even literal `call(true)`, no variable binding involved.
+  > Blocks `pj_run_one` from executing any test body. Hooks: `pl_invoke_var_goal`
+  > at `pl_runtime.c:845`; `pl_term_to_synth_expr` TERM_ATOM at line 805;
+  > `interp_exec_pl_builtin` `true` arm at line 894 should return 1 but
+  > evidently doesn't. **Highest leverage NEXT step.**
+- [ ] **SWI-2e:** Extend SWI-2d to call/N for N>1 (partial application).
+  Mechanical extension of the BB_PL_CALL fallback: convert goal Term via
+  `pl_node_to_term`, walk its compound args, append extras from `zc->args[1..]`,
+  build new compound, dispatch through `pl_call_term`. Likely closes
+  `rung33_bridge_callN` (currently 1/5). Recommended next step.
 
 ### SWI-3 — Normalise bare `Var==Val` option form in `test/2` heads
 
