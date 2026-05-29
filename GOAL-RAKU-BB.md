@@ -63,10 +63,11 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 - **M3-RK-NOINTERP-1a ✅** `bb_to_by.cpp` MEDIUM_BINARY r12→rt_push_int (Sonnet 4.6, `55d03444`).
 - **M3-RK-NOINTERP-1b ✅** SM_BB_INVOKE MEDIUM_BINARY arm — scratch-buffer-flush w/ sink save/restore, `walk_bb_node` integration, ascending-sites fix in `bb_to_by.cpp:142` (Opus 4.7, `48ca4e21`).
 - **M3-RK-NOINTERP-1c ✅** `bb_iterate.cpp` Raku MEDIUM_BINARY arm wired (Opus 4.7, 2026-05-29, one4all `8d3a8cdf`). Mirrored the existing MEDIUM_TEXT arm in raw x86: α zeroes `&pBB->counter`, β-define falls into `NV_GET_fn(name)`, unpacks `rax:rdx` (low32=v, hi32=slen; rdx=base ptr), strlen-fallback when slen=0, bounds-check `jge lω`, scan for SOH separator, `GC_malloc(seg_len+1)` + `rep movsb` + NUL-term, `rt_push_str(ptr,len)` + `jmp lγ`. All four helper calls use absolute `movabs rax,&fn; call rax` (no PLT in mode-3). bin.sites ascending: `{beta_off, fail_off+2, succ_off+1}` paired with `{lβ_p define, lω_p, lγ_p}`. **Mode-3 native: 19→25 PASS** (+6: rk_fileio38, rk_for_array{,_simple,_underscore}, rk_given18, rk_map_grep_sort24 all CRASH→PASS).
+- **M3-RK-NOINTERP-1d ✅** `rk_gather` closed (Opus 4.8, 2026-05-29, one4all `a894af4a`). Last Cluster-1 native test. The gather body BB graph is `BB_SEQ(n=4) → SUSPEND·SUSPEND·SUSPEND·FAIL` (NOT the bb_upto path the prior handoff guessed). Three coordinated fixes: **(1) `bb_seq.cpp`** new raw-x86 gather-driver `bb_seq_gather_binary` — the MEDIUM_BINARY arm only walked the `xa_bb_emit_pair_*[]` passthrough, which is UNPOPULATED on the SM_BB_INVOKE → `walk_bb_node` path (no `flat_drive_seq` ran), so outer β (`.Lbbinv%d_β`) was never defined → `bb_emit_end` abort. New driver mirrors the MEDIUM_TEXT gather-driver in raw bytes: α fan-out `jmp s0_α`; define outer β = `movabs rax,&resume_slot; mov rax,[rax]; jmp rax`; per-child: define Lα[k], `walk_bb_node(child,NULL)`, define Lγ[k] fixup (`movabs rax,&resume_slot; lea rcx,[rip+nxt]; mov [rax],rcx; jmp outer_γ`); done trampoline `jmp outer_ω`. resume_slot is a malloc'd quad (scratch page has no .data); intermediate labels malloc'd so pointers survive into the wrapper's `bb_emit_end` (runs after bb_seq returns); rip-relative `lea` patches via standard `bb_emit_patch_rel32` (site+4 = rip). **(2) `bb_suspend.cpp`** MEDIUM_BINARY arm now pushes via `rt_push_int` (movabs+call) not raw `mov [r12]` — `sm_run_native` doesn't init r12 as a value-stack pointer (the SM value stack is the `g_vstack` C global), so the old r12 stores segfaulted; same fix bb_to_by took in 1a; bin sites reordered ascending per 1b. **(3) `lower.c` `lower_every`** new branch for `for gather{} -> $v` (`TT_EVERY(TT_ITERATE(v, TT_FNC(__gather_N)))`) — the generic scaffold routed through `lower_iterate` which emits `SM_BB_INVOKE; STORE_VAR v` BEFORE the scaffold's `JUMP_F`, storing the loop var from an empty value-stack on the exhaustion pull → underflow; new branch mirrors the iterate-array branches (JUMP_F gates the store). **Mode-3 native: 25→26 PASS, CRASH 7→6** (rk_gather CRASH→PASS).
 
 ## Open rungs
 
-- [ ] **M3-RK-NOINTERP-1d** — `bb_upto.cpp` / `bb_suspend.cpp` / `bb_seq.cpp` MEDIUM_BINARY arms for `rk_gather` (gather/take path). Last Cluster-1 native test.
+- [ ] **M3-RK-NOINTERP-1e (regex cluster)** — `rk_re32/33/34/35/37`, `rk_regex23` (6 CRASH). DEFERRED to GOAL-RAKU-PAT-BB (regex/grammar backtracking). These are the only remaining mode-3 native CRASHes.
 - [~] **RK-BB-4 substrate audit** — Probe-based audit found "REUSE bb_gen_alt.cpp/bb_alt.cpp" is unfounded. Seven gaps: lex (no KW_ANY/ALL/ONE/NONE, no single `|`/`&`); TT_ALT overloaded with SNOBOL4 pat-alt; bb_exec.c BB_ALTERNATE mode-2 is no-op; bb_alternate.cpp mode-4 missing; bb_alt.cpp mode-4 stub; bb_gen_alt.cpp stub; Icon TT_ALTERNATE lowers to BB_ALT not BB_ALTERNATE → **BB_ALTERNATE is orphan; reusable substrate is BB_ALT (mode-4 stub)**. Probe `test/raku/rk_junctions.{raku,expected}` committed (`4ee45eb7`); fails at lex.
   - **Open Qs for Lon (Q9-Q12, gating any work):** Q9 new TT_LOR/TT_LAND for `||`/`&&`? Q10 BB_ALT (recommend) vs finish orphan BB_ALTERNATE? Q11 substrate-first vs frontend-first? Q12 junction rep: (i) tagged string mirroring `\x01`-arrays (recommend), (ii) DT_JUNCT, (iii) DT_DATA.
 - [ ] **RK-BB-4-frontend** — pending Q9-Q12.
@@ -111,33 +112,32 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: M3-RK-NOINTERP-1c LANDED — bb_iterate.cpp Raku MEDIUM_BINARY arm wired (Opus 4.7, 2026-05-29, one4all `8d3a8cdf`).
-  Was a 1-line stub returning a comment ("# bb_iterate BINARY Raku — TODO"); now a full ~110-line
-  raw-x86 mirror of the existing MEDIUM_TEXT arm (lines 60-178). Same control flow: α zeroes
-  &pBB->counter → fall into β-define which is also the entry of the load block; load calls
-  NV_GET_fn(pBB->sval), unpacks DESCR_t from rax:rdx (low32=v, hi32=slen; rdx=base ptr); if
-  slen==0 and base!=NULL, calls strlen inline (stack-aligned: push r10/sub rsp,8/call/add
-  rsp,8/pop r10); bounds-check &pBB->counter vs slen → jge lω (bin.sites rel32); scan advances
-  rcx through r10[rcx] looking for SOH (\x01) separator with self-patched rel32 forward jumps;
-  send computes seg_len, calls GC_malloc(seg_len+1), rep movsb copies, NUL-terminates at
-  [rax+r8], advances counter past separator, rt_push_str(ptr,len), then jmp lγ (bin.sites).
-  All four helpers reached via absolute movabs+call (no PLT in mode-3 native sm_run_native).
-  bin.sites ascending per M3-RK-NOINTERP-1b invariant: {beta_off, fail_off+2, succ_off+1}.
-  Headers extended: #include "descr.h" + extern decls for NV_GET_fn/rt_push_str/GC_malloc/strlen.
+one4all: M3-RK-NOINTERP-1d LANDED — rk_gather closed mode-3 native (Opus 4.8, 2026-05-29,
+  one4all `a894af4a`). Gather body graph = BB_SEQ(n=4) → SUSPEND·SUSPEND·SUSPEND·FAIL.
+  THREE fixes: (1) bb_seq.cpp new raw-x86 gather-driver bb_seq_gather_binary — MEDIUM_BINARY
+  arm only walked the (unpopulated on walk_bb_node path) xa_bb_emit_pair_*[] passthrough,
+  leaving outer β undefined → bb_emit_end abort; new driver mirrors the MEDIUM_TEXT gather-
+  driver in raw bytes (α fan-out, β indirect-jump via malloc'd resume_slot quad, per-child γ
+  fixups w/ rip-relative lea patches, done→outer_ω), interleaving walk_bb_node(child,NULL);
+  intermediate labels malloc'd to survive the wrapper's bb_emit_end. (2) bb_suspend.cpp
+  MEDIUM_BINARY now pushes via rt_push_int (movabs+call) not raw [r12] — sm_run_native
+  doesn't init r12 as the value stack (g_vstack C global is), old stores segfaulted; same
+  as bb_to_by 1a; sites reordered ascending per 1b. (3) lower.c lower_every new branch for
+  `for gather{} -> $v` (TT_EVERY(TT_ITERATE(v,TT_FNC(__gather_N)))) — generic scaffold via
+  lower_iterate emitted SM_BB_INVOKE; STORE_VAR v BEFORE JUMP_F → store from empty value-
+  stack on exhaustion → underflow; new branch JUMP_F-gates the store like the iterate-array
+  branches.
 
-.github: GOAL-RAKU-BB.md pruned (verbose completed-rung prose collapsed to one-liners; resolved
-  open questions removed; watermark replaced with 1c content). HANDOFF-2026-05-29-OPUS-RAKU-BB-
-  M3-NOINTERP-1c-LANDED.md added.
+.github: GOAL-RAKU-BB.md — 1d moved open→completed; open rungs collapsed to the deferred
+  regex cluster (1e); watermark + NEXT replaced. HANDOFF-2026-05-29-OPUS-RAKU-BB-M3-NOINTERP-
+  1d-LANDED.md added.
 
 corpus:  unchanged
 
 GATE-RK   mode-2:                23/33  HOLD
 GATE-RK4  mode-4:                26/33  HOLD
-GATE-RK3  mode-3 native:         25/33 PASS, 1 FAIL, 7 CRASH  (was 19/1/13; +6 PASS,
-                                                                 −6 CRASH; rk_fileio38,
-                                                                 rk_for_array{,_simple,_underscore},
-                                                                 rk_given18, rk_map_grep_sort24
-                                                                 CRASH→PASS)
+GATE-RK3  mode-3 native:         26/33 PASS, 1 FAIL, 6 CRASH  (was 25/1/7; +1 PASS, −1 CRASH;
+                                                                 rk_gather CRASH→PASS)
 Smoke raku:       5/5    HOLD
 Smoke prolog:     5/5    HOLD
 Smoke snobol4:    13/13  HOLD
@@ -146,15 +146,18 @@ FACT RULE grep:   0
 Build:            clean
 ```
 
-## Remaining mode-3 native (CRASH 7 + FAIL 1)
+## Remaining mode-3 native (CRASH 6 + FAIL 1)
 
-- CRASH `rk_gather` — Cluster 1 last test; bb_upto/bb_suspend/bb_seq MEDIUM_BINARY (M3-RK-NOINTERP-1d).
 - CRASH `rk_re32/33/34/35/37`, `rk_regex23` — Cluster 3 regex; DEFERRED to GOAL-RAKU-PAT-BB.
 - FAIL `rk_junctions` — BLOCKED on Lon Q9-Q12.
 
-## NEXT — M3-RK-NOINTERP-1d (bb_upto / bb_suspend / bb_seq)
+## NEXT — Cluster-1 native COMPLETE
 
-Closes `rk_gather`. Same pattern as 1c: mirror the existing MEDIUM_TEXT arm in raw x86 for each of `bb_upto.cpp`, `bb_suspend.cpp`, `bb_seq.cpp`. Per-template the surgery is ~50-100 lines depending on the helpers involved (`rt_push_int` if the yielded value is integer, `rt_push_str` if string). bin.sites must be ascending; use absolute `movabs+call` not PLT.
+All non-regex, non-junction mode-3 native Raku tests now PASS (26/33). The remaining 7 split into
+the regex cluster (6, deferred to GOAL-RAKU-PAT-BB) and rk_junctions (1, blocked on Q9-Q12). Next
+substantive Raku-BB work is **RK-BB-4** (junctions) once Lon answers Q9-Q12, or picking up the
+mode-2 gather gap (rk_gather FAILs mode-2 — `bb_exec.c` BB_SEQ doesn't drive the multi-yield
+loop; mode-2 interp is a separate path from the mode-3 native templates landed here).
 
 ## Open questions for Lon
 
