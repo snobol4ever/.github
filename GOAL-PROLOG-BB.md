@@ -28,7 +28,45 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.8-WAM-CP-13-PRINT1 + B3, 2026-05-29)
+## State at HEAD (post-Opus-4.8-M3-NATIVE-REPORTING, 2026-05-29)
+
+**2026-05-29 Opus 4.8 (testing/reporting, one4all `855cbee2`):** **mode-3 reporting switched to
+NATIVE — major honest finding.** Per Lon directive, the gate scripts now run mode-3 as genuinely
+native (`SCRIP_M3_NATIVE=1` → `sm_run_native`: x86 SM asm + flat-wired x86 BB), NOT `sm_interp_run`
+/ `bb_exec` / brokers. `test_crosscheck_prolog.sh` (mode-3 invocation + NATIVE-GAP detection of the
+`[M3-NATIVE] falling back` breadcrumb) and `test_prolog_rung_suite.sh` (`run` mode) updated.
+Scripts only, FACT 0.
+
+**The finding:** native Prolog mode-3 is **NOT implemented** — `test_crosscheck_prolog.sh` drops
+from 132/0 (which was silently exercising the SM *interpreter* via the `--run` fallback) to
+**22/132** under true native. ZERO are NATIVE-GAP fallbacks — `sm_run_native` runs and returns 0 but
+produces empty/wrong output. **Root cause (confirmed):** the **MEDIUM_BINARY arm of
+`SM_BB_PL_INVOKE`** in `src/emitter/SM_templates/sm_bb_switch.cpp:247-248` is a bare no-op stub
+(`bytes(5,"\xE8\x00\x00\x00\x00")` — `call +0`). The full Prolog program entry (`pl_bb_env_push` +
+`walk_bb_flat` over the predicate's flat BB graph) exists ONLY in the MEDIUM_TEXT arm (line 249+).
+`sm_run_native` uses `EMIT_BINARY_WIRED` → MEDIUM_BINARY → the stub → no Prolog work runs. The 22
+"passes" are programs whose interp output is also degenerate/empty. (`--target=x86` mode-4 uses
+MEDIUM_TEXT assembly, which is why mode-4 corpus works; native in-process mode-3 uses MEDIUM_BINARY,
+which is the stub.)
+
+**NEXT — M3-PL-NOINTERP (the headline, multi-session, mirrors Raku M3-RK-NOINTERP arc).** Port the
+MEDIUM_TEXT flat Prolog entry into raw MEDIUM_BINARY bytes: env-push call (`mov edi,64; call
+pl_bb_env_push@PLT` → movabs+call in bytes), then drive `walk_bb_flat(pentry,&γ,&ω,&β)` in the WIRED
+medium (the BB_PL_* templates' MEDIUM_BINARY arms must be populated — bb_pl_seq/choice/call/unify/
+builtin etc.), then the γ-tail `rt_set_last_ok(1)`. This is the same work Raku did per-node in
+`bb_seq.cpp`/`bb_suspend.cpp`/`bb_iterate.cpp` (M3-RK-NOINTERP-1a..1d). Audit which BB_PL_* templates
+already have MEDIUM_BINARY arms (some do, from WAM-CP-5 mode-4 work) vs which are TEXT-only.
+Until then, mode-3 native for Prolog is a known stub and mode-2 (`--interp`) remains the correctness
+reference.
+
+**Mode-2 unaffected and authoritative:** GATE-1 5/5, GATE-3 m2 104/107, GATE-SWI 57/57 — all
+byte-identical. Prior B3 (`sumto(1e7)` O(1) heap) and WAM-CP-13 print/1 (mode-4 corpus 55/107) stand.
+
+**one4all commit:** `855cbee2`. (Prior code HEAD `2fae45ec` print/1; `0019cc7b` B3.)
+
+---
+
+## Prior HEAD (post-Opus-4.8-WAM-CP-13-PRINT1 + B3, 2026-05-29)
 
 **2026-05-29 Opus 4.8 (follow-on, one4all `2fae45ec`):** **WAM-CP-13 print/1 mode-4 emit ✅** —
 one-line widening of the MEDIUM_TEXT `write` arm in `src/emitter/BB_templates/bb_builtin.cpp` to
