@@ -64,6 +64,18 @@ verify against mode-2.
 
 **one4all commit:** `0f4fcfde`. (Prior: `855cbee2` mode-3 reporting; `2fae45ec` print/1; `0019cc7b` B3.)
 
+**Follow-on (`94bbd9eb`):** the two remaining `sm_interp_run` calls in `scrip.c`'s dispatch chain
+(the `has_non_sno` branch + the final default `else`) are UNREACHABLE (line ~135 forces mode_run=1
+when no flag is given, so the chain is exhaustive for the only reachable mode). They were dead code
+that nonetheless *called the SM interpreter* — a landmine if a future flag-resolution change ever
+routed into them. Both replaced with LOUD `abort()` + named `[MODE] FATAL` diagnostic. Decision
+recorded: at every fallback spot, **abort loudly, do NOT "fail normally" (rc 1)** — a clean failure
+is ambiguous with a legitimate program error, whereas SIGABRT with a named reason is unmistakable
+and leaves a core trail. The only legitimate `sm_interp_run` call left is under `--interp` (mode 2),
+which IS the SM interpreter by definition. Verified: `--interp` works; `--run`/default abort loudly
+for Prolog; SNOBOL4/Icon `--run` work; GATE-1 5/5, GATE-3 m2 104/107, GATE-SWI 57/57, siblings
+5/5/5/13, FACT 0.
+
 ---
 
 ## Prior HEAD (post-Opus-4.8-M3-NATIVE-REPORTING, 2026-05-29)
