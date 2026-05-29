@@ -138,3 +138,34 @@ runs instead.
 - Target newly-passing native: **056, 070-074, 108-115, 140-141, 147** (star_var, fence-via-var,
   eval-fn). Expect native 223 → ~235+.
 - Full gates: G1 13/13 (default+native), G3 184/280, G4 252/280, native ≥223, rung M2=19/M4=17, FACT 0.
+
+---
+
+## ATTEMPTS THAT ARE CONFIRMED INSUFFICIENT (same session, empirical — skip these)
+
+Both parts of the spec above were implemented and tested together; **nested deref still → NOMATCH**.
+All reverted; baseline intact (13/13 native). So there is a THIRD factor beyond the two-part spec.
+
+1. **Gate fix alone** (route XDSAR through translator): added `patnd_contains_defer` → OR'd into
+   `patnd_needs_xlate`; added `if (pp->kind == XDSAR) return 1;` to `patnd_tree_eligible`. Built clean.
+   Result: nested deref still NOMATCH in native. (The DEFER node now routes to the translator but its
+   empty MEDIUM_BINARY arm emits a broken box.)
+2. **Gate fix + DEFER flat MEDIUM_BINARY arm** (the exact flat-ABI bytes drafted earlier: movabs
+   varname + rt_defer_match, push r10/r11, test/js ω/writeback/jmp γ, β=jmp ω, POS-style sites
+   `{42,50,54,55}` `{ω,γ,β-def,ω}`). Built clean. Result: **STILL NOMATCH** in native (071 still `fail`).
+
+**Implication:** the remaining defect is NOT just the gate + DEFER box bytes. Candidates for the THIRD
+factor (next session, instrument before coding):
+- `patnd_to_bb_graph(XCAT(XPOSI,XDSAR))` may return NULL/no-entry → BROKERED path falls back to the
+  legacy `(BB_t*)pp` cast anyway (line ~388: `pp_bb = (pp_cfg && pp_cfg->entry) ? … : (BB_t*)pp`).
+  CHECK FIRST: does `build_patnd` produce a valid entry for XCAT with a DEFER child? Add a stderr at
+  the `pp_cfg->entry` branch to see whether the translator or the legacy cast is taken after the gate fix.
+- If the translated graph IS used, then `bb_build_brokered` over a multi-node CAT(POS, DEFER) graph may
+  mis-wire the DEFER child (brokered child ABI vs the flat bytes I emitted — the brokered builder wraps
+  with `push rbp;mov rbp,rsp` and may expect child boxes to use the rdi=ζ/esi=port/ret C-ABI, NOT the
+  flat r10/jmp ABI). If so the DEFER arm needs the BROKERED ABI specifically, not the flat one.
+- Verify `rt_defer_match` is actually CALLED (re-add the `PROBE_MV`-style fprintf inside rt_defer_match
+  itself). If it never fires, the box isn't reaching the call → build/wiring problem, not a bytes problem.
+
+The cheapest next diagnostic is the two stderr probes (translator-vs-cast branch; rt_defer_match entry).
+Those two prints localize the THIRD factor in one build, before any byte-level work.
