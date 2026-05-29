@@ -73,7 +73,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 - [ ] **RK-BB-4-frontend** — pending Q9-Q12.
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers; `zip`/`cross` = multi-Seq drivers (later).
-- [ ] **MODE3-NO-INTERP** — see `MODE3-DISPATCH-GAP.md`. Per-language ladder to remove `sm_interp_run` from `--run` path. Suggested order: Raku (this goal's responsibility), then Prolog, Snocone, Rebus. SNOBOL4 already has `SCRIP_M3_NATIVE`; flip the default. 20 mode-3 crashes to triage.
+- [ ] **MODE3-NO-INTERP** — see `MODE3-DISPATCH-GAP.md` (now with 2026-05-28 addendum). Per-language ladder to remove `sm_interp_run` from `--run` path. Suggested order: Raku (this goal's responsibility), then Prolog, Snocone, Rebus. SNOBOL4 already has `SCRIP_M3_NATIVE`; flip the default. **20 mode-3 crashes triaged into 3 clusters:** (1) 7 underflows from `SM_BB_INVOKE` `MEDIUM_BINARY` no-op stub at `sm_bb_switch.cpp:35-36` — architectural, ~1-2 sessions; (2) 7 SEGV-other needing per-opcode bisection — 3-5 sessions; (3) 6 regex — DEFERRED to GOAL-RAKU-PAT-BB. Latent bug noted: `sm_named_call.cpp:35` emits `movabs rax, 0; call rax` with no linker pass in `sm_run_native` — will trip first test that uses `SM_NAMED_CALL` in native mode.
 
 ## Rung methodology
 
@@ -113,7 +113,7 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 
 ```
 one4all: RK-CLASS done modes-2+4; mode-3 honest baseline established (uncommitted at hand off)
-.github: HEAD + MODE3-DISPATCH-GAP.md (new) + GOAL-RAKU-BB.md (updated)
+.github: HEAD + MODE3-DISPATCH-GAP.md (2026-05-28 addendum: 20-crash triage by cluster + root-cause loci) + GOAL-RAKU-BB.md (MODE3-NO-INTERP rung now backed by triage)
 corpus:  unchanged
 
 GATE-RK   mode-2:                23/33  (+1 rk_class26)
