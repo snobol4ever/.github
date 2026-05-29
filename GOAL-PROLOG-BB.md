@@ -58,7 +58,8 @@ mode-3 native + mode-4 emit printed `_` (result var never bound); mode-2 correct
 108/111, GATE-4 4/4, GATE-SWI 57/57, FACT arm1 0 / arm2 12, siblings icon/raku/snobol4 5/5/13.
 **NEXT:** findall/3 (own protocol — `nd->ival` is `bb_pl_findall_state_t*`, not arity; needs a
 dedicated mode-3/4 path, emit the goal sub-graph inline or route specially). Other small mode-4 gaps:
-retract/retractall (the PL-RT-ASSERTZ mutable-store boundary), abolish/1 (rung15).
+retract/retractall (the PL-RT-ASSERTZ mutable-store boundary), abolish/1 (rung15). Handoff
+`HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRK789.md`.
 
 ---
 
