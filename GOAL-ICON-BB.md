@@ -16,8 +16,37 @@ Canonical 5 programs: `hello.icn` (`write("hello")`), `add.icn` (`write(1+2)`), 
 | Mode | Path | Canonical-5 | Full corpus |
 |------|------|-------------|-------------|
 | 2 (`--interp`) | `bb_exec_once` (C tree-walker over BB graph) | **5 / 5** | **200 / 283** (unchanged) |
-| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **4 / 5** — hello.icn ✅ + add.icn ✅ + every_to.icn ✅ + alt.icn ✅ (all byte-identical to mode 2); full.icn aborts at BB_BINOP_GEN driver gap | not run |
+| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **5 / 5** — hello.icn ✅ + add.icn ✅ + every_to.icn ✅ + alt.icn ✅ + full.icn ✅ (all byte-identical to mode 2) | not run |
 | 4 (`--compile`) | deferred per Lon directive ("complete pass at very end") | `hello.icn` passes (commit `f387a7b9`) | not run |
+
+## Session 2026-05-28 follow-up-4: IBB-6 full.icn LANDED — canonical-5 mode-3 5/5 (Sonnet 4.6, one4all `3aa200cd`)
+
+**Canonical-5 mode-3 advances 4/5 → 5/5.** `full.icn` (`every write(5 > ((1 to 2) * (3 to 4)))`) closes.
+
+**Root problem diagnosed:** vstack is transient — `rt_arith`/`rt_acomp` consume both lhs and rhs values on each apply call. On β-retry, the values are gone; naively routing β to rhs_β to advance rhs and re-enter apply leaves the stack empty (underflow). Mode-2 avoids this by caching values in `bb->α->value` and `bb->β->value` per-node between advances.
+
+**Solution:** cache scheme using BB_BINOP_GEN's own fields. `pBB->counter` holds the lhs cached int64 value; `pBB->value.i` holds the rhs cached int64 value. Two new runtime helpers in `rt.c`: `rt_pop_store_i64(int64_t *slot)` (pop vstack, store to slot) and `rt_push_stored_i64(const int64_t *slot)` (push slot value onto vstack). Both declared in `rt.h`.
+
+**Template slab (bb_binop_gen.cpp MEDIUM_BINARY).** Five EMIT_PAIR entries from driver:
+- pair[0] = DEF_JMP(lhs_store, lhs_seeded): defines `lhs_store` label in slab; emits `rt_pop_store_i64(&pBB->counter)` + `jmp lhs_seeded` (= rhs slab α re-entry to re-seed rhs after lhs advances)
+- pair[1] = DEF_JMP(rhs_store, rhs_store): defines `rhs_store`; emits `rt_pop_store_i64(&pBB->value.i)`; falls into apply
+- pair[2] = JMP(outer_γ): apply success target
+- pair[3] = JMP(rhs_β): relop fail → advance rhs
+- pair[4] = DEF_JMP(lbl_β, rhs_β): BINOP_GEN's own β-define; jmps rhs_β on re-pump
+
+Apply section: `rt_push_stored_i64(&pBB->counter)` + `rt_push_stored_i64(&pBB->value.i)` + `rt_arith`/`rt_acomp` + jmp outer_γ (arith) or relop retry path.
+
+**Driver (flat_drive_binop_gen_tree in emit_bb.c).** Allocates five labels, walks lhs with `γ=lhs_store, ω=outer_ω, β=lhs_β`; defines `lhs_seeded`; walks rhs with `γ=rhs_store, ω=lhs_β, β=rhs_β`; queues five EMIT_PAIRS; EMIT_PAIR_FILL.
+
+**BB_CALL wiring.** `is_write_intexpr` in `bb_call.cpp` extended to include `BB_BINOP_GEN`. `walk_bb_flat` BB_CALL dispatch and `walk_bb_flat` `case BB_BINOP_GEN` added.
+
+**Results:**
+- `every write((1 to 2) * (3 to 4))` → `3\n4\n6\n8\n` byte-identical m2 vs m3 ✅
+- `every write(5 > ((1 to 2) * (3 to 4)))` → `3\n4\n` byte-identical m2 vs m3 ✅
+
+**Gates HOLD:** smoke_icon 5/5, smoke_prolog 5/5, broker 39/14. FACT=0.
+
+**Files touched:** `src/emitter/BB_templates/bb_binop_gen.cpp` (+130/-7), `src/emitter/emit_bb.c` (+57/-4), `src/emitter/BB_templates/bb_call.cpp` (+4/-2), `src/runtime/rt/rt.c` (+14), `src/runtime/rt/rt.h` (+2).
 
 ## Session 2026-05-28 follow-up-3: IBB-5 alt.icn LANDED (Opus 4.7, one4all `1a97c0a3`)
 
