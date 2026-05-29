@@ -9,15 +9,59 @@
 
 ---
 
-## Ground-zero score (2026-05-28, Opus 4.7 follow-up, one4all `6393c743`)
+## Ground-zero score (2026-05-28, Sonnet 4.6 follow-up, one4all `fac53504`)
 
 Canonical 5 programs: `hello.icn` (`write("hello")`), `add.icn` (`write(1+2)`), `every_to.icn` (`every write(1 to 3)`), `alt.icn` (`every write(1 | 2 | 3)`), `full.icn` (`every write(5 > ((1 to 2) * (3 to 4)))`).
 
 | Mode | Path | Canonical-5 | Full corpus |
 |------|------|-------------|-------------|
 | 2 (`--interp`) | `bb_exec_once` (C tree-walker over BB graph) | **5 / 5** | **200 / 283** (unchanged) |
-| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **2 / 5** — hello.icn + add.icn PASS (byte-identical to mode 2); every_to/alt/full abort at `flat_drive_every` gap | not run |
+| 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **3 / 5** — hello.icn ✅ + add.icn ✅ + every_to.icn ✅ (byte-identical to mode 2); alt.icn aborts at `flat_drive_alt_icn` (needs counter-state dispatch slab); full.icn aborts at BB_BINOP_GEN driver gap | not run |
 | 4 (`--compile`) | deferred per Lon directive ("complete pass at very end") | `hello.icn` passes (commit `f387a7b9`) | not run |
+
+## Session 2026-05-28 follow-up-2: IBB-4 every_to LANDED + BB_ALT plumbing (Sonnet 4.6, one4all `fac53504`)
+
+**Canonical-5 mode-3 advances 2/5 → 3/5.** `every_to.icn` (`every write(1 to 3)`) closes via the prior session's localized one-line fix in `bb_to.cpp` MEDIUM_BINARY: `bin.sites` reordered from `{fail_off+2=64, succ_off+1=84, back_off=19}` (NON-ascending — broke `bb_emit_asm_result`'s ascending-walk patching loop) to ascending `{back_off=19, fail_off+2=64, succ_off+1=84}` with matching label/define-flag reorder. Output now prints `1\n2\n3\n` byte-identical to mode-2.
+
+**BB_ALT plumbing landed** (clean atomic value, separate from canonical-5 fix). Five files, baseline-neutral for everything except alt.icn (which is still ABORT but now at a precisely-named site instead of silent no-op):
+- `Makefile`: `bb_alt.cpp` added to sources list (line ~108) + compile recipe (line ~314). Was a source-tree file with NO build artifact — `bb_alt` symbol was undefined, but dispatch never reached it because:
+- `emit_core.c:563`: `case BB_ALT:` was falling through to `bb_limit(nd)` via shared `bb_limit` cluster. Now splits out cleanly: `BB_ALT → bb_alt(nd)`. `BB_SIZE/BB_CASE/BB_LIMIT` cluster retains `bb_limit` dispatch.
+- `bb_templates.h`: `void bb_alt(BB_t *)` declaration added.
+- `bb_alt.cpp` MEDIUM_BINARY: bin extended from 2-site `{1,6}` `{γ_p,ω_p}` to 3-site `{1,5,6}` `{γ_p,β_p,ω_p}` with β-define entry. Was missing β entirely — would have caused unresolved forward reference on any β-fed caller.
+- `emit_bb.c`: new `flat_drive_alt_icn` driver + `case BB_ALT:` in `walk_bb_flat`. Currently aborts loudly with precise next-step doc.
+
+**One-line blocker for alt.icn mode 3 → ARCHITECTURAL** (not yet authored; precisely scoped):
+
+`flat_drive_alt_icn` needs an **emitted counter-state dispatch slab** because BB_ALT mode-3 has no other way to know which arm to try next on EVERY-driven re-pump. Mode-2 `bb_exec.c:1720` uses `bb->counter` for this; the flat-wired equivalent needs the same idea in emitted x86:
+
+```
+α_entry:   movabs rcx,&pBB->counter ; mov qword[rcx],0 ; jmp dispatch
+β_entry:   movabs rcx,&pBB->counter ; add qword[rcx],1                ; ← arg_β resolves here
+dispatch:  movabs rcx,&pBB->counter ; mov rax,[rcx]
+           ; for each arm i: movabs rdx,i ; cmp rax,rdx ; je arm[i]_α
+           jmp lbl_ω                                                  ; exhausted
+arm[0]_α:  ...arm[0] template bytes (BB_LIT_I: push ival; jmp γ; β: jmp ω where ω = unused/safety jmp ω)
+arm[1]_α:  ...
+arm[n-1]_α: ...
+```
+
+Per FACT RULE the dispatch + counter init/inc + cmp/je bytes live in a template. Two options:
+1. **Fold into bb_alt.cpp**: emit init+jmp-dispatch at α-entry, inc at β-entry, dispatch table, then walk arms via `walk_bb_flat` in between. EMIT_PAIR queue carries arm entry labels for the je's. Cleanest; one template.
+2. **New `bb_alt_dispatch.cpp`**: dispatch slab only, driver mints arm labels + walks arms separately. More modular but two coupled templates.
+
+Empirically validated: with the (now reverted) experimental SNOBOL4-pattern-style chain wiring (no counter), alt.icn yields exactly `1` then exits cleanly — confirms single-arm-yield works, re-pump can't advance. SNOBOL4 pattern alt's chain trick works there only because pattern matchers carry their own cursor state; Icon literal arms have none.
+
+**Other canonical-5 gap (unchanged):**
+- `full.icn` (`every write(5 > ((1 to 2) * (3 to 4)))`): arg0 is `BB_BINOP_GEN` (kind 84 post-removal). `bb_call.cpp` is_write_intexpr doesn't include BB_BINOP_GEN. Also needs a driver to walk the two operand sub-trees (each `BB_TO` here) in cross-product fashion and apply `*`/`>` via `rt_arith` (BINOP_GEN's `ival` encodes the op the same way as BB_BINOP).
+
+**Mode-3 abort map** (each gap names the precise next step):
+- `hello.icn` → ✅ PASS via `6393c743`
+- `add.icn` → ✅ PASS via `e612d519` (BB_LIT_I push + bb_binop + flat drivers; vstack convention)
+- `every_to.icn` → ✅ PASS via `fac53504` (bin-site reorder fix)
+- `alt.icn` → ABORT `flat_drive_alt_icn` — needs counter-state dispatch slab (folded into bb_alt.cpp or new bb_alt_dispatch.cpp)
+- `full.icn` → ABORT — BB_BINOP_GEN dispatch in `bb_call` int_expr + new `flat_drive_binop_gen_tree` driver
+
+**Gates HOLD:** smoke_icon 5/5, smoke_prolog 5/5, smoke_raku 5/5, smoke_snobol4 13/13, smoke_unified_broker 39/14. Icon crosscheck 2/2 PASS (was 1/3 baseline; `every_to` flipped FAIL → PASS, `if_expr --run` pre-existing FAIL via `flat_drive_binop_tree: missing α or β child` — NOT a regression; verified by git-stashing changes and re-running). FACT-RULE: zero new byte emission outside templates.
 
 ## Session 2026-05-28 follow-up: IBB-4 WIP + housekeeping (Opus 4.7, one4all `057bc824`)
 
