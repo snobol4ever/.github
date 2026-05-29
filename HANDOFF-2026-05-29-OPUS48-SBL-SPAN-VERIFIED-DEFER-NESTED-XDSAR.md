@@ -89,3 +89,52 @@ value + `exec_stmt` outcome against the m2 path. Likely candidates, in order:
 3. The brokered translation `patnd_to_bb_graph` of XCAT-over-XDSAR under the native call sequence.
 This unblocks a large cluster: 056, 070-074 (star_var), 108-115 (fence-via-var also routes through
 deferred name resolution), 140-141 (eval-fn tricks), 147 — collectively the biggest native-only group.
+
+---
+
+## ROOT CAUSE FOUND (same session, continued) — supersedes the "dig order" above
+
+Probe (`PROBE_MV` fprintf in `rt_match_variant`, reverted) revealed:
+- **m2 never calls `rt_match_variant`.** Mode-2's `SM_EXEC_STMT` handler (`sm_interp.c:582`) uses a
+  **pre-lowered BB graph**: `pat_bb = a[2].i>=0 ? bb_table[a[2].i] : NULL; if (pat_bb) ok =
+  bb_exec_pat(pat_bb,…)`. `bb_exec_pat` is a mode-2-only C BB walker (forbidden in modes 3/4 by RULES).
+  So m2 matches the nested XDSAR via the statically-lowered graph and succeeds.
+- **m3 native calls `rt_match_variant` → `exec_stmt`**, which returns **ok=0** (pat.v=3=DT_P, Σ/Σlen
+  correct). Mode-3 cannot use `bb_exec_pat`; it must build+match the *dynamic* PATND on the vstack.
+
+The dynamic build fails because of the **translator-eligibility gate** in `stmt_exec.c`:
+- BROKERED mode (the no-flag + SCRIP_M3_NATIVE default — `scrip.c:155-161` sets bb_driver→BROKERED):
+  `patnd_needs_xlate(pp)` (`stmt_exec.c:301`) = `contains_arbno || is_simple_atom ||
+  is_capture_wrapped_safe`. For `XCAT(XPOSI, XDSAR)` all three are false → `pp_cfg=NULL` →
+  `pp_bb = (BB_t*)pp` — **the legacy PATND→BB cast that misreads opcodes** (documented at
+  `stmt_exec.c:237`) → garbage box → no match.
+- LIVE mode (`--run` forces it, though plain `--run` today still falls to sm_interp): the gate is
+  `patnd_is_combinator_root` → `patnd_tree_eligible` (`stmt_exec.c:271`). XDSAR is NOT in its switch
+  → `default: return 0`, so any XCAT/XOR/XFNCE *containing* an XDSAR child is rendered ineligible →
+  same legacy-cast fallback.
+
+`build_patnd` (`lower_pat_dcg.c:468`) DOES translate XDSAR → `BB_PAT_DEFER` correctly. The problem is
+purely that the gate refuses to *invoke* the translator for XDSAR-bearing trees, so the legacy cast
+runs instead.
+
+### The fix is two-part (both required; neither alone suffices)
+1. **Gate** (`stmt_exec.c`): add `patnd_contains_defer(pp)` (mirror `patnd_contains_arbno`) and OR it
+   into `patnd_needs_xlate` (BROKERED). Add `case XDSAR: return 1;` to `patnd_tree_eligible` (LIVE)
+   — or add XDSAR to `patnd_is_simple_atom` (it lowers to a leaf BB_PAT_DEFER box, atom-like). This
+   routes XDSAR trees to `patnd_to_bb_graph`/`patnd_to_bb_tree` → real `BB_PAT_DEFER` node.
+2. **DEFER box bytes** (`bb_pat_defer.cpp`): the `MEDIUM_BINARY` arm is **empty** (returns ""). Under
+   `bb_build_brokered` (EMIT_BINARY_BROKERED) and `bb_build_flat` (EMIT_BINARY_WIRED) the node hits
+   that empty arm → no bytes → broken box. Implement it. NOTE the ABI differs by mode:
+   - BROKERED (`emit_bb.c:1217`, `codegen_flat_body` after `push rbp;mov rbp,rsp`): C-ABI box,
+     rdi=ζ, esi=port, `ret`. The TEXT arm's logic (call rt_defer_match(varname,ival,Δ); test; js ω;
+     writeback; γ) must be expressed in the brokered byte ABI, not flat jmp-threading.
+   - WIRED (flat): r10=&Δ, jmp γ/ω. (My earlier flat draft — reverted — had this shape and is a
+     correct starting point for the WIRED arm; redo per the brokered ABI for the BROKERED arm.)
+
+### Validation checklist for the fix
+- Must NOT regress the 6 tests the `stmt_exec.c:237` comment warns about: **146, 147, 152, 1011,
+  1013, 1017** (fence-heavy / capture-heavy PATND trees that the legacy cast was "compensating" for).
+  Run these in m2, m4, and native after the change.
+- Target newly-passing native: **056, 070-074, 108-115, 140-141, 147** (star_var, fence-via-var,
+  eval-fn). Expect native 223 → ~235+.
+- Full gates: G1 13/13 (default+native), G3 184/280, G4 252/280, native ≥223, rung M2=19/M4=17, FACT 0.
