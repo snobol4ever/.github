@@ -28,6 +28,32 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-J-4, 2026-05-29 — Opus 4.8)
+
+**2026-05-29 Opus 4.8: PLR-J-4 LANDED — native multi-predicate dispatch.** PLR-J-4a
+(`bb_pl_call.cpp` MEDIUM_BINARY call protocol) + PLR-J-4b (callee-block sweep in the
+`SM_BB_PL_INVOKE` BINARY arm) in lockstep, + new infra `emit_label_intern` (cross-block label
+linkage, zero x86 bytes). **Multi-predicate single-clause Prolog programs now run natively in
+mode-3** (`--run`) — the DEFER GUARD that aborted any >1-predicate program is gone. 4 files
+(+237/-10): two templates (FACT-clean byte producers) + `emit_core.c/.h` (pure infra). The
+`bb_pl_call` BINARY arm is a byte twin of its TEXT arm: build/push caller args, `pl_bb_env_save_push`,
+bind callee slots, `call .Lplpred_<name>_<arity>` (cross-block forward ref resolved via the interned
+`bb_label_t*` the callee sweep defines), test `rt_last_ok` → γ/ω with `rt_pl_cp_save_caller_env`, β
+redo reading `cp->env`[+24]/`cp->saved_args`[+40] (offsets verified). The SM sweep emits every other
+predicate's flat block into the SAME scratch buffer so `bb_emit_end` resolves the cross-block patches.
+Also fixed a latent entry-β bug (`.Lplent_β` never defined → abort on any resumable entry body; now
+`jmp plω`). **MULTI-CLAUSE GUARD** (PLR-J-5 boundary): a BB_CHOICE-headed predicate bails HONESTLY
+(`g_sm_native_unsupported`) since `bb_pl_choice.cpp` BINARY is still a double-jump stub. 3-mode AGREE
+verified: a→b→c chain → `chained`; dbl/dbl thread → `20`; calc(X,Y,R) → `33`; echo2(11,22) → `11/22`.
+**Pre-existing orthogonal bug found (NOT PLR-J-4):** mode-3 native nested-`is` (`R is 3*10+4` → `6`
+not `34`, confirmed at baseline `1aa0b3c5` with changes stashed). **Gates byte-identical:** GATE-1
+5/5, GATE-2 11 PASS/121, GATE-3 m2 104/107, GATE-4 4/4, GATE-SWI 57/57, FACT 0/12, siblings
+icon/raku/snobol4 5/5/13. **NEXT: PLR-J-5** (BB_CHOICE BINARY arm — removes the multi-clause guard,
+unblocks recursive/multi-clause predicates, the bulk of the 121 open mode-3 crosscheck failures).
+Handoff `HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRJ4-CALLEE-DISPATCH.md`.
+
+---
+
 ## State at HEAD (post-PLR-J-2, 2026-05-29 — one4all `751c5f10`)
 
 **2026-05-29 Opus 4.8: PLR-J-2 LANDED — explicit per-node resume predicate.** `lower_pl.c` only,
@@ -1366,17 +1392,23 @@ arms.
   Type-test BB_PL_STRUCT compound arg (`is_list([1,2,3])`) still honest-abort-guarded — wires the
   `rt_pl_type_test_term` helper which this rung did not touch (follow-up, not corpus-blocking).
 
-- [ ] **PLR-J-4 — callee-block sweep in `SM_BB_PL_INVOKE` BINARY arm (irgen.icn `ir_a_ProcBody`
-  + `ir_make_sentinel`, F5).** Port the TEXT callee-block loop (`sm_bb_switch.cpp` ~376-418, via
-  `pl_emit_callee_block_body`) into the 1a BINARY arm, emitting all callee blocks into the SAME
-  scratch buffer as the entry so `bb_emit_end()` resolves the cross-block `call .Lplpred_*` and
-  `_redo → β` patches. PRECONDITION: the `bb_pl_call.cpp` MEDIUM_BINARY arm is currently a
-  double-jump stub (lines 39-43) — it must be ported in lockstep (the entry emits the block, the
-  call site must actually `call` it). Remove the M3-PL-NOINTERP-1a `others>0` DEFER GUARD only when
-  both halves land. Unblocks EVERY multi-predicate program (rung02/05/06/08…). Gate: `rung02_facts`
-  + `rung08_recursion` mode-3 byte-match mode-2; the 10 existing PASS unaffected; FACT 0. Largest
-  rung — split into PLR-J-4a (port `bb_pl_call` binary call protocol) and PLR-J-4b (callee sweep
-  + drop guard) if a session can't hold both.
+- [x] **PLR-J-4 — callee-block sweep in `SM_BB_PL_INVOKE` BINARY arm (irgen.icn `ir_a_ProcBody`
+  + `ir_make_sentinel`, F5). LANDED (Opus 4.8, 2026-05-29).** PLR-J-4a (`bb_pl_call.cpp` BINARY call
+  protocol — byte twin of the TEXT arm: build/push args, `pl_bb_env_save_push`, bind slots,
+  `call .Lplpred_<name>_<arity>`, test `rt_last_ok` → γ/ω + CP caller-env save, β redo path reading
+  `cp->env`[+24]/`cp->saved_args`[+40]) + PLR-J-4b (callee-block sweep into the SAME scratch buffer
+  the entry walk uses; DEFER GUARD removed) landed in lockstep. New cross-block-linkage primitive
+  `emit_label_intern(name)` in `emit_core.c/.h` (pure infra, zero x86 bytes): same name → same
+  `bb_label_t*` so the call site and callee-def site share one label that `bb_label_define` resolves
+  by pointer identity. Also fixed a latent entry-β bug (`.Lplent_β` was passed to `walk_bb_flat` but
+  never defined → `bb_emit_end` abort on any resumable entry body; now `plβ: jmp plω`). MULTI-CLAUSE
+  GUARD added (PLR-J-5 boundary): a BB_CHOICE-headed predicate (entry or callee) bails HONESTLY
+  (`g_sm_native_unsupported`) since `bb_pl_choice.cpp` BINARY is still a stub. **Multi-predicate
+  single-clause programs now run natively in mode-3** (3-mode AGREE: a→b→c chain, dbl/dbl thread,
+  calc(X,Y,R), echo2). FACT 0/12; gates byte-identical (G1 5/5, G2 11/121, G3 m2 104/107, G4 4/4,
+  GATE-SWI 57/57, siblings 5/5/13). Found pre-existing orthogonal bug: mode-3 native nested-`is`
+  (`R is 3*10+4`→`6` not `34`, confirmed at baseline `1aa0b3c5`). Handoff
+  `HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRJ4-CALLEE-DISPATCH.md`.
 
 - [ ] **PLR-J-5 — `BB_CHOICE` as `ir_a_Alt` transliteration + gprolog retry/trust ordering
   (irgen.icn `ir_a_Alt` 167-199, F6).** Lower `BB_CHOICE` clause iteration as a direct
