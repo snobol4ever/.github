@@ -126,7 +126,7 @@ Transcription rule: re-express through `SM_templates/*.cpp` MEDIUM_BINARY arms, 
     4. Validate on the two known-good probes: `050_pat_alt_two` (expected `dog`) and `055_pat_concat_seq` (expected `ab cd ef`) under `--run SCRIP_M3_NATIVE=1`.
     5. Run all five gates; expect mode-2 unchanged (option a) or up (option b), and native climbs from 165 toward the SBL-EP-BINARY ceiling.
 
-    **Blocker before broad corpus retry:** the M3-NATIVE audit currently FAILs because six combinator templates (`bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence`, `bb_pl_seq`, `bb_pl_ite`, `bb_succeed`) were stripped of EP-walk byte production by Prolog FACT-cleanup commit `88bacd2a`. Those arms now register as FAKE-JMP STUB. Restoring them (per the FACT-correct pattern recorded in 2026-05-28 Opus 4.7 SBL-EP-BINARY entry: duplicate the EP-walk + byte-emit loop inline in each of the six template files — no shared helper) is a prerequisite to a meaningful corpus retry.
+    **Blocker before broad corpus retry:** ~~the M3-NATIVE audit currently FAILs because six combinator templates~~ **CLEARED ✅** by Opus 4.7 `df8e6126` (2026-05-28). Five combinator templates restored to FACT-correct inline EP-walk shape. `audit_m3_native_binary_arms.sh` GATE OK. Remaining prerequisite before the `patnd_to_bb_tree` retry: the XNME/XFNME varname plumbing bug discovered this session — see session log entry below for full diagnosis + fix sketch. Fix is local to `pat_assign_imm/cond` (populate `STRVAL_fn` from NAMEVAL `.s` OR via `NV_NAME_fn(cell)` reverse-lookup for NAMEPTR), behavior-neutral with current routing. Land that, then `patnd_to_bb_tree`, then validate 050/055 native.
 
     The previous session's diagnosis text below — recorded before the arena landed — remains accurate about the *graph-shape* issue (Prerequisite #1); the *label-lifetime* concern (Prerequisite #2) is now closed.
 
@@ -263,10 +263,10 @@ LIT, LEN, POS, UPTO (ref). ANY, NOTANY, BREAK (plain), CAPTURE — all VERIFIED-
 ## Session State
 
 ```
-HEAD one4all       = 744ae342 (label arena landed)
+HEAD one4all       = df8e6126 (SBL-EP-BINARY restore — 5 combinator templates)
 HEAD .github       = (this commit)
 GATE-1 smoke       = 13/13     (also 13/13 under SCRIP_M3_NATIVE=1)
-GATE-2 broker      = 36        (sibling-influenced)
+GATE-2 broker      = 37        (sibling-influenced)
 GATE-3 mode-4      = 175/280
 GATE-4 mode-2      = 237/280
 NATIVE corpus      = 165/280
@@ -276,17 +276,15 @@ Raku smoke         = 5/5
 Icon smoke         = 5/5
 Rebus smoke        = 4/4
 FACT RULE          = 0
-audit_m3_native    = GATE FAIL (NOT caused by 744ae342 — surfaced after rebase against
-                     concurrent Prolog FACT-cleanup work that stripped EP-walk byte
-                     production from six combinator templates. Separate fix required.
-                     My arena commit is purely additive, all gates byte-identical at
-                     moment of commit.)
+audit_m3_native    = GATE OK   (was FAIL pre-session — fixed by this commit)
 GATE-PK            = stale (re-freeze deferred)
 ```
 
 ---
 
 ## Session log (terse, last few only)
+
+- **2026-05-28 Opus 4.7 — SBL-EP-BINARY restore ✅** (one4all `df8e6126`). audit_m3_native GATE FAIL → GATE OK. Five combinator templates (`bb_pat_alt`, `bb_pat_cat`, `bb_pl_seq`, `bb_pl_ite`, `bb_succeed`) had their MEDIUM_BINARY EP-walk byte production stripped by `88bacd2a` (Prolog FACT cleanup); restored to FACT-correct inline shape — `_str(BB_t*, bb_bin_t&)`, loop walks `g_emit.xa_bb_emit_pair_*[]` emitting both bytes (`\xE9 + u32le(0)` for each `jmp`, zero bytes for each `define`) AND populating `bin.sites/labels/is_def` inline. Duplication is the point per RULES.md FACT entry. Wrapper reverts to `bb_emit_asm_result(str, bin)`. `bb_emit_asm_result_pairs()` left in `emit_str.cpp` (unused, FACT-clean — removal is housekeeping). All gates byte-identical to pre-session watermark: G1=13/13 default+native, G2=37, G3=175/280, G4=237/280, native=165/280, rungs M2=19 M4=15, sister smokes prolog/raku/icon 5/5 + rebus 4/4, FACT=0. **Investigation note (NOT committed):** attempted `patnd_to_bb_tree` + combinator-root dispatch — revealed latent XNME/XFNME varname bug. `NV_PTR_fn` always creates the cell on first lookup, so `NAME_fn(varname)` always returns `NAMEPTR(cell)` (not `NAMEVAL(varname)`); legacy `build_patnd` XNME/XFNME fallback reads `var.s` which for NAMEPTR is the cell pointer reinterpreted as `char*` (garbage, first byte happens to be 0) → `bb->sval=""` → bb_capture honest-skip → undefined `lbl_β` → `bb_emit_end` abort. Fix is local to `pat_assign_imm/cond` + a new `NV_NAME_fn(cell)` reverse-lookup in `snobol4.c` — full sketch in `HANDOFF-2026-05-28-OPUS-SBL-EP-BINARY-RESTORE.md`. Bug is **pre-existing latent** (XCAT roots never went through `patnd_to_bb_graph` before, so STRVAL_fn was never read); combinator flat-wire would surface it immediately. Recommended NEXT: land XNME varname fix first (behavior-neutral with current routing), THEN re-attempt `patnd_to_bb_tree` + `patnd_needs_xlate` extension. Validate on 050_pat_alt_two/055_pat_concat_seq native.
 
 - **2026-05-28 Opus 4.7 — label arena landed ✅** (one4all `744ae342`). Pure-infrastructure prerequisite for the next M3-NATIVE-4 attempt. New `emit_label_alloc(fmt, ...)` in `emit_core.{h,c}` returns a heap-backed `bb_label_t *` with stable address across the entire emit session; pool freed and reset by `bb_emit_begin()`. Migrated all six flat drivers in `emit_bb.c` off stack-local `bb_label_t`/`alloca` arrays: `flat_drive_cat` / `_alt` / `_fence` / `_pl_seq` / `_pl_choice` / `_pl_alt` / `_pl_ite` (+ standalone `exit_γ` in pl_choice). Refined diagnosis of prior session's "dangling label" claim: trace shows current AST/SM-built combinator graphs survive only by leaf-self-definition of β (e.g. `bb_lit.cpp` line 18 has `is_def[3]=true` at site 109 = `_.lbl_β_p`), which resolves and removes patches before stack unwinds; the bug surfaces only when combinators nest deeply enough that a β stays live across a driver return — which is exactly what `patnd_to_bb_tree` would have done. Plus `alloca` arrays reused across nested calls would silently corrupt label name strings. Arena eliminates both modes. Behavior-neutral: all baseline gates byte-identical (G1=13/13 default+native, G2=36, G3=175/280, G4=237/280, native=165/280, rungs M2=19/M4=15, Prolog/Raku/Icon smokes 5/5, Rebus 4/4, FACT=0). Pure infrastructure — zero x86 bytes produced, FACT RULE n/a. **NEXT:** with stable labels in place, re-attempt `patnd_to_bb_tree` (emit_sm.c-shaped graphs with `pat_set_children`) + extend `patnd_needs_xlate` to combinator roots. Validate on 050_pat_alt_two / 055_pat_concat_seq native (expected: "dog" / "ab cd ef"). **Note:** audit_m3_native gate currently FAIL due to concurrent Prolog FACT-cleanup commit (`88bacd2a`) that stripped EP-walk byte production from six combinator templates — separate fix needed before broad corpus retry, unrelated to arena work.
 
