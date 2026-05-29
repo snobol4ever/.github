@@ -48,7 +48,8 @@ icon/raku/snobol4 5/5/13. **NEXT: PLR-J-4** (callee-block sweep in `SM_BB_PL_INV
 double-jump stub; unblocks all multi-predicate programs, the largest single win for the 121 open
 mode-3 crosscheck failures; split into PLR-J-4a port the call protocol / PLR-J-4b callee sweep + drop
 the DEFER GUARD if one session can't hold both) or PLR-J-5 (BB_CHOICE as ir_a_Alt + gprolog
-retry/trust ordering — depends on PLR-J-2 ✅ and PLR-J-4).
+retry/trust ordering — depends on PLR-J-2 ✅ and PLR-J-4). Handoff
+`HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRJ0-AND-PLRJ2.md`.
 
 ---
 
