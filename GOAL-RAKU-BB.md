@@ -122,7 +122,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 ### Phase 1 — NFA leaf, core single-pattern (RK-NFA-1..5) — IN FLIGHT
 Tracked in the RK-NFA rungs above (1a–1e ✅, 4 SCAFFOLD ✅). Restated here as the ladder's first phase:
-- [ ] **G1-1** RK-NFA-4 — **S1✅ + S2✅ + S3 (L1 atom)✅ — `/x/` GREEN in mode-4** (Opus 4.8, 2026-05-29). **S1** (one4all `c8aeb90d`): gated `~~`→`SM_BB_INVOKE` over the isolated BB_NFA_* graph, default OFF (`RK_NFA_BB`). **S2+S3** (one4all `57ec5cea`): first runnable atom L1 `/x/`~"x" green in mode-4 (MEDIUM_TEXT) via the EMITTED isolated slab — byte-identical to the C matcher (match / miss / leftmost-offset `"abcx"`→pos 3). The contract's `walk_bb_flat` S2 was WRONG; the node-keyed NFA walker lives in the **`sm_bb_switch.cpp` SM_BB_INVOKE MEDIUM_TEXT arm** (subject-pop-from-vstack + leftmost sweep + r12/r13/r14/r15 save/restore, per-node label wiring), with leaf bytes in `bb_nfa.cpp` (`bb_nfa_char`/`bb_nfa_accept`). Default gates HOLD (m2 41/42, m4 42/42, m3 41/42 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0). REMAINING for G1-1: the rest of the L2-L12 leaves (`bb_nfa_any`/`class`/`bol`/`eol`/`split`), then captures (RK-NFA-3, L13-L15), then mode-3 BINARY (RK-NFA-5), then flip default (G1-3). Repro: `RK_NFA_BB=1 bash scripts/run_raku_via_x86_backend.sh FILE.raku`.
+- [ ] **G1-1** RK-NFA-4 — **S1✅ + S2✅ + S3 (L1 atom)✅ — `/x/` GREEN in mode-4** (Opus 4.8, 2026-05-29). **S1** (one4all `c8aeb90d`): gated `~~`→`SM_BB_INVOKE` over the isolated BB_NFA_* graph, default OFF (`RK_NFA_BB`). **S2+S3** (one4all `57ec5cea`): first runnable atom L1 `/x/`~"x" green in mode-4 (MEDIUM_TEXT) via the EMITTED isolated slab — byte-identical to the C matcher (match / miss / leftmost-offset `"abcx"`→pos 3). The contract's `walk_bb_flat` S2 was WRONG; the node-keyed NFA walker lives in the **`sm_bb_switch.cpp` SM_BB_INVOKE MEDIUM_TEXT arm** (subject-pop-from-vstack + leftmost sweep + r12/r13/r14/r15 save/restore, per-node label wiring), with leaf bytes in `bb_nfa.cpp` (`bb_nfa_char`/`bb_nfa_accept`). Default gates HOLD (m2 41/42, m4 42/42, m3 41/42 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0). REMAINING for G1-1: the rest of the L2-L12 leaves (`bb_nfa_any`✅`/bol`✅`/eol`✅ landed one4all `a0346ec5`; still `bb_nfa_class` 32-byte cset + `bb_nfa_split` the `*`/`+`/`||` fork — SPLIT needs its β=out2 label threaded in `nfa_text_box`), then captures (RK-NFA-3, L13-L15), then mode-3 BINARY (RK-NFA-5), then flip default (G1-3). Repro: `RK_NFA_BB=1 bash scripts/run_raku_via_x86_backend.sh FILE.raku`.
 - [ ] **G1-2** RK-NFA-5 — `~~` onto the emitted slab in mode-3 native.
 - [ ] **G1-3** mode-4 `~~` default flip to BB once G1-1+G1-2 green (retire the C-matcher fallback behind `RK_NFA_BB`).
 
@@ -229,6 +229,21 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+RK-NFA-4 / G1-1 — bb_nfa_any/bol/eol leaves landed (Opus 4.8, 2026-05-29, one4all a0346ec5).
+  Three more isolated BB_NFA_* leaves up the ladder, reusing the L1 walker register model
+  (r13=pos r14=base r15d=slen) with NO walker change (γ/ω wired per node): bb_nfa_any (`.`,
+  match any non-\n, advance), bb_nfa_bol (`^`, zero-width pos==0), bb_nfa_eol (`$`, zero-width
+  pos==slen). MEDIUM_TEXT only; emit_core.c routes ANY/BOL/EOL; CLASS/SPLIT still bb_stub.
+  The leftmost sweep handles anchors naturally (^ fails for sp>0; $ fails unless pos==slen) —
+  no explicit anchored-break needed. Verified mode-4 byte-identical to the C matcher 8/8:
+  . on "a"→hit / ""→miss; ^x on "x"→hit / "ax"→miss; x$ on "x"→hit / "xy"→miss; ^x$ on "x"→hit
+  / "xx"→miss. Default OFF; gates baseline (below); FACT 0. NEXT: bb_nfa_class (32-byte cset
+  bitset in pBB->sval → \d \w \s + [...]; test bit pos, advance) + bb_nfa_split (the */+/||/?
+  fork — needs the SPLIT β=out2 label threaded into nfa_text_box: currently the walker wires
+  γ=successor and ω=sweep-next per node, but SPLIT also needs β→out2-node-label and the
+  backtracking on the verdict-only sweep). Then RK-NFA-3 captures, RK-NFA-5 mode-3 BINARY,
+  G1-3 flip default.
+
 RK-NFA-4 / G1-1 S2+S3 — L1 /x/ GREEN in mode-4 via the emitted isolated BB_NFA_* slab
   (Opus 4.8, 2026-05-29, one4all 57ec5cea). FIRST RUNNABLE ATOM of the BB_NFA_* emission
   ladder. /x/~"x" now matches through EMITTED four-port templates (not the C matcher) in
