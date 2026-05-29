@@ -434,10 +434,10 @@ in `plunit.pl` and are safe to call.
 **Gate SWI-G1:** `bash scripts/test_prolog_swi_suite.sh --file test_list` produces
 `PASS test_list 1/1`. (test_list has a single `begin_tests(memberchk,[])` block — simplest case.)
 
-- [ ] **SWI-1a:** Add directive whitelist to `lower.c`. Build + verify `[NO-AST]` gone for
-  `begin_tests`/`end_tests`. Run SWI-G1. Run all three modes.
-- [ ] **SWI-1b:** Extend whitelist to `dynamic/1`. Run full `test_prolog_swi_suite.sh`.
-  Record new GATE-SWI baseline (mode-2, mode-3, mode-4).
+- [x] **SWI-1a:** Directive whitelist added to `lower.c` (`86abe166`): `begin_tests/1/2`,
+  `end_tests/1`, `dynamic/1/2`, `use_module/1/2`, `module/2`, `ensure_loaded/1`,
+  `discontiguous/1/2`, `meta_predicate/1`, `nb_setval/2`, `initialization/1/2`. ✅
+- [ ] **SWI-1b:** Run full `test_prolog_swi_suite.sh` after SWI-2 lands.
 
 ### SWI-2 — Fix `test/2` clause registration via `clause/2`
 
