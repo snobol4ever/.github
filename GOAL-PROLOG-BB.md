@@ -28,7 +28,24 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`d805b0fe`, post-Opus-4.7-SWI-2d)
+## State at HEAD (`3de01576`, post-Opus-4.7-SWI-2e)
+
+**2026-05-28 Opus 4.7 (`3de01576`):** SWI-2e — call/N mode-2 fallback for N>1 (partial application
+with appended args). BB_PL_CALL call-meta intercept widened from `carity == 1` to `carity >= 1`;
+new public `pl_call_term_n(Term *gt, int n_extra, Term **extras)` in `pl_runtime.c` reconstructs
+the goal compound (atom → `G(extras…)`, compound `G(a1..ak)` → `G(a1..ak, extras…)`) and dispatches
+via `pl_invoke_var_goal`. Mirrors the call/N arm at `interp_exec_pl_builtin:1050` which only fires
+when call/N arrives as a synthesized FNC tree-node — the BB_PL_CALL path bypassed it. Three files,
++61 lines. **rung33_bridge_callN: 1/5 → 2/5** (01 atom + 03 call/2 builtin+arg — the canonical
+SWI-2e case). The hoped-for 5/5 didn't materialize: tests 02/04/05 hit a **separate pre-existing
+bug** confirmed at `d805b0fe` baseline (re-tested) — `call(G)` where G is bound to a *user-defined*
+compound dispatches through `interp_exec_pl_builtin`'s user-call branch at `pl_runtime.c:894-900`,
+which is **stubbed** at line 895 with `[NO-AST] interp_eval stub` returning FAILDESCR, then
+segfaults downstream. SWI-2e works cleanly for its target case (builtin reconstruction). Lowering
+unchanged → mode-3/4 byte output untouched (FACT-safe). See HANDOFF-2026-05-28-OPUS-PROLOG-BB-
+SWI-2E-CALLN.md. Next recommended fold: **PL-RT-USER-FROM-SYNTH** (make the user-call stub at
+pl_runtime.c:895 actually execute the user predicate via `pl_bb_lookup`+`bb_exec_once`, mirroring
+BB_PL_CALL's own post-intercept path — closes rung33 02/04/05).
 
 **2026-05-28 Opus 4.7 (`d805b0fe`):** SWI-2d — call/1 mode-2 fallback for bound atoms and compound
 goals. Closes the `call(true)` blocker named by SWI-2c. **Diagnosis correction:** prior handoff's
@@ -41,6 +58,11 @@ Empirically verified on 6 test programs: `call(true)`, `call(fail)`, `call(G)` f
 bound compound all work. Gate number unchanged at 53/57 because most test bodies use call/N for N≥2
 (still unsupported) or other unimplemented features. Critical path unblocked nonetheless. See
 HANDOFF-2026-05-28-OPUS-PROLOG-BB-SWI-2D-CALL1-FALLBACK.md.
+
+**Important post-2d correction (verified by SWI-2e):** the SWI-2d claim that `call(G)` with G bound
+to a compound "works" was over-broad — it works only when the compound resolves to a *builtin*
+goal (e.g. `write(hello)`). For user-defined predicates, the synthesized-tree path hits the
+`[NO-AST] interp_eval stub` at `pl_runtime.c:895` and FAILDESCRs. This is the next fold.
 
 **2026-05-28 Opus 4.7 (`a88f1e68`):** SWI-2c plunit fold revival — `prolog_lower.c` fold dead since
 PST-PL-6f (first pass required `cl->head != NULL` but post-6f non-DCG rules store head in
