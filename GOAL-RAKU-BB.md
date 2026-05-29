@@ -122,7 +122,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 ### Phase 1 — NFA leaf, core single-pattern (RK-NFA-1..5) — IN FLIGHT
 Tracked in the RK-NFA rungs above (1a–1e ✅, 4 SCAFFOLD ✅). Restated here as the ladder's first phase:
-- [ ] **G1-1** RK-NFA-4 — **ENTRY CONTRACT RESOLVED → see `RK-NFA-4-CONTRACT.md`** (Opus 4.8, 2026-05-29). The 7 templates are NOT the first sub-step: `walk_bb_flat` has no `flat_drive_nfa` arm and the flat slab takes no subject/pos/slen args, so the driver/ABI is the prerequisite. Order: S1 gated `~~` rewiring (pattern is compile-time `t->c[1]->v.sval`) → S2 `flat_drive_nfa` (subject→r14/r15, r13=pos, GC_malloc caps, leftmost sweep) → S3 leaf templates → S4 L1..L15 ladder under `RK_NFA_BB=1`. First atom: L1 `/x/`~"x" = S1+S2+`bb_nfa_char`+`bb_nfa_accept`. See the RK-NFA-4 DESIGN block above + the contract note.
+- [ ] **G1-1** RK-NFA-4 — **ENTRY CONTRACT RESOLVED → see `RK-NFA-4-CONTRACT.md`** (Opus 4.8, 2026-05-29). **S1 DONE (one4all `c8aeb90d`):** gated `~~`→`SM_BB_INVOKE` over the isolated BB_NFA_* graph, default OFF (`RK_NFA_BB`); `--dump-sm` confirms OFF→`SM_CALL_FN raku_match`, ON→`SM_BB_INVOKE`; all gates at baseline. **⛔ S2 CONTRACT CORRECTED (same session):** the mode-4 `~~` path is `SM_BB_INVOKE`→`sm_bb_invoke`→`sm_bb_switch.cpp` MEDIUM_BINARY arm→**`walk_bb_node(gen,NULL)` (single-node)**, NOT `walk_bb_flat`/`flat_drive_nfa`. The multi-node NFA graph needs a NEW node-keyed walker INSIDE that BINARY arm (subject-pop-from-vstack preamble + leftmost sweep + per-node label wiring), gated on `gen->t∈BB_NFA_*`. See the ⚠️ UPDATE block at the TOP of `RK-NFA-4-CONTRACT.md`. The 7 templates are NOT the first sub-step: the walker/ABI is the prerequisite. Order: S1✅ → S2 walker (sm_bb_switch BINARY) → S3 leaf templates → S4 L1..L15 ladder under `RK_NFA_BB=1`. First atom: L1 `/x/`~"x" = S1✅+S2+`bb_nfa_char`+`bb_nfa_accept`. See the RK-NFA-4 DESIGN block above + the contract note.
 - [ ] **G1-2** RK-NFA-5 — `~~` onto the emitted slab in mode-3 native.
 - [ ] **G1-3** mode-4 `~~` default flip to BB once G1-1+G1-2 green (retire the C-matcher fallback behind `RK_NFA_BB`).
 
@@ -229,6 +229,41 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+RK-NFA-4 / G1-1 S1 LANDED + S2 CONTRACT CORRECTED (Opus 4.8, 2026-05-29, one4all c8aeb90d).
+  FIRST CODE RUNG of the BB_NFA_* emission ladder. S1 = the gated `~~` lowering rewiring in
+  lower.c TT_SMATCH (real case ~line 2492, NOT 2488): getenv("RK_NFA_BB") && flavor==match →
+  raku_nfa_build(t->c[1]->v.sval) [compile fn is raku_nfa_build, NOT raku_nfa_compile] →
+  raku_nfa_to_bb (RK-NFA-1b graph) → lower_expr(c[0]) pushes subject → SM_seq_bb_add +
+  SM_BB_INVOKE; raku_nfa_free after (builder copies CHAR ival / CLASS cset / CAP idx / ports
+  out — graph independent of the malloc'd nfa). Phase-2 kinds → raku_nfa_to_bb NULL → fall
+  through to the proven C matcher. subst/match_global stay on the C matcher. Default OFF so the
+  SM_CALL_FN raku_match path is untouched. Added #include raku_re.h to lower.c. +22 lines,
+  FACT 0 (no emitted bytes). VERIFIED via --dump-sm: flag OFF → SM_CALL_FN raku_match; flag ON
+  → SM_BB_INVOKE. All gates at baseline (see below), all five smokes green, SNOBOL4 iso intact.
+
+  ⛔ KEY FINDING — the RK-NFA-4-CONTRACT.md S2 plan was WRONG and is now corrected (see the
+  ⚠️ UPDATE block at the TOP of that file). The contract said "add flat_drive_nfa to
+  walk_bb_flat." But the live mode-4 Raku ~~ path is: SM_BB_INVOKE → emit_core.c:858
+  sm_bb_invoke → SM_templates/sm_bb_switch.cpp MEDIUM_BINARY arm → entry-flag dispatch +
+  walk_bb_node(gen,NULL) [emit_core.c:528, a SINGLE-NODE dispatcher] + γ/ω postamble (rt_set_
+  last_ok). walk_bb_flat/flat_drive_* is the ICON flat-codegen path, never hit by Raku ~~.
+  walk_bb_node emits ONLY the entry node; bb_to_by/bb_iterate work as one node because each is
+  SELF-CONTAINED (bounds compile-time-baked, or read from a named var via NV_GET_fn, state in
+  &pBB->counter). The NFA graph is genuinely MULTI-NODE (CHAR→ACCEPT, SPLIT) → one walk_bb_node
+  cannot traverse it. CORRECTED S2: a NEW node-keyed NFA walker INSIDE the sm_bb_switch.cpp
+  MEDIUM_BINARY arm, gated on gen->t∈BB_NFA_*: (1) subject preamble — pop the subject DESCR off
+  the SM value stack (pushed by S1's lower_expr c[0]); unpack base+slen (model bb_iterate's
+  DESCR unpack, but source is the vstack not NV_GET); pos/base/slen in callee-saved regs; (2)
+  leftmost sweep wrapping the walk (mirror raku_nfa_bb_match for sp in 0..slen); (3) node-keyed
+  walk minting a label per node (mirror flat_drive_seq's node→label table, emit_bb.c:745),
+  emit each leaf via bb_nfa_* template, wire γ→next-node, β→SPLIT-out2; cap block (GC_malloc)
+  lands with RK-NFA-3 (L1 needs none). This is a NEW walker, NOT pure transcription — budget a
+  fresh session. NEXT CODE RUNG: G1-1 S2 = the node-keyed NFA walker in sm_bb_switch.cpp's
+  BINARY arm, then S3 bb_nfa_char+bb_nfa_accept, proving L1 /x/~"x" under RK_NFA_BB=1.
+  DELIBERATELY did NOT write S2's byte-exact walker this session: it's a brand-new vstack→cursor
+  calling convention as byte-exact x86 (crash-on-wrong-byte), and committing it untested would
+  be a broken commit (RULES). S1 is the clean, verified, gated foundation it builds on.
+
 RK-NFA-4 / G1-1 ENTRY CONTRACT RESOLVED (Opus 4.8, 2026-05-29, .github only — NO code change,
   NO regression). Planning landing, not a code rung. one4all + corpus UNTOUCHED (both clean;
   one4all HEAD 28a720f2, advanced past this file's older code-rung hashes by an interleaved
