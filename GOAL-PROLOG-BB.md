@@ -28,7 +28,25 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (`cda40a70`, post-Opus-4.7-SWI-2-pre)
+## State at HEAD (`d805b0fe`, post-Opus-4.7-SWI-2d)
+
+**2026-05-28 Opus 4.7 (`d805b0fe`):** SWI-2d — call/1 mode-2 fallback for bound atoms and compound
+goals. Closes the `call(true)` blocker named by SWI-2c. **Diagnosis correction:** prior handoff's
+three hooks in `pl_runtime.c` are dead in mode-2 — verified via `SCRIP_TRACE_CALL1` env-gated traces
+(none fired). Real path: `--interp` → `SM_BB_PL_INVOKE` → `bb_broker` → `BB_PL_CALL` in `bb_exec.c`.
+Lowerer falls `call/N` to `lower_pl_new_Call` (no entry in `pl_builtin_style`). Fix intercepts
+`callee=="call" && carity==1` in BB_PL_CALL handler before lookup, dispatches via new public
+`pl_call_term` wrapper (formerly-static `pl_invoke_var_goal`). Lowering unchanged — FACT-safe.
+Empirically verified on 6 test programs: `call(true)`, `call(fail)`, `call(G)` for bound atom and
+bound compound all work. Gate number unchanged at 53/57 because most test bodies use call/N for N≥2
+(still unsupported) or other unimplemented features. Critical path unblocked nonetheless. See
+HANDOFF-2026-05-28-OPUS-PROLOG-BB-SWI-2D-CALL1-FALLBACK.md.
+
+**2026-05-28 Opus 4.7 (`a88f1e68`):** SWI-2c plunit fold revival — `prolog_lower.c` fold dead since
+PST-PL-6f (first pass required `cl->head != NULL` but post-6f non-DCG rules store head in
+`cl->tr->c[0]`). Rebuilt both passes on the tree_t path with new `tr_dup` deep-clone helper. 53/57
+PASSes shown to be `SF=:=0` false-positives — zero test bodies ever ran. SWI-2d (above) closes the
+follow-on `call/1` runtime gap that SWI-2c exposed.
 
 **2026-05-28 Opus 4.7 (`cda40a70`):** SWI-2-pre — findall determinism guard. One-line fix in
 `bb_exec.c` findall loop: `if (!bb_body_has_live_choice(fs->gcfg)) break;` after each collected
