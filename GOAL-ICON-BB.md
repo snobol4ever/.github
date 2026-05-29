@@ -494,11 +494,13 @@ Note: legacy `test_icon_all_rungs.sh` PASS count (194) was the wiped mode-2 wate
 | IBB-16..22, 24..26, 29, 30, 32 ✅ (mode 2, zero SM) | included above | swept and verified |
 | IBB-3 | → 2 | mode 2 only |
 | IBB-4 | → 3 | mode 2 only |
-| IBB-5 | 3 (mode 2 + mode 4) | first dual-mode rung |
-| IBB-6 | 4 (dual) | |
-| IBB-7 | 5 (dual) — full test_icon.c | **flip default** |
+| IBB-5 | 3 (mode 2 + mode 3) | first dual-mode rung |
+| IBB-6 ✅ | 5 / 5 canonical (mode 2 + mode 3) | one4all `3aa200cd`. BB_BINOP_GEN odometer. |
+| IBB-7 | 5 (dual) — full test_icon.c | **flip default** (env-gate already gone from driver) |
 | IBB-22 | ~15 (dual) | user procs working |
 | IBB-34 | full Icon | legacy deleted |
+
+**Mode-3 corpus sweep (2026-05-28, one4all `3aa200cd`):** 20 PASS / 23 FAIL / 206 ABORT out of 249 testable programs. Dominant blocker: `bb_call` unsupported shape (181 cases). Next: `write(BB_VAR)` (~30 cases, see handoff `HANDOFF-2026-05-28-SONNET-ICON-BB-IBB6-FULL-ICN.md`).
 
 ---
 
