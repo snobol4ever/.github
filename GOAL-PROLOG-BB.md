@@ -28,7 +28,38 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Sonnet-4.6-ENGINE-PARITY-STUDY, 2026-05-29)
+## State at HEAD (post-PLR-J-3, 2026-05-29)
+
+**2026-05-29 (one4all `bbf60667`): PLR-J-3 LANDED — compound-term builder in raw bytes.**
+`bb_builtin.cpp` only, +180 lines, one template file, FACT-clean. Added `emit_build_compound_term_bin`
+(the MEDIUM_BINARY twin of the TEXT recursive `emit_build_compound_term`) and `functor/3`, `arg/3`,
+`=../2` compound-literal MEDIUM_BINARY arms. Was TEXT-only → in mode-3 native (`--run`) the assembly
+strings emitted as raw bytes → `functor/arg/=..` produced garbage (rung09 printed `_ _ / _ / _` for
+those three lines). The binary builder mirrors the TEXT walker byte-for-byte but uses absolute
+`movabs` for interned-string + helper pointers (valid in-process for mode-3 native) and
+`movabs rax,&helper; call rax` instead of RIP-relative `lea` + PLT; leaves route to
+`rt_pl_node_to_term`, BB_PL_STRUCT subtracts an aligned slot frame, builds each arg into a slot
+(recursing), then `rt_pl_compound_build_n` — alignment preserved across the recursion. The three
+builtin arms wire the `_term` helper variants (`rt_pl_functor_term`/`rt_pl_arg_term`/
+`rt_pl_univ_term`/`rt_pl_univ_term_list`/`rt_pl_univ_term_term`) with the standard
+`test eax; je ω; jmp γ; β→ω` bin-patch tail.
+
+**rung09 mode-3 native `--run` now byte-matches mode-2** (`foo 2` / `b` / `[foo,a,b]` /
+`yes/yes/no/no`). **GATE-2 crosscheck 10 → 11 PASS** (rung09 now 3-mode agreement; original 10 +
+rung09, no swaps). Gates: GATE-1 5/5, GATE-3 m2 104/107 (byte-identical — mode-2 untouched),
+GATE-4 4/4, FACT 0/12, siblings icon/raku/snobol4 5/5/13. No regressions. (Note: the type-test
+BB_PL_STRUCT compound arg, e.g. `is_list([1,2,3])`, remains honest-abort-guarded — it wires a
+different helper `rt_pl_type_test_term` which this rung did not touch; not corpus-blocking.)
+
+**NEXT: PLR-J-2** (explicit per-node resume, replacing the β heuristic — the PL-LOWER-REVAMP
+structural fix; transliterates irgen.icn `ir_a_Binop`/`ir_a_Mutual`/`ir_a_Call`) — depends on
+PLR-J-0 (`bounded` flag, lower-time only). Or **PLR-J-4** (callee-block sweep + `bb_pl_call` binary
+call protocol — unblocks all multi-predicate programs, the largest single win for the 121 open
+mode-3 crosscheck failures).
+
+---
+
+
 
 **2026-05-29 Sonnet 4.6 (STUDY session — no engine code change; one4all HEAD at `efbdd61c`).**
 Read GNU Prolog (`gprolog-master/src/EnginePl/wam_inst.h`, `Pl2Wam/indexing.pl`) and SWI-Prolog
@@ -1248,14 +1279,20 @@ arms.
   with a failing 2nd goal redrives the 1st. This is the structural fix flagged as
   PL-LOWER-REVAMP gap (2).
 
-- [ ] **PLR-J-3 — compound-term builder in raw bytes (irgen.icn `ir_a_ListConstructor`, F4).**
-  Port `emit_build_compound_term` (currently TEXT-only) to a MEDIUM_BINARY arm following
-  irgen.icn 1313-1354: build each arg into a slot (recursing for nested compounds, each arg with
-  its own resume chain), then one `rt_pl_compound_build_n(functor, argc, args…)` at the trailing
-  sentinel (mirror `ir_MakeList`, line 1346). Unblocks `functor/3`, `arg/3`, `=../2`, compound
-  unify, and the PLR-J-1 BB_PL_STRUCT abort-guard. Gate: `rung03_unify` + `rung09` `functor/arg/=..`
-  lines byte-match mode-2; FACT 0. Hardest of the "value priority #2" items — the recursion +
-  16-byte stack alignment per the M3-PL-NOINTERP rsp-offset warnings.
+- [x] **PLR-J-3 — compound-term builder in raw bytes (irgen.icn `ir_a_ListConstructor`, F4).**
+  Ported `emit_build_compound_term` to a MEDIUM_BINARY twin `emit_build_compound_term_bin`
+  (post-order walker, byte-for-byte mirror: absolute `movabs` for interned-string + helper
+  pointers — valid in-process for mode-3 native — and `movabs rax,&helper; call rax` instead of
+  RIP-relative `lea` + PLT; leaf → `rt_pl_node_to_term`, BB_PL_STRUCT → per-arg slot build +
+  `rt_pl_compound_build_n` with aligned frame, alignment preserved across recursion). Added
+  `functor/3`, `arg/3`, `=../2` compound-literal MEDIUM_BINARY arms wiring the `_term` helper
+  variants with the standard `test/je-ω/jmp-γ` bin-patch tail. **LANDED (one4all `bbf60667`,
+  2026-05-29).** Was TEXT-only → in mode-3 native (`--run`) the asm strings emitted as raw bytes →
+  `functor/arg/=..` produced garbage (rung09 printed `_ _ / _ / _`). rung09 mode-3 native now
+  byte-matches mode-2 (`foo 2` / `b` / `[foo,a,b]`); **GATE-2 crosscheck 10 → 11 PASS** (rung09
+  3-mode agreement). Gate: rung09 `functor/arg/=..` lines byte-match mode-2 ✅; FACT 0/12.
+  Type-test BB_PL_STRUCT compound arg (`is_list([1,2,3])`) still honest-abort-guarded — wires the
+  `rt_pl_type_test_term` helper which this rung did not touch (follow-up, not corpus-blocking).
 
 - [ ] **PLR-J-4 — callee-block sweep in `SM_BB_PL_INVOKE` BINARY arm (irgen.icn `ir_a_ProcBody`
   + `ir_make_sentinel`, F5).** Port the TEXT callee-block loop (`sm_bb_switch.cpp` ~376-418, via
