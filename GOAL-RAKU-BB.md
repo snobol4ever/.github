@@ -122,7 +122,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 ### Phase 1 — NFA leaf, core single-pattern (RK-NFA-1..5) — IN FLIGHT
 Tracked in the RK-NFA rungs above (1a–1e ✅, 4 SCAFFOLD ✅). Restated here as the ladder's first phase:
-- [ ] **G1-1** RK-NFA-4 — **S1✅ + S2✅ + S3 (L1 atom)✅ — `/x/` GREEN in mode-4** (Opus 4.8, 2026-05-29). **S1** (one4all `c8aeb90d`): gated `~~`→`SM_BB_INVOKE` over the isolated BB_NFA_* graph, default OFF (`RK_NFA_BB`). **S2+S3** (one4all `57ec5cea`): first runnable atom L1 `/x/`~"x" green in mode-4 (MEDIUM_TEXT) via the EMITTED isolated slab — byte-identical to the C matcher (match / miss / leftmost-offset `"abcx"`→pos 3). The contract's `walk_bb_flat` S2 was WRONG; the node-keyed NFA walker lives in the **`sm_bb_switch.cpp` SM_BB_INVOKE MEDIUM_TEXT arm** (subject-pop-from-vstack + leftmost sweep + r12/r13/r14/r15 save/restore, per-node label wiring), with leaf bytes in `bb_nfa.cpp` (`bb_nfa_char`/`bb_nfa_accept`). Default gates HOLD (m2 41/42, m4 42/42, m3 41/42 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0). REMAINING for G1-1: the rest of the L2-L12 leaves (`bb_nfa_any`✅`/bol`✅`/eol`✅ landed one4all `a0346ec5`; still `bb_nfa_class` 32-byte cset + `bb_nfa_split` the `*`/`+`/`||` fork — SPLIT needs its β=out2 label threaded in `nfa_text_box`), then captures (RK-NFA-3, L13-L15), then mode-3 BINARY (RK-NFA-5), then flip default (G1-3). Repro: `RK_NFA_BB=1 bash scripts/run_raku_via_x86_backend.sh FILE.raku`.
+- [ ] **G1-1** RK-NFA-4 — **S1✅ + S2✅ + S3 (L1 atom)✅ — `/x/` GREEN in mode-4** (Opus 4.8, 2026-05-29). **S1** (one4all `c8aeb90d`): gated `~~`→`SM_BB_INVOKE` over the isolated BB_NFA_* graph, default OFF (`RK_NFA_BB`). **S2+S3** (one4all `57ec5cea`): first runnable atom L1 `/x/`~"x" green in mode-4 (MEDIUM_TEXT) via the EMITTED isolated slab — byte-identical to the C matcher (match / miss / leftmost-offset `"abcx"`→pos 3). The contract's `walk_bb_flat` S2 was WRONG; the node-keyed NFA walker lives in the **`sm_bb_switch.cpp` SM_BB_INVOKE MEDIUM_TEXT arm** (subject-pop-from-vstack + leftmost sweep + r12/r13/r14/r15 save/restore, per-node label wiring), with leaf bytes in `bb_nfa.cpp`. Default gates HOLD (m2 41/42, m4 42/42, m3 41/42 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0). LEAVES LANDED: `bb_nfa_char`/`accept` (`57ec5cea`), `bb_nfa_any`/`bol`/`eol` (`a0346ec5`), **`bb_nfa_class` 32-byte cset bitset (`037be2ce`, Opus 4.8, 2026-05-29 — rodata-embedded blob, `bt edx,eax` mirroring raku_cc_test; verified byte-identical to C-matcher on `[a-z]`/`[A-Z]`/`\d`/`\s` incl. leftmost sweep + class-miss)**. REMAINING for G1-1: **`bb_nfa_split`** (the `*`/`+`/`?`/`||` fork) — NOT a simple leaf. `nfa_bt` SPLIT is RECURSIVE backtracking (try out1/γ; if the rest of the match DOWNSTREAM fails, return to the SPLIT and try out2/β). The current `nfa_text_box` walker is a LINEAR fall-through (per-node label, ω→sweep-continue) that structurally cannot express \"a failure deep in the out1 subtree returns control to an upstream SPLIT\" — threading β=out2 alone is insufficient. SPLIT needs an explicit backtrack-stack (on SPLIT entry push {out2-node-label, pos} as a resume point; a leaf's ω POPS the stack and jumps to the saved label/pos instead of advancing the sweep; sweep-advance only when the stack is empty) OR a continuation model. Budget a fresh full session for the backtrack-stack design (byte-exact x86, crash-on-wrong-byte). Then captures (RK-NFA-3, L13-L15), mode-3 BINARY (RK-NFA-5), flip default (G1-3). Repro: `RK_NFA_BB=1 bash scripts/run_raku_via_x86_backend.sh FILE.raku`.
 - [ ] **G1-2** RK-NFA-5 — `~~` onto the emitted slab in mode-3 native.
 - [ ] **G1-3** mode-4 `~~` default flip to BB once G1-1+G1-2 green (retire the C-matcher fallback behind `RK_NFA_BB`).
 
@@ -229,6 +229,29 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+RK-NFA-4 / G1-1 — bb_nfa_class leaf landed (Opus 4.8, 2026-05-29, one4all 037be2ce; rebased
+  past peer Prolog commit 123878af, conflict-free). The 32-byte cset-bitset leaf for the
+  isolated BB_NFA_* family, MEDIUM_TEXT. KEY correctness point: the cset travels as 32 inline
+  `.byte` rodata (`.LnfaccN: .byte 0x..`×32), NOT a movabs of pBB->sval — mode-4 TEXT assembles
+  a SEPARATE native binary (scrip --compile → .s → as → gcc → run, see run_raku_via_x86_backend.sh),
+  so a compiler-process pointer would dangle. Membership test mirrors raku_cc_test exactly:
+  byte=bits[c>>3], bit=c&7 → `mov ecx,eax; shr ecx,3; lea rdx,[rip+cs]; movzx edx,[rdx+rcx];
+  and eax,7; bt edx,eax; jnc ω`. Bounds `cmp r13d,r15d; jae ω`; hit `inc r13; jmp γ`. Scratch
+  eax/ecx/edx only — walker r12-r15 and callee-saved rbx untouched. Label id = bb_node_id(pBB)
+  (unique per node). Routed in emit_core.c (split BB_NFA_CLASS off bb_stub; only BB_NFA_SPLIT
+  remains stubbed). Prototype in bb_templates.h. Verified byte-identical to the C-matcher oracle
+  on bare classes: [a-z] hit 'h'/miss '5', \d hit '5'/miss 'x', [A-Z] on 'XYZ', \s in 'hello
+  world', and leftmost sweep (\d found at pos 3 in 'abc5', no \d in '___'). Default OFF
+  (RK_NFA_BB); proven C-matcher path untouched all 3 modes. Gates HOLD (below); FACT 0.
+  NEXT CODE RUNG: bb_nfa_split — the LAST leaf for verdict-level patterns, and the HARD one.
+  nfa_bt SPLIT is RECURSIVE backtracking (try out1/γ; if downstream fails, return to SPLIT, try
+  out2/β). The linear nfa_text_box walker (per-node label, ω→sweep-continue) CANNOT express an
+  upstream return — threading β=out2 alone is insufficient. Needs an explicit backtrack-stack:
+  on SPLIT entry push {out2-label, pos}; a leaf's ω pops + jumps to the saved {label,pos} instead
+  of advancing the sweep; sweep-advance only when the stack is empty. Byte-exact x86, crash-on-
+  wrong-byte → fresh full-budget session. The existing BB_ALT MEDIUM_BINARY counter-state slab
+  (bb_alt.cpp / bb_pl_alt.cpp) is the live model for stack-backed choice points.
+
 HYGIENE: template files renamed to match contained opcode/function (Opus 4.8, 2026-05-29,
   one4all 8e59f6b2). NOTE for RK-NFA-4 work: the NFA walker now lives in
   SM_templates/sm_bb_invoke.cpp (was sm_bb_switch.cpp — the pre-split SM_BB_SWITCH opcode is
@@ -456,17 +479,26 @@ mode-4 @PLT) → `rt_call` (rt.c:1705) → `raku_try_call_builtin_by_name` (the 
 So all three modes share one dispatcher; the mode-3 regex passes are genuine (rk_re34 emits the real multi-line
 capture output, not a silent empty pass). Only rk_stdio39 fails (the known stderr→fd-1 fidelity non-bug, all modes).
 
-## NEXT — BB_NFA_* emission path, or RK-BB-5.4c (zip/cross)
+## NEXT — bb_nfa_split (the SPLIT backtrack-stack), then RK-NFA-3 captures; or RK-BB-5.4c (zip/cross)
+
+IMMEDIATE CODE RUNG: **bb_nfa_split** — the last leaf for verdict-level patterns (`*`/`+`/`?`/`||`) and
+the architecturally hard one. All other Phase-1 leaves are GREEN through the emitted slab
+(char/accept/any/bol/eol/class, byte-identical to the C-matcher oracle, default OFF behind
+`RK_NFA_BB`). SPLIT is RECURSIVE backtracking and the linear `nfa_text_box` walker cannot express it
+without a backtrack-stack (see the top Watermark entry for the full design note). Budget a fresh
+full session: byte-exact x86, crash-on-wrong-byte; model the stack-backed choice point on the
+existing `bb_alt.cpp` / `bb_pl_alt.cpp` MEDIUM_BINARY counter-state slab. After SPLIT: RK-NFA-3
+captures ($0/$1, L13-L15), RK-NFA-5 mode-3 BINARY, then G1-3 flip default `~~`→BB.
 
 RK-NFA-1e CLOSED the whole mode-2/mode-4 regex cluster via the SM byname dispatch path (+ capture
 disambiguation + subst write-back). The verdict/capture/global/subst SEMANTICS are now proven in
 modes 2 and 4. What remains is the BB ladder destination — moving regex onto the ISOLATED `BB_NFA_*`
 opcode family (NOT SNOBOL4's pattern opcodes), so mode-3/mode-4 run through emitted templates rather than the C
 matcher:
-**(a)** RK-NFA-1b — `raku_nfa_to_bb(Raku_nfa*) → BB_graph_t*` state→node walk via `Nfa_state.bb_id`.
-**(b)** RK-NFA-4 — NEW `src/emitter/BB_templates/bb_nfa_*.cpp` (FACT-pure, four-port, isolated;
-  derive every opcode name from `Nfa_kind`: `BB_NFA_CHAR/ANY/CLASS/SPLIT/EPS/BOL/EOL/CAP_OPEN/
-  CAP_CLOSE/ACCEPT`). GATE: rk_re33/34/35 mode-4 via BB; SNOBOL4 pattern-rung suite byte-unchanged.
+**(a)** RK-NFA-1b ✅ — `raku_nfa_to_bb(Raku_nfa*) → BB_graph_t*` state→node walk.
+**(b)** RK-NFA-4 — NEW `src/emitter/BB_templates/bb_nfa.cpp` (FACT-pure, four-port, isolated). Leaves
+  done: EPS/CAP_OPEN/CAP_CLOSE (passthrough), CHAR/ACCEPT/ANY/BOL/EOL/CLASS. Remaining: **SPLIT**.
+  GATE: rk_re33/34/35 mode-4 via BB; SNOBOL4 pattern-rung suite byte-unchanged.
 **(c)** RK-NFA-5 — mode-3 native via emitted BB_NFA_* templates; default `~~`→BB. (Mode-3 already runs regex natively 41/42 CRASH 0 through the C matcher + byname dispatch; this rung MOVES it onto the isolated slab — architectural ladder completion, not a crash-fix.)
 Or **RK-BB-5.4c** (`zip`/`cross`) — multi-Seq drivers, each output element a list → needs a
 nested-tuple rep (STX-within-SOH); NOT a pure value helper, broad blast radius, own session.
