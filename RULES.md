@@ -28,8 +28,8 @@ git config user.email "lcherryh@yahoo.com"
 
 ## Handoff sequence
 1. Mark completed steps (`- [x]`) in Goal file
-2. Update watermark (HEAD hash, pass counts, current step)
-3. Update step in PLAN.md goals table
+2. Update watermark (HEAD hash, pass counts, current step) **in the Goal file only — this is the single source of truth**
+3. **Do NOT edit the PLAN.md goals table on routine handoff.** Each row is a permanent pointer to its Goal file; the live state lives in the Goal file. Touch PLAN.md only on a `grand master reorg` (add/remove a goal, change a file path).
 4. `git add -A && git commit -m "<description>"` each touched repo
 5. `git pull --rebase && git push` — code repos first, `.github` last
 6. Confirm: `git log origin/main --oneline -1` shows your hash
