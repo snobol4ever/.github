@@ -19,6 +19,43 @@ Canonical 5 programs: `hello.icn` (`write("hello")`), `add.icn` (`write(1+2)`), 
 | 3 (`--run`)    | `bb_build_flat` → seal RX → call slab (flat-wired x86 in `bb_pool`) | **2 / 5** — hello.icn + add.icn PASS (byte-identical to mode 2); every_to/alt/full abort at `flat_drive_every` gap | not run |
 | 4 (`--compile`) | deferred per Lon directive ("complete pass at very end") | `hello.icn` passes (commit `f387a7b9`) | not run |
 
+## Session 2026-05-28 follow-up: IBB-4 WIP + housekeeping (Opus 4.7, one4all `057bc824`)
+
+**Canonical-5 mode 3 unchanged at 2/5** but every test's failure surface moved forward. All three previously-aborting tests now run through more of the emit chain before failing.
+
+**Housekeeping landed (clean atomic value, decoupled from IBB-4):**
+- `bb_icn_to.cpp` → `bb_to.cpp` rename (file + `bb_icn_to_str`/`bb_icn_to` fns + `bb_templates.h` decl + `Makefile` source list and recipe + `emit_core.c:585` dispatch + two stale comments). Per Lon directive: BB_*/SM_* opcodes and templates are language-independent operations.
+- `bb_icn_stub.cpp` deleted — was a no-op identical to existing `bb_stub.cpp`; its one caller at `emit_core.c:619` (BB_SEQ_GEN) now routes to `bb_stub`.
+- `BB_ALTERNATE` opcode removed. Verified zero `BB_node_alloc(*, BB_ALTERNATE)` call sites anywhere in `src/`; the case body in `bb_exec.c:1862-1864` was unreachable (returned FAILDESCR as placeholder). Removed from: enum, kind_names, ALT_IS_GEN & IR_IS_GEN_KIND_TO macros, `bb_is_gen_kind_raw`, `ir_is_single_shot` switch, `lic_gen_kind_raw`, `icn_kind_is_resumable`, `bb_is_generator`, `bb_binop_gen` operand_is_gen switch, audit table. Enum-value shift: every BB_op_t after `BB_CONJ` (index 16) is now one lower than before. Only affects diagnostic raw-int dumps.
+
+**IBB-4 in-flight pieces landed (template/driver code):**
+- `flat_drive_every` driver added in `emit_bb.c` for the ival=0, β=NULL case (= `every <body>` where generator lives inside body, no separate `do`-body). Walks `bb->α` once with `lbl_γ = lbl_β = body_β` (re-pump on yield) and `lbl_ω = outer γ` (every succeeds on exhaustion).
+- `walk_bb_flat` BB_EVERY arm now calls `flat_drive_every` (was loud abort).
+- `walk_bb_flat` BB_CALL arm shape-dispatch widened: arg0 kinds `BB_TO` and `BB_ALT` route to `flat_drive_call_intexpr` (was BB_BINOP/BB_LIT_I only).
+- `walk_bb_flat` BB_TO arm added (FILL).
+- `bb_call.cpp` int_expr-trailer is_write_intexpr predicate widened correspondingly.
+- `bb_call.cpp` int_expr trailer β-stub now jmps to the **driver-queued β-target** (looked up from `g_emit.xa_bb_emit_pair_*[]` by matching `_.lbl_β_p`) — was hardcoded `lbl_ω`. When called from `flat_drive_call_intexpr` the queue carries `(define=lbl_β, jmp=arg_β)`, so the call's β chains back into the arg's β, which is what BB_EVERY needs for re-pump.
+- `flat_drive_call_intexpr` queues `EMIT_PAIR_DEF_JMP(lbl_β, arg_β)` instead of `(lbl_β, lbl_ω)`. Backward-compatible for BB_LIT_I/BB_BINOP args because their β-stubs already jmp to ω; the new behavior only changes generator-arg cases where arg_β is a real re-entry point.
+- `bb_every.cpp` MEDIUM_BINARY arm: pair-driven emit (mirrors `bb_pat_alt.cpp` style — iterate `g_emit.xa_bb_emit_pair_*[]`, emit define-then-jmp pairs). Was abort stub.
+- `bb_to.cpp` MEDIUM_BINARY yield rewritten from r12-push (18 bytes) to `rt_push_int` call (15 bytes): `mov rdi, rcx; movabs rax, &rt_push_int; call rax`. r12 is NOT initialized by `XA_FLAT_PROLOGUE` so the previous SNOBOL4-style r12-push would have segfaulted. Same convention as `bb_lit_scalar.cpp` BB_LIT_I arm (IBB-3 e612d519).
+
+**One-line blocker for every_to.icn mode 3** (NOT yet fixed; localized precisely):
+
+`bb_to.cpp` MEDIUM_BINARY constructs `bin.sites` as `{fail_off+2 (= 64), succ_off+1 (= 84), back_off (= 19)}` — NON-ascending. The patching loop in `src/emitter/emit_str.cpp:70-77` (`bb_emit_asm_result`) assumes ascending order — it walks `pos < bin.sites[i]` to catch up before each site. With sites listed `{64, 84, 19}`, after processing the first two sites `pos = 88` (= end of BB_TO bytes), so the inner `for (; pos < 19; pos++)` body never runs and `bb_label_define(arg_β)` fires at `bb_emit_pos == 88` instead of the intended slab offset `BB_TO_start + 19 = 0x26`. Hence `arg_β` resolves to the same address as `arg_done` (immediately after BB_TO), and the bb_call trailer's `jmp arg_β` lands on its own first instruction — second pop without intervening push → vstack underflow.
+
+**Fix** (NOT applied; one-line change in `bb_to.cpp` MEDIUM_BINARY):
+```cpp
+// Reorder bin entries to ascending site order:
+bin = { {back_off, fail_off+2, succ_off+1},
+        {_.lbl_β_p, _.lbl_ω_p, _.lbl_γ_p},
+        {true, false, false} };
+```
+Verification approach: rebuild, `SCRIP_ICN_BB=1 ./scrip --run /tmp/every_to.icn` must print `1\n2\n3\n` matching mode 2.
+
+**Other canonical-5 gaps (separate, also still pending):**
+- `alt.icn` (`every write(1 | 2 | 3)`): arg0 to BB_CALL is `BB_ALT` (enum 22 post-BB_ALTERNATE-removal). `walk_bb_flat` has no `BB_ALT` case (falls into default which is a no-op trio of jmps). The mode-2 lowering produces three BB_LIT_I children chained via ω-port wrapped in a BB_SUSPEND. For mode 3, `bb_alt.cpp` MEDIUM_BINARY is currently a port-wired passthrough — needs a real Icon-style integer-arms generator (push current arm's value, advance arm index on β, exhaust → ω).
+- `full.icn` (`every write(5 > ((1 to 2) * (3 to 4)))`): arg0 is `BB_BINOP_GEN` (kind 84 post-removal). `bb_call.cpp` is_write_intexpr doesn't include BB_BINOP_GEN. Also needs a driver to walk the two operand sub-trees (each `BB_TO` here) in cross-product fashion and apply `*`/`>` via `rt_arith` (BINOP_GEN's `ival` encodes the op the same way as BB_BINOP).
+
 **Mode-3 abort map** (each gap names the precise next step):
 - `hello.icn` → ✅ PASS via `6393c743`
 - `add.icn` → ✅ PASS via `e612d519` (BB_LIT_I push + bb_binop + flat drivers; vstack convention)
