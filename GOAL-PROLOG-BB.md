@@ -28,6 +28,64 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-Opus-4.8-M3-PL-NOINTERP-1a..1e, 2026-05-29)
+
+**2026-05-29 Opus 4.8 (one4all `b408b086`): native `--run` LIVE — mode-3 0→10 PASS.** Implemented
+the native MEDIUM_BINARY Prolog program entry so `--run` runs instead of aborting, and fixed a
+family of latent `movabs rax,0; call rax` (call-to-null) stubs across BB template binary arms that
+segfaulted the instant native execution reached them. These arms had only ever run in mode-4
+(MEDIUM_TEXT assembly), so the binary-medium bugs stayed hidden until mode-3 native exercised
+MEDIUM_BINARY/WIRED.
+
+- **1a — `src/emitter/SM_templates/sm_bb_switch.cpp` SM_BB_PL_INVOKE BINARY arm:** was the
+  NO-MODE-FALLBACK abort stub. Now emits env-push (`mov edi,64; call pl_bb_env_push`) + `walk_bb_flat`
+  over the predicate graph + γ-tail (`rt_set_last_ok(1); jmp done`) + ω-tail (`rt_set_last_ok(0)`)
+  in raw bytes, via the same scratch-buffer recipe SM_BB_INVOKE uses (save emit state → scratch buf
+  → walk → `bb_emit_end` resolves patches → restore outer state → return bytes string for the SM
+  wrapper to `emit_text_n`). **DEFER GUARD:** if the program defines >1 user predicate, the entry
+  body may call a callee whose block this increment doesn't emit → set `g_sm_native_unsupported`
+  + stub so `--run` aborts honestly rather than jumping to an unemitted callee label.
+- **1a fix — `bb_builtin.cpp` write arm:** was `movabs rax,0; call rax`. Now loads the atom pointer
+  into rdi (`48 BF`) and calls `rt_pl_write_atom`, or `mov edi,slot; call rt_pl_write_var`.
+- **1b — `bb_unify.cpp`:** two `call 0` sites wired to `rt_pl_node_to_term` (build_bin lambda,
+  edi/rsi/rdx/xmm0 ABI already correct) and `rt_pl_unify_terms` (rdi/rsi). Scalar operands now
+  unify natively (`X = hello` → `hello`). COMPOUND operands (BB_PL_STRUCT) honest-abort-guarded:
+  the TEXT arm routes them through `emit_build_compound_term`, which returns TEXT assembly not raw
+  bytes — porting that recursive builder is deferred; until then compound unify sets
+  `g_sm_native_unsupported` rather than mis-building `f(X,a)` as `term_new_int(arity)` and silently
+  printing wrong bindings (`f(X,a)=f(b,Y)` → `_ _` instead of `b a`).
+- **1c — bare-helper wiring:** `bb_arith.cpp` full 7-arg `rt_pl_arith(lk,li,ls,rk,ri,rs,op)` port
+  (edi/rsi/rdx/ecx/r8/r9 + pushed op, `add rsp,8` after); `bb_pl_cut.cpp`→`rt_pl_cut_set`;
+  `bb_pl_var.cpp`→`rt_pl_var_push`; `bb_atom.cpp`→`rt_pl_atom_push` (ALSO fixed a wrong-register
+  bug: was `mov rcx` then call, but `rt_pl_atom_push` takes its arg in rdi — now `48 BF` into rdi).
+- **1d — NEW `bb_builtin.cpp` is/2 MEDIUM_BINARY arm** (binary `Var is L op R` + unary `Var is op(L)`,
+  rk=-1 sentinel): was TEXT-only, so in native it emitted assembly strings AS BYTES (garbage) →
+  variable never bound → `write(X)` printed `_`. Now `rt_pl_is(dst_slot,op,lk,li,rk,ri)`
+  (edi/rsi/rdx/rcx/r8d/r9), `test eax,eax; je ω; jmp γ; β→ω`. op ptr = arith node `sval`.
+- **1e — NEW `bb_builtin.cpp` comparison MEDIUM_BINARY arm** (12 ops: `== \== @< @> @=< @>=
+  =:= =\= < > <= >=`): was TEXT-only → native comparisons always FALSELY SUCCEEDED (`5<3` printed
+  `true`). Now `rt_pl_arith_cmp`/`rt_pl_term_cmp(op,k0,i0,s0,k1,i1,s1)` (rdi/rsi/rdx/rcx/r8/r9 +
+  `[rsp+0]=s1`, `sub rsp,16`/`add rsp,16`), same test/je/jmp tail.
+
+**Net (verified live):** mode-3 native crosscheck **0 → 10 PASS** — `hello`, `arith`, `rung01_hello_hello`,
+`rung04_arith_arith`, `rung21_char_type_space_alnum`, `rung23_arith_ext_{bitwise,max_min,power,sign,truncate}`.
+All 10 are 3-mode agreement (not degenerate empty-match). rung04 verified byte-identical to mode-2
+(`6 / true / false`) before trusting the gate. **No regressions:** GATE-3 m2 104/107, GATE-SWI m2
+57/57, siblings icon/raku/snobol4 5/5/13, FACT 0 (all emitted bytes inside `*_templates/`).
+
+**NEXT (multi-session, in value order):** the 122 remaining native FAILs split into four blockers:
+(a) **CALLEE-BLOCK LOOP** — port the TEXT arm's `pl_emit_callee_block_body` sweep (every non-entry
+user predicate gets a block; γ/ω/redo labels) into the 1a BINARY arm; unblocks EVERY multi-predicate
+program at once (rung02 facts, rung05 member, rung06 lists, ...). Highest value. (b) **COMPOUND-TERM
+BUILDER** — port `emit_build_compound_term` (recursive `rt_pl_compound_build_n`) to raw bytes;
+unblocks rung03 + compound unify/functor/arg/univ. (c) **BB_PL_CHOICE / backtracking** BINARY arms
+(CP-stack). (d) **DCG**. Develop and verify against mode-2 (the correctness reference) throughout.
+
+**one4all commit:** `b408b086`. (Prior: `94bbd9eb` NO-MODE-FALLBACK; `855cbee2` m3 reporting;
+`2fae45ec` print/1; `0019cc7b` B3.)
+
+---
+
 ## State at HEAD (post-Opus-4.8-NO-MODE-FALLBACK, 2026-05-29)
 
 **2026-05-29 Opus 4.8 (Lon directive — one4all `0f4fcfde`):** **ALL mode-fallback paths REMOVED —
