@@ -83,6 +83,22 @@ For full failure list patch `head -40` to `head -300` in test_interp_broad_corpu
   compile failed identically. **Native +25, mode-4 +6, mode-2 +1, rung M4 +2 (052, 054),
   zero regressions.** Handoff `HANDOFF-2026-05-29-OPUS-SBL-POS-RPOS-FLAG-FIX.md`.
 
+- [x] **1010 SEGV (OPSYN-alias recursion + alternate entry point) ✅** (2026-05-29 Opus 4.8).
+  Both bisected sub-bugs share ONE root cause and ONE fix — `interp_hooks.c::_usercall_hook`
+  early `FNCEX_fn` guard. It bounced to `APPLY_fn` whenever `sm_label_pc_lookup(&sm, name) < 0`,
+  testing only the DIRECT name. An OPSYN alias (`facto`, SM body under entry `fact`) and an
+  alt-entry fn (`fact2`, SM body under `fact2_entry`) have no SM label under their own name, so
+  both bounced to `APPLY_fn`; `fn==NULL` (interpreted, not a C builtin) → `g_user_call_hook` →
+  `_usercall_hook` → infinite recursion → stack-overflow SIGSEGV. Block-1 below ALREADY resolves
+  both correctly via `FUNC_ENTRY_fn`, but the early guard never let execution reach it. Fix:
+  before bouncing, also try uppercase-name and `FUNC_ENTRY_fn(name)` PCs (mirrors block-1); only
+  bounce to `APPLY_fn` when no SM PC resolves by ANY means (genuine C builtins). +13 lines, one
+  file. **Native 250→251 (+1: 1010_func_recursion 4/4, byte-exact vs oracle); zero regression**
+  (FAIL-list diff: exactly 1010 newly green, nothing dropped). Gates: smoke 13/13 ×2, rung
+  M2=19/0 M4=18/1 (053 pre-existing), mode-2 oracle 251 unchanged, broker 49/11 (identical
+  before/after — sibling-influenced, not from this change), cross-lang icon/prolog/raku/snocone
+  5/5/5/5, FACT 0, audit GATE OK. Not template work, as predicted.
+
 - [ ] **Then knock down remaining ~57 native-only failures**, by cluster:
   - [x] **046/047 TAB/RTAB SIGSEGV native ✅** (2026-05-29 Opus 4.7). `bb_pat_tab.cpp` BINARY arm
     had two bug classes carried in from `c01959f4` (the bb_bin_t conversion). (1) Same off-by-one
@@ -147,12 +163,12 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 33b69b2a  SBL-BREAKX-2 + SBL-DATA-FN-SHADOW  (rebased onto sibling 5ee81b11)
+HEAD one4all       = (this commit) SBL-1010-ALIAS-ALTENTRY-FIX  (on sibling base e2d99c3d)
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
-GATE-2 broker      = 44
-GATE-3 mode-4      = (not gated this session — deferred per Lon; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 250/280  (+5 this session: BREAKX-2 → W05_breakx+word4; DATA-FN-SHADOW → 094+811_size+match_driver)
-true --interp      = unchanged (native-only fix: only the is_breakx MEDIUM_BINARY arm changed; oracle + TEXT arm untouched)
+GATE-2 broker      = 49       (sibling-influenced; identical before/after this change)
+GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
+DEFAULT/NATIVE     = 251/280  (+1 this session: 1010_func_recursion via _usercall_hook alias/alt-entry resolution)
+true --interp      = 251/280  (1010 already passed mode-2; native now matches the oracle)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
 FACT RULE          = 0
@@ -165,6 +181,8 @@ GATE-PK            = stale
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — SBL-1010-ALIAS-ALTENTRY-FIX ✅.** The two bisected 1010 sub-bugs (OPSYN-alias recursion `OPSYN(.facto,'fact');facto(4)` and alternate entry point `DEFINE('fact2(n)',.fact2_entry)`+recursion) turned out NOT to be call/return frame setup — they were a single name-resolution infinite loop in `src/driver/interp_hooks.c::_usercall_hook`. The early `if(!_body && FNCEX_fn(name))` guard bounced to `APPLY_fn` whenever `sm_label_pc_lookup(&g_stage2.sm, name) < 0` — i.e. whenever there was no SM label under the function's OWN name. An alias (`facto`: SM body lives under entry label `fact`) and an alt-entry fn (`fact2`: body under `fact2_entry`) both lack a direct same-name SM label, so both bounced; `APPLY_fn` found the FNCBLK but `fn==NULL` (interpreted, not a C builtin) → `g_user_call_hook` → `_usercall_hook` → ∞ → stack-overflow SIGSEGV (gdb showed pure `_usercall_hook`↔`APPLY_fn` alternation on `name="facto"`). Block-1 (the `if(1)` SM-PC resolver lower down) ALREADY handles both via `FUNC_ENTRY_fn` (`facto`→`fact`, `fact2`→`fact2_entry`), but the early guard never let control reach it. Fix: before bouncing, try uppercase-name then `FUNC_ENTRY_fn(name)` SM PCs (mirrors block-1's own ladder); only bounce to `APPLY_fn` when NO SM PC resolves by any means — i.e. genuine C builtins, the only case `APPLY_fn` can service without bouncing. +13 lines, one file, no template/byte work. **Native 250→251 (+1: 1010_func_recursion, 4/4 byte-exact); FAIL-list diff = exactly 1010 newly green, zero drops.** Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053 pre-existing), mode-2 251 unchanged, broker 49/11 (identical before/after — proved by stash/remeasure), cross-lang icon/prolog/raku/snocone 5/5/5/5, FACT 0, audit GATE OK.
 
 - **2026-05-29 Opus 4.8 — SBL-DATA-FN-SHADOW ✅** (uncommitted, same session as BREAKX-2). Native `rt_call` (rt.c) consulted the ungated cross-language `icn_try_call_builtin_by_name` table (which serves Raku/Icon `write` etc.) BEFORE SNOBOL4 `INVOKE_fn`. Icon has a `real()` builtin, so a SNOBOL4 `real(X)` on a `DATA('complex(real,imag)')` object was intercepted by Icon's `real` (fails on DT_DATA) instead of the DATA accessor; `imag` worked only because Icon lacks an `imag` builtin (proved by renaming fields `real,imag`→`rrr,iii` → native passes; `foo,bar` DATA passes; `imag(3.5)` no-DATA → Error 5 undefined; `real(3.5)` no-DATA → 3.5 via Icon). Fix: exported `sno_fn_registered(name)` (case-sensitive `_func_buckets` presence check, mirrors `fn_has_builtin` w/o the `fn!=NULL` filter so user-DEFINE bodies count too) and wrapped the icn fallback in `if(!sno_fn_registered(name))` — a registered SNOBOL4 fn (user DEFINE or DATA accessor) now shadows any cross-lang builtin and reaches `INVOKE_fn`; unregistered names unaffected. **Native 247→250 (+3: 094_data_define_access, 811_size [SIZE/`size`, same class], match_driver), all byte-exact; zero regression** (smoke 13/13 native, rung M2=19/0 M4=18/1, broker 44, cross-lang smokes icon/prolog/raku/snocone/snobol4 5/5/5/5/13, FACT 0, audit GATE OK). Mode-2 oracle already correct (it prefers the registered fn); this aligns native with the oracle.
 
