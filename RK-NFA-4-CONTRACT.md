@@ -1,3 +1,18 @@
+## ✅ UPDATE-2 (Opus 4.8, 2026-05-29 — S2+S3 L1 GREEN, one4all `57ec5cea`)
+
+The corrected S2 design below is now BUILT and PROVEN. L1 `/x/`~"x" matches through the emitted
+isolated BB_NFA_* slab in mode-4, byte-identical to the C matcher (match / miss / leftmost-offset).
+The node-keyed walker is `nfa_text_box()` in `sm_bb_switch.cpp`'s SM_BB_INVOKE **MEDIUM_TEXT** arm
+(gated `bb_op_is_nfa(gen->t)`); leaves `bb_nfa_char`/`bb_nfa_accept` (MEDIUM_TEXT) in `bb_nfa.cpp`;
+`emit_core.c` routes CHAR/ACCEPT (ANY/CLASS/SPLIT/BOL/EOL still `bb_stub`). Register model exactly
+as specified: r13=pos, r14=base, r15d=slen, r12d=sweep-sp, callee-saved (push/pop r12-r15 in the
+walker). Subject popped off the SM value stack (rax{v|slen}:rdx{ptr}); int verdict pushed so the
+`if` SM_VOID_POP balances; `last_ok` drives JUMP_F. Default OFF; all gates at baseline; FACT 0.
+NEXT: bb_nfa_any/class/bol/eol/split leaves (SPLIT needs its β=out2 label threaded in `nfa_text_box`),
+then RK-NFA-3 captures, then RK-NFA-5 mode-3 BINARY twins.
+
+---
+
 # RK-NFA-4 / G1-1 — RESOLVED ENTRY CONTRACT (drop-in spec)
 
 ## ⚠️ UPDATE (Opus 4.8, 2026-05-29 — S1 LANDED + S2 CONTRACT CORRECTED, one4all `c8aeb90d`)

@@ -122,7 +122,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 ### Phase 1 — NFA leaf, core single-pattern (RK-NFA-1..5) — IN FLIGHT
 Tracked in the RK-NFA rungs above (1a–1e ✅, 4 SCAFFOLD ✅). Restated here as the ladder's first phase:
-- [ ] **G1-1** RK-NFA-4 — **ENTRY CONTRACT RESOLVED → see `RK-NFA-4-CONTRACT.md`** (Opus 4.8, 2026-05-29). **S1 DONE (one4all `c8aeb90d`):** gated `~~`→`SM_BB_INVOKE` over the isolated BB_NFA_* graph, default OFF (`RK_NFA_BB`); `--dump-sm` confirms OFF→`SM_CALL_FN raku_match`, ON→`SM_BB_INVOKE`; all gates at baseline. **⛔ S2 CONTRACT CORRECTED (same session):** the mode-4 `~~` path is `SM_BB_INVOKE`→`sm_bb_invoke`→`sm_bb_switch.cpp` MEDIUM_BINARY arm→**`walk_bb_node(gen,NULL)` (single-node)**, NOT `walk_bb_flat`/`flat_drive_nfa`. The multi-node NFA graph needs a NEW node-keyed walker INSIDE that BINARY arm (subject-pop-from-vstack preamble + leftmost sweep + per-node label wiring), gated on `gen->t∈BB_NFA_*`. See the ⚠️ UPDATE block at the TOP of `RK-NFA-4-CONTRACT.md`. The 7 templates are NOT the first sub-step: the walker/ABI is the prerequisite. Order: S1✅ → S2 walker (sm_bb_switch BINARY) → S3 leaf templates → S4 L1..L15 ladder under `RK_NFA_BB=1`. First atom: L1 `/x/`~"x" = S1✅+S2+`bb_nfa_char`+`bb_nfa_accept`. See the RK-NFA-4 DESIGN block above + the contract note.
+- [ ] **G1-1** RK-NFA-4 — **S1✅ + S2✅ + S3 (L1 atom)✅ — `/x/` GREEN in mode-4** (Opus 4.8, 2026-05-29). **S1** (one4all `c8aeb90d`): gated `~~`→`SM_BB_INVOKE` over the isolated BB_NFA_* graph, default OFF (`RK_NFA_BB`). **S2+S3** (one4all `57ec5cea`): first runnable atom L1 `/x/`~"x" green in mode-4 (MEDIUM_TEXT) via the EMITTED isolated slab — byte-identical to the C matcher (match / miss / leftmost-offset `"abcx"`→pos 3). The contract's `walk_bb_flat` S2 was WRONG; the node-keyed NFA walker lives in the **`sm_bb_switch.cpp` SM_BB_INVOKE MEDIUM_TEXT arm** (subject-pop-from-vstack + leftmost sweep + r12/r13/r14/r15 save/restore, per-node label wiring), with leaf bytes in `bb_nfa.cpp` (`bb_nfa_char`/`bb_nfa_accept`). Default gates HOLD (m2 41/42, m4 42/42, m3 41/42 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0). REMAINING for G1-1: the rest of the L2-L12 leaves (`bb_nfa_any`/`class`/`bol`/`eol`/`split`), then captures (RK-NFA-3, L13-L15), then mode-3 BINARY (RK-NFA-5), then flip default (G1-3). Repro: `RK_NFA_BB=1 bash scripts/run_raku_via_x86_backend.sh FILE.raku`.
 - [ ] **G1-2** RK-NFA-5 — `~~` onto the emitted slab in mode-3 native.
 - [ ] **G1-3** mode-4 `~~` default flip to BB once G1-1+G1-2 green (retire the C-matcher fallback behind `RK_NFA_BB`).
 
@@ -229,6 +229,36 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+RK-NFA-4 / G1-1 S2+S3 — L1 /x/ GREEN in mode-4 via the emitted isolated BB_NFA_* slab
+  (Opus 4.8, 2026-05-29, one4all 57ec5cea). FIRST RUNNABLE ATOM of the BB_NFA_* emission
+  ladder. /x/~"x" now matches through EMITTED four-port templates (not the C matcher) in
+  mode-4 (--compile x86), byte-identical to the C-matcher verdict: match / miss / leftmost-
+  offset ("abcx"→pos 3, sweep proven). Default OFF (RK_NFA_BB) so the proven path + all gates
+  are untouched.
+  S2 (sm_bb_switch.cpp): node-keyed NFA walker in the SM_BB_INVOKE MEDIUM_TEXT arm, gated on
+  gen->t∈BB_NFA_*. The CORRECTED design from the prior watermark, now PROVEN: the multi-node
+  NFA graph can't ride the single-node walk_bb_node path (bb_to_by/bb_iterate are self-contained
+  one-node leaves); the walker owns the subject preamble (pop subject DESCR off the SM value
+  stack — rax{v|slen}:rdx{ptr}, strlen fallback), the leftmost sweep (r12d=sp 0..slen), the
+  callee-saved reg save/restore (push/pop r12-r15), and per-node label wiring (set g_emit.lbl_*
+  per node, walk_bb_node_str_c each). Match pushes an int verdict (1/0) so the `if` branch's
+  SM_VOID_POP balances; last_ok (caller γ/ω postamble) drives JUMP_F. β resume handler defined
+  (never taken for verdict ~~). Register model: r13=pos, r14=base, r15d=slen, r12d=sp.
+  S3 (bb_nfa.cpp): bb_nfa_char (cmp r13d,r15d; jae ω; movzx [r14+r13]; cmp imm; jne ω; inc r13;
+  jmp γ) + bb_nfa_accept (jmp γ→matched), MEDIUM_TEXT only; mode-3 BINARY deferred to RK-NFA-5.
+  emit_core.c routes BB_NFA_CHAR/ACCEPT to them; ANY/CLASS/SPLIT/BOL/EOL stay on bb_stub.
+  All emission in *_templates/ (FACT 0). Default gates HOLD (below). Repro:
+  RK_NFA_BB=1 bash scripts/run_raku_via_x86_backend.sh FILE.raku
+  NEXT CODE RUNG: extend the leaf set up the L2-L12 ladder — bb_nfa_any (`.`), bb_nfa_class
+  (32-byte cset bitset → \d \w \s + [...]), bb_nfa_bol/eol (^/$), bb_nfa_split (the * / + / ||
+  fork — model the backtrack on the verdict-only sweep; SPLIT's β=out2 is the second arm). Each
+  is a new MEDIUM_TEXT arm in bb_nfa.cpp + an emit_core.c route off bb_stub; the walker already
+  wires γ/ω/β per node (SPLIT will need its β=out2 label threaded — add to nfa_text_box). Then
+  RK-NFA-3 captures ($0/$1 → GC_malloc cap block in the walker preamble), then RK-NFA-5 mode-3
+  BINARY (byte twins of the TEXT arms), then G1-3 flip default ~~→BB. The C matcher stays the
+  default + the golden oracle the emitted path is diffed against (L1-L15 already pass via C in
+  all 3 modes).
+
 RK-NFA-4 / G1-1 S1 LANDED + S2 CONTRACT CORRECTED (Opus 4.8, 2026-05-29, one4all c8aeb90d).
   FIRST CODE RUNG of the BB_NFA_* emission ladder. S1 = the gated `~~` lowering rewiring in
   lower.c TT_SMATCH (real case ~line 2492, NOT 2488): getenv("RK_NFA_BB") && flavor==match →
