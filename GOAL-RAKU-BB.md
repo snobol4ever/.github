@@ -58,6 +58,8 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 - **RK-HASH** ✅ — hash builtins (set/get/exists/keys/values/pairs/delete), SOH/STX encoding; polyglot TT_FNC skip fix; SSE alignment fix; stale-frame writeback; rt_acomp string coercion.
 - **RK-IO** ✅ (Claude Sonnet 4.6, 2026-05-28, one4all `753d85e2`) — `rk_fileio38` + `rk_stdio39` mode-4. **fileio38:** `for lines($path) -> $line` was lowering as a call-per-iteration loop; added `TT_ITERATE(TT_FNC)` arm in `lower_every` that materialises the array-returning call once into a fresh `__arr_N` temp then routes through `lower_raku_iterate_arr` BB path. **stdio39:** `raku_capture` returned `INTVAL` not `FHVAL` so `$*STDOUT`/`$*STDERR` failed `IS_FH_fn` check in `write`; fixed to return `FHVAL(n)`. Added `fflush(stdout)` before non-stdout handle writes + `setvbuf(stdout,NULL,_IOLBF,0)` in `rt_init` for ordering. Runner `2>&1` to capture stderr in diff. GATE-RK4 23→25, GATE-RK 21→22.
 - **RK-EXCEPTIONS** ✅ (Claude Sonnet 4.6, 2026-05-28, one4all `ed6fec27`) — try/CATCH/die mode-4. Added `raku_exc_clear`, `raku_exc_check`, `raku_exc_get` to `raku_try_call_builtin_by_name` (were referenced by lower.c but never implemented in the rt path). Fixed `raku_die` to use SSE-safe `memcpy` instead of `snprintf` (Q13a). Fixed `raku_try_hash_builtin` to guard `args[0].v == DT_S` before `VARVAL_fn` — was segfaulting when `say(integer)` called inside any sub that had a `my`-decl (hash builtin check was passing integers to `VARVAL_fn` → `snprintf` on garbage pointer). GATE-RK4 22→23, GATE-RK 20→21.
+- **RK-CLASS** ✅ (Claude Sonnet, 2026-05-28) — `rk_class26` PASS in modes 2 and 4. Root cause: Raku `TT_CLASS_DECL` lowered to a runtime `RECORD_MAKE` call but the type was never registered. Polyglot's `TT_RECORD` path registers via `icn_record_register` at lower time for Icon records; that path doesn't fire for `TT_CLASS_DECL`, leaving `sc_dat_find_type("Point")` returning NULL → `RECORD_MAKE` silently returns FAILDESCR. Fix lives at SM-emission level so it works in all modes uniformly: `lower_class_decl` now emits `PUSH_STR "Point(x,y)"; CALL_FN "RECORD_REGISTER" 1; VOID_POP` before `RECORD_MAKE`, and `icn_try_call_builtin_by_name` has a new `RECORD_REGISTER` handler that delegates to the idempotent `icn_record_register`. Reachable from `sm_interp` (mode-2) and `rt_call` (mode-4) via the same dispatch chain. **GATE-RK 22→23, GATE-RK4 25→26.** Mode-3 (SCRIP_M3_NATIVE=1) still segfaults at the first `$p.sum()` — separate engine bug in `sm_run_native`'s method dispatch, NOT the registration fix; tracked under MODE3-DISPATCH-GAP.
+- **Mode-3 honest baseline** 📋 (Claude Sonnet, 2026-05-28) — empirical trace at `scrip.c:518` confirmed plain `--run` for Raku invokes `sm_interp_run` (C interpreter), violating Lon's stated mode-3 invariant. Per Lon's 2026-05-28 directive (3× this session): mode-3 = flat-wired x86 SM AND BB, interpreters reserved for mode-2. Honest mode-3 = `SCRIP_M3_NATIVE=1 ./scrip --run` (engine: `sm_run_native`). Baseline on test/raku corpus: **PASS=11 FAIL=2 CRASH=20 TOTAL=33**. Crashes cluster around method dispatch, gather/take, frame slots — overlapping with open Raku-BB work. Tracked separately in `.github/MODE3-DISPATCH-GAP.md`; needs its own goal ladder mirroring IBB ground-zero. Old "Crosscheck 37/37" line in this watermark was comparing `sm_interp_run` to `sm_interp_run` (same engine, both flags) and reporting agreement — meaningless; replaced.
 
 ## Open rungs
 
@@ -71,6 +73,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 - [ ] **RK-BB-4-frontend** — pending Q9-Q12.
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers; `zip`/`cross` = multi-Seq drivers (later).
+- [ ] **MODE3-NO-INTERP** — see `MODE3-DISPATCH-GAP.md`. Per-language ladder to remove `sm_interp_run` from `--run` path. Suggested order: Raku (this goal's responsibility), then Prolog, Snocone, Rebus. SNOBOL4 already has `SCRIP_M3_NATIVE`; flip the default. 20 mode-3 crashes to triage.
 
 ## Rung methodology
 
@@ -82,7 +85,7 @@ Per rung: (1) lower the Raku construct to the shared BB kind via `lower_raku_*` 
 
 ## Mode-3 (`--run`)
 
-RULES.md sanctions one temporary SM-walk exception (Prolog `--run`, AGW-1c). Do NOT route Raku `--run` through `sm_interp_run` without a Lon directive. Mode-4 is this ladder's target.
+**2026-05-28 Lon directive (3× this session, BINDING):** mode-3 = flat-wired x86 SM AND BB. Interpreters reserved for mode-2. `--run` MUST NOT invoke `sm_interp_run`. Honest mode-3 measurement = `SCRIP_M3_NATIVE=1 ./scrip --run`. Today's default `--run` for Raku silently falls through to `sm_interp_run` (empirically traced); that is a violation pending ladder work — see `MODE3-DISPATCH-GAP.md`.
 
 ## Session Setup
 
@@ -109,27 +112,32 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: RK-CLASS partial-2 (prescan+bodies+byname; 456cc7d0)
-.github: HEAD
+one4all: RK-CLASS done modes-2+4; mode-3 honest baseline established (uncommitted at hand off)
+.github: HEAD + MODE3-DISPATCH-GAP.md (new) + GOAL-RAKU-BB.md (updated)
 corpus:  unchanged
 
-GATE-RK  mode-2:  22/33  HOLD
-GATE-RK4 mode-4:  25/33  HOLD (rk_class26 still FAIL — 3 blockers, see HANDOFF doc)
-Crosscheck:       37/37  all 3 modes agree
+GATE-RK   mode-2:                23/33  (+1 rk_class26)
+GATE-RK3  --run SCRIP_M3_NATIVE: 11/33 + 2 FAIL + 20 CRASH  (new honest baseline)
+GATE-RK4  mode-4:                26/33  (+1 rk_class26; not re-measured this hand off per Lon "mode 2 and 3 only")
 Smoke raku:       5/5    HOLD
 Smoke prolog:     5/5    HOLD
 Smoke snobol4:    13/13  HOLD
 Smoke icon:       5/5    HOLD
 FACT RULE grep:   0
-Templates lang-sniffing: 0
+M3-NATIVE audit:  GATE OK (bb_seq.cpp empty-passthrough allowlisted, same shape as bb_fail.cpp)
 Build:            clean
 ```
 
-## Remaining 8 mode-4 FAILs
+## Remaining 7 mode-4 FAILs
 
 - REGEX/NFA (6): rk_re32/33/34/35/37, rk_regex23 — DEFERRED to GOAL-RAKU-PAT-BB.
 - JUNCTIONS (1): rk_junctions — BLOCKED on Lon Q9-Q12.
-- CLASS (1): rk_class26 — OOP class/method dispatch.
+
+## Mode-3 (SCRIP_M3_NATIVE=1) status — 20 crashes to triage
+
+PASS (11): rk_arith rk_arrays rk_control rk_forloop rk_hash17 rk_hashes rk_str22 rk_strings rk_typed_vars rk_unless_until rk_vars
+FAIL (2): rk_junctions rk_stdio39
+CRASH (20): rk_class26 rk_combinator rk_fileio38 rk_for_array rk_for_array_simple rk_for_array_underscore rk_gather rk_given rk_given18 rk_interp rk_map_grep_sort24 rk_range_for rk_re32 rk_re33 rk_re34 rk_re35 rk_re37 rk_regex23 rk_subs rk_try_catch25
 
 ## Open questions for Lon
 
