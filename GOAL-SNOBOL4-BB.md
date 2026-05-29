@@ -84,6 +84,55 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
 
 ### Next phase: ORACLE-PARITY (lifts both modes)
 
+- [x] **VARIABLE-ARGUMENT PATTERN FAMILY (mode-2 oracle) ✅** (2026-05-29 Opus 4.8, commits
+  `acc9ae77`/`3278f60f`/`36fe8ab9`/`0c7f9cfb`). A whole class of mode-2-only failures shared ONE
+  root cause: `lower_pat_dcg.c` accepted ONLY literal arguments to pattern primitives (`TT_QLIT`
+  charset / `TT_ILIT` integer). A `TT_VAR` argument → `build_node` returns NULL → `BB_lower_pat`
+  fails for the whole pattern → mode-2 falls to a legacy path that mismatches (matched nothing,
+  or wrong fall-through). Native was always correct (it resolves args at runtime via `rt_pat_*`).
+  Fix pattern (uniform): accept `TT_VAR`, store the **varname** in `sval`, set a flag, and resolve
+  at exec time in `bb_exec.c` via `VARVAL_fn(NV_GET_fn(sval))` (charset) or `to_int(NV_GET_fn(sval))`
+  (integer) — the arg variable is assigned by an earlier statement, AFTER pattern lowering, so
+  resolution MUST be late. Flag convention: SPAN uses `ival=1` (ival otherwise unused); BREAK/BREAKX
+  reserve `ival` for the BREAKX distinction so the family standardized on `dval` (1.0 = "sval is a
+  varname"; for POS/RPOS/TAB/RTAB, `dval` also carries from-end: 2.0=POS/TAB-var, 1.0=RPOS/RTAB-var).
+  Covered: **SPAN, ANY, NOTANY, BREAK, BREAKX, LEN, POS, RPOS, TAB, RTAB**. Also folded in here:
+  **SBL-SIZE-SHADOW** (`acc9ae77`) — mode-2 `SIZE(12)` returned 0 (Icon `*E`) instead of 2 because
+  the `sm_interp.c` `SM_CALL_FN` ladder ran `icn_try_call_builtin_by_name` BEFORE `INVOKE_fn`; added
+  the `!sno_fn_registered(name)` guard mirroring the native `rt.c` SBL-DATA-FN-SHADOW fix (`SIZE` is
+  in the SNOBOL4 func table). **mode-2 248→253 (+5: 811_size, 063_pat_fence_fn_optional,
+  065_pat_fence_fn_decimal, 061_capture_in_arbno, test_string); native 255→256 (+1: XDump_driver,
+  via the shared bb_exec SPAN-VAR arm). Zero regressions** across all four commits (FAIL-list diffs
+  empty on the RED side each time). Gates each commit: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053
+  pre-existing), broker 57/5, cross-lang icon/prolog/raku/snocone 5/5/5/5, FACT 0. Pure C — no byte
+  code. NOTE the audit GATE FAIL is **pre-existing** (Raku NFA `xa_wasm_main.cpp` NO-ARM, confirmed
+  identical on clean `2b5a2e77` via `git stash`), NOT from this work.
+
+- [ ] **FENCE-commit / ALT-fall-through (124 + 114, SHARED class) — NEXT PRIORITY.** `124_pat_regex_keyword_seal`
+  and `114_pat_fence_via_var_in_paren_alt`: when `FENCE(P)` inside an outer ALT matches, but a LATER
+  element of the pattern (e.g. trailing `RPOS(0)`) fails, the outer ALT must fall through to the NEXT
+  alternative, AND conditional assigns (`.`) made inside the failed alternative must NOT commit. Mode-2
+  fails to fall through (prints the NO-branch). `114` fails in BOTH modes (so it is also a native gap —
+  fixing the shared oracle/semantics lifts both, like SBL-1016). Repro: `token = (FENCE('if'|...) . K |
+  SPAN(lc) . I); s='iffoo'; s POS(0) token RPOS(0)` → must take the `ident` alt and bind `I='iffoo'`.
+  This is genuine FENCE×ALT-backtracking semantics, NOT a lowering-coverage gap — deeper than the
+  variable-arg family. Start here next session.
+
+- [ ] **ANY/SPAN/etc. with a charset EXPRESSION argument (064_pat_fence_fn_capture).** `ANY(&UCASE &LCASE)`:
+  the arg is `TT_SEQ(TT_KEYWORD UCASE, TT_KEYWORD LCASE)` — a CONCATENATION of keyword csets, not a
+  single `TT_VAR`, so the SBL-BREAK-VAR `TT_VAR` path does not catch it. `&UCASE`/`&LCASE` are
+  string-valued keyword vars (`snobol4.c:1861 NV_SET_fn("UCASE", STRVAL(...))`). The principled fix:
+  lower the charset SUB-EXPRESSION to SM ops that compute the concatenated string and feed it to the
+  pattern node (as native's `rt_pat_*` consumes a stack value), rather than extending `bb_exec.c` to
+  walk a charset sub-tree (would violate NO-AST-WALKING). Larger; deferred this session by choice.
+
+- [ ] **Untriaged remaining mode-2-only gaps:** `Qize_driver`. (XDump_driver flipped green native this
+  session but is still a mode-2 gap; re-triage.) To regenerate the live mode-2-only list: run the broad
+  corpus under `--interp` and under `SCRIP_M3_NATIVE=1`, sort both FAIL lists, `comm -13 native m2`.
+  (Use a copy of `test_interp_broad_corpus_and_beauty.sh` with `--interp` injected on the scrip calls —
+  the stock harness runs bare `$INTERP` = mode-3 native by default per `scrip.c:135`.)
+
+
 - [x] **SBL-ARB-CAT-BACKTRACK (mode-3 native + mode-4 flat) ✅** (2026-05-29 Opus 4.8). The prior
   session's "capture-registry / deferred-commit" hypothesis was **WRONG** — disproved by the no-capture
   repro `U='xxNAMExx'; U ? 'xx' ARB 'xx'` which ALSO fails (oracle: MATCH). The real defect is **ARB
@@ -259,16 +308,16 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 2b5a2e77  SBL-M2-CAT-FLATTEN+DEFER-GROW+CAP-REGROW  (28a720f2 SBL-CAP-OUTPUT-R10 in history)
+HEAD one4all       = 0c7f9cfb  SBL-BREAK-VAR (chain: SBL-SIZE-SHADOW acc9ae77, SBL-SPAN-VAR 3278f60f, SBL-POS-VAR 36fe8ab9)
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
-GATE-2 broker      = 51       (sibling-influenced; up from 49 via sibling Prolog/Raku, not this change)
+GATE-2 broker      = 57/5     (sibling-influenced)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 255/280  (unchanged this session; native untouched)
-true --interp      = 248/280  (+2 this session: word2, word3; real baseline was 246, NOT the stale 252)
+DEFAULT/NATIVE     = 256/280  (+1 this session: XDump_driver, via the shared bb_exec SPAN-VAR arm)
+true --interp      = 253/280  (+5 this session: 811_size, 063, 065, 061, test_string)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
 FACT RULE          = 0
-audit_m3_native    = GATE OK
+audit_m3_native    = GATE FAIL (PRE-EXISTING — Raku NFA xa_wasm_main.cpp NO-ARM; present on clean 2b5a2e77 via git stash)
 GATE-PK            = stale
 ```
 
@@ -277,6 +326,23 @@ GATE-PK            = stale
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — VARIABLE-ARGUMENT PATTERN FAMILY + SIZE-SHADOW ✅** (one4all `0c7f9cfb`,
+  chain `acc9ae77`→`3278f60f`→`36fe8ab9`→`0c7f9cfb`). Four commits closing one root-cause class of
+  mode-2-only oracle gaps: DCG lowering (`lower_pat_dcg.c`) accepted ONLY literal args to pattern
+  primitives, so a `TT_VAR` arg made `BB_lower_pat` fail → mode-2 fell to a mismatching legacy path
+  (native always correct via runtime `rt_pat_*`). Uniform fix: accept `TT_VAR`, varname→`sval`,
+  flag (`ival=1` for SPAN; `dval` for the rest since BREAK/BREAKX need `ival` for the BREAKX bit and
+  POS/RPOS/TAB/RTAB need from-end), resolve late in `bb_exec.c` via `VARVAL_fn(NV_GET_fn)` /
+  `to_int(NV_GET_fn)`. Covered SPAN/ANY/NOTANY/BREAK/BREAKX/LEN/POS/RPOS/TAB/RTAB. Plus SBL-SIZE-SHADOW:
+  mode-2 `SIZE(12)`→0 (Icon `*E`) fixed by the `!sno_fn_registered` guard on the `sm_interp.c` icn
+  fallback (mirror of native `rt.c` SBL-DATA-FN-SHADOW; `SIZE` is in the SNOBOL4 func table).
+  **mode-2 248→253 (+5: 811_size, 063, 065, 061, test_string); native 255→256 (+1: XDump_driver via
+  shared SPAN-VAR arm). Zero regressions each commit** (empty RED FAIL-diffs). Gates per commit:
+  smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053 pre-existing), broker 57/5, cross-lang 5/5/5/5, FACT 0.
+  Pure C, no byte code. Method: diff mode-2 vs native FAIL lists → isolate oracle gaps → bisect to the
+  literal-only lowering. Audit GATE FAIL pre-existing (Raku NFA `xa_wasm_main.cpp`, verified on clean
+  `2b5a2e77` via stash). Next: FENCE×ALT fall-through (124+114, shared), then charset-expr args (064).
 
 - **2026-05-29 Opus 4.8 — SBL-M2-CAT-FLATTEN+DEFER-GROW+CAP-REGROW ✅** (one4all `2b5a2e77`). Mode-2 (`--interp`) oracle parity for ARB-in-CAT + capture. Prior DEFER hypothesis was WRONG (bare ARB compiles to SM_PAT_ARB/XFARB, and the failing path is the bb_exec.c ORACLE via SM_EXEC_STMT bb_table — BB_lower_pat succeeds — NOT the broker). Three real fixes: (1) lower_pat_dcg.c CAT-FLATTEN — parser emits left-nested binary CAT(CAT(a,b),c); the TT_CAT retry fixup wired successor.ω→a->β where a is the inner CAT entry (FIRST element β), never the buried middle generator, so 'xx' ARB 'xx' could not grow ARB. Flatten nested TT_SEQ/TT_CAT into one flat leaf chain (concat associative) → flat fixup wires kid[i+1].ω→kid[i].β. (2) bb_exec.c BB_PAT_DEFER growable — persist sub-graph ptr (dval) + outer-Δ origin (counter) in α, bb_exec_resume on β; β=self in the two DEFER lowering sites. (3) bb_exec.c ASSIGN_COND/IMM capture-regrow — node reset state=0 after commit so a regrown inner re-recorded a fresh start (captured var empty/wrong); discriminate fresh vs inner-return on inner state (bb->α->state), preserve start. **mode-2 246→248 (+2: word2, word3 byte-correct; FAIL-diff = exactly those two, zero regression).** native 255 unchanged; smoke 13/13 ×2; rung M2=19/0 M4=18/1 (053 pre-existing); cross-lang 5/5/5/5; FACT=0. Pure C control-flow/state, no byte code. NOTE: real mode-2 baseline is 246 (re-measured clean 28a720f2), the prior "252" was stale. audit GATE FAIL is pre-existing bb_nfa.cpp (Raku NFA sibling), present on clean baseline — not this change.
 
