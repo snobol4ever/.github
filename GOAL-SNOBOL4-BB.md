@@ -140,6 +140,20 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
   backtrack delegates to `inner.β` while inner.γ regrow still re-commits). This pairs with the already-present
   DEFER-grow (`bb_exec.c case BB_PAT_DEFER` state==1 → `bb_exec_resume`). p8 (`token=('if'.K|SPAN.I)`,
   no FENCE) is the minimal repro of JUST the DEFER-capture-resume gap (FENCE-independent).
+  **2026-05-29 follow-up — capture-transparency PROTOTYPED then REVERTED (+1/−3, not pushable).** Implemented
+  the planned fix: `BB_graph_t.resume_at` (last-success node, set in bb_exec_once/resume), a `g_resume_backtrack`
+  one-shot (SET only when `bb_exec_resume` re-enters a SNO graph's resume_at, CLEARED on the first forward γ
+  step in the resume driver loop), and made `BB_PAT_ASSIGN_COND`/`_IMM` delegate to `bb->α` (re-enter inner to
+  backtrack) instead of committing when `g_resume_backtrack` is set. **Result: 124 went GREEN both modes, p8
+  green, cross-lang 5/5/5/5 (Prolog safe — SNO-gating works), smoke 13/13 ×2, native unchanged 256 — BUT it
+  REGRESSED 3 mode-2 tests: `068_pat_fence_fn_via_var`, `109_pat_fence_via_var_seal_blocks_retry`,
+  `113_pat_fence_via_var_two_with_seal_retry` (mode-2 253→251).** The delegation over-reaches: for a FENCE-via-var
+  whose seal must BLOCK retry, re-entering the capture's inner on backtrack lets the sealed FENCE be retried /
+  produces the wrong extent. **NEXT FIX:** gate the capture's backtrack-delegation so it does NOT re-enter an
+  inner that is (or wraps) a sealed FENCE — i.e. when the inner sub-pattern committed via a FENCE, the capture
+  must fail upstream (current commit-then-fail behavior) rather than delegate. Distinguish "inner holds a live
+  backtrackable generator" (delegate) from "inner is sealed/exhausted" (fail upstream). The +1/−3 patch is
+  reproducible from this watermark; the leaf+FENCE base (committed `77a39e82`) is the clean floor.
 
 - [ ] **ANY/SPAN/etc. with a charset EXPRESSION argument (064_pat_fence_fn_capture).** `ANY(&UCASE &LCASE)`:
   the arg is `TT_SEQ(TT_KEYWORD UCASE, TT_KEYWORD LCASE)` — a CONCATENATION of keyword csets, not a
