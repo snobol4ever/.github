@@ -112,12 +112,12 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: opnames-table cleanup (Sonnet, 2026-05-28 follow-up-3) — opnames[] slot 62 mislabel "SM_UNUSED_8" → "SM_NAMED_CALL". One-line rename; no behavior change; prevents the future-miscount the M3-RK-NOINTERP-3 handoff flagged. M3-RK-NOINTERP-1 architectural deep-dive done, NOT LANDED: ABI mismatch identified between mode-3 native (rt_push_int via SM rt-vstack) and existing BB MEDIUM_BINARY arms (r12 as brokered slab vstack). bb_to_by/bb_upto/bb_suspend/bb_iterate/bb_icn_to all write r12 in their BINARY arms; XA_FLAT_PROLOGUE does not initialise r12; bb_broker does not initialise r12. Splicing existing BB BINARY arms inline into the SM byte stream of sm_run_native would push values to an uninitialised r12 → segv or silent corruption, then STORE_VAR underflow. Closing Cluster 1 therefore requires *either* (a) new mode-3 ABI branch in each generator-family BB template (bb_to_by/bb_upto/bb_iterate/bb_seq...) that uses rt_push_int instead of r12 writes; *or* (b) sm_bb_invoke MEDIUM_BINARY arm allocates a malloc'd r12 region, sets r12, runs the inlined BB graph, then pops descriptor → rt_push_int to transfer to SM rt-vstack. (a) is cleaner / more invariant-preserving; (b) is more localized. Recommend (a) — splits as M3-RK-NOINTERP-1a (bb_to_by mode-3-ABI arm) and 1b (bb_iterate / bb_seq / bb_upto). One generator-template per follow-up to minimise blast radius.
-.github: GOAL-RAKU-BB.md watermark update only
+one4all: M3-RK-NOINTERP-1a — bb_to_by.cpp MEDIUM_BINARY arm rt_push_int conversion (Sonnet 4.6, 2026-05-28 follow-up-4). Surgical edit in `src/emitter/BB_templates/bb_to_by.cpp`: the four `r12`-relative yield writes (mov dword[r12],DT_I / mov dword[r12+4],0 / mov [r12+8],rcx / add r12,16 — 18 bytes) replaced with the rt_push_int call convention from bb_to.cpp (IBB-3): `mov rdi,rcx ; movabs rax,&rt_push_int ; call rax` (15 bytes). Added `void rt_push_int(int64_t v);` forward-decl + `<stdint.h>` include at file top. **Mode-4 brokered path UNAFFECTED:** verified that `BB_TO_BY` MEDIUM_BINARY is reached only via `sm_run_native` (mode-3 native) — the SNOBOL4 pattern brokered builder `bb_build_brokered` is exclusively for BB_PAT_* kinds; mode-4 Raku `--compile` uses MEDIUM_TEXT (verified by emitting `lea rax,[rip+.Ltoby*_cur]` style asm). All three offsets in `bin = {fail_off+2, succ_off+1, back_off}` recomputed correctly across the byte-length change; the jcc rel32 patch site moves but the bin descriptor uses `(int)b.size()` snapshots so it tracks automatically. **DISCOVERED ARCHITECTURAL BLOCKER for closing rk_range_for / Cluster 1:** `sm_bb_invoke` MEDIUM_BINARY arm at `src/emitter/SM_templates/sm_bb_switch.cpp:35-36` is a 5-byte no-op stub (`E8 00 00 00 00` — `call rel32=0`). The MEDIUM_TEXT arm inlines the BB graph (calls `walk_bb_node_str_c(gen)` + emits γ/ω epilogue with rt_set_last_ok); the MEDIUM_BINARY arm does not. Therefore even with bb_to_by.cpp emitting correct yield bytes, the generator never runs under mode-3 native — SM_BB_INVOKE executes the no-op call, the next SM op (`SM_JUMP_F → exit`) finds the vstack empty → underflow. **rk_range_for still CRASH** until SM_BB_INVOKE MEDIUM_BINARY is wired up. The prior-author watermark recommended path (a) — template-per-step — assumed sm_bb_invoke would route through inline templates; that assumption was wrong. Path (a) AND a sibling sm_bb_invoke MEDIUM_BINARY fix are both required; they compose cleanly (bb_to_by is now ready for that wiring). Also note: `walk_bb_flat` (the MEDIUM_TEXT inline driver in `emit_bb.c:981`) has `case BB_TO:` but no `case BB_TO_BY:` — BB_TO_BY currently falls into `default:` (define β + jmp ω twice). This needs adding alongside the SM_BB_INVOKE MEDIUM_BINARY change. **Mode-3 measurement re-baselined:** 17→18 PASS (rk_stdio39 PASS this session — same flip the prior watermark noted, in the other direction; stderr-ordering is order-of-rt_init contingent and not actually about Cluster 1). All other gates HOLD byte-for-byte.
+.github: GOAL-RAKU-BB.md watermark update for M3-RK-NOINTERP-1a + discovered SM_BB_INVOKE BINARY stub blocker
 corpus:  unchanged
 
 GATE-RK   mode-2:                23/33  HOLD
-GATE-RK3  --run SCRIP_M3_NATIVE: 17/33 + 2 FAIL + 14 CRASH (re-measured this session; prior 18/33 line included rk_stdio39 PASS which now FAILs — diff was about a stderr ordering issue. Cluster 1 untouched.)
+GATE-RK3  --run SCRIP_M3_NATIVE: 18/33 + 1 FAIL + 14 CRASH (rk_stdio39 PASS this session; all 14 CRASHes unchanged)
 GATE-RK4  mode-4:                26/33  HOLD
 Smoke raku:       5/5    HOLD
 Smoke prolog:     5/5    HOLD
@@ -132,13 +132,22 @@ Build:            clean
 - REGEX/NFA (6): rk_re32/33/34/35/37, rk_regex23 — DEFERRED to GOAL-RAKU-PAT-BB.
 - JUNCTIONS (1): rk_junctions — BLOCKED on Lon Q9-Q12.
 
-## Mode-3 (SCRIP_M3_NATIVE=1) status — 17 PASS, 2 FAIL, 14 CRASH
+## Mode-3 (SCRIP_M3_NATIVE=1) status — 18 PASS, 1 FAIL, 14 CRASH
 
-PASS (17): rk_arith rk_arrays rk_class26 rk_combinator rk_control rk_forloop rk_given rk_hash17 rk_hashes rk_interp rk_str22 rk_strings rk_subs rk_try_catch25 rk_typed_vars rk_unless_until rk_vars
-FAIL  (2): rk_junctions rk_stdio39
+PASS (18): rk_arith rk_arrays rk_class26 rk_combinator rk_control rk_forloop rk_given rk_hash17 rk_hashes rk_interp rk_stdio39 rk_str22 rk_strings rk_subs rk_try_catch25 rk_typed_vars rk_unless_until rk_vars
+FAIL  (1): rk_junctions
 CRASH (14): rk_fileio38 rk_for_array rk_for_array_simple rk_for_array_underscore rk_gather rk_given18 rk_map_grep_sort24 rk_range_for rk_re32 rk_re33 rk_re34 rk_re35 rk_re37 rk_regex23
 
-Remaining crash structure: 8 in Cluster 1 (SM_BB_INVOKE BINARY no-op stub + r12-ABI mismatch in generator BB templates — see MODE3-NO-INTERP rung above; rk_given18 belongs here behind its prior Cluster 2 SEGV), 6 in Cluster 3 (regex, deferred to GOAL-RAKU-PAT-BB). rk_stdio39 (was PASS at 18/33 mark in prior watermark) now FAILs — appears to be a stderr-ordering diff from the rt_init setvbuf path; not Cluster 1 territory; tracked separately if it re-surfaces.
+Remaining crash structure: 8 in Cluster 1 (SM_BB_INVOKE MEDIUM_BINARY no-op stub — the architectural blocker described in this watermark; bb_to_by template-level fix is in place but unreachable until SM_BB_INVOKE wires up; rk_given18 belongs here behind its prior Cluster 2 SEGV), 6 in Cluster 3 (regex, deferred to GOAL-RAKU-PAT-BB).
+
+## NEXT STEP RECOMMENDATION — M3-RK-NOINTERP-1b (sm_bb_invoke wiring)
+
+Before further BB-template mode-3-ABI conversions (bb_iterate / bb_upto / bb_suspend / bb_seq), the SM_BB_INVOKE MEDIUM_BINARY arm in `src/emitter/SM_templates/sm_bb_switch.cpp` must be wired to inline the BB graph like its MEDIUM_TEXT sibling. Concretely:
+  1. Add `case BB_TO_BY:` to `walk_bb_flat` in `emit_bb.c:981` area (alongside the existing `case BB_TO:`).
+  2. Make SM_BB_INVOKE MEDIUM_BINARY emit: an entry-flag byte (or use a global allocated at sm_image_init), a load+compare+jcc to dispatch fresh-α vs resume-β, a call to walk_bb_flat (which now emits BINARY bytes via FILL→template dispatch), and a γ/ω epilogue with `mov rdi,1/0 ; call rt_set_last_ok@PLT` then jmp to exit_pc. The MEDIUM_TEXT arm at `sm_bb_switch.cpp:38-87` is the exact reference shape — translate each `s_directive`/`s_2asm` into the equivalent raw-byte sequence.
+  3. Verify on rk_range_for first (the simplest BB_TO_BY case); expect 18→19 PASS, 14→13 CRASH. Then re-attempt bb_iterate / bb_upto / bb_suspend / bb_seq mode-3-ABI edits.
+
+Alternative path (option b in prior watermark): allocate r12 as a per-invoke malloc'd region in sm_bb_invoke MEDIUM_BINARY, set r12, run inlined BB, then drain r12 → rt_push_int. Less invariant-preserving (introduces a second vstack convention into mode-3) but localised to one site; useful if (1) is gated.
 
 ## Open questions for Lon
 
