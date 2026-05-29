@@ -108,15 +108,38 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
   code. NOTE the audit GATE FAIL is **pre-existing** (Raku NFA `xa_wasm_main.cpp` NO-ARM, confirmed
   identical on clean `2b5a2e77` via `git stash`), NOT from this work.
 
-- [ ] **FENCE-commit / ALT-fall-through (124 + 114, SHARED class) — NEXT PRIORITY.** `124_pat_regex_keyword_seal`
-  and `114_pat_fence_via_var_in_paren_alt`: when `FENCE(P)` inside an outer ALT matches, but a LATER
-  element of the pattern (e.g. trailing `RPOS(0)`) fails, the outer ALT must fall through to the NEXT
-  alternative, AND conditional assigns (`.`) made inside the failed alternative must NOT commit. Mode-2
-  fails to fall through (prints the NO-branch). `114` fails in BOTH modes (so it is also a native gap —
-  fixing the shared oracle/semantics lifts both, like SBL-1016). Repro: `token = (FENCE('if'|...) . K |
-  SPAN(lc) . I); s='iffoo'; s POS(0) token RPOS(0)` → must take the `ident` alt and bind `I='iffoo'`.
-  This is genuine FENCE×ALT-backtracking semantics, NOT a lowering-coverage gap — deeper than the
-  variable-arg family. Start here next session.
+- [~] **FENCE-commit / ALT-fall-through (124 + 114, SHARED class) — INLINE CLASS FIXED; DEFER-resume blocker remains.**
+  `124_pat_regex_keyword_seal` (mode-2-only gap; native already green) and `114_pat_fence_via_var_in_paren_alt`
+  (both modes). **Root cause found + INLINE class fixed (SBL-ALT-CURSOR-RESTORE + SBL-FENCE-SEAL, this
+  session):** the mode-2 oracle's ALT fall-through did NOT restore the cursor Δ to the alternation's entry
+  position. A Δ-advancing single-shot leaf (LIT/REM/ANY/BREAK/LEN/NOTANY/TAB/RTAB) was lowered with `β = fp`,
+  so the CAT retry-chain (`successor.ω = preceding.β`) jumped straight past it WITHOUT re-entering it to undo
+  its Δ advance — invisible without an ALT (whole match just fails + Δ resets in `bb_exec_pat`'s start-loop),
+  but an ALT fallthrough leaks the cursor into the next alternative (`('ab' 'X' | 'abc')` on 'abc' → mode-2
+  matched 'abc' from Δ=2 → fail). Fix: those leaves now set `β = bb` (self) in BOTH `build_node` (AST) and
+  `build_patnd` (PATND) — matching the generator convention. FENCE additionally needed seal semantics: set
+  `β = self` at both oracle lowering sites (native XFNCE tree-builder already self) and rewrote `bb_exec.c
+  case BB_PAT_FENCE` to save Δ on α (`counter`) and RESTORE it on β (restore cursor, fail to ω WITHOUT
+  retrying inner alternatives = the commit). **Verified:** inline probes now correct in mode-2 — `('ab'
+  'X'|'abc')`, `(FENCE('if') 'X'|SPAN.I)`, `(FENCE('if'|'else') 'X'|SPAN.I)`, and the full
+  `(FENCE('if'|'else'|'while'|'for').K | SPAN(lc).I)` keyword-seal pattern (= 124 INLINED) all pass mode-2.
+  Gates: smoke 13/13 ×2, mode-2 broad 253 (ZERO regression, FAIL-list diff empty both sides), native broad
+  256 (ZERO regression), pat rung M2=19/0 M4=18/1 (053 pre-existing), cross-lang 5/5/5/5, FACT 0, audit
+  pre-existing Raku NO-ARM only. **REMAINING blocker for the exact corpus tests 124/114:** they reach the
+  alternation THROUGH a pattern VARIABLE (`token`, `*cmd` → `BB_PAT_DEFER`), whose sub-graph is run via a
+  nested `bb_exec_once` then resumed via `bb_exec_resume`. `bb_exec_resume` re-runs from `bbg->entry`; for an
+  alternation the entry is alt1's **capture node** (`BB_PAT_ASSIGN_COND`), and re-entering it takes the COMMIT
+  path (re-commits the same match) instead of backtracking to alt2. Diagnosed precisely: the capture cannot
+  distinguish "arrived from inner.γ (commit/regrow)" vs "arrived from successor.ω (backtrack)" — both have
+  inner.state>0 — which is the same ambiguity the SBL-CAP-REGROW comment (`bb_exec.c` ~2916) documents.
+  Attempted a `BB_graph_t.resume_at` (re-enter last-success node, SNO-gated) — works for self-backtracking
+  leaves but NOT for commit-nodes; REVERTED (didn't fix target, adds risk to the Prolog/Icon-shared
+  `bb_exec_resume`). **NEXT-SESSION FIX:** make the capture node backtrack-transparent — distinguish the
+  backtrack edge from the commit/regrow edge (e.g. a per-graph `resume_at` last-success node PLUS a one-shot
+  "backtrack" signal whose lifetime ends at the first forward γ step, so a committed capture re-entered on
+  backtrack delegates to `inner.β` while inner.γ regrow still re-commits). This pairs with the already-present
+  DEFER-grow (`bb_exec.c case BB_PAT_DEFER` state==1 → `bb_exec_resume`). p8 (`token=('if'.K|SPAN.I)`,
+  no FENCE) is the minimal repro of JUST the DEFER-capture-resume gap (FENCE-independent).
 
 - [ ] **ANY/SPAN/etc. with a charset EXPRESSION argument (064_pat_fence_fn_capture).** `ANY(&UCASE &LCASE)`:
   the arg is `TT_SEQ(TT_KEYWORD UCASE, TT_KEYWORD LCASE)` — a CONCATENATION of keyword csets, not a
@@ -384,7 +407,22 @@ GATE-PK            = stale
 
 - **2026-05-29 Opus 4.8 — SBL-DATA-FN-SHADOW ✅** (uncommitted, same session as BREAKX-2). Native `rt_call` (rt.c) consulted the ungated cross-language `icn_try_call_builtin_by_name` table (which serves Raku/Icon `write` etc.) BEFORE SNOBOL4 `INVOKE_fn`. Icon has a `real()` builtin, so a SNOBOL4 `real(X)` on a `DATA('complex(real,imag)')` object was intercepted by Icon's `real` (fails on DT_DATA) instead of the DATA accessor; `imag` worked only because Icon lacks an `imag` builtin (proved by renaming fields `real,imag`→`rrr,iii` → native passes; `foo,bar` DATA passes; `imag(3.5)` no-DATA → Error 5 undefined; `real(3.5)` no-DATA → 3.5 via Icon). Fix: exported `sno_fn_registered(name)` (case-sensitive `_func_buckets` presence check, mirrors `fn_has_builtin` w/o the `fn!=NULL` filter so user-DEFINE bodies count too) and wrapped the icn fallback in `if(!sno_fn_registered(name))` — a registered SNOBOL4 fn (user DEFINE or DATA accessor) now shadows any cross-lang builtin and reaches `INVOKE_fn`; unregistered names unaffected. **Native 247→250 (+3: 094_data_define_access, 811_size [SIZE/`size`, same class], match_driver), all byte-exact; zero regression** (smoke 13/13 native, rung M2=19/0 M4=18/1, broker 44, cross-lang smokes icon/prolog/raku/snocone/snobol4 5/5/5/5/13, FACT 0, audit GATE OK). Mode-2 oracle already correct (it prefers the registered fn); this aligns native with the oracle.
 
-- **2026-05-29 Opus 4.8 — SBL-BREAKX-2 ✅** (uncommitted, base 5d5cede1). `bb_pat_break.cpp` BREAKX (is_breakx, ival==1) MEDIUM_BINARY arm was a 2-jump stub with malformed sites `{1,2}` (the second `E9` opcode got eaten by the patcher → a rel32 landed at output offset 19 against a garbage/empty-named label → `bb_emit_end` "unresolved forward reference site=19 label=''" → SIGABRT on every native BREAKX). Replaced with a real 302-byte α-scan + β-rescan blob: α scans to the first cset char (Δ += z, jmp γ; end → ω); β recovers z_orig = Δ − z arithmetically (no second persistent slot), steps past (z++), rescans to the NEXT cset char (jmp γ on found, jmp ω on exhausted). z persists in `[zeta+8]`. Assembled+verified via `as`/objdump, transcribed mechanically to `bytes()`/`u64le()`/`u32le()` (FACT-pure). Sites γ(139)/ω(144)/β-DEF(148)/γ(293)/ω(298). **Native 245→247 (+2: W05_breakx, word4); zero regression** (smoke 13/13 ×2, rung M2=19/0 M4=18/1 [053 pre-existing], cross-lang 5/5/5/5, GATE-2 broker 44, FACT 0, audit GATE OK). word4 (BREAKX mid-pattern w/ REM+SPAN backtracking into β) byte-exact vs ref. Oracle + mode-4 TEXT arm untouched.
+- **2026-05-29 Opus 4.8 — SBL-ALT-CURSOR-RESTORE + SBL-FENCE-SEAL ✅** (uncommitted at writing; base
+  `55a92d39`). Mode-2 oracle ALT fall-through did not restore Δ to the alternation entry: Δ-advancing
+  single-shot leaves (LIT/REM/ANY/BREAK/LEN/NOTANY/TAB/RTAB) had `β = fp`, so the CAT retry-chain skipped
+  re-entering them to undo their Δ advance. Fixed to `β = bb` (self) in BOTH `build_node` (13 sites) and
+  `build_patnd` (8 sites). FENCE: `β = self` at both oracle lowering sites + `bb_exec.c case BB_PAT_FENCE`
+  now saves Δ on α and restores on β (seal: restore cursor, fail without retrying inner). **Inline FENCE/ALT/
+  capture class fully fixed** (verified via inlined-124 + 4 other probes, all green mode-2). **mode-2 253,
+  native 256 — ZERO regression both modes (FAIL-list diffs empty), zero net corpus change** (the corpus
+  FENCE/ALT tests 124/114 reach the alternation through DEFER vars, blocked on the separately-diagnosed
+  DEFER-capture-resume gap — see the `[~]` item above). Gates: smoke 13/13 ×2, pat rung M2=19/0 M4=18/1
+  (053 pre-existing), cross-lang icon/prolog/raku/snocone 5/5/5/5, FACT 0, audit pre-existing Raku
+  `xa_wasm_main.cpp` NO-ARM only. Pure C control-flow + a 2-line Δ save/restore — no byte-producing code.
+  A `resume_at` experiment (re-enter last-success node on resume, SNO-gated) was tried for the DEFER gap and
+  REVERTED (handles self-backtrack leaves, not capture commit-nodes; risk to shared `bb_exec_resume`).
+
+ (uncommitted, base 5d5cede1). `bb_pat_break.cpp` BREAKX (is_breakx, ival==1) MEDIUM_BINARY arm was a 2-jump stub with malformed sites `{1,2}` (the second `E9` opcode got eaten by the patcher → a rel32 landed at output offset 19 against a garbage/empty-named label → `bb_emit_end` "unresolved forward reference site=19 label=''" → SIGABRT on every native BREAKX). Replaced with a real 302-byte α-scan + β-rescan blob: α scans to the first cset char (Δ += z, jmp γ; end → ω); β recovers z_orig = Δ − z arithmetically (no second persistent slot), steps past (z++), rescans to the NEXT cset char (jmp γ on found, jmp ω on exhausted). z persists in `[zeta+8]`. Assembled+verified via `as`/objdump, transcribed mechanically to `bytes()`/`u64le()`/`u32le()` (FACT-pure). Sites γ(139)/ω(144)/β-DEF(148)/γ(293)/ω(298). **Native 245→247 (+2: W05_breakx, word4); zero regression** (smoke 13/13 ×2, rung M2=19/0 M4=18/1 [053 pre-existing], cross-lang 5/5/5/5, GATE-2 broker 44, FACT 0, audit GATE OK). word4 (BREAKX mid-pattern w/ REM+SPAN backtracking into β) byte-exact vs ref. Oracle + mode-4 TEXT arm untouched.
 
 - **2026-05-29 Opus 4.8 — SBL-NATIVE-FN-1 NRETURN read-deref ✅ + watermark correction** (one4all 5d5cede1). `rt_call` (rt.c:1339, the native SM_CALL_FN runtime helper) deref'd NRETURN results ONLY in the `if(cfn)` chunk branch; the bottom `INVOKE_fn` fallthrough — which native user-function dispatch actually takes — pushed the returned NAME with no deref, so `OUTPUT = ref_b()` (ref_b returns `.A` via :(NRETURN)) printed the name `A` instead of the value `77`. The mode-2 sm_interp consumer derefs correctly; native didn't. Fix: 4 lines mirroring the `cfn` branch, guarded by `kw_rtntype=="NRETURN"` + `IS_NAMEPTR/IS_NAMEVAL` (no-op for every non-NRETURN call → zero risk to other paths). **Native 243→245 (+2: 213_indirect_name, assign_driver); true --interp 246 unchanged (native-only fix); smoke 13/13 ×2; FACT 0; audit GATE OK; rung M2=19/0.** 1013_func_nreturn now reaches assertion 2 (NRETURN-as-lvalue, a separate sub-feature — next). **Also corrected a false watermark** (see Session State + HANDOFF-...-NATIVE-GAP-AUDIT): the "Raku 30e7c0a1 regressed m2 252→223" claim is wrong; the 252→243 drop is `0f4fcfde`'s deliberate no-fallback exposure of native gaps. Handoffs: `HANDOFF-2026-05-29-OPUS48-SBL-NATIVE-GAP-AUDIT-AND-WATERMARK-CORRECTION.md`.
 
