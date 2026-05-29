@@ -98,3 +98,58 @@ SCRIP_ICN_BB=1 ./scrip --run    PROG.icn > m3.txt
 diff m2.txt m3.txt                                   # empty
 SCRIP_ICN_BB=1 ./scrip --dump-sm PROG.icn | grep -c count=0   # == 1
 ```
+
+---
+
+## ROOT-CAUSE DIAGNOSIS — every-do-body ival=0 (`every x := 1 to 3 do B`) — next session start here
+
+Investigated but NOT landed (tree reverted clean at `91874d71`). The diagnosis:
+
+**The top-level Icon `every` statement does NOT go through `flat_drive_every` in
+emit_bb.c.** It is dispatched by `emit_core.c:556 case BB_EVERY: bb_every(nd)` to the
+**`bb_every.cpp` TEXT template** (the `.Levery<id>_body_*` labels you see in
+`--compile` output). `flat_drive_every` (the `xevery%d_*` binary driver) is a
+DIFFERENT, currently-unexercised path for top-level every. **Editing
+`flat_drive_every` or `flat_drive_assign` does nothing for these programs** — verified
+by `--compile` showing template labels regardless.
+
+How the template works (bb_every.cpp MEDIUM_TEXT, lines 29–87): it treats `pBB->α` as
+a single pumpable "body", walks it once via `walk_bb_node_str_c`, then wires
+`body_γ → body_β` (re-pump) and `body_ω → outer_γ` (exhausted).
+
+- **ival=1 (`every 1 to 3 do write("x")`) WORKS** because `pBB->α` = BB_TO and lower
+  wired `gen.γ=body, body.γ=gen, gen.ω=bb`, so the BB_TO's own `body_β` advance
+  (`add qword [cur],1; jg body_ω`) is present and the loop iterates.
+
+- **ival=0 (`every x := 1 to 3 do write(...)`) FAILS (prints only first value)** because
+  `pBB->α` = BB_ASSIGN (`x := 1 to 3`). lower's flat-wire gate is
+  `if (gen->α==NULL && gen->β==NULL)` — a BB_ASSIGN has α=lhs-var, β=rhs, so the gate is
+  SKIPPED, gen.γ/ω stay unset, ival stays 0, body is in pBB->β (ignored by template).
+  The template then walks the BB_ASSIGN, whose bb_assign.cpp TEXT arm emits ONLY
+  `call rt_pop_nv_set; jmp body_γ` — **the BB_TO rhs is never emitted** (the assign
+  template assumes its value is already on the vstack per the ival==1 deep-thread
+  convention) and there is no β-advance. So `body_β → body_ω` (exhausted) after one pass.
+
+`lic_gen_kind_raw` deliberately EXCLUDES static BB_TO/BB_TO_BY (only streaming gens:
+BB_ALT, BB_LIST_BANG, BB_BINOP_GEN, BB_ITERATE, BB_LIMIT, BB_PROC_GEN, BB_KEY_GEN,
+BB_FIND_GEN, BB_SEQ_GEN), with the comment that static TO "stalls if re-pumped through
+the BB_ASSIGN rhs-recursion" in the mode-2 executor — which is why mode-2 runs this on
+the legacy ival=0 executor loop (bb_exec.c:1714–1731), not the flat-wire path.
+
+**The fix belongs in lowering OR the bb_every TEXT template, not the binary flat
+drivers.** Two candidate approaches:
+  (A) **Lowering**: in `lower_icn_new_Every`/`_ag`, detect `gen` = BB_ASSIGN whose rhs
+      is a static-literal generator (BB_TO/BB_TO_BY, α==β==NULL). Restructure so the
+      BB_TO is the pumped node: `bb->α = rhs_TO`; wire `TO.γ = assign-store-step → body`,
+      `body.γ = TO`, `body.ω = TO`, `TO.ω = bb`. The assign-store reads the TO's yielded
+      value (on the vstack / ring) and stores into x. This makes ival match the ival=1
+      shape and the existing template loops correctly. Must NOT break `every v := !t do B`
+      (ival=2 streaming) — gate the new branch on the rhs being a STATIC TO specifically.
+  (B) **Template**: teach bb_every.cpp (or a dedicated do-body arm) to emit the
+      generator pump + per-value body when pBB->β is set and pBB->α is an assign-over-
+      static-gen. More localized but duplicates loop logic.
+
+Approach (A) is cleaner and reuses the working ival=1 template path. Verify against
+mode-2 with `rung35_block_body_every_do_block` / `_nested_block` and the minimal
+`every x := 1 to 3 do write(x)`. Also `rung35_block_body_while_do_block` is a separate
+WHILE-driver gap (empty m3 output; while loop + `+:=` augop body not flat-wired).
