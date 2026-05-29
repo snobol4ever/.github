@@ -28,7 +28,85 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-Opus-4.7-UNCOLLECTABLE-PROPHYLACTIC, 2026-05-29)
+## State at HEAD (post-Opus-4.7-WAM-CP-6-Step-A-LCO-DETECT, 2026-05-29)
+
+**2026-05-29 Opus 4.7:** **WAM-CP-6 Step A LCO-DETECT ✅** — 24-line audit
+instrumentation in `src/lower/bb_exec.c` BB_PL_CALL fresh-call success path
+detecting SWIPL `I_DEPART` two-condition eligibility. Audit only — no
+semantic change. Default OFF.
+
+**Two conditions detected:**
+1. **Tail position:** `bb->γ == NULL`. The AG/four-port lowering of clause
+   bodies already initializes `succ = NULL` at `lower_pl.c:596` for the
+   rightmost statement (meaning "clause exit / success"). When BB_PL_CALL
+   has `γ == NULL`, it IS the last goal of the body — free signal, no
+   compiler change needed.
+2. **Determinacy:** `g_pl_bfr` pointer-equal at entry and post-success
+   AND `!bb_body_has_live_choice(_bcfg)`. Means: callee opened no surviving
+   choice point AND has no live inner CP awaiting resume. Conjunction =
+   "no resume possible from caller's perspective."
+
+When BOTH hold, the call is the LCO target.
+
+**Trace output gated on `SCRIP_LCO_TRACE=1` env var (default OFF).** Control
+flow unchanged.
+
+**Empirical findings:**
+- **Singleton-clause chain** (`greet :- hello.  hello :- write(X),nl`):
+  every call `tail=1 det=1 eligible=1`. These ARE the LCO targets in our
+  current state — Step B can convert them to frame-reuse immediately.
+- **Multi-clause tail-recursive `count/1`** (the benchmark target):
+  `tail=1 det=0 eligible=0` on every recursive call. Reason: clause-selection
+  `BB_CHOICE` pushes a CP per call that outlives the descent. Even with a
+  cut in the base case (`count(0) :- !`), the cut truncates AFTER the call
+  returns — not before.
+- **This confirms the SWIPL-study dependency-graph prediction
+  (`doc/SWIPL-STUDY-2026-05-28-OPUS.md`):** WAM-CP-8 JIT first-arg clause
+  indexing is a prerequisite for LCO to fire on the *common* case. Without
+  indexing, every multi-clause call presents as non-deterministic to the
+  LCO check (because it really IS non-deterministic until we elide the CP).
+
+**Gates (all byte-identical to `5bf88205` baseline, ZERO regressions):**
+GATE-1 5/5, GATE-2 132/0 (5 ORACLE_MISS), GATE-3 m2 104/107, GATE-4 4/4,
+**GATE-SWI m2 57/57 (100%)**, **GATE-SWI m3 57/57 (100%)**, FACT 0,
+sibling smokes icon/raku 5/5/5, snobol4 13/13.
+
+**NEXT — Step B (next session, scope 1-2 sessions):** convert `eligible=1`
+cases to actual frame-reuse:
+- No `calloc(callee_env)`.
+- No `malloc(PlCallSt)` push (eligible by definition means resume impossible).
+- No recursive `bb_exec_once(_bcfg)` call — instead a *trampoline* return
+  to the outer `bb_exec_once` driver loop with `_bcfg` as the new graph.
+  C stack stays flat.
+
+Two design decisions for Step B:
+1. **Trampoline mechanism.** Cleanest: a dedicated `BB_PL_TAIL_CALL` node
+   emitted by `lower_pl_clause_body` when the rightmost statement is itself
+   a `BB_PL_CALL`, returning a "switch-graph" sentinel that `bb_exec_once`'s
+   while loop recognises and dispatches on. Alternative: have regular
+   `BB_PL_CALL` flip a runtime flag visible to the outer driver. The
+   dedicated-node path is cleaner because it lifts the decision to compile
+   time (cheaper at runtime, makes mode-4 emission natural in Step C).
+2. **Arg-binding aliasing.** Recursive call uses the caller env's TERM_REF
+   chains to propagate bindings. Under LCO the caller env disappears, so
+   the new frame must own its args. SWIPL: `copyFrameArguments(lTop, FR,
+   arity)` — copy trail-bound args into the new frame slot before the old
+   frame goes away. Our equivalent: `term_deref` every callee arg into a
+   freshly-allocated slot vector. Trickier than SWIPL because our `Term`
+   boxes are GC-allocated individually (SWIPL study idea #1 — a long-term
+   win we don't have yet).
+
+**Step C (longer arc, after Step B): WAM-CP-8 first-arg indexing.** With
+indexing, `count(N)` against `count(0). count(N):-...` dispatches directly
+to clause 2 with no CP push — making the recursive call `eligible=1` and
+unlocking the full benchmark target `count(1e6)` to run in O(1) C stack.
+
+**one4all commit:** `860d1163` (rebased onto concurrent Raku-BB
+`8d3a8cdf` M3-RK-NOINTERP-1c).
+
+---
+
+## Prior HEAD (`5bf88205`, post-Opus-4.7-UNCOLLECTABLE-PROPHYLACTIC, 2026-05-29)
 
 **2026-05-29 Opus 4.7:** **prophylactic UNCOLLECTABLE sweep COMPLETE ✅** —
 7 more `GC_MALLOC → GC_MALLOC_UNCOLLECTABLE` swaps in `src/lower/lower_pl.c`
@@ -425,7 +503,7 @@ WAM-CP-3  route ; (BB_PL_ALT) via same CP stack                                 
 WAM-CP-4  cut = truncate CP list to frame barrier                               ✅ COMPLETE
 WAM-CP-5  mode-4 emit: CP record is the r12 target (CHOICE+PL_CALL)             ✅ COMPLETE
 WAM-CP-9  committed-ITE node + cut=truncate (fixes rung07/15 PJ-AGW-5 class)    🟡 PARTIAL — mode-4 cut-scope landed; ITE/lexical-! refinement open
-WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?")
+WAM-CP-6  Last-Call Optimization (needs CP stack: "no CP since frame?")        🟡 STEP A LANDED — LCO-DETECT (audit only, no semantic change); Step B = frame-reuse next session, Step C pairs with WAM-CP-8 for tail-recursive multi-clause
 WAM-CP-7  unify specialization B_UNIFY_{FF,VF,FV,VV,FC,VC}   (speed; any time)
 WAM-CP-8  JIT first-arg indexing (needs CP model to know when a CP was elided)
 WAM-CP-10 catch/throw via CP-barrier unwind (rung28)                            🟡 PARTIAL — mode-2 correctness 5/5 via Pl_CatchFrame+setjmp; longjmp-free CP-barrier unwind deferred to WAM-CP-13 alongside mode-4 emit
@@ -485,6 +563,19 @@ the LATER tagged-word track.
   the existing static infra was already throw-error-capable and reusing it isolated the change
   to mode-2 with one new BB node. The longjmp-free CP-barrier design + mode-4 native emit are
   now both WAM-CP-13's deliverable.
+- **WAM-CP-6 Step A** 🟡 Opus 4.7 (`860d1163`) — LCO-DETECT (audit only, no semantic
+  change). 24-line instrumentation in `bb_exec.c` BB_PL_CALL fresh-call success path
+  detecting SWIPL `I_DEPART` two-condition eligibility: (1) `bb->γ == NULL` (tail
+  position — already encoded by AG lowering, `lower_pl_clause_body:596` initializes
+  `succ = NULL` for the rightmost statement); (2) `g_pl_bfr` pointer-equal at entry
+  and post-success AND `!bb_body_has_live_choice(_bcfg)` (no resume possible). Trace
+  gated `SCRIP_LCO_TRACE=1`; default OFF; all gates BYTE-IDENTICAL. Empirical: singleton
+  chains all `eligible=1`; multi-clause tail-recursive `count/1` all `det=0` (clause-
+  selection CHOICE CP outlives the call). Confirms SWIPL-study prediction that WAM-CP-8
+  is the prerequisite for LCO to fire on the common case. **Step B (next session):**
+  convert `eligible=1` to actual frame-reuse via `BB_PL_TAIL_CALL` node + trampoline
+  in `bb_exec_once` driver loop. **Step C (after Step B):** pair with WAM-CP-8 indexing
+  to make multi-clause deterministic calls CP-less.
 
 ### Open rungs
 
