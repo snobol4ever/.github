@@ -73,7 +73,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 - [ ] **RK-BB-4-frontend** — pending Q9-Q12.
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers; `zip`/`cross` = multi-Seq drivers (later).
-- [~] **MODE3-NO-INTERP** — see `MODE3-DISPATCH-GAP.md` (2026-05-28 addendum, updated). Per-language ladder to remove `sm_interp_run` from `--run` path. Suggested order: Raku (this goal's responsibility), then Prolog, Snocone, Rebus. SNOBOL4 already has `SCRIP_M3_NATIVE`; flip the default. **Progress 2026-05-28:** **M3-RK-NOINTERP-3 ✅** (SM_NAMED_CALL absolute-target patching in `sm_run_native` Pass 3) closed Cluster 2 — 11/33 → 17/33 native. **2026-05-28 follow-up-3 (Sonnet) deep-dive:** M3-RK-NOINTERP-1 is *architectural*, not a one-symbol fix. The MEDIUM_BINARY arms of bb_to_by/bb_upto/bb_suspend/bb_iterate/bb_icn_to all write yielded values to **r12 as a brokered-slab vstack pointer**, but `sm_run_native` does not initialise r12 (nor does XA_FLAT_PROLOGUE or bb_broker). Splicing those BINARY arms into the SM byte stream of mode-3 yields segfault-or-corruption + the SM vstack underflow that prints "libscrip_rt: SM value stack underflow." Required path: **(a) new mode-3-ABI branch in each generator BB template using `rt_push_int@PLT`** (matches the existing MEDIUM_TEXT arm at bb_to_by.cpp:89-90 line); template-per-step. Split as 1a (bb_to_by), 1b (bb_upto), 1c (bb_iterate), 1d (bb_suspend / bb_seq) — each closes a slice of Cluster 1. **Remaining:** Cluster 1 (8 tests, includes rk_given18 revealed behind Cluster 2); Cluster 3 (6 regex, DEFERRED to GOAL-RAKU-PAT-BB).
+- [~] **MODE3-NO-INTERP** — see `MODE3-DISPATCH-GAP.md` (2026-05-28 addendum, updated). Per-language ladder to remove `sm_interp_run` from `--run` path. Suggested order: Raku (this goal's responsibility), then Prolog, Snocone, Rebus. SNOBOL4 already has `SCRIP_M3_NATIVE`; flip the default. **Progress 2026-05-28:** **M3-RK-NOINTERP-3 ✅** (SM_NAMED_CALL absolute-target patching in `sm_run_native` Pass 3) closed Cluster 2 — 11/33 → 17/33 native. **M3-RK-NOINTERP-1a ✅** (Sonnet 4.6 follow-up-4) — `bb_to_by.cpp` MEDIUM_BINARY r12→rt_push_int. **M3-RK-NOINTERP-1b ✅** (Opus 4.7, 2026-05-28, one4all `48ca4e21`) — SM_BB_INVOKE MEDIUM_BINARY arm wired (scratch-buffer-flush, sink save/restore, walk_bb_node integration). Mode-3 native 18→19 PASS, 14→13 CRASH (rk_range_for CRASH→PASS). **Remaining:** Cluster 1 needs bb_iterate / bb_upto / bb_suspend / bb_seq MEDIUM_BINARY r12→rt_push_int conversions (now unblocked — same surgery as 1a); Cluster 3 (6 regex, DEFERRED to GOAL-RAKU-PAT-BB).
 
 ## Rung methodology
 
@@ -112,12 +112,12 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: M3-RK-NOINTERP-1a — bb_to_by.cpp MEDIUM_BINARY arm rt_push_int conversion (Sonnet 4.6, 2026-05-28 follow-up-4). Surgical edit in `src/emitter/BB_templates/bb_to_by.cpp`: the four `r12`-relative yield writes (mov dword[r12],DT_I / mov dword[r12+4],0 / mov [r12+8],rcx / add r12,16 — 18 bytes) replaced with the rt_push_int call convention from bb_to.cpp (IBB-3): `mov rdi,rcx ; movabs rax,&rt_push_int ; call rax` (15 bytes). Added `void rt_push_int(int64_t v);` forward-decl + `<stdint.h>` include at file top. **Mode-4 brokered path UNAFFECTED:** verified that `BB_TO_BY` MEDIUM_BINARY is reached only via `sm_run_native` (mode-3 native) — the SNOBOL4 pattern brokered builder `bb_build_brokered` is exclusively for BB_PAT_* kinds; mode-4 Raku `--compile` uses MEDIUM_TEXT (verified by emitting `lea rax,[rip+.Ltoby*_cur]` style asm). All three offsets in `bin = {fail_off+2, succ_off+1, back_off}` recomputed correctly across the byte-length change; the jcc rel32 patch site moves but the bin descriptor uses `(int)b.size()` snapshots so it tracks automatically. **DISCOVERED ARCHITECTURAL BLOCKER for closing rk_range_for / Cluster 1:** `sm_bb_invoke` MEDIUM_BINARY arm at `src/emitter/SM_templates/sm_bb_switch.cpp:35-36` is a 5-byte no-op stub (`E8 00 00 00 00` — `call rel32=0`). The MEDIUM_TEXT arm inlines the BB graph (calls `walk_bb_node_str_c(gen)` + emits γ/ω epilogue with rt_set_last_ok); the MEDIUM_BINARY arm does not. Therefore even with bb_to_by.cpp emitting correct yield bytes, the generator never runs under mode-3 native — SM_BB_INVOKE executes the no-op call, the next SM op (`SM_JUMP_F → exit`) finds the vstack empty → underflow. **rk_range_for still CRASH** until SM_BB_INVOKE MEDIUM_BINARY is wired up. The prior-author watermark recommended path (a) — template-per-step — assumed sm_bb_invoke would route through inline templates; that assumption was wrong. Path (a) AND a sibling sm_bb_invoke MEDIUM_BINARY fix are both required; they compose cleanly (bb_to_by is now ready for that wiring). Also note: `walk_bb_flat` (the MEDIUM_TEXT inline driver in `emit_bb.c:981`) has `case BB_TO:` but no `case BB_TO_BY:` — BB_TO_BY currently falls into `default:` (define β + jmp ω twice). This needs adding alongside the SM_BB_INVOKE MEDIUM_BINARY change. **Mode-3 measurement re-baselined:** 17→18 PASS (rk_stdio39 PASS this session — same flip the prior watermark noted, in the other direction; stderr-ordering is order-of-rt_init contingent and not actually about Cluster 1). All other gates HOLD byte-for-byte.
-.github: GOAL-RAKU-BB.md watermark update for M3-RK-NOINTERP-1a + discovered SM_BB_INVOKE BINARY stub blocker
+one4all: M3-RK-NOINTERP-1b — SM_BB_INVOKE MEDIUM_BINARY arm wired (Opus 4.7, 2026-05-28, one4all `48ca4e21`). Closes the architectural blocker the prior watermark surfaced. SM_BB_INVOKE BINARY arm (`src/emitter/SM_templates/sm_bb_switch.cpp` lines ~35-150) went from 5-byte no-op stub (`E8 00 00 00 00`) to a full scratch-buffer-flush implementation: saves outer `bb_emit_buf` / `bb_emit_pos` / `bb_emit_size` / `bb_emit_overflow` / `bb_patch_count` / `bb_patch_list` / **`g_emit_sink`** state, allocates 4KB heap scratch + per-sid 1-byte malloc'd entry-flag, points `bb_emit_buf` at scratch, emits pre-amble entry-flag dispatch (`movabs rax,&flag ; cmp byte[rax],0 ; je fresh ; jmp lβ ; fresh: mov [rax],1`), calls `walk_bb_node(gen, NULL)` so the BB template (bb_to_by.cpp) emits via the standard MEDIUM_BINARY path into our scratch with γ/ω/β patches in `bb_patch_list`, emits γ post-amble (`mov edi,1 ; movabs rax,&rt_set_last_ok ; call rax ; jmp done`) which resolves γ patches in-place via `bb_label_define`, emits ω post-amble with flag-reset + `rt_set_last_ok(0)`, defines done, calls `bb_emit_end()` to verify all patches resolved, restores outer state, returns the bytes as `std::string` — the SM wrapper's `emit_text_n` then writes them into `sm_run_native`'s memstream. **Critical sink save/restore:** `walk_bb_node` line 517 calls `emit_io_set_sink(NULL)` which silently zeroes `g_emit_sink` — without saving+restoring (via new `emit_io_get_sink()` accessor added to `emit_io.{c,h}`), every subsequent `emit_text_n` in `sm_run_native` after the first SM_BB_INVOKE silently drops bytes, producing a truncated blob; was the empty-output symptom of the first wiring attempt before this fix. **Companion fixes:** (a) `case BB_TO_BY: FILL(...)` added to `walk_bb_flat` in `emit_bb.c` — was falling through to `default:` which emitted `define β ; jmp ω ; jmp ω` instead of the leaf template. (b) Parallel ascending-sites bug in `bb_to_by.cpp:142` — reordered `bin.sites` from non-ascending `{fail_off+2, succ_off+1, back_off}` to ascending `{back_off, fail_off+2, succ_off+1}` matching the canonical-5 fix in `bb_to.cpp` per PLAN.md (`bb_emit_asm_result`'s patch loop walks sites with strictly-advancing pos). **rk_range_for output byte-identical to .expected** (`1\\n2\\n3\\n4\\n5\\n15\\n`). All other gates HOLD byte-for-byte.
+.github: HANDOFF-2026-05-28-OPUS-RAKU-BB-M3-NOINTERP-1b-LANDED.md + watermark update
 corpus:  unchanged
 
 GATE-RK   mode-2:                23/33  HOLD
-GATE-RK3  --run SCRIP_M3_NATIVE: 18/33 + 1 FAIL + 14 CRASH (rk_stdio39 PASS this session; all 14 CRASHes unchanged)
+GATE-RK3  --run SCRIP_M3_NATIVE: 19/33 PASS, 1 FAIL, 13 CRASH (was 18/1/14; rk_range_for CRASH→PASS)
 GATE-RK4  mode-4:                26/33  HOLD
 Smoke raku:       5/5    HOLD
 Smoke prolog:     5/5    HOLD
@@ -132,22 +132,30 @@ Build:            clean
 - REGEX/NFA (6): rk_re32/33/34/35/37, rk_regex23 — DEFERRED to GOAL-RAKU-PAT-BB.
 - JUNCTIONS (1): rk_junctions — BLOCKED on Lon Q9-Q12.
 
-## Mode-3 (SCRIP_M3_NATIVE=1) status — 18 PASS, 1 FAIL, 14 CRASH
+## Mode-3 (SCRIP_M3_NATIVE=1) status — 19 PASS, 1 FAIL, 13 CRASH
 
-PASS (18): rk_arith rk_arrays rk_class26 rk_combinator rk_control rk_forloop rk_given rk_hash17 rk_hashes rk_interp rk_stdio39 rk_str22 rk_strings rk_subs rk_try_catch25 rk_typed_vars rk_unless_until rk_vars
+PASS (19): rk_arith rk_arrays rk_class26 rk_combinator rk_control rk_forloop rk_given rk_hash17 rk_hashes rk_interp rk_range_for rk_stdio39 rk_str22 rk_strings rk_subs rk_try_catch25 rk_typed_vars rk_unless_until rk_vars
 FAIL  (1): rk_junctions
-CRASH (14): rk_fileio38 rk_for_array rk_for_array_simple rk_for_array_underscore rk_gather rk_given18 rk_map_grep_sort24 rk_range_for rk_re32 rk_re33 rk_re34 rk_re35 rk_re37 rk_regex23
+CRASH (13): rk_fileio38 rk_for_array rk_for_array_simple rk_for_array_underscore rk_gather rk_given18 rk_map_grep_sort24 rk_re32 rk_re33 rk_re34 rk_re35 rk_re37 rk_regex23
 
-Remaining crash structure: 8 in Cluster 1 (SM_BB_INVOKE MEDIUM_BINARY no-op stub — the architectural blocker described in this watermark; bb_to_by template-level fix is in place but unreachable until SM_BB_INVOKE wires up; rk_given18 belongs here behind its prior Cluster 2 SEGV), 6 in Cluster 3 (regex, deferred to GOAL-RAKU-PAT-BB).
+Remaining crash structure: 7 in Cluster 1 (BB template MEDIUM_BINARY conversions needed for bb_iterate / bb_upto / bb_suspend / bb_seq — same `mov rdi,rcx ; movabs rax,&rt_push_int ; call rax` r12→rt_push_int surgery as already done in bb_to.cpp / bb_to_by.cpp), 6 in Cluster 3 (regex, DEFERRED to GOAL-RAKU-PAT-BB).
 
-## NEXT STEP RECOMMENDATION — M3-RK-NOINTERP-1b (sm_bb_invoke wiring)
+## NEXT STEP RECOMMENDATION — M3-RK-NOINTERP-1c (bb_iterate r12→rt_push_int)
 
-Before further BB-template mode-3-ABI conversions (bb_iterate / bb_upto / bb_suspend / bb_seq), the SM_BB_INVOKE MEDIUM_BINARY arm in `src/emitter/SM_templates/sm_bb_switch.cpp` must be wired to inline the BB graph like its MEDIUM_TEXT sibling. Concretely:
-  1. Add `case BB_TO_BY:` to `walk_bb_flat` in `emit_bb.c:981` area (alongside the existing `case BB_TO:`).
-  2. Make SM_BB_INVOKE MEDIUM_BINARY emit: an entry-flag byte (or use a global allocated at sm_image_init), a load+compare+jcc to dispatch fresh-α vs resume-β, a call to walk_bb_flat (which now emits BINARY bytes via FILL→template dispatch), and a γ/ω epilogue with `mov rdi,1/0 ; call rt_set_last_ok@PLT` then jmp to exit_pc. The MEDIUM_TEXT arm at `sm_bb_switch.cpp:38-87` is the exact reference shape — translate each `s_directive`/`s_2asm` into the equivalent raw-byte sequence.
-  3. Verify on rk_range_for first (the simplest BB_TO_BY case); expect 18→19 PASS, 14→13 CRASH. Then re-attempt bb_iterate / bb_upto / bb_suspend / bb_seq mode-3-ABI edits.
+With the SM_BB_INVOKE wiring closed, each remaining Cluster 1 test is a localised
+~10-30 line surgery in the corresponding BB template's MEDIUM_BINARY arm — no more
+architectural blockers. Suggested order by impact:
 
-Alternative path (option b in prior watermark): allocate r12 as a per-invoke malloc'd region in sm_bb_invoke MEDIUM_BINARY, set r12, run inlined BB, then drain r12 → rt_push_int. Less invariant-preserving (introduces a second vstack convention into mode-3) but localised to one site; useful if (1) is gated.
+1. **bb_iterate.cpp** — closes rk_for_array{,_simple,_underscore}, rk_map_grep_sort24 (~4 tests).
+   Mirror `bb_to_by.cpp`'s M3-RK-NOINTERP-1a edit: replace r12-relative writes (which segfault
+   under sm_run_native because r12 is never initialised) with the rt_push_int call convention.
+   Also verify `bin.sites` is ascending; reorder if not.
+2. **bb_upto.cpp** — closes rk_gather, rk_given18 (~2 tests). Same pattern.
+3. **bb_suspend.cpp** / **bb_seq.cpp** — closes any remaining lazy-Seq cases.
+
+Each step is a clean rung: edit one BB template; build; run `/tmp/gate_rk3.sh` (mode-3
+measurement script — created this session at /tmp/gate_rk3.sh, content reproduced in
+the handoff); verify smoke + GATE-RK + GATE-RK4 hold; commit.
 
 ## Open questions for Lon
 
