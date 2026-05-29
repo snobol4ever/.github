@@ -122,7 +122,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 ### Phase 1 — NFA leaf, core single-pattern (RK-NFA-1..5) — IN FLIGHT
 Tracked in the RK-NFA rungs above (1a–1e ✅, 4 SCAFFOLD ✅). Restated here as the ladder's first phase:
-- [ ] **G1-1** RK-NFA-4 — the 7 consuming/branching templates (CHAR/ANY/CLASS/SPLIT/BOL/EOL/ACCEPT) with the pos/subject/slen register model. See the RK-NFA-4 DESIGN block above.
+- [ ] **G1-1** RK-NFA-4 — **ENTRY CONTRACT RESOLVED → see `RK-NFA-4-CONTRACT.md`** (Opus 4.8, 2026-05-29). The 7 templates are NOT the first sub-step: `walk_bb_flat` has no `flat_drive_nfa` arm and the flat slab takes no subject/pos/slen args, so the driver/ABI is the prerequisite. Order: S1 gated `~~` rewiring (pattern is compile-time `t->c[1]->v.sval`) → S2 `flat_drive_nfa` (subject→r14/r15, r13=pos, GC_malloc caps, leftmost sweep) → S3 leaf templates → S4 L1..L15 ladder under `RK_NFA_BB=1`. First atom: L1 `/x/`~"x" = S1+S2+`bb_nfa_char`+`bb_nfa_accept`. See the RK-NFA-4 DESIGN block above + the contract note.
 - [ ] **G1-2** RK-NFA-5 — `~~` onto the emitted slab in mode-3 native.
 - [ ] **G1-3** mode-4 `~~` default flip to BB once G1-1+G1-2 green (retire the C-matcher fallback behind `RK_NFA_BB`).
 
@@ -229,6 +229,37 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+RK-NFA-4 / G1-1 ENTRY CONTRACT RESOLVED (Opus 4.8, 2026-05-29, .github only — NO code change,
+  NO regression). Planning landing, not a code rung. one4all + corpus UNTOUCHED (both clean;
+  one4all HEAD 28a720f2, advanced past this file's older code-rung hashes by an interleaved
+  SNOBOL4 session — built that HEAD, Raku gates held at the documented numbers below). Wrote
+  RK-NFA-4-CONTRACT.md (this repo). KEY FINDING: the 7 consuming/branching templates were NOT
+  the right first sub-step. walk_bb_flat (emit_bb.c) has NO flat_drive_nfa arm → BB_NFA_* kinds
+  hit default: (define β; jmp ω; jmp ω); the flat slab is entered via `call fn(NULL,0)`
+  (xa_flat.cpp prologue: sub rsp,8; cmp esi,0; je α_body; jmp β) with NO subject/pos/slen args,
+  only g_vstack + the SIGMA return slot — so the "proposed" r13/r14/r15 model had no setup and
+  the templates had no driver. The driver/ABI is the prerequisite. CONTRACT now pinned to real
+  code (not guessed): (1) pattern is COMPILE-TIME — raku.y:468 TT_SMATCH c[1]=leaf_sval(TT_QLIT,
+  LIT_REGEX), available at lower time as t->c[1]->v.sval → lowering can raku_nfa_compile it;
+  (2) graph builder ready — raku_nfa_to_bb (RK-NFA-1b ✅); (3) registration = SM_seq_bb_add →
+  SM_BB_INVOKE (lower.c:245-246 model); (4) relocation = bin{{sites},{labels},{is_def}} (bb_eps/
+  bb_alt); (5) SPLIT live model = bb_alt.cpp counter-state slab. ABI grounded in the prologue:
+  driver pops subject→r14(base)/r15d(slen), owns r13=pos, GC_malloc cap block via movabs/@PLT
+  (PEERS-clean); all three callee-saved, untouched by flat prologue/epilogue. SUB-STEP ORDER
+  (all behind getenv("RK_NFA_BB"), default OFF so the proven C-matcher path + all gates stay
+  green): S1 lowering rewiring (lower.c TT_SMATCH ~2488) → S2 flat_drive_nfa arm in walk_bb_flat
+  (preamble: pop subject, GC_malloc caps, leftmost-sweep loop wrapping the γ-chain; leaf ω→sweep-
+  continue, ACCEPT γ→outer γ; sweep exhausted→outer ω) → S3 leaf templates bb_nfa_char/accept/
+  any/class/bol/eol + bb_nfa_split (bb_alt model) → S4 gate ladder L1..L15 under RK_NFA_BB=1,
+  flip default last (G1-3). FIRST RUNNABLE ATOM: L1 /x/~"x" = S1 + S2 + bb_nfa_char + bb_nfa_accept.
+  DELIBERATELY did NOT emit the raw x86 this session: it is a brand-new vstack→cursor calling
+  convention as byte-exact bytes (crash-on-wrong-byte, byte-exact golden test), and committing it
+  untested would be a broken commit (RULES) — the watermark's own "fresh full-budget session"
+  guidance. The contract note converts that session from reverse-engineering to transcription.
+  NEXT CODE RUNG UNCHANGED: G1-1 = RK-NFA-4 (now: start at S1 with RK-NFA-4-CONTRACT.md in hand).
+  Gates at session start (built one4all HEAD 28a720f2; code unchanged this session):
+  GATE-RK m2 41/42, GATE-RK4 m4 42/42, GATE-RK3 m3-native 41/42 CRASH 0, smoke raku 5/5. FACT 0.
+
 RK-GRAM LADDER AUTHORED (Opus 4.8, 2026-05-29, .github only — NO code change, NO regression).
   Planning landing, not a code rung. Wrote the full Raku grammar-feature ladder into this
   goal file: TWO-TIER decision (Tier A NFA leaf / Tier B BB-generator structure), ONE SEAM
