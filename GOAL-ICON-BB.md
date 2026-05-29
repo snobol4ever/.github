@@ -30,27 +30,29 @@ Completion tests:
 
 ---
 
-## Current state (2026-05-29, IBB-9-CASE landed — corpus 105 PASS)
+## Current state (2026-05-29, IBB-10 builtin dispatch landed — corpus 130 PASS)
 
 **Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
 (293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
 **56 (pre-IBB-9-2) → 62 → 69 → 82 (IBB-9-6) → 93 (IBB-9-SIZE) → 95 (IBB-9-TOBY) → 100 (IBB-9-INITIAL)
-→ 105 PASS / 0 SEGV / 0 ABORT after IBB-9-CASE (HEAD `c117aa16`).**
-Latest sweep at `c117aa16`: Total 293, M2-skip 34, PASS 105, SEGV 0, ABORT 0, FAIL 127, MISMATCH 26, TIMEOUT 1.
+→ 105 (IBB-9-CASE) → 130 PASS / 0 SEGV / 0 FAIL after IBB-10 (HEAD pending).**
+Latest sweep after IBB-10: Total 293, M2-skip 34, PASS 130, SEGV 0, ABORT 68, FAIL 0, MISMATCH 60, TIMEOUT 1.
+(The 60 mismatches were ALL previously aborting — none was passing; they now run but need scanning-generator /
+cset-match / field-access features. The +34 mismatch growth over the 26 at `c117aa16` is pure progress: aborts
+became runs. Verified by full pass-list diff: 0 of the 105 prior passes lost.)
 
 **Landed this session (Opus 4.8, build+run verified, exact corpus deltas, 0 regressions, FACT 0, zero-SM, smokes 5/5·5/5, broker 57):**
-- IBB-9-TOBY — `write(lo to hi by step)` (BB_TO_BY in write lists) → 93→95 (+2)
-- IBB-9-INITIAL — `initial expr` once-guard (new bb_initial.cpp + flat_drive_initial; runtime once-flag in &pBB->counter) → 95→100 (+5)
-- IBB-9-CASE — `case E of {...}` selector store + clause-equality + `write(case)` (new bb_case.cpp glue + flat_drive_case + rt_pop_store_descr/rt_case_eq) → 100→105 (+5)
+- IBB-10 — Icon builtin dispatch + record-constructor recognition → 105→130 (+25)
 
-**NEXT (largest residue, by the same-sweep at `c117aa16`):** the 127 FAILs are dominated by `bb_call:
-unsupported call shape` for Icon BUILTINS — `write` with not-yet-handled arg0 kinds, plus `table`/`MAKELIST`/
-`set`/`list`/string fns (`map`/`trim`/`left`/`center`/`reverse`/`repl`/`integer`/`image`/`type`/`abs`/`sqrt`
-etc.). A builtin-dispatch rung (route registered Icon builtins to runtime helpers, mirroring the user-proc
-arm of IBB-9-6) is the biggest single lever. After that: `every ival=2/3` (IBB-9-4/5, the generator-bearing
-`do`-body two-port split — also unblocks the augop-in-every `rung10`/`rung13` mismatches and generator-bearing
-concat); generator-proc dispatch (`suspend`); `until` proc-free repro (IBB-9-3); BB_SCAN/cset family (rung05/06
-mismatches); the `rung35_block_body_every_do_block` mode-2 `2 2 2` vs `2 4 6` bug noted under IBB-9-5.
+**NEXT (largest residue, by the same-sweep after IBB-10):** the 68 ABORTs split into three clusters.
+(1) **Record field get/set** (`c.x`, `b.w := 99`) — BB_FIELD_GET/BB_FIELD_SET hit the `interp_eval` stub in
+mode-3; the record *constructor* now works (IBB-10), field access is the next rung (IBB-11). NOTE: the
+`interp_eval` stub fires even in mode-2 / `--dump-bb` for a `(null)`-kind BB node, so the lowering side needs a
+look too. (2) **`every` do-body ival=2/3** (10 aborts, `flat_drive_every: do-body ival=0/2/3 not yet flat-wired`)
+— the generator-bearing two-port split (IBB-9-4/5); also unblocks rung24 record-loop and the rung10/rung13
+augop-in-every mismatches. (3) **I/O + generator builtins** — `open`/`read`/`reads` (need file-handle plumbing),
+`upto`/`max`/`point` (generator or not-yet-listed builtins). The 60 mismatches are dominated by string scanning
+(`rung05_scan`, `rung06_cset`, `rung08` match/move/tab) which need the BB_SCAN / cset-match generator path.
 
 ---
 
@@ -271,7 +273,46 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
   write dispatch so `write(case …)` routes the matched value through the any-write trailer. Corpus 100→105
   (+5: rung33_case_{arith,int,str,in_proc,no_default}). Gates: FACT 0, bytes-outside-templates 0, canonical-5
   byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57 (5 pre-existing non-Icon fails, unchanged).
-- [ ] **IBB-9-3 — `until C do B`.** Shares the IBB-9-2 `bb_while`/`bb_loop` driver (BB_UNTIL swaps the two gate targets:
+- [x] **IBB-10 — Icon builtin dispatch + record-constructor recognition LANDED (2026-05-29 Opus 4.8).**
+  Transcribes the builtin (non-user-proc) case of JCON's invoke into the flat-slab model — the analogue of
+  IBB-9-6's user-proc arm. Was the single largest ABORT cluster (120 of 127 `bb_call: unsupported call shape`).
+  **5 files:** (1) `rt.c` — `rt_icn_call_builtin(name, nargs)`: pops nargs single-shot values (arg0 deepest),
+  routes through `icn_try_call_builtin_by_name` (the SAME mode-2 oracle table the bb_exec.c BB_CALL arm calls →
+  m2==m3 by construction), pushes result, sets LAST_OK; a name the table can't serve pushes FAILDESCR+LAST_OK=0
+  (NO fall-through to INVOKE_fn — Icon stays decoupled from SNOBOL4 dispatch). Plus `rt_icn_builtin_is_known`
+  emit-time gate: allow-list of pure single-shot builtins (write/writes/integer/real/string/numeric/char/ord/
+  cset/type/image/proc/args/copy/abs/sqrt/trig/log/trim/reverse/repl/map/left/center/right/table/list/set/sort/
+  get/pop/pull/member/insert/delete/MAKELIST), EXCLUDING generator builtins (find/upto/any/many/bal/key/seq —
+  odometer path) and registered user procs; ALSO returns true for a registered record type (sc_dat_find_type) so
+  a `record T(...)` constructor routes here. (2) `rt.h` — decls. (3) `bb_call.cpp` — `is_builtin` arm, byte
+  layout identical to the IBB-9-6 userproc arm (only the called fn pointer differs: rt_icn_call_builtin), gated
+  on `rt_icn_builtin_is_known && !write_simple1`. (4) `emit_bb.c` — `flat_drive_call_builtin` driver (byte-free;
+  walks the arg γ-chain leaving nargs values on the vstack, arg0 deepest, then EMIT_PAIR_FILL → the builtin arm)
+  + `icn_call_args_single_shot`/`icn_bb_is_gen_arg` guards (a generator arg → fall through to ABORT as before,
+  no regression; it needs the IBB-9-4/5 odometer) + dispatch wiring in `walk_bb_flat`'s BB_CALL case (order:
+  userproc → builtin → intexpr → FILL; `write`/`writes` single-simple-arg keeps its proven IBB-3/IBB-7 trailer
+  via `write_simple1`). (5) `scrip.c` — driver pre-registers record types (walks every BB graph for BB_RECORD_DEF
+  nodes → sc_dat_register) so a constructor is recognised at EMIT time (the runtime BB_RECORD_DEF also registers,
+  idempotent, and runs before any ctor call, so runtime dispatch already worked — this only fixes the emit-time
+  gate). **Two bugs found + fixed:** (a) the mode-2 table returns DT_S via STRVAL(buf) with **slen=0** (mode-2
+  writes via fputs, never reading slen); the mode-3 `rt_pop_write_any_nl` uses `fprintf("%.*s")` so slen=0 printed
+  NOTHING — fixed by normalizing `out.slen = strlen(out.s)` in rt_icn_call_builtin. (b) record constructors are
+  neither user-procs nor table names at emit time — fixed via the driver pre-registration + sc_dat_find_type gate.
+  **Corpus 105→130 (+25), SEGV 0, ABORT 127→68, 0 regressions** (full pass-list diff: 0 of 105 prior passes lost).
+  Newly passing: rung28_builtins_str_{char_ord,pad,repl,reverse,trim_map}, rung29_builtins_type_{copy,image,mixed,
+  numeric,type}, rung30_builtins_misc_{abs,sqrt}, rung22_lists_{get,pull}, rung13_table_member,
+  rung17_real_arith_{integer,real_conv,string_conv}, rung15_real_swap_real_literal, rung36_jcon_{center,concord,
+  diffwrds,nargs,radix,trim}. Gates: FACT 0, bytes-outside-templates 12 (unchanged from baseline — driver/driver
+  are byte-free), canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57. **Deferred:** record
+  field get/set (IBB-11, hits interp_eval stub); generator-arg builtin calls (IBB-9-4/5); I/O builtins
+  (open/read/reads — file-handle plumbing); the generator builtins (find/upto/etc — odometer path).
+- [ ] **IBB-11 — record field get/set (`obj.field`, `obj.field := rhs`).** BB_FIELD_GET / BB_FIELD_SET have no
+  mode-3 template; they route to the `interp_eval` stub (`[NO-AST] interp_eval stub`, which fires even in mode-2 /
+  `--dump-bb` for a `(null)`-kind BB node — so the lowering side needs inspection too). Mode-2 oracle: bb_exec.c
+  BB_FIELD_GET (line ~2483) calls `data_field_ptr(sval, obj)`; BB_FIELD_SET writes through it. Transcribe to
+  rt helpers `rt_icn_field_get(name)` / `rt_icn_field_set(name)` (pop object, resolve field cell, push/store)
+  + bb_field_get/bb_field_set templates + drivers. Unblocks rung24_records_{two_types,field_assign} (and
+  record_loop once IBB-9-4 also lands — it has an `every c.n := 1 to 3 do` body).
   cond-true ⇒ exit, cond-false ⇒ body). Fix once in the shared driver and both forms work. **JCON `ir_a_Until` (irgen.icn:981-1005)**:
   `expr.success→ir.failure` (cond true ⇒ until ENDS), `expr.failure→body.start` (cond false ⇒ run body). Body
   success/failure → `expr.start`. The inverse-sense twin of while. Most corpus `until` tests
@@ -422,6 +463,7 @@ Programs PASS, both modes, byte-identical.
 
 | State | Programs PASS | Notes |
 |-------|---------------|-------|
+| IBB-10 ✅ | 5/5 smoke; corpus same-sweep 105→130 (+25), SEGV 0, ABORT 127→68, FAIL 0, 0 regressions | (Opus 4.8, 2026-05-29). **Icon builtin dispatch + record-constructor recognition.** The analogue of IBB-9-6's user-proc arm for the BUILTIN case; killed the single largest ABORT cluster (120 of 127 `bb_call: unsupported call shape`). 5 files: `rt.c` (`rt_icn_call_builtin` pops args arg0-deepest → `icn_try_call_builtin_by_name` mode-2 oracle → push result; `rt_icn_builtin_is_known` allow-list gate excluding generator builtins find/upto/any/many/bal/key/seq + recognising registered record types via `sc_dat_find_type`), `rt.h`, `bb_call.cpp` (`is_builtin` arm, byte layout cloned from the userproc arm), `emit_bb.c` (`flat_drive_call_builtin` byte-free driver + `icn_call_args_single_shot`/`icn_bb_is_gen_arg` guards + dispatch wiring), `scrip.c` (driver pre-registers record types from BB_RECORD_DEF nodes so a constructor is recognised at emit time). Two bugs fixed: (a) mode-2 STRVAL(buf) returns slen=0 → mode-3 `rt_pop_write_any_nl` `%.*s` printed nothing → normalize `out.slen=strlen` in rt_icn_call_builtin; (b) record ctor neither user-proc nor table name at emit → driver pre-reg + sc_dat_find_type gate. Newly passing (25): rung28_builtins_str_{char_ord,pad,repl,reverse,trim_map}, rung29_builtins_type_{copy,image,mixed,numeric,type}, rung30_builtins_misc_{abs,sqrt}, rung22_lists_{get,pull}, rung13_table_member, rung17_real_arith_{integer,real_conv,string_conv}, rung15_real_swap_real_literal, rung36_jcon_{center,concord,diffwrds,nargs,radix,trim}. Gates: FACT 0, bytes-outside-templates 12 (unchanged from baseline; driver+driver byte-free), canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57 (5 pre-existing non-Icon fails). 0 regressions (full pass-list diff). **Deferred:** record field get/set (IBB-11, interp_eval stub); generator-arg builtin calls (IBB-9-4/5); I/O builtins open/read/reads; generator builtins find/upto (odometer). |
 | IBB-9-CASE ✅ | 5/5 smoke; corpus same-sweep 100→105 (+5), SEGV 0, ABORT 0, 0 regressions | `c117aa16` (Opus 4.8, 2026-05-29). **`case E of {...}` selector + clause-equality + `write(case)`.** New `bb_case.cpp` glue (`bb_case_store`/`bb_case_gate`) + `flat_drive_case` driver. Selector evaluated ONCE → `&pBB->value` (new `rt_pop_store_descr`); each clause key walked then gated by new `rt_case_eq` (numeric-eq iff both DT_I else string-eq via `VARVAL_fn`) + `rt_last_ok` `jne` to that clause's value body; no-match falls through; trailing chain node = default. Value bodies after the gate chain (→γ); matched body leaves result on vstack for the rvalue context. Driver owns all control flow (no node-template emit; defines its own β-stub like `flat_drive_seq`). `BB_CASE` added to `is_write_intexpr`/`arg_is_any` + walk_bb_flat write dispatch so `write(case …)` routes the matched value through the any-write trailer. Newly passing: rung33_case_{arith,int,str,in_proc,no_default}. Gates: FACT 0, bytes-outside-templates 0, canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57 (5 pre-existing non-Icon fails). |
 | IBB-9-INITIAL ✅ | 5/5 smoke; corpus same-sweep 95→100 (+5), SEGV 0, 0 regressions | `6d78e915` (Opus 4.8, 2026-05-29). **`initial expr` once-guard.** New `bb_initial.cpp` template + `flat_drive_initial`; moved `BB_INITIAL` off the `bb_stub` no-op (it emitted nothing → clause never ran). Runtime once-flag in `&pBB->counter` (calloc-zeroed, persists across slab re-entries — proc slab built once, `rt_icn_call_proc` never resets). Guard: read slot; `jne` γ (skip); else set slot=1; `jmp` body_entry. Driver walks `pBB->α` at body_entry (success→γ, failure→ω, propagating initial-clause failure as in mode-2). Newly passing: rung21_global_initial_{global_initial,initial_once}, rung25_global_{global_initial,initial_once,initial_zero}. Gates: FACT 0, zero-SM, smoke icon/prolog 5/5. |
 | IBB-9-TOBY ✅ | 5/5 smoke; corpus same-sweep 93→95 (+2), SEGV 0, 0 regressions | `6d78e915` (Opus 4.8, 2026-05-29). **`write(lo to hi by step)`.** `BB_TO_BY` was missing from the write arg-recognition lists → `every write(1 to 10 by 3)` ABORTed (arg0_kind=17). Two-line fix: `BB_TO_BY` added to `is_write_intexpr` (`bb_call.cpp`) + `walk_bb_flat` BB_CALL write dispatch (`emit_bb.c`). Existing `flat_drive_call_intexpr` re-pump already cascades the every-resume into BB_TO_BY's β-advance — no new driver. Newly passing: rung01_paper_to_by + sibling. Gates: FACT 0, zero-SM, smoke 5/5. |
