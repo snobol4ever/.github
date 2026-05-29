@@ -128,3 +128,25 @@ if (dst < b3_base && n_fwd >= 0) {
 /* on the normal non-redirect fall-through, before callee_env calloc */
 g_pl_b3_call_mark = -1;
 ```
+
+---
+
+## Follow-on same session: WAM-CP-13 print/1 mode-4 emit (one4all `2fae45ec`)
+
+After B3, took one cheap mode-4 corpus win. `print(hello)`/`print(42)` emitted blanks in mode-4
+(BB_BUILTIN MEDIUM_TEXT arm matched only `write`/`writeln`). `print/1` is write-equivalent for
+atoms/ints/compounds (the only corpus cases), so widened the arm condition in
+`src/emitter/BB_templates/bb_builtin.cpp` from `write||writeln` to `write||writeln||print`. The arm
+already routes BB_ATOM→`rt_pl_write_atom`, BB_PL_VAR→`rt_pl_write_var`,
+BB_LIT_I/BB_PL_STRUCT→`emit_write_term`; `print` is not `writeln` so it takes no nl-suffix (the test
+supplies explicit `nl`). One-line change, FACT 0/12 (a widened strcmp inside the same template arm
+is not a new byte producer — no duplication-vs-sharing question arises). mode-4 corpus 54→55
+(rung22_print). All interp gates byte-identical, siblings 5/5/5/13.
+
+**NEXT (WAM-CP-13 cont'd, mechanical):** `writeq/1` + `write_canonical/1` (rung22, 4 more tests)
+need quoting / operator-notation. Cleanest: materialize the arg term via `rt_pl_node_to_term`
+(+ `rt_pl_compound_build_n` for compounds, mirroring the CAT-D-7 `emit_write_term` recursion in this
+same file) then call the existing `pl_writeq` / `pl_write_canonical` effect helpers (both exist,
+used by mode-2 `bb_exec.c:4481`). Then char_type/2 (rung21, 4 — compound-arg construction for
+`digit(V)`/`to_upper(U)` forms) and numbervars/3 (rung20, 3). Each follows the CAT-D effect-helper +
+two-path template pattern documented in the goal file.
