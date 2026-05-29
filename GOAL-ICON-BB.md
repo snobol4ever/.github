@@ -30,13 +30,13 @@ Completion tests:
 
 ---
 
-## Current state (2026-05-29, IBB-9-2 while/until + swap + alt-write landed, one4all `aeb83416`)
+## Current state (2026-05-29, IBB-9-6 user-proc dispatch landed)
 
-**Note on the corpus baseline:** the `213→216` figures below are from the `e8f66866` snapshot. Re-measured
-on the live default branch `c7529bad` (this handoff's parent), the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
-(293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical) is the authoritative number:
-**baseline 56 PASS / 0 SEGV → 62 (IBB-9-2 etc.) → 69 PASS / 0 SEGV after IBB-9-UNOP (+7 this session, 0 regressions).** The 216 used a
-different/older corpus snapshot. ~158 of the 167 remaining aborts are `bb_call: unsupported call shape` = user-proc dispatch (IBB-9-6).
+**Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
+(293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
+**56 (pre-IBB-9-2) → 62 (IBB-9-2 etc.) → 69 (IBB-9-UNOP) → 82 PASS / 0 SEGV / 0 ABORT after IBB-9-6
+(+13 this session, 0 regressions, worktree-verified).** The `bb_call: unsupported call shape` ABORT
+cluster (~158 aborts = user-proc dispatch) is GONE.
 
 | Mode | Path | Canonical (hello) | Full corpus (same-sweep, `c7529bad` base) |
 |------|------|-------------|---------------------------------|
@@ -212,12 +212,41 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
   **mode-2 bug** (`every x:=1 to 3 do {y:=x*2;write(y)}` prints `2 2 2` in m2, correct `2 4 6` in m3) — fix mode-2
   ival=3 x-rebind alongside, or the byte-identical gate will never pass. Honor break/next/return via FRAME flags
   (JCON `ir_a_Break:1107`/`ir_a_Next:1082` route to `curloop.ir.x.nextlabel`).
-- [ ] **IBB-9-6 — user-proc dispatch (non-write fn calls).** Transcribe **JCON `ir_a_Call` (irgen.icn:360-403)**: args
-  lowered via `ir_value`, chained `L=[fn]|||args` with `L[i].success→L[i+1].start`, `L[i].failure→L[i-1].resume`
-  (generator args re-pump through the chain), then `ir_Call(closure, fn, args, resume); Move(target,closure)`. SCRIP:
-  BB_CALL of an arbitrary proc name needs a caller-side `rt_call_proc` runtime helper (push args, invoke proc BB
-  graph, leave result on vstack) + BB_RETURN flat-wire (JCON `ir_a_Return:867-903`: `Succeed(t)` on success path).
-  Largest remaining ABORT cluster. Start with a 0-arg and 1-arg user proc returning a value.
+- [x] **IBB-9-6 — user-proc dispatch LANDED (2026-05-29, Opus 4.8).** Transcribes JCON `ir_a_Call`
+  (irgen.icn:360-403) + `ir_a_Return` (irgen.icn:867-903) into the SCRIP flat-slab model. **Corpus
+  same-sweep 69→82 PASS (+13), SEGV 0, ABORT 0 (the `bb_call: unsupported call shape` cluster is
+  GONE), 0 regressions (worktree-verified diff of full pass-lists).** A user procedure is compiled by
+  `bb_build_flat` into a self-contained x86 slab (`bb_box_fn`) that leaves its return value on the
+  value-stack and exits via `XA_FLAT_EPILOGUE`'s `ret`. Pieces: (1) **`rt.c`/`rt.h`** — Icon proc
+  registry (`rt_icn_proc_register(name, entry, pnames, nparams)` / `rt_icn_proc_is_registered` /
+  `rt_icn_proc_set_builder` / `rt_icn_proc_reset`) + the caller `rt_icn_call_proc(name, nargs)`: pops
+  args (arg0 deepest), binds params as NAMED variables (Icon BB mode-3 resolves vars via
+  `NV_GET_fn`/`NV_SET_fn`, no frame slots), invokes the slab, reads the return value by vstack
+  depth-delta (fall-off → FAILDESCR, matching mode-2 oracle), restores bindings (recursion-correct).
+  **Slabs build LAZILY on first call** (driver sets `bb_build_flat` as the builder) — an unreached proc
+  containing a not-yet-supported shape (which would `abort()` inside `bb_build_flat`) must not break a
+  program that never calls it (this fixed 5 transient regressions: `meander`, `rung36_jcon_*`).
+  (2) **`bb_return.cpp`** — new template (`return E`: value already on vstack from the driver walking
+  α → `jmp γ`; bare `return`: `rt_push_null` then `jmp γ`); wired in `bb_templates.h`, `emit_core.c`
+  (was routing to `bb_alt` no-op), Makefile. (3) **`emit_bb.c`** — `flat_drive_return` routes the
+  success edge to the **slab-level exit** `g_emit.flat_succ_p` (NOT the next SEQ statement — a `return`
+  exits the procedure, mirroring mode-2's FRAME.returning chain-stop; `flat_succ_p`/`flat_fail_p`
+  hoisted to before the walk); `flat_drive_call_userproc` walks the arg γ-chain then emits the call
+  trailer; **`BB_BINOP_GEN` non-streaming collapse** — `n * fact(n-1)` lowers to `BB_BINOP_GEN`
+  because `is_suspendable` flags ALL calls (TT_FNC) as generators, but the mode-2 oracle discovers
+  neither operand actually streams and does ONE multiply; mode-3 now detects this
+  (`icn_binop_operand_streams`: a registered user-proc call is single-shot) and routes to the plain
+  `flat_drive_binop_tree` (temporarily coercing `nd->t` to `BB_BINOP` so the apply emits `rt_arith`,
+  restored immediately). (4) **`bb_call.cpp`** — userproc arm (`movabs rdi,name; mov esi,nargs;
+  call rt_icn_call_proc; jmp γ`) gated on `rt_icn_proc_is_registered`; `BB_CALL` added to
+  `is_write_intexpr`/`arg_is_any` so `write(proc())` routes the result through the any-write trailer.
+  (5) **`scrip.c`** — driver registers every proc's entry + param-names + sets the lazy builder before
+  building `main`. Newly passing: rung02_proc_add_proc/fact, rung03_suspend_fail/return,
+  rung09_loops_repeat_counter/until_while, rung21_global_initial_* (×3), rung25_global_* (×4). Gates:
+  FACT 0, smoke icon/prolog 5/5, broker 51/11, zero-SM holds, regressions 0. Edge cases verified
+  byte-identical: 0-arg proc, nested calls, recursion, early/bare return. **Deferred:** generator
+  procs (`suspend` in a called proc — needs the odometer path, not single-shot); rung02_proc_locals
+  blocked separately on `every ival=2` (IBB-9-4).
 - [ ] **IBB-9-7 — `write(BB_CALL)` / `write(proc-result)`.** Depends on IBB-9-6. Once a user proc leaves its result on
   the vstack, route it through the existing `rt_pop_write_any_nl` trailer (the BB_CALL-as-arg path bb_call.cpp already
   has `arg_is_any`). Also `write(f(x))` where f is a generator proc → every-resumes through the call chain.
@@ -310,6 +339,7 @@ Programs PASS, both modes, byte-identical.
 
 | State | Programs PASS | Notes |
 |-------|---------------|-------|
+| IBB-9-6 ✅ | 5/5 smoke; corpus same-sweep 69→82 (+13), SEGV 0, ABORT 0, 0 regressions | `8d4c2c2f` (Opus 4.8, 2026-05-29). **User-procedure dispatch** — JCON `ir_a_Call`/`ir_a_Return` in the flat-slab model. A user proc compiles to a `bb_build_flat` slab that leaves its return value on the vstack; `rt_icn_call_proc` binds params as named vars, invokes the slab (built LAZILY on first call), reads the result by vstack depth-delta, restores bindings. New `bb_return.cpp` template; `flat_drive_return` (routes to slab-level exit `flat_succ_p`, not next stmt); `flat_drive_call_userproc`; `BB_BINOP_GEN` non-streaming collapse (`n * fact(n-1)` → plain binop since a registered proc call is single-shot, matching the mode-2 oracle); `bb_call.cpp` userproc arm + `write(proc())` via any-write trailer; driver registers all proc entries + lazy builder. The `bb_call: unsupported call shape` ABORT cluster (~158 aborts) is eliminated. Newly passing: rung02_proc_add_proc/fact, rung03_suspend_fail/return, rung09_loops_repeat_counter/until_while, rung21_global_initial_×3, rung25_global_×4. Lazy build fixed 5 transient regressions (unreached procs with unsupported shapes). Gates: FACT 0, smoke icon/prolog 5/5, broker 51/11, zero-SM holds. **Deferred:** generator procs (`suspend` → needs odometer); rung02_proc_locals (blocked on `every ival=2`, IBB-9-4). **NEXT:** scanning subsystem (~11 FAILs); `every ival=2/3` (IBB-9-4/5); generator-proc dispatch; finish unop family (SIZE/RANDOM); `||` lconcat; BB_CASE; BB_AUGOP-in-every (rung10). |
 | IBB-9-UNOP ✅ | 5/5 smoke; corpus same-sweep 62→69 (+7), SEGV 0, 0 regressions | `cc7995c4` (Opus 4.8, 2026-05-29). Value-producing unary ops `-E`/`+E`/`\E`/`/E`/`not E` (BB_NEG/POS/NONNULL/NULL_TEST/NOT). These routed to the `bb_cset`/`bb_stub` no-op stubs that emit ZERO mode-3 bytes → silent empty output. Fix: new grouped template `bb_unop.cpp` (relop control shape: call `rt_unop_*` helper which sets LAST_OK + pushes result, then `jmp γ` UNCONDITIONALLY so the BB_IF router branches in cond-context and write/assign consumers take the value in value-context); `flat_drive_unop` in `emit_bb.c` walks operand `pBB->α` first then emits the template (mirror of `flat_drive_binop_tree`); five `rt_unop_*` helpers in `rt.c` byte-faithful to mode-2 `bb_exec.c` arms; `bb_call.cpp` `is_write_intexpr`/`arg_is_any` + `walk_bb_flat` BB_CALL dispatch extended for unop write-args. Also fixed `--dump-bb` (was set into `g_opt_dump_bb` but never consumed → fell through to `--run` and ABORTed; now mirrors `--dump-sm` early-return via `sm_preamble`+`bb_print`, no native emission). Newly passing: rung07_control_{neg,not,repeat_break}, rung34_null_test_{nonnull_fails,nonnull_succeeds,null_fails,null_succeeds}. Gates: FACT 0, smoke icon/prolog 5/5, broker 49/11, zero-SM holds, regressions worktree-verified == 0. **Deferred:** `nonnull_in_every` (unop over generator-bearing chain → IBB-9-4); `*E` (BB_SIZE) + `?E` (BB_RANDOM) unops (same template slot, need their `rt_unop_*` helpers; SIZE needs DT_DATA/DT_T length). **NEXT:** the big lever remains user-proc dispatch (IBB-9-6, ~158 of the 167 aborts); or finish the unop family (SIZE/RANDOM), `||` lconcat, BB_CASE, BB_AUGOP-in-every (rung10). |
 | IBB-6 ✅ | 5/5 canonical (m2 + m3) | `3aa200cd`. BB_BINOP_GEN odometer. |
 | IBB-7 ✅ | 5/5 canonical; corpus 13→17 (+4) | `d1c55b0c`. BB_VAR + BB_ASSIGN flat-wire; AG-PURE deep-thread gates (ival==1 / dval==1.0). |
