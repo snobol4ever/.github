@@ -35,8 +35,8 @@ Completion tests:
 **Note on the corpus baseline:** the `213→216` figures below are from the `e8f66866` snapshot. Re-measured
 on the live default branch `c7529bad` (this handoff's parent), the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
 (293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical) is the authoritative number:
-**baseline 56 PASS / 0 SEGV → after this session 62 PASS / 0 SEGV (+6, 0 regressions).** The 216 used a
-different/older corpus snapshot. 158 of the 169 aborts are `bb_call: unsupported call shape` = user-proc dispatch (IBB-9-6).
+**baseline 56 PASS / 0 SEGV → 62 (IBB-9-2 etc.) → 69 PASS / 0 SEGV after IBB-9-UNOP (+7 this session, 0 regressions).** The 216 used a
+different/older corpus snapshot. ~158 of the 167 remaining aborts are `bb_call: unsupported call shape` = user-proc dispatch (IBB-9-6).
 
 | Mode | Path | Canonical (hello) | Full corpus (same-sweep, `c7529bad` base) |
 |------|------|-------------|---------------------------------|
@@ -167,6 +167,27 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
 - [x] **IBB-9-ALTWRITE — `write(ALT)` any-type fix LANDED (2026-05-29 Opus 4.8).** `bb_call.cpp` `arg_is_any`
   now includes `BB_ALT`, so `write("a"|"b"|"c")` uses `rt_pop_write_any_nl` (was int-write → printed string
   descriptors as pointer garbage). Int-alts unaffected (any-write does DT_I via %lld). Gain: `rung13_alt_alt_every_write`.
+- [x] **IBB-9-UNOP — value-producing unary ops `-E`/`+E`/`\E`/`/E`/`not E` LANDED (2026-05-29 Opus 4.8).**
+  `BB_NEG`/`BB_POS`/`BB_NONNULL`/`BB_NULL_TEST`/`BB_NOT` previously routed to the `bb_cset`/`bb_stub` no-op
+  stubs (emitted ZERO bytes in mode-3 → silent empty output). Now a real path: (1) new grouped template
+  `BB_templates/bb_unop.cpp` — calls a per-op `rt_unop_*` helper then jmps γ UNCONDITIONALLY (the relop
+  control shape: helper sets `LAST_OK` + pushes the result value; the BB_IF router reads `LAST_OK` to pick
+  then/else, and value-context consumers (write/assign) take the pushed value). (2) `flat_drive_unop` in
+  `emit_bb.c` walks the operand `pBB->α` first (push its value), then emits the template — mirror of
+  `flat_drive_binop_tree`/`flat_drive_call_intexpr`. (3) five `rt_unop_*` helpers in `rt.c`, each a byte-for-byte
+  transcription of the mode-2 `bb_exec.c` arm (neg/pos coerce + sign; nonnull fails on null/fail; null_test
+  succeeds with &null iff null; not succeeds with &null iff inner failed). (4) `bb_call.cpp` extended
+  `is_write_intexpr`/`arg_is_any` + the `BB_CALL` arg dispatch in `walk_bb_flat` to route these as
+  value-producing `write` args. **Verified gains (same-sweep, m2==m3, zero-SM each):** `rung07_control_neg`
+  (`write(-x)`), `rung07_control_not` (`if not(1>2)`), `rung07_control_repeat_break` (`if not(x<5)`),
+  `rung34_null_test_{nonnull_fails,nonnull_succeeds,null_fails,null_succeeds}`. **Also fixed `--dump-bb`**
+  (`scrip.c`): the flag set `g_opt_dump_bb` but was never consumed → fell through to `--run` and ABORTed on
+  any not-yet-wired shape; now mirrors the `--dump-sm` early-return (build via `sm_preamble`, walk every
+  proc's `bb_table` entry, `bb_print`, exit — no native emission). Corpus **62→69 (+7)**, SEGV 0, **0
+  regressions** (worktree-verified diff of full pass-lists). Gates: FACT 0, smoke icon/prolog 5/5, broker 49/11,
+  zero-SM holds. **Still deferred:** `nonnull_in_every` (`every \(...)` — unop on a generator-bearing chain,
+  belongs with IBB-9-4); `BB_SIZE` (`*E`) and `BB_RANDOM` (`?E`) unops (same template slot, just need their
+  `rt_unop_*` helpers + SIZE's DT_DATA/DT_T length handling — left for next pass).
 - [ ] **IBB-9-3 — `until C do B`.** Shares the IBB-9-2 `bb_while`/`bb_loop` driver (BB_UNTIL swaps the two gate targets:
   cond-true ⇒ exit, cond-false ⇒ body). Fix once in the shared driver and both forms work. **JCON `ir_a_Until` (irgen.icn:981-1005)**:
   `expr.success→ir.failure` (cond true ⇒ until ENDS), `expr.failure→body.start` (cond false ⇒ run body). Body
@@ -289,6 +310,7 @@ Programs PASS, both modes, byte-identical.
 
 | State | Programs PASS | Notes |
 |-------|---------------|-------|
+| IBB-9-UNOP ✅ | 5/5 smoke; corpus same-sweep 62→69 (+7), SEGV 0, 0 regressions | `cc7995c4` (Opus 4.8, 2026-05-29). Value-producing unary ops `-E`/`+E`/`\E`/`/E`/`not E` (BB_NEG/POS/NONNULL/NULL_TEST/NOT). These routed to the `bb_cset`/`bb_stub` no-op stubs that emit ZERO mode-3 bytes → silent empty output. Fix: new grouped template `bb_unop.cpp` (relop control shape: call `rt_unop_*` helper which sets LAST_OK + pushes result, then `jmp γ` UNCONDITIONALLY so the BB_IF router branches in cond-context and write/assign consumers take the value in value-context); `flat_drive_unop` in `emit_bb.c` walks operand `pBB->α` first then emits the template (mirror of `flat_drive_binop_tree`); five `rt_unop_*` helpers in `rt.c` byte-faithful to mode-2 `bb_exec.c` arms; `bb_call.cpp` `is_write_intexpr`/`arg_is_any` + `walk_bb_flat` BB_CALL dispatch extended for unop write-args. Also fixed `--dump-bb` (was set into `g_opt_dump_bb` but never consumed → fell through to `--run` and ABORTed; now mirrors `--dump-sm` early-return via `sm_preamble`+`bb_print`, no native emission). Newly passing: rung07_control_{neg,not,repeat_break}, rung34_null_test_{nonnull_fails,nonnull_succeeds,null_fails,null_succeeds}. Gates: FACT 0, smoke icon/prolog 5/5, broker 49/11, zero-SM holds, regressions worktree-verified == 0. **Deferred:** `nonnull_in_every` (unop over generator-bearing chain → IBB-9-4); `*E` (BB_SIZE) + `?E` (BB_RANDOM) unops (same template slot, need their `rt_unop_*` helpers; SIZE needs DT_DATA/DT_T length). **NEXT:** the big lever remains user-proc dispatch (IBB-9-6, ~158 of the 167 aborts); or finish the unop family (SIZE/RANDOM), `||` lconcat, BB_CASE, BB_AUGOP-in-every (rung10). |
 | IBB-6 ✅ | 5/5 canonical (m2 + m3) | `3aa200cd`. BB_BINOP_GEN odometer. |
 | IBB-7 ✅ | 5/5 canonical; corpus 13→17 (+4) | `d1c55b0c`. BB_VAR + BB_ASSIGN flat-wire; AG-PURE deep-thread gates (ival==1 / dval==1.0). |
 | IBB-8a ✅ | 5/5 canonical; corpus 17→32 (+15), SEGV 2→0 | `e9f09fdc`. xa_flat slab call-alignment (`sub/add rsp,8`) clears DT_R fprintf SEGV; DT_R write args (BB_BINOP/BB_BINOP_GEN) route through any-write trailer w/ canonical real_str. |
