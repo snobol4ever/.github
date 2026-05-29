@@ -477,6 +477,24 @@ running — `X==y` check fires, `memberchk` binds correctly, `match=1/1`. All th
   succeeds; `clause(append([H|T],L,[H|R]),Body)` returns the body term.
 - [ ] **SWI-2b:** Update `plunit.pl` `pj_run_suite` to use `clause(test(N,O),G)` enumeration.
   Add `test/1` normaliser. Run SWI-G2. Record new GATE-SWI baseline (all three modes).
+- [x] **SWI-2c:** Plunit test-fold revival in `prolog_lower.c` (`a88f1e68`, Opus 4.7, 2026-05-28).
+  Discovered the static-folding shortcut for `test/2` → `pj_test/4` had been dead since PST-PL-6f
+  landed: first pass tagged `plunit_suite[]` only when `cl->head != NULL`, but non-DCG rules
+  post-6f leave `cl->head` NULL (head lives in `cl->tr->c[0]` as `tree_t`). Rebuilt both passes
+  on tree_t with `tr_dup` deep-clone helper (avoids shared-node heap corruption). `pj_test/4`
+  now correctly populated — verified by direct `findall`. SWI-2a/2b path remains valid but
+  is no longer strictly required to register `test/2` bodies. Gate unchanged at 53/57 because
+  of new-blocker SWI-2d below.
+- [ ] **SWI-2d:** Fix `call(X)` where X is a bound atom in mode-2 `--interp`. Currently
+  `call(true)` fails — even literal `call(true)`, no variable binding involved. Blocks
+  `pj_run_one` from executing any test body (the goal is stored in `pj_test/4`'s 4th arg
+  and reached via `catch(Goal, _, ...)` which routes through `call/1`). Hooks:
+  `pl_invoke_var_goal` at `src/runtime/interp/pl_runtime.c:845`; `pl_term_to_synth_expr`
+  TERM_ATOM branch at line 805 (builds `TT_FNC(sval="true", n=0)`); `interp_exec_pl_builtin`
+  `true` arm at line 894 should return 1 but evidently doesn't. Trace to find which return-0
+  fires on the path back up. **Highest leverage NEXT step** — without it, the plunit shim
+  can never execute test bodies regardless of any other fix; gate stays at "53/57 by
+  accident" indefinitely.
 
 ### SWI-3 — Normalise bare `Var==Val` option form in `test/2` heads
 
