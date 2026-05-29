@@ -106,16 +106,35 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
   `ir_binary:438-444` routes `expr.resume → right.resume` — the assign is transparent to resume, forwarding it
   into the generator. SCRIP transcription: interpose a BB_ASSIGN store node (ival=1, β=gen for the mode-2 null
   guard) on the ival=1 every topology; `flat_drive_every` emits gen→store→body→gen_β. Corpus 213→216.
-- [ ] **IBB-9-2 — `while C do B` parse + flat-wire.** FIRST verify the parser: `while C do { multi-stmt }` currently
-  yields `parse error … expected ; (got while)` — diagnose whether `do`-block statement context is the gap before
-  any lowering. Then transcribe **JCON `ir_a_While` (irgen.icn:1008-1032)** exactly: `ir.start→expr.start`;
-  `expr.success→body.start`; `expr.failure→ir.failure`; **`body.success→expr.START`** and **`body.failure→expr.START`**
-  (NOT resume — while re-evaluates the cond fresh each pass, the defining difference from every). Cond `state` is
-  reset per pump. `rung35_block_body_while_do_block` (empty m3 today) is the target. Needs the augop (`+:=`) body
-  too — see JCON `ir_augmented_assignment:417-428` (`tmp := lv op rv; target := lv := tmp`).
-- [ ] **IBB-9-3 — `until C do B`.** Mirror IBB-9-2 but **JCON `ir_a_Until` (irgen.icn:981-1005)**: `expr.success→ir.failure`
-  (cond true ⇒ until ENDS), `expr.failure→body.start` (cond false ⇒ run body). Body success/failure → `expr.start`.
-  The inverse-sense twin of while; share the driver, flip the two cond-result edges.
+- [ ] **IBB-9-2 — `while C do B`: fix cond-result routing (driver exists, JCON-faithful, but cond does not gate).**
+  `flat_drive_while` (emit_bb.c:1029, IBB-9-2 partial) already transcribes JCON `ir_a_While` (irgen.icn:1008-1032)
+  correctly: `ir.start→expr.start`; `expr.success→body.start`; `expr.failure→ir.failure`; **`body.success→expr.START`**
+  and **`body.failure→expr.START`** (NOT resume — the while/every distinction). BUT the relop condition's RESULT is
+  not gating the loop. **Probe-confirmed bug (2026-05-29, Opus 4.8):** `i:=5; while i<=3 do write(i); write(99)` prints
+  `5 5 5…` in m3 (infinite) vs `99` in m2. The cond walk routes the relop's γ straight to body unconditionally.
+  **ROOT CAUSE:** same shape as IBB-8b BB_IF — a relop-in-condition needs a ROUTER that tests the comparison result
+  and branches body (true) vs exit (false). **CONFIRMED CRITICAL DETAIL (do not repeat my dead-end):** the while-cond
+  relop is a **TREE-SHAPE BB_BINOP** (α/β operand children NON-NULL, `ival` = the relop opcode, observed `ival=6`),
+  NOT the AG-pure (α==β==NULL) shape that BB_IF conds use. So detecting the relop via `α==NULL && β==NULL` FAILS —
+  must detect by the BB_BINOP **opcode** (`ival` ∈ relop-op set: `<,<=,=,~=,>=,>` numeric + `<<,<<=,==,…` string).
+  Must FIRST verify whether `flat_drive_binop_tree` (emit_bb.c:805) sets LAST_OK + does unconditional jmp γ (→ router
+  needed, reuse `bb_if.cpp`) or already routes on result via γ/ω (→ no router, just wire cond.ω=cond_false). Inspect
+  the relop apply arm in `bb_binop.cpp` tree-shape path before coding. **REGRESSION WARNING (cost me 26 programs this
+  session):** the router must fire ONLY for relop conds. A NON-relop cond — assignment (`while line := read() do …`),
+  generator, or plain call — signals truth via its OWN γ (produced a value) / ω (none) and does NOT set LAST_OK;
+  inserting a LAST_OK router there sends control on garbage. Gate the router strictly on relop-opcode detection;
+  `while line := read()` (BB_ASSIGN cond), `while c := a[i]` etc. MUST keep the direct γ/ω routing. Verify against the
+  full corpus sweep (`/tmp/sweep.sh` shape: m2-OK filter, m2==m3 && m3 rc=0) — baseline at `e8f66866` is **216 PASS**;
+  any drop below 216 means the router is over-firing. Then the augop (`+:=`) body — JCON `ir_augmented_assignment:417-428`
+  (`tmp := lv op rv; target := lv := tmp`); `rung35_block_body_while_do_block` already has `i +:= 1` and works once the
+  cond gates (verified: with an unconditional router it goes 1 2 3, but that router regresses the 26 read-loop programs).
+  Target: `rung35_block_body_while_do_block` (m3 infinite today → `1 2 3`, +1) WITHOUT dropping the 216.
+- [ ] **IBB-9-3 — `until C do B`.** Shares `flat_drive_while` (BB_UNTIL flips cond_true/cond_false). Inherits the SAME
+  cond-routing bug as IBB-9-2 — fix once in the shared driver and both forms work. **JCON `ir_a_Until` (irgen.icn:981-1005)**:
+  `expr.success→ir.failure` (cond true ⇒ until ENDS), `expr.failure→body.start` (cond false ⇒ run body). Body
+  success/failure → `expr.start`. The inverse-sense twin of while. Most corpus `until` tests
+  (`rung09_loops_until*`) ALSO need user-proc dispatch (they wrap the loop in a `procedure countdown(n)`) — so they
+  stay blocked on IBB-9-6 even after the cond-router lands; pick a proc-free `until` repro to gate this step.
 - [ ] **IBB-9-4 — `every E do B` ival=2 (gen-bearing chain, simple body).** `every v := !t do B`, `every (i to j) do B`
   where the gen is a streaming generator (BB_ALT/BB_LIST_BANG/BB_BINOP_GEN/BB_ITERATE). JCON: identical `ir_a_Every`
   wiring — there is no ival distinction in JCON, the generator's own resume chain handles re-pumping. SCRIP's ival=2
