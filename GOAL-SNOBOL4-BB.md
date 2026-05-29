@@ -83,14 +83,21 @@ For full failure list patch `head -40` to `head -300` in test_interp_broad_corpu
   compile failed identically. **Native +25, mode-4 +6, mode-2 +1, rung M4 +2 (052, 054),
   zero regressions.** Handoff `HANDOFF-2026-05-29-OPUS-SBL-POS-RPOS-FLAG-FIX.md`.
 
-- [ ] **Then knock down remaining ~60 native-only failures**, by cluster:
-  - **046/047 TAB/RTAB SIGSEGV native** — quick check if there's an alignment/sites bug
-    in `bb_pat_tab.cpp` BINARY arm beyond the flag fix. 046 (`TAB(3) LEN(2).V`) hits TAB
-    in first position with non-zero offset. Likely small.
+- [ ] **Then knock down remaining ~57 native-only failures**, by cluster:
+  - [x] **046/047 TAB/RTAB SIGSEGV native ✅** (2026-05-29 Opus 4.7). `bb_pat_tab.cpp` BINARY arm
+    had two bug classes carried in from `c01959f4` (the bb_bin_t conversion). (1) Same off-by-one
+    site convention as bb_pat_pos pre-`61ae501e`: TAB sites `{9, 23, 28, 29}` (last-byte-of-opcode
+    convention) — patcher wrote rel32 starting at offset 9, overwriting the `0F 8F` jg opcode byte
+    → SIGSEGV. Same off-by-one on RTAB. (2) RTAB BINARY arm had a SEMANTIC bug: the success-path
+    "writeback" at offset 30 was `89 C1` (mov ecx, eax) — a no-op that overwrote ecx (which held
+    Σlen-N) with eax (Δ), never writing the new Δ. TEXT arm shows the intent: `mov [r10], ecx`
+    (3 bytes: `41 89 0A`). Three-bug fix: TAB sites `{10, 23, 27, 28}`; RTAB writeback corrected
+    (+1 byte); RTAB sites `{26, 34, 38, 39}` accounting for the shift. **Native +3
+    (046_pat_tab, 047_pat_rtab, W06_tab), zero regressions, all other gates unchanged.**
   - SPAN ~10 tests (SBL-SPAN-2 BINARY arm + deque pattern)
   - ARBNO ~8 tests (SBL-ARBNO-3 — deque pattern available)
   - FENCE ~6 tests (bytes ready via EP-BINARY)
-  - POS/RPOS/TAB/RTAB/REM/ARB/TWO ~10 tests (individual arms)
+  - POS/RPOS/REM/ARB/TWO ~10 tests (individual arms)
   - capture-multiple/complex ~10 tests (derives from atomic fixes)
 
 - [ ] **Flip default to native** (remove getenv gate at `scrip.c:449`), honest `[NO-SM-BB]` failure for unbuilt arms.
@@ -131,12 +138,12 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = (this commit)  SBL-POS-RPOS-FLAG-FIX
+HEAD one4all       = (this commit)  SBL-TAB-RTAB-FIX
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 39
-GATE-3 mode-4      = 184/280  (+6 from POS-RPOS flag fix; same root in TEXT arm)
-GATE-4 mode-2      = 252/280  (+1)
-NATIVE corpus      = 220/280  (+25 from POS-RPOS flag fix)
+GATE-3 mode-4      = 184/280
+GATE-4 mode-2      = 252/280
+NATIVE corpus      = 223/280  (+3 from TAB/RTAB sites + RTAB writeback fix)
 Rung suite         = M2=19/19 M4=17 SKIP=0  (failing M4: 053, 056)
 Prolog/Raku/Icon smokes = 5/5/5
 FACT RULE          = 0
@@ -148,7 +155,17 @@ GATE-PK            = stale
 
 ## Session log (last few, terse)
 
-- **2026-05-29 Opus 4.7 — SBL-POS-RPOS-FLAG-FIX ✅** (this commit). `bb_pat_pos.cpp:14`
+- **2026-05-29 Opus 4.7 — SBL-TAB-RTAB-FIX ✅** (this commit). Three-bug fix in
+  `bb_pat_tab.cpp` BINARY arm: (1) TAB sites `{9, 23, 28, 29}` → `{10, 23, 27, 28}` —
+  same off-by-one as the POS-PATCH-OFFSET fix last session, `0F 8F` opcode byte was
+  being overwritten by rel32 → SIGSEGV on TAB(N). (2) RTAB sites `{25, 32, 37, 38}` →
+  `{26, 34, 38, 39}` same off-by-one + extra +1 shift on tail sites from fix (3).
+  (3) RTAB SEMANTIC bug: success-path writeback at offset 30 was `89 C1` (mov ecx, eax)
+  — a no-op clobbering ecx with eax. Should be `41 89 0A` (mov [r10], ecx) per TEXT arm.
+  **Native +3 (046_pat_tab, 047_pat_rtab, W06_tab), zero regressions, all other gates
+  unchanged.** Handoff `HANDOFF-2026-05-29-OPUS-SBL-TAB-RTAB-FIX.md`.
+
+- **2026-05-29 Opus 4.7 — SBL-POS-RPOS-FLAG-FIX ✅** (`dbdec9bb`). `bb_pat_pos.cpp:14`
   and `bb_pat_tab.cpp:14` used `int rpos = (pBB->ival != 0)` to distinguish RPOS/RTAB
   from POS/TAB. Wrong — distinguished by `pBB->sval == "r"` per lowering. Heuristic
   misclassified RPOS(0) as POS(0) (and POS(N>0) as RPOS(N>0)). One-line fix each:
