@@ -28,6 +28,55 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-J-5, 2026-05-29 — Opus 4.8, one4all `0b77ba71`)
+
+**2026-05-29 Opus 4.8: PLR-J-5 LANDED — native multi-clause / disjunction / recursive dispatch.**
+Ported the MEDIUM_TEXT `BB_CHOICE` dispatcher AND the `BB_PL_ALT` disjunction arm to MEDIUM_BINARY
+(raw bytes via the `bb_bin_t` descriptor; every `@PLT` call → `movabs rax,&fn; call rax` for
+in-process mode-3 native), wired compound operands in the BINARY unify arm, and removed the
+PLR-J-4 multi-clause guard in `SM_BB_PL_INVOKE`. 5 files (+225/-45):
+- **`bb_pl_choice.cpp` BINARY arm:** full dispatcher byte-twin of the TEXT arm — α push CP +
+  `rt_pl_choice_cut_enter`; cursor dispatch (`[cp+48]` vs n → pre[i]); pre[0] cursor++/jmp body[0];
+  pre[i>0] `trail_unwind([cp+16])`/cursor++/jmp body[i]; exit_γ cut-flag check → cut_γ else
+  `cut_exit`/jmp γ; cut_γ/cut_ω `cut_unwind`; exhausted `cut_exit`+unwind+`pl_cp_pop`/jmp ω; β
+  redo (cut-flag → cut_ω; cp NULL → β_nosol; else `cut_enter`/jmp dispatch).
+- **`bb_pl_alt.cpp` BINARY arm:** α→pre[0] (`rt_pl_trail_mark_push`)→body[0]; pre[i>0]
+  (`rt_pl_trail_unwind_top`)→body[i]; β→ω. **This was the actual first blocker** — `( G ; true )`
+  mains route through ALT, whose BINARY arm was ALSO a double-jump stub (not just BB_CHOICE).
+- **`bb_unify.cpp` BINARY arm:** BB_PL_STRUCT operands now route through PLR-J-3's
+  `emit_build_compound_term_bin` (was honest-abort-guarded → `g_sm_native_unsupported`), using the
+  TEXT arm's 16-byte scratch-slot discipline (`sub rsp,16`/`mov [rsp],L`/build R/`add rsp,16`)
+  instead of `push rax`, so rsp stays 16-aligned across a compound-R build's internal
+  `call rt_pl_compound_build_n`. Needed for `member/2` list-head unification.
+- **`emit_bb.c`:** choice + alt drivers `emit_label_intern` `cbody[i]`/`cpre[i]` (+ choice `exit_γ`)
+  so the driver-defined clause bodies and the template-emitted dispatcher share ONE `bb_label_t*`
+  resolved by pointer identity in BINARY mode (mirrors PLR-J-4's `emit_label_intern` cross-block
+  linkage). Behaviorally identical in TEXT/mode-2 (intern dedups by unique per-id name).
+- **`sm_bb_switch.cpp`:** the PLR-J-5 multi-clause guard (bail on any BB_CHOICE-headed entry/callee)
+  removed.
+
+**Multi-clause, recursive, and disjunctive predicates now run natively in mode-3 (`--run`).**
+3-mode AGREE verified live: `pick(1)./pick(2)./pick(3). main:-pick(X),write(X),nl,fail;true.` →
+`1/2/3`; recursive `member/2` over `[a,b,c]` → `a/b/c`; fact enumeration `color/1` → `red/green/blue`.
+**GATE-2 crosscheck 11 → 33 PASS (+22)** — the bulk-unblock the ladder predicted. **Gates:** GATE-1
+5/5, GATE-3 m2 104/107 (byte-identical — mode-2 untouched), GATE-4 4/4, GATE-SWI 57/57, FACT 0/12,
+siblings icon/raku/snobol4 5/5/13. Mode-3 native rung suite 29/107 (remaining fails are unported
+builtin BINARY arms: findall/format-compound/etc — separate work).
+
+**Two findings (NOT introduced, NOT fixed here):** (1) `rung05_backtrack_backtrack.ref` carries a
+literal `-e ` prefix (an `echo -e` artifact) — the lone crosscheck ORACLE_MISS; all 3 modes
+correctly print `a\nb\nc`. Corpus-file bug, untouched. (2) Mode-2 `--interp` loops infinitely on
+cut-in-disjunction-with-fail (`pick(1):-!. pick(2). pick(3). main:-pick(X),…,fail;true.`) — confirmed
+pre-existing at parent `8d096733` (baseline build also loops); mode-3 native gives the CORRECT
+single answer. Latent mode-2 cut-in-disjunction bug, orthogonal to PLR-J-5.
+
+**NEXT:** unported builtin BINARY arms (findall/3, format/2-compound, char_type/2, numbervars/3,
+writeq/write_canonical — the mode-3 native rung-suite 78 fails are mostly these), or the orthogonal
+mode-2 cut-in-disjunction loop, or the orthogonal mode-3 native nested-`is` bug PLR-J-4 surfaced
+(`R is 3*10+4`→`6`). PLR-J ladder (J-0..J-5) is now COMPLETE.
+
+---
+
 ## State at HEAD (post-PLR-J-4, 2026-05-29 — Opus 4.8)
 
 **2026-05-29 Opus 4.8: PLR-J-4 LANDED — native multi-predicate dispatch.** PLR-J-4a
@@ -1410,14 +1459,22 @@ arms.
   (`R is 3*10+4`→`6` not `34`, confirmed at baseline `1aa0b3c5`). Handoff
   `HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRJ4-CALLEE-DISPATCH.md`.
 
-- [ ] **PLR-J-5 — `BB_CHOICE` as `ir_a_Alt` transliteration + gprolog retry/trust ordering
-  (irgen.icn `ir_a_Alt` 167-199, F6).** Lower `BB_CHOICE` clause iteration as a direct
-  transliteration of `ir_a_Alt`'s `MoveLabel`/`IndirectGoto` over alternatives, and make the
-  binary CP arm honour gprolog's invariant: **untrail to `trail_mark` BEFORE retry**, restore
-  `env`, update `resume`(ALTB) to next clause; on last clause (trust) pop the CP
-  (`g_pl_bfr = parent`). Cite `wam_inst.c` `UPDATE_CHOICE_COMMON_PART` / `DELETE_CHOICE_COMMON_PART`.
-  Gate: `rung05_backtrack` (multi-solution) mode-3 byte-match mode-2; nested-choice rung; FACT 0.
-  Depends on PLR-J-2 (explicit resume) and PLR-J-4 (callee blocks to backtrack into).
+- [x] **PLR-J-5 — `BB_CHOICE` + `BB_PL_ALT` BINARY arms + compound unify. LANDED (Opus 4.8,
+  2026-05-29, one4all `0b77ba71`).** Ported the MEDIUM_TEXT choice dispatcher and disjunction arm to
+  MEDIUM_BINARY (raw bytes via `bb_bin_t`; `@PLT` → `movabs rax,&fn; call rax`), wired BB_PL_STRUCT
+  operands in the BINARY unify arm through PLR-J-3's `emit_build_compound_term_bin` (16-byte
+  scratch-slot alignment), and removed the multi-clause guard in `SM_BB_PL_INVOKE`. Cross-block label
+  identity (template dispatcher ↔ driver-emitted clause bodies) via `emit_label_intern` of
+  `cbody[i]`/`cpre[i]`/`exit_γ` in `flat_drive_pl_choice`/`_alt`. **Discovery:** `bb_pl_alt.cpp`
+  BINARY was ALSO a double-jump stub and was the actual first blocker (`( G ; true )` mains route
+  through ALT, not BB_CHOICE) — both arms ported in lockstep. Multi-clause/recursive/disjunctive
+  predicates now run natively in mode-3. 3-mode AGREE: `pick/1`→`1/2/3`, recursive `member/2`→`a/b/c`,
+  `color/1`→`red/green/blue`. **GATE-2 crosscheck 11 → 33 PASS (+22).** GATE-1 5/5, GATE-3 m2 104/107
+  (byte-identical), GATE-4 4/4, GATE-SWI 57/57, FACT 0/12, siblings 5/5/13. 5 files (+225/-45).
+  NOTE: the full gprolog `UPDATE_CHOICE`/`DELETE_CHOICE` retry/trust ordering was already realized by
+  the existing TEXT dispatcher's pre[i] trail-unwind + exhausted pop, which this port mirrors
+  byte-for-byte; the multi-solution `rung05_backtrack` gate passes (3-mode agree → `a/b/c`; lone
+  ORACLE_MISS is a pre-existing `-e ` artifact in the `.ref`, not a mode disagreement).
 
 **Dependency order:** PLR-J-0 → {PLR-J-1 standalone} → PLR-J-2 → PLR-J-3 → PLR-J-4 → PLR-J-5.
 PLR-J-1 is independent and is the recommended first landing (smallest, corroborated by rung09).
