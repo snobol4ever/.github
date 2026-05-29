@@ -17,6 +17,17 @@ a box. The broker pumps it (BB_PUMP mode).
 **Key distinction from SNOBOL4:** SNOBOL4 uses BB_SCAN (try each cursor
 position). Icon uses BB_PUMP (generate all values until omega).
 
+**Relational ops are NOT booleans (foundational).** A comparison is a
+zero-or-one-result generator: it succeeds (yields a value → γ) or fails
+(→ ω). Verified across both references: canonical Icon
+`operator{0,1} <= cmplte(x,y)` → `return y` / `fail` (`ocomp.r`); JCON
+`ir_opfn(<=, args, failLabel)` routes failure to `failLabel`. The
+construct (`if`/`while`/`until`/`case`) only chooses where the γ/ω edges
+go; the comparison needs no per-construct boolean test. SCRIP historically
+reified a `LAST_OK` flag + a `BB_IF` router instead — see
+`STUDY-JCON-ICON-CONTROL-FLOW-2026-05-29-OPUS48.md` for the full three-way
+comparison and the IBB-9-2 / IBB-9-RELOP-PORTS plan derived from it.
+
 ---
 
 ## Statement-level dispatch (SM layer — already correct)
