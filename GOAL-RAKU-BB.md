@@ -73,7 +73,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 - [ ] **RK-BB-4-frontend** — pending Q9-Q12.
 - [ ] **RK-BB-5..N** — `reverse`/`tail`/`from-loop` as Seq consumers; `zip`/`cross` = multi-Seq drivers (later).
-- [~] **MODE3-NO-INTERP** — see `MODE3-DISPATCH-GAP.md` (2026-05-28 addendum, updated). Per-language ladder to remove `sm_interp_run` from `--run` path. Suggested order: Raku (this goal's responsibility), then Prolog, Snocone, Rebus. SNOBOL4 already has `SCRIP_M3_NATIVE`; flip the default. **Progress 2026-05-28:** **M3-RK-NOINTERP-3 ✅** (SM_NAMED_CALL absolute-target patching in `sm_run_native` Pass 3) closed Cluster 2 — 11/33 → 18/33 native (+7 tests). **Remaining:** Cluster 1 (8 tests, includes rk_given18 revealed behind Cluster 2): `SM_BB_INVOKE` `MEDIUM_BINARY` no-op stub at `sm_bb_switch.cpp:35-36` — architectural, est. 1-2 sessions (M3-RK-NOINTERP-1); Cluster 3 (6 regex, DEFERRED to GOAL-RAKU-PAT-BB).
+- [~] **MODE3-NO-INTERP** — see `MODE3-DISPATCH-GAP.md` (2026-05-28 addendum, updated). Per-language ladder to remove `sm_interp_run` from `--run` path. Suggested order: Raku (this goal's responsibility), then Prolog, Snocone, Rebus. SNOBOL4 already has `SCRIP_M3_NATIVE`; flip the default. **Progress 2026-05-28:** **M3-RK-NOINTERP-3 ✅** (SM_NAMED_CALL absolute-target patching in `sm_run_native` Pass 3) closed Cluster 2 — 11/33 → 17/33 native. **2026-05-28 follow-up-3 (Sonnet) deep-dive:** M3-RK-NOINTERP-1 is *architectural*, not a one-symbol fix. The MEDIUM_BINARY arms of bb_to_by/bb_upto/bb_suspend/bb_iterate/bb_icn_to all write yielded values to **r12 as a brokered-slab vstack pointer**, but `sm_run_native` does not initialise r12 (nor does XA_FLAT_PROLOGUE or bb_broker). Splicing those BINARY arms into the SM byte stream of mode-3 yields segfault-or-corruption + the SM vstack underflow that prints "libscrip_rt: SM value stack underflow." Required path: **(a) new mode-3-ABI branch in each generator BB template using `rt_push_int@PLT`** (matches the existing MEDIUM_TEXT arm at bb_to_by.cpp:89-90 line); template-per-step. Split as 1a (bb_to_by), 1b (bb_upto), 1c (bb_iterate), 1d (bb_suspend / bb_seq) — each closes a slice of Cluster 1. **Remaining:** Cluster 1 (8 tests, includes rk_given18 revealed behind Cluster 2); Cluster 3 (6 regex, DEFERRED to GOAL-RAKU-PAT-BB).
 
 ## Rung methodology
 
@@ -112,19 +112,18 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-one4all: M3-RK-NOINTERP-3 ✅ (Sonnet, 2026-05-28 follow-up) — SM_NAMED_CALL absolute-target patching in sm_run_native. Cluster 2 closed (7 tests). Mode-3 native 11/33 → 18/33 (+7).
-.github: HEAD + MODE3-DISPATCH-GAP.md (addendum updated with Cluster 2 outcome) + GOAL-RAKU-BB.md (watermark + MODE3-NO-INTERP rung updated)
+one4all: opnames-table cleanup (Sonnet, 2026-05-28 follow-up-3) — opnames[] slot 62 mislabel "SM_UNUSED_8" → "SM_NAMED_CALL". One-line rename; no behavior change; prevents the future-miscount the M3-RK-NOINTERP-3 handoff flagged. M3-RK-NOINTERP-1 architectural deep-dive done, NOT LANDED: ABI mismatch identified between mode-3 native (rt_push_int via SM rt-vstack) and existing BB MEDIUM_BINARY arms (r12 as brokered slab vstack). bb_to_by/bb_upto/bb_suspend/bb_iterate/bb_icn_to all write r12 in their BINARY arms; XA_FLAT_PROLOGUE does not initialise r12; bb_broker does not initialise r12. Splicing existing BB BINARY arms inline into the SM byte stream of sm_run_native would push values to an uninitialised r12 → segv or silent corruption, then STORE_VAR underflow. Closing Cluster 1 therefore requires *either* (a) new mode-3 ABI branch in each generator-family BB template (bb_to_by/bb_upto/bb_iterate/bb_seq...) that uses rt_push_int instead of r12 writes; *or* (b) sm_bb_invoke MEDIUM_BINARY arm allocates a malloc'd r12 region, sets r12, runs the inlined BB graph, then pops descriptor → rt_push_int to transfer to SM rt-vstack. (a) is cleaner / more invariant-preserving; (b) is more localized. Recommend (a) — splits as M3-RK-NOINTERP-1a (bb_to_by mode-3-ABI arm) and 1b (bb_iterate / bb_seq / bb_upto). One generator-template per follow-up to minimise blast radius.
+.github: GOAL-RAKU-BB.md watermark update only
 corpus:  unchanged
 
 GATE-RK   mode-2:                23/33  HOLD
-GATE-RK3  --run SCRIP_M3_NATIVE: 18/33 + 1 FAIL + 14 CRASH  (+7 from M3-RK-NOINTERP-3)
+GATE-RK3  --run SCRIP_M3_NATIVE: 17/33 + 2 FAIL + 14 CRASH (re-measured this session; prior 18/33 line included rk_stdio39 PASS which now FAILs — diff was about a stderr ordering issue. Cluster 1 untouched.)
 GATE-RK4  mode-4:                26/33  HOLD
 Smoke raku:       5/5    HOLD
 Smoke prolog:     5/5    HOLD
 Smoke snobol4:    13/13  HOLD
 Smoke icon:       5/5    HOLD
 FACT RULE grep:   0
-M3-NATIVE audit:  GATE OK (bb_seq.cpp empty-passthrough allowlisted, same shape as bb_fail.cpp)
 Build:            clean
 ```
 
@@ -133,13 +132,13 @@ Build:            clean
 - REGEX/NFA (6): rk_re32/33/34/35/37, rk_regex23 — DEFERRED to GOAL-RAKU-PAT-BB.
 - JUNCTIONS (1): rk_junctions — BLOCKED on Lon Q9-Q12.
 
-## Mode-3 (SCRIP_M3_NATIVE=1) status — 18 PASS, 1 FAIL, 14 CRASH
+## Mode-3 (SCRIP_M3_NATIVE=1) status — 17 PASS, 2 FAIL, 14 CRASH
 
-PASS (18): rk_arith rk_arrays rk_class26 rk_combinator rk_control rk_forloop rk_given rk_hash17 rk_hashes rk_interp rk_stdio39 rk_str22 rk_strings rk_subs rk_try_catch25 rk_typed_vars rk_unless_until rk_vars
-FAIL (1): rk_junctions
+PASS (17): rk_arith rk_arrays rk_class26 rk_combinator rk_control rk_forloop rk_given rk_hash17 rk_hashes rk_interp rk_str22 rk_strings rk_subs rk_try_catch25 rk_typed_vars rk_unless_until rk_vars
+FAIL  (2): rk_junctions rk_stdio39
 CRASH (14): rk_fileio38 rk_for_array rk_for_array_simple rk_for_array_underscore rk_gather rk_given18 rk_map_grep_sort24 rk_range_for rk_re32 rk_re33 rk_re34 rk_re35 rk_re37 rk_regex23
 
-Remaining crash structure: 8 in Cluster 1 (SM_BB_INVOKE BINARY no-op stub — rk_given18 now revealed as belonging here behind its prior Cluster 2 SEGV), 6 in Cluster 3 (regex, deferred to GOAL-RAKU-PAT-BB).
+Remaining crash structure: 8 in Cluster 1 (SM_BB_INVOKE BINARY no-op stub + r12-ABI mismatch in generator BB templates — see MODE3-NO-INTERP rung above; rk_given18 belongs here behind its prior Cluster 2 SEGV), 6 in Cluster 3 (regex, deferred to GOAL-RAKU-PAT-BB). rk_stdio39 (was PASS at 18/33 mark in prior watermark) now FAILs — appears to be a stderr-ordering diff from the rt_init setvbuf path; not Cluster 1 territory; tracked separately if it re-surfaces.
 
 ## Open questions for Lon
 
