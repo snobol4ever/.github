@@ -208,6 +208,16 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
   four-port wiring for capture+ARBNO trees — charset already correct, bug is structural. **Do NOT overload
   `bb->sval` with a binary recipe** — `emit_bb.c:1482` consumes it as a plain C charset string and would
   emit corrupt mode-4 x86. **Lifts a sizable latent cluster + 2 driver tests** when fixed.
+  **REFINEMENT (verified, same session): mode-2 `--interp` → `bb_driver=1` (`scrip.c:157`) →
+  `g_bb_mode=BB_MODE_BROKERED` (`scrip.c:161`), so `exec_stmt` takes the BROKERED branch: an ARBNO pattern
+  (`needs_xlate`, no defer) → `patnd_to_bb_graph` (γ-CHAIN builder) → `bb_build_brokered`. build_patnd's
+  γ-chain + `bb_build_brokered` is the INTENDED pairing (`bb_broker` mode `bb_scan`, `bb_broker.c:14`),
+  so this is a genuine brokered-box-WALK wiring bug for capture+ARBNO — NOT the flat-driver-drops-γ-nodes
+  mismatch the `SBL-DEFER-NESTED` comment (`stmt_exec.c:396`) describes (that is a separate mode-3/flat
+  case where `patnd_to_bb_tree` kid-arrays are the fix). Do NOT chase "switch to `patnd_to_bb_tree`" here:
+  under BROKERED mode the γ-chain is correct by construction; the defect is downstream in the box-template
+  brokered arms (`BB_templates/bb_capture.cpp`, `bb_assign.cpp`, `bb_arbno.cpp`, `bb_pat_break.cpp`) walking
+  this specific capture+ARBNO+failing-leaf γ-graph. Box-template-level instrumentation is the next concrete step.**
   To regenerate the live mode-2-only list: broad corpus under `--interp` and `SCRIP_M3_NATIVE=1`, sort
   both FAIL lists, `comm -13 native m2` (stock harness runs bare `$INTERP` = mode-3 native per
   `scrip.c:135`; inject `--interp`). **Current mode-2-only gaps (4):** `064_pat_fence_fn_capture`,
