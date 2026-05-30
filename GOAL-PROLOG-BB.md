@@ -30,7 +30,46 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-PLR-K-12..17, 2026-05-29 — one4all `413f8e18`)
+## State at HEAD (post-PLR-K-18, 2026-05-29 — Opus 4.8, one4all `9eed4fa1`)
+
+**2026-05-29 Opus 4.8: PLR-K-18 LANDED — catch/3 + throw/1 mode-3 native MEDIUM_BINARY arms.**
+catch/throw were **mode-2 only** (WAM-CP-10 setjmp/Pl_CatchFrame); in mode-3 native (`--run`) every
+rung28 test that involved a *thrown or caught predicate body* aborted at emit time with
+`bb_emit_end: unresolved forward reference site=N label='.Lplpb%d_β'`. **GATE-2 crosscheck 98 → 103
+(+5)** (stash/pop verified clean +5/−5 — exactly the 5 rung28 cases FAIL→PASS, nothing else moved).
+**GATE-3 mode-3 94 → 99 (+5).** rung28 catch/throw now 5/5 three-mode AGREE.
+
+- **New effect helpers (`bb_exec.c`, after `rt_pl_findall`):** `rt_pl_catch(void *zc_ptr)` —
+  faithful transliteration of the mode-2 `BB_PL_CATCH` executor (push Pl_CatchFrame, `setjmp`, run
+  `goal_g` via `bb_exec_once`; on `longjmp` from throw restore `g_pl_env` — load-bearing, the inner
+  callee env is current at longjmp time — unwind trail to frame mark, unify Catcher with the
+  exception, run `rec_g`; rethrow via `pl_throw_term` if Catcher does not match). `rt_pl_throw(void
+  *alpha_ptr)` — mirrors the mode-2 `BB_BUILTIN "throw"` arm (materialize ball from the α term
+  subtree via `pl_node_to_term`, `pl_throw_term` longjmps; no return on match). Decls in `bb_exec.h`.
+- **catch BINARY arm (`bb_pl_catch.cpp`):** `sub rsp,16` (rt_pl_catch→setjmp→glibc is SSE-alignment-
+  sensitive, cf. PLR-K-10) / `movabs rdi,zc_ptr` / `movabs rax,&rt_pl_catch; call rax` / `add rsp,16`
+  / `test eax,eax` / `je ω | jmp γ | β: jmp ω`.
+- **throw BINARY arm (`bb_pl_builtin.cpp`):** was falling through to the BB_BUILTIN default stub
+  (`jmp;jmp` with NO bin descriptor). `movabs rdi,&α` / `movabs rax,&rt_pl_throw; call rax` /
+  `jmp ω | β: jmp ω`.
+- **ROOT CAUSE (reusable finding):** a predicate body emitted as a *callee block*
+  (`pl_emit_callee_block_body` → `walk_bb_flat` → `FILL`) supplies its `.Lplpb%d_β` redo label via
+  `g_emit.lbl_β_p`, and the block's `<blbl>_redo:` site does `jmp .Lplpb%d_β`. The body's BINARY
+  template MUST define β (`bin.is_def=true` on the `_.lbl_β_p` entry) or the program emit closes with
+  an unresolved forward reference. The BB_BUILTIN **default** BINARY stub and the **catch** `{ω,γ,ω}`
+  bin both omitted the β-define — invisible for any builtin/catch that is NOT a callee-block entry
+  (β defined elsewhere), fatal when it is (`foo :- throw(X)`, `inner :- catch(...)`). Both arms now
+  carry `is_def=true` on β. (The `nl` arm's `{γ,β,γ}` pattern was the working reference.)
+
+**Gates:** GATE-1 5/5, GATE-2 **103**/33 (+5), GATE-3 m2 108/111 (untouched), m3 **99**/111 (+5),
+GATE-4 4/4, GATE-SWI 57/57, FACT arm1 0 / arm2 12, siblings icon/raku/snobol4/snocone 5/5/13/5.
+**NEXT:** remaining mode-3 crosscheck gaps are the documented boundaries — rung14 retract (5) +
+rung15 abolish (4) = PL-RT-ASSERTZ mutable-clause-store; rung27 succ_or_zero (1, corpus gap);
+rung30 DCG (2). Mode-4 (compile) catch/throw is still the WAM-CP-13 TEXT-stub gap (α/β→ω fail-through).
+
+---
+
+
 
 **2026-05-29: PLR-K-12..17 LANDED — float/gcd is/2, sort/msort, atomic_list_concat, copy_term
 var-sharing, nb_setval/getval, aggregate_all (all mode-3 native MEDIUM_BINARY).** GATE-2 crosscheck
@@ -2258,15 +2297,15 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-WAM-CP-6-B3-TRAIL-RECLAMATION)
+## 📊 Gate table (current — post-PLR-K-18)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5/5 ✅ | |
-| GATE-2 crosscheck | 132/0 ✅ | (part of G2) | n/a | 5 ORACLE_MISS |
-| GATE-3 rung suite | **104/107** | **104/107** | **54/107** | |
+| GATE-2 crosscheck | 103/33 | (part of G2) | n/a | rung28 catch/throw now 5/5 three-mode AGREE |
+| GATE-3 rung suite | **108/111** | **99/111** | **54/111** | m3 +5 (rung28); remaining m3 gaps = retract/abolish/succ_or_zero/dcg |
 | GATE-4 mode-4 minimal | 4/4 ✅ | n/a | 4/4 ✅ | |
-| GATE-SWI plunit suite | **57/57 (100%)** ✅ | **57/57 (100%)** ✅ | n/a | memberchk sentinel held through WAM-CP-8/B2/B3 |
-| FACT RULE grep | 0 ✅ | — | — | arm2 = 12 (bomb_bytes / bb_emit_asm_result baseline) |
+| GATE-SWI plunit suite | **57/57 (100%)** ✅ | **57/57 (100%)** ✅ | n/a | |
+| FACT RULE grep | 0 ✅ | — | — | arm2 = 12 (baseline) |
 
 
