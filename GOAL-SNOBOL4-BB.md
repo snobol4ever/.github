@@ -409,11 +409,12 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 
 ```
 HEAD one4all       = 5e1bad51  SBL-CSET-FOLD (constant-fold charset-expr args; mode-2 +1: 064)
+HEAD corpus        = SBL-911-PORTABLE (staged, NOT pushed pending `perform hand off`)
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
-GATE-2 broker      = 57/5     (sibling-influenced)
+GATE-2 broker      = 57/5     (sibling-influenced; engine untouched this session → unchanged by construction)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 259/280  (unchanged — native already handled charset-expr via rt_pat_*)
-true --interp      = 254/280  (+1 this session: 064_pat_fence_fn_capture)
+DEFAULT/NATIVE     = 260/280  (+1 this session: 911_datatype — corpus test fix, no engine change)
+true --interp      = 255/280  (+1 this session: 911_datatype — corpus test fix, no engine change)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
 FACT RULE          = 0
@@ -432,6 +433,33 @@ session log below: an inline FUNCTION-RETURNED ALTERNATION pattern (`'Hello' ica
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-30 Opus 4.8 — SBL-911-PORTABLE ✅ (corpus) + counter/semantic-driver triage** (corpus staged,
+  NOT pushed pending `perform hand off`; one4all UNTOUCHED at `5e1bad51` — binary byte-identical to baseline,
+  so all engine-side gates unchanged by construction). **(1) SBL-911-PORTABLE ✅:** `911_datatype` was the lone
+  shared FAIL (both native AND mode-2) that turned out to be a **buggy corpus test, not an engine bug**. It
+  wrapped DATATYPE results in `lcase(...)` to case-normalize, but (a) it's the ONLY test in the entire corpus
+  using LCASE/UCASE as a *function*, (b) it used lowercase `lcase` which SCRIP correctly rejects (Error 5 /
+  SPITBOL ERROR 022 — case-sensitive, RULES), and (c) even uppercase `LCASE(...)` fails the SPITBOL oracle
+  because in standard SPITBOL `LCASE` is a predefined *variable* (the lc alphabet), there is no LCASE *function*.
+  The `.ref` (PASS 4/4) was generated against scrip's extended builtins, NOT the oracle. Fix: rewrote the four
+  assertions to the SPITBOL-portable idiom `REPLACE(DATATYPE(x), &UCASE, &LCASE)` — exactly what the sibling
+  `semantic_driver.sno:9` already uses. Verified PASS 4/4 under **all three**: SPITBOL oracle, scrip native,
+  scrip mode-2 (`.ref` unchanged). **Native 259→260 (+1), mode-2 254→255 (+1); FAIL-diff = exactly 911 newly
+  green both modes, zero regression.** Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053 pre-existing), cross-lang
+  icon/prolog/raku/snocone 5/5/5/5. (broker/FACT/audit unchanged — no engine code touched.) **(2) counter_driver
+  + semantic_driver triage (NOT fixed — documented frontier):** both depend on the classic SNOBOL4 side-effect-
+  during-match idiom in `semantic.sno`: `nPush = epsilon . *PushCounter()` (a CONDITIONAL ASSIGNMENT `.` whose
+  value-TARGET is a DEFERRED EXPRESSION `*PushCounter()`; on match-commit the target expr is evaluated, firing
+  the counter side effect and returning `.dummy` via NRETURN). Tests 1-3 only check the returned pattern's
+  DATATYPE (PASS); tests 4-8 actually MATCH the pattern (`'' nPush()`) to trigger the side effect, then read
+  `nTop()` — which comes back EMPTY (assertion 8: got `DATATYPE=STRING` on `""` vs expected `INTEGER`), i.e. the
+  counter never updates because the deferred-expression assignment target is not evaluated at commit. This is
+  the intersection of the documented **DEFERRED capture-commit** (Open work) and **deferred-expression eval**
+  (`*expr` / SBL-1016 family) frontiers — the same entangled residue behind word1/139/140/141/expr_eval. Left
+  for a dedicated engine session; flagged here so the cluster's shared root cause (`. *Func()` target-eval at
+  capture-commit) is on record. **(3) Also confirmed:** the watermark's "5 mode-2-only gaps, 0 native-only" holds
+  exactly on a clean clone+build (`comm -23 native m2` empty; the 5 mode-2-only = 124/Qize/XDump/case/test_case).
 
 - **2026-05-29 Opus 4.8 — SBL-CSET-FOLD ✅ + SBL-ALTCAT-XLATE diagnosis** (one4all `216d95dc` committed locally,
   NOT pushed pending `perform hand off`; base `2d73a667`). Two findings closing/diagnosing the live mode-2-only
