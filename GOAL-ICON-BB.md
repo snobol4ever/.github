@@ -34,7 +34,19 @@ Completion tests:
 
 ---
 
-## Current state (2026-05-29, IBB-LIMIT + max/min + real TO_BY landed — corpus 152 PASS)
+## Current state (2026-05-30, IBB-IDX subscript get/set landed — corpus 165 PASS)
+
+**Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
+(293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
+**56 (pre-IBB-9-2) → 62 → 69 → 82 (IBB-9-6) → 93 (IBB-9-SIZE) → 95 (IBB-9-TOBY) → 100 (IBB-9-INITIAL)
+→ 105 (IBB-9-CASE) → 130 (IBB-10) → 134 (IBB-11) → 140 (IBB-12) → 143 (IBB-9-4) → 148 (IBB-LIMIT) → 150 (max/min) → 152 (real TO_BY) → 165 PASS after IBB-IDX.**
+Latest sweep after IBB-IDX: Total 293, M2-skip 33, PASS 165, SEGV 1, ABORT 53, FAIL 1, MISMATCH 40.
+
+**Landed this session (Opus 4.8, build+run verified, exact corpus deltas, 0 regressions via full pass-list diff, FACT 0, bytes-outside-templates 12 unchanged, zero-SM, smokes 5/5·5/5, broker 61):**
+- IBB-IDX — Icon subscript get `base[idx]` (BB_IDX) + set `base[idx] := rhs` (BB_IDX_SET). Both routed off the `bb_stub` no-op (emitted 0 bytes → enclosing write/assign printed empty / hit interp_eval) to new `bb_idx.cpp` templates (`bb_idx`/`bb_idx_set`, the proven no-arg `movabs rax,fn / call / jmp γ / β:jmp ω` 22-byte shape from bb_unop) + byte-free `flat_drive_idx_get`/`flat_drive_idx_set` drivers. Both topologies handled: TREE (α=base, β=index operand subgraphs — driver walks them; for SET, rhs on β->γ) and AG-PURE (α==β==NULL — operands already pushed by the enclosing γ-chain, just FILL). Runtime `rt_icn_idx_get`/`rt_icn_idx_set` (rt.c) pop the operands and dispatch through the shared `subscript_get`/`subscript_set` — the SAME helpers the mode-2 oracle calls → m2==m3 by construction. **slen-normalization bug found+fixed (same class as IBB-10):** `subscript_get` returns DT_S via `STRVAL(buf)` with slen=0; the mode-3 any-write trailer uses `fprintf("%.*s",slen,s)` → printed nothing. Traced to ground (probes: operands correct on vstack, result.s="h" correct, but slen=0); fixed by `r.slen=strlen(r.s)` in rt_icn_idx_get. `BB_IDX` added to `is_write_intexpr`/`arg_is_any` (bb_call.cpp) + `is_intexpr_shape` (emit_bb.c) so `write(s[i])` routes through the any-write trailer. Grounded in JCON `ir_a_Binop` (`[]` ∈ funcs set = single-shot, β→ω). Corpus 152→165 (+13): rung16_subscript_sub_{basic,fail,literal,neg}, rung13_table_{basic,delete,subscript_assign}, rung23_table_table_{basic,default,insert_delete,member}, rung35_table_str_str_{default_int_key,table_read}. Gates: FACT 0, bytes-outside-templates 12 (unchanged — driver byte-free), zero-SM count=0, smoke icon/prolog 5/5, broker 61, canonical 4/4, 0 regressions (clean-baseline pass-list diff: LOST none, GAINED 13).
+  **NEW SEGV accounted (queens.icn):** moved from MISMATCH→SEGV. NOT a regression (was never passing; m2=419906 lines vs m3=1 at baseline). Root cause traced: `line := repl("|   ",n) || "|"` produces a slen=0 / "0"-valued string in m3 (pre-existing `repl`+`||` defect, out of IBB-IDX scope); the now-correct subscript-set then feeds a bad (DT_I) base to `subscript_set`, which calls `sno_runtime_error(3)` — and **mode-2 SEGVs identically** on a genuinely-bad subscript (`x[2]:="Q"` crashes rc=139 in BOTH modes), so the crash path itself is oracle-faithful. Fix belongs to a repl/concat goal. **Deferred (generator-bearing subscript, → IBB-9-4/5):** `s[1 to 3]` (rung16_subscript_sub_every) — index is a generator; single-shot IDX yields only the first value (pre-existing MISMATCH, not a regression). `key(t)` (rung23_table_table_key — BB_KEY_GEN still stubbed).
+
+**Prior state (2026-05-29, IBB-LIMIT + max/min + real TO_BY landed — corpus 152 PASS)**
 
 **Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
 (293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
@@ -42,7 +54,7 @@ Completion tests:
 → 105 (IBB-9-CASE) → 130 (IBB-10) → 134 (IBB-11) → 140 (IBB-12) → 143 (IBB-9-4) → 148 (IBB-LIMIT) → 150 (max/min) → 152 PASS / 0 SEGV / 0 FAIL after real TO_BY.**
 Latest sweep after real TO_BY: Total 293, M2-skip 34, PASS 152, SEGV 0, ABORT 50, FAIL 1, MISMATCH 56.
 
-**Landed this session (Opus 4.8, build+run verified, exact corpus deltas, 0 regressions via full pass-list diff, FACT 0, zero-SM, smokes 5/5·5/5, broker 57):**
+**Landed (Opus 4.8, build+run verified, exact corpus deltas, 0 regressions via full pass-list diff, FACT 0, zero-SM, smokes 5/5·5/5, broker 57):**
 - real TO_BY — `lo to hi by step` with REAL literal bounds (`1.0 to 2.0 by 0.5`). mode-3 BB_TO_BY template only handled literal-INT; real fell to a yields-nothing stub → underflow. Added a literal-real arm (bb_to_by.cpp) driven by new `rt_icn_toby_real` (rt.c, mirrors mode-2 real arm w/ 1e-12 epsilon → m2==m3); plus real-only `BB_TO_BY` in `arg_is_any` (bb_call.cpp, gated sval[0]=='r') so `write(real to-by)` formats DT_R via real_str instead of printing raw IEEE bits (int TO_BY unchanged) → 150→152 (+2: rung19_pow_toby_real_toby_pos/neg).
 - max/min builtins — added `max`/`min` to the `rt_icn_builtin_is_known` allow-list (the mode-2 oracle `icn_try_call_builtin_by_name` already handles both as multi-arg numeric; mode-3 `rt_icn_call_builtin` calls the same table → m2==m3) → 148→150 (+2: rung30_builtins_misc_maxmin, rung30_builtins_misc_mixed incl. real-valued).
 - IBB-LIMIT — `gen \\ N` generator limitation (flat_drive_limit + bb_limit glue + rt_icn_limit_* ; α allow-list guard prevents silent-empty on unsupported sub-generators) → 143→148 (+5). Also fixed kind_names[] drift (--dump-bb mislabeled BB_LIMIT as BB_NONNULL; regenerated as designated initializers).
@@ -478,6 +490,56 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
   full same-sweep against the then-current baseline (expect ≥0 regressions and possible new passes from `case`/expression
   relops that the router never reached). Removes the recurring "two relop shapes" trap that has cost multiple sessions.
 
+### IBB-IDX (closed 2026-05-30, Opus 4.8) — subscript get/set `base[idx]`, `base[idx] := rhs`
+
+**Corpus same-sweep 152→165 (+13), 0 regressions** (clean-baseline pass-list diff: LOST none, GAINED 13).
+`BB_IDX` / `BB_IDX_SET` were both routed to the `bb_stub` no-op in mode-3 — get emitted 0 bytes (the
+enclosing `write` printed empty / silent MISMATCH), set hit the `interp_eval` stub. Rerouted to new
+`bb_idx.cpp` (`bb_idx`/`bb_idx_set`: the no-arg `movabs rax,fn; call rax; jmp γ; β:jmp ω` 22-byte shape,
+identical to `bb_unop` — only the called fn ptr differs) + byte-free `flat_drive_idx_get` /
+`flat_drive_idx_set` drivers (emit_bb.c). Runtime `rt_icn_idx_get` / `rt_icn_idx_set` (rt.c) pop the
+operands and dispatch through the shared `subscript_get` / `subscript_set` — the SAME helpers the mode-2
+oracle's BB_IDX/BB_IDX_SET arms call → m2==m3 by construction.
+
+**Two topologies, both handled** (both produced by lower_icn, both in the mode-2 oracle): TREE
+(`α=base`, `β=index` operand subgraphs — e.g. `write(s[i])` where the IDX is the write-arg; for SET the
+rhs sits on `β->γ`) — the driver walks the operands here; and AG-PURE (`α==β==NULL` — operands already
+pushed by the enclosing γ-chain, e.g. a bare `t[k] := v` statement) — the driver just FILLs. Pop order:
+GET pops idx then base; SET pops rhs, idx, base (matching the oracle's AG-pure `peek(2)=base/peek(1)=idx/
+peek(0)=rhs`).
+
+**Grounding:** JCON `ir_a_Binop` (irgen.icn:472) — `[]` is in the `funcs` set (resumption fails
+immediately): left (base) evaluated, then right (index), then op applies; single-shot, β-resume → ω. The
+SCRIP BB_IDX shape (α=base, β=index, single-shot, β→ω) is a direct transcription.
+
+**slen bug found + fixed (same class as IBB-10).** First cut produced blank output for `write(s[1])`.
+Traced to ground with probes (NOT assumed): the operands arrived correctly on the vstack (base.v=1 DT_S,
+idx.v=6 DT_I idx.i=1), `subscript_get` returned the correct value (result.v=1 result.s="h") — but
+`subscript_get` builds its DT_S via `STRVAL(buf)` which sets `slen=0`, and the mode-3 any-write trailer
+uses `fprintf("%.*s", slen, s)` → a slen=0 DT_S prints nothing. Fixed by normalizing
+`r.slen = strlen(r.s)` in `rt_icn_idx_get` (the exact fix IBB-10 applied to `rt_icn_call_builtin`).
+`BB_IDX` added to `is_write_intexpr`/`arg_is_any` (bb_call.cpp) + `is_intexpr_shape` (emit_bb.c) so
+`write(s[i])` / `write(t[k])` route the value through the any-write trailer.
+
+**Newly passing (13, byte-identical, zero-SM verified on samples):** rung16_subscript_sub_{basic,fail,
+literal,neg}, rung13_table_{basic,delete,subscript_assign}, rung23_table_table_{basic,default,
+insert_delete,member}, rung35_table_str_str_{default_int_key,table_read}.
+
+**NEW SEGV accounted (queens.icn) — NOT a regression.** queens moved MISMATCH→SEGV. It never passed
+(baseline m2=419906 lines vs m3=1). Root cause traced to ground: `line := repl("|   ",n) || "|"` yields a
+slen=0 / "0"-valued string in m3 — a **pre-existing `repl`+`||` defect** (verified: `*line`=0 in m3 vs 17
+in m2), out of IBB-IDX scope. The now-correct subscript-set then passes a DT_I (integer) base to
+`subscript_set`, which calls `sno_runtime_error(3)`. **Mode-2 SEGVs identically** on a genuinely-bad
+subscript — verified `x[2]:="Q"` (x an int) → rc=139 in BOTH modes — so the crash path is oracle-faithful;
+the divergence is purely the upstream repl/concat value. Fixing it belongs to a repl/concat goal.
+
+**Deferred:** generator-index `s[1 to 3]` (rung16_subscript_sub_every) — the index is a generator, so the
+subscript must re-pump; single-shot IDX yields only the first value (pre-existing MISMATCH, → IBB-9-4/5).
+`key(t)` (rung23_table_table_key) — BB_KEY_GEN still stubbed.
+
+**Gates:** FACT 0, bytes-outside-templates 12 (unchanged — drivers byte-free, template bytes inside
+`bb_idx.cpp`), zero-SM count=0 on idx programs, canonical crosscheck 4/4, smoke icon/prolog 5/5, broker 61.
+
 ### IBB-23 (open) — `suspend E`
 
 Top-level `procedure g() suspend 1; suspend 2; end; every write(g())` prints nothing in both mode-2 and legacy. Pre-existing — needs `lower_icn_proc_gen`'s GeneratorState bridge wired through to outer `every` loop.
@@ -590,6 +652,7 @@ Programs PASS, both modes, byte-identical.
 
 | State | Programs PASS | Notes |
 |-------|---------------|-------|
+| IBB-IDX ✅ | 5/5 smoke; corpus same-sweep 152→165 (+13), SEGV 0→1 (pre-existing MISMATCH program, NOT a regression), FAIL 1, ABORT 50→53, 0 regressions (clean-baseline pass-list diff LOST=none) | (Opus 4.8, 2026-05-30). **Icon subscript get `base[idx]` (BB_IDX) + set `base[idx] := rhs` (BB_IDX_SET).** Both routed off the `bb_stub` no-op (emitted 0 bytes → write printed empty / assign hit interp_eval) to new `bb_idx.cpp` (`bb_idx`/`bb_idx_set`, the no-arg `movabs rax,fn / call / jmp γ / β:jmp ω` 22-byte shape cloned from bb_unop — only the fn ptr differs) + byte-free `flat_drive_idx_get`/`flat_drive_idx_set` drivers (emit_bb.c). Two topologies handled: TREE (α=base,β=index operand subgraphs — walk them; SET's rhs on β->γ) and AG-PURE (α==β==NULL — operands already pushed by the γ-chain, just FILL), mirroring the mode-2 oracle's two BB_IDX/BB_IDX_SET arms. Runtime `rt_icn_idx_get`/`rt_icn_idx_set` (rt.c) pop operands (GET: idx,base; SET: rhs,idx,base) and dispatch through the shared `subscript_get`/`subscript_set` — the SAME helpers the mode-2 oracle calls → m2==m3 by construction. **slen bug found+fixed (IBB-10 class):** `subscript_get` returns DT_S via `STRVAL(buf)` slen=0; the any-write trailer's `fprintf("%.*s",slen,s)` printed nothing → traced to ground via probes (operands correct, result.s="h" correct, slen=0) → fixed `r.slen=strlen(r.s)`. `BB_IDX` added to `is_write_intexpr`/`arg_is_any` (bb_call.cpp) + `is_intexpr_shape` (emit_bb.c). Grounded in JCON `ir_a_Binop` (`[]` ∈ funcs = single-shot, β→ω). Newly passing (13): rung16_subscript_sub_{basic,fail,literal,neg}, rung13_table_{basic,delete,subscript_assign}, rung23_table_table_{basic,default,insert_delete,member}, rung35_table_str_str_{default_int_key,table_read}. Gates: FACT 0, bytes-outside-templates 12 (unchanged — driver byte-free), zero-SM count=0, canonical 4/4, smoke icon/prolog 5/5, broker 61. **SEGV (queens.icn) accounted:** MISMATCH→SEGV, NOT a regression (never passed: m2=419906 lines vs m3=1 at baseline). Root cause: `repl(...)||"|"` yields a slen=0/"0" string in m3 (pre-existing repl+|| defect, out of scope); the now-correct subscript-set then passes a DT_I base to `subscript_set` → `sno_runtime_error(3)`, which **mode-2 SEGVs on identically** (`x[2]:="Q"` → rc=139 in BOTH modes; the crash path is oracle-faithful). **Deferred:** generator-index `s[1 to 3]` (rung16_subscript_sub_every — single-shot IDX yields first value only; → IBB-9-4/5); `key(t)` (rung23_table_table_key — BB_KEY_GEN still stubbed). |
 | real TO_BY ✅ | 5/5 smoke; corpus same-sweep 150→152 (+2), SEGV 0, FAIL 1, ABORT 52→50, 0 regressions, MISMATCH 56 (unchanged) | (Opus 4.8, 2026-05-29). **Icon `lo to hi by step` with REAL literal bounds (`1.0 to 2.0 by 0.5`).** mode-3 `bb_to_by.cpp` handled only literal-INT bounds; the real / dynamic case fell to a yields-nothing passthrough stub → the enclosing `write` popped empty vstack (underflow). Added a `lit_real` arm (α/β are BB_LIT_F, step bit-cast in pBB->ival) driven by new `rt_icn_toby_real(cur_slot, lo_bits, hi_bits, step_bits, reset)` (rt.c) — mirrors the mode-2 BB_TO_BY real arm (cur=lo on reset; check vs hi w/ 1e-12 epsilon by sign of step; yield DT_R(cur); advance cur+=step) → m2==m3 by construction. Two-half template (α reset=1 / β reset=0), bounds/step passed bit-cast as u64 immediates (movabs), state in &pBB->value. **Second bug:** values first printed as raw IEEE bits (4607182418800017408=1.0) because `write(real-toby)` used the int trailer — fixed by adding **real-only** `BB_TO_BY` to `arg_is_any` (bb_call.cpp, gated `sval[0]=='r'`) so DT_R routes through `rt_pop_write_any_nl`/real_str; integer TO_BY stays on its proven int trailer (verified rung01_paper_to_by byte-identical). Newly passing: rung19_pow_toby_real_toby_{pos,neg}. Multi-value verified: `1.0 to 2.0 by 0.5`→`1.0 1.5 2.0`, `0.0 to 1.0 by 0.25`→`0.0 0.25 0.5 0.75 1.0`, neg step `3.0 to 1.0 by -1.0`→`3.0 2.0 1.0`. Gates: FACT 0, bytes-outside-templates 12 (real bytes inside bb_to_by.cpp), zero-SM count=0, canonical crosscheck 4/4, smoke icon/prolog 5/5, broker 57. **Deferred:** DYNAMIC real/int bounds (non-literal α/β) still take the yields-nothing stub — needs operand-box walking (the AG-pure ring path). |
 | max/min ✅ | 5/5 smoke; corpus same-sweep 148→150 (+2), SEGV 0, FAIL 1, ABORT 54→52, 0 regressions, MISMATCH 56 (unchanged) | (Opus 4.8, 2026-05-29). **Icon `max`/`min` multi-arg numeric builtins.** Aborted as `bb_call: unsupported call shape fn='max' narg=2` because they were missing from the `rt_icn_builtin_is_known` allow-list (rt.c). One-line add: the mode-2 oracle `icn_try_call_builtin_by_name` (icn_runtime.c) already handles both as multi-arg (real-aware) and the mode-3 `rt_icn_call_builtin` calls the SAME table → m2==m3 by construction. Newly passing: rung30_builtins_misc_maxmin (`7 3 5`), rung30_builtins_misc_mixed (`3.5 5 2`, real-valued). Gates: FACT 0, zero-SM count=0, canonical crosscheck 4/4, smoke icon/prolog 5/5, broker 57. |
 | IBB-LIMIT ✅ | 5/5 smoke; corpus same-sweep 143→148 (+5), SEGV 0, FAIL 1, ABORT 59→54, 0 regressions, MISMATCH 56 (unchanged) | (Opus 4.8, 2026-05-29). **Icon `gen \\ N` generator limitation (BB_LIMIT).** `bb_limit.cpp` was a STUB (emitted 0 bytes → enclosing `write` popped empty vstack: `SM value stack underflow` — largest sub-cluster of the 19 underflow ABORTs). New byte-free driver `flat_drive_limit` (emit_bb.c) + 3 glue templates `bb_limit_begin`/`bb_limit_inc`/`bb_limit_more` (bb_case glue precedent) + 3 rt helpers `rt_icn_limit_begin`/`_more`/`_inc` (rt.c, mirror the mode-2 BB_LIMIT arm → m2==m3 by construction). State in `&pBB->value` (cached int max) + `&pBB->counter` (count); PEERS-compliant, no new BB_t fields. Two-port (fresh/resume) split, reached as an intexpr generator-arg: begin pops+caches max/count=0/`jz ω`; fall through to gen fresh; got_value inc+`jmp γ`; `lbl_β` more-gate `jz ω` else `jmp gen_resume`. **α ALLOW-LIST GUARD** (BB_TO/TO_BY/ALT/BINOP_GEN/LIST_BANG through a BB_ASSIGN wrapper): unsupported sub-gens (BB_SEQ_GEN/FIND_GEN/KEY_GEN/UPTO/ITERATE/PROC_GEN) ABORT LOUDLY rather than emit a silent-empty loop — caught by the mismatch diff (`every write(seq(1)\\3)` went loud-abort→silent-empty without it; guard restores MISMATCH to baseline 56). Also fixed `kind_names[]` drift (scrip_ir.c): it was out of sync with the BB_op_t enum (missing BB_REPEAT/ALT/SIZE/CASE/NOT + tail), so `--dump-bb` mislabeled BB_LIMIT as BB_NONNULL — regenerated the whole array as designated initializers `[BB_X]=\"BB_X\"` (dump-path only, 0 execution change). Newly passing (multi-value verified): rung14_limit_limit_{to,alt,str,large,zero}. Gates: FACT 0, bytes-outside-templates 12 (unchanged — driver byte-free), zero-SM count=0, canonical crosscheck 4/4, smoke icon/prolog 5/5, broker 57. **PRE-EXISTING (not this work):** `!L \\ 3` parses as `!(L\\3)` (both modes wrong, out of corpus scope; α guard rejects the BB_VAR α in m3). |
