@@ -206,6 +206,76 @@ All lower to the `BB_NFA_*` slab; most are compile-time cset/loop shaping, NOT n
 - [x] **RK-BB-5.4b (parenthesized array literal) ✅** (Opus 4.8, 2026-05-29, `56a30122`). `my @a = (e1, e2, ...)` via two initializer-only `raku.y` productions (untyped + typed) mirroring the 5.3 bare comma-list: `KW_MY [IDENT] VAR_ARRAY '=' '(' expr ',' arg_list ')' ';'` → `ASSIGN(@a, __rk_arr(...))`. Restricting the paren-list to the **initializer RHS** (NOT a general atom) keeps it **NET-ZERO new conflicts (still 30 s/r)** — a general-atom `'(' expr ',' arg_list ')'` form added +2 (method-chain/hash-subscript interactions) and was reverted. Single-element paren `(7)` stays scalar via the unchanged `'(' expr ')'`; bare comma-list + scalar paren coexist. Parser regenerated (bison 3.8.2). Probe `rk_paren_array`.
 - [ ] **RK-BB-5.4c (`zip`/`cross`) — DEFERRED, own session** — multi-Seq drivers where each output element is itself a list, so it needs a **nested-tuple representation** (STX-within-SOH or similar) that `for`/`say`/`.elems` consumers must understand. NOT a pure value helper (broad blast radius); the goal groups these as "(later)". Recommend a fresh session with full budget.
 
+## RK-SMARTMATCH — unify `when` + `~~` onto ONE `ACCEPTS` seam
+
+**Idea (Claude Opus 4.8, 2026-05-29).** In real Raku `when X` ≡ `if $_ ~~ X`, and `~~` is the
+`Mu.ACCEPTS` protocol (corroborated in `rakudo-main/src/core.c/{Junction,Match}.rakumod` +
+`src/Raku/Grammar.nqp`). SCRIP today has them as **two divergent narrow paths and no `ACCEPTS`
+seam**: `~~` (`lower.c` `TT_SMATCH` ~2528) is hardwired to `raku_match`/`raku_match_global`/
+`raku_subst` (regex only); `when` (the RK-GIVEN if-chain, `lower.c` ~1499-1536) tests each arm with
+`SM_ACOMP`(EQ, numeric) / `SM_LCOMP`(LEQ, string-literal). One `ACCEPTS` dispatch routing BOTH would
+light up a whole family at once: `when /re/`, `when 1..10`, `when Int`, `when *.even`, `when any(...)`,
+and the matching `$x ~~ …` forms. FACT-clean (value helper, no template bytes; behavior in lowering).
+
+### ⛔ MEASURED 2026-05-29 (Opus 4.8, one4all `a062f28b`) — facts so the next session executes
+
+Probed mode-2 to find the REAL starting rung (do not re-discover):
+
+- `when any(1,2,3)` **ALREADY WORKS** — `say` prints `in-set`. The RK-BB-4a/4c junction guard in
+  `SM_ACOMP`/`rt_acomp` fires when the arm pushes the junction value; `topic == any-member` collapses
+  correctly as a side-effect. **Junction arms are DONE; do not touch them.**
+- `when /ell/` → **PARSE ERROR** (line of the `when`). The lexer does NOT lex `/…/` as a regex after
+  `when` (the `raku_after_smatch` regex-lex flag is set by `~~`, not by `when`/`given`). So
+  `when /re/` is a **FRONTEND gap, not a lowering gap.**
+- `$x ~~ 5` → **PARSE ERROR**. The `~~` lexer path forces a regex RHS, so a non-regex RHS (`5`,
+  `1..10`, `Int`) won't parse. `~~`-with-general-RHS is **also a FRONTEND gap.**
+
+**Conclusion:** the lowering reroute is the EASY half; the gating work is the lexer/parser. Stage it
+so each rung is independently green (no broken commits). `~~`-regex and `when`-literal/junction paths
+must stay byte-identical until the very last flip.
+
+### Incremental rungs (each independently green; gate ladder below every rung)
+
+- [ ] **SM-0 runtime seam (DEAD CODE, cannot regress).** Add `raku_accepts(topic, matcher)` to
+      `raku_builtins_byname.c` (reachable all 3 modes via the existing `raku_try_call_builtin_by_name`
+      table — same seam RK-NFA-1e used). Dispatch by matcher representation, REUSING proven helpers:
+      Junction tagged-string (`s[0]==0x03`) → `rk_junction_collapse(topic,jct,EQ)`; regex/NFA string →
+      `raku_match`; literal Num/Str → numeric/string eq (the `when`-literal base case). Type/Range/
+      Callable arms **DEFERRED** to SM-4 (need value-kind prerequisites — see risk). NOT wired to any
+      lowering yet → zero behavior change, builds green. (Mirror the RK-NFA-4 SCAFFOLD dead-code idiom.)
+- [ ] **SM-1 `~~` reroute, regex-preserving.** In `TT_SMATCH` `match` flavor: keep `raku_match` DIRECT
+      when `c[1]` is a bare regex literal (zero regex regression — verify `--dump-sm` unchanged for
+      `rk_re*`/`rk_regex23`); only a NON-regex RHS routes to `raku_accepts`. NOTE: today no non-regex
+      RHS can even reach here (SM-3 frontend unblocks that), so SM-1 is an inert-but-correct reroute
+      landed ahead of the frontend — keeps the two rungs separable.
+- [ ] **SM-2 `when` reroute, literal+junction-preserving.** Replace the per-arm `SM_ACOMP`/`SM_LCOMP`
+      with `PUSH topic; lower(arm); SM_CALL_FN raku_accepts,2; JUMP_F`. The literal base case must
+      stay byte-equivalent in OUTPUT (eq), and the junction case must still collapse (now via
+      `raku_accepts` instead of the ACOMP guard — re-verify `rk_given`/`rk_given18`/`rk_junctions`).
+      Gate: GATE-RK + GATE-RK4 + GATE-RK3 hold; no new probe yet (behavior identical on existing corpus).
+- [ ] **SM-3 FRONTEND — own session, regen required.** (a) lexer: arm the regex-lex flag after
+      `when`/`given`-`when` so `when /re/` lexes a `LIT_REGEX` arm; (b) `~~`: allow a general expression
+      RHS (only force regex-lex when the next non-space char is `/`). Regenerate parser+lexer
+      (`scripts/regenerate_parser_and_lexer_from_sources.sh`, bison 3.8.2); **bison s/r conflict count
+      must not rise** (currently 30). This is the high-risk rung — budget a full session; do NOT
+      combine with SM-0..2.
+- [ ] **SM-4 widen `raku_accepts`: Range / Type / Callable arms.** PREREQ CHECK FIRST: does SCRIP have
+      a Range VALUE (vs the `BB_TO_BY` generator) and a Type/Callable value kind? If not, add the
+      minimal value tag(s) before wiring. Range → min≤topic≤max (reuse BB_TO_BY bound logic);
+      Type → isa/type-name compare; Callable → call matcher(topic) + `.Bool`.
+- [ ] **SM-5 probes + flip.** Add `rk_smartmatch_when.{raku,expected}` (when over regex/range/type/
+      junction/callable + literal default) and `rk_smartmatch_op.{raku,expected}` (`$x ~~` each form),
+      mode-2 == mode-4 byte-identical (Prolog GATE-4 pattern). This is the rung that proves the feature.
+
+**Gate ladder (every rung):** GATE-RK + GATE-RK4 + GATE-RK3 hold/improve; smoke 5/5/5/13/5;
+SNOBOL4 iso M2 19/0 M4 18/1; FACT 0; bison conflicts unchanged (until SM-3, which must stay 30).
+
+**Risk register:** (1) SM-3 lexer flag interaction with the existing `~~` regex path is the chief
+regression vector — test `$x ~~ /re/` still lexes as regex after the change. (2) `raku_accepts` arg
+order must match the byname pre-eval convention (args[] pre-evaluated, var identity gone — see the
+RK-NFA-1e subst write-back note for the same gotcha). (3) Keep the ACOMP junction guard until SM-2 is
+proven, then decide whether to retire it (it also serves bare `$x == any(...)`, so likely KEEP).
+
 ## mode-2 fixes (non-ladder, this session)
 
 - **gather mode-2** (RK-M2-GATHER ✅) and **`SM_ACOMP` string coercion** (RK-M2-ACOMP ✅) — see completed rungs. Net with junctions: GATE-RK mode-2 **23→26/33**.
@@ -250,6 +320,28 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+RK-SMARTMATCH RUNG AUTHORED — planning landing, .github only, NO code change (Claude, Opus 4.8,
+  2026-05-29; one4all UNCHANGED clean at `a062f28b`, gates at baseline below). Audited the current
+  Raku feature set against the uploaded rakudo-main + roast-master sources. Two outcomes recorded in
+  this file: (1) the RK-SMARTMATCH rung above — unify `when` + `~~` onto one `raku_accepts`/ACCEPTS
+  seam, staged SM-0..SM-5 so each increment is independently green. KEY measured findings (mode-2
+  probes this session): `when any(1,2,3)` ALREADY WORKS (ACOMP junction guard side-effect — leave it);
+  `when /re/` and `$x ~~ 5` are PARSE ERRORS → the blocker is the LEXER/PARSER (regex-only RHS after
+  `~~`; no regex-lex after `when`), NOT lowering. So the lowering reroute (SM-1/SM-2) is easy and can
+  land ahead of the frontend (SM-3, own session, regen + conflict-count gate). (2) ROAST is NOT used —
+  it is a doc reference only (`test_raku_ir_rungs.sh:11`, `GOAL-RAKU-FRONTEND.md:425`); gates run 46
+  hand-written `test/raku/*` probes. Recommendation logged for a future GATE-RK-ROAST scoped to the
+  Tiny-Raku subset (cherry-picked in-subset assertions + a minimal Test.rakumod shim) as a conformance
+  oracle. Highest-leverage corrections found in the audit (for future rungs, ranked): junction
+  AUTOTHREADING through arbitrary calls (currently collapse-at-comparison only — `Junction.rakumod`
+  AUTOTHREAD/CALL-ME; roast `S03-junctions/autothreading.t` calls a user sub 42×); the subrule-recursion
+  BB-generator tier (already the documented NEXT, G3-2c); a Match-object `$/` tree (blocks all
+  action-based grammar tests, G5); laziness for map/grep/range (eager-drain contradicts the pull
+  protocol, breaks on `1..*`); `|` LTM vs ordered (untested — corpus uses single-char alts only).
+  NEXT CODE RUNG: RK-SMARTMATCH SM-0 (dead-code `raku_accepts` helper) then SM-1/SM-2 reroutes, then
+  SM-3 frontend in its own full-budget session. Gates at this landing (one4all clean `a062f28b`):
+  GATE-RK m2 45/46, GATE-RK4 m4 46/46, smoke raku 5/5. Build clean.
+
 G3-2 rule :sigspace LANDED (Claude, Opus 4.8, 2026-05-29, one4all `a062f28b`). Per the Rakudo reading
   (token=:sigspace OFF, rule=ON, ws between atoms -> <.ws>). The registry now carries each rule's FLAVOR
   (0=token/1=rule/2=regex), threaded via a 3rd raku_grammar_register arg + lower_grammar_decl. rk_gram_expand
