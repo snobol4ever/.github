@@ -177,9 +177,41 @@ bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 
 ---
 
+
+## NEXT SESSION — UNIFIED REGISTER LAYOUT (design, not yet implemented)
+
+**Context (2026-05-30):** Icon is *not* in proper development yet — GROUND ZERO 3 only started scaffolding (GZ-0/1/2), not real development. Before going further, design ONE x86-64 register layout for all 6 languages. The work below is grounded in the archive + live code; nothing here is implemented yet.
+
+**The standardized floor is System V AMD64.** Caller-saved/scratch (9): RAX(ret), RCX/RDX/RSI/RDI/R8/R9(args), R10(static-chain), R11(PLT). Callee-saved (7): RBX, RBP(frame ptr), RSP(stack ptr), R12, R13, R14, R15. Int-arg order RDI,RSI,RDX,RCX,R8,R9; return RAX(+RDX). Claimable durable globals = RBX,R12,R13,R14,R15 (+RBP if -fomit-frame-pointer).
+
+**Core principle:** anything that must live across a C `call` (our global-type pointers) goes in a CALLEE-SAVED register, so it survives every `rt_*` call with NO per-call save/restore. The only save is once, at a cross-language boundary. Today SNOBOL4's cursor is in caller-saved R10 (`&Δ`) → it pays a `push r10`/`pop r10` tax on every call; moving it to a callee-saved reg deletes that tax.
+
+**Two kinds of BB locals, two bases (this is the existing convention, NOT new):**
+- READ-WRITE locals → `[R12 + off]`. R12 is the BB-local frame base (Technique-2 / `M-T2-EMIT-SPLIT`: "r12 = DATA-block ptr; all locals [r12+offset]"). The ARBNO arena (`z`/`zo`), capture `saved_Δ`, Icon runtime values all live here. (NOTE: the Icon frame was wrongly wired to R15 this session — it must move to R12 to rejoin the convention. Also: live SNOBOL4 `BB_PAT_*` regressed to per-slot `movabs rcx,<abs>` and must come back to `[r12+off]`.)
+- READ-ONLY locals → `[RIP + disp]` from the sealed blob (literals, baked addresses). No register.
+
+**Proposed durable assignments (to ratify next session):**
+| reg | role | who |
+|---|---|---|
+| R12 | ζ = BB-local RW frame base, `[r12+off]` | all langs |
+| R13 | subject base Σ | pattern langs (SNOBOL4, Icon scan) |
+| RBX | cursor Δ (move off caller-saved R10) | pattern langs |
+| R14 | value-stack top → `g_vstack` | SNOBOL4·Snocone·Rebus·Raku. Prolog: reuse for trail/choice-point ptr. Icon/Prolog have NO value stack → free |
+| R15 | free / reserve | (was mistakenly the Icon frame) |
+| RDI | ζ inbound transport → copied to R12, then scratch | — |
+| RSI | α/β entry selector transport → scratch | — (see x86 selector note) |
+| RAX | result / γ value (DESCR_t) | — |
+| RCX/RDX/R8/R9/R10/R11 | rt_* args + scratch | — |
+| RSP/RBP | C stack / frame ptr (RBP free if -fomit-frame-pointer → NV-table base) | — |
+
+**Long-lived global state (grounded, the register-cache candidates):** `g_vstack[VSTACK_CAP]` (DESCR_t value stack, rt.c) · `Σ/Δ/Ω/Σlen` (bb_box.h subject scan) · `NV_GET_fn/NV_SET_fn` (named-value table = global variables, by name-hash) · `DESCR_t` (16-byte universal value) · the per-sequence RW frame.
+
+**C BB BOX DEMOLITION (forbidden by RULES line 11; exemption REVOKED — `icn_bb_dcg` is NOT exempt, strike that clause).** A C BB box = a C function that (a) switches on entry α/β AND (b) wires four ports (α/β/γ/ω) inside. Those must be deleted and rebuilt as emitted wired graphs. VERIFIED genuine four-port C boxes (α AND β entry switch + γ and ω labels wired inside) = exactly TWO: `bb_deferred_var` (SNOBOL4 deferred, stmt_exec.c — `entry==α goto DVAR_α; entry==β goto DVAR_β;` + DVAR_γ/ω, re-enters child_fn) and `pl_cat_fn` (Prolog seq, pl_broker.c — `entry==α goto CAT_α; goto CAT_β;` + left_γ/ω, right_γ/ω). Exhaustive scan: only stmt_exec.c + pl_broker.c hold any `(void*,int entry)` fn with both γ and ω labels. NOT boxes by the test: `pl_choice_fn`/`pl_chunk_fn` (switch α/β but NO γ/ω labels — value-returning); `pl_true/fail/builtin/unify/head_unify/cut/alt/deferred_env_fn`, `icn_bb_oneshot`, `icn_fail_box` (single-entry leaves/wrappers); `pl_bb_dcg`, `icn_bb_dcg` (α-only bb_exec_once drivers). The x86 α/β selector (`cmp esi,0; jne β` in XA_FLAT_PROLOGUE + XA_ENTRY_DISPATCH) is LIVE: it's how brokered boxes are re-entered at β from `stmt_exec.c`/`pl_runtime.c`. It can only be deleted after those re-entries become wired `jmp`s.
+
+
 ## Watermark
 
-**HEAD (one4all):** `50a6d07a` (2026-05-30). **Gates:** FACT 0; no-stack ratchet 129; one-reg-frame ratchet 20; Icon smoke mode-2 6/6 (hard), mode-3 2/6; Prolog 5/5; broker 61. **Done this session:** demolition (23 abort sites); two-mode Icon smoke; GZ-0/GZ-1/GZ-2; two new FACT rules (ONE-REGISTER FRAME + READ-ONLY LOCALS IP-RELATIVE) in RULES.md; one-register frame plumbing (r15) established & no-op-verified. **NEXT:** GZ-3 `write(1+2)` — plus reads RO operands `[rip+disp]`, stores RW result `[r15+off]`, write reads `[r15+off]`; expect `arith` smoke -> m3 3/6.
+**HEAD (one4all):** `a641bfb0` (2026-05-30, session 2). **Gates:** FACT 0; no-stack ratchet 129; one-reg-frame ratchet 20; Icon smoke mode-2 6/6 (hard), mode-3 2/6; Prolog 5/5; broker 61 — ALL HELD. **Done this session:** (1) Designed the unified x86-64 register layout for all 6 languages — see "NEXT SESSION — UNIFIED REGISTER LAYOUT" section above (durable globals in callee-saved regs; RW locals `[R12+off]`, RO locals `[RIP+disp]`; R12=frame, R13=Σ, RBX=Δ, R14=value-stack/Prolog-trail/free-for-Icon, R15=reserve; the Icon frame wrongly on R15 must move to R12). (2) Established the C BB box test (C + α/β entry switch + γ/ω labels) and DELETED the two genuine ones, stub-to-loud-abort: `bb_deferred_var` (SNOBOL4 deferred, stmt_exec.c) + `pl_cat_fn` (Prolog seq, pl_broker.c) — both were on legacy/unexercised paths, so all gates held. These two are the only real users of the x86 α/β entry selector (`cmp esi,0; jne β` in XA_FLAT_PROLOGUE + XA_ENTRY_DISPATCH); rebuilding them as emitted wired graphs (β = jmp target) is what lets that selector be deleted. (3) `icn_bb_dcg` exemption in RULES line 11 is REVOKED (no C BB box exempt) — strike that clause next session. Icon is NOT yet in proper development. **NEXT:** ratify the register layout, then (a) move Icon frame R15→R12 + restore SNOBOL4 ARBNO/capture scattered `movabs rcx` slots to `[r12+off]`; (b) rebuild `bb_deferred_var`/`pl_cat_fn` as wired graphs; (c) delete the x86 α/β entry selector.
 
 GROUND ZERO 3 — stackless rebuild. The IBB-* corpus numbers (the old 166-PASS line) are NOT a
 baseline for this build; they were produced by the value-stack path now being removed.
