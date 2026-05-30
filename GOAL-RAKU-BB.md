@@ -247,7 +247,40 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
-LEAF BB EMISSION SHELVED — PIVOT TO THE SEAM (Lon + Claude, 2026-05-29; .github only, NO code
+G3 PARSE-ONLY RUNG ATTEMPTED + REVERTED (Claude, 2026-05-29; one4all REVERTED to clean 8be5f202,
+  .github committed). Tried the parse-only G3 frontend rung (grammar/token/rule/regex keywords +
+  grammar_decl). Got the AST STRUCTURE working but hit a lexer crash; reverted one4all clean per
+  the no-broken-commits rule. The investigation (so the next session starts from facts, not zero):
+  WHAT WAS BUILT (all reverted): (1) ast.h — TT_GRAMMAR_DECL + TT_REGEX_DECL enum + name-table.
+  (2) raku.l — `grammar`/`token`/`rule`/`regex` keyword rules; token/rule/regex set a new
+  `raku_after_tokenkw` flag; a new `STR_REBODY` start-state that the next `{` opens, depth-counting
+  braces and returning the body as LIT_REGEX (reusing the whole existing regex-literal path).
+  (3) raku.y — grammar_decl (mirrors class_decl) + grammar_body_list with 3 productions
+  (KW_TOKEN/KW_RULE/KW_REGEX IDENT LIT_REGEX → TT_REGEX_DECL, ival 0/1/2 = flavor). Wired into stmt.
+  WHAT WORKED: bison regen NET-ZERO new conflicts (still 30 s/r); build clean; `grammar G { token T
+  { 'a' } }` PARSES + `--dump-ast` PERFECT: (TT_GRAMMAR_DECL (TT_VAR G) (TT_REGEX_DECL (TT_VAR T)
+  (TT_QLIT " 'a' "))). Multiple `token` members fine.
+  THE BUG (unfixed, the next session's starting point): `token` works; `rule` and `regex` SEGFAULT.
+  Bisected hard: the crash fires right after the lexer returns KW_RULE/KW_REGEX + the following
+  IDENT, BEFORE the body `{` is lexed (no LIT_REGEX emitted). `grammar G { rule` + EOF gives a CLEAN
+  syntax error (no crash) — so the KW_RULE token itself is fine; the crash needs `KW_RULE IDENT`
+  then continued lexing. THE PARSER IS NOT THE PROBLEM: bison --report=all shows states 294/295/296
+  (after KW_TOKEN/KW_RULE/KW_REGEX) are PERFECTLY SYMMETRIC — each `shift IDENT, go to 329/330/331`,
+  each then expects LIT_REGEX. So three structurally identical productions, identical parser tables,
+  yet only token survives. ⇒ The crash is LEXER-INTERNAL (flex), triggered after IDENT following
+  rule/regex but not token — likely a flex start-state / longest-match / rule-ordering artifact
+  specific to the strings `rule`/`regex` (note `regex` shares a prefix with nothing, but `rule` and
+  the existing `repeat`/`return` are near; and `regex` vs the regex-literal machinery). NEXT SESSION:
+  re-apply the 3 files (they're documented above), then debug the flex scanner directly — generate
+  raku.lex.c, find the rule/regex actions and the STR_REBODY transitions, and check whether
+  returning KW_RULE/KW_REGEX leaves yy_start or the after_tokenkw flag in a state that corrupts the
+  next match. A standalone flex probe (scan "grammar G { rule r { z }") printing the token stream +
+  yy_start after each token will localize it fast. Consider: does `token` only work because it was
+  added FIRST / is shorter? Try making rule/regex behave byte-identically to token (same flag, same
+  return) and bisect by swapping which keyword is listed first. Gates after revert (one4all clean
+  8be5f202): GATE-RK m2 41/42, GATE-RK4 m4 42/42, smoke raku 5/5. Build clean.
+
+
   change, one4all clean at 8be5f202, all gates baseline). This session was an architecture review,
   not a code rung. Walked the bb_nfa_split design end-to-end with Lon and concluded the leaf
   single-pattern BB EMISSION path is ceremony, not value, and SHELVED RK-NFA-4/5 + G1-1..3. The
