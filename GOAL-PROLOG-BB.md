@@ -64,8 +64,18 @@ rung28 test that involved a *thrown or caught predicate body* aborted at emit ti
 **Gates:** GATE-1 5/5, GATE-2 **103**/33 (+5), GATE-3 m2 108/111 (untouched), m3 **99**/111 (+5),
 GATE-4 4/4, GATE-SWI 57/57, FACT arm1 0 / arm2 12, siblings icon/raku/snobol4/snocone 5/5/13/5.
 **NEXT:** remaining mode-3 crosscheck gaps are the documented boundaries — rung14 retract (5) +
-rung15 abolish (4) = PL-RT-ASSERTZ mutable-clause-store; rung27 succ_or_zero (1, corpus gap);
-rung30 DCG (2). Mode-4 (compile) catch/throw is still the WAM-CP-13 TEXT-stub gap (α/β→ω fail-through).
+rung15 abolish (4) = PL-RT-ASSERTZ mutable-clause-store; rung30 DCG (2). Mode-4 (compile) catch/throw
+is still the WAM-CP-13 TEXT-stub gap (α/β→ω fail-through).
+
+**2026-05-29 Opus 4.8 follow-up: rung27 succ_or_zero corpus fix (corpus `3de2407`).** The test
+called `succ_or_zero/2` but never defined it — real SWI-Prolog errors `Unknown procedure:
+succ_or_zero/2` on the original, and the committed `.s` had `.Lplpred_succ_or_zero_2` called 3× /
+defined 0× (baked-in unresolved-ref). Added the missing definition (`succ_or_zero(0,0):-!.` /
+`succ_or_zero(N,M):-M is N-1.`, = predecessor floored at zero per `.expected`), oracle-verified with
+real swipl → `2/0/0`. **GATE-2 crosscheck 103 → 104, GATE-3 m2 108 → 109, m3 99 → 100.** `.s`/`.j`
+left as-is (they regenerate batch-wide — label-serial skew on `.s`, and current `--target=jvm` emits a
+57-line stub for ALL rung files vs the committed ~5800-line `.j` — so isolated regen would introduce
+unrelated divergence; defer to a batch artifact-regen pass).
 
 ---
 
@@ -2297,13 +2307,13 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-PLR-K-18)
+## 📊 Gate table (current — post-PLR-K-18 + rung27 succ_or_zero fix)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5/5 ✅ | |
-| GATE-2 crosscheck | 103/33 | (part of G2) | n/a | rung28 catch/throw now 5/5 three-mode AGREE |
-| GATE-3 rung suite | **108/111** | **99/111** | **54/111** | m3 +5 (rung28); remaining m3 gaps = retract/abolish/succ_or_zero/dcg |
+| GATE-2 crosscheck | 104/32 | (part of G2) | n/a | rung28 catch/throw 5/5 + succ_or_zero now 3-mode AGREE |
+| GATE-3 rung suite | **109/111** | **100/111** | **54/111** | remaining m3 gaps = retract/abolish/dcg |
 | GATE-4 mode-4 minimal | 4/4 ✅ | n/a | 4/4 ✅ | |
 | GATE-SWI plunit suite | **57/57 (100%)** ✅ | **57/57 (100%)** ✅ | n/a | |
 | FACT RULE grep | 0 ✅ | — | — | arm2 = 12 (baseline) |
