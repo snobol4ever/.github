@@ -2,11 +2,32 @@
 
 Frontend: PROLOG. Produces shared IR (EXPR_t/STMT_t). See ARCH-IR.md.
 
+## ⚠️ CORRECTION (2026-05-30): NO VALUE STACK. STACKLESS FOUR-PORT IS THE MODEL.
+
+The prior framing below leaned on GNU Prolog's WAM CP-frame **stack** (`pl_choice` ported from
+`wam_inst.h`) as the engine compass. **That was wrong.** The correct model is Proebsting's
+four-port translation (`one4all/bench/Simple Translation of Goal Directed Evaluation.pdf`):
+each operator is four labeled code chunks (`α/β/γ/ω`) threaded by `goto`, with each box's value in
+a FLAT per-activation home — NOT a pushed/popped value stack, and NOT a save/restore of shared
+mutable node slots. See `one4all/bench/test_icon.c` (flat scalar per box, one C activation) and
+`one4all/bench/test_sno_1.c` (the one unbounded-repetition construct uses an explicit indexed frame
+array `_1[64]`/`ζ`, the solved form of the EVAL/CODE/`*P`-deferred problem). The original static
+Prolog emitter `one4all/archive/frontend/prolog/prolog_emit.c` already had this shape: a predicate
+is a C function with a flat α/β/γ/ω body whose only surviving dynamic state across backtracking is a
+resume cursor int (`_cs`) plus the trail mark. **The `bb_node_state_t` snapshot/restore mechanism in
+the current engine IS a value stack and is being removed** (see GOAL-PROLOG-BB.md → PLG ladder).
+
+What survives (all three are in the `.c` reference files, so they are NOT the value stack):
+the **trail** (binding undo log), the **resume cursor / CP ledger** (`_cs` int / parent-linked
+`pl_choice` record — irreducible "which suspended alternative is live"), and **explicit indexed
+deferred-frame arrays** for genuinely-repeating constructs (ARBNO-style `_1[64]`).
+
 ## Engine model (substrate facts)
 
-SCRIP's Prolog engine is a **boxed-cell, GC-managed** model, closer to SWI-Prolog's
-heap-of-cells than to GNU Prolog's raw-WamWord stack. Key invariants, with the
-reference each was checked against (see `one4all/doc/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md`):
+SCRIP's Prolog engine is a **boxed-cell, GC-managed** model (tagged `Term*`, GC-allocated). The
+choice-point ledger is a parent-linked record, NOT a contiguous WAM stack, and NOT a value stack.
+Key invariants, with the reference each was checked against (see
+`one4all/doc/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md`):
 
 - **Terms** (`src/frontend/prolog/term.h`): tagged `Term*` (ATOM/VAR/COMPOUND/INT/FLOAT/REF),
   GC-allocated. Bound vars become `TERM_REF` with a `ref` pointer; `term_deref` chases the chain

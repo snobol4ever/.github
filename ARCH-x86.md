@@ -15,6 +15,16 @@ local stack frame, no `push`/`pop` of working state in the body.  Every
 "local" the box needs (cursor save, counter, captured pointer) lives in its
 DATA block.
 
+> **2026-05-30 NOTE — the Prolog engine VIOLATED this rule and is being fixed.**
+> Instead of "fresh DATA block per α-entry," the mode-2/3 Prolog path shares ONE
+> mutable `BB_graph_t` across recursive activations and `bb_snapshot_state`/
+> `bb_restore_state`s the node slots in and out — that copy-in/copy-out IS the
+> "push/pop of working state" this section forbids. The fix (GOAL-PROLOG-BB.md →
+> PLG ladder) restores per-activation DATA: the references are
+> `one4all/bench/test_icon.c`, `one4all/bench/test_sno_1.c` (the `_1[64]`/`ζ`
+> per-invocation array), and `one4all/archive/frontend/prolog/prolog_emit.c`
+> (flat α/β/γ/ω body, `_cs` cursor + trail mark as the only surviving state).
+
 Re-entry — the situation a naive reader expects to need a stack — is handled
 by **allocating a fresh DATA block on every α-port entry** and chaining the
 old one onto a save-list reachable from the new one's header.  A box that
