@@ -30,7 +30,45 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
-## State at HEAD (post-PLR-K-18, 2026-05-29 — Opus 4.8, one4all `9eed4fa1`)
+## State at HEAD (post-PROLOG-BB-MODE2-FIXES, 2026-05-30 — Sonnet 4.6, one4all `1882bc6b`)
+
+**2026-05-30 Sonnet 4.6: Two mode-2 bugs fixed — write(op-compound) + BB_CHOICE snapshot.**
+
+**Bug 1 — write(BB_ARITH compound) printed empty (`bb_exec.c`):** The write/writeln arm called
+`bb_exec_node(bb->α)` which arith-evaluates BB_ARITH nodes. Operator-functor terms in TERM
+position (e.g. `write(one-X)`, `write(K-V)`, `write(Cashier=smith)`) failed arith-eval and
+printed nothing. Fix: detect `BB_ARITH` with `ival>0` (arity>0 = compound, not nullary atom)
+and use `pl_node_to_term` to build the compound, then `pl_write` it. Non-compound args
+(DT_I/DT_R/DT_S/DT_DATA) keep the original scalar dispatch including round-trip float
+formatting via `pl_format_float`.
+
+**Bug 2 — BB_CHOICE snapshot missing `cp` and `cut_barrier` (`scrip_ir.c` + `BB.h`):**
+`bb_snapshot_state`/`bb_restore_state` did not capture `bb_pl_choice_state_t.cp` or
+`.cut_barrier`. When two calls to the same predicate appear in one clause body (e.g.
+`differ(smith,M), differ(T,brown)`), both share the same `BB_graph_t*`. The second call's
+snapshot lacked the first call's cp/cut_barrier, leaving them stale on restore, corrupting
+the CP spine and cut barrier on backtracking (mode-2 looped or produced empty output). Fix:
+added `ch_cp` and `ch_cut_barrier` fields to `bb_node_state_t`; snapshot and restore them.
+
+**Effect:** rung10 puzzle programs (20 corpus tests) now 3-mode AGREE. `write(op-compound)`
+correct in mode-2. Multi-call-same-predicate backtracking correct in mode-2.
+
+**⚠️ NOTE on "mode-2 as correctness reference":** This session found that mode-2 was WRONG
+for large classes of programs (operator-compound write, multi-same-predicate backtracking).
+Mode-3 was correct. The standing assumption that mode-2 is always the reference is false.
+Verify both modes against expected output before trusting either.
+
+**Gates:** GATE-1 5/5, GATE-2 **105**/31 (+1 vs 104/32 baseline), GATE-3 m2 **109**/111,
+GATE-4 4/4, GATE-SWI 57/57, FACT 0.
+
+**NEXT:** Remaining mode-3 crosscheck gaps: rung14 retract (5 NATIVE-ABORT), rung15 abolish
+(3 NATIVE-ABORT + 1 FAIL), rung30 DCG (2 NATIVE-ABORT). rung10 puzzle_01 now FAIL not abort
+(mode-3 gives correct answer, mode-2 still differs — investigate). rung15 abolish_existing/
+one_of_two/then_query_fail are FAIL (mode-3 vs mode-2 disagree, not abort).
+
+---
+
+
 
 **2026-05-29 Opus 4.8: PLR-K-18 LANDED — catch/3 + throw/1 mode-3 native MEDIUM_BINARY arms.**
 catch/throw were **mode-2 only** (WAM-CP-10 setjmp/Pl_CatchFrame); in mode-3 native (`--run`) every
