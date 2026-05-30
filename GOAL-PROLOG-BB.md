@@ -30,6 +30,39 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-K-10-FIX, 2026-05-29 — one4all `0230e67d`)
+
+**2026-05-29: PLR-K-10 FIX LANDED — findall/3 non-empty goal mode-3 segfault CLOSED.** Single-file,
+6-line fix in `bb_pl_builtin.cpp`: the findall/3 MEDIUM_BINARY arm did `sub rsp,8` / `add rsp,8`
+around the `call rt_pl_findall`, which left the call site **8-mod-16** (the arm begins with rsp
+16-aligned, so `sub rsp,8` → call at 8-mod-16). `rt_pl_findall` → `bb_exec_once` → `bb_exec_node`
+reaches `snprintf("%s/%d", callee, carity)` (BB_PL_CALL key build), and glibc `__vsnprintf_internal`
+spills xmm0 with `movaps %xmm0,-0xc0(%rbp)` — which **faults on a misaligned target** → SIGSEGV
+(rc=139). Fixed by `sub rsp,16` / `add rsp,16` (keeps the call site 16-aligned). Confirmed via gdb:
+faulting instr `movaps %xmm0,-0xc0(%rbp)`, rbp/rsp ending `...58` (8-mod-16).
+
+**The PLR-K-10 LCO-redirect diagnosis was a RED HERRING.** Empirically verified: the alignment fix
+ALONE makes all 5 rung11 tests 3-mode AGREE. A sentinel-CP experiment (push `PL_CP_DISJ` instead of
+`g_pl_bfr=NULL` in `rt_pl_findall`) was built and tested — it provided NO measurable benefit (all 5
+rung11 pass identically with or without it) and did NOT fix the orthogonal recursive-goal case, so
+it was dropped to keep the change minimal. `bb_exec.c` / `rt_pl_findall` is **unchanged**.
+
+**GATE-2 crosscheck 71 → 76 (+5):** rung11 findall_{basic,arith,filter,template,empty} all 3-mode
+AGREE (`[red,green,blue]` / `[1,4,9]` / `[2,4]` / `[a-1,b-2,c-3]` / `[]`). Ripple +1.
+**Gates:** GATE-1 5/5, GATE-2 **76**, GATE-3 m2 108/111 (mode-2 untouched), GATE-4 4/4, GATE-SWI
+57/57, mode-4 corpus 67/111 (TEXT arm honest-abort untouched), FACT 0/12, siblings icon/raku/snobol4
+5/5/13.
+
+**KNOWN ORTHOGONAL (not PLR-K-10, no rung coverage):** `findall(N, recursive_pred(N), Xs)` where the
+goal body is tail-recursive diverges m2=`[1]` vs m3=`[_G-1]` (unbound-var leak) — a separate
+goal-sub-graph recursive-binding bug in mode-3, surfaced while probing the sentinel. Not gate-blocking.
+
+**NEXT:** remaining mode-3 BINARY crosscheck gaps (rung15 abolish, rung17 sort/msort, rung18 succ/plus,
+rung26 copy/concat, rung27 aggregate/bagof/setof). retract/retractall + assertz remain the PL-RT-ASSERTZ
+mutable-clause-store boundary (honest-abort in mode-3/4).
+
+---
+
 ## State at HEAD (post-PLR-K-10, 2026-05-29 — Sonnet 4.6, one4all `5cc1224e`)
 
 **2026-05-29 Sonnet 4.6: PLR-K-10 PARTIAL — findall/3 BINARY arm landed; non-empty goal cases
