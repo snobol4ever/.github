@@ -28,6 +28,45 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+---
+
+## State at HEAD (post-PLR-K-10, 2026-05-29 — Sonnet 4.6, one4all `5cc1224e`)
+
+**2026-05-29 Sonnet 4.6: PLR-K-10 PARTIAL — findall/3 BINARY arm landed; non-empty goal cases
+still segfault in mode-3.**
+
+**What landed:** `rt_pl_findall(void *fs_ptr)` effect helper in `bb_exec.c` (after
+`rt_pl_term_to_atom_term`). Faithful transliteration of the mode-2 oracle. Saves/restores full
+interpreter state (`g_pl_env`, `g_pl_bfr`, `g_pl_cut_barrier`, `g_pl_cut_flag`,
+`g_pl_b3_call_mark`, `g_pl_tail_redirect_cfg`, `g_pl_tail_redirect_entry`) around `bb_exec_once`
+so findall is transparent to the outer CP spine. Forward decl of static `bb_body_has_live_choice`
+above `rt_pl_findall` in same TU. Decl in `bb_exec.h`. MEDIUM_BINARY arm in `bb_pl_builtin.cpp`:
+`sub rsp,8` + `movabs rdi,fs_ptr` + `movabs rax,&rt_pl_findall; call rax` + `add rsp,8` + std
+bin-patch tail. MEDIUM_TEXT arm: HONEST-ABORT (`g_sm_native_unsupported=1`) — sidecar pointer is
+compile-time-only; emitted binary is a separate process. Correct mode-4 findall requires emitting
+the goal sub-graph as a nested function (deferred).
+
+**GATE-2 crosscheck 70→71 (+1):** `rung11_findall_findall_empty` now 3-mode AGREE (`findall(X,
+fail, Xs)` → `[]`; goal sub-graph has no `BB_PL_CALL` so `bb_exec_once` returns FAIL immediately).
+All other rung11 tests still segfault in mode-3.
+
+**Crash diagnosis (next session):** `rt_pl_findall` IS called with the correct `fs_ptr` (gdb
+confirmed). `bb_exec_once(fs->gcfg)` runs. Inside, the goal's `BB_PL_CALL` node crashes inside
+`snprintf(key,128,"%s/%d",callee,carity)` in `bb_exec_node` — NOT a null-ptr/overflow (`callee =
+"color"` is valid). Suspected cause: setting `g_pl_bfr = NULL` in `rt_pl_findall` makes every
+tail call inside the goal sub-graph eligible for the B1/B2 LCO redirect (gate: `g_pl_bfr == NULL`
++ tail position). The LCO redirect sets `g_pl_tail_redirect_cfg` and exits `bb_exec_node` via the
+sentinel path — but the outer `bb_exec_once` in `rt_pl_findall` clears the redirect globals before
+calling `bb_exec_once`, so the redirect writes to the already-cleared globals from an inner
+`bb_exec_once`, corrupting the stack/state. **Fix candidate:** push a sentinel `pl_choice` (any
+non-NULL value on `g_pl_bfr`) instead of setting `g_pl_bfr = NULL`, so the LCO gate (3) fails
+and the goal sub-graph runs in the conservative non-LCO path. Alternatively, set
+`lco_tail_pos = 0` inside the goal's `BB_PL_CALL` by temporarily suppressing the LCO check.
+
+**Gates:** GATE-1 5/5, GATE-2 **71**, GATE-3 108/111, GATE-4 4/4, GATE-SWI 57/57, FACT 0.
+
+---
+
 ## State at HEAD (post-PLR-K-9, 2026-05-29 — Opus 4.8, one4all `8be5f202` / corpus `5354a66`)
 
 **2026-05-29 Opus 4.8: PLR-K-9 LANDED — term_to_atom/2 + term_string/2 mode-3 BINARY + mode-4 TEXT
@@ -56,9 +95,10 @@ mode-3 native + mode-4 emit printed `_` (result var never bound); mode-2 correct
 **GATE-2 crosscheck 67 → 70 PASS (+3)** — rung25 term_string/term_to_atom/term_to_atom_arith now all
 3-mode AGREE. **mode-4 corpus 64 → 67 (+3).** All other gates byte-identical: GATE-1 5/5, GATE-3 m2
 108/111, GATE-4 4/4, GATE-SWI 57/57, FACT arm1 0 / arm2 12, siblings icon/raku/snobol4 5/5/13.
-**NEXT:** findall/3 (own protocol — `nd->ival` is `bb_pl_findall_state_t*`, not arity; needs a
-dedicated mode-3/4 path, emit the goal sub-graph inline or route specially). Other small mode-4 gaps:
-retract/retractall (the PL-RT-ASSERTZ mutable-store boundary), abolish/1 (rung15). Handoff
+**NEXT:** findall/3 BINARY arm crash fix — `rt_pl_findall` exists and fires correctly; non-empty
+goal cases segfault in mode-3 (see PLR-K-10 state above for diagnosis). Fix: push a sentinel
+`pl_choice` on `g_pl_bfr` instead of setting it to NULL, so LCO gate (3) fails inside the goal
+sub-graph and `bb_exec_node BB_PL_CALL` takes the conservative path. Handoff
 `HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRK789.md`.
 
 ---
