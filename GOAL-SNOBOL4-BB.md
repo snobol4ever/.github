@@ -402,7 +402,7 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 55a92d39  SBL-BREAK-VAR (chain post-rebase: 84842223 SIZE-SHADOW, 6361a742 SPAN-VAR, 55ad3eda POS-VAR)
+HEAD one4all       = 77a39e82  SBL-ALT-CURSOR-RESTORE + SBL-FENCE-SEAL (clean floor; was stale '55a92d39')
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 57/5     (sibling-influenced)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
@@ -420,6 +420,18 @@ GATE-PK            = stale
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — SBL-CHARSET-EXPR TRIAGE (no code; consolidation)** (one4all UNCHANGED `77a39e82`;
+  .github `195066df`+`84daf610`). Proved `XDump_driver` + `Qize_driver` + `064` share ONE root cause: a
+  charset-EXPRESSION (concatenation) arg to `BREAK/ANY/NOTANY/SPAN`. `build_node` rejects `TT_SEQ` charset →
+  `BB_lower_pat` fails → `bb_idx=-1` → mode-2 (`--interp` = `BB_MODE_BROKERED`, scrip.c:157/161) routes
+  ARBNO patterns via `patnd_to_bb_graph` (γ-chain) → `bb_build_brokered`, whose box-template walk mis-wires
+  capture+ARBNO into an empty match. Charset itself correctly resolved (`BB_PAT_BREAK sval=["']`) → structural
+  bug. Minimal repro = case P. Ruled out: sval-recipe shortcut (emit_bb.c:1482 mode-4 hazard) and the
+  `patnd_to_bb_tree` red herring (that is the separate mode-3 SBL-DEFER-NESTED case; under BROKERED the
+  γ-chain is the intended pairing). Fix routes documented (A larger / B fragile mode-2). Also flagged NEW
+  native-only gap `fence_driver` (post-FENCE-SEAL). Handoff:
+  `HANDOFF-2026-05-29-OPUS48-SBL-CHARSET-EXPR-TRIAGE-CONSOLIDATION.md`.
 
 - **2026-05-29 Opus 4.8 — VARIABLE-ARGUMENT PATTERN FAMILY + SIZE-SHADOW ✅** (one4all `0c7f9cfb`,
   chain `acc9ae77`→`3278f60f`→`36fe8ab9`→`0c7f9cfb`). Four commits closing one root-cause class of
