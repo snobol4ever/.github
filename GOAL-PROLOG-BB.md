@@ -30,6 +30,70 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-K-12..17, 2026-05-29 — one4all `413f8e18`)
+
+**2026-05-29: PLR-K-12..17 LANDED — float/gcd is/2, sort/msort, atomic_list_concat, copy_term
+var-sharing, nb_setval/getval, aggregate_all (all mode-3 native MEDIUM_BINARY).** GATE-2 crosscheck
+**81 → 98 (+17).** Each rung verified 3-mode (mode-2 == mode-3) AGREE and matching `.expected`;
+mode-2 reference held at GATE-3 108/111 throughout; FACT 0/12; siblings icon/raku/snobol4 5/5/13.
+
+- **PLR-K-12 (`eb114c1f`; corpus `f973ed8`) — float/gcd-aware `is/2` + round-trip float formatting
+  (+5, rung29).** New `rt_pl_is_eval(lhs_bb, rhs_bb)` in `bb_exec.c`: mode-3 in-process `is/2` that
+  walks the full RHS BB subtree via the existing float-aware `pl_arith_eval` (handles float ops
+  sqrt/sin/cos/exp/log, `pi`/`e`, `gcd`, int/float promotion, nested expressions) and builds a
+  TERM_INT or TERM_FLOAT. Supersedes the integer-only single-op `rt_pl_is` scalar flatten (floats
+  → 0, gcd → wrong via `lv+rv`, nested → wrong). The BINARY `is/2` arm now passes the live BB_t*
+  pointers (rdi=lhs rsi=rhs, `sub rsp,16` for libm SSE alignment) and its guard broadened to also
+  cover bare-RHS forms that previously fell to the double-jump stub → `_`: `BB_LIT_I`/`BB_LIT_F`
+  (`X is 5` / `X is 2.5`), `BB_PL_VAR` (`X is Y`), `BB_ATOM`/nullary-`BB_ARITH` (`X is pi`/`e`).
+  **Float formatting:** new `rt_pl_format_float` in `rt.c` (round-trip 15..17 sig figs + visible
+  decimal), used by `rt_pl_write_float` + `rt_pl_write_var` — bare `%g` had truncated to 6 sig figs
+  and dropped the `.0` on integral floats, so mode-3 disagreed with mode-2. Re-baselined two stale
+  corpus `.ref` files (rung29 float_constants/float_parts) that held the old truncated output.
+  **Mode-4 (compile) float remains a separate gap** (the TEXT `is` arm still calls integer
+  `rt_pl_is`; can't pass a live pointer to a separate process — needs a float-returning serializable
+  path, deferred).
+- **PLR-K-13 (`b1b979d5`) — sort/2 + msort/2 MEDIUM_BINARY arm (+4, rung17).** Byte-twin of the
+  CAT-D-11 TEXT arm. Path B (a0 = BB_PL_STRUCT list literal, the corpus case): build a0's Term* via
+  `emit_build_compound_term_bin` → rsi; `rt_pl_sort_msort_term(do_msort, Term*, k1,i1,s1)`. Path A
+  (scalar a0): 7-scalar `rt_pl_sort_msort`, s1 on stack. Added the two helper decls to the template
+  extern block (TEXT arm referenced them only by `@PLT`).
+- **PLR-K-14 (`2e268989`) — atomic_list_concat/2,3 + concat_atom/2 MEDIUM_BINARY arm (+3, rung26).**
+  New `rt_pl_atomic_list_concat_term(list, arity, ksep,isep,ssep, kres,ires,sres)` effect helper
+  transliterating the mode-2 oracle (walk the built cons list, render each element via
+  `pl_atomic_text`, join with optional separator, intern + unify). 8-arg SysV (two stack args,
+  `sub rsp,16`). arity from `pBB->ival`; arity-2 result=a1, arity-3 sep=a1 result=a2.
+- **PLR-K-15 (`8f3f9a5e`) — copy_term/2 compound-arg var-sharing (+1, rung26 closed 4/4).**
+  `copy_term(f(X,X),f(A,B))` gave A\\==B in mode-3 (the shared 6-scalar arm passed compound arg0 as
+  `k0=BB_PL_STRUCT` → `rt_pl_node_to_term` degenerates the tree, losing intra-term var-sharing).
+  New dedicated arm before the scalar block: build arg0 (and arg1 when it is ALSO compound — the
+  destination `f(A,B)` must be built too or the unify binds nothing) via
+  `emit_build_compound_term_bin`, hold arg0 in `[rsp+0]` across arg1's build, call
+  `rt_pl_copy_term_terms(t0,t1)`; scalar arg1 → `rt_pl_copy_term_term(t0, k1,i1,s1)`. Var-sharing is
+  preserved because `rt_pl_node_to_term` writes an unbound var's fresh Term back to its env slot, so
+  a repeated occurrence rereads the same cell; `bb_copy_term`'s BBCopyMap then maps shared origs to
+  one shared copy. (First cut fixed only arg0 and regressed the rung to empty output — the
+  destination-compound half was the second bug, found via stepwise isolation.)
+- **PLR-K-16 (`413f8e18`) — nb_setval/2 + nb_getval/2 MEDIUM_BINARY arm (rung27).** New
+  `rt_pl_nb_setval_term(key,val)` / `rt_pl_nb_getval_term(key, kres,ires,sres)` over the existing
+  atom-keyed `pl_nb_set`/`pl_nb_get` store. Build key (atom); setval also builds the value (held in
+  `[rsp+0]` across the build); getval passes result-var scalars.
+- **PLR-K-17 (`413f8e18`) — aggregate_all/3 count/sum/max/min MEDIUM_BINARY arm (rung27 closed 4/4).**
+  New `rt_pl_aggregate_all_term(tmpl, goal, kres,ires,sres)` — faithful transliteration of the
+  mode-2 oracle: template + goal arrive prebuilt as Term* (the template value var and goal arg var
+  share an env slot via the `rt_pl_node_to_term` write-back, so the goal binding shows through the
+  template), run the goal predicate's BB graph in a fresh env via `bb_exec_once`/`bb_exec_resume`,
+  accumulate per the template functor, unify the result. BINARY arm builds tmpl (held `[rsp+0]`) +
+  goal, 5-register call.
+
+**NEXT:** rung28 catch/throw mode-3 (3 FAIL + 2 NATIVE-ABORT — `BB_PL_CATCH` BINARY arm; mode-2 ✅
+via setjmp/Pl_CatchFrame, WAM-CP-10). Then the PL-RT-ASSERTZ mutable-clause-store boundary
+(rung14 retract ×5, rung15 abolish ×4, rung27 succ_or_zero — all NATIVE-ABORT / FAIL because the
+BB_CHOICE dispatcher bakes the clause count as a compile-time constant; needs a runtime-mutable
+clause store the native dispatcher consults). rung30 DCG mode-3 (2 NATIVE-ABORT) separate.
+
+---
+
 ## State at HEAD (post-PLR-K-11, 2026-05-29 — one4all `3a811fb7`)
 
 **2026-05-29: PLR-K-11 LANDED — succ/2 + plus/3 MEDIUM_BINARY arms (mode-3 native).** Single-file,
