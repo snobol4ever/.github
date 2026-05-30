@@ -236,13 +236,18 @@ must stay byte-identical until the very last flip.
 
 ### Incremental rungs (each independently green; gate ladder below every rung)
 
-- [ ] **SM-0 runtime seam (DEAD CODE, cannot regress).** Add `raku_accepts(topic, matcher)` to
+- [x] **SM-0 runtime seam (DEAD CODE, cannot regress) ✅** (Opus 4.8, 2026-05-30, one4all `e6f8b532`). Added `raku_accepts(topic, matcher)` to
       `raku_builtins_byname.c` (reachable all 3 modes via the existing `raku_try_call_builtin_by_name`
       table — same seam RK-NFA-1e used). Dispatch by matcher representation, REUSING proven helpers:
-      Junction tagged-string (`s[0]==0x03`) → `rk_junction_collapse(topic,jct,EQ)`; regex/NFA string →
-      `raku_match`; literal Num/Str → numeric/string eq (the `when`-literal base case). Type/Range/
-      Callable arms **DEFERRED** to SM-4 (need value-kind prerequisites — see risk). NOT wired to any
-      lowering yet → zero behavior change, builds green. (Mirror the RK-NFA-4 SCAFFOLD dead-code idiom.)
+      Junction tagged-string (`s[0]==0x03`) → `rk_junction_collapse(topic,jct,EQ)` (numeric mode keyed
+      on topic-is-number); else the `when`-literal base case — numeric eq when BOTH topic+matcher are
+      numbers (`to_real`), else string eq (`strcmp==0`, the SNOBOL4-LEQ semantics the `when` string-arm
+      uses). Hit→`INTVAL(1)`, miss→`FAILDESCR` (the verdict convention `raku_match` uses, so the SM-2
+      `JUMP_F` arm guard consumes it unchanged). Regex arm stays on the SM-1 direct `raku_match` path
+      (a bare `/re/` RHS never reaches here per the SM-1 plan); Range/Type/Callable DEFERRED to SM-4.
+      NOT wired to any lowering (grep-verified zero callers outside its own file) → zero behavior change.
+      ALL GATES BYTE-IDENTICAL to baseline: GATE-RK m2 45/46, GATE-RK4 m4 46/46, GATE-RK3 m3 45/46
+      CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0, build clean.
 - [ ] **SM-1 `~~` reroute, regex-preserving.** In `TT_SMATCH` `match` flavor: keep `raku_match` DIRECT
       when `c[1]` is a bare regex literal (zero regex regression — verify `--dump-sm` unchanged for
       `rk_re*`/`rk_regex23`); only a NON-regex RHS routes to `raku_accepts`. NOTE: today no non-regex
@@ -320,6 +325,28 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+RK-SMARTMATCH SM-0 LANDED — dead-code raku_accepts ACCEPTS seam (Claude, Opus 4.8, 2026-05-30,
+  one4all `e6f8b532`). First code rung of the RK-SMARTMATCH ladder. `raku_accepts(topic, matcher)`
+  added to raku_builtins_byname.c, reachable in all 3 modes via the raku_try_call_builtin_by_name
+  byname table (the RK-NFA-1e seam). Two live arms reusing proven helpers: (1) junction matcher
+  (s[0]==0x03) → rk_junction_collapse(topic, jct, EQ), numeric mode when topic is a number; (2)
+  literal base case → numeric eq when both topic+matcher are numbers (to_real), else string eq
+  (strcmp==0, the SNOBOL4-LEQ semantics the `when` string-literal arm uses via SM_LCOMP TT_LEQ).
+  Hit→INTVAL(1), miss→FAILDESCR (matches raku_match's verdict convention so the SM-2 JUMP_F arm
+  guard consumes it). Regex arm intentionally NOT in the helper — it stays on the SM-1 direct
+  raku_match path (a bare /re/ RHS never reaches accepts per the measured SM-1 plan); Range/Type/
+  Callable deferred to SM-4. PURE VALUE HELPER, no emitted x86 (FACT 0). Confirmed DEAD CODE: grep
+  shows zero `raku_accepts` references outside its own file → no lowering emits it → cannot regress.
+  ALL GATES BYTE-IDENTICAL to baseline: GATE-RK m2 45/46, GATE-RK4 m4 46/46 PERFECT, GATE-RK3 m3
+  45/46 CRASH 0, smoke raku/icon/prolog/snobol4/snocone 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1,
+  build clean. (Session started from one4all HEAD 9eed4fa1 — an interleaved Prolog session had
+  advanced past the prior watermark's a062f28b; Raku gates re-verified at baseline before the rung.)
+  NEXT CODE RUNG: SM-1 (`~~` reroute, regex-preserving — keep raku_match DIRECT for a bare regex
+  literal RHS, route only a NON-regex RHS to raku_accepts; verify `--dump-sm` unchanged for rk_re*/
+  rk_regex23) then SM-2 (`when` reroute, literal+junction-preserving). SM-3 (frontend lexer/parser:
+  regex-lex after when, general RHS after ~~) is its own full-budget session with the bison conflict-
+  count gate (must stay 30). Risk register unchanged (see the RK-SMARTMATCH rung block).
+
 RK-SMARTMATCH RUNG AUTHORED — planning landing, .github only, NO code change (Claude, Opus 4.8,
   2026-05-29; one4all UNCHANGED clean at `a062f28b`, gates at baseline below). Audited the current
   Raku feature set against the uploaded rakudo-main + roast-master sources. Two outcomes recorded in
