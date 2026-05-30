@@ -376,7 +376,7 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
 
 - **SBL-SPAN-2 / SBL-ARBNO-3 BINARY arms.** Use `std::deque<int>` slot pattern from bb_capture.cpp (NOT GC_MALLOC). SPAN: TWO persistent int slots (z, z_orig); β yields successively shorter spans using ABSOLUTE z_orig. ARBNO: uses `nd->counter`, deque pattern + brokered child call. Validate via `--run`.
 - **SBL-BREAKX-2 ✅ DONE** (2026-05-29 Opus 4.8). Own BINARY arm. TEXT β rescans-to-next using z_orig + z. z lives in [zeta+8]; z_orig recovered arithmetically (Δ - z) so no second slot needed. 302-byte α-scan + β-rescan, assembled+verified via `as`. Native +2 (W05_breakx, word4); zero regression.
-- **SBL-ATP** (`@var` cursor capture). ✅ MODE-2 ORACLE DONE (one4all `877f61fe`, 2026-05-30): (1) `BB_PAT_ATP` added [x] (at enum END, no opcode shift). (2) `lower_pat_dcg.c build_node case TT_CAPT_CURSOR` → `BB_PAT_ATP` single-shot leaf [x]. (3) `bb_exec.c case BB_PAT_ATP` α writes 0-based Δ as int DESCR via NV_SET, single-shot [x]. **→ mode-2 +4, native +1.** ⬜ NATIVE TEMPLATE REMAINING (lifts cross/W07_capt_cur/074 native): (4) `build_patnd` XATP("@")→`BB_PAT_ATP`; `bb_pat_atp.cpp` TEXT+BINARY arms (model on `bb_pat_pos.cpp`; BINARY writes Δ→var int — add `rt_at_cursor` near rt.c:873); `emit_core` dispatch + `walk_bb_flat case`. Byte-producing → own session. (Interim: `BB_PAT_ATP` hits `walk_bb_flat default:` = honest `jmp ω` fail, RULES-OK.)
+- **SBL-ATP** (`@var` cursor capture). ✅ FULLY DONE (mode-2 oracle `877f61fe` + native template `745c7536`, 2026-05-30). Native +3: cross/W07_capt_cur/074. Key: `rt_pat_capture(kind=2)` builds `pat_cat(EPS, pat_at_cursor(var))` so XEPS must join XATP in `patnd_is_simple_atom` for the enclosing XCAT to be tree_eligible. ✅ COMPLETE (lifts cross/W07_capt_cur/074 native): (4) `build_patnd` XATP("@")→`BB_PAT_ATP`; `bb_pat_atp.cpp` TEXT+BINARY arms (model on `bb_pat_pos.cpp`; BINARY writes Δ→var int — add `rt_at_cursor` near rt.c:873); `emit_core` dispatch + `walk_bb_flat case`. Byte-producing → own session. (Interim: `BB_PAT_ATP` hits `walk_bb_flat default:` = honest `jmp ω` fail, RULES-OK.)
 - **SBL-SM-BINARY (HQ-track).** `sm_pat_nullary.cpp` BINARY arm embeds emitter-process `rt_pat_*` fn-ptr as imm64 — Invariant-8 violation. Fix: call `rt_pat_*@PLT` directly.
 - **SBL-G-2.** Re-freeze GATE-PK in `test_per_kind_diff.sh`. Baseline references deleted `rt_bb_*` boxes — stale.
 - **SBL-LOWER-CLEANUP.** Delete `lower_subj_pat_split` + `lower.c:1750` duplicate after Snocone confirmed unused.
@@ -408,18 +408,19 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 05485efa  SBL-ATP mode-2 oracle (@var cursor capture; mode-2 +4, native +1) [rebased onto sibling cfa01738]
+HEAD one4all       = 745c7536  SBL-ATP native template (@var cursor capture mode-3; native +3: cross, W07_capt_cur, 074)
 HEAD corpus        = 447c05b    SBL-911-PORTABLE (911_datatype → SPITBOL-portable REPLACE idiom) [rebased onto sibling f973ed8]
-GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
-GATE-2 broker      = 59/5     (sibling-influenced; +2 vs prior 57/5, same 5 FAIL → no regression)
+GATE-1 smoke       = 13/13
+GATE-2 broker      = 61/5     (sibling-influenced; +2 vs prior 59/5, same 5 FAIL → no regression)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 261/280  (+2 cumulative this session: 911_datatype + ReadWrite_driver)
-true --interp      = 259/280  (+5 cumulative this session: 911_datatype + cross + 074_pat_star_var_cursor + W07_capt_cur + ReadWrite_driver)
+DEFAULT/NATIVE     = 264/280  (+3 this session: cross + W07_capt_cur + 074_pat_star_var_cursor)
+true --interp      = 259/280  (unchanged; ATP native-only, no new oracle work)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
 FACT RULE          = 0
-audit_m3_native    = GATE FAIL (PRE-EXISTING — Raku NFA xa_wasm_main.cpp NO-ARM; present on clean baseline via git stash)
+audit_m3_native    = GATE FAIL (PRE-EXISTING — Raku NFA xa_wasm_main.cpp NO-ARM)
 GATE-PK            = stale
+FAIL-diff native vs m2 = comm -23 native m2 EMPTY (zero native-only regressions)
 ```
 
 **Live mode-2-only gaps (5, after 064 closed):** `124_pat_regex_keyword_seal` (DEFER-resume `[~]`), `Qize_driver`,
@@ -433,6 +434,8 @@ session log below: an inline FUNCTION-RETURNED ALTERNATION pattern (`'Hello' ica
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-30 Sonnet 4.6 — SBL-ATP native template ✅ (mode-3 native +3: cross, W07_capt_cur, 074)** (one4all `745c7536`). Five files changed: `rt_at_cursor()` helper in rt.c (writes Δ as `{.v=DT_I,.i=Δ}` via NV_SET); `bb_pat_atp.cpp` new template — X86 TEXT+BINARY arms (BINARY=44B: `mov esi,[r10]`; `movabs rdi,varname`; `movabs rax,&rt_at_cursor`; double-push r10 for OUTPUT-print alignment; `call`; double-pop; `jmp γ`; β: `jmp ω`; sites {34,38,39}); `emit_core` dispatch; `walk_bb_flat case BB_PAT_ATP` (op_name1=sval; FILL); `build_patnd case XATP` (STRVAL=="@" guard); `patnd_is_simple_atom` gains XATP + XEPS; Makefile source + rule. **Key diagnostic finding:** `rt_pat_capture(kind=2)` calls `pat_cat(EPS, pat_at_cursor(var))` at runtime, so `@P` inside a concatenation produces `XCAT(...,XCAT(XEPS,XATP),...)` — the XEPS leaf blocked `patnd_tree_eligible` for the whole tree → legacy cast → wrong. Adding XEPS to `patnd_is_simple_atom` makes the enclosing XCAT `patnd_is_combinator_root` → `patnd_to_bb_tree` → `build_patnd XATP` → `walk_bb_flat BB_PAT_ATP` → BINARY arm fires. **Gates: smoke 13/13, broker 61/5, rung M2=19/0 M4=18/1 (053 pre-existing), cross-lang 5/5/5/5, FACT=0, audit pre-existing Raku NO-ARM. Native 261→264 (+3). Mode-2 259/280 unchanged. FAIL-diff `comm -23 native m2` = empty.**
 
 - **2026-05-30 Opus 4.8 — SBL-ATP mode-2 oracle ✅ (@var cursor capture)** (one4all `877f61fe` LOCAL, NOT pushed;
   base `5e1bad51`). The `@var` cursor-capture operator was unimplemented — `@P 'c'` on "abcde" gave empty in BOTH
