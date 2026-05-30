@@ -376,7 +376,7 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
 
 - **SBL-SPAN-2 / SBL-ARBNO-3 BINARY arms.** Use `std::deque<int>` slot pattern from bb_capture.cpp (NOT GC_MALLOC). SPAN: TWO persistent int slots (z, z_orig); β yields successively shorter spans using ABSOLUTE z_orig. ARBNO: uses `nd->counter`, deque pattern + brokered child call. Validate via `--run`.
 - **SBL-BREAKX-2 ✅ DONE** (2026-05-29 Opus 4.8). Own BINARY arm. TEXT β rescans-to-next using z_orig + z. z lives in [zeta+8]; z_orig recovered arithmetically (Δ - z) so no second slot needed. 302-byte α-scan + β-rescan, assembled+verified via `as`. Native +2 (W05_breakx, word4); zero regression.
-- **SBL-ATP** (`@var` cursor capture). (1) Add `BB_PAT_ATP` to `BB_op_t`. (2) `lower_pat_dcg.c`: `@var` → `nd->sval=varname; nd->α=nd; nd->β=fp; nd->γ=sp; nd->ω=fp`. (3) `bb_exec.c case BB_PAT_ATP` α writes Δ as int DESCR via NV_SET. (4) `bb_pat_atp.cpp` + emit_core dispatch.
+- **SBL-ATP** (`@var` cursor capture). ✅ MODE-2 ORACLE DONE (one4all `877f61fe`, 2026-05-30): (1) `BB_PAT_ATP` added [x] (at enum END, no opcode shift). (2) `lower_pat_dcg.c build_node case TT_CAPT_CURSOR` → `BB_PAT_ATP` single-shot leaf [x]. (3) `bb_exec.c case BB_PAT_ATP` α writes 0-based Δ as int DESCR via NV_SET, single-shot [x]. **→ mode-2 +4, native +1.** ⬜ NATIVE TEMPLATE REMAINING (lifts cross/W07_capt_cur/074 native): (4) `build_patnd` XATP("@")→`BB_PAT_ATP`; `bb_pat_atp.cpp` TEXT+BINARY arms (model on `bb_pat_pos.cpp`; BINARY writes Δ→var int — add `rt_at_cursor` near rt.c:873); `emit_core` dispatch + `walk_bb_flat case`. Byte-producing → own session. (Interim: `BB_PAT_ATP` hits `walk_bb_flat default:` = honest `jmp ω` fail, RULES-OK.)
 - **SBL-SM-BINARY (HQ-track).** `sm_pat_nullary.cpp` BINARY arm embeds emitter-process `rt_pat_*` fn-ptr as imm64 — Invariant-8 violation. Fix: call `rt_pat_*@PLT` directly.
 - **SBL-G-2.** Re-freeze GATE-PK in `test_per_kind_diff.sh`. Baseline references deleted `rt_bb_*` boxes — stale.
 - **SBL-LOWER-CLEANUP.** Delete `lower_subj_pat_split` + `lower.c:1750` duplicate after Snocone confirmed unused.
@@ -408,13 +408,13 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 5e1bad51  SBL-CSET-FOLD (constant-fold charset-expr args; mode-2 +1: 064)
-HEAD corpus        = SBL-911-PORTABLE (staged, NOT pushed pending `perform hand off`)
+HEAD one4all       = 877f61fe  SBL-ATP mode-2 oracle (@var cursor capture; mode-2 +4, native +1) — LOCAL, NOT pushed
+HEAD corpus        = fb98a12    SBL-911-PORTABLE — LOCAL, NOT pushed
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
-GATE-2 broker      = 57/5     (sibling-influenced; engine untouched this session → unchanged by construction)
+GATE-2 broker      = 59/5     (sibling-influenced; +2 vs prior 57/5, same 5 FAIL → no regression)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 260/280  (+1 this session: 911_datatype — corpus test fix, no engine change)
-true --interp      = 255/280  (+1 this session: 911_datatype — corpus test fix, no engine change)
+DEFAULT/NATIVE     = 261/280  (+2 cumulative this session: 911_datatype + ReadWrite_driver)
+true --interp      = 259/280  (+5 cumulative this session: 911_datatype + cross + 074_pat_star_var_cursor + W07_capt_cur + ReadWrite_driver)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
 FACT RULE          = 0
@@ -433,6 +433,32 @@ session log below: an inline FUNCTION-RETURNED ALTERNATION pattern (`'Hello' ica
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-30 Opus 4.8 — SBL-ATP mode-2 oracle ✅ (@var cursor capture)** (one4all `877f61fe` LOCAL, NOT pushed;
+  base `5e1bad51`). The `@var` cursor-capture operator was unimplemented — `@P 'c'` on "abcde" gave empty in BOTH
+  modes vs oracle `P=2`. `@expr` parses to `TT_CAPT_CURSOR` (snobol4.y:182), lowers (lower.c:423) to
+  `SM_PAT_EPS`+`emit_pat_capture(var, mode=2)`; runtime builds an `XATP` PATND via `pat_at_cursor` (STRVAL="@",
+  distinct from `pat_user_call`). `build_node` (lower_pat_dcg.c) had NO `TT_CAPT_CURSOR` case → returned NULL →
+  `BB_lower_pat` failed → silent no-op. **Fix (3 files, +25 lines, mode-2 oracle path only):** (1) `BB.h`: new
+  `BB_PAT_ATP` opcode, **appended at enum END** (no shift to Prolog/Icon opcodes — verified gains persist with
+  end-placement, so the native gain below is genuine, not enum-shift fragility); (2) `lower_pat_dcg.c`
+  `case TT_CAPT_CURSOR` → `BB_PAT_ATP` single-shot zero-width leaf (sval=varname, α=β=self, γ=sp, ω=fp); (3)
+  `bb_exec.c case BB_PAT_ATP` → α (state 0) writes current 0-based cursor Δ as `{.v=DT_I,.i=Δ}` via NV_SET_fn,
+  returns γ; β (state>0) resets + fails to ω. **Mode-2 (--interp) 255→259 (+4: cross, 074_pat_star_var_cursor,
+  W07_capt_cur, ReadWrite_driver); native 260→261 (+1: ReadWrite_driver — genuine & stable across 3 reruns,
+  exact-match incl. LineMap offsets that depend on a correct cursor).** ZERO regression both modes (FAIL-list
+  comm diffs empty). Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053 pre-existing), cross-lang
+  icon/prolog/raku/snocone 5/5/5/5, FACT=0, broker 59/5 (was 57/5, sibling fluctuation, same 5 FAIL), audit GATE
+  FAIL = PRE-EXISTING (xa_wasm_main.cpp + xa_stubs.cpp Raku NFA NO-ARM; this change adds no template → no new
+  audit entry). **REMAINING HALF — native @ template (cross/W07_capt_cur/074 native).** Native (mode-3) runs the
+  flat-wired BB graph; `BB_PAT_ATP` has no `walk_bb_flat` case → falls to `default:` (`jmp ω`) = **honest FAIL**
+  (NOT silent-wrong; RULES-acceptable interim, matches the goal's "honest [NO-SM-BB] failure for unbuilt arms").
+  To lift those three native: (a) `build_patnd` (lower_pat_dcg.c) XATP-with-STRVAL=="@" → `BB_PAT_ATP`; (b)
+  `bb_pat_atp.cpp` template (TEXT+BINARY arms) — model on `bb_pat_pos.cpp`; BINARY arm writes Δ→var as int
+  (runtime helper: add `rt_at_cursor(varname, delta)` near `rt_cap_assign_cursor` rt.c:873, or reuse it with
+  is_imm semantics); (c) `emit_core` dispatch + `walk_bb_flat case BB_PAT_ATP: FILL(...)`. Byte-producing, so its
+  own focused session. (NB: `cross` is a `crosscheck/strings/` core test whose `.ref` is oracle-derived — verified
+  the SPITBOL oracle produces the exact 21-line crossword; it needs INPUT `SNOBOL\nOBJECT` via `cross.input`.)
 
 - **2026-05-30 Opus 4.8 — SBL-911-PORTABLE ✅ (corpus) + counter/semantic-driver triage** (corpus staged,
   NOT pushed pending `perform hand off`; one4all UNTOUCHED at `5e1bad51` — binary byte-identical to baseline,
