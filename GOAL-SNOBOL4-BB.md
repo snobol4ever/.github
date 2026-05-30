@@ -417,28 +417,28 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 15771c7d  SBL-CAP-COMMIT-NATIVE: deferred capture-commit mode-3 native (native +1: word1)
-HEAD corpus        = 447c05b    SBL-911-PORTABLE (911_datatype → SPITBOL-portable REPLACE idiom)
+HEAD one4all       = 94e152f3  SBL-ALTCAT-XLATE: pure XCAT/XOR-over-XCHR via patnd_to_bb_tree in BROKERED (--interp +2: case_driver, test_case)
+HEAD corpus        = 447c05b    SBL-911-PORTABLE
 GATE-1 smoke       = 13/13 (mode-2 AND mode-3)
 GATE-2 broker      = 61/5
-GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 265/280  (+1 this session: word1)
-true --interp      = 259/280  (unchanged)
+GATE-3 mode-4      = (not gated; rung M4=18/19, 053 pre-existing)
+DEFAULT/NATIVE     = 265/280
+true --interp      = 261/280  (+2 this session: case_driver, test_case)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
 FACT RULE          = 0
-audit_m3_native    = GATE FAIL (PRE-EXISTING — Raku NFA xa_wasm_main.cpp NO-ARM)
+audit_m3_native    = GATE OK
 GATE-PK            = stale
 FAIL-diff native vs m2 = comm -23 native m2 EMPTY (zero native-only regressions)
 ```
 
 **This session (2026-05-30 Sonnet 4.6):**
-- **SBL-CAP-COMMIT** (`9011d961`): deferred-capture table in `bb_exec_pat` oracle (mode-2). `BB_PAT_ASSIGN_COND/IMM` defer `NV_SET_fn` via `g_dcap[]` when `g_dcap_active` set; flush on full-pattern success, clear on failure. Fixes OUTPUT firing on every ARB backtrack step in mode-2. Zero regressions.
-- **SBL-CAP-COMMIT-NATIVE** (`15771c7d`): same fix for mode-3 native path. `rt_cap_assign`/`rt_cap_assign_cursor` in `rt.c` defer via `g_rt_dcap[]` when `g_rt_dcap_active` set; `exec_stmt` activates flag, calls `rt_dcap_flush()` at Phase4 on success, `rt_dcap_clear()` on failure. Native 264→265 (+1: word1 byte-exact). Zero regressions.
+- **SBL-ALTCAT-XLATE** (`94e152f3`): `patnd_is_pure_altcat` predicate — XCAT/XOR trees with all-XCHR/XEPS leaves. Routes `icase()`-style patterns through `patnd_to_bb_tree` in BROKERED mode. --interp 259→261 (+2: case_driver, test_case). m2-only gap set 6→4.
+- **SBL-CAP-COMMIT** (`9011d961`): deferred-capture table in bb_exec_pat oracle.
+- **SBL-CAP-COMMIT-NATIVE** (`15771c7d`): same for mode-3 native (native +1: word1, 264→265).
+- **SBL-AUDIT-NFA** (`b6efe62a`): audit GATE OK (bb_nfa.cpp added to TRIVIAL_OK).
 
-**Live mode-2-only gaps (6):** `124_pat_regex_keyword_seal` (DEFER-resume `[~]`), `Qize_driver`,
-`XDump_driver` (charset-expr + variable piece + ARBNO), `case_driver`, `test_case` (SBL-ALTCAT-XLATE),
-`word1` (ARB+ALT in mode-2 oracle — pre-existing, separate from cap-commit).
+**Live m2-only gaps (4):** `124_pat_regex_keyword_seal` (DEFER-resume), `Qize_driver`, `XDump_driver` (charset-expr+ARBNO brokered wiring), `word1` (ARB+ALT mode-2 oracle)..
 
 **WATERMARK CORRECTION (2026-05-29 Opus 4.8 audit, bisection-verified).** The prior claim that Raku commit `30e7c0a1` regressed SNOBOL4 m2 252→223 via shared bb_exec.c/coerce is **FALSE** — that commit's bb_exec.c change is `BB_LANG_RKU`-gated and its parent already scored 223. The real story: the default corpus harness (`bare scrip f.sno`) is **mode-3 native by default** (`scrip.c:135` mode_run=1), NOT mode-2; commit `0f4fcfde` ("Remove all mode fallback paths", Lon no-fallback directive) removed the mode_run→sm_interp_run fallback, **honestly exposing native-arm gaps** previously masked. There is no Raku-induced shared-path regression to chase. Full evidence: `HANDOFF-2026-05-29-OPUS48-SBL-NATIVE-GAP-AUDIT-AND-WATERMARK-CORRECTION.md`. Remaining native gaps (oracle-pass / native-fail): Cluster A native user-functions (**1010 recursion SEGV — BISECTED (Opus 4.8, 2026-05-29): plain recursion is FINE native (`fact(5)`→120, `fact(1)`→1 both pass); the SEGV is TWO distinct native-dispatch sub-bugs, each reproduced in isolation: (a) OPSYN-alias recursion — `OPSYN(.facto,'fact'); facto(4)` SIGSEGVs (register_fn_alias path under recursive native call); (b) alternate entry point — `DEFINE('fact2(n)', .fact2_entry)` + recursive call SIGSEGVs (DEFINE_fn_entry / entry-label≠name native dispatch). Next session: gdb each in isolation; likely the native call/return frame setup for aliased/alt-entry fns. Not template work.**), 1016 eval SEGV, 1013 NRETURN-lvalue, 1011 redefine, 1017 arg_local), Cluster B BREAKX (**CLOSED ✅ SBL-BREAKX-2**), Cluster C drivers (fence_driver; **match_driver CLOSED ✅ by SBL-DATA-FN-SHADOW**).**094 DATA accessor — FIXED ✅ (SBL-DATA-FN-SHADOW, Opus 4.8, 2026-05-29)**: root cause was NOT case-folding — the native `rt_call` (rt.c) consults the cross-language `icn_try_call_builtin_by_name` table (ungated, serving Raku/Icon `write`) BEFORE the SNOBOL4 `INVOKE_fn`. Icon has a `real()` builtin → a SNOBOL4 `real(X)` on a `DATA('complex(real,imag)')` object was intercepted by Icon's `real` (fails on DT_DATA) instead of reaching the DATA accessor; `imag` worked only because Icon has no `imag`. Fix: exported `sno_fn_registered(name)` (case-sensitive func-table presence check) and gated the icn fallback behind `if(!sno_fn_registered(name))` — a user-DEFINE'd or DATA-registered SNOBOL4 fn now shadows any cross-lang builtin and reaches its home dispatcher; unregistered names (Icon/Raku `write`, Icon `real` w/o a DATA def) unaffected. Native +3: 094 + 811_size (SIZE/`size` shadow, same class) + match_driver. Cross-lang smokes icon/prolog/raku/snocone/snobol4 5/5/5/5/13 unchanged.)
 
