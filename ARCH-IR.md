@@ -63,6 +63,13 @@ Label:  Subject  Pattern  =Replacement  :S(goto)  :F(goto)
 
 Phases 1,2,4,5: straight-line stack machine. Phase 3: Byrd box graph.
 
+> ⛔ **CORRECTION (2026-05-30, GROUND ZERO 3).** Icon does not use the stack
+> machine / SM value stack at all. An Icon program is one connected Byrd box
+> graph, stackless: values in flat per-box DATA slots, inter-box transitions by
+> direct `jmp`, zero SM opcodes emitted. The "stack machine" phases above describe
+> the SNOBOL4 SM path, not Icon. See `GOAL-ICON-BB.md` → "GROUND ZERO 3" and
+> `ARCH-x86.md` §"Boxes are stackless".
+
 ---
 
 ## Polyglot CODE_t* (U-12 through U-19)

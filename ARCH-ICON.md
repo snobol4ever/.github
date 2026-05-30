@@ -17,6 +17,19 @@ a box. The broker pumps it (BB_PUMP mode).
 **Key distinction from SNOBOL4:** SNOBOL4 uses BB_SCAN (try each cursor
 position). Icon uses BB_PUMP (generate all values until omega).
 
+**STACKLESS (foundational, GROUND ZERO 3, 2026-05-30).** An Icon program emits
+ZERO SM opcodes and uses NO value stack — no SM value stack, no `r12` TOS, no
+`rt_push_*`/`rt_pop_*`. Every box's value lives in a **flat per-box DATA slot**
+(`&pBB->value` / `&pBB->counter` / `&pBB->state`); a consumer reads its operand
+boxes' slots directly (operands known at emit time via α/β), exactly as Proebsting
+specifies (`plus.value ← E1.value + E2.value`). Unbounded-depth backtrack state
+(ARBNO, recursion) lives in a **per-box .bss arena** indexed by depth — never a
+global stack. Inter-box transitions are direct `jmp`. The reference embodiment is
+`one4all/refs/bb/test_icon.c` (and the archived stackless emitter
+`one4all/archive/backend/emit_emitters/emit_x64.c`, which benchmarked faster than
+SPITBOL because there is no stack). The prior mode-3 build that introduced an SM
+value stack is SUPERSEDED — see `GOAL-ICON-BB.md` → "GROUND ZERO 3".
+
 **Relational ops are NOT booleans (foundational).** A comparison is a
 zero-or-one-result generator: it succeeds (yields a value → γ) or fails
 (→ ω). Verified across both references: canonical Icon

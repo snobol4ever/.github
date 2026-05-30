@@ -45,6 +45,17 @@ spill canonical state).  No register is reserved for `SM_State*`.
 
 ## Stacks and stack-like structures
 
+> ⛔ **CORRECTION (2026-05-30, GROUND ZERO 3).** The "SM value stack" described
+> below was a WRONG premise for Icon (and is being removed from Icon BB emission).
+> Icon Byrd boxes are stackless per `ARCH-x86.md` §"Boxes are stackless": values
+> live in **flat per-box DATA slots** and flow by static `jmp` wiring (consumer
+> reads its operand boxes' slots directly); unbounded-depth backtrack state lives
+> in **per-box .bss arenas** (ARBNO / recursion), not on any value stack. The
+> stackless emitter that benchmarked faster than SPITBOL is archived at
+> `one4all/archive/backend/emit_emitters/emit_x64.c`; references in
+> `one4all/refs/bb/`. The SM value stack (`r12` TOS, `rt_push_*`/`rt_pop_*`) must
+> NOT be used by the Icon path. See `GOAL-ICON-BB.md` → "GROUND ZERO 3".
+
 SCRIP has **two stacks** and one **tree of heap-resident DATA blocks**.
 The tree replaces what SPITBOL/CSNOBOL4 implement as a third stack
 (the pattern history stack).
