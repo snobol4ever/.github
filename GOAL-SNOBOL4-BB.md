@@ -155,15 +155,19 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
   backtrackable generator" (delegate) from "inner is sealed/exhausted" (fail upstream). The +1/−3 patch is
   reproducible from this watermark; the leaf+FENCE base (committed `77a39e82`) is the clean floor.
 
-- [ ] **ANY/SPAN/etc. with a charset EXPRESSION argument (064_pat_fence_fn_capture).** `ANY(&UCASE &LCASE)`:
-  the arg is `TT_SEQ(TT_KEYWORD UCASE, TT_KEYWORD LCASE)` — a CONCATENATION of keyword csets, not a
-  single `TT_VAR`, so the SBL-BREAK-VAR `TT_VAR` path does not catch it. `&UCASE`/`&LCASE` are
-  string-valued keyword vars (`snobol4.c:1861 NV_SET_fn("UCASE", STRVAL(...))`). The principled fix:
-  lower the charset SUB-EXPRESSION to SM ops that compute the concatenated string and feed it to the
-  pattern node (as native's `rt_pat_*` consumes a stack value), rather than extending `bb_exec.c` to
-  walk a charset sub-tree (would violate NO-AST-WALKING). Larger; deferred this session by choice.
-  **CONSOLIDATED (2026-05-29 Opus 4.8): this is the SAME root cause as `XDump_driver` + `Qize_driver` —
-  see the triage block immediately below. Three GOAL items, ONE fix.**
+- [x] **ANY/SPAN/etc. with a CONSTANT charset EXPRESSION argument (064_pat_fence_fn_capture) ✅** (SBL-CSET-FOLD,
+  2026-05-29 Opus 4.8, commit `216d95dc`). `ANY(&UCASE &LCASE)`: arg is `TT_SEQ(TT_KEYWORD UCASE, TT_KEYWORD LCASE)`
+  — a CONSTANT concat of immutable charset keywords. FIX: `build_node` (lower_pat_dcg.c) now constant-folds a charset
+  arg that is a single immutable charset keyword (&UCASE/&LCASE/&DIGITS) or a TT_SEQ/TT_CAT of literals + those
+  keywords into one literal charset string in `sval` (identical to literal `ANY('...')`), so `BB_lower_pat` succeeds
+  and mode-2 uses the bb_exec oracle instead of the brokered PATND fallback. &ALPHABET excluded (runtime-filled).
+  Non-constant pieces (TT_VAR / other keywords) still return NULL → PATND fallback preserved. Folded sval is a plain
+  charset string → modes 2/3/4 read it correctly (no mode-4 byte hazard). **mode-2 253→254 (+1: 064); native 259
+  unchanged; zero regression both modes.** Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1 (053), cross-lang 5/5/5/5,
+  broker 57/5, FACT 0, audit pre-existing Raku NO-ARM. **Qize_driver/XDump_driver NOT covered** — their charsets mix
+  a literal/keyword with a VARIABLE (`BREAK('"' "'" QizeWierd)`) so not constant-foldable, plus ARBNO+capture (the
+  brokered-wiring bug below). **case_driver/test_case = DIFFERENT root cause** (SBL-ALTCAT-XLATE, session log): the
+  fold made their `icase` BUILD correctly, exposing the inline-function-returned-alternation bug.
 
 - [ ] **TRIAGED — charset-EXPRESSION arg is ONE root cause covering `XDump_driver` + `Qize_driver` + `064`**
   (2026-05-29 Opus 4.8, full bisection + wired-graph dump; repro `/tmp/min4.sno` case P). Both drivers
@@ -404,24 +408,70 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 77a39e82  SBL-ALT-CURSOR-RESTORE + SBL-FENCE-SEAL (clean floor; was stale '55a92d39')
+HEAD one4all       = 216d95dc  SBL-CSET-FOLD (constant-fold charset-expr args; mode-2 +1: 064)
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 57/5     (sibling-influenced)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 259/280  (SBL-POOL-TRIM, +3: case_driver, fence_driver, test_case — bb_pool tail reclaim)
-true --interp      = 253/280  (+5 this session: 811_size, 063, 065, 061, test_string)
+DEFAULT/NATIVE     = 259/280  (unchanged — native already handled charset-expr via rt_pat_*)
+true --interp      = 254/280  (+1 this session: 064_pat_fence_fn_capture)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
 FACT RULE          = 0
-audit_m3_native    = GATE FAIL (PRE-EXISTING — Raku NFA xa_wasm_main.cpp NO-ARM; present on clean 2b5a2e77 via git stash)
+audit_m3_native    = GATE FAIL (PRE-EXISTING — Raku NFA xa_wasm_main.cpp NO-ARM; present on clean baseline via git stash)
 GATE-PK            = stale
 ```
+
+**Live mode-2-only gaps (5, after 064 closed):** `124_pat_regex_keyword_seal` (DEFER-resume `[~]`), `Qize_driver`,
+`XDump_driver` (both charset-expr WITH a variable piece + ARBNO — NOT constant-foldable), `case_driver`,
+`test_case`. The latter two now share ONE precisely-diagnosed root cause — see SBL-ALTCAT-XLATE in the
+session log below: an inline FUNCTION-RETURNED ALTERNATION pattern (`'Hello' icase('hello')`) routes through
+`exec_stmt`'s legacy `(BB_t*)pp` cast (BROKERED mode), which mis-executes a concatenation-of-alternations.
 
 **WATERMARK CORRECTION (2026-05-29 Opus 4.8 audit, bisection-verified).** The prior claim that Raku commit `30e7c0a1` regressed SNOBOL4 m2 252→223 via shared bb_exec.c/coerce is **FALSE** — that commit's bb_exec.c change is `BB_LANG_RKU`-gated and its parent already scored 223. The real story: the default corpus harness (`bare scrip f.sno`) is **mode-3 native by default** (`scrip.c:135` mode_run=1), NOT mode-2; commit `0f4fcfde` ("Remove all mode fallback paths", Lon no-fallback directive) removed the mode_run→sm_interp_run fallback, **honestly exposing native-arm gaps** previously masked. There is no Raku-induced shared-path regression to chase. Full evidence: `HANDOFF-2026-05-29-OPUS48-SBL-NATIVE-GAP-AUDIT-AND-WATERMARK-CORRECTION.md`. Remaining native gaps (oracle-pass / native-fail): Cluster A native user-functions (**1010 recursion SEGV — BISECTED (Opus 4.8, 2026-05-29): plain recursion is FINE native (`fact(5)`→120, `fact(1)`→1 both pass); the SEGV is TWO distinct native-dispatch sub-bugs, each reproduced in isolation: (a) OPSYN-alias recursion — `OPSYN(.facto,'fact'); facto(4)` SIGSEGVs (register_fn_alias path under recursive native call); (b) alternate entry point — `DEFINE('fact2(n)', .fact2_entry)` + recursive call SIGSEGVs (DEFINE_fn_entry / entry-label≠name native dispatch). Next session: gdb each in isolation; likely the native call/return frame setup for aliased/alt-entry fns. Not template work.**), 1016 eval SEGV, 1013 NRETURN-lvalue, 1011 redefine, 1017 arg_local), Cluster B BREAKX (**CLOSED ✅ SBL-BREAKX-2**), Cluster C drivers (fence_driver; **match_driver CLOSED ✅ by SBL-DATA-FN-SHADOW**).**094 DATA accessor — FIXED ✅ (SBL-DATA-FN-SHADOW, Opus 4.8, 2026-05-29)**: root cause was NOT case-folding — the native `rt_call` (rt.c) consults the cross-language `icn_try_call_builtin_by_name` table (ungated, serving Raku/Icon `write`) BEFORE the SNOBOL4 `INVOKE_fn`. Icon has a `real()` builtin → a SNOBOL4 `real(X)` on a `DATA('complex(real,imag)')` object was intercepted by Icon's `real` (fails on DT_DATA) instead of reaching the DATA accessor; `imag` worked only because Icon has no `imag`. Fix: exported `sno_fn_registered(name)` (case-sensitive func-table presence check) and gated the icn fallback behind `if(!sno_fn_registered(name))` — a user-DEFINE'd or DATA-registered SNOBOL4 fn now shadows any cross-lang builtin and reaches its home dispatcher; unregistered names (Icon/Raku `write`, Icon `real` w/o a DATA def) unaffected. Native +3: 094 + 811_size (SIZE/`size` shadow, same class) + match_driver. Cross-lang smokes icon/prolog/raku/snocone/snobol4 5/5/5/5/13 unchanged.)
 
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — SBL-CSET-FOLD ✅ + SBL-ALTCAT-XLATE diagnosis** (one4all `216d95dc` committed locally,
+  NOT pushed pending `perform hand off`; base `2d73a667`). Two findings closing/diagnosing the live mode-2-only
+  gaps. **(1) SBL-CSET-FOLD ✅ (committed):** a constant charset-expression arg (single immutable keyword
+  &UCASE/&LCASE/&DIGITS, or a TT_SEQ/TT_CAT of literals + those keywords) to ANY/SPAN/NOTANY/BREAK/BREAKX now
+  constant-folds to one literal charset string in `build_node` (lower_pat_dcg.c), so `BB_lower_pat` succeeds and
+  mode-2 uses the bb_exec oracle rather than the brokered PATND fallback (which mis-wires a charset-expr leaf inside
+  a multi-element CAT → NO-MATCH). Bisected via an isolation matrix: bare `ANY(&UCASE &LCASE)` ALREADY worked in
+  mode-2, but `POS(0) ANY(&UCASE &LCASE)` (and any CAT context, incl. a single `&UCASE`) failed — so the trigger is
+  a non-QLIT/non-VAR charset arg making build_node return NULL, NOT charset resolution. Fold helpers (`cset_kw_value`
+  /`cset_fold_len`/`cset_fold_fill`/`cset_try_fold`) are pure C, &ALPHABET excluded (runtime-filled), non-constant
+  pieces still NULL → fallback preserved, folded sval is a plain charset string (no mode-4 hazard). **mode-2 253→254
+  (+1: 064); native 259 unchanged; zero regression both modes** (FAIL-diffs empty RED side). Gates: smoke 13/13 ×2,
+  rung M2=19/0 M4=18/1 (053 pre-existing), cross-lang icon/prolog/raku/snocone 5/5/5/5, broker 57/5, FACT 0, audit
+  pre-existing Raku NO-ARM. **(2) SBL-ALTCAT-XLATE — DIAGNOSED, prototype REVERTED (NOT safe):** with the fold in
+  place, `case_driver`/`test_case` exposed a DISTINCT root cause. Their `icase('s')` builds
+  `('H'|'h')('E'|'e')...` correctly now, but using the function result INLINE as a match pattern (`'Hello'
+  icase('hello')`) fails in mode-2 while storing-then-matching (`p=icase('hello'); 'Hello' p`) works. Bisected
+  (isolation matrix + env-gated `exec_stmt` PATND-dump): ONLY an ALTERNATION (XOR / XCAT-of-XOR) returned from a
+  function and used inline fails — lit/concat/span/len all fine. The dumped PATND is a PERFECT `XCAT(XOR,XOR)` yet
+  NO-MATCHes. Cause: a bare `TT_FNC` pattern operand can't be lowered by `build_node` → `BB_lower_pat` fails →
+  `bb_idx=-1` → `exec_stmt`; in BROKERED mode (mode-2) a non-defer combinator root is NOT `needs_xlate` and NOT
+  `defer_combinator`, so it falls to the legacy `(BB_t*)pp` cast → `bb_build_brokered`, which mis-executes a
+  concatenation-of-alternations. (The stored case works because a bare `TT_VAR` pattern lowers to a `BB_PAT_DEFER`
+  node → `BB_lower_pat` succeeds → `bb_exec_pat` oracle resolves the var at runtime, never reaching `exec_stmt`;
+  the static inline `'Hi' ('H'|'h')` works for the same `bb_exec_pat`/build_node reason.) Prototype tried: a
+  `patnd_pure_altcat` predicate (XOR/XCAT over leaf atoms only — excludes XFNCE/XNME/XFNME/XARBN/XDSAR/capture, so
+  the legacy-cast-compensated fence/capture trees that regressed 146/147/152/1011/1013/1017 stay untouched) routing
+  those roots through `patnd_to_bb_graph` in the BROKERED branch. **Result: POSITIVE matches went green (test_case
+  6/7, inline alt-concat ok) BUT the γ-chain translation OVER-MATCHES the NEGATIVE case** — `'world' icase('hello')`
+  matched when it must not (test_case line 7 `FAIL: icase matched wrong string`). The isolated 2-element negative
+  (`'xyz' ('H'|'h')('I'|'i')`) was correct, so the over-match needs the full 5-element + leading-empty (`icase`
+  starts NULL) shape — suspect the leading eps/empty concat element in the γ-chain anchoring. REVERTED (stmt_exec.c
+  restored to HEAD): shipping a fix that turns NO-MATCH into false MATCH would regress the broad corpus. **NEXT
+  SESSION:** fix `patnd_to_bb_graph` (γ-chain) over-match for XCAT-of-XOR with a leading empty element (or strip the
+  leading eps in the fold/translation), re-confirm `'world' icase('hello')` NO-MATCH, then re-apply the
+  `patnd_pure_altcat` route and FULL-gate (must keep 146/147/152/1011/1013/1017 green). Closes case_driver +
+  test_case (case_driver ALSO emits `sm_lower: undefined label 'error' → Error 24` — a separate lowering issue to
+  check). `case_driver`/`test_case` minimal repro: `DEFINE('mp()'); mp mp = ('H'|'h')('I'|'i') :(RETURN)` then
+  `'xyz' mp()` must NO-MATCH and `'Hi' mp()` must MATCH, both modes.
 
 - **2026-05-29 Opus 4.8 — SBL-POOL-TRIM ✅** (staged, NOT pushed pending `perform hand off`; base `5cc1224e`).
   `fence_driver` native FAIL was misattributed to FENCE-SEAL — actual cause is **`bb_pool` exhaustion**.
