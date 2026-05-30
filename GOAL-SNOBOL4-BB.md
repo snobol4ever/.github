@@ -162,12 +162,59 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
   lower the charset SUB-EXPRESSION to SM ops that compute the concatenated string and feed it to the
   pattern node (as native's `rt_pat_*` consumes a stack value), rather than extending `bb_exec.c` to
   walk a charset sub-tree (would violate NO-AST-WALKING). Larger; deferred this session by choice.
+  **CONSOLIDATED (2026-05-29 Opus 4.8): this is the SAME root cause as `XDump_driver` + `Qize_driver` —
+  see the triage block immediately below. Three GOAL items, ONE fix.**
 
-- [ ] **Untriaged remaining mode-2-only gaps:** `Qize_driver`. (XDump_driver flipped green native this
-  session but is still a mode-2 gap; re-triage.) To regenerate the live mode-2-only list: run the broad
-  corpus under `--interp` and under `SCRIP_M3_NATIVE=1`, sort both FAIL lists, `comm -13 native m2`.
-  (Use a copy of `test_interp_broad_corpus_and_beauty.sh` with `--interp` injected on the scrip calls —
-  the stock harness runs bare `$INTERP` = mode-3 native by default per `scrip.c:135`.)
+- [ ] **TRIAGED — charset-EXPRESSION arg is ONE root cause covering `XDump_driver` + `Qize_driver` + `064`**
+  (2026-05-29 Opus 4.8, full bisection + wired-graph dump; repro `/tmp/min4.sno` case P). Both drivers
+  fail on the IDENTICAL diff: `Qize('hello')` renders `'' '' '' '' '' '' '' '' '' '' '' '' 'hello'`
+  (12 spurious empty captures) vs ref `'hello'` — XDump test 2 "string dump" and Qize_driver test 2
+  "Qize simple" are the same call. Source: `corpus/.../beauty_suite/Qize.sno`, the two quote-branch
+  patterns `(BREAK('"' "'" QizeWierd) '"' ARBNO(NOTANY("'" QizeWierd))) . part RTAB(0) . str`.
+  **Trigger (bisected, all three required):** (1) a pattern primitive `BREAK/ANY/NOTANY/SPAN` whose
+  charset arg is a **concatenation expression** (`'"' "'"`, or literal+var `'"' "'" QizeWierd`) — NOT a
+  single literal (correct) and NOT a single `TT_VAR` (correct, SBL-BREAK-VAR handles it); (2) an `ARBNO`
+  in the surrounding group; (3) the full anchored capture shape. Minimal failing repro: case P =
+  `str POS(0) (BREAK('"' "'") '"' ARBNO(NOTANY("'"))) . p RTAB(0) . r` on `str='cat'` → mode-2 MATCHES
+  empty (WRONG); native + single-literal (case G) + var-arg (case Q) all correctly NO-MATCH.
+  **Routing (why native/single-lit/var are fine, concat is not):** `lower.c:752-757` emits BOTH a runtime
+  PATND (`lower_pat_expr`, native consumes — concat handled correctly) AND the mode-2 oracle BB graph
+  (`BB_lower_pat`). `build_node` (`lower_pat_dcg.c:91-101` BREAK, and ANY/NOTANY/SPAN siblings) accepts
+  ONLY `TT_QLIT`|`TT_VAR`; a `TT_SEQ` concat → returns NULL → `BB_lower_pat` fails → `bb_idx=-1`. For
+  single-lit/var, `BB_lower_pat` SUCCEEDS so mode-2 uses the correct `build_node` oracle directly (verified:
+  cases G/Q emit NO translator traces). For concat, `bb_idx=-1` → mode-2 falls to `stmt_exec.c exec_stmt`;
+  the PATND contains `XARBN` so `patnd_needs_xlate` (`stmt_exec.c:237-311`) routes it through
+  `patnd_to_bb_graph`→`build_patnd` (`lower_pat_dcg.c:368`), and `exec_stmt` then runs that graph via
+  **`bb_build_brokered`→`bb_broker`** (`stmt_exec.c:382`), NOT `bb_exec_once`.
+  **Charset is correctly resolved (RULED OUT):** `build_patnd` XBRKC (`lower_pat_dcg.c:384`) sets
+  `bb->sval = pp->STRVAL_fn`; the wired-graph dump shows the BREAK node (`BB_PAT_BREAK`=kind 35) with
+  `sval=["']` — the correct 2-char set. So the empty match is a **four-port WIRING / brokered-walk bug**
+  for capture+ARBNO trees, corroborated by the `stmt_exec.c:237` gate comment ("legacy cast has been
+  compensating for latent issues in fence-heavy and capture-heavy PATND trees"; routing more through the
+  translator regressed 146/147/152/1011/1013/1017). Wired graph for case P (entry #6):
+  `#6 POS γ→#2; #2 cap[part] α→#5 γ→#0 ω=NULL; #5 BREAK["'] γ→#4 ω=NULL; #4 lit["] γ→#3 ω→#5;
+  #3 ARBNO γ→#2 ω→#4; #0 cap[rest] γ=NULL(accept) ω→#5; #1 RTAB γ→#0`. A static-trace under `bb_exec_once`
+  *should* fail (BREAK→ω=NULL→FAIL), so the empty success arises in the **brokered box driver
+  (`bb_broker`/`bb_build_brokered`)** walk of this capture+ARBNO+failing-leaf graph — that is the residual
+  fix locus (mode-2-only; native uses templates, mode-4 emit unaffected since these nodes are not built
+  for it today).
+  **Fix routes (none implemented — fragile, needs full mode-2 corpus gate):**
+  (A) GOAL-preferred/larger: make charset-expression args lower correctly — emit SM ops to compute the
+  concatenated charset and feed the pattern node (like native). Touches `build_node` + **mode-4 emit**
+  (`emit_bb.c:1482-1485` reads `nd->sval` for BB_PAT_SPAN/ANY/BREAK/NOTANY → must teach mode-4 the
+  dynamic case, or only constant-fold the all-literal sub-case which lifts ~0 corpus tests since nearly
+  all concats are literal+var: `SPAN(' ' tab)`×7, `SPAN(' ' nl)`×4, `SPAN('.' digits &UCASE '_' &LCASE)`×8,
+  `BREAK(nl ';')`, the Qize family). (B) contained/mode-2-only: fix the brokered-driver / `build_patnd`
+  four-port wiring for capture+ARBNO trees — charset already correct, bug is structural. **Do NOT overload
+  `bb->sval` with a binary recipe** — `emit_bb.c:1482` consumes it as a plain C charset string and would
+  emit corrupt mode-4 x86. **Lifts a sizable latent cluster + 2 driver tests** when fixed.
+  To regenerate the live mode-2-only list: broad corpus under `--interp` and `SCRIP_M3_NATIVE=1`, sort
+  both FAIL lists, `comm -13 native m2` (stock harness runs bare `$INTERP` = mode-3 native per
+  `scrip.c:135`; inject `--interp`). **Current mode-2-only gaps (4):** `064_pat_fence_fn_capture`,
+  `124_pat_regex_keyword_seal` (the `[~]` DEFER-resume item), `Qize_driver`, `XDump_driver` — the latter
+  three (064/Qize/XDump) all = this charset-expr root cause. **NEW native-only gap (1):** `fence_driver`
+  passes mode-2 but fails native after the FENCE-SEAL commit `77a39e82` — contradicts the older "ZERO
+  native-only" milestone (line 76); worth a re-check.
 
 
 - [x] **SBL-ARB-CAT-BACKTRACK (mode-3 native + mode-4 flat) ✅** (2026-05-29 Opus 4.8). The prior
