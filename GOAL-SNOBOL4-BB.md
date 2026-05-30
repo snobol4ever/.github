@@ -408,8 +408,8 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 877f61fe  SBL-ATP mode-2 oracle (@var cursor capture; mode-2 +4, native +1)
-HEAD corpus        = fb98a12    SBL-911-PORTABLE (911_datatype → SPITBOL-portable REPLACE idiom)
+HEAD one4all       = 05485efa  SBL-ATP mode-2 oracle (@var cursor capture; mode-2 +4, native +1) [rebased onto sibling cfa01738]
+HEAD corpus        = 447c05b    SBL-911-PORTABLE (911_datatype → SPITBOL-portable REPLACE idiom) [rebased onto sibling f973ed8]
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 59/5     (sibling-influenced; +2 vs prior 57/5, same 5 FAIL → no regression)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
