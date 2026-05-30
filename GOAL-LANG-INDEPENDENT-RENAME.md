@@ -110,7 +110,17 @@ FACT=0 · sm_dead ≤1. Baseline at carve: m2 6/6, FACT 0, sm_dead 1.
   `sno_reset`. Method: blanket `s/sno_/core_/g` + revert-8. **`core.c` (was `snobol4.c`) is
   UTF-8-"binary" to grep** (contains α/β/γ/ω) → had to use `grep -a` for BOTH file selection AND
   verification (see Gotcha 4). Gate green.
-- [ ] **Slice 2 — Icon interp**: `icn_/icon_` files (4) + 438 symbols → feature names.
+- [x] **Slice 2 — Icon interp** ✅ (`bf3f7928`): `icn_/icon_ → gen_` (mirrors `core_`). Files:
+  `interp/{icn_runtime→gen_runtime.c/.h, icn_value→gen_value.h, icon_box_rt→box_rt.h, icon_gen→gen.h}`,
+  `lower/{lower_icn→lower_graph.c/.h, lower_icn_bb→lower_graph_bb.h}` (last was an ORPHAN, no includers;
+  found only because its `icn` is mid-name not prefix — `find -name 'icn_*'` missed it). Blanket
+  `s/icn_/gen_/g; s/icon_/gen_/g` over post-AST (incl. `icn_bb_*`, `icon_*_new` emitter ctors,
+  `_icn_*` driver hooks, `*_state_t`, `icn_bb_dcg`); 9 frontend exemptions reverted (def-site in
+  `src/frontend/`, called from post-AST): `icn_cset_{canonical,complement,diff,inter,union}` (def
+  `icon_runtime.c`), `icon_compile/icon_driver/icon_lex` (parser API), `g_icn_jcon` (lexer↔coerce
+  global). 51 files, 1007/1007 (pure rename). Gate green (m2 6/6, FACT 0, sm_dead 1; runtime/stage2
+  isolation rc=0; lower_isolation unchanged). **NOTE for next slices: `grep -o` on MULTIPLE files
+  prefixes `filename:` — use `grep -oh` for identifier extraction or intersections silently break.**
 - [ ] **Slice 3 — Prolog**: `pl_/prolog_` files + 1109 symbols + 8 free boxes + 4 collision boxes.
   Biggest slice.
 - [ ] **Slice 4 — Raku**: `raku_/rk_` files + 300 symbols.
@@ -209,24 +219,47 @@ be updated to record the base reg + per-language roles) · GC arena setup in `rt
 ## Session State
 
 ```
-HEAD one4all  = d7f64afa  (LANG-INDEP Slice 1b)
+HEAD one4all  = bf3f7928  (LANG-INDEP Slice 2 — Icon)
 HEAD .github  = (see git log)
 Baseline      = Icon m2 6/6 (HARD), m3 2/6, FACT 0, sm_dead 1/1
-Slices done   = Slice 0 ✅ (5370695f), Slice 1a ✅ (7d57c6bd), Slice 1b ✅ (d7f64afa) — all green
-Next          = Slice 2 (Icon: icn_/icon_ files + 438 symbols). USE grep -a (Gotcha 4).
-Handoff       = HANDOFF-2026-05-30-OPUS48-LANG-INDEP-RENAME-SLICE-0-1.md
+Slices done   = 0 ✅ (5370695f), 1a ✅ (7d57c6bd), 1b ✅ (d7f64afa), 2 ✅ (bf3f7928) — all green
+Next          = Slice 3 (Prolog: pl_/prolog_ + ~1109 symbols + 12 boxes). USE grep -oh + grep -a.
+Handoff       = HANDOFF-2026-05-30-OPUS48-LANG-INDEP-RENAME-SLICE-2.md
 ```
 
-### Slice 2 prep notes (Icon)
-- Files: `interp/icn_runtime.c/.h`→`gen_runtime`, `interp/icn_value.h`→`gen_value`,
-  `interp/icon_box_rt.h`→`box_rt`, `interp/icon_gen.h`→`gen`, `lower/lower_icn.c/.h`→`lower_graph`.
-- Symbols: `icn_`/`icon_` → strip-or-namespace. Top families: `icn_bb`, `icn_binop`, `icn_type`,
-  `icn_cset`, `icn_frame`, `icn_to`, `icn_while`, `icn_proc`, `icn_call`, `icn_kw`, `icn_leaf`,
-  `icn_out`, `icn_try`, `icn_runtime`, `icn_value`. Many are too generic to bare-strip
-  (`icn_call`→`call`? `icn_type`→`type`?) — prefer a `gen_` namespace for the runtime ones
-  (mirrors `core_`), OR a feature word where unambiguous (`icn_cset`→`cset`, `icn_to`→`to_gen`).
-  **Check def-site for frontend exemptions first** (icon parser API in `src/frontend/icon/`).
-  **Watch the collision with bb_* box names** (`icn_bb_*` vs the `bb_*` templates) and the
-  `bb_call`/`bb_alt`/`bb_seq`/`bb_var` names reserved for the Prolog slice's `bb_disj/conj/goal/logicvar`.
+### Slice 3 prep notes (Prolog) — OPEN NAMESPACE DECISION
+- **Files (git mv):** `interp/pl_runtime.c/.h → resolve_runtime.c/.h`; `lower/lower_pl.c/.h →
+  lower_clause.c/.h`; `emitter/BB_templates/bb_pl.cpp → bb_clause.cpp`; `bb_pl_*.cpp` strip `pl_`.
+- **12 ratified boxes:** collisions `bb_pl_alt→bb_disj`, `bb_pl_seq→bb_conj`, `bb_pl_call→bb_goal`,
+  `bb_pl_var→bb_logicvar`; free `bb_pl_{arith,atom,builtin,catch,choice,cut,ite,unify}` strip `pl_`.
+- **⚠ DECISION NEEDED before bulk symbol rename (AUDITED bf3f7928, 2026-05-30 Opus):**
+  - **Counts:** 128 distinct `pl_`/`prolog_` symbols (NOT 1109 — that was occurrences). Tractable.
+  - **Namespace:** `pl_ → resolve_` is **collision-free** (0 existing `resolve_`), mirrors `core_`/`gen_`
+    AND the ratified `pl_runtime→resolve_runtime`. Recommend option (b) `resolve_`. (Bare-strip per the
+    GOAL's `pl_unify→unify` rule collides on ~24 generic stems: write/writeq/write_canonical/copy_term/
+    functor/univ/arg/args/trail_mark/nb_getval/nb_setval/choice/builtin/leaf/key/cs/locals/...).
+  - **Boxes are 18, not 12.** Ratified: 4 collisions (`bb_pl_alt→bb_disj`, `bb_pl_seq→bb_conj`,
+    `bb_pl_call→bb_goal`, `bb_pl_var→bb_logicvar`) + 8 free strip (`arith,atom,builtin,catch,choice,cut,
+    ite,unify`). **UNRATIFIED — need names:** `bb_pl_{findall,intern,ls,op,rs,str}`. (ls/rs/op/str look
+    like list/struct/operator helpers; findall/intern are builtins.)
+  - **⚠ ENUM COLLISIONS:** `BB_CONJ`(13), `BB_ARITH`(48), `BB_ATOM`(113), `BB_BUILTIN`(33),
+    `BB_CHOICE`(73), `BB_CUT`(17), `BB_UNIFY`(15) ALREADY EXIST as enum constants. Present `BB_PL_*`
+    enums are only ALT/CALL/CATCH/ITE/SEQ/STRUCT/VAR. So the box-name strip must reconcile fn names vs
+    the pre-existing enums — confirm whether those enums are the SAME construct (already partly
+    de-prefixed) or DIFFERENT (true clash). Investigate before renaming any enum.
+  - **⚠ 32 cross-boundary symbols** (Slice 2 had 9). Tight frontend↔runtime coupling: `prolog_*` are
+    frontend-defined (exempt), but `g_pl_trail`, `g_pl_cut_flag`, `pl_box_*`, `pl_broker`, `pl_write*`,
+    `pl_univ`, `pl_functor`, `pl_arg`, `interp_exec_pl_builtin`, `lower_pl_clause_body`,
+    `current_prolog_flag`, etc. appear in BOTH — each needs a def-site call (exempt vs rename-both-sides).
+    Full list saved during audit; re-derive with `grep -oh` (NOT bare `grep -o`).
+  - **`xa_prologue.cpp` is a FALSE POSITIVE** (assembly prologue, not Prolog) — DO NOT rename. `prolog_`
+    won't match `prologue`, so the symbol sed is safe, but exclude the file from any `*prolog*` glob.
+  - **Files confirmed present:** `lower/lower_pl.c/.h` (→lower_clause), `interp/pl_runtime.c/.h`
+    (→resolve_runtime), `emitter/BB_templates/bb_pl.cpp`(→bb_clause) + 12 `bb_pl_*.cpp`.
+- **Method (either way):** identical to Slice 2 — `git mv` + include/Makefile fix; robust cross-boundary
+  intersection with `grep -oh` (NOT bare `grep -o`) to find frontend-defined symbols called from
+  post-AST (Prolog parser API) → exempt+revert; blanket; revert; guards; residual `grep -a`; build;
+  HARD gate; commit; push. Watch `bb_pl_*` must NOT collide with Icon's existing `bb_alt/seq/call/var`
+  (that is exactly why the 4 collisions are renamed to disj/conj/goal/logicvar).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
