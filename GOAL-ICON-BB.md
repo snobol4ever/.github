@@ -51,13 +51,13 @@ FACT 0, smokes hold.
 
 ### Rung ladder (HELLO WORLD up — each gated, stackless, no `rt_push`/`rt_pop`)
 
-- [ ] **GZ-0 — Scaffold + gates.** Pin the no-stack gate above into `scripts/`. Confirm the
+- [x] **GZ-0 — Scaffold + gates.** Pin the no-stack gate above into `scripts/`. Confirm the
   per-box slot idiom (`&pBB->value`) is the value-storage primitive. Decide the slot/arena
   conventions by reading `emit_arbno` + one full pattern-node body in the archived `emit_x64.c`
   end-to-end, and `test_icon.c` for the Icon arithmetic shape. No code change beyond the gate script.
-- [ ] **GZ-1 — `write("hello")`.** One box, literal value in its own slot, write reads the slot.
+- [x] **GZ-1 — `write("hello")`.** One box, literal value in its own slot, write reads the slot.
   No push. m2==m3, zero-SM, no-stack gate = 0 for this box family.
-- [ ] **GZ-2 — `write(42)`.** Literal-N template (PDF §4.1): `lit.start: lit.value ← N; goto succeed`.
+- [x] **GZ-2 — `write(42)`.** Literal-N template (PDF §4.1): `lit.start: lit.value ← N; goto succeed`.
   Value in `&lit->value`. write reads it.
 - [ ] **GZ-3 — `write(1 + 2)`.** plus template (PDF §4.3): `plus.value ← E1.value + E2.value`,
   read from the two child slots. No operand push/pop.
@@ -139,6 +139,11 @@ grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_ca
 # NO-STACK gate (GROUND ZERO 3): Icon emission path contains ZERO value-stack push/pop.
 grep -rnoE 'rt_(push|pop)_[a-z_]+' src/emitter/BB_templates/ src/emitter/emit_bb.c \
   | grep -v _pl_ | wc -l        # target 0 for every Icon box family as it is rebuilt
+bash scripts/test_gate_icn_no_stack.sh            # pinned ratchet (baseline lowers as families rebuild)
+
+# ONE-REGISTER FRAME gate (ICON STACKLESS ONE-REGISTER FRAME FACT RULE, RULES.md): all per-box
+# storage is [reg+off] into ONE per-sequence local frame — NO absolute &pBB->slot immediates.
+bash scripts/test_gate_icn_one_reg_frame.sh       # pinned ratchet; target 0 as families migrate
 
 # Smokes (must hold)
 bash scripts/test_smoke_icon.sh                # PASS=5
@@ -174,10 +179,20 @@ bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 
 ## Watermark
 
+**HEAD (one4all):** `50a6d07a` (2026-05-30). **Gates:** FACT 0; no-stack ratchet 129; one-reg-frame ratchet 20; Icon smoke mode-2 6/6 (hard), mode-3 2/6; Prolog 5/5; broker 61. **Done this session:** demolition (23 abort sites); two-mode Icon smoke; GZ-0/GZ-1/GZ-2; two new FACT rules (ONE-REGISTER FRAME + READ-ONLY LOCALS IP-RELATIVE) in RULES.md; one-register frame plumbing (r15) established & no-op-verified. **NEXT:** GZ-3 `write(1+2)` — plus reads RO operands `[rip+disp]`, stores RW result `[r15+off]`, write reads `[r15+off]`; expect `arith` smoke -> m3 3/6.
+
 GROUND ZERO 3 — stackless rebuild. The IBB-* corpus numbers (the old 166-PASS line) are NOT a
 baseline for this build; they were produced by the value-stack path now being removed.
 
 | Step | State | Notes |
 |------|-------|-------|
-| Demolition (in progress) | Icon value-stack consumers being stubbed to abort at named sites | `g_vstack` and the SM stack machine stay LIVE for SNOBOL4. Icon-only `rt_*` consumers stubbed with `ICN_STACKLESS_ABORT` in `rt.c`. So far: `rt_pop_nv_set`, `rt_pop_store_i64`, `rt_push_stored_i64`, `rt_pop_store_descr`, `rt_case_eq`. Remaining: write trailers (`rt_pop_write_int_nl`, `rt_pop_write_any_nl`), `rt_unop_*`, the `rt_icn_*` family, and the Icon templates' own `rt_push_int`/`rt_vstack_pop` emissions (cut at the template level). Verified: SNOBOL4 `--interp`/`--run` unaffected; Icon `--interp` (oracle) unaffected; Icon `--run` aborts loudly at the first stubbed box (e.g. `x := 5` → `rt_pop_nv_set`). |
-| GZ-0 … GZ-11+ | not started | Rebuild from `write("hello")` upward per the ladder above. |
+| Demolition | DONE | All Icon value-stack runtime consumers stubbed to `ICN_STACKLESS_ABORT` (23 sites): `rt_pop_nv_set`, `rt_pop_store_i64`, `rt_push_stored_i64`, `rt_pop_store_descr`, `rt_case_eq`, `rt_pop_write_int_nl`, `rt_pop_write_any_nl`, six `rt_unop_*`, ten vstack-using `rt_icn_*` (`call_proc`, `call_builtin`, `concat`, `field_get/set`, `idx_get/set`, `list_bang`, `limit_begin`, `toby_real`). Slot-based `rt_icn_limit_more/inc`, `proc_*` registry, `builtin_is_known`, and Raku `rt_load_frame`/`rt_store_frame` left LIVE. SNOBOL4/Prolog unaffected; Icon `--interp` 5/5; Icon `--run` aborts loudly at every value-stack box. |
+| GZ-0 | DONE | No-stack gate pinned `scripts/test_gate_icn_no_stack.sh` (ratchet baseline 129). Slot/arena conventions grounded in archived `emit_arbno` + `test_icon.c`. |
+| Smoke (two-mode) | DONE | `test_smoke_icon.sh` runs mode-2 (`--interp`, HARD GATE) AND mode-3 (`--run`, tracked); added `write_int` case. Current m2 6/6, m3 2/6. |
+| GZ-1 `write("hello")` | DONE | Stackless literal-string (`MEDIUM_TEXT` -> `rt_write_str_nl`). m2==m3, count=0. |
+| GZ-2 `write(42)` | DONE (RO-IP-relative) | Literal int is a READ-ONLY constant: `BB_LIT_I` is pass-through; the write box emits the int64 as sealed RO data inside its own blob and reads it `mov rdi,[rip+22]` (emit-time disp, no patch/abs/stack), then `rt_write_int_nl`. m2==m3 `42`, count=0. Conforms to BOTH new FACT rules; no register frame needed for a constant. one-reg-frame abs-slot 22->20. |
+| READ-ONLY LOCALS IP-RELATIVE (new FACT RULE 2026-05-30) | in force | RULES.md: per-box RO constants live in the SEALED segment next to their blob, read `[rip+disp]` (disp = emit-time const when data+access share the blob); only RW state uses the one-register frame. Applied to GZ-2. Shares the no-stack + one-reg-frame ratchets (no abs `&pBB->slot`). |
+| ONE-REGISTER FRAME (new FACT RULE 2026-05-30) | frame ESTABLISHED | RULES.md: all Icon BB seqs/graphs (flat-wired AND brokered) stackless with ONE per-sequence local frame indexed by ONE BB-frame register (distinct from `r10` broker / `r13` SM-state); slots `[reg+off]` (the `ζ` model). 22 absolute `&pBB/a0->(value|counter|state)` emissions (incl. GZ-2's 2) are LEGACY -> ratchet `scripts/test_gate_icn_one_reg_frame.sh` (baseline 22) to 0. NEXT (grounded 2026-05-30): mode-3 entry is `bb_build_flat(entry)` -> driver calls `fn(zeta,entry)` (scrip.c ~564: `(void)fn(NULL,0)`); the `bb_box_fn(void*zeta,int entry)` convention ALREADY carries a frame pointer in `zeta`/rdi (currently NULL). `g_flat_slot_count` (emit_bb.c:129) is a per-sequence slot counter reset in `bb_build_flat`/`bb_build_brokered` but UNUSED — the intended slot allocator. `bb_build_brokered` already emits `push rbp; mov rbp,rsp`. PLAN: (a) driver allocates a per-sequence frame and passes it as zeta instead of NULL (or slab allocates); (b) `bb_build_flat` emits a prologue loading the BB-frame register (r15, callee-saved, survives rt_* calls; distinct from r10/r13) from rdi, and a single epilogue all exits reach (preserve caller's r15 across the slab `ret`); (c) assign each box its slot offset via `g_flat_slot_count`; (d) migrate GZ-2 literal store + write read from `&pBB->value`/`&a0->value` to `[r15+off]`; gate m2==m3, one-reg-frame ratchet 22->20. OPEN: r15 push/pop across the slab's ret structure (verify single vs multi exit). |
+| Frame plumbing | DONE (no-op verified) | BB-frame register = r15 (callee-saved, survives rt_* calls). XA_FLAT_PROLOGUE (Icon-gated `g_icn_frame_active`): `push r15; mov r15,rdi` (replaces `sub rsp,8` — same rsp adjust, alignment preserved); XA_FLAT_EPILOGUE: `pop r15` before each ret. Driver sets the flag around `bb_build_flat(main)` and passes `rt_icn_frame()` (static per-seq buffer) as zeta. SNOBOL4/Prolog byte-identical (flag off). Icon hello/42 m2==m3, run exit 0. |
+| GZ-3 `write(1+2)` | NEXT | plus reads RO operands `[rip+disp]`, computes, stores RW result at `[r15+off]`; write reads `[r15+off]`. Should flip the `arith` smoke to m3 PASS (-> 3/6). |
+| GZ-4 ... GZ-11+ | not started | Build on the one-register frame per the ladder. |
