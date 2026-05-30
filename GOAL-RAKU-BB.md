@@ -247,6 +247,41 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+G3 PARSE-ONLY RUNG LANDED — and the prior session's "flex bug" was a MISDIAGNOSIS (Claude, Opus 4.8,
+  2026-05-29, one4all `4d0c69aa`). The parse-only G3 frontend rung (grammar/token/rule/regex) that the
+  immediately-prior session built-then-REVERTED is now GREEN and committed. The blocker that session
+  spent itself on — "token works, rule/regex SEGFAULT, crash is LEXER-INTERNAL (flex)" — was WRONG.
+  The crash is NOT in flex at all. gdb backtrace put it in src/ast/ast_print.c:67 flat_length ->
+  __strlen, during --dump-ast. ROOT CAUSE: TT_REGEX_DECL carries its flavor in v.ival (token=0,
+  rule=1, regex=2), and v is a UNION (ival/sval share storage — exactly like TT_SUB_DECL's nparams).
+  The AST printer's default-kind path reads v.sval and strlen's it; ival=0 (token) reads as a NULL
+  sval -> guard skips it -> safe; ival=1/2 (rule/regex) reads as pointer 0x1/0x2 -> strlen(garbage)
+  -> SEGV. That is the WHOLE bug. "token only works because it was added first" (the prior watermark's
+  own parenthetical hunch) was the tell — token's flavor is 0, the others' aren't. NO flex start-state
+  / longest-match / rule-ordering artifact was ever involved; the lexer the prior session reverted was
+  essentially fine. FIX (1 logical line, 3 identical sites): add TT_REGEX_DECL to the v.sval-read
+  exclusion guards in flat_length + the two print_node paths, exactly mirroring the pre-existing
+  TT_SUB_DECL/TT_PROC_DECL entries (same union-aliasing reason). LESSON for future sessions: when a
+  new node stores data in v.ival, it MUST join that exclusion list, or any --dump-ast of it crashes.
+  WHAT LANDED (3 files + probe): ast.h TT_GRAMMAR_DECL+TT_REGEX_DECL (enum + tt_e_name). raku.l —
+  grammar/token/rule/regex keywords (token/rule/regex set raku_expect_rebody=1); new STR_REBODY
+  start-state opened by the next `{` when armed, brace-depth-counted, EVERY char class handled
+  ({,},\\.,\\n,.) and bounds-guarded against the 64KB raku_strbuf, returns the whole body as
+  LIT_REGEX. raku.y — grammar_decl (mirrors class_decl) + grammar_body_list (KW_TOKEN/RULE/REGEX
+  IDENT LIT_REGEX -> TT_REGEX_DECL, v.ival 0/1/2 = flavor); wired into stmt next to class_decl.
+  Net-zero new conflicts (still 30 s/r); parser+lexer regenerated (bison 3.8.2). VERIFIED --dump-ast
+  clean for all three flavors, mixed multi-member grammars, empty grammar, nested-brace quantifier
+  bodies (a**{2,3}), and full subrule/class bodies (<ws> \\d+ [ 'x' | 'y' ]) — i.e. the brace counter
+  + opaque-body capture are robust well past the trivial probe. test/raku/rk_grammar_parse.raku added
+  as a parse-only fixture; it has NO .expected so the run-gates SKIP it (PASS/FAIL counts untouched) —
+  honoring the rule that a run-path test waits for lowering (G3-1). Gates HOLD at baseline: GATE-RK m2
+  41/42, GATE-RK4 m4 42/42, GATE-RK3 m3-native 41/42 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0
+  M4 18/1, FACT 0, build clean. Keyword-collision check: grammar/token/rule/regex appear in the corpus
+  only inside # comments (rk_combinator, rk_regex23) -> stripped before keyword match -> no breakage.
+  NEXT CODE RUNG: G3-1 (named-regex decl -> four-port generator lowering) then G3-2 (subrule seam <name>).
+  The parse layer is now in place; lowering is the next tier. ALTERNATIVE (own session): RK-BB-5.4c
+  (zip/cross, nested-tuple rep).
+
 G3 PARSE-ONLY RUNG ATTEMPTED + REVERTED (Claude, 2026-05-29; one4all REVERTED to clean 8be5f202,
   .github committed). Tried the parse-only G3 frontend rung (grammar/token/rule/regex keywords +
   grammar_decl). Got the AST STRUCTURE working but hit a lexer crash; reverted one4all clean per
@@ -644,6 +679,13 @@ PROPOSED G3 START (next session, fresh budget): a PARSE-ONLY rung — add the ke
 lowering, no x86, no gate movement). That isolates the pure-frontend risk before any BB/generator
 lowering. Then G3-1 (named-regex → four-port generator) and G3-2 (subrule seam). Authoring the first
 `test/raku/*.{raku,expected}` probe waits until at least parse + a minimal run path exists.
+
+**✅ PARSE-ONLY RUNG DONE (Opus 4.8, 2026-05-29, one4all `4d0c69aa`).** All of the above landed and is
+green — see the top watermark entry. The reverted-session's "flex bug" was a misdiagnosis (an
+`ast_print.c` union misread of `v.ival` as `v.sval`, fixed by adding `TT_REGEX_DECL` to the printer's
+exclusion guards). `grammar`/`token`/`rule`/`regex` parse to `TT_GRAMMAR_DECL`/`TT_REGEX_DECL` with
+opaque `LIT_REGEX` bodies, `--dump-ast` clean (incl. nested `**{m,n}` + subrule/class bodies). NEXT is
+G3-1 (named-regex → generator lowering), then G3-2 (subrule seam).
 
 
 ## Open questions for Lon
