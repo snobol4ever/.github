@@ -1,5 +1,93 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
+## ⛔⛔ GROUND ZERO 3 — STACKLESS REBUILD (Reset 2026-05-30) ⛔⛔
+
+**This is the THIRD ground-zero reset. The premise that was wrong both prior times: a value stack.**
+
+There is NO value stack. Not an SM value stack, not a `vstack`, not `r12`-as-TOS, not
+`rt_push_*`/`rt_pop_*` for Icon value flow. A complete stackless static SNOBOL4/Icon BB
+emitter existed ~1.5–2 months ago (archived at `one4all/archive/backend/emit_emitters/emit_x64.c`)
+and benchmarked **faster than SPITBOL precisely because there is no stack**. The current
+mode-3 Icon path regressed by making an SM value stack the inter-box value mechanism
+(`rt_push_int` ×39, `rt_pop_nv_set` ×21, underflow guard in `rt.c`). GROUND ZERO 3 rebuilds
+from `write("hello")` upward on the stackless model and never reintroduces the value stack.
+
+**The stackless model (verbatim from the archive + the references):**
+- **Values live in flat per-box DATA slots**, addressed at stable emit-time addresses
+  (the existing `&pBB->value` / `&pBB->counter` / `&pBB->state` idiom). `emit_x64.c:10` —
+  *"All pattern variables live flat in .bss as QWORD (resq 1) slots."*
+- **Value flow is static wiring, not push/pop.** A box writes its result into its OWN slot;
+  a consumer reads its operand boxes' slots directly (operands are known at emit time via
+  α/β). Proebsting `plus`: `plus.value ← E1.value + E2.value` — read children by name.
+- **Backtrack state for unbounded depth = a per-box .bss ARENA**, not a global stack. ARBNO
+  (`emit_arbno`, `emit_x64.c:932`) and recursion use a per-box frame array indexed by depth
+  (`test_sno_1.c` `_1[64]`; `test_sno_3.c` lazy `enter()/ζζ` heap frame). NOT push/pop.
+- **Inter-box transitions are direct `jmp`.** No `call`/`ret`, no dispatch loop, no walker.
+- The hardware C stack (`rsp`) may be used ONLY as transient scratch inside a single node
+  (e.g. protect an arithmetic operand across a nested sub-eval, as the archive does) — never
+  to thread values between boxes.
+
+**References (now in-repo at `one4all/refs/bb/`):**
+- `Proebsting-Simple-Translation-of-Goal-Directed-Evaluation.pdf` — the four-port templates
+  (literal N §4.1, uminus §4.2, plus §4.3, LessThan §4.3, to §4.4, ifstmt §4.5). Figure 1/2
+  are the exact target for `5 > ((1 to 2) * (3 to 4))`.
+- `test_icon.c` — that same expression as flat C goto-graph, named-slot values, ZERO stacks.
+  The byte-exact structural target for GZ-1..GZ-6.
+- `test_sno_1.c` — SNOBOL4 ARBNO over alternation: the per-box `_1[64]` arena (the only stack).
+- `test_sno_2.c` — recursion as four-port functions (`group`→`group`), `_λ` landing pads.
+- `test_sno_3.c` — **the EVAL/CODE/`*P` deferred solution**: each deferred sub-pattern is a
+  four-port function `str_t E(E_t **ζζ, int entry)`, frame lazily `calloc`'d by `enter()`,
+  resumable at α/β, `empty` decoded as failure at `_λ`. This is the model for GZ-DEFER.
+- `one4all/archive/backend/emit_emitters/emit_x64.c` — the prior working stackless emitter.
+
+**NEW GATE (enforces stacklessness, parallel to the FACT gate):**
+```bash
+# Icon emission path must contain ZERO value-stack push/pop:
+grep -rnoE 'rt_(push|pop)_[a-z_]+' src/emitter/BB_templates/ src/emitter/emit_bb.c \
+  | grep -v _pl_ | wc -l        # target: 0 for every Icon box family as it is rebuilt
+```
+Plus the existing per-rung gate: `m2==m3` byte-identical, `--dump-sm` count=0 (zero SM),
+FACT 0, smokes hold.
+
+### Rung ladder (HELLO WORLD up — each gated, stackless, no `rt_push`/`rt_pop`)
+
+- [ ] **GZ-0 — Scaffold + gates.** Pin the no-stack gate above into `scripts/`. Confirm the
+  per-box slot idiom (`&pBB->value`) is the value-storage primitive. Decide the slot/arena
+  conventions by reading `emit_arbno` + one full pattern-node body in the archived `emit_x64.c`
+  end-to-end, and `test_icon.c` for the Icon arithmetic shape. No code change beyond the gate script.
+- [ ] **GZ-1 — `write("hello")`.** One box, literal value in its own slot, write reads the slot.
+  No push. m2==m3, zero-SM, no-stack gate = 0 for this box family.
+- [ ] **GZ-2 — `write(42)`.** Literal-N template (PDF §4.1): `lit.start: lit.value ← N; goto succeed`.
+  Value in `&lit->value`. write reads it.
+- [ ] **GZ-3 — `write(1 + 2)`.** plus template (PDF §4.3): `plus.value ← E1.value + E2.value`,
+  read from the two child slots. No operand push/pop.
+- [ ] **GZ-4 — `every write(1 to 3)`.** to template (PDF §4.4): `to.I`, `to.value` slots; β
+  re-pumps via `to.resume: to.I++`. Mirror `test_icon.c` `to1`.
+- [ ] **GZ-5 — `every write(1 | 2 | 3)`.** alt: `α save cursor → left_α; left_ω → right_α`
+  (archive ALT wiring). Choice index in a per-box slot.
+- [ ] **GZ-6 — `every write(5 > ((1 to 2) * (3 to 4)))`.** The paper's full example. Must be
+  byte-identical to `test_icon.c` output AND structurally mirror Figure 1 (nine four-port
+  templates, no stack). This rung proves stackless generator-nesting end to end. MILESTONE.
+- [ ] **GZ-7 — `x := 42; write(x)`.** Flat slot for `x` (the archive's flat .bss var model).
+- [ ] **GZ-8 — `if`/relop control, relop routes its OWN γ/ω.** Bake the branch into the relop
+  (PDF LessThan: `if (E1 ≥ E2) goto E2.resume`); NO `LAST_OK` flag, NO `BB_IF` flag-router.
+  This is the reference-faithful form (the old IBB-9-RELOP-PORTS, done correctly from scratch).
+- [ ] **GZ-9 — `while`/`until`/`repeat`.** body.success/failure → cond.START (JCON `ir_a_While`);
+  `until` swaps the cond edges. No router node.
+- [ ] **GZ-10 — user procedure as a four-port FLAT box** (not a C-stack `call`). Model on
+  `test_sno_3.c`: `(ζζ, entry)` calling convention, frame lazily allocated, `_λ` landing pad.
+  Recursion depth lives in per-box arenas / heap frames, never a value stack.
+- [ ] **GZ-DEFER — EVAL / CODE / `*P` deferred patterns** via the `test_sno_3.c` model. This was
+  the ONE thing that broke the prior stackless build; it is solved in the reference file.
+- [ ] **GZ-11+ — corpus features rebuilt stackless** (lists, tables, records, scanning, csets,
+  builtins, sort, ...). Each: read the canonical JCON/Icon source first, then a flat slot/arena
+  template, gated m2==m3 + zero-SM + no-stack=0 + no corpus regression.
+
+**The IBB-* rungs below are SUPERSEDED.** They are the vstack-based build and are kept only as
+the historical record of what the regression looked like. GROUND ZERO 3 does not extend them.
+
+---
+
 **Reset:** 2026-05-28. All Icon legacy SM dispatch deleted. No env-gate `SCRIP_ICN_BB`. The BB-graph lowering is the only path. Every BB template MEDIUM_BINARY arm that isn't real ABORTs loudly at a named site.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7 · Claude Sonnet 4.6
