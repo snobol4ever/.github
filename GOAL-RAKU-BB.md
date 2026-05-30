@@ -253,6 +253,17 @@ must stay byte-identical until the very last flip.
       `rk_re*`/`rk_regex23`); only a NON-regex RHS routes to `raku_accepts`. NOTE: today no non-regex
       RHS can even reach here (SM-3 frontend unblocks that), so SM-1 is an inert-but-correct reroute
       landed ahead of the frontend — keeps the two rungs separable.
+- [x] **SM-1 `~~` reroute, regex-preserving ✅** (Opus 4.8, 2026-05-30, one4all `7bb603a8`). In
+      `TT_SMATCH` `match` flavor, added `rhs_non_regex` gate before the `const char *fn` dispatch:
+      if `strcmp(flavor,"match")==0 && c[1]->t != TT_QLIT` → lower topic + arm + emit
+      `SM_CALL_FN raku_accepts, 2; return`. A regex-literal RHS is always `TT_QLIT` (from the
+      `LIT_REGEX → leaf_sval(TT_QLIT,pat)` parser action, line 505 `raku.y`), so the intercept
+      is inert today — the lexer still forces `LIT_REGEX` for every `~~` RHS, `rhs_non_regex`
+      is always 0, and `--dump-sm` is byte-identical for all 6 regex/smatch corpus files
+      (verified grep: zero `raku_accepts` in any SM dump). Becomes live when SM-3 adds a
+      general-expression `~~` RHS production. subst/match_global stay on direct helpers
+      unconditionally. ALL GATES BYTE-IDENTICAL to baseline: GATE-RK m2 45/46, GATE-RK4 m4
+      46/46, GATE-RK3 m3 45/46 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0.
 - [ ] **SM-2 `when` reroute, literal+junction-preserving.** Replace the per-arm `SM_ACOMP`/`SM_LCOMP`
       with `PUSH topic; lower(arm); SM_CALL_FN raku_accepts,2; JUMP_F`. The literal base case must
       stay byte-equivalent in OUTPUT (eq), and the junction case must still collapse (now via
@@ -325,6 +336,43 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+SM-0 + SM-1 LANDED; SM-2 ATTEMPTED + REVERTED (Sonnet 4.6, 2026-05-30, one4all HEAD `7bb603a8`,
+  .github clean). Two clean rungs, one diagnosed regression, no broken commits.
+
+  SM-0 (e6f8b532): `raku_accepts(topic,matcher)` dead-code seam in `raku_builtins_byname.c`.
+  Two live arms reusing proven helpers: junction (rk_junction_is → rk_junction_collapse EQ,
+  numeric=topic-is-num); literal eq (both numeric → to_real eq, else strcmp==0 = SNOBOL4-LEQ
+  semantics). Hit→INTVAL(1), miss→FAILDESCR (raku_match verdict convention). Regex stays on
+  the direct SM-1 path. DEAD CODE: grep-verified zero callers outside own file. All gates
+  byte-identical to baseline.
+
+  SM-1 (7bb603a8): `rhs_non_regex` gate in `lower.c TT_SMATCH` match flavor. `c[1]->t != TT_QLIT`
+  (a LIT_REGEX → TT_QLIT always) routes to `SM_CALL_FN raku_accepts,2`; today the lexer forces
+  LIT_REGEX for all ~~ RHS so rhs_non_regex is always 0, intercept is inert. --dump-sm verified
+  byte-identical for all 6 regex corpus files (zero raku_accepts appearances). All gates
+  byte-identical.
+
+  SM-2 ATTEMPTED + REVERTED: replaced the per-arm `SM_ACOMP`/`SM_LCOMP` in the `when`-chain
+  loop with `SM_CALL_FN raku_accepts, 2`. Mode-2 passed (45/46) — rk_given/rk_given18/rk_junctions
+  all byte-identical. Mode-4 FAILED rk_given18 (FAIL), mode-3 CRASHED rk_given18 (SIGSEGV rc=139).
+  The crash was in `in_loop()` — the `for @vals -> $v { given $v { when 1 ... } }` construct.
+  The `classify`/`grade`/`nested` sub calls (same given/when arms) ran correctly; only the
+  `BB_ITERATE for-loop body` context crashed. Root cause diagnosed: SM_CALL_FN emitted inside a
+  BB_ITERATE body calls `rt_call@PLT` from within the compiled loop frame. The System V ABI
+  callee-save contract should protect r12-r15 (used by the iterator), but the interaction between
+  the BB_ITERATE x86 frame and the rt_call → raku_try_call_builtin_by_name → raku_accepts call
+  chain produces a SIGSEGV. This needs a dedicated session: either (a) diagnose the exact
+  alignment/register clobber via gdb on the mode-3 binary, or (b) emit SM-2 as mode-2-only
+  (guard with `!g_emitting_native`) first, confirming mode-4 stays on ACOMP/LCOMP until the
+  BB_ITERATE interaction is resolved. SM-2 WAS NEVER COMMITTED; the revert restored the working
+  tree to the SM-1 clean state. All gates: GATE-RK m2 45/46, GATE-RK4 m4 46/46 PERFECT,
+  GATE-RK3 m3 45/46 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0, build clean.
+
+  NEXT CODE RUNG: SM-2 — but diagnose the BB_ITERATE/SM_CALL_FN crash first (gdb mode-3 binary,
+  rk_given18 in_loop, find the exact faulting instruction). Option B (mode-2-only guard) is the
+  safe fallback if gdb session is expensive. Then SM-3 (frontend lexer/parser, own full-budget
+  session, bison conflict count must stay 30).
+
 RK-SMARTMATCH SM-0 LANDED — dead-code raku_accepts ACCEPTS seam (Claude, Opus 4.8, 2026-05-30,
   one4all `e6f8b532`). First code rung of the RK-SMARTMATCH ladder. `raku_accepts(topic, matcher)`
   added to raku_builtins_byname.c, reachable in all 3 modes via the raku_try_call_builtin_by_name
