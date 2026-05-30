@@ -107,3 +107,64 @@ git config user.email "lcherryh@yahoo.com"
 cd /home/claude/one4all && git log origin/main --oneline -1
 # 9eed4fa1 PLR-K-18: catch/3 + throw/1 mode-3 native MEDIUM_BINARY arms
 ```
+
+---
+
+## Follow-up same session: rung27 succ_or_zero corpus fix (corpus `3de2407`)
+
+Picked up the one remaining single-case mode-3 gap. **It was a corpus authoring bug, not
+a compiler gap.** The test `rung27_aggregate_succ_or_zero.pl` called `succ_or_zero/2` but
+never defined it.
+
+- **Oracle-verified with real SWI-Prolog** (installed `swi-prolog-nox` for this): the
+  original `.pl` errors `Unknown procedure: succ_or_zero/2`. `succ_or_zero` exists in
+  neither the uploaded SWI nor GNU sources (real builtin is `succ/2`, which errors on
+  negative rather than flooring). The committed `.s` artifact even had
+  `.Lplpred_succ_or_zero_2` called 3× / defined 0× — the bug was baked in.
+- **Fix (corpus `.pl` only):** added `succ_or_zero(0,0) :- !.` / `succ_or_zero(N,M) :- M is
+  N - 1.` (predecessor floored at zero, the semantics `.expected` requires: 3→2, 1→0,
+  0→0). Real swipl on the fixed file produces `2/0/0` matching `.expected`; scrip mode-2
+  and mode-3 both also produce `2/0/0`.
+- **Deliberately did NOT regenerate `.s`/`.j`:** discovered they regenerate batch-wide —
+  the `.s` differs run-to-run only in `g_flat_node_id` label serials (structurally
+  identical, 541 lines), and current `--target=jvm` emits a **57-line stub for EVERY rung
+  file** vs the committed ~5800-line `.j` (a pre-existing emitter divergence affecting all
+  files, unrelated to this fix). Clobbering one file's artifacts in isolation would inject
+  serial-skew / a JVM regression. The Prolog gates run scrip live (compile→assemble→link→
+  exec) and do NOT diff these snapshots, so leaving them stale is correct. A proper
+  batch artifact-regen is separate deferred work.
+
+## FINAL session state (freshly re-measured at handoff, clean rebuild)
+
+Pushed HEADs, all confirmed on origin/main, all trees clean:
+- one4all `9eed4fa1` — PLR-K-18 (catch/throw mode-3 BINARY arms)
+- corpus  `3de2407`  — rung27 succ_or_zero `.pl` definition
+- .github `1180c32b` — GOAL-PROLOG-BB.md watermark + this handoff
+
+| Gate | Value | Notes |
+|---|---|---|
+| GATE-1 smoke | 5/5 | |
+| GATE-2 crosscheck | **104**/32 (ORACLE_MISS 2) | session start 98 → 104 (+6: rung28 ×5 + succ_or_zero ×1) |
+| GATE-3 mode-2 (--interp) | **109**/111 | session start 108 → 109 |
+| GATE-3 mode-3 (--run) | **100**/111 | session start 94 → 100 (+6) |
+| GATE-4 mode-4 minimal | 4/4 | |
+| GATE-SWI plunit | 57/57 (100%) | |
+| FACT arm1 / arm2 | 0 / 12 | unchanged baseline |
+| siblings sno/icon/raku/snocone | 13 / 5 / 5 / 5 | unchanged |
+
+Remaining GATE-3 mode-3 FAILs (all documented boundaries, none touched this session):
+rung14 retract ×5 + rung15 abolish ×4 = **PL-RT-ASSERTZ** mutable-clause-store
+(BB_CHOICE bakes clause count as a compile-time constant; runtime clause removal is
+invisible to the static enumerator); rung30 DCG ×2 (`nonterminals`, `pushback_rest`).
+
+## NEXT (recommended order)
+
+1. **PL-RT-ASSERTZ mutable-clause-store** — the big one: unblocks rung14 retract (5) +
+   rung15 abolish (4) in mode-3, and is the substrate retract/retractall need (see the
+   retract MEDIUM_BINARY HONEST-ABORT note in `bb_pl_builtin.cpp` ~line 1355). Native
+   dispatcher must consult a runtime-mutable clause store instead of a compile-time count.
+2. **WAM-CP-13 mode-4 catch/throw** — the TEXT-arm gap (goal/recovery as nested functions
+   + r12 catch-barrier).
+3. **rung30 DCG** `nonterminals` + `pushback_rest` (smaller, separate from the above).
+4. Optional housekeeping: batch `.s`/`.j` artifact regen (out of scope for feature work;
+   `.j` needs the JVM Prolog emitter brought back to parity first).
