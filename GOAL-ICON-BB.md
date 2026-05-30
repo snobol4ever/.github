@@ -28,18 +28,47 @@ Completion tests:
 ./scrip --dump-sm any_icon_program.icn | grep -c '^   [0-9]'   # 0
 ```
 
+## ⛔ CONSULT CANONICAL SOURCES (JCON + Icon)
+
+**Every time a question arises during new SM/BB or feature work — port topology, resume/backtrack wiring, builtin semantics — `grep`/read the relevant canonical procedure FIRST and ground the implementation in it.** Do NOT assume; you do not know until you check. Authority: `refs/jcon-master/tran/irgen.icn` (`ir_a_Every`, `ir_a_Limitation`, `ir_a_Call`, `ir_a_Alt`, … define control-flow/ports) and `refs/icon-master/src/runtime/*.r` (`fstranl.r`, `ocomp.r`, `fscan.r`, … define runtime/builtin semantics). The mode-2 oracle `bb_exec.c` is a transcription, not the source of truth — when they disagree, the canonical source wins. Full statement in `RULES.md`. (Extract the uploaded `icon-master.zip` / `jcon-master.zip` into `refs/` at session start if not present.)
+
 ---
 
-## Current state (2026-05-29, IBB-12 `!E` list/table/record/string generator landed — corpus 140 PASS)
+## Current state (2026-05-29, IBB-LIMIT + max/min + real TO_BY landed — corpus 152 PASS)
 
 **Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
 (293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
 **56 (pre-IBB-9-2) → 62 → 69 → 82 (IBB-9-6) → 93 (IBB-9-SIZE) → 95 (IBB-9-TOBY) → 100 (IBB-9-INITIAL)
-→ 105 (IBB-9-CASE) → 130 (IBB-10) → 134 (IBB-11) → 140 PASS / 0 SEGV / 0 FAIL after IBB-12.**
-Latest sweep after IBB-12: Total 293, M2-skip 33, PASS 140, SEGV 0, ABORT 62, FAIL 1, MISMATCH 56.
+→ 105 (IBB-9-CASE) → 130 (IBB-10) → 134 (IBB-11) → 140 (IBB-12) → 143 (IBB-9-4) → 148 (IBB-LIMIT) → 150 (max/min) → 152 PASS / 0 SEGV / 0 FAIL after real TO_BY.**
+Latest sweep after real TO_BY: Total 293, M2-skip 34, PASS 152, SEGV 0, ABORT 50, FAIL 1, MISMATCH 56.
 
 **Landed this session (Opus 4.8, build+run verified, exact corpus deltas, 0 regressions via full pass-list diff, FACT 0, zero-SM, smokes 5/5·5/5, broker 57):**
+- real TO_BY — `lo to hi by step` with REAL literal bounds (`1.0 to 2.0 by 0.5`). mode-3 BB_TO_BY template only handled literal-INT; real fell to a yields-nothing stub → underflow. Added a literal-real arm (bb_to_by.cpp) driven by new `rt_icn_toby_real` (rt.c, mirrors mode-2 real arm w/ 1e-12 epsilon → m2==m3); plus real-only `BB_TO_BY` in `arg_is_any` (bb_call.cpp, gated sval[0]=='r') so `write(real to-by)` formats DT_R via real_str instead of printing raw IEEE bits (int TO_BY unchanged) → 150→152 (+2: rung19_pow_toby_real_toby_pos/neg).
+- max/min builtins — added `max`/`min` to the `rt_icn_builtin_is_known` allow-list (the mode-2 oracle `icn_try_call_builtin_by_name` already handles both as multi-arg numeric; mode-3 `rt_icn_call_builtin` calls the same table → m2==m3) → 148→150 (+2: rung30_builtins_misc_maxmin, rung30_builtins_misc_mixed incl. real-valued).
+- IBB-LIMIT — `gen \\ N` generator limitation (flat_drive_limit + bb_limit glue + rt_icn_limit_* ; α allow-list guard prevents silent-empty on unsupported sub-generators) → 143→148 (+5). Also fixed kind_names[] drift (--dump-bb mislabeled BB_LIMIT as BB_NONNULL; regenerated as designated initializers).
+- IBB-9-4 — assign-wrapped ival=2 `every v := GEN do B` two-port split (JCON ir_a_Every) → 140→143 (+3). NOTE: a single-α first cut yielded only the FIRST element and gave a single-element FALSE POSITIVE on rung13_table_iterate; the landed fix threads the do-body re-pump into the inner generator's OWN β-resume (not the assign's β). Multi-element verified.
 - IBB-12 — Icon `!E` list/table/record/string generator (BB_LIST_BANG) → 134→140 (+6)
+
+**ATTEMPTED + REVERTED this session — BB_FIND_GEN (`find(needle,hay)`):** built a full 2-arg find generator
+(rt_icn_find_gen mirroring mode-2 BB_FIND_GEN + canonical `refs/icon-master/src/runtime/fstranl.r` find();
+bb_find_gen.cpp two-half template; flat_drive_find_gen walking α=needle, β=hay; emit_core/Makefile/header/
+dispatch/bb_call wiring). Single-shot `write(find("b","abc"))` worked (→2 4, byte-identical, would be +1).
+BUT the generator form `every write(find("a","banana"))` produced m3=`2` vs m2=`2 4 6` — find's β-resume
+(reset=0) was NEVER reached through the intexpr re-pump. **This is the loud→silent regression class** (baseline
+= underflow-ABORT; broken impl = silent-wrong MISMATCH, +1 to the mismatch gate), so it was fully reverted
+rather than landed. **Diagnostics for next attempt (all confirmed):** (a) `every p := find(...) do write(p)`
+WORKS in m3 via the IBB-9-4 assign-wrapper path → find's β-resume itself is correct; (b) `every write(!L)`
+(BB_LIST_BANG, same flat_drive_call_intexpr path) WORKS, probe shows reset=1,0,0,0; (c) find probe shows
+reset=1 ONLY — the re-pump exits after the first value; (d) deep-thread (dval==1.0) ruled out — is_suspendable
+(TT_FNC)=1 so the find arg is not deep-threaded; (e) FILL correctly sets `_.lbl_β=arg_β` (doesn't read pBB->β).
+The ONLY structural difference: BB_LIST_BANG has β=NULL (a free β control port) while BB_FIND_GEN packs the
+hay operand into its β port (mode-2 puts all four ports as operands; "no spare control port"). **Canonical
+authority for the fix:** `refs/jcon-master/tran/irgen.icn` `ir_a_Call` — builds the odometer `L:=[p.fn]|||args`,
+threads `L[i].success→L[i+1].start`, `L[i].failure→L[i-1].resume`, and the call's own resume to
+`L[-1].ir.resume` (the LAST arg's resume), re-running the Call each time the last arg yields. The next attempt
+must reconcile BB_FIND_GEN's operand-occupied β port with needing a re-pumpable resume entry — likely a node
+redesign (operands in the operand_aux sidecar per the PEERS rule, freeing β as a control port like
+BB_LIST_BANG), grounded in ir_a_Call's resume topology.
 
 **NEXT (largest residue, by the same-sweep after IBB-12):** the 62 ABORTs split into clusters.
 (1) **`every` do-body ival=2/3** (`flat_drive_every: do-body ival=0/2/3 not yet flat-wired`) — the
@@ -356,15 +385,35 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
   success/failure → `expr.start`. The inverse-sense twin of while. Most corpus `until` tests
   (`rung09_loops_until*`) ALSO need user-proc dispatch (they wrap the loop in a `procedure countdown(n)`) — so they
   stay blocked on IBB-9-6 even after the cond-router lands; pick a proc-free `until` repro to gate this step.
-- [ ] **IBB-9-4 — `every E do B` ival=2 (gen-bearing chain, simple body).** `every v := !t do B`, `every (i to j) do B`
-  where the gen is a streaming generator (BB_ALT/BB_LIST_BANG/BB_BINOP_GEN/BB_ITERATE). JCON: identical `ir_a_Every`
-  wiring — there is no ival distinction in JCON, the generator's own resume chain handles re-pumping. SCRIP's ival=2
-  branch exists in lower; the gap is the mode-3 `bb_every` ival=2 emit (gen-bearing β-chain). Body must be a
-  non-generator (lic_body_bears_gen guard already in lower). **STUDY note (2026-05-29):** adopt JCON's two-port split —
-  generator `expr` and do-`body` are SEPARATE boxes with `expr.γ→body.α`, `body.γ→expr.β` (re-pump the generator's
-  RESUME, irgen 327-331) — rather than extending `bb_every.cpp`'s single-`pBB->α` pump (whose own header calls itself
-  "the simplest correct shape"). The single-α model conflates generator-resume with body-execution and will not
-  re-pump a generator-bearing body correctly.
+- [x] **IBB-9-4 — `every E do B` ival=2 (assign-wrapped streaming generator, simple body). LANDED (2026-05-29, Opus 4.8).**
+  Corpus same-sweep **140→143 PASS (+3), SEGV 0, 0 regressions** (full pass-list diff: 0 of 140 prior passes lost).
+  Newly passing (all byte-identical, sortf cases match the `.expected` oracle): `rung13_table_iterate` (`every v := !t do write(v)`),
+  `rung31_sort_sortf_field1`/`field2` (`every p := !S do write(p.x)`). Implemented in `flat_drive_every` (emit_bb.c) — byte-free,
+  FACT 0, bytes-outside-templates 12 unchanged.
+  **CRITICAL FALSE-START CAUGHT (kept for the record):** the first cut reused the ival=1 single-α two-port topology
+  (`walk_bb_flat(pBB->α=assign, body_α, lbl_γ, gen_β)`). This SILENTLY emits only the FIRST generated value: for an
+  ASSIGN-WRAPPED generator (`v := !L`), `flat_drive_assign` defines the every's re-pump label (`gen_β`) as `jmp ω`
+  (assign doesn't backtrack), which SHADOWS the inner generator's own β-resume port. Verified wrong: `every v := !L do write(v)`
+  over `[10,20,30]` printed only `10`; `every c := !"abc"` printed only `a`. `rung13_table_iterate` "passed" only because its
+  table held a SINGLE element ("only"→99) — a single-element false positive. **Lesson: gate every generator change with a
+  MULTI-element input, never a 1-element corpus case.**
+  **Correct fix = JCON two-port split (irgen.icn ir_a_Every 327-331).** When `pBB->α` is `BB_ASSIGN` (lhs `BB_VAR`) over a
+  streaming gen (`icn_bb_is_gen_arg(pBB->α->β)`): (1) walk the INNER generator (`gen->β`) with γ=store_α (yield → rebind+body),
+  ω=outer γ (exhausted → every succeeds), β=gen_resume (the generator's OWN ++ resume entry); (2) emit the assign store ALONE
+  by driving `flat_drive_assign` with a temporary `ival=1` (pops the already-yielded vstack value via `rt_pop_nv_set`, jmps body_α);
+  (3) walk the do-body with γ=ω=gen_resume so each pass re-pumps the GENERATOR'S RESUME (not the assign's β). On exhaustion the
+  generator takes its ω → outer γ. Verified multi-element: list `10 20 30`, string `a b c`, `1|2|3` alt, empty list (0 iters → "done"),
+  `every v := !L do s := s + v` (accumulate). BARE streaming-gen do-body (`every !L do B`) already worked (the generator's own β
+  IS the re-pump target when not assign-wrapped) and is unchanged.
+  **Gates:** canonical crosscheck 4/4, zero-SM count=0 on all 3 new programs, smoke icon/prolog 5/5, broker 57 (5 pre-existing
+  non-Icon fails unchanged), FACT 0.
+  **STILL DEFERRED:** (a) **bodyless ival=2** (`every total := total + (1 to n)` — BB_ASSIGN over BB_BINOP_GEN, no do-body,
+  rung02_proc_locals) — needs gen re-pump THROUGH the assign without a do-body to anchor the loop; the first attempt underflowed
+  the vstack, now cleanly aborts. (b) **nested every** (`every a := !L do every b := !M do …`) — the body bears a generator, so
+  lower keeps the OUTER every at ival=0 (generator-bearing body); cleanly aborts (→ needs body-state-reset per outer value).
+  (c) **ival=3 BODY-MEDIATED block** (→ IBB-9-5). (d) **PRE-EXISTING latent bug, NOT touched here:** dynamic-bound
+  `every v := i to j do B` (i,j vars) emits only the first value in mode-3 — verified identical at baseline `eda4d9aa`, so it is
+  not a regression; lives on a different ival path (dynamic TO is excluded from `lic_is_gen_node`).
 - [ ] **IBB-9-5 — `every E do { block }` ival=3 (BODY-MEDIATED).** `every x := 1 to 3 do { y := x*2; write(y) }`.
   The hardest: bb sits ON the back-edge (gen.γ=bb, gen.ω=bb, body.γ=bb, body.ω=bb) with a phase machine on bb->state
   (1=just-dispatched-gen, 2=just-dispatched-body) and per-pass BB_SEQ_EXPR state reset. Mode-2 ival=3 executor
@@ -432,6 +481,46 @@ not rediscovered; deferred until a corpus program needs it (IBB-9-8).
 ### IBB-23 (open) — `suspend E`
 
 Top-level `procedure g() suspend 1; suspend 2; end; every write(g())` prints nothing in both mode-2 and legacy. Pre-existing — needs `lower_icn_proc_gen`'s GeneratorState bridge wired through to outer `every` loop.
+
+### IBB-LIMIT (closed 2026-05-29, Opus 4.8) — `gen \\ N` generator limitation
+
+**Corpus same-sweep 143→148 (+5), SEGV 0, 0 regressions** (passlist LOST empty). Newly passing (all
+byte-identical, multi-value verified): `rung14_limit_limit_{to,alt,str,large,zero}`. `bb_limit.cpp` was a
+STUB (emitted 0 bytes → the enclosing `write` popped an empty vstack: `SM value stack underflow` — this was
+the largest sub-cluster of the 19 underflow ABORTs). Also note: `--dump-bb` mislabeled `BB_LIMIT` as
+`BB_NONNULL` because `kind_names[]` (scrip_ir.c) had drifted out of sync with the `BB_op_t` enum (missing
+BB_REPEAT/BB_ALT/BB_SIZE/BB_CASE/BB_NOT and many tail entries) — **fixed by regenerating the whole array as
+designated initializers `[BB_X] = "BB_X"`** so it can never drift again (dump-path only; 0 execution change,
+verified by sweep). The mislabel had nearly sent the diagnosis down the wrong path.
+
+**Design (mode-2 BB_LIMIT arm + JCON ir_a_Limit).** A new flat driver `flat_drive_limit` (emit_bb.c,
+byte-free) + three glue templates in `bb_limit.cpp` (`bb_limit_begin`/`bb_limit_inc`/`bb_limit_more`, same
+mid-node-glue precedent as `bb_case_store`/`bb_case_gate`) + three runtime helpers
+(`rt_icn_limit_begin`/`_more`/`_inc` in rt.c, mirroring the mode-2 arm so m2==m3 by construction). State in
+per-node `&pBB->value` (cached int-coerced max) + `&pBB->counter` (running count) — PEERS-compliant, no new
+BB_t fields. Reached as an intexpr generator-arg (γ=yield, ω=exhausted, β=resume). Two-port (fresh vs
+resume) split, identical in spirit to the IBB-9-4 gen-threading: (entry) walk count-expr → `bb_limit_begin`
+pops it, caches max, count=0, `jz ω` on max<=0, else FALL THROUGH into the generator's fresh entry; walk
+`pBB->α` with γ=got_value, ω=outer ω, β=gen_resume; (got_value) `bb_limit_inc` (count++) then `jmp γ`
+(value already on vstack); (lbl_β) `bb_limit_more` (counter<max?) `jz ω` else `jmp gen_resume`.
+
+**α allow-list guard (regression-prevention).** `flat_drive_limit` only handles α generator kinds with a
+real mode-3 two-port (fresh/resume) emission: BB_TO/BB_TO_BY/BB_ALT/BB_BINOP_GEN/BB_LIST_BANG (seen through
+a BB_ASSIGN wrapper). Kinds without mode-3 generator emission yet — **BB_SEQ_GEN** (`seq(1)`), BB_FIND_GEN,
+BB_KEY_GEN, BB_UPTO, BB_ITERATE, BB_PROC_GEN — would emit a generator that never yields → a SILENT EMPTY
+loop; the guard ABORTS LOUDLY instead, preserving the pre-IBB-LIMIT loud-abort. **This was caught by the
+mismatch diff:** without the guard, `every write(seq(1) \\ 3)` (rung30_builtins_misc_seq) went from a loud
+underflow-abort to silent-empty (m2 `1 2 3`, m3 empty) — a +1 MISMATCH. With the guard, MISMATCH is back to
+the 56 baseline. **Lesson reinforced:** a generator combinator over an unsupported sub-generator must abort,
+not emit a degenerate loop.
+
+**Gates:** FACT 0, bytes-outside-templates 12 (unchanged — driver byte-free, glue bytes inside `bb_limit.cpp`),
+zero-SM count=0 on limit programs, canonical crosscheck 4/4, smoke icon/prolog 5/5, broker 57. Verified
+multi-value: `(1 to 10) \\ 3` → `1 2 3`, `(1|2|3|4) \\ 2` → `1 2`, `!"abcd" \\ 2` → `a b`, `\\ 0` → nothing,
+variable count `\\ k`, and limit feeding an assign-do-body (`every v := (10 to 50 by 10) \\ 2 do write(v)` →
+`10 20`). **PRE-EXISTING (not this work):** `!L \\ 3` parses as `!(L \\ 3)` (limit wraps the BB_VAR `L`, not
+the bang) — a parser-precedence quirk wrong in BOTH modes (m2 prints all elements), out of corpus scope; the
+α guard correctly rejects the BB_VAR α in m3.
 
 ### IBB-8..34 — remaining (deferred mode-3 + mode-4)
 
@@ -501,6 +590,10 @@ Programs PASS, both modes, byte-identical.
 
 | State | Programs PASS | Notes |
 |-------|---------------|-------|
+| real TO_BY ✅ | 5/5 smoke; corpus same-sweep 150→152 (+2), SEGV 0, FAIL 1, ABORT 52→50, 0 regressions, MISMATCH 56 (unchanged) | (Opus 4.8, 2026-05-29). **Icon `lo to hi by step` with REAL literal bounds (`1.0 to 2.0 by 0.5`).** mode-3 `bb_to_by.cpp` handled only literal-INT bounds; the real / dynamic case fell to a yields-nothing passthrough stub → the enclosing `write` popped empty vstack (underflow). Added a `lit_real` arm (α/β are BB_LIT_F, step bit-cast in pBB->ival) driven by new `rt_icn_toby_real(cur_slot, lo_bits, hi_bits, step_bits, reset)` (rt.c) — mirrors the mode-2 BB_TO_BY real arm (cur=lo on reset; check vs hi w/ 1e-12 epsilon by sign of step; yield DT_R(cur); advance cur+=step) → m2==m3 by construction. Two-half template (α reset=1 / β reset=0), bounds/step passed bit-cast as u64 immediates (movabs), state in &pBB->value. **Second bug:** values first printed as raw IEEE bits (4607182418800017408=1.0) because `write(real-toby)` used the int trailer — fixed by adding **real-only** `BB_TO_BY` to `arg_is_any` (bb_call.cpp, gated `sval[0]=='r'`) so DT_R routes through `rt_pop_write_any_nl`/real_str; integer TO_BY stays on its proven int trailer (verified rung01_paper_to_by byte-identical). Newly passing: rung19_pow_toby_real_toby_{pos,neg}. Multi-value verified: `1.0 to 2.0 by 0.5`→`1.0 1.5 2.0`, `0.0 to 1.0 by 0.25`→`0.0 0.25 0.5 0.75 1.0`, neg step `3.0 to 1.0 by -1.0`→`3.0 2.0 1.0`. Gates: FACT 0, bytes-outside-templates 12 (real bytes inside bb_to_by.cpp), zero-SM count=0, canonical crosscheck 4/4, smoke icon/prolog 5/5, broker 57. **Deferred:** DYNAMIC real/int bounds (non-literal α/β) still take the yields-nothing stub — needs operand-box walking (the AG-pure ring path). |
+| max/min ✅ | 5/5 smoke; corpus same-sweep 148→150 (+2), SEGV 0, FAIL 1, ABORT 54→52, 0 regressions, MISMATCH 56 (unchanged) | (Opus 4.8, 2026-05-29). **Icon `max`/`min` multi-arg numeric builtins.** Aborted as `bb_call: unsupported call shape fn='max' narg=2` because they were missing from the `rt_icn_builtin_is_known` allow-list (rt.c). One-line add: the mode-2 oracle `icn_try_call_builtin_by_name` (icn_runtime.c) already handles both as multi-arg (real-aware) and the mode-3 `rt_icn_call_builtin` calls the SAME table → m2==m3 by construction. Newly passing: rung30_builtins_misc_maxmin (`7 3 5`), rung30_builtins_misc_mixed (`3.5 5 2`, real-valued). Gates: FACT 0, zero-SM count=0, canonical crosscheck 4/4, smoke icon/prolog 5/5, broker 57. |
+| IBB-LIMIT ✅ | 5/5 smoke; corpus same-sweep 143→148 (+5), SEGV 0, FAIL 1, ABORT 59→54, 0 regressions, MISMATCH 56 (unchanged) | (Opus 4.8, 2026-05-29). **Icon `gen \\ N` generator limitation (BB_LIMIT).** `bb_limit.cpp` was a STUB (emitted 0 bytes → enclosing `write` popped empty vstack: `SM value stack underflow` — largest sub-cluster of the 19 underflow ABORTs). New byte-free driver `flat_drive_limit` (emit_bb.c) + 3 glue templates `bb_limit_begin`/`bb_limit_inc`/`bb_limit_more` (bb_case glue precedent) + 3 rt helpers `rt_icn_limit_begin`/`_more`/`_inc` (rt.c, mirror the mode-2 BB_LIMIT arm → m2==m3 by construction). State in `&pBB->value` (cached int max) + `&pBB->counter` (count); PEERS-compliant, no new BB_t fields. Two-port (fresh/resume) split, reached as an intexpr generator-arg: begin pops+caches max/count=0/`jz ω`; fall through to gen fresh; got_value inc+`jmp γ`; `lbl_β` more-gate `jz ω` else `jmp gen_resume`. **α ALLOW-LIST GUARD** (BB_TO/TO_BY/ALT/BINOP_GEN/LIST_BANG through a BB_ASSIGN wrapper): unsupported sub-gens (BB_SEQ_GEN/FIND_GEN/KEY_GEN/UPTO/ITERATE/PROC_GEN) ABORT LOUDLY rather than emit a silent-empty loop — caught by the mismatch diff (`every write(seq(1)\\3)` went loud-abort→silent-empty without it; guard restores MISMATCH to baseline 56). Also fixed `kind_names[]` drift (scrip_ir.c): it was out of sync with the BB_op_t enum (missing BB_REPEAT/ALT/SIZE/CASE/NOT + tail), so `--dump-bb` mislabeled BB_LIMIT as BB_NONNULL — regenerated the whole array as designated initializers `[BB_X]=\"BB_X\"` (dump-path only, 0 execution change). Newly passing (multi-value verified): rung14_limit_limit_{to,alt,str,large,zero}. Gates: FACT 0, bytes-outside-templates 12 (unchanged — driver byte-free), zero-SM count=0, canonical crosscheck 4/4, smoke icon/prolog 5/5, broker 57. **PRE-EXISTING (not this work):** `!L \\ 3` parses as `!(L\\3)` (both modes wrong, out of corpus scope; α guard rejects the BB_VAR α in m3). |
+| IBB-9-4 ✅ | 5/5 smoke; corpus same-sweep 140→143 (+3), SEGV 0, FAIL 1, ABORT 62→59, 0 regressions | (Opus 4.8, 2026-05-29). **Assign-wrapped ival=2 `every v := GEN do B` — JCON two-port split (ir_a_Every 327-331).** `flat_drive_every` (emit_bb.c), byte-free. **FALSE-START CAUGHT:** the single-α reuse of the ival=1 topology emits only the FIRST value because `flat_drive_assign` defines the every re-pump label as `jmp ω`, SHADOWING the inner generator's β-resume; `rung13_table_iterate` gave a single-element FALSE POSITIVE ('only'→99). Multi-element (`every v := !L do write(v)` over [10,20,30] → only `10`) exposed it. **Fix:** when `pBB->α` is `BB_ASSIGN`(lhs `BB_VAR`) over `icn_bb_is_gen_arg(pBB->α->β)`, (1) walk the INNER generator with γ=store_α, ω=outer γ, β=gen_resume (its OWN ++ resume); (2) emit the assign store ALONE via `flat_drive_assign` temporarily set `ival=1` (pops the yielded vstack value, jmps body_α); (3) walk the do-body with γ=ω=gen_resume so each pass re-pumps the GENERATOR'S RESUME, not the assign's β. Exhaustion → generator ω → outer γ. Newly passing (byte-identical; sortf cases match `.expected`): rung13_table_iterate, rung31_sort_sortf_field1/field2. Multi-element verified: list `10 20 30`, string `a b c`, `1|2|3`, empty list (0 iters), accumulate-in-body. Bare `every !L do B` already worked (unchanged). Regression proof: stash → clean baseline 140-passlist → restore → diff: LOST empty, GAINED exactly the 3. Gates: FACT 0, bytes-outside-templates 12 (unchanged — driver byte-free), zero-SM count=0 on all 3, canonical crosscheck 4/4, smoke icon/prolog 5/5, broker 57. **Deferred:** bodyless ival=2 (rung02_proc_locals — gen-through-assign with no do-body, clean-aborts); nested every (generator-bearing body, ival=0, clean-aborts); ival=3 BODY-MEDIATED (IBB-9-5). **PRE-EXISTING (not this work):** dynamic-bound `every v := i to j do B` emits only first value — identical at baseline `eda4d9aa`, different ival path (dynamic TO excluded from `lic_is_gen_node`). |
 | IBB-12 ✅ | 5/5 smoke; corpus same-sweep 134→140 (+6), SEGV 0, FAIL 1, ABORT 68→62, 0 regressions | `da798a11` (Opus 4.8, 2026-05-29). **Icon `!E` list/table/record/string generator (BB_LIST_BANG).** Routed off the `bb_stub` no-op (emitted 0 bytes → enclosing `write` popped an empty vstack: `SM value stack underflow`) to new `bb_list_bang.cpp` template + `flat_drive_list_bang` driver. Single source of truth: extracted `icn_list_bang_at(obj,idx,*out)` from the inline mode-2 BB_LIST_BANG arm (list frame_elems / record fields / table bucket-walk / string per-char); mode-2 arm refactored to call it (behavior-preserving); mode-3 `rt_icn_list_bang(obj_slot,idx_slot,state_slot,reset)` calls the SAME fn → m2==m3 by construction. Generator state in per-node `&pBB->value`/`&pBB->counter`/`&pBB->state` (stable emit-time addresses, same idiom as bb_to/bb_initial; PEERS-compliant, no new BB_t fields). Template: live α (reset=1, idx 0) + live β (reset=0, ++idx), both `call; test rax; jz ω; jmp γ`. Driver walks `pBB->α` (iterable) ONCE then FILLs (iterable cached; β advances index only, does not re-pump). `BB_LIST_BANG` added to `is_intexpr_shape` (emit_bb.c — `write(!E)` → flat_drive_call_intexpr wires call.β→arg.β for every-resume) + `is_write_intexpr`/`arg_is_any` (bb_call.cpp — any-write trailer). Regression proof: stashed work, rebuilt clean baseline, captured 134-passlist, restored, diffed — LOST empty, GAINED exactly the 6 bang programs. Newly passing: rung15_iterate_string (`!s`), rung22_lists_bang_list (`!L`), rung31_sort_sort_{basic,already_sorted,every} (`!sort(L)`), rung11_bang_augconcat_bang_str. Gates: FACT 0, bytes-outside-templates 12 (unchanged), zero-SM holds, smoke icon/prolog 5/5, broker 57. **Deferred:** `every v:=!t do B` (ival=2, IBB-9-4); `put(L,!x)` generator-arg builtin; `sortf` (interp_eval stub). **NEXT:** IBB-9-4 two-port every/do split (highest leverage — unblocks ival=2 generator-bearing do-bodies). | **Icon record field get/set (`obj.field`, `obj.field := rhs`).** BB_FIELD_GET/SET routed off the `bb_stub` no-op (emitted nothing → hit the `[NO-AST] interp_eval stub`) to new `bb_field.cpp` templates (`bb_field_get`/`bb_field_set`, the proven 32-byte movabs/movabs/call/jmp/β-jmp shape from bb_var/bb_assign — only the called fn ptr differs) + byte-free `flat_drive_field_get`/`flat_drive_field_set` drivers. GET driver walks α (object) → [obj]; SET driver walks β (rhs) THEN α (obj) → [rhs,obj] (obj on top), matching the mode-2 oracle's eval order. Runtime `rt_icn_field_get`/`rt_icn_field_set` resolve the cell via `data_field_ptr` — the SAME fn the mode-2 bb_exec.c arms call → m2==m3 by construction (failed operand/unknown field → FAIL+LAST_OK 0). `write(obj.field)` routed through is_write_intexpr/arg_is_any (bb_call.cpp) + is_intexpr_shape (emit_bb.c). `data_field_ptr` declared extern in rt.c (interp_data.o already in the same binary). kind_names + bb_print (scrip_ir.c) get BB_FIELD_GET/SET entries (fixes `--dump-bb` `(null)`; dump-path only). Newly passing: rung24_records_{basic,field_assign,two_types,proc_arg}. Gates: FACT 0, canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57. **Deferred:** rung24_records_record_loop (`every c.n := 1 to 3 do` body — blocked on IBB-9-4). |
 | IBB-10 ✅ | 5/5 smoke; corpus same-sweep 105→130 (+25), SEGV 0, ABORT 127→68, FAIL 0, 0 regressions | (Opus 4.8, 2026-05-29). **Icon builtin dispatch + record-constructor recognition.** The analogue of IBB-9-6's user-proc arm for the BUILTIN case; killed the single largest ABORT cluster (120 of 127 `bb_call: unsupported call shape`). 5 files: `rt.c` (`rt_icn_call_builtin` pops args arg0-deepest → `icn_try_call_builtin_by_name` mode-2 oracle → push result; `rt_icn_builtin_is_known` allow-list gate excluding generator builtins find/upto/any/many/bal/key/seq + recognising registered record types via `sc_dat_find_type`), `rt.h`, `bb_call.cpp` (`is_builtin` arm, byte layout cloned from the userproc arm), `emit_bb.c` (`flat_drive_call_builtin` byte-free driver + `icn_call_args_single_shot`/`icn_bb_is_gen_arg` guards + dispatch wiring), `scrip.c` (driver pre-registers record types from BB_RECORD_DEF nodes so a constructor is recognised at emit time). Two bugs fixed: (a) mode-2 STRVAL(buf) returns slen=0 → mode-3 `rt_pop_write_any_nl` `%.*s` printed nothing → normalize `out.slen=strlen` in rt_icn_call_builtin; (b) record ctor neither user-proc nor table name at emit → driver pre-reg + sc_dat_find_type gate. Newly passing (25): rung28_builtins_str_{char_ord,pad,repl,reverse,trim_map}, rung29_builtins_type_{copy,image,mixed,numeric,type}, rung30_builtins_misc_{abs,sqrt}, rung22_lists_{get,pull}, rung13_table_member, rung17_real_arith_{integer,real_conv,string_conv}, rung15_real_swap_real_literal, rung36_jcon_{center,concord,diffwrds,nargs,radix,trim}. Gates: FACT 0, bytes-outside-templates 12 (unchanged from baseline; driver+driver byte-free), canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57 (5 pre-existing non-Icon fails). 0 regressions (full pass-list diff). **Deferred:** record field get/set (IBB-11, interp_eval stub); generator-arg builtin calls (IBB-9-4/5); I/O builtins open/read/reads; generator builtins find/upto (odometer). |
 | IBB-9-CASE ✅ | 5/5 smoke; corpus same-sweep 100→105 (+5), SEGV 0, ABORT 0, 0 regressions | `c117aa16` (Opus 4.8, 2026-05-29). **`case E of {...}` selector + clause-equality + `write(case)`.** New `bb_case.cpp` glue (`bb_case_store`/`bb_case_gate`) + `flat_drive_case` driver. Selector evaluated ONCE → `&pBB->value` (new `rt_pop_store_descr`); each clause key walked then gated by new `rt_case_eq` (numeric-eq iff both DT_I else string-eq via `VARVAL_fn`) + `rt_last_ok` `jne` to that clause's value body; no-match falls through; trailing chain node = default. Value bodies after the gate chain (→γ); matched body leaves result on vstack for the rvalue context. Driver owns all control flow (no node-template emit; defines its own β-stub like `flat_drive_seq`). `BB_CASE` added to `is_write_intexpr`/`arg_is_any` + walk_bb_flat write dispatch so `write(case …)` routes the matched value through the any-write trailer. Newly passing: rung33_case_{arith,int,str,in_proc,no_default}. Gates: FACT 0, bytes-outside-templates 0, canonical-5 byte-identical + zero-SM, smoke icon/prolog 5/5, broker 57 (5 pre-existing non-Icon fails). |
