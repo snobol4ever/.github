@@ -214,6 +214,7 @@ HEAD .github  = (see git log)
 Baseline      = Icon m2 6/6 (HARD), m3 2/6, FACT 0, sm_dead 1/1
 Slices done   = Slice 0 ✅ (5370695f), Slice 1a ✅ (7d57c6bd), Slice 1b ✅ (d7f64afa) — all green
 Next          = Slice 2 (Icon: icn_/icon_ files + 438 symbols). USE grep -a (Gotcha 4).
+Handoff       = HANDOFF-2026-05-30-OPUS48-LANG-INDEP-RENAME-SLICE-0-1.md
 ```
 
 ### Slice 2 prep notes (Icon)
