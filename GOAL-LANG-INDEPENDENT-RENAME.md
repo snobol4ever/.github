@@ -121,8 +121,34 @@ FACT=0 · sm_dead ≤1. Baseline at carve: m2 6/6, FACT 0, sm_dead 1.
   global). 51 files, 1007/1007 (pure rename). Gate green (m2 6/6, FACT 0, sm_dead 1; runtime/stage2
   isolation rc=0; lower_isolation unchanged). **NOTE for next slices: `grep -o` on MULTIPLE files
   prefixes `filename:` — use `grep -oh` for identifier extraction or intersections silently break.**
-- [ ] **Slice 3 — Prolog**: `pl_/prolog_` files + 1109 symbols + 8 free boxes + 4 collision boxes.
-  Biggest slice.
+- [x] **Slice 3a — Prolog BB box layer** ✅ (`ddfc8f81`): 13 box templates `git mv`
+  (`bb_pl.cpp→bb_clause.cpp`; collisions `bb_pl_alt→bb_disj`, `bb_pl_seq→bb_conj`, `bb_pl_call→bb_goal`,
+  `bb_pl_var→bb_logicvar`; free strip `bb_pl_{arith,atom,builtin,catch,choice,cut,ite,unify}`). Functions/
+  `*_state_t`/`*_str` follow stems; helpers `bb_pl_findall→bb_findall`, `bb_pl_intern_into→bb_intern_into`,
+  g_emit scratch `bb_pl_{ls,rs,op*}→bb_{ls,rs,op*}`, `bb_pl/bb_pl_str→bb_clause/bb_clause_str`. Enums
+  `BB_PL_CALL→BB_GOAL`, `BB_PL_VAR→BB_LOGICVAR`, `BB_PL_STRUCT→BB_STRUCT`, `BB_PL_ALT→BB_DISJ`,
+  `BB_PL_ITE→BB_ITE`, `BB_PL_CATCH→BB_CATCH`, **`BB_PL_SEQ→BB_GCONJ`** (see ⚠ DECISION below). Makefile
+  RT_PIC_SRCS + scrip recipe paths/.o. Dispatch is `switch(enum)→fn` so enum/fn names are independent
+  (box/enum spelling skew is the codebase norm). Gate green (m2 6/6, FACT 0, sm_dead 1).
+- [x] **Slice 3b — Prolog runtime symbols** ✅ (`42886970`): `pl_→resolve_` (174 post-AST-INTERNAL
+  symbols: `pl_*→resolve_*`, `Pl_*→Resolve_*`, `PL_*→RESOLVE_*`, `g_pl_*→g_resolve_*`; namespace was
+  collision-free). Files `lower/lower_pl.{c,h}→lower_clause.{c,h}`, `interp/pl_runtime.{c,h}→
+  resolve_runtime.{c,h}` (both headers included only from post-AST — no frontend includes touched).
+  Method: explicit per-identifier `\bsym\b` sed program (NOT blanket `s/pl_/`, which would hit mid-word
+  `pl_` and `bb_pl_`); `sed -f` applied unconditionally to all post-AST `*.c/*.h/*.cpp` (binary-safe vs
+  the α/β/γ/ω files). Gate green (m2 6/6, FACT 0, sm_dead 1).
+- [ ] **Slice 3c — Prolog cross-boundary symbols** (the 29 EXEMPTED in 3b): split into (a) frontend-DEFINED
+  parser/builtin API — leave as-is, correct per the frontend-exempt rule (`prolog_atom*`, `prolog_parse`,
+  `prolog_compile`, `prolog_driver`, `prolog_builtin`, `prolog_atom_name`, and the Prolog-builtin impls
+  `pl_write*`/`pl_univ`/`pl_functor`/`pl_arg`/`pl_term_to_string` if def-site is `prolog_builtin.c`); and
+  (b) post-AST-DEFINED but frontend-USED broker/interp bridge that SHOULD be renamed — `pl_box_*`,
+  `g_pl_trail`, `g_pl_cut_flag`, `pl_env_new`, `pl_pred_table_lookup_global`, `pl_unified_term_from_expr`,
+  `pl_assert_term`, `pl_throw_existence_error_procedure`. (b) requires renaming + fixing the frontend
+  bridge call sites in `prolog_lower.c`/`prolog_driver.c`/`pl_broker.{c,h}`/`pl_interp.h`. Deferred to keep
+  3b green; needs a clean per-symbol def-site pass (`grep -oh`; def = body/typedef, not call/extern).
+  Sets saved at audit: `/tmp/b_all.txt` (203), `/tmp/b_xbound.txt` (29), `/tmp/b_rename.txt` (174).
+  Also: the vestigial SMX-4-excised opcode `SM_BB_PL_INVOKE` (SM.h) still carries `PL` — fold/rename when
+  the SM surface is finally driven to 0.
 - [ ] **Slice 4 — Raku**: `raku_/rk_` files + 300 symbols.
 - [ ] **Slice 5 — backend output libs** (deferred): `.il/.j/.wat/.cs/.java/.js` named `Sno*` —
   off the live build path (X86 ONLY), lowest priority.
@@ -219,13 +245,30 @@ be updated to record the base reg + per-language roles) · GC arena setup in `rt
 ## Session State
 
 ```
-HEAD one4all  = bf3f7928  (LANG-INDEP Slice 2 — Icon)
+HEAD one4all  = 42886970  (LANG-INDEP Slice 3b — Prolog runtime symbols)
 HEAD .github  = (see git log)
-Baseline      = Icon m2 6/6 (HARD), m3 2/6, FACT 0, sm_dead 1/1
-Slices done   = 0 ✅ (5370695f), 1a ✅ (7d57c6bd), 1b ✅ (d7f64afa), 2 ✅ (bf3f7928) — all green
-Next          = Slice 3 (Prolog: pl_/prolog_ + ~1109 symbols + 12 boxes). USE grep -oh + grep -a.
-Handoff       = HANDOFF-2026-05-30-OPUS48-LANG-INDEP-RENAME-SLICE-2.md
+Baseline      = Icon m2 6/6 (HARD), m3 2/6, FACT 0, sm_dead 1/1  (held green through 3a + 3b)
+Slices done   = 0 ✅ (5370695f), 1a ✅ (7d57c6bd), 1b ✅ (d7f64afa), 2 ✅ (bf3f7928),
+                3a ✅ (ddfc8f81), 3b ✅ (42886970) — all green
+Next          = Slice 3c (29 Prolog cross-boundary syms — def-site split + frontend bridge),
+                then Slice 4 (Raku raku_/rk_ + ~300 syms), then Slice 5 (backend .il/.j/.wat/.cs/.java/.js).
+Handoff       = HANDOFF-2026-05-30-LANG-INDEP-RENAME-SLICE-3.md
 ```
+
+### ⚠⚠ VETOABLE DECISION (Lon) — `BB_PL_SEQ → BB_GCONJ` (Prolog conjunction enum)
+Shipped in 3a. **Investigated the flagged enum collision:** `BB_CONJ` (BB.h:42, general/Icon block) is
+**Icon's** conjunction — built by `lower_graph.c` (`BB_node_alloc(bbg, BB_CONJ)`, the AG-pure `&`
+evaluation conjunction) and run by `bb_exec.c case BB_CONJ`. Prolog's `BB_PL_SEQ` (clause-body `,`) is a
+**different** executor (`bb_exec.c case BB_PL_SEQ`, `bb_conj.cpp`). **True clash** — two coexisting
+"conjunction" opcodes need two enum names; two `case`s can't share `BB_CONJ`. The other already-bare enums
+(`BB_CHOICE/UNIFY/CUT/BUILTIN/ATOM/ARITH`) ARE Prolog's, de-prefixed in an earlier slice — no clash.
+**Resolution chosen:** Icon keeps the bare cultural `BB_CONJ` (first owner, and I will not reopen Icon this
+slice — protects the Icon gate); Prolog's enum → **`BB_GCONJ`** ("goal conjunction", no language prefix,
+distinct), paired with the ratified box fn `bb_conj` (box/enum spelling skew is already normal here, e.g.
+`bb_pl_choice`↔`BB_CHOICE`). **If you'd rather Prolog own the bare `BB_CONJ`,** the alternative is to rename
+**Icon's** `BB_CONJ`→(e.g.)`BB_EVAL_CONJ` in `lower_graph.c`+`bb_exec.c`+`scrip_ir.c` and let Prolog take
+`BB_CONJ`. One-line veto and I'll flip it. Note also `BB_PL_CALL→BB_GOAL` (enum) — the only `BB_PL_*` token
+in `src/frontend` was 3 **comments** in `prolog_lower.c` (updated for cleanliness; not real cross-boundary).
 
 ### Slice 3 prep notes (Prolog) — OPEN NAMESPACE DECISION
 - **Files (git mv):** `interp/pl_runtime.c/.h → resolve_runtime.c/.h`; `lower/lower_pl.c/.h →
