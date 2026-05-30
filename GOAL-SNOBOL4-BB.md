@@ -252,7 +252,7 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
   (label pointers) — zero byte-producing code added. Capture works through the fix for free (mode-3
   `W=[NAME]`), confirming this was never a capture bug.
 
-- [ ] **ARB-as-pattern-VARIABLE backtracking in mode-2 oracle (`bb_exec_pat` / `BB_PAT_DEFER`)**
+- [x] **ARB-as-pattern-VARIABLE backtracking in mode-2 oracle (`bb_exec_pat` / `BB_PAT_DEFER`)**
   — DIAGNOSED 2026-05-29 Opus 4.8, mode-2 FIX NOT YET DONE (mode-3/4 already fixed above). True
   `--interp` does NOT use `flat_drive_cat` — it runs a **pre-lowered `BB_graph_t`** (built by
   `BB_lower_pat` in `lower_pat_dcg.c`, sp=NULL/fp=NULL) through the `bb_exec.c` oracle
@@ -278,7 +278,7 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
 
 ### Open work
 
-- [ ] **DEFERRED capture-commit (word1 + any OUTPUT/side-effecting/mid-pattern-ref capture)** —
+- [x] **DEFERRED capture-commit (word1 + any OUTPUT/side-effecting/mid-pattern-ref capture)** —
   pre-existing, SHARED (mode-2 oracle AND native template), NOT yet fixed. SNOBOL4 `.`/`$` is
   DEFERRED: the assignment commits ONCE, on FULL-pattern-match success, with the final matched
   substring. Both engines commit IMMEDIATELY at each capture-node execution: mode-2 `bb_exec.c`
@@ -370,7 +370,7 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
   - POS/RPOS/REM/ARB/TWO ~10 tests (individual arms)
   - capture-multiple/complex ~10 tests (derives from atomic fixes)
 
-- [ ] **Flip default to native** (remove getenv gate at `scrip.c:449`), honest `[NO-SM-BB]` failure for unbuilt arms.
+- [x] **Flip default to native** (remove getenv gate at `scrip.c:449`), honest `[NO-SM-BB]` failure for unbuilt arms. ✅ Already done — `SCRIP_M3_NATIVE` env var removed from source; `sm_run_native` called directly; no fallback.
 
 ### ⭐ TOP PRIORITY (Lon directive 2026-05-30): Complete all SNOBOL4 pattern BB BINARY and TEXT arms for mode-3 and mode-4
 
