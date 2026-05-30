@@ -34,7 +34,18 @@ Completion tests:
 
 ---
 
-## Current state (2026-05-30, IBB-IDX subscript get/set landed — corpus 165 PASS)
+## Current state (2026-05-30, every ival=0 FIELD_SET-wrapped generator landed — corpus 166 PASS)
+
+**Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
+(293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
+**56 (pre-IBB-9-2) → 62 → 69 → 82 (IBB-9-6) → 93 (IBB-9-SIZE) → 95 (IBB-9-TOBY) → 100 (IBB-9-INITIAL)
+→ 105 (IBB-9-CASE) → 130 (IBB-10) → 134 (IBB-11) → 140 (IBB-12) → 143 (IBB-9-4) → 148 (IBB-LIMIT) → 150 (max/min) → 152 (real TO_BY) → 165 (IBB-IDX) → 166 PASS after every ival=0 FIELD_SET.**
+Latest sweep: Total 293, M2-skip 33, PASS 166, SEGV 1, ABORT 51, FAIL 1, MISMATCH 40.
+
+**Landed this session (Sonnet 4.6, build+run verified, corpus delta verified, FACT 0, zero-SM, smokes 5/5·5/5):**
+- every ival=0 FIELD_SET-wrapped generator (`every c.n := 1 to 3 do write(c.n)`) — `flat_drive_every` aborted with "ival=0 not yet flat-wired" because lower couldn't certify a streaming generator for a FIELD_SET lvalue (the lhs is not a plain var). Added a specialized ival=0 gate in `flat_drive_every` (emit_bb.c): when `pBB->α` is a `BB_FIELD_SET` whose `β` IS a recognized streaming generator (`icn_bb_is_gen_arg`), apply the JCON two-port split (ir_a_Every: body.success→expr.resume, body.failure→expr.resume): walk inner_gen (α->β, e.g. BB_TO) with γ=store_α, ω=outer_γ, β=gen_resume; at store_α walk object expr (lval_node->α) to push obj, FILL the field_set template (pops obj then value, stores field, vstack order correct: gen yielded value is deepest/rhs, walked obj is top); walk body with γ=ω=gen_resume. No new templates or rt helpers needed — byte-free driver. Newly passing: `rung24_records_record_loop` (+1, `every c.n := 1 to 3 do write(c.n)`). **IDX_SET-wrapped ival=0 deferred** (corpus coverage 0 currently; aborts loudly). Gates: FACT 0, bytes-outside-templates 12 (unchanged), zero-SM count=0, smoke icon/prolog 5/5, 0 regressions (LOST none vs IBB-IDX baseline).
+
+**Prior state (2026-05-30, IBB-IDX subscript get/set landed — corpus 165 PASS)**
 
 **Baseline note:** the authoritative number is the same-sweep over `/home/claude/corpus/programs/icon/*.icn`
 (293 files; m2-OK filter; PASS iff m3 rc==0 && m2==m3 byte-identical):
