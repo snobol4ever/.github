@@ -45,6 +45,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
+| **Lang-Indep Rename** ⬅ #1 | `GOAL-LANG-INDEPENDENT-RENAME.md` | **PRIORITY #1 (Lon directive 2026-05-30).** Slices 0–3b ✅ green (one4all `42886970`). Next: Slice 3c (29 Prolog cross-boundary syms, def-site split + frontend bridge fix) → Slice 4 (Raku `raku_/rk_` ~300 syms) → Slice 5 (backend `.il/.j/.wat/.cs/.java/.js`). See handoff `HANDOFF-2026-05-30-LANG-INDEP-RENAME-SLICE-3.md`. |
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. *(corpus 93 PASS; next: `bb_call` builtins + generator re-pumping)* |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. *(Gate-2 47; next: numbervars/3, type-test compound, writeq, findall/3 last)* |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(native broad 255; next: deferred capture-commit, mode-2 DEFER backtracking, SPAN/ARBNO/FENCE clusters)* |
@@ -63,7 +64,6 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **IR Emitter** | `GOAL-IR-EMITTER-PREREQ.md` | IEP-8 can proceed; IEP-5/6/7/9 blocked on CHUNKS. |
 | **Universal Gen IR** | `GOAL-LOWER-REDESIGN.md` | LR-S2 — delete bb_node_t path. |
 | **Parser-SC Transpile** | `GOAL-PARSER-SC-TRANSPILE.md` | SCT-1f or SCT-BEAUTY-SC-PARSE. |
-| **Lang-Indep Rename** | `GOAL-LANG-INDEPENDENT-RENAME.md` | De-language post-AST subsystems. Slice 0 ✅ + 1a ✅ green; next Slice 1b (`sno_→core_`). |
 
 ---
 
