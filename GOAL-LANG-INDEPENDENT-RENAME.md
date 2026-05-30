@@ -103,16 +103,13 @@ FACT=0 · sm_dead ≤1. Baseline at carve: m2 6/6, FACT 0, sm_dead 1.
   `src/frontend/snobol4/snobol4.h` (defines `Token`); the basename-`#include "snobol4.h"` sed
   wrongly redirected 3 frontend files (`snobol4.lex.c`, `snobol4.tab.h`, `test_lex.c`) to `core.h`
   → reverted those to local `snobol4.h`. Gate green.
-- [ ] **Slice 1b — core runtime SYMBOLS** `sno_ → core_` (`core_` is 0-collision, verified).
-  **def-site-aware — NOT a blanket sed.** RENAME only `sno_*` DEFINED outside `src/frontend/`
-  (runtime symbols: `sno_runtime_error`@core/pattern.c, `sno_fn_registered`@rt.c, `sno_arith`,
-  `sno_concat`, `sno_neg`, `sno_pat_*`, `sno_exec_stmt`, `sno_call`, …) + all their call sites
-  (incl. calls from frontend/driver — for linkage). **EXEMPT (frontend parser API, keep `sno_`):**
-  `sno_parse`, `sno_parse_ast`, `sno_parse_string`, `sno_parse_string_ast`, `sno_add_include_dir`,
-  `sno_error`, `sno_nerrors`, `sno_reset` — all defined in `src/frontend/snobol4/` (the parser IS
-  the SNOBOL4 stage → exempt). `snobol4_*` symbols are likewise frontend parser/lexer → EXEMPT.
-  Method: `grep -rln '\bsno_X\s*(' src | grep -v frontend` to confirm runtime def, then sed that
-  symbol globally. ~30–40 distinct runtime symbols.
+- [x] **Slice 1b — core runtime SYMBOLS** ✅ (`d7f64afa`): `sno_ → core_`, 67 runtime symbols
+  (incl. `sno_pat_*`, `sno_runtime_error`, `sno_fn_registered`, `g_sno_err_*`, `_sno_abort_*`).
+  8 frontend parser-API symbols EXEMPT (still `sno_`): `sno_parse`, `sno_parse_ast`,
+  `sno_parse_string`, `sno_parse_string_ast`, `sno_add_include_dir`, `sno_error`, `sno_nerrors`,
+  `sno_reset`. Method: blanket `s/sno_/core_/g` + revert-8. **`core.c` (was `snobol4.c`) is
+  UTF-8-"binary" to grep** (contains α/β/γ/ω) → had to use `grep -a` for BOTH file selection AND
+  verification (see Gotcha 4). Gate green.
 - [ ] **Slice 2 — Icon interp**: `icn_/icon_` files (4) + 438 symbols → feature names.
 - [ ] **Slice 3 — Prolog**: `pl_/prolog_` files + 1109 symbols + 8 free boxes + 4 collision boxes.
   Biggest slice.
@@ -144,15 +141,36 @@ FACT=0 · sm_dead ≤1. Baseline at carve: m2 6/6, FACT 0, sm_dead 1.
    Real link clashes are rare; judge by whether the stripped name is a too-generic global
    (`error`, `init`, `path`, `call`, `reset`, `parse`) — those need a namespace, not a bare strip.
    This is why the `sno_` slice uses a `core_` namespace, not a bare strip.
+4. **⚠ grep `-I` SKIPS "binary" files — use `grep -a` for EVERY slice.** Several post-AST source
+   files contain the UTF-8 port names α/β/γ/ω (RULES: FOUR PORTS = FOUR GREEK NAMES) and grep
+   classifies them as **binary**. `core.c` (was `snobol4.c`), and almost certainly `bb_exec.c`,
+   `lower_icn.c`, `lower_clause.c`, `icn_runtime.c`, etc. `grep -rlI` / `grep -rlIE` (file
+   selection) and `grep -rhoI` (verification) all carry `-I` → they SILENTLY skip these files.
+   Slice 1b's first two build failures (`g_sno_err_stmt` undeclared) were exactly this: core.c was
+   never sed'd because `-I` skipped it, and the "0 remaining" check was blind to it. **ALWAYS use
+   `grep -a` (treat-as-text) for both the file-selection grep AND the residual-verification grep.**
+   `sed -i` itself handles these files fine. Re-verify after every slice with `grep -arhoE`.
 
 ## Session State
 
 ```
-HEAD one4all  = 7d57c6bd  (LANG-INDEP Slice 1a)
+HEAD one4all  = d7f64afa  (LANG-INDEP Slice 1b)
 HEAD .github  = (see git log)
 Baseline      = Icon m2 6/6 (HARD), m3 2/6, FACT 0, sm_dead 1/1
-Slices done   = Slice 0 ✅ (5370695f), Slice 1a ✅ (7d57c6bd) — both gate-green
-Next          = Slice 1b (sno_ -> core_, def-site-aware) then Slices 2/3/4
+Slices done   = Slice 0 ✅ (5370695f), Slice 1a ✅ (7d57c6bd), Slice 1b ✅ (d7f64afa) — all green
+Next          = Slice 2 (Icon: icn_/icon_ files + 438 symbols). USE grep -a (Gotcha 4).
 ```
+
+### Slice 2 prep notes (Icon)
+- Files: `interp/icn_runtime.c/.h`→`gen_runtime`, `interp/icn_value.h`→`gen_value`,
+  `interp/icon_box_rt.h`→`box_rt`, `interp/icon_gen.h`→`gen`, `lower/lower_icn.c/.h`→`lower_graph`.
+- Symbols: `icn_`/`icon_` → strip-or-namespace. Top families: `icn_bb`, `icn_binop`, `icn_type`,
+  `icn_cset`, `icn_frame`, `icn_to`, `icn_while`, `icn_proc`, `icn_call`, `icn_kw`, `icn_leaf`,
+  `icn_out`, `icn_try`, `icn_runtime`, `icn_value`. Many are too generic to bare-strip
+  (`icn_call`→`call`? `icn_type`→`type`?) — prefer a `gen_` namespace for the runtime ones
+  (mirrors `core_`), OR a feature word where unambiguous (`icn_cset`→`cset`, `icn_to`→`to_gen`).
+  **Check def-site for frontend exemptions first** (icon parser API in `src/frontend/icon/`).
+  **Watch the collision with bb_* box names** (`icn_bb_*` vs the `bb_*` templates) and the
+  `bb_call`/`bb_alt`/`bb_seq`/`bb_var` names reserved for the Prolog slice's `bb_disj/conj/goal/logicvar`.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
