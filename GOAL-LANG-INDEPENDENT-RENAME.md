@@ -151,6 +151,61 @@ FACT=0 · sm_dead ≤1. Baseline at carve: m2 6/6, FACT 0, sm_dead 1.
    `grep -a` (treat-as-text) for both the file-selection grep AND the residual-verification grep.**
    `sed -i` itself handles these files fine. Re-verify after every slice with `grep -arhoE`.
 
+---
+
+## 🎉 PARKED — POST-RENAME FUN (Lon idea 2026-05-30): 32-bit pointer aliasing + per-language registers
+
+**Do AFTER the rename completes.** Captured here per Lon. Reconcile with `REGISTER-LAYOUT.md`,
+`ARCH-x86.md`, `ARCH-SCRIP.md` before implementing. Two related ideas:
+
+### Idea A — 32-bit pointer compression via a base register (the headline)
+- **Kernel:** dedicate ONE callee-saved base register (Lon: **R15 or RBP**) to hold a heap/arena
+  base. Store pointers as **32-bit offsets** from that base instead of full 64-bit pointers.
+  Real pointer = `base + offset` (optionally `base + (offset << k)` with k from value alignment,
+  e.g. 8-byte → 32 GB reach). This is classic *pointer compression* (cf. JVM compressed oops /
+  V8 pointer compression).
+- **Win:** halves the pointer field in `DESCR_t` (8→4 B) → smaller descriptors, better cache
+  density, more values per line. "This will be amazing!" (Lon).
+- **Command-line switch** to select the mode: e.g. `--ptr32` / `--compress-ptr` (full 64-bit
+  pointers remain the default / fallback). Build- or run-time selectable.
+- **Encapsulate 99% in `DESCR_t` + `sil_macros.h`** — the compress/decompress lives entirely in
+  the descriptor accessors and the `sil_macros.h` access macros (MOVD-family gets a "via base"
+  variant). The rest of the runtime/emitter stays oblivious. The CLI switch flips which macro
+  expansion / which DESCR layout is active.
+- **⚠ CRITICAL CAVEAT — Boehm GC cannot trace 32-bit offsets.** `libgc` scans memory for *real*
+  pointers to find roots; a stored 32-bit offset is not recognized → premature collection (same
+  hazard family as the "GC can't see mmap'd-pool imm64" note in GOAL-SNOBOL4-BB). Mitigations to
+  evaluate: (a) allocate the compressed heap as a single GC-pinned/uncollectable arena and
+  hand-manage it; (b) `GC_register_displacement` / interior-pointer registration; (c) keep the
+  authoritative full pointer somewhere GC scans and use the 32-bit form only as a transient
+  index. Decide this FIRST — it gates the whole design.
+- **Base register must be callee-saved + never clobbered.** RBP is callee-saved (frees up under
+  `-fomit-frame-pointer`); R15 is a clean callee-saved GP reg. Whichever is chosen is reserved
+  process-wide and set once at entry.
+
+### Idea B — per-language register roles (R13/R14/R15) + a LOCAL/frame register
+- **Context (post-SMX-4):** the Stack Machine is deleted, so **r13 (was the SM-state register) is
+  now FREE**. Current live assignments to respect: `r10` = broker current-node; `r12` = Icon zeta
+  one-register BB-frame (moved r15→r12 in `03acf1be`); the one-register-frame + RO-IP-relative
+  FACT rules in RULES.md still hold.
+- **Lon's thought:** R13/R14/R15 can mean **different things for Prolog vs Icon** — "each has a
+  different substance it is zippering through." Prolog zippers through its term store / choice-point
+  trail; Icon zippers through generator / co-expression / scan state. Dedicate the freed registers
+  per-language to that language's iteration substance (set at sequence entry, like the BB-frame reg).
+- **All BBs return `DESCR`** — keep the uniform Byrd-box ABI (`bb_box_fn → DESCR_t`) as the glue so
+  per-language register specialization stays behind one calling convention.
+- **A LOCAL / frame register** — "the other register" could carry a **function-local frame** that
+  shadows globals: locals for the current function activation (non-global scope, Python-LEGB-style
+  local namespace). Pairs naturally with the existing one-register BB-frame concept. ("Maybe. Just
+  thinking out loud." — Lon.)
+
+### Touch-points when this starts
+`src/runtime/core/descr.h` (DESCR_t layout) · `sil_macros.h` (access macros) · the CLI parse in
+`src/driver/scrip.c` · the emitter templates that materialize pointers · `REGISTER-LAYOUT.md` (must
+be updated to record the base reg + per-language roles) · GC arena setup in `rt.c`/`bb_pool.c`.
+
+---
+
 ## Session State
 
 ```
