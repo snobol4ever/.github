@@ -30,6 +30,34 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## State at HEAD (post-PLR-K-11, 2026-05-29 — one4all `3a811fb7`)
+
+**2026-05-29: PLR-K-11 LANDED — succ/2 + plus/3 MEDIUM_BINARY arms (mode-3 native).** Single-file,
++71 lines in `bb_pl_builtin.cpp` (one template, FACT-clean). Both predicates had a mode-2 oracle
+(`rt_pl_succ`/`rt_pl_plus` in `bb_exec.c`) and a MEDIUM_TEXT (mode-4) arm but NO MEDIUM_BINARY arm →
+in mode-3 native (`--run`) the assembly strings emitted as raw bytes → result var never bound
+(`succ(4,B)`→`_`, `plus(3,4,C)`→`_`); mode-2 + mode-4 correct.
+- **succ/2 (6-scalar, byte-twin of the TEXT arm):** AB style — `pBB->α`=arg0 (X), `pBB->β`=arg1 (Y).
+  `rt_pl_succ(k0,i0,s0, k1,i1,s1)` via edi/rsi/rdx, ecx/r8/r9, no stack. Atom sval absolute `movabs`
+  (in-process), not `lea[rip+strtab]`; `movabs rax,&rt_pl_succ; call rax`; std bin-patch tail.
+- **plus/3 (9-scalar, byte-twin of the TEXT arm):** CHAIN style — args on the γ-chain off `pBB->α`
+  (`a0->γ=a1`, `a1->γ=a2`). `rt_pl_plus(k0,i0,s0, k1,i1,s1, k2,i2,s2)` — 6 reg + last triplet on the
+  stack (k2 dword `[rsp+0]`, i2 `[rsp+8]`, s2 `[rsp+16]`), `sub rsp,32` (3*8 data + 8 pad for 16B
+  alignment at the call). Added two `extern "C"` decls (BINARY arm takes the helper addresses; the
+  TEXT arm referenced them only by `@PLT` string).
+
+**GATE-2 crosscheck 76 → 81 (+5):** rung18 succ_{forward,backward} + plus_{xy,xz,yz}_bound all
+3-mode AGREE (`1/5/100`, `0/4/99`, `7/7/30`, `7/5`, `6/0`). **Gates:** GATE-1 5/5, GATE-2 **81**,
+GATE-3 m2 108/111 (mode-2 untouched), GATE-4 4/4, mode-4 corpus unchanged (TEXT arm untouched;
+succ_forward→`1/5/100`, plus_xy→`7/7/30` still correct), FACT 0/12, siblings icon/raku/snobol4 5/5/13.
+
+**NEXT:** remaining mode-3 BINARY crosscheck gaps — rung17 sort/msort (4), rung29 number_ops float/gcd
+(5), rung26 copy/concat (4), rung27 aggregate/bagof/setof (4), rung28 (3), rung15 abolish (3 — same
+mutable-clause-store boundary as retract). rung10 puzzle (1). retract/retractall + assertz remain the
+PL-RT-ASSERTZ boundary (honest-abort in mode-3/4).
+
+---
+
 ## State at HEAD (post-PLR-K-10-FIX, 2026-05-29 — one4all `0230e67d`)
 
 **2026-05-29: PLR-K-10 FIX LANDED — findall/3 non-empty goal mode-3 segfault CLOSED.** Single-file,
