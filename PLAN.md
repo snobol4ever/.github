@@ -48,7 +48,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. *(corpus 93 PASS; next: `bb_call` builtins + generator re-pumping)* |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. *(Gate-2 47; next: numbervars/3, type-test compound, writeq, findall/3 last)* |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(native broad 255; next: deferred capture-commit, mode-2 DEFER backtracking, SPAN/ARBNO/FENCE clusters)* |
-| **Raku BB** | `GOAL-RAKU-BB.md` | ⭐ **TOP PRIORITY.** See goal file for live state. *(SM-0 raku_accepts seam ✅; SM-1 ~~ non-regex reroute ✅ (inert); SM-2 when-arm reroute ATTEMPTED+REVERTED (BB_ITERATE mode-4 crash — diagnose first); next: SM-2 gdb diagnosis, then SM-3 frontend (own session).)* |
+| **Raku BB** | `GOAL-RAKU-BB.md` | ⏸ **ON HOLD** (2026-05-30). Raku development paused indefinitely. Grammar/subrule BB-generator tier deferred. SM-0+SM-1 clean; SM-2 diagnosed (BB_ITERATE/SM_CALL_FN mode-4 crash); resume when Raku is re-prioritized. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
 | **PST Parent** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | Stage 2 PST-LR-0 bulk rename. |
 | **PST SNOBOL4** | `GOAL-PST-SNOBOL4.md` | SN4-SC-6 smoke blocked by EC-3* regression. |

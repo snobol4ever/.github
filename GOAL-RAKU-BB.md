@@ -1,5 +1,18 @@
 # GOAL-RAKU-BB.md — Raku goal-directed ~20% onto shared BB generators
 
+## ⏸ ON HOLD — 2026-05-30
+
+**Lon directive (2026-05-30): Raku development paused indefinitely. Raku BB is no longer top
+priority. Do not resume without explicit re-prioritization from Lon.**
+
+Gates at hold: GATE-RK m2 45/46, GATE-RK4 m4 46/46 PERFECT, GATE-RK3 m3 45/46 CRASH 0,
+smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1. one4all HEAD `290af6b9`. Build clean.
+
+Next work when resumed: SM-2 `when`-arm reroute (diagnose BB_ITERATE/SM_CALL_FN mode-4 crash
+via gdb on rk_given18 in_loop; see watermark for full diagnosis). Then SM-3 frontend (own session).
+
+---
+
 **Repo:** one4all + corpus + .github
 **Sister:** GOAL-ICON-BB.md (kinds REUSED) · GOAL-RAKU-FRONTEND.md
 **Prereq:** HEADQUARTERS PP-1..6 ✅. BB-TEMPLATE-LADDER invariants 0..9 apply.
@@ -336,6 +349,12 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+RAKU ON HOLD (Lon directive, 2026-05-30). Raku development paused indefinitely; no longer top
+  priority. Resume only on explicit re-prioritization. State at hold: one4all `290af6b9`, all
+  gates at documented baseline above. SM-0 + SM-1 clean and pushed. SM-2 diagnosed but not
+  committed. Grammar G3-1/G3-2 (C oracle) green; BB-generator tier (recursion + backtrack-across-
+  calls) not yet built. See the watermark entries below for full session history.
+
 SM-0 + SM-1 LANDED; SM-2 ATTEMPTED + REVERTED (Sonnet 4.6, 2026-05-30, one4all HEAD `7bb603a8`,
   .github clean). Two clean rungs, one diagnosed regression, no broken commits.
 
