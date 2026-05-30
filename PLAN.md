@@ -63,6 +63,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **IR Emitter** | `GOAL-IR-EMITTER-PREREQ.md` | IEP-8 can proceed; IEP-5/6/7/9 blocked on CHUNKS. |
 | **Universal Gen IR** | `GOAL-LOWER-REDESIGN.md` | LR-S2 — delete bb_node_t path. |
 | **Parser-SC Transpile** | `GOAL-PARSER-SC-TRANSPILE.md` | SCT-1f or SCT-BEAUTY-SC-PARSE. |
+| **Lang-Indep Rename** | `GOAL-LANG-INDEPENDENT-RENAME.md` | De-language post-AST subsystems. Slice 0 ✅ + 1a ✅ green; next Slice 1b (`sno_→core_`). |
 
 ---
 
