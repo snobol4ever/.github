@@ -250,6 +250,19 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+G3-2 <.name> NON-CAPTURING SUBRULE LANDED (Claude, Opus 4.8, 2026-05-29, one4all `75294cbb`). Small
+  grounded increment after reading the NQP grammar (where `<.ws>`/`<.ident>` are pervasive): rk_gram_expand
+  now recognizes `<.name>` (dot-prefixed) as a subrule call, not only `<name>`. No Match tree yet, so
+  `<.name>` expands identically to `<name>` (the capture-suppression difference is invisible until G5) —
+  the value is syntax coverage: `token TOP { <a> <.ws> <b> }` with a user `token ws { \s }` matches
+  "foo bar", misses "foobar". Stepping stone to `rule` `:sigspace` (which auto-inserts `<.ws>` at atom
+  boundaries). test/raku/rk_grammar_dotws.{raku,expected}, mode-2==mode-4. GATES: GATE-RK m2 43/44->44/45,
+  GATE-RK4 m4 44/44->45/45 PERFECT, GATE-RK3 m3 43/44->44/45 CRASH 0; smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0
+  M4 18/1, FACT 0. NEXT bounded rung: `rule` `:sigspace` — register the per-rule flavor (token/rule/regex,
+  already in the AST as v.ival 0/1/2 but NOT yet carried into the registry) and, for a `rule`, convert
+  inter-atom insignificant whitespace to an optional-ws matcher (`\s*` / the in-scope `<.ws>`) instead of
+  stripping it. Then the real BB-generator tier (see the DESIGN NOTE under the G3-2 rung — Rakudo cursor model).
+
 G3-2 FIRST MILESTONE LANDED — <subrule> composition, mode-2/3/4 green (Claude, Opus 4.8, 2026-05-29,
   one4all `aa58850a`). The subrule SEAM, first increment. A rule body's `<name>` references now resolve
   and compose: `token TOP { <a> <b> }` matches the concatenation, `token TOP { <x> s }` with
