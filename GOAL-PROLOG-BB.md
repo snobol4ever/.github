@@ -30,6 +30,124 @@ study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-
 
 ---
 
+## ★★★ PLG — STACKLESS GROUND-ZERO REBUILD (CURRENT — supersedes WAM-CP *direction*) ★★★
+
+**Directive (Lon, 2026-05-30):** The engine grew a VALUE STACK it must not have. `--run` and
+`--compile` (and `--interp` of a BB) need NO value stack: the BB node IS the value's home. The
+proof is in the repo — read these FIRST, every PLG session, before touching code:
+
+- **`bench/Simple Translation of Goal Directed Evaluation.pdf`** (Proebsting) — the four-port
+  template scheme. Each operator → four code chunks (`α/β/γ/ω` = start/resume/fail/succeed),
+  threaded by `goto`. start/resume SYNTHESIZED, fail/succeed INHERITED. The ONLY run-time-decided
+  edge is the indirect goto (ifstmt `gate`). Figure 1 = naive expansion; Figure 2 = optimized flat
+  two-loop collapse. **There is no value stack and no recursion in this scheme.**
+- **`bench/test_icon.c`** — `5 > ((1 to 2) * (3 to 4))` as literal four-port C. Every box's value is
+  a FLAT statically-declared frame slot (`int x5_V`, `int mult_V`). One C activation, flat. No stack.
+- **`bench/test_sno_1.c`** — `POS(0) ARBNO('Bird'|'Blue'|LEN(1)) $ OUTPUT RPOS(0)`. The ONE
+  unbounded-repetition construct (ARBNO) uses an EXPLICIT indexed frame array `_1[64]` addressed by
+  `ζ`/`ARBNO_i` — **this is how deferred/repeating activations are stored: an explicit indexed array,
+  NOT a save/restore of shared mutable node slots, NOT the C stack.** This is the solved form of the
+  EVAL/CODE/`*P`-deferred problem that broke the original fully-static SNOBOL4.
+- **`archive/frontend/prolog/prolog_emit.c`** — the ORIGINAL static Prolog emitter (Apr 13, pre-WAM).
+  A predicate → C function `pl_foo_2_r(args, trail, _start)`; clause body = flat `α/β/γ/ω` chunks;
+  a user call carries only `int _cs` (resume cursor) + `trail_mark` as surviving dynamic state. NO
+  per-node snapshot, NO value stack. Recursion uses the C stack with a fresh frame per activation;
+  the only ledger is a cursor int and the trail. **This is the target shape.**
+
+**THE MESS (what to undo, by design — confirm each against code before acting):**
+`bb_node_state_t` + `bb_snapshot_state`/`bb_restore_state` (BB.h ~268-282; ~8 call sites in
+`bb_exec.c`) copy every node's `value`/`counter`/`state`/cursor IN and OUT on each recursive
+re-entry **because the engine shares ONE mutable `BB_graph_t` across all recursive activations.**
+That copy-in/copy-out IS the value stack. The archived emitter never needed it: each activation
+owned its own frame. The fix direction is to make node-mutable per-activation state live in a
+per-activation frame (à la `pl_foo_2_r` locals / `ζ`-array slots), leaving only trail + resume-cursor
+as surviving dynamic state — so there is NOTHING to snapshot.
+
+**ARCH CORRECTION:** `ARCH-PROLOG.md` and `ARCH-x86.md` describe a WAM CP-frame **stack** (`pl_choice`
+ported from gprolog `wam_inst.h`, "raw-WamWord stack" framing). That was the wrong compass — corrected
+in those files (see ARCH-PROLOG "Engine model" rewrite). The CP ledger is a parent-linked record, not
+a value stack; and the node-state snapshot stack must go.
+
+**METHOD:** Start at HELLO WORLD. Climb rungs. Each rung verified 3-mode (mode-2 == mode-3 ==
+mode-4 where applicable) byte-identical to `.expected`, FACT 0. Reference the four sources above at
+EVERY rung — when a port-wiring or value-home question arises, the PDF + the two `.c` files + the
+archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
+
+### PLG rungs
+
+- [ ] **PLG-0 — AUDIT (doc only, no code).** Produce `doc/PLG-STACKLESS-AUDIT-2026-05-30.md`: list
+  EVERY value-stack / snapshot / per-activation-copy mechanism in the Prolog path (`bb_node_state_t`
+  fields + all `bb_snapshot_state`/`bb_restore_state` call sites with line refs; `PlCallSt`/`pl_cs`;
+  any `*_stack[]` array touched by a Prolog node). For each: is it (a) a true value stack that the
+  four-port scheme proves unnecessary, (b) the trail (KEEP — the `.c` files keep a trail), (c) the
+  CP cursor/ledger (KEEP — `_cs`/`pl_choice` is the irreducible resume state), or (d) ARBNO-style
+  explicit indexed deferred-frame array (KEEP — `_1[64]`). Cross-reference each against the archived
+  `prolog_emit.c` shape. Output: a kept/remove verdict per mechanism, no code touched. Gate: doc
+  committed; all current gates byte-identical (nothing ran).
+
+- [ ] **PLG-1 — HELLO WORLD, stackless, mode-2.** `:- initialization((write(hello), nl)).` (or the
+  existing `corpus/programs/prolog/hello.pl`). Establish the baseline flat path: one fact/directive,
+  no clause choice, no recursion → must execute with ZERO snapshot/restore calls reached. Instrument
+  (`SCRIP_PLG_TRACE=1`, default OFF, no emitted bytes) a counter in `bb_snapshot_state` and assert it
+  stays 0 for hello. Gate: hello.pl mode-2 prints `hello`; snapshot counter == 0; FACT 0.
+
+- [ ] **PLG-2 — single non-recursive predicate, mode-2.** `greet :- write(hello), nl. :- greet.`
+  Body = flat α/β/γ/ω SEQ; one call, no retry, no recursion. Snapshot counter must remain 0 (call
+  carries only the γ/ω wiring + trail mark, per archived `prolog_emit.c` user-call shape). Gate:
+  prints `hello`; snapshot count 0; mode-2 == mode-3; FACT 0.
+
+- [ ] **PLG-3 — facts + first-solution call, mode-2.** `color(red). color(green). color(blue).
+  :- color(X), write(X), nl.` First solution only. BB_CHOICE dispatch carries a resume CURSOR
+  (`_cs`-equivalent int) + trail mark ONLY — NOT a node-state snapshot. Verify the cursor lives as a
+  plain per-activation int, not a saved/restored shared slot. Gate: prints `red`; snapshot count 0.
+
+- [ ] **PLG-4 — backtracking enumeration, mode-2.** Same facts, `:- color(X), write(X), nl, fail ;
+  true.` → `red/green/blue`. Resume re-enters BB_CHOICE via cursor + `trail_unwind(mark)`. Still NO
+  snapshot — the only surviving state across the fail edge is (cursor, trail_mark), exactly the
+  archived `_cs`/`_cm` pair. Gate: `red\ngreen\nblue`; snapshot count 0; mode-2 == mode-3.
+
+- [ ] **PLG-5 — multi-goal body backtracking (no recursion), mode-2.** `differ(smith,M),
+  differ(T,brown)` class — two calls to the same predicate in one body. THIS is the case the
+  2026-05-30 "Bug 2" patched by ADDING cp/cut_barrier to the snapshot. Re-solve it the stackless way:
+  two distinct call SITES each own their own (cursor, mark) frame slot — no shared mutable node state
+  to go stale — so no snapshot is needed at all. Gate: the rung10 puzzle multi-call programs
+  3-mode AGREE with snapshot count 0 (replacing the snapshot-based fix).
+
+- [ ] **PLG-6 — RECURSION, mode-2 (the crux).** `count(0). count(N):-N>0,N1 is N-1,count(N1). :-
+  count(3).` Two live activations of `count/1` must coexist. The mess solves this by snapshotting the
+  shared graph; the `.c`/archived solution gives each activation its OWN frame (the `pl_foo_2_r` C
+  frame, or an explicit per-activation slot vector keyed by depth like `ζ`). Decide + implement the
+  per-activation frame so node-mutable state is NOT shared → snapshot becomes dead. Gate: `count(3)`
+  ok; `count(1000)` ok; snapshot count 0; mode-2 == mode-3; the WAM-CP-6 B1/B2/B3 LCO hacks become
+  unnecessary for the flat case (do NOT delete them yet — prove redundancy first).
+
+- [ ] **PLG-7 — remove `bb_node_state_t` snapshot/restore (the deletion).** Once PLG-1..6 run with
+  snapshot count provably 0 across the gate suite, delete `bb_snapshot_state`/`bb_restore_state` and
+  the `bb_node_state_t` fields, and all call sites in the Prolog path. (Audit Icon/SNOBOL4 sites
+  first — those are SEPARATE; this rung touches Prolog call sites only unless PLG-0 proved them
+  shared.) Gate: GATE-1..4 + GATE-SWI all byte-identical to pre-deletion; FACT 0; build green.
+
+- [ ] **PLG-8 — mode-3 (`--run`) flat parity.** Confirm the native MEDIUM_BINARY flat walk
+  (`walk_bb_flat` + `bb_pl_*.cpp`) carries the same (cursor, trail_mark) discipline and no
+  snapshot-equivalent. Climb PLG-1..6 in mode-3. Gate: each rung mode-3 == mode-2.
+
+- [ ] **PLG-9 — mode-4 (`--compile --target=x86`) flat parity.** The emitted x86 must match the
+  archived `prolog_emit.c` shape (flat α/β/γ/ω labels, `_cs` cursor, trail mark) — the optimized
+  Figure-2 collapse is the eventual target. Climb the ladder in mode-4. Gate: each rung mode-4
+  byte-matches `.expected` for the covered set; FACT 0.
+
+- [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue (the historical breaker).** The construct that
+  broke the original fully-static SNOBOL4 and is solved in `test_sno_1.c` via the `_1[64]`/`ζ`
+  explicit indexed frame array. Map the Prolog analogue (findall goal sub-graph; assertz/retract
+  mutable clause store; DCG repetition) onto an explicit indexed deferred-frame array, NOT a snapshot
+  and NOT C recursion. Gate: rung11 findall + rung14 retract + rung30 DCG via explicit frame array,
+  3-mode AGREE, snapshot count 0.
+
+**Dependency order:** PLG-0 → PLG-1 → … → PLG-10, strictly. Do not skip the audit. Do not delete
+snapshot machinery (PLG-7) until PLG-6 proves it is dead for the recursive case.
+
+---
+
 ## State at HEAD (post-PROLOG-BB-MODE2-FIXES, 2026-05-30 — Sonnet 4.6, one4all `1882bc6b`)
 
 **2026-05-30 Sonnet 4.6: Two mode-2 bugs fixed — write(op-compound) + BB_CHOICE snapshot.**
