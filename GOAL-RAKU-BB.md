@@ -250,6 +250,24 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+G3-2 rule :sigspace LANDED (Claude, Opus 4.8, 2026-05-29, one4all `a062f28b`). Per the Rakudo reading
+  (token=:sigspace OFF, rule=ON, ws between atoms -> <.ws>). The registry now carries each rule's FLAVOR
+  (0=token/1=rule/2=regex), threaded via a 3rd raku_grammar_register arg + lower_grammar_decl. rk_gram_expand
+  is now FLAVOR-AWARE and absorbed the old strip_ws (quote/escape-aware): token/regex strip insignificant
+  whitespace, rule turns each ws RUN into optional `\s*`; subrules recurse in THEIR own flavor. So
+  `rule TOP { <a> <b> }` matches "foo bar"/"foobar"/"foo   bar" while token subrules stay strict.
+  test/raku/rk_grammar_rule_sigspace.{raku,expected}, mode-2==mode-4. GATES: GATE-RK m2 44/45->45/46,
+  GATE-RK4 m4 45/45->46/46 PERFECT, GATE-RK3 m3 44/45->45/46 CRASH 0; smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0
+  M4 18/1, FACT 0, no regression. SESSION TALLY (Opus 4.8 2026-05-29): G3 parse-only (76719461) -> G3-1
+  Grammar.parse (dd52b2bf) -> G3-2 subrule (aa58850a) -> <.name> (75294cbb) -> rule sigspace (a062f28b),
+  plus the Rakudo-grounded BB DESIGN NOTE. GATE-RK m2 41/42->45/46, GATE-RK4 m4 42/42->46/46 PERFECT,
+  GATE-RK3 m3 41/42->45/46. The whole grammar surface now runs on the C raku_nfa_* engine + registry
+  expansion; these are the GOLDEN ORACLE for the BB-generator tier. NEXT: the BB-generator tier (recursion
+  + backtrack-across-calls onto BB_SUSPEND/BB_ALT/BB_PUMP per the DESIGN NOTE — needs a per-call Cursor
+  frame stack, the one thing registry expansion can't do); and/or G5 Match tree (return a Match obj, not the
+  matched string); and/or G3-3 subrule args / G3-4 grammar inheritance. Registry expansion remains
+  NON-RECURSIVE (depth-cap 16).
+
 G3-2 <.name> NON-CAPTURING SUBRULE LANDED (Claude, Opus 4.8, 2026-05-29, one4all `75294cbb`). Small
   grounded increment after reading the NQP grammar (where `<.ws>`/`<.ident>` are pervasive): rk_gram_expand
   now recognizes `<.name>` (dot-prefixed) as a subrule call, not only `<name>`. No Match tree yet, so
