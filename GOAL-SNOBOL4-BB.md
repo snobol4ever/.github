@@ -222,9 +222,11 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
   both FAIL lists, `comm -13 native m2` (stock harness runs bare `$INTERP` = mode-3 native per
   `scrip.c:135`; inject `--interp`). **Current mode-2-only gaps (4):** `064_pat_fence_fn_capture`,
   `124_pat_regex_keyword_seal` (the `[~]` DEFER-resume item), `Qize_driver`, `XDump_driver` — the latter
-  three (064/Qize/XDump) all = this charset-expr root cause. **NEW native-only gap (1):** `fence_driver`
-  passes mode-2 but fails native after the FENCE-SEAL commit `77a39e82` — contradicts the older "ZERO
-  native-only" milestone (line 76); worth a re-check.
+  three (064/Qize/XDump) all = this charset-expr root cause. **NEW native-only gap (1): `fence_driver`
+  RESOLVED ✅ (SBL-POOL-TRIM, 2026-05-29 Opus 4.8)** — NOT a FENCE-SEAL regression; it was `bb_pool`
+  exhaustion (fixed 256KB/blob × 16 = 4MB pool full → 17th pattern fails to build). The "ZERO native-only"
+  milestone held; fence_driver just allocated >15 blobs via global.sno's preamble. See the SBL-POOL-TRIM
+  handoff + session log entry below.
 
 
 - [x] **SBL-ARB-CAT-BACKTRACK (mode-3 native + mode-4 flat) ✅** (2026-05-29 Opus 4.8). The prior
@@ -406,7 +408,7 @@ HEAD one4all       = 77a39e82  SBL-ALT-CURSOR-RESTORE + SBL-FENCE-SEAL (clean fl
 GATE-1 smoke       = 13/13    (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 57/5     (sibling-influenced)
 GATE-3 mode-4      = (not gated this session; rung M4=18/19, 053_pat_alt_commit pre-existing)
-DEFAULT/NATIVE     = 256/280  (+1 this session: XDump_driver, via the shared bb_exec SPAN-VAR arm)
+DEFAULT/NATIVE     = 259/280  (SBL-POOL-TRIM, +3: case_driver, fence_driver, test_case — bb_pool tail reclaim)
 true --interp      = 253/280  (+5 this session: 811_size, 063, 065, 061, test_string)
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
@@ -420,6 +422,24 @@ GATE-PK            = stale
 ---
 
 ## Session log (last few, terse)
+
+- **2026-05-29 Opus 4.8 — SBL-POOL-TRIM ✅** (staged, NOT pushed pending `perform hand off`; base `5cc1224e`).
+  `fence_driver` native FAIL was misattributed to FENCE-SEAL — actual cause is **`bb_pool` exhaustion**.
+  `bb_build_flat`/`bb_build_brokered` reserve a fixed `FLAT_BUF_MAX` (256 KB) per blob, seal only ~200 B used,
+  never reclaim the slack; native caches+persists blobs (no per-stmt pool reset, only mode-4 resets), so 4 MB
+  ÷ 256 KB = exactly **16 blobs** then `bb_alloc`→NULL → the 17th pattern (FENCE, after global.sno's >15-blob
+  preamble) silently fails to build. Bisected: capture stmts fail at N=8, plain at N=20; `bb_alloc` probe
+  showed size=262144 each, exhausting at used=4194304. Fix (3 files, +25/−7): new `bb_pool_trim_last(buf,
+  reserved, used)` rewinds `pool_top` to `page_ceil(buf+used)` when `buf` is topmost (LIFO-guarded, no-op
+  otherwise); reordered both builders so `pre_build_children` runs BEFORE `bb_alloc` (parent buf topmost at
+  trim time) + `bb_pool_trim_last` after `bb_seal`; emission stays in-place (no memcpy → no rel32/movabs
+  hazard). Corrected stale `bb_pool.h` comment (claimed 64 MB, defined 4 MB). **Native 256→259 (+3:
+  case_driver, fence_driver, test_case — all pool-exhaustion victims); ZERO regression** (stash/rebuild
+  baseline diff: exactly those 3 newly green, none dropped). Gates: smoke 13/13 ×2, rung M2=19/0 M4=18/1
+  (053 pre-existing), broker 57/5, cross-lang icon/prolog/raku/snocone 5/5/5/5, FACT 0, audit pre-existing
+  NO-ARM only (no `xa_*` arm touched). Language-agnostic pool mechanics — likely lifts latent pool-exhaustion
+  victims in Prolog/Icon/Raku BB too (their parsers build many sub-pattern blobs). Handoff:
+  `HANDOFF-2026-05-29-OPUS48-SBL-POOL-TRIM-FENCE-DRIVER.md`.
 
 - **2026-05-29 Opus 4.8 — SBL-CHARSET-EXPR TRIAGE (no code; consolidation)** (one4all UNCHANGED `77a39e82`;
   .github `195066df`+`84daf610`). Proved `XDump_driver` + `Qize_driver` + `064` share ONE root cause: a
