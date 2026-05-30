@@ -163,7 +163,7 @@ All lower to the `BB_NFA_*` slab; most are compile-time cset/loop shaping, NOT n
 - [ ] **G2-13 capture markers** — `<( … )>` keep-delimiters (set match start/end within a larger pattern).
 
 ### Phase 3 — BB-generator grammar STRUCTURE (RK-GRAM-3, Tier B) — THE SEAM
-- [ ] **G3-1 named-regex decl** — `my regex/token/rule name { … }` lowers each to a four-port BB **generator** (NOT a free fn) whose body is the Tier-A NFA slab. `token` = ratchet generator (β never re-pumps past first match); `regex` = backtracking generator (β re-pumps); `rule` = token + `:sigspace`.
+- [ ] **G3-1 named-regex decl** — `my regex/token/rule name { … }` lowers each to a four-port BB **generator** (NOT a free fn) whose body is the Tier-A NFA slab. `token` = ratchet generator (β never re-pumps past first match); `regex` = backtracking generator (β re-pumps); `rule` = token + `:sigspace`. **⏳ FIRST MILESTONE DONE (one4all `dd52b2bf`): `Grammar.parse($s)` runs TOP, mode-2/3/4 green (see top watermark). NOT yet on a BB generator — rides the C `raku_nfa_*` engine; the BB-generator form (sub-steps a/b) + subrule composition is G3-2.**
   - [ ] a. `lower_raku_named_regex` → `SM_BB_INVOKE` over the generator graph.
   - [ ] b. `:sigspace` rewrite: insert a `<.ws>` generator at each significant boundary (rule only).
   - **G3-1 EXECUTION PLAN (measured 2026-05-29, Opus 4.8, one4all `76719461` — facts so the next session executes, not explores).** The PARSE layer is done (TT_GRAMMAR_DECL{ TT_REGEX_DECL(v.ival 0/1/2)... }, bodies as opaque LIT_REGEX child c[1]). Today `lower.c` reports `unhandled AST kinds: TT_GRAMMAR_DECL` and skips it (graceful, exit 0; a grammar coexists with runnable code — verified `say;grammar;say` prints both lines mode-2 + mode-4). MODEL = `lower_class_decl` (`src/lower/lower.c:1987`) + `lower_class_prescan` (`:2952`, walks top-level stmts for TT_CLASS_DECL, registers each method via `lower_raku_meth_register` BEFORE skeletons) + dispatch (`:2641 case TT_CLASS_DECL`). A grammar is the same shape: a namespace whose members are named generators instead of methods. REUSE ALREADY-LANDED: `raku_nfa_build(const char*pattern)` (`raku_re.c:299`, decl in `raku_re.h:46`) parses a body string → `Raku_nfa*`; `raku_nfa_to_bb(Raku_nfa*)` (`raku_nfa_bb.c:90`, RK-NFA-1b ✅) → isolated `BB_NFA_*` `BB_graph_t*`. So a TT_REGEX_DECL body → generator graph is a two-call pipeline that EXISTS. STEPS: (1) `lower_grammar_prescan` mirroring `lower_class_prescan` — register each `Grammar::rule` name (rename c[0]->v.sval to `Grammar__rule` like methods) into a grammar-rule table keyed for subrule resolution at G3-2. (2) `lower_grammar_decl` mirroring `lower_class_decl` — for each TT_REGEX_DECL: `raku_nfa_build(c[1]->v.sval)` then `raku_nfa_to_bb`; register the graph at runtime via an SM-level call (model the `RECORD_REGISTER` idempotent-handler pattern at `:2025` so BOTH mode-2 sm_interp and mode-4 rt_call register before any invocation — a lower-time-only registry is empty in the mode-4 child process, see the RK-CLASS comment). flavor (v.ival): token=ratchet (β no re-pump), regex=backtrack (β re-pumps), rule=token+`:sigspace`. (3) dispatch `case TT_GRAMMAR_DECL: lower_grammar_decl(t); SM_emit(g_p, SM_PUSH_NULL); return;` next to `:2641`; add `if (has_raku) lower_grammar_prescan(prog)` next to `:3005`. ⚠️ TESTABILITY COUPLING (the reason this is not independently shippable): a lowered generator is only OBSERVABLE once something INVOKES it. The smallest end-to-end test needs an invocation path — either G3-5 `Grammar.parse($s)` entering `TOP`, or a `~~`/`&name` reference. So G3-1 must land WITH a minimal invocation (recommend the `TOP` entry: `G.parse("...")` → enter the TOP generator → return Match/Nil), and the first `test/raku/*.{raku,expected}` grammar probe attaches there (Prolog GATE-4 pattern, mode-2 + mode-4 byte-identical). Until then the parse fixture `test/raku/rk_grammar_parse.raku` stays `.expected`-less (run-gates SKIP). CAVEAT (from the shelving decision): re-confirm at the seam that the leaf `BB_NFA_*` graph is the right substrate before relying on it — the GENERATORS (`BB_SUSPEND`/`BB_ALT`/`BB_PUMP`) are the load-bearing kinds, the leaf graph may be leaf-costume.
@@ -248,6 +248,39 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 ## Watermark
 
 ```
+G3-1 FIRST MILESTONE LANDED — Grammar.parse($s) runs the TOP rule, mode-2/3/4 green (Claude, Opus 4.8,
+  2026-05-29, one4all `dd52b2bf`). The first END-TO-END grammar feature: a `token TOP { ... }` is matched
+  against input via `G.parse("...")`, returning the matched text on success / Nil on failure, whole-string
+  anchored. Built directly on the parse-only rung from earlier this session. THREE pieces:
+  (1) RUNTIME (`raku_builtins_byname.c`): a file-static grammar-rule registry (`Grammar::rule -> body`) +
+      `raku_grammar_register(qname,body)` (idempotent; emitted at the decl site so it runs in BOTH mode-2
+      sm_interp and the mode-4 compiled binary — same RECORD_REGISTER cross-mode pattern lower_class_decl
+      uses) + `raku_grammar_parse(gname,subject)` (looks up `gname::TOP`, trims token-insignificant
+      surrounding whitespace, matches leftmost via the EXISTING isolated `raku_nfa_build`/`raku_nfa_exec`
+      engine, succeeds only on full-string match `full_start==0 && full_end==len`, returns matched text or
+      FAILDESCR).
+  (2) LOWERING (`lower.c`): `lower_grammar_decl` emits one `raku_grammar_register` per token/rule/regex
+      member (model lower_class_decl's SM-level RECORD_REGISTER loop); `lower_grammar_prescan` collects
+      grammar names into `g_rk_grammar_names[]`; `case TT_GRAMMAR_DECL` dispatch; prescan hook next to
+      lower_class_prescan; and a TT_METHCALL interception — when the invocant bareword is a declared
+      grammar and the method is `parse` with one arg, route to `raku_grammar_parse("G", $s)` instead of the
+      generic `raku_mcall`.
+  (3) PARSER (`raku.y`): the missing bareword method-call productions `IDENT '.' IDENT '(' [args] ')'`.
+      Literal invocants already worked (`"abc".chars` via `atom '.' IDENT`), but a bareword `G` could not
+      reduce to `atom` before the `.` (LALR held it expecting `IDENT '.' KW_NEW`), so `G.parse(...)` was a
+      parse error. The new productions are parallel to the `.new` ones; NET-ZERO new conflicts (still 30
+      s/r). Parser regenerated (only raku.tab.c changed — no new tokens/lexer rules).
+  TEST: `test/raku/rk_grammar_parse.{raku,expected}` upgraded from the parse-only fixture (now that a run
+  path exists, per the file's own gating rule) to a runnable gated test — match success->text, failure->Nil,
+  a `\d+` class rule, whole-string anchoring; mode-2 == mode-4 bytes. GATES ADVANCE: GATE-RK m2 41/42->42/43,
+  GATE-RK4 m4 42/42->43/43 PERFECT, GATE-RK3 m3-native 41/42->42/43 CRASH 0. smoke 5/5/5/13/5, SNOBOL4 iso
+  M2 19/0 M4 18/1, FACT 0, build clean, zero regression. SCOPE / HONESTY about what this is NOT yet: the
+  matcher still rides the C `raku_nfa_*` engine (NOT a four-port BB generator — that is G3-2's job, the
+  load-bearing seam); only `TOP` is invocable; bodies are single patterns (no `<subrule>` yet); `.parse`
+  returns the matched STRING, not a real Match tree (G5). NEXT CODE RUNG: G3-2 — the subrule seam `<name>`
+  (resume-and-yield-next across a call boundary = the four-port generators BB_SUSPEND/BB_ALT/BB_PUMP), and
+  generalize `.parse` to compose rules. That is where BBs finally earn their keep per the shelving decision.
+
 G3 PARSE-ONLY RUNG LANDED — and the prior session's "flex bug" was a MISDIAGNOSIS (Claude, Opus 4.8,
   2026-05-29, one4all `4d0c69aa`). The parse-only G3 frontend rung (grammar/token/rule/regex) that the
   immediately-prior session built-then-REVERTED is now GREEN and committed. The blocker that session
