@@ -110,6 +110,37 @@
 
 ## Active Rungs
 
+### 🟥 DESCR-WIDTH — verify DESCR at 8-byte and 16-byte across ALL test suites (FIRST — do before any other rung)
+
+**Why first:** the `descr8-macro-funnel` track funnels every raw DESCR field access through the
+macro layer (`INTVAL`/`REALVAL`/`MK_DATA`/`SET_SLEN`/`GET_SLEN`/`IS_CSET`/name-discriminator
+reads, etc.). The point of that funnel is to make the physical DESCR width swappable. This rung
+proves the funnel actually delivers that: the *same* sources must pass *every* suite whether
+`DESCR_t` is laid out 8-byte or 16-byte. Until both widths are green on all suites, no further
+funnel/width work proceeds.
+
+**Harness caveat (must fix as DW-0):** `scripts/test_interp_broad_corpus_and_beauty.sh` invokes
+`$INTERP "$sno"` with NO mode flag, so it falls into the excised mode-3 native SM path and aborts
+by design for non-Icon languages. Force `--interp` (set `INTERP="$PWD/scrip --interp"`) or patch
+the harness, otherwise the absolute pass counts are meaningless (only the cross-branch delta is).
+
+**Known baseline (descr8-macro-funnel vs main, broad corpus + beauty, `--interp` forced):** net
+2 regressions (`062_capture_replacement`, `063_capture_null_replace`) / 2 fixes
+(`089_define_in_pattern`, `090_define_entry_label`). The two capture regressions are the prime
+suspects for DESCR-width sensitivity (step-3 touched `MK_DATA` + name-discriminator reads) and
+must be resolved before either width is declared green.
+
+- [ ] **DW-0** Fix the suite harness so every SNOBOL4 suite runs in a live mode (`--interp`), not the excised mode-3 default. Re-establish a real pass-count baseline on `main` and on `descr8-macro-funnel`.
+- [ ] **DW-1** Define the two DESCR layouts behind one compile-time switch (e.g. `-DDESCR_WIDTH=8` / `-DDESCR_WIDTH=16` selecting the `descr.h` struct packing). Confirm a clean build of `scrip` under each.
+- [ ] **DW-2** **8-byte:** build `scrip` with the 8-byte layout; run the FULL SNOBOL4 suite set — broad corpus + beauty drivers + demos (`test_interp_broad_corpus_and_beauty.sh`, `--interp`), smoke (`test_smoke_snobol4.sh`), 3-mode crosscheck (`test_crosscheck_snobol4.sh`), mode-4 broad (`test_mode4_broad_corpus_snobol4.sh`), and the full-corpus regression (`test_regression_full_corpus.sh`). Record per-suite pass/fail.
+- [ ] **DW-3** **16-byte:** rebuild `scrip` with the 16-byte layout; run the identical suite set from DW-2. Record per-suite pass/fail.
+- [ ] **DW-4** **Width-parity diff:** for every suite, the 8-byte and 16-byte failure sets must be IDENTICAL. Any test that passes at one width and fails at the other is a width-sensitivity bug and blocks the rung.
+- [ ] **DW-5** Resolve the `062`/`063` capture regressions; re-run DW-2..DW-4 until both widths are green on all suites (subject to the known/unrelated baseline failures, which must match `main`).
+- [ ] **DW-6** Extend the parity check to the other front-ends' suites (Icon, Prolog) under both widths, so DESCR-width independence is proven corpus-wide, not just SNOBOL4.
+- [ ] **DW-7** Single end-of-session gate (Invariant 5): one combined run that builds both widths, runs all suites, and asserts width-parity GREEN.
+
+---
+
 ### 📌 WAM-CP-EMIT — emission obligations from the Prolog WAM-CP track (2026-05-28, Opus 4.7)
 
 **Pointer rung (sister to `GOAL-PROLOG-BB.md` WAM-CP ladder).** The Prolog goal is migrating
