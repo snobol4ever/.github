@@ -417,14 +417,22 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = df3551a7  LANG-INDEP Slice 5 (partial): ICN_/Icn_/gen_-non-generator de-prefixed
+HEAD one4all       = a0bb9be4  Restore 6381 files erroneously deleted by partial-checkout artifact in c5cf417c
+                     (df3551a7 → c5cf417c "Ground Zero" DELETED 991,875 lines / 6381 files [partial-checkout
+                      artifact] → a0bb9be4 RESTORED them. Current HEAD builds clean. Delete already reversed.)
+FRESH-START repo   = snobol4ever/SCRIP (NEW, public, created 2026-05-30 Sonnet 4.6). ZERO inherited history
+                     (single root commit, 0 parents). = one4all working tree at a0bb9be4 MINUS refs/ (the 19MB
+                     JCON/ICON vendored repos dropped). 4687 tracked files. one4all LEFT UNTOUCHED at a0bb9be4.
+                     Lon's "fresh start" working repo (supersedes one4all in spirit). PLAN.md Repos table +
+                     clone scripts NOT yet updated to point at SCRIP — that is a `grand master reorg` decision,
+                     deliberately NOT made on this routine handoff. Lon has full local mirrors of all org repos.
 HEAD corpus        = 447c05b    SBL-911-PORTABLE
-make scrip         = rc=0
-make libscrip_rt   = rc=0
+make scrip         = rc=0   (verified at clean a0bb9be4 this session)
+make libscrip_rt   = rc=0   (verified at clean a0bb9be4 this session)
 sm_dead ratchet    = 1/1 (MAX 1) OK
 audit_m3_native    = GATE OK
 FACT RULE          = 0
-Icon m2 hello      = ✅  (the live hard gate post-SMX-4)
+Icon m2 hello      = (NOT re-run this session — session pivoted to fresh-start infra; last known ✅)
 SNOBOL4 mode-2/3   = TOMBSTONED — SMX-4 (2b6394e1) deleted the Stack Machine; SNOBOL4/Prolog/Raku/Rebus
                      detonate loudly at the driver ([SMX] FATAL) until they cross onto Byrd Boxes.
                      The old corpus numbers below (265/280 etc.) are PRE-SMX-4 and no longer reachable;
@@ -433,7 +441,29 @@ SNOBOL4 mode-2/3   = TOMBSTONED — SMX-4 (2b6394e1) deleted the Stack Machine; 
                      Track B work per HANDOFF-2026-05-30-OPUS48-SMX-4-DELETE-SM.md.
 ```
 
-**This session (2026-05-30 Sonnet 4.6) — rename continuation + LOWER-MERGE plan (no engine logic touched):**
+**This session (2026-05-30 Sonnet 4.6) — PIVOT to fresh-start infra (SCRIP repo); LM-1 begun then reverted:**
+- **FRESH START — created `snobol4ever/SCRIP`** (public, org repo, ZERO inherited history: one root commit,
+  0 parents). Content = `git archive HEAD` of one4all at `a0bb9be4` (the restored, building state) extracted
+  to a fresh tree, `refs/` deleted (19MB JCON/ICON vendored repos), `git init` + single "Initial commit".
+  4687 tracked files (= one4all's tracked tree minus refs/; force-added 133 files a stray `.gitignore` would
+  otherwise have skipped, incl. 17 `src/` files, so the set is faithful). Pushed to a brand-new empty repo
+  (non-destructive). Verified remote: 1 root commit, refs/ → 404, one4all HEAD UNCHANGED at `a0bb9be4`.
+  Rationale: Lon wanted a clean working repo after the Ground-Zero delete debacle. Renaming one4all→X + new
+  one4all was REJECTED — GitHub breaks the rename-redirect when the old name is reused, and stale clones/CI
+  would silently retarget the new empty repo (2nd-debacle risk). New name `SCRIP` sidesteps all redirect
+  issues; one4all left fully intact as a recoverable backup (plus Lon's local mirrors of every org repo).
+- **LM-1 (LOWER-MERGE) begun in one4all then REVERTED.** Applied locally: folded `lower_ctx.h` decls into
+  `lower.h`; appended `lower_ctx.c` body (`kw_canonicalize`, `expression_scope_walk`) to `lower.c` under a
+  200ch `/*===*/` separator; removed the `#include "lower_ctx.h"` from `lower.c`. NOT yet done when the
+  session pivoted: delete `lower_ctx.{c,h}`; drop `lower_ctx.c` from Makefile (RT_PIC_SRCS + compile rule)
+  and `build_scrip.sh`. That partial state is BROKEN (duplicate `kw_canonicalize`/`expression_scope_walk` →
+  link error), so it was `git checkout`-reverted — one4all working tree is CLEAN at `a0bb9be4`, nothing
+  committed/pushed to one4all this session. **LM-1 must restart from clean HEAD** (the full step is still
+  spelled out under "NEXT — LOWER-MERGE" below; nothing was committed, so no partial credit to reconcile).
+- **No engine code, no gates beyond `make scrip`/`make libscrip_rt` (both rc=0 at clean a0bb9be4).** Only
+  `.github` (this goal file) committed this handoff; SCRIP already pushed; one4all + corpus untouched.
+
+**Prior session (2026-05-30 Sonnet 4.6) — rename continuation + LOWER-MERGE plan (no engine logic touched):**
 - **LANG-INDEP Slice 5 partial** (one4all `df3551a7`): 44 post-AST `ICN_`/`Icn_`/`g_icn_jcon` symbols
   stripped (missed in Slice 2): `BinopKind`, `BINOP_*`, `GEN_ENTER`, `FAIL_GEN_NODE`, `SEC_*`,
   `FIELD_NAME`, `KW_CSET_MAX`, `MATH1`/`TONUM`, `STACKLESS_ABORT`, `g_jcon`. Plus `gen_`-non-generator
@@ -473,6 +503,8 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-30 Sonnet 4.6 — FRESH-START: created `snobol4ever/SCRIP` (zero-history copy of one4all minus refs/)** (no one4all/corpus commit; `.github` only). Lon directive after the Ground-Zero delete debacle: a clean working repo, NOT a rename (rename→reuse breaks GitHub's redirect + stale clones retarget the new empty repo = 2nd-debacle risk; verified against GitHub docs). New repo `SCRIP` (public, org), ZERO inherited history (1 root commit, 0 parents) = `git archive HEAD`@`a0bb9be4` extracted, `refs/` removed (19MB JCON/ICON vendored), `git init` + single Initial commit, 4687 tracked files (force-added 133 `.gitignore`-skipped incl. 17 `src/`). Pushed to brand-new empty repo (non-destructive). Verified: remote 1 root commit, refs/→404, **one4all UNTOUCHED at `a0bb9be4`**. Also: confirmed the c5cf417c "Ground Zero" delete (991,875 lines/6381 files) was ALREADY reversed by a0bb9be4 last session — current HEAD builds clean (`make scrip`/`make libscrip_rt` rc=0). LM-1 (LOWER-MERGE) begun in one4all (lower.h decls folded, lower_ctx.c body appended to lower.c, include removed) then REVERTED (Makefile+file-deletes not done → broken duplicate-symbol state); one4all working tree clean, **LM-1 to restart from clean HEAD**. PLAN.md Repos table / clone scripts NOT updated to SCRIP — deferred to a `grand master reorg`.
 
 - **2026-05-30 Sonnet 4.6 — SBL-ARBNO-BROKERED ✅ (--interp +2: Qize_driver, XDump_driver)** (one4all `1f011f10`). One line: `arbno_combinator = patnd_contains_arbno(pp) && patnd_is_combinator_root(pp)` added to the BROKERED routing gate in `exec_stmt`; routes alongside `defer_combinator` and `pure_altcat` through `patnd_to_bb_tree`. Root cause: `patnd_to_bb_graph` (γ-chain) produces graphs that `bb_build_brokered` mis-executes (walker traverses kids, not γ pointers). `patnd_to_bb_tree` produces correctly kids-wired graphs. **--interp 261→263 (+2). Native 265 unchanged. m2-only 4→2 (only 124 + word1 remain). Gates: G1 13/13 ×2, G2 61/5, rung M2=19/0 M4=18/1, audit GATE OK, FACT=0. comm -23 empty.**
 
