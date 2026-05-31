@@ -2,6 +2,95 @@
 
 **Repo:** SCRIP + corpus + .github
 
+---
+
+## 🟥🟥 ACTIVE RUNG #1 — DW32/64: SNOBOL4 GREEN AT 8-BYTE *AND* 16-BYTE DESCR (32-bit & 64-bit SCRIP)
+
+> **⛔ BRANCH — VOLATILE.** All of this rung's work happens on the special branch
+> **`descr8-macro-funnel`** (SCRIP HEAD **`8a378d6`** — *DW-1: --descr8/--descr16 flag*; was `76fceb8`),
+> cloned standalone at `/home/claude/descr8`. These are volatile DESCR-layout modifications;
+> **`main` is unrelated** and must not be touched. Build into the clone directly with `make -j4 scrip`
+> (NOT `scripts/build_scrip.sh` — it has the RN-1 `$ROOT/SCRIP` bug and drops the binary in the wrong tree).
+>
+> **WATERMARK (2026-05-31, Sonnet):** DW-1 DONE + pushed (`8a378d6`). DW-2..DW-7 BLOCKED — see
+> DW-BLOCKER below: SNOBOL4 has no compiled path on this branch (only Icon exercises DESCR width).
+> Next session: Lon picks path (A) Icon width-parity matrix now, or (B) hold for SNOBOL4-BB.
+
+**The goal:** SCRIP must work in BOTH **64-bit mode (16-byte `DESCR_t`)** and **32-bit mode
+(8-byte packed `DESCR_t`)**. The full SNOBOL4 test surface must be GREEN — *and identical* —
+under both widths. Width-parity is the proof the macro-funnel actually made the layout swappable.
+
+**Ground truth verified on the branch (2026-05-31, Sonnet — read before starting):**
+- **Width is an x86-EMITTER mode, NOT a C-struct recompile.** `src/include/descr.h` defines
+  `descr_layout_t { DESCR_LAYOUT_16=0, DESCR_LAYOUT_8=1 }`; `s_descr_push()` in
+  `src/emitter/emit_str.cpp:313` is a **LIVE reader** — it branches on `g_descr_layout` and reads
+  `DESCR_OFF_V/SLEN/PAYLOAD` + `DESCR_STRIDE` to emit the packed-8 store vs the 16-byte quartet.
+  The C `DESCR_t` stays 16 bytes (`sizeof==16`). **Therefore parity is a COMPILED-MODE question
+  (`--run` / `--compile`), NOT `--interp`:** `src/runtime/` has ZERO references to `g_descr_layout`,
+  so mode-2 is width-blind and the same binary under both flags — testing it proves nothing about width.
+- **The ONE missing prerequisite is the CLI flag.** `emit_globals.c:4` defines
+  `g_descr_layout = DESCR_LAYOUT_16` and its own comment says "CLI flag flips to DESCR_LAYOUT_8",
+  but **no flag is wired in `src/driver/scrip.c`** (argv loop at ~line 77). That is DW-1.
+- **Harness caveat (DW-0, carried from the old rung):** `test_interp_broad_corpus_and_beauty.sh`
+  invokes `$INTERP "$sno"` with NO mode flag → falls into the excised native path. Force the mode
+  (`INTERP="$PWD/scrip --interp"` for the mode-2 leg). For the WIDTH legs the harness must drive a
+  COMPILED mode + the layout flag.
+- **Branch baseline (16-byte, broad corpus, forced `--interp`):** PASS=25 / FAIL=255 of 280. This
+  branch's SNOBOL4 interp is far behind `main` (it predates LOWER2-EXEC / SBL-EXEC-2). A meaningful
+  parity baseline likely needs the funnel rebased onto that recovery first — DW-2 must record the
+  honest absolute counts; the RUNG's pass condition is **width-PARITY (8==16 failure sets)**, not an
+  absolute green, until Lon calls the rebase.
+
+### Steps (each gated; commit on the special branch only)
+
+- [x] **DW-1 — Wire the layout flag. DONE (2026-05-31, Sonnet).** Added `--descr8` (→8-byte/32-bit)
+  and `--descr16` (→16-byte/64-bit, default) to the argv loop in `src/driver/scrip.c`, each setting
+  the C-linkage extern `g_descr_layout` (defined in `emit_globals.c`, compiled with `$(CC)` so no
+  name-mangling). Builds green; both flags fire and print a `[descr] layout = …` line; seed
+  `--interp` prints `hello` under both.
+
+> **⛔⛔ DW-BLOCKER (found at DW-1 verification, 2026-05-31) — READ THIS BEFORE DW-2.**
+> **SNOBOL4 has NO compiled path on this branch, so it cannot be tested at either width yet.**
+> - DESCR width is consulted ONLY by the x86 emitter (`s_descr_push`, `emit_str.cpp`). Its ONLY
+>   caller is `src/emitter/BB_templates/bb_iterate.cpp` — an **Icon** Byrd-Box template. No SNOBOL4
+>   path calls it.
+> - `scrip --run`/`--compile` for SNOBOL4 → **`[SMX] FATAL: Stack Machine excised … This language
+>   has not yet crossed onto Byrd Boxes. Aborting (by design).`** SNOBOL4's compiled mode was removed
+>   with the SM and not yet rebuilt on Byrd Boxes. `--interp` (the only working SNOBOL4 mode) is
+>   width-BLIND (`src/runtime/` reads `g_descr_layout` zero times) → identical binary under both flags.
+> - **CONSEQUENCE:** the SNOBOL4 width-parity suites (DW-2..DW-7 as written) are BLOCKED until
+>   SNOBOL4 crosses onto Byrd Boxes (the `SNOBOL4 → BB directed graph` track in `GOAL-ICON-BB.md` /
+>   `GOAL-SNOBOL4-BB.md`) so that `s_descr_push` (or its SNOBOL4 analog) is emitted on a SNOBOL4
+>   program. **Today the ONLY language that exercises DESCR width is Icon.**
+> - **Two ways forward for Lon to pick:** (A) run the DW width-parity matrix on **Icon** now (the
+>   live width consumer) to prove the 8/16 toggle end-to-end, and defer the SNOBOL4 legs until SNOBOL4
+>   is BB-crossed; or (B) hold the whole rung until SNOBOL4-BB lands, then run the full SNOBOL4
+>   surface. The flag (DW-1) is ready for either.
+
+- [ ] **DW-2 — 16-byte (64-bit) FULL baseline.** With the default layout, run and record per-suite
+  pass/fail for the COMPILED SNOBOL4 surface: `test_mode4_broad_corpus_snobol4.sh`,
+  `test_crosscheck_snobol4.sh` (+ `util_crosscheck_3mode.sh`), `test_regression_full_corpus.sh`,
+  `test_snobol4_pat_rung_suite.sh`, `test_smoke_snobol4_run.sh`, plus the mode-2 leg
+  `test_interp_broad_corpus_and_beauty.sh` (forced `--interp`) and `test_smoke_snobol4.sh`.
+  Benchmarks: `test_bench_snobol4_modes.sh` (+ `build_benchmarks.sh`). Beauty/demo:
+  `test_smoke_self_beautify.sh`, `util_run_beauty_oracle.sh`, `test_gate_sn7_beauty_self_host.sh`.
+- [ ] **DW-3 — 8-byte (32-bit) FULL run.** Re-run the IDENTICAL suite set from DW-2 with `--descr8`
+  threaded into each harness's compiled-mode invocation (add an `SCRIP_DESCR=8` / `--descr8`
+  passthrough to each script, or an `INTERP/COMPILE` var). Record per-suite pass/fail.
+- [ ] **DW-4 — WIDTH-PARITY DIFF (the pass condition).** For every suite, the 8-byte and 16-byte
+  failure sets must be IDENTICAL. Any test that passes at one width and fails at the other is a
+  width-sensitivity bug and BLOCKS the rung. Capture the diff per suite.
+- [ ] **DW-5 — Resolve width-sensitivity bugs** found in DW-4 (the packed-store / RBP-based payload
+  paths in `s_descr_push` and any consumer reading raw offsets); re-run DW-2..DW-4 until parity holds.
+- [ ] **DW-6 — Benchmark parity.** Record `test_bench_snobol4_modes.sh` numbers at both widths;
+  32-bit should not regress correctness and its timing delta is recorded (not gated).
+- [ ] **DW-7 — Single end-of-session gate (Invariant 5).** One combined script that builds the
+  branch, runs the whole SNOBOL4 surface at BOTH widths, and asserts WIDTH-PARITY GREEN across
+  corpus + crosscheck/rungs + regression + smoke + beauty/demo. Commit + push on
+  `descr8-macro-funnel` only.
+
+---
+
 ## Invariants
 
 1. **No AST walking in modes 2/3/4.**
@@ -111,6 +200,33 @@
 ## Active Rungs
 
 ### 🟥 DESCR-WIDTH — verify DESCR at 8-byte and 16-byte across ALL test suites (FIRST — do before any other rung)
+
+> **⛔ BRANCH (THIS RUNG ONLY — recorded 2026-05-31, Sonnet).** This rung and its DW-0…DW-7 steps
+> live on the special branch **`descr8-macro-funnel`** (SCRIP HEAD `76fceb8` — *DESCR8 Path A
+> step-3*), NOT on `main`. The rest of Command Central (CAPS-CONCAT, LOCAL-PURGE, the Session
+> State / GATE-PK / SM-opcode sections below) is unrelated to this branch and is stale pre-reset
+> material. Only the DESCR-width work is here.
+>
+> **Findings on `descr8-macro-funnel` @ `76fceb8` (measured this session):**
+> - **The 8-byte/16-byte toggle is NOT yet runnable.** `src/include/descr.h` defines
+>   `descr_layout_t { DESCR_LAYOUT_16=0, DESCR_LAYOUT_8=1 }` and `emit_globals.c` defines
+>   `g_descr_layout = DESCR_LAYOUT_16`, but that global has **no setter, no CLI flag, and ZERO live
+>   readers**; the `DESCR_STRIDE`/`DESCR_OFF_*` offset macros have ZERO consumers outside their own
+>   definition. The funnel laid the *plumbing* (layout enum + `GET_`/`SET_` accessor funnel +
+>   offset macros; the C-side funnel gate `descr8_funnel_gate.py` is green) but the 8-byte path is
+>   inert. So "run SNOBOL4 at 8 bytes" has nothing to switch on yet — **that wiring is the real
+>   DW-0/DW-1 prerequisite.**
+> - **By design it's an x86-EMITTER mode, not a C-struct recompile.** Per descr.h's own comment,
+>   `DESCR_LAYOUT_8` selects emitted-x86 stride/offsets (RBP-based 32-bit payload); the C `DESCR_t`
+>   stays 16 bytes (`sizeof(DESCR_t)==16` measured). Therefore width-parity is a **mode-4 (compiled
+>   x86)** question — mode-2 `--interp` never consults the layout. CC's DW-2/DW-3 "build `scrip` at
+>   each width via `-DDESCR_WIDTH`" framing does NOT match what was built (no struct-packing switch).
+> - **This branch's SNOBOL4 interp is far behind `main`.** Broad corpus, forced `--interp`:
+>   funnel **PASS=25 / FAIL=255** of 280 vs `main` **PASS=128 / FAIL=152**. The branch diverged
+>   from base `d592f40` before main's SNOBOL4 recovery (LOWER2-EXEC, SBL-EXEC-2) and never received
+>   it — so even a working toggle would measure parity against a broadly-broken interpreter.
+>   Rebasing the funnel onto main's recovery is likely a precondition for a meaningful DW baseline.
+> - Build is green; ground-zero seed `scrip --interp` → `hello` ✅.
 
 **Why first:** the `descr8-macro-funnel` track funnels every raw DESCR field access through the
 macro layer (`INTVAL`/`REALVAL`/`MK_DATA`/`SET_SLEN`/`GET_SLEN`/`IS_CSET`/name-discriminator
