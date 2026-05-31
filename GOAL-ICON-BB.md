@@ -124,37 +124,19 @@ FACT 0, smokes hold.
 
 ### Rung ladder (HELLO WORLD up — each gated, stackless, no `rt_push`/`rt_pop`)
 
-- [x] **GZ-0 — Scaffold + gates.** Pin the no-stack gate above into `scripts/`. Confirm the
-  per-box slot idiom (`&pBB->value`) is the value-storage primitive. Decide the slot/arena
-  conventions by reading `emit_arbno` + one full pattern-node body in the archived `emit_x64.c`
-  end-to-end, and `test_icon.c` for the Icon arithmetic shape. No code change beyond the gate script.
-- [x] **GZ-1 — `write("hello")`.** One box, literal value in its own slot, write reads the slot.
-  No push. m2==m3, zero-SM, no-stack gate = 0 for this box family.
-- [x] **GZ-2 — `write(42)`.** Literal-N template (PDF §4.1): `lit.start: lit.value ← N; goto succeed`.
-  Value in `&lit->value`. write reads it.
-- [x] **GZ-3 — `write(1 + 2)`.** plus template (PDF §4.3): `plus.value ← E1.value + E2.value`,
-  read from the two child slots. No operand push/pop.
-- [x] **GZ-4 — `every write(1 to 3)`.** to template (PDF §4.4): `to.I`, `to.value` slots; β
-  re-pumps via `to.resume: to.I++`. Mirror `test_icon.c` `to1`. **mode-2 oracle DONE** (session 8).
-  **mode-3 stackless DONE (session 9):** `bb_to.cpp` MEDIUM_BINARY literal-bounds arm rewritten
-  from single-shot to the full stackless pump (`β: cur=[r12+off]; inc; store; if cur>hi → ω; jmp γ`),
-  lo/hi sealed RO `[rip+disp]`. `scrip.c icn_rt_arity` gained `IR_EVERY → 1` so the ring→tree adapter
-  reconstructs `every(body)`. m2==m3 `1\n2\n3`, dump-bb count=0, FACT 0, no-stack 113, one-reg-frame 20.
-  Icon smoke m3 4/6→5/6 (`every` green). No `rt_push`/`rt_pop` added.
-- [x] **GZ-5 — `every write(1 | 2 | 3)`.** alt: arms fail-chain via ω, each arm γ→ALT funnel
-  (JCON `ir_a_Alt` / lower2 `wire_alt`). **mode-2 oracle DONE (session 9):** was infinite-looping
-  (`1 1 1…`) — the `every` ival==0 driver restarted forward through the success port so the first
-  literal re-succeeded forever. Fix in `bb_exec.c` IR_EVERY ival==0: a guarded branch firing ONLY
-  when `start` heads a sibling alt-chain (`start->ω->γ == start->γ`) AND all arms are single-shot,
-  resuming from the second arm (`start->ω`, since the main exec loop already produced the first).
-  `to`/all-else fall through BYTE-IDENTICAL. Corpus 31→34 (+`rung13_alt_alt_{every_write,filter,int}`),
-  zero regressions, m2 6/6 HARD. **mode-3 STILL fork-blocked** — the ring→tree adapter NULLs `IR_ALT`
-  (arms hang off ω-branches, not the γ-chain), so mode-3 emits nothing (no false-pass, no crash).
-  NEXT (mode-3 alt): (1) `icn_ring_to_tree` special-case `IR_ALT` — pop first arm off the postfix
-  stack, set `ALT.α`, gather ω-siblings while `sibling->γ==ALT`, terminate the last arm's ω for
-  `flat_drive_alt_icn`; (2) `bb_alt.cpp` — replace absolute `&pBB->counter` with a stackless
-  `[r12+off_c]` counter that stores the active arm's literal into `[r12+off_v]`; (3) `bb_call.cpp` —
-  `write(alt)` reads `[r12+off_v]` instead of `rt_pop_write_any_nl`.
+- [x] **GZ-0 — Scaffold + gates.** No-stack gate pinned into `scripts/`; per-box slot idiom (`&pBB->value`) is the value-storage primitive; slot/arena conventions settled from archived `emit_x64.c`.
+- [x] **GZ-1 — `write("hello")`.** One box, literal in own slot, write reads slot. m2==m3, zero-SM, no-stack.
+- [x] **GZ-2 — `write(42)`.** Literal-N template (PDF §4.1), value in `&lit->value`.
+- [x] **GZ-3 — `write(1 + 2)`.** plus template (PDF §4.3): `plus.value ← E1.value + E2.value`, no operand push/pop.
+- [ ] **GZ-4 — `every write(1 to 3)`.** to template (PDF §4.4): `to.I`, `to.value` slots; β
+  re-pumps via `to.resume: to.I++`. Mirror `test_icon.c` `to1`. **mode-2 oracle DONE (this
+  session)** — the independent mode-2 `every` bug is fixed; smoke m2 6/6 (HARD GATE green, exit 0
+  for the first time), rung ladder 28→31, broker 4→5 (`ICN: 1 to 5`), zero regressions. **mode-3
+  stackless STILL BLOCKED on the Path-1-vs-Path-2 fork** (see session-7 watermark): the ring→tree
+  adapter returns NULL for iterate/branch topology, and `bb_to.cpp` still uses `rt_push_int`. Lon
+  must pick the fork before the mode-3 control-flow/generator rungs proceed.
+- [ ] **GZ-5 — `every write(1 | 2 | 3)`.** alt: `α save cursor → left_α; left_ω → right_α`
+  (archive ALT wiring). Choice index in a per-box slot.
 - [ ] **GZ-6 — `every write(5 > ((1 to 2) * (3 to 4)))`.** The paper's full example. Must be
   byte-identical to `test_icon.c` output AND structurally mirror Figure 1 (nine four-port
   templates, no stack). This rung proves stackless generator-nesting end to end. MILESTONE.
@@ -339,20 +321,7 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
   `bb_exec_once(main_bb)` directly; `sm_interp_run` is never entered. This output is the ORACLE
   the other modes must match byte-for-byte.
 
-- [x] **R-HW-2 — Mode-3 (`--run`) stackless RO-string box.** DONE (2026-05-30, session 5). The write
-  box emits the string as sealed RO data inside its own blob and reads its ADDRESS `lea rdi,[rip+27]`
-  (not `mov` — write_str_nl takes a pointer+len, not a loaded value); `mov esi,slen`; `movabs rax,&rt_write_str_nl`;
-  `call rax`; γ → halt; β: jmp ω. NO frame, NO subject regs, NO `rt_push`/`rt_pop`. THREE coordinated
-  edits were required (the single bb_call arm was necessary but not sufficient): (1) `emit_bb.c` BB_CALL
-  dispatch — `write("…")` was routing through `flat_drive_call_builtin` (because `rt_icn_builtin_is_known("write")`
-  is true and the old `write_simple1` guard only excluded int-expr shapes), whose arg γ-chain walk pushed
-  the literal; added the strlit shape to the guard so it falls to the direct FILL arm. (2) `bb_call.cpp`
-  strlit MEDIUM_BINARY arm — replaced `movabs rdi,&"…"` (abs AST-pool ptr) with the RO-IP-relative
-  sealed-blob `lea rdi,[rip+27]` form, mirroring GZ-2's int box. (3) `bb_lit_scalar.cpp` — `BB_LIT_S`
-  was the actual pusher (the lowering wires `LIT_S.γ → CALL`, so the standalone lit box is walked and ran
-  `rt_push_str`); made it a pure four-port pass-through identical to `BB_LIT_I` (consumer reads RO via
-  `[rip+disp]`). Gate: `diff out_m2 out_m3` empty; dump-sm count=0; FACT 0; no-stack ratchet 129→**127**
-  (re-pinned — string-write family rebuilt stackless); one-reg-frame 20 UNCHANGED (`[rip+disp]` only).
+- [x] **R-HW-2 — Mode-3 (`--run`) stackless RO-string box.** DONE (2026-05-30). write box emits string as sealed RO blob, reads ADDRESS via `lea rdi,[rip+disp]`; no frame/subject regs/push/pop. Three edits: `emit_bb.c` BB_CALL guard (strlit falls to direct FILL not γ-walk), `bb_call.cpp` strlit arm (RO-IP-relative lea), `bb_lit_scalar.cpp` BB_LIT_S → pure four-port pass-through (was the pusher). Gate: m2==m3, dump-sm 0, FACT 0, no-stack ratchet 129→127.
 
 - [ ] **R-HW-3 — Mode-4 (`--compile`) parity.** Same box in the linked binary's `.text`/`.data`;
   the only inter-box transition (entry → box → halt) is a `jmp`; run ⇒ identical `hello world\n`.
@@ -368,55 +337,6 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 ---
 
 
-
-**HEAD (SCRIP):** `72aa1d8` (session 9 — GZ-4 mode-3 `to`-pump + GZ-5 mode-2 alt oracle; pushed, rebased cleanly onto the parallel SNOBOL4 `687aa58` SBL-EXEC-2 — zero conflicts, FACT-rule isolation held).
-
-**Done this session (9, GZ-4 mode-3 + GZ-5 mode-2 — Sonnet 4.x):** Two pieces, both gated green, zero regressions.
-
-**(A) GZ-4 `every write(1 to 3)` mode-3 stackless — DONE.** The `to` generator's β-resume PUMP
-(the part `every` needs, fork-blocked at session 8) now lands stacklessly. TWO edits: (1) `bb_to.cpp`
-MEDIUM_BINARY literal-bounds arm rewritten from single-shot (`β: jmp ω`) to the full pump grounded in
-`test_icon.c` `to1` — `α: rax=lo; if lo>hi → ω; [r12+off]=lo; jmp γ` · `β: rax=[r12+off]; inc rax;
-[r12+off]=rax; if rax>hi → ω; jmp γ`; lo/hi sealed RO data adjacent to the blob, read `[rip+63]`/`[rip+64]`
-(α) and `[rip+19]` (β), ζ=r12, off via `bb_slot_alloc`. 5 patch sites (2×ω, 2×γ, 1×β-def). (2) `scrip.c`
-`icn_rt_arity` gained `case IR_EVERY: return 1;` so the ring→tree adapter pops the body sub-tree as
-EVERY.α (previously any `IR_EVERY` made the adapter return NULL → raw-ring fallback → no output). The
-existing `flat_drive_every` ival==0 bodyless arm (`walk_bb_flat(pBB->α, body_β, lbl_γ, body_β)`) then
-wires the re-pump. m2==m3 `1\n2\n3`; verified `5 to 1`→∅, `2 to 5`, `10 to 10`, `0 to 100`. **Icon smoke
-m3 4/6→5/6** (`every` green; only `if_expr` remains, fork-blocked). NO `rt_push`/`rt_pop` added.
-
-**(B) GZ-5 `every write(1 | 2 | 3)` mode-2 oracle (HARD gate) — DONE.** Was infinite-looping `1 1 1…`.
-ROOT CAUSE (grounded in JCON `ir_a_Alt` + lower2 `wire_alt`, per CONSULT-CANONICAL-SOURCES): lower2
-emits the alternation as a fail-chain — `EVERY.α = LIT_I(1)`; `LIT_I(1).ω→LIT_I(2)→LIT_I(3)→ω_in`; each
-arm's γ funnels to the same `IR_ALT` node (whose own `α=NULL`, peeks the AG ring); `ALT.γ→CALL→EVERY`.
-The mode-2 `every` ival==0 driver RESTARTED forward through the success port each pump (`cur=start=LIT_I(1)`),
-and a literal always re-succeeds (`IR_LIT_I` returns γ unconditionally), so it re-yielded `1` forever.
-The proper resume must propagate through the ω fail-chain to advance alternatives. FIX (`bb_exec.c`
-IR_EVERY ival==0): a tightly-guarded branch that fires ONLY when `start` heads a sibling alt-chain
-(`start->ω && start->γ && start->ω->γ == start->γ`) AND a pre-scan finds all arms single-shot
-(`ir_is_single_shot`); it then walks the arms from `start->ω` (the main `bb_exec_once` loop already
-produced the first arm's value before reaching EVERY — exactly as it produces value 1 for the `to`
-case), each arm a forward walk to the ALT funnel → body. `to`, generator-arm alts, and all other shapes
-fall through to the original restart loop **byte-identical** (the guard's `start->ω->γ != start->γ` for
-the `to` operand-chain). Verified `1|2|3`, `10|20|30|40`. **Corpus 31→34 PASS, ZERO regressions**
-(+`rung13_alt_alt_every_write`, `rung13_alt_alt_filter`, `rung13_alt_alt_int`); Icon m2 **6/6 HARD**.
-
-**(C) GZ-5 mode-3 — STILL FORK-BLOCKED (honest).** `every write(1|2|3)` mode-3 emits nothing (exit 0,
-no false-pass, no crash): `icn_ring_to_tree` returns NULL because `IR_ALT` arms hang off ω-branches, not
-the γ-chain the postfix adapter walks. The mode-3 alt plan is pinned in the GZ-5 ladder step above
-(adapter `IR_ALT` special-case + stackless `bb_alt.cpp` counter/value slots + `bb_call.cpp` write(alt)
-slot read). Not started this session to avoid a half-landed byte emitter.
-
-**GATES (this session):** FACT 0; no-stack ratchet 113 (unchanged — the `to`-pump adds no push/pop);
-one-reg-frame 20 (unchanged — `[r12+off]` register-relative); Icon m2 6/6 HARD / m3 5/6; Prolog 2/5 &
-broker 6/66 unchanged (non-Icon execution severed by design, provably unaffected — edits are Icon-only).
-
-**INCIDENTAL FINDING (not fixed, not regressed, out of scope):** bodyless `every` over a *fully
-single-shot* body (e.g. `every write(7)`) infinite-loops in the original ival==0 restart loop. Pre-existing;
-no passing test exercises it (every passing every-test has a generator or alt-chain body). The clean fix
-(detect a fully-single-shot body → produce once → return γ) is deferred.
-
-PRIOR (session 8) ↓
 
 **HEAD (SCRIP):** `f4f4d9a` (session 8 — GZ-4 every mode-2 oracle + string_op & to-single-shot mode-3 stackless; pushed, rebased cleanly onto the parallel Prolog `e1a6557` PLG-2 + SNOBOL4 `1eef20d` LOWER2-EXEC — zero conflicts, FACT-rule isolation held).
 
@@ -516,7 +436,7 @@ baseline for this build; they were produced by the value-stack path now being re
 |------|-------|-------|
 | Demolition | DONE | All Icon value-stack runtime consumers stubbed to `ICN_STACKLESS_ABORT` (23 sites): `rt_pop_nv_set`, `rt_pop_store_i64`, `rt_push_stored_i64`, `rt_pop_store_descr`, `rt_case_eq`, `rt_pop_write_int_nl`, `rt_pop_write_any_nl`, six `rt_unop_*`, ten vstack-using `rt_icn_*` (`call_proc`, `call_builtin`, `concat`, `field_get/set`, `idx_get/set`, `list_bang`, `limit_begin`, `toby_real`). Slot-based `rt_icn_limit_more/inc`, `proc_*` registry, `builtin_is_known`, and Raku `rt_load_frame`/`rt_store_frame` left LIVE. SNOBOL4/Prolog unaffected; Icon `--interp` 5/5; Icon `--run` aborts loudly at every value-stack box. |
 | GZ-0 | DONE | No-stack gate pinned `scripts/test_gate_icn_no_stack.sh` (ratchet baseline 129). Slot/arena conventions grounded in archived `emit_arbno` + `test_icon.c`. |
-| Smoke (two-mode) | DONE | `test_smoke_icon.sh` runs mode-2 (`--interp`, HARD GATE) AND mode-3 (`--run`, tracked); added `write_int` case. Current m2 **6/6** (HARD green, exits 0), m3 **5/6** (`write_str`/`write_int`/`arith`/`string_op`/`every`; only `if_expr` fork-blocked) — session 9. Icon corpus rung ladder 31→**34 PASS** (GZ-5 mode-2 alt: +`rung13_alt_alt_{every_write,filter,int}`), zero regressions. |
+| Smoke (two-mode) | DONE | `test_smoke_icon.sh` runs mode-2 (`--interp`, HARD GATE) AND mode-3 (`--run`, tracked); added `write_int` case. Current m2 **6/6** (HARD green, exits 0), m3 **4/6** (`write_str`/`write_int`/`arith`/`string_op`; `if_expr`+`every` fork-blocked) — session 8. |
 | GZ-1 `write("hello")` | **m2 DONE; m3 DONE (R-HW-2, s5)** | mode-2 stackless & green. mode-3 NOW genuinely stackless: the write box reads the literal `lea rdi,[rip+27]` from sealed RO bytes in its own blob + `call rt_write_str_nl` (no push). The earlier `rt_push_str` came from the standalone `BB_LIT_S` box (walked via `LIT_S.γ→CALL`) + the builtin-dispatch arg-walk, BOTH fixed in R-HW-2. `diff m2 m3` empty, dump-sm 0, no-stack 127. |
 | GZ-2 `write(42)` | DONE (RO-IP-relative) | Literal int is a READ-ONLY constant: `BB_LIT_I` is pass-through; the write box emits the int64 as sealed RO data inside its own blob and reads it `mov rdi,[rip+22]` (emit-time disp, no patch/abs/stack), then `rt_write_int_nl`. m2==m3 `42`, count=0. Conforms to BOTH new FACT rules; no register frame needed for a constant. one-reg-frame abs-slot 22->20. |
 | READ-ONLY LOCALS IP-RELATIVE (new FACT RULE 2026-05-30) | in force | RULES.md: per-box RO constants live in the SEALED segment next to their blob, read `[rip+disp]` (disp = emit-time const when data+access share the blob); only RW state uses the one-register frame. Applied to GZ-2. Shares the no-stack + one-reg-frame ratchets (no abs `&pBB->slot`). |
