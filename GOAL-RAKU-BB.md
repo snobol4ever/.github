@@ -190,10 +190,18 @@ prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arm
 - [x] **RK-LOWER-1 — lazy range → `IR_TO`/`IR_TO_BY`.** ✅ DONE (2026-05-31, Opus). `for $a..$b { }` and `$a,$b … $c`. REUSE Icon's
   `IR_TO`/`IR_TO_BY` case; add the Raku arm inside it (range sigil/step semantics per docs.raku.org §Range).
   Prove topology + mode-2 `for 1..3 { say $_ }` → 1,2,3.
-- [ ] **RK-LOWER-2 — KEYSTONE: lazy Seq `gather`/`take` + `…` → Icon generator PUMP.** `gather { take … }`
-  lowers to the Icon SUSPEND/EVERY generator graph (yield-one-at-β). This is the load-bearing reuse: prove a
-  multi-`take` gather yields each value on successive pulls in mode-2 (the APPENDIX-A `RK-M2-GATHER` finding —
-  counter-as-resume-cursor — is the semantic spec; re-express it on the four-port `bb_exec_resume` path).
+- [x] **RK-LOWER-2 — KEYSTONE: lazy Seq `gather`/`take` → resumable generator PUMP.** ✅ DONE (2026-05-31).
+  `gather { take E1; take E2; ... }` lowers to a NEW resumable Seq-producer kind `IR_GATHER` (its own resume,
+  β=self, exactly like `IR_TO`) realizing the APPENDIX-A `RK-M2-GATHER` spec — counter-as-resume-cursor: yield
+  ONE take per (re)entry, walking past the last (or empty gather) → FAIL (Seq drained). Driven by the EXISTING
+  generator PUMP via `v_raku_for` (no new pump machinery): reached BOTH as the iterate source of
+  `for gather {..} -> $v` (the `TT_EVERY` Raku guard now admits a `TT_GATHER` iterate child) AND as a bare value
+  expr (dedicated `TT_GATHER` case, Raku arm; non-Raku → `lower_unhandled`). Take payloads lower into SEPARATE
+  value sub-graphs (the SNOBOL4 call-arg idiom — `lower_value_subgraph`, cursor carries `IR_LANG_RKU`); the
+  subs-array ptr rides on `IR_GATHER.counter` (now PRESERVED across `bb_reset` — the drain-on-first-entry fix),
+  the take COUNT on `.ival`, the resume cursor on `.state`. Mode-2 `for gather { take(10);take(20);take(30) } ->
+  $v { say $v }` → `10,20,30,done`. FLAT-take model (corpus/keystone are flat); dynamic-scope takes (inside
+  loops/conditionals, the docs.raku.org `factors()` example) are a later refinement on this same node.
 - [ ] **RK-LOWER-3 — lazy `map`/`grep` as Seq consumers.** Eager-drain a producer Seq through a transform/
   filter. REUSE the Icon ITERATE-consumer arm; Raku arm inside the case.
 - [ ] **RK-LOWER-4 — junctions `any`/`all`/`one`/`none` + infix bar/amp.** Constructor + infix forms share
@@ -294,41 +302,56 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**RK-LOWER-0 + RK-LOWER-1 LANDED (2026-05-31, Opus).** Raku crosses onto Byrd Boxes for mode-2. SCRIP HEAD
-at this handoff: `16e28db` + this session's commit (3 files in `src/lower/` only: `lower.c`, `lower_program.c`,
-`prove_lower2.c`; +165/−2; ZERO emitter files). Build clean (`scrip` + `libscrip_rt` rc=0).
+**RK-LOWER-2 (KEYSTONE) LANDED (2026-05-31, Sonnet).** Raku gather/take crosses onto a resumable Byrd-Box Seq
+producer for mode-2. SCRIP HEAD at this handoff: `3571829` (pushed; rebased cleanly onto concurrent peer work —
+Prolog `5c97162`, SNOBOL4 `b6c300c`, Icon `582c3bc`). My 6 files: `src/include/IR.h`, `src/lower/{scrip_ir.c,
+lower.c,bb_exec.c,prove_lower2.c}`, `scripts/test_smoke_raku.sh`; ZERO emitter files — same discipline as
+RK-LOWER-0/1. Build clean (`scrip` + `libscrip_rt` rc=0) AND re-gated AFTER the rebase (peer Prolog edits to the
+shared `lower.c`/`bb_exec.c` auto-merged with my Raku arms with zero conflict — the concurrency discipline working).
 
 - **RK-LOWER-0 (`say`/`print`):** `TT_SAY`/`TT_PRINT` arm in `lower.c` routes through the SHARED `wire_det_builtin1`
   → `IR_CALL` (say→`"write"` = .gist+newline, print→`"writes"` = .Str+no-newline per docs.raku.org/routine/{say,print};
   for str/int `.gist`≡`.Str` so only the trailing newline differs — the Icon write/writes split, ZERO runtime change).
-  `lower_raku_body` + a `mask & (1u<<LANG_RAKU)` block in `lower()` (lower_program.c) lower each `TT_SUB_DECL` body and
-  set `lang=IR_LANG_RKU`; no driver change (Raku rides the generic non-Icon/non-Prolog `bb_exec_once(main)` branch).
-  The eager core (arith/var/while/concat) came FOR FREE through the already-shared lang-agnostic value arms
-  (`v_assign`/`v_binop`/`v_literal`/`v_while`) — `say`/`print` was the only Raku-specific arm. **Raku smoke 5/5.**
+  The eager core (arith/var/while/concat) came FOR FREE through the already-shared lang-agnostic value arms. Raku smoke clean.
 - **RK-LOWER-1 (lazy range → loop):** dedicated Raku-gated `v_raku_for` helper in `lower.c` (reached only from the
-  `cx.lang==IR_LANG_RKU` arms of the shared `TT_EVERY` and the new `TT_FOR_RANGE` case). Reuses Icon's resumable
+  `cx.lang==IR_LANG_RKU` arms of the shared `TT_EVERY` and the `TT_FOR_RANGE` case). Reuses Icon's resumable
   `IR_TO`; wires the four ports directly — `gen.γ→bind(IR_ASSIGN)`, `bind.γ→body`, `body.γ/ω→gen.β` (re-pump:
-  `IR_TO` is its own resume), `gen.ω→γ_in` (range drained ⇒ `for` STATEMENT completes & falls through, unlike Icon
-  `every` which fails on drain). NOT via the shared bounded `v_assign` (whose β=ω_in stops re-pump after one element —
-  the reason `every i := 1 to 3 do write(i)` yields only 1). Handles BOTH `for 1..3 { say $_ }` (bare, $_ default) AND
-  `for 1..3 -> $i {…}`; `..^` exclusive via synthesized lo..(hi-1); empty range falls through. docs.raku.org/type/Range:
-  integer range lo..hi inclusive via .succ, small→large, empty if lo>hi. Mode-2: `for 1..3 { say $_ }` → 1,2,3.
+  `IR_TO` is its own resume), `gen.ω→γ_in` (range drained ⇒ `for` STATEMENT completes & falls through). Handles
+  `for 1..3 { say $_ }` ($_ default) AND `for 1..3 -> $i {…}`; `..^` exclusive; empty range falls through.
+- **RK-LOWER-2 (KEYSTONE — gather/take):** NEW resumable Seq-producer kind `IR_GATHER` in `lower.c`'s `v_raku_gather`,
+  its OWN resume (β=self, like `IR_TO`). Realizes the APPENDIX-A `RK-M2-GATHER` spec — counter-as-resume-cursor:
+  yield ONE take per (re)entry, drain (cursor ≥ count, or empty gather) → FAIL→ω. Driven by the EXISTING generator
+  PUMP via `v_raku_for` — NO new pump machinery. Reached BOTH as the iterate source of `for gather {..} -> $v`
+  (the `TT_EVERY` Raku guard now admits a `TT_GATHER` iterate child) AND as a bare value expr (dedicated `TT_GATHER`
+  case, Raku arm; non-Raku → `lower_unhandled`). Take payloads → SEPARATE value sub-graphs (`lower_value_subgraph`,
+  cursor carries `IR_LANG_RKU`); subs-array ptr on `IR_GATHER.counter`, count on `.ival`, cursor on `.state`.
+  **THE BUG (logged for the next dev):** `bb_reset` zeroes `.counter` for every node except a special list — it was
+  wiping the subs-array ptr → drain-on-first-entry (output `done` only). FIX: added `IR_GATHER` to the `bb_reset`
+  counter-preservation list (cursor lives in `.state`, correctly reset; subs-array in `.counter`, now preserved),
+  exactly as `IR_CALL`(dval==2.0)/`IR_SCAN`/`IR_PAT_ARBNO` do. New IR kind wired additively in 7 sites (enum, name
+  table, `kind_is_resumable`, `ir_is_single_shot`, `bb_is_gen_kind_raw`, `ALT_IS_GEN`, exec case). Mode-2
+  `for gather { take(10);take(20);take(30) } -> $v { say $v }` → `10,20,30,done`. FLAT-take model only; dynamic-scope
+  takes (inside loops/conditionals, docs.raku.org `factors()`) are a later refinement on this SAME node.
 
-**Gates at handoff:** prove_lower2 41 PASS / 0 FAIL (RAKU section: say + print + for-loop, all PASS). Mode-2 HARD all
-green: Raku 5/5, Icon 6/6 (UNCHANGED — `TT_EVERY` edit is Raku-gated, `v_every` byte-unchanged for Icon),
-SNOBOL4 7/7 (UNCHANGED — NFA isolation intact). `audit_concurrency_invariants.sh` OK (FACT RULES byte-identical x3).
-`util_template_purity_audit.sh` at pre-existing baseline (6 rel32-patch side-effects in untouched `bb_*.cpp`; zero
-emitter files touched this session). Modes 3/4 (`--run`/`--compile`) = by-design SMX abort (RK-EMIT rung not built;
-floors MODE3_MIN/MODE4_MIN=0) — same shape as SNOBOL4.
+**Gates at handoff:** prove_lower2 53 PASS / 0 FAIL (RAKU section: say + print + for-loop + **gather**, all PASS).
+Mode-2 HARD all green: Raku 6/6 (added `gather_take`), Icon 6/6 (UNCHANGED — Raku-gated edits, `v_every`
+byte-unchanged), SNOBOL4 7/7 (UNCHANGED — NFA isolation intact). `prove_lower2.sh` 53/0, all RAKU cases PASS.
+**⚠ `audit_concurrency_invariants.sh` now reports a template-purity COUNT regression (7 > hardcoded baseline 6) — NOT
+mine.** The 7th side-effect is `bb_call.cpp:285` (a `[GZ-3] FATAL` loud-error fprintf), introduced by the concurrent
+Icon peer commit `582c3bc` (ICON-BB mode-4) — same sanctioned loud-diagnostic CATEGORY as the existing 6, NOT a real
+byte-emission-outside-template violation (`util_template_purity_audit.sh` lists all 7 and notes the rel32/loud-error
+idiom is exempt). I touched ZERO emitter files; `bb_call` is Icon's box (EMITTER FACT RULE clause 3 — edit only your
+own). FIX OWED BY ICON/HQ: bump the audit's hardcoded baseline 6→7. Modes 3/4 (`--run`/`--compile`) = by-design SMX
+abort for Raku (RK-EMIT rung not built; floors MODE3_MIN/MODE4_MIN=0) — same shape as SNOBOL4.
 
-**NEXT:** RK-LOWER-2 (KEYSTONE) — `gather`/`take` + `…` → Icon SUSPEND/PUMP generator (yield-one-at-β on
-`bb_exec_resume`; APPENDIX-A `RK-M2-GATHER` counter-as-resume-cursor is the semantic spec). Larger than 0/1; start fresh.
+**NEXT:** RK-LOWER-3 — lazy `map`/`grep` as Seq CONSUMERS (eager-drain a producer Seq, e.g. an `IR_GATHER`, through
+a transform/filter). REUSE the Icon ITERATE-consumer arm; Raku arm inside the case. The `…` sequence operator (also
+listed under RK-LOWER-2's heading historically) is still open — note `IR_SEQ_GEN` already exists as the infinite
+`…` counter generator (SM-era exec at `bb_exec.c`, not yet lowered); keep it DISTINCT from `IR_GATHER`.
 
 **STILL DEFERRED (NOT done this session):** the lockstep "three → four" roster/body expansion across all four GOAL
-files (the FACT-RULE clause-5 obligation). It was NOT performed — changing "three"→"four" in all four FACT-RULE
-bodies byte-identically (plus the `audit_concurrency_invariants.sh` "x3" check) is a high-blast-radius edit best done
-as its own focused commit, not rushed at session end. The FACT RULES remain byte-identical x3 with Raku as the fourth
-carrier (md5 `5097ed94` / `307534d6` / `8255d653` unchanged); the audit still passes as written.
+files (the FACT-RULE clause-5 obligation) — high-blast-radius, best as its own focused commit. The FACT RULES remain
+byte-identical x3 with Raku as the fourth carrier (md5 `5097ed94` / `307534d6` / `8255d653` unchanged); audit passes.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
 
