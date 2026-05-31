@@ -1,6 +1,18 @@
 # HANDOFF 2026-05-31 — Opus 4.8 — GROUND ZERO: gen_ rascal strip + comment/blank-line purge
 
-**State: build GREEN, seed intact — `scrip --interp` prints `hello`. No smoke/gates run (per Lon's directive).**
+## 🔀 PIVOT — READ FIRST (end of 2026-05-31 session)
+
+Lon called a **PIVOT**: he wants to **start over / do it "completely different."** Direction is TBD — **ask him before resuming the old plan below.** Two drivers:
+- **Dates flattened (his main complaint).** The repo-wide comment strip rewrote all 187 source files in one commit, so every file's GitHub "last modified" now reads 2026-05-31 and `git blame` points nearly every line at the Ground Zero commit. The old `DATE:` header comments were stripped out. Not recoverable without a history rewrite.
+- **Git history is low forward-value.** No force-push/rewrite occurred (timeline is linear: `df3551a7 → c5cf417c → a0bb9be4`), and the repo is whole — but as a blame/forensic record it's spent, and the recovery net is mostly cashed (deleted files restored, references pulled). The **content** is what matters and it is fully portable.
+
+**Size facts (for the restart decision):** total repo **97 MB** (`.git` 42 MB; `refs/` vendored Icon/Jcon **19 MB**; `archive/` 3.8 MB). **Actual SCRIP source `src/` = 5.9 MB; source files only (.c/.h/.cpp/.y/.l) ≈ 3.6 MB, ~78.8K lines, 271 files** — and the `.c` total is heavily inflated by the 12 generated flex/bison files. The code that matters is small.
+
+**Recommended clean start (NOT executed — do it in a FRESH `/root` full clone, never the flaky FUSE working tree):** one fresh "Ground Zero" root commit holding the seed + reference material + docs (orphan branch promoted to `main`), keeping the old history reachable as tag `pre-ground-zero`. Same repo, clean dates, nothing of value lost; a brand-new repo only adds a psychological reset on top. **Do NOT run this force-push/rewrite at the tail of a near-full, error-prone session — start it fresh.**
+
+---
+
+**State (as of this session): build GREEN, seed intact — `scrip --interp` prints `hello`. No smoke/gates run (per Lon's directive).**
 
 ## What landed (one4all)
 History: `df3551a7` → `c5cf417c` (Ground Zero work + an accidental mass-deletion, see incident) → **`a0bb9be4`** (restoration; current `origin/main`, 6982 files).
