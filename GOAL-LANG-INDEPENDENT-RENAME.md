@@ -153,21 +153,9 @@ FACT=0 · sm_dead ≤1. Baseline at carve: m2 6/6, FACT 0, sm_dead 1.
 - [~] **Slice 5 — backend output libs** (partial — off live path): `.il/.j/.wat/.cs/.java/.js` named `Sno*` —
   off the live build path (X86 ONLY), lowest priority. Post-AST ICN_/Icn_/gen_-non-generator work done in `df3551a7`.
 
-### LOWER-MERGE — unify lower/*.c into one consolidated lower.c (Lon directive 2026-05-30)
-
-After Slice 5, consolidate all lowering source into a single `lower.c`. Pure structural merge — NO
-behavioral change, NO logic edits, NO renames (bugs fixed in separate commits). Merge smallest first,
-gate after each. Merge: `lower_ctx.c` (37) → `lower_clause.c` (793) → `lower_pat_dcg.c` (821) →
-`lower_graph.c` (2153). Fold each `*.h` public decls into `lower.h`, delete the per-file headers,
-update every `#include`, update Makefile + `build_scrip.sh` source lists. **Do NOT merge:** `lower_sno.c`
-(SNOBOL4→source transpiler, `--dump-sno`), `bb_exec.c` (oracle), `scrip_ir.c`, `sm_prog.c`, `ast_clone.c`.
-Separators `/*===*/` (200ch) between merged-file sections, `/*---*/` between functions. Gate each step:
-`make scrip` rc=0, `make libscrip_rt` rc=0, Icon m2 hello ✅, sm_dead 1/1, FACT 0.
-- [ ] **LM-1** — merge `lower_ctx.c`.
-- [ ] **LM-2** — merge `lower_clause.c`.
-- [ ] **LM-3** — merge `lower_pat_dcg.c`.
-- [ ] **LM-4** — merge `lower_graph.c`.
-- [ ] **LM-5** — final cleanup: no stale `lower_{graph,clause,ctx,pat_dcg}.h`; full gate; commit `LOWER-MERGE: all lower/*.c consolidated into lower.c`.
+**LOWER-MERGE (Lon directive 2026-05-30)** — unify all `src/lower/*.c` into one consolidated `lower.c`.
+Tracked as steps LM-1..LM-5 in **GOAL-SNOBOL4-BB.md** (the live session goal), NOT here and NOT a new
+goal file. Pointer only.
 
 ### Mechanics per slice
 1. `git mv` the files; update Makefile `RT_PIC_SRCS` + `scrip:` recipe + `build_scrip.sh` source
@@ -271,7 +259,7 @@ Slices done   = 0 ✅ (5370695f), 1a ✅ (7d57c6bd), 1b ✅ (d7f64afa), 2 ✅ (b
                 gen_descr_identical→descr_identical, gen_scope_patch→scope_patch)
 Next          = Slice 5 remainder: backend .il/.j/.wat/.cs/.java/.js — off live X86 path, lowest priority.
                 NEXT PRIORITY: LOWER-MERGE (Lon directive 2026-05-30) — unify lower/*.c into one lower.c.
-                See LOWER-MERGE step block above (LM-1..LM-5). NO new goal file — lives in this goal.
+                Tracked as LM-1..LM-5 in GOAL-SNOBOL4-BB.md (the live session goal). NO new goal file.
 Handoff       = HANDOFF-2026-05-30-SONNET46-LANG-INDEP-RENAME-SLICE-5.md
 ```
 

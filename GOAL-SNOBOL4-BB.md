@@ -417,28 +417,59 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = 1f011f10  SBL-ARBNO-BROKERED: ARBNO combinator roots via patnd_to_bb_tree in BROKERED (--interp +2: Qize, XDump)
+HEAD one4all       = df3551a7  LANG-INDEP Slice 5 (partial): ICN_/Icn_/gen_-non-generator de-prefixed
 HEAD corpus        = 447c05b    SBL-911-PORTABLE
-GATE-1 smoke       = 13/13 (mode-2 AND mode-3)
-GATE-2 broker      = 61/5
-GATE-3 mode-4      = (not gated; rung M4=18/19, 053 pre-existing)
-DEFAULT/NATIVE     = 265/280
-true --interp      = 263/280  (+2 this session: Qize_driver, XDump_driver)
-Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
-Prolog/Raku/Icon/Snocone smokes = 5/5/5/5
-FACT RULE          = 0
+make scrip         = rc=0
+make libscrip_rt   = rc=0
+sm_dead ratchet    = 1/1 (MAX 1) OK
 audit_m3_native    = GATE OK
-GATE-PK            = stale
-FAIL-diff native vs m2 = comm -23 native m2 EMPTY (zero native-only regressions)
+FACT RULE          = 0
+Icon m2 hello      = ✅  (the live hard gate post-SMX-4)
+SNOBOL4 mode-2/3   = TOMBSTONED — SMX-4 (2b6394e1) deleted the Stack Machine; SNOBOL4/Prolog/Raku/Rebus
+                     detonate loudly at the driver ([SMX] FATAL) until they cross onto Byrd Boxes.
+                     The old corpus numbers below (265/280 etc.) are PRE-SMX-4 and no longer reachable;
+                     they apply to the SM-based engine that was deleted. SNOBOL4 needs a BB lowering
+                     path (lower_sno_bb-style, mirror of lower_graph.c for Icon) — that is the SNOBOL4
+                     Track B work per HANDOFF-2026-05-30-OPUS48-SMX-4-DELETE-SM.md.
 ```
 
-**This session (2026-05-30 Sonnet 4.6):**
-- **SBL-ARBNO-BROKERED** (`1f011f10`): route ARBNO combinator roots through patnd_to_bb_tree in BROKERED mode. Fixes Qize/XDump capture+ARBNO+charset-expr. --interp 261→263 (+2). m2-only 4→2.
-- **SBL-ALTCAT-XLATE** (`94e152f3`): pure XCAT/XOR-over-XCHR via patnd_to_bb_tree. Fixes case_driver/test_case icase() inline patterns. --interp 259→261 (+2).
-- **SBL-CAP-COMMIT** (`9011d961`) + **SBL-CAP-COMMIT-NATIVE** (`15771c7d`): deferred capture-commit both modes. Native 264→265 (+1: word1).
-- **SBL-AUDIT-NFA** (`b6efe62a`): audit GATE OK.
+**This session (2026-05-30 Sonnet 4.6) — rename continuation + LOWER-MERGE plan (no engine logic touched):**
+- **LANG-INDEP Slice 5 partial** (one4all `df3551a7`): 44 post-AST `ICN_`/`Icn_`/`g_icn_jcon` symbols
+  stripped (missed in Slice 2): `BinopKind`, `BINOP_*`, `GEN_ENTER`, `FAIL_GEN_NODE`, `SEC_*`,
+  `FIELD_NAME`, `KW_CSET_MAX`, `MATH1`/`TONUM`, `STACKLESS_ABORT`, `g_jcon`. Plus `gen_`-non-generator
+  strip: `GenScope→Scope`, `GenScopeEnt→ScopeEnt`, `GenEntry_d→ScopeEntry`, `gen_descr_identical→
+  descr_identical`, `gen_scope_patch→scope_patch` (generator-meaning `gen_*` KEPT). `icon_lex.c`
+  cross-boundary `g_jcon` bridge fixed. Gates: make scrip rc=0, make libscrip_rt rc=0, sm_dead 1/1,
+  audit GATE OK, Icon m2 hello ✅, FACT 0. Detail in GOAL-LANG-INDEPENDENT-RENAME.md (the rename's own
+  step ledger) — recorded there because the rename is the ongoing cross-cutting invariant (PLAN step 1).
 
-**Live m2-only gaps (2):** `124_pat_regex_keyword_seal` (DEFER-resume `[~]`), `word1` (ARB+ALT mode-2 oracle).
+**NEXT (Lon directive 2026-05-30) — LOWER-MERGE, tracked HERE in this goal:**
+Merge all `src/lower/*.c` into a single consolidated `lower.c`. Pure structural merge — NO behavioral
+change, NO renames, NO logic edits (bugs fixed in separate commits). Smallest file first, gate after each:
+- [ ] **LM-1** — merge `lower_ctx.c` (37 lines). Fold `lower_ctx.h` decls into `lower.h`; delete the two
+  files; update every `#include "lower_ctx.h"` → `"lower.h"`; update Makefile + `build_scrip.sh`.
+- [ ] **LM-2** — merge `lower_clause.c` (793, Prolog `resolve_*`).
+- [ ] **LM-3** — merge `lower_pat_dcg.c` (821, SNOBOL4 pattern `BB_lower_pat`/`build_node`/`build_patnd`).
+- [ ] **LM-4** — merge `lower_graph.c` (2153, Icon/generator, largest).
+- [ ] **LM-5** — cleanup: no stale `lower_{graph,clause,ctx,pat_dcg}.h`; full gate; commit `LOWER-MERGE`.
+
+DO NOT merge: `lower_sno.c` (SNOBOL4→source transpiler, `--dump-sno`, SCT goal), `bb_exec.c` (oracle),
+`scrip_ir.c`, `sm_prog.c`, `ast_clone.c`. Separators `/*===*/` (200ch) between merged-file sections,
+`/*---*/` between functions. Gate each: make scrip rc=0, make libscrip_rt rc=0, Icon m2 hello ✅,
+sm_dead 1/1, FACT 0. **NO new GOAL file — this lives here in GOAL-SNOBOL4-BB.md.**
+
+---
+
+### ⚠ PRE-SMX-4 corpus state (historical — engine deleted, numbers not reachable today)
+
+```
+HEAD one4all       = 1f011f10  SBL-ARBNO-BROKERED: ARBNO combinator roots via patnd_to_bb_tree in BROKERED (--interp +2: Qize, XDump)
+GATE-1 smoke       = 13/13 (mode-2 AND mode-3)
+GATE-2 broker      = 61/5
+DEFAULT/NATIVE     = 265/280
+true --interp      = 263/280
+Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
+```
 
 
 ## Session log (last few, terse)
