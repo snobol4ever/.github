@@ -417,7 +417,14 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = cb5946a  SBL-EXEC-3 — SNOBOL4 program-defined functions (DEFINE/RETURN/FRETURN) + comparison
+HEAD SCRIP       = 7d3a15b  SBL-EXEC-4 — SNOBOL4 keyword-assign (&ANCHOR=1, SPITBOL ch.16) + computed/indirect
+                     goto (:($X)/:S($X)/:F($X), SPITBOL ch.4) on the four-port IR. v_assign accepts TT_KEYWORD lhs
+                     (SNO-only, cx.lang-guarded) routing through NV_SET_fn's kw_* dispatch; new IR_GOTO resolver +
+                     bb_label_landing registry (lower_program.c) + IR_GOTO exec arm (bb_exec.c); bb_reset preserves
+                     IR_GOTO counter. mode-2 7/7 (HARD). MODE-3/4: SNOBOL4 m3/m4 still SMX-abort (m3 gated if(is_icon)
+                     scrip.c:478 — Icon-only native via bb_build_flat; m4 blanket-excised scrip.c:396). Base 81d721b.
+                     Lineage: cb5946a SBL-EXEC-3 → 440deba all-3-modes-test → 81d721b GZ-6 → 7d3a15b SBL-EXEC-4.
+HEAD SCRIP (prior) = cb5946a  SBL-EXEC-3 — SNOBOL4 program-defined functions (DEFINE/RETURN/FRETURN) + comparison
                      predicates + recursion (mode-2 smoke 7/7; rebased onto eccb4f6 PLG-3). Trunk BUILDS (make scrip rc=0) and
                      SNOBOL4 now EXECUTES via the BB run-path. Lineage: 95f7f58 CUT-OLD-TREE → 1eef20d LOWER2-EXEC →
                      e1a6557 PLG-2 → f4f4d9a ICON-BB GZ-4 → 687aa58 SBL-EXEC-2 → eccb4f6 PLG-3 → cb5946a SBL-EXEC-3.
@@ -564,6 +571,40 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-31 (Opus 4.8) — SBL-EXEC-4: SNOBOL4 KEYWORD-ASSIGN + COMPUTED/INDIRECT GOTO ✅** (SCRIP this handoff,
+  base `81d721b`; .github this handoff). Two SNOBOL4 stmt-level features landed on the four-port IR; mode-2 stays 7/7.
+  **(A) KEYWORD-ASSIGN `&NAME = expr`** (SPITBOL Manual ch.16 "Unprotected Keywords"). `v_assign` (lower.c) rejected
+  any non-`TT_VAR` lhs → `&ANCHOR = 1` hit `lower_unhandled` (kind 47). Fix: accept a `TT_KEYWORD` lhs **only when
+  `cx.lang==IR_LANG_SNO`** (FACT RULE: variation inside the one TT_ASSIGN case, Icon `:=` untouched). The lexer
+  already strips the `&` (snobol4.l:154 `yytext+1`), so `as->sval` = bare keyword name; the runtime write path
+  ALREADY EXISTED — `NV_SET_fn` (core.c:2403+) maps `ANCHOR/TRIM/FULLSCAN/MAXLNGTH/STLIMIT/CODE/ERRLIMIT/FTRACE/
+  TRACE` → the `kw_*` globals and rejects protected `&CASE` (Error 10, SCRIP is case-sensitive). Same four-port
+  topology as a var-assign (verified: anchored matching flips `"abc" ? 'b'` S→F; keywords round-trip; `&CASE`
+  rejected). **(B) COMPUTED/INDIRECT GOTO `:($X)` / `:S($X)` / `:F($X)`** (SPITBOL ch.4). Used the free `IR_GOTO`
+  enum slot (no exec arm, never constructed). **Parser fact:** `:($IDENT)` does NOT parse to an expr node — it
+  folds to a `TT_QLIT` label STRING with a leading `$` (snobol4.y goto_label_expr:120); the rarer `:($(expr))`
+  form (line 121) carries a real expr. So `goto_node_str` returns `"$L"`, NOT caught by `goto_node_expr`. New in
+  lower_program.c: a run-time label registry (`g_bb_labels[]` + `bb_label_landing()`, populated after PASS-1 with
+  every labeled stmt's landing), `make_computed_goto` (lowers the goto expr into an isolated value sub-graph on
+  `IR_GOTO.counter`, like IR_SCAN/IR_CALL operands), and `make_indirect_goto` (the `$`-prefix string form →
+  synthesize `TT_VAR(suffix)` → resolver). Wired into the U/S/F branch resolution. `IR_GOTO` exec arm (bb_exec.c):
+  run the sub-graph, `VARVAL_fn` → label string, `bb_label_landing` → landing node, return it (unresolved/fail →
+  `bb->ω` = the lowerer's fall-through). **CAUGHT A REAL BUG:** `bb_reset` (scrip_ir.c:201) zeroed `counter` for
+  every kind except ARBNO/SCAN/SNO-SEQ/SNO-CALL → the resolver's sub-graph pointer was wiped on re-entry; added
+  `IR_GOTO` to the preserve-list. All three branches verified (U/S/F → reached/hit/failure-routed). +1 prove case
+  (`&ANCHOR = 1`, via new `dump_sno_value` since `IR_LANG_SNO=1`≠the shared lang-0 dump) + `kw()` builder.
+  **Gates GREEN + INVARIANT:** scrip rc=0, libscrip_rt rc=0, prove_lower2 **38/38** (37+1), snobol4 m2 **7/7**
+  (HARD), icon m2 **6/6** (HARD, byte-neutral — SNO-only guards), sm_dead 1(≤1), concurrency OK, purity FACT 6
+  (no template touched). **MODE-3/4 ASSESSMENT (empirical, Lon-requested):** SNOBOL4 m2 7/7 (BB exec via
+  `bb_exec_once`); **m3 = `[SMX] FATAL` abort** — mode-3 `--run` is gated `if (is_icon)` in scrip.c:478, Icon
+  flows through `bb_build_flat`→`bb_box_fn` native (PROVEN: `hello from icon mode-3`, exit 0, icon m3 5/6), SNOBOL4/
+  Prolog fall to the SMX abort (the native run-path EXISTS + works for Icon — SNOBOL4 just isn't routed onto it =
+  the long pole); **m4 = blanket `[SMX]` abort** (scrip.c:396, returns before ANY emission for ALL langs incl.
+  Icon — BB-native x86 emission excised by SMX-4, not rebuilt). **NEXT (high→low):** route SNOBOL4 onto the mode-3
+  `bb_build_flat` path (highest value — Icon proves it works); rebuild mode-4 BB-native x86 emission; then
+  `IR_PAT_DEFER` runtime (Track B), broader builtins (ARRAY/TABLE/APPLY), `&ANCHOR` already done.
+
 
 - **2026-05-31 (Opus 4.8) — TESTING DIRECTIVE: ALL THREE MODES, ALWAYS ✅** (.github + SCRIP this handoff). Per Lon:
   every SCRIP test for this GOAL now runs modes 2/3/4. `scripts/test_smoke_snobol4.sh` rewritten — mode 2
