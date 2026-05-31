@@ -137,7 +137,7 @@ FACT 0, smokes hold.
 **Every SCRIP execution test for this GOAL runs the program through ALL THREE modes on the SAME source, and reports all three. Never test fewer than all three.**
 - **mode 2 — `--interp`** (BB port-walker oracle) — **HARD GATE**: must be all-PASS (the source-of-truth output; build sanity).
 - **mode 3 — `--run`** (stackless native x86) — **TRACKED**: floor `MODE3_MIN` (env, default 1), ratchets up as GZ rungs rebuild each box family stackless.
-- **mode 4 — `--compile`** (standalone x86-64 asm → assemble with `gcc -no-pie` → link `out/libscrip_rt.so` → run → compare output) — **TRACKED**: floor `MODE4_MIN` (env, default 0). Currently severed post-SMX (`--compile`/`--target=x86` print the SMX-excised notice and emit nothing) → 0/N; the floor ratchets up as **BB-native compile emission** is rebuilt. A new GZ rung is not "done" until its mode-2 oracle is green AND mode-3 + mode-4 are tracked against it.
+- **mode 4 — `--compile`** (standalone x86-64 asm → assemble with `gcc -no-pie` → link `out/libscrip_rt.so` → run → compare output) — **TRACKED**: floor `MODE4_MIN` (env, default 0). **REBUILT 2026-05-31 (Sonnet 4.5): Icon smoke m4 0/6 → 5/6 (matches m3).** No longer severed for Icon — `--compile` emits a C-ABI `main` wrapper (`rt_frame`→ζ, esi=0 → `call main_α`) + the flat BB body via `codegen_flat_build`, reusing the SAME BB templates mode-3 emits (mode-3 = `MEDIUM_BINARY` into a pool + `jmp`; mode-4 = `MEDIUM_TEXT` GAS asm). Non-Icon `--compile` still stubs loud (not yet crossed). Only `if_expr` is m4-red — fork-blocked in BOTH m3 and m4 (ring→tree adapter can't linearize control flow). A new GZ rung is not "done" until its mode-2 oracle is green AND mode-3 + mode-4 are tracked against it.
 - **Canonical harnesses already wired for all three:** `scripts/test_smoke_icon.sh` (per-frontend gate) and `scripts/test_crosscheck_icon.sh` (mode-consistency). Any NEW or edited Icon test script MUST run `--interp`, `--run`, AND `--compile` (mode-4 via the asm→assemble→link→run path; if `out/libscrip_rt.so` is absent or `--compile` emits nothing, mode-4 simply fails/tracks — never silently skipped). The per-rung `test_icon_ir_rung_*.sh` scripts are mode-2 oracle tests today; migrate each to all-three as it is next touched.
 - Mode-4 needs `out/libscrip_rt.so` (`make libscrip_rt`) and `gcc`; the harnesses degrade gracefully (mode-4 FAIL/TRACK) when either is missing so the mode-2 HARD gate still runs in any environment.
 
@@ -383,11 +383,16 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 - [x] **R-HW-2 — Mode-3 (`--run`) stackless RO-string box.** DONE (2026-05-30). write box emits string as sealed RO blob, reads ADDRESS via `lea rdi,[rip+disp]`; no frame/subject regs/push/pop. Three edits: `emit_bb.c` BB_CALL guard (strlit falls to direct FILL not γ-walk), `bb_call.cpp` strlit arm (RO-IP-relative lea), `bb_lit_scalar.cpp` BB_LIT_S → pure four-port pass-through (was the pusher). Gate: m2==m3, dump-sm 0, FACT 0, no-stack ratchet 129→127.
 
-- [ ] **R-HW-3 — Mode-4 (`--compile`) parity.** Same box in the linked binary's `.text`/`.data`;
-  the only inter-box transition (entry → box → halt) is a `jmp`; run ⇒ identical `hello world\n`.
-  Mode-3 and mode-4 differ ONLY at the boundary (return-to-driver vs `exit`), proving the model
-  is mode-agnostic. (PEEK 2026-05-30: the MEDIUM_TEXT arm already emits `lea rdi,[rip + .Lcall_str]`
-  + `.ascii` + `call rt_write_str_nl@PLT` — RO-IP-relative, no push. Needs assemble+run verification.)
+- [x] **R-HW-3 — Mode-4 (`--compile`) parity.** DONE (2026-05-31, Sonnet 4.5). `write("hello world")`
+  assembles + links libscrip_rt.so + runs ⇒ `hello world\n`, byte-identical to m2/m3. The asm is a
+  C-ABI `main` wrapper (`call rt_frame` → rdi, `xor esi,esi` → `call main_α`) + the flat body via
+  `codegen_flat_build` in `MEDIUM_TEXT`. The body reuses the SAME BB templates as m3; mode-3 and mode-4
+  differ ONLY at the boundary (return-to-driver vs C `main` returning 0), proving the model is
+  mode-agnostic. Four enabling fixes: (1) `emit_core.c` `emitter_init_text/binary` set `g_medium` +
+  `g_emit_sink` (templates were taking the binary arm in text mode + prologue/epilogue text was dropped);
+  (2) `xa_flat.cpp` TEXT prologue/epilogue honor `g_frame_active` (push r12/fall-through to α_body, no
+  esi-dispatch/β/r10, constant-success epilogue + pop r12); (3) `scrip.c` real mode-4 driver (Icon only);
+  (4) `Makefile` `lower_program.c` → `RT_PIC_SRCS` so the .so is link-complete.
 
 - [ ] **R-HW-4 — Full gate sweep + smokes.** All per-rung gates green; `test_smoke_icon.sh`
   mode-2 6/6 (HARD) with mode-3 now including hello-world; `test_smoke_prolog.sh` 5/5;
@@ -395,6 +400,77 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
   the ratified-layout baseline; later rungs may only lower ratchets, never raise them.
 
 ---
+
+
+
+**HEAD (SCRIP):** `582c3bc` (mode-4 BB-native rebuild — Icon m4 0/6 → 5/6 — Sonnet 4.5; **pushed to origin/main**, rebased onto the parallel SNOBOL4 `80e6c22` SBL-M4-STACKLESS-1). Built on `aabf060`.
+
+**Rebase/merge note (shared-file concurrency):** the parallel SNOBOL4 session ALSO landed mode-4 the
+same session, touching the SAME two shared files — `xa_flat.cpp` (the flat TEXT prologue/epilogue made
+`g_frame_active`-aware) and `scrip.c` (the `mode_compile_x86` driver). Both conflicts resolved by UNION:
+(a) `xa_flat.cpp` frame-active TEXT prologue/epilogue is now ONE shared form serving both languages
+(prologue `push r12; mov r12,rdi; lea r10,[rip+Δ]` → fall through to α_body; constant-success epilogue
++ `pop r12`, no Σ/r10 deref) — the epilogue bodies were already byte-identical between the two sessions;
+(b) `scrip.c` `mode_compile_x86` now dispatches by language — `is_icon` → the Icon driver (C-ABI main
+wrapper + `icn_ring_to_tree` + `codegen_flat_build`), `!is_prolog` (SNOBOL4) → the SNOBOL4 driver
+(`xa_file_header`/footer + `sno_ring_to_tree` + `codegen_flat_build("stmt0")`), Prolog → loud stub. Both
+verified post-merge: Icon m4 5/6 AND SNOBOL4 m4 1/5 intact, all gates green.
+
+**Done this session (PIVOT — get modes 2/3/4 working on the Icon programs already passing m2 — Sonnet 4.5):**
+Lon's PIVOT: rather than push deeper on new mode-2 rungs, get **all three modes** green on the smoke
+set. mode-2 was already 6/6 and mode-3 5/6; **mode-4 was fully severed (0/6)**. Rebuilt mode-4
+(`--compile`) BB-native and took it to **5/6, matching mode-3 exactly.** ONE commit, 7 files, all gated.
+
+**KEY INSIGHT:** mode-3 and mode-4 share the SAME BB templates. Mode-3 emits `MEDIUM_BINARY` into the
+`bb_pool` and `jmp`s into it; mode-4 emits `MEDIUM_TEXT` GAS asm to stdout, assembled with `gcc -no-pie`
++ linked against `out/libscrip_rt.so` + run. The templates already HAD `MEDIUM_TEXT` arms for the shell;
+mode-4 was severed only at the driver (SMX stub) AND the per-box stackless TEXT arms had never been
+written (only the BINARY arms were rebuilt for GZ-2/3/4). Five enabling pieces:
+1. **`emit_core.c` `emitter_init_text`/`emitter_init_binary`** now set `g_medium` (the `MEDIUM_TEXT`/
+   `MEDIUM_BINARY` macro driver) AND `g_emit_sink`. They previously set only `bb_emit_mode`, so in text
+   mode the templates still saw `MEDIUM_BINARY` (took the byte arm → `bb_emit_byte` abort), and the
+   prologue/epilogue text was silently dropped because `g_emit_sink` was only set later inside
+   `walk_bb_node` (the body), AFTER the prologue had already run. THE root unblock.
+2. **`xa_flat.cpp` TEXT prologue/epilogue** honor `g_frame_active` (Icon stackless): prologue =
+   `push r12; mov r12,rdi` then fall straight through to `α_body` (the esi-dispatch + `jmp β` + `lea r10`
+   are all dead at the C-ABI boundary — esi is always 0, the Icon body uses r12+rip-relative not r10);
+   epilogue = constant success (`mov eax,1; xor edx,edx`) + `pop r12`, NO Σ/r10 deref. NON-ICON
+   (`g_frame_active==0`) keeps the original `lea r10,[rip+Δ]` dispatch + Σ/r10 epilogue → byte-identical.
+3. **`scrip.c` mode-4 driver** (Icon only): `sm_preamble` → register procs → `icn_ring_to_tree` → emit a
+   C-ABI `main` wrapper (`.intel_syntax noprefix`; `push rbp/mov rbp,rsp`; `call rt_frame@PLT`;
+   `mov rdi,rax`; `xor esi,esi`; `call main_α`; `xor eax,eax`; `pop rbp`; `ret`) then `codegen_flat_build
+   (icn_root, stdout, "main")` under `g_frame_active=1`. Non-Icon `--compile` keeps the loud stub.
+4. **`Makefile`** adds `src/lower/lower_program.c` to `RT_PIC_SRCS` so `libscrip_rt.so` is link-complete
+   (it defines `lower`/`binop_apply`/`bb_label_landing`/`lower_proc_gen`, previously only in the `scrip`
+   binary → the `.so` had undefined refs that broke the `-no-pie` link).
+5. **`bb_call.cpp`/`bb_binop.cpp`/`bb_to.cpp` stackless TEXT arms** mirroring the proven BINARY arms:
+   GZ-2 `write(RO-int)` → `.rodata .quad` + `mov rdi,[rip+lbl]`; GZ-3 `write(binop/to)` → `mov rdi,[r12+off]`
+   (off via `bb_slot_get`); GZ-4 concat → `str_concat_d` into `[r12+off]` DESCR, write reads `[r12+off+8]`;
+   GZ-4 `to`-pump → `.rodata` lo/hi + `[r12+off]` cursor with α-seed/β-increment. CRUCIALLY `bb_call`'s
+   GZ-3 TEXT arm now DEFINES the β re-pump label and `jmp`s to the `EMIT_PAIR`-registered target (the
+   arg generator's β resume) — exactly what `every` needs to re-drive the `to` (this was the last fix:
+   without it `every write(1 to 3)` had an undefined `xevery0_body_β` link error).
+
+**Validation (mode-4, assembled+linked+run, all byte-identical to m2/m3):** `write("hello")`→hello;
+`write(42)`→42; `write(2+3)`→5; `write(10-4)`→6; `write("ab"||"cd")`→abcd; `every write(1 to 3)`→1,2,3;
+`every write(5 to 8)`→5,6,7,8.
+
+**GATES (all green, zero regressions):** Icon smoke **m2 6/6 HARD · m3 5/6 · m4 5/6** (`if_expr` is the
+only m4-red — fork-blocked in BOTH m3 and m4); Prolog m2 5/5; unified broker 10 (severed baseline,
+unaffected — Icon-only edits); Icon corpus m2 43/283 (unchanged); FACT 0; no-stack 113 ≤ 127;
+one-reg-frame 20 ≤ 20. Non-Icon `--compile` correctly stubs loud. mode-3 BINARY arms untouched
+(byte-identical). `refs/` (uploaded oracle zips) added to `.gitignore`.
+
+**NEXT:**
+1. **`if_expr` (the last m4/m3 gap)** is Lon's Path-1/Path-2 fork: the `icn_ring_to_tree` adapter NULLs
+   control-flow shapes (IF/IR_ALT/CALL-resume cycle) → mode-3 AND mode-4 emit nothing for them. Resolving
+   the fork (rework the adapter to walk the γ-chain/ring natively, drop the `g_icn_postfix_resume` seam)
+   unblocks `if_expr` in both compiled modes at once.
+2. **Extend mode-4 to more corpus features** as their BINARY arms get stackless TEXT twins (same
+   mechanical mirror done here for GZ-2/3/4). Each new box family: add its `MEDIUM_TEXT` arm next to the
+   `MEDIUM_BINARY` one, defining the β label + EMIT_PAIR target if it's a generator.
+3. The mode-2-only OPEN BUGS from the prior Opus 4.8 handoff (relop filtering asymmetry; if-as-arith-
+   operand) remain valid and independent of the mode-3/4 fork.
 
 
 
