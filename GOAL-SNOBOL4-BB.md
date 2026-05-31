@@ -629,12 +629,16 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = f15f213  PND-1 (remove PATND_t from lower.c; SNOBOL4 patterns lower TT_*->IR_t via build_node;
-                     repaired bb_exec.c + stmt_exec.c callers with loud aborts; base 9326db2). +10/-375, gates invariant.
-                     Predecessor watermark 9326db2 was LOWER-MERGE (4 lowering files → ONE lower.c + ONE lower.h; Icon
-                     four-port model as spine; base 29aaac0). 29aaac0 was RN-IR-8b (BB→IR rename COMPLETE; base c334861).
-                     (df3551a7 → c5cf417c "Ground Zero" DELETED 991,875 lines / 6381 files [partial-checkout
-                      artifact] → a0bb9be4 RESTORED them. Current HEAD builds clean. Delete already reversed.)
+HEAD SCRIP       = 95f7f58  CUT-OLD-TREE + SHARED-TABLE (Opus 4.8 2026-05-31; base f15f213). Lon directive: delete
+                     old lower.c, rename lower2.c → lower.c, "start a new tree." Old 3183-ln lower.c DELETED (content
+                     preserved in git history at blob d2d8c8e1; `git show d2d8c8e1`); lower2.c → lower.c is now THE
+                     lowerer (the new tree root). Promoted tm/tm_g (the shared match-collect library) from
+                     tmatch_proto.c into lower.c; added the first two SHARED-TABLE arms: SNOBOL4 `OUTPUT = "hello world"`
+                     (v_assign, four-port, OUTPUT carried by name for EXEC) + Prolog `write('hello world')`
+                     (g_det_builtin1, goal-role TT_FNC). prove_lower2.sh 11/11 (9 prior + 2 new, exact node counts +
+                     γ/ω wiring). Added IR_DO_WHILE enum + lcx_t loop fields + with_loop (partial L2-B2 scaffolding,
+                     rides along). base f15f213 was PND-1 (PATND_t removed from lower.c). 9326db2 was LOWER-MERGE;
+                     29aaac0 was RN-IR-8b (BB→IR rename).
 FRESH-START repo   = snobol4ever/SCRIP (NEW, public, created 2026-05-30 Sonnet 4.6). ZERO inherited history
                      (single root commit, 0 parents). = the predecessor private repo's working tree at
                      a0bb9be4 MINUS refs/ (the 19MB JCON/ICON vendored repos dropped). 4687 tracked files.
@@ -643,8 +647,13 @@ FRESH-START repo   = snobol4ever/SCRIP (NEW, public, created 2026-05-30 Sonnet 4
                      clone scripts NOT yet updated to point at SCRIP — that is a `grand master reorg` decision,
                      deliberately NOT made on this routine handoff. Lon has full local mirrors of all org repos.
 HEAD corpus        = 447c05b    SBL-911-PORTABLE
-make scrip         = rc=0   (verified this session at f15f213 / PND-1)
-make libscrip_rt   = rc=0   (verified this session at f15f213 / PND-1)
+make scrip         = LINK RED by design (new tree, trunk not yet regrown). The new lower.c COMPILES clean as a TU;
+                     `scrip` driver fails at link on EXACTLY 3 undefined symbols: `lower` (stage2_t *lower(const tree_t*)
+                     program-walker — driver entry, GOAL Next #3), `kind_is_resumable`, `cset_try_fold` (two helpers the
+                     new tree currently borrows by extern from the deleted old lower.c; prove harness supplies local copies).
+make libscrip_rt   = rc=0   (runtime .so does NOT depend on the driver `lower`; still builds clean post-cut)
+LIVE GATE          = scripts/prove_lower2.sh 11/11 PASS (topology proof — the only runnable gate until the trunk is
+                     regrown; SNOBOL4 corpus / Icon m2 gates need the `scrip` binary, which is link-RED above)
 sm_dead ratchet    = 1/1 (MAX 1) OK
 audit_m3_native    = GATE OK
 FACT RULE          = 6  (pre-existing baseline — predates a0bb9be4; PND-1 moved it 0; the stale "FACT 0" was wrong)
@@ -764,6 +773,28 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-31 Opus 4.8 — CUT OLD TREE + SET THE SHARED TABLE ✅** (SCRIP `95f7f58`, base `f15f213`; .github FACT RULE
+  `461b3413` + this handoff). Lon: "delete lower.c and rename lower2.c. Time to start a new tree." + "build SNOBOL4's
+  OUTPUT = hello world and Prolog's equivalent; set a place at the table inside our ONE file; one entry, one big CASE over
+  TT_* with language-specifics under cx.lang; set up a little tree-pattern match/collect library; put a FACT RULE in the 3
+  goal files to keep 3 concurrent sessions consistent." **DONE:** (1) `git rm` old 3183-ln lower.c (content preserved blob
+  `d2d8c8e1`); `git mv lower2.c → lower.c` — the unified role-dispatch lowerer is now THE lowerer. Repointed
+  `scripts/prove_lower2.sh`. (2) Promoted `tm`/`tm_g` (match shallow shape + capture children) from `tmatch_proto.c` into
+  `lower.c` as the shared match-collect library every arm uses. (3) Two SHARED-TABLE arms, four-port, via tm: SNOBOL4
+  `OUTPUT = "hello world"` → `v_assign` (rhs.γ→ASGN, ASGN.sval=OUTPUT for EXEC to recognize, bounded); Prolog
+  `write('hello world')` → `g_det_builtin1` (goal-role TT_FNC, arg.γ→CALL, deterministic). (4) FACT RULE
+  `SHARED-LOWERER ONE-FILE CONCURRENCY` byte-identical (md5 39c3e268) at the top of all 3 goal files: one case per kind
+  per role-switch, language variation INSIDE the case via cx.lang (no per-language fork), edit only your own arm (→
+  non-overlapping diffs auto-merge), missing arm falls loud (`lower_unhandled`), shared scaffolding additive / signature
+  changes lockstep, `prove_lower2.sh` the shared green signal. **Gate `prove_lower2.sh` 11/11 PASS** (9 prior + 2 new,
+  exact node counts + γ/ω). New `lower.c` COMPILES clean; `make libscrip_rt` rc=0. **`make scrip` LINK RED by design** —
+  new tree, trunk not regrown — on exactly 3 symbols: `lower` (program-walker driver entry), `kind_is_resumable`,
+  `cset_try_fold`. Added IR_DO_WHILE + lcx_t loop fields + with_loop (partial L2-B2, rides along). **NEXT (running, next
+  session): regrow a minimal `lower(prog)` → populate `s2->bbp.table[main]` from the role entries (EXEC path
+  `bb_exec_once(s2->bbp.table[main_bb_idx])` ALREADY works — it's how Icon hello prints, scrip.c:362-374), define the 2
+  helpers, restore link, wire EXEC arms for IR_ASSIGN(OUTPUT→print) + IR_CALL(write), print both hellos.** Then L2-B2
+  finish, then LM-6 DISPATCH-UNIFY (merge the 3 role switches into one CASE over TT_*, governed by the FACT RULE).
 
 - **2026-05-31 — PND-1: KILL PATND_t IN lower.c ✅** (SCRIP `f15f213`, base `9326db2`; `.github` this handoff).
   Lon directive (this session): "In lower.c, remove the structure PATND_t completely and fill the IR_t struct
@@ -1176,11 +1207,13 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP: (this commit) · .github: (this commit). lower2.c=535 ln, 12 boxes wired (5 foundation + 7 new),
-60 value-role TT_* kinds still → loud `lower_unhandled`. Gate `scripts/prove_lower2.sh` **9/9 PASS**. Full `make scrip`
-GREEN (lower2 still a standalone TU, not in the Makefile — no production path touched). Prior gates unchanged
-(Icon m2 6/6, test_gate_sm_dead=1, FACT baseline=6). NEXT: read GOAL-SM-LOWER-REFACTOR.md + GOAL-ICON-LOWER-REDESIGN.md,
-then rung L2-C (`ir_a_Limitation` counter box + interrogation), proven via the harness.
+**Watermark.** SCRIP: `95f7f58` · .github: (this commit). **lower2.c → lower.c (the new tree root; old lower.c deleted,
+blob d2d8c8e1).** tm/tm_g match-collect library promoted in from tmatch_proto.c. 14 boxes wired (5 foundation + 7 L2-A/B
++ v_assign [SNOBOL4 OUTPUT=] + g_det_builtin1 [Prolog write goal]); ~60 value-role TT_* still → loud `lower_unhandled`.
+Gate `scripts/prove_lower2.sh` **11/11 PASS** (9 prior + SNOBOL4 OUTPUT assign + Prolog write goal). `make scrip` LINK
+RED by design (3 symbols: `lower`/`kind_is_resumable`/`cset_try_fold` — see Session State); `make libscrip_rt` rc=0.
+FACT RULE `SHARED-LOWERER ONE-FILE CONCURRENCY` now byte-identical at the top of GOAL-SNOBOL4-BB / GOAL-ICON-BB /
+GOAL-PROLOG-BB (the 3-concurrent-session protocol). Prior gates unreachable until trunk regrown.
 
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
