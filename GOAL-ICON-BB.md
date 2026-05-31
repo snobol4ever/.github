@@ -124,22 +124,63 @@ FACT 0, smokes hold.
 
 ### Rung ladder (HELLO WORLD up — each gated, stackless, no `rt_push`/`rt_pop`)
 
-- [x] **GZ-0 — Scaffold + gates.** No-stack gate pinned into `scripts/`; per-box slot idiom (`&pBB->value`) is the value-storage primitive; slot/arena conventions settled from archived `emit_x64.c`.
-- [x] **GZ-1 — `write("hello")`.** One box, literal in own slot, write reads slot. m2==m3, zero-SM, no-stack.
-- [x] **GZ-2 — `write(42)`.** Literal-N template (PDF §4.1), value in `&lit->value`.
-- [x] **GZ-3 — `write(1 + 2)`.** plus template (PDF §4.3): `plus.value ← E1.value + E2.value`, no operand push/pop.
-- [ ] **GZ-4 — `every write(1 to 3)`.** to template (PDF §4.4): `to.I`, `to.value` slots; β
-  re-pumps via `to.resume: to.I++`. Mirror `test_icon.c` `to1`. **mode-2 oracle DONE (this
-  session)** — the independent mode-2 `every` bug is fixed; smoke m2 6/6 (HARD GATE green, exit 0
-  for the first time), rung ladder 28→31, broker 4→5 (`ICN: 1 to 5`), zero regressions. **mode-3
-  stackless STILL BLOCKED on the Path-1-vs-Path-2 fork** (see session-7 watermark): the ring→tree
-  adapter returns NULL for iterate/branch topology, and `bb_to.cpp` still uses `rt_push_int`. Lon
-  must pick the fork before the mode-3 control-flow/generator rungs proceed.
-- [ ] **GZ-5 — `every write(1 | 2 | 3)`.** alt: `α save cursor → left_α; left_ω → right_α`
-  (archive ALT wiring). Choice index in a per-box slot.
-- [ ] **GZ-6 — `every write(5 > ((1 to 2) * (3 to 4)))`.** The paper's full example. Must be
+- [x] **GZ-0 — Scaffold + gates.** Pin the no-stack gate above into `scripts/`. Confirm the
+  per-box slot idiom (`&pBB->value`) is the value-storage primitive. Decide the slot/arena
+  conventions by reading `emit_arbno` + one full pattern-node body in the archived `emit_x64.c`
+  end-to-end, and `test_icon.c` for the Icon arithmetic shape. No code change beyond the gate script.
+- [x] **GZ-1 — `write("hello")`.** One box, literal value in its own slot, write reads the slot.
+  No push. m2==m3, zero-SM, no-stack gate = 0 for this box family.
+- [x] **GZ-2 — `write(42)`.** Literal-N template (PDF §4.1): `lit.start: lit.value ← N; goto succeed`.
+  Value in `&lit->value`. write reads it.
+- [x] **GZ-3 — `write(1 + 2)`.** plus template (PDF §4.3): `plus.value ← E1.value + E2.value`,
+  read from the two child slots. No operand push/pop.
+- [x] **GZ-4 — `every write(1 to 3)`.** to template (PDF §4.4): `to.I`, `to.value` slots; β
+  re-pumps via `to.resume: to.I++`. Mirror `test_icon.c` `to1`. **mode-2 oracle DONE** (session 8).
+  **mode-3 stackless DONE (session 9):** `bb_to.cpp` MEDIUM_BINARY literal-bounds arm rewritten
+  from single-shot to the full stackless pump (`β: cur=[r12+off]; inc; store; if cur>hi → ω; jmp γ`),
+  lo/hi sealed RO `[rip+disp]`. `scrip.c icn_rt_arity` gained `IR_EVERY → 1` so the ring→tree adapter
+  reconstructs `every(body)`. m2==m3 `1\n2\n3`, dump-bb count=0, FACT 0, no-stack 113, one-reg-frame 20.
+  Icon smoke m3 4/6→5/6 (`every` green). No `rt_push`/`rt_pop` added.
+- [x] **GZ-5 — `every write(1 | 2 | 3)`.** alt: arms fail-chain via ω, each arm γ→ALT funnel
+  (JCON `ir_a_Alt` / lower2 `wire_alt`). **mode-2 oracle DONE (session 9):** was infinite-looping
+  (`1 1 1…`) — the `every` ival==0 driver restarted forward through the success port so the first
+  literal re-succeeded forever. Fix in `bb_exec.c` IR_EVERY ival==0: a guarded branch firing ONLY
+  when `start` heads a sibling alt-chain (`start->ω->γ == start->γ`) AND all arms are single-shot,
+  resuming from the second arm (`start->ω`, since the main exec loop already produced the first).
+  `to`/all-else fall through BYTE-IDENTICAL. Corpus 31→34 (+`rung13_alt_alt_{every_write,filter,int}`),
+  zero regressions, m2 6/6 HARD. **(session 10 update:** that guarded all-single branch was REMOVED when GZ-6
+  made the chain self-drive; `every write(1|2|3)` now flows through the self-advancing IR_ALT collector and the
+  EVERY terminator — still m2 green, `→ 1,2,3`, `(1 to 2)|(5 to 6)`→1,2,5,6.)
+  **mode-3 STILL fork-blocked** — the ring→tree adapter NULLs `IR_ALT`
+  (arms hang off ω-branches, not the γ-chain), so mode-3 emits nothing (no false-pass, no crash).
+  NEXT (mode-3 alt): (1) `icn_ring_to_tree` special-case `IR_ALT` — pop first arm off the postfix
+  stack, set `ALT.α`, gather ω-siblings while `sibling->γ==ALT`, terminate the last arm's ω for
+  `flat_drive_alt_icn`; (2) `bb_alt.cpp` — replace absolute `&pBB->counter` with a stackless
+  `[r12+off_c]` counter that stores the active arm's literal into `[r12+off_v]`; (3) `bb_call.cpp` —
+  `write(alt)` reads `[r12+off_v]` instead of `rt_pop_write_any_nl`.
+- [x] **GZ-6 — `every write(5 > ((1 to 2) * (3 to 4)))`.** The paper's full example. Must be
   byte-identical to `test_icon.c` output AND structurally mirror Figure 1 (nine four-port
   templates, no stack). This rung proves stackless generator-nesting end to end. MILESTONE.
+  **mode-2 oracle DONE (session 10):** `→ 3,4` (verified; `(1 to 2)*(3 to 4)`→3,4,6,8; `5>(1 to 4)`→1,2,3,4;
+  `(1|2)+(10|20)`→11,21,12,22). FIVE-part fix, grounded in jcon `irgen.icn` (ir_a_Every L309 / ir_a_Alt L167 /
+  ir_a_Binop L471 / ir_a_Call L360). (1) `lower.c` `wire_det_builtin1`: CALL.resume → arg.resume (`aβ`) so the
+  write re-pumps a generator argument (jcon `call.resume → last-arg.resume`) — GATED via `g_icn_postfix_resume`
+  (mode-2 only; see seam below). (2) `lower.c` `v_binop`: each operand → its OWN named slot in the `operand_aux`
+  sidecar (jcon `ir_a_Binop` opfn reads `[lv,rv]`; replaces the documented push-only-ring mis-count). (3)
+  `bb_exec.c` IR_BINOP postfix arm reads the two named slots when present, ring-peek fallback otherwise. (4)
+  `bb_exec.c` IR_EVERY ival==0 is now a pure terminator (returns γ): with the resume ports wired the generator
+  chain SELF-DRIVES under the top-level port-walker and the EVERY node is reached exactly once via gen.ω — the
+  old general/all-single restart loop was double-driving. (5) `bb_exec.c` IR_ALT postfix collector now
+  self-advances on resume (re-pumps a generator arm via the `operand_aux` arm-value nodes, else fail-chains to
+  the next alternative), and `lower.c` `wire_alt` stores the arm VALUE nodes (not resumes) in `operand_aux`.
+  **mode-2/mode-3 SEAM (`g_icn_postfix_resume`, lower.c; set in scrip.c only for `--interp`+`is_icon`):** edit (1)
+  introduces a CALL→arg.resume cycle in the shared γ-chain that the mode-3 ring→tree adapter (`icn_ring_to_tree`)
+  cannot yet walk (it overflows the linear-chain guard → NULL). Gating (1) to mode-2 keeps the mode-3 IR
+  BYTE-IDENTICAL to the pre-GZ6 graph (CALL.resume=ω_in, gen.γ=EVERY) → mode-3 `every write(1 to 3)` restored,
+  no regression. Edits (2)–(5) are mode-2-only (operand_aux + bb_exec.c; the mode-3 flat emitter reads neither).
+  **mode-3 STILL fork-blocked** — both GZ-5 `IR_ALT` and now GZ-6's CALL-resume cycle need the adapter reworked;
+  that IS Lon's Path-1/Path-2 fork (rewrite the mode-3 emitter to walk the γ-chain/ring natively vs per-shape
+  scaffold). Removing the seam + teaching the adapter the resume topology is the next mode-3 step.
 - [ ] **GZ-7 — `x := 42; write(x)`.** Flat slot for `x` (the archive's flat .bss var model).
 - [ ] **GZ-8 — `if`/relop control, relop routes its OWN γ/ω.** Bake the branch into the relop
   (PDF LessThan: `if (E1 ≥ E2) goto E2.resume`); NO `LAST_OK` flag, NO `BB_IF` flag-router.
@@ -337,6 +378,68 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 ---
 
 
+
+**HEAD (SCRIP):** `81d721b` (session 10 — GZ-6 mode-2 nested-generator oracle; pushed, rebased cleanly onto the parallel `440deba` — zero conflicts, FACT-rule isolation held).
+
+**Done this session (10, GZ-6 mode-2 oracle — MILESTONE — Opus 4.x):** `every write(5 > ((1 to 2) * (3 to 4)))` → **3,4** (was `12,16`). The paper's full example now runs stackless in the mode-2 port-walker. FIVE contained edits across 3 files (`src/lower/lower.c`, `src/lower/bb_exec.c`, `src/driver/scrip.c`), all grounded per CONSULT-CANONICAL-SOURCES in jcon `tran/irgen.icn` (ir_a_Every L309 / ir_a_Alt L167 / ir_a_Binop L471 / ir_a_Call L360) + `test_icon.c` named-slot goto-graph. Detailed in the GZ-6 ladder step above. Summary: (1) `wire_det_builtin1` — CALL.resume → arg.resume (`aβ`) so write re-pumps a generator argument; (2) `v_binop` — operands into OWN named `operand_aux` slots (replaces push-only-ring mis-count); (3) IR_BINOP arm reads those slots; (4) IR_EVERY ival==0 → pure terminator (chain self-drives, no double-drive); (5) IR_ALT collector self-advances on resume + `wire_alt` stores arm VALUE nodes in `operand_aux`. **ROOT CAUSE:** with the resume ports wired the generator chain self-drives under the top-level driver (entry = generator α, not the EVERY node), so the EVERY node — reached once via gen.ω — must just succeed; the old restart loop re-drove the whole cross-product (doubling), and the removed all-single alt branch had masked an ALT collector that re-yielded literals forever on resume.
+
+**mode-2/mode-3 SEAM — `g_icn_postfix_resume` (NEW global, `lower.c`).** Edit (1) changes the SHARED IR: CALL.resume becomes `aβ`, so CALL.γ resumes the argument generator instead of EVERY → a CALL→arg.resume CYCLE in the γ-chain. The mode-3 ring→tree adapter `icn_ring_to_tree` (driver/scrip.c) builds a LINEAR postfix chain by following `cur->γ`; the cycle overflows its 256-guard → NULL → no mode-3 output (m3 `every` regressed 5→4 before gating). Restructuring that adapter to model the re-pump cycle IS Lon's Path-1/Path-2 fork. INTERIM FIX: `scrip.c` sets `g_icn_postfix_resume = 1` ONLY in the `--interp` branch under `if (is_icon)`, BEFORE `sm_preamble` lowers; `wire_det_builtin1` gates `call_resume = g_icn_postfix_resume ? aβ : ω_in`. Result — mode-3 IR is PROVABLY byte-identical to the pre-GZ6 graph (CALL.resume=ω_in, gen.γ=EVERY): m3 `every write(1 to 3)` restored, no regression. Edits (2)–(5) are mode-2-only (operand_aux + bb_exec.c arms; the mode-3 flat emitter reads neither operand_aux nor bb_exec.c). **mode-3 remains fork-blocked for GZ-5 IR_ALT AND GZ-6 CALL-resume** — removing the seam + teaching `icn_ring_to_tree` the resume topology is the next mode-3 step, gated on the fork decision.
+
+**Validation (mode-2, all correct):** gz6 `5>((1 to 2)*(3 to 4))`→3,4; cross `(1 to 2)*(3 to 4)`→3,4,6,8; `5>(1 to 4)`→1,2,3,4; `1 to 3`→1,2,3; `1|2|3`→1,2,3; `(1 to 2)|(5 to 6)`→1,2,5,6; `(1|2)+(10|20)`→11,21,12,22; `2+3`→5; `"ab"||"cd"`→abcd. **GATES:** Icon smoke **m2 6/6 HARD**, m3 **5/6** (only `if_expr` fork-blocked — == baseline; `every` m3 restored by the seam); no-stack **113 ≤ 127**; one-reg-frame **20 ≤ 20**; sm_dead **1 ≤ 1**; lower/stage2/runtime isolation OK. Prolog **2/5** & broker **7/59** (severed baseline, provably unaffected — Icon-only edits). SNOBOL4 m2 **6/7** (output/concat/arith/pattern[incl. alternation `('x'|'b')`→aYc verified]/goto_s/arith_sm green; `define` is a pre-existing mode-2 proc-definition gap, untouched by these changes); SNOBOL4 m3 0/6 (severed). `test_gate_em_template_byte_identity` 0/4 is the pre-existing SMX baseline (SNOBOL `--run` aborts 134 by design). No x86 templates touched.
+
+**NEXT (recommended):** GZ-7 `x := 42; write(x)` (flat .bss slot for `x`) is the next mode-2 rung and is independent of the mode-3 fork. For mode-3, Lon's Path-1/Path-2 fork now gates BOTH GZ-5 (IR_ALT) and GZ-6 (CALL-resume cycle) — pick the fork, then rework `icn_ring_to_tree` (or replace the flat emitter with a γ-chain/ring walker) and drop the `g_icn_postfix_resume` seam.
+
+
+
+
+**HEAD (SCRIP):** `72aa1d8` (session 9 — GZ-4 mode-3 `to`-pump + GZ-5 mode-2 alt oracle; pushed, rebased cleanly onto the parallel SNOBOL4 `687aa58` SBL-EXEC-2 — zero conflicts, FACT-rule isolation held).
+
+**Done this session (9, GZ-4 mode-3 + GZ-5 mode-2 — Sonnet 4.x):** Two pieces, both gated green, zero regressions.
+
+**(A) GZ-4 `every write(1 to 3)` mode-3 stackless — DONE.** The `to` generator's β-resume PUMP
+(the part `every` needs, fork-blocked at session 8) now lands stacklessly. TWO edits: (1) `bb_to.cpp`
+MEDIUM_BINARY literal-bounds arm rewritten from single-shot (`β: jmp ω`) to the full pump grounded in
+`test_icon.c` `to1` — `α: rax=lo; if lo>hi → ω; [r12+off]=lo; jmp γ` · `β: rax=[r12+off]; inc rax;
+[r12+off]=rax; if rax>hi → ω; jmp γ`; lo/hi sealed RO data adjacent to the blob, read `[rip+63]`/`[rip+64]`
+(α) and `[rip+19]` (β), ζ=r12, off via `bb_slot_alloc`. 5 patch sites (2×ω, 2×γ, 1×β-def). (2) `scrip.c`
+`icn_rt_arity` gained `case IR_EVERY: return 1;` so the ring→tree adapter pops the body sub-tree as
+EVERY.α (previously any `IR_EVERY` made the adapter return NULL → raw-ring fallback → no output). The
+existing `flat_drive_every` ival==0 bodyless arm (`walk_bb_flat(pBB->α, body_β, lbl_γ, body_β)`) then
+wires the re-pump. m2==m3 `1\n2\n3`; verified `5 to 1`→∅, `2 to 5`, `10 to 10`, `0 to 100`. **Icon smoke
+m3 4/6→5/6** (`every` green; only `if_expr` remains, fork-blocked). NO `rt_push`/`rt_pop` added.
+
+**(B) GZ-5 `every write(1 | 2 | 3)` mode-2 oracle (HARD gate) — DONE.** Was infinite-looping `1 1 1…`.
+ROOT CAUSE (grounded in JCON `ir_a_Alt` + lower2 `wire_alt`, per CONSULT-CANONICAL-SOURCES): lower2
+emits the alternation as a fail-chain — `EVERY.α = LIT_I(1)`; `LIT_I(1).ω→LIT_I(2)→LIT_I(3)→ω_in`; each
+arm's γ funnels to the same `IR_ALT` node (whose own `α=NULL`, peeks the AG ring); `ALT.γ→CALL→EVERY`.
+The mode-2 `every` ival==0 driver RESTARTED forward through the success port each pump (`cur=start=LIT_I(1)`),
+and a literal always re-succeeds (`IR_LIT_I` returns γ unconditionally), so it re-yielded `1` forever.
+The proper resume must propagate through the ω fail-chain to advance alternatives. FIX (`bb_exec.c`
+IR_EVERY ival==0): a tightly-guarded branch that fires ONLY when `start` heads a sibling alt-chain
+(`start->ω && start->γ && start->ω->γ == start->γ`) AND a pre-scan finds all arms single-shot
+(`ir_is_single_shot`); it then walks the arms from `start->ω` (the main `bb_exec_once` loop already
+produced the first arm's value before reaching EVERY — exactly as it produces value 1 for the `to`
+case), each arm a forward walk to the ALT funnel → body. `to`, generator-arm alts, and all other shapes
+fall through to the original restart loop **byte-identical** (the guard's `start->ω->γ != start->γ` for
+the `to` operand-chain). Verified `1|2|3`, `10|20|30|40`. **Corpus 31→34 PASS, ZERO regressions**
+(+`rung13_alt_alt_every_write`, `rung13_alt_alt_filter`, `rung13_alt_alt_int`); Icon m2 **6/6 HARD**.
+
+**(C) GZ-5 mode-3 — STILL FORK-BLOCKED (honest).** `every write(1|2|3)` mode-3 emits nothing (exit 0,
+no false-pass, no crash): `icn_ring_to_tree` returns NULL because `IR_ALT` arms hang off ω-branches, not
+the γ-chain the postfix adapter walks. The mode-3 alt plan is pinned in the GZ-5 ladder step above
+(adapter `IR_ALT` special-case + stackless `bb_alt.cpp` counter/value slots + `bb_call.cpp` write(alt)
+slot read). Not started this session to avoid a half-landed byte emitter.
+
+**GATES (this session):** FACT 0; no-stack ratchet 113 (unchanged — the `to`-pump adds no push/pop);
+one-reg-frame 20 (unchanged — `[r12+off]` register-relative); Icon m2 6/6 HARD / m3 5/6; Prolog 2/5 &
+broker 6/66 unchanged (non-Icon execution severed by design, provably unaffected — edits are Icon-only).
+
+**INCIDENTAL FINDING (not fixed, not regressed, out of scope):** bodyless `every` over a *fully
+single-shot* body (e.g. `every write(7)`) infinite-loops in the original ival==0 restart loop. Pre-existing;
+no passing test exercises it (every passing every-test has a generator or alt-chain body). The clean fix
+(detect a fully-single-shot body → produce once → return γ) is deferred.
+
+PRIOR (session 8) ↓
 
 **HEAD (SCRIP):** `f4f4d9a` (session 8 — GZ-4 every mode-2 oracle + string_op & to-single-shot mode-3 stackless; pushed, rebased cleanly onto the parallel Prolog `e1a6557` PLG-2 + SNOBOL4 `1eef20d` LOWER2-EXEC — zero conflicts, FACT-rule isolation held).
 
