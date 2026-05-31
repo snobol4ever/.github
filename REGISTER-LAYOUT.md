@@ -1,5 +1,25 @@
 # REGISTER-LAYOUT.md — SCRIP mode-3 x86-64 register convention
 
+⛔⛔ **SUPERSEDED FOR BB-NATIVE EMISSION (2026-05-31, Lon-ratified).** The
+register roles below describe the **SMX-4-era SM-blob** convention (r12 =
+SM value-stack TOS; r13/r14/r15 = free). SMX-4 deleted the SM engine, so
+that value-stack and SM-state no longer exist. The **live** convention for
+the ground-zero BB-native x86 emission is the GOAL-*-BB FACT RULE
+"X86-64 REGISTER / SUBJECT-MODEL CONVENTION", now encoded in code as the
+single source `src/emitter/bb_regs.h`:
+
+| Reg | Live role (bb_regs.h / GOAL FACT RULE) |
+|-----|-----------------------------------------|
+| **r13** | Σ — subject BASE ptr |
+| **r14** | δ — CURSOR |
+| **r15** | Δ — subject LENGTH/END (folds retired Ω/Σlen) |
+| **r12** | ζ — BB-local RW FRAME base (`[r12+off]`); **NOT** a value stack |
+| **r10** | per-BLOB DATA-block ptr (flat); broker current-node ptr (brokered) — fork TBD |
+| **rbx** | DESCR BASE POINTER — dual-width: 8-byte DESCR (32-bit) / 16-byte DESCR (64-bit) (Lon 2026-05-31) |
+| **rbp** | variable NAME/HASH-table base (RESERVED) — GET/SET are C calls for now; inlining is a future optimization (Lon 2026-05-31) |
+
+The mode-3 SM detail below is retained as historical reference only.
+
 ⛔ **This is the locked register convention for mode-3 SM-blob emission
 and for flat-BB glob emission.**  Every blob, every glob, every PLT
 call signature in mode 3 obeys this.  Changes require an explicit goal
@@ -23,10 +43,10 @@ rung and Lon sign-off.
 
 | Reg | Class | Role | When loaded / saved |
 |-----|-------|------|----------------------|
-| **r12** | callee-saved | **SM value stack top-of-stack pointer** (FORTH-style) | Loaded once at `sm_jit_run` entry from `[rel sm_state_stack_base]`; reset to stack base by SM_STNO blob; preserved by every PLT call via SysV |
+| **r12** | callee-saved | *(SM-era)* SM value stack TOS — **retired by SMX-4**; now ζ BB-local RW frame base (see bb_regs.h) | *(SM-era)* loaded at `sm_jit_run` entry; the SM engine no longer exists |
 | **r10** | caller-saved | **Current BB DATA-block pointer** — `[r10+N]` addresses every box-local in the active BLOB | Loaded by each BLOB's α-preamble as `lea r10, [rip + Δ_data]` (static globs) or as the result of an `rt_alloc_blob_data()` call (variant globs and re-entries); constant inside a BLOB; saved in SmCallFrame when SM_CALL_EXPRESSION fires from inside BB land |
 | **rbp** | callee-saved | DEFINE'd function frame pointer (when active) | `push rbp; mov rbp, rsp` at function α-entry; `pop rbp; ret` at exit |
-| **rbx, r13, r14, r15** | callee-saved | **Free.** Available for per-rung scratch / future claims | — |
+| **r13, r14, r15** | callee-saved | *(SM-era: "free")* — **now the subject model: r13=Σ base, r14=δ cursor, r15=Δ length/end** (bb_regs.h / GOAL FACT RULE) | loaded at pattern/scan-graph entry; rbx remains free scratch |
 | **rax, rdi, rsi, rdx, rcx, r8, r9, r11** | scratch | C-ABI scratch for PLT arg shuffle and SM-blob temporaries | Caller-saved per SysV |
 | **xmm0–xmm15** | scratch | Real arithmetic when DESCR_t is real | Caller-saved per SysV |
 
@@ -371,7 +391,11 @@ do" to "the locked convention" and formalizes:
 Why caller-saved (not callee-saved)?  C-ABI assignment in System V.
 Cannot be changed without breaking interop with libscrip_rt.so.
 
-### rbx, r13, r14, r15 — held free
+### rbx, r13, r14, r15 — ~~held free~~ (SUPERSEDED: r13/r14/r15 = Σ/δ/Δ; only rbx free)
+
+**SMX-4 update:** r13/r14/r15 now carry the subject model (Σ/δ/Δ) per
+bb_regs.h; the "held free" reasoning below applied only to the SM-blob
+era. rbx remains genuinely free callee-saved scratch.
 
 No current need; reserving them now would either lock in a design
 without evidence or waste them.  Mode-3 inline blobs use the SysV
