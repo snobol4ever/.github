@@ -152,6 +152,22 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 > same lowering-recognition gap; recommended NEXT. DCG needs `phrase/2,3` + `-->` translation. Handoff
 > `HANDOFF-2026-05-31-SONNET46-PROLOG-BB-PLG-5-CONSTRUCTS.md`.
 
+> **★ LIVE STATE UPDATE — PLG-8-native: Prolog mode-3 hello-world EMITS in the boxes, no ring (Opus 4.8, 2026-05-31, atop `5c97162`).**
+> Directive (Lon): mode-3 must EMIT code+data in the boxes with values UP the BB graph chain — no RINGS (rings are mode-2-interp
+> only; the canonical `test_sno_1.c`/`test_icon.c` shapes hold every value in a per-box slot read directly by its consumer). PLG-8
+> had routed Prolog `--run` through `bb_exec_once` = the mode-2 interpreter + the AG ring (`IR_graph_t.ring`/`ag_ring_push`). That is
+> the ring path. Added a native mode-3 branch in `src/driver/scrip.c` (Prolog-only, additive, +53/−0) mirroring Icon/SNOBOL4 mode-3
+> (`bb_build_flat` + `g_frame_active` ζ-frame + `(void)pfn(rt_frame(),0)`): `pl_flat_body_root` (sibling of `sno_ring_to_tree`)
+> returns the principal `IR_GCONJ` root for the proven hello-world tier — a conjunction of constant-arg builtins (write/writeln/
+> print/nl/halt) + `IR_SUCCEED`/`IR_CUT`/`IR_ATOM`, `nslots==0`, no user-call/choice/disj/ite/unify/arith — else NULL → keep the
+> interim `bb_exec_once` route (zero regression). The flat walk (`walk_bb_flat → flat_drive_pl_seq → bb_builtin`) reads each arg from
+> the goal's own `α` at emit time: `write('atom')` → `mov rdi,imm64; call rt_pl_write_atom` (sealed RO constant, NO `rt_pl_atom_push`
+> ring push); `nl` → `mov edi,10; call putchar`. **Verified `hello.pl` mode-3 goes the native flat path (temporary trace) and prints
+> `Hello, World!`; queens/palindrome correctly fall back.** GATE-1 smoke m2 5/5, m3 5/5 (hello-tier native, rest interim); GATE-3 rung
+> m2 109/111, m3 109/111; prove_lower2 51/51; FACT 0. mode-2 untouched (keeps the ring). NEXT: widen `pl_flat_body_root` to the
+> `unify`/`arith` tier (one logicvar slot, in the ζ-frame `[r12+off]` not the ring), then choice (`flat_drive_pl_choice`), then
+> user-call (`flat_drive_call_userproc` + `rt_proc_register`). Handoff `HANDOFF-2026-05-31-OPUS48-PROLOG-BB-PLG-8-NATIVE-HELLO.md`.
+
 > **★ LIVE STATE UPDATE — PLG retract/abolish/DCG/phrase + multi-goal ITE + nested-GCONJ fix + PLG-9 prereq (Sonnet 4.5, 2026-05-31, SCRIP `5c97162`).**
 > The PLG-5-flagged NEXT (retract/abolish/DCG) landed plus two executor/lowering bugs they exposed. **GATE-3 rung
 > suite mode-2 97 → 109 / 111; mode-3 97 → 109 (byte-identical parity).** GATE-1 smoke m2 5/5; prove_lower2 49/49;
@@ -1331,13 +1347,13 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-PLG-8 mode-3 interim-route parity)
+## 📊 Gate table (current — post-PLG-8-native hello-tier mode-3 emission)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | EXCISED | m3 un-EXCISED via PLG-8 (`bb_exec_once` interim route); m4 SMX-gated (PLG-9 regrow) |
-| GATE-3 rung suite | **97/111** | **97/111** | EXCISED | m3 byte-identical to m2 (same BB graph). Remaining 14: rung30 DCG, rung15 abolish, rung14 retract |
-| prove_lower2 topology | **49/49** ✅ | — | — | +11 PLG-5 proof cases (lists, ITE, @<, succ, atom, functor, findall, catch) |
-| FACT RULE grep | 0 ✅ | — | — | lower.c additive, Prolog-only arms; scrip.c mode-3 arm additive, Prolog-only |
+| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | EXCISED | m3 hello-tier (`write_atom`) now EMITS natively (`bb_build_flat`, no ring); richer smoke tests via interim `bb_exec_once`. m4 SMX-gated (PLG-9 regrow) |
+| GATE-3 rung suite | **109/111** | **109/111** | EXCISED | m3 byte-identical to m2. Remaining 2: rung15 abolish-then-reassert, rung30 DCG `{ }` pushback |
+| prove_lower2 topology | **51/51** ✅ | — | — | unchanged this session (driver-only change) |
+| FACT RULE grep | 0 ✅ | — | — | scrip.c PLG-8-native arm additive, Prolog-only (`pl_flat_body_root`); siblings untouched |
 
 
