@@ -96,11 +96,24 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 > four-port `lower.c`. Treat those entries as ARCHAEOLOGY (semantic reference for re-grow), NOT live
 > state. The LIVE state is: **PLG-0 ✅ (audit), PLG-1 ✅ (ground hello-world), PLG-2 ✅ (single
 > non-recursive predicate WITH variables), PLG-2-arith ✅ (`is/2` + comparisons; GATE-1 `arith` PASS),
-> PLG-3 ~SUBSTANTIALLY DONE (user-pred calls: facts + first-solution + head unification + multi-clause
-> IR_CHOICE registration run; `fact(X),write(X)`→`a`, `id(5,R)`→`5`; GAP = rule-body computed-result
-> binding + full enumeration, both PLG-4/6).** The old GATE-2/3/SWI numbers are meaningless now — the live gate is
-> `scripts/prove_lower2.sh` (topology, **37/37**) + the per-rung mode-2 hello checks (GATE-1 smoke **3/5**:
-> `write_atom` + `unify` + `arith`; `clause` gets first solution `a`, `recursion` needs PLG-4/6). All the
+> PLG-3 ✅ DONE (user-pred calls: facts + first-solution + head unification + multi-clause IR_CHOICE
+> registration run), PLG-4 ✅ DONE (backtracking enumeration via `fail`).** Sonnet, 2026-05-31, SCRIP
+> `125bfdf` (atop `eccb4f6`): the prior "GAP = rule-body computed-result binding + full enumeration,
+> both PLG-4/6" was MISDIAGNOSED — neither needed the per-activation frame. Both were isolable lowering
+> bugs in `lower.c` (one shared file, +34/−10): (1) a Prolog variable INSIDE an arith expr lowered to
+> `IR_VAR` (named-var) not `IR_LOGICVAR` (slot), so `Y is X*2` over a bound `X` silently failed — this
+> alone broke rule-body binding AND recursion (fixed in `g_arith_expr`: route leaf operands via `g_term`);
+> (2) the conjunction fail-edge chain dead-ended after one bounded element instead of walking back to the
+> nearest resumable predecessor (fixed in BOTH threading sites: shared `wire_seq` + Prolog
+> `lower2_clause_body_entry`); (3) `wire_alt` patched the wrapper node's ω instead of the arm's deepest-fail
+> node, so a generator-then-`fail` left arm never reached the right arm (fixed by lowering arms
+> right-to-left, mirroring `wire_seq`). The old GATE-2/3/SWI numbers are meaningless now — the live gate is
+> `scripts/prove_lower2.sh` (topology, **37/37**) + the 3-mode per-rung smoke (GATE-1 smoke m2 **5/5** —
+> all of `write_atom`/`unify`/`arith`/`clause`/`recursion`; m3/m4 EXCISED) + GATE-3 rung suite m2 **21**/111.
+> Siblings re-proven non-regressive (shared `wire_seq`/`wire_alt` are strict generalizations): Icon m2 6/0 ·
+> corpus 34/283, SNOBOL4 m2 6/7 — byte-identical via stash/rebuild/compare. REMAINING GAP: `findall/3`
+> enumeration (returns empty; pre-existing; lives in the resolve/broker subsystem `resolve_runtime.c` +
+> `bb_exec.c:3591`, NOT `lower.c`). All the
 > `bb_exec.c` Prolog machinery (`IR_BUILTIN`/`IR_GOAL`/`IR_CHOICE` arms, `resolve_*`, `rt_pl_*`) survives as
 > compiled-but-unreachable code behind the SMX gate; PLG re-grows the wiring rung by rung. Full
 > inventory + verdicts: `doc/PLG-STACKLESS-AUDIT-2026-05-30.md`.
@@ -146,6 +159,18 @@ a value stack; and the node-state snapshot stack must go.
 mode-4 where applicable) byte-identical to `.expected`, FACT 0. Reference the four sources above at
 EVERY rung — when a port-wiring or value-home question arises, the PDF + the two `.c` files + the
 archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
+
+**⛔ TESTING DISCIPLINE — RUN ALL THREE MODES, ALWAYS (Lon, 2026-05-31).** Every time SCRIP is
+exercised for this GOAL — smoke, rung suite, any ad-hoc check — run it in ALL THREE modes: mode 2
+(`--interp`), mode 3 (`--run`), and mode 4 (`--compile --target=x86`). Never report a result from
+mode 2 alone. The gate scripts now enforce this by default: `scripts/test_smoke_prolog.sh` runs all
+three per test (mode 2 = HARD GATE all-PASS; modes 3/4 TRACKED), and `scripts/test_prolog_rung_suite.sh`
+defaults to `--mode all` (loops interp/run/compile; pass `--mode interp|run|compile` for a single mode).
+Modes 3 and 4 are presently **EXCISED** (the SMX `[SMX]` banner) mid-Ground-Zero; the scripts classify an
+excised mode as `EXCISED` (expected, not FAIL) and auto-start counting PASS/FAIL the moment it emits real
+output — so the regrow of PLG-8 (mode-3) and PLG-9 (mode-4) is always visible. Mode 4's emit→assemble→link
+→run path is `scripts/run_prolog_via_x86_backend.sh` (its `$SCRIP` dir-vs-binary path bug is fixed). Ad-hoc
+probes: run `--interp` then `--run` then `--compile --target=x86` and state each mode's outcome (incl. EXCISED).
 
 ### PLG rungs
 
@@ -268,7 +293,7 @@ archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
   carries only the γ/ω wiring + trail mark, per archived `prolog_emit.c` user-call shape). Gate:
   prints `hello`; snapshot count 0; mode-2 == mode-3; FACT 0.
 
-- [~] **PLG-3 — facts + first-solution call, mode-2. SUBSTANTIALLY DONE (Claude Opus 4.8, 2026-05-31).**
+- [x] **PLG-3 — facts + first-solution call, mode-2. DONE (Opus 4.8 + Sonnet, 2026-05-31).**
   User-predicate calls now lower and run for the first-solution + fact tiers. `fact(a). fact(b). fact(c).
   main :- fact(X), write(X), nl.` prints `a` (first solution ✅). `id(X,X). main :- id(5,R), write(R).`
   prints `5` (output binding through head unification ✅). `fact(a), write(yes)` prints `yes` (head atom
@@ -288,12 +313,17 @@ archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
       `resolve_bb_lookup(key, arity)` where `key = "name/arity"` (the FULL key string as the NAME), NOT the bare
       name — so registration MUST use the full key as the name arg (cost ~an hour; documented in the code).
       (5) **`lower.c g_arith_expr` + `g_compare`/`g_is` rewrite + prove_lower2 cases** — see PLG-2-arith below.
-  **KNOWN GAP (PLG-4/6):** `dbl(X,Y):-Y is X*2. main:-dbl(5,R),write(R).` prints empty — a RULE body computing
-  a result that must thread back to the caller's unbound var doesn't propagate yet (facts + simple
-  passthrough work; computed-result-through-rule-body does not). This is the same backtracking/binding
-  machinery PLG-4 (enumeration) and PLG-6 (recursion) need. The `IR_GOAL` retry path (`bb_exec.c:~3450`) uses
-  `bb_snapshot_state`/`bb_body_has_live_choice` — exactly the snapshot apparatus PLG aims to REPLACE with the
-  per-activation frame. That is the crux for both the enumeration gap and the rule-body-binding gap.
+  **GAP RESOLVED (Sonnet, 2026-05-31) — the diagnosis below was WRONG.** `dbl(X,Y):-Y is X*2.
+  main:-dbl(5,R),write(R).` now prints `10`, and `X=5,Y is X*2`→`10`. The rule-body-binding gap was NOT the
+  snapshot apparatus — head-unification was threading results back fine. The real bug: a Prolog variable
+  INSIDE an arith expr (the `X` in `Y is X*2`) fell through `g_arith_expr`'s leaf path to `lower2(role=VALUE)`,
+  which emits `IR_VAR` (Icon/SNOBOL named-var); `resolve_arith_eval` reads operands from the logic-var env
+  (only `IR_LOGICVAR` populates it) → FAILDESCR, so `Y is X*2` silently failed. Fix: `g_arith_expr` routes
+  recognized leaf operands (var/int/float/atom) through `g_term` (→ `IR_LOGICVAR`/`IR_LIT_*`/`IR_ATOM`). This
+  ONE fix also made basic recursion (`count(3)`→`3/2/1`) work — the snapshot machinery was never the blocker.
+  ~~KNOWN GAP (PLG-4/6): the `IR_GOAL` retry path uses `bb_snapshot_state`/`bb_body_has_live_choice` — the
+  per-activation-frame apparatus PLG aims to replace.~~ Retained for archaeology: the retry path DID work; only
+  the fail-edge wiring into it (PLG-4) was broken — see PLG-4 below.
   **PLG-2-arith DONE same session:** GATE-1 `arith` (`X is 2+3, write(X)`) now PASS. The Prolog parser emits
   arithmetic as `TT_FNC("+",...)` (NOT `TT_ADD` — that only comes from the `lower_clause` PlClause path, while
   the live parser uses `lower_clause_from_tree`), and `lower_value` had no arith-FNC arm → `g_arith_expr`
@@ -309,10 +339,20 @@ archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
   plain per-activation int, not a saved/restored shared slot. Gate: prints `red`; snapshot count 0.
 
 
-- [ ] **PLG-4 — backtracking enumeration, mode-2.** Same facts, `:- color(X), write(X), nl, fail ;
-  true.` → `red/green/blue`. Resume re-enters BB_CHOICE via cursor + `trail_unwind(mark)`. Still NO
-  snapshot — the only surviving state across the fail edge is (cursor, trail_mark), exactly the
-  archived `_cs`/`_cm` pair. Gate: `red\ngreen\nblue`; snapshot count 0; mode-2 == mode-3.
+- [x] **PLG-4 — backtracking enumeration, mode-2. DONE (Sonnet, 2026-05-31).** `fact(a). fact(b).
+  fact(c). main :- fact(X), write(X), nl, fail ; true.` → `a/b/c` (GATE-1 `clause` PASS). Two-generator
+  cartesian (`n(X),m(Y),write(X-Y),nl,fail`) → `1-a/1-b/2-a/2-b`. Disjunction right-branch after left
+  exhaustion (`(…fail ; write(done))`) → `a/b/done`. **NO snapshot apparatus was needed** — the surviving
+  diagnosis ("resume re-enters BB_CHOICE via cursor + trail_unwind") was already correct and WORKING; the
+  IR_GOAL→IR_CHOICE redo path fired fine. The ONLY bug was the fail-EDGE wiring, in two classes: (a) the
+  conjunction fail-chain (`wire_seq` + Prolog `lower2_clause_body_entry`) did a single hop and dead-ended at a
+  bounded element instead of walking back to the nearest resumable predecessor — you must NEVER route an
+  ω-edge back THROUGH a bounded node (it would re-run `write`); fixed by walking back past bounded elements
+  (resume == ω_in) to the nearest resumable; (b) `wire_alt` patched the wrapper node's ω, not the arm's
+  deepest-fail node, so a generator-then-`fail` left arm terminated the graph instead of trying the next arm
+  — fixed by lowering arms right-to-left so each sub-builder threads its own deepest-fail edge. Gate:
+  GATE-1 5/5, GATE-3 m2 13→**21**, prove_lower2 37/37, FACT 0; siblings byte-identical via stash.
+  REMAINING (separate subsystem): `findall/3` still empty — resolve/broker (`resolve_runtime.c`), not `lower.c`.
 
 - [ ] **PLG-5 — multi-goal body backtracking (no recursion), mode-2.** `differ(smith,M),
   differ(T,brown)` class — two calls to the same predicate in one body. THIS is the case the
@@ -321,7 +361,11 @@ archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
   to go stale — so no snapshot is needed at all. Gate: the rung10 puzzle multi-call programs
   3-mode AGREE with snapshot count 0 (replacing the snapshot-based fix).
 
-- [ ] **PLG-6 — RECURSION, mode-2 (the crux).** `count(0). count(N):-N>0,N1 is N-1,count(N1). :-
+- [ ] **PLG-6 — RECURSION, mode-2 (the crux).** **NOTE (Sonnet, 2026-05-31): basic recursion ALREADY
+  WORKS** — `count(3)` → `3/2/1` (GATE-1 `recursion` PASS), unblocked by the PLG-3 arith-over-bound-var fix
+  (`N1 is N-1` over a bound `N` was silently failing). The per-activation-frame deliverable below is still
+  OPEN: `count(1000)` deep-recursion stress, "snapshot count 0", and the actual frame design are unverified
+  (the snapshot apparatus is still present, just no longer the blocker for the shallow case). `count(0). count(N):-N>0,N1 is N-1,count(N1). :-
   count(3).` Two live activations of `count/1` must coexist. The mess solves this by snapshotting the
   shared graph; the `.c`/archived solution gives each activation its OWN frame (the `pl_foo_2_r` C
   frame, or an explicit per-activation slot vector keyed by depth like `ζ`). Decide + implement the

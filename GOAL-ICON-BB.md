@@ -1,5 +1,15 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
+> **⚠️ SHARED-LOWERER LOCKSTEP NOTE (Sonnet, 2026-05-31, Prolog PLG-4 commit).** Two shared three-language
+> helpers in `lower.c` changed SEMANTICS as STRICT GENERALIZATIONS during Prolog backtracking work:
+> `wire_seq`'s fail-chain now walks back past bounded elements to the nearest resumable predecessor (was a
+> single hop that dead-ended after one bounded element), and `wire_alt` now lowers arms right-to-left so each
+> arm's exhaustion threads to the next arm's entry via its own deepest-fail edge (was patching only the
+> wrapper node's ω, which missed multi-element arms). Both fix latent backtracking bugs that also affect
+> Icon sequences/alternations with 2+ bounded elements after a generator. Re-proven non-regressive for Icon
+> (m2 6/0 HARD GATE · m3 5/1 · corpus 34/283 — byte-identical via stash/rebuild/compare). No action needed
+> unless you edit `wire_seq`/`wire_alt`; the FACT RULE policy below is unchanged.
+
 ## ⛔ SHARED-LOWERER ONE-FILE CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
 The unified AST→IR lowerer is **ONE file** — `src/lower/lower.c` (formerly `lower2.c`, the new tree root after old `lower.c` was deleted 2026-05-31) — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** (every `TT_*`). SNOBOL4, Icon, and Prolog are developed CONCURRENTLY in SEPARATE sessions, all writing into this one file. Each language adds ARMS the others don't; the discipline below makes three concurrent sessions **conflict-free and mutually beneficial** (one session's added case label / shared helper is the next session's ready slot):
