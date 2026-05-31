@@ -572,7 +572,51 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 ## Session log (last few, terse)
 
-- **2026-05-31 (Opus 4.8) — MODE-3 SNOBOL4 ROUTING: SUBSTRATE DIAGNOSIS (no code landed — convention must be settled first).**
+- **2026-05-31 (Opus 4.8) — SBL-M3-STACKLESS-1: SNOBOL4 mode-3 LANDS (literal-assign), STACKLESS ✅** (SCRIP `79e62f7`,
+  base `7d3a15b`; .github this commit). First SNOBOL4 native mode-3 since SMX-4. **NO value stack** (Lon directive:
+  "do NOT create a value stack. Forbidden!!!"). `OUTPUT = 'hello'` now runs via `--run`: m3 **0→1**. The other
+  five smoke shapes SOFT-fail honestly (loud `[SBB]` stderr, clean exit, NO abort — the old `[SMX] FATAL` is gone for
+  SNOBOL4; Prolog `--run` keeps its by-design abort). **What landed:** (1) `bb_sno_assign.cpp` — stackless box for
+  `IR_ASSIGN` of a literal-string rhs: name+str baked as RO immediates, passed in `rdi`/`rsi` to `rt_sno_assign_lit_s`;
+  42-byte BINARY arm (`movabs rdi,name; movabs rsi,str; movabs rax,&fn; call; jmp γ; β:jmp ω`); TEXT arm bombs
+  (mode-4 excised). Touches NO `g_vstack`/`rt_push_*`/`rt_pop_*`. (2) `rt.c` `rt_sno_assign_lit_s(name,str)` — stackless
+  store via `NV_SET_fn` (OUTPUT→write-line, core.c:2397). (3) `emit_core.c` + `walk_bb_flat`: `IR_ASSIGN` branches
+  SNO(`α==IR_LIT_S`)→`bb_sno_assign` vs Icon(`α==IR_VAR`)→`bb_assign` — Icon untouched/byte-neutral. (4) `scrip.c`
+  `sno_ring_to_tree` (skip landing IR_SUCCEED, postfix-fold; recognizes ONLY `landing→LIT_S→ASSIGN→PSUCC` today,
+  returns NULL else) + `mode_run` SNOBOL4 wiring → `bb_build_flat`, soft-fail on NULL. **Gates GREEN+INVARIANT:**
+  scrip rc=0, libscrip_rt rc=0, m2 **7/7** HARD, m3 0→1, m4 0/6 (excised), Icon m2 **6/6** HARD (byte-neutral),
+  prove_lower2 **38/38**, sm_dead 1(≤1), concurrency OK, purity **6** (baseline; the box's FATAL-guard `fprintf` sits
+  inside the `MEDIUM_BINARY` exempt range so it is NOT counted). Local commits; NOT pushed (no handoff trigger).
+  **MODE3_MIN can now be raised to 1.**
+
+  **⭐ STATEMENT-BB MODEL (Lon directive 2026-05-31 — the shape for the pattern/goto/full-statement work; evidenced in
+  the uploaded `test_sno_1.c`/`test_sno_2.c`/`test_sno_3.c`, which build the EXACT four-port goto-threaded form):**
+  Treat **each SNOBOL4 statement like an Icon expression** — a four-port (α/β/γ/ω) BB. The order, per `test_sno_1.c`
+  (`POS(0) ARBNO('Bird'|'Blue'|LEN(1)) $ OUTPUT RPOS(0)` over `Σ`/`Δ`/`Ω`):
+  1. **Statement BB starts BEFORE the subject.** The outer BB's α enters first; the subject expression is evaluated
+     inside it (`seq_α: seq = str(Σ+Δ,0)` then into the pattern chain). Σ=subject base (R13), Δ=cursor (R14),
+     Ω=length (R15) — matches the X86-64 REGISTER FACT table exactly.
+  2. **Subject gets ONE SHOT — no β-backtrack, but CAN fail.** The subject is evaluated once; if it fails, the
+     statement fails to ω. It does NOT participate in pattern backtracking (no resume edge back into the subject).
+  3. **BUILD PATTERN = a BB.** The pattern is constructed as its own four-port BB (each primitive POS0/BIRD/BLUE/
+     LEN1/alt/ARBNO/RPOS0 is a BB with _α/_β/_γ/_ω; alternation threads `alt_i`; ARBNO carries `ζ`-frame `_1[64]`
+     with per-instance slots — the `[r12+off]` one-register frame, NOT a stack). Built at runtime, OR
+  4. **statically compiled** as an OPTIONAL optimization (the "2nd pass, optimization" block in `test_icon.c`/the
+     test_sno programs — the pattern flattened to straight-line code when shapes are known at compile time).
+  5. **Run the MATCH** from the built (or compiled) pattern BB against the subject; on γ, do the `$`/`.` captures +
+     `= REPLACEMENT` splice; thread the statement's γ/ω to the SPITBOL `:S`/`:F`/`:(L)` goto exits (ch.4/ch.14).
+  This is why `pattern` (`S 'b' = 'X'`, an `IR_SCAN`) and `goto_s` need: an `IR_SCAN` flat driver that emits the
+  statement-BB (subject one-shot eval → build/emit the pattern BB → run match → splice) + `IR_GOTO`/landing
+  threading — all stackless (`ζ`-frame `[r12+off]` + RO `[rip+disp]`), NEVER a value stack. The 19-arm pattern
+  engine becomes per-primitive stackless BBs (model leaves on `test_sno_1.c`'s POS0/LEN1/alt/ARBNO bodies).
+
+  **NEXT (next full-budget session, stackless byte-producing):** (1) widen `sno_ring_to_tree` / add an `IR_ASSIGN`
+  arm for non-literal rhs (var, arith) — needs the operand sub-expr to deliver its value stacklessly (per-box
+  `ζ`-slot, not vstack); (2) `IR_SCAN` statement-BB driver per the model above (the `pattern` smoke); (3) `IR_GOTO`
+  + landing threading (the `goto_s` smoke); (4) SNOBOL4 user-proc call (the `define` smoke). Each: emit stackless,
+  prove, gate (m2 7/7 HARD invariant; raise MODE3_MIN as they land). Recovery model = `test_sno_1.c` four-port bodies.
+
+- **2026-05-31 (Opus 4.8) — MODE-3 SNOBOL4 ROUTING: SUBSTRATE DIAGNOSIS (superseded by SBL-M3-STACKLESS-1 above).**
   Lon: "Mode 3. Continue." Investigated routing SNOBOL4's `mode_run` onto `bb_build_flat` (the stated #1 next step,
   "Icon proves it works"). **Finding: the mode-3 native substrate is mid-GROUND-ZERO-3 migration and internally
   inconsistent — routing SNOBOL4 onto it now would route onto abort-stubs / a half-converted value-passing
