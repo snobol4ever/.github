@@ -394,7 +394,11 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = 95f7f58  CUT-OLD-TREE + SHARED-TABLE (Opus 4.8 2026-05-31; base f15f213). Lon directive: delete
+HEAD SCRIP       = cb5946a  SBL-EXEC-3 — SNOBOL4 program-defined functions (DEFINE/RETURN/FRETURN) + comparison
+                     predicates + recursion (mode-2 smoke 7/7; rebased onto eccb4f6 PLG-3). Trunk BUILDS (make scrip rc=0) and
+                     SNOBOL4 now EXECUTES via the BB run-path. Lineage: 95f7f58 CUT-OLD-TREE → 1eef20d LOWER2-EXEC →
+                     e1a6557 PLG-2 → f4f4d9a ICON-BB GZ-4 → 687aa58 SBL-EXEC-2 → eccb4f6 PLG-3 → cb5946a SBL-EXEC-3.
+                     --- HISTORY (the 95f7f58 CUT-OLD-TREE + SHARED-TABLE session, base f15f213): Lon directive: delete
                      old lower.c, rename lower2.c → lower.c, "start a new tree." Old 3183-ln lower.c DELETED (content
                      preserved in git history at blob d2d8c8e1; `git show d2d8c8e1`); lower2.c → lower.c is now THE
                      lowerer (the new tree root). Promoted tm/tm_g (the shared match-collect library) from
@@ -412,13 +416,12 @@ FRESH-START repo   = snobol4ever/SCRIP (NEW, public, created 2026-05-30 Sonnet 4
                      clone scripts NOT yet updated to point at SCRIP — that is a `grand master reorg` decision,
                      deliberately NOT made on this routine handoff. Lon has full local mirrors of all org repos.
 HEAD corpus        = 447c05b    SBL-911-PORTABLE
-make scrip         = LINK RED by design (new tree, trunk not yet regrown). The new lower.c COMPILES clean as a TU;
-                     `scrip` driver fails at link on EXACTLY 3 undefined symbols: `lower` (stage2_t *lower(const tree_t*)
-                     program-walker — driver entry, GOAL Next #3), `kind_is_resumable`, `cset_try_fold` (two helpers the
-                     new tree currently borrows by extern from the deleted old lower.c; prove harness supplies local copies).
+make scrip         = rc=0   (trunk REGROWN — `lower` program-walker landed; the 3 ex-undefined symbols resolved.
+                     SNOBOL4/Icon/Prolog all lower + execute over the four-port IR via `bb_exec_once(main)`.)
 make libscrip_rt   = rc=0   (runtime .so does NOT depend on the driver `lower`; still builds clean post-cut)
-LIVE GATE          = scripts/prove_lower2.sh 11/11 PASS (topology proof — the only runnable gate until the trunk is
-                     regrown; SNOBOL4 corpus / Icon m2 gates need the `scrip` binary, which is link-RED above)
+LIVE GATE          = scripts/prove_lower2.sh 37/37 PASS (topology) + scripts/test_smoke_snobol4.sh m2 7/7 (define +
+                     recursion green; m3 0/6 AOT --run not built) + scripts/test_smoke_icon.sh m2 6/6 (HARD).
+                     Cross-checks: sm_dead 1(≤1), concurrency OK, purity FACT 6 (byte-neutral), Prolog m2 3/5.
 sm_dead ratchet    = 1/1 (MAX 1) OK
 audit_m3_native    = GATE OK
 FACT RULE          = 6  (pre-existing baseline — predates a0bb9be4; PND-1 moved it 0; the stale "FACT 0" was wrong)
@@ -538,6 +541,36 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-31 (Opus 4.8) — SBL-EXEC-3: SNOBOL4 PROGRAM-DEFINED FUNCTIONS + COMPARISON PREDICATES + RECURSION ✅**
+  (SCRIP `cb5946a`, rebased onto `eccb4f6` PLG-3; .github this handoff). Mode-2 smoke **6/7 → 7/7** (`define` was the last fail).
+  **(A) CALL LOWERING** — `lower.c` VALUE-role `TT_FNC`, `cx.lang==IR_LANG_SNO` arm → `IR_CALL` (sval=name,
+  ival=nargs, `dval=2.0` SNO marker; each arg lowered into its OWN isolated `lower_value_subgraph`, the array
+  riding on `counter`). The Icon arm (callee child c[0]) is untouched — the SHAPE split keys on `cx.lang`.
+  `scrip_ir.c` `bb_reset` now also preserves `counter` for `IR_CALL(dval==2.0)`. **(B) FUNCTION REGISTRATION** —
+  `lower_program.c`: scan `DEFINE('NAME(p..)l..')`, parse the prototype, and register a proc whose graph is a
+  **VIEW** over the one landing-node graph `g` (`*fg=*g; fg->entry = land[label NAME]` — shared node set, own AG
+  ring, distinct entry; no body extraction). `lower_sc` carries the saved-name list (params, then locals, then
+  NAME); `nparams=#params`. Shared `RET`/`FRET` `IR_RETURN` nodes created up front; bare-subject and `:(L)`-goto
+  `RETURN`/`FRETURN`/`NRETURN` wire to them (NRETURN→RET placeholder). **(C) CALL EXEC** — `bb_exec.c` `IR_CALL`
+  `dval==2.0`: evaluate the arg sub-graphs (a failing arg fails the call); a proc-table user function runs through
+  the **SNOBOL4 global save/restore frame** (save the globals named in `lower_sc`, bind dummy args to actuals,
+  null locals+result var, push an EMPTY-scope `GenFrame` so the body's vars route through the global name table,
+  snapshot/reset/`bb_exec_once(fg)`, capture `g_ir_return_val` on `FRAME.returning`, restore globals LIFO); any
+  other name falls to `try_call_builtin_by_name`. **AG-ring save/restore around the nested call** (the ring is
+  graph-level state `bb_snapshot/restore_state` don't cover, and recursion re-enters the SAME view graph) — this
+  is what makes `N * FACT(N-1)` survive the recursive descent. `IR_RETURN` now branches on `dval`: `1.0`=value is
+  the function-named global (RETURN), `2.0`=failure (FRETURN), else generic α-return (Icon/Prolog). **(D)
+  PREDICATES** — `gen_runtime.c try_call_builtin_by_name`: numeric `EQ/NE/LT/LE/GT/GE` + lexical
+  `LGT/LLT/LGE/LLE/LEQ/LNE` comparison FUNCTIONS (null string on success, FAIL otherwise) beside the existing
+  relational OPERATORS; these were newly reachable (TT_FNC used to hit `lower_unhandled`) and are needed by the
+  recursion base case. **Verified:** `DOUBLE(21)`→42, `FACT(5)`→120, `T(0)/T(5)`→1/99, top-level `EQ(0,0)`→equal.
+  **Gates GREEN:** scrip rc=0, libscrip_rt rc=0, prove_lower2 37/37, sm_dead 1(≤1), purity FACT 6 (byte-neutral —
+  no template touched), concurrency OK, Icon m2 6/6 (HARD), Prolog m2 3/5 (eccb4f6 PLG-3 lifted +1). All SNOBOL4-gated edits are
+  byte-neutral for Icon/Prolog by construction (lang/dval guards). **NEXT:** `&ANCHOR`/keyword-assign, computed/
+  indirect goto `:($X)`, true NRETURN (return-by-name) + DEFINE 2nd-arg entry-label, the `IR_BINOP` multi-node
+  AG-ring fragility (`(10+20)+(3+4)`→11; same sub-graph fix as IR_SEQ), `IR_PAT_DEFER` runtime (Track B), broader
+  SNOBOL4 builtin coverage (ARRAY/TABLE/APPLY/…).
 
 - **2026-05-31 Opus 4.8 — SBL-EXEC-2: SNOBOL4 CONCAT + GOTO ✅** (SCRIP `687aa58`, base `f4f4d9a`; .github this
   handoff). Mode-2 smoke **4/7 → 6/7** (only `define` left). **(A) CONCAT** — Lon's steer: `TT_SEQ` → `IR_SEQ`,
