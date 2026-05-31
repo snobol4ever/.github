@@ -1344,18 +1344,7 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP: `<this commit>` (base `d592f40`) · .github: `<this commit>` (base `956d4c01`). **REGISTER CONVENTION
-LOCKED IN CODE + SNOBOL4 PATTERN LEAVES (2026-05-31 Opus 4.8 handoff).** New `src/emitter/bb_regs.h` = the single register
-source (BBREG_* names / BBREGN_* numbers); the FROZEN map: r12=ζ frame (one load per BB-BLOB sequence), r13/r14/r15=Σ/δ/Δ,
-r10=per-BLOB data (flat) | broker current-node (brokered) — **R10 FORK still TBD (only open byte-affecting decision)**,
-rbx=DESCR base (dual-width 8/16B DESCR, concurrent 32-bit session), rbp=variable hash base (RESERVED; GET/SET stay C calls
-for now). `bb_program.cpp` filled with the register-setup prologue (assemble-verified; x86 BB-native backend still EXCISED so
-not run-provable). `REGISTER-LAYOUT.md` synced. SNOBOL4 PATTERN leaves added to `lower.c` lower_pattern: LEN/POS/RPOS/TAB/RTAB/
-FENCE/ABORT/FAIL/SUCCEED/ARBNO + COND/IMMED/CURSOR captures + DEFER(*var) + bare VAR; `kind_is_resumable` extended. **NEXT (top
-of L2-P): add prove_lower2.c SNOBOL4 dump_pat cases for these leaves — they are wired but UNPROVEN (17/17 covers only prior
-arms).** Then: R10 fork decision; the byte-identical-x3 GOAL register FACT tables LAG bb_regs.h (deferred lockstep amendment,
-co-owned with the dual-width session). Gates at handoff: make scrip rc=0, make libscrip_rt rc=0, prove_lower2.sh 17/17, purity
-FACT 6, sm_dead 1, concurrency invariants OK. — Prior watermark below.
+**Watermark.** SCRIP: `6c2277d` (base `0fac566`) · .github: `<this commit>`. **SNOBOL4 PATTERN LEAF PROOFS COMPLETE (2026-05-31 Sonnet 4.6).** `prove_lower2.c` kname extended (PLEN/PPOS/PTAB/PFNC/PABT/PARBN/PCAP/PCAPI/PATP/PDEF); 17 new SNOBOL4 dump_pat cases — LEN(3), POS(2), RPOS(1), TAB(5), RTAB(2), FENCE(bare), FENCE('if'), ABORT, SUCCEED, FAIL, ARBNO('ab'), `'abc' . X` (CAPT_COND), `@P` (ATP), `*pat` (DEFER ival=1), `VAR(token)` (DEFER ival=0). **prove_lower2.sh 34/34 PASS** (17 prior + 17 new; zero regressions). All leaves wired in lower.c (prior session) are now topology-proven. **NEXT:** R10 fork decision; byte-identical-x3 GOAL register FACT tables lag bb_regs.h (deferred lockstep amendment, co-owned with dual-width session); then L2-D assignment arms (TT_ASSIGN/TT_SWAP/TT_AUGOP) + LOWER2-EXEC wire-up for value-level proof. Gates: make scrip rc=0, make libscrip_rt rc=0, prove_lower2.sh 34/34, purity FACT 6, sm_dead 1, concurrency invariants OK. — Prior watermark below.
 
 **Watermark (prior).** SCRIP: `d1c082f` (base `ee12a16`) · .github: (this commit). **lower2.c → lower.c (the new tree
 root; old lower.c deleted, blob d2d8c8e1).** tm/tm_g match-collect library in from tmatch_proto.c. **SHARED COMBINATOR
