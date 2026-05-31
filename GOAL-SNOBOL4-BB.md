@@ -572,6 +572,63 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 ## Session log (last few, terse)
 
+- **2026-05-31 (Opus 4.8) — MODE-3 SNOBOL4 ROUTING: SUBSTRATE DIAGNOSIS (no code landed — convention must be settled first).**
+  Lon: "Mode 3. Continue." Investigated routing SNOBOL4's `mode_run` onto `bb_build_flat` (the stated #1 next step,
+  "Icon proves it works"). **Finding: the mode-3 native substrate is mid-GROUND-ZERO-3 migration and internally
+  inconsistent — routing SNOBOL4 onto it now would route onto abort-stubs / a half-converted value-passing
+  convention.** NOTHING committed (the real work is byte-producing → reserved for a dedicated session per the
+  TEMPLATE-ONLY ONE-DISPATCH rule); recording the exact blocking facts so the next session doesn't re-spend a
+  session rediscovering them.
+  **Blocking facts (all grounded in source this session):**
+  1. **Store/write/call runtime family is STUBBED.** `rt.c` `STACKLESS_ABORT` set: `rt_pop_nv_set`, `rt_pop_write_int_nl`,
+     `rt_pop_write_any_nl`, `rt_pop_store_i64`/`_descr`, `rt_push_stored_i64`, `rt_call_proc`, `rt_call_builtin`,
+     `rt_gen_concat`, all `rt_unop_*`, `rt_field_get`/`_set`, `rt_idx_get`/`_set`, `rt_list_bang`, `rt_limit_begin`,
+     `rt_toby_real`, `rt_case_eq` — each aborts ("Icon value stack removed (GROUND ZERO 3); rebuild stackless").
+  2. **Icon m3 5/6 passes ONLY via the `write(...)` call path** (write_str/int/string_op/every/arith) which uses the
+     still-LIVE `vstack_push/pop` + `rt_nv_get` + `rt_nv_set` + `rt_arith` + `rt_push_int`/`rt_push_str`. None store
+     to a variable, so none hit a stub. The lone m3 FAIL (`if_expr`) + the whole assign-store family are where the
+     stubs bite. SNOBOL4 has no `write(...)` — it uses `OUTPUT = expr`, i.e. the stubbed/assign path.
+  3. **Half-converted value-passing convention.** `bb_lit_scalar` IR_LIT_I (GZ-2) AND IR_LIT_S (R-HW-2) are now pure
+     four-port PASS-THROUGHS (RO constants the *consumer* box seals `[rip+disp]`, NOT pushed) — yet `bb_binop`'s
+     arith arm still POPS the vstack via `rt_arith`. So lits don't deliver a value the way `rt_arith`/`rt_nv_set`
+     expect. The convention (value-stack vs stackless ζ-frame) is in flux and MUST be settled before any box lands.
+  4. **SNOBOL4 IR node shapes ≠ Icon flat-template shapes.** `IR_ASSIGN` (SNO): `α=β=NULL`, value on the AG γ-ring
+     (postfix), target name in `sval`; `OUTPUT`/`TERMINAL`/keyword writes route through `NV_SET_fn` (core.c:2384 —
+     `OUTPUT`→`output_val` writes a line; the LIVE `rt_nv_set` calls `NV_SET_fn`, CONFIRMED reachable). But Icon's
+     `flat_drive_assign` + `bb_assign.cpp` require `α=IR_VAR` and call the STUBBED `rt_pop_nv_set` → would abort.
+     `IR_SCAN` + `IR_GOTO` have NO `walk_bb_flat` case (→ `default: jmp ω`). SNOBOL4 concat (`IR_SEQ`, `dval=1.0`)
+     keeps operands in ISOLATED `IR_graph_t` sub-graphs (not the flat ring), and `flat_drive_seq` reads `pBB->α`
+     (NULL for SNO) → emits empty-seq no-op. `icn_ring_to_tree` returns NULL on the SNO graph (entry is a landing
+     IR_SUCCEED), so the Icon mirror falls back to `bbg->entry` (a landing) → walk emits jmp-γ → empty output.
+  **The fork (Lon's architectural call — coupled to GROUND ZERO #1's shared register/ABI FACT RULE, x3 lockstep):**
+  - **A — target the LIVE value stack now** (`rt_nv_set`/`rt_push_int`/`rt_arith`/`vstack_*`). Fast green on the simple
+    expression-assign family, but builds ONTO the value stack GROUND ZERO 3 is removing → those boxes are knowingly
+    throwaway (need stackless rebuild later). NOT lockstep (SNOBOL4-own box; no Icon re-prove).
+  - **B — build SNOBOL4 boxes STACKLESS from the start** (per-box ζ-frame `[r12+off]`, no `g_vstack`; matches RULES
+    ICON STACKLESS ONE-REGISTER FRAME + the goal's BOX-ZERO directive). Correct end-state, no rework — but means
+    writing the stackless store primitive that `rt_pop_nv_set` is a stub FOR = a slice of the GROUND ZERO 3 rebuild,
+    LOCKSTEP-shared with Icon (ABI change → all three GOAL files in one commit + re-prove all three).
+  Lean = **B** (BOX-ZERO + the stackless rule are central; A's output is disposable). A is a legitimate stopgap only
+  if a same-day mode-3 number is wanted (flag boxes for rebuild).
+  **ORDERED PLAN (next session, byte-producing — pick A or B convention first):**
+  (1) `sno_ring_to_tree` adapter (in scrip.c, NON-byte-producing, reused by BOTH A and B): skip leading landing
+      IR_SUCCEED, collect the single statement's γ-chain to PSUCC/PFAIL/next-landing, postfix-fold by SNO arities
+      (LIT*/VAR=0, BINOP=2, ASSIGN=1 with value→child + name kept in sval), return root or NULL (soft-fail) on
+      multi-statement / IR_SCAN / IR_GOTO / isolated-subgraph-concat shapes.
+  (2) SNOBOL4-OWN assign box `bb_sno_assign.cpp` (TEXT+BINARY) on the chosen convention — A: call LIVE `rt_nv_set`
+      (32-byte movabs-name/movabs-fn/call/jmp-γ/β:jmp-ω, model bb_assign but `rt_nv_set` not `rt_pop_nv_set`);
+      B: stackless ζ-frame store. + emit_core dispatch case + walk_bb_flat SNO-assign arm (lang-guarded) + Makefile
+      RT_PIC_SRCS line.
+  (3) Make IR_LIT_I/S deliver a value in the flat path under the chosen convention (A: restore the `rt_push_int`/
+      `rt_push_str` push for the SNO path; B: seal RO + consumer reads `[rip+disp]`).
+  (4) Wire scrip.c `mode_run` `!is_icon && !is_prolog` arm → `sno_ring_to_tree` + `bb_build_flat`, replacing the
+      `[SMX] FATAL` abort, with a SOFT honest fallback (loud stderr "shape not yet flat-emittable", clean exit, NO
+      abort) when the adapter returns NULL. Target: `output`/`arith` first (MODE3 0→2); `concat` needs isolated-
+      subgraph flattening; `pattern`(IR_SCAN)/`goto_s`(IR_GOTO)/`define`(user-proc) are the LONG POLE (separate boxes).
+  (5) Gate: m2 7/7 HARD (byte-neutral — SNO mode_run arm only), raise MODE3_MIN as cases land, prove_lower2 38/38,
+      sm_dead ≤1, concurrency OK, purity (new template's byte-producers are MEDIUM_BINARY-exempt). Build: scrip rc=0,
+      libscrip_rt rc=0. NO regression. Gates verified GREEN + INVARIANT at session start on `7d3a15b`.
+
 - **2026-05-31 (Opus 4.8) — SBL-EXEC-4: SNOBOL4 KEYWORD-ASSIGN + COMPUTED/INDIRECT GOTO ✅** (SCRIP this handoff,
   base `81d721b`; .github this handoff). Two SNOBOL4 stmt-level features landed on the four-port IR; mode-2 stays 7/7.
   **(A) KEYWORD-ASSIGN `&NAME = expr`** (SPITBOL Manual ch.16 "Unprotected Keywords"). `v_assign` (lower.c) rejected
