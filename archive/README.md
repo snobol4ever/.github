@@ -17,7 +17,7 @@ Three tiers: L1 (entry), L2 (platform), L3 (detail). Read only what you need.
 
 | File | What it is |
 |------|------------|
-| [REPO-one4all.md](REPO-one4all.md) | one4all — HEAD, build commands, sprint, frontier table, pivot log |
+| [REPO-SCRIP.md](REPO-SCRIP.md) | SCRIP — HEAD, build commands, sprint, frontier table, pivot log |
 | [REPO-snobol4jvm.md](REPO-snobol4jvm.md) | snobol4jvm — HEAD, lein commands, sprint, pivot log |
 | [REPO-snobol4dotnet.md](REPO-snobol4dotnet.md) | snobol4dotnet — HEAD, dotnet commands, sprint, pivot log |
 | [CORPUS.md](CORPUS.md) | corpus — layout, update protocol |

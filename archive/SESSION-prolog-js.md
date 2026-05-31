@@ -1,6 +1,6 @@
-# SESSION-prolog-js.md — Prolog × JavaScript (one4all)
+# SESSION-prolog-js.md — Prolog × JavaScript (SCRIP)
 
-**Repo:** one4all · **Frontend:** Prolog · **Backend:** JavaScript
+**Repo:** SCRIP · **Frontend:** Prolog · **Backend:** JavaScript
 **Session prefix:** `PJJ` (Prolog JS — distinct from `PJ` = Prolog JVM)
 **Trigger:** "playing with Prolog JavaScript" / "Prolog JS"
 **Replaces:** SESSION-prolog-wasm.md (⛔ PARKED)

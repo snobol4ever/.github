@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** All three execution modes (--interp, --interp, --run) can
 be driven synchronously within a single process, comparing variable state,
 label/PC, and success/fail flag after every statement. First divergence is
@@ -278,7 +278,7 @@ full variable state, label path, and last_ok.
   if (g_csn_step_hook)
       g_csn_step_hook(++g_csn_stno, g_csn_step_arg);
   ```
-  Add `src/driver/csnobol4_shim.c` to one4all:
+  Add `src/driver/csnobol4_shim.c` to SCRIP:
   ```c
   typedef void (*csn_step_fn)(int stno, void *arg);
   csn_step_fn g_csn_step_hook = NULL;
@@ -304,7 +304,7 @@ full variable state, label path, and last_ok.
   Add `scripts/test_monitor_beauty_smoke.sh`:
   Runs `--monitor` on the first 10 failing beauty programs (from
   `test_smoke_unified_broker.sh` known failures or the beauty corpus).
-  For each: prints the first diverging statement between one4all and CSNOBOL4.
+  For each: prints the first diverging statement between SCRIP and CSNOBOL4.
   Gate: script exits 0 (it reports divergences but does not fail — it is a
   diagnostic tool, not a pass/fail gate). Commit the divergence report as a
   comment in the script for reference.
@@ -350,14 +350,14 @@ full variable state, label path, and last_ok.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=31
 ```
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 099fe2d4)
+## Current state (2026-04-15, SCRIP HEAD 099fe2d4)
 
 IM-1 through IM-16 complete. All phases done.
 

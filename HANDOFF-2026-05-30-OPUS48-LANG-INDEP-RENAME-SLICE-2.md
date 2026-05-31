@@ -1,7 +1,7 @@
 # HANDOFF-2026-05-30-OPUS48-LANG-INDEP-RENAME-SLICE-2
 
 **Session:** Opus 4.8, 2026-05-30 (continues SLICE-0-1 handoff)
-**one4all HEAD:** `bf3f7928` (== origin/main) — was `d7f64afa` (Slice 1b) at session start
+**SCRIP HEAD:** `bf3f7928` (== origin/main) — was `d7f64afa` (Slice 1b) at session start
 **.github HEAD:** (see git log — this handoff + GOAL update)
 **Goal:** GOAL-LANG-INDEPENDENT-RENAME.md
 
@@ -133,8 +133,8 @@ renaming any enum.
 ## Session setup for next time
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github  /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
-cd /home/claude/one4all && git config user.name LCherryholmes && git config user.email lcherryh@yahoo.com
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
+cd /home/claude/SCRIP && git config user.name LCherryholmes && git config user.email lcherryh@yahoo.com
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh && make libscrip_rt
 bash scripts/test_smoke_icon.sh        # MUST be m2 6/6 (HARD); m3 2/6

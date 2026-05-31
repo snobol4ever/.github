@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all + corpus
+**Repo:** SCRIP + corpus
 **Done when:** `scrip --interp claws5.sc < claws5.input` produces output
 matching `claws5.ref` exactly (diff zero), all three modes
 (--interp, --interp, --run).
@@ -35,22 +35,22 @@ claws5.sno is the reference implementation. claws5.sc must match it.
 
 **Parallel session note:** This goal runs concurrently with
 GOAL-SNOCONE-TREEBANK-LIST. Both probe the same SC-26 pattern engine bug
-from different angles. Fix in one4all/runtime — share via main, no branches.
+from different angles. Fix in SCRIP/runtime — share via main, no branches.
 
 ---
 
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snocone.sh   # PASS=5
+bash /home/claude/SCRIP/scripts/test_smoke_snocone.sh   # PASS=5
 ```
 
 ---
@@ -102,7 +102,7 @@ side-effect firing).
   Gate: understand exactly where arg value goes wrong in bb_boxes.c / snobol4_pattern.c.
 
 - [ ] **CL-2** — Fix SC-26 in the pattern engine (coordinate with GOAL-SNOCONE-TREEBANK-LIST).
-  The fix lives in one4all runtime. Once found, one fix serves both goals.
+  The fix lives in SCRIP runtime. Once found, one fix serves both goals.
   Gate: `test/snocone/test_capture_call.sc` PASS all 3 modes.
   Gate: `test_smoke_snocone.sh` PASS=5.
 

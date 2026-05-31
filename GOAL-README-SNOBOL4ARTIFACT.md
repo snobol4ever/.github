@@ -32,7 +32,7 @@
 
 ## Current state (at goal creation)
 - Profile README describes it as: "CPython C extension: SNOBOL4 Byrd Box engine —
-  proof-of-concept from which engine.c in one4all was extracted"
+  proof-of-concept from which engine.c in SCRIP was extracted"
 - May be largely superseded by snobol4python — clarify relationship
 - May have no README at all, or a very thin one
 
@@ -74,6 +74,6 @@ commits the corrected README.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```

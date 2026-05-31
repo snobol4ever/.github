@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** All five language frontends (SNOBOL4, Icon, Prolog, Snocone, Rebus) share
 a single universal Byrd box type (`univ_box_fn` returning `DESCR_t`), a single box node
 type (`bb_node_t`), and a single broker entry point (`bb_broker`), with three drive modes
@@ -175,9 +175,9 @@ The steps below build toward that incrementally — always green, always runnabl
     `LANG_PL`:  call `interp_eval(st->subject)` with `g_pl_active=1`.
   Also fixed `sno_parse_string` to use `lex_open_str_initial` (INITIAL start state) so
   indented/labelled SNOBOL4 blocks parse correctly in polyglot context.
-  Gate: SNO wordcount outputs 9; smoke PASS=2. one4all HEAD 5a6d8124.
+  Gate: SNO wordcount outputs 9; smoke PASS=2. SCRIP HEAD 5a6d8124.
 
-- [x] **U-16** — Add `SM_BB_PUMP` and `SM_BB_ONCE` opcodes to SM. DONE. one4all HEAD 886aa7d0.
+- [x] **U-16** — Add `SM_BB_PUMP` and `SM_BB_ONCE` opcodes to SM. DONE. SCRIP HEAD 886aa7d0.
   `sm_prog.h`: SM_BB_PUMP and SM_BB_ONCE added after SM_EXEC_STMT with full comment.
   `sm_interp.c`: stub handlers (set last_ok=0); unused until U-18.
   Gate: make scrip clean; smoke PASS=2.
@@ -202,7 +202,7 @@ The steps below build toward that incrementally — always green, always runnabl
         all children in order.
   Gate: scrip --interp demo/scrip/demo2/wordcount.md → 9 (SNO) + 9 (Icon).
   Prolog section silent (phrase/3, char_type/2 pre-existing gaps).
-  smoke PASS=2; unified_broker PASS=12. one4all HEAD bb780157.
+  smoke PASS=2; unified_broker PASS=12. SCRIP HEAD bb780157.
 
 - [x] **U-19** — Cross-language `.scrip` test. *(Proof of concept end-to-end.)* DONE.
   `test/cross_lang.scrip`: SNO section (BB_SCAN counter loop prints `SNO: 3`), Icon section
@@ -255,7 +255,7 @@ explicit `-e module_name` flag to select, like ld).
 
 ---
 
-**U-21** — Formal module concept in-memory. DONE. one4all HEAD 7fd3135d.
+**U-21** — Formal module concept in-memory. DONE. SCRIP HEAD 7fd3135d.
   `ScripModule`/`ScripModuleRegistry` added to scrip.c; `g_registry` populated
   by `polyglot_init` in same pass as flat tables. Additive — zero behaviour change.
   Gate: unified_broker PASS=13 FAIL=0.
@@ -282,7 +282,7 @@ explicit `-e module_name` flag to select, like ld).
   same flat table views — registry is additive.
   Gate: make scrip clean; smoke PASS=2; unified_broker PASS=13.
 
-- [x] **U-22** — Cross-call hook: SNO → ICN/PL. DONE. one4all HEAD 78e2c8f0.
+- [x] **U-22** — Cross-call hook: SNO → ICN/PL. DONE. SCRIP HEAD 78e2c8f0.
   `_usercall_hook` extended: if name not found in SNO label table, checks
   `icn_proc_table` (calls `icn_call_proc`) then `g_pl_pred_table` (calls
   `bb_broker(BB_ONCE)`). SNOBOL4 source can now call Icon/Prolog procs directly.
@@ -293,7 +293,7 @@ explicit `-e module_name` flag to select, like ld).
   Proof: `test/test_crosscall.scrip` — SNO calls Icon `double(21)` → `CROSSCALL: 42`.
   Gate: unified_broker PASS=13 FAIL=0; smoke PASS=2 FAIL=0.
 
-- [x] **U-23** — Shared constant space. DONE. one4all HEAD dd618736.
+- [x] **U-23** — Shared constant space. DONE. SCRIP HEAD dd618736.
   SNO NV store (the global variable table) is already shared across all
   sections at the C level. Expose it: Icon `E_VAR` handler checks SNO NV
   store for names not found in `icn_env`. Prolog can read/write NV via a
@@ -345,11 +345,11 @@ explicit `-e module_name` flag to select, like ld).
 
 ---
 
-## Current state (session 2026-04-14, one4all HEAD dd618736)
+## Current state (session 2026-04-14, SCRIP HEAD dd618736)
 
 U-1 through U-23 complete. Next: U-24 (family.scrip cross-call demo).
 
-**U-23 DONE** (one4all HEAD dd618736): Shared NV store exposed to all three languages.
+**U-23 DONE** (SCRIP HEAD dd618736): Shared NV store exposed to all three languages.
 Two bugs fixed:
 
 **BUG 1:** `nv_get`/`nv_set` missing from `pl_is_builtin_goal()` builtins[] in
@@ -373,8 +373,8 @@ Phase 7 (module system, U-24) is next.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```

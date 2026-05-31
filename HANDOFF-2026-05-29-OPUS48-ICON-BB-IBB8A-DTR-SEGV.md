@@ -3,7 +3,7 @@
 **Author:** Claude Opus 4.8
 **Date:** 2026-05-29
 **Goal:** GOAL-ICON-BB.md, rung IBB-8 (first front: DT_R fprintf SEGV)
-**Repos touched:** one4all (3 source files), .github (PLAN.md, GOAL-ICON-BB.md, this doc)
+**Repos touched:** SCRIP (3 source files), .github (PLAN.md, GOAL-ICON-BB.md, this doc)
 
 ---
 

@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-29 — Opus 4.8 — RAKU-BB RK-BB-4c + RK-BB-4d (mode-4 junctions, precedence, nesting)
 
-**Goal:** GOAL-RAKU-BB.md. **Repos:** one4all `1652aeb9`, corpus unchanged, .github (this).
+**Goal:** GOAL-RAKU-BB.md. **Repos:** SCRIP `1652aeb9`, corpus unchanged, .github (this).
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
 
 ## Summary
@@ -9,7 +9,7 @@ Three pieces, all green, all committed. Started at RK-BB-4c (mode-4 junctions), 
 both reachable parts of RK-BB-4d. GATE-RK mode-2 26→28/35, GATE-RK4 mode-4 26→29/35. Zero
 regression. FACT 0. No template byte changes (all runtime-helper + grammar work).
 
-## RK-BB-4c — mode-4 junctions ✅ (one4all `216f22cd`)
+## RK-BB-4c — mode-4 junctions ✅ (SCRIP `216f22cd`)
 
 Route (i) from the goal doc (the fast, FACT-clean path). The `SM_ACOMP`/`SM_LCOMP` x86 templates
 already emit `mov edi,<op>; call rt_acomp` / `call rt_lcomp` — the comparison work lives in those
@@ -24,7 +24,7 @@ Because `rt_acomp`/`rt_lcomp` are the SAME helpers mode-3 native calls, mode-3 j
 correct — but mode-3 native Raku currently emits no output for any program (pre-existing
 MODE3-DISPATCH-GAP: `--run` Raku entry not flat-wired). Verified empty at baseline too; not ours.
 
-## RK-BB-4d — precedence ✅ (one4all `0a5352e3`)
+## RK-BB-4d — precedence ✅ (SCRIP `0a5352e3`)
 
 `$x == 1|2|5` was misparsing as `($x==1) | 2 | 5`. Real Raku binds junction infix `|`/`&` TIGHTER
 than comparison. Fix in `src/frontend/raku/raku.y`: new `jct_expr` tier between comparison and
@@ -36,7 +36,7 @@ conflicts (baseline raku.y already had 30 s/r; still 30 — verified by regenera
 `test/raku/rk_junction_prec.{raku,expected}` (precedence + var round-trip + string-relop collapse +
 same-flavor-inner nesting). Green both modes.
 
-## RK-BB-4d part 1 — nested mixed-flavor ✅ (one4all `1652aeb9`)
+## RK-BB-4d part 1 — nested mixed-flavor ✅ (SCRIP `1652aeb9`)
 
 The SOH-leak the goal doc predicted, pinned exactly: in `rk_junction_collapse`
 (`src/runtime/interp/raku_builtins_byname.c`) the member scan `while (*p && *p != SOH)` stopped at
@@ -57,7 +57,7 @@ outer members. Manifested ONLY as a flavor wrapping a DIFFERENT-flavor multi-mem
 Added `test/raku/rk_junction_nest.{raku,expected}` (all/any/none mixed-flavor nesting, both member
 orders). Green both modes. Existing `rk_junctions` + `rk_junction_prec` re-verified unaffected.
 
-## Gates (one4all `1652aeb9`)
+## Gates (SCRIP `1652aeb9`)
 
 ```
 GATE-RK   mode-2:        28/35   (was 26/33; +rk_junctions already, +rk_junction_prec, +rk_junction_nest)

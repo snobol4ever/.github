@@ -3,8 +3,8 @@
 **Author:** Claude Opus 4.8
 **Date:** 2026-05-29
 **Goal:** GOAL-ICON-BB.md, rung IBB-9-1 (landed) + IBB-9-2 (diagnosed, NOT landed)
-**one4all:** `e8f66866` (on origin/main, rebased onto concurrent Prolog/SNOBOL4 work)
-**Repos touched:** one4all (2 files), .github (GOAL watermark + this doc)
+**SCRIP:** `e8f66866` (on origin/main, rebased onto concurrent Prolog/SNOBOL4 work)
+**Repos touched:** SCRIP (2 files), .github (GOAL watermark + this doc)
 
 ---
 

@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** All 4 failing beauty drivers pass + beauty self-host passes.
 
 ## The Two-Step Dance
@@ -34,7 +34,7 @@
 Find first diverging test. Identify which subsystem line causes it.
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty_suite
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_DRIVER_driver.sno 2>/dev/null \
     > /tmp/spitbol.out
@@ -150,7 +150,7 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```

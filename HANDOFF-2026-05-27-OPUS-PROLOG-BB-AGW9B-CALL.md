@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-PROLOG-BB.md — V-3 / AGW-9B-1 (deterministic predicate call) + write(atom) fix.
 **Result:** ✅ **GATE-4 1/4 → 2/4.** `greet :- write(hi), nl.` / `main :- greet.` compiles to
-standalone x86 and prints `hi`. First mode-4 Prolog predicate-to-predicate call. one4all `449f4ca3`.
+standalone x86 and prints `hi`. First mode-4 Prolog predicate-to-predicate call. SCRIP `449f4ca3`.
 
 ## Gate ledger (clean rebuild, this session)
 - GATE-1 smoke: 5/5 ✅

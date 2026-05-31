@@ -1,4 +1,4 @@
-# GOAL-README-ONE4ALL — Fix README.md for snobol4ever/one4all
+# GOAL-README-SCRIP — Fix README.md for snobol4ever/SCRIP
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ ABSOLUTE RULE — ZERO C BYRD BOX FUNCTIONS — NO EXCEPTIONS — READ THIS BEFORE WRITING CODE  ║
@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** `README.md` is accurate, current, and useful to a new visitor.
 
 ---
@@ -83,6 +83,6 @@ commits the corrected README.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```

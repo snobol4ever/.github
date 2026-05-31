@@ -597,7 +597,7 @@ int32_t LPRTND(int32_t inner_pat);
 
 **Source:** v311.sil §11 lines 3323–4239: SCAN SJSR SCNR + 27 sub-procedures
 **Gate:** `gcc -Wall -Wextra -std=c99 -m32 -c sil_scan.c`
-**Status:** ✅ committed one4all `c762e496` (hardest milestone)
+**Status:** ✅ committed SCRIP `c762e496` (hardest milestone)
 
 ### Design: C call stack replaces PDLPTR
 
@@ -679,7 +679,7 @@ int SJSR(Scan_ctx *ctx, int32_t pat_off, SPEC *repl_sp,
 
 **Source:** v311.sil §11 NME/ENME/DNME/ENMI + §17 NMD/NMD1-5/NMDIC/NAMEXN
 **Gate:** `gcc -Wall -Wextra -std=c99 -m32 -c sil_nmd.c`
-**Status:** ✅ committed one4all `05a53465`
+**Status:** ✅ committed SCRIP `05a53465`
 
 ```c
 /* Naming list entry — mirrors SIL NBSPTR/NAMICL pair-list layout */
@@ -721,7 +721,7 @@ static void NAMEXN(SPEC *substr, DESCR *expr_target);
 
 **Source:** v311.sil §17 lines 5828–6101: ASGN ASGNV ASGNVV ASGNVP ASGNC ASGNIC CONCAT IND KEYWRD LIT NAME NMD STR
 **Gate:** `gcc -Wall -Wextra -std=c99 -m32 -c sil_asgn.c`
-**Status:** ✅ committed one4all `1ec81e7e`
+**Status:** ✅ committed SCRIP `1ec81e7e`
 
 ```c
 /* ASGN: full assignment with all SIL hooks */
@@ -765,7 +765,7 @@ SilResult STR(DESCR *result, DESCR *code_d);
 
 **Source:** v311.sil §18 lines 6102–6321
 **Gate:** `gcc -Wall -Wextra -std=c99 -m32 -c sil_pred.c`
-**Status:** ✅ committed one4all `bcee98ac`
+**Status:** ✅ committed SCRIP `bcee98ac`
 
 ```c
 /* All predicates: return OK (result=NULVCL) or FAIL */

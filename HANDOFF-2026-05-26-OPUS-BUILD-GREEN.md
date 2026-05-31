@@ -1,7 +1,7 @@
 # HANDOFF — 2026-05-26 — Opus Session (build RED→GREEN)
 
 **Goal:** GOAL-ICON-BB, Phase H (Attribute Grammar) — continue from `97b92f26` emergency handoff.
-**one4all HEAD at start:** `97b92f26` (build RED) — working tree now dirty (uncommitted, see below).
+**SCRIP HEAD at start:** `97b92f26` (build RED) — working tree now dirty (uncommitted, see below).
 **Build:** ✅ GREEN — `scrip` compiles AND links (8.8 MB binary).
 **Gates:** smoke_icon 3/5 ⛔ · broker(smoke) 15 ⛔ · rungs --interp 118/113/35 ⛔ (baseline 153).
 
@@ -106,7 +106,7 @@ After those two: re-run smoke (target 5/5), broker (≥17), rungs (≥153, recov
 
 ## Watermark
 ```
-one4all: 97b92f26 + uncommitted (8 files, +157/-81) — BUILD GREEN, gates RED
+SCRIP: 97b92f26 + uncommitted (8 files, +157/-81) — BUILD GREEN, gates RED
 .github: this file
 GOAL: GOAL-ICON-BB Phase H
 NEXT: bb_exec.c BB_IF inherited-γ/ω threading (H-1) + every+TO_BY segfault; then gates; then commit.

@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-27 — Opus 4.7 — GOAL-ICON-BB: AG-PURE Step 8.1 (BB_EVERY)
 
-**one4all** `f81e1d51` · **goal:** GOAL-ICON-BB · **mode priority:** mode 2 then mode 3
+**SCRIP** `f81e1d51` · **goal:** GOAL-ICON-BB · **mode priority:** mode 2 then mode 3
 
 ---
 
@@ -171,9 +171,9 @@ From GOAL-ICON-BB.md acceptance criteria for the whole rewrite:
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 bash scripts/test_smoke_icon.sh            # PASS=5
@@ -184,6 +184,6 @@ bash scripts/test_smoke_prolog.sh          # PASS=5
 
 ---
 
-**one4all** `f81e1d51`
+**SCRIP** `f81e1d51`
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7

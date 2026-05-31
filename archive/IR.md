@@ -1,4 +1,4 @@
-# IR.md — Intermediate Representation (one4all / all4one)
+# IR.md — Intermediate Representation (SCRIP / all4one)
 
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Date:** 2026-04-04

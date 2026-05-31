@@ -151,10 +151,10 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   Smoke PASS=7.
 
 - [x] **S-2-bridge-5** — Harness lane: `dot` participant
-  (one4all `76d979a7`).
+  (SCRIP `76d979a7`).
 
 - [x] **S-2-bridge-5b** — coverage-e/f adoption
-  (snobol4dotnet `8e5ff9e`, one4all `21eac9a5`). Streaming intern
+  (snobol4dotnet `8e5ff9e`, SCRIP `21eac9a5`). Streaming intern
   + MWK_LABEL.
 
 - [x] **S-2-bridge-7-byrd-pattern** — *Byrd-box pattern match wire
@@ -272,7 +272,7 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
     outcome is wrong.
 
   **LANDED session #80, 2026-05-02** — all four ports on both sides.
-  x64 `5035571`, one4all `872b5a3c`. See session #80 narrative below.
+  x64 `5035571`, SCRIP `872b5a3c`. See session #80 narrative below.
 
   **Why this rung is preferred over S-2-bridge-coverage-pattern-
   traversal (kept open below).**  That rung scopes 12+ MWK kinds
@@ -320,7 +320,7 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
          pattern-match path (lvalue + value)
 
   Each kind needs:
-    - a definition in `one4all/scripts/monitor/monitor_wire.h`
+    - a definition in `SCRIP/scripts/monitor/monitor_wire.h`
     - participant-side emit calls:
         - dot:  `Snobol4.Common/Runtime/Monitor/MonitorIpc.cs`
           (smallest blast radius — ship first, smoke-test alone)
@@ -329,7 +329,7 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
         - csn:  `csnobol4/monitor_ipc_runtime.c` (later — only if
           beauty self-host triages don't isolate against just spl+dot)
     - controller-side recognition in
-      `one4all/scripts/monitor/monitor_sync_bin.py`
+      `SCRIP/scripts/monitor/monitor_sync_bin.py`
       (compare-or-skip per-kind, with documented per-kind wildcards)
 
   Smoke gate:
@@ -363,11 +363,11 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   collection symbol instead of `<lval>`. Smoke PASS=9.
 
 - [x] **S-2-bridge-7-wildcards** — Controller wildcards
-  (one4all `a5117b32`, `f0f72977`). MWT_UNKNOWN as type wildcard;
+  (SCRIP `a5117b32`, `f0f72977`). MWT_UNKNOWN as type wildcard;
   `<lval>` as name wildcard.
 
 - [~] **S-2-bridge-7-monitor-tools** — Controller forensics (LOCAL,
-  not committed). Edits to `one4all/scripts/monitor/monitor_sync_bin.py`:
+  not committed). Edits to `SCRIP/scripts/monitor/monitor_sync_bin.py`:
   - `MONITOR_NAME_WILDCARD="spl"` env var: per-participant blanket
     name-field wildcard. Used to skip the spl-side stale-memory bug
     in `spl_vrblk_name`. Real value-byte / kind divergences are still
@@ -389,7 +389,7 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
       MONITOR_TIMEOUT=180 \
       MONITOR_NAME_WILDCARD=spl \
       MONITOR_TRACE_LOG=/tmp/wire \
-      bash /home/claude/one4all/scripts/test_monitor_3way_sync_step_auto.sh \
+      bash /home/claude/SCRIP/scripts/test_monitor_3way_sync_step_auto.sh \
       $BEAUTY/beauty.sno
   ```
 
@@ -566,7 +566,7 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
   spl bridge's missing-VALUE-on-keyword-assignment gap, committed.
 
   Implementation: `MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1` env var in
-  `one4all/scripts/monitor/monitor_sync_bin.py`.  When the env var is
+  `SCRIP/scripts/monitor/monitor_sync_bin.py`.  When the env var is
   set and a step diverges where one or more participants have a `VALUE`
   event with a name starting with `&`, the controller acks just the
   VALUE-emitting participants and reads their next record, then retries
@@ -833,7 +833,7 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
 
   **Session #64 — controller MWT_UNKNOWN value-byte wildcard; watermark 1617→2839; first
   divergence at counter.inc:17 NRETURN body-assign; root cause not isolated.**
-  (one4all `scripts/monitor/monitor_sync_bin.py` keys_match change, no snobol4dotnet
+  (SCRIP `scripts/monitor/monitor_sync_bin.py` keys_match change, no snobol4dotnet
   runtime changes.)
 
   **What landed:** `keys_match` extended so that when one participant emits MWT_UNKNOWN,
@@ -1176,7 +1176,7 @@ format `monitor_wire.h`; controller `monitor_sync_bin.py`.
          (per RULES.md "Source-of-truth").
 
   **Test gate:**
-    1. `bash one4all/scripts/build_spitbol_oracle.sh` — smoke OK.
+    1. `bash SCRIP/scripts/build_spitbol_oracle.sh` — smoke OK.
     2. Beauty 17/17 unchanged.
     3. corpus crosscheck `assign` family clean (refs are stdout,
        not wire — should not regress).
@@ -1448,16 +1448,16 @@ Both landing addresses are inside the `XDump` function body (which was defined a
 **The monitor skip patch** (`MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1`) is needed to get past the spl bridge's keyword-VALUE gap at step 933. The patched controller is at `/tmp/monitor_sync_bin_local.py` but is NOT committed (it's a local diagnostic aid). To reproduce the step-1046 divergence, run:
 
 ```bash
-cp /tmp/monitor_sync_bin_local.py one4all/scripts/monitor/monitor_sync_bin.py
+cp /tmp/monitor_sync_bin_local.py SCRIP/scripts/monitor/monitor_sync_bin.py
 PARTICIPANTS="spl dot" \
     STDIN_SRC=corpus/programs/snobol4/demo/beauty/mini_beauty.sno \
     MONITOR_TIMEOUT=120 \
     MONITOR_NAME_WILDCARD=spl \
     MONITOR_SKIP_EXTRA_KEYWORD_VALUES=1 \
     MONITOR_TRACE_LOG=/tmp/wire5 \
-    bash one4all/scripts/test_monitor_3way_sync_step_auto.sh \
+    bash SCRIP/scripts/test_monitor_3way_sync_step_auto.sh \
     corpus/programs/snobol4/demo/beauty/beauty.sno
-# Restore after: cp monitor_sync_bin_orig.py one4all/scripts/monitor/monitor_sync_bin.py
+# Restore after: cp monitor_sync_bin_orig.py SCRIP/scripts/monitor/monitor_sync_bin.py
 ```
 
 where `mini_beauty.sno` is the first 26 lines of beauty.sno + "END" (the minimal stdin that reproduces the Parse Error).
@@ -1704,7 +1704,7 @@ nested-FENCE chain — but it doesn't reach `*snoUnprotKwd` at the
 3. Differential-AST path (path 2 from session #64) is still the safe fallback
    if the trace doesn't pinpoint the issue.
 
-`one4all` and `corpus` are unchanged this session.
+`SCRIP` and `corpus` are unchanged this session.
 
 ---
 
@@ -1825,7 +1825,7 @@ that gate passes, watermark advances are decoration.
    - close S-2-bridge-harness-trust by fixing the spl bridge gaps so
      the harness becomes trustworthy again.
 
-`one4all` and `corpus` and `snobol4dotnet` are unchanged this session.
+`SCRIP` and `corpus` and `snobol4dotnet` are unchanged this session.
 Goal-file edits only.
 
 ---
@@ -1918,7 +1918,7 @@ Beauty self-host still gated by a SECOND bug above the seal.
 
 ### What ran
 
-1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`
+1. **Set up clean.** Cloned `.github`, `corpus`, `SCRIP`, `snobol4dotnet`
    (HEAD `3c1637d` — has BREAK_AT_EVENT bombs from session #67), and
    `x64`. Installed `dotnet-sdk-10.0` via apt (10.0.107). snobol4dotnet
    build clean. Beauty self-host baseline confirmed: SPITBOL passes
@@ -2061,7 +2061,7 @@ Beauty self-host advanced 28→47 stderr lines (line 26 → line 48).
 
 ### What ran
 
-1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`,
+1. **Set up clean.** Cloned `.github`, `corpus`, `SCRIP`,
    `snobol4dotnet`, `x64`. Installed `dotnet-sdk-10.0` (10.0.107).
    snobol4dotnet HEAD `c578fb5` build clean.  Beauty self-host
    baseline: 28 stderr lines, Parse Error at `&FULLSCAN = 1`.
@@ -2278,7 +2278,7 @@ verified only the FENCE subset of `patterns` (35 tests, 35/35).
      summary table: family × (PASS / FAIL / TIMEOUT / N/A — `.sno`
      without a `.ref`). Use a 30-second timeout per test. (No script
      for this exists at handoff time — write `scripts/test_corpus_full_dot.sh`
-     in `one4all/scripts/`, modeled on the existing
+     in `SCRIP/scripts/`, modeled on the existing
      `test_crosscheck_net_backend.sh` which already drives a subset.)
 
   2. Categorize FAILs into:
@@ -2307,13 +2307,13 @@ verified only the FENCE subset of `patterns` (35 tests, 35/35).
 
    [ ] open
 
-`one4all/scripts/` ships ~80 `test_*.sh` scripts. Many overlap. Some
+`SCRIP/scripts/` ships ~80 `test_*.sh` scripts. Many overlap. Some
 are stale (referenced obsolete file paths). All of them either gate
 real ladder rungs or document old experiments.
 
 **Steps:**
 
-  1. Inventory every `one4all/scripts/test_*.sh`. For each, run it
+  1. Inventory every `SCRIP/scripts/test_*.sh`. For each, run it
      once against current HEADs of all repos. Categorize:
        (a) PASS — keep, document in a one-line `scripts/README.md`
            entry that says what rung it gates.
@@ -2421,7 +2421,7 @@ each session.
 
 ### What happened
 
-Set up fresh container: cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+Set up fresh container: cloned `.github`, `corpus`, `SCRIP`, `snobol4dotnet`,
 `x64`, `harness`. Installed `dotnet-sdk-10.0` (10.0.107). Built snobol4dotnet
 at HEAD `a629a15` (session #71's BetaStack-isolation commit). x64 SPITBOL
 binary at HEAD `71ff275` already had monitor IPC bridge linked.
@@ -2527,11 +2527,11 @@ Add new `MWK_*` record kinds (or repurpose existing ones) for:
        match path
 
 Each new kind needs:
-  - a line in `one4all/scripts/monitor/monitor_wire.h`
+  - a line in `SCRIP/scripts/monitor/monitor_wire.h`
   - participant-side emit calls in csn `monitor_ipc_runtime.c`,
     spl `osint/monitor_ipc_runtime.c`, dot `MonitorIpc.cs`
   - controller-side recognition in
-    `one4all/scripts/monitor/monitor_sync_bin.py`
+    `SCRIP/scripts/monitor/monitor_sync_bin.py`
 
 The controller's "last-agreed N vs first-diverged N+1" model still
 applies. Divergence will now surface at the structural level — likely
@@ -2583,7 +2583,7 @@ buggy code.
 
 ### What ran
 
-1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+1. **Set up clean.** Cloned `.github`, `corpus`, `SCRIP`, `snobol4dotnet`,
    `x64`. Installed `dotnet-sdk-10.0` (10.0.107). snobol4dotnet HEAD
    `a629a15` build clean. Beauty self-host baseline confirmed: 47 stderr
    lines, Parse Error at line 48 (`snoDQ = '"' BREAK('"' nl) '"'`).
@@ -2672,7 +2672,7 @@ NOT in the pattern-match scanner itself.
 
   - snobol4dotnet HEAD: `a629a15` unchanged.
   - All diagnostic patches reverted; `.orig` backups removed.
-  - Tree clean across all repos: `.github`, `corpus`, `one4all`,
+  - Tree clean across all repos: `.github`, `corpus`, `SCRIP`,
     `snobol4dotnet`, `x64`.
   - Beauty self-host gate: still 47 stderr lines, Parse Error at
     line 48.
@@ -2750,13 +2750,13 @@ Wire encoding: `name_id` = node-tag, `type` = MWT_INTEGER, `value` =
 
 ### Files changed (uncommitted at start; commit after handoff edits)
 
-  - `one4all/scripts/monitor/monitor_wire.h` — defined MWK_PM_CALL=7,
+  - `SCRIP/scripts/monitor/monitor_wire.h` — defined MWK_PM_CALL=7,
     MWK_PM_EXIT=8, MWK_PM_REDO=9, MWK_PM_FAIL=10.
-  - `one4all/scripts/monitor/monitor_sync_bin.py` — added kinds to
+  - `SCRIP/scripts/monitor/monitor_sync_bin.py` — added kinds to
     `KIND_NAMES`; added PM-formatting case in `fmt_event` (shows
     `kind name cursor=N`).  PM events flow through the same comparison
     + ack path as VALUE/CALL/RETURN/LABEL — no special-casing.
-  - `one4all/scripts/monitor/read_one_wire.py` — added PM kinds to
+  - `SCRIP/scripts/monitor/read_one_wire.py` — added PM kinds to
     KIND_NAMES; added a NAME_DEF print line for diagnostic visibility.
   - `snobol4dotnet/Snobol4.Common/Runtime/Monitor/MonitorIpc.cs` —
     added `EmitPmCall`/`Exit`/`Redo`/`Fail` plus private
@@ -2885,7 +2885,7 @@ Parse Error at line 48.
 
 ### What ran
 
-1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`,
+1. **Set up clean.** Cloned `.github`, `corpus`, `SCRIP`,
    `snobol4dotnet`, `x64`. Installed `dotnet-sdk-10.0` (10.0.107).
    Build clean. Beauty self-host baseline confirmed: 47 stderr lines.
 
@@ -3013,12 +3013,12 @@ will fingerprint the bug directly per the user's strategy.
 ## Session #78 — 2026-05-01 (Sonnet 4.7 / Lon)
 
 **Outcome:** Three commits land. spl-side PM fire-points landed
-(x64 `dd66e14`); controller PM-name wildcard landed (one4all `1072fc61`);
+(x64 `dd66e14`); controller PM-name wildcard landed (SCRIP `1072fc61`);
 Graft cache landed (snobol4dotnet `12bd3fa`).
 
 ### What ran
 
-1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`,
+1. **Set up clean.** Cloned `.github`, `corpus`, `SCRIP`,
    `snobol4dotnet`, `x64`. Installed `dotnet-sdk-10.0` and `nasm`.
    Verified SPITBOL `sbl` rebuilds reproducibly from `sbl.min` via
    existing `make` pipeline (no bootstrap required for self-rebuild).
@@ -3120,7 +3120,7 @@ Graft cache landed (snobol4dotnet `12bd3fa`).
 | Repo | HEAD | What |
 |------|------|------|
 | `x64` | `dd66e14` | spl-side PM fire-points (PM_EXIT/PM_REDO/PM_FAIL) + 4 syscall thunks + sbl.min decl/jsr + bootstrap regen |
-| `one4all` | `1072fc61` | controller `MONITOR_PM_NAME_WILDCARD` for cross-runtime PM compare |
+| `SCRIP` | `1072fc61` | controller `MONITOR_PM_NAME_WILDCARD` for cross-runtime PM compare |
 | `snobol4dotnet` | `12bd3fa` | Graft cache — dictionary keyed by `(successor, sub_pattern)` |
 
 ### Status updates
@@ -3158,11 +3158,11 @@ Graft cache landed (snobol4dotnet `12bd3fa`).
 ## Session #79 — 2026-05-02 (Sonnet / Lon)
 
 **Outcome:** No commit. Honest meta-session. Tree clean across all repos.
-HEADs unchanged: snobol4dotnet `12bd3fa`, x64 `dd66e14`, one4all `f95817cd`.
+HEADs unchanged: snobol4dotnet `12bd3fa`, x64 `dd66e14`, SCRIP `f95817cd`.
 
 ### What ran
 
-1. Set up clean.  Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+1. Set up clean.  Cloned `.github`, `corpus`, `SCRIP`, `snobol4dotnet`,
    `x64`.  Installed `dotnet-sdk-10.0` (10.0.107) and `nasm`.
    snobol4dotnet build clean.  Beauty self-host baseline confirmed: exit 0,
    47 stderr lines, Parse Error at line 48 (`snoDQ = '"' BREAK('"' nl) '"'`).
@@ -3338,7 +3338,7 @@ it in one window with no diagnostic detours:
 
 - **All five repos clean.**  No `.orig` files.  No diagnostic patches.
 - **HEADs unchanged from session #78:** snobol4dotnet `12bd3fa`, x64
-  `dd66e14`, one4all `f95817cd`, corpus and `.github` from clones.
+  `dd66e14`, SCRIP `f95817cd`, corpus and `.github` from clones.
 - **Beauty self-host gate unchanged:** exit 0, 47 stderr lines, Parse
   Error at line 48.  SPITBOL oracle md5 `abfd19a7a834484a96e824851caee159`
   (Milestone 1 invariant intact).
@@ -3360,7 +3360,7 @@ it in one window with no diagnostic detours:
 ## Session #80 — 2026-05-02 (Sonnet / Lon)
 
 **Outcome:** Three commits landed. S-2-bridge-7-byrd-pattern LANDED
-(x64 `5035571`, one4all `872b5a3c`). Root cause of line-48 Parse Error
+(x64 `5035571`, SCRIP `872b5a3c`). Root cause of line-48 Parse Error
 **isolated via C# function tracing** between last-agreed and first-diverged
 sync-step events. Bug precisely located: `*match(snoUnprotKwds, snoTxInList)`
 deferred code pushes wrong variable slot — `match()` receives `snoFunctions`
@@ -3373,7 +3373,7 @@ No snobol4dotnet runtime commit (bug located, not yet fixed).
    all four Byrd-box ports on spl (PM_EXIT/REDO/FAIL landed session #78;
    PM_CALL new this session). Oracle md5 `abfd19a7` intact. Beauty 17/17 PASS.
 
-2. **one4all `872b5a3c`** — `test_monitor_3way_sync_step_auto.sh`: `MONITOR_PM=1`
+2. **SCRIP `872b5a3c`** — `test_monitor_3way_sync_step_auto.sh`: `MONITOR_PM=1`
    passes `SPL_PM_TRACE=1` to spl and `MONITOR_PM_TRACE=1` to dot. Default-off.
 
 ### Root cause of line-48 Parse Error
@@ -3435,7 +3435,7 @@ resolves to `snoFunctions`' slot. This is a slot-index assignment bug in
 | Repo | HEAD |
 |------|------|
 | x64 | `5035571` |
-| one4all | `872b5a3c` |
+| SCRIP | `872b5a3c` |
 | snobol4dotnet | `12bd3fa` (unchanged) |
 
 ### Status updates
@@ -3455,7 +3455,7 @@ remains gating line 48 (`DQ = '"' BREAK('"' nl) '"'`).
 
 ### What ran
 
-1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+1. **Set up clean.** Cloned `.github`, `corpus`, `SCRIP`, `snobol4dotnet`,
    `x64`. Installed `dotnet-sdk-10.0` (10.0.203) and `nasm`.
    snobol4dotnet HEAD `12bd3fa` build clean. Beauty self-host baseline:
    exit 0, 47 stderr lines, Parse Error at line 48 (`DQ = '"'...`).
@@ -4072,12 +4072,12 @@ likely either:
 ## Session #84 — 2026-05-03 (Sonnet / Lon)
 
 **Outcome:** No commit. Diagnostic-only session. Tree clean across all repos.
-HEADs unchanged: snobol4dotnet `9fc75d6`, x64 `5035571`, one4all `872b5a3c`.
+HEADs unchanged: snobol4dotnet `9fc75d6`, x64 `5035571`, SCRIP `872b5a3c`.
 Beauty self-host unchanged at 47 stderr lines / Parse Error at line 48.
 
 ### What ran
 
-1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+1. **Set up clean.** Cloned `.github`, `corpus`, `SCRIP`, `snobol4dotnet`,
    `x64`. Installed `dotnet-sdk-10.0` (10.0.107). snobol4dotnet HEAD
    `9fc75d6` build clean. Beauty self-host baseline confirmed.
 
@@ -4521,7 +4521,7 @@ But node 781 has alt=-1.  Either:
 ### Hand-off state
 
 - snobol4dotnet HEAD: `80c828a` (this session's commit, pushed).
-- one4all, x64, corpus: unchanged.
+- SCRIP, x64, corpus: unchanged.
 - Working trees clean across all repos.
 - Diagnostic patches reverted before commit per RULES.md.
 
@@ -4565,7 +4565,7 @@ with N direct children would make missing arms visible at construction.
 
 ### What ran
 
-1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`,
+1. **Set up clean.** Cloned `.github`, `corpus`, `SCRIP`,
    `snobol4dotnet`, `x64`. snobol4dotnet HEAD `80c828a` (session #85's
    memoization fix).  Beauty self-host baseline: exit 0, 47 stderr
    lines, ~2.7s wall clock.
@@ -4750,7 +4750,7 @@ makes Subsequent computation trivial (next sibling).
 ## Session #87 — 2026-05-03 (Sonnet / Lon)
 
 **Outcome:** No commit. Diagnostic-only session. Tree clean across all
-repos. HEADs unchanged: snobol4dotnet `80c828a`, x64 `5035571`, one4all
+repos. HEADs unchanged: snobol4dotnet `80c828a`, x64 `5035571`, SCRIP
 `872b5a3c`. Beauty self-host gate unchanged at 47 stderr lines / Parse
 Error at line 48.
 
@@ -4765,7 +4765,7 @@ hypotheses on a misreading of the AST dump.
 
 ### What this session ran
 
-1. **Set up clean.** Cloned `.github`, `corpus`, `one4all`, `snobol4dotnet`,
+1. **Set up clean.** Cloned `.github`, `corpus`, `SCRIP`, `snobol4dotnet`,
    `x64`. Installed `dotnet-sdk-10.0` (10.0.203). snobol4dotnet HEAD
    `80c828a` build clean. Beauty self-host baseline confirmed: exit 0,
    47 stderr lines, Parse Error at line 48.
@@ -4923,7 +4923,7 @@ Adding to the existing list (sessions #67–#86):
 ### Hand-off state
 
 - snobol4dotnet HEAD: `80c828a` unchanged.
-- one4all HEAD: `872b5a3c` unchanged.
+- SCRIP HEAD: `872b5a3c` unchanged.
 - x64 HEAD: `5035571` unchanged.
 - corpus HEAD: `4d4dea39` unchanged.
 - All repos clean. No `.orig` files. No diagnostic patches.

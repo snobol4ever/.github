@@ -2,7 +2,7 @@
 
 ## What was done
 
-one4all `de0f2352` pushed. Two changes in `src/processor/sm_jit_interp.c`:
+SCRIP `de0f2352` pushed. Two changes in `src/processor/sm_jit_interp.c`:
 
 ### 1. J-3/J-4: SCRIP_JIT_FLAT_BB=1 routes SM_BB_PUMP_PROC to SM entry_pc
 

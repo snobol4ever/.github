@@ -1,7 +1,7 @@
 # HANDOFF-2026-05-28-SONNET-BENCH-MODE3-BLOCKER.md
 
 **Session:** Sonnet 4.6, 2026-05-28
-**one4all HEAD:** `4ce8c385` (unchanged — no new commits this session)
+**SCRIP HEAD:** `4ce8c385` (unchanged — no new commits this session)
 **.github HEAD:** `20e62662`
 
 ---
@@ -73,7 +73,7 @@ Enable combinator flat-wire in mode-3 (extend `patnd_needs_xlate` to handle XCAT
 ## Gates at handoff
 
 ```
-one4all HEAD       = 4ce8c385 (no new commits — scrip.c reverted)
+SCRIP HEAD       = 4ce8c385 (no new commits — scrip.c reverted)
 audit_m3_native    = GATE OK (zero BOMs)
 GATE-1 smoke       = 13/13
 GATE-2 broker      = 35/53

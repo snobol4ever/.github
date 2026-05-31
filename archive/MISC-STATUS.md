@@ -12,7 +12,7 @@ Test baselines, conformance, known gaps, and performance benchmarks across all i
 | snobol4jvm | 1,896 (4,120 assertions) | 0 | 2026-03-10 `9cf0af3` |
 | snobol4csharp | 263 | 0 | 2026-03-07 |
 | snobol4artifact | 70+ | 0 | 2026-03-10 `330fd1f` |
-| one4all | crosscheck ladder: output 7/8, assign 7/8 | 2 | 2026-03-15 `29c0a4b` — corpus ladder methodology adopted Session 89; null-assign + &ALPHABET bugs active |
+| SCRIP | crosscheck ladder: output 7/8, assign 7/8 | 2 | 2026-03-15 `29c0a4b` — corpus ladder methodology adopted Session 89; null-assign + &ALPHABET bugs active |
 
 **How to update**: run the test suite, paste the new count with date and commit hash.
 
@@ -136,7 +136,7 @@ Both full implementations (dotnet, jvm) target Emmer & Quillen's *MACRO SPITBOL*
 
 ---
 
-## Benchmarks — one4all vs Competitors
+## Benchmarks — SCRIP vs Competitors
 
 ### vs PCRE2 JIT — Pattern Matching
 
@@ -146,30 +146,30 @@ Both full implementations (dotnet, jvm) target Emmer & Quillen's *MACRO SPITBOL*
 
 | Engine | ns/match | vs PCRE2 |
 |--------|:--------:|:--------:|
-| one4all Round 1 (hand-optimized) | **5.49 ns** | **10×** |
-| one4all Round 2 (pipeline + arena + Proebsting) | **33 ns** | **2.3×** |
+| SCRIP Round 1 (hand-optimized) | **5.49 ns** | **10×** |
+| SCRIP Round 2 (pipeline + arena + Proebsting) | **33 ns** | **2.3×** |
 | PCRE2 JIT | 55–78 ns | baseline |
 
 **Test 2 — Pathological: `(a+)+b` on all-`a` strings**
 
-PCRE2 explores exponentially many backtrack paths. one4all detects failure structurally.
+PCRE2 explores exponentially many backtrack paths. SCRIP detects failure structurally.
 
-| Length | one4all | PCRE2 JIT | Tiny faster |
+| Length | SCRIP | PCRE2 JIT | Tiny faster |
 |--------|:------------:|:---------:|:-----------:|
 | 10–28 chars | 0.7–3.3 ns | 21–23 ns | **7–33×** |
 
-**Where PCRE2 wins**: long literal search (Boyer-Moore). one4all scans char-by-char — `hello` in a 1000-char string: tiny 462 ns, PCRE2 93 ns. **Addable optimization, not architectural.**
+**Where PCRE2 wins**: long literal search (Boyer-Moore). SCRIP scans char-by-char — `hello` in a 1000-char string: tiny 462 ns, PCRE2 93 ns. **Addable optimization, not architectural.**
 
 ### vs Bison LALR(1) — Context-Free Parsing
 
 **Date**: 2026-03-10 · Platform: Linux x86-64, Bison 3.8.2, gcc -O2, 2M iterations
 
-| Test | one4all | Bison | Faster by |
+| Test | SCRIP | Bison | Faster by |
 |------|:------------:|:-----:|:---------:|
 | `{a^n b^n}` recognition | **11.54 ns** | 158.45 ns | **14×** |
 | Dyck language (balanced parens) | **7.50 ns** | 113.89 ns | **15×** |
 
-**Bison ceiling: Type 2. one4all has no ceiling.**
+**Bison ceiling: Type 2. SCRIP has no ceiling.**
 
 ### The Full Picture
 
@@ -177,10 +177,10 @@ PCRE2 explores exponentially many backtrack paths. one4all detects failure struc
 |------------|------|:------------:|:-----------------------:|-------------------|
 | PCRE2 JIT | Regular (Type 3) | **10×** faster | **2.3×** faster | Type 3 only |
 | Bison LALR(1) | Context-Free (Type 2) | **14–15×** faster | **1.6–1.7×** faster | Type 2 only |
-| *(none)* | Context-Sensitive (Type 1) | — | one4all only | — |
-| *(none)* | Turing (Type 0) | — | one4all only | — |
+| *(none)* | Context-Sensitive (Type 1) | — | SCRIP only | — |
+| *(none)* | Turing (Type 0) | — | SCRIP only | — |
 
-### Optimization Milestones (one4all)
+### Optimization Milestones (SCRIP)
 
 | Milestone | Result | Commit |
 |-----------|--------|--------|

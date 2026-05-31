@@ -1,7 +1,7 @@
 # HANDOFF 2026-05-29 — Opus 4.8 — HQ grand master reorg (handoff-conflict + backend consolidation)
 
-**Type:** HQ system work (`grand master reorg`). No one4all code touched — `.github` only.
-**Repos touched:** `.github` only. one4all / corpus / snobol4dotnet untouched.
+**Type:** HQ system work (`grand master reorg`). No SCRIP code touched — `.github` only.
+**Repos touched:** `.github` only. SCRIP / corpus / snobol4dotnet untouched.
 **HEAD:** `93ba3862` (on origin/main). Working tree clean.
 
 ## Three reorg commits landed this session
@@ -22,7 +22,7 @@
    The two other parent tables (file names / sizes / estimates) are static reference —
    left intact.
 
-3. **`93ba3862`** — Backend consolidation. **13 one4all backend GOALs → 5
+3. **`93ba3862`** — Backend consolidation. **13 SCRIP backend GOALs → 5
    `GOAL-TEMPLATES-{X86,JVM,NET,JS,WASM}.md`.** Each new GOAL: premise (consume shared
    SM/BB IR, fill every opcode/box-kind with template emitter code, FOR ALL SIX
    LANGUAGES), pointer block to ARCH-<backend>/ARCH-EMITTER/ARCH-IR/RULES, all-languages
@@ -34,7 +34,7 @@
      GOAL-SN4-JS-EMIT-CONTINUATION, GOAL-NATIVE-SNOCONE-JS, GOAL-SN4-WASM-EMIT.
    - **Untouched (snobol4dotnet repo, out of scope):** the six `GOAL-NET-*` files
      (BEAUTY-19, BEAUTY-SELF, DATATYPE-LOWERCASE, OPSYN-248, OPTIMIZE, SNIPPETS).
-     `GOAL-TEMPLATES-NET.md` explicitly notes it is the one4all MSIL emitter, distinct
+     `GOAL-TEMPLATES-NET.md` explicitly notes it is the SCRIP MSIL emitter, distinct
      from that repo.
    - ARCH consolidation: folded the PURE-TEMPLATES purity invariant (template `_str()` =
      pure fn of g_emit) into `ARCH-EMITTER.md`; corrected stale "Emitter: emit_<x>.c"

@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** The SNOBOL4 frontend emits `E_ANY`, `E_SPAN`, `E_LEN`, `E_POS`,
 `E_RPOS`, `E_TAB`, `E_RTAB`, `E_NOTANY`, `E_BREAK`, `E_BREAKX`, `E_ARB`,
 `E_ARBNO`, `E_REM`, `E_FAIL`, `E_SUCCEED`, `E_FENCE`, `E_ABORT`, `E_BAL`
@@ -140,5 +140,5 @@ BASELINE=?       # run_interp_broad.sh PASS count before this goal (set in S-1)
 
 ## Rules
 - Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`.
-- No ad-hoc builds — use `make scrip` and scripts in `one4all/build/`.
+- No ad-hoc builds — use `make scrip` and scripts in `SCRIP/build/`.
 - Do not modify corpus `.sno` source to work around any regression.

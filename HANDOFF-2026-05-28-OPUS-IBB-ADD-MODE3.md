@@ -3,7 +3,7 @@
 **Goal:** GOAL-ICON-BB (IBB-3)
 **Author:** Claude Opus 4.7
 **Date:** 2026-05-28
-**Branch:** `one4all/main`
+**Branch:** `SCRIP/main`
 **HEAD:** `e612d519`
 **Predecessor:** `6393c743` (HELLO MODE-3 PASS)
 
@@ -166,7 +166,7 @@ Recommendation: (b). The BB_t node itself (process-lifetime in the parse pool) h
 
 ## Commits, files touched
 
-- `one4all/main` `e612d519` — single commit, 8 files, 247 +13 −13.
+- `SCRIP/main` `e612d519` — single commit, 8 files, 247 +13 −13.
 - Files: `Makefile`, `src/emitter/BB_templates/bb_binop.cpp` (new), `bb_call.cpp`, `bb_lit_scalar.cpp`, `bb_templates.h`, `emit_bb.c`, `emit_core.c`, `src/runtime/rt/rt.c`.
 
 `.github` updates this handoff (PLAN.md ICON-BB row + GOAL-ICON-BB.md ground-zero table + IBB-3 rung checkboxes + this file).

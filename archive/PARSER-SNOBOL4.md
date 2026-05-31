@@ -84,7 +84,7 @@ TBD — see src/frontend/snobol4/
 
 | Repo | Implementation | Next milestone |
 |------|---------------|----------------|
-| one4all | scrip-cc (C compiler) | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
+| SCRIP | scrip-cc (C compiler) | M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR |
 | snobol4jvm | Clojure + JVM codegen | M-JVM-STLIMIT-STCOUNT |
 | snobol4dotnet | C# + MSIL | M-T2-FULL |
 

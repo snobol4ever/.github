@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** Prolog clause selection and backtracking runs through the same
 brokered Byrd box four-port discipline that SNOBOL4 pattern matching uses.
 Specifically: `E_CHOICE` compiles to a `bb_box_fn`-ABI box that a Prolog
@@ -177,7 +177,7 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
   Gate: `make scrip` clean. ✓
 
 - [x] **S-BB-10** — Regression: PASS=149 >= baseline 49. SNOBOL4/Icon unaffected.
-  Commit identity LCherryholmes. one4all HEAD 9fc8e599. ✓
+  Commit identity LCherryholmes. SCRIP HEAD 9fc8e599. ✓
 
 ---
 
@@ -207,7 +207,7 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
 
 ## Current state
 
-S-BB-1 through S-BB-10 COMPLETE. one4all HEAD 9fc8e599. GOAL DONE.
+S-BB-1 through S-BB-10 COMPLETE. SCRIP HEAD 9fc8e599. GOAL DONE.
 
 Unified interpreter: Prolog E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/E_TRAIL_* wired as
 cases in interp_eval() alongside SNOBOL4 and Icon. E_CHOICE uses pl_box_choice +

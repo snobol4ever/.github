@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-27 — Sonnet 4.6 — Analysis + GOAL-SNOBOL4-BB + Corrective Rungs
 
-**one4all HEAD: `b5614aa5`** (no source changes this session — analysis only)
+**SCRIP HEAD: `b5614aa5`** (no source changes this session — analysis only)
 **corpus HEAD: `c987f88`** (no changes)
 **.github HEAD: `5d4430c2`** (GOAL-SNOBOL4-BB.md created + corrective rungs in ICON-BB + PROLOG-BB)
 
@@ -8,7 +8,7 @@
 
 ## What happened this session
 
-This was a **pure analysis session** — no source code changes to one4all or corpus. All work went into `.github` goal files.
+This was a **pure analysis session** — no source code changes to SCRIP or corpus. All work went into `.github` goal files.
 
 ### 1. GOAL-ICON-BB — Corrective rungs added (`ICN-G`, `ICN-Z`, `ICN-XA`, `ICN-M4`)
 

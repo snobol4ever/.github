@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-28 — Sonnet 4.6 — PROLOG-BB: SWI-PLUNIT SWI-1a landed, SWI-2 blocked
 
-**Repos:** one4all `86abe166` · .github `19a4ea04` · corpus untouched (plunit.pl reverted).
+**Repos:** SCRIP `86abe166` · .github `19a4ea04` · corpus untouched (plunit.pl reverted).
 
 ---
 

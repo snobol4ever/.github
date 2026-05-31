@@ -4,7 +4,7 @@
 
 | Repo | HEAD |
 |------|------|
-| one4all | `f85525cc` |
+| SCRIP | `f85525cc` |
 | .github | `dc294e8b` |
 
 ## Gates
@@ -87,8 +87,8 @@ icn_kw_read is in icn_runtime.c — already linked.
 ## Session setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip
 bash scripts/test_per_kind_diff.sh   # expect PASS=513 FAIL=0 STUB=602
 bash scripts/test_icon_all_rungs.sh  # expect PASS=195 FAIL=36
 bash scripts/test_smoke_prolog.sh    # expect PASS=5 FAIL=0

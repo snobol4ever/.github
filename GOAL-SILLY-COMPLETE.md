@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all (`src/silly/`)
+**Repo:** SCRIP (`src/silly/`)
 **Done when:** Every labeled block in v311.sil (all 12,293 lines) has a faithful C
 translation in src/silly/. Zero stubs. Zero bare `return FAIL` one-liners representing
 untranslated SIL. Build clean: 0 errors, 0 warnings. BLOCKS included.
@@ -60,10 +60,10 @@ See "Confirmed NOT missing" table at bottom.
 
 ## Setup
 
-See `REPO-one4all.md` Session Start. Build gate (run before every commit):
+See `REPO-SCRIP.md` Session Start. Build gate (run before every commit):
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep -E "error:|warning:"
 # must be empty
 ```
@@ -72,7 +72,7 @@ Key paths:
 ```
 /home/claude/work/snobol4-2.3.3/v311.sil      # SIL spec (12293 lines)
 /home/claude/work/snobol4-2.3.3/snobol4.c     # generated C ground truth
-/home/claude/one4all/src/silly/                # our translation
+/home/claude/SCRIP/src/silly/                # our translation
 ```
 
 Commit identity: `LCherryholmes` / `lcherryh@yahoo.com`
@@ -276,7 +276,7 @@ REP      NODE      UDCOM    DEF      UNITS    WARNING
 ## Current build state
 
 **Build:** ✅ clean (0 errors, 0 warnings) as of session start 2026-04-11
-**HEAD:** one4all `43ac7934`
+**HEAD:** SCRIP `43ac7934`
 
 ---
 
@@ -293,6 +293,6 @@ REP      NODE      UDCOM    DEF      UNITS    WARNING
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```

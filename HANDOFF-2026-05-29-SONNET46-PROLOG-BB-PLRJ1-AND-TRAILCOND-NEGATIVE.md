@@ -2,14 +2,14 @@
 
 **Author:** Claude Sonnet 4.6 · **Date:** 2026-05-29
 **Goal:** `GOAL-PROLOG-BB.md`
-**one4all HEAD at handoff:** `40c17ecb`
+**SCRIP HEAD at handoff:** `40c17ecb`
 **.github HEAD at handoff:** `08322f7a`
 
 ---
 
 ## What landed (in order)
 
-### 1. PLR-J-1 — CAT-D-10 type-test builtins MEDIUM_BINARY arm (one4all `efbdd61c`)
+### 1. PLR-J-1 — CAT-D-10 type-test builtins MEDIUM_BINARY arm (SCRIP `efbdd61c`)
 
 `src/emitter/BB_templates/bb_builtin.cpp` CAT-D-10 (`var/nonvar/atom/integer/float/number/
 compound/atomic/callable/is_list/ground`) had a MEDIUM_TEXT arm only; in MEDIUM_BINARY the asm
@@ -24,7 +24,7 @@ comparison arm). BB_PL_STRUCT compound-literal arg returns the double-no-op hone
 provably closer; verify the type-test sub-lines directly, not the whole-program diff.)
 FACT 0, GATE-3 m2 104/107, GATE-SWI 57/57, smokes 5/5/5/13, mode-3 crosscheck unchanged 10/132.
 
-### 2. Engine feature-parity study vs gprolog + SWI (one4all `c7529bad`)
+### 2. Engine feature-parity study vs gprolog + SWI (SCRIP `c7529bad`)
 
 `doc/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md` — line-by-line read of GNU Prolog
 (`gprolog-master/src/EnginePl/wam_inst.h`, `Pl2Wam/indexing.pl`) and SWI-Prolog
@@ -33,7 +33,7 @@ divergences; converted to rung families PL-TRAIL-COND, PL-INDEX-L2, PL-CP-FRAME 
 GOAL-PROLOG-BB.md → `PL-ENGINE-PARITY`. Fleshed `ARCH-PROLOG.md` from a 3-line stub to an
 engine-model + parity-gap reference.
 
-### 3. PL-TRAIL-COND — tried, VERIFIED UNSOUND, reverted (one4all `40c17ecb`, doc only)
+### 3. PL-TRAIL-COND — tried, VERIFIED UNSOUND, reverted (SCRIP `40c17ecb`, doc only)
 
 Implemented conditional trailing exactly as gprolog/SWI do (Term `birth_stamp`, monotonic
 `g_pl_var_stamp`, HB register `g_pl_hb_stamp` snapshotted into `pl_choice` on push, restored on

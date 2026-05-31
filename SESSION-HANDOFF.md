@@ -26,7 +26,7 @@ EMIT-RETURNS-STRING rung infrastructure **fully complete** (ER-0 through ER-3).
 
 ## Build Status
 
-- One4all: **green** (GATE-PK 419/0/635)
+- SCRIP: **green** (GATE-PK 419/0/635)
 - All 4 commits pushed to GitHub
 - Ready to merge/deploy
 

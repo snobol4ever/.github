@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-25 — Claude Sonnet 4.6 Session (second)
 
-**one4all HEAD:** `f9cda41a`
+**SCRIP HEAD:** `f9cda41a`
 **\.github HEAD:** `24da7b7f`
 **Gate:** smoke_prolog 5/5 ✅ · crosscheck_prolog 128/0 ✅ · AUDIT GREEN
 
@@ -43,7 +43,7 @@ BB template files renamed on disk to match: `bb_arith.cpp`, `bb_atom.cpp`, `bb_b
 
 ```bash
 # Reproduce:
-cd /home/claude/one4all && make libscrip_rt
+cd /home/claude/SCRIP && make libscrip_rt
 bash scripts/run_prolog_via_x86_backend.sh /tmp/factorial.pl
 # factorial.pl content:
 #   fact(0, 1) :- !.
@@ -67,7 +67,7 @@ before invoking scrip AND before invoking the assembler.
 ## Watermark
 
 ```
-one4all: f9cda41a
+SCRIP: f9cda41a
 .github: 24da7b7f
 smoke_prolog: 5/5 ✅
 crosscheck_prolog: 128/0 ✅

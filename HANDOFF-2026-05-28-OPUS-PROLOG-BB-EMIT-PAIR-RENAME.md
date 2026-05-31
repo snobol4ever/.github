@@ -39,7 +39,7 @@ prescription: **"call it emit_pair and quit being cryptic."**
 
 ## What landed in this session
 
-### one4all `68c2c5bc` — EP → emit_pair rename (behavior-neutral)
+### SCRIP `68c2c5bc` — EP → emit_pair rename (behavior-neutral)
 
 Pure mechanical rename pass. 115 references across 8 files. Zero behavior
 change. All gates byte-identical.
@@ -282,7 +282,7 @@ git config user.email "lcherryh@yahoo.com"
 ## Verification
 
 ```
-cd /home/claude/one4all && git log origin/main --oneline -1
+cd /home/claude/SCRIP && git log origin/main --oneline -1
 # 68c2c5bc rename EP -> emit_pair in BB driver/template interface
 #          (behavior-neutral)
 

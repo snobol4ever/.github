@@ -1,6 +1,6 @@
-# SESSION-icon-jvm.md — Icon × JVM (one4all)
+# SESSION-icon-jvm.md — Icon × JVM (SCRIP)
 
-**Repo:** one4all · **Frontend:** Icon · **Backend:** JVM (Jasmin)
+**Repo:** SCRIP · **Frontend:** Icon · **Backend:** JVM (Jasmin)
 **Session prefix:** `IJ` · **Trigger:** "playing with Icon JVM"
 **Driver:** `icon_driver -jvm foo.icn -o foo.j` → `java -jar jasmin.jar foo.j -d .` → `java FooClass`
 **Oracle:** `icon_driver foo.icn -o foo.asm -run` (x64 ASM backend)
@@ -23,7 +23,7 @@
 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
 
-All tools, repos, and oracles installed by bootstrap. scrip-cc at `/home/claude/one4all/scrip-cc`.
+All tools, repos, and oracles installed by bootstrap. scrip-cc at `/home/claude/SCRIP/scrip-cc`.
 
 
 ## §TEST

@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-27, Opus 4.7 — RK-BB-3a-mode4-debug ✅ CLOSED
 
-**Watermark:** one4all `cc6c1a06` · .github HEAD · corpus unchanged
+**Watermark:** SCRIP `cc6c1a06` · .github HEAD · corpus unchanged
 
 ## Goal
 

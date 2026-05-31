@@ -8,7 +8,7 @@
 
 Run command (all 19):
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty
 INC=/home/claude/corpus/programs/snobol4/demo/inc
 PASS=0; FAIL=0

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-29
 **Model:** Opus 4.8
-**one4all commit:** `0019cc7b` (parent `0be6e78d`)
+**SCRIP commit:** `0019cc7b` (parent `0be6e78d`)
 **Files touched:** `src/lower/bb_exec.c` ONLY (+45 lines: 11 code, 34 comment). Additive. Mode-2 only.
 **FACT:** 0/12 (unchanged — no emitter/template surface).
 
@@ -131,7 +131,7 @@ g_pl_b3_call_mark = -1;
 
 ---
 
-## Follow-on same session: WAM-CP-13 print/1 mode-4 emit (one4all `2fae45ec`)
+## Follow-on same session: WAM-CP-13 print/1 mode-4 emit (SCRIP `2fae45ec`)
 
 After B3, took one cheap mode-4 corpus win. `print(hello)`/`print(42)` emitted blanks in mode-4
 (BB_BUILTIN MEDIUM_TEXT arm matched only `write`/`writeln`). `print/1` is write-equivalent for

@@ -1,6 +1,6 @@
 # GOAL-PST-SNOCONE.md — Pure Syntax Tree: Snocone
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Parent:** `GOAL-PARSER-PURE-SYNTAX-TREE.md`
 **Status:** ✅ Phase 1 C COMPLETE (AUDIT-2 verified 2026-05-19).
 Phase 2 ready (largest job).
@@ -320,7 +320,7 @@ need tweaks:
 
 - [x] **SC-SC-5** — Run smoke test:
   ```
-  bash /home/claude/one4all/scripts/test_parser_snocone.sh
+  bash /home/claude/SCRIP/scripts/test_parser_snocone.sh
   ```
   If passes, commit. If fails, file `⚠ MIRROR-GAP-SC-SC-5` and commit
   the rewrite anyway — debug in a separate session per the audit's
@@ -337,7 +337,7 @@ need tweaks:
 
 PST-SC-4a..4j ✅, PST-SC-4k ✅, 4l ✅, 4m ✅, 4n ✅,
 PST-SC-FLATTEN ✅, PST-SC-LABELS ✅, PST-SC-RET-IN-FN ✅,
-PST-SC-FOR-INIT ✅, PST-SC-SWITCH-LABELS ✅ (one4all `648b7d24`),
+PST-SC-FOR-INIT ✅, PST-SC-SWITCH-LABELS ✅ (SCRIP `648b7d24`),
 PST-SC-DOC-CLEANUP ✅.
 
 ---
@@ -349,12 +349,12 @@ watermark:   2026-05-20 (Sonnet 4.6 session 2) — diagnostic only, no code chan
              MIRROR-GAP-SC-SC-5 root cause fully traced.
 
 ROOT CAUSE OF MIRROR-GAP-SC-SC-5 (not &ALPHABET — that was a symptom):
-  1. snocone_parse.y: free(node->c) heap corruption (4 sites) — fixed one4all @ 3824560c.
+  1. snocone_parse.y: free(node->c) heap corruption (4 sites) — fixed SCRIP @ 3824560c.
      Any function-with-args crashed at parse. Now fixed.
   2. lower_pat_dcg.c build_node: TT_FNC fell to default→NULL, so IR_lower_pat()
      returned cfg with NULL entry. SM_EXEC_STMT silently used null DCG → all
      Snocone pattern matches failed. Fixed: TT_FNC case added for SPAN/ANY/BREAK/
-     NOTANY/LEN/POS/TAB/ARBNO/FENCE. one4all @ 3824560c.
+     NOTANY/LEN/POS/TAB/ARBNO/FENCE. SCRIP @ 3824560c.
   3. lower.c lower_fnc/lower_pat_expr: SPAN()/ANY()/etc. lowered to SM_CALL_FN
      instead of SM_PAT_*. Fixed: intercepted in both value and pattern context.
   4. lower.c lower_scan (×2): dcg_idx now -1 when IR_lower_pat returns null entry.
@@ -395,5 +395,5 @@ next:        Implement bb_build_patnd() covering XCHR/XSPNC/XBRKC/XANYC/XNNYC/
              bb_build_brokered_from_fn(bb_deferred_var_exported, ζ).
              Then rerun test_parser_snocone.sh.
              Expect PASS > 0 once *Id/*White/*Ident patterns work.
-heads:       one4all @ 3824560c · corpus @ b10933c · .github @ (this commit)
+heads:       SCRIP @ 3824560c · corpus @ b10933c · .github @ (this commit)
 ```

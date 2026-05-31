@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-29 — Opus 4.8 — SBL charset-EXPRESSION arg: 3 GOAL items → ONE root cause (TRIAGE; no code landed)
 
-**Repo:** one4all `77a39e82` (UNCHANGED — clean floor, nothing committed to source). **Goal:** GOAL-SNOBOL4-BB.md.
+**Repo:** SCRIP `77a39e82` (UNCHANGED — clean floor, nothing committed to source). **Goal:** GOAL-SNOBOL4-BB.md.
 **Docs:** `.github` `195066df` + `84daf610` (pushed) — consolidated triage written into GOAL.
 **Net:** No FAIL-list change (deliberate — no fix shipped). Two previously-untriaged mode-2 gaps
 (`XDump_driver`, `Qize_driver`) are now fully triaged and proven to share ONE root cause with test `064`.
@@ -88,7 +88,7 @@ brokered box-template arms walking this graph. **Next concrete step: instrument 
 `SPAN('.' digits &UCASE '_' &LCASE)` families) + test 064.
 
 ## Repo / gate state at handoff
-- one4all: **clean at `77a39e82`** — all DBG instrumentation reverted (`git diff` empty; verified against `/tmp/lower_pat_dcg.c.bak`). Build green; gates as in Baseline above.
+- SCRIP: **clean at `77a39e82`** — all DBG instrumentation reverted (`git diff` empty; verified against `/tmp/lower_pat_dcg.c.bak`). Build green; gates as in Baseline above.
 - .github: GOAL triage committed + pushed (`195066df` consolidate, `84daf610` brokered-mode refinement), both rebased cleanly over parallel Icon/other-goal commits.
 - NOT touched: PLAN.md goals table (per RULES — no edit on routine handoff).
 

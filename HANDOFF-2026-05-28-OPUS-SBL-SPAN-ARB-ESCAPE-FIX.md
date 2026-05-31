@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-28
 **Author:** Opus 4.7
-**Repo:** one4all
+**Repo:** SCRIP
 **Parent commit:** `55d03444` (M3-RK-NOINTERP-1a: bb_to_by.cpp MEDIUM_BINARY r12->rt_push_int prep)
 **Goal:** GOAL-SNOBOL4-BB.md
 

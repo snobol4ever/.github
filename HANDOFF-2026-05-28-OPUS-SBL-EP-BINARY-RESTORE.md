@@ -3,7 +3,7 @@
 **Author:** Claude Opus 4.7
 **Date:** 2026-05-28
 **Goal:** GOAL-SNOBOL4-BB · M3-NATIVE-4 prerequisite
-**Repos:** one4all `df8e6126` · .github (this commit)
+**Repos:** SCRIP `df8e6126` · .github (this commit)
 
 ---
 
@@ -94,7 +94,7 @@ With this fix in place + `patnd_to_bb_tree` + extending `patnd_needs_xlate` to c
 ## Session state
 
 ```
-HEAD one4all       = df8e6126
+HEAD SCRIP       = df8e6126
 HEAD .github       = (this commit)
 GATE-1 smoke       = 13/13     (also 13/13 under SCRIP_M3_NATIVE=1)
 GATE-2 broker      = 37        (sibling-influenced)

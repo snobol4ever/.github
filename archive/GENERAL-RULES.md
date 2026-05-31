@@ -50,7 +50,7 @@ See `SETUP-tools.md` for the full FRONTEND × BACKEND matrix and what each combi
 
 **Gate (every session after setup) — runtime invariants ONLY, snobol4_x86 only:**
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
 ```
 
@@ -116,7 +116,7 @@ SPITBOL (snobol4ever/x64, cloned to `/home/claude/x64`, binary at `/home/claude/
 When deriving `.ref` output for any test: `/home/claude/x64/bin/sbl -b file.sno > file.ref`.
 Run with includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
 **CSNOBOL4 is Silly SNOBOL4 track only** — see SESSION-silly-snobol4.md. Never used as oracle.
-**DATATYPE exception:** SPITBOL returns lowercase datatype names (`"name"`, `"pattern"`, etc.). one4all returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional per SNOBOL4 spec — see GENERAL-DECISIONS.md D-003.
+**DATATYPE exception:** SPITBOL returns lowercase datatype names (`"name"`, `"pattern"`, etc.). SCRIP returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional per SNOBOL4 spec — see GENERAL-DECISIONS.md D-003.
 Note: `.ref` files are pre-baked in corpus — SPITBOL is not required to run the gate.
 
 ---
@@ -324,7 +324,7 @@ No narrative beyond a short status phrase. No substeps. No bullet points. One ro
 ## ⛔ REPO PATHS — Canonical clone locations
 
 ```
-/home/claude/one4all/        ← compiler + backends (main working repo)
+/home/claude/SCRIP/        ← compiler + backends (main working repo)
 /home/claude/.github/         ← HQ docs
 /home/claude/corpus/   ← test corpus (clone if needed)
 /home/claude/snobol4jvm/      ← JVM/Clojure backend (clone if needed)

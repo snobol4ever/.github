@@ -1,6 +1,6 @@
 # GOAL-TEMPLATES-JS.md — JavaScript backend, all languages
 
-**Repo:** one4all + .github
+**Repo:** SCRIP + .github
 **Backend:** JavaScript → `node`. Mode: `--compile --target=js`.
 **Read first:** `ARCH-JS.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
 

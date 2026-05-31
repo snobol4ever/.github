@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Parallel:** This goal runs in its own session simultaneously with GOAL-SNO-TREEBANK-ARRAY
 and GOAL-SNO-CLAWS5. All three sessions share main — pull --rebase before every push.
 Fixes to shared files (interp.c, bb_boxes.c, stmt_exec.c) benefit all sessions immediately.
@@ -38,16 +38,16 @@ output matches `corpus/programs/snobol4/demo/treebank-list.ref` under `--interp`
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snobol4.sh          # PASS=7
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=49
+bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh          # PASS=7
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=49
 ```
 
 ---
@@ -64,7 +64,7 @@ Oracle: CSNOBOL4 -bf -P 500k  (double-function trick; SPITBOL -f is broken)
 Run to test:
 ```bash
 DEMO=/home/claude/corpus/programs/snobol4/demo
-timeout 30 /home/claude/one4all/scrip --interp $DEMO/treebank-list.sno \
+timeout 30 /home/claude/SCRIP/scrip --interp $DEMO/treebank-list.sno \
     < $DEMO/VBGinTASA.dat 2>/dev/null | diff - $DEMO/treebank-list.ref
 ```
 
@@ -128,7 +128,7 @@ likely because push/pop mis-dispatch (same root as treebank-array).
 
 ---
 
-## Current state (2026-04-17, one4all HEAD 9a43cddd — TL-2 ARBNO rollback attempted, reverted)
+## Current state (2026-04-17, SCRIP HEAD 9a43cddd — TL-2 ARBNO rollback attempted, reverted)
 
 TL-1 DONE. TL-2 SUBSTANTIAL PROGRESS. Prior session landed flush-time arg-name
 resolution (HEAD `9a43cddd`). This session:
@@ -251,7 +251,7 @@ construct that the small reproducer doesn't exercise.
 
 ### State at end of session
 
-- HEAD one4all: pending commit (uncommitted)
+- HEAD SCRIP: pending commit (uncommitted)
 - No uncommitted changes in corpus or .github
 - Reproducers left at `/home/claude/tl_simple.sno` (10-line, passes) and
   `/home/claude/tl_probe.sno` (semantics probe, passes) — NOT checked into
@@ -413,7 +413,7 @@ ARBNO_γ_now: NAM_rollback_to(ζ->stack[ζ->depth].nam_mark);
 
 ### State at end of session
 
-- HEAD one4all: `9a43cddd` (prior session's TL-2 work). Working tree clean.
+- HEAD SCRIP: `9a43cddd` (prior session's TL-2 work). Working tree clean.
 - No commits this session on any repo.
 - `.github`: this file updated with the diagnosis; next session should push.
 - Reproducer: `/home/claude/corpus/programs/snobol4/demo/treebank.input` is the
@@ -551,7 +551,7 @@ gate exercises a different path and is unaffected.
 
 ### State at end of session
 
-- HEAD one4all (pre-commit): `9a43cddd`; committed this session.
+- HEAD SCRIP (pre-commit): `9a43cddd`; committed this session.
 - No changes to corpus.
 - `.github/GOAL-SNO-TREEBANK-LIST.md`: this note added, TL-2 marked done.
 - `.github/PLAN.md`: updated to reflect TL-2 complete.

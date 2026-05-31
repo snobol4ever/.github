@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-28 — Opus 4.7 — PROLOG-BB: SWI-2-fold + SWI-2b — GATE-SWI 0→53/57
 
-**Repos:** one4all `43933846` · corpus `c4e0229` · .github (this commit)
+**Repos:** SCRIP `43933846` · corpus `c4e0229` · .github (this commit)
 
 Mode-4 testing intentionally skipped this session per Lon's directive (focus on
 mode-2 + mode-3; full mode-4 pass deferred to project endgame — mode-3 exists
@@ -10,7 +10,7 @@ precisely to let correctness sprints skip mode-4 emit cycles).
 
 ## What landed
 
-### one4all `0e53e265` (final hash `43933846` post-rebase)
+### SCRIP `0e53e265` (final hash `43933846` post-rebase)
 
 #### SWI-2-fold — `src/frontend/prolog/prolog_lower.c`
 

@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** `src/driver/scrip.c` contains only the driver (CLI parsing, frontend dispatch,
 SM/JIT paths, main). The IR tree-walk interpreter lives in `src/runtime/x86/ir_interp.c`
 with public interface in `src/runtime/x86/ir_interp.h`. All gates pass.
@@ -146,6 +146,6 @@ IS-1 not started. `ir_interp.h` stub exists (created GOAL-UNIFIED-BROKER U-11 se
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```

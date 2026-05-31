@@ -12,23 +12,23 @@ benchmark pipeline. Shared across all repos.
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness /home/claude/harness
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus /home/claude/corpus
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/SCRIP /home/claude/SCRIP
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4 /home/claude/csnobol4
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64 /home/claude/x64
 ```
 
 **Build:**
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh   # second oracle
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh    # primary oracle
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh   # second oracle
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh    # primary oracle
 ```
 
 ## Key adapters
 
 ```
 harness/adapters/dotnet/run_crosscheck_dotnet.sh   — snobol4dotnet crosscheck
-harness/adapters/one4all/                          — one4all frontend × backend adapters
+harness/adapters/SCRIP/                          — SCRIP frontend × backend adapters
 ```
 
 ## snobol4dotnet crosscheck
@@ -41,5 +41,5 @@ bash /home/claude/harness/adapters/dotnet/run_crosscheck_dotnet.sh
 
 ## Monitor
 
-The sync-step monitor lives in `one4all/test/monitor/`. The harness provides
+The sync-step monitor lives in `SCRIP/test/monitor/`. The harness provides
 adapters for running cross-engine comparisons.

@@ -2,7 +2,7 @@
 
 **Session product:** SCRIP / GOAL-ICON-BB / LFJ staircase
 **Author:** Claude Opus 4.7
-**Repos touched:** one4all, .github
+**Repos touched:** SCRIP, .github
 
 ---
 
@@ -16,10 +16,10 @@ Two LFJ rungs landed in one session, advancing the lower-from-jcon transcription
 
 | Repo | Hash | Title |
 |---|---|---|
-| one4all | `9b8fec0c` | LFJ-12 — transcribe ir_a_While/Until/Repeat/Limitation |
-| one4all | `c08187de` | LFJ-13 — transcribe ir_a_Scan/Case/Return/Suspend/Break/Next |
-| .github | `449145db` | LFJ-12 ✅ (one4all 9b8fec0c) — While/Until/Repeat/Limitation |
-| .github | `8147fc63` | LFJ-13 ✅ (one4all c08187de) — Scan/Case/Return/Suspend/Break/Next |
+| SCRIP | `9b8fec0c` | LFJ-12 — transcribe ir_a_While/Until/Repeat/Limitation |
+| SCRIP | `c08187de` | LFJ-13 — transcribe ir_a_Scan/Case/Return/Suspend/Break/Next |
+| .github | `449145db` | LFJ-12 ✅ (SCRIP 9b8fec0c) — While/Until/Repeat/Limitation |
+| .github | `8147fc63` | LFJ-13 ✅ (SCRIP c08187de) — Scan/Case/Return/Suspend/Break/Next |
 
 ---
 
@@ -95,7 +95,7 @@ Rung count 198 held exactly across both rungs — no regressions, no surprise ga
 
 ## Concurrent commits successfully rebased over
 
-During the session, four other commits landed on one4all main:
+During the session, four other commits landed on SCRIP main:
 
 | Hash | Goal | Conflict with my Icon LOWER work? |
 |---|---|---|
@@ -139,7 +139,7 @@ After LFJ-14, **every table slot points into lower_icn_new.c**. LFJ-15 then beco
 
 ## Watermarks
 
-- one4all HEAD: `c08187de`
+- SCRIP HEAD: `c08187de`
 - .github HEAD: `8147fc63`
 - icon_all_rungs: 198/268 (XFAIL 36)
 - LFJ progress: **12/15 (80%)**

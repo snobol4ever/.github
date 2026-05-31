@@ -10,7 +10,7 @@ compiler/runtime product repos:
 
 | Repo | Role | Language | Notes |
 |------|------|----------|-------|
-| `one4all` | Compiler/runtime — 2D matrix | C | 6 frontends × 4 active backends |
+| `SCRIP` | Compiler/runtime — 2D matrix | C | 6 frontends × 4 active backends |
 | `snobol4jvm` | Compiler/runtime | Clojure | SNOBOL4/SPITBOL → JVM only |
 | `snobol4dotnet` → `snobol4net` | Compiler/runtime | C# | SNOBOL4/SPITBOL → .NET only; rename pending (M-G9) |
 | `harness` | Test infrastructure | Shell/Python | Corpus runner, adapter scripts, probe/monitor |
@@ -26,16 +26,16 @@ structurally reorganized** but their rename (to the canonical `harness` /
 `corpus` marketing names, per RENAME.md) is part of the reorg scope and
 is executed in **M-G0-RENAME** below.
 
-`one4all` is the 2D matrix repo — the only one that is, or will be, multi-frontend
+`SCRIP` is the 2D matrix repo — the only one that is, or will be, multi-frontend
 and multi-backend. `snobol4jvm` and `snobol4dotnet` are single-frontend/single-backend
 repos written in different host languages; they are **not restructured here**.
 
-A fifth backend, **C** (`scrip-cc`), exists in `one4all` but is effectively dead — it
+A fifth backend, **C** (`scrip-cc`), exists in `SCRIP` but is effectively dead — it
 produces C output that is not actively maintained or tested. It is **excluded from
 the reorg** (not moved, not renamed, not wired to shared IR). Its presence is noted
 here only to prevent confusion with the active backends.
 
-Each pipeline in `one4all` was built when it was needed, with naming, folder
+Each pipeline in `SCRIP` was built when it was needed, with naming, folder
 structure, and IR conventions that were right-for-the-moment. The result is structural debt:
 
 - **Six separate IRs** (or near-IRs): SNOBOL4's `EXPR_t/EKind`, Icon's `IcnNode`,
@@ -52,7 +52,7 @@ structure, and IR conventions that were right-for-the-moment. The result is stru
   emitters live under `src/frontend/`, not `src/backend/`.
 
 The goal of the Grand Master Reorganization is to impose a single clean architecture
-across `one4all`:
+across `SCRIP`:
 
 ```
 6 frontends → ONE shared IR → 4 active backends (x86, JVM, .NET, WASM)
@@ -68,7 +68,7 @@ The 24 pipelines (6 × 4) become consistent by construction.
 ### Folder Structure (post-reorg)
 
 ```
-one4all/
+SCRIP/
   src/
     frontend/
       snobol4/        lex.c  parse.c  lower.c   → IR

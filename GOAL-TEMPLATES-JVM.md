@@ -1,6 +1,6 @@
 # GOAL-TEMPLATES-JVM.md — JVM backend, all languages
 
-**Repo:** one4all + .github
+**Repo:** SCRIP + .github
 **Backend:** JVM — Jasmin assembly → `.class` bytecode → `java`. Mode: `--compile --target=jvm`.
 **Read first:** `ARCH-JVM.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
 

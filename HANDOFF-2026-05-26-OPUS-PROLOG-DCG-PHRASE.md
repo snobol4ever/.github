@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-26 (Opus) — Prolog DCG phrase + compound-write landed; next is unify-based call binding
 
-**one4all HEAD: `f43aff1d` (clean, all gates green). `.github`: this session.**
+**SCRIP HEAD: `f43aff1d` (clean, all gates green). `.github`: this session.**
 smoke_prolog 5/5 · prolog_bb_honest 124/0/0 · smoke_icon 5/5 · smoke_snobol4 13/13 ·
 GATE-3 prolog_rung_suite 19/107 (was 16 at session start).
 

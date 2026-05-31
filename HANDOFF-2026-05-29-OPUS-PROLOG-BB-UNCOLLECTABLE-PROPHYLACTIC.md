@@ -3,7 +3,7 @@
 **Step closed:** prophylactic `GC_MALLOC → GC_MALLOC_UNCOLLECTABLE` at the four remaining
 `lower_pl.c` state-struct sites flagged in HANDOFF-2026-05-29-OPUS-PROLOG-BB-GC-UNCOLLECTABLE.md.
 
-**one4all commit:** `5bf88205` (parent `98c2f974`).
+**SCRIP commit:** `5bf88205` (parent `98c2f974`).
 **.github commit:** this commit.
 
 ## What landed
@@ -98,7 +98,7 @@ Recommend (a) — highest leverage, unblocks count/1 and the broader recursion-h
 corpus. Use the SWIPL study as the architectural compass.
 
 ## Files touched
-- `one4all/src/lower/lower_pl.c` (7 token changes)
+- `SCRIP/src/lower/lower_pl.c` (7 token changes)
 - `.github/PLAN.md` (Prolog BB row updated)
 - `.github/GOAL-PROLOG-BB.md` (State-at-HEAD block prepended; prior block demoted to Prior HEAD)
 - `.github/HANDOFF-2026-05-29-OPUS-PROLOG-BB-UNCOLLECTABLE-PROPHYLACTIC.md` (this file)

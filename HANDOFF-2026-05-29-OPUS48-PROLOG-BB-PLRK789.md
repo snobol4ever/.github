@@ -2,7 +2,7 @@
 
 **Author:** Claude Opus 4.8 · **Date:** 2026-05-29
 **Goal:** `GOAL-PROLOG-BB.md`
-**one4all HEAD at handoff:** `8be5f202`
+**SCRIP HEAD at handoff:** `8be5f202`
 **corpus HEAD at handoff:** `5354a66`
 **.github HEAD at handoff:** (this commit)
 
@@ -24,7 +24,7 @@ the MEDIUM_BINARY (mode-3) and/or MEDIUM_TEXT (mode-4) arm, and re-ran the full 
 
 ## What landed (in order)
 
-### PLR-K-7 — number_string/2 + atom_number/2 (one4all `fa30091f` → rebased `5a55ac7b`)
+### PLR-K-7 — number_string/2 + atom_number/2 (SCRIP `fa30091f` → rebased `5a55ac7b`)
 
 Both recognized in `lower_pl.c` and handled by the mode-2 oracle, but had **NO emitter arm at
 all** (neither TEXT nor BINARY) → mode-3 native AND mode-4 emit both printed `_ _`.
@@ -40,7 +40,7 @@ all** (neither TEXT nor BINARY) → mode-3 native AND mode-4 emit both printed `
 GATE-2 61 → 62 (+1, rung24_string_io_number_string); rung24 string_io 4/5 → 5/5. atom_number
 verified 3-mode AGREE (no corpus rung). corpus `.s` regenerated (`e422738`).
 
-### PLR-K-8 — format/1 + format/2 MEDIUM_BINARY arm (one4all `e0ce19ef` → rebased `123878af`)
+### PLR-K-8 — format/1 + format/2 MEDIUM_BINARY arm (SCRIP `e0ce19ef` → rebased `123878af`)
 
 `format` was MEDIUM_TEXT-only → mode-3 native emitted the asm strings as raw bytes → format
 produced EMPTY output (all 5 rung19 printed nothing at rc 0). Ported both paths of the TEXT arm
@@ -57,7 +57,7 @@ GATE-2 62 → 67 (+5) — all 5 rung19 (format1_nl, format2_a/d/i/w) now 3-mode 
 verified with multi-element `[foo,bar,99]`→`foo-bar-99`. No corpus `.s` regen needed (mode-3
 only; TEXT arm already existed and was unchanged).
 
-### PLR-K-9 — term_to_atom/2 + term_string/2 + BB_ARITH TEXT-walker fix (one4all `0da0b083` → rebased `8be5f202`)
+### PLR-K-9 — term_to_atom/2 + term_string/2 + BB_ARITH TEXT-walker fix (SCRIP `0da0b083` → rebased `8be5f202`)
 
 Both had NO emitter arm → mode-3 native + mode-4 emit printed `_`.
 
@@ -155,7 +155,7 @@ mode-4 emit changed.
    through the TEXT walker, check the walker actually handles it (the `unhandled kind` comment is
    silent — it emits no code and leaves rax garbage rather than failing loudly).
 
-4. **Concurrent pushes are frequent.** one4all moved under me on all three pushes (SNOBOL4 BREAK/
+4. **Concurrent pushes are frequent.** SCRIP moved under me on all three pushes (SNOBOL4 BREAK/
    POS, Icon IBB-10/11, Raku RK-NFA). `git pull --rebase` was always clean (orthogonal work), but
    the rebase REWRITES the commit hash — re-confirm the watermark hash matches origin AFTER the
    push, and if it changed, land a clean corrective commit rather than amending pushed history

@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** beauty.sno self-hosts cleanly under all three modes (--interp,
 --interp, --run). Full corpus PASS count matches SPITBOL oracle.
 
@@ -72,19 +72,19 @@ narratives live in git history (`git log --grep` by rung id).
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```
 
 (CSNOBOL4 build dropped from this goal's setup.  If CSNOBOL4 is
 needed for an unrelated cross-check, build via
-`bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh` ad hoc.)
+`bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh` ad hoc.)
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snobol4.sh          # PASS=7
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=49
+bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh          # PASS=7
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=49
 ```
 
 ---
@@ -114,16 +114,16 @@ Steps 2 and 3 only if Step 1 shows DIVERGE.
 
 ```bash
 # Build once per session (no csn archive needed for 2-way):
-make -C /home/claude/one4all scrip-monitor
+make -C /home/claude/SCRIP scrip-monitor
 
 # Step 1 -- ALWAYS (2-way harness, csn participant disabled):
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty_suite
-SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor --no-csn \
+SNO_LIB=$BEAUTY /home/claude/SCRIP/scrip-monitor --monitor --no-csn \
     $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE"
 
 # Step 2 -- only if Step 1 shows problem: SPITBOL diff
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol.out 2>/dev/null
-SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --interp $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
+SNO_LIB=$BEAUTY timeout 30 /home/claude/SCRIP/scrip --interp $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
 diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 # Step 3 -- only if Step 1 shows problem: OUTPUT probe -> fix -> rebuild -> repeat
@@ -146,7 +146,7 @@ Full detail for closed rungs lives in the git log. Search by rung id
 (e.g. `git log --grep SN-17`) for the commit that landed each.
 
 - **Phase 1 — IR-run** [x] DONE: SN-1..SN-6, SN-14..SN-23 (NAM unification, per-pattern context, expr_eval, recursive patterns).
-- **Phase 2 — SM-run** [~] **PARTIAL RESTORATION 2026-05-10** — SN-7, SN-8 originally landed at 51/51 (subsystem drivers, modes 1/2/3) + args-on-stack SM opcodes.  Measured 2026-05-10 at one4all@`03766019`: 0/51.  Post SN-33b at one4all@`7238e6e4`: **26/51**.  Two related runtime bugs fixed (cap_t::fn=NULL via flat_is_eligible omission; NRETURN missing NAME_DEREF in SM/JIT return path).  Remaining 25 fails are independent issues latent behind the segfaults; tracked under SN-33c's expanded scope.  SN-7-note: literal `beauty.sno < beauty.sno` self-host moved to SN-26.
+- **Phase 2 — SM-run** [~] **PARTIAL RESTORATION 2026-05-10** — SN-7, SN-8 originally landed at 51/51 (subsystem drivers, modes 1/2/3) + args-on-stack SM opcodes.  Measured 2026-05-10 at SCRIP@`03766019`: 0/51.  Post SN-33b at SCRIP@`7238e6e4`: **26/51**.  Two related runtime bugs fixed (cap_t::fn=NULL via flat_is_eligible omission; NRETURN missing NAME_DEREF in SM/JIT return path).  Remaining 25 fails are independent issues latent behind the segfaults; tracked under SN-33c's expanded scope.  SN-7-note: literal `beauty.sno < beauty.sno` self-host moved to SN-26.
 - **Phase 3 — JIT-run** [x] DONE: SN-9 (JIT/codegen parity; crosscheck 207/207/207 in all three modes).
 - **SN-17** porter stemmer gap [x] DONE — IR+SM 100.00% on porter.sno.
 - **SN-25** SPITBOL `-f` won't-fix — superseded by SN-30.
@@ -166,13 +166,13 @@ mode-4 emit-link-run path.
 
 **Why this is now a rung:**
 The Phase-2 SM-run summary (closed rungs section above) records SN-7
-= 51/51 (17 drivers × 3 modes) as DONE.  Measured under one4all@`03766019`
+= 51/51 (17 drivers × 3 modes) as DONE.  Measured under SCRIP@`03766019`
 + corpus@`d77eda7` on 2026-05-10, all 17 drivers segfault identically
 in modes 1, 2, 3 AND 4.  The 51/51 baseline has regressed to 0/51,
 and mode 4 — never previously gated on these drivers — inherits the
 same 0/17.  Mode-4 IS at byte-identical parity with mode-3 today
 (both produce empty output and segfault identically); the parity
-gate `scripts/test_gate_em_beauty_subsystems_mode4.sh` in one4all
+gate `scripts/test_gate_em_beauty_subsystems_mode4.sh` in SCRIP
 confirms PASS=17.  The work here is a regression-restore in the
 runtime, not in the emitter.
 
@@ -222,7 +222,7 @@ eight steps.  The regression baseline is the SN-7 gate
       Documented at SN-33b below; reopen this if a future regression
       requires bisect.
 - [x] **SN-33b** — Diagnose the `cap_t::fn = NULL` root cause and fix.
-      **DONE sess 2026-05-10, one4all @ `7238e6e4`.** Two fixes:
+      **DONE sess 2026-05-10, SCRIP @ `7238e6e4`.** Two fixes:
       (1) `bb_flat.c:flat_is_eligible` was missing its declared
       exclusions for XNME/XFNME/XARBN; the function body excluded
       only XVAR and XCAT n>2 while its comment promised to also
@@ -294,7 +294,7 @@ SN-7-8 was a placeholder for "the still-open piece of SN-7 after the
 51/51 restoration goes in"; SN-33 is its proper carved name.
 
 ### SN-27 — UPPERCASE DATATYPE for SPITBOL x64 (opened 2026-04-21)
-**Done-when:** `sbl -b` on `output=datatype('')` prints `STRING` (not `string`). All builtin datatypes return uppercase, matching x32 / CSNOBOL4 / one4all / jvm.
+**Done-when:** `sbl -b` on `output=datatype('')` prints `STRING` (not `string`). All builtin datatypes return uppercase, matching x32 / CSNOBOL4 / SCRIP / jvm.
 **Fix path:** undefine `.culc` in `sbl.min`, rebuild via `make sbl` (per SN-27a-history).
 **Sub-rungs:** SN-27b..g open. **Gate:** Smoke=7, Broker=49, SN-7=51/51, Broad=225/225.
 **Dependencies:** none. May share a single pass with SN-30.
@@ -355,7 +355,7 @@ Self-host output md5 byte-identical to SPITBOL
 
 - [x] **SN-26-bridge-coverage-a** — csn fire-points landed for all 5 LOCAPT-TVALL sites (NMD4, ENMI3, ATP) + `lvalue_name_id` helper for `<lval>` sentinel on array/table stores. csnobol4 @ `ad993fe`. Smoke `test_smoke_sn26_csn_bridge_c.sh` PASS=1. Closed session #30.
 
-- [x] **SN-26-bridge-coverage-b** — spl fire-points at `asign:asg01` (sbl.min:17596) + `asinp` (17853) + ASCII guard in `spl_vrblk_name`. Critical detail: natural-var fire-points need `sub xr,*vrvlo` to back-step from vrval to vrsto field. x64 @ `3cd2dcc`, one4all @ `5ffd3af7`. Smoke `test_smoke_sn26_spl_bridge_d.sh` PASS=1. SN-30 md5 `408fc788ca2ef425fc1f87e26d45a7a5` preserved. Closed session #32.
+- [x] **SN-26-bridge-coverage-b** — spl fire-points at `asign:asg01` (sbl.min:17596) + `asinp` (17853) + ASCII guard in `spl_vrblk_name`. Critical detail: natural-var fire-points need `sub xr,*vrvlo` to back-step from vrval to vrsto field. x64 @ `3cd2dcc`, SCRIP @ `5ffd3af7`. Smoke `test_smoke_sn26_spl_bridge_d.sh` PASS=1. SN-30 md5 `408fc788ca2ef425fc1f87e26d45a7a5` preserved. Closed session #32.
 
 - [~] **SN-26-bridge-coverage-c** — Diagnostic run session #33 surfaced scrip's missing fire-point on `subscript_set` / `subscript_set2` (DIVERGE step 24 on `UTF[k]='NO_BREAK_SPACE'` vs `VALUE ARRAY`). Subsumed by -e..-h.
 
@@ -415,7 +415,7 @@ Self-host output md5 byte-identical to SPITBOL
   names `[a, a, d]`. Note: SPITBOL still emits `<lval>` for
   subscript stores (pre-existing behavior, latent follow-up);
   controller will flag sbl vs scrip subscript records as "diverge"
-  until SPITBOL's bridge is updated. one4all @ `311993c6`.
+  until SPITBOL's bridge is updated. SCRIP @ `311993c6`.
   Gate: Smoke=7, Broker=49.
 
 - [ ] **SN-26-bridge-coverage-h — apples-to-apples on beauty (2-way).**
@@ -1282,7 +1282,7 @@ Self-host output md5 byte-identical to SPITBOL
   1. Edit `comm_call` in `runtime/x86/snobol4.c`: insert
      `if (strcmp(fname, "nTop") == 0) { __builtin_trap(); }` at
      entry.
-  2. `make scrip` from one4all root.
+  2. `make scrip` from SCRIP root.
   3. `gdb -batch -ex 'set environment SNO_LIB=...' -ex 'run --interp
      beauty.sno < /dev/null' -ex 'bt 60' --args ./scrip --interp
      beauty.sno`.
@@ -1607,7 +1607,7 @@ the trace" — until -h, there is no trustable divergence point.
 - SN-26 scout: `IR last_ok=?` on DIVERGE — uncaptured in `sync_monitor.c`.
 - `build_spitbol_oracle.sh` SKIPs on prebuilt `bin/sbl` — add capability probe.
 - ~40 `sm_lower: unresolved label 'ERROR'/'ERR'` warnings during beauty compile.
-- Env-gated trace infrastructure permanent: `ONE4ALL_STEP_TRACE`, `ONE4ALL_USERCALL_TRACE` (BB_USERCALL, NM_CALL, PAT_USER_CALL_BUILD).
+- Env-gated trace infrastructure permanent: `SCRIP_STEP_TRACE`, `SCRIP_USERCALL_TRACE` (BB_USERCALL, NM_CALL, PAT_USER_CALL_BUILD).
 - **SN-26-csn-regen-fix** — `genc.sno` regen drops FNCP/FNCA..FNCD top-level definitions; `tsort` inlining promotes them to labels but `data_init.c` references them as functions. Hand-edit-the-C workaround used at every XCALLC landing site. Fix: diagnose `with`/`procs` inlining config, regenerate cleanly once, commit baseline.
 - **SN-26-bridge-coverage-extras** — Catch-all completeness audit gaps (deferred). Sites likely missing: keyword assignment (`&keyword = X` via ASGNIC), function-arg binding at DEFINE-call entry, DATA/DEFINE/OPSYN/FIELD identifier creation/rename. Beauty's `global.inc` only does plain assigns and `.`-captures, so the 5 LOCAPT-TVALL sites suffice for sub-h2.
 - **`<lval>` sentinel cleanup** — Currently `<lval>` is interned for array element / table slot stores. Cleaner: suppress the record entirely (parent's existence already recorded at `a = ARRAY(...)` time) by tightening `lvalue_name_id()` and `zysmv()` to return early without emitting when validation fails. Alternative: synthesize structured names like `a[1,2]`.
@@ -1621,7 +1621,7 @@ the trace" — until -h, there is no trustable divergence point.
 ## Current state
 
 **HEADs:**
-- one4all @ session #61 HEAD (SN-32c CLOSED: `sm_codegen.c` `h_store_var`
+- SCRIP @ session #61 HEAD (SN-32c CLOSED: `sm_codegen.c` `h_store_var`
   receives the same two-bug fix that landed in `sm_interp.c` in session
   #60; `--run beauty.sno < beauty.sno` byte-identical to SPITBOL,
   matching --interp from session #57 and --interp from session #60)
@@ -1897,7 +1897,7 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
   `DIFFER(sno = Pop()) :F(mainErr2)` was evaluated.  The SM jumped to
   mainErr2 (stno=1082) when SPITBOL fell through to stno=1076 (correct).
 
-  Root cause traced via `ONE4ALL_DIAG_JF` + `ONE4ALL_STEP_TRACE`:
+  Root cause traced via `SCRIP_DIAG_JF` + `SCRIP_STEP_TRACE`:
   on the second call through the `DIFFER(sno = Pop())` expression,
   `SM_CALL "DIFFER" nargs=1 arg0.v=0` — DIFFER received DT_SNUL (null)
   not DT_DATA.  `SM_STORE_VAR "sno"` was called with val.v=100 (DT_DATA)

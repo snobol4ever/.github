@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Parallel:** This goal runs in its own session simultaneously with GOAL-SNO-TREEBANK-ARRAY
 and GOAL-SNO-TREEBANK-LIST. All three sessions share main — pull --rebase before every push.
 Fixes to shared files (interp.c, bb_boxes.c, stmt_exec.c) benefit all sessions immediately.
@@ -38,16 +38,16 @@ output matches `corpus/programs/snobol4/demo/claws5.ref` under `--interp`.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snobol4.sh          # PASS=7
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=49
+bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh          # PASS=7
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=49
 ```
 
 ---
@@ -64,7 +64,7 @@ Oracle: CSNOBOL4 -bf -P 500k  (double-function trick; SPITBOL -f is broken)
 Run to test:
 ```bash
 DEMO=/home/claude/corpus/programs/snobol4/demo
-timeout 30 /home/claude/one4all/scrip --interp $DEMO/claws5.sno \
+timeout 30 /home/claude/SCRIP/scrip --interp $DEMO/claws5.sno \
     < $DEMO/CLAWS5inTASA.dat 2>/dev/null | diff - $DEMO/claws5.ref
 ```
 
@@ -77,7 +77,7 @@ timeout 30 /home/claude/one4all/scrip --interp $DEMO/claws5.sno \
 **C5-1, C5-2, C5-3, C5-4 all DONE.**
 
 **claws5.ref note:** extended from 95 lines (scoped to sentences 1-4) to the
-full 5622-line authoritative CSNOBOL4 `-bf -P 500k` output. one4all
+full 5622-line authoritative CSNOBOL4 `-bf -P 500k` output. SCRIP
 `--interp` and `--interp` are byte-identical to the oracle across the full
 989-line input.
 
@@ -169,7 +169,7 @@ full 5622-line authoritative CSNOBOL4 `-bf -P 500k` output. one4all
 
 ---
 
-## Current state (2026-04-17, one4all HEAD 6c63908 — post C5-4)
+## Current state (2026-04-17, SCRIP HEAD 6c63908 — post C5-4)
 
 C5-4 DONE. Fix: `subscript_set` (snobol4_pattern.c:489) preserves key
 descriptor through `table_set_descr` instead of stringifying via

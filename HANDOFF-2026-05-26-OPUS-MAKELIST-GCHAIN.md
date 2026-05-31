@@ -1,7 +1,7 @@
 # HANDOFF — 2026-05-26 — Opus Session (H-4 MAKELIST γ-chain + SCRIP_NO_AST_WALK verdict)
 
 **Goal:** GOAL-ICON-BB, Phase H / H-4 (N-ary kinds via γ-chain).
-**one4all:** `82ec79f8` PUSHED (rebased onto 340b14b9, clean).
+**SCRIP:** `82ec79f8` PUSHED (rebased onto 340b14b9, clean).
 **.github:** this file + PLAN.md watermark.
 **Build:** ✅ GREEN · **smoke_icon 5/5** · **broker(smoke) 19** · **rungs --interp 189/42/35** (was 181).
 
@@ -81,7 +81,7 @@ threading. H-1 is the prerequisite for Mode-4 emit of nested IF/generators.
 
 ## Watermark
 ```
-one4all: 82ec79f8 — BUILD GREEN, smoke 5/5, broker 19, rungs 189/42/35
+SCRIP: 82ec79f8 — BUILD GREEN, smoke 5/5, broker 19, rungs 189/42/35
 .github: this file + PLAN.md BB-Ladder row (Sess 2026-05-26i)
 GOAL: GOAL-ICON-BB Phase H
 NEXT: (cleanup) strip dead SCRIP_NO_AST_WALK prefix from 2 scripts;

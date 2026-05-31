@@ -1,7 +1,7 @@
 # GOAL-TEXTF-TEMPLATES.md — literal emit_textf templates, delete formatting layer
 
-**Repo:** one4all + .github
-**Prereq:** EC-UNI-PER-KIND-DIFF baseline frozen at one4all `ddd08f01` or later (PASS≥401, FAIL=0, STUB=658).
+**Repo:** SCRIP + .github
+**Prereq:** EC-UNI-PER-KIND-DIFF baseline frozen at SCRIP `ddd08f01` or later (PASS≥401, FAIL=0, STUB=658).
 **Why:** templates currently call `bb3c_format`/`emit_text_jmp`/`emit_label_define` per line. The 3-column GAS alignment is human readability — once the baseline `.raw` files capture the canonical output, the alignment machinery is dead weight. Convert each template arm to one `emit_textf(LITERAL, vars...)` of the captured text with `%s`/`%d` for variable parts. Then delete the formatting layer and the legacy `emit_bb_x*` helpers. Net: −2500 to −3500 LOC.
 
 ## Invariants
@@ -123,7 +123,7 @@ Beauty gate (`test_gate_ec_uni_complete.sh` GATE-1) remains SUSPENDED per Lon 20
 ## Session Setup
 
 ```bash
-cd /home/claude/one4all && make -j4 scrip
+cd /home/claude/SCRIP && make -j4 scrip
 bash scripts/test_per_kind_diff.sh   # confirm clean baseline before starting
 [ -d /home/claude/x64 ] || git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 ```
@@ -131,7 +131,7 @@ bash scripts/test_per_kind_diff.sh   # confirm clean baseline before starting
 ## Watermark
 
 ```
-one4all: ddd08f01   (PPV-8 landing: bb_abort IS_X86, dead IS_BIN guards, beauty suspended)
+SCRIP: ddd08f01   (PPV-8 landing: bb_abort IS_X86, dead IS_BIN guards, beauty suspended)
 GATE-PK: PASS=401 FAIL=0 STUB=658
 ```
 
@@ -142,7 +142,7 @@ Plan drafted Sonnet 4.6, 2026-05-21 session #6. Three-developer agreement: Lon J
 ## Session #7 watermark (2026-05-21, Sonnet 4.6)
 
 ```
-one4all: 1974df8a
+SCRIP: 1974df8a
 GATE-PK: PASS=406 FAIL=0 STUB=653
 Matrix:  855/855
 
@@ -160,7 +160,7 @@ G3/G4 partial because `emit_seq_port_call_rip`/`insn_*` are not `bb3c_format` wr
 ## Session #8 watermark (2026-05-21, Sonnet 4.6)
 
 ```
-one4all: 6ee301e9
+SCRIP: 6ee301e9
 GATE-PK: PASS=407 FAIL=0 STUB=652
 Matrix:  855/855
 

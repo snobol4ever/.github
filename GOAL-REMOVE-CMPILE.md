@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** CMPILE.c is not compiled into the scrip binary; all three
 parse entry points (program, expression, statement-block) route through
 snobol4.tab.c/snobol4.lex.c; omega driver PASS=15/15; beauty suite PASS≥15.
@@ -183,7 +183,7 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```

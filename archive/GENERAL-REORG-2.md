@@ -211,7 +211,7 @@ After unfreeze. Administrative only.
 |----|--------|--------|
 | **M-G10-RENAME-PLAN** | Audit all cross-repo refs to `snobol4dotnet` | Checklist in `.github/` |
 | **M-G10-RENAME-EXEC** | Rename GitHub repo → `snobol4net` | `git ls-remote` resolves |
-| **M-G10-RENAME-REFS** | Update all references in `.github`, `one4all`, `harness` | No broken refs |
+| **M-G10-RENAME-REFS** | Update all references in `.github`, `SCRIP`, `harness` | No broken refs |
 
 ---
 
@@ -342,8 +342,8 @@ One rung convention everywhere: `rung01/`, `rung02/` as directories.**
 #### The vision
 
 `harness` is the home for **all** test infrastructure currently scattered across
-`one4all`, `snobol4jvm`, `snobol4dotnet`, `snobol4python`, and `snobol4csharp`.
-It serves all five product repos plus the 6×5 one4all matrix (6 frontends ×
+`SCRIP`, `snobol4jvm`, `snobol4dotnet`, `snobol4python`, and `snobol4csharp`.
+It serves all five product repos plus the 6×5 SCRIP matrix (6 frontends ×
 4 active backends + 1 dead C backend).
 
 #### Four distinct testing methods
@@ -353,14 +353,14 @@ It serves all five product repos plus the 6×5 one4all matrix (6 frontends ×
 | **1. Crosscheck (CROSSCHECK)** | Self-contained programs × all engines. Fast, deterministic, CI-safe. Oracle = `.ref` file in corpus. | Reads `corpus/<frontend>/crosscheck/` |
 | **2. Invariant** | Targeted rung-by-rung progression tests. Tracks pass/fail counts per session. Gate before push. | Reads `corpus/<frontend>/crosscheck/rung*/` |
 | **3. Program suite** | Real-world programs with I/O, includes, external files. Slower, not CI-gated per commit. | Reads `corpus/<frontend>/programs/` |
-| **4. Oracle triangulation** | SPITBOL x64 as ground truth. Any divergence between SPITBOL and one4all surfaces a corpus bug. | Generates its own inputs; validates corpus `.ref` files |
+| **4. Oracle triangulation** | SPITBOL x64 as ground truth. Any divergence between SPITBOL and SCRIP surfaces a corpus bug. | Generates its own inputs; validates corpus `.ref` files |
 
 #### Target harness layout
 
 ```
 harness/
   adapters/
-    one4all/
+    SCRIP/
       snobol4-x86/      ← was adapters/tiny/
       snobol4-jvm/
       snobol4-net/
@@ -397,14 +397,14 @@ harness/
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G10-HARNESS-AUDIT** | Map all test scripts currently in `one4all/test/`, `snobol4jvm/test/`, `snobol4dotnet/test/` to their target location in `harness/`. Produce `doc/HARNESS-MIGRATION.md`. | Doc exists |
+| **M-G10-HARNESS-AUDIT** | Map all test scripts currently in `SCRIP/test/`, `snobol4jvm/test/`, `snobol4dotnet/test/` to their target location in `harness/`. Produce `doc/HARNESS-MIGRATION.md`. | Doc exists |
 | **M-G10-HARNESS-METHODS** | Create `methods/` subdirs. Move existing `crosscheck.sh` → `methods/crosscheck/`; existing `probe.py` → `methods/probe/`; existing `monitor/` → `methods/monitor/`. Stub `methods/random/`. | All existing tests still pass via new paths |
-| **M-G10-HARNESS-ADAPTERS** | Expand `adapters/` to cover all one4all frontend×backend pairs plus the 4 standalone repos. Each adapter: `run.sh` (single program) + method-specific entry points. | Each adapter smoke-tested |
+| **M-G10-HARNESS-ADAPTERS** | Expand `adapters/` to cover all SCRIP frontend×backend pairs plus the 4 standalone repos. Each adapter: `run.sh` (single program) + method-specific entry points. | Each adapter smoke-tested |
 | **M-G10-HARNESS-PROBE** | Complete PROBE method. Single-step instrumented run; prints engine state at each α/β/γ/ω port. Works against any adapter. | Probe output readable for SNOBOL4 x86 |
 | **M-G10-HARNESS-MONITOR** | Complete MONITOR method. Runs same program on two adapters, diffs Byrd box trace streams, reports first divergence point. | Monitor catches a known semantic divergence |
 | **M-G10-HARNESS-RANDOM** | Implement RANDOM/EXHAUSTIVE method. Grammar-driven IR tree generation; depth-N enumeration or random sampling; all engines diff'd; passing cases pinned to `corpus/generated/`. | Depth-3 SNOBOL4 exhaustive: zero divergence |
 | **M-G10-HARNESS-GRID** | `grid/` generates a frontend × backend × method pass/fail matrix. HTML or Markdown output. | Grid renders correctly for all active cells |
 | **M-G10-HARNESS-CI** | `ci/` has one entry script per product repo. Each runs the appropriate adapter + method combination. | CI scripts exit 0 on clean repo |
-| **M-G10-HARNESS-MIGRATE** | Remove test scripts from `one4all/test/`, `snobol4jvm/test/`, `snobol4dotnet/test/`. All tests run from harness only. | Full suite PASS via harness; no orphaned scripts |
+| **M-G10-HARNESS-MIGRATE** | Remove test scripts from `SCRIP/test/`, `snobol4jvm/test/`, `snobol4dotnet/test/`. All tests run from harness only. | Full suite PASS via harness; no orphaned scripts |
 | **M-G10-HARNESS-LAYOUT** | Write `LAYOUT.md` describing all four methods, adapter convention, and grid. | Doc matches reality |
 

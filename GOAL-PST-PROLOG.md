@@ -1,6 +1,6 @@
 # GOAL-PST-PROLOG.md — Pure Syntax Tree: Prolog
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Parent:** `GOAL-PARSER-PURE-SYNTAX-TREE.md`
 **Status:** ✅ Phase 1 C COMPLETE (AUDIT-2 verified 2026-05-19).
 Phase 2 ready.
@@ -195,7 +195,7 @@ lower expands.
 
 - [~] **PL-SC-8** ⚠ MIRROR-GAP-PL-SC-8 — Run smoke test:
   ```
-  bash /home/claude/one4all/scripts/test_parser_prolog.sh
+  bash /home/claude/SCRIP/scripts/test_parser_prolog.sh
   ```
   If passes, commit. If fails, file `⚠ MIRROR-GAP-PL-SC-8` and commit
   the rewrite anyway — debug in a separate session per the audit's
@@ -225,5 +225,5 @@ next:        PL-SC-1 (delete ~64 fns + state), PL-SC-2 (leaf shifts),
              PL-SC-6 (driver), PL-SC-7 (grep), PL-SC-8 (smoke).
 audit:       PST-SCRIP-AUDIT.md § parser_prolog.sc — ~64 helpers,
              49 × Push/Pop/Tree/Append families.
-heads:       one4all @ 06cadffb · corpus @ a9b1240
+heads:       SCRIP @ 06cadffb · corpus @ a9b1240
 ```

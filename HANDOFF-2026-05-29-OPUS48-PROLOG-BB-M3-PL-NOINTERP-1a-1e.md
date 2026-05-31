@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-29 — Opus 4.8 — Prolog BB — M3-PL-NOINTERP-1a..1e
 
-**one4all commit:** `b408b086`
+**SCRIP commit:** `b408b086`
 **Goal:** GOAL-PROLOG-BB.md — native `--run` (mode-3) Prolog program entry
 **Headline:** mode-3 native crosscheck **0 → 10 PASS**, no regressions, FACT clean.
 

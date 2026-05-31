@@ -3,7 +3,7 @@
 **Date:** 2026-05-27
 **Model:** Claude Opus 4.7
 **Goal:** GOAL-ICON-BB (LFJ — Lower From JCON)
-**Watermark:** one4all `320f1eea` · .github `0d755ec8`
+**Watermark:** SCRIP `320f1eea` · .github `0d755ec8`
 **Gates:** smoke_icon 5/5 · broker 24 · rungs 198 · smoke_prolog 5/5
 
 ---
@@ -90,7 +90,7 @@ Approximate scope: ~12 distinct case bodies, similar size to LFJ-1a-iv. Context 
 4. View each arm with a narrow `view_range` (don't read whole file).
 5. Append a new `LFJ-1a-v` helper block after the `LFJ-1a-iv` block, just above `lower_icn_expr_node`.
 6. Collapse arms one at a time with `str_replace`, build between rungs only if you suspect a problem.
-7. Final build + all 4 gates. Commit. Pull rebase. Push one4all first, then .github (RULES.md ordering).
+7. Final build + all 4 gates. Commit. Pull rebase. Push SCRIP first, then .github (RULES.md ordering).
 
 ---
 
@@ -103,7 +103,7 @@ Approximate scope: ~12 distinct case bodies, similar size to LFJ-1a-iv. Context 
 ## Repo state at handoff
 
 ```
-one4all  origin/main: 320f1eea  (ICON LFJ-1a-iv ...)
+SCRIP  origin/main: 320f1eea  (ICON LFJ-1a-iv ...)
 .github  origin/main: 0d755ec8  (ICON-BB: LFJ-1a-iv complete ...)
 ```
 

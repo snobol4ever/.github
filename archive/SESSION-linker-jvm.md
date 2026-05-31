@@ -40,7 +40,7 @@ family demo running end-to-end with each language self-contained?
 **2. `ByrdBoxLinkage.j` is missing from `src/runtime/jvm/` (directory is empty/.gitkeep).**
 Restore from LP-JVM-1 commit:
 ```bash
-cd one4all
+cd SCRIP
 git show 92006e7:src/runtime/jvm/ByrdBoxLinkage.j > src/runtime/jvm/ByrdBoxLinkage.j
 ```
 Or check if `demo/scrip/ScripFamily.j` contains the linkage class inline.
@@ -49,7 +49,7 @@ Or check if `demo/scrip/ScripFamily.j` contains the linkage class inline.
 
 
 
-**Commit:** `d3ac6f0` one4all
+**Commit:** `d3ac6f0` SCRIP
 
 ### All fixes applied and confirmed in source:
 

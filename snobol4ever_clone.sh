@@ -10,14 +10,14 @@
 # Credentials come from your git config / GitHub Desktop — no token needed.
 #
 # Profiles:
-#   interp     — .github one4all harness corpus
+#   interp     — .github SCRIP harness corpus
 #   jvm        — .github snobol4jvm harness corpus
 #   dotnet     — .github snobol4dotnet harness corpus
-#   spitbol    — .github one4all harness corpus x64
+#   spitbol    — .github SCRIP harness corpus x64
 #   all        — every repo in the org
 #
 # Or list repos explicitly:
-#   bash .github/snobol4ever_clone.sh one4all corpus harness
+#   bash .github/snobol4ever_clone.sh SCRIP corpus harness
 #
 # Options:
 #   --token TOKEN   GitHub PAT (only needed if not using GitHub Desktop / git credential store)
@@ -32,7 +32,7 @@ ALL_REPOS=(
     .github
     corpus
     harness
-    one4all
+    SCRIP
     snobol4artifact
     snobol4csharp
     snobol4dotnet
@@ -47,10 +47,10 @@ ALL_REPOS=(
 # SCRIP language (SNOBOL4, Snocone, Rebus, Icon, Prolog, Raku) — no
 # day-to-day SCRIP work should be without it.  The repo ships a prebuilt
 # `sbl` binary at /home/claude/x64/bin/sbl, so cloning IS the install.
-profile_interp()  { echo ".github one4all harness corpus x64"; }
+profile_interp()  { echo ".github SCRIP harness corpus x64"; }
 profile_jvm()     { echo ".github snobol4jvm harness corpus"; }
 profile_dotnet()  { echo ".github snobol4dotnet harness corpus"; }
-profile_spitbol() { echo ".github one4all harness corpus x64"; }
+profile_spitbol() { echo ".github SCRIP harness corpus x64"; }
 profile_all()     { echo "${ALL_REPOS[*]}"; }
 
 # ── Argument parsing ──────────────────────────────────────────────────────────

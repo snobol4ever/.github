@@ -1,6 +1,6 @@
 # GOAL-PST-RAKU.md — Pure Syntax Tree: Raku
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Parent:** `GOAL-PARSER-PURE-SYNTAX-TREE.md`
 **Status:** ✅ Phase 1 C COMPLETE. Phase 2 PRF-14 ✅ COMPLETE.
 
@@ -71,7 +71,7 @@ Style matches sibling parsers (`parser_snocone.sc`, `parser_rebus.sc`).
   container by the pre-existing `&ALPHABET` segfault in `scrip --interp`
   (same blocker as PST-SC-SC-5 — `global.sc` line 3
   `&ALPHABET ? (POS(0) LEN(1) . nul);` crashes SM interp at
-  one4all `e1c8a4ac` / EC-3f). Per the parent goal's strict rule —
+  SCRIP `e1c8a4ac` / EC-3f). Per the parent goal's strict rule —
   "Mechanical deletion and rewrite first; tree-shape conformance
   debug after, in a separate later session" — the rewrite is committed
   now and the smoke debug deferred to a separate session.
@@ -150,7 +150,7 @@ next:        PRF-14-6 — rewrite parser_raku.sc leaf-pushers using
              needed in parser_icon.sc (same misuse pattern at Expr11).
              SMOKE PRF-14-5 still blocked by container &ALPHABET
              segfault.
-heads:       one4all @ e1c8a4ac · corpus @ 5d8e221 ·
+heads:       SCRIP @ e1c8a4ac · corpus @ 5d8e221 ·
              .github @ (this commit)
 ```
 
@@ -234,7 +234,7 @@ was architecturally broken — same primitive misuse on every site.
 - All 50 historical doc references to `shift_val` renamed to
   `shift_value` across 13 `.github/*.md` files.
 - Zero whole-word `shift_val` remains in `.github/`, `corpus/`, or
-  `one4all/`.
+  `SCRIP/`.
 
 **Primitives — the corrected contract:**
 

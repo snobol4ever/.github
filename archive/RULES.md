@@ -50,7 +50,7 @@ See `SETUP-tools.md` for the full FRONTEND × BACKEND matrix and what each combi
 
 **Gate (every session after setup) — runtime invariants ONLY, snobol4_x86 only:**
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86
 ```
 
@@ -118,7 +118,7 @@ When deriving `.ref` output for any test: `/home/claude/x64/bin/sbl -b file.sno 
 as ground-truth C code for Silly SNOBOL4 (SESSION-silly-snobol4). Do NOT build or execute CSNOBOL4
 as a test oracle. Do not attempt to install it. CSNOBOL4 lacks FENCE — it cannot serve as an
 execution reference for SNOBOL4 programs that rely on FENCE semantics.
-**DATATYPE exception:** SPITBOL returns lowercase datatype names (`"name"`, `"pattern"`, etc.). one4all returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional per SNOBOL4 spec — see GENERAL-DECISIONS.md D-003.
+**DATATYPE exception:** SPITBOL returns lowercase datatype names (`"name"`, `"pattern"`, etc.). SCRIP returns uppercase (`"NAME"`, `"PATTERN"`). This is intentional per SNOBOL4 spec — see GENERAL-DECISIONS.md D-003.
 Note: `.ref` files are pre-baked in corpus — SPITBOL is not required to run the gate.
 
 ---
@@ -259,7 +259,7 @@ Violations require a history rewrite (`git filter-repo`) and force-push — expe
 
 Every session is defined by three values. Pick them, read three docs, work.
 
-**1. Repo** → `REPO-one4all.md` / `REPO-snobol4jvm.md` / `REPO-snobol4dotnet.md`
+**1. Repo** → `REPO-SCRIP.md` / `REPO-snobol4jvm.md` / `REPO-snobol4dotnet.md`
 **2. Frontend** → `FRONTEND-icon.md` / `FRONTEND-prolog.md` / `FRONTEND-snobol4.md` etc. (pure reference, no §NOW)
 **3. Frontend × Backend** → `SESSION-icon-jvm.md` / `SESSION-prolog-x64.md` etc. (§NOW lives here)
 
@@ -311,7 +311,7 @@ No narrative beyond a short status phrase. No substeps. No bullet points. One ro
 ## ⛔ REPO PATHS — Canonical clone locations
 
 ```
-/home/claude/one4all/        ← compiler + backends (main working repo)
+/home/claude/SCRIP/        ← compiler + backends (main working repo)
 /home/claude/.github/         ← HQ docs
 /home/claude/corpus/   ← test corpus (clone if needed)
 /home/claude/snobol4jvm/      ← JVM/Clojure backend (clone if needed)

@@ -35,7 +35,7 @@ with actual repo state. No stale test counts, milestone names, or architectural 
 
 - **Test counts** — snobol4dotnet says "1,874 / 1,876 tests passing" — must reflect current `dotnet test` count
 - **snobol4jvm test count** — says "2,033 tests / 4,417 assertions" — must reflect current `lein test` count
-- **one4all corpus counts** — "106/106", "110/110" — verify against current `run_interp_broad.sh` output
+- **SCRIP corpus counts** — "106/106", "110/110" — verify against current `run_interp_broad.sh` output
 - **scrip-interp references** — binary is now `scrip`; any mention of `scrip-interp` must be removed
 - **corpus description** — says "Oracle runner scripts" — corpus does not own runner scripts (harness does); fix
 - **harness** — not mentioned at all in profile; should be
@@ -100,6 +100,6 @@ commits the corrected README.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```

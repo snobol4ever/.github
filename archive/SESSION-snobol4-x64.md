@@ -1,6 +1,6 @@
-# SESSION-snobol4-x64.md — SNOBOL4 × x86 (one4all)
+# SESSION-snobol4-x64.md — SNOBOL4 × x86 (SCRIP)
 
-**Repo:** one4all · **Frontend:** SNOBOL4 · **Backend:** x86
+**Repo:** SCRIP · **Frontend:** SNOBOL4 · **Backend:** x86
 
 There is no such thing as a "DYN session" or "B session". There is only
 **SNOBOL4 × x86**. The milestone track (sno4parse, Byrd box, TINY/beauty)
@@ -146,7 +146,7 @@ SIL STREAM 6-arg convention:
   `STREAM out, in, table, error_branch, eos_branch, stop_branch`
   C stream() returns: ST_ERROR→arg4, ST_EOS→arg5, ST_STOP→arg6 (omitted = fall through)
 
-All five stream() call-site bugs fixed in sprint 92 (one4all `229b04e`):
+All five stream() call-site bugs fixed in sprint 92 (SCRIP `229b04e`):
 - FORWRD: ST_EOS → forrun(), not BRTYPE=EOSTYP
 - FORBLK: ST_EOS → forrun(); ST_ERROR = RTN1 (no blank) — leave BRTYPE as-is
 - ELEMTB: ST_EOS + STYPE==0 → sil_error (ELEILI)
@@ -161,7 +161,7 @@ Correctness = **agreement with SPITBOL** (`/home/claude/x64/bin/sbl`). sno4parse
 **Date:** 2026-04-04
 
 ```bash
-gcc -O0 -g -Wall -o sno4parse one4all/src/frontend/snobol4/CMPILE.c
+gcc -O0 -g -Wall -o sno4parse SCRIP/src/frontend/snobol4/CMPILE.c
 
 IFLAGS="-I/home/claude/corpus/programs/lon/sno \
   -I/home/claude/corpus/programs/lon/rinky \
@@ -251,7 +251,7 @@ One track. Current sprint is whatever Lon is working on.
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| RT-139 | one4all `bc310aa6` · corpus `3fd44d0` · PASS=163/203 | **SM regressions**: 40 failures remain. Next: field mutator (accessor on LHS) — `lson(b) = a` emits `SM_CALL "lson" 1` then `SM_CALL "ASGN" 2`; ASGN not registered or wrong dispatch → Error 5. Check `E_ASSIGN` in `sm_lower.c` + `"ASGN"` in `snobol4_invoke.c`. Affects: 1115_data_basic, 1116_data_overlap, 095_data_field_set, test_stack, 1012, 1013, 1114. |
+| RT-139 | SCRIP `bc310aa6` · corpus `3fd44d0` · PASS=163/203 | **SM regressions**: 40 failures remain. Next: field mutator (accessor on LHS) — `lson(b) = a` emits `SM_CALL "lson" 1` then `SM_CALL "ASGN" 2`; ASGN not registered or wrong dispatch → Error 5. Check `E_ASSIGN` in `sm_lower.c` + `"ASGN"` in `snobol4_invoke.c`. Affects: 1115_data_basic, 1116_data_overlap, 095_data_field_set, test_stack, 1012, 1013, 1114. |
 
 **First actions RT-125:**
 ```bash
@@ -261,7 +261,7 @@ grep "^## " .github/GENERAL-RULES.md
 cat .github/PLAN.md
 cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
 cat .github/SCRIP-UNIFIED.md         # new unified model
-cd one4all && make scrip-interp       # still builds as scrip-interp until U0
+cd SCRIP && make scrip-interp       # still builds as scrip-interp until U0
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
 # M-SCRIP-U0:
@@ -277,26 +277,26 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SCRIP-TRACE | one4all `f23ef24c` · corpus `3fd44d0` · PASS=193/203 · beauty suite 14/19 | **MILESTONE-SN4X86-SCRIP-TRACE** — Wire TRACE/STOPTR/DUMP/SETEXIT + sync-step 2-way monitor into scrip --interp. All infrastructure exists in snobol4.c (trace_set, comm_var, monitor_fd/ack_fd, kw_stcount/stlimit). Gap is scrip.c: (T-0) add set_and_trace() at every NV_SET site; (T-1) replace manual stcount/stlimit with comm_stno(); (T-2) CALL/RETURN hooks in call_user_function(); (T-3) write run_monitor_2way.sh; (T-4) run monitor on 5 failing drivers. Gate: all 5 EXIT 0 → beauty 19/19 → B-3. See MILESTONE-SN4X86-SCRIP-TRACE.md. |
-| BEAUTY-PREREQS | one4all `bea4045f` · corpus `3fd44d0` · PASS=172/203 · beauty suite 10/19 | **MILESTONE-SN4X86-BEAUTY-PREREQS** — BP-0: ✅ wired (bea4045f). BP-1: `.field(x)` returns NAMEPTR not NAMEVAL — `E_NAME/E_FNC` child must call `data_field_ptr()` → fixes stack/counter/ShiftReduce/semantic/TDump. BP-2: null DT_E upstream — add fprintf at `!frozen` guard, trace source, return NULVCL → fixes Gen infinite output. BP-3: empty-string prefix Qize/XDump (follows BP-2). BP-4: omega DATATYPE PATTERN vs STRING. Gate: beauty suite 19/19 → B-3. |
-| RT-119 | one4all `5880085` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B COMPLETE ✅ 85.5% binary** — all B milestones done. Next: P2E embedded match `(A ? PAT = REPL)` or RUNTIME gap per RT-124 row below |
-| RT-120 | one4all `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B-SPITBOL ← CURRENT** — SPITBOL vs scrip-interp pattern storage bytes. Build x64 oracle, run SIZE() probe, measure ζ structs, tabulate. See BB-GEN-X86-BIN.md §SPITBOL Comparison Design. |
-| RT-123 | one4all `4d56435` · corpus `3fd44d0` · PASS=178/203 | RT-124: Error 25 in E_FNC explicit-call path only; error format (filename+level); see RT-124 first actions in SESSIONS_ARCHIVE |
-| RT-122 | one4all `99007cb` · corpus `3fd44d0` · PASS=178/203 | RT-123: Error 25 (wrong arg count) + Error 22 (&STLIMIT) + error format (filename+level) — see RT-123 first actions in SESSIONS_ARCHIVE |
-| RT-121 | one4all `8c2611c` · corpus `3fd44d0` · PASS=178/203 | RT-122: PROTOTYPE()/COPY() for DT_DATA, or DATATYPE() audit — see RT-122 first actions in SESSIONS_ARCHIVE |
-| RT-121 | one4all `9af851a` · corpus `3fd44d0` · PASS=178/203 | RT-122: Option A — gap-scan keywords/&-variables; Option B — EVAL(DT_E) _EVAL_ dispatch hijack; Option C — GOTO(C) exec_code wiring |
-| RT-121 | one4all `9478915` · corpus `3fd44d0` · PASS=178/203 | CONVERT() gap-scan: CONVERT(V,'ARRAY'), CONVERT(V,'TABLE'), FREEZE/THAW |
-| RT-119 | one4all `b753121` · corpus `3fd44d0` · PASS=178/203 | Error 2 (div-by-zero) or Error 10 (neg LEN/POS) — see RT-120 first actions |
-| RT-119 | one4all `c3e78ed` · corpus `3fd44d0` · PASS=178/203 | Error 3 (array bounds) or Error 7 (unknown keyword) — see RT-120 first actions |
-| RT-120 | one4all `4ded4c2` · corpus `3fd44d0` · PASS=178/203 | RT-121: EVAL(DT_E) — add fprintf to _EVAL_ wrapper; check label_lookup("EVAL") not hijacking dispatch |
-| RT-116 | one4all `ce3f5c6` · corpus `3fd44d0` · PASS=178/203 | GAP 4: sno_runtime_error() + to_int/to_real type guards → Error 1 on illegal types |
-| RT-115 | one4all `b62c081` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B1** — emit LIT box as x86 binary into bb_pool, seal RW→RX, Phase 3 jumps to it. Gate: same PASS=178, binary path active for DT_S literal patterns. See BB-GEN-X86-BIN.md. |
-| RT-114 | one4all `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE (aliases already purged, cmpile_lower is live path) — next: Phase 3 --parser switch OR RUNTIME-6 DT_E blocker (expr_eval.sno → PASS≥179) |
-| RT-108 | one4all `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ NAM_push/save/commit/discard + last-write-wins — next: Option A (non-ASCII comment fix → cmpile_lower≥190) or Option B (RT-5 ASGN &OUTPUT hooks) |
-| RT-106 | one4all `081cce9` · corpus `3fd44d0` · PASS=190/203 | cmpnd_to_expr KEYFN+ARYTYP fixed ✅ cmpile_lower label/subj wiring ✅ — next: non-ASCII comment fix → cmpile_lower as default (PASS=107→190) |
-| RT-105 | one4all `805c390` · corpus `3fd44d0` · PASS=190/203 | --dump-parse ✅ cmpile_lower stub ✅ — next: cmpnd_to_expr() audit → wire cmpile_lower() as default execution path |
-| RT-104 | one4all `d16f152` · corpus `3fd44d0` · PASS=190/203 | **M-CMPILE-MERGE** ✅ — next: --dump-parse/--dump-parse-flat flags in scrip-interp, then wire CMPILE as top-level file parser replacing sno_parse |
-| 101 (sno4parse) | one4all `601890a` · corpus `65494e7` | 3 bugs fixed (include-hang, UNOPTB ST_EOS, BINOP ORFN-at-EOL); crosscheck 181/181 ✅ PASSED; gimpel 143/145 0 HANG — **Phase 2 gate DONE** — next: beauty/demo -I sweep OR pivot to EMITTER-X86 |
+| SCRIP-TRACE | SCRIP `f23ef24c` · corpus `3fd44d0` · PASS=193/203 · beauty suite 14/19 | **MILESTONE-SN4X86-SCRIP-TRACE** — Wire TRACE/STOPTR/DUMP/SETEXIT + sync-step 2-way monitor into scrip --interp. All infrastructure exists in snobol4.c (trace_set, comm_var, monitor_fd/ack_fd, kw_stcount/stlimit). Gap is scrip.c: (T-0) add set_and_trace() at every NV_SET site; (T-1) replace manual stcount/stlimit with comm_stno(); (T-2) CALL/RETURN hooks in call_user_function(); (T-3) write run_monitor_2way.sh; (T-4) run monitor on 5 failing drivers. Gate: all 5 EXIT 0 → beauty 19/19 → B-3. See MILESTONE-SN4X86-SCRIP-TRACE.md. |
+| BEAUTY-PREREQS | SCRIP `bea4045f` · corpus `3fd44d0` · PASS=172/203 · beauty suite 10/19 | **MILESTONE-SN4X86-BEAUTY-PREREQS** — BP-0: ✅ wired (bea4045f). BP-1: `.field(x)` returns NAMEPTR not NAMEVAL — `E_NAME/E_FNC` child must call `data_field_ptr()` → fixes stack/counter/ShiftReduce/semantic/TDump. BP-2: null DT_E upstream — add fprintf at `!frozen` guard, trace source, return NULVCL → fixes Gen infinite output. BP-3: empty-string prefix Qize/XDump (follows BP-2). BP-4: omega DATATYPE PATTERN vs STRING. Gate: beauty suite 19/19 → B-3. |
+| RT-119 | SCRIP `5880085` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B COMPLETE ✅ 85.5% binary** — all B milestones done. Next: P2E embedded match `(A ? PAT = REPL)` or RUNTIME gap per RT-124 row below |
+| RT-120 | SCRIP `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B-SPITBOL ← CURRENT** — SPITBOL vs scrip-interp pattern storage bytes. Build x64 oracle, run SIZE() probe, measure ζ structs, tabulate. See BB-GEN-X86-BIN.md §SPITBOL Comparison Design. |
+| RT-123 | SCRIP `4d56435` · corpus `3fd44d0` · PASS=178/203 | RT-124: Error 25 in E_FNC explicit-call path only; error format (filename+level); see RT-124 first actions in SESSIONS_ARCHIVE |
+| RT-122 | SCRIP `99007cb` · corpus `3fd44d0` · PASS=178/203 | RT-123: Error 25 (wrong arg count) + Error 22 (&STLIMIT) + error format (filename+level) — see RT-123 first actions in SESSIONS_ARCHIVE |
+| RT-121 | SCRIP `8c2611c` · corpus `3fd44d0` · PASS=178/203 | RT-122: PROTOTYPE()/COPY() for DT_DATA, or DATATYPE() audit — see RT-122 first actions in SESSIONS_ARCHIVE |
+| RT-121 | SCRIP `9af851a` · corpus `3fd44d0` · PASS=178/203 | RT-122: Option A — gap-scan keywords/&-variables; Option B — EVAL(DT_E) _EVAL_ dispatch hijack; Option C — GOTO(C) exec_code wiring |
+| RT-121 | SCRIP `9478915` · corpus `3fd44d0` · PASS=178/203 | CONVERT() gap-scan: CONVERT(V,'ARRAY'), CONVERT(V,'TABLE'), FREEZE/THAW |
+| RT-119 | SCRIP `b753121` · corpus `3fd44d0` · PASS=178/203 | Error 2 (div-by-zero) or Error 10 (neg LEN/POS) — see RT-120 first actions |
+| RT-119 | SCRIP `c3e78ed` · corpus `3fd44d0` · PASS=178/203 | Error 3 (array bounds) or Error 7 (unknown keyword) — see RT-120 first actions |
+| RT-120 | SCRIP `4ded4c2` · corpus `3fd44d0` · PASS=178/203 | RT-121: EVAL(DT_E) — add fprintf to _EVAL_ wrapper; check label_lookup("EVAL") not hijacking dispatch |
+| RT-116 | SCRIP `ce3f5c6` · corpus `3fd44d0` · PASS=178/203 | GAP 4: sno_runtime_error() + to_int/to_real type guards → Error 1 on illegal types |
+| RT-115 | SCRIP `b62c081` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B1** — emit LIT box as x86 binary into bb_pool, seal RW→RX, Phase 3 jumps to it. Gate: same PASS=178, binary path active for DT_S literal patterns. See BB-GEN-X86-BIN.md. |
+| RT-114 | SCRIP `5a7e16e` · corpus `3fd44d0` · PASS=178/203 | M-CMPILE-MERGE Phases 0-2 ✅ COMPLETE (aliases already purged, cmpile_lower is live path) — next: Phase 3 --parser switch OR RUNTIME-6 DT_E blocker (expr_eval.sno → PASS≥179) |
+| RT-108 | SCRIP `b107c67` · corpus `3fd44d0` · PASS=187/203 | RT-4 NMD ✅ NAM_push/save/commit/discard + last-write-wins — next: Option A (non-ASCII comment fix → cmpile_lower≥190) or Option B (RT-5 ASGN &OUTPUT hooks) |
+| RT-106 | SCRIP `081cce9` · corpus `3fd44d0` · PASS=190/203 | cmpnd_to_expr KEYFN+ARYTYP fixed ✅ cmpile_lower label/subj wiring ✅ — next: non-ASCII comment fix → cmpile_lower as default (PASS=107→190) |
+| RT-105 | SCRIP `805c390` · corpus `3fd44d0` · PASS=190/203 | --dump-parse ✅ cmpile_lower stub ✅ — next: cmpnd_to_expr() audit → wire cmpile_lower() as default execution path |
+| RT-104 | SCRIP `d16f152` · corpus `3fd44d0` · PASS=190/203 | **M-CMPILE-MERGE** ✅ — next: --dump-parse/--dump-parse-flat flags in scrip-interp, then wire CMPILE as top-level file parser replacing sno_parse |
+| 101 (sno4parse) | SCRIP `601890a` · corpus `65494e7` | 3 bugs fixed (include-hang, UNOPTB ST_EOS, BINOP ORFN-at-EOL); crosscheck 181/181 ✅ PASSED; gimpel 143/145 0 HANG — **Phase 2 gate DONE** — next: beauty/demo -I sweep OR pivot to EMITTER-X86 |
 
 **Current milestone docs:**
 - `BB-GEN-X86-BIN.md` — **M-DYN-B COMPLETE ✅** — 85.5% binary coverage (RT-119, 2026-04-05)
@@ -312,7 +312,7 @@ Remaining C-path fallback (acceptable): XATP(12) XCALLCAP(5) XARBN(5) XDSAR(1) X
 ```bash
 cat > /tmp/si_bin.sh << 'WRAP'
 #!/bin/bash
-exec env SNO_BINARY_BOXES=1 /home/claude/one4all/scrip-interp "$@"
+exec env SNO_BINARY_BOXES=1 /home/claude/SCRIP/scrip-interp "$@"
 WRAP
 chmod +x /tmp/si_bin.sh
 INTERP=/tmp/si_bin.sh CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
@@ -326,7 +326,7 @@ tail -120 .github/SESSIONS_ARCHIVE.md
 grep "^## " .github/GENERAL-RULES.md
 cat .github/PLAN.md
 cat .github/SESSION-snobol4-x64.md   # §INFO then §NOW
-cd one4all && make scrip-interp
+cd SCRIP && make scrip-interp
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
 # M-DYN-B1: emit LIT box as x86-64 binary, wire into exec_stmt Phase 2
@@ -367,7 +367,7 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 # AFTER LIT WORKS: repeat for EPS, then wire bb_build binary walk for DT_P.
 ```
 
-*(TINY/beauty: sprint B-292, one4all `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
+*(TINY/beauty: sprint B-292, SCRIP `acbc71e`, next: M-BEAUTIFY-BOOTSTRAP-ASM-MONITOR — parked)*
 
 ### ✅ LINEBUF PRE-JOIN REMOVED (sprint 92)
 **Date:** 2026-04-05 → implemented 2026-04-04
@@ -485,7 +485,7 @@ RT functions + SM instruction dispatch). It is now `#include`d in:
 ### Makefile added (sprint 103)
 **Date:** 2026-04-05
 
-`one4all/Makefile` now builds both targets:
+`SCRIP/Makefile` now builds both targets:
 - `make scrip-interp` — canonical interpreter build (matches sprint 100 canonical build)
 - `make scrip-cc` — delegates to `src/Makefile`
 - `make test` — runs `test/run_interp_broad.sh`
@@ -502,7 +502,7 @@ RT functions + SM instruction dispatch). It is now `#include`d in:
 - `snobol4_pattern.c`: `cmpnd_to_expr()` replaces `node_to_expr()` using named SIL stype constants
 - `eval_via_cmpile()` replaces `eval_via_sno4parse()` — EVAL() builtin path
 - Top-level file parse still uses old bison `sno_parse` — replacement is next sprint
-- one4all HEAD after this sprint: `d16f152`
+- SCRIP HEAD after this sprint: `d16f152`
 
 ### BINOP ST_EOS + operator-at-EOL fix (sprint 101)
 **Date:** 2026-04-05
@@ -519,7 +519,7 @@ Same pattern applies to any operator at EOL before continuation. The subsequent
 **Also fixed:** unresolved `-INCLUDE` now calls `sil_error()` (abort) not silent continue.
 UNOPTB ST_EOS in UNOP loop now breaks (safety net).
 
-Committed: one4all `601890a`. Sweeps: 84/84 ✅ · crosscheck 181/181 ✅ · gimpel 143/145 0 HANG.
+Committed: SCRIP `601890a`. Sweeps: 84/84 ✅ · crosscheck 181/181 ✅ · gimpel 143/145 0 HANG.
 
 ### T_ Bison token → CMPILE SIL name rename (pending — RT-114)
 **Date:** 2026-04-05
@@ -694,7 +694,7 @@ dereference, so they rely on NAME_DEREF firing even for NRETURN in some cases.
 
 ### RT-124 string-audit findings — 2026-04-06
 
-4 SIL bugs fixed in one4all `b93cec8`. Random component audit method.
+4 SIL bugs fixed in SCRIP `b93cec8`. Random component audit method.
 - **LGT/LLT/LGE/LLE/LEQ/LNE**: `a[0]` → `NULVCL` on success (SIL RETNUL)
 - **DUPL(s,n<0)**: `""` → FAILDESCR (SIL ACOMPC negative→FAIL)
 - **CHAR(out-of-range)**: masked → FAILDESCR (SIL LENERR/INTR30)

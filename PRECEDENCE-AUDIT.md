@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-PARSER-SC-TRANSPILE.md sub-rung **SCT-9g** (re-scoped 2026-05-17 from snocone-only to per-language coverage).
 **Status:** §1 Snocone landed 2026-05-17 (Opus 4.7). §§2–6 awaiting spec documents from Lon.
-**Inputs (Snocone):** SPITBOL Manual v3.7 Ch.15 + live `sbl` at `/home/claude/x64/bin/sbl` + `parser_snocone.sc` (corpus `1b24df4`) + `snocone_parse.y` (one4all `96d39c05`).
+**Inputs (Snocone):** SPITBOL Manual v3.7 Ch.15 + live `sbl` at `/home/claude/x64/bin/sbl` + `parser_snocone.sc` (corpus `1b24df4`) + `snocone_parse.y` (SCRIP `96d39c05`).
 
 This document audits each of the six languages the transpiler supports (snobol4, snocone, rebus, icon, raku, prolog). Per language, it enumerates every binary operator in BOTH the C-side parser (`src/frontend/<lang>/`) and the Snocone-side parser (`corpus/SCRIP/parser_<lang>.sc`), compares to the language's authoritative spec, and recommends fixes for divergences.
 
@@ -277,7 +277,7 @@ These are not bugs — each language has its own spec — but the cross-table mu
 - SPITBOL Manual v3.7 (Catspaw 2000), Ch.15 "Operators" (manual lines 9540–9900 in pdftotext output)
 - live SPITBOL x64 binary at `/home/claude/x64/bin/sbl` (deterministic, matches manual)
 - `corpus/SCRIP/parser_snocone.sc` @ corpus HEAD `1b24df4`
-- `one4all/src/frontend/snocone/snocone_parse.y` @ one4all HEAD `96d39c05`
+- `SCRIP/src/frontend/snocone/snocone_parse.y` @ SCRIP HEAD `96d39c05`
 
 §§2-6 awaiting spec documents from Lon (see each section's "Request to Lon").
 
@@ -286,7 +286,7 @@ These are not bugs — each language has its own spec — but the cross-table mu
 ## §2 — SNOBOL4
 
 **Status:** ✅ Completed 2026-05-17 (Claude Sonnet 4.6).
-**Inputs:** SPITBOL Manual v3.7 Ch.15 (lines 9540–9900, `/tmp/spitbol.txt`) + `corpus/SCRIP/parser_snobol4.sc` @ corpus HEAD `1b24df4` + `one4all/src/frontend/snobol4/snobol4.y` @ one4all HEAD `96d39c05`.
+**Inputs:** SPITBOL Manual v3.7 Ch.15 (lines 9540–9900, `/tmp/spitbol.txt`) + `corpus/SCRIP/parser_snobol4.sc` @ corpus HEAD `1b24df4` + `SCRIP/src/frontend/snobol4/snobol4.y` @ SCRIP HEAD `96d39c05`.
 
 ### Methodology
 
@@ -412,7 +412,7 @@ Expr10cont = FENCE($'%' *Expr11 foldop("'TT_DIV'") *Expr10cont | epsilon);
 §2 (SNOBOL4) audited by Claude Sonnet 4.6 on 2026-05-17, against:
 - SPITBOL Manual v3.7 (Catspaw 2000), Ch.15 (lines 9540–9900 in `/tmp/spitbol.txt`)
 - `corpus/SCRIP/parser_snobol4.sc` @ corpus HEAD `1b24df4`
-- `one4all/src/frontend/snobol4/snobol4.y` @ one4all HEAD `96d39c05`
+- `SCRIP/src/frontend/snobol4/snobol4.y` @ SCRIP HEAD `96d39c05`
 
 ---
 

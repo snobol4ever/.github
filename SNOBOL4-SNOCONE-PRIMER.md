@@ -840,7 +840,7 @@ These bite repeatedly. See `ARCH-SNOCONE.md` for the canonical spec.
   bodies must be `{ ... }`. (Bit me in session #68.)
 - **Strings have no escapes.** `\n` is literally backslash-n. Use `nl`
   (predefined as the newline char), `tab`, `bs`, `cr`, `ff`, `bSlash`.
-- **DATATYPE is uppercase in one4all.** `'NAME'`, `'PATTERN'`, `'STRING'`,
+- **DATATYPE is uppercase in SCRIP.** `'NAME'`, `'PATTERN'`, `'STRING'`,
   `'INTEGER'`. SPITBOL returns lowercase. Tests must be case-portable
   (`REPLACE(DATATYPE(x), &LCASE, &UCASE)`).
 - **Functions return via assignment-to-name.** `function foo() { foo = 5; return; }`.
@@ -914,7 +914,7 @@ beauty.sc parses. Always run beauty.sc separately before claiming
 "works":
 
 ```bash
-SCRIP=/home/claude/one4all/scrip
+SCRIP=/home/claude/SCRIP/scrip
 SRC=/home/claude/corpus/SCRIP
 cat /home/claude/corpus/programs/snocone/demo/beauty/beauty.sc | \
   timeout 30 $SCRIP --interp $SRC/global.sc $SRC/tree.sc $SRC/stack.sc \

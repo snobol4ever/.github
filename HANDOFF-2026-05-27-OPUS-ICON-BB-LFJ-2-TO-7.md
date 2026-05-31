@@ -3,7 +3,7 @@
 **Session goal:** ICON-BB · continue LFJ staircase progression
 **Developer:** Claude Opus 4.7
 **Date:** 2026-05-27
-**Final watermark:** one4all `620a0ab0` · .github (this commit)
+**Final watermark:** SCRIP `620a0ab0` · .github (this commit)
 
 ---
 
@@ -11,7 +11,7 @@
 
 Six rungs landed in one session — first six dispatch-table flips of the LFJ staircase. Gates green throughout, zero regressions.
 
-| Rung | one4all commit | AST kinds flipped | What landed |
+| Rung | SCRIP commit | AST kinds flipped | What landed |
 |------|----------------|---|---|
 | LFJ-2 | `620a0ab0` | TT_NULL | `lower_icn_new_NoOp`. No-child → BB_LIT_NUL (genuine NoOp per ir_a_NoOp). With-child → delegates to legacy_NULL (the `/E` is_null test, which is ir_a_Unop op `/` in JCON — proper retirement deferred to that rung). `lower_icn_legacy_NULL` de-static'd. |
 | LFJ-3 | `620a0ab0` | TT_ILIT, TT_FLIT, TT_QLIT, TT_CSET | Four literal lowerers: `lower_icn_new_Intlit`/`Reallit`/`Stringlit`/`Csetlit`. JCON's success-chunk + unbounded-resume-chunk shape collapses to "single non-resumable leaf box" in SCRIP because the chain walker already provides succeed-once/fail-on-resume. Csets share BB_LIT_S with strings (current SCRIP runtime convention). |
@@ -131,5 +131,5 @@ No other files touched. No SNOBOL4 / Snocone / Rebus / Raku / Prolog lowering to
 - Build was clean throughout — no compile errors after the first include-missing hiccup in LFJ-2 (`<stdio.h>` for the probe).
 - Gates ran consistently at smoke_icon 5/5 · rungs 198 · broker 24 · smoke_prolog 5/5. No flakes observed.
 - No upstream concurrent commits hit during the session (single committer this time).
-- Per RULES.md push order: one4all first, .github last.
+- Per RULES.md push order: SCRIP first, .github last.
 - The methodology section above is intentionally explicit so the next developer can replicate cleanly. The key habit is **never coding the new function until reading both the JCON procedure AND the existing legacy SCRIP function**: 90% of the "translation" decisions are about what SCRIP already encodes differently (optimization paths, intercept hooks) and how to preserve that while still claiming faithful transcription. The legacy is the SCRIP rendering of the JCON procedure; the new function inherits that rendering and adds the proper attribution.

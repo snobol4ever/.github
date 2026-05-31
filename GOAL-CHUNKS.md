@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all (primary) + .github (this file) + snobol4dotnet + snobol4jvm + snobol4js (later steps)
+**Repo:** SCRIP (primary) + .github (this file) + snobol4dotnet + snobol4jvm + snobol4js (later steps)
 **Done when:** SM_PUSH_EXPR opcode is deleted from the codebase.  The
 DT_E descriptor (or its successor) carries a compiled SM chunk
 addressed by entry-pc, never an `EXPR_t*`.  The proc_table and
@@ -424,19 +424,19 @@ These three steps are independent of each other and of M2.
 Order them however convenient based on platform availability.
 
 - [ ] **Step 9 — File `GOAL-NATIVE-SNOCONE-DOTNET.md` and execute
-  it.**  Extend the in-tree .NET host at `one4all/src/driver/net/`
+  it.**  Extend the in-tree .NET host at `SCRIP/src/driver/net/`
   (NOT the standalone `snobol4dotnet` org repo) to parse and run
   Snocone source. Done when `scrip.sc` runs end-to-end on the
   .NET interpreter. Provides bootstrap path B for `scrip.sc`.
 
 - [ ] **Step 10 — File `GOAL-NATIVE-SNOCONE-JVM.md` and execute it.**
-  Extend the in-tree JVM host at `one4all/src/driver/jvm/` (Java;
+  Extend the in-tree JVM host at `SCRIP/src/driver/jvm/` (Java;
   NOT the standalone `snobol4jvm` org repo, which is Clojure) to
   parse and run Snocone source. Done when `scrip.sc` runs
   end-to-end on the JVM interpreter. Provides bootstrap path C.
 
 - [ ] **Step 11 — File `GOAL-NATIVE-SNOCONE-JS.md` and execute it.**
-  Extend the in-tree JS host at `one4all/src/driver/js/sno-interp.js`
+  Extend the in-tree JS host at `SCRIP/src/driver/js/sno-interp.js`
   (Node) to parse and run Snocone source. Done when `scrip.sc`
   runs end-to-end on Node. Browser support is out of scope for
   this step. Provides bootstrap path D.
@@ -743,7 +743,7 @@ sm 0/29, jit 0/29 (unchanged baseline per CH-13 note); SNOBOL4 jit
 smoke ir 139, sm 101, jit 101 (unchanged baseline per Step 7 close);
 `scrip_all_modes` PASS=2 FAIL=0.
 Documented in `docs/CHUNKS-step15a-validation.md`.
-one4all @ `dd673da1`.  Session #73, 2026-05-07.
+SCRIP @ `dd673da1`.  Session #73, 2026-05-07.
 
 **Step 14b (CH-14b)** — Gen-local slot infrastructure. Added `SM_LOAD_GLOCAL` and
 `SM_STORE_GLOCAL` opcodes (a[0].i = slot 0..7); added `locals[SM_GEN_LOCAL_MAX]`
@@ -767,7 +767,7 @@ csnobol4 Budne PASS=36 (≥34, byte-identical to baseline); unified_broker
 PASS=49; full Icon corpus PASS=186 FAIL=47 XFAIL=30 TOTAL=263 (byte-identical
 to baseline 186/47/30).
 Documented in `docs/CHUNKS-step14b-validation.md`.
-one4all @ HEAD. Session #71, 2026-05-07.
+SCRIP @ HEAD. Session #71, 2026-05-07.
 
 **Step 14 (CH-14)** — Generator infrastructure. `SM_SUSPEND` and `SM_RESUME` opcodes added
 to `sm_prog.h`; `SM_INTERP_SUSPENDED = 1` return-code constant; forward typedef `SmGenState`.
@@ -780,7 +780,7 @@ drive an SM generator chunk through all its ticks (BB_PUMP semantics for SM chun
 Gate: hand-written SM program yields 10/20/30 via SM_SUSPEND; re-drive of exhausted gen
 returns 0; 17/17 tests PASS including 7 new generator tests. Smoke ×6 PASS. Isolation PASS.
 `scripts/test_sm_generator_ch14.sh` added.
-Documented in `docs/CHUNKS-step14-validation.md`. one4all @ HEAD. Session #70, 2026-05-06.
+Documented in `docs/CHUNKS-step14-validation.md`. SCRIP @ HEAD. Session #70, 2026-05-06.
 
 **Step 13** — Migrate `sm_lower.c:1062` (Raku CASE / given-when) to chunk-based
 dispatch. Replaces the legacy `emit_push_expr + SM_BB_PUMP` wrapper with a new
@@ -858,11 +858,11 @@ Gates: build clean; smoke ×6 PASS (SNOBOL4 7/7, Icon 5/5, Prolog 5/5,
 Raku 5/5, Snocone 5/5, Rebus 4/4); isolation gate PASS; csnobol4 Budne
 PASS=36 (≥34, exact baseline match); full Icon corpus PASS=186 FAIL=47
 XFAIL=30 (TOTAL=263, byte-identical to baseline 186/47/30 — zero
-regression). one4all @ `0a38d055`. Session #66, 2026-05-06.
+regression). SCRIP @ `0a38d055`. Session #66, 2026-05-06.
 
 **Step 1** — Survey + scaffolding. `SmChunk_t`, `SM_PUSH_CHUNK`, `SM_CALL_CHUNK` added to
 `sm_prog.h`; FATAL stubs in `sm_interp.c` and `sm_codegen.c`; `docs/CHUNKS-step01-audit.md`
-produced. one4all @ `a79b09f0`. Session #63, 2026-05-05.
+produced. SCRIP @ `a79b09f0`. Session #63, 2026-05-05.
 
 **Step 2** — Migrate `sm_lower.c:573` (E_DEFER / `*expr`). `SM_PUSH_CHUNK` emitted for
 E_DEFER in value context. `SM_CALL_CHUNK` implemented in `sm_interp.c` and `sm_codegen.c`
@@ -870,7 +870,7 @@ with minimal SmCallFrame (retval_name=NULL). `EVAL(*expr)` special-cased in E_FN
 lowering to emit chunk inline + `SM_CALL_CHUNK` — same SM stack, no nested run.
 Scope boundary: stored-chunk `E=*expr; EVAL(E)` deferred (EXPVAL_fn returns FAILDESCR
 for slen==1 DT_E until NV integer-carry infrastructure lands).
-one4all @ `1b42498f`. Session #63, 2026-05-05.
+SCRIP @ `1b42498f`. Session #63, 2026-05-05.
 
 **Step 7** — M1 milestone close. Three-mode sweep + curated subset gates
 documented in `docs/CHUNKS-M1-close.md`. Findings:
@@ -885,7 +885,7 @@ M1 is shippable as "producer-side chunk migration complete + chunk
 infrastructure in place"; it is NOT "modes 2/3 bug-for-bug compatible with
 mode 1 on real programs". Broad-corpus parity is a separate (SN-*) ladder.
 M2 (mode-4 x86 emitter) is now unblocked.
-one4all @ `28020a0a`. Session #65, 2026-05-06.
+SCRIP @ `28020a0a`. Session #65, 2026-05-06.
 
 **Step 6** — Structural rule added to `test_isolation_ir_sm.sh` forbidding
 EXPR_t* casts and `->kind`/`->children`/`->nchildren`/`->sval`/`->ival`
@@ -899,7 +899,7 @@ rule until CONVERT EXPRESSION migrates to chunk emission and the legacy
 fires on injected `(EXPR_t *)` casts.
 Gates: smoke ×6 PASS; isolation gate (with new structural rule) PASS;
 csnobol4 Budne PASS=36 (≥34).
-one4all @ `27b0a102`. Session #65, 2026-05-06.
+SCRIP @ `27b0a102`. Session #65, 2026-05-06.
 
 **Step 5** — Verify SNOBOL4 + Snocone DT_E carriers no longer carry EXPR_t.
 `sm_interp.c` instrumented with three audit counters (`g_chunks_audit_push_expr`,
@@ -911,7 +911,7 @@ SM_PUSH_EXPR fires, zero out-of-range, across all SNOBOL4/Snocone programs.
 M1 invariant holds for the producer side. Documented in
 `docs/CHUNKS-step05-validation.md`.
 Gates: smoke ×6 PASS; isolation gate PASS; csnobol4 Budne PASS=36 (≥34).
-one4all @ `2e0777d0`. Session #65, 2026-05-06.
+SCRIP @ `2e0777d0`. Session #65, 2026-05-06.
 
 **Step 4** — Migrate `sm_lower.c:326 / 345 / 386` (E_CAPT_COND_ASGN `. *fn(args)` and
 E_CAPT_IMMED_ASGN `$ *fn(args)` — two sites, same SM_PAT_CAPTURE_FN_ARGS consumer).
@@ -921,7 +921,7 @@ Consumer SM_PAT_CAPTURE_FN_ARGS unchanged — at match time EVAL_fn → EXPVAL_f
 the slen==1 DT_E path via `sm_call_chunk(entry_pc)` (in place since Step 2).
 Gates: smoke ×6 PASS (SNOBOL4 7/7, Snocone 5/5, Icon 5/5, Prolog 5/5, Raku 5/5,
 Rebus 4/4); isolation gate PASS; csnobol4 Budne PASS=36 (≥34).
-one4all @ `3be281e8`. Session #65, 2026-05-06.
+SCRIP @ `3be281e8`. Session #65, 2026-05-06.
 
 **Step 3** — Migrate `sm_lower.c:470` (pattern non-QLIT arg of `SM_PAT_USERCALL_ARGS`).
 Producer migrated to canonical chunk shape (jump-around + entry_pc + body + SM_RETURN +
@@ -931,7 +931,7 @@ dispatches slen==1 DT_E through sm_call_chunk(entry_pc). Legacy `EXPR_t*` branch
 EXPVAL_fn remains to serve the still-unmigrated emit_push_expr sites owned by Step 4
 and later rungs. Gates green: build clean; smoke ×6 (SNOBOL4 7/7, Snocone 5/5, Icon 5/5,
 Prolog 5/5, Raku 5/5, Rebus 4/4); isolation gate PASS; csnobol4 Budne PASS=36 (≥34).
-one4all @ `c6862096`. Session #64, 2026-05-06.
+SCRIP @ `c6862096`. Session #64, 2026-05-06.
 
 **Prep work, session #62 (no rungs closed):** sub-goal files
 written for Steps 8/9/10/11 + 19 (rungs deferred until prereqs
@@ -939,11 +939,11 @@ land):
 
 - `GOAL-MODE4-EMIT.md` — owns Steps 8 (M2) and 19 (M5)
 - `GOAL-NATIVE-SNOCONE-DOTNET.md` — owns Step 9; targets
-  `one4all/src/driver/net/`
+  `SCRIP/src/driver/net/`
 - `GOAL-NATIVE-SNOCONE-JVM.md` — owns Step 10; targets
-  `one4all/src/driver/jvm/` (Java)
+  `SCRIP/src/driver/jvm/` (Java)
 - `GOAL-NATIVE-SNOCONE-JS.md` — owns Step 11; targets
-  `one4all/src/driver/js/sno-interp.js` (Node)
+  `SCRIP/src/driver/js/sno-interp.js` (Node)
 
 ---
 

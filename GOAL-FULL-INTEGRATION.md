@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** Six frontend sessions can develop simultaneously with zero shared-file
 conflicts on the hot path. Every frontend plugs into scrip at the same interface.
 Every frontend goes lex → parse → IR directly (no intermediate AST). scrip.c is
@@ -298,15 +298,15 @@ FI-11            ← docs (after FI-9/FI-10)
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 ---
 
-## Current state (updated 2026-04-14, one4all HEAD 43dc03da)
+## Current state (updated 2026-04-14, SCRIP HEAD 43dc03da)
 
 FI-0A through FI-11 done. ALL steps complete.
 Smoke: PASS=31 FAIL=0. Raku --interp: PASS=12 FAIL=0.

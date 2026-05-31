@@ -1,6 +1,6 @@
 # GOAL-TEMPLATES-X86.md — x86 backend, all languages
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Backend:** x86 — native binary. Modes: `--sm-native` (mode-3, in-process JIT) and `--compile --target=x64` (mode-4, GAS `.s` → assemble → link).
 **Read first:** `ARCH-x86.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
 

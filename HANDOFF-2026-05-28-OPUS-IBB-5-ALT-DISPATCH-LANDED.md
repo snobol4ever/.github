@@ -2,14 +2,14 @@
 
 **Goal:** ICON-BB (`GOAL-ICON-BB.md`)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
-**one4all HEAD:** `1a97c0a3`
+**SCRIP HEAD:** `1a97c0a3`
 **.github HEAD:** to be set by handoff push
 
 ## Headline
 
 Canonical-5 Icon BB **mode-3 advances 3/5 → 4/5**. `alt.icn` (`every write(1 | 2 | 3)`) now produces `1\n2\n3\n` byte-identical to mode-2. The architectural blocker named in HANDOFF-2026-05-28-SONNET-IBB-EVERY-TO-LANDED-ALT-PLUMBING (Option A: fold counter-state dispatch into `bb_alt.cpp`) is closed.
 
-## What landed (one4all `1a97c0a3`)
+## What landed (SCRIP `1a97c0a3`)
 
 ### Fix: BB_ALT counter-state dispatch slab (the named architectural blocker)
 

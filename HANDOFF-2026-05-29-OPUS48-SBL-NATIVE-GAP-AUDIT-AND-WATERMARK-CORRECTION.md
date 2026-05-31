@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-SNOBOL4-BB.md
 **Author:** Claude Opus 4.8 · 2026-05-29
-**HEAD measured:** one4all `b408b086`
+**HEAD measured:** SCRIP `b408b086`
 **Type:** Investigation / diagnosis. NO source changed, NO commit. Hand-off trigger not given; this file documents verified findings for the next session.
 
 ---
@@ -85,7 +85,7 @@ SBL-BREAKX-2 is therefore genuinely two-part (wiring + bytes); budget a full ses
 
 ## Gate state at audit (unchanged — no code touched)
 ```
-HEAD one4all        = b408b086
+HEAD SCRIP        = b408b086
 GATE-1 smoke        = 13/13
 native broad        = 243/280
 true --interp broad = 246/280

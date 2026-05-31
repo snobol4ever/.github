@@ -70,7 +70,7 @@ All 35 files verified 35/35 PASS under SPITBOL x64.
 
 - **snobol4jvm:** submodule at `corpus/lon`
 - **snobol4dotnet:** submodule at `corpus`
-- **one4all:** referenced via `$INC` path for `-INCLUDE` files
+- **SCRIP:** referenced via `$INC` path for `-INCLUDE` files
 
 ## Update Protocol
 

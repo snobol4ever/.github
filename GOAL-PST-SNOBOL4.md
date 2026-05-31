@@ -1,6 +1,6 @@
 # GOAL-PST-SNOBOL4.md — Pure Syntax Tree: SNOBOL4
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Parent:** `GOAL-PARSER-PURE-SYNTAX-TREE.md`
 **Status:** ✅ COMPLETE — Phase 1 C + Phase 2 PST-SN4-SC (2026-05-19).
 
@@ -23,7 +23,7 @@ SN4-SC-1..5 (mechanical replacements: 12 × `reduce_prim`, 2 × `reduce_call`, 4
 ## State
 
 ```
-heads:  one4all @ 5cb3b909 · corpus @ 68aa237
+heads:  SCRIP @ 5cb3b909 · corpus @ 68aa237
 audit:  PST-SCRIP-AUDIT.md § parser_snobol4.sc — 0 violations remaining.
 ```
 

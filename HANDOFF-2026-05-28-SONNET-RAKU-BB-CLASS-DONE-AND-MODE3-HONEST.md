@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-28 — Sonnet — GOAL-RAKU-BB — RK-CLASS done + mode-3 honesty
 
-**Repo:** snobol4ever/one4all (pending push), snobol4ever/.github (pending push)
+**Repo:** snobol4ever/SCRIP (pending push), snobol4ever/.github (pending push)
 **Goal:** GOAL-RAKU-BB.md
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
 
@@ -32,7 +32,7 @@ Three threads, interleaved:
 
 ## What landed (uncommitted at this hand off)
 
-### one4all
+### SCRIP
 
 | File | Change |
 |---|---|
@@ -88,8 +88,8 @@ Both choices are reversible if you want them otherwise.
 ## Next session setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip libscrip_rt
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip libscrip_rt
 # Gates (mode 2 + mode 3 only, per Lon directive):
 bash scripts/test_raku_ir_rungs.sh                  # mode-2 GATE-RK baseline 23/33
 # Honest mode-3 baseline:

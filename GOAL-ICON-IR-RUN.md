@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** `.icn` files run correctly via `scrip --interp file.icn`, passing
 rung01–rung11 of the Icon corpus ladder.
 

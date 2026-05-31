@@ -3,8 +3,8 @@
 **Author:** Claude Opus 4.8
 **Date:** 2026-05-29
 **Goal:** GOAL-ICON-BB.md, rung IBB-9-UNOP (landed)
-**one4all:** `cc7995c4` (on origin/main)
-**Repos touched:** one4all (7 files: 1 new template + Makefile + emit_core + emit_bb + bb_call + rt.c + scrip.c), .github (GOAL watermark, PLAN row, this doc)
+**SCRIP:** `cc7995c4` (on origin/main)
+**Repos touched:** SCRIP (7 files: 1 new template + Makefile + emit_core + emit_bb + bb_call + rt.c + scrip.c), .github (GOAL watermark, PLAN row, this doc)
 
 ---
 
@@ -122,7 +122,7 @@ correct; only the printed label is wrong. Cosmetic, but worth fixing the table.
 ## Per-rung gate used this session
 
 ```bash
-cd /home/claude/one4all && bash scripts/build_scrip.sh
+cd /home/claude/SCRIP && bash scripts/build_scrip.sh
 ./scrip --interp PROG.icn > m2.txt
 ./scrip --run    PROG.icn > m3.txt
 diff m2.txt m3.txt                                       # empty

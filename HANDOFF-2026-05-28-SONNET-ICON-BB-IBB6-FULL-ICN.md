@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-28  
 **Agent:** Claude Sonnet 4.6  
-**one4all HEAD:** `3aa200cd`  
+**SCRIP HEAD:** `3aa200cd`  
 **.github HEAD:** `a5d17d3e`  
 **Goal:** GOAL-ICON-BB.md  
 
@@ -115,7 +115,7 @@ arg0_kind distribution:
 ### Quickstart
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/build_scrip.sh
 bash scripts/test_smoke_icon.sh   # must be 5/5
 # Test write(var):

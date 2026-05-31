@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-29 — Opus 4.8 — RAKU-BB mode-2 junctions COMPLETE + gather + ACOMP
 
-**Repo:** one4all `30e7c0a1` (pushed). **Goal:** GOAL-RAKU-BB.md.
+**Repo:** SCRIP `30e7c0a1` (pushed). **Goal:** GOAL-RAKU-BB.md.
 **Net:** GATE-RK mode-2 **23 → 26/33** (+rk_gather, +rk_given18, +rk_junctions). Zero regressions.
 
 ## What landed (4 pieces, 9 files)

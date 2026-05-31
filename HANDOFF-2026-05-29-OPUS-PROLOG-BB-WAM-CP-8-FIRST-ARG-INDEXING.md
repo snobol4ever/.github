@@ -1,7 +1,7 @@
 # HANDOFF — Prolog BB — WAM-CP-8 First-Arg Clause Indexing
 
 **Author:** Claude Opus 4.8 · **Date:** 2026-05-29
-**Parent one4all commit:** `e9f09fdc`
+**Parent SCRIP commit:** `e9f09fdc`
 **Goal:** `GOAL-PROLOG-BB.md` · **Rung:** WAM-CP-8 (now `- [x]`)
 
 ---

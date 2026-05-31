@@ -1,7 +1,7 @@
 # HANDOFF — LANG-INDEP-RENAME Slice 3 (Prolog)
 
 **Date:** 2026-05-30 · **Author:** Claude Opus 4.8 · **Goal:** `GOAL-LANG-INDEPENDENT-RENAME.md`
-**Repos:** one4all `42886970` (pushed) · .github (this commit)
+**Repos:** SCRIP `42886970` (pushed) · .github (this commit)
 
 ---
 

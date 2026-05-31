@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all + .github
+**Repo:** SCRIP + .github
 **Supersedes:** GOAL-ICON-LOWER-REDESIGN.md
 **Status:** IN PROGRESS — LR-0 ✅
 
@@ -49,8 +49,8 @@
 
 A separate concurrent session is building BB template code (inline x86 emitters) for all
 remaining C BB boxes in the runtime shared library — GOAL-MODE4-EMIT IF-* rungs.  That
-session commits to one4all on the same `main` branch.  Every push here must `git pull
---rebase` first.  Unexpected commits on one4all between our own pushes are from that session
+session commits to SCRIP on the same `main` branch.  Every push here must `git pull
+--rebase` first.  Unexpected commits on SCRIP between our own pushes are from that session
 — not corruption, not a merge conflict to resolve, just rebase on top.
 
 Files that session touches: `src/runtime/x86/emit_bb.c`, `src/runtime/x86/bb_flat.c`,
@@ -664,7 +664,7 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Watermark
 
-  one4all: 8ff71978  .github: (this commit)
+  SCRIP: 8ff71978  .github: (this commit)
   Status: IN PROGRESS — LR-0 ✅ LR-2 ✅ LR-3 ✅ LR-S1 ✅ renames ✅ LR-S1b ✅
   NEXT: LR-S2 — delete bb_node_t path; all SNOBOL4 pattern matching via IR_exec_pat.
         Prerequisite: fix bb_node_t pattern-variable deref bugs (TT_VAR as pattern
@@ -674,11 +674,11 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
 
 ## Step log
 
-  LR-0 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all bfe6ac9d): scrip_ir.h/c.
+  LR-0 ✅ sess 2026-05-14 (Claude Sonnet 4.6, SCRIP bfe6ac9d): scrip_ir.h/c.
   LR-1 N/A — lower wires DCG directly; no separate phase needed.
-  LR-2 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all b4ce7a4a): IR_exec_once/IR_exec_pump. Unit test 11/11.
-  LR-3 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 474df331): SM_EXEC_DCG + SM_PUMP_DCG opcodes.
-  LR-S1 ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all f3dc096a): lower_pat_dcg.c/h —
+  LR-2 ✅ sess 2026-05-14 (Claude Sonnet 4.6, SCRIP b4ce7a4a): IR_exec_once/IR_exec_pump. Unit test 11/11.
+  LR-3 ✅ sess 2026-05-14 (Claude Sonnet 4.6, SCRIP 474df331): SM_EXEC_DCG + SM_PUMP_DCG opcodes.
+  LR-S1 ✅ sess 2026-05-14 (Claude Sonnet 4.6, SCRIP f3dc096a): lower_pat_dcg.c/h —
         IR_block_t built from tree_t* at lower time; stored in SM_EXEC_STMT a[2].ptr.
         exec_stmt still uses bb_node_t path (additive). All six smoke gates pass.
   Renames ✅ sess 2026-05-14 (Claude Sonnet 4.6):
@@ -691,15 +691,15 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
     d7adb8f6: port_start/resume/succ/fail → α/β/γ/ω (BB greek letter convention)
     92213ee1: IR_t struct tag = IR_t; kind→t; drop id/generative/visited/lang/binop/call;
               drop IR_node_alloc lang param
-  Reorg ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 553a836a):
+  Reorg ✅ sess 2026-05-14 (Claude Sonnet 4.6, SCRIP 553a836a):
         frontend/lower/processor/emitter/runtime/snobol4 folder layout.
         84 files moved. Makefile + all #include paths updated. All smoke gates pass.
-  LR-S1b ⏳ sess 2026-05-14 (Claude Sonnet 4.6, one4all 917dbae9):
+  LR-S1b ⏳ sess 2026-05-14 (Claude Sonnet 4.6, SCRIP 917dbae9):
         Fix ASSIGN_IMM/COND wiring (CAT/ALT wrapper nodes removed — return first child).
         Add LEN/NOTANY/POS/RPOS/TAB/RTAB to IR_exec_node and build_node.
         Wire IR_exec_pat into sm_jit_interp.c h_exec_stmt (default mode is --run).
         broad corpus 128→145/280. smoke_snobol4 7/7, all six languages 5/5.
-  LR-S1b ✅ sess 2026-05-14 (Claude Sonnet 4.6, one4all 8ff71978):
+  LR-S1b ✅ sess 2026-05-14 (Claude Sonnet 4.6, SCRIP 8ff71978):
         All IR-achievable patterns implemented. broad corpus 161/280.
         Remaining 119 failures: all pre-existing bb_node_t pattern-var deref bugs
         (TT_VAR/TT_DEFER as pattern operand). IR path exhausted for this rung.

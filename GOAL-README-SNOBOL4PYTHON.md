@@ -56,7 +56,7 @@ commits the corrected README.
 - [ ] **S-2** — Fix all stale/wrong items. Remove "(README v2 grid sprint: DEFERRED…)" notice
   if that work is now done, or update it if still deferred.
 
-- [ ] **S-3** — Add snobol4ever org context: part of compiler matrix, links to one4all and corpus.
+- [ ] **S-3** — Add snobol4ever org context: part of compiler matrix, links to SCRIP and corpus.
 
 - [ ] **S-4** — Final read-through. Every sentence accurate. Lon approves.
 
@@ -68,6 +68,6 @@ commits the corrected README.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```

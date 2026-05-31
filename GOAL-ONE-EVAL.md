@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** `icn_interp_eval` is eliminated. All five language frontends
 (SNOBOL4, Icon, Prolog, Snocone, Rebus) are evaluated by a single
 `interp_eval(EXPR_t *e)` switch. `SM_BB_PUMP` and `SM_BB_ONCE` have real
@@ -237,15 +237,15 @@ parse_scrip_polyglot()
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 ---
 
-## Current state (session 2026-04-14, one4all HEAD fb80f0c3)
+## Current state (session 2026-04-14, SCRIP HEAD fb80f0c3)
 
 OE-1 through OE-4 complete. Next: OE-5 (redirect icn_interp_eval body to interp_eval).
 
@@ -263,7 +263,7 @@ E_ITERATE, E_SUSPEND. All call interp_eval recursively.
 
 Gate throughout: make scrip clean; unified_broker PASS=18 FAIL=0.
 
-## Current state (session 2026-04-14 #2, one4all HEAD 770c5a01)
+## Current state (session 2026-04-14 #2, SCRIP HEAD 770c5a01)
 
 ⚠️ BROKEN — gate PASS=13 FAIL=16. OE-5 incomplete. Do NOT proceed to OE-6.
 
@@ -277,7 +277,7 @@ Gate throughout: make scrip clean; unified_broker PASS=18 FAIL=0.
 2. Fix until gate PASS=29 FAIL=0
 3. Commit clean OE-5, proceed to OE-6
 
-## Current state (session 2026-04-14 #4, one4all HEAD 737bbdfe)
+## Current state (session 2026-04-14 #4, SCRIP HEAD 737bbdfe)
 
 ⚠️ OE-7 INCOMPLETE. Gate PASS=30 FAIL=0. Do NOT proceed to OE-8.
 
@@ -295,7 +295,7 @@ Remove debug fprintf before committing clean OE-7.
 4. Confirm test_shared_nv.scrip outputs all 6 expected lines
 5. Gate PASS=31 FAIL=0, commit clean OE-7
 
-## Current state (session 2026-04-14 #3, one4all HEAD 289d9a03)
+## Current state (session 2026-04-14 #3, SCRIP HEAD 289d9a03)
 
 OE-6 DONE. Gate PASS=30 FAIL=0. Next: OE-7.
 
@@ -317,7 +317,7 @@ src/Makefile fix: FRONTEND_RAKU added (raku_compile link fix on fresh clone).
 
 Gate: make scrip clean; unified_broker PASS=29 FAIL=0.
 
-## Current state (session 2026-04-14 #5, one4all HEAD 6c63a82d)
+## Current state (session 2026-04-14 #5, SCRIP HEAD 6c63a82d)
 
 OE-7 DONE. Gate PASS=30 FAIL=0. Next: OE-8.
 
@@ -327,7 +327,7 @@ default so lang_polyglot branch was unreachable. Fix: 3-line restructure.
 Debug fprintf probe (DBG U-23) removed. test_shared_nv.scrip outputs all 6
 expected lines, exact .ref match.
 
-## Current state (session 2026-04-14 #6, one4all HEAD 4911d963)
+## Current state (session 2026-04-14 #6, SCRIP HEAD 4911d963)
 
 OE-8 DONE. Gate PASS=30 FAIL=0. Next: OE-9.
 
@@ -337,7 +337,7 @@ lang_icon and lang_prolog paths. polyglot_execute() inlines ICN/PL single-lang
 dispatch, detecting language from prog->head->lang (LANG_ICN / LANG_PL).
 polyglot_execute() is now the single top-level entry point for all non-SNO paths.
 
-## Current state (session 2026-04-14 #7, one4all HEAD 0a63cad6)
+## Current state (session 2026-04-14 #7, SCRIP HEAD 0a63cad6)
 
 OE-9 DONE. Gate PASS=30 FAIL=0. Next: OE-10.
 
@@ -351,7 +351,7 @@ lower_expr(s->subject), so SM_BB_PUMP handler receives EXPR_t* and can call
 icn_eval_gen() to build the bb_node_t. Then implement SM_BB_PUMP handler
 in sm_interp.c: cast to EXPR_t*, call icn_eval_gen, call bb_broker(BB_PUMP).
 
-## Current state (session 2026-04-14 #8, one4all HEAD 9d062108)
+## Current state (session 2026-04-14 #8, SCRIP HEAD 9d062108)
 
 GOAL-ONE-EVAL COMPLETE. All 12 steps done. Gate PASS=31 FAIL=0.
 

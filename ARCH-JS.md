@@ -110,4 +110,4 @@ discarded after γ/ω.
 ## Tools
 
 - `node` (V8) — runtime
-- `emit_js.c` — emitter (one4all)
+- `emit_js.c` — emitter (SCRIP)

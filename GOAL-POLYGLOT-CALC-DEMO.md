@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** A `.scrip` demo file runs end-to-end where Icon generates random
 calculator expressions (strings like `"3 + 47 * 2"`) and the Snocone section
 parses and evaluates each one, printing the result. Output is deterministic

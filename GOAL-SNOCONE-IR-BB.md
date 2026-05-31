@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** All 14 Snocone beauty-sc subsystems PASS under `scrip --interp`,
 including pattern match (`subject ? pattern`) wired through `bb_broker(BB_SCAN)`.
 
@@ -174,7 +174,7 @@ we just need snocone_lower to emit the right STMT_t nodes.
 
 ---
 
-## Current state (session 2026-04-13, one4all HEAD 94c06c46)
+## Current state (session 2026-04-13, SCRIP HEAD 94c06c46)
 
 Baseline: 3/14 beauty-sc PASS (assign, fence, global).
 Root cause: snocone_lower skips all control-flow tokens; no subject?pattern lowering.
@@ -182,7 +182,7 @@ Next session starts at **SC-1** (procedure / DEFINE lowering).
 
 ---
 
-## Updated state (session 2026-04-13, one4all HEAD dc221b2b)
+## Updated state (session 2026-04-13, SCRIP HEAD dc221b2b)
 
 SC-1 partial — struct lowering done, _builtin_DATA wired in scrip.c.
 - do_struct() in snocone_cf.c: 'struct name { f1,f2 }' → DATA('name(f1,f2)') STMT_t
@@ -202,13 +202,13 @@ Then: beauty-sc stack/trace/counter/arith improving from 3/14 baseline.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 ---
 
-## Session state (2026-04-14, one4all HEAD 04082b69)
+## Session state (2026-04-14, SCRIP HEAD 04082b69)
 
 Changes landed:
 - scrip.c: snocone dispatch → snocone_cf_compile (control-flow lowering active)
@@ -235,7 +235,7 @@ Next session fix (SC-1):
 
 ---
 
-## Session state (2026-04-14, one4all HEAD f6c3a97b)
+## Session state (2026-04-14, SCRIP HEAD f6c3a97b)
 
 Score: 6/14 PASS (assign fence roman semantic stack counter). Was 3/14 at session start
 (the test script path bug masked true baseline — test_beauty_snocone_subsystems.sh SCRIPT_DIR
@@ -261,7 +261,7 @@ Remaining failures — root causes identified:
 | global | Error 3 erroneous array/table ref on statements 30-31 |
 | ReadWrite | Empty output — I/O builtins (Read/Write) not wired in sc context |
 
-## Session state (2026-04-14, one4all HEAD 16457e83)
+## Session state (2026-04-14, SCRIP HEAD 16457e83)
 
 Score: 8/14 PASS (assign fence roman stack counter semantic tree ShiftReduce). Was 6/14.
 

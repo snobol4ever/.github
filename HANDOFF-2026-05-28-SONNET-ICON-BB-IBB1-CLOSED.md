@@ -10,7 +10,7 @@
 
 | Repo | Hash | What |
 |------|------|------|
-| one4all | `9ccf95e1` | IBB-1 close: collapse to `SM_BB_INVOKE`, remove spurious opcode, suppress Icon proc skeleton |
+| SCRIP | `9ccf95e1` | IBB-1 close: collapse to `SM_BB_INVOKE`, remove spurious opcode, suppress Icon proc skeleton |
 | .github | (this commit) | GOAL RULE; PLAN row updated; IBB-1 steps ticked |
 
 ## Gates (verified at handoff)
@@ -181,9 +181,9 @@ git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github
 # Read RULES.md (includes the new ICON SM = TWO OPCODES ONLY rule).
 # Read GOAL-ICON-BB.md — the GOAL RULE is up top.
 # Read this handoff.
-git clone https://TOKEN@github.com/snobol4ever/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 bash scripts/test_smoke_icon.sh              # expect: 5/5

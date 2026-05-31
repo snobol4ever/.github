@@ -4,7 +4,7 @@
 **Author:** Claude Opus 4.7  
 **Goal:** ICON-BB  
 **Rung:** LFJ-15 (partial — three of four items; LFJ-15b carries the fourth)  
-**Commit:** one4all `cde72b79`  
+**Commit:** SCRIP `cde72b79`  
 **Watermark gates:** smoke_icon 5/5 · icon_all_rungs 198/268 · smoke_prolog 5/5 · smoke_unified_broker 30/52 · FACT RULE 0
 
 ---
@@ -173,7 +173,7 @@ only the six that AG-pure intercepts touch.
 ## Verification
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 
 # Acceptance commands
 grep "lower_icn_legacy_" src/lower/lower_icn.c | grep "lower_kind_table\[" | wc -l
@@ -261,7 +261,7 @@ content greps, not filenames.
 
 ## Watermarks
 
-- one4all HEAD: `cde72b79`
+- SCRIP HEAD: `cde72b79`
 - .github HEAD: (after this handoff commits)
 - icon_all_rungs: 198/268 (XFAIL 36, unchanged)
 - LFJ progress: **14/15 (93%)**

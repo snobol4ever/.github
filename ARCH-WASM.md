@@ -77,7 +77,7 @@ into it).
 - `wabt` (`apt-get install -y wabt`)
 - `wat2wasm` — assembles `.wat` → `.wasm`
 - `node` — host runtime
-- `emit_wasm.c` — emitter (one4all)
+- `emit_wasm.c` — emitter (SCRIP)
 
 ## Status
 

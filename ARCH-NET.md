@@ -3,7 +3,7 @@
 Backend: .NET (MSIL → CLR).
 Emitter: unified `emit_core.c` (`IS_NET` arms in `SM_templates/` + `BB_templates/`); MSIL boxes assemble to `boxes.dll` via `ilasm`.
 Two related implementations to keep distinct:
-- `one4all/src/driver/scrip.cs` — tree-walk interpreter (one4all)
+- `SCRIP/src/driver/scrip.cs` — tree-walk interpreter (SCRIP)
 - `snobol4dotnet` — Jeffrey Cooper's full C# runtime (separate repo; semantic oracle, tracked by its own GOAL-NET-* files)
 
 ## snobol4dotnet model
@@ -44,7 +44,7 @@ positions.  For each start position it calls `Match(ast.StartNode)`,
 which walks the `AbstractSyntaxTreeNode` graph via `Subsequent`
 (concatenation successor) and `Alternate` (backtrack target) links.
 
-## MSIL Byrd boxes (one4all interp)
+## MSIL Byrd boxes (SCRIP interp)
 
 `bb_*.il` assembled into `boxes.dll` via `ilasm`.
 `bb_*.cs` are oracle/reference ONLY — never referenced by interpreter build.

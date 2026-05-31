@@ -87,11 +87,11 @@ pipeline running the same logical program.
 ```bash
 cd /home/claude
 git clone https://github.com/snobol4ever/corpus
-git clone https://github.com/snobol4ever/one4all
+git clone https://github.com/snobol4ever/SCRIP
 git clone https://github.com/snobol4ever/.github
 
 apt-get install -y libgc-dev      # required for scrip build
-make -C one4all/src/runtime/x86 -j scrip
+make -C SCRIP/src/runtime/x86 -j scrip
 ```
 
 Working files:
@@ -106,7 +106,7 @@ Working files:
 ## Run a self-host test
 
 ```bash
-SCRIP=/home/claude/one4all/scrip
+SCRIP=/home/claude/SCRIP/scrip
 SCRIP_DIR=/home/claude/corpus/SCRIP
 $SCRIP --interp \
   $SCRIP_DIR/tree.sc $SCRIP_DIR/lower.sc $SCRIP_DIR/lower_driver.sc \
@@ -204,7 +204,7 @@ The last piece for true self-hosting.  `parser_snobol4.sc` (or
 with each parsed STMT tree so the all-Snocone pipeline can compile
 arbitrary source files.
 
-Current state: `bash one4all/scripts/run_scrip_parser.sh snobol4 trivial.sno`
+Current state: `bash SCRIP/scripts/run_scrip_parser.sh snobol4 trivial.sno`
 runs end-to-end without hang or Error after SL-13c.  But for input
 `X = 'hello' / END` it emits `; SM_Program count=1 / SM_HALT` — the
 parser-driver isn't feeding a populated tree into Lower_collect.
@@ -339,7 +339,7 @@ Pipeline: `parser_*.sc → tree → lower.sc → sm_interp.sc`.
 Pipeline: `parser_*.sc → scrip --dump-ast → dump_ir_to_ast_builder.py → .sc test file → sm_interp.sc → diff .ref`.
 Frontends: SNOBOL4, Snocone, Rebus.
 
-**Corpus cleanup (sess 2026-05-12 handoff #5):** 53 test files (si_*, sm_interp_test*, sm_lower_test*, smoke_interp*, smoke_lower*, smoke.sc) moved from `corpus/SCRIP/` root into `corpus/SCRIP/tests/`. Runtime files (tree.sc, lower.sc, sm_interp.sc, parser_*.sc, etc.) remain in root. `test_self_host_smoke.sh` updated; gate 16/16 PASS confirmed. corpus `cee6722`, one4all `185c9832`.
+**Corpus cleanup (sess 2026-05-12 handoff #5):** 53 test files (si_*, sm_interp_test*, sm_lower_test*, smoke_interp*, smoke_lower*, smoke.sc) moved from `corpus/SCRIP/` root into `corpus/SCRIP/tests/`. Runtime files (tree.sc, lower.sc, sm_interp.sc, parser_*.sc, etc.) remain in root. `test_self_host_smoke.sh` updated; gate 16/16 PASS confirmed. corpus `cee6722`, SCRIP `185c9832`.
 
 **NEXT: SI-18** — write `scripts/dump_ir_to_ast_builder.py`, validate on 3+ already-mirrored programs, run on broad smoke corpus across all three frontends.
 
@@ -348,7 +348,7 @@ Frontends: SNOBOL4, Snocone, Rebus.
 ## Gate
 
 ```bash
-SCRIP=/home/claude/one4all/scrip
+SCRIP=/home/claude/SCRIP/scrip
 SCRIP_DIR=/home/claude/corpus/SCRIP
 
 # Gate 1: SL-9 / SI-5 baseline — smoke_lower + smoke_interp byte-identical
@@ -358,16 +358,16 @@ $SCRIP --interp \
   | diff - $SCRIP_DIR/smoke_interp.ref
 
 # Gate 2: Full self-host suite (all SI rungs)
-bash /home/claude/one4all/scripts/test_self_host_smoke.sh
+bash /home/claude/SCRIP/scripts/test_self_host_smoke.sh
 
 # Gate 3: No regressions in the broader matrix
-bash /home/claude/one4all/scripts/test_smoke_snobol4.sh
-bash /home/claude/one4all/scripts/test_smoke_snocone.sh
-bash /home/claude/one4all/scripts/test_smoke_icon.sh
-bash /home/claude/one4all/scripts/test_smoke_prolog.sh
-bash /home/claude/one4all/scripts/test_smoke_rebus.sh
-bash /home/claude/one4all/scripts/test_smoke_raku.sh
-bash /home/claude/one4all/scripts/test_smoke_scrip_all_modes.sh
+bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh
+bash /home/claude/SCRIP/scripts/test_smoke_snocone.sh
+bash /home/claude/SCRIP/scripts/test_smoke_icon.sh
+bash /home/claude/SCRIP/scripts/test_smoke_prolog.sh
+bash /home/claude/SCRIP/scripts/test_smoke_rebus.sh
+bash /home/claude/SCRIP/scripts/test_smoke_raku.sh
+bash /home/claude/SCRIP/scripts/test_smoke_scrip_all_modes.sh
 ```
 
 All must pass.  Cross-check gates (test_crosscheck_snobol4, _snocone,

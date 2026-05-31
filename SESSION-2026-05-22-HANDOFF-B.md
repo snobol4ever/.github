@@ -4,7 +4,7 @@
 
 | Repo | HEAD |
 |------|------|
-| one4all | `cf9284f5` |
+| SCRIP | `cf9284f5` |
 | corpus | `3e223db` |
 | .github | `3505eaa7` (pre-handoff-doc) |
 
@@ -54,20 +54,20 @@
 
 # 7. Mark ICN-T-2 [x] in GOAL-BB-TEMPLATE-LADDER.md, update watermark
 # 8. Update PLAN.md BB Template Ladder row: NEXT ICN-T-3
-# 9. Commit one4all, .github; push .github last
+# 9. Commit SCRIP, .github; push .github last
 ```
 
 ## Session start protocol for next session
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus /home/claude/corpus
 # Read PLAN.md, RULES.md, GOAL-BB-TEMPLATE-LADDER.md
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip
 bash scripts/test_per_kind_diff.sh
-# Expect: PASS=409 FAIL=0 STUB=645 at one4all cf9284f5
+# Expect: PASS=409 FAIL=0 STUB=645 at SCRIP cf9284f5
 ```
 
 ## Note on session health

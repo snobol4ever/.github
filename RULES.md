@@ -46,7 +46,7 @@ git config user.email "lcherryh@yahoo.com"
 ## Testing
 - Run goal's gate before every commit. No broken commits.
 - `timeout 8s` unit/smoke; `timeout 30s` corpus runners.
-- Scripts in `one4all/scripts/`. Every script: paths from `$0`, `< /dev/null` on scrip calls.
+- Scripts in `SCRIP/scripts/`. Every script: paths from `$0`, `< /dev/null` on scrip calls.
 
 ## C code style
 - **200-char line max.** Zero blank lines. Separators: `/*---*/` minor, `/*===*/` major (200 chars).

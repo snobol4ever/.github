@@ -1,8 +1,8 @@
 # HANDOFF — 2026-05-29 — Opus 4.8 — RAKU-BB RK-BB-5.4a + 5.4b (.method forms + paren array literal)
 
 **Goal:** GOAL-RAKU-BB.md
-**Repos touched:** one4all (code), .github (docs). corpus unchanged.
-**HEAD one4all:** `56a30122`
+**Repos touched:** SCRIP (code), .github (docs). corpus unchanged.
+**HEAD SCRIP:** `56a30122`
 
 ## Summary
 

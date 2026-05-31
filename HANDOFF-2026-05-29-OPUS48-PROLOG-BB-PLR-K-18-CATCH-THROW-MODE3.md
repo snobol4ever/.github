@@ -5,11 +5,11 @@ catch/throw were mode-2 only (WAM-CP-10); mode-3 aborted at emit time.
 
 ## State at handoff
 
-- one4all HEAD `9eed4fa1` (parent `a062f28b`), tree clean.
+- SCRIP HEAD `9eed4fa1` (parent `a062f28b`), tree clean.
 - .github HEAD: this handoff + GOAL-PROLOG-BB.md watermark update.
 - corpus untouched (no `.ref`/`.s` changes — mode-3 now MATCHES the existing refs).
 
-## What landed (one4all `9eed4fa1`)
+## What landed (SCRIP `9eed4fa1`)
 
 Four files, all Prolog-specific:
 
@@ -104,7 +104,7 @@ git config user.email "lcherryh@yahoo.com"
 ## Verification
 
 ```
-cd /home/claude/one4all && git log origin/main --oneline -1
+cd /home/claude/SCRIP && git log origin/main --oneline -1
 # 9eed4fa1 PLR-K-18: catch/3 + throw/1 mode-3 native MEDIUM_BINARY arms
 ```
 
@@ -137,7 +137,7 @@ never defined it.
 ## FINAL session state (freshly re-measured at handoff, clean rebuild)
 
 Pushed HEADs, all confirmed on origin/main, all trees clean:
-- one4all `9eed4fa1` — PLR-K-18 (catch/throw mode-3 BINARY arms)
+- SCRIP `9eed4fa1` — PLR-K-18 (catch/throw mode-3 BINARY arms)
 - corpus  `3de2407`  — rung27 succ_or_zero `.pl` definition
 - .github `1180c32b` — GOAL-PROLOG-BB.md watermark + this handoff
 

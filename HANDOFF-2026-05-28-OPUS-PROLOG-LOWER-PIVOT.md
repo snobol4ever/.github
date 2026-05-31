@@ -50,7 +50,7 @@ leaves inline too; not worth a function.
 | FACT RULE grep | 0 |
 | Sibling smokes | icon 5/5, snocone 5/5, raku 5/5, rebus 4/4 |
 
-one4all HEAD (pushed): `4e555954` (rebased onto upstream `6f41527f`). Prior: `58142007`.
+SCRIP HEAD (pushed): `4e555954` (rebased onto upstream `6f41527f`). Prior: `58142007`.
 
 ## NEXT — the one remaining piece: `lower_pl_new_Builtin`
 

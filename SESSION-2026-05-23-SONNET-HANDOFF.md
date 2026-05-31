@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-23  
 **Goal:** GOAL-HEADQUARTERS.md — DM-8 / return-string refactor  
-**one4all HEAD:** `da01ecde`  
+**SCRIP HEAD:** `da01ecde`  
 **GATE:** PASS=441 FAIL=1 (pre-existing BB_PAT_LIT text_macro corrupt baseline) STUB=612 NEW=0 GONE=0
 
 ---
@@ -63,14 +63,14 @@ The remaining `sm_calls`, `sm_returns`, `sm_defines` still have complex imperati
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus /home/claude/corpus
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
-for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
+for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
-cd /home/claude/one4all && make -j4 scrip
+cd /home/claude/SCRIP && make -j4 scrip
 bash scripts/test_per_kind_diff.sh
 # Expect: PASS=441 FAIL=1 (pre-existing BB_PAT_LIT) STUB=612
 ```

@@ -1,7 +1,7 @@
 # HANDOFF 2026-05-26 — Sonnet 4.6 — GOAL-ICON-BB JA-D Complete
 
 ## Repos
-- one4all `e842b724` — pushed ✅
+- SCRIP `e842b724` — pushed ✅
 - .github  `46e80044` — pushed ✅
 
 ## Gates (final)

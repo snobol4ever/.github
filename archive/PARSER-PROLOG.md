@@ -9,7 +9,7 @@
 ## Role
 
 Consumes Prolog source and produces the shared IR (Program*).
-Driver flag: `one4all -pl foo.pl`
+Driver flag: `SCRIP -pl foo.pl`
 
 ## Prolog-Specific IR Nodes
 
@@ -232,8 +232,8 @@ test/frontend/prolog/corpus/
 ## Driver Flags
 
 ```
-one4all -pl -asm  foo.pl    →  foo.s   (x64 NASM)
-one4all -pl -jvm  foo.pl    →  foo.j   (JVM Jasmin)
+SCRIP -pl -asm  foo.pl    →  foo.s   (x64 NASM)
+SCRIP -pl -jvm  foo.pl    →  foo.j   (JVM Jasmin)
 ```
 
 ---

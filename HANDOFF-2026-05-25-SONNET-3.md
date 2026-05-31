@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-25 — Claude Sonnet 4.6 Session (third)
 
-**one4all HEAD:** `1a65b62b`
+**SCRIP HEAD:** `1a65b62b`
 **.github HEAD:** (to be pushed)
 **Gate:** smoke_prolog 5/5 ✅ · crosscheck_prolog 128/0 ✅ · all other smokes clean
 
@@ -51,7 +51,7 @@ Possible next work: start **PL-T-4..7** extension (bb_pl_call/choice/alt/cut tem
 ## Watermark
 
 ```
-one4all: 1a65b62b
+SCRIP: 1a65b62b
 .github: (this commit)
 smoke_prolog: 5/5 ✅
 crosscheck_prolog: 128/0 ✅

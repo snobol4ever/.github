@@ -6,7 +6,7 @@ Two independent, atomic changes; both green on all gates.
 
 ### Change A — SWI-NEXT step 2: once/1 intercept (mechanical, ~10 lines)
 
-**File:** `one4all/src/lower/bb_exec.c` ~line 3270 (BB_PL_CALL handler)
+**File:** `SCRIP/src/lower/bb_exec.c` ~line 3270 (BB_PL_CALL handler)
 
 **Diff:** Extended the existing call/N meta-fallback intercept from
 ```c
@@ -28,7 +28,7 @@ the OR-form. The prior session warned that accidentally narrowing this to
 
 ### Change B — WAM-CP-6-prelude: bb_exec_node stack frame reduction
 
-**File:** `one4all/src/lower/bb_exec.c` ~lines 3455, 4066, 4075
+**File:** `SCRIP/src/lower/bb_exec.c` ~lines 3455, 4066, 4075
 
 **Diff:** Three large stack arrays moved to `GC_MALLOC` heap:
 - `Term *acc[4096]` (32 KB) — findall arm  → `Term **acc = GC_MALLOC(4096*8)`
@@ -152,7 +152,7 @@ crash disappears.
 ### Reproducer
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 cat > /tmp/test_string_var.pl << 'EOF'
 :- use_module(library(plunit)).
 :- begin_tests(string).
@@ -209,7 +209,7 @@ In order of leverage and difficulty:
 
 ## Files touched this session
 
-`one4all/`:
+`SCRIP/`:
 - `src/lower/bb_exec.c` — both changes (once intercept + 3 array migrations)
 
 `corpus/`:

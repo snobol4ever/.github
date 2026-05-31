@@ -2,14 +2,14 @@
 
 **Goal:** ICON-BB (`GOAL-ICON-BB.md`)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
-**one4all HEAD:** `fac53504`
+**SCRIP HEAD:** `fac53504`
 **.github HEAD:** to be set by handoff push
 
 ## Headline
 
 Canonical-5 Icon BB **mode-3 advances 2/5 → 3/5**. `every_to.icn` (`every write(1 to 3)`) now produces `1\n2\n3\n` byte-identical to mode-2. Closure of the one-line blocker named in HANDOFF-2026-05-28-OPUS-IBB-RENAME-AND-FLAT-EVERY-WIP (Opus 4.7's prior session).
 
-## What landed (one4all `fac53504`)
+## What landed (SCRIP `fac53504`)
 
 ### Fix 1: `bb_to.cpp` MEDIUM_BINARY bin-site reorder (the named one-line blocker)
 

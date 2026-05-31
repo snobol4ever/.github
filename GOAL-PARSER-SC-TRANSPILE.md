@@ -1,6 +1,6 @@
 # GOAL-PARSER-SC-TRANSPILE.md — Six parser_*.sc → portable .sno via Snocone→SNOBOL4 transpile
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Author:** Lon Jones Cherryholmes · Claude Opus 4.7
 **Opened:** 2026-05-17
 
@@ -8,7 +8,7 @@
 
 ## ⛔ Session Start Protocol
 
-1. Clone `.github`, `corpus`, `one4all`, plus `snobol4ever/x64` to `/home/claude/x64` (prebuilt `bin/sbl` ships in repo — no build step needed). See `PLAN.md`.
+1. Clone `.github`, `corpus`, `SCRIP`, plus `snobol4ever/x64` to `/home/claude/x64` (prebuilt `bin/sbl` ships in repo — no build step needed). See `PLAN.md`.
 2. `pdftotext /mnt/user-data/uploads/spitbol-manual-v3_7.pdf /tmp/spitbol.txt`. Required chapters: Ch 8 (Gimpel template, line 5806+), Ch 14 (statements, 9017+), Ch 15 (operator priorities, 9540+), Ch 18 (pattern matching, 10606+), App C (SPITBOL vs standard SNOBOL4, 13651+).
 3. Read `corpus/SCRIP/parser_snocone.sc` (the language we transpile FROM), `corpus/SCRIP/README.md` (runtime load order), `.github/ARCH-SNOCONE.md` §"Lowering map".
 
@@ -128,7 +128,7 @@ parser_<lang>_transpiled.sno
 
 ```bash
 apt-get install -y libgc-dev libgc1   # one-time
-cd /home/claude/one4all && make scrip
+cd /home/claude/SCRIP && make scrip
 ```
 
 Adding a new file under `src/lower/`: update both the SRC list (Makefile ~L90) and the explicit compile rule (~L286).
@@ -164,7 +164,7 @@ To add a TT_* tag: expression-only → `emit_expr` switch case; statement-shape 
 
 ```bash
 python3 -c "
-import re; txt = open('/home/claude/one4all/src/include/ast.h').read()
+import re; txt = open('/home/claude/SCRIP/src/include/ast.h').read()
 m = re.search(r'typedef enum tree_e \{([^}]+)\}', txt, re.S)
 tags = [t.strip() for t in m.group(1).split(',') if t.strip() and 'TT_' in t]
 import sys; n = int(sys.argv[1]); print(f'TT_{n} = {tags[n]}')
@@ -210,12 +210,12 @@ import sys; n = int(sys.argv[1]); print(f'TT_{n} = {tags[n]}')
 
 | Repo | Path | Role |
 |------|------|------|
-| one4all  | `src/lower/lower_sno.{c,h}`            | Transpile pass |
-| one4all  | `src/driver/scrip.c`                   | `--dump-sno` CLI |
-| one4all  | `src/ast/ast_print.c`                  | TDump-matching length-budget formatter (SCT-9c) |
-| one4all  | `src/frontend/snocone/snocone_parse.y` | n-ary flatten for `+ - * /` (SCT-9d) |
-| one4all  | `Makefile`                             | build rule + SRC for lower_sno.c |
-| one4all  | `scripts/run_parser_sync_monitor.sh`   | SCT-7 wrapper |
+| SCRIP  | `src/lower/lower_sno.{c,h}`            | Transpile pass |
+| SCRIP  | `src/driver/scrip.c`                   | `--dump-sno` CLI |
+| SCRIP  | `src/ast/ast_print.c`                  | TDump-matching length-budget formatter (SCT-9c) |
+| SCRIP  | `src/frontend/snocone/snocone_parse.y` | n-ary flatten for `+ - * /` (SCT-9d) |
+| SCRIP  | `Makefile`                             | build rule + SRC for lower_sno.c |
+| SCRIP  | `scripts/run_parser_sync_monitor.sh`   | SCT-7 wrapper |
 | corpus   | `SCRIP/parser_*.sc`                    | the six inputs |
 | corpus   | `SCRIP/semantic.sc`                    | `qtag` (_qtag→qtag rename, REPLACE eq-length fix) |
 | corpus   | `SCRIP/parser_snocone.sc`              | notmatch dedup (2026-05-18) |
@@ -281,7 +281,7 @@ OPSYN slots: `& @ # % ~` binary; `! % / # = \|` unary.
 
 **Goal achieved:** All six `parser_*.sc` run under `scrip --interp` without crash, abort, or segfault.
 
-**Fixes landed (one4all `db89a804`):**
+**Fixes landed (SCRIP `db89a804`):**
 - `stmt_exec.c` — `bb_deferred_var`: `child_state` now stores `val.p` as cache key; prevents re-JIT on every ARBNO retry
 - `bb_pool.c/h` — `bb_alloc` returns NULL (not abort) on pool exhaustion; pool reduced 64MB→4MB (safe with caching)
 - `emit_core.c` — `bb_emit_byte` overflow sets flag instead of abort; `bb_emit_end`, `bb_label_define`, both patch-list emitters skip gracefully on overflow
@@ -351,13 +351,13 @@ study beauty.sno's working `Stmt` + `Command` patterns (around line 229), and tr
 the correct nInc placement into `parser_snobol4.sc`. beauty.sno's grammar is the oracle.**
 
 **Current scores:** PASS=49 PARSE_ERROR=24 OTHER_FAIL=15 / 88 total (unchanged).
-one4all unchanged. corpus has uncommitted diff on `SCRIP/parser_snobol4.sc`.
+SCRIP unchanged. corpus has uncommitted diff on `SCRIP/parser_snobol4.sc`.
 
 ## Session 2026-05-21 (Claude Sonnet 4.6) — SCT-parser-sn4-spitbol
 
 **Goal:** Get parser_snobol4.sc transpiling to SNOBOL4 and running under SPITBOL.
 
-**Fixes landed (one4all `4decab7d`, corpus `9dfe203`):**
+**Fixes landed (SCRIP `4decab7d`, corpus `9dfe203`):**
 
 lower_sno.c:
 - TT_WHILE: n>=4 guard dropped; labels synthesized from if_seq (AST has only 2 children in PST mode)
@@ -391,7 +391,7 @@ runtime behaviour change. 24 Parse Errors are a separate issue (pattern fixtures
 
 Both `--interp` and `--run` remain broken for tree-building parsers (pre-existing per session 2026-05-18 notes). Only transpile path is viable.
 
-**lower_sno.c fixes landed (one4all, this session):**
+**lower_sno.c fixes landed (SCRIP, this session):**
 - **TT_FOR**: was rejecting current PST 4-child shape (init, cond, step, body), emitting `?TT_FOR?` placeholders. Fixed to accept both PST 4-child (synthesize labels, emit init then Ltop/cond/body/Lcont/step/Ltop/Lend) AND legacy 5+ form (Lcont/Lend pre-allocated QLITs). Eliminates 14 placeholders in beauty.sc transpile.
 - **TT_IDX**: (a) n-ary subscripts `a[i,j]` were emitting `ITEM(a, i)` only (single dim, second arg lost). Now emit single `ITEM(a, i, j, ...)` per SPITBOL Ch.19. (b) `TT_INDIRECT` base (`$a[i]`) was emitting invalid `ITEM(($a), i)`. Now unwraps to `$ITEM(a, i)`.
 
@@ -434,7 +434,7 @@ shift = EVAL('p . thx . *Shift(' qtag(t) ', thx)')
 **Verify:** after fix, `scrip --dump-sno beauty.sc | sbl -bf` on `x = 5\nEND\n` must produce `Push(Id) Shift(Id, x)` (not Parse Error).
 
 Commits this session:
-- one4all `01577f1a` — SCT-LOWER-FOR-IDX
+- SCRIP `01577f1a` — SCT-LOWER-FOR-IDX
 - corpus  `f3b8afb`  — SCT-BEAUTY-SC-CARRYOVER
 
 ## Session 2026-05-21e (Claude Sonnet 4.6) — SCT-SN4-IMPLICIT-MATCH ✅ CLOSED

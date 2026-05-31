@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-25 — Claude Sonnet 4.6 Session (sixth)
 
-**one4all HEAD:** `bcbfde24`
+**SCRIP HEAD:** `bcbfde24`
 **.github HEAD:** this file
 **Gates:** smoke_prolog 0/5 (pre-existing) · smoke_icon 5/5 ✅ · GATE-PK 496/0/602 ✅
 
@@ -116,14 +116,14 @@ This is the most likely fix. Try it first.
 
 ---
 
-## Files changed since last handoff (one4all `bcbfde24`)
+## Files changed since last handoff (SCRIP `bcbfde24`)
 
 - `src/driver/scrip.c` — Mode 3 sequence: table before ast_tree_free, free BB before codegen
 - (all other changes from `7b087f0f` still in place)
 
 ## Watermark
 ```
-one4all: bcbfde24
+SCRIP: bcbfde24
 .github: this file
 GOAL: FREE-2 pattern_replace --run
 NEXT: move sm_image_init before exec_stmt_pat_table_build in scrip.c Mode 3

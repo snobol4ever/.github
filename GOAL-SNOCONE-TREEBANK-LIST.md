@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all + corpus
+**Repo:** SCRIP + corpus
 **Done when:** `scrip --interp treebank-list.sc < treebank4.input` produces
 output matching `treebank-list.ref` exactly (diff zero), all three modes
 (--interp, --interp, --run).
@@ -36,7 +36,7 @@ treebank-list.sc must match it.
 
 **Parallel session note:** This goal runs concurrently with
 GOAL-SNOCONE-CLAWS5. Both probe the same SC-26 pattern engine bug from
-different angles. Fix in one4all/runtime — share via main, no branches.
+different angles. Fix in SCRIP/runtime — share via main, no branches.
 
 **treebank-array.sc note:** treebank-array.sc is a third goal (not yet
 created). Once this goal and GOAL-SNOCONE-CLAWS5 are both DONE, the
@@ -47,15 +47,15 @@ treebank-array.sc goal will be started. It shares the same fix.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snocone.sh   # PASS=5
+bash /home/claude/SCRIP/scripts/test_smoke_snocone.sh   # PASS=5
 ```
 
 ---
@@ -183,7 +183,7 @@ internal `spec_t` values with `descr_from_spec()` at each return point.
 ## Current state
 
 TB-1 DONE. corpus HEAD pending commit (treebank-list.sc rewritten, treebank4.input→treebank.input).
-one4all: snobol4_nmd.c (unified NAM list, Bug 1), interp.c (E_INDIRECT(E_FNC) → XCALLCAP, Bug 2)
+SCRIP: snobol4_nmd.c (unified NAM list, Bug 1), interp.c (E_INDIRECT(E_FNC) → XCALLCAP, Bug 2)
 committed. Bug 3 (bb_callcap spec_t→DESCR_t return type mismatch) identified, fix pending.
 Temporary diagnostic fprintfs in stmt_exec.c and snobol4_nmd.c must be removed before TB-2 gate.
 smoke PASS=5. Next: TB-2.

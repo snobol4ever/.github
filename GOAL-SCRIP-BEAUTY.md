@@ -25,18 +25,18 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** all 19 beauty drivers pass `scrip --interp`
 
 ## Baseline
 
-- one4all HEAD: `f23ef24c`
+- SCRIP HEAD: `f23ef24c`
 - `scrip --interp` PASS=193/203
 - Beauty suite: **14/19** passing
 
 ## Current state (session 2026-04-13, session 5)
 
-- one4all HEAD: `29a703ea` (no code commits this session — diagnosis only)
+- SCRIP HEAD: `29a703ea` (no code commits this session — diagnosis only)
 - Beauty suite: **10/18** passing (regressed from 14 due to prior UNIFIED-BROKER work)
 - Failing: Gen, TDump, XDump, Qize, ReadWrite, case, global, semantic
 
@@ -86,7 +86,7 @@ Update pass count here.
 ## Run command
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty_suite
 INC=/home/claude/corpus/programs/snobol4/demo/inc
 PASS=0; FAIL=0
@@ -177,7 +177,7 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```

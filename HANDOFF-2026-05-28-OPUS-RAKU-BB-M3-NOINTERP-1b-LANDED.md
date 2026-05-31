@@ -70,7 +70,7 @@ After this fix, rk_range_for output is byte-identical to `.expected`.
   `bin.sites` (reordered `{fail_off+2, succ_off+1, back_off}` â†’
   `{back_off, fail_off+2, succ_off+1}` to match the canonical-5 fix in `bb_to.cpp`).
 
-## Gates (one4all `48ca4e21`)
+## Gates (SCRIP `48ca4e21`)
 
 ```
 GATE-RK    mode-2:               23/33  HOLD
@@ -133,7 +133,7 @@ build; run `/tmp/gate_rk3.sh` (the mode-3 measurement script from this session â
 ## Verification commands
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 make -j4 scrip libscrip_rt
 bash scripts/test_raku_ir_rungs.sh        # GATE-RK
 bash scripts/test_raku_mode4_rung.sh      # GATE-RK4

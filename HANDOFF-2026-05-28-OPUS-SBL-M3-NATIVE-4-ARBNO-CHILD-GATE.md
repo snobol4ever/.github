@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-28
 **Author:** Claude Opus 4.7
-**Commits:** one4all `4471b80d`, .github `58cfb84f`
+**Commits:** SCRIP `4471b80d`, .github `58cfb84f`
 **Predecessor:** `HANDOFF-2026-05-28-OPUS-SBL-M3-NATIVE-4-ARBNO-TREE-FOUNDATION.md`
 
 ---
@@ -144,7 +144,7 @@ So this is high-value: probably native 160 → 175+ in a single session.
 
 ## Cleanup notes
 
-- Working trees clean on both repos (one4all + .github).
+- Working trees clean on both repos (SCRIP + .github).
 - No instrumentation left behind. The only modification this session was the 2-line gate fix.
 - One small latent issue noticed but NOT touched: `bb_arbno.cpp:23` returns `bytes(1,"\\xE9")+u32le(0)+bytes(1,"\\xE9")+u32le(0)` with **double-backslash** literals (4 character string, not 1 byte). This is in the no-child fallback that my fix made unreachable in the BINARY-has-child case. The fallback path is now only reachable when `bb_child_fn == NULL` in MEDIUM_BINARY — which currently doesn't happen in any test. Leave for a separate housekeeping pass; not load-bearing.
 

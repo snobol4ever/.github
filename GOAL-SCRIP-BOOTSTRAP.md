@@ -25,13 +25,13 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all (primary), snobol4dotnet, snobol4jvm, snobol4js (new),
+**Repo:** SCRIP (primary), snobol4dotnet, snobol4jvm, snobol4js (new),
 snobol4wasm (new)
 
 **Done when:** SCRIP — the compiler / interpreter / runtime currently
 written as **~50,400 lines of hand-written C and headers** plus
 ~18,900 lines of Bison/Flex generated code (which vanishes on port)
-in `one4all/src/` — re-emits itself in the SCRIP language family
+in `SCRIP/src/` — re-emits itself in the SCRIP language family
 (SNOBOL4, Snocone, Icon, Prolog, Raku, Rebus) such that:
 
 1. **Stage-1:** the existing C-based `scrip` binary compiles the
@@ -147,7 +147,7 @@ Each partition gets ported to the SCRIP-language member best suited
 to it — picked by what the C code is actually doing, not by
 arbitrary assignment.
 
-LoC measured session #62 against `one4all` HEAD `52251653`.  Two
+LoC measured session #62 against `SCRIP` HEAD `52251653`.  Two
 columns: **hand-written** (the actual port surface) and **generated**
 (Bison/Flex output that *vanishes* on port — replaced by hand-written
 SCRIP-language grammar).  Generated lines are not in the port budget.
@@ -356,7 +356,7 @@ capture, dvar, eps, fail, fence, interr, len, lit, not, notany, pos,
 rem, rpos, rtab, seq, span, succeed, tab} (27 boxes), and `<ext>` ∈
 {`.c`, `.s` (NASM), `.cs` (C#), `.il` (MSIL), `.j` (Jasmin), `.java`,
 `.js`, `.wat` (WASM)} — 8 target representations.  At peak (commit
-`660339cd~1` on `one4all`) this directory held **~216 hand-written
+`660339cd~1` on `SCRIP`) this directory held **~216 hand-written
 files** implementing the same 27 logical boxes across 8 backends.
 
 This was the **explicit**, **physical** version of the doubly-
@@ -439,7 +439,7 @@ platform folders") attempted further reorganization that hit
 build issues; commit `2c760e3d` ("Runtime reorg: archive
 run-asm pipeline; relocate JS/NET source; purge build artifacts")
 folded the boxes back into the active x86-only path.  Today's
-`one4all` HEAD has only `runtime/x86/bb_boxes.c` (794 LoC) and
+`SCRIP` HEAD has only `runtime/x86/bb_boxes.c` (794 LoC) and
 the related `bb_*` infrastructure live; the other backends'
 box files exist in git history.
 
@@ -713,19 +713,19 @@ by construction.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```
 
 Gate after setup (must pass before any port work):
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snobol4.sh        # PASS=7
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh # PASS=49
+bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh        # PASS=7
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh # PASS=49
 # Plus: beauty self-host across all three modes byte-identical.
 BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
 for mode in --interp --interp --run; do
-    SNO_LIB=$BEAUTY /home/claude/one4all/scrip $mode \
+    SNO_LIB=$BEAUTY /home/claude/SCRIP/scrip $mode \
         $BEAUTY/beauty.sno < $BEAUTY/beauty.sno \
         | md5sum  # must be abfd19a7a834484a96e824851caee159
 done
@@ -1008,19 +1008,19 @@ Other risks tracked but not blocking:
 
 **Git history references (concrete starting points for CB-7a):**
 
-- `one4all` commit `660339cd~1` — peak `runtime/boxes/<box>/<lang>`
+- `SCRIP` commit `660339cd~1` — peak `runtime/boxes/<box>/<lang>`
   layout (~216 hand-written per-language box files).  Use
   `git show 660339cd~1:src/runtime/boxes/len/bb_len.c` etc. to
   recover any hand-written cell as a starting point for the
   template grammar.
-- `one4all` commit `660339cd` — consolidation into 6 fat
+- `SCRIP` commit `660339cd` — consolidation into 6 fat
   `bb_boxes.<lang>` files.  6,700+ lines total across all
   backends; useful as a side-by-side comparison of the same
   27 boxes in 8 surface syntaxes.
-- `one4all` commit `ac19c92c` (RT-120) — final hand-written `.s`
+- `SCRIP` commit `ac19c92c` (RT-120) — final hand-written `.s`
   rewrite with correct ABI.  Per-box sizes documented in the
   commit message (e.g. `bb_len: 90 code bytes / 24 data bytes`).
-- `one4all` HEAD `52251653` (post-SN-32c) — current live
+- `SCRIP` HEAD `52251653` (post-SN-32c) — current live
   `runtime/x86/bb_boxes.c` (794 LoC).  This file is the
   round-trip target for CB-7e: the generator's C×IR-interp
   emission must equal these bytes exactly before lock-in.
@@ -1086,7 +1086,7 @@ corpus/
 - Remove or document `run/` and `generated/`
 
 **Gate:** after reorganization, all existing test scripts in
-`one4all/scripts/` that reference corpus paths still pass.
+`SCRIP/scripts/` that reference corpus paths still pass.
 `test_smoke_snobol4.sh` PASS=7. `test_smoke_unified_broker.sh`
 PASS=49. Beauty self-host md5 `abfd19a7...` still holds on
 `--sm-interp`. Any path changes are reflected in the scripts.
@@ -1139,7 +1139,7 @@ CB-0 works with the new names throughout.
   well-structured enough to hand to `nasm`.
   **Gate:** `scrip --compile --target=x64 roman.sno` produces
   non-empty NASM text without crashing. Capture the `.s` to
-  `one4all/artifacts/roman.s` and commit it as the first
+  `SCRIP/artifacts/roman.s` and commit it as the first
   human-readable proof of the 4th mode.
 
 - [ ] **CB-0b-wire — Wire full `--compile` pipeline for x64.**
@@ -1248,7 +1248,7 @@ box runtime becomes a generator output from day one.
 - **`snobol4dotnet`, `snobol4jvm` repos**: separate repos under
   the snobol4ever org. The Stage-1 hosts for .NET and JVM live
   in those repos today. The Stage-2 SCRIP-language sources live
-  in `one4all`. Decision (deferred): keep the split or merge.
+  in `SCRIP`. Decision (deferred): keep the split or merge.
 - **Snocone Beauty (GOAL-SNOCONE-BEAUTY)**: Snocone's own
   `beauty.sc` self-host. Once the Snocone frontend ports under
   CB-9, that goal closes by composition.

@@ -120,10 +120,10 @@ Then build, run the three tests, verify gates.
 ## Session Setup for Next Session
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip libscrip_rt > /tmp/build.log 2>&1
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip libscrip_rt > /tmp/build.log 2>&1
 [ -x scrip ] || { grep -E "error:" /tmp/build.log | head -5; exit 1; }
-for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
+for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
 bash scripts/test_raku_ir_rungs.sh    # GATE-RK baseline (expect 21)
@@ -136,7 +136,7 @@ bash scripts/test_smoke_raku.sh       # smoke baseline (expect 5/5)
 ## Watermark
 
 ```
-one4all: c2a0830d  (UNCHANGED — no commits this session)
+SCRIP: c2a0830d  (UNCHANGED — no commits this session)
 .github: see this file
 corpus:  unchanged
 

@@ -3,8 +3,8 @@
 **Author:** Claude Opus 4.8
 **Date:** 2026-05-29
 **Goal:** GOAL-ICON-BB.md, rung IBB-8 (front: relop in if-condition)
-**one4all:** `0e926c16` (on origin/main, rebased over Prolog `baf8397d`)
-**Repos touched:** one4all (5 files + 1 new), .github (PLAN.md, GOAL-ICON-BB.md, this doc)
+**SCRIP:** `0e926c16` (on origin/main, rebased over Prolog `baf8397d`)
+**Repos touched:** SCRIP (5 files + 1 new), .github (PLAN.md, GOAL-ICON-BB.md, this doc)
 
 ---
 

@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** Raku rung ladder reaches rung-30 under all three modes
 (--interp, --interp, --run). gather/take maps cleanly to BB_PUMP.
 Hash support, typed variables, and for-loop iteration complete.
@@ -54,23 +54,23 @@ Share fixes via main — no branches.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 Gate after setup — run all four, all must pass:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_raku.sh              # PASS=5  (hello/arith/var/while/concat)
-bash /home/claude/one4all/scripts/test_raku_ir_rungs.sh           # PASS=29 (all rk_* fixtures, --interp)
-bash /home/claude/one4all/scripts/test_raku_ir_full_suite.sh      # PASS=29 per mode, all 3 modes
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh    # PASS=48 FAIL=0
+bash /home/claude/SCRIP/scripts/test_smoke_raku.sh              # PASS=5  (hello/arith/var/while/concat)
+bash /home/claude/SCRIP/scripts/test_raku_ir_rungs.sh           # PASS=29 (all rk_* fixtures, --interp)
+bash /home/claude/SCRIP/scripts/test_raku_ir_full_suite.sh      # PASS=29 per mode, all 3 modes
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh    # PASS=48 FAIL=0
 ```
 
 Additional targeted scripts (run when working on specific subsystems):
 ```bash
-bash /home/claude/one4all/scripts/test_raku_fileio.sh             # RK-38/39/56: open/slurp/lines/spurt/$*STDIN
-bash /home/claude/one4all/scripts/test_crosscheck_raku.sh         # 3-mode divergence check
-bash /home/claude/one4all/scripts/regenerate_parser_and_lexer_from_sources.sh  # after .y/.l edits
+bash /home/claude/SCRIP/scripts/test_raku_fileio.sh             # RK-38/39/56: open/slurp/lines/spurt/$*STDIN
+bash /home/claude/SCRIP/scripts/test_crosscheck_raku.sh         # 3-mode divergence check
+bash /home/claude/SCRIP/scripts/regenerate_parser_and_lexer_from_sources.sh  # after .y/.l edits
 ```
 
 Rules:
@@ -498,11 +498,11 @@ RK-16 is next per PLAN.md.
 
 ---
 
-## Current state (2026-04-16, one4all HEAD -- post RK-38/39/56)
+## Current state (2026-04-16, SCRIP HEAD -- post RK-38/39/56)
 
 RK-32 through RK-39 complete (RK-36 deferred). PASS=29 FAIL=0 all three modes.
 Broker PASS=48 FAIL=0.
-HEAD (one4all): dce09689
+HEAD (SCRIP): dce09689
 
 Session summary:
   RK-32: raku_re.c/raku_re.h -- Thompson NFA compiler, Nfa_state[] flat table.

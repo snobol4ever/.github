@@ -121,7 +121,7 @@ extern size_t  strlen(const char *);
 ## Verification
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 make -j4 scrip libscrip_rt
 bash scripts/test_raku_ir_rungs.sh       # GATE-RK   23/33   HOLD
 bash scripts/test_raku_mode4_rung.sh     # GATE-RK4  26/33   HOLD
@@ -146,7 +146,7 @@ in this handoff appendix). Open Qs section pruned to truly pending only
 
 ```bash
 #!/bin/bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 PASS=0; FAIL=0; CRASH=0; PL=""; FL=""; CL=""
 for f in test/raku/*.raku; do
     b=$(basename "$f" .raku)
@@ -223,7 +223,7 @@ GOAL-RAKU-PAT-BB.
 ## Files touched
 
 ```
-one4all:
+SCRIP:
   src/emitter/BB_templates/bb_iterate.cpp   (+ ~110 lines, BINARY arm wired)
 
 .github:

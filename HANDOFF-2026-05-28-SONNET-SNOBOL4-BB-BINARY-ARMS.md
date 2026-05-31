@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-SNOBOL4-BB — MEDIUM_BINARY arm cleanup
 **Session:** Sonnet 4.6, 2026-05-28
-**one4all HEAD:** `4ce8c385`
+**SCRIP HEAD:** `4ce8c385`
 **.github HEAD:** `60442dd9`
 
 ---

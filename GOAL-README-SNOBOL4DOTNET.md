@@ -70,7 +70,7 @@ commits the corrected README.
 
 - [ ] **S-5** — Add note on DATATYPE returning lowercase (SPITBOL-compatible, intentional).
 
-- [ ] **S-6** — Add snobol4ever org context: part of compiler matrix, links to one4all and corpus.
+- [ ] **S-6** — Add snobol4ever org context: part of compiler matrix, links to SCRIP and corpus.
 
 - [ ] **S-7** — Final read-through. Every sentence accurate. Lon approves.
 
@@ -82,6 +82,6 @@ commits the corrected README.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```

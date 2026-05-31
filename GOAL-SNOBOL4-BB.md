@@ -1,6 +1,6 @@
 # GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Sister:** GOAL-HEADQUARTERS.md · GOAL-TEMPLATES-X86.md · GOAL-PROLOG-BB.md · GOAL-ICON-BB.md
 **Carved:** 2026-05-27
 
@@ -47,7 +47,7 @@ SNOBOL4 source → CMPILE parser → tree_t* → lower_pat_dcg.c (BB_lower_pat)
 ## Session Setup
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 make libscrip_rt
@@ -417,13 +417,14 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD one4all       = a0bb9be4  Restore 6381 files erroneously deleted by partial-checkout artifact in c5cf417c
+HEAD SCRIP       = a0bb9be4  Restore 6381 files erroneously deleted by partial-checkout artifact in c5cf417c
                      (df3551a7 → c5cf417c "Ground Zero" DELETED 991,875 lines / 6381 files [partial-checkout
                       artifact] → a0bb9be4 RESTORED them. Current HEAD builds clean. Delete already reversed.)
 FRESH-START repo   = snobol4ever/SCRIP (NEW, public, created 2026-05-30 Sonnet 4.6). ZERO inherited history
-                     (single root commit, 0 parents). = one4all working tree at a0bb9be4 MINUS refs/ (the 19MB
-                     JCON/ICON vendored repos dropped). 4687 tracked files. one4all LEFT UNTOUCHED at a0bb9be4.
-                     Lon's "fresh start" working repo (supersedes one4all in spirit). PLAN.md Repos table +
+                     (single root commit, 0 parents). = the predecessor private repo's working tree at
+                     a0bb9be4 MINUS refs/ (the 19MB JCON/ICON vendored repos dropped). 4687 tracked files.
+                     Predecessor repo LEFT UNTOUCHED at a0bb9be4 (now private, slated for deletion). SCRIP is
+                     Lon's "fresh start" working repo (it supersedes the predecessor). PLAN.md Repos table +
                      clone scripts NOT yet updated to point at SCRIP — that is a `grand master reorg` decision,
                      deliberately NOT made on this routine handoff. Lon has full local mirrors of all org repos.
 HEAD corpus        = 447c05b    SBL-911-PORTABLE
@@ -443,28 +444,28 @@ SNOBOL4 mode-2/3   = TOMBSTONED — SMX-4 (2b6394e1) deleted the Stack Machine; 
 
 **This session (2026-05-30 Sonnet 4.6) — PIVOT to fresh-start infra (SCRIP repo); LM-1 begun then reverted:**
 - **FRESH START — created `snobol4ever/SCRIP`** (public, org repo, ZERO inherited history: one root commit,
-  0 parents). Content = `git archive HEAD` of one4all at `a0bb9be4` (the restored, building state) extracted
+  0 parents). Content = `git archive HEAD` of SCRIP at `a0bb9be4` (the restored, building state) extracted
   to a fresh tree, `refs/` deleted (19MB JCON/ICON vendored repos), `git init` + single "Initial commit".
-  4687 tracked files (= one4all's tracked tree minus refs/; force-added 133 files a stray `.gitignore` would
+  4687 tracked files (= SCRIP's tracked tree minus refs/; force-added 133 files a stray `.gitignore` would
   otherwise have skipped, incl. 17 `src/` files, so the set is faithful). Pushed to a brand-new empty repo
-  (non-destructive). Verified remote: 1 root commit, refs/ → 404, one4all HEAD UNCHANGED at `a0bb9be4`.
-  Rationale: Lon wanted a clean working repo after the Ground-Zero delete debacle. Renaming one4all→X + new
-  one4all was REJECTED — GitHub breaks the rename-redirect when the old name is reused, and stale clones/CI
+  (non-destructive). Verified remote: 1 root commit, refs/ → 404, SCRIP HEAD UNCHANGED at `a0bb9be4`.
+  Rationale: Lon wanted a clean working repo after the Ground-Zero delete debacle. Renaming the predecessor→X
+  + reusing the old name was REJECTED — GitHub breaks the rename-redirect when the old name is reused, and stale clones/CI
   would silently retarget the new empty repo (2nd-debacle risk). New name `SCRIP` sidesteps all redirect
-  issues; one4all left fully intact as a recoverable backup (plus Lon's local mirrors of every org repo).
-- **LM-1 (LOWER-MERGE) begun in one4all then REVERTED.** Applied locally: folded `lower_ctx.h` decls into
+  issues; SCRIP left fully intact as a recoverable backup (plus Lon's local mirrors of every org repo).
+- **LM-1 (LOWER-MERGE) begun in SCRIP then REVERTED.** Applied locally: folded `lower_ctx.h` decls into
   `lower.h`; appended `lower_ctx.c` body (`kw_canonicalize`, `expression_scope_walk`) to `lower.c` under a
   200ch `/*===*/` separator; removed the `#include "lower_ctx.h"` from `lower.c`. NOT yet done when the
   session pivoted: delete `lower_ctx.{c,h}`; drop `lower_ctx.c` from Makefile (RT_PIC_SRCS + compile rule)
   and `build_scrip.sh`. That partial state is BROKEN (duplicate `kw_canonicalize`/`expression_scope_walk` →
-  link error), so it was `git checkout`-reverted — one4all working tree is CLEAN at `a0bb9be4`, nothing
-  committed/pushed to one4all this session. **LM-1 must restart from clean HEAD** (the full step is still
+  link error), so it was `git checkout`-reverted — SCRIP working tree is CLEAN at `a0bb9be4`, nothing
+  committed/pushed to SCRIP this session. **LM-1 must restart from clean HEAD** (the full step is still
   spelled out under "NEXT — LOWER-MERGE" below; nothing was committed, so no partial credit to reconcile).
 - **No engine code, no gates beyond `make scrip`/`make libscrip_rt` (both rc=0 at clean a0bb9be4).** Only
-  `.github` (this goal file) committed this handoff; SCRIP already pushed; one4all + corpus untouched.
+  `.github` (this goal file) committed this handoff; SCRIP already pushed; SCRIP + corpus untouched.
 
 **Prior session (2026-05-30 Sonnet 4.6) — rename continuation + LOWER-MERGE plan (no engine logic touched):**
-- **LANG-INDEP Slice 5 partial** (one4all `df3551a7`): 44 post-AST `ICN_`/`Icn_`/`g_icn_jcon` symbols
+- **LANG-INDEP Slice 5 partial** (SCRIP `df3551a7`): 44 post-AST `ICN_`/`Icn_`/`g_icn_jcon` symbols
   stripped (missed in Slice 2): `BinopKind`, `BINOP_*`, `GEN_ENTER`, `FAIL_GEN_NODE`, `SEC_*`,
   `FIELD_NAME`, `KW_CSET_MAX`, `MATH1`/`TONUM`, `STACKLESS_ABORT`, `g_jcon`. Plus `gen_`-non-generator
   strip: `GenScope→Scope`, `GenScopeEnt→ScopeEnt`, `GenEntry_d→ScopeEntry`, `gen_descr_identical→
@@ -493,7 +494,7 @@ sm_dead 1/1, FACT 0. **NO new GOAL file — this lives here in GOAL-SNOBOL4-BB.m
 ### ⚠ PRE-SMX-4 corpus state (historical — engine deleted, numbers not reachable today)
 
 ```
-HEAD one4all       = 1f011f10  SBL-ARBNO-BROKERED: ARBNO combinator roots via patnd_to_bb_tree in BROKERED (--interp +2: Qize, XDump)
+HEAD SCRIP       = 1f011f10  SBL-ARBNO-BROKERED: ARBNO combinator roots via patnd_to_bb_tree in BROKERED (--interp +2: Qize, XDump)
 GATE-1 smoke       = 13/13 (mode-2 AND mode-3)
 GATE-2 broker      = 61/5
 DEFAULT/NATIVE     = 265/280
@@ -504,19 +505,19 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 ## Session log (last few, terse)
 
-- **2026-05-30 Sonnet 4.6 — FRESH-START: created `snobol4ever/SCRIP` (zero-history copy of one4all minus refs/)** (no one4all/corpus commit; `.github` only). Lon directive after the Ground-Zero delete debacle: a clean working repo, NOT a rename (rename→reuse breaks GitHub's redirect + stale clones retarget the new empty repo = 2nd-debacle risk; verified against GitHub docs). New repo `SCRIP` (public, org), ZERO inherited history (1 root commit, 0 parents) = `git archive HEAD`@`a0bb9be4` extracted, `refs/` removed (19MB JCON/ICON vendored), `git init` + single Initial commit, 4687 tracked files (force-added 133 `.gitignore`-skipped incl. 17 `src/`). Pushed to brand-new empty repo (non-destructive). Verified: remote 1 root commit, refs/→404, **one4all UNTOUCHED at `a0bb9be4`**. Also: confirmed the c5cf417c "Ground Zero" delete (991,875 lines/6381 files) was ALREADY reversed by a0bb9be4 last session — current HEAD builds clean (`make scrip`/`make libscrip_rt` rc=0). LM-1 (LOWER-MERGE) begun in one4all (lower.h decls folded, lower_ctx.c body appended to lower.c, include removed) then REVERTED (Makefile+file-deletes not done → broken duplicate-symbol state); one4all working tree clean, **LM-1 to restart from clean HEAD**. PLAN.md Repos table / clone scripts NOT updated to SCRIP — deferred to a `grand master reorg`.
+- **2026-05-30 Sonnet 4.6 — FRESH-START: created `snobol4ever/SCRIP` (zero-history copy of the predecessor repo minus refs/)** (no predecessor/corpus commit; `.github` only). Lon directive after the Ground-Zero delete debacle: a clean working repo, NOT a rename (rename→reuse breaks GitHub's redirect + stale clones retarget the new empty repo = 2nd-debacle risk; verified against GitHub docs). New repo `SCRIP` (public, org), ZERO inherited history (1 root commit, 0 parents) = `git archive HEAD`@`a0bb9be4` extracted, `refs/` removed (19MB JCON/ICON vendored), `git init` + single Initial commit, 4687 tracked files (force-added 133 `.gitignore`-skipped incl. 17 `src/`). Pushed to brand-new empty repo (non-destructive). Verified: remote 1 root commit, refs/→404, **predecessor repo UNTOUCHED at `a0bb9be4`**. Also: confirmed the c5cf417c "Ground Zero" delete (991,875 lines/6381 files) was ALREADY reversed by a0bb9be4 last session — current HEAD builds clean (`make scrip`/`make libscrip_rt` rc=0). LM-1 (LOWER-MERGE) begun in the predecessor repo (lower.h decls folded, lower_ctx.c body appended to lower.c, include removed) then REVERTED (Makefile+file-deletes not done → broken duplicate-symbol state); predecessor working tree clean, **LM-1 to restart from clean HEAD**. PLAN.md Repos table / clone scripts NOT updated to SCRIP — deferred to a `grand master reorg`.
 
-- **2026-05-30 Sonnet 4.6 — SBL-ARBNO-BROKERED ✅ (--interp +2: Qize_driver, XDump_driver)** (one4all `1f011f10`). One line: `arbno_combinator = patnd_contains_arbno(pp) && patnd_is_combinator_root(pp)` added to the BROKERED routing gate in `exec_stmt`; routes alongside `defer_combinator` and `pure_altcat` through `patnd_to_bb_tree`. Root cause: `patnd_to_bb_graph` (γ-chain) produces graphs that `bb_build_brokered` mis-executes (walker traverses kids, not γ pointers). `patnd_to_bb_tree` produces correctly kids-wired graphs. **--interp 261→263 (+2). Native 265 unchanged. m2-only 4→2 (only 124 + word1 remain). Gates: G1 13/13 ×2, G2 61/5, rung M2=19/0 M4=18/1, audit GATE OK, FACT=0. comm -23 empty.**
+- **2026-05-30 Sonnet 4.6 — SBL-ARBNO-BROKERED ✅ (--interp +2: Qize_driver, XDump_driver)** (SCRIP `1f011f10`). One line: `arbno_combinator = patnd_contains_arbno(pp) && patnd_is_combinator_root(pp)` added to the BROKERED routing gate in `exec_stmt`; routes alongside `defer_combinator` and `pure_altcat` through `patnd_to_bb_tree`. Root cause: `patnd_to_bb_graph` (γ-chain) produces graphs that `bb_build_brokered` mis-executes (walker traverses kids, not γ pointers). `patnd_to_bb_tree` produces correctly kids-wired graphs. **--interp 261→263 (+2). Native 265 unchanged. m2-only 4→2 (only 124 + word1 remain). Gates: G1 13/13 ×2, G2 61/5, rung M2=19/0 M4=18/1, audit GATE OK, FACT=0. comm -23 empty.**
 
-- **2026-05-30 Sonnet 4.6 — SBL-ALTCAT-XLATE ✅ (--interp +2: case_driver, test_case)** (one4all `94e152f3`). `patnd_is_pure_altcat` predicate: XCAT/XOR trees whose leaves are all XCHR/XEPS. `icase()` builds `XCAT(XOR(H,h), XOR(E,e), ...)` — a pure altcat. Routes through `patnd_to_bb_tree` in BROKERED branch (prior prototype used γ-chain → over-matched due to leading XLIT('')). **--interp 259→261 (+2). m2-only 6→4. Gates clean.**
+- **2026-05-30 Sonnet 4.6 — SBL-ALTCAT-XLATE ✅ (--interp +2: case_driver, test_case)** (SCRIP `94e152f3`). `patnd_is_pure_altcat` predicate: XCAT/XOR trees whose leaves are all XCHR/XEPS. `icase()` builds `XCAT(XOR(H,h), XOR(E,e), ...)` — a pure altcat. Routes through `patnd_to_bb_tree` in BROKERED branch (prior prototype used γ-chain → over-matched due to leading XLIT('')). **--interp 259→261 (+2). m2-only 6→4. Gates clean.**
 
-- **2026-05-30 Sonnet 4.6 — SBL-CAP-COMMIT ✅ + SBL-CAP-COMMIT-NATIVE ✅ (native +1: word1)** (one4all `9011d961` + `15771c7d`). Deferred-capture tables in both engines. `BB_PAT_ASSIGN_COND/IMM` defer `NV_SET_fn` via `g_dcap[]` when `g_dcap_active` (set inside `bb_exec_pat`); flush on full-pattern success. `rt_cap_assign`/`rt_cap_assign_cursor` defer via `g_rt_dcap[]` when `g_rt_dcap_active` (set by `exec_stmt`); `rt_dcap_flush()` at Phase4. Fixes OUTPUT firing on every ARB backtrack step. **Native 264→265 (+1: word1). --interp unchanged (word1 uses ARB+ALT → pre-existing mode-2 oracle gap). Gates: G1 13/13 ×2, G2 61/5, rung M2=19/0 M4=18/1, FACT=0. comm -23 empty.**
+- **2026-05-30 Sonnet 4.6 — SBL-CAP-COMMIT ✅ + SBL-CAP-COMMIT-NATIVE ✅ (native +1: word1)** (SCRIP `9011d961` + `15771c7d`). Deferred-capture tables in both engines. `BB_PAT_ASSIGN_COND/IMM` defer `NV_SET_fn` via `g_dcap[]` when `g_dcap_active` (set inside `bb_exec_pat`); flush on full-pattern success. `rt_cap_assign`/`rt_cap_assign_cursor` defer via `g_rt_dcap[]` when `g_rt_dcap_active` (set by `exec_stmt`); `rt_dcap_flush()` at Phase4. Fixes OUTPUT firing on every ARB backtrack step. **Native 264→265 (+1: word1). --interp unchanged (word1 uses ARB+ALT → pre-existing mode-2 oracle gap). Gates: G1 13/13 ×2, G2 61/5, rung M2=19/0 M4=18/1, FACT=0. comm -23 empty.**
 
-- **2026-05-30 Sonnet 4.6 — SBL-AUDIT-NFA ✅ + bookkeeping** (one4all `b6efe62a`). `bb_nfa.cpp` added to `TRIVIAL_OK` in audit script (legitimate two-jmp passthrough, not a fake stub). `[x]` ARB-as-pattern-VARIABLE (DEFER β=self + bb_exec_resume already in place). `[x]` Flip-default-to-native (SCRIP_M3_NATIVE already removed). **Audit GATE OK.**
+- **2026-05-30 Sonnet 4.6 — SBL-AUDIT-NFA ✅ + bookkeeping** (SCRIP `b6efe62a`). `bb_nfa.cpp` added to `TRIVIAL_OK` in audit script (legitimate two-jmp passthrough, not a fake stub). `[x]` ARB-as-pattern-VARIABLE (DEFER β=self + bb_exec_resume already in place). `[x]` Flip-default-to-native (SCRIP_M3_NATIVE already removed). **Audit GATE OK.**
 
- (one4all `745c7536`). Five files changed: `rt_at_cursor()` helper in rt.c (writes Δ as `{.v=DT_I,.i=Δ}` via NV_SET); `bb_pat_atp.cpp` new template — X86 TEXT+BINARY arms (BINARY=44B: `mov esi,[r10]`; `movabs rdi,varname`; `movabs rax,&rt_at_cursor`; double-push r10 for OUTPUT-print alignment; `call`; double-pop; `jmp γ`; β: `jmp ω`; sites {34,38,39}); `emit_core` dispatch; `walk_bb_flat case BB_PAT_ATP` (op_name1=sval; FILL); `build_patnd case XATP` (STRVAL=="@" guard); `patnd_is_simple_atom` gains XATP + XEPS; Makefile source + rule. **Key diagnostic finding:** `rt_pat_capture(kind=2)` calls `pat_cat(EPS, pat_at_cursor(var))` at runtime, so `@P` inside a concatenation produces `XCAT(...,XCAT(XEPS,XATP),...)` — the XEPS leaf blocked `patnd_tree_eligible` for the whole tree → legacy cast → wrong. Adding XEPS to `patnd_is_simple_atom` makes the enclosing XCAT `patnd_is_combinator_root` → `patnd_to_bb_tree` → `build_patnd XATP` → `walk_bb_flat BB_PAT_ATP` → BINARY arm fires. **Gates: smoke 13/13, broker 61/5, rung M2=19/0 M4=18/1 (053 pre-existing), cross-lang 5/5/5/5, FACT=0, audit pre-existing Raku NO-ARM. Native 261→264 (+3). Mode-2 259/280 unchanged. FAIL-diff `comm -23 native m2` = empty.**
+ (SCRIP `745c7536`). Five files changed: `rt_at_cursor()` helper in rt.c (writes Δ as `{.v=DT_I,.i=Δ}` via NV_SET); `bb_pat_atp.cpp` new template — X86 TEXT+BINARY arms (BINARY=44B: `mov esi,[r10]`; `movabs rdi,varname`; `movabs rax,&rt_at_cursor`; double-push r10 for OUTPUT-print alignment; `call`; double-pop; `jmp γ`; β: `jmp ω`; sites {34,38,39}); `emit_core` dispatch; `walk_bb_flat case BB_PAT_ATP` (op_name1=sval; FILL); `build_patnd case XATP` (STRVAL=="@" guard); `patnd_is_simple_atom` gains XATP + XEPS; Makefile source + rule. **Key diagnostic finding:** `rt_pat_capture(kind=2)` calls `pat_cat(EPS, pat_at_cursor(var))` at runtime, so `@P` inside a concatenation produces `XCAT(...,XCAT(XEPS,XATP),...)` — the XEPS leaf blocked `patnd_tree_eligible` for the whole tree → legacy cast → wrong. Adding XEPS to `patnd_is_simple_atom` makes the enclosing XCAT `patnd_is_combinator_root` → `patnd_to_bb_tree` → `build_patnd XATP` → `walk_bb_flat BB_PAT_ATP` → BINARY arm fires. **Gates: smoke 13/13, broker 61/5, rung M2=19/0 M4=18/1 (053 pre-existing), cross-lang 5/5/5/5, FACT=0, audit pre-existing Raku NO-ARM. Native 261→264 (+3). Mode-2 259/280 unchanged. FAIL-diff `comm -23 native m2` = empty.**
 
-- **2026-05-30 Opus 4.8 — SBL-ATP mode-2 oracle ✅ (@var cursor capture)** (one4all `877f61fe` LOCAL, NOT pushed;
+- **2026-05-30 Opus 4.8 — SBL-ATP mode-2 oracle ✅ (@var cursor capture)** (SCRIP `877f61fe` LOCAL, NOT pushed;
   base `5e1bad51`). The `@var` cursor-capture operator was unimplemented — `@P 'c'` on "abcde" gave empty in BOTH
   modes vs oracle `P=2`. `@expr` parses to `TT_CAPT_CURSOR` (snobol4.y:182), lowers (lower.c:423) to
   `SM_PAT_EPS`+`emit_pat_capture(var, mode=2)`; runtime builds an `XATP` PATND via `pat_at_cursor` (STRVAL="@",
@@ -543,7 +544,7 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   the SPITBOL oracle produces the exact 21-line crossword; it needs INPUT `SNOBOL\nOBJECT` via `cross.input`.)
 
 - **2026-05-30 Opus 4.8 — SBL-911-PORTABLE ✅ (corpus) + counter/semantic-driver triage** (corpus staged,
-  NOT pushed pending `perform hand off`; one4all UNTOUCHED at `5e1bad51` — binary byte-identical to baseline,
+  NOT pushed pending `perform hand off`; predecessor repo UNTOUCHED at `5e1bad51` — binary byte-identical to baseline,
   so all engine-side gates unchanged by construction). **(1) SBL-911-PORTABLE ✅:** `911_datatype` was the lone
   shared FAIL (both native AND mode-2) that turned out to be a **buggy corpus test, not an engine bug**. It
   wrapped DATATYPE results in `lcase(...)` to case-normalize, but (a) it's the ONLY test in the entire corpus
@@ -569,7 +570,7 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   capture-commit) is on record. **(3) Also confirmed:** the watermark's "5 mode-2-only gaps, 0 native-only" holds
   exactly on a clean clone+build (`comm -23 native m2` empty; the 5 mode-2-only = 124/Qize/XDump/case/test_case).
 
-- **2026-05-29 Opus 4.8 — SBL-CSET-FOLD ✅ + SBL-ALTCAT-XLATE diagnosis** (one4all `216d95dc` committed locally,
+- **2026-05-29 Opus 4.8 — SBL-CSET-FOLD ✅ + SBL-ALTCAT-XLATE diagnosis** (SCRIP `216d95dc` committed locally,
   NOT pushed pending `perform hand off`; base `2d73a667`). Two findings closing/diagnosing the live mode-2-only
   gaps. **(1) SBL-CSET-FOLD ✅ (committed):** a constant charset-expression arg (single immutable keyword
   &UCASE/&LCASE/&DIGITS, or a TT_SEQ/TT_CAT of literals + those keywords) to ANY/SPAN/NOTANY/BREAK/BREAKX now
@@ -627,7 +628,7 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   victims in Prolog/Icon/Raku BB too (their parsers build many sub-pattern blobs). Handoff:
   `HANDOFF-2026-05-29-OPUS48-SBL-POOL-TRIM-FENCE-DRIVER.md`.
 
-- **2026-05-29 Opus 4.8 — SBL-CHARSET-EXPR TRIAGE (no code; consolidation)** (one4all UNCHANGED `77a39e82`;
+- **2026-05-29 Opus 4.8 — SBL-CHARSET-EXPR TRIAGE (no code; consolidation)** (SCRIP UNCHANGED `77a39e82`;
   .github `195066df`+`84daf610`). Proved `XDump_driver` + `Qize_driver` + `064` share ONE root cause: a
   charset-EXPRESSION (concatenation) arg to `BREAK/ANY/NOTANY/SPAN`. `build_node` rejects `TT_SEQ` charset →
   `BB_lower_pat` fails → `bb_idx=-1` → mode-2 (`--interp` = `BB_MODE_BROKERED`, scrip.c:157/161) routes
@@ -639,7 +640,7 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   native-only gap `fence_driver` (post-FENCE-SEAL). Handoff:
   `HANDOFF-2026-05-29-OPUS48-SBL-CHARSET-EXPR-TRIAGE-CONSOLIDATION.md`.
 
-- **2026-05-29 Opus 4.8 — VARIABLE-ARGUMENT PATTERN FAMILY + SIZE-SHADOW ✅** (one4all `0c7f9cfb`,
+- **2026-05-29 Opus 4.8 — VARIABLE-ARGUMENT PATTERN FAMILY + SIZE-SHADOW ✅** (SCRIP `0c7f9cfb`,
   chain `acc9ae77`→`3278f60f`→`36fe8ab9`→`0c7f9cfb`). Four commits closing one root-cause class of
   mode-2-only oracle gaps: DCG lowering (`lower_pat_dcg.c`) accepted ONLY literal args to pattern
   primitives, so a `TT_VAR` arg made `BB_lower_pat` fail → mode-2 fell to a mismatching legacy path
@@ -656,9 +657,9 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   literal-only lowering. Audit GATE FAIL pre-existing (Raku NFA `xa_wasm_main.cpp`, verified on clean
   `2b5a2e77` via stash). Next: FENCE×ALT fall-through (124+114, shared), then charset-expr args (064).
 
-- **2026-05-29 Opus 4.8 — SBL-M2-CAT-FLATTEN+DEFER-GROW+CAP-REGROW ✅** (one4all `2b5a2e77`). Mode-2 (`--interp`) oracle parity for ARB-in-CAT + capture. Prior DEFER hypothesis was WRONG (bare ARB compiles to SM_PAT_ARB/XFARB, and the failing path is the bb_exec.c ORACLE via SM_EXEC_STMT bb_table — BB_lower_pat succeeds — NOT the broker). Three real fixes: (1) lower_pat_dcg.c CAT-FLATTEN — parser emits left-nested binary CAT(CAT(a,b),c); the TT_CAT retry fixup wired successor.ω→a->β where a is the inner CAT entry (FIRST element β), never the buried middle generator, so 'xx' ARB 'xx' could not grow ARB. Flatten nested TT_SEQ/TT_CAT into one flat leaf chain (concat associative) → flat fixup wires kid[i+1].ω→kid[i].β. (2) bb_exec.c BB_PAT_DEFER growable — persist sub-graph ptr (dval) + outer-Δ origin (counter) in α, bb_exec_resume on β; β=self in the two DEFER lowering sites. (3) bb_exec.c ASSIGN_COND/IMM capture-regrow — node reset state=0 after commit so a regrown inner re-recorded a fresh start (captured var empty/wrong); discriminate fresh vs inner-return on inner state (bb->α->state), preserve start. **mode-2 246→248 (+2: word2, word3 byte-correct; FAIL-diff = exactly those two, zero regression).** native 255 unchanged; smoke 13/13 ×2; rung M2=19/0 M4=18/1 (053 pre-existing); cross-lang 5/5/5/5; FACT=0. Pure C control-flow/state, no byte code. NOTE: real mode-2 baseline is 246 (re-measured clean 28a720f2), the prior "252" was stale. audit GATE FAIL is pre-existing bb_nfa.cpp (Raku NFA sibling), present on clean baseline — not this change.
+- **2026-05-29 Opus 4.8 — SBL-M2-CAT-FLATTEN+DEFER-GROW+CAP-REGROW ✅** (SCRIP `2b5a2e77`). Mode-2 (`--interp`) oracle parity for ARB-in-CAT + capture. Prior DEFER hypothesis was WRONG (bare ARB compiles to SM_PAT_ARB/XFARB, and the failing path is the bb_exec.c ORACLE via SM_EXEC_STMT bb_table — BB_lower_pat succeeds — NOT the broker). Three real fixes: (1) lower_pat_dcg.c CAT-FLATTEN — parser emits left-nested binary CAT(CAT(a,b),c); the TT_CAT retry fixup wired successor.ω→a->β where a is the inner CAT entry (FIRST element β), never the buried middle generator, so 'xx' ARB 'xx' could not grow ARB. Flatten nested TT_SEQ/TT_CAT into one flat leaf chain (concat associative) → flat fixup wires kid[i+1].ω→kid[i].β. (2) bb_exec.c BB_PAT_DEFER growable — persist sub-graph ptr (dval) + outer-Δ origin (counter) in α, bb_exec_resume on β; β=self in the two DEFER lowering sites. (3) bb_exec.c ASSIGN_COND/IMM capture-regrow — node reset state=0 after commit so a regrown inner re-recorded a fresh start (captured var empty/wrong); discriminate fresh vs inner-return on inner state (bb->α->state), preserve start. **mode-2 246→248 (+2: word2, word3 byte-correct; FAIL-diff = exactly those two, zero regression).** native 255 unchanged; smoke 13/13 ×2; rung M2=19/0 M4=18/1 (053 pre-existing); cross-lang 5/5/5/5; FACT=0. Pure C control-flow/state, no byte code. NOTE: real mode-2 baseline is 246 (re-measured clean 28a720f2), the prior "252" was stale. audit GATE FAIL is pre-existing bb_nfa.cpp (Raku NFA sibling), present on clean baseline — not this change.
 
-- **2026-05-29 Opus 4.8 — SBL-CAP-OUTPUT-R10 ✅** (one4all `28a720f2`). `bb_capture.cpp` BINARY arm
+- **2026-05-29 Opus 4.8 — SBL-CAP-OUTPUT-R10 ✅** (SCRIP `28a720f2`). `bb_capture.cpp` BINARY arm
   called `rt_cap_assign_cursor` WITHOUT preserving `r10`. The brokered blob holds `&Δ` in `r10`
   (caller-saved, SysV); `NV_SET_fn` on the **OUTPUT** (or any associated) variable enters the print
   path (printf/fwrite) which clobbers `r10`; the post-assign consumer of `[r10]` (broker final-cursor
@@ -674,7 +675,7 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   so capturing to OUTPUT prints every intermediate. Invisible for regular vars (last write wins) but
   observable for OUTPUT / any side-effecting or mid-pattern-referenced var.
 
-- **2026-05-29 Opus 4.8 — SBL-ARB-CAT-BACKTRACK ✅** (one4all, flat driver). Corrected the prior
+- **2026-05-29 Opus 4.8 — SBL-ARB-CAT-BACKTRACK ✅** (SCRIP, flat driver). Corrected the prior
   session's WRONG "capture-registry" hypothesis: `'xx' ARB 'xx'` fails to match even with NO capture
   (oracle: MATCH), so it's an ARB-backtracking bug, not a capture bug. Root cause in
   `flat_drive_cat` (`emit_bb.c`) multi-kid loop: every kid's ω wired to the shared `right_ω → left_β`
@@ -713,9 +714,9 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
  (uncommitted, base 5d5cede1). `bb_pat_break.cpp` BREAKX (is_breakx, ival==1) MEDIUM_BINARY arm was a 2-jump stub with malformed sites `{1,2}` (the second `E9` opcode got eaten by the patcher → a rel32 landed at output offset 19 against a garbage/empty-named label → `bb_emit_end` "unresolved forward reference site=19 label=''" → SIGABRT on every native BREAKX). Replaced with a real 302-byte α-scan + β-rescan blob: α scans to the first cset char (Δ += z, jmp γ; end → ω); β recovers z_orig = Δ − z arithmetically (no second persistent slot), steps past (z++), rescans to the NEXT cset char (jmp γ on found, jmp ω on exhausted). z persists in `[zeta+8]`. Assembled+verified via `as`/objdump, transcribed mechanically to `bytes()`/`u64le()`/`u32le()` (FACT-pure). Sites γ(139)/ω(144)/β-DEF(148)/γ(293)/ω(298). **Native 245→247 (+2: W05_breakx, word4); zero regression** (smoke 13/13 ×2, rung M2=19/0 M4=18/1 [053 pre-existing], cross-lang 5/5/5/5, GATE-2 broker 44, FACT 0, audit GATE OK). word4 (BREAKX mid-pattern w/ REM+SPAN backtracking into β) byte-exact vs ref. Oracle + mode-4 TEXT arm untouched.
 
-- **2026-05-29 Opus 4.8 — SBL-NATIVE-FN-1 NRETURN read-deref ✅ + watermark correction** (one4all 5d5cede1). `rt_call` (rt.c:1339, the native SM_CALL_FN runtime helper) deref'd NRETURN results ONLY in the `if(cfn)` chunk branch; the bottom `INVOKE_fn` fallthrough — which native user-function dispatch actually takes — pushed the returned NAME with no deref, so `OUTPUT = ref_b()` (ref_b returns `.A` via :(NRETURN)) printed the name `A` instead of the value `77`. The mode-2 sm_interp consumer derefs correctly; native didn't. Fix: 4 lines mirroring the `cfn` branch, guarded by `kw_rtntype=="NRETURN"` + `IS_NAMEPTR/IS_NAMEVAL` (no-op for every non-NRETURN call → zero risk to other paths). **Native 243→245 (+2: 213_indirect_name, assign_driver); true --interp 246 unchanged (native-only fix); smoke 13/13 ×2; FACT 0; audit GATE OK; rung M2=19/0.** 1013_func_nreturn now reaches assertion 2 (NRETURN-as-lvalue, a separate sub-feature — next). **Also corrected a false watermark** (see Session State + HANDOFF-...-NATIVE-GAP-AUDIT): the "Raku 30e7c0a1 regressed m2 252→223" claim is wrong; the 252→243 drop is `0f4fcfde`'s deliberate no-fallback exposure of native gaps. Handoffs: `HANDOFF-2026-05-29-OPUS48-SBL-NATIVE-GAP-AUDIT-AND-WATERMARK-CORRECTION.md`.
+- **2026-05-29 Opus 4.8 — SBL-NATIVE-FN-1 NRETURN read-deref ✅ + watermark correction** (SCRIP 5d5cede1). `rt_call` (rt.c:1339, the native SM_CALL_FN runtime helper) deref'd NRETURN results ONLY in the `if(cfn)` chunk branch; the bottom `INVOKE_fn` fallthrough — which native user-function dispatch actually takes — pushed the returned NAME with no deref, so `OUTPUT = ref_b()` (ref_b returns `.A` via :(NRETURN)) printed the name `A` instead of the value `77`. The mode-2 sm_interp consumer derefs correctly; native didn't. Fix: 4 lines mirroring the `cfn` branch, guarded by `kw_rtntype=="NRETURN"` + `IS_NAMEPTR/IS_NAMEVAL` (no-op for every non-NRETURN call → zero risk to other paths). **Native 243→245 (+2: 213_indirect_name, assign_driver); true --interp 246 unchanged (native-only fix); smoke 13/13 ×2; FACT 0; audit GATE OK; rung M2=19/0.** 1013_func_nreturn now reaches assertion 2 (NRETURN-as-lvalue, a separate sub-feature — next). **Also corrected a false watermark** (see Session State + HANDOFF-...-NATIVE-GAP-AUDIT): the "Raku 30e7c0a1 regressed m2 252→223" claim is wrong; the 252→243 drop is `0f4fcfde`'s deliberate no-fallback exposure of native gaps. Handoffs: `HANDOFF-2026-05-29-OPUS48-SBL-NATIVE-GAP-AUDIT-AND-WATERMARK-CORRECTION.md`.
 
-- **2026-05-29 Opus 4.8 — SBL-DEFER-NESTED ✅** (prior commit). Nested `*var` (XDSAR→BB_PAT_DEFER) under a combinator failed under `sm_run_native`. Root cause was three gaps: missing `case BB_PAT_DEFER` in `walk_bb_flat` (→ no-op zero-width false matches); BROKERED branch used the γ-chain builder `patnd_to_bb_graph` where the flat driver needs the kid-tree `patnd_to_bb_tree`; empty + then mis-aligned BINARY arm in `bb_pat_defer.cpp` (single `push r10` → SIGSEGV when the deref ran a sub-pattern). Fixes: `walk_bb_flat` DEFER→FILL; XDSAR added to `patnd_is_simple_atom`; surgical `defer_combinator` gate routes only defer-bearing combinator roots through the tree builder (legacy-cast trees untouched); BINARY arm rewritten with `and rsp,-16` 16-byte alignment around `rt_defer_match`. Native 223→243 (+20) and m2 also 223→243 (+20) measured against the live sibling base one4all 30e7c0a1 (which a Raku commit had regressed from the 252 baseline); zero mode-2/3 regression introduced by THIS commit (empty FAIL-line regression diff). smoke 13/13 ×2, rung M2=19, FACT=0, audit GATE OK. Mode-4 deferred per Lon (not gated); `bb_pat_defer.cpp` TEXT arm still needs the same alignment fix for the mode-4 session. Handoff `HANDOFF-2026-05-29-OPUS48-SBL-DEFER-NESTED-LANDED.md`.
+- **2026-05-29 Opus 4.8 — SBL-DEFER-NESTED ✅** (prior commit). Nested `*var` (XDSAR→BB_PAT_DEFER) under a combinator failed under `sm_run_native`. Root cause was three gaps: missing `case BB_PAT_DEFER` in `walk_bb_flat` (→ no-op zero-width false matches); BROKERED branch used the γ-chain builder `patnd_to_bb_graph` where the flat driver needs the kid-tree `patnd_to_bb_tree`; empty + then mis-aligned BINARY arm in `bb_pat_defer.cpp` (single `push r10` → SIGSEGV when the deref ran a sub-pattern). Fixes: `walk_bb_flat` DEFER→FILL; XDSAR added to `patnd_is_simple_atom`; surgical `defer_combinator` gate routes only defer-bearing combinator roots through the tree builder (legacy-cast trees untouched); BINARY arm rewritten with `and rsp,-16` 16-byte alignment around `rt_defer_match`. Native 223→243 (+20) and m2 also 223→243 (+20) measured against the live sibling base SCRIP 30e7c0a1 (which a Raku commit had regressed from the 252 baseline); zero mode-2/3 regression introduced by THIS commit (empty FAIL-line regression diff). smoke 13/13 ×2, rung M2=19, FACT=0, audit GATE OK. Mode-4 deferred per Lon (not gated); `bb_pat_defer.cpp` TEXT arm still needs the same alignment fix for the mode-4 session. Handoff `HANDOFF-2026-05-29-OPUS48-SBL-DEFER-NESTED-LANDED.md`.
 
 - **2026-05-29 Opus 4.7 — SBL-TAB-RTAB-FIX ✅** (this commit). Three-bug fix in
   `bb_pat_tab.cpp` BINARY arm: (1) TAB sites `{9, 23, 28, 29}` → `{10, 23, 27, 28}` —

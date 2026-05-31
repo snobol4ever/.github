@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-25 — Claude Sonnet 4.6 Session (fifth)
 
-**one4all HEAD:** `5ea638d3`
+**SCRIP HEAD:** `5ea638d3`
 **.github HEAD:** (this file + RULES + GOAL-BB-TEMPLATE-LADDER updates)
 **Gates:** smoke_prolog 5/5 ✅ · smoke_icon 5/5 ✅ · GATE-PK 496/0/602 ✅
 
@@ -13,7 +13,7 @@ frees. No stale indices. One free point after the last consumer. ASAN verify req
 
 ---
 
-## FREE-2 — Work in progress (one4all `5ea638d3`)
+## FREE-2 — Work in progress (SCRIP `5ea638d3`)
 
 **Goal:** Delete BB and SM completely before Mode 3 execution. Blobs are self-contained.
 
@@ -62,7 +62,7 @@ Alternatively: move `exec_stmt_pat_table_build` to before `ast_tree_free` in
 So the `GC_strdup` fix in `bb_build_brokered` (or `BB_lower_pat`) is required
 regardless.
 
-**Files changed (one4all `5ea638d3`):**
+**Files changed (SCRIP `5ea638d3`):**
 - `src/processor/sm_jit_interp.c` — `ExecStmtPat_t` struct, `exec_stmt_pat_table_build`,
   `emit_exec_stmt_pat_blob`, `SM_codegen` updated to take table
 - `src/processor/sm_jit_interp.h` — updated `SM_codegen` sig, exports table type/fn
@@ -89,7 +89,7 @@ regardless.
 ## Session setup for next session
 
 ```bash
-cd /home/claude/one4all && bash scripts/build_scrip.sh
+cd /home/claude/SCRIP && bash scripts/build_scrip.sh
 bash scripts/test_per_kind_diff.sh   # PASS=496
 bash scripts/test_smoke_prolog.sh    # PASS=5
 bash scripts/test_smoke_icon.sh      # PASS=5
@@ -98,7 +98,7 @@ bash scripts/test_smoke_icon.sh      # PASS=5
 ## Watermark
 
 ```
-one4all: 5ea638d3
+SCRIP: 5ea638d3
 .github: this file
 GOAL: GOAL-BB-TEMPLATE-LADDER.md FREE-2
 STATUS: 🔄 WIP — goto PASS, pattern_replace BROKEN (sval dangling ptr)

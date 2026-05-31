@@ -7,7 +7,7 @@
 - ER-0, ER-1, ER-3: **COMPLETE** ✅
 - ER-4: **5 templates converted** (any, abort, fence, rem, tab), pattern proven and reusable
 - **GATE-PK green:** 419/0/635 byte-output-neutral
-- All work pushed to GitHub (one4all, .github repos)
+- All work pushed to GitHub (SCRIP, .github repos)
 
 ## Session Deliverables
 
@@ -73,7 +73,7 @@
 
 ```bash
 # 1. Verify current state
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 make -j4 scrip
 bash scripts/test_per_kind_diff.sh  # Expect: PASS=419 FAIL=0 STUB=635
 
@@ -92,14 +92,14 @@ bash scripts/test_per_kind_diff.sh  # Expect: PASS=419 FAIL=0 STUB=635
 
 | File | Purpose |
 |------|---------|
-| `/home/claude/one4all/src/emitter/emit_str.h` | String-returning helpers (s_*, jvm_*_str, net_*_str) |
-| `/home/claude/one4all/src/emitter/BB_templates/` | 22+ template files (22 done, 6+ remain) |
-| `/home/claude/one4all/baselines/per_kind/` | Frozen baseline output (refresh with `freeze_per_kind_baseline.sh`) |
+| `/home/claude/SCRIP/src/emitter/emit_str.h` | String-returning helpers (s_*, jvm_*_str, net_*_str) |
+| `/home/claude/SCRIP/src/emitter/BB_templates/` | 22+ template files (22 done, 6+ remain) |
+| `/home/claude/SCRIP/baselines/per_kind/` | Frozen baseline output (refresh with `freeze_per_kind_baseline.sh`) |
 | `/home/claude/.github/GOAL-HEADQUARTERS.md` | Active rungs and progress tracking |
 
 ## GitHub Status
 
-**one4all:**
+**SCRIP:**
 - Latest: b91b8086 (bb_pat_tab label spacing fix)
 - 5 new commits this session
 - Ready to merge

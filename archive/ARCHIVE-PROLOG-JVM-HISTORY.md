@@ -54,10 +54,10 @@ Operational §NOW → SESSION-prolog-jvm.md.
 ## Session Bootstrap (every PJ-session)
 
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/SCRIP
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/.github
 apt-get install -y --fix-missing default-jdk nasm libgc-dev swi-prolog
-make -C one4all/src
+make -C SCRIP/src
 # Read §NOW above. Start at CRITICAL NEXT ACTION.
 ```
 

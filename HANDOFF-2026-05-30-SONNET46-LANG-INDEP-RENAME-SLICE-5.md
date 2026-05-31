@@ -1,7 +1,7 @@
 # HANDOFF-2026-05-30-SONNET46-LANG-INDEP-RENAME-SLICE-5.md
 
 **Date:** 2026-05-30 · **Author:** Claude Sonnet 4.6 · **Goal:** `GOAL-LANG-INDEPENDENT-RENAME.md`
-**one4all HEAD:** `df3551a7` (pushed) · **.github HEAD:** (this commit)
+**SCRIP HEAD:** `df3551a7` (pushed) · **.github HEAD:** (this commit)
 
 ---
 

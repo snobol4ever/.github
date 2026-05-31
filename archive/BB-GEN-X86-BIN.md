@@ -201,7 +201,7 @@ END
 
 | ID | Deliverable | Gate | Status |
 |----|-------------|------|--------|
-| **M-DYN-B-SIZE** ✅ | Assemble all 27 `.s` boxes, measure `.text`/`.data` section sizes via `objdump -h`, record instruction counts. Grid in §x86 Box Size Grid above. one4all `ac19c92`. | nasm clean; grid recorded | ✅ RT-120 |
+| **M-DYN-B-SIZE** ✅ | Assemble all 27 `.s` boxes, measure `.text`/`.data` section sizes via `objdump -h`, record instruction counts. Grid in §x86 Box Size Grid above. SCRIP `ac19c92`. | nasm clean; grid recorded | ✅ RT-120 |
 | **M-DYN-B-SPITBOL** ✅ | Pattern storage size comparison: SPITBOL x64 vs scrip-interp Byrd boxes. Apples-to-apples: bytes to *store* a pattern, not bytes of match code. See §SPITBOL Comparison Results below. | Comparison table in HQ | ✅ RT-121 |
 | **M-DYN-BENCH-C** ✅ | Full 13-program baseline: scrip-interp (C BB) vs SPITBOL. All corpus benchmark categories: pattern, string, eval, control, TABLE, recursion. Median of 3 runs. See §M-DYN-BENCH-C below. | Results table in HQ; PASS=178 | ✅ RT-124 |
 | **M-DYN-B0** ✅ | Void all prior B1–B10 trampoline emitters. Reset `bb_build_binary_node()` default to C path. `g_bb_mode=BB_MODE_DRIVER` default; `--bb=wired` sets `BB_MODE_LIVE`. | PASS=161 (container baseline) | ✅ 2026-04-07 |
@@ -436,7 +436,7 @@ Non-pattern benchmarks serve as controls — they should show ≤5% change betwe
 
 | Engine | Binary | Build | Notes |
 |---|---|---|---|
-| scrip-interp (C BB) | `/home/claude/one4all/scrip` | `make scrip` | C Byrd box path — **THIS MILESTONE** |
+| scrip-interp (C BB) | `/home/claude/SCRIP/scrip` | `make scrip` | C Byrd box path — **THIS MILESTONE** |
 | scrip-interp (x86 BB) | same binary, `SNO_BINARY_BOXES=1` | same | inline blob path — **M-DYN-BENCH-X86** |
 | SPITBOL x64 | `/home/claude/x64/bin/sbl` | `git clone snobol4ever/x64` (pre-built) | **sole execution oracle** |
 | CSNOBOL4 | — source reference only — | do not build/run | v311.sil / snobol4.c are read-only C source for Silly SNOBOL4 |
@@ -469,7 +469,7 @@ Non-pattern benchmarks serve as controls — they should show ≤5% change betwe
 #!/bin/bash
 # M-DYN-BENCH-C run script — all 13 runnable programs
 # Usage: bash bench_c.sh
-SCRIP=/home/claude/one4all/scrip
+SCRIP=/home/claude/SCRIP/scrip
 SPITBOL=/home/claude/x64/bin/spitbol
 BDIR=/home/claude/corpus/benchmarks
 RUNS=3

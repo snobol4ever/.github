@@ -211,11 +211,11 @@ After the binary protocol lands:
 
 ## Files this plan touches
 
-- one4all/scripts/monitor/monitor_ipc_bin.c                  (NEW)
-- one4all/scripts/monitor/inject_traces.py                   (rewrite)
-- one4all/scripts/monitor/monitor_sync.py                    (rewrite)
-- one4all/scripts/monitor/tracepoints.conf                   (drop IGNOREs)
-- one4all/scripts/test_monitor_2way_sync_step.sh             (minor edits)
-- one4all/scripts/test_monitor_3way_sync_step.sh             (NEW)
-- one4all/src/runtime/x86/snobol4.c (mon_send + comm_var/call/return)
+- SCRIP/scripts/monitor/monitor_ipc_bin.c                  (NEW)
+- SCRIP/scripts/monitor/inject_traces.py                   (rewrite)
+- SCRIP/scripts/monitor/monitor_sync.py                    (rewrite)
+- SCRIP/scripts/monitor/tracepoints.conf                   (drop IGNOREs)
+- SCRIP/scripts/test_monitor_2way_sync_step.sh             (minor edits)
+- SCRIP/scripts/test_monitor_3way_sync_step.sh             (NEW)
+- SCRIP/src/runtime/x86/snobol4.c (mon_send + comm_var/call/return)
 - x64/monitor_ipc_bin_spl.c                                  (NEW; build .so)

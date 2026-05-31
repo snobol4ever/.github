@@ -1,6 +1,6 @@
 # GOAL-PST-REBUS.md — Pure Syntax Tree: Rebus
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Parent:** `GOAL-PARSER-PURE-SYNTAX-TREE.md`
 **Status:** ✅ COMPLETE — Phase 1 C + Phase 2 PST-RB-SC (2026-05-19).
 
@@ -15,6 +15,6 @@ RB-SC-1 (verify), RB-SC-2 (stamp), RB-SC-3 (smoke 4/0). Phase 1 C closed earlier
 ## State
 
 ```
-heads:  one4all @ 2a9aa511 · corpus @ d1c08ff
+heads:  SCRIP @ 2a9aa511 · corpus @ d1c08ff
 audit:  PST-SCRIP-AUDIT.md § parser_rebus.sc — "ALREADY CLEAN".
 ```

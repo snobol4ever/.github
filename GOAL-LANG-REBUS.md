@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** Rebus programs pass under all three modes (--interp, --interp,
 --run). Core language features (functions, pattern match, generators,
 records) work. A test suite of 20+ programs passes.
@@ -54,16 +54,16 @@ Share fixes via main — no branches.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_rebus.sh            # PASS=4
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
-bash /home/claude/one4all/scripts/test_crosscheck_rebus.sh       # 3-mode divergence check
+bash /home/claude/SCRIP/scripts/test_smoke_rebus.sh            # PASS=4
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=31
+bash /home/claude/SCRIP/scripts/test_crosscheck_rebus.sh       # 3-mode divergence check
 ```
 
 ---
@@ -197,7 +197,7 @@ Rebus frontend wired (FI-1) but many language features not lowered.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 43dc03da)
+## Current state (2026-04-14, SCRIP HEAD 43dc03da)
 
 RB-1 done: PASS=4 (output, arith, var, concat) --interp.
 RB-2 next: control flow verification.

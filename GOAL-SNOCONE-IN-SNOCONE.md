@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all + corpus
+**Repo:** SCRIP + corpus
 **Done when:** the Snocone compiler — frontend (lex + parse), IR, lowering — is
 written in Snocone itself, compiles its own source through scrip, and the
 resulting compiler reproduces its own output. Stage 1 output equals Stage 2
@@ -43,7 +43,7 @@ Milestone 2 of the THREE-MILESTONE AUTHORSHIP AGREEMENT.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 Gate after setup:
@@ -160,7 +160,7 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
 
 ## Open rungs
 
-- [ ] **SS-0** — Analyze `one4all/src/driver/interp.c` and `one4all/src/frontend/snocone/snocone_parse.y`. Read the EKind dispatch in `interp_eval`. Identify which EKind values the Snocone frontend actually emits. Report findings in the conversation. **Stop after reporting. Do not proceed to SS-2.**
+- [ ] **SS-0** — Analyze `SCRIP/src/driver/interp.c` and `SCRIP/src/frontend/snocone/snocone_parse.y`. Read the EKind dispatch in `interp_eval`. Identify which EKind values the Snocone frontend actually emits. Report findings in the conversation. **Stop after reporting. Do not proceed to SS-2.**
 
   **Findings (Session 2026-05-02):**
 

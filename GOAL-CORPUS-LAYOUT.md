@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** corpus (primary), `.github` (REPO-corpus.md update), one4all (script path updates)
+**Repo:** corpus (primary), `.github` (REPO-corpus.md update), SCRIP (script path updates)
 
 **Status:** Design captured, not yet executed. CB-0-corpus in
 `GOAL-SCRIP-BOOTSTRAP.md` is the operational rung that will implement
@@ -799,7 +799,7 @@ corpus/
 ```
 
 **Gate:** the move is a single `git mv`-only commit. No content
-changes. Test scripts in `one4all/scripts/` are *expected to
+changes. Test scripts in `SCRIP/scripts/` are *expected to
 break* at this point — that's accepted; the next sub-rung
 re-emerges the gate-critical paths.
 
@@ -814,7 +814,7 @@ minimum:
 - The beauty self-host path: `corpus/programs/beauty/snobol4/`
   with `beauty.sno`, `beauty.ref`, all 16 includes.
 
-Update the gate scripts in `one4all/scripts/` to point at
+Update the gate scripts in `SCRIP/scripts/` to point at
 the new paths in the same commit.
 
 **Gate:** smoke=7, broker=49, beauty-md5 all green again
@@ -892,13 +892,13 @@ delete `corpus/bonepile/` entirely.
 broker=49, beauty-md5 still green. The corpus's layout
 matches the formula in this Goal file.
 
-### Sub-rung CL-7 — Update one4all/scripts/
+### Sub-rung CL-7 — Update SCRIP/scripts/
 
-Audit and update all scripts in `one4all/scripts/` that
+Audit and update all scripts in `SCRIP/scripts/` that
 reference corpus paths. Rationalize the env vars (`SNO_LIB`,
 `SETL4PATH`, `BEAUTY`) to point at the new canonical paths.
 
-**Gate:** every script in `one4all/scripts/` runs without
+**Gate:** every script in `SCRIP/scripts/` runs without
 "file not found" errors. Smoke and broker still green.
 
 ### Sub-rung CL-8 — Mark CB-0-corpus complete

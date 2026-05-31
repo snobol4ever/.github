@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-28
 **Author:** Opus 4.7
-**Repo:** one4all
+**Repo:** SCRIP
 **Commit:** `61ae501e`
 **Parent:** `a21dc32b` (SWI-NEXT step 1, concurrent upstream — rebased onto, no conflict)
 **Pre-rebase parent:** `4471b80d` (SBL-M3-NATIVE-4 ARBNO MEDIUM_BINARY child-gate fix)
@@ -118,7 +118,7 @@ The `head -40` truncation in `test_interp_broad_corpus_and_beauty.sh` (line 72) 
 ```bash
 cp scripts/test_interp_broad_corpus_and_beauty.sh /tmp/test_full.sh
 sed -i 's|head -40|head -300|' /tmp/test_full.sh
-INTERP=/home/claude/one4all/scrip bash /tmp/test_full.sh 2>&1 | grep "FAIL " | sort > /tmp/run.txt
+INTERP=/home/claude/SCRIP/scrip bash /tmp/test_full.sh 2>&1 | grep "FAIL " | sort > /tmp/run.txt
 ```
 
 (Must override `INTERP` because `$HERE` resolves to `/tmp` after the copy.)

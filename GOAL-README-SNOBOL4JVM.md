@@ -68,7 +68,7 @@ commits the corrected README.
 
 - [ ] **S-4** — Add CSNOBOL4 suite section: 126 tests, `lein test SNOBOL4clojure.test-csnobol4-suite`.
 
-- [ ] **S-5** — Add snobol4ever org context: part of compiler matrix, links to one4all and corpus.
+- [ ] **S-5** — Add snobol4ever org context: part of compiler matrix, links to SCRIP and corpus.
 
 - [ ] **S-6** — Final read-through. Every sentence accurate. Lon approves.
 
@@ -80,6 +80,6 @@ commits the corrected README.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```

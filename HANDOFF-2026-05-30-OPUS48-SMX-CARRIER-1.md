@@ -1,7 +1,7 @@
 # HANDOFF-2026-05-30-OPUS48-SMX-CARRIER-1
 
 **Session:** Opus 4.8, 2026-05-30
-**one4all HEAD:** `e06b5201`  (== origin/main)
+**SCRIP HEAD:** `e06b5201`  (== origin/main)
 **.github HEAD:** `857061dc` (== origin/main)
 **Goal:** GOAL-ICON-BB (SMX track) — prerequisite for the new "delete SM entirely + SNOBOL4→BB directed graph" directive.
 
@@ -19,7 +19,7 @@ This SUPERSEDES the prior SMX-5 plan ("slim SM_sequence_t but keep bb_table insi
 
 ---
 
-## What was done — SMX-CARRIER-1 ✅ (one4all `e06b5201`)
+## What was done — SMX-CARRIER-1 ✅ (SCRIP `e06b5201`)
 
 The **keystone decoupling**: the BB-graph table is now a standalone carrier, fully independent of `SM_sequence_t`. This is what makes the SM deletion safe; it is NOT the deletion itself.
 
@@ -70,10 +70,10 @@ WATCH: some BB templates (`bb_to_by.cpp`, `bb_suspend.cpp`, `bb_iterate.cpp`, `e
 ## Session setup for next time
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github  /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
 git clone https://TOKEN@github.com/snobol4ever/x64      /home/claude/x64
-cd /home/claude/one4all && git config user.name LCherryholmes && git config user.email lcherryh@yahoo.com
+cd /home/claude/SCRIP && git config user.name LCherryholmes && git config user.email lcherryh@yahoo.com
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh && make libscrip_rt
 bash scripts/test_smoke_icon.sh            # MUST be m2 6/6 (HARD); m3 1/6

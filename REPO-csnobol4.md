@@ -30,7 +30,7 @@ git config --global --add safe.directory /home/claude/csnobol4
 cd /home/claude
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/SCRIP
 cd csnobol4
 git config user.name "LCherryholmes"
 git config user.email "lcherryh@yahoo.com"
@@ -39,9 +39,9 @@ git log --oneline -3
 
 **Build:**
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh   # primary target
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh    # oracle
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh   # primary target
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh    # oracle
 ```
 
 ## Build
@@ -49,7 +49,7 @@ bash /home/claude/one4all/scripts/build_spitbol_oracle.sh    # oracle
 ⛔ **Use only the checked-in build script. No other build method. No exceptions.**
 
 ```bash
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 # output: /home/claude/csnobol4/snobol4
 ```
 

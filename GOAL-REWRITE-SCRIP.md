@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** Four-mode isolation (mode 1 IR-interp, mode 2 SM-gen+interp,
 mode 3 SM-gen+exec, mode 4 SM-gen+asm+link+exec) is enforced by automated
 gates with zero IR-walker reachability from any SM-mode call graph, and
@@ -94,7 +94,7 @@ inside SM."
 ## Closed rungs (pointer trail)
 
 Detail for each rung lives in its commit message.  Open the hash in
-`one4all` for the full transcript.
+`SCRIP` for the full transcript.
 
 | Rung   | Commit     | Summary |
 |--------|------------|---------|

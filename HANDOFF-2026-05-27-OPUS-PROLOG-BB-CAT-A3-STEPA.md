@@ -5,7 +5,7 @@
 protocol** over (a) inline-on-demand, to preserve single-emit.
 
 **This session landed Step A only** (runtime substrate, behavior-neutral) and
-the complete B–D design below. one4all `58142007`. All gates hold at watermark.
+the complete B–D design below. SCRIP `58142007`. All gates hold at watermark.
 
 Why stop after Step A: Steps B–D are ~150 LOC across 4 files (two BB templates,
 emit_bb.c, the PL_ENTRY arm in sm_bb_switch.cpp) plus a full 107-fixture corpus
@@ -24,7 +24,7 @@ self-contained, fully-green foundation; B–D build on it from a known-good base
 | Full mode-4 corpus | 28/107 |
 | FACT RULE | 0 |
 
-one4all HEAD: `58142007` (Step A). Prior: `66d283ad` (rung25-TERM-STRING).
+SCRIP HEAD: `58142007` (Step A). Prior: `66d283ad` (rung25-TERM-STRING).
 
 ## The problem (grounded in rung02)
 

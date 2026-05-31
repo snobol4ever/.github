@@ -3,7 +3,7 @@
 **Date:** 2026-05-28 (follow-up-5)
 **Model:** Opus 4.7
 **Goal:** GOAL-RAKU-BB.md → M3-RK-NOINTERP-1a (Cluster 1, generator-template mode-3 ABI)
-**one4all:** this commit
+**SCRIP:** this commit
 **.github:** this commit
 **corpus:** unchanged
 
@@ -19,7 +19,7 @@ The bb_to_by.cpp template-level fix is correct and necessary, but unreachable un
 
 ## What landed
 
-### `src/emitter/BB_templates/bb_to_by.cpp` (one4all)
+### `src/emitter/BB_templates/bb_to_by.cpp` (SCRIP)
 
 Verbatim restoration of the prior Sonnet 4.6 follow-up-4 edit:
 
@@ -108,7 +108,7 @@ Concrete plan (per the watermark's NEXT STEP RECOMMENDATION section):
 
 ## Files touched
 
-- `one4all/src/emitter/BB_templates/bb_to_by.cpp` (16 +, 5 −)
+- `SCRIP/src/emitter/BB_templates/bb_to_by.cpp` (16 +, 5 −)
 - `.github/GOAL-RAKU-BB.md` (watermark + NEXT STEP section)
 - `.github/PLAN.md` (Raku BB row)
 - `.github/HANDOFF-2026-05-28-OPUS-RAKU-BB-M3-NOINTERP-1A-LANDED.md` (this file)

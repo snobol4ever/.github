@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-25 — Claude Sonnet 4.6 Session (fourth)
 
-**one4all HEAD:** `eff53b7e`
+**SCRIP HEAD:** `eff53b7e`
 **.github HEAD:** `f667d0bb`
 **Gates:** smoke_prolog 5/5 ✅ · smoke_snobol4 7/7 ✅ · smoke_icon 5/5 ✅ · crosscheck_prolog 128/0 ✅
 
@@ -60,7 +60,7 @@ For PL-T-4/5: translate `bb_exec.c` cases `BB_PL_CALL` (line ~1814) and `BB_CHOI
 ## Watermark
 
 ```
-one4all: eff53b7e
+SCRIP: eff53b7e
 .github: f667d0bb
 smoke_prolog: 5/5 ✅
 crosscheck_prolog: 128/0 ✅

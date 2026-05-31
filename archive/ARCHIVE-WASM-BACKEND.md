@@ -1,8 +1,8 @@
-# ARCHIVE-WASM-BACKEND.md — WebAssembly Backend Reference (one4all) ⛔ INACTIVE — parked 2026-03-31
+# ARCHIVE-WASM-BACKEND.md — WebAssembly Backend Reference (SCRIP) ⛔ INACTIVE — parked 2026-03-31
 
 Pure reference. No session state here.
 **Session state** → `SESSION-snobol4-wasm.md`
-**Emitter** → `one4all/src/backend/emit_wasm.c` (scaffold M-G2; full impl SW-1+)
+**Emitter** → `SCRIP/src/backend/emit_wasm.c` (scaffold M-G2; full impl SW-1+)
 
 ---
 
@@ -16,7 +16,7 @@ designed to run in browsers at near-native speed. The human-readable form is `.w
 scrip-cc -wasm prog.sno  →  prog.wat  →  wat2wasm  →  prog.wasm  →  node / browser / wasmtime
 ```
 
-WASM is the **4th active backend** in one4all. Goal: one4all running in the browser —
+WASM is the **4th active backend** in SCRIP. Goal: SCRIP running in the browser —
 all six frontends compiling SNOBOL4, Icon, Prolog, Snocone, Rebus, and Scrip programs
 to `.wasm` that executes in a standard browser tab.
 

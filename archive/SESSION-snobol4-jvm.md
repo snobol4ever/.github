@@ -1,6 +1,6 @@
 # SESSION-snobol4-jvm.md — SNOBOL4 × JVM (TINY JVM interpreter)
 
-**Repo:** one4all · **Frontend:** SNOBOL4/SPITBOL · **Backend:** JVM
+**Repo:** SCRIP · **Frontend:** SNOBOL4/SPITBOL · **Backend:** JVM
 **Session prefix:** `J`
 **Milestone ladder:** MILESTONE-JVM-SNOBOL4.md
 
@@ -77,7 +77,7 @@ PatternBuilder uses `dynIntArg()` → IntSupplier for variable arguments.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **TINY JVM** | J-229 | one4all `68311b9` (Jasmin pivot uncommitted) | Fix Jasmin regressions → ≥136p → commit → ARRAY/TABLE → ≥155p |
+| **TINY JVM** | J-229 | SCRIP `68311b9` (Jasmin pivot uncommitted) | Fix Jasmin regressions → ≥136p → commit → ARRAY/TABLE → ≥155p |
 
 **Broad baseline: 121p/57f** (178 total) on Jasmin boxes.
 **Target: 136p first** (restore pre-pivot baseline), then ≥155p.
@@ -85,7 +85,7 @@ PatternBuilder uses `dynIntArg()` → IntSupplier for variable arguments.
 ### J-229 first actions (mandatory order)
 
 ```bash
-cd /home/claude/one4all && git pull --rebase
+cd /home/claude/SCRIP && git pull --rebase
 # Setup (once per fresh env) — JVM only, skips nasm/libgc/x86 entirely:
 FRONTEND=snobol4 BACKEND=jvm TOKEN=ghp_xxx bash /home/claude/.github/SESSION_SETUP.sh
 

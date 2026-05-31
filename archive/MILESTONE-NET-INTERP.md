@@ -3,7 +3,7 @@
 
 # MILESTONE-NET-INTERP — scrip-interp.cs: SNOBOL4 .NET Interpreter
 
-**Session prefix:** D · **Repo:** one4all · **Frontend:** Pidgin → IR · **Backend:** MSIL Byrd boxes (ilasm → boxes.dll)
+**Session prefix:** D · **Repo:** SCRIP · **Frontend:** Pidgin → IR · **Backend:** MSIL Byrd boxes (ilasm → boxes.dll)
 
 ---
 
@@ -197,9 +197,9 @@ public sealed class IrStmt {
 8. **Update `PatternBuilder.cs` and `Executor.cs`** — dispatch on `IrKind`.
 9. Build clean. Run `hello`/`empty_string`/`multi` → 3/3 (A01c gate).
 10. Run 19 parse tests → A01b gate.
-11. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+11. Commit + push SCRIP. Update SESSIONS_ARCHIVE + push .github.
 9. Run full crosscheck corpus → establish D-168 broad baseline.
-10. Commit + push one4all. Update SESSIONS_ARCHIVE + push .github.
+10. Commit + push SCRIP. Update SESSIONS_ARCHIVE + push .github.
 
 ---
 

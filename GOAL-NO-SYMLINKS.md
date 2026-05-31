@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** corpus, harness, snobol4dotnet, one4all (any repo with shell scripts)
+**Repo:** corpus, harness, snobol4dotnet, SCRIP (any repo with shell scripts)
 **Done when:** No shell script, Makefile, or CI file in any repo creates symlinks via `ln -s`.
 
 ## Why
@@ -50,7 +50,7 @@ See RULES.md: "No symlinks in shell scripts."
 - [ ] **S-3** — Audit all shell scripts in snobol4dotnet for `ln -s` usage.
       Gate: `grep -r "ln -s" snobol4dotnet/` returns nothing.
 
-- [ ] **S-4** — Audit one4all and any other active repos.
+- [ ] **S-4** — Audit SCRIP and any other active repos.
       Gate: clean grep across all repos.
 
 - [ ] **S-5** — Verify no symlinks exist anywhere in corpus source tree.

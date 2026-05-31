@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-28 — Sonnet 4.6 — WAM-CP-2 Step B + WAM-CP-3 + WAM-CP-4
 
-**one4all HEAD: `731719b9`** ✅ all gates green  
+**SCRIP HEAD: `731719b9`** ✅ all gates green  
 **.github HEAD: `47b5bc0b`**
 
 ---

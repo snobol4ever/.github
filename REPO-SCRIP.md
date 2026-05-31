@@ -1,7 +1,7 @@
-# REPO-one4all.md — one4all
+# REPO-SCRIP.md — SCRIP
 
 **What:** All 6 frontends × 6 backends in one compiler/interpreter/runtime.
-**Repo:** `snobol4ever/one4all`
+**Repo:** `snobol4ever/SCRIP`
 
 ---
 
@@ -13,7 +13,7 @@ git config --global user.name "LCherryholmes"
 git config --global user.email "lcherryh@yahoo.com"
 
 # Clone repos (adjust to your goal)
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all.git /home/claude/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/SCRIP.git /home/claude/SCRIP
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git /home/claude/corpus
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64.git /home/claude/x64
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4.git /home/claude/csnobol4
@@ -23,7 +23,7 @@ git clone https://TOKEN_SEE_LON@github.com/snobol4ever/csnobol4.git /home/claude
 
 **Build — run exactly what your goal's `## Session Setup` section lists. No more.**
 
-All scripts are in `/home/claude/one4all/scripts/`. Each is idempotent.
+All scripts are in `/home/claude/SCRIP/scripts/`. Each is idempotent.
 
 ---
 
@@ -34,46 +34,46 @@ If a Goal file has no `## Session Setup` yet, use the matching category below.
 
 ### Interp / compiler goals (scrip, IR, SM, ASM backends)
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```
 
 ### Interp + cross-check goals (needs both oracles)
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 ### Silly / Monitor goals (CSNOBOL4 is sole oracle for Silly)
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_monitor_ipc_shared_library.sh
-bash /home/claude/one4all/scripts/build_ss_monitor_harness.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_monitor_ipc_shared_library.sh
+bash /home/claude/SCRIP/scripts/build_ss_monitor_harness.sh
 ```
 
 ### JVM goals
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/install_java_and_jasmin.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_java_and_jasmin.sh
 ```
 
 ### Full one-shot install (not for per-goal sessions)
 ```bash
-bash /home/claude/one4all/scripts/install_everything_full_stack.sh
+bash /home/claude/SCRIP/scripts/install_everything_full_stack.sh
 ```
 
 ### After editing .y/.l parser/lexer sources
 ```bash
-bash /home/claude/one4all/scripts/regenerate_parser_and_lexer_from_sources.sh
+bash /home/claude/SCRIP/scripts/regenerate_parser_and_lexer_from_sources.sh
 # then rebuild:
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 
@@ -82,7 +82,7 @@ bash /home/claude/one4all/scripts/build_scrip.sh
 ## Build
 
 ```bash
-cd /home/claude/one4all && git pull --rebase
+cd /home/claude/SCRIP && git pull --rebase
 
 # scrip:
 make scrip
@@ -122,12 +122,12 @@ gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src
 ## Oracle
 
 **Primary oracle** — SPITBOL x64: `/home/claude/x64/bin/sbl`
-Build: `bash /home/claude/one4all/scripts/build_spitbol_oracle.sh`
+Build: `bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh`
 Derive .ref: `/home/claude/x64/bin/sbl -b file.sno > file.ref`
 With includes: `/home/claude/x64/bin/sbl -I/home/claude/corpus/programs/snobol4/demo/inc file.sno`
 
 **Second oracle** — CSNOBOL4: `/home/claude/csnobol4/snobol4`
-Build: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
+Build: `bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh`
 Silly exception: CSNOBOL4 is sole oracle for Silly goals (SS-MONITOR, GOAL-SILLY-*).
 
 ---
@@ -180,12 +180,12 @@ GOAL-SNOCONE-BEAUTY SB-6 until that goal closes.
 
 ---
 
-## Silly SNOBOL4 — cherry-picks from one4all
+## Silly SNOBOL4 — cherry-picks from SCRIP
 
-Files in `one4all/src/runtime/snobol4/` with well-tested logic to adapt.
-Adapt, don't copy verbatim — one4all uses Boehm GC + 64-bit; silly uses arena + 32-bit.
+Files in `SCRIP/src/runtime/snobol4/` with well-tested logic to adapt.
+Adapt, don't copy verbatim — SCRIP uses Boehm GC + 64-bit; silly uses arena + 32-bit.
 
-| one4all file | Useful for | Adaptation needed |
+| SCRIP file | Useful for | Adaptation needed |
 |---|---|---|
 | `argval.c` | VARVAL_fn, INTVAL_fn, PATVAL_fn logic | remove GC_strdup, use arena; int32_t not int64_t |
 | `nmd.c` | NAM_save/NAM_push/NAM_commit/NAM_discard design | remove GC_MALLOC, use arena; Name_entry → `nam_entry_t` |
@@ -221,9 +221,9 @@ bash test/monitor/run_monitor_2way.sh $BEAUTY/beauty_trace_driver.sno
 | # | Participant | Role | Binary |
 |---|-------------|------|--------|
 | 1 | SPITBOL x64 | **Primary oracle** | `/home/claude/x64/bin/sbl` |
-| 2 | one4all ASM | Target | `scrip --gen` |
-| 3 | one4all JVM | Target | `scrip --jvm` |
-| 4 | one4all NET | Target | `scrip --net` |
+| 2 | SCRIP ASM | Target | `scrip --gen` |
+| 3 | SCRIP JVM | Target | `scrip --jvm` |
+| 4 | SCRIP NET | Target | `scrip --net` |
 | 5 | CSNOBOL4 2.3.3 | **Second oracle** | `/home/claude/csnobol4/snobol4` |
 | 6 | Silly SNOBOL4 | Silly target | `/tmp/silly-snobol4` |
 

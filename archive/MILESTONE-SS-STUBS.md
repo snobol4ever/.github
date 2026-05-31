@@ -2,7 +2,7 @@
 
 ⛔ **SUPERSEDED by MILESTONE-SS-COMPLETE.md** — all remaining work tracked there. Do not update this file.
 
-**Goal:** Implement every stubbed function in `one4all/src/silly/`. No stubs remain when done.  
+**Goal:** Implement every stubbed function in `SCRIP/src/silly/`. No stubs remain when done.  
 **Method:** One stub at a time. Build clean after each. Commit per stub.  
 **Gate:** All stubs replaced by real SIL-faithful implementations. Build clean.
 
@@ -62,7 +62,7 @@
 3. Implement in our silly — three-way sync.
 4. Build clean:
    ```bash
-   cd /home/claude/one4all
+   cd /home/claude/SCRIP
    gcc -Wall -Wextra -std=c99 -g -O0 src/silly/sil_*.c src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep -v "^$"
    ```
 5. Commit:

@@ -25,9 +25,9 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-`EXPR_t` / `EXPR_e` / `E_*` → `AST_t` / `AST_e` / `AST_*` across one4all + corpus.
+`EXPR_t` / `EXPR_e` / `E_*` → `AST_t` / `AST_e` / `AST_*` across SCRIP + corpus.
 
-- **AR-1** ✅ C side — one4all `4c96e9e7`
+- **AR-1** ✅ C side — SCRIP `4c96e9e7`
 - **AR-2** ✅ Snocone parsers + .ref oracles — corpus `734bb92`
 - **AR-3** ✅ Doc pass — PLAN.md, RULES.md, GOAL-* prose
 

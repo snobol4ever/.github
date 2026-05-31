@@ -1,7 +1,7 @@
 # HANDOFF — LANG-INDEP-RENAME Slices 3c + 4
 
 **Date:** 2026-05-30 · **Author:** Claude Sonnet 4.6 · **Goal:** `GOAL-LANG-INDEPENDENT-RENAME.md`
-**one4all HEAD:** `8e4d0b2b` (pushed) · **.github HEAD:** (this commit)
+**SCRIP HEAD:** `8e4d0b2b` (pushed) · **.github HEAD:** (this commit)
 
 ---
 
@@ -103,9 +103,9 @@ Per PLAN.md and Lon's directive, the rename is done. Move to **GOAL-SNOBOL4-BB.m
 
 ```bash
 git clone https://ghp_TOKEN@github.com/snobol4ever/.github.git /home/claude/.github
-git clone https://ghp_TOKEN@github.com/snobol4ever/one4all.git /home/claude/one4all
+git clone https://ghp_TOKEN@github.com/snobol4ever/SCRIP.git /home/claude/SCRIP
 git clone https://ghp_TOKEN@github.com/snobol4ever/corpus.git  /home/claude/corpus
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 git config user.name LCherryholmes && git config user.email lcherryh@yahoo.com
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh && make libscrip_rt

@@ -7,7 +7,7 @@ made every compound look identical to every other compound of the same arity.
 
 **Result:** ✅ Correctness fix landed. **0 rung delta** (corpus doesn't exercise
 compound-`==` directly), but every probe in a 7-test compound-comparison battery is now
-byte-identical between `--interp` and `--run`. All gates held. one4all `e15e86b0`.
+byte-identical between `--interp` and `--run`. All gates held. SCRIP `e15e86b0`.
 
 ## Gate ledger (clean rebuild, this session)
 - GATE-1 smoke prolog:        5/5 ✅ held
@@ -146,12 +146,12 @@ The fix is correctness insurance for any future rung that does.
 
 ## Files touched
 
-- one4all `e15e86b0` CAT-D-9b: bb_exec.c (+26), bb_exec.h (+5), bb_pl_builtin.cpp (+85) — 3 files, +116 LOC
+- SCRIP `e15e86b0` CAT-D-9b: bb_exec.c (+26), bb_exec.h (+5), bb_pl_builtin.cpp (+85) — 3 files, +116 LOC
 
 ## Reproducible probe
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 apt-get install -y libgc-dev
 bash scripts/build_scrip.sh && make libscrip_rt
 

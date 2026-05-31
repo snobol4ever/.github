@@ -91,11 +91,11 @@ All SM_PAT_* opcodes now emit code that pushes factory functions.
 
 ## Code Locations
 
-- **Pattern factories:** `/home/claude/one4all/src/runtime/js/sno_runtime.js` lines 1000-1300
-- **Execution harness:** `/home/claude/one4all/src/runtime/js/sno_runtime.js` lines 830-910
+- **Pattern factories:** `/home/claude/SCRIP/src/runtime/js/sno_runtime.js` lines 1000-1300
+- **Execution harness:** `/home/claude/SCRIP/src/runtime/js/sno_runtime.js` lines 830-910
 - **Stack machine:** Same file, lines 540-700 (scalar operations working)
-- **Emitter:** `/home/claude/one4all/src/emitter/emit_js.c` (no changes needed yet)
-- **Reference:** `/home/claude/one4all/src/runtime/js/bb_boxes.js` (reference only, not used)
+- **Emitter:** `/home/claude/SCRIP/src/emitter/emit_js.c` (no changes needed yet)
+- **Reference:** `/home/claude/SCRIP/src/runtime/js/bb_boxes.js` (reference only, not used)
 - **Tests:** `/home/claude/corpus/programs/csnobol4-suite/*.sno`
 
 ---

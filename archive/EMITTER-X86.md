@@ -1,4 +1,4 @@
-# EMITTER-X86.md — x64 ASM Emitter (one4all)
+# EMITTER-X86.md — x64 ASM Emitter (SCRIP)
 
 Pure reference. No session state here.
 **Session state** → SESSION-snobol4-x64.md / SESSION-icon-x64.md / SESSION-prolog-x64.md

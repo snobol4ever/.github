@@ -1,6 +1,6 @@
-# SESSION-scrip-jvm.md — Scrip Demos × JVM (one4all)
+# SESSION-scrip-jvm.md — Scrip Demos × JVM (SCRIP)
 
-**Repo:** one4all · **Frontends:** SNOBOL4 + Icon + Prolog · **Backend:** JVM
+**Repo:** SCRIP · **Frontends:** SNOBOL4 + Icon + Prolog · **Backend:** JVM
 **Session prefix:** `SD` · **Trigger:** "playing with Scrip demos, JVM backend"
 **Harness:** `bash demo/scrip/run_demo.sh demo/scrip/demoN/`
 **Deep reference:** all ARCH docs cataloged in `PLAN.md`
@@ -28,7 +28,7 @@ All tools, repos, and oracles installed by bootstrap.
 
 ```bash
 # After bootstrap — set session vars:
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 SCRIP_CC=$(pwd)/scrip-cc
 JASMIN=$(pwd)/src/backend/jvm/jasmin.jar
 export JAVA_TOOL_OPTIONS=""

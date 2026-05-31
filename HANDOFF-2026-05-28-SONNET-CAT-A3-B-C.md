@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-28 — Sonnet 4.6 — CAT-A-3 Steps B + C
 
-**one4all HEAD: `fe82df79`** ✅ all gates green  
+**SCRIP HEAD: `fe82df79`** ✅ all gates green  
 **.github HEAD: `125f62dd`** (WAM-CP handoff from prior session)
 
 ---

@@ -3,8 +3,8 @@
 ## Commits
 
 - corpus  `d7e9ac1` — rung36 quarantine: `rung36_jcon_subjpos.xfail`
-- one4all `cae35eb1` — rung36 timeout 30s→8s + header comment
-- one4all `dfaf3032` — J-4: wire SM_ACOMP/SM_LCOMP in mode-3 JIT
+- SCRIP `cae35eb1` — rung36 timeout 30s→8s + header comment
+- SCRIP `dfaf3032` — J-4: wire SM_ACOMP/SM_LCOMP in mode-3 JIT
 
 ## 1. Rung-suite speedup (was 30+ min, now ~19s)
 

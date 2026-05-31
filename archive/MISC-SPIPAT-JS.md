@@ -211,7 +211,7 @@ x64 emitter already distinguishes these cases.
 ## Practical Import Strategy
 
 spipatjs is GPL-3 + GCC Runtime Library Exception.
-**Do NOT copy code into one4all** (different license).
+**Do NOT copy code into SCRIP** (different license).
 **DO use it as:**
 1. Behavioral oracle for pattern matching tests — run spipatjs on same inputs
    as our emitter, compare outputs.

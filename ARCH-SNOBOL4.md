@@ -47,7 +47,7 @@ Key files:
 ## DATATYPE convention
 
 SPITBOL returns lowercase (`"name"`, `"pattern"`).
-one4all returns uppercase (`"NAME"`, `"PATTERN"`).
+SCRIP returns uppercase (`"NAME"`, `"PATTERN"`).
 This is intentional per SNOBOL4 spec. `.ref` files use uppercase.
 
 ## Monitor hooks (in snobol4.c)

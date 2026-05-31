@@ -146,7 +146,7 @@ src/runtime/dyn/stmt_exec.c         — remove remaining static bb_* bodies
 
 # MILESTONE-DYN-INTERP — scrip-interp: SNOBOL4 Tree-Walk Interpreter
 
-**Session prefix:** DYN- · **Repo:** one4all · **Frontend:** SNOBOL4 · **Backend:** interp
+**Session prefix:** DYN- · **Repo:** SCRIP · **Frontend:** SNOBOL4 · **Backend:** interp
 
 ---
 
@@ -225,7 +225,7 @@ If it breaks anything, fall back to Option B (runtime guard in statement executo
 ## Build command
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 gcc -O0 -g -I src -I src/frontend/snobol4 -I src/runtime/snobol4 \
     -I src/runtime/boxes/shared \
     src/driver/scrip-interp.c \
@@ -424,7 +424,7 @@ A single script `test/run_invariants.sh` that:
 
 ## Script location
 
-`one4all/test/run_invariants.sh`
+`SCRIP/test/run_invariants.sh`
 
 Called from `SESSION_BOOTSTRAP.sh` HOW block in place of the current
 per-suite inline code.
@@ -462,7 +462,7 @@ Invariants (Xs = wall time):
 
 <!-- SOURCE: MILESTONE-JS-BENCH.md -->
 
-# MILESTONE-JS-BENCH.md — JS Engine Benchmark: one4all vs spipatjs
+# MILESTONE-JS-BENCH.md — JS Engine Benchmark: SCRIP vs spipatjs
 
 **Session:** SJ · **Created:** SJ-5, 2026-04-01 · **Author:** Claude Sonnet 4.6
 
@@ -471,7 +471,7 @@ Invariants (Xs = wall time):
 ## Goal
 
 Measure and compare pattern matching throughput between:
-- **one4all engine** (`src/runtime/js/sno_engine.js`) — 532-line iterative
+- **SCRIP engine** (`src/runtime/js/sno_engine.js`) — 532-line iterative
   frame engine (Clojure match.clj model, immutable frames, GC-owned Ω stack)
 - **spipatjs** (`github.com/philbudne/spipatjs`) — 3090-line PE node-graph
   engine (GNAT model, pthen-linked nodes, explicit match classes)
@@ -485,13 +485,13 @@ of patterns, so JIT warmup and GC conditions are equivalent.
 
 | Engine | File | Lines | Model |
 |--------|------|-------|-------|
-| one4all JS | `sno_engine.js` | 532 | Iterative frame, tagged-union tree |
+| SCRIP JS | `sno_engine.js` | 532 | Iterative frame, tagged-union tree |
 | spipatjs | `spipat.mjs` | 3090 | PE node graph, pthen links |
 
 Ratio: **~6× smaller**. Architectural difference: spipatjs pre-compiles pattern
-graphs at build time (pthen links = O(1) next-node); one4all climbs Ψ parent
+graphs at build time (pthen links = O(1) next-node); SCRIP climbs Ψ parent
 stack on every success (O(depth) per node). Hypothesis: spipatjs faster on
-simple/linear patterns; one4all competitive on deep-backtrack patterns (ARBNO,
+simple/linear patterns; SCRIP competitive on deep-backtrack patterns (ARBNO,
 BAL) where the Ω stack allocation advantage matters.
 
 ---
@@ -519,7 +519,7 @@ Run each pattern × subject pair N=10000 times; report ops/sec.
 
 Output format (one line per benchmark × engine):
 ```
-B01  one4all   9823456 ops/sec
+B01  SCRIP   9823456 ops/sec
 B01  spipatjs  11234567 ops/sec
 ```
 
@@ -535,7 +535,7 @@ B01  spipatjs  11234567 ops/sec
 
 ## Implementation notes
 
-- spipatjs is GPL-3 + GCC Runtime Exception — **do not copy code into one4all**
+- spipatjs is GPL-3 + GCC Runtime Exception — **do not copy code into SCRIP**
 - Import spipatjs as an ES module (`await import(...)`) alongside our CJS engine
 - Wrap both in a thin adapter so benchmark loop is identical for both
 - Use `performance.now()` for timing; warm up 1000 iterations before measuring
@@ -553,7 +553,7 @@ B01  spipatjs  11234567 ops/sec
 
 **Node:** v22.22.0  **WARMUP:** 2000  **MEASURE:** 20000
 
-| ID  | one4all (ops/sec) | spipatjs (ops/sec) | ratio | desc |
+| ID  | SCRIP (ops/sec) | spipatjs (ops/sec) | ratio | desc |
 |-----|------------------:|-------------------:|------:|------|
 | B01 | 207,510 | 6,354 | 32.7x | Literal match |
 | B02 | 23,578 | 6,072 | 3.9x | BREAK+SPAN word scan |
@@ -564,7 +564,7 @@ B01  spipatjs  11234567 ops/sec
 | B07 | 163,845 | 6,268 | 26.1x | Deep SEQ (10 literals) |
 | B08 | 415,434 | 6,406 | 64.9x | CAPT_IMM capture overhead |
 
-**one4all wins all 8 benchmarks.** Range: 1.4x–64.9x faster.
+**SCRIP wins all 8 benchmarks.** Range: 1.4x–64.9x faster.
 
 ### Analysis
 
@@ -574,7 +574,7 @@ on the Match result object on every successful match — this is an O(n) GC writ
 barrier operation that dominates the timing. The PE node-graph pthen advantage
 is completely masked by this per-call freeze cost.
 
-one4all's advantage is largest on:
+SCRIP's advantage is largest on:
 - **B08 CAPT_IMM (64.9x)**: short fast path, no freeze overhead
 - **B04 ARBNO (33.8x)**: lazy expansion via GC-owned frame tree is cheaper
   than spipatjs's stack management inside freeze-gated match objects
@@ -588,7 +588,7 @@ pattern complexity is high enough to amortize the freeze cost.
 
 The Clojure-model engine (immutable frame arrays, GC-owned Ω stack, zero
 post-match allocation) is decisively faster in Node.js v22 than the GNAT PE
-node-graph model with result freezing. For production use: one4all engine.
+node-graph model with result freezing. For production use: SCRIP engine.
 
 Gate: ✅ All 8 benchmarks ran, results committed.
 
@@ -834,7 +834,7 @@ One track, two sequential phases of work:
    - **Stack machine** — evaluates expressions, drives Phases 1, 4, 5
    - **Byrd-box sequencer** — drives pattern match, Phases 2, 3
 
-   JS Byrd boxes live in `one4all/src/runtime/boxes/*/bb_*.js`.
+   JS Byrd boxes live in `SCRIP/src/runtime/boxes/*/bb_*.js`.
    The interpreter does NOT walk the IR tree the way `scrip-interp.c` does —
    it executes via the stack machine + sequencer instead.
 
@@ -1134,14 +1134,14 @@ Gates reintroduce emit-diff + `snobol4_js` invariants.
 
 # MILESTONE-JVM-SNOBOL4.md — SNOBOL4 × JVM Milestone Ladder
 
-**Session:** J · **Work file:** `src/backend/emit_jvm.c` (one4all)
+**Session:** J · **Work file:** `src/backend/emit_jvm.c` (SCRIP)
 **Milestone ladder:** this file · **Baseline:** `94p/32f` (J-216, `a74ccd8`)
 
 ---
 
 ## The architectural distinction that drives everything
 
-`snobol4jvm` (Clojure) and `one4all` JVM backend (`emit_jvm.c`) both target
+`snobol4jvm` (Clojure) and `SCRIP` JVM backend (`emit_jvm.c`) both target
 the JVM — but they implement pattern matching in fundamentally different ways:
 
 **snobol4jvm** — interpreted frame walker:
@@ -1150,7 +1150,7 @@ using a 7-element frame vector `[Σ Δ σ δ Π φ Ψ]`, dispatching on
 `:proceed/:succeed/:recede/:fail` actions.  The pattern tree is data; the
 engine loop is code.  One engine handles all patterns.
 
-**one4all emit_jvm.c** — compiled pure Byrd boxes:
+**SCRIP emit_jvm.c** — compiled pure Byrd boxes:
 `emit_jvm_pat_node()` compiles each pattern AST node to *Jasmin labels*
 at compile time.  α/γ/ω are literal JVM goto targets baked into the `.class`
 file.  There is no interpreter loop at runtime — the compiled class IS the
@@ -1291,7 +1291,7 @@ Pre-existing failures (42): ARRAY/TABLE/DATA, rung10 recursion, expr_eval, stcou
 
 ## Jasmin Byrd Box runtime — `src/runtime/boxes/*/bb_*.jasmin` + `boxes.jar`
 
-**Assembled J-220, packaged J-227/J-228. one4all `src/runtime/boxes/jasmin/boxes.jar`.**
+**Assembled J-220, packaged J-227/J-228. SCRIP `src/runtime/boxes/jasmin/boxes.jar`.**
 
 Every box exists in Jasmin source alongside the other language siblings:
 
@@ -1495,7 +1495,7 @@ emit_byrd_asm.c  ─────── structural oracle ──→  emit_jvm.c
 ---
 
 *MILESTONE-JVM-SNOBOL4.md — written J-217 pivot, 2026-04-02, Claude Sonnet 4.6.*
-*Key insight: one4all JVM emits pure compiled Byrd boxes (labeled gotos), not*
+*Key insight: SCRIP JVM emits pure compiled Byrd boxes (labeled gotos), not*
 *an interpreted frame walker. emit_byrd_asm.c is the structural oracle.*
 *snobol4jvm is the semantic oracle only.*
 
@@ -1567,18 +1567,18 @@ Fix that one path to not drain TEXTSP past `;`.
 ## Test monitor note
 
 The CMPILE stream trace (`SNO_TRACE=1`) already runs against all 500+ corpus
-sources via `one4all/csnobol4/dyn89_sweep.sh`.  Once the fix is in, strap
+sources via `SCRIP/csnobol4/dyn89_sweep.sh`.  Once the fix is in, strap
 `--dump-parse` against the full corpus sweep to catch regressions:
 
 ```bash
 # Gate: all 500+ files parse without error; stmt count matches reference
-CORPUS=/home/claude/corpus bash one4all/csnobol4/dyn89_sweep.sh 2>/dev/null | grep FAIL
+CORPUS=/home/claude/corpus bash SCRIP/csnobol4/dyn89_sweep.sh 2>/dev/null | grep FAIL
 ```
 
 ## Gate
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 ./scrip --dump-parse corpus/crosscheck/rung10/1012_func_locals.sno | grep "stmt 1[012]"
 # Must show: stmt 10 = a='aa', stmt 11 = b='bb', stmt 12 = d='dd'
 ./scrip --interp corpus/crosscheck/rung10/1012_func_locals.sno   # → PASS
@@ -1594,8 +1594,8 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PA
 
 ```bash
 git bisect start HEAD 174d77eb
-git bisect run bash -c 'make scrip -C /home/claude/one4all -s && \
-  /home/claude/one4all/scrip --dump-parse \
+git bisect run bash -c 'make scrip -C /home/claude/SCRIP -s && \
+  /home/claude/SCRIP/scrip --dump-parse \
   /home/claude/corpus/crosscheck/rung10/1012_func_locals.sno 2>/dev/null | \
   grep -q "stmt 11.*b.*bb" && echo good || echo bad'
 ```
@@ -1633,7 +1633,7 @@ Covered by this milestone chain:
 
 ## Invariant — Green Throughout
 
-**Baseline (sprint 95, one4all `5c1a1d8`):**
+**Baseline (sprint 95, SCRIP `5c1a1d8`):**
 ```
 PASS=177  FAIL=1  (178 total)   [expr_eval — needs EVAL+NRETURN]
 ```
@@ -1641,7 +1641,7 @@ PASS=177  FAIL=1  (178 total)   [expr_eval — needs EVAL+NRETURN]
 Every RT commit must hold PASS ≥ 177. The floor never drops.
 Run after every change:
 ```bash
-cd /home/claude/one4all && bash test/run_interp_broad.sh
+cd /home/claude/SCRIP && bash test/run_interp_broad.sh
 ```
 
 ---
@@ -3104,7 +3104,7 @@ The parser replicates CSNOBOL4's `stream()`/syntab mechanism exactly — **the
 changed**. All fixes are in code logic, not table bytes.
 
 The two-way STREAM trace oracle (SNO_TRACE=1) compares sno4parse vs patched
-CSNOBOL4 stream-by-stream. Sweep script: `one4all/csnobol4/dyn89_sweep.sh`.
+CSNOBOL4 stream-by-stream. Sweep script: `SCRIP/csnobol4/dyn89_sweep.sh`.
 
 ---
 
@@ -3361,7 +3361,7 @@ Since we cannot modify BIOPTB chrs[], the approach is:
 - Or: build `BIOPTB_EXT` that starts from BIOPTB and adds `?`.
 
 ### Sweep script
-`one4all/csnobol4/dyn89_sweep.sh` — run against corpus/programs/snobol4/.
+`SCRIP/csnobol4/dyn89_sweep.sh` — run against corpus/programs/snobol4/.
 Output: one line per file, OK/ERR/HANG + first error message.
 
 ### Session start for next DYN session
@@ -3370,8 +3370,8 @@ cd /home/claude
 cat .github/SCRIP-SM.md
 tail -120 .github/SESSIONS_ARCHIVE.md
 cat .github/MILESTONE-SN4PARSE-VALIDATE.md
-gcc -O0 -g -Wall -o one4all/sno4parse one4all/src/frontend/snobol4/CMPILE.c
-bash one4all/csnobol4/dyn89_sweep.sh   # baseline: ~73 OK / 11 ERR / 0 HANG
+gcc -O0 -g -Wall -o SCRIP/sno4parse SCRIP/src/frontend/snobol4/CMPILE.c
+bash SCRIP/csnobol4/dyn89_sweep.sh   # baseline: ~73 OK / 11 ERR / 0 HANG
 ```
 
 
@@ -3571,7 +3571,7 @@ recursively with new SM_Program* and ip=0).
 
 ## sn4parse.c Current State
 
-**File:** `one4all/src/frontend/snobol4/sn4parse.c`  
+**File:** `SCRIP/src/frontend/snobol4/sn4parse.c`  
 **Commit:** `59ada3d`  
 
 **Working:**
@@ -3863,7 +3863,7 @@ corpus/programs/snocone/library/
   nlp/
     claws5.sc
     treebank.sc
-one4all/test/sno2sc/
+SCRIP/test/sno2sc/
   gimpel/   ← driver.sc + driver.ref per program
   ai/
   nlp/
@@ -3875,7 +3875,7 @@ one4all/test/sno2sc/
 
 ```bash
 FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 # Run a conversion test:
 CORPUS=/home/claude/corpus bash test/sno2sc/run_sno2sc_suite.sh gimpel/fibonacci
 # Gate:

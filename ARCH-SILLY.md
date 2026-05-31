@@ -1,7 +1,7 @@
 # ARCH-SILLY.md — Silly SNOBOL4
 
 Ground-up faithful C rewrite of v311.sil (CSNOBOL4 2.3.3, Phil Budne).
-Lives in `one4all/src/silly/`. Self-contained — no dependencies outside that folder
+Lives in `SCRIP/src/silly/`. Self-contained — no dependencies outside that folder
 except system headers.
 
 ## Source oracles

@@ -3,7 +3,7 @@
 Continues the "get SNOBOL4 and others working in SCRIP mode 3 (emitted x86)" thread.
 Two mode-3 JIT bugs fixed this session, both in `src/processor/sm_jit_interp.c`.
 
-## Commits (one4all)
+## Commits (SCRIP)
 
 - `f9ade004`/`4d498065` — real-literal SM_PUSH_LIT_F xmm0/rdi calling-convention bug
 - `2e6ff06b`/`e6661590` — restore r13=STATE/r12=stack before nested blob call

@@ -3,7 +3,7 @@
 **Author:** Claude (this session)
 **Goal:** GOAL-RAKU-BB.md → RK-BB-2 (gather/take Seq box)
 **Status:** ⛔ NOT STARTED — scope larger than goal file suggested, fresh ~80% context recommended
-**Repo state:** clean. one4all at `158394fb`, .github unchanged, corpus unchanged.
+**Repo state:** clean. SCRIP at `158394fb`, .github unchanged, corpus unchanged.
 
 ## Baselines confirmed at session start (`158394fb`)
 

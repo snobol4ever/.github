@@ -52,8 +52,8 @@ spill canonical state).  No register is reserved for `SM_State*`.
 > reads its operand boxes' slots directly); unbounded-depth backtrack state lives
 > in **per-box .bss arenas** (ARBNO / recursion), not on any value stack. The
 > stackless emitter that benchmarked faster than SPITBOL is archived at
-> `one4all/archive/backend/emit_emitters/emit_x64.c`; references in
-> `one4all/refs/bb/`. The SM value stack (`r12` TOS, `rt_push_*`/`rt_pop_*`) must
+> `SCRIP/archive/backend/emit_emitters/emit_x64.c`; references in
+> `SCRIP/refs/bb/`. The SM value stack (`r12` TOS, `rt_push_*`/`rt_pop_*`) must
 > NOT be used by the Icon path. See `GOAL-ICON-BB.md` → "GROUND ZERO 3".
 
 SCRIP has **two stacks** and one **tree of heap-resident DATA blocks**.

@@ -1,8 +1,8 @@
 # HANDOFF — SBL-M3-NATIVE-4 ARBNO tree-shape foundation (Opus 4.7, 2026-05-28)
 
 **Goal:** GOAL-SNOBOL4-BB.md → M3-NATIVE-4 → ARBNO-inside-combinators (rungs 052/054).
-**Start HEAD:** one4all `10f97d29` (M3-NATIVE-4 combinator flat-wire + XNME/XFNME captures).
-**End HEAD:** one4all `debb8a4e` — three files modified, baseline-neutral.
+**Start HEAD:** SCRIP `10f97d29` (M3-NATIVE-4 combinator flat-wire + XNME/XFNME captures).
+**End HEAD:** SCRIP `debb8a4e` — three files modified, baseline-neutral.
 
 ## What landed
 

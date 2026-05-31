@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** harness (`adapters/csnobol4/`, `crosscheck/`), plus test classes in one4all, snobol4dotnet, snobol4jvm
+**Repo:** harness (`adapters/csnobol4/`, `crosscheck/`), plus test classes in SCRIP, snobol4dotnet, snobol4jvm
 **Done when:** all 126 tests (116 Budne + 10 FENCE) are wired into harness and into each runtime's native test suite, with baselines recorded.
 
 ---
@@ -51,7 +51,7 @@ Two sets of programs live in corpus:
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/harness      /home/claude/harness
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus       /home/claude/corpus
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all      /home/claude/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/SCRIP      /home/claude/SCRIP
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4dotnet /home/claude/snobol4dotnet
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4jvm   /home/claude/snobol4jvm
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
@@ -83,7 +83,7 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 - [x] **S-6** — Add `csnobol4` to `crosscheck.sh` DIRS scan and engine list documentation.
   Update harness README to mention csnobol4 adapter.
 
-- [x] **S-7** — Add `test/run_csnobol4_suite.sh` to **one4all**.
+- [x] **S-7** — Add `test/run_csnobol4_suite.sh` to **SCRIP**.
   Shell runner using `scrip`. Runs 116 Budne tests + 10 FENCE tests.
   Model: `test/run_interp_broad.sh`.
   For tests with stdin data embedded below END: extract it and feed as stdin.
@@ -129,6 +129,6 @@ git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.co
 - scrip — Budne + FENCE: `8/126` (10 FENCE all fail; scrip FENCE(P) not yet impl)
 
 ## Final HEAD references (updated)
-- one4all: 7321eebb
+- SCRIP: 7321eebb
 - snobol4jvm: f35d392
 - snobol4dotnet: 1414bb0

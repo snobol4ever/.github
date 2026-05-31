@@ -1,6 +1,6 @@
 # SESSION HANDOFF — 2026-05-27 (Opus 4.7) — RK-BB-2 ✅ CLOSED
 
-**one4all HEAD: `d08237e0`** ✅ all gates HOLD or improve
+**SCRIP HEAD: `d08237e0`** ✅ all gates HOLD or improve
 **.github HEAD: this commit** ✅ PLAN.md + GOAL-RAKU-BB.md updated
 
 Prior session: `HANDOFF-2026-05-27-OPUS-RK-BB-2-STEPS-4-6-PARTIAL.md`.
@@ -9,7 +9,7 @@ Prior session: `HANDOFF-2026-05-27-OPUS-RK-BB-2-STEPS-4-6-PARTIAL.md`.
 
 ## What landed this session
 
-**One commit, one file changed in one4all** (+27/-5 lines in `src/lower/lower.c`).
+**One commit, one file changed in SCRIP** (+27/-5 lines in `src/lower/lower.c`).
 `rk_gather.raku` PASSES `--compile`: native x86 binary emits
 `10\n20\n30\ndone\n` byte-exact to `.expected`. GATE-RK4 mode-4: 8/30 → 9/30.
 
@@ -266,13 +266,13 @@ inside any RK-BB-N session.
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github  /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
 cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/GOAL-RAKU-BB.md
 cat /home/claude/.github/HANDOFF-2026-05-27-OPUS-RK-BB-2-STEP-6-CLOSED.md  # this file
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip libscrip_rt
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip libscrip_rt
 bash scripts/test_raku_ir_rungs.sh     # Expect 8/30
 bash scripts/test_raku_mode4_rung.sh   # Expect 9/30 (rk_gather PASS)
 bash scripts/test_smoke_raku.sh        # Expect 5/0

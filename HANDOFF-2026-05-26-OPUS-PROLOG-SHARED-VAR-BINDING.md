@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-26 (Opus 4.7) — PJ-AGW shared-var unify binding LANDED + succ/2; main/0 auto-run gap found
 
-**one4all HEAD: <this session's commit> (clean, all gates green).**
+**SCRIP HEAD: <this session's commit> (clean, all gates green).**
 smoke_prolog 5/5 · prolog_bb_honest 128/0/0 (was 123) · smoke_icon 5/5 · smoke_snobol4 13/13 ·
 GATE-3 prolog_rung_suite 20/107 (was 19) · ASAN CLEAN.
 
@@ -79,7 +79,7 @@ themselves land.
 
 ## Gate commands (source of truth)
 ```bash
-cd /home/claude/one4all && bash scripts/build_scrip.sh
+cd /home/claude/SCRIP && bash scripts/build_scrip.sh
 bash scripts/test_smoke_prolog.sh        # 5/5
 bash scripts/test_prolog_bb_honest.sh    # 128/0/0
 bash scripts/test_prolog_rung_suite.sh   # 20/107

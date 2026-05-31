@@ -1,4 +1,4 @@
-## ✅ UPDATE-2 (Opus 4.8, 2026-05-29 — S2+S3 L1 GREEN, one4all `57ec5cea`)
+## ✅ UPDATE-2 (Opus 4.8, 2026-05-29 — S2+S3 L1 GREEN, SCRIP `57ec5cea`)
 
 The corrected S2 design below is now BUILT and PROVEN. L1 `/x/`~"x" matches through the emitted
 isolated BB_NFA_* slab in mode-4, byte-identical to the C matcher (match / miss / leftmost-offset).
@@ -15,7 +15,7 @@ then RK-NFA-3 captures, then RK-NFA-5 mode-3 BINARY twins.
 
 # RK-NFA-4 / G1-1 — RESOLVED ENTRY CONTRACT (drop-in spec)
 
-## ⚠️ UPDATE (Opus 4.8, 2026-05-29 — S1 LANDED + S2 CONTRACT CORRECTED, one4all `c8aeb90d`)
+## ⚠️ UPDATE (Opus 4.8, 2026-05-29 — S1 LANDED + S2 CONTRACT CORRECTED, SCRIP `c8aeb90d`)
 
 **S1 DONE and pushed.** The gated `~~` rewiring is in `lower.c` TT_SMATCH (NOT ~line 2488 — the real
 case is ~line 2492). `getenv("RK_NFA_BB") && flavor==match` → `raku_nfa_build(t->c[1]->v.sval)` (the

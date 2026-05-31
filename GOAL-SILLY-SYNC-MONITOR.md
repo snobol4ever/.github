@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all (`test/ss-monitor/`)
+**Repo:** SCRIP (`test/ss-monitor/`)
 **Done when:** `hello.sno` runs through the two-way sync-step monitor, both participants
 reach clean EOF, controller exits 0, Silly produces correct output.
 
@@ -43,8 +43,8 @@ Silly is a faithful C rewrite of CSNOBOL4's SIL source. All other sessions use S
 
 ```
 /home/claude/csnobol4/snobol4   # CSNOBOL4 oracle binary
-/home/claude/one4all/src/silly/            # Silly source
-/home/claude/one4all/test/ss-monitor/      # monitor infrastructure (to be built)
+/home/claude/SCRIP/src/silly/            # Silly source
+/home/claude/SCRIP/test/ss-monitor/      # monitor infrastructure (to be built)
 ```
 
 ## Steps
@@ -90,7 +90,7 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 
 ## Rules
 
-- Build CSNOBOL4: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`. See REPO-csnobol4.md.
+- Build CSNOBOL4: `bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh`. See REPO-csnobol4.md.
 - Test gate passes before every commit.
 - Commit as `LCherryholmes` / `lcherryh@yahoo.com`.
 - Rebase before every .github push.
@@ -134,9 +134,9 @@ Infinite loop detection: FIFO silent for >10 seconds = that participant is loopi
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_monitor_ipc_shared_library.sh
-bash /home/claude/one4all/scripts/build_ss_monitor_harness.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_monitor_ipc_shared_library.sh
+bash /home/claude/SCRIP/scripts/build_ss_monitor_harness.sh
 ```

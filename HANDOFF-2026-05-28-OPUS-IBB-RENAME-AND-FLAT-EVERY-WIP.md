@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-28 — Opus 4.7 — IBB-4 rename + flat_drive_every WIP
 
-**Repos touched:** one4all (single-repo session).
+**Repos touched:** SCRIP (single-repo session).
 **Gates at handoff:** smoke_icon 5/5 · smoke_prolog 5/5 · smoke_raku 5/5 · smoke_snobol4 13/13 · smoke_unified_broker 39/14 · Icon corpus mode 2 PASS=200/47/36/283 unchanged · FACT 0.
 **Canonical-5 mode-3 score:** 2/5 (unchanged from session start — hello.icn ✅, add.icn ✅; every_to.icn / alt.icn / full.icn still failing, but the failure surface has shifted forward — see "where the bug is" below).
 
@@ -107,7 +107,7 @@ All instrumentation reverted before handoff.
 
 | Repo | Hash | Subject |
 |---|---|---|
-| one4all | `057bc824` | IBB-4 WIP + rename bb_icn_to → bb_to + remove BB_ALTERNATE |
+| SCRIP | `057bc824` | IBB-4 WIP + rename bb_icn_to → bb_to + remove BB_ALTERNATE |
 | .github | (this commit) | HANDOFF + PLAN/GOAL-ICON-BB update for the above |
 
 ## Author

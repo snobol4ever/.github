@@ -1,14 +1,14 @@
 # GOAL-PROLOG-BB.md — Prolog: BB-land DCG per predicate + lower_pl DCG
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Sister:** GOAL-HEADQUARTERS.md — mirror; only port semantics and names differ.
 
 ## ⛔ MANDATORY READ BEFORE EVERY SESSION
 
 **Pipeline:** `Prolog AST → lower_pl (AG-wired BB_t graph) → bb_exec.c (Mode 2/3) → bb_pl_*.cpp → x86 (Mode 4)`
 
-**Target model (read before CP work):** `one4all/doc/SWIPL-STUDY-2026-05-28-OPUS.md` (SWIPL engine
-study; CP-stack idea #4 is the current track) + `one4all/doc/GPROLOG-STUDY-2026-05-28-OPUS.md`
+**Target model (read before CP work):** `SCRIP/doc/SWIPL-STUDY-2026-05-28-OPUS.md` (SWIPL engine
+study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05-28-OPUS.md`
 (gprolog CP-frame layout that grounded WAM-CP-1).
 
 **Three modes:**
@@ -148,7 +148,7 @@ snapshot machinery (PLG-7) until PLG-6 proves it is dead for the recursive case.
 
 ---
 
-## State at HEAD (post-PROLOG-BB-MODE2-FIXES, 2026-05-30 — Sonnet 4.6, one4all `1882bc6b`)
+## State at HEAD (post-PROLOG-BB-MODE2-FIXES, 2026-05-30 — Sonnet 4.6, SCRIP `1882bc6b`)
 
 **2026-05-30 Sonnet 4.6: Two mode-2 bugs fixed — write(op-compound) + BB_CHOICE snapshot.**
 
@@ -299,7 +299,7 @@ clause store the native dispatcher consults). rung30 DCG mode-3 (2 NATIVE-ABORT)
 
 ---
 
-## State at HEAD (post-PLR-K-11, 2026-05-29 — one4all `3a811fb7`)
+## State at HEAD (post-PLR-K-11, 2026-05-29 — SCRIP `3a811fb7`)
 
 **2026-05-29: PLR-K-11 LANDED — succ/2 + plus/3 MEDIUM_BINARY arms (mode-3 native).** Single-file,
 +71 lines in `bb_pl_builtin.cpp` (one template, FACT-clean). Both predicates had a mode-2 oracle
@@ -327,7 +327,7 @@ PL-RT-ASSERTZ boundary (honest-abort in mode-3/4).
 
 ---
 
-## State at HEAD (post-PLR-K-10-FIX, 2026-05-29 — one4all `0230e67d`)
+## State at HEAD (post-PLR-K-10-FIX, 2026-05-29 — SCRIP `0230e67d`)
 
 **2026-05-29: PLR-K-10 FIX LANDED — findall/3 non-empty goal mode-3 segfault CLOSED.** Single-file,
 6-line fix in `bb_pl_builtin.cpp`: the findall/3 MEDIUM_BINARY arm did `sub rsp,8` / `add rsp,8`
@@ -360,7 +360,7 @@ mutable-clause-store boundary (honest-abort in mode-3/4).
 
 ---
 
-## State at HEAD (post-PLR-K-10, 2026-05-29 — Sonnet 4.6, one4all `5cc1224e`)
+## State at HEAD (post-PLR-K-10, 2026-05-29 — Sonnet 4.6, SCRIP `5cc1224e`)
 
 **2026-05-29 Sonnet 4.6: PLR-K-10 PARTIAL — findall/3 BINARY arm landed; non-empty goal cases
 still segfault in mode-3.**
@@ -397,7 +397,7 @@ and the goal sub-graph runs in the conservative non-LCO path. Alternatively, set
 
 ---
 
-## State at HEAD (post-PLR-K-9, 2026-05-29 — Opus 4.8, one4all `8be5f202` / corpus `5354a66`)
+## State at HEAD (post-PLR-K-9, 2026-05-29 — Opus 4.8, SCRIP `8be5f202` / corpus `5354a66`)
 
 **2026-05-29 Opus 4.8: PLR-K-9 LANDED — term_to_atom/2 + term_string/2 mode-3 BINARY + mode-4 TEXT
 arms + BB_ARITH TEXT-walker fix.** Both predicates had NO emitter arm (neither TEXT nor BINARY) →
@@ -433,7 +433,7 @@ sub-graph and `bb_exec_node BB_PL_CALL` takes the conservative path. Handoff
 
 ---
 
-## State at HEAD (post-PLR-K-8, 2026-05-29 — Opus 4.8, one4all `123878af` / corpus `e422738`)
+## State at HEAD (post-PLR-K-8, 2026-05-29 — Opus 4.8, SCRIP `123878af` / corpus `e422738`)
 
 **2026-05-29 Opus 4.8: PLR-K-8 LANDED — format/1 + format/2 MEDIUM_BINARY arm (mode-3 native).**
 `format` was MEDIUM_TEXT-only → in mode-3 native (`--run`) the asm strings emitted as raw bytes →
@@ -459,7 +459,7 @@ mode-4 ✅ (landed PLR-K-7); then findall/3 last (own protocol — `nd->ival` is
 
 ---
 
-## State at HEAD (post-PLR-K-7, 2026-05-29 — Opus 4.8, one4all `5a55ac7b` / corpus `e422738`)
+## State at HEAD (post-PLR-K-7, 2026-05-29 — Opus 4.8, SCRIP `5a55ac7b` / corpus `e422738`)
 
 **2026-05-29 Opus 4.8: PLR-K-7 LANDED — number_string/2 + atom_number/2 mode-3 BINARY + mode-4
 TEXT arms.** Both predicates had NO emitter arm at all (neither MEDIUM_TEXT nor MEDIUM_BINARY) —
@@ -486,7 +486,7 @@ last (own protocol — `nd->ival` is `bb_pl_findall_state_t*`, not arity).
 
 ---
 
-## State at HEAD (post-PLR-K-3/4/5/6, 2026-05-29 — Opus 4.8, one4all `f6223d74` / corpus `4a7d2dd`)
+## State at HEAD (post-PLR-K-3/4/5/6, 2026-05-29 — Opus 4.8, SCRIP `f6223d74` / corpus `4a7d2dd`)
 
 **2026-05-29 Opus 4.8: PLR-K-3/4/5 LANDED + PLR-K-6 honest-abort (architectural boundary).**
 Four mode-3-native MEDIUM_BINARY rungs continuing the PLR-K ladder. **GATE-2 crosscheck 47 → 61
@@ -611,7 +611,7 @@ protocol — `nd->ival` is `bb_pl_findall_state_t*`, not arity). Handoff
 
 ---
 
-## State at HEAD (post-PLR-J-5, 2026-05-29 — Opus 4.8, one4all `0b77ba71`)
+## State at HEAD (post-PLR-J-5, 2026-05-29 — Opus 4.8, SCRIP `0b77ba71`)
 
 **2026-05-29 Opus 4.8: PLR-J-5 LANDED — native multi-clause / disjunction / recursive dispatch.**
 Ported the MEDIUM_TEXT `BB_CHOICE` dispatcher AND the `BB_PL_ALT` disjunction arm to MEDIUM_BINARY
@@ -686,7 +686,7 @@ Handoff `HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRJ4-CALLEE-DISPATCH.md`.
 
 ---
 
-## State at HEAD (post-PLR-J-2, 2026-05-29 — one4all `751c5f10`)
+## State at HEAD (post-PLR-J-2, 2026-05-29 — SCRIP `751c5f10`)
 
 **2026-05-29 Opus 4.8: PLR-J-2 LANDED — explicit per-node resume predicate.** `lower_pl.c` only,
 +~24 lines (one helper + two call-site swaps), lower-time only, NO emitter/template/FACT change,
@@ -711,7 +711,7 @@ retry/trust ordering — depends on PLR-J-2 ✅ and PLR-J-4). Handoff
 
 ---
 
-## State at HEAD (post-PLR-J-0, 2026-05-29 — one4all `e2d99c3d`)
+## State at HEAD (post-PLR-J-0, 2026-05-29 — SCRIP `e2d99c3d`)
 
 **2026-05-29 Opus 4.8: PLR-J-0 LANDED — `bounded`/determinacy flag at lower time.** `lower_pl.c`
 only, +~50 lines, lower-time only, NO emitter/template/FACT change, byte-identical output. Added the
@@ -738,7 +738,7 @@ in lockstep with the `SM_BB_PL_INVOKE` BINARY callee-block loop).
 
 ## State at HEAD (post-PLR-J-3, 2026-05-29)
 
-**2026-05-29 (one4all `bbf60667`): PLR-J-3 LANDED — compound-term builder in raw bytes.**
+**2026-05-29 (SCRIP `bbf60667`): PLR-J-3 LANDED — compound-term builder in raw bytes.**
 `bb_builtin.cpp` only, +180 lines, one template file, FACT-clean. Added `emit_build_compound_term_bin`
 (the MEDIUM_BINARY twin of the TEXT recursive `emit_build_compound_term`) and `functor/3`, `arg/3`,
 `=../2` compound-literal MEDIUM_BINARY arms. Was TEXT-only → in mode-3 native (`--run`) the assembly
@@ -769,7 +769,7 @@ mode-3 crosscheck failures).
 
 
 
-**2026-05-29 Sonnet 4.6 (STUDY session — no engine code change; one4all HEAD at `efbdd61c`).**
+**2026-05-29 Sonnet 4.6 (STUDY session — no engine code change; SCRIP HEAD at `efbdd61c`).**
 Read GNU Prolog (`gprolog-master/src/EnginePl/wam_inst.h`, `Pl2Wam/indexing.pl`) and SWI-Prolog
 (`swipl-devel-master/src/pl-incl.h`, `pl-index.c`) line-by-line and compared each major SCRIP
 Prolog feature (term model, unify/trail, choice points, cut, catch/throw, first-arg indexing)
@@ -782,7 +782,7 @@ mode-2 interpreter logic (zero emitted x86, FACT unchanged):
    (`indexing.pl`, `pl-index.c` Fibonacci hash). → new rung family **PL-INDEX-L2**.
 3. **HB choice-point field** — the one deferred CP-frame field with a real consumer (it IS what
    conditional trailing needs). → folded into **PL-CP-FRAME-0**.
-Findings doc: `one4all/doc/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md`. New rung families
+Findings doc: `SCRIP/doc/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md`. New rung families
 added under `PL-ENGINE-PARITY` (this file). ARCH-PROLOG.md fleshed out from stub to engine-model
 + parity-gap reference. **Recommended first landing: PL-TRAIL-COND-1** (smallest, corroborated by
 both references, pure win). Features verified ALIGNED (no action): term/deref model, cut barrier,
@@ -792,7 +792,7 @@ catch/throw scratch-trail. No engine source touched this session.
 
 ## State at HEAD (post-Sonnet-4.6-PLR-J-1, 2026-05-29)
 
-**2026-05-29 Sonnet 4.6 (one4all `efbdd61c`): PLR-J-1 LANDED — CAT-D-10 type-test BINARY arm.**
+**2026-05-29 Sonnet 4.6 (SCRIP `efbdd61c`): PLR-J-1 LANDED — CAT-D-10 type-test BINARY arm.**
 `bb_builtin.cpp` CAT-D-10 (`var/nonvar/atom/integer/float/number/compound/atomic/callable/is_list/ground`)
 was MEDIUM_TEXT-only; in MEDIUM_BINARY the asm strings emitted as raw bytes, so `atom(42)` and
 `integer(hello)` falsely succeeded. Ported the scalar path: `movabs rax,&rt_pl_type_test; call rax`
@@ -807,13 +807,13 @@ FACT=0, GATE-3 m2 104/107, GATE-SWI 57/57, smoke prolog/icon/raku/snobol4 5/5/5/
 
 ## State at HEAD (post-Opus-4.8-PLR-J-PLAN, 2026-05-29)
 
-**2026-05-29 Opus 4.8 (PLANNING session — no code change; one4all HEAD unchanged at `b408b086`).**
+**2026-05-29 Opus 4.8 (PLANNING session — no code change; SCRIP HEAD unchanged at `b408b086`).**
 Read the JCON/ICON master sources in full (`jcon-master/tran/irgen.icn` 43 `ir_a_*` four-port
 procedures, `tran/ir.icn` IR-node vocabulary, `jcon/vClosure.java` box-as-object) and the Prolog
 references (`gprolog-master/src/EnginePl/wam_inst.{c,h}` CP frame + create/retry/trust). Converted
 the four M3-PL-NOINTERP blockers into a sequenced, citation-backed rung ladder **PLR-J-0..5** under
 `PL-LOWER-REVAMP`, each transliterating a specific `irgen.icn` procedure and verifiable against
-mode-2. Findings doc: `one4all/doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`. NEXT pointer (top of this
+mode-2. Findings doc: `SCRIP/doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`. NEXT pointer (top of this
 file) and PLAN.md row repointed at the ladder. **Recommended first landing: PLR-J-1** (type-test
 builtin BINARY arm — smallest, standalone; corroborated live this session: `rung09` native prints
 `atom(42)→yes`/`integer(hello)→yes` falsely because CAT-D-10 is TEXT-only and its asm emits as raw
@@ -825,7 +825,7 @@ No bytes produced, no source touched.
 
 ## State at HEAD (post-Opus-4.8-M3-PL-NOINTERP-1a..1e, 2026-05-29)
 
-**2026-05-29 Opus 4.8 (one4all `b408b086`): native `--run` LIVE — mode-3 0→10 PASS.** Implemented
+**2026-05-29 Opus 4.8 (SCRIP `b408b086`): native `--run` LIVE — mode-3 0→10 PASS.** Implemented
 the native MEDIUM_BINARY Prolog program entry so `--run` runs instead of aborting, and fixed a
 family of latent `movabs rax,0; call rax` (call-to-null) stubs across BB template binary arms that
 segfaulted the instant native execution reached them. These arms had only ever run in mode-4
@@ -883,14 +883,14 @@ now sequenced as a JCON/ICON-derived rung ladder **PLR-J-0..5**, each transliter
 
 Then **DCG**. Develop and verify against mode-2 (the correctness reference) throughout.
 
-**one4all commit:** `b408b086`. (Prior: `94bbd9eb` NO-MODE-FALLBACK; `855cbee2` m3 reporting;
+**SCRIP commit:** `b408b086`. (Prior: `94bbd9eb` NO-MODE-FALLBACK; `855cbee2` m3 reporting;
 `2fae45ec` print/1; `0019cc7b` B3.)
 
 ---
 
 ## State at HEAD (post-Opus-4.8-NO-MODE-FALLBACK, 2026-05-29)
 
-**2026-05-29 Opus 4.8 (Lon directive — one4all `0f4fcfde`):** **ALL mode-fallback paths REMOVED —
+**2026-05-29 Opus 4.8 (Lon directive — SCRIP `0f4fcfde`):** **ALL mode-fallback paths REMOVED —
 a mode runs FULLY or ABORTS.** Cross-mode fallback is dangerous: it reports one engine's result as
 if it were another's. Changes:
 - **`src/driver/scrip.c` mode_run branch:** removed the `SCRIP_M3_NATIVE` env-gate AND the
@@ -922,7 +922,7 @@ MEDIUM_BINARY arms (audit which exist from WAM-CP-5 mode-4 work vs which are TEX
 Raku M3-RK-NOINTERP-1a..1d arc. Until then mode-3 native for Prolog correctly aborts; develop and
 verify against mode-2.
 
-**one4all commit:** `0f4fcfde`. (Prior: `855cbee2` mode-3 reporting; `2fae45ec` print/1; `0019cc7b` B3.)
+**SCRIP commit:** `0f4fcfde`. (Prior: `855cbee2` mode-3 reporting; `2fae45ec` print/1; `0019cc7b` B3.)
 
 **Follow-on (`94bbd9eb`):** the two remaining `sm_interp_run` calls in `scrip.c`'s dispatch chain
 (the `has_non_sno` branch + the final default `else`) are UNREACHABLE (line ~135 forces mode_run=1
@@ -940,7 +940,7 @@ for Prolog; SNOBOL4/Icon `--run` work; GATE-1 5/5, GATE-3 m2 104/107, GATE-SWI 5
 
 ## Prior HEAD (post-Opus-4.8-M3-NATIVE-REPORTING, 2026-05-29)
 
-**2026-05-29 Opus 4.8 (testing/reporting, one4all `855cbee2`):** **mode-3 reporting switched to
+**2026-05-29 Opus 4.8 (testing/reporting, SCRIP `855cbee2`):** **mode-3 reporting switched to
 NATIVE — major honest finding.** Per Lon directive, the gate scripts now run mode-3 as genuinely
 native (`SCRIP_M3_NATIVE=1` → `sm_run_native`: x86 SM asm + flat-wired x86 BB), NOT `sm_interp_run`
 / `bb_exec` / brokers. `test_crosscheck_prolog.sh` (mode-3 invocation + NATIVE-GAP detection of the
@@ -972,13 +972,13 @@ reference.
 **Mode-2 unaffected and authoritative:** GATE-1 5/5, GATE-3 m2 104/107, GATE-SWI 57/57 — all
 byte-identical. Prior B3 (`sumto(1e7)` O(1) heap) and WAM-CP-13 print/1 (mode-4 corpus 55/107) stand.
 
-**one4all commit:** `855cbee2`. (Prior code HEAD `2fae45ec` print/1; `0019cc7b` B3.)
+**SCRIP commit:** `855cbee2`. (Prior code HEAD `2fae45ec` print/1; `0019cc7b` B3.)
 
 ---
 
 ## Prior HEAD (post-Opus-4.8-WAM-CP-13-PRINT1 + B3, 2026-05-29)
 
-**2026-05-29 Opus 4.8 (follow-on, one4all `2fae45ec`):** **WAM-CP-13 print/1 mode-4 emit ✅** —
+**2026-05-29 Opus 4.8 (follow-on, SCRIP `2fae45ec`):** **WAM-CP-13 print/1 mode-4 emit ✅** —
 one-line widening of the MEDIUM_TEXT `write` arm in `src/emitter/BB_templates/bb_builtin.cpp` to
 also match `print` (`strcmp(fn,"print")==0`). `print/1` on atoms/ints/compounds is write-equivalent
 for the corpus cases, and the existing arm already routes BB_ATOM→`rt_pl_write_atom`,
@@ -1034,7 +1034,7 @@ mode-4 corpus (54→~60, mechanical)** — emit per-builtin mode-4 arms followin
 Alternatives: WAM-CP-7 unify specialization; PL-RT-ASSERTZ dynamic clause. (Pushing `sumto(1e8)`
 to tight RSS is a GC-tuning chore, not a correctness gap — heap is already O(1); orthogonal.)
 
-**one4all commit:** `0019cc7b` (parent `0be6e78d`). Handoff
+**SCRIP commit:** `0019cc7b` (parent `0be6e78d`). Handoff
 `HANDOFF-2026-05-29-OPUS48-PROLOG-BB-WAM-CP-6-B3-TRAIL-RECLAMATION.md`.
 
 ---
@@ -1083,7 +1083,7 @@ trail to the pre-call mark after copying live bindings forward (the deferred
 `copyFrameArguments` analogue, now needed since the C stack no longer bounds depth).
 Alternatives: WAM-CP-13 mode-4 corpus (54→~60, mechanical); WAM-CP-7 unify specialization.
 
-**one4all commit:** `167f31cb` (parent `d9062238`). Handoff
+**SCRIP commit:** `167f31cb` (parent `d9062238`). Handoff
 `HANDOFF-2026-05-29-OPUS48-PROLOG-BB-WAM-CP-6-B2-INDEXED-LCO.md`.
 
 ---
@@ -1138,7 +1138,7 @@ recursion B2 wants to flatten. B2 = "when index proves a unique clause AND that
 clause's body is tail-position-CALL-only, redirect via the B1 sentinel rather
 than recursing through `bb_exec_once`." Extend the gate + reuse the B1 mechanism.
 
-**one4all commit:** `d9062238` (parent `e9f09fdc`).
+**SCRIP commit:** `d9062238` (parent `e9f09fdc`).
 
 ---
 
@@ -1284,7 +1284,7 @@ indexing, `count(N)` against `count(0). count(N):-...` dispatches directly
 to clause 2 with no CP push — making the recursive call `eligible=1` and
 unlocking the full benchmark target `count(1e6)` to run in O(1) C stack.
 
-**one4all commit:** `860d1163` (rebased onto concurrent Raku-BB
+**SCRIP commit:** `860d1163` (rebased onto concurrent Raku-BB
 `8d3a8cdf` M3-RK-NOINTERP-1c).
 
 ---
@@ -1343,7 +1343,7 @@ emitting per-builtin mode-4 arms. Mechanical, broad, well-understood.
 (c) **PL-RT-ASSERTZ.** Wire `assertz/1`/`asserta/1`/`retract/1` into
 `pl_runtime.c` clause-table. Independent of CP work.
 
-**one4all commit:** `5bf88205` (parent `98c2f974`).
+**SCRIP commit:** `5bf88205` (parent `98c2f974`).
 
 ---
 
@@ -1498,7 +1498,7 @@ worked; (6) `foo(G) :- catch(call(G),_,R)` worked → localized to catch lowerin
 
 ## Prior HEAD (post-Opus-4.7-SWI-5-EMPTY-VERDICT)
 
-**2026-05-28 Opus 4.7 SWI-5 EMPTY verdict ✅** (corpus + one4all, no upstream one4all hash needed
+**2026-05-28 Opus 4.7 SWI-5 EMPTY verdict ✅** (corpus + SCRIP, no upstream SCRIP hash needed
 — scripts + plunit only). **GATE-SWI: 53/57 (92%) → 57/57 (100%) honest baseline.** Three-way
 verdict `EMPTY` / `PASS` / `FAIL` in `pj_suite_verdict/3` (was `/2`) driven by a new per-suite
 counter `pj_tc`. The counter is incremented from *inside* `pj_inc_{pass,fail,skip}`, NOT on
@@ -1523,8 +1523,8 @@ shape of the bug. Possible WAM-CP-9 step-B (committed-ITE node) candidate.
 
 **Files touched:** `corpus/programs/prolog/plunit.pl` v3→v4 (six small edits in pj_init /
 pj_inc_* / pj_run_suite / pj_suite_verdict / pj_run_tests); 9 `corpus/programs/prolog/swi_tests/
-test_*.ref` files (PASS/FAIL → EMPTY, line counts preserved); `one4all/scripts/util_swi_match.py`
-+ `util_swi_report.py` (accept EMPTY prefix in the dedup set); `one4all/scripts/
+test_*.ref` files (PASS/FAIL → EMPTY, line counts preserved); `SCRIP/scripts/util_swi_match.py`
++ `util_swi_report.py` (accept EMPTY prefix in the dedup set); `SCRIP/scripts/
 test_prolog_swi_suite.sh` (grep widened from `^(PASS|FAIL) ` to `^(PASS|FAIL|EMPTY) `).
 
 Gates byte-identical otherwise to predecessor `61187cc7`: GATE-1 5/5, GATE-2 132/0 (5
@@ -1955,7 +1955,7 @@ likely structural root of CAT-A-3 backtracking class; (3) no `bounded`/determina
 
 Derived from a full read of `jcon-master/tran/irgen.icn` (43 `ir_a_*` procs), `tran/ir.icn`
 (IR-node vocabulary), `jcon/vClosure.java` (box-as-object), and `gprolog-master/src/EnginePl/
-wam_inst.{c,h}` (CP frame). Full findings + citations: `one4all/doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`.
+wam_inst.{c,h}` (CP frame). Full findings + citations: `SCRIP/doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`.
 Each rung is independently verifiable against mode-2 (`--interp`, the correctness reference) and
 lands no bytes outside `*_templates/` (FACT rule). Sequenced so cheap correctness wins land first
 and the structural lower-time work (which the byte arms depend on) lands before the harder binary
@@ -1987,11 +1987,11 @@ arms.
   is_list/ground`) MEDIUM_TEXT-only → MEDIUM_BINARY asm strings emitted as raw bytes → false success.
   Ported scalar path: SysV `rdi=fn rsi=k0 rdx=i0 rcx=s0`, `movabs rax,&rt_pl_type_test; call rax`,
   `test eax; je ω; jmp γ; β→ω`. BB_PL_STRUCT honest-abort until PLR-J-3.
-  **LANDED (Sonnet 4.6, 2026-05-29, one4all `efbdd61c`).** rung09 `yes/yes/no/no` type-test
+  **LANDED (Sonnet 4.6, 2026-05-29, SCRIP `efbdd61c`).** rung09 `yes/yes/no/no` type-test
   sub-lines byte-match mode-2. FACT=0, GATE-3 m2 104/107, GATE-SWI 57/57, smoke 5/5/5/13.
 
 - [x] **PLR-J-2 — explicit per-node resume port, replacing the β heuristic (irgen.icn F2, F3).**
-  **LANDED (Opus 4.8, 2026-05-29, one4all `751c5f10`).** Replaced the inline
+  **LANDED (Opus 4.8, 2026-05-29, SCRIP `751c5f10`).** Replaced the inline
   `(t==BB_PL_CALL||t==BB_CHOICE||t==BB_PL_ALT)` resumable tests scattered in `lower_pl_new_Conj`
   (the `gβ[]` wiring) and `lower_pl_clause_body` (the body backtrack chain) with one named predicate
   `pl_node_is_resumable(const BB_t *)`, transliterating JCON's F2/F3: the resume/redo edge is wired
@@ -2016,7 +2016,7 @@ arms.
   RIP-relative `lea` + PLT; leaf → `rt_pl_node_to_term`, BB_PL_STRUCT → per-arg slot build +
   `rt_pl_compound_build_n` with aligned frame, alignment preserved across recursion). Added
   `functor/3`, `arg/3`, `=../2` compound-literal MEDIUM_BINARY arms wiring the `_term` helper
-  variants with the standard `test/je-ω/jmp-γ` bin-patch tail. **LANDED (one4all `bbf60667`,
+  variants with the standard `test/je-ω/jmp-γ` bin-patch tail. **LANDED (SCRIP `bbf60667`,
   2026-05-29).** Was TEXT-only → in mode-3 native (`--run`) the asm strings emitted as raw bytes →
   `functor/arg/=..` produced garbage (rung09 printed `_ _ / _ / _`). rung09 mode-3 native now
   byte-matches mode-2 (`foo 2` / `b` / `[foo,a,b]`); **GATE-2 crosscheck 10 → 11 PASS** (rung09
@@ -2043,7 +2043,7 @@ arms.
   `HANDOFF-2026-05-29-OPUS48-PROLOG-BB-PLRJ4-CALLEE-DISPATCH.md`.
 
 - [x] **PLR-J-5 — `BB_CHOICE` + `BB_PL_ALT` BINARY arms + compound unify. LANDED (Opus 4.8,
-  2026-05-29, one4all `0b77ba71`).** Ported the MEDIUM_TEXT choice dispatcher and disjunction arm to
+  2026-05-29, SCRIP `0b77ba71`).** Ported the MEDIUM_TEXT choice dispatcher and disjunction arm to
   MEDIUM_BINARY (raw bytes via `bb_bin_t`; `@PLT` → `movabs rax,&fn; call rax`), wired BB_PL_STRUCT
   operands in the BINARY unify arm through PLR-J-3's `emit_build_compound_term_bin` (16-byte
   scratch-slot alignment), and removed the multi-clause guard in `SM_BB_PL_INVOKE`. Cross-block label
@@ -2140,7 +2140,7 @@ byte-identical mode-2 output with a reduced candidate-scan count. PL-CP-FRAME-0 
 ## Session setup
 
 ```bash
-cd /home/claude/one4all && bash scripts/install_system_packages.sh   # nasm/m4/libgc-dev
+cd /home/claude/SCRIP && bash scripts/install_system_packages.sh   # nasm/m4/libgc-dev
 make -j4 scrip
 make libscrip_rt
 bash scripts/test_smoke_prolog.sh        # GATE-1

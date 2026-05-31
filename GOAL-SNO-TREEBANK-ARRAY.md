@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Parallel:** This goal runs in its own session simultaneously with GOAL-SNO-TREEBANK-LIST
 and GOAL-SNO-CLAWS5. All three sessions share main — pull --rebase before every push.
 Fixes to shared files (interp.c, bb_boxes.c, stmt_exec.c) benefit all sessions immediately.
@@ -38,16 +38,16 @@ output matches `corpus/programs/snobol4/demo/treebank-array.ref` under `--interp
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snobol4.sh          # PASS=7
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=49
+bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh          # PASS=7
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=49
 ```
 
 ---
@@ -64,7 +64,7 @@ Oracle: CSNOBOL4 -bf -P 200k  (double-function trick; SPITBOL -f is broken)
 Run to test:
 ```bash
 DEMO=/home/claude/corpus/programs/snobol4/demo
-timeout 30 /home/claude/one4all/scrip --interp $DEMO/treebank-array.sno \
+timeout 30 /home/claude/SCRIP/scrip --interp $DEMO/treebank-array.sno \
     < $DEMO/VBGinTASA.dat 2>/dev/null | diff - $DEMO/treebank-array.ref
 ```
 
@@ -97,7 +97,7 @@ function, so children are never appended.
   to `strcmp`. Already done on main at session start. Confirmed by inspection.
 
 - [x] **TA-2** — Diff treebank-array output against ref. Fix any remaining
-  divergences. DONE: diff=0; two fixes in one4all HEAD 25ab6fe7.
+  divergences. DONE: diff=0; two fixes in SCRIP HEAD 25ab6fe7.
 
 ---
 
@@ -123,7 +123,7 @@ function, so children are never appended.
 
 ---
 
-## Current state (2026-04-17, one4all HEAD 25ab6fe7 — TA-2 DONE)
+## Current state (2026-04-17, SCRIP HEAD 25ab6fe7 — TA-2 DONE)
 
 GOAL COMPLETE. treebank-array --interp diff=0 vs treebank-array.ref.
 
