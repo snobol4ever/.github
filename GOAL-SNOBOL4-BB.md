@@ -792,6 +792,21 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 ## Session log (last few, terse)
 
+- **2026-05-31 Opus 4.8 — CONCURRENCY GROUND RULES for 3-session LOWER+EMITTER fill ✅** (SCRIP `d1c082f`,
+  .github `0b3e3bea`). Lon greenlit firing up 3 concurrent sessions (SNOBOL4/Icon/Prolog) to fill LOWER + EMITTER
+  to 100% BBs on x86 by EOD, all platforms next; asked to verify the herding discipline first ("LOWER turning into
+  a mess and code flying outside EMITTERS"). **Audit:** LOWER already herded (SHARED-LOWERER FACT RULE, verified
+  byte-identical x3 — the earlier sed mismatch was a false alarm, the phrase recurs in this file's watermark). **Gap:
+  EMITTER had NO concurrency rule** — `emit_core.c` is one giant shared `switch` (108 cases), 67 per-box template
+  `.cpp`s, one shared Makefile `RT_PIC_SRCS`; RULES.md TEMPLATE-ONLY governed only WHERE bytes live. **Installed:**
+  (1) `TEMPLATE-ONLY EMISSION — ONE-DISPATCH CONCURRENCY` FACT RULE, byte-identical x3 (md5 307534d6), mirroring the
+  LOWER rule. (2) `scripts/audit_concurrency_invariants.sh` — the herding gate enforcing both rules' completion tests
+  (no dup `case TT_` per role switch, no dup `case IR_` in emit_core.c, no byte-emitter regression vs baseline 6,
+  FACT RULE blocks byte-identical x3 via awk). (3) `prove_lower2.c` `main()` sectioned per-language (BEGIN/END markers)
+  so concurrent appends auto-merge. (4) Fixed the LOWER rule's self-check (c) sed→awk (over-matched in SNOBOL4-BB),
+  re-synced byte-identical x3 (md5 5097ed94). Gates green: audit_concurrency_invariants OK, prove_lower2.sh 17/17,
+  make scrip rc=0. No code logic changed (rules + gate + harness sectioning only); Icon m2 stays 5/6.
+
 - **2026-05-31 Opus 4.8 — ICON EXECUTES AGAIN (m2 0/6 → 5/6) ✅** (SCRIP `212ed70`, base `593fbf3`; .github this
   handoff). Continuation of the shared-combinator session (Lon: "Finish."). Made Icon run on the four-port IR via
   `bb_exec_once(main)`. (1) Promoted `g_det_builtin1` → SHARED role-agnostic `wire_det_builtin1`, called from BOTH
@@ -1280,7 +1295,7 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP: `212ed70` (base `ee12a16`) · .github: (this commit). **lower2.c → lower.c (the new tree
+**Watermark.** SCRIP: `d1c082f` (base `ee12a16`) · .github: (this commit). **lower2.c → lower.c (the new tree
 root; old lower.c deleted, blob d2d8c8e1).** tm/tm_g match-collect library in from tmatch_proto.c. **SHARED COMBINATOR
 SCAFFOLDING + ICON EXECUTION RESTORED 2026-05-31 (Opus 4.8), two commits `593fbf3` then `212ed70`:**
 - `593fbf3` — two reusable four-port builders `wire_seq` (n-ary sequence-with-backtrack) + `wire_alt` (n-ary
@@ -1304,6 +1319,8 @@ SCAFFOLDING + ICON EXECUTION RESTORED 2026-05-31 (Opus 4.8), two commits `593fbf
 rc=0. Behavioral: SNOBOL4 `OUTPUT="hello world"`→one record + `OUTPUT = 2 + 3`→5; **Icon m2 5/6** (was 0/6 on
 `ee12a16`; the old "6/6 HARD" predated SMX-4 and was STALE); sm_dead 1/1; FACT 6 (pre-existing baseline). FACT RULE
 `SHARED-LOWERER ONE-FILE CONCURRENCY` byte-identical across the 3 goal files (md5 39c3e268) — UNTOUCHED.
+
+**CONCURRENCY GROUND RULES NOW COMPLETE for the 3 sessions (SCRIP `d1c082f`, .github `0b3e3bea`).** LOWER was herded (SHARED-LOWERER FACT RULE); the EMITTER side now has its mirror: **`TEMPLATE-ONLY EMISSION — ONE-DISPATCH CONCURRENCY` FACT RULE**, byte-identical in all 3 GOAL files (one dispatch case per IR kind in `emit_core.c`, one template `.cpp` per box, edit only your own language's boxes, bytes only in templates / missing box falls loud, append-only Makefile `RT_PIC_SRCS`, ABI changes lockstep). **Run `scripts/audit_concurrency_invariants.sh` before every commit** (alongside `prove_lower2.sh` + the emitter gates) — it enforces both FACT RULES' completion tests: no dup `case TT_` within a role switch, no dup `case IR_` in emit_core.c, no byte-emitter regression outside templates (vs PURITY_BASELINE=6), both FACT RULE blocks byte-identical x3 (awk first-match). `prove_lower2.c` `main()` is now sectioned SNOBOL4 / ICON / PROLOG (BEGIN/END markers) so concurrent case-appends auto-merge. The LOWER rule's self-check (c) was also fixed sed→awk (re-synced byte-identical, md5 5097ed94). Note md5 39c3e268 referenced earlier predates this self-check fix; current LOWER-rule md5 is 5097ed94, EMITTER-rule md5 307534d6.
 
 **⭐ IMMEDIATE NEXT.** (1) **`every write(1 to 3)`** = the last Icon m2 fail (outputs only `1`) — needs
 GENERATOR-THROUGH-CALL resumption: the call's argument is a generator (`1 to 3`) and `every` drives the body's β to
