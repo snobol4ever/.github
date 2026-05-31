@@ -94,10 +94,12 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 > `[SMX] FATAL`), and the old `lower.c`+`lower_pl.c` (the `sm_interp_run`→`pl_bb_dcg`→`bb_exec_once`
 > path, WAM-CP rungs, PLR-J/PLR-K ladders, GATE-2/3/4/SWI counts) were deleted for the unified
 > four-port `lower.c`. Treat those entries as ARCHAEOLOGY (semantic reference for re-grow), NOT live
-> state. The LIVE state is: **PLG-0 ✅ (audit), PLG-1 ✅ (ground hello-world runs through the new
-> `lower_goal`→`bb_exec_once`).** The old GATE-2/3/SWI numbers are meaningless now — the live gate is
-> `scripts/prove_lower2.sh` (topology, 35/35) + the per-rung mode-2 hello checks. All the `bb_exec.c`
-> Prolog machinery (`IR_BUILTIN`/`IR_GOAL`/`IR_CHOICE` arms, `resolve_*`, `rt_pl_*`) survives as
+> state. The LIVE state is: **PLG-0 ✅ (audit), PLG-1 ✅ (ground hello-world), PLG-2 ✅ (single
+> non-recursive predicate WITH variables — `greet :- X = world, write(X), nl.` prints `world`; the
+> per-activation env/frame appears).** The old GATE-2/3/SWI numbers are meaningless now — the live gate is
+> `scripts/prove_lower2.sh` (topology, 35/35) + the per-rung mode-2 hello checks (GATE-1 smoke 2/5:
+> `write_atom` + `unify`; `arith` blocked on `is/2` wiring, `clause`/`recursion` are PLG-3/6). All the
+> `bb_exec.c` Prolog machinery (`IR_BUILTIN`/`IR_GOAL`/`IR_CHOICE` arms, `resolve_*`, `rt_pl_*`) survives as
 > compiled-but-unreachable code behind the SMX gate; PLG re-grows the wiring rung by rung. Full
 > inventory + verdicts: `doc/PLG-STACKLESS-AUDIT-2026-05-30.md`.
 
@@ -212,7 +214,54 @@ archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
   (`SCRIP_PLG_TRACE=1`, default OFF, no emitted bytes) a counter in `bb_snapshot_state` and assert it
   stays 0 for hello. Gate: hello.pl mode-2 prints `hello`; snapshot counter == 0; FACT 0.
 
-- [ ] **PLG-2 — single non-recursive predicate, mode-2.** `greet :- write(hello), nl. :- greet.`
+- [x] **PLG-2 — single non-recursive predicate WITH variables, mode-2. DONE (Opus 4.8, 2026-05-31,
+  SCRIP `e1a6557`).** `greet :- X = world, write(X), nl. :- initialization(greet, main).` now PRINTS
+  `world` in mode-2 — `=/2` binds a per-activation logic-var slot and `write(X)` reads the binding back.
+  The per-activation FRAME the whole PLG ladder is built around makes its FIRST appearance here. GATE-1
+  smoke **1 -> 2** (`unify` now PASS; `write_atom` held). prove_lower2 **35/35**. FACT 0. Siblings
+  byte-identical to the PLG-1 baseline (Icon mode-2 5/1, SNOBOL4 3/10 — the mid-flight Ground-Zero
+  failures, NOT this change). Four files:
+  (1) **`src/lower/lower.c`** — (a) `g_unify` REWRITTEN: was lowering both operands with `ROLE_VALUE`
+      (-> `lower_value`, which emits the Icon/SNOBOL `IR_VAR` value kind), but `bb_exec.c`'s `IR_UNIFY`
+      arm consumes its operands via `resolve_node_to_term`, which expects `IR_LOGICVAR`/`IR_ATOM`/
+      `IR_LIT_*`/`IR_STRUCT`. That producer/consumer mismatch — NOT the env — was the real PLG-2 blocker.
+      Now both operands lower via `g_term` (NULL ports = data, not executed boxes) onto `uni->α`/`uni->β`,
+      exactly what the exec arm reads. unify node itself is the single executable box (α=self, semidet,
+      β=ω_in). (b) `g_term` `TT_VAR` arm reads the var's dense slot from `e->v.ival` (assigned by the
+      frontend, see file (4)) into `IR_LOGICVAR->ival`; `v.sval` is NOT read (the union holds the slot,
+      not the name). (c) New `pl_vars_t` frame-size tracker threaded through the GOAL cursor (`lcx_t.pl_vars`):
+      records max-slot+1 as the activation frame size; `lower2_clause_body_entry` writes it to `bbg->nslots`.
+  (2) **`src/include/IR.h`** — added `int nslots` to `IR_graph_t` (the per-activation graph container, not
+      the lean per-node `IR_t` — PEERS-rule clean): the clause's variable/frame count the driver allocates.
+  (3) **`src/driver/scrip.c`** — Prolog `mode_interp` arm now allocates `g_resolve_env` of `nslots+8`
+      `Term*` cells (`GC_MALLOC`) BEFORE `bb_exec_once`, so `IR_LOGICVAR` slot reads resolve into a real
+      per-activation env instead of the NULL env that made PLG-1's `write(X)` print nothing.
+  (4) **`src/frontend/prolog/prolog_lower.c`** — fixed the UNION-CLOBBER that was the segfault root: both
+      clause builders (`lower_clause_from_tree`/`tr_assign_slots` AND `lower_clause`) had `ec->v.dval =
+      arity; ec->v.ival = n_vars;` (union -> the `v.ival` write destroys `v.dval`), and `tr_assign_slots`
+      did `t->v.ival = trslot_get(m, t->v.sval)` on TT_VAR (reads name from `v.sval`, writes slot into the
+      SAME union -> name becomes a garbage pointer). With two distinct vars this gave `nslots`-confusion +
+      `write(X)` empty + `write(Y)` SIGSEGV on the garbage `v.sval`. RECONCILIATION: a Prolog `TT_VAR`
+      carries its dense SLOT in `v.ival` (the SWI `analyseVariables2` numbering — verified against the
+      uploaded `swipl-devel/src/pl-comp.c:874` `index = ci->arity + nvars++`); `tr_assign_slots` already
+      computes it. Dropped the redundant `ec->v.ival = n_vars` clobbers so the clause node's `v.dval`
+      (arity, read by `lower2_clause_body_entry`) survives; the lowerer derives the frame size itself.
+  **NOTE on the rung's "snapshot counter == 0":** still moot post-excision — the PLG-2 clause graph is a
+  flat `GCONJ(UNIFY, BUILTIN, LOGICVAR-data, BUILTIN)` with no `IR_CALL`/`IR_CHOICE`/`IR_GOAL`, so no
+  snapshot site is reached (snapshot belongs to PLG-3/6 when user-calls / clause-choice appear).
+  **Verified beyond the gate:** two distinct vars `X=hello, Y=world` (write Y) -> `world`; shared var
+  across writes `X=hello,Y=world,write(X),write(Y),write(X)` -> `hello/world/hello` (slot-sharing); a
+  compound `X = f(a,b)` -> `f(a,b)`.
+  **NEXT — PLG-2-arith / then PLG-3.** The GATE-1 `arith` smoke (`X is 2+3, write(X)`) still fails: `is/2`
+  has NO arm in `lower_goal`'s `TT_FNC` switch (only `=`, `<`, `>`, `=<`, `>=`, `=:=`, `=\=`). Wire `is/2`
+  -> a goal that arith-evaluates the RHS (the `IR_ARITH`/`resolve_arith_eval` path exists in `bb_exec.c`)
+  and unifies the LHS slot with the result. ALSO surfaced this session: `g_compare` builds an `IR_ARITH`
+  with `ival = op_code` (a BinopKind), but `resolve_arith_eval` reads `bb->sval` as the op NAME and
+  `bb->ival` as ARITY — so the comparison-op encoding is mismatched and needs aligning before `</>/=:=`
+  goals work in mode-2. Then PLG-3 (facts + first-solution call) needs the `IR_GOAL` user-call + `IR_CHOICE`
+  clause-dispatch re-grown (they survive compiled-but-unreachable behind the SMX gate per PLG-0).
+
+- [ ] **PLG-2 (original text, retained):** `greet :- write(hello), nl. :- greet.`
   Body = flat α/β/γ/ω SEQ; one call, no retry, no recursion. Snapshot counter must remain 0 (call
   carries only the γ/ω wiring + trail mark, per archived `prolog_emit.c` user-call shape). Gate:
   prints `hello`; snapshot count 0; mode-2 == mode-3; FACT 0.
