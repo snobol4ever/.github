@@ -50,7 +50,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **Ground Zero (Icon-BB)** ⬅ #1 | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. 2026-05-31: icn-derived `gen_` rascals stripped (prefix + `g_gen_`/`lower_gen_`/`rt_gen_` infixes); all comments + blank lines purged from `src` (.c/.h/.y/.l) with 200-char separators. Seed: `scrip --interp` → `hello`. `GOAL-LANG-INDEPENDENT-RENAME.md` deleted. |
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. *(corpus 93 PASS; next: `bb_call` builtins + generator re-pumping)* |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. *(Gate-2 47; next: numbervars/3, type-test compound, writeq, findall/3 last)* |
-| **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(native broad 255; next: deferred capture-commit, mode-2 DEFER backtracking, SPAN/ARBNO/FENCE clusters)* |
+| **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(ACTIVE 2026-05-31: ground-zero unified four-port AST→IR lower rewrite — `lower2.c` foundation laid + proven vs Proebsting Figs 1&2; SNOBOL pattern lowering = the PATTERN role. Prior pattern-BB-template track (native broad 255; deferred capture-commit, mode-2 DEFER, SPAN/ARBNO/FENCE) remains valid below it.)* |
 | **Raku BB** | `GOAL-RAKU-BB.md` | ⏸ **ON HOLD** (2026-05-30). Raku development paused indefinitely. Grammar/subrule BB-generator tier deferred. SM-0+SM-1 clean; SM-2 diagnosed (BB_ITERATE/SM_CALL_FN mode-4 crash); resume when Raku is re-prioritized. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
 | **PST Parent** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | Stage 2 PST-LR-0 bulk rename. |
