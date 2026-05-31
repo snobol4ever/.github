@@ -46,8 +46,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
-| **Lang-Indep Rename** ⬅ #1 | `GOAL-LANG-INDEPENDENT-RENAME.md` | **ONGOING invariant — check every session (see step 1 above).** Slices 0–4 ✅ green (one4all `df3551a7`): ICN_/Icn_/gen_-non-generator de-prefixed; Scope/ScopeEnt/ScopeEntry/descr_identical/scope_patch stripped. Remaining: Slice 5 (backend `.il/.j/.wat/.cs/.java/.js` — off live path, lowest priority). |
-| **Lower-Merge** ⬅ #2 | `GOAL-LOWER-MERGE.md` | **NEW (Lon directive 2026-05-30).** Unify and consolidate all lower/*.c files into one lower.c source. Eliminate the scattered lower_graph.c / lower_clause.c / lower_ctx.c / lower_sno.c split — one file, one consolidated function per logical operation. |
+| **Lang-Indep Rename** ⬅ #1 | `GOAL-LANG-INDEPENDENT-RENAME.md` | **ONGOING invariant — check every session (see step 1 above).** Slices 0–4 ✅ green (one4all `df3551a7`): ICN_/Icn_/gen_-non-generator de-prefixed; Scope/ScopeEnt/ScopeEntry/descr_identical/scope_patch stripped. Remaining in this goal: Slice 5 (backend `.il/.j/.wat/.cs/.java/.js` — off live path) **then LOWER-MERGE** (unify all `lower/*.c` into one consolidated `lower.c`). |
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. *(corpus 93 PASS; next: `bb_call` builtins + generator re-pumping)* |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. *(Gate-2 47; next: numbervars/3, type-test compound, writeq, findall/3 last)* |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(native broad 255; next: deferred capture-commit, mode-2 DEFER backtracking, SPAN/ARBNO/FENCE clusters)* |

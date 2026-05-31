@@ -47,10 +47,12 @@ Per Lon directive: `gen_` prefix is only valid when it means generate/generator/
 Step 1 is now: **check GOAL-LANG-INDEPENDENT-RENAME.md and do any remaining rename steps**,
 before cloning and reading goals. The rename is an ongoing invariant, not a completed one-time task.
 
-### GOAL-LOWER-MERGE.md (NEW)
+### LOWER-MERGE steps added to `GOAL-LANG-INDEPENDENT-RENAME.md`
 
-New goal file for Lon's directive: merge all `src/lower/*.c` into a single consolidated `lower.c`.
-5 steps (LM-1 through LM-5), smallest file first, gate after each.
+Lon's directive to merge all `src/lower/*.c` into a single consolidated `lower.c` is recorded as the
+LOWER-MERGE step block (LM-1..LM-5) **inside the existing rename goal file** — NO new goal file.
+5 steps, smallest file first (`lower_ctx.c` → `lower_clause.c` → `lower_pat_dcg.c` → `lower_graph.c`),
+pure structural merge, gate after each.
 
 ---
 
@@ -67,5 +69,5 @@ New goal file for Lon's directive: merge all `src/lower/*.c` into a single conso
 
 ## Next steps
 
-1. **LOWER-MERGE** (`GOAL-LOWER-MERGE.md`): LM-1 — merge `lower_ctx.c` (37 lines, smallest).
+1. **LOWER-MERGE** (steps LM-1..LM-5 in `GOAL-LANG-INDEPENDENT-RENAME.md`): LM-1 — merge `lower_ctx.c` (37 lines, smallest).
 2. **Slice 5 remainder** (lowest priority): backend `.il/.j/.wat/.cs/.java/.js` — off live X86 path.
