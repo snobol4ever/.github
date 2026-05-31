@@ -137,7 +137,7 @@ FACT=0 · sm_dead ≤1. Baseline at carve: m2 6/6, FACT 0, sm_dead 1.
   Method: explicit per-identifier `\bsym\b` sed program (NOT blanket `s/pl_/`, which would hit mid-word
   `pl_` and `bb_pl_`); `sed -f` applied unconditionally to all post-AST `*.c/*.h/*.cpp` (binary-safe vs
   the α/β/γ/ω files). Gate green (m2 6/6, FACT 0, sm_dead 1).
-- [ ] **Slice 3c — Prolog cross-boundary symbols** (the 29 EXEMPTED in 3b): split into (a) frontend-DEFINED
+- [x] **Slice 3c — Prolog cross-boundary symbols** (the 29 EXEMPTED in 3b): split into (a) frontend-DEFINED
   parser/builtin API — leave as-is, correct per the frontend-exempt rule (`prolog_atom*`, `prolog_parse`,
   `prolog_compile`, `prolog_driver`, `prolog_builtin`, `prolog_atom_name`, and the Prolog-builtin impls
   `pl_write*`/`pl_univ`/`pl_functor`/`pl_arg`/`pl_term_to_string` if def-site is `prolog_builtin.c`); and
@@ -149,7 +149,7 @@ FACT=0 · sm_dead ≤1. Baseline at carve: m2 6/6, FACT 0, sm_dead 1.
   Sets saved at audit: `/tmp/b_all.txt` (203), `/tmp/b_xbound.txt` (29), `/tmp/b_rename.txt` (174).
   Also: the vestigial SMX-4-excised opcode `SM_BB_PL_INVOKE` (SM.h) still carries `PL` — fold/rename when
   the SM surface is finally driven to 0.
-- [ ] **Slice 4 — Raku**: `raku_/rk_` files + 300 symbols.
+- [x] **Slice 4 — Raku**: `raku_/rk_` files + 300 symbols.
 - [ ] **Slice 5 — backend output libs** (deferred): `.il/.j/.wat/.cs/.java/.js` named `Sno*` —
   off the live build path (X86 ONLY), lowest priority.
 
@@ -245,14 +245,16 @@ be updated to record the base reg + per-language roles) · GC arena setup in `rt
 ## Session State
 
 ```
-HEAD one4all  = 42886970  (LANG-INDEP Slice 3b — Prolog runtime symbols)
+HEAD one4all  = 8e4d0b2b  (LANG-INDEP Slices 3c+4 — raku_/rk_ stripped to feature names)
 HEAD .github  = (see git log)
-Baseline      = Icon m2 6/6 (HARD), m3 2/6, FACT 0, sm_dead 1/1  (held green through 3a + 3b)
+Baseline      = Icon m2 6/6 (HARD), m3 2/6, FACT 0, sm_dead 1/1  (held green through all slices)
 Slices done   = 0 ✅ (5370695f), 1a ✅ (7d57c6bd), 1b ✅ (d7f64afa), 2 ✅ (bf3f7928),
-                3a ✅ (ddfc8f81), 3b ✅ (42886970) — all green
-Next          = Slice 3c (29 Prolog cross-boundary syms — def-site split + frontend bridge),
-                then Slice 4 (Raku raku_/rk_ + ~300 syms), then Slice 5 (backend .il/.j/.wat/.cs/.java/.js).
-Handoff       = HANDOFF-2026-05-30-LANG-INDEP-RENAME-SLICE-3.md
+                3a ✅ (ddfc8f81), 3b ✅ (42886970), 3c ✅ (bd91ea84), 4 ✅ (8e4d0b2b) — all green
+Next          = Slice 5 (backend .il/.j/.wat/.cs/.java/.js — off live X86 path, lowest priority).
+                PRIORITY: proceed to SNOBOL4-BB LOWER (Track B per SMX-4 handoff):
+                wire SNOBOL4 AST → BB directed graph; first target OUTPUT = "hello world".
+                See HANDOFF-2026-05-30-OPUS48-SMX-4-DELETE-SM.md Track B for the exact plan.
+Handoff       = HANDOFF-2026-05-30-SONNET46-LANG-INDEP-RENAME-SLICE-4.md
 ```
 
 ### ⚠⚠ VETOABLE DECISION (Lon) — `BB_PL_SEQ → BB_GCONJ` (Prolog conjunction enum)
