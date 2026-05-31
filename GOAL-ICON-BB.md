@@ -1,5 +1,23 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
+## 🧹 #1 — GROUND ZERO COMMENT & BLANK-LINE PURGE — DONE 2026-05-31
+
+**First-place task this session (Lon).** Every hand-written `.c/.h/.y/.l` file under `one4all/src`
+had **all** C-style (`/* */`) and C++-style (`//`) comments stripped, **all blank lines deleted**,
+and a **200-char `/*----…----*/` separator** inserted between functions and at top-level
+partitions. Rationale: a comment is wrong the moment after it is written because it is never
+rewritten when its referent changes — at ground zero we carry **zero** stale comments to confuse us.
+- **187 files, 72,442 → 60,455 lines.** Stripper is string/char-literal aware (`"http://"`, `'/'`,
+  `"//"` operators all survive). Seed intact: `scrip --interp` prints `hello`. Build green.
+- **EXCLUDED — do NOT strip these (they break the build / are machine output):** the 12 checked-in
+  flex/bison generated files compiled directly by the Makefile — `*.lex.c`, `*.tab.c`, `*.tab.h`,
+  `lex.*.c` under `src/frontend/*/`. Restored from HEAD after the purge.
+- **`.cpp` NOT included** — Lon's spec named C/H/Y/L only. `src/emitter/**/*.cpp` still carry their
+  comments; extend the purge to `.cpp` if desired (same stripper, add the extension).
+- Naming: the icn-derived `gen_` rascal strip (prefix + `g_gen_*`/`lower_gen_*`/`rt_gen_*` infixes,
+  e.g. `g_gen_frame_active → g_frame_active`) landed in the same Ground Zero pass; genuine generator
+  tokens (the 7 pre-existing `gen_*`, `bb_gen_scan/alt`, `BB_GEN_*`, `binop_gen_state_t`) preserved.
+
 ## ⛔⛔ GROUND ZERO 3 — STACKLESS REBUILD (Reset 2026-05-30) ⛔⛔
 
 **This is the THIRD ground-zero reset. The premise that was wrong both prior times: a value stack.**
