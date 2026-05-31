@@ -811,6 +811,29 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 ## Session log (last few, terse)
 
+- **2026-05-31 Opus 4.8 — REGISTER CONVENTION LOCKED IN CODE + SNOBOL4 PATTERN LEAVES ✅** (this handoff). Lon: cover
+  the register base before the 3-session race, "SET the registers up front in the code before we JUMP into BB land."
+  **Findings:** (1) the x86 BB-native emission backend is EXCISED by SMX-4 (`--compile` says "BB-native x86 emission not
+  yet rebuilt"; `--run` silent; `bb_program` was an unwired empty stub) — so emitted bytes are assemble-verifiable only,
+  not run-provable; rebuilding it IS the race. (2) THREE contradictory register conventions existed: GOAL FACT RULE
+  (r12=ζ, r13/r14/r15=Σ/δ/Δ) vs REGISTER-LAYOUT.md (r12=SM value-stack TOS, r13-15 free) vs RULES.md ICON-STACKLESS
+  ("r13=SM-state register") — all SMX-4 residue (SM engine gone → no value-stack, no SM-state). **Lon ratified the GOAL
+  FACT RULE as winner.** **Done:** created `src/emitter/bb_regs.h` — THE single register source the 3 sessions reference
+  (BBREG_* GAS names + BBREGN_* reg numbers); filled `bb_program.cpp` with the register-setup prologue (mov r12,rsp;
+  lea r10,[rip+Δ_root_data]; jmp root α) — assemble-verified via `as` (`49 89 e4`/`4c 8d 15…`); synced REGISTER-LAYOUT.md
+  to the live convention (supersession banner + table). **Lon register decisions captured:** rbx=DESCR base pointer
+  (dual-width 8/16-byte DESCR; concurrent 32-bit session in flight), rbp=variable hash-table base (RESERVED — GET/SET
+  stay C calls for now, inlining is a future optimization). ζ (r12) = ONE load per BB-BLOB sequence BEGIN, amortized
+  across the sequence's boxes, survives C calls (callee-saved); R10 = caller-saved re-loadable constant data (flat) — the
+  RO-const-vs-RW-dynamic axis is why ζ is callee-saved and r10 caller-saved. **SNOBOL4 PATTERN leaves added to lower.c
+  `lower_pattern`:** LEN/POS/RPOS/TAB/RTAB/FENCE/ABORT/FAIL/SUCCEED/ARBNO + captures (COND/IMMED/CURSOR) + DEFER(*var) +
+  bare VAR; `kind_is_resumable` extended with the pattern generators. Flag/payload encodings match the bb_exec.c oracle
+  arms. **Gates green throughout:** make scrip rc=0, make libscrip_rt rc=0, prove_lower2.sh 17/17, purity FACT 6, sm_dead
+  1, concurrency invariants OK. **OPEN:** (a) the pattern leaves are NOT YET PROVEN (no prove_lower2.c cases — next step);
+  (b) R10 flat-data-ptr vs brokered-current-node fork is the one unresolved byte-affecting decision; (c) the 3 GOAL-file
+  register FACT tables (byte-identical x3) now LAG bb_regs.h — a lockstep amendment is deferred until R10 settles + the
+  dual-width session's rbx work lands (co-owned). Per Lon: do not tangle on the HASH inline optimization now.
+
 - **2026-05-31 Opus 4.8 — CONCURRENCY GROUND RULES for 3-session LOWER+EMITTER fill ✅** (SCRIP `d1c082f`,
   .github `0b3e3bea`). Lon greenlit firing up 3 concurrent sessions (SNOBOL4/Icon/Prolog) to fill LOWER + EMITTER
   to 100% BBs on x86 by EOD, all platforms next; asked to verify the herding discipline first ("LOWER turning into
@@ -1297,11 +1320,18 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   `TT_DECL`/`TT_OPSYN`, `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F`, `TT_TRY`/`TT_DIE`.
 - [ ] **L2-H — data / cset / IO**: `TT_MAKELIST`/`TT_VLIST`/`TT_RECORD`/`TT_NEW`/`TT_SORT`, `TT_MAP`/`TT_GREP`/
   `TT_GATHER`, `TT_HASH_*`/`TT_ARR_*`, `TT_CSET_UNION`/`_DIFF`/`_INTER`, `TT_PRINT`/`TT_PRINT_FH`/`TT_SAY`/`TT_SAY_FH`.
-- [~] **L2-P — PATTERN role**: `TT_LEN`/`POS`/`RPOS`/`TAB`/`RTAB`, `TT_FENCE`, `TT_ARBNO`, **CAT chain (`TT_SEQ`/`TT_CAT`) ✅**,
-  **ALT (`TT_ALT`) ✅**, captures `TT_CAPT_COND`/`IMM`/`CURSOR`, `TT_INDIRECT`(*var DEFER), `TT_BAL`, `TT_FNC` prims.
+- [~] **L2-P — PATTERN role**: **`TT_LEN`/`POS`/`RPOS`/`TAB`/`RTAB` ✅**, **`TT_FENCE` ✅**, **`TT_ABORT`/`TT_FAIL`/`TT_SUCCEED` ✅**,
+  **`TT_ARBNO` ✅**, **CAT chain (`TT_SEQ`/`TT_CAT`) ✅**, **ALT (`TT_ALT`) ✅**, **captures `TT_CAPT_COND_ASGN`/`_IMMED_ASGN`/`_CURSOR` ✅**,
+  **`TT_DEFER`(*var) + bare `TT_VAR` ✅**. Remaining: `TT_BAL`, `TT_FNC` pattern-primitive folds (SPAN/ANY/etc. as FNC calls).
   (foundation leaves LIT/ARB/REM/SPAN/ANY/NOTANY/BREAK/BREAKX already in lower_pattern via pat_cset_arg.)
-  CAT/ALT done 2026-05-31 via SHARED `wire_seq`/`wire_alt` (IR_PAT_CAT/IR_PAT_ALT kinds). Remaining: LEN/POS/RPOS/
-  TAB/RTAB leaves, FENCE, ARBNO, captures, *var DEFER, BAL, FNC pattern-primitive folds.
+  CAT/ALT done 2026-05-31 via SHARED `wire_seq`/`wire_alt`. **Leaves added 2026-05-31 (this handoff):** LEN→IR_PAT_LEN,
+  POS/RPOS→IR_PAT_POS (RPOS sval="r"/dval=1.0; bounded, β=ω_in), TAB/RTAB→IR_PAT_TAB (generator, self-β), FENCE→IR_PAT_FENCE
+  (bounded; FENCE(inner) lowers inner then FENCE-successor), ABORT→IR_PAT_ABORT, FAIL→IR_FAIL, SUCCEED→IR_SUCCEED,
+  ARBNO→IR_PAT_ARBNO (inner pattern in own IR_alloc sub-graph + bb_arbno_state_t), CAPT_COND/IMMED→IR_PAT_ASSIGN_COND/_IMM
+  (inner.γ→capture, varname in sval), CAPT_CURSOR→IR_PAT_ATP, DEFER→IR_PAT_DEFER(ival=1), bare VAR→IR_PAT_DEFER(ival=0).
+  `kind_is_resumable` extended with the pattern generators (β=self) so emit_leaf wires self-retry for generators and β=ω_in
+  for POS/RPOS/FENCE/ABORT. Flag/payload encodings match the bb_exec.c oracle arms exactly. **NOT YET PROVEN — no prove_lower2.c
+  cases for these arms yet (the 17/17 covers only the pre-existing arms). NEXT: add SNOBOL4 dump_pat cases (node counts + α/β/γ/ω).**
 - [~] **L2-Goal — GOAL role**: **`TT_UNIFY` (+`=/2`) ✅**, **arith-compares (`< > =< >= =:= =\=`) ✅**, `TT_IF`, `TT_VAR`/`TT_FNC`
   call/builtin, **conj `,` ✅ / disj `;` ✅** /ITE (cut/true/fail leaves already in lower_goal).
   conj/disj done 2026-05-31 via SHARED `wire_seq`/`wire_alt` (IR_GCONJ/IR_DISJ); unify=`g_unify` (IR_UNIFY),
@@ -1314,7 +1344,20 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP: `d1c082f` (base `ee12a16`) · .github: (this commit). **lower2.c → lower.c (the new tree
+**Watermark.** SCRIP: `<this commit>` (base `d592f40`) · .github: `<this commit>` (base `956d4c01`). **REGISTER CONVENTION
+LOCKED IN CODE + SNOBOL4 PATTERN LEAVES (2026-05-31 Opus 4.8 handoff).** New `src/emitter/bb_regs.h` = the single register
+source (BBREG_* names / BBREGN_* numbers); the FROZEN map: r12=ζ frame (one load per BB-BLOB sequence), r13/r14/r15=Σ/δ/Δ,
+r10=per-BLOB data (flat) | broker current-node (brokered) — **R10 FORK still TBD (only open byte-affecting decision)**,
+rbx=DESCR base (dual-width 8/16B DESCR, concurrent 32-bit session), rbp=variable hash base (RESERVED; GET/SET stay C calls
+for now). `bb_program.cpp` filled with the register-setup prologue (assemble-verified; x86 BB-native backend still EXCISED so
+not run-provable). `REGISTER-LAYOUT.md` synced. SNOBOL4 PATTERN leaves added to `lower.c` lower_pattern: LEN/POS/RPOS/TAB/RTAB/
+FENCE/ABORT/FAIL/SUCCEED/ARBNO + COND/IMMED/CURSOR captures + DEFER(*var) + bare VAR; `kind_is_resumable` extended. **NEXT (top
+of L2-P): add prove_lower2.c SNOBOL4 dump_pat cases for these leaves — they are wired but UNPROVEN (17/17 covers only prior
+arms).** Then: R10 fork decision; the byte-identical-x3 GOAL register FACT tables LAG bb_regs.h (deferred lockstep amendment,
+co-owned with the dual-width session). Gates at handoff: make scrip rc=0, make libscrip_rt rc=0, prove_lower2.sh 17/17, purity
+FACT 6, sm_dead 1, concurrency invariants OK. — Prior watermark below.
+
+**Watermark (prior).** SCRIP: `d1c082f` (base `ee12a16`) · .github: (this commit). **lower2.c → lower.c (the new tree
 root; old lower.c deleted, blob d2d8c8e1).** tm/tm_g match-collect library in from tmatch_proto.c. **SHARED COMBINATOR
 SCAFFOLDING + ICON EXECUTION RESTORED 2026-05-31 (Opus 4.8), two commits `593fbf3` then `212ed70`:**
 - `593fbf3` — two reusable four-port builders `wire_seq` (n-ary sequence-with-backtrack) + `wire_alt` (n-ary
