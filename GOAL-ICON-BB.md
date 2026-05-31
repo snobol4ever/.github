@@ -132,6 +132,15 @@ grep -rnoE 'rt_(push|pop)_[a-z_]+' src/emitter/BB_templates/ src/emitter/emit_bb
 Plus the existing per-rung gate: `m2==m3` byte-identical, `--dump-sm` count=0 (zero SM),
 FACT 0, smokes hold.
 
+### ⛔ ALWAYS TEST ALL THREE MODES (Icon GOAL policy — set 2026-05-31)
+
+**Every SCRIP execution test for this GOAL runs the program through ALL THREE modes on the SAME source, and reports all three. Never test fewer than all three.**
+- **mode 2 — `--interp`** (BB port-walker oracle) — **HARD GATE**: must be all-PASS (the source-of-truth output; build sanity).
+- **mode 3 — `--run`** (stackless native x86) — **TRACKED**: floor `MODE3_MIN` (env, default 1), ratchets up as GZ rungs rebuild each box family stackless.
+- **mode 4 — `--compile`** (standalone x86-64 asm → assemble with `gcc -no-pie` → link `out/libscrip_rt.so` → run → compare output) — **TRACKED**: floor `MODE4_MIN` (env, default 0). Currently severed post-SMX (`--compile`/`--target=x86` print the SMX-excised notice and emit nothing) → 0/N; the floor ratchets up as **BB-native compile emission** is rebuilt. A new GZ rung is not "done" until its mode-2 oracle is green AND mode-3 + mode-4 are tracked against it.
+- **Canonical harnesses already wired for all three:** `scripts/test_smoke_icon.sh` (per-frontend gate) and `scripts/test_crosscheck_icon.sh` (mode-consistency). Any NEW or edited Icon test script MUST run `--interp`, `--run`, AND `--compile` (mode-4 via the asm→assemble→link→run path; if `out/libscrip_rt.so` is absent or `--compile` emits nothing, mode-4 simply fails/tracks — never silently skipped). The per-rung `test_icon_ir_rung_*.sh` scripts are mode-2 oracle tests today; migrate each to all-three as it is next touched.
+- Mode-4 needs `out/libscrip_rt.so` (`make libscrip_rt`) and `gcc`; the harnesses degrade gracefully (mode-4 FAIL/TRACK) when either is missing so the mode-2 HARD gate still runs in any environment.
+
 ### Rung ladder (HELLO WORLD up — each gated, stackless, no `rt_push`/`rt_pop`)
 
 - [x] **GZ-0 — Scaffold + gates.** Pin the no-stack gate above into `scripts/`. Confirm the
