@@ -200,7 +200,27 @@ FACT 0, smokes hold.
   **mode-3 STILL fork-blocked** — both GZ-5 `IR_ALT` and now GZ-6's CALL-resume cycle need the adapter reworked;
   that IS Lon's Path-1/Path-2 fork (rewrite the mode-3 emitter to walk the γ-chain/ring natively vs per-shape
   scaffold). Removing the seam + teaching the adapter the resume topology is the next mode-3 step.
-- [ ] **GZ-7 — `x := 42; write(x)`.** Flat slot for `x` (the archive's flat .bss var model).
+- [x] **GZ-7 — `x := 42; write(x)`.** Flat slot for `x` (the archive's flat .bss var model). **mode-2
+  oracle already passing.** **mode-3 + mode-4 DONE (flat goto-graph named-slot model, no ring — Lon's
+  test_sno_*.c law for modes 3/4):** built `icn_flat_chain_build` (+ text twin `icn_flat_chain_build_text`)
+  and `codegen_flat_chain_body` in `emit_bb.c` — a two-pass emitter that (1) postfix-analyzes the γ-chain to
+  record each consumer's operand REFERENCES on α/β (NOT for re-walk — `icn_chain_operand_refs`), then (2)
+  BFS-emits EVERY box exactly once, wired by its native γ/ω ports (jmp rel32), via `g_icn_flat_chain`-gated
+  slot-leaf template arms. Each box writes its result into its OWN ζ=r12 frame slot; a consumer reads the
+  producer's slot directly (`bb_slot_get`) — the `str_t POS0; … = POS0` model. A variable `x` is ONE named
+  frame slot (`bb_varslot`, name-keyed) shared by its IR_ASSIGN writer and IR_VAR readers. **NO ring** (the
+  AG ring is the mode-2 oracle's model ONLY); **NO value stack.** Four templates gained flat-chain slot arms
+  (BINARY+TEXT): `bb_lit_scalar.cpp` (LIT_I writes a 16-byte DESCR — `{v:DT_I,slen:0}` + int — to its slot),
+  `bb_var.cpp` (named var slot → own slot, 16-byte copy), `bb_assign.cpp` (RHS producer slot → named var
+  slot; restricted to DESCR-producing RHS = LIT_I/VAR, binop-RHS falls through loud — GZ-8 adds the binop
+  DESCR producer), `bb_call.cpp` (`write(E)` reads operand slot by value into rdi:rsi → new by-value
+  `rt_write_any_nl(DESCR_t)` in `rt.c`, type-dispatching int/real/string). Driver (`scrip.c`) routes Icon
+  mode-3/mode-4 to the chain builder when `icn_ring_to_tree` can't linearize. **m2==m3==m4 `42`** (verified
+  assembled+linked+run). Icon smoke **m2 6/6 HARD · m3 5/6 · m4 0/6→5/6** (mode-4 was severed at session
+  start when libscrip_rt was absent — the flat-chain TEXT arms rebuilt it for write_str/write_int/arith/
+  string_op/every). GATES: FACT 0 · no-stack 114 ≤ 127 · one-reg-frame 20 ≤ 20 · prove_lower2 PASS ·
+  template-purity advisory 7 (byte-identical before/after) · Prolog m2 5/5 unaffected. NO `rt_push`/`rt_pop`
+  added; the chain arms are register-relative `[r12+off]` only.
 - [ ] **GZ-8 — `if`/relop control, relop routes its OWN γ/ω.** Bake the branch into the relop
   (PDF LessThan: `if (E1 ≥ E2) goto E2.resume`); NO `LAST_OK` flag, NO `BB_IF` flag-router.
   This is the reference-faithful form (the old IBB-9-RELOP-PORTS, done correctly from scratch).
@@ -403,7 +423,43 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `582c3bc` (mode-4 BB-native rebuild — Icon m4 0/6 → 5/6 — Sonnet 4.5; **pushed to origin/main**, rebased onto the parallel SNOBOL4 `80e6c22` SBL-M4-STACKLESS-1). Built on `aabf060`.
+**HEAD (SCRIP):** `febef10` (GZ-7 `x := 42; write(x)` mode-3 + mode-4 via the FLAT GOTO-GRAPH
+NAMED-SLOT model — no ring — Sonnet). Built on `582c3bc`.
+
+**Done this session (GZ-7 mode-3 + mode-4 — flat goto-graph, named slots, NO ring):** Lon's architectural
+law restated and enforced: **mode 2 = AG ring (correct); modes 3/4 = NO ring** — the `test_sno_*.c` model,
+where every box owns a NAMED SLOT, writes its result there, and a consumer reads the producer box's slot
+DIRECTLY (`str_t POS0; … seq = cat(seq, POS0)`); wiring is pure `goto` (α/β/γ/ω → `jmp rel32`); values flow
+UP the BB graph chain via slots, never a ring. GZ-7 is the first multi-statement / variable-bearing rung
+crossed in compiled modes. The single-expression-tree adapter `icn_ring_to_tree` returns NULL for it (it
+un-flattens ONE tree; this graph is `LIT_I→ASSIGN→VAR→CALL`, two statement roots), so a NEW path was built:
+- **`emit_bb.c`** — `icn_flat_chain_build` + `icn_flat_chain_build_text` + `codegen_flat_chain_body`: pass
+  (1) `icn_chain_operand_refs` walks the γ-chain, a postfix stack records each consumer's operand boxes as
+  REFERENCES on α/β (NOT for re-walk); pass (2) BFS-emits every box ONCE wired by native γ/ω. `g_icn_flat_
+  chain` gates the slot-leaf template arms. Name-keyed `bb_varslot`/`bb_varslot_peek`: an Icon variable is
+  ONE `[r12+off]` frame slot shared by IR_ASSIGN(name) + IR_VAR(name) — the x86 analog of `str_t POS0`.
+- **Templates** (BINARY+TEXT slot arms): `bb_lit_scalar` LIT_I writes a 16-byte DESCR (`{v:DT_I,slen:0}` +
+  int value) to its slot; `bb_var` copies named-var slot → own slot; `bb_assign` copies RHS-producer slot →
+  named-var slot (restricted to DESCR-producing RHS LIT_I/VAR; binop-RHS falls through LOUD — GZ-8 adds the
+  binop DESCR producer); `bb_call` `write(E)` reads operand slot by value (rdi:rsi) → `rt_write_any_nl`.
+- **`rt.c`** — new by-value `rt_write_any_nl(DESCR_t)` (type-dispatch int/real/string).
+- **`scrip.c`** — mode-3 + mode-4 Icon drivers route to the chain builder when `icn_ring_to_tree` returns
+  NULL (multi-statement / variable / branch).
+**Validation:** `x := 42; write(x)` → **m2==m3==m4 `42`** (m4 assembled with `gcc -no-pie` + linked
+`out/libscrip_rt.so` + run). Mode-4 asm reads exactly as test_sno_1.c: each box reads/writes named `[r12+off]`
+slots, jmp-wired. **GATES (all green):** Icon smoke **m2 6/6 HARD · m3 5/6 · m4 5/6** (m4 was 0/6 at session
+start — libscrip_rt absent; the flat-chain TEXT arms rebuilt write_str/write_int/arith/string_op/every);
+Prolog m2 5/5 · m3 5/5 (Icon-only edits); broker 19 (unchanged baseline); FACT 0; no-stack 114 ≤ 127
+(comment-string artifact, zero real push/pop added); one-reg-frame 20 ≤ 20 (all `[r12+off]`); prove_lower2
+PASS; template-purity advisory 7 (byte-identical before/after, verified via stash). Icon crosscheck arith/
+concat/every_to PASS m2+m3+m4. **Only `if_expr` remains m3/m4-red** — the branching CFG; the flat-chain BFS
+already follows ω at relop nodes, so it is the natural next rung (needs the relop slot arm + branch wiring).
+**NEXT:** GZ-8 (`write(1+2)` already works as a tree; extend the binop to write a DESCR slot so `x := 2+3`
+and `if x>5` work) then `if_expr` mode-3/4 (relop writes a bool/value slot, IR_IF branch already BFS-collected
+via ω). The mode-2-only OPEN BUGS below (relop filtering asymmetry; if-as-arith-operand) remain valid and are
+independent of this compiled-mode work — and note the bug-(b) analysis is a MODE-2 (ring) concern only.
+
+---
 
 **Rebase/merge note (shared-file concurrency):** the parallel SNOBOL4 session ALSO landed mode-4 the
 same session, touching the SAME two shared files — `xa_flat.cpp` (the flat TEXT prologue/epilogue made
