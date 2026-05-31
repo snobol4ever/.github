@@ -95,10 +95,12 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 > path, WAM-CP rungs, PLR-J/PLR-K ladders, GATE-2/3/4/SWI counts) were deleted for the unified
 > four-port `lower.c`. Treat those entries as ARCHAEOLOGY (semantic reference for re-grow), NOT live
 > state. The LIVE state is: **PLG-0 ✅ (audit), PLG-1 ✅ (ground hello-world), PLG-2 ✅ (single
-> non-recursive predicate WITH variables — `greet :- X = world, write(X), nl.` prints `world`; the
-> per-activation env/frame appears).** The old GATE-2/3/SWI numbers are meaningless now — the live gate is
-> `scripts/prove_lower2.sh` (topology, 35/35) + the per-rung mode-2 hello checks (GATE-1 smoke 2/5:
-> `write_atom` + `unify`; `arith` blocked on `is/2` wiring, `clause`/`recursion` are PLG-3/6). All the
+> non-recursive predicate WITH variables), PLG-2-arith ✅ (`is/2` + comparisons; GATE-1 `arith` PASS),
+> PLG-3 ~SUBSTANTIALLY DONE (user-pred calls: facts + first-solution + head unification + multi-clause
+> IR_CHOICE registration run; `fact(X),write(X)`→`a`, `id(5,R)`→`5`; GAP = rule-body computed-result
+> binding + full enumeration, both PLG-4/6).** The old GATE-2/3/SWI numbers are meaningless now — the live gate is
+> `scripts/prove_lower2.sh` (topology, **37/37**) + the per-rung mode-2 hello checks (GATE-1 smoke **3/5**:
+> `write_atom` + `unify` + `arith`; `clause` gets first solution `a`, `recursion` needs PLG-4/6). All the
 > `bb_exec.c` Prolog machinery (`IR_BUILTIN`/`IR_GOAL`/`IR_CHOICE` arms, `resolve_*`, `rt_pl_*`) survives as
 > compiled-but-unreachable code behind the SMX gate; PLG re-grows the wiring rung by rung. Full
 > inventory + verdicts: `doc/PLG-STACKLESS-AUDIT-2026-05-30.md`.
@@ -266,10 +268,46 @@ archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
   carries only the γ/ω wiring + trail mark, per archived `prolog_emit.c` user-call shape). Gate:
   prints `hello`; snapshot count 0; mode-2 == mode-3; FACT 0.
 
-- [ ] **PLG-3 — facts + first-solution call, mode-2.** `color(red). color(green). color(blue).
+- [~] **PLG-3 — facts + first-solution call, mode-2. SUBSTANTIALLY DONE (Claude Opus 4.8, 2026-05-31).**
+  User-predicate calls now lower and run for the first-solution + fact tiers. `fact(a). fact(b). fact(c).
+  main :- fact(X), write(X), nl.` prints `a` (first solution ✅). `id(X,X). main :- id(5,R), write(R).`
+  prints `5` (output binding through head unification ✅). `fact(a), write(yes)` prints `yes` (head atom
+  match ✅). GATE-1 smoke `clause` gets `a` (first solution; full `a/b/c` enumeration = PLG-4). **Five pieces
+  landed, all FACT-RULE clean (Prolog-only arms/IR kinds, no peer arm touched, FACT grep 0):**
+  (1) **`lower.c g_goal`** — user-pred call (bare atom `foo` arity-0 via TT_QLIT, OR compound `foo(a,b)` via
+      TT_FNC) → Prolog-OWNED `IR_GOAL` + `bb_goal_state_t` sidecar (callee/arity/arg-term-trees on `bb->ival`,
+      PEERS rule — no new BB_t fields). β=self so conjunction backtrack re-enters. Wired into BOTH the TT_QLIT
+      and TT_FNC arms of `lower_goal`. The `IR_GOAL` exec arm (`bb_exec.c:3317`) already existed
+      compiled-but-unreachable; g_goal connects it. (2) **`lower.c g_head_unify` + rewritten
+      `lower2_clause_body_entry`** — prepends head-arg unification goals (`LOGICVAR(i) ≈ head_arg_i`, since the
+      IR_GOAL arm binds callee env slot i = caller arg i) before the body goals, all in ONE `IR_GCONJ`
+      (threading copied exactly from `wire_seq`). (3) **`lower_program.c lower_pl_choice_graph`** — multi-clause
+      predicate → `IR_CHOICE` graph + `bb_choice_state_t` listing clause body graphs. (4) **`lower_program.c
+      lower_pl_register_all_preds`** — iterates `resolve_pred_table`, lowers+registers EVERY predicate via
+      `resolve_bb_register`. **CRITICAL GOTCHA found & fixed:** `bb_exec.c`'s IR_GOAL does
+      `resolve_bb_lookup(key, arity)` where `key = "name/arity"` (the FULL key string as the NAME), NOT the bare
+      name — so registration MUST use the full key as the name arg (cost ~an hour; documented in the code).
+      (5) **`lower.c g_arith_expr` + `g_compare`/`g_is` rewrite + prove_lower2 cases** — see PLG-2-arith below.
+  **KNOWN GAP (PLG-4/6):** `dbl(X,Y):-Y is X*2. main:-dbl(5,R),write(R).` prints empty — a RULE body computing
+  a result that must thread back to the caller's unbound var doesn't propagate yet (facts + simple
+  passthrough work; computed-result-through-rule-body does not). This is the same backtracking/binding
+  machinery PLG-4 (enumeration) and PLG-6 (recursion) need. The `IR_GOAL` retry path (`bb_exec.c:~3450`) uses
+  `bb_snapshot_state`/`bb_body_has_live_choice` — exactly the snapshot apparatus PLG aims to REPLACE with the
+  per-activation frame. That is the crux for both the enumeration gap and the rule-body-binding gap.
+  **PLG-2-arith DONE same session:** GATE-1 `arith` (`X is 2+3, write(X)`) now PASS. The Prolog parser emits
+  arithmetic as `TT_FNC("+",...)` (NOT `TT_ADD` — that only comes from the `lower_clause` PlClause path, while
+  the live parser uses `lower_clause_from_tree`), and `lower_value` had no arith-FNC arm → `g_arith_expr`
+  handles it by emitting `IR_ARITH(sval=op,α=l,β=r)`. `g_compare` was emitting `IR_ARITH` with `ival=BinopKind`
+  but `resolve_arith_eval` reads `sval` as the op name → rewritten to `IR_BUILTIN(sval=op)` with LHS→`bb->α`,
+  RHS→`bb->β` (matching the existing IR_BUILTIN comparison exec arm). `g_is` emits `IR_BUILTIN(sval="is")`,
+  LHS term→`bb->α`, RHS arith→`bb->β` (matching the existing `is` exec arm at `bb_exec.c:~4072`).
+  Gate: `prove_lower2.sh` 35→**37/37** (+`X is 5`, `X is 2+3` cases; `X<5` re-described to IR_BUILTIN).
+
+- [ ] **PLG-3 (original text, retained):** `color(red). color(green). color(blue).
   :- color(X), write(X), nl.` First solution only. BB_CHOICE dispatch carries a resume CURSOR
   (`_cs`-equivalent int) + trail mark ONLY — NOT a node-state snapshot. Verify the cursor lives as a
   plain per-activation int, not a saved/restored shared slot. Gate: prints `red`; snapshot count 0.
+
 
 - [ ] **PLG-4 — backtracking enumeration, mode-2.** Same facts, `:- color(X), write(X), nl, fail ;
   true.` → `red/green/blue`. Resume re-enters BB_CHOICE via cursor + `trail_unwind(mark)`. Still NO
