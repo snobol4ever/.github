@@ -184,6 +184,16 @@ SNOBOL4 source → CMPILE parser → tree_t* → lower_pat_dcg.c (BB_lower_pat)
 - **Mode 3 (`--run`):** `sm_run_native` → SM_templates BINARY arms → sealed RX → jump in. BB call-outs via flat-wired `bb_build_flat`. Opt-in via `SCRIP_M3_NATIVE=1`; default still `sm_interp_run`.
 - **Mode 4 (`--compile`):** Emit phase uses TEXT arms → GAS → gcc link. Standalone runtime builds pattern blobs via `bb_build_brokered` → template BINARY arms.
 
+> **⛔ TESTING DIRECTIVE (Lon 2026-05-31) — ALWAYS RUN ALL THREE MODES FOR THIS GOAL.** Whenever you test
+> SCRIP, exercise **mode 2 (`--interp`)**, **mode 3 (`--run` / SB-LINEAR)**, AND **mode 4
+> (`--compile --target=x86` → `as` → `gcc -no-pie … -lscrip_rt` → run the binary)** — every time, from now on.
+> `scripts/test_smoke_snobol4.sh` now does this: mode 2 is the **HARD gate** (exit 0 requires mode-2 all-pass);
+> modes 3 and 4 are **RUN + REPORTED on every invocation** (tracked with `MODE3_MIN`/`MODE4_MIN` PASS floors,
+> default 0) so the full native picture is always visible. NEVER report a mode-2 number alone — always run and
+> record 3 and 4 alongside it. (Mode 3/4 for SNOBOL4 are currently 0/6 — the `--run` native path and the
+> SMX-4-excised `--compile` x86 emission are not yet rebuilt; the directive makes that gap visible each run.)
+> Raise `MODE3_MIN`/`MODE4_MIN` as those modes come back so regressions in them also fail the gate.
+
 **Absolute rules (RULES.md):** No C Byrd boxes. TEMPLATE-PURITY. ONE x86 PRODUCER. Stub LOUD via `bomb_bytes()`. X86 ONLY. MODE PURITY (no silent cross-mode fallback / no silent eps substitution).
 
 ---
@@ -248,16 +258,18 @@ the file names (`bb_pat_span.cpp`), the `BB_templates/` directory, the `bb_*` fu
 `bb_pat_span(BB_t * pBB)` → `bb_pat_span(IR_t * pBB)`, same file, same dir, still reading `g_emit`.
 **NO `typedef IR_t BB_t;` alias** — zero `BB_t` remains after the rename (Reading X).
 
-### ⛔ Gate suite — run before EVERY commit (SNOBOL4 corpus can't EXECUTE yet — SM backend gone, BB run-path unwired; Icon is the live gate)
+### ⛔ Gate suite — run before EVERY commit  (ALL THREE MODES per the TESTING DIRECTIVE above)
 ```bash
 make scrip                                   # rc=0
 make libscrip_rt                             # rc=0
-bash scripts/test_smoke_icon.sh              # m2 6/6 (HARD), m3 1/6
+bash scripts/test_smoke_snobol4.sh           # ALL 3 modes: m2 7/7 (HARD); m3 0/6 + m4 0/6 (tracked, reported)
+bash scripts/test_smoke_icon.sh              # m2 6/6 (HARD), m3 4/6 (tracked)
+bash scripts/prove_lower2.sh                 # 37/37 topology
 bash scripts/test_gate_sm_dead.sh            # <= 1
-bash scripts/util_template_purity_audit.sh   # FACT 0
+bash scripts/audit_concurrency_invariants.sh # OK
+bash scripts/util_template_purity_audit.sh   # FACT 6 (byte-neutral baseline)
 ```
-This rename is **byte-neutral to emission** (pure source identifier rename) — every behavioral gate MUST
-be invariant. Any gate delta ⇒ a rename bug; revert that slice and diagnose.
+Behavioral gates MUST stay invariant under any byte-neutral change; any gate delta ⇒ a bug — revert that slice and diagnose.
 
 ### Slices (ATOMIC PER TOKEN — typedef/enum body + all uses change together so the build stays green)
 - [x] **RN-IR-1** — `\bBB_graph_t\b` → `IR_graph_t` across `src/**` (24 files; smaller, first). Gate. Commit `RN-IR-1 BB_graph_t→IR_graph_t`.
@@ -541,6 +553,15 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-31 (Opus 4.8) — TESTING DIRECTIVE: ALL THREE MODES, ALWAYS ✅** (.github + SCRIP this handoff). Per Lon:
+  every SCRIP test for this GOAL now runs modes 2/3/4. `scripts/test_smoke_snobol4.sh` rewritten — mode 2
+  (`--interp`) is the HARD gate; mode 3 (`--run` / SB-LINEAR) + mode 4 (`--compile --target=x86` → `as` → `gcc
+  -no-pie … -lscrip_rt` → run) are RUN + REPORTED on EVERY invocation (tracked, `MODE3_MIN`/`MODE4_MIN` PASS
+  floors, default 0). Current: **m2 7/7, m3 0/6, m4 0/6** (the `--run` native path and the SMX-4-excised
+  `--compile` x86 emission are not yet rebuilt — now VISIBLE every run). Gate exits 0 (mode-2 clean + floors
+  met). The Mode-defs block gained a ⛔ TESTING DIRECTIVE and the gate-suite block was updated to match. Raise
+  the floors as 3/4 come back so regressions in them fail the gate too.
 
 - **2026-05-31 (Opus 4.8) — SBL-EXEC-3: SNOBOL4 PROGRAM-DEFINED FUNCTIONS + COMPARISON PREDICATES + RECURSION ✅**
   (SCRIP `cb5946a`, rebased onto `eccb4f6` PLG-3; .github this handoff). Mode-2 smoke **6/7 → 7/7** (`define` was the last fail).
