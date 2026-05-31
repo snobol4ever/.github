@@ -45,11 +45,58 @@ primitives: `nalloc`, `set_succ_fail` (default-only — never clobber a threaded
 proof pending and depends on `bb_exec.c` honoring the relational flag (`dval=1.0`) + if-gate (`node.β` runtime
 dispatch) as encoded — VERIFY against the executor, do not assume (RULES: consult canonical sources).
 
-**Tree-pattern plan (Lon's "two shots"; STEP 2, AFTER foundation complete):** MEASURED — decisions are SHALLOW
-(120 peeks, only **12 two-level**, **0 three-level**); wiring is uniform recursion (78 calls). Each rule =
-MATCH shallow shape + CAPTURE children + RECURSE + WIRE → `tm`/`tm_g`. LOC shrink ~30%; real win is uniformity
-(every `e->n<k`/null guard vanishes into the match; Prolog if-ladder → `shape ? builder` table; the 12 nested
-peeks read top-down as the AST shape). Refactor proven code into pattern form — don't design two things at once.
+**Tree-pattern matching — WHAT IT IS (Lon's "two shots"; STEP 2, AFTER the foundation is complete).**
+A lowering rule is really "*if the AST node looks like SHAPE, bind its parts and wire them*." Tree-pattern
+matching makes that literal: a matcher tests a node's SHALLOW shape (its kind, optionally one child's kind /
+an sval tag / arity) and **captures** the immediate sub-expressions into named pointers; the rule body then
+recursively lowers the captured parts and wires the ports. This is the AST-side analog of SNOBOL `subj ? pat`:
+the AST node is the subject, the shape is the pattern, captures bind sub-trees, ordered alternation gives the
+"first matching rule wins" fall-through (the same effect as today's if-ladders).
+
+THE FACILITY (prototyped + compiles in `src/lower/tmatch_proto.c`):
+```c
+/* match kind + arity, capture the first nargs children into (const tree_t **) out-params */
+int tm  (const tree_t *e, tree_e kind,            int nargs, /* &cap0, &cap1, ... */ ...);
+/* same, plus require e->v.sval == tag  (the FNC(",",a,b) / FNC("phrase",...) style dispatch) */
+int tm_g(const tree_t *e, tree_e kind, const char *tag, int nargs, /* &cap0, ... */ ...);
+```
+`tm` returns 1 and binds the capture pointers iff `e->t==kind && e->n>=nargs`. Captures are the subtrees to
+lower next (NOT yet lowered — capture defers, exactly like a DEFER pattern binds-then-matches).
+
+THE "TWO SHOTS":
+- **Shot 1** = `tm`/`tm_g` (match + capture).
+- **Shot 2** = the per-role switch where each arm is `if (pattern matches) → produce wiring`.
+
+WORKED EXAMPLE (hand-coded vs pattern form), the `binop` arm:
+```c
+/* hand-coded today (lower2.c v_binop): */
+if (e->n < 2 || !e->c[0] || !e->c[1]) return NULL;
+IR_t *E1 = e->c[0], *E2 = e->c[1];                 ... lower E1, lower E2, patch, wire ...
+/* pattern form: the guard + the child-grab become ONE line that reads as the shape */
+const tree_t *E1, *E2;
+if (!tm(e, e->t, 2, &E1, &E2)) return NULL;        ... lower E1, lower E2, patch, wire ...
+```
+And the NESTED case (today a 3-deep manual guard at legacy lower.c:753) reads top-down as the AST shape:
+```c
+/* EVERY(ASSIGN(VAR, TO(lo,hi))) */
+tm(e,TT_EVERY,1,&asn) && tm(asn,TT_ASSIGN,2,&var,&rhs) && var->t==TT_VAR && tm(rhs,TT_TO,2,&lo,&hi)
+```
+And the Prolog goal if-ladder collapses to a table: `if (tm_g(e,TT_FNC,",",2,&A,&B)) return lower_conj(...);`
+one readable `shape ? builder` line per control construct.
+
+WHY (measured on legacy lower.c): decisions are SHALLOW — 120 decision-peeks but only **12 sites peek two
+levels**, **0 peek three**; wiring is uniform recursion (78 lower-calls, one per child subexpression). So
+every rule = MATCH shallow shape + CAPTURE children + RECURSE + WIRE — exactly what `tm`/`tm_g` serve. LOC
+shrink is ~30%; the real win is UNIFORMITY (every `e->n<k`/null guard vanishes into the match; nested peeks
+read as the tree; dispatch ladders become tables). **Sequencing:** do this AFTER the hand-coded foundation
+boxes are all in and proven — refactor proven code into pattern form, don't design two things at once.
+
+ENDGAME: this pattern form is the bridge to an **Icon-bootstrap lowerer** — the lowerer IS an Icon program
+over `tree_t` (each rule a SNOBOL pattern over `node.kind ++ node.sval` with children captured, Icon
+alternation giving ordered match). Once Icon-BB executes enough, the pattern-form C transliterates almost
+mechanically. (Parse symmetry: the parser is an LALR match tokens→tree; `tm`/`tm_g` is the symmetric match
+tree→IR on the way down. DEFER symmetry: `IR_PAT_DEFER`/`rt_defer_match` is the runtime analog of a
+compile-time capture.)
 
 **Endgame threads:** (a) parse = LALR match tokens→tree; tmatch = SYMMETRIC match tree→IR. (b) `IR_PAT_DEFER`
 (`rt_defer_match`) is the runtime analog of a compile-time capture — same deferral discipline, one level up.
