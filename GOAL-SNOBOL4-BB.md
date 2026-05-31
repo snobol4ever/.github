@@ -774,7 +774,28 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 ## Session log (last few, terse)
 
-- **2026-05-31 Opus 4.8 — SHARED COMBINATOR SCAFFOLDING across all 3 roles ✅** (SCRIP `<this commit>`, base `ee12a16`;
+- **2026-05-31 Opus 4.8 — ICON EXECUTES AGAIN (m2 0/6 → 5/6) ✅** (SCRIP `212ed70`, base `593fbf3`; .github this
+  handoff). Continuation of the shared-combinator session (Lon: "Finish."). Made Icon run on the four-port IR via
+  `bb_exec_once(main)`. (1) Promoted `g_det_builtin1` → SHARED role-agnostic `wire_det_builtin1`, called from BOTH
+  the Icon VALUE role (write/writes) AND the Prolog GOAL role (write/writeln/print) — another sharing seam. Set
+  `dval=1.0` (is_deep) so the IR_CALL exec arm reads the threaded arg from the AG ring (verified `bb_exec_once`
+  pushes each node value between steps). (2) Added the VALUE-role `TT_FNC` write arm; the per-language TT_FNC SHAPE
+  is handled inside the one case (FACT RULE: variation lives in the case) — Icon carries the callee as child
+  c[0]=TT_VAR with args c[1..], Prolog carries it in sval. (3) `lower_icon_body` (lower_program.c): builds each
+  registered Icon proc's four-port graph from the TT_PROC_DECL body (c[2]), reverse-threads its statements
+  VALUE-role, fills proc_table bb_idx. FAIL-LOUD — any unhandled statement sinks the whole body (-1) so the driver
+  keeps its clean `[IBB] FATAL` rather than silently running a partial graph (verified: `write("one"); x:=[1,2,3]`
+  aborts with NO partial output, satisfying the concern that made me revert this in the prior handoff). (4)
+  **`tt_to_binop` fix** — `v_binop` stored the raw `tree_e` in `ival`, but the IR_BINOP exec arm casts ival to
+  `BinopKind` (TT_ADD=13 ≠ BINOP_ADD=0) → binop_apply computed the wrong op. Latent since the lower2 rewrite (only
+  topology was ever proven); Icon arith is the first executor. Added a tree_e→BinopKind mapper; this also fixes
+  SNOBOL4 value binops (`OUTPUT = 2 + 3`→5, was wrong). **Icon m2 now 5/6** (write_str/write_int/arith/string_op/
+  if_expr); the lone fail `every write(1 to 3)` (outputs `1`) needs generator-through-call resumption (L2-E
+  suspend/resume frame) — IMMEDIATE NEXT in the Watermark. Gates: make scrip rc=0, make libscrip_rt rc=0,
+  prove_lower2.sh 17/17, sm_dead 1, FACT 6. corpus UNTOUCHED. bb_exec.c UNTOUCHED. FACT RULE block byte-identical
+  across the 3 goal files preserved.
+
+- **2026-05-31 Opus 4.8 — SHARED COMBINATOR SCAFFOLDING across all 3 roles ✅** (SCRIP `593fbf3`, base `ee12a16`;
   .github this handoff). Lon: "continue with simple BB's and build on all three for a while, SNOBOL4, Icon, and Prolog.
   Get some sharing going on before I let loose the hounds of the byrd boxes." **DONE — the sharing is now concrete:**
   added two reusable four-port builders to `lower.c`, `wire_seq` (n-ary left-to-right sequence with backtracking:
@@ -1241,45 +1262,41 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP: `<this commit>` (base `ee12a16`) · .github: (this commit). **lower2.c → lower.c (the new tree
+**Watermark.** SCRIP: `212ed70` (base `ee12a16`) · .github: (this commit). **lower2.c → lower.c (the new tree
 root; old lower.c deleted, blob d2d8c8e1).** tm/tm_g match-collect library in from tmatch_proto.c. **SHARED COMBINATOR
-SCAFFOLDING landed 2026-05-31 (Opus 4.8):** two reusable four-port builders `wire_seq` (n-ary sequence-with-backtrack)
-+ `wire_alt` (n-ary fail-chain) + `flatten_seq`, written ONCE and ridden by all three roles — the concrete "sharing"
-across the 3 concurrent sessions. Icon `v_conj`/`v_alt` refactored onto them (byte-neutral); SNOBOL4 PATTERN CAT
-(`TT_SEQ`/`TT_CAT`→IR_PAT_CAT) + ALT (`TT_ALT`→IR_PAT_ALT) added; Prolog GOAL conj (`,`→IR_GCONJ) + disj (`;`→IR_DISJ)
-+ `g_unify` (`=`/`TT_UNIFY`→IR_UNIFY) + `g_compare` (`< > =< >= =:= =\=`→IR_ARITH, ival=BinopKind) added. ~20 boxes
-wired now (5 foundation + 7 L2-A/B + v_assign + det_builtin1 + PAT_CAT/PAT_ALT + GCONJ/DISJ/UNIFY/ARITH). Gate
-`scripts/prove_lower2.sh` **17/17 PASS** (11 prior + SNOBOL CAT, SNOBOL ALT, Prolog conj, Prolog disj, Prolog unify,
-Prolog compare — node counts AND α/β/γ/ω wiring, e.g. `'WIN' REM` and `write(a),write(b)` produce identical sequence
-topology from the same `wire_seq`). `make scrip` rc=0, `make libscrip_rt` rc=0 (trunk regrown at `ee12a16`).
-**Change is topology-only (pure lowering) — every behavioral gate INVARIANT:** SNOBOL4 `OUTPUT="hello world"`→one
-record, Icon m2 **0/6** (PRE-EXISTING on `ee12a16` — the regrow commit routes Icon through `bb_exec_once(main)` but
-`lower()` never built Icon's `main`; the watermark's old "6/6 HARD" predates SMX-4 and is STALE), sm_dead 1/1, FACT 6
-(pre-existing baseline). FACT RULE `SHARED-LOWERER ONE-FILE CONCURRENCY` byte-identical across the 3 goal files (md5
-39c3e268) — UNTOUCHED this session.
+SCAFFOLDING + ICON EXECUTION RESTORED 2026-05-31 (Opus 4.8), two commits `593fbf3` then `212ed70`:**
+- `593fbf3` — two reusable four-port builders `wire_seq` (n-ary sequence-with-backtrack) + `wire_alt` (n-ary
+  fail-chain) + `flatten_seq`, written ONCE and ridden by all three roles — the concrete "sharing" across the 3
+  concurrent sessions. Icon `v_conj`/`v_alt` refactored onto them (byte-neutral); SNOBOL4 PATTERN CAT (`TT_SEQ`/
+  `TT_CAT`→IR_PAT_CAT) + ALT (`TT_ALT`→IR_PAT_ALT); Prolog GOAL conj (`,`→IR_GCONJ) + disj (`;`→IR_DISJ) + `g_unify`
+  (`=`/`TT_UNIFY`→IR_UNIFY) + `g_compare` (`< > =< >= =:= =\=`→IR_ARITH, ival=BinopKind).
+- `212ed70` — **Icon m2 0/6 → 5/6** (write_str, write_int, arith, string_op, if_expr). `g_det_builtin1` promoted to
+  the SHARED role-agnostic `wire_det_builtin1` (Icon VALUE write/writes + Prolog GOAL write/writeln/print), `dval=1.0`
+  so the IR_CALL exec arm reads the threaded arg from the AG ring (`bb_exec_once` pushes each node's value between
+  steps). VALUE-role `TT_FNC` write arm added (per-lang TT_FNC shape handled INSIDE the case per FACT RULE — Icon
+  callee = child c[0] TT_VAR with args c[1..]; Prolog = sval). `lower_icon_body` (lower_program.c) builds each Icon
+  proc's four-port graph from the TT_PROC_DECL body (c[2]), reverse-threads statements VALUE-role, fills proc_table
+  bb_idx; FAIL-LOUD (any unhandled statement → whole body -1 → driver keeps its clean [IBB] FATAL, no partial-graph
+  silent run — VERIFIED with `write("one"); x:=[1,2,3]`). **`tt_to_binop` fix:** `v_binop` had stored the raw `tree_e`
+  in `ival` but the IR_BINOP exec arm casts ival to `BinopKind` (TT_ADD=13 ≠ BINOP_ADD=0) — latent since the lower2
+  rewrite (only topology was ever proven); Icon arith is the first executor. Now maps tree_e→BinopKind; also fixes
+  SNOBOL4 value binops (`OUTPUT = 2 + 3`→5).
+~22 boxes wired. Gate `scripts/prove_lower2.sh` **17/17 PASS** (node counts + full α/β/γ/ω; `'WIN' REM` and
+`write(a),write(b)` emit identical sequence topology from the same `wire_seq`). `make scrip` rc=0, `make libscrip_rt`
+rc=0. Behavioral: SNOBOL4 `OUTPUT="hello world"`→one record + `OUTPUT = 2 + 3`→5; **Icon m2 5/6** (was 0/6 on
+`ee12a16`; the old "6/6 HARD" predated SMX-4 and was STALE); sm_dead 1/1; FACT 6 (pre-existing baseline). FACT RULE
+`SHARED-LOWERER ONE-FILE CONCURRENCY` byte-identical across the 3 goal files (md5 39c3e268) — UNTOUCHED.
 
-**⭐ IMMEDIATE NEXT — make Icon execute again (designed, NOT committed; reverted to avoid a half-step).** Icon m2 is
-0/6 because `lower()` (lower_program.c) builds `main` only for SNOBOL4. The fix is two coupled parts that MUST land
-together (landing the graph-builder alone replaces Icon's clean `[IBB] FATAL` abort with silent no-output for any
-body whose `write` is still unhandled — violates FACT-RULE fail-loud):
-  (1) **`lower_icon_body(proc)` in lower_program.c** — the Icon proc decl is `TT_PROC_DECL(name, params, body)` with
-      `body = proc->c[2]` a `TT_PROGRAM`; thread its statements VALUE-role in REVERSE (stmt[i].γ→stmt[i+1].α,
-      stmt[i].ω→PFAIL) via `lower2_value_entry` into one four-port graph (same reverse-threading the SNOBOL4 walker
-      uses); `bb_program_add`; return idx. Then an Icon branch in `lower()` walks `proc_table` (polyglot_init already
-      registers each Icon proc with `proc`→TT_PROC_DECL, `bb_idx=-1`) and fills `bb_idx`. (~30 lines, fully drafted
-      this session, then reverted.)
-  (2) **VALUE-role `TT_FNC` write-family arm** — Icon `write("…")` lowers `TT_FNC` which currently → `lower_unhandled`.
-      SHARE the existing `g_det_builtin1` (Prolog write) helper: promote it role-agnostic (`wire_det_builtin1`) and
-      call from BOTH `lower_goal` (Prolog) AND `lower_value` (Icon) — another sharing seam. For EXEC: the threaded
-      form runs the arg first and pushes its value to the AG ring (`bb_exec_once` pushes each node's value between
-      steps — VERIFIED), so set the call's `dval=1.0` (is_deep) so the `IR_CALL` exec arm (bb_exec.c:1478) reads the
-      arg via `ag_ring_peek` instead of the legacy `bb->α` arg-chain. Verify Icon m2 → 6/6 (HARD) before committing.
-      Gate against the canonical Icon `write` semantics (RULES: consult canonical sources).
-
-Then continue the box ladder (LEN/POS/TAB/RTAB/FENCE pattern leaves; Prolog ITE/Call/is; Icon L2-C limitation) and,
-once enough roles are armed + exec-proven, LOWER2-EXEC then LM-6 DISPATCH-UNIFY. Prior gates (corpus/etc.) remain
-unreachable until the SNOBOL4 BB run-path (the pattern engine in bb_exec.c, IR_SCAN/IR_PAT_*) lands — the LONG POLE
-flagged in HANDOFF-2026-05-31-...-SNOBOL4-TRUNK-REGROW.
+**⭐ IMMEDIATE NEXT.** (1) **`every write(1 to 3)`** = the last Icon m2 fail (outputs only `1`) — needs
+GENERATOR-THROUGH-CALL resumption: the call's argument is a generator (`1 to 3`) and `every` drives the body's β to
+re-pump it (1→write, 2→write, 3→write). `wire_det_builtin1` currently lowers the call deterministic (β=ω_in), so on
+retry the arg generator is not re-driven. This is L2-E suspend/resume-frame territory (the IR_CALL exec arm already
+has a `has_gen_arg` path that reads `bb->α`, the legacy arg-chain — the threaded is_deep form needs a resumable-arg
+variant). Closing it → Icon m2 6/6 (HARD). (2) Then the box ladder: SNOBOL4 PATTERN leaves LEN/POS/RPOS/TAB/RTAB/
+FENCE/ARBNO/captures; Prolog GOAL ITE (`->`)/`is`/user-Call/`nl`; Icon L2-C limitation / L2-E general calls. (3) Then
+LOWER2-EXEC (value-level proof on `1 to 5`) then LM-6 DISPATCH-UNIFY. The SNOBOL4 BB run-path (pattern engine in
+bb_exec.c, IR_SCAN/IR_PAT_*) remains the LONG POLE for SNOBOL4 corpus — flagged in
+HANDOFF-2026-05-31-...-SNOBOL4-TRUNK-REGROW.
 
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
