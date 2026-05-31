@@ -118,6 +118,40 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 > compiled-but-unreachable code behind the SMX gate; PLG re-grows the wiring rung by rung. Full
 > inventory + verdicts: `doc/PLG-STACKLESS-AUDIT-2026-05-30.md`.
 
+> **★ LIVE STATE UPDATE — PLG-5 BUILTIN/CONTROL CONSTRUCT WIRING (Sonnet 4.6, 2026-05-31, atop `125bfdf`).**
+> A large batch of construct lowerings landed in the ONE shared `src/lower/lower.c` (Prolog-only arms,
+> additive, FACT 0 — no peer language arm touched; siblings provably non-regressive because their code paths
+> `lower_value`/`lower_pattern`/pattern-cases/`lower_sno` were untouched, verified by diff: +220/−1, the −1 being
+> the `case TT_FNC` → `+ case TT_MAKELIST` edit in `g_term`). **GATE-3 rung suite mode-2: 21 → 97 / 111.**
+> GATE-1 smoke m2 5/5 held; prove_lower2 topology 37 → **48** (+11 proof cases). Modes 3/4 remain EXCISED by
+> design (the `[SMX]` gate; PLG-8/PLG-9 territory) — the standing discipline now runs the bare three-mode gate
+> always (rung suite + smoke already default to all-mode; m3/m4 report EXCISED, fast). Constructs added, each
+> grounded in the uploaded canonical Prolog sources before coding:
+> 1. **Lists (`TT_MAKELIST`) in `g_term`** — `[]`→`IR_ATOM("[]")`; `[a,b,c]`/`[a,b|T]` → right-fold of cons cells
+>    `IR_STRUCT(".",2)` (head on `bb->α`, tail via `head->γ` — matching `resolve_node_to_term`'s `a=bb->α;a=a->γ`
+>    arg-walk; `pl_write` already sugars `ATOM_DOT/2` chains). Cons "." / nil "[]" verified vs SCRIP
+>    `prolog_atom.c` + SWI `src/ATOMS`.
+> 2. **If-then-else (`TT_IF`) via new `g_ite`** — `IR_ITE` + `bb_ite_state_t`, local-cut commit by WIRING
+>    (cond.γ→Then, cond.ω→Else, no β back into cond). Semantics from SWI `boot/init.pl` `'$meta_call'((I->T;E))`;
+>    graph shape transliterated from deleted `lower_pl_new_Ite` (blob d2d8c8e1). Bare `(C->T)` → `IR_FAIL` Else.
+> 3. **Standard-order comparisons + `succ/2` via new `g_term_compare`** — `==`/`\==`/`@<`/`@>`/`@=<`/`@>=`/`succ`
+>    wired α/β as TERMS (NOT arith-eval'd). Order verified vs SWI `pl-prims.c:1788` (Var<Number<String<Atom<Compound).
+> 4. **Deterministic builtin table → `g_builtin`** — type-tests (var/nonvar/atom/atomic/number/integer/float/
+>    compound/callable/is_list/ground), term inspection (functor/3, arg/3, =../2), atom/string family
+>    (atom_length/concat/chars/codes, upcase/downcase, char_type, atom_string/number, *_string, term_to_atom/string,
+>    atomic_list_concat, sort/2, msort/2), format/1-2, numbervars/3, writeq/1, write_canonical/1, copy_term/2,
+>    plus/3, nb_*/aggregate_all, throw/1. All have existing (was-unreachable) `bb_exec.c IR_BUILTIN` exec arms
+>    reading args via the `bb->α`/`->γ` chain — pure lowering-recognition gap.
+> 5. **catch/3 + findall/3 via new `g_catch`/`g_findall`** — Goal/Recovery lowered into SEPARATE sub-graphs
+>    (`IR_alloc(128, IR_LANG_PL)`, `gcfg->entry=gα`), Catcher/Template/Result as terms in the enclosing graph;
+>    `bb_catch_state_t{goal_g,catcher,rec_g}` / `bb_findall_state_t{gcfg,tmpl,result}` on `ival`. Transliterated
+>    from deleted `lower_pl` arms (d2d8c8e1:2267, :2286). `findall` now collects (`[red,green,blue]`); the earlier
+>    "findall empty" gap was the lowering, not the resolve subsystem.
+> **REMAINING (14 fails, 3 families):** rung30 DCG/phrase (5), rung15 abolish (5), rung14 retract (4) — dynamic-DB
+> + DCG. retract/abolish have mode-2 exec arms (`bb_exec.c:4359` retract/retractall; CAT-D notes) → likely the
+> same lowering-recognition gap; recommended NEXT. DCG needs `phrase/2,3` + `-->` translation. Handoff
+> `HANDOFF-2026-05-31-SONNET46-PROLOG-BB-PLG-5-CONSTRUCTS.md`.
+
 
 **Directive (Lon, 2026-05-30):** The engine grew a VALUE STACK it must not have. `--run` and
 `--compile` (and `--interp` of a BB) need NO value stack: the BB node IS the value's home. The
@@ -1210,11 +1244,9 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5/5 ✅ | |
-| GATE-2 crosscheck | 104/32 | (part of G2) | n/a | rung28 catch/throw 5/5 + succ_or_zero now 3-mode AGREE |
-| GATE-3 rung suite | **109/111** | **100/111** | **54/111** | remaining m3 gaps = retract/abolish/dcg |
-| GATE-4 mode-4 minimal | 4/4 ✅ | n/a | 4/4 ✅ | |
-| GATE-SWI plunit suite | **57/57 (100%)** ✅ | **57/57 (100%)** ✅ | n/a | |
-| FACT RULE grep | 0 ✅ | — | — | arm2 = 12 (baseline) |
+| GATE-1 smoke | 5/5 ✅ | EXCISED | EXCISED | m3/m4 SMX-gated (PLG-8/9 regrow) |
+| GATE-3 rung suite | **97/111** | EXCISED | EXCISED | PLG-5: lists/ITE/builtins/catch/findall (was 21). Remaining: rung30 DCG, rung15 abolish, rung14 retract |
+| prove_lower2 topology | **48/48** ✅ | — | — | +11 PLG-5 proof cases (lists, ITE, @<, succ, atom, functor, findall, catch) |
+| FACT RULE grep | 0 ✅ | — | — | lower.c additive, Prolog-only arms |
 
 
