@@ -774,7 +774,27 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 ## Session log (last few, terse)
 
-- **2026-05-31 Opus 4.8 — CUT OLD TREE + SET THE SHARED TABLE ✅** (SCRIP `95f7f58`, base `f15f213`; .github FACT RULE
+- **2026-05-31 Opus 4.8 — SHARED COMBINATOR SCAFFOLDING across all 3 roles ✅** (SCRIP `<this commit>`, base `ee12a16`;
+  .github this handoff). Lon: "continue with simple BB's and build on all three for a while, SNOBOL4, Icon, and Prolog.
+  Get some sharing going on before I let loose the hounds of the byrd boxes." **DONE — the sharing is now concrete:**
+  added two reusable four-port builders to `lower.c`, `wire_seq` (n-ary left-to-right sequence with backtracking:
+  child[i].γ→child[i+1].α, child[i+1].ω→child[i].β, last→wrapper node) and `wire_alt` (n-ary fail-chain: arm.γ→node,
+  arm[i].ω→arm[i+1].α, last→ω_in; node is its own resume, arm resumes in operand_aux per PEERS), plus `flatten_seq`
+  (associative collapse). All written ONCE; ridden by all three roles: (Icon/VALUE) `v_conj`/`v_alt` refactored onto
+  them, byte-neutral; (SNOBOL4/PATTERN) CAT `TT_SEQ`/`TT_CAT`→`wire_seq(IR_PAT_CAT)` + ALT `TT_ALT`→`wire_alt(IR_PAT_ALT)`;
+  (Prolog/GOAL) conj `,`→`wire_seq(IR_GCONJ)` + disj `;`→`wire_alt(IR_DISJ)` + `g_unify` (`=`/`TT_UNIFY`→IR_UNIFY,
+  lhs.γ→rhs.α→UNIFY, semidet) + `g_compare` (`< > =< >= =:= =\=`→IR_ARITH, ival=BinopKind). **Gate `prove_lower2.sh`
+  11→17/17 PASS** (+6: SNOBOL CAT `'WIN' REM`, SNOBOL ALT `'A'|'B'|'C'`, Prolog conj/disj `write(a),write(b)` &
+  `;`, Prolog unify `X=Y`, Prolog compare `X<5` — each checks node count AND full α/β/γ/ω; the dumps confirm `'WIN' REM`
+  and `write(a),write(b)` emit IDENTICAL sequence topology from the same `wire_seq`, which is the whole point). Pure
+  lowering topology — `make scrip` rc=0, `make libscrip_rt` rc=0, and every behavioral gate INVARIANT (SNOBOL4
+  `OUTPUT="hello world"`→one record; Icon m2 0/6 PRE-EXISTING & byte-neutral; sm_dead 1/1; FACT 6 baseline). Prolog
+  goal arms are topology-only (exec stays resolve-runtime + sm_interp_run per RULES). **Reverted a partial Icon
+  proc-body builder** (`lower_icon_body` + Icon branch in `lower()`): correct design but landing it without the
+  VALUE-role `write` arm would replace Icon's clean `[IBB] FATAL` abort with silent no-output for multi-statement
+  bodies (FACT-RULE fail-loud violation) — fully specified as the IMMEDIATE NEXT in the Watermark, to land together
+  with the shared `wire_det_builtin1` write arm so Icon m2 goes 6/6 in one coherent step. NOT touched: bb_exec.c,
+  lower_program.c (reverted), the FACT RULE block (byte-identical across 3 goal files preserved). corpus UNTOUCHED.
   `461b3413` + this handoff). Lon: "delete lower.c and rename lower2.c. Time to start a new tree." + "build SNOBOL4's
   OUTPUT = hello world and Prolog's equivalent; set a place at the table inside our ONE file; one entry, one big CASE over
   TT_* with language-specifics under cx.lang; set up a little tree-pattern match/collect library; put a FACT RULE in the 3
@@ -1204,24 +1224,62 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   `TT_DECL`/`TT_OPSYN`, `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F`, `TT_TRY`/`TT_DIE`.
 - [ ] **L2-H — data / cset / IO**: `TT_MAKELIST`/`TT_VLIST`/`TT_RECORD`/`TT_NEW`/`TT_SORT`, `TT_MAP`/`TT_GREP`/
   `TT_GATHER`, `TT_HASH_*`/`TT_ARR_*`, `TT_CSET_UNION`/`_DIFF`/`_INTER`, `TT_PRINT`/`TT_PRINT_FH`/`TT_SAY`/`TT_SAY_FH`.
-- [ ] **L2-P — PATTERN role**: `TT_LEN`/`POS`/`RPOS`/`TAB`/`RTAB`, `TT_FENCE`, `TT_ARBNO`, CAT chain (`TT_SEQ`),
-  ALT (`TT_ALTERNATE`), captures `TT_CAPT_COND`/`IMM`/`CURSOR`, `TT_INDIRECT`(*var DEFER), `TT_BAL`, `TT_FNC` prims.
+- [~] **L2-P — PATTERN role**: `TT_LEN`/`POS`/`RPOS`/`TAB`/`RTAB`, `TT_FENCE`, `TT_ARBNO`, **CAT chain (`TT_SEQ`/`TT_CAT`) ✅**,
+  **ALT (`TT_ALT`) ✅**, captures `TT_CAPT_COND`/`IMM`/`CURSOR`, `TT_INDIRECT`(*var DEFER), `TT_BAL`, `TT_FNC` prims.
   (foundation leaves LIT/ARB/REM/SPAN/ANY/NOTANY/BREAK/BREAKX already in lower_pattern via pat_cset_arg.)
-- [ ] **L2-Goal — GOAL role**: `TT_UNIFY`, arith-compares, `TT_IF`, `TT_VAR`/`TT_FNC` call/builtin, conj/disj/ITE
-  (cut/true/fail leaves already in lower_goal).
+  CAT/ALT done 2026-05-31 via SHARED `wire_seq`/`wire_alt` (IR_PAT_CAT/IR_PAT_ALT kinds). Remaining: LEN/POS/RPOS/
+  TAB/RTAB leaves, FENCE, ARBNO, captures, *var DEFER, BAL, FNC pattern-primitive folds.
+- [~] **L2-Goal — GOAL role**: **`TT_UNIFY` (+`=/2`) ✅**, **arith-compares (`< > =< >= =:= =\=`) ✅**, `TT_IF`, `TT_VAR`/`TT_FNC`
+  call/builtin, **conj `,` ✅ / disj `;` ✅** /ITE (cut/true/fail leaves already in lower_goal).
+  conj/disj done 2026-05-31 via SHARED `wire_seq`/`wire_alt` (IR_GCONJ/IR_DISJ); unify=`g_unify` (IR_UNIFY),
+  compares=`g_compare` (IR_ARITH, ival=BinopKind). Remaining: ITE (`->`/`*->`), `is/2`, user-pred Call, `nl`,
+  term-comparison (`==`/`@<`…), findall/catch. (Prolog EXEC stays resolve-runtime + sm_interp_run per RULES;
+  these arms are topology-only, proven via prove_lower2.sh, feeding the eventual goal graph.)
 - [ ] **LOWER2-EXEC** — wire `lower2_value_entry` → bb_exec on `1 to 5` for VALUE-LEVEL proof; confirm/adjust the
   relational flag (`dval=1.0`) + if-gate (`node.β` runtime dispatch) + alt-gate (operand_aux) AGAINST the executor.
 - [ ] **L2-TMATCH** — STEP 5: refactor the proven box code into `tm`/`tm_g` pattern form (match-capture-recurse-wire);
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP: `95f7f58` · .github: (this commit). **lower2.c → lower.c (the new tree root; old lower.c deleted,
-blob d2d8c8e1).** tm/tm_g match-collect library promoted in from tmatch_proto.c. 14 boxes wired (5 foundation + 7 L2-A/B
-+ v_assign [SNOBOL4 OUTPUT=] + g_det_builtin1 [Prolog write goal]); ~60 value-role TT_* still → loud `lower_unhandled`.
-Gate `scripts/prove_lower2.sh` **11/11 PASS** (9 prior + SNOBOL4 OUTPUT assign + Prolog write goal). `make scrip` LINK
-RED by design (3 symbols: `lower`/`kind_is_resumable`/`cset_try_fold` — see Session State); `make libscrip_rt` rc=0.
-FACT RULE `SHARED-LOWERER ONE-FILE CONCURRENCY` now byte-identical at the top of GOAL-SNOBOL4-BB / GOAL-ICON-BB /
-GOAL-PROLOG-BB (the 3-concurrent-session protocol). Prior gates unreachable until trunk regrown.
+**Watermark.** SCRIP: `<this commit>` (base `ee12a16`) · .github: (this commit). **lower2.c → lower.c (the new tree
+root; old lower.c deleted, blob d2d8c8e1).** tm/tm_g match-collect library in from tmatch_proto.c. **SHARED COMBINATOR
+SCAFFOLDING landed 2026-05-31 (Opus 4.8):** two reusable four-port builders `wire_seq` (n-ary sequence-with-backtrack)
++ `wire_alt` (n-ary fail-chain) + `flatten_seq`, written ONCE and ridden by all three roles — the concrete "sharing"
+across the 3 concurrent sessions. Icon `v_conj`/`v_alt` refactored onto them (byte-neutral); SNOBOL4 PATTERN CAT
+(`TT_SEQ`/`TT_CAT`→IR_PAT_CAT) + ALT (`TT_ALT`→IR_PAT_ALT) added; Prolog GOAL conj (`,`→IR_GCONJ) + disj (`;`→IR_DISJ)
++ `g_unify` (`=`/`TT_UNIFY`→IR_UNIFY) + `g_compare` (`< > =< >= =:= =\=`→IR_ARITH, ival=BinopKind) added. ~20 boxes
+wired now (5 foundation + 7 L2-A/B + v_assign + det_builtin1 + PAT_CAT/PAT_ALT + GCONJ/DISJ/UNIFY/ARITH). Gate
+`scripts/prove_lower2.sh` **17/17 PASS** (11 prior + SNOBOL CAT, SNOBOL ALT, Prolog conj, Prolog disj, Prolog unify,
+Prolog compare — node counts AND α/β/γ/ω wiring, e.g. `'WIN' REM` and `write(a),write(b)` produce identical sequence
+topology from the same `wire_seq`). `make scrip` rc=0, `make libscrip_rt` rc=0 (trunk regrown at `ee12a16`).
+**Change is topology-only (pure lowering) — every behavioral gate INVARIANT:** SNOBOL4 `OUTPUT="hello world"`→one
+record, Icon m2 **0/6** (PRE-EXISTING on `ee12a16` — the regrow commit routes Icon through `bb_exec_once(main)` but
+`lower()` never built Icon's `main`; the watermark's old "6/6 HARD" predates SMX-4 and is STALE), sm_dead 1/1, FACT 6
+(pre-existing baseline). FACT RULE `SHARED-LOWERER ONE-FILE CONCURRENCY` byte-identical across the 3 goal files (md5
+39c3e268) — UNTOUCHED this session.
+
+**⭐ IMMEDIATE NEXT — make Icon execute again (designed, NOT committed; reverted to avoid a half-step).** Icon m2 is
+0/6 because `lower()` (lower_program.c) builds `main` only for SNOBOL4. The fix is two coupled parts that MUST land
+together (landing the graph-builder alone replaces Icon's clean `[IBB] FATAL` abort with silent no-output for any
+body whose `write` is still unhandled — violates FACT-RULE fail-loud):
+  (1) **`lower_icon_body(proc)` in lower_program.c** — the Icon proc decl is `TT_PROC_DECL(name, params, body)` with
+      `body = proc->c[2]` a `TT_PROGRAM`; thread its statements VALUE-role in REVERSE (stmt[i].γ→stmt[i+1].α,
+      stmt[i].ω→PFAIL) via `lower2_value_entry` into one four-port graph (same reverse-threading the SNOBOL4 walker
+      uses); `bb_program_add`; return idx. Then an Icon branch in `lower()` walks `proc_table` (polyglot_init already
+      registers each Icon proc with `proc`→TT_PROC_DECL, `bb_idx=-1`) and fills `bb_idx`. (~30 lines, fully drafted
+      this session, then reverted.)
+  (2) **VALUE-role `TT_FNC` write-family arm** — Icon `write("…")` lowers `TT_FNC` which currently → `lower_unhandled`.
+      SHARE the existing `g_det_builtin1` (Prolog write) helper: promote it role-agnostic (`wire_det_builtin1`) and
+      call from BOTH `lower_goal` (Prolog) AND `lower_value` (Icon) — another sharing seam. For EXEC: the threaded
+      form runs the arg first and pushes its value to the AG ring (`bb_exec_once` pushes each node's value between
+      steps — VERIFIED), so set the call's `dval=1.0` (is_deep) so the `IR_CALL` exec arm (bb_exec.c:1478) reads the
+      arg via `ag_ring_peek` instead of the legacy `bb->α` arg-chain. Verify Icon m2 → 6/6 (HARD) before committing.
+      Gate against the canonical Icon `write` semantics (RULES: consult canonical sources).
+
+Then continue the box ladder (LEN/POS/TAB/RTAB/FENCE pattern leaves; Prolog ITE/Call/is; Icon L2-C limitation) and,
+once enough roles are armed + exec-proven, LOWER2-EXEC then LM-6 DISPATCH-UNIFY. Prior gates (corpus/etc.) remain
+unreachable until the SNOBOL4 BB run-path (the pattern engine in bb_exec.c, IR_SCAN/IR_PAT_*) lands — the LONG POLE
+flagged in HANDOFF-2026-05-31-...-SNOBOL4-TRUNK-REGROW.
 
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
