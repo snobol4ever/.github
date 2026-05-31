@@ -6,14 +6,14 @@
 priority. Do not resume without explicit re-prioritization from Lon.**
 
 Gates at hold: GATE-RK m2 45/46, GATE-RK4 m4 46/46 PERFECT, GATE-RK3 m3 45/46 CRASH 0,
-smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1. one4all HEAD `290af6b9`. Build clean.
+smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1. SCRIP HEAD `290af6b9`. Build clean.
 
 Next work when resumed: SM-2 `when`-arm reroute (diagnose BB_ITERATE/SM_CALL_FN mode-4 crash
 via gdb on rk_given18 in_loop; see watermark for full diagnosis). Then SM-3 frontend (own session).
 
 ---
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Sister:** GOAL-ICON-BB.md (kinds REUSED) · GOAL-RAKU-FRONTEND.md
 **Prereq:** HEADQUARTERS PP-1..6 ✅. BB-TEMPLATE-LADDER invariants 0..9 apply.
 
@@ -75,12 +75,12 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 - **MODE3-NO-INTERP-3 ✅** SM_NAMED_CALL absolute-target patching in sm_run_native Pass 3 closed Cluster 2.
 - **M3-RK-NOINTERP-1a ✅** `bb_to_by.cpp` MEDIUM_BINARY r12→rt_push_int (Sonnet 4.6, `55d03444`).
 - **M3-RK-NOINTERP-1b ✅** SM_BB_INVOKE MEDIUM_BINARY arm — scratch-buffer-flush w/ sink save/restore, `walk_bb_node` integration, ascending-sites fix in `bb_to_by.cpp:142` (Opus 4.7, `48ca4e21`).
-- **M3-RK-NOINTERP-1c ✅** `bb_iterate.cpp` Raku MEDIUM_BINARY arm wired (Opus 4.7, 2026-05-29, one4all `8d3a8cdf`). Mirrored the existing MEDIUM_TEXT arm in raw x86: α zeroes `&pBB->counter`, β-define falls into `NV_GET_fn(name)`, unpacks `rax:rdx` (low32=v, hi32=slen; rdx=base ptr), strlen-fallback when slen=0, bounds-check `jge lω`, scan for SOH separator, `GC_malloc(seg_len+1)` + `rep movsb` + NUL-term, `rt_push_str(ptr,len)` + `jmp lγ`. All four helper calls use absolute `movabs rax,&fn; call rax` (no PLT in mode-3). bin.sites ascending: `{beta_off, fail_off+2, succ_off+1}` paired with `{lβ_p define, lω_p, lγ_p}`. **Mode-3 native: 19→25 PASS** (+6: rk_fileio38, rk_for_array{,_simple,_underscore}, rk_given18, rk_map_grep_sort24 all CRASH→PASS).
-- **RK-M2-GATHER ✅** mode-2 gather multi-yield (Opus 4.8, 2026-05-29, one4all `30e7c0a1`). `rk_gather` FAILed mode-2: `bb_exec.c` `BB_SEQ` was an AG-PURE passthrough that never drove the gather body's `BB_SEQ→SUSPEND·SUSPEND·SUSPEND·FAIL` chain (SUSPEND hit `default:`→FAIL, and `bb_exec_once/resume` walk to `next==NULL` with no pause-at-yield). Added a gather driver INSIDE `case BB_SEQ`, gated `g_current_cfg->lang==BB_LANG_RKU && bb->α->t==BB_SUSPEND`: yields ONE take per (re)entry using `bb->counter` as the resume cursor (reset to 0 by `bb_exec_once`, preserved by `bb_exec_resume`); the counter-th SUSPEND's `α` is evaluated and returned as `bb->value` via terminal `NULL`; walking past the last SUSPEND onto `BB_FAIL` → `FAILDESCR`. Mirrors mode-3 `bb_seq_gather_binary` (resume_slot ≡ counter, per-child γ-yield ≡ the NULL return through the driver loop). GATE-RK m2 23→24. Ordinary proc-body SEQs (α not a SUSPEND) untouched.
-- **RK-M2-ACOMP ✅** `SM_ACOMP` string→numeric coercion (Opus 4.8, 2026-05-29, one4all `30e7c0a1`). `rk_given18` FAILed mode-2: `given` on a `for`-loop variable missed every `when` arm. Array elements pulled via `BB_ITERATE` arrive as `DT_S`; `sm_interp.c` `SM_ACOMP` treated any non-`DT_I`/`DT_R` operand as `0`, so topic `"1"` compared as `0==1`→false→default. Fix mirrors `SM_ADD`: `if (l.v==DT_S) lv=to_real(l)` (and r). GATE-RK m2 24→25. Shared across all languages; verified zero regression (SNOBOL4 crosscheck unchanged via before/after stash, Icon relop direct, broad broker 6/6).
-- **RK-BB-4a ✅** constructor junctions any/all/one/none mode-2 (Opus 4.8, 2026-05-29, one4all `30e7c0a1`). Per Q9/Q12. `lower.c` `lower_fnc` intercepts Raku lowercase any/all/one/none (NOT the SNOBOL4/Icon `ANY` pattern path) → `SM_CALL_FN __rk_jct_<flavor>` with the RK-BB-3.0a dup-name first arg skipped. `raku_builtins_byname.c` packs a tagged-string junction VALUE (Q12): `ETX(0x03) + flavor('a'/'l'/'o'/'n') + SOH-separated members` (ETX is free of the SOH/STX array/hash bytes). `rk_junction_is` + `rk_junction_collapse` (recursive on junction members) thread the relop per flavor: any=OR, all=AND, one=exactly-one, none=NONE. `sm_interp.c` `SM_ACOMP`(numeric)/`SM_LCOMP`(string) gain a junction guard (`DT_S && s[0]==0x03`, never fires for normal values) routing to the collapse. GATE-RK m2 25→26.
-- **RK-BB-4b ✅** infix `|`/`&` junctions mode-2 (Opus 4.8, 2026-05-29, one4all `30e7c0a1`). Per Q10 (BB-ALT-class substrate is the model, but mode-2 uses the same tagged-string value as 4a — no new opcode per Q9). `raku.l` adds single-char `|`/`&` (flex longest-match keeps `||`/`&&`; no code-sigil conflict). `raku.y` `mk_junction` builds `l|r`→`any(l,r)`, `l&r`→`all(l,r)` as the SAME `TT_FNC` node make_call produces, so infix + constructor share one lowering + collapse; same-flavor chains FLATTEN at parse time (`(3&3)&3`→`all(3,3,3)`), sidestepping the nested-`\x01` leak in the flat rep. `%left '|' '&'`; parser/lexer regenerated, zero grammar conflicts. **Full `rk_junctions` probe PASS mode-2.** GATE-RK m2 26 (rk_junctions FAIL→PASS; net session 23→26).
-- **M3-RK-NOINTERP-1d ✅** `rk_gather` closed (Opus 4.8, 2026-05-29, one4all `a894af4a`). Last Cluster-1 native test. The gather body BB graph is `BB_SEQ(n=4) → SUSPEND·SUSPEND·SUSPEND·FAIL` (NOT the bb_upto path the prior handoff guessed). Three coordinated fixes: **(1) `bb_seq.cpp`** new raw-x86 gather-driver `bb_seq_gather_binary` — the MEDIUM_BINARY arm only walked the `xa_bb_emit_pair_*[]` passthrough, which is UNPOPULATED on the SM_BB_INVOKE → `walk_bb_node` path (no `flat_drive_seq` ran), so outer β (`.Lbbinv%d_β`) was never defined → `bb_emit_end` abort. New driver mirrors the MEDIUM_TEXT gather-driver in raw bytes: α fan-out `jmp s0_α`; define outer β = `movabs rax,&resume_slot; mov rax,[rax]; jmp rax`; per-child: define Lα[k], `walk_bb_node(child,NULL)`, define Lγ[k] fixup (`movabs rax,&resume_slot; lea rcx,[rip+nxt]; mov [rax],rcx; jmp outer_γ`); done trampoline `jmp outer_ω`. resume_slot is a malloc'd quad (scratch page has no .data); intermediate labels malloc'd so pointers survive into the wrapper's `bb_emit_end` (runs after bb_seq returns); rip-relative `lea` patches via standard `bb_emit_patch_rel32` (site+4 = rip). **(2) `bb_suspend.cpp`** MEDIUM_BINARY arm now pushes via `rt_push_int` (movabs+call) not raw `mov [r12]` — `sm_run_native` doesn't init r12 as a value-stack pointer (the SM value stack is the `g_vstack` C global), so the old r12 stores segfaulted; same fix bb_to_by took in 1a; bin sites reordered ascending per 1b. **(3) `lower.c` `lower_every`** new branch for `for gather{} -> $v` (`TT_EVERY(TT_ITERATE(v, TT_FNC(__gather_N)))`) — the generic scaffold routed through `lower_iterate` which emits `SM_BB_INVOKE; STORE_VAR v` BEFORE the scaffold's `JUMP_F`, storing the loop var from an empty value-stack on the exhaustion pull → underflow; new branch mirrors the iterate-array branches (JUMP_F gates the store). **Mode-3 native: 25→26 PASS, CRASH 7→6** (rk_gather CRASH→PASS).
+- **M3-RK-NOINTERP-1c ✅** `bb_iterate.cpp` Raku MEDIUM_BINARY arm wired (Opus 4.7, 2026-05-29, SCRIP `8d3a8cdf`). Mirrored the existing MEDIUM_TEXT arm in raw x86: α zeroes `&pBB->counter`, β-define falls into `NV_GET_fn(name)`, unpacks `rax:rdx` (low32=v, hi32=slen; rdx=base ptr), strlen-fallback when slen=0, bounds-check `jge lω`, scan for SOH separator, `GC_malloc(seg_len+1)` + `rep movsb` + NUL-term, `rt_push_str(ptr,len)` + `jmp lγ`. All four helper calls use absolute `movabs rax,&fn; call rax` (no PLT in mode-3). bin.sites ascending: `{beta_off, fail_off+2, succ_off+1}` paired with `{lβ_p define, lω_p, lγ_p}`. **Mode-3 native: 19→25 PASS** (+6: rk_fileio38, rk_for_array{,_simple,_underscore}, rk_given18, rk_map_grep_sort24 all CRASH→PASS).
+- **RK-M2-GATHER ✅** mode-2 gather multi-yield (Opus 4.8, 2026-05-29, SCRIP `30e7c0a1`). `rk_gather` FAILed mode-2: `bb_exec.c` `BB_SEQ` was an AG-PURE passthrough that never drove the gather body's `BB_SEQ→SUSPEND·SUSPEND·SUSPEND·FAIL` chain (SUSPEND hit `default:`→FAIL, and `bb_exec_once/resume` walk to `next==NULL` with no pause-at-yield). Added a gather driver INSIDE `case BB_SEQ`, gated `g_current_cfg->lang==BB_LANG_RKU && bb->α->t==BB_SUSPEND`: yields ONE take per (re)entry using `bb->counter` as the resume cursor (reset to 0 by `bb_exec_once`, preserved by `bb_exec_resume`); the counter-th SUSPEND's `α` is evaluated and returned as `bb->value` via terminal `NULL`; walking past the last SUSPEND onto `BB_FAIL` → `FAILDESCR`. Mirrors mode-3 `bb_seq_gather_binary` (resume_slot ≡ counter, per-child γ-yield ≡ the NULL return through the driver loop). GATE-RK m2 23→24. Ordinary proc-body SEQs (α not a SUSPEND) untouched.
+- **RK-M2-ACOMP ✅** `SM_ACOMP` string→numeric coercion (Opus 4.8, 2026-05-29, SCRIP `30e7c0a1`). `rk_given18` FAILed mode-2: `given` on a `for`-loop variable missed every `when` arm. Array elements pulled via `BB_ITERATE` arrive as `DT_S`; `sm_interp.c` `SM_ACOMP` treated any non-`DT_I`/`DT_R` operand as `0`, so topic `"1"` compared as `0==1`→false→default. Fix mirrors `SM_ADD`: `if (l.v==DT_S) lv=to_real(l)` (and r). GATE-RK m2 24→25. Shared across all languages; verified zero regression (SNOBOL4 crosscheck unchanged via before/after stash, Icon relop direct, broad broker 6/6).
+- **RK-BB-4a ✅** constructor junctions any/all/one/none mode-2 (Opus 4.8, 2026-05-29, SCRIP `30e7c0a1`). Per Q9/Q12. `lower.c` `lower_fnc` intercepts Raku lowercase any/all/one/none (NOT the SNOBOL4/Icon `ANY` pattern path) → `SM_CALL_FN __rk_jct_<flavor>` with the RK-BB-3.0a dup-name first arg skipped. `raku_builtins_byname.c` packs a tagged-string junction VALUE (Q12): `ETX(0x03) + flavor('a'/'l'/'o'/'n') + SOH-separated members` (ETX is free of the SOH/STX array/hash bytes). `rk_junction_is` + `rk_junction_collapse` (recursive on junction members) thread the relop per flavor: any=OR, all=AND, one=exactly-one, none=NONE. `sm_interp.c` `SM_ACOMP`(numeric)/`SM_LCOMP`(string) gain a junction guard (`DT_S && s[0]==0x03`, never fires for normal values) routing to the collapse. GATE-RK m2 25→26.
+- **RK-BB-4b ✅** infix `|`/`&` junctions mode-2 (Opus 4.8, 2026-05-29, SCRIP `30e7c0a1`). Per Q10 (BB-ALT-class substrate is the model, but mode-2 uses the same tagged-string value as 4a — no new opcode per Q9). `raku.l` adds single-char `|`/`&` (flex longest-match keeps `||`/`&&`; no code-sigil conflict). `raku.y` `mk_junction` builds `l|r`→`any(l,r)`, `l&r`→`all(l,r)` as the SAME `TT_FNC` node make_call produces, so infix + constructor share one lowering + collapse; same-flavor chains FLATTEN at parse time (`(3&3)&3`→`all(3,3,3)`), sidestepping the nested-`\x01` leak in the flat rep. `%left '|' '&'`; parser/lexer regenerated, zero grammar conflicts. **Full `rk_junctions` probe PASS mode-2.** GATE-RK m2 26 (rk_junctions FAIL→PASS; net session 23→26).
+- **M3-RK-NOINTERP-1d ✅** `rk_gather` closed (Opus 4.8, 2026-05-29, SCRIP `a894af4a`). Last Cluster-1 native test. The gather body BB graph is `BB_SEQ(n=4) → SUSPEND·SUSPEND·SUSPEND·FAIL` (NOT the bb_upto path the prior handoff guessed). Three coordinated fixes: **(1) `bb_seq.cpp`** new raw-x86 gather-driver `bb_seq_gather_binary` — the MEDIUM_BINARY arm only walked the `xa_bb_emit_pair_*[]` passthrough, which is UNPOPULATED on the SM_BB_INVOKE → `walk_bb_node` path (no `flat_drive_seq` ran), so outer β (`.Lbbinv%d_β`) was never defined → `bb_emit_end` abort. New driver mirrors the MEDIUM_TEXT gather-driver in raw bytes: α fan-out `jmp s0_α`; define outer β = `movabs rax,&resume_slot; mov rax,[rax]; jmp rax`; per-child: define Lα[k], `walk_bb_node(child,NULL)`, define Lγ[k] fixup (`movabs rax,&resume_slot; lea rcx,[rip+nxt]; mov [rax],rcx; jmp outer_γ`); done trampoline `jmp outer_ω`. resume_slot is a malloc'd quad (scratch page has no .data); intermediate labels malloc'd so pointers survive into the wrapper's `bb_emit_end` (runs after bb_seq returns); rip-relative `lea` patches via standard `bb_emit_patch_rel32` (site+4 = rip). **(2) `bb_suspend.cpp`** MEDIUM_BINARY arm now pushes via `rt_push_int` (movabs+call) not raw `mov [r12]` — `sm_run_native` doesn't init r12 as a value-stack pointer (the SM value stack is the `g_vstack` C global), so the old r12 stores segfaulted; same fix bb_to_by took in 1a; bin sites reordered ascending per 1b. **(3) `lower.c` `lower_every`** new branch for `for gather{} -> $v` (`TT_EVERY(TT_ITERATE(v, TT_FNC(__gather_N)))`) — the generic scaffold routed through `lower_iterate` which emits `SM_BB_INVOKE; STORE_VAR v` BEFORE the scaffold's `JUMP_F`, storing the loop var from an empty value-stack on the exhaustion pull → underflow; new branch mirrors the iterate-array branches (JUMP_F gates the store). **Mode-3 native: 25→26 PASS, CRASH 7→6** (rk_gather CRASH→PASS).
 
 ## Open rungs
 
@@ -114,13 +114,13 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 - [ ] **RK-NFA-1 — wire family + mode-2 backtracking walk.** 1a/1b/1c/1d/1e ✅; remaining: gate the BB graph into mode-4 (RK-NFA-4 below).
   - [x] 1a. `BB_NFA_*` enum block in `src/include/BB.h` (isolated; SNOBOL4's pattern opcodes untouched).
-  - [x] 1b. **DONE (RK-NFA-1b ✅, Opus 4.8, 2026-05-29, one4all `6b593da8`).** `raku_nfa_to_bb(Raku_nfa*) → BB_graph_t*` state→node walk in `raku_nfa_bb.c` (isolated; zero `snobol4_pattern.c` contact). `nfa_kind_to_bb` 1:1 `Nfa_kind`→`BB_NFA_*`; one `BB_t` per NFA state; ports γ=out1-node (advance), β=out2-node (SPLIT backtrack), ω=NULL for the consumer scaffold; payload CHAR ival=char, CLASS sval=32-byte cset blob, CAP_OPEN/CLOSE ival=group idx; `bbg->entry`=start node; returns NULL on Phase-2 kinds (NK_CODE/NK_SUB_CALL) so callers fall back. Verified standalone: graph faithfully mirrors the NFA across the full L1-L15 pattern set (node count == state count, ports wired, entry correct, csets/chars/caps carried). Pure graph construction, NO x86, dead-code-until-RK-NFA-4. Gates unchanged.
+  - [x] 1b. **DONE (RK-NFA-1b ✅, Opus 4.8, 2026-05-29, SCRIP `6b593da8`).** `raku_nfa_to_bb(Raku_nfa*) → BB_graph_t*` state→node walk in `raku_nfa_bb.c` (isolated; zero `snobol4_pattern.c` contact). `nfa_kind_to_bb` 1:1 `Nfa_kind`→`BB_NFA_*`; one `BB_t` per NFA state; ports γ=out1-node (advance), β=out2-node (SPLIT backtrack), ω=NULL for the consumer scaffold; payload CHAR ival=char, CLASS sval=32-byte cset blob, CAP_OPEN/CLOSE ival=group idx; `bbg->entry`=start node; returns NULL on Phase-2 kinds (NK_CODE/NK_SUB_CALL) so callers fall back. Verified standalone: graph faithfully mirrors the NFA across the full L1-L15 pattern set (node count == state count, ports wired, entry correct, csets/chars/caps carried). Pure graph construction, NO x86, dead-code-until-RK-NFA-4. Gates unchanged.
   - [x] 1c. Isolated mode-2 backtracking matcher `raku_nfa_bb_match` (`src/frontend/raku/raku_nfa_bb.c`, `nfa_bt` depth-first, β=`SPLIT.out2`); `raku_nfa_start/accept` accessors + `raku_nfa_states` defined; Makefile wired; `RK_NFA_BB=1` gate in tree-walk handler.
   - [x] 1d. Standalone oracle: backtracking BB verdict == parallel NFA verdict on **L1-L12, 12/12, zero mismatches.** Thesis proven.
-  - [x] 1e. **CLOSED (RK-NFA-1e ✅, Opus 4.8, 2026-05-29, one4all `0d94e255`).** SM dispatch gap closed and the WHOLE mode-2/mode-4 regex cluster lit up (went past option-A name-registration). `~~` lowered to `SM_CALL_FN raku_match` but the only handler `raku_try_call_builtin(tree_t*)` was the legacy tree-walk; `--interp` (`sm_interp.c:1387`) and `rt_call` (`rt.c:1598`) reach `raku_try_call_builtin_by_name`, which never knew the name → all 6 regex tests failed BOTH modes. **(1)** `raku_builtins_byname.c`: by-name twins using pre-eval'd `args[]` — `raku_match`, `raku_match_global`, `raku_subst`, `raku_nfa_compile`, `raku_re_capture`, `raku_named_capture`; all route through the ISOLATED `raku_nfa_*` matcher (`raku_re.c`/`raku_nfa_bb.c`), zero SNOBOL4-pattern-opcode contact. **(2)** Capture name-collision: the lexer mapped BOTH `$*STDOUT`/`$*STDERR` (FH) and `$0`/`$1` (regex) to `VAR_CAPTURE→TT_CAPTURE→raku_capture`, and the RK-IO `FHVAL` handler shadowed the regex slice. Split at the lexer: `$*STD*`→new `VAR_FH`→`TT_FH_CAPTURE`→`raku_capture` (FH, byte-identical); `$0`/`$1`→`VAR_CAPTURE`→`TT_CAPTURE`→new `raku_re_capture` (group slice). Net-zero new grammar conflicts (still 30). **(3)** Subst write-back: `s/pat/repl/` mutates its subject; by-name args are pre-eval'd values (var identity erased, unlike the AST handler's frame inspection). When the smatch-subst LHS is a plain `TT_VAR`, `lower_expr` emits `STORE_VAR`+re-`PUSH_VAR` after the call → subject rebound, statement still yields a value. **GATE-RK m2 35→41/42** (only rk_stdio39 fidelity non-bug remains), **GATE-RK4 m4 36→42/42 PERFECT**. Smoke 5/5/5/13/5 HOLD; SNOBOL4 pattern-rung suite BYTE-IDENTICAL M2 19/0 M4 18/1 (isolation proven); FACT 0 (mode-2/4-dispatch rung, no emitter/template bytes). This subsumes the mode-2/mode-4 verdict+capture+global+subst goals of RK-NFA-2/RK-NFA-3 as well; what remains for those rungs is the BB_NFA_* emission path (RK-NFA-1b → RK-NFA-4/5).
+  - [x] 1e. **CLOSED (RK-NFA-1e ✅, Opus 4.8, 2026-05-29, SCRIP `0d94e255`).** SM dispatch gap closed and the WHOLE mode-2/mode-4 regex cluster lit up (went past option-A name-registration). `~~` lowered to `SM_CALL_FN raku_match` but the only handler `raku_try_call_builtin(tree_t*)` was the legacy tree-walk; `--interp` (`sm_interp.c:1387`) and `rt_call` (`rt.c:1598`) reach `raku_try_call_builtin_by_name`, which never knew the name → all 6 regex tests failed BOTH modes. **(1)** `raku_builtins_byname.c`: by-name twins using pre-eval'd `args[]` — `raku_match`, `raku_match_global`, `raku_subst`, `raku_nfa_compile`, `raku_re_capture`, `raku_named_capture`; all route through the ISOLATED `raku_nfa_*` matcher (`raku_re.c`/`raku_nfa_bb.c`), zero SNOBOL4-pattern-opcode contact. **(2)** Capture name-collision: the lexer mapped BOTH `$*STDOUT`/`$*STDERR` (FH) and `$0`/`$1` (regex) to `VAR_CAPTURE→TT_CAPTURE→raku_capture`, and the RK-IO `FHVAL` handler shadowed the regex slice. Split at the lexer: `$*STD*`→new `VAR_FH`→`TT_FH_CAPTURE`→`raku_capture` (FH, byte-identical); `$0`/`$1`→`VAR_CAPTURE`→`TT_CAPTURE`→new `raku_re_capture` (group slice). Net-zero new grammar conflicts (still 30). **(3)** Subst write-back: `s/pat/repl/` mutates its subject; by-name args are pre-eval'd values (var identity erased, unlike the AST handler's frame inspection). When the smatch-subst LHS is a plain `TT_VAR`, `lower_expr` emits `STORE_VAR`+re-`PUSH_VAR` after the call → subject rebound, statement still yields a value. **GATE-RK m2 35→41/42** (only rk_stdio39 fidelity non-bug remains), **GATE-RK4 m4 36→42/42 PERFECT**. Smoke 5/5/5/13/5 HOLD; SNOBOL4 pattern-rung suite BYTE-IDENTICAL M2 19/0 M4 18/1 (isolation proven); FACT 0 (mode-2/4-dispatch rung, no emitter/template bytes). This subsumes the mode-2/mode-4 verdict+capture+global+subst goals of RK-NFA-2/RK-NFA-3 as well; what remains for those rungs is the BB_NFA_* emission path (RK-NFA-1b → RK-NFA-4/5).
 - [ ] **RK-NFA-2 — mode-2: csets + anchors + ordered alt** (rk_re32/33, L4-L12). Verdict logic already oracled; needs RK-NFA-1e plumbing.
 - [ ] **RK-NFA-3 — mode-2: captures** `$0`/`$1`/`$<name>` → `BB_NFA_CAP_*` (rk_re34/35, L13-L15).
-- [ ] **RK-NFA-4 — mode-4 emission. ⏸ SHELVED 2026-05-29 (see DECISION block above).** Leaf-emission ceremony; default `~~` stays on the C matcher. The 9 landed leaf templates stay dormant behind `RK_NFA_BB`; `bb_nfa_split` is NOT to be written. NEW `src/emitter/BB_templates/bb_nfa_*.cpp` (FACT-pure, four-port, isolated). GATE: rk_re33/34/35 mode-4; SNOBOL4 pattern-rung suite byte-unchanged. **SCAFFOLD LANDED (Opus 4.8, 2026-05-29, one4all `ac1bc66b`):** `bb_nfa.cpp` with the trivial passthrough nodes `bb_nfa_eps`/`bb_nfa_cap_open`/`bb_nfa_cap_close` (pure `jmp γ`, byte-identical to `bb_eps`); all 10 `BB_NFA_*` opcodes wired into the `emit_core.c` dispatch (3 → templates, 7 consuming/branching → `bb_stub` placeholder); prototypes in `bb_templates.h`; Makefile RT_PIC_SRCS + explicit `bb_nfa.o` scrip rule. Dead-code-until-`~~`-rewiring (nothing builds a `BB_NFA_*` graph yet); gates unchanged, FACT 0. REMAINING: the 7 consuming/branching templates (CHAR/ANY/CLASS/SPLIT/BOL/EOL/ACCEPT) with the pos/subject/slen register model + char/cset/backtrack bytes + capture block, then the `~~`→`SM_BB_INVOKE` rewiring (behind `RK_NFA_BB=1`). See DESIGN below.
+- [ ] **RK-NFA-4 — mode-4 emission. ⏸ SHELVED 2026-05-29 (see DECISION block above).** Leaf-emission ceremony; default `~~` stays on the C matcher. The 9 landed leaf templates stay dormant behind `RK_NFA_BB`; `bb_nfa_split` is NOT to be written. NEW `src/emitter/BB_templates/bb_nfa_*.cpp` (FACT-pure, four-port, isolated). GATE: rk_re33/34/35 mode-4; SNOBOL4 pattern-rung suite byte-unchanged. **SCAFFOLD LANDED (Opus 4.8, 2026-05-29, SCRIP `ac1bc66b`):** `bb_nfa.cpp` with the trivial passthrough nodes `bb_nfa_eps`/`bb_nfa_cap_open`/`bb_nfa_cap_close` (pure `jmp γ`, byte-identical to `bb_eps`); all 10 `BB_NFA_*` opcodes wired into the `emit_core.c` dispatch (3 → templates, 7 consuming/branching → `bb_stub` placeholder); prototypes in `bb_templates.h`; Makefile RT_PIC_SRCS + explicit `bb_nfa.o` scrip rule. Dead-code-until-`~~`-rewiring (nothing builds a `BB_NFA_*` graph yet); gates unchanged, FACT 0. REMAINING: the 7 consuming/branching templates (CHAR/ANY/CLASS/SPLIT/BOL/EOL/ACCEPT) with the pos/subject/slen register model + char/cset/backtrack bytes + capture block, then the `~~`→`SM_BB_INVOKE` rewiring (behind `RK_NFA_BB=1`). See DESIGN below.
   - **Graph is ready.** `raku_nfa_to_bb` (RK-NFA-1b ✅) already emits the isolated `BB_NFA_*` graph: one `BB_t`/state, γ=out1-node (advance), β=out2-node (SPLIT backtrack only), payload CHAR ival=char / CLASS sval=32-byte cset / CAP ival=group-idx. The 10 templates consume THIS graph.
   - **Spec to reproduce in x86 = `nfa_bt` (raku_nfa_bb.c).** Depth-first backtracker: ACCEPT→return pos; EPS/CAP_*→tail to out1; BOL/EOL→guard pos==0 / pos==slen then out1; CHAR/ANY/CLASS→if `pos<slen && test(subj[pos])` advance pos+1 →out1 else fail; SPLIT→try out1 (γ), on fail try out2 (β). This is EXACTLY the four-port BB model: γ=success-continue, ω=fail/backtrack, β=SPLIT's second arm. Same shape as `BB_ALT`/`BB_PUMP` which already have real MEDIUM_BINARY counter-state dispatch.
   - **Template contract (model on `bb_eps.cpp`, the minimal four-port):** each `bb_nfa_X_str(BB_t*pBB, bb_bin_t&bin)` returns x86 via `IF(MEDIUM_MACRO_DEF/BINARY/TEXT, …)`; `bin = {{site_offsets},{_.lbl_γ_p,_.lbl_β_p,_.lbl_ω_p},{is_rel…}}` declares the port relocation sites; `extern "C" void bb_nfa_X(BB_t*)` calls `bb_emit_asm_result`. Register model (proposed): a callee-saved reg holds `pos` (e.g. r13), another the subject base ptr (r14), another slen (r15d) — set once by the driver α; capture array a malloc'd quad block reached via movabs (mode-3) / @PLT helper (mode-4), NOT a BB_t field (PEERS RULE). char test via `cmp byte [r14+r13], ival`; cset test via `bt`/table lookup against the 32-byte sval blob emitted into rodata (xa_strtab_rodata or a movabs'd const).
@@ -153,7 +153,7 @@ Driver = **`BB_PUMP`**. NOT Prolog's `BB_ONCE`.
 
 ### Phase 1 — NFA leaf, core single-pattern (RK-NFA-1..5) — ⏸ SHELVED 2026-05-29 (leaf emission; see DECISION block)
 Tracked in the RK-NFA rungs above (1a–1e ✅, 4 SCAFFOLD ✅). **The mode-2/3/4 leaf MATCHER is GREEN via the C path** (41/42, 42/42, 41/42); only the BB *emission* (G1-1..3) is shelved as ceremony. Restated here as the ladder's first phase:
-- [ ] **G1-1** RK-NFA-4 — **S1✅ + S2✅ + S3 (L1 atom)✅ — `/x/` GREEN in mode-4** (Opus 4.8, 2026-05-29). **S1** (one4all `c8aeb90d`): gated `~~`→`SM_BB_INVOKE` over the isolated BB_NFA_* graph, default OFF (`RK_NFA_BB`). **S2+S3** (one4all `57ec5cea`): first runnable atom L1 `/x/`~"x" green in mode-4 (MEDIUM_TEXT) via the EMITTED isolated slab — byte-identical to the C matcher (match / miss / leftmost-offset `"abcx"`→pos 3). The contract's `walk_bb_flat` S2 was WRONG; the node-keyed NFA walker lives in the **`sm_bb_switch.cpp` SM_BB_INVOKE MEDIUM_TEXT arm** (subject-pop-from-vstack + leftmost sweep + r12/r13/r14/r15 save/restore, per-node label wiring), with leaf bytes in `bb_nfa.cpp`. Default gates HOLD (m2 41/42, m4 42/42, m3 41/42 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0). LEAVES LANDED: `bb_nfa_char`/`accept` (`57ec5cea`), `bb_nfa_any`/`bol`/`eol` (`a0346ec5`), **`bb_nfa_class` 32-byte cset bitset (`037be2ce`, Opus 4.8, 2026-05-29 — rodata-embedded blob, `bt edx,eax` mirroring raku_cc_test; verified byte-identical to C-matcher on `[a-z]`/`[A-Z]`/`\d`/`\s` incl. leftmost sweep + class-miss)**. REMAINING for G1-1: **`bb_nfa_split`** (the `*`/`+`/`?`/`||` fork). ⚠️ **ARCHITECTURE CORRECTION (Lon, 2026-05-29):** do NOT add a backtrack stack — BBs ALREADY backtrack, structurally, through the four-port wiring. The earlier \"explicit backtrack-stack\" note (and the `nfa_text_box` linear walker it implied) was WRONG and a foreign pattern. The correct model: SPLIT is a CHOICE POINT exactly like `BB_PAT_ALT` / `BB_CHOICE` / `BB_PL_ALT`, and the NFA graph should be driven by the canonical **`walk_bb_flat` + `flat_drive_*`** machinery (`emit_bb.c`), NOT the bespoke `nfa_text_box` walker in `sm_bb_invoke.cpp`. In that machinery, backtracking IS the port wiring: a downstream leaf's ω is wired to the β (retry) of the nearest upstream choice point; that choice point's β advances to its next alternative; its last alternative's ω propagates to the outer ω. The chain of ω→β edges through the graph *is* the choice-point stack, realized as wiring (see `flat_drive_alt`: arm.γ→outer-γ, arm[i].ω→arm[i+1] via the alt's β; and `flat_drive_pl_seq`: \"fail → redo predecessor\"). Each box also holds its own resume cursor (`pBB->counter`) for α/β re-entry — that per-box state replaces any global stack (see `bb_alt.cpp` MEDIUM_BINARY). PLAN for the redesign: (1) a `flat_drive_nfa_split` in `emit_bb.c` that mints labels and wires out1's ω → SPLIT's β, SPLIT's β → out2, out2's ω → outer ω; (2) route the leaf NFA kinds (CHAR/CLASS/ANY/BOL/EOL/CAP_*/EPS/ACCEPT) through `walk_bb_flat`'s `FILL` path (their existing four-port `bb_nfa_*` templates already emit γ/ω/β bodies); (3) drive the whole NFA graph (incl. the leftmost-unanchored sweep) via `walk_bb_flat` instead of `nfa_text_box`. The already-green leaves keep their template bytes; only the WALKER changes from linear to structural. Byte-exact x86 against the C-matcher oracle, crash-on-wrong-byte → fresh full session. Then captures (RK-NFA-3, L13-L15), mode-3 BINARY (RK-NFA-5), flip default (G1-3). Repro: `RK_NFA_BB=1 bash scripts/run_raku_via_x86_backend.sh FILE.raku`.
+- [ ] **G1-1** RK-NFA-4 — **S1✅ + S2✅ + S3 (L1 atom)✅ — `/x/` GREEN in mode-4** (Opus 4.8, 2026-05-29). **S1** (SCRIP `c8aeb90d`): gated `~~`→`SM_BB_INVOKE` over the isolated BB_NFA_* graph, default OFF (`RK_NFA_BB`). **S2+S3** (SCRIP `57ec5cea`): first runnable atom L1 `/x/`~"x" green in mode-4 (MEDIUM_TEXT) via the EMITTED isolated slab — byte-identical to the C matcher (match / miss / leftmost-offset `"abcx"`→pos 3). The contract's `walk_bb_flat` S2 was WRONG; the node-keyed NFA walker lives in the **`sm_bb_switch.cpp` SM_BB_INVOKE MEDIUM_TEXT arm** (subject-pop-from-vstack + leftmost sweep + r12/r13/r14/r15 save/restore, per-node label wiring), with leaf bytes in `bb_nfa.cpp`. Default gates HOLD (m2 41/42, m4 42/42, m3 41/42 CRASH 0, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0). LEAVES LANDED: `bb_nfa_char`/`accept` (`57ec5cea`), `bb_nfa_any`/`bol`/`eol` (`a0346ec5`), **`bb_nfa_class` 32-byte cset bitset (`037be2ce`, Opus 4.8, 2026-05-29 — rodata-embedded blob, `bt edx,eax` mirroring raku_cc_test; verified byte-identical to C-matcher on `[a-z]`/`[A-Z]`/`\d`/`\s` incl. leftmost sweep + class-miss)**. REMAINING for G1-1: **`bb_nfa_split`** (the `*`/`+`/`?`/`||` fork). ⚠️ **ARCHITECTURE CORRECTION (Lon, 2026-05-29):** do NOT add a backtrack stack — BBs ALREADY backtrack, structurally, through the four-port wiring. The earlier \"explicit backtrack-stack\" note (and the `nfa_text_box` linear walker it implied) was WRONG and a foreign pattern. The correct model: SPLIT is a CHOICE POINT exactly like `BB_PAT_ALT` / `BB_CHOICE` / `BB_PL_ALT`, and the NFA graph should be driven by the canonical **`walk_bb_flat` + `flat_drive_*`** machinery (`emit_bb.c`), NOT the bespoke `nfa_text_box` walker in `sm_bb_invoke.cpp`. In that machinery, backtracking IS the port wiring: a downstream leaf's ω is wired to the β (retry) of the nearest upstream choice point; that choice point's β advances to its next alternative; its last alternative's ω propagates to the outer ω. The chain of ω→β edges through the graph *is* the choice-point stack, realized as wiring (see `flat_drive_alt`: arm.γ→outer-γ, arm[i].ω→arm[i+1] via the alt's β; and `flat_drive_pl_seq`: \"fail → redo predecessor\"). Each box also holds its own resume cursor (`pBB->counter`) for α/β re-entry — that per-box state replaces any global stack (see `bb_alt.cpp` MEDIUM_BINARY). PLAN for the redesign: (1) a `flat_drive_nfa_split` in `emit_bb.c` that mints labels and wires out1's ω → SPLIT's β, SPLIT's β → out2, out2's ω → outer ω; (2) route the leaf NFA kinds (CHAR/CLASS/ANY/BOL/EOL/CAP_*/EPS/ACCEPT) through `walk_bb_flat`'s `FILL` path (their existing four-port `bb_nfa_*` templates already emit γ/ω/β bodies); (3) drive the whole NFA graph (incl. the leftmost-unanchored sweep) via `walk_bb_flat` instead of `nfa_text_box`. The already-green leaves keep their template bytes; only the WALKER changes from linear to structural. Byte-exact x86 against the C-matcher oracle, crash-on-wrong-byte → fresh full session. Then captures (RK-NFA-3, L13-L15), mode-3 BINARY (RK-NFA-5), flip default (G1-3). Repro: `RK_NFA_BB=1 bash scripts/run_raku_via_x86_backend.sh FILE.raku`.
 - [ ] **G1-2** RK-NFA-5 — `~~` onto the emitted slab in mode-3 native. ⏸ SHELVED 2026-05-29.
 - [ ] **G1-3** mode-4 `~~` default flip to BB once G1-1+G1-2 green (retire the C-matcher fallback behind `RK_NFA_BB`). ⏸ SHELVED 2026-05-29.
 
@@ -176,11 +176,11 @@ All lower to the `BB_NFA_*` slab; most are compile-time cset/loop shaping, NOT n
 - [ ] **G2-13 capture markers** — `<( … )>` keep-delimiters (set match start/end within a larger pattern).
 
 ### Phase 3 — BB-generator grammar STRUCTURE (RK-GRAM-3, Tier B) — THE SEAM
-- [ ] **G3-1 named-regex decl** — `my regex/token/rule name { … }` lowers each to a four-port BB **generator** (NOT a free fn) whose body is the Tier-A NFA slab. `token` = ratchet generator (β never re-pumps past first match); `regex` = backtracking generator (β re-pumps); `rule` = token + `:sigspace`. **⏳ FIRST MILESTONE DONE (one4all `dd52b2bf`): `Grammar.parse($s)` runs TOP, mode-2/3/4 green (see top watermark). NOT yet on a BB generator — rides the C `raku_nfa_*` engine; the BB-generator form (sub-steps a/b) + subrule composition is G3-2.**
+- [ ] **G3-1 named-regex decl** — `my regex/token/rule name { … }` lowers each to a four-port BB **generator** (NOT a free fn) whose body is the Tier-A NFA slab. `token` = ratchet generator (β never re-pumps past first match); `regex` = backtracking generator (β re-pumps); `rule` = token + `:sigspace`. **⏳ FIRST MILESTONE DONE (SCRIP `dd52b2bf`): `Grammar.parse($s)` runs TOP, mode-2/3/4 green (see top watermark). NOT yet on a BB generator — rides the C `raku_nfa_*` engine; the BB-generator form (sub-steps a/b) + subrule composition is G3-2.**
   - [ ] a. `lower_raku_named_regex` → `SM_BB_INVOKE` over the generator graph.
   - [ ] b. `:sigspace` rewrite: insert a `<.ws>` generator at each significant boundary (rule only).
-  - **G3-1 EXECUTION PLAN (measured 2026-05-29, Opus 4.8, one4all `76719461` — facts so the next session executes, not explores).** The PARSE layer is done (TT_GRAMMAR_DECL{ TT_REGEX_DECL(v.ival 0/1/2)... }, bodies as opaque LIT_REGEX child c[1]). Today `lower.c` reports `unhandled AST kinds: TT_GRAMMAR_DECL` and skips it (graceful, exit 0; a grammar coexists with runnable code — verified `say;grammar;say` prints both lines mode-2 + mode-4). MODEL = `lower_class_decl` (`src/lower/lower.c:1987`) + `lower_class_prescan` (`:2952`, walks top-level stmts for TT_CLASS_DECL, registers each method via `lower_raku_meth_register` BEFORE skeletons) + dispatch (`:2641 case TT_CLASS_DECL`). A grammar is the same shape: a namespace whose members are named generators instead of methods. REUSE ALREADY-LANDED: `raku_nfa_build(const char*pattern)` (`raku_re.c:299`, decl in `raku_re.h:46`) parses a body string → `Raku_nfa*`; `raku_nfa_to_bb(Raku_nfa*)` (`raku_nfa_bb.c:90`, RK-NFA-1b ✅) → isolated `BB_NFA_*` `BB_graph_t*`. So a TT_REGEX_DECL body → generator graph is a two-call pipeline that EXISTS. STEPS: (1) `lower_grammar_prescan` mirroring `lower_class_prescan` — register each `Grammar::rule` name (rename c[0]->v.sval to `Grammar__rule` like methods) into a grammar-rule table keyed for subrule resolution at G3-2. (2) `lower_grammar_decl` mirroring `lower_class_decl` — for each TT_REGEX_DECL: `raku_nfa_build(c[1]->v.sval)` then `raku_nfa_to_bb`; register the graph at runtime via an SM-level call (model the `RECORD_REGISTER` idempotent-handler pattern at `:2025` so BOTH mode-2 sm_interp and mode-4 rt_call register before any invocation — a lower-time-only registry is empty in the mode-4 child process, see the RK-CLASS comment). flavor (v.ival): token=ratchet (β no re-pump), regex=backtrack (β re-pumps), rule=token+`:sigspace`. (3) dispatch `case TT_GRAMMAR_DECL: lower_grammar_decl(t); SM_emit(g_p, SM_PUSH_NULL); return;` next to `:2641`; add `if (has_raku) lower_grammar_prescan(prog)` next to `:3005`. ⚠️ TESTABILITY COUPLING (the reason this is not independently shippable): a lowered generator is only OBSERVABLE once something INVOKES it. The smallest end-to-end test needs an invocation path — either G3-5 `Grammar.parse($s)` entering `TOP`, or a `~~`/`&name` reference. So G3-1 must land WITH a minimal invocation (recommend the `TOP` entry: `G.parse("...")` → enter the TOP generator → return Match/Nil), and the first `test/raku/*.{raku,expected}` grammar probe attaches there (Prolog GATE-4 pattern, mode-2 + mode-4 byte-identical). Until then the parse fixture `test/raku/rk_grammar_parse.raku` stays `.expected`-less (run-gates SKIP). CAVEAT (from the shelving decision): re-confirm at the seam that the leaf `BB_NFA_*` graph is the right substrate before relying on it — the GENERATORS (`BB_SUSPEND`/`BB_ALT`/`BB_PUMP`) are the load-bearing kinds, the leaf graph may be leaf-costume.
-- [ ] **G3-2 subrule call** — `<name>` inside a pattern → β-pumpable generator invocation (**THE SEAM**). Forms: `<name>` (capturing), `<.name>` (suppress), `<&name>` (lexical), `<name=other>` (alias), `<Pkg::name>` (qualified). **⏳ FIRST MILESTONE DONE (one4all `aa58850a`): bare `<name>` composes via non-recursive registry expansion, mode-2/3/4 green (see top watermark). NOT yet on BB generators; non-recursive only; capturing-group wrap; no Match tree. The BB-generator form (recursion + backtrack-across-calls) is the load-bearing tier still to do.**
+  - **G3-1 EXECUTION PLAN (measured 2026-05-29, Opus 4.8, SCRIP `76719461` — facts so the next session executes, not explores).** The PARSE layer is done (TT_GRAMMAR_DECL{ TT_REGEX_DECL(v.ival 0/1/2)... }, bodies as opaque LIT_REGEX child c[1]). Today `lower.c` reports `unhandled AST kinds: TT_GRAMMAR_DECL` and skips it (graceful, exit 0; a grammar coexists with runnable code — verified `say;grammar;say` prints both lines mode-2 + mode-4). MODEL = `lower_class_decl` (`src/lower/lower.c:1987`) + `lower_class_prescan` (`:2952`, walks top-level stmts for TT_CLASS_DECL, registers each method via `lower_raku_meth_register` BEFORE skeletons) + dispatch (`:2641 case TT_CLASS_DECL`). A grammar is the same shape: a namespace whose members are named generators instead of methods. REUSE ALREADY-LANDED: `raku_nfa_build(const char*pattern)` (`raku_re.c:299`, decl in `raku_re.h:46`) parses a body string → `Raku_nfa*`; `raku_nfa_to_bb(Raku_nfa*)` (`raku_nfa_bb.c:90`, RK-NFA-1b ✅) → isolated `BB_NFA_*` `BB_graph_t*`. So a TT_REGEX_DECL body → generator graph is a two-call pipeline that EXISTS. STEPS: (1) `lower_grammar_prescan` mirroring `lower_class_prescan` — register each `Grammar::rule` name (rename c[0]->v.sval to `Grammar__rule` like methods) into a grammar-rule table keyed for subrule resolution at G3-2. (2) `lower_grammar_decl` mirroring `lower_class_decl` — for each TT_REGEX_DECL: `raku_nfa_build(c[1]->v.sval)` then `raku_nfa_to_bb`; register the graph at runtime via an SM-level call (model the `RECORD_REGISTER` idempotent-handler pattern at `:2025` so BOTH mode-2 sm_interp and mode-4 rt_call register before any invocation — a lower-time-only registry is empty in the mode-4 child process, see the RK-CLASS comment). flavor (v.ival): token=ratchet (β no re-pump), regex=backtrack (β re-pumps), rule=token+`:sigspace`. (3) dispatch `case TT_GRAMMAR_DECL: lower_grammar_decl(t); SM_emit(g_p, SM_PUSH_NULL); return;` next to `:2641`; add `if (has_raku) lower_grammar_prescan(prog)` next to `:3005`. ⚠️ TESTABILITY COUPLING (the reason this is not independently shippable): a lowered generator is only OBSERVABLE once something INVOKES it. The smallest end-to-end test needs an invocation path — either G3-5 `Grammar.parse($s)` entering `TOP`, or a `~~`/`&name` reference. So G3-1 must land WITH a minimal invocation (recommend the `TOP` entry: `G.parse("...")` → enter the TOP generator → return Match/Nil), and the first `test/raku/*.{raku,expected}` grammar probe attaches there (Prolog GATE-4 pattern, mode-2 + mode-4 byte-identical). Until then the parse fixture `test/raku/rk_grammar_parse.raku` stays `.expected`-less (run-gates SKIP). CAVEAT (from the shelving decision): re-confirm at the seam that the leaf `BB_NFA_*` graph is the right substrate before relying on it — the GENERATORS (`BB_SUSPEND`/`BB_ALT`/`BB_PUMP`) are the load-bearing kinds, the leaf graph may be leaf-costume.
+- [ ] **G3-2 subrule call** — `<name>` inside a pattern → β-pumpable generator invocation (**THE SEAM**). Forms: `<name>` (capturing), `<.name>` (suppress), `<&name>` (lexical), `<name=other>` (alias), `<Pkg::name>` (qualified). **⏳ FIRST MILESTONE DONE (SCRIP `aa58850a`): bare `<name>` composes via non-recursive registry expansion, mode-2/3/4 green (see top watermark). NOT yet on BB generators; non-recursive only; capturing-group wrap; no Match tree. The BB-generator form (recursion + backtrack-across-calls) is the load-bearing tier still to do.**
   - [ ] a. plain `<name>` — invoke + capture-by-name into the Match tree (G5).
   - [ ] b. `<.name>` — structure only, no capture.
   - [ ] c. retry — outer fail re-enters the subrule's β for its next match (recursive choice point; mirror the Prolog WAM-CP frame-reuse model).
@@ -212,9 +212,9 @@ All lower to the `BB_NFA_*` slab; most are compile-time cset/loop shaping, NOT n
 
 **Test ladder L1-L15** (GATE-NFA-O = mode-2 `raku_nfa_bb_match` verdict == `raku_nfa_exec` verdict, then `.expected`): L1 `/x/`~"x"; L2 `/.*/`~""; L3 `/.*/`~"xyz"; L4 `/[a-z]+/`~"hello"; L5 `/[a-z]+/`~"123"(no); L6 `/\d+/`~"abc123"; L7 `/\d+/`~"abc"(no); L8 `/a||b/`~"cat"; L9 `/a||b/`~"dog"(no); L10 `/^x$/`~"x"; L11 `/^x$/`~"xy"(no); L12 `/^x$/`~""(no); L13 `/([A-Za-z]+)/`→$0; L14 two caps; L15 `<word>(...)`. **L1-L12 verdict-green standalone; L13-L15 at RK-NFA-3.** Isolation guard every rung — run the SNOBOL4 cross-language regression suite (`scripts/test_snobol4_pat_rung_suite.sh`, a SNOBOL4-owned artifact; the only place a SNOBOL4 `pat` name appears, intentionally, as the thing this Raku ladder must NOT perturb) — it must stay M2 19/0 M4 18/1.
 - [x] **RK-BB-4 mode-2 ✅** (4a constructors + 4b infix, see completed rungs). **Full `rk_junctions` probe PASS mode-2.** Q9-Q12 ANSWERED by Lon (2026-05-29): **Q9** reuse existing kinds; break out new SM/BB opcodes ONLY if language-specific behavior diverges. **Q10** build on `BB_ALT` (live substrate Icon uses); split later if needed. **Q11** substrate-first. **Q12** tagged-string rep. Substrate proven: `BB_ALT` mode-2 is a complete n-ary alternation engine (empirically `x=(1|2|3)`→hit, `x=(7|8|9)`→miss, `every write(10|20|30)`→10/20/30); `BB_ALT` mode-4 `MEDIUM_BINARY` is a real counter-state dispatch slab (NOT a stub — the probe header's stale assumptions #3/#4 refer to the orphan `BB_ALTERNATE`, and only the `MEDIUM_TEXT` arm is a passthrough). Junction VALUE rep is the tagged string; the boolean collapse currently lives in mode-2 `SM_ACOMP`/`SM_LCOMP` (NOT yet on `BB_ALT`).
-- [x] **RK-BB-4c (mode-4 junctions) ✅** (Opus 4.8, 2026-05-29, one4all `216f22cd`). Route (i): junction collapse added to shared `rt_acomp`/`rt_lcomp` (`src/runtime/rt/rt.c`), mirroring the mode-2 `SM_ACOMP`/`SM_LCOMP` interpreter cases. The `SM_ACOMP`/`SM_LCOMP` x86 templates already emit `mov edi,<op>; call rt_acomp`/`rt_lcomp` — the work lives in those runtime helpers, so this is FACT-clean (no template byte change). When a popped operand is `rk_junction_is()` true → `rk_junction_collapse(scalar,jct,op,numeric)` (1 acomp / 0 lcomp); push scalar+`LAST_OK=1` on hit else FAIL. `rk_junctions` mode-4 GREEN. Mode-3 junctions correct too (same helpers) but dormant (MODE3-DISPATCH-GAP).
-- [x] **RK-BB-4d edges — precedence + nesting ✅** (Opus 4.8, 2026-05-29, one4all `0a5352e3`+`1652aeb9`). (2) PRECEDENCE: new `jct_expr` grammar tier (`raku.y`) makes infix `|`/`&` bind tighter than comparison (real Raku); `$x == 1|2|5` → `$x == any(1,2,5)`. Comparisons take `jct_expr` operands; parser regenerated, net-zero new conflicts. (1) NESTED MIXED-FLAVOR: SOH-leak fixed via EOT(`\x04`)-terminated junction rep — builder appends `\x04`; `rk_junction_collapse` scans scalars to SOH-or-EOT and skips nested `\x03…\x04` spans by depth count, recursing on the opaque span. `50&(50|60)` etc. now correct. Probes `rk_junction_prec`, `rk_junction_nest` added. (3) var round-trip + string-relop collapse already worked. REMAINING sliver: `^`(one) infix not lexed; only `one(...)` constructor.
-- [x] **RK-BB-5.0..5.3 ✅** (Opus 4.8, 2026-05-29, one4all `36e41ed6`). List/array Seq consumers landed as pure value helpers in `raku_builtins_byname.c` (flatten SOH-array args into segments; no emitted x86, FACT-clean; reachable mode-2 `sm_interp` + mode-4 `rt_call`; byte-identical across modes). **5.0 `reverse`** (`a4bc02d4`) eager-drain reorderer; `for reverse(...)` rides the existing `for CALL(...)→$v` materialization branch. **5.1 `unique`+`sum`** (`8b10f978`) dedup-first-occurrence + numeric fold (INTVAL all-integral else REALVAL). **5.2 `join`** (`ed321adc`) `join(SEP,LIST)` fold-to-string; composes with reverse. **5.x array-arg coverage** (`f9425b68`, test-only) — confirmed reverse/unique/sum/join all work on push-built `@arrays`. **5.3 comma-list array initializer `my @a = e1,e2,...`** (`36e41ed6`) — the REAL gap behind `my @a=1,2,3` parse errors (NOT @-args, which already worked). Two `raku.y` productions (untyped+typed) build `ASSIGN(@a, __rk_arr(...))`; lookahead `;`(single-expr) vs `,`(comma-list) is a clean LALR split → **net-zero new conflicts (still 30 s/r)**; parser regenerated via `scripts/regenerate_parser_and_lexer_from_sources.sh` recipe (bison 3.8.2). New `__rk_arr` builtin packs args into an in-order SOH-array. Probes: rk_reverse, rk_unique_sum, rk_join, rk_seq_consumers_arr, rk_array_literal. **GATE-RK mode-2 28→33/40, GATE-RK4 mode-4 29→34/40; smoke 5/5, siblings icon/prolog/snobol4/snocone 5/5/13/5, FACT 0, all commits, no regressions.** DEFERRED: parenthesized `my @a=(1,2,3)` (list-atom, conflict-prone); `.method(N)` forms (`.tail`/`.head`/`.reverse`) need method-call-with-args parsing; `zip`/`cross` multi-Seq drivers need a nested-tuple representation.
+- [x] **RK-BB-4c (mode-4 junctions) ✅** (Opus 4.8, 2026-05-29, SCRIP `216f22cd`). Route (i): junction collapse added to shared `rt_acomp`/`rt_lcomp` (`src/runtime/rt/rt.c`), mirroring the mode-2 `SM_ACOMP`/`SM_LCOMP` interpreter cases. The `SM_ACOMP`/`SM_LCOMP` x86 templates already emit `mov edi,<op>; call rt_acomp`/`rt_lcomp` — the work lives in those runtime helpers, so this is FACT-clean (no template byte change). When a popped operand is `rk_junction_is()` true → `rk_junction_collapse(scalar,jct,op,numeric)` (1 acomp / 0 lcomp); push scalar+`LAST_OK=1` on hit else FAIL. `rk_junctions` mode-4 GREEN. Mode-3 junctions correct too (same helpers) but dormant (MODE3-DISPATCH-GAP).
+- [x] **RK-BB-4d edges — precedence + nesting ✅** (Opus 4.8, 2026-05-29, SCRIP `0a5352e3`+`1652aeb9`). (2) PRECEDENCE: new `jct_expr` grammar tier (`raku.y`) makes infix `|`/`&` bind tighter than comparison (real Raku); `$x == 1|2|5` → `$x == any(1,2,5)`. Comparisons take `jct_expr` operands; parser regenerated, net-zero new conflicts. (1) NESTED MIXED-FLAVOR: SOH-leak fixed via EOT(`\x04`)-terminated junction rep — builder appends `\x04`; `rk_junction_collapse` scans scalars to SOH-or-EOT and skips nested `\x03…\x04` spans by depth count, recursing on the opaque span. `50&(50|60)` etc. now correct. Probes `rk_junction_prec`, `rk_junction_nest` added. (3) var round-trip + string-relop collapse already worked. REMAINING sliver: `^`(one) infix not lexed; only `one(...)` constructor.
+- [x] **RK-BB-5.0..5.3 ✅** (Opus 4.8, 2026-05-29, SCRIP `36e41ed6`). List/array Seq consumers landed as pure value helpers in `raku_builtins_byname.c` (flatten SOH-array args into segments; no emitted x86, FACT-clean; reachable mode-2 `sm_interp` + mode-4 `rt_call`; byte-identical across modes). **5.0 `reverse`** (`a4bc02d4`) eager-drain reorderer; `for reverse(...)` rides the existing `for CALL(...)→$v` materialization branch. **5.1 `unique`+`sum`** (`8b10f978`) dedup-first-occurrence + numeric fold (INTVAL all-integral else REALVAL). **5.2 `join`** (`ed321adc`) `join(SEP,LIST)` fold-to-string; composes with reverse. **5.x array-arg coverage** (`f9425b68`, test-only) — confirmed reverse/unique/sum/join all work on push-built `@arrays`. **5.3 comma-list array initializer `my @a = e1,e2,...`** (`36e41ed6`) — the REAL gap behind `my @a=1,2,3` parse errors (NOT @-args, which already worked). Two `raku.y` productions (untyped+typed) build `ASSIGN(@a, __rk_arr(...))`; lookahead `;`(single-expr) vs `,`(comma-list) is a clean LALR split → **net-zero new conflicts (still 30 s/r)**; parser regenerated via `scripts/regenerate_parser_and_lexer_from_sources.sh` recipe (bison 3.8.2). New `__rk_arr` builtin packs args into an in-order SOH-array. Probes: rk_reverse, rk_unique_sum, rk_join, rk_seq_consumers_arr, rk_array_literal. **GATE-RK mode-2 28→33/40, GATE-RK4 mode-4 29→34/40; smoke 5/5, siblings icon/prolog/snobol4/snocone 5/5/13/5, FACT 0, all commits, no regressions.** DEFERRED: parenthesized `my @a=(1,2,3)` (list-atom, conflict-prone); `.method(N)` forms (`.tail`/`.head`/`.reverse`) need method-call-with-args parsing; `zip`/`cross` multi-Seq drivers need a nested-tuple representation.
 - [x] **RK-BB-5.4a (`.method` list-method forms) ✅** (Opus 4.8, 2026-05-29). `.reverse`/`.unique`/`.sum`/`.elems`/`.head(N)`/`.tail(N)` routed from `TT_METHCALL` (after class static-resolution miss) and `TT_FIELD` (bare postfix) to the list-context value helpers, ahead of the class-oriented `raku_mcall`/`FIELD_GET` fallbacks (`raku_is_listmeth` whitelist, gated `g_lang==LANG_RAKU`). New `head`/`tail` value builtins in `raku_builtins_byname.c` (trailing arg = count N; bare form defaults N=1) modelled on `reverse`. Also widened the `for`-CALL materialise guard (`lower_every`) to accept `TT_METHCALL`/`TT_FIELD` list-method invocants (`raku_methform_listmeth`), so `for @a.reverse -> $x`/`for @a.head(N) -> $x` materialise-then-iterate (previously ran away — guard keyed only on `TT_FNC`). Pure value helpers, no emitted x86 (FACT-clean); byte-identical mode-2/mode-4. Class methods/fields untouched (rk_class26 unchanged). Probe `rk_listmeth`. Commits `dbb3d15f` (postfix) + `91bfae91` (for-form). DEFERRED: `.join` (invocant/arg order swapped vs free-fn `join`, which already works).
 - [x] **RK-BB-5.4b (parenthesized array literal) ✅** (Opus 4.8, 2026-05-29, `56a30122`). `my @a = (e1, e2, ...)` via two initializer-only `raku.y` productions (untyped + typed) mirroring the 5.3 bare comma-list: `KW_MY [IDENT] VAR_ARRAY '=' '(' expr ',' arg_list ')' ';'` → `ASSIGN(@a, __rk_arr(...))`. Restricting the paren-list to the **initializer RHS** (NOT a general atom) keeps it **NET-ZERO new conflicts (still 30 s/r)** — a general-atom `'(' expr ',' arg_list ')'` form added +2 (method-chain/hash-subscript interactions) and was reverted. Single-element paren `(7)` stays scalar via the unchanged `'(' expr ')'`; bare comma-list + scalar paren coexist. Parser regenerated (bison 3.8.2). Probe `rk_paren_array`.
 - [ ] **RK-BB-5.4c (`zip`/`cross`) — DEFERRED, own session** — multi-Seq drivers where each output element is itself a list, so it needs a **nested-tuple representation** (STX-within-SOH or similar) that `for`/`say`/`.elems` consumers must understand. NOT a pure value helper (broad blast radius); the goal groups these as "(later)". Recommend a fresh session with full budget.
@@ -230,7 +230,7 @@ seam**: `~~` (`lower.c` `TT_SMATCH` ~2528) is hardwired to `raku_match`/`raku_ma
 light up a whole family at once: `when /re/`, `when 1..10`, `when Int`, `when *.even`, `when any(...)`,
 and the matching `$x ~~ …` forms. FACT-clean (value helper, no template bytes; behavior in lowering).
 
-### ⛔ MEASURED 2026-05-29 (Opus 4.8, one4all `a062f28b`) — facts so the next session executes
+### ⛔ MEASURED 2026-05-29 (Opus 4.8, SCRIP `a062f28b`) — facts so the next session executes
 
 Probed mode-2 to find the REAL starting rung (do not re-discover):
 
@@ -249,7 +249,7 @@ must stay byte-identical until the very last flip.
 
 ### Incremental rungs (each independently green; gate ladder below every rung)
 
-- [x] **SM-0 runtime seam (DEAD CODE, cannot regress) ✅** (Opus 4.8, 2026-05-30, one4all `e6f8b532`). Added `raku_accepts(topic, matcher)` to
+- [x] **SM-0 runtime seam (DEAD CODE, cannot regress) ✅** (Opus 4.8, 2026-05-30, SCRIP `e6f8b532`). Added `raku_accepts(topic, matcher)` to
       `raku_builtins_byname.c` (reachable all 3 modes via the existing `raku_try_call_builtin_by_name`
       table — same seam RK-NFA-1e used). Dispatch by matcher representation, REUSING proven helpers:
       Junction tagged-string (`s[0]==0x03`) → `rk_junction_collapse(topic,jct,EQ)` (numeric mode keyed
@@ -266,7 +266,7 @@ must stay byte-identical until the very last flip.
       `rk_re*`/`rk_regex23`); only a NON-regex RHS routes to `raku_accepts`. NOTE: today no non-regex
       RHS can even reach here (SM-3 frontend unblocks that), so SM-1 is an inert-but-correct reroute
       landed ahead of the frontend — keeps the two rungs separable.
-- [x] **SM-1 `~~` reroute, regex-preserving ✅** (Opus 4.8, 2026-05-30, one4all `7bb603a8`). In
+- [x] **SM-1 `~~` reroute, regex-preserving ✅** (Opus 4.8, 2026-05-30, SCRIP `7bb603a8`). In
       `TT_SMATCH` `match` flavor, added `rhs_non_regex` gate before the `const char *fn` dispatch:
       if `strcmp(flavor,"match")==0 && c[1]->t != TT_QLIT` → lower topic + arm + emit
       `SM_CALL_FN raku_accepts, 2; return`. A regex-literal RHS is always `TT_QLIT` (from the
@@ -325,10 +325,10 @@ Per rung: (1) lower the Raku construct to the shared BB kind via `lower_raku_*` 
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip libscrip_rt > /tmp/build.log 2>&1
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip libscrip_rt > /tmp/build.log 2>&1
 [ -x scrip ] || { grep -E "error:" /tmp/build.log | head -5; exit 1; }
-for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
+for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
 bash scripts/test_raku_ir_rungs.sh    # GATE-RK mode-2 baseline
@@ -350,12 +350,12 @@ GATE-RK-SM test_smoke_raku.sh           # smoke must hold
 
 ```
 RAKU ON HOLD (Lon directive, 2026-05-30). Raku development paused indefinitely; no longer top
-  priority. Resume only on explicit re-prioritization. State at hold: one4all `290af6b9`, all
+  priority. Resume only on explicit re-prioritization. State at hold: SCRIP `290af6b9`, all
   gates at documented baseline above. SM-0 + SM-1 clean and pushed. SM-2 diagnosed but not
   committed. Grammar G3-1/G3-2 (C oracle) green; BB-generator tier (recursion + backtrack-across-
   calls) not yet built. See the watermark entries below for full session history.
 
-SM-0 + SM-1 LANDED; SM-2 ATTEMPTED + REVERTED (Sonnet 4.6, 2026-05-30, one4all HEAD `7bb603a8`,
+SM-0 + SM-1 LANDED; SM-2 ATTEMPTED + REVERTED (Sonnet 4.6, 2026-05-30, SCRIP HEAD `7bb603a8`,
   .github clean). Two clean rungs, one diagnosed regression, no broken commits.
 
   SM-0 (e6f8b532): `raku_accepts(topic,matcher)` dead-code seam in `raku_builtins_byname.c`.
@@ -393,7 +393,7 @@ SM-0 + SM-1 LANDED; SM-2 ATTEMPTED + REVERTED (Sonnet 4.6, 2026-05-30, one4all H
   session, bison conflict count must stay 30).
 
 RK-SMARTMATCH SM-0 LANDED — dead-code raku_accepts ACCEPTS seam (Claude, Opus 4.8, 2026-05-30,
-  one4all `e6f8b532`). First code rung of the RK-SMARTMATCH ladder. `raku_accepts(topic, matcher)`
+  SCRIP `e6f8b532`). First code rung of the RK-SMARTMATCH ladder. `raku_accepts(topic, matcher)`
   added to raku_builtins_byname.c, reachable in all 3 modes via the raku_try_call_builtin_by_name
   byname table (the RK-NFA-1e seam). Two live arms reusing proven helpers: (1) junction matcher
   (s[0]==0x03) → rk_junction_collapse(topic, jct, EQ), numeric mode when topic is a number; (2)
@@ -406,7 +406,7 @@ RK-SMARTMATCH SM-0 LANDED — dead-code raku_accepts ACCEPTS seam (Claude, Opus 
   shows zero `raku_accepts` references outside its own file → no lowering emits it → cannot regress.
   ALL GATES BYTE-IDENTICAL to baseline: GATE-RK m2 45/46, GATE-RK4 m4 46/46 PERFECT, GATE-RK3 m3
   45/46 CRASH 0, smoke raku/icon/prolog/snobol4/snocone 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1,
-  build clean. (Session started from one4all HEAD 9eed4fa1 — an interleaved Prolog session had
+  build clean. (Session started from SCRIP HEAD 9eed4fa1 — an interleaved Prolog session had
   advanced past the prior watermark's a062f28b; Raku gates re-verified at baseline before the rung.)
   NEXT CODE RUNG: SM-1 (`~~` reroute, regex-preserving — keep raku_match DIRECT for a bare regex
   literal RHS, route only a NON-regex RHS to raku_accepts; verify `--dump-sm` unchanged for rk_re*/
@@ -415,7 +415,7 @@ RK-SMARTMATCH SM-0 LANDED — dead-code raku_accepts ACCEPTS seam (Claude, Opus 
   count gate (must stay 30). Risk register unchanged (see the RK-SMARTMATCH rung block).
 
 RK-SMARTMATCH RUNG AUTHORED — planning landing, .github only, NO code change (Claude, Opus 4.8,
-  2026-05-29; one4all UNCHANGED clean at `a062f28b`, gates at baseline below). Audited the current
+  2026-05-29; SCRIP UNCHANGED clean at `a062f28b`, gates at baseline below). Audited the current
   Raku feature set against the uploaded rakudo-main + roast-master sources. Two outcomes recorded in
   this file: (1) the RK-SMARTMATCH rung above — unify `when` + `~~` onto one `raku_accepts`/ACCEPTS
   seam, staged SM-0..SM-5 so each increment is independently green. KEY measured findings (mode-2
@@ -433,10 +433,10 @@ RK-SMARTMATCH RUNG AUTHORED — planning landing, .github only, NO code change (
   action-based grammar tests, G5); laziness for map/grep/range (eager-drain contradicts the pull
   protocol, breaks on `1..*`); `|` LTM vs ordered (untested — corpus uses single-char alts only).
   NEXT CODE RUNG: RK-SMARTMATCH SM-0 (dead-code `raku_accepts` helper) then SM-1/SM-2 reroutes, then
-  SM-3 frontend in its own full-budget session. Gates at this landing (one4all clean `a062f28b`):
+  SM-3 frontend in its own full-budget session. Gates at this landing (SCRIP clean `a062f28b`):
   GATE-RK m2 45/46, GATE-RK4 m4 46/46, smoke raku 5/5. Build clean.
 
-G3-2 rule :sigspace LANDED (Claude, Opus 4.8, 2026-05-29, one4all `a062f28b`). Per the Rakudo reading
+G3-2 rule :sigspace LANDED (Claude, Opus 4.8, 2026-05-29, SCRIP `a062f28b`). Per the Rakudo reading
   (token=:sigspace OFF, rule=ON, ws between atoms -> <.ws>). The registry now carries each rule's FLAVOR
   (0=token/1=rule/2=regex), threaded via a 3rd raku_grammar_register arg + lower_grammar_decl. rk_gram_expand
   is now FLAVOR-AWARE and absorbed the old strip_ws (quote/escape-aware): token/regex strip insignificant
@@ -454,7 +454,7 @@ G3-2 rule :sigspace LANDED (Claude, Opus 4.8, 2026-05-29, one4all `a062f28b`). P
   matched string); and/or G3-3 subrule args / G3-4 grammar inheritance. Registry expansion remains
   NON-RECURSIVE (depth-cap 16).
 
-G3-2 <.name> NON-CAPTURING SUBRULE LANDED (Claude, Opus 4.8, 2026-05-29, one4all `75294cbb`). Small
+G3-2 <.name> NON-CAPTURING SUBRULE LANDED (Claude, Opus 4.8, 2026-05-29, SCRIP `75294cbb`). Small
   grounded increment after reading the NQP grammar (where `<.ws>`/`<.ident>` are pervasive): rk_gram_expand
   now recognizes `<.name>` (dot-prefixed) as a subrule call, not only `<name>`. No Match tree yet, so
   `<.name>` expands identically to `<name>` (the capture-suppression difference is invisible until G5) —
@@ -468,7 +468,7 @@ G3-2 <.name> NON-CAPTURING SUBRULE LANDED (Claude, Opus 4.8, 2026-05-29, one4all
   stripping it. Then the real BB-generator tier (see the DESIGN NOTE under the G3-2 rung — Rakudo cursor model).
 
 G3-2 FIRST MILESTONE LANDED — <subrule> composition, mode-2/3/4 green (Claude, Opus 4.8, 2026-05-29,
-  one4all `aa58850a`). The subrule SEAM, first increment. A rule body's `<name>` references now resolve
+  SCRIP `aa58850a`). The subrule SEAM, first increment. A rule body's `<name>` references now resolve
   and compose: `token TOP { <a> <b> }` matches the concatenation, `token TOP { <x> s }` with
   `token x { cat | dog }` matches `(cat|dog)s` with correct grouping. Built on G3-1; PURE RUNTIME
   (raku_builtins_byname.c), no parser/lowering change — the parse-only rung already captures `<name>`
@@ -496,7 +496,7 @@ G3-2 FIRST MILESTONE LANDED — <subrule> composition, mode-2/3/4 green (Claude,
   form must reproduce — they are the golden oracle, exactly as the leaf C-matcher is for the leaf BB slab.
 
 G3-1 FIRST MILESTONE LANDED — Grammar.parse($s) runs the TOP rule, mode-2/3/4 green (Claude, Opus 4.8,
-  2026-05-29, one4all `dd52b2bf`). The first END-TO-END grammar feature: a `token TOP { ... }` is matched
+  2026-05-29, SCRIP `dd52b2bf`). The first END-TO-END grammar feature: a `token TOP { ... }` is matched
   against input via `G.parse("...")`, returning the matched text on success / Nil on failure, whole-string
   anchored. Built directly on the parse-only rung from earlier this session. THREE pieces:
   (1) RUNTIME (`raku_builtins_byname.c`): a file-static grammar-rule registry (`Grammar::rule -> body`) +
@@ -529,7 +529,7 @@ G3-1 FIRST MILESTONE LANDED — Grammar.parse($s) runs the TOP rule, mode-2/3/4 
   generalize `.parse` to compose rules. That is where BBs finally earn their keep per the shelving decision.
 
 G3 PARSE-ONLY RUNG LANDED — and the prior session's "flex bug" was a MISDIAGNOSIS (Claude, Opus 4.8,
-  2026-05-29, one4all `4d0c69aa`). The parse-only G3 frontend rung (grammar/token/rule/regex) that the
+  2026-05-29, SCRIP `4d0c69aa`). The parse-only G3 frontend rung (grammar/token/rule/regex) that the
   immediately-prior session built-then-REVERTED is now GREEN and committed. The blocker that session
   spent itself on — "token works, rule/regex SEGFAULT, crash is LEXER-INTERNAL (flex)" — was WRONG.
   The crash is NOT in flex at all. gdb backtrace put it in src/ast/ast_print.c:67 flat_length ->
@@ -563,9 +563,9 @@ G3 PARSE-ONLY RUNG LANDED — and the prior session's "flex bug" was a MISDIAGNO
   The parse layer is now in place; lowering is the next tier. ALTERNATIVE (own session): RK-BB-5.4c
   (zip/cross, nested-tuple rep).
 
-G3 PARSE-ONLY RUNG ATTEMPTED + REVERTED (Claude, 2026-05-29; one4all REVERTED to clean 8be5f202,
+G3 PARSE-ONLY RUNG ATTEMPTED + REVERTED (Claude, 2026-05-29; SCRIP REVERTED to clean 8be5f202,
   .github committed). Tried the parse-only G3 frontend rung (grammar/token/rule/regex keywords +
-  grammar_decl). Got the AST STRUCTURE working but hit a lexer crash; reverted one4all clean per
+  grammar_decl). Got the AST STRUCTURE working but hit a lexer crash; reverted SCRIP clean per
   the no-broken-commits rule. The investigation (so the next session starts from facts, not zero):
   WHAT WAS BUILT (all reverted): (1) ast.h — TT_GRAMMAR_DECL + TT_REGEX_DECL enum + name-table.
   (2) raku.l — `grammar`/`token`/`rule`/`regex` keyword rules; token/rule/regex set a new
@@ -593,11 +593,11 @@ G3 PARSE-ONLY RUNG ATTEMPTED + REVERTED (Claude, 2026-05-29; one4all REVERTED to
   next match. A standalone flex probe (scan "grammar G { rule r { z }") printing the token stream +
   yy_start after each token will localize it fast. Consider: does `token` only work because it was
   added FIRST / is shorter? Try making rule/regex behave byte-identically to token (same flag, same
-  return) and bisect by swapping which keyword is listed first. Gates after revert (one4all clean
+  return) and bisect by swapping which keyword is listed first. Gates after revert (SCRIP clean
   8be5f202): GATE-RK m2 41/42, GATE-RK4 m4 42/42, smoke raku 5/5. Build clean.
 
 
-  change, one4all clean at 8be5f202, all gates baseline). This session was an architecture review,
+  change, SCRIP clean at 8be5f202, all gates baseline). This session was an architecture review,
   not a code rung. Walked the bb_nfa_split design end-to-end with Lon and concluded the leaf
   single-pattern BB EMISSION path is ceremony, not value, and SHELVED RK-NFA-4/5 + G1-1..3. The
   reasoning (full version in the DECISION block near the top of this file):
@@ -620,7 +620,7 @@ G3 PARSE-ONLY RUNG ATTEMPTED + REVERTED (Claude, 2026-05-29; one4all REVERTED to
   DORMANT behind RK_NFA_BB (not deleted — removal risks green gates for zero gain; not extended).
   bb_nfa_split NOT to be written. NEXT CODE RUNG: G3 — scope the Raku frontend for grammar/token/
   rule/<subrule> support, author the first grammar/subrule probe (corpus has none today), then
-  G3-1/G3-2. ISOLATION DECISION still holds. Gates at this landing (one4all 8be5f202, unchanged):
+  G3-1/G3-2. ISOLATION DECISION still holds. Gates at this landing (SCRIP 8be5f202, unchanged):
   GATE-RK m2 41/42, GATE-RK4 m4 42/42, GATE-RK3 m3-native 41/42 CRASH 0, smoke 5/5/5/13/5,
   SNOBOL4 iso M2 19/0 M4 18/1, FACT 0, build clean.
 
@@ -642,7 +642,7 @@ G3 PARSE-ONLY RUNG ATTEMPTED + REVERTED (Claude, 2026-05-29; one4all REVERTED to
   (structural port-wiring via walk_bb_flat; NOT a backtrack stack).
 
 RK-NFA-4 / G1-1 SPLIT — ARCHITECTURE CORRECTION (Lon, 2026-05-29; .github only, NO code change,
-  one4all clean at 037be2ce). I (Opus 4.8) started implementing bb_nfa_split with an explicit
+  SCRIP clean at 037be2ce). I (Opus 4.8) started implementing bb_nfa_split with an explicit
   bss backtrack stack (rbx stack pointer, push {out2-label,pos} on SPLIT, pop on leaf ω). Lon
   stopped it: \"Does not seem right having a backtrack stack and BBs at the same time. BBs
   backtrack already — it's built into the box structure.\" CORRECT. The four-port Byrd box IS the
@@ -673,7 +673,7 @@ RK-NFA-4 / G1-1 SPLIT — ARCHITECTURE CORRECTION (Lon, 2026-05-29; .github only
   session. NEXT CODE RUNG: G1-1 = flat_drive_nfa_split + route NFA leaves through walk_bb_flat.
 
 HYGIENE: template files renamed to match contained opcode/function (Opus 4.8, 2026-05-29,
-  one4all 8e59f6b2). NOTE for RK-NFA-4 work: the NFA walker now lives in
+  SCRIP 8e59f6b2). NOTE for RK-NFA-4 work: the NFA walker now lives in
   SM_templates/sm_bb_invoke.cpp (was sm_bb_switch.cpp — the pre-split SM_BB_SWITCH opcode is
   gone; file holds sm_bb_invoke_str + sm_bb_pl_invoke_str). Also the four mislabeled Prolog
   templates bb_arith/atom/builtin/unify.cpp → bb_pl_*.cpp (their fns were already bb_pl_* and
@@ -681,7 +681,7 @@ HYGIENE: template files renamed to match contained opcode/function (Opus 4.8, 20
   sm_push_pop_lits, sm_pat_anchors, sm_pat_combine) are intentional multi-opcode CATEGORY files,
   left as-is. Pure rename, no behavior change; all gates baseline, RK-NFA-4 L1 still green.
 
-RK-NFA-4 / G1-1 — bb_nfa_any/bol/eol leaves landed (Opus 4.8, 2026-05-29, one4all a0346ec5).
+RK-NFA-4 / G1-1 — bb_nfa_any/bol/eol leaves landed (Opus 4.8, 2026-05-29, SCRIP a0346ec5).
   Three more isolated BB_NFA_* leaves up the ladder, reusing the L1 walker register model
   (r13=pos r14=base r15d=slen) with NO walker change (γ/ω wired per node): bb_nfa_any (`.`,
   match any non-\n, advance), bb_nfa_bol (`^`, zero-width pos==0), bb_nfa_eol (`$`, zero-width
@@ -697,7 +697,7 @@ RK-NFA-4 / G1-1 — bb_nfa_any/bol/eol leaves landed (Opus 4.8, 2026-05-29, one4
   G1-3 flip default.
 
 RK-NFA-4 / G1-1 S2+S3 — L1 /x/ GREEN in mode-4 via the emitted isolated BB_NFA_* slab
-  (Opus 4.8, 2026-05-29, one4all 57ec5cea). FIRST RUNNABLE ATOM of the BB_NFA_* emission
+  (Opus 4.8, 2026-05-29, SCRIP 57ec5cea). FIRST RUNNABLE ATOM of the BB_NFA_* emission
   ladder. /x/~"x" now matches through EMITTED four-port templates (not the C matcher) in
   mode-4 (--compile x86), byte-identical to the C-matcher verdict: match / miss / leftmost-
   offset ("abcx"→pos 3, sweep proven). Default OFF (RK_NFA_BB) so the proven path + all gates
@@ -726,7 +726,7 @@ RK-NFA-4 / G1-1 S2+S3 — L1 /x/ GREEN in mode-4 via the emitted isolated BB_NFA
   default + the golden oracle the emitted path is diffed against (L1-L15 already pass via C in
   all 3 modes).
 
-RK-NFA-4 / G1-1 S1 LANDED + S2 CONTRACT CORRECTED (Opus 4.8, 2026-05-29, one4all c8aeb90d).
+RK-NFA-4 / G1-1 S1 LANDED + S2 CONTRACT CORRECTED (Opus 4.8, 2026-05-29, SCRIP c8aeb90d).
   FIRST CODE RUNG of the BB_NFA_* emission ladder. S1 = the gated `~~` lowering rewiring in
   lower.c TT_SMATCH (real case ~line 2492, NOT 2488): getenv("RK_NFA_BB") && flavor==match →
   raku_nfa_build(t->c[1]->v.sval) [compile fn is raku_nfa_build, NOT raku_nfa_compile] →
@@ -762,8 +762,8 @@ RK-NFA-4 / G1-1 S1 LANDED + S2 CONTRACT CORRECTED (Opus 4.8, 2026-05-29, one4all
   be a broken commit (RULES). S1 is the clean, verified, gated foundation it builds on.
 
 RK-NFA-4 / G1-1 ENTRY CONTRACT RESOLVED (Opus 4.8, 2026-05-29, .github only — NO code change,
-  NO regression). Planning landing, not a code rung. one4all + corpus UNTOUCHED (both clean;
-  one4all HEAD 28a720f2, advanced past this file's older code-rung hashes by an interleaved
+  NO regression). Planning landing, not a code rung. SCRIP + corpus UNTOUCHED (both clean;
+  SCRIP HEAD 28a720f2, advanced past this file's older code-rung hashes by an interleaved
   SNOBOL4 session — built that HEAD, Raku gates held at the documented numbers below). Wrote
   RK-NFA-4-CONTRACT.md (this repo). KEY FINDING: the 7 consuming/branching templates were NOT
   the right first sub-step. walk_bb_flat (emit_bb.c) has NO flat_drive_nfa arm → BB_NFA_* kinds
@@ -789,7 +789,7 @@ RK-NFA-4 / G1-1 ENTRY CONTRACT RESOLVED (Opus 4.8, 2026-05-29, .github only — 
   untested would be a broken commit (RULES) — the watermark's own "fresh full-budget session"
   guidance. The contract note converts that session from reverse-engineering to transcription.
   NEXT CODE RUNG UNCHANGED: G1-1 = RK-NFA-4 (now: start at S1 with RK-NFA-4-CONTRACT.md in hand).
-  Gates at session start (built one4all HEAD 28a720f2; code unchanged this session):
+  Gates at session start (built SCRIP HEAD 28a720f2; code unchanged this session):
   GATE-RK m2 41/42, GATE-RK4 m4 42/42, GATE-RK3 m3-native 41/42 CRASH 0, smoke raku 5/5. FACT 0.
 
 RK-GRAM LADDER AUTHORED (Opus 4.8, 2026-05-29, .github only — NO code change, NO regression).
@@ -810,7 +810,7 @@ RK-GRAM LADDER AUTHORED (Opus 4.8, 2026-05-29, .github only — NO code change, 
   block. Gates at this landing (code unchanged from ac1bc66b): m2 41/42, m3-native 41/42 CRASH 0,
   m4 42/42, smoke 5/5/5/13/5, SNOBOL4 iso M2 19/0 M4 18/1, FACT 0.
 
-RK-NFA-4 SCAFFOLD LANDED (Opus 4.8, 2026-05-29, one4all `ac1bc66b`). Begins the
+RK-NFA-4 SCAFFOLD LANDED (Opus 4.8, 2026-05-29, SCRIP `ac1bc66b`). Begins the
   mode-4 emission rung for the ISOLATED BB_NFA_* family. NEW bb_nfa.cpp: trivial
   passthrough templates bb_nfa_eps/cap_open/cap_close (pure jmp γ, clone of bb_eps).
   All 10 BB_NFA_* opcodes wired into emit_core.c dispatch (3→templates, 7 consuming/
@@ -826,7 +826,7 @@ RK-NFA-4 SCAFFOLD LANDED (Opus 4.8, 2026-05-29, one4all `ac1bc66b`). Begins the
   ~~→SM_BB_INVOKE behind RK_NFA_BB=1. Best as a fresh full-budget session (byte-writing
   under FACT). raku_nfa_to_bb (RK-NFA-1b) already produces the graph these consume.
 
-[Prior] RK-NFA-1b DONE (Opus 4.8, 2026-05-29, one4all `6b593da8`). raku_nfa_to_bb — NFA →
+[Prior] RK-NFA-1b DONE (Opus 4.8, 2026-05-29, SCRIP `6b593da8`). raku_nfa_to_bb — NFA →
   ISOLATED BB_NFA_* graph builder (BB_LANG_RKU), the prereq for mode-4 emission. In
   raku_nfa_bb.c: nfa_kind_to_bb 1:1 Nfa_kind→BB_NFA_* (CHAR/ANY/CLASS/SPLIT/EPS/BOL/
   EOL/CAP_OPEN/CAP_CLOSE/ACCEPT), one BB_t per state, γ=out1-node β=out2-node(SPLIT)
@@ -841,7 +841,7 @@ RK-NFA-4 SCAFFOLD LANDED (Opus 4.8, 2026-05-29, one4all `ac1bc66b`). Begins the
   on the ~~ path; GATE rk_re33/34/35 mode-4 via BB, SNOBOL4 pattern-rung suite
   byte-unchanged. Then RK-NFA-5 (mode-3 native via emitted BB templates; mode-3 already PASSES regex 41/42 CRASH 0 through the C matcher, so this MOVES it onto the isolated BB_NFA_* slab — architectural, not a crash-fix).
 
-[Prior] RK-NFA-1e CLOSED (Opus 4.8, 2026-05-29, one4all `0d94e255`). Whole mode-2/mode-4
+[Prior] RK-NFA-1e CLOSED (Opus 4.8, 2026-05-29, SCRIP `0d94e255`). Whole mode-2/mode-4
   Raku regex cluster lit up. ~~ lowered to SM_CALL_FN raku_match but the only handler
   was the legacy tree-walk raku_try_call_builtin(tree_t*); the SM byname dispatcher
   raku_try_call_builtin_by_name (sm_interp.c:1387 mode-2 + rt.c:1598 mode-4) never knew
@@ -860,7 +860,7 @@ RK-NFA-4 SCAFFOLD LANDED (Opus 4.8, 2026-05-29, one4all `ac1bc66b`). Begins the
   RK-NFA-5 (mode-3 native), the real BB ladder destination; OR RK-BB-5.4c (zip/cross,
   needs nested-tuple rep, own session).
 
-[Prior] RK-BB-5.4a + 5.4b COMPLETE (Opus 4.8, 2026-05-29, one4all `56a30122`).
+[Prior] RK-BB-5.4a + 5.4b COMPLETE (Opus 4.8, 2026-05-29, SCRIP `56a30122`).
   GATE-RK mode-2 33→35/42, GATE-RK4 mode-4 34→36/42. Three commits, all green/regression-free.
   5.4a `.method` list-method forms (`dbb3d15f` postfix + `91bfae91` for-form): .reverse/.unique/
   .sum/.elems/.head(N)/.tail(N) routed from TT_METHCALL (post class-resolution-miss) + TT_FIELD
@@ -931,7 +931,7 @@ the leaf graph is even needed at the seam before relying on it.
 ALTERNATIVE (deferred, own session): **RK-BB-5.4c** (`zip`/`cross`) — multi-Seq drivers, each output
 element a list → needs a nested-tuple rep (STX-within-SOH); broad blast radius.
 
-### G3 FRONTEND SCOPING (measured 2026-05-29, one4all 8be5f202 — facts for the next session)
+### G3 FRONTEND SCOPING (measured 2026-05-29, SCRIP 8be5f202 — facts for the next session)
 
 Probed the Raku frontend to find G3's real starting rung. Findings:
 - **NO `grammar`/`token`/`rule` keyword exists** in `raku.l` or `raku.y`. There is no `KW_GRAMMAR`/
@@ -961,7 +961,7 @@ lowering, no x86, no gate movement). That isolates the pure-frontend risk before
 lowering. Then G3-1 (named-regex → four-port generator) and G3-2 (subrule seam). Authoring the first
 `test/raku/*.{raku,expected}` probe waits until at least parse + a minimal run path exists.
 
-**✅ PARSE-ONLY RUNG DONE (Opus 4.8, 2026-05-29, one4all `4d0c69aa`).** All of the above landed and is
+**✅ PARSE-ONLY RUNG DONE (Opus 4.8, 2026-05-29, SCRIP `4d0c69aa`).** All of the above landed and is
 green — see the top watermark entry. The reverted-session's "flex bug" was a misdiagnosis (an
 `ast_print.c` union misread of `v.ival` as `v.sval`, fixed by adding `TT_REGEX_DECL` to the printer's
 exclusion guards). `grammar`/`token`/`rule`/`regex` parse to `TT_GRAMMAR_DECL`/`TT_REGEX_DECL` with

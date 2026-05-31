@@ -52,7 +52,7 @@
 
 ```bash
 # Baseline
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/test_sn4_js_ladder_safe.sh
 # Expected: PASS=10 FAIL=119
 
@@ -110,7 +110,7 @@ bash scripts/test_sn4_js_ladder_safe.sh
 
 ### Repos Status
 
-**one4all:**
+**SCRIP:**
 - HEAD: c92aaf6b SJ4-JS-4b: Add &MAXINT keyword
 - Clean working directory
 - All changes pushed

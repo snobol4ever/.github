@@ -9,7 +9,7 @@
 
 ## Watermark
 
-- HEAD one4all: UNCOMMITTED (this handoff is pre-commit; tree dirty 14 files).
+- HEAD SCRIP: UNCOMMITTED (this handoff is pre-commit; tree dirty 14 files).
 - HEAD .github: clean except this file.
 - GATE-1 SNOBOL4 smoke: **13/13** (baseline held).
 - GATE-2 unified broker: **31** (was 36; **−5**, all Icon+Raku regressions documented below).

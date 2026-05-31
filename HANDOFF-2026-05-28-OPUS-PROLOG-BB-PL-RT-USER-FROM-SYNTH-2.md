@@ -5,7 +5,7 @@ predicted by the prior session's PL-RT-USER-FROM-SYNTH partial 🟡 handoff.
 
 ## What landed (one commit, engine-only)
 
-**`61187cc7` — one4all/main:** `PL-RT-USER-FROM-SYNTH-2: 3 type-domain bugs
+**`61187cc7` — SCRIP/main:** `PL-RT-USER-FROM-SYNTH-2: 3 type-domain bugs
 fixed, rung33_bridge_callN 2/5->5/5`. Single file touched:
 `src/runtime/interp/pl_runtime.c` (+24/-24 lines, all logic edits + an updated
 comment block; no API surface change).

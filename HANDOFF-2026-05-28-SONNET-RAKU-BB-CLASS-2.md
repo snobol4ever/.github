@@ -68,7 +68,7 @@ The old AST path at `raku_builtins.c:483` uses `sc_dat_find_type(cname)` — sam
 ## Gates at handoff
 
 ```
-one4all: 456cc7d0
+SCRIP: 456cc7d0
 
 GATE-RK  mode-2: 22/33  HOLD (rk_class26 still FAIL)
 GATE-RK4 mode-4: 25/33  HOLD
@@ -83,8 +83,8 @@ Build:           clean
 ## Next session setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip libscrip_rt
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip libscrip_rt
 bash scripts/test_raku_ir_rungs.sh     # baseline 22/33
 bash scripts/test_raku_mode4_rung.sh   # baseline 25/33
 bash scripts/test_smoke_raku.sh        # baseline 5/5

@@ -63,7 +63,7 @@ It will be the baseline for the SM_Program-based interpreter.
 ## Build
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 ROOT=$(pwd); RT="$ROOT/src/runtime"
 gcc -O0 -g -I src -I "$RT/snobol4" -I "$RT" -I "$RT/boxes/shared" \
     src/driver/scrip.c \

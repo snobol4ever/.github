@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-RAKU-BB.md — next rung after SM-FRAME-MODE4 (triage + fix one).
 **Result:** ✅ Raku `given`/`when` now runs in mode-4 x86. GATE-RK4 18→19.
-**Commit:** one4all `5950356f`. corpus unchanged. .github HEAD.
+**Commit:** SCRIP `5950356f`. corpus unchanged. .github HEAD.
 
 ## Triage of the 15 mode-4 FAILs (from the real GATE-RK4 harness)
 

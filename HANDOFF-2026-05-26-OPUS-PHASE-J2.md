@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-ICON-BB, Phase J — mode 3 (`--run`) executes the SHARED emitter's flat-wired x86,
 killing the JIT's C-walker bridge so mode 3 ≡ mode 4 modulo the process boundary.
-**one4all:** `106b7c51` PUSHED (rebased onto upstream `1af97d90`, clean).
+**SCRIP:** `106b7c51` PUSHED (rebased onto upstream `1af97d90`, clean).
 **.github:** `388fa609`+ PUSHED (this file + PLAN.md watermark + GOAL-ICON-BB.md FOUR FACTS).
 **Build:** ✅ GREEN. **Gates:** smoke_icon 5/5 · broker 23 (×stable) · rungs --interp 195 — all == baseline.
 
@@ -89,7 +89,7 @@ blob self-contained so nothing reads `bb_table` at run time, after which the pre
 
 ---
 
-## Gates at handoff (one4all `106b7c51`)
+## Gates at handoff (SCRIP `106b7c51`)
 ```
 smoke_icon              5/5      (== baseline)
 unified_broker          23       (≥19, stable ×)
@@ -98,7 +98,7 @@ J-2 --memcheck          3/3 byte-identical
 ```
 
 ## Pre-existing, NOT regressed
-- `scripts/test_smoke_compile.sh` FAILS at clean HEAD on missing `/home/claude/one4all/sm_macros.s`
+- `scripts/test_smoke_compile.sh` FAILS at clean HEAD on missing `/home/claude/SCRIP/sm_macros.s`
   ("FAIL no push_int call in sm_macros.s"). Verified by git-stash test against `7fe1e31a`. Not a
   Phase J invariant gate. Environment/path issue, separate investigation.
 

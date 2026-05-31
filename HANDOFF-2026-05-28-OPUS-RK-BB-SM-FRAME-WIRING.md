@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-RAKU-BB.md — RK-BB-SM-FRAME-MODE4 (last mile)
 **Result:** ✅ COMPLETE. Raku named subs now dispatch + return in mode-4 x86.
-**Commit:** one4all `18c4820f`. corpus unchanged. .github HEAD.
+**Commit:** SCRIP `18c4820f`. corpus unchanged. .github HEAD.
 
 ## What landed
 

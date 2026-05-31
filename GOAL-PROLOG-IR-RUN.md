@@ -39,13 +39,13 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** `.pl` files run correctly via `scrip --interp file.pl`, passing
 the existing Prolog corpus rung tests.
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 5576ea9d)
+## Current state (2026-04-14, SCRIP HEAD 5576ea9d)
 
 S-1 through S-10c complete. Phase 1B complete (S-1B-1 through S-1B-6).
 PASS=9/9 rung01-rung09 confirmed after merge.
@@ -234,7 +234,7 @@ static int          g_pl_active   = 0;      /* 1 when executing Prolog */
 
 - [x] **S-1C-5** — Unified interpreter complete. E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT/
   E_TRAIL_* cases in interp_eval(). pl_exec_body/pl_exec_one_goal deleted.
-  pl_box_alt added for ;/2. regression PASS=149. one4all HEAD 9fc8e599. ✓
+  pl_box_alt added for ;/2. regression PASS=149. SCRIP HEAD 9fc8e599. ✓
   `pl_unified_call`, `pl_unified_exec_body`, `pl_unified_exec_body_k`,
   `pl_unified_exec_clause`. Inline builtins from `pl_unified_exec_goal` into
   a new `interp_exec_pl_builtin()` called from E_CHOICE body loop.
@@ -242,7 +242,7 @@ static int          g_pl_active   = 0;      /* 1 when executing Prolog */
 
   ⚠️ Session 2026-04-13: INCOMPLETE. Dead functions deleted, interp_exec_pl_builtin
   written, but pl_exec_body (wrong approach) introduced regression: 7/14 PASS
-  (rung02/05/07/11 fail). one4all HEAD 1bfdd9c9. PIVOT next session to
+  (rung02/05/07/11 fail). SCRIP HEAD 1bfdd9c9. PIVOT next session to
   GOAL-PROLOG-BB-BYRD — remove pl_exec_body, wire backtracking via Byrd boxes.
 
 ---
@@ -382,7 +382,7 @@ These SM opcodes may need to be added to `sm_prog.h` if not already present.
 Check `sm_prog.h` and `sm_lower.c` before starting S-14.
 
 ---
-## Current state (2026-04-14, one4all HEAD d37dc9ef)
+## Current state (2026-04-14, SCRIP HEAD d37dc9ef)
 
 S-1 through S-1C-5 complete. Phase 1C done. BB-BYRD done. rung11 5/5.
 
@@ -407,7 +407,7 @@ in scrip.c (~line 3083). Gate: rung13 5/5, rung14 5/5, rung15 5/5.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```

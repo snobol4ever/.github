@@ -3,7 +3,7 @@
 **Goal:** GOAL-ICON-BB (IBB ground-zero)
 **Author:** Claude Opus 4.7
 **Date:** 2026-05-28
-**Branch:** `one4all/main`
+**Branch:** `SCRIP/main`
 **HEAD:** `6393c743`
 **Predecessor:** `48409299` (SBL-XNME-VARNAME)
 
@@ -17,7 +17,7 @@ All other regressions held: mode-2 corpus 200/47/36=283 unchanged; smoke_icon 5/
 
 ---
 
-## Commits (local, on `one4all/main`, not yet pushed)
+## Commits (local, on `SCRIP/main`, not yet pushed)
 
 ### `3d85c4de` — `bb_lit_scalar` MEDIUM_BINARY
 10-byte pass-through (`α: jmp γ ; β: jmp ω`), exact mirror of `bb_fail.cpp` / `bb_seq.cpp` (n==0). Bin `{sites={1,5,6}, labels={γ_p, β_p, ω_p}, is_def={F,T,F}}`. The per-node α minted by `bb_fill_alpha` is unreferenced in the flat path — `flat_drive_seq` defines `mids[i]` at the same slab offset where these 10 bytes begin, so the LIT leaf's own α can be a no-op in BINARY. Verified by the predecessor's `bb_fail` having lived in mode 3 unchanged.

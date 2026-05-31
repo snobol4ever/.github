@@ -494,7 +494,7 @@ lazy at match time, with backtracking).
 
 ## DATATYPE convention
 
-one4all returns **uppercase** for built-in types (`"NAME"`,
+SCRIP returns **uppercase** for built-in types (`"NAME"`,
 `"PATTERN"`, `"STRING"`, `"INTEGER"`). This is intentional per
 SNOBOL4 spec. SPITBOL x64 returns lowercase (a known divergence;
 see `RULES.md` "DATATYPE case" table).
@@ -508,7 +508,7 @@ intentional per runtime" for the binding rule.
 
 ## Implementation map
 
-### File layout (one4all)
+### File layout (SCRIP)
 
 | Path | What |
 |------|------|
@@ -604,7 +604,7 @@ here:
 
 - `GOAL-SNOCONE-LANG-SPACE.md` (deleted — work complete, content here)
 - `RULES.md` "Snocone language facts" (now a one-line pointer to this file)
-- `REPO-one4all.md` "Snocone front-end" (now a one-line pointer)
+- `REPO-SCRIP.md` "Snocone front-end" (now a one-line pointer)
 - `corpus/programs/snocone/LANGUAGE.md` (deleted — pointer in corpus README)
 - `GOAL-SNOCONE-BEAUTY.md` "Snocone language facts" (deleted — pointer here)
 

@@ -10,7 +10,7 @@
 
 | Repo | Hash | What |
 |------|------|------|
-| one4all | `89777f09` | IBB-1 steps 1-5: SM opcode + handler + opname + emit stubs |
+| SCRIP | `89777f09` | IBB-1 steps 1-5: SM opcode + handler + opname + emit stubs |
 | .github | `dec38756` | IBB-0 reset: GOAL-ICON-BB.md replaced; PLAN row collapsed |
 
 ## Gates (verified at handoff)
@@ -46,7 +46,7 @@ I also initially carved a new file `GOAL-ICON-GROUND-ZERO.md` instead of replaci
 - `GOAL-ICON-GROUND-ZERO.md` deleted (was the wrong parallel-file approach).
 - `PLAN.md` ICON row collapsed to one entry pointing at the reset goal.
 
-### IBB-1 steps 1–5 (one4all `89777f09`)
+### IBB-1 steps 1–5 (SCRIP `89777f09`)
 
 Five mechanical infrastructure pieces for the two-op boot:
 
@@ -147,9 +147,9 @@ git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github
 # Read GOAL-ICON-BB.md — current shape is the IBB-* rung ladder (reset 2026-05-28).
 # Read ARCH-ICON.md, ARCH-x86.md, GOAL-ICON-BB-NATIVE.md, .github/test_icon.c — the design.
 # Read this handoff.
-git clone https://TOKEN@github.com/snobol4ever/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh                  # expect: clean build
 bash scripts/test_smoke_icon.sh              # expect: 5/5

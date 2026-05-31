@@ -22,7 +22,7 @@ pipeline (interpreter → transpiler → stack VM → JVM `.class` bytecode).
 ## Prolog×JVM — Four-Port Byrd Box as Call/Resume
 
 The Prolog frontend compiles `E_CHOICE`/`E_CLAUSE`/`E_UNIFY`/`E_CUT` IR nodes to
-Jasmin `.j` → `.class`. Driver flag: `one4all -pl -jvm foo.pl`.
+Jasmin `.j` → `.class`. Driver flag: `SCRIP -pl -jvm foo.pl`.
 
 ### JCON Correspondence
 

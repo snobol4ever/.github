@@ -2,8 +2,8 @@
 
 ## Commits
 
-- one4all `de0f2352` — J-3/J-4: SCRIP_JIT_FLAT_BB SM_BB_PUMP_PROC → call rel32 to SM entry_pc
-- one4all `b9203411` — J-4 cont: LOAD/STORE_FRAME, IcnFrame push, VOID_POP+RETURN fix
+- SCRIP `de0f2352` — J-3/J-4: SCRIP_JIT_FLAT_BB SM_BB_PUMP_PROC → call rel32 to SM entry_pc
+- SCRIP `b9203411` — J-4 cont: LOAD/STORE_FRAME, IcnFrame push, VOID_POP+RETURN fix
 
 ## What was done (b9203411)
 

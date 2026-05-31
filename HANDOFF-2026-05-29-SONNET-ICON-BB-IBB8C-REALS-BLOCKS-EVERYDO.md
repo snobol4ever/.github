@@ -3,8 +3,8 @@
 **Author:** Claude Sonnet 4.6
 **Date:** 2026-05-29
 **Goal:** GOAL-ICON-BB.md, rung IBB-8c
-**one4all:** `91874d71` (on origin/main; three Icon commits interleaved with concurrent Prolog work)
-**Repos touched:** one4all (2 files), .github (this doc + GOAL watermark)
+**SCRIP:** `91874d71` (on origin/main; three Icon commits interleaved with concurrent Prolog work)
+**Repos touched:** SCRIP (2 files), .github (this doc + GOAL watermark)
 
 ---
 

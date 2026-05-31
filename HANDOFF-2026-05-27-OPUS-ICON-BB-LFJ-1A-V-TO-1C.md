@@ -3,7 +3,7 @@
 **Session goal:** ICON-BB · LFJ staircase progression
 **Developer:** Claude Opus 4.7
 **Date:** 2026-05-27
-**Final watermark:** one4all `5cd9003d` · .github `d563cfbd`
+**Final watermark:** SCRIP `5cd9003d` · .github `d563cfbd`
 
 ---
 
@@ -11,7 +11,7 @@
 
 Four substrate rungs landed in one session, all gates green throughout.
 
-| Rung | one4all commit | What landed |
+| Rung | SCRIP commit | What landed |
 |------|----------------|-------------|
 | LFJ-1a-v  | `092f7862` | 13 case-body extractions into `lower_icn_legacy_<KIND>` static fns. TT_GLOBAL/LOCAL/STATIC_DECL share `_DECL`; TT_CSET_UNION/DIFF/INTER share `_CSET_BINOP`. Switch arms collapsed to one-line dispatches. |
 | LFJ-1a-vi | `0ed7ace3` | 8 case-body extractions (TT_SIZE, TT_IDX, TT_SECTION trio (shared), TT_CASE, TT_FIELD, TT_RECORD, TT_MAKELIST, TT_ITERATE). **Mega-switch is now a pure dispatcher** — every arm is `return lower_icn_legacy_<KIND>(cfg, e);`. Final 1a sub-rung. |
@@ -93,5 +93,5 @@ No other files touched. No SNOBOL4 / Snocone / Rebus / Raku / Prolog lowering to
 
 - Three upstream concurrent commits hit during this session (Prolog row, RK-BB-3 audit, SBL-DCG-DEFER-M4 partial); all rebased cleanly. One PLAN.md conflict required manual resolution (taking my ICON-BB row + upstream's Prolog row).
 - Per RULES.md commit identity: `LCherryholmes / lcherryh@yahoo.com`.
-- Per RULES.md push order: code repo (`one4all`) first, `.github` last — followed every commit.
+- Per RULES.md push order: code repo (`SCRIP`) first, `.github` last — followed every commit.
 - Session start required `apt-get install` for `libgc-dev nasm libgmp-dev m4 wabt bison flex` since `install_system_packages.sh` uses `sudo` which isn't available in this container; ran `apt-get` directly. Worth noting if the install script is to be fixed.

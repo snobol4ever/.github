@@ -12,7 +12,7 @@ it. **No engine code committed this session — this is planning + a reference s
   `src/runtime/rt/rt.h` uses `Term**` but rt.h doesn't include the Term type → use
   `void*` in the rt.h decl (rt.c keeps `Term**`; it includes term.h).
 - New files this session (untracked, to be committed):
-  - `one4all/doc/SWIPL-STUDY-2026-05-28-OPUS.md` — the engine study.
+  - `SCRIP/doc/SWIPL-STUDY-2026-05-28-OPUS.md` — the engine study.
   - `.github/SWIPL-STUDY-2026-05-28-OPUS.md` — HQ copy.
 
 ## What landed (docs only)

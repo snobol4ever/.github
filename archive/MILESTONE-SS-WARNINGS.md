@@ -1,7 +1,7 @@
 # MILESTONE-SS-WARNINGS.md — Silly SNOBOL4: Zero Warnings
 
 **Goal:** `gcc -Wall -Wextra -std=c99` produces zero warnings on all `src/silly/*.c`.  
-**Baseline:** 48 warnings (2026-04-11, one4all `22e1bd79`)  
+**Baseline:** 48 warnings (2026-04-11, SCRIP `22e1bd79`)  
 **Gate:** `gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep "warning:" | wc -l` → 0
 
 ---

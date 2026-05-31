@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-28 — Opus 4.7 — PROLOG-BB: SWI-2c plunit fold revival + call/1-atom runtime bug discovery
 
-**Repos:** one4all `a88f1e68` · corpus `c4e0229` (untouched) · .github (this commit)
+**Repos:** SCRIP `a88f1e68` · corpus `c4e0229` (untouched) · .github (this commit)
 
 Continuation of SWI-2-fold. Triaging the remaining 4/57 SWI failures
 (`catch`, `variant`, `float_compare`, `max_integer_size`) led to a layered
@@ -12,7 +12,7 @@ the impact.
 
 ## What landed
 
-### one4all `a88f1e68` — SWI-2c plunit fold revival
+### SCRIP `a88f1e68` — SWI-2c plunit fold revival
 
 `src/frontend/prolog/prolog_lower.c`: the plunit fold synthesizes
 `pj_test(Suite, Name, Opts, Goal)` facts from `test/2` clauses inside
@@ -148,7 +148,7 @@ plunit shim can never execute test bodies, and the gate stays at
 
 ## Files touched this session
 
-- `one4all/src/frontend/prolog/prolog_lower.c` — fold revival (+146/-33)
+- `SCRIP/src/frontend/prolog/prolog_lower.c` — fold revival (+146/-33)
 
 ## Commit identity
 

@@ -25,8 +25,8 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all (test scripts), .github (doc)
-**Done when:** Every script under `one4all/scripts/` runs
+**Repo:** SCRIP (test scripts), .github (doc)
+**Done when:** Every script under `SCRIP/scripts/` runs
 correctly with zero setup: no env vars to export, no stdin to pipe, no
 external paths to configure. Run the script, get a result. That's it.
 
@@ -65,11 +65,11 @@ All three are solved the same way: the script itself handles it.
 
 ## Steps
 
-- [x] **SC-1** — Audit all scripts under `one4all/test/` for the three failure modes.
+- [x] **SC-1** — Audit all scripts under `SCRIP/test/` for the three failure modes.
   Produce a list: script name, failure mode(s), fix needed.
   Gate: audit list committed to this goal file as a state table.
 
-  **SC-1 Audit Results** (scripts now in `one4all/scripts/`):
+  **SC-1 Audit Results** (scripts now in `SCRIP/scripts/`):
 
   | Script | Failure Mode(s) | Fix Needed |
   |--------|----------------|------------|
@@ -97,15 +97,15 @@ All three are solved the same way: the script itself handles it.
   Enforces non-regression floors: Icon PASS>=48, csnobol4 PASS>=34.
   Gate: ✅ written; runs from repo root, no setup, < 60s.
 
-- [x] **SC-7** — Audited `one4all/scripts/` build_ and install_ scripts.
-  Fixed: `build_parse_expr_unit_test.sh` had hardcoded `/home/claude/one4all` paths — now `$0`-derived.
+- [x] **SC-7** — Audited `SCRIP/scripts/` build_ and install_ scripts.
+  Fixed: `build_parse_expr_unit_test.sh` had hardcoded `/home/claude/SCRIP` paths — now `$0`-derived.
   `install_clone_snobol4ever_repos.sh`: `TOKEN` via env/arg is correct per RULES (never on disk).
   Gate: ✅ all build_* and install_* scripts are idempotent and derive paths from `$0`.
 
 - [x] **SC-8** — RULES.md updated: old "No ad-hoc builds" section replaced with full
   "Self-contained scripts" rule block covering naming convention, 7 self-containment rules,
   and the verified `< /dev/null` rationale (scrip only blocks when program reads INPUT).
-  Gate: ✅ RULES.md updated and pushed with one4all/scripts/ reorganization commit.
+  Gate: ✅ RULES.md updated and pushed with SCRIP/scripts/ reorganization commit.
 
 ---
 

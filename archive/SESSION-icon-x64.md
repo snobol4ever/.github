@@ -1,6 +1,6 @@
-# SESSION-icon-x64.md — Icon × x86 (one4all)
+# SESSION-icon-x64.md — Icon × x86 (SCRIP)
 
-**Repo:** one4all · **Frontend:** Icon · **Backend:** x86
+**Repo:** SCRIP · **Frontend:** Icon · **Backend:** x86
 **Session prefix:** `IX` · **Trigger:** "playing with Icon x64" or "Icon asm"
 **Deep reference:** all ARCH docs cataloged in `PLAN.md`
 
@@ -20,7 +20,7 @@
 TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
 
-All tools, repos, and oracles installed by bootstrap. scrip-cc at `/home/claude/one4all/scrip-cc`.
+All tools, repos, and oracles installed by bootstrap. scrip-cc at `/home/claude/SCRIP/scrip-cc`.
 
 
 ## §NOW — IX-18

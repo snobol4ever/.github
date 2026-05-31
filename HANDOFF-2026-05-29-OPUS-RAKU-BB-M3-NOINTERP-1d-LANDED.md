@@ -1,7 +1,7 @@
 # HANDOFF 2026-05-29 — Opus 4.8 — Raku BB M3-RK-NOINTERP-1d LANDED (rk_gather closed)
 
 **Goal:** GOAL-RAKU-BB.md · **Step:** M3-RK-NOINTERP-1d · **Result:** rk_gather CRASH→PASS, GATE-RK3 25→26.
-**Commits:** one4all `a894af4a` (rebased onto upstream `d9062238` Prolog WAM-CP-8, clean — orthogonal).
+**Commits:** SCRIP `a894af4a` (rebased onto upstream `d9062238` Prolog WAM-CP-8, clean — orthogonal).
 
 ## What landed
 

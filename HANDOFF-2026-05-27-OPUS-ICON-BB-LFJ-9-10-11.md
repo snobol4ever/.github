@@ -3,7 +3,7 @@
 **Session goal:** ICON-BB · continue LFJ staircase progression
 **Developer:** Claude Opus 4.7
 **Date:** 2026-05-27
-**Final watermark:** one4all `8b6e513b` · .github (this commit)
+**Final watermark:** SCRIP `8b6e513b` · .github (this commit)
 
 ---
 
@@ -11,7 +11,7 @@
 
 Three rungs landed this session — LFJ-9, LFJ-10, LFJ-11. Gates green throughout, zero regressions. After this session **10 of 15 LFJ rungs complete (67%)**.
 
-| Rung | one4all commit | AST kinds flipped | What landed |
+| Rung | SCRIP commit | AST kinds flipped | What landed |
 |------|----------------|---|---|
 | LFJ-9  | `80b9130e` | (none) | `lower_icn_new_Compound` + `lower_icn_new_ProcBody` — **documented non-emission** per LOWER-IRGEN-MAPPING.md Q5 + LFJ-4 precedent. Both JCON procedures are realized in SCRIP by the non-`ir_a_*` plumbing function `lower_icn_proc_body` (lower_icn.c:1145), whose inline comments already cite both procedures by name. SCRIP has no TT_COMPOUND/TT_PROC_BODY AST kind — Icon parser emits TT_PROC_DECL with c[2]=TT_PROGRAM (stmt list); neither has a `lower_kind_table` slot, neither reaches the dispatcher (proc_body is called one structural level above `lower_icn_expr_node`). Functions declared in `.h` to complete the LFJ inventory but return NULL — same architectural pattern as LFJ-4 TT_LOCAL/TT_STATIC_DECL. |
 | LFJ-10 | `5c5bc669` | TT_FNC, TT_FIELD, TT_SECTION, TT_SECTION_PLUS, TT_SECTION_MINUS (5 kinds) | `lower_icn_new_Call` (ir_a_Call), `lower_icn_new_Field` (ir_a_Field), `lower_icn_new_Sectionop` (ir_a_Sectionop). Call covers general BB_CALL with H-4 γ-chain on args + SCRIP-specific runtime fast paths NOT in JCON: `key()`→BB_KEY_GEN, `find()`→BB_FIND_GEN, `seq()`→BB_SEQ_GEN (JCON would dispatch these via the general Call+Closure machinery). Sectionop dispatches all three SCRIP AST variants via `nd->ival` (0=RANGE, 1=PLUS, 2=MINUS), mirroring JCON's single-procedure p.op dispatch. |
@@ -83,9 +83,9 @@ This is documented in the LFJ-11 comment block as a potential future-rung concer
 
 | Repo | File | Δ |
 |------|------|---|
-| one4all | `src/lower/lower_icn_new.c` | +9 functions, ~250 lines (incl. comment blocks) across LFJ-9/10/11 |
-| one4all | `src/lower/lower_icn_new.h` | +9 declarations |
-| one4all | `src/lower/lower_icn.c` | 8 table-slot flips (LFJ-10: 5, LFJ-11: 3) |
+| SCRIP | `src/lower/lower_icn_new.c` | +9 functions, ~250 lines (incl. comment blocks) across LFJ-9/10/11 |
+| SCRIP | `src/lower/lower_icn_new.h` | +9 declarations |
+| SCRIP | `src/lower/lower_icn.c` | 8 table-slot flips (LFJ-10: 5, LFJ-11: 3) |
 | .github | `PLAN.md` | ICON-BB row updated |
 | .github | `GOAL-ICON-BB.md` | LFJ-9, LFJ-10, LFJ-11 rows updated + watermark `8b6e513b` |
 | .github | `HANDOFF-2026-05-27-OPUS-ICON-BB-LFJ-9-10-11.md` | this file (new) |

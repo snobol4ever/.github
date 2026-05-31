@@ -1,6 +1,6 @@
-# SESSION-snocone-x64.md — Snocone × x86 (one4all)
+# SESSION-snocone-x64.md — Snocone × x86 (SCRIP)
 
-**Repo:** one4all · **Frontend:** Snocone · **Backend:** x86
+**Repo:** SCRIP · **Frontend:** Snocone · **Backend:** x86
 **Session prefix:** `SC` · **Trigger:** "playing with snocone" or "playing with Snocone x64"
 
 ---
@@ -18,7 +18,7 @@
 
 ```bash
 FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh                           # expect 981/4
 CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
   /home/claude/corpus/crosscheck/snocone/rungB05                                  # expect 5/5
@@ -30,7 +30,7 @@ CORPUS=/home/claude/corpus bash test/crosscheck/run_sc_corpus_rung.sh \
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Snocone x86** | SC-8 | `465572c` one4all · `180a3ee` corpus | **M-SC-B07:** next unimplemented construct |
+| **Snocone x86** | SC-8 | `465572c` SCRIP · `180a3ee` corpus | **M-SC-B07:** next unimplemented construct |
 
 **M-SC-B06 ✅ DONE** (`~` negation / `?` query — 5 tests, rungB06 all pass)
 

@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** A `.raku` fenced block in a `.scrip` file compiles to IR and
 runs under `--interp`. `gather`/`take` maps to BB_PUMP. A smoke test passes.
 
@@ -368,7 +368,7 @@ Flex/Bison frontend complete: raku.l (prefix=raku_yy), raku.y
 Supports: say/print, my $x=expr, arithmetic, string concat ~,
 for RANGE->$var {}, if/else, while loop.
 Fixed pre-existing U-22 bug: DESCR_t.type -> .v in scrip.c.
-HEAD: ecc21def (one4all)
+HEAD: ecc21def (SCRIP)
 Next: RK-3 (IR lowering — raku_lower.c), then RK-7 (gather/take BB_PUMP).
 
 Session 2026-04-14 (continued): RK-3 and RK-4 DONE.
@@ -402,7 +402,7 @@ RK-6: polyglot_init already handled LANG_RAKU via icn_proc_table sharing
 RK-7: test/raku_gather.scrip + test/raku_gather.ref written and checked in.
       test_smoke_unified_broker.sh extended with Raku section (3 inline +
       1 polyglot file test). PASS=17 FAIL=0 (was 13).
-HEAD: f2da733d (one4all)
+HEAD: f2da733d (SCRIP)
 All steps complete: RK-1 through RK-7. Done when clause satisfied.
 
 Session 2026-04-14 (continued): RK-8, RK-9, RK-10 DONE.
@@ -425,7 +425,7 @@ roast (github.com/Raku/roast) identified as official Raku test suite reference.
 Our corpus is hand-written Tiny-Raku subset only — roast is full Raku.
 
 Next: RK-11 (combinator parser demo — gather/take as PEG engine).
-HEAD: 8646d030 (one4all)
+HEAD: 8646d030 (SCRIP)
 
 Session 2026-04-14 (continued): RK-11 DONE.
 
@@ -436,7 +436,7 @@ gather { take tok } block structurally present as BB_PUMP-ready generator.
 In standalone --interp, emit() (say) produces token stream directly.
 In polyglot broker context, take() would suspend and yield to E_EVERY consumer.
 Gate: PASS=8 FAIL=0 (raku harness); smoke PASS=26 FAIL=0.
-HEAD: 2e0d5d46 (one4all)
+HEAD: 2e0d5d46 (SCRIP)
 Next: RK-12 (string interpolation).
 
 Phase 5 plan (RK-12..RK-26) added: 15 sprints, easy→hard.
@@ -457,7 +457,7 @@ raku_lower.c: RK_INTERP_STR → walk raw string, split on $ident boundaries,
 scripts/regenerate_parser_and_lexer_from_sources.sh: raku section added.
 test/raku/rk_interp.raku + .expected: 6 interpolation cases.
 Gate: PASS=9 FAIL=0 (raku harness); smoke PASS=27 FAIL=0.
-HEAD: 2e0d5d46 (one4all)
+HEAD: 2e0d5d46 (SCRIP)
 Next: RK-13 (given/when scalar smart-match).
 
 Session 2026-04-14 (continued): RK-13 DONE.
@@ -469,7 +469,7 @@ raku_ast.h/c: RK_GIVEN/RK_WHEN/RK_DEFAULT; raku_node_given/raku_node_when constr
 raku_lower.c: RK_GIVEN -> right-to-left E_IF chain; string when -> E_LEQ, int -> E_EQ.
 test/raku/rk_given.raku + .expected: 6 cases (int + string when, default).
 Gate: PASS=10 FAIL=0 raku; smoke PASS=28 FAIL=0.
-one4all HEAD: 75ba531b
+SCRIP HEAD: 75ba531b
 Next: RK-14 (arrays: push/pop/elems/index).
 
 Session 2026-04-14 (continued): RK-14 DONE.
@@ -483,7 +483,7 @@ raku_ast.h/c: RK_ARR_GET + RK_ARR_SET + constructors.
 raku_lower.c: both -> E_FNC("arr_get"/"arr_set") calls.
 test/raku/rk_arrays.raku + .expected: int+string arrays, push/pop/index.
 Gate: PASS=11 FAIL=0 raku; smoke PASS=29 FAIL=0.
-one4all HEAD: 51fe9434
+SCRIP HEAD: 51fe9434
 Next: RK-15 (hashes: %h<key>, %h{$k}, keys, values, exists).
 
 Session 2026-04-14 (continued): RK-15 DONE.
@@ -499,5 +499,5 @@ scrip.c: hash_set (upsert), hash_get, hash_exists, hash_keys (\x01-sep), hash_va
   Uses interp_eval (OE-5 landscape — icn_interp_eval is now a forwarder).
 test/raku/rk_hashes.raku + .expected: set/get/exists/update + sigil syntax (9 assertions).
 Gate: PASS=12 FAIL=0 raku; smoke PASS=30 FAIL=0.
-one4all HEAD: dacec523
+SCRIP HEAD: dacec523
 Next: RK-16 (for @arr -> $x with real array variable).

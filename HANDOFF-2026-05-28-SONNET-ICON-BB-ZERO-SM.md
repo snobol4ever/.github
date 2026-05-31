@@ -10,7 +10,7 @@
 
 | Repo | Hash | What |
 |------|------|------|
-| one4all | `936b8182` | ZERO SM SHAPE for Icon: driver bypass + lower suppression |
+| SCRIP | `936b8182` | ZERO SM SHAPE for Icon: driver bypass + lower suppression |
 | .github | (this commit) | GOAL RULE updated (zero SM); IBB-1..15 ticked; PLAN row updated |
 
 ## Gates (verified at handoff)
@@ -169,9 +169,9 @@ git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github
 # Read RULES.md (ICON SM = ZERO OPCODES rule).
 # Read GOAL-ICON-BB.md.
 # Read this handoff.
-git clone https://TOKEN@github.com/snobol4ever/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 bash scripts/test_smoke_icon.sh              # expect: 5/5

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-27
 **Model:** Opus 4.7
-**Watermark:** one4all `ecd561b1`, .github HEAD, corpus unchanged
+**Watermark:** SCRIP `ecd561b1`, .github HEAD, corpus unchanged
 
 ---
 
@@ -141,7 +141,7 @@ Authors: Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7
 
 Two load-bearing assumptions of the RK-BB-SM-FRAME-MODE4 design were
 verified empirically before close, to save the next session debugging time.
-No source files in one4all were modified by these probes (read-only
+No source files in SCRIP were modified by these probes (read-only
 analysis); findings folded into GOAL-RAKU-BB.md design pieces #1 and #3.
 
 **Probe 1 — label resolution off-by-one (would have broken `call .L<entry_pc>`).**

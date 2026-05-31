@@ -18,7 +18,7 @@ just makes the detail retrievable without digging through commits.
 
 # GOAL-LANG-SNOBOL4.md — SNOBOL4 Frontend Ladder
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** beauty.sno self-hosts cleanly under all three modes (--interp,
 --interp, --run). Full corpus PASS count matches SPITBOL oracle.
 
@@ -31,16 +31,16 @@ Share fixes via main — no branches.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snobol4.sh          # PASS=7
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=49
+bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh          # PASS=7
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=49
 ```
 
 ---
@@ -66,17 +66,17 @@ Steps 2 and 3 only if Step 1 shows DIVERGE or IR vs CSN.
 
 ```bash
 # Build once per session:
-bash /home/claude/one4all/scripts/build_csnobol4_archive.sh
-make -C /home/claude/one4all scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
+bash /home/claude/SCRIP/scripts/build_csnobol4_archive.sh
+make -C /home/claude/SCRIP scrip-monitor CSN_A=/home/claude/csnobol4/libcsnobol4.a
 
 # Step 1 -- ALWAYS:
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty
-SNO_LIB=$BEAUTY /home/claude/one4all/scrip-monitor --monitor \
+SNO_LIB=$BEAUTY /home/claude/SCRIP/scrip-monitor --monitor \
     $BEAUTY/beauty_${DRIVER}_driver.sno < /dev/null 2>&1 | grep -A 10 "DIVERGE\|IR vs CSN"
 
 # Step 2 -- only if Step 1 shows problem: SPITBOL diff
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol.out 2>/dev/null
-SNO_LIB=$BEAUTY timeout 30 /home/claude/one4all/scrip --interp $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
+SNO_LIB=$BEAUTY timeout 30 /home/claude/SCRIP/scrip --interp $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
 diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 # Step 3 -- only if Step 1 shows problem: OUTPUT probe -> fix -> rebuild -> repeat
@@ -93,18 +93,18 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 ### Phase 3 -- JIT-run (SN-10..SN-12, gated on SN-9)
 
 - [x] **SN-20** — NAM push/pop self-unwinding. `*var-holds-DT_E` thaw folded
-  into `name_commit_value` at SN-21e. one4all @ `8964586e`.
+  into `name_commit_value` at SN-21e. SCRIP @ `8964586e`.
 
 - [x] **SN-21** — Unified `NAME_t` + flat NAM stack. One lvalue concept, one
   push/pop API, one `bb_cap` box for `.` / `$` / `NRETURN` / `*fn()`. Landed
-  across SN-21a..e. one4all @ `8964586e`.
+  across SN-21a..e. SCRIP @ `8964586e`.
 
 - [x] **SN-17** — Porter stemmer gap closed (2026-04-19). `--interp` and
   `--interp` both 100.00% / 23531 on porter.sno. Landed via SN-17a (new
   `SM_PAT_USERCALL` opcode, `f2cf3494`) + SN-17d (FAIL propagation in
   `bb_usercall`, `9d9d2dd3`). SN-17b, SN-17c deferred — not required.
 
-- [x] **SN-17a** — Added `SM_PAT_USERCALL` opcode. one4all @ `f2cf3494`.
+- [x] **SN-17a** — Added `SM_PAT_USERCALL` opcode. SCRIP @ `f2cf3494`.
 
 - [~] **SN-17b** -- Unify `bb_build` dispatch.  **DEFERRED**: inspection
       at SN-17a found that stmt_exec.c's `bb_build` and bb_build.c's
@@ -128,7 +128,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
       not required for SN-7.
 
 - [x] **SN-17d** — Fixed `*fn()` FAIL propagation in `bb_usercall`.
-  Porter reached 100.00% / 23531 in both modes. one4all @ `9d9d2dd3`.
+  Porter reached 100.00% / 23531 in both modes. SCRIP @ `9d9d2dd3`.
 
 - [x] **SN-6** — Full corpus: PASS=225/225 in all three modes (2026-04-20).
   Closed via a one-word gate-script fix at
@@ -154,7 +154,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   diagnostics in commit log.
 
 - [x] **SN-6c** — Recursive pattern NAM corruption closed for `--interp`
-  via SN-23d-follow-up (`has_pending` reset at top of CAP_α). one4all @
+  via SN-23d-follow-up (`has_pending` reset at top of CAP_α). SCRIP @
   `d61a580e`. Root cause: `cache_get_fresh` memcpys dirty template ζ into
   every "fresh" cap_t. Defensive fix at the site; underlying cache flaw
   (template aliases first match's live state) remains latent.
@@ -166,7 +166,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   NHEDCL): `NAME_push`, `NAME_pop`, `NAME_commit`, `NAME_ctx_enter`,
   `NAME_ctx_leave`. Down from 13 entries at start of SN-22. Closing gates:
   Smoke=7, Broker=49, Broad=224/225, Porter byte-identical both modes,
-  `expr_eval` flipped PASS. Final rung SN-23h at one4all @ `a556167b`.
+  `expr_eval` flipped PASS. Final rung SN-23h at SCRIP @ `a556167b`.
   Cross-concern: `cache_get_fresh` template aliasing is still latent — a
   defensible future rung if symptoms appear in other box types.
 
@@ -196,7 +196,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   discipline as SN-6b.
 
 - [x] **SN-9b** — Closed remaining codegen handler gaps (2026-04-19).
-  one4all @ `f8b06dc6`. Wired `SM_BB_PUMP` and `SM_BB_ONCE` (Icon/Raku
+  SCRIP @ `f8b06dc6`. Wired `SM_BB_PUMP` and `SM_BB_ONCE` (Icon/Raku
   generators + Prolog backtracking); other audit opcodes classified as
   stale / cross-mode / never-emitted. `test/raku_gather.scrip` byte-
   identical under `--interp` and `--run`.
@@ -224,14 +224,14 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 - [~] **SN-25** -- SPITBOL `-f` structural-keyword lookup fix.
   **CLOSED 2026-04-21 (session 7) -- won't fix.**  Per Lon's directive:
   "Never going to worry about ingress for old products, just we'll
-  use that technique for one4all."
+  use that technique for SCRIP."
 
   Sessions 2-6 explored patching SPITBOL x64 at `bootstrap/sbl.asm`
   `gnv10` and at the SIL level in `sbl.min:23093`.  Patches compiled
   and ran correctly in-session but were reverted (generated-code rule
   for the former, architectural redirect for the latter).  Session 7
   closed the rung entirely after Lon clarified that the ingress-at-lex
-  principle applies to one4all only.
+  principle applies to SCRIP only.
 
   **Consequence:** SPITBOL cannot run programs that rely on case-
   sensitive structural keywords (programs requiring the double-function
@@ -250,7 +250,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 - [ ] **SN-27** -- UPPERCASE DATATYPE for SPITBOL x64.  **Opened
   2026-04-21.**  Origin: session discovered x32 returns UPPERCASE
   DATATYPE while x64 returns lowercase — a previously-unrecorded
-  fork.  Unifying on UPPERCASE (the same choice one4all, CSNOBOL4,
+  fork.  Unifying on UPPERCASE (the same choice SCRIP, CSNOBOL4,
   snobol4jvm, and now x32 already make) eliminates the DATATYPE-case
   compat problem across the entire stack permanently.  Only
   snobol4dotnet would remain lowercase, and its lowercase choice was
@@ -267,7 +267,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   per runtime."  But that's a historical accident — SPITBOL x32
   (the older, hardbol-lineage SPITBOL) returns UPPERCASE, and the
   archive decision **D-002** (`archive/GENERAL-DECISIONS.md:32`)
-  explicitly chose UPPERCASE for one4all because:
+  explicitly chose UPPERCASE for SCRIP because:
   *"The traditional SNOBOL4 spec uses uppercase datatype names.
   PATTERN and CODE are canonical and widely documented in uppercase.
   Changing to lowercase would break existing SNOBOL4 programs that
@@ -381,7 +381,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     work).**  Flip `flstg` direction + all 16 DATATYPE literals +
     all 188 keyword-table literals.  Single atomic change; binary
     is now uppercase-canonical throughout.  Matches x32/CSNOBOL4/
-    one4all.  Proper SN-27 as originally envisioned — but requires
+    SCRIP.  Proper SN-27 as originally envisioned — but requires
     ~200+ literal edits across `sbl.asm` and careful verification
     that every `d_char`-using site was accounted for.
 
@@ -1018,7 +1018,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     ```
     cd /home/claude/csnobol4
     git restore . && git clean -fd
-    bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+    bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
     rm -f *.o xsnobol4
     make -f Makefile2 OPT='-O0 -g' xsnobol4
     cp xsnobol4 snobol4_dbg
@@ -1305,7 +1305,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   This is a **large** retrofit — not a one-session rung.  Scope:
 
-  1. **Arena infrastructure.**  one4all today uses Boehm GC
+  1. **Arena infrastructure.**  SCRIP today uses Boehm GC
      (`<gc/gc.h>`, `GC_strdup`, `GC_MALLOC`) with raw pointers.
      Silly's arena is a single flat mmap with bump allocation plus
      compacting GC (GC/GCM procedures).  Adopting the arena means
@@ -1361,10 +1361,10 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     ~500-1000 lines touched mechanically, maybe a dozen human-review
     sites.
 
-  - [ ] **SN-28b** -- Introduce arena infrastructure in one4all.
+  - [ ] **SN-28b** -- Introduce arena infrastructure in SCRIP.
     Port `arena_init`, `arena_alloc`, `A2P`, `P2A` from Silly
     (`src/silly/arena.c`, `src/silly/arena.h`) to
-    `src/runtime/x86/one4all_arena.{c,h}` — **without** yet switching
+    `src/runtime/x86/SCRIP_arena.{c,h}` — **without** yet switching
     DESCR_t.  Initialize the arena at `scrip` startup; keep using
     Boehm for everything else.  Gate: unchanged.
 
@@ -1446,7 +1446,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 ## Current state
 
-**HEADs:** one4all @ `9c2246d6` · corpus @ `88be074` · .github @ pending
+**HEADs:** SCRIP @ `9c2246d6` · corpus @ `88be074` · .github @ pending
 this commit · x64 @ `5843f5d` (untouched this session — SN-25 closed
 won't-fix; no further x64 work planned).
 
@@ -1475,10 +1475,10 @@ corruption predates the crashing SCAN invocation.
 
 Session 7 closed SN-25 entirely per Lon's directive ("never going
 to worry about ingress for old products, just we'll use that
-technique for one4all").  SPITBOL and
+technique for SCRIP").  SPITBOL and
 CSNOBOL4 fold inside `GTNVR` / `GENVUP` gated on `&case` / `CASECL` —
 that is the settled design and it stays.  The ingress-at-lex rule in
-RULES.md has been scoped to one4all only.
+RULES.md has been scoped to SCRIP only.
 
 Session 7 characterized the CSNOBOL4 SEGV at beauty stmt 1074:
 - Deterministic across `-O0`..`-O3`, with and without debug info

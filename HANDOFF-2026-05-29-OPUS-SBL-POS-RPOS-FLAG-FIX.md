@@ -145,4 +145,4 @@ src/emitter/BB_templates/bb_pat_tab.cpp     (1 line + 4-line comment)
 
 ## Commit
 
-Code in one4all, doc in .github. Single commit each.
+Code in SCRIP, doc in .github. Single commit each.

@@ -3,8 +3,8 @@
 **Author:** Claude Opus 4.8
 **Date:** 2026-05-29
 **Goal:** GOAL-ICON-BB.md, rung IBB-10 (LANDED) + IBB-11 (scoped, NOT started)
-**one4all:** committed this session (see `git log origin/main -1`); base was `c117aa16`
-**Repos touched:** one4all (5 files), .github (GOAL watermark + Current-state + this doc)
+**SCRIP:** committed this session (see `git log origin/main -1`); base was `c117aa16`
+**Repos touched:** SCRIP (5 files), .github (GOAL watermark + Current-state + this doc)
 
 ---
 

@@ -1,6 +1,6 @@
-# SESSION-icon-js.md — Icon × JavaScript (one4all)
+# SESSION-icon-js.md — Icon × JavaScript (SCRIP)
 
-**Repo:** one4all · **Frontend:** Icon · **Backend:** JavaScript
+**Repo:** SCRIP · **Frontend:** Icon · **Backend:** JavaScript
 **Session prefix:** `IJJ` (Icon JS — distinct from `IJ` = Icon JVM)
 **Trigger:** "playing with Icon JavaScript" / "Icon JS"
 **Replaces:** SESSION-icon-wasm.md (⛔ PARKED)

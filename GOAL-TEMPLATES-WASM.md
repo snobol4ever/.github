@@ -1,6 +1,6 @@
 # GOAL-TEMPLATES-WASM.md — WebAssembly backend, all languages
 
-**Repo:** one4all + .github
+**Repo:** SCRIP + .github
 **Backend:** WebAssembly — WAT (`.wat`) → `wat2wasm` → `.wasm` → `node` host. Mode: `--compile --target=wasm`.
 **Read first:** `ARCH-WASM.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
 

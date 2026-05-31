@@ -1,6 +1,6 @@
 # SESSION-snocone-beauty.md — Snocone × BEAUTY ramp-up
 
-**Repo:** one4all + corpus · **Frontend:** Snocone · **Backend:** x86
+**Repo:** SCRIP + corpus · **Frontend:** Snocone · **Backend:** x86
 **Session prefix:** `SCB` · **Trigger:** "snocone beauty" or "beauty ramp snocone"
 
 ---
@@ -13,7 +13,7 @@ Mirror the 19-subsystem BEAUTY ramp-up from SNOBOL4 (all ✅) but for Snocone.
 `corpus/programs/include/*.inc` and is written in SNOBOL4 syntax.
 These must be converted to Snocone syntax (`.sc` files).
 Converted files live in `corpus/programs/include-sc/` (new directory).
-Drivers live in `one4all/test/beauty-sc/<subsystem>/`.
+Drivers live in `SCRIP/test/beauty-sc/<subsystem>/`.
 
 **Oracle strategy:** Each Snocone driver output must match the corresponding
 SNOBOL4 driver output byte-for-byte. The SNOBOL4 `.ref` files in
@@ -51,7 +51,7 @@ SNOBOL4 driver output byte-for-byte. The SNOBOL4 `.ref` files in
 
 **Policy (SC-16+): IS and FENCE stubs dropped**
 - `IsSpitbol()` / `IsSnobol4()` / `IsType()` — NOT included in any Snocone driver.
-  one4all targets SPITBOL semantics exclusively; no runtime dialect detection needed.
+  SCRIP targets SPITBOL semantics exclusively; no runtime dialect detection needed.
 - `FENCE` — builtin in snocone x86 (0-arg and 1-arg pattern forms). No stub .sc needed.
   `FENCE.sc` is empty. Drivers never include is.sc or FENCE.sc.
 - All `.inc` guards like `IsSnobol4() :F(end)` are converted as unconditional in .sc.
@@ -90,7 +90,7 @@ SNOBOL4 driver output byte-for-byte. The SNOBOL4 `.ref` files in
 
 ```bash
 FRONTEND=snocone BACKEND=x64 TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CORPUS=/home/claude/corpus bash test/beauty-sc/run_beauty_sc_subsystem.sh assign match global counter stack tree trace
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh              # 1286/0
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_x86 snocone_x86

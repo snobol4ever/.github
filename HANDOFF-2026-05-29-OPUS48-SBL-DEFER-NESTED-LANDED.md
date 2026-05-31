@@ -3,7 +3,7 @@
 **Author:** Claude Opus 4.8
 **Date:** 2026-05-29
 **Goal:** GOAL-SNOBOL4-BB.md — REAL BLOCKER: nested XDSAR (`*var`) inside a combinator under `sm_run_native`
-**Repos touched:** one4all (`d2e88c72`, 3 source files), .github (`d10b56bd`: PLAN.md, GOAL-SNOBOL4-BB.md, this doc)
+**Repos touched:** SCRIP (`d2e88c72`, 3 source files), .github (`d10b56bd`: PLAN.md, GOAL-SNOBOL4-BB.md, this doc)
 **Scope this session:** modes 2 and 3 only — mode 4 deferred per Lon ("we will run mode 4 pass way later").
 
 ---
@@ -16,7 +16,7 @@ top-level node, e.g. `SUBJ POS(0) *WORD` — matched correctly in mode-2 but fai
 forms, the capture-of-deref form, and the deref-as-ALT-alternative form all in agreement m2==m3.
 
 **Native broad: 223 → 243 (+20). Mode-2 broad: also 223 → 243 (+20)** — both measured against
-the *live* one4all base `30e7c0a1` (see "Sibling regression" below). Zero mode-2/3 regression
+the *live* SCRIP base `30e7c0a1` (see "Sibling regression" below). Zero mode-2/3 regression
 introduced by this commit. Newly native: 056, 070-073, 108, 110-112, 115, 128, 132-138, 144,
 147, plus the fence/arbno-over-defer family (068, 117, 143, 150) which no longer SIGSEGV.
 
@@ -117,7 +117,7 @@ surfacing as FAIL-lines — already failing at baseline, not regressions.
 ## ⚠ Sibling regression (NOT this goal — flag for cross-goal review)
 
 The original SNOBOL4 mode-2 baseline at `baf8397d` was **252**. A sibling Raku commit
-(one4all `30e7c0a1` "RK-BB-4 mode-2 junctions + mode-2 gather + ACOMP") regressed SNOBOL4 mode-2
+(SCRIP `30e7c0a1` "RK-BB-4 mode-2 junctions + mode-2 gather + ACOMP") regressed SNOBOL4 mode-2
 **252 → 223** via shared `bb_exec.c` (BB_SEQ Raku-gather driver) and/or `SM_ACOMP` coercion in
 `sm_interp.c`. This goal's defer fix then recovered **223 → 243**. The residual **243 < 252** gap
 is the sibling's, not this commit's. Whoever owns Raku BB / shared-runtime should diff

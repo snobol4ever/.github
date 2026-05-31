@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-29 Opus 4.8 — Prolog BB WAM-CP-6 Phase B2 (indexed-LCO frame reuse)
 
-**one4all commit:** `167f31cb` (parent `d9062238` WAM-CP-8 first-arg indexing).
+**SCRIP commit:** `167f31cb` (parent `d9062238` WAM-CP-8 first-arg indexing).
 **Files:** `src/lower/bb_exec.c` ONLY. +95 / −22, additive. No enum / emitter / template /
 lowering / FACT change. Pure mode-2 interpreter logic.
 

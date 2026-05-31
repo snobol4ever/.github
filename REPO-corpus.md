@@ -11,13 +11,13 @@ plus `.ref` expected output files. Used by all repos.
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus /home/claude/corpus
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/SCRIP /home/claude/SCRIP
 ```
 
 **Build:** none — corpus is data only.
 ```bash
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh    # to regenerate .ref files
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh   # if crosschecking CSNOBOL4
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh    # to regenerate .ref files
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh   # if crosschecking CSNOBOL4
 ```
 
 ## Layout

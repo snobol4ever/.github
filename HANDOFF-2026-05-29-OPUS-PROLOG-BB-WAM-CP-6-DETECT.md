@@ -2,7 +2,7 @@
 
 **Step closed:** WAM-CP-6 Step A — LCO-eligibility DETECT (audit, no semantic change).
 
-**one4all commit:** `860d1163` (rebased onto `8d3a8cdf` Raku-BB-1c).
+**SCRIP commit:** `860d1163` (rebased onto `8d3a8cdf` Raku-BB-1c).
 **.github commit:** this commit.
 
 ## What landed
@@ -152,7 +152,7 @@ to clause 2 with no CP, making the recursive call `eligible=1` and unlocking
 the full benchmark target (`count/1` to 1e6 in O(1) stack).
 
 ## Files touched
-- `one4all/src/lower/bb_exec.c` (+24 lines)
+- `SCRIP/src/lower/bb_exec.c` (+24 lines)
 - `.github/PLAN.md` (Prolog BB row updated)
 - `.github/GOAL-PROLOG-BB.md` (State-at-HEAD prepended; rung WAM-CP-6 marked partial)
 - `.github/HANDOFF-2026-05-29-OPUS-PROLOG-BB-WAM-CP-6-DETECT.md` (this file)

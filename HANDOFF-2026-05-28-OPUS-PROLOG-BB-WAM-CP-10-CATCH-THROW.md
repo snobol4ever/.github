@@ -5,13 +5,13 @@ mode-4 native emit + longjmp-free CP-barrier unwind deferred to WAM-CP-13.
 
 ## State at handoff
 
-- one4all HEAD `5427e12e`, tree clean, pushed to origin/main.
+- SCRIP HEAD `5427e12e`, tree clean, pushed to origin/main.
 - .github HEAD `24d68528`, tree clean, pushed to origin/main.
 - corpus untouched this session.
 
 ## What landed
 
-### one4all `5427e12e` — WAM-CP-10 partial (mode-2)
+### SCRIP `5427e12e` — WAM-CP-10 partial (mode-2)
 
 * New BB node `BB_PL_CATCH` in `src/include/BB.h` + `bb_pl_catch_state_t {goal_g, catcher,
   rec_g}`. Goal and Recovery each lower into their own self-contained `BB_graph_t`;
@@ -76,7 +76,7 @@ mode-4 native emit + longjmp-free CP-barrier unwind deferred to WAM-CP-13.
 ## Rebase note
 
 Three concurrent commits landed during the session:
-* `4ce8c385` (one4all) — MEDIUM_BINARY arms filled in 9 BOMB templates (Sonnet 4.6).
+* `4ce8c385` (SCRIP) — MEDIUM_BINARY arms filled in 9 BOMB templates (Sonnet 4.6).
 * `2e06b921` (.github) — ICON-BB DIAGNOSIS-only entry (param-shadowing diagnosis).
 * `81a5f2f5` (.github) — SONNET BENCH-MODE3 blocker handoff.
 
@@ -160,7 +160,7 @@ git config user.email "lcherryh@yahoo.com"
 ## Verification
 
 ```
-cd /home/claude/one4all && git log origin/main --oneline -1
+cd /home/claude/SCRIP && git log origin/main --oneline -1
 # 5427e12e WAM-CP-10: catch/throw mode-2 via BB_PL_CATCH + Pl_CatchFrame; rung28 0/5 -> 5/5
 
 cd /home/claude/.github && git log origin/main --oneline -1

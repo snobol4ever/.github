@@ -36,4 +36,4 @@
 ---
 
 *MILESTONE-NET-SNOBOL4.md — rewritten D-215, 2026-04-11, Claude Sonnet 4.6.*
-*Scoped to snobol4ever/snobol4dotnet only. one4all/scrip-interp.cs milestones (Phases 0/A/B01-B03) live in MILESTONE-NET-INTERP.md.*
+*Scoped to snobol4ever/snobol4dotnet only. SCRIP/scrip-interp.cs milestones (Phases 0/A/B01-B03) live in MILESTONE-NET-INTERP.md.*

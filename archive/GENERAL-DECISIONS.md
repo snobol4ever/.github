@@ -7,7 +7,7 @@ Reference these IDs in commit messages: `D-001`, `D-002`, etc.
 
 ## D-001 — Compatibility Target: SPITBOL, not CSNOBOL4 (2026-03-24)
 
-**Decision:** one4all targets **SPITBOL** as its primary compatibility reference,
+**Decision:** SCRIP targets **SPITBOL** as its primary compatibility reference,
 not CSNOBOL4 2.3.3.
 
 **Rationale:** CSNOBOL4 has a known FENCE semantic difference that makes it unsuitable
@@ -42,7 +42,7 @@ uppercase. We keep uppercase because:
 4. Changing to lowercase would break existing SNOBOL4 programs that test `DATATYPE(x) = 'PATTERN'`.
 
 **Monitor handling:** DATATYPE() return values are an **ignore-point** — differences
-between one4all (uppercase) and SPITBOL (lowercase) are silently normalised.
+between SCRIP (uppercase) and SPITBOL (lowercase) are silently normalised.
 See `tracepoints.conf` IGNORE rule `DATATYPE(*) [a-z]+|[A-Z]+`.
 
 **Test suite:** All tests that check DATATYPE output are **case-insensitive** — they
@@ -71,10 +71,10 @@ uppercase (our canonical form).
 
 ---
 
-## D-004 — .NAME Semantics: one4all Third Dialect (2026-03-24)
+## D-004 — .NAME Semantics: SCRIP Third Dialect (2026-03-24)
 
 **Decision:** The `.NAME` (unary dot, name-of) operator has three known dialects.
-one4all implements a **third kind** — distinct from both CSNOBOL4 and SPITBOL.
+SCRIP implements a **third kind** — distinct from both CSNOBOL4 and SPITBOL.
 
 **Background — the three dialects:**
 
@@ -82,9 +82,9 @@ one4all implements a **third kind** — distinct from both CSNOBOL4 and SPITBOL.
 |---------|------------------------|----------------------|---------------------|
 | CSNOBOL4 | Returns DT_S string `"NAME"` | Fails (identical strings) | Succeeds |
 | SPITBOL  | Returns DT_S string `"name"` (lowercase) | Succeeds (differs) | Fails |
-| **one4all** | Returns DT_N (name-type) with ptr to `"NAME"` | Succeeds (DT_N ≠ DT_S) | Fails |
+| **SCRIP** | Returns DT_N (name-type) with ptr to `"NAME"` | Succeeds (DT_N ≠ DT_S) | Fails |
 
-**one4all behaviour:** `.NAME` emits a `DT_N` descriptor (type=9) pointing to the
+**SCRIP behaviour:** `.NAME` emits a `DT_N` descriptor (type=9) pointing to the
 name label. When passed to `IDENT`/`DIFFER`, `ident()` compares types first:
 `DT_N ≠ DT_S → not identical → DIFFER succeeds, IDENT fails`. This matches SPITBOL's
 observable behaviour (IsSpitbol passes, IsSnobol4 fails) even though the internal
@@ -100,7 +100,7 @@ representation differs.
   type semantics.
 
 **Monitor handling:** `.NAME` value comparisons are an **ignore-point** when the
-difference is CSNOBOL4 DT_S vs one4all DT_N. SPITBOL and one4all agree on
+difference is CSNOBOL4 DT_S vs SCRIP DT_N. SPITBOL and SCRIP agree on
 observable behaviour (DIFFER passes, IDENT fails), so the monitor's consensus rule
 treats this as a known non-divergence.
 
@@ -125,9 +125,9 @@ executed as an oracle. CSNOBOL4 lacks FENCE — any program using FENCE will pro
 answers under CSNOBOL4. A future milestone (M-CSNOBOL4-FENCE) will add FENCE to CSNOBOL4
 using SPITBOL as the semantic guide — see PLAN.md component map.
 
-**Consensus rule (2-party: SPITBOL vs one4all):**
-- SPITBOL and one4all agree → correct.
-- one4all diverges from SPITBOL → our bug; fix one4all.
+**Consensus rule (2-party: SPITBOL vs SCRIP):**
+- SPITBOL and SCRIP agree → correct.
+- SCRIP diverges from SPITBOL → our bug; fix SCRIP.
 - DATATYPE case differences → ignore-point (D-002, D-003).
 - .NAME type differences → ignore-point (D-004).
 

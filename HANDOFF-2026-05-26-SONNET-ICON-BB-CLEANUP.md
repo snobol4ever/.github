@@ -2,7 +2,7 @@
 
 ## Commit
 
-one4all `216f543c` — rename SM_BB_PUMP_{SM,CASE}, tombstone SM_PUMP_SM
+SCRIP `216f543c` — rename SM_BB_PUMP_{SM,CASE}, tombstone SM_PUMP_SM
 
 ## What was done
 

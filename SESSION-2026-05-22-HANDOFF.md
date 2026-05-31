@@ -4,7 +4,7 @@
 
 | Repo | HEAD |
 |------|------|
-| one4all | `302a1207` |
+| SCRIP | `302a1207` |
 | .github | `b3c84f08` |
 | corpus | unchanged from session start |
 
@@ -16,7 +16,7 @@
 
 ### INLINE-6 — full dead-machinery sweep of emit_sm.c + headers
 
-Four commits to one4all:
+Four commits to SCRIP:
 
 | Commit | Work | Net |
 |--------|------|-----|
@@ -65,11 +65,11 @@ Every SM/BB code-generation path now lives exclusively in:
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus /home/claude/corpus
 # Read PLAN.md, RULES.md, then goal file
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip
 bash scripts/test_per_kind_diff.sh
-# Expect: PASS=408 FAIL=0 STUB=651 at one4all 302a1207
+# Expect: PASS=408 FAIL=0 STUB=651 at SCRIP 302a1207
 ```

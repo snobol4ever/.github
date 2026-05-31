@@ -1,6 +1,6 @@
-# SESSION-snobol4-js.md — SNOBOL4 × JavaScript (one4all)
+# SESSION-snobol4-js.md — SNOBOL4 × JavaScript (SCRIP)
 
-**Repo:** one4all · **Frontend:** SNOBOL4 · **Backend:** JavaScript
+**Repo:** SCRIP · **Frontend:** SNOBOL4 · **Backend:** JavaScript
 **Session prefix:** `SJ` · **Trigger:** "playing with SNOBOL4 JavaScript" / "SNOBOL4 JS"
 **Replaces:** SESSION-snobol4-wasm.md (⛔ PARKED)
 
@@ -36,7 +36,7 @@ Skips: `nasm wabt wat2wasm java javac mono ilasm icont swipl gcc make`
 
 Run the broad interpreter test instead:
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CORPUS=/home/claude/corpus node test/js/run_broad.js
 ```
 
@@ -134,7 +134,7 @@ const _vars = new Proxy({}, {
 
 ## §NOW — SJ-4 → SJ-5
 
-**HEAD:** one4all `4b5e682`
+**HEAD:** SCRIP `4b5e682`
 **Next milestone: M-SJ-A03**
 
 **Architecture pivot (SJ-4):** Milestones reorganized around the 5-phase

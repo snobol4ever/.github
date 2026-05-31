@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-29 Opus 4.8 — SBL-BREAKX-2 + SBL-DATA-FN-SHADOW
 
-**Goal:** GOAL-SNOBOL4-BB. **Base:** one4all `5d5cede1`. **Result:** native 245 → 250 (+5), zero regression.
+**Goal:** GOAL-SNOBOL4-BB. **Base:** SCRIP `5d5cede1`. **Result:** native 245 → 250 (+5), zero regression.
 
 ## Two fixes
 

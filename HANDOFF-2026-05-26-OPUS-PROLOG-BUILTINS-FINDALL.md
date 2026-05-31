@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-26 (Opus 4.7) — Prolog builtins (functor/arg/=../type-tests/atom_*) + findall/3 + determinacy guard
 
-**one4all HEAD: <this session's commit> (clean, all gates green).**
+**SCRIP HEAD: <this session's commit> (clean, all gates green).**
 smoke_prolog 5/5 · prolog_bb_honest 128/0/0 · GATE-3 prolog_rung_suite **32/107 (was 20)** ·
 smoke_icon 5/5 · smoke_snobol4 7/6 (pre-existing, verified identical at baseline f92e58f4).
 
@@ -70,7 +70,7 @@ Three supporting fixes that made findall correct:
 
 ## Gate commands (source of truth)
 ```bash
-cd /home/claude/one4all && bash scripts/build_scrip.sh   # needs libgc-dev
+cd /home/claude/SCRIP && bash scripts/build_scrip.sh   # needs libgc-dev
 bash scripts/test_smoke_prolog.sh        # 5/5
 bash scripts/test_prolog_bb_honest.sh    # 128/0/0
 bash scripts/test_prolog_rung_suite.sh   # 32/107

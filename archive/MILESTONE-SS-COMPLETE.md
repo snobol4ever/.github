@@ -3,7 +3,7 @@
 ## ⚡ NEXT ACTION (update after each step)
 **A3 — Write RECOMJ cluster in func.c**
 ```bash
-cd /home/claude/one4all && git pull --rebase
+cd /home/claude/SCRIP && git pull --rebase
 cd src/silly && gcc -Wall -Wextra -std=c99 -g -O0 *.c -lm -o /tmp/silly-snobol4 -I . 2>&1 | grep -E "error:|warning:"
 # Then replace stubs: CODER_fn (line ~662) and CONVE_fn (line ~845) in func.c
 # SIL ref: v311.sil 6492–6551  C ref: snobol4.c 8848–8955

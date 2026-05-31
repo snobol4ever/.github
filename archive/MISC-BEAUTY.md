@@ -174,7 +174,7 @@ Tests in `corpus/crosscheck/beauty/`:
 - `NNN_name.input` — SNOBOL4 snippet piped into beauty_full_bin
 - `NNN_name.ref` — oracle: `spitbol -b $BEAUTY < NNN_name.input`
 
-Runner: `one4all/test/crosscheck/run_beauty.sh` (pre-compiled binary).
+Runner: `SCRIP/test/crosscheck/run_beauty.sh` (pre-compiled binary).
 
 Test progression (one at a time, never skip):
 ```

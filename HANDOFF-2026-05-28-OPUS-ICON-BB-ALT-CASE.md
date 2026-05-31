@@ -10,7 +10,7 @@
 
 | Repo | Hash | What |
 |------|------|------|
-| one4all | `d1031b0c` | CASE-EXPR (tip) |
+| SCRIP | `d1031b0c` | CASE-EXPR (tip) |
 | .github | `f78c0071` | session goal/plan updates (tip) |
 
 ## Gates
@@ -102,9 +102,9 @@ Note the FACT-grep extensions in PLAN's gate list — confirmed clean.
 git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github
 # read PLAN.md, find ICON-BB row, then read GOAL-ICON-BB.md
 # read RULES.md
-git clone https://TOKEN@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus /home/claude/corpus
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 bash scripts/test_smoke_icon.sh              # expect 5/5

@@ -25,8 +25,8 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repos:** one4all + corpus
-**Branch:** TBD (likely `main` for one4all — frontend + ir_print are
+**Repos:** SCRIP + corpus
+**Branch:** TBD (likely `main` for SCRIP — frontend + ir_print are
 shipping code paths, not parser-experimental)
 **Tracker:** Lon's call (session #63+)
 
@@ -109,7 +109,7 @@ DEFINE('F(X)L1')
       committing — should be a pure tag swap, no structural changes.
 - [ ] **Step 5 — beauty.sno self-host.** Re-run Milestone 1 gate
       (`beauty.sno → SPITBOL byte-identical`). Output must stay
-      `md5 abfd19a7a834484a96e824851caee159, 646 lines` at one4all
+      `md5 abfd19a7a834484a96e824851caee159, 646 lines` at SCRIP
       `c801421a` parity. If diff: investigate — likely a missed
       E_FNC-vs-E_DEFINE case in lowering.
 - [ ] **Step 6 — PARSER-SN-6 update.** Add a `_define_call(ep0, arg)`

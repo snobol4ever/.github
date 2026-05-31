@@ -1,7 +1,7 @@
 # THREE-MEDIUM (TM) Rung — Handoff 2026-05-24
 
 ## Repository State
-- **one4all HEAD:** `e1602529`
+- **SCRIP HEAD:** `e1602529`
 - **Branch:** main (pushed)
 - **Gate:** PASS=442 FAIL=0 STUB=612 NEW=0 GONE=0
 

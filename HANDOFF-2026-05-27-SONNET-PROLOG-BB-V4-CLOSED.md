@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-27 — Sonnet 4.7 — Prolog BB V-4 CLOSED
 
-**one4all HEAD: `b95e4318`** ✅ all gates green
+**SCRIP HEAD: `b95e4318`** ✅ all gates green
 **.github HEAD: pending watermark + V-5 decision doc commit**
 
 ---
@@ -168,13 +168,13 @@ Mode 3 to be the slow path or the fast path going forward.**
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github  /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
 cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/GOAL-PROLOG-BB.md
 cat /home/claude/.github/HANDOFF-2026-05-27-SONNET-PROLOG-BB-V4-CLOSED.md
 sudo apt-get install -y libgc-dev
-cd /home/claude/one4all && bash scripts/build_scrip.sh && make libscrip_rt
+cd /home/claude/SCRIP && bash scripts/build_scrip.sh && make libscrip_rt
 bash scripts/test_smoke_prolog.sh         # GATE-1: 5/5
 bash scripts/test_prolog_rung_suite.sh    # GATE-3: 88/107
 bash scripts/test_prolog_mode4_rung.sh    # GATE-4: 4/4
@@ -184,6 +184,6 @@ bash scripts/test_crosscheck_prolog.sh    # GATE-2: 132/0
 **Confirm `b95e4318` watermark:**
 
 ```bash
-cd /home/claude/one4all && git log --oneline -1
+cd /home/claude/SCRIP && git log --oneline -1
 # expect: b95e4318 V-4: retire rt_pl_b_* runtime BB-rebuild path
 ```

@@ -4,7 +4,7 @@
 
 | Repo | HEAD |
 |------|------|
-| one4all | `a2cbd6d8` |
+| SCRIP | `a2cbd6d8` |
 | .github | `d5a91091` |
 | corpus | `3e223db` |
 
@@ -67,8 +67,8 @@ All new BB templates must be self-contained inline x86:
 ## Session setup for next session
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip
 bash scripts/test_per_kind_diff.sh   # expect PASS=513 FAIL=0 STUB=602
 bash scripts/test_icon_all_rungs.sh  # expect PASS=195 FAIL=36 XFAIL=35
 bash scripts/test_smoke_prolog.sh    # expect PASS=5 FAIL=0

@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-25 — Claude Sonnet 4.6 Session
 
-**one4all HEAD:** `b27c5f66`
+**SCRIP HEAD:** `b27c5f66`
 **\.github HEAD:** `b41751a6`
 **Gate:** GATE-PK 442/0/612 NEW=0 GONE=0 · AUDIT GREEN · PROLOG 124/0/0
 **Beauty gate:** ⛔ SUSPENDED

@@ -1,6 +1,6 @@
-# SESSION-prolog-jvm.md — Prolog × JVM (one4all)
+# SESSION-prolog-jvm.md — Prolog × JVM (SCRIP)
 
-**Repo:** one4all · **Frontend:** Prolog · **Backend:** JVM (Jasmin)
+**Repo:** SCRIP · **Frontend:** Prolog · **Backend:** JVM (Jasmin)
 **Session prefix:** `PJ` · **Trigger:** "playing with Prolog JVM"
 **Driver:** `scrip-cc -pl -jvm foo.pl -o foo.j` → `java -jar jasmin.jar foo.j -d .` → `java FooClass`
 **Oracle:** `scrip-cc -pl -asm foo.pl` (ASM emitter)
@@ -127,8 +127,8 @@ TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 ```
 
 **Key files:**
-- `one4all/src/frontend/prolog/prolog_emit_jvm.c` — linker ~line 7040 (`pj_linker_emit_bridge`)
-- `one4all/test/frontend/prolog/plunit.pl` — shim (keep in sync with C string literal)
+- `SCRIP/src/frontend/prolog/prolog_emit_jvm.c` — linker ~line 7040 (`pj_linker_emit_bridge`)
+- `SCRIP/test/frontend/prolog/plunit.pl` — shim (keep in sync with C string literal)
 - SWI tests: `swipl-devel-master/tests/core/test_*.pl` (58 files)
 
 ## Milestone Table

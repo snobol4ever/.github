@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** All Icon goal-directed backtracking (generators, scan, suspend) routes
 through a brokered Byrd-box driver mirroring SNOBOL4's interp_eval_pat + exec_stmt +
 bb_build architecture, at the IR interpreter level.
@@ -106,7 +106,7 @@ This goal replaces all of it with the brokered architecture.
   gen subtree (e.g. E_FNC(write, E_TO(1,5))), not bare generator node.
   Need recursive generator-scan in icn_eval_gen: find generator arg inside
   E_FNC children, build composed body_fn that evals surrounding expression
-  per tick. Mirrors icn_drive child recursion. See one4all commit 0ec5d434.
+  per tick. Mirrors icn_drive child recursion. See SCRIP commit 0ec5d434.
   Replace icn_drive(gen,gen) and icn_has_suspend_call path with:
     icn_gen_t g = icn_eval_gen(gen); icn_broker(g, body_cb, body_node);
   Remove icn_drive, icn_gen_stack, icn_gen_push/pop, icn_gen_active.

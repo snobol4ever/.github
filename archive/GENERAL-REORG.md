@@ -23,11 +23,11 @@
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G-EMIT-COVERAGE** ✅ | Emit-diff coverage: one test per IR node kind across all applicable backends. SNOBOL4: `test/snobol4/coverage/coverage_sno_nodes.sno` — all 26 frontend-emitted node kinds (E_QLIT E_ILIT E_FLIT E_VART E_KW E_NULV E_ADD E_SUB E_MPY E_DIV E_MNS E_EXPOP E_CONCAT E_SEQ E_OR E_NAM E_DOL E_ATP E_ARB E_ARBNO E_STAR E_INDR E_FNC E_IDX E_ASGN E_OPSYN). Prolog: `test/prolog/coverage/coverage_pl_nodes.pl` — all 15 Prolog IR node kinds. Icon: `test/icon/coverage/coverage_x64_gaps.icn` (existing, covers 28 ICN kinds). Emit-diff: **493/0** ✅. | one4all `6d8dd4b` |
+| **M-G-EMIT-COVERAGE** ✅ | Emit-diff coverage: one test per IR node kind across all applicable backends. SNOBOL4: `test/snobol4/coverage/coverage_sno_nodes.sno` — all 26 frontend-emitted node kinds (E_QLIT E_ILIT E_FLIT E_VART E_KW E_NULV E_ADD E_SUB E_MPY E_DIV E_MNS E_EXPOP E_CONCAT E_SEQ E_OR E_NAM E_DOL E_ATP E_ARB E_ARBNO E_STAR E_INDR E_FNC E_IDX E_ASGN E_OPSYN). Prolog: `test/prolog/coverage/coverage_pl_nodes.pl` — all 15 Prolog IR node kinds. Icon: `test/icon/coverage/coverage_x64_gaps.icn` (existing, covers 28 ICN kinds). Emit-diff: **493/0** ✅. | SCRIP `6d8dd4b` |
 | **M-G-INV-FAST** ✅ | Invariant harness speed overhaul. Root cause: per-test JVM startup (jasmin + java) × ~152 tests = 3–5 min, causing session timeouts. Fixes: (1) **Persistent runtime archive cache** `out/rt_cache/libsno4rt_asm.a` + `libsno4rt_pl.a` — stamp-checked, rebuilt only on source change; (2) **Batch jasmin** — all `.j` files assembled in one `java -jar jasmin` call per suite; (3) **Single SnoHarness JVM** — all SNOBOL4-JVM and Prolog-JVM tests run in one `java -cp SnoHarness` process with per-test classloader + 3s thread timeout; (4) **Parallel nasm+link** via `xargs -P$JOBS`. Result: harness now produces output within 240s. | G-9 s2 · .github pending |
 | **M-G-INV-TIMEOUT** ✅ | Hang detection requirement: no infinite-loop test may block harness for more than seconds. Implemented five-layer timeout defence: (1) per-binary x86 `timeout $TIMEOUT_X86` (5s); (2) SnoHarness internal 3s per-class thread; (3) batch jasmin `timeout 60`; (4) SnoHarness suite `timeout 120`; (5) suite-level watchdog background process kills harness after `SUITE_TIMEOUT=300`s. All 38 icon rung runners patched (two structural families). START/FINISH/ELAPSED printed at top and bottom of `run_emit_check.sh` and `run_invariants.sh`. | G-9 s2 · .github pending |
-| **M-G-INV-FAST-X86-FIX** ✅ | All 7 invariant cells confirmed with real counts. Baseline (G-9 s18): x86: SNOBOL4 `106/106` · Icon `94/258` (pre-existing M-G5-LOWER-ICON gaps) · Prolog `13/107` (94 missing builtins, out of reorg scope). JVM: SNOBOL4 `110p/16f` (16 pre-existing OPSYN/EVAL gaps) · Icon `173/234` · Prolog `106/107` (rung06 pre-existing). NET: SNOBOL4 `108/110` (056_pat_star_deref + wordcount hang — both pre-existing). All failures confirmed non-regressions. **Invariant suite reactivated post-M-G7-UNFREEZE — run at every session start/end per RULES.md.** | G-9 s18 · one4all `dcdaa3e` |
-| **M-G-INV-SESSION-BASELINE** ✅ | Gate: confirm full invariant suite runs to completion in the current Claude session environment. Fix: removed parallel dispatch + watchdog, replaced with serial cell execution. Result: 60.8s wall time, `snobol4_x86 106/106` ✅, Prolog x86 11/107 (96 pre-existing compile failures, not a regression), Icon 0/0, JVM/NET SKIP. Baseline confirmed. | `snobol4_x86 106/106` ✅ · one4all `4f30e7f` |
+| **M-G-INV-FAST-X86-FIX** ✅ | All 7 invariant cells confirmed with real counts. Baseline (G-9 s18): x86: SNOBOL4 `106/106` · Icon `94/258` (pre-existing M-G5-LOWER-ICON gaps) · Prolog `13/107` (94 missing builtins, out of reorg scope). JVM: SNOBOL4 `110p/16f` (16 pre-existing OPSYN/EVAL gaps) · Icon `173/234` · Prolog `106/107` (rung06 pre-existing). NET: SNOBOL4 `108/110` (056_pat_star_deref + wordcount hang — both pre-existing). All failures confirmed non-regressions. **Invariant suite reactivated post-M-G7-UNFREEZE — run at every session start/end per RULES.md.** | G-9 s18 · SCRIP `dcdaa3e` |
+| **M-G-INV-SESSION-BASELINE** ✅ | Gate: confirm full invariant suite runs to completion in the current Claude session environment. Fix: removed parallel dispatch + watchdog, replaced with serial cell execution. Result: 60.8s wall time, `snobol4_x86 106/106` ✅, Prolog x86 11/107 (96 pre-existing compile failures, not a regression), Icon 0/0, JVM/NET SKIP. Baseline confirmed. | `snobol4_x86 106/106` ✅ · SCRIP `4f30e7f` |
 
 ---
 
@@ -266,7 +266,7 @@ The Grand Master Reorg is complete (M-G7-UNFREEZE fires) when:
 5. The Byrd box wiring logic for every shared node kind lives in exactly one place.
 6. Every corpus test that passed before the reorg still passes.
 7. `doc/STYLE.md` exists and all source files conform to it.
-8. The `one4all` pipeline matrix (6 frontends × 4 backends = 24 cells) has at least one ✅ or ⏳ in every cell that was previously `—` but is now reachable via shared backend infrastructure. (`snobol4net` and `snobol4jvm` are separate repos with their own roadmaps and are excluded from this criterion.)
+8. The `SCRIP` pipeline matrix (6 frontends × 4 backends = 24 cells) has at least one ✅ or ⏳ in every cell that was previously `—` but is now reachable via shared backend infrastructure. (`snobol4net` and `snobol4jvm` are separate repos with their own roadmaps and are excluded from this criterion.)
 
 The full project testing transformation is complete (M-G8-CI fires) when:
 
@@ -274,9 +274,9 @@ The full project testing transformation is complete (M-G8-CI fires) when:
    `doc/GEN_ORACLE.md`, `doc/GEN_GRAMMAR.md` — all consistent, all agreed.
 10. `gen/enumerate.py` enumerates IR trees for SNOBOL4, Icon, and Prolog grammar
     fragments up to depth N=25.
-11. Zero divergences between oracle and all three one4all backends at N=25 for
+11. Zero divergences between oracle and all three SCRIP backends at N=25 for
     all three language fragments.
-12. The N=10 slice runs in CI on every commit to one4all in under 5 minutes.
+12. The N=10 slice runs in CI on every commit to SCRIP in under 5 minutes.
 
 ---
 
@@ -287,9 +287,9 @@ Prerequisite: all concurrent sessions have resumed and are stable post-reorg.
 
 | ID | Action | Verify |
 |----|--------|--------|
-| **M-G9-RENAME-NET-PLAN** | Confirm impact: update all cross-repo references in `one4all`, `snobol4jvm`, `.github`, `harness`, `corpus` that mention `snobol4dotnet`. Produce checklist. | Checklist exists; no stale refs after rename |
+| **M-G9-RENAME-NET-PLAN** | Confirm impact: update all cross-repo references in `SCRIP`, `snobol4jvm`, `.github`, `harness`, `corpus` that mention `snobol4dotnet`. Produce checklist. | Checklist exists; no stale refs after rename |
 | **M-G9-RENAME-NET-EXEC** | Rename GitHub repo `snobol4ever/snobol4dotnet` → `snobol4ever/snobol4net`. GitHub creates redirect from old name automatically. Update RENAME.md name grid. | `git ls-remote github.com/snobol4ever/snobol4net` resolves; old name redirects |
-| **M-G9-RENAME-NET-REFS** | Update every cross-repo reference found in M-G9-RENAME-NET-PLAN: `.github` docs, `one4all` runner scripts, `harness` adapters. One repo per commit. | All references resolve; no broken links |
+| **M-G9-RENAME-NET-REFS** | Update every cross-repo reference found in M-G9-RENAME-NET-PLAN: `.github` docs, `SCRIP` runner scripts, `harness` adapters. One repo per commit. | All references resolve; no broken links |
 | **M-G9-RENAME-NET-VERIFY** | Run `snobol4net` full test suite. Confirm nothing broke. Count TBD — retest required before this milestone can close. | Full suite PASS (retest to establish count) |
 
 ---

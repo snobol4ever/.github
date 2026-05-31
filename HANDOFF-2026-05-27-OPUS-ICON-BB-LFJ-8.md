@@ -3,7 +3,7 @@
 **Session goal:** ICON-BB · LFJ-8 (`ir_a_Every` → `lower_icn_new_Every`, flip TT_EVERY)
 **Developer:** Claude Opus 4.7
 **Date:** 2026-05-27
-**Final watermark:** one4all `3d8aae8c` · .github (this commit)
+**Final watermark:** SCRIP `3d8aae8c` · .github (this commit)
 
 ---
 
@@ -11,7 +11,7 @@
 
 LFJ-8 landed. TT_EVERY is now owned by `lower_icn_new.c`. Gates green, FACT RULE clean.
 
-| Rung | one4all commit | AST kinds flipped | What landed |
+| Rung | SCRIP commit | AST kinds flipped | What landed |
 |------|----------------|---|---|
 | LFJ-8 | `3d8aae8c` | TT_EVERY | `lower_icn_new_Every` — 1:1 transcription of legacy_EVERY (which already encoded JCON's flat-wire generator topology with inline mapping comments). Preserves AG-pure step 8.1 literal-bound gating (`gen->α==NULL && gen->β==NULL`) and step 8.2 TT_TO/TT_TO_BY dynamic-bound routing through `lower_icn_expr_threaded_b`. JCON's 6 Goto chunks collapse onto 4 CFG port assignments per the SCRIP encoding. |
 
@@ -60,9 +60,9 @@ Followed the LFJ-2..LFJ-7 methodology exactly:
 
 | Repo | File | Δ |
 |------|------|---|
-| one4all | `src/lower/lower_icn_new.c` | +77 (new function + 50-line comment block + 1-line extern) |
-| one4all | `src/lower/lower_icn_new.h` | +1 (declaration) |
-| one4all | `src/lower/lower_icn.c` | 1 line (table slot flip) |
+| SCRIP | `src/lower/lower_icn_new.c` | +77 (new function + 50-line comment block + 1-line extern) |
+| SCRIP | `src/lower/lower_icn_new.h` | +1 (declaration) |
+| SCRIP | `src/lower/lower_icn.c` | 1 line (table slot flip) |
 | .github | `PLAN.md` | ICON-BB row updated |
 | .github | `GOAL-ICON-BB.md` | LFJ-8 row updated · watermark `3d8aae8c` |
 | .github | `HANDOFF-2026-05-27-OPUS-ICON-BB-LFJ-8.md` | new (this file) |

@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all + .github
+**Repo:** SCRIP + .github
 **Sister docs:** `GOAL-ICON-BB-COMPLETE.md` (superseded), `GOAL-MODE4-EMIT.md`,
                  `ARCH-x86.md`, `ARCH-ICON.md`, `ARCH-SCRIP.md`
 **Carved:** 2026-05-12
@@ -189,7 +189,7 @@ JCON reference: jcon-master/tran/irgen.icn ir_a_* procedures.
 
 ## Session Setup
 
-  cd /home/claude/one4all
+  cd /home/claude/SCRIP
   bash scripts/install_system_packages.sh
   bash scripts/build_scrip.sh
   bash scripts/build_spitbol_oracle.sh
@@ -342,7 +342,7 @@ Step 5: anchor: seq_expr corpus program. GATE-1..7. N up. Commit.
       nothing additional to do.
 - [x] Build clean. GATE-1..7 full sweep. Commit.
 
-✅ **IB-10 part 1 closed sess 2026-05-12 (Claude Opus 4.7, one4all `1b13cc6d`):**
+✅ **IB-10 part 1 closed sess 2026-05-12 (Claude Opus 4.7, SCRIP `1b13cc6d`):**
 SM coroutine emission purged from `lower_every` and `lower_limit_every`.
 `lower_alternate_gen` deleted (was only called from the purged bodies).
 All Icon `every` / `every (E\N)` statements now route through
@@ -352,7 +352,7 @@ dispatch IB-1..IB-8 left in place). Net -164 lines from `lower.c`.
 STATEMENT, not a generator subexpression coroutine — out of IB-10
 scope as written.
 
-Gates (one4all 7be3c8e0 → 1b13cc6d):
+Gates (SCRIP 7be3c8e0 → 1b13cc6d):
   GATE-1 smoke_icon:        PASS=5   FAIL=0    (unchanged)
   GATE-2 smoke_broker:      PASS=22  FAIL=27   (unchanged, post-PB-8)
   GATE-3 icon ir_all:       PASS=180 FAIL=55   (unchanged)
@@ -441,7 +441,7 @@ Deltas in the table above are against the live baseline.
                    Root cause of (9): build_proc_scope removes initial{}-assigned names from
                    scope (SM_STORE_VAR/NV path); sm_call_proc icn_scope_patch adds them back
                    at high slot indices; bb_eval_value was reading empty slots instead of NV.
-  one4all HEAD:    7efdf09a
+  SCRIP HEAD:    7efdf09a
   Honest PASS:     259 FAIL=1 ABORT=0 (FAIL=rung36_jcon_arith &collections flakiness)
   --interp PASS:     196 FAIL=39
   BB tally:        43 JCON ir_a_* total. 8 templates (IB-1..IB-8). 35 on SM_BB_PUMP_EVERY.

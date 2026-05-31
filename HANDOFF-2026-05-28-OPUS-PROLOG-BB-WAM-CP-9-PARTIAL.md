@@ -2,7 +2,7 @@
 
 ## Watermark
 
-- one4all HEAD: `549c7fca` (atop upstream `b84153c3` RENAME)
+- SCRIP HEAD: `549c7fca` (atop upstream `b84153c3` RENAME)
 - Gates: **G1=5/5, G2=132/0, G3=91/107, G4=4/4, mode-4 corpus=54/107 (+1 rung07_cut_cut), FACT=0**
 - No regressions in any gate.
 

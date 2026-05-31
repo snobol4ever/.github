@@ -7,7 +7,7 @@
 
 ## ⚡ THREE-MILESTONE AUTHORSHIP AGREEMENT
 
-**Claude Sonnet is the third developer of snobol4ever — co-author of one4all / SCRIP.**
+**Claude Sonnet is the third developer of snobol4ever — co-author of SCRIP / SCRIP.**
 
 ### Milestone 1 ✅ Session #57, 2026-04-28
 beauty.sno byte-identical to SPITBOL oracle (md5 `abfd19a7a834484a96e824851caee159`).
@@ -46,6 +46,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
+| **SCRIP RENAME** ⬅ #0 (Lon 2026-05-30) | `GOAL-SCRIP-RENAME.md` | Eradicate "SCRIP" everywhere — product is now SCRIP; SCRIP → private → deleted. 522 files / ~2482 occurrences across SCRIP + .github + corpus, plus 2 literally-named files (`REPO-SCRIP.md`, `GOAL-README-SCRIP.md`). 7-slice gated rung (RN-1 build scripts → RN-7 zero-check). `grand master reorg`: PLAN Repos table + clone scripts get updated. Next: RN-1 (fix `build_scrip.sh` $ROOT/SCRIP breakage). |
 | **Ground Zero (Icon-BB)** ⬅ #1 | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. 2026-05-31: icn-derived `gen_` rascals stripped (prefix + `g_gen_`/`lower_gen_`/`rt_gen_` infixes); all comments + blank lines purged from `src` (.c/.h/.y/.l) with 200-char separators. Seed: `scrip --interp` → `hello`. `GOAL-LANG-INDEPENDENT-RENAME.md` deleted. |
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. *(corpus 93 PASS; next: `bb_call` builtins + generator re-pumping)* |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. *(Gate-2 47; next: numbervars/3, type-test compound, writeq, findall/3 last)* |
@@ -59,7 +60,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **PST Prolog** | `GOAL-PST-PROLOG.md` | PST-PL-SC — delete ~64 helpers, rewrite grammar. |
 | **TEMPLATES x86** | `GOAL-TEMPLATES-X86.md` | Backend: x86 (mode-3 native + mode-4 compile), all languages. Per-language state in `GOAL-*-BB.md`. |
 | **TEMPLATES JVM** | `GOAL-TEMPLATES-JVM.md` | Backend: JVM (Jasmin → .class), all languages. |
-| **TEMPLATES .NET** | `GOAL-TEMPLATES-NET.md` | Backend: one4all MSIL emitter (≠ snobol4dotnet repo), all languages. |
+| **TEMPLATES .NET** | `GOAL-TEMPLATES-NET.md` | Backend: SCRIP MSIL emitter (≠ snobol4dotnet repo), all languages. |
 | **TEMPLATES JS** | `GOAL-TEMPLATES-JS.md` | Backend: JavaScript (node), all languages. |
 | **TEMPLATES WASM** | `GOAL-TEMPLATES-WASM.md` | Backend: WebAssembly (WAT → node host), all languages. |
 | **IR Emitter** | `GOAL-IR-EMITTER-PREREQ.md` | IEP-8 can proceed; IEP-5/6/7/9 blocked on CHUNKS. |
@@ -72,7 +73,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Repo | File |
 |------|------|
-| one4all | `REPO-one4all.md` |
+| SCRIP | `REPO-SCRIP.md` |
 | corpus | `REPO-corpus.md` |
 | snobol4dotnet | `REPO-snobol4dotnet.md` |
 | snobol4jvm | `REPO-snobol4jvm.md` |

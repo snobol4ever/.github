@@ -1,18 +1,18 @@
 # SESSION HANDOFF — 2026-05-27 (Opus 4.7) — RK-BB-2 steps 1-3 landed
 
-**one4all HEAD: `8a046af1`** ✅ all gates HOLD
+**SCRIP HEAD: `8a046af1`** ✅ all gates HOLD
 **.github HEAD: pending — this file + PLAN.md + GOAL-RAKU-BB.md watermark**
 
 ---
 
 ## What landed this session
 
-Three commits on one4all, each independently gated. Foundation for the
+Three commits on SCRIP, each independently gated. Foundation for the
 BB_SUSPEND template now in place — the AST→BB lowering and SM scaffold widen
 for Raku are done; what remains (steps 4-6) is the actual x86 emission and
 the BB_SEQ wiring in `sm_bb_switch.cpp`.
 
-### Step 1 (one4all `2f2aed25`) — `lower_icn_proc_body` accepts TT_SUB_DECL
+### Step 1 (SCRIP `2f2aed25`) — `lower_icn_proc_body` accepts TT_SUB_DECL
 
 Widened from TT_PROC_DECL-only to also accept Raku's TT_SUB_DECL. Synthetic
 body view via `body_arr` / `body_off` / `n_stmts` — no AST mutation. Icon
@@ -39,7 +39,7 @@ both intact. Body-double-emission isn't an issue because
 Icon's skeleton-path emits a body; Raku's stays an empty `LABEL → RETURN`
 stub, and the inline shortcut carries the program.
 
-### Step 2 (one4all `340b804d`) — TT_SUSPEND → BB_SUSPEND (Raku-gated)
+### Step 2 (SCRIP `340b804d`) — TT_SUSPEND → BB_SUSPEND (Raku-gated)
 
 Added a `TT_SUSPEND` case to `lower_icn_expr_node`. Builds a `BB_SUSPEND`
 node with the yielded-value subgraph as α (operand). γ/ω stamped by the
@@ -51,7 +51,7 @@ has no `BB_SUSPEND` executor yet — without the gate,
 `rung03_suspend_gen{,_compose,_filter}` regress 198 → 195. Ungating for
 Icon belongs to GOAL-ICON-BB.
 
-### Step 3 (one4all `8a046af1`) — lower_every / lower_iterate accept LANG_RAKU
+### Step 3 (SCRIP `8a046af1`) — lower_every / lower_iterate accept LANG_RAKU
 
 - `lower_every` gate widened ICN → ICN+RAKU. SM_BB_SWITCH scaffold is
   generator-agnostic — Icon BB_TO_BY, Raku `__gather_N` proc body, etc. all
@@ -193,13 +193,13 @@ Step 6 (bb_seq.cpp + sm_bb_switch)         → verify rk_gather 9/30
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github  /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
 cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/GOAL-RAKU-BB.md
 cat /home/claude/.github/HANDOFF-2026-05-27-OPUS-RK-BB-2-STEPS-1-3.md  # this file
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip libscrip_rt
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip libscrip_rt
 bash scripts/test_raku_ir_rungs.sh     # Expect 8/30
 bash scripts/test_raku_mode4_rung.sh   # Expect 8/30
 bash scripts/test_smoke_raku.sh        # Expect 5/0

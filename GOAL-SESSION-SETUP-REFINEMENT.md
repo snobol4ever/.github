@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** .github (doc), one4all (scripts)
+**Repo:** .github (doc), SCRIP (scripts)
 **Done when:** Every active Goal file has a `## Session Setup` section listing
 exactly the scripts needed for that goal. REPO files and RULES.md reflect this
 as the canonical pattern. No goal requires running more than it needs.
@@ -36,7 +36,7 @@ as the canonical pattern. No goal requires running more than it needs.
 
 `build_full_session_environment.sh` builds everything — packages, scrip, spitbol,
 csnobol4 — regardless of what the goal actually needs. Most goals need only a
-subset. The current REPO-one4all.md has a loose generic table mapping goal *types*
+subset. The current REPO-SCRIP.md has a loose generic table mapping goal *types*
 to script lists, but:
 
 - It is not goal-specific
@@ -71,14 +71,14 @@ to script lists, but:
 
 - [x] **SR-1** — Rename `scripts/build_full_session_environment.sh` to
   `scripts/install_everything_full_stack.sh`. Update internal references.
-  Update REPO-one4all.md reference. Commit one4all.
+  Update REPO-SCRIP.md reference. Commit SCRIP.
   Gate: file renamed, old name gone, docs updated.
 
-- [x] **SR-2** — Add `## Session Setup` to REPO-one4all.md replacing the
+- [x] **SR-2** — Add `## Session Setup` to REPO-SCRIP.md replacing the
   generic goal-type table. New format: named categories with literal script
   lists. Each category maps to a family of goals (interp, x86, jvm, net,
   monitor/silly). Canonical — Goal files reference this for the full picture.
-  Gate: REPO-one4all.md has clean per-category setup blocks.
+  Gate: REPO-SCRIP.md has clean per-category setup blocks.
 
 - [x] **SR-3** — Add `## Session Setup` section to each active Goal file.
   List only the scripts that goal actually needs. No more.
@@ -128,14 +128,14 @@ Every Goal file gets this block, filled in for that goal:
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 # add only what this goal needs:
-# bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-# bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
-# bash /home/claude/one4all/scripts/build_monitor_ipc_shared_library.sh
-# bash /home/claude/one4all/scripts/build_ss_monitor_harness.sh
-# bash /home/claude/one4all/scripts/install_java_and_jasmin.sh
+# bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+# bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
+# bash /home/claude/SCRIP/scripts/build_monitor_ipc_shared_library.sh
+# bash /home/claude/SCRIP/scripts/build_ss_monitor_harness.sh
+# bash /home/claude/SCRIP/scripts/install_java_and_jasmin.sh
 ```
 ```
 

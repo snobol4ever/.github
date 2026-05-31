@@ -60,7 +60,7 @@ The goal text below is preserved as-is for the resumption session.
 
 # (original goal — on hold) beauty.sc Self-Beautifies via scrip
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** `./scrip --interp test/beauty-sc/beauty/beauty.sc < input.sno`
 produces output byte-for-byte identical to SPITBOL running `beauty.sno` on
 the same input. Gate script reports PASS.
@@ -70,17 +70,17 @@ the same input. Gate script reports PASS.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snocone.sh              # PASS=5
-bash /home/claude/one4all/scripts/test_beauty_snocone_all_modes.sh   # PASS=42 SKIP=3
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh       # PASS=49
+bash /home/claude/SCRIP/scripts/test_smoke_snocone.sh              # PASS=5
+bash /home/claude/SCRIP/scripts/test_beauty_snocone_all_modes.sh   # PASS=42 SKIP=3
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh       # PASS=49
 ```
 
 ---
@@ -396,7 +396,7 @@ the Snocone implementation against the SNOBOL4 implementation.
 
 **Move plan (when SB-6 is green):**
 
-1. `git mv one4all/test/beauty-sc/beauty/` content into
+1. `git mv SCRIP/test/beauty-sc/beauty/` content into
    `corpus/programs/snobol4/demo/beautify/` (`beauty.sc`, `Gen.sc`,
    `Qize.sc`, `TDump.sc`, `XDump.sc`, `case.sc`, `io.sc`, `omega.sc`,
    `driver.sc`).
@@ -510,7 +510,7 @@ work for SB-6 is in the runtime — specifically SB-6.E.7-H.
 ### Repos state at handoff
 
 - `corpus`: beauty.sc main loop replaced + `docs/SB-6.E.7-J-pass3-session18-main-loop-goto-attempt.diff` (the diff vs old `input_done`-shape baseline, 126 lines, applies clean to corpus HEAD pre-this-commit)
-- `one4all`: clean
+- `SCRIP`: clean
 - `.github`: this commit (findings doc + session entry + PLAN.md step ID update)
 - Three baseline gates green (smoke_snocone PASS=5, beauty_snocone_all_modes PASS=42 SKIP=3, smoke_unified_broker PASS=49)
 - SB-6 fingerprint NEW: `lines=98 stderr=4488 parse_err=12 internal_err=0 rc=124, 19 hunks`
@@ -630,7 +630,7 @@ Commit landed only the first four; main-loop rewrite reverted.
 
 - `corpus`: `5c468a3` pushed (1 file modified).  Was `5cc1baa` at
   session start; rebased onto `a438ec1` from a concurrent push.
-- `one4all`: clean — no runtime/compiler edits this session.
+- `SCRIP`: clean — no runtime/compiler edits this session.
 - `.github`: this commit (session entry + Open rungs update + PLAN.md
   goal table step ID).
 - Three baseline gates green throughout.
@@ -698,7 +698,7 @@ identified `SorF` as the unique collision.
 
 - `corpus`: 1 file modified (`programs/snobol4/demo/beauty/beauty.sno`).
   Will commit in this session as the SB-6.E.7-M closure.
-- `one4all`: clean — no runtime/compiler edits this session.
+- `SCRIP`: clean — no runtime/compiler edits this session.
 - `.github`: this commit (SB-6.E.7-M closed; Invariants md5 updated;
   Naming distinction md5 updated; this session record added).
 - Three baseline gates green throughout.
@@ -779,7 +779,7 @@ Pass #3 walked all 17 files line-by-line. The key body-part-faithfulness errors 
 ### Repos state
 
 - `corpus`: 8 .sc files modified (stack, case, counter, ShiftReduce, ReadWrite, TDump, global, beauty); 9 verified clean (assign, match, semantic, trace, omega, Gen, Qize, XDump, tree). Will commit as session-#15 entry.
-- `one4all`: clean at `31d8bb30` — no runtime/compiler edits this session.
+- `SCRIP`: clean at `31d8bb30` — no runtime/compiler edits this session.
 - `.github`: this commit (session entry + 2 new rungs).
 - Three baseline gates green.
 - Fingerprint: `lines=600 stderr=4389 parse_err=169 internal_err=4 rc=124` (down from `lines=1495 stderr=8448 parse_err=418 internal_err=18 rc=0`).
@@ -880,7 +880,7 @@ of the previous `''` empty-string substitution.
 ### Repos state
 
 - `corpus`: 15 .sc files modified (1-15 above). HEAD before this commit: `6a30100`.
-- `one4all`: clean at `31d8bb30`.
+- `SCRIP`: clean at `31d8bb30`.
 - `.github`: this commit (session entry).
 - Fingerprint: NOT MEASURED this session (gates not run).
 - Three baseline gates: NOT VERIFIED this session.
@@ -890,7 +890,7 @@ of the previous `''` empty-string substitution.
 
 ### Next session entry points
 
-1. Build scrip (`bash /home/claude/one4all/scripts/build_scrip.sh`).
+1. Build scrip (`bash /home/claude/SCRIP/scripts/build_scrip.sh`).
 2. Run three baseline gates and SB-6 fingerprint script. **Likely the gates regress**
    because (a) faithful translations exercise runtime gaps that the previous
    workaround-laden ports avoided (G-1/G-2/G-3 surface), and (b) some idioms used in
@@ -997,14 +997,14 @@ audited files (SB-6.E.7-C work, mechanical fix per file with hand-verify).
 
 ### What did NOT change
 
-No code touched in `corpus`, no runtime edits in `one4all`. This session
+No code touched in `corpus`, no runtime edits in `SCRIP`. This session
 is **all audit, no fixes** — pass #2 is a discovery pass; fixes execute
 in subsequent session(s) per the recommended fix order in the findings doc.
 
 ### Repos state
 
 - `corpus`: clean at `6a30100`
-- `one4all`: clean at `31d8bb30`
+- `SCRIP`: clean at `31d8bb30`
 - `.github`: this commit (findings doc + GOAL update)
 - Fingerprint: `lines=785 stderr=0 parse_err=3 internal_err=232 rc=0` (unchanged)
 - Three baseline gates green
@@ -1059,7 +1059,7 @@ with everything else.
 ### Repos state
 
 - `corpus`: clean at `6a30100`
-- `one4all`: clean at `31d8bb30`
+- `SCRIP`: clean at `31d8bb30`
 - `.github`: this commit
 - Fingerprint: `lines=785 stderr=0 parse_err=3 internal_err=232 rc=0`
 - Three baseline gates green
@@ -1120,7 +1120,7 @@ bash scripts/test_beauty_snocone_subsystems.sh \
 ### Repos state
 
 - `corpus`: `6a30100` — TDump.sc fix + 6 new subsystem tests
-- `one4all`: clean at `31d8bb30`
+- `SCRIP`: clean at `31d8bb30`
 - `.github`: this commit
 - Fingerprint: `lines=785 stderr=0 parse_err=3 internal_err=232 rc=0`
 - Three baseline gates green
@@ -1133,7 +1133,7 @@ bash scripts/test_beauty_snocone_subsystems.sh \
 
 ### What landed
 
-**SB-6.E.7-A CLOSED** (`one4all @ 31d8bb30`): `~(scan)` negation bug fixed.
+**SB-6.E.7-A CLOSED** (`SCRIP @ 31d8bb30`): `~(scan)` negation bug fixed.
 Three interrelated fixes: (1) IR tree-walker E_SCAN in SNOBOL4 context now
 calls `exec_stmt()` instead of Icon generator path; (2) SM E_NOT lowering
 added `SM_POP` before each push to fix stack imbalance; (3) new
@@ -1151,7 +1151,7 @@ its .sno/.inc source before any further style sweeps.
 
 ### Repos state
 
-- `one4all`: `31d8bb30` (SB-6.E.7-A runtime fix, pushed)
+- `SCRIP`: `31d8bb30` (SB-6.E.7-A runtime fix, pushed)
 - `corpus`: `2fbe29d` (revert of broken debrace, pushed)
 - `.github`: this commit
 - Fingerprint: `lines=89 stderr=0 parse_err=3 internal_err=0 rc=0`
@@ -1316,7 +1316,7 @@ by simpler reproducers.
 ### Repos state
 
 - `corpus`: this commit (`f4d0099` — 41 ~DIFFER → IDENT replacements)
-- `one4all`: clean
+- `SCRIP`: clean
 - `.github`: this commit (sweeps marked closed; SB-6.E.7-H/I new)
 - Fingerprint unchanged: `lines=89 stderr=0 parse_err=3 internal_err=0`
 - Three baseline gates green
@@ -1410,7 +1410,7 @@ clean. The remaining lines=89 work is upstream:
 - `corpus`: this commit (beauty.sc pp/ss_leaf dispatch fix,
   41 insertions / 15 deletions; six zero-space jammed lines
   in ss_leaf goto-clause branches restored to canonical style)
-- `one4all`: clean
+- `SCRIP`: clean
 - `.github`: this commit (4 new rungs, session entry)
 - Fingerprint unchanged: `lines=89 stderr=0 parse_err=3 internal_err=0`
 - Three baseline gates green
@@ -1484,7 +1484,7 @@ open and is still gated on SB-6.E.7-A (bare-if runtime bug).
 ### Repos state
 
 - `corpus`: this commit (15 .sc files reflowed)
-- `one4all`: clean
+- `SCRIP`: clean
 - `.github`: this commit (session entry)
 - `csnobol4`, `x64`: clean
 - Fingerprint unchanged: `lines=89 stderr=0 parse_err=3 internal_err=0`
@@ -1608,7 +1608,7 @@ to do.
   - [x] **SB-6.E.7-A** — **Bare-if Snocone runtime bug. CLOSED session 2026-05-02.**
         Root cause: IR tree-walker's E_SCAN used Icon generator path (returned DT_P,
         always non-fail) instead of calling exec_stmt. Also SM E_NOT lowering had
-        stack imbalance (no SM_POP before push). Fixed in one4all `31d8bb30`:
+        stack imbalance (no SM_POP before push). Fixed in SCRIP `31d8bb30`:
         interp.c E_SCAN SNOBOL4-context branch; sm_lower.c E_NOT SM_POP fix;
         SM_PUSH_NULL_NOFLIP opcode. lines=89→553. Reproducer:
         edit `corpus/programs/snocone/demo/beauty/trace.sc::T8Trace`
@@ -1973,7 +1973,7 @@ beauty.sc beyond pp/ss/ss_leaf still pending).
 
 - `corpus`: ShiftReduce.sc Pop fix uncommitted (resolved in #7 — the
   fix was already at HEAD; the note was stale)
-- `one4all`: clean at `f95817cd`
+- `SCRIP`: clean at `f95817cd`
 - `.github`: this commit (audit findings recorded)
 - Fingerprint unchanged: `lines=89 stderr=0 parse_err=3 internal_err=0`
 
@@ -2028,7 +2028,7 @@ beauty.sc + custom test → infinite-output loop). Not blocking.
 
 ## Repos state
 
-- `one4all`: clean at `9c9de2f4` (canonical SB-6 reproducer landed)
+- `SCRIP`: clean at `9c9de2f4` (canonical SB-6 reproducer landed)
 - `corpus`: clean
 - `.github`: this commit (PLAN.md table-bloat shrink + goal-file slim
   + script pointer)

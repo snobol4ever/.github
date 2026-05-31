@@ -414,7 +414,7 @@ multi-line (9-20). Inconsistent. Pick one.
 ## Repos state at end of session 2026-05-02 #13
 
 - `corpus`: clean at HEAD `6a30100` (no .sc edits this session)
-- `one4all`: clean at HEAD `31d8bb30` (no runtime edits this session)
+- `SCRIP`: clean at HEAD `31d8bb30` (no runtime edits this session)
 - `.github`: this session adds this findings doc + GOAL update
 - Fingerprint: `lines=785 stderr=0 parse_err=3 internal_err=232 rc=0` (unchanged)
 - Three baseline gates green

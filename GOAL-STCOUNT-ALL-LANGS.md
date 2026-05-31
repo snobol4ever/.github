@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** `&STCOUNT` and `&STLIMIT` work as first-class keywords in all
 six frontends (SNOBOL4, Icon, Prolog, Raku, Snocone, Rebus). Every statement
 executed by any frontend increments `&STCOUNT`. Setting `&STLIMIT` terminates
@@ -220,14 +220,14 @@ These are the SCRIP enhancements — shared keywords that any frontend can use:
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=31
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=31
 ```
 
 ---
 
-## Current state (2026-04-14, one4all HEAD 11d9e9c9)
+## Current state (2026-04-14, SCRIP HEAD 11d9e9c9)
 
 ST-1 through ST-17 all open.
 Next: ST-1 — audit keyword dispatch in interp.c.

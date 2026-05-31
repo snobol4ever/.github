@@ -1,10 +1,10 @@
 # HANDOFF 2026-05-28 — Sonnet 4.6 — PROLOG-BB: Full session summary
 
-**Repos:** one4all `8c556f29` · .github `107b42b4` · corpus untouched.
+**Repos:** SCRIP `8c556f29` · .github `107b42b4` · corpus untouched.
 
 ---
 
-## What landed this session (four commits to one4all)
+## What landed this session (four commits to SCRIP)
 
 ### 1. `88bacd2a` — FACT cleanup Steps 2+3 (picked up from Opus Step 1)
 
@@ -106,7 +106,7 @@ git config user.email "lcherryh@yahoo.com"
 ## Verification
 
 ```
-cd /home/claude/one4all && git log origin/main --oneline -1
+cd /home/claude/SCRIP && git log origin/main --oneline -1
 # 8c556f29 Prolog BB: nb_setval/getval + aggregate_all(count/sum/max/min) builtins (rung27 +4, GATE-3 100→104)
 
 cd /home/claude/.github && git log origin/main --oneline -1

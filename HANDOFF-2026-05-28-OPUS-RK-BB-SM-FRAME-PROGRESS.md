@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-28
 **Model:** Opus 4.7
-**Watermark:** one4all `3eece6a3`, .github HEAD, corpus unchanged
+**Watermark:** SCRIP `3eece6a3`, .github HEAD, corpus unchanged
 
 ---
 
@@ -99,7 +99,7 @@ PUSH_INT's `call rt_push_int@PLT`). Else the existing CALL_FN path unchanged.
 
 ---
 
-## Commit lineage (one4all, all on origin/main)
+## Commit lineage (SCRIP, all on origin/main)
 
 ```
 3eece6a3 RK-BB-SM-FRAME-MODE4 piece 1 SCAFFOLDING: rk_sub_lookup + rk_sub_label

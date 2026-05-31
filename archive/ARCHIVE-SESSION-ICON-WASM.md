@@ -1,6 +1,6 @@
-# SESSION-icon-wasm.md — Icon × WASM (one4all) ⛔ INACTIVE — parked 2026-03-31, see MILESTONE_ARCHIVE.md
+# SESSION-icon-wasm.md — Icon × WASM (SCRIP) ⛔ INACTIVE — parked 2026-03-31, see MILESTONE_ARCHIVE.md
 
-**Repo:** one4all · **Frontend:** Icon (JCON four-port model) · **Backend:** WebAssembly
+**Repo:** SCRIP · **Frontend:** Icon (JCON four-port model) · **Backend:** WebAssembly
 **Session prefix:** `IW` · **Trigger:** "playing with ICON Programming Language" / "Icon × WASM" / "IW-session"
 **Driver:** `scrip-cc -icn -wasm -o prog.wat prog.icn` → `wat2wasm --enable-tail-call prog.wat -o prog.wasm` → `node test/wasm/run_wasm.js prog.wasm`
 **Oracle:** `icont` / `iconx` (standard Icon interpreter)
@@ -43,7 +43,7 @@ Never run snobol4_wasm, prolog_wasm, icon_x86, icon_jvm, or any other cell.
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **ICON WASM** | IW-12 | one4all `ab0ac8f` · `.github` this commit | **IW-13**: M-IW-R01 rung02_proc_fact — E_EVERY exhaustion infinite loop |
+| **ICON WASM** | IW-12 | SCRIP `ab0ac8f` · `.github` this commit | **IW-13**: M-IW-R01 rung02_proc_fact — E_EVERY exhaustion infinite loop |
 
 **IW-12 completed:** Fixed NULL `wasm_out` in `emit_wasm_icon_file()` — 126 compile segfaults → 9 (rung36 parse gaps). Added dual-set_out contract to `emit_wasm.h`. Gate 981/4 ✅. Baseline: 0p/214f (9 compile, 124 output, 80 wat2wasm, 1 timeout).
 
@@ -65,7 +65,7 @@ Skips:    `nasm libgc-dev java javac mono ilasm swipl`
 ## §TEST GATE (run every session, own cell only)
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh            # always — 719/19 baseline
 CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm  # WASM ICON ONLY
 ```
@@ -123,7 +123,7 @@ node test/wasm/run_wasm.js /tmp/t.wasm
 
 ```bash
 # 1. Clone
-for repo in .github one4all harness corpus; do
+for repo in .github SCRIP harness corpus; do
   git clone "https://TOKEN_SEE_LON@github.com/snobol4ever/${repo}.git"
 done
 
@@ -131,7 +131,7 @@ done
 FRONTEND=icon BACKEND=wasm TOKEN=TOKEN_SEE_LON bash /home/claude/.github/SESSION_SETUP.sh
 
 # 3. Gate (own cell only)
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh
 CORPUS=/home/claude/corpus bash test/run_invariants.sh icon_wasm
 

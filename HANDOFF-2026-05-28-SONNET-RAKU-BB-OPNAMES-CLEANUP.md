@@ -2,7 +2,7 @@
 
 ## What landed
 
-**one4all (uncommitted edit, ready to push):**
+**SCRIP (uncommitted edit, ready to push):**
 - `src/lower/sm_prog.c:252` — opnames[] slot mislabel `"SM_UNUSED_8"` → `"SM_NAMED_CALL"`.
   One-line rename, no behavior change. This is option (a) from the prior handoff
   (M3-RK-NOINTERP-3 follow-up). Prevents future miscounts when triaging by opname

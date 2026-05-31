@@ -25,8 +25,8 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** corpus+one4all
-**Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)
+**Repo:** corpus+SCRIP
+**Branch:** `parser` (SCRIP only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-SNOCONE.md` and `GOAL-SNOCONE-IN-SNOCONE.md`.
 The existing Snocone frontend (`src/frontend/snocone/`) is the in-process oracle.
 
@@ -66,16 +66,16 @@ bootstrap cycle closes.
 ## Session Setup
 
 ```bash
-( cd /home/claude/one4all && git fetch origin parser 2>/dev/null; \
+( cd /home/claude/SCRIP && git fetch origin parser 2>/dev/null; \
   git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snocone.sh        # existing frontend baseline
-bash /home/claude/one4all/scripts/test_parser_snocone.sh       # this goal's gate
+bash /home/claude/SCRIP/scripts/test_smoke_snocone.sh        # existing frontend baseline
+bash /home/claude/SCRIP/scripts/test_parser_snocone.sh       # this goal's gate
 ```
 
 ---
@@ -336,7 +336,7 @@ Not violations (canonical guide explicitly permits or prefers):
   `SN-6` branch at `sm_lower.c:485-488` → `SM_PAT_REFNAME "White"` → match-time
   deferred-name lookup that re-resolves cleanly through recursion.
 
-  ### SM-side fix LANDED (one4all @ HEAD-+1, session #66)
+  ### SM-side fix LANDED (SCRIP @ HEAD-+1, session #66)
 
   Added DT_E branch to `SM_PAT_DEREF` mirroring `eval_pat.c::interp_eval_pat`'s
   `case E_VAR` (line 82-99) DT_E handling — calls `PATVAL_fn(d)` (the SIL

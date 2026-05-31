@@ -1,6 +1,6 @@
 # GOAL-BB-TEMPLATE-LADDER.md — Fill BB and SM Templates: Icon + Prolog Ladder
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Prereq:** GOAL-HEADQUARTERS.md PP-1..6 ✅ (`929d3177`) — pSM/pBB explicit params live.
 
 ## What this goal is
@@ -102,7 +102,7 @@ Each gets its own `BB_templates/bb_pl_<name>.c`.
 ## Ladder steps — Icon
 
 - [x] **ICN-T-1** — `bb_icn_to.cpp`: `BB_TO` x86 template (stub; gate passes). GATE-PK.
-- [x] **ICN-T-2** ✅ — `bb_to_by.cpp` + `icn_to_by_rt` runtime: `BB_TO_BY` int+real x86 TEXT template. rung01 step variants PASS. GATE-PK 507/0/608. one4all `13f4c7d4`. Also: renamed all BB_ICN_* → BB_* (22 kinds), 5 collisions resolved (BB_GEN_ALT, BB_GEN_BINOP, BB_GEN_SCAN; BB_ICN_TO_BY+BB_ICN_LIMIT dead, merged into existing).
+- [x] **ICN-T-2** ✅ — `bb_to_by.cpp` + `icn_to_by_rt` runtime: `BB_TO_BY` int+real x86 TEXT template. rung01 step variants PASS. GATE-PK 507/0/608. SCRIP `13f4c7d4`. Also: renamed all BB_ICN_* → BB_* (22 kinds), 5 collisions resolved (BB_GEN_ALT, BB_GEN_BINOP, BB_GEN_SCAN; BB_ICN_TO_BY+BB_ICN_LIMIT dead, merged into existing).
 - [x] **ICN-T-3** ✅ — `bb_binop_gen.cpp` + `rt_binop_gen` runtime: `BB_BINOP_GEN` x86 TEXT template (cross-product arith/relop). GATE-PK 516/0/599.
 - [ ] **ICN-T-4** — `bb_proc_gen.cpp`: `BB_PROC_GEN`. Verify rung02 proc calls PASS. GATE-PK.
 - [x] **ICN-T-5** ✅ — `bb_upto.cpp`: `BB_UPTO` inline x86, no RT calls. GATE-PK 513/0/602.
@@ -126,17 +126,17 @@ Each gets its own `BB_templates/bb_pl_<name>.c`.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip > /tmp/build_full.log 2>&1
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip > /tmp/build_full.log 2>&1
 [ -x scrip ] || { grep -E "error:" /tmp/build_full.log | head -5; exit 1; }
-for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
+for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
-bash /home/claude/one4all/scripts/test_per_kind_diff.sh
+bash /home/claude/SCRIP/scripts/test_per_kind_diff.sh
 # Expect: PASS=407 FAIL=0 STUB=647
-bash /home/claude/one4all/scripts/test_icon_all_rungs.sh 2>&1 | tail -3
+bash /home/claude/SCRIP/scripts/test_icon_all_rungs.sh 2>&1 | tail -3
 # Expect: PASS=194 FAIL=36 XFAIL=35
-bash /home/claude/one4all/scripts/test_smoke_prolog.sh
+bash /home/claude/SCRIP/scripts/test_smoke_prolog.sh
 # Expect: PASS=5 FAIL=0
 ```
 
@@ -340,7 +340,7 @@ If you find yourself writing a new `rt_*` function to make a PL-T template work,
 
 
 ```
-one4all: HEAD (ICN-T-3 + RULE: no template code in emit_core.c)
+SCRIP: HEAD (ICN-T-3 + RULE: no template code in emit_core.c)
 Gate: PASS=516 FAIL=0 STUB=599
 Icon --interp: PASS=195 FAIL=36 XFAIL=35
 Prolog smoke: PASS=5 FAIL=0
@@ -375,7 +375,7 @@ sm_jit_run can still read CUR_INS operand strings/integers via CUR_INS->a[0].s e
   (output/arith/concat) work. `SM_EXEC_STMT` and `SM_BB_ONCE_PROC` segfault because they
   reach into freed `bb_table` at runtime.
 
-- [ ] **FREE-2** — Fix `SM_EXEC_STMT` — WIP one4all `5ea638d3`.
+- [ ] **FREE-2** — Fix `SM_EXEC_STMT` — WIP SCRIP `5ea638d3`.
   Architecture correct: `ExecStmtPat_t` flat table, copy from BB+SM before delete,
   `stage2_free_bb_only` frees BB, `SM_codegen` emits self-contained blob from table,
   free table, `stage2_free_sm_bb` frees SM after run. `goto --run` PASSES.
@@ -408,7 +408,7 @@ sm_jit_run can still read CUR_INS operand strings/integers via CUR_INS->a[0].s e
 ## Watermark (2026-05-25, Claude Sonnet 4.6, session 5)
 
 ```
-one4all: HEAD 5ea638d3 (FREE-2 WIP — BROKEN pattern_replace --run)
+SCRIP: HEAD 5ea638d3 (FREE-2 WIP — BROKEN pattern_replace --run)
 .github: HEAD (RULES update + FREE-2 diagnosis)
 Gates: PASS=496 FAIL=17 STUB=602 | smoke_prolog 5/5 | smoke_icon 5/5
 RULES: BB/SM deletion must be 100% complete — zero residue rule added

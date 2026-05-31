@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** the Snocone front-end + IR lowering supports two
 `switch` lowerings — `chain` (current) and `table` (perfect-hash
 jump table on case literals) — selectable per-site, per-file, and
@@ -139,6 +139,6 @@ gate.
 
 ## Repos
 
-- `one4all` — frontend, lowering, drivers, tests
+- `SCRIP` — frontend, lowering, drivers, tests
 - `corpus` — benchmark fixture (under `programs/snocone/bench/switch/`)
 - `.github` — this file, ARCH-SNOCONE.md spec

@@ -7,7 +7,7 @@ landed the operator-notation writer; this session is the trivial paired
 follow-up that wires `term_string` itself.
 
 **Result:** ✅ Closed. GATE-3 mode-2 **90/107 → 91/107** (+1). All other gates held.
-one4all `66d283ad`. Net diff `+17 / -1` across two files.
+SCRIP `66d283ad`. Net diff `+17 / -1` across two files.
 
 ## Gate ledger (this session, fresh build, before → after)
 
@@ -150,5 +150,5 @@ Estimated +4 mode-4 PASS (3 rung25 + likely sister fixtures elsewhere).
 
 ## Watermarks
 
-- one4all HEAD: `66d283ad`
+- SCRIP HEAD: `66d283ad`
 - .github HEAD: pending watermark + this handoff + GOAL update + PLAN update

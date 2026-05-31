@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-29 — Opus 4.8 — SBL-POOL-TRIM: fence_driver native gap = bb_pool exhaustion (NOT FENCE-SEAL)
 
-**Repo:** one4all (staged, NOT pushed — awaiting `perform hand off`). Base `5cc1224e` (sibling Prolog HEAD; SNOBOL4 floor `77a39e82` in history).
+**Repo:** SCRIP (staged, NOT pushed — awaiting `perform hand off`). Base `5cc1224e` (sibling Prolog HEAD; SNOBOL4 floor `77a39e82` in history).
 **Goal:** GOAL-SNOBOL4-BB.md.
 **Net:** Native broad corpus **256 → 259 (+3: `case_driver`, `fence_driver`, `test_case`); ZERO regressions** (baseline-vs-new native FAIL-list diff: exactly those 3 newly green, none dropped).
 

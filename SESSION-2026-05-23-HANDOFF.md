@@ -4,7 +4,7 @@
 
 | Repo | HEAD |
 |------|------|
-| one4all | `cf9284f5` |
+| SCRIP | `cf9284f5` |
 | corpus | `3e223db` |
 | .github | `db558a72` |
 
@@ -45,7 +45,7 @@ Session-start gates confirmed clean. No code written, no commits, no regressions
 8. SCRIP_NO_AST_WALK=1 bash scripts/test_icon_all_rungs.sh  # same
 9. Mark ICN-T-2 [x] in GOAL-BB-TEMPLATE-LADDER.md, update watermark → NEXT ICN-T-3
 10. Update PLAN.md BB Template Ladder row
-11. Commit one4all; commit .github last; push both
+11. Commit SCRIP; commit .github last; push both
 
 ## Session health note
 

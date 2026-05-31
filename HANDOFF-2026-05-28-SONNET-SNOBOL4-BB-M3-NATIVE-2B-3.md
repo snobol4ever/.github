@@ -4,7 +4,7 @@
 
 | Repo | HEAD |
 |------|------|
-| one4all | `910d55c3` |
+| SCRIP | `910d55c3` |
 | .github | `eab88062` |
 
 Tree: **CLEAN**. Both repos pushed to origin/main.
@@ -136,7 +136,7 @@ always verify `rdi`/`rsi` are loaded before the `call rax`.
 ## Session setup for next session
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 make libscrip_rt

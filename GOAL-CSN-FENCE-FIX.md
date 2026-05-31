@@ -25,10 +25,10 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** csnobol4 (primary), one4all (gates only)
+**Repo:** csnobol4 (primary), SCRIP (gates only)
 **Done when:** `csnobol4 -bf -P64k -S64k beauty.sno < beauty.sno` produces
 N>500 lines of output without segfault and without "Caught signal" diagnostic.
-PLUS one4all Smoke=7, Broker=49 preserved.  PLUS the existing 10-test
+PLUS SCRIP Smoke=7, Broker=49 preserved.  PLUS the existing 10-test
 `test/fence_function/` suite continues to pass.
 
 **Lifted from:** `GOAL-LANG-SNOBOL4.md` SN-26-bridge-coverage-i (sessions
@@ -226,8 +226,8 @@ write code.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 Tiny repro (always reproduce first thing, before any code change):
@@ -252,8 +252,8 @@ SNO_LIB=. /home/claude/csnobol4/snobol4 -bf -P64k -S64k beauty.sno < beauty.sno 
 Gate after fix:
 ```bash
 cd /home/claude/csnobol4 && make -f Makefile2 test    # incl. fence_function/
-bash /home/claude/one4all/scripts/test_smoke_snobol4.sh         # PASS=7
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh  # PASS=49
+bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh         # PASS=7
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh  # PASS=49
 ```
 
 ---
@@ -425,7 +425,7 @@ repro reproduces the ORIGINAL crash signature
 
 **Steps:**
 - [x] `cd /home/claude/csnobol4 && git revert --no-edit 1d225f8`
-- [x] Build: `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
+- [x] Build: `bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh`
 - [x] Tiny repro: confirm OLD crash signature (`Caught signal 11 in statement 1074`).
 - [x] gdb confirm: `CSN_NO_SEGV_HANDLER=1 gdb --args ... < /tmp/tiny.in` shows L_SALT1 at the crash, NOT L_SCIN4.
 - [x] fence_function/ regression: `cd /home/claude/csnobol4 && make -f Makefile2 test` — confirm 10/10 tests still PASS.
@@ -508,7 +508,7 @@ urge to start writing FNCA/FNCB/FNCC edits before F-1 closes.
   segfault and produces >0 lines of output.
 - `csnobol4 -bf -P64k -S64k beauty.sno < beauty.sno | wc -l` ≥ 500.
 - `cd csnobol4/test/fence_function && make csnobol4` shows 10/10 PASS.
-- one4all Smoke=7 and Broker=49 preserved.
+- SCRIP Smoke=7 and Broker=49 preserved.
 
 **Design:** D6 from the Open Design Space section above.  Full sketch
 in `csnobol4/docs/F-1-findings.md`.
@@ -535,7 +535,7 @@ in `csnobol4/docs/F-1-findings.md`.
       **fence_function/ suite: 10/10 PASS.**
 - [x] **Step 3: IPC two-way divergence hunt for beauty self-host.**
       Run via `STDIN_SRC=/tmp/tiny.in PARTICIPANTS="csn spl" \
-      bash one4all/scripts/test_monitor_3way_sync_step_auto.sh \
+      bash SCRIP/scripts/test_monitor_3way_sync_step_auto.sh \
       corpus/programs/snobol4/demo/beauty/beauty.sno` (run with the
       beauty dir as CWD and `SNO_LIB=.` so includes resolve).  First
       divergence: csn record #1 = `LABEL stno=2`, spl record #1 =
@@ -674,7 +674,7 @@ in `csnobol4/docs/F-1-findings.md`.
       v311.sil:12203 still says `4*DESCR / v=2` — it needs to be
       reconciled with the implemented C 5*DESCR / v=4 layout.
 - [ ] **Step 4: Build clean after Step 3a fix.**
-      `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
+      `bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh`
 - [ ] **Step 5: fence_function/ regression.**  10/10 expected.
 - [ ] **Step 6: Tiny repro.**  ≥1 line output, no segfault.
 - [ ] **Step 7: Full self-host.**  beauty.sno ≥500 lines.
@@ -756,7 +756,7 @@ F-1 lands.
 
 **HEADs:**
 - csnobol4 @ session #66 (working tree CLEAN at HEAD `451ccae`; session #66 docs commit landed; no runtime change since #64)
-- one4all @ `06433f90`
+- SCRIP @ `06433f90`
 - corpus @ session #65 `6f00145` (53 tests at IDs 100–152; Tier G additions + 118/127/140/141 corrections)
 - x64 @ `71ff275`
 - active step → **F-2 Step 3a** (sessions #49–#66; session #58 paired-sentinel eliminates all CRASHes; session #64 commits TXSP write-site fix at isnobol4.c:11498 — gate-neutral; session #65 verifies test suite against SPITBOL oracle, expands to 53 tests with Tier G; session #65 (cont) isolates L_FNCD discriminator (`BRANCH(FAIL)` → `goto L_TSALT`); **session #66** applies + falsifies the composed fix (L_FNCD goto-L_TSALT + FNCA-success zeroing): zeroing fired correctly but had no effect; trace evidence on test 148 pinpoints bug to **a SCIN3-pushed entry inside the protected leak region** at PDLPTR=e910 with slot[1]={a=0x60,f=0}, dispatched under switched PATBCL=cmd via session #64's SCIN3 fall-through path. Resolves the session #62 vs #64 tension definitively: bug is on failure-walker path (#64) but inside the protected region, NOT in an "abandoned" region. Refutes FNCA-success zeroing (the entry lives in the OUTER scan's frame, not FNCA's). Recommends **option (A2)**: at L_STARP2 success, conditionally zero non-FNC entries in [STREX_entrypdl+3*DESCR..PDLPTR] IF an FNCDCL exists in the region. Should preserve guard5 (no FENCE → no FNCDCL → no zeroing) and fix all 7 cluster A/B FAILs. Findings in `csnobol4/docs/F-2-Step3a-session66-findings.md`. Diagnostic patch saved as `csnobol4/docs/F-2-Step3a-session66-diagnostic.diff`. csnobol4 advanced to `451ccae`. Beauty 42 lines unchanged.)
@@ -1347,7 +1347,7 @@ STREXCCL doesn't share these failure modes.
    - fence_function 10/10
    - fence_suite total ≥46/48 (target 47/48 or 48/48 minus test 127)
    - Beauty self-host ≥500 lines
-6. Smoke gates skipped if one4all not cloned.
+6. Smoke gates skipped if SCRIP not cloned.
 7. Commit csnobol4 first, then `.github` per RULES.md.
 
 ### Honest circularity check

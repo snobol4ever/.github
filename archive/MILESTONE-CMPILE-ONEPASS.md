@@ -132,7 +132,7 @@ they were artifacts of the two-tree design.
 ## Gate
 
 ```bash
-cd /home/claude/one4all/src
+cd /home/claude/SCRIP/src
 make 2>&1 | grep "error:" | wc -l   # → 0
 
 # CMPILE and Bison/Flex produce identical IR for a sample program:
@@ -141,7 +141,7 @@ diff <(./scrip --dump-cmpile corpus/programs/snobol4/demo/hello.sno) \
 # → empty diff
 
 # beauty suite unaffected:
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash test/monitor/run_monitor_2way.sh \
     corpus/programs/snobol4/beauty/beauty_assign_driver.sno
 # → EXIT 0

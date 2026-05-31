@@ -5,10 +5,10 @@ mode-4 emission family.
 
 ## What landed
 
-`bb_nfa_class` — the 32-byte character-set bitset leaf — landed in one4all `037be2ce`
+`bb_nfa_class` — the 32-byte character-set bitset leaf — landed in SCRIP `037be2ce`
 (pushed to origin/main; rebased past peer Prolog commit `123878af` conflict-free).
 
-Files touched (all in one4all):
+Files touched (all in SCRIP):
 - `src/emitter/BB_templates/bb_nfa.cpp` — new `bb_nfa_class_str` + `bb_nfa_class` (MEDIUM_TEXT).
 - `src/emitter/BB_templates/bb_templates.h` — `bb_nfa_class` prototype.
 - `src/emitter/emit_core.c` — `BB_NFA_CLASS` split off `bb_stub` → `bb_nfa_class(nd)`.

@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-28 — Opus 4.7 — Prolog BB — SWI-NEXT step 1: TT_VAR-as-goal
 
-**Repos:** one4all only (single file: `src/lower/lower_pl.c`).
+**Repos:** SCRIP only (single file: `src/lower/lower_pl.c`).
 **Predecessor:** `6c3d8703` (Opus 4.7, SWI-5 EMPTY verdict scripts).
 **Successor target:** `a21dc32b` (post-rebase landing point for this commit).
 **Type:** Partial fix + diagnostic. Step 1 of 2 needed to unblock real SWI test execution.
@@ -227,7 +227,7 @@ the .ref files will need re-baselining.
 #       (carity == 1 && strcmp(callee, "once") == 0)) {
 
 # Then rebuild BOTH scrip and libscrip_rt:
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 make -j4 scrip && make libscrip_rt
 
 # Verify call/N still works (this is the regression risk):

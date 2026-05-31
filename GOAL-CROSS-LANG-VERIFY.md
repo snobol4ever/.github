@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** A single `.sc` (Snocone/SCRIP) program calls SNOBOL4 patterns,
 Prolog predicates, and Icon generators directly — no marshalling, no glue — and
 the test suite passes, verifying one shared IR, one shared Byrd box execution model.
@@ -131,8 +131,8 @@ suite can be written and run.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```

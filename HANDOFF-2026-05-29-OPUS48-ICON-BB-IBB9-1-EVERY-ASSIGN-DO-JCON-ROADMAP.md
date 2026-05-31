@@ -3,8 +3,8 @@
 **Author:** Claude Opus 4.8
 **Date:** 2026-05-29
 **Goal:** GOAL-ICON-BB.md, rung IBB-9 (new)
-**one4all:** `e8f66866` (on origin/main, rebased onto `b408b086`)
-**Repos touched:** one4all (2 files), .github (GOAL + PLAN watermark + this doc)
+**SCRIP:** `e8f66866` (on origin/main, rebased onto `b408b086`)
+**Repos touched:** SCRIP (2 files), .github (GOAL + PLAN watermark + this doc)
 
 ---
 
@@ -116,7 +116,7 @@ structural difference between loop forms is where body-success/failure routes â€
 ## Per-rung gate used this session
 
 ```bash
-cd /home/claude/one4all && bash scripts/build_scrip.sh
+cd /home/claude/SCRIP && bash scripts/build_scrip.sh
 ./scrip --interp PROG.icn > m2.txt
 ./scrip --run    PROG.icn > m3.txt
 diff m2.txt m3.txt                                       # empty

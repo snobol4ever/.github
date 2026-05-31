@@ -25,8 +25,8 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** corpus+one4all
-**Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)
+**Repo:** corpus+SCRIP
+**Branch:** `parser` (SCRIP only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-ICON.md`. The existing Icon frontend
 (`src/frontend/icon/`) is the in-process oracle.
 
@@ -58,15 +58,15 @@ wait for the LANG ladder to mature features upstream.
 ## Session Setup
 
 ```bash
-( cd /home/claude/one4all && git fetch origin parser 2>/dev/null; git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+( cd /home/claude/SCRIP && git fetch origin parser 2>/dev/null; git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_icon.sh
-bash /home/claude/one4all/scripts/test_parser_icon.sh
+bash /home/claude/SCRIP/scripts/test_smoke_icon.sh
+bash /home/claude/SCRIP/scripts/test_parser_icon.sh
 ```
 
 ---
@@ -344,7 +344,7 @@ beauty.sc, not yet fully applied to `parser_icon.sc`.  The audit below
 lists every guideline currently violated, in the order to attack them.
 These are guidelines, not laws — Lon may decline any item.  Each is
 an independently landable sub-rung; do them one at a time, gate after
-each (`bash /home/claude/one4all/scripts/test_parser_icon.sh` →
+each (`bash /home/claude/SCRIP/scripts/test_parser_icon.sh` →
 PASS=51 preserved).  Land in this order so each step rests on a clean
 gate.
 

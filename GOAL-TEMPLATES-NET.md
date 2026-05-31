@@ -1,6 +1,6 @@
 # GOAL-TEMPLATES-NET.md — .NET backend, all languages
 
-**Repo:** one4all + .github
+**Repo:** SCRIP + .github
 **Backend:** .NET — MSIL (`.il`) → `ilasm` → CLR (`dotnet`). Mode: `--compile --target=msil`.
 **Read first:** `ARCH-NET.md` · `ARCH-EMITTER.md` · `ARCH-IR.md` · `RULES.md`
 
@@ -13,7 +13,7 @@ The six frontends lower to the shared SM/BB IR. This backend supplies the .NET a
 that **every language runs on the CLR**. Byrd boxes emit as MSIL classes (`bb_*.il` →
 `boxes.dll` via `ilasm`); labels and gotos at emit time, no interpreter loop at runtime.
 
-⚠️ **Distinct from the snobol4dotnet repo.** This goal covers the **one4all** MSIL emitter
+⚠️ **Distinct from the snobol4dotnet repo.** This goal covers the **SCRIP** MSIL emitter
 arms only. Jeffrey Cooper's standalone C# runtime lives in the separate `snobol4dotnet`
 repo and is tracked by its own `GOAL-NET-*` files — do not fold those in here. The
 snobol4dotnet runtime serves as a semantic oracle/reference (see ARCH-NET.md); the

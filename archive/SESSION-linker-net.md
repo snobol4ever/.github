@@ -12,7 +12,7 @@
 
 | Track | Repo | Emitter | Owner | Linker relevance |
 |-------|------|---------|-------|-----------------|
-| **TINY NET** | one4all | `src/backend/net/emit_byrd_net.c` | Lon | **This sprint** — add EXPORT/IMPORT here |
+| **TINY NET** | SCRIP | `src/backend/net/emit_byrd_net.c` | Lon | **This sprint** — add EXPORT/IMPORT here |
 | **DOTNET** | snobol4dotnet | Jeff's full C# runtime | Jeff | Later — Jeff's track, independent |
 
 **This sprint targets TINY NET only.** Jeff's snobol4dotnet `@N` bug and M-NET-POLISH
@@ -294,7 +294,7 @@ Same `greet_lib.sno` / `greet_main.sno` as JVM test — reuse verbatim.
 
 ```bash
 # TINY NET corpus — must stay 110/110
-cd one4all && make test-net 2>&1 | tail -5
+cd SCRIP && make test-net 2>&1 | tail -5
 
 # Existing .NET path still emits valid CIL (class name change is the risk)
 echo "OUTPUT = 'smoke'" | scrip-cc --net /dev/stdin | grep "SNOBOL4_"
@@ -373,7 +373,7 @@ written; file as future work once M-NET-POLISH clears.
 
 ## LP-4 Sprint Outcome (2026-03-27, Claude Sonnet 4.6)
 
-**Commit:** `13866d1` one4all · `1ec57d4` .github
+**Commit:** `13866d1` SCRIP · `1ec57d4` .github
 
 ### Delivered
 - `DESCR.cs` — C# descriptor type, SIL `DESCR_t` lineage, `DT_*` tags matching C runtime
@@ -407,7 +407,7 @@ Two-part `IMPORT LANG.NAME` also accepted: NAME used as both AssemblyBase and ME
 
 ## LP-4b Sprint Outcome (2026-03-27, Claude Sonnet 4.6)
 
-**Commits:** one4all (pending) · .github (pending)
+**Commits:** SCRIP (pending) · .github (pending)
 
 ### Naming convention revised
 

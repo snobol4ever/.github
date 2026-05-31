@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-27 — Opus 4.7 — GOAL-ICON-BB: LFJ (LOWER FROM JCON) staircase begun
 
-**one4all** `f79ea9ba` · **.github** `bcf38418` · **goal:** GOAL-ICON-BB · **mode priority:** mode 2 then mode 3
+**SCRIP** `f79ea9ba` · **.github** `bcf38418` · **goal:** GOAL-ICON-BB · **mode priority:** mode 2 then mode 3
 
 ---
 
@@ -30,7 +30,7 @@ The LFJ (LOWER FROM JCON) staircase now supersedes AG-PURE. See
 executing the prior handoff's "Step 8.2-followup" — adding yet another
 TT_ASSIGN-wrapped routing branch to `lower_icn_expr_threaded_b`. That was
 the 4th repeat of the anti-pattern. Lon caught it. The branch was reverted
-(it never got committed to one4all). The LFJ staircase is the corrected path.
+(it never got committed to SCRIP). The LFJ staircase is the corrected path.
 
 ---
 
@@ -53,7 +53,7 @@ sections. Covers:
 transcription cannot be expressed via the mappings, STOP and update the
 mapping first — do not invent new shape on the BB substrate.
 
-### LFJ-1a-i ✅ `one4all` `f79ea9ba`
+### LFJ-1a-i ✅ `SCRIP` `f79ea9ba`
 
 Mechanical extraction of 9 leaf cases from `lower_icn_expr_node`'s mega-switch
 into `static BB_t *lower_icn_legacy_<KIND>(BB_graph_t *cfg, tree_t *e)` functions.
@@ -122,7 +122,7 @@ current commit hash and next step pointer.
 
 **Gate after the commit:**
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/build_scrip.sh                       # OK
 bash scripts/test_smoke_icon.sh                   # PASS=5
 bash scripts/test_icon_all_rungs.sh               # PASS=198
@@ -198,12 +198,12 @@ JCON way), and threaded_b becomes a thin pass-through that just calls into
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github  /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 git config user.name "LCherryholmes"
 git config user.email "lcherryh@yahoo.com"
-git remote set-url origin https://TOKEN@github.com/snobol4ever/one4all.git
+git remote set-url origin https://TOKEN@github.com/snobol4ever/SCRIP.git
 cd /home/claude/.github
 git remote set-url origin https://TOKEN@github.com/snobol4ever/.github.git
 
@@ -212,7 +212,7 @@ git remote set-url origin https://TOKEN@github.com/snobol4ever/.github.git
 #   ir.icn    at /home/claude/jcon-master/tran/ir.icn                 (the record defs)
 # Both are also reachable at https://github.com/proebsting/jcon
 
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 bash scripts/test_smoke_icon.sh             # PASS=5
@@ -266,6 +266,6 @@ then LFJ-15 sweep. Each rung is one commit, gates checked.
 
 ---
 
-**.github** `bcf38418`  ·  **one4all** `f79ea9ba`
+**.github** `bcf38418`  ·  **SCRIP** `f79ea9ba`
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.7

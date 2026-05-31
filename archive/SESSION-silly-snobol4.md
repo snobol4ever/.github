@@ -1,6 +1,6 @@
 # SESSION-silly-snobol4.md — Silly SNOBOL4 Faithful C Rewrite
 
-**Repo:** one4all (subfolder `silly-snobol4/`) · **Track:** standalone rewrite
+**Repo:** SCRIP (subfolder `silly-snobol4/`) · **Track:** standalone rewrite
 **Trigger:** any message containing "Silly SNOBOL4" starts this session
 **Milestone doc:** `MILESTONE-SILLY-SNOBOL4.md`
 
@@ -45,8 +45,8 @@
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SS-39 BWD | one4all `4200574a` | **M-SS-BLOCK-BACKWARD** — see `MILESTONE-SS-BLOCK-BACKWARD.md § Watermark` (sole authority — never store here) |
-| SS-47 FWD | one4all `43ac7934` | **M-SS-BLOCK-FORWARD** — see `MILESTONE-SS-BLOCK-FORWARD.md § Watermark` (sole authority — never store here) |
+| SS-39 BWD | SCRIP `4200574a` | **M-SS-BLOCK-BACKWARD** — see `MILESTONE-SS-BLOCK-BACKWARD.md § Watermark` (sole authority — never store here) |
+| SS-47 FWD | SCRIP `43ac7934` | **M-SS-BLOCK-FORWARD** — see `MILESTONE-SS-BLOCK-FORWARD.md § Watermark` (sole authority — never store here) |
 
 ### MONITOR func-hook proposal (2026-04-08g)
 

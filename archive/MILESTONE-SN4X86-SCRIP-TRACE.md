@@ -61,14 +61,14 @@ non-trace lines (they don't match the `KIND RS ...` wire format).
 
 ## Baseline
 
-- one4all HEAD: `f23ef24c`
+- SCRIP HEAD: `f23ef24c`
 - `--interp` PASS=193/203 · beauty suite 14/19
 - Monitor: 0/5 failing drivers wired (this milestone wires all 5)
 
 ## Gate
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 INC=/home/claude/corpus/programs/snobol4/demo/inc
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty
 for name in Gen Qize TDump XDump omega; do

@@ -1,4 +1,4 @@
-# EMITTER-JS.md — JavaScript Emitter (one4all)
+# EMITTER-JS.md — JavaScript Emitter (SCRIP)
 
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Date:** 2026-04-04

@@ -1,7 +1,7 @@
 # HANDOFF-2026-05-30-SONNET46-PROLOG-BB-MODE2-FIXES
 
 **Session:** Sonnet 4.6, 2026-05-30
-**one4all HEAD:** `1882bc6b`
+**SCRIP HEAD:** `1882bc6b`
 **corpus HEAD:** unchanged (`3de2407` area)
 
 ---

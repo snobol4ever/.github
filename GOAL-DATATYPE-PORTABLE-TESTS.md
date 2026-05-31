@@ -36,7 +36,7 @@ Do NOT hardcode IDENT(DATATYPE(x), 'string') or IDENT(DATATYPE(x), 'STRING')."
 
 Session 4 found that `beauty_omega_driver.sno` and likely `beauty_semantic_driver.sno`
 hardcode `'PATTERN'` (uppercase) in IDENT(DATATYPE(...)) checks. This makes them fail
-on snobol4dotnet (lowercase) and would fail on one4all (uppercase — same issue, opposite case).
+on snobol4dotnet (lowercase) and would fail on SCRIP (uppercase — same issue, opposite case).
 The `.ref` files baked from those broken drivers are also wrong and must be rebaked.
 
 ## Pattern for portable DATATYPE comparison

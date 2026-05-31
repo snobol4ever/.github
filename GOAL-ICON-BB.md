@@ -2,7 +2,7 @@
 
 ## 🧹 #1 — GROUND ZERO COMMENT & BLANK-LINE PURGE — DONE 2026-05-31
 
-**First-place task this session (Lon).** Every hand-written `.c/.h/.y/.l` file under `one4all/src`
+**First-place task this session (Lon).** Every hand-written `.c/.h/.y/.l` file under `SCRIP/src`
 had **all** C-style (`/* */`) and C++-style (`//`) comments stripped, **all blank lines deleted**,
 and a **200-char `/*----…----*/` separator** inserted between functions and at top-level
 partitions. Rationale: a comment is wrong the moment after it is written because it is never
@@ -24,7 +24,7 @@ rewritten when its referent changes — at ground zero we carry **zero** stale c
 
 There is NO value stack. Not an SM value stack, not a `vstack`, not `r12`-as-TOS, not
 `rt_push_*`/`rt_pop_*` for Icon value flow. A complete stackless static SNOBOL4/Icon BB
-emitter existed ~1.5–2 months ago (archived at `one4all/archive/backend/emit_emitters/emit_x64.c`)
+emitter existed ~1.5–2 months ago (archived at `SCRIP/archive/backend/emit_emitters/emit_x64.c`)
 and benchmarked **faster than SPITBOL precisely because there is no stack**. The current
 mode-3 Icon path regressed by making an SM value stack the inter-box value mechanism
 (`rt_push_int` ×39, `rt_pop_nv_set` ×21, underflow guard in `rt.c`). GROUND ZERO 3 rebuilds
@@ -45,7 +45,7 @@ from `write("hello")` upward on the stackless model and never reintroduces the v
   (e.g. protect an arithmetic operand across a nested sub-eval, as the archive does) — never
   to thread values between boxes.
 
-**References (now in-repo at `one4all/refs/bb/`):**
+**References (now in-repo at `SCRIP/refs/bb/`):**
 - `Proebsting-Simple-Translation-of-Goal-Directed-Evaluation.pdf` — the four-port templates
   (literal N §4.1, uminus §4.2, plus §4.3, LessThan §4.3, to §4.4, ifstmt §4.5). Figure 1/2
   are the exact target for `5 > ((1 to 2) * (3 to 4))`.
@@ -56,7 +56,7 @@ from `write("hello")` upward on the stackless model and never reintroduces the v
 - `test_sno_3.c` — **the EVAL/CODE/`*P` deferred solution**: each deferred sub-pattern is a
   four-port function `str_t E(E_t **ζζ, int entry)`, frame lazily `calloc`'d by `enter()`,
   resumable at α/β, `empty` decoded as failure at `_λ`. This is the model for GZ-DEFER.
-- `one4all/archive/backend/emit_emitters/emit_x64.c` — the prior working stackless emitter.
+- `SCRIP/archive/backend/emit_emitters/emit_x64.c` — the prior working stackless emitter.
 
 **NEW GATE (enforces stacklessness, parallel to the FACT gate):**
 ```bash
@@ -109,7 +109,7 @@ from this file — they were the regression, not a foundation. The build now sta
 step (see Watermark).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
-**Architecture pointers:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c` · `.github/test_sno_1.c` · `.github/test_sno_3.c` · `.github/jcon_irgen.icn` · `one4all/refs/bb/Proebsting-Simple-Translation-of-Goal-Directed-Evaluation.pdf` · `one4all/archive/backend/emit_emitters/emit_x64.c` (prior working stackless emitter).
+**Architecture pointers:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c` · `.github/test_sno_1.c` · `.github/test_sno_3.c` · `.github/jcon_irgen.icn` · `SCRIP/refs/bb/Proebsting-Simple-Translation-of-Goal-Directed-Evaluation.pdf` · `SCRIP/archive/backend/emit_emitters/emit_x64.c` (prior working stackless emitter).
 
 ---
 
@@ -185,7 +185,7 @@ bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 ## Session Setup
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 bash scripts/test_smoke_icon.sh                # PASS=5
@@ -297,9 +297,9 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (one4all):** `03acf1be` (session 6 — ζ→R12; pushed). This handoff folded onto the parallel SNOBOL4 session's `e06b5201` *SMX-CARRIER-1: decouple BB-graph table from SM_sequence_t into standalone bb_program_t* (clean rebase; combined tree builds + Icon smoke holds). R-HW-2 (`802521f1`) + ζ→R12 (`03acf1be`) now both pushed (prior pushed HEAD `690149e6`, session 4).
+**HEAD (SCRIP):** `03acf1be` (session 6 — ζ→R12; pushed). This handoff folded onto the parallel SNOBOL4 session's `e06b5201` *SMX-CARRIER-1: decouple BB-graph table from SM_sequence_t into standalone bb_program_t* (clean rebase; combined tree builds + Icon smoke holds). R-HW-2 (`802521f1`) + ζ→R12 (`03acf1be`) now both pushed (prior pushed HEAD `690149e6`, session 4).
 
-**Done this session (6, ζ→R12 + handoff):** Switched the Icon one-register frame register ζ from r15 to the RATIFIED **r12** (UNIFIED REGISTER LAYOUT) in XA_FLAT_PROLOGUE/EPILOGUE (`push r12`/`mov r12,rdi`/`pop r12`, Icon-gated). Byte-length-identical to the r15 form → NO bin-site offsets shifted; non-Icon arm untouched → SNOBOL4/Prolog byte-identical. Frame remains loaded-but-unused (GZ-3 is its first reader/writer via `[r12+off]`). Verified behavior-neutral: Icon m2 6/6, m3 2/6, FACT 0, no-stack 127, one-reg-frame 20, SM-death 11 all unmoved. Then performed the full handoff (rebase onto the SNOBOL4 SM-carrier work, push one4all, this goal file last). **Gates (re-run session 5):** FACT 0; no-stack ratchet **127** (lowered from 129 — string-write family rebuilt stackless in R-HW-2; baseline re-pinned in `test_gate_icn_no_stack.sh`); one-reg-frame ratchet 20 (unmoved — R-HW-2 is `[rip+disp]` only); death ratchet `test_gate_sm_dead.sh` 11 (unmoved); Icon smoke mode-2 6/6 (HARD), mode-3 **2/6** (`write_str` + `write_int` — `write_str` flipped green HONESTLY this session); Prolog 0/5 & broker 5/66 **intentionally RED** (non-Icon execution severed by design, SMX-1; provably unaffected by R-HW-2 — Prolog emits zero `BB_LIT_S` scalar nodes, edits are Icon-write-isolated). Survivors `write("hello")` and `write(42)` → mode-2==mode-3, dump-sm count=0.
+**Done this session (6, ζ→R12 + handoff):** Switched the Icon one-register frame register ζ from r15 to the RATIFIED **r12** (UNIFIED REGISTER LAYOUT) in XA_FLAT_PROLOGUE/EPILOGUE (`push r12`/`mov r12,rdi`/`pop r12`, Icon-gated). Byte-length-identical to the r15 form → NO bin-site offsets shifted; non-Icon arm untouched → SNOBOL4/Prolog byte-identical. Frame remains loaded-but-unused (GZ-3 is its first reader/writer via `[r12+off]`). Verified behavior-neutral: Icon m2 6/6, m3 2/6, FACT 0, no-stack 127, one-reg-frame 20, SM-death 11 all unmoved. Then performed the full handoff (rebase onto the SNOBOL4 SM-carrier work, push SCRIP, this goal file last). **Gates (re-run session 5):** FACT 0; no-stack ratchet **127** (lowered from 129 — string-write family rebuilt stackless in R-HW-2; baseline re-pinned in `test_gate_icn_no_stack.sh`); one-reg-frame ratchet 20 (unmoved — R-HW-2 is `[rip+disp]` only); death ratchet `test_gate_sm_dead.sh` 11 (unmoved); Icon smoke mode-2 6/6 (HARD), mode-3 **2/6** (`write_str` + `write_int` — `write_str` flipped green HONESTLY this session); Prolog 0/5 & broker 5/66 **intentionally RED** (non-Icon execution severed by design, SMX-1; provably unaffected by R-HW-2 — Prolog emits zero `BB_LIT_S` scalar nodes, edits are Icon-write-isolated). Survivors `write("hello")` and `write(42)` → mode-2==mode-3, dump-sm count=0.
 
 **Done this session (5, R-HW-2 — honest stackless string write):** Made Icon mode-3 `write(string_literal)` genuinely stackless, flipping `write_str` mode-3 green for real (mode-3 1/6 → 2/6). Root cause (verified by live `addr2line` backtrace: slab → `rt_push_str` → `vstack_push` → `_default_push`): `write("…")` routed through the value-stack builtin-dispatch path, AND the standalone `BB_LIT_S` box (wired `LIT_S.γ→CALL`) pushed via `rt_push_str`. THREE coordinated edits (the bb_call arm alone was necessary-but-insufficient): (1) `emit_bb.c` — added the strlit shape to the BB_CALL `write_simple1` guard so `write("…")` bypasses `flat_drive_call_builtin` and takes the direct FILL arm; (2) `bb_call.cpp` — strlit MEDIUM_BINARY arm rewritten from `movabs rdi,&"…"` (abs AST-pool ptr, not relocatable, not RO-IP-relative) to sealed-blob `lea rdi,[rip+27]` + `mov esi,slen` + `call rt_write_str_nl`, mirroring GZ-2; (3) `bb_lit_scalar.cpp` — `BB_LIT_S` made a pure four-port pass-through identical to `BB_LIT_I` (the consumer reads the string RO via `[rip+disp]`; removed `rt_push_str` + its decl → no-stack ratchet −2). Mode-4 (`--compile`) TEXT arm confirmed already RO-IP-relative (`lea rdi,[rip + .Lcall_str]` + `.ascii` + `call rt_write_str_nl@PLT`); R-HW-3 needs assemble+run verification.
 
@@ -315,7 +315,7 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 PRIOR SESSION 4 (SM EXCISION PHASE 0) watermark retained below for context.
 
-**HEAD (one4all) [session 4]:** `690149e6` (2026-05-30 — SM EXCISION PHASE 0).
+**HEAD (SCRIP) [session 4]:** `690149e6` (2026-05-30 — SM EXCISION PHASE 0).
 
 **Done this session (4, SM EXCISION):** Decided the Stack Machine is subsumed by the BB port-graph (carrying both was redundant; the SM/BB boundary was itself a bug source). Began **PHASE 0 — SM EXCISION** ("GROUND ZERO ALMOST": rip out SM execution, everything breaks but Icon still says hello). Method = sever execution + leave SM structures/emitter templates as **inert detonators** (deleted at the terminal rung as each language crosses), NOT a half-finished struct refactor. Build green and gated after each cut. **SMX-0** new death ratchet `scripts/test_gate_sm_dead.sh` (SM execution surface: `sm_interp_run`/`sm_run_native`/`g_vstack`; baseline 13→11; deliberately does NOT match per-box arenas or the `SM_sequence_t` container). **SMX-1** `scrip.c` — non-Icon mode-2 (`sm_interp_run`) + mode-3 (`sm_run_native`) entries → loud abort. **SMX-2** `sm_interp.c` — `sm_interp_run` dispatch loop → detonator at top (body kept as unreachable corpse so the struct still compiles until SMX-5). **SMX-3** `rt.c` — the three `g_vstack` storage primitives (`_default_push/pop/peek`) → detonator; array + ~159 consumers (not-yet-crossed langs, already severed at driver) removed at terminal. **PLAN CORRECTION confirmed:** `SM_sequence_t` (`src/include/SM.h`) carries the Icon `bb_table/bb_count/bb_cap` — SMX-5 **slims it (strip `instrs/count/cap/stno_*`), does NOT delete it.** **FINDING (survivor gate caught it):** nuking the value stack EXPOSED that Icon mode-3 `write("hello world")` was never stackless — emitted box → `rt_push_str` → `vstack_push` → `_default_push` (backtrace verified). GZ-1's "DONE / `rt_write_str_nl` / m2==m3" claim **does not match the binary.** `write_int` (GZ-2, genuine RO `[rip+disp]`) survives the nuke in mode-3; `write_str` (GZ-1) drops → mode-3 2/6→1/6, the dropped box is exactly hello. SNOBOL4 + Prolog confirmed detonating loudly in both modes.
 
@@ -338,7 +338,7 @@ baseline for this build; they were produced by the value-stack path now being re
 | **SMX-1** sever driver | DONE | `scrip.c`: non-Icon mode-2 (`sm_interp_run`) + mode-3 (`sm_run_native`) entries → loud `[SMX] FATAL` abort. Icon (`bb_exec_once`/`bb_build_flat`) untouched. |
 | **SMX-2** gut interpreter | DONE | `sm_interp.c`: detonator at top of `sm_interp_run`; dispatch loop now unreachable corpse (kept compilable until SMX-5). |
 | **SMX-3** nuke value stack | DONE | `rt.c`: `_default_push/pop/peek` → detonators. `g_vstack` array + ~159 consumers (not-yet-crossed langs, severed at driver) removed at terminal. |
-| **SMX-CARRIER-1** decouple BB table | **DONE 2026-05-30 (one4all `e06b5201`)** | Lon directive (2026-05-30) SUPERSEDES old SMX-5 "keep bb_table inside SM_sequence_t": delete `SM_t`/`SM_sequence_t` ENTIRELY; the BB-graph table moves OUT to a standalone carrier. New `src/include/bb_program.h` `bb_program_t {table,count,cap}` + `bb_program_add`/`bb_program_free` (scrip_ir.c). `stage2_t` gains `bbp`; all 16 `SM_seq_bb_add` in lower.c + every `bb_table`/`bb_count` reader (scrip.c, scrip_sm.c, icn/pl runtime shims, sm_bb_invoke.cpp, sm_interp.c corpse) repointed to `bbp`. `sm` field kept TEMPORARILY (dead SM codegen/interp still read `s2->sm`). Verified: Icon m2 6/6 (HARD)/m3 1/6 IDENTICAL to pre-change — `lower_icn.c` emits zero SM so `bbp` is a transparent drop-in. FACT 0, no-stack 129, SM-death 11 unmoved. |
+| **SMX-CARRIER-1** decouple BB table | **DONE 2026-05-30 (SCRIP `e06b5201`)** | Lon directive (2026-05-30) SUPERSEDES old SMX-5 "keep bb_table inside SM_sequence_t": delete `SM_t`/`SM_sequence_t` ENTIRELY; the BB-graph table moves OUT to a standalone carrier. New `src/include/bb_program.h` `bb_program_t {table,count,cap}` + `bb_program_add`/`bb_program_free` (scrip_ir.c). `stage2_t` gains `bbp`; all 16 `SM_seq_bb_add` in lower.c + every `bb_table`/`bb_count` reader (scrip.c, scrip_sm.c, icn/pl runtime shims, sm_bb_invoke.cpp, sm_interp.c corpse) repointed to `bbp`. `sm` field kept TEMPORARILY (dead SM codegen/interp still read `s2->sm`). Verified: Icon m2 6/6 (HARD)/m3 1/6 IDENTICAL to pre-change — `lower_icn.c` emits zero SM so `bbp` is a transparent drop-in. FACT 0, no-stack 129, SM-death 11 unmoved. |
 | **SMX-4** delete SM | **DONE 2026-05-30 Opus 4.8** | Deleted `sm_interp.c`/`sm_native.c`/`sm_codegen.c`/`sm_image.c`/`emit_sm.c`/`SM_templates/*` + all SM headers + SM test/tool sources. `lower.c` 3159→~440 (Icon-only; ~563 `SM_emit` sites + `g_p` gone; `lower()`/`lower_proc_skeletons` build BB graphs only). `SM.h` trimmed to the `SM_op_t` ENUM + `sm_opcode_name` (kept as shared opcode constants for `shared_arith`/`rt_protected`); **`SM_t`/`SM_sequence_t`/`SM_arg_t`/`SM_expr_t`/`SM_State` DELETED.** `stage2_t.sm` field removed. `emit_core.c` SM→backend walkers + `codegen_program` deleted (byte/label/patch primitives + relocated `strtab_label` kept). Driver SM paths (`--dump-sm`, mode-4 `sm_codegen_text`, JVM/JS/NET/WASM `codegen_program`, mode-3 `sm_run_native`) removed. `lower_ctx.c` `labtab_*` gone. `sm_prog.c` → only `stage2_*` helpers. New `smx_dead_stubs.c` (loud-abort `generator_state_new_proc`/`bb_broker_drive_sm_one` for dead SNOBOL4/Prolog generator branches). **Build green; Icon m2 6/6 (HARD)/m3 1/6 IDENTICAL; FACT 0; SM-death ratchet 11→1** (only `g_vstack` array storage remains — belongs to GZ-3/not-yet-crossed langs, out of scope). Handoff `HANDOFF-2026-05-30-OPUS48-SMX-4-DELETE-SM.md`. |
 | **SMX terminal** delete | mostly folded into SMX-4 | Remaining: drop `g_vstack` (GZ-3 stackless work), delete/port the orphaned `emit_per_kind_audit.c` tool (carries synthetic `SM_t`; unbuilt). Death ratchet 1→0 when `g_vstack` goes. |
 | **SNOBOL4 → BB directed graph** | NEXT (parallel) | Lon directive: SNOBOL4 lowers AST → `BB_graph_t` directed graph (like `lower_icn.c`), NOT a flat SM array. FIRST PROGRAM: `OUTPUT = "hello world"` → one `BB_ASSIGN`(target=OUTPUT global, value=`BB_LIT_S "hello world"`) registered as `main` in proc_table, routed through `bb_exec_once` in the scrip.c mode_interp branch exactly like Icon. Four-port AG: assign box α does the store+print, exits γ; ω unused for a total expression. SNOBOL4 `OUTPUT` semantics (SPITBOL manual): predefined var wired to stdout; assignment writes value + newline. |

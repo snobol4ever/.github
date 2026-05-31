@@ -1,10 +1,10 @@
 # SESSION-snobol4-net.md — SNOBOL4 × .NET
 
-**Session:** one4all · SNOBOL4 · .NET — one unified milestone chain.
-**Active work:** `scrip-interp.cs` in `one4all`. No `snobol4dotnet` clone needed. No dotnet test. Interpreter regression only.
+**Session:** SCRIP · SNOBOL4 · .NET — one unified milestone chain.
+**Active work:** `scrip-interp.cs` in `SCRIP`. No `snobol4dotnet` clone needed. No dotnet test. Interpreter regression only.
 **D-166 @N fix** (`snobol4dotnet`) is deferred — see `MILESTONE-NET-SNOBOL4.md` Phase C.
 
-**Repo:** one4all · **Frontend:** SNOBOL4 · **Backend:** .NET MSIL
+**Repo:** SCRIP · **Frontend:** SNOBOL4 · **Backend:** .NET MSIL
 **Session prefix:** `D` / `N`
 **Deep reference:** all ARCH docs cataloged in `PLAN.md`
 
@@ -23,9 +23,9 @@
 ## §ORACLE READ ORDER (before Phase 2/3/5 work)
 
 ```bash
-sed -n '1,50p' /home/claude/one4all/src/runtime/dyn/stmt_exec.c   # 5-phase spec
+sed -n '1,50p' /home/claude/SCRIP/src/runtime/dyn/stmt_exec.c   # 5-phase spec
 grep -n "pending_capture\|flush\|perform_repl" \
-  /home/claude/one4all/src/runtime/dyn/stmt_exec.c                 # Phase 3/5 boundary
+  /home/claude/SCRIP/src/runtime/dyn/stmt_exec.c                 # Phase 3/5 boundary
 ```
 
 ---

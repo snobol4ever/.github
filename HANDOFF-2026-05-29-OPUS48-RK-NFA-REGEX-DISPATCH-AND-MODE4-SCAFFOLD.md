@@ -5,7 +5,7 @@
 
 ## Session arc (five landings, all green, all pushed)
 
-1. **RK-NFA-1e — regex on the SM dispatch path** (one4all `0d94e255`).
+1. **RK-NFA-1e — regex on the SM dispatch path** (SCRIP `0d94e255`).
    `~~` lowered to `SM_CALL_FN raku_match` but the only handler was the legacy tree-walk
    `raku_try_call_builtin(tree_t*)`; the SM byname dispatcher (`sm_interp.c:1387` mode-2,
    `rt.c:1598` mode-4/3-via-rt_call) never knew the name → all 6 regex tests failed BOTH modes.
@@ -19,7 +19,7 @@
    `lower_expr` emits `STORE_VAR`+re-`PUSH_VAR` after `raku_subst` when the LHS is a plain `TT_VAR`.
    **GATE-RK m2 35→41, m4 36→42.**
 
-2. **Rename RK-PAT → RK-NFA** (one4all `a5e45c1e`, .github `4930a040`).
+2. **Rename RK-PAT → RK-NFA** (SCRIP `a5e45c1e`, .github `4930a040`).
    Per Lon directive: the Raku regex ladder uses NFA-derived names, never PAT (PAT = SNOBOL4's
    pattern opcodes; PAT in Raku context signals opcode misuse). Renamed Raku-owned identifiers:
    `RK_PAT_BB`→`RK_NFA_BB` (env + local), `RK-PAT-*`→`RK-NFA-*`, `GATE-PAT-O`→`GATE-NFA-O`, stale
@@ -27,14 +27,14 @@
    SNOBOL4's OWN artifacts (`snobol4_pattern.c`, `BB_PAT_*`, `test_snobol4_pat_rung_suite.sh`) left
    untouched — correctly SNOBOL4-owned. Both files PAT-clean (no standalone PAT token in Raku context).
 
-3. **RK-NFA-1b — `raku_nfa_to_bb` graph builder** (one4all `6b593da8`).
+3. **RK-NFA-1b — `raku_nfa_to_bb` graph builder** (SCRIP `6b593da8`).
    State→node walk in `raku_nfa_bb.c`: `nfa_kind_to_bb` 1:1 `Nfa_kind`→`BB_NFA_*`, one `BB_t`/state,
    ports γ=out1-node (advance) / β=out2-node (SPLIT backtrack) / ω=NULL, payload CHAR ival=char /
    CLASS sval=32-byte cset / CAP ival=group-idx, entry=start node, NULL on Phase-2 kinds. Verified
    standalone across the full L1-L15 set (graph faithfully mirrors the NFA). Pure graph construction,
    no x86, dead-code-until-RK-NFA-4. The prereq for mode-4 template emission.
 
-4. **Mode-3 gate added + stale claims corrected** (script: one4all `40ee1477`).
+4. **Mode-3 gate added + stale claims corrected** (script: SCRIP `40ee1477`).
    Lon asked why only m2/m4 numbers showed. Created `scripts/test_raku_mode3_native.sh`
    (`SCRIP_M3_NATIVE=1 ./scrip --run`). Result: **mode-3 native 41/42, CRASH 0** — regex passes
    natively too. The prior "MODE3-DISPATCH-GAP / --run emits no output / CRASH 6" was STALE: that
@@ -44,7 +44,7 @@
    genuine (rk_re34 emits real multi-line capture output). RK-NFA-5 reframed: MOVE regex onto the
    isolated `BB_NFA_*` slab (architectural), not a crash-fix.
 
-5. **RK-NFA-4 SCAFFOLD** (one4all `ac1bc66b`).
+5. **RK-NFA-4 SCAFFOLD** (SCRIP `ac1bc66b`).
    Begins mode-4 emission. NEW `bb_nfa.cpp`: trivial passthrough templates `bb_nfa_eps`/`cap_open`/
    `cap_close` (pure `jmp γ`, clone of `bb_eps`). All 10 `BB_NFA_*` opcodes wired into `emit_core.c`
    dispatch (3→templates, 7 consuming/branching CHAR/ANY/CLASS/SPLIT/BOL/EOL/ACCEPT→`bb_stub`
@@ -86,6 +86,6 @@ RK-NFA-4 DESIGN block in GOAL-RAKU-BB.md:
 Alternative substantive next: **RK-BB-5.4c** (`zip`/`cross`) — needs a nested-tuple rep, own session.
 
 ## Heads
-- one4all  `ac1bc66b`
+- SCRIP  `ac1bc66b`
 - .github  `e333fa22`
 - corpus   unchanged (`0f692c3`)

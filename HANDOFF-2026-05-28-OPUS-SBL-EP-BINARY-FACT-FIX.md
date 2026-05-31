@@ -4,7 +4,7 @@
 
 ## What went wrong
 
-Commit `1bc53211` (one4all main) added a shared helper `ep_bin_fill_str(bin, prelude_lbl)`
+Commit `1bc53211` (SCRIP main) added a shared helper `ep_bin_fill_str(bin, prelude_lbl)`
 to `src/emitter/emit_str.cpp`. The helper returned `bytes(1, "\xE9") + u32le(0)`
 sequences and the six combinator templates (ALT/CAT/FENCE/PL_SEQ/PL_ITE/SUCCEED) called
 it from their MEDIUM_BINARY arms.

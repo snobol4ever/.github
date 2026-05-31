@@ -36,7 +36,7 @@ Generate `.wat` artifacts for all corpus crosscheck tests and wire
 ## Gate
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CELLS=snobol4_wasm CORPUS=/home/claude/corpus bash test/run_emit_check.sh
 # expect: 175/0
 ```

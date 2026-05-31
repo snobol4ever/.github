@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all (primary) + .github (this file)
+**Repo:** SCRIP (primary) + .github (this file)
 **Prerequisite for:** GOAL-SNOCONE-SM-LOWER (M2). The Snocone port (SL-1+)
 is a transcription exercise *after* this refactor lands, not before.
 
@@ -125,13 +125,13 @@ children matching `parser_snobol4.sc`:
 `:lbl :lang :line :stno :subj :pat :eq :repl :goS :goF :go`. `lower()` takes
 `const AST_t *prog`; `CODE_t` and `STMT_t` cease to exist.
 
-**SI-1 ✅** Session 2026-05-11, one4all `9d23cf8c` — add `AST_PROGRAM`,
+**SI-1 ✅** Session 2026-05-11, SCRIP `9d23cf8c` — add `AST_PROGRAM`,
 `AST_STMT`, `AST_GOTO_S/F/U` to `ast.h` enum + `ast_e_name[]`.
 
-**SI-2 ✅** Session 2026-05-11, one4all `7f840b71` — `stmt_to_ast(STMT_t*)`
+**SI-2 ✅** Session 2026-05-11, SCRIP `7f840b71` — `stmt_to_ast(STMT_t*)`
 and `code_to_ast(CODE_t*)` shim in `src/driver/stmt_ast.c`.
 
-**SI-3 ✅** Session 2026-05-11, one4all `9e9e1f8f` — `AST_t` is a pure
+**SI-3 ✅** Session 2026-05-11, SCRIP `9e9e1f8f` — `AST_t` is a pure
 4-field tree (`t,v,n,c`); `a[3]` removed; `AST_ATTR` kind added; `AST_STMT`
 uses tagged-attribute children (no positional slots, no flag bits);
 `lower_stmt(const AST_t *s)` reads via `stmt_attr_find/expr/str` helpers.
@@ -141,7 +141,7 @@ uses tagged-attribute children (no positional slots, no flag bits);
   AST_VAR nodes after frame-slot assignment, so the C tree keeps three
   fields documented as the split of one logical `v`. Snocone tree has one.
 
-**SI-4 ✅** Session 2026-05-11, one4all `9c21656d` — SNOBOL4 frontend emits
+**SI-4 ✅** Session 2026-05-11, SCRIP `9c21656d` — SNOBOL4 frontend emits
 `AST_STMT` directly via new `sno_parse_ast(FILE*, const char*, CODE_t**)`
 (single parse pass; returns both AST_PROGRAM and CODE_t). `PP` gains
 `AST_t *ast_prog`; `sno4_stmt_commit_go` delegates to `stmt_to_ast(s)`.
@@ -153,7 +153,7 @@ lower 30/30, all_modes 2/2, snobol4 7/7, icon/prolog/raku/snocone 5/5/5/5,
 rebus 4/4, broker 49/49, isolation PASS, SN-7 beauty self-host 26/25
 unchanged (same FAILS list confirmed by stash-and-rerun).
 
-**SI-5 ✅** Session 2026-05-11, one4all `499948f3` — all five non-SNO
+**SI-5 ✅** Session 2026-05-11, SCRIP `499948f3` — all five non-SNO
 frontends emit AST_PROGRAM directly. Each compile fn gains `AST_t **out_ast`
 (NULL to discard; polyglot path passes NULL). Icon: `icn_parse_file` builds
 AST_PROGRAM in-loop via `push_child` + `ast_stmt_new`; no AST_END appended
@@ -164,7 +164,7 @@ AST_PROGRAM in-loop via `push_child` + `ast_stmt_new`; no AST_END appended
 lower 30/30, all_modes 2/2, snobol4 7/7, icon/prolog/raku/snocone/rebus
 5/5/5/5/4, broker 49/49, isolation PASS.
 
-**SI-6 ✅** Session 2026-05-11, one4all `f06d4b40` — sm_preamble fallback deleted;
+**SI-6 ✅** Session 2026-05-11, SCRIP `f06d4b40` — sm_preamble fallback deleted;
 execute_program/polyglot_init/label_table_build/prescan_defines all take AST_t*.
 Root cause of emergency partial segfault: call_user_function in interp_call.c
 still used STMT_t* linked-list traversal; label_lookup returns const AST_t* so
@@ -176,13 +176,13 @@ helpers; interp_hooks.c STMT_t *_body → const AST_t *_body. Gates: lower 28/30
 5/5/5/5/4, broker 45/49 (4 pre-existing), isolation PASS. stmt_ast.c/STMT_t/
 CODE_t still live in scrip_cc.h for snocone/prolog/raku/rebus — delete in SI-7.
 
-**SI-7 ✅** Session 2026-05-11, corpus `27f0c5f`, one4all `744b4826` — 60
+**SI-7 ✅** Session 2026-05-11, corpus `27f0c5f`, SCRIP `744b4826` — 60
 new `.ref` oracles added to `corpus/programs/snocone/parser-fixtures/`
 (7 pre-existing confirmed byte-identical). Gate script
 `test_snocone_parser_fixtures.sh` added; PASS=67 FAIL=0. All existing
 gates at baseline.
 
-**SI-8 ✅** Session 2026-05-11, one4all `c1be7390` — `scrip_cc.h` doc pass.
+**SI-8 ✅** Session 2026-05-11, SCRIP `c1be7390` — `scrip_cc.h` doc pass.
 Top-of-file header rewritten to describe SI-1..SI-6 pipeline shape accurately.
 Stale "SI-7 will migrate" forward reference removed; CODE_t shim deferral
 updated to point to GOAL-SNOCONE-SM-LOWER (SL-1+).
@@ -192,7 +192,7 @@ updated to point to GOAL-SNOCONE-SM-LOWER (SL-1+).
 ## Gate (same for every rung)
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/test_lower_byte_identical.sh           # must PASS=30 FAIL=0
 bash scripts/test_smoke_scrip_all_modes.sh          # must PASS=2
 bash scripts/test_smoke_snobol4.sh                  # must PASS unchanged
@@ -218,22 +218,22 @@ language with a mature gate, before being expressed in a less-mature one.
 The single piece six languages depend on becomes the single piece a new
 contributor reads first.
 
-**SI-9 ✅** Session 2026-05-11, one4all `dba8c612` — CODE_t/STMT_t eradicated
+**SI-9 ✅** Session 2026-05-11, SCRIP `dba8c612` — CODE_t/STMT_t eradicated
 from all public APIs. All five non-SNO compile fns return void. scrip_cc.h
 public headers no longer mention CODE_t/STMT_t. Type bug fixed (interp_eval.c
 STMT_t *body → const tree_t *body). Stale comments purged throughout.
 
-**SI-10 ✅** Session 2026-05-11, one4all `508b2324` — AST_t → tree_t with
+**SI-10 ✅** Session 2026-05-11, SCRIP `508b2324` — AST_t → tree_t with
 canonical four logical fields matching Snocone `tree` datatype exactly:
 t (kind) / v (union sval|ival|dval) / n (nchildren) / c (children[]).
 tree_push/tree_pop/tree_new inline in ast.h: c[] doubles on push, halves
 when n < _nalloc/4, frees when empty. All open-coded realloc push blocks
 replaced. 101 files changed.
 
-**SI-11 ✅** Session 2026-05-11, one4all `71df89af` — AST_e → tree_e.
+**SI-11 ✅** Session 2026-05-11, SCRIP `71df89af` — AST_e → tree_e.
 Complete tree_t vocabulary: type=tree_t, kind-enum=tree_e, fields t/v/n/c.
 
-**SI-12 ✅** Session 2026-05-11, one4all `007a2082` — revert tree_t/tree_e
+**SI-12 ✅** Session 2026-05-11, SCRIP `007a2082` — revert tree_t/tree_e
 back to AST_t/AST_e per Lon. Keep fields t/v/n/c. tree_push/tree_pop →
 ast_push/ast_pop. tree_new → expr_new.
 

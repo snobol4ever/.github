@@ -1,6 +1,6 @@
-# SESSION-prolog-x64.md — Prolog × x86 (one4all)
+# SESSION-prolog-x64.md — Prolog × x86 (SCRIP)
 
-**Repo:** one4all · **Frontend:** Prolog · **Backend:** x86 (NASM)
+**Repo:** SCRIP · **Frontend:** Prolog · **Backend:** x86 (NASM)
 **Session prefix:** `PX` · **Trigger:** "playing with Prolog x64" or "Prolog x86"
 **Driver:** `scrip-cc -pl -asm foo.pl > foo.s` → `nasm -f elf64 foo.s -o foo.o` → `gcc -no-pie foo.o ...srcs... -lm -o foo`
 **Deep reference:** `ARCHIVE-PROLOG-X64-HISTORY.md` · `PARSER-PROLOG.md`
@@ -24,7 +24,7 @@ TOKEN=ghp_xxx bash /home/claude/.github/SESSION_BOOTSTRAP.sh
 All tools, repos, and oracles installed by bootstrap. Single-test pipeline:
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 ./scrip-cc -pl -asm foo.pl -o foo.s
 nasm -f elf64 foo.s -o foo.o
 gcc -no-pie foo.o \
@@ -145,7 +145,7 @@ This replaces the current unconditional `jmp α0` at the end of the re-entry dec
 ### Gate tests (recreate each session — /tmp doesn't persist)
 
 ```bash
-cd one4all && make -C src -s
+cd SCRIP && make -C src -s
 build_run() {
   ./scrip-cc -pl -asm "$1" -o /tmp/t.asm &&
   nasm -f elf64 /tmp/t.asm -o /tmp/t.o &&

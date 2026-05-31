@@ -4,10 +4,10 @@
 
 | Repo    | HEAD       |
 |---------|------------|
-| one4all | `10f97d29` |
+| SCRIP | `10f97d29` |
 | .github | (this commit) |
 
-Tree: **CLEAN** on one4all (post-rebase, pushed to origin/main).
+Tree: **CLEAN** on SCRIP (post-rebase, pushed to origin/main).
 
 ---
 
@@ -107,7 +107,7 @@ src/runtime/snobol4/stmt_exec.c            |  56 +++++++++++++--
 ## Session setup for next session
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 make libscrip_rt

@@ -124,7 +124,7 @@ The 16 lib `.sc` files require no further work in this rung.
 ## Repo state at handoff
 
 - `corpus`: beauty.sc main loop landed + new docs file
-- `one4all`: clean
+- `SCRIP`: clean
 - `.github`: this commit (findings doc + GOAL session entry + PLAN step ID)
 - Three baseline gates green
 - SB-6 fingerprint: `lines=98 stderr=4488 parse_err=12 internal_err=0 rc=124, 19 hunks`

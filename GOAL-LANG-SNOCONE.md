@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** All 14 beauty-sc subsystems PASS under all three modes
 (--interp, --interp, --run). Control-flow lowering complete.
 Pattern match `subject ? pattern` wired through BB_SCAN.
@@ -55,18 +55,18 @@ Share fixes via main — no branches.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snocone.sh           # PASS=5
-bash /home/claude/one4all/scripts/test_beauty_snocone_subsystems.sh
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh    # PASS=31
-bash /home/claude/one4all/scripts/test_crosscheck_snocone.sh       # 3-mode divergence check
+bash /home/claude/SCRIP/scripts/test_smoke_snocone.sh           # PASS=5
+bash /home/claude/SCRIP/scripts/test_beauty_snocone_subsystems.sh
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh    # PASS=31
+bash /home/claude/SCRIP/scripts/test_crosscheck_snocone.sh       # 3-mode divergence check
 ```
 
 ---
@@ -164,7 +164,7 @@ Oracle for .ref: run the equivalent .sno under SPITBOL.
 
 ---
 
-## Current state (2026-04-15, one4all HEAD 6a63a77b)
+## Current state (2026-04-15, SCRIP HEAD 6a63a77b)
 
 SC-1 done: 3/14 PASS (assign, fence, global). [prior session]
 SC-2 done: break lowering fixed in snocone_cf.c — 8→11/14 PASS. Commit: afe90855
@@ -241,7 +241,7 @@ variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
 ---
 
-## Current state (2026-04-16, one4all HEAD 1194e57d, corpus HEAD 3943493)
+## Current state (2026-04-16, SCRIP HEAD 1194e57d, corpus HEAD 3943493)
 
 SC-23 done: four treebank files in corpus/programs/snobol4/demo/:
   treebank-list.sno + treebank-list.sc   (LISP-style cons-list + list_reverse)
@@ -268,7 +268,7 @@ SC-24c added: two-phase approach needed — same memory problem as treebank-appe
 SC-25 added: fix SPITBOL -f broken switch in x64 build.
 
 SC-24b next: complete after SC-24c + SC-26.
-## Current state (2026-04-16 session 2, one4all HEAD 1194e57d, corpus HEAD dbcb4fb)
+## Current state (2026-04-16 session 2, SCRIP HEAD 1194e57d, corpus HEAD dbcb4fb)
 
 RENAME done: treebank-prepend→treebank-list, treebank-append→treebank-array.
   All four files renamed in corpus. Headers updated. corpus HEAD dbcb4fb.
@@ -280,7 +280,7 @@ SC-24b done: claws5.sc rewritten goto-free. treebank-list.sc and treebank-array.
 
 Next: SC-26 (fix pattern engine: (PAT . var) . *fn(var) arg evaluation order).
 
-## Current state (2026-04-16 session 3, one4all HEAD 1194e57d, corpus HEAD 0bb62ad)
+## Current state (2026-04-16 session 3, SCRIP HEAD 1194e57d, corpus HEAD 0bb62ad)
 
 claws5.sno + claws5.sc: pp_mem replaced with recursive pp_table(tbl, depth, key).
   Recursive, depth-driven indent (3 * depth spaces). Works for any nesting level.
@@ -291,7 +291,7 @@ treebank-list.sc + treebank-array.sc: pp_node already recursive with indent para
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
 
-## Current state (2026-04-17, one4all HEAD 1194e57d, corpus HEAD 5a832d4)
+## Current state (2026-04-17, SCRIP HEAD 1194e57d, corpus HEAD 5a832d4)
 
 SC-24c IN PROGRESS: claws5-twophase.sno draft committed (corpus HEAD 5a832d4).
 
@@ -307,7 +307,7 @@ Phase 2 BLOCKER: claws_pat_2 (ANCHOR=1, BREAKX('_').wrd '_' BREAKX(' ').tag per 
   Next step: copy sent[i] to plain variable s before matching; test if s claws_pat_2 is fast.
   If that fixes it: add s = sent[i] in ph2_loop and ship.
 
-## Current state (2026-04-17 session 2, one4all HEAD 1194e57d, corpus HEAD 0844598)
+## Current state (2026-04-17 session 2, SCRIP HEAD 1194e57d, corpus HEAD 0844598)
 
 SC-24c IN PROGRESS: claws5-twophase.sno promoted to canonical claws5.sno + claws5.sc.
   Single-pass versions gone. Only two-phase approach remains.
@@ -318,7 +318,7 @@ Phase 2 BLOCKER: claws_pat_2 hangs on ARRAY element subjects in CSNOBOL4.
   Fix to try: s = sent[i] (copy to plain var) before match.
   If fast: ship. If still slow: investigate CSNOBOL4 ANCHOR/cursor internals.
 
-## Current state (2026-04-17 session 3, one4all HEAD 1194e57d, corpus HEAD 8a64bc8)
+## Current state (2026-04-17 session 3, SCRIP HEAD 1194e57d, corpus HEAD 8a64bc8)
 
 SC-24c DONE: claws5.sno two-phase verified correct. corpus HEAD 8a64bc8.
 
@@ -347,7 +347,7 @@ All three .sc programs structurally ready for testing (goto-free, TRIM fix appli
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
   OR: test the three .sc files under scrip (pending SC-26 fix for claws5.sc).
 
-## Current state (2026-04-17 session 4, one4all HEAD 1194e57d, corpus HEAD 8a64bc8)
+## Current state (2026-04-17 session 4, SCRIP HEAD 1194e57d, corpus HEAD 8a64bc8)
 
 Investigated cleaner alternatives to TRIM fix in claws5.sno. Root cause of
 complexity: (epsilon . *new_sent()) calls new_sent() at PATTERN BUILD TIME
@@ -363,7 +363,7 @@ claws5.sc: structurally mirrors .sno with TRIM fix. Ready for scrip testing.
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
   Then test all three .sc files under scrip.
 
-## Current state (2026-04-17 session 5, one4all HEAD 1194e57d, corpus HEAD c336507)
+## Current state (2026-04-17 session 5, SCRIP HEAD 1194e57d, corpus HEAD c336507)
 
 SC-24c IN PROGRESS: clean two-phase carving pattern (Lon's insight).
 
@@ -391,7 +391,7 @@ NEXT: fold continuation lines into spat itself. No cont_loop.
 
 REQUIREMENT: one pattern (spat) applied in a loop. No inner loop. No sentinel.
 
-## Current state (2026-04-16 session 4, one4all HEAD 1194e57d, corpus HEAD 0d13092)
+## Current state (2026-04-16 session 4, SCRIP HEAD 1194e57d, corpus HEAD 0d13092)
 
 SC-24c DONE: restored TRIM fix claws5.sno. Zero diff vs claws5.ref (17386 lines).
 corpus HEAD 0d13092.
@@ -413,7 +413,7 @@ cannot bridge end-of-string without a digit present. Deferred for future session
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
 
-## Current state (2026-04-16 session 5, one4all HEAD 1194e57d, corpus HEAD b236605)
+## Current state (2026-04-16 session 5, SCRIP HEAD 1194e57d, corpus HEAD b236605)
 
 treebank-list.ref and treebank-array.ref added — generated from csnobol4 -bf.
 Old treebank.ref was stale (different format from old program). New refs zero-diff.
@@ -432,7 +432,7 @@ fully resolved; deferred. TRIM fix remains the working solution.
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
 
-## Current state (2026-04-16 session 6, one4all HEAD 1194e57d, corpus HEAD 670a426)
+## Current state (2026-04-16 session 6, SCRIP HEAD 1194e57d, corpus HEAD 670a426)
 
 SC-31 IN PROGRESS: assignment3_dump.py written and committed to corpus.
 BLOCKER: spipat exception (pattern stack overflow) in SNOBOL4python C backend
@@ -459,14 +459,14 @@ SC-31 DONE: claws5.sno pp_table replaced with pp_mem — output identical to Pyt
 
 Next: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engine.
 
-## Current state (handoff, corpus HEAD 14362c0, one4all HEAD 1194e57d)
+## Current state (handoff, corpus HEAD 14362c0, SCRIP HEAD 1194e57d)
 
 SC-31b IN PROGRESS: pp_mem ported to claws5.sc (Snocone syntax). Committed corpus HEAD 14362c0.
   Not yet tested under scrip — scrip build fails: gc.h missing (install_system_packages.sh needed).
   SC-26 (. *fn() capture bug) also required before claws5.sc can produce correct output.
   Next session: run install_system_packages.sh, build scrip, then tackle SC-26.
 
-## Current state (handoff 2, corpus HEAD 14362c0, one4all HEAD 1194e57d)
+## Current state (handoff 2, corpus HEAD 14362c0, SCRIP HEAD 1194e57d)
 
 Investigated Lon's proposed single-pass Phase 1 pattern:
   POS(0) ARBNO(SPAN(DIGITS) '_CRD :_PUN ' (BREAKX(DIGITS) | ARBNO(NOTANY(DIGITS)) RPOS(0)) RPOS(0))
@@ -488,7 +488,7 @@ Always set at program start:
 &FULLSCAN = 1    (always)
 ```
 
-## Current state (handoff 3, corpus HEAD 14362c0, one4all HEAD 1194e57d)
+## Current state (handoff 3, corpus HEAD 14362c0, SCRIP HEAD 1194e57d)
 
 INVESTIGATION: claws5.sno Phase 1 (slurp+sentinel) may be splitting incorrectly.
 Key question: does every sentence boundary in CLAWS5inTASA.dat appear ONLY at
@@ -517,9 +517,9 @@ STEP TO IMPLEMENT (replaces old Phase 1 if (a) proven):
   as previous sentence, start new buf with this line. Else accumulate into buf.
   No slurp. No sentinel insertion. No TRIM/split complexity.
 
-corpus HEAD 14362c0. one4all HEAD 1194e57d.
+corpus HEAD 14362c0. SCRIP HEAD 1194e57d.
 
-## Current state (handoff 4, corpus HEAD 14362c0, one4all HEAD 1194e57d)
+## Current state (handoff 4, corpus HEAD 14362c0, SCRIP HEAD 1194e57d)
 
 FINDING: The .dat file has faulty sentence boundary annotations — 32 of the
 N_CRD :_PUN markers appear mid-line and are TAGGING ERRORS, not real sentence
@@ -546,7 +546,7 @@ STEPS:
   (e) Port new Phase 1 to claws5.sc.
   (f) Zero diff is the gate.
 
-corpus HEAD 14362c0. one4all HEAD 1194e57d.
+corpus HEAD 14362c0. SCRIP HEAD 1194e57d.
 
 ## Correction (handoff 4b)
 
@@ -581,7 +581,7 @@ No sentinel insertion. No split loop. No TRIM. No BREAKX(SEP).
 The (POS(0) | CHAR(10)) gate ensures only BOL boundaries are matched.
 Mid-line N_CRD :_PUN occurrences are silently ignored.
 
-## Current state (2026-04-17 session 6, one4all HEAD 1194e57d, corpus HEAD cb9cbca)
+## Current state (2026-04-17 session 6, SCRIP HEAD 1194e57d, corpus HEAD cb9cbca)
 
 SC-24c DONE: claws5 rewritten as clean one-phase program.
 
@@ -614,7 +614,7 @@ Housekeeping: VBGinTASA.dat restored (real 1977-line corpus, was 1-line placehol
 Test inputs renamed: claws5.input -> claws5_4.input, treebank.input -> treebank4.input.
 Refs regenerated from renamed inputs. corpus HEAD 2b7caa6.
 
-## Current state (handoff 5, corpus HEAD 2b7caa6, one4all HEAD 1194e57d)
+## Current state (handoff 5, corpus HEAD 2b7caa6, SCRIP HEAD 1194e57d)
 
 OPEN: claws5.ref and treebank-list.ref / treebank-array.ref are NOT in Python
 pprint format. They are in pp_mem / pp_node format. Need to match Python pprint
@@ -632,7 +632,7 @@ NEXT SESSION START:
 
 NOTE: snobol4python-main.zip was uploaded by Lon this session.
 
-## Current state (handoff 8, corpus HEAD 71bedd0, one4all HEAD 1194e57d)
+## Current state (handoff 8, corpus HEAD 71bedd0, SCRIP HEAD 1194e57d)
 
 treebank-list.sc and treebank-array.sc: pp_node updated to pprint-exact
 suffix-threading algorithm. No if/else inside loops, no gotos — pure control
@@ -647,15 +647,15 @@ NEXT: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engin
 Then: test claws5.sc + treebank-list.sc + treebank-array.sc under scrip.
 
 NEXT SESSION START:
-1. bash /home/claude/one4all/scripts/install_system_packages.sh
-2. bash /home/claude/one4all/scripts/build_scrip.sh
-3. bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-4. bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
-5. Gate: bash /home/claude/one4all/scripts/test_smoke_snocone.sh  # PASS=5
+1. bash /home/claude/SCRIP/scripts/install_system_packages.sh
+2. bash /home/claude/SCRIP/scripts/build_scrip.sh
+3. bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+4. bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
+5. Gate: bash /home/claude/SCRIP/scripts/test_smoke_snocone.sh  # PASS=5
 6. Tackle SC-26: find (PAT . var) . *fn(var) bug in pattern engine
    (bb_boxes.c or snobol4_pattern.c — capture value not passed correctly to fn)
 
-## Current state (handoff 7, corpus HEAD 1ddb066, one4all HEAD 1194e57d)
+## Current state (handoff 7, corpus HEAD 1ddb066, SCRIP HEAD 1194e57d)
 
 treebank-list.sno and treebank-array.sno: pp_node() rewritten to match Python
 PrettyPrinter(indent=2, width=80) exactly. Algorithm: node_repr() builds full
@@ -669,15 +669,15 @@ NEXT: SC-26 — fix (PAT . var) . *fn(var) arg evaluation order in pattern engin
 Then: test claws5.sc + treebank-list.sc + treebank-array.sc under scrip.
 
 NEXT SESSION START:
-1. bash /home/claude/one4all/scripts/install_system_packages.sh
-2. bash /home/claude/one4all/scripts/build_scrip.sh
-3. bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-4. bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
-5. Gate: bash /home/claude/one4all/scripts/test_smoke_snocone.sh  # PASS=5
+1. bash /home/claude/SCRIP/scripts/install_system_packages.sh
+2. bash /home/claude/SCRIP/scripts/build_scrip.sh
+3. bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+4. bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
+5. Gate: bash /home/claude/SCRIP/scripts/test_smoke_snocone.sh  # PASS=5
 6. Tackle SC-26: find (PAT . var) . *fn(var) bug in pattern engine
    (bb_boxes.c or snobol4_pattern.c — capture value not passed correctly to fn)
 
-## Current state (handoff 6, corpus HEAD 52c4e3b, one4all HEAD 1194e57d)
+## Current state (handoff 6, corpus HEAD 52c4e3b, SCRIP HEAD 1194e57d)
 
 claws5.sno: pp_mem restored to pprint-equivalent (SC-31 version). claws5.ref
 regenerated. corpus HEAD 52c4e3b.
@@ -722,7 +722,7 @@ sketch — to be written up as `GOAL-LANG-SCRIPT.md` in a future session.
   `claws5.input` (16 lines, 4 sentences); removed stale `treebank.ref`.
   All three .sno programs verified zero-diff between scrip --interp and
   CSNOBOL4 -bf under the trimmed refs.
-- one4all HEAD 78e6e337: wired `--dump-ast` for Snocone .sc files in
+- SCRIP HEAD 78e6e337: wired `--dump-ast` for Snocone .sc files in
   `src/driver/scrip.c`. Investigation aid — used in this session to confirm
   that Snocone parser is behaving per spec (requires explicit && per Koenig
   reference implementation `snocone.sc` with 104 && occurrences).
@@ -774,7 +774,7 @@ between scrip --interp and CSNOBOL4 -bf.
   with a whitespace-aware lexer; parser stays simple once the lexer
   handles adjacency disambiguation.
 
-## Current state (2026-04-18 session 2, one4all HEAD 6068acd6, corpus HEAD e13b336)
+## Current state (2026-04-18 session 2, SCRIP HEAD 6068acd6, corpus HEAD e13b336)
 
 D-1 IN PROGRESS: porter.sc exists (342 lines, committed e13b336). D-1(a) verified:
 SPITBOL x64 running porter.sno < porter.input gives zero diff vs porter.ref (23531 lines).
@@ -823,10 +823,10 @@ Recommended path forward for D-1:
   filed as follow-up.
 
 ### NEXT SESSION START
-1. bash /home/claude/one4all/scripts/install_system_packages.sh
-2. bash /home/claude/one4all/scripts/build_scrip.sh
-3. bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
-4. bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+1. bash /home/claude/SCRIP/scripts/install_system_packages.sh
+2. bash /home/claude/SCRIP/scripts/build_scrip.sh
+3. bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
+4. bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 5. Rewrite porter.sc in corpus/programs/snobol4/demo/ goto-free:
    - Convert each `procedure ... { L0: ... goto L1; L1: ... }` cluster into
      nested `while (...) { if (...) { ... } else { break; } }` form.
@@ -841,7 +841,7 @@ Recommended path forward for D-1:
    - `scrip --case-sensitive --run` (fastest)
    per the goal's three-mode requirement.
 
-## Current state (2026-04-18 session 3, one4all HEAD 5535b229, corpus HEAD e13b336)
+## Current state (2026-04-18 session 3, SCRIP HEAD 5535b229, corpus HEAD e13b336)
 
 **ARCHITECTURAL FIX LANDED — `--case-sensitive` no longer needed for non-SNOBOL4 frontends.**
 
@@ -850,7 +850,7 @@ or Prolog with case-sensitive switch. The code should know this already."
 Correct. Fix extends commit 8aa5803b's principle ("case policy is a frontend
 concern", formerly only applied to DATATYPE) to name-folding.
 
-**Change (5 files, 25 lines added, one4all `5535b229`):**
+**Change (5 files, 25 lines added, SCRIP `5535b229`):**
 Each non-SNOBOL4 frontend's `*_compile()` entry now calls
 `sno_set_case_sensitive(1)`:
   - `snocone_cf.c :: snocone_cf_compile`
@@ -921,11 +921,11 @@ lowering.
 
 ### NEXT SESSION START
 
-1. `bash /home/claude/one4all/scripts/install_system_packages.sh`
-2. `bash /home/claude/one4all/scripts/build_scrip.sh`
-3. `bash /home/claude/one4all/scripts/build_spitbol_oracle.sh`
-4. `bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh`
-5. Gate: `bash /home/claude/one4all/scripts/test_smoke_snocone.sh` — must PASS=5
+1. `bash /home/claude/SCRIP/scripts/install_system_packages.sh`
+2. `bash /home/claude/SCRIP/scripts/build_scrip.sh`
+3. `bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh`
+4. `bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh`
+5. Gate: `bash /home/claude/SCRIP/scripts/test_smoke_snocone.sh` — must PASS=5
 6. Debug D-1 correctness/perf bug in porter.sc:
    (a) Feed 1 word at a time: `echo caresses | scrip --interp porter.sc`.
        Expected output "caress". Check each helper individually if wrong.

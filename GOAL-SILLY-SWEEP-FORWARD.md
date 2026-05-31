@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all (`src/silly/`)
+**Repo:** SCRIP (`src/silly/`)
 **Done when:** Forward watermark reaches v311.sil line 12293 (or 7037→10209 jump over BLOCKS)
 
 ## What this is
@@ -55,13 +55,13 @@ tar -xzf snobol4-2_3_3_tar.gz -C /home/claude/work
 ```
 /home/claude/work/snobol4-2.3.3/v311.sil      # SIL spec (12293 lines)
 /home/claude/work/snobol4-2.3.3/snobol4.c     # generated C ground truth
-/home/claude/one4all/src/silly/                # our translation
+/home/claude/SCRIP/src/silly/                # our translation
 ```
 
 ## Build gate (every step)
 
 ```bash
-cd /home/claude/one4all && git pull --rebase
+cd /home/claude/SCRIP && git pull --rebase
 gcc -Wall -Wextra -std=c99 -g -O0 src/silly/*.c -lm -o /tmp/silly-snobol4 -I src/silly 2>&1 | grep -E "error:|warning:"
 # must be clean
 ```
@@ -107,6 +107,6 @@ Always: `LCherryholmes` / `lcherryh@yahoo.com`
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_csnobol4_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ```

@@ -25,8 +25,8 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** corpus+one4all
-**Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)
+**Repo:** corpus+SCRIP
+**Branch:** `parser` (SCRIP only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-REBUS.md`. The existing Rebus frontend
 (`src/frontend/rebus/`) is the in-process oracle.
 
@@ -660,17 +660,17 @@ names, `beauty.sc` names, `shift()`/`reduce()` over manual
 ## Session Setup
 
 ```bash
-( cd /home/claude/one4all && git fetch origin parser 2>/dev/null; \
+( cd /home/claude/SCRIP && git fetch origin parser 2>/dev/null; \
   git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
 
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_rebus.sh     # existing frontend baseline
-bash /home/claude/one4all/scripts/test_parser_rebus.sh    # PAT-RB
+bash /home/claude/SCRIP/scripts/test_smoke_rebus.sh     # existing frontend baseline
+bash /home/claude/SCRIP/scripts/test_parser_rebus.sh    # PAT-RB
 ```
 
 ---
@@ -1180,7 +1180,7 @@ Reopened with explicit pattern architecture (session continuation,
   - Divergence-driven rungs handling for cases where the existing
     frontend produces binary trees that PAT-RB folds n-ary.
 
-Current-tree heads: corpus `f2d3077`, one4all/parser `dd6ad80d`,
+Current-tree heads: corpus `f2d3077`, SCRIP/parser `dd6ad80d`,
 `.github` (this commit) — all on remote. The wrong-shape
 `parser_rebus.sc` is in corpus at `f2d3077`; the rewrite starts
 by deleting it and writing a fresh one following the worked atom
@@ -1248,7 +1248,7 @@ binary OPSYN support to snocone_parse.y if desired.
 4. Gate: PASS=3 on atom_id, atom_int, atom_str.
 
 corpus HEAD at emergency handoff: `bc52be1`
-one4all/parser branch: `dd6ad80d` (unchanged)
+SCRIP/parser branch: `dd6ad80d` (unchanged)
 .github: this update
 
 ---
@@ -1336,7 +1336,7 @@ No outer FENCE; flat alternation.  Likely the immediate fix.
 5. Once atoms pass, run full PASS=38 gate.
 
 corpus HEAD: `9f6b32f`
-one4all/parser branch: `dd6ad80d` (unchanged)
+SCRIP/parser branch: `dd6ad80d` (unchanged)
 .github: this update follows
 
 ---
@@ -1371,7 +1371,7 @@ Hang remains unresolved.  Next session task unchanged:
 - Port parser_snocone.sc's flat-alternation tier shape exactly.
 
 corpus HEAD: 707bd5d
-one4all/parser: dd6ad80d (unchanged)
+SCRIP/parser: dd6ad80d (unchanged)
 
 ---
 
@@ -1483,7 +1483,7 @@ diagnostic, not the deliverable.
 | Repo | HEAD | Note |
 |------|------|------|
 | corpus | 707bd5d (unchanged on remote) | local has Bug A and Bug B patches uncommitted |
-| one4all/parser | dd6ad80d (unchanged) | |
+| SCRIP/parser | dd6ad80d (unchanged) | |
 | .github | this commit | adds Style Guidelines section + this watermark |
 
 The uncommitted local patches in corpus are diagnostic, not the
@@ -1569,7 +1569,7 @@ All zero-target rubric greps pass:
 | Repo | HEAD | Note |
 |------|------|------|
 | corpus | `39b7ccb` | END-leak fix + MAIN-only call + RB-1 assignment |
-| one4all/parser | `dd6ad80d` | unchanged |
+| SCRIP/parser | `dd6ad80d` | unchanged |
 | .github | this commit | RB-0/RB-0a/RB-1 marked LANDED; watermark updated |
 
 **Next step: PARSER-RB-2 — if/then, while/do.**
@@ -1663,7 +1663,7 @@ filter; cleaner surface for callers but same underlying mechanism.
 | Repo | HEAD | State |
 |------|------|-------|
 | corpus | `da12182` | fresh atoms-only parser_rebus.sc, END-leak blocker |
-| one4all/parser | `dd6ad80d` | unchanged |
+| SCRIP/parser | `dd6ad80d` | unchanged |
 | .github | this commit | RB-0a partially done; watermark updated |
 
 Steps remaining in PARSER-RB-0a (per session #4 enumeration):
@@ -1896,7 +1896,7 @@ GOAL-PARSER-PROLOG.md (commit 5b0238b).
 ### State
 
 **corpus HEAD:** `a5c3fe9`
-**one4all branch:** `parser` (upstream `origin/parser`)
+**SCRIP branch:** `parser` (upstream `origin/parser`)
 
 ### Next milestone
 
@@ -1928,7 +1928,7 @@ also documented. Both deferred pending runtime/cross-PARSER decisions.
 **Context window usage at session start: ~35%.**
 
 corpus HEAD: a5c3fe9 (unchanged)
-one4all/parser: aad8cbe8 (unchanged)
+SCRIP/parser: aad8cbe8 (unchanged)
 .github: this commit
 
 All PARSER-REBUS rungs complete. Gate: PASS=38 FAIL=0. No next step
@@ -1990,14 +1990,14 @@ FAIL: local_vars — empty output.
 
 ### Next session — first steps
 
-1. Setup: `git checkout parser` in one4all; install packages; build scrip.
+1. Setup: `git checkout parser` in SCRIP; install packages; build scrip.
 2. Gate: `bash scripts/test_parser_rebus.sh` — expect PASS=52 baseline.
 3. Run each failing fixture individually to get actual error/output.
 4. Fix remaining 5 failures; target PASS=57 FAIL=0.
 5. If clean, commit as RB-FW-2 LANDED and update goal checkboxes.
 
 corpus HEAD: 8d86e2f
-one4all/parser: deeae350 (unchanged)
+SCRIP/parser: deeae350 (unchanged)
 
 ---
 
@@ -2007,11 +2007,11 @@ one4all/parser: deeae350 (unchanged)
 
 ### What was done this session
 
-**BUG-RB-1 fixed** in `one4all/src/frontend/rebus/rebus_lower.c`:
+**BUG-RB-1 fixed** in `SCRIP/src/frontend/rebus/rebus_lower.c`:
 All 7 unary operator cases (`RE_NEG/POS/NOT/VALUE/BANG/DEREF/PATOPT`) read
 `e->left` but `rebus.y` stores unary operands in `e->right` via
 `rbinop(kind, NULL, operand, ...)`. Fixed all 7 to `e->right`.
-Committed `one4all/parser` @ `deeae350`.
+Committed `SCRIP/parser` @ `deeae350`.
 
 **PARSER-RB-FW-1 landed** in `corpus/SCRIP/parser_rebus.sc`:
 - Full expression precedence tower above `alt_expr`:
@@ -2037,7 +2037,7 @@ Committed `one4all/parser` @ `deeae350`.
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | 3f7f470 |
-| one4all | parser | deeae350 |
+| SCRIP | parser | deeae350 |
 
 ### Next session — immediate first steps
 
@@ -2053,9 +2053,9 @@ Committed `one4all/parser` @ `deeae350`.
 
 - Parser: `corpus/SCRIP/parser_rebus.sc`
 - Fixtures: `corpus/programs/rebus/parser/*.reb` and `.ref`
-- Test script: `one4all/scripts/test_parser_rebus.sh`
-- Oracle: `one4all/scrip --dump-ast <file.reb>`
-- Bug fix: `one4all/src/frontend/rebus/rebus_lower.c` (BUG-RB-1 already committed)
+- Test script: `SCRIP/scripts/test_parser_rebus.sh`
+- Oracle: `SCRIP/scrip --dump-ast <file.reb>`
+- Bug fix: `SCRIP/src/frontend/rebus/rebus_lower.c` (BUG-RB-1 already committed)
 
 Context at handoff: ~90%.
 
@@ -2112,7 +2112,7 @@ inner `FENCE` for the post-`?` disambiguation.
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | `d83ff80` (pushed) |
-| one4all | parser | `104f270d` (unchanged) |
+| SCRIP | parser | `104f270d` (unchanged) |
 | .github | main | this commit |
 
 Gate: **PASS=71 FAIL=0**. Smoke: PASS=4 FAIL=0.
@@ -2257,7 +2257,7 @@ and exposes `.` to the postfix-expr chain.
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | `9d80577` (pushed) |
-| one4all | parser | `104f270d` (unchanged) |
+| SCRIP | parser | `104f270d` (unchanged) |
 | .github | main | this commit |
 
 Gate: **PASS=75 FAIL=0**.  Smoke: PASS=4 FAIL=0.
@@ -2328,7 +2328,7 @@ PASS=75 → **PASS=80 FAIL=0**. Smoke: PASS=4 FAIL=0.
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | `5d4b829` (pushed) |
-| one4all | parser | `e1e4fefb` (unchanged) |
+| SCRIP | parser | `e1e4fefb` (unchanged) |
 | .github | main | this commit |
 
 ### Next milestone
@@ -2355,7 +2355,7 @@ triangular duplication (`a; b; c;` → `a b c b c c`).
 
 Fix: temporarily null each `stmts[i]->next` before calling `lower_stmt`,
 restore after.  The for-loop owns the iteration; the `->next` walk is suppressed.
-Committed `one4all/parser` @ `b9b31884`.
+Committed `SCRIP/parser` @ `b9b31884`.
 
 ### RB-FW-7 — compound_stmt { s; s; } LANDED
 
@@ -2379,7 +2379,7 @@ Committed `one4all/parser` @ `b9b31884`.
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | `6267a27` (pushed) |
-| one4all | parser | `b9b31884` (pushed) |
+| SCRIP | parser | `b9b31884` (pushed) |
 | .github | main | this commit |
 
 ### SPITBOL manual study — pattern semantics internalised this session
@@ -2433,7 +2433,7 @@ New fixture: `unary_pos.reb` with `.ref`. corpus HEAD: `dd86344`.
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | `dd86344` (pushed) |
-| one4all | parser | `b9b31884` (unchanged) |
+| SCRIP | parser | `b9b31884` (unchanged) |
 | .github | main | this commit |
 
 ### Next milestone
@@ -2505,7 +2505,7 @@ handles `else` only on the same logical line.
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | `8277b51` |
-| one4all | parser | `b9b31884` (unchanged) |
+| SCRIP | parser | `b9b31884` (unchanged) |
 | .github | main | this commit |
 
 Gate: **PASS=90 FAIL=0**.  Smoke: PASS=4 FAIL=0.
@@ -2572,7 +2572,7 @@ explicit post-increment form.  All new loop code in parser_rebus.sc uses the
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | `e532680` |
-| one4all | parser | `b9b31884` (unchanged) |
+| SCRIP | parser | `b9b31884` (unchanged) |
 | .github | main | this commit |
 
 Gate: **PASS=91 FAIL=0**.  Smoke: PASS=4 FAIL=0.
@@ -2618,7 +2618,7 @@ Two bugs fixed in `parser_rebus.sc` (corpus@0d39195):
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | `0d39195` |
-| one4all | parser | `b9b31884` (unchanged) |
+| SCRIP | parser | `b9b31884` (unchanged) |
 | .github | main | this commit |
 
 Gate: **PASS=94 FAIL=0**.  Smoke: PASS=4 FAIL=0.
@@ -2676,7 +2676,7 @@ Smoke: PASS=4 FAIL=0 | Parser: **PASS=94 FAIL=0**
 | Repo | Branch | HEAD |
 |------|--------|------|
 | corpus | main | `0d39195` |
-| one4all | parser | `b9b31884` (unchanged this session) |
+| SCRIP | parser | `b9b31884` (unchanged this session) |
 | .github | main | this commit |
 
 ### Next milestone (operator-directed)
@@ -2719,7 +2719,7 @@ GOAL-PARSER-REBUS." Context ~84% at session start.  SPITBOL manual studied
 ### Gate: PASS=94 → PASS=96 FAIL=0
 
 corpus HEAD: `dac6db3`
-one4all/parser: `b9b31884` (unchanged)
+SCRIP/parser: `b9b31884` (unchanged)
 
 ### Next milestone (operator-directed)
 
@@ -2807,8 +2807,8 @@ then run the three corpus programs and fix whatever gaps remain.
 
 **Context at session start: ~92%. Context at handoff: ~98%.**
 
-Official grammar spec: `/home/claude/one4all/src/frontend/rebus/rebus.y` (704 lines Bison)
-+ `/home/claude/one4all/src/frontend/rebus/rebus.l` (lexer, auto-semicolon via `needs_semi()`).
+Official grammar spec: `/home/claude/SCRIP/src/frontend/rebus/rebus.y` (704 lines Bison)
++ `/home/claude/SCRIP/src/frontend/rebus/rebus.l` (lexer, auto-semicolon via `needs_semi()`).
 TR 84-9 (Griswold 1984) uploaded and confirmed: grammar appendix pages 13-15.
 Key: "Semicolon insertion is performed automatically at the ends of lines as it is in Icon."
 
@@ -2846,7 +2846,7 @@ State:
 | Repo | HEAD |
 |------|------|
 | corpus | `40ddfed` |
-| one4all/parser | `b9b31884` (unchanged) |
+| SCRIP/parser | `b9b31884` (unchanged) |
 | .github | this commit |
 
 Gate: PASS=96 FAIL=0 (unchanged throughout).

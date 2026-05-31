@@ -133,7 +133,7 @@ the order is just "each child added to TT_PROGRAM" — the SC parser's `ARBNO` a
 
 ```bash
 # Set diff between TT kinds emitted by raku.y vs old parser_raku.sc:
-grep -oE "TT_[A-Z_]+" one4all/src/frontend/raku/raku.y       | sort -u > /tmp/y.txt
+grep -oE "TT_[A-Z_]+" SCRIP/src/frontend/raku/raku.y       | sort -u > /tmp/y.txt
 git show 8dea9a9:SCRIP/parser_raku.sc | grep -oE "TT_[A-Z_]+" | sort -u > /tmp/sc.txt
 diff /tmp/y.txt /tmp/sc.txt
 ```
@@ -160,4 +160,4 @@ When re-adding actions to the pure recognizer, the rewriter must:
 
 - `corpus/SCRIP/parser_raku.sc` @ `5779a2a` (cleaned, pure recognizer)
 - `corpus/SCRIP/parser_raku.sc` @ `8dea9a9` (pre-PRF-13, pre-strip)
-- `one4all/src/frontend/raku/raku.y` (oracle, 573 LOC)
+- `SCRIP/src/frontend/raku/raku.y` (oracle, 573 LOC)

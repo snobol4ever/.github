@@ -3,7 +3,7 @@
 **Goal:** GOAL-PROLOG-BB.md — fix two pre-existing mode-4 gaps the goal file flagged.
 
 **Result:** ✅ **+4 rungs in both --mode run and --mode compile.** GATE-1 5/5, GATE-3 88→89,
-GATE-4 4/4 held, GATE-2 11→15, mode-4 rung suite 11→15. one4all `710ee0b0`.
+GATE-4 4/4 held, GATE-2 11→15, mode-4 rung suite 11→15. SCRIP `710ee0b0`.
 
 ## Gate ledger (clean rebuild, this session)
 - GATE-1 smoke prolog: 5/5 ✅
@@ -90,6 +90,6 @@ template arm always succeeds regardless of atom identity. Not an ITE issue.
    actually unblocked.
 
 ## Files touched
-- one4all `d2ce06fc` CAT-D-7: rt.c, emit_sm.c, bb_builtin.cpp (3 files, +98 LOC)
-- one4all `710ee0b0` CAT-D-8: BB.h, lower_pl.c, bb_exec.c, emit_bb.c, emit_core.c,
+- SCRIP `d2ce06fc` CAT-D-7: rt.c, emit_sm.c, bb_builtin.cpp (3 files, +98 LOC)
+- SCRIP `710ee0b0` CAT-D-8: BB.h, lower_pl.c, bb_exec.c, emit_bb.c, emit_core.c,
   bb_templates.h, bb_pl_ite.cpp (new), Makefile (8 files, +117 / -12 LOC)

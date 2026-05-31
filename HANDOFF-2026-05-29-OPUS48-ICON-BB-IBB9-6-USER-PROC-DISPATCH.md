@@ -38,7 +38,7 @@ transient regressions: `meander`, `rung36_jcon_{kross,meander,prefix,roman}` —
 programs whose proc bodies use not-yet-supported builtins like `repl`/`integer`, never reached
 under `/dev/null`.)
 
-## Files changed (one4all)
+## Files changed (SCRIP)
 
 - **`src/runtime/rt/rt.c` / `rt.h`** — Icon proc registry + caller:
   - `rt_icn_proc_register(name, entry, pnames, nparams)` — update-if-exists; stores BB entry node

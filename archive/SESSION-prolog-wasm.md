@@ -1,6 +1,6 @@
-# SESSION-prolog-wasm.md — Prolog × WASM (one4all) ⛔ INACTIVE — parked 2026-03-31, see MILESTONE_ARCHIVE.md
+# SESSION-prolog-wasm.md — Prolog × WASM (SCRIP) ⛔ INACTIVE — parked 2026-03-31, see MILESTONE_ARCHIVE.md
 
-**Repo:** one4all · **Frontend:** Prolog · **Backend:** WebAssembly (wat2wasm + Node.js)
+**Repo:** SCRIP · **Frontend:** Prolog · **Backend:** WebAssembly (wat2wasm + Node.js)
 **Session prefix:** `PW` · **Trigger:** "Prolog frontend with WASM backend"
 **Driver:** `scrip-cc -pl -wasm foo.pl -o foo.wat` → `wat2wasm --enable-tail-call foo.wat -o foo.wasm` → `node test/wasm/run_wasm.js foo.wasm`
 **Oracle:** `swipl foo.pl` (SWI-Prolog)
@@ -24,7 +24,7 @@
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **Prolog WASM** | PW-12 | `443dae2` one4all · `.github` this commit | **M-PW-B01** — choice-point stack in pl_runtime.wat → rung05 `a\nb\nc` |
+| **Prolog WASM** | PW-12 | `443dae2` SCRIP · `.github` this commit | **M-PW-B01** — choice-point stack in pl_runtime.wat → rung05 `a\nb\nc` |
 
 **Status:** rung01 ✅ rung02 ✅ rung03 ✅ rung04 ✅ rung05 ❌ (outputs `a\nb`, needs CP stack)
 **GT infrastructure** (loop+flag+_call) committed and working for flat predicates.
@@ -46,7 +46,7 @@ Skips: `nasm libgc-dev java javac mono ilasm icont csnobol4`
 ## §TEST
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh                    # always — 738/0
 CORPUS=/home/claude/corpus bash test/run_invariants.sh prolog_wasm        # own cell only
 ```

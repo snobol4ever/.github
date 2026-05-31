@@ -4,7 +4,7 @@
 
 ## State at handoff
 
-- one4all HEAD `48409299`, pushed.
+- SCRIP HEAD `48409299`, pushed.
 - .github HEAD `(this commit)`, pushed.
 - Modes 2+3 only (mode 4 deferred per Lon's call — full mode-4 sweep at the very end).
 
@@ -195,7 +195,7 @@ grep -rnE 'seg_byte\(SEG_CODE|SL_B\(' src/ --include="*.c" --include="*.cpp" \
 | GATE-1 default + native | 13/13 + 13/13 | 13/13 + 13/13 | 0 |
 | audit_m3_native_binary_arms | GATE OK | GATE OK | 0 |
 | FACT RULE compliance | 0 | 0 | 0 |
-| Commits to one4all | — | 1 (`48409299`) | — |
+| Commits to SCRIP | — | 1 (`48409299`) | — |
 | Commits to .github | — | 1 (this handoff) | — |
 
 ## Files touched

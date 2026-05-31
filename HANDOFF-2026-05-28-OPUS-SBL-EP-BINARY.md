@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-SNOBOL4-BB.md / M3-NATIVE-4 — "Get MEDIUM_BINARY working for all opcodes."
 
-**Commit:** one4all `1bc53211`.
+**Commit:** SCRIP `1bc53211`.
 
 ---
 

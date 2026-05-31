@@ -3,7 +3,7 @@
 **To:** Next operator on GOAL-ICON-BB.
 **Status:** IBB-7 closed and pushed. Repos clean and pulled.
 **Commits:**
-- one4all `d1c55b0c` — IBB-7: write(BB_VAR) + BB_ASSIGN flat-wire — corpus 13→17 PASS.
+- SCRIP `d1c55b0c` — IBB-7: write(BB_VAR) + BB_ASSIGN flat-wire — corpus 13→17 PASS.
 - .github (this handoff + GOAL-ICON-BB.md pruned 608→157 + watermark + next rung) — push at end of next session per RULES.
 
 ---
@@ -12,7 +12,7 @@
 
 Mode-3 now flat-wires Icon variable read (`BB_VAR`) and variable assign (`BB_ASSIGN`), and string-literal push (`BB_LIT_S`) which the assign needed. The trick is **AG-PURE deep-thread**: `lower_icn.c:2057-2068` rewires the rhs of a simple-var BB_ASSIGN to participate in the outer SEQ chain (`rhs->γ = bb`) and sets `bb->ival = 1`. Same for BB_CALL deep-threading (line 2080-2093, `bb->dval = 1.0`). The flat-driver must NOT re-walk the rhs/arg0 in that case — the SEQ chain already emitted it. Initial implementation missed this and double-emitted, producing duplicate rt_arith calls (visible only via instrumentation; runtime symptom was wrong values / SEGV-via-vstack-extra).
 
-Files touched (one4all):
+Files touched (SCRIP):
 - `src/runtime/rt/rt.c` — added `rt_pop_write_any_nl` (DT_I/R/S dispatch), `rt_pop_nv_set` (clean consume, no re-push).
 - `src/emitter/BB_templates/bb_var.cpp` — NEW. 32-byte slab: `movabs rdi,name; movabs rax,&rt_nv_get; call rax; jmp γ; β: jmp ω`.
 - `src/emitter/BB_templates/bb_assign.cpp` — NEW. 32-byte slab: `movabs rdi,name; movabs rax,&rt_pop_nv_set; call rax; jmp γ; β: jmp ω`.
@@ -25,7 +25,7 @@ Files touched (one4all):
 
 ---
 
-## Gates at handoff (one4all `d1c55b0c`)
+## Gates at handoff (SCRIP `d1c55b0c`)
 
 ```
 smoke_icon                 PASS=5 FAIL=0
@@ -82,7 +82,7 @@ In `.github/GOAL-ICON-BB.md` under "Rungs". TL;DR ordered by yield:
 ## Resume protocol
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 git pull
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh

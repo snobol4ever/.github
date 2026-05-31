@@ -1,6 +1,6 @@
 # SESSION HANDOFF — 2026-05-27 (Opus 4.7) — RK-BB-SEGFAULT-CLUSTER bugs 2+3 ✅
 
-**one4all HEAD:** `2a70abed` ✅ all gates HOLD or improve
+**SCRIP HEAD:** `2a70abed` ✅ all gates HOLD or improve
 **.github HEAD:** this commit (PLAN.md + GOAL-RAKU-BB.md pruned, watermark updated)
 
 Prior session: `HANDOFF-2026-05-27-OPUS-RK-BB-SEGFAULT-CLUSTER-BUG-1.md`.
@@ -9,7 +9,7 @@ Prior session: `HANDOFF-2026-05-27-OPUS-RK-BB-SEGFAULT-CLUSTER-BUG-1.md`.
 
 ## What landed this session
 
-ONE commit on one4all (`2a70abed`), ONE file changed (`src/lower/lower.c`, +56/-8).
+ONE commit on SCRIP (`2a70abed`), ONE file changed (`src/lower/lower.c`, +56/-8).
 
 Three structural edits restoring multi-sub Raku programs to a working SM shape.
 Bug 1 (segfault elimination) had cleared the runtime crash; bugs 2 and 3 — the

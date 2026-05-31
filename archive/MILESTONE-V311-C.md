@@ -692,7 +692,7 @@ V311-C0  (types/equates)
 
 ## Output Location
 
-`one4all/src/runtime/sil/` — new directory, one `.c`/`.h` pair per milestone.
+`SCRIP/src/runtime/sil/` — new directory, one `.c`/`.h` pair per milestone.
 The Makefile gains a `sil` object group compiled alongside the existing runtime.
 
 ---

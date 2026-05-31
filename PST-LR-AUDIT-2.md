@@ -13,7 +13,7 @@ signs off per-language.
 mutate-prior-in-place; no source token lifted OUT of the tree).
 
 **Heads scanned:**
-- `one4all`  — current (post Phase-1-C handoffs)
+- `SCRIP`  — current (post Phase-1-C handoffs)
 - `corpus`   — read-only for Phase 1 (SCRIP files still STALE until PRF-13)
 - `.github`  — current
 
@@ -48,7 +48,7 @@ AUDIT-1 row tags being verified (V1..V14 numbering from AUDIT-1 line 209–219):
 
 ### Snocone — verification findings
 
-**Per-violation verification (one4all @ `f045deb2`):**
+**Per-violation verification (SCRIP @ `f045deb2`):**
 
 | Tag | Site / current code | Verdict |
 |-----|---------------------|---------|

@@ -23,7 +23,7 @@ One-time rename execution plan. Eight phases, strict order. Do not reorder — s
 | **ORG** | | | | | |
 | organization | `snobol4ever` | `github.com/snobol4ever` | — | — | — |
 | **COMPILERS** | | | | | |
-| native kernel | `one4all` | `one4all` | `sno4x` | — | `one4all.c` / `snoc` (internal) |
+| native kernel | `SCRIP` | `SCRIP` | `sno4x` | — | `SCRIP.c` / `snoc` (internal) |
 | jvm backend | `snobol4jvm` | `snobol4-jvm` | `sno4jvm` | Maven: `snobol4/jvm` | `snobol4.jvm` |
 | .net backend | `snobol4net` *(pending rename from `snobol4dotnet` — see M-G9)* | `snobol4-net` | `sno4net` | NuGet: `snobol4net` | `Snobol4.Net` ¹ |
 | **PATTERN LIBRARIES** | | | | | |
@@ -47,7 +47,7 @@ Edit all `.md` files. **Do not push yet.**
 
 | find | replace |
 |------|---------|
-| `github.com/SNOBOL4-plus/SNOBOL4-tiny` | `github.com/snobol4ever/one4all` |
+| `github.com/SNOBOL4-plus/SNOBOL4-tiny` | `github.com/snobol4ever/SCRIP` |
 | `github.com/SNOBOL4-plus/SNOBOL4-jvm` | `github.com/snobol4ever/snobol4jvm` |
 | `github.com/SNOBOL4-plus/SNOBOL4-dotnet` | `github.com/snobol4ever/snobol4dotnet` |
 | `github.com/SNOBOL4-plus/SNOBOL4-corpus` | `github.com/snobol4ever/corpus` |
@@ -63,7 +63,7 @@ Edit all `.md` files. **Do not push yet.**
 |------|---------|
 | `SNOBOL4ever` | `snobol4ever` |
 | `SNOBOL4now` | `snobol4now` |
-| `SNOBOL4-tiny` (repo refs) | `one4all` |
+| `SNOBOL4-tiny` (repo refs) | `SCRIP` |
 | `SNOBOL4-jvm` (repo refs) | `snobol4jvm` |
 | `SNOBOL4-dotnet` (repo refs) | `snobol4dotnet` |
 | `SNOBOL4-corpus` (repo refs) | `corpus` |
@@ -111,7 +111,7 @@ Settings → General → Repository name, one at a time:
 
 | from | to |
 |------|----|
-| `SNOBOL4-tiny` | `one4all` |
+| `SNOBOL4-tiny` | `SCRIP` |
 | `SNOBOL4-jvm` | `snobol4jvm` |
 | `SNOBOL4-dotnet` | `snobol4dotnet` |
 | `SNOBOL4-corpus` | `corpus` |
@@ -128,7 +128,7 @@ Settings → General → Repository name, one at a time:
 Run in each cloned repo on every machine:
 
 ```bash
-git remote set-url origin https://github.com/snobol4ever/one4all
+git remote set-url origin https://github.com/snobol4ever/SCRIP
 git remote set-url origin https://github.com/snobol4ever/snobol4jvm
 git remote set-url origin https://github.com/snobol4ever/snobol4dotnet
 git remote set-url origin https://github.com/snobol4ever/corpus
@@ -158,7 +158,7 @@ For each repo, audit and update:
 - `README.md`, `INSTALL.md`, `CONTRIBUTING.md` in each repo root
 - CI/CD config (`.github/workflows`) referencing old org or repo names
 
-**`one4all` internal note:** `snoc` stays as the internal compiler binary name. `sno4x` is the user-facing command. Do not rename `snoc`.
+**`SCRIP` internal note:** `snoc` stays as the internal compiler binary name. `sno4x` is the user-facing command. Do not rename `snoc`.
 
 Commit each repo:
 ```bash
@@ -183,7 +183,7 @@ grep -ri "SNOBOL4-plus" . --include="*.cs"   # expect: empty
 Check redirects (GitHub grace period is generous but not infinite):
 ```bash
 curl -I https://github.com/SNOBOL4-plus/SNOBOL4-tiny
-# expect: 301 Moved Permanently → github.com/snobol4ever/one4all
+# expect: 301 Moved Permanently → github.com/snobol4ever/SCRIP
 ```
 
 ---
@@ -193,7 +193,7 @@ curl -I https://github.com/SNOBOL4-plus/SNOBOL4-tiny
 | item | question | owner |
 |------|----------|-------|
 | `snoc` vs `sno4x` | `snoc` = internal build tool, `sno4x` = user command. Confirm. | Lon |
-| `one4all` naming | ✅ Decided 2026-03-17. `one4all` replaces `snobol4all` and `snobol4tiny`. Fast, cross-platform, no ceiling implied. | Lon |
+| `SCRIP` naming | ✅ Decided 2026-03-17. `SCRIP` replaces `snobol4all` and `snobol4tiny`. Fast, cross-platform, no ceiling implied. | Lon |
 | PyPI `snobol4artifact` | Is SNOBOL4-cpython currently on PyPI? If yes, new package needed. | Lon |
 | NuGet casing | `Snobol4.Dotnet` namespace — coordinate on C# convention exception. | Jeffrey |
 | `SESSIONS_ARCHIVE.md` | Header note only. Do not rewrite history. | Lon |

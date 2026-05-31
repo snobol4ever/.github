@@ -25,11 +25,11 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all. **Done when:** every `emit_*.c`, `emit_*.h`, `sm_jit_interp.c/h`, `insn*`, `x86_opcodes.h` passes the 200-col style rules in RULES.md. No logic changes — pure reformatting.
+**Repo:** SCRIP. **Done when:** every `emit_*.c`, `emit_*.h`, `sm_jit_interp.c/h`, `insn*`, `x86_opcodes.h` passes the 200-col style rules in RULES.md. No logic changes — pure reformatting.
 
 **Style rules:** see RULES.md § "C code style".
 
-**Experiment scope (first):** emitter files only (`src/runtime/x86/emit_*.c`, `emit_*.h`, `sm_jit_interp.c/h`, `x86_opcodes.h`). If successful, spread to rest of one4all C.
+**Experiment scope (first):** emitter files only (`src/runtime/x86/emit_*.c`, `emit_*.h`, `sm_jit_interp.c/h`, `x86_opcodes.h`). If successful, spread to rest of SCRIP C.
 
 **Gate after every step:** `bash scripts/build_scrip.sh && bash scripts/test_gate_em_template_byte_identity.sh && bash scripts/test_smoke_snobol4.sh` — all must pass (byte-id 4/4, smoke 7/7).
 
@@ -67,17 +67,17 @@
 
 ## Steps
 
-- [x] **S200-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `0ce4080a` — `emit_core.h` + `emit_form.h` + `emit_defs.h` + `emit.h` + `x86_opcodes.h`. 200-col, paired decls, column-aligned families, one space around `*`, separator comments. 418→362 lines. Gates: smoke 7/7, byte-id 4/4.
-- [x] **S200-2** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `fe47f032` — `emit_bb.h`, `emit_sm.h`, `sm_jit_interp.h`, `emit_templates.h`. 200-col, paired decls, column-aligned families. Removed duplicate `#include "emit.h"`. Fixed `emit_sm_freturn_s/f`/`nreturn_s/f` signatures. 280→243 lines. Gates: smoke 7/7, byte-id 4/4.
-- [x] **S200-3** ✅ sess 2026-05-13 (Claude Sonnet 4.6) one4all `5d1d1274` — `emit_core.c` (2,433→1,786 lines). 200-col separators; `insn_*` 49 one-liners; `bb_insn_*` 41 one-liners; `t3/tf/tj` compacted. Zero blank lines, zero >200-col lines. Gates: smoke 7/7, byte-id 4/4.
-- [x] **S200-4** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `9f63967d` — `ast/ast.h` 518→156, `ast/ast_print.c` 242→124, `ast/ast_verify.c` 336→123 lines. All 8 passes applied. Oracle: smoke 7/7 + disassembly equivalence. Smoke 7/7.
-- [x] **S200-5** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `0529d47d` — processor/ all files. 5,791→3,488 lines. Smoke 7/7.
-- [x] **S200-6** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `d76f0c48` — lower/ all files. 4,055→2,882 lines. Smoke 7/7.
-- [x] **S200-7** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `58feae48` — emitter/ remaining C files. emit_bb.c 1685→1783, emit_sm.c 2888→3025. Smoke 7/7. + `emitter/emit_sm.c` + `emitter/sm_jit_interp.c` (remaining emitter C files, 1,685+2,888 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
-- [x] **S200-8** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `c4e2529c` — runtime/ all files. 19,916→14,499 lines. Smoke 7/7. + `runtime/*.h` (19,916 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
-- [x] **S200-9** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `f80cc1e6` — driver/ all files. 9,775→7,347 lines. Smoke 7/7. + `driver/*.h` (9,775 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
-- [x] **S200-10** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `cada0974` — frontend/ hand-written files. 21,246→15,513 lines. Smoke 7/7. hand-written files only (21,246 lines, no generated). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
-- [x] **S200-11** ✅ sess 2026-05-15 (Claude Sonnet 4.6) one4all `ee25cfb2` — final sweep. Fixed // in string literals (Prolog); long lines; residual blanks. 0 violations. Smoke 7/7. all `src/`: `grep` lines >200; blank lines; brace survivors; comment survivors. Fix all. Gates: oracle md5 match, smoke 7/7.
+- [x] **S200-1** ✅ sess 2026-05-13 (Claude Sonnet 4.6) SCRIP `0ce4080a` — `emit_core.h` + `emit_form.h` + `emit_defs.h` + `emit.h` + `x86_opcodes.h`. 200-col, paired decls, column-aligned families, one space around `*`, separator comments. 418→362 lines. Gates: smoke 7/7, byte-id 4/4.
+- [x] **S200-2** ✅ sess 2026-05-13 (Claude Sonnet 4.6) SCRIP `fe47f032` — `emit_bb.h`, `emit_sm.h`, `sm_jit_interp.h`, `emit_templates.h`. 200-col, paired decls, column-aligned families. Removed duplicate `#include "emit.h"`. Fixed `emit_sm_freturn_s/f`/`nreturn_s/f` signatures. 280→243 lines. Gates: smoke 7/7, byte-id 4/4.
+- [x] **S200-3** ✅ sess 2026-05-13 (Claude Sonnet 4.6) SCRIP `5d1d1274` — `emit_core.c` (2,433→1,786 lines). 200-col separators; `insn_*` 49 one-liners; `bb_insn_*` 41 one-liners; `t3/tf/tj` compacted. Zero blank lines, zero >200-col lines. Gates: smoke 7/7, byte-id 4/4.
+- [x] **S200-4** ✅ sess 2026-05-15 (Claude Sonnet 4.6) SCRIP `9f63967d` — `ast/ast.h` 518→156, `ast/ast_print.c` 242→124, `ast/ast_verify.c` 336→123 lines. All 8 passes applied. Oracle: smoke 7/7 + disassembly equivalence. Smoke 7/7.
+- [x] **S200-5** ✅ sess 2026-05-15 (Claude Sonnet 4.6) SCRIP `0529d47d` — processor/ all files. 5,791→3,488 lines. Smoke 7/7.
+- [x] **S200-6** ✅ sess 2026-05-15 (Claude Sonnet 4.6) SCRIP `d76f0c48` — lower/ all files. 4,055→2,882 lines. Smoke 7/7.
+- [x] **S200-7** ✅ sess 2026-05-15 (Claude Sonnet 4.6) SCRIP `58feae48` — emitter/ remaining C files. emit_bb.c 1685→1783, emit_sm.c 2888→3025. Smoke 7/7. + `emitter/emit_sm.c` + `emitter/sm_jit_interp.c` (remaining emitter C files, 1,685+2,888 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [x] **S200-8** ✅ sess 2026-05-15 (Claude Sonnet 4.6) SCRIP `c4e2529c` — runtime/ all files. 19,916→14,499 lines. Smoke 7/7. + `runtime/*.h` (19,916 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [x] **S200-9** ✅ sess 2026-05-15 (Claude Sonnet 4.6) SCRIP `f80cc1e6` — driver/ all files. 9,775→7,347 lines. Smoke 7/7. + `driver/*.h` (9,775 lines). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [x] **S200-10** ✅ sess 2026-05-15 (Claude Sonnet 4.6) SCRIP `cada0974` — frontend/ hand-written files. 21,246→15,513 lines. Smoke 7/7. hand-written files only (21,246 lines, no generated). Apply all 8 pass rules. Gates: oracle md5 match, smoke 7/7.
+- [x] **S200-11** ✅ sess 2026-05-15 (Claude Sonnet 4.6) SCRIP `ee25cfb2` — final sweep. Fixed // in string literals (Prolog); long lines; residual blanks. 0 violations. Smoke 7/7. all `src/`: `grep` lines >200; blank lines; brace survivors; comment survivors. Fix all. Gates: oracle md5 match, smoke 7/7.
 
 ---
 
@@ -85,7 +85,7 @@
 
 **SESSION HANDOFF — sess 2026-05-15 S200-COMPLETE (Claude Sonnet 4.6)**
 
-one4all HEAD `ee25cfb2`. Gates: smoke 7/7. ALL STEPS S200-1 through S200-11 COMPLETE.
+SCRIP HEAD `ee25cfb2`. Gates: smoke 7/7. ALL STEPS S200-1 through S200-11 COMPLETE.
 
 ### Lessons learned
 - Beautifier must skip // inside string literals (fixed in improved /tmp/beautify_sm.py)

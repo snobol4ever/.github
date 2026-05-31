@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** Icon standard library procedures pass under all three modes
 (--interp, --interp, --run). Rung ladder reaches rung-36. Icon generator
 boxes (E_TO, E_EVERY, E_SUSPEND, E_BANG, E_ALT_GEN) work under SM+BB.
@@ -54,25 +54,25 @@ Share fixes via main — no branches.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_icon.sh             # PASS=5
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh   # PASS=45
-bash /home/claude/one4all/scripts/test_crosscheck_icon.sh        # PASS=4 (3-mode divergence check)
-bash /home/claude/one4all/scripts/test_icon_all_rungs.sh      # rung01-36; --rung RUNG to target one
+bash /home/claude/SCRIP/scripts/test_smoke_icon.sh             # PASS=5
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=45
+bash /home/claude/SCRIP/scripts/test_crosscheck_icon.sh        # PASS=4 (3-mode divergence check)
+bash /home/claude/SCRIP/scripts/test_icon_all_rungs.sh      # rung01-36; --rung RUNG to target one
 # Per-rung gates for IC-7:
-bash /home/claude/one4all/scripts/test_icon_ir_rung_30.sh        # abs/max/min/sqrt/seq
-bash /home/claude/one4all/scripts/test_icon_ir_rung_31.sh        # sort/sortf
-bash /home/claude/one4all/scripts/test_icon_ir_rung_32.sh        # string retval every
-bash /home/claude/one4all/scripts/test_icon_ir_rung_33.sh        # case expressions
-bash /home/claude/one4all/scripts/test_icon_ir_rung_34.sh        # null/nonnull test
-bash /home/claude/one4all/scripts/test_icon_ir_rung_35.sh        # block bodies + table str/str
-bash /home/claude/one4all/scripts/test_icon_ir_rung_36.sh        # JCON suite (xfail=23 expected)
+bash /home/claude/SCRIP/scripts/test_icon_ir_rung_30.sh        # abs/max/min/sqrt/seq
+bash /home/claude/SCRIP/scripts/test_icon_ir_rung_31.sh        # sort/sortf
+bash /home/claude/SCRIP/scripts/test_icon_ir_rung_32.sh        # string retval every
+bash /home/claude/SCRIP/scripts/test_icon_ir_rung_33.sh        # case expressions
+bash /home/claude/SCRIP/scripts/test_icon_ir_rung_34.sh        # null/nonnull test
+bash /home/claude/SCRIP/scripts/test_icon_ir_rung_35.sh        # block bodies + table str/str
+bash /home/claude/SCRIP/scripts/test_icon_ir_rung_36.sh        # JCON suite (xfail=23 expected)
 ```
 
 ---
@@ -174,7 +174,7 @@ Rung 12–36 are the ladder for this goal.
   Overall gate: `bash scripts/test_icon_all_rungs.sh` — now covers rung01–36,
     xfail-aware, --rung/--scrip/--corpus switches, timeout 30s for rung36.
   All IC-7 rungs PASS 32/32 (5+5+5+5+5+7). smoke PASS=5, broker PASS=49,
-  crosscheck PASS=4. one4all HEAD `8fbdd080` (rung32 fix), advanced to
+  crosscheck PASS=4. SCRIP HEAD `8fbdd080` (rung32 fix), advanced to
   `59514e72` in same session #16 with IC-8 batch.
 
 - [ ] **IC-8** — rung36: JCON integration suite (75 tests).
@@ -292,7 +292,7 @@ Rung 12–36 are the ladder for this goal.
   - `find(needle, "s1"|"s2"|...)` with alternation-as-generator needs the
     `icn_bb_find` box to be driven by `icn_eval_gen`, not the oneshot
     scalar path.
-  one4all HEAD after commit from this session.
+  SCRIP HEAD after commit from this session.
 
   **Next session pivot**: fix `E_SEQ` (`&` conjunction) return value so
   `&pos := 6 & write(...)` doesn't short-circuit.  Then fix `strchr`→cset
@@ -594,7 +594,7 @@ Key procedures and their construct:
 
 ---
 
-## Current state (2026-04-14, one4all HEAD a22ffac2)
+## Current state (2026-04-14, SCRIP HEAD a22ffac2)
 
 IC-1 done. IC-2 in progress: 54/59 rung01-11 PASS.
 Relop fix done (NUMREL/STRREL return right operand — oracle confirmed).
@@ -646,7 +646,7 @@ variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
 ---
 
-## Current state (2026-04-14 session 2, one4all HEAD 5438115c)
+## Current state (2026-04-14 session 2, SCRIP HEAD 5438115c)
 
 IC-2 in progress: PASS=44 FAIL=15 TOTAL=59.
 
@@ -676,7 +676,7 @@ Remaining 15 failures:
 Next IC-2 step: attack rung02_proc_* failures (fact, locals, add_proc) — user proc
 call path. Then rung01 binop backtracking (icn_bb_binop_gen right-retry on relop fail).
 
-## Current state (2026-04-15 session 8, one4all HEAD 09dbff9c)
+## Current state (2026-04-15 session 8, SCRIP HEAD 09dbff9c)
 
 IC-3 IN PROGRESS: table builtins written, DT_T frame slot coercion bug blocks gate.
 
@@ -840,7 +840,7 @@ recurses into upto(4) arg; verify every_body non-NULL and passthrough fires (run
 5. rung02_proc_* — user proc call path investigation.
 6. After 59/59: delete icn_drive/icn_drive_fnc (IC-2c), then IC-2d rung12.
 
-## Current state (2026-04-15 session 9, one4all HEAD 4a5f382d)
+## Current state (2026-04-15 session 9, SCRIP HEAD 4a5f382d)
 
 IC-3 DONE: rung13 tables PASS=5/5. Three bugs fixed this session:
 1. table() DESCR_t union clobber: d.s=NULL after d.tbl=tbl overwrote pointer (same union).
@@ -858,7 +858,7 @@ IC-5 IN PROGRESS: real output + pow + E_TO_BY real done; remaining rung15-29 wor
 Rung baseline rung12-29: PASS=35 FAIL=62 before this session → after: rung17/19/26 pow/real fixed.
 Next: IC-5 — swap() builtin, string subscript s[i] and section s[i:j], list builtins (push/pop/put/get), initial block fix, records.
 
-## Current state (2026-04-15 session 10, one4all HEAD 9bcbe7a8)
+## Current state (2026-04-15 session 10, SCRIP HEAD 9bcbe7a8)
 
 IC-5 IN PROGRESS: rung15 PASS=5/5. Rung16-29: PASS=53 FAIL=24 (was 31/77, +22).
 Broker: PASS=38 FAIL=0. Rung01-11: 59/59.
@@ -868,7 +868,7 @@ subscript_get/get2 DT_S; E_SIZE/E_ITERATE DT_DATA icnlist; 20+ builtins.
 
 Next: neg subscript fix, initial persistence, !list BB box, table default, records, read().
 
-## Current state (2026-04-15 session 11, one4all HEAD da83ab23)
+## Current state (2026-04-15 session 11, SCRIP HEAD da83ab23)
 
 IC-5 IN PROGRESS: rung01-29 PASS=137 FAIL=19 TOTAL=156. Broker PASS=39 FAIL=0.
 
@@ -892,7 +892,7 @@ Remaining 19 failures — next session priority:
   4. rung22 put_bang (1), rung23 key (1), rung16 sub_every (1).
   5. rung18 relop_goal (1), rung19 pow_real (1), rung28 trim_map (1), rung29 image (1).
 
-## Current state (2026-04-15 session 12, one4all HEAD 57d51c88)
+## Current state (2026-04-15 session 12, SCRIP HEAD 57d51c88)
 
 IC-6 IN PROGRESS: rung01-29 PASS=154 FAIL=2 TOTAL=156. Broker PASS=42 FAIL=0. Smoke PASS=5.
 
@@ -931,7 +931,7 @@ OPEN (2 failures, next session IC-6 priority):
   icn_eval_gen fires before the binop_map loop and intercepts E_LCONCAT
   (E_CAT and E_LCONCAT share the icn_is_gen case but E_CAT block only
   checks e->kind == E_CAT). Verify: add E_LCONCAT check to E_CAT block guard.
-## Current state (2026-04-16 session 13, one4all HEAD 37d45f96)
+## Current state (2026-04-16 session 13, SCRIP HEAD 37d45f96)
 
 IC-6 rung13 alt-gen DONE: rung01-29 PASS=156/156 FAIL=0. Broker PASS=43 FAIL=0. Smoke PASS=5.
 
@@ -958,12 +958,12 @@ Without corpus the rung all-rungs script SKIPs. Remaining known open (from sessi
 rung22 put_bang(1), rung23 key(1), rung16 sub_every(1), rung18 relop(1),
 rung19 pow(1), rung28 trim_map(1), rung29 image(1).
 
-## Current state (2026-04-16 session 14, one4all HEAD 37d45f96)
+## Current state (2026-04-16 session 14, SCRIP HEAD 37d45f96)
 
 IC-6 DONE: rung01-29 PASS=156/156 confirmed with corpus. Broker PASS=45 FAIL=0. Smoke PASS=5.
 Crosscheck PASS=4. All suspected IC-6 failures were already fixed from session 13.
 
-Scripts rewritten/extended this session (all in one4all/scripts/, self-contained, --interp):
+Scripts rewritten/extended this session (all in SCRIP/scripts/, self-contained, --interp):
   test_icon_ir_rung_30.sh  — abs/max/min/sqrt/seq   (was JVM/jasmin stub)
   test_icon_ir_rung_31.sh  — sort/sortf              (was JVM/jasmin stub)
   test_icon_ir_rung_32.sh  — string retval every     (was JVM/jasmin stub)
@@ -986,7 +986,7 @@ IC-8 baseline (rung36 JCON): PASS=2 FAIL=50 XFAIL=23 TOTAL=75
 Next IC-7: fix rung30 builtins first (abs/max/min/sqrt/seq in icn_runtime.c E_FNC dispatch),
 then rung31 sort/sortf, then rung33 case, then rung34 null-test, then rung32 strret_every.
 
-## Current state (2026-04-16 session 15, one4all HEAD 9eb8c669)
+## Current state (2026-04-16 session 15, SCRIP HEAD 9eb8c669)
 
 IC-7 IN PROGRESS. Broker PASS=49 FAIL=0. Smoke PASS=5. Rung01-29 PASS=156/156.
 
@@ -1019,7 +1019,7 @@ icn_call_builtin.
 
 Next IC-7: fix rung32 strret_every (1 test), then IC-8 rung36 JCON suite.
 
-## Current state (2026-04-30 session 18, one4all HEAD b6350608)
+## Current state (2026-04-30 session 18, SCRIP HEAD b6350608)
 
 IC-8 IN PROGRESS. Two tactical fixes landed this session — `!N` numeric iteration
 and `===` (E_IDENTICAL) goal-directed evaluation. Gates preserved at 188/45/30,
@@ -1134,7 +1134,7 @@ augmented-assign, `\`/`/` null-test on missing keys).
 These all touch the same IcnFrame / table-lvalue boundary; one or two
 shared fixes likely address several.
 
-## Current state (2026-04-30 session 19, one4all HEAD 7c5f9b45)
+## Current state (2026-04-30 session 19, SCRIP HEAD 7c5f9b45)
 
 IC-9 IN PROGRESS. One scalar-evaluator correctness fix landed; PASS counts unchanged
 across all gates, but the visible diff for `rung36_jcon_table` is one line cleaner.
@@ -1192,7 +1192,7 @@ wrong null-vs-fail semantics, exposed by the JCON test's
 
 ### Working-tree pollution cleaned
 
-Found three stray files in `/home/claude/one4all/` working tree at session
+Found three stray files in `/home/claude/SCRIP/` working tree at session
 start: `foo.baz` (empty), `src/driver/interp.c.fixed`, and
 `src/driver/interp.c.orig`.  The two `.c.*` files were byte-identical and
 contained a drafted-but-not-committed version of exactly this fix.  Per
@@ -1229,7 +1229,7 @@ fail on empty tables, or does it return `&null` of the table default?
 The expected output (`should fail ` with no value after) suggests it
 fails (causing `writes` to emit nothing for that arg).
 
-## Current state (2026-04-30 session 20, one4all HEAD 2add5179)
+## Current state (2026-04-30 session 20, SCRIP HEAD 2add5179)
 
 IC-9 IN PROGRESS. Three correctness fixes landed; PASS counts unchanged
 across all gates (same shape as session #18/#19 — affected rung36_jcon_*
@@ -1338,7 +1338,7 @@ No regression — just a different sequence.
 
 ### Working-tree pollution (cleaned again)
 
-Found `foo.baz` (empty file) at session start in one4all working tree —
+Found `foo.baz` (empty file) at session start in SCRIP working tree —
 same kind of stray scratch as session #19 cleaned.  Removed; not committed.
 Per RULES.md "Diagnostic patches are diagnostic — never commit them",
 empty/scratch files don't ship.
@@ -1364,7 +1364,7 @@ Separately: `delete()` arity bug (`delete(x)` 1-arg and `delete(x,3,6)`
 Visible as `delete : 4` (vs expected `delete : 2`) on rung36_jcon_table
 lines 10, 14.
 
-## Current state (2026-04-30 session 21, one4all HEAD `8ddcbc89`)
+## Current state (2026-04-30 session 21, SCRIP HEAD `8ddcbc89`)
 
 IC-9 IN PROGRESS / IC-8 ADVANCE.  Six fixes landed; **rung36_jcon_table
 PASS** (empty diff against expected) — first PASS-count advance in IC-8
@@ -1517,7 +1517,7 @@ suffix per tick, write back to source var) would close
 Working tree at session end: clean.  One stray `foo.baz` (empty file —
 same scratch shape sessions #19 and #20 cleaned) was removed before
 commit per RULES.md "Diagnostic patches are diagnostic — never commit
-them".  Per-repo dirty sets at handoff: one4all (4 files in this
+them".  Per-repo dirty sets at handoff: SCRIP (4 files in this
 session's diff), .github (this update), corpus clean, csnobol4 clean,
 x64 clean.
 
@@ -1643,7 +1643,7 @@ beyond what I fixed:
 
 ### Pollution check
 
-Working tree at session end: one4all dirty (1 file: `src/driver/interp.c`,
+Working tree at session end: SCRIP dirty (1 file: `src/driver/interp.c`,
 +185 / -10), .github dirty (this entry), corpus clean, csnobol4 clean,
 x64 clean.  No diagnostic instrumentation left in code (three
 `fprintf(stderr, "DBG ...")` lines added during section-assign debugging
@@ -1779,7 +1779,7 @@ follows the same pattern, so this stays in family with existing code.
 
 ### Working-tree state at handoff
 
-- one4all dirty (3 files): `src/driver/interp.c`, `src/runtime/interp/
+- SCRIP dirty (3 files): `src/driver/interp.c`, `src/runtime/interp/
   icn_runtime.c`, `src/frontend/icon/icon_parse.c`
 - .github dirty (this update + PLAN.md state row)
 - corpus clean, csnobol4 clean, x64 clean
@@ -1914,12 +1914,12 @@ the same way.
 
 ### Working-tree state at handoff
 
-- one4all dirty (4 files): `src/driver/interp.c`,
+- SCRIP dirty (4 files): `src/driver/interp.c`,
   `src/runtime/interp/icn_runtime.c`, `src/frontend/icon/icon_gen.c`,
   `src/frontend/icon/icon_gen.h`
 - .github dirty (this update + PLAN.md state row)
 - corpus clean, csnobol4 clean, x64 clean
-- one stray `foo.baz` (empty file) in one4all/ at session start —
+- one stray `foo.baz` (empty file) in SCRIP/ at session start —
   removed before commit per RULES.md "Diagnostic patches are
   diagnostic — never commit them".
 
@@ -1929,7 +1929,7 @@ the same way.
 
 IC-9 IN PROGRESS.  One closed test (+1 PASS), three previously-unparseable
 tests now parse and run, foundational scan-state writes landed.  Six files
-changed across `one4all/src` (99 insertions, 12 deletions).  Gates:
+changed across `SCRIP/src` (99 insertions, 12 deletions).  Gates:
 smoke 5/0, broker 49/0, crosscheck 4/0/0, rung_36 PASS=11→**12**,
 rung01-36 PASS=199→**200** FAIL=34→**33** XFAIL=30 unchanged.
 
@@ -2116,7 +2116,7 @@ diff to close".
 
 ### Working-tree state at handoff
 
-- one4all dirty (6 files): `src/runtime/x86/snobol4_pattern.c` (+22),
+- SCRIP dirty (6 files): `src/runtime/x86/snobol4_pattern.c` (+22),
   `src/driver/interp.c` (+~50), `src/frontend/icon/icon_parse.c`
   (+10), `src/frontend/icon/icon_parse.h` (+4 — new prev_kind field),
   `src/runtime/interp/icn_runtime.c` (+5 — init defaults & comment),
@@ -2124,7 +2124,7 @@ diff to close".
   insertions, 12 deletions.
 - .github dirty (this update + PLAN.md state row)
 - corpus clean, csnobol4 clean, x64 clean
-- one stray `foo.baz` (empty file) at one4all/ root at session start —
+- one stray `foo.baz` (empty file) at SCRIP/ root at session start —
   removed before commit per RULES.md "Diagnostic patches are
   diagnostic — never commit them".
 
@@ -2134,7 +2134,7 @@ diff to close".
 
 IC-9 IN PROGRESS / IC-8 ADVANCE.  **rung36_jcon_subjpos CLOSED** byte-identical
 to expected — first session-#25 followup pivot landed.  Five files changed in
-one4all (196 insertions, 9 deletions).  Gates clean across the board:
+SCRIP (196 insertions, 9 deletions).  Gates clean across the board:
 smoke 5/0, broker 49/0, crosscheck 4/0/0, snobol4-smoke 7/0.
 
 **rung_36 PASS=12 → 13** (FAIL=33 → 32, XFAIL=30 unchanged).
@@ -2325,12 +2325,12 @@ Total: 5 files, 196+/9-.
 
 ### Working-tree state at handoff
 
-- one4all advanced to `634d9701` (5 files: `src/ir/ir.h`, `src/frontend/icon/icon_parse.c`,
+- SCRIP advanced to `634d9701` (5 files: `src/ir/ir.h`, `src/frontend/icon/icon_parse.c`,
   `src/driver/interp.c`, `src/runtime/interp/icn_runtime.h`,
   `src/runtime/interp/icn_runtime.c`).  Total 196+/9-.
 - .github dirty (this update + PLAN.md state row update)
 - corpus clean, csnobol4 clean, x64 clean
-- one stray `foo.baz` (empty file) at one4all/ root at session start —
+- one stray `foo.baz` (empty file) at SCRIP/ root at session start —
   same scratch shape sessions #19–#25 cleaned.  Removed before commit
   per RULES.md "Diagnostic patches are diagnostic — never commit them".
 
@@ -2424,7 +2424,7 @@ yet implemented.
 
 ### Working-tree state at handoff
 
-- one4all: 1 file changed (`src/driver/interp.c`, E_SCAN guard + shared-switch
+- SCRIP: 1 file changed (`src/driver/interp.c`, E_SCAN guard + shared-switch
   scan-keyword read/write guards).  Committed this session.
 - .github dirty (this update + PLAN.md state row)
 - corpus clean, x64 clean
@@ -2434,7 +2434,7 @@ yet implemented.
 ## Session #30 (2026-05-02) — IC-9: & precedence + E_SEQ frame + find/upto gen-subj
 
 IC-9 IN PROGRESS. **rung36 PASS=14** (from 13), **ladder PASS=202** (from 201).
-Gates: smoke 5/0, broker 49/0, crosscheck 4/0/0. one4all HEAD `1e515891`.
+Gates: smoke 5/0, broker 49/0, crosscheck 4/0/0. SCRIP HEAD `1e515891`.
 
 Three fixes landed across two commits (`3f436ceb`, `1e515891`):
 
@@ -2468,6 +2468,6 @@ per subject. `upto` box uses byte-scan (8-bit safe, no `strchr`).
 
 ### Working-tree state at handoff
 
-- one4all: HEAD `1e515891`, clean.
+- SCRIP: HEAD `1e515891`, clean.
 - .github dirty (this update + PLAN.md)
 - corpus clean, x64 clean

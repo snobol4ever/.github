@@ -16,7 +16,7 @@
 ## How to Reproduce
 
 ```bash
-cd /home/claude/snobol4ever/one4all
+cd /home/claude/snobol4ever/SCRIP
 cat > /tmp/fence_test.sno << 'SNOEOF'
                'hello world' FENCE('hello')  :F(FAIL)
                OUTPUT = 'OK'   :(END)
@@ -95,7 +95,7 @@ All fixes confirmed: **106/106 corpus ALL PASS**.
 ## Current State of beauty Build
 
 ```bash
-cd /home/claude/snobol4ever/one4all
+cd /home/claude/snobol4ever/SCRIP
 WORK=/tmp/beauty_build
 ./scrip-cc -asm -Idemo/inc -I./src/frontend/snobol4 demo/beauty.sno -o $WORK/beauty.asm
 nasm -f elf64 -I src/runtime/asm/ -o $WORK/beauty.o $WORK/beauty.asm

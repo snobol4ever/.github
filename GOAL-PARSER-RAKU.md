@@ -25,8 +25,8 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** corpus+one4all
-**Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)
+**Repo:** corpus+SCRIP
+**Branch:** `parser` (SCRIP only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-RAKU.md` and `GOAL-RAKU-FRONTEND.md`.
 
 ## ⚡ PIVOT — session 2026-05-07 (post-RK-27)
@@ -75,16 +75,16 @@ UpperCamel convention and lower to generic `E_FNC raku_<name>` nodes.
 ## Session Setup
 
 ```bash
-( cd /home/claude/one4all && git fetch origin parser 2>/dev/null; git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
+( cd /home/claude/SCRIP && git fetch origin parser 2>/dev/null; git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
 
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 Gate after setup:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_raku.sh    # existing frontend baseline
-bash /home/claude/one4all/scripts/test_parser_raku.sh   # PAT-RK gate
+bash /home/claude/SCRIP/scripts/test_smoke_raku.sh    # existing frontend baseline
+bash /home/claude/SCRIP/scripts/test_parser_raku.sh   # PAT-RK gate
 ```
 
 ---
@@ -1134,7 +1134,7 @@ Pat ? 'X $x div $y';          // crashed on certain inputs (no longer crashes)
 ```
 
 - [x] BUG-SCRIP-WS-1: confirmed no longer reproduces against current
-      one4all HEAD (verified session 2026-05-07).
+      SCRIP HEAD (verified session 2026-05-07).
 
 ---
 
@@ -1451,7 +1451,7 @@ groups `(<name> ...)` and verify against the LANG RK-23 oracle output.  Gate tar
 
 - [x] **BUG-FIX in `raku.y`** — `KW_ELSIF` declared but had zero grammar rules; fixed with
       three `if_stmt` arms mirroring the existing `KW_ELSE if_stmt` recursive shape.
-      one4all @ `d96d4ef7`.
+      SCRIP @ `d96d4ef7`.
 - [x] `LitFloat` → `(E_FLIT n)` — positioned before `LitInt` in `Expr11` to avoid `.`
       being consumed as MethodTail dot before the decimal.
 - [x] `repeat { }` → `(E_REPEAT body)` — `E_REPEAT` constant added; `RepeatStmt`.
@@ -1471,7 +1471,7 @@ groups `(<name> ...)` and verify against the LANG RK-23 oracle output.  Gate tar
       / `PrintFhStmt` + `finish_say_fh` / `finish_print_fh`.
 - [x] `if/elsif/else` chain → nested `E_IF` — uses `raku.y` bug fix.
 - [x] 11 new corpus fixtures with oracle `.ref` files.
-- **Gate:** PASS=126 FAIL=0 ✓  corpus@838304e  one4all@d96d4ef7
+- **Gate:** PASS=126 FAIL=0 ✓  corpus@838304e  SCRIP@d96d4ef7
 
 ## Watermark
 
@@ -1657,7 +1657,7 @@ a separate micro-step with its own fixture; both gates run after every
 arm with revert-on-red discipline.
 
 **RK-28-A (coverage gate infrastructure):**
-- New `one4all/scripts/test_parser_raku_coverage.sh` — parse-only gate.
+- New `SCRIP/scripts/test_parser_raku_coverage.sh` — parse-only gate.
   Four assertions per fixture: exit 0, non-empty output, no `Parse Error`
   substring, first non-blank line begins `(STMT`.  No oracle compare.
   Skips cleanly when `parser-coverage/` is empty or absent.
@@ -1723,7 +1723,7 @@ opportunistic — not blocking.
   3 anchor lists updated (Stmt, BlockStmt, SubBlockStmt).
 - `corpus/programs/raku/parser-coverage/README.md` — new.
 - `corpus/programs/raku/parser-coverage/stmt_ctrl_*.raku` — 13 fixtures.
-- `one4all/scripts/test_parser_raku_coverage.sh` — new, executable.
+- `SCRIP/scripts/test_parser_raku_coverage.sh` — new, executable.
 - `.github/GOAL-PARSER-RAKU.md` — PIVOT block at top, Invariants
   rewritten, RK-28..RK-50 ladder grounded in Grammar.nqp, RK-28-A and
   RK-28 marked LANDED, this watermark.
@@ -1731,7 +1731,7 @@ opportunistic — not blocking.
 
 ### Commit hashes at handoff
 
-- one4all (`parser` branch): `7adcbdbd` — test_parser_raku_coverage.sh
+- SCRIP (`parser` branch): `7adcbdbd` — test_parser_raku_coverage.sh
 - corpus (`main`): `6f1c61f` — RK-28 LANDED + 13 fixtures + parser_raku.sc grammar
 - .github (`main`): this commit (push pending)
 

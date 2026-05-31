@@ -31,7 +31,7 @@ smoke_icon 5/5  ·  icon_all_rungs 198/268  ·  smoke_prolog 5/5  ·  broker 30/
 
 ## Commit
 
-one4all `6a631124` — pushed to origin/main.
+SCRIP `6a631124` — pushed to origin/main.
 
 ## LFJ staircase status
 

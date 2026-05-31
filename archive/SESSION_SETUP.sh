@@ -20,13 +20,13 @@
 #
 # After this completes, run the appropriate test script for your session type:
 #
-#   JVM interpreter sessions (DYN-, J-, one4all-SNOBOL4-NET):
-#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
+#   JVM interpreter sessions (DYN-, J-, SCRIP-SNOBOL4-NET):
+#     cd /home/claude/SCRIP && CORPUS=/home/claude/corpus bash test/run_interp_broad.sh
 #     (do NOT run crosscheck.sh or crosscheck.sh for interpreter sessions)
 #
 #   Emit sessions (x86, JVM emitter, .NET):
-#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/crosscheck.sh snobol4_jvm
-#     cd /home/claude/one4all && CORPUS=/home/claude/corpus bash test/crosscheck.sh snobol4_x86
+#     cd /home/claude/SCRIP && CORPUS=/home/claude/corpus bash test/crosscheck.sh snobol4_jvm
+#     cd /home/claude/SCRIP && CORPUS=/home/claude/corpus bash test/crosscheck.sh snobol4_x86
 #
 # All tool installation is fully automatic. Network access required.
 # Never hardcode the token — TOKEN env var only.
@@ -95,7 +95,7 @@ clone_or_pull() {
 }
 
 clone_or_pull ".github"  ".github"
-clone_or_pull "one4all"  "one4all"
+clone_or_pull "SCRIP"  "SCRIP"
 clone_or_pull "corpus"   "corpus"
 clone_or_pull "harness"  "harness"
 
@@ -173,7 +173,7 @@ fi
 
 # SnoHarness — compile if absent or stale (JVM backend only)
 if need_backend jvm; then
-HARNESS_DIR="/home/claude/one4all/test/jvm"
+HARNESS_DIR="/home/claude/SCRIP/test/jvm"
 if command -v javac &>/dev/null && \
    [[ ! -f "$HARNESS_DIR/SnoHarness.class" || \
       "$HARNESS_DIR/SnoHarness.java" -nt "$HARNESS_DIR/SnoHarness.class" ]]; then
@@ -283,10 +283,10 @@ if need_backend net && ! need_backend all; then
     info "Skipping scrip-cc build (BACKEND=net — .NET sessions use dotnet, not scrip-cc)"
 else
     step "WHERE — scrip-cc (project compiler)"
-    SCRIP_CC=/home/claude/one4all/scrip-cc
+    SCRIP_CC=/home/claude/SCRIP/scrip-cc
     if [[ ! -x "$SCRIP_CC" || ! -s "$SCRIP_CC" ]]; then
-        info "Building scrip-cc from one4all/src/ ..."
-        (cd /home/claude/one4all/src && make -j"$(nproc)" 2>/dev/null) \
+        info "Building scrip-cc from SCRIP/src/ ..."
+        (cd /home/claude/SCRIP/src && make -j"$(nproc)" 2>/dev/null) \
             && ok "scrip-cc built" \
             || fail "scrip-cc — build failed"
     else
@@ -296,7 +296,7 @@ fi
 
 # jasmin.jar — bundled in repo (JVM backend only)
 if need_backend jvm; then
-    JASMIN=/home/claude/one4all/src/backend/jvm/jasmin.jar
+    JASMIN=/home/claude/SCRIP/src/backend/jvm/jasmin.jar
     [[ -f "$JASMIN" ]] && ok "jasmin.jar" || fail "jasmin.jar missing at $JASMIN"
 fi
 
@@ -318,13 +318,13 @@ echo -e "${BOLD}═════════════════════�
 if [[ $ERRORS -eq 0 ]]; then
     if need_backend net && ! need_backend all; then
         echo -e "${GREEN}${BOLD}  SETUP COMPLETE — .NET session, run:${RESET}"
-        echo -e "${GREEN}    cd /home/claude/one4all${RESET}"
+        echo -e "${GREEN}    cd /home/claude/SCRIP${RESET}"
         echo -e "${GREEN}    dotnet build src/driver/dotnet/scrip-interp.csproj -c Release -o /tmp/sni${RESET}"
         echo -e "${GREEN}    dotnet /tmp/sni/scrip-interp.dll /home/claude/corpus/crosscheck/hello/hello.sno${RESET}"
         echo -e "${GREEN}    INTERP=/tmp/sni_run.sh CORPUS=/home/claude/corpus TIMEOUT=10 bash test/run_interp_broad.sh${RESET}"
     else
         echo -e "${GREEN}${BOLD}  SETUP COMPLETE — now run the two test scripts:${RESET}"
-        echo -e "${GREEN}    cd /home/claude/one4all${RESET}"
+        echo -e "${GREEN}    cd /home/claude/SCRIP${RESET}"
         echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/crosscheck.sh${RESET}"
         echo -e "${GREEN}    CORPUS=/home/claude/corpus bash test/crosscheck.sh${RESET}"
     fi

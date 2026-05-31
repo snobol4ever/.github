@@ -2,7 +2,7 @@
 
 **Author:** Claude Opus 4.8
 **Goal:** GOAL-PROLOG-BB.md (PLR-J JCON/ICON four-port transliteration ladder)
-**Repos pushed:** one4all `751c5f10`, .github `8206c250`
+**Repos pushed:** SCRIP `751c5f10`, .github `8206c250`
 **Net:** two ladder rungs closed (PLR-J-0 → PLR-J-2), both `lower_pl.c`-only,
 lower-time-only, **byte-identical output**, FACT 0. No emitter/template/runtime change.
 
@@ -10,7 +10,7 @@ lower-time-only, **byte-identical output**, FACT 0. No emitter/template/runtime 
 
 ## What landed
 
-### PLR-J-0 — `bounded`/determinacy flag at lower time (one4all `e2d99c3d`)
+### PLR-J-0 — `bounded`/determinacy flag at lower time (SCRIP `e2d99c3d`)
 
 Added the pure classifier `pl_goal_is_bounded(const tree_t *e)` in `src/lower/lower_pl.c`
 (immediately above `lower_pl_goal`, with a forward decl in the static block). Transliterates
@@ -35,7 +35,7 @@ byte-identical. Populated + provable via env-gated trace `SCRIP_PL_BOUNDED_TRACE
 foo(Y):-Y>0.` traces `is/write/nl/>/=:= → bounded=1`, `foo (user call) → 0`, `; → 0`;
 program output `5` unchanged.
 
-### PLR-J-2 — explicit per-node resume predicate (one4all `751c5f10`)
+### PLR-J-2 — explicit per-node resume predicate (SCRIP `751c5f10`)
 
 Replaced the inline `(t==BB_PL_CALL||t==BB_CHOICE||t==BB_PL_ALT)` resumable tests scattered
 in `lower_pl_new_Conj` (the `gβ[]` redo wiring, two loops) and `lower_pl_clause_body` (the

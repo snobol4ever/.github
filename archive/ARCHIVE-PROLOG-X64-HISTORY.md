@@ -144,7 +144,7 @@ test/frontend/prolog/corpus/rung10_programs/
 
 ### Recommendation for F-213
 
-1. `cd one4all && make -C src` — rebuild with emit_body fix
+1. `cd SCRIP && make -C src` — rebuild with emit_body fix
 2. Test rungs 1–5: `./scrip-cc -pl test/.../rungN.pl -o /tmp/t.c && gcc ... && ./a.out`
 3. If rung 5 (backtrack/member) passes, rungs 6–8 likely follow
 4. Consider pivot: instead of C backend, target x64 ASM emitter directly

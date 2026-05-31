@@ -1,7 +1,7 @@
 # REPO-snobol4jvm.md — snobol4jvm
 
 **What:** SNOBOL4 → JVM bytecode. Complete compiler/interpreter/runtime in Clojure.
-Role: semantic oracle for `emit_jvm.c` (one4all JVM backend).
+Role: semantic oracle for `emit_jvm.c` (SCRIP JVM backend).
 **Clone:** `git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4jvm.git /home/claude/snobol4jvm`
 **Path:** `/home/claude/snobol4jvm`
 
@@ -11,16 +11,16 @@ Role: semantic oracle for `emit_jvm.c` (one4all JVM backend).
 
 ```bash
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/snobol4jvm /home/claude/snobol4jvm
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/one4all /home/claude/one4all
+git clone https://TOKEN_SEE_LON@github.com/snobol4ever/SCRIP /home/claude/SCRIP
 git clone https://TOKEN_SEE_LON@github.com/snobol4ever/x64 /home/claude/x64
 ```
 
 **Build:**
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/install_java_and_jasmin.sh    # Java + Jasmin
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh    # primary oracle
-bash /home/claude/one4all/scripts/build_scrip.sh             # one4all compiler
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/install_java_and_jasmin.sh    # Java + Jasmin
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh    # primary oracle
+bash /home/claude/SCRIP/scripts/build_scrip.sh             # SCRIP compiler
 ```
 
 ## Oracle role

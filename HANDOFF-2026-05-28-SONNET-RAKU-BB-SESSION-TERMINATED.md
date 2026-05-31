@@ -18,7 +18,7 @@ Session worked on three targets: rk_try_catch25 (exceptions), rk_stdio39 (stdio 
 
 **VIOLATION:** Attempted to fix (2) via `setjmp`/`longjmp` injected by `lower_try` using `SM_CALL_FN "rt_try_enter"` — a language-specific runtime helper routed through SM emission. **REJECTED: templates are platform-only, not language-specific. No language guards belong in SM/BB/XA templates or template-dispatched SM opcodes.**
 
-All changes reverted. `git status` clean on both one4all and .github.
+All changes reverted. `git status` clean on both SCRIP and .github.
 
 ---
 
@@ -107,10 +107,10 @@ Add `raku_exc_clear`, `raku_exc_check`, `raku_exc_get` to `raku_builtins_byname.
 ## Session Setup for Next Session
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip libscrip_rt > /tmp/build.log 2>&1
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip libscrip_rt > /tmp/build.log 2>&1
 [ -x scrip ] || { grep -E "error:" /tmp/build.log | head -5; exit 1; }
-for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
+for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
 bash scripts/test_raku_ir_rungs.sh    # GATE-RK baseline
@@ -123,7 +123,7 @@ bash scripts/test_smoke_raku.sh       # smoke baseline
 ## Watermark
 
 ```
-one4all: cba1dc4d  (ICON-BB — no Raku changes this session)
+SCRIP: cba1dc4d  (ICON-BB — no Raku changes this session)
 .github: see this file (GOAL-RAKU-BB.md updated with rule item 13)
 corpus:  unchanged
 

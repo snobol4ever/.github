@@ -25,8 +25,8 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** corpus+one4all
-**Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)
+**Repo:** corpus+SCRIP
+**Branch:** `parser` (SCRIP only — `corpus` and `.github` stay on `main`)
 **Sibling ladder:** `GOAL-LANG-PROLOG.md` and `GOAL-PROLOG-IR-RUN.md`. The
 existing Prolog frontend (`src/frontend/prolog/`) is the in-process oracle.
 
@@ -87,9 +87,9 @@ canonical writeup (binding on all six PARSER-*).
 ## Session Setup
 
 ```bash
-( cd /home/claude/one4all && git fetch origin parser 2>/dev/null; git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+( cd /home/claude/SCRIP && git fetch origin parser 2>/dev/null; git checkout parser 2>/dev/null || git checkout -b parser origin/parser 2>/dev/null || git checkout -b parser )
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 ⛔ **Do NOT run baseline gates at session start.** They are too slow (~4s/file × 125+ files).
@@ -97,7 +97,7 @@ This goal only modifies `.sc` files in `corpus/SCRIP/` and `corpus/programs/prol
 Run the gate ONLY after fixing a SCRIP bug (C source change). For `.sc`-only changes, verify
 by running a single representative file manually:
 ```bash
-echo 'foo(X) :- X is 1.' | timeout 8 /home/claude/one4all/scrip --interp \
+echo 'foo(X) :- X is 1.' | timeout 8 /home/claude/SCRIP/scrip --interp \
   /home/claude/corpus/SCRIP/global.sc \
   /home/claude/corpus/SCRIP/tree.sc \
   /home/claude/corpus/SCRIP/stack.sc \
@@ -409,7 +409,7 @@ Use `if (IDENT(t(x), 'E_FNC') IDENT(v(x), ','))`.
    a `*func()` after it), `nTop()` to read the count, `nPop()` to close.
    This is the documented spine pattern and avoids the ARBNO-`*func()` bug.
 2. **Validate after each `str_replace`** with
-   `bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3` —
+   `bash /home/claude/SCRIP/scripts/test_parser_prolog.sh | tail -3` —
    PR-2 baseline must remain PASS=18 throughout.
 3. **`build_clause` already has correct flatten logic** for top-level
    `(E_FNC ,)` — the upgrade landed cleanly during the 2026-05-03 session.
@@ -509,7 +509,7 @@ at PASS=48 throughout.  PASS may rise as rules become more uniform.
   are token-layer changes that must land together to avoid an intermediate
   grammar-half-uses-Gray state; (7) is the biggest rewrite and goes last.
 - **Hold PASS=48 FAIL=0 after every micro-rung.**  Run
-  `bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3` after
+  `bash /home/claude/SCRIP/scripts/test_parser_prolog.sh | tail -3` after
   every `str_replace`.
 - **No semantic change.**  Output IR trees must be byte-identical to current
   for every fixture.  This is pure refactoring.
@@ -908,9 +908,9 @@ Two EVAL bugs affect pattern-builder functions:
 #### Recommended next session setup
 
 ```bash
-cd /home/claude/one4all && git checkout parser
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
+cd /home/claude/SCRIP && git checkout parser
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/test_parser_prolog.sh | tail -3
 # expected: PASS=86 FAIL=0
 ```
 
@@ -1114,9 +1114,9 @@ resulting STMT is not reaching the TDump walk.
 
 ```bash
 # 1. Setup
-( cd /home/claude/one4all && git checkout parser )
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
+( cd /home/claude/SCRIP && git checkout parser )
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/test_parser_prolog.sh | tail -3
 # expected: PASS=65 FAIL=10
 
 # 2. Fix the two most-likely bugs first (items 2 and 6 above):
@@ -1176,7 +1176,7 @@ ASCII-only characters; em-dashes and other Unicode punctuation are banned.
 
 ### Root fix location (SCRIP source)
 
-File: `one4all/src/frontend/snocone/snocone_lex.l` (or equivalent flex/lex file).
+File: `SCRIP/src/frontend/snocone/snocone_lex.l` (or equivalent flex/lex file).
 The `//` comment rule should consume bytes until newline without any character-class
 validation:
 
@@ -1275,9 +1275,9 @@ Tokens, functions, and grammar layers added (gate PASS=103 throughout):
 ### Next session setup
 
 ```bash
-cd /home/claude/one4all && git checkout parser
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/test_parser_prolog.sh | tail -3
+cd /home/claude/SCRIP && git checkout parser
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/test_parser_prolog.sh | tail -3
 # expected: PASS=103 FAIL=0
 ```
 
@@ -1518,7 +1518,7 @@ failures. Write `test_smoke_parser_prolog_full.sh`.
 
 #### Work items
 
-- [ ] **PR-17-smoke** Write `one4all/scripts/test_smoke_parser_prolog_full.sh`:
+- [ ] **PR-17-smoke** Write `SCRIP/scripts/test_smoke_parser_prolog_full.sh`:
   finds all `corpus/programs/prolog/**/*.pl`, runs each through
   `timeout 8 scrip --interp [sc files]`, FAILs if output is empty or exit nonzero.
   Reports `PASS N / TOTAL M`.
@@ -1558,8 +1558,8 @@ recovery lands; target 100% before PR-17 closes.
 ### Session setup reminder
 
 ```bash
-cd /home/claude/one4all && git checkout parser
-bash /home/claude/one4all/scripts/build_scrip.sh
+cd /home/claude/SCRIP && git checkout parser
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 Run `test_smoke_parser_prolog_full.sh` (once landed), NOT `test_parser_prolog.sh`.
@@ -1690,8 +1690,8 @@ Goal: 100% parse (at least one STMT per file, no abort)
 
 ### Next session setup
 ```bash
-cd /home/claude/one4all && git checkout parser
-bash /home/claude/one4all/scripts/build_scrip.sh
+cd /home/claude/SCRIP && git checkout parser
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
 
 ### Next rung: PR-17 continued
@@ -1706,12 +1706,12 @@ Remaining gaps in priority order:
 
 ## Handoff note — session 2026-05-07 (coverage investigation)
 
-**No corpus or one4all changes landed this session.** Investigation only.
+**No corpus or SCRIP changes landed this session.** Investigation only.
 
 ### Correct invocation (CRITICAL for next session)
 
 ```bash
-SCRIP=/home/claude/one4all/scrip
+SCRIP=/home/claude/SCRIP/scrip
 SRC=/home/claude/corpus/SCRIP
 SC="$SRC/global.sc $SRC/tree.sc $SRC/stack.sc $SRC/counter.sc \
     $SRC/ShiftReduce.sc $SRC/semantic.sc $SRC/qize.sc $SRC/gen.sc \
@@ -1770,11 +1770,11 @@ many parse correctly but batch measurement kept hitting OOM.
 ### Next session setup (revised)
 
 ```bash
-cd /home/claude/one4all && git checkout parser
-bash /home/claude/one4all/scripts/build_scrip.sh
+cd /home/claude/SCRIP && git checkout parser
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 
 # Quick sanity check (should produce 3 STMT lines):
-SCRIP=/home/claude/one4all/scrip
+SCRIP=/home/claude/SCRIP/scrip
 SRC=/home/claude/corpus/SCRIP
 SC="$SRC/global.sc $SRC/tree.sc $SRC/stack.sc $SRC/counter.sc $SRC/ShiftReduce.sc $SRC/semantic.sc $SRC/qize.sc $SRC/gen.sc $SRC/tdump.sc $SRC/assign.sc $SRC/parser_prolog.sc"
 timeout 7 $SCRIP --interp $SC < /home/claude/corpus/programs/prolog/rung11_findall_findall_basic.pl 2>/dev/null | grep -c "^(STMT"

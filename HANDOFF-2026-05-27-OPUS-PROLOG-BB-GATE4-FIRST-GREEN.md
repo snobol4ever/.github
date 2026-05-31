@@ -11,7 +11,7 @@ x86 and prints `3`. This is the first time mode-4 Prolog has ever executed end-t
 - GATE-4 mode-4: **1/4** ✅ (m4-seq PASS; m4-call/choice/alt still FAIL — V-3)
 - Cross-lang: icon/snocone/raku 5/5, rebus 4/4, snobol4 --interp 7/13, mode-4 SNOBOL4 `hi` ✅
 
-## ⛔ NOT COMMITTED. 8 files dirty in one4all working tree:
+## ⛔ NOT COMMITTED. 8 files dirty in SCRIP working tree:
 `src/lower/lower_pl.c`, `src/lower/bb_exec.c`, `src/lower/bb_exec.h`,
 `src/emitter/emit_bb.c`, `src/emitter/BB_templates/bb_builtin.cpp`,
 `src/emitter/SM_templates/sm_bb_switch.cpp`, `src/emitter/XA_templates/xa_file_header.cpp`,

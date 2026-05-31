@@ -25,7 +25,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all + corpus
+**Repo:** SCRIP + corpus
 **Done when:** Generator produces ≥200 isolated snippet tests across beauty
 subsystem files; all pass under SPITBOL self-check; suite runs under
 scrip --interp and pinpoints divergences in the failing drivers.
@@ -179,7 +179,7 @@ Less isolated but still one statement → one test.
 
 | File | Purpose |
 |------|---------|
-| `one4all/test/beauty_subexpr_gen.py` | Generator (Python) |
+| `SCRIP/test/beauty_subexpr_gen.py` | Generator (Python) |
 | `corpus/programs/snobol4/subexpr/` | Generated .sno + .ref (regenerate each session) |
 | `corpus/programs/snobol4/subexpr/.gitkeep` | Keeps dir in repo |
 
@@ -188,7 +188,7 @@ Less isolated but still one statement → one test.
 ## Run commands
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 
 # One statement — Gen.sno line 45:
 python3 test/beauty_subexpr_gen.py \
@@ -212,7 +212,7 @@ python3 test/beauty_subexpr_gen.py --run \
 
 ## Current State (session 2026-04-12, session 6)
 
-- one4all HEAD: `983325d7` (generator rewrite committed)
+- SCRIP HEAD: `983325d7` (generator rewrite committed)
 - .github HEAD: `594d586` (session 6 addendum committed)
 - Generator: proof-of-concept works — Gen.sno line 45 → snippet emitted,
   163 scalars from DUMP, sub-expressions extracted correctly
@@ -691,7 +691,7 @@ sub-expression. No guessing. Fix is surgical.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```

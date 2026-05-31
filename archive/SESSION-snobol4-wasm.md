@@ -1,6 +1,6 @@
-# SESSION-snobol4-wasm.md — SNOBOL4 × WASM (one4all) ⛔ INACTIVE — parked 2026-03-31, see MILESTONE_ARCHIVE.md
+# SESSION-snobol4-wasm.md — SNOBOL4 × WASM (SCRIP) ⛔ INACTIVE — parked 2026-03-31, see MILESTONE_ARCHIVE.md
 
-**Repo:** one4all · **Frontend:** SNOBOL4 · **Backend:** WASM
+**Repo:** SCRIP · **Frontend:** SNOBOL4 · **Backend:** WASM
 **Session prefix:** `SW` · **Trigger:** "playing with SNOBOL4 wasm"
 
 ---
@@ -30,7 +30,7 @@ Note: `wabt` = `apt-get install -y wabt` · `node` = `nodejs` (pre-installed Ubu
 ## §TEST
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 CORPUS=/home/claude/corpus bash test/run_emit_check.sh               # always — 981/4
 CORPUS=/home/claude/corpus bash test/run_wasm_corpus_rung.sh W01     # per-rung during session
 CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # own cell only
@@ -54,6 +54,6 @@ CORPUS=/home/claude/corpus bash test/run_invariants.sh snobol4_wasm  # own cell 
 
 | Session | Sprint | HEAD | Next milestone |
 |---------|--------|------|----------------|
-| **SNOBOL4 WASM** | SW-14 WIP | `4652640` one4all | **M-SW-C02**: rung11 5/7 — fix 1115/1116 DATA typename+field accessor |
+| **SNOBOL4 WASM** | SW-14 WIP | `4652640` SCRIP | **M-SW-C02**: rung11 5/7 — fix 1115/1116 DATA typename+field accessor |
 
 See SESSIONS_ARCHIVE SW-14 handoff for detailed task list and root-cause notes.

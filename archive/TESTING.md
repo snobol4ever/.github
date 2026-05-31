@@ -240,7 +240,7 @@ Monitor pipe reader must normalize per oracle — all carry statement number and
 ## Session Start Checklist
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com"
 apt-get install -y libgc-dev && make -C src/scrip-cc
 mkdir -p /home/corpus

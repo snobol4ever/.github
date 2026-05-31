@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-28 — Opus 4.7 — PROLOG-BB: SWI-2d call/1 mode-2 fallback
 
-**Repos:** one4all `d805b0fe` · corpus (untouched) · .github (this commit)
+**Repos:** SCRIP `d805b0fe` · corpus (untouched) · .github (this commit)
 
 Continuation of SWI-2c. The prior handoff identified a blocker:
 `call(true)` returns failure under `--interp`, masking the just-fixed
@@ -11,7 +11,7 @@ hooks in the prior handoff led to dead code.
 
 ## What landed
 
-### one4all `d805b0fe` — BB_PL_CALL call/1 meta-fallback in mode-2
+### SCRIP `d805b0fe` — BB_PL_CALL call/1 meta-fallback in mode-2
 
 Three files, +28 lines:
 - `src/lower/bb_exec.c` (+15) — BB_PL_CALL handler intercepts
@@ -181,9 +181,9 @@ general meta-call handler.
 
 ## Files touched this session
 
-- `one4all/src/lower/bb_exec.c` (+15) — BB_PL_CALL call/1 fallback
-- `one4all/src/runtime/interp/pl_runtime.c` (+8) — public wrapper
-- `one4all/src/runtime/interp/pl_runtime.h` (+5) — export
+- `SCRIP/src/lower/bb_exec.c` (+15) — BB_PL_CALL call/1 fallback
+- `SCRIP/src/runtime/interp/pl_runtime.c` (+8) — public wrapper
+- `SCRIP/src/runtime/interp/pl_runtime.h` (+5) — export
 
 ## Commit identity
 

@@ -1,13 +1,13 @@
 # SESSION HANDOFF — 2026-05-27 (Opus 4.7) — RK-BB-2 steps 4-5 ✅ + step 6 PARTIAL
 
-**one4all HEAD: `6ea3637d`** ✅ all gates HOLD
+**SCRIP HEAD: `6ea3637d`** ✅ all gates HOLD
 **.github HEAD: pending — this file + PLAN.md + GOAL-RAKU-BB.md watermark**
 
 ---
 
 ## What landed this session
 
-Two commits on one4all. Step 4-5 are clean and ready. Step 6 is partial — the
+Two commits on SCRIP. Step 4-5 are clean and ready. Step 6 is partial — the
 three downstream pieces are authored and build-clean, but a step-1-era upstream
 bug, discovered via debug probes this session, blocks the counter from moving.
 
@@ -360,13 +360,13 @@ Step 6.3: verify rk_gather PASS                 → GATE-RK + GATE-RK4 9/30
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github  /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
 cat /home/claude/.github/PLAN.md
 cat /home/claude/.github/GOAL-RAKU-BB.md
 cat /home/claude/.github/HANDOFF-2026-05-27-OPUS-RK-BB-2-STEPS-4-6-PARTIAL.md  # this file
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip libscrip_rt
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip libscrip_rt
 bash scripts/test_raku_ir_rungs.sh     # Expect 8/30
 bash scripts/test_raku_mode4_rung.sh   # Expect 8/30
 bash scripts/test_smoke_raku.sh        # Expect 5/0

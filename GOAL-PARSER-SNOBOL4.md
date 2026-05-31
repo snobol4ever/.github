@@ -25,8 +25,8 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** corpus+one4all  
-**Branch:** `parser` (one4all only — `corpus` and `.github` stay on `main`)  
+**Repo:** corpus+SCRIP  
+**Branch:** `parser` (SCRIP only — `corpus` and `.github` stay on `main`)  
 **Status:** PASS=89/89 ✅ corpus@5f065e4 — **SN-7-9 LANDED.**
 
 ---
@@ -34,22 +34,22 @@
 ## Session Setup
 
 ```bash
-( cd /home/claude/one4all && git fetch origin parser && git checkout parser )
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/build_spitbol_oracle.sh
+( cd /home/claude/SCRIP && git fetch origin parser && git checkout parser )
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/build_spitbol_oracle.sh
 ```
 
 Gate:
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_snobol4.sh
-bash /home/claude/one4all/scripts/test_scrip.sh
-bash /home/claude/one4all/scripts/test_parser_snobol4.sh   # must be PASS=89 FAIL=0
+bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh
+bash /home/claude/SCRIP/scripts/test_scrip.sh
+bash /home/claude/SCRIP/scripts/test_parser_snobol4.sh   # must be PASS=89 FAIL=0
 ```
 
 Parser invocation:
 ```bash
-SCRIP=/home/claude/one4all/scrip; RT=/home/claude/corpus/SCRIP
+SCRIP=/home/claude/SCRIP/scrip; RT=/home/claude/corpus/SCRIP
 $SCRIP --interp $RT/global.sc $RT/tree.sc $RT/stack.sc $RT/counter.sc \
   $RT/ShiftReduce.sc $RT/semantic.sc $RT/qize.sc $RT/gen.sc \
   $RT/tdump.sc $RT/assign.sc $RT/parser_snobol4.sc < input.sno
@@ -199,8 +199,8 @@ All six parsers green at close: SN=89 IC=88 PR=60 RK=37 SC=46 RB=38 corpus@ac066
 
 ## Known runtime workarounds
 
-- **FW-3** ARBNO ✅ one4all@228bc06b  
-- **INFRA-11a** subj?pat ✅ one4all@d2547945  
+- **FW-3** ARBNO ✅ SCRIP@228bc06b  
+- **INFRA-11a** subj?pat ✅ SCRIP@d2547945  
 - **INFRA-11b** OPSYN `~`/`&` infix ⚠ needs re-probe  
 - **INFRA-11c** `_qtag` ✅ corpus@c8ee2a6  
 - **PARSER-SC FENCE/`*deref`** ⚠ open (eval_pat.c E_FENCE)

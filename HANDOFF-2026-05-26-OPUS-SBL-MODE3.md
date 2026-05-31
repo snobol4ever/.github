@@ -68,7 +68,7 @@ compiled simple-literal (unanchored) pattern must scan forward like `bb_exec_pat
 
 ## Watermark
 ```
-one4all: 1c4e37c7 + uncommitted (sm_jit_interp.c only) — BUILD GREEN
+SCRIP: 1c4e37c7 + uncommitted (sm_jit_interp.c only) — BUILD GREEN
 .github: GOAL-PROLOG-BB.md top block added (SB-LINEAR FIRST) + this file
 Mode 3 --run SNOBOL4 smoke: 5/6 (pattern fails: Xabc, want aXc)
 Mode 2 --interp SNOBOL4 smoke: 7/7 (unregressed)

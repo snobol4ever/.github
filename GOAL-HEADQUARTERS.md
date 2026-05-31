@@ -1,6 +1,6 @@
-# GOAL-HEADQUARTERS.md — one4all Maintenance HQ
+# GOAL-HEADQUARTERS.md — SCRIP Maintenance HQ
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 
 ## Invariants
 
@@ -25,7 +25,7 @@
 
 ## Session State (2026-05-25 — CAPS-CONCAT CC-1/CC-2 ✅; X86 arms folding into IF()-concat)
 
-**one4all HEAD: `c4b8c880`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0 — byte-identical after CAPS-CONCAT CC-1..CC-4 + bytes() arg-flip + CC-5 partial (5 SM fns).
+**SCRIP HEAD: `c4b8c880`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0 — byte-identical after CAPS-CONCAT CC-1..CC-4 + bytes() arg-flip + CC-5 partial (5 SM fns).
 
 **THIS SESSION:** CAPS-CONCAT rung (see Active Rungs). Added `IF(c,...)` (variadic — handles top-level commas, e.g. embedded `FOR(...)`) + `FOR(lo,hi,f)` macros to `emit_str.h`; `emit_for` kept as a thin alias of `FOR`. Collapsed the `PLATFORM_X86` block of **21 of 24** BB templates from a sequence of `if (MEDIUM_x){…return…}` into ONE `return IF(MEDIUM_MACRO_DEF,…)+IF(MEDIUM_BINARY,…)+IF(MEDIUM_TEXT,…);`, with `bin` set unconditionally (or via ternary) at the top of the X86 block. Branchy arms (`rpos`/`rtab`/`bb_pl_ls`/`n==0`/`xa_bb_ep_n>0`) folded via `?:` ternaries; charset-FOR family (`any`/`notany`/`break`/`span`) and `cat`/`alt`/`fence` use `FOR(...)`. Helper `scripts/consolidate_x86_arm.py` (brace-parser; SKIPs branchy arms). Every batch built + gated byte-identical.
 
@@ -39,7 +39,7 @@
 
 ## Previous Session State (2026-05-25 — SM_PUMP_BB deleted; SM opcode/macro/template inventory recorded)
 
-**one4all HEAD: `db4c355f`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, PURITY GREEN. Byte-identical.
+**SCRIP HEAD: `db4c355f`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, PURITY GREEN. Byte-identical.
 
 **THIS SESSION:** LP-7-NONX86 closed LOCAL-PURGE (PURITY GREEN, `7164247b`). Then audited SM opcode coverage and deleted one dead opcode.
 
@@ -64,7 +64,7 @@
 
 ## Previous Session State (LOCAL-PURGE COMPLETE ✅ — TEMPLATE-PURITY GREEN, every arm pure)
 
-**one4all HEAD: `7164247b`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. **TEMPLATE-PURITY GREEN.** Byte-identical.
+**SCRIP HEAD: `7164247b`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. **TEMPLATE-PURITY GREEN.** Byte-identical.
 
 **LP-7-NONX86 ✅** — `bb_capture` JVM + JS arms converted to pure-return (the last two side-effecting template arms), matching the NET arm's idiom. Mechanical byte-identical substitution: `emit_directive→s_directive`, `emit_1asm/2asm→s_1asm/2asm`, `jvm_class_hdr_str` side-effect-wrap → direct concat, `emit_textf→emit_fmt`, `js_escape_string_str` inlined. `util_template_purity_audit.sh` is now **TEMPLATE-PURITY GREEN** (was 45 violations, all in bb_capture). **This completes LOCAL-PURGE / HQ Invariant 16 at 100%: every BB/SM/XA template arm — x86/JVM/JS/NET/WASM, every medium — is a pure `state → std::string`; only the `extern "C"` dispatch wrappers + the sanctioned MEDIUM_BINARY rel32 patch idiom touch a sink.** No regression: JVM smoke 7/6 + JS smoke 0/6 both identical to pre-change baseline (failures are pre-existing JVM/JS emitter-rewrite gaps — see SJ4-JVM-4 / SJ4-JS-BB1a goals). ⚠ x86-only restriction was lifted by Lon for this conversion. ⛔ Beauty gate SUSPENDED.
 
@@ -74,7 +74,7 @@
 
 ## Previous Session State (LOCAL-PURGE-6 ✅ — pl_* intern driver-lifted, shared-buffer aliasing fixed)
 
-**one4all HEAD: `07708564`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
+**SCRIP HEAD: `07708564`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
 
 **LOCAL-PURGE-6 ✅** — `bb_pl_atom`/`bb_pl_arith`/`bb_pl_unify`/`bb_pl_builtin` driver-lifted. `emit_intern_str` returns a SHARED static buffer (`g_intern_str_buf`), so the simultaneously-live `ls`/`rs`/`op_lbl` in arith/unify all aliased it — every label rendered as the LAST operand's `.S` (latent bug, masked by per-kind coverage). New `bb_prepare_pl(BB_t*)` (emit_bb.c, X86-gated) interns each operand up-front and copies its label into a distinct `g_emit` field (`bb_pl_ls`/`bb_pl_rs`/`bb_pl_op_lbl`, backed by `bb_pl_{ls,rs,op}_buf[64]`), wired in `walk_bb_node` before each pl_* dispatch (mirrors the LP-5 `bb_prepare_capture_arbno` pattern). All four bodies now hold ZERO `emit_intern_str` calls — pure reads of the lifted fields.
 
@@ -88,7 +88,7 @@
 
 ## Previous Session State (LOCAL-PURGE-5 ✅ — bb_arbno + bb_capture driver-lifted, all template bodies pure)
 
-**one4all HEAD: `59e94d41`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
+**SCRIP HEAD: `59e94d41`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0, smoke parity 188 / run 190/71. Byte-identical.
 
 **LOCAL-PURGE-5 ✅** — `bb_arbno` + `bb_capture` driver-lifted. New driver fn `bb_prepare_capture_arbno(BB_t*, int imm)` in emit_bb.c (gated `PLATFORM_X86` — non-x86 arms never built rt objects, so the gate is required) computes the rt-object (`rt_bb_arbno_new`/`bb_cap_new`), emits the `# BOX` banner, dispatches `XA_BB_PTR_SLOT`, resolves the child label, and registers `g_cap_fixup_cb` — all the side-effects formerly in the template TEXT arm. Wired in `walk_bb_node` (emit_core.c) before `bb_arbno`/`bb_capture` — the single chokepoint for both the per-kind audit and real dispatch. New `g_emit` fields `bb_rt_obj` (void*) + `bb_child_lbl` (const char*). `cap_bin` reads `_.bb_rt_obj`; both template bodies now pure reads of `g_emit.bb_rt_obj` / `bb_ptr_slot_lbl` / `lbl_*`.
 
@@ -217,14 +217,14 @@ Smoke (`test_smoke_snobol4_jit.sh`) only when binary paths touched: parity 188 /
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip > /tmp/build_full.log 2>&1
-[ -x /home/claude/one4all/scrip ] || { grep -E "error:|fatal error" /tmp/build_full.log | head -5; exit 1; }
-for r in /home/claude/one4all /home/claude/corpus /home/claude/.github; do
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip > /tmp/build_full.log 2>&1
+[ -x /home/claude/SCRIP/scrip ] || { grep -E "error:|fatal error" /tmp/build_full.log | head -5; exit 1; }
+for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
 [ -d /home/claude/x64 ] || git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
-bash /home/claude/one4all/scripts/test_per_kind_diff.sh
+bash /home/claude/SCRIP/scripts/test_per_kind_diff.sh
 ```
 
 ## ⚠️ CRITICAL RULE: UTF-8 Greek Letters in CPP String Literals

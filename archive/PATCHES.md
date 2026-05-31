@@ -1,5 +1,5 @@
 # PATCHES.md — Runtime Patches and Fixes Log
-## one4all Sprint 20+
+## SCRIP Sprint 20+
 
 > **What this file is**: Every time we patch the runtime (`snobol4.c`,
 > `snobol4.h`, `emit_c_stmt.py`, `mock_includes.c`, `snobol4_pattern.c`)

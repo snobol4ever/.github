@@ -1,6 +1,6 @@
 # TRACK-PURE-PROJECTION.md — templates → pure CONCAT/IF/FOR
 
-Audit baseline: one4all `3785ffd1` (2026-05-25). Scope: `src/emitter/{SM,BB}_templates/*.cpp`.
+Audit baseline: SCRIP `3785ffd1` (2026-05-25). Scope: `src/emitter/{SM,BB}_templates/*.cpp`.
 
 ## Principle (Lon)
 A template is a pure function `state → one string`. Body = ONE expression of three constructs:

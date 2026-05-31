@@ -14,7 +14,7 @@ which, as Section 0 shows, has drifted from the live tree.
 - `jcon-master/tran/ir.icn` — IR-node vocabulary (`ir_chunk`, `ir_Goto`, `ir_IndirectGoto`,
   `ir_Succeed`, `ir_OpFunction`/`ir_opfn` with its `failLabel`, `ir_MoveLabel`, `ir_ResumeValue`).
 - `icon-master/src/runtime/ocomp.r` — canonical Icon's numeric/string comparison operators.
-- SCRIP live tree (one4all `c7529bad`): `src/lower/lower_icn.c`, `src/emitter/emit_core.c`,
+- SCRIP live tree (SCRIP `c7529bad`): `src/lower/lower_icn.c`, `src/emitter/emit_core.c`,
   `src/emitter/BB_templates/{bb_if,bb_seq,bb_every,bb_suspend}.cpp`.
 
 Port correspondence used throughout: JCON `start/resume/success/failure` = SCRIP `α/β/γ/ω`.

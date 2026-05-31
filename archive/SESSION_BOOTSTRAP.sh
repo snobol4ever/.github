@@ -81,7 +81,7 @@ clone_or_pull() {
 }
 
 clone_or_pull ".github"  ".github"
-clone_or_pull "one4all"  "one4all"
+clone_or_pull "SCRIP"  "SCRIP"
 clone_or_pull "corpus"   "corpus"
 clone_or_pull "harness"  "harness"
 
@@ -189,10 +189,10 @@ fi
 
 # ── WHERE — build scrip-cc ────────────────────────────────────────────────────
 step "WHERE — scrip-cc (project compiler)"
-SCRIP_CC=/home/claude/one4all/scrip-cc
+SCRIP_CC=/home/claude/SCRIP/scrip-cc
 if [[ ! -x "$SCRIP_CC" || ! -s "$SCRIP_CC" ]]; then
-    info "Building scrip-cc from one4all/src/ ..."
-    (cd /home/claude/one4all/src && make -j"$(nproc)" 2>/dev/null) \
+    info "Building scrip-cc from SCRIP/src/ ..."
+    (cd /home/claude/SCRIP/src && make -j"$(nproc)" 2>/dev/null) \
         && ok "scrip-cc built" \
         || fail "scrip-cc — build failed"
 else
@@ -200,7 +200,7 @@ else
 fi
 
 # jasmin.jar — bundled in repo
-JASMIN=/home/claude/one4all/src/backend/jvm/jasmin.jar
+JASMIN=/home/claude/SCRIP/src/backend/jvm/jasmin.jar
 [[ -f "$JASMIN" ]] && ok "jasmin.jar" || fail "jasmin.jar missing at $JASMIN"
 
 # ── WHY — what to read ────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ info "cat  /home/claude/.github/GRAND_MASTER_REORG.md      # phase detail"
 
 # ── HOW — crosscheck gate ──────────────────────────────────────────────────────
 step "HOW — emit-diff (493/0 baseline)"
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 if SCRIP_CC="$SCRIP_CC" bash test/crosscheck.sh 2>&1; then
     ok "Emit-diff: green"
 else

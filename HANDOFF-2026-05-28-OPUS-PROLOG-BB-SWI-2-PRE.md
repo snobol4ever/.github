@@ -1,6 +1,6 @@
 # HANDOFF 2026-05-28 — Opus 4.7 — PROLOG-BB: SWI-2-pre findall determinism guard
 
-**Repos:** one4all `cda40a70` · .github (this commit) · corpus untouched.
+**Repos:** SCRIP `cda40a70` · .github (this commit) · corpus untouched.
 
 ---
 

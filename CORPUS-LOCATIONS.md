@@ -33,11 +33,11 @@ JCON (.j) and SPITBOL (.s) artifacts, not source.  Source is `.icn`.
 
 ## NOT the corpus
 
-- `/home/claude/one4all/test/icon/` — only **8** programs total
+- `/home/claude/SCRIP/test/icon/` — only **8** programs total
   (hello, queens, sieve, palindrome, generators, meander, roman,
   plus a coverage subdir).  These are smoke-test files, not the
   full corpus.  The smoke tests reference these.
-- `/home/claude/one4all/bench/` — benchmarks, not correctness corpus.
+- `/home/claude/SCRIP/bench/` — benchmarks, not correctness corpus.
 
 ---
 
@@ -45,8 +45,8 @@ JCON (.j) and SPITBOL (.s) artifacts, not source.  Source is `.icn`.
 
 **Icon corpus (`--interp`):**
 ```bash
-bash /home/claude/one4all/scripts/test_icon_all_rungs.sh
-# Defaults: SCRIP=/home/claude/one4all/scrip
+bash /home/claude/SCRIP/scripts/test_icon_all_rungs.sh
+# Defaults: SCRIP=/home/claude/SCRIP/scrip
 #           CORPUS=/home/claude/corpus/programs/icon
 # Reports: PASS=N FAIL=N XFAIL=N TOTAL=263
 # As of 2026-05-09: 177 / 56 / 30
@@ -59,14 +59,14 @@ below.
 
 **Per-rung subset:**
 ```bash
-bash /home/claude/one4all/scripts/test_icon_ir_rung_NN.sh
+bash /home/claude/SCRIP/scripts/test_icon_ir_rung_NN.sh
 ```
 where `NN` is 01..36.  These exist for many but not all rungs;
 see `scripts/test_icon_ir_rung_*.sh`.
 
 **Per-program manual:**
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 ./scrip --interp /home/claude/corpus/programs/icon/rung01_paper_mult.icn
 ```
 

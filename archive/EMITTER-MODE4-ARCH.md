@@ -189,5 +189,5 @@ treebank-array) are tracked for assembly health, not line reading.
 Programs deliberately excluded (too large for any use):
 beauty.sno, expression.sno, porter.sno.
 
-beauty_prog.s lives in one4all/artifacts/x64/ as the EM-7 gate artifact
+beauty_prog.s lives in SCRIP/artifacts/x64/ as the EM-7 gate artifact
 (assembly check + zero UNHANDLED_OP count) but is not a reading artifact.

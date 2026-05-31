@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all + .github
+**Repo:** SCRIP + .github
 **Prereq:** GOAL-HEADQUARTERS (--interp target met), GOAL-ICON-BB-NATIVE ✅
 
 ---
@@ -288,6 +288,6 @@ by generator exhaustion (resume → port_fail when done).
 
 ## Watermark
 
-  one4all: f1dbb78b  .github: 8c7ec8ff
+  SCRIP: f1dbb78b  .github: 8c7ec8ff
   Status: DESIGN — no code yet
   NEXT: IL-0 — define icn_ir_node_t, allocator, printer

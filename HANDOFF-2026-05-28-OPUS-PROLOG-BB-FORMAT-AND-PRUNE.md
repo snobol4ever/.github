@@ -4,7 +4,7 @@
 
 ## State at handoff
 
-- one4all HEAD `3c384e25`, pushed.
+- SCRIP HEAD `3c384e25`, pushed.
 - .github HEAD `34ab63b9`, pushed.
 - GATE-1 5/5 · GATE-2 132/0 (5 ORACLE_MISS) · GATE-3 mode-2 91/107 · GATE-4 4/4 · FACT 0
 - Sibling smokes: raku 5/5, prolog/snocone/snobol4 hello-all baseline.
@@ -115,5 +115,5 @@ Each new BB_BUILTIN family (~4-5 corpus tests, mode-2 oracle in place) follows:
 | rung families closed | — | rung18, rung19, rung23-ext | 3 families |
 | Lines pruned from GOAL file | — | -474 (-59%) | |
 | FACT RULE compliance | 0 | 0 | preserved |
-| Commits to one4all | — | 2 | `6cf5a429`, `3c384e25` |
+| Commits to SCRIP | — | 2 | `6cf5a429`, `3c384e25` |
 | Commits to .github | — | 3 | handoffs + GOAL prune |

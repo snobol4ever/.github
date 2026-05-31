@@ -1,6 +1,6 @@
 # GOAL-PST-ICON.md — Pure Syntax Tree: Icon
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Parent:** `GOAL-PARSER-PURE-SYNTAX-TREE.md`
 **Status:** ✅ COMPLETE — Phase 1 C + Phase 2 PST-ICN-SC (2026-05-19).
 
@@ -15,6 +15,6 @@ ICN-SC-1 (4 × `shift_value` → `assign+shift` in Expr11), ICN-SC-2 (grep verif
 ## State
 
 ```
-heads:  one4all @ b8091a9b · corpus @ 2713cb7
+heads:  SCRIP @ b8091a9b · corpus @ 2713cb7
 audit:  PST-SCRIP-AUDIT.md § parser_icon.sc — 0 violations remaining.
 ```

@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-28 — Opus 4.7 — Prolog BB — SWI-5 EMPTY verdict
 
-**Branch:** main (one4all + corpus)
+**Branch:** main (SCRIP + corpus)
 **Predecessor:** `61187cc7` (Opus 4.7, PL-RT-USER-FROM-SYNTH-2)
 **Goal step closed:** GOAL-PROLOG-BB.md SWI-5a (EMPTY verdict for zero-test-body suites)
 **Net change:** GATE-SWI 53/57 (92%) → **57/57 (100%)** — false-positive PASS unmasked as honest EMPTY.
@@ -78,7 +78,7 @@ through to a verdict line."
   future session, suites that produce real PASS/FAIL will need .ref
   re-baselining at that time.
 
-**one4all** (3 files):
+**SCRIP** (3 files):
 
 - `scripts/util_swi_match.py`: accept `EMPTY ` prefix in deduplication set
 - `scripts/util_swi_report.py`: same
@@ -182,7 +182,7 @@ multiple clauses with cuts. Clean, no semantic loss.
 Three repos touched. RULES.md handoff sequence:
 
 1. `corpus` — 10 files (1 plunit + 9 .ref)
-2. `one4all` — 3 files (scripts only)
+2. `SCRIP` — 3 files (scripts only)
 3. `.github` — PLAN.md table update + GOAL-PROLOG-BB.md watermark + this handoff doc
 
 Commit message: `SWI-5 EMPTY verdict: 53/57(92%) -> 57/57(100%) honest baseline`

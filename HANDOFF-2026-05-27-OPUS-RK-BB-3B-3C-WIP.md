@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-27, Opus 4.7 — RK-BB-3b/c WIP (map/grep scaffold)
 
-**Watermark:** one4all `42d2a367` · .github HEAD · corpus unchanged
+**Watermark:** SCRIP `42d2a367` · .github HEAD · corpus unchanged
 
 ## Goal
 
@@ -9,7 +9,7 @@ onto the polymorphic BB_ITERATE substrate completed in RK-BB-3a.
 
 ## What landed
 
-One commit: one4all `42d2a367` (was `8643abf1` pre-rebase) —
+One commit: SCRIP `42d2a367` (was `8643abf1` pre-rebase) —
 `src/lower/lower.c` +117 lines, pure lowering transform.
 
 Implements `lower_raku_map_or_grep(t, is_grep)`:

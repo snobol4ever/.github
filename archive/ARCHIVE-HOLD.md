@@ -6,7 +6,7 @@ Completed milestones (✅) remain in PLAN.md. Only incomplete/deferred milestone
 
 ---
 
-## TINY (one4all) — On Hold
+## TINY (SCRIP) — On Hold
 
 | ID | Trigger | Last Known Status |
 |----|---------|-------------------|
@@ -33,7 +33,7 @@ Completed milestones (✅) remain in PLAN.md. Only incomplete/deferred milestone
 
 ---
 
-## JVM backend — one4all TINY — On Hold
+## JVM backend — SCRIP TINY — On Hold
 
 | ID | Trigger | Last Known Status |
 |----|---------|-------------------|
@@ -53,7 +53,7 @@ Completed milestones (✅) remain in PLAN.md. Only incomplete/deferred milestone
 
 ---
 
-## NET backend — one4all TINY — On Hold
+## NET backend — SCRIP TINY — On Hold
 
 | ID | Trigger | Last Known Status |
 |----|---------|-------------------|

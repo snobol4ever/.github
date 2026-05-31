@@ -1,6 +1,6 @@
 # GOAL-PARSER-PURE-SYNTAX-TREE.md — Six Frontends, One Pure tree_t
 
-**Repo:** one4all + corpus + .github
+**Repo:** SCRIP + corpus + .github
 **Status:** ✅ Phase 1 C COMPLETE all six languages (AUDIT-2 2026-05-19).
 Phase 2 SCRIP mirror sessions ready to launch.
 
@@ -186,7 +186,7 @@ next:        PST-PL-SC (the last Phase 2 sibling), OR debug the
              PST-SC-SC-5 smoke simultaneously, OR Stage 2 PST-LR-0
              bulk rename SM_*→IR_SM_*, IR_*→IR_BB_*. Whichever Lon names.
 audit ref:   PST-SCRIP-AUDIT.md (per-file violation list).
-heads:       .github @ (this commit) · one4all @ e1c8a4ac ·
+heads:       .github @ (this commit) · SCRIP @ e1c8a4ac ·
              corpus @ 87f99f6.
 ```
 
@@ -245,7 +245,7 @@ Lon will fire each from its per-language goal file.
 - `PLAN.md` (PST rows updated)
 - `PST-SCRIP-AUDIT.md` (NEW — 705 lines; reference; steps already in goals)
 
-No code changes to one4all or corpus.
+No code changes to SCRIP or corpus.
 
 **Phase 2 launch criteria — six sessions ready:**
 

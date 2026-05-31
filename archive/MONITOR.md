@@ -28,24 +28,24 @@ identical to the input. A fixed point.
 | # | Participant | Role | TRACE stream | Binary |
 |---|-------------|------|-------------|--------|
 | 1 | SPITBOL x64 4.0f | **Primary oracle** (D-005) | stdout | `/home/claude/x64/bin/sbl` |
-| 2 | one4all ASM backend | Compiled target | stderr | `scrip --gen` |
-| 3 | one4all JVM backend | Compiled target | stderr | `scrip --jvm` |
-| 4 | one4all NET backend | Compiled target | stderr | `scrip --net` |
+| 2 | SCRIP ASM backend | Compiled target | stderr | `scrip --gen` |
+| 3 | SCRIP JVM backend | Compiled target | stderr | `scrip --jvm` |
+| 4 | SCRIP NET backend | Compiled target | stderr | `scrip --net` |
 | 5 | CSNOBOL4 2.3.3 | **Second oracle** | stderr | `/home/claude/csnobol4/snobol4` |
 | 6 | Silly SNOBOL4 | Silly target | stderr | `/tmp/silly-snobol4` |
 
-**Primary oracle:** SPITBOL x64 (`/home/claude/x64/bin/sbl`). Build: `bash /home/claude/one4all/build/build_spitbol.sh`
-**Second oracle:** CSNOBOL4 (`/home/claude/csnobol4/snobol4`). Build: `bash /home/claude/one4all/build/build_csnobol4.sh`
+**Primary oracle:** SPITBOL x64 (`/home/claude/x64/bin/sbl`). Build: `bash /home/claude/SCRIP/build/build_spitbol.sh`
+**Second oracle:** CSNOBOL4 (`/home/claude/csnobol4/snobol4`). Build: `bash /home/claude/SCRIP/build/build_csnobol4.sh`
 CSNOBOL4 is sole oracle for Silly goals (SS-MONITOR, GOAL-SILLY-*) — Silly is a C rewrite of CSNOBOL4's SIL.
 
-**Compatibility target: one4all implements SPITBOL semantics. (D-001)**
+**Compatibility target: SCRIP implements SPITBOL semantics. (D-001)**
 - All SPITBOL extensions, switches, HOST() semantics are matched.
-- `DATATYPE()` returns **UPPERCASE** (one4all convention, D-002). SPITBOL lowercase is an ignore-point.
+- `DATATYPE()` returns **UPPERCASE** (SCRIP convention, D-002). SPITBOL lowercase is an ignore-point.
 - `.NAME` is a third dialect matching SPITBOL *observable* behaviour. See D-004.
 
-**Consensus rules (2-party: SPITBOL vs one4all):**
-- SPITBOL and one4all agree → correct.
-- one4all diverges from SPITBOL → our bug; fix one4all.
+**Consensus rules (2-party: SPITBOL vs SCRIP):**
+- SPITBOL and SCRIP agree → correct.
+- SCRIP diverges from SPITBOL → our bug; fix SCRIP.
 - DATATYPE case differences → ignore-point always (D-002).
 - `.NAME` DT_N vs DT_S differences → ignore-point (D-004).
 
@@ -254,7 +254,7 @@ streams — it just does not count as a divergence.
 ```
 # ignore-point rules in tracepoints.conf
 IGNORE  &TERMINAL     tty\d+         # "tty02" vs "tty05" — session artifact
-IGNORE  DATATYPE(*)   [a-z]+|[A-Z]+  # SPITBOL returns lowercase; one4all returns uppercase (D-003 ignore-point)
+IGNORE  DATATYPE(*)   [a-z]+|[A-Z]+  # SPITBOL returns lowercase; SCRIP returns uppercase (D-003 ignore-point)
 IGNORE  &STNO         *              # statement numbers may differ by dialect
 ```
 
@@ -292,11 +292,11 @@ diff oracle.sno $BEAUTY    # empty  <- the bootstrap condition
 
 ## Monitor Infrastructure
 
-Lives in `one4all/test/monitor/` initially.
+Lives in `SCRIP/test/monitor/` initially.
 Will move to `harness/monitor/` when extending to other repos.
 
 ```
-one4all/test/monitor/
+SCRIP/test/monitor/
     inject_traces.py        <- reads .sno + tracepoints.conf -> instrumented .sno
     normalize_trace.py      <- applies ignore-points, normalizes SPITBOL format
     run_monitor.sh          <- single test: 5 participants -> 5 streams -> diff
@@ -314,7 +314,7 @@ SNO=$1
 CONF=${2:-$(dirname $0)/tracepoints.conf}
 TMP=/tmp/monitor_$$
 INC=/home/claude/corpus/programs/inc
-DIR=$(dirname $(realpath $0))/../../..   # one4all root
+DIR=$(dirname $(realpath $0))/../../..   # SCRIP root
 
 python3 $(dirname $0)/inject_traces.py $SNO $CONF > $TMP.sno
 
@@ -421,7 +421,7 @@ and monitor run. Full plan → **[MISC-BEAUTY-TESTING.md](MISC-BEAUTY-TESTING.md
 **Strategy:**
 - One driver per subsystem: a small `.sno` that `-INCLUDE`s only that file
   (plus dependencies) and exercises all DEFINE'd functions
-- Drivers live in `one4all/test/beauty/<subsystem>/driver.sno`
+- Drivers live in `SCRIP/test/beauty/<subsystem>/driver.sno`
 - Gimpel corpus (145 programs) provides semantic cross-validation
 - Monitor runs each driver: SPITBOL oracle + ASM (expanding to JVM+NET as
   M-MONITOR-5WAY is reached)

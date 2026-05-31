@@ -39,7 +39,7 @@
 ║                                                                                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-**Repo:** one4all
+**Repo:** SCRIP
 **Done when:** SCRIP implements ISO/IEC 13211-1 (Prolog: Part 1, General Core)
 across all sections, verified by per-section capability rungs (PR-13 through
 PR-24) AND by ≥80% pass on at least two upstream conformance suites
@@ -127,7 +127,7 @@ get a one-line status. No silent work.
 | PR-19e | `rung35_bridge_setup/` | `setup_call_cleanup/3` |
 
 When all five sub-rungs pass, the v3 bridge from
-`one4all/docs/PL-12-session-2026-05-01-bridge.diff` (or its successor) is
+`SCRIP/docs/PL-12-session-2026-05-01-bridge.diff` (or its successor) is
 fully integrated. SWI conformance suite (PR-30) automatically advances as a
 downstream consequence; the bridge-on number from PL-12 history (5→17 across
 2 weeks) is no longer the metric Claude tracks.
@@ -137,22 +137,22 @@ downstream consequence; the bridge-on number from PL-12 history (5→17 across
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
-bash /home/claude/one4all/scripts/install_swi_prolog_tests.sh
-bash /home/claude/one4all/scripts/install_gnu_prolog_tests.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_swi_prolog_tests.sh
+bash /home/claude/SCRIP/scripts/install_gnu_prolog_tests.sh
 ```
 
 Active-rung gate (the small tight loop — what every session runs):
 ```bash
-bash /home/claude/one4all/scripts/test_smoke_prolog.sh                  # PASS=5
-bash /home/claude/one4all/scripts/test_smoke_unified_broker.sh          # PASS=49 FAIL=0
-bash /home/claude/one4all/scripts/test_prolog_rung31_bridge_catch.sh    # PR-19a — bridge driver
+bash /home/claude/SCRIP/scripts/test_smoke_prolog.sh                  # PASS=5
+bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh          # PASS=49 FAIL=0
+bash /home/claude/SCRIP/scripts/test_prolog_rung31_bridge_catch.sh    # PR-19a — bridge driver
 ```
 
 Downstream conformance gate (run on milestone commits, not every session):
 ```bash
-bash /home/claude/one4all/scripts/test_prolog_swi_suite.sh              # PR-30 — coverage report
+bash /home/claude/SCRIP/scripts/test_prolog_swi_suite.sh              # PR-30 — coverage report
 ```
 
 SWI suite script options:
@@ -283,13 +283,13 @@ ISO section numbers refer to ISO/IEC 13211-1 (Prolog: Part 1, General Core).
   dispatch via pl_box_choice), 05_var_goal_throw (throw propagates through
   synth-EXPR boundary).
   Gate: 5/5 PASS. Foundation work: integrate v3 bridge from
-  `one4all/docs/PL-12-session-2026-05-01-bridge.diff` (or successor).
+  `SCRIP/docs/PL-12-session-2026-05-01-bridge.diff` (or successor).
 
 - [x] **PR-19b** — `rung32_bridge_negation/` — `\+ Var`, `not(Var)`, `once(Var)`.
   Same pattern: 5 tests, each exercising one of the three control-flow
   builtins with a goal-as-variable. Extends the bridge from `catch/3`
   to these three sites. Driver: `scripts/test_prolog_rung32_bridge_negation.sh`.
-  **LANDED 2026-05-02 session #N (one4all HEAD updated). 5/5 PASS.**
+  **LANDED 2026-05-02 session #N (SCRIP HEAD updated). 5/5 PASS.**
 
 - [ ] **PR-19c** — `rung33_bridge_callN/` — `call/1..7` with goal-as-Var.
   Tests `call(G)`, `call(G, X)`, `call(G, X, Y)`, ..., where G is a Var
@@ -440,7 +440,7 @@ echo "PASS=$PASS FAIL=$FAIL"; [ "$FAIL" -eq 0 ]
 
 ---
 
-## Current state (2026-04-15, one4all HEAD ea80bd8d, corpus HEAD e587489)
+## Current state (2026-04-15, SCRIP HEAD ea80bd8d, corpus HEAD e587489)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS.
 
@@ -525,7 +525,7 @@ variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
 ---
 
-## Current state (2026-04-16 session 4, one4all HEAD 0d112d50, corpus HEAD 31c6326)
+## Current state (2026-04-16 session 4, SCRIP HEAD 0d112d50, corpus HEAD 31c6326)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — 71% (41/57). Baseline unchanged.
 
@@ -638,7 +638,7 @@ Or: plunit length (+1) + catch (+2) + rem (+1) + term_singletons (+1) = 46/57 = 
 
 ---
 
-## Current state (2026-04-30, one4all HEAD f71d9dec, corpus HEAD 2a69e92)
+## Current state (2026-04-30, SCRIP HEAD f71d9dec, corpus HEAD 2a69e92)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — 75% (43/57). +1 over previous 73%.
 Smoke 5/5, broker 49/49, all gates clean.
@@ -767,7 +767,7 @@ After 1+2+3: 43 + 1 + 3 + 1 = 48/57 = 84% > 80% gate.
 
 ### Files committed this session
 
-- `one4all/src/frontend/prolog/prolog_lower.c` — two-pass anon-var slot
+- `SCRIP/src/frontend/prolog/prolog_lower.c` — two-pass anon-var slot
   assignment via new helper `assign_clause_anon_slots`; called from
   `lower_clause` (inline) and from the plunit prescan (before
   `lower_term(azterm)`).
@@ -777,7 +777,7 @@ After 1+2+3: 43 + 1 + 3 + 1 = 48/57 = 84% > 80% gate.
 
 ---
 
-## Current state (2026-04-30 session #2, one4all HEAD 099c61c8, corpus HEAD 2a69e92)
+## Current state (2026-04-30 session #2, SCRIP HEAD 099c61c8, corpus HEAD 2a69e92)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
 Smoke 5/5, broker 49/49, all gates clean. **No commits to runtime.**
@@ -849,8 +849,8 @@ arithmetic, unification, or comparison.
 (43→10 is far worse than the +3 the fix targeted). Reverted runtime;
 saved attempt + analysis as committed docs:
 
-- `one4all/docs/PL-12-session-pl-invoke-term-attempt.diff` (143 lines)
-- `one4all/docs/PL-12-session-pl-invoke-term-findings.md` (full narrative)
+- `SCRIP/docs/PL-12-session-pl-invoke-term-attempt.diff` (143 lines)
+- `SCRIP/docs/PL-12-session-pl-invoke-term-findings.md` (full narrative)
 
 ### NEXT SESSION PL-12 — revised ordered task list:
 
@@ -895,9 +895,9 @@ If only 1+3 work: 43 + 1 + 3 = 47/57 = 82% > 80% gate.
 
 ### Files committed this session
 
-- `one4all/docs/PL-12-session-pl-invoke-term-attempt.diff` — full diff of
+- `SCRIP/docs/PL-12-session-pl-invoke-term-attempt.diff` — full diff of
   the failed pl_invoke_term attempt (revert reference for next session).
-- `one4all/docs/PL-12-session-pl-invoke-term-findings.md` — diagnostic
+- `SCRIP/docs/PL-12-session-pl-invoke-term-findings.md` — diagnostic
   narrative + revised plan for next session.
 
 ### Previous session work (preserved for context)
@@ -922,7 +922,7 @@ variables that occur exactly once in Term.
 
 ---
 
-## Current state (2026-04-30 session #3, one4all HEAD d9a9b99f, corpus HEAD 2a69e92)
+## Current state (2026-04-30 session #3, SCRIP HEAD d9a9b99f, corpus HEAD 2a69e92)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
 Smoke 5/5, broker 49/49, all gates clean. **Directive-binding fix landed.**
@@ -971,7 +971,7 @@ fresh disconnected `Term*var` on every read. Two reads of the same
 logical slot produce different unrelated vars, so unify cannot thread
 bindings between conjuncts in a directive body.
 
-#### Fix landed: per-directive cenv (one4all `d9a9b99f`)
+#### Fix landed: per-directive cenv (SCRIP `d9a9b99f`)
 
 `src/driver/polyglot.c`: +51/-2.
 - New static helper `pl_directive_max_var_slot(EXPR_t *root)` walks the
@@ -1045,13 +1045,13 @@ cenv now exists.
 
 ### Files committed this session
 
-- `one4all/src/driver/polyglot.c` — +51/-2: static helper
+- `SCRIP/src/driver/polyglot.c` — +51/-2: static helper
   `pl_directive_max_var_slot` and per-directive cenv allocation in the
   `polyglot_execute` LANG_PL branch. Single commit `d9a9b99f`.
 
 ---
 
-## Current state (2026-04-30 session #4, one4all HEAD 75d5775b + docs, corpus HEAD 2a69e92)
+## Current state (2026-04-30 session #4, SCRIP HEAD 75d5775b + docs, corpus HEAD 2a69e92)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
 Smoke 5/5, broker 49/49, all gates clean. **No commits to runtime.**
@@ -1164,14 +1164,14 @@ source-level vars after pl_box_choice_call returns. Investigate first:
 
 ### Files committed this session
 
-- `one4all/docs/PL-12-session-2026-04-30-4-attempt.diff` — full diff of
+- `SCRIP/docs/PL-12-session-2026-04-30-4-attempt.diff` — full diff of
   Changes A+B+C (264 lines).
-- `one4all/docs/PL-12-session-2026-04-30-4-findings.md` — full narrative,
+- `SCRIP/docs/PL-12-session-2026-04-30-4-findings.md` — full narrative,
   per-step diagnosis, decisive repros, recommendation for next session.
 
 ---
 
-## Current state (2026-04-30 session #5, one4all HEAD 84e72705, corpus HEAD 2a69e92)
+## Current state (2026-04-30 session #5, SCRIP HEAD 84e72705, corpus HEAD 2a69e92)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
 Smoke 5/5, broker 49/49. Change B landed; sharper diagnosis of fix #2
@@ -1259,14 +1259,14 @@ destination.
 
 ### Files committed this session
 
-- `one4all/src/runtime/interp/pl_runtime.c` — +13/-0:
+- `SCRIP/src/runtime/interp/pl_runtime.c` — +13/-0:
   E_UNIFY/E_CUT/E_NUL cases added to `pl_unified_term_from_expr`.
-- `one4all/.github/GOAL-LANG-PROLOG.md` — this section.
+- `SCRIP/.github/GOAL-LANG-PROLOG.md` — this section.
 - `.github/PLAN.md` — PL-12 step text refreshed for session #5.
 
 ---
 
-## Current state (2026-04-30 session #6, one4all HEAD 641b912c, corpus HEAD 2a69e92)
+## Current state (2026-04-30 session #6, SCRIP HEAD 641b912c, corpus HEAD 2a69e92)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57).
 Smoke 5/5, broker 49/49. **Fix #2 v3 implemented and proven mechanically
@@ -1363,16 +1363,16 @@ expected outcome is calculable.
 
 ### Files committed this session
 
-- `one4all/docs/PL-12-session-2026-04-30-6-attempt.diff` — full v3 bridge
+- `SCRIP/docs/PL-12-session-2026-04-30-6-attempt.diff` — full v3 bridge
   diff (211 lines).
-- `one4all/docs/PL-12-session-2026-04-30-6-findings.md` — full narrative,
+- `SCRIP/docs/PL-12-session-2026-04-30-6-findings.md` — full narrative,
   per-suite gap inventory, mechanical-correctness proof, 2-step plan.
-- `one4all/src/runtime/interp/pl_runtime.c` — REVERTED to session #5
+- `SCRIP/src/runtime/interp/pl_runtime.c` — REVERTED to session #5
   HEAD (84e72705). No commit.
 
 ---
 
-## Current state (2026-04-30 session #7, one4all HEAD cde38641, corpus HEAD ac9fcda4)
+## Current state (2026-04-30 session #7, SCRIP HEAD cde38641, corpus HEAD ac9fcda4)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57)
 at session-end (working tree reverted). Smoke 5/5, broker 49/49.
@@ -1431,7 +1431,7 @@ isolated repro before re-attempting integration.
 ### Path to PL-12 ≥80% gate — REVISED 3-step plan
 
 **Step A — corpus plunit.pl stdlib enrichment** (corpus repo).
-Diff preserved at `one4all/docs/PL-12-session-2026-04-30-7-plunit.diff`
+Diff preserved at `SCRIP/docs/PL-12-session-2026-04-30-7-plunit.diff`
 (93 lines). ~50 lines of stdlib added (memberchk, length, between, false,
 call/N, term_variables, format/3, string_*, etc.). Apply to
 `corpus/programs/prolog/plunit.pl`. Gate-neutral expected.
@@ -1451,17 +1451,17 @@ infinite recursion or zero-division.
 
 ### Files committed this session
 
-- `one4all/docs/PL-12-session-2026-04-30-7-attempt.diff` — combined
+- `SCRIP/docs/PL-12-session-2026-04-30-7-attempt.diff` — combined
   pl_runtime.c diff (bridge + Change C + slot fix, 252 lines).
-- `one4all/docs/PL-12-session-2026-04-30-7-plunit.diff` — corpus
+- `SCRIP/docs/PL-12-session-2026-04-30-7-plunit.diff` — corpus
   plunit.pl stdlib enrichment diff (93 lines).
-- `one4all/docs/PL-12-session-2026-04-30-7-findings.md` — full narrative,
+- `SCRIP/docs/PL-12-session-2026-04-30-7-findings.md` — full narrative,
   per-step plan, decisive new copy_term_rec slot finding.
-- one4all working tree reverted; corpus working tree reverted.
+- SCRIP working tree reverted; corpus working tree reverted.
 
 ---
 
-## Current state (2026-05-01 session #2, one4all HEAD `02afb3a1`, corpus HEAD `ada87b6`)
+## Current state (2026-05-01 session #2, SCRIP HEAD `02afb3a1`, corpus HEAD `ada87b6`)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57)
 at session-end on the suite-line metric. Smoke 5/5, broker 49/49.
@@ -1476,12 +1476,12 @@ silent-success false-positive ceiling.
 |---|------|--------|--------|
 | Step A | corpus | `dfc26da` | plunit.pl stdlib enrichment (~25 stubs, 84 lines) |
 | Step A patch | corpus | `80ce2f2` | numbervars/4 stub direction fix |
-| Step B.1 | one4all | `1de19342` | copy_term_rec slot fix (1<<20 + nmap) |
-| Step B.2 | one4all | `018bfdef` | findall snapshots use pl_copy_term |
-| Step C | one4all | `3bc1573d` | arith INT_MIN/-1 SIGFPE guard |
+| Step B.1 | SCRIP | `1de19342` | copy_term_rec slot fix (1<<20 + nmap) |
+| Step B.2 | SCRIP | `018bfdef` | findall snapshots use pl_copy_term |
+| Step C | SCRIP | `3bc1573d` | arith INT_MIN/-1 SIGFPE guard |
 | **Step D fix** | **corpus** | **`ada87b6`** | **plunit suite-skip honors `condition(...)`** |
 
-Plus `one4all` doc commits with bridge diff + findings (sessions #1, #2).
+Plus `SCRIP` doc commits with bridge diff + findings (sessions #1, #2).
 
 ### Step C — discovered this session
 
@@ -1553,7 +1553,7 @@ and produces the right answer. SCRIP claiming Prolog conformance with
 bridge-induced 80% coverage where individual blocks are half-broken is
 the kind of false claim the bootstrap-rigor culture rejects. The 80%
 gate is what the harness measures. Reasoning written up in
-`one4all/docs/PL-12-session-2026-05-01-2-findings.md`.
+`SCRIP/docs/PL-12-session-2026-05-01-2-findings.md`.
 
 **Step D fix — plunit suite-skip support** (corpus, this session). ✅ landed.
 
@@ -1572,7 +1572,7 @@ Bridge-neutral: 43/57 baseline preserved.
 With bridge applied: 14/57 → 15/57 (+1 — bigint now skips cleanly).
 
 **Step E — apply held-back B.3 bridge.** Pending segfault fixes
-elsewhere. Diff at `one4all/docs/PL-12-session-2026-05-01-bridge.diff`.
+elsewhere. Diff at `SCRIP/docs/PL-12-session-2026-05-01-bridge.diff`.
 Mechanically correct. Will land once segfault-prone test paths are
 gated out (Step E.1 below) so coverage stays ≥ 43/57.
 
@@ -1596,7 +1596,7 @@ test_call has 127 parse errors (single grammar gap probably), test_string
 needs split_string/4, string_bytes/3; test_misc/test_bips have small
 gaps in atom_number/2, sub_atom/5, assert/2.
 
-**Step G — runtime semantic fixes** (one4all). E.g. `numbervars/3`
+**Step G — runtime semantic fixes** (SCRIP). E.g. `numbervars/3`
 with negative start, `=@=` operator, `compound/1` edge cases. Each is
 small and bisectable.
 
@@ -1611,16 +1611,16 @@ paths, B.3 stays as a saved doc.
 
 - `corpus/programs/prolog/plunit.pl` — Step A (84+ lines stdlib),
   Step A-patch (numbervars/4 direction), Step D fix (suite-skip).
-- `one4all/src/runtime/interp/pl_runtime.c` — B.1, B.2, C.
-- `one4all/docs/PL-12-session-2026-05-01-bridge.diff` — held back.
-- `one4all/docs/PL-12-session-2026-05-01-findings.md` — session #1.
-- `one4all/docs/PL-12-session-2026-05-01-2-findings.md` — session #2.
+- `SCRIP/src/runtime/interp/pl_runtime.c` — B.1, B.2, C.
+- `SCRIP/docs/PL-12-session-2026-05-01-bridge.diff` — held back.
+- `SCRIP/docs/PL-12-session-2026-05-01-findings.md` — session #1.
+- `SCRIP/docs/PL-12-session-2026-05-01-2-findings.md` — session #2.
 
 Working trees clean at handoff. SWI baseline 43/57 preserved.
 
 ---
 
-## Current state (2026-05-01 session #3, one4all HEAD `37de6ebd`, corpus HEAD `ada87b6`)
+## Current state (2026-05-01 session #3, SCRIP HEAD `37de6ebd`, corpus HEAD `ada87b6`)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57) on
 the bridge-neutral metric. Smoke 5/5, broker 49/49, all gates clean.
@@ -1630,10 +1630,10 @@ the bridge-neutral metric. Smoke 5/5, broker 49/49, all gates clean.
 
 | # | Repo    | Commit     | Effect                                                                |
 |---|---------|------------|-----------------------------------------------------------------------|
-| 0 | one4all | `7e20cc57`-by-other-session | build fix: drop stale `snocone_control.h` include from `interp.c`     |
-| 1 | one4all | `94c7e83d` | Step E.1: parser-level `:- if/elif/else/endif` conditional compilation |
-| 2 | one4all | `bf7a8e92` | Step E.2: `+/-/*` overflow guards (`__builtin_*_overflow` → float)    |
-| 3 | one4all | `37de6ebd` | Step F.1.a: grammar fix for `;(...)`/`,(...)` functors + arg-list prec |
+| 0 | SCRIP | `7e20cc57`-by-other-session | build fix: drop stale `snocone_control.h` include from `interp.c`     |
+| 1 | SCRIP | `94c7e83d` | Step E.1: parser-level `:- if/elif/else/endif` conditional compilation |
+| 2 | SCRIP | `bf7a8e92` | Step E.2: `+/-/*` overflow guards (`__builtin_*_overflow` → float)    |
+| 3 | SCRIP | `37de6ebd` | Step F.1.a: grammar fix for `;(...)`/`,(...)` functors + arg-list prec |
 
 ### Step 0 — build fix (cross-cutting unblocker)
 
@@ -1759,9 +1759,9 @@ grammar gaps:
 
 ### Files committed this session
 
-- `one4all/src/driver/interp.c` — build fix (1 line).
-- `one4all/src/frontend/prolog/prolog_parse.c` — E.1 (+213) and F.1.a (+49/-3).
-- `one4all/src/runtime/interp/pl_runtime.c` — E.2 (+32/-3).
+- `SCRIP/src/driver/interp.c` — build fix (1 line).
+- `SCRIP/src/frontend/prolog/prolog_parse.c` — E.1 (+213) and F.1.a (+49/-3).
+- `SCRIP/src/runtime/interp/pl_runtime.c` — E.2 (+32/-3).
 
 Working trees clean at handoff. SWI baseline 43/57 preserved.
 
@@ -1774,7 +1774,7 @@ Working trees clean at handoff. SWI baseline 43/57 preserved.
 
 ---
 
-## Current state (2026-05-01 session #4, one4all HEAD `86aee891`, corpus HEAD `92f3179`)
+## Current state (2026-05-01 session #4, SCRIP HEAD `86aee891`, corpus HEAD `92f3179`)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57)
 on the bridge-neutral metric. Smoke 5/5, broker 49/49, all gates clean.
@@ -1784,7 +1784,7 @@ on the bridge-neutral metric. Smoke 5/5, broker 49/49, all gates clean.
 
 | # | Repo    | Commit     | Effect                                                            |
 |---|---------|------------|-------------------------------------------------------------------|
-| 1 | one4all | `86aee891` | Step F.1.b: `:` as `xfy 200` in BIN_OPS — module-qualifier parsing |
+| 1 | SCRIP | `86aee891` | Step F.1.b: `:` as `xfy 200` in BIN_OPS — module-qualifier parsing |
 | 2 | corpus  | `92f3179`  | Step F.3: `split_string/4` + `string_bytes/3` stubs in plunit.pl   |
 
 ### Step F.1.b — module-qualified `:` operator
@@ -1876,7 +1876,7 @@ not landable. Need ~26 more bridge-on suite-lines via remaining work.
 
 ### Files committed this session
 
-- `one4all/src/frontend/prolog/prolog_parse.c` — F.1.b (+1).
+- `SCRIP/src/frontend/prolog/prolog_parse.c` — F.1.b (+1).
 - `corpus/programs/prolog/plunit.pl` — F.3 (+48).
 
 Working trees clean at handoff. SWI baseline 43/57 preserved.
@@ -1889,7 +1889,7 @@ Working trees clean at handoff. SWI baseline 43/57 preserved.
 
 ---
 
-## Current state (2026-05-01 session #5, one4all HEAD `6c0ca929`, corpus HEAD `92f3179`)
+## Current state (2026-05-01 session #5, SCRIP HEAD `6c0ca929`, corpus HEAD `92f3179`)
 
 PL-1 through PL-11 fully done. PL-12 IN PROGRESS — still 75% (43/57)
 on the bridge-neutral metric. Smoke 5/5, broker 49/49, all gates clean.
@@ -1899,8 +1899,8 @@ on the bridge-neutral metric. Smoke 5/5, broker 49/49, all gates clean.
 
 | # | Repo    | Commit     | Effect                                                            |
 |---|---------|------------|-------------------------------------------------------------------|
-| 1 | one4all | `23d459bd` | Step F.4: `@` call-at-context operator parsing (xfx 900)          |
-| 2 | one4all | `6c0ca929` | Step F.4.b: `*->` soft-cut operator parsing (xfy 1050)            |
+| 1 | SCRIP | `23d459bd` | Step F.4: `@` call-at-context operator parsing (xfx 900)          |
+| 2 | SCRIP | `6c0ca929` | Step F.4.b: `*->` soft-cut operator parsing (xfy 1050)            |
 
 ### Step F.4 — `@` call-at-context operator (xfx 900)
 
@@ -2005,7 +2005,7 @@ on dispatch-layer gaps:
 
 ### Files committed this session
 
-- `one4all/src/frontend/prolog/prolog_parse.c` — F.4 (+1) and F.4.b (+1).
+- `SCRIP/src/frontend/prolog/prolog_parse.c` — F.4 (+1) and F.4.b (+1).
 
 Working trees clean at handoff. SWI baseline 43/57 preserved.
 
@@ -2016,7 +2016,7 @@ Working trees clean at handoff. SWI baseline 43/57 preserved.
 
 ---
 
-## Current state (2026-05-01 session #5 followup — STRATEGY PIVOT, one4all HEAD `2eee5387`, corpus HEAD `5d29703`)
+## Current state (2026-05-01 session #5 followup — STRATEGY PIVOT, SCRIP HEAD `2eee5387`, corpus HEAD `5d29703`)
 
 **This session converted PL-12 from a single monolithic gate to an
 ISO-aligned capability ladder.** The pivot is documented in this file's
@@ -2062,7 +2062,7 @@ new ladder.
 | # | Repo    | Action                                                        |
 |---|---------|---------------------------------------------------------------|
 | 1 | corpus  | New folder `programs/prolog/rung31_bridge_catch/` with 5 tests |
-| 2 | one4all | New script `scripts/test_prolog_rung31_bridge_catch.sh`       |
+| 2 | SCRIP | New script `scripts/test_prolog_rung31_bridge_catch.sh`       |
 | 3 | .github | This file restructured: Strategy section + ISO ladder + pivot narrative |
 | 4 | .github | PLAN.md PL-12 line updated to PR-19a                          |
 
@@ -2080,7 +2080,7 @@ to fix:
 | 05_var_goal_throw | caught 99 | (empty) | throw propagates through synth-EXPR |
 
 All five would PASS once the v3 bridge in
-`one4all/docs/PL-12-session-2026-05-01-bridge.diff` integrates. Session
+`SCRIP/docs/PL-12-session-2026-05-01-bridge.diff` integrates. Session
 #6 of 2026-04-30 already proved each repro of this shape works
 standalone — the bridge mechanism is correct, just held back from
 landing because it regressed the old PL-12 metric.
@@ -2113,18 +2113,18 @@ landing because it regressed the old PL-12 metric.
 - `corpus/programs/prolog/rung31_bridge_catch/03_var_goal_arith.{pl,ref}` — arith recursion
 - `corpus/programs/prolog/rung31_bridge_catch/04_var_goal_userpred.{pl,ref}` — user-pred dispatch
 - `corpus/programs/prolog/rung31_bridge_catch/05_var_goal_throw.{pl,ref}` — throw propagation
-- `one4all/scripts/test_prolog_rung31_bridge_catch.sh` — driver
+- `SCRIP/scripts/test_prolog_rung31_bridge_catch.sh` — driver
 - `.github/GOAL-LANG-PROLOG.md` — strategy pivot, ISO ladder, session narrative
 - `.github/PLAN.md` — PL-12 → PR-19a step pointer
 
-Working trees: corpus and .github clean after this commit; one4all has the
+Working trees: corpus and .github clean after this commit; SCRIP has the
 new script. Smoke 5/5, broker 49/49, SWI baseline 43/57 (last bridge-off
 measurement) preserved at session-end. PR-19a (rung31_bridge_catch) at 0/5
 PASS — the new active gate, will go to 5/5 next session when bridge lands.
 
 ---
 
-## Current state (2026-05-01 session #5 followup #2 — PR-19a LANDED, one4all HEAD `a4d03638`, corpus HEAD `1cce52b`, .github HEAD `3a836b1`)
+## Current state (2026-05-01 session #5 followup #2 — PR-19a LANDED, SCRIP HEAD `a4d03638`, corpus HEAD `1cce52b`, .github HEAD `3a836b1`)
 
 **The bridge landed.** Two weeks of stalled PL-12 work cleared in the same
 session that pivoted the goal-file structure. PR-19a transitioned from
@@ -2135,11 +2135,11 @@ session that pivoted the goal-file structure. PR-19a transitioned from
 | # | Repo    | Commit       | Effect                                                              |
 |---|---------|--------------|---------------------------------------------------------------------|
 | 1 | corpus  | `1cce52b`    | PR-19a test 05 narrowed scope (throw propagation only, no payload-unify) |
-| 2 | one4all | `a4d03638`   | **PR-19a LANDED — Term→EXPR bridge for catch/3**                    |
+| 2 | SCRIP | `a4d03638`   | **PR-19a LANDED — Term→EXPR bridge for catch/3**                    |
 
 ### The bridge
 
-Applied `one4all/docs/PL-12-session-2026-05-01-bridge.diff` unchanged
+Applied `SCRIP/docs/PL-12-session-2026-05-01-bridge.diff` unchanged
 (the v3 from session #6 of 2026-04-30, mechanically proven correct
 standalone, held back as a committed .diff for ~2 weeks because under
 the old PL-12 strategy it regressed the SWI-suite gate 43→17). Two
@@ -2235,7 +2235,7 @@ as a downstream consequence.
 
 - `corpus/programs/prolog/rung31_bridge_catch/05_var_goal_throw.pl` — narrowed scope (catcher = _, no payload unify dependency)
 - `corpus/programs/prolog/rung31_bridge_catch/05_var_goal_throw.ref` — `caught` instead of `caught 99`
-- `one4all/src/runtime/interp/pl_runtime.c` — +192 lines (the bridge)
+- `SCRIP/src/runtime/interp/pl_runtime.c` — +192 lines (the bridge)
   - `pl_term_to_synth_expr` Term→EXPR walker
   - `pl_invoke_var_goal` dispatcher
   - catch/3 E_VAR arm calling `pl_invoke_var_goal`
@@ -2245,7 +2245,7 @@ bridge to negation builtins.
 
 ---
 
-## Current state (2026-05-02 session #N — PR-19b LANDED, one4all `4b581efa`, corpus `6a407c6`)
+## Current state (2026-05-02 session #N — PR-19b LANDED, SCRIP `4b581efa`, corpus `6a407c6`)
 
 PR-19a was the foundation; PR-19b extends the same Term→EXPR bridge to
 the three negation/control builtins that exhibit the same silent-success
@@ -2326,19 +2326,19 @@ arity-1 "goal-as-arg" shape.
 ### Files changed this session
 
 - `corpus/programs/prolog/rung32_bridge_negation/01-05.{pl,ref}` — 5 driver tests
-- `one4all/scripts/test_prolog_rung32_bridge_negation.sh` — driver script
-- `one4all/src/runtime/interp/pl_runtime.c` — ~20 lines extending the
+- `SCRIP/scripts/test_prolog_rung32_bridge_negation.sh` — driver script
+- `SCRIP/src/runtime/interp/pl_runtime.c` — ~20 lines extending the
   bridge to `\+`, `not`, `once` arms
 - `.github/PLAN.md` — Progress reporting ⛔ section added; PL goal step
   pointer updated to PR-19c
 - `.github/GOAL-LANG-PROLOG.md` — Progress reporting subsection added
   under Strategy; PR-19b row checked off; this session-state entry
 
-Working trees: corpus, one4all, .github changes ready for handoff commits.
+Working trees: corpus, SCRIP, .github changes ready for handoff commits.
 
 ---
 
-## Current state (2026-05-02 session — PR-19c LANDED, one4all `22fbe617`, corpus `f7c47bc`)
+## Current state (2026-05-02 session — PR-19c LANDED, SCRIP `22fbe617`, corpus `f7c47bc`)
 
 ### Progress report
 
@@ -2389,15 +2389,15 @@ also be added to `pl_broker.c::pl_is_builtin_goal`.
 
 | Sub-rung | Status |
 |----------|--------|
-| PR-19a catch/3       | ✅ LANDED one4all `a4d03638` |
-| PR-19b \+/not/once   | ✅ LANDED one4all `4b581efa` |
-| PR-19c call/N        | ✅ LANDED one4all `22fbe617` |
+| PR-19a catch/3       | ✅ LANDED SCRIP `a4d03638` |
+| PR-19b \+/not/once   | ✅ LANDED SCRIP `4b581efa` |
+| PR-19c call/N        | ✅ LANDED SCRIP `22fbe617` |
 | PR-19d setof/bagof/findall | ⏳ next |
 | PR-19e setup_call_cleanup  | ⏳ |
 
 ---
 
-## Current state (2026-05-02 session — PR-19d LANDED, one4all `TBD`, corpus `TBD`)
+## Current state (2026-05-02 session — PR-19d LANDED, SCRIP `TBD`, corpus `TBD`)
 
 ### Progress report
 
@@ -2439,9 +2439,9 @@ rather than `member/2` (not a scrip builtin, not auto-injected).
 
 | Sub-rung | Status |
 |----------|--------|
-| PR-19a catch/3       | ✅ LANDED one4all `a4d03638` |
-| PR-19b \\+/not/once   | ✅ LANDED one4all `4b581efa` |
-| PR-19c call/N        | ✅ LANDED one4all `22fbe617` |
+| PR-19a catch/3       | ✅ LANDED SCRIP `a4d03638` |
+| PR-19b \\+/not/once   | ✅ LANDED SCRIP `4b581efa` |
+| PR-19c call/N        | ✅ LANDED SCRIP `22fbe617` |
 | PR-19d findall/3     | ✅ LANDED this session |
 | PR-19e setup_call_cleanup | ⏳ next |
 
@@ -2464,13 +2464,13 @@ rather than `member/2` (not a scrip builtin, not auto-injected).
 ### Files changed this session
 
 - `corpus/programs/prolog/rung34_bridge_setof/01-05.{pl,ref}` — 5 driver tests
-- `one4all/scripts/test_prolog_rung34_bridge_setof.sh` — driver script
-- `one4all/src/runtime/interp/pl_runtime.c` — ~18 lines: E_VAR bridge in findall/3
+- `SCRIP/scripts/test_prolog_rung34_bridge_setof.sh` — driver script
+- `SCRIP/src/runtime/interp/pl_runtime.c` — ~18 lines: E_VAR bridge in findall/3
 - `.github/GOAL-LANG-PROLOG.md` — PR-19a checked, PR-19d checked, this state entry
 
 ---
 
-## Current state (2026-05-02 session — PR-19e LANDED, one4all `TBD`, corpus `TBD`)
+## Current state (2026-05-02 session — PR-19e LANDED, SCRIP `TBD`, corpus `TBD`)
 
 ### Progress report
 
@@ -2499,10 +2499,10 @@ instead of pred-table lookup.
 
 | Sub-rung | Status |
 |----------|--------|
-| PR-19a catch/3                    | ✅ LANDED one4all `a4d03638` |
-| PR-19b \\+/not/once               | ✅ LANDED one4all `4b581efa` |
-| PR-19c call/N                     | ✅ LANDED one4all `22fbe617` |
-| PR-19d findall/3                  | ✅ LANDED one4all `3e02e667` |
+| PR-19a catch/3                    | ✅ LANDED SCRIP `a4d03638` |
+| PR-19b \\+/not/once               | ✅ LANDED SCRIP `4b581efa` |
+| PR-19c call/N                     | ✅ LANDED SCRIP `22fbe617` |
+| PR-19d findall/3                  | ✅ LANDED SCRIP `3e02e667` |
 | PR-19e setup_call_cleanup/3       | ✅ LANDED this session |
 
 **PR-19 is fully closed.** All five sub-rungs landed.
@@ -2517,14 +2517,14 @@ Same pattern: 5 focused tests, driver script, gate.
 ### Files changed this session
 
 - `corpus/programs/prolog/rung35_bridge_setup/01-05.{pl,ref}` — 5 driver tests
-- `one4all/scripts/test_prolog_rung35_bridge_setup.sh` — driver script
-- `one4all/src/runtime/interp/pl_runtime.c` — setup_call_cleanup/3 (~40 lines) + is_pl_user_call entry
-- `one4all/src/frontend/prolog/pl_broker.c` — pl_is_builtin_goal entry
+- `SCRIP/scripts/test_prolog_rung35_bridge_setup.sh` — driver script
+- `SCRIP/src/runtime/interp/pl_runtime.c` — setup_call_cleanup/3 (~40 lines) + is_pl_user_call entry
+- `SCRIP/src/frontend/prolog/pl_broker.c` — pl_is_builtin_goal entry
 - `.github/GOAL-LANG-PROLOG.md` — PR-19e checked, PR-19 bridge status, this state
 
 ---
 
-## Current state (2026-05-02 session — PR-13 LANDED, one4all `c7c71cd0`, corpus `e921a61`)
+## Current state (2026-05-02 session — PR-13 LANDED, SCRIP `c7c71cd0`, corpus `e921a61`)
 
 ### Progress report
 
@@ -2562,7 +2562,7 @@ Same pattern: 5 focused tests + driver script + gate = PASS=5 FAIL=0.
 
 ---
 
-## Current state (2026-05-02 session — PR-15 LANDED, one4all `TBD`, corpus unchanged)
+## Current state (2026-05-02 session — PR-15 LANDED, SCRIP `TBD`, corpus unchanged)
 
 ### Progress report
 
@@ -2616,7 +2616,7 @@ Beyond PL-4's basics: `sub_atom/5`, `atom_to_term/3`, `atom_number/2`,
 
 ---
 
-## Current state (2026-05-02 session — PR-16 LANDED, one4all `f7efc599`, corpus `7aebe69`)
+## Current state (2026-05-02 session — PR-16 LANDED, SCRIP `f7efc599`, corpus `7aebe69`)
 
 ### Progress report
 

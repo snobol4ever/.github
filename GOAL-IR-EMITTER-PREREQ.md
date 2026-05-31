@@ -23,7 +23,7 @@
 
 ⛔ **Read before any source file:** ARCH-IR.md then ARCH-SCRIP.md then ARCH-EMITTER.md.
 
-**Repo:** one4all + .github
+**Repo:** SCRIP + .github
 **Prereq for:** GOAL-SN4-JVM-EMIT.md and GOAL-SN4-JS-EMIT.md
 
 ---

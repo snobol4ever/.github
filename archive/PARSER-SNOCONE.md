@@ -13,7 +13,7 @@ Produces shared IR (Program*) — same as SNOBOL4 frontend.
 
 | Repo | Sprint | Status | Milestone |
 |------|--------|--------|-----------|
-| one4all (x86) | SC-1 | M-SC-CONSOLIDATE in progress `c1eed78` | M-SC-SELFTEST |
+| SCRIP (x86) | SC-1 | M-SC-CONSOLIDATE in progress `c1eed78` | M-SC-SELFTEST |
 | JVM | `jvm-snocone-control` | Lexer ✅ · Expr ✅ · Control ❌ | M-JVM-SNOCONE |
 | DOTNET | `net-snocone-control` | Lexer ✅ · Expr ✅ · Control ❌ | M-NET-SNOCONE |
 

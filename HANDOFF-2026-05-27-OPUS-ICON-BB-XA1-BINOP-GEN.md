@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-27 (session c) — Opus 4.7 — GOAL-ICON-BB: ICN-XA-1 + ICN-M4 binop-gen
 
-**one4all** `7ff8fce8` · **goal:** GOAL-ICON-BB · **mode priority:** mode 2 then 3 (mode 4 deferred,
+**SCRIP** `7ff8fce8` · **goal:** GOAL-ICON-BB · **mode priority:** mode 2 then 3 (mode 4 deferred,
 but the mode-4 generator gate was the cheapest correctness signal available this session)
 
 ---
@@ -79,9 +79,9 @@ Results: `lt`→`3 4`; `mult`→`1 2 2 4 3 6`; `compound`→`4 6` — all byte-e
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 make libscrip_rt                            # required for the mode-4 gate
@@ -98,7 +98,7 @@ bash scripts/test_icon_mode4_rung.sh        # PASS=5 FAIL=0
 - `src/lower/lower.c` — `lower_icn_gen_binop` + routing in lower_add/sub/mul/div/mod/acomp
 - `src/emitter/BB_templates/bb_binop_gen.cpp` — real cross-product odometer
 
-**one4all** `7ff8fce8`
+**SCRIP** `7ff8fce8`
 
 ---
 

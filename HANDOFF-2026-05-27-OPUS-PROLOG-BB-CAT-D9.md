@@ -4,7 +4,7 @@
 the CAT-D-7..8 handoff. Discovered the bug applied to *all 12 comparison ops*, not just `==`.
 
 **Result:** ✅ **+4 rungs in both --mode run and --mode compile.** GATE-1 5/5,
-GATE-2 15→19/107 (+4), GATE-3 89/107 held, GATE-4 4/4 held. one4all `b1a37351`.
+GATE-2 15→19/107 (+4), GATE-3 89/107 held, GATE-4 4/4 held. SCRIP `b1a37351`.
 
 ## Gate ledger (clean rebuild, this session)
 - GATE-1 smoke prolog:        5/5 ✅
@@ -135,12 +135,12 @@ The smoking gun: `rung04_arith_arith.pl` literally tests `(3 < 5 -> true ; false
 
 ## Files touched
 
-- one4all `b1a37351` CAT-D-9: bb_exec.c (+48), bb_exec.h (+5), bb_pl_builtin.cpp (+41) — 3 files, +94 LOC
+- SCRIP `b1a37351` CAT-D-9: bb_exec.c (+48), bb_exec.h (+5), bb_pl_builtin.cpp (+41) — 3 files, +94 LOC
 
 ## Reproducible probe
 
 ```bash
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 apt-get install -y libgc-dev
 bash scripts/build_scrip.sh
 make libscrip_rt

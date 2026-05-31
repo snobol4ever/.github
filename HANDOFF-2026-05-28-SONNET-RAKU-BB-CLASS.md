@@ -6,18 +6,18 @@ Three rungs landed (all 3 modes verified), one rung partial.
 
 ### Completed
 
-**RK-EXCEPTIONS** (one4all `ed6fec27`)
+**RK-EXCEPTIONS** (SCRIP `ed6fec27`)
 - `raku_exc_clear`, `raku_exc_check`, `raku_exc_get` added to `raku_builtins_byname.c` (were referenced in lower.c but never implemented in the rt path).
 - `raku_die` replaced `snprintf` with SSE-safe `memcpy` (Q13a).
 - `raku_try_hash_builtin`: added `args[0].v != DT_S && args[0].v != DT_SNUL` early-exit guard — was calling `VARVAL_fn(INTVAL)` → `snprintf` on garbage pointer → SIGSEGV whenever `say(int)` was called inside any sub with a `my`-decl.
 - GATE-RK4 22→23.
 
-**RK-IO** (one4all `753d85e2` + fixup `4b4e3a11`)
+**RK-IO** (SCRIP `753d85e2` + fixup `4b4e3a11`)
 - `rk_fileio38`: `for lines($path) -> $line` was calling `lines` on every iteration (lowered as a generator loop). Added `TT_ITERATE(TT_FNC)` arm in `lower_every` — evaluates the call once into a fresh `__arr_N` temp, then routes through `lower_raku_iterate_arr` BB path. Guard: `strncmp(sval, "__gather_", 9) != 0` excludes `gather{}` which is a generator FNC.
 - `rk_stdio39`: `raku_capture` returned `INTVAL` not `FHVAL` — fixed to `FHVAL(n)`. Added `fflush(stdout)` before non-stdout handle writes in both `write` (icn_runtime.c) and `raku_print_fh/say_fh` (raku_builtins_byname.c). `setvbuf(stdout, NULL, _IOLBF, 0)` added to both `rt_init` (mode-4) and `scrip.c` startup (modes 2+3). Runner updated to `2>&1`.
 - GATE-RK4 23→25.
 
-### Partial — RK-CLASS (one4all `77e84268`)
+### Partial — RK-CLASS (SCRIP `77e84268`)
 
 **What works:**
 - `lower_field` fix: Raku `$p.x` parses as `TT_FIELD` with field name in `t->v.sval` (not `c[1]`). `ICN_FIELD_NAME` macro returns NULL for these nodes. Fixed `lower_field` to fall back to `t->v.sval`.
@@ -60,7 +60,7 @@ Option (a) has a caveat: if two classes have a method with the same name, the lo
 ## Gates at handoff
 
 ```
-one4all: RK-CLASS partial (lower_field fix; 77e84268)
+SCRIP: RK-CLASS partial (lower_field fix; 77e84268)
 
 GATE-RK4 mode-4: 25/33  HOLD (rk_class26 still FAIL)
 GATE-RK  mode-2: 22/33  HOLD
@@ -76,8 +76,8 @@ Build:           clean
 ## NEXT session setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-cd /home/claude/one4all && make -j4 scrip libscrip_rt
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip libscrip_rt
 bash scripts/test_raku_mode4_rung.sh   # baseline 25/33
 bash scripts/test_raku_ir_rungs.sh     # baseline 22/33
 bash scripts/test_smoke_raku.sh        # baseline 5/5

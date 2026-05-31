@@ -1,6 +1,6 @@
 # HANDOFF — 2026-05-27 — Sonnet 4.6 — GOAL-ICON-BB: 4-Attr AG Infrastructure
 
-**one4all** `aca30894` · **goal:** GOAL-ICON-BB · **mode priority:** mode 2 then mode 3
+**SCRIP** `aca30894` · **goal:** GOAL-ICON-BB · **mode priority:** mode 2 then mode 3
 
 ---
 
@@ -97,9 +97,9 @@ arm template exists. What remains: implement four-port literal generator x86 in
 
 ```bash
 git clone https://TOKEN@github.com/snobol4ever/.github /home/claude/.github
-git clone https://TOKEN@github.com/snobol4ever/one4all  /home/claude/one4all
+git clone https://TOKEN@github.com/snobol4ever/SCRIP  /home/claude/SCRIP
 git clone https://TOKEN@github.com/snobol4ever/corpus   /home/claude/corpus
-cd /home/claude/one4all
+cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 bash scripts/test_smoke_icon.sh            # PASS=5
@@ -115,7 +115,7 @@ bash scripts/test_icon_all_rungs.sh        # PASS=198
   `lower_icn_expr_threaded`, updated `lower_icn_proc_body` to use it
 - `src/lower/lower_icn.h` — exported `icn_kind_is_resumable`, `lower_icn_expr_threaded`
 
-**one4all** `aca30894`
+**SCRIP** `aca30894`
 
 ---
 

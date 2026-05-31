@@ -85,7 +85,7 @@ Was SIGSEGV at 8 lines on prior baseline.
 
 ## Files touched this session
 
-`one4all/`:
+`SCRIP/`:
 - `src/lower/lower_pl.c` — 8 `GC_MALLOC → GC_MALLOC_UNCOLLECTABLE` swaps
 
 `corpus/`:

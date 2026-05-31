@@ -35,9 +35,9 @@ runner scripts, how to use it, and what engines/adapters are supported.
 - Short stub — "Shared test infrastructure for the snobol4ever compiler/runtime family"
 - Does not document the adapters/ structure (csnobol4, dotnet, jvm, spitbol, tiny, tiny_net)
 - Does not document crosscheck.sh usage or CORPUS= / ENGINE= env vars
-- Does not state the architectural intent: ALL test scripts belong here, not in one4all/test/
+- Does not state the architectural intent: ALL test scripts belong here, not in SCRIP/test/
 - CSNOBOL4 adapter added in GOAL-CSNOBOL4-HARNESS — not in README
-- one4all/test/ currently has ~60 scripts that should eventually migrate here
+- SCRIP/test/ currently has ~60 scripts that should eventually migrate here
 
 ## Verification Technique
 
@@ -69,7 +69,7 @@ commits the corrected README.
   Show a concrete example invocation.
 
 - [ ] **S-4** — State architectural intent: harness is the single home for all runner scripts.
-  one4all/test/ scripts are being migrated here incrementally.
+  SCRIP/test/ scripts are being migrated here incrementally.
 
 - [ ] **S-5** — Add CSNOBOL4 adapter documentation: run_crosscheck_csnobol4.sh, baseline counts.
 
@@ -83,6 +83,6 @@ commits the corrected README.
 ## Session Setup
 
 ```bash
-bash /home/claude/one4all/scripts/install_system_packages.sh
-bash /home/claude/one4all/scripts/build_scrip.sh
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+bash /home/claude/SCRIP/scripts/build_scrip.sh
 ```
