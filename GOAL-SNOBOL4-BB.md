@@ -44,6 +44,93 @@ SNOBOL4 source → CMPILE parser → tree_t* → lower_pat_dcg.c (BB_lower_pat)
 
 ---
 
+## ⭐ THIS SESSION (Lon directive 2026-05-30): RENAME BB → IR (uppercase IR-graph constructs only)
+
+**Why.** With the Stack Machine gone (SMX-4), the uppercase `BB_*` directed graph IS the
+intermediate representation. Restore its historical name **IR** so the codebase visibly separates
+**IR constructs** (the lowered graph — uppercase, → `IR_*`) from **emitted byrd-box constructs** (the
+executable boxes — lowercase `bb_*`, UNCHANGED). The casing split (`BB` vs `bb`) already in place
+makes this mechanically safe; `BB.h`'s include guard is already `SCRIP_IR_H` (residue of the prior IR name).
+
+**Reliability facts (measured this session on clean `a0bb9be4`).**
+- Target namespace is clean: the ONLY pre-existing `IR_*` tokens are `IR_IS_GEN_KIND_TO` and
+  `IR_WALK_MAX` (macros in `emit_ir.h`) — no collision with `IR_t`/`IR_graph_t`/`IR_op_t` or any
+  enum-member rename.
+- The casing split is real and reliable: lowercase `bb_alloc` (pool allocator) ≠ uppercase `BB_alloc`
+  (IR-graph allocator); lowercase `bb_node_t`/`bb_node_id` ≠ uppercase `BB_t`/`BB_node_alloc`. A
+  `\bBB[_A-Z]` (rename) vs `\bbb_` (leave) regex cleanly separates IR from byrd-box.
+- UTF-8 hazard: source carries `α/β/γ/ω` — every grep/sed MUST use `-a` / byte-level (the token `BB_t`
+  never overlaps the Greek bytes, so a byte-level sed is safe and lossless).
+
+### Scope tiers
+- **TIER A — rename (Lon-named, definite):** `BB_t`→`IR_t` (1346 occ / 88 files); `BB_graph_t`→`IR_graph_t`
+  (301 occ / 24 files).
+- **TIER B — rename (CONFIRMED in scope; the IR node-kind taxonomy + IR API):** `BB_op_t`→`IR_e`
+  (23) — enum-suffix convention `_e` (structs are `IR_t`/`IR_graph_t`, the node-kind enum is `IR_e`);
+  the ~125 `BB_op_t` enum members `BB_LIT_I … BB_PAT_ATP` incl. `BB_GEN_*`/`BB_NFA_*`/`BB_CSET_*`
+  + `BB_OP_COUNT` → `IR_*` (~1850 occ); `BB_LANG_*`→`IR_LANG_*` (27); IR API fns
+  `BB_alloc`/`BB_free`/`BB_node_alloc`/`BB_lower_pat`→`IR_*` (~214). **Rationale:** leaving the node-kind
+  enum as `BB_*` while the node type is `IR_t` (`switch(n->t){ case BB_VAR: … }`) reintroduces the exact
+  IR/emit confusion this rename exists to remove — a half-renamed IR is worse than either pure state.
+- **TIER C — STAYS `BB` (these ARE the emitted-construct layer, NOT the IR):** `BB_MEDIUM_*` (emission
+  medium), `BB_MODE_*` (byrd-box execution mode), `BB_PLATFORM_*` (codegen target), `BB_templates`
+  (template directory), the bb_*.h header guards (`BB_POOL_H`/`BB_EXEC_H`/`BB_BOX_H`/`BB_BROKER_H`/`BB_BUILD_BIN_H`),
+  and ALL lowercase `bb_*` (324 identifiers — pool / broker / exec / templates / byrd-box). **Untouched.**
+
+**Template boundary (Lon-clarified 2026-05-30) — templates are TRANSLATORS: they receive the IR
+(`IR_t`) and emit BB asm (byrd-box x86).** So inside `src/emitter/BB_templates/*.cpp`, the IR-type/enum
+tokens the templates CONSUME **do** get renamed (the 330 `BB_t`→`IR_t`, 134 `BB_PAT_*`→`IR_PAT_*`,
+3 `BB_op_t`→`IR_e`) — that is the IR being handed to them. But the template MACHINERY stays `BB`/`bb`:
+the file names (`bb_pat_span.cpp`), the `BB_templates/` directory, the `bb_*` function names, the
+`g_emit.bb_*` fields, and `BB_MEDIUM_*`/`MEDIUM_TEXT`/`MEDIUM_BINARY`. Net effect on a template:
+`bb_pat_span(BB_t * pBB)` → `bb_pat_span(IR_t * pBB)`, same file, same dir, still reading `g_emit`.
+**NO `typedef IR_t BB_t;` alias** — zero `BB_t` remains after the rename (Reading X).
+
+### ⛔ Gate suite — run before EVERY commit (SNOBOL4 corpus is SMX-tombstoned; Icon is the live gate)
+```bash
+make scrip                                   # rc=0
+make libscrip_rt                             # rc=0
+bash scripts/test_smoke_icon.sh              # m2 6/6 (HARD), m3 1/6
+bash scripts/test_gate_sm_dead.sh            # <= 1
+bash scripts/util_template_purity_audit.sh   # FACT 0
+```
+This rename is **byte-neutral to emission** (pure source identifier rename) — every behavioral gate MUST
+be invariant. Any gate delta ⇒ a rename bug; revert that slice and diagnose.
+
+### Slices (ATOMIC PER TOKEN — typedef/enum body + all uses change together so the build stays green)
+- [x] **RN-IR-1** — `\bBB_graph_t\b` → `IR_graph_t` across `src/**` (24 files; smaller, first). Gate. Commit `RN-IR-1 BB_graph_t→IR_graph_t`.
+- [x] **RN-IR-2** — `\bBB_t\b` → `IR_t` across `src/**` (88 files). Word-boundary exact (does NOT touch `BB_templates`/`BB_to_by`/lowercase). Gate. Commit. **[TIER A COMPLETE]**
+- [x] **RN-IR-3** — `\bBB_op_t\b` → `IR_e` (enum type; `_e` = enum, distinct from the `_t` structs). Gate. Commit.
+- [x] **RN-IR-4** — curated enum-member rename: the 125 `BB_op_t` values listed in `BB.h` (`BB_LIT_I`…`BB_PAT_ATP`) + `BB_OP_COUNT` + the `BB_GEN_*`/`BB_NFA_*`/`BB_CSET_*` members → `IR_*` (CONFIRMED: `BB_VAR`→`IR_VAR`, `BB_PAT_SPAN`→`IR_PAT_SPAN`, `BB_OP_COUNT`→`IR_OP_COUNT`, …). **NOT a blanket `BB_[A-Z]*`** — explicitly EXCLUDE every TIER-C token (`BB_MEDIUM_*`,`BB_MODE_*`,`BB_PLATFORM_*`,`BB_templates`,bb_*.h guards). Rewrite the enum body in `BB.h` AND every `case`/construction site in one pass. Gate. Commit.
+- [x] **RN-IR-5** — `\bBB_LANG_(\w+)` → `IR_LANG_\1` (6 values: SNO/SCO/REB/ICN/PL/RKU). Gate. Commit.
+- [x] **RN-IR-6** — IR API (CONFIRMED): `\bBB_alloc\b`→`IR_alloc`, `\bBB_free\b`→`IR_free`, `\bBB_node_alloc\b`→`IR_node_alloc`, `\bBB_lower_pat\b`→`IR_lower_pat` (watch: lowercase `bb_alloc`/`bb_node_id`/`bb_node_t` STAY); any remaining bare `BB` in comments/strings (the `(BB_t*)` casts were already converted by RN-IR-2). Gate. Commit. **[TIER B COMPLETE]**
+- [x] **RN-IR-7a** (FILE rename — CONFIRMED, Lon 2026-05-30 "BB*.* files become IR*.* files") — `git mv src/include/BB.h src/include/IR.h`; update every `#include "BB.h"` across `src/**`, plus `Makefile` + `scripts/build_scrip.sh`. Guard is already `SCRIP_IR_H`. Gate. Commit.
+- [x] **RN-IR-7b** (baseline artifacts — same rule) — the **1330 git-tracked `baselines/per_kind/**/BB_*.*`** files (x86/jvm/net/wasm × text/binary, named after IR kinds) → `IR_*.*` via basename prefix `BB_`→`IR_` (`for f in $(git ls-files 'baselines/per_kind/**/BB_*'); do git mv "$f" "$(dirname "$f")/$(basename "$f" | sed 's/^BB_/IR_/')"; done`). Pairs with RN-IR-4. NOTE: the per-kind diff gate is flagged STALE (SBL-G-2) so these are currently inert; rename keeps names consistent with the new IR kinds. No build gate (fixtures, not source) — verify `git ls-files 'baselines/per_kind/**/BB_*'` is empty. Commit.
+  - ✅ **`src/emitter/BB_templates/` DIRECTORY STAYS `BB` (DECIDED, Lon 2026-05-30)** — templates are emit-side: they reach state only through `g_emit` globals, i.e. they live PAST the IR boundary, not in it. Not a `BB*.*` file, 140 path refs (src + Makefile + build_scrip.sh), TIER C. No directory rename.
+- [x] **RN-IR-8** — zero-check + handoff. `grep -rhoaE '\bBB[_A-Z][A-Za-z0-9_]*' src` must return ONLY the TIER-C set (`BB_MEDIUM_*`,`BB_MODE_*`,`BB_PLATFORM_*`,`BB_templates`,bb_*.h guards); `git ls-files 'baselines/per_kind/**/BB_*'` empty. Full gate. `git pull --rebase && git push` (code repos first, `.github` last). Confirm `git log origin/main --oneline -1` shows the hash.
+
+**Scope decision (Lon 2026-05-30) — FULLY SETTLED, no open items:** TIER A + TIER B are confirmed.
+Enum members `BB_*`→`IR_*`, `BB_LANG_*`→`IR_LANG_*`, constructors `BB_alloc`/`BB_free`/`BB_node_alloc`/`BB_lower_pat`→`IR_*`,
+and **all `BB*.*` files → `IR*.*`** (source header `BB.h`→`IR.h` + the 1330 `baselines/per_kind/**/BB_*.*`
+artifacts) confirmed. **STAYS `BB`** (emit-side, reached only via `g_emit` globals — past the IR boundary):
+the `BB_templates/` directory and TIER C tokens (`BB_MEDIUM_*`/`BB_MODE_*`/`BB_PLATFORM_*`/bb_*.h guards),
+plus all lowercase `bb_*`. Ready to execute RN-IR-1 → RN-IR-8.
+
+**✅ RENAME COMPLETE (2026-05-30, this session).** All 8 slices landed + RN-IR-8b cosmetic comment polish.
+SCRIP commits `b2a13e2`(1)→`7cbd3c9`(2)→`2018dd6`(3)→`222755f`(4)→`8730787`(5)→`0466698`(6)→`15418a0`(7a)→`bc69550`(7b)→`9ff631f`(8)→`29aaac0`(8b),
+on top of base `c334861`. **Zero whole-word IR identifiers remain as `BB_`** (verified: exact-111-member
+grep = 0; `BB_t`/`BB_graph_t`/`BB_op_t`/`BB_LANG_*`/ctors = 0; baselines `BB_*` = 0). Every remaining
+`BB[_A-Z]` token is emit/byrd-box machinery (Tier-C: PLATFORM/MEDIUM/MODE/WIRED/BROKERED/templates/LABEL/
+PATCH/POOL/DCAP/BANNER/bb_*.h-guards/ENTER/ALPHA + the `BBCopyMap` Term-struct + box-descriptive `.cpp`
+comments) OR the AST-layer `BB_DEFINE_NAMES` guard (ast.h — outside scope). Gates held INVARIANT every
+slice: `make scrip` rc=0, `make libscrip_rt` rc=0, Icon m2 **6/6** (HARD), m3 2/6, sm_dead 1 (≤1),
+FACT **6** (pre-existing baseline — predates `a0bb9be4`; my byte-neutral rename moved it 0). **NOT pushed
+yet** (10 SCRIP commits local; `.github` goal-file local). Open follow-ups (Lon's call, NOT done): the
+AST-layer `BB_DEFINE_NAMES`→`AST_DEFINE_NAMES`? and the vestigial `-DIR_DEFINE_NAMES` Makefile flag
+(checked nowhere in src). NOTE the watermark's old "FACT 0" was stale.
+
+---
+
 ## Session Setup
 
 ```bash
@@ -417,7 +504,8 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = a0bb9be4  Restore 6381 files erroneously deleted by partial-checkout artifact in c5cf417c
+HEAD SCRIP       = 29aaac0  RN-IR-8b (BB→IR rename COMPLETE; base c334861). Predecessor watermark a0bb9be4 was
+                     two steps stale: origin had advanced to c334861 (SCRIP-RENAME one4all RN-1/2/3) before this session.
                      (df3551a7 → c5cf417c "Ground Zero" DELETED 991,875 lines / 6381 files [partial-checkout
                       artifact] → a0bb9be4 RESTORED them. Current HEAD builds clean. Delete already reversed.)
 FRESH-START repo   = snobol4ever/SCRIP (NEW, public, created 2026-05-30 Sonnet 4.6). ZERO inherited history
@@ -504,6 +592,24 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-30 (Claude) — BB→IR RENAME COMPLETE ✅** (SCRIP `b2a13e2`→`29aaac0`, 10 commits on base `c334861`;
+  `.github` this handoff). Lon directive: now that SM is gone, the uppercase `BB_*` directed graph IS the IR —
+  restore its historical name so IR (the lowered graph) is visibly distinct from the emitted byrd-box layer
+  (`BB`/`bb`). Renamed (word-boundary perl, byte-safe over α/β/γ/ω): `BB_t`→`IR_t` (88 files), `BB_graph_t`→`IR_graph_t`,
+  `BB_op_t`→`IR_e` (enum `_e` vs struct `_t`), 111 enum members `BB_*`→`IR_*` (curated list from the enum body — NOT a
+  blanket, Tier-C excluded), `BB_LANG_*`→`IR_LANG_*`, ctors `BB_alloc`/`BB_free`/`BB_node_alloc`/`BB_lower_pat`→`IR_*`,
+  file `src/include/BB.h`→`IR.h` (+27 includes; guard was already `SCRIP_IR_H`), and 1330 `baselines/per_kind/**/BB_*.*`
+  →`IR_*.*`. STAYS `BB` (emit/byrd-box layer, reached only via `g_emit` — templates are TRANSLATORS that receive `IR_t`
+  and emit BB asm): `BB_MEDIUM_*`/`BB_MODE_*`/`BB_PLATFORM_*`/`BB_WIRED`/`BB_BROKERED`, the `BB_templates/` directory,
+  `bb_*.h` guards, emit/pool constants (`BB_LABEL_*`/`BB_PATCH_MAX`/`BB_POOL_*`/`BB_DCAP_MAX`/`BB_BANNER_RULE_LEN`),
+  `BB_ENTER`/`BB_ALPHA_DEFINED`, `BBCopyMap` (Term-copy, not IR), and all 324 lowercase `bb_*`. **Zero whole-word IR
+  identifiers remain as `BB_`** (exact-111-member grep = 0). Also fixed stale `BB_UNKNOWN`→`IR_UNKNOWN` op-name fallback
+  and polished IR-kind family refs in template `.cpp` comments. **Gates INVARIANT every slice:** `make scrip` rc=0,
+  `make libscrip_rt` rc=0, Icon m2 **6/6** (HARD), m3 2/6, sm_dead 1 (≤1), FACT 6 (pre-existing baseline — predates
+  `a0bb9be4`; rename is byte-neutral, moved it 0). Pure source identifier rename — no behavioral change. **Out-of-scope,
+  NOT done (Lon's call):** AST-layer `BB_DEFINE_NAMES`→`AST_DEFINE_NAMES`?; vestigial `-DIR_DEFINE_NAMES` Makefile flag
+  (checked nowhere in src). corpus UNTOUCHED.
 
 - **2026-05-30 Sonnet 4.6 — FRESH-START: created `snobol4ever/SCRIP` (zero-history copy of the predecessor repo minus refs/)** (no predecessor/corpus commit; `.github` only). Lon directive after the Ground-Zero delete debacle: a clean working repo, NOT a rename (rename→reuse breaks GitHub's redirect + stale clones retarget the new empty repo = 2nd-debacle risk; verified against GitHub docs). New repo `SCRIP` (public, org), ZERO inherited history (1 root commit, 0 parents) = `git archive HEAD`@`a0bb9be4` extracted, `refs/` removed (19MB JCON/ICON vendored), `git init` + single Initial commit, 4687 tracked files (force-added 133 `.gitignore`-skipped incl. 17 `src/`). Pushed to brand-new empty repo (non-destructive). Verified: remote 1 root commit, refs/→404, **predecessor repo UNTOUCHED at `a0bb9be4`**. Also: confirmed the c5cf417c "Ground Zero" delete (991,875 lines/6381 files) was ALREADY reversed by a0bb9be4 last session — current HEAD builds clean (`make scrip`/`make libscrip_rt` rc=0). LM-1 (LOWER-MERGE) begun in the predecessor repo (lower.h decls folded, lower_ctx.c body appended to lower.c, include removed) then REVERTED (Makefile+file-deletes not done → broken duplicate-symbol state); predecessor working tree clean, **LM-1 to restart from clean HEAD**. PLAN.md Repos table / clone scripts NOT updated to SCRIP — deferred to a `grand master reorg`.
 
