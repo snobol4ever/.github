@@ -157,6 +157,48 @@ receiver is genuinely a DESCR_t.** Rebuild + re-smoke + commit per file.
    may be collected. Arena-as-single-root or non-GC arena needed. This gates
    the whole 8-byte switch and must be decided before step 5.
 
+## GC GATE — RESOLVED DIRECTION (Lon + Sonnet, 2026-05-31)
+
+Three options were weighed (see issue-3 analysis):
+- **A — arena as a single Boehm GC root.** `GC_malloc` one big block, pin it
+  as a permanent root; Boehm keeps the whole arena alive as one unit; you
+  sub-allocate inside. Still uses Boehm for everything outside the arena.
+- **B — per-object Boehm with a custom mark proc that decodes `RBP+off`.**
+  REJECTED. Taxes the GC hot path (defeats the "scream" goal), adds a THIRD
+  lockstep layout consumer (struct + emitter + mark proc) in the least-
+  testable place (only runs under collection pressure), and is in
+  architectural TENSION with the contiguous arena the offset scheme needs
+  (offsets presuppose one base; per-object Boehm objects are scattered).
+- **C — non-GC arena.** `mmap`-reserved region Boehm never scans; allocate by
+  bump-pointer; reclaim in BULK by resetting the pointer (NOT per-object
+  malloc/free). Matches the box engine's existing region discipline
+  (REGISTER-LAYOUT.md: "the save IS the allocation; the restore IS the
+  unlink"). Long-lived values need a promotion path (generational split:
+  ephemeral match arena that resets at match/stmt boundary + a long-lived
+  value arena, or promote survivors to Boehm).
+
+**DECISION: A to prototype, C as the end state.**
+- A is the PROVING RUNG: fastest to stand up, proves the full chain (macro
+  funnel + 8-byte struct + emitter offset constants + RBP basing) on real
+  programs while the cost of being wrong is low; keeps Boehm as a safety net
+  so the long-lived-value problem and the layout problem aren't solved at once;
+  reversible and gate-able with the existing "smokes match baseline" discipline.
+- A's KNOWN LIMIT (Lon spotted it): once the base is pinned, the arena can't
+  grow — 32-bit offsets can't survive the base address moving (realloc-moves-
+  base ⇒ every descriptor becomes a wild pointer). So A is NOT the permanent
+  end state.
+- GROWTH = graduate to C: `mmap`-RESERVE a large virtual range up front (up to
+  the 4GB the 32-bit offset addresses) so the BASE NEVER MOVES, COMMIT pages
+  lazily as touched. Stable base + growth without moving. (Pure-Boehm A can't
+  do lazy-reserve cleanly; the growable version of A IS C.) Alternative if
+  4GB/one-base is limiting: segmented arena (`{segment:offset}`, SIL-heritage).
+- Growth is mostly moot for the MATCH arena anyway — it RESETS per match
+  (bounded by nesting depth); only the long-lived value arena grows, slowly.
+
+This decision resolves the step-5 gate: build A first (prototype/proof),
+plan the mmap-reserve-stable-base C migration for real growth. B is off the
+table.
+
 ## Files created this session
 - `src/include/descr.h` — accessor block added (committed)
 - `scripts/descr8_scan.py` — site inventory scanner (committed)
