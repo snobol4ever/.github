@@ -413,14 +413,59 @@ probes: run `--interp` then `--run` then `--compile --target=x86` and state each
   first — those are SEPARATE; this rung touches Prolog call sites only unless PLG-0 proved them
   shared.) Gate: GATE-1..4 + GATE-SWI all byte-identical to pre-deletion; FACT 0; build green.
 
-- [ ] **PLG-8 — mode-3 (`--run`) flat parity.** Confirm the native MEDIUM_BINARY flat walk
-  (`walk_bb_flat` + `bb_pl_*.cpp`) carries the same (cursor, trail_mark) discipline and no
-  snapshot-equivalent. Climb PLG-1..6 in mode-3. Gate: each rung mode-3 == mode-2.
+- [x] **PLG-8 — mode-3 (`--run`) PARITY via the proven executor. DONE (Opus 4.8, 2026-05-31, SCRIP
+  `0c29950`).** Mode-3 (`--run`) for Prolog was SMX-FATAL post-Ground-Zero (`scrip.c` aborted any
+  non-Icon `--run`). The ARCH note (`Mode 3 routes through the interpreter for Prolog`) and RULES.md
+  (`Exception: Prolog --run via sm_interp_run until bb_pl_*.cpp templates land`) sanction routing
+  `--run` through the interpreter path until the MEDIUM_BINARY templates land. **Key reconciliation:**
+  post-excision the mode-2 Prolog path IS `bb_exec_once(pl_main)` (the SM wrapper `sm_interp_run` was
+  deleted), so the correct interim mode-3 is the *same* `bb_exec_once` on the *same* BB graph + same
+  `g_resolve_env` alloc → byte-identical output to mode-2 for every program already passing mode-2.
+  Driver change is additive + Prolog-only: a new `if (is_prolog)` arm in the `mode_run` block (before
+  the mode-3 SMX fatal), mirroring the existing mode-2 `is_prolog` arm. **No peer arm touched** → Icon
+  mode-3 byte-identical (6/6 m2, 5/6 m3 pre-existing `if_expr`), SNOBOL4 untouched. FACT 0.
+  **Gates:** GATE-1 smoke m3 0/5 EXCISED → **5/5 PASS**; GATE-3 rung suite m3 EXCISED → **97/111**
+  (byte-identical to m2 — same 14 retract/abolish/DCG lowering gaps in both); prove_lower2 49/49.
+  **NOTE:** this is the INTERIM-ROUTE completion (executor parity). The *native flat-walk* form
+  (`walk_bb_flat` MEDIUM_BINARY + `bb_pl_*.cpp` carrying the cursor/trail discipline with no
+  snapshot-equivalent, à la Icon's `bb_build_flat` path) is the eventual deliverable below; mode-3
+  output is already correct so that step is now pure performance/architecture, not correctness.
+
+- [ ] **PLG-8-native — mode-3 (`--run`) via the native flat walk (perf/arch, not correctness).**
+  Replace the interim `bb_exec_once` route with the Icon-style `bb_build_flat(icn_ring_to_tree…)`
+  analogue: build an in-pool flat BB blob for the Prolog main graph + register callee predicate
+  bodies (mirror the `is_icon` mode_run block's `rt_proc_register` loop), confirm `walk_bb_flat` +
+  the `bb_pl_*.cpp` MEDIUM_BINARY arms carry the same (cursor, trail_mark) discipline and no
+  snapshot-equivalent. Gate: each rung mode-3 == mode-2 (already true via interim route — so this
+  is a refactor that must STAY byte-identical), and the no-snapshot probe reads 0.
 
 - [ ] **PLG-9 — mode-4 (`--compile --target=x86`) flat parity.** The emitted x86 must match the
   archived `prolog_emit.c` shape (flat α/β/γ/ω labels, `_cs` cursor, trail mark) — the optimized
   Figure-2 collapse is the eventual target. Climb the ladder in mode-4. Gate: each rung mode-4
   byte-matches `.expected` for the covered set; FACT 0.
+
+  **⮕ RECONSTRUCTION MAP (Opus 4.8, 2026-05-31 — scouted, not yet built).** Mode-4 is blocked by a
+  GLOBAL gate in `scrip.c` (`if (mode_compile_x86) { [SMX]…; return 1; }` at ~line 395, BEFORE any
+  language dispatch). The emit *templates* survive compiled into `libscrip_rt.so` (all Prolog boxes
+  present: `bb_{goal,builtin,unify,arith,cut,disj,conj,atom,logicvar,choice,ite,catch,succeed,fail}.cpp`,
+  `bb_builtin.cpp` is 2256 lines with MEDIUM_TEXT + MEDIUM_BINARY arms) and the asm-walk machinery
+  survives (`emit_bb.c walk_bb_flat` + `flat_drive_pl_choice`/`_alt` + the `IR_GOAL/CHOICE/BUILTIN/
+  UNIFY/SUCCEED` dispatch at `emit_bb.c:1255`). What was DELETED at Ground-Zero (lived in the prior
+  `one4all` tree, not in this repo's git history — fresh start `713c581`) is the DRIVER INVOCATION:
+  the `--compile` block that (1) `emit_select(EMIT_TEXT)` [`g_medium=BB_MEDIUM_TEXT`, asm-to-stream],
+  (2) emits the file/data preamble (`xa_file_header`, `xa_strtab_rodata`) + `bb_macros.s` sidecar,
+  (3) emits the predicate registry (`rt_register_predicates_pl` + each clause body via `walk_bb_flat`
+  in TEXT medium with interned cross-block labels — same `emit_label_intern` the BINARY arms use),
+  (4) emits the `main`/`rt_pl_once` entry prologue/epilogue (`xa_prologue`/`xa_epilogue`), (5) writes
+  to stdout. The harness `scripts/run_prolog_via_x86_backend.sh` then `as --64` + `gcc -no-pie …
+  libscrip_rt.so` + runs. **Build order (each a sub-rung, ground-up):** PLG-9a hello (`write`+`nl`:
+  needs file header + one IR_BUILTIN TEXT arm reachable + entry) → PLG-9b unify (`=`, IR_UNIFY +
+  IR_LOGICVAR + per-activation env in emitted code) → PLG-9c arith (`is`, IR_BUILTIN arith) → PLG-9d
+  facts/choice (IR_GOAL + IR_CHOICE + predicate registry emit) → PLG-9e recursion. The Icon mode-4
+  path is ALSO `[SMX]`-gated globally, so a clean design un-gates `--compile` for Prolog specifically
+  first (a per-language guard like the `is_prolog` mode-3 arm) rather than removing the global gate.
+  FACT discipline: zero `seg_byte(SEG_CODE`/`SL_B(`/byte-emitters outside `*_templates/`; every byte
+  through a template fn reached via `emit_bb.c` dispatch.
 
 - [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue (the historical breaker).** The construct that
   broke the original fully-static SNOBOL4 and is solved in `test_sno_1.c` via the `_1[64]`/`ζ`
@@ -1240,13 +1285,13 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-PLR-K-18 + rung27 succ_or_zero fix)
+## 📊 Gate table (current — post-PLG-8 mode-3 interim-route parity)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | EXCISED | EXCISED | m3/m4 SMX-gated (PLG-8/9 regrow) |
-| GATE-3 rung suite | **97/111** | EXCISED | EXCISED | PLG-5: lists/ITE/builtins/catch/findall (was 21). Remaining: rung30 DCG, rung15 abolish, rung14 retract |
-| prove_lower2 topology | **48/48** ✅ | — | — | +11 PLG-5 proof cases (lists, ITE, @<, succ, atom, functor, findall, catch) |
-| FACT RULE grep | 0 ✅ | — | — | lower.c additive, Prolog-only arms |
+| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | EXCISED | m3 un-EXCISED via PLG-8 (`bb_exec_once` interim route); m4 SMX-gated (PLG-9 regrow) |
+| GATE-3 rung suite | **97/111** | **97/111** | EXCISED | m3 byte-identical to m2 (same BB graph). Remaining 14: rung30 DCG, rung15 abolish, rung14 retract |
+| prove_lower2 topology | **49/49** ✅ | — | — | +11 PLG-5 proof cases (lists, ITE, @<, succ, atom, functor, findall, catch) |
+| FACT RULE grep | 0 ✅ | — | — | lower.c additive, Prolog-only arms; scrip.c mode-3 arm additive, Prolog-only |
 
 
