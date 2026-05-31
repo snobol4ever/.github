@@ -86,7 +86,7 @@ the file names (`bb_pat_span.cpp`), the `BB_templates/` directory, the `bb_*` fu
 `bb_pat_span(BB_t * pBB)` → `bb_pat_span(IR_t * pBB)`, same file, same dir, still reading `g_emit`.
 **NO `typedef IR_t BB_t;` alias** — zero `BB_t` remains after the rename (Reading X).
 
-### ⛔ Gate suite — run before EVERY commit (SNOBOL4 corpus is SMX-tombstoned; Icon is the live gate)
+### ⛔ Gate suite — run before EVERY commit (SNOBOL4 corpus can't EXECUTE yet — SM backend gone, BB run-path unwired; Icon is the live gate)
 ```bash
 make scrip                                   # rc=0
 make libscrip_rt                             # rc=0
@@ -504,10 +504,10 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = 9326db2  LOWER-MERGE (4 lowering files → ONE lower.c + ONE lower.h; Icon four-port model
-                     as spine; base 29aaac0). Pure structural relocation, byte-identical bodies, gates invariant.
-                     Predecessor watermark 29aaac0 was RN-IR-8b (BB→IR rename COMPLETE; base c334861). a0bb9be4 was
-                     two steps stale: origin had advanced to c334861 (SCRIP-RENAME one4all RN-1/2/3) before that session.
+HEAD SCRIP       = f15f213  PND-1 (remove PATND_t from lower.c; SNOBOL4 patterns lower TT_*->IR_t via build_node;
+                     repaired bb_exec.c + stmt_exec.c callers with loud aborts; base 9326db2). +10/-375, gates invariant.
+                     Predecessor watermark 9326db2 was LOWER-MERGE (4 lowering files → ONE lower.c + ONE lower.h; Icon
+                     four-port model as spine; base 29aaac0). 29aaac0 was RN-IR-8b (BB→IR rename COMPLETE; base c334861).
                      (df3551a7 → c5cf417c "Ground Zero" DELETED 991,875 lines / 6381 files [partial-checkout
                       artifact] → a0bb9be4 RESTORED them. Current HEAD builds clean. Delete already reversed.)
 FRESH-START repo   = snobol4ever/SCRIP (NEW, public, created 2026-05-30 Sonnet 4.6). ZERO inherited history
@@ -518,18 +518,23 @@ FRESH-START repo   = snobol4ever/SCRIP (NEW, public, created 2026-05-30 Sonnet 4
                      clone scripts NOT yet updated to point at SCRIP — that is a `grand master reorg` decision,
                      deliberately NOT made on this routine handoff. Lon has full local mirrors of all org repos.
 HEAD corpus        = 447c05b    SBL-911-PORTABLE
-make scrip         = rc=0   (verified at clean a0bb9be4 this session)
-make libscrip_rt   = rc=0   (verified at clean a0bb9be4 this session)
+make scrip         = rc=0   (verified this session at f15f213 / PND-1)
+make libscrip_rt   = rc=0   (verified this session at f15f213 / PND-1)
 sm_dead ratchet    = 1/1 (MAX 1) OK
 audit_m3_native    = GATE OK
-FACT RULE          = 0
-Icon m2 hello      = (NOT re-run this session — session pivoted to fresh-start infra; last known ✅)
-SNOBOL4 mode-2/3   = TOMBSTONED — SMX-4 (2b6394e1) deleted the Stack Machine; SNOBOL4/Prolog/Raku/Rebus
-                     detonate loudly at the driver ([SMX] FATAL) until they cross onto Byrd Boxes.
-                     The old corpus numbers below (265/280 etc.) are PRE-SMX-4 and no longer reachable;
-                     they apply to the SM-based engine that was deleted. SNOBOL4 needs a BB lowering
-                     path (lower_sno_bb-style, mirror of lower_graph.c for Icon) — that is the SNOBOL4
-                     Track B work per HANDOFF-2026-05-30-OPUS48-SMX-4-DELETE-SM.md.
+FACT RULE          = 6  (pre-existing baseline — predates a0bb9be4; PND-1 moved it 0; the stale "FACT 0" was wrong)
+Icon m2 hello      = ✅ 6/6 (HARD) this session; m3 2/6. Icon write("hello world")→ok; seed scrip --interp→hello.
+LANGUAGE LIFE      = CORRECTION (Lon 2026-05-31): "tombstoned" was over-broad. SMX-4 (2b6394e1) deleted the SM
+                     EXECUTION BACKEND (SM_t/SM_sequence_t/sm_interp) — NOT any language. After the AST and before
+                     the IR — exactly where lower() sits — ALL SIX languages are alive; lower() consumes every
+                     language's tree_t/TT_* AST. LIVE: SNOBOL4, Icon, Prolog. VICARIOUS (through SNOBOL4): Snocone,
+                     Rebus. DEAD — the ONLY one: Raku (ON HOLD, GOAL-RAKU-BB). SNOBOL4 still parses, builds AST, and
+                     LOWERS: build_node (lower.c) emits IR_t DIRECTLY from TT_* pattern nodes, the same way Icon
+                     (lower_expr_threaded) and Prolog (lower_pl_*) lower. What is NOT yet wired is SNOBOL4 *execution*
+                     over the lowered IR (the BB run-path); until that lands, running SNOBOL4 via the deleted SM path
+                     detonates [SMX] FATAL by design. The PRE-SMX-4 corpus numbers below (265/280 etc.) were the SM
+                     engine's and are unreachable until the BB run-path exists — the SNOBOL4 Track B work
+                     (HANDOFF-2026-05-30-OPUS48-SMX-4-DELETE-SM.md).
 ```
 
 **This session (2026-05-30 Sonnet 4.6) — PIVOT to fresh-start infra (SCRIP repo); LM-1 begun then reverted:**
@@ -580,6 +585,31 @@ make libscrip_rt rc=0, Icon m2 **6/6** (HARD), m3 2/6, sm_dead 1 (≤1), FACT 6 
 (as planned): `lower_sno.c` (AST→source transpiler, `--dump-sno`/SCT), `bb_exec.c` (oracle), `scrip_ir.c`,
 `sm_prog.c`, `ast_clone.c`.
 
+**⭐ THIS SESSION (Lon directive 2026-05-31) — KILL PATND_t: lower SNOBOL4 patterns DIRECTLY `TT_*` → `IR_t`.**
+SNOBOL4 is a LIVE lowering target (see LANGUAGE LIFE above), so it must lower like Icon/Prolog — one AST → one
+IR, no second pattern-IR. `build_node` (lower.c) ALREADY emits `IR_t` directly from `TT_*` and is the keeper.
+The redundant `PATND_t` second-IR (runtime pattern tree, `src/runtime/core/patnd.h`) and its lower.c→IR bridge
+get removed. **In lower.c specifically:** delete `count_patnd`/`build_patnd`/`patnd_to_bb_graph`/`tree_set_kids`/
+`build_patnd_tree`/`patnd_to_bb_tree` so the SNOBOL4 pattern lowering is purely `build_node`/`IR_lower_pat`. The
+two external callers of the deleted converters live on the SM-era runtime path (`stmt_exec.c` exec_stmt; `bb_exec.c`
+IR_PAT_DEFER) which is unreachable today (SNOBOL4 execution detonates upstream) and is SNOBOL4-only (Icon never
+builds IR_PAT_DEFER) — repair them so the build stays green and Icon gates stay INVARIANT. Removing `PATND_t` the
+TYPE from the rest of the runtime (`pattern.c` `pat_*`/`spat_*` constructors, `rt.c` `rt_pat_*`, the `descr.h` DT_P
+`.p` member, `patnd.h`) is the larger cascading SNOBOL4-runtime demolition that pairs with wiring the BB run-path
+(Track B) — sliced separately, not folded into this lower.c step. Gate every step: `make scrip` rc=0,
+`make libscrip_rt` rc=0, Icon m2 **6/6** (HARD), sm_dead ≤1, FACT, audit GATE OK — all must hold invariant
+(byte-neutral to Icon by construction, since PATND is SNOBOL4-only).
+- [x] **PND-1 ✅** (2026-05-31) — lower.c: deleted the PATND→IR converter block (343 lines: `count_patnd`/
+  `build_patnd`/`patnd_to_bb_graph`/`tree_set_kids`/`build_patnd_tree`/`patnd_to_bb_tree`); SNOBOL4 pattern
+  lowering is now purely `build_node`/`IR_lower_pat` (`TT_*`→`IR_t`, like Icon/Prolog). Dropped the two converter
+  decls + `struct _PATND_t` fwd-decl from `lower.h`. Repaired the two callers with loud aborts on the dead
+  SNOBOL4-only path: `bb_exec.c` `IR_PAT_DEFER` DT_P-pattern branch (was `patnd_to_bb_graph((PATND_t*)val.p)`)
+  and `stmt_exec.c` `exec_stmt` LIVE + BROKERED branches (were `patnd_to_bb_tree`/`patnd_to_bb_graph`). Net
+  +10/−375 across 4 files. **Gates INVARIANT:** make scrip rc=0, make libscrip_rt rc=0, Icon m2 **6/6** (HARD),
+  m3 2/6, sm_dead 1 (≤1), FACT 6 (baseline), audit GATE OK; Icon `write("hello world")` → ok; seed → `hello`.
+  Byte-neutral to Icon (PATND is SNOBOL4-only). `PATND_t` the TYPE still lives in `pattern.c`/`rt.c`/`descr.h`/
+  `patnd.h` — full type removal is the Track-B-paired runtime demolition (separate slice). NOT committed/pushed.
+
 **⭐ NEXT (Lon directive 2026-05-31) — ONE AST → ONE IR → ONE LOWER, then GROUND-ZERO register-allocated boxes.**
 Lon: "We have ONE AST named `tree_t`. We should also have ONE IR named `IR_t`." The file-level merge is
 done; two follow-ons remain, Icon (`lower_expr_threaded`) as the canonical four-port model throughout:
@@ -609,6 +639,22 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-31 — PND-1: KILL PATND_t IN lower.c ✅** (SCRIP `f15f213`, base `9326db2`; `.github` this handoff).
+  Lon directive (this session): "In lower.c, remove the structure PATND_t completely and fill the IR_t struct
+  directly from the TT_* nodes." Also corrected my mischaracterization — SNOBOL4 is NOT tombstoned: SMX-4 deleted
+  the SM *execution backend*, not the language; at `lower()` (after AST, before IR) ALL SIX langs are alive —
+  LIVE SNOBOL4/Icon/Prolog, VICARIOUS (via SNOBOL4) Snocone/Rebus, DEAD only Raku. Fixed the "TOMBSTONED" framing
+  in Session State (→ LANGUAGE LIFE block) + the gate-suite header. Code: deleted lower.c's PATND→IR converter
+  block (343 lines: `count_patnd`/`build_patnd`/`patnd_to_bb_graph`/`tree_set_kids`/`build_patnd_tree`/
+  `patnd_to_bb_tree`) — SNOBOL4 pattern lowering is now purely `build_node`/`IR_lower_pat` (`TT_*`→`IR_t`,
+  four-port, the Icon/Prolog shape); dropped 2 converter decls + `struct _PATND_t` fwd-decl from `lower.h`;
+  repaired the 2 callers (`bb_exec.c` IR_PAT_DEFER DT_P branch; `stmt_exec.c` exec_stmt LIVE+BROKERED) with loud
+  aborts on the dead SNOBOL4-only path. Net +10/−375 over 4 files. **Gates INVARIANT:** make scrip rc=0, make
+  libscrip_rt rc=0, Icon m2 **6/6** (HARD), m3 2/6, sm_dead 1, FACT 6 (baseline), audit GATE OK; Icon
+  `write("hello world")`→ok, seed→`hello`. Byte-neutral to Icon (PATND is SNOBOL4-only). **NEXT:** PATND_t the
+  TYPE still lives in `pattern.c`/`rt.c`/`descr.h`/`patnd.h` — full type removal is the Track-B-paired SNOBOL4
+  runtime demolition (separate slice, with the BB run-path). Then LM-6 DISPATCH-UNIFY + BOX-ZERO.
 
 - **2026-05-31 Opus 4.8 — LOWER-MERGE COMPLETE ✅** (SCRIP `9326db2`, base `29aaac0`; `.github` this handoff).
   Lon directive: ONE AST (`tree_t`) → ONE IR (`IR_t`) → ONE lower; Icon is the model (meticulously derived
