@@ -417,7 +417,11 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = 7d3a15b  SBL-EXEC-4 — SNOBOL4 keyword-assign (&ANCHOR=1, SPITBOL ch.16) + computed/indirect
+HEAD SCRIP       = 79e62f7  SBL-M3-STACKLESS-1 — SNOBOL4 mode-3 native via bb_build_flat: stackless literal-assign
+                     box (bb_sno_assign, no value stack — Lon Forbidden). `OUTPUT = 'hello'` runs via --run; m3 0→1.
+                     Other shapes soft-fail honest (no abort). scrip.c sno_ring_to_tree adapter + mode_run wiring.
+                     STATEMENT-BB model (Lon/test_sno_*.c) recorded in Session log for IR_SCAN/IR_GOTO next. Base 7d3a15b.
+HEAD SCRIP (prior) = 7d3a15b  SBL-EXEC-4 — SNOBOL4 keyword-assign (&ANCHOR=1, SPITBOL ch.16) + computed/indirect
                      goto (:($X)/:S($X)/:F($X), SPITBOL ch.4) on the four-port IR. v_assign accepts TT_KEYWORD lhs
                      (SNO-only, cx.lang-guarded) routing through NV_SET_fn's kw_* dispatch; new IR_GOTO resolver +
                      bb_label_landing registry (lower_program.c) + IR_GOTO exec arm (bb_exec.c); bb_reset preserves
@@ -449,9 +453,11 @@ HEAD corpus        = 447c05b    SBL-911-PORTABLE
 make scrip         = rc=0   (trunk REGROWN — `lower` program-walker landed; the 3 ex-undefined symbols resolved.
                      SNOBOL4/Icon/Prolog all lower + execute over the four-port IR via `bb_exec_once(main)`.)
 make libscrip_rt   = rc=0   (runtime .so does NOT depend on the driver `lower`; still builds clean post-cut)
-LIVE GATE          = scripts/prove_lower2.sh 37/37 PASS (topology) + scripts/test_smoke_snobol4.sh m2 7/7 (define +
-                     recursion green; m3 0/6 AOT --run not built) + scripts/test_smoke_icon.sh m2 6/6 (HARD).
+LIVE GATE          = scripts/prove_lower2.sh 38/38 PASS (topology) + scripts/test_smoke_snobol4.sh m2 7/7 (HARD) +
+                     m3 1/6 (OUTPUT='hello' native+stackless via bb_build_flat; rest soft-fail honest, no abort) +
+                     m4 0/6 (--compile excised) + scripts/test_smoke_icon.sh m2 6/6 (HARD, byte-neutral).
                      Cross-checks: sm_dead 1(≤1), concurrency OK, purity FACT 6 (byte-neutral), Prolog m2 3/5.
+                     MODE3_MIN can now be raised to 1.
 sm_dead ratchet    = 1/1 (MAX 1) OK
 audit_m3_native    = GATE OK
 FACT RULE          = 6  (pre-existing baseline — predates a0bb9be4; PND-1 moved it 0; the stale "FACT 0" was wrong)
