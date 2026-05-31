@@ -1,54 +1,5 @@
 # GOAL-LOWER-REDESIGN.md — Unified SM+BB Pipeline (IR_t / IR_t)
 
-## ⭐ GROUND-ZERO LOWER REWRITE (2026-05-31, Opus 4.8) — `lower2.c` foundation laid + PROVEN
-
-**Direction (Lon, post-PIVOT):** rip-and-replace `lower.c` with ONE unified AST→IR lowerer on the
-Proebsting four-port attribute-grammar model; eventual tree-pattern dispatch (`tree ? PATTERN`, Icon?SNOBOL);
-Icon-bootstrap endgame. Ground zero — old build may break. **Survey:** `lower.c` is the ONLY real AST→IR
-lowerer (prolog_lower/rebus_lower are AST→AST normalizers; lower_sno is a tree→source emitter). 156 `TT_` in,
-110 `IR_` out.
-
-**Architecture — ROLE × kind.** One funnel `lower2(cx, e, γ_in, ω_in, &α_out, &β_out)` → branch on
-`cx.role ∈ {VALUE, PATTERN, GOAL}` → ONE `switch(tree_e)` per role. ~2/3 of kinds role-monomorphic; only
-QLIT/VAR/FNC + arith/rel (shared VALUE↔GOAL) split on role.
-
-**Canonical signature = the attribute grammar** (jcon `ir_a_X(p,st,inuse,target,bounded,rval)`):
-γ/ω (succeed/fail) INHERITED in as 2 pointers; α/β (start/resume) SYNTHESIZED out as 2 ptr-to-ptr. `IR_t`
-ports are POINTERS, so goto-chains COLLAPSE = the paper's Fig-2 optimization for free. Two template classes:
-BOUNDED LEAF (`emit_leaf`, honors `cx.bounded` = jcon `/bounded`) and RESUMABLE GENERATOR. Discipline in 3
-primitives: `nalloc`, `set_succ_fail` (default-only, never clobber a threaded port), `ret`.
-
-**Landed (SCRIP, NEW, NOT wired into build — standalone TUs):**
-- `src/lower/lower2.c` (358 ln, 0 errors). 5 foundation boxes wired + PROVEN faithful to Proebsting Figs 1&2:
-  literal §4.1, unop §4.2, binop §4.3 (plus+LessThan, relational flag dval=1.0), to/to_by §4.4, if §4.5
-  (runtime-gated). Pattern leaves (LIT/ARB/REM/SPAN/ANY/NOTANY/BREAK via centralized `pat_cset_arg`) + goal
-  leaves (cut/true/fail). 118/156 kinds armed; rest = labelled stubs → LOUD `lower_unhandled`, each annotated
-  with its `ir_a_*` source.
-- `src/lower/prove_lower2.c` — proof harness (links lower2+scrip_ir only). Dumps IR port topology.
-- `src/lower/tmatch_proto.c` — `tm`/`tm_g` tree-pattern match+capture prototype (compiles) + rewrite exhibit.
-
-**PROOF:** `5 > ((1 to 2)*(3 to 4))` → 9 nodes, 14/17 edges == Fig 1 (the 3 = faithful Fig-2 collapses).
-Caught + fixed a real `v_to` bug (`to.fail → from.resume` per ir_a_ToBy); re-proven on `(1 to 2) to (3 to 4)`
-(the "initiated four times" case). **Topology proven; NOT executed** — value-level proof pending; verify the
-relational-flag + if-gate encodings against `bb_exec.c`, do not assume.
-
-**Tree-pattern plan (STEP 2, after foundation complete):** decisions are SHALLOW (120 peeks, only 12 two-level,
-0 three-level); wiring is uniform recursion (78 calls). So each rule = MATCH shape + CAPTURE children +
-RECURSE + WIRE → `tm`/`tm_g`. Win is uniformity (guards vanish into the match; Prolog ladder → `shape ?
-builder` table). Refactor proven code into pattern form — don't design two things at once.
-
-**Endgame threads:** (a) parse = LALR match tokens→tree; tmatch = symmetric match tree→IR. (b) DEFER
-(bb_pat_defer, `rt_defer_match`) is the runtime analog of a compile-time capture — same deferral discipline.
-(c) the pattern-form C transliterates to an Icon-bootstrap lowerer once Icon-BB executes.
-
-**Next:** (1) add Every/Alt(first sibling-backtrack box)/conjunction, prove each; (2) wire lower2→bb_exec on
-`1 to 5` for value proof; (3) rebuild program/proc walkers (`lower`/`lower_proc_body`/`lower_pl_predicate`/
-`IR_lower_pat`) → `stage2_t`; (4) fill arms box-by-box; (5) THEN tmatch refactor; (6) later, Icon bootstrap.
-Detail: `HANDOFF-2026-05-31-OPUS48-LOWER-REWRITE-FOUNDATION.md`. Refs: `Proebsting-...-Goal-Directed-Evaluation.pdf`,
-`jcon_irgen.icn` (`ir_a_*`).
-
----
-
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
