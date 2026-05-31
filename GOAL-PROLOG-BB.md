@@ -87,6 +87,21 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 
 ## ★★★ PLG — STACKLESS GROUND-ZERO REBUILD (CURRENT — supersedes WAM-CP *direction*) ★★★
 
+> **⚠️ READ FIRST — GROUND-ZERO RECONCILIATION (Opus 4.8, 2026-05-31, SCRIP `cf6b7f6`+).** Every
+> "State at HEAD" entry BELOW the PLG ladder (top one is `1882bc6b`, 2026-05-30) predates the
+> Ground-Zero trunk rebuild and describes a Prolog engine that NO LONGER EXISTS in the live path:
+> the Stack Machine was EXCISED (`scrip.c` aborts non-Icon/non-SNOBOL `--interp`/`--run` with
+> `[SMX] FATAL`), and the old `lower.c`+`lower_pl.c` (the `sm_interp_run`→`pl_bb_dcg`→`bb_exec_once`
+> path, WAM-CP rungs, PLR-J/PLR-K ladders, GATE-2/3/4/SWI counts) were deleted for the unified
+> four-port `lower.c`. Treat those entries as ARCHAEOLOGY (semantic reference for re-grow), NOT live
+> state. The LIVE state is: **PLG-0 ✅ (audit), PLG-1 ✅ (ground hello-world runs through the new
+> `lower_goal`→`bb_exec_once`).** The old GATE-2/3/SWI numbers are meaningless now — the live gate is
+> `scripts/prove_lower2.sh` (topology, 35/35) + the per-rung mode-2 hello checks. All the `bb_exec.c`
+> Prolog machinery (`IR_BUILTIN`/`IR_GOAL`/`IR_CHOICE` arms, `resolve_*`, `rt_pl_*`) survives as
+> compiled-but-unreachable code behind the SMX gate; PLG re-grows the wiring rung by rung. Full
+> inventory + verdicts: `doc/PLG-STACKLESS-AUDIT-2026-05-30.md`.
+
+
 **Directive (Lon, 2026-05-30):** The engine grew a VALUE STACK it must not have. `--run` and
 `--compile` (and `--interp` of a BB) need NO value stack: the BB node IS the value's home. The
 proof is in the repo — read these FIRST, every PLG session, before touching code:
@@ -130,7 +145,21 @@ archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
 
 ### PLG rungs
 
-- [ ] **PLG-0 — AUDIT (doc only, no code).** Produce `doc/PLG-STACKLESS-AUDIT-2026-05-30.md`: list
+- [x] **PLG-0 — AUDIT (doc only, no code). DONE (Opus 4.8, 2026-05-31, SCRIP `cf6b7f6`).** Produced
+  `doc/PLG-STACKLESS-AUDIT-2026-05-30.md`. Key finding: the rung was authored pre-Ground-Zero; since
+  then the Stack Machine was EXCISED (`scrip.c` SMX gate aborts non-Icon/non-SNOBOL `--interp`/`--run`)
+  and the old `lower.c`/`lower_pl.c` tangle was deleted for the unified four-port `lower.c`. So the
+  whole Prolog value-stack apparatus is now **compiled-but-unreachable** (dead by excision), not live
+  code to remove surgically. Verdict table (M1–M6): M1 `bb_node_state_t` snapshot/restore = REMOVE in
+  re-grow (Prolog sites `bb_exec.c` 918/937/3381/3392/3414/3429 dead) **but the struct has ONE LIVE
+  Icon caller `bb_exec.c:1589` (IR_CALL) — PLG-7 must not delete the struct until Icon migrates off
+  it separately**; M2 `resolve_choice` CP ledger = KEEP THE IDEA (cursor/ledger, (c)); M3 `PlCallSt` =
+  SPLIT (keep frame+mark+cursor, drop embedded `act`=M1); M4 `g_resolve_trail` = KEEP ((b) trail); M5
+  `rt_pl_*` helpers + `bb_*.cpp` templates = KEEP AS REFERENCE (semantic oracle for PLG-10); M6
+  `g_vstack` = ALREADY REMOVED (bombed tripwire). All four canonical refs cross-checked. Gate: doc
+  committed; nothing ran; hello.pl still SMX-aborted by design at audit time.
+
+- [ ] **PLG-0 list text (original, retained):** list
   EVERY value-stack / snapshot / per-activation-copy mechanism in the Prolog path (`bb_node_state_t`
   fields + all `bb_snapshot_state`/`bb_restore_state` call sites with line refs; `PlCallSt`/`pl_cs`;
   any `*_stack[]` array touched by a Prolog node). For each: is it (a) a true value stack that the
@@ -140,7 +169,44 @@ archived emitter are the authority, NOT memory, NOT the live `bb_exec.c`.
   `prolog_emit.c` shape. Output: a kept/remove verdict per mechanism, no code touched. Gate: doc
   committed; all current gates byte-identical (nothing ran).
 
-- [ ] **PLG-1 — HELLO WORLD, stackless, mode-2.** `:- initialization((write(hello), nl)).` (or the
+- [x] **PLG-1 — HELLO WORLD, stackless, mode-2. DONE (Opus 4.8, 2026-05-31, SCRIP `d17425a`).**
+  `corpus/programs/prolog/hello.pl` (`main :- write('Hello, World!'), nl.` via
+  `:- initialization(main, main).`) now PRINTS `Hello, World!` in mode-2 — Prolog has crossed onto
+  Byrd Boxes for the ground hello-world tier. Three files, all FACT-RULE clean (Prolog-owned arms, no
+  peer arm touched, FACT grep 0, no x86 byte emitters introduced):
+  (1) **`lower.c`** — added `g_term` (Prolog term in arg position → `IR_ATOM`/`IR_LOGICVAR`/`IR_LIT_I`/
+      `IR_LIT_F`/`IR_STRUCT`, the kinds `bb_exec.c resolve_node_to_term` materializes; successor to the
+      deleted `lower_pl_term`) and `g_builtin` (write/writeln/print/nl → Prolog-OWNED **`IR_BUILTIN`**,
+      NOT the SHARED `wire_det_builtin1`/`IR_CALL` Icon path). **Key architectural finding:** the new
+      `lower_goal` write-family went through the shared `IR_CALL`, which carries ICON write semantics
+      (arg via AG ring + a trailing newline) and has no `nl`; meanwhile `bb_exec.c` already had a
+      correct Prolog `IR_BUILTIN` arm (`:3479+`: `pl_write` with NO auto-newline, `nl`=`putchar`) that
+      nothing produced. PLG-1 connects them. Verified distinct: Prolog `write(foo),nl,write(bar),nl`
+      → `foo\nbar\n` (single newlines); Icon `write` still double-spaces two writes (sibling unbroken).
+      Also added public `lower2_clause_body_entry` (body goals → `IR_GCONJ` via `wire_seq`; bare fact →
+      `IR_SUCCEED`). `nl` wired in the GOAL `TT_QLIT` arm.
+  (2) **`lower_program.c`** — added `lower_pl_clause_graph` + a `LANG_PL` arm in `lower()`: resolves the
+      `:- initialization(G[,main])` goal predicate key from the directive subject (default `main/0`),
+      looks it up in `resolve_pred_table` (populated by `polyglot_init`), lowers the clause body into one
+      GOAL graph, registers it as proc `main`. Mirrors the existing SNOBOL4/Icon arms.
+  (3) **`scrip.c`** — `mode_interp` Prolog arm: `bb_exec_once(main_bb)` instead of the SMX abort.
+  (4) **`prove_lower2.c`** — extended `kname` (BLTIN/ATOM/STRCT/LVAR) + 2 PLG-1 proof cases
+      (`write('hi')`→BLTIN+ATOM=2 nodes; `nl`→bare BLTIN leaf=1 node). **prove_lower2 35/35 PASS.**
+  **NOTE on PLG-1 "snapshot counter == 0":** the rung asks to instrument a `bb_snapshot_state` counter
+  and assert 0 for hello. Post-excision that is moot for the ground case — the hello clause graph is a
+  flat `GCONJ(BUILTIN,BUILTIN)` with NO `IR_CALL`/`IR_CHOICE`/`IR_GOAL`, so NO snapshot site is reached
+  (the Prolog snapshot sites live only in `IR_GOAL`/`aggregate`, which a variable-free single-clause
+  body never enters). The instrumentation belongs to PLG-2/3 when user-calls/choice first appear.
+  **Gates:** prove_lower2 35/35; Prolog GATE-1 smoke 0→1 PASS (`write_atom`); siblings byte-identical
+  to baseline (Icon mode-2 5/1, SNOBOL4 3/10 — verified unchanged via stash/rebuild/compare); FACT 0.
+  **NEXT — PLG-2:** single non-recursive predicate WITH variables (`greet :- X = world, write(X), nl.`).
+  The blocker surfaced this session: `=/2` lowers to `IR_UNIFY` and `write(X)` to `IR_BUILTIN`+`IR_LOGICVAR`,
+  but the clause graph has NO `g_resolve_env` allocated, so the logic-var slot read returns unbound and
+  `write(X)` prints nothing (rc 0, empty). PLG-2 must allocate the per-activation env/frame (the
+  `pl_foo_2_r`-locals analogue) before running the clause graph, so `IR_LOGICVAR` slot 0 resolves. That
+  is the first appearance of the per-activation frame the PLG ladder is built around.
+
+- [ ] **PLG-1 list text (original, retained):** `:- initialization((write(hello), nl)).` (or the
   existing `corpus/programs/prolog/hello.pl`). Establish the baseline flat path: one fact/directive,
   no clause choice, no recursion → must execute with ZERO snapshot/restore calls reached. Instrument
   (`SCRIP_PLG_TRACE=1`, default OFF, no emitted bytes) a counter in `bb_snapshot_state` and assert it
