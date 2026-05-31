@@ -1088,4 +1088,81 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 - Bomb infra: `src/emitter/emit_str.{cpp,h}` bomb_text/bomb_bytes; `src/runtime/rt/rt.c rt_bomb`
 - Audit gate: `scripts/audit_m3_native_binary_arms.sh`
 
+---
+
+## ⭐ SESSION 2026-05-31 (Opus 4.8) — LOWER2 BOX LADDER: proof gate restored + L2-A/L2-B-core proven
+
+**Directive (Lon):** continue lower2.c; read Proebsting + irgen.icn (+ found: GOAL-LOWER-REDESIGN.md §318 wiring
+table — the authoritative cross-check); implement all TT_* kinds; rungs in small proven groups; read the
+tree-pattern notes. **Read this session:** Proebsting §4.1–4.6+Figs1&2, `jcon_irgen.icn` ir_a_Every/Alt/
+conjunction/Limitation/While/Until/Repeat/Not, `lower.c` lower_new_*_ag (exec-compat reference),
+GOAL-LOWER-REDESIGN.md (the four-port node §204, canonical wiring table §318, "lower wires the DCG directly"
+§759, final pipeline §788). **NOT yet read** (next session): GOAL-SM-LOWER-REFACTOR.md, GOAL-ICON-LOWER-REDESIGN.md.
+
+**INFRA RESTORED (was local-only in the prior session — never committed; confirmed via `git log -S`):**
+- 3 public role-entry shims added to lower2.c: `lower2_value_entry`/`_pattern_entry`/`_goal_entry` (the only
+  external surface — `lower2()` stays static; each seeds the cursor with a role and funnels in).
+- `prove_lower2.c` rewritten: proves Fig-1 `5 > ((1 to 2)*(3 to 4))` (=9 real IR nodes) AND nested
+  `(1 to 2) to (3 to 4)` (=7; `to-child.fail → from-child`), each with a PASS/FAIL node-count assertion + a
+  full α/β/γ/ω port dump. Builders lit/bin/un/tri; kname covers all wired kinds.
+- `scripts/prove_lower2.sh` — committed reproducible gate (compiles lower2.c+scrip_ir.c+prove_lower2.c
+  standalone; the production lower.c is NOT linked, via local kind_is_resumable+cset_try_fold). **9/9 PASS.**
+
+**Method.** Each box transcribes the canonical port equations (Proebsting §4 + `ir_a_*` + the §318 table) into
+lower2's idiom (lcx_t cursor + `lower2()` recursion + nalloc/set_succ_fail/ret), in PURE four-port form (α/β
+synthesized out, γ/ω inherited in) matching the foundation. lower.c's lower_new_*_ag are the exec-compat
+reference. Value-plumbing (which node reads which operand `.value`) is DEFERRED to LOWER2-EXEC (IR_t lacks the
+`c[]` child array the design §204 imagined; operands collapsed onto α/β — verify against the executor, do not
+assume). The proof checks TOPOLOGY only.
+
+**TREE-PATTERN NOTES (read, acknowledged):** `tmatch_proto.c` `tm`/`tm_g` is a STEP-5 *refactor* of already-proven
+box code into uniform MATCH-shape + CAPTURE-children + RECURSE + WIRE. MEASURED shallow (120 peeks, 12 two-level,
+0 three-level; 78 uniform recursion calls); ~30% LOC shrink; win = uniformity. "Refactor proven code into pattern
+form — don't design two things at once." Correctly deferred until all role arms are implemented + proven. Endgame:
+(a) parse=LALR tokens→tree is SYMMETRIC to tmatch tree→IR; (b) IR_PAT_DEFER = runtime analog of a compile-time
+capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
+
+### Rung ladder (VALUE role unless noted) — proven box-by-box via scripts/prove_lower2.sh
+
+- [x] **L2-A — combinators**: conjunction `TT_SEQ`/`TT_SEQ_EXPR` (= binop w/o compute; `ir_conjunction` —
+  `c0.γ→c1.α`, `c0.ω→ω`, `c1.γ→conj`, `c1.ω→c0.β`, resume=c1.β), alternation `TT_ALTERNATE` (2nd runtime-gated
+  box; `ir_a_Alt` — `arm.γ→alt`, fail-chain `arm[i].ω→arm[i+1].α`, last→ω, resume=alt, arm resumes in operand_aux).
+- [x] **L2-B-core — loops**: `TT_EVERY` (`ir_a_Every`: E1.γ→body.α, body.γ=body.ω=E1.β, E1.ω→every.fail; no-body
+  E1.γ→E1.β drain), `TT_WHILE` (`ir_a_While`: cond bounded, body.γ=body.ω=cond.α, E1.ω→while.fail), `TT_UNTIL`
+  (`ir_a_Until`: E1.γ→until.fail, E1.ω→body/loop via UNTIL-node trampoline), `TT_REPEAT` (`ir_a_Repeat`:
+  E.γ=E.ω→REPEAT-node trampoline→E.α), `TT_NOT` (`ir_a_Not`: E.γ→not.fail, E.ω→not⇒null,succeed). Bodies bounded.
+  **Fixed** a latent NULL-ω in until/repeat (generator children stranded) by threading the loop node as the
+  concrete restart trampoline (matches every/while). All ports concrete; 9/9 PASS.
+- [ ] **L2-B2 — loop escapes + non-Icon loops**: `TT_LOOP_BREAK`/`TT_LOOP_NEXT` (`ir_a_Break`/`ir_a_Next` via a
+  loop-context in lcx_t: break→loop.fail, next→loop nextlabel), `TT_DO_WHILE`, `TT_FOR`, `TT_FOR_RANGE`, `TT_UNLESS`.
+- [ ] **L2-C — limitation / interrogation**: `TT_LIMIT` (`ir_a_Limitation` — counter box: lim.α=N.α, N.γ→E.α,
+  E.γ→lim.γ, E.ω→N.β, resume decrements counter), `TT_INTERROGATE`, `TT_NONNULL` (verify v_unop route),
+  `TT_IDENTICAL`/`TT_INDIRECT`.
+- [ ] **L2-D — assignment**: `TT_ASSIGN`, `TT_SWAP`, `TT_AUGOP` (`ir_augmented_assignment`), `TT_REVASSIGN`, `TT_REVSWAP`.
+- [ ] **L2-E — calls & access**: `TT_FNC` (`ir_a_Call` — suspend/resume frame), `TT_METHCALL`, `TT_FIELD`
+  (`ir_a_Field`), `TT_IDX`, `TT_SECTION`/`_PLUS`/`_MINUS` (`ir_a_Sectionop`), `TT_INITIAL` (`ir_a_Initial`).
+- [ ] **L2-F — scan / match**: `TT_SCAN` (`ir_a_Scan`), `TT_SMATCH` (`subj ? pat` → flips cx.role=ROLE_PATTERN).
+- [ ] **L2-G — returns / decls / goto / case**: `TT_RETURN`/`TT_NRETURN` (`ir_a_Return`), `TT_SUSPEND`
+  (`ir_a_Suspend`), `TT_PROC_FAIL` (`ir_a_Fail`), `TT_CASE` (`ir_a_Case`), `TT_GLOBAL`/`TT_LOCAL`/`TT_STATIC_DECL`/
+  `TT_DECL`/`TT_OPSYN`, `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F`, `TT_TRY`/`TT_DIE`.
+- [ ] **L2-H — data / cset / IO**: `TT_MAKELIST`/`TT_VLIST`/`TT_RECORD`/`TT_NEW`/`TT_SORT`, `TT_MAP`/`TT_GREP`/
+  `TT_GATHER`, `TT_HASH_*`/`TT_ARR_*`, `TT_CSET_UNION`/`_DIFF`/`_INTER`, `TT_PRINT`/`TT_PRINT_FH`/`TT_SAY`/`TT_SAY_FH`.
+- [ ] **L2-P — PATTERN role**: `TT_LEN`/`POS`/`RPOS`/`TAB`/`RTAB`, `TT_FENCE`, `TT_ARBNO`, CAT chain (`TT_SEQ`),
+  ALT (`TT_ALTERNATE`), captures `TT_CAPT_COND`/`IMM`/`CURSOR`, `TT_INDIRECT`(*var DEFER), `TT_BAL`, `TT_FNC` prims.
+  (foundation leaves LIT/ARB/REM/SPAN/ANY/NOTANY/BREAK/BREAKX already in lower_pattern via pat_cset_arg.)
+- [ ] **L2-Goal — GOAL role**: `TT_UNIFY`, arith-compares, `TT_IF`, `TT_VAR`/`TT_FNC` call/builtin, conj/disj/ITE
+  (cut/true/fail leaves already in lower_goal).
+- [ ] **LOWER2-EXEC** — wire `lower2_value_entry` → bb_exec on `1 to 5` for VALUE-LEVEL proof; confirm/adjust the
+  relational flag (`dval=1.0`) + if-gate (`node.β` runtime dispatch) + alt-gate (operand_aux) AGAINST the executor.
+- [ ] **L2-TMATCH** — STEP 5: refactor the proven box code into `tm`/`tm_g` pattern form (match-capture-recurse-wire);
+  retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
+- [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
+
+**Watermark.** SCRIP: (this commit) · .github: (this commit). lower2.c=535 ln, 12 boxes wired (5 foundation + 7 new),
+60 value-role TT_* kinds still → loud `lower_unhandled`. Gate `scripts/prove_lower2.sh` **9/9 PASS**. Full `make scrip`
+GREEN (lower2 still a standalone TU, not in the Makefile — no production path touched). Prior gates unchanged
+(Icon m2 6/6, test_gate_sm_dead=1, FACT baseline=6). NEXT: read GOAL-SM-LOWER-REFACTOR.md + GOAL-ICON-LOWER-REDESIGN.md,
+then rung L2-C (`ir_a_Limitation` counter box + interrogation), proven via the harness.
+
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
