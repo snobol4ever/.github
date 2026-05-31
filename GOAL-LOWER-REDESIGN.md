@@ -1,5 +1,39 @@
 # GOAL-LOWER-REDESIGN.md — Unified SM+BB Pipeline (IR_t / IR_t)
 
+> ## 🔔 CROSS-SESSION NOTE (2026-05-31, Opus 4.8 — READ BEFORE TOUCHING THE LOWERER) 🔔
+> A **parallel session laid a unified four-port AST→IR lower-rewrite foundation** that is directly this
+> goal's concern. **`git pull --rebase origin main` FIRST** — it is on `main` now (SCRIP `e8ed243`).
+> Do NOT start a separate lower rewrite; build on this one.
+>
+> **What landed (SCRIP `e8ed243`, NEW standalone TUs — NOT wired into Makefile/driver yet, nothing regressed):**
+> - `src/lower/lower2.c` (≈365 ln, compiles clean) — the foundation. **ONE master dispatch: ROLE × kind.**
+>   `lower2(cx, e, γ_in, ω_in, &α_out, &β_out)` → branch on `cx.role ∈ {VALUE, PATTERN, GOAL}` → ONE
+>   `switch(tree_e)` per role. The legacy `lower.c` is UNTOUCHED (left for diff); `lower2.c` is the rewrite.
+> - `src/lower/prove_lower2.c` — topology proof harness (links lower2 + scrip_ir ONLY; cold-build recipe in
+>   its header). `src/lower/tmatch_proto.c` — `tm`/`tm_g` tree-pattern match+capture prototype + rewrite exhibit.
+>
+> **The model (Proebsting "Simple Translation of Goal-Directed Evaluation" + jcon `ir_a_X(p,st,inuse,target,
+> bounded,rval)`):** lowering IS an attribute grammar. γ/ω (succeed/fail) INHERITED → in as 2 pointers;
+> α/β (start/resume) SYNTHESIZED → out as 2 ptr-to-ptr. `IR_t` ports are POINTERS, so goto-chains COLLAPSE
+> (= the paper's Fig-2 optimization for free). Two template classes: BOUNDED LEAF (`emit_leaf`, honors
+> `cx.bounded` = jcon `/bounded`) + RESUMABLE GENERATOR. Discipline in 3 primitives: `nalloc`,
+> `set_succ_fail` (default-only — never clobber a threaded port), `ret`.
+>
+> **PROVEN:** 5 foundation boxes (literal §4.1, unop §4.2, binop §4.3 plus+LessThan, to/to_by §4.4 ir_a_ToBy,
+> if §4.5 ir_a_If) reproduce Proebsting Figs 1&2 — `5 > ((1 to 2)*(3 to 4))` → 9 nodes, 14/17 edges == Fig 1,
+> the 3 = faithful Fig-2 collapses; a real `v_to` bug (`to.fail→from.resume`) was caught + fixed, re-proven on
+> `(1 to 2) to (3 to 4)`. **Topology proven, NOT executed** — value-level proof + the relational-flag(`dval=1.0`)
+> and if-gate(`node.β`) encodings still need verifying against `bb_exec.c` (do not assume).
+>
+> **Tree-pattern dispatch (`tm`/`tm_g`, "two shots") is STEP 2, after the hand-coded foundation is complete.**
+> Next: add Every/Alt/conjunction (prove each) → wire lower2→bb_exec for value proof → rebuild program/proc
+> walkers → fill arms box-by-box → THEN tmatch refactor → later Icon bootstrap.
+>
+> **FULL RECORD (single source of truth) is in `GOAL-SNOBOL4-BB.md`** (top session section) — this goal owns the
+> Universal-IR pipeline, but the rewrite was driven under SNOBOL4-BB this session. Coordinate there. Refs:
+> `Proebsting-...-Goal-Directed-Evaluation.pdf`, `jcon_irgen.icn`.
+
+
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣
