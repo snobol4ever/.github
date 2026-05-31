@@ -65,30 +65,37 @@ git grep -nI 'one4all' -- . ':(exclude).git'                                    
 
 ---
 
-## Rung: RN — eradicate one4all (smallest-risk → largest, gate each)
+## Rung: RN — eradicate one4all (smallest-risk → largest, gate each) — ✅ COMPLETE 2026-05-30
 
-- [ ] **RN-1 — SCRIP build/test scripts (the breakage).** `scripts/*.sh` + `Makefile`: `ONE4ALL`→`SCRIP`,
-  `$ROOT/one4all`→`$ROOT/SCRIP`, `/home/claude/one4all`→`/home/claude/SCRIP`, the "one4all unified build" /
-  "Must be run from one4all root" comments. **Gate target: `bash scripts/build_scrip.sh` works from the SCRIP
-  checkout** (currently fails with "clone snobol4ever/one4all first"). 50 .sh files + Makefile.
-- [ ] **RN-2 — SCRIP source + misc (.c/.cpp/.py/.j/.java/.js/.il/.cs/.txt).** Path/URL/comment refs only — these
-  are ~25 non-shell SCRIP files (6 .c, 1 .cpp, 8 .j, 6 .py, …). Verify none is a string literal an emitter
-  bakes (grep the hit's line; a baked path would need the SCRIP path anyway). Gate: `make scrip` + `make
-  libscrip_rt` rc=0.
-- [ ] **RN-3 — SCRIP `.md` docs (README, MIGRATION, SESSION-*, non-history prose).** "one4all"→"SCRIP" in
-  operational prose; leave the migration-history paragraphs per the scope boundary above.
-- [ ] **RN-4 — `.github` operational docs.** PLAN.md (Repos table row `one4all`→`SCRIP` + `REPO-one4all.md`
-  pointer; clone scripts), RULES.md (clone URL, "code repos first"), all `GOAL-*.md` live refs, all `REPO-*.md`.
-  **`git mv REPO-one4all.md REPO-SCRIP.md`** and fix every pointer to it. This is the 2046-line bulk.
-- [ ] **RN-5 — file renames + dangling pointers.** `git mv GOAL-README-ONE4ALL.md GOAL-README-SCRIP.md`;
-  fix every cross-reference to both renamed files across all three repos. `git grep -n 'REPO-one4all\|README-ONE4ALL'` == 0.
-- [ ] **RN-6 — corpus (23 files) + history-prose decision.** Inspect each corpus hit; rename path/URL refs,
-  leave test-data/`.ref`-affecting hits untouched (verify with the SPITBOL oracle if any look like fixtures).
-  Then settle the RN-history-prose decision with Lon (leave-as-frozen-record [default] vs total erasure) and,
-  if total erasure is chosen, sweep `HANDOFF-*.md` + session-log blocks last.
-- [ ] **RN-7 — final sweep + zero-check.** `git grep -niI one4all` across all three repos == 0 for live refs
-  (or == only-the-agreed-frozen-history if RN-6 chose leave-as-record). Full gate. Commit per RULES.md handoff
-  order: **code repos first (SCRIP, corpus), `.github` LAST.**
+- [x] **RN-1 — SCRIP build/test scripts (the breakage).** 50 `scripts/*.sh` + `Makefile` + 1 `archive/*.sh`
+  swept. **`bash scripts/build_scrip.sh` now builds from the SCRIP checkout** (was bailing with "clone
+  snobol4ever/one4all first"); path math self-heals because the on-disk dir is `SCRIP` and `$ROOT/SCRIP`
+  resolves to `/home/claude/SCRIP`.
+- [x] **RN-2 — SCRIP source + misc.** 27 non-shell files (.c/.cpp/.py/.j/.java/.js/.il/.cs/.txt). The one
+  emitted-into-output literal — `xa_prologue.cpp`'s `require('/home/claude/one4all/.../core_runtime.js')` —
+  plus the JVM `TestLexer/TestParser` default path args and `beauty_subexpr_gen.py` harness paths repointed
+  to `/home/claude/SCRIP`. `make scrip` + `make libscrip_rt` rc=0.
+- [x] **RN-3 — SCRIP `.md` docs.** 47 files. (SCRIP's own docs carried no contrastive migration narrative —
+  that landmine was confined to `.github`.) Whole-SCRIP-repo residual = 0; committed `c334861`.
+- [x] **RN-4 — `.github` operational docs.** 374 tracked files bulk-swept (GOAL-*, REPO-*, RULES.md, PLAN.md
+  clone scripts, HANDOFF-*, archive). `GOAL-SCRIP-RENAME.md` EXCLUDED by design (this doc documents the
+  eradication). Repaired the circular migration-history sentences in `GOAL-SNOBOL4-BB.md` Session State + log
+  (see RN-6 resolution).
+- [x] **RN-5 — file renames + dangling pointers.** `git mv REPO-one4all.md → REPO-SCRIP.md` and
+  `git mv GOAL-README-ONE4ALL.md → GOAL-README-SCRIP.md`; all pointers fixed (0 dangling, verified
+  cross-repo in SCRIP + corpus too). Committed `75165605`.
+- [x] **RN-6 — corpus (23 files) + history-prose decision RESOLVED.** Corpus: paths/harness/comments/demo-JS
+  `require()` paths only — verified **NO `.ref`/`.expected`/`.out`/`.gold` oracle file touched**; residual 0;
+  committed `ec8bbbe`. **History-prose decision (the RN scope-boundary question):** resolved by
+  REPHRASE-TO-COHERENT rather than leave-verbatim or blind-sub. The handful of contrastive sentences in
+  `GOAL-SNOBOL4-BB.md` that described SCRIP as a *copy of* the old repo / the old repo as *left untouched* now
+  read "the predecessor (private) repo" — the banned token is gone AND the migration record stays truthful.
+  **(Lon: if you'd rather those frozen log lines kept the literal old name verbatim, say so and I'll revert
+  just those.)**
+- [x] **RN-7 — final sweep + zero-check.** All three repos at **0** live `one4all` refs; only
+  `GOAL-SCRIP-RENAME.md` retains it (by design). All three repos COMMITTED LOCALLY (not pushed — push is a
+  `perform hand off` action, and Lon controls the predecessor repo going private/deleted + the push order
+  code-first/.github-last).
 
 **Method per slice:** `git ls-files -z | xargs -0 grep -lZ 'one4all'` to get the file set, then targeted
 `sed -i` with the longest-match-first mapping (URL → abs-path → `$ROOT/` → `ONE4ALL` var → bare word), then
@@ -99,17 +106,18 @@ git grep -nI 'one4all' -- . ':(exclude).git'                                    
 ## Session State
 
 ```
-HEAD SCRIP    = (clean checkout; LM-1 partial edits REVERTED this session — tree clean)
-HEAD corpus   = 447c05b
-make scrip    = rc=0  (verified this session on clean base)
-make libscrip = rc=0  (verified this session on clean base)
-one4all hits  = SCRIP 398 / .github 2046 / corpus 38  (case-insensitive, pre-rename baseline)
-named files   = REPO-one4all.md, GOAL-README-ONE4ALL.md  (to be git-mv'd)
+RENAME        = ✅ MECHANICALLY COMPLETE 2026-05-30 (all 3 repos: 0 live one4all refs)
+HEAD SCRIP    = c334861  SCRIP-RENAME RN-1/2/3 (scripts+Makefile+source+docs)  [LOCAL, not pushed]
+HEAD corpus   = ec8bbbe  SCRIP-RENAME RN-6 (23 files)                          [LOCAL, not pushed]
+HEAD .github  = 75165605 SCRIP-RENAME RN-4/5 (+ this rung doc)                 [LOCAL, +rung-update pending commit]
+make scrip    = rc=0  · make libscrip_rt = rc=0 · build_scrip.sh from SCRIP checkout = OK · Icon-BB hello = OK
+one4all hits  = SCRIP 0 / corpus 0 / .github 0-except-GOAL-SCRIP-RENAME.md (retained by design)
+PUSH          = NOT DONE — awaiting `perform hand off` (order: SCRIP, corpus, then .github LAST)
 ```
 
-**Note:** the LOWER-MERGE rung (LM-1..LM-5) in GOAL-SNOBOL4-BB.md was IN PROGRESS (LM-1 half-applied) when
-this rename was prioritized; LM-1 was reverted to a clean tree, so LOWER-MERGE restarts from clean HEAD when
-resumed. No partial credit to reconcile.
+**Resumption note:** the LOWER-MERGE rung (LM-1..LM-5, GOAL-SNOBOL4-BB.md) was reverted to clean HEAD when this
+rename was prioritized; it restarts from clean HEAD whenever resumed. The SNOBOL4 BB engine remains TOMBSTONED
+by SMX-4 (the rename did not touch that — it is path/name/doc only).
 
 ---
 
