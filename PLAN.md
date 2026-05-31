@@ -23,15 +23,16 @@ All languages × all backends green.
 ## ⛔ SESSION START — every session, no exceptions
 
 Lon names a goal. You:
-1. Clone `.github`: `git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github`
-2. Read `PLAN.md`. Find goal in table below.
-3. Read `RULES.md` in full.
-4. **If PARSER-* or Snocone — read `SNOBOL4-SNOCONE-PRIMER.md` first.**
-5. **If touches language corpus — read `CORPUS-LOCATIONS.md`.**
-6. **If MODE3-EMIT or MODE4-EMIT — read `ARCH-x86.md` AND `ARCH-SCRIP.md` first.**
-7. Open Goal file. Open that repo's REPO file.
-8. Run Goal file's `## Session Setup` scripts.
-9. Find first incomplete Step (`- [ ]`). Do it.
+1. **Read `GOAL-LANG-INDEPENDENT-RENAME.md` and do any remaining rename steps before anything else — language-independent naming is an ongoing invariant, not a one-time task.**
+2. Clone `.github`: `git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github`
+3. Read `PLAN.md`. Find goal in table below.
+4. Read `RULES.md` in full.
+5. **If PARSER-* or Snocone — read `SNOBOL4-SNOCONE-PRIMER.md` first.**
+6. **If touches language corpus — read `CORPUS-LOCATIONS.md`.**
+7. **If MODE3-EMIT or MODE4-EMIT — read `ARCH-x86.md` AND `ARCH-SCRIP.md` first.**
+8. Open Goal file. Open that repo's REPO file.
+9. Run Goal file's `## Session Setup` scripts.
+10. Find first incomplete Step (`- [ ]`). Do it.
 
 ### Clone SPITBOL oracle
 ```bash
@@ -45,7 +46,8 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
-| **Lang-Indep Rename** ⬅ #1 | `GOAL-LANG-INDEPENDENT-RENAME.md` | **PRIORITY #1 (Lon directive 2026-05-30).** Slices 0–3b ✅ green (one4all `42886970`). Next: Slice 3c (29 Prolog cross-boundary syms, def-site split + frontend bridge fix) → Slice 4 (Raku `raku_/rk_` ~300 syms) → Slice 5 (backend `.il/.j/.wat/.cs/.java/.js`). See handoff `HANDOFF-2026-05-30-LANG-INDEP-RENAME-SLICE-3.md`. |
+| **Lang-Indep Rename** ⬅ #1 | `GOAL-LANG-INDEPENDENT-RENAME.md` | **ONGOING invariant — check every session (see step 1 above).** Slices 0–4 ✅ green (one4all `df3551a7`): ICN_/Icn_/gen_-non-generator de-prefixed; Scope/ScopeEnt/ScopeEntry/descr_identical/scope_patch stripped. Remaining: Slice 5 (backend `.il/.j/.wat/.cs/.java/.js` — off live path, lowest priority). |
+| **Lower-Merge** ⬅ #2 | `GOAL-LOWER-MERGE.md` | **NEW (Lon directive 2026-05-30).** Unify and consolidate all lower/*.c files into one lower.c source. Eliminate the scattered lower_graph.c / lower_clause.c / lower_ctx.c / lower_sno.c split — one file, one consolidated function per logical operation. |
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. *(corpus 93 PASS; next: `bb_call` builtins + generator re-pumping)* |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. *(Gate-2 47; next: numbervars/3, type-test compound, writeq, findall/3 last)* |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(native broad 255; next: deferred capture-commit, mode-2 DEFER backtracking, SPAN/ARBNO/FENCE clusters)* |

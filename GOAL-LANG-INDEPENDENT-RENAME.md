@@ -150,8 +150,8 @@ FACT=0 · sm_dead ≤1. Baseline at carve: m2 6/6, FACT 0, sm_dead 1.
   Also: the vestigial SMX-4-excised opcode `SM_BB_PL_INVOKE` (SM.h) still carries `PL` — fold/rename when
   the SM surface is finally driven to 0.
 - [x] **Slice 4 — Raku**: `raku_/rk_` files + 300 symbols.
-- [ ] **Slice 5 — backend output libs** (deferred): `.il/.j/.wat/.cs/.java/.js` named `Sno*` —
-  off the live build path (X86 ONLY), lowest priority.
+- [~] **Slice 5 — backend output libs** (partial — off live path): `.il/.j/.wat/.cs/.java/.js` named `Sno*` —
+  off the live build path (X86 ONLY), lowest priority. Post-AST ICN_/Icn_/gen_-non-generator work done in `df3551a7`.
 
 ### Mechanics per slice
 1. `git mv` the files; update Makefile `RT_PIC_SRCS` + `scrip:` recipe + `build_scrip.sh` source
@@ -245,16 +245,17 @@ be updated to record the base reg + per-language roles) · GC arena setup in `rt
 ## Session State
 
 ```
-HEAD one4all  = 8e4d0b2b  (LANG-INDEP Slices 3c+4 — raku_/rk_ stripped to feature names)
+HEAD one4all  = df3551a7  (LANG-INDEP Slice 5 partial: ICN_/Icn_/gen_-non-generator stripped)
 HEAD .github  = (see git log)
-Baseline      = Icon m2 6/6 (HARD), m3 2/6, FACT 0, sm_dead 1/1  (held green through all slices)
+Baseline      = make scrip rc=0, make libscrip_rt rc=0, FACT 0, sm_dead 1/1, audit GATE OK, Icon m2 hello ✅
 Slices done   = 0 ✅ (5370695f), 1a ✅ (7d57c6bd), 1b ✅ (d7f64afa), 2 ✅ (bf3f7928),
-                3a ✅ (ddfc8f81), 3b ✅ (42886970), 3c ✅ (bd91ea84), 4 ✅ (8e4d0b2b) — all green
-Next          = Slice 5 (backend .il/.j/.wat/.cs/.java/.js — off live X86 path, lowest priority).
-                PRIORITY: proceed to SNOBOL4-BB LOWER (Track B per SMX-4 handoff):
-                wire SNOBOL4 AST → BB directed graph; first target OUTPUT = "hello world".
-                See HANDOFF-2026-05-30-OPUS48-SMX-4-DELETE-SM.md Track B for the exact plan.
-Handoff       = HANDOFF-2026-05-30-SONNET46-LANG-INDEP-RENAME-SLICE-4.md
+                3a ✅ (ddfc8f81), 3b ✅ (42886970), 3c ✅ (bd91ea84), 4 ✅ (8e4d0b2b),
+                5-partial ✅ (df3551a7): post-AST ICN_*/Icn*/g_icn_jcon→g_jcon; gen_-non-generator
+                (GenScope→Scope, GenScopeEnt→ScopeEnt, GenEntry_d→ScopeEntry,
+                gen_descr_identical→descr_identical, gen_scope_patch→scope_patch)
+Next          = Slice 5 remainder: backend .il/.j/.wat/.cs/.java/.js — off live X86 path, lowest priority.
+                NEXT PRIORITY: LOWER-MERGE (Lon directive 2026-05-30) — unify lower/*.c into one lower.c.
+Handoff       = HANDOFF-2026-05-30-SONNET46-LANG-INDEP-RENAME-SLICE-5.md
 ```
 
 ### ⚠⚠ VETOABLE DECISION (Lon) — `BB_PL_SEQ → BB_GCONJ` (Prolog conjunction enum)
