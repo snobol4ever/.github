@@ -790,10 +790,18 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   changes lockstep, `prove_lower2.sh` the shared green signal. **Gate `prove_lower2.sh` 11/11 PASS** (9 prior + 2 new,
   exact node counts + γ/ω). New `lower.c` COMPILES clean; `make libscrip_rt` rc=0. **`make scrip` LINK RED by design** —
   new tree, trunk not regrown — on exactly 3 symbols: `lower` (program-walker driver entry), `kind_is_resumable`,
-  `cset_try_fold`. Added IR_DO_WHILE + lcx_t loop fields + with_loop (partial L2-B2, rides along). **NEXT (running, next
-  session): regrow a minimal `lower(prog)` → populate `s2->bbp.table[main]` from the role entries (EXEC path
-  `bb_exec_once(s2->bbp.table[main_bb_idx])` ALREADY works — it's how Icon hello prints, scrip.c:362-374), define the 2
-  helpers, restore link, wire EXEC arms for IR_ASSIGN(OUTPUT→print) + IR_CALL(write), print both hellos.** Then L2-B2
+  `cset_try_fold`. Added IR_DO_WHILE + lcx_t loop fields + with_loop (partial L2-B2, rides along). **✅ DONE (2026-05-31,
+  SCRIP `ee12a16`, see HANDOFF-2026-05-31-...-SNOBOL4-TRUNK-REGROW): trunk regrown.** Reality was 5 undefined symbols, not 3
+  (handoff undercounted `binop_apply` + `lower_proc_gen`, both from the deleted old lower.c). Minimal `lower()` + the 4
+  helpers (`kind_is_resumable`/`cset_try_fold` stub in lower.c; `binop_apply`/`lower_proc_gen` + `lower()` in NEW
+  `lower_program.c` to keep lower.c standalone-linkable for the proof). IR_ASSIGN exec arm rewired to the threaded form;
+  OUTPUT print already done by NV_SET_fn→output_val. scrip.c runs `bb_exec_once(main)` for SNOBOL4. Gates: make scrip rc=0,
+  libscrip_rt rc=0, prove 11/11, `OUTPUT = "hello world"` → one record. **NEXT — BUILD THE SPINE (before unleashing the 3
+  sessions): SNOBOL4 = statement-level MATCH-AND-REPLACE** (PATTERN-role CAT + captures `. $` + ALT in `lower_pattern`;
+  `lower()` statement orchestration for `:subj+:pat` and `:subj+:pat+:eq+:repl`; goto wiring; and the long pole — a
+  BB-native pattern engine in bb_exec.c, today patterns abort as `IR_PAT_DEFER` "not yet BB-native"). **Prolog spine =
+  UNIFY (`=/2`) + conjunction (`,/2`) + user-pred Call + write/nl + true/fail** (exec stays resolve-runtime + sm_interp_run
+  per RULES exception). Recommended start: SNOBOL4 pattern engine + CAT (gates everything else).** Then L2-B2
   finish, then LM-6 DISPATCH-UNIFY (merge the 3 role switches into one CASE over TT_*, governed by the FACT RULE).
 
 - **2026-05-31 — PND-1: KILL PATND_t IN lower.c ✅** (SCRIP `f15f213`, base `9326db2`; `.github` this handoff).
