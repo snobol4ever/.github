@@ -504,8 +504,10 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = 29aaac0  RN-IR-8b (BB→IR rename COMPLETE; base c334861). Predecessor watermark a0bb9be4 was
-                     two steps stale: origin had advanced to c334861 (SCRIP-RENAME one4all RN-1/2/3) before this session.
+HEAD SCRIP       = 9326db2  LOWER-MERGE (4 lowering files → ONE lower.c + ONE lower.h; Icon four-port model
+                     as spine; base 29aaac0). Pure structural relocation, byte-identical bodies, gates invariant.
+                     Predecessor watermark 29aaac0 was RN-IR-8b (BB→IR rename COMPLETE; base c334861). a0bb9be4 was
+                     two steps stale: origin had advanced to c334861 (SCRIP-RENAME one4all RN-1/2/3) before that session.
                      (df3551a7 → c5cf417c "Ground Zero" DELETED 991,875 lines / 6381 files [partial-checkout
                       artifact] → a0bb9be4 RESTORED them. Current HEAD builds clean. Delete already reversed.)
 FRESH-START repo   = snobol4ever/SCRIP (NEW, public, created 2026-05-30 Sonnet 4.6). ZERO inherited history
@@ -562,20 +564,35 @@ SNOBOL4 mode-2/3   = TOMBSTONED — SMX-4 (2b6394e1) deleted the Stack Machine; 
   audit GATE OK, Icon m2 hello ✅, FACT 0. Detail in GOAL-LANG-INDEPENDENT-RENAME.md (the rename's own
   step ledger) — recorded there because the rename is the ongoing cross-cutting invariant (PLAN step 1).
 
-**NEXT (Lon directive 2026-05-30) — LOWER-MERGE, tracked HERE in this goal:**
-Merge all `src/lower/*.c` into a single consolidated `lower.c`. Pure structural merge — NO behavioral
-change, NO renames, NO logic edits (bugs fixed in separate commits). Smallest file first, gate after each:
-- [ ] **LM-1** — merge `lower_ctx.c` (37 lines). Fold `lower_ctx.h` decls into `lower.h`; delete the two
-  files; update every `#include "lower_ctx.h"` → `"lower.h"`; update Makefile + `build_scrip.sh`.
-- [ ] **LM-2** — merge `lower_clause.c` (793, Prolog `resolve_*`).
-- [ ] **LM-3** — merge `lower_pat_dcg.c` (821, SNOBOL4 pattern `BB_lower_pat`/`build_node`/`build_patnd`).
-- [ ] **LM-4** — merge `lower_graph.c` (2153, Icon/generator, largest).
-- [ ] **LM-5** — cleanup: no stale `lower_{graph,clause,ctx,pat_dcg}.h`; full gate; commit `LOWER-MERGE`.
+**✅ LOWER-MERGE COMPLETE (2026-05-31 Opus 4.8, SCRIP `9326db2`, base `29aaac0`).** All five LM steps
+landed in ONE pass (not incremental). The four lowering files were folded into a single
+`src/lower/lower.c` (3183 lines) + a single `src/lower/lower.h` (117 lines), and the 9 sub-files deleted.
+- [x] **LM-1** — `lower_ctx.c` (32) folded; decls into `lower.h`; deleted `lower_ctx.{c,h}`. (`build_scrip.sh` needs no edit — it just runs `make -j4 scrip`; the Makefile is the sole source list.)
+- [x] **LM-2** — `lower_clause.c` (588, Prolog `lower_pl_*`) folded.
+- [x] **LM-3** — `lower_pat_dcg.c` (740, SNOBOL4 `IR_lower_pat`/`build_node`/`build_patnd`) folded.
+- [x] **LM-4** — `lower_graph.c` (1526, Icon/generator — **the model**) folded; placed FIRST among the lowerings per Lon ("Icon is the most exacting, meticulously derived from the Icon lower function — that's the model"). *(NOTE: the goal-file line-count estimates [37/793/821/2153] predated the Ground-Zero comment/blank-line purge; the live files were 32/588/740/1526.)*
+- [x] **LM-5** — no stale `lower_{graph,clause,ctx,pat_dcg}.h` (also removed empty `lower_graph_bb.h`); Makefile source-list + compile-rules trimmed to `lower.c`+`lower_sno.c`; external includers (`gen_runtime.c`, `stmt_exec.c`, `bb_exec.c`) repointed to `lower.h`; full gate; committed `9326db2`.
 
-DO NOT merge: `lower_sno.c` (SNOBOL4→source transpiler, `--dump-sno`, SCT goal), `bb_exec.c` (oracle),
-`scrip_ir.c`, `sm_prog.c`, `ast_clone.c`. Separators `/*===*/` (200ch) between merged-file sections,
-`/*---*/` between functions. Gate each: make scrip rc=0, make libscrip_rt rc=0, Icon m2 hello ✅,
-sm_dead 1/1, FACT 0. **NO new GOAL file — this lives here in GOAL-SNOBOL4-BB.md.**
+Section order in the unified `lower.c`: driver → **ICON GENERATOR LOWERING (model)** → PROLOG CLAUSE
+LOWERING → SNOBOL4 PATTERN LOWERING → LOWER CONTEXT, `/*===*/` (200ch) banners between sections. Pure
+structural relocation — byte-identical bodies, NO logic change. Gates INVARIANT: make scrip rc=0,
+make libscrip_rt rc=0, Icon m2 **6/6** (HARD), m3 2/6, sm_dead 1 (≤1), FACT 6 (baseline). NOT merged
+(as planned): `lower_sno.c` (AST→source transpiler, `--dump-sno`/SCT), `bb_exec.c` (oracle), `scrip_ir.c`,
+`sm_prog.c`, `ast_clone.c`.
+
+**⭐ NEXT (Lon directive 2026-05-31) — ONE AST → ONE IR → ONE LOWER, then GROUND-ZERO register-allocated boxes.**
+Lon: "We have ONE AST named `tree_t`. We should also have ONE IR named `IR_t`." The file-level merge is
+done; two follow-ons remain, Icon (`lower_expr_threaded`) as the canonical four-port model throughout:
+- [ ] **LM-6 (DISPATCH-UNIFY)** — the unified `lower.c` still has THREE distinct dispatch entry points
+  (`lower_expr_threaded` [Icon] / `lower_pl_goal` [Prolog] / `build_node` [SNOBOL4 pat]) that already share
+  the four-port (α/β/γ/ω) IR convention but are separate switches. Collapse them into ONE
+  `lower_expr_threaded`-style dispatch keyed on the shared `tree_e` (the SNOBOL4 `TT_SPAN/…`, Prolog
+  `TT_UNIFY/TT_CLAUSE/TT_CHOICE/TT_CUT`, Icon `TT_EVERY/TT_TO/TT_LIMIT/…` are all in the one `tree_e` enum).
+  Model = Icon's `lower_expr_threaded`/`_ag` variants (derived from JCON `tran/irgen.icn` `ir_a_*`).
+- [ ] **BOX-ZERO** — start cutting the FIRST byrd boxes against the **planned register-allocation scheme**
+  ("make this code scream FAST"): per RULES.md the Icon STACKLESS ONE-REGISTER FRAME — one per-sequence
+  local-storage block addressed through ONE x86 base register (`[reg+emit_time_offset]`), distinct from the
+  broker node reg (`r10`) and SM-state reg (`r13`); RO constants IP-relative (`[rip+disp]`). No value stack.
 
 ---
 
@@ -592,6 +609,23 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-31 Opus 4.8 — LOWER-MERGE COMPLETE ✅** (SCRIP `9326db2`, base `29aaac0`; `.github` this handoff).
+  Lon directive: ONE AST (`tree_t`) → ONE IR (`IR_t`) → ONE lower; Icon is the model (meticulously derived
+  from the Icon lower fn). Scanned all lower fns: confirmed the ONE `tree_e` enum (~170 `TT_*`) spans every
+  language, and the four-port (α/β/γ/ω) IR convention is already shared across Icon (`lower_expr_threaded`+`_ag`),
+  Prolog (`lower_pl_*`), and SNOBOL4 pattern (`build_node` sp/fp = γ/ω). Verified merge safety (no cross-file
+  static collisions — the apparent dups were forward-decl+def in the SAME file; no local `#define`s; identical
+  `$(CRT)` flags resolve the union of includes; `lower.h` shares `src/lower/` so include paths preserve). Folded
+  `lower_ctx.c`(32)+`lower_clause.c`(588)+`lower_pat_dcg.c`(740)+`lower_graph.c`(1526) → one `lower.c` (3183 lines:
+  driver → **ICON [model]** → Prolog → SNOBOL4 → context, `/*===*/` 200ch banners) + 5 headers → one `lower.h`
+  (117). Deleted 9 sub-files (incl. empty `lower_graph_bb.h`). Makefile source-list+rules trimmed to
+  `lower.c`+`lower_sno.c` (build_scrip.sh = `make` wrapper, no edit). Repointed 3 external includers to `lower.h`.
+  **Pure structural relocation, byte-identical bodies — gates INVARIANT:** make scrip rc=0, make libscrip_rt rc=0,
+  Icon m2 **6/6** (HARD), m3 2/6, sm_dead 1 (≤1), FACT 6 (baseline). Kept separate (as planned): `lower_sno.c`
+  (AST→source transpiler), `bb_exec.c`, `scrip_ir.c`, `sm_prog.c`, `ast_clone.c`. corpus UNTOUCHED. **NEXT:** LM-6
+  DISPATCH-UNIFY (collapse the 3 dispatch entry points into ONE `lower_expr_threaded` keyed on shared `tree_e`)
+  then BOX-ZERO (first byrd boxes against the planned one-register-frame allocation scheme).
 
 - **2026-05-30 (Claude) — BB→IR RENAME COMPLETE ✅** (SCRIP `b2a13e2`→`29aaac0`, 10 commits on base `c334861`;
   `.github` this handoff). Lon directive: now that SM is gone, the uppercase `BB_*` directed graph IS the IR —
