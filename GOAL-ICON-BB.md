@@ -132,10 +132,15 @@ FACT 0, smokes hold.
   No push. m2==m3, zero-SM, no-stack gate = 0 for this box family.
 - [x] **GZ-2 — `write(42)`.** Literal-N template (PDF §4.1): `lit.start: lit.value ← N; goto succeed`.
   Value in `&lit->value`. write reads it.
-- [ ] **GZ-3 — `write(1 + 2)`.** plus template (PDF §4.3): `plus.value ← E1.value + E2.value`,
+- [x] **GZ-3 — `write(1 + 2)`.** plus template (PDF §4.3): `plus.value ← E1.value + E2.value`,
   read from the two child slots. No operand push/pop.
 - [ ] **GZ-4 — `every write(1 to 3)`.** to template (PDF §4.4): `to.I`, `to.value` slots; β
-  re-pumps via `to.resume: to.I++`. Mirror `test_icon.c` `to1`.
+  re-pumps via `to.resume: to.I++`. Mirror `test_icon.c` `to1`. **mode-2 oracle DONE (this
+  session)** — the independent mode-2 `every` bug is fixed; smoke m2 6/6 (HARD GATE green, exit 0
+  for the first time), rung ladder 28→31, broker 4→5 (`ICN: 1 to 5`), zero regressions. **mode-3
+  stackless STILL BLOCKED on the Path-1-vs-Path-2 fork** (see session-7 watermark): the ring→tree
+  adapter returns NULL for iterate/branch topology, and `bb_to.cpp` still uses `rt_push_int`. Lon
+  must pick the fork before the mode-3 control-flow/generator rungs proceed.
 - [ ] **GZ-5 — `every write(1 | 2 | 3)`.** alt: `α save cursor → left_α; left_ω → right_α`
   (archive ALT wiring). Choice index in a per-box slot.
 - [ ] **GZ-6 — `every write(5 > ((1 to 2) * (3 to 4)))`.** The paper's full example. Must be
@@ -352,6 +357,67 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
+**HEAD (SCRIP):** `f4f4d9a` (session 8 — GZ-4 every mode-2 oracle + string_op & to-single-shot mode-3 stackless; pushed, rebased cleanly onto the parallel Prolog `e1a6557` PLG-2 + SNOBOL4 `1eef20d` LOWER2-EXEC — zero conflicts, FACT-rule isolation held).
+
+**Done this session (8, GZ-4 mode-2 oracle + string_op mode-3 stackless concat — Sonnet 4.5):**
+Two fork-INDEPENDENT pieces (no commit yet; `refs/` re-extracted from the uploaded zips):
+
+**(A) GZ-4 mode-2 `every` oracle — the independent HARD-GATE bug, FIXED.** `every write(1 to 3)`
+printed only `1` because `lower2`'s `v_every` builds an `IR_EVERY` node with `ival==0` and the
+generator embedded mid-chain (the EVERY node sits at the chain TAIL — both `TO.ω` and `CALL.γ`
+flow back into it), but `bb_exec.c`'s `IR_EVERY` only had the deleted `lower_icn.c`'s `ival==1/2/3`
+arms + a fallthrough `while` that did `bb_exec_node(bb->α)` ONCE — stepping the single-shot chain-
+head `LIT_I`, so it broke after the first value. FIX: a new `ival==0` arm (grounded in JCON
+`ir_a_Every`: `expr.success → body(empty=fail) → expr.resume; expr.failure → every.failure`) that
+re-drives the whole expr chain from `bb->α` following ports, looping until the node that flows back
+into EVERY fails (generator exhausted → done) or the chain hits a sink. Legacy `ival==1/2/3` arms
+UNTOUCHED. Verified across `1 to 5`, empty `5 to 1`, `every i:=1 to 3 do write(i)`, nested
+`(1 to 2)*10`, bare `write(1 to 3)`→one value. **Icon smoke m2 5/6→6/6 (HARD GATE green, smoke
+exits 0 for the FIRST time)**; rung ladder `--interp` 28→31 (zero regressions, stash-verified
+before/after); broker 4→5 (`ICN: 1 to 5`); Prolog 1 unchanged.
+
+**(B) GZ-4 string_op (`write("ab"||"cd")`) — mode-3 stackless concat, the `string_op` smoke green.**
+The handoff (7) flagged this as "doable in the Icon lane, same kind as GZ-3." Same graph shape as
+GZ-3's int binop (adapter un-flattens `LIT_S/LIT_S` into `BINOP.α/β`); mode-3 aborted at GZ-3's
+`write(binop)` slot-miss because the CONCAT arm allocated no slot. FIX, 4 contained files, NO value
+stack: (1) `emit_bb.c` `bb_slot_alloc16` (DESCR is 16B). (2) `rt.c` `rt_write_strz_nl(const char*)`
+(fwrite+strlen+nl — the concat buffer is NUL-terminated). (3) `bb_binop.cpp` stackless CONCAT arm
+(both operands `IR_LIT_S`): bytes sealed RO in-blob, addresses read `lea …,[rip+disp]`, `call
+str_concat_d` (gen_runtime.c; SysV a→rdi:rsi b→rdx:rcx, returns 16B DESCR rax:rdx), result stored
+`[r12+off]`/`[r12+off+8]` (ζ=r12). (4) `bb_call.cpp` write(binop) split on `a0->ival==BINOP_CONCAT`
+→ reads payload ptr `[r12+off+8]` + `rt_write_strz_nl`; int arm (ADD/SUB) keeps `[r12+off]` +
+`rt_write_int_nl`. **Icon smoke m3 3/6→4/6** (`string_op` green, `diff m2 m3` empty). Verified
+`hello||world`, `""||"x"`. Nested 3-way `"a"||"b"||"c"` fails mode-3 — the SAME pre-existing leaf-
+only limitation as nested int `write(1+2+3)` (both literals required), NOT a regression.
+
+**GATES (both pieces):** FACT 0; no-stack 113 (unchanged — `str_concat_d` is not a vstack helper);
+one-reg-frame 20 (unchanged — `[r12+off]` register-relative); peers Prolog 1 / broker 5 unaffected.
+**BONUS:** `--dump-bb` now prints each port's TARGET NODE INDEX (was `set`/`NULL`) — `scrip_ir.c`
+`bb_index_of`; reusable wiring-trace infra for all three BB sessions.
+
+**(C) GZ-4 `to` SINGLE-SHOT (α-port) — bare `write(1 to 3)` mode-3 stackless.** The `to` generator's
+α-port (first value) is straight-line and fork-INDEPENDENT (only the β-resume PUMP that `every` needs
+is fork-blocked). 3 contained edits, mirrors GZ-3 exactly: (1) `scrip.c` adapter `icn_rt_arity` —
+`IR_TO`/`IR_TO_BY` arity 2 (un-flatten `LIT,LIT,TO` → `TO(α=lo,β=hi)`); previously arity −1 NULLed the
+whole graph. (2) `bb_to.cpp` stackless single-shot arm (both bounds `IR_LIT_I`): lo/hi sealed RO in-blob
+read `[rip+disp]`, `α: rax=lo; if lo>hi → ω; [r12+off]=rax → γ; β: jmp ω` (single-shot — pump deferred
+to the fork), off via `bb_slot_alloc`. Grounded in `test_icon.c` `to1` α arm. (3) `bb_call.cpp` write
+arm broadened to `IR_TO`/`IR_TO_BY` (TO value is int → reuses the int read `[r12+off]`+`rt_write_int_nl`;
+the `BINOP_CONCAT` check now guarded to `IR_BINOP`). NO shared-driver change — `flat_drive_call_intexpr`
++ `case IR_TO: FILL` already walk arg-then-write correctly. Verified `write(1 to 3)`→1, `write(5 to 1)`
+→∅, `write(2 to 5)`→2, `write(10 to 10)`→10, `write(0 to 100)`→0 — all m2==m3. **`every write(1 to 3)`
+mode-3 STILL fails cleanly (exit 0, no crash, no false-pass)** — its graph has `IR_EVERY` (arity −1) so
+the adapter still NULLs it → correctly fork-blocked; smoke unchanged m2 6/6 / m3 4/6 (the generator
+smoke is `every`-wrapped, not bare). no-stack ratchet stays 113 (the dead `rt_push_int` literal/dynamic
+paths remain until the full `to` rebuild under the fork; the single-shot arm adds zero push/pop).
+
+**STILL fork-blocked (unchanged from 7):** mode-3 `if_expr` + `every` are CONTROL-FLOW rungs the
+ring→tree adapter NULLs out. They need Lon's Path-1 vs Path-2 vs Path-1-lite decision (touches the
+SHARED flat driver / the no-per-language-fork FACT RULE) before proceeding. `bb_to.cpp` still has 7
+`rt_push_int` (value stack) — must go stackless under any path.
+
+PRIOR (session 7) ↓
+
 **HEAD (SCRIP):** `88bfc4e` (session 7 — GZ-3 stackless `write(1+2)` + mode-3 ring→tree adapter + Icon epilogue r10 fix; pushed, rebased onto the parallel session's `d17425a`).
 
 **Done this session (7, GZ-3 + mode-3 unblock — Sonnet):** **ROOT FINDING (architecture-wide):** the unified `lower2` produces a postfix γ-chain for Icon (operands precede their operator in γ-order, every node `α=β=NULL`, operands read from the AG ring at exec — the mode-2 oracle's model). The mode-3 flat emitter (`emit_bb.c` `walk_bb_flat`/`flat_drive_binop_tree`/`flat_drive_call_intexpr`) and EVERY GROUND-ZERO template expect the OLD `lower_icn.c` **tree-shape** (operands in `α`/`β` children; verified in deleted blob `d2d8c8e1`: `bb->α=lhs;bb->β=rhs`, `bb->α=args[0]`). The two are incompatible: the flat walker starts at the entry leaf (a pass-through whose γ targets the slab exit), emits ONLY that one box, and returns → mode-3 silently emitted nothing. Mode-2's `bb_exec.c` was taught the ring shape (so m2 worked); mode-3 never was. **WATERMARK CORRECTION:** the prior "m2 6/6, m3 2/6" was stale/never-rebuilt — actual at session start (clean build from `03acf1be`, after `apt-get install libgc-dev`) was **m2 5/6** (`every` fails in MODE-2 — a separate pre-existing HARD-gate bug) and **m3 0/6** (GZ-2 would crash on the r10 clobber; GZ-1 only escaped by luck). Now honestly **m3 3/6**. **THREE-PART FIX (5 files, all contained or Icon-gated):** (1) `scrip.c` Icon mode-3 ring→tree adapter `icn_ring_to_tree` (Path 1-lite — un-flattens the straight-line γ-chain into the α/β tree by postfix arity; Icon `--run` only; emits no x86; fallback to `bbg->entry` on non-subset shapes; `lower.c`+templates untouched). (2) `xa_flat.cpp` Icon-gated (`g_frame_active`) epilogue → constant success, no Σ/r10 deref (fixes the r10 caller-saved clobber segfault; NON-ICON byte-identical). (3) GZ-3's four edit sites: `emit_bb.c` node→slot map + `bb_slot_alloc`/`bb_slot_get` (site 2, reset per sequence) and `flat_drive_binop_tree` RO-int skip (site 4); `bb_binop.cpp` stackless RO-int ADD/SUB arm — operands baked `[rip+disp]`, result `[r12+off]`, ζ=r12 FIRST real use (site 1); `bb_call.cpp` write(binop) reads `[r12+off]` (site 3). Grounded in `test_icon.c` `mult` (`mult_V=a*b`) per CONSULT-CANONICAL-SOURCES. **GATES:** FACT 0; no-stack ratchet observed **113** (≤127 — the watermark's 127 was stale; GZ-3 adds no push/pop so gate green either way; re-pin to 113 is optional hygiene, NOT done); one-reg-frame **20** (≤20 — `[r12+off]` is register-relative, no absolute `&pBB` added). SNOBOL4 (`hi-sno`) + Prolog (severed-loud) unaffected. **OPEN — the Path 1 vs Path 2 fork now GATES further mode-3 progress.** Remaining m3 fails split: `string_op` (`"ab"||"cd"`) is a straight-line concat rung (`rt_gen_concat` is still the stubbed vstack path) — doable IN THE ICON LANE next, same kind as GZ-3. `if_expr`/`every` are CONTROL-FLOW rungs: the adapter returns NULL for them (postfix un-flattening cannot express branch/iterate) → they fall back to no-output. They CANNOT advance without resolving the fork: **Path 1** (rewrite the mode-3 emitter to walk the γ-chain/ring natively — architecturally consistent with lower2 + mode-2, but touches the SHARED flat driver and discards GZ template bytes) vs **Path 2** (Icon tree-shape lowering — fights the SHARED-LOWERER no-per-language-fork FACT RULE) vs keeping **Path 1-lite** as a per-shape scaffold. `every` ALSO fails mode-2 (independent bug). Recommend Lon pick the fork before the control-flow rungs.
@@ -389,7 +455,7 @@ baseline for this build; they were produced by the value-stack path now being re
 |------|-------|-------|
 | Demolition | DONE | All Icon value-stack runtime consumers stubbed to `ICN_STACKLESS_ABORT` (23 sites): `rt_pop_nv_set`, `rt_pop_store_i64`, `rt_push_stored_i64`, `rt_pop_store_descr`, `rt_case_eq`, `rt_pop_write_int_nl`, `rt_pop_write_any_nl`, six `rt_unop_*`, ten vstack-using `rt_icn_*` (`call_proc`, `call_builtin`, `concat`, `field_get/set`, `idx_get/set`, `list_bang`, `limit_begin`, `toby_real`). Slot-based `rt_icn_limit_more/inc`, `proc_*` registry, `builtin_is_known`, and Raku `rt_load_frame`/`rt_store_frame` left LIVE. SNOBOL4/Prolog unaffected; Icon `--interp` 5/5; Icon `--run` aborts loudly at every value-stack box. |
 | GZ-0 | DONE | No-stack gate pinned `scripts/test_gate_icn_no_stack.sh` (ratchet baseline 129). Slot/arena conventions grounded in archived `emit_arbno` + `test_icon.c`. |
-| Smoke (two-mode) | DONE | `test_smoke_icon.sh` runs mode-2 (`--interp`, HARD GATE) AND mode-3 (`--run`, tracked); added `write_int` case. Current m2 6/6, m3 2/6. |
+| Smoke (two-mode) | DONE | `test_smoke_icon.sh` runs mode-2 (`--interp`, HARD GATE) AND mode-3 (`--run`, tracked); added `write_int` case. Current m2 **6/6** (HARD green, exits 0), m3 **4/6** (`write_str`/`write_int`/`arith`/`string_op`; `if_expr`+`every` fork-blocked) — session 8. |
 | GZ-1 `write("hello")` | **m2 DONE; m3 DONE (R-HW-2, s5)** | mode-2 stackless & green. mode-3 NOW genuinely stackless: the write box reads the literal `lea rdi,[rip+27]` from sealed RO bytes in its own blob + `call rt_write_str_nl` (no push). The earlier `rt_push_str` came from the standalone `BB_LIT_S` box (walked via `LIT_S.γ→CALL`) + the builtin-dispatch arg-walk, BOTH fixed in R-HW-2. `diff m2 m3` empty, dump-sm 0, no-stack 127. |
 | GZ-2 `write(42)` | DONE (RO-IP-relative) | Literal int is a READ-ONLY constant: `BB_LIT_I` is pass-through; the write box emits the int64 as sealed RO data inside its own blob and reads it `mov rdi,[rip+22]` (emit-time disp, no patch/abs/stack), then `rt_write_int_nl`. m2==m3 `42`, count=0. Conforms to BOTH new FACT rules; no register frame needed for a constant. one-reg-frame abs-slot 22->20. |
 | READ-ONLY LOCALS IP-RELATIVE (new FACT RULE 2026-05-30) | in force | RULES.md: per-box RO constants live in the SEALED segment next to their blob, read `[rip+disp]` (disp = emit-time const when data+access share the blob); only RW state uses the one-register frame. Applied to GZ-2. Shares the no-stack + one-reg-frame ratchets (no abs `&pBB->slot`). |
