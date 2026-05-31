@@ -1,5 +1,44 @@
 # GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
+> **⭐⭐ MODES 3 & 4: HOW THEY WERE MISSED — AND WHERE THE WORK ACTUALLY LIVES (Lon directive, 2026-05-31 Opus 4.8).**
+> **The whole job is LOWER + EMITTER. Get those two right and modes 3 and 4 run like magic — automatically, from the
+> SAME IR graph and the SAME per-box templates. Nothing else is needed.**
+>
+> **THE MISS (be honest about it so it never recurs):** prior sessions treated modes 3 and 4 as *driver* problems.
+> The mode-3 work went into `scrip.c` — the `sno_ring_to_tree` adapter (un-flattening the AG-ring graph into a tree
+> the emitter wants) + `mode_run` wiring. Mode 4 was left as a flat `[SMX]` abort and *reported* as "excised, not
+> rebuilt" for days. Both framings were wrong:
+>   1. **Mode 4 was NOT missing a backend.** The EMITTER side was fully intact the whole time — `codegen_flat_build`
+>      (the GAS/TEXT flat emitter) + all 15 XA wrap templates (`xa_file_header`/`xa_file_footer`/`xa_flat_*`). ONLY the
+>      one-line driver *call* into them had been severed. Verified empirically this session: re-stitching the driver +
+>      adding the box's TEXT arm took mode 4 from 0/6 → 1/6 with the `output` shape running end-to-end (real
+>      `scrip --compile` → `as` → `gcc -no-pie -lscrip_rt --allow-shlib-undefined` → prints `hello`).
+>   2. **The real engine is two arms of ONE template per box.** A SNOBOL4 statement BB has ONE IR shape (LOWER) and ONE
+>      template with TWO arms (EMITTER): the **BINARY arm = mode 3** (raw x86 into the mmap'd RX pool, `bb_build_flat`),
+>      the **TEXT arm = mode 4** (GAS → `as`/`gcc`, `codegen_flat_build`). Mode 2 is the C oracle (`bb_exec.c`).
+>      `bb_sno_assign` is the proof: its BINARY arm gave mode 3 (verified: 86 bytes, disassembled, stackless, `r12=ζ`),
+>      and adding its TEXT arm this session gave mode 4 — SAME box, SAME graph, both native modes. **That is the "magic":
+>      you write the box once in LOWER + EMITTER and all three modes light up. You do NOT write per-mode driver code.**
+>   3. **`sno_ring_to_tree` (in `scrip.c`) is a STOPGAP, not the design.** It exists only because today's SNOBOL4 LOWER
+>      emits a *postfix AG-ring* statement graph (the mode-2 oracle's shape) instead of the four-port tree the EMITTER
+>      walks. The correct fix is in **LOWER**: lower each SNOBOL4 statement DIRECTLY into the `test_sno_1.c` four-port
+>      statement-BB topology (subject-BB → pattern-BBs → replacement-BB → substitution-BB), so the emitter consumes it
+>      with no driver adapter. When LOWER does that, `sno_ring_to_tree` is deleted and the driver shrinks to "find main
+>      graph → hand it to the emitter." Until then it is the minimal bridge that lets the EMITTER run.
+>
+> **EMITTER fix landed this session (the segfault that proves the point):** the shared flat TEXT prologue/epilogue
+> (`xa_flat.cpp`) ignored `g_frame_active` — it always emitted the Σ/`[r10]`-deref Icon-pattern-return epilogue. `r10`
+> is SysV caller-saved, so the `@PLT` store clobbered it → mode-4 segfault. The BINARY arm already honored
+> `g_frame_active` (clean `pop r12; ret`); the TEXT arm now does too (`push r12;mov r12,rdi` prologue + no-deref
+> `pop r12;ret` epilogue). Byte-neutral to Icon (Icon m2 6/6 HARD held; Icon m3 5/6 held; Icon m4 was/stays 0/6).
+>
+> **SO, NEXT, AND FOR EVERY STATEMENT AFTER:** the recipe is fixed. (a) LOWER the statement into the four-port BB graph
+> (Icon `lower_expr_threaded` is the model; `test_sno_1.c` is the SNOBOL4 statement topology). (b) EMITTER: give each new
+> box a BINARY arm (mode 3) and a TEXT arm (mode 4), stackless (`[r12+off]` ζ-frame + RO `[rip+disp]`), no value stack.
+> (c) Both native modes pass from the one graph + one template. Widen `sno_ring_to_tree` only as the temporary bridge,
+> and retire it once LOWER emits the tree shape directly (LM-6 DISPATCH-UNIFY territory).
+
+
 > **⚠️ SHARED-LOWERER LOCKSTEP NOTE (Sonnet, 2026-05-31, Prolog PLG-4 commit).** Two shared three-language
 > helpers in `lower.c` changed SEMANTICS as STRICT GENERALIZATIONS during Prolog backtracking work:
 > `wire_seq`'s fail-chain now walks back past bounded elements to the nearest resumable predecessor (was a
@@ -417,7 +456,33 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = 79e62f7  SBL-M3-STACKLESS-1 — SNOBOL4 mode-3 native via bb_build_flat: stackless literal-assign
+HEAD SCRIP       = 80e6c22  SBL-M4-STACKLESS-1 — SNOBOL4 MODE 4 LANDS (literal assign),
+                     and the modes-3/4 MISS diagnosed (see top-of-file banner). Mode 4 went 0/6 → 1/6: `OUTPUT='hello'`
+                     now emits a complete .intel_syntax program (real `scrip --compile --target=x86`), assembles,
+                     links (`gcc -no-pie -lscrip_rt --allow-shlib-undefined`), and runs → `hello`. SAME box, SAME IR
+                     graph as mode 3 — only the second template arm (TEXT) + the severed driver stitch were missing.
+                     **What landed (LOWER+EMITTER + a minimal driver stitch):**
+                       (1) EMITTER `bb_sno_assign.cpp` — TEXT (GAS) arm written (was `bomb_text`): self-contained
+                           `.section .rodata` name/str + `lea [rip+.L*]` + `call rt_sno_assign_lit_s@PLT`, four-port,
+                           NO value stack. BINARY arm (mode 3) untouched.
+                       (2) EMITTER `xa_flat.cpp` — the shared flat TEXT prologue+epilogue now honor `g_frame_active`
+                           (was BINARY-only): prologue `push r12;mov r12,rdi`, epilogue clean `mov eax,1;pop r12;ret`
+                           with NO Σ/[r10] deref. ROOT CAUSE of the first mode-4 segfault: `r10` is SysV caller-saved,
+                           the `@PLT` store clobbered it, and the vestigial Icon-pattern epilogue deref'd `[r10]`.
+                           Byte-neutral to Icon (the deref path is the non-frame branch, unchanged).
+                       (3) DRIVER `scrip.c` `mode_compile_x86` — replaced the `[SMX]` abort with the SNOBOL4 emit stitch:
+                           sm_preamble → main graph → `sno_ring_to_tree` (the SAME stopgap adapter mode 3 uses) →
+                           emit_mode_set(EMIT_TEXT) → xa_file_header → `xor esi,esi; call stmt0_α` glue → main-close →
+                           `codegen_flat_build(root,"stmt0")` (g_frame_active=1) → `.note.GNU-stack` LAST (it had been
+                           stranding the body in a discarded section — 2nd bug fixed). Icon/Prolog mode-4 keep the abort.
+                       (4) `scripts/test_smoke_snobol4.sh` — mode-4 link line gained `-Wl,--allow-shlib-undefined`
+                           (libscrip_rt.so carries 4 unreachable SMX-residue undefs: lower/binop_apply/bb_label_landing/
+                           lower_proc_gen — never hit on the simple path; honest flag, not a code change).
+                     **NEXT is pure LOWER+EMITTER (the recipe is now fixed — see banner):** lower each SNOBOL4 statement
+                     into the `test_sno_1.c` four-port topology (subject-BB → pattern-BBs → replacement-BB → splice-BB),
+                     give each new box BINARY+TEXT arms, and BOTH native modes pass from the one graph. Then retire
+                     `sno_ring_to_tree`. First target: the `pattern` smoke `S 'b' = 'X'` → `aXc`.
+HEAD SCRIP (base for the above) = 79e62f7  SBL-M3-STACKLESS-1 — SNOBOL4 mode-3 native via bb_build_flat: stackless literal-assign
                      box (bb_sno_assign, no value stack — Lon Forbidden). `OUTPUT = 'hello'` runs via --run; m3 0→1.
                      Other shapes soft-fail honest (no abort). scrip.c sno_ring_to_tree adapter + mode_run wiring.
                      STATEMENT-BB model (Lon/test_sno_*.c) recorded in Session log for IR_SCAN/IR_GOTO next. Base 7d3a15b.
@@ -453,11 +518,12 @@ HEAD corpus        = 447c05b    SBL-911-PORTABLE
 make scrip         = rc=0   (trunk REGROWN — `lower` program-walker landed; the 3 ex-undefined symbols resolved.
                      SNOBOL4/Icon/Prolog all lower + execute over the four-port IR via `bb_exec_once(main)`.)
 make libscrip_rt   = rc=0   (runtime .so does NOT depend on the driver `lower`; still builds clean post-cut)
-LIVE GATE          = scripts/prove_lower2.sh 38/38 PASS (topology) + scripts/test_smoke_snobol4.sh m2 7/7 (HARD) +
-                     m3 1/6 (OUTPUT='hello' native+stackless via bb_build_flat; rest soft-fail honest, no abort) +
-                     m4 0/6 (--compile excised) + scripts/test_smoke_icon.sh m2 6/6 (HARD, byte-neutral).
+LIVE GATE          = scripts/prove_lower2.sh 49/49 PASS (topology) + scripts/test_smoke_snobol4.sh m2 7/7 (HARD) +
+                     m3 1/6 (OUTPUT='hello' native+stackless via bb_build_flat) + m4 1/6 (OUTPUT='hello' native via
+                     codegen_flat_build → as → gcc -no-pie -lscrip_rt --allow-shlib-undefined → hello; rest soft-fail
+                     honest, no abort) + scripts/test_smoke_icon.sh m2 6/6 (HARD, byte-neutral) m3 5/6 m4 0/6.
                      Cross-checks: sm_dead 1(≤1), concurrency OK, purity FACT 6 (byte-neutral), Prolog m2 3/5.
-                     MODE3_MIN can now be raised to 1.
+                     MODE3_MIN and MODE4_MIN can now both be raised to 1 (SNOBOL4).
 sm_dead ratchet    = 1/1 (MAX 1) OK
 audit_m3_native    = GATE OK
 FACT RULE          = 6  (pre-existing baseline — predates a0bb9be4; PND-1 moved it 0; the stale "FACT 0" was wrong)
@@ -577,6 +643,26 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-31 (Opus 4.8) — SBL-M4-STACKLESS-1: SNOBOL4 MODE 4 LANDS (literal-assign) + modes-3/4 MISS diagnosed ✅**
+  (SCRIP `80e6c22`, base `aa307b7`, rebased over `17096f3` RK-LOWER; .github this commit). Mode 4 **0/6 → 1/6**: `OUTPUT='hello'` emits a complete
+  `.intel_syntax` program via real `scrip --compile --target=x86`, assembles (`as`), links (`gcc -no-pie -lscrip_rt
+  --allow-shlib-undefined`), runs → `hello`. SAME box + SAME IR graph as mode 3 — proof that **modes 3 and 4 are two
+  template arms (BINARY=m3, TEXT=m4) of ONE box, driven from ONE LOWER graph.** **The miss (now a top-of-file banner):**
+  prior sessions treated m3/m4 as *driver* problems (the `sno_ring_to_tree` adapter; the `[SMX]` "not rebuilt" abort).
+  In fact the mode-4 EMITTER was fully intact (`codegen_flat_build` + 15 XA templates) — only the driver *call* was
+  severed. **Landed:** (1) EMITTER `bb_sno_assign.cpp` TEXT/GAS arm (rodata + `lea[rip+.L]` + `call …@PLT`, four-port,
+  no value stack); (2) EMITTER `xa_flat.cpp` shared TEXT prologue+epilogue now honor `g_frame_active` (push/pop r12,
+  no Σ/[r10] deref) — ROOT CAUSE of the 1st segfault was the `@PLT` store clobbering caller-saved r10 then the
+  vestigial Icon epilogue deref'ing [r10]; byte-neutral to Icon; (3) DRIVER `scrip.c` mode_compile_x86 re-stitched
+  (header → call-glue → main-close → codegen_flat_build → `.note.GNU-stack` LAST — the note had stranded the body in a
+  discarded section, 2nd bug); (4) smoke link line += `--allow-shlib-undefined` (4 unreachable SMX-residue undefs in
+  the .so). **Gates GREEN+INVARIANT:** scrip rc=0, libscrip_rt rc=0, m2 **7/7** HARD, m3 1/6, m4 **0→1**, prove_lower2
+  **49/49**, sm_dead 1(≤1), concurrency OK, purity FACT 6 (baseline; new TEXT-arm byte-producers sit in the
+  MEDIUM_BINARY-exempt path), Icon m2 **6/6** HARD + m3 5/6 (byte-neutral). **MODE3_MIN/MODE4_MIN can both go to 1.**
+  **NEXT = pure LOWER+EMITTER:** lower `S 'b'='X'` (the `pattern` smoke) into the `test_sno_1.c` four-port statement-BB
+  chain (subject-BB → LIT-match-BB → splice-BB), BINARY+TEXT arms each; both native modes pass from the one graph;
+  then retire `sno_ring_to_tree`.
 
 - **2026-05-31 (Opus 4.8) — SBL-M3-STACKLESS-1: SNOBOL4 mode-3 LANDS (literal-assign), STACKLESS ✅** (SCRIP `79e62f7`,
   base `7d3a15b`; .github this commit). First SNOBOL4 native mode-3 since SMX-4. **NO value stack** (Lon directive:
