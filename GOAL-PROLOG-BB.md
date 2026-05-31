@@ -152,6 +152,52 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 > same lowering-recognition gap; recommended NEXT. DCG needs `phrase/2,3` + `-->` translation. Handoff
 > `HANDOFF-2026-05-31-SONNET46-PROLOG-BB-PLG-5-CONSTRUCTS.md`.
 
+> **★ LIVE STATE UPDATE — PLG retract/abolish/DCG/phrase + multi-goal ITE + nested-GCONJ fix + PLG-9 prereq (Sonnet 4.5, 2026-05-31, SCRIP `5c97162`).**
+> The PLG-5-flagged NEXT (retract/abolish/DCG) landed plus two executor/lowering bugs they exposed. **GATE-3 rung
+> suite mode-2 97 → 109 / 111; mode-3 97 → 109 (byte-identical parity).** GATE-1 smoke m2 5/5; prove_lower2 49/49;
+> FACT 0; siblings non-regressive (Icon m2 6/6, SNOBOL4 m2 7/7). All edits Prolog-only (lower_goal = Prolog GOAL
+> role; IR_GCONJ Prolog-only — Icon IR_CONJ / SNOBOL IR_PAT_CAT untouched; prolog_lower.c = Prolog frontend).
+> 1. **retract/1 + retractall/1 + abolish/1** — added to the `det_builtins` table in `lower_goal` so they route
+>    through `g_builtin` (sets `bb->sval=fn`, arg0→`bb->α`) instead of falling to a user-pred call. The exec arms
+>    already existed (`bb_exec.c` IR_BUILTIN retract/retractall :4391, abolish :4446: walk callee IR_CHOICE
+>    `bodies[]`, match head from `bb->α`, splice). Pure lowering-recognition gap. retract 4/4, abolish 4/5.
+> 2. **DCG slot bug (segfault)** — `lower_term` (the Term-based `lower_clause` path, serving `-->` clauses AND
+>    `pl_assert_term`) encoded each var's slot in the STRING `v.sval` (`_V<slot>`), but the live `g_term` reads the
+>    dense slot from `v.ival` (union, can't coexist) → garbage slots → SEGFAULT. Added `pl_clause_assign_dense_slots`
+>    (`prolog_lower.c`), mirroring `lower_clause_from_tree`'s positional pre-seed + `tr_assign_slots`. Fixes DCG AND
+>    runtime-assert slot encoding.
+> 3. **phrase/2,3** — added `g_phrase` (SWI `boot/dcg.pl`: phrase(RS,In[,Rest]) → call RS extended with In + Rest,
+>    Rest = nil atom for phrase/2; `-->` already extends grammar heads with two diff-list args), wired into `lower_goal`.
+> 4. **multi-goal if-then-else branch (kind=116 abort)** — `pl_maybe_ifthenelse` wraps a >1-goal then/else branch in
+>    a `TT_PROGRAM`, but `lower_goal` had no `TT_PROGRAM` case. Added it (n==0 SUCCEED, n==1 recurse, else IR_GCONJ
+>    via `wire_seq`). Pre-existing gap, exposed by phrase.
+> 5. **nested-IR_GCONJ continuation bug** — the `IR_GCONJ` exec arm returned `bb->α` (NULL → executor stops), correct
+>    for a TOP-LEVEL body (completion = success) but a NESTED GCONJ (the ITE then-branch) terminated the whole run,
+>    skipping the continuation. The wrapper is only ever reached as a success funnel (construct α is `entry[0]`, never
+>    the node), so it now returns `bb->γ`. IR_ITE keeps `return bb->α` (it sets its own α=cond, entered as α).
+> **MODE-4 (the user's ask) — the path is now CONCRETE, not a reconstruction.** While this session ran, concurrent
+> sessions landed **Icon mode-4** (`582c3bc`, 0→5/6) and **SNOBOL4 mode-4** (`80e6c22`, literal assign). The global
+> `[SMX]` gate is GONE; `scrip.c:421` now per-language-dispatches `mode_compile_x86`: Icon does
+> `g_frame_active=1; codegen_flat_build(icn_ring_to_tree(bbg), stdout, "main")`; SNOBOL4 does `xa_file_header();
+> codegen_flat_build(sno_ring_to_tree(...), out, "stmt0")`. **Prolog has an explicit placeholder at `scrip.c:532`**
+> (`"[SMX] --compile --target=x86: Prolog mode-4 pending (BB graph not yet wired)"`). The one piece that blocked
+> Prolog from following the Icon/SNOBOL pattern — the emitter's `resolve_seq_goals_em` (emit_bb.c:308) reading a
+> `bb_conj_state_t` goals sidecar off `IR_GCONJ->ival` that the lowerer NEVER populated — **is now FIXED**: this
+> session populates it in `wire_seq` + `lower2_clause_body_entry` (additive; interpreter walks GCONJ by port wiring
+> and ignores ival; verified modes 2/3 unchanged at 109). So `codegen_flat_build` can now walk a Prolog GCONJ.
+> **PLG-9a NEXT (concrete):** add the Prolog arm at `scrip.c:532` mirroring Icon — needs a `pl_ring_to_tree` (or a
+> handle to the top GCONJ wrapper, since `pl_main->entry` is `entry[0]`, not the wrapper) → `codegen_flat_build(root,
+> stdout, "main")` between `xa_file_header()`/`xa_file_footer()`, then assemble/link/run-debug. Climb PLG-9a hello →
+> 9b unify → 9c arith → 9d facts/choice (IR_GOAL+IR_CHOICE+registry) → 9e recursion. write/nl TEXT arms already exist
+> (`bb_builtin.cpp`: `s_2asm("call","rt_pl_write_atom@PLT")` + `strtab_label` rodata). Note the old entry
+> `rt_pl_once`/`rt_register_predicates_pl` is RETIRED (`xa_file_header.cpp`) — use the standalone `main:` the file
+> header/footer now emit.
+> **REMAINING 2 fails:** `rung15_abolish_then_reassert` needs **PL-RT-ASSERTZ** (runtime `assertz` materialising a
+> fresh `IR_graph_t` clause and appending to the live predicate's IR_CHOICE `bodies[]` — inverse of abolish; no
+> recognition/exec arm on the IR path yet, only the AST-level `resolve_assert_clause` reachable from call/1/findall).
+> `rung30_dcg_pushback_rest` gives `fail` (was `123`) — `0'`-char-code literal + `atom_codes` parse, needs diagnosis.
+> Handoff `HANDOFF-2026-05-31-SONNET45-PROLOG-BB-PLG-RETRACT-DCG-MODE4-PREREQ.md`.
+
 
 **Directive (Lon, 2026-05-30):** The engine grew a VALUE STACK it must not have. `--run` and
 `--compile` (and `--interp` of a BB) need NO value stack: the BB node IS the value's home. The
