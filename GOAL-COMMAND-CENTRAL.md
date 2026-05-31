@@ -15,6 +15,25 @@
 > **WATERMARK (2026-05-31, Sonnet):** DW-1 DONE + pushed (`8a378d6`). DW-2..DW-7 BLOCKED — see
 > DW-BLOCKER below: SNOBOL4 has no compiled path on this branch (only Icon exercises DESCR width).
 > Next session: Lon picks path (A) Icon width-parity matrix now, or (B) hold for SNOBOL4-BB.
+>
+> **UPDATE (2026-05-31, Opus — MERGE-FORWARD, Lon directive "merge all of main into the special
+> branch and fixup the extra DESCR as you go").** Merged `origin/main` (HEAD `81d721b`, GZ-6) into
+> `descr8-macro-funnel` in the standalone clone `/home/claude/descr8`. Auto-merged clean (ort, no
+> textual conflicts). DESCR fixups applied to main's new code: 3 raw `.slen`/`.s`/struct-literal
+> accesses in main's `IR_SCAN` arm (`bb_exec.c`) funneled through `GET_S`/`GET_SLEN`/`SET_V/SLEN/S`;
+> funnel-gate allowlist line-drift fixed (`g_kw_cset_names` fixed-line entries → drift-proof SYMBOLIC).
+> Branch HEAD now `0cde9f2` (2 local commits over the merge: `b6c3c4c` merge + `0cde9f2` fixups);
+> **16 commits ahead of `origin/descr8-macro-funnel`, NOT pushed (awaiting Lon).** `main` UNTOUCHED.
+> **Result — WIDTH-PARITY GREEN (8-byte == 16-byte failure sets, every figure identical at both widths):**
+> SNOBOL4 smoke m2 7/7 (HARD); m3 0/6 + m4 0/6 (AOT `--run` + `--compile` x86 not yet rebuilt — the
+> open SNOBOL4-BB rung, NOT a merge defect). Icon smoke m2 6/6, m3 5/6 (`if_expr`) — **Icon is the
+> live DESCR-width consumer; its m3 5/6 is the end-to-end 8/16 toggle proof.** Prolog honest m3
+> 102/0/0; smoke 3/2. Broad corpus (m2) 168/112 (was 25/255 pre-merge — the merge carried main's
+> LOWER2-EXEC + SBL-EXEC-2/3 recovery onto the branch). Gates: funnel-gate GREEN (30-entry allowlist),
+> prove_lower2 37/37, concurrency invariants OK, build rc=0. So the merge effectively delivered DW-2
+> (16-byte baseline), DW-3 (8-byte run), and DW-4 (parity diff = identical) for the surface that runs;
+> DW-5 (SNOBOL4 m3/m4 width legs) still awaits SNOBOL4 crossing onto compiled BBs. Path (A) is
+> effectively proven on Icon. **Build into the clone with `make -j4 scrip` (NOT build_scrip.sh, RN-1 bug).**
 
 **The goal:** SCRIP must work in BOTH **64-bit mode (16-byte `DESCR_t`)** and **32-bit mode
 (8-byte packed `DESCR_t`)**. The full SNOBOL4 test surface must be GREEN — *and identical* —
