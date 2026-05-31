@@ -182,12 +182,12 @@ but the *mechanism* (SM opcodes, `SM_BB_INVOKE`, `BB.h`) is gone. Each rung: low
 arm in `lower.c`, prove TOPOLOGY via `scripts/prove_lower2.sh` (append Raku cases in the RAKU section), then
 prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arms.
 
-- [ ] **RK-LOWER-0 — spin-up: first Raku arm + `say("hello")`.** Add `IR_LANG_RKU` to the lang enum if
+- [x] **RK-LOWER-0 — spin-up: first Raku arm + `say("hello")`.** ✅ DONE (2026-05-31, Opus). Add `IR_LANG_RKU` to the lang enum if
   absent; route the Raku frontend through `lower2_value_entry`. Lower `say(STR)` / `print(STR)` via the
   SHARED `wire_det_builtin1` (the same role-agnostic builtin-call wirer Icon `write` and Prolog `write`
   already use — another sharing seam). Prove: `prove_lower2.sh` gains a RAKU `say("hello")` case (node count
   + gamma/omega); mode-2 `say("hello world")` → one record. Gate suite green (below). **This is the entry rung.**
-- [ ] **RK-LOWER-1 — lazy range → `IR_TO`/`IR_TO_BY`.** `for $a..$b { }` and `$a,$b … $c`. REUSE Icon's
+- [x] **RK-LOWER-1 — lazy range → `IR_TO`/`IR_TO_BY`.** ✅ DONE (2026-05-31, Opus). `for $a..$b { }` and `$a,$b … $c`. REUSE Icon's
   `IR_TO`/`IR_TO_BY` case; add the Raku arm inside it (range sigil/step semantics per docs.raku.org §Range).
   Prove topology + mode-2 `for 1..3 { say $_ }` → 1,2,3.
 - [ ] **RK-LOWER-2 — KEYSTONE: lazy Seq `gather`/`take` + `…` → Icon generator PUMP.** `gather { take … }`
@@ -294,16 +294,41 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**Re-prioritized as the fourth musketeer (2026-05-31).** SCRIP main HEAD anchor at revamp: `81d721b`
-(GZ-6). This file rewritten to match SNOBOL4/Icon/Prolog: three FACT RULES embedded byte-identical
-(md5 `5097ed94` / `307534d6` / `8255d653` — Raku is a fourth carrier), MANDATORY-READ pipeline + ALL-THREE-MODES
-testing directive added, ladder re-homed from the deleted SM engine onto the unified `lower.c` four-port IR +
-`bb_exec_once` run-path, RK-NFA isolation + tier-seam decisions kept (renamed `BB_NFA_*`→`IR_NFA_*`). No engine
-code touched — documentation/goal revamp only.
+**RK-LOWER-0 + RK-LOWER-1 LANDED (2026-05-31, Opus).** Raku crosses onto Byrd Boxes for mode-2. SCRIP HEAD
+at this handoff: `16e28db` + this session's commit (3 files in `src/lower/` only: `lower.c`, `lower_program.c`,
+`prove_lower2.c`; +165/−2; ZERO emitter files). Build clean (`scrip` + `libscrip_rt` rc=0).
 
-**FIRST ACTION when spun up:** RK-LOWER-0 (`say("hello")` via `wire_det_builtin1`, proven topology + mode-2),
-AND perform the lockstep "three → four" roster/body expansion across all four GOAL files in ONE commit
-(the FACT-RULE clause-5 obligation deferred from this revamp).
+- **RK-LOWER-0 (`say`/`print`):** `TT_SAY`/`TT_PRINT` arm in `lower.c` routes through the SHARED `wire_det_builtin1`
+  → `IR_CALL` (say→`"write"` = .gist+newline, print→`"writes"` = .Str+no-newline per docs.raku.org/routine/{say,print};
+  for str/int `.gist`≡`.Str` so only the trailing newline differs — the Icon write/writes split, ZERO runtime change).
+  `lower_raku_body` + a `mask & (1u<<LANG_RAKU)` block in `lower()` (lower_program.c) lower each `TT_SUB_DECL` body and
+  set `lang=IR_LANG_RKU`; no driver change (Raku rides the generic non-Icon/non-Prolog `bb_exec_once(main)` branch).
+  The eager core (arith/var/while/concat) came FOR FREE through the already-shared lang-agnostic value arms
+  (`v_assign`/`v_binop`/`v_literal`/`v_while`) — `say`/`print` was the only Raku-specific arm. **Raku smoke 5/5.**
+- **RK-LOWER-1 (lazy range → loop):** dedicated Raku-gated `v_raku_for` helper in `lower.c` (reached only from the
+  `cx.lang==IR_LANG_RKU` arms of the shared `TT_EVERY` and the new `TT_FOR_RANGE` case). Reuses Icon's resumable
+  `IR_TO`; wires the four ports directly — `gen.γ→bind(IR_ASSIGN)`, `bind.γ→body`, `body.γ/ω→gen.β` (re-pump:
+  `IR_TO` is its own resume), `gen.ω→γ_in` (range drained ⇒ `for` STATEMENT completes & falls through, unlike Icon
+  `every` which fails on drain). NOT via the shared bounded `v_assign` (whose β=ω_in stops re-pump after one element —
+  the reason `every i := 1 to 3 do write(i)` yields only 1). Handles BOTH `for 1..3 { say $_ }` (bare, $_ default) AND
+  `for 1..3 -> $i {…}`; `..^` exclusive via synthesized lo..(hi-1); empty range falls through. docs.raku.org/type/Range:
+  integer range lo..hi inclusive via .succ, small→large, empty if lo>hi. Mode-2: `for 1..3 { say $_ }` → 1,2,3.
+
+**Gates at handoff:** prove_lower2 41 PASS / 0 FAIL (RAKU section: say + print + for-loop, all PASS). Mode-2 HARD all
+green: Raku 5/5, Icon 6/6 (UNCHANGED — `TT_EVERY` edit is Raku-gated, `v_every` byte-unchanged for Icon),
+SNOBOL4 7/7 (UNCHANGED — NFA isolation intact). `audit_concurrency_invariants.sh` OK (FACT RULES byte-identical x3).
+`util_template_purity_audit.sh` at pre-existing baseline (6 rel32-patch side-effects in untouched `bb_*.cpp`; zero
+emitter files touched this session). Modes 3/4 (`--run`/`--compile`) = by-design SMX abort (RK-EMIT rung not built;
+floors MODE3_MIN/MODE4_MIN=0) — same shape as SNOBOL4.
+
+**NEXT:** RK-LOWER-2 (KEYSTONE) — `gather`/`take` + `…` → Icon SUSPEND/PUMP generator (yield-one-at-β on
+`bb_exec_resume`; APPENDIX-A `RK-M2-GATHER` counter-as-resume-cursor is the semantic spec). Larger than 0/1; start fresh.
+
+**STILL DEFERRED (NOT done this session):** the lockstep "three → four" roster/body expansion across all four GOAL
+files (the FACT-RULE clause-5 obligation). It was NOT performed — changing "three"→"four" in all four FACT-RULE
+bodies byte-identically (plus the `audit_concurrency_invariants.sh` "x3" check) is a high-blast-radius edit best done
+as its own focused commit, not rushed at session end. The FACT RULES remain byte-identical x3 with Raku as the fourth
+carrier (md5 `5097ed94` / `307534d6` / `8255d653` unchanged); the audit still passes as written.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
 
