@@ -23,7 +23,24 @@
 
 ---
 
-## Session State (2026-05-25 — CAPS-CONCAT CC-1/CC-2 ✅; X86 arms folding into IF()-concat)
+## Session State (2026-05-31 — Opus 4.8 — GROUND-ZERO LOWER REWRITE foundation laid + proven)
+
+**Post-PIVOT direction (Lon):** rip-and-replace `lower.c` with ONE unified AST→IR lowerer on the Proebsting
+four-port attribute-grammar model (γ/ω inherited in; α/β synthesized out — the canonical `lower(bbg,e,γ_in,
+ω_in,&α_out,&β_out)` signature, == jcon `ir_a_X`). Master dispatch is ROLE × kind (VALUE/PATTERN/GOAL → one
+`switch(tree_e)` per role). Eventual tree-pattern dispatch (`tm`/`tm_g`, `tree ? PATTERN`) as STEP 2, and an
+Icon-bootstrap lowerer as the endgame. This is consistent with Invariant 16 (template-only emission) — the
+rewrite is upstream of emission; the BB/SM/XA template ladder is unchanged.
+
+**Landed (SCRIP, NEW, standalone — NOT in the Makefile/driver, so nothing regressed):** `src/lower/lower2.c`
+(358 ln, 0 errors) — 5 foundation boxes (literal/unop/binop/to/if) wired + PROVEN faithful to Proebsting
+Figures 1 & 2 (incl. catching+fixing a `v_to` `to.fail→from.resume` bug, re-proven on `(1 to 2) to (3 to 4)`);
+118/156 `TT_` kinds armed, rest = loud stubs annotated with their `ir_a_*` source. Plus `prove_lower2.c`
+(topology proof harness) and `tmatch_proto.c` (tree-pattern match+capture prototype). Old `lower.c` UNTOUCHED.
+Full detail + next-steps: `GOAL-LOWER-REDESIGN.md` (top) and `HANDOFF-2026-05-31-OPUS48-LOWER-REWRITE-FOUNDATION.md`.
+
+---
+
 
 **SCRIP HEAD: `c4b8c880`.** GATE-PK **504/0/625** NEW=0 GONE=0, AUDIT GREEN, prolog 124/0/0 — byte-identical after CAPS-CONCAT CC-1..CC-4 + bytes() arg-flip + CC-5 partial (5 SM fns).
 
