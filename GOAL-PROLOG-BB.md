@@ -239,57 +239,67 @@ surface); the `STACKLESS_ABORT` macro's `g_vstack` mention.
   **`g_vstack` line is now 0** and STAYS 0 (the VSX-8 completion test for that token is met early). VSX-2
   onward (scaffolding `rt_*`/wrappers/ops layer) proceed unchanged — they no longer have an array to back.
 
-- [ ] **VSX-2 — delete the DEAD set (0 external refs).** Delete these `rt_*` (and their `rt.h` decls), each
-  confirmed 0 refs outside rt.c in VSX-0: `rt_coerce_num`, `rt_concat`, `rt_decr`, `rt_exec_stmt_pat`,
-  `rt_exp`, `rt_frame_enter`, `rt_halt_tos`, `rt_incr`, `rt_load_frame`, `rt_match_blob`, `rt_neg`,
-  `rt_nv_set`, `rt_push_expr`, `rt_push_expression_descr`, `rt_do_return`, `rt_do_nreturn`, `rt_store_frame`,
-  `rt_set_last_ok`, `rt_set_stno`, `rt_push_null_noflip`, `rt_push_real_bits`. Re-grep each immediately
-  before deleting (a peer commit may have added a ref). Gate: build green; all smokes at/above floor; FACT 0.
+> **★ VSX-2 … VSX-7 COLLAPSED BY THE PIVOT (Opus 4.8, 2026-05-31).** Lon directed a faster route than the
+> rung-by-rung order below: remove ALL value-stack DATA and FUNCTIONS now, abort at every caller, leave
+> FRAME stacks alone. Done across three commits (`80431d0` array, `caf8f6d` data, `d2a6ca4` functions). The
+> rungs VSX-2..VSX-7 as originally written (delete-by-category in dependency order) are therefore **satisfied
+> as a single sweep** — their fine-grained ordering no longer applies. Net effect now LIVE at SCRIP HEAD
+> `d2a6ca4`:
+> - **All value-stack DATA gone:** `g_vstack[]`/`VSTACK_CAP`, `g_vtop`, `g_vframe_base`, `g_last_ok`,
+>   `g_default_ops`, `g_ops` — zero refs in `rt.c`.
+> - **All value-stack FUNCTIONS gone:** the ops `_default_push/_pop/_peek/_depth/_set_depth/_get_last_ok/
+>   _set_last_ok`, the wrappers `vstack_push/_pop/_peek/_pop_str/_pop_int64`, and the `LAST_OK_GET/SET`
+>   macros — deleted outright.
+> - **The 63 `rt_*` functions that pushed/popped/peeked** (`rt_push_*`, `rt_pop_*`, `rt_arith`, `rt_acomp`/
+>   `rt_lcomp`, `rt_concat`, `rt_nv_get/set`, `rt_call`, `rt_do_return/nreturn`, the whole `rt_pat_*` family,
+>   `rt_match_*`, `rt_limit_*`, `rt_incr/decr`, `rt_exp/neg`, `rt_coerce_num`, `rt_frame_enter`/`rt_load_frame`/
+>   `rt_store_frame`, …) now have one-line `STACKLESS_ABORT` bodies (signatures kept so external callers link).
+>   Safe because every one ALREADY aborted at runtime via `_default_*`; the BB-world live paths never enter
+>   them (stash-verified byte-identical, abort→abort).
+> - **`eval_code.c` DT_E expr-thunk branch** (read its result off the value stack) → aborts.
+> - **FRAME stacks KEPT** (Lon: "FRAME stacks are okay"): `g_frame_buf` (ζ-frame), `g_rt_frames`
+>   (`rt_frame_t` activation table), `g_resolve_mark_stack` (Prolog trail-mark ledger). None is a value stack.
+> The `test_gate_no_vstack.sh` total fell **166 → 5**. The remaining **5** are NOT a value stack and are the
+> entire content of VSX-8 below.
 
-- [ ] **VSX-3 — delete the SNOBOL4 pattern-primitive runtime `rt_pat_*`.** The whole `rt_pat_*` family
-  (`lit/ref/span/any/notany/break/breakx/len/pos/rpos/tab/rtab/arb/arbno/bal/fence/fence1/eps/fail/succeed/
-  abort/cat/alt/deref/rem/refname/capture*/usercall*`). VERIFY against `GOAL-SNOBOL4-BB.md` that SNOBOL4
-  pattern matching is fully BB-template-driven (the `bb_pat_*.cpp` boxes) and these interpreter-era runtime
-  entries are unreached. Any still-referenced one moves to VSX-4. Gate: SNOBOL4 m2 HARD 7/7 (+ m3/m4 floors)
-  unchanged; build green; FACT 0.
+- [x] **VSX-2 — DONE via pivot (`d2a6ca4`).** The DEAD-set `rt_*` are now `STACKLESS_ABORT` bodies (kept for
+  ABI; their value-stack logic removed). Not literally deleted — abort-bodied — because some have external
+  callers (`eval_code.c`, the binop-gen emitter) that the directive said to leave alone + abort.
 
-- [ ] **VSX-4 — SNOBOL4 live vstack `rt_*` (arith/compare/concat/name-table).** `rt_acomp`, `rt_lcomp`,
-  `rt_arith`, `rt_nv_get`, `rt_match_variant`, `rt_concat` (if VSX-2 left refs), `rt_call`. Trace each
-  caller; for any that is a live SNOBOL4/Icon box, confirm (per `GOAL-SNOBOL4-BB.md`) the box already
-  computes in-frame (`[ζ+off]`) and the `rt_*` call is vestigial, then remove the call + the function.
-  Where a caller is itself dead, it falls in this rung's sweep. Gate: SNOBOL4 + Icon smokes at/above floor;
-  build green; FACT 0.
+- [x] **VSX-3 — DONE via pivot (`d2a6ca4`).** The whole `rt_pat_*` family is abort-bodied. SNOBOL4 m2 HARD
+  7/7 held (SNOBOL4 pattern matching is BB-template-driven; these interpreter-era entries were unreached).
 
-- [ ] **VSX-5 — Icon live vstack `rt_*` (limit + any Icon-only arith).** `rt_limit_inc`, `rt_limit_more`,
-  `rt_pop_void`, and any Icon-reached residue. VERIFY against `GOAL-ICON-BB.md` (Icon is ALL stackless,
-  one-register ζ-frame). Gate: Icon m2 HARD unchanged; build green; FACT 0.
+- [x] **VSX-4 — DONE via pivot (`d2a6ca4`).** `rt_acomp`/`rt_lcomp`/`rt_arith`/`rt_nv_get`/`rt_match_variant`/
+  `rt_concat`/`rt_call` abort-bodied. SNOBOL4 + Icon smokes byte-identical (stash-verified).
 
-- [ ] **VSX-6 — `rt_push_int` / `rt_push_str` last callers.** These had the most external refs (10 / 4).
-  After VSX-2..5 most callers are gone; trace the remainder (some are other `rt_*` internal to rt.c, some
-  may be a not-yet-migrated box → push that box's migration into the owning language's GOAL, do NOT leave a
-  vstack call). When the last caller is gone, delete `rt_push_int`/`rt_push_str`/`rt_push_null`. Gate: all
-  smokes at/above floor; build green; FACT 0.
+- [x] **VSX-5 — DONE via pivot (`d2a6ca4`).** `rt_limit_inc`/`rt_limit_more`/`rt_pop_void` abort-bodied. Icon
+  m2 HARD 10/10 held.
 
-- [ ] **VSX-7 — delete the ops layer + wrappers (the array is already gone via VSX-PIVOT).** The
-  `g_vstack` array, its `VSTACK_CAP`, the orphaned `(void)g_vstack;` cast, and the `g_vstack` mention in
-  the `STACKLESS_ABORT` macro text were ALL deleted in VSX-PIVOT (2026-05-31) — `g_vstack` is at zero. This
-  rung removes the remaining SCAFFOLDING, with every caller gone: `g_vtop`, `g_vframe_base`, `g_last_ok`,
-  `rt_vstack_ops_t` (rt.h), `g_default_ops`, `g_ops`, all 7 `_default_*` fns, `rt_vstack_depth`,
-  `rt_vstack_pop`, `vstack_push/pop/peek/pop_str/pop_int64`, `LAST_OK_GET/SET`. Rework `rt_frame`
-  save/restore + `rt_last_ok` off `g_ops->depth/set_depth/last_ok` (they use the non-aborting ops — give
-  them a tiny local or fold into the ζ-frame; confirm against the frame model). Gate: build green; ALL
-  language smokes at/above floor; FACT 0.
+- [x] **VSX-6 — DONE via pivot (`d2a6ca4`).** `rt_push_int`/`rt_push_str`/`rt_push_null` abort-bodied (NOT
+  deleted — the Icon/SNOBOL4 binop-gen emitter `bb_binop_gen.cpp` emits `call rt_push_int@PLT` into generated
+  code, so the symbol must resolve at the emitted program's link time; it aborts if executed).
 
-- [ ] **VSX-8 — ZERO-CHECK (the proof).** `scripts/test_gate_no_vstack.sh` (from VSX-1) flips to a HARD
-  gate: zero matches for `g_vstack|vstack_push|vstack_pop|vstack_peek|rt_vstack_|rt_vstack_ops_t` in code
-  across all `src/` (comments stripped). Add it to the standing gate set (smoke/rung scripts call it).
-  `g_vstack` no longer exists anywhere in SCRIP. Gate: zero-check == 0; full build green; every language
-  smoke at/above floor; FACT 0.
+- [x] **VSX-7 — DONE via pivot (`caf8f6d` data + `d2a6ca4` ops/wrappers).** Array, ops layer
+  (`g_default_ops`/`g_ops`/`_default_*`), wrappers (`vstack_*`), and `LAST_OK_GET/SET` all deleted. `rt_frame`
+  reworked (vestigial depth save/restore dropped; it never needed a value stack — it owns the ζ-frame).
+  `rt_vstack_depth`/`rt_vstack_pop` kept as ABORT shims (see VSX-6 reason).
 
-**Dependency order:** VSX-0 → VSX-1 → VSX-2 → VSX-3 → VSX-4 → VSX-5 → VSX-6 → VSX-7 → VSX-8, strictly.
-Do the DEAD set (VSX-2) and `rt_pat_*` (VSX-3) before the live-tracing rungs. Never leave a `vstack_*` call
-reachable; if a box still needs one, that box's stackless migration is a prerequisite recorded in its
-language GOAL.
+- [ ] **VSX-8 — ZERO-CHECK: blocked only on the Icon/SNOBOL4 binop-gen emitter (CROSS-LANGUAGE).** The
+  `test_gate_no_vstack.sh` total is **5**, all NON-data: (1–2) `src/emitter/BB_templates/bb_binop_gen.cpp`
+  emits two `call rt_vstack_pop@PLT` strings for the Icon/SNOBOL4 `IR_BINOP_GEN` odometer (arithmetic over
+  generators); (3) the `rt_vstack_ops_t` TYPE def in `rt.h` (a type, no data); (4–5) the abort-shim functions
+  `rt_vstack_depth`/`rt_vstack_pop` that exist solely so the emitter's output links. Driving this to 0 is an
+  **Icon/SNOBOL4 GOAL task, not a Prolog one**: `bb_binop_gen.cpp` must migrate `IR_BINOP_GEN` to a stackless
+  ζ-frame box (the odometer counter/value live in `[r12+off]`, not pushed/popped), per `GOAL-ICON-BB.md` /
+  `GOAL-SNOBOL4-BB.md`. Once it no longer emits `rt_vstack_*`, delete the 2 abort shims + the `rt_vstack_ops_t`
+  type → gate hits 0 and VSX-8 flips to the HARD `--strict` standing gate. Recommend recording this as a rung
+  in the Icon/SNOBOL4 GOALs on the next `grand master reorg`. Gate now: `g_vstack` 0, all value-stack DATA 0,
+  all push/pop/peek FUNCTIONS 0; only the cross-language emitter dependency remains.
+
+**Dependency order (historical — collapsed by the pivot):** VSX-0 → VSX-1 → [VSX-2..VSX-7 done as one sweep,
+`d2a6ca4`] → VSX-8 (blocked on the Icon/SNOBOL4 binop-gen emitter migration; cross-language). Never leave a
+`vstack_*` call reachable; the one box that still emits one (binop-gen) has its stackless migration recorded
+as the VSX-8 blocker above and belongs to the Icon/SNOBOL4 GOAL.
 
 ---
 
