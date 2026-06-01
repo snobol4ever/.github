@@ -317,6 +317,38 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
+**3-MODE TESTING DISCIPLINE RESTORED + 5b REVERTED (2026-05-31, Opus 4.8).** Correcting a process violation: the
+GOAL "TESTING DIRECTIVE — ALWAYS RUN ALL THREE MODES" (Lon 2026-05-31, "Never report a mode-2 number alone") was
+NOT being honored — `scripts/test_smoke_raku.sh` ran only `--interp`. It now runs mode 2 (`--interp`, HARD),
+mode 3 (`--run`), AND mode 4 (`--compile --target=x86` → `as` → `gcc -no-pie -lscrip_rt` → run) on the SAME program
+per case, reporting all three, mirroring `test_smoke_icon.sh` (floors `MODE3_MIN`/`MODE4_MIN` default 0). **The honest
+full picture (the point of the directive):** mode-2 **22/22** (HARD ✓), mode-3 **0/22**, mode-4 **0/22**. Modes 3/4 are
+by-design SMX abort because **RK-EMIT is entirely unbuilt — there are ZERO `bb_rk_*.cpp` emitter templates.** EVERYTHING
+in RK-LOWER-0..5a is mode-2 only (the `bb_exec.c` IR oracle); nothing Raku exists in the modes-3/4 EMITTER yet. The
+in-flight RK-LOWER-5b (mutating hash/array writeback via an exec-side vname-recovery branch keyed on `IR_CALL` dval=3.0)
+was UNCOMMITTED + broken (push-as-statement produced no output — the mutating call's success/fail port wiring needs
+rework) so it was **reverted to the clean committed 5a baseline** (`git checkout src/lower/{lower.c,bb_exec.c}`); it will
+be redone under the 3-mode discipline. SCRIP HEAD: `137e930` (RK-LOWER-5a). Build clean (`scrip` + `libscrip_rt` rc=0);
+prove_lower2 **61/0** unchanged; Icon 6/6, SNOBOL4 7/7 m2 unchanged. FACT-rule md5 `5097ed94` ×4. The pre-existing
+`audit_concurrency_invariants` 7>6 baseline staleness (Icon/SNOBOL emitter `fprintf`s, zero Raku) is still owed by Icon/HQ.
+
+- **BB ACCOUNTING (clarified for the record):** "BBs created for Raku" splits by stage. In modes 3/4 (EMITTER / actual
+  Byrd Box templates): **0 created, 0 reused** — RK-EMIT unstarted. In mode-2 (LOWER-stage `IR_*` kinds): **3 created** —
+  `IR_GATHER` (RK-LOWER-2), `IR_MAP` + `IR_GREP` (RK-LOWER-3), all lazy-Seq generators with no pre-existing analog;
+  **~13 reused** — `IR_LIT_I/S/F/NUL` (literals — Raku invents NO literal kind; flows through the SHARED `v_literal`
+  arm, NOT a custom `BB_ILIT/SLIT/DLIT` — those names do not exist), `IR_VAR`, `IR_KEYWORD`, `IR_CALL`, `IR_TO/IR_TO_BY`,
+  `IR_ASSIGN`, `IR_IF`, `IR_WHILE`, `IR_BINOP/IR_UNOP`, `IR_ALT`, the generator PUMP (`v_raku_for`), `IR_SUCCEED/IR_FAIL`.
+  When RK-EMIT lands, Raku literals/arith/etc. will likewise REUSE the existing `bb_lit.cpp`/`bb_lit_scalar.cpp` and
+  peer templates; only the generator/junction/NFA box set gets the `bb_rk_*` prefix.
+
+**NEXT (two tracks, both now gated by the 3-mode smoke):** (A) RK-LOWER-5b redo — mutating hash/array writeback (the
+dval=3.0 exec-recovery approach is sound; the bug was port wiring of the statement-position call — fix the γ/ω return so a
+successful mutation continues the sequence). (B) **RK-EMIT-1 — the real lever for modes 3/4:** begin the `bb_rk_*.cpp`
+template arms (start with the simplest proven mode-2 arm, e.g. `say`/`print` → reuse the shared `bb_call`/`bb_lit`
+machinery) so mode-3/4 PASS counts begin climbing off 0; raise `MODE3_MIN`/`MODE4_MIN` as they do.
+
+---
+
 **RK-LOWER-5a LANDED (2026-05-31, Opus 4.8).** Raku eager-core READ-ONLY value ops cross onto the unified `lower.c`
 for mode-2. SCRIP HEAD before this work: `641e45d` (the RK-LOWER-4 junction commit). My 3 files: `src/lower/{lower.c,
 prove_lower2.c}`, `scripts/test_smoke_raku.sh`; ZERO emitter files — same discipline as RK-LOWER-0/1/2/3/4. Build clean
