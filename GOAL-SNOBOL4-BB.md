@@ -19,24 +19,26 @@
 >      `bb_sno_assign` is the proof: its BINARY arm gave mode 3 (verified: 86 bytes, disassembled, stackless, `r12=ζ`),
 >      and adding its TEXT arm this session gave mode 4 — SAME box, SAME graph, both native modes. **That is the "magic":
 >      you write the box once in LOWER + EMITTER and all three modes light up. You do NOT write per-mode driver code.**
->   3. **`sno_ring_to_tree` (in `scrip.c`) is a STOPGAP, not the design.** It exists only because today's SNOBOL4 LOWER
->      emits a *postfix AG-ring* statement graph (the mode-2 oracle's shape) instead of the four-port tree the EMITTER
->      walks. The correct fix is in **LOWER**: lower each SNOBOL4 statement DIRECTLY into the `test_sno_1.c` four-port
->      statement-BB topology (subject-BB → pattern-BBs → replacement-BB → substitution-BB), so the emitter consumes it
->      with no driver adapter. When LOWER does that, `sno_ring_to_tree` is deleted and the driver shrinks to "find main
->      graph → hand it to the emitter." Until then it is the minimal bridge that lets the EMITTER run.
+>   3. **`sno_ring_to_tree` (in `scrip.c`) is REMOVED (Lon directive 2026-05-31 — VIOLATION).** It was a STOPGAP, never
+>      the design: it re-derived the four-port BB topology AT EMIT time from the mode-2 oracle's postfix AG-ring instead
+>      of LOWER producing that topology. The correct fix is in **LOWER**: lower each SNOBOL4 statement DIRECTLY into the
+>      `test_sno_1.c` four-port statement-BB topology (subject-BB → pattern-BBs → replacement-BB → substitution-BB), so
+>      the emitter consumes it with no driver adapter. The adapter + its helpers are deleted and BOTH call sites (mode-3
+>      `--run`, mode-4 `--compile`) now ABORT by design until LOWER emits the tree shape. The driver then shrinks to
+>      "find main graph → hand it to the emitter." This is LM-6 DISPATCH-UNIFY territory and is now the #1 SNOBOL4 step.
 >
-> **EMITTER fix landed this session (the segfault that proves the point):** the shared flat TEXT prologue/epilogue
+> **EMITTER fix landed earlier (the segfault that proves the point):** the shared flat TEXT prologue/epilogue
 > (`xa_flat.cpp`) ignored `g_frame_active` — it always emitted the Σ/`[r10]`-deref Icon-pattern-return epilogue. `r10`
 > is SysV caller-saved, so the `@PLT` store clobbered it → mode-4 segfault. The BINARY arm already honored
 > `g_frame_active` (clean `pop r12; ret`); the TEXT arm now does too (`push r12;mov r12,rdi` prologue + no-deref
-> `pop r12;ret` epilogue). Byte-neutral to Icon (Icon m2 6/6 HARD held; Icon m3 5/6 held; Icon m4 was/stays 0/6).
+> `pop r12;ret` epilogue). Byte-neutral to Icon (Icon m2 6/6 HARD held; Icon m3 5/6 held).
 >
 > **SO, NEXT, AND FOR EVERY STATEMENT AFTER:** the recipe is fixed. (a) LOWER the statement into the four-port BB graph
 > (Icon `lower_expr_threaded` is the model; `test_sno_1.c` is the SNOBOL4 statement topology). (b) EMITTER: give each new
-> box a BINARY arm (mode 3) and a TEXT arm (mode 4), stackless (`[r12+off]` ζ-frame + RO `[rip+disp]`), no value stack.
-> (c) Both native modes pass from the one graph + one template. Widen `sno_ring_to_tree` only as the temporary bridge,
-> and retire it once LOWER emits the tree shape directly (LM-6 DISPATCH-UNIFY territory).
+> box a BINARY arm (mode 3) and a TEXT arm (mode 4) — SAME processing, only BINARY-bytes vs GAS-text differs — stackless
+> (`[ζ=r12+off]` RW frame + RO `[rip+disp]`), NO ring, NO value stack, NO storage outside the boxes (PER-BOX LOCAL
+> STORAGE FACT RULE). (c) Both native modes pass from the one graph + one template. There is NO ring→tree adapter to lean
+> on anymore — LOWER must emit the four-port shape directly.
 
 
 > **⚠️ SHARED-LOWERER LOCKSTEP NOTE (Sonnet, 2026-05-31, Prolog PLG-4 commit).** Two shared three-language
@@ -108,6 +110,39 @@ Locked callee-saved layout the three concurrent BB sessions MUST share (canonica
 **Repo:** SCRIP + corpus + .github
 **Sister:** GOAL-COMMAND-CENTRAL.md · GOAL-TEMPLATES-X86.md · GOAL-PROLOG-BB.md · GOAL-ICON-BB.md
 **Carved:** 2026-05-27
+
+## ⛔ PER-BOX LOCAL STORAGE — ALL STATE LIVES INSIDE THE BOXES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
+
+**ONLY local BB allocation variables are used; NOTHING is stored outside the boxes.** Every value a
+SNOBOL4 (or Icon / Prolog) BB graph computes or holds at run time lives in storage that belongs to a
+box — never in any external/global side channel. There is NO AG ring at run time (the ring is the
+MODE-2 ORACLE's idiom ONLY — `bb_exec_once`), NO value stack (`g_vstack`/`rt_push_*`/`rt_pop_*`), and
+intermediate values are NOT threaded through the global name table (`NV_GET`/`NV_SET`) — name-table
+stores are reserved for genuine SNOBOL4 *variables* on assignment, not for passing a value from a
+producer box to its consumer.
+
+**Each box owns exactly two kinds of local allocation, both INSIDE the box (not outside):**
+- **READ-ONLY data (RO)** — compile-time constants for that box (literal int/real/string/cset values,
+  the box's name string, fixed bounds, op codes). Placed in the SEALED segment adjacent to the box's
+  BLOB and reached by IP-relative addressing (`lea/mov reg,[rip+disp]`, `disp` an emit-time constant in
+  the BINARY arm; a `.L`-label in the TEXT arm). RO data is NEVER threaded on a stack and NEVER reached
+  by an absolute `movabs … &slot` immediate.
+- **READ-WRITE data (RW)** — the box's mutable runtime storage (its result value/DESCR slot, counters,
+  cursors, per-box backtrack arenas, generator state). Lives in the per-sequence ONE-REGISTER FRAME and
+  is reached register-relative `[ζ=r12 + emit_time_offset]`. A consumer reads a producer box's result by
+  that producer's frame offset (`bb_slot_get`/`bb_slot_alloc`); a SNOBOL4/Icon *variable* is ONE
+  name-keyed frame slot (`bb_varslot`) shared by its IR_ASSIGN(name) writer and IR_VAR(name) readers.
+
+So every box value reference is exactly one of: **(RO)** `[rip+disp]` into sealed data, or **(RW)**
+`[ζ+off]` into the per-sequence frame. Never a ring, never a value stack, never a name-table round-trip
+for an intermediate. This is the `test_sno_1.c` / `test_icon.c` named-slot law the GZ-7 Icon and PLG-8
+Prolog siblings already follow (`febef10`: `x:=42;write(x)` → m2==m3==m4, all slot-based, no ring).
+
+**COMPLETION TEST (per box family):** (a) no `bb_exec_once`/AG-ring read or write on the mode-3/4 run
+path; (b) no `g_vstack`/`rt_push_*`/`rt_pop_*`; (c) no `NV_GET`/`NV_SET` used to carry an *intermediate*
+producer→consumer value (only true variable assignment); (d) every box-local read is `[rip+disp]` (RO)
+or `[ζ+off]` (RW) — no `movabs … &pBB->slot` absolute slot address; (e) mode-3 BINARY arm and mode-4
+TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes vs GAS-text).
 
 ---
 
@@ -456,7 +491,25 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = 18357d4  SBL-M3-PATTERN + SBL-M3-CONCAT+GOTO (Opus 4.8, 2026-05-31) — SNOBOL4 MODE-3 SMOKE 2/6 → 5/6.
+HEAD SCRIP       = ade7656  SBL-RING-REMOVE (Opus 4.8, 2026-05-31) — sno_ring_to_tree DELETED
+                     (Lon directive: VIOLATION). The postfix AG-ring → four-port-tree un-flattening adapter + its 5
+                     helpers (sno_node_is_landing/sno_stmt_arity/sno_chain_last/sno_fold_stmt/sno_ring_to_tree) removed
+                     from scrip.c; BOTH call sites (mode-3 --run @ ~734, mode-4 --compile @ ~634) now ABORT by design.
+                     Rationale: the adapter re-derived the BB topology at EMIT time from the mode-2 oracle's ring shape
+                     instead of LOWER producing it; the correct path is LOWER → four-port statement-BB graph directly
+                     (LM-6 DISPATCH-UNIFY), consumed by the emitter with no adapter. Added the **PER-BOX LOCAL STORAGE
+                     FACT RULE** (this goal file): only local BB allocation variables; nothing stored outside the boxes;
+                     each box owns RO (`[rip+disp]`) + RW (`[ζ=r12+off]`) local data; NO ring, NO value stack, NO
+                     name-table round-trip for intermediates; mode-3 BINARY arm and mode-4 TEXT arm of ONE box do the
+                     SAME processing. **Gate snapshot:** scrip rc=0, libscrip_rt rc=0, m2 **7/7 HARD** (oracle untouched —
+                     uses bb_exec_once, not the adapter), m3 **0/6** (ABORT by design), m4 **0/6** (ABORT by design),
+                     prove_lower2 **53**, Icon m2 **6/6 HARD** + m3 5/6 + m4 5/6 (byte-neutral — only SNOBOL4 driver code
+                     touched), concurrency audit = pre-existing 7>6 purity delta only (inherited). MODE3_MIN/MODE4_MIN
+                     reset to 0 (the stopgap that earned 5/6 is gone; native returns only when LOWER emits the four-port
+                     graph). **NEXT (#1):** LOWER each SNOBOL4 statement directly into the test_sno_1.c four-port
+                     statement-BB topology (the real fix), then per-box BINARY+TEXT arms in lockstep → m3 AND m4 climb
+                     together from the SAME graph. Base 18357d4.
+HEAD SCRIP (prior) = 18357d4  SBL-M3-PATTERN + SBL-M3-CONCAT+GOTO (Opus 4.8, 2026-05-31) — SNOBOL4 MODE-3 SMOKE 2/6 → 5/6.
                      Mode-3 now passes output, concat, arith, pattern, goto_s (only `define`/user-functions pending).
                      mode-2 7/7 HARD invariant held all session; mode-4 unchanged at 1/6 (output). Two commits:
                      472b04b (pattern + multi-statement adapter) and 18357d4 (concat + goto_s).

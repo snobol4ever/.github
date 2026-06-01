@@ -85,6 +85,41 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 
 ---
 
+## ⛔ PER-BOX LOCAL STORAGE — ALL STATE LIVES INSIDE THE BOXES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
+
+**ONLY local BB allocation variables are used; NOTHING is stored outside the boxes.** Every value a
+SNOBOL4 (or Icon / Prolog) BB graph computes or holds at run time lives in storage that belongs to a
+box — never in any external/global side channel. There is NO AG ring at run time (the ring is the
+MODE-2 ORACLE's idiom ONLY — `bb_exec_once`), NO value stack (`g_vstack`/`rt_push_*`/`rt_pop_*`), and
+intermediate values are NOT threaded through the global name table (`NV_GET`/`NV_SET`) — name-table
+stores are reserved for genuine SNOBOL4 *variables* on assignment, not for passing a value from a
+producer box to its consumer.
+
+**Each box owns exactly two kinds of local allocation, both INSIDE the box (not outside):**
+- **READ-ONLY data (RO)** — compile-time constants for that box (literal int/real/string/cset values,
+  the box's name string, fixed bounds, op codes). Placed in the SEALED segment adjacent to the box's
+  BLOB and reached by IP-relative addressing (`lea/mov reg,[rip+disp]`, `disp` an emit-time constant in
+  the BINARY arm; a `.L`-label in the TEXT arm). RO data is NEVER threaded on a stack and NEVER reached
+  by an absolute `movabs … &slot` immediate.
+- **READ-WRITE data (RW)** — the box's mutable runtime storage (its result value/DESCR slot, counters,
+  cursors, per-box backtrack arenas, generator state). Lives in the per-sequence ONE-REGISTER FRAME and
+  is reached register-relative `[ζ=r12 + emit_time_offset]`. A consumer reads a producer box's result by
+  that producer's frame offset (`bb_slot_get`/`bb_slot_alloc`); a SNOBOL4/Icon *variable* is ONE
+  name-keyed frame slot (`bb_varslot`) shared by its IR_ASSIGN(name) writer and IR_VAR(name) readers.
+
+So every box value reference is exactly one of: **(RO)** `[rip+disp]` into sealed data, or **(RW)**
+`[ζ+off]` into the per-sequence frame. Never a ring, never a value stack, never a name-table round-trip
+for an intermediate. This is the `test_sno_1.c` / `test_icon.c` named-slot law the GZ-7 Icon and PLG-8
+Prolog siblings already follow (`febef10`: `x:=42;write(x)` → m2==m3==m4, all slot-based, no ring).
+
+**COMPLETION TEST (per box family):** (a) no `bb_exec_once`/AG-ring read or write on the mode-3/4 run
+path; (b) no `g_vstack`/`rt_push_*`/`rt_pop_*`; (c) no `NV_GET`/`NV_SET` used to carry an *intermediate*
+producer→consumer value (only true variable assignment); (d) every box-local read is `[rip+disp]` (RO)
+or `[ζ+off]` (RW) — no `movabs … &pBB->slot` absolute slot address; (e) mode-3 BINARY arm and mode-4
+TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes vs GAS-text).
+
+---
+
 ## ★★★ PLG — STACKLESS GROUND-ZERO REBUILD (CURRENT — supersedes WAM-CP *direction*) ★★★
 
 > **⚠️ READ FIRST — GROUND-ZERO RECONCILIATION (Opus 4.8, 2026-05-31, SCRIP `cf6b7f6`+).** Every
