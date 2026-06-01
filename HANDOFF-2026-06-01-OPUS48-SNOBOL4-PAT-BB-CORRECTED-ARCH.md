@@ -88,3 +88,37 @@ Discipline reminder: every PB-RB box = prove four-port topology → BINARY arm (
 stack, no ring.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
+
+---
+
+## ADDENDUM — PB-RB-1 scaffolding landed + retire decision (2026-06-01, same session)
+
+**SCRIP watermark advanced to `61edf77`** (pushed at handoff). Additive, DORMANT plumbing for PB-RB-1 so
+the next session writes logic, not scaffolding:
+- `IR.h` — `IR_REF_INVARIANT` kind (append-only before `IR_OP_COUNT`).
+- `bb_ref_invariant.cpp` — structured fail-loud STUB (bomb_text TEXT / abort inside MEDIUM_BINARY, both
+  audit-exempt). Documented intended role: load a sealed element `bb_box_fn` head (RO `[rip+disp]`/movabs)
+  into a `ζ`-slot; distinct from STITCH (wire instances) and BB_PAT_BUILD (build dynamic boxes).
+- `emit_core.c` — one dispatch case `IR_REF_INVARIANT -> bb_ref_invariant`.
+- `Makefile` — `bb_ref_invariant.cpp` appended to `RT_PIC_SRCS` + per-template `.o`.
+
+DORMANT = nothing lowers to `IR_REF_INVARIANT`, so the stub is unreachable. **All gates INVARIANT vs
+`6483bb5`:** make scrip rc=0, libscrip_rt rc=0, smoke SNOBOL4 m2 7/7 HARD / m3 5/6 / m4 0/6, smoke Icon
+m2 10/10 HARD / m3 9/10 / m4 9/10, prove_lower2 64/0, sm_dead 1, concurrency invariants OK, template
+purity 7, no-vstack g_vstack==0.
+
+**RETIRE DECISION (Lon delegated "your choice"):** RETIRE the dormant PB-1 BUILDER artifacts
+(`IR_PAT_BUILD_LIT` + `rt_sno_pat_build_lit` + `bb_sno_pat_build_lit.cpp` + their dormant arms in
+lower.c/bb_exec.c/emit_core.c/emit_bb.c/Makefile) as the FIRST action of PB-RB-1 proper — they are unwired
+from `v_scan`, so deletion is BYTE-NEUTRAL to every gate (nothing emits `IR_PAT_BUILD_LIT`), and code that
+builds the doomed `PATND_t` contradicts the locked architecture. KEEP the `PATND_t` TYPE removal
+(`pattern.c`/`descr.h`/`patnd.h`) as the SEPARATE Track-B runtime-demolition slice — do NOT fold it in.
+`rt_sno_match_lit` (the PATND_t-free ch.18 literal-scan kernel, 7/7) SURVIVES as the literal element
+matcher's inner scan.
+
+**NEXT (#1) is now logic-only:** in `bb_ref_invariant.cpp` write the sealed-head load (BINARY + TEXT arms,
+model on bb_sno_subject.cpp), add `lower2_ref_invariant_entry` lowering `TT_QLIT` pattern -> REF_INVARIANT
+over a sealed `IR_PAT_LIT` (`bb_lit.cpp`), prove the topology in prove_lower2.c, run a mode-3 probe — and
+retire the PB-1 builder per the decision above. Then PB-RB-2 (matcher-box four-port ABI) and PB-RB-3 (BB_MATCH
+driver). Discipline: prove topology -> BINARY arm (mode-3) -> TEXT arm (mode-4); mode-2 (`IR_SCAN`) must NOT
+regress (m2 7/7 HARD); no `PATND_t`, no `tree_t`, no value stack, no ring.

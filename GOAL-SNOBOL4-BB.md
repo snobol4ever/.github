@@ -808,6 +808,29 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = 61edf77  PB-RB-1 SCAFFOLDING (Opus 4.8, 2026-06-01) — reserve IR_REF_INVARIANT + dormant
+                     bb_ref_invariant template; NO behavior, all gates invariant. Additive plumbing for the
+                     CORRECTED PATTERN ARCHITECTURE so PB-RB-1 proper is logic-only. DORMANT: nothing lowers to
+                     IR_REF_INVARIANT (unreachable stub) -> gates unchanged vs 6483bb5. Does NOT delete the
+                     committed IR_PAT_BUILD_LIT family (retire awaits Lon's confirmation — PB-RB-1 open Q).
+                     Files: IR.h (IR_REF_INVARIANT append-only); bb_ref_invariant.cpp (structured fail-loud stub,
+                     bomb_text TEXT / abort inside MEDIUM_BINARY — audit-exempt; intended role doc'd: load a
+                     sealed element bb_box_fn head RO [rip+disp]/movabs -> [ζ+off], distinct from STITCH/
+                     BB_PAT_BUILD); emit_core.c (one dispatch case); Makefile (RT_PIC_SRCS + per-template .o,
+                     append-only). GATES vs 6483bb5 (INVARIANT): make scrip rc=0, libscrip_rt rc=0, smoke
+                     SNOBOL4 m2 7/7 HARD / m3 5/6 / m4 0/6, smoke Icon m2 10/10 HARD / m3 9/10 / m4 9/10,
+                     prove_lower2 64/0, sm_dead 1, concurrency invariants OK, template purity 7, no-vstack
+                     g_vstack==0. **NOT PUSHED YET** (handoff is two turns out per Lon). **NEXT (#1): PB-RB-1
+                     proper** — bb_ref_invariant sealed-head load (BINARY+TEXT) + lower TT_QLIT pattern ->
+                     REF_INVARIANT over a sealed IR_PAT_LIT (bb_lit.cpp) + prove topology + mode-3 probe; retire
+                     IR_PAT_BUILD_LIT/rt_sno_pat_build_lit ONLY after Lon confirms. Base: design at .github 0dfe9552.
+                     **RETIRE DECISION (Lon delegated "your choice", 2026-06-01, Opus 4.8): RETIRE the dormant PB-1
+                     BUILDER artifacts (IR_PAT_BUILD_LIT + rt_sno_pat_build_lit + bb_sno_pat_build_lit.cpp + their
+                     dormant arms in lower.c/bb_exec.c/emit_core.c/emit_bb.c/Makefile) as the FIRST action of
+                     PB-RB-1 proper — they are unwired from v_scan so deletion is BYTE-NEUTRAL to every gate
+                     (nothing emits IR_PAT_BUILD_LIT), and code that builds the doomed PATND_t contradicts the
+                     locked architecture. KEEP the PATND_t TYPE removal (pattern.c/descr.h/patnd.h) as the
+                     SEPARATE Track-B runtime-demolition slice (do NOT fold it in). rt_sno_match_lit SURVIVES.**
 DESIGN PIVOT     = (no code change; SCRIP HEAD stays 6483bb5)  CORRECTED PATTERN ARCHITECTURE (Opus 4.8,
                      2026-06-01) — Lon corrected the pattern-construction design mid-PB-2. A SNOBOL4 pattern
                      is a graph of EMITTED BYRD-BOXES (bb_box_fn in the RX pool), driven by bb_broker.c
