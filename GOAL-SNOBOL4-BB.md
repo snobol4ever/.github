@@ -66,8 +66,10 @@ across all five GOAL-*-BB files.
 > REPLACEMENT → REPLACE, built as the **SESSION RUNG #0 — SBL-PAT-BB** ladder (**PB-0 … PB-OPT**, in this file
 > below). **DO THIS DEV FIRST.** ⛔ Do **NOT** start climbing test/rung ladders (prove_lower2 rungs, smoke-floor
 > bumps, corpus-parity sweeps, per-language bring-up) until the 5-phase pattern execution is FULLY NATIVE through
-> BBs. **PB-RB-1 (REF_INVARIANT) is DONE (2026-06-01, emit arm + mode-3 probe, disasm-verified). First
-> incomplete step = PB-RB-2 (matcher-box four-port ABI)** — see the REBUILT LADDER (PB-RB) below.
+> BBs. **PB-RB-1 (REF_INVARIANT) + PB-RB-2 (matcher-element four-port ABI, SPEC+VERIFY) are DONE (2026-06-01,
+> Opus 4.8). First incomplete step = PB-RB-3 (BB_MATCH driver)** — see the REBUILT LADDER (PB-RB) below. ⚠
+> PB-RB-3 has an OPEN SUBJECT-STORAGE fork flagged for Lon (ζ-slot-as-canonical vs register sweep) — see the
+> "PB-RB-2 MATCHER-ELEMENT FOUR-PORT ABI" block in the ladder.
 > **⛔⛔ ALSO PINNED — BROKERED-MODE-ERADICATION (Lon directive 2026-06-01): there is NO need for two ways to
 > enter a box. `bb_build_brokered` + `EMIT_BINARY_BROKERED` + the `(ζ,int entry)` call convention in
 > `bb_capture.cpp`/`bb_arbno.cpp` are the unfinished residue of the `cc23c9f` C-byrd-box deletion and MUST go
@@ -747,18 +749,232 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
   SUBJECT's Σ/δ/Δ and drives the ch.18 unanchored outer start-loop). NOTE on rebuild: `scrip` and
   `out/libscrip_rt.so` MUST be rebuilt in LOCKSTEP — a stale `.so` against a fresh `scrip` shows phantom mode-3
   failures (2/6); always `bash scripts/build_scrip.sh && make libscrip_rt` together before gating.
-- [ ] **PB-RB-2 — the matcher-box four-port ABI (drive ONE element).** Pin down how `bb_broker.c` drives a
+- [x] **PB-RB-2 — the matcher-box four-port ABI (drive ONE element).** Pin down how the four-port driver runs a
   single matcher element box (`IR_PAT_LIT`) over Σ/δ/Δ via α/β/γ/ω: α tries match at δ, γ on success
-  (advance δ, leave span), ω on fail, β to re-offer (generators only). Ground in `bb_broker.c` + the canonical
+  (advance δ, leave span), ω on fail, β to re-offer (generators only). Ground in the canonical
   Icon/Prolog brokered-graph pattern (CONSULT CANONICAL SOURCES rule). Verify the existing `IR_PAT_LIT`
   BINARY/TEXT arms honor it (or adapt minimally). This is the substrate PB-RB-3 drives.
-- [ ] **PB-RB-3 — BB_MATCH driver (phase 3).** Add `IR_PAT_MATCH` (IR.h) + `bb_sno_match.cpp`: reads the
-  built/sealed head (`DT_P`/`bb_box_fn`) from REF_INVARIANT's ζ-slot (producer ref via `operand_aux`, PEERS
-  RULE) + Σ/δ/Δ from the SUBJECT box's ζ-slot, and DRIVES the head box-graph via the broker with the SPITBOL
-  ch.18 unanchored OUTER start-loop (advance starting δ on fail unless anchored; within-pattern backtracking
-  is the boxes' β/ω). Success → δ at match-end + span on γ; else ω. BINARY + TEXT. Prove the 3-box chain
-  topology (SUBJECT→REF_INVARIANT→BB_MATCH→SUCCEED); mode-3 `S 'b'` → matches `'b'` in `'abc'` ([1,2]).
-  (Replaces the reverted draft PB-2 that read a `PATND_t`.)
+  **[DONE 2026-06-01, Opus 4.8 — SPEC + VERIFY, no code adaptation needed.]** ⚠ STALE REF FIXED: the step said
+  "ground in `bb_broker.c`", but `bb_broker.c` (the driver) was DELETED in `646a543` (C-byrd-box teardown). The
+  surviving four-port driver is `bb_exec.c` (mode-2 oracle); its `rt_sno_exec_scan` is the ch.18 reference driver
+  (anchored/unanchored start-loop). Grounded the ABI there + SPITBOL ch.18 ("Pattern Matching" algorithm steps
+  1-6) + the ratified X86-64 REGISTER CONVENTION.
+  **PINNED ABI — see "PB-RB-2 MATCHER-ELEMENT FOUR-PORT ABI" block below.** Key result: `IR_PAT_LIT`
+  (`bb_lit.cpp`) HONORS the port contract in BOTH arms with ZERO adaptation — α bounds-checks `δ+len ≤ Δ`,
+  memcmps Σ+δ, advances δ, `jmp γ`; mismatch/overflow `jmp ω` (δ unchanged); β is bounded single-shot (`δ -= len;
+  jmp ω` — a literal has NO implicit alternative). Verified vs the PB-RB-1 mode-3 probe disasm + a byte/text
+  re-read of both arms this session. The whole SNOBOL pattern family (`bb_pat_any/pos/span/…`) shares this exact
+  `[r10]`-cursor / `[rip+Σ]`/`[rip+Σlen]` model (grepped, uniform). **OPEN FORK handed to PB-RB-3 + flagged for
+  Lon — see the ABI block's "SUBJECT-STORAGE LOCATION" note: three coexisting homes for Σ/δ/Δ (ratified
+  R13/R14/R15 · SUBJECT's ζ-slots · legacy `[r10]`/`[rip+Σ]`); BB_MATCH is the bridge; the family-wide register
+  migration is a SEPARATE LOCKSTEP sweep, NOT folded into PB-RB-2/3.** Gates UNTOUCHED (spec-only, no compile this
+  step): m2 7/7 HARD / m3 5/6 / m4 0/6, prove_lower2 64/64, sm_dead 0, concurrency OK, g_vstack==0 @ `77bbebc`.
+
+> **⭐ PB-RB-2 MATCHER-ELEMENT FOUR-PORT ABI (pinned 2026-06-01, Opus 4.8). The substrate PB-RB-3's BB_MATCH
+> drives. Grounded in SPITBOL ch.18 + `bb_exec.c rt_sno_exec_scan` (the ch.18 reference driver) + the ratified
+> X86-64 REGISTER CONVENTION. This is a CONTRACT statement, not new code — `IR_PAT_LIT` already conforms.**
+>
+> **SUBJECT MODEL (names — the casing carries meaning AND the oracle-C vs native-register casing is INVERTED;
+> wiring it backwards is the failure mode this note exists to prevent):**
+>   - **Σ** (R13) = subject BASE ptr (the fixed whole).
+>   - **δ** (R14, lowercase) = CURSOR (the moving scan position), zeroed when the match begins (ch.18 step 1).
+>   - **Δ** (R15, uppercase) = subject LENGTH / END (the fixed bound).
+>   - ⚠ **In the mode-2 oracle C (`bb_exec.c`/`rt.c`/`stmt_exec.c`) the CURSOR global is named `Δ` (UPPER) and the
+>     LENGTH is `Σlen`/`Ω`** (verified: `rt.c:776` `Δ = 0` at match start = cursor; `stmt_exec.c:47` `Σlen` =
+>     length; JS `_bb_Δ` "cursor position", `_bb_Ω` loop bound). The RETIREMENT rename sweep **`Δ(cursor)→δ`,
+>     `Ω→Δ`, `Σlen→Δ`** reconciles oracle-C ↔ native-register: **oracle-C `Δ` ≡ native `δ` (cursor); oracle-C
+>     `Σlen`/`Ω` ≡ native `Δ` (length).**
+>
+> **FOUR PORTS (per element box; map 1:1 to SPITBOL ch.18 algorithm steps 3-6):**
+>   - **α (fresh entry)** = step 4 "apply current pattern at current cursor". Read δ; if `δ + matchlen > Δ` →
+>     `jmp ω` (bound check). Compare/scan Σ at offset δ. On match: advance δ past the matched span (step 4
+>     "advance the cursor past the characters matched"); the span is IMPLICIT in δ_before..δ_after (a bounded leaf
+>     leaves no separate span slot); `jmp γ`. On mismatch: `jmp ω` with **δ UNCHANGED** (the element bound nothing).
+>   - **γ (success port)** = step 5 "if subsequent, point to it". Emitter-patched to the successor element's α (or
+>     BB_MATCH's success continuation for the last element). The box only `jmp lbl_γ`; it NEVER picks the target.
+>   - **ω (fail port)** = step 6 "pop the stack / advance starting cursor". Emitter-patched to the predecessor's β
+>     (inner backtrack) or, at the graph root, BB_MATCH's OUTER-loop retry (advance starting δ unless anchored).
+>     The box only `jmp lbl_ω`.
+>   - **β (resume entry)** = re-offer on backtrack. **BOUNDED single-shot leaf** (literal / LEN / POS / RPOS / TAB
+>     / RTAB): β UNDOES its δ advance (`δ -= matchlen`) and `jmp ω` — no alternative to offer. **GENERATOR** (ARB /
+>     ARBNO, span-shrink/grow): β yields the next alternative (a different δ) and `jmp γ`, or exhausts → `jmp ω`.
+>     (ch.18: "ARB behaves as `(LEN(0)|LEN(1)|LEN(2)|…)`" — the implicit-alternative generator; the bounded leaf
+>     has none. This is the ONLY α/β-port difference between leaf and generator.)
+>
+> **VERIFIED — `IR_PAT_LIT` (`bb_lit.cpp`) conforms, BOTH arms, NO adaptation:** α = `mov eax,[δ]; add eax,len;
+> cmp vs Δ(Σlen); jg ω; load Σ+δ; memcmp lit; jne ω; δ += len; jmp γ` (BINARY 121-byte patch tuple
+> `{22,89,105,109,121}/{ω,ω,γ,β,ω}` + TEXT `memcmp@PLT` — SAME processing, only bytes-vs-GAS differ). β = `δ -=
+> len; jmp ω` (bounded single-shot). Confirmed by the PB-RB-1 probe disasm (the REF_INVARIANT-loaded head IS this
+> matcher) + this session's byte/text re-read. The pattern family (`bb_pat_any/pos/span/…`) is uniform on this.
+>
+> **OPEN — SUBJECT-STORAGE LOCATION (the one unresolved fork; PB-RB-3's bridge, NOT a port-contract issue).**
+> Three homes for Σ/δ/Δ coexist today: **(1)** ratified convention Σ=R13/δ=R14/Δ=R15 (registers); **(2)** SUBJECT
+> box (PB-0, `bb_sno_subject.cpp`) Σ=`[ζ=r12+off]`, Δ=`[r12+off+8]` (ζ-frame slots), δ "owned by MATCH"; **(3)**
+> legacy family (`bb_lit`+siblings) δ=`[r10]`, Σ=`[rip+Σ]`, Δ=`[rip+Σlen]` (sealed data labels). The
+> `[rip+Σ]`/`[rip+Σlen]` form is **mode-3-in-process-only** (a baked address breaks mode-4 relocatability — the
+> RW-frame rule). **✅ RESOLVED (Lon directive 2026-06-01): adopt the REGISTER model for the pattern family** —
+> conform the SNOBOL pattern templates to the ALREADY-RATIFIED convention (Σ=R13, δ=R14, Δ=R15, ζ=R12). **This is
+> NOT a change to the convention table** (the byte-identical-×3 table already says R13/R14/R15), so it is NOT a
+> lockstep edit — it is the SNOBOL session conforming ITS OWN boxes (`bb_pat_*`) to the table, squarely in its
+> lane (EDIT ONLY YOUR OWN LANGUAGE'S BOXES). Lockstep would bite only if the TABLE changed, which it does not.
+> BB_MATCH (PB-RB-3) is the register-establishment point: its α loads R13←Σ-slot, R15←Δ-slot, R14←0 from
+> SUBJECT's ζ-frame, then drives the element graph; the elements read R13/R14/R15 directly (the **REG ladder**
+> below). **⭐ MAJOR PAYOFF: this is ALSO the SNOBOL mode-4 unblocker** — the `&Σ`/`&Σlen` imm64 bakes
+> (`TEMPLATE_ADDR_SIGMA`/`TEMPLATE_ADDR_SIGLEN` = addresses of the emitter-process globals) are the reason m4 is
+> 0/6 for patterns; removing them = relocatable boxes that a standalone `--compile` binary can run.
+
+---
+
+### ⭐⭐ REG LADDER — SNOBOL4 PATTERN-FAMILY REGISTER-LAYOUT MIGRATION (Lon directive 2026-06-01, Opus 4.8)
+
+Bring the SNOBOL4 pattern family from the **legacy subject model** (cursor in the `[r10]` per-BLOB data-block
+field; Σ via `movabs &Σ;deref`/`lea [rip+Σ]`; Δ via `movabs &Σlen`/`[rip+Σlen]` — `TEMPLATE_ADDR_SIGMA`/
+`TEMPLATE_ADDR_SIGLEN` = **emitter-process global addresses**) to the **ratified register convention** Σ=R13,
+δ=R14, Δ=R15 (ζ=R12, r10 stays the per-BLOB DATA-block ptr). Two wins in one: (a) convention compliance; (b)
+**removes the process-local-address bake → SNOBOL mode-4 relocatability** (the m4 0/6 blocker). NOT a convention
+change (the table is untouched) → SNOBOL-session-local, no lockstep. Each step: prove topology
+(`prove_lower2.sh`) unchanged, migrate BINARY+TEXT arms together (SAME processing, only bytes-vs-GAS differ),
+disasm-verify the new register usage, gate. **Mode-2 oracle (`bb_exec.c`) is UNTOUCHED — these are modes-3/4
+templates only; m2 7/7 HARD must stay invariant every step.**
+
+- [ ] **REG-0 — register-establishment contract + r13 de-confliction (PREREQ; coupled to PB-RB-3).** Pin who sets
+  R13/R14/R15 and that they survive the chain. Canonical: **BB_MATCH (PB-RB-3) α** loads `R13 ← Σ-slot`,
+  `R15 ← Δ-slot` from SUBJECT's ζ-frame and `xor r14,r14` (δ=0, ch.18 step 1) before entering the element graph;
+  the ch.18 OUTER start-loop re-sets R14 per start-iteration. R13/R14/R15 are **callee-saved (SysV)** so they
+  survive `call memcmp@PLT` with NO per-box save (only the caller-saved r10 needs `push r10`/`pop r10`).
+  **r13 de-confliction:** r13 doubles as the SM-state register ONLY in SM context; SNOBOL pattern chains emit
+  ZERO SM opcodes (sibling of ICON SM = ZERO OPCODES), so R13=Σ is unambiguous on this path. NO element edits in
+  REG-0 — it is the contract REG-1+ depend on. **DO REG-0 AS PART OF PB-RB-3's BB_MATCH α** (preferred), or — to
+  unit-test elements before BB_MATCH — a thin subject-register prologue shim in `sno_flat_chain_build`/`_text`
+  that loads R13/R15 from SUBJECT's ζ-slots + zeroes R14 after the SUBJECT box. Gate: build rc=0; all gates
+  invariant (no element bytes changed yet).
+- [ ] **REG-1 — migrate `bb_lit` (the proven reference element).** BINARY+TEXT: cursor read `mov eax,[r10]` →
+  `mov eax, r14d`; cursor write `mov [r10], eax` → `mov r14d, eax`; Σ-base `movabs rax,&Σ; mov rax,[rax]` (BIN) /
+  `lea rcx,[rip+Σ]; mov rax,[rcx]` (TEXT) → use `r13` directly; Δ-compare `movabs rcx,&Σlen; cmp eax,[rcx]` →
+  `cmp eax, r15d`. β arm: `δ -= len` becomes `sub r14d, len` (no `[r10]`). Re-derive the byte sequence + patch
+  offsets (the patch tuple shrinks — the two `movabs`+deref blocks vanish). Removes both `TEMPLATE_ADDR_SIG*`
+  bakes from `bb_lit`. Prove: prove_lower2 topology unchanged; mode-3 `S 'b'` in `'abc'` → `[1,2]` under REG-0;
+  disasm shows cursor=r14/Σ=r13/Δ=r15, no `&Σ`/`&Σlen` imm64. Gate: m2 7/7 HARD invariant; m3 ≥ floor; purity
+  clean; g_vstack==0.
+- [ ] **REG-2 — cursor-advancing leaves.** `bb_pat_len`, `bb_pat_any`, `bb_pat_notany`, `bb_pat_span`,
+  `bb_pat_break`, `bb_pat_rem` — same rewrite per box (verify each box's actual cursor-field offset + `&Σ`/`&Σlen`
+  sites against disasm before editing; they are NOT all identical). Each step removes that box's `TEMPLATE_ADDR_SIG*`
+  bakes. Gate per box (or small sub-group); m2 invariant.
+- [ ] **REG-3 — cursor-verify / position leaves.** `bb_pat_pos` (RPOS folded), `bb_pat_tab` (RTAB folded),
+  `bb_pat_atp` (`@var` writes the cursor → write R14). POS/RPOS read R14 (and Δ=R15 for RPOS) and compare; TAB/RTAB
+  advance R14 to a computed target. Gate; m2 invariant.
+- [ ] **REG-4 — combinators.** `bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence` — they thread δ via the ports and
+  save/restore δ on backtrack: the saved-δ slot moves from the `[r10]` data-block field to a **ζ-slot save of R14**
+  (`mov [r12+off], r14d` / restore), NOT `[r10]`. FENCE seals δ on α, restores on β (commit) — now via R14+ζ-slot.
+  Gate; m2 invariant.
+- [ ] **REG-5 — generators + capture (coordinate with BROK-1/BROK-2).** `bb_pat_arb`, `bb_arbno`, `bb_capture`
+  (the `std::deque<int>` saved-δ pattern stores R14 snapshots), `bb_pat_defer`. Per-activation δ state migrates
+  from the `[r10]` block to R14 + ζ-slot/deque saves. Since BROK-1/BROK-2 convert CAPTURE/ARBNO to jump-to-α/β,
+  do REG-5 **with or after** those rungs to avoid double-rework. Gate; m2 invariant.
+- [ ] **REG-FENCE — the no-legacy-cursor gate (completion test).** Add `scripts/test_gate_sno_pat_reg.sh`:
+  `grep -lE 'TEMPLATE_ADDR_SIGMA|TEMPLATE_ADDR_SIGLEN' src/emitter/BB_templates/bb_pat_*.cpp src/emitter/BB_templates/bb_lit.cpp src/emitter/BB_templates/bb_capture.cpp src/emitter/BB_templates/bb_arbno.cpp`
+  == empty, AND no `[r10]`-as-cursor read/write remains in those files (cursor is r14, subject r13, length r15).
+  Wire into the Session Setup gate list so it can never creep back. **Then RE-CHECK SNOBOL m4 smoke** — with the
+  `&Σ`/`&Σlen` bakes gone the pattern boxes are relocatable, so the m4 0/6 floor should finally be liftable
+  (track the new m4 count). COMPLETION TEST (rung): the new gate green + in Session Setup; m2 7/7 HARD held;
+  m3 ≥ floor; SNOBOL m4 re-measured (expected > 0/6 once a pattern chain assembles+links+runs standalone).
+
+**COMPLETION TEST (REG ladder):** `test_gate_sno_pat_reg.sh` green (zero `TEMPLATE_ADDR_SIG*`, zero `[r10]`-cursor
+in the SNOBOL pattern family); every pattern box reads cursor=R14 / subject=R13 / length=R15; m2 7/7 HARD
+invariant throughout; SNOBOL mode-4 pattern smoke re-measured and improved (the process-local-address blocker is
+gone). The convention TABLE is byte-identical-×3 and UNCHANGED (this rung conforms boxes to it, does not edit it).
+
+---
+
+> **⚠️⚠️ PB-RB-3 DESIGN DECISION — ✅ RESOLVED (Lon directive 2026-06-01, verbatim: "BB_MATCH would jump in and
+> be jumped back into from the PATTERNS BB. Jump to box's alpha, return from box's omega"). MODEL A (INLINE-JUMP)
+> CHOSEN.** "HOW DOES BB_MATCH DRIVE THE ELEMENT?" — answered: BB_MATCH `jmp`s to the element's α and is jumped
+> back into via the element's ω (the proven combinator mechanism, NO C call). The collision analysis below is
+> kept because it is WHY the call model was rejected; it grounded the decision, not assumed it.
+>
+> **THE COLLISION.** PB-RB-3 as written says "BB_MATCH reads REF_INVARIANT's ζ-slot head + DRIVES it." But a
+> REF_INVARIANT child is built by `bb_build_flat` → a SEPARATELY-SEALED box with an `XA_FLAT_PROLOGUE`
+> (`push r12; mov r12,rdi`) + `XA_FLAT_EPILOGUE` (`pop r12; ret`); its γ/ω flow to that `ret`, NOT to
+> externally-wireable labels. So "driving" a separately-sealed head means **CALLING it** — `fn(ζ, entry)` — which
+> is precisely what the PB-RB-1 probe does (`fn(rt_frame(), 0)`, verified) and precisely the `(void*ζ, int entry)`
+> convention the top FACT RULE ("enter a box by JUMPING to α/β, NEVER a C call") and the BROKERED-ERADICATION
+> rung (Lon, 2026-06-01) forbid. The `bb_box_fn` typedef IS `DESCR_t(*)(void*,int)`.
+>
+> **THE PROVEN ALTERNATIVE ALREADY IN-TREE.** The general program-graph chain (`codegen_sno_flat_chain_body`) and
+> the SNOBOL combinators XCAT/XALT/XFENCE drive their sub-elements by **INLINE-JUMP wiring** —
+> `walk_bb_flat(kid, lbl_γ, lbl_ω, lbl_β)` emits the kid INLINE and threads its four ports to the surrounding
+> boxes' labels at THIS emit site. NO call, NO separate sealed callable. The `(ζ,entry)` CALL convention is
+> isolated to exactly: ARBNO/capture children (`bb_build_brokered`, the BROK-1/BROK-2 targets), the dead
+> `bb_build_pure_mode` (BROK-0), and REF_INVARIANT's `bb_build_flat` child (the probe's `fn(ζ,0)`).
+>
+> **GOAL-FILE INTERNAL TENSION (both dated 2026-06-01).** The CORRECTED-ARCHITECTURE text says "the broker
+> follows the port pointers exactly as for Icon/Prolog" (a surviving runtime driver that chases `{α,β,γ,ω}`
+> pointers — the pre-`bb_broker`-deletion mental model). The strengthened FACT RULE — same day — says modes 3/4
+> have NO broker; boxes thread control by JUMPING α/β labels. `bb_broker.c` is in fact DELETED. The combinators
+> prove the FACT-RULE model works: XCAT/XALT inline-thread their kids' ports at emit time, no runtime broker.
+>
+> **RECOMMENDATION (Opus 4.8).** Build PB-RB-3's BB_MATCH on the **INLINE-JUMP model**, not the call model:
+> BB_MATCH emits the element graph INLINE (via `walk_bb_flat`) inside the match sequence, wiring the element's γ
+> → the match-success handler and its ω → the ch.18 OUTER-loop retry (advance δ=R14 unless anchored), with REG-0
+> establishing R13/R14/R15 at BB_MATCH's α. This honors the FACT RULE (no `fn(ζ,entry)`), reuses the proven
+> combinator mechanism, and needs NO surviving broker. **Consequence for REF_INVARIANT (LANDED PB-RB-1):** its
+> "load a separately-sealed head ADDRESS into a ζ-slot, reached by call" model is then NOT the base-case drive —
+> it is the right primitive ONLY for (i) PB-RB-OPT's all-invariant single-BLOB freeze (a self-contained pre-sealed
+> blob entered by ONE jump to its entry, whole pattern inside — no per-element call) and (ii) pattern-valued
+> variables (Fork B: a variable holds a graph). For the base single-element `S 'b'` case, the literal element is
+> emitted INLINE; REF_INVARIANT is bypassed (or repurposed to mark "this subtree is invariant → eligible for the
+> OPT blob-freeze" rather than "load+call a sealed fn").
+>
+> **⚠ DECISION FOR LON.** (A) Adopt the inline-jump model for PB-RB-3 and re-scope REF_INVARIANT to the
+> OPT-blob-freeze / pattern-valued-var role (my recommendation — FACT-RULE-clean); OR (B) keep the
+> sealed-head-by-`fn(ζ,entry)` call as the temporary substrate for PB-RB-3 and let BROKERED-ERADICATION sweep it
+> later (faster to first green, but knowingly extends the forbidden convention — against the FACT RULE's letter).
+> I did NOT implement PB-RB-3 because the choice repositions a landed primitive and intersects two of your
+> directives; coding it on a guess is the failure mode the CONSULT-CANONICAL-SOURCES rule exists to prevent.
+
+
+- [ ] **PB-RB-3 — BB_MATCH driver (phase 3) + REG-0 register establishment.** Add `IR_PAT_MATCH` (IR.h) +
+  `bb_sno_match.cpp`. Model A (inline-jump, RESOLVED above): BB_MATCH reads the element entry via `operand_aux`
+  (PEERS RULE) + Σ/Δ from the SUBJECT box's ζ-slot. **REG-0 lives here:** BB_MATCH's α loads
+  `R13 ← Σ-slot`, `R15 ← Δ-slot`, `xor r14,r14` (δ=0) — establishing the ratified register contract — BEFORE it
+  DRIVES the head box-graph via the four-port driver with the SPITBOL ch.18 unanchored OUTER start-loop (advance
+  starting δ=R14 on fail unless anchored; within-pattern backtracking is the boxes' β/ω). R13/R14/R15 are
+  callee-saved so they persist across the element chain. Success → δ at match-end + span on γ; else ω. BINARY +
+  TEXT. Prove the 3-box chain topology (SUBJECT→REF_INVARIANT→BB_MATCH→SUCCEED); mode-3 `S 'b'` → matches `'b'`
+  in `'abc'` ([1,2]). (Replaces the reverted draft PB-2 that read a `PATND_t`.) **NOTE:** until the REG ladder
+  migrates the element bodies (REG-1+), the sealed `bb_lit` head still reads the legacy `[r10]`/`&Σ` model, so
+  BB_MATCH must ALSO populate those (the shim) for the chain to run; once REG-1 lands, `bb_lit` reads R13/R14/R15
+  and the shim drops. Cleanest order: PB-RB-3 (with REG-0 register load) → REG-1 (`bb_lit`) → REG-2…REG-FENCE.
+  **[TOPOLOGY LANDED 2026-06-01, Opus 4.8 — drive arm is the next increment.]** Per the RESOLVED design above
+  (Model A inline-jump). Landed (build clean, ALL gates green, ZERO regression — NOT committed, no handoff
+  trigger): (1) `IR_PAT_MATCH` kind (IR.h append-only) + `kind_names` entry; (2) `lower2_match_entry` (lower.c) —
+  lowers the element with BOTH its γ AND ω threaded back to the MATCH node (γ=loop-exit/success, ω=outer-loop
+  retry — "jump to α, return from ω"), MATCH.γ→statement-success / MATCH.ω→match-exhausted-fail, bounded β=ω, the
+  element entry held in `operand_aux` (PEERS RULE) for inline-jump drive (NO `fn(ζ,entry)` call); (3) prove_lower2
+  `dump_match` case PROVEN — `MATCH('b')` = `PATMAT`(γ→PSUCC, ω→PFAIL) + `PLIT`(γ→MATCH, ω→MATCH), 2 real nodes,
+  **64→65 PASS**; (4) `bb_sno_match.cpp` fail-loud stub (BINARY abort = MEDIUM_BINARY-exempt; bomb_text TEXT) +
+  emit_core dispatch (`case IR_PAT_MATCH`) + Makefile (`RT_PIC_SRCS` + per-`.o` rule, append-only). Gates:
+  SNOBOL4 m2 **7/7 HARD** / m3 5/6 / m4 0/6, Icon m2 **12/12 HARD** / m3 12/12 / m4 12/12, prove_lower2 **65**,
+  sm_dead OK, concurrency invariants OK (FACT RULES byte-identical ×3), purity **7** (baseline), g_vstack **0**.
+  **⭐ NEXT INCREMENT — `bb_sno_match` BINARY arm (logic-only; one open mechanism flagged).** GROUNDED THIS
+  SESSION so the byte arm is a direct write: model `flat_drive_sno_match(pBB, lbl_γ, lbl_ω, lbl_β)` on
+  `flat_drive_xcat` (emit_bb.c) + add a `walk_bb_flat` `case IR_PAT_MATCH`. ✅ PLUMBING RESOLVED: the chain BFS
+  (`codegen_sno_flat_chain_body`, emit_bb.c:2129-2138) follows ONLY `c->γ`/`c->ω`, NEVER `operand_aux` — so the
+  element (reached only via MATCH's operand_aux) is NOT in the BFS and is NOT double-emitted; `flat_drive_sno_match`
+  inline-emits it itself via `walk_bb_flat(element, success_handler, retry_advance, element_β)`, exactly as
+  `flat_drive_xcat` inline-emits its kids. Skeleton: (a) α — REG-0: load R13←Σ, R15←Δ, `xor r14d,r14d`, seed a
+  start-cursor ζ-slot=0; (b) `retry:` define; (c) `walk_bb_flat(operand_aux[0], success_handler, retry_advance,
+  element_β)`; (d) `success_handler:` δ(=R14) is at match-end, span=[start,δ] → record result → `jmp lbl_γ`; (e)
+  `retry_advance:` `start_slot++`; `cmp start_slot, r15d (Δ)`; if `≤` and `kw_anchor==0` → `mov r14d, start_slot;
+  jmp retry`; else `jmp lbl_ω`. ⚠ ONE OPEN MECHANISM (decide first): BB_MATCH must read Σ/Δ from SUBJECT's
+  ζ-slot, but SUBJECT's slot offset (`bb_slot_alloc16(subject)`) is a CROSS-BOX emit-time value — thread it like
+  PB-RB-1's child-cache/`g_emit_cfg` (a `g_emit` field set when SUBJECT emits, read when MATCH emits), OR fix
+  SUBJECT+MATCH to a well-known frame offset, OR have BB_MATCH re-call `rt_sno_subject_load` (redundant but
+  self-contained — simplest first cut). Plus the REG shim (populate legacy `[r10]`/`&Σ`/`&Σlen` for the
+  un-migrated `bb_lit`) until REG-1 lands. Then a mode-3 probe (model `probe_pb_rb_1_ref_invariant.c`): JIT
+  SUBJECT('abc')→MATCH(element 'b')→SUCCEED via `sno_flat_chain_build`, assert match span [1,2]. Deferred from
+  this session: byte-level build needs several build/disasm/probe iterations — started fresh-context it is a
+  clean logic-only increment; starting it at session-end risked a half-written arm breaking the green tree.
 - [ ] **PB-RB-4 — STITCH_SEQ / STITCH_ALT (the graph builders).** Add `IR_STITCH_SEQ` / `IR_STITCH_ALT`
   (IR.h) + `bb_stitch_seq.cpp` / `bb_stitch_alt.cpp`: read two child heads from `ζ`-slots, wire their four
   ports (runtime twin of LOWER's `wire_seq`/`wire_alt` — SAME port equations), leave the combined head +
@@ -894,6 +1110,53 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = c2b352d  PB-RB-3 TOPOLOGY — IR_PAT_MATCH inline-jump BB_MATCH (Opus 4.8, 2026-06-01, LANDED +
+                     PUSHED this handoff). Base 77bbebc (PB-RB-1 emit arm); rebased on push onto c353d68 (concurrent
+                     sibling Icon "GZ-11+ mode-2 relational binop generator-transparency", bb_exec.c only — disjoint;
+                     rebuilt + re-gated green together). The PB-RB-3 DESIGN FORK was RESOLVED
+                     by Lon this session (verbatim: "BB_MATCH would jump in and be jumped back into from the
+                     PATTERNS BB. Jump to box's alpha, return from box's omega") => MODEL A (INLINE-JUMP) — NO C
+                     call, the proven combinator (walk_bb_flat port-threading) mechanism; the rejected Model B
+                     (sealed-head via fn(ζ,entry)) would have extended the very (ζ,int entry) convention the
+                     C-BYRD-BOX FACT RULE + BROKERED-ERADICATION rung forbid (grounded: REF_INVARIANT's bb_build_flat
+                     child has a push r12/…/ret shell, so "driving" it = CALLING it; the PB-RB-1 probe's fn(rt_frame(),0)
+                     proves it). THIS COMMIT = the PB-RB-3 TOPOLOGY increment (drive arm deferred — see NEXT):
+                       (a) IR.h — IR_PAT_MATCH kind (append-only before IR_OP_COUNT); scrip_ir.c kind_names entry.
+                       (b) lower.c lower2_match_entry — lowers the element with BOTH its γ AND ω threaded back to
+                           the MATCH node (γ = loop-exit/success, ω = outer-loop retry — "jump to α, return from ω");
+                           MATCH.γ→statement-success / MATCH.ω→match-exhausted-fail; bounded single-shot (β=ω_in);
+                           the element entry held in operand_aux (PEERS RULE) for inline-jump drive (NO fn(ζ,entry)).
+                       (c) prove_lower2.c dump_match — MATCH('b') = PATMAT(γ→PSUCC,ω→PFAIL) + PLIT(γ→MATCH,ω→MATCH),
+                           2 real nodes; PASS. prove_lower2 64 -> 65.
+                       (d) bb_sno_match.cpp — fail-loud stub (BINARY abort = MEDIUM_BINARY purity-exempt; bomb_text
+                           TEXT); the full control-flow contract is documented in the box header for the drive arm.
+                           emit_core.c dispatch (case IR_PAT_MATCH); Makefile RT_PIC_SRCS + per-.o rule (append-only).
+                     v_scan NOT rewired (mode-2 IR_SCAN super-node intact -> ZERO regression; retire is PB-RB-CONV).
+                     GATES (all green, match/hold watermark): make scrip rc=0, libscrip_rt rc=0, SNOBOL4 m2 **7/7
+                     HARD** / m3 5/6 / m4 0/6, Icon m2 **12/12 HARD** / m3 12/12 / m4 12/12, prove_lower2 **65**,
+                     sm_dead 0, concurrency invariants OK (FACT RULES byte-identical x3), template purity **7**
+                     (baseline), g_vstack **0**.
+                     **.github THIS HANDOFF:** (1) PB-RB-2 marked [x] + the "PB-RB-2 MATCHER-ELEMENT FOUR-PORT ABI"
+                     block (the spec PB-RB-3 drives; bb_lit verified conformant, no adaptation; the oracle-C Δ(cursor)
+                     vs native δ casing-inversion trap recorded). (2) NEW **REG LADDER** (REG-0..REG-FENCE) — migrate
+                     the SNOBOL pattern family off the legacy [r10]-cursor / &Σ/&Σlen (TEMPLATE_ADDR_SIGMA/SIGLEN =
+                     emitter-process global ADDRESSES = the mode-4 0/6 blocker) to the ratified Σ=R13/δ=R14/Δ=R15;
+                     NOT a convention-table change (SNOBOL-lane, no lockstep). (3) PB-RB-3 design fork RESOLVED +
+                     TOPOLOGY-LANDED note + the GROUNDED executable BINARY-arm plan. (4) banner pointer -> PB-RB-3.
+                     (5) fixed a markdown corruption (dropped PB-RB-3 bullet header from an earlier blockquote insert).
+                     **NEXT (#1): bb_sno_match BINARY arm (logic-only).** Model flat_drive_sno_match on flat_drive_xcat
+                     + a walk_bb_flat case IR_PAT_MATCH. ✅ PLUMBING RESOLVED this session: the chain BFS
+                     (codegen_sno_flat_chain_body emit_bb.c:2129-2138) follows ONLY c->γ/c->ω, never operand_aux, so the
+                     element is NOT double-emitted — flat_drive_sno_match inline-emits it via walk_bb_flat(element,
+                     success_handler, retry_advance, element_β), exactly as flat_drive_xcat does its kids. Arm skeleton:
+                     α=REG-0 (R13←Σ, R15←Δ, xor r14d; seed start-slot=0) -> retry: -> walk_bb_flat(element,…) ->
+                     success_handler (δ=match-end, span=[start,δ], record -> jmp γ) -> retry_advance (start++; cmp Δ;
+                     ≤ && kw_anchor==0 -> mov r14d,start; jmp retry; else jmp ω). ⚠ ONE OPEN MECHANISM: BB_MATCH must
+                     read SUBJECT's ζ-slot offset (cross-box emit-time value) — thread via a g_emit field (like PB-RB-1
+                     g_emit_cfg/child-cache), fix a well-known offset, OR re-call rt_sno_subject_load (self-contained,
+                     simplest first cut). Plus the REG shim (populate legacy [r10]/&Σ/&Σlen for the un-migrated bb_lit)
+                     until REG-1. Then mode-3 probe (model probe_pb_rb_1_ref_invariant.c): SUBJECT('abc')->MATCH('b')->
+                     SUCCEED, assert span [1,2]. Best done in fresh context (several build/disasm/probe iterations).
 HEAD SCRIP       = 01422d7  PB-RB-1 EMIT ARM + MODE-3 PROBE (Opus 4.8, 2026-06-01, LANDED — push pending
                      this handoff). The REF_INVARIANT lowering was already done (6343198); THIS lands the
                      EMIT side that was the remaining PB-RB-1 work:
