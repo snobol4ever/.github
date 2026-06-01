@@ -343,9 +343,16 @@ prove_lower2 **61/0** unchanged; Icon 6/6, SNOBOL4 7/7 m2 unchanged. FACT-rule m
 
 **NEXT (two tracks, both now gated by the 3-mode smoke):** (A) RK-LOWER-5b redo — mutating hash/array writeback (the
 dval=3.0 exec-recovery approach is sound; the bug was port wiring of the statement-position call — fix the γ/ω return so a
-successful mutation continues the sequence). (B) **RK-EMIT-1 — the real lever for modes 3/4:** begin the `bb_rk_*.cpp`
-template arms (start with the simplest proven mode-2 arm, e.g. `say`/`print` → reuse the shared `bb_call`/`bb_lit`
-machinery) so mode-3/4 PASS counts begin climbing off 0; raise `MODE3_MIN`/`MODE4_MIN` as they do.
+successful mutation continues the sequence). (B) **Modes 3/4 — DIAGNOSED 2026-05-31 (Opus 4.8):** Raku `--run`/`--compile`
+abort with `[SBB] sno_ring_to_tree REMOVED (VIOLATION, Lon 2026-05-31) ... must come from LOWER producing the four-port
+statement-BB graph directly ... not yet wired. Aborting (by design).` i.e. Raku routes through the SNOBOL4-family `[SBB]`
+mode-3/4 driver, which Lon SEVERED 2026-05-31 (ring→tree adapter removed; LOWER-direct path unwired) — the SAME reason
+SNOBOL4 is 0/6 in m3/m4. Icon is 6/6 because it has its OWN native path. **So Raku m3/m4 = 0/22 is blocked on SHARED
+SNOBOL-family infrastructure (SNOBOL4-BB / Ground-Zero track), NOT a Raku-only RK-EMIT task. Writing `bb_rk_*.cpp` templates
+is necessary but NOT SUFFICIENT until that upstream `[SBB]` driver consumes the four-port LOWER graph directly (or Raku is
+given its own LOWER-direct m3/m4 driver like Icon's).** Recommended sequencing: coordinate with the SNOBOL4-BB session on
+the statement-BB-graph-from-LOWER driver; once Raku can reach its `IR_CALL`/generator nodes in m3/m4, reuse the proven Icon
+templates (`bb_call`/`bb_lit`/`bb_to`/…) for the shared kinds and add `bb_rk_*` only for the generator/junction/NFA box set.
 
 ---
 
