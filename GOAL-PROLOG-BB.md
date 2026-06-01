@@ -1,5 +1,38 @@
 # GOAL-PROLOG-BB.md — Prolog: BB-land DCG per predicate + lower_pl DCG
 
+## ⛔ NO VALUE STACK — EVER (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
+
+**SCRIP HAS NO VALUE STACK. NO SESSION, IN ANY LANGUAGE, MAY CREATE ONE.** (Lon directive, 2026-05-31.)
+There is nothing like a value stack in SCRIP — every value a BB graph computes or holds at run time lives
+INSIDE a box: a READ-ONLY operand constant reached `[rip+disp]` into sealed data, or a READ-WRITE slot
+reached `[ζ=r12+off]` in the per-sequence one-register frame (the `test_sno_1.c`/`test_icon.c` named-slot
+model). A consumer reads a producer's result directly from that producer's slot. A value is NEVER pushed
+to or popped from a global stack, and intermediate producer→consumer values are NEVER threaded through a
+name-table round-trip. This is the same law as the PER-BOX LOCAL STORAGE FACT RULE; this rule states the
+prohibition in the strongest, language-independent form so it cannot be re-introduced from any session.
+
+**The `g_vstack` global array is DELETED (2026-05-31) and must NEVER be resurrected** — nor any equivalent
+under a different name (`*_vstack[]`, `value_stack`, `g_estack`, a hand-rolled `WamWord[]`/`DESCR_t[]`
+push/pop arena used to pass values between boxes, etc.). FORBIDDEN to (re)introduce: a global/static array
+whose purpose is to push a box's value and pop it in a consumer; `rt_push_*`/`rt_pop_*`/`vstack_*` value
+traffic; any `*_push`/`*_pop` helper that moves an *intermediate* value between boxes. (KEEP, NOT a value
+stack: the Prolog trail `g_resolve_trail`/`rt_pl_trail_*` — a binding-undo ledger; the choice-point ledger
+`g_resolve_bfr`/`resolve_choice` — the irreducible cross-node resume spine; the C call stack used for
+genuine recursion; an ARBNO-style explicit indexed per-activation frame array. None of these is a value
+stack.) The residual `vstack_*`/`rt_vstack_ops_t` SCAFFOLDING left in `src/runtime/rt/rt.c` is dead/aborting
+(`g_ops` only ever points at `g_default_ops`, whose push/pop/peek `abort()`); it is being removed rung by
+rung (the VSX ladder) and must NOT be wired up to anything — adding a real backing store to it = creating a
+value stack = a violation.
+
+**GUARD:** `scripts/test_gate_no_vstack.sh` (informational baseline now; flips to a HARD `--strict`
+zero-check at VSX-8). It greps (comments stripped) ACROSS ALL `src/` for `g_vstack`/`vstack_push`/
+`vstack_pop`/`vstack_peek`/`rt_vstack_*`. The `g_vstack` token is already at ZERO and must STAY at zero;
+the rest trend to zero as the scaffolding is deleted. Any session that makes the `g_vstack` count non-zero,
+or that adds a new value-stack array under any name, has violated this rule. **COMPLETION TEST:** (a)
+`grep -rn 'g_vstack' src/` == 0 (code AND comments); (b) no new global/static push/pop value arena exists;
+(c) `scripts/test_gate_no_vstack.sh` `g_vstack` line reads 0; (d) the FACT RULE body is byte-identical
+across all five GOAL-*-BB files.
+
 ## ⛔ SHARED-LOWERER ONE-FILE CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
 The unified AST→IR lowerer is **ONE file** — `src/lower/lower.c` (formerly `lower2.c`, the new tree root after old `lower.c` was deleted 2026-05-31) — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** (every `TT_*`). SNOBOL4, Icon, and Prolog are developed CONCURRENTLY in SEPARATE sessions, all writing into this one file. Each language adds ARMS the others don't; the discipline below makes three concurrent sessions **conflict-free and mutually beneficial** (one session's added case label / shared helper is the next session's ready slot):
@@ -184,6 +217,28 @@ surface); the `STACKLESS_ABORT` macro's `g_vstack` mention.
   bb_binop_gen = Icon/SNOBOL binop). Prolog no-resurrect guard still passes; Prolog smoke unchanged (no code
   deleted this rung).
 
+- [x] **VSX-PIVOT — DELETE the `g_vstack` ARRAY now; STUB its sites; leave scaffolding (Lon directive,
+  2026-05-31). DONE (Opus 4.8, 2026-05-31).** Lon pivoted off the slow rung-by-rung order to kill the actual
+  value-stack STORAGE immediately: delete the `static DESCR_t g_vstack[VSTACK_CAP]` array (and its
+  `#define VSTACK_CAP`), neutralize every reference site, and leave ALL the surrounding scaffolding
+  (`g_vtop`/`g_last_ok`, the ops layer `rt_vstack_ops_t`/`g_default_ops`/`g_ops`/7 `_default_*`, the
+  `vstack_push/pop/peek/pop_str/pop_int64` wrappers, `rt_vstack_depth`/`rt_vstack_pop`) for the later
+  scaffolding rungs (VSX-2..VSX-7) to remove. **Found the array was ALREADY DEAD** (matches the VSX-0
+  key finding): the ONLY code mentions of the token `g_vstack` were the array declaration itself and ONE
+  `(void)g_vstack;` cast that existed solely to suppress the unused-static warning — there was NO index
+  access (`g_vstack[...]`) anywhere, in any file. So the user's suggested `*(void*)NULL` plug wasn't even
+  needed: deleting the declaration + dropping the orphaned void-cast removes the storage with zero behavior
+  change (every `vstack_*` site was already a guaranteed `abort()` via `g_default_ops`). Also scrubbed the
+  token from the `STACKLESS_ABORT` macro message text and from 6 explanatory comment mentions in
+  `bb_atom.cpp`/`bb_logicvar.cpp`/`bb_sno_assign.cpp` → **the token `g_vstack` is now at ZERO across all
+  `src/` (code AND comments)**. New FACT RULE "NO VALUE STACK — EVER" added byte-identical to all five
+  GOAL-*-BB files (the user's "no session may create a value stack" directive). **Gates byte-identical:**
+  Prolog GATE-1 m2 5/5 (HARD) m3 5/5 m4 3PASS/2EXCISED, GATE-3 m2 111/111 m3 111/111 m4 8PASS/103EXCISED;
+  Icon m2 9/9 m3 9/9 m4 9/9; SNOBOL4 m2 7/7 (HARD) m3 5 m4 0 (pre-existing floors, verified identical via
+  stash); FACT 0; full build green. `test_gate_no_vstack.sh` total 166→162 (the 4 deleted lines); the
+  **`g_vstack` line is now 0** and STAYS 0 (the VSX-8 completion test for that token is met early). VSX-2
+  onward (scaffolding `rt_*`/wrappers/ops layer) proceed unchanged — they no longer have an array to back.
+
 - [ ] **VSX-2 — delete the DEAD set (0 external refs).** Delete these `rt_*` (and their `rt.h` decls), each
   confirmed 0 refs outside rt.c in VSX-0: `rt_coerce_num`, `rt_concat`, `rt_decr`, `rt_exec_stmt_pat`,
   `rt_exp`, `rt_frame_enter`, `rt_halt_tos`, `rt_incr`, `rt_load_frame`, `rt_match_blob`, `rt_neg`,
@@ -215,13 +270,15 @@ surface); the `STACKLESS_ABORT` macro's `g_vstack` mention.
   vstack call). When the last caller is gone, delete `rt_push_int`/`rt_push_str`/`rt_push_null`. Gate: all
   smokes at/above floor; build green; FACT 0.
 
-- [ ] **VSX-7 — delete the array + ops layer + wrappers.** With every caller gone: delete `g_vstack`,
-  `g_vtop`, `g_vframe_base`, `g_last_ok`, `rt_vstack_ops_t` (rt.h), `g_default_ops`, `g_ops`, all 7
-  `_default_*` fns, `rt_vstack_depth`, `rt_vstack_pop`, `vstack_push/pop/peek/pop_str/pop_int64`,
-  `LAST_OK_GET/SET`. Rework `rt_frame` save/restore + `rt_last_ok` off `g_ops->depth/set_depth/last_ok`
-  (they use the non-aborting ops — give them a tiny local or fold into the ζ-frame; confirm against the
-  frame model). Purge `g_vstack` from the `STACKLESS_ABORT` macro text. Gate: build green; ALL language
-  smokes at/above floor; FACT 0.
+- [ ] **VSX-7 — delete the ops layer + wrappers (the array is already gone via VSX-PIVOT).** The
+  `g_vstack` array, its `VSTACK_CAP`, the orphaned `(void)g_vstack;` cast, and the `g_vstack` mention in
+  the `STACKLESS_ABORT` macro text were ALL deleted in VSX-PIVOT (2026-05-31) — `g_vstack` is at zero. This
+  rung removes the remaining SCAFFOLDING, with every caller gone: `g_vtop`, `g_vframe_base`, `g_last_ok`,
+  `rt_vstack_ops_t` (rt.h), `g_default_ops`, `g_ops`, all 7 `_default_*` fns, `rt_vstack_depth`,
+  `rt_vstack_pop`, `vstack_push/pop/peek/pop_str/pop_int64`, `LAST_OK_GET/SET`. Rework `rt_frame`
+  save/restore + `rt_last_ok` off `g_ops->depth/set_depth/last_ok` (they use the non-aborting ops — give
+  them a tiny local or fold into the ζ-frame; confirm against the frame model). Gate: build green; ALL
+  language smokes at/above floor; FACT 0.
 
 - [ ] **VSX-8 — ZERO-CHECK (the proof).** `scripts/test_gate_no_vstack.sh` (from VSX-1) flips to a HARD
   gate: zero matches for `g_vstack|vstack_push|vstack_pop|vstack_peek|rt_vstack_|rt_vstack_ops_t` in code

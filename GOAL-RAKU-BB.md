@@ -1,5 +1,38 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
+## ⛔ NO VALUE STACK — EVER (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
+
+**SCRIP HAS NO VALUE STACK. NO SESSION, IN ANY LANGUAGE, MAY CREATE ONE.** (Lon directive, 2026-05-31.)
+There is nothing like a value stack in SCRIP — every value a BB graph computes or holds at run time lives
+INSIDE a box: a READ-ONLY operand constant reached `[rip+disp]` into sealed data, or a READ-WRITE slot
+reached `[ζ=r12+off]` in the per-sequence one-register frame (the `test_sno_1.c`/`test_icon.c` named-slot
+model). A consumer reads a producer's result directly from that producer's slot. A value is NEVER pushed
+to or popped from a global stack, and intermediate producer→consumer values are NEVER threaded through a
+name-table round-trip. This is the same law as the PER-BOX LOCAL STORAGE FACT RULE; this rule states the
+prohibition in the strongest, language-independent form so it cannot be re-introduced from any session.
+
+**The `g_vstack` global array is DELETED (2026-05-31) and must NEVER be resurrected** — nor any equivalent
+under a different name (`*_vstack[]`, `value_stack`, `g_estack`, a hand-rolled `WamWord[]`/`DESCR_t[]`
+push/pop arena used to pass values between boxes, etc.). FORBIDDEN to (re)introduce: a global/static array
+whose purpose is to push a box's value and pop it in a consumer; `rt_push_*`/`rt_pop_*`/`vstack_*` value
+traffic; any `*_push`/`*_pop` helper that moves an *intermediate* value between boxes. (KEEP, NOT a value
+stack: the Prolog trail `g_resolve_trail`/`rt_pl_trail_*` — a binding-undo ledger; the choice-point ledger
+`g_resolve_bfr`/`resolve_choice` — the irreducible cross-node resume spine; the C call stack used for
+genuine recursion; an ARBNO-style explicit indexed per-activation frame array. None of these is a value
+stack.) The residual `vstack_*`/`rt_vstack_ops_t` SCAFFOLDING left in `src/runtime/rt/rt.c` is dead/aborting
+(`g_ops` only ever points at `g_default_ops`, whose push/pop/peek `abort()`); it is being removed rung by
+rung (the VSX ladder) and must NOT be wired up to anything — adding a real backing store to it = creating a
+value stack = a violation.
+
+**GUARD:** `scripts/test_gate_no_vstack.sh` (informational baseline now; flips to a HARD `--strict`
+zero-check at VSX-8). It greps (comments stripped) ACROSS ALL `src/` for `g_vstack`/`vstack_push`/
+`vstack_pop`/`vstack_peek`/`rt_vstack_*`. The `g_vstack` token is already at ZERO and must STAY at zero;
+the rest trend to zero as the scaffolding is deleted. Any session that makes the `g_vstack` count non-zero,
+or that adds a new value-stack array under any name, has violated this rule. **COMPLETION TEST:** (a)
+`grep -rn 'g_vstack' src/` == 0 (code AND comments); (b) no new global/static push/pop value arena exists;
+(c) `scripts/test_gate_no_vstack.sh` `g_vstack` line reads 0; (d) the FACT RULE body is byte-identical
+across all five GOAL-*-BB files.
+
 ## ⏸ ON HOLD → SPINNING UP (2026-05-31)
 
 **Lon directive (2026-05-31): Raku is being re-prioritized as the FOURTH concurrent BB session,
