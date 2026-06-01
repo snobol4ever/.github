@@ -408,12 +408,17 @@ FACT 0, smokes hold.
   (`iseven` calling later-registered `isodd`) passes the `rt_proc_is_registered` gate during slab build.
   Verified m2==m3: `id(99)` `double(21)` `add(3,4)` `f(g(5))` `fact(5)`=120 `fib(10)`=55 `ack(2,3)`=9
   `sumto(100)`=5050 mutual `iseven(10)`/`isodd(7)`=1 `fact` called 3× =120,720,24 (AST not consumed/mutated).
-  **GATES: Icon m2 11/11 HARD · m3 11/11 · m4 0/11; SNOBOL4 m2 7/7 · Prolog m2 5/5 m3 5/5 · no-stack 117≤127
+  **GATES: Icon m2 11/11 HARD · m3 11/11 · m4 11/11 (GZ-10 mode-4 DONE `2de9ff5`); SNOBOL4 m2 7/7 · Prolog m2 5/5 m3 5/5 · no-stack 117≤127
   · one-reg-frame 20≤20 · sm_dead 0 · prove_lower2 PASS · ZERO-SM 0.** (SNOBOL4 m3 FAIL=1 pre-existing,
-  identical at `da3a786`.) **NEXT:** GZ-10 mode-4 (`--compile`) — proc slabs as named asm + `.rodata` names +
-  startup registration; the `bb_call` mode-4 TEXT arm is the loud abort stub today (also the `rt_icn_*`
-  helpers are in-process pointers, so mode-4 needs PLT-relative slab calls). Then the bare-if-no-else
-  fall-through quirk (shared with SNOBOL4/Prolog).
+  identical at `da3a786`.) **GZ-10 mode-4 DONE (`2de9ff5`, Claude Sonnet 4.6):** proc slabs emitted as
+  named GAS asm (`icn_proc_<name>_α` globally-visible labels), startup stub (`icn_proc_startup`) calls
+  `rt_proc_set_fn` to wire each name→slab before `main_α`; `bb_call.cpp` MEDIUM_TEXT arm replaced
+  `abort` stub with PLT-relative staging (`rt_icn_arg_stage@PLT` per arg + `rt_icn_call_proc_descr@PLT`);
+  `g_flat_node_id` no longer reset between proc slabs so xchainN labels are unique; `rt_proc_set_fn`
+  creates a new entry when name not yet registered (needed for mode-4 startup). m2==m3==m4 for
+  `proc_zeroarg` (42) and `proc_recursion` (fact(5)=120). **Icon smoke m2/m3/m4 11/11/11 — first
+  all-three-modes 11/11/11.** **NEXT:** bare-if-no-else fall-through quirk (IR_SEQ statement-failure-
+  continuation, shared with SNOBOL4/Prolog); then GZ-DEFER; then GZ-11+ corpus features stackless.
 - [ ] **GZ-DEFER — EVAL / CODE / `*P` deferred patterns** via the `test_sno_3.c` model. This was
   the ONE thing that broke the prior stackless build; it is solved in the reference file.
 - [ ] **GZ-11+ — corpus features rebuilt stackless** (lists, tables, records, scanning, csets,
@@ -643,7 +648,7 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `5249921` GZ-10 modes 3/4 ARGS + recursion — stackless Icon user-procedure calls with
+**HEAD (SCRIP):** `2de9ff5` GZ-10 modes 3/4 ARGS + recursion — stackless Icon user-procedure calls with
 arguments, recursion, and mutual recursion now run in mode-3, m2==m3. `proc_recursion` smoke flips PASS →
 **Icon m3 11/11**. Built on the GZ-10 modes-3/4 ZERO-ARG foundation `da3a786`; rebased CONFLICT-CLEAN onto the
 parallel Raku session `c1f8e2e` (RK-EMIT-2-NEST) — both added a new static helper to `bb_call.cpp`
@@ -672,9 +677,9 @@ emission into TWO phases so a call to a forward/mutually-recursive proc (`iseven
 **11/11** · m4 0/11; SNOBOL4 m2 **7/7** · Prolog m2/m3 **5/5** · no-stack **117 ≤ 127** · one-reg-frame
 **20 ≤ 20** · sm_dead **0** · prove_lower2 **PASS** · ZERO-SM **0**. (SNOBOL4 m3 FAIL=1 is pre-existing —
 identical at `da3a786`, verified by stash.) **NEXT:** GZ-10 **mode-4** (`--compile`) — the `bb_call` dval==3.0
-TEXT arm is a loud abort stub; needs proc slabs emitted as named asm with `.rodata` proc-name strings +
-startup registration, and PLT-relative calls (the `rt_icn_*` helpers are in-process pointers today). Then the
-bare-`if C then E`-no-else fall-through quirk (shared with SNOBOL4/Prolog).
+TEXT arm was a loud abort stub — **DONE `2de9ff5`**: proc slabs as named GAS asm `icn_proc_<name>_α`,
+startup registration stub, PLT-relative arg staging + call. **NEXT:** bare-`if C then E`-no-else fall-through
+quirk (shared with SNOBOL4/Prolog), then GZ-DEFER, then GZ-11+ corpus features stackless.
 
 ---
 
