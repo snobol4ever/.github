@@ -225,6 +225,81 @@ across all five GOAL-*-BB files.
 >   - **`BB_MATCH`** (still phase 3) — receives the `DT_P` head + Σ/δ/Δ, drives it via the broker with the
 >     ch.18 unanchored OUTER start-loop (within-pattern backtracking is already the boxes' β/ω ports).
 
+> **⭐⭐⭐ SEAL-BOUNDARY HOOKS — `BB_LINK` + the per-glob HEAD BLOCK (Lon + Opus 4.8 design session, 2026-06-01).
+> This is the mechanism for the ONE thing element-granularity sealing did NOT yet answer: how a SEALED graph's
+> OUTERMOST edges (the head's OUTSIDE-γ success-out and OUTSIDE-ω fail-out) reach a target that DIFFERS PER CALL
+> SITE. Two coupled ideas; both keep control threading by JUMPS (never a re-dispatcher — stays on the right side
+> of BROKERED-ERADICATION) and create NO concurrency hazard.**
+>
+> **THE PROBLEM (precisely).** Interior jumps inside a seal (element→element, element→its own ε-exit) bake fine —
+> both ends live inside the seal. The trouble is the two OUTERMOST edges. When `COLOR = 'GOLD' | 'BLUE'` is a
+> sealed reusable head driven from `B ? COLOR` in one statement and `C ? COLOR` in another, the bytes are
+> identical but the outward targets differ per call site, so they CANNOT be `jmp rel32 <fixed>` inside the seal.
+> Unseal/reseal is OUT — it serializes a shared resource (the concurrency worry), dirties I-cache on a hot path,
+> and defeats sharing one sealed copy. The current PB-RB-3 inline emit dodges this (the element is emitted INLINE
+> per statement via `walk_bb_flat`, so OUTSIDE-γ/ω are hardwired and there is no seal boundary to cross). **That
+> dodge expires the moment `DT_P` becomes a real SHARED sealed head.** This note is the answer for that moment.
+>
+> **NO REGISTERS for the continuations (decided — Lon).** The obvious "dedicate r8/r9 to OUTSIDE-γ/ω, head does
+> `jmp r8`" is WRONG here: those continuations must SURVIVE a `call memcmp@PLT` inside the element matchers, and
+> under SysV r8–r11/rax/rcx/rdx/rsi/rdi are caller-saved (the call clobbers them — the same reason `bb_lit` does
+> `push r10; call; pop r10` and `bb_match` α re-establishes r10 after `rt_sno_subject_load`). The callee-saved
+> set (rbx/rbp/r12–r15) WOULD survive but is fully allocated (ζ/Σ/δ/Δ/DESCR-base/hash-base) — no free register
+> to burn. Registers are the wrong home; that points straight at the ζ-frame.
+>
+> **IDEA 1 — `BB_LINK`: the universal seal-boundary external edge (the ζ-slot indirect jump).** A sealed graph
+> reaches OUTSIDE only through a `BB_LINK` box. `BB_LINK` is a SINGLE-ENTRY PURE-TAIL box — its only emitted code
+> is `jmp qword [r12 + link_off]` (an indirect jump through a `ζ`-frame slot, ~5 bytes). It has NO β (nothing to
+> resume — resumption lives in the boxes UPSTREAM of it, whose β/ω still thread among themselves inside the seal),
+> NO γ/ω of its own, NO state, and NEVER returns to itself. That degeneracy is deliberate: it is what stops
+> `BB_LINK` from quietly growing back into the broker we deleted. The DRIVER writes the real per-call-site targets
+> into the `ζ` slots BEFORE jumping into the sealed head; the sealed bytes stay immutable and re-entrant (the
+> instruction is always the same fixed `jmp [r12+off]`; only the DATA in the slot is per-call-site — the dual of a
+> return-address slot, one for success and one for fail). **Concurrency-free BY CONSTRUCTION:** nothing in sealed
+> code is mutated; every per-activation datum, the continuations included, lives in the R12 frame, and R12
+> switches per sequence (callee-saved, survives calls). Two concurrent drives of the same sealed `COLOR` write
+> their own targets into their own frames and never touch each other. (The ONLY design with a concurrency problem
+> was unseal/reseal; this dissolves the question.) `BB_LINK` ALLOCATES its own `ζ` slot(s) via `bb_slot_alloc`
+> like every other box, and the wiring/STITCH step FILLS them — exactly parallel to how `bb_match` α allocates the
+> start-cursor + subject slots today. The "two fixed slots (γ, ω)" is the DEGENERATE one-head case; the general
+> form is a small VECTOR of link slots, one per `BB_LINK` instance. This IS Fork D's ε-boundary made concrete: a
+> single-entry/single-exit node whose exit is `jmp [r12+slot]`; STITCH wires `BB_LINK` instances (it cannot and
+> does not rewire sealed interiors), so the ε-merge role and the external-hook role were the same problem in two
+> hats. Matcher templates go back to SEAL-PURE — they only ever `jmp` to direct labels; if a label turns out to be
+> a `BB_LINK`, the box neither knows nor cares.
+>
+> **IDEA 2 — every GLOB has a HEAD BLOCK; glob→glob transition is the SAME boundary (recovered prior design).**
+> When BBs are GLOBbed into a graph, every glob has a HEAD. Going BB-BLOCK-1 → BB-BLOCK-2 is the SAME external-edge
+> case as head→outside: the producing glob's exit and the consuming glob's entry are wired PER-INSTANCE, not baked.
+> So the HEAD BLOCK is the universal transition node between ALL globs — the place a `BB_LINK` lives. (This is the
+> "HEAD BLOCK to transition between all globs" design from before the repo was re-cut; the history is gone, so this
+> is the durable re-statement.) **`BB_MATCH` is *kinda* a `BB_LINK` but NOT really:** `BB_MATCH` must JUMP OFF into
+> the element AND be jumped back into (the ch.18 outer-loop driver that establishes the frame + the link slots),
+> whereas `BB_LINK` is the pure indirect edge that never returns to itself. The chain is **`BB_MATCH` ↔ `BB_LINK`
+> ↔ dynamic land**: `BB_MATCH` drives + sets the slots; `BB_LINK` is the edge; "dynamic land" is the per-call-site
+> continuation. A sealed interior therefore NEVER contains an outward `rel32` — all external links go through a
+> `BB_LINK` at a HEAD BLOCK.
+>
+> **TWO PINS for when this lands (open items, not yet code):**
+>   - **ONE FRAME PER MATCH.** The slot is `[r12+off]` and r12 switches per sequence, so `BB_LINK` must read the
+>     RIGHT frame. Rule: a stitched pattern runs in ONE frame for the whole match — the element graph gets
+>     per-element SLOTS in the one statement frame (what PER-BOX-LOCAL-STORAGE already implies), NOT per-element
+>     frames. Then `[r12+off]` is unambiguous and no copy-down is needed. The only place a FRESH frame appears is a
+>     genuine subroutine-like construct (a pattern-valued variable invoked as a callee, or `*E`/EVAL) — and THAT
+>     boundary is exactly the call/return seam where an explicit continuation hand-off is wanted anyway, so it is
+>     not an exception to paper over.
+>   - **`BB_LINK` IS PURE TAIL, NOT A PORTED BOX.** α loads-and-jumps; no β; no γ/ω. Keep it strictly "indirect
+>     jump through a frame slot, no state, no return" so it can never become a re-dispatch point. The all-invariant
+>     frozen pattern (PB-OPT) keeps HARDWIRING — that case is emitted into its OWN statement (not shared), so its
+>     continuations are known at emit time and pay ZERO indirection. You buy `jmp [r12+off]` ONLY when you actually
+>     seal-and-share — pay for sharing only when you use it.
+>
+> **NEXT TOUCHPOINT (where this drops in or reveals a wrinkle):** the `g_match_*` emit-globals + `bb_slot_alloc`
+> path that today passes the boundary labels (`g_match_elem_p`, `g_match_advance_p`) into `bb_match` α — that is the
+> concrete spot a `BB_LINK` instance would allocate its slot and the driver would fill it. It sits right next to the
+> REG-1 work (both are about what lives in the frame vs. what is baked), but `BB_LINK` is a PB-RB-4+/PB-OPT-era
+> concern (shared sealed heads), NOT a REG-ladder blocker — the REG ladder ships first.
+
 > **⭐⭐ MODES 3 & 4: HOW THEY WERE MISSED — AND WHERE THE WORK ACTUALLY LIVES (Lon directive, 2026-05-31 Opus 4.8).**
 > **The whole job is LOWER + EMITTER. Get those two right and modes 3 and 4 run like magic — automatically, from the
 > SAME IR graph and the SAME per-box templates. Nothing else is needed.**
