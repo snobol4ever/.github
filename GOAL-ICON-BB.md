@@ -359,15 +359,33 @@ FACT 0, smokes hold.
   primitive (DESCR by value in `rsi:rdx`, consumed by the helper on entry before any nested call), ready for
   the arg-emission hook. **GATES: Icon m2 11/11 HARD (added `proc_zeroarg` regression case) · m3 10/11 · m4
   9/11 (proc_recursion m3/m4 still red — needs arg emission); SNOBOL4 m2 7/7 · Prolog m2 5/5 · Raku m2 22/22
-  · no-stack 117≤127 · one-reg-frame 20≤20 · prove_lower2 PASS.** **NEXT:** the arg-subgraph emission — in
-  `walk_bb_flat`'s `g_icn_flat_chain` IR_CALL arm, when `dval==3.0 && ival>0`, emit each `counter[i]` arg
-  sub-graph inline (its VAR refs resolve to caller param slots, its result lands in its terminal producer's
-  slot) then emit per-arg `mov edi,i; mov rsi,[r12+slot]; mov rdx,[r12+slot+8]; call rt_icn_arg_stage` before
-  FILL (the RK-EMIT-2 `dval==2.0` arm in `bb_call.cpp` is a worked reference for the leaf-arg materialisation).
-  That completes one-arg (`id(x)`), then full `fact(5)` recursion once an arg sub-graph may itself be a
-  binop/nested-call. Then GZ-10 mode-4 (proc slabs as named asm + `.rodata` names + startup registration —
-  the `bb_call` mode-4 arm is the loud abort stub today); then the bare-if-no-else fall-through quirk
-  (shared with SNOBOL4/Prolog).
+  · no-stack 117≤127 · one-reg-frame 20≤20 · prove_lower2 PASS.**
+  **modes-3/4 ARGS + RECURSION — DONE (2026-06-01, Opus 4.8 — `5249921`):** user procedures WITH arguments,
+  recursion, and mutual recursion now run STACKLESS in mode-3, m2==m3. `proc_recursion` smoke flips PASS →
+  **Icon m3 11/11**. Three Icon-flat-chain-gated edits + a driver two-phase split: (1) `emit_bb.c`
+  `flat_drive_icn_userproc` + `flat_emit_arg_subchain` — a dval==3.0 call's args are isolated value
+  sub-graphs on `counter` (NOT the γ-chain); for each arg the driver runs `icn_chain_operand_refs` then emits
+  the WHOLE sub-graph as an inline flat chain (BFS over γ + BINOP.ω, the `codegen_flat_chain_body` model) so
+  every producer box emits once and claims its ζ=r12 slot. ROOT BUG FIXED: a bare `walk_bb_flat(entry)`
+  emits ONLY the entry node, so a multi-node arg like `n - 1` (VAR/LIT/BINOP) never emitted its BINOP and
+  staging read a garbage slot. (2) `icn_chain_arity` — a dval==3.0 call is a LEAF producer (arity **0**) in
+  the flat-chain model, like dval==2.0: args live on `counter`, NOT the γ-chain. The old `(int)n->ival`
+  (legacy value-stack `flat_drive_call_userproc` path) made `fact(n-1)` wrongly pop the sibling `n` off the
+  operand stack, corrupting the enclosing `n * fact(n-1)` binop's α (→ a RETURN/garbage slot → `rt_arith`
+  abort). (3) `bb_call.cpp` dval==3.0 arm — emit per-arg staging (`mov edi,i; mov rsi,[r12+slot]; mov
+  rdx,[r12+slot+8]; call rt_icn_arg_stage`) before `rt_icn_call_proc_descr`, reading each arg sub-graph's
+  TERMINAL producer slot (new `bb_chain_terminal`: follow γ to the node `lower_value_subgraph` left with
+  γ==NULL); DESCR = two INTEGER eightbytes → SysV idx in edi, eb0 in rsi, eb1 in rdx. (4) `scrip.c` — split
+  proc registration and slab emission into TWO phases so a call to a forward / mutually-recursive proc
+  (`iseven` calling later-registered `isodd`) passes the `rt_proc_is_registered` gate during slab build.
+  Verified m2==m3: `id(99)` `double(21)` `add(3,4)` `f(g(5))` `fact(5)`=120 `fib(10)`=55 `ack(2,3)`=9
+  `sumto(100)`=5050 mutual `iseven(10)`/`isodd(7)`=1 `fact` called 3× =120,720,24 (AST not consumed/mutated).
+  **GATES: Icon m2 11/11 HARD · m3 11/11 · m4 0/11; SNOBOL4 m2 7/7 · Prolog m2 5/5 m3 5/5 · no-stack 117≤127
+  · one-reg-frame 20≤20 · sm_dead 0 · prove_lower2 PASS · ZERO-SM 0.** (SNOBOL4 m3 FAIL=1 pre-existing,
+  identical at `da3a786`.) **NEXT:** GZ-10 mode-4 (`--compile`) — proc slabs as named asm + `.rodata` names +
+  startup registration; the `bb_call` mode-4 TEXT arm is the loud abort stub today (also the `rt_icn_*`
+  helpers are in-process pointers, so mode-4 needs PLT-relative slab calls). Then the bare-if-no-else
+  fall-through quirk (shared with SNOBOL4/Prolog).
 - [ ] **GZ-DEFER — EVAL / CODE / `*P` deferred patterns** via the `test_sno_3.c` model. This was
   the ONE thing that broke the prior stackless build; it is solved in the reference file.
 - [ ] **GZ-11+ — corpus features rebuilt stackless** (lists, tables, records, scanning, csets,
@@ -597,8 +615,44 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `5698129` GZ-10 RECURSION FIX (mode-2) — Icon user-procedure recursion now correct in the
-oracle. Built on the prior GZ-10 PARTIAL `eabedcd`; my two-file Icon edit (`lower_program.c` + `bb_exec.c`)
+**HEAD (SCRIP):** `5249921` GZ-10 modes 3/4 ARGS + recursion — stackless Icon user-procedure calls with
+arguments, recursion, and mutual recursion now run in mode-3, m2==m3. `proc_recursion` smoke flips PASS →
+**Icon m3 11/11**. Built on the GZ-10 modes-3/4 ZERO-ARG foundation `da3a786`; rebased CONFLICT-CLEAN onto the
+parallel Raku session `c1f8e2e` (RK-EMIT-2-NEST) — both added a new static helper to `bb_call.cpp`
+(`rk_marshal_call_arg` upstream, `bb_chain_terminal` here), kept side-by-side; FACT-rule isolation held.
+
+**Done this session (GZ-10 modes 3/4 ARGS — Opus 4.8):** Completed argument passing for the stackless
+`(ζζ,entry)` user-proc call so procs with args (incl. recursion) run in `--run`. THREE Icon-flat-chain-gated
+edits + a driver two-phase split. **(1)** `emit_bb.c` `flat_drive_icn_userproc` + `flat_emit_arg_subchain`:
+a dval==3.0 call's args are isolated value sub-graphs on `counter` (NOT the γ-chain); for each arg the driver
+runs `icn_chain_operand_refs` then emits the WHOLE sub-graph as an inline flat chain (BFS over γ + BINOP.ω,
+the `codegen_flat_chain_body` model) so every producer box emits once and claims its ζ=r12 slot. **ROOT BUG:**
+a bare `walk_bb_flat(entry)` emits ONLY the entry node, so a multi-node arg like `n - 1` (VAR/LIT/BINOP)
+never emitted its BINOP → staging read a garbage slot (zero-arg + single-leaf-arg cases happened to work,
+hiding it). **(2)** `icn_chain_arity`: a dval==3.0 call is a LEAF producer (arity **0**) in the flat-chain
+model, like dval==2.0 — args live on `counter`, not the γ-chain. The old `(int)n->ival` (legacy value-stack
+`flat_drive_call_userproc` path) made `fact(n-1)` wrongly pop the sibling `n` off the operand stack,
+corrupting the enclosing `n * fact(n-1)` binop's α (→ RETURN/garbage slot → `rt_arith` abort). **(3)**
+`bb_call.cpp` dval==3.0 arm: emit per-arg staging (`mov edi,i; mov rsi,[r12+slot]; mov rdx,[r12+slot+8]; call
+rt_icn_arg_stage`) before `rt_icn_call_proc_descr`, reading each arg sub-graph's TERMINAL producer slot (new
+`bb_chain_terminal`: follow γ to the node `lower_value_subgraph` left with γ==NULL); DESCR = two INTEGER
+eightbytes → SysV idx in edi, eb0 in rsi, eb1 in rdx. **(4)** `scrip.c`: split proc registration and slab
+emission into TWO phases so a call to a forward/mutually-recursive proc (`iseven` calling later-registered
+`isodd`) passes the `rt_proc_is_registered` gate during slab build. **Verified m2==m3:** `id(99)`
+`double(21)` `add(3,4)` `f(g(5))` `fact(5)`=120 `fib(10)`=55 `ack(2,3)`=9 `sumto(100)`=5050 mutual
+`iseven(10)`/`isodd(7)`=1 `fact` called 3× =120,720,24. **GATES (all green):** Icon m2 **11/11 HARD** · m3
+**11/11** · m4 0/11; SNOBOL4 m2 **7/7** · Prolog m2/m3 **5/5** · no-stack **117 ≤ 127** · one-reg-frame
+**20 ≤ 20** · sm_dead **0** · prove_lower2 **PASS** · ZERO-SM **0**. (SNOBOL4 m3 FAIL=1 is pre-existing —
+identical at `da3a786`, verified by stash.) **NEXT:** GZ-10 **mode-4** (`--compile`) — the `bb_call` dval==3.0
+TEXT arm is a loud abort stub; needs proc slabs emitted as named asm with `.rodata` proc-name strings +
+startup registration, and PLT-relative calls (the `rt_icn_*` helpers are in-process pointers today). Then the
+bare-`if C then E`-no-else fall-through quirk (shared with SNOBOL4/Prolog).
+
+---
+
+
+
+
 is disjoint from the parallel SNOBOL4 work that advanced `origin/main` to `80431d0` (SBL-PAT-BB PB-0 subject
 BB) → rebased conflict-free (different files, FACT-rule isolation held; pre-rebase local hash was `602e107`).
 
