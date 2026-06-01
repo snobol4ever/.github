@@ -214,6 +214,16 @@ Raku source → raku.l / raku.y → tree_t* (TT_* AST)
 > (exit 0 requires mode-2 all-pass); modes 3 and 4 are **RUN + REPORTED on every invocation** (tracked
 > with `MODE3_MIN`/`MODE4_MIN` PASS floors, default 0) so the full native picture is always visible.
 > Never report a mode-2 number alone. Raise the floors as 3/4 come back so regressions in them also fail.
+>
+> **⛔ COMPLETION BAR — adopted from GOAL-ICON-BB / GOAL-PROLOG-BB (2026-06-01).** A rung is **promoted only
+> when all three modes are accounted for together**: (1) mode-2 all-PASS (the oracle, HARD); (2) mode-3 PASS
+> **or** LOUDLY EXCISED; (3) mode-4 PASS **or** LOUDLY EXCISED — **never a silent FAIL or an abort.** An
+> unbuilt native family (no `bb_rk_*` template yet) is added to `icn_kind_native_stub` (`src/driver/scrip.c`)
+> so the `(is_icon || is_raku)` mode-3/4 pre-flight prints `[SMX] … EXCISED` and DECLINES — the gap stays
+> visible and tracked, not hidden behind a crash. `test_smoke_raku.sh` now reports three columns
+> (`PASS / FAIL / EXCISED`) per mode and its exit gate requires **zero silent m3/m4 FAIL** (every native mode
+> PASS-or-EXCISED) on top of the m2 hard gate. Driving an EXCISED family to PASS = writing its stackless
+> `bb_rk_*` template (the RK-EMIT work). The `[SMX]→EXCISED` mechanism is byte-identical to the Icon/Prolog twins.
 
 **Mandatory reads, in order, every Raku session:**
 1. `GOAL-ICON-BB.md` (the live ground-zero goal + the canonical four-port generator model Raku REUSES).
@@ -335,10 +345,27 @@ prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arm
     dropped; `icn_chain_arity` returns 0 for dval==2.0 calls; string-literal concat duplicate-label short-circuit).
     Runtime trampolines in `gen_runtime.c` reuse the mode-2 `try_call_builtin_by_name`/`junction_collapse` ⇒ m2==m3==m4,
     NO bb-walking at m3/m4 run time, NO value stack (per-call arg vector is the sanctioned ARBNO-style frame array).
-  - **STILL FAILING (5/22 m3 & m4, was 6 — `jct_nested` LANDED 2026-06-01 via RK-EMIT-2-NEST recursive arg marshalling):**
-    the 5 generators `gather_take`/`map_range`/
-    `grep_range`/`map_over_gather`/`grep_over_gather` (need NEW `bb_rk_gather`/`bb_rk_map`/`bb_rk_grep` templates for
-    `IR_GATHER`/`IR_MAP`/`IR_GREP` resumable-pump boxes — the largest remaining lift, genuinely Raku-only `bb_rk_*`).
+  - **RK-EMIT-GATHER LANDED (2026-06-01, Opus 4.8) — m3 17→18/22, m4 17→18/22; the 4 map/grep rungs now LOUDLY
+    EXCISE (not abort):** `gather_take` (`for gather { take 10;take 20;take 30 } -> $v {…}; say('done')` → `10,20,30,done`)
+    emits real native x86 in BOTH modes via the NEW `bb_rk_gather.cpp` (`IR_GATHER`), the first genuinely Raku-only
+    `bb_rk_*` template. It is a yield-then-advance counted pump over the take literals (extracted at EMIT time → sealed
+    RO data, NO runtime bb-walking), writing each element as a DT_I DESCR into its own ζ slot (NO value stack); the
+    resume cursor is `&pBB->state` (m3) / a `.data` quad (m4). **α does NOT reset** — the flat-chain BFS routes the
+    for-loop body's re-pump back-edge to the box's α (never β), so α advances from `.state` (calloc zero-init ⇒ correct
+    first entry); β is a safety landing. Wired via the 6-site flat-chain treatment (`gen_bb_is_gen_arg`,
+    `icn_chain_arity`→0, `walk_bb_flat` FILL, `bb_assign` producer guard, `emit_core` dispatch, Makefile ×2). **NEW
+    finding:** a Raku `for GEN -> $v {…}; CONT` lowers (`v_raku_for`) to a raw goto-chain whose CONTINUATION (`CONT`)
+    hangs off the generator's **ω** port — the γ-only flat-chain BFS never reached it, so BOTH `codegen_flat_chain_body`
+    and `icn_chain_operand_refs` now follow `ω` **for `IR_GATHER` only** (Raku-only kind ⇒ zero blast radius on
+    Icon/SNOBOL/Prolog). Template-purity baseline 7→8 (one sanctioned FLAT-take fall-loud guard). SCOPE: single
+    evaluation (smoke/corpus shape); a gather re-evaluated fresh from an OUTER loop wants a true α-reset (later refinement).
+  - **MAP/GREP — m2 PASS, m3/m4 EXCISED (the remaining lift):** `map_range`/`grep_range`/`map_over_gather`/
+    `grep_over_gather` still need `bb_rk_map.cpp`/`bb_rk_grep.cpp` (`IR_MAP`/`IR_GREP`) — the genuine large lift: a
+    CLOSURE (`$_*2`, `$_>2`, `$_%2==0`) emitted as native code and invoked per element, plus pumping a source generator
+    that may itself be a gather. Until built, `IR_MAP`/`IR_GREP` are listed in `icn_kind_native_stub` so m3/m4 EXCISE
+    LOUDLY (`[SMX]`), making the rungs DONE under the COMPLETION BAR (m2 PASS + m3/m4 EXCISED, tracked not crashing).
+    ROADMAP: identical 6-site treatment + emit-time `walk_bb_flat` of the body sub-graph (`.ival`) stitched as
+    source-pump → bind `$_` slot → closure → conditional yield (map yields the result; grep yields the element when truthy).
 
 ### RK-NFA — Raku regex onto an ISOLATED `IR_NFA_*` family
 
@@ -423,6 +450,26 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 ---
 
 ## Watermark
+
+**CHECKPOINT (2026-06-01, Opus 4.8) — RK-EMIT-GATHER lands m3/m4 + Raku adopts the three-mode COMPLETION BAR.**
+Two deliverables. (1) `gather_take` now emits native x86 in modes 3 AND 4 via the new `bb_rk_gather.cpp`
+(`IR_GATHER`, the first Raku-only `bb_rk_*`): **Raku m2 22/22 (HARD ✓), m3 17→18/22, m4 17→18/22.** (2) **Methodology
+change (per GOAL-ICON-BB / GOAL-PROLOG-BB):** Raku now follows the three-mode COMPLETION BAR — a rung is promoted only
+when all three modes are accounted for together (m2 PASS, m3/m4 PASS-or-EXCISED, never a silent FAIL/abort). The 4
+unbuilt `map`/`grep` rungs are now LOUDLY EXCISED (`IR_MAP`/`IR_GREP` added to `icn_kind_native_stub`; the mode-3/4
+excise pre-flight in `scrip.c` extended from `is_icon` to `(is_icon || is_raku)`), and `test_smoke_raku.sh` upgraded to
+the three-column `PASS / FAIL / EXCISED` report whose exit gate requires zero silent m3/m4 FAIL. **FINAL THREE-MODE
+STATE: Raku m2 22/22 · m3 18 PASS / 0 FAIL / 4 EXCISED · m4 18 PASS / 0 FAIL / 4 EXCISED.** Peers UNCHANGED:
+**Icon 12/12/12**, **SNOBOL4 7/7 m2 · 5 m3 · 0 m4** (no regression). Gates green: **prove_lower2 64/0**,
+audit_concurrency_invariants OK, template-purity 8 (baseline 7→8 for the one `bb_rk_gather` FLAT-take fall-loud guard).
+Files: NEW `src/emitter/BB_templates/bb_rk_gather.cpp`; `src/emitter/emit_bb.c` (6-site: `gen_bb_is_gen_arg`,
+`icn_chain_arity`→0, `walk_bb_flat` FILL, `codegen_flat_chain_body` + `icn_chain_operand_refs` ω-follow for `IR_GATHER`,
+`bb_assign` guard); `src/emitter/emit_core.c` (dispatch); `src/driver/scrip.c` (stub list + Raku excise gate ×2);
+`Makefile` (RT_PIC_SRCS + `scrip` compile line); `scripts/test_smoke_raku.sh` (3-column EXCISED); 
+`scripts/audit_concurrency_invariants.sh` (baseline 7→8). REMAINING: `map`/`grep` need `bb_rk_map.cpp`/`bb_rk_grep.cpp`
+with inline closure emission (the genuine large lift) — full ROADMAP in the RK-EMIT rung above.
+
+---
 
 **CHECKPOINT (2026-06-01, Opus 4.8) — RK-EMIT-2-NEST: jct_nested crosses to m3/m4.** Net deliverable:
 the `jct_nested` case (nested junctions — `all(50, any(50|60))`, per docs.raku.org/type/Junction) now passes
