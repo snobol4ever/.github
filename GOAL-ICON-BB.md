@@ -682,20 +682,59 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `c353d68` GZ-11+ mode-2 RELATIONAL BINOP GENERATOR-TRANSPARENCY (jcon `ir_a_Binop`). A
+**HEAD (SCRIP):** `a2a606b` GZ-11+ mode-2 — THREE generator-correctness fixes closing the named binop/`to`
+cluster + `proc_locals` accumulation (jcon `ir_a_Binop` / `ir_a_ToBy`). Mode-2 ORACLE ONLY (`bb_exec.c` +
+`lower.c`; emitter UNTOUCHED → m3/m4 flat-chain byte-identical, verified `every write(1 to 3)` m2==m3). 2 files
+(+74/−14). Rebased CONFLICT-CLEAN twice onto parallel SNOBOL4 `a06b2a1`/`706d665` (PB-RB-3 BB_MATCH) and Prolog
+`f5170a0` (PLG-9e) — disjoint files, FACT-rule isolation held.
+
+**Done this session (Opus 4.8):** All grounded per CONSULT-CANONICAL-SOURCES in `refs/jcon-master/tran/irgen.icn`.
+1. **RELOP GENERATOR-TRANSPARENCY OVER A NESTED BINOP.** A relational op whose operand is a generator-bearing
+   arithmetic `IR_BINOP` (a cross-product like `(1 to 3)*(1 to 2)`) dead-ended on the first FALSE comparison:
+   `bb_is_gen_node` recognized `IR_BINOP_GEN` but NOT the plain `IR_BINOP` that `v_binop` emits for `*`/`+`, so
+   the `rel_fail` arm fell to `return bb->ω` and terminated the `every`. New `gen_resume_target(e)` (`bb_exec.c`)
+   descends a plain `IR_BINOP` to its RIGHT operand's resume (jcon `ir_binary`: `binop.resume → right.resume` —
+   a postfix binop is NOT its own resume; re-running it recomputes the SAME product), recursing `aux[1]` then
+   `aux[0]`; the `rel_fail` arm re-enters that resume instead of ω. `3 < ((1 to 3)*(1 to 2))`→4,6 ;
+   `(1 to 3)+(1 to 3) > 4`→4,4,4. **corpus +2** (`rung01_paper_compound`, `rung02_arith_gen_nested_filter`),
+   **broker +1** (`ICN: rung01 compound`).
+2. **GENERATOR-BOUNDED `to`.** `(1 to 2) to (2 to 3)` produced EMPTY: the Icon postfix `to` arm read its bounds
+   once from the AG ring and on counter-exhaustion returned ω, never re-pumping generator bounds. `v_to` now
+   stores the `{from,to}` bound chains in `operand_aux` (PEERS sidecar, like `v_binop`); the postfix `IR_TO` arm
+   reads bounds from operand VALUES (position-independent under re-pump) and on counter-exhaustion re-pumps
+   `gen_resume_target(aux[1])` then `aux[0]`, resetting `state=0` to re-read fresh bounds (jcon `ir_a_ToBy`:
+   `by.failure→to.resume`, `to.failure→from.resume`). Constant bounds yield no resume target → ω as before.
+   `(1 to 2) to (2 to 3)`→1,2,1,2,3,2,2,3 ; `1 to (2 to 3)`→1,2,1,2,3 ; `(1 to 2) to 3`→1,2,3,2,3 ; constant
+   `to`/`to by` (`1 to 3`, `1 to 5 by 2`, `5 to 1 by -1`) UNCHANGED. **corpus +1** (`rung01_paper_nested_to`).
+3. **BINOP VARIABLE RE-DEREFERENCE ON GENERATOR RESUME (Icon-gated).** `every total := total + (1 to n)` gave the
+   last addend not the sum (`sum_to(5)`→5 not 15; minimal `every total:=total+(1 to 3)`→3 not 6): the loop
+   `VAR→TO→BINOP→ASSIGN→TO` re-enters the BINOP each pass but NOT the VAR box, so `aux[0]->value` stayed the
+   stale initial value (each pass computed `initial+i`). The postfix `IR_BINOP` arm now refreshes a plain
+   `IR_VAR`/`IR_KEYWORD` operand via `bb_exec_node` before reading `lv`/`rv` (idempotent frame-slot/NV read; jcon
+   `ir_a_Binop` reads `[lv,rv]` each opfn) — NEVER a generator operand (re-exec would advance it). Guarded
+   `g_current_cfg->lang==IR_LANG_ICN` so the shared SNOBOL4/Prolog binop path is BYTE-IDENTICAL. **corpus +1**
+   (`rung02_proc_locals`).
+
+**GATES (stash-verified vs pristine `c2b352d`):** Icon smoke **m2/m3/m4 12/12/12** (HARD m2 green) · corpus
+`test_icon_all_rungs` **110→114 PASS** (FAIL 137→133, XFAIL 36) · broker **24→25** · Prolog m2/m3 **5/5** ·
+SNOBOL4 `hello` OK · FACT **0** · C-byrd-box **0** · no-stack **117≤127** · one-reg-frame **20≤20** ·
+prove_lower2 **65 PASS** · ZERO-SM **0**.
+
+**NEXT:** GZ-DEFER (EVAL/CODE/`*P` deferred patterns, `test_sno_3.c` model); then GZ-11+ corpus features
+stackless (lists, tables, records, scanning, csets, builtins). The remaining mode-2 generator-cluster odds-and-
+ends still open (lower priority): nested cross-products consumed without an enclosing loop; `to by` with a
+GENERATOR step/bound (this session did generator FROM/TO bounds for plain `to`, not `to by`); co-expression
+`@`/`^` resume. None block GZ-DEFER.
+
+**PREV (SCRIP):** `c353d68` GZ-11+ mode-2 RELATIONAL BINOP GENERATOR-TRANSPARENCY (jcon `ir_a_Binop`). A
 FALSE relational comparison (`rel_fail`) is not the binop's failure — per jcon a relop is generator-transparent
-and re-seeks the next operand value. The postfix `IR_BINOP` exec arm (`bb_exec.c`) now re-enters the generator
+and re-seeks the next operand value. The postfix `IR_BINOP` exec arm (`bb_exec.c`) re-enters the generator
 operand's chain head (`operand_aux[1]`=right, then `[0]`=left) on `rel_fail` instead of returning ω; `v_binop`
 already wired right.failure→left.resume so a both-generators case cascades and a drained chain reaches the
-binop's own ω; with no generator operand (e.g. `3 < 2`) it collapses to plain failure. Fixes `2 < (1 to 4)`→3,4
-(trues are NOT a prefix — the bug was that a false comparison terminated the loop, which only looked right for
-`>`/`≥` whose trues happen to form a prefix) and gen-on-left `(1 to 5) > 3`→3,3 (Icon relops return the right
-operand). 1 file (+16) `bb_exec.c`; mode-2 ORACLE ONLY (emitter untouched; m3/m4 flat-chain unaffected). **GATES:
-Icon m2/m3/m4 12/12/12 (HARD green) · corpus `test_icon_all_rungs` 107→110 PASS (+3, FAIL 140→137, XFAIL 36) ·
-no-stack 117≤127 · one-reg-frame 20≤20 · sm-dead OK · prove_lower2 PASS · Prolog m2/m3 5/5.** Pushed; rebased
-CONFLICT-CLEAN onto upstream `202bbba`. Next remaining in this cluster: `(1 to 3)*(1 to 2)` (arithmetic binop as
-cross-product generator — postfix `IR_BINOP` doesn't re-pump; the `IR_BINOP_GEN` arm has the cross-product logic
-but `v_binop` emits plain postfix for `*`) and `(1 to 2) to (2 to 3)` (generator-bounded `to`, IR_TO dynamic-bound arm).
+binop's own ω; with no generator operand (e.g. `3 < 2`) it collapses to plain failure. Fixed `2 < (1 to 4)`→3,4
+and gen-on-left `(1 to 5) > 3`→3,3 (Icon relops return the right operand). **GATES:** corpus 107→110. Pushed;
+rebased CONFLICT-CLEAN onto upstream `202bbba`. (This session's HEAD extended this exact mechanism to relops
+over NESTED binops via `gen_resume_target`, plus generator-bounded `to` and binop variable re-deref.)
 
 **PREV (SCRIP):** `a3728c0` GZ-11 SUSPEND mode-2 — user-defined Icon generators via `suspend E do BODY`
 (jcon `ir_a_Suspend`). A suspending procedure is now a generator; `every write(gen())` re-pumps it. Eager-drain
