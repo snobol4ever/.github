@@ -277,8 +277,8 @@ prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arm
     dropped; `icn_chain_arity` returns 0 for dval==2.0 calls; string-literal concat duplicate-label short-circuit).
     Runtime trampolines in `gen_runtime.c` reuse the mode-2 `try_call_builtin_by_name`/`junction_collapse` ⇒ m2==m3==m4,
     NO bb-walking at m3/m4 run time, NO value stack (per-call arg vector is the sanctioned ARBNO-style frame array).
-  - **STILL FAILING (6/22 m3 & m4):** `jct_nested` (a junction arg sub-graph is itself an `IR_CALL` — the dval==2.0
-    arm declines nested-call args; needs recursive sub-graph emission), and the 5 generators `gather_take`/`map_range`/
+  - **STILL FAILING (5/22 m3 & m4, was 6 — `jct_nested` LANDED 2026-06-01 via RK-EMIT-2-NEST recursive arg marshalling):**
+    the 5 generators `gather_take`/`map_range`/
     `grep_range`/`map_over_gather`/`grep_over_gather` (need NEW `bb_rk_gather`/`bb_rk_map`/`bb_rk_grep` templates for
     `IR_GATHER`/`IR_MAP`/`IR_GREP` resumable-pump boxes — the largest remaining lift, genuinely Raku-only `bb_rk_*`).
 
@@ -365,6 +365,36 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 ---
 
 ## Watermark
+
+**CHECKPOINT (2026-06-01, Opus 4.8) — RK-EMIT-2-NEST: jct_nested crosses to m3/m4.** Net deliverable:
+the `jct_nested` case (nested junctions — `all(50, any(50|60))`, per docs.raku.org/type/Junction) now passes
+modes 3 AND 4. **Raku m2 22/22 (HARD ✓), m3 16→17/22, m4 16→17/22**; **Icon 10/10 m2, 9/9 m3/m4 UNCHANGED**;
+**SNOBOL4 7/7 m2, 5 m3, 0 m4 UNCHANGED** (no peer regression). prove_lower2 **64/0** unchanged (lowering
+untouched — emitter-only fix); concurrency invariants OK (FACT RULES byte-identical x3/x4); template-purity
+**7** unchanged (bb_call.cpp fprintf count 4→4, ZERO new side-effects). SCRIP HEAD: `c1f8e2e` (pushed; rebased
+onto peer base `67ce946` — PROLOG-BB PLG-5 + GZ-10 zero-arg user-proc, which also touched bb_call.cpp/bb_exec.c/
+lower.c/emit_bb.c; rebuilt + re-verified the COMBINED tree green: Raku m2 22/22·m3 17·m4 17, Icon m2 11/11·m3 10·m4 9,
+SNOBOL4 7/7·5·0, prove_lower2 64/0, concurrency OK — no cross-session regression). Pushed to origin this handoff.
+
+- **THE FIX (ONE file — `src/emitter/BB_templates/bb_call.cpp`):** the prior RK-EMIT-2 `dval==2.0` arm required
+  EVERY arg sub-graph entry to be a SIMPLE leaf (`IR_LIT_I/S/F/NUL`/`IR_VAR`); a junction member that is itself a
+  junction (`any(50|60)` inside `all(...)`) has a sub-graph entry that is a NESTED `IR_CALL dval==2.0`, so
+  `leaves_ok` went 0 → the loud `[IBB] FATAL bb_call: unsupported call shape … arg0_kind=-1` abort fired. Added a
+  recursive `static rk_marshal_call_arg(lf, aoff, owner, idx)` helper (TEMPLATE-PURE — all bytes stay inside this
+  one BB_template, reached only via the emit_core dispatch): a LEAF is loaded exactly as before (byte-identical →
+  the 16 prior m3/m4 passes are unchanged); a NESTED `IR_CALL dval==2.0` is emitted INLINE — its own args go into
+  a FRESH contiguous ζ arg-vector region (allocated AFTER this level's vector so contiguity holds), `rt_rk_call_arr`
+  is invoked, and its rax:rdx result DESCR is stored into the outer arg slot `[r12+aoff]`, EXACTLY mirroring the
+  mode-2 oracle (which `bb_exec_once`s the nested sub-graph to a DESCR and passes THAT) ⇒ m2==m3==m4. Verified
+  general to ARBITRARY nesting depth (3-level `1|(2&(7|9))`) and to variable members (`7|($a&8)`), all three modes
+  agreeing. The arg-acceptance check widened `leaves_ok`→`args_ok` to admit `IR_CALL dval==2.0`. NO value stack (the
+  per-call arg vector is the sanctioned ARBNO-style per-activation frame array); NO name-table round-trip; NO new
+  `bb_rk_*` file (the nested-call path reuses the SAME `rt_rk_call_arr` runtime trampoline). Build trap re-confirmed:
+  `bash scripts/build_scrip.sh && make libscrip_rt` (templates compile into BOTH `scrip` and `libscrip_rt`).
+
+- **EXACT REMAINING m3/m4 FAILURES (5, same in both):** `gather_take`, `map_range`, `grep_range`, `map_over_gather`,
+  `grep_over_gather` — the genuinely Raku-only generators needing NEW `bb_rk_gather`/`bb_rk_map`/`bb_rk_grep` templates
+  for the `IR_GATHER`/`IR_MAP`/`IR_GREP` resumable-pump boxes (the largest remaining lift; the next session's work).
 
 **SESSION HANDOFF (2026-05-31 late, Opus 4.8) — RK-EMIT-1/2/3.** Net deliverable: **Raku crossed onto modes 3 & 4**
 for the eager/junction/array tier — **m2 22/22 (HARD GATE), m3 0→16/22, m4 0→16/22**, with **Icon 9/9/9** and
