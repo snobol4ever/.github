@@ -306,19 +306,41 @@ unwired mode-4 shape declines with the `[SMX]` banner = EXCISED (expected, not F
   Prolog-arm-only, FACT-clean (0 bytes outside templates; `bb_builtin.cpp` not flagged by purity audit):
   `bb_builtin.cpp` (+2 MEDIUM_TEXT arms), `scrip.c` (`pl_rich_node_emittable` admits the 4 functors). m2/m3
   byte-identical (111/111). Siblings neutral (Icon 12/12/12; SNOBOL4 12 PASS/7 FAIL stash-proven).
-
-### PLG rungs — open
+- [x] **PLG-9h — mode-4 float `is/2` (2026-06-01, `2fe8efc`).** GATE-3 m4 76→**80** (+4); closed rung29 ×4
+  (float_conversion truncate/ceiling/floor/round, float_constants pi/exp, float_math sqrt/sin/cos, float_parts
+  float_integer_part/float_fractional_part/float). The gap: the MEDIUM_TEXT `is` arm called `rt_pl_is`@PLT
+  (integer `rt_pl_arith`, `long` result) and the gate `pl_flat_arith_leaf_simple` rejected `IR_LIT_F`; the
+  MEDIUM_BINARY arm (PLR-K-12) already handled floats via `rt_pl_is_eval(IR_t* lhs, IR_t* rhs)`→`resolve_arith_
+  eval` but those in-process pointers are dead in a standalone `.s`. Fix = the serialized-scalar twin
+  `rt_pl_is_f(dst, op, lk, li, ld, rk, ri, rd)` (new, in `bb_exec.c` next to `rt_pl_is` — SysV: 6 GP + 2 SSE,
+  all in registers, no stack args): resolves operands (int lit→li, float lit→ld via `movq xmm`, bound slot→read
+  `g_resolve_env`), applies the op MIRRORING `resolve_arith_eval` byte-for-byte (pi/e nullary; sqrt/sin/.../
+  float/truncate/round/... unary; +,-,*,/,**,^,min,max binary with the int-vs-float result decision), builds an
+  int|float Term, unifies into the dst slot in `g_resolve_env` (the per-activation home the consumer `write`
+  reads — no value stack). Result-type semantics grounded in gprolog `arith_inl_c.c` (truncate/round/ceiling/
+  floor/integer = `F=I`; float/float_integer_part/float_fractional_part/transcendentals = `F`). **Also fixed a
+  pre-existing mode-4 integer-`/` miscompile** surfaced by edge-probing: `X is 7/2` gave `3` (integer `rt_pl_
+  arith` division) vs the m2/m3 oracle's `3.5` — `/` now routes through `rt_pl_is_f`, which yields a float when
+  integer operands do not divide evenly and an int when they do (`6/2`=3 unchanged). Float comparisons (`3.5<4.0`)
+  correctly still EXCISE in m4 — `pl_flat_arith_leaf_simple` was deliberately NOT widened (the comparison gate
+  reads `ival`, not `dval`). Four files, Prolog-arm-only, FACT-clean (0 bytes outside templates; `bb_builtin.cpp`
+  not flagged): `bb_exec.c` (+`rt_pl_is_f`), `emit_bb.c` (`bb_prepare_pl` interns the op label for the `is`+
+  `IR_ATOM` pi/e RHS), `bb_builtin.cpp` (+float MEDIUM_TEXT `is` arm + `bb_pl_op_floaty`), `scrip.c`
+  (`pl_flat_goal_is_simple` float branch + `pl_arith_op_floaty`/`pl_flat_arith_leaf_float_ok`). m2/m3 byte-
+  identical (111/111 — mode-3 float now via the native flat tier's `rt_pl_is_eval` BINARY arm, same evaluator as
+  the interim route). Siblings neutral (Icon 12/12/12; SNOBOL4 12 PASS/7 FAIL).
 
 - [ ] **PLG-7 — remove `bb_node_state_t` snapshot/restore.** Once the recursive case provably needs no snapshot,
   delete the struct + Prolog call sites. **Audit first:** the struct has ONE LIVE Icon caller (`bb_exec.c:1589`
   IR_CALL) — do not delete it until Icon migrates off separately. Mode-2/3/4 byte-identical + build green.
-- [ ] **PLG-9g (rest) — mode-4 dynamic-DB + the remaining broken-family closures.** The ~35 still-EXCISED m4
+- [ ] **PLG-9g (rest) — mode-4 dynamic-DB + the remaining broken-family closures.** The 31 still-EXCISED m4
   rungs are findall (5), retract/retractall/abolish/assertz (dynamic-DB needs the `bb_*.cpp` emit-template, the
-  WAM-CP-13 deliverable), numbervars (term-mutation — mode-4 leaves vars unbound), copy_term var-identity, float
-  arith (needs `rt_pl_arith_d`), aggregate (nb_setval/getval + aggregate_all). All EXCISE cleanly (0 FAIL). The
-  cheap "BINARY-arm-exists-just-needs-`@PLT`-TEXT" closures are now exhausted (writeq/write_canonical/
-  atomic_list_concat landed PLG-9g-partial); the rest need a real runtime substrate. Purist tidy: the callee
-  γ/ω epilogue is literal `emit_text_n` in `emit_bb.c` — a future `xa_pl_callee_epilogue` XA template.
+  WAM-CP-13 deliverable), numbervars (term-mutation — mode-4 leaves vars unbound), copy_term var-identity,
+  aggregate (nb_setval/getval + aggregate_all), catch/throw (5), dcg_generate (1). All EXCISE cleanly (0 FAIL).
+  The cheap "BINARY-arm-exists-just-needs-`@PLT`-TEXT" closures are now exhausted (writeq/write_canonical/
+  atomic_list_concat landed PLG-9g-partial; float `is/2` landed PLG-9h); the rest need a real runtime substrate.
+  Purist tidy: the callee γ/ω epilogue is literal `emit_text_n` in `emit_bb.c` — a future `xa_pl_callee_
+  epilogue` XA template.
 - [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue.** Map the Prolog analogue (findall goal sub-graph; assert/
   retract mutable clause store; DCG repetition) onto an explicit indexed deferred-frame array (the `test_sno_1.c`
   `_1[64]`/`ζ` shape), NOT a snapshot, NOT C recursion. Gate: rung11/14/30 3-mode AGREE.
@@ -430,11 +452,11 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — post-PLG-9g-partial)
+## 📊 Gate table (current — post-PLG-9h)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5 PASS / 0 EXCISED ✅ | write_atom/unify/arith/clause/recursion all native in m4 |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **76 PASS / 0 FAIL / 35 EXCISED** | PLG-9g-partial: m4 69→76 (+7: writeq/write_canonical ×4, atomic_list_concat/concat_atom ×3). m2/m3 byte-identical. EXCISED-not-FAIL: findall, retract/abolish/assertz, numbervars, copy_term, float arith, aggregate |
-| prove_lower2 | green ✅ | — | — | PLG-9g-partial is bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
-| FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added (TEXT arms = s_2asm/emit_build_compound_term/@PLT only); g_vstack still 0; bb_builtin.cpp not flagged by purity audit. Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **80 PASS / 0 FAIL / 31 EXCISED** | PLG-9h: m4 76→80 (+4: rung29 float_conversion/constants/math/parts). m2/m3 byte-identical. EXCISED-not-FAIL (all substrate-requiring): findall, retract/abolish/assertz, numbervars, copy_term, aggregate, catch/throw, dcg_generate |
+| prove_lower2 | green ✅ | — | — | PLG-9h is bb_exec.c/emit_bb.c/bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
+| FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added (`rt_pl_is_f` is a runtime effect-helper; TEXT arm = s_2asm/movq-xmm/@PLT only); g_vstack still 0; bb_builtin.cpp not flagged by purity audit (7 baseline). Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
