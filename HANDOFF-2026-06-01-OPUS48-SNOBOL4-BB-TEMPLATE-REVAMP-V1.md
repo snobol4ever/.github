@@ -84,3 +84,15 @@ describe the unified self-encoding model. NOT done here — teed up for the auth
 - **(C)** When ready, the FACT-RULE rewrite above.
 
 Older per-session writeups: other `HANDOFF-*.md`.
+
+---
+
+## ADDENDUM — v1.1 (SCRIP `2111555`, Lon eureka)
+
+Template API unified to ONE `x86(mnem, ...)` keyed on the mnemonic (1st arg). The
+trailing args' cardinality + type select the form via C++ overloading; the typed
+`x86_*` encoders above are now the internal implementation `x86()` dispatches to:
+`(ccp,ccp)` reg/mem 2-op (mov/cmp/test/movsxd/lea; `mov [r10],r` store) · `(ccp,ccp,long)`
+reg/imm32 (add/sub/mov-imm) · `(ccp,x86_port)` jmp/jcc/def · `(ccp,ccp,uint64_t)` RO call ·
+5-arg rip-rel RO load. `bb_lit` x86 arm rewritten to `x86(...)`. Verified light (build +
+addr-masked byte compare): BINARY byte-identical to `29c3613`, pure API refactor.

@@ -1842,10 +1842,12 @@ concurrency OK (FACT RULES byte-identical-×3), purity 7 (MEDIUM_BINARY-exempt),
 audit pins: LOWER `5097ed94`, EMITTER `307534d6` (do not perturb the byte-identical-×3 blocks). ENV NOTE: the
 build needs `libgc-dev` (`apt-get install -y libgc-dev`) — `core.h`/`raku_nfa_bb.c` include `<gc/gc.h>`.
 
-**🔶 TEMPLATE-REVAMP v1 (PIVOT — Lon directive, 2026-06-01, SCRIP `29c3613`).** Kill the two-divergent-arm +
+**🔶 TEMPLATE-REVAMP v1 (PIVOT — Lon directive, 2026-06-01, SCRIP `2111555`).** Kill the two-divergent-arm +
 hand-counted-`bb_bin_t` churn. New header-only `src/emitter/BB_templates/x86_asm.h`: self-encoding `x86_*`
 helpers that switch BINARY/TEXT on `g_medium` (invisible in the template) + in-band patch records (L/J/D)
-walked by `bb_emit_x86` (positions DISCOVERED, no offset table). `bb_lit` converted → ONE return, pure concat,
+walked by `bb_emit_x86` (positions DISCOVERED, no offset table). Template API is ONE
+`x86(mnem, ...)` keyed on the mnemonic (1st arg; trailing args' cardinality/type select the form via overloading;
+the typed encoders are the internal impl) — Lon eureka 2026-06-01. `bb_lit` converted → ONE return, pure concat,
 NO template locals, `MEDIUM_MACRO_DEF` dropped; BINARY arm byte-identical to `65686c2` (addr-masked). GO-FORWARD
 (Lon): **TEXT-FIRST** — keep the GAS arm as source of truth, **throw away the hand-coded BINARY**, let `x86_*`
 regenerate it position-independent (= REG-RO); **no safety net / no full regression** (four sessions fix typos),
