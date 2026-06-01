@@ -214,6 +214,24 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 > `rung30_dcg_pushback_rest` gives `fail` (was `123`) — `0'`-char-code literal + `atom_codes` parse, needs diagnosis.
 > Handoff `HANDOFF-2026-05-31-SONNET45-PROLOG-BB-PLG-RETRACT-DCG-MODE4-PREREQ.md`.
 
+> **★ LIVE STATE UPDATE — rung30 DCG closed: canonical `=<` operator was unrecognized (Opus 4.8, 2026-05-31, atop `febef10`).**
+> `rung30_dcg_pushback_rest` (`digit(D) --> [D], { D >= 0'0, D =< 0'9 }.` + `phrase(digits(Ds), Codes)`) gave
+> `fail` not `123`. Root cause was NOT the `0'`-char-code literal or `atom_codes` (both verified correct in
+> isolation: `0'0`→48 parses, `atom_codes('123',Cs)` works) — it was the arithmetic comparison operator `=<`.
+> Standard/ISO Prolog (and SWI `pl-arith.c:684` `PRED_IMPL("=<", 2, leq, PL_FA_ISO)`) spell less-or-equal `=<`;
+> SCRIP's TWO Prolog arith-compare sites in `bb_exec.c` (`rt_pl_arith_cmp` ~1118 and the inline `IR_BUILTIN`
+> arm ~3774/3780) matched only the NON-standard `<=`, so any `=<` goal fell through every `strcmp` to `return 0`
+> = silent false. The DCG guard's `D =< 0'9` half always failed → `digit//1` never matched → `phrase` failed.
+> Fix: add `=<` to both sites (kept `<=` as a harmless alias). 3 lines, +2 net, Prolog-only arms (FACT 0;
+> siblings byte-identical via stash/rebuild/compare: Icon m2 6/6, SNOBOL4 10/9 unchanged). Grounded in SWI
+> `ar_compare`'s `case LE: return (diff==CMP_LESS)||(diff==CMP_EQUAL)`. **GATE-3 rung suite m2 109→110, m3
+> 109→110 (byte-identical); rung30 m2+m3 both `123`.** GATE-1 smoke 5/5; prove_lower2 53/53. The third
+> arith-compare site (`resolve_runtime.c:914` op-code map) already had `=<` correct — only `bb_exec.c` was wrong.
+> **REMAINING 1 fail:** `rung15_abolish_then_reassert` needs **PL-RT-ASSERTZ** (runtime `assertz` from a goal
+> body materialising a fresh clause into the live predicate's IR_CHOICE `bodies[]`; today `assertz/1` is not in
+> `lower.c`'s `det_builtins` so it falls to `g_goal` and never resolves at the BB level — `resolve_assert_clause`
+> updates only the AST-level `resolve_pred_table`, not the compiled `bb_choice_state_t`).
+
 
 **Directive (Lon, 2026-05-30):** The engine grew a VALUE STACK it must not have. `--run` and
 `--compile` (and `--interp` of a BB) need NO value stack: the BB node IS the value's home. The
@@ -1352,7 +1370,7 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | EXCISED | m3 hello-tier (`write_atom`) now EMITS natively (`bb_build_flat`, no ring); richer smoke tests via interim `bb_exec_once`. m4 SMX-gated (PLG-9 regrow) |
-| GATE-3 rung suite | **109/111** | **109/111** | EXCISED | m3 byte-identical to m2. Remaining 2: rung15 abolish-then-reassert, rung30 DCG `{ }` pushback |
+| GATE-3 rung suite | **110/111** | **110/111** | EXCISED | m3 byte-identical to m2. Remaining 1: rung15 abolish-then-reassert (PL-RT-ASSERTZ). rung30 DCG closed via `=<` operator fix |
 | prove_lower2 topology | **51/51** ✅ | — | — | unchanged this session (driver-only change) |
 | FACT RULE grep | 0 ✅ | — | — | scrip.c PLG-8-native arm additive, Prolog-only (`pl_flat_body_root`); siblings untouched |
 
