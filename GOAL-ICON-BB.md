@@ -408,7 +408,7 @@ FACT 0, smokes hold.
   (`iseven` calling later-registered `isodd`) passes the `rt_proc_is_registered` gate during slab build.
   Verified m2==m3: `id(99)` `double(21)` `add(3,4)` `f(g(5))` `fact(5)`=120 `fib(10)`=55 `ack(2,3)`=9
   `sumto(100)`=5050 mutual `iseven(10)`/`isodd(7)`=1 `fact` called 3× =120,720,24 (AST not consumed/mutated).
-  **GATES: Icon m2 11/11 HARD · m3 11/11 · m4 11/11 (GZ-10 mode-4 DONE `2de9ff5`); SNOBOL4 m2 7/7 · Prolog m2 5/5 m3 5/5 · no-stack 117≤127
+  **GATES: Icon m2 11/11 HARD · m3 11/11 · m4 11/11 (GZ-10 mode-4 DONE `b8f48bf`); SNOBOL4 m2 7/7 · Prolog m2 5/5 m3 5/5 · no-stack 117≤127
   · one-reg-frame 20≤20 · sm_dead 0 · prove_lower2 PASS · ZERO-SM 0.** (SNOBOL4 m3 FAIL=1 pre-existing,
   identical at `da3a786`.) **GZ-10 mode-4 DONE (`2de9ff5`, Claude Sonnet 4.6):** proc slabs emitted as
   named GAS asm (`icn_proc_<name>_α` globally-visible labels), startup stub (`icn_proc_startup`) calls
@@ -417,8 +417,12 @@ FACT 0, smokes hold.
   `g_flat_node_id` no longer reset between proc slabs so xchainN labels are unique; `rt_proc_set_fn`
   creates a new entry when name not yet registered (needed for mode-4 startup). m2==m3==m4 for
   `proc_zeroarg` (42) and `proc_recursion` (fact(5)=120). **Icon smoke m2/m3/m4 11/11/11 — first
-  all-three-modes 11/11/11.** **NEXT:** bare-if-no-else fall-through quirk (IR_SEQ statement-failure-
-  continuation, shared with SNOBOL4/Prolog); then GZ-DEFER; then GZ-11+ corpus features stackless.
+  all-three-modes 11/11/11.** **BARE-IF-NO-ELSE DONE (`b8f48bf`, Claude Sonnet 4.6):** `lower_icon_body` now wires
+  each non-last statement's `ω_in = next_a` (the NEXT statement's entry) per JCON `ir_a_Compound`
+  lines 1253-1254; last statement -> PFAIL. A bare `if c then e` whose cond fails silently
+  falls through to the next statement. Smoke 11->12 m2/m3/m4 (+`bare_if` case).
+  **NEXT:** GZ-DEFER (EVAL/CODE/`*P` deferred patterns, `test_sno_3.c` model); then GZ-11+
+  corpus features stackless.
 - [ ] **GZ-DEFER — EVAL / CODE / `*P` deferred patterns** via the `test_sno_3.c` model. This was
   the ONE thing that broke the prior stackless build; it is solved in the reference file.
 - [ ] **GZ-11+ — corpus features rebuilt stackless** (lists, tables, records, scanning, csets,
