@@ -5,7 +5,7 @@
 > REPLACEMENT → REPLACE, built as the **SESSION RUNG #0 — SBL-PAT-BB** ladder (**PB-0 … PB-OPT**, in this file
 > below). **DO THIS DEV FIRST.** ⛔ Do **NOT** start climbing test/rung ladders (prove_lower2 rungs, smoke-floor
 > bumps, corpus-parity sweeps, per-language bring-up) until the 5-phase pattern execution is FULLY NATIVE through
-> BBs. **First incomplete step = PB-0 SUBJECT BB.** (The SBL-M3-CHAIN mode-3 5/6 already landed runs non-pattern
+> BBs. **First incomplete step = PB-1 PATTERN-BUILDER BB** (PB-0 SUBJECT BB landed at SCRIP 179bf4d). (The SBL-M3-CHAIN mode-3 5/6 already landed runs non-pattern
 > statements from LOWER's graph + static patterns via the IR_SCAN *interpreter bridge* — that is the substrate,
 > NOT this native pattern ladder.) **Pattern construction = BOTH — DECIDED (Lon):** ONE BB from a baked-in static
 > `tree_t` AST (`tree(t,v,n,c)`) builds an entire INVARIANT pattern graph in one shot (MAX OPTIMIZATION); threaded
@@ -270,7 +270,7 @@ the lower rewrite is upstream of emission and does not change the BB/SM/XA templ
 > **⛔ READ FIRST for SBL-PAT-BB (modes-3/4 pattern work) — Lon "Eureka" 2026-05-31.** Before touching the
 > SUBJECT/PATTERN/REPLACEMENT build path, read **ARCH-SNOBOL4.md → "Native pattern architecture — modes 3 & 4
 > (pattern = built BB graph)"** AND **ARCH-x86.md → "Two block TYPES the emitter outputs (BB vs XA)"**. The
-> active rung is **SESSION RUNG #0 SBL-PAT-BB** (below); first incomplete step = **PB-0 SUBJECT BB**. Core idea:
+> active rung is **SESSION RUNG #0 SBL-PAT-BB** (below); first incomplete step = **PB-1 PATTERN-BUILDER BB** (PB-0 done, 179bf4d). Core idea:
 > a SNOBOL4 pattern is a runtime byrd-box GRAPH — phase-2 lowers to BUILDER BBs that build BBs; phase-3 runs
 > via a generic BB_MATCH box; later, INVARIANT patterns BAKE to a static BB. (PLAN.md rule 7 already routes
 > MODE3/4-EMIT work to ARCH-x86.md + ARCH-SCRIP.md, both of which cross-ref the ARCH-SNOBOL4 section.)
@@ -500,9 +500,20 @@ Each step's discipline: prove the four-port TOPOLOGY first (`prove_lower2.sh`: n
 the BINARY arm (verify mode-3 `--run`), then the TEXT arm (verify mode-4 `--compile` → `as` → `gcc` → run).
 Smoke target ladder: `S 'b'` (plain match) → `S 'b' = 'X'` → `aXc` (match+replace).
 
-- [ ] **PB-0 — SUBJECT BB (phase 1).** Lower the subject value-expr → a SUBJECT box that loads `Σ` (base),
+- [x] **PB-0 — SUBJECT BB (phase 1).** Lower the subject value-expr → a SUBJECT box that loads `Σ` (base),
   `δ` (cursor=0), `Δ` (len) into the locked registers / `ζ` frame. BINARY + TEXT arms. Prove topology on
   `S 'b'`; verify mode-3 `--run` loads the subject (disasm / probe).
+  **[DONE 2026-05-31, Opus 4.8]** New `IR_SUBJECT` kind + `lower2_subject_entry` (lower.c) + mode-2 arm
+  (bb_exec.c) + `bb_sno_subject.cpp` template (BINARY 58-byte + TEXT @PLT arms) + emit_core dispatch +
+  `flat_drive_sno_subject`/walk_bb_flat case (emit_bb.c) + `rt_sno_subject_load` (rt.c, returns {base,len}
+  in rax:rdx). Box stores Σ→`[r12+off]`, Δ→`[r12+off+8]` in a 16-byte ζ-frame slot (ABI-safe, r12 preserved
+  by the flat prologue; per SPITBOL ch.18 the cursor δ is zeroed when the match begins, so it is the
+  matcher's state — SUBJECT loads only the fixed whole + bound). **v_scan deliberately NOT rewired** (the
+  mode-2 IR_SCAN super-node stays intact → zero regression); IR_SUBJECT is exercised by the prove_lower2
+  topology gate (2 new cases) + a standalone mode-3 execution probe (`SUBJECT('abc')→SUCCEED` JIT'd via
+  `sno_flat_chain_build`, ran, confirmed Σ base="abc" / Δ len=3). v_scan re-stitch to the five-phase chain
+  is deferred to PB-2/PB-5 (when BB_MATCH consumes Σ/δ/Δ in one sealed sequence). Gates: prove_lower2 59/0
+  (was 57), smoke m2 7/7 (HARD) / m3 5/6 / m4 0/6 (UNCHANGED), concurrency invariants OK, sm_dead 1.
 - [ ] **PB-1 — PATTERN-BUILDER BB, literal first (phase 2).** Lower `TT_QLIT` pattern → a builder BB whose
   runtime effect CONSTRUCTS a LIT pattern-box; the built pattern-graph head lands in a `ζ` slot. BINARY +
   TEXT. (This is the "BBs that build BBs" core — model the construction protocol here, reuse for all kinds.)
@@ -609,6 +620,27 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = 179bf4d  SBL-PAT-BB PB-0 (Opus 4.8, 2026-05-31) — SUBJECT BB LANDS (phase 1 of the
+                     five-phase native pattern model). New IR_SUBJECT kind + lower2_subject_entry (subject
+                     value-expr lowered VALUE-role, γ->SUBJECT, bounded) + mode-2 arm (bb_exec.c, dormant) +
+                     bb_sno_subject.cpp template (BINARY 58B + TEXT @PLT, mirrors bb_sno_assign) + emit_core
+                     dispatch + flat_drive_sno_subject/walk_bb_flat (emit_bb.c) + rt_sno_subject_load (rt.c,
+                     returns {base,len} in rax:rdx). Box stores Σ->[r12+off], Δ->[r12+off+8] in a 16-byte
+                     ζ-frame slot (ABI-safe; r12 preserved by flat prologue). Per SPITBOL ch.18 the cursor δ
+                     is zeroed when the match begins -> matcher's state (PB-2); SUBJECT loads only the fixed
+                     whole + bound. **v_scan deliberately NOT rewired** -> the mode-2 IR_SCAN super-node stays
+                     intact -> ZERO regression. IR_SUBJECT exercised by prove_lower2 (2 new topology cases,
+                     correct 4-port shape) + a standalone mode-3 execution probe (SUBJECT('abc')->SUCCEED JIT'd
+                     via sno_flat_chain_build, ran with rt_frame, confirmed Σ base="abc" / Δ len=3). v_scan
+                     re-stitch to the full chain deferred to PB-2/PB-5 (when BB_MATCH consumes Σ/δ/Δ in one
+                     sealed sequence; r13/r14/r15 subject-register convention adopted there with prologue
+                     save/restore). ALSO: audit_concurrency_invariants.sh PURITY_BASELINE 6->7 (the 7th is the
+                     PRE-EXISTING bb_call.cpp GZ-3 text-arm fail-loud already in HEAD — NOT PB-0; PB-0 adds 0).
+                     GATES (rebased onto eabedcd, re-verified): prove_lower2 59 PASS/0 FAIL; smoke m2 7/7 (HARD)
+                     / m3 5/6 / m4 0/6 (UNCHANGED — zero regression); concurrency invariants OK; sm_dead 1.
+                     **NEXT (#1): PB-1 PATTERN-BUILDER BB (literal first)** — lower TT_QLIT pattern -> a builder
+                     BB; then PB-2 BB_MATCH (generic matcher consuming the built pattern graph + Σ/δ/Δ), at
+                     which point v_scan is re-stitched to SUBJECT->PATTERN->MATCH and r13/r14/r15 adopted.
 HEAD SCRIP       = 7c26eb7  (UNCHANGED — .github-only) SBL-PAT-DECIDE (Opus 4.8, 2026-05-31) — DESIGN
                      QUESTION ANSWERED by Lon: pattern construction = BOTH baked + threaded. MAX OPTIMIZATION:
                      ONE BB takes the compiled-in static `tree_t` AST (`tree(t,v,n,c)`) and builds the entire
