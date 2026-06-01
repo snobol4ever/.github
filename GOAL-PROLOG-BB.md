@@ -278,6 +278,43 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 > `lower.c`'s `det_builtins` so it falls to `g_goal` and never resolves at the BB level — `resolve_assert_clause`
 > updates only the AST-level `resolve_pred_table`, not the compiled `bb_choice_state_t`).
 
+> **★ LIVE STATE UPDATE — PL-RT-ASSERTZ: runtime assertz/asserta closes rung15; GATE-3 ALL GREEN 111/111 (Opus 4.8, 2026-05-31, atop `7ab7cff`).**
+> `rung15_abolish_then_reassert` (`abolish(color/1), assertz(color(green)), assertz(color(yellow)), color(X),…`)
+> now prints `green\nyellow`. **GATE-3 rung suite m2 110→111, m3 110→111 (byte-identical) — ALL 111 rungs PASS in
+> both modes.** Root cause (bisected): the body `assertz(...)` goal was *failing* and dead-ending `main`'s
+> conjunction before `color(X)` — `assertz`/`asserta` were NOT in `lower.c`'s `det_builtins`, so they lowered to
+> `g_goal` (a user-pred call to a non-existent `assertz/1`) which fails; the prior `abolish` had cleared the
+> static-folded clauses and nothing re-added them. Fix (3 files, +83, all additive, Prolog-only arms; FACT 0;
+> GATE-1 5/5, GATE-2 136/0 [2 pre-existing `.ref` ORACLE_MISS], prove_lower2 53/53; siblings unchanged Icon m2
+> 6/6, SNOBOL4 13/6):
+> 1. **`lower_program.c`** — new public `pl_rt_assertz(Term*, prepend)`. Grounded in SWI `assert_term`
+>    (pl-comp.c:4306: split head/body, look up or CREATE the procedure, insert clause at CL_START=asserta /
+>    CL_END=assertz). Path: `pl_assert_term` (Term → dense-slotted TT_CLAUSE — already calls
+>    `pl_clause_assign_dense_slots`) → `lower_pl_clause_graph` (TT_CLAUSE → IR clause-body graph) →
+>    `resolve_bb_lookup` the predicate's IR_CHOICE; if absent build+register an empty one, **wrapping any
+>    pre-existing single-clause graph as `bodies[0]`** so a prior fact isn't lost; then GC-grow `bodies[]` and
+>    append (assertz) / prepend (asserta). `idx_ok=0` reset so first-arg index rebuilds lazily.
+> 2. **`lower.c`** — `assertz/1`, `asserta/1`, `assert/1` added to `det_builtins` so they lower to Prolog
+>    `IR_BUILTIN` (the inverse-of-abolish sibling) instead of `g_goal`.
+> 3. **`bb_exec.c`** — new `IR_BUILTIN` exec arm (next to retract/abolish) calling `pl_rt_assertz`.
+> Verified the genuine RUNTIME path works independently of the pre-existing load-time static-fold heuristic in
+> `prolog_lower.c:605` (e.g. `assertz` inside a *called* predicate `foo`, which the static scan cannot pre-load,
+> correctly yields `green blue`); no double-add when both paths could fire.
+> **⚠️ MODE-3 ≡ MODE-4 — HONEST STATUS (matches retract/abolish exactly, NOT a new divergence):** the assertz
+> exec arm is in `bb_exec.c` (the interpreter = mode-2 AND the interim mode-3 `bb_exec_once` route — byte-identical,
+> so m3 110→111 too). It has NO `bb_builtin.cpp` emit-template yet — but this is *consistent with its whole family*:
+> retract/retractall/abolish are ALSO mode-2-only with a documented "mode-4 emit gap" (CAT-D §, "Mode-2 only").
+> assertz did not introduce a parity violation; it joined the dynamic-DB family at the same maturity. The
+> emit-template (a `bb_assertz`-style box emitting via `rt_pl_*` effect-helper, the WAM-CP-13/PLG-9 deliverable
+> that owns retract/abolish mode-4 too) is the remaining piece for native mode-3 + mode-4. Mode-4 is currently
+> `[SMX]`-EXCISED for Prolog, so this template cannot be exercised until PLG-9 un-gates `--compile`.
+> **NEXT:** (a) the matching `bb_builtin.cpp` assertz emit-template (with retract/abolish, WAM-CP-13/PLG-9);
+> (b) orthogonal pre-existing bug surfaced this session — the `prolog_lower.c:605` static-fold heuristic loses a
+> single static fact when a body assertz folds into the same 1-clause predicate (`color(red).` + body
+> `assertz(color(green))` → only `green`); it is NOT in the GATE-3 suite and the cleaner fix is to retire the
+> load-time fold in favour of `pl_rt_assertz` (but the SWI-plunit `pj_test` registration shares that fold, so
+> scope it carefully).
+
 
 **Directive (Lon, 2026-05-30):** The engine grew a VALUE STACK it must not have. `--run` and
 `--compile` (and `--interp` of a BB) need NO value stack: the BB node IS the value's home. The
@@ -880,9 +917,12 @@ Open families:
 
 ### Other open
 
-- **PL-RT-ASSERTZ** — runtime `assertz/asserta` inside a goal body (not just `:-` directive fold).
-  Materialise fresh clause body BB graph at runtime and append to predicate's BB_CHOICE
-  `zc->bodies[]` (inverse of abolish). Blocks rung15_then_reassert.
+- **PL-RT-ASSERTZ** ✅ DONE mode-2 + interim-mode-3 (Opus 4.8, 2026-05-31, `8a01bb3`) — runtime `assertz/asserta`
+  inside a goal body now materialises a fresh clause body IR graph (`pl_rt_assertz` in `lower_program.c`) and
+  appends/prepends to the predicate's IR_CHOICE `zc->bodies[]` (inverse of abolish), creating+registering an
+  empty IR_CHOICE (wrapping any pre-existing single-clause graph) when the predicate isn't yet a choice.
+  Closed rung15_then_reassert (GATE-3 → 111/111 m2+m3). REMAINING: `bb_builtin.cpp` emit-template for native
+  mode-3 + mode-4 (shares the WAM-CP-13/PLG-9 dynamic-DB emit gap with retract/abolish).
 - **rung26_copy_term independent gap** — `copy_term(f(X,X), f(A,B))` → `A==B` should hold but
   doesn't in mode-4 (var-identity sharing); orthogonal to CAT-D-9b.
 - **PJ-AGW-6b** — `BB_PAT_ARBNO`/DCG repetition port wiring (rung30 dcg_pushback_rest).
@@ -1416,7 +1456,7 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | EXCISED | m3 hello-tier (`write_atom`) now EMITS natively (`bb_build_flat`, no ring); richer smoke tests via interim `bb_exec_once`. m4 SMX-gated (PLG-9 regrow) |
-| GATE-3 rung suite | **110/111** | **110/111** | EXCISED | m3 byte-identical to m2. Remaining 1: rung15 abolish-then-reassert (PL-RT-ASSERTZ). rung30 DCG closed via `=<` operator fix |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | EXCISED | m3 byte-identical to m2. ALL rungs pass. rung30 DCG closed via `=<` operator fix; rung15 abolish-then-reassert closed via PL-RT-ASSERTZ |
 | prove_lower2 topology | **51/51** ✅ | — | — | unchanged this session (driver-only change) |
 | FACT RULE grep | 0 ✅ | — | — | scrip.c PLG-8-native arm additive, Prolog-only (`pl_flat_body_root`); siblings untouched |
 
