@@ -1085,6 +1085,57 @@ probes: run `--interp` then `--run` then `--compile --target=x86` and state each
     epilogue is literal `emit_text_n` in `emit_bb.c` (a future `xa_pl_callee_epilogue` XA template).
     Handoff `HANDOFF-2026-06-01-OPUS48-PROLOG-BB-PLG-9D-BT-MODE4-BACKTRACK.md` (SCRIP repo).
 
+  - [x] **PLG-9e — DETERMINISTIC builtin-family widening, mode-4 end-to-end. DONE (Opus 4.8, 2026-06-01,
+    atop `c2b352d`).** The PLG-9d-bt-flagged "~87 mode-2-only builtin families EXCISE" was a MIS-COUNT: most
+    of those families ALREADY HAD a proven `bb_builtin.cpp` MEDIUM_TEXT arm (the byte-twin of the BINARY arm
+    that mode-3 native JITs — MIGRATION-MODE4-IS-MODE3-DUMP one-template/two-sinks); they EXCISED only because
+    `pl_rich_node_emittable` (`scrip.c`) had a hard-coded allow-list of `write`-family + `nl`/`halt` + integer
+    `is` + integer comparisons. Widening that allow-list to every family whose TEXT arm is proven correct in
+    the standalone-binary context took **mode-4 from 24 → 68 PASS / 0 FAIL** (GATE-3). m2/m3 held 111/111;
+    GATE-1 5/5 all modes; prove_lower2 green; FACT 0; siblings byte-identical (Icon m2/m3/m4 12/12/12,
+    SNOBOL4 m2 7/7 HARD m3 5 m4 0 — all at their floors; the change is `is_prolog`-arm-only, `scrip.c`
+    +97/−19, ZERO template/lower/rt edits). **Families ADMITTED** (each verified m2==m4==expected in isolation
+    AND via the rung suite): term comparisons `==`/`\==`/`@<`/`@>`/`@=<`/`@>=` (CAT-D-9 scalar + CAT-D-9b
+    IR_STRUCT path); the 11 type-tests `var`/`nonvar`/`atom`/`atomic`/`number`/`integer`/`float`/`compound`/
+    `callable`/`is_list`/`ground` (CAT-D-10); `succ/2` + `plus/3` (rung18); `sort/2` + `msort/2` (CAT-D-11);
+    `format/1,2` (CAT-D-format); the 2-arg atom builtins `atom_length`/`upcase_atom`/`downcase_atom`/`string_*`/
+    `atom_string`/`string_to_atom` (CAT-D-1/3/4); `atom_concat/3` (CAT-D-2/3); `atom_chars`/`atom_codes`/
+    `string_chars`/`string_codes` (CAT-D-6); `char_type/2` (PLR-K-2); `number_string`/`atom_number` (PLR-K-7);
+    `functor/3`/`arg/3`/`=../2` (CAT-D-12-S2); `term_to_atom`/`term_string` forward (PLR-K-9). Rungs lit up:
+    09 (functor/arg/=../type-tests), 12 (atom builtins), 16 (term-order @< + at_sort), 17 (sort/msort), 18
+    (succ/plus), 19 (format), 21 (char_type), 24/25 (number/atom string), 28 part, 30 part, 40 (compound
+    type-tests) — full +44.
+    **FOUR families bisected as PROVEN-BROKEN in mode-4 and kept EXCISED (FALL LOUD, never miscompile):**
+    (1) `writeq`/`write_canonical` — only a MEDIUM_BINARY arm exists (PLR-K-4); no `@PLT` MEDIUM_TEXT arm, so
+    the standalone `.s` emits NOTHING → empty output. (2) `numbervars/3` — term-mutation; mode-4 leaves the
+    vars unbound (prints `_` / `f(_,_,_)` not `A`/`f(A,B,A)`; rung20). (3) `copy_term/2` — has a TEXT arm but a
+    KNOWN mode-4 var-identity gap (`copy_term(f(X,X),f(A,B))` → `A==B` should hold, gives `diff`; rung26 — the
+    gap the GOAL doc's "rung26_copy_term independent gap" already flagged). (4) `findall` — its
+    `bb_findall_state_t*` sidecar is a compile-time heap pointer dead in the separate process (honest-abort
+    stub). Plus dynamic-DB (`retract`/`retractall`/`abolish`/`assertz`/`asserta`) and float `is` stay EXCISED
+    as before.
+    **NEW BUG CHARACTERIZED — `rung30_dcg_pushback_rest` (added guard, kept EXCISED):** bisected to a genuine,
+    previously-unnamed mode-4 defect — an **`IR_ITE` whose CONDITION binds a logic variable that the
+    THEN-branch then CONSUMES** loses the binding across the commit jump. Minimal repro (NOT DCG-specific):
+    `( atom_concat(a,b,X) -> atom_length(X,N), write(N) ; … )` → `2` in m2, EMPTY in m4. The recursive
+    `phrase(digits(Ds),Cs) -> atom_codes(A,Ds), write(A)` is the corpus instance. The 3 PASSING DCG rungs
+    (dcg_basic_terminals / dcg_nonterminals / dcg_phrase3) and rung07_cut_cut all have CONSTANT-`write`
+    then-branches, so they are SAFE. Added `pl_ite_then_branch_trivial` (`scrip.c`): an `IR_ITE` whose
+    then-branch entry (`bb_ite_state_t.then_`, = the first goal of the then-branch — a multi-goal then-branch
+    is wrapped in an IR_GCONJ by `pl_maybe_ifthenelse` whose α is that first goal) is a builtin OUTSIDE the
+    constant-output set {write,writeln,print,nl,halt} → EXCISE. Inspects ONLY that node's kind/name; does NOT
+    follow `γ` (which is wired to the ITE's continuation, e.g. a trailing `nl`, not the then-branch — following
+    it wrongly excised the simple `( c -> write(yes) ; write(no) ), nl` shape, a dead-end I hit and backed out).
+    **NEXT — PLG-9f (the new ITE-condition-binding bug) + PLG-10.** The bisected mode-4 ITE bug above is the
+    cleanest next correctness target: the condition's trail bindings must survive the commit into the
+    then-branch (the `bb_ite.cpp` TEXT arm's commit path drops them). Fixing it un-EXCISES `rung30_dcg_pushback_rest`
+    and the general bind-in-cond-use-in-then class. Then the dynamic-DB + findall mode-4 emit (PLG-10 /
+    WAM-CP-13). The remaining ~43 m4-EXCISED rungs are: findall (5), retract (5), abolish (5), the float-arith
+    half of rung16/29, writeq/write_canonical (4), numbervars (5), copy_term (1), the ITE-bind rung (1), plus
+    a few mixed — all EXCISE cleanly (0 FAIL). Purist tidy still pending: the callee γ/ω epilogue is literal
+    `emit_text_n` in `emit_bb.c` (a future `xa_pl_callee_epilogue` XA template).
+    Handoff inline (this entry).
+
 - [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue (the historical breaker).** The construct that
   broke the original fully-static SNOBOL4 and is solved in `test_sno_1.c` via the `_1[64]`/`ζ`
   explicit indexed frame array. Map the Prolog analogue (findall goal sub-graph; assertz/retract
@@ -1906,13 +1957,14 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-PLG-9d deterministic facts+call mode-4 native emission)
+## 📊 Gate table (current — post-PLG-9e deterministic builtin-family widening, mode-4 native emission)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | **3 PASS / 2 EXCISED** | m4 `write_atom`/`unify`/`arith` native; `clause`/`recursion` EXCISED (need backtracking/recursion CP spine — PLG-9d-bt/9e). UNCHANGED by PLG-9d (no new FAIL) |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **11 PASS / 0 FAIL / 100 EXCISED** | PLG-9d: m4 8→11 (+rung03 unify, rung30 dcg_basic_terminals + dcg_phrase3 — deterministic single-clause/phrase calls). m2/m3 byte-identical |
-| prove_lower2 topology | green ✅ | — | — | unchanged (recognizer + driver + emit_bb additive; no lower2 case touched) |
-| FACT RULE grep | 0 ✅ | — | — | PLG-9d emits TEXT asm via emit_text_n (callee γ/ω epilogue) + the registry driver in emit_bb.c — NO raw x86 byte-producers outside templates. lower.c +3 (IR_GOAL->sval, Prolog g_goal only); rt.c restored rt_last_ok/set over g_pl_last_ok (control bit, not a value stack — g_vstack still 0). Siblings: Icon m2/m3 11/11 m4 9/2; SNOBOL4 m2 7/7 HARD |
+| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | **5 PASS / 0 EXCISED ✅** | all of write_atom/unify/arith/clause/recursion native in m4 (clause+recursion landed PLG-9d-bt). UNCHANGED by PLG-9e |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **68 PASS / 0 FAIL / 43 EXCISED** | PLG-9e: m4 24→68 (+44 — term-compare/type-test/succ/plus/sort/msort/format/atom-builtins/atom_concat/atom_chars-codes/char_type/number_string/atom_number/functor/arg/=../term_to_atom families, all proven m2==m4). m2/m3 byte-identical. EXCISED-not-FAIL: findall, retract/abolish/assertz, writeq/write_canonical (BINARY-only), numbervars (term-mut), copy_term (var-identity), float arith, the new ITE-cond-binding bug (rung30_dcg_pushback_rest) |
+| prove_lower2 topology | green ✅ | — | — | unchanged (PLG-9e is scrip.c recognizer-only; no lower2 case touched) |
+| FACT RULE grep | 0 ✅ | — | — | PLG-9e is `scrip.c` `is_prolog`-arm-only (+97/−19: widened `pl_rich_node_emittable` allow-list + new `pl_ite_then_branch_trivial` guard). ZERO template/lower/rt edits → NO new x86 byte-producers; g_vstack still 0. Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 7/7 HARD m3 5 m4 0 |
+
 
 
