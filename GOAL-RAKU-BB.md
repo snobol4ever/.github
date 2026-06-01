@@ -317,7 +317,7 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**SESSION HANDOFF (2026-05-31, Opus 4.8).** Committed HEADs: SCRIP `056f849`, .github `420a35a4` (pushed at handoff).
+**SESSION HANDOFF (2026-05-31, Opus 4.8).** Committed HEADs: SCRIP `62f7f3b`, .github `30de80ba` (post-rebase, pushed at handoff; peers eabedcd ICON-GZ-10 + 179bf4d SBL-PAT-BB landed underneath).
 Net deliverable this session: **RK-LOWER-5a** (Raku read-only eager value ops — hash/array reads, `sort`, list ctor,
 `elems`/`reverse`/… whitelist — onto the unified `lower.c`, mode-2) PLUS the **3-mode TESTING DIRECTIVE restored** in
 `scripts/test_smoke_raku.sh`. Verified 3-mode matrix at handoff (clean step-zero rebuild, rc=0):
