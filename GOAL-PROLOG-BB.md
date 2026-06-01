@@ -359,18 +359,30 @@ unwired mode-4 shape declines with the `[SMX]` banner = EXCISED (expected, not F
   (`pl_flat_goal_is_simple` float branch + `pl_arith_op_floaty`/`pl_flat_arith_leaf_float_ok`). m2/m3 byte-
   identical (111/111 — mode-3 float now via the native flat tier's `rt_pl_is_eval` BINARY arm, same evaluator as
   the interim route). Siblings neutral (Icon 12/12/12; SNOBOL4 12 PASS/7 FAIL).
+- [x] **PLG-9i — mode-4 `copy_term/2` compound arg0 (2026-06-01, `47dd252`).** GATE-3 m4 80→**81** (+1); closed rung26
+  copy_term. The compound case (`copy_term(f(X,X),f(A,B))`) had a MEDIUM_BINARY arm only (PLR-K-15) — no `@PLT`
+  TEXT twin — so the rich gate EXCISED copy_term entirely to avoid the scalar CAT-D-5 arm degenerating a
+  compound arg0 (`rt_pl_node_to_term` flattens an `IR_STRUCT`, losing intra-term var-sharing → `A\==B`). This
+  was mis-classified as a substrate gap in PLG-9g-rest; it is in fact the same "BINARY-arm-needs-an-`@PLT`-TEXT-
+  twin" closure as writeq/atomic_list_concat. Fix = a MEDIUM_TEXT twin of PLR-K-15 in `bb_builtin.cpp`: build
+  arg0 (and, if compound, arg1) via `emit_build_compound_term` then `rt_pl_copy_term_terms`@PLT (compound arg1)
+  / `rt_pl_copy_term_term`@PLT (scalar arg1). **Sharing is preserved for free**: the TEXT builder's `IR_LOGICVAR`
+  case calls `rt_pl_node_to_term`, which writes an unbound var's fresh Term back to its env slot, so a repeated
+  slot rereads the SAME Term — identical to the BINARY builder. Gate: `pl_rich_node_emittable` admits
+  copy_term/2 (γ-chain pair). Two files (`bb_builtin.cpp` +1 TEXT arm, `scrip.c` gate), Prolog-arm-only, FACT-
+  clean. m2/m3 byte-identical (111/111). Robustness: scalar-var arg1 (`copy_term(f(a,b),X)`), nested shared-var
+  (`copy_term(g(X,h(X,Y)),Z)`→shared). Siblings neutral.
 
 - [ ] **PLG-7 — remove `bb_node_state_t` snapshot/restore.** Once the recursive case provably needs no snapshot,
   delete the struct + Prolog call sites. **Audit first:** the struct has ONE LIVE Icon caller (`bb_exec.c:1589`
   IR_CALL) — do not delete it until Icon migrates off separately. Mode-2/3/4 byte-identical + build green.
-- [ ] **PLG-9g (rest) — mode-4 dynamic-DB + the remaining broken-family closures.** The 31 still-EXCISED m4
+- [ ] **PLG-9g (rest) — mode-4 dynamic-DB + the remaining broken-family closures.** The 30 still-EXCISED m4
   rungs are findall (5), retract/retractall/abolish/assertz (dynamic-DB needs the `bb_*.cpp` emit-template, the
-  WAM-CP-13 deliverable), numbervars (term-mutation — mode-4 leaves vars unbound), copy_term var-identity,
-  aggregate (nb_setval/getval + aggregate_all), catch/throw (5), dcg_generate (1). All EXCISE cleanly (0 FAIL).
-  The cheap "BINARY-arm-exists-just-needs-`@PLT`-TEXT" closures are now exhausted (writeq/write_canonical/
-  atomic_list_concat landed PLG-9g-partial; float `is/2` landed PLG-9h); the rest need a real runtime substrate.
-  Purist tidy: the callee γ/ω epilogue is literal `emit_text_n` in `emit_bb.c` — a future `xa_pl_callee_
-  epilogue` XA template.
+  WAM-CP-13 deliverable), numbervars (term-mutation — mode-4 leaves vars unbound), aggregate (nb_setval/getval +
+  aggregate_all), catch/throw (5), dcg_generate (1). All EXCISE cleanly (0 FAIL). The cheap "BINARY-arm-exists-
+  just-needs-`@PLT`-TEXT" closures are now exhausted (writeq/write_canonical/atomic_list_concat PLG-9g-partial;
+  float `is/2` PLG-9h; copy_term compound PLG-9i); the rest need a real runtime substrate. Purist tidy: the
+  callee γ/ω epilogue is literal `emit_text_n` in `emit_bb.c` — a future `xa_pl_callee_epilogue` XA template.
 - [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue.** Map the Prolog analogue (findall goal sub-graph; assert/
   retract mutable clause store; DCG repetition) onto an explicit indexed deferred-frame array (the `test_sno_1.c`
   `_1[64]`/`ζ` shape), NOT a snapshot, NOT C recursion. Gate: rung11/14/30 3-mode AGREE.
@@ -482,11 +494,11 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — post-PLG-9h)
+## 📊 Gate table (current — post-PLG-9i)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5 PASS / 0 EXCISED ✅ | write_atom/unify/arith/clause/recursion all native in m4 |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **80 PASS / 0 FAIL / 31 EXCISED** | PLG-9h: m4 76→80 (+4: rung29 float_conversion/constants/math/parts). m2/m3 byte-identical. EXCISED-not-FAIL (all substrate-requiring): findall, retract/abolish/assertz, numbervars, copy_term, aggregate, catch/throw, dcg_generate |
-| prove_lower2 | green ✅ | — | — | PLG-9h is bb_exec.c/emit_bb.c/bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
-| FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added (`rt_pl_is_f` is a runtime effect-helper; TEXT arm = s_2asm/movq-xmm/@PLT only); g_vstack still 0; bb_builtin.cpp not flagged by purity audit (7 baseline). Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **81 PASS / 0 FAIL / 30 EXCISED** | PLG-9h m4 76→80 (+4 rung29 float); PLG-9i 80→81 (+1 rung26 copy_term compound). m2/m3 byte-identical. EXCISED-not-FAIL (all substrate-requiring): findall, retract/abolish/assertz, numbervars, aggregate, catch/throw, dcg_generate |
+| prove_lower2 | green ✅ | — | — | PLG-9h/9i are bb_exec.c/emit_bb.c/bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
+| FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added (`rt_pl_is_f` is a runtime effect-helper; TEXT arms = s_2asm/movq-xmm/emit_build_compound_term/@PLT only); g_vstack still 0; bb_builtin.cpp not flagged by purity audit (7 baseline). Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
