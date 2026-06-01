@@ -163,6 +163,69 @@ The unified IR→x86 emitter is **ONE dispatch** — `src/emitter/emit_core.c`'s
 > `bb_rk_nfa_*.cpp`) so clause 3's "edit only your own boxes" holds with zero overlap onto the
 > SNOBOL/Prolog/Icon prefixes. The "three → four" roster expansion is the same lockstep edit noted above.
 
+## ⛔ NO DUPLICATED LOGIC — WRITE EACH PIECE OF LOGIC ONCE (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
+
+**This is a LOGIC problem, not a formatting problem.** (Lon, 2026-06-01.) The template tree is BAD CODE: the same logic is written over and over. `bb_builtin.cpp`
+is 2,427 lines because of duplication, not because the work is big. Fix the duplication; the line count
+collapses on its own.
+
+**THE ONE LAW: each piece of logic is written ONCE.** A box does PORT work (α/β/γ/ω wiring). The runtime does
+VALUE work (build a term, compare, arithmetic, concat). When a box reimplements VALUE work inline, you get
+duplication — and duplication is the disease in every form below.
+
+**DUP FORM 1 — THE SAME ALGORITHM IN TWO MEDIA (worst, the bulk of the bloat).** `emit_build_compound_term`
+(92 lines, emits GAS text) and `emit_build_compound_term_bin` (94 lines, emits raw bytes) are the SAME
+post-order Term-builder written TWICE. A bug must be fixed in both or they drift. THE FIX IS NOT TO MERGE THE
+TWO WALKERS — it is to DELETE BOTH. Building a Term is a RUNTIME job; `rt_pl_compound_build_n` and
+`rt_pl_node_to_term` already do it. The box marshals operand slots into registers and `call`s the helper.
+Once it is one `rt_*` call there is NOTHING to duplicate: TEXT emits `call foo@PLT`, BINARY emits
+`movabs rax,&foo; call rax` — two trivial encodings of ONE logical call, which is the sanctioned per-medium
+difference (NOT duplicated logic). ~18 builtin families currently each call BOTH walkers; killing the walkers
+sheds >1,000 lines.
+
+**DUP FORM 2 — EMIT-TIME LOGIC THAT IS A RUNTIME JOB.** Root cause of FORM 1. Any time a template grows a
+recursive walker, an arithmetic evaluator, a comparator, a term constructor — that is VALUE work in the wrong
+place. It belongs behind ONE `rt_*` call. (Guard, GOAL-BB-TEMPLATE-LADDER invariant 9: never add an
+`rt_*_exec` that does α/β/γ/ω PORT logic — that is a C byrd box. The split is clean: RT = value, BOX = ports.
+If you are emitting more than "marshal args, call helper, wire the 4 ports," you are duplicating runtime logic
+into the emitter.)
+
+**DUP FORM 3 — AN OPERAND BOX REIMPLEMENTED INSIDE ITS CONSUMER (fusion).** `bb_binop` reads
+`pBB->α->t == IR_LIT_I` and seals the operand's VALUE (`pBB->α->ival`) in its own blob — reimplementing what
+`bb_lit_scalar` already does (put a literal where a consumer can read it). Two pieces of code, one job. The
+consumer must READ the operand's slot (`bb_slot_get(pBB->α)`); the operand's own box fills it. DELETE the
+operand-kind arm. (PREREQ, proven 2026-06-01: deleting GZ-3/GZ-4 today breaks `write(2+3)` because the lowerer
+does not yet chain literal operands as producer boxes in that shape — so the de-fuse step is first a LOWERER
+fix that makes both operands producers, THEN the deletion.) Any `pBB->α->ival/sval/dval` or `->α->t==IR_LIT_*`
+read inside a consumer box = fusion = duplicated operand logic.
+
+**DUP FORM 4 — N DIFFERENT BOXES IN ONE FILE (cram).** `bb_binop.cpp` held 7 unrelated four-port shapes
+selected by `op`/operand-kind/`g_*_flat_chain`. Each distinct shape is its own box; a `_str()` returning
+several different complete four-port byte sequences is N boxes in one filename. This is the LEAST harmful dup
+(it is co-location, not copied algorithm) but it hides the others. De-cram by splitting distinct shapes behind
+a thin router (`bb_foo.cpp` keeps the `extern "C" void bb_foo(IR_t*)` so `emit_core.c` is untouched; each shape
+is `bb_foo_<shape>_str(...)` returning its bytes or `""`; router calls each in order). Worked example DONE:
+`bb_binop_*.cpp` + 38-line `bb_binop.cpp`.
+
+**NOT DUPLICATION — DO NOT "FIX" THESE.** (a) The same byte pattern hand-copied INTO each per-box template is
+REQUIRED (RULES.md — duplication of bytes across boxes is the point; never factor into a shared emitter helper
+two languages edit). (b) Per-file op-classifier tables (`gen_is_numrel`, `gen_rel_to_tt`) copied per file —
+acceptable, per-file, no shared edit. (c) Boxes 95%+ identical SHARE one file parameterized by an immediate /
+opcode / register (`bb_lit_scalar` groups IR_LIT_I/S/F/NUL; `bb_binop_arith` groups ADD/SUB/MUL/DIV/MOD) —
+grouping near-identical SHAPES is correct; splitting them is over-splitting. (d) The two ARMS of one box
+(`IF(BINARY)`/`IF(TEXT)`) are two encodings of one logic — NOT duplication. The line is always: copied
+*algorithm* = bad; copied *bytes/encoding* of one logic = fine.
+
+**THE TEST:** could a bug in this code require fixing the same logic in two places? If yes → duplication →
+collapse it (delete the emit-time copy in favor of one `rt_*` call; delete the fused operand arm in favor of
+the slot read; delete the second-medium walker).
+
+**COMPLETION TEST (per file):** (a) no algorithm (walker / evaluator / comparator / term-builder) appears in
+both a TEXT arm and a BINARY arm — value work is ONE `rt_*` call; (b) no emit-time reimplementation of runtime
+value work; (c) no operand-kind read (`pBB->α->ival/sval/dval`, `->α->t==IR_LIT_*`) inside a consumer box;
+(d) one four-port shape per `_str()` (or a pure router); (e) the FACT RULE body is byte-identical across all
+four GOAL files.
+
 ## ⛔ X86-64 REGISTER / SUBJECT-MODEL CONVENTION (FACT — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
 Locked callee-saved layout the three concurrent BB sessions MUST share (canonical origin: GOAL-ICON-BB "Subject model — four names, zero redundancy"; casing inherited from the snobol4jvm Clojure SNOBOL4). **Casing carries meaning: UPPERCASE = the fixed whole/bound; lowercase = the moving position.**
@@ -236,6 +299,17 @@ Raku source → raku.l / raku.y → tree_t* (TT_* AST)
 **Absolute rules (RULES.md):** No C Byrd boxes. TEMPLATE-PURITY. ONE x86 PRODUCER. Stub LOUD via `bomb_bytes()`. X86 ONLY. MODE PURITY. No `rt_*`/`raku_*` port-logic helpers; conversion/effect helpers via `@PLT` (mode-4) or absolute `movabs+call` (mode-3) are fine.
 
 ---
+
+## 🔴🔴 #0 PRIORITY — BB-HYGIENE LADDER (RAKU) — ORDERED, DO FIRST (Lon 2026-06-01)
+
+Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step: Raku m3/m4 corpus held (18/22), Icon/SNOBOL4/Prolog siblings byte-identical, commit. Reference Raku box: `bb_binop_jct_relop.cpp` (RK-EMIT-3, already broken out by the worked example). The de-cram steps are prep; **RK-HY-4 (de-dup + RT-fix) is the core fix** — collapse any logic written twice.
+
+- [x] **RK-HY-0 — `bb_binop_jct_relop.cpp`.** ✅ DE-CRAM DONE 2026-06-01 (carried out of the `bb_binop.cpp` worked example). Raku junction-collapse relop is its own file.
+- [ ] **RK-HY-1 — `bb_seq.cpp` (358).** Raku-dominant. SEQ goto-chain pass-through / `for GEN -> $v {..}; CONT` continuation / try-CATCH SEQ exec = distinct shapes → split; group near-identical. Router. (FACT-RULE-sensitive shared SEQ substrate: edit ONLY Raku's arms.)
+- [ ] **RK-HY-2 — `bb_nfa.cpp` (222).** Regex/grammar NFA: leaf-match / subrule-call / Match-tree-build shapes → split. Router. (Substrate for the #1 grammar goal; clean per-box files make resume-and-yield-next tractable.) **De-fuse + RT-check: Match-tree build is RUNTIME work — marshal + call an `rt_rk_*` helper, do not hand-walk at emit time (DISEASE 4).**
+- [ ] **RK-HY-3 — Raku arms of `bb_call.cpp`.** When Icon runs ICN-HY-2, the RK-EMIT-1/2 arms (`rt_rk_call_arr`, IR_CALL dval==2.0 marshalling) are RAKU-OWNED → move to `bb_call_rk.cpp` (or `_<shape>` if >1). Coordinate per the FACT RULE (edit only your own language's boxes). Router stays Icon's.
+- [ ] **RK-HY-4 — de-dup + RT-fix, all Raku boxes.** Any algorithm in both media → one `rt_*` call. No emit-time value work.
+- [ ] **RK-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Raku-owned files. m3/m4 18/22 held; siblings byte-identical.
 
 ## The insight (Raku is a Seq language → ONE four-port pull protocol)
 
