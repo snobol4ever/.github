@@ -1083,6 +1083,7 @@ probes: run `--interp` then `--run` then `--compile --target=x86` and state each
     atom/string builtins, sort, format, numbervars, term comparisons `==`/`@<`, catch/throw, float arith,
     runtime assert/retract) — each EXCISES cleanly (0 FAIL). A purist tidy still pending: the callee γ/ω
     epilogue is literal `emit_text_n` in `emit_bb.c` (a future `xa_pl_callee_epilogue` XA template).
+    Handoff `HANDOFF-2026-06-01-OPUS48-PROLOG-BB-PLG-9D-BT-MODE4-BACKTRACK.md` (SCRIP repo).
 
 - [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue (the historical breaker).** The construct that
   broke the original fully-static SNOBOL4 and is solved in `test_sno_1.c` via the `_1[64]`/`ζ`
