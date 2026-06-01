@@ -277,7 +277,7 @@ unwired mode-4 shape declines with the `[SMX]` banner = EXCISED (expected, not F
   **GATE-3 m4 24→68.** Kept EXCISED (FALL LOUD, proven-broken in mode-4): writeq/write_canonical (BINARY-only),
   numbervars (term-mutation), copy_term (var-identity), findall (heap-pointer sidecar dead cross-process),
   dynamic-DB, float `is`.
-- [x] **PLG-9f — mode-4 ITE multi-goal branch (2026-06-01, `9525eab`).** GATE-3 m4 68→**69**; closed
+- [x] **PLG-9f — mode-4 ITE multi-goal branch (2026-06-01, `86c265e`).** GATE-3 m4 68→**69**; closed
   rung30_dcg_pushback_rest (3-mode `123`). The PLG-9e "then-branch consumes a cond binding → EXCISE" guard was a
   MISDIAGNOSIS: the condition's binding always survives the commit (`g_resolve_env` is a process-global the
   consumer reads directly). The real defect was the EMITTER dropping conjunction goals — `flat_drive_pl_ite`
