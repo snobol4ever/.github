@@ -344,9 +344,30 @@ FACT 0, smokes hold.
   no-stack 117≤127 · one-reg-frame 20≤20 · prove_lower2 PASS · ZERO-SM 0.** **OUT OF SCOPE (pre-existing,
   NOT GZ-10):** bare `if C then E` (no else) cond-FALSE fails the whole proc instead of falling through —
   the documented GZ-8/GZ-9 IR_SEQ statement-failure-continuation quirk; workaround = explicit `else` (all
-  recursion tests above use the `if … then … else …` form). **NEXT:** mode-3/4 (the `test_sno_3.c`
-  `(ζζ,entry)` lazily-allocated flat-box model, `_λ` landing pad, recursion depth in per-box arenas — never
-  a value stack); then the bare-if-no-else fall-through quirk (shared with SNOBOL4/Prolog).
+  recursion tests above use the `if … then … else …` form). **modes-3/4 FOUNDATION — ZERO-ARG DONE
+  (2026-06-01, Opus 4.8 — `da3a786`):** a zero-arg user procedure now runs STACKLESS in mode-3 —
+  `write(answer())` → **m2 == m3 == 42** (m4 deferred). Landed the `test_sno_3.c` `(ζζ,entry)` convention:
+  `rt_icn_call_proc_descr(name,nargs)` allocates a FRESH frame from a depth-indexed arena (recursion-safe
+  per-activation storage, NOT a value stack), binds staged args into param slots, runs the callee slab, and
+  returns the callee's RETURN-slot DESCR (`rax:rdx`); frame layout `[0,16)`=return DESCR, param i at
+  `16*(i+1)`. New: `icn_flat_chain_build_proc` (proc body built with that convention — reserves return slot,
+  pre-seeds param varslots); `icn_chain_arity(IR_RETURN)=1` so `RETURN.α`=value producer; `IR_RETURN`/`IR_CALL`
+  in the flat chain route to FILL (no re-walk, the GZ-8/9 sibling-slot pattern); `bb_return.cpp` flat arm
+  (producer slot → frame return slot `[0]`); `bb_call.cpp` flat user-proc arm (call helper, store DESCR to own
+  slot; mode-4 TEXT is a loud abort stub); driver builds proc slabs eagerly under the ζ-frame prologue and
+  registers their fns. Also landed `rt_icn_arg_stage(idx,v)` — the transient single-call arg marshalling
+  primitive (DESCR by value in `rsi:rdx`, consumed by the helper on entry before any nested call), ready for
+  the arg-emission hook. **GATES: Icon m2 11/11 HARD (added `proc_zeroarg` regression case) · m3 10/11 · m4
+  9/11 (proc_recursion m3/m4 still red — needs arg emission); SNOBOL4 m2 7/7 · Prolog m2 5/5 · Raku m2 22/22
+  · no-stack 117≤127 · one-reg-frame 20≤20 · prove_lower2 PASS.** **NEXT:** the arg-subgraph emission — in
+  `walk_bb_flat`'s `g_icn_flat_chain` IR_CALL arm, when `dval==3.0 && ival>0`, emit each `counter[i]` arg
+  sub-graph inline (its VAR refs resolve to caller param slots, its result lands in its terminal producer's
+  slot) then emit per-arg `mov edi,i; mov rsi,[r12+slot]; mov rdx,[r12+slot+8]; call rt_icn_arg_stage` before
+  FILL (the RK-EMIT-2 `dval==2.0` arm in `bb_call.cpp` is a worked reference for the leaf-arg materialisation).
+  That completes one-arg (`id(x)`), then full `fact(5)` recursion once an arg sub-graph may itself be a
+  binop/nested-call. Then GZ-10 mode-4 (proc slabs as named asm + `.rodata` names + startup registration —
+  the `bb_call` mode-4 arm is the loud abort stub today); then the bare-if-no-else fall-through quirk
+  (shared with SNOBOL4/Prolog).
 - [ ] **GZ-DEFER — EVAL / CODE / `*P` deferred patterns** via the `test_sno_3.c` model. This was
   the ONE thing that broke the prior stackless build; it is solved in the reference file.
 - [ ] **GZ-11+ — corpus features rebuilt stackless** (lists, tables, records, scanning, csets,
