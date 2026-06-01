@@ -221,9 +221,30 @@ FACT 0, smokes hold.
   string_op/every). GATES: FACT 0 · no-stack 114 ≤ 127 · one-reg-frame 20 ≤ 20 · prove_lower2 PASS ·
   template-purity advisory 7 (byte-identical before/after) · Prolog m2 5/5 unaffected. NO `rt_push`/`rt_pop`
   added; the chain arms are register-relative `[r12+off]` only.
-- [ ] **GZ-8 — `if`/relop control, relop routes its OWN γ/ω.** Bake the branch into the relop
-  (PDF LessThan: `if (E1 ≥ E2) goto E2.resume`); NO `LAST_OK` flag, NO `BB_IF` flag-router.
-  This is the reference-faithful form (the old IBB-9-RELOP-PORTS, done correctly from scratch).
+- [x] **GZ-8 — `if`/relop control, relop routes its OWN γ/ω. DONE (2026-05-31, Sonnet 4.8).**
+  `x:=10; if x>5 then write("big") else write("small")` → **m2==m3==m4 `big`**; Icon smoke
+  **m2 6/6 HARD · m3 5/6→6/6 · m4 0/6→6/6** (first time all three modes 6/6). The branch is BAKED
+  INTO THE RELOP (grounded in `test_icon.c` `mult_succeed: if (x5_V<=mult_V) goto mult_resume; else …
+  goto succeed` — the fail-jump is the NEGATED relation): NO `LAST_OK` flag, NO `BB_IF` router,
+  NO `rt_acomp`/value stack. The `IR_IF` node is vestigial in the γ/ω graph (the relop carries γ→then,
+  ω→else directly; verified `IR_IF` is never collected by the flat-chain BFS). FOUR edits, all gated to
+  mode-3/4 emission (mode-2 oracle `bb_exec.c` untouched → HARD gate safe; SNOBOL4/Prolog byte-identical,
+  stash-verified m3 2/6 & 5/5 unchanged): (1) `bb_binop.cpp` flat-chain numeric-relop arm —
+  `mov rax,[r12+sa+8]; mov rcx,[r12+sb+8]; cmp rax,rcx; jcc ω; jmp γ` (BINARY+TEXT), operand int payloads
+  at `[r12+slot+8]` via `bb_slot_get(α)`/`bb_slot_get(β)`, fail-jcc per op (`<`→jge,`<=`→jg,`>`→jle,
+  `>=`→jl,`=`→jne,`~=`→je); relop value discarded in if-context (no slot write). (2) `walk_bb_flat`
+  IR_BINOP — flat-chain relop routes to FILL (emit only the relop box; operands are sibling chain boxes,
+  NOT re-walked via `flat_drive_binop_tree`). (3) `icn_chain_operand_refs` BFS→DFS (γ-first, then ω for
+  binops) — BFS interleaved a relop's two arms (then-lit, else-lit, then-call, else-call) breaking the
+  linear postfix stack so branch-arm CALLs grabbed the wrong operand; DFS keeps each arm contiguous so
+  each `write(strlit)` resolves its true γ-predecessor LIT_S. (4) `bb_var.cpp` `bb_slot_alloc`→`alloc16`
+  (VAR writes a 16-byte DESCR; the 8-byte reservation let a following producer's slot overlap VAR's int
+  payload at +8, corrupting a two-operand relop). Verified all 6 operators × both arms (14 cases) m2==m3;
+  m4 binary assembled+linked+run `big`/`small`. GATES: FACT 0 · no-stack 114≤127 · one-reg-frame 20≤20 ·
+  prove_lower2 PASS · template-purity advisory 7 (unchanged) · crosscheck 4/4 (if_expr m4 agrees) ·
+  Prolog m2 5/5 · broker 20. NO `rt_push`/`rt_pop` added. OBSERVATION (pre-existing, out of scope): a
+  bare `if C then E` (no else) whose cond fails does not continue to the next statement in EITHER m2 or
+  m3 (consistent; an IR_SEQ statement-failure-continuation quirk in the mode-2 oracle, untouched here).
 - [ ] **GZ-9 — `while`/`until`/`repeat`.** body.success/failure → cond.START (JCON `ir_a_While`);
   `until` swaps the cond edges. No router node.
 - [ ] **GZ-10 — user procedure as a four-port FLAT box** (not a C-stack `call`). Model on
@@ -423,8 +444,26 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `febef10` (GZ-7 `x := 42; write(x)` mode-3 + mode-4 via the FLAT GOTO-GRAPH
-NAMED-SLOT model — no ring — Sonnet). Built on `582c3bc`.
+**HEAD (SCRIP):** GZ-8 `if`/relop control — relop-as-branch (cmp+jcc, no LAST_OK/BB_IF router/vstack).
+Icon smoke **m2 6/6 HARD · m3 6/6 · m4 6/6** (first all-three-modes-6/6). Built on `febef10`.
+
+**Done this session (GZ-8 — Sonnet 4.8):** `if x>5 then write("big") else write("small")` →
+m2==m3==m4 `big`. The relop bakes its own branch grounded in `test_icon.c` (negated-relation fail-jump);
+the `IR_IF` node is vestigial in the γ/ω graph. Four mode-3/4-gated edits (mode-2 oracle untouched →
+HARD gate safe; SNOBOL4 m3 2/6 & Prolog 5/5 stash-verified unchanged): (1) `bb_binop.cpp` flat-chain
+numeric-relop arm `mov rax,[r12+sa+8]; mov rcx,[r12+sb+8]; cmp; jcc ω; jmp γ` (BINARY+TEXT); (2)
+`walk_bb_flat` IR_BINOP flat-chain relop → FILL (no operand re-walk); (3) `icn_chain_operand_refs`
+BFS→DFS so branch arms stay contiguous (fixes branch-arm CALL operand resolution); (4) `bb_var.cpp`
+`bb_slot_alloc`→`alloc16` (VAR writes a 16-byte DESCR; prevents two-operand slot overlap). All 6
+operators × both arms verified m2==m3; m4 assembled+linked+run. GATES: FACT 0 · no-stack 114≤127 ·
+one-reg-frame 20≤20 · prove_lower2 PASS · template-purity 7 (unchanged) · crosscheck 4/4 · Prolog m2
+5/5 · broker 20. **NEXT:** GZ-9 (`while`/`until`/`repeat`; JCON `ir_a_While`: body.success/failure →
+cond.START). Note the pre-existing out-of-scope observation: bare `if C then E` (no else) failing-cond
+does not continue to the next statement in m2 OR m3 (consistent IR_SEQ statement-failure quirk).
+
+---
+
+
 
 **Done this session (GZ-7 mode-3 + mode-4 — flat goto-graph, named slots, NO ring):** Lon's architectural
 law restated and enforced: **mode 2 = AG ring (correct); modes 3/4 = NO ring** — the `test_sno_*.c` model,
@@ -698,7 +737,7 @@ baseline for this build; they were produced by the value-stack path now being re
 |------|-------|-------|
 | Demolition | DONE | All Icon value-stack runtime consumers stubbed to `ICN_STACKLESS_ABORT` (23 sites): `rt_pop_nv_set`, `rt_pop_store_i64`, `rt_push_stored_i64`, `rt_pop_store_descr`, `rt_case_eq`, `rt_pop_write_int_nl`, `rt_pop_write_any_nl`, six `rt_unop_*`, ten vstack-using `rt_icn_*` (`call_proc`, `call_builtin`, `concat`, `field_get/set`, `idx_get/set`, `list_bang`, `limit_begin`, `toby_real`). Slot-based `rt_icn_limit_more/inc`, `proc_*` registry, `builtin_is_known`, and Raku `rt_load_frame`/`rt_store_frame` left LIVE. SNOBOL4/Prolog unaffected; Icon `--interp` 5/5; Icon `--run` aborts loudly at every value-stack box. |
 | GZ-0 | DONE | No-stack gate pinned `scripts/test_gate_icn_no_stack.sh` (ratchet baseline 129). Slot/arena conventions grounded in archived `emit_arbno` + `test_icon.c`. |
-| Smoke (two-mode) | DONE | `test_smoke_icon.sh` runs mode-2 (`--interp`, HARD GATE) AND mode-3 (`--run`, tracked); added `write_int` case. Current m2 **6/6** (HARD green, exits 0), m3 **4/6** (`write_str`/`write_int`/`arith`/`string_op`; `if_expr`+`every` fork-blocked) — session 8. |
+| Smoke (two-mode) | DONE | `test_smoke_icon.sh` runs mode-2 (`--interp`, HARD GATE) AND mode-3 (`--run`, tracked) AND mode-4 (`--compile`); added `write_int` case. Current m2 **6/6** (HARD green, exits 0), m3 **6/6**, m4 **6/6** — GZ-8 (2026-05-31) made `if_expr` green in all three modes (relop-as-branch), the FIRST time all six smokes pass in all three modes. |
 | GZ-1 `write("hello")` | **m2 DONE; m3 DONE (R-HW-2, s5)** | mode-2 stackless & green. mode-3 NOW genuinely stackless: the write box reads the literal `lea rdi,[rip+27]` from sealed RO bytes in its own blob + `call rt_write_str_nl` (no push). The earlier `rt_push_str` came from the standalone `BB_LIT_S` box (walked via `LIT_S.γ→CALL`) + the builtin-dispatch arg-walk, BOTH fixed in R-HW-2. `diff m2 m3` empty, dump-sm 0, no-stack 127. |
 | GZ-2 `write(42)` | DONE (RO-IP-relative) | Literal int is a READ-ONLY constant: `BB_LIT_I` is pass-through; the write box emits the int64 as sealed RO data inside its own blob and reads it `mov rdi,[rip+22]` (emit-time disp, no patch/abs/stack), then `rt_write_int_nl`. m2==m3 `42`, count=0. Conforms to BOTH new FACT rules; no register frame needed for a constant. one-reg-frame abs-slot 22->20. |
 | READ-ONLY LOCALS IP-RELATIVE (new FACT RULE 2026-05-30) | in force | RULES.md: per-box RO constants live in the SEALED segment next to their blob, read `[rip+disp]` (disp = emit-time const when data+access share the blob); only RW state uses the one-register frame. Applied to GZ-2. Shares the no-stack + one-reg-frame ratchets (no abs `&pBB->slot`). |
