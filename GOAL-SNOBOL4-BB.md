@@ -371,6 +371,76 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 
 ---
 
+## 🔴 CURRENT PRIORITY (Lon directive 2026-06-01) — DO THIS FIRST: REG LADDER (BB TEMPLATES → RATIFIED REGISTERS)
+
+**The SNOBOL4 pattern BB templates are NOT yet on the ratified registers** — they still use the legacy subject
+model (`[r10]` cursor; Σ/Δ via `movabs &Σ`/`&Σlen` = emitter-process global addresses). Migrating them to
+Σ=R13 / δ=R14 / Δ=R15 / ζ=R12 is **the current top priority** (Lon): it brings convention compliance AND removes
+the process-local-address bake that blocks SNOBOL **mode-4** (the m4 0/6 cause). This ladder runs BEFORE the rest
+of the PB-RB feature ladder (PB-RB-4+) and the BROKERED-ERADICATION rung (both still below, lower priority until
+the registers are correct). REG-0 is coupled to PB-RB-3 (now landed), so REG-1 (`bb_lit`) is the first code step.
+
+### ⭐⭐ REG LADDER — SNOBOL4 PATTERN-FAMILY REGISTER-LAYOUT MIGRATION (Lon directive 2026-06-01, Opus 4.8)
+
+Bring the SNOBOL4 pattern family from the **legacy subject model** (cursor in the `[r10]` per-BLOB data-block
+field; Σ via `movabs &Σ;deref`/`lea [rip+Σ]`; Δ via `movabs &Σlen`/`[rip+Σlen]` — `TEMPLATE_ADDR_SIGMA`/
+`TEMPLATE_ADDR_SIGLEN` = **emitter-process global addresses**) to the **ratified register convention** Σ=R13,
+δ=R14, Δ=R15 (ζ=R12, r10 stays the per-BLOB DATA-block ptr). Two wins in one: (a) convention compliance; (b)
+**removes the process-local-address bake → SNOBOL mode-4 relocatability** (the m4 0/6 blocker). NOT a convention
+change (the table is untouched) → SNOBOL-session-local, no lockstep. Each step: prove topology
+(`prove_lower2.sh`) unchanged, migrate BINARY+TEXT arms together (SAME processing, only bytes-vs-GAS differ),
+disasm-verify the new register usage, gate. **Mode-2 oracle (`bb_exec.c`) is UNTOUCHED — these are modes-3/4
+templates only; m2 7/7 HARD must stay invariant every step.**
+
+- [ ] **REG-0 — register-establishment contract + r13 de-confliction (PREREQ; coupled to PB-RB-3).** Pin who sets
+  R13/R14/R15 and that they survive the chain. Canonical: **BB_MATCH (PB-RB-3) α** loads `R13 ← Σ-slot`,
+  `R15 ← Δ-slot` from SUBJECT's ζ-frame and `xor r14,r14` (δ=0, ch.18 step 1) before entering the element graph;
+  the ch.18 OUTER start-loop re-sets R14 per start-iteration. R13/R14/R15 are **callee-saved (SysV)** so they
+  survive `call memcmp@PLT` with NO per-box save (only the caller-saved r10 needs `push r10`/`pop r10`).
+  **r13 de-confliction:** r13 doubles as the SM-state register ONLY in SM context; SNOBOL pattern chains emit
+  ZERO SM opcodes (sibling of ICON SM = ZERO OPCODES), so R13=Σ is unambiguous on this path. NO element edits in
+  REG-0 — it is the contract REG-1+ depend on. **DO REG-0 AS PART OF PB-RB-3's BB_MATCH α** (preferred), or — to
+  unit-test elements before BB_MATCH — a thin subject-register prologue shim in `sno_flat_chain_build`/`_text`
+  that loads R13/R15 from SUBJECT's ζ-slots + zeroes R14 after the SUBJECT box. Gate: build rc=0; all gates
+  invariant (no element bytes changed yet).
+- [ ] **REG-1 — migrate `bb_lit` (the proven reference element).** BINARY+TEXT: cursor read `mov eax,[r10]` →
+  `mov eax, r14d`; cursor write `mov [r10], eax` → `mov r14d, eax`; Σ-base `movabs rax,&Σ; mov rax,[rax]` (BIN) /
+  `lea rcx,[rip+Σ]; mov rax,[rcx]` (TEXT) → use `r13` directly; Δ-compare `movabs rcx,&Σlen; cmp eax,[rcx]` →
+  `cmp eax, r15d`. β arm: `δ -= len` becomes `sub r14d, len` (no `[r10]`). Re-derive the byte sequence + patch
+  offsets (the patch tuple shrinks — the two `movabs`+deref blocks vanish). Removes both `TEMPLATE_ADDR_SIG*`
+  bakes from `bb_lit`. Prove: prove_lower2 topology unchanged; mode-3 `S 'b'` in `'abc'` → `[1,2]` under REG-0;
+  disasm shows cursor=r14/Σ=r13/Δ=r15, no `&Σ`/`&Σlen` imm64. Gate: m2 7/7 HARD invariant; m3 ≥ floor; purity
+  clean; g_vstack==0.
+- [ ] **REG-2 — cursor-advancing leaves.** `bb_pat_len`, `bb_pat_any`, `bb_pat_notany`, `bb_pat_span`,
+  `bb_pat_break`, `bb_pat_rem` — same rewrite per box (verify each box's actual cursor-field offset + `&Σ`/`&Σlen`
+  sites against disasm before editing; they are NOT all identical). Each step removes that box's `TEMPLATE_ADDR_SIG*`
+  bakes. Gate per box (or small sub-group); m2 invariant.
+- [ ] **REG-3 — cursor-verify / position leaves.** `bb_pat_pos` (RPOS folded), `bb_pat_tab` (RTAB folded),
+  `bb_pat_atp` (`@var` writes the cursor → write R14). POS/RPOS read R14 (and Δ=R15 for RPOS) and compare; TAB/RTAB
+  advance R14 to a computed target. Gate; m2 invariant.
+- [ ] **REG-4 — combinators.** `bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence` — they thread δ via the ports and
+  save/restore δ on backtrack: the saved-δ slot moves from the `[r10]` data-block field to a **ζ-slot save of R14**
+  (`mov [r12+off], r14d` / restore), NOT `[r10]`. FENCE seals δ on α, restores on β (commit) — now via R14+ζ-slot.
+  Gate; m2 invariant.
+- [ ] **REG-5 — generators + capture (coordinate with BROK-1/BROK-2).** `bb_pat_arb`, `bb_arbno`, `bb_capture`
+  (the `std::deque<int>` saved-δ pattern stores R14 snapshots), `bb_pat_defer`. Per-activation δ state migrates
+  from the `[r10]` block to R14 + ζ-slot/deque saves. Since BROK-1/BROK-2 convert CAPTURE/ARBNO to jump-to-α/β,
+  do REG-5 **with or after** those rungs to avoid double-rework. Gate; m2 invariant.
+- [ ] **REG-FENCE — the no-legacy-cursor gate (completion test).** Add `scripts/test_gate_sno_pat_reg.sh`:
+  `grep -lE 'TEMPLATE_ADDR_SIGMA|TEMPLATE_ADDR_SIGLEN' src/emitter/BB_templates/bb_pat_*.cpp src/emitter/BB_templates/bb_lit.cpp src/emitter/BB_templates/bb_capture.cpp src/emitter/BB_templates/bb_arbno.cpp`
+  == empty, AND no `[r10]`-as-cursor read/write remains in those files (cursor is r14, subject r13, length r15).
+  Wire into the Session Setup gate list so it can never creep back. **Then RE-CHECK SNOBOL m4 smoke** — with the
+  `&Σ`/`&Σlen` bakes gone the pattern boxes are relocatable, so the m4 0/6 floor should finally be liftable
+  (track the new m4 count). COMPLETION TEST (rung): the new gate green + in Session Setup; m2 7/7 HARD held;
+  m3 ≥ floor; SNOBOL m4 re-measured (expected > 0/6 once a pattern chain assembles+links+runs standalone).
+
+**COMPLETION TEST (REG ladder):** `test_gate_sno_pat_reg.sh` green (zero `TEMPLATE_ADDR_SIG*`, zero `[r10]`-cursor
+in the SNOBOL pattern family); every pattern box reads cursor=R14 / subject=R13 / length=R15; m2 7/7 HARD
+invariant throughout; SNOBOL mode-4 pattern smoke re-measured and improved (the process-local-address blocker is
+gone). The convention TABLE is byte-identical-×3 and UNCHANGED (this rung conforms boxes to it, does not edit it).
+
+---
+
 ## ⭐ SESSION 2026-05-31 (Opus 4.8) — GROUND-ZERO LOWER REWRITE (unified four-port AST→IR) — FOUNDATION LAID + PROVEN
 
 **Post-PIVOT direction (Lon):** rip-and-replace the lowerer with ONE unified AST→IR pass on the Proebsting
@@ -888,66 +958,6 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
 
 ---
 
-### ⭐⭐ REG LADDER — SNOBOL4 PATTERN-FAMILY REGISTER-LAYOUT MIGRATION (Lon directive 2026-06-01, Opus 4.8)
-
-Bring the SNOBOL4 pattern family from the **legacy subject model** (cursor in the `[r10]` per-BLOB data-block
-field; Σ via `movabs &Σ;deref`/`lea [rip+Σ]`; Δ via `movabs &Σlen`/`[rip+Σlen]` — `TEMPLATE_ADDR_SIGMA`/
-`TEMPLATE_ADDR_SIGLEN` = **emitter-process global addresses**) to the **ratified register convention** Σ=R13,
-δ=R14, Δ=R15 (ζ=R12, r10 stays the per-BLOB DATA-block ptr). Two wins in one: (a) convention compliance; (b)
-**removes the process-local-address bake → SNOBOL mode-4 relocatability** (the m4 0/6 blocker). NOT a convention
-change (the table is untouched) → SNOBOL-session-local, no lockstep. Each step: prove topology
-(`prove_lower2.sh`) unchanged, migrate BINARY+TEXT arms together (SAME processing, only bytes-vs-GAS differ),
-disasm-verify the new register usage, gate. **Mode-2 oracle (`bb_exec.c`) is UNTOUCHED — these are modes-3/4
-templates only; m2 7/7 HARD must stay invariant every step.**
-
-- [ ] **REG-0 — register-establishment contract + r13 de-confliction (PREREQ; coupled to PB-RB-3).** Pin who sets
-  R13/R14/R15 and that they survive the chain. Canonical: **BB_MATCH (PB-RB-3) α** loads `R13 ← Σ-slot`,
-  `R15 ← Δ-slot` from SUBJECT's ζ-frame and `xor r14,r14` (δ=0, ch.18 step 1) before entering the element graph;
-  the ch.18 OUTER start-loop re-sets R14 per start-iteration. R13/R14/R15 are **callee-saved (SysV)** so they
-  survive `call memcmp@PLT` with NO per-box save (only the caller-saved r10 needs `push r10`/`pop r10`).
-  **r13 de-confliction:** r13 doubles as the SM-state register ONLY in SM context; SNOBOL pattern chains emit
-  ZERO SM opcodes (sibling of ICON SM = ZERO OPCODES), so R13=Σ is unambiguous on this path. NO element edits in
-  REG-0 — it is the contract REG-1+ depend on. **DO REG-0 AS PART OF PB-RB-3's BB_MATCH α** (preferred), or — to
-  unit-test elements before BB_MATCH — a thin subject-register prologue shim in `sno_flat_chain_build`/`_text`
-  that loads R13/R15 from SUBJECT's ζ-slots + zeroes R14 after the SUBJECT box. Gate: build rc=0; all gates
-  invariant (no element bytes changed yet).
-- [ ] **REG-1 — migrate `bb_lit` (the proven reference element).** BINARY+TEXT: cursor read `mov eax,[r10]` →
-  `mov eax, r14d`; cursor write `mov [r10], eax` → `mov r14d, eax`; Σ-base `movabs rax,&Σ; mov rax,[rax]` (BIN) /
-  `lea rcx,[rip+Σ]; mov rax,[rcx]` (TEXT) → use `r13` directly; Δ-compare `movabs rcx,&Σlen; cmp eax,[rcx]` →
-  `cmp eax, r15d`. β arm: `δ -= len` becomes `sub r14d, len` (no `[r10]`). Re-derive the byte sequence + patch
-  offsets (the patch tuple shrinks — the two `movabs`+deref blocks vanish). Removes both `TEMPLATE_ADDR_SIG*`
-  bakes from `bb_lit`. Prove: prove_lower2 topology unchanged; mode-3 `S 'b'` in `'abc'` → `[1,2]` under REG-0;
-  disasm shows cursor=r14/Σ=r13/Δ=r15, no `&Σ`/`&Σlen` imm64. Gate: m2 7/7 HARD invariant; m3 ≥ floor; purity
-  clean; g_vstack==0.
-- [ ] **REG-2 — cursor-advancing leaves.** `bb_pat_len`, `bb_pat_any`, `bb_pat_notany`, `bb_pat_span`,
-  `bb_pat_break`, `bb_pat_rem` — same rewrite per box (verify each box's actual cursor-field offset + `&Σ`/`&Σlen`
-  sites against disasm before editing; they are NOT all identical). Each step removes that box's `TEMPLATE_ADDR_SIG*`
-  bakes. Gate per box (or small sub-group); m2 invariant.
-- [ ] **REG-3 — cursor-verify / position leaves.** `bb_pat_pos` (RPOS folded), `bb_pat_tab` (RTAB folded),
-  `bb_pat_atp` (`@var` writes the cursor → write R14). POS/RPOS read R14 (and Δ=R15 for RPOS) and compare; TAB/RTAB
-  advance R14 to a computed target. Gate; m2 invariant.
-- [ ] **REG-4 — combinators.** `bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence` — they thread δ via the ports and
-  save/restore δ on backtrack: the saved-δ slot moves from the `[r10]` data-block field to a **ζ-slot save of R14**
-  (`mov [r12+off], r14d` / restore), NOT `[r10]`. FENCE seals δ on α, restores on β (commit) — now via R14+ζ-slot.
-  Gate; m2 invariant.
-- [ ] **REG-5 — generators + capture (coordinate with BROK-1/BROK-2).** `bb_pat_arb`, `bb_arbno`, `bb_capture`
-  (the `std::deque<int>` saved-δ pattern stores R14 snapshots), `bb_pat_defer`. Per-activation δ state migrates
-  from the `[r10]` block to R14 + ζ-slot/deque saves. Since BROK-1/BROK-2 convert CAPTURE/ARBNO to jump-to-α/β,
-  do REG-5 **with or after** those rungs to avoid double-rework. Gate; m2 invariant.
-- [ ] **REG-FENCE — the no-legacy-cursor gate (completion test).** Add `scripts/test_gate_sno_pat_reg.sh`:
-  `grep -lE 'TEMPLATE_ADDR_SIGMA|TEMPLATE_ADDR_SIGLEN' src/emitter/BB_templates/bb_pat_*.cpp src/emitter/BB_templates/bb_lit.cpp src/emitter/BB_templates/bb_capture.cpp src/emitter/BB_templates/bb_arbno.cpp`
-  == empty, AND no `[r10]`-as-cursor read/write remains in those files (cursor is r14, subject r13, length r15).
-  Wire into the Session Setup gate list so it can never creep back. **Then RE-CHECK SNOBOL m4 smoke** — with the
-  `&Σ`/`&Σlen` bakes gone the pattern boxes are relocatable, so the m4 0/6 floor should finally be liftable
-  (track the new m4 count). COMPLETION TEST (rung): the new gate green + in Session Setup; m2 7/7 HARD held;
-  m3 ≥ floor; SNOBOL m4 re-measured (expected > 0/6 once a pattern chain assembles+links+runs standalone).
-
-**COMPLETION TEST (REG ladder):** `test_gate_sno_pat_reg.sh` green (zero `TEMPLATE_ADDR_SIG*`, zero `[r10]`-cursor
-in the SNOBOL pattern family); every pattern box reads cursor=R14 / subject=R13 / length=R15; m2 7/7 HARD
-invariant throughout; SNOBOL mode-4 pattern smoke re-measured and improved (the process-local-address blocker is
-gone). The convention TABLE is byte-identical-×3 and UNCHANGED (this rung conforms boxes to it, does not edit it).
-
----
 
 > **PB-RB-3 DESIGN — RESOLVED (Lon 2026-06-01): MODEL A (INLINE-JUMP).** BB_MATCH `jmp`s the element's α and is
 > re-entered via its ω — the proven combinator mechanism (`walk_bb_flat`, as XCAT/XALT), NO `(ζ,int entry)` C call
@@ -1565,10 +1575,12 @@ boxes bake `&Σ`/`&Σlen` imm64 → not relocatable; the REG ladder removes that
 **3/3**, Icon m2 12/12 / m3 12/12 / m4 12/12, sm_dead 0, concurrency OK, purity 7 (MEDIUM_BINARY-exempt), g_vstack 0.
 FACT-RULE md5s the audit pins: LOWER `5097ed94`, EMITTER `307534d6` (do not perturb the byte-identical-×3 blocks).
 
-**⭐ NEXT (SNOBOL4).** PB-RB-4 (STITCH_SEQ/STITCH_ALT — wire two element box-graphs, mode-3 `S ('a'|'b')` and
-`S 'a' 'b'`), then the REG ladder (REG-0…REG-FENCE: migrate the pattern family off the legacy `[r10]`/`&Σ` model to
-Σ=R13/δ=R14/Δ=R15, which also unblocks SNOBOL mode-4), then PB-RB-5…OPT and BROK-0…BROK-3. The pattern engine
-breadth (PB-RB ladder) is the LONG POLE for the SNOBOL4 corpus. Older per-session writeups live in the
-`HANDOFF-*.md` files; this log keeps only the last few terse entries.
+**⭐ NEXT (SNOBOL4) — PRIORITY ORDER (Lon 2026-06-01).** **(1) REG LADDER FIRST** (see the 🔴 CURRENT PRIORITY
+section at the top): migrate the pattern BB templates off the legacy `[r10]`/`&Σ`/`&Σlen` model to the ratified
+registers Σ=R13/δ=R14/Δ=R15/ζ=R12 — REG-0 is folded into the now-landed PB-RB-3, so REG-1 (`bb_lit`) is the first
+code step; this is convention compliance AND the SNOBOL mode-4 unblocker (m4 0/6 cause = baked process-local
+addresses). **(2) THEN** PB-RB-4 (STITCH_SEQ/STITCH_ALT — topology already proven, only the emitter wiring + drive
+remain; mode-3 `S ('a'|'b')` and `S 'a' 'b'`), PB-RB-5…OPT, and BROK-0…BROK-3. The pattern-engine breadth (PB-RB
+ladder) is the LONG POLE for the SNOBOL4 corpus. Older per-session writeups live in the `HANDOFF-*.md` files.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
