@@ -968,7 +968,12 @@ gone). The convention TABLE is byte-identical-×3 and UNCHANGED (this rung confo
   anchored-fail `&ANCHOR=1` suppresses the slide→v=99; unanchored control→v=1). Runtime contract (xa_flat_epilogue):
   v==1 SUCCEED / 99 FAIL. Gates: SNOBOL4 m2 7/7 HARD / m3 5/6 / m4 0/6, Icon m2 12/12 HARD / m3 12/12 / m4 12/12,
   prove_lower2 65, sm_dead 0, concurrency OK, purity 7, g_vstack 0.
-- [ ] **PB-RB-4 — STITCH_SEQ / STITCH_ALT (the graph builders).** Add `IR_STITCH_SEQ` / `IR_STITCH_ALT`
+- [ ] **PB-RB-4 — STITCH_SEQ / STITCH_ALT (the graph builders).** **TOPOLOGY PREREQ PROVEN (e39c329):**
+  `prove_lower2.c` `MATCH('a' 'b')` (PATMAT + wire_seq(IR_PAT_CAT) + 2 PLIT = 4 nodes) and `MATCH('a'|'b')`
+  (PATMAT + wire_alt(IR_PAT_ALT) + 2 PLIT = 4) — `lower2_match_entry` calls `lower2(cx,e,m,m,…)` under
+  ROLE_PATTERN, which ALREADY handles TT_CAT/TT_ALT, so the lowering/topology layer EXISTS; the genuinely-new
+  PB-RB-4 work is the emitter-side STITCH wiring + mode-3 drive, NOT the IR topology. Remaining: add
+  `IR_STITCH_SEQ` / `IR_STITCH_ALT`
   (IR.h) + `bb_stitch_seq.cpp` / `bb_stitch_alt.cpp`: read two child heads from `ζ`-slots, wire their four
   ports (runtime twin of LOWER's `wire_seq`/`wire_alt` — SAME port equations), leave the combined head +
   `{entry,exit,fail}` descriptor in a `ζ`-slot. ε-merge boundaries (Fork D; reuse `bb_nfa.cpp`). Lower
@@ -1132,6 +1137,10 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 ## Session log (last few, terse)
 
+- **2026-06-01 (Opus 4.8) — PB-RB-4 TOPOLOGY PREREQ** (SCRIP `e39c329`, pushed). `prove_lower2.c` MATCH('a' 'b')
+  + MATCH('a'|'b') proofs (4 real nodes each, composite element γ+ω → MATCH). Finding: `lower2_match_entry`'s
+  `lower2(cx,e,m,m,…)` under ROLE_PATTERN already handles TT_CAT/TT_ALT, so PB-RB-4's lowering layer exists; the
+  new work is emitter STITCH wiring + drive. Test-only, byte-neutral; prove_lower2 65→67; all gates invariant.
 - **2026-06-01 (Opus 4.8) — PB-RB-3 EDGE PROBES** (SCRIP `706d665`, pushed). Hardened the landed BB_MATCH BINARY
   arm: `probe_pb_rb_3_match_fail.c` exercises the two ch.18 step-6 edges the happy-path probe missed —
   whole-match-fail (`'z'`∉`'abc'` → start-loop exhausts → v=99) and anchored-fail (`&ANCHOR=1` suppresses the
@@ -1550,9 +1559,9 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `706d665` · .github this commit. **SNOBOL4 status:** mode-2 **7/7 HARD**, mode-3 5/6
+**Watermark.** SCRIP `e39c329` · .github this commit. **SNOBOL4 status:** mode-2 **7/7 HARD**, mode-3 5/6
 (`define`/user-fn the lone fail — needs DEFINE registration + a SNOBOL4 call frame + RETURN), mode-4 0/6 (pattern
-boxes bake `&Σ`/`&Σlen` imm64 → not relocatable; the REG ladder removes that). prove_lower2 **65**, PAT-BB probes
+boxes bake `&Σ`/`&Σlen` imm64 → not relocatable; the REG ladder removes that). prove_lower2 **67**, PAT-BB probes
 **3/3**, Icon m2 12/12 / m3 12/12 / m4 12/12, sm_dead 0, concurrency OK, purity 7 (MEDIUM_BINARY-exempt), g_vstack 0.
 FACT-RULE md5s the audit pins: LOWER `5097ed94`, EMITTER `307534d6` (do not perturb the byte-identical-×3 blocks).
 
