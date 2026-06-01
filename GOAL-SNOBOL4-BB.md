@@ -828,7 +828,8 @@ DESIGN PIVOT     = (no code change; SCRIP HEAD stays 6483bb5)  CORRECTED PATTERN
                      SURVIVES. SURVIVES UNCHANGED: PB-0 (IR_SUBJECT, no PATND_t). Gates UNTOUCHED this turn
                      (no compile): m2 7/7 HARD / m3 5/6 / m4 0/6 @ 6483bb5; prove_lower2 64/0; sm_dead 1;
                      concurrency invariants OK; no-vstack g_vstack==0. **NEXT (#1): PB-RB-1** (REF_INVARIANT +
-                     retire the PATND_t literal builder). .github doc-only update committed this turn.
+                     retire the PATND_t literal builder). .github design update pushed at 0dfe9552; handoff doc
+                     HANDOFF-2026-06-01-OPUS48-SNOBOL4-PAT-BB-CORRECTED-ARCH.md.
 HEAD SCRIP       = 6483bb5  SBL-PAT-BB PB-1 + PB-2-PREP (Opus 4.8, 2026-06-01) — PATTERN-BUILDER BB
                      (literal) LANDS (phase 2 of the five-phase native pattern model), + the PB-2 BB_MATCH
                      scanner kernel pre-landed. PB-1: new IR_PAT_BUILD_LIT kind (IR.h, append-only before
