@@ -324,10 +324,22 @@ prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arm
   **5a DONE (2026-05-31, Opus 4.8): read-only value ops** — list construction `(e1,..)`→`__rk_arr`, `@a[i]`→`arr_get`,
   `%h<k>`/`%h{k}`→`hash_get`, membership→`hash_exists`, `sort(@a)`→`array_sort`, plus the `elems`/`reverse`/`join`/
   `sum`/`unique`/`head`/`tail`/`chars`/`length`/`lc`/`uc`/`trim`/`substr`/`index`/`rindex` whitelist — all via the
-  SHARED `v_raku_det_call`→`IR_CALL` (dval=2.0, det). **5b STILL OPEN:** mutating ops (`push`/`pop`/`arr_set`/`hash_set`/
-  `hash_delete`) need vname-threaded writeback (IR_t is LEAN per PEERS — clean path = pure-variant runtime + `IR_ASSIGN`,
-  except `pop` which truly needs vname). **5c:** `try`/`CATCH`/`die` (exception propagation through shared SEQ/sub-call
-  exec — FACT-RULE-sensitive). **5d:** class/method/field/new + `say(jct)`/`say(list)` composite output.
+  SHARED `v_raku_det_call`→`IR_CALL` (dval=2.0, det). **5b DONE (2026-06-01, Opus 4.8): mutating ops** — `push`/`pop`/
+  `arr_set`/`hash_set`/`hash_delete` via the PURE-VARIANT writeback (IR_t stays LEAN per PEERS — NO new field, NO
+  exec-side vname peek): each lowers to `CONTAINER = pure_fn(CONTAINER, args…)` (IR_ASSIGN over IR_CALL dval=2.0,
+  helper `v_raku_mutate_writeback`), the container var being BOTH the assignment target and the call's first operand,
+  so the IR_ASSIGN supplies the writeback. New read-only runtime `*_pure` twins (`push_pure`/`arr_set_pure`/
+  `hash_set_pure`/`hash_delete_pure` — return the new container string, NO NV_SET; hash twins delegate to the
+  now-exposed `script_hash_set_str`/`script_hash_delete_str`, zero logic dup). `pop` is the one exception (its
+  returned popped element ≠ the new container) → split into `$p = arr_last(@a); @a = arr_init(@a)` (two pure reads +
+  IR_ASSIGN stores, `v_raku_pop`) — still NO new IR kind, NO vname thread. BOTH surface syntaxes wired: sigil
+  `%h<k>=v`/`@a[i]=v`/`delete %h<k>` (TT_HASH_SET/TT_ARR_SET/TT_HASH_DELETE dedicated cases) AND explicit calls
+  `push(@a,x)`/`hash_set($h,k,v)`/`hash_delete($h,k)`/`arr_set(@a,i,v)` (table-driven arm in TT_FNC). Semantics per
+  docs.raku.org (type/Array#push, type/Hash postcircumfix+:delete, language/list `@a[$i]=$y`, routine/pop). BONUS:
+  because everything rides `IR_ASSIGN`+`IR_CALL` (both already have native templates) it is NOT just mode-2-proven
+  but NATIVE in modes 3+4 too — `rk_arrays.raku` corpus PASS (strict +1, proven by stash diff), smoke `array_push_pop`/
+  `hash_set_get`/`hash_sigil_delete` all PASS ×3 modes. **5c:** `try`/`CATCH`/`die` (exception propagation through
+  shared SEQ/sub-call exec — FACT-RULE-sensitive). **5d:** class/method/field/new + `say(jct)`/`say(list)` composite output.
 - [ ] **RK-EMIT-1..N — mode-3/4 template arms.** Once the lowered Raku arms are mode-2-proven, fill the
   `bb_rk_*.cpp` MEDIUM_BINARY (mode-3) + MEDIUM_TEXT (mode-4) arms, ONE box per file, dispatched from
   `emit_core.c`, per the TEMPLATE-ONLY FACT RULE. Gate each via `--run` / `--compile` corpus delta + the
@@ -450,6 +462,52 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 ---
 
 ## Watermark
+
+**CHECKPOINT (2026-06-01, Opus 4.8) — RK-LOWER-5b: Raku in-place hash/array MUTATION lands (m2 HARD + native m3/m4).**
+`push`/`pop`/`arr_set`/`hash_set`/`hash_delete` now lower onto the unified four-port IR via the PURE-VARIANT
+WRITEBACK: each mutation is `CONTAINER = pure_fn(CONTAINER, args…)` — an `IR_ASSIGN` over an `IR_CALL` (dval=2.0,
+helper `v_raku_mutate_writeback`) where the container variable is BOTH the assignment target AND the call's first
+operand, so the existing `IR_ASSIGN` exec supplies the `NV_SET_fn` writeback. **IR_t stays LEAN (PEERS): NO new
+field, NO exec-side vname peek, NO value stack (`g_vstack`=0), NO new IR kind.** `pop` is the lone exception (its
+returned popped element ≠ the new container) → split into `$p = arr_last(@a); @a = arr_init(@a)` (two pure reads +
+`IR_ASSIGN` stores, `v_raku_pop`), still no new kind / no vname thread. **BONUS — native in modes 3+4, not just
+mode-2:** because everything rides `IR_ASSIGN`+`IR_CALL` (both already have native templates) the rung is mode-2-proven
+AND compiles natively. **FINAL THREE-MODE STATE: Raku m2 25/25 (HARD ✓) · m3 21 PASS / 0 FAIL / 4 EXCISED · m4 21 PASS
+/ 0 FAIL / 4 EXCISED.** Peers UNCHANGED: **Icon 12/12/12**, **SNOBOL4 7/7 m2 · 5 m3 · 0 m4**. Corpus `rk_arrays.raku`
+PASS (strict **+1**, proven by `git stash` baseline diff — clean tree 11 PASS, mine 12, `rk_arrays` the only delta;
+every other corpus file fails IDENTICALLY on both trees = pre-existing top-level-no-`main` / grammar / regex / class
+gaps, NOT 5b regressions). Gates green: **prove_lower2 67/0** (unchanged — mutators reuse already-proven IR_ASSIGN/
+IR_CALL shapes, no new topology case), audit_concurrency_invariants OK (FACT RULES byte-identical x3/x4),
+template-purity 8 (UNCHANGED — zero emitter files touched). **SCRIP HEAD: `fbe38ea`** (pushed; rebased cleanly onto
+peer base `cd6fbe2` = GZ-11+ IR_NOT/NONNULL/SIZE Icon/Prolog work — NO file overlap with my `lower.c`/
+`script_builtins_byname.c`/`test_smoke_raku.sh`; rebuilt + re-verified the COMBINED tree green: Raku 25/21/21, Icon
+12/12/12, SNOBOL4 7/5/0, prove_lower2 67/0 — no cross-session regression).
+
+- **RUNTIME (`src/runtime/interp/script_builtins_byname.c`):** added read-only PURE twins `push_pure` (append, return
+  new array), `arr_set_pure` (replace element [i]), `arr_last` (last element — pop's value), `arr_init` (array minus
+  last — pop's new container), `hash_set_pure` / `hash_delete_pure`. The hash twins DELEGATE to the now-non-static
+  `script_hash_set_str` / `script_hash_delete_str` (renamed from file-static `hash_set_str`/`hash_delete_str`; the two
+  internal callers in `script_try_hash_mutating_builtin` updated) — ZERO byte-building duplication. All reachable in
+  all three modes via the shared `try_call_builtin_by_name` → `script_try_call_builtin_by_name` path (mode-2) and the
+  `rt_rk_call_arr` trampoline (mode-3/4).
+- **LOWERING (`src/lower/lower.c`):** `v_raku_mutate_writeback` (the `var = pure(var,args)` IR_ASSIGN-over-IR_CALL
+  wirer) + `v_raku_pop` (the two-assignment pop split). Sigil cases `TT_HASH_SET`/`TT_HASH_DELETE`/`TT_ARR_SET` pulled
+  out of the loud-unhandled group into dedicated Raku-gated cases; a table-driven explicit-call arm in `TT_FNC` covers
+  `push`/`hash_set`/`hash_delete`/`arr_set` (the explicit-call twins of the sigil syntax — same `v_raku_mutate_writeback`,
+  so both surface forms are semantically identical); the `pop` special-case sits in the shared `v_assign` (Raku-gated).
+  All Raku arms live INSIDE their shared `tree_e` cases (FACT RULE); non-Raku falls loud to `lower_unhandled`.
+- **SMOKE (`scripts/test_smoke_raku.sh`):** +3 cases — `array_push_pop` (push/arr_set/pop/elems composite),
+  `hash_set_get` (explicit-call hash set/get/exists/update), `hash_sigil_delete` (sigil `%h<k>=v` + `delete`) — all
+  PASS ×3 modes (25 total cases).
+- **CANONICAL GROUNDING:** push/pop/`@a[i]=v`/`%h<k>=v`/`delete` verified against docs.raku.org (type/Array#method_push,
+  type/Hash postcircumfix + routine/delete, language/list `@a[$i]=$y`, routine/pop) per the CONSULT-CANONICAL-SOURCES rule.
+- **HONEST SCOPE:** `rk_hashes.raku` still aborts in mode-2 — it is a TOP-LEVEL-statements program with no `sub main()`,
+  a PRE-EXISTING mode-2 driver limitation (the driver only runs a `main` proc; confirmed identical on the clean tree),
+  independent of 5b; the hash mutating LOGIC is proven via the `main`-wrapped smoke cases. REMAINING in RK-LOWER-5:
+  **5c** try/CATCH/die, **5d** class/method/field/new + `say(jct)`/`say(list)` composite output. Still DEFERRED: the
+  lockstep "three → four" FACT-RULE roster expansion across all four GOAL files.
+
+---
 
 **CHECKPOINT (2026-06-01, Opus 4.8) — RK-EMIT-GATHER lands m3/m4 + Raku adopts the three-mode COMPLETION BAR.**
 Two deliverables. (1) `gather_take` now emits native x86 in modes 3 AND 4 via the new `bb_rk_gather.cpp`
