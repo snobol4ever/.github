@@ -1842,6 +1842,17 @@ concurrency OK (FACT RULES byte-identical-×3), purity 7 (MEDIUM_BINARY-exempt),
 audit pins: LOWER `5097ed94`, EMITTER `307534d6` (do not perturb the byte-identical-×3 blocks). ENV NOTE: the
 build needs `libgc-dev` (`apt-get install -y libgc-dev`) — `core.h`/`raku_nfa_bb.c` include `<gc/gc.h>`.
 
+**🔶 TEMPLATE-REVAMP v1 (PIVOT — Lon directive, 2026-06-01, SCRIP `29c3613`).** Kill the two-divergent-arm +
+hand-counted-`bb_bin_t` churn. New header-only `src/emitter/BB_templates/x86_asm.h`: self-encoding `x86_*`
+helpers that switch BINARY/TEXT on `g_medium` (invisible in the template) + in-band patch records (L/J/D)
+walked by `bb_emit_x86` (positions DISCOVERED, no offset table). `bb_lit` converted → ONE return, pure concat,
+NO template locals, `MEDIUM_MACRO_DEF` dropped; BINARY arm byte-identical to `65686c2` (addr-masked). GO-FORWARD
+(Lon): **TEXT-FIRST** — keep the GAS arm as source of truth, **throw away the hand-coded BINARY**, let `x86_*`
+regenerate it position-independent (= REG-RO); **no safety net / no full regression** (four sessions fix typos),
+move straight-forward, we are at GROUND ZERO. ⚠ This SUPERSEDES the TWO-LITERAL-FORMS / TEMPLATE-ONLY-EMISSION
+FACT RULES — the rule text (5 GOAL files + RULES.md) + purity/concurrency gates need the coordinated rewrite to
+land (grand-master-reorg). Detail + next steps: `HANDOFF-2026-06-01-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V1.md`.
+
 **⭐ NEXT (SNOBOL4).** **(0) BB-LITERAL CLEANUP — drive the new GUARD's `b.size()` count to zero**
 (`scripts/test_gate_no_handencoded_bytes.sh`, **121/23** baseline): rewrite each `b.size()` function-counter to a
 hardcoded LITERAL offset map (the way bb_match was converted this session). ⚠ The in-scope handful is
