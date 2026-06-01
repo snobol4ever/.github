@@ -1,5 +1,33 @@
 # GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
+## ⛔ NO C BYRD-BOX FUNCTIONS — A BOX IS ENTERED BY JUMPING TO ITS α/β LABELS, NEVER A `(ζ, int entry)` C CALL (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
+
+**There is NO such thing as a C byrd-box function. The "brokered BB" concept is ABOLISHED.** A byrd box is
+EMITTED machine code. It has exactly TWO entry points, and they are **LABELS** — α (fresh entry) and β
+(resume). Control reaches a box by **JUMPING to one of those labels**. A box is NEVER a C function, is NEVER
+reached by a C call, and NEVER takes an integer `entry` argument to select α vs β. The C signature
+`DESCR_t NAME(void *ζ, int entry)` — a ζ-state pointer plus an `int entry` α/β selector — is **FORBIDDEN**.
+It was the discredited brokered-BB calling convention (an "entry kludge"); it is gone. The ONLY driver is the
+**mode-2 BB-graph interpreter** (`bb_exec.c`), which walks the IR graph directly and IS the broker/driver;
+**modes 3 and 4 are native code in which boxes thread control by jumping between α/β labels** (RULES X86-64
+register / subject-model convention) — never through a function pointer plus an `entry` integer. There is no
+`bb_broker` driver and no `(ζ, int entry)` box anywhere.
+
+**HISTORY — READ THIS, because it is why the rule now exists in this strongest form.** This prohibition has
+stood for **AT LEAST TWO MONTHS**. Lon ordered these C `(ζ, int entry)` byrd boxes DELETED at least **THREE
+separate times**, and each time a session either declined, re-introduced them, or held/reverted the deletion
+"to keep the build green." A prior plain rule (RULES.md "NO C BYRD-BOX FUNCTIONS") did **not** hold. They
+were finally deleted **2026-06-01** — the `pl_*_fn` family (all of `pl_broker.c`), `gen_bb_dcg`,
+`gen_bb_oneshot`, `resolve_bb_dcg`, `bb_deferred_var`/`_exported`, `fail_box`, the dead `bb_cap`/`bb_atp`
+declarations, **and the `bb_broker` driver itself** (`bb_broker.c`). **KEEPING THE BUILD GREEN IS NOT A
+LICENSE TO PRESERVE A FORBIDDEN BOX.** When this signature and a green build conflict, the **signature
+loses**: delete the box and tear out its callers (the brokered execution path — Prolog `--run`, brokered
+pattern scan, brokered generators — is removed, not preserved). A broken build pending the caller teardown is
+acceptable; a surviving `(ζ, int entry)` box is not.
+
+**COMPLETION TEST:** (a) `grep -rnE 'DESCR_t[[:space:]]+[A-Za-z_]+[[:space:]]*\([[:space:]]*void[[:space:]]*\*[[:space:]]*[a-z]*[[:space:]]*,[[:space:]]*int[[:space:]]+entry' src/ --include=*.c --include=*.cpp --include=*.h | grep -v typedef` == 0 (no C byrd-box definition or declaration with the `(ζ, int entry)` signature); (b) no `bb_broker` driver function exists; (c) every emitted box is entered by a jump to an α or β label, never a C call with an `entry` int; (d) this FACT RULE body is byte-identical across the five GOAL-*-BB files.
+
+
 ## ⛔ NO VALUE STACK — EVER (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
 
 **SCRIP HAS NO VALUE STACK. NO SESSION, IN ANY LANGUAGE, MAY CREATE ONE.** (Lon directive, 2026-05-31.)
@@ -808,6 +836,40 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = cc23c9f  C-BYRD-BOX DELETION + PB-RB-1 RETIRE (Opus 4.8, 2026-06-01, LANDED/PUSHED) —
+                     Lon directive (emphatic; >=3 prior delete orders never landed): the BROKERED-BB concept
+                     is ABOLISHED; a box is entered by JUMPING to α/β LABELS, never a C call with an int entry.
+                     ALL C functions with signature DESCR_t f(void *ζ, int entry) DELETED + the bb_broker driver.
+                     THREE COMMITS PUSHED over peer 5249921: (a) 6343198 PB-RB-1 RETIRE — removed the dormant
+                     IR_PAT_BUILD_LIT PATND_t literal-builder family (enum/template/rt_sno_pat_build_lit/arms/
+                     Makefile; BYTE-NEUTRAL) and REPOINTED lower2_pat_build_entry to IR_REF_INVARIANT over a
+                     sealed IR_PAT_LIT (prove_lower2 64/64; REFINV topology = 2 nodes: floating PLIT + bounded
+                     REFINV); rt_sno_match_lit SURVIVES; g_vstack 1->0. (b) 19eea26 removed the DEAD bb_cap/bb_atp
+                     (ζ,entry) decls (byte-neutral; bb_cap_new/bb_atp_new cap_t*/atp_t* CONSTRUCTORS KEPT —
+                     not (ζ,entry) boxes). (c) cc23c9f DELETED every C (ζ,entry) box: pl_broker.c (11 pl_*_fn +
+                     pl_box_* builders, whole file), bb_broker.c (the driver, whole file), gen_bb_dcg,
+                     gen_bb_oneshot, resolve_bb_dcg, bb_deferred_var(+_exported), fail_box + their decls/externs
+                     + both Makefile entries. VERIFIED: zero (ζ,int entry) box defs/decls remain in src/.
+                     **BUILD IS BROKEN — explicitly accepted by Lon ("makes NO DIFFERENCE what breaks").**
+                     **NEXT (#1): CALLER TEARDOWN to restore the build** — gut the dangling brokered callers
+                     (this removes the brokered execution path: Prolog --run + brokered pattern scan + Icon
+                     brokered generators), replacing each with fail/no-op stubs until JUMP-to-α/β emitted boxes
+                     land. Exact dangling sites: gen.h:7 FAIL_GEN_NODE={fail_box,NULL,0}; gen_runtime.c
+                     342/351/357 bb_node_t{gen_bb_dcg|gen_bb_oneshot} Icon-generator builders; resolve_runtime.c
+                     1769-1942 + interp_hooks.c:76-78 (pl_box_choice*/pl_box_goal_from_ir + bb_broker, Prolog);
+                     stmt_exec.c:360 (bb_broker scan, SNOBOL); delete orphaned pl_broker.h + bb_broker.h + ~7
+                     #includes (scrip.c, interp_private.h, gen_runtime.c/h, resolve_runtime.h, gen.h, stmt_exec.c).
+                     Mode-2 SNOBOL/Icon HARD gates run on bb_exec_once (SEPARATE from the brokered path) — verify
+                     they survive once the build is restored. **(#2) PB-RB-1 emit arm**: bb_ref_invariant
+                     BINARY/TEXT via bb_build_brokered(sealed_lit)->child_cache (PRECEDENT: ARBNO/capture,
+                     emit_bb.c:1723) + mode-3 S 'b' probe. PB-RB-2 ABI was pinned this session: bb_broker WAS the
+                     (ζ,entry) driver and is now GONE; the matcher-element four-port ABI rides emitted α/β labels.
+                     .github THIS HANDOFF: FACT RULE "NO C BYRD-BOX FUNCTIONS — JUMP TO α/β LABELS, NEVER A
+                     (ζ,int entry) C CALL" inserted byte-identical in all 5 GOAL-*-BB (md5
+                     5e81271407b0b2251427bb5c8bc2595e); RULES.md upstream canonical-source URLs recorded
+                     (bf725d97): refs/jcon-master = github.com/proebsting/jcon, refs/icon-master =
+                     github.com/gtownsend/icon (refs/ dropped at fresh-start; both verified live+clonable —
+                     jcon tran/irgen.icn = 56KB, 43 ir_a_* procs incl. ir_a_Every/Limitation/Call/Alt).
 HEAD SCRIP       = 61edf77  PB-RB-1 SCAFFOLDING (Opus 4.8, 2026-06-01) — reserve IR_REF_INVARIANT + dormant
                      bb_ref_invariant template; NO behavior, all gates invariant. Additive plumbing for the
                      CORRECTED PATTERN ARCHITECTURE so PB-RB-1 proper is logic-only. DORMANT: nothing lowers to
