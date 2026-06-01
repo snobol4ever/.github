@@ -40,6 +40,25 @@ fine *if and only if* each match gets its own DATA block.  Sharing a DATA
 block between two live matches will corrupt state.  The allocator's job at
 α-entry is to guarantee this never happens.
 
+### Two block TYPES the emitter outputs (BB vs XA)
+
+Independent of medium (BINARY bytes for mode 3 / GAS TEXT for mode 4), every emitter
+template outputs exactly one of **two kinds of code block**:
+- **BB code block** (`BB_templates/bb_*.cpp`) — a byrd box: the per-`IR_*`-kind four-port
+  (`α/β/γ/ω`) body that does actual WORK. In modes 3/4 a BB is the ONLY vehicle that can
+  build a subject, build a pattern, or build a replacement (no interpreter exists to do it).
+- **XA code block** (`XA_templates/xa_*.cpp`, dispatched via `xa_dispatch`/`XA_op_t`) — the
+  cross-cutting assembly-level WRAPPING that stitches BBs into a runnable artifact: file
+  header/footer, flat prologue/epilogue, data/rodata section, entry dispatch, pattern-blob
+  framing, cap fixup. XA blocks do NOT build operands; they only wrap and link.
+Medium (bytes vs text) is the orthogonal axis: each BB or XA block is materialized as BINARY
+or TEXT by the same template's two arms.
+
+**SNOBOL4 native pattern matching** (the 5-phase `SUBJ ? PAT [= REPL]` model — build subject,
+build pattern via builder-BBs-that-build-BBs, run via BB_MATCH, build replacement, do replace,
+plus the INVARIANT-PATTERN-BAKE optimization) is specified in **ARCH-SNOBOL4.md → "Native
+pattern architecture — modes 3 & 4"**, with the step ladder in GOAL-SNOBOL4-BB.md (SBL-PAT-BB).
+
 ### Two emission forms
 
 Boxes emit in two forms depending on how they will be called.  The forms
