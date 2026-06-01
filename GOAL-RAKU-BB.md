@@ -212,7 +212,7 @@ prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arm
   element, runs the closure: map yields the transform; grep keeps the element iff the closure is truthy
   (`binop_apply` rel-fail = false). Semantics per docs.raku.org/routine/{map,grep}. Mode-2:
   `for map { $_ * 2 } 1..3 -> $v` → 2,4,6; `for grep { $_ > 2 } 1..5 -> $v` → 3,4,5; map/grep over `gather` compose.
-- [ ] **RK-LOWER-4 — junctions `any`/`all`/`one`/`none` + infix bar/amp.** Constructor + infix forms share
+- [x] **RK-LOWER-4 — junctions `any`/`all`/`one`/`none` + infix bar/amp.** ✅ DONE (2026-05-31, Opus 4.8). Constructor + infix forms share
   ONE lowering (the APPENDIX-A `RK-BB-4a/4b` finding: infix bar/amp build the SAME `TT_FNC` the constructors
   do; same-flavor chains flatten at parse time). Mode-2 collapse via the tagged-junction value; the `IR_ALT`
   fail-chain is the eventual mode-3/4 substrate.
@@ -310,6 +310,57 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
+**RK-LOWER-4 LANDED (2026-05-31, Opus 4.8).** Raku junctions `any`/`all`/`one`/`none` + infix `|`/`&` cross onto
+the unified `lower.c` for mode-2. SCRIP HEAD before this work: `8a01bb3`. My 5 files: `src/lower/{lower.c,
+lower_program.c,prove_lower2.c}`, `src/runtime/interp/gen_runtime.c`, `scripts/test_smoke_raku.sh` (+ session design
+note `SCRIP/RK-LOWER-4-DESIGN.md`); ZERO emitter files — same discipline as RK-LOWER-0/1/2/3. Build clean (`scrip`
++ `libscrip_rt` rc=0). Mode-3≡mode-4 invariant kept BY CONSTRUCTION (no emitter touched ⇒ both modes process the
+junction `IR_CALL` through the SAME shared dispatch → by-design SMX abort, RK-EMIT deferred; nothing can diverge).
+
+- **The lowering (lower.c, TT_FNC value-role, `cx.lang==IR_LANG_RKU` arm):** constructor `any(…)`/`all(…)`/`one(…)`/
+  `none(…)` AND infix forms share ONE arm — the parser's `mk_junction` flattens same-flavor infix chains into the
+  SAME `TT_FNC(sval=flavor, c[0]=TT_VAR(flavor), c[1..]=members)` the constructors produce. Lowers to ONE `IR_CALL`
+  to `__rk_jct_{any,all,one,none}` with `dval=2.0` (the SNOBOL4 isolated-value-subgraph call idiom); each member →
+  its OWN `lower_value_subgraph` (cursor keeps `IR_LANG_RKU` so a NESTED junction member re-enters this arm), sub-graph
+  ptr array on `.counter`, member count on `.ival`, det (β=ω_in). Semantics per docs.raku.org/type/Junction.
+- **THE NESTING BUG (logged for the next dev):** the first cut wired members into a FLAT α/γ chain (dval=0.0); that
+  flattened mixed-flavor nesting — `10 | (50 & 60)` collapsed to `10 | 50`, losing the nested `all` (`cat -v` on the
+  value: `^Ca^A10^A50^D`). FIX: lower each member as an isolated value sub-graph (dval=2.0 idiom), so a nested-junction
+  member evaluates to ONE opaque ETX-tagged value; `junction_collapse` already recurses on `\x03` members via `\x04`
+  EOT spans. After the fix flat + nested + precedence + var-roundtrip + string-collapse all pass.
+- **DISPATCH-GAP FIX #1 (gen_runtime.c):** the mode-2 `IR_CALL` exec arm calls `try_call_builtin_by_name` (gen_runtime.c),
+  but `__rk_jct_*` lives in `script_try_call_builtin_by_name` (script_builtins_byname.c) which post-SMX-4 had NO live call
+  site (orphaned SM-era arm). Added a TAIL delegation: names gen_runtime rejects fall through to script's dispatcher.
+  Placed AFTER every gen_runtime arm so the 6 overlapping names (close/open/pop/push/reverse/trim) keep gen_runtime's
+  semantics and NO live path is disturbed — only previously-REJECTED names newly served. The documented APPENDIX-A
+  "SM dispatch-gap fix" shape. Side benefit: the whole script-builtin layer (hash/IO/regex/array) is now reachable in
+  mode-2 for later rungs (RK-LOWER-5, RK-NFA).
+- **DISPATCH-GAP FIX #2 (lower_program.c binop_apply):** a junction collapses to Bool only in a relop. The mode-2 relop
+  evaluator is `lower_program.c`'s `binop_apply` (NOT rt.c's — that's compiled mode-3/4 runtime). Added a prologue: if
+  either operand `junction_is()` (ETX-tagged), call `junction_collapse(scalar, jct, tt_op, numeric)` threading the relop
+  (any=OR, all=AND, one=XOR1, none=NONE). Covers numeric relops (`==`/`<`/…) AND string relops (`eq`/`lt`/… → numeric=0).
+  ETX prefix is unused by any SNOBOL4/Icon/Prolog value ⇒ FACT-RULE-safe in shared C (Icon 6/6, SNOBOL4 7/7 unchanged).
+- **RAKU VOID-IF FIX (lower.c v_if):** the canonical test interleaves passing + FAILING `if`s and expects the sequence to
+  continue past a failed condition. A failed scalar `if ($x==7)` was aborting the whole statement sequence — confirmed
+  PRE-EXISTING (clean tree, `git stash`), independent of junctions. Per docs.raku.org/language/control an `if` with no
+  `else` whose condition is false yields `Empty` and CONTINUES (does NOT fail). Fixed inside shared `v_if` (FACT RULE:
+  branch on `cx.lang`): for `IR_LANG_RKU` a no-else condition-failure routes to `γ_in` (continue) not `ω_in` (fail);
+  Icon/SNOBOL/Prolog keep `ω_in` (goal-directed expression failure, jcon ir_a_If).
+
+**Gates at handoff:** prove_lower2 **57 PASS** / 0 FAIL (RAKU section: say + print + for-loop + gather + map + grep +
+**any(1,2,3)** + **any(1,all(5,5)) nested**, all PASS). Mode-2 HARD all green: Raku **17/17** (added jct_any, jct_all,
+jct_one, jct_none, jct_infix, jct_str, jct_nested), Icon 6/6 (UNCHANGED — shared binop_apply ETX-guard + v_if lang-gate
+did NOT regress), SNOBOL4 7/7 (UNCHANGED — NFA isolation intact). The three canonical junction corpus files
+(`test/raku/rk_junctions.raku`, `rk_junction_nest.raku`, `rk_junction_prec.raku`) all MATCH their `.expected`.
+**Pre-existing baseline items confirmed NOT mine (verified by `git stash` on clean `8a01bb3`):** (a)
+`audit_concurrency_invariants.sh` purity COUNT 7 > hardcoded baseline 6 — all 7 are loud-error `fprintf`s in ICON/SNOBOL
+boxes (`bb_assign/binop/call/every/field/list_bang/swap`), ZERO Raku; **FIX STILL OWED BY ICON/HQ: bump baseline 6→7**;
+(b) `test_gate_em_template_byte_identity.sh` = 1/4 (SM/BB emitter migration mid-flight). FACT-rule md5 `5097ed94`
+byte-identical ×4; no dup `case IR_`/`TT_` within any one switch (the junction arm added NO new case label — it lives
+inside the existing `TT_FNC` value case). Modes 3/4 = by-design SMX abort for Raku (floors MODE3_MIN/MODE4_MIN=0).
+
+---
+
 **RK-LOWER-3 LANDED (2026-05-31, Opus 4.8).** Raku `map`/`grep` cross onto resumable Byrd-Box Seq CONSUMERS for
 mode-2. SCRIP HEAD at this handoff: `fd54615` (committed; parents the RK-LOWER-2 keystone `3571829`). My 6 files:
 `src/include/IR.h`, `src/lower/{scrip_ir.c,lower.c,bb_exec.c,prove_lower2.c}`, `scripts/test_smoke_raku.sh` (+ the
@@ -371,12 +422,13 @@ can diverge; the byte-identity gate is unchanged (proved via `git stash` — ide
 FACT-rule md5 `5097ed94` byte-identical ×4; no dup `case IR_`/`TT_`. Modes 3/4 = by-design SMX abort for Raku
 (RK-EMIT not built; floors MODE3_MIN/MODE4_MIN=0) — same shape as SNOBOL4, identical across both modes.
 
-**NEXT:** RK-LOWER-4 — junctions `any`/`all`/`one`/`none` + infix bar/amp. Constructor + infix forms share ONE
-lowering (APPENDIX-A `RK-BB-4a/4b`: infix bar/amp build the SAME `TT_FNC` the constructors do; same-flavor chains
-flatten at parse time). Mode-2 collapse via the tagged-junction value (`ETX+flavor+SOH-separated members`,
-`rk_junction_collapse` threads the relop: any=OR, all=AND, one=XOR1, none=NONE); the `IR_ALT` fail-chain is the
-eventual mode-3/4 substrate. The `…` sequence operator is still open — note `IR_SEQ_GEN` already exists as the infinite
-`…` counter generator (SM-era exec at `bb_exec.c`, not yet lowered); keep it DISTINCT from `IR_GATHER`.
+**NEXT:** RK-LOWER-5 — eager core onto straight-line IR: arithmetic (mostly free already), hash/array element
+ops, `sort`, `try`/`CATCH`, class/method dispatch, and `say(jct)`/`say(list)` composite-value output. Port the
+APPENDIX-A RK-HASH / RK-IO / RK-EXCEPTIONS / RK-CLASS *semantics* onto the four-port IR (the behaviors are the
+spec; the SM opcodes are not). NOTE the dispatch-gap delegation landed in RK-LOWER-4 already makes the whole
+script-builtin layer (hash/IO/regex/array in `script_builtins_byname.c`) reachable in mode-2 — RK-LOWER-5 lowers
+the Raku AST arms that feed it. Also still open: the `…` sequence operator — `IR_SEQ_GEN` already exists as the
+infinite `…` counter generator (SM-era exec at `bb_exec.c`, not yet lowered); keep it DISTINCT from `IR_GATHER`.
 
 **STILL DEFERRED (NOT done this session):** the lockstep "three → four" roster/body expansion across all four GOAL
 files (the FACT-RULE clause-5 obligation) — high-blast-radius, best as its own focused commit. The FACT RULES remain
