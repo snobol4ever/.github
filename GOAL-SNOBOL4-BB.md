@@ -603,10 +603,21 @@ templates only; m2 7/7 HARD must stay invariant every step.**
   bakes from `bb_lit`. Prove: prove_lower2 topology unchanged; mode-3 `S 'b'` in `'abc'` → `[1,2]` under REG-0;
   disasm shows cursor=r14/Σ=r13/Δ=r15, no `&Σ`/`&Σlen` imm64. Gate: m2 7/7 HARD invariant; m3 ≥ floor; purity
   clean; g_vstack==0.
-- [ ] **REG-2 — cursor-advancing leaves.** `bb_pat_len`, `bb_pat_any`, `bb_pat_notany`, `bb_pat_span`,
+- [~] **REG-2 — cursor-advancing leaves.** `bb_pat_len`, `bb_pat_any`, `bb_pat_notany`, `bb_pat_span`,
   `bb_pat_break`, `bb_pat_rem` — same rewrite per box (verify each box's actual cursor-field offset + `&Σ`/`&Σlen`
   sites against disasm before editing; they are NOT all identical). Each step removes that box's `TEMPLATE_ADDR_SIG*`
   bakes. Gate per box (or small sub-group); m2 invariant.
+  **5/6 LANDED (SCRIP `eb4bf7c`, 2026-06-01 Opus 4.8):** `bb_pat_len` (34B, sites {13,25,29,30}), `bb_pat_rem`
+  (13B, {4,8,9}), `bb_pat_any` (74B, {8,52,61,65,70}), `bb_pat_notany` (74B, same; byte@50 `0F84`→`0F85`),
+  `bb_pat_span` (195B, {118,143,147,167,191}; internal Δ jge +62 / je +18 / jmp loop −86; r11 base-copy + its
+  push/pop dropped, Σ=r13 used directly). BINARY+TEXT both; each byte map disasm-verified with `as`+`objdump`;
+  all 5 token-clean (zero `TEMPLATE_ADDR_SIG*`/`[r10]`, code or comment). Per-box β semantics preserved (len/rem
+  no cursor-restore; any/notany undo δ+=1; span gives back one char). **REMAINING: `bb_pat_break`** (dual-arm:
+  plain BREAK 178B + BREAKX 302B/two scan loops) — the plain arm is pre-computed + objdump-verified (153B, sites
+  {125,129,149}; internal Δ jge +63 / jnz +19 / jmp loop −88); BREAKX wants the `as`-transcribe route (write the
+  REG-2 form as GAS asm, let `as` compute the internal short/rel32 jumps, transcribe the literal bytes). It is
+  all-or-nothing for the REG-FENCE grep (converting only the plain arm leaves the file flagged), so do both arms
+  in one focused pass.
 - [ ] **REG-3 — cursor-verify / position leaves.** `bb_pat_pos` (RPOS folded), `bb_pat_tab` (RTAB folded),
   `bb_pat_atp` (`@var` writes the cursor → write R14). POS/RPOS read R14 (and Δ=R15 for RPOS) and compare; TAB/RTAB
   advance R14 to a computed target. Gate; m2 invariant.
@@ -618,18 +629,45 @@ templates only; m2 7/7 HARD must stay invariant every step.**
   (the `std::deque<int>` saved-δ pattern stores R14 snapshots), `bb_pat_defer`. Per-activation δ state migrates
   from the `[r10]` block to R14 + ζ-slot/deque saves. Since BROK-1/BROK-2 convert CAPTURE/ARBNO to jump-to-α/β,
   do REG-5 **with or after** those rungs to avoid double-rework. Gate; m2 invariant.
-- [ ] **REG-FENCE — the no-legacy-cursor gate (completion test).** Add `scripts/test_gate_sno_pat_reg.sh`:
+- [ ] **REG-RO — READ-ONLY locals to IP-RELATIVE (the RW ladder's DUAL; this is what finishes r10 off).** Lon
+  directive 2026-06-01. RULES.md **ICON READ-ONLY LOCALS ARE IP-RELATIVE FACT RULE**: a per-box compile-time
+  constant — literal string bytes, cset pointer, a fixed bound, an op code, AND the resolved address of a runtime
+  helper — is RO and MUST be reached by `[rip+disp]` into SEALED data placed adjacent to (within/next to) the box's
+  own BLOB, NEVER by an absolute `movabs` immediate and NEVER from an `[r10]`-block field. Today the SNOBOL pattern
+  **BINARY** arms bake their RO ADDRESSES as `movabs` imm64 — `bb_lit` `movabs rsi,&lit` + `movabs rax,&memcmp`;
+  `bb_pat_any`/`notany`/`span`/`break` `movabs rdi,&cset` + `movabs rax,&strchr` (the matching **TEXT** arms ALREADY
+  do this right: `lea reg,[rip+label]` / `call …@PLT`). Per box, move each baked ADDRESS into a sealed RO data
+  trailer emitted immediately after the box code and load it with `lea`/`mov reg,[rip+disp]`, where `disp` is a
+  LITERAL emit-time constant derived from the box's fixed layout (data and access live in the SAME box BLOB, so the
+  disp is knowable by hand — FACT RULE TWO LITERAL FORMS preserved: the byte map stays hand-coded, only the
+  addressing mode changes). NOTE — a small literal INTEGER operand (e.g. `bb_lit`'s `mov rdx,len`) is a normal
+  immediate, NOT addressed storage, and is OUT OF SCOPE. **PAYOFF:** (1) conforms the SNOBOL pattern family to the
+  RO FACT RULE; (2) makes the box POSITION-INDEPENDENT in the BINARY (mode-3 JIT) arm too — a SECOND contributor to
+  lifting SNOBOL m4, alongside the `&Σ`/`&Σlen` removal; (3) with RW state now in ζ=R12 / Σ=R13 / δ=R14 / Δ=R15
+  (the RW ladder above) and RO state in `[rip+disp]`, **r10 has NO remaining purpose** — the `[r10]` cursor-mirror
+  writes and the `push r10`/`pop r10` guards around `memcmp`/`strchr` are DEAD and are removed here, eliminating
+  r10 from the pattern family entirely (the RW ladder removes [r10]-as-cursor; REG-RO removes the last r10 traffic).
+  Sequence: do REG-RO **after** the RW ladder (REG-2…REG-5) so each box is touched once; per box re-derive the byte
+  map + patch offsets (the `movabs`+imm64 block, 10 bytes, becomes a `lea`/`mov [rip+disp]`, 7 bytes — offsets
+  shift; verify with `as`+`objdump` exactly as REG-2 did). Gate per box; m2 7/7 HARD invariant. COMPLETION TEST
+  (rung): no `movabs` loading an RO ADDRESS (lit / cset / helper-fn ptr) remains in the SNOBOL pattern BINARY arms —
+  each is `[rip+disp]` into sealed RO data; **zero `r10` in ANY form** (`[r10]`, `push r10`, `pop r10`) in the
+  pattern family; m3 ≥ floor; probes green.
+- [ ] **REG-FENCE — the no-legacy-cursor / no-r10 gate (completion test).** Add `scripts/test_gate_sno_pat_reg.sh`:
   `grep -lE 'TEMPLATE_ADDR_SIGMA|TEMPLATE_ADDR_SIGLEN' src/emitter/BB_templates/bb_pat_*.cpp src/emitter/BB_templates/bb_lit.cpp src/emitter/BB_templates/bb_capture.cpp src/emitter/BB_templates/bb_arbno.cpp`
-  == empty, AND no `[r10]`-as-cursor read/write remains in those files (cursor is r14, subject r13, length r15).
-  Wire into the Session Setup gate list so it can never creep back. **Then RE-CHECK SNOBOL m4 smoke** — with the
-  `&Σ`/`&Σlen` bakes gone the pattern boxes are relocatable, so the m4 0/6 floor should finally be liftable
-  (track the new m4 count). COMPLETION TEST (rung): the new gate green + in Session Setup; m2 7/7 HARD held;
-  m3 ≥ floor; SNOBOL m4 re-measured (expected > 0/6 once a pattern chain assembles+links+runs standalone).
+  == empty, AND no `[r10]`-as-cursor read/write remains in those files (cursor is r14, subject r13, length r15),
+  AND (post-REG-RO) **zero `r10` in any form** (`[r10]`/`push r10`/`pop r10`) in the pattern family with every RO
+  address reached `[rip+disp]` (no RO-address `movabs` left). Wire into the Session Setup gate list so it can never
+  creep back. **Then RE-CHECK SNOBOL m4 smoke** — with the `&Σ`/`&Σlen` bakes gone AND the RO addresses now
+  position-independent, the pattern boxes are relocatable, so the m4 0/6 floor should finally be liftable (track
+  the new m4 count). COMPLETION TEST (rung): the new gate green + in Session Setup; m2 7/7 HARD held; m3 ≥ floor;
+  SNOBOL m4 re-measured (expected > 0/6 once a pattern chain assembles+links+runs standalone).
 
-**COMPLETION TEST (REG ladder):** `test_gate_sno_pat_reg.sh` green (zero `TEMPLATE_ADDR_SIG*`, zero `[r10]`-cursor
-in the SNOBOL pattern family); every pattern box reads cursor=R14 / subject=R13 / length=R15; m2 7/7 HARD
-invariant throughout; SNOBOL mode-4 pattern smoke re-measured and improved (the process-local-address blocker is
-gone). The convention TABLE is byte-identical-×3 and UNCHANGED (this rung conforms boxes to it, does not edit it).
+**COMPLETION TEST (REG ladder):** `test_gate_sno_pat_reg.sh` green (zero `TEMPLATE_ADDR_SIG*`, zero `[r10]`-cursor,
+and — post-REG-RO — zero `r10` in any form with all RO addresses `[rip+disp]`, in the SNOBOL pattern family); every
+pattern box reads cursor=R14 / subject=R13 / length=R15 and reaches RO constants by IP-relative addressing; m2 7/7
+HARD invariant throughout; SNOBOL mode-4 pattern smoke re-measured and improved (the process-local-address blocker
+is gone). The convention TABLE is byte-identical-×3 and UNCHANGED (this rung conforms boxes to it, does not edit it).
 
 ---
 
@@ -1753,8 +1791,26 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `4b8e698` · .github this commit.
-**This session (2026-06-01, Opus 4.8) — FACT RULE + REG-0/1 + bb_match literal conversion:**
+**Watermark.** SCRIP `eb4bf7c` · .github this commit.
+**This session (2026-06-01, Opus 4.8) — REG-2 (5/6) cursor leaves + REG-RO step added:**
+- **REG-2 5/6** (SCRIP `eb4bf7c`): migrated `bb_pat_len`/`rem`/`any`/`notany`/`span` off the `[r10]`-cursor +
+  `&Σ`/`&Σlen` bakes to Σ=R13/δ=R14/Δ=R15. BINARY+TEXT both; span also dropped r11 + its push/pop (Σ=r13 used
+  directly in the indexed byte load). Every BINARY byte map disasm-verified with `as`+`objdump` BEFORE writing
+  (caught a real `movzx [r13+rcx]` SIB-encoding bug — r13 base needs the disp8 form, 6 bytes not 5); all 5
+  token-clean (zero `TEMPLATE_ADDR_SIG*`/`[r10]`, code or comment). Per-box β semantics preserved (len/rem no
+  cursor-restore; any/notany undo δ+=1; span gives back one char). Per-box sizes/sites in the REG-2 rung above.
+  **`bb_pat_break` remains** (plain arm pre-computed + verified 153B {125,129,149}; BREAKX 302B/two loops via
+  `as`-transcribe; all-or-nothing for REG-FENCE so do both arms one pass).
+- **NEW STEP REG-RO** (REG ladder, inserted before REG-FENCE): READ-ONLY locals → IP-relative. The SNOBOL pattern
+  BINARY arms bake RO ADDRESSES (lit / cset / `memcmp` / `strchr`) as `movabs` imm64, violating the RULES.md
+  **ICON READ-ONLY LOCALS ARE IP-RELATIVE FACT RULE**; move each to `[rip+disp]` into a sealed RO trailer (the
+  TEXT arms already do this). Makes the BINARY arm position-independent (a 2nd m4 lever) and — together with the
+  RW register ladder — eliminates r10 entirely (the `[r10]` mirror writes + `push/pop r10` guards become dead).
+  REG-FENCE + the ladder completion test updated to require zero `r10` in any form and all RO addresses
+  `[rip+disp]`. (Lon directive, this session.)
+- Gates all GREEN + invariant (see SNOBOL4 status); m2 7/7 HARD held throughout; no regression.
+
+**Prior session (2026-06-01, Opus 4.8) — FACT RULE + REG-0/1 + bb_match literal conversion:**
 - **NEW FACT RULE "TWO LITERAL FORMS ONLY"** (above, after the NO-VALUE-STACK rule) — byte-identical ×5 GOAL-*-BB
   (block md5 `67020897`). The two literal forms (MEDIUM_BINARY = hand-coded byte map with HARDCODED literal offsets;
   MEDIUM_TEXT = literal asm) are CORRECT; the ONLY bad site is a FUNCTION that counts bytes (`b.size()`). `bytes()`,
@@ -1782,8 +1838,10 @@ hardcoded LITERAL offset map (the way bb_match was converted this session). ⚠ 
 (how a variable-length box gets literal patch offsets) — solve that before touching them. The other ~21 files are
 Icon/Prolog/generic boxes (outside the SNOBOL goal). **(1) REG LADDER** (see the 🔴 CURRENT PRIORITY
 section at the top): migrate the pattern BB templates off the legacy `[r10]`/`&Σ`/`&Σlen` model to the ratified
-registers Σ=R13/δ=R14/Δ=R15/ζ=R12 — REG-0/REG-1 landed this session (bb_match α + bb_lit); next is REG-2
-(cursor-advancing leaves: bb_pat_len/any/notany/span/break/rem). **(2) THEN** PB-RB-4 (STITCH_SEQ/STITCH_ALT — topology already proven, only the emitter wiring + drive
+registers Σ=R13/δ=R14/Δ=R15/ζ=R12 — REG-0/REG-1 (bb_match α + bb_lit) and **REG-2 5/6** (bb_pat_len/rem/any/notany/
+span, SCRIP `eb4bf7c`) landed; **next is finishing REG-2 (`bb_pat_break`, plain arm pre-verified)**, then **REG-RO**
+(RO addresses → `[rip+disp]`, kills r10), then REG-3 (pos/tab) → REG-4 (combinators) → REG-5 (generators) →
+REG-FENCE. **(2) THEN** PB-RB-4 (STITCH_SEQ/STITCH_ALT — topology already proven, only the emitter wiring + drive
 remain; mode-3 `S ('a'|'b')` and `S 'a' 'b'`), PB-RB-5…OPT, and BROK-0…BROK-3. The pattern-engine breadth (PB-RB
 ladder) is the LONG POLE for the SNOBOL4 corpus. Older per-session writeups live in the `HANDOFF-*.md` files.
 
