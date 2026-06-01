@@ -641,6 +641,62 @@ probes: run `--interp` then `--run` then `--compile --target=x86` and state each
     extended to accept `IR_UNIFY` (var=const) + `nslots>0`, exactly as the PLG-8-native NEXT note says.
     Handoff `HANDOFF-2026-05-31-OPUS48-PROLOG-BB-PLG-9A-MODE4-HELLO.md`.
 
+  - [x] **PLG-9b — first per-box logic-variable slot (`X = world, write(X), nl`). DONE (Opus 4.8,
+    2026-05-31, atop `6260d53`).** The unify tier now emits, assembles, links, and runs in BOTH mode-3
+    (native flat walk) and mode-4 (standalone `.s`). `greet :- X = world, write(X), nl.` →
+    `world` in all three modes; integer (`X = 42`), symmetric (`world = X`), and multi-variable
+    (`X=hello, Y=world, write(X), nl, write(Y), nl` → `hello\nworld`) variants all 3-mode AGREE.
+    **GATE-1 smoke m4 1→2 PASS** (`unify` un-EXCISED; the smoke `unify` source IS this exact shape);
+    GATE-1 m2/m3 held 5/5. GATE-3 rung suite m2 111/111, m3 111/111, m4 2 PASS / 109 EXCISED (corpus
+    has no bare-unify-tier rung — rung03 is *compound* unify `f(X,a)=f(b,Y)`, correctly still EXCISED,
+    that is PLG-9b+'s IR_STRUCT tier). prove_lower2 53/53; FACT 0; siblings non-regressive (I touched
+    ZERO template files — `git status` shows only scrip.c + rt.c + rt.h).
+    **Mechanism (additive, Prolog-only, +63/−3 across 3 files):**
+    1. **`src/driver/scrip.c`** — extended the flat-tier recognizer (shared by the PLG-8-native mode-3
+       arm AND the PLG-9a mode-4 arm, so both widen in lockstep): `pl_flat_goal_is_simple` now admits
+       (a) `IR_UNIFY` of the proven scalar shapes `(LOGICVAR = ATOM|LIT_I)` and the symmetric
+       `(ATOM|LIT_I = LOGICVAR)`, plus the missing-operand vacuous-success case, and (b) `write`/`print`
+       of an `IR_LOGICVAR` arg (alongside PLG-9a's constant `IR_ATOM`/`IR_LIT_I`). `pl_flat_body_root`
+       drops the `nslots > 0` guard — a slot-bearing body now qualifies PROVIDED every conjunction
+       element still passes the per-goal simple check (a compound/var-var unify or user call has an
+       element that fails → NULL → interim route mode-3 / EXCISED mode-4, so widening stays
+       conservative). Mode-4 `main:` wrapper emits `mov edi,nslots; call rt_pl_env_alloc@PLT` BEFORE
+       `call rt_frame` when `pl_main->nslots > 0`.
+    2. **`src/runtime/rt/rt.c` + `rt.h`** — new public `rt_pl_env_alloc(int nslots)` (the native-flat
+       Prolog runtime-state setup hook): GC_MALLOCs `g_resolve_env` to `nslots+8` (mirrors the driver's
+       mode-3 alloc) AND `trail_init(&g_resolve_trail)`.
+    **THE SLOT HOME — RECONCILIATION of the PLG-9a "Findings" speculation.** The PLG-9a note guessed the
+    logic-var slot "must live in the ζ-frame `[r12+off]`, NOT `g_resolve_env`." That was wrong for the
+    Prolog logic-variable: the *per-activation logic-variable environment* `g_resolve_env` IS the
+    legitimate per-activation home (it is allocated fresh per activation, exactly like `pl_foo_2_r`'s
+    locals in the archived emitter; it is NOT a global side-channel like a value stack or AG ring). The
+    `ζ`-frame `[r12+off]` is for ANONYMOUS box-result slots and Icon/SNOBOL named-variable slots; a
+    Prolog logic variable's binding is a `Term*` that the existing `bb_unify` / `bb_logicvar` /
+    `bb_builtin` write templates already read & write through `g_resolve_env[slot]` (via
+    `rt_pl_node_to_term`/`rt_pl_unify_terms`/`rt_pl_write_var`). So PLG-9b needed NO template change at
+    all — the templates were already correct; only the driver's flat-tier *recognizer* had to widen and
+    the env+trail had to be set up in the standalone binary.
+    **THE ONE REAL BUG (mode-4 multi-unify segfault) + FIX.** A single unify worked; a SECOND unify
+    segfaulted in mode-4 only. Root cause (bisected to the second `trail_push`, not the writes): the
+    standalone mode-4 binary's `main:` never calls `rt_init` (the interpreter driver's entry), so
+    `g_resolve_trail` stayed zero-initialized `{stack=NULL, top=0, capacity=0}`. The first
+    `rt_pl_unify_terms` limps on a 0-capacity trail by luck (`trail_push` does `capacity*=0`,
+    `GC_realloc(NULL,0)` returns a usable tiny block, `stack[0]` writes succeed); the second `trail_push`
+    then writes `stack[1]` past the zero-size block → SIGSEGV. The PLG-9a hello tier never hit it (a
+    constant-atom `write` needs no trail). Fix: `rt_pl_env_alloc` also `trail_init`s — done in the same
+    function since it is the native-flat setup hook. After the fix the multi-var case agrees `hello\nworld`
+    across m2/m3/m4. Mode-4 emission verified by inspection: `rt_pl_env_alloc(2)` in the wrapper; each
+    unify builds `rt_pl_node_to_term(IR_LOGICVAR=56, slot, …)` + `rt_pl_node_to_term(IR_ATOM=57, 0, .S…)`
+    → `rt_pl_unify_terms`; each `write(X)` is `mov edi,slot; call rt_pl_write_var`.
+    **NEXT — PLG-9c (arith `is/2` with a bound var → slot).** `main :- X is 2+3, write(X), nl.` already
+    runs m2/m3 (interim) and EXCISES m4. Widen the SAME recognizer to admit `IR_BUILTIN("is")` with an
+    `IR_LOGICVAR` LHS slot and an arith RHS (`IR_ARITH`/`IR_BUILTIN` over `IR_LOGICVAR`/`IR_LIT_I`); the
+    `bb_builtin.cpp` `is` TEXT arm + `rt_pl_arith`/`rt_pl_is` helpers already exist (CAT-D-arith). Confirm
+    the arith result unifies into the LHS slot in `g_resolve_env`, same as PLG-9b's `=`. Then PLG-9d
+    facts/choice (`IR_GOAL` + `IR_CHOICE` + a `rt_proc_register` predicate-registry emit loop mirroring
+    the Icon mode_run block) → PLG-9e recursion. Each rung: emit+assemble+link+run AND GATE-1/GATE-3
+    m3==m2 hold throughout. Handoff `HANDOFF-2026-05-31-OPUS48-PROLOG-BB-PLG-9B-MODE4-UNIFY.md`.
+
   **⮕ RECONSTRUCTION MAP (Opus 4.8, 2026-05-31 — scouted, not yet built).** Mode-4 is blocked by a
   GLOBAL gate in `scrip.c` (`if (mode_compile_x86) { [SMX]…; return 1; }` at ~line 395, BEFORE any
   language dispatch). The emit *templates* survive compiled into `libscrip_rt.so` (all Prolog boxes
@@ -1485,13 +1541,13 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-PLG-9a hello-tier mode-4 native emission)
+## 📊 Gate table (current — post-PLG-9b unify-tier mode-4 native emission)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | **1 PASS / 4 EXCISED** | m4 `write_atom` now EMITS+ASSEMBLES+RUNS natively (PLG-9a); other 4 (unify/arith/clause/recursion) decline with `[SMX]` banner → EXCISED (pending PLG-9b+). m3 hello-tier native (`bb_build_flat`, no ring); richer via interim `bb_exec_once` |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **2 PASS / 0 FAIL / 109 EXCISED** | m3 byte-identical to m2. m4: 2 hello-tier rungs emit+run; 109 non-hello shapes decline with `[SMX]` (EXCISED, per-file classification added to rung suite). rung30 DCG closed via `=<` fix; rung15 closed via PL-RT-ASSERTZ |
-| prove_lower2 topology | **51/51** ✅ | — | — | unchanged this session (driver + strtab-bridge only) |
-| FACT RULE grep | 0 ✅ | — | — | scrip.c PLG-9a arm additive Prolog-only; `xa_emit_strtab_rodata` (emit_core.c) marshals metadata only — emits NO x86 bytes (template `xa_strtab_rodata` does); siblings untouched (Icon m2/m3/m4 6/6, SNOBOL4 m2 7/7) |
+| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | **2 PASS / 3 EXCISED** | m4 `write_atom` (PLG-9a) + `unify` (PLG-9b, `X=world,write(X),nl`) now EMIT+ASSEMBLE+RUN natively; other 3 (arith/clause/recursion) decline with `[SMX]` → EXCISED (pending PLG-9c+). m3 hello+unify-tier native (`bb_build_flat`, no ring); richer via interim `bb_exec_once` |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **2 PASS / 0 FAIL / 109 EXCISED** | m3 byte-identical to m2. m4: 2 hello-tier rungs emit+run; 109 richer shapes decline with `[SMX]` (EXCISED). No bare-unify-tier rung in corpus (rung03 is *compound* unify → correctly still EXCISED, that is the PLG-9b+ IR_STRUCT tier). rung30 DCG closed via `=<`; rung15 via PL-RT-ASSERTZ |
+| prove_lower2 topology | **53/53** ✅ | — | — | unchanged this session (driver recognizer + rt env/trail setup only) |
+| FACT RULE grep | 0 ✅ | — | — | PLG-9b touched ZERO template files (`git status`: scrip.c + rt.c + rt.h only). scrip.c recognizer widen is additive Prolog-only; `rt_pl_env_alloc` is a runtime setup helper (allocates env + inits trail), emits NO x86; siblings byte-identical (Icon m2/m3/m4 6/6, SNOBOL4 m2 7/7) |
 
 
