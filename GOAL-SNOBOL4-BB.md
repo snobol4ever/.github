@@ -38,12 +38,94 @@ across all five GOAL-*-BB files.
 > REPLACEMENT → REPLACE, built as the **SESSION RUNG #0 — SBL-PAT-BB** ladder (**PB-0 … PB-OPT**, in this file
 > below). **DO THIS DEV FIRST.** ⛔ Do **NOT** start climbing test/rung ladders (prove_lower2 rungs, smoke-floor
 > bumps, corpus-parity sweeps, per-language bring-up) until the 5-phase pattern execution is FULLY NATIVE through
-> BBs. **First incomplete step = PB-1 PATTERN-BUILDER BB** (PB-0 SUBJECT BB landed at SCRIP 179bf4d). (The SBL-M3-CHAIN mode-3 5/6 already landed runs non-pattern
+> BBs. **First incomplete step = PB-RB-1 (REF_INVARIANT + retire the PATND_t literal builder)** — see the
+> REBUILT LADDER (PB-RB) below and the **CORRECTED PATTERN ARCHITECTURE** block immediately after this. (PB-0
+> SUBJECT BB landed at SCRIP 179bf4d; OLD PB-1 landed at 6483bb5 but built a PATND_t and is superseded — see
+> PB-1-REWORK.) (The SBL-M3-CHAIN mode-3 5/6 already landed runs non-pattern
 > statements from LOWER's graph + static patterns via the IR_SCAN *interpreter bridge* — that is the substrate,
-> NOT this native pattern ladder.) **Pattern construction = BOTH — DECIDED (Lon):** ONE BB from a baked-in static
-> `tree_t` AST (`tree(t,v,n,c)`) builds an entire INVARIANT pattern graph in one shot (MAX OPTIMIZATION); threaded
-> builder BBs handle only the VARIANT parts. Honesty rule: the baked AST is consumed by CONSTRUCTION, never
-> interpreted as the matcher. See **DESIGN QUESTION (DECIDED)** below.
+> NOT this native pattern ladder.) **Pattern construction — CORRECTED (Lon 2026-06-01):** a pattern is a graph
+> of EMITTED BYRD-BOXES (`bb_box_fn`), built by REF_INVARIANT (sealed) + STITCH/BUILD (variant); NOT a baked
+> `tree_t` (that is EVAL/CODE only) and NOT a PATND_t (being demolished). See **CORRECTED PATTERN
+> ARCHITECTURE** below; the older `tree_t`-bake "DESIGN QUESTION (DECIDED)" is SUPERSEDED.
+
+> **⭐⭐⭐ CORRECTED PATTERN ARCHITECTURE (Lon directive, 2026-06-01, Opus 4.8). THIS SUPERSEDES the `tree_t`-bake
+> "DESIGN QUESTION (DECIDED)" below AND the PATND_t-based PB-1/PB-2 as previously landed. READ THIS FIRST; the
+> older blocks are kept only for history and are marked SUPERSEDED.**
+>
+> The trigger: PB-1 (landed `6483bb5`) built a `PATND_t` via `rt_sno_pat_build_lit`, and a draft PB-2 read a
+> `PATND_t*` head. But `PATND_t` is the redundant runtime pattern-IR that is **slated for demolition** (see
+> "KILL PATND_t" + PND-1 below). Wiring the new native pattern path onto the type being deleted is backwards.
+> The draft PB-2 was reverted (uncommitted); PB-1 needs rework (see PB-1-REWORK below). Five corrections:
+>
+> **(1) A SNOBOL4 pattern is a graph of EMITTED BYRD-BOXES — `bb_box_fn` machine code in the RX pool — NOT a
+> `PATND_t` data structure, NOT a `tree_t`.** The pattern ELEMENTS *are* byrd-boxes (literal-matcher,
+> span-matcher, alt-combinator, …); matching is *running* that graph through the **same `bb_broker.c`** that
+> drives Icon generators and Prolog goals (four-port α/β/γ/ω resume). There is NO second runtime IR and NO
+> interpreted pattern tree. This is why `PATND_t` must die: it was a parallel interpreted pattern-IR beside the
+> real thing. The matcher boxes ALREADY EXIST — `bb_lit.cpp`, `bb_pat_span.cpp`, `bb_pat_any.cpp`,
+> `bb_pat_alt.cpp`, `bb_pat_cat.cpp`, `bb_pat_len.cpp`, … (most already carry BINARY+TEXT arms). The native
+> pattern engine is not invented; it is **driving the existing `IR_PAT_*` matcher boxes as a four-port graph
+> from SUBJECT**, replacing the `IR_SCAN` super-node + `PATND_t` bridge.
+>
+> **(2) `tree_t` (AST) is for EVAL/CODE, NOT for PATTERN.** The older bake-the-AST decision justified itself by
+> analogy ("EVAL/CODE use AST in the backend, so why not PATTERN"). The analogy breaks on WHEN the structure
+> exists: `EVAL(s)`/`CODE(s)` get a *source string at runtime* and MUST parse → `tree_t` → build boxes (the
+> structure does not exist until runtime — the legitimate runtime-codegen path). A PATTERN's structure is
+> KNOWN AT COMPILE TIME (already parsed into the statement); baking its `tree_t` just to re-walk it at runtime
+> is a pointless round-trip. So: no `tree_t` in the pattern path.
+>
+> **(3) `DT_P` (the pattern datatype, the `descr.h` `.p` slot being demolished with `PATND_t`) BECOMES a
+> `bb_box_fn` graph head** — a function pointer into SEALED EXEC space with the housekeeping (subgraph
+> descriptor: entry / single exit / fail boundary) in the right places. Then `COLOR = 'GOLD' | 'BLUE'` stores a
+> box-graph in COLOR; `B ? COLOR` runs it; `BOTH = COLOR CRITTER` STITCHES two box-graphs. SPITBOL's "the bead
+> diagram recorded in memory" — the recording is emitted byrd-boxes.
+>
+> **(4) SEAL AT THE ELEMENT GRANULARITY; WIRE AT THE INSTANCE LEVEL. This is the key simplification that makes
+> a GRAPH (not a tree) build cleanly.** Each pattern ELEMENT's matcher code (`bb_lit`/`bb_pat_span`/…) is
+> sealed (RO). The GRAPH — the wiring of elements by their four ports — is an INSTANCE-level structure:
+> `STITCH_*` boxes wire instance records whose `code` field points at the sealed element matchers. STITCH
+> therefore NEVER repoints sealed interior jumps; it only wires instance boundary ports. The runtime node is a
+> four-port box-instance (`{code, α, β, γ, ω, bound-operand, match-state}`) — the SAME shape `lower2` fills on
+> `IR_t`, one layer down; the broker follows the port pointers exactly as for Icon/Prolog. NO tree is held: the
+> parse tree survives only as the postfix EMIT ORDER, flattened away (precisely how LOWER builds its graph).
+> Back-edges (ω/β) are why it MUST be a graph: "fail of element 2 resumes element 1" and "both ALT arms share
+> one success continuation" are edges a tree cannot express.
+>
+> **(5) THE BUILD SEQUENCE = the runtime twins of LOWER's `wire_seq` / `wire_alt`.** Compile-time `wire_seq`
+> (n-ary sequence-with-backtrack) and `wire_alt` (n-ary fail-chain) wire `IR_t` nodes; runtime `STITCH_SEQ` /
+> `STITCH_ALT` wire box-INSTANCES with the SAME port equations. ONE construction, TWO times: all-constant
+> operands → wire at EMIT time (sealed); any runtime operand → wire at MATCH-BUILD time. Postfix order
+> guarantees each STITCH consumes already-finished child heads; it emits a small descriptor `{entry, exit,
+> fail}` (= lower2's α_out/β_out synthesized-up, γ_in/ω_in inherited-down) for its parent to wire next.
+>
+> **DECIDED forks (Lon delegated judgment 2026-06-01):**
+>   - **Fork A — `BB_PAT_BUILD_*` is NARROW: it exists ONLY for STRUCTURAL variance** (`*E`, `$NAME`,
+>     pattern-valued variable). OPERAND variance (`LEN(N)`, `SPAN(cvar)`) is NOT a builder — the
+>     compile-time-emitted element matcher reads its operand late from a `ζ`-slot at match time (operand-binding,
+>     no separate box), exactly as the existing variable-arg pattern family already resolves args late.
+>   - **Fork B — "build" = SPLICE (wire ports), NOT JIT-emit.** A pattern-valued variable already holds a
+>     `bb_box_fn` graph (corollary of (3)), so construction wires existing/sealed graphs. Real runtime codegen
+>     happens ONLY for `*E`/EVAL/CODE — the `tree_t` path of (2). Ordinary pattern construction never emits
+>     fresh machine code per match.
+>   - **Fork C — REUSE the existing `IR_PAT_*` matcher boxes** as the sealed/instance element matchers; do not
+>     invent parallel matcher templates.
+>   - **Fork D — ε-merge (Thompson/NFA) boundaries for the VARIANT (instance-wired) path** so STITCH is always
+>     O(1) "redirect prev.single-exit → next.entry" (single ε-entry / single ε-exit per subgraph; reuse the
+>     in-tree `bb_nfa.cpp` / RK-NFA machinery). The all-INVARIANT path seals to direct jumps with NO ε.
+>   - **Fork E — sealing depth: seal at ELEMENT granularity (per (4)).** Baseline mechanism = instance-level
+>     wiring for the whole pattern (invariant leaves still use their sealed element `code` as an instance's
+>     `code`). The ALL-INVARIANT single-sealed-BLOB freeze is the PB-OPT OPTIMIZATION on top (correctness first,
+>     bake second) — NOT a special case the base mechanism must carry. So STITCH only ever touches instance
+>     records, never a sealed multi-element interior.
+>
+> **The two NEW boxes this introduces** (the rest of the matcher boxes already exist, Fork C):
+>   - **`REF_INVARIANT`** — loads a sealed element/subgraph `bb_box_fn` head into a `ζ`-slot (RO `[rip+disp]` /
+>     movabs → `[ζ+off]`). For a FULLY-invariant pattern, this one box's output IS the `DT_P` value handed to
+>     MATCH; nothing else runs (the PB-OPT fast path).
+>   - **`STITCH_SEQ` / `STITCH_ALT`** — read two child heads from `ζ`-slots, wire their four ports (the runtime
+>     twin of `wire_seq`/`wire_alt`), leave the combined head + `{entry,exit,fail}` descriptor in a `ζ`-slot.
+>   - **`BB_MATCH`** (still phase 3) — receives the `DT_P` head + Σ/δ/Δ, drives it via the broker with the
+>     ch.18 unanchored OUTER start-loop (within-pattern backtracking is already the boxes' β/ω ports).
 
 > **⭐⭐ MODES 3 & 4: HOW THEY WERE MISSED — AND WHERE THE WORK ACTUALLY LIVES (Lon directive, 2026-05-31 Opus 4.8).**
 > **The whole job is LOWER + EMITTER. Get those two right and modes 3 and 4 run like magic — automatically, from the
@@ -563,43 +645,90 @@ Smoke target ladder: `S 'b'` (plain match) → `S 'b' = 'X'` → `aXc` (match+re
   invariants OK, purity +0 (fail-loud is MEDIUM_BINARY-exempt), no-vstack `g_vstack`==0. **Mode-3 execution
   probe PASS**: `BLDLIT('abc')`→SUCCEED JIT'd via `sno_flat_chain_build`, ran with `rt_frame`, built a
   `PATND_t{kind=XCHR, STRVAL="abc"}`; disasm confirms stackless ζ=r12 frame, no value stack.
-- [ ] **PB-2 — BB_MATCH box (phase 3).** Generic matcher: input = built pattern graph + subject (`Σ/δ/Δ`);
-  runs SPITBOL ch.18 scanner (unanchored start-loop, four-port backtrack, no value stack); success leaves
-  `δ` at match-end + the span. BINARY + TEXT. mode-3 `S 'b'` → matches.
-  **PREP LANDED 2026-06-01 (Opus 4.8):** the value-stack-free ch.18 LITERAL-scan kernel `rt_sno_match_lit`
-  (rt.c) is in + unit-tested 7/7 (incl. SPITBOL ch.6 `'BLUEBIRD' ? 'BIRD'`→[4,8], anchored/unanchored,
-  null-at-cursor-0, OOB-guarded). It is the kernel BB_MATCH's XCHR arm will call; currently UNCALLED (no box
-  yet) — wire it in PB-2 proper. **PB-2 IS NOT STANDALONE-PROVABLE LIKE PB-0/PB-1** (it has no single AST
-  node; MATCH only exists inside the SUBJECT→BUILDER→MATCH chain) → PB-2 inherently bundles the v_scan
-  chain-lowering. **CONVERGENCE DECISION (Lon-level, do with full context):** mode-2 consumes `IR_SCAN`
-  (super-node); modes-3/4 want the chain — DIFFERENT IR shapes, colliding with "lower once, all modes from
-  one IR". Resolve by retiring `IR_SCAN` and lowering `TT_SCAN`→SUBJECT→BUILDER→MATCH for ALL modes (mode-2
-  arm runs the same chain), OR a deliberate dual-shape. `exec_stmt` is the mode-2 driver and ABORTS on the
-  removed PATND→IR bridge for non-literals — NOT reusable. NEXT: `IR_PAT_MATCH` kind + `bb_sno_match.cpp`
-  reading the built head from PB-1's ζ slot + Σ/Δ from PB-0's via `bb_slot_get` (producers on `α` +
-  `operand_aux` sidecar per PEERS RULE), calls `rt_sno_match_lit`, sets δ=m_end + span on γ; prove 3-box
-  chain topology + mode-3 `S 'b'`.
-- [ ] **PB-3 — builder BBs for the rest (phase 2 breadth).** CAT (subsequents), ALT (alternates), LEN, POS,
-  RPOS, SPAN, ANY, NOTANY, BREAK, REM — each a builder BB onto the PB-1/PB-2 foundation, topology-proven,
-  BINARY + TEXT. (Grounded per primitive in SPITBOL ch.6/ch.18/ch.19.)
-- [ ] **PB-4 — REPLACEMENT BB (ph.4) + SUBSTITUTION BB (ph.5).** Replacement value-expr → REPLACEMENT BB
-  (can fail). SUBSTITUTION BB: lvalue-check (fail for literal/number subject), splice
+- [~] **PB-1-REWORK — SUPERSEDED by the CORRECTED PATTERN ARCHITECTURE (2026-06-01).** PB-1 as landed
+  (`6483bb5`) built a `PATND_t` (the type slated for demolition) via `rt_sno_pat_build_lit`. Per the
+  corrected architecture above, a pattern element is an EMITTED BYRD-BOX (`bb_box_fn`), not a `PATND_t`, and a
+  literal is INVARIANT → it is the EXISTING `IR_PAT_LIT` matcher box (`bb_lit.cpp`) referenced via
+  **`REF_INVARIANT`** as a sealed element, with NO runtime builder (Fork A/E). So `IR_PAT_BUILD_LIT` +
+  `rt_sno_pat_build_lit` + `bb_sno_pat_build_lit.cpp` are to be RETIRED, replaced by `REF_INVARIANT` +
+  `IR_PAT_LIT`. The `rt_sno_match_lit` ch.18 scan kernel (PB-2 prep, `PATND_t`-free, raw subj/lit, unit-tested
+  7/7) SURVIVES as the literal element matcher's inner scan. **Done in PB-RB-1 below** (the rebuilt ladder);
+  this row marks the OLD PB-1 superseded so its watermark "done" is not mistaken for the corrected design.
+- [ ] **PB-2 — BB_MATCH box (phase 3). [RE-CUT — see PB-RB ladder below; OLD text SUPERSEDED.]** The MATCH
+  PHASE survives but as a `bb_box_fn`-graph DRIVER (broker, ch.18 outer start-loop), NOT a `PATND_t` reader.
+  The draft PB-2 (`IR_PAT_MATCH` + `bb_sno_match.cpp` calling a `PATND_t`-inspecting `rt_sno_match`) was
+  REVERTED (uncommitted) on 2026-06-01 when the corrected architecture landed. `rt_sno_match_lit` (the scan
+  kernel) remains valid. See PB-RB-3 below.
+- [ ] **PB-OPT — [RE-CUT — see PB-RB-OPT below; OLD `tree_t`-bake mechanism SUPERSEDED.]** The OLD PB-OPT
+  baked the pattern AST as a static `tree_t` and had ONE BB tree-walk-construct the graph from it. Per the
+  corrected architecture, there is NO `tree_t` in the pattern path; the invariant fast path is the
+  all-invariant single-sealed-BLOB freeze (REF_INVARIANT hands MATCH the sealed head). See PB-RB-OPT.
+
+---
+
+### ⭐⭐ REBUILT LADDER — PB-RB (CORRECTED PATTERN ARCHITECTURE, 2026-06-01)
+
+Supersedes the PB-1/PB-2/PB-3/PB-OPT mechanism above (kept for history, marked SUPERSEDED). The matcher
+boxes are the EXISTING `IR_PAT_*` templates (Fork C); the only NEW boxes are `REF_INVARIANT`, `STITCH_SEQ`,
+`STITCH_ALT`, and the phase-3 `BB_MATCH` driver. Same discipline every step: prove four-port TOPOLOGY first
+(`prove_lower2.sh`), then BINARY arm (mode-3 `--run`), then TEXT arm (mode-4 `--compile`→`as`→`gcc`→run).
+**Mode-2 (`IR_SCAN`) stays intact and MUST NOT regress** (m2 7/7 HARD) — the native chain is modes-3/4;
+full `IR_SCAN` retirement is deferred to PB-RB-CONV when the native chain has breadth. Each box reads its
+inputs RO `[rip+disp]` (sealed head address, literal bytes) or RW `[ζ+off]` (built head, match state) — NO
+`PATND_t`, NO `tree_t`, NO value stack, NO ring (PER-BOX LOCAL STORAGE + NO-VALUE-STACK FACT RULES).
+Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
+
+- [ ] **PB-RB-1 — REF_INVARIANT + retire the PATND_t literal builder.** Delete `IR_PAT_BUILD_LIT` /
+  `rt_sno_pat_build_lit` / `bb_sno_pat_build_lit.cpp` (the PATND_t literal builder). Add `IR_REF_INVARIANT`
+  (IR.h, append-only) + `bb_ref_invariant.cpp`: loads a sealed element `bb_box_fn` head (RO `[rip+disp]` /
+  movabs) into a `ζ`-slot. The sealed element for a literal is the EXISTING `IR_PAT_LIT` matcher box
+  (`bb_lit.cpp`); `rt_sno_match_lit` survives as its inner scan. lower `TT_QLIT` pattern → REF_INVARIANT over
+  a sealed `IR_PAT_LIT`. Prove topology; mode-3 probe: REF_INVARIANT('b') yields a `bb_box_fn` head in its
+  ζ-slot whose code is the `'b'` literal matcher. (No runtime construction — Fork A/E.)
+- [ ] **PB-RB-2 — the matcher-box four-port ABI (drive ONE element).** Pin down how `bb_broker.c` drives a
+  single matcher element box (`IR_PAT_LIT`) over Σ/δ/Δ via α/β/γ/ω: α tries match at δ, γ on success
+  (advance δ, leave span), ω on fail, β to re-offer (generators only). Ground in `bb_broker.c` + the canonical
+  Icon/Prolog brokered-graph pattern (CONSULT CANONICAL SOURCES rule). Verify the existing `IR_PAT_LIT`
+  BINARY/TEXT arms honor it (or adapt minimally). This is the substrate PB-RB-3 drives.
+- [ ] **PB-RB-3 — BB_MATCH driver (phase 3).** Add `IR_PAT_MATCH` (IR.h) + `bb_sno_match.cpp`: reads the
+  built/sealed head (`DT_P`/`bb_box_fn`) from REF_INVARIANT's ζ-slot (producer ref via `operand_aux`, PEERS
+  RULE) + Σ/δ/Δ from the SUBJECT box's ζ-slot, and DRIVES the head box-graph via the broker with the SPITBOL
+  ch.18 unanchored OUTER start-loop (advance starting δ on fail unless anchored; within-pattern backtracking
+  is the boxes' β/ω). Success → δ at match-end + span on γ; else ω. BINARY + TEXT. Prove the 3-box chain
+  topology (SUBJECT→REF_INVARIANT→BB_MATCH→SUCCEED); mode-3 `S 'b'` → matches `'b'` in `'abc'` ([1,2]).
+  (Replaces the reverted draft PB-2 that read a `PATND_t`.)
+- [ ] **PB-RB-4 — STITCH_SEQ / STITCH_ALT (the graph builders).** Add `IR_STITCH_SEQ` / `IR_STITCH_ALT`
+  (IR.h) + `bb_stitch_seq.cpp` / `bb_stitch_alt.cpp`: read two child heads from `ζ`-slots, wire their four
+  ports (runtime twin of LOWER's `wire_seq`/`wire_alt` — SAME port equations), leave the combined head +
+  `{entry,exit,fail}` descriptor in a `ζ`-slot. ε-merge boundaries (Fork D; reuse `bb_nfa.cpp`). Lower
+  `TT_CAT`/`TT_ALT` pattern → REF_INVARIANT children + STITCH (all-invariant case still wires instances; the
+  BLOB-freeze is PB-RB-OPT). Prove topology + mode-3 `S ('a' | 'b')` and `S 'a' 'b'`.
+- [ ] **PB-RB-5 — operand-variant element matchers (Fork A).** `LEN(N)`/`SPAN(cvar)`/`ANY(expr)` etc.:
+  the EXISTING `IR_PAT_LEN`/`IR_PAT_SPAN`/… matcher box reads its operand late from a `ζ`-slot (operand
+  produced by a preceding value box, ref via `operand_aux`). NO builder box — operand-binding only. Prove +
+  mode-3 `S LEN(2)`, `S SPAN('abc')`.
+- [ ] **PB-RB-6 — BB_PAT_BUILD for STRUCTURAL variance (Fork A/B).** `*E` / `$NAME` / pattern-valued var:
+  `IR_PAT_BUILD_*` boxes that SPLICE (wire ports) the runtime box-graph (a pattern-valued variable already
+  holds a `bb_box_fn` graph — Fork B; `*E`/EVAL/CODE evaluate/compile first via the `tree_t` path) and stitch
+  into the surrounding sealed pieces. Prove + mode-3 `P = 'x'; S P` and `S *E`.
+- [ ] **PB-RB-7 — REPLACEMENT BB (ph.4) + SUBSTITUTION BB (ph.5).** Replacement value-expr → REPLACEMENT
+  BB (can fail). SUBSTITUTION BB: lvalue-check (fail for literal/number subject), splice
   `Σ[0:m_start]+repl+Σ[m_end:]`, assign back. mode-3 `S 'b' = 'X'` → `aXc`.
-- [ ] **PB-5 — mode-4 parity sweep.** Confirm every PB-0..PB-4 box's TEXT arm assembles+links+runs; the
-  `--compile` smoke ladder green. (Driver re-stitch for `--compile` lands here, now that LOWER emits the
-  graph — NOT before, per the `sno_ring_to_tree` deletion rationale.)
-- [ ] **PB-OPT — INVARIANT-PATTERN BAKE (DECIDED mechanism: ONE-BB-FROM-`tree_t`).** Classify each pattern
-  subtree invariant/variant at lower time. For an INVARIANT subtree, bake its AST as a pure static `tree_t`
-  constant (`tree(t,v,n,c)`) and emit ONE builder BB that constructs the whole invariant pattern subgraph from
-  it in a single shot (one tree-walk-construct — NOT N threaded builders). Variant subtrees keep their threaded
-  builder BBs and splice into the baked subgraphs. Gate: an invariant pattern emits exactly ONE builder BB +
-  one baked `tree_t` (verify via `--dump` / disasm); the baked AST is consumed by CONSTRUCTION only, never
-  interpreted as the matcher; native behavior unchanged (smoke ladder still green). See the DECIDED DESIGN
-  QUESTION above (memorial: `beauty.sno` / `tree(t,v,n,c)`).
+- [ ] **PB-RB-CONV — IR_SCAN convergence (retire the dual shape).** Once the native chain
+  (SUBJECT→REF/BUILD/STITCH→MATCH) covers the corpus breadth, retire `IR_SCAN`: lower `TT_SCAN` to the native
+  chain for ALL modes (mode-2 arm drives the same box-graph), removing the super-node + the dual shape. Gate:
+  m2 corpus parity held; broad corpus ≥ prior.
+- [ ] **PB-RB-8 — mode-4 parity sweep.** Every PB-RB box's TEXT arm assembles+links+runs; `--compile` smoke
+  ladder green. Driver re-stitch for `--compile` lands here (LOWER emits the graph; no `sno_ring_to_tree`).
+- [ ] **PB-RB-OPT — ALL-INVARIANT BLOB FREEZE (the optimization).** When a pattern is FULLY invariant,
+  collapse its REF_INVARIANT + STITCH sequence into ONE sealed `bb_box_fn` BLOB emitted at compile time (the
+  wiring frozen to direct jumps, no ε, no runtime stitch); REF_INVARIANT hands MATCH that sealed head
+  directly. Variant patterns keep instance-level wiring. Gate: a fully-invariant pattern emits ONE sealed
+  BLOB (verify `--dump`/disasm); native behavior unchanged (smoke ladder green). This is the MAX OPTIMIZATION
+  — correctness (instance-wiring) first, freeze second.
 
-### Pending rungs (priority)
 
-### ⭐ DESIGN QUESTION (Lon 2026-05-31, raised mid-SBL-M3-CHAIN): how do the PATTERN-builder BBs represent the pattern? — ✅ **DECIDED (Lon 2026-05-31): BOTH**
+### ⭐ DESIGN QUESTION (Lon 2026-05-31, raised mid-SBL-M3-CHAIN): how do the PATTERN-builder BBs represent the pattern? — ✅ **DECIDED (Lon 2026-05-31): BOTH** — ⚠️ **SUPERSEDED 2026-06-01 (see CORRECTED PATTERN ARCHITECTURE at top): the pattern is a `bb_box_fn` byrd-box graph, NOT a baked `tree_t`. `tree_t` is for EVAL/CODE only. The `beauty.sno` / `tree(t,v,n,c)` memorial below stands as the AST shape for EVAL/CODE, not for patterns. History kept below.**
 
 **✅ DECISION (Lon 2026-05-31): WE HAVE BOTH. This is the MAX OPTIMIZATION.** The two mechanisms are not
 rivals — they compose:
@@ -679,6 +808,27 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+DESIGN PIVOT     = (no code change; SCRIP HEAD stays 6483bb5)  CORRECTED PATTERN ARCHITECTURE (Opus 4.8,
+                     2026-06-01) — Lon corrected the pattern-construction design mid-PB-2. A SNOBOL4 pattern
+                     is a graph of EMITTED BYRD-BOXES (bb_box_fn in the RX pool), driven by bb_broker.c
+                     four-port — NOT a PATND_t data structure, NOT a baked tree_t. tree_t is for EVAL/CODE
+                     only (they compile a runtime source string). DT_P (the pattern datatype, descr.h .p slot)
+                     BECOMES a bb_box_fn graph head. SEAL at element granularity / WIRE at instance level:
+                     STITCH_SEQ/STITCH_ALT (runtime twins of LOWER's wire_seq/wire_alt) wire instance records
+                     whose code points at sealed element matchers — so STITCH never touches sealed interior;
+                     the all-invariant single-BLOB freeze is the PB-RB-OPT optimization, not a base case. The
+                     matcher boxes are the EXISTING IR_PAT_* templates (reuse, not reinvent). NEW boxes:
+                     REF_INVARIANT (load sealed head), STITCH_SEQ/STITCH_ALT (wire graph), BB_MATCH (ch.18
+                     driver). Forks A–E decided (see CORRECTED PATTERN ARCHITECTURE block at top). ACTIONS
+                     TAKEN: (1) reverted the draft PB-2 (uncommitted: IR_PAT_MATCH + bb_sno_match.cpp calling a
+                     PATND_t-inspecting rt_sno_match) — tree clean at 6483bb5; (2) re-cut the PB ladder into
+                     PB-RB-1..PB-RB-OPT; (3) flagged PB-1 (committed 6483bb5: IR_PAT_BUILD_LIT/
+                     rt_sno_pat_build_lit build a PATND_t) for rework — retire in PB-RB-1, replace with
+                     REF_INVARIANT + existing IR_PAT_LIT. rt_sno_match_lit (PATND_t-free scan kernel, 7/7)
+                     SURVIVES. SURVIVES UNCHANGED: PB-0 (IR_SUBJECT, no PATND_t). Gates UNTOUCHED this turn
+                     (no compile): m2 7/7 HARD / m3 5/6 / m4 0/6 @ 6483bb5; prove_lower2 64/0; sm_dead 1;
+                     concurrency invariants OK; no-vstack g_vstack==0. **NEXT (#1): PB-RB-1** (REF_INVARIANT +
+                     retire the PATND_t literal builder). .github doc-only update committed this turn.
 HEAD SCRIP       = 6483bb5  SBL-PAT-BB PB-1 + PB-2-PREP (Opus 4.8, 2026-06-01) — PATTERN-BUILDER BB
                      (literal) LANDS (phase 2 of the five-phase native pattern model), + the PB-2 BB_MATCH
                      scanner kernel pre-landed. PB-1: new IR_PAT_BUILD_LIT kind (IR.h, append-only before

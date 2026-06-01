@@ -60,11 +60,13 @@ monitor_fd              // from MONITOR_READY_PIPE env var
 monitor_ack_fd          // from MONITOR_GO_PIPE env var
 ```
 
-## Native pattern architecture — modes 3 & 4 (pattern = built BB graph)
+## Native pattern architecture — modes 3 & 4 (pattern = graph of emitted byrd-boxes, `bb_box_fn`)
 
-Added 2026-05-31 (Lon "Eureka" directive). Modes 2 (interp) is OUT OF SCOPE here; this section
-governs ONLY mode 3 (`--run`, BINARY arm → RX pool) and mode 4 (`--compile`, TEXT arm → `as`/`gcc`).
-Both are pure LOWER + EMITTER, no interpreter. RULES recap: the ONLY emitted thing that does work is
+Added 2026-05-31 (Lon "Eureka"); CORRECTED 2026-06-01 (Lon): the built pattern is a graph of EMITTED
+BYRD-BOXES (`bb_box_fn`) driven by `bb_broker.c`, NOT a `PATND_t` and NOT a `tree_t`. See
+GOAL-SNOBOL4-BB.md "CORRECTED PATTERN ARCHITECTURE" for the full statement + decided forks.
+Mode 2 (interp) is OUT OF SCOPE here; this section governs ONLY mode 3 (`--run`, BINARY arm → RX pool) and
+mode 4 (`--compile`, TEXT arm → `as`/`gcc`). Both are pure LOWER + EMITTER, no interpreter. RULES recap: the ONLY emitted thing that does work is
 a **BB code block** (a byrd box) reached via `emit_core.c` dispatch; **XA blocks** only wrap/stitch
 (file header/footer, flat prologue/epilogue, data/rodata, entry dispatch, pattern-blob framing). So in
 modes 3/4 the ONLY vehicle to build a subject, build a pattern, or build a replacement is a **BB**.
@@ -74,11 +76,27 @@ A SNOBOL4 match statement `SUBJ ? PAT [= REPL]` processes in five phases, EACH e
 1. **Build subject** — lower the subject value-expr → a **SUBJECT BB** that evaluates it and loads the
    locked registers `Σ` (base ptr), `δ` (cursor = 0), `Δ` (length/end). Easiest of the three builds;
    closest to existing value-box work.
-2. **Build pattern** — THE KEY TURN. A SNOBOL4 pattern is a *runtime object* = a byrd-box graph (the
-   "pattern data type": `P = 'a' | 'b'` *constructs*). So pattern lowering emits **builder BBs — BBs
-   that build other BBs dynamically**: each pattern construct lowers to emitted code whose RUN-TIME
-   EFFECT is to allocate + wire the pattern's own byrd-boxes (a LIT box, an ALT box, a CAT box, a SPAN
-   box, …) into a pattern graph in memory. The built graph head lives in a `ζ`-frame slot.
+2. **Build pattern** — THE KEY TURN. A SNOBOL4 pattern is a *runtime object* = a graph of EMITTED
+   BYRD-BOXES (`bb_box_fn` machine code in the RX pool), driven by `bb_broker.c` four-port (`α/β/γ/ω`) —
+   the SAME broker that drives Icon generators and Prolog goals. It is NOT a `PATND_t` data structure
+   (that redundant runtime pattern-IR is being demolished) and NOT a `tree_t` (AST is for EVAL/CODE only —
+   they compile a runtime *source string*; a pattern's structure is known at COMPILE time). The pattern
+   ELEMENTS *are* byrd-boxes — the EXISTING `IR_PAT_*` matcher templates (`bb_lit`, `bb_pat_span`,
+   `bb_pat_alt`, `bb_pat_cat`, `bb_pat_len`, …). Construction has two cases, decided by COMPILE-TIME
+   invariance of each subtree:
+   - **Invariant subtree** (literal, fixed `LEN`/`POS`, ALT/CAT of invariants) → emitted + port-wired at
+     COMPILE time; referenced at runtime by a **`REF_INVARIANT`** box that loads the sealed `bb_box_fn` head
+     (RO `[rip+disp]`/movabs) into a `ζ`-slot. A FULLY-invariant pattern (most patterns) costs only this one
+     box — NO runtime construction.
+   - **Variant subtree** (operand-variant `LEN(N)`/`SPAN(cvar)`, or structural-variant `*E`/`$NAME`/
+     pattern-valued var) → for OPERAND variance the sealed element matcher reads its operand late from a
+     `ζ`-slot (operand-binding, no builder box); for STRUCTURAL variance a **`BB_PAT_BUILD`** box SPLICES
+     (wires ports of) the runtime box-graph and **STITCH_SEQ/STITCH_ALT** boxes wire it to the sealed pieces.
+   `STITCH_SEQ`/`STITCH_ALT` are the runtime twins of LOWER's `wire_seq`/`wire_alt` (same port equations,
+   one layer down): they wire box-INSTANCE records whose `code` field points at the sealed element matchers,
+   so STITCH never repoints sealed interior jumps. The built/sealed graph head (a `bb_box_fn`) lives in a
+   `ζ`-frame slot and IS the pattern's **`DT_P`** value (the `descr.h` `.p` slot, reborn as a box-graph head).
+   **SEAL at element granularity, WIRE at instance level.**
 3. **Run pattern** — control enters the generic **BB_MATCH box**, which takes the built pattern graph +
    the subject (`Σ`/`δ`/`Δ`) and runs the SPITBOL ch.18 scanner over it: the unanchored starting-cursor
    loop (advance start unless `&ANCHOR`; ch.18 step 6) wrapping the pattern's four-port (`α/β/γ/ω`)
@@ -90,17 +108,21 @@ A SNOBOL4 match statement `SUBJ ? PAT [= REPL]` processes in five phases, EACH e
 
 ### Build/run split is real
 Phase 2 (build) and phase 3 (run) are GENUINELY SEPARATE steps, matching SNOBOL4 first-class patterns:
-the pattern object is constructed (builder BBs), then matched (BB_MATCH). The current mode-2 `IR_SCAN`
-super-node + hidden `IR_alloc` sub-graph is the WRONG layer (re-derives topology at exec — the
-`sno_ring_to_tree` anti-pattern relocated into the lowerer) and is NOT the modes-3/4 design.
+the pattern object is constructed (REF_INVARIANT / BB_PAT_BUILD / STITCH boxes — or, for a fully-invariant
+pattern, just sealed at compile time and referenced), then matched (BB_MATCH drives the box-graph via the
+broker). The current mode-2 `IR_SCAN` super-node + hidden `IR_alloc` sub-graph is the WRONG layer
+(re-derives topology at exec — the `sno_ring_to_tree` anti-pattern relocated into the lowerer) and is NOT
+the modes-3/4 design; it stays intact (mode-2 must not regress) until the native chain retires it
+(GOAL-SNOBOL4-BB PB-RB-CONV).
 
-### OPTIMIZATION — INVARIANT-PATTERN BAKE (second step, after correctness)
+### OPTIMIZATION — ALL-INVARIANT BLOB FREEZE (second step, after correctness)
 Invariance is a COMPILE-TIME property of the pattern subtree: a pattern all of whose components are
 compile-time constant (literal strings/ints/csets, fixed `LEN`/`POS`/`RPOS`, constant `ALT`/`CAT` of
-such) is INVARIANT. After phases 1–5 work end-to-end, collapse any MAXIMAL sequence of builder BBs that
-builds an invariant pattern into a SINGLE **STATIC pattern BB graph BAKED into the generated code**
-(emitted ONCE as sealed data/code), eliminating the per-execution runtime rebuild. Only builder BBs for
-VARIANT components (patterns referencing runtime values — `SPAN(VAR)`, `ANY(expr)`, deferred `*EXPR`,
-indirect `$NAME`) remain dynamic after the bake. Rule: const subtree ⇒ bake static; references-runtime
-⇒ keep dynamic builder. This mirrors SPITBOL: constant patterns build once; variable patterns
-rebuild/defer per match. See GOAL-SNOBOL4-BB.md rung SBL-PAT-BB for the step ladder.
+such) is INVARIANT. The BASELINE mechanism wires even invariant patterns at the instance level (an
+invariant leaf's sealed element `code` becomes an instance's `code`); correctness first. The OPTIMIZATION:
+when a pattern is FULLY invariant, collapse its REF_INVARIANT + STITCH sequence into ONE sealed `bb_box_fn`
+BLOB emitted ONCE at compile time (the wiring frozen to direct jumps, no ε-nodes, no runtime stitch);
+`REF_INVARIANT` hands MATCH that sealed head directly. Only variant components (`*E`, `$NAME`,
+pattern-valued var) keep runtime build+stitch. Rule: const subtree ⇒ freeze to a sealed BLOB;
+references-runtime ⇒ keep instance-wired/built. This mirrors SPITBOL: constant patterns build once;
+variable patterns rebuild/defer per match. See GOAL-SNOBOL4-BB.md rung PB-RB for the step ladder.
