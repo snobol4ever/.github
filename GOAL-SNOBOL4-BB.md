@@ -513,6 +513,25 @@ Smoke target ladder: `S 'b'` (plain match) → `S 'b' = 'X'` → `aXc` (match+re
 
 ### Pending rungs (priority)
 
+### ⭐ DESIGN QUESTION (Lon 2026-05-31, raised mid-SBL-M3-CHAIN): how do the PATTERN-builder BBs represent the pattern? — *answered, decision PENDING LON*
+
+**The question.** The pattern-builder BBs (PB-2: "builder BBs that build OTHER BBs dynamically") must end up with the pattern's structure. Two ways Lon posed:
+1. **BAKE the parser AST** — the parser-built tree (the exact `tree_t`) is baked into generated code as an RO constant; the builder references it.
+2. **THREAD builder BBs** — a sequence of BBs assembles that same tree at runtime, each BB constructing one node.
+
+**Context (Lon).** AST was historically FORBIDDEN because modes 2 & 3 would *cheat* — run the `tree_t` interpreter instead of doing their real job (the C oracle / native BBs). The dead **mode-1** WAS that `tree_t` interpreter (it lost its usefulness → removed; we'd otherwise have 4 modes). BUT **AST will legitimately be used in the backend for `EVAL` and `CODE`** (both inherently runtime-compile a string of SNOBOL source), "so why not PATTERN" — patterns are runtime-dynamic too.
+
+**Claude's recommendation (proposed; PENDING LON CONFIRMATION).** **Option 2 (threaded builder BBs) as the canonical mechanism — which is already exactly PB-2 — with Option 1 (bake) demoted to the PB-OPT optimization for INVARIANT subtrees only.** Crucially: **the builders assemble a PATTERN GRAPH (a runtime pattern-node / byrd-box structure), NOT the parser `tree_t`.** Reasoning:
+- **(a) Dynamic patterns force threaded construction anyway.** `LEN(N)` / `SPAN(C)` with variable args, `P1 | P2` where the operands are pattern-VALUED variables, and especially deferred `*E` (re-evaluated at match time — the mechanism behind recursive patterns `P = *P 'x' | ''`) cannot be baked, because their structure/values aren't known until runtime. So threaded is the *general* mechanism; baking can only ever be a *partial* optimization on top of it. Building one canonical mechanism (threaded) and folding statics into it (PB-OPT) is cleaner than two coequal paths.
+- **(b) Baking the parser AST as PRIMARY re-opens the exact cheat that killed mode-1.** If the matcher walks a baked `tree_t`, mode-3's "pattern match" is once again "interpret the AST" — the thing the AST prohibition exists to prevent. Threaded builders force honest box work: each pattern operator (`|`, concat, `LEN`, `.`/`$`, `*`) is a real four-port BB taking pattern operands, exactly parallel to how `a+b` is a BINOP BB.
+- **(c) Keep the built artifact pattern-specific, never `tree_t`.** The MATCHER (PB-3 `BB_MATCH`, SPITBOL ch.18 backtracking) interprets a PATTERN GRAPH — a domain-specific structure — which is legitimate (it IS the matcher's job; SPITBOL itself interprets a pattern node graph). Interpreting the *general* `tree_t` is the forbidden cheat. This boundary is what keeps the AST prohibition meaningful while still allowing a runtime pattern structure.
+
+**Third idea (hybrid — already partly captured as PB-OPT).** Partial evaluation: at lower time, classify each pattern subtree invariant vs variant. **Invariant** subtrees (all-constant: `'b'`, `LEN(3)`, `'a' | 'b'`) → fold to a baked constant pattern object (a `DT_P` leaf the threaded spine references) = Option-1 speed where it's safe. **Variant** subtrees (variable args, pattern-valued var refs, deferred `*E`) → stay threaded builder BBs = Option-2 correctness where it's required. This is the best of both and is the natural reading of PB-2 + PB-OPT together.
+
+**Fourth idea (unify with EVAL/CODE — flagged, NOT recommended near-term).** Since the runtime will host the full backend for `CODE(s)`/`EVAL(e)`, a pattern's construction *could* be a mini-`CODE` invocation (compile the pattern expression at runtime via the same parse→lower→emit backend, yielding the builder BBs / pattern graph on the fly). Elegant (one runtime-compile mechanism for all dynamic constructs) but the biggest lift, and it must be fenced carefully or it slides back into the AST-interpretation cheat. Park it until PB-0..PB-3 are proven.
+
+**AST-prohibition refinement (proposed wording for the FACT rules, pending Lon).** *AST is permitted in the BACKEND for inherently-dynamic constructs — `EVAL`, `CODE`, and the variant/deferred parts of PATTERN construction — because there building/compiling from a tree IS the actual job, not a shortcut around it. The invariant that remains absolute: modes 2/3/4 must never interpret `tree_t` as a stand-in for STATIC code that already has a defined oracle (mode 2) or native-BB (modes 3/4) path. The matcher interprets a pattern-specific graph, never `tree_t`.*
+
 
 - **SBL-SPAN-2 / SBL-ARBNO-3 BINARY arms.** Use `std::deque<int>` slot pattern from bb_capture.cpp (NOT GC_MALLOC). SPAN: TWO persistent int slots (z, z_orig); β yields successively shorter spans using ABSOLUTE z_orig. ARBNO: uses `nd->counter`, deque pattern + brokered child call. Validate via `--run`.
 - **SBL-BREAKX-2 ✅ DONE** (2026-05-29 Opus 4.8). Own BINARY arm. TEXT β rescans-to-next using z_orig + z. z lives in [zeta+8]; z_orig recovered arithmetically (Δ - z) so no second slot needed. 302-byte α-scan + β-rescan, assembled+verified via `as`. Native +2 (W05_breakx, word4); zero regression.
@@ -548,6 +567,26 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = 7c26eb7  SBL-M3-CHAIN (Opus 4.8, 2026-05-31) — SNOBOL4 MODE-3 RUNS FROM LOWER'S
+                     FOUR-PORT GRAPH; mode-3 0/6 → 5/6 (output, concat, arith, pattern, goto_s — all vs
+                     SPITBOL oracle). The banned sno_ring_to_tree stays deleted: new sno_flat_chain_build
+                     (emit_bb.c) consumes LOWER's four-port statement-BB graph DIRECTLY — resolves IR_SUCCEED
+                     LANDING nodes transitively (sno_chain_resolve), sets g_sno_flat_chain (IR_VAR = by-name
+                     pass-through, no value stack), per-statement operand-ref pass (covers ω/goto-reachable
+                     statements), SNOBOL concat IR_SEQ = arity-0 leaf / IR_SCAN = arity-1. Driver mode-3
+                     SNOBOL4 abort → sno_flat_chain_build + SOFT honest fall on unbuilt shapes (no abort).
+                     bb_var gains a g_sno_flat_chain pass-through arm. Patterns run via the EXISTING IR_SCAN
+                     interpreter bridge (rt_sno_exec_scan→bb_exec_once), NOT yet the native PB-2/PB-3 builder-BB
+                     ladder. **Gate:** scrip rc=0, libscrip_rt rc=0, m2 **7/7 HARD**, m3 **5/6** (MODE3_MIN 0→5),
+                     m4 0/6 (unchanged), prove_lower2 **55 PASS**, sm_dead 1, Icon m2 **6/6 HARD** + m3 6/6 +
+                     m4 6/6 (byte-neutral, git-stash verified). PRE-EXISTING (not this session, git-stash-proven
+                     at clean 8a01bb3): concurrency audit purity 7>6 delta (bb_assign/binop/call/every/field/
+                     list_bang/swap — none touched). Rebased clean over peer 641e45d (RK-LOWER-4 Raku junctions,
+                     lowerer-only). Recorded the **DESIGN QUESTION** (pattern construction: bake parser AST vs
+                     thread builder BBs) + recommendation (threaded canonical = PB-2; bake invariant subtrees =
+                     PB-OPT; build a pattern graph NOT tree_t) — PENDING LON. **NEXT (#1):** (define) SNOBOL4
+                     user functions in mode-3 (IR_CALL + frame); then the native PB-0..PB-3 pattern ladder per
+                     the DESIGN QUESTION decision. Base 641e45d.
 HEAD SCRIP       = ade7656  (UNCHANGED — .github-only session) SBL-PAT-BB-PLAN (Opus 4.8, 2026-05-31) —
                      Lon "Eureka" planning/architecture session. NO SCRIP code touched; SCRIP stays at ade7656,
                      corpus untouched. ALL GATES UNCHANGED from ade7656 (m2 7/7 HARD; m3 0/6, m4 0/6 ABORT by
@@ -815,6 +854,37 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 
 ## Session log (last few, terse)
+
+- **2026-05-31 (Opus 4.8) — SBL-M3-CHAIN: SNOBOL4 MODE-3 RUNS FROM LOWER'S FOUR-PORT GRAPH (the `sno_ring_to_tree` replacement) ✅ mode-3 0/6 → 5/6**
+  (SCRIP `7c26eb7`, base `641e45d`; .github this commit). The banned `sno_ring_to_tree` adapter stays deleted; mode-3
+  now consumes LOWER's four-port statement-BB graph DIRECTLY via a new SNOBOL4 flat-chain emitter. **5 cases pass
+  natively via `--run`: output `'hello'`, concat `'ab' 'cd'`→`abcd`, arith `2+3`→`5`, pattern `S 'b'='X'`→`aXc`, goto_s
+  `:S(HIT)`→`hit`** (all confirmed vs SPITBOL oracle `/home/claude/x64/bin/sbl -b`). mode-2 **7/7 HARD held**; only
+  `define` (user functions, IR_CALL+frame) remains for mode-3. **New (emit_bb.c, all SNOBOL-specific, byte-neutral to
+  Icon — confirmed Icon m2 6/6 + m3 6/6 + m4 6/6 via `git stash` rebuild):** `sno_flat_chain_build(IR_graph_t*)` (BINARY)
+  + `_text` (mode-4 future) mirror `icn_flat_chain_build` but (1) RESOLVE the `IR_SUCCEED` LANDING nodes transitively
+  (`sno_chain_resolve` — a port to a landing follows through to its target; terminal `IR_SUCCEED` γ==NULL → success
+  epilogue, `IR_FAIL` → failure epilogue), so the per-statement landing threading is transparent; (2) do NOT set
+  `g_icn_flat_chain` (so `walk_bb_flat` takes the SNOBOL arms), instead set new `g_sno_flat_chain` (makes a standalone
+  `IR_VAR` a by-name PASS-THROUGH — its value is read by-name in `bb_sno_assign_var`, so it must NOT push the excised
+  value stack / `rt_nv_get` → `[SMX]` abort). Operand-ref pass `sno_chain_operand_refs(IR_graph_t*)` runs PER STATEMENT
+  (`sno_stmt_operand_refs` over each statement-head = landing-resolved γ-target of entry + every landing) so statements
+  reachable only via a failure/ω edge or a goto still get their consumer's `α` set (the `goto_s`/skipped-statement
+  bug). `sno_chain_arity`: SNOBOL concat `IR_SEQ`(dval==1.0) = arity-0 LEAF (operands in sub-graphs) → `ASSIGN.α`=SEQ;
+  `IR_SCAN` = arity-1 (consumes its γ-predecessor: subject for plain form / replacement for repl form) → `SCAN.α` set;
+  else delegates to `icn_chain_arity` (covers the postfix LIT_I/LIT_I/BINOP/ASSIGN arith chain). Driver `scrip.c`:
+  the mode-3 SNOBOL4 ABORT replaced with `sno_flat_chain_build(sbbg)` run under `g_frame_active=1` via `fn(rt_frame(),0)`;
+  unbuilt shapes → SOFT honest fall (loud `[SBB]` stderr, clean exit, NO abort), so working shapes run while `define`
+  just yields empty output. `bb_var.cpp` gained a `g_sno_flat_chain` pass-through arm (10-byte `jmp γ; β: jmp ω`).
+  **NOTE — patterns run via the EXISTING IR_SCAN interpreter bridge** (`rt_sno_exec_scan`→`bb_exec_once` over the
+  `IR_SCAN.counter` pattern sub-graph, mode-2's 19-arm engine, process-valid pointer baked imm64): this is the pragmatic
+  static-pattern path, **NOT** the native PB-2/PB-3 builder-BB/`BB_MATCH` ladder (still future; see DESIGN QUESTION above).
+  **Gates:** make scrip rc=0, make libscrip_rt rc=0, SNOBOL4 smoke m2 **7/7 HARD** + m3 **5/6** (floor MODE3_MIN raised
+  0→5), prove_lower2 **55 PASS**, sm_dead 1 (≤1), Icon m2 **6/6 HARD** (byte-neutral). **PRE-EXISTING (NOT this session,
+  proven via `git stash` at clean `8a01bb3`):** `audit_concurrency_invariants.sh` flags template-purity 7 > baseline 6
+  (bb_assign/bb_binop/bb_call/bb_every/bb_field/bb_list_bang/bb_swap) — none touched here; my 4 files add ZERO purity
+  side-effects. **NEXT:** (define) SNOBOL4 user functions in mode-3 (IR_CALL + call frame); then the real PB-0..PB-3
+  native pattern ladder per the DESIGN QUESTION decision; mode-4 SNOBOL4 still 0/6 (driver `--compile` re-stitch is PB-5).
 
 - **2026-05-31 (Opus 4.8) — SBL-M4-STACKLESS-1: SNOBOL4 MODE 4 LANDS (literal-assign) + modes-3/4 MISS diagnosed ✅**
   (SCRIP `80e6c22`, base `aa307b7`, rebased over `17096f3` RK-LOWER; .github this commit). Mode 4 **0/6 → 1/6**: `OUTPUT='hello'` emits a complete
