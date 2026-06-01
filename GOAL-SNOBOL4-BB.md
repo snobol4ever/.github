@@ -547,12 +547,38 @@ Smoke target ladder: `S 'b'` (plain match) → `S 'b' = 'X'` → `aXc` (match+re
   `sno_flat_chain_build`, ran, confirmed Σ base="abc" / Δ len=3). v_scan re-stitch to the five-phase chain
   is deferred to PB-2/PB-5 (when BB_MATCH consumes Σ/δ/Δ in one sealed sequence). Gates: prove_lower2 59/0
   (was 57), smoke m2 7/7 (HARD) / m3 5/6 / m4 0/6 (UNCHANGED), concurrency invariants OK, sm_dead 1.
-- [ ] **PB-1 — PATTERN-BUILDER BB, literal first (phase 2).** Lower `TT_QLIT` pattern → a builder BB whose
+- [x] **PB-1 — PATTERN-BUILDER BB, literal first (phase 2).** Lower `TT_QLIT` pattern → a builder BB whose
   runtime effect CONSTRUCTS a LIT pattern-box; the built pattern-graph head lands in a `ζ` slot. BINARY +
   TEXT. (This is the "BBs that build BBs" core — model the construction protocol here, reuse for all kinds.)
+  **[DONE 2026-06-01, Opus 4.8]** New `IR_PAT_BUILD_LIT` kind (IR.h, append-only) + `lower2_pat_build_entry`
+  (lower.c): `TT_QLIT` → ONE builder box, bounded single-shot (β=ω; a builder is NOT a generator). DISTINCT
+  from the matcher-leaf `IR_PAT_LIT` the mode-2 IR_SCAN super-node consumes (stays intact → ZERO regression).
+  `rt_sno_pat_build_lit` (rt.c) is VALUE-STACK-FREE — it wraps the proven `pat_lit` constructor and returns
+  the built `PATND_t*` head (NOT the deleted `rt_pat_lit` vstack-assembler wrapper). `bb_sno_pat_build_lit.cpp`
+  template: BINARY (40-byte) + TEXT (@PLT) arms, mirroring `bb_sno_subject`; literal is RO (`[rip+disp]`/movabs),
+  built head is RW into an 8-byte ζ-slot `[r12+off]` (PER-BOX LOCAL STORAGE FACT RULE). emit_core dispatch +
+  `flat_drive_sno_pat_build_lit`/walk_bb_flat case (emit_bb.c) + dormant mode-2 arm (bb_exec.c, concurrency
+  completeness). v_scan deliberately NOT rewired (re-stitch is PB-2). Gates: prove_lower2 **64/0** (+1 BLDLIT
+  topology: own α, β=ω, 1 real node), smoke m2 **7/7 HARD** / m3 5/6 / m4 0/6 (UNCHANGED), concurrency
+  invariants OK, purity +0 (fail-loud is MEDIUM_BINARY-exempt), no-vstack `g_vstack`==0. **Mode-3 execution
+  probe PASS**: `BLDLIT('abc')`→SUCCEED JIT'd via `sno_flat_chain_build`, ran with `rt_frame`, built a
+  `PATND_t{kind=XCHR, STRVAL="abc"}`; disasm confirms stackless ζ=r12 frame, no value stack.
 - [ ] **PB-2 — BB_MATCH box (phase 3).** Generic matcher: input = built pattern graph + subject (`Σ/δ/Δ`);
   runs SPITBOL ch.18 scanner (unanchored start-loop, four-port backtrack, no value stack); success leaves
   `δ` at match-end + the span. BINARY + TEXT. mode-3 `S 'b'` → matches.
+  **PREP LANDED 2026-06-01 (Opus 4.8):** the value-stack-free ch.18 LITERAL-scan kernel `rt_sno_match_lit`
+  (rt.c) is in + unit-tested 7/7 (incl. SPITBOL ch.6 `'BLUEBIRD' ? 'BIRD'`→[4,8], anchored/unanchored,
+  null-at-cursor-0, OOB-guarded). It is the kernel BB_MATCH's XCHR arm will call; currently UNCALLED (no box
+  yet) — wire it in PB-2 proper. **PB-2 IS NOT STANDALONE-PROVABLE LIKE PB-0/PB-1** (it has no single AST
+  node; MATCH only exists inside the SUBJECT→BUILDER→MATCH chain) → PB-2 inherently bundles the v_scan
+  chain-lowering. **CONVERGENCE DECISION (Lon-level, do with full context):** mode-2 consumes `IR_SCAN`
+  (super-node); modes-3/4 want the chain — DIFFERENT IR shapes, colliding with "lower once, all modes from
+  one IR". Resolve by retiring `IR_SCAN` and lowering `TT_SCAN`→SUBJECT→BUILDER→MATCH for ALL modes (mode-2
+  arm runs the same chain), OR a deliberate dual-shape. `exec_stmt` is the mode-2 driver and ABORTS on the
+  removed PATND→IR bridge for non-literals — NOT reusable. NEXT: `IR_PAT_MATCH` kind + `bb_sno_match.cpp`
+  reading the built head from PB-1's ζ slot + Σ/Δ from PB-0's via `bb_slot_get` (producers on `α` +
+  `operand_aux` sidecar per PEERS RULE), calls `rt_sno_match_lit`, sets δ=m_end + span on γ; prove 3-box
+  chain topology + mode-3 `S 'b'`.
 - [ ] **PB-3 — builder BBs for the rest (phase 2 breadth).** CAT (subsequents), ALT (alternates), LEN, POS,
   RPOS, SPAN, ANY, NOTANY, BREAK, REM — each a builder BB onto the PB-1/PB-2 foundation, topology-proven,
   BINARY + TEXT. (Grounded per primitive in SPITBOL ch.6/ch.18/ch.19.)
@@ -653,6 +679,36 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = 6483bb5  SBL-PAT-BB PB-1 + PB-2-PREP (Opus 4.8, 2026-06-01) — PATTERN-BUILDER BB
+                     (literal) LANDS (phase 2 of the five-phase native pattern model), + the PB-2 BB_MATCH
+                     scanner kernel pre-landed. PB-1: new IR_PAT_BUILD_LIT kind (IR.h, append-only before
+                     IR_OP_COUNT) + lower2_pat_build_entry (lower.c): TT_QLIT -> ONE builder box, bounded
+                     single-shot (β=ω; a builder is NOT a generator). DISTINCT from the matcher-leaf
+                     IR_PAT_LIT the mode-2 IR_SCAN super-node consumes -> ZERO regression. rt_sno_pat_build_lit
+                     (rt.c) is VALUE-STACK-FREE: wraps the proven pat_lit constructor, returns the built
+                     PATND_t* head (NOT the deleted rt_pat_lit vstack-assembler wrapper). bb_sno_pat_build_lit.cpp
+                     template: BINARY (40B) + TEXT (@PLT) arms, mirrors bb_sno_subject; literal RO
+                     ([rip+disp]/movabs), built head RW into an 8-byte ζ-slot [r12+off] (PER-BOX LOCAL STORAGE
+                     FACT RULE). emit_core dispatch + flat_drive_sno_pat_build_lit/walk_bb_flat (emit_bb.c) +
+                     dormant mode-2 arm (bb_exec.c, concurrency completeness). v_scan deliberately NOT rewired
+                     (re-stitch is PB-2). PB-2 PREP: the value-stack-free ch.18 LITERAL-scan kernel
+                     rt_sno_match_lit (rt.c) is in + unit-tested 7/7 (SPITBOL ch.6 'BLUEBIRD' ? 'BIRD'->[4,8],
+                     anchored/unanchored, null-at-cursor-0, OOB-guarded); the kernel BB_MATCH's XCHR arm will
+                     call — currently UNCALLED (no box yet). **Gates:** scrip rc=0, libscrip_rt rc=0,
+                     prove_lower2 **64/0** (+1 BLDLIT topology: own α, β=ω, 1 real node), smoke m2 **7/7 HARD**
+                     / m3 5/6 / m4 0/6 (UNCHANGED — zero regression), concurrency invariants OK, purity +0
+                     (fail-loud is MEDIUM_BINARY-exempt), no-vstack g_vstack==0. **Mode-3 execution probe PASS**:
+                     BLDLIT('abc')->SUCCEED JIT'd via sno_flat_chain_build, ran with rt_frame, built a
+                     PATND_t{kind=XCHR, STRVAL="abc"}; disasm confirms stackless ζ=r12 frame, no value stack.
+                     **NEXT (#1): PB-2 BB_MATCH proper** — NOT standalone-provable like PB-0/PB-1 (MATCH has no
+                     single AST node; it only exists inside the SUBJECT->BUILDER->MATCH chain) → PB-2 bundles
+                     the v_scan chain-lowering. CONVERGENCE DECISION (do with full context): mode-2 consumes
+                     IR_SCAN (super-node), modes-3/4 want the chain — DIFFERENT IR shapes vs "lower once, all
+                     modes from one IR"; resolve by retiring IR_SCAN + lowering TT_SCAN->SUBJECT->BUILDER->MATCH
+                     for ALL modes (mode-2 arm runs the same chain) OR deliberate dual-shape. Then IR_PAT_MATCH
+                     kind + bb_sno_match.cpp reading the built head from PB-1's ζ slot + Σ/Δ from PB-0's via
+                     bb_slot_get (producers on α + operand_aux per PEERS RULE), calls rt_sno_match_lit, sets
+                     δ=m_end + span on γ; prove 3-box chain topology + mode-3 `S 'b'`. Base 179bf4d.
 HEAD SCRIP       = 179bf4d  SBL-PAT-BB PB-0 (Opus 4.8, 2026-05-31) — SUBJECT BB LANDS (phase 1 of the
                      five-phase native pattern model). New IR_SUBJECT kind + lower2_subject_entry (subject
                      value-expr lowered VALUE-role, γ->SUBJECT, bounded) + mode-2 arm (bb_exec.c, dormant) +
