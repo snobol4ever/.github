@@ -1030,6 +1030,60 @@ probes: run `--interp` then `--run` then `--compile --target=x86` and state each
   FACT discipline: zero `seg_byte(SEG_CODE`/`SL_B(`/byte-emitters outside `*_templates/`; every byte
   through a template fn reached via `emit_bb.c` dispatch.
 
+  - [x] **PLG-9d-bt — BACKTRACKING (`IR_CHOICE` multi-clause + `IR_DISJ` `;`), mode-4 end-to-end. DONE
+    (Opus 4.8, 2026-06-01, atop `0c0ec84`, SCRIP `3be7e6e` — rebased onto the concurrent GZ-11 SUSPEND
+    commit `a3728c0`).** Fail-driven backtracking through the
+    standalone-binary CP spine now compiles natively. `rung02` (facts + `;`/`fail` enumeration → `brown
+    jones smith`), `rung05` (`member/2` recursion+backtrack → `a b c`), `rung08` (`fib`/`factorial`
+    recursion, multi-goal clause bodies → `8`/`6`) all 3-mode AGREE. **GATE-3 m2 111/111, m3 111/111,
+    m4 11 → 24 PASS / 0 FAIL / 87 EXCISED** (+13). **GATE-1 m2 5/5 HARD, m3 5/5, m4 3 → 5 PASS / 0
+    EXCISED** (`clause` + `recursion` now compile). FACT 0; this work is sibling-neutral (Prolog-arm-only
+    — stash-and-compare against the pre-rebase baseline showed Icon m2 byte-identical at 90/157/36 and
+    SNOBOL4 unchanged). After rebasing onto GZ-11, live siblings are **Icon m2 107/140/36** (the 90→107 gain
+    is GZ-11's SUSPEND work, NOT this commit) and **SNOBOL4 m2 7/7 HARD m3 5 m4 0** (unchanged). **The
+    empty-output bug was
+    FOUR distinct defects, not one (additive, Prolog-arm-only):**
+    1. **Body-root mis-selection** (`scrip.c` `pl_rich_body_root`, `emit_bb.c` `codegen_pl_callee_block`).
+       A disjunctive body lowers to a top `IR_GCONJ` wrapping an `IR_DISJ` whose α IS its left-arm
+       `GCONJ`'s entry — so TWO GCONJs share `goals[0]==entry` and BOTH heuristics ("unique GCONJ" /
+       "goals[0]==entry") mis-pick, walking only the first goal. FIX: the lowerer records the real body
+       root on a new `IR_graph_t.body_root` (`IR.h`) field in `lower2_clause_body_entry`; both selectors
+       prefer it.
+    2. **`GCONJ` goals[] stored α, not principal** (`lower.c` `wire_seq` + `lower2_clause_body_entry`).
+       `flat_drive_pl_seq` walks `goals[i]` via `walk_bb_flat`; for a disjunction element `goals[i]` was
+       the DISJ's deep α (an `IR_GOAL`), so the disjunction structure was never dispatched. FIX: store
+       each element's PRINCIPAL node (`apply[i]`) in the sidecar — a no-op where α==principal (simple
+       goals), the fix where they differ (`IR_DISJ`/`IR_ITE`/nested `IR_GCONJ`).
+    3. **`flat_drive_pl_alt` read the wrong source** (`emit_bb.c`). It read disjunction arms from
+       `pBB->α`/`pBB->β` (saw ONE arm → silently dropped `; true`); the arms live in `operand_aux` (as
+       the mode-2 `IR_DISJ` exec already reads). FIX: read n-ary arm principals via
+       `bb_operand_aux_get(g_emit_cfg, …)` and thread each arm's fail to the next arm's `pre` (the
+       `bb_disj` template's trail-unwind), last → ω. Requires `wire_alt` to store arm PRINCIPALS in
+       `operand_aux` for `IR_DISJ` (uniform with `IR_ALT`); the mode-2 exec unwraps a `GCONJ` arm to its
+       `goals[0]` (`bb_exec.c` `pl_disj_arm_enter`) so the jump target is byte-identical to the prior
+       `entry[]` representation — mode-2 provably unchanged (111/111 held).
+    4. **`g_emit_cfg` unset on the mode-4 walk** (`scrip.c` rich arm + `emit_bb.c` `codegen_pl_callee_block`).
+       `operand_aux` is keyed by (graph, node); only the mode-3 `bb_build_flat` path set `g_emit_cfg`. FIX:
+       set it to `pl_main` around the main-body `codegen_flat_build`, and to the callee graph inside
+       `codegen_pl_callee_block`.
+    **Plus `resolve_choice_bodies_em` now returns each clause's `body_root`** (not `->entry`) so a
+    multi-goal clause body (fib's recursive clause) emits ALL its goals — byte-identical for single-element
+    fact bodies (a `GCONJ(n=1)` walks its sole goal directly).
+    **TWO gate-completeness fixes (kept mode-4 at 0 FAIL — both found via the rung suite, not by luck):**
+    (a) **`pl_rich_graph_ok` now recurses into `IR_CHOICE` clause-body sub-graphs** (`zc->bodies[]`). A
+    multi-clause predicate's clause bodies are SEPARATE graphs, not in the predicate graph's `all[]`, so a
+    non-emittable builtin buried in a recursive clause (`rung14` `retract`, `assertz`) slipped the gate →
+    emitted an "unknown builtin" stub → **segfault (FAIL)**. Now caught → the program EXCISES cleanly. (b)
+    **Admit integer-scalar arithmetic comparisons** (`>`,`<`,`>=`,`=<`,`=:=`,`=\=`) to the rich gate: the
+    `bb_builtin` CAT-D-9 arm serializes each operand as `(kind,ival,sval)` and calls `rt_pl_arith_cmp`,
+    which evaluates ONLY a scalar operand (int literal or logic-var slot) — so admit iff both operands are
+    `pl_flat_arith_leaf_simple` (rejects float/nested-arith/atom → `rung16`/`rung29` stay EXCISED). `rung08`
+    `N>1`/`N>0` proves the shape 3-mode. (Restored `rung08` after fix (a) initially over-EXCISED it.)
+    **NEXT — PLG-9e+.** The remaining ~87 m4-EXCISED rungs are the mode-2-only builtin families (findall,
+    atom/string builtins, sort, format, numbervars, term comparisons `==`/`@<`, catch/throw, float arith,
+    runtime assert/retract) — each EXCISES cleanly (0 FAIL). A purist tidy still pending: the callee γ/ω
+    epilogue is literal `emit_text_n` in `emit_bb.c` (a future `xa_pl_callee_epilogue` XA template).
+
 - [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue (the historical breaker).** The construct that
   broke the original fully-static SNOBOL4 and is solved in `test_sno_1.c` via the `_1[64]`/`ζ`
   explicit indexed frame array. Map the Prolog analogue (findall goal sub-graph; assertz/retract
