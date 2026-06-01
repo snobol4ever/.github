@@ -118,6 +118,24 @@ producer→consumer value (only true variable assignment); (d) every box-local r
 or `[ζ+off]` (RW) — no `movabs … &pBB->slot` absolute slot address; (e) mode-3 BINARY arm and mode-4
 TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes vs GAS-text).
 
+### ⛔ NO-RESURRECT — deleted Prolog value-stack push helpers (Lon directive, 2026-05-31)
+
+`rt_pl_atom_push` and `rt_pl_var_push` are **DELETED** and must **never be resurrected**. They pushed a
+box's value onto the global value stack (`rt_pl_*_push → rt_push_int/rt_push_str → vstack_push(g_vstack)`)
+— exactly the value-stack traffic completion-test (b) bans. A Prolog box value lives in its box: a logic
+variable's binding in its per-activation slot `g_resolve_env[slot]`, an atom as a sealed RO operand
+constant — and the **consumer reads it directly** (`rt_pl_node_to_term` / `rt_pl_write_atom` /
+`rt_pl_write_var` / `rt_pl_arith`), never via a push. Their former boxes `bb_atom.cpp` and
+`bb_logicvar.cpp` are now minimal stackless four-port pass-throughs (`α→γ, β→ω`); `RESOLVE_ATOM` /
+`RESOLVE_VAR` provably fire zero times on every live mode-3/mode-4 path (atoms/vars are always operand
+constants, never executed leaves). **KEEP, do NOT confuse with these:** the trail ops `rt_pl_trail_*`
+(`g_resolve_trail`) are the binding-undo ledger, not a value stack (M4 = KEEP). The `g_vstack` array
+itself remains only as SNOBOL4/Icon's own machinery (~150 `rt_*` sites: `rt_arith`/`rt_concat`/pattern
+prims/`rt_frame`); Prolog has ZERO ties to it. **GUARD:** `scripts/test_gate_pl_no_value_stack.sh` (run
+before every Prolog commit) FAILS if either helper is redefined/declared/called or if any Prolog box
+template references `rt_push_*`/`rt_pop_*`/`vstack_*`/`g_vstack` (comments stripped; code only). It has a
+proven negative test (injecting a resurrection makes it exit 1).
+
 ---
 
 ## ★★★ PLG — STACKLESS GROUND-ZERO REBUILD (CURRENT — supersedes WAM-CP *direction*) ★★★
