@@ -603,21 +603,21 @@ templates only; m2 7/7 HARD must stay invariant every step.**
   bakes from `bb_lit`. Prove: prove_lower2 topology unchanged; mode-3 `S 'b'` in `'abc'` → `[1,2]` under REG-0;
   disasm shows cursor=r14/Σ=r13/Δ=r15, no `&Σ`/`&Σlen` imm64. Gate: m2 7/7 HARD invariant; m3 ≥ floor; purity
   clean; g_vstack==0.
-- [~] **REG-2 — cursor-advancing leaves.** `bb_pat_len`, `bb_pat_any`, `bb_pat_notany`, `bb_pat_span`,
-  `bb_pat_break`, `bb_pat_rem` — same rewrite per box (verify each box's actual cursor-field offset + `&Σ`/`&Σlen`
-  sites against disasm before editing; they are NOT all identical). Each step removes that box's `TEMPLATE_ADDR_SIG*`
-  bakes. Gate per box (or small sub-group); m2 invariant.
-  **5/6 LANDED (SCRIP `eb4bf7c`, 2026-06-01 Opus 4.8):** `bb_pat_len` (34B, sites {13,25,29,30}), `bb_pat_rem`
-  (13B, {4,8,9}), `bb_pat_any` (74B, {8,52,61,65,70}), `bb_pat_notany` (74B, same; byte@50 `0F84`→`0F85`),
-  `bb_pat_span` (195B, {118,143,147,167,191}; internal Δ jge +62 / je +18 / jmp loop −86; r11 base-copy + its
-  push/pop dropped, Σ=r13 used directly). BINARY+TEXT both; each byte map disasm-verified with `as`+`objdump`;
-  all 5 token-clean (zero `TEMPLATE_ADDR_SIG*`/`[r10]`, code or comment). Per-box β semantics preserved (len/rem
-  no cursor-restore; any/notany undo δ+=1; span gives back one char). **REMAINING: `bb_pat_break`** (dual-arm:
-  plain BREAK 178B + BREAKX 302B/two scan loops) — the plain arm is pre-computed + objdump-verified (153B, sites
-  {125,129,149}; internal Δ jge +63 / jnz +19 / jmp loop −88); BREAKX wants the `as`-transcribe route (write the
-  REG-2 form as GAS asm, let `as` compute the internal short/rel32 jumps, transcribe the literal bytes). It is
-  all-or-nothing for the REG-FENCE grep (converting only the plain arm leaves the file flagged), so do both arms
-  in one focused pass.
+- [x] **REG-2 — cursor-advancing leaves. 6/6 COMPLETE (SCRIP `65686c2`, 2026-06-01 Opus 4.8).** `bb_pat_len`,
+  `bb_pat_any`, `bb_pat_notany`, `bb_pat_span`, `bb_pat_break`, `bb_pat_rem` — same rewrite per box (verify each box's
+  actual cursor-field offset + `&Σ`/`&Σlen` sites against disasm before editing; they are NOT all identical). Each step
+  removes that box's `TEMPLATE_ADDR_SIG*` bakes. Gate per box (or small sub-group); m2 invariant.
+  **First 5 (SCRIP `eb4bf7c`):** `bb_pat_len` (34B, sites {13,25,29,30}), `bb_pat_rem` (13B, {4,8,9}), `bb_pat_any`
+  (74B, {8,52,61,65,70}), `bb_pat_notany` (74B, same; byte@50 `0F84`→`0F85`), `bb_pat_span` (195B,
+  {118,143,147,167,191}; internal Δ jge +62 / je +18 / jmp loop −86; r11 base-copy + its push/pop dropped, Σ=r13 used
+  directly). **`bb_pat_break` LANDED THIS SESSION (dual-arm, both converted in one pass for the REG-FENCE grep):**
+  plain BREAK **153B, sites {125,129,149}** (internal Δ jge +63 / jnz +19 / jmp loop −88); BREAKX **290B, sites
+  {125,130,134,265,286}** (α scan + β rescan; identical per-loop internal jumps jge +87 / jnz +19 / jmp loop −88;
+  `z` in [zeta+8], `z_orig` in [zeta+12] — the 4B padding of the 16B `rt_cs_t`, recovered as δ−z before z++). Both
+  arms assembled+objdump-verified via the `as`-transcribe route, then Python byte-recounted to confirm every site.
+  BINARY+TEXT both; r11 + push/pop r11 dropped (Σ=r13 direct), only push/pop r10 around strchr remains. Token-clean:
+  zero `TEMPLATE_ADDR_SIG*`/`[r10]` in code OR comment. β semantics preserved (BREAK δ−=z on β; BREAKX z_orig recover
+  + z++ + rescan-to-next). Zero `b.size()` introduced (stash-verified: 123 with and without the diff).
 - [ ] **REG-3 — cursor-verify / position leaves.** `bb_pat_pos` (RPOS folded), `bb_pat_tab` (RTAB folded),
   `bb_pat_atp` (`@var` writes the cursor → write R14). POS/RPOS read R14 (and Δ=R15 for RPOS) and compare; TAB/RTAB
   advance R14 to a computed target. Gate; m2 invariant.
@@ -1791,24 +1791,36 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `eb4bf7c` · .github this commit.
-**This session (2026-06-01, Opus 4.8) — REG-2 (5/6) cursor leaves + REG-RO step added:**
+**Watermark.** SCRIP `65686c2` · .github this commit.
+**This session (2026-06-01, Opus 4.8) — REG-2 COMPLETE (6/6): `bb_pat_break` (BREAK + BREAKX) migrated:**
+- **REG-2 6/6** — finished by converting the last cursor-advancing leaf, `bb_pat_break`, off the legacy
+  `[r10]`-cursor + `&Σ`/`&Σlen` movabs bakes to Σ=R13/δ=R14d/Δ=R15d. **Both arms in one pass** (all-or-nothing for
+  the REG-FENCE grep): plain BREAK **153B, sites {125,129,149}** (internal Δ jge +63 / jnz +19 / jmp loop −88);
+  BREAKX **290B, sites {125,130,134,265,286}** (α scan to first cset char + β rescan to next; identical per-loop
+  internal jumps jge +87 / jnz +19 / jmp loop −88). `z` lives in `[zeta+8]`; BREAKX `z_orig` lives in `[zeta+12]`
+  (the 4B padding of the 16B `rt_cs_t`), recovered as δ−z BEFORE the z++ at β entry. r11 + push/pop r11 dropped
+  (Σ=r13 used directly in `movzx esi,[r13+rcx+0]` — the disp8 SIB form, 6B); only push/pop r10 around `strchr`
+  remains. BINARY+TEXT both converted; both arms assembled via the `as`-transcribe route, objdump-verified, then
+  Python byte-recounted to confirm every site and every internal-jump literal. Token-clean: zero
+  `TEMPLATE_ADDR_SIG*`/`[r10]` in code OR comment. Zero `b.size()` introduced (stash-verified: 123 with AND without
+  the diff — the +1 over the 122 watermark is the intervening Prolog tree, not this change).
+- Single file touched: `src/emitter/BB_templates/bb_pat_break.cpp` (+155/−144).
+- Gates all GREEN + invariant; m2 7/7 HARD held; no regression. **REG-2 is done → next is REG-RO** (then REG-3…5,
+  REG-FENCE). REG-FENCE can now re-check SNOBOL m4 once a full pattern chain assembles+links (the `&Σ`/`&Σlen`
+  bakes are gone from the cursor-advancing family; r10 traffic + RO `movabs` addresses are what REG-RO finishes).
+
+**Prior session (2026-06-01, Opus 4.8) — REG-2 (5/6) cursor leaves + REG-RO step added:**
 - **REG-2 5/6** (SCRIP `eb4bf7c`): migrated `bb_pat_len`/`rem`/`any`/`notany`/`span` off the `[r10]`-cursor +
   `&Σ`/`&Σlen` bakes to Σ=R13/δ=R14/Δ=R15. BINARY+TEXT both; span also dropped r11 + its push/pop (Σ=r13 used
   directly in the indexed byte load). Every BINARY byte map disasm-verified with `as`+`objdump` BEFORE writing
   (caught a real `movzx [r13+rcx]` SIB-encoding bug — r13 base needs the disp8 form, 6 bytes not 5); all 5
-  token-clean (zero `TEMPLATE_ADDR_SIG*`/`[r10]`, code or comment). Per-box β semantics preserved (len/rem no
-  cursor-restore; any/notany undo δ+=1; span gives back one char). Per-box sizes/sites in the REG-2 rung above.
-  **`bb_pat_break` remains** (plain arm pre-computed + verified 153B {125,129,149}; BREAKX 302B/two loops via
-  `as`-transcribe; all-or-nothing for REG-FENCE so do both arms one pass).
+  token-clean. Per-box β semantics preserved. Per-box sizes/sites in the REG-2 rung above.
 - **NEW STEP REG-RO** (REG ladder, inserted before REG-FENCE): READ-ONLY locals → IP-relative. The SNOBOL pattern
   BINARY arms bake RO ADDRESSES (lit / cset / `memcmp` / `strchr`) as `movabs` imm64, violating the RULES.md
   **ICON READ-ONLY LOCALS ARE IP-RELATIVE FACT RULE**; move each to `[rip+disp]` into a sealed RO trailer (the
   TEXT arms already do this). Makes the BINARY arm position-independent (a 2nd m4 lever) and — together with the
   RW register ladder — eliminates r10 entirely (the `[r10]` mirror writes + `push/pop r10` guards become dead).
-  REG-FENCE + the ladder completion test updated to require zero `r10` in any form and all RO addresses
-  `[rip+disp]`. (Lon directive, this session.)
-- Gates all GREEN + invariant (see SNOBOL4 status); m2 7/7 HARD held throughout; no regression.
+  (Lon directive.)
 
 **Prior session (2026-06-01, Opus 4.8) — FACT RULE + REG-0/1 + bb_match literal conversion:**
 - **NEW FACT RULE "TWO LITERAL FORMS ONLY"** (above, after the NO-VALUE-STACK rule) — byte-identical ×5 GOAL-*-BB
@@ -1838,8 +1850,8 @@ hardcoded LITERAL offset map (the way bb_match was converted this session). ⚠ 
 (how a variable-length box gets literal patch offsets) — solve that before touching them. The other ~21 files are
 Icon/Prolog/generic boxes (outside the SNOBOL goal). **(1) REG LADDER** (see the 🔴 CURRENT PRIORITY
 section at the top): migrate the pattern BB templates off the legacy `[r10]`/`&Σ`/`&Σlen` model to the ratified
-registers Σ=R13/δ=R14/Δ=R15/ζ=R12 — REG-0/REG-1 (bb_match α + bb_lit) and **REG-2 5/6** (bb_pat_len/rem/any/notany/
-span, SCRIP `eb4bf7c`) landed; **next is finishing REG-2 (`bb_pat_break`, plain arm pre-verified)**, then **REG-RO**
+registers Σ=R13/δ=R14/Δ=R15/ζ=R12 — REG-0/REG-1 (bb_match α + bb_lit) landed, and **REG-2 is now COMPLETE 6/6**
+(bb_pat_len/rem/any/notany/span SCRIP `eb4bf7c`; **bb_pat_break BREAK+BREAKX this session**). **Next is REG-RO**
 (RO addresses → `[rip+disp]`, kills r10), then REG-3 (pos/tab) → REG-4 (combinators) → REG-5 (generators) →
 REG-FENCE. **(2) THEN** PB-RB-4 (STITCH_SEQ/STITCH_ALT — topology already proven, only the emitter wiring + drive
 remain; mode-3 `S ('a'|'b')` and `S 'a' 'b'`), PB-RB-5…OPT, and BROK-0…BROK-3. The pattern-engine breadth (PB-RB
