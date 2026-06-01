@@ -682,6 +682,22 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
+**HEAD (SCRIP):** `a3728c0` GZ-11 SUSPEND mode-2 — user-defined Icon generators via `suspend E do BODY`
+(jcon `ir_a_Suspend`). A suspending procedure is now a generator; `every write(gen())` re-pumps it. Eager-drain
+model: the proc body's `IR_SUSPEND` nodes append to a per-activation `SuspendBuf`, the `IR_CALL` (dval==3.0) site
+harvests into a node-keyed `susp_gen_cache` and yields one value per re-entry via `state`/`counter` (like IR_TO);
+the resume-wiring crux is a generator call's β port -> the call node itself (resumable) vs ω (bounded) for a
+deterministic call, decided by an `is_generator` pre-pass in `lower_program.c`. 5 files (+213): `lower.c`
+(TT_SUSPEND arm + TT_LOCAL/GLOBAL/STATIC no-op arm + `icn_proc_is_generator`), `lower_program.c` (suspend
+detection + pre-pass), `bb_exec.c` (SuspendBuf + susp_gen_cache + IR_SUSPEND exec + IR_CALL harvest/resume),
+`scrip_ir.c` (IR_SUSPEND in the bb_reset counter-preserve whitelist), `prove_lower2.c` (local g_stage2 for the
+standalone link). **GATES: Icon smoke m2/m3/m4 12/12/12 (HARD green) · corpus `test_icon_all_rungs` 90→107
+PASS (+17) · no-stack 117≤127 · one-reg-frame 20≤20 · FACT 0 · C-byrd-box 0 · prove_lower2 64/64 · Prolog
+m2/m3 5/5 · SNOBOL4 hi-sno OK · unified broker 24/42 (== session start).** mode-2 ORACLE ONLY (zero x86 emitted;
+emission gates untouched); native mode-3/4 suspend is a later rung. Pushed; rebased CONFLICT-CLEAN onto the
+parallel SNOBOL4 `77bbebc` (PB-RB-1 bb_ref_invariant emit arm) — disjoint files, FACT-rule isolation held.
+NEXT: GZ-DEFER (EVAL/CODE/`*P` deferred patterns, `test_sno_3.c` model), then GZ-11+ corpus features stackless.
+
 **HEAD (SCRIP):** `2de9ff5` GZ-10 modes 3/4 ARGS + recursion — stackless Icon user-procedure calls with
 arguments, recursion, and mutual recursion now run in mode-3, m2==m3. `proc_recursion` smoke flips PASS →
 **Icon m3 11/11**. Built on the GZ-10 modes-3/4 ZERO-ARG foundation `da3a786`; rebased CONFLICT-CLEAN onto the
