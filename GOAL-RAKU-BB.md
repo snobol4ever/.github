@@ -220,6 +220,13 @@ prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arm
   hash/array element ops, `sort`, `try`/`CATCH`, class/method dispatch — each a deterministic `IR_*` arm
   (beta=omega_in, no generator). Port the APPENDIX-A RK-HASH / RK-IO / RK-EXCEPTIONS / RK-CLASS *semantics*
   onto the four-port IR (they worked on the SM engine; the behaviors are the spec, the SM opcodes are not).
+  **5a DONE (2026-05-31, Opus 4.8): read-only value ops** — list construction `(e1,..)`→`__rk_arr`, `@a[i]`→`arr_get`,
+  `%h<k>`/`%h{k}`→`hash_get`, membership→`hash_exists`, `sort(@a)`→`array_sort`, plus the `elems`/`reverse`/`join`/
+  `sum`/`unique`/`head`/`tail`/`chars`/`length`/`lc`/`uc`/`trim`/`substr`/`index`/`rindex` whitelist — all via the
+  SHARED `v_raku_det_call`→`IR_CALL` (dval=2.0, det). **5b STILL OPEN:** mutating ops (`push`/`pop`/`arr_set`/`hash_set`/
+  `hash_delete`) need vname-threaded writeback (IR_t is LEAN per PEERS — clean path = pure-variant runtime + `IR_ASSIGN`,
+  except `pop` which truly needs vname). **5c:** `try`/`CATCH`/`die` (exception propagation through shared SEQ/sub-call
+  exec — FACT-RULE-sensitive). **5d:** class/method/field/new + `say(jct)`/`say(list)` composite output.
 - [ ] **RK-EMIT-1..N — mode-3/4 template arms.** Once the lowered Raku arms are mode-2-proven, fill the
   `bb_rk_*.cpp` MEDIUM_BINARY (mode-3) + MEDIUM_TEXT (mode-4) arms, ONE box per file, dispatched from
   `emit_core.c`, per the TEMPLATE-ONLY FACT RULE. Gate each via `--run` / `--compile` corpus delta + the
@@ -309,6 +316,51 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 ---
 
 ## Watermark
+
+**RK-LOWER-5a LANDED (2026-05-31, Opus 4.8).** Raku eager-core READ-ONLY value ops cross onto the unified `lower.c`
+for mode-2. SCRIP HEAD before this work: `641e45d` (the RK-LOWER-4 junction commit). My 3 files: `src/lower/{lower.c,
+prove_lower2.c}`, `scripts/test_smoke_raku.sh`; ZERO emitter files — same discipline as RK-LOWER-0/1/2/3/4. Build clean
+(`scrip` + `libscrip_rt` rc=0). Mode-3≡mode-4 invariant kept BY CONSTRUCTION (no emitter touched ⇒ both modes process
+the new `IR_CALL`s through the SAME shared dispatch → by-design SMX abort, RK-EMIT deferred; nothing can diverge).
+
+- **The lowering (lower.c):** ONE new SHARED helper `v_raku_det_call` (byte-for-byte the junction arm's packing: ONE
+  `IR_CALL`, `dval=2.0`, each operand in its OWN `lower_value_subgraph`, ptr array on `.counter`, count on `.ival`, det
+  so β=ω_in). It is the reach into the already-proven script-builtin runtime (`script_builtins_byname.c`, via the
+  RK-LOWER-4 tail delegation). Wired through (a) FOUR newly-split dedicated cases — `TT_HASH_GET`→`hash_get`,
+  `TT_HASH_EXISTS`→`hash_exists`, `TT_ARR_GET`→`arr_get`, `TT_SORT`→`array_sort` (pulled out of the loud-fall group;
+  non-Raku still → `lower_unhandled`, zero peer change); and (b) a PURE-builtin WHITELIST arm in the existing `TT_FNC`
+  case (`__rk_arr`/`elems`/`reverse`/`sort`/`join`/`sum`/`unique`/`head`/`tail`/`chars`/`length`/`lc`/`uc`/`trim`/`substr`/
+  `index`/`rindex` + the explicit-call read forms). List literal `(e1,e2,..)` desugars (parser) to `__rk_arr(..)`, so
+  list CONSTRUCTION + multi-element `sort`/`reverse`/`@a[i]` reads are all reachable. Semantics per docs.raku.org/type/
+  {List,Hash,Array} + /routine/{elems,reverse,sort}. **0 NEW BBs — reuses `IR_CALL`** (Raku's footprint stays 3 invented
+  : ~13 reused).
+- **THE CRITICAL EXCLUSION (logged for the next dev):** the MUTATING builtins (`push`/`pop`/`arr_set`/`hash_set`/
+  `hash_delete`) and the effectful ones (`open`/`close`/`slurp`/`spurt`/`die`/`meth_call`/`obj_new`/grammar/regex/nfa)
+  are DELIBERATELY NOT whitelisted — routing them through the pure value path would compute a result but silently DROP
+  their variable-writeback / side effect. Per the FACT RULE they instead fall LOUD to `lower_unhandled`, landing properly
+  in 5b/5c. Consequence: hash reads (`hash_get`/`hash_exists`) are WIRED + correct but only round-trip-testable once
+  `hash_set` lands in 5b; the array read+construct+sort path is fully self-contained and proven now.
+- **TWO TRAPS HIT + FIXED (for the next dev):** (1) `make scrip` left a STALE `lower.c` object — use `bash scripts/
+  build_scrip.sh` for a reliable rebuild. (2) A C comment containing `grammar_*/re_*/nfa_*` had `*/` sub-sequences that
+  CLOSED the comment early (stray-`\342` / "5b integer-suffix" errors downstream); rewrote without glob asterisks.
+
+**Gates at handoff:** prove_lower2 **61 PASS** / 0 FAIL (RAKU section +4: `__rk_arr(1,2,3)`, `@a[1]`, `sort(@a)`,
+`elems(@a)` — all 1-principal-node, PASS). Mode-2 HARD all green: Raku **22/22** (added list_construct_read, array_sort,
+array_elems, array_reverse, str_reverse), Icon 6/6 (UNCHANGED — Raku-gated + `IR_LANG_RKU`-gated edits), SNOBOL4 7/7
+(UNCHANGED — NFA isolation intact). FACT-rule md5 `5097ed94` byte-identical ×4; no dup `case IR_`/`TT_` (the four split
+cases route to ONE `v_raku_det_call`, the whitelist lives inside the existing `TT_FNC` case — no new case label).
+**Pre-existing baseline confirmed NOT mine:** `audit_concurrency_invariants.sh` purity COUNT 7 > baseline 6 — all 7 are
+loud-error `fprintf`s in ICON/SNOBOL emitter boxes (`bb_assign/binop/call/every/field/list_bang/swap`), ZERO Raku/`lower.c`
+(I touched no emitter file). **FIX STILL OWED BY ICON/HQ: bump baseline 6→7.** Modes 3/4 = by-design SMX abort for Raku
+(floors MODE3_MIN/MODE4_MIN=0). NOTE: committed LOCALLY as a checkpoint; push-to-origin awaits the next `perform hand off`.
+
+**NEXT:** RK-LOWER-5b — hash/array MUTATING ops with writeback. Cleanest path (IR_t is LEAN, no new field per PEERS):
+add pure-variant runtime twins (`*_pure` returning the new container string, no `NV_SET`) and lower `push(@a,x)`/`%h<k>=v`
+/`@a[i]=v` as `var = pure_op(var, args)` (IR_ASSIGN over IR_CALL). `pop($p=pop(@a))` is the exception — it returns a
+DIFFERENT value than the new container, so it genuinely needs vname threading (exec-side peek of the first sub-graph's
+`IR_VAR`, or a sanctioned marker). Then 5c try/CATCH/die, 5d class/method/field/new.
+
+---
 
 **RK-LOWER-4 LANDED (2026-05-31, Opus 4.8).** Raku junctions `any`/`all`/`one`/`none` + infix `|`/`&` cross onto
 the unified `lower.c` for mode-2. SCRIP HEAD before this work: `8a01bb3`. My 5 files: `src/lower/{lower.c,
