@@ -454,6 +454,55 @@ Every SNOBOL4 pattern BB template must have a working BINARY arm (mode-3 `--run`
 **Mode-4 TEXT arm gaps:** DEFER needs alignment fix (`push r10; push r10` convention per SBL-CAP-OUTPUT-R10); SBL-M4-FLATWIRE — `--compile` must flat-wire at emit time rather than brokering at runtime.
 **Work order:** fill BINARY arms first (SPAN → ARBNO → REM → ABORT → FENCE), gate each via `--run` corpus delta, then audit TEXT arms for mode-4.
 
+### ⭐⭐ SESSION RUNG #0 (Lon "Eureka" directive 2026-05-31): SBL-PAT-BB — pattern = built BB graph (modes 3 & 4 ONLY)
+
+**SCOPE: modes 3 (`--run`, BINARY) and 4 (`--compile`, TEXT) ONLY. Mode 2 (interp) is NOT in scope and
+must NOT regress.** Full architecture in **ARCH-SNOBOL4.md → "Native pattern architecture — modes 3 & 4"**
+and ARCH-x86.md → "Two block TYPES (BB vs XA)". The five phases of `SUBJ ? PAT [= REPL]`, each emitted as
+BB(s) (the ONLY vehicle that does work in modes 3/4 — XA blocks only wrap/stitch):
+
+> **THE EUREKA.** Phase 1 build SUBJECT (easiest) → SUBJECT BB loads `Σ/δ/Δ`. Phase 2 build PATTERN →
+> **builder BBs that build OTHER BBs dynamically** (a SNOBOL4 pattern is a runtime byrd-box graph: `'a'|'b'`
+> CONSTRUCTS). Phase 3 RUN pattern → the generic **BB_MATCH box** runs the SPITBOL ch.18 scanner over the
+> built graph against the subject (unanchored start-loop unless `&ANCHOR`, four-port backtrack, NO value
+> stack). Phase 4 build REPLACEMENT (can fail). Phase 5 do REPLACE (fails if subject not an lvalue —
+> `"hello"`, `99`). **Build (ph.2) and run (ph.3) are GENUINELY SEPARATE.** The current mode-2 `IR_SCAN`
+> super-node + hidden `IR_alloc` sub-graph is the WRONG layer (`sno_ring_to_tree` anti-pattern in the
+> lowerer) and is NOT this design.
+>
+> **THEN — OPTIMIZATION (after ph.1–5 work): INVARIANT-PATTERN BAKE.** Collapse any maximal run of builder
+> BBs that builds an INVARIANT pattern (all components compile-time constant: literal str/int/cset, fixed
+> LEN/POS/RPOS, constant ALT/CAT of such) into ONE **STATIC pattern BB BAKED into the generated code**
+> (emitted once as sealed data/code, no runtime rebuild). Only VARIANT builders (`SPAN(VAR)`, `ANY(expr)`,
+> deferred `*EXPR`, indirect `$NAME`) stay dynamic. const subtree ⇒ bake; references-runtime ⇒ keep builder.
+
+Each step's discipline: prove the four-port TOPOLOGY first (`prove_lower2.sh`: node counts + α/β/γ/ω), then
+the BINARY arm (verify mode-3 `--run`), then the TEXT arm (verify mode-4 `--compile` → `as` → `gcc` → run).
+Smoke target ladder: `S 'b'` (plain match) → `S 'b' = 'X'` → `aXc` (match+replace).
+
+- [ ] **PB-0 — SUBJECT BB (phase 1).** Lower the subject value-expr → a SUBJECT box that loads `Σ` (base),
+  `δ` (cursor=0), `Δ` (len) into the locked registers / `ζ` frame. BINARY + TEXT arms. Prove topology on
+  `S 'b'`; verify mode-3 `--run` loads the subject (disasm / probe).
+- [ ] **PB-1 — PATTERN-BUILDER BB, literal first (phase 2).** Lower `TT_QLIT` pattern → a builder BB whose
+  runtime effect CONSTRUCTS a LIT pattern-box; the built pattern-graph head lands in a `ζ` slot. BINARY +
+  TEXT. (This is the "BBs that build BBs" core — model the construction protocol here, reuse for all kinds.)
+- [ ] **PB-2 — BB_MATCH box (phase 3).** Generic matcher: input = built pattern graph + subject (`Σ/δ/Δ`);
+  runs SPITBOL ch.18 scanner (unanchored start-loop, four-port backtrack, no value stack); success leaves
+  `δ` at match-end + the span. BINARY + TEXT. mode-3 `S 'b'` → matches.
+- [ ] **PB-3 — builder BBs for the rest (phase 2 breadth).** CAT (subsequents), ALT (alternates), LEN, POS,
+  RPOS, SPAN, ANY, NOTANY, BREAK, REM — each a builder BB onto the PB-1/PB-2 foundation, topology-proven,
+  BINARY + TEXT. (Grounded per primitive in SPITBOL ch.6/ch.18/ch.19.)
+- [ ] **PB-4 — REPLACEMENT BB (ph.4) + SUBSTITUTION BB (ph.5).** Replacement value-expr → REPLACEMENT BB
+  (can fail). SUBSTITUTION BB: lvalue-check (fail for literal/number subject), splice
+  `Σ[0:m_start]+repl+Σ[m_end:]`, assign back. mode-3 `S 'b' = 'X'` → `aXc`.
+- [ ] **PB-5 — mode-4 parity sweep.** Confirm every PB-0..PB-4 box's TEXT arm assembles+links+runs; the
+  `--compile` smoke ladder green. (Driver re-stitch for `--compile` lands here, now that LOWER emits the
+  graph — NOT before, per the `sno_ring_to_tree` deletion rationale.)
+- [ ] **PB-OPT — INVARIANT-PATTERN BAKE.** Classify each pattern subtree invariant/variant at lower time;
+  collapse invariant builder-BB runs into a static baked pattern BB; keep only variant builders. Gate:
+  an invariant pattern emits ZERO runtime builder BBs (verify via `--dump` / disasm); native behavior
+  unchanged (smoke ladder still green).
+
 ### Pending rungs (priority)
 
 
@@ -490,6 +539,27 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 
 ## Session State
 
+```
+HEAD SCRIP       = ade7656  (UNCHANGED — .github-only session) SBL-PAT-BB-PLAN (Opus 4.8, 2026-05-31) —
+                     Lon "Eureka" planning/architecture session. NO SCRIP code touched; SCRIP stays at ade7656,
+                     corpus untouched. ALL GATES UNCHANGED from ade7656 (m2 7/7 HARD; m3 0/6, m4 0/6 ABORT by
+                     design; prove_lower2 53; Icon m2 6/6). Re-verified make scrip rc=0 + make libscrip_rt rc=0 +
+                     m2 7/7 at session start. Captured the modes-3/4 SNOBOL4 PATTERN architecture so it cannot be
+                     forgotten: (1) ARCH-SNOBOL4.md new section "Native pattern architecture — modes 3 & 4
+                     (pattern = built BB graph)"; (2) ARCH-x86.md new subsection "Two block TYPES (BB vs XA)"
+                     correcting the BB-vs-XA distinction (a BB is the ONLY vehicle that builds subject/pattern/
+                     replacement in modes 3/4; XA only wraps/stitches); (3) THIS goal file's SESSION RUNG #0
+                     SBL-PAT-BB with 7-step ladder PB-0..PB-OPT. THE EUREKA: a SNOBOL4 pattern is a runtime
+                     byrd-box GRAPH — phase-2 "build pattern" lowers to BUILDER BBs THAT BUILD OTHER BBs
+                     dynamically; phase-3 "run" goes through a generic BB_MATCH box (SPITBOL ch.18 scanner). THEN
+                     an optimization (PB-OPT): collapse INVARIANT (compile-time-constant) builder-BB runs into a
+                     STATIC pattern BB baked into the generated code; only VARIANT builders (SPAN(VAR)/ANY(expr)/
+                     *EXPR/$NAME) stay dynamic. **NEXT (#1): PB-0 SUBJECT BB** (phase 1, easiest) — lower subject
+                     value-expr → box loading Σ/δ/Δ, BINARY+TEXT arms, topology-prove on `S 'b'`, verify mode-3
+                     `--run`. Smoke ladder: `S 'b'` → `S 'b' = 'X'` → `aXc`. Base ade7656.
+```
+
+<!-- prior session log below -->
 ```
 HEAD SCRIP       = ade7656  SBL-RING-REMOVE (Opus 4.8, 2026-05-31) — sno_ring_to_tree DELETED
                      (Lon directive: VIOLATION). The postfix AG-ring → four-port-tree un-flattening adapter + its 5
