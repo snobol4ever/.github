@@ -951,6 +951,62 @@ probes: run `--interp` then `--run` then `--compile --target=x86` and state each
     cross-block labels). Then PLG-9e recursion. Each rung: emit+assemble+link+run AND GATE-1/GATE-3
     m3==m2 hold. Handoff `HANDOFF-2026-05-31-OPUS48-PROLOG-BB-PLG-9C-MODE4-ARITH.md`.
 
+  - [x] **PLG-9d — DETERMINISTIC facts + user-predicate calls, mode-3/4. PARTIAL/DONE (Opus 4.8,
+    2026-06-01, atop `de6a73f`, SCRIP `e8f4f21`).** The DETERMINISTIC-call tier now emits, assembles,
+    links, and runs in mode-4 (standalone `.s`): a single-clause-fact predicate called deterministically
+    from `main` compiles natively. `greeting(hello). main :- greeting(X), write(X), nl.` → `hello` in all
+    three modes; integer-arg (`val(42)`) and multi-arg (`pair(a,b)` → `ab`) facts all 3-mode AGREE.
+    **GATE-1 m2 5/5 HARD, m3 5/5, m4 3 PASS / 2 EXCISED** (UNCHANGED — `clause`/`recursion` still EXCISE,
+    NO new FAIL). **GATE-3 m2 111/111, m3 111/111, m4 8 → 11 PASS / 0 FAIL / 100 EXCISED** (+3: rung03
+    unify, rung30 dcg_basic_terminals + dcg_phrase3 — deterministic phrase calls). prove_lower2 green;
+    FACT 0; siblings byte-identical (Icon m2/m3 11/11 m4 9/2; SNOBOL4 m2 7/7 HARD m3 5 m4 0).
+    **Mechanism (additive, Prolog-only, +287/−8 across 7 files):**
+    1. **`scrip.c`** — `pl_rich_body_root` recognizer: admits main + EVERY registered callee iff every
+       node is in the DETERMINISTIC tier (`IR_GCONJ`/`IR_GOAL`/`IR_ITE`/`IR_UNIFY`/`IR_ARITH`/`IR_SUCCEED`/
+       `IR_FAIL`/`IR_CUT`/leaf + write-family/nl/halt + INTEGER `is` via `pl_flat_goal_is_simple`).
+       **`IR_DISJ`, `IR_CHOICE`, the mode-2-only builtins (numbervars/writeq/write_canonical/copy_term/
+       atomic_list_concat/findall/retract), and float `is` all EXCISE** (FALL LOUD — no miscompile; the
+       discriminator that keeps mode-4 at 0 FAIL). New mode-4 rich branch (after the flat-tier check):
+       emit `rt_pl_main_init` + the predicate-registry blocks (`codegen_pl_program`) + `main_α`. Returns
+       the body's principal `IR_GCONJ` (walked by `flat_drive_pl_seq`), not the raw entry.
+    2. **`emit_bb.c`** — `codegen_pl_callee_block` + `codegen_pl_program`: each registered predicate emitted
+       as a `.Lplpred_<name>_<arity>` TEXT block (the label `bb_goal.cpp` calls) with a `_redo` β-entry and
+       `rt_set_last_ok(1/0)`-setting γ/ω epilogues. The body is walked at its **principal `IR_GCONJ`** (the
+       wrapper whose `goals[0] == g->entry`), NOT the raw graph entry — else only the first head-unify/goal
+       emits (the 2-arg-fact `a_` bug). `main/0` skipped in the loop (emitted separately as `main_α`).
+    3. **`lower.c`** — set `IR_GOAL->sval = fn` at the 3 `g_goal` sites. `bb_goal.cpp`'s TEXT/BINARY arm
+       reads `pBB->sval` for the `.Lplpred_<name>_<arity>` call-block label; it was NULL → broken
+       `.Lplpred__1` (empty name). Mode-2 `bb_exec.c` reads `zc->callee` (the sidecar) and is unaffected
+       (additive — interpreter ignores `sval` for IR_GOAL).
+    4. **`rt.c`/`rt.h`** — `rt_pl_main_init()`: the standalone binary's one-time init (line-buffer stdout,
+       `bb_pool_init`, `trail_init`, `prolog_atom_init`) — it never calls `rt_init` (the interpreter
+       driver's entry), so without this the well-known atom IDs (`ATOM_DOT`/`ATOM_NIL`/...) stay at −1 and
+       list-sugaring in `pl_write` misbehaves. **Restored `rt_last_ok`/`rt_set_last_ok`** over a single
+       `int g_pl_last_ok` — the callee-success signal `bb_goal.cpp` tests after `call <callee-block>`; it
+       is the irreducible "did the last call succeed" bit of the resume spine, NOT a value stack (the VSX
+       purge bombed it only because it was bundled with the deleted ops layer, never as a value stack).
+    5. **`resolve_runtime.c`/`.h`** — `resolve_bb_graph_at(idx)` iterator (the registry emit loop walks
+       `resolve_bb_pred_count` / `_name_at` / `_arity_at` / `resolve_bb_graph_at`).
+    **⚠️ CRITICAL FINDINGS that correct the PLG-9d planning note's assumptions:**
+    (a) **Facts/choice NEVER had a proven native path** — rung02 in mode-3 runs the *interpreter*
+    (`bb_exec_once`), NOT native flat emission. The note's "`flat_drive_pl_choice` exists" referred to the
+    emit_bb.c machinery, which had never actually been driven end-to-end. PLG-9d is genuinely new ground.
+    (b) **`rt_last_ok`/`rt_set_last_ok` were `STACKLESS_ABORT` stubs** post-VSX, yet `bb_goal.cpp` calls
+    `rt_last_ok` — the `IR_GOAL` native path would have aborted at runtime. Restored (see #4).
+    (c) **`walk_bb_flat` does NOT chase the γ-chain** — it relies on the SEQ/CONJ driver to walk each goal.
+    Both `main` and each callee block must be entered at their principal `IR_GCONJ`, not the raw graph
+    entry, or only the first goal/head-unify emits.
+    **NEXT — PLG-9d-bt (backtracking) then PLG-9e (recursion).** rung02-style facts+choice+`;`+`fail`
+    enumeration and `count/1` recursion are NOT yet native — they need `IR_DISJ`/`IR_CHOICE` fail-driven
+    backtracking through the standalone-binary CP spine (`resolve_cp_push`/`_current`/`_pop` +
+    `flat_drive_pl_choice`/`_alt`), proven end-to-end. They EXCISE cleanly today (the `clause`/`recursion`
+    GATE-1 smokes + ~89 GATE-3 rungs). The `bb_choice.cpp`/`bb_goal.cpp` TEXT arms already emit the CP
+    calls; the gap is (i) wiring the multi-GCONJ/DISJ body root (today `pl_rich_body_root` falls to
+    `g->entry` when >1 GCONJ, which under-emits), (ii) the CP spine reset/init in the standalone `main:`,
+    (iii) verifying `resolve_cp_*` + trail-unwind reclaim correctly across `fail`. Also: the callee γ/ω
+    epilogue is emitted as literal text via `emit_text_n` in `emit_bb.c` (matches the existing `scrip.c`
+    `main:` `printf` idiom); a purist form routes it through a new `xa_pl_callee_epilogue` XA template.
+
   **⮕ RECONSTRUCTION MAP (Opus 4.8, 2026-05-31 — scouted, not yet built).** Mode-4 is blocked by a
   GLOBAL gate in `scrip.c` (`if (mode_compile_x86) { [SMX]…; return 1; }` at ~line 395, BEFORE any
   language dispatch). The emit *templates* survive compiled into `libscrip_rt.so` (all Prolog boxes
@@ -1795,13 +1851,13 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-PLG-9c arith-tier mode-4 native emission)
+## 📊 Gate table (current — post-PLG-9d deterministic facts+call mode-4 native emission)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | **3 PASS / 2 EXCISED** | m4 `write_atom` (PLG-9a) + `unify` (PLG-9b) + `arith` (PLG-9c, `X is 2+3,write(X),nl`) EMIT+ASSEMBLE+RUN natively; `clause`/`recursion` decline with `[SMX]` → EXCISED (pending PLG-9d+). m3 hello+unify+arith-tier native (`bb_build_flat`, no ring); richer via interim `bb_exec_once` |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **8 PASS / 0 FAIL / 103 EXCISED** | m3 byte-identical to m2. m4: rung01 hello + rung22 write_canonical + rung23 bitwise/max_min/power/sign/truncate + rung29 gcd all emit+run (verified m2==m4==expected); 103 richer shapes (facts/choice/recursion/compound-unify) decline with `[SMX]` (EXCISED). rung29 gcd FAIL→PASS via the `rt_pl_arith` gcd/div fix |
-| prove_lower2 topology | **53/53** ✅ | — | — | unchanged this session (driver recognizer + rt_pl_arith op-coverage only) |
-| FACT RULE grep | 0 ✅ | — | — | PLG-9c touched ZERO template files (`git status`: scrip.c + rt.c only). scrip.c recognizer widen additive Prolog-only; `rt_pl_arith` gcd/div additive (Prolog-only helper — `bb_builtin`/`bb_arith`/`scrip.c`/`bb_exec.c` callers, no SNOBOL reach); emits NO x86. Siblings: Icon m2/m3/m4 6/6, SNOBOL4 m2 7/7 HARD |
+| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | **3 PASS / 2 EXCISED** | m4 `write_atom`/`unify`/`arith` native; `clause`/`recursion` EXCISED (need backtracking/recursion CP spine — PLG-9d-bt/9e). UNCHANGED by PLG-9d (no new FAIL) |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **11 PASS / 0 FAIL / 100 EXCISED** | PLG-9d: m4 8→11 (+rung03 unify, rung30 dcg_basic_terminals + dcg_phrase3 — deterministic single-clause/phrase calls). m2/m3 byte-identical |
+| prove_lower2 topology | green ✅ | — | — | unchanged (recognizer + driver + emit_bb additive; no lower2 case touched) |
+| FACT RULE grep | 0 ✅ | — | — | PLG-9d emits TEXT asm via emit_text_n (callee γ/ω epilogue) + the registry driver in emit_bb.c — NO raw x86 byte-producers outside templates. lower.c +3 (IR_GOAL->sval, Prolog g_goal only); rt.c restored rt_last_ok/set over g_pl_last_ok (control bit, not a value stack — g_vstack still 0). Siblings: Icon m2/m3 11/11 m4 9/2; SNOBOL4 m2 7/7 HARD |
 
 
