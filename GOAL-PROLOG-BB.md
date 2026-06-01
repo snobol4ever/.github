@@ -607,6 +607,40 @@ probes: run `--interp` then `--run` then `--compile --target=x86` and state each
   Figure-2 collapse is the eventual target. Climb the ladder in mode-4. Gate: each rung mode-4
   byte-matches `.expected` for the covered set; FACT 0.
 
+  - [x] **PLG-9a — hello-world tier (`write`+`nl`). DONE (Opus 4.8, 2026-05-31).** `hello.pl`
+    (`main :- write(hello), nl.`) now compiles to a standalone GAS `.s` that assembles, links
+    `libscrip_rt.so`, and runs → prints `hello`. **GATE-1 smoke m4 0→1 PASS** (`write_atom`; the other
+    4 decline with `[SMX]` → EXCISED). **GATE-3 rung suite m4 0→2 PASS / 0 FAIL / 109 EXCISED.** m2/m3
+    held 111/111; prove_lower2 51/51; FACT 0; peers byte-identical (Icon m2/m3/m4 6/6, SNOBOL4 m2 7/7).
+    **Mechanism (additive, Prolog-only, +99/−6 across 4 files):**
+    1. **`scrip.c`** — new `if (is_prolog)` arm in the `mode_compile_x86` block, placed AFTER the Icon
+       arm and BEFORE the SNOBOL abort (per-language guard; the global `[SMX]` gate is already gone —
+       it now per-language dispatches, Sonnet 4.5 `5c97162`). Reuses the **same** `pl_flat_body_root`
+       recognizer the PLG-8-native mode-3 arm uses (a single-clause body that is a conjunction of
+       constant-arg builtins write/writeln/print/nl + IR_SUCCEED/IR_CUT/IR_ATOM, `nslots==0`). On a
+       match: `g_frame_active=1`, emit the SAME `main:`→`rt_frame`→ζ(rdi)→`call main_α` C-ABI wrapper
+       Icon emits, then `codegen_flat_build(flat_root, stdout, "main")` (MEDIUM_TEXT walk → the
+       `bb_builtin.cpp` write/nl TEXT arm, the byte-twin of the MEDIUM_BINARY arm mode-3 JITs —
+       MIGRATION-MODE4-IS-MODE3-DUMP one-template/two-sinks), then the strtab bridge. NULL root →
+       `[SMX]` banner + return 1 (EXCISED; no regression). Removed the dead `[SMX] pending` stub.
+    2. **`emit_core.c` + `.h`** — new `xa_emit_strtab_rodata()`: marshals the private `g_strtab[]`
+       (filled by `strtab_label` during the TEXT walk — `g_flat_intern_str` hook is unset so Prolog
+       atom-string refs route to strtab, unlike Icon's bb_call inline rodata) into `g_emit.xa_strtab_*`
+       (label `.S<idx>:` with the definition colon; `gas_escape_str` for the quoted literal) and
+       dispatches `XA_STRTAB_RODATA`. This is the deleted-at-GZ "driver fills, then xa_dispatch"
+       contract the template documents. **Emits ZERO x86 bytes** (the template emits the `.rodata`);
+       FACT-clean. Only reachable from the Prolog mode-4 arm → siblings untouched.
+    3. **`scripts/test_prolog_rung_suite.sh`** — per-file `[SMX]`-banner detection → EXCISED (mode-4
+       is now PARTIALLY live; a shape the flat tier doesn't cover declines with the banner = EXCISED
+       not FAIL — matches `test_smoke_prolog.sh`'s long-standing discipline). New `EXCISED=` column.
+    **Findings for PLG-9b+:** (a) `halt` lowers to `IR_GOAL` (not in `lower.c` `det_builtins`), so it
+    is NOT in the native flat tier — an upstream lowering gap, orthogonal to mode-4. (b) The 2 rungs
+    that pass m4 are the hello-tier shapes in the corpus; the path to PLG-9b is the FIRST per-box RW
+    slot (`X = world, write(X)`): the slot must live in the ζ-frame `[r12+off]`, and `bb_unify` /
+    `rt_pl_write_var(slot)` must read/write it there (not `g_resolve_env`) — confirm `pl_flat_body_root`
+    extended to accept `IR_UNIFY` (var=const) + `nslots>0`, exactly as the PLG-8-native NEXT note says.
+    Handoff `HANDOFF-2026-05-31-OPUS48-PROLOG-BB-PLG-9A-MODE4-HELLO.md`.
+
   **⮕ RECONSTRUCTION MAP (Opus 4.8, 2026-05-31 — scouted, not yet built).** Mode-4 is blocked by a
   GLOBAL gate in `scrip.c` (`if (mode_compile_x86) { [SMX]…; return 1; }` at ~line 395, BEFORE any
   language dispatch). The emit *templates* survive compiled into `libscrip_rt.so` (all Prolog boxes
@@ -1451,13 +1485,13 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-PLG-8-native hello-tier mode-3 emission)
+## 📊 Gate table (current — post-PLG-9a hello-tier mode-4 native emission)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | EXCISED | m3 hello-tier (`write_atom`) now EMITS natively (`bb_build_flat`, no ring); richer smoke tests via interim `bb_exec_once`. m4 SMX-gated (PLG-9 regrow) |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | EXCISED | m3 byte-identical to m2. ALL rungs pass. rung30 DCG closed via `=<` operator fix; rung15 abolish-then-reassert closed via PL-RT-ASSERTZ |
-| prove_lower2 topology | **51/51** ✅ | — | — | unchanged this session (driver-only change) |
-| FACT RULE grep | 0 ✅ | — | — | scrip.c PLG-8-native arm additive, Prolog-only (`pl_flat_body_root`); siblings untouched |
+| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | **1 PASS / 4 EXCISED** | m4 `write_atom` now EMITS+ASSEMBLES+RUNS natively (PLG-9a); other 4 (unify/arith/clause/recursion) decline with `[SMX]` banner → EXCISED (pending PLG-9b+). m3 hello-tier native (`bb_build_flat`, no ring); richer via interim `bb_exec_once` |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **2 PASS / 0 FAIL / 109 EXCISED** | m3 byte-identical to m2. m4: 2 hello-tier rungs emit+run; 109 non-hello shapes decline with `[SMX]` (EXCISED, per-file classification added to rung suite). rung30 DCG closed via `=<` fix; rung15 closed via PL-RT-ASSERTZ |
+| prove_lower2 topology | **51/51** ✅ | — | — | unchanged this session (driver + strtab-bridge only) |
+| FACT RULE grep | 0 ✅ | — | — | scrip.c PLG-9a arm additive Prolog-only; `xa_emit_strtab_rodata` (emit_core.c) marshals metadata only — emits NO x86 bytes (template `xa_strtab_rodata` does); siblings untouched (Icon m2/m3/m4 6/6, SNOBOL4 m2 7/7) |
 
 
