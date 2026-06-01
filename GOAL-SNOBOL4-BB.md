@@ -66,15 +66,20 @@ across all five GOAL-*-BB files.
 > REPLACEMENT → REPLACE, built as the **SESSION RUNG #0 — SBL-PAT-BB** ladder (**PB-0 … PB-OPT**, in this file
 > below). **DO THIS DEV FIRST.** ⛔ Do **NOT** start climbing test/rung ladders (prove_lower2 rungs, smoke-floor
 > bumps, corpus-parity sweeps, per-language bring-up) until the 5-phase pattern execution is FULLY NATIVE through
-> BBs. **First incomplete step = PB-RB-1 (REF_INVARIANT + retire the PATND_t literal builder)** — see the
-> REBUILT LADDER (PB-RB) below and the **CORRECTED PATTERN ARCHITECTURE** block immediately after this. (PB-0
-> SUBJECT BB landed at SCRIP 179bf4d; OLD PB-1 landed at 6483bb5 but built a PATND_t and is superseded — see
-> PB-1-REWORK.) (The SBL-M3-CHAIN mode-3 5/6 already landed runs non-pattern
+> BBs. **PB-RB-1 (REF_INVARIANT) is DONE (2026-06-01, emit arm + mode-3 probe, disasm-verified). First
+> incomplete step = PB-RB-2 (matcher-box four-port ABI)** — see the REBUILT LADDER (PB-RB) below.
+> **⛔⛔ ALSO PINNED — BROKERED-MODE-ERADICATION (Lon directive 2026-06-01): there is NO need for two ways to
+> enter a box. `bb_build_brokered` + `EMIT_BINARY_BROKERED` + the `(ζ,int entry)` call convention in
+> `bb_capture.cpp`/`bb_arbno.cpp` are the unfinished residue of the `cc23c9f` C-byrd-box deletion and MUST go
+> (BROK-0…BROK-3 rung below, after PB-RB-OPT). "Still compiles" ≠ "needed" — it is the green-build preservation
+> the top FACT RULE outlaws.** (PB-0 SUBJECT BB landed at SCRIP 179bf4d; OLD PB-1 landed at 6483bb5 but built a
+> PATND_t and is superseded — see PB-1-REWORK.) (The SBL-M3-CHAIN mode-3 5/6 already landed runs non-pattern
 > statements from LOWER's graph + static patterns via the IR_SCAN *interpreter bridge* — that is the substrate,
 > NOT this native pattern ladder.) **Pattern construction — CORRECTED (Lon 2026-06-01):** a pattern is a graph
 > of EMITTED BYRD-BOXES (`bb_box_fn`), built by REF_INVARIANT (sealed) + STITCH/BUILD (variant); NOT a baked
 > `tree_t` (that is EVAL/CODE only) and NOT a PATND_t (being demolished). See **CORRECTED PATTERN
 > ARCHITECTURE** below; the older `tree_t`-bake "DESIGN QUESTION (DECIDED)" is SUPERSEDED.
+
 
 > **⭐⭐⭐ CORRECTED PATTERN ARCHITECTURE (Lon directive, 2026-06-01, Opus 4.8). THIS SUPERSEDES the `tree_t`-bake
 > "DESIGN QUESTION (DECIDED)" below AND the PATND_t-based PB-1/PB-2 as previously landed. READ THIS FIRST; the
@@ -706,13 +711,42 @@ inputs RO `[rip+disp]` (sealed head address, literal bytes) or RW `[ζ+off]` (bu
 `PATND_t`, NO `tree_t`, NO value stack, NO ring (PER-BOX LOCAL STORAGE + NO-VALUE-STACK FACT RULES).
 Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
 
-- [ ] **PB-RB-1 — REF_INVARIANT + retire the PATND_t literal builder.** Delete `IR_PAT_BUILD_LIT` /
+- [x] **PB-RB-1 — REF_INVARIANT + retire the PATND_t literal builder.** Delete `IR_PAT_BUILD_LIT` /
   `rt_sno_pat_build_lit` / `bb_sno_pat_build_lit.cpp` (the PATND_t literal builder). Add `IR_REF_INVARIANT`
   (IR.h, append-only) + `bb_ref_invariant.cpp`: loads a sealed element `bb_box_fn` head (RO `[rip+disp]` /
   movabs) into a `ζ`-slot. The sealed element for a literal is the EXISTING `IR_PAT_LIT` matcher box
   (`bb_lit.cpp`); `rt_sno_match_lit` survives as its inner scan. lower `TT_QLIT` pattern → REF_INVARIANT over
   a sealed `IR_PAT_LIT`. Prove topology; mode-3 probe: REF_INVARIANT('b') yields a `bb_box_fn` head in its
   ζ-slot whose code is the `'b'` literal matcher. (No runtime construction — Fork A/E.)
+  **[DONE 2026-06-01, Opus 4.8 — EMIT ARM + PROBE]** RETIRE half landed earlier (`6343198`: IR_PAT_BUILD_LIT
+  family removed, lower2_pat_build_entry repointed to IR_REF_INVARIANT over a sealed IR_PAT_LIT, prove 64/64).
+  THIS turn = the EMIT ARM that was the remaining work: (1) `bb_ref_invariant.cpp` BINARY (25-byte) + TEXT arms
+  — load the sealed element `bb_box_fn` HEAD (emit-time constant: `movabs rax,head` BINARY / `lea rax,[rip+lbl]`
+  TEXT, RO never on a stack) into an 8-byte ζ-slot `[r12+off]` via `bb_slot_alloc`, then `jmp γ`; β = `jmp ω`
+  (bounded single-shot, Fork A/E — NO runtime construction). Modeled on bb_sno_subject.cpp; patch tuple
+  `{19,23,24}/{γ,β,ω}/{false,true,false}`. (2) `emit_bb.c` — new emitter-global `g_emit_cfg` (exposes the active
+  IR_graph_t to the emit path so a node's operand_aux sidecar is resolvable, mirroring bb_exec.c's g_current_cfg;
+  set/restored in sno_flat_chain_build / _text); `pre_build_children` + `pre_build_children_text` recognize
+  IR_REF_INVARIANT and pre-build its sealed child resolved via `bb_operand_aux_get` (NOT bb_pat_kid, PEERS RULE);
+  the two SNOBOL chain builders run a REF-specific child prebuild (`sno_chain_prebuild_children[_text]`) GUARDED
+  by `has_ref` so they stay byte-neutral to every prior shape; `flat_drive_sno_ref_invariant` resolves the cached
+  child head and hands it to the box via `g_emit.child_fn`/`bb_child_fn`/`bb_child_lbl`. (3) emit_core dispatch
+  was already wired (emit_core.c IR_REF_INVARIANT → bb_ref_invariant). **MODE-3 PROBE PASS** (committed artifact:
+  `test/snobol4/pat_bb/probe_pb_rb_1_ref_invariant.c` + `scripts/test_sno_pat_bb_probe.sh`): JIT'd
+  SUBJECT('abc') → REF_INVARIANT('b') → SUCCEED via `sno_flat_chain_build`, ran with `rt_frame`, result.v=1.
+  **DISASM-VERIFIED**: REF box = `movabs $head,%rax ; mov %rax,0x10(%r12) ; jmp γ` / β:`jmp ω` — the sealed head
+  address (a real BB-pool box) lands in ζ-slot `[r12+0x10]`, stackless (ζ=r12, `push r12;mov r12,rdi` prologue),
+  NO value stack; and the loaded head disassembles as the EXISTING bb_lit('b') four-port matcher (δ from [r10],
+  bounds-check vs Σlen, memcmp 1 byte, advance δ → γ). The sealed element is REFERENCED, not run (running is
+  PB-RB-3 BB_MATCH). v_scan NOT rewired (mode-2 IR_SCAN super-node intact → ZERO regression; retirement is
+  PB-RB-CONV). Gates ALL match watermark: make scrip rc=0, libscrip_rt rc=0, SNOBOL4 m2 **7/7 HARD** / m3 5/6 /
+  m4 0/6, Icon m2 **11/11 HARD** / m3 11/11 / m4 9/11, prove_lower2 **64/64**, sm_dead 0, concurrency OK, purity
+  7 (MEDIUM_BINARY-exempt baseline), no-vstack `g_vstack`==0. **NEXT (#1): PB-RB-2** (matcher-box four-port ABI —
+  how the head box-graph is driven over Σ/δ/Δ via α/β/γ/ω; ground in the canonical Icon/Prolog brokered-graph
+  pattern per CONSULT CANONICAL SOURCES) then **PB-RB-3** (BB_MATCH driver reads REF_INVARIANT's ζ-slot head +
+  SUBJECT's Σ/δ/Δ and drives the ch.18 unanchored outer start-loop). NOTE on rebuild: `scrip` and
+  `out/libscrip_rt.so` MUST be rebuilt in LOCKSTEP — a stale `.so` against a fresh `scrip` shows phantom mode-3
+  failures (2/6); always `bash scripts/build_scrip.sh && make libscrip_rt` together before gating.
 - [ ] **PB-RB-2 — the matcher-box four-port ABI (drive ONE element).** Pin down how `bb_broker.c` drives a
   single matcher element box (`IR_PAT_LIT`) over Σ/δ/Δ via α/β/γ/ω: α tries match at δ, γ on success
   (advance δ, leave span), ω on fail, β to re-offer (generators only). Ground in `bb_broker.c` + the canonical
@@ -754,6 +788,30 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
   directly. Variant patterns keep instance-level wiring. Gate: a fully-invariant pattern emits ONE sealed
   BLOB (verify `--dump`/disasm); native behavior unchanged (smoke ladder green). This is the MAX OPTIMIZATION
   — correctness (instance-wiring) first, freeze second.
+
+---
+
+### ⛔⛔ SESSION RUNG — BROKERED-MODE-ERADICATION (Lon directive 2026-06-01, Opus 4.8). THERE IS NO NEED FOR TWO WAYS TO ENTER A BOX.
+
+**THE DIRECTIVE (Lon, verbatim intent):** "Any funky `int entry` MUST be gone. There is no need for two." A box is entered EXACTLY ONE way — a **jump to its α or β label**. The `(void *ζ, int entry)` **call-with-selector** is the second way, and the *existence* of two ways is the confusion. It is FORBIDDEN per the "NO C BYRD-BOX FUNCTIONS — JUMP TO α/β LABELS" FACT RULE at the top of this file. "Still compiles today" is NOT "needed" — propping the brokered path up to keep the build green is the exact green-build preservation that FACT RULE outlaws. **`bb_build_brokered` is NOT needed; it goes.**
+
+**HONEST STATE (verified by grep 2026-06-01 — what `cc23c9f` did NOT finish).** The *driver* (`bb_broker.c`) and the C *functions* with the `(ζ,int entry)` signature were deleted. But the **emit-side brokered CALLING CONVENTION survives** and is the residue to eradicate:
+- **`bb_build_brokered(IR_t*)`** (`emit_bb.c:~2196`, decl `emit_bb.h:13`) — emits a box with a `push rbp;mov rbp,rsp` brokered prologue (`0x55 0x48 0x89 0xE5`) in `EMIT_BINARY_BROKERED` mode, producing a `bb_box_fn` *called* with `(ζ,entry)`.
+- **`EMIT_BINARY_BROKERED` (=2) + `g_bb_brokered` flag** (`emit_core.h:18`, `emit_core.c:18,30`) and the **`BB_BROKERED`/`BB_WIRED` macros** (`emit_core.h:55-56`) — **VERIFIED: the macros are read NOWHERE (pure dead weight).**
+- **`BB_MODE_BROKERED`/`BB_MODE_DRIVER`/`BB_MODE_LIVE` + `bb_build_pure_mode`** (`emit_bb.c:~2230`; `g_bb_mode` set at `rt.c:201`, `stmt_exec.c:63`; branched at `stmt_exec.c:274,278,308,338`).
+- **The actual `(ζ,int entry)` call convention lives in exactly TWO templates** — **`bb_capture.cpp`** and **`bb_arbno.cpp`** (`movabs rax, child_fn; edi=ζ; esi=entry(0=α/1=β); call rax; cmp eax,99`). These two boxes are the ONLY real reason `bb_build_brokered` still has live callers. (`bb_pat_defer.cpp` only ALIGNS for the brokered-child case in a comment + dynamic `and rsp,-16`; it calls `rt_defer_match@PLT`, NOT a child box — once the brokered-child context is gone, its alignment dance can simplify but it is not itself a brokered box. **`bb_ref_invariant.cpp` (PB-RB-1) is CLEAN** — it loads `child_fn` as a VALUE via `movabs`/`lea` and NEVER calls it.)
+- The `stmt_exec.c:274-338` callers sit inside `exec_stmt`/`exec_stmt_blob` PATND paths that **already `abort()`** ("PATND->IR bridge removed"; `exec_stmt_blob` aborts outright at `:359`) — so those callers are dead-but-compiled.
+- `bb_node_t {fn,ζ,ζ_size}` + the `bb_box_fn = DESCR_t(*)(void*,int)` typedef were KEPT by `cc23c9f` (the typedef slips past the FACT-RULE completion-test grep via `grep -v typedef`). The `int` param in the typedef is the last vestige of the selector; it goes too once no caller passes an entry.
+
+**ORDER (FACT-RULE-sanctioned: convert the holdouts to jump-to-α/β FIRST, then delete the builder; a deliberately-broken build between rungs is acceptable, a surviving brokered box is not).** The STITCH_SEQ/STITCH_ALT graph-wiring of PB-RB-4 is what gives CAPTURE/ARBNO a jump-wired form to convert *to*; if BROK-1/BROK-2 are done before PB-RB-4 they must hand-wire the child inline (emit the child body in the same flat sequence, reach it by `jmp child_α`, take its γ/ω back by label) rather than `call child_fn`.
+
+- [ ] **BROK-0 — dead-caller excision (free; no behavior).** Replace the `bb_build_brokered`/`bb_build_pure_mode` calls in `stmt_exec.c` (`:274,296,320,338`) — all inside already-`abort()`ing PATND/`exec_stmt_blob` paths — with the abort that already guards them (delete the now-unreachable `bb_box_fn bfn = …` lines). Delete the `BB_MODE_*` branch ladder (`:278,308`) and the `g_bb_mode` global (`rt.c:201`, `stmt_exec.c:63`) + `bb_build_pure_mode` (`emit_bb.c:~2230`, decl `emit_bb.h:14`) if no live caller remains. Gate: build rc=0; SNOBOL m2 7/7 HARD / m3 5/6 / m4 0/6, Icon m2 11/11 HARD — byte-neutral (dead code only).
+- [ ] **BROK-1 — convert CAPTURE (`bb_capture.cpp`) to jump-to-α/β.** The captured sub-pattern is reached by emitting its element inline and wiring `jmp child_α` (fresh) / `jmp child_β` (resume on backtrack), taking the child's γ (matched → run the capture-assign, then this box's γ) and ω (this box's ω) by LABEL — NO `movabs child_fn; call rax; cmp eax,99`. The saved-Δ slot + `rt_cap_assign_cursor`/`rt_cap_assign_*` assign stays (that is real capture work, not a box entry). Both ASSIGN_COND (`.`) and ASSIGN_IMM (`$`) arms. Stackless `[ζ=r12+off]`, no value stack. Gate: the capture corpus (cross / W07_capt_cur / 074) holds under `--run`; m2/m3 smoke invariant.
+- [ ] **BROK-2 — convert ARBNO (`bb_arbno.cpp`) to jump-to-α/β.** ARBNO is a generator loop: α matches the null string (SPITBOL ch.18 — ARB/ARBNO start empty); each retry re-enters the child by `jmp child_α` and threads the child's γ back to ARBNO's γ, child's ω to ARBNO's ω/exhaustion — all by LABEL, no brokered call. Keep the `std::deque<int>` per-activation slot pattern (real per-iteration state, NOT a value stack). Gate: ARBNO corpus under `--run` holds; m2/m3 smoke invariant.
+- [ ] **BROK-3 — delete the brokered machinery + add the gate.** Now that NO caller passes `(ζ,entry)`: delete `bb_build_brokered` (`emit_bb.c`, `emit_bb.h`), `EMIT_BINARY_BROKERED` (`emit_core.h:18`, the `emit_core.c:30` case + the `:2201/2206` mode toggles inside the deleted fn), `g_bb_brokered` (`emit_core.c:18`) and the dead `BB_BROKERED`/`BB_WIRED` macros (`emit_core.h:55-56`), and the brokered `push rbp;mov rbp,rsp` prologue. Drop the `int entry` param from the `bb_box_fn` typedef + `bb_node_t` if no surviving signature needs it (else note exactly what does and why). **ADD COMPLETION GATE** `scripts/test_gate_no_brokered.sh`: `grep -rn 'bb_build_brokered\|EMIT_BINARY_BROKERED\|g_bb_brokered\|BB_MODE_BROKERED\|BB_MODE_DRIVER' src/ == 0` AND `grep -rnE 'esi, *1.*call|movabs.*child_fn.*call' src/emitter/BB_templates/ == 0` (no box entered by call-with-selector) — wire it into the Session Setup gate list so it can never creep back. Gate: build rc=0; SNOBOL m2 7/7 HARD / m3 5/6 / m4 0/6, Icon m2 11/11 HARD / m3 11/11 / m4 9/11; prove_lower2 64/64; concurrency OK; the FACT-RULE completion test (a) still 0 AND the new no-brokered gate green.
+
+**COMPLETION TEST (rung):** `bb_build_brokered`/`EMIT_BINARY_BROKERED`/`g_bb_brokered`/`BB_MODE_BROKERED`/`BB_MODE_DRIVER` all grep to 0 in `src/`; no `bb_*.cpp` template enters a child box by `call` with an entry selector (every box reached by `jmp α`/`jmp β`); `test_gate_no_brokered.sh` green and in the Session Setup list; SNOBOL/Icon HARD gates survive. ONE way to enter a box, not two.
+
 
 
 ### ⭐ DESIGN QUESTION (Lon 2026-05-31, raised mid-SBL-M3-CHAIN): how do the PATTERN-builder BBs represent the pattern? — ✅ **DECIDED (Lon 2026-05-31): BOTH** — ⚠️ **SUPERSEDED 2026-06-01 (see CORRECTED PATTERN ARCHITECTURE at top): the pattern is a `bb_box_fn` byrd-box graph, NOT a baked `tree_t`. `tree_t` is for EVAL/CODE only. The `beauty.sno` / `tree(t,v,n,c)` memorial below stands as the AST shape for EVAL/CODE, not for patterns. History kept below.**
@@ -836,6 +894,53 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = 01422d7  PB-RB-1 EMIT ARM + MODE-3 PROBE (Opus 4.8, 2026-06-01, LANDED — push pending
+                     this handoff). The REF_INVARIANT lowering was already done (6343198); THIS lands the
+                     EMIT side that was the remaining PB-RB-1 work:
+                       (a) bb_ref_invariant.cpp — BINARY (25B: movabs rax,sealed_head; mov [r12+off],rax;
+                           jmp γ; β:jmp ω; patch tuple {19,23,24}/{γ,β,ω}/{false,true,false}) + TEXT (lea
+                           rax,[rip+child_lbl]; mov [r12+off],rax; jmp γ; β:jmp ω) arms. Sealed element
+                           bb_box_fn HEAD = emit-time constant (RO, never on a stack); built head = RW into
+                           an 8-byte ζ-slot via bb_slot_alloc. Bounded single-shot β=ω, NO runtime construction
+                           (Fork A/E). Modeled on bb_sno_subject.cpp.
+                       (b) emit_bb.c — NEW g_emit_cfg global exposes the active IR_graph_t to the emit path
+                           (mirrors bb_exec.c g_current_cfg) so a node's operand_aux sidecar resolves at emit
+                           time; set/restored in sno_flat_chain_build / _text. pre_build_children[_text]
+                           recognize IR_REF_INVARIANT + pre-build its sealed child via bb_operand_aux_get (NOT
+                           bb_pat_kid, PEERS RULE). The two SNOBOL chain builders run a REF-specific child
+                           prebuild GUARDED by has_ref so they are byte-neutral to every prior shape.
+                           flat_drive_sno_ref_invariant resolves the cached child head -> g_emit.child_fn/
+                           bb_child_fn/bb_child_lbl. emit_core dispatch was already wired.
+                       (c) emit_globals.{c,h} — g_emit_cfg def + extern.
+                       (d) test/snobol4/pat_bb/probe_pb_rb_1_ref_invariant.c + scripts/test_sno_pat_bb_probe.sh
+                           — mode-3 probe: JITs SUBJECT('abc')->REF_INVARIANT('b')->SUCCEED via
+                           sno_flat_chain_build, runs with rt_frame (result.v=1). DISASM-VERIFIED: REF box =
+                           movabs $head,%rax ; mov %rax,0x10(%r12) ; jmp γ / β:jmp ω — head lands in ζ-slot
+                           [r12+0x10], stackless (ζ=r12, push r12;mov r12,rdi prologue), NO value stack; the
+                           loaded head disassembles as the EXISTING bb_lit('b') four-port matcher (Fork C —
+                           referenced, not run; running is PB-RB-3).
+                     v_scan NOT rewired (mode-2 IR_SCAN super-node intact -> ZERO regression; retirement is
+                     PB-RB-CONV). **REBUILD GOTCHA (recorded):** scrip + out/libscrip_rt.so MUST be rebuilt in
+                     LOCKSTEP — a stale .so vs a fresh scrip shows PHANTOM mode-3 failures (2/6); always
+                     `bash scripts/build_scrip.sh && make libscrip_rt` together before gating. GATES (clean
+                     lockstep rebuild, all green / match watermark): make scrip rc=0, libscrip_rt rc=0, SNOBOL4
+                     m2 **7/7 HARD** / m3 5/6 / m4 0/6, Icon m2 **11/11 HARD** / m3 11/11 / m4 9/11, prove_lower2
+                     **64/64**, sm_dead 0, concurrency OK, purity 7 (MEDIUM_BINARY-exempt baseline), g_vstack==0.
+                     **.github THIS HANDOFF:** PB-RB-1 marked [x] with full sub-watermark; ACTIVE-RUNG banner
+                     updated (PB-RB-1 done -> first incomplete = PB-RB-2). **NEW PINNED RUNG
+                     BROKERED-MODE-ERADICATION (BROK-0..BROK-3)** added after PB-RB-OPT + flagged in the banner:
+                     Lon directive "there is no need for two ways to enter a box" — bb_build_brokered +
+                     EMIT_BINARY_BROKERED + g_bb_brokered + BB_MODE_BROKERED/DRIVER + the (ζ,int entry) call
+                     convention in bb_capture.cpp/bb_arbno.cpp are the UNFINISHED residue of the cc23c9f
+                     C-byrd-box deletion and MUST go (verified by grep this session: bb_broker DRIVER gone, but
+                     the emit-side convention survives; BB_BROKERED/BB_WIRED macros are dead-unused;
+                     bb_ref_invariant is CLEAN — loads head as a value, never calls it; only CAPTURE+ARBNO carry
+                     the convention). **NEXT (#1): PB-RB-2** (matcher-box four-port ABI — how the head box-graph
+                     is driven over Σ/δ/Δ via α/β/γ/ω, ground in canonical Icon/Prolog brokered-graph pattern per
+                     CONSULT CANONICAL SOURCES) — and/or take the BROKERED-MODE-ERADICATION rung (needs full
+                     context: convert CAPTURE -> gate, ARBNO -> gate, delete builder+mode, add no-brokered gate).
+                     g_emit_cfg is the clean hook PB-RB-3 BB_MATCH will reuse to reach REF_INVARIANT's sealed-head
+                     ref. Base 646a543.
 HEAD SCRIP       = 646a543  CALLER TEARDOWN — BUILD RESTORED (Opus 4.8, 2026-06-01, LANDED/PUSHED) — the
                      brokered execution path left DANGLING by cc23c9f (the (ζ,int entry) box + bb_broker
                      driver deletion) is now FULLY GUTTED, not preserved (Lon directive: "makes NO DIFFERENCE
