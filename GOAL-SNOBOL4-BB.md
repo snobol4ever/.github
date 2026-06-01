@@ -506,31 +506,61 @@ Smoke target ladder: `S 'b'` (plain match) → `S 'b' = 'X'` → `aXc` (match+re
 - [ ] **PB-5 — mode-4 parity sweep.** Confirm every PB-0..PB-4 box's TEXT arm assembles+links+runs; the
   `--compile` smoke ladder green. (Driver re-stitch for `--compile` lands here, now that LOWER emits the
   graph — NOT before, per the `sno_ring_to_tree` deletion rationale.)
-- [ ] **PB-OPT — INVARIANT-PATTERN BAKE.** Classify each pattern subtree invariant/variant at lower time;
-  collapse invariant builder-BB runs into a static baked pattern BB; keep only variant builders. Gate:
-  an invariant pattern emits ZERO runtime builder BBs (verify via `--dump` / disasm); native behavior
-  unchanged (smoke ladder still green).
+- [ ] **PB-OPT — INVARIANT-PATTERN BAKE (DECIDED mechanism: ONE-BB-FROM-`tree_t`).** Classify each pattern
+  subtree invariant/variant at lower time. For an INVARIANT subtree, bake its AST as a pure static `tree_t`
+  constant (`tree(t,v,n,c)`) and emit ONE builder BB that constructs the whole invariant pattern subgraph from
+  it in a single shot (one tree-walk-construct — NOT N threaded builders). Variant subtrees keep their threaded
+  builder BBs and splice into the baked subgraphs. Gate: an invariant pattern emits exactly ONE builder BB +
+  one baked `tree_t` (verify via `--dump` / disasm); the baked AST is consumed by CONSTRUCTION only, never
+  interpreted as the matcher; native behavior unchanged (smoke ladder still green). See the DECIDED DESIGN
+  QUESTION above (memorial: `beauty.sno` / `tree(t,v,n,c)`).
 
 ### Pending rungs (priority)
 
-### ⭐ DESIGN QUESTION (Lon 2026-05-31, raised mid-SBL-M3-CHAIN): how do the PATTERN-builder BBs represent the pattern? — *answered, decision PENDING LON*
+### ⭐ DESIGN QUESTION (Lon 2026-05-31, raised mid-SBL-M3-CHAIN): how do the PATTERN-builder BBs represent the pattern? — ✅ **DECIDED (Lon 2026-05-31): BOTH**
 
-**The question.** The pattern-builder BBs (PB-2: "builder BBs that build OTHER BBs dynamically") must end up with the pattern's structure. Two ways Lon posed:
+**✅ DECISION (Lon 2026-05-31): WE HAVE BOTH. This is the MAX OPTIMIZATION.** The two mechanisms are not
+rivals — they compose:
+- **The baked path (for INVARIANT patterns — and MOST patterns are invariant).** The pattern's AST is
+  **compiled in / hard-coded as a pure static `tree_t` constant** (the `tree(t,v,n,c)` node — see below).
+  **ONE BB** takes that baked-in `tree_t` and **builds the entire invariant pattern's dynamic BB graph from
+  it in a single shot** (one tree-walk-construct). One box, one baked constant, the whole matcher graph
+  materialized. This is the maximum optimization: an invariant pattern costs ONE baked AST + ONE builder BB,
+  not N threaded builders.
+- **The threaded path (for VARIANT parts).** Variable args (`LEN(N)`), pattern-valued var refs, and deferred
+  `*E` stay as threaded builder BBs (the general PB-2 mechanism). They splice into / compose with the baked
+  invariant subgraphs.
+- **Classification (PB-OPT)** at lower time decides, per subtree, baked-invariant vs threaded-variant.
+
+**Why this stays HONEST (the AST-prohibition is preserved, not broken).** The baked `tree_t` is consumed by a
+**CONSTRUCTION BB** that *builds a pattern graph* from it — it is **never interpreted as the matcher**. The
+matcher (PB-3 `BB_MATCH`, SPITBOL ch.18) still runs the *pattern graph*, never `tree_t`. So "one BB from a
+baked AST" is real box work (construct), not the dead-mode-1 cheat (interpret `tree_t` as a stand-in for
+execution). The prohibition's true line — *modes must never interpret `tree_t` in place of doing their job* —
+holds: here the AST is the INPUT to honest construction work, exactly as it is for `EVAL`/`CODE`.
+
+**🏛 MEMORIALIZED FOREVER: `beauty.sno` and `tree(t,v,n,c)`.** The baked AST node is `tree(t, v, n, c)` —
+**t** = tag/kind, **v** = value (sval/ival/dval union), **n** = arity (child count), **c** = children array —
+byte-for-byte the C `struct tree_t { tree_e t; union {char* sval; long long ival; double dval;} v; int n;
+tree_t **c; }` (`src/include/ast.h`). That four-field tree representation comes from Lon's own
+`corpus/programs/snobol4/demo/beauty/beauty.sno` (the SNOBOL4 Beautifier, 2002–2005; `tree.inc` /
+`ShiftReduce.inc` / `TDump.inc`). `tree(t,v,n,c)` is the canonical shape of the compiled-in constant the
+one-BB-from-AST builder consumes. *This will SCREAM.*
+
+---
+
+**The question (as originally posed).** The pattern-builder BBs (PB-2: "builder BBs that build OTHER BBs dynamically") must end up with the pattern's structure. Two ways Lon posed:
 1. **BAKE the parser AST** — the parser-built tree (the exact `tree_t`) is baked into generated code as an RO constant; the builder references it.
 2. **THREAD builder BBs** — a sequence of BBs assembles that same tree at runtime, each BB constructing one node.
 
 **Context (Lon).** AST was historically FORBIDDEN because modes 2 & 3 would *cheat* — run the `tree_t` interpreter instead of doing their real job (the C oracle / native BBs). The dead **mode-1** WAS that `tree_t` interpreter (it lost its usefulness → removed; we'd otherwise have 4 modes). BUT **AST will legitimately be used in the backend for `EVAL` and `CODE`** (both inherently runtime-compile a string of SNOBOL source), "so why not PATTERN" — patterns are runtime-dynamic too.
 
-**Claude's recommendation (proposed; PENDING LON CONFIRMATION).** **Option 2 (threaded builder BBs) as the canonical mechanism — which is already exactly PB-2 — with Option 1 (bake) demoted to the PB-OPT optimization for INVARIANT subtrees only.** Crucially: **the builders assemble a PATTERN GRAPH (a runtime pattern-node / byrd-box structure), NOT the parser `tree_t`.** Reasoning:
-- **(a) Dynamic patterns force threaded construction anyway.** `LEN(N)` / `SPAN(C)` with variable args, `P1 | P2` where the operands are pattern-VALUED variables, and especially deferred `*E` (re-evaluated at match time — the mechanism behind recursive patterns `P = *P 'x' | ''`) cannot be baked, because their structure/values aren't known until runtime. So threaded is the *general* mechanism; baking can only ever be a *partial* optimization on top of it. Building one canonical mechanism (threaded) and folding statics into it (PB-OPT) is cleaner than two coequal paths.
-- **(b) Baking the parser AST as PRIMARY re-opens the exact cheat that killed mode-1.** If the matcher walks a baked `tree_t`, mode-3's "pattern match" is once again "interpret the AST" — the thing the AST prohibition exists to prevent. Threaded builders force honest box work: each pattern operator (`|`, concat, `LEN`, `.`/`$`, `*`) is a real four-port BB taking pattern operands, exactly parallel to how `a+b` is a BINOP BB.
-- **(c) Keep the built artifact pattern-specific, never `tree_t`.** The MATCHER (PB-3 `BB_MATCH`, SPITBOL ch.18 backtracking) interprets a PATTERN GRAPH — a domain-specific structure — which is legitimate (it IS the matcher's job; SPITBOL itself interprets a pattern node graph). Interpreting the *general* `tree_t` is the forbidden cheat. This boundary is what keeps the AST prohibition meaningful while still allowing a runtime pattern structure.
+**Claude's recommendation (now SUPERSEDED by the DECISION above — kept for the record).** Option 2 (threaded) canonical + Option 1 (bake) as PB-OPT, building a pattern-specific graph, never `tree_t`. Lon's crystallization sharpened the baked side: the baked artifact is the pure-constant `tree_t` AST, and ONE BB reconstitutes the whole invariant pattern graph from it — which is cleaner than baking a pattern graph (a graph has runtime pointers/allocation; an AST is a pure constant). Reasoning that still holds:
+- **(a) Dynamic patterns force threaded construction anyway.** `LEN(N)` / `SPAN(C)` with variable args, `P1 | P2` over pattern-VALUED variables, and deferred `*E` (recursive patterns `P = *P 'x' | ''`) can't be baked. Threaded is the *general* mechanism; the baked one-BB-from-AST is the *invariant-subtree* fast path.
+- **(b) The baked AST is consumed by CONSTRUCTION, never interpreted as the matcher** — so the mode-1 cheat does not return.
+- **(c) The matcher interprets a pattern graph, never `tree_t`** — domain-specific, legitimate (SPITBOL itself interprets a pattern node graph).
 
-**Third idea (hybrid — already partly captured as PB-OPT).** Partial evaluation: at lower time, classify each pattern subtree invariant vs variant. **Invariant** subtrees (all-constant: `'b'`, `LEN(3)`, `'a' | 'b'`) → fold to a baked constant pattern object (a `DT_P` leaf the threaded spine references) = Option-1 speed where it's safe. **Variant** subtrees (variable args, pattern-valued var refs, deferred `*E`) → stay threaded builder BBs = Option-2 correctness where it's required. This is the best of both and is the natural reading of PB-2 + PB-OPT together.
-
-**Fourth idea (unify with EVAL/CODE — flagged, NOT recommended near-term).** Since the runtime will host the full backend for `CODE(s)`/`EVAL(e)`, a pattern's construction *could* be a mini-`CODE` invocation (compile the pattern expression at runtime via the same parse→lower→emit backend, yielding the builder BBs / pattern graph on the fly). Elegant (one runtime-compile mechanism for all dynamic constructs) but the biggest lift, and it must be fenced carefully or it slides back into the AST-interpretation cheat. Park it until PB-0..PB-3 are proven.
-
-**AST-prohibition refinement (proposed wording for the FACT rules, pending Lon).** *AST is permitted in the BACKEND for inherently-dynamic constructs — `EVAL`, `CODE`, and the variant/deferred parts of PATTERN construction — because there building/compiling from a tree IS the actual job, not a shortcut around it. The invariant that remains absolute: modes 2/3/4 must never interpret `tree_t` as a stand-in for STATIC code that already has a defined oracle (mode 2) or native-BB (modes 3/4) path. The matcher interprets a pattern-specific graph, never `tree_t`.*
+**AST-prohibition refinement (ADOPTED with the DECISION).** *AST is permitted in the BACKEND for inherently-dynamic constructs — `EVAL`, `CODE`, and PATTERN construction (the one-BB-from-baked-AST builder + the threaded variant builders) — because there building/compiling from a tree IS the actual job. The absolute invariant: modes 2/3/4 must never interpret `tree_t` as a stand-in for STATIC code that already has a defined oracle (mode 2) or native-BB (modes 3/4) path. The matcher interprets a pattern-specific graph, never `tree_t`.*
 
 
 - **SBL-SPAN-2 / SBL-ARBNO-3 BINARY arms.** Use `std::deque<int>` slot pattern from bb_capture.cpp (NOT GC_MALLOC). SPAN: TWO persistent int slots (z, z_orig); β yields successively shorter spans using ABSOLUTE z_orig. ARBNO: uses `nd->counter`, deque pattern + brokered child call. Validate via `--run`.
@@ -567,6 +597,20 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = 7c26eb7  (UNCHANGED — .github-only) SBL-PAT-DECIDE (Opus 4.8, 2026-05-31) — DESIGN
+                     QUESTION ANSWERED by Lon: pattern construction = BOTH baked + threaded. MAX OPTIMIZATION:
+                     ONE BB takes the compiled-in static `tree_t` AST (`tree(t,v,n,c)`) and builds the entire
+                     INVARIANT pattern's dynamic BB graph from it in one shot; threaded builder BBs handle only
+                     the VARIANT parts; PB-OPT classifies per subtree. Most patterns are invariant → most take
+                     the one-BB-from-AST path. Honesty preserved: the baked AST is consumed by a CONSTRUCTION BB
+                     (builds a pattern graph), NEVER interpreted as the matcher (no dead-mode-1 cheat); the
+                     matcher (PB-3 BB_MATCH) runs the pattern graph, never tree_t. MEMORIALIZED: beauty.sno (Lon's
+                     SNOBOL4 Beautifier, tree.inc) + the tree(t,v,n,c) node = C struct tree_t {t,v,n,c}. GOAL
+                     DESIGN QUESTION marked DECIDED + PB-OPT mechanism updated + AST-prohibition refinement ADOPTED.
+                     NO SCRIP code touched; SCRIP stays 7c26eb7. ALL GATES UNCHANGED from 7c26eb7 (m2 7/7 HARD,
+                     m3 5/6, m4 0/6, prove_lower2 55, sm_dead 1, Icon m2 6/6 HARD). **NEXT (#1):** (define) SNOBOL4
+                     user functions in mode-3 (IR_CALL + frame); then the native PB-0..PB-3 pattern ladder, with
+                     PB-OPT's one-BB-from-tree_t as the invariant fast path.
 HEAD SCRIP       = 7c26eb7  SBL-M3-CHAIN (Opus 4.8, 2026-05-31) — SNOBOL4 MODE-3 RUNS FROM LOWER'S
                      FOUR-PORT GRAPH; mode-3 0/6 → 5/6 (output, concat, arith, pattern, goto_s — all vs
                      SPITBOL oracle). The banned sno_ring_to_tree stays deleted: new sno_flat_chain_build
