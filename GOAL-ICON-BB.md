@@ -576,10 +576,10 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `602e107` GZ-10 RECURSION FIX (mode-2) — Icon user-procedure recursion now correct in the
+**HEAD (SCRIP):** `5698129` GZ-10 RECURSION FIX (mode-2) — Icon user-procedure recursion now correct in the
 oracle. Built on the prior GZ-10 PARTIAL `eabedcd`; my two-file Icon edit (`lower_program.c` + `bb_exec.c`)
-is disjoint from the parallel SNOBOL4 work that advanced `origin/main` to `179bf4d` (SBL-PAT-BB PB-0 subject
-BB) → rebases conflict-free (different files, FACT-rule isolation held).
+is disjoint from the parallel SNOBOL4 work that advanced `origin/main` to `80431d0` (SBL-PAT-BB PB-0 subject
+BB) → rebased conflict-free (different files, FACT-rule isolation held; pre-rebase local hash was `602e107`).
 
 **Done this session (GZ-10 RECURSION FIX — Opus 4.8):** Closed the one remaining GZ-10 mode-2 blocker —
 recursion. The prior `dval==3.0` Icon general-call exec arm bound param names by walking the LIVE
