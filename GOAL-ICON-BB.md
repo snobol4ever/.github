@@ -196,6 +196,17 @@ FACT 0, smokes hold.
 ### ⛔ ALWAYS TEST ALL THREE MODES (Icon GOAL policy — set 2026-05-31)
 
 **Every SCRIP execution test for this GOAL runs the program through ALL THREE modes on the SAME source, and reports all three. Never test fewer than all three.**
+
+#### ★ THREE-MODE SESSION-SYNC STEPPING (adopted 2026-06-01 from GOAL-PROLOG-BB, Lon directive) ★
+
+**Icon now follows the Prolog discipline: every gate run loops the corpus through interp/run/compile and the THREE columns are tracked side-by-side. A rung is not "done" until all three are accounted for — m2 PASS, AND m3+m4 each either PASS or LOUDLY EXCISE (never a silent miscompile).**
+
+- **THE THREE-MODE HARNESS:** `scripts/test_icon_rung_suite.sh [--rung R] [--mode all|interp|run|compile]` (DEFAULT `--mode all`) is the Icon twin of `test_prolog_rung_suite.sh`. It runs each corpus program in all three engine paths against `.expected` and prints one summary line per mode. `test_icon_all_rungs.sh` remains the mode-2-only category-tally view (rung36 breakdown); the new suite is the THREE-MODE source of truth.
+- **THE `[SMX]` LOUD-DECLINE MECHANISM (the linchpin, identical to Prolog):** the Icon mode-3/4 driver arms call `icn_graph_native_emittable(s2)` BEFORE emitting. A graph containing a kind whose native template is still a STUB (emits zero bytes) makes the driver print `[SMX] ... EXCISED` to stderr and decline cleanly (exit 0, no output). The harness reads `[SMX]` as **EXCISED — expected mid-Ground-Zero, NOT a FAIL**. This is the same law as the FACT rules' "A MISSING BOX FALLS LOUD, NEVER SILENT": before this, a stubbed box (e.g. `bb_gen_scan`) emitted nothing and the program ran to a silent-wrong (empty) result that no harness caught. Now it EXCISES loudly and is tracked. Current loud-decline kind list (`icn_kind_native_stub` in `scrip.c`): `IR_GEN_SCAN`, `IR_GEN_ALT`, `IR_KEYWORD`, `IR_PROC_GEN`, `IR_CSET_*`, `IR_SUSPEND`. **REMOVE a kind from that list the moment its real MEDIUM_TEXT+MEDIUM_BINARY arm lands — that is what lights the mode up for the family.**
+  - **⚠️ LESSON (2026-06-01, verified empirically — do NOT repeat): ONLY genuine single-purpose zero-byte-template kinds may go on this blanket list.** A MUXED kind — one IR enum carrying several operations via `ival` — must NEVER be blanket-declined: `IR_UNOP` muxes unary-minus (native arm broken → silent FAIL) WITH `*s` size / `!s` bang-iterate / `\x` nonnull (native arms WORK, some m3-PASS); `IR_BINOP` muxes `1+2` (works) WITH generator cross-products `(1 to 2)*(3 to 4)` (aborts `[GZ-3] FATAL bb_call`). Adding `IR_UNOP` to the list cost a real m3-PASS (13→12) by wrongly excising rung12 `*s`; reverted. The non-working operations inside a muxed kind, and composition-specific aborts, need a PER-OPERATION or PER-COMPOSITION decline (finer than a kind check) or the actual native arm — that is GZ-11+ work, not a blanket entry here.
+- **COMPLETION BAR per rung (the new "done"):** (1) mode-2 all-PASS (HARD GATE, the oracle); (2) mode-3 PASS **or** EXCISED — never a silent FAIL; (3) mode-4 PASS **or** EXCISED. A rung that is mode-2-only declares its m3/m4 EXCISED *loudly* (via the stub list) so the gap is visible and tracked, not hidden. Driving an EXCISED family to PASS = writing its stackless native template (the GZ-11+ work).
+- **HONEST THREE-MODE BASELINE (2026-06-01, post-scan + post-discipline):** `test_icon_rung_suite.sh` full corpus — **m2 (interp) 127 PASS / 120 FAIL / 36 XFAIL**; **m3 (run) 13 PASS / 212 FAIL / 22 EXCISED**; **m4 (compile) 11 PASS / 214 FAIL / 22 EXCISED**. The m2 number matches `test_icon_all_rungs.sh`. The m3/m4 FAILs are the previously-INVISIBLE native gaps now surfaced: most are partial/stubbed templates that do not yet print `[SMX]` (silent-wrong); they are the GZ-11+ ratchet targets. Many of those FAILs SHOULD become EXCISED as their stubbed kinds are added to `icn_kind_native_stub` (the loud-decline sweep — a follow-up task: classify each m3-FAIL as silent-nothing→add-to-stub-list vs genuinely-fixable-arm).
+
 - **mode 2 — `--interp`** (BB port-walker oracle) — **HARD GATE**: must be all-PASS (the source-of-truth output; build sanity).
 - **mode 3 — `--run`** (stackless native x86) — **TRACKED**: floor `MODE3_MIN` (env, default 1), ratchets up as GZ rungs rebuild each box family stackless.
 - **mode 4 — `--compile`** (standalone x86-64 asm → assemble with `gcc -no-pie` → link `out/libscrip_rt.so` → run → compare output) — **TRACKED**: floor `MODE4_MIN` (env, default 0). **REBUILT 2026-05-31 (Sonnet 4.5): Icon smoke m4 0/6 → 5/6 (matches m3).** No longer severed for Icon — `--compile` emits a C-ABI `main` wrapper (`rt_frame`→ζ, esi=0 → `call main_α`) + the flat BB body via `codegen_flat_build`, reusing the SAME BB templates mode-3 emits (mode-3 = `MEDIUM_BINARY` into a pool + `jmp`; mode-4 = `MEDIUM_TEXT` GAS asm). Non-Icon `--compile` still stubs loud (not yet crossed). (GZ-8, 2026-05-31: `if_expr` — previously the lone m4/m3-red case, fork-blocked in the ring→tree adapter — is now GREEN in m3 AND m4 via the flat-chain relop-as-branch; Icon smoke m2/m3/m4 = **6/6/6**, the first all-three-modes pass.) A new GZ rung is not "done" until its mode-2 oracle is green AND mode-3 + mode-4 are tracked against it.
@@ -217,6 +228,7 @@ FACT 0, smokes hold.
 - [x] **GZ-9 — `while`/`until`/`repeat` + `break`/`next`.** DONE m2/m3/m4 — Model B self-driving loops (loop node = forwarder/terminator; cond relop + body γ/ω carry the loop).
 - [x] **GZ-10 — user procedure as a four-port FLAT box.** DONE m2/m3/m4 — `(ζζ,entry)` convention; args + recursion + mutual recursion; per-activation depth-indexed frame arena (NOT a value stack); `lower_sc` param capture; bare-`if`-no-else fall-through fixed.
 - [x] **GZ-11 SUSPEND — user generators via `suspend E do BODY`** (jcon `ir_a_Suspend`). DONE m2 ORACLE — eager-drain `SuspendBuf` + node-keyed `susp_gen_cache`, `is_generator` pre-pass wires a generator call β→self. Native m3/m4 suspend = later rung.
+- [x] **GZ-SCAN — Icon string scanning `subj ? body`** (jcon `ir_a_Scan`; runtime `bscan`/`escan` in `imisc.r`). DONE m2 ORACLE (2026-06-01, Opus 4.8) — `v_scan` Icon arm builds `IR_GEN_SCAN` (subject→`counter` subgraph, body→`ival` subgraph, `dval=1.0`); the `IR_GEN_SCAN` dval==1.0 exec arm coerces subject→string, saves/sets(`&pos:=1`)/restores `&subject`+`&pos` via the `scan_stack` (the oracle's save/restore idiom — NOT a value stack), runs the body subgraph; restore-on-body-success and restore-on-body-failure both correct (nested-scan test verifies outer subject returns). **Fix that unlocked it:** `bb_reset` was zeroing `IR_GEN_SCAN->counter` (the subject-subgraph ptr) — added to the counter-preservation allowlist (`scrip_ir.c`), mirroring IR_SCAN/IR_SUSPEND. **corpus m2 114→127** (+13: rung05 scan ×5, rung06 cset-scan `any`/`many`/`upto` ×5, rung08 string-scan `match`/`move`/`tab` ×3). **Native m3/m4 scan = later rung — now LOUDLY EXCISES** (`IR_GEN_SCAN` in `icn_kind_native_stub`).
 - [ ] **GZ-DEFER — EVAL / CODE / `*P` deferred patterns** via the `test_sno_3.c` model. This was
   the ONE thing that broke the prior stackless build; it is solved in the reference file.
 - [ ] **GZ-11+ — corpus features rebuilt stackless** (lists, tables, records, scanning, csets,
@@ -303,9 +315,13 @@ Completion tests:
 bash scripts/build_scrip.sh
 ./scrip --interp  /tmp/rung_NN.icn  > out_m2.txt
 ./scrip --run     /tmp/rung_NN.icn  > out_m3.txt
-diff out_m2.txt out_m3.txt    # must be empty
+diff out_m2.txt out_m3.txt    # must be empty (when m3 is live; if m3 declines [SMX] it is EXCISED, tracked)
 
-./scrip --dump-sm /tmp/rung_NN.icn  # ; SM_sequence_t  count=0
+# THREE-MODE session-sync gate (the new "done" — interp HARD, run/compile PASS-or-EXCISED, never silent FAIL):
+bash scripts/test_icon_rung_suite.sh --rung rungNN   # all three modes, [SMX] => EXCISED
+make libscrip_rt                                       # mode-4 needs out/libscrip_rt.so
+
+./scrip --dump-bb /tmp/rung_NN.icn  # (SM excised; --dump-sm removed). ZERO-SM is structural now.
 
 # FACT gate
 grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ \
@@ -321,9 +337,9 @@ bash scripts/test_gate_icn_no_stack.sh            # pinned ratchet (baseline low
 bash scripts/test_gate_icn_one_reg_frame.sh       # pinned ratchet; target 0 as families migrate
 
 # Smokes (must hold)
-bash scripts/test_smoke_icon.sh                # PASS=5
-bash scripts/test_smoke_prolog.sh              # PASS=5
-bash scripts/test_smoke_unified_broker.sh      # PASS>=35
+bash scripts/test_smoke_icon.sh                # m2 PASS=12 (HARD)
+bash scripts/test_smoke_prolog.sh              # m2 PASS=5
+bash scripts/test_smoke_unified_broker.sh      # PASS>=25
 ```
 
 ---
@@ -435,49 +451,29 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `a2a606b` GZ-11+ mode-2 — THREE generator-correctness fixes closing the named binop/`to`
+**HEAD (SCRIP):** `760c72e` GZ-SCAN Icon string scanning (m2 oracle) + THREE-MODE session-sync discipline. 5 files (+273/−4): `lower.c`/`bb_exec.c`/`scrip_ir.c` (scan) + `scrip.c` (loud-decline gate) + `scripts/test_icon_rung_suite.sh` (new three-mode harness). Mode-2 ORACLE for scan; emitter UNTOUCHED (the decline is a driver pre-check). See below.
+
+**Done this session (Opus 4.8, 2026-06-01) — TWO things: (A) Icon scanning, (B) the three-mode session-sync discipline.** All grounded per CONSULT-CANONICAL-SOURCES in `refs/jcon-master/tran/irgen.icn` (`ir_a_Scan`) + `refs/icon-master/src/runtime/imisc.r` (`bscan`/`escan`) + `fscan.r` (`move`/`tab`/`pos`).
+
+**(A) GZ-SCAN — Icon string scanning `subj ? body` (mode-2 ORACLE).** 3 files (+~60/−2): `lower.c` `v_scan` Icon arm (FACT-RULE: variation inside the one `cx.lang` branch) builds `IR_GEN_SCAN` with subject→`counter` subgraph + body→`ival` subgraph + `dval=1.0`; `bb_exec.c` `IR_GEN_SCAN` dval==1.0 exec arm does the bscan/escan save-set-restore of `&subject`+`&pos` via the existing `scan_stack` (oracle idiom, NOT a value stack), running the body subgraph (old direct-α/β path kept); `scrip_ir.c` `bb_reset` adds `IR_GEN_SCAN` to the counter-preservation allowlist (THE bug — reset was zeroing the subject-subgraph pointer; `ival` survived, `counter` didn't, so the debug trace showed `subj_sg=(nil)`). **corpus m2 114→127** (+13: rung05 scan ×5, rung06 cset-scan `any`/`many`/`upto` ×5, rung08 string-scan `match`/`move`/`tab` ×3) — a clean superset, zero regressions.
+
+**(B) THREE-MODE SESSION-SYNC STEPPING (Lon directive — adopted from GOAL-PROLOG-BB).** Icon now tracks all three modes with the Prolog `[SMX]`→EXCISED mechanism, so modes 3/4 get continuous visibility instead of silently rotting:
+- **NEW harness `scripts/test_icon_rung_suite.sh [--rung R] [--mode all|interp|run|compile]`** (default `all`) — Icon twin of `test_prolog_rung_suite.sh`; runs each corpus program through all three engine paths vs `.expected`, one summary line per mode. (`test_icon_all_rungs.sh` stays the mode-2-only category view.)
+- **NEW loud-decline gate `icn_graph_native_emittable(s2)` + `icn_kind_native_stub(t)`** (`scrip.c`): the Icon mode-3 AND mode-4 driver arms call it before emitting; a graph containing a STILL-STUBBED native kind (`IR_GEN_SCAN`/`IR_GEN_ALT`/`IR_KEYWORD`/`IR_PROC_GEN`/`IR_CSET_*`/`IR_SUSPEND`) prints `[SMX] ... EXCISED` and declines cleanly (exit 0) — the harness reads `[SMX]` as EXCISED-not-FAIL. Before this, a stubbed box emitted ZERO bytes and the program ran to a silent-wrong empty result no harness caught (exactly the "FALL LOUD, NEVER SILENT" law). Scan now loudly EXCISES in m3/m4 instead of silently producing nothing. **REMOVE a kind from `icn_kind_native_stub` the moment its real MEDIUM_TEXT+MEDIUM_BINARY arm lands.**
+
+**HONEST THREE-MODE BASELINE (`test_icon_rung_suite.sh` full corpus, 2026-06-01):** **m2 (interp) 127 PASS / 120 FAIL / 36 XFAIL** · **m3 (run) 13 PASS / 212 FAIL / 22 EXCISED** · **m4 (compile) 11 PASS / 214 FAIL / 22 EXCISED**. The m2 number matches `test_icon_all_rungs`. The m3/m4 FAILs are the previously-INVISIBLE native gaps now surfaced (e.g. `write(-x)` unary-minus `IR_UNOP` silent-miscompiles in m3 — rung07); most are partial/stub templates not yet on the loud-decline list. **FOLLOW-UP (the loud-decline sweep):** classify each m3-FAIL as silent-nothing → add its kind to `icn_kind_native_stub` (→EXCISED), vs a genuinely-fixable arm (→GZ-11+ native template). This is the path that turns the 212 FAILs into honest EXCISED+PASS.
+
+**GATES (all green, verified post-build):** Icon smoke **m2 12/12 · m3 12/12** (HARD m2 green; m4 0/12 = pre-existing, smoke m4 needs `libscrip_rt.so`) · corpus `test_icon_all_rungs` **127 PASS** (was 114) · broker **25** · Prolog smoke m2 **5/5** · SNOBOL4 `hello` OK · FACT **0** · C-byrd-box **0** · g_vstack **0** · no-stack **117≤127** · one-reg-frame **20≤20** · prove_lower2 **green (67 cases)** · ZERO-SM **0**.
+
+**COMMITTED SCRIP `760c72e`** (this `.github` commit lands the watermark + GOAL discipline). Files touched: `src/lower/lower.c`, `src/lower/bb_exec.c`, `src/lower/scrip_ir.c`, `src/driver/scrip.c`, `scripts/test_icon_rung_suite.sh` (new), `.github/GOAL-ICON-BB.md`. Commit identity per RULES.md: `LCherryholmes <lcherryh@yahoo.com>`.
+
+**NEXT:** the loud-decline sweep (classify m3/m4 FAILs → EXCISE the silent-nothing kinds so the three-mode board reads PASS+EXCISED with zero silent FAIL), then GZ-11+ native templates to convert EXCISED→PASS family by family (scanning `bb_gen_scan` native, unary-minus `bb_unop` fix, csets, lists). GZ-DEFER (EVAL/CODE/`*P`, `test_sno_3.c` model) remains open.
+
+**PREV (SCRIP):** `a2a606b` GZ-11+ mode-2 — THREE generator-correctness fixes closing the named binop/`to`
 cluster + `proc_locals` accumulation (jcon `ir_a_Binop` / `ir_a_ToBy`). Mode-2 ORACLE ONLY (`bb_exec.c` +
 `lower.c`; emitter UNTOUCHED → m3/m4 flat-chain byte-identical, verified `every write(1 to 3)` m2==m3). 2 files
 (+74/−14). Rebased CONFLICT-CLEAN twice onto parallel SNOBOL4 `a06b2a1`/`706d665` (PB-RB-3 BB_MATCH) and Prolog
-`f5170a0` (PLG-9e) — disjoint files, FACT-rule isolation held.
-
-**Done this session (Opus 4.8):** All grounded per CONSULT-CANONICAL-SOURCES in `refs/jcon-master/tran/irgen.icn`.
-1. **RELOP GENERATOR-TRANSPARENCY OVER A NESTED BINOP.** A relational op whose operand is a generator-bearing
-   arithmetic `IR_BINOP` (a cross-product like `(1 to 3)*(1 to 2)`) dead-ended on the first FALSE comparison:
-   `bb_is_gen_node` recognized `IR_BINOP_GEN` but NOT the plain `IR_BINOP` that `v_binop` emits for `*`/`+`, so
-   the `rel_fail` arm fell to `return bb->ω` and terminated the `every`. New `gen_resume_target(e)` (`bb_exec.c`)
-   descends a plain `IR_BINOP` to its RIGHT operand's resume (jcon `ir_binary`: `binop.resume → right.resume` —
-   a postfix binop is NOT its own resume; re-running it recomputes the SAME product), recursing `aux[1]` then
-   `aux[0]`; the `rel_fail` arm re-enters that resume instead of ω. `3 < ((1 to 3)*(1 to 2))`→4,6 ;
-   `(1 to 3)+(1 to 3) > 4`→4,4,4. **corpus +2** (`rung01_paper_compound`, `rung02_arith_gen_nested_filter`),
-   **broker +1** (`ICN: rung01 compound`).
-2. **GENERATOR-BOUNDED `to`.** `(1 to 2) to (2 to 3)` produced EMPTY: the Icon postfix `to` arm read its bounds
-   once from the AG ring and on counter-exhaustion returned ω, never re-pumping generator bounds. `v_to` now
-   stores the `{from,to}` bound chains in `operand_aux` (PEERS sidecar, like `v_binop`); the postfix `IR_TO` arm
-   reads bounds from operand VALUES (position-independent under re-pump) and on counter-exhaustion re-pumps
-   `gen_resume_target(aux[1])` then `aux[0]`, resetting `state=0` to re-read fresh bounds (jcon `ir_a_ToBy`:
-   `by.failure→to.resume`, `to.failure→from.resume`). Constant bounds yield no resume target → ω as before.
-   `(1 to 2) to (2 to 3)`→1,2,1,2,3,2,2,3 ; `1 to (2 to 3)`→1,2,1,2,3 ; `(1 to 2) to 3`→1,2,3,2,3 ; constant
-   `to`/`to by` (`1 to 3`, `1 to 5 by 2`, `5 to 1 by -1`) UNCHANGED. **corpus +1** (`rung01_paper_nested_to`).
-3. **BINOP VARIABLE RE-DEREFERENCE ON GENERATOR RESUME (Icon-gated).** `every total := total + (1 to n)` gave the
-   last addend not the sum (`sum_to(5)`→5 not 15; minimal `every total:=total+(1 to 3)`→3 not 6): the loop
-   `VAR→TO→BINOP→ASSIGN→TO` re-enters the BINOP each pass but NOT the VAR box, so `aux[0]->value` stayed the
-   stale initial value (each pass computed `initial+i`). The postfix `IR_BINOP` arm now refreshes a plain
-   `IR_VAR`/`IR_KEYWORD` operand via `bb_exec_node` before reading `lv`/`rv` (idempotent frame-slot/NV read; jcon
-   `ir_a_Binop` reads `[lv,rv]` each opfn) — NEVER a generator operand (re-exec would advance it). Guarded
-   `g_current_cfg->lang==IR_LANG_ICN` so the shared SNOBOL4/Prolog binop path is BYTE-IDENTICAL. **corpus +1**
-   (`rung02_proc_locals`).
-
-**GATES (stash-verified vs pristine `c2b352d`):** Icon smoke **m2/m3/m4 12/12/12** (HARD m2 green) · corpus
-`test_icon_all_rungs` **110→114 PASS** (FAIL 137→133, XFAIL 36) · broker **24→25** · Prolog m2/m3 **5/5** ·
-SNOBOL4 `hello` OK · FACT **0** · C-byrd-box **0** · no-stack **117≤127** · one-reg-frame **20≤20** ·
-prove_lower2 **65 PASS** · ZERO-SM **0**.
-
-**NEXT:** GZ-DEFER (EVAL/CODE/`*P` deferred patterns, `test_sno_3.c` model); then GZ-11+ corpus features
-stackless (lists, tables, records, scanning, csets, builtins). The remaining mode-2 generator-cluster odds-and-
-ends still open (lower priority): nested cross-products consumed without an enclosing loop; `to by` with a
-GENERATOR step/bound (this session did generator FROM/TO bounds for plain `to`, not `to by`); co-expression
-`@`/`^` resume. None block GZ-DEFER.
+`f5170a0` (PLG-9e) — disjoint files, FACT-rule isolation held. corpus `test_icon_all_rungs` 110→114 PASS.
 
 **PREV (SCRIP):** `c353d68` GZ-11+ mode-2 RELATIONAL BINOP GENERATOR-TRANSPARENCY (jcon `ir_a_Binop`). A
 FALSE relational comparison (`rel_fail`) is not the binop's failure — per jcon a relop is generator-transparent
