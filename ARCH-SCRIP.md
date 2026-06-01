@@ -14,6 +14,12 @@ Mode 1 (AST interpreter) is **deleted**. Three execution modes remain:
 | 3 | SM gen / exec | `--run` | speed without asm/link/process overhead | IR → `sm_lower` → `sm_codegen` → `sm_jit_run` |
 | 4 | SM gen / asm / link / exec | `--compile` | full native binary path | IR → `sm_lower` → asm-emit → link → exec |
 
+**SNOBOL4 native pattern matching (modes 3 & 4)** — the 5-phase `SUBJ ? PAT [= REPL]` model (build subject,
+build pattern via builder-BBs-that-build-BBs, run via the generic BB_MATCH box, build replacement, do replace),
+plus the INVARIANT-PATTERN-BAKE optimization — is specified in **ARCH-SNOBOL4.md → "Native pattern architecture
+— modes 3 & 4 (pattern = built BB graph)"**; step ladder in GOAL-SNOBOL4-BB.md (SBL-PAT-BB). Read it before
+mode-3/4 SNOBOL4 pattern work.
+
 ## Shared substrate (all three modes)
 
 These are the components every mode reaches through:
