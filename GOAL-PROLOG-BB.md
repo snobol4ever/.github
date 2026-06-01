@@ -138,7 +138,104 @@ proven negative test (injecting a resurrection makes it exit 1).
 
 ---
 
-## ★★★ PLG — STACKLESS GROUND-ZERO REBUILD (CURRENT — supersedes WAM-CP *direction*) ★★★
+## ★★★ VSX — g_vstack ERADICATION (TOP PRIORITY — Lon directive 2026-05-31, ABOVE PLG) ★★★
+
+**Directive (Lon, 2026-05-31):** SCRIP has NO value stack. SNOBOL4 uses BBs for everything; Icon needs no
+`g_vstack`; Prolog already has zero ties. There is nothing like a value stack in SCRIP — **it must not
+exist. DELETE it.** This supersedes PLG as the current top priority until `g_vstack` and its entire
+apparatus are gone and the zero-check gate is green.
+
+**Scope is SCRIP-WIDE, not Prolog-only** — but it lands from the Prolog session because Prolog is already
+clean and the apparatus lives in the shared runtime. Cross-language rungs are grounded in each language's
+GOAL (`GOAL-SNOBOL4-BB.md`, `GOAL-ICON-BB.md`); this ladder is mirrored as a pointer in those files on the
+next `grand master reorg`.
+
+**Audit:** `doc/VSTACK-ERADICATION-AUDIT-2026-05-31.md` (rung VSX-0, DONE). Full inventory + dead/live
+split + the KEY FINDING that the stack is **already a bomb**: `g_ops` is only ever `&g_default_ops`, whose
+`push`/`pop`/`peek` `abort()` with `[SMX] FATAL: ... There is no value stack.` — never reassigned anywhere.
+So every `vstack_push/pop/peek` site is a guaranteed abort; eradication removes provably-dead-or-aborting
+code, NOT a working stack. Only `depth`/`set_depth`/`get_last_ok`/`set_last_ok` are non-aborting (used by
+`rt_frame` save/restore + `rt_last_ok`).
+
+**The apparatus (all `src/runtime/rt/rt.c` unless noted):** `g_vstack[65536]` + `g_vtop`/`g_vframe_base`/
+`g_last_ok`; the ops layer `rt_vstack_ops_t` (`rt.h:125`) / `g_default_ops` / `g_ops` / 7 `_default_*` fns;
+public `rt_vstack_depth`/`rt_vstack_pop`; static wrappers `vstack_push/pop/peek/pop_str/pop_int64` +
+`LAST_OK_GET/SET`; ~67 `rt_*` functions whose bodies call a vstack op (legacy SM / SNOBOL4-pattern / frame
+surface); the `STACKLESS_ABORT` macro's `g_vstack` mention.
+
+### VSX rungs (strict order; each: build green · all language smokes at/above floor · FACT 0 · per-language no-vstack gate extended)
+
+- [x] **VSX-0 — AUDIT (doc only, no code). DONE (Opus 4.8, 2026-05-31).** `doc/VSTACK-ERADICATION-AUDIT-2026-05-31.md`.
+  Inventory + dead/live split + the already-a-bomb finding. Prolog prerequisite already complete this
+  session (`rt_pl_atom_push`+`rt_pl_var_push` deleted, `bb_atom`/`bb_logicvar` stackless, guard
+  `scripts/test_gate_pl_no_value_stack.sh`).
+
+- [ ] **VSX-1 — generalize the no-vstack guard to a SCRIP-WIDE zero-check (the gate VSX-8 will assert).**
+  Extend/rename `scripts/test_gate_pl_no_value_stack.sh` into a project-wide `scripts/test_gate_no_vstack.sh`
+  that greps (comments stripped) for `g_vstack`/`vstack_push`/`vstack_pop`/`vstack_peek`/`rt_vstack_*` ACROSS
+  ALL of `src/` and reports the live count (target → 0). At VSX-1 it reports the current baseline (non-zero,
+  expected) and is INFORMATIONAL; it flips to a hard gate at VSX-8. Keep the Prolog no-resurrect guard
+  passing. Gate: script runs, prints baseline count, build untouched.
+  **DONE (Opus 4.8, 2026-05-31).** `scripts/test_gate_no_vstack.sh` created (informational; `--strict` flips
+  to hard gate for VSX-8, verified it exits 1 at the baseline → has teeth). **BASELINE = 166 code references**
+  (comments stripped) across 4 files: `rt.c` 158, `runtime/core/eval_code.c` 5, `emitter/BB_templates/
+  bb_binop_gen.cpp` 2, `rt.h` 1. NOTE for VSX: `eval_code.c` + `bb_binop_gen.cpp` carry vstack refs too — the
+  audit's rt.c-centric inventory must extend to these two when their rungs come (eval_code = SM-era code-eval;
+  bb_binop_gen = Icon/SNOBOL binop). Prolog no-resurrect guard still passes; Prolog smoke unchanged (no code
+  deleted this rung).
+
+- [ ] **VSX-2 — delete the DEAD set (0 external refs).** Delete these `rt_*` (and their `rt.h` decls), each
+  confirmed 0 refs outside rt.c in VSX-0: `rt_coerce_num`, `rt_concat`, `rt_decr`, `rt_exec_stmt_pat`,
+  `rt_exp`, `rt_frame_enter`, `rt_halt_tos`, `rt_incr`, `rt_load_frame`, `rt_match_blob`, `rt_neg`,
+  `rt_nv_set`, `rt_push_expr`, `rt_push_expression_descr`, `rt_do_return`, `rt_do_nreturn`, `rt_store_frame`,
+  `rt_set_last_ok`, `rt_set_stno`, `rt_push_null_noflip`, `rt_push_real_bits`. Re-grep each immediately
+  before deleting (a peer commit may have added a ref). Gate: build green; all smokes at/above floor; FACT 0.
+
+- [ ] **VSX-3 — delete the SNOBOL4 pattern-primitive runtime `rt_pat_*`.** The whole `rt_pat_*` family
+  (`lit/ref/span/any/notany/break/breakx/len/pos/rpos/tab/rtab/arb/arbno/bal/fence/fence1/eps/fail/succeed/
+  abort/cat/alt/deref/rem/refname/capture*/usercall*`). VERIFY against `GOAL-SNOBOL4-BB.md` that SNOBOL4
+  pattern matching is fully BB-template-driven (the `bb_pat_*.cpp` boxes) and these interpreter-era runtime
+  entries are unreached. Any still-referenced one moves to VSX-4. Gate: SNOBOL4 m2 HARD 7/7 (+ m3/m4 floors)
+  unchanged; build green; FACT 0.
+
+- [ ] **VSX-4 — SNOBOL4 live vstack `rt_*` (arith/compare/concat/name-table).** `rt_acomp`, `rt_lcomp`,
+  `rt_arith`, `rt_nv_get`, `rt_match_variant`, `rt_concat` (if VSX-2 left refs), `rt_call`. Trace each
+  caller; for any that is a live SNOBOL4/Icon box, confirm (per `GOAL-SNOBOL4-BB.md`) the box already
+  computes in-frame (`[ζ+off]`) and the `rt_*` call is vestigial, then remove the call + the function.
+  Where a caller is itself dead, it falls in this rung's sweep. Gate: SNOBOL4 + Icon smokes at/above floor;
+  build green; FACT 0.
+
+- [ ] **VSX-5 — Icon live vstack `rt_*` (limit + any Icon-only arith).** `rt_limit_inc`, `rt_limit_more`,
+  `rt_pop_void`, and any Icon-reached residue. VERIFY against `GOAL-ICON-BB.md` (Icon is ALL stackless,
+  one-register ζ-frame). Gate: Icon m2 HARD unchanged; build green; FACT 0.
+
+- [ ] **VSX-6 — `rt_push_int` / `rt_push_str` last callers.** These had the most external refs (10 / 4).
+  After VSX-2..5 most callers are gone; trace the remainder (some are other `rt_*` internal to rt.c, some
+  may be a not-yet-migrated box → push that box's migration into the owning language's GOAL, do NOT leave a
+  vstack call). When the last caller is gone, delete `rt_push_int`/`rt_push_str`/`rt_push_null`. Gate: all
+  smokes at/above floor; build green; FACT 0.
+
+- [ ] **VSX-7 — delete the array + ops layer + wrappers.** With every caller gone: delete `g_vstack`,
+  `g_vtop`, `g_vframe_base`, `g_last_ok`, `rt_vstack_ops_t` (rt.h), `g_default_ops`, `g_ops`, all 7
+  `_default_*` fns, `rt_vstack_depth`, `rt_vstack_pop`, `vstack_push/pop/peek/pop_str/pop_int64`,
+  `LAST_OK_GET/SET`. Rework `rt_frame` save/restore + `rt_last_ok` off `g_ops->depth/set_depth/last_ok`
+  (they use the non-aborting ops — give them a tiny local or fold into the ζ-frame; confirm against the
+  frame model). Purge `g_vstack` from the `STACKLESS_ABORT` macro text. Gate: build green; ALL language
+  smokes at/above floor; FACT 0.
+
+- [ ] **VSX-8 — ZERO-CHECK (the proof).** `scripts/test_gate_no_vstack.sh` (from VSX-1) flips to a HARD
+  gate: zero matches for `g_vstack|vstack_push|vstack_pop|vstack_peek|rt_vstack_|rt_vstack_ops_t` in code
+  across all `src/` (comments stripped). Add it to the standing gate set (smoke/rung scripts call it).
+  `g_vstack` no longer exists anywhere in SCRIP. Gate: zero-check == 0; full build green; every language
+  smoke at/above floor; FACT 0.
+
+**Dependency order:** VSX-0 → VSX-1 → VSX-2 → VSX-3 → VSX-4 → VSX-5 → VSX-6 → VSX-7 → VSX-8, strictly.
+Do the DEAD set (VSX-2) and `rt_pat_*` (VSX-3) before the live-tracing rungs. Never leave a `vstack_*` call
+reachable; if a box still needs one, that box's stackless migration is a prerequisite recorded in its
+language GOAL.
+
+---
+
 
 > **⚠️ READ FIRST — GROUND-ZERO RECONCILIATION (Opus 4.8, 2026-05-31, SCRIP `cf6b7f6`+).** Every
 > "State at HEAD" entry BELOW the PLG ladder (top one is `1882bc6b`, 2026-05-30) predates the
