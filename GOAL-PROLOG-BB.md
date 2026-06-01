@@ -227,6 +227,17 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 > `ar_compare`'s `case LE: return (diff==CMP_LESS)||(diff==CMP_EQUAL)`. **GATE-3 rung suite m2 109→110, m3
 > 109→110 (byte-identical); rung30 m2+m3 both `123`.** GATE-1 smoke 5/5; prove_lower2 53/53. The third
 > arith-compare site (`resolve_runtime.c:914` op-code map) already had `=<` correct — only `bb_exec.c` was wrong.
+> **MODE-3 ≡ MODE-4 PARITY KEPT (`355606b`):** per MIGRATION-MODE4-IS-MODE3-DUMP.md the emit templates are
+> ONE path (`EMIT_BINARY`=mode-3 in-process JIT, `EMIT_TEXT`=mode-4 `.s` AOT — same template body, only the
+> output sink differs), so the interpreter fix above was NOT sufficient on its own: the `bb_builtin.cpp`
+> CAT-D-9 comparison template (BOTH the BINARY arm ~445/452 and the TEXT arm ~1904/1914) had the SAME
+> `<=`-not-`=<` bug in its recognizer guard AND `is_arith` classifier — left unfixed, `=<` would route to the
+> term-compare callee (`rt_pl_term_cmp`) instead of `rt_pl_arith_cmp` the moment PLG-9 mode-4 or the native
+> mode-3 comparison tier lands, silently diverging from the now-correct mode-2/interim-mode-3. Fixed all four
+> template sites in lockstep (4 lines, +4/−4, still Prolog `IR_BUILTIN` arm only; bb_binop_gen.cpp's `BINOP_LE`
+> → `<=` is the Icon/SNOBOL binop namespace and is correctly untouched). Template-purity audit clean for
+> bb_builtin.cpp; siblings byte-identical on the rebased tree (Icon m2 6/6, SNOBOL4 13/6 — the 13/6 is the
+> peer SBL-M3-CONCAT+GOTO landing, not this change).
 > **REMAINING 1 fail:** `rung15_abolish_then_reassert` needs **PL-RT-ASSERTZ** (runtime `assertz` from a goal
 > body materialising a fresh clause into the live predicate's IR_CHOICE `bodies[]`; today `assertz/1` is not in
 > `lower.c`'s `det_builtins` so it falls to `g_goal` and never resolves at the BB level — `resolve_assert_clause`
