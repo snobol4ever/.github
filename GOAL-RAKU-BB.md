@@ -317,6 +317,29 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
+**SESSION HANDOFF (2026-05-31, Opus 4.8).** Committed HEADs: SCRIP `056f849`, .github `420a35a4` (pushed at handoff).
+Net deliverable this session: **RK-LOWER-5a** (Raku read-only eager value ops — hash/array reads, `sort`, list ctor,
+`elems`/`reverse`/… whitelist — onto the unified `lower.c`, mode-2) PLUS the **3-mode TESTING DIRECTIVE restored** in
+`scripts/test_smoke_raku.sh`. Verified 3-mode matrix at handoff (clean step-zero rebuild, rc=0):
+
+| frontend | mode-2 `--interp` | mode-3 `--run` | mode-4 `--compile` |
+|---|---|---|---|
+| Raku    | **22/22** (HARD ✓) | 0/22 | 0/22 |
+| Icon    | 6/6 ✓ | 6/6 ✓ | 6/6 ✓ |
+| SNOBOL4 | 7/7 ✓ | 0/6  | 0/6  |
+
+prove_lower2 **61/0**; FACT-rule md5 `5097ed94` ×4; concurrency audit baseline-7-staleness pre-existing (Icon/SNOBOL,
+zero Raku). **Why Raku m3/m4 = 0/22 (DIAGNOSED, NOT a Raku-fixable gap):** Raku rides the SNOBOL4-family `[SBB]` mode-3/4
+driver, severed by Lon 2026-05-31 (`sno_ring_to_tree` removed; LOWER-direct path unwired) — same root cause as SNOBOL4's
+0/6. Icon is 6/6/6 because it has its own native path. So modes 3/4 need the SNOBOL4-BB / Ground-Zero `[SBB]` LOWER-direct
+driver rewired FIRST (shared infra, not a Raku-session task); then Raku reuses Icon's proven `bb_call`/`bb_lit`/`bb_to`
+templates for shared kinds + `bb_rk_*` only for generator/junction/NFA boxes. **NEXT:** (A) RK-LOWER-5b redo (mutating
+hash/array writeback via the sound dval=3.0 exec-vname-recovery — fix the statement-position call's γ/ω return so a
+successful mutation continues the sequence); (B) coordinate the `[SBB]` LOWER-direct driver with the SNOBOL4-BB session.
+**STILL DEFERRED:** the lockstep "three → four" FACT-RULE roster expansion across all four GOAL files.
+
+---
+
 **3-MODE TESTING DISCIPLINE RESTORED + 5b REVERTED (2026-05-31, Opus 4.8).** Correcting a process violation: the
 GOAL "TESTING DIRECTIVE — ALWAYS RUN ALL THREE MODES" (Lon 2026-05-31, "Never report a mode-2 number alone") was
 NOT being honored — `scripts/test_smoke_raku.sh` ran only `--interp`. It now runs mode 2 (`--interp`, HARD),
