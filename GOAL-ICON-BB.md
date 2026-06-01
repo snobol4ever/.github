@@ -423,6 +423,36 @@ FACT 0, smokes hold.
   falls through to the next statement. Smoke 11->12 m2/m3/m4 (+`bare_if` case).
   **NEXT:** GZ-DEFER (EVAL/CODE/`*P` deferred patterns, `test_sno_3.c` model); then GZ-11+
   corpus features stackless.
+- [ ] **GZ-11 SUSPEND — user-defined generators via `suspend E do BODY`** (jcon `ir_a_Suspend`).
+  **mode-2 oracle DONE (2026-06-01):** a procedure that `suspend`s is now an Icon GENERATOR; `every write(gen())`
+  re-pumps it for successive values. Grounded in canonical `refs/jcon-master/tran/irgen.icn` `ir_a_Suspend`
+  (lines 937-978: `p.expr.ir.success -> Succeed(susp, t)`; `t -> run body -> re-seek E`; `p.expr.ir.failure ->
+  p.ir.failure` = proc fails when E exhausts). **Mode-2 model = the established EAGER-DRAIN idiom** (same as
+  IR_GATHER / map-grep): while a proc activation's body runs, each `IR_SUSPEND` node appends its value(s) to a
+  per-activation collection buffer (`SuspendBuf g_suspend_buf`, save/restored so nested suspending calls each
+  collect into their own frame), running the `do` body between yields; when the body finishes, the `IR_CALL`
+  (dval==3.0) site harvests the buffer — NON-empty => the call is a generator, the collected list cached on a
+  node-keyed sidecar (`susp_gen_cache`, keyed by call IR_t* so two `every` sites get independent lists), one
+  value yielded per re-entry via the call node's `state`/`counter` cursor (exactly like IR_TO); EMPTY => ordinary
+  deterministic call (single `g_ir_return_val`, unchanged). **Five edits:** (1) `lower.c` dedicated Icon
+  `TT_SUSPEND` arm -> `IR_SUSPEND` (dval=1.0, E -> `counter` value-subgraph, `do` body -> `ival` subgraph) +
+  Icon no-op arm for `TT_LOCAL`/`TT_GLOBAL`/`TT_STATIC_DECL` (declarations are pass-through `IR_SUCCEED`) +
+  `icn_proc_is_generator(name)` helper wiring a generator call's β (resume) -> the call node itself (resumable),
+  a deterministic call's β -> ω (bounded); (2) `lower_program.c` `proc_subtree_has_suspend`/`proc_body_has_suspend`
+  + a PRE-PASS that marks `proc_table[].is_generator` for ALL Icon procs BEFORE any body is lowered (a caller may
+  lower before its suspending callee); (3) `bb_exec.c` `SuspendBuf` + `susp_gen_cache` + `IR_SUSPEND` exec arm
+  (enumerates E — re-pumps only if `!ir_is_single_shot(E.entry)`, else one value — runs `do` after each) +
+  `IR_CALL` dval=3.0 generator harvest/resume; (4) `scrip_ir.c` added `IR_SUSPEND` to the `bb_reset` counter-
+  preserve whitelist (its `counter` holds the E subgraph); (5) `prove_lower2.c` supplies a local `g_stage2`
+  (proc_count=0) so the standalone topology harness links the new `icn_proc_is_generator` g_stage2 reference.
+  Verified m2: `rung03_suspend_gen` (1,2,3,4), `_filter` (downto 4,3,2,1), `_compose` (1,2,3,1,2 — independent
+  re-runs), `_return` (6,14), `_fail` (1,3). **GATES: Icon smoke m2/m3/m4 12/12/12 (HARD green) · corpus
+  `test_icon_all_rungs` 90 -> 107 PASS (+17) · no-stack 117<=127 · one-reg-frame 20<=20 · FACT 0 · C-byrd-box 0 ·
+  prove_lower2 64/64 PASS · Prolog m2 5/5 m3 5/5 · SNOBOL4 `hi-sno` OK · unified broker 24/42 (identical to
+  session start — no regression).** mode-2 ORACLE ONLY (emits zero x86; the emission gates are untouched);
+  native mode-3/4 `suspend` is a later rung. **OUT OF SCOPE:** `suspend E` where E is a multi-value generator
+  consumed WITHOUT an enclosing loop (the per-visit enumeration handles it, but corpus coverage is the `while
+  ... suspend` form); co-expression `@`/`^` resume; `suspend` inside nested control beyond `while/until/every`.
 - [ ] **GZ-DEFER — EVAL / CODE / `*P` deferred patterns** via the `test_sno_3.c` model. This was
   the ONE thing that broke the prior stackless build; it is solved in the reference file.
 - [ ] **GZ-11+ — corpus features rebuilt stackless** (lists, tables, records, scanning, csets,
