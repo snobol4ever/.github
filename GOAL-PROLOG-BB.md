@@ -390,6 +390,26 @@ unwired mode-4 shape declines with the `[SMX]` banner = EXCISED (expected, not F
   path and segfaulted `print(42)` (rung22) — the split is the fix. Two files (`bb_builtin.cpp`, `scrip.c`),
   Prolog-arm-only, FACT-clean. m2/m3 byte-identical (111/111). Siblings neutral.
 
+- [x] **WAM-CP-7a/7b — mode-4 head-unify specialization (var-vs-const + first-occurrence) (2026-06-01, `b716e8c`).**
+  gprolog get_atom/get_integer + get_variable; swipl H_ATOM/H_SMALLINT + H_FIRSTVAR. (a) **var-vs-const** — a
+  constant head arg `IR_UNIFY(LOGICVAR(i), IR_ATOM/IR_LIT_I/IR_LIT_F)` emits one `rt_pl_unify_const`@PLT call
+  (deref env[i]; unbound → bind+trail via the same unify path, bound → scalar `atom_id`/`ival`/`fval` compare,
+  const Term alloc skipped) in place of `rt_pl_node_to_term`×2 + `rt_pl_unify_terms` — 3 calls → 1. New rt.c
+  helper `rt_pl_unify_const` (KEEP side of PJ-RT-PURGE: returns 1/0, makes no jump), built from the identical
+  `unify()` leaves so it is provably equal to the general arm. (b) **first-occurrence / self-unify** — a head
+  var at its own slot `IR_UNIFY(LOGICVAR(i), LOGICVAR(i))` hits `unify()`'s `t1==t2` short-circuit (always
+  true, no bind, no trail); elided to a bare success jump (reuses the missing-operand vacuous-success emission)
+  — 3 calls → 0. The lazy `env[i]` vivification is idempotent and deferred-not-lost (every reader vivifies-if-
+  NULL and stores back the same `term_new_var(i)`), so the elision is observationally identical. Two files
+  (`rt.c` +17, `bb_unify.cpp` +58), Prolog-arm-only, additive, FACT-clean. **Optimization — no pass-count
+  change:** GATE-1 5/5/5; GATE-3 m2/m3/m4 = 111/111/86 PASS / 0 FAIL / 25 EXCISED, all byte-identical. 11
+  cross-mode probes byte-identical (atom-mismatch backtrack, int/float/negative-int const heads, bound-var
+  match + mismatch, var-used/unused heads, repeated vars, unbound-arg + cross-frame backtrack, mixed
+  `rec(zero,X,X)`). no-handencoded bb_unify=1 (unchanged — adds no `b.size()`), purity 8 (unflagged),
+  pl_no_value_stack PASS, g_vstack=0. BINARY-arm bytes assembler-verified; mode-3 Prolog routes via the oracle
+  so the BINARY arm is present + byte-correct but not runtime-exercised. **7c (var-vs-var / `get_value`)** is
+  the last WAM-CP-7 slice. Siblings neutral.
+
 - [ ] **PLG-7 — remove `bb_node_state_t` snapshot/restore.** Once the recursive case provably needs no snapshot,
   delete the struct + Prolog call sites. **Audit first:** the struct has ONE LIVE Icon caller (`bb_exec.c:1589`
   IR_CALL) — do not delete it until Icon migrates off separately. Mode-2/3/4 byte-identical + build green.
@@ -437,7 +457,7 @@ vertebrae.
   callee-block/CHOICE+ALT BINARY arms; explicit `pl_node_is_resumable` resume port (replaced the β heuristic).
 
 ### Open (priority order)
-- [ ] **WAM-CP-7** unify specialization (var-vs-const / first-occurrence / var-vs-var → tiny templates). Any time.
+- [ ] **WAM-CP-7c** unify specialization — var-vs-var / `get_value` (repeated-var head arg, e.g. `eq(X,X)` arg2 = `IR_UNIFY(LOGICVAR(j), LOGICVAR(i))` i≠j → a `rt_pl_unify_var_var` reading both env slots directly, 3 calls → 1, mirroring 7a's shape). 7a (var-vs-const) + 7b (first-occurrence/self-unify) done (`b716e8c`). Any time.
 - [ ] **WAM-CP-9 (rest)** committed-ITE node; route bare `!` inside `(A;B)` through truncate (`bb_pl_alt` uses a
   separate mark stack, not `pl_choice`); retire `g_pl_cut_flag` once mode-4 drives off `pl_cp_current()` identity.
 - [ ] **WAM-CP-11** deep-backtracking arg restore (`saved_args`) + nested choices (rung02/05/06 exhaustive).
@@ -516,6 +536,6 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5 PASS / 0 EXCISED ✅ | write_atom/unify/arith/clause/recursion all native in m4 |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **86 PASS / 0 FAIL / 25 EXCISED** | PLG-9h m4 76→80 (float); PLG-9i 80→81 (copy_term); PLG-9j 81→86 (+5 rung20 numbervars + the m4 write/1 list-rendering fix). m2/m3 byte-identical. EXCISED-not-FAIL (all substrate-requiring): findall, retract/retractall/abolish, aggregate, catch/throw, dcg_generate |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **86 PASS / 0 FAIL / 25 EXCISED** | PLG-9h m4 76→80 (float); PLG-9i 80→81 (copy_term); PLG-9j 81→86 (+5 rung20 numbervars + the m4 write/1 list-rendering fix). WAM-CP-7a/7b (`b716e8c`) head-unify specialization: var-const 3→1 calls, first-occ self-unify 3→0 — optimization, no count change, byte-identical. m2/m3 byte-identical. EXCISED-not-FAIL (all substrate-requiring): findall, retract/retractall/abolish, aggregate, catch/throw, dcg_generate |
 | prove_lower2 | green ✅ | — | — | PLG-9h/9i/9j are bb_exec.c/bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
 | FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added (`rt_pl_is_f` is a runtime effect-helper; TEXT arms = s_2asm/movq-xmm/emit_build_compound_term/@PLT only); g_vstack still 0; bb_builtin.cpp not flagged by purity audit (7 baseline). Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
