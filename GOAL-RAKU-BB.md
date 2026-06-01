@@ -265,6 +265,22 @@ prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arm
   `emit_core.c`, per the TEMPLATE-ONLY FACT RULE. Gate each via `--run` / `--compile` corpus delta + the
   emitter purity/byte-identity gates. (Mirrors SNOBOL4's "TOP PRIORITY: complete all pattern BB BINARY/TEXT
   arms" rung — Raku's is the generator + junction + NFA box set.)
+  - **RK-EMIT-1/2/3 LANDED (2026-05-31, Opus 4.8) — m3 0→16/22, m4 0→16/22 (Icon 9/9/9 + SNOBOL4 7/7 m2 intact):**
+    Raku now rides **Icon's existing LOWER-direct native driver** (scrip.c: `is_raku` flag → the `is_icon || is_raku`
+    mode-3 `--run` and mode-4 `--compile` branches). The prior "blocked on the severed `[SBB]` driver" diagnosis was
+    WRONG: `.raku` simply set no routing flag, so it fell into the SNOBOL `[SBB]` abort. Raku's IR is built from Icon's
+    kinds, so Icon's `icn_flat_chain_build` + the SHARED `bb_*` templates emit it. **0 new `bb_rk_*` files** — instead
+    extended SHARED templates: `bb_call.cpp` (dval==2.0 general builtin call → marshal arg-leaf DESCRs into a per-call
+    ζ-frame vector → new `rt_rk_call_arr`), `bb_lit_scalar.cpp` (`IR_LIT_S` → slot), `bb_assign.cpp` (producer guard
+    widened to `IR_LIT_S`/`IR_CALL`), `bb_binop.cpp` (junction-collapse relop on `__rk_jct_` operands → new
+    `rt_rk_jct_relop`), and `emit_bb.c` (`IR_CONJ` flat-chain pass-through so statements after an `if`/block aren't
+    dropped; `icn_chain_arity` returns 0 for dval==2.0 calls; string-literal concat duplicate-label short-circuit).
+    Runtime trampolines in `gen_runtime.c` reuse the mode-2 `try_call_builtin_by_name`/`junction_collapse` ⇒ m2==m3==m4,
+    NO bb-walking at m3/m4 run time, NO value stack (per-call arg vector is the sanctioned ARBNO-style frame array).
+  - **STILL FAILING (6/22 m3 & m4):** `jct_nested` (a junction arg sub-graph is itself an `IR_CALL` — the dval==2.0
+    arm declines nested-call args; needs recursive sub-graph emission), and the 5 generators `gather_take`/`map_range`/
+    `grep_range`/`map_over_gather`/`grep_over_gather` (need NEW `bb_rk_gather`/`bb_rk_map`/`bb_rk_grep` templates for
+    `IR_GATHER`/`IR_MAP`/`IR_GREP` resumable-pump boxes — the largest remaining lift, genuinely Raku-only `bb_rk_*`).
 
 ### RK-NFA — Raku regex onto an ISOLATED `IR_NFA_*` family
 
@@ -350,7 +366,40 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**SESSION HANDOFF (2026-05-31, Opus 4.8).** Committed HEADs: SCRIP `62f7f3b`, .github `30de80ba` (post-rebase, pushed at handoff; peers eabedcd ICON-GZ-10 + 179bf4d SBL-PAT-BB landed underneath).
+**SESSION HANDOFF (2026-05-31 late, Opus 4.8) — RK-EMIT-1/2/3.** Net deliverable: **Raku crossed onto modes 3 & 4**
+for the eager/junction/array tier — **m2 22/22 (HARD GATE), m3 0→16/22, m4 0→16/22**, with **Icon 9/9/9** and
+**SNOBOL4 7/7 m2** unchanged (no peer regression; the shared-template edits are additive arms gated on Raku
+conditions or generic producer-kind widening). prove_lower2 PASS; concurrency invariants OK (FACT RULES byte-identical
+x3); template-purity unchanged from baseline (same 7 pre-existing `fprintf`-in-FATAL flags, exits 1 at baseline — I added
+zero new side-effects; verified fprintf counts identical to HEAD in every touched file).
+
+**THE KEY CORRECTION:** the previous handoff's claim that "Raku m3/m4 = 0/22 is blocked on SHARED SNOBOL-family `[SBB]`
+infrastructure, NOT a Raku-fixable gap" was **WRONG**. Raku fell into the `[SBB]` abort ONLY because `.raku` set no
+routing flag in `scrip.c`. Raku's lowered IR is built entirely from Icon's kinds (IR_CALL/IR_LIT_*/IR_VAR/IR_TO/IR_ASSIGN/
+IR_IF/IR_WHILE/IR_BINOP/IR_ALT + the Raku-only IR_GATHER/IR_MAP/IR_GREP), so routing Raku through **Icon's own proven
+LOWER-direct driver** (`icn_flat_chain_build` for m3, `codegen_flat_build`/`icn_flat_chain_build_text` for m4) + the
+SHARED `bb_*` templates lights up every shared kind immediately. No `[SBB]` adapter was touched.
+
+**Which BBs this session (created / reused):** Byrd-Box emitter templates — **0 new `bb_rk_*` files created; 4 SHARED
+templates REUSED/extended** (`bb_call`, `bb_lit_scalar`, `bb_assign`, `bb_binop`) plus the shared chain emitter
+(`emit_bb.c`) and 2 runtime trampolines (`gen_runtime.c`: `rt_rk_call_arr`, `rt_rk_jct_relop`). The deliberate choice was
+to REUSE Icon's path rather than author new boxes, exactly as the ladder anticipated ("REUSE the existing bb_lit/bb_call…
+for shared kinds; bb_rk_* only for generator/junction/NFA boxes"). The genuinely Raku-only `bb_rk_gather`/`map`/`grep`
+generator boxes remain UNWRITTEN (the 5 generator failures).
+
+**EXACT REMAINING FAILURES (6 in m3, same 6 in m4):** `jct_nested` (nested `IR_CALL` arg sub-graph — dval==2.0 arm
+declines nested-call args; needs recursive sub-graph emission in `bb_call.cpp`), `gather_take`, `map_range`, `grep_range`,
+`map_over_gather`, `grep_over_gather` (need `IR_GATHER`/`IR_MAP`/`IR_GREP` resumable-pump templates). These are the next
+session's work and are the larger lift.
+
+**BUILD TRAP (cost a cycle):** `bb_*.cpp` compile into BOTH `scrip` AND `libscrip_rt`. After editing a template you MUST
+`bash scripts/build_scrip.sh && make libscrip_rt` — a stale `scrip` gives misleading aborts that look like emitter bugs.
+Also: a C comment containing `IR_LIT_` followed by `*` then `/` closes the comment early — write `IR_LIT scalars`, not the
+glob form. SCRIP HEAD before this session: `80431d0`; this session committed as `47e84d7`.
+
+---
+
+
 Net deliverable this session: **RK-LOWER-5a** (Raku read-only eager value ops — hash/array reads, `sort`, list ctor,
 `elems`/`reverse`/… whitelist — onto the unified `lower.c`, mode-2) PLUS the **3-mode TESTING DIRECTIVE restored** in
 `scripts/test_smoke_raku.sh`. Verified 3-mode matrix at handoff (clean step-zero rebuild, rc=0):
