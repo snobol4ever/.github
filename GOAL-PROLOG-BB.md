@@ -697,6 +697,50 @@ probes: run `--interp` then `--run` then `--compile --target=x86` and state each
     the Icon mode_run block) → PLG-9e recursion. Each rung: emit+assemble+link+run AND GATE-1/GATE-3
     m3==m2 hold throughout. Handoff `HANDOFF-2026-05-31-OPUS48-PROLOG-BB-PLG-9B-MODE4-UNIFY.md`.
 
+  - [x] **PLG-9c — arith `is/2` into a logic-variable slot (`X is 2+3, write(X), nl`). DONE (Opus 4.8,
+    2026-05-31, atop `afb6995`).** The integer-arith tier now emits, assembles, links, and runs in BOTH
+    mode-3 (native flat walk) and mode-4 (standalone `.s`). `main :- X is 2+3, write(X), nl.` → `5` in
+    all three modes; `6*7`→42, `10-3`→7, `abs(-9)`→9, and combined `X=10, Y is X+5, write(Y)`→15 (unify
+    binds slot, arith reads the bound slot) all 3-mode AGREE. **GATE-1 smoke m4 2→3 PASS** (`arith`
+    un-EXCISED; the smoke source IS `X is 2 + 3, write(X), nl`); m2/m3 held 5/5. **GATE-3 rung suite m4
+    2→8 PASS / 0 FAIL / 103 EXCISED** (lit up rung22 write_canonical, rung23 bitwise/max_min/power/sign/
+    truncate, rung29 gcd — all verified m2==m4==expected); m2/m3 held 111/111. prove_lower2 clean; FACT 0;
+    siblings non-regressive (Icon m2/m3/m4 6/6; SNOBOL4 m2 7/7 HARD, m3 5/6 + m4 0/6 at their peer-baseline
+    floors — `rt_pl_arith` is Prolog-only, no SNOBOL reach).
+    **Mechanism (additive, +29/−0 across 2 files):**
+    1. **`src/driver/scrip.c`** — widened the SAME shared recognizer (mode-3 + mode-4 in lockstep):
+       `pl_flat_goal_is_simple` now admits `IR_BUILTIN("is")` with `α = IR_LOGICVAR` and `β = IR_ARITH`
+       (binary: both operands; or unary: left only), each operand a scalar `IR_LIT_I` or `IR_LOGICVAR`
+       (new helper `pl_flat_arith_leaf_simple`). This mirrors EXACTLY the shapes the `bb_builtin.cpp`
+       MEDIUM_TEXT `is` arm (line ~1434) handles — it flattens the RHS into serialized scalars
+       (dst_slot, op via `_.bb_op_lbl`, `lk/li`, `rk/ri`) and calls `rt_pl_is`, NO cross-process IR_t*
+       pointer (that is the MEDIUM_BINARY twin's mode-3-only path). So — exactly like PLG-9b — NO
+       template change; the `is` TEXT arm + `bb_prepare_pl`'s `is`→`bb_op_lbl` interning already existed.
+    2. **`src/runtime/rt/rt.c`** — added `gcd` + `div` to `rt_pl_arith` (see bug below).
+    **THE ONE REAL BUG (rung29 gcd → 20 instead of 4) + FIX.** Widening admitted `X is gcd(12,8)`. mode-4
+    emitted it, but printed `20` (= 12+8). Root cause: TWO arith evaluators had diverged — `bb_exec.c`'s
+    `resolve_arith_eval` (the mode-2/3 path, via `rt_pl_is_eval`) HAS `gcd`/`div`, but `rt.c`'s
+    `rt_pl_arith` (the mode-4 MEDIUM_TEXT `is` path, via `rt_pl_is`) did NOT, and its default fallthrough
+    is `return lv + rv` — so `gcd` silently became `+`. This was a latent pre-existing divergence (mode-4
+    `is` only just started reaching `rt_pl_arith` for these ops in this rung). Fix: added `gcd` (Euclid on
+    abs values) + `div` (floored) to `rt_pl_arith`, byte-matching `bb_exec.c`. rung29 → `4|25|` all modes;
+    GATE-3 m4 FAIL→PASS. **Known residual divergence (NOT exercised, left for a dedicated arith-parity
+    rung):** `rt_pl_arith`'s `mod` is plain `%` while `bb_exec.c`'s is flooring-mod; and `rt_pl_arith`'s
+    `lv+rv` default still silently swallows any op it lacks (vs `resolve_arith_eval`'s `FAILDESCR`). No
+    corpus rung exercises these gaps; a future rung should unify the two evaluators (ideally route the
+    mode-4 `is` arm through the same `resolve_arith_eval` the other modes use, but that is a template
+    change out of PLG-9c's recognizer-only scope).
+    **DELIBERATE non-coverage (correctly EXCISES, no miscompile):** bare-literal RHS `X is 5` (β is
+    `IR_LIT_I` not `IR_ARITH` — the MEDIUM_TEXT arm needs `IR_ARITH`; mode-3 uses the BINARY twin), and
+    nested arith `X is 2+3*4` (`pl_flat_arith_leaf_simple` rejects a nested `IR_ARITH` operand — the
+    MEDIUM_TEXT arm flattens only ONE operand level). Both run m2/m3 via interim and cleanly EXCISE m4.
+    **NEXT — PLG-9d (facts + clause choice).** `fact(a). main :- fact(X), write(X), nl.` runs m2/m3 and
+    EXCISES m4. Needs the emitter to walk `IR_GOAL` + `IR_CHOICE` in TEXT medium (`flat_drive_pl_choice`
+    exists) AND a predicate-registry emit loop in the mode-4 arm (mirror the Icon `mode_compile_x86`
+    `rt_proc_register` loop — register each callee clause body via `walk_bb_flat` in TEXT with interned
+    cross-block labels). Then PLG-9e recursion. Each rung: emit+assemble+link+run AND GATE-1/GATE-3
+    m3==m2 hold. Handoff `HANDOFF-2026-05-31-OPUS48-PROLOG-BB-PLG-9C-MODE4-ARITH.md`.
+
   **⮕ RECONSTRUCTION MAP (Opus 4.8, 2026-05-31 — scouted, not yet built).** Mode-4 is blocked by a
   GLOBAL gate in `scrip.c` (`if (mode_compile_x86) { [SMX]…; return 1; }` at ~line 395, BEFORE any
   language dispatch). The emit *templates* survive compiled into `libscrip_rt.so` (all Prolog boxes
@@ -1541,13 +1585,13 @@ Currently runs only `--interp`. Extend to run all three modes in sequence.
 
 ---
 
-## 📊 Gate table (current — post-PLG-9b unify-tier mode-4 native emission)
+## 📊 Gate table (current — post-PLG-9c arith-tier mode-4 native emission)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | **2 PASS / 3 EXCISED** | m4 `write_atom` (PLG-9a) + `unify` (PLG-9b, `X=world,write(X),nl`) now EMIT+ASSEMBLE+RUN natively; other 3 (arith/clause/recursion) decline with `[SMX]` → EXCISED (pending PLG-9c+). m3 hello+unify-tier native (`bb_build_flat`, no ring); richer via interim `bb_exec_once` |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **2 PASS / 0 FAIL / 109 EXCISED** | m3 byte-identical to m2. m4: 2 hello-tier rungs emit+run; 109 richer shapes decline with `[SMX]` (EXCISED). No bare-unify-tier rung in corpus (rung03 is *compound* unify → correctly still EXCISED, that is the PLG-9b+ IR_STRUCT tier). rung30 DCG closed via `=<`; rung15 via PL-RT-ASSERTZ |
-| prove_lower2 topology | **53/53** ✅ | — | — | unchanged this session (driver recognizer + rt env/trail setup only) |
-| FACT RULE grep | 0 ✅ | — | — | PLG-9b touched ZERO template files (`git status`: scrip.c + rt.c + rt.h only). scrip.c recognizer widen is additive Prolog-only; `rt_pl_env_alloc` is a runtime setup helper (allocates env + inits trail), emits NO x86; siblings byte-identical (Icon m2/m3/m4 6/6, SNOBOL4 m2 7/7) |
+| GATE-1 smoke | 5/5 ✅ | **5/5 ✅** | **3 PASS / 2 EXCISED** | m4 `write_atom` (PLG-9a) + `unify` (PLG-9b) + `arith` (PLG-9c, `X is 2+3,write(X),nl`) EMIT+ASSEMBLE+RUN natively; `clause`/`recursion` decline with `[SMX]` → EXCISED (pending PLG-9d+). m3 hello+unify+arith-tier native (`bb_build_flat`, no ring); richer via interim `bb_exec_once` |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **8 PASS / 0 FAIL / 103 EXCISED** | m3 byte-identical to m2. m4: rung01 hello + rung22 write_canonical + rung23 bitwise/max_min/power/sign/truncate + rung29 gcd all emit+run (verified m2==m4==expected); 103 richer shapes (facts/choice/recursion/compound-unify) decline with `[SMX]` (EXCISED). rung29 gcd FAIL→PASS via the `rt_pl_arith` gcd/div fix |
+| prove_lower2 topology | **53/53** ✅ | — | — | unchanged this session (driver recognizer + rt_pl_arith op-coverage only) |
+| FACT RULE grep | 0 ✅ | — | — | PLG-9c touched ZERO template files (`git status`: scrip.c + rt.c only). scrip.c recognizer widen additive Prolog-only; `rt_pl_arith` gcd/div additive (Prolog-only helper — `bb_builtin`/`bb_arith`/`scrip.c`/`bb_exec.c` callers, no SNOBOL reach); emits NO x86. Siblings: Icon m2/m3/m4 6/6, SNOBOL4 m2 7/7 HARD |
 
 
