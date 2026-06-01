@@ -1,5 +1,33 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
+## ⛔ NO C BYRD-BOX FUNCTIONS — A BOX IS ENTERED BY JUMPING TO ITS α/β LABELS, NEVER A `(ζ, int entry)` C CALL (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
+
+**There is NO such thing as a C byrd-box function. The "brokered BB" concept is ABOLISHED.** A byrd box is
+EMITTED machine code. It has exactly TWO entry points, and they are **LABELS** — α (fresh entry) and β
+(resume). Control reaches a box by **JUMPING to one of those labels**. A box is NEVER a C function, is NEVER
+reached by a C call, and NEVER takes an integer `entry` argument to select α vs β. The C signature
+`DESCR_t NAME(void *ζ, int entry)` — a ζ-state pointer plus an `int entry` α/β selector — is **FORBIDDEN**.
+It was the discredited brokered-BB calling convention (an "entry kludge"); it is gone. The ONLY driver is the
+**mode-2 BB-graph interpreter** (`bb_exec.c`), which walks the IR graph directly and IS the broker/driver;
+**modes 3 and 4 are native code in which boxes thread control by jumping between α/β labels** (RULES X86-64
+register / subject-model convention) — never through a function pointer plus an `entry` integer. There is no
+`bb_broker` driver and no `(ζ, int entry)` box anywhere.
+
+**HISTORY — READ THIS, because it is why the rule now exists in this strongest form.** This prohibition has
+stood for **AT LEAST TWO MONTHS**. Lon ordered these C `(ζ, int entry)` byrd boxes DELETED at least **THREE
+separate times**, and each time a session either declined, re-introduced them, or held/reverted the deletion
+"to keep the build green." A prior plain rule (RULES.md "NO C BYRD-BOX FUNCTIONS") did **not** hold. They
+were finally deleted **2026-06-01** — the `pl_*_fn` family (all of `pl_broker.c`), `gen_bb_dcg`,
+`gen_bb_oneshot`, `resolve_bb_dcg`, `bb_deferred_var`/`_exported`, `fail_box`, the dead `bb_cap`/`bb_atp`
+declarations, **and the `bb_broker` driver itself** (`bb_broker.c`). **KEEPING THE BUILD GREEN IS NOT A
+LICENSE TO PRESERVE A FORBIDDEN BOX.** When this signature and a green build conflict, the **signature
+loses**: delete the box and tear out its callers (the brokered execution path — Prolog `--run`, brokered
+pattern scan, brokered generators — is removed, not preserved). A broken build pending the caller teardown is
+acceptable; a surviving `(ζ, int entry)` box is not.
+
+**COMPLETION TEST:** (a) `grep -rnE 'DESCR_t[[:space:]]+[A-Za-z_]+[[:space:]]*\([[:space:]]*void[[:space:]]*\*[[:space:]]*[a-z]*[[:space:]]*,[[:space:]]*int[[:space:]]+entry' src/ --include=*.c --include=*.cpp --include=*.h | grep -v typedef` == 0 (no C byrd-box definition or declaration with the `(ζ, int entry)` signature); (b) no `bb_broker` driver function exists; (c) every emitted box is entered by a jump to an α or β label, never a C call with an `entry` int; (d) this FACT RULE body is byte-identical across the five GOAL-*-BB files.
+
+
 ## ⛔ NO VALUE STACK — EVER (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
 
 **SCRIP HAS NO VALUE STACK. NO SESSION, IN ANY LANGUAGE, MAY CREATE ONE.** (Lon directive, 2026-05-31.)
