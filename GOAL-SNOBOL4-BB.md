@@ -280,6 +280,19 @@ across all five GOAL-*-BB files.
 > continuation. A sealed interior therefore NEVER contains an outward `rel32` — all external links go through a
 > `BB_LINK` at a HEAD BLOCK.
 >
+> **REFINEMENT (Lon 2026-06-01) — a HEAD BLOCK is HALF a Byrd box, and that half IS `DT_P`.** A full BB has FOUR
+> ports — α/β INBOUND (entered, resumed), γ/ω OUTBOUND (success-out, fail-out). A HEAD BLOCK has ONLY the TWO
+> OUTBOUND hooks: OUTSIDE-γ and OUTSIDE-ω. It has NO α/β of its own to be entered-and-resumed at, because it is
+> NOT a matcher — it is what the sealed matcher graph's last box flows INTO, and from there back OUT to the
+> per-call-site continuation. This is precisely what a `DT_P` value already is: a sealed-body entry plus its two
+> escape edges. So the identity is **`DT_P` ≡ HEAD BLOCK ≡ { entry-into-sealed-body, OUTSIDE-γ slot, OUTSIDE-ω
+> slot }** — two hooks, not four. The half-BB framing is what makes it correct: `BB_LINK` is NOT a free-floating
+> edge box, it IS the OUTBOUND HALF of the head, and the head is the thing `DT_P` denotes. This also collapses an
+> apparent third concept: the `{entry, exit, fail}` descriptor STITCH synthesizes (the runtime twin of lower2's
+> α_out/β_out synthesized-up, γ_in/ω_in inherited-down) is the SAME object — `exit` = OUTSIDE-γ, `fail` =
+> OUTSIDE-ω, `entry` = the jump-in. STITCH's build-time descriptor and the run-time HEAD BLOCK are one object seen
+> at two times; there was never a separate third thing.
+>
 > **TWO PINS for when this lands (open items, not yet code):**
 >   - **ONE FRAME PER MATCH.** The slot is `[r12+off]` and r12 switches per sequence, so `BB_LINK` must read the
 >     RIGHT frame. Rule: a stitched pattern runs in ONE frame for the whole match — the element graph gets
