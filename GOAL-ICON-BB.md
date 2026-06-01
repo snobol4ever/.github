@@ -321,30 +321,32 @@ FACT 0, smokes hold.
 - [ ] **GZ-10 — user procedure as a four-port FLAT box** (not a C-stack `call`). Model on
   `test_sno_3.c`: `(ζζ, entry)` calling convention, frame lazily allocated, `_λ` landing pad.
   Recursion depth lives in per-box arenas / heap frames, never a value stack.
-  **mode-2 oracle PARTIAL (2026-06-01, Opus 4.8 — uncommitted→committed this session):** NON-recursive
-  user procs + `return E` lower and run in mode-2. Verified: `answer()`→42, `id(99)`→99, `double(21)`→42,
-  `add(3,4)`→7, `cmp(0)`→111, `cmp(5)`+else→222. FIVE edits (all Icon-gated, HARD gate m2 9/9 intact, FACT 0,
-  no regression): (1) `lower.c` `TT_RETURN`/`TT_NRETURN` Icon arm → `IR_RETURN`, value chain flows γ→return,
-  result read from AG ring (not α re-exec); (2) `lower.c` `TT_FNC` general user-proc call Icon arm →
-  `IR_CALL dval=3.0`, args as isolated value sub-graphs on `counter` (jcon `ir_a_Call`); (3) `bb_exec.c` new
-  `IR_CALL dval==3.0` arm — per-activation `GenFrame`, binds PARAM NAMES into `sc`/`env` (scope_get→env[slot]),
-  ring/snapshot-protected `bb_exec_once`, harvests `g_ir_return_val`; (4) `bb_exec.c` `IR_RETURN` generic arm
-  reads AG ring when α==NULL; (5) `scrip_ir.c` `bb_reset` preserves `counter` for `IR_CALL dval==3.0` (the
-  arg-subgraph array was being zeroed → `(nil)`); plus `lower.c` `lower_value_subgraph` inherits caller lang
-  (strict generalization, SNOBOL4 unchanged). **TWO bugs found, CLEANLY SEPARATED:** (a) PRE-EXISTING (not
-  GZ-10): bare `if C then E` (no else) cond-FALSE fails the whole proc instead of falling through — the
-  documented GZ-8/GZ-9 IR_SEQ statement-failure quirk; workaround = explicit `else`. (b) **THE GZ-10 BLOCKER
-  (recursion):** on RE-ENTRY of the same proc graph the proc's AST is MUTATED — the param name
-  (`TT_PROC_DECL` param `TT_VAR.v.sval`) reads EMPTY on the 2nd+ activation and `args[0]` reads wrong, so
-  `fact(5)`→5 (recursion degenerates to returning `n`). Single non-recursive calls unaffected. ROOT SUSPECT:
-  reading param names from the LIVE AST at exec time is fragile — the nested `bb_exec_once`/arg-subgraph path
-  (likely `scope_patch`, which writes `TT_VAR.v.ival`, or AST sharing between the body graph and arg subgraphs)
-  clobbers the shared param nodes. **RECOMMENDED FIX (next session):** capture param names at LOWERING time
-  into a stable per-proc structure — mirror SNOBOL4's `proc_table[].lower_sc`: have `lower_icon_body`
-  (`lower_program.c`) populate `lower_sc` with the param names (+locals) ONCE, and have the `dval==3.0` arm
-  bind `env[scope_get(lower_sc,name)]` from that stable scope instead of walking `proc->c[1]` each call. That
-  removes the AST-mutation dependency entirely and is the cleaner per-activation model. mode-3/4 (the
-  `test_sno_3.c` `(ζζ,entry)` flat-box model) NOT started — mode-2 must go green first.
+  **mode-2 oracle DONE incl. RECURSION (2026-06-01, Opus 4.8 — `602e107`):** user procs + `return E`
+  + RECURSION all run in mode-2. Verified: non-recursive `answer()`→42, `id(99)`→99, `double(21)`→42,
+  `add(3,4)`→7, `cmp(0)`→111, `cmp(5)`+else→222; recursive `fact(5)`→120, `fib(10)`→55, `sumto(100)`→5050,
+  `ack(2,3)`→9, mutual `iseven(10)`/`isodd(7)`→1, and the SAME proc called 3× (`fact` →120,720,24 — proves
+  the AST is no longer consumed/mutated). **THE RECURSION BLOCKER FIX (the recommended `lower_sc` approach):**
+  the prior `dval==3.0` exec arm bound param names by walking the LIVE `proc->c[1]` (TT_VLIST) AST at every
+  activation; on 2nd+ re-entry the shared param `TT_VAR` nodes read EMPTY (mutated by the nested
+  arg-subgraph/scope path), so `args[0]` resolved wrong and recursion degenerated (`fact(5)`→5). TWO edits,
+  both Icon-gated, mirroring SNOBOL4's `proc_table[].lower_sc`: (1) `lower_program.c` — after
+  `lower_icon_body` succeeds, capture the proc's param names into `lower_sc` ONCE via `lp_strdup` (stable GC
+  strings, slot-keyed; inside the `LANG_ICN` block); (2) `bb_exec.c` `dval==3.0` arm — bind `env[slot]` from
+  `lower_sc` instead of re-walking `proc->c[1]` each call. The AST is NEVER read at exec time → no mutation
+  dependency → per-activation correct. Earlier GZ-10 PARTIAL edits (still in place): `lower.c`
+  `TT_RETURN`/`TT_NRETURN`→`IR_RETURN` (value chain γ→return, AG-ring read); `lower.c` `TT_FNC`
+  user-proc-call→`IR_CALL dval=3.0` (args as isolated value sub-graphs on `counter`, jcon `ir_a_Call`);
+  `bb_exec.c` per-activation `GenFrame` + ring/snapshot-protected `bb_exec_once` + `g_ir_return_val` harvest;
+  `bb_exec.c` `IR_RETURN` generic arm reads AG ring when α==NULL; `scrip_ir.c` `bb_reset` preserves `counter`
+  for `IR_CALL dval==3.0`; `lower.c` `lower_value_subgraph` inherits caller lang. **GATES: Icon m2 10/10
+  HARD (added `proc_recursion` `fact(5)`→120 smoke case) · m3 9/10 · m4 9/10 (proc_recursion m3/m4 not yet
+  built — that's the GZ-10 modes-3/4 work below); SNOBOL4 m2 7/7 · Prolog m2/m3 5/5 · broker 23 · FACT 0 ·
+  no-stack 117≤127 · one-reg-frame 20≤20 · prove_lower2 PASS · ZERO-SM 0.** **OUT OF SCOPE (pre-existing,
+  NOT GZ-10):** bare `if C then E` (no else) cond-FALSE fails the whole proc instead of falling through —
+  the documented GZ-8/GZ-9 IR_SEQ statement-failure-continuation quirk; workaround = explicit `else` (all
+  recursion tests above use the `if … then … else …` form). **NEXT:** mode-3/4 (the `test_sno_3.c`
+  `(ζζ,entry)` lazily-allocated flat-box model, `_λ` landing pad, recursion depth in per-box arenas — never
+  a value stack); then the bare-if-no-else fall-through quirk (shared with SNOBOL4/Prolog).
 - [ ] **GZ-DEFER — EVAL / CODE / `*P` deferred patterns** via the `test_sno_3.c` model. This was
   the ONE thing that broke the prior stackless build; it is solved in the reference file.
 - [ ] **GZ-11+ — corpus features rebuilt stackless** (lists, tables, records, scanning, csets,
@@ -574,9 +576,39 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `eabedcd` GZ-10 (PARTIAL, mode-2) — non-recursive user procs + `return E` run in the
-oracle. Built on GZ-9 `109fded`; rebased conflict-free onto the parallel `8adcac4` (VSX-0/VSX-1 g_vstack
-eradication audit + Prolog stackless atom/var — disjoint from this Icon mode-2 work, FACT-rule isolation
+**HEAD (SCRIP):** `602e107` GZ-10 RECURSION FIX (mode-2) — Icon user-procedure recursion now correct in the
+oracle. Built on the prior GZ-10 PARTIAL `eabedcd`; my two-file Icon edit (`lower_program.c` + `bb_exec.c`)
+is disjoint from the parallel SNOBOL4 work that advanced `origin/main` to `179bf4d` (SBL-PAT-BB PB-0 subject
+BB) → rebases conflict-free (different files, FACT-rule isolation held).
+
+**Done this session (GZ-10 RECURSION FIX — Opus 4.8):** Closed the one remaining GZ-10 mode-2 blocker —
+recursion. The prior `dval==3.0` Icon general-call exec arm bound param names by walking the LIVE
+`proc->c[1]` (TT_VLIST) AST at every activation; on 2nd+ re-entry of a recursive proc the shared param
+`TT_VAR` nodes read EMPTY (mutated by the nested arg-subgraph/scope path), so `args[0]` resolved wrong and
+recursion degenerated (`fact(5)`→5 instead of 120). Implemented the RECOMMENDED `lower_sc` fix (mirrors
+SNOBOL4's `proc_table[].lower_sc`), TWO edits, both Icon-gated: (1) `lower_program.c` — after
+`lower_icon_body` succeeds (inside the `LANG_ICN` block), capture the proc's param names into `lower_sc`
+ONCE via `lp_strdup` (stable GC strings, slot-keyed); (2) `bb_exec.c` `dval==3.0` arm — bind `env[slot]`
+from `lower_sc` instead of re-walking `proc->c[1]` each call. The AST is NEVER read at exec time → no
+mutation dependency → per-activation correct. **Verified m2:** recursive `fact(5)`→120, `fib(10)`→55 (double
+recursion per activation), `sumto(100)`→5050 (100-deep), `ack(2,3)`→9 (2-param deep nesting), mutual
+`iseven(10)`/`isodd(7)`→1, SAME proc called 3× (`fact` →120,720,24 — proves the AST is no longer
+consumed/mutated); non-recursive `answer/id/double/add` and `cmp` (if-else) unchanged. **Smoke:** added a
+`proc_recursion` case (`fact(5)`→120) to `test_smoke_icon.sh` so the gate permanently covers recursion.
+**GATES (all green):** Icon m2 **10/10 HARD** · m3 9/10 · m4 9/10 (the new `proc_recursion` is m3/m4-red —
+GZ-10 modes 3/4 are the next rung, the `test_sno_3.c` `(ζζ,entry)` flat-box model, NOT yet built);
+SNOBOL4 m2 **7/7** · Prolog m2/m3 **5/5** · broker **23** · FACT **0** · no-stack **117 ≤ 127** (my edits are
+in `src/lower/`, OUTSIDE the gate's `src/emitter/` grep scope — the 117 vs prior-watermark 114 is pre-existing
+baseline drift from a parallel session, not this change) · one-reg-frame **20 ≤ 20** · prove_lower2 **PASS** ·
+ZERO-SM **0**. **OUT OF SCOPE (pre-existing, NOT GZ-10):** bare `if C then E` (no else) cond-FALSE fails the
+whole proc instead of falling through — the documented GZ-8/GZ-9 IR_SEQ statement-failure-continuation quirk
+(workaround = explicit `else`, which every recursion test uses). **NEXT:** GZ-10 mode-3/4 (`test_sno_3.c`
+`(ζζ,entry)` lazily-allocated flat-box model, `_λ` landing pad, recursion depth in per-box arenas — never a
+value stack); then the bare-if-no-else fall-through quirk (shared with SNOBOL4/Prolog).
+
+---
+
+
 held). Icon smoke **m2 9/9 HARD · m3 9/9 · m4 9/9** UNCHANGED (purely additive Icon mode-2 lowering+exec; no
 regression). Prolog m2 5/5, broker 23/43, FACT 0, no-stack 114, one-reg-frame 20, prove_lower2 PASS — all
 unmoved from session start.
