@@ -372,16 +372,33 @@ unwired mode-4 shape declines with the `[SMX]` banner = EXCISED (expected, not F
   copy_term/2 (γ-chain pair). Two files (`bb_builtin.cpp` +1 TEXT arm, `scrip.c` gate), Prolog-arm-only, FACT-
   clean. m2/m3 byte-identical (111/111). Robustness: scalar-var arg1 (`copy_term(f(a,b),X)`), nested shared-var
   (`copy_term(g(X,h(X,Y)),Z)`→shared). Siblings neutral.
+- [x] **PLG-9j — mode-4 `numbervars/3` + write/1 list-rendering fix (2026-06-01, `3916054`).** GATE-3 m4
+  81→**86** (+5); closed all 5 rung20 numbervars (basic/list/rollover/start_offset/atom_unchanged). Two
+  coupled pieces. (a) **numbervars/3** — another missed closure: mode-3 worked via the PLR-K-3 MEDIUM_BINARY
+  arm + helper `rt_pl_numbervars_term` (walks the term binding each `TERM_VAR` to `'$VAR'(N)`, then unifies
+  End), but no `@PLT` TEXT twin → EXCISED (the "leaves vars unbound" note was stale). Added a MEDIUM_TEXT
+  twin (build term via `emit_build_compound_term`, then `rt_pl_numbervars_term`@PLT); the var cells alias the
+  env slots (`rt_pl_node_to_term` write-back) so binding shows in the later write. Gate admits numbervars/3.
+  (b) **write/1 list-rendering** — a latent m4 gap blocking the list rung: the TEXT write arm rendered an
+  `IR_STRUCT '.'/2` via the `emit_write_term` walker as functor notation (`.(A,.(B,.(C,[])))`) instead of the
+  oracle's `pl_write` sugaring (`[A,B,C]`). Routed write/1's compound arg through `rt_pl_write_term_ptr`@PLT
+  (→ `pl_write`), mirroring the writeq twin; m4 now matches m2 for all compounds (`write([a,b,c])`→`[a,b,c]`,
+  `write(1+2)`→`1+2`). Removed the now-dead `emit_write_term`. **Tier-alignment subtlety:** flat-tier leaf
+  args (int/float/atom/var) enter 16-aligned → direct writers, no rsp adjust; compound args are rich-tier
+  (8-misaligned) → `sub rsp,8`. Leaves: `IR_LIT_I`→`rt_pl_write_int`, `IR_LIT_F`→xmm0+`rt_pl_write_float`
+  (also fixes bare-float write, prior no-op). A first cut routed all non-atom/var args through the compound
+  path and segfaulted `print(42)` (rung22) — the split is the fix. Two files (`bb_builtin.cpp`, `scrip.c`),
+  Prolog-arm-only, FACT-clean. m2/m3 byte-identical (111/111). Siblings neutral.
 
 - [ ] **PLG-7 — remove `bb_node_state_t` snapshot/restore.** Once the recursive case provably needs no snapshot,
   delete the struct + Prolog call sites. **Audit first:** the struct has ONE LIVE Icon caller (`bb_exec.c:1589`
   IR_CALL) — do not delete it until Icon migrates off separately. Mode-2/3/4 byte-identical + build green.
-- [ ] **PLG-9g (rest) — mode-4 dynamic-DB + the remaining broken-family closures.** The 30 still-EXCISED m4
+- [ ] **PLG-9g (rest) — mode-4 dynamic-DB + the remaining broken-family closures.** The 25 still-EXCISED m4
   rungs are findall (5), retract/retractall/abolish/assertz (dynamic-DB needs the `bb_*.cpp` emit-template, the
-  WAM-CP-13 deliverable), numbervars (term-mutation — mode-4 leaves vars unbound), aggregate (nb_setval/getval +
+  WAM-CP-13 deliverable), aggregate (nb_setval/getval +
   aggregate_all), catch/throw (5), dcg_generate (1). All EXCISE cleanly (0 FAIL). The cheap "BINARY-arm-exists-
   just-needs-`@PLT`-TEXT" closures are now exhausted (writeq/write_canonical/atomic_list_concat PLG-9g-partial;
-  float `is/2` PLG-9h; copy_term compound PLG-9i); the rest need a real runtime substrate. Purist tidy: the
+  float `is/2` PLG-9h; copy_term PLG-9i; numbervars + write-list PLG-9j); the rest need a real runtime substrate. Purist tidy: the
   callee γ/ω epilogue is literal `emit_text_n` in `emit_bb.c` — a future `xa_pl_callee_epilogue` XA template.
 - [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue.** Map the Prolog analogue (findall goal sub-graph; assert/
   retract mutable clause store; DCG repetition) onto an explicit indexed deferred-frame array (the `test_sno_1.c`
@@ -494,11 +511,11 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — post-PLG-9i)
+## 📊 Gate table (current — post-PLG-9j)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5 PASS / 0 EXCISED ✅ | write_atom/unify/arith/clause/recursion all native in m4 |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **81 PASS / 0 FAIL / 30 EXCISED** | PLG-9h m4 76→80 (+4 rung29 float); PLG-9i 80→81 (+1 rung26 copy_term compound). m2/m3 byte-identical. EXCISED-not-FAIL (all substrate-requiring): findall, retract/abolish/assertz, numbervars, aggregate, catch/throw, dcg_generate |
-| prove_lower2 | green ✅ | — | — | PLG-9h/9i are bb_exec.c/emit_bb.c/bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **86 PASS / 0 FAIL / 25 EXCISED** | PLG-9h m4 76→80 (float); PLG-9i 80→81 (copy_term); PLG-9j 81→86 (+5 rung20 numbervars + the m4 write/1 list-rendering fix). m2/m3 byte-identical. EXCISED-not-FAIL (all substrate-requiring): findall, retract/retractall/abolish, aggregate, catch/throw, dcg_generate |
+| prove_lower2 | green ✅ | — | — | PLG-9h/9i/9j are bb_exec.c/bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
 | FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added (`rt_pl_is_f` is a runtime effect-helper; TEXT arms = s_2asm/movq-xmm/emit_build_compound_term/@PLT only); g_vstack still 0; bb_builtin.cpp not flagged by purity audit (7 baseline). Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
