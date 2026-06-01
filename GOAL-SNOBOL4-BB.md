@@ -429,6 +429,69 @@ The unified IR→x86 emitter is **ONE dispatch** — `src/emitter/emit_core.c`'s
 
 **COMPLETION TEST:** (a) no duplicated `case IR_` label in `emit_core.c` (`grep -oE 'case IR_[A-Z_]+' src/emitter/emit_core.c | sort | uniq -d` empty); (b) every `IR_*` kind a language emits has exactly one dispatch case reaching one template fn, unmatched kinds hit the loud default; (c) zero forbidden byte-emitters outside templates (`util_template_purity_audit.sh` clean); (d) the FACT RULE body is byte-identical across the three GOAL files (`awk '/TEMPLATE-ONLY EMISSION — ONE-DISPATCH/{p=1} p{print} /util_template_purity_audit.sh clean/{if(p)exit}'` md5 matches); (e) the emitter gates above are green.
 
+## ⛔ NO DUPLICATED LOGIC — WRITE EACH PIECE OF LOGIC ONCE (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
+
+**This is a LOGIC problem, not a formatting problem.** (Lon, 2026-06-01.) The template tree is BAD CODE: the same logic is written over and over. `bb_builtin.cpp`
+is 2,427 lines because of duplication, not because the work is big. Fix the duplication; the line count
+collapses on its own.
+
+**THE ONE LAW: each piece of logic is written ONCE.** A box does PORT work (α/β/γ/ω wiring). The runtime does
+VALUE work (build a term, compare, arithmetic, concat). When a box reimplements VALUE work inline, you get
+duplication — and duplication is the disease in every form below.
+
+**DUP FORM 1 — THE SAME ALGORITHM IN TWO MEDIA (worst, the bulk of the bloat).** `emit_build_compound_term`
+(92 lines, emits GAS text) and `emit_build_compound_term_bin` (94 lines, emits raw bytes) are the SAME
+post-order Term-builder written TWICE. A bug must be fixed in both or they drift. THE FIX IS NOT TO MERGE THE
+TWO WALKERS — it is to DELETE BOTH. Building a Term is a RUNTIME job; `rt_pl_compound_build_n` and
+`rt_pl_node_to_term` already do it. The box marshals operand slots into registers and `call`s the helper.
+Once it is one `rt_*` call there is NOTHING to duplicate: TEXT emits `call foo@PLT`, BINARY emits
+`movabs rax,&foo; call rax` — two trivial encodings of ONE logical call, which is the sanctioned per-medium
+difference (NOT duplicated logic). ~18 builtin families currently each call BOTH walkers; killing the walkers
+sheds >1,000 lines.
+
+**DUP FORM 2 — EMIT-TIME LOGIC THAT IS A RUNTIME JOB.** Root cause of FORM 1. Any time a template grows a
+recursive walker, an arithmetic evaluator, a comparator, a term constructor — that is VALUE work in the wrong
+place. It belongs behind ONE `rt_*` call. (Guard, GOAL-BB-TEMPLATE-LADDER invariant 9: never add an
+`rt_*_exec` that does α/β/γ/ω PORT logic — that is a C byrd box. The split is clean: RT = value, BOX = ports.
+If you are emitting more than "marshal args, call helper, wire the 4 ports," you are duplicating runtime logic
+into the emitter.)
+
+**DUP FORM 3 — AN OPERAND BOX REIMPLEMENTED INSIDE ITS CONSUMER (fusion).** `bb_binop` reads
+`pBB->α->t == IR_LIT_I` and seals the operand's VALUE (`pBB->α->ival`) in its own blob — reimplementing what
+`bb_lit_scalar` already does (put a literal where a consumer can read it). Two pieces of code, one job. The
+consumer must READ the operand's slot (`bb_slot_get(pBB->α)`); the operand's own box fills it. DELETE the
+operand-kind arm. (PREREQ, proven 2026-06-01: deleting GZ-3/GZ-4 today breaks `write(2+3)` because the lowerer
+does not yet chain literal operands as producer boxes in that shape — so the de-fuse step is first a LOWERER
+fix that makes both operands producers, THEN the deletion.) Any `pBB->α->ival/sval/dval` or `->α->t==IR_LIT_*`
+read inside a consumer box = fusion = duplicated operand logic.
+
+**DUP FORM 4 — N DIFFERENT BOXES IN ONE FILE (cram).** `bb_binop.cpp` held 7 unrelated four-port shapes
+selected by `op`/operand-kind/`g_*_flat_chain`. Each distinct shape is its own box; a `_str()` returning
+several different complete four-port byte sequences is N boxes in one filename. This is the LEAST harmful dup
+(it is co-location, not copied algorithm) but it hides the others. De-cram by splitting distinct shapes behind
+a thin router (`bb_foo.cpp` keeps the `extern "C" void bb_foo(IR_t*)` so `emit_core.c` is untouched; each shape
+is `bb_foo_<shape>_str(...)` returning its bytes or `""`; router calls each in order). Worked example DONE:
+`bb_binop_*.cpp` + 38-line `bb_binop.cpp`.
+
+**NOT DUPLICATION — DO NOT "FIX" THESE.** (a) The same byte pattern hand-copied INTO each per-box template is
+REQUIRED (RULES.md — duplication of bytes across boxes is the point; never factor into a shared emitter helper
+two languages edit). (b) Per-file op-classifier tables (`gen_is_numrel`, `gen_rel_to_tt`) copied per file —
+acceptable, per-file, no shared edit. (c) Boxes 95%+ identical SHARE one file parameterized by an immediate /
+opcode / register (`bb_lit_scalar` groups IR_LIT_I/S/F/NUL; `bb_binop_arith` groups ADD/SUB/MUL/DIV/MOD) —
+grouping near-identical SHAPES is correct; splitting them is over-splitting. (d) The two ARMS of one box
+(`IF(BINARY)`/`IF(TEXT)`) are two encodings of one logic — NOT duplication. The line is always: copied
+*algorithm* = bad; copied *bytes/encoding* of one logic = fine.
+
+**THE TEST:** could a bug in this code require fixing the same logic in two places? If yes → duplication →
+collapse it (delete the emit-time copy in favor of one `rt_*` call; delete the fused operand arm in favor of
+the slot read; delete the second-medium walker).
+
+**COMPLETION TEST (per file):** (a) no algorithm (walker / evaluator / comparator / term-builder) appears in
+both a TEXT arm and a BINARY arm — value work is ONE `rt_*` call; (b) no emit-time reimplementation of runtime
+value work; (c) no operand-kind read (`pBB->α->ival/sval/dval`, `->α->t==IR_LIT_*`) inside a consumer box;
+(d) one four-port shape per `_str()` (or a pure router); (e) the FACT RULE body is byte-identical across all
+four GOAL files.
+
 ## ⛔ X86-64 REGISTER / SUBJECT-MODEL CONVENTION (FACT — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
 Locked callee-saved layout the three concurrent BB sessions MUST share (canonical origin: GOAL-ICON-BB "Subject model — four names, zero redundancy"; casing inherited from the snobol4jvm Clojure SNOBOL4). **Casing carries meaning: UPPERCASE = the fixed whole/bound; lowercase = the moving position.**
@@ -486,6 +549,19 @@ or `[ζ+off]` (RW) — no `movabs … &pBB->slot` absolute slot address; (e) mod
 TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes vs GAS-text).
 
 ---
+
+## 🔴🔴 #0 PRIORITY — BB-HYGIENE LADDER (SNOBOL4) — ORDERED, DO BEFORE REG LADDER (Lon 2026-06-01)
+
+Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** De-cram + de-fuse each file (de-cram first because cram hides the duplicated logic underneath it), then the de-dup/RT-fix sweep. After EACH step: SNOBOL4 m2 7/7 HARD byte-identical, smoke 3-mode unchanged, purity green, commit. Copy the worked example: `bb_binop_*.cpp` + 38-line `bb_binop.cpp` router (Icon-owned; done 2026-06-01). The de-cram steps are prep; **SNO-HY-7 (de-dup + RT-fix) is the core fix** — collapse any logic written twice.
+
+- [ ] **SNO-HY-1 — `bb_pat_break.cpp` (349).** De-cram: one file per distinct four-port shape behind a `bb_pat_break` router. Group 95%-identical cursor-advance shapes (do NOT over-split). De-fuse any `pBB->…->ival/sval` operand reads.
+- [ ] **SNO-HY-2 — `bb_pat_tab.cpp` (286) + `bb_pat_span.cpp` (271).** TAB/RTAB and SPAN: split inline-vs-RT-call shapes; group near-identical. Routers.
+- [ ] **SNO-HY-3 — `bb_sno_assign.cpp` (226) + `bb_capture.cpp` (226).** Split literal-rhs vs slot-rhs vs name-store; the capture deque-save vs @-cursor-write. **De-fuse: a literal rhs is its own producer box — read its slot, do not seal its value here.**
+- [ ] **SNO-HY-4 — `bb_pat_any.cpp` (218) + `bb_pat_notany.cpp` (215).** cset-blob vs single-char; group if 95%-identical between the two files' shapes. Routers.
+- [ ] **SNO-HY-5 — `bb_pat_cat.cpp` (194) + `bb_pat_alt.cpp` (185) + `bb_pat_arb.cpp` (183).** Combinators. The variable-length define/jmp-pair loop is its own shape; fixed shape another. (The variable-length define/jmp-pair loop derives offsets from a running length — that is a separate design question; split the shapes now.) Routers.
+- [ ] **SNO-HY-6 — audit the rest (`bb_pat_len` 161, `bb_pat_pos` 158).** Split only if >1 four-port shape; else mark NO-SPLIT-NEEDED. `bb_lit.cpp` (185) — its 5 platform arms (`if (PLATFORM_X86/JVM/JS/NET/WASM)`) are the sanctioned per-platform multiplex, NOT a violation; leave it.
+- [ ] **SNO-HY-7 — de-dup + RT-fix, all SNOBOL4 boxes.** Any algorithm in both a TEXT and BINARY arm → DELETE both, replace with one `rt_*` call. No emit-time value work (term-build/compare/arith go to RT).
+- [ ] **SNO-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for SNOBOL4-owned files; wired into Session Setup. m2 7/7 HARD held throughout.
 
 ## 🔴 CURRENT PRIORITY (Lon directive 2026-06-01) — DO THIS FIRST: REG LADDER (BB TEMPLATES → RATIFIED REGISTERS)
 
