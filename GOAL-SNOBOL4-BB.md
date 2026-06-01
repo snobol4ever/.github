@@ -836,6 +836,58 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = 646a543  CALLER TEARDOWN — BUILD RESTORED (Opus 4.8, 2026-06-01, LANDED/PUSHED) — the
+                     brokered execution path left DANGLING by cc23c9f (the (ζ,int entry) box + bb_broker
+                     driver deletion) is now FULLY GUTTED, not preserved (Lon directive: "makes NO DIFFERENCE
+                     what breaks" — the brokered path is REMOVED). Build was RED at session start (fail_box
+                     undeclared at gen.h:7). Repaired all 7 dangling files + deleted 2 orphan headers:
+                       (a) gen.h — FAIL_GEN_NODE {fail_box,NULL,0} -> {NULL,NULL,0} null-fn sentinel; #include
+                           bb_broker.h -> bb_box.h (the KEPT bb_node_t {fn,ζ,size} interpreter triple's real
+                           home; only the (ζ,int entry) box FUNCTIONS + the driver were deleted, NOT the struct).
+                       (b) gen_runtime.c/.h — gen_bb_pump_proc_by_name (built gen_bb_dcg/gen_bb_oneshot Icon
+                           generator nodes) -> abort stub; bb_broker.h -> bb_box.h.
+                       (c) resolve_runtime.c/.h — resolve_bb_once_proc_by_name (resolve_bb_dcg) + the 3 brokered
+                           Prolog --run sites (pl_box_choice*/pl_box_choice_pc/pl_box_goal_from_ir + bb_broker:
+                           user-pred call x2, findall, aggregate_all) -> abort stubs; drop pl_broker.h +
+                           bb_broker.h, add bb_box.h.
+                       (d) interp_hooks.c — brokered Prolog call path (pl_box_choice*+bb_broker) -> abort.
+                       (e) stmt_exec.c — exec_stmt_blob brokered pattern scan (bb_broker bb_scan) -> abort;
+                           drop bb_broker.h.
+                       (f) scrip.c / interp_private.h — drop pl_broker.h include.
+                       (g) git rm src/frontend/prolog/pl_broker.h + src/processor/bb_broker.h (their .c were
+                           already gone in cc23c9f; Makefile had no refs).
+                     COMPLETION TEST (a) re-verified: the (ζ,int entry) box grep returns ZERO. Mode-2 SNOBOL/
+                     Icon HARD gates run on bb_exec_once (SEPARATE from the brokered path) and SURVIVE. **GATES
+                     (all green + matching/exceeding watermark):** make scrip rc=0, make libscrip_rt rc=0,
+                     SNOBOL4 m2 **7/7 HARD** / m3 5/6 / m4 0/6 (the m4 0/6 is the PRE-EXISTING by-design
+                     sno_ring_to_tree-removed abort from SBL-RING-REMOVE — NOT this teardown), Icon m2 **11/11
+                     HARD** / m3 11/11 / m4 9/11 (proc_zeroarg/proc_recursion m4 fails pre-existing), prove_lower2
+                     **64/0**, sm_dead **0** (≤1), g_vstack **0**, concurrency invariants OK. Byte-neutral to Icon
+                     (only the brokered path + its includes touched). **NEXT (#1): PB-RB-1 EMIT ARM.** The
+                     LOWERING IS ALREADY DONE (6343198): lower2_pat_build_entry (lower.c:2183) repoints TT_QLIT
+                     pattern -> ONE IR_REF_INVARIANT box over a sealed IR_PAT_LIT element (sealed element carried
+                     in operand_aux per PEERS RULE, NOT control-flow-threaded; bounded single-shot β=ω_in);
+                     prove_lower2 64/0 covers its 2-node REFINV topology. WHAT REMAINS = the emit arm + probe:
+                       (1) bb_ref_invariant.cpp — replace the DORMANT fail-loud stub (currently: TEXT bomb_text /
+                           BINARY abort, MEDIUM_BINARY-exempt) with real BINARY + TEXT arms that load the sealed
+                           IR_PAT_LIT bb_box_fn HEAD (the child-cache fn ptr — an EMIT-TIME CONSTANT: movabs imm64
+                           in BINARY / [rip+disp] lea in TEXT, RO never on a stack) into a ζ-frame RW slot
+                           [ζ=r12+off], then jmp γ; β = jmp ω (bounded single-shot, Fork A/E — NO runtime
+                           construction). Model on bb_sno_subject.cpp (load operand -> store to [ζ+off]).
+                       (2) emit_bb.c — add flat_drive_sno_ref_invariant: PRE-BUILD the sealed IR_PAT_LIT child via
+                           bb_build_brokered(ch) (resolve ch from bb_operand_aux_get, NOT bb_pat_kid), child_cache_put
+                           its head, set g_emit.bb_child_lbl/fn, alloc the ζ-slot via bb_slot_alloc(nd), emit the box.
+                           Add the walk_bb_flat IR_REF_INVARIANT case + pre_build_children / pre_build_children_text
+                           recognition of IR_REF_INVARIANT (mirror the IR_PAT_ARBNO/ASSIGN_COND/ASSIGN_IMM arm).
+                       (3) emit_core.c — dispatch ALREADY wired (emit_core.c:415 IR_REF_INVARIANT -> bb_ref_invariant).
+                       (4) mode-3 S 'b' probe — JIT a SUBJECT('abc') -> REF_INVARIANT('b') -> SUCCEED chain (model
+                           the PB-0/PB-1 sno_flat_chain_build probes), run with rt_frame, disasm-confirm the 'b'
+                           literal-matcher head lands in the ζ-slot, stackless (ζ=r12), no value stack.
+                     PRECEDENT: ARBNO/capture child-emit at emit_bb.c:1787-1815 (bb_build_brokered(ch) ->
+                     child_cache_put + child_cache_set_lbl for TEXT); the sealed element is the EXISTING
+                     bb_lit.cpp four-port matcher (emit_core.c:384 IR_PAT_LIT -> bb_lit; reads [r10]=δ, compares
+                     lit bytes vs Σ+δ, advances δ -> γ else ω). DO NOT regress mode-2 (IR_SCAN super-node stays
+                     intact; native chain is modes-3/4; IR_SCAN retirement is PB-RB-CONV). Base cc23c9f.
 HEAD SCRIP       = cc23c9f  C-BYRD-BOX DELETION + PB-RB-1 RETIRE (Opus 4.8, 2026-06-01, LANDED/PUSHED) —
                      Lon directive (emphatic; >=3 prior delete orders never landed): the BROKERED-BB concept
                      is ABOLISHED; a box is entered by JUMPING to α/β LABELS, never a C call with an int entry.
