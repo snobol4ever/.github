@@ -246,8 +246,45 @@ FACT 0, smokes hold.
   Prolog m2 5/5 · broker 20. NO `rt_push`/`rt_pop` added. OBSERVATION (pre-existing, out of scope): a
   bare `if C then E` (no else) whose cond fails does not continue to the next statement in EITHER m2 or
   m3 (consistent; an IR_SEQ statement-failure-continuation quirk in the mode-2 oracle, untouched here).
-- [ ] **GZ-9 — `while`/`until`/`repeat`.** body.success/failure → cond.START (JCON `ir_a_While`);
-  `until` swaps the cond edges. No router node.
+- [x] **GZ-9 — `while`/`until`/`repeat` (+ `break`/`next`). DONE (2026-05-31, Sonnet 4.8) — m2==m3==m4.**
+  All three loop constructs self-drive under the top-level port-walker (Model B: the loop NODE is a pure
+  forwarder/terminator; the cond's OWN relop ports + the body's γ/ω edges carry the loop — NO internal
+  exec-arm driver loop, NO `FRAME.loop_*` flags, NO router, NO value stack). Grounded in JCON `ir_a_While`
+  (cond.γ→body, cond.ω→loop-exit) / `ir_a_Until` (cond.γ→exit, cond.ω→body) / `ir_a_Repeat` (body.γ/ω→
+  body.start) / `ir_a_Break` / `ir_a_Next`. Icon smoke **m2 6/6→9/9 · m3 9/9 · m4 9/9** (added `while`,
+  `until`, `repeat_break`). SEVEN edits (Icon-gated; SNOBOL4 m2 7/7 & Prolog m2/m3 5/5 unchanged):
+  (1) `lower.c` `v_until` rewritten to structurally mirror `v_while` (cond.γ→until-node/exit, cond.ω→body)
+  — this also FIXED A PRE-EXISTING MODE-2 ORACLE BUG (`until` previously produced EMPTY output for every
+  input, because the old wiring hung the body off `IR_UNTIL.α` which neither the port-walker nor the
+  flat-chain BFS visits, and the `bb_exec.c` IR_UNTIL arm treated `α` as the cond). (2) `lower.c` `v_repeat`
+  rewritten to self-drive (`rp->γ = body-start` as the loop-back edge; the only NORMAL exit is a `break`).
+  (3) `lower.c` `with_loop(cx, γ_in, reentry)` now wraps the body lowering of all three loops (was defined
+  but UNUSED), so `break`→`cx.loop_ω`(=γ_in, the loop's exit continuation) and `next`→`cx.loop_next`(=cond/
+  body re-entry). (4) `lower.c` new `v_loop_break`/`v_loop_next` + dedicated `TT_LOOP_BREAK`/`TT_LOOP_NEXT`
+  dispatch cases (Icon-gated) lowering to `IR_BREAK`/`IR_NEXT` forwarders with γ==ω==target — and the STALE
+  duplicate `TT_LOOP_BREAK/NEXT` labels in the `TT_FNC` fall-through group were removed (they fell into the
+  call handler — wrong, and never fired since these nodes were never produced before). (5) `bb_exec.c`
+  `IR_BREAK`/`IR_NEXT`/`IR_REPEAT` exec arms rewritten as pure port-forwarders (break/next → `bb->γ`;
+  repeat → `bb->α`); the old `FRAME.loop_*`-flag internal-driver bodies (Model A — dormant, since the
+  lowering never produced these nodes) deleted. (6) `bb_binop.cpp` GZ-9 flat-chain integer-ARITHMETIC arm
+  (BINARY+TEXT) — `i := i + 1` etc.: reads each operand's int payload `[r12+slot+8]` (`bb_slot_get`),
+  computes register-to-register (ADD/SUB/MUL/DIV/MOD uniform — rax op rcx; DIV/MOD via `cqo;idiv rcx`),
+  writes a re-tagged `{DT_I,result}` 16-byte DESCR to its OWN `bb_slot_alloc16` slot (the `test_icon.c`
+  `mult_V=a*b` named-slot model — NO value stack, NO ring). (7) `emit_bb.c` `walk_bb_flat`: flat-chain
+  ARITH binops route to FILL (operands are sibling chain boxes already BFS-collected — do NOT re-walk via
+  `flat_drive_binop_tree`, which would duplicate them with fresh slots and clobber the slotmap); added
+  `IR_BREAK`/`IR_NEXT`/`IR_REPEAT` cases as pure `jmp γ` forwarders. Also `bb_assign.cpp` flat-chain RHS
+  guard widened to accept `IR_BINOP`, and `emit_core.c` IR_ASSIGN routing to `bb_sno_assign` gated
+  `!g_icn_flat_chain` (so Icon flat-chain ASSIGN reaches `bb_assign`, not the SNOBOL4 path). Verified
+  m2==m3==m4: `while` × `<`,`>`,`<=`,`>=` with ADD/SUB/MUL; `until i>3`→1,2,3 & `until i<=0`→5,4,3,2,1;
+  `repeat{if i>=3 then break else write(i); i:=i+1}`→0,1,2; `while{...; if i=5 then break else write(i)}`
+  →1,2,3,4. GATES: no-stack **114 ≤ 127** (break/next/repeat add ZERO push/pop — pure forwarders),
+  one-reg-frame **20 ≤ 20**, FACT 0, ZERO-SM (dump-sm count=0), prove_lower2 PASS, crosscheck 4/4.
+  **OUT OF SCOPE (pre-existing, documented at GZ-8):** a bare `if C then break` (no `else`) whose cond
+  FAILS does not fall through to the next statement in m2 OR m3 (the IR_SEQ statement-failure-continuation
+  quirk) — so `break`/`next` must use the `if … then break else …` form until that quirk is fixed. The
+  optional `break E` expression value is lowered as a plain transfer (E-value-as-loop-result is a later
+  refinement). `next` self-tested via the same forwarder path as `break`.
 - [ ] **GZ-10 — user procedure as a four-port FLAT box** (not a C-stack `call`). Model on
   `test_sno_3.c`: `(ζζ, entry)` calling convention, frame lazily allocated, `_λ` landing pad.
   Recursion depth lives in per-box arenas / heap frames, never a value stack.
@@ -479,6 +516,63 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 ---
 
 
+
+**HEAD (SCRIP):** `109fded` GZ-9 `while`/`until`/`repeat` + `break`/`next` — Model B self-driving loops
+(loop node = pure forwarder/terminator; cond relop ports + body γ/ω carry the loop; NO router, NO
+`FRAME.loop_*` flag, NO value stack). Icon smoke **m2 9/9 HARD · m3 9/9 · m4 9/9** (added `while`,
+`until`, `repeat_break`). Rebased conflict-free onto parallel `afb6995` (Prolog PLG-9b + SNOBOL4
+SBL-M3-CHAIN + Raku RK-LOWER-4 — FACT-rule isolation held). Built on GZ-8 `febef10`.
+
+**Done this session (GZ-9 — Sonnet 4.8):** `while`/`until`/`repeat` (+ `break`/`next`), all **m2==m3==m4**.
+Grounded per CONSULT-CANONICAL-SOURCES in JCON `ir_a_While` (cond.γ→body, cond.ω→exit) / `ir_a_Until`
+(cond.γ→exit, cond.ω→body) / `ir_a_Repeat` (body.γ/ω→body.start) / `ir_a_Break` / `ir_a_Next`. The loops
+**self-drive** under the top-level port-walker (Model B): the relop's OWN γ/ω ports + the body's edges
+carry the loop, and the `IR_WHILE/UNTIL/REPEAT` node is a pure forwarder/terminator — there is NO internal
+exec-arm driver loop and NO `FRAME.loop_*` flag mechanism (Model A, which was dormant: the old lowering
+never produced `IR_BREAK`/`IR_NEXT`, and `while`/`until`/`repeat` were never driven by their exec arms'
+internal loops on the passing paths). SEVEN edits, all Icon-gated (SNOBOL4 m2 7/7, Prolog m2/m3 5/5,
+broker 20 unchanged — verified post-rebuild AND post-rebase):
+1. `lower.c` **`v_until` rewritten** to structurally mirror `v_while` (cond.γ→until-node/exit, cond.ω→body).
+   This FIXED A PRE-EXISTING MODE-2 ORACLE BUG: `until` previously produced **EMPTY output for every input**
+   (the old wiring hung the body off `IR_UNTIL.α`, which neither the port-walker nor the flat-chain BFS
+   visits, and `bb_exec.c`'s IR_UNTIL arm mistreated `α` as the condition). Now `until i>3`→1,2,3 and
+   `until i<=0`(i=5)→5,4,3,2,1 in all three modes.
+2. `lower.c` **`v_repeat` rewritten** to self-drive (`rp->γ = body-start` as the loop-back edge); the only
+   NORMAL exit is a `break` in the body (wired straight to γ_in via the loop context).
+3. `lower.c` **`with_loop(cx, γ_in, reentry)`** now wraps the body lowering of all three loops (it was
+   DEFINED BUT UNUSED): `break`→`cx.loop_ω`(=γ_in exit), `next`→`cx.loop_next`(=cond/body re-entry).
+4. `lower.c` new **`v_loop_break`/`v_loop_next`** + dedicated **`TT_LOOP_BREAK`/`TT_LOOP_NEXT` dispatch**
+   (Icon-gated) → `IR_BREAK`/`IR_NEXT` forwarders with γ==ω==target. Removed the STALE duplicate
+   `TT_LOOP_BREAK/NEXT` labels from the `TT_FNC` fall-through group (they routed break/next into the call
+   handler — wrong, and never fired since the nodes were never produced).
+5. `bb_exec.c` **`IR_BREAK`/`IR_NEXT`/`IR_REPEAT` exec arms → pure port-forwarders** (break/next → `bb->γ`;
+   repeat → `bb->α`); deleted the dormant `FRAME.loop_*`-flag Model-A bodies.
+6. `bb_binop.cpp` **GZ-9 flat-chain integer-ARITHMETIC arm** (BINARY+TEXT) — `i := i + 1` etc.: reads each
+   operand's int payload `[r12+slot+8]` (`bb_slot_get`), computes register-to-register (ADD/SUB/MUL/DIV/MOD
+   uniform — `rax op rcx`; DIV/MOD via `cqo; idiv rcx`), writes a re-tagged `{DT_I,result}` 16-byte DESCR to
+   its OWN `bb_slot_alloc16` slot (the `test_icon.c` `mult_V=a*b` named-slot model — NO value stack, NO
+   ring). NB the tag-store `mov qword [r12+off],imm32` is **12 bytes** (4 op/ModRM/SIB + 4 disp32 + 4 imm32)
+   — an initial 11-byte miscount caused a mode-3 SIGILL, caught via an emitted-byte hexdump.
+7. `emit_bb.c` `walk_bb_flat`: flat-chain ARITH binops route to **FILL** (operands are sibling chain boxes
+   already BFS-collected — do NOT re-walk via `flat_drive_binop_tree`, which duplicated them with fresh
+   slots and clobbered the slotmap); added `IR_BREAK`/`IR_NEXT`/`IR_REPEAT` cases as pure `jmp γ` forwarders.
+   Also `bb_assign.cpp` flat-chain RHS guard widened to accept `IR_BINOP`; `emit_core.c` IR_ASSIGN→
+   `bb_sno_assign` routing gated `!g_icn_flat_chain` (so Icon flat-chain ASSIGN reaches `bb_assign`).
+`scripts/test_smoke_icon.sh` gained `while`, `until`, `repeat_break` (smoke 6→9 cases).
+**Validation (all m2==m3==m4):** `while` × `<`,`>`,`<=`,`>=` with ADD/SUB/MUL; `until i>3`→1,2,3 &
+`until i<=0`→5,4,3,2,1; `repeat{if i>=3 then break else write(i); i:=i+1}`→0,1,2; `while{i:=i+1; if i=5
+then break else write(i)}`→1,2,3,4. **GATES (all green):** Icon smoke m2 **9/9 HARD** · m3 9/9 · m4 9/9;
+no-stack **114 ≤ 127** (break/next/repeat add ZERO push/pop — pure forwarders); one-reg-frame **20 ≤ 20**;
+FACT 0; ZERO-SM (`--dump-sm` count=0); prove_lower2 PASS; crosscheck 4/4; Prolog m2 5/5 · m3 5/5;
+SNOBOL4 m2 7/7; broker 20.
+**NEXT:** GZ-10 (user procedure as a four-port FLAT box — `test_sno_3.c` `(ζζ,entry)` model, lazy frame,
+`_λ` landing pad; recursion depth in per-box arenas, never a value stack). **OUT OF SCOPE (pre-existing,
+documented at GZ-8 — recommend fixing before/with GZ-10):** a bare `if C then E` (no `else`) whose cond
+FAILS does not fall through to the next statement in m2 OR m3 (the IR_SEQ statement-failure-continuation
+quirk) — this is why `break`/`next` currently require the `if … then break else …` form. The optional
+`break E` expression value is lowered as a plain transfer (E-as-loop-result is a later refinement).
+
+---
 
 **HEAD (SCRIP):** GZ-8 `if`/relop control — relop-as-branch (cmp+jcc, no LAST_OK/BB_IF router/vstack).
 Icon smoke **m2 6/6 HARD · m3 6/6 · m4 6/6** (first all-three-modes-6/6). Built on `febef10`.
@@ -773,7 +867,7 @@ baseline for this build; they were produced by the value-stack path now being re
 |------|-------|-------|
 | Demolition | DONE | All Icon value-stack runtime consumers stubbed to `ICN_STACKLESS_ABORT` (23 sites): `rt_pop_nv_set`, `rt_pop_store_i64`, `rt_push_stored_i64`, `rt_pop_store_descr`, `rt_case_eq`, `rt_pop_write_int_nl`, `rt_pop_write_any_nl`, six `rt_unop_*`, ten vstack-using `rt_icn_*` (`call_proc`, `call_builtin`, `concat`, `field_get/set`, `idx_get/set`, `list_bang`, `limit_begin`, `toby_real`). Slot-based `rt_icn_limit_more/inc`, `proc_*` registry, `builtin_is_known`, and Raku `rt_load_frame`/`rt_store_frame` left LIVE. SNOBOL4/Prolog unaffected; Icon `--interp` 5/5; Icon `--run` aborts loudly at every value-stack box. |
 | GZ-0 | DONE | No-stack gate pinned `scripts/test_gate_icn_no_stack.sh` (ratchet baseline 129). Slot/arena conventions grounded in archived `emit_arbno` + `test_icon.c`. |
-| Smoke (two-mode) | DONE | `test_smoke_icon.sh` runs mode-2 (`--interp`, HARD GATE) AND mode-3 (`--run`, tracked) AND mode-4 (`--compile`); added `write_int` case. Current m2 **6/6** (HARD green, exits 0), m3 **6/6**, m4 **6/6** — GZ-8 (2026-05-31) made `if_expr` green in all three modes (relop-as-branch), the FIRST time all six smokes pass in all three modes. |
+| Smoke (two-mode) | DONE | `test_smoke_icon.sh` runs mode-2 (`--interp`, HARD GATE) AND mode-3 (`--run`, tracked) AND mode-4 (`--compile`); cases: write_str/write_int/arith/string_op/if_expr/every + GZ-9 while/until/repeat_break. Current m2 **9/9** (HARD green), m3 **9/9**, m4 **9/9** — GZ-8 (2026-05-31) made `if_expr` green in all three modes; GZ-9 (2026-05-31) added the three loop constructs green in all three modes. |
 | GZ-1 `write("hello")` | **m2 DONE; m3 DONE (R-HW-2, s5)** | mode-2 stackless & green. mode-3 NOW genuinely stackless: the write box reads the literal `lea rdi,[rip+27]` from sealed RO bytes in its own blob + `call rt_write_str_nl` (no push). The earlier `rt_push_str` came from the standalone `BB_LIT_S` box (walked via `LIT_S.γ→CALL`) + the builtin-dispatch arg-walk, BOTH fixed in R-HW-2. `diff m2 m3` empty, dump-sm 0, no-stack 127. |
 | GZ-2 `write(42)` | DONE (RO-IP-relative) | Literal int is a READ-ONLY constant: `BB_LIT_I` is pass-through; the write box emits the int64 as sealed RO data inside its own blob and reads it `mov rdi,[rip+22]` (emit-time disp, no patch/abs/stack), then `rt_write_int_nl`. m2==m3 `42`, count=0. Conforms to BOTH new FACT rules; no register frame needed for a constant. one-reg-frame abs-slot 22->20. |
 | READ-ONLY LOCALS IP-RELATIVE (new FACT RULE 2026-05-30) | in force | RULES.md: per-box RO constants live in the SEALED segment next to their blob, read `[rip+disp]` (disp = emit-time const when data+access share the blob); only RW state uses the one-register frame. Applied to GZ-2. Shares the no-stack + one-reg-frame ratchets (no abs `&pBB->slot`). |
