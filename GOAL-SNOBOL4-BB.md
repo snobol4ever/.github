@@ -61,6 +61,69 @@ or that adds a new value-stack array under any name, has violated this rule. **C
 (c) `scripts/test_gate_no_vstack.sh` `g_vstack` line reads 0; (d) the FACT RULE body is byte-identical
 across all five GOAL-*-BB files.
 
+> **⛔⛔⛔ ACTIVE TOP PRIORITY — DE-NAME: NO `SNO`/`sno` IN EMITTER OR RUNTIME (Lon directive 2026-06-01). DO THIS
+> NEXT, BEFORE more pattern dev.** Language-specific naming STOPS AT THE PARSER (frontend). The IR, the emitter
+> boxes, the runtime helpers, and the lowerer are LANGUAGE-INDEPENDENT — **there is NO `BB_*`/`IR_*`/box/runtime
+> identifier particular to a language.** Every `SNO`/`sno` prefix/infix/suffix in `src/emitter`, `src/runtime`,
+> `src/lower`, `src/processor`, `src/driver` is STRIPPED (the symbol is removed; e.g. `bb_sno_match` → `bb_match`).
+>
+> **✅ STARTED (2026-06-01, Opus 4.8): `bb_sno_match` → `bb_match`** (the box created this session; the directive's
+> named example). Renamed: file `bb_sno_match.cpp`→`bb_match.cpp` (git mv), `bb_sno_match`/`_str`→`bb_match`/`_str`,
+> `flat_drive_sno_match`→`flat_drive_match`, `g_sno_match_*`→`g_match_*`, emit_core dispatch, Makefile, lower.c
+> comment, de-SNO'd error strings. Gates GREEN + probe 2/2. The REST of the surface (below) is the next session.
+>
+> **THE LADDER (one box-cluster per slice, gate green each — mirror the BB→IR rename's slice discipline). Each
+> strips the token; a file rename is `git mv` + Makefile (`RT_PIC_SRCS` line + per-`.o` rule) + every `#include`/
+> call site + emit_core dispatch + comments/strings. Run the full gate suite (smoke SNOBOL4 m2 7/7 HARD + Icon m2
+> 12/12 HARD + prove_lower2 65 + probes + sm_dead + concurrency + purity + g_vstack==0) after EACH slice.**
+> - **DN-1 SUBJECT:** `bb_sno_subject`→`bb_subject` (file+sym+`_str`), `flat_drive_sno_subject`→`flat_drive_subject`,
+>   `rt_sno_subject_load`→`rt_subject_load`, `g_sno_subject_slot`→`g_subject_slot` (read in `bb_match.cpp` — update
+>   there too), `g_sno_subject_dbg_*`→`g_subject_dbg_*`, `Lsno_subj*`→`Lsubj*`. Touches bb_sno_subject.cpp, emit_bb.c,
+>   emit_core.c, rt.c, bb_match.cpp, lower.c, prove_lower2.c.
+> - **DN-2 SCAN:** `bb_sno_scan`→`bb_scan` (file+sym+`_str`), `flat_drive_sno_scan`→`flat_drive_scan`,
+>   `rt_sno_exec_scan`→`rt_exec_scan`. (`bb_scan` is free — `gen_scan` is `bb_gen_scan`.) Touches bb_sno_scan.cpp,
+>   emit_bb.c, emit_core.c, rt.c, bb_exec.c.
+> - **DN-3 CHAIN:** `sno_flat_chain_build`/`_text`→`flat_chain_build`/`_text`, `codegen_sno_flat_chain_body`→
+>   `codegen_flat_chain_body`, `sno_chain_*`→`chain_*` (arity/is_real/operand_refs/prebuild_children[_text]/resolve),
+>   `sno_stmt_operand_refs`→`chain_stmt_operand_refs`, `sno_stmt_t`/`sno_prog_t`→`stmt_t`/`prog_t` (⚠ grep `stmt_t`
+>   first for a collision), `g_sno_flat_chain`→`g_flat_chain` (emit_bb.c + emit_bb.h + bb_var.cpp), `sno_flat`
+>   label-prefix→`flat`. Touches emit_bb.c, emit_bb.h, bb_var.cpp, scrip.c, driver. (These sit beside the Icon
+>   `icn_flat_chain_*`/`icn_chain_*` twins — the generic names are free; the prefix-drop is the point.)
+> - **DN-4 PROG / REF / MATCH-LIT:** `IR_SNO_PROG`→`IR_PROG` (IR.h enum + scrip_ir.c kind_names + emit_bb.c +
+>   lower.c), `flat_drive_sno_program`→`flat_drive_program`, `flat_drive_sno_ref_invariant`→`flat_drive_ref_invariant`,
+>   `rt_sno_match_lit`→`rt_match_lit` (rt.c), `g_sno_cur_func`→`g_cur_func` (bb_exec.c — grep collision first).
+> - **DN-5 ASSIGN — ⚠⚠ COLLISION / MERGE DECISION (NOT a pure rename — needs Lon/judgment).** `bb_sno_assign`
+>   stripped is `bb_assign`, which ALREADY EXISTS (the Icon assign box, `bb_assign.cpp`). This is exactly the
+>   "no `BB_*` particular to a language" END STATE: IR_ASSIGN should be ONE box `bb_assign` that branches on
+>   `operand kind` (lit-string / int-binop / var / concat — the SNOBOL arms) vs the Icon var-store arm, inside the
+>   one template (the SHARED-LOWERER/EMITTER concurrency model already routes both via `case IR_ASSIGN`). So DN-5 is
+>   a **box merge**, not a rename: fold `bb_sno_assign.cpp`'s arms into `bb_assign.cpp`, collapse the walk_bb_flat
+>   `IR_ASSIGN` dispatch (currently SNO `α==IR_LIT_S|VAR|SEQ` → bb_sno_assign / `α==IR_BINOP` → bb_sno_assign_binop
+>   vs Icon → bb_assign) into one box, rename `rt_sno_assign_*`→`rt_assign_*`, `flat_drive_sno_assign[_binop]`→
+>   `flat_drive_assign[_binop]` (⚠ `flat_drive_assign` EXISTS — merge), `bb_sno_assign_var`/`_concat`/`_int`→ the
+>   merged box's arms, `Lsno_dst/iname/name/src/str`→`L*`. bb_var.cpp's `bb_sno_assign_var`/`rt_sno_assign_var` refs
+>   follow. **Do DN-5 LAST and with full context** — it is the architecture seam, not a sed.
+> - **DN-6 RESIDUE:** strip leftover `sno` from `dump_sno`/`dump_sno_value` (prove_lower2.c → `dump_pat`/`dump_pat_value`,
+>   grep collision), the dead-`sno_ring_to_tree` comment mentions, `has_non_sno` (scrip.c), and any `sno`/`SNO` token
+>   in comments/strings of the touched files. Then a ZERO-CHECK: `grep -rnE '\b[A-Za-z_]*([Ss][Nn][Oo])[A-Za-z_]*'
+>   src/emitter src/runtime src/lower src/processor src/driver` returns ONLY the EXCLUDED set below.
+>
+> **⛔ EXCLUDED — DO NOT TOUCH (these are NOT language-as-box-naming):**
+> - **Snocone (a DIFFERENT language; `sno` is a substring of `snocone`, stripping it CORRUPTS the name):**
+>   `snocone`, `_snoc_*`, `snoch`, `snotypes`, `lang_snocone`, `snocone_compile`, `snocone_driver`.
+> - **The language-identity enum `IR_LANG_SNO`/`LANG_SNO`:** this is the tag the ONE shared lowerer branches on
+>   (`switch (cx.lang)`), inherent to the unified-lowerer design (SHARED-LOWERER FACT RULE) — it is NOT a per-language
+>   box/IR-kind. KEEP (it names the language, which the lowerer legitimately must know).
+> - **Parser / frontend bridge (language-specific stops AT the parser, so these are fine):** `sno_parse_ast`,
+>   `sno_parse_string_ast`, `sno_parse_define_proto`, `sno_add_include_dir`, `tree_to_sno`, `lower_sno`/`lower_sno.c`
+>   (the AST→`.sno` SOURCE transpiler — a frontend/`--dump-sno` tool, not the IR lowerer), `LOWER_SNO_H`, `test_sno_*`.
+> - **⚠ SEPARATE LARGER DECISION (flag for Lon — NOT in this ladder):** the SNOBOL RUNTIME-LIBRARY core in
+>   `src/runtime/core` (`SNOBOL`, `SnoRt`, `SnoSaveEnt`, `SNO_INIT_fn`, `SNO_LIB`, `SNO_LINEBUF`, `SNO_LINE_SPLIT_AT`,
+>   `SNO_LOOP_STACK_MAX`, `SNO_SAVE_MAX`, `g_sno_save`/`_top`) IS the SNOBOL execution model itself. Stripping `SNO`
+>   there yields vague/colliding names (`INIT_fn`, …) and is a runtime-UNIFICATION question, not a rename. The IR/
+>   emit/BB-facing surface (the ladder above) is unambiguous and goes FIRST; the core-runtime de-SNO awaits Lon's
+>   call on whether/how the SNOBOL runtime library merges.
+
 > **🚧 ACTIVE RUNG — STOP-AND-DEV (Lon directive 2026-05-31). READ THIS FIRST.**
 > The next work is the **5-phase SNOBOL4 statement execution, 100% through BBs**: SUBJECT → PATTERN → MATCH →
 > REPLACEMENT → REPLACE, built as the **SESSION RUNG #0 — SBL-PAT-BB** ladder (**PB-0 … PB-OPT**, in this file
@@ -933,7 +996,28 @@ gone). The convention TABLE is byte-identical-×3 and UNCHANGED (this rung confo
 > directives; coding it on a guess is the failure mode the CONSULT-CANONICAL-SOURCES rule exists to prevent.
 
 
-- [ ] **PB-RB-3 — BB_MATCH driver (phase 3) + REG-0 register establishment.** Add `IR_PAT_MATCH` (IR.h) +
+- [x] **PB-RB-3 — BB_MATCH driver (phase 3) BINARY arm DONE (2026-06-01, Opus 4.8).** The mode-3 `--run`
+  outer-loop drive arm landed + disasm-verified + probe-passing; the box was simultaneously DE-NAMED per Lon's
+  directive (`bb_sno_match`→`bb_match`, `flat_drive_sno_match`→`flat_drive_match`, `g_sno_match_*`→`g_match_*`).
+  **Inline-jump (Model A, Lon's resolved design — NO `(ζ,int entry)` C call):** `flat_drive_match` (emit_bb.c)
+  resolves the element from `operand_aux[0]` (PEERS RULE), FILLs the MATCH block, then inline-emits the element
+  via `walk_bb_flat(elem, lbl_γ, match_advance, elem_β)` exactly as `flat_drive_cat` does its kids. `bb_match.cpp`
+  BINARY block: α loads Σ/Σlen from SUBJECT's ζ-slot (`g_sno_subject_slot`) + re-establishes `r10=&Δ` (SUBJECT's
+  `rt_sno_subject_load` C-call clobbered it, SysV caller-saved) + seeds start=0; `match_retry` sets `Δ=start`,
+  `jmp elem_entry`; `match_advance` (element ω target, DEFINE) does ch.18 step 6 (`start++`; `cmp start,Σlen; jg
+  →ω`; `&kw_anchor` check `jne →ω`; `jmp match_retry`); β=`jmp ω`. **PROBE PASS** (`test/snobol4/pat_bb/
+  probe_pb_rb_3_match.c` + wired into `test_sno_pat_bb_probe.sh`): `SUBJECT('abc')→MATCH(elem 'b')→SUCCEED` JIT'd,
+  ran, `result.v=1` — 'b' fails at cursor 0 ('a'), the ch.18 outer loop advances to cursor 1, 'b' matches.
+  DISASM-VERIFIED stackless (ζ=r12, start-slot `[r12+0x10]`, cursor in Δ via `[r10]`, NO value stack); EVERY
+  transfer a JUMP (fwd `jmp elem_entry` @0x9c→0xe1; back `match_advance`@0xa1; element ω→match_advance; retry-loop
+  `jmp match_retry`@0xd7→0x91) — honors the NO-C-BYRD-BOX FACT RULE. **LEGACY SUBJECT MODEL (deliberate):** uses
+  the Σ/Σlen globals + cursor in Δ via `[r10]` (the cells `bb_lit` still reads) — the REG ladder (REG-1+) migrates
+  the element bodies to R13/R14/R15, after which MATCH's α drops the legacy-cell population and uses the registers.
+  TEXT arm (mode-4) is a `bomb_text` stub (PB-RB-8 sweep). v_scan NOT rewired (mode-2 IR_SCAN super-node intact →
+  ZERO regression; retire is PB-RB-CONV). GATES (all green, at watermark): scrip rc=0, libscrip_rt rc=0, SNOBOL4
+  m2 **7/7 HARD** / m3 5/6 / m4 0/6, Icon m2 **12/12 HARD** / m3 12/12 / m4 12/12, prove_lower2 **65**, probes
+  **2/2**, sm_dead OK, concurrency OK, purity **7** (MEDIUM_BINARY-exempt), g_vstack **0**.
+  **(SUPERSEDED detail — the original PB-RB-3 step text follows for history.)** Add `IR_PAT_MATCH` (IR.h) +
   `bb_sno_match.cpp`. Model A (inline-jump, RESOLVED above): BB_MATCH reads the element entry via `operand_aux`
   (PEERS RULE) + Σ/Δ from the SUBJECT box's ζ-slot. **REG-0 lives here:** BB_MATCH's α loads
   `R13 ← Σ-slot`, `R15 ← Δ-slot`, `xor r14,r14` (δ=0) — establishing the ratified register contract — BEFORE it
@@ -1110,6 +1194,40 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
+HEAD SCRIP       = <THIS HANDOFF>  PB-RB-3 BINARY ARM + DE-NAME bb_sno_match→bb_match (Opus 4.8, 2026-06-01,
+                     LANDED + PUSHED). TWO things this session on top of c2b352d (PB-RB-3 topology):
+                     (1) **PB-RB-3 BINARY arm DONE** — the mode-3 `--run` ch.18 unanchored OUTER start-loop drive
+                     arm for BB_MATCH, INLINE-JUMP model (Lon's resolved Model A — NO (ζ,int entry) C call). The
+                     box was simultaneously DE-NAMED (see (2)). `flat_drive_match` (emit_bb.c) resolves the element
+                     from operand_aux[0] (PEERS RULE), FILLs the MATCH block, then inline-emits the element via
+                     walk_bb_flat(elem, lbl_γ, match_advance, elem_β) — exactly as flat_drive_cat does its kids.
+                     `bb_match.cpp` BINARY block: α loads Σ/Σlen from SUBJECT's ζ-slot (g_sno_subject_slot) +
+                     re-establishes r10=&Δ (SUBJECT's rt_sno_subject_load C-call clobbered it) + seeds start=0;
+                     match_retry sets Δ=start, jmp elem_entry; match_advance (element ω target, DEFINE) does ch.18
+                     step 6 (start++; cmp start,Σlen; jg→ω; &kw_anchor jne→ω; jmp match_retry); β=jmp ω. LEGACY
+                     subject model (Σ/Σlen globals + cursor in Δ via [r10] — the cells bb_lit reads); the REG ladder
+                     migrates element bodies to R13/R14/R15 later, then MATCH α drops the legacy population. TEXT arm
+                     = bomb_text stub (mode-4 = PB-RB-8). **PROBE PASS** (test/snobol4/pat_bb/probe_pb_rb_3_match.c +
+                     test_sno_pat_bb_probe.sh): SUBJECT('abc')→MATCH(elem 'b')→SUCCEED JIT'd, ran, result.v=1 — 'b'
+                     fails at cursor 0 ('a'), the outer loop advances to cursor 1, 'b' matches. DISASM-VERIFIED
+                     stackless (ζ=r12, start-slot [r12+0x10], cursor Δ via [r10], NO value stack); EVERY transfer a
+                     JUMP (fwd jmp elem_entry; back match_advance; element ω→match_advance; loop jmp match_retry) —
+                     honors NO-C-BYRD-BOX FACT RULE. v_scan NOT rewired (mode-2 IR_SCAN intact → ZERO regression).
+                     (2) **DE-NAME bb_sno_match→bb_match** — FIRST slice of Lon's directive "no SNO/sno in emitter or
+                     runtime; language-specific stops at the parser; no BB_*/IR_* particular to a language." Renamed
+                     the box created this session (the directive's named example): file bb_sno_match.cpp→bb_match.cpp
+                     (git mv), bb_sno_match/_str→bb_match/_str, flat_drive_sno_match→flat_drive_match, g_sno_match_*→
+                     g_match_*, emit_core dispatch, Makefile (RT_PIC_SRCS + per-.o rule), lower.c comment, error
+                     strings. **THE FULL DE-NAME LADDER (DN-1..DN-6) + EXCLUSIONS is the new ACTIVE TOP PRIORITY** —
+                     see the ⛔⛔⛔ block near the top of this file. NEXT SESSION DOES DN-1..DN-6 BEFORE more pattern
+                     dev. Key flags in that block: DN-5 (bb_sno_assign→bb_assign is a COLLISION = box MERGE with the
+                     Icon bb_assign, the "no BB_* per language" seam — do last, with context, NOT a sed); EXCLUDED =
+                     Snocone (sno⊂snocone), the IR_LANG_SNO language tag (lowerer branch), the parser/frontend bridge
+                     (sno_parse_*/lower_sno/tree_to_sno), and the SNOBOL runtime-library core (core.c SNO_*/Sno* — a
+                     separate runtime-unification decision flagged for Lon). GATES (all green, at watermark): scrip
+                     rc=0, libscrip_rt rc=0, SNOBOL4 m2 **7/7 HARD** / m3 5/6 / m4 0/6, Icon m2 **12/12 HARD** / m3
+                     12/12 / m4 12/12, prove_lower2 **65**, probes **2/2**, sm_dead OK, concurrency OK (FACT RULES
+                     byte-identical x3), purity **7** (MEDIUM_BINARY-exempt), g_vstack **0**. Base c2b352d.
 HEAD SCRIP       = c2b352d  PB-RB-3 TOPOLOGY — IR_PAT_MATCH inline-jump BB_MATCH (Opus 4.8, 2026-06-01, LANDED +
                      PUSHED this handoff). Base 77bbebc (PB-RB-1 emit arm); rebased on push onto c353d68 (concurrent
                      sibling Icon "GZ-11+ mode-2 relational binop generator-transparency", bb_exec.c only — disjoint;
