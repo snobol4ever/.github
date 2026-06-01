@@ -682,7 +682,22 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `a3728c0` GZ-11 SUSPEND mode-2 — user-defined Icon generators via `suspend E do BODY`
+**HEAD (SCRIP):** `c353d68` GZ-11+ mode-2 RELATIONAL BINOP GENERATOR-TRANSPARENCY (jcon `ir_a_Binop`). A
+FALSE relational comparison (`rel_fail`) is not the binop's failure — per jcon a relop is generator-transparent
+and re-seeks the next operand value. The postfix `IR_BINOP` exec arm (`bb_exec.c`) now re-enters the generator
+operand's chain head (`operand_aux[1]`=right, then `[0]`=left) on `rel_fail` instead of returning ω; `v_binop`
+already wired right.failure→left.resume so a both-generators case cascades and a drained chain reaches the
+binop's own ω; with no generator operand (e.g. `3 < 2`) it collapses to plain failure. Fixes `2 < (1 to 4)`→3,4
+(trues are NOT a prefix — the bug was that a false comparison terminated the loop, which only looked right for
+`>`/`≥` whose trues happen to form a prefix) and gen-on-left `(1 to 5) > 3`→3,3 (Icon relops return the right
+operand). 1 file (+16) `bb_exec.c`; mode-2 ORACLE ONLY (emitter untouched; m3/m4 flat-chain unaffected). **GATES:
+Icon m2/m3/m4 12/12/12 (HARD green) · corpus `test_icon_all_rungs` 107→110 PASS (+3, FAIL 140→137, XFAIL 36) ·
+no-stack 117≤127 · one-reg-frame 20≤20 · sm-dead OK · prove_lower2 PASS · Prolog m2/m3 5/5.** Pushed; rebased
+CONFLICT-CLEAN onto upstream `202bbba`. Next remaining in this cluster: `(1 to 3)*(1 to 2)` (arithmetic binop as
+cross-product generator — postfix `IR_BINOP` doesn't re-pump; the `IR_BINOP_GEN` arm has the cross-product logic
+but `v_binop` emits plain postfix for `*`) and `(1 to 2) to (2 to 3)` (generator-bounded `to`, IR_TO dynamic-bound arm).
+
+**PREV (SCRIP):** `a3728c0` GZ-11 SUSPEND mode-2 — user-defined Icon generators via `suspend E do BODY`
 (jcon `ir_a_Suspend`). A suspending procedure is now a generator; `every write(gen())` re-pumps it. Eager-drain
 model: the proc body's `IR_SUSPEND` nodes append to a per-activation `SuspendBuf`, the `IR_CALL` (dval==3.0) site
 harvests into a node-keyed `susp_gen_cache` and yields one value per re-entry via `state`/`counter` (like IR_TO);
