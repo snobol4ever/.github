@@ -27,7 +27,6 @@ acceptable; a surviving `(ζ, int entry)` box is not.
 
 **COMPLETION TEST:** (a) `grep -rnE 'DESCR_t[[:space:]]+[A-Za-z_]+[[:space:]]*\([[:space:]]*void[[:space:]]*\*[[:space:]]*[a-z]*[[:space:]]*,[[:space:]]*int[[:space:]]+entry' src/ --include=*.c --include=*.cpp --include=*.h | grep -v typedef` == 0 (no C byrd-box definition or declaration with the `(ζ, int entry)` signature); (b) no `bb_broker` driver function exists; (c) every emitted box is entered by a jump to an α or β label, never a C call with an `entry` int; (d) this FACT RULE body is byte-identical across the five GOAL-*-BB files.
 
-
 ## ⛔ NO VALUE STACK — EVER (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
 
 **SCRIP HAS NO VALUE STACK. NO SESSION, IN ANY LANGUAGE, MAY CREATE ONE.** (Lon directive, 2026-05-31.)
@@ -60,6 +59,37 @@ or that adds a new value-stack array under any name, has violated this rule. **C
 `grep -rn 'g_vstack' src/` == 0 (code AND comments); (b) no new global/static push/pop value arena exists;
 (c) `scripts/test_gate_no_vstack.sh` `g_vstack` line reads 0; (d) the FACT RULE body is byte-identical
 across all five GOAL-*-BB files.
+
+## ⛔ TWO LITERAL FORMS ONLY — MEDIUM_BINARY IS A HAND-CODED LITERAL BYTE MAP; NO FUNCTION MAY COUNT BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
+
+**Every BB template emits its x86 in exactly TWO LITERAL forms, both counted BY HAND.** (1) `MEDIUM_BINARY`
+is a hand-coded LITERAL byte map — `bytes("\x..")` opcode literals plus a LITERAL patch-offset map
+(`bin = {{13,65,80,84,95}, {…}, {…}}` with HARDCODED constant offsets). (2) `MEDIUM_TEXT` is literal GAS asm.
+Both forms are LITERALS. This is DELIBERATE, not a stopgap: a single shared/computed template proved
+unmaintainable — it kept getting split apart — so each box is its own small template carrying its own
+hand-coded byte map, and that literal form is the one that stays correct. (Lon directive, 2026-06-01 —
+re-issued after a session INVERTED it: literal bytes + literal asm are RIGHT; the function-counter is WRONG.)
+
+**FORBIDDEN — the ONLY thing that makes a site BAD: using a FUNCTION to count or compute the bytes.**
+Specifically `b.size()` in any form (`bin.sites.push_back((int)b.size())`, `int off = (int)b.size()`,
+`int mr_off = (int)b.size()`), or any helper that DERIVES a patch offset from the running buffer length
+instead of a hardcoded literal constant. Every offset in `bin` must be a LITERAL integer, never a function
+of the buffer. (CARVE-OUT: `bb_emit_asm_result` in `emit_str.cpp` may walk the FINISHED byte string with
+`.size()` when it emits/patches — that is the consumer reading a complete literal, NOT a template counting
+its own bytes; the prohibition is on a TEMPLATE deriving its patch offsets from a function.)
+
+**NOT bad — explicitly allowed, do NOT flag or "fix" these:** hand-written `bytes("\x..")` opcode literals;
+hardcoded `bin = {{…},{…},{…}}` literal offset tuples; literal internal rel32 deltas (`+65`, `-98`) written
+as constants; `u8()/u32le()/u64le()` building literal immediates; `TEMPLATE_ADDR_*` address bakes. These ARE
+the hand-coded byte map — the CORRECT, supported form. A box that hand-encodes bytes with literal offsets is GREEN.
+
+**GUARD:** `scripts/test_gate_no_handencoded_bytes.sh` (informational baseline now; flips to a HARD `--strict`
+zero-check). It counts, per `BB_templates/*.cpp` (comments stripped), every `b.size()` — the function
+byte-counter — which is the ONLY bad pattern. The count only ever decreases as `b.size()` sites are rewritten
+to literal offset maps; any session that raises it has violated this rule. **COMPLETION TEST:** (a)
+`scripts/test_gate_no_handencoded_bytes.sh --strict` green — zero `b.size()` in any `BB_templates/*.cpp`;
+(b) every `MEDIUM_BINARY` arm uses a hand-coded LITERAL byte map with hardcoded offsets, never a function to
+count bytes; (c) the FACT RULE body is byte-identical across all five GOAL-*-BB files.
 
 > **⛔⛔⛔ ACTIVE TOP PRIORITY — DE-NAME: NO `SNO`/`sno` IN EMITTER OR RUNTIME (Lon directive 2026-06-01). DO THIS
 > NEXT, BEFORE more pattern dev.** Language-specific naming STOPS AT THE PARSER (frontend). The IR, the emitter
@@ -144,7 +174,6 @@ across all five GOAL-*-BB files.
 > of EMITTED BYRD-BOXES (`bb_box_fn`), built by REF_INVARIANT (sealed) + STITCH/BUILD (variant); NOT a baked
 > `tree_t` (that is EVAL/CODE only) and NOT a PATND_t (being demolished). See **CORRECTED PATTERN
 > ARCHITECTURE** below; the older `tree_t`-bake "DESIGN QUESTION (DECIDED)" is SUPERSEDED.
-
 
 > **⭐⭐⭐ CORRECTED PATTERN ARCHITECTURE (Lon directive, 2026-06-01, Opus 4.8). THIS SUPERSEDES the `tree_t`-bake
 > "DESIGN QUESTION (DECIDED)" below AND the PATND_t-based PB-1/PB-2 as previously landed. READ THIS FIRST; the
@@ -352,7 +381,6 @@ across all five GOAL-*-BB files.
 > (`[ζ=r12+off]` RW frame + RO `[rip+disp]`), NO ring, NO value stack, NO storage outside the boxes (PER-BOX LOCAL
 > STORAGE FACT RULE). (c) Both native modes pass from the one graph + one template. There is NO ring→tree adapter to lean
 > on anymore — LOWER must emit the four-port shape directly.
-
 
 > **⚠️ SHARED-LOWERER LOCKSTEP NOTE (Sonnet, 2026-05-31, Prolog PLG-4 commit).** Two shared three-language
 > helpers in `lower.c` changed SEMANTICS as STRICT GENERALIZATIONS during Prolog backtracking work:
@@ -836,7 +864,6 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
 - [~] **FENCE-commit / ALT-fall-through (124 + 114) — INLINE class FIXED; DEFER-capture-resume blocker remains.**
   SBL-ALT-CURSOR-RESTORE + SBL-FENCE-SEAL landed: Δ-advancing single-shot leaves set `β=self` (re-enter to undo Δ on ALT fall-through); FENCE saves Δ on α, restores on β (commit). Inline probes pass m2. **Blocker:** 124/114 reach the ALT through a pattern VARIABLE (`BB_PAT_DEFER`); on `bb_exec_resume` the alt entry is alt1's capture node, which can't distinguish "backtrack" from "commit/regrow" (same `inner.state>0` ambiguity as SBL-CAP-REGROW). Capture-transparency prototype (`resume_at` + `g_resume_backtrack` one-shot) made 124 green but regressed 3 sealed-FENCE-via-var tests (over-reach: re-enters a sealed FENCE). **NEXT FIX:** gate the capture's backtrack-delegation so it does NOT re-enter an inner that wraps a sealed/exhausted FENCE (delegate only when inner holds a live backtrackable generator). Clean floor = `77a39e82`; minimal repro of the pure DEFER-capture-resume gap = p8 (`token=('if'.K|SPAN.I)`).
 
-
 ### ⭐ TOP PRIORITY (Lon directive 2026-05-30): Complete all SNOBOL4 pattern BB BINARY and TEXT arms for mode-3 and mode-4
 
 Every SNOBOL4 pattern BB template must have a working BINARY arm (mode-3 `--run`) and TEXT arm (mode-4 `--compile`). No pattern primitive may fall to the `default: jmp ω` stub once this rung is done. Honest `bomb_bytes()` stub is acceptable only as a temporary placeholder while the arm is being written; a permanent `jmp ω` for a real opcode is a RULES violation once the rung is declared complete.
@@ -1046,7 +1073,6 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
 
 ---
 
-
 > **PB-RB-3 DESIGN — RESOLVED (Lon 2026-06-01): MODEL A (INLINE-JUMP).** BB_MATCH `jmp`s the element's α and is
 > re-entered via its ω — the proven combinator mechanism (`walk_bb_flat`, as XCAT/XALT), NO `(ζ,int entry)` C call
 > (honors the NO-C-BYRD-BOX FACT RULE; `bb_broker.c` is deleted). REF_INVARIANT's load-a-sealed-head-by-call model
@@ -1124,8 +1150,6 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
 
 **COMPLETION TEST (rung):** `bb_build_brokered`/`EMIT_BINARY_BROKERED`/`g_bb_brokered`/`BB_MODE_BROKERED`/`BB_MODE_DRIVER` all grep to 0 in `src/`; no `bb_*.cpp` template enters a child box by `call` with an entry selector (every box reached by `jmp α`/`jmp β`); `test_gate_no_brokered.sh` green and in the Session Setup list; SNOBOL/Icon HARD gates survive. ONE way to enter a box, not two.
 
-
-
 ### ⭐ DESIGN QUESTION (Lon 2026-05-31, raised mid-SBL-M3-CHAIN): how do the PATTERN-builder BBs represent the pattern? — ✅ **DECIDED (Lon 2026-05-31): BOTH** — ⚠️ **SUPERSEDED 2026-06-01 (see CORRECTED PATTERN ARCHITECTURE at top): the pattern is a `bb_box_fn` byrd-box graph, NOT a baked `tree_t`. `tree_t` is for EVAL/CODE only. The `beauty.sno` / `tree(t,v,n,c)` memorial below stands as the AST shape for EVAL/CODE, not for patterns. History kept below.**
 
 **✅ DECISION (Lon 2026-05-31): WE HAVE BOTH. This is the MAX OPTIMIZATION.** The two mechanisms are not
@@ -1170,7 +1194,6 @@ one-BB-from-AST builder consumes. *This will SCREAM.*
 - **(c) The matcher interprets a pattern graph, never `tree_t`** — domain-specific, legitimate (SPITBOL itself interprets a pattern node graph).
 
 **AST-prohibition refinement (ADOPTED with the DECISION).** *AST is permitted in the BACKEND for inherently-dynamic constructs — `EVAL`, `CODE`, and PATTERN construction (the one-BB-from-baked-AST builder + the threaded variant builders) — because there building/compiling from a tree IS the actual job. The absolute invariant: modes 2/3/4 must never interpret `tree_t` as a stand-in for STATIC code that already has a defined oracle (mode 2) or native-BB (modes 3/4) path. The matcher interprets a pattern-specific graph, never `tree_t`.*
-
 
 - **SBL-SPAN-2 / SBL-ARBNO-3 BINARY arms.** Use `std::deque<int>` slot pattern from bb_capture.cpp (NOT GC_MALLOC). SPAN: TWO persistent int slots (z, z_orig); β yields successively shorter spans using ABSOLUTE z_orig. ARBNO: uses `nd->counter`, deque pattern + brokered child call. Validate via `--run`.
 - **SBL-BREAKX-2 ✅ DONE** (2026-05-29 Opus 4.8). Own BINARY arm. TEXT β rescans-to-next using z_orig + z. z lives in [zeta+8]; z_orig recovered arithmetically (Δ - z) so no second slot needed. 302-byte α-scan + β-rescan, assembled+verified via `as`. Native +2 (W05_breakx, word4); zero regression.
@@ -1231,7 +1254,6 @@ DEFAULT/NATIVE     = 265/280
 true --interp      = 263/280
 Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 ```
-
 
 ## Session log (last few, terse)
 
@@ -1431,7 +1453,6 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   `bb_build_flat` path (highest value — Icon proves it works); rebuild mode-4 BB-native x86 emission; then
   `IR_PAT_DEFER` runtime (Track B), broader builtins (ARRAY/TABLE/APPLY), `&ANCHOR` already done.
 
-
 - **2026-05-31 (Opus 4.8) — TESTING DIRECTIVE: ALL THREE MODES, ALWAYS ✅** (.github + SCRIP this handoff). Per Lon:
   every SCRIP test for this GOAL now runs modes 2/3/4. `scripts/test_smoke_snobol4.sh` rewritten — mode 2
   (`--interp`) is the HARD gate; mode 3 (`--run` / SB-LINEAR) + mode 4 (`--compile --target=x86` → `as` → `gcc
@@ -1549,7 +1570,6 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   prove_lower2.sh 17/17, sm_dead 1, FACT 6. corpus UNTOUCHED. bb_exec.c UNTOUCHED. FACT RULE block byte-identical
   across the 3 goal files preserved.
 
-
 (Older entries pruned; see git history of GOAL-SNOBOL4-BB.md.)
 
 ---
@@ -1657,13 +1677,20 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `86c265e` (UNCHANGED this session — DESIGN-ONLY, no SCRIP code) · .github this commit.
-**This session (2026-06-01, Opus 4.8) = DESIGN-ONLY:** added the SEAL-BOUNDARY HOOKS design note to the CORRECTED
-PATTERN ARCHITECTURE section above (`BB_LINK` = ζ-slot indirect external edge; per-glob HEAD BLOCK = the
-transition node between all globs; HEAD BLOCK is HALF a BB / `DT_P` ≡ HEAD BLOCK = two outbound hooks, not four;
-`BB_MATCH` ↔ `BB_LINK` ↔ dynamic land; NO REGISTERS for continuations). Answers how a SHARED sealed head's
-OUTSIDE-γ/ω reach per-call-site targets — a PB-RB-4+/PB-OPT-era concern, NOT a REG-ladder blocker. No gates ran
-against new code (none written); baselines below are the inherited `86c265e` state, re-confirmed at session start.
+**Watermark.** SCRIP `4b8e698` · .github this commit.
+**This session (2026-06-01, Opus 4.8) — FACT RULE + REG-0/1 + bb_match literal conversion:**
+- **NEW FACT RULE "TWO LITERAL FORMS ONLY"** (above, after the NO-VALUE-STACK rule) — byte-identical ×5 GOAL-*-BB
+  (block md5 `67020897`). The two literal forms (MEDIUM_BINARY = hand-coded byte map with HARDCODED literal offsets;
+  MEDIUM_TEXT = literal asm) are CORRECT; the ONLY bad site is a FUNCTION that counts bytes (`b.size()`). `bytes()`,
+  hardcoded `bin={{..}}`, literal rel32 deltas, `u32le/u64le`, `TEMPLATE_ADDR_*` are explicitly NOT bad.
+- **NEW GUARD** `scripts/test_gate_no_handencoded_bytes.sh` — counts `b.size()` per `BB_templates/*.cpp` (comments
+  stripped). Baseline **121 across 23 files** (informational; `--strict` = hard zero-check).
+- **REG-0** (bb_match α establishes Σ=R13/Δ=R15/δ=R14 from SUBJECT ζ-slot; legacy `&Σ`/`&Σlen`/[r10] cells kept) +
+  **REG-1** (bb_lit cursor→r14d / Σ→r13 / Δ→r15d; `&Σ`/`&Σlen` bakes removed; [r10] kept as mirror) — both LITERAL
+  byte maps. **bb_match converted off `b.size()` → literal offset map** {87,91,121,141,150,151}, internal back-jump
+  literal −78 (a genuine bad-site fix). PAT-BB probe **3/3** validates the offsets.
+- (Mid-session a WRONG pivot abort-stubbed bb_lit/bb_match on a backward reading — REVERSED after Lon clarified.
+  Net committed state is clean: literal byte maps, probe-green.)
 **SNOBOL4 status:** mode-2 **7/7 HARD**, mode-3 5/6 (`define`/user-fn the lone fail — needs DEFINE registration +
 a SNOBOL4 call frame + RETURN), mode-4 0/6 (pattern boxes bake `&Σ`/`&Σlen` imm64 → not relocatable; the REG
 ladder removes that). prove_lower2 **67**, PAT-BB probes **3/3**, Icon m2 12/12 / m3 12/12 / m4 12/12, sm_dead 0,
@@ -1671,11 +1698,16 @@ concurrency OK (FACT RULES byte-identical-×3), purity 7 (MEDIUM_BINARY-exempt),
 audit pins: LOWER `5097ed94`, EMITTER `307534d6` (do not perturb the byte-identical-×3 blocks). ENV NOTE: the
 build needs `libgc-dev` (`apt-get install -y libgc-dev`) — `core.h`/`raku_nfa_bb.c` include `<gc/gc.h>`.
 
-**⭐ NEXT (SNOBOL4) — PRIORITY ORDER (Lon 2026-06-01).** **(1) REG LADDER FIRST** (see the 🔴 CURRENT PRIORITY
+**⭐ NEXT (SNOBOL4).** **(0) BB-LITERAL CLEANUP — drive the new GUARD's `b.size()` count to zero**
+(`scripts/test_gate_no_handencoded_bytes.sh`, **121/23** baseline): rewrite each `b.size()` function-counter to a
+hardcoded LITERAL offset map (the way bb_match was converted this session). ⚠ The in-scope handful is
+`bb_pat_alt` + `bb_pat_cat`, but these are NOT a mechanical conversion: their `b.size()` sits inside a loop over
+`g_emit.xa_bb_emit_pair_n` (a runtime-variable define/jmp pair count), so literal offsets need a DESIGN answer
+(how a variable-length box gets literal patch offsets) — solve that before touching them. The other ~21 files are
+Icon/Prolog/generic boxes (outside the SNOBOL goal). **(1) REG LADDER** (see the 🔴 CURRENT PRIORITY
 section at the top): migrate the pattern BB templates off the legacy `[r10]`/`&Σ`/`&Σlen` model to the ratified
-registers Σ=R13/δ=R14/Δ=R15/ζ=R12 — REG-0 is folded into the now-landed PB-RB-3, so REG-1 (`bb_lit`) is the first
-code step; this is convention compliance AND the SNOBOL mode-4 unblocker (m4 0/6 cause = baked process-local
-addresses). **(2) THEN** PB-RB-4 (STITCH_SEQ/STITCH_ALT — topology already proven, only the emitter wiring + drive
+registers Σ=R13/δ=R14/Δ=R15/ζ=R12 — REG-0/REG-1 landed this session (bb_match α + bb_lit); next is REG-2
+(cursor-advancing leaves: bb_pat_len/any/notany/span/break/rem). **(2) THEN** PB-RB-4 (STITCH_SEQ/STITCH_ALT — topology already proven, only the emitter wiring + drive
 remain; mode-3 `S ('a'|'b')` and `S 'a' 'b'`), PB-RB-5…OPT, and BROK-0…BROK-3. The pattern-engine breadth (PB-RB
 ladder) is the LONG POLE for the SNOBOL4 corpus. Older per-session writeups live in the `HANDOFF-*.md` files.
 
