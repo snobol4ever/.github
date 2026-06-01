@@ -291,17 +291,34 @@ unwired mode-4 shape declines with the `[SMX]` banner = EXCISED (expected, not F
   dispatches to `flat_drive_pl_seq` and every goal emits; `scrip.c` retires the now-redundant
   `pl_ite_then_branch_trivial` rejection (a non-emittable branch goal is already caught by `pl_rich_graph_ok`'s
   `all[]` walk, which includes the inline ITE branch goals).
+- [x] **PLG-9g (partial) — mode-4 `writeq`/`write_canonical` + `atomic_list_concat`/`concat_atom` TEXT arms
+  (2026-06-01).** GATE-3 m4 69→**76** (+7); closed rung22 ×4 (writeq/write_canonical) + rung26 ×3
+  (atomic_list_concat/2,3 + concat_atom/2). Each is the `@PLT` MEDIUM_TEXT twin of an existing BINARY-only arm
+  (PLR-K-4 writeq, PLR-K-14 alc) — the gap was purely that those families had a MEDIUM_BINARY arm only, which a
+  standalone `.s` cannot use, so the rich gate EXCISED them. Both arms build the arg Term* via the TEXT
+  post-order walker `emit_build_compound_term` (→ rax, from sealed `.rodata` constants — no value stack) then
+  call the existing runtime helper @PLT: `rt_pl_{writeq,write_canonical}_term_ptr` (which delegate to the
+  mode-2 oracle's `pl_writeq`/`pl_write_canonical` — quoting already ISO-correct) / `rt_pl_atomic_list_concat_
+  term` (8-scalar SysV: 6 reg + 2 stack at `[rsp+0]`=ires `[rsp+8]`=sres). Result unifies into the result-var
+  slot in `g_resolve_env` (process-global home the subsequent `write` reads directly — same survival pattern
+  PLG-9f relies on). Grounded in gprolog `write_c.c` (writeq = `WRITE_NUMBER_VARS|WRITE_NAME_VARS|WRITE_QUOTED`;
+  write_canonical = `WRITE_IGNORE_OP|WRITE_QUOTED` → `1+2` renders `+(1,2)`) + `atom.c` `needs_quote`. Two files,
+  Prolog-arm-only, FACT-clean (0 bytes outside templates; `bb_builtin.cpp` not flagged by purity audit):
+  `bb_builtin.cpp` (+2 MEDIUM_TEXT arms), `scrip.c` (`pl_rich_node_emittable` admits the 4 functors). m2/m3
+  byte-identical (111/111). Siblings neutral (Icon 12/12/12; SNOBOL4 12 PASS/7 FAIL stash-proven).
 
 ### PLG rungs — open
 
 - [ ] **PLG-7 — remove `bb_node_state_t` snapshot/restore.** Once the recursive case provably needs no snapshot,
   delete the struct + Prolog call sites. **Audit first:** the struct has ONE LIVE Icon caller (`bb_exec.c:1589`
   IR_CALL) — do not delete it until Icon migrates off separately. Mode-2/3/4 byte-identical + build green.
-- [ ] **PLG-9g — mode-4 dynamic-DB + the broken-family closures.** The ~42 still-EXCISED m4 rungs are
-  findall (5), retract/retractall/abolish/assertz (dynamic-DB needs the `bb_*.cpp` emit-template, the
-  WAM-CP-13 deliverable), writeq/write_canonical (need a `@PLT` TEXT arm), numbervars, copy_term var-identity,
-  float arith. All EXCISE cleanly (0 FAIL). Purist tidy: the callee γ/ω epilogue is literal `emit_text_n` in
-  `emit_bb.c` — a future `xa_pl_callee_epilogue` XA template.
+- [ ] **PLG-9g (rest) — mode-4 dynamic-DB + the remaining broken-family closures.** The ~35 still-EXCISED m4
+  rungs are findall (5), retract/retractall/abolish/assertz (dynamic-DB needs the `bb_*.cpp` emit-template, the
+  WAM-CP-13 deliverable), numbervars (term-mutation — mode-4 leaves vars unbound), copy_term var-identity, float
+  arith (needs `rt_pl_arith_d`), aggregate (nb_setval/getval + aggregate_all). All EXCISE cleanly (0 FAIL). The
+  cheap "BINARY-arm-exists-just-needs-`@PLT`-TEXT" closures are now exhausted (writeq/write_canonical/
+  atomic_list_concat landed PLG-9g-partial); the rest need a real runtime substrate. Purist tidy: the callee
+  γ/ω epilogue is literal `emit_text_n` in `emit_bb.c` — a future `xa_pl_callee_epilogue` XA template.
 - [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue.** Map the Prolog analogue (findall goal sub-graph; assert/
   retract mutable clause store; DCG repetition) onto an explicit indexed deferred-frame array (the `test_sno_1.c`
   `_1[64]`/`ζ` shape), NOT a snapshot, NOT C recursion. Gate: rung11/14/30 3-mode AGREE.
@@ -413,11 +430,11 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — post-PLG-9f)
+## 📊 Gate table (current — post-PLG-9g-partial)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5 PASS / 0 EXCISED ✅ | write_atom/unify/arith/clause/recursion all native in m4 |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **69 PASS / 0 FAIL / 42 EXCISED** | PLG-9f: m4 68→69 (rung30_dcg_pushback_rest). m2/m3 byte-identical. EXCISED-not-FAIL: findall, retract/abolish/assertz, writeq/write_canonical, numbervars, copy_term, float arith |
-| prove_lower2 | green ✅ | — | — | PLG-9f is lower.c/emit_bb.c/scrip.c arms only; no lower2 case touched |
-| FACT RULE grep | 0 ✅ | — | — | no template `.cpp` edited; g_vstack still 0. Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 18/1 (053_pat_alt_commit pre-existing) |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **76 PASS / 0 FAIL / 35 EXCISED** | PLG-9g-partial: m4 69→76 (+7: writeq/write_canonical ×4, atomic_list_concat/concat_atom ×3). m2/m3 byte-identical. EXCISED-not-FAIL: findall, retract/abolish/assertz, numbervars, copy_term, float arith, aggregate |
+| prove_lower2 | green ✅ | — | — | PLG-9g-partial is bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
+| FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added (TEXT arms = s_2asm/emit_build_compound_term/@PLT only); g_vstack still 0; bb_builtin.cpp not flagged by purity audit. Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
