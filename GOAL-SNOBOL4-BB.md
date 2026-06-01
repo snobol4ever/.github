@@ -312,7 +312,7 @@ the file names (`bb_pat_span.cpp`), the `BB_templates/` directory, the `bb_*` fu
 ```bash
 make scrip                                   # rc=0
 make libscrip_rt                             # rc=0
-bash scripts/test_smoke_snobol4.sh           # ALL 3 modes: m2 7/7 (HARD); m3 0/6 + m4 0/6 (tracked, reported)
+bash scripts/test_smoke_snobol4.sh           # ALL 3 modes: m2 7/7 (HARD); m3 5/6 + m4 1/6 (tracked, reported) @ 18357d4
 bash scripts/test_smoke_icon.sh              # m2 6/6 (HARD), m3 4/6 (tracked)
 bash scripts/prove_lower2.sh                 # 37/37 topology
 bash scripts/test_gate_sm_dead.sh            # <= 1
@@ -456,7 +456,48 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 ## Session State
 
 ```
-HEAD SCRIP       = 80e6c22  SBL-M4-STACKLESS-1 — SNOBOL4 MODE 4 LANDS (literal assign),
+HEAD SCRIP       = 18357d4  SBL-M3-PATTERN + SBL-M3-CONCAT+GOTO (Opus 4.8, 2026-05-31) — SNOBOL4 MODE-3 SMOKE 2/6 → 5/6.
+                     Mode-3 now passes output, concat, arith, pattern, goto_s (only `define`/user-functions pending).
+                     mode-2 7/7 HARD invariant held all session; mode-4 unchanged at 1/6 (output). Two commits:
+                     472b04b (pattern + multi-statement adapter) and 18357d4 (concat + goto_s).
+                     **The recipe the prior banner promised — realized.** The single-statement `sno_ring_to_tree`
+                     stopgap is REPLACED by a real MULTI-STATEMENT program adapter, and the statement-BB topology
+                     (subject/pattern/replacement) now runs natively in-process:
+                       (1) IR.h — `IR_SNO_PROG` synthetic node (enum END, SBL-BAL precedent) + `sno_stmt_t`/`sno_prog_t`.
+                       (2) scrip.c `sno_ring_to_tree` REWRITTEN: BFS the landing-node CFG, fold each statement's postfix
+                           γ-chain into a four-port tree (`sno_fold_stmt`/`sno_stmt_arity`/`sno_chain_last`), record each
+                           statement's success/fail target landing index (the SPITBOL :S/:F/:(L) goto field), return ONE
+                           `IR_SNO_PROG` (sno_prog_t* on `ival` — `counter` MUST stay 0: `bb_pat_nkids` reads counter as
+                           kids-state, so a non-zero counter segfaults pre_build_children; THAT was the first-build crash).
+                           Handles pass-through/bare-goto landings (`:(L)`, empty body). SNO-concat IR_SEQ (dval==1.0) is
+                           a postfix LEAF (arity 0) — its operands live in isolated sub-graphs, not on the chain.
+                       (3) emit_bb.c — `flat_drive_sno_program` threads statements by label (both ports → next stmt /
+                           goto target; terminal → prog success; pass-through → jmp target). `flat_drive_sno_scan`.
+                           walk_bb_flat IR_SCAN + IR_SNO_PROG cases; IR_ASSIGN routes IR_VAR/IR_SEQ rhs to sno_assign.
+                       (4) bb_sno_assign.cpp — NEW arms: IR_VAR rhs (`OUTPUT = S` → rt_sno_assign_var) and IR_SEQ concat
+                           rhs (`OUT = 'ab' 'cd'` → rt_sno_assign_concat). BINARY mode-3 full bytes; TEXT mode-4 honest bomb.
+                       (5) bb_sno_scan.cpp (NEW template) — stackless IR_SCAN box → rt_sno_exec_scan (repl + plain forms).
+                           emit_core IR_SCAN → bb_sno_scan (removed IR_SCAN from the bb_stub group).
+                       (6) bb_exec.c — rt_sno_exec_scan (IR_SCAN exec arm re-expressed with explicit operands: subject by
+                           name/literal, bb_exec_once over the pattern sub-graph, anchored start-iter + dcap flush +
+                           replacement splice) and rt_sno_assign_concat (bb_exec_once each operand sub-graph + BINOP_CONCAT).
+                       (7) rt.c — rt_sno_assign_var (NV_SET(dst,NV_GET(src))).
+                     ALL stackless (Lon: NO value stack anywhere). NEW bb_sno_scan.cpp wired into Makefile (RT_PIC_SRCS +
+                     scrip per-file rule + glob link).
+                     **NEXT — two clear fronts:**
+                       • MODE-4 (still 1/6): the scan/concat boxes bake PROCESS-LOCAL pointers (IR_graph_t* of the pattern
+                         sub-graph / concat operand sub-graphs), valid only in mode-3 in-process. Their TEXT arms honestly
+                         bomb. Mode-4 pattern/concat need the BROKERED pattern-blob path (emit each sub-graph as its own
+                         standalone box, build at runtime via the broker) — a real, separable lift. Mode-4 arith also still
+                         empties out (the shared xa_flat frame-establishment gap noted in the 80e6c22 entry — peer territory).
+                       • MODE-3 `define` (last 1/6): user-defined functions (DEFINE/RETURN) through the stackless program
+                         adapter — sno_ring_to_tree currently only folds main; proc graphs + a CALL box are the remaining work.
+                     Gate snapshot @ 18357d4: scrip rc=0, libscrip_rt rc=0, m2 7/7 HARD, m3 5/6, m4 1/6, prove_lower2 53,
+                     Icon m2 6/6 HARD (byte-neutral), sm_dead OK (≤1), template-purity 7 (PRE-EXISTING baseline — the 7
+                     flagged files bb_assign/bb_binop/bb_call/bb_every/bb_field/bb_list_bang/bb_swap were NOT touched this
+                     session; concurrency audit's only failure is this pre-existing 7>6 delta, inherited, not introduced).
+                     Rebased onto febef10 (sibling ICON-BB GZ-7: +IR_GATHER, +g_icn_flat_chain; both enum values + bb_reset preserve + the IR_ASSIGN dispatch merged by hand, both languages re-verified). Base 80e6c22 -> now febef10.
+HEAD SCRIP (prior) = 80e6c22  SBL-M4-STACKLESS-1 — SNOBOL4 MODE 4 LANDS (literal assign),
                      and the modes-3/4 MISS diagnosed (see top-of-file banner). Mode 4 went 0/6 → 1/6: `OUTPUT='hello'`
                      now emits a complete .intel_syntax program (real `scrip --compile --target=x86`), assembles,
                      links (`gcc -no-pie -lscrip_rt --allow-shlib-undefined`), and runs → `hello`. SAME box, SAME IR
@@ -803,7 +844,7 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
   every SCRIP test for this GOAL now runs modes 2/3/4. `scripts/test_smoke_snobol4.sh` rewritten — mode 2
   (`--interp`) is the HARD gate; mode 3 (`--run` / SB-LINEAR) + mode 4 (`--compile --target=x86` → `as` → `gcc
   -no-pie … -lscrip_rt` → run) are RUN + REPORTED on EVERY invocation (tracked, `MODE3_MIN`/`MODE4_MIN` PASS
-  floors, default 0). Current: **m2 7/7, m3 0/6, m4 0/6** (the `--run` native path and the SMX-4-excised
+  floors, default 0). Current: **m2 7/7, m3 5/6, m4 1/6** @ 18357d4 (the `--run` native path and the SMX-4-excised
   `--compile` x86 emission are not yet rebuilt — now VISIBLE every run). Gate exits 0 (mode-2 clean + floors
   met). The Mode-defs block gained a ⛔ TESTING DIRECTIVE and the gate-suite block was updated to match. Raise
   the floors as 3/4 come back so regressions in them fail the gate too.
