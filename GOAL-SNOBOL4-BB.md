@@ -1,5 +1,17 @@
 # GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
+> **🚧 ACTIVE RUNG — STOP-AND-DEV (Lon directive 2026-05-31). READ THIS FIRST.**
+> The next work is the **5-phase SNOBOL4 statement execution, 100% through BBs**: SUBJECT → PATTERN → MATCH →
+> REPLACEMENT → REPLACE, built as the **SESSION RUNG #0 — SBL-PAT-BB** ladder (**PB-0 … PB-OPT**, in this file
+> below). **DO THIS DEV FIRST.** ⛔ Do **NOT** start climbing test/rung ladders (prove_lower2 rungs, smoke-floor
+> bumps, corpus-parity sweeps, per-language bring-up) until the 5-phase pattern execution is FULLY NATIVE through
+> BBs. **First incomplete step = PB-0 SUBJECT BB.** (The SBL-M3-CHAIN mode-3 5/6 already landed runs non-pattern
+> statements from LOWER's graph + static patterns via the IR_SCAN *interpreter bridge* — that is the substrate,
+> NOT this native pattern ladder.) **Pattern construction = BOTH — DECIDED (Lon):** ONE BB from a baked-in static
+> `tree_t` AST (`tree(t,v,n,c)`) builds an entire INVARIANT pattern graph in one shot (MAX OPTIMIZATION); threaded
+> builder BBs handle only the VARIANT parts. Honesty rule: the baked AST is consumed by CONSTRUCTION, never
+> interpreted as the matcher. See **DESIGN QUESTION (DECIDED)** below.
+
 > **⭐⭐ MODES 3 & 4: HOW THEY WERE MISSED — AND WHERE THE WORK ACTUALLY LIVES (Lon directive, 2026-05-31 Opus 4.8).**
 > **The whole job is LOWER + EMITTER. Get those two right and modes 3 and 4 run like magic — automatically, from the
 > SAME IR graph and the SAME per-box templates. Nothing else is needed.**
