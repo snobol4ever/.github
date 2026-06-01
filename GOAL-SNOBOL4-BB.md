@@ -1657,11 +1657,19 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `e39c329` · .github this commit. **SNOBOL4 status:** mode-2 **7/7 HARD**, mode-3 5/6
-(`define`/user-fn the lone fail — needs DEFINE registration + a SNOBOL4 call frame + RETURN), mode-4 0/6 (pattern
-boxes bake `&Σ`/`&Σlen` imm64 → not relocatable; the REG ladder removes that). prove_lower2 **67**, PAT-BB probes
-**3/3**, Icon m2 12/12 / m3 12/12 / m4 12/12, sm_dead 0, concurrency OK, purity 7 (MEDIUM_BINARY-exempt), g_vstack 0.
-FACT-RULE md5s the audit pins: LOWER `5097ed94`, EMITTER `307534d6` (do not perturb the byte-identical-×3 blocks).
+**Watermark.** SCRIP `86c265e` (UNCHANGED this session — DESIGN-ONLY, no SCRIP code) · .github this commit.
+**This session (2026-06-01, Opus 4.8) = DESIGN-ONLY:** added the SEAL-BOUNDARY HOOKS design note to the CORRECTED
+PATTERN ARCHITECTURE section above (`BB_LINK` = ζ-slot indirect external edge; per-glob HEAD BLOCK = the
+transition node between all globs; HEAD BLOCK is HALF a BB / `DT_P` ≡ HEAD BLOCK = two outbound hooks, not four;
+`BB_MATCH` ↔ `BB_LINK` ↔ dynamic land; NO REGISTERS for continuations). Answers how a SHARED sealed head's
+OUTSIDE-γ/ω reach per-call-site targets — a PB-RB-4+/PB-OPT-era concern, NOT a REG-ladder blocker. No gates ran
+against new code (none written); baselines below are the inherited `86c265e` state, re-confirmed at session start.
+**SNOBOL4 status:** mode-2 **7/7 HARD**, mode-3 5/6 (`define`/user-fn the lone fail — needs DEFINE registration +
+a SNOBOL4 call frame + RETURN), mode-4 0/6 (pattern boxes bake `&Σ`/`&Σlen` imm64 → not relocatable; the REG
+ladder removes that). prove_lower2 **67**, PAT-BB probes **3/3**, Icon m2 12/12 / m3 12/12 / m4 12/12, sm_dead 0,
+concurrency OK (FACT RULES byte-identical-×3), purity 7 (MEDIUM_BINARY-exempt), g_vstack 0. FACT-RULE md5s the
+audit pins: LOWER `5097ed94`, EMITTER `307534d6` (do not perturb the byte-identical-×3 blocks). ENV NOTE: the
+build needs `libgc-dev` (`apt-get install -y libgc-dev`) — `core.h`/`raku_nfa_bb.c` include `<gc/gc.h>`.
 
 **⭐ NEXT (SNOBOL4) — PRIORITY ORDER (Lon 2026-06-01).** **(1) REG LADDER FIRST** (see the 🔴 CURRENT PRIORITY
 section at the top): migrate the pattern BB templates off the legacy `[r10]`/`&Σ`/`&Σlen` model to the ratified
