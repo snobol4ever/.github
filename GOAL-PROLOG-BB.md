@@ -14,18 +14,24 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
 - **YOUR BOXES:** `bb_arith`, `bb_cut`, `bb_unify`, `bb_conj`, `bb_disj`, `bb_ite`, `bb_catch`, `bb_choice`,
   `bb_goal`, `bb_builtin`. Loop-free/single-shot leaves first; choice/goal (backtracking) use the landed
   internal-label + ζ-frame support.
-- **PROGRESS (2026-06-02, Opus 4.8):** `bb_cut` ✅ (`ed42331`, PL-RV-1) and `bb_arith` ✅ (`ced1acd`, PL-RV-2)
-  converted — both pBB-free, BINARY twin deleted, `b.size()` → 0. Technique proven: instrument both arms and
-  run the full rung suite per mode to confirm liveness before discarding the BINARY twin — `bb_cut`'s twin and
-  `bb_arith` (the whole executed box) are DEAD for Prolog (mode-3 routes the oracle, mode-4 uses TEXT; `is/2`
-  arith lives in `bb_builtin`, never the `IR_ARITH` leaf), so discarding/converting them is byte-safe. `bb_arith`
-  operand scalars now promoted driver-side in `bb_prepare_pl` (`_.bb_lk/_.bb_li/_.bb_rk/_.bb_ri`, sentinel
-  `bb_lk==-1` for missing-operands) + 4 additive `sm_emit_t` fields; op string via `_.op_sval` (direct
-  promotion). **NEXT = `bb_unify`** — but note it is LIVE (no dead-box shortcut) AND calls the
-  `emit_build_compound_term`/`_bin` twin-walkers, so its conversion is coupled to the PL-HY-1a walker-deletion
-  (delete the two walkers in favor of one `rt_pl_compound_build_n`/`rt_pl_node_to_term` call, THEN convert the
-  consumer). Remaining: `bb_unify`(1) `bb_catch`(1) `bb_conj`(2) `bb_disj`(2) `bb_ite`(2) `bb_choice`(6)
-  `bb_goal`(13) `bb_builtin`(28) — all live and/or multi-shape/looping; each its own rung.
+- **PROGRESS (2026-06-02, Opus 4.8):** `bb_cut` ✅ (`ed42331`, PL-RV-1), `bb_arith` ✅ (`ced1acd`, PL-RV-2),
+  and `bb_conj`+`bb_ite` ✅ (PL-RV-3) converted. **PL-RV-3 designed + landed the SHARED pair-loop combinator**
+  `x86_pair_loop()` in `x86_asm.h` (the formerly-STILL-OPEN variable-length define/jmp-pair idiom): a runtime-count
+  loop over `g_emit.xa_bb_emit_pair_{n,define,jmp}` whose two new `bb_emit_x86` records `'E' <idx>`/`'F' <idx>`
+  index the driver-minted glue labels out of g_emit (no raw pointer in the record stream). It is byte-identical to
+  the hand-rolled loop in BOTH media, so `bb_conj`/`bb_ite` converted byte-preservingly (each is now `return
+  x86_pair_loop();`). The primitive ALSO serves SNOBOL4 `bb_pat_cat`/`bb_pat_alt` (byte-identical loop) — they
+  call it directly when they convert, no further shared design. `b.size()` ledger 55→**51** (bb_ite 2 + bb_conj 2),
+  20→18 files. Both boxes pBB-free, `(void)`-signature, dispatch updated. Technique proven (PL-RV-1/2): the
+  MEDIUM_BINARY path is unexercised by Prolog at runtime (mode-3 routes the oracle, mode-4 uses TEXT), but the
+  records reproduce the exact define/E9+rel32 bytes so it stays correct for SNOBOL4's live BINARY use. **NEXT =
+  `bb_unify`** — but note it is LIVE (no dead-box shortcut) AND calls the `emit_build_compound_term`/`_bin`
+  twin-walkers, so its conversion is coupled to the PL-HY-1a walker-deletion (delete the two walkers in favor of
+  one `rt_pl_compound_build_n`/`rt_pl_node_to_term` substrate, THEN convert the consumer) — and the corpus has
+  NESTED compounds in unify position (47/132 rungs hit compound-build; some build 3-5 per IR_UNIFY), so the
+  substrate must handle arbitrary depth (a fresh-context rung, not a quick conversion). Remaining single/clean:
+  `bb_catch`(1, has 2 pBB-derefs — promote first) `bb_disj`(2). Multi/looping: `bb_choice`(6) `bb_goal`(13)
+  `bb_builtin`(28).
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
@@ -639,10 +645,11 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — post-PL-RV-2, SCRIP HEAD `ced1acd`)
+## 📊 Gate table (current — post-PL-RV-3, SCRIP HEAD `ced1acd`+PL-RV-3)
 
-x86() revamp in progress (bb_cut PL-RV-1, bb_arith PL-RV-2 done) — counts UNCHANGED from post-PLG-9j: the two
-converted boxes were dead/twin-dead, so the conversion is byte-preserving on every live path.
+x86() revamp in progress (bb_cut PL-RV-1, bb_arith PL-RV-2, bb_conj+bb_ite PL-RV-3 done) — counts UNCHANGED from
+post-PLG-9j: the converted boxes are dead-twin (cut/arith) or byte-identical (conj/ite via x86_pair_loop), so the
+conversions are byte-preserving on every live path.
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
