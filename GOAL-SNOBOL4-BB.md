@@ -107,11 +107,16 @@ in lockstep with LI-0.)
   `flat_chain_build` — two different functions, one name → fold into one (branch on `cx.lang`) or pick
   concept-distinct names (LI-2). And `rt_pl_arith`→`rt_arith` hits **3 existing** `rt_arith` occurrences → merge with
   the existing shared arith helper. Do these with full context, last.
-- **LI-4 cset ✅ DONE (SCRIP `<pending>`):** `icn_cset_union/diff/inter/complement/canonical`→`cset_*` across
+- **LI-4 cset ✅ DONE (SCRIP `a9ab14a`):** `icn_cset_union/diff/inter/complement/canonical`→`cset_*` across
   gen_runtime.{c,h} + bb_exec.c + icon_runtime.c (call site); m2 7/7+12/12 invariant, prove_lower2 67.
+- **LI-3 unify/trail/term ✅ DONE (SCRIP `99fa787`):** `rt_pl_{unify,trail,compound_build_n,node_to_term}`→
+  `rt_{unify,trail,compound_build_n,node_to_term}` (unification + WAM trail + term-building = language-independent CS)
+  across bb_disj/bb_unify/bb_exec.{c,h}/rt.{c,h}; m2 SNOBOL4 7/7 + Icon 12/12 + Prolog 5/5 HARD, prove_lower2 67.
 
-**Next incomplete step:** the remaining CLEAN slices (LI-3 unify/trail, LI-5 nfa, LI-1 bb_gather), then the MERGE
-slices (LI-2 chain/drive, rt_arith) with judgment, then LI-CORE + LI-FENCE. (The x86() TEMPLATE-REVAMP sub-track below remains valid and continues after the cleanup; a de-name does not
+**Next incomplete step:** remaining CLEAN slices — LI-5 `raku_nfa_*`→`nfa_*` (⚠ spans frontend `raku_nfa_bb.c` +
+runtime; rename the shared symbol at all sites), `rt_icn_*`→`rt_*` (`rt_icn_size_d`/`arg_stage`/`call_proc_descr`),
+LI-1 `bb_rk_gather`→`bb_gather` (filename + symbol). Then the MERGE slices (LI-2 chain/drive twins, `rt_pl_arith`→
+`rt_arith`) with judgment, then LI-CORE (SNOBOL-lib, Lon decision) + LI-FENCE gate. (The x86() TEMPLATE-REVAMP sub-track below remains valid and continues after the cleanup; a de-name does not
 change the BB/SM/XA template ladder, only its names.)
 
 ## ▶ x86() TEMPLATE-REVAMP — sub-track (continues after the cleanup rung above; 2026-06-02)
