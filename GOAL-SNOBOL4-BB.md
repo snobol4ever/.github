@@ -62,7 +62,10 @@ in lockstep with LI-0.)
 4. `prologue`/`epilogue` (assembly terms, not Prolog); `src/frontend/**` (out of scope).
 
 ### 🪜 THE LADDER (gated; lowest first; build GREEN + m2 HARD invariant after EACH slice — name/comment edits are behavior-neutral BY CONSTRUCTION, so ANY gate delta = a real bug)
-- [ ] **LI-0 — STRIP ALL COMMENTS, repo-wide (step 1, absolute).** `scripts/strip_comments.py` (WRITTEN; string/
+- [x] **LI-0 — STRIP ALL COMMENTS, repo-wide (step 1, absolute). ✅ DONE (SCRIP `062b0f9`, 2026-06-02).** 227 files
+  rewritten, −3081 lines; every comment gone except the one 120-char separator; the only `/*`/`//` left are inside
+  string literals (the Prolog `"//"` op, MSIL output text — correct). Build GREEN + m2 7/7 HARD (SNOBOL4) + 12/12
+  (Icon) byte-identical. `scripts/strip_comments.py` (WRITTEN; string/
   char-literal aware; excludes the 12 generated flex/bison files `*.lex.c`/`*.tab.c`/`*.tab.h`/`lex.*.c`).
   Removes every `/* */` + `//`; KEEPS the line-break separators and NORMALIZES each to the 120-char canonical form
   (`/*` + 116 `-` + `*/`, or `=` for major). Dry-run @ `707b284`: **274 files, 126 change, −3081 lines** (the `.c`/`.h`
@@ -94,8 +97,21 @@ in lockstep with LI-0.)
   SNOBOL-lib). Wire into Session Setup. COMPLETION (rung): gate green modulo exclusions; every box/helper named by
   its CS concept; build + behavioral gates invariant throughout.
 
-**Tooling ready:** `scripts/strip_comments.py` (dry-run/apply; spot-checked literal-safe). **First incomplete step =
-LI-0.** (The x86() TEMPLATE-REVAMP sub-track below remains valid and continues after the cleanup; a de-name does not
+**Tooling ready:** `scripts/strip_comments.py` (dry-run/apply; spot-checked literal-safe).
+
+**⚠ COLLISION FINDINGS (survey 2026-06-02 — which symbol slices are CLEAN renames vs genuine MERGES):**
+- **CLEAN (de-tagged target name is FREE — pure rename):** `rt_pl_unify_*`→`rt_unify_*`, `rt_pl_trail_*`→`rt_trail_*`,
+  `rt_pl_compound_build_n`→`rt_compound_build_n`, `rt_pl_node_to_term`→`rt_node_to_term`, `rt_icn_size_d`→`rt_size_d`,
+  `raku_nfa_*`→`nfa_*`, `bb_rk_gather`→`bb_gather` (distinct from `bb_seq_gather`), and **`icn_cset_*`→`cset_*` ✅ DONE**.
+- **MERGE (NOT a sed — needs Lon/judgment):** `sno_flat_chain_build` + `icn_flat_chain_build` BOTH de-tag to
+  `flat_chain_build` — two different functions, one name → fold into one (branch on `cx.lang`) or pick
+  concept-distinct names (LI-2). And `rt_pl_arith`→`rt_arith` hits **3 existing** `rt_arith` occurrences → merge with
+  the existing shared arith helper. Do these with full context, last.
+- **LI-4 cset ✅ DONE (SCRIP `<pending>`):** `icn_cset_union/diff/inter/complement/canonical`→`cset_*` across
+  gen_runtime.{c,h} + bb_exec.c + icon_runtime.c (call site); m2 7/7+12/12 invariant, prove_lower2 67.
+
+**Next incomplete step:** the remaining CLEAN slices (LI-3 unify/trail, LI-5 nfa, LI-1 bb_gather), then the MERGE
+slices (LI-2 chain/drive, rt_arith) with judgment, then LI-CORE + LI-FENCE. (The x86() TEMPLATE-REVAMP sub-track below remains valid and continues after the cleanup; a de-name does not
 change the BB/SM/XA template ladder, only its names.)
 
 ## ▶ x86() TEMPLATE-REVAMP — sub-track (continues after the cleanup rung above; 2026-06-02)
