@@ -11,8 +11,10 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `bb_pat_span.cpp` (looping). **Recipe:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
 - **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
   — first to reach a combinator designs it once in the RULES-DRAFT.
-- **YOUR BOXES:** `bb_pat_pos`✅ + `bb_pat_span`✅ + `bb_pat_abort`✅ + `bb_pat_tab`✅ + `bb_pat_atp`✅ DONE
-  (`x86_movimm32` / `mov32` encoder landed for TAB δ=r14d set). Next loop-free leaves: `bb_pat_arb`/`bb_pat_defer`.
+- **YOUR BOXES:** `bb_pat_pos`✅ + `bb_pat_span`✅ + `bb_pat_abort`✅ + `bb_pat_tab`✅ + `bb_pat_atp`✅ +
+  `bb_pat_arb`✅ + `bb_pat_defer`✅ DONE (`x86_movimm32` / `mov32` encoder landed for TAB δ=r14d set; ARB uses
+  `bb_slot_claim(8)` for its z/zo ζ-frame generator state; DEFER off `[r10]`→δ=r14d with the 16-byte-aligned
+  `rt_defer_match` call preserved). Next loop-free leaf: `bb_pat_fence` (single-shot save/restore-Δ form first).
   Looping: `bb_pat_break` (follow SPAN). Variable-length (the STILL-OPEN design): `bb_pat_fence` (pair path),
   `bb_pat_cat`, `bb_pat_alt`, `bb_match`.
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
@@ -1818,7 +1820,38 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `52daa2e` · .github this commit.
+**Watermark.** SCRIP `fe94061` · .github this commit.
+**This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_arb` + `bb_pat_defer` converted to x86() self-encoding (pBB-free):**
+- **`bb_pat_arb`** (`fe94061`) — generator convert. ζ-frame state z (matched len) @ `[r12+off]` + zo (origin δ) @
+  `[r12+off+4]` via `bb_slot_claim(8)` (PER-BOX LOCAL STORAGE / NO-VALUE-STACK FACT RULES) — the old process-global
+  `std::deque<int>` z/zo + `movabs &z`/`&zo`/`&Σlen` bakes are GONE. Ratified registers Σ=R13/δ=R14d/Δ=R15d.
+  Two-entry generator, NO internal loop label (like POS): α sets z=0, zo=δ, → γ (offers the 0-char match first per
+  SPITBOL ch.18 "shortest possible substring … behaves like a spring"); β does z++, eax=zo+z, `cmp eax,r15d`/`jg ω`,
+  δ=zo+z, → γ (expands one char per retry). Driven correctly by the existing `add reg,[r12+off]` / `mov [r12+off],imm`
+  encoders — no new x86_asm.h vocabulary needed.
+- **`bb_pat_defer`** (`fe94061`) — runtime-resolved pattern-valued variable. Migrated off the legacy `[r10]` cursor to
+  δ=R14d (REG-3); pBB-free (varname=`_.op_sval`, flag=`_.op_ival`). α: rdi=&varname (RO via `x86_load_ro` lea[rip]/
+  movabs), esi=flag, edx=δ, call `rt_defer_match`; `test eax,eax`/`js ω` (return <0 = fail); δ=eax; → γ. β: → ω
+  (single-attempt). The 16-byte-aligned call sequence is PRESERVED (sub-pattern path → exec_stmt → SSE stores need
+  aligned rsp): `push r10; push rbx; mov rbx,rsp; and rsp,-16; call; mov rsp,rbx; pop rbx; pop r10` — the three raw
+  qword-mov/and bytes (`48 89 e3` / `48 83 e4 f0` / `48 89 dc`) `as`+objdump-verified before writing. X86-only.
+- **Verified:** m2 smoke **7/7 HARD** (unchanged), pat-rung-suite **M2 18/19** (same pre-existing 053_pat_alt_commit),
+  **ARB+DEFER green in BOTH m2 AND m3-native** (`'O' ARB 'A'`→matched; `'O' ARB P` with P='NT'→matched both modes,
+  exercising ARB spring-expansion + DEFER string-literal resolution + the aligned call). Concurrency invariants hold
+  (FACT RULES byte-identical ×3 UNPERTURBED), `g_vstack` 0, purity baseline (my two files NOT in the side-effect list),
+  net −54 lines. Files: `bb_pat_arb.cpp` + `bb_pat_defer.cpp` (boxes) + `bb_templates.h` + `emit_core.c` (parameterless
+  decl/dispatch). Rebased clean over sibling Raku `RK-HY-1/2` (`bb_seq`/`bb_nfa` de-cram) — no conflict.
+- **ENV NOTE for next session:** GATE-4 (`test_interp_broad_corpus_and_beauty.sh`) reports ~108/280 not the ~251
+  Session-Setup figure, because the script's `INC=corpus/programs/snobol4/demo/inc` directory is ABSENT from the
+  current corpus checkout (include-dependent tests fail in the harness though they pass run-directly — verified
+  `097_keyword_alphabet` emits the exact ref). A corpus-snapshot/harness gap, NOT a regression and orthogonal to the
+  conversion; restore that `inc/` dir (or repoint the script) to re-baseline GATE-4. Also: the clone token's last
+  char before `5dK` is lowercase `h` (`…Sy0xh5dK`); an uppercase-`H` variant 401s — set the remote URL accordingly.
+- **NEXT (SNOBOL4):** next loop-free leaf is `bb_pat_fence` (do the single-shot save-Δ-on-α / restore-on-β form
+  first); then looping `bb_pat_break` (follow SPAN); then the STILL-OPEN variable-length define/jmp-pair combinators
+  `bb_pat_cat`/`bb_pat_alt`/`bb_match` + FENCE's pair path (whoever reaches a combinator first designs that idiom once
+  in `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`).
+
 **This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_abort` + `bb_pat_tab` + `bb_pat_atp` converted; `x86_movimm32` encoder added:**
 - **`bb_pat_atp`** (`52daa2e`) — LOOP-FREE single-shot convert. @var cursor capture: α writes δ to var via
   `rt_at_cursor` then → γ; β fails → ω. Cursor δ read from R14d (REG-3; legacy `[r10]` cell GONE). Varname is RO
