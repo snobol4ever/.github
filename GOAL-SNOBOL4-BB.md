@@ -126,11 +126,20 @@ in lockstep with LI-0.)
   **Companion clean emitter slice ✅ DONE (SCRIP `db6d33d`):** `rk_marshal_call_arg`→`marshal_call_arg` (+ label
   `.Lrkfn`→`.Lcallfn`) in `bb_call.cpp` — the generic call-arg marshaller (serves Icon/Prolog calls), Raku-origin
   name, confined to that file. ⚠ NOT renamed: `_.bb_rk` (right-kind operand field in bb_unify/bb_arith — NOT Raku).
-- [ ] **LI-2 — CHAIN/DRIVE family (emitter), the most confusion-prone (Icon/SNOBOL twins) — DO FIRST of the symbol
-  slices.** `sno_flat_chain_build`/`icn_flat_chain_build`/`flat_drive_pl_seq`/`flat_drive_alt_icn`/
-  `flat_drive_icn_userproc` → ONE flat-wired-BB-sequence driver vocab (`flat_chain_build`, `flat_drive_seq`/`_alt`/
-  `_userproc`, `chain_arity`/`_operand_refs`/`_resolve`, `g_flat_chain`). `*_ring_to_tree`→`ring_to_tree`.
-  `sno_prog_t`/`sno_stmt_t`→`prog_t`/`stmt_t` (⚠ grep `stmt_t` collision first). `IR_SNO_PROG`→`IR_PROG`.
+- [x] **LI-2 — CHAIN/DRIVE family (emitter), the most confusion-prone (Icon/SNOBOL twins). ✅ DONE (SCRIP slices A/B/D
+  `a0478c4`/`d339c97`/`a822f80`, 2026-06-02 Opus 4.8).** Resolved the twins as CONCEPT-DISTINCT names (the rung's
+  sanctioned alternative to merging): SNOBOL chain = global-variable name-value model → `gvar_*`
+  (`sno_flat_chain_build`→`gvar_flat_chain_build`, `sno_chain_{arity,is_real,resolve,operand_refs,prebuild_children}`→
+  `gvar_chain_*`, `codegen_sno_flat_chain_body`→`codegen_gvar_flat_chain_body`, `sno_stmt_operand_refs`→
+  `gvar_stmt_operand_refs`); Icon chain = typed-DESCR-slot model → `descr_*` (`icn_flat_chain_build`→
+  `descr_flat_chain_build`, `icn_chain_*`→`descr_chain_*`, `g_icn_flat_chain`→`g_descr_flat_chain`). Drivers named by
+  their IR kind: `flat_drive_pl_seq`→`flat_drive_conj`(IR_GCONJ), `flat_drive_pl_alt`→`flat_drive_disj`(IR_DISJ),
+  `flat_drive_pl_choice`→`flat_drive_choice`, `flat_drive_pl_ite`→`flat_drive_ite`, `flat_drive_alt_icn`→
+  `flat_drive_gen_alt`(IR_ALT generator-alternation; existing `flat_drive_alt`=IR_PAT_ALT left untagged),
+  `flat_drive_icn_userproc`→`flat_drive_userproc`. `sno_prog_t`/`sno_stmt_t`→`prog_t`/`stmt_t`, `IR_SNO_PROG`→`IR_PROG`
+  (collision-checked free). ⚠ `*_ring_to_tree`: only `icn_ring_to_tree` is real and it lives in `src/driver/scrip.c`
+  (DRIVER scope — held with the other driver symbols, NOT emitter/runtime); `sno_ring_to_tree` was only an abort
+  doc-string.
 - [ ] **LI-3 — Unification / trail / term (runtime, Prolog-tagged but general CS):** `rt_pl_unify_*`→`rt_unify_*`,
   `rt_pl_trail_*`→`rt_trail_*` (WAM-standard "trail"), `rt_pl_compound_build_n`/`rt_pl_node_to_term`→
   `rt_term_build_n`/`rt_node_to_term`, `pl_functor`/`pl_univ`/`pl_var_bind`→`functor`/`univ`/`var_bind` (⚠ collisions).
@@ -144,15 +153,22 @@ in lockstep with LI-0.)
   MAY still be in scope here: any `raku_*`/`rk_`/`__rk_jct_*`/`RK_NFA_BB`/`RK_GRAM_MAX` symbols **DEFINED in
   `src/runtime/**`** (e.g. in `script_builtins*.c`, which DO appear to host some) vs merely called there — triage
   by definition site before touching.
-- [ ] **LI-6 — emitter PL/RK macros + WASM/JS/JVM stubs:** `XA_PL_*`→builder/registry CS names, `SM_BB_PL_INVOKE`→
-  `SM_BB_INVOKE` (⚠ SM-zero rule), `RK_GATHER_MAX_TAKES`→`GATHER_MAX_TAKES`, `SNO_*_WASM`/`emit_wasm_prolog`→de-tagged
-  (`emit_wasm_prologue` = assembly prologue).
+- [x] **LI-6 — emitter PL/RK macros. ✅ DONE (SCRIP slice D `a822f80`).** `XA_PL_*`→`XA_*` (6 XA template-kind enum
+  members in `src/include/XA.h`: KIDS_RODATA/SUB_BUILDER/BUILDER/REGISTRY_TABLE/PREDICATE_REGISTRY), `bb_prepare_pl`→
+  `bb_prepare`, `codegen_pl_callee_block`→`codegen_callee_block`, `codegen_pl_program`→`codegen_clause_dispatch`
+  (`codegen_program` was taken), `hdr_has_pl_reg`/`reg_pl_count`→`hdr_has_reg`/`reg_count`. `RK_GATHER_MAX_TAKES`
+  already done in LI-1. (No `SM_BB_PL_INVOKE`/`SNO_*_WASM` survive — already clean; `emit_wasm_prologue` = assembly
+  prologue, carve-out.)
 - [ ] **LI-CORE — `src/runtime/core/` SNOBOL-lib — FLAG / Lon decision (DO LAST).** Runtime-unification question;
   surface to Lon, no blanket sed.
-- [ ] **LI-FENCE — the zero-language gate.** `scripts/test_gate_no_lang_names.sh`: across `src/emitter`+`src/runtime`
-  the language-token grep returns ONLY the EXCLUDED set (IR_LANG_*/snocone/prologue·epilogue/the LI-CORE-pending
-  SNOBOL-lib). Wire into Session Setup. COMPLETION (rung): gate green modulo exclusions; every box/helper named by
-  its CS concept; build + behavioral gates invariant throughout.
+- [x] **LI-FENCE — the zero-language gate. ✅ DONE (SCRIP `85677cb`).** `scripts/test_gate_no_lang_names.sh`: scans
+  `src/emitter`+`src/runtime`, fails on any language-tagged SOURCE symbol outside the documented carve-out allowlist
+  (IR_LANG_*/LANG_{SNO,ICN,PL,RAKU}, snocone, prologue·epilogue, `src/runtime/core/**` SNOBOL-lib = LI-CORE-pending,
+  frontend-contract dispatch strings `ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/`set_prolog_flag`/
+  `current_prolog_flag`, held parser API `prolog_atom_*`/`pl_write*`/`Raku_nfa`/`raku_nfa_*`, driver `g_raku_*`,
+  emitted label/comment strings, `STAGE2_PL_PRED_TABLE_SIZE` contract). TEETH-VERIFIED (injected `sno_newbox_count` →
+  exit 1; reverted → OK). **Wire into Session Setup:** add `bash scripts/test_gate_no_lang_names.sh` (expect "OK:
+  LI-FENCE holds") to the gate block alongside `test_gate_no_bb_bin_t` / `audit_concurrency_invariants`.
 
 **Tooling ready:** `scripts/strip_comments.py` (dry-run/apply; spot-checked literal-safe).
 
@@ -172,9 +188,27 @@ in lockstep with LI-0.)
   `rt_{unify,trail,compound_build_n,node_to_term}` (unification + WAM trail + term-building = language-independent CS)
   across bb_disj/bb_unify/bb_exec.{c,h}/rt.{c,h}; m2 SNOBOL4 7/7 + Icon 12/12 + Prolog 5/5 HARD, prove_lower2 67.
 
-**Next incomplete step (updated 2026-06-02, Opus 4.8 — post-SRC-REORG):** the CLEAN single-symbol emitter/runtime
-slices are now EXHAUSTED (LI-1 `bb_gather` + `marshal_call_arg` landed `0b86f9e`/`db6d33d`; `rt_rk_*`/`rt_icn_*`
-runtime leftovers were already 0; LI-3/LI-4 done). What REMAINS all needs per-symbol judgment, NOT blind sed:
+**✅ EMITTER + RUNTIME DE-NAME COMPLETE (2026-06-02, Opus 4.8 — Lon directive "finish the rename, any emitter/runtime
+symbol or filename, generic-CS names").** Six gated byte-identical slices (`a0478c4` A · `d339c97` B · `12b820d` C ·
+`a822f80` D · `34b1406` E · `85677cb` LI-FENCE) cleared the WHOLE in-scope surface. The judgment calls the rung had
+deferred to Lon are now RESOLVED: (LI-2) chain twins → concept-distinct `gvar_*`/`descr_*`; (rt_pl_arith merge) the
+existing `rt_arith` was a DEAD `STACKLESS_ABORT` value-stack stub (zero callers) → deleted, `rt_pl_arith` took the
+name; (LI-3/runtime Prolog builtins) the open "naming DECISION" resolved by treating each builtin's own descriptive
+name as the CS concept and stripping only the `pl_` tag → `rt_*` (49 helpers). LI-FENCE locks it in.
+**No language-tagged FILENAMES** in emitter/runtime (all already CS-named; `xa_prologue`/`xa_epilogue` = assembly,
+carve-out). **DELIBERATELY HELD (documented, NOT in emitter/runtime DEFINITION scope):** (a) DRIVER-defined symbols
+in `src/driver/scrip.c`+`interp_globals.c` — `icn_ring_to_tree`, `g_raku_match`, `g_raku_subject`, `has_non_sno` (Lon:
+"runtime then emitters, not driver" — suggest a future DRIVER micro-slice); (b) CONTRACTS-defined `STAGE2_PL_PRED_TABLE_SIZE`
+(`src/contracts/stage2.h` — suggest a future CONTRACTS micro-slice, like IR_PROG was); (c) frontend-contract dispatch
+NAME strings the parser mints + runtime strcmp-dispatches (`ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/
+`set_prolog_flag`/`current_prolog_flag`) — renaming needs the out-of-scope frontends; (d) emitted assembly LABEL-prefix /
+COMMENT strings (`"icn_proc_%s"`, `"sno_flat"`, `s_comment("# BOX SNO …")`) — generated-output text, not source symbols,
+and changing them risks cross-language label collisions + churns mode-4 .s; (e) `RK_NFA_BB` getenv() config-key
+(interface string); (f) `LI-CORE` (`src/runtime/core/` SNOBOL-lib) — Lon decision, below. **REMAINING on this rung:
+only LI-CORE** (the SNOBOL runtime library — genuine SNOBOL execution model where a generic CS name would be vague per
+the `SNO_INIT_fn` precedent; separate runtime-unification decision). 
+
+**Historical per-symbol triage (now executed — kept for provenance):**
   1. **EMITTER MERGE family (LI-2, hardest).** Verified this session: `codegen_flat_chain_body` ALREADY EXISTS in
      `emit_bb.c` as a SEPARATE function from `codegen_sno_flat_chain_body` ⇒ that pair is a MERGE (fold or pick
      concept-distinct names), NOT a rename. Same shape for `sno_chain_*`+`icn_chain_*` twins, `sno_flat_chain_build`+
@@ -1326,6 +1360,7 @@ bash scripts/test_gate_sm_dead.sh            # <= 1
 bash scripts/audit_concurrency_invariants.sh # OK
 bash scripts/util_template_purity_audit.sh   # FACT 6 (byte-neutral baseline)
 bash scripts/test_gate_no_bb_bin_t.sh        # HARD: bb_bin_t ABOLISHED (must be 0) — TEMPLATE-REVAMP 2026-06-02
+bash scripts/test_gate_no_lang_names.sh      # LI-FENCE: no language-tagged emitter/runtime source symbols (2026-06-02)
 bash scripts/test_gate_template_medium_invisible.sh # informational (1: bb_unop Icon); --strict at revamp end
 ```
 Behavioral gates MUST stay invariant under any byte-neutral change; any gate delta ⇒ a bug — revert that slice and diagnose.
@@ -2232,7 +2267,10 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**HANDOFF (2026-06-02, Opus 4.8) — SRC-REORG GOAL CLOSED + `bb_exec`→`IR_interp` + LI clean-surface EXHAUSTED. All pushed, every gate byte-identical throughout.** Two threads landed this session: (A) the #0 SRC-REORG ladder is **COMPLETE** (GMR-6 backends/ `660ec37`, GMR-7 tools/ `3f8b1c7`, GMR-8 a+c de-pollute `961a400`, GMR-FENCE `c3d61ea`+.github `41e62dd9`) — `src/` is now role-sliced: attic backends contracts driver emitter include interp lower machine parser runtime(+core/rt/builtins) tools; GMR-8(b) (`Σ/Δ/Ω`+`TEMPLATE_ADDR_*` in emit_globals.h) deliberately DEFERRED to coordinate with the REG ladder. (B) **`bb_exec`→`IR_interp`** (`a12c0ce`): file+header+state-header + funcs `bb_exec_{once,resume,pump,node,pat}`→`IR_interp_*` (164 refs) — it interprets the IR graph, "BB" now means the emitter's templates; unrelated `coro_stmt.c` `bb_exec_stmt` left intact. (C) **LI clean slices** `bb_rk_gather`→`bb_gather` (`0b86f9e`) + `rk_marshal_call_arg`→`marshal_call_arg` (`db6d33d`). **KEY FINDINGS for the LI continuation** (see "Next incomplete step" above for the full list): the CLEAN single-symbol surface is now EXHAUSTED; `rt_rk_*`/`rt_icn_*` runtime leftovers are already 0; `raku_nfa_*` is **parser-defined ⇒ out of scope** (Lon "leave parser alone" overrides old LI-5); `codegen_flat_chain_body` already exists separately from `codegen_sno_flat_chain_body` ⇒ that's a MERGE not a rename; the 31 `rt_pl_*` now in `runtime/rt/rt.h` (GMR-8c) are mostly GENUINE Prolog builtins needing a naming DECISION; `sno_prog_t`/`sno_stmt_t` moved to `interp/IR_interp_state.h` (still in scope). Everything left is MERGE/judgment — read bodies, don't sed. **Gates @ each commit:** SNOBOL4 m2 **7/7 HARD**, Icon m2 **12/12 HARD**, prove_lower2 **67**, concurrency OK, no_bb_bin_t 0. Also repaired (FENCE): `test_sno_pat_bb_probe.sh` INC (broke at GMR-2's IR.h move) — probe_pb_rb_1 PASSES; pb_rb_3 are pre-existing pattern WIP, NOT reorg collateral. SCRIP tip `db6d33d`, .github tip this commit.
+**HANDOFF (2026-06-02, Opus 4.8) — LI DE-NAME RUNG: EMITTER + RUNTIME COMPLETE. All gates byte-identical throughout; 7 commits local on SCRIP (push pending "perform hand off").** Lon directive resolved the rung's deferred judgment calls ("finish the rename — strip language from ANY emitter/runtime symbol or filename, pick generic-CS names"). Six gated rename-only slices + the fence cleared the entire in-scope surface: **A `a0478c4`** chain twins → concept-distinct (SNOBOL global-var model `gvar_*`, Icon typed-DESCR-slot model `descr_*`: `*_flat_chain_build`/`*_chain_{arity,is_real,resolve,operand_refs,prebuild_children}`/`codegen_*_flat_chain_body`/`g_*_flat_chain`); **B `d339c97`** `sno_prog_t`/`sno_stmt_t`→`prog_t`/`stmt_t`, `IR_SNO_PROG`→`IR_PROG`; **C `12b820d`** the 49-member `rt_pl_*` runtime ABI family → `rt_*` (the open "Prolog-builtin naming DECISION" resolved by taking each builtin's own descriptive name as the CS concept; the `rt_pl_arith`→`rt_arith` "merge" was really *delete the dead `STACKLESS_ABORT` `rt_arith` value-stack stub, zero callers, then `rt_pl_arith` takes the name*); **D `a822f80`** emitter drivers by IR-kind (`flat_drive_pl_seq/alt/choice/ite`→`conj/disj/choice/ite`, `flat_drive_alt_icn`→`gen_alt`, `flat_drive_icn_userproc`→`userproc`), `bb_prepare_pl`→`bb_prepare`, `codegen_pl_callee_block`→`codegen_callee_block`, `codegen_pl_program`→`codegen_clause_dispatch`, `hdr_has_pl_reg`/`reg_pl_count`→`hdr_has_reg`/`reg_count`, `XA_PL_*`→`XA_*` (6 enum members, `src/include/XA.h`), and rt.c const macros `ICN_*`/`RT_ICN_*`/`RT_PL_MARK_STACK_MAX`→de-tagged; **E `34b1406`** `__rk_out` param→`out_descr` (collided with a local `out`), `RK_GRAM_MAX`→`GRAMMAR_MAX`, stale header guards `RAKU_BUILTINS_H`→`SCRIPT_BUILTINS_H` / `DRIVER_PL_RUNTIME_H`→`RESOLVE_RUNTIME_H` (match their filenames); **LI-FENCE `85677cb`** `scripts/test_gate_no_lang_names.sh`, teeth-verified, wired into the Session-Setup gate block. **No language-tagged FILENAMES** in emitter/runtime (already CS-named). **Definition-location stayed authoritative** — only symbols DEFINED in `src/emitter/**`+`src/runtime/**` were renamed; call-site updates in driver/lower/parser are reference-fixes. **DELIBERATELY HELD (out of the emitter/runtime DEFINITION scope, all documented in "Next incomplete step"):** DRIVER-defined `icn_ring_to_tree`/`g_raku_match`/`g_raku_subject`/`has_non_sno` (suggest a DRIVER micro-slice); CONTRACTS-defined `STAGE2_PL_PRED_TABLE_SIZE` (suggest a CONTRACTS micro-slice); frontend-contract dispatch-name strings (`ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/`set_prolog_flag`/`current_prolog_flag` — need the out-of-scope frontends); emitted assembly label/comment strings (`"icn_proc_%s"`/`"sno_flat"`/`s_comment("# BOX SNO …")` — generated output, collision-risky); `RK_NFA_BB` getenv key; held parser API (`prolog_atom_*`, `pl_write*`, `Raku_nfa`/`raku_nfa_*`, `raku_re`). **ONLY LI-CORE remains on this rung** (`src/runtime/core/` SNOBOL runtime library — genuine SNOBOL execution model; `SNO_INIT_fn` precedent says a generic CS name would be vague; separate Lon decision). **Gates @ EVERY commit (byte-identical @ pristine baseline):** SNOBOL4 m2 **7/7 HARD**, Icon m2 **12/12 HARD**, Prolog m2 **5/5 HARD**, `prove_lower2` **67**, `no_bb_bin_t` 0, concurrency OK. SCRIP tip `85677cb` (6 rename-only commits unpushed: `a0478c4`/`d339c97`/`12b820d`/`a822f80`/`34b1406`/`85677cb`), .github tip this commit.
+**Watermark.** SCRIP `85677cb` · .github this commit.
+
+ Two threads landed this session: (A) the #0 SRC-REORG ladder is **COMPLETE** (GMR-6 backends/ `660ec37`, GMR-7 tools/ `3f8b1c7`, GMR-8 a+c de-pollute `961a400`, GMR-FENCE `c3d61ea`+.github `41e62dd9`) — `src/` is now role-sliced: attic backends contracts driver emitter include interp lower machine parser runtime(+core/rt/builtins) tools; GMR-8(b) (`Σ/Δ/Ω`+`TEMPLATE_ADDR_*` in emit_globals.h) deliberately DEFERRED to coordinate with the REG ladder. (B) **`bb_exec`→`IR_interp`** (`a12c0ce`): file+header+state-header + funcs `bb_exec_{once,resume,pump,node,pat}`→`IR_interp_*` (164 refs) — it interprets the IR graph, "BB" now means the emitter's templates; unrelated `coro_stmt.c` `bb_exec_stmt` left intact. (C) **LI clean slices** `bb_rk_gather`→`bb_gather` (`0b86f9e`) + `rk_marshal_call_arg`→`marshal_call_arg` (`db6d33d`). **KEY FINDINGS for the LI continuation** (see "Next incomplete step" above for the full list): the CLEAN single-symbol surface is now EXHAUSTED; `rt_rk_*`/`rt_icn_*` runtime leftovers are already 0; `raku_nfa_*` is **parser-defined ⇒ out of scope** (Lon "leave parser alone" overrides old LI-5); `codegen_flat_chain_body` already exists separately from `codegen_sno_flat_chain_body` ⇒ that's a MERGE not a rename; the 31 `rt_pl_*` now in `runtime/rt/rt.h` (GMR-8c) are mostly GENUINE Prolog builtins needing a naming DECISION; `sno_prog_t`/`sno_stmt_t` moved to `interp/IR_interp_state.h` (still in scope). Everything left is MERGE/judgment — read bodies, don't sed. **Gates @ each commit:** SNOBOL4 m2 **7/7 HARD**, Icon m2 **12/12 HARD**, prove_lower2 **67**, concurrency OK, no_bb_bin_t 0. Also repaired (FENCE): `test_sno_pat_bb_probe.sh` INC (broke at GMR-2's IR.h move) — probe_pb_rb_1 PASSES; pb_rb_3 are pre-existing pattern WIP, NOT reorg collateral. SCRIP tip `db6d33d`, .github tip this commit.
 
  New CURRENT rung added (top of file; kept ACTIVE per Lon "keep our rung active"): de-name the language runtime by CS concept — runtime first, then emitters. This slice renamed ONLY symbols **DEFINED in `src/runtime/**`** (definition-location authoritative, NOT a token's use): `rt_pl_{write_int,write_var,write_atom,write_cstr,write_float,write_term_ptr,writeq_term_ptr,write_canonical_term_ptr,format_float,env_alloc,env_current,cp_save_caller_env,choice_cut_enter,choice_cut_exit,choice_cut_unwind,cut_set,get_cut_flag,main_init}`→`rt_*`; `rt_rk_{call_arr,jct_relop}`→`rt_*`; `interp_exec_pl_builtin`→`interp_exec_builtin`; `is_pl_user_call`→`is_user_call`; `g_pl_last_ok`→`g_last_ok`; `g_icn_{call_args,proc_arena,proc_depth}`→`g_*`; `descr_to_str_icn`→`descr_to_str`; runtime datatype string `"icnlist"`(+5 file-local once-guards)→`"list"` (purely internal: DEFDAT/DATCON/strcmp all in runtime, ZERO `.ref` dependency). 14 files touched (8 runtime defs/headers + call sites: 2 emitter / 2 lower / 1 driver / 1 frontend — call-site updates are reference fixes, not renames of those layers' own symbols). **HELD — frontend-DEFINED (out of scope):** `pl_arg`/`pl_univ`/`pl_functor`/`pl_write`/`pl_writeq`/`pl_write_canonical`/`pl_assert_term`/`pl_term_to_string` (prolog_builtin.c/prolog_lower.c), `prolog_atom_{init,name,intern}` (prolog_atom.c), `raku_nfa_{build,exec,free,bb_match,state_count}` (raku_re.c/raku_nfa_bb.c). **HELD — driver-DEFINED:** `g_raku_match` (interp_globals.c) — Lon named runtime then emitters, not driver. **HELD — genuine/merge:** `SNO_INIT_fn` (SNOBOL runtime-lib init), `sno_parse_string_ast` (invokes SNOBOL parser for CODE/EVAL), `rt_pl_arith`→`rt_arith` (MERGE with existing `rt_arith`, do with code). **Gates byte-identical @ pristine baseline:** m2 SNOBOL4 **7/7 HARD** / m3 2/6 / m4 0/6 · Icon m2 **12/12 HARD** / m3 3/12 / m4 3/12 · Prolog m2 **5/5 HARD** / m3 2/5 / m4 0/5 · prove_lower2 **67** · no_bb_bin_t 0 · concurrency OK. **NEXT:** rung CONTINUES — (1) deeper runtime statics/strings pass, (2) `rt_pl_arith` merge, (3) then the emitter sweep. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-LI-RUNTIME-DENAME-SLICE-1.md`.
 **Watermark.** SCRIP `10fbe32` · .github this commit.
