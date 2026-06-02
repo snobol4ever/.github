@@ -14,6 +14,18 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
 - **YOUR BOXES:** `bb_arith`, `bb_cut`, `bb_unify`, `bb_conj`, `bb_disj`, `bb_ite`, `bb_catch`, `bb_choice`,
   `bb_goal`, `bb_builtin`. Loop-free/single-shot leaves first; choice/goal (backtracking) use the landed
   internal-label + ζ-frame support.
+- **PROGRESS (2026-06-02, Opus 4.8):** `bb_cut` ✅ (`ed42331`, PL-RV-1) and `bb_arith` ✅ (`ced1acd`, PL-RV-2)
+  converted — both pBB-free, BINARY twin deleted, `b.size()` → 0. Technique proven: instrument both arms and
+  run the full rung suite per mode to confirm liveness before discarding the BINARY twin — `bb_cut`'s twin and
+  `bb_arith` (the whole executed box) are DEAD for Prolog (mode-3 routes the oracle, mode-4 uses TEXT; `is/2`
+  arith lives in `bb_builtin`, never the `IR_ARITH` leaf), so discarding/converting them is byte-safe. `bb_arith`
+  operand scalars now promoted driver-side in `bb_prepare_pl` (`_.bb_lk/_.bb_li/_.bb_rk/_.bb_ri`, sentinel
+  `bb_lk==-1` for missing-operands) + 4 additive `sm_emit_t` fields; op string via `_.op_sval` (direct
+  promotion). **NEXT = `bb_unify`** — but note it is LIVE (no dead-box shortcut) AND calls the
+  `emit_build_compound_term`/`_bin` twin-walkers, so its conversion is coupled to the PL-HY-1a walker-deletion
+  (delete the two walkers in favor of one `rt_pl_compound_build_n`/`rt_pl_node_to_term` call, THEN convert the
+  consumer). Remaining: `bb_unify`(1) `bb_catch`(1) `bb_conj`(2) `bb_disj`(2) `bb_ite`(2) `bb_choice`(6)
+  `bb_goal`(13) `bb_builtin`(28) — all live and/or multi-shape/looping; each its own rung.
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
