@@ -17,12 +17,46 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `[r10]`→δ=r14d with the 16-byte-aligned `rt_defer_match` call preserved; FENCE single-shot save-δ-on-α/
   restore-on-β via `bb_slot_claim(4)`; BREAK+BREAKX looping, z/z_orig in `bb_slot_claim(8)` ζ-frame, internal
   labels plain L(0)/L(1) + BREAKX rescan L(2)/L(3), strchr with push/pop r10). Next loop-free leaf: NONE LEFT.
+  Also DONE (statement-level, shared lane): `bb_lit_scalar`✅ (pass-through arms) + `bb_sno_assign`✅ (lit_s+var
+  arms) + `bb_var`✅ (SNO flat-chain pass-through `jmp γ;def β;jmp ω` + ICN flat-chain 16-byte DESCR slot-copy
+  via `x86_frame_load64`/`store64`; op_sa/op_off promoted at dispatch in walk_bb_flat IR_VAR — no neighbor read).
   Variable-length combinators (the STILL-OPEN define/jmp-pair design): `bb_pat_cat`, `bb_pat_alt`, `bb_match`,
   `bb_pat_fence` PAIR path (the with-children `FENCE(P)` form — the bare-FENCE primitive above is done).
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
-### ◀ THIS SESSION (2026-06-02, Opus 4.8) — α-OPERAND PROMOTION + `bb_lit_scalar` + `bb_sno_assign` → x86()
+### ◀ THIS SESSION (2026-06-02, Opus 4.8) — `bb_var` → x86() (SNO pass-through + ICN slot-copy)
+**`S = 'hi'; OUTPUT = S` RUNS END-TO-END IN MODE-3 (prints `hi`)** — the `OUTPUT = S` / var-read path the
+prior session's NEXT(1) named. Also verified: `A='foo'; B=A; OUTPUT=B` → `foo` (var→var chain). `bb_var`
+converted off its `x86_bomb` stub to x86() self-encoding (SCRIP this session's commit):
+- **SNO flat-chain arm** (`g_sno_flat_chain`): pure pass-through `IF(MEDIUM_TEXT, α:+comment) + jmp γ; def β;
+  jmp ω`. SPITBOL semantics (manual p.23 "Using variables"): a variable reference on an assignment's rhs is
+  resolved NON-DESTRUCTIVELY by the runtime name-value table at call time — the IR_VAR box produces no value;
+  the downstream `bb_sno_assign` var arm does NV_GET(src)→NV_SET(dst) via `rt_sno_assign_var`. So IR_VAR is a
+  by-name port pass-through (mirrors the `bb_lit_scalar` IR_LIT_S pass-through), NO value stack, NO ring.
+- **ICN flat-chain arm** (`g_icn_flat_chain`, op_off≥0): GZ-7 16-byte DESCR copy — Icon vars are typed DESCRs
+  (two qwords: lo=type tag, hi=payload) — from the named var slot `[r12+op_sa]` into this box's own slot
+  `[r12+op_off]` via two 64-bit `x86_frame_load64`/`x86_frame_store64` (REX.W ζ-frame ops, BINARY==TEXT),
+  then `jmp γ; def β; jmp ω`. Register-relative `[r12+off]` only (ζ-frame FACT RULE) — no movabs, no value stack.
+- **NEW dispatch-time promotion (`emit_bb.c` walk_bb_flat IR_VAR case):** sets `g_emit.op_sa` =
+  `bb_varslot_peek(name)` (the named var's ζ-slot) and `g_emit.op_off` = `bb_slot_alloc16(nd)` (this box's own
+  slot) under `g_icn_flat_chain`; `-1`/`-1` otherwise. This is the no-neighbor FACT RULE: the driver (which
+  legitimately sees the graph + owns the slot maps) marshals the slot offsets onto `_`; the box reads ONLY `_`,
+  never calls `bb_varslot_peek`/`bb_slot_alloc16` itself (the old box did — a side-effecting neighbor read).
+- pBB-free + `_.node`-free + zero `bb_bin_t`/`b.size()`/raw-byte-producer/`IF(MEDIUM_BINARY)` (self-checked 0).
+
+**Gates GREEN (this session):** SNOBOL4 m2 **7/7 HARD** · Icon m2 **12/12 HARD** (shared `emit_bb.c` IR_VAR touch
+did NOT regress Icon — baseline-stashed proof: Icon m3 was already 0/12 at HEAD pre-change, the prison-commit
+state) · `test_gate_no_bb_bin_t` 0 · `prove_lower2` PASS · `test_gate_sm_dead` 0 · `audit_concurrency_invariants`
+rc=0 · purity 1 (pre-existing Icon `bb_every`) · medium-invisible 1 (pre-existing Icon `bb_unop`) · `g_vstack`
+token 0. m3 smoke PASS=1 (the `pattern`/`concat`/`arith`/`goto_s`/`define` cases need the still-bombed
+subject/match/binop/goto/define boxes — `bb_var` alone unblocks the var-read leaf, verified by direct `./scrip
+--run` above). **NEXT (SNOBOL4):** (1) `_.op_a_slot` promotion (`emit_core.c`: `g_emit.op_a_slot = nd->α ?
+bb_slot_get(nd->α) : -1`) + `bb_sno_assign` int-binop arm → unblocks `OUTPUT = 2 + 3`; (2) `bb_sno_subject` +
+`bb_match` together (MATCH reads SUBJECT's ζ-slot `g_sno_subject_slot`) → the `pattern` smoke; then
+`bb_capture`/`bb_arbno`. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-BB-VAR.md`.
+
+### ◀ PRIOR SESSION (2026-06-02, Opus 4.8) — α-OPERAND PROMOTION + `bb_lit_scalar` + `bb_sno_assign` → x86()
 **`OUTPUT = "hello"` RUNS END-TO-END IN MODE-3 (prints `hello`)** — first SNOBOL4 statement restored since the
 prison commit dropped m3 to 0. Three pieces landed (SCRIP):
 - **NEW shared infra — α-operand promotion.** `walk_bb_node` (emit_core.c) now sets `_.op_a_sval` /
