@@ -156,17 +156,34 @@ commit a red tree.**
   `git mv src/lower/sm_prog.c src/machine/`. Swap `-I$(SRC)/processor`→`-I$(SRC)/machine`; fix Makefile
   source-list + `.o` rules. GATE. Commit `GMR-3: machine/ (RX slab + stage2 preamble)`.
 
-- [ ] **GMR-4 — `parser/` (was `frontend/`).** `git mv src/frontend src/parser`. This is the biggest
-  include churn: swap `-I$(SRC)/frontend/snobol4`→`-I$(SRC)/parser/snobol4` (+ raku), and rewrite every
-  `frontend/`→`parser/` include + every Makefile `frontend/` path. Per-language subdirs keep their internal
-  relatives (same depth). GATE (build the full parser set). Commit `GMR-4: frontend/ → parser/`.
+- [x] **GMR-4 — `parser/` (was `frontend/`). ✅ DONE (SCRIP `5b89176`).** `git mv src/frontend src/parser`
+  (76 files); literal `frontend/`→`parser/` in the Makefile (54 refs: src-list + `-I` lines + per-`.o` rules) +
+  every source `#include` (both `"frontend/…"` and `"../../frontend/…"` relative forms) + the standalone scripts
+  (`test_gate_runtime_isolation.sh`, `test_crosscheck_sc_corpus_rung.sh`, `test_icon_x86_runner.sh`,
+  `util_g8_session_emit_fix.sh`) + README/Ast.cs comment mentions. Per-language subdirs kept internal relatives
+  (same depth). Residual `frontend/` in src/Makefile/scripts = 0 (only `archive/frontend` history mentions remain).
+  Diff proven pure `#include`/path: `git diff … | grep '^[+-]' | grep -vE '#include|frontend|parser|^[+-]$'` empty.
+  Gates byte-identical (SNOBOL4 m2 7/7, Icon m2 12/12, prove_lower2 67, concurrency OK, no_bb_bin_t 0).
 
-- [ ] **GMR-5 — `attic/` (dead Stack Machine).** `mkdir src/attic`; `git mv src/include/SM.h
-  src/driver/scrip_sm.c src/driver/scrip_sm.h src/machine/smx_dead_stubs.c src/attic/`.
-  ⚠ `stage2.h` `#include "SM.h"` + uses `SM_op_t`/`bb_program_t`-via-SM — CONFIRM what stage2/bb_program
-  actually still need from SM.h before moving; if they need the opcode enum, leave a minimal `sm_opcodes.h`
-  in contracts/ and move only the dead `.c`. Add `-I$(SRC)/attic` if anything still includes SM.h. GATE.
-  Commit `GMR-5: attic/ — quarantine dead Stack Machine`.
+- [x] **GMR-5 — `attic/` (dead Stack Machine). ✅ DONE (SCRIP `239173f`) — but the ladder-text's file list was
+  WRONG; corrected against the code (reorg is behavior-neutral, NEVER quarantine live code).** Survey findings:
+  (1) **`SM_op_t` is LIVE** — the opcode enum is reused as the **arithmetic-op selector** (`coerce.c`/`coerce.h`
+  `shared_arith`, `rt.c`/`rt_protected.c`, the `bb_binop_{arith,relop,gvar_arith,concat_slot}.cpp` templates,
+  `lower.h`, the `emit_per_kind_audit` tool). So SM.h is NOT dead → it went to **`contracts/`** (live opcode
+  contract belongs with the other contract types; basename KEPT, contracts/ already in `-I` ⇒ zero churn for bare
+  includers; the two relative `"../../include/SM.h"` includers in `rt.c`/`rt_protected.c` rewritten to bare `"SM.h"`).
+  `stage2.h`'s `#include "SM.h"` is vestigial (uses no `SM_` symbol) but harmless — left as-is (resolves from
+  contracts/). (2) **`scrip_sm.c`/`scrip_sm.h` are LIVE, NOT dead** — `sm_preamble` is the live AST→stage2 preamble
+  that runs `lower()` (called from the driver in every mode at `scrip.c:574/590/697/775/803/864`). The name is a
+  misnomer (it is the pipeline front, not the dead Stack Machine). They STAY in `driver/` (a cosmetic rename is a
+  later rung if Lon wants). (3) **only `smx_dead_stubs.c` is genuinely-dead SM residue** (abort-stubs
+  `generator_state_new_proc`/`bb_broker_drive_sm_one` that satisfy `interp/bb_exec.c`'s linker refs on its
+  dead/aborting paths) → moved to **`attic/`**, still compiled+linked from the new path (Makefile src-list + compile
+  rule updated). No `-I$(SRC)/attic` needed (nothing includes a header from attic/; SM.h did NOT go there).
+  Diff proven pure `#include`/path. Gates byte-identical (SNOBOL4 m2 7/7, Icon m2 12/12, prove_lower2 67,
+  concurrency OK, no_bb_bin_t 0). **⚠ GMR-8 NOTE:** since `SM.h` is the live arith-op enum, the eventual attic
+  cleanup canNOT delete it — the de-pollute rung should instead consider renaming `SM_op_t`/`SM_ADD…` to an
+  arith-opcode name (out of GMR-5 scope; touches `coerce`).
 
 - [ ] **GMR-6 — `backends/` (non-x86, dormant).** `mkdir src/backends`; `git mv src/driver/{js,jvm,net,wasm}
   src/runtime/{js,jvm,net,wasm} src/backend src/backends/`. These are not in the live build (X86-ONLY), so
@@ -202,15 +219,20 @@ commit a red tree.**
   (`bb_exec.c`, `emit_bb.c`, `lower/lower.c`). GMR-FENCE refreshes them.
 
 ## Watermark
-SCRIP `3d6cc26` (GMR-1a `06091ca` + GMR-1b `7c87379` + **GMR-2 `9101bd6` (contracts/)** + **GMR-3 `3d6cc26`
-(machine/)** landed; gates byte-identical to baseline `10fbe32`) · .github this commit. **Next executable step:
-GMR-4 (`frontend/` → `parser/`) — the biggest include churn; deserves a fresh budget.** `src/` now: **contracts**
-backend driver emitter frontend include interp lower **machine** runtime(+builtins) tools — the `include/` grab-bag is
-cut down to {SM.h XA.h bb_box.h emit_ir.h} (the contract types now live beside their allocators in `contracts/`), and
-the RX slab + stage2 preamble are honestly named in `machine/`. **GMR-2/3 method that worked (reuse for GMR-4+):**
-keep basenames, `git mv` + add the dir to every `-I` line, rewrite only the broken RELATIVE includes to bare, fix
-Makefile paths (RT_PIC_SRCS + per-`.o`) AND any STANDALONE script with its own `-I`/path list (`prove_lower2.sh`,
-`test_smoke_compile.sh`), then prove the diff: `git diff HEAD -- src | grep '^[+-]' | grep -v '^[+-][+-]' |
-grep -vE '#include|^[+-]$'` must be EMPTY (every source change is an `#include`). Leave historical one-shot rename
-scripts (`rename_ir_to_bb_and_sm.sh`, `rename_phase2_recase_by_layer.sh`) untouched — they are applied history.
+SCRIP `239173f` (GMR-1a `06091ca` + GMR-1b `7c87379` + GMR-2 `9101bd6` (contracts/) + GMR-3 `3d6cc26`
+(machine/) + **GMR-4 `5b89176` (parser/)** + **GMR-5 `239173f` (attic/)** landed; gates byte-identical to baseline
+`10fbe32`) · .github this commit. **Next executable step: GMR-6 (`backends/` — consolidate dormant non-x86 trees:
+`driver/{js,jvm,net,wasm}` + `runtime/{js,jvm,net,wasm}` + `backend/`).** Verify the Makefile does NOT reference
+them (X86-ONLY ⇒ likely not in the live build), then `git mv` + fix any stray `-I`/path; the live build should be
+unaffected. `src/` now: attic backend contracts driver emitter include interp lower machine **parser** runtime(+builtins)
+tools — `frontend/` is gone (→ `parser/`), the dead SM stub is quarantined in `attic/`, and the `include/` grab-bag
+is down to {XA.h bb_box.h emit_ir.h} (SM.h's live opcode enum joined the contract types in `contracts/`).
+**GMR-2..5 method that worked (reuse for GMR-6+):** keep basenames, `git mv` + add the dir to every `-I` line (or
+it's already there), rewrite only the broken RELATIVE includes to bare, fix Makefile paths (RT_PIC_SRCS + per-`.o`)
+AND any STANDALONE script with its own `-I`/path list (`prove_lower2.sh`, `test_smoke_compile.sh`), then prove the
+diff: `git diff HEAD -- src Makefile | grep '^[+-]' | grep -v '^[+-][+-]' | grep -vE '#include|^[+-]$'` must be EMPTY
+(every source change is an `#include` or a Makefile path). **AND, per GMR-5: CONFIRM a file is actually dead before
+quarantining it — the ladder text mislabeled `scrip_sm.c`/SM.h as dead; both are live (the AST→stage2 preamble +
+the arith-op enum). Grep the symbols for live callers FIRST.** Leave historical one-shot rename scripts
+(`rename_ir_to_bb_and_sm.sh`, `rename_phase2_recase_by_layer.sh`) untouched — they are applied history.
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
