@@ -114,9 +114,11 @@ in lockstep with LI-0.)
   across bb_disj/bb_unify/bb_exec.{c,h}/rt.{c,h}; m2 SNOBOL4 7/7 + Icon 12/12 + Prolog 5/5 HARD, prove_lower2 67.
 
 **Next incomplete step:** remaining CLEAN slices — LI-5 `raku_nfa_*`→`nfa_*` (⚠ spans frontend `raku_nfa_bb.c` +
-runtime; rename the shared symbol at all sites), `rt_icn_*`→`rt_*` (`rt_icn_size_d`/`arg_stage`/`call_proc_descr`),
-LI-1 `bb_rk_gather`→`bb_gather` (filename + symbol). Then the MERGE slices (LI-2 chain/drive twins, `rt_pl_arith`→
-`rt_arith`) with judgment, then LI-CORE (SNOBOL-lib, Lon decision) + LI-FENCE gate. (The x86() TEMPLATE-REVAMP sub-track below remains valid and continues after the cleanup; a de-name does not
+runtime; rename the shared symbol at all sites), LI-1 `bb_rk_gather`→`bb_gather` (filename: `git mv` + Makefile
+`RT_PIC_SRCS` line + per-`.o` rule + emit_core dispatch + symbol). Then the MERGE slices (LI-2 chain/drive twins,
+`rt_pl_arith`→`rt_arith`) with judgment, then LI-CORE (SNOBOL-lib, Lon decision) + LI-FENCE gate. **`rt_icn_*` ✅
+DONE (SCRIP `ba6e912`):** `rt_icn_{size_d,arg_stage,call_proc_descr}`→`rt_{…}` across bb_call/bb_unop/xa_flat/rt.{c,h};
+m2 7/7+12/12, prove_lower2 67. (The x86() TEMPLATE-REVAMP sub-track below remains valid and continues after the cleanup; a de-name does not
 change the BB/SM/XA template ladder, only its names.)
 
 ## ▶ x86() TEMPLATE-REVAMP — sub-track (continues after the cleanup rung above; 2026-06-02)
