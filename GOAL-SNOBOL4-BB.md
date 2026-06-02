@@ -1870,4 +1870,20 @@ REG-FENCE. **(2) THEN** PB-RB-4 (STITCH_SEQ/STITCH_ALT — topology already prov
 remain; mode-3 `S ('a'|'b')` and `S 'a' 'b'`), PB-RB-5…OPT, and BROK-0…BROK-3. The pattern-engine breadth (PB-RB
 ladder) is the LONG POLE for the SNOBOL4 corpus. Older per-session writeups live in the `HANDOFF-*.md` files.
 
+**🔶 TEMPLATE-REVAMP v2 (continuation — 2026-06-01, Opus 4.8, SCRIP `d96e1b0`).** Four more boxes converted
+to the `x86()` self-encoding form + `bb_lit` hardened: **`bb_pat_rem`, `bb_pat_len`, `bb_pat_any`,
+`bb_pat_notany`, `bb_lit`** are now **`pBB`-free END-TO-END** (template fn / `extern "C" void bb_X(void)` /
+`bb_templates.h` prototype / `emit_core.c` dispatch all parameterless) and **`_.node`-free** (grep proof: 0
+of each in all five, code + comments). New op-promotion: `sm_emit_t.op_sval/op_ival` set at the single
+dispatch point from `nd->sval/ival`; templates read `_.op_*`. `x86_asm.h` += 64-bit `test rax,rax`
+(width-aware ALU), `x86_movzx_subj_byte` (indexed subject-byte load), and imm8 short-form for `x86_add`/`sub`
+(BINARY now matches `as`). **NEW rules draft `.github/GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`** (R1–R13 normal +
+the "reads only `_`, no `pBB`, no neighbor" **FACT RULE** — compiler-enforced via parameter removal + a
+one-line `_.node` grep gate; reasons: no confusion + BB-fusion impossible). NOT yet folded into the 5 GOAL
+files (that + the internal-label record design + `test_gate_template_no_node.sh` are the next session's
+grand-master-reorg). Gates: m2 7/7 HARD · m3 5/6 · m4 0/6 · probes 3/3 · prove_lower2 67 · Icon m2 12/12 ·
+concurrency OK (sm_emit_t field add did NOT perturb the byte-identical-×3 blocks) · purity clean · g_vstack 0.
+Detail: `HANDOFF-2026-06-01-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V2-NO-PBB.md`. **OPEN (gates looping boxes):**
+internal-label record kind for SPAN/BREAK/combinators/generators (L/J/D only encode the 4 ports today).
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
