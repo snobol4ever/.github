@@ -12,6 +12,24 @@ keeps paying. The revamp makes a box ONE description, medium switched invisibly,
 
 ---
 
+## STATUS — START HERE (updated 2026-06-02)
+
+**The shared looping-box keystone is LANDED at SCRIP `origin/main` = `30e8422`.** All four sessions
+(SNOBOL4 / Icon / Prolog / Raku) should **rebase onto `30e8422` before converting any box**, especially any
+box with an internal loop or RW scratch — the internal-label + ζ-frame support already exists; do NOT rebuild it
+(it lives in the SHARED file `x86_asm.h`, so a parallel implementation would collide). See the two sections
+below: "RESOLVED — INTERNAL LABELS + ζ-FRAME SCRATCH" (the API + reference boxes) and the updated
+"`x86_asm.h` VOCABULARY". Reference conversions to copy: `bb_pat_pos.cpp` (loop-free) and `bb_pat_span.cpp`
+(looping). Per-box recipe + the byte-verify-vs-`as` discipline:
+`HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
+
+Each session converts its OWN boxes (table under "DIVVY-UP MATERIAL" below) and edits only its own files; the
+dispatch/decl inserts land on different lines and `x86_asm.h` additions are additive. The ONE remaining shared
+unknown is the VARIABLE-LENGTH define/jmp-pair loop for the combinators (`bb_pat_alt/cat/match`, FENCE pair path)
+— see "STILL OPEN" below; whoever reaches a combinator first designs that idiom once and records it here.
+
+---
+
 ## THE RULES
 
 **R1 — DROP `MEDIUM_MACRO_DEF`.** No macro-def arm. Delete any `IF(MEDIUM_MACRO_DEF, …)`.
@@ -165,22 +183,42 @@ So the honest answer to "could we properly enforce that? seems hard": the *style
 and should stay normal rules; the *no-neighbor* rule is easy to enforce and is worth promoting to a FACT
 RULE — and it's already 90%-enforced by the compiler the moment `pBB` is gone (done, this session).
 
-## OPEN DESIGN ITEM — gates half the boxes
+## RESOLVED (LANDED 2026-06-02, SCRIP `30e8422`) — INTERNAL LABELS + ζ-FRAME SCRATCH
 
-**INTERNAL LABELS.** R9's records only encode the FOUR PORTS. Boxes with INTERNAL loops — `SPAN`, `BREAK`,
-the combinators (`bb_pat_alt`/`bb_pat_cat`), the generators — jump to labels that are NOT ports
-("jmp loop −88"). The record scheme needs an internal-label kind, designed ONCE centrally (proposed:
-`D <id>` / `J <id>` with `id ≥ 4` box-local, a small per-box local-label allocator) so four sessions don't
-invent four incompatible answers. **Until this lands, only loop-free leaves are convertible.**
-`bb_pat_alt`/`bb_pat_cat` ALSO have the variable-length define/jmp-pair loop (`g_emit.xa_bb_emit_pair_n`),
-a second open question (how a variable-length box gets discovered positions) — already flagged in the GOAL.
+**INTERNAL LABELS — DONE, use it; do NOT reinvent it.** R9's records now also encode box-local labels:
+`D <id>` / `J <id>` with `id ≥ X86_INTERNAL_BASE (4)` are box-local (ports stay `0..3`). The `bb_emit_x86`
+walker maps each `id ≥ 4` to a fresh per-box `bb_label_t` and resolves forward+backward refs via the EXISTING
+`bb_label_define` / `bb_emit_patch_rel32` patch list — no new patch machinery. Front-end:
+  - `x86("def", L(n))` defines internal label n; `x86("jmp", L(n))` / `x86("jcc-mnem", L(n))` jump to it.
+  - A LOOPING box's extern calls `x86_begin()` BEFORE building the string (sets the per-box uid used for the
+    TEXT label name `.Lx<uid>_<n>`; no-op in BINARY).
+**ζ-FRAME SCRATCH — DONE.** Box-local RW state lives in the ζ-frame `[r12+off]`, register-relative so
+BINARY==TEXT (PER-BOX LOCAL STORAGE / NO-VALUE-STACK; never `movabs` a process addr, never rip-rel `.data`):
+  - claim with `int off = bb_slot_claim(N);` in the extern (declare `int bb_slot_claim(int);` locally), stash in
+    `_.x86_scratch_off`; access with `FR(off)`: `x86("mov", FR(off), imm)`, `x86("mov", FR(off), reg)` (store),
+    `x86("mov", reg, FR(off))` (load), `x86("add", FR(off), imm)`, `x86("add", reg, FR(off))`.
+**REFERENCE CONVERSION = `bb_pat_span.cpp`** (the first looping box; loop=`L(0)`, done=`L(1)`, z/zo in the
+ζ-frame, β give-back). Loop-free reference = `bb_pat_pos.cpp`. Full recipe + byte-verify-vs-`as` discipline in
+`HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`. **Rebase onto `30e8422` first.**
 
-## `x86_asm.h` VOCABULARY (current)
+## STILL OPEN — VARIABLE-LENGTH define/jmp-pair loop
 
-`x86_mov/cmp/test` (REX.W width-aware) · `x86_add/x86_sub` (imm8 short-form when it fits, else imm32) ·
-`x86_movsxd` · `x86_lea_subj_cursor` (`lea dst,[r13+rcx]`) · `x86_movzx_subj_byte` (`movzx dst,[r13+rcx]`) ·
-`x86_store_cursor_mirror` (legacy `[r10]`, dies at REG-RO) · `x86_push/x86_pop` · `x86_movimm` ·
-`x86_load_ro` · `x86_call_ro` · `x86_jcc/x86_jmp/x86_deflabel`. Consumer: `bb_emit_x86`.
+`bb_pat_alt`/`bb_pat_cat`/`bb_match` (and FENCE's pair path) carry a VARIABLE-LENGTH define/jmp-pair loop
+(`g_emit.xa_bb_emit_pair_n/_jmp/_define`): a runtime-count loop emitting N `D`/`J` records. The internal-label
+records above are the primitive; the open question is the IDIOM for expressing a runtime-count `D`/`J` loop in
+the `x86()` concat (a `FOR(0, xa_bb_emit_pair_n, …)` over `x86("def"/"jmp", …)` with per-iteration ids). Whoever
+reaches a combinator first should design this ONCE centrally and note it here, same as the internal-label item.
+
+## `x86_asm.h` VOCABULARY (current — updated `30e8422`)
+
+`x86_mov/cmp/test` (REX.W width-aware) · `x86_add_rr` (`add reg,reg`, 01/r) · `x86_add/x86_sub` (imm8 short-form
+when it fits, else imm32) · `x86_cmp_imm` (`cmp reg,imm`: imm8 / eax 0x3D / imm32) · `x86_movsxd` ·
+`x86_lea_subj_cursor` (`lea dst,[r13+rcx]`) · `x86_movzx_subj_byte` (`movzx dst,[r13+rcx]`) ·
+`x86_store_cursor_mirror` (legacy `[r10]`, dies at REG-RO) · `x86_push/x86_pop` · `x86_movimm` (movabs) ·
+`x86_load_ro` · `x86_call_ro` · `x86_jcc/x86_jmp/x86_deflabel` (PORTS) ·
+**INTERNAL LABELS:** `x86_begin()` · `L(n)` + `x86("def"/"jmp"/jcc, L(n))` (`x86_jmp_id/x86_jcc_id/x86_deflabel_id`) ·
+**ζ-FRAME `[r12+off]`:** `FR(off)` + `x86_frame_mov_imm/_store/_load/_add_imm/_add_to_reg` (`x86_r12_modrm` SIB) ·
+`bb_slot_claim(bytes)` (node-free frame claim). jcc mnemonics: je/jne/jl/jle/jge/jg. Consumer: `bb_emit_x86`.
 
 ---
 
