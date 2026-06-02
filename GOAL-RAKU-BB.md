@@ -324,7 +324,7 @@ Raku source → raku.l / raku.y → tree_t* (TT_* AST)
 Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step: Raku m3/m4 corpus held (18/22), Icon/SNOBOL4/Prolog siblings byte-identical, commit. Reference Raku box: `bb_binop_jct_relop.cpp` (RK-EMIT-3, already broken out by the worked example). The de-cram steps are prep; **RK-HY-4 (de-dup + RT-fix) is the core fix** — collapse any logic written twice.
 
 - [x] **RK-HY-0 — `bb_binop_jct_relop.cpp`.** ✅ DE-CRAM DONE 2026-06-01 (carried out of the `bb_binop.cpp` worked example). Raku junction-collapse relop is its own file.
-- [ ] **RK-HY-1 — `bb_seq.cpp` (358).** Raku-dominant. SEQ goto-chain pass-through / `for GEN -> $v {..}; CONT` continuation / try-CATCH SEQ exec = distinct shapes → split; group near-identical. Router. (FACT-RULE-sensitive shared SEQ substrate: edit ONLY Raku's arms.)
+- [x] **RK-HY-1 — `bb_seq.cpp` (358).** ✅ DE-CRAM DONE 2026-06-02 (Opus 4.8). Three distinct four-port shapes (selected by n / has_suspend / medium) split into one-box-one-file templates behind a 34-line router (bb_binop.cpp pattern): `bb_seq_gather.cpp` (gather multi-yield — SUSPEND children, TEXT _str + raw-binary in-place), `bb_seq_flat.cpp` (flat in-order stmt sequence — Icon compound semantics), `bb_seq_passthrough.cpp` (goto-chain glue CATCH-ALL). emit_core dispatch + bb_templates.h decl UNCHANGED. Grouped near-identical (gather TEXT+BINARY co-located; the two byte-identical EMIT_PAIR glue loops merged → b.size() 4→2 bonus DUP FORM 1 collapse). Behavior-neutral (git-stash baseline diff): Raku 25/21/21, Icon 12/12/12, SNOBOL4 7/5/0 all byte-identical; prove_lower2 67/0; siblings unchanged. SCRIP `da8411b`.
 - [ ] **RK-HY-2 — `bb_nfa.cpp` (222).** Regex/grammar NFA: leaf-match / subrule-call / Match-tree-build shapes → split. Router. (Substrate for the #1 grammar goal; clean per-box files make resume-and-yield-next tractable.) **De-fuse + RT-check: Match-tree build is RUNTIME work — marshal + call an `rt_rk_*` helper, do not hand-walk at emit time (DISEASE 4).**
 - [ ] **RK-HY-3 — Raku arms of `bb_call.cpp`.** When Icon runs ICN-HY-2, the RK-EMIT-1/2 arms (`rt_rk_call_arr`, IR_CALL dval==2.0 marshalling) are RAKU-OWNED → move to `bb_call_rk.cpp` (or `_<shape>` if >1). Coordinate per the FACT RULE (edit only your own language's boxes). Router stays Icon's.
 - [ ] **RK-HY-4 — de-dup + RT-fix, all Raku boxes.** Any algorithm in both media → one `rt_*` call. No emit-time value work.
@@ -555,6 +555,30 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 ---
 
 ## Watermark
+
+**CHECKPOINT (2026-06-02, Opus 4.8) — RK-HY-1: bb_seq.cpp de-crammed into per-shape files behind a thin router.**
+First rung of the #0 BB-HYGIENE LADDER. The 358-line `bb_seq.cpp` carried THREE distinct four-port shapes selected
+by n / has_suspend / medium (a DUP FORM 4 cram); split into one-box-one-file templates behind a 34-line router (the
+`bb_binop.cpp` worked-example pattern), with `emit_core.c` dispatch + `bb_templates.h` decl UNCHANGED (one dispatch
+case → one router fn). Files: NEW `bb_seq_gather.cpp` (188 — Raku gather multi-yield driver, SUSPEND children: the
+MEDIUM_TEXT `bb_seq_gather_str` + the raw-binary in-place `bb_seq_gather_binary`; legacy SM-era path, primary gather
+is now `IR_GATHER`→`bb_rk_gather.cpp`), NEW `bb_seq_flat.cpp` (89 — flat in-order statement sequence: TEXT, n>0, no
+SUSPEND; Icon compound semantics, stmt γ→next stmt α, last γ→outer γ, ω→outer ω), NEW `bb_seq_passthrough.cpp` (60 —
+goto-chain glue CATCH-ALL: MEDIUM_MACRO_DEF comment, TEXT n==0 empty-seq glue, BINARY any-n flat-chain glue); `bb_seq.cpp`
+358→34 (router). Router order mirrors the original in-file fall-through: gather-binary (raw) → gather-text → flat →
+passthrough. **GROUP-NEAR-IDENTICAL satisfied** (the gather TEXT+BINARY arms co-locate as two encodings of one logic);
+**BONUS DUP FORM 1 collapse** — the two byte-identical EMIT_PAIR binary glue loops (the monolith's n==0 branch AND its
+bottom n>0 branch) merged into ONE passthrough loop, so the **`b.size()` ledger went 4→2**. `Makefile` RT_PIC_SRCS +
+.o rules append-only after `bb_seq` (3 lines each, one hunk). **BEHAVIOR-NEUTRAL, proven by `git stash` baseline diff**
+(clean tree re-run identical): **Raku m2 25/25 (HARD ✓) · m3 21 PASS / 0 FAIL / 4 EXCISED · m4 21 PASS / 0 FAIL / 4
+EXCISED** — byte-identical to pre-de-cram. Peers UNCHANGED: **Icon 12/12/12**, **SNOBOL4 7/7 m2 · 5 m3 · 0 m4**. Gates
+green: **prove_lower2 67/0** (unchanged — pure structural relocation, no new topology), **audit_concurrency_invariants
+OK** (FACT RULES byte-identical x3/x4), **template-purity 8** (UNCHANGED — the 3 new files add ZERO fprintf/abort
+side-effects). **SCRIP HEAD: `da8411b`** (committed LOCALLY as a checkpoint; push-to-origin awaits the next `perform
+hand off`). NEXT: **RK-HY-2** — `bb_nfa.cpp` (222): split leaf-match / subrule-call / Match-tree-build shapes + RT-check
+(Match-tree build is RUNTIME work — marshal + call an `rt_rk_*` helper, do not hand-walk at emit time, DUP FORM 2/4).
+
+---
 
 **CHECKPOINT (2026-06-01, Opus 4.8) — RK-LOWER-5b: Raku in-place hash/array MUTATION lands (m2 HARD + native m3/m4).**
 `push`/`pop`/`arr_set`/`hash_set`/`hash_delete` now lower onto the unified four-port IR via the PURE-VARIANT
