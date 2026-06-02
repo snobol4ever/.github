@@ -201,13 +201,27 @@ BINARY==TEXT (PER-BOX LOCAL STORAGE / NO-VALUE-STACK; never `movabs` a process a
 ζ-frame, β give-back). Loop-free reference = `bb_pat_pos.cpp`. Full recipe + byte-verify-vs-`as` discipline in
 `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`. **Rebase onto `30e8422` first.**
 
-## STILL OPEN — VARIABLE-LENGTH define/jmp-pair loop
+## RESOLVED (LANDED 2026-06-02, Prolog PL-RV-3) — VARIABLE-LENGTH define/jmp-pair loop
 
-`bb_pat_alt`/`bb_pat_cat`/`bb_match` (and FENCE's pair path) carry a VARIABLE-LENGTH define/jmp-pair loop
-(`g_emit.xa_bb_emit_pair_n/_jmp/_define`): a runtime-count loop emitting N `D`/`J` records. The internal-label
-records above are the primitive; the open question is the IDIOM for expressing a runtime-count `D`/`J` loop in
-the `x86()` concat (a `FOR(0, xa_bb_emit_pair_n, …)` over `x86("def"/"jmp", …)` with per-iteration ids). Whoever
-reaches a combinator first should design this ONCE centrally and note it here, same as the internal-label item.
+`bb_pat_alt`/`bb_pat_cat`/`bb_match` (and FENCE's pair path) — and the Prolog combinators `bb_conj`/`bb_ite` —
+carry a VARIABLE-LENGTH define/jmp-pair loop over `g_emit.xa_bb_emit_pair_{n,define,jmp}`: a runtime-count loop
+where each pair OPTIONALLY defines an externally-owned `bb_label_t` glue label and OPTIONALLY emits `jmp` to
+one (def-only / jmp-only / def+jmp all occur). All five boxes hand-rolled the byte-identical loop. The idiom is
+NOT a `FOR(…) over x86("def"/"jmp", id)` — those bake a FIXED port/internal id into the record, but these
+labels are DRIVER-MINTED pointers, not ports. The resolution is a single combinator primitive in `x86_asm.h`:
+
+```cpp
+inline std::string x86_pair_loop();   // emits the whole g_emit.xa_bb_emit_pair_* loop
+```
+
+It mirrors `x86_jmp`/`x86_deflabel` but, instead of a fixed id, its records carry the PAIR INDEX and the walker
+fetches the `bb_label_t*` out of `g_emit` by that index — so no raw pointer rides in the 1-byte-id stream. Two
+new `bb_emit_x86` records: **`'E' <idx>`** = define `xa_bb_emit_pair_define[idx]` here (0 bytes); **`'F' <idx>`**
+= rel32-patch to `xa_bb_emit_pair_jmp[idx]` (the preceding `'L'` carries the `E9`, exactly like `'J'`). TEXT
+emits the same GAS the boxes hand-rolled (`LABEL:\n` ; `" jmp LABEL\n"`), so the primitive is byte-identical to
+the loops it replaces in BOTH media. A converted combinator is then just `return x86_pair_loop();` (plus any
+leading comment). **Prolog `bb_conj`/`bb_ite` converted (PL-RV-3); SNOBOL4 `bb_pat_cat`/`bb_pat_alt` adopt the
+same call when they convert** — they read the same `g_emit` fields, so it serves them directly, no further design.
 
 ## `x86_asm.h` VOCABULARY (current — updated `30e8422`)
 
@@ -218,6 +232,7 @@ when it fits, else imm32) · `x86_cmp_imm` (`cmp reg,imm`: imm8 / eax 0x3D / imm
 `x86_load_ro` · `x86_call_ro` · `x86_jcc/x86_jmp/x86_deflabel` (PORTS) ·
 **INTERNAL LABELS:** `x86_begin()` · `L(n)` + `x86("def"/"jmp"/jcc, L(n))` (`x86_jmp_id/x86_jcc_id/x86_deflabel_id`) ·
 **ζ-FRAME `[r12+off]`:** `FR(off)` + `x86_frame_mov_imm/_store/_load/_add_imm/_add_to_reg` (`x86_r12_modrm` SIB) ·
+**PAIR LOOP:** `x86_pair_loop()` (variable-length `xa_bb_emit_pair_*` define/jmp combinator; records `'E'`/`'F'`) ·
 `bb_slot_claim(bytes)` (node-free frame claim). jcc mnemonics: je/jne/jl/jle/jge/jg. Consumer: `bb_emit_x86`.
 
 ---
@@ -226,8 +241,8 @@ when it fits, else imm32) · `x86_cmp_imm` (`cmp reg,imm`: imm8 / eax 0x3D / imm
 
 | Owner | Files (b.size count) |
 |-------|----------------------|
-| **SNOBOL4** | `bb_pat_cat`(2), `bb_pat_alt`(2) — both need the internal-label + variable-length design; `bb_match`(1). Plus the loop-free remainder already convertible: `bb_pat_span`/`break`/`pos`/`tab`/`atp`/`arb`/`fence`/`defer`/`abort` (these use literal `bin={{}}`, convert TEXT-first). |
-| **Prolog** | `bb_builtin`(28), `bb_goal`(13), `bb_choice`(6), `bb_ite`(2), `bb_disj`(2), `bb_conj`(2), `bb_unify`(1), `bb_cut`(1), `bb_catch`(1), `bb_arith`(1). |
+| **SNOBOL4** | `bb_pat_cat`(2), `bb_pat_alt`(2) — pair-loop design now RESOLVED (`x86_pair_loop()`, PL-RV-3); convert each to `return x86_pat_…prologue… + x86_pair_loop();`; `bb_match`(1). Plus the loop-free remainder already convertible: `bb_pat_span`/`break`/`pos`/`tab`/`atp`/`arb`/`fence`/`defer`/`abort` (these use literal `bin={{}}`, convert TEXT-first). |
+| **Prolog** | `bb_builtin`(28), `bb_goal`(13), `bb_choice`(6), `bb_disj`(2), `bb_unify`(1), `bb_catch`(1) remaining. DONE: `bb_cut`(PL-RV-1), `bb_arith`(PL-RV-2), `bb_ite`+`bb_conj`(PL-RV-3, via `x86_pair_loop()`). |
 | **Icon** | `bb_iterate`(17), `bb_binop_gen`(11), `bb_upto`(6), `bb_to_by`(5), `bb_to`(5), `bb_alt`(5), `bb_seq`(4), `bb_every`(2), `bb_suspend`(2), `bb_succeed`(2), `bb_binop_arith`(1), `bb_unop`(2). |
 | **Raku** | `bb_rk_gather` + `bb_nfa` (verify counts). |
 
