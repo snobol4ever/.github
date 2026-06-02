@@ -15,7 +15,8 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `bb_goal`, `bb_builtin`. Loop-free/single-shot leaves first; choice/goal (backtracking) use the landed
   internal-label + ζ-frame support.
 - **PROGRESS (2026-06-02, Opus 4.8):** `bb_cut` ✅ (`ed42331`, PL-RV-1), `bb_arith` ✅ (`ced1acd`, PL-RV-2),
-  `bb_conj`+`bb_ite` ✅ (PL-RV-3), and **`bb_disj`+`bb_catch` ✅ (PL-RV-4)** converted. **PL-RV-3 designed + landed
+  `bb_conj`+`bb_ite` ✅ (PL-RV-3), `bb_disj`+`bb_catch` ✅ (PL-RV-4), and **`bb_unify` ✅ (PL-RV-5, scalar shapes)**
+  converted. **PL-RV-3 designed + landed
   the SHARED pair-loop combinator** `x86_pair_loop()` in `x86_asm.h` (the formerly-STILL-OPEN variable-length
   define/jmp-pair idiom): a runtime-count loop over `g_emit.xa_bb_emit_pair_{n,define,jmp}` whose two new
   `bb_emit_x86` records `'E' <idx>`/`'F' <idx>` index the driver-minted glue labels out of g_emit (no raw pointer in
@@ -38,12 +39,28 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   equivalent to the original (`bb_cut`-style two-line `β: / jmp ω`). `rt_pl_catch` definition stays in `bb_exec.c` for
   mode-2. `b.size()` ledger 51→**48** Prolog-owned (all-language gate 110→107, −3); bb_disj+bb_catch removed from the
   gate list (17→15 files). Both pBB-free (only `pBB` mentions are in comments), zero `_.node`, `(void)` signatures
-  end-to-end, dispatch updated. **NEXT = `bb_unify`** — the sole remaining Prolog single, but LIVE (no dead-box
-  shortcut) AND calls the `emit_build_compound_term`/`_bin` twin-walkers, so its conversion is coupled to the
-  PL-HY-1a walker-deletion (delete the two walkers in favor of one `rt_pl_compound_build_n`/`rt_pl_node_to_term`
-  substrate, THEN convert the consumer) — and the corpus has NESTED compounds in unify position (47/132 rungs hit
-  compound-build; some build 3-5 per IR_UNIFY), so the substrate must handle arbitrary depth (a fresh-context rung,
-  not a quick conversion). Multi/looping after that: `bb_choice`(6) `bb_goal`(13) `bb_builtin`(28).
+  end-to-end, dispatch updated. **PL-RV-5 (`bb_unify`) ✅ DONE — scalar shapes converted, compound/float
+  DEFERRED.** `bb_unify` was the sole remaining Prolog single but LIVE (no dead-box shortcut); it is now pBB-free,
+  reading only `_`: `bb_prepare_pl` (emit_bb.c) fully promotes the operand kinds/ivals (`_.bb_lk/_.bb_li/_.bb_rk/
+  _.bb_ri`) + ATOM `.rodata` labels (`_.bb_ls/_.bb_rs`) at the dispatch point, and the box classifies the four
+  SCALAR shapes from `_`: (a) vacuous success (missing operand, `_.bb_lk<0`); (b) WAM-CP-7 self-unify
+  `LOGICVAR(i)=LOGICVAR(i)` → bare γ jump; (c) WAM-CP-7 var-const (LOGICVAR slot + atom/int const) → one
+  `rt_pl_unify_const`@PLT + γ/ω tail; (d) general scalar-scalar → `rt_pl_node_to_term`×2 (rsp-scratch stash) +
+  `rt_pl_unify_terms`@PLT + γ/ω tail. The box NO LONGER references the `emit_build_compound_term`/`_bin` twin
+  walkers — compound (`IR_STRUCT`/`IR_ARITH`-in-term) operands fall LOUD via `x86_bomb`, pending the PL-HY-1a
+  compound-build substrate (delete the twin walkers for a serialized `rt_pl_compound_build_n`/`rt_pl_node_to_term`
+  call; the corpus reaches these via head-argument unification — 47/132 rungs, some build 3-5 per IR_UNIFY — so the
+  substrate must handle arbitrary depth, a fresh-context rung). `IR_LIT_F` operands also fall loud (need the xmm0
+  64-bit float-bit load; no corpus rung unifies a var with a float literal directly). Three new byte-verified
+  encoders in `x86_asm.h` (additive): `xorps xmm0,xmm0`; `mov [rsp+off],r64` / `mov r64,[rsp+off]` (rsp-scratch via
+  the r12 SIB-base ModRM, REX.W only). pBB-free (compiler-enforced `(void)` signature), zero `_.node`, zero live
+  `bb_bin_t`, not flagged by the medium-invisible/purity gates, `pl_no_value_stack` PASS. Verified emission:
+  var-const `X=world`, general `X=Y`, self-unify `X=X` all emit the correct shape; m2 111/111 + m3 99/111 + m4
+  unchanged (no regression — every emittable program still needs `bb_builtin`'s `write`, still a stub). **NEXT =
+  the remaining Prolog boxes (all still `x86_bomb` stubs from `9afac84`): `bb_builtin`(28, the 2,427-line monster —
+  do PL-HY-1a here, which ALSO unblocks bb_unify's deferred compound arm), `bb_choice`(6, backtracking),
+  `bb_goal`(13, det/backtrack call); these three are what GATE-1 smoke + GATE-3 m3/m4 need to come back green.**
+  Multi/looping: `bb_choice`(6) `bb_goal`(13) `bb_builtin`(28).
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
