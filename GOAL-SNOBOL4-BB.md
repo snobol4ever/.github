@@ -46,7 +46,86 @@ a token's *use* in runtime does NOT make it runtime-owned: `pl_arg`/`pl_univ`/`p
 `pl_assert_term`/`pl_term_to_string`/`prolog_atom_*`/`raku_nfa_*` are frontend-DEFINED → HELD; `g_raku_match` is
 driver-DEFINED → HELD. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-LI-RUNTIME-DENAME-SLICE-1.md`.
 
-## 🔴🔴 ACTIVE RUNG — READ FIRST (Lon PIVOT 2026-06-02): LANGUAGE-INDEPENDENT EMITTER + RUNTIME (de-name) + COMMENT PURGE
+## 🔴🔴 ACTIVE RUNG — READ FIRST (Lon PIVOT 2026-06-02, evening): RUNTIME SUBSYSTEM REORG — DISSOLVE THE LANGUAGE SILOS
+
+**SCRIP unifies 6+ languages (SNOBOL4, Snocone, Icon, Prolog, Raku, Rebus) into ONE consolidated multi-language
+system. The runtime must reflect that.** Today the runtime is still partitioned *by language*: `core/` is the SNOBOL
+execution model, `builtins/gen_runtime.c` is Icon generators, `builtins/resolve_runtime.c` is Prolog resolution,
+`builtins/script_builtins*.c` is the Raku-flavored by-name layer, and `rt/rt.c` is a grab-bag mixing arith / unify /
+trail / generators / proc-frames / Prolog builtins. **REORGANIZE the entire `src/runtime/**` so each FILE is a
+SUBSYSTEM (a CS capability), NOT a language.** The languages contributed IDEAS; SCRIP now uses ALL ideas in ALL
+languages TOGETHER. Breaking the file↔language coupling is what makes that real — it removes the standing invitation
+to write a parallel language-specific copy of a capability that already exists.
+
+**WHY (Lon, verbatim intent):** Prolog, Icon, and Raku already SHARE enormous machinery — backtracking, goal-directed
+evaluation, choice points, pattern/regex/string-scanning, term/value coercion. Siloing them by language hides that
+overlap and breeds duplication (the same disease the LI de-name rung just treated, now at the FILE level). Cluster the
+shared capability into ONE subsystem file and every language draws from it. **PUSH THE ENVELOPE even on the "language
+builtins":** yes, some predicates/functions feel language-specific, but far more generalize than first appears
+(Icon `find`/Raku `index`/SNOBOL pattern-scan are the same search; Prolog `findall`/Icon generator-collect are the same
+solution-gathering; Prolog backtracking / Icon goal-direction / Raku junctions are one backtracking engine). Default to
+generalizing; only keep a thing language-private when it genuinely cannot be shared.
+
+### METHOD (this is the whole rung)
+1. **RS-1 — CLUSTER (analysis, do FIRST, no moves yet).** Inventory EVERY function/global/type DEFINED in
+   `src/runtime/**` (core/ + rt/ + builtins/). For each, record: signature, current file, the CS capability it serves,
+   and which languages call it (definition-location stays authoritative — a parser/driver-defined symbol merely *called*
+   in runtime is NOT runtime's to move). CLUSTER by capability, ignoring source-language origin. Emit a written
+   partition map (proposed `subsystem → {symbols}` and `subsystem → new filename`) into the Watermark / a HANDOFF doc
+   BEFORE moving anything. This map is the artifact RS-1 produces; Lon reviews it.
+2. **RS-2…RS-N — PARTITION (one subsystem per gated slice).** For each proposed subsystem file, MOVE its members
+   there (`git mv` for whole-file relocations; for symbols split out of a grab-bag like `rt.c`, cut+paste the
+   definition into the new file, add the decl to the subsystem header, leave call sites untouched). **MOVE-ONLY /
+   RENAME-ONLY — zero behavioral change.** Update the build system (`Makefile` `RT_PIC_SRCS` + per-`.o` rules,
+   `scripts/build_scrip.sh`) IN LOCKSTEP with every file add/move/delete. One subsystem at a time; gate byte-identical;
+   commit; never start a split you can't finish+gate+commit.
+3. **RS-FENCE — the partition gate.** A script (`scripts/test_gate_runtime_subsystems.sh`) that asserts the runtime
+   file set matches the agreed subsystem partition (no file reintroduces a language silo; each subsystem header is the
+   single home for its capability). Wire into Session Setup.
+
+### STARTING CLUSTERING HYPOTHESIS (RS-1 input, NOT yet validated — refine against the real inventory)
+Candidate subsystems (capability → likely current sources to merge): **values+coercion** (`descr.h`/`coerce.c`/
+`argval.c`/type-tests) · **name/variable binding** (`name_t.c`/`name_save.c` + global-var store — SNOBOL's name model,
+generalized) · **string scanning & pattern matching** (SNOBOL `pattern.c`+`eval_pat.c` + Icon scan in `scan_builtins.c`
++ Raku NFA dispatch in `script_builtins*.c` — all string-position search) · **terms & unification** (Prolog term-build /
+`rt_unify*` / WAM `rt_trail*` out of `rt.c`+`resolve_runtime.c`) · **backtracking / generators / choice** (Icon
+generators in `gen_runtime.c` + Prolog choice-points/cut in `rt.c`/`resolve_runtime.c` + Raku junctions — ONE
+goal-directed/backtracking engine; this is the highest-value unification Lon called out) · **arithmetic** (`rt_arith*`
++ numeric coercion) · **string builtins** (concat/substr/length/case — already cross-language) · **I/O & format**
+(write/print/`rt_format*`) · **invocation & call frames** (`invoke.c` + proc-frame arena + call marshalling) ·
+**statement / control flow** (`stmt_exec.c` — SNOBOL goto/label model, generalized) · **by-name dispatch & resolution**
+(`resolve_runtime.c` predicate resolution + `script_builtins_byname.c` by-name builtin table). Validate, split, or
+merge these against the actual symbol inventory in RS-1.
+
+### CARVE-OUTS / GATES
+- **Frontend-contract dispatch-name STRINGS stay** (`ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/
+  `set_prolog_flag`/`current_prolog_flag` and the like): the parser mints these names and the runtime strcmp-dispatches
+  them; the dispatch TABLE may move into a subsystem, but the string values cannot change without the (out-of-scope)
+  frontends. **Parser/driver-DEFINED symbols stay where they are** (definition-location authoritative).
+- **Genuinely-private language builtins** that survive the generalization attempt may keep a small language-private
+  file (or a clearly-marked section) — but that is the EXCEPTION to justify, not the default. Push hard to generalize.
+- **This rung SUBSUMES LI-CORE.** `src/runtime/core/` is not a "rename the SNOBOL-lib" question any more — it is
+  dissolved: its members are clustered into the subsystem files above (pattern→pattern-subsystem, name→binding-subsystem,
+  stmt_exec→control-subsystem, coerce→values-subsystem, …). The `SNO_INIT_fn`-precedent naming decision is reframed as
+  "which subsystem owns SNOBOL runtime-init," handled inside RS-2…N.
+- **GATES (move/rename-only ⇒ byte-identical, EVERY commit):** SNOBOL4 m2 **7/7 HARD** · Icon m2 **12/12 HARD** ·
+  Prolog m2 **5/5 HARD** · `prove_lower2` **67** · `no_bb_bin_t` 0 · `audit_concurrency_invariants` OK ·
+  `test_gate_no_lang_names.sh` (LI-FENCE) holds throughout. Build (`make scrip` + `make libscrip_rt`) rc=0 after each
+  file move with the Makefile/build-script updated in lockstep.
+
+### RS CHECKLIST
+- [ ] **RS-1 — CLUSTER.** Full runtime symbol inventory + capability tagging + written `subsystem→{symbols}` /
+  `subsystem→filename` partition map in the Watermark/HANDOFF. NO moves. Lon reviews the map.
+- [ ] **RS-2…RS-N — PARTITION.** One gated move/rename slice per subsystem file; Makefile + build_scrip.sh in lockstep;
+  byte-identical gates each commit. (Enumerate the concrete N once RS-1's map is fixed.)
+- [ ] **RS-FENCE.** `scripts/test_gate_runtime_subsystems.sh` asserts the subsystem partition; wired into Session Setup.
+
+**Method reminder (carried from LI):** definition-location authoritative; move/rename-only, no behavior change; update
+the build system in lockstep with every file op; gate byte-identical after each slice; never start a split you cannot
+finish+gate+commit. Read the bodies before clustering — do not guess a function's subsystem from its current filename
+(that filename is exactly the language lie we're removing).
+
+## ✅ RUNG COMPLETE — LANGUAGE-INDEPENDENT EMITTER + RUNTIME (de-name) + COMMENT PURGE (emitter+runtime DONE 2026-06-02; LI-CORE folded into the SUBSYSTEM-REORG rung above)
 
 **The EMITTER and RUNTIME are LANGUAGE-INDEPENDENT. Make it so.** Every emitter box, every runtime helper, every
 IR-facing name is named by its **computer-science / industry-standard concept**, NOT by the source language that
