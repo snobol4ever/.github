@@ -11,9 +11,15 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `bb_pat_span.cpp` (looping). **Recipe:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
 - **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
   — first to reach a combinator designs it once in the RULES-DRAFT.
-- **YOUR BOXES:** `bb_binop_arith` (IN PROGRESS), `bb_unop`, `bb_succeed`, `bb_suspend`, `bb_every`, `bb_seq`,
+- **YOUR BOXES:** `bb_binop_arith` ✅ **DONE (SCRIP `b8db625`)**, `bb_unop`, `bb_succeed`, `bb_suspend`, `bb_every`, `bb_seq`,
   `bb_alt`, `bb_to`/`bb_to_by`, `bb_upto`, `bb_binop_gen`, `bb_iterate`. Loop-free leaves first; the generators
   (`bb_iterate`/`bb_binop_gen`/`bb_to`/`bb_upto`/`bb_every`) use the landed internal-label + ζ-frame support.
+  **`bb_binop_arith` added to the shared `x86_asm.h`:** integer-ALU `x86_sub_rr`/`x86_imul_rr`/`x86_cqo`/`x86_idiv`,
+  64-bit ζ-frame ops `x86_frame_load64`/`_store64`/`_mov_imm64` for 16-byte DESCR traffic, and the `FRQ(off)`
+  qword marker + overloads (`mov reg←FRQ`, `mov FRQ←reg`, `mov FRQ←imm32`, zero-arg `cqo`, 1-arg `idiv`) — reuse these.
+  Its operand/result slots are deposited by the driver (`emit_bb.c` case `IR_BINOP`, arith-only) as `g_emit.op_sa/op_sb/op_off`
+  so the box stays pBB-free; `op_off>=0` is the "this is the arith case" verdict. The **operand-slot promotion pattern**
+  (driver resolves neighbor slots → `g_emit` scalars → box trusts them) is the template for every Icon value box.
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
@@ -577,7 +583,9 @@ at the first rung carrying RW state (`x := …` / `write(1+2)`), NOT here.
 
 
 
-**HEAD (SCRIP):** `cd6fbe2` GZ-11+ IR_NOT/NONNULL/NULL_TEST/SIZE stackless arms + proc-fail propagation + IR_ALT loud-excise. 8 files (+309/−57): `emit_bb.c`, `scrip.c`, `bb_call.cpp`, `bb_unop.cpp`, `xa_flat.cpp`, `rt.c`, `rt.h`, `test_gate_icn_one_reg_frame.sh`. Eight bugs in five subsystems. corpus m3 21→22, m4 19→21, EXCISED 22→33. (Rebased on top: `2f72ce1` ICN-HY-0 bb_binop de-cram — pure relocation, Icon m2 127/127 byte-identical, build re-verified green after merge.)
+**HEAD (SCRIP): `b8db625` — TEMPLATE-REVAMP: `bb_binop_arith` → x86() self-encoding, pBB-FREE (Icon GZ-9, Sonnet, 2026-06-02).** First ROUTED box converted to x86(): the router (`bb_binop.cpp`) now emits the arith arm via `bb_emit_x86` (record stream) while the other arms keep `bb_emit_asm_result` — mixing converted + unconverted boxes in one router is fine (both bottom out in `bb_emit_byte`/patch). The box reads ONLY `g_emit` (no pBB, no neighbors): driver (`emit_bb.c` case `IR_BINOP`, arith-only) deposits `op_sa`/`op_sb`/`op_off`; `op_off>=0` = "this is the arith case" (ADD/SUB/MUL/DIV/MOD decision lives ONLY in the driver, not duplicated). 5 files: `x86_asm.h` (ADDITIVE: `x86_sub_rr`/`x86_imul_rr`/`x86_cqo`/`x86_idiv` + 64-bit ζ-frame `x86_frame_load64`/`_store64`/`_mov_imm64` + `FRQ()` marker/overloads for 16-byte DESCRs), `emit_globals.h` (+3 fields), `emit_bb.c` (driver deposit), `bb_binop_arith.cpp` (rewrite, 50 lines), `bb_binop.cpp` (router arm). **b.size() ledger 123→122** (bb_binop_arith 1→0; file count 24→23). The 64-bit frame ops pick disp8 when the offset fits (the old box forced disp32) → shorter, BINARY≡`as`(TEXT) per R10. m2/m3/m4 all emit `8 2 15 1 2` for `i±*/% j` (slot→slot). Gates green: Icon smoke 12/12/12, Prolog 5/5/5, FACT=0, no-stack 117≤127, one-reg-frame 21≤21, corpus byte-stable (m2=127 HARD, m3=22, m4=21, EXCISED=33), crosscheck PASS=4, purity audit clean. **The operand-slot promotion pattern (driver resolves neighbor slots → g_emit scalars → box trusts them) is the keystone for every remaining Icon value box (`bb_unop` next).** Rebased cleanly on top of SNOBOL4 `66eb967` (their `bb_pat_abort`/`bb_pat_tab` x86() conversion + `x86_movimm32`); both sides' `x86_asm.h` additions are additive, build re-verified green post-rebase.
+
+**PREV HEAD (SCRIP):** `cd6fbe2` GZ-11+ IR_NOT/NONNULL/NULL_TEST/SIZE stackless arms + proc-fail propagation + IR_ALT loud-excise. 8 files (+309/−57): `emit_bb.c`, `scrip.c`, `bb_call.cpp`, `bb_unop.cpp`, `xa_flat.cpp`, `rt.c`, `rt.h`, `test_gate_icn_one_reg_frame.sh`. Eight bugs in five subsystems. corpus m3 21→22, m4 19→21, EXCISED 22→33. (Rebased on top: `2f72ce1` ICN-HY-0 bb_binop de-cram — pure relocation, Icon m2 127/127 byte-identical, build re-verified green after merge.)
 
 **ICN-HY-0 (SCRIP `2f72ce1`):** `bb_binop.cpp` DE-CRAM (523→38-line router + 7 per-box files: `bb_binop_lit_arith` GZ-3, `bb_binop_jct_relop` RK-EMIT-3, `bb_binop_relop` GZ-8, `bb_binop_arith` GZ-9, `bb_binop_concat_slot` GZ-11+, `bb_binop_concat_lit` GZ-4, `bb_binop_agpure` legacy). Pure relocation: Icon m2 **127/127 byte-identical**, smoke 12/12/12, purity + b.size() counts stable. Makefile +8 src lines + 8 compile rules. NEXT = ICN-HY-1 (de-fuse: lower.c must chain IR_LIT_* operands as producers, then delete GZ-3/GZ-4). **Worked example for the BB-HYGIENE ladders in all four GOAL-*-BB files.**
 
