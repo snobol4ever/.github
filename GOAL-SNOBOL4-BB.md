@@ -1822,7 +1822,26 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `c66bbc8` · .github this commit.
+**Watermark.** SCRIP `c66bbc8` (SNOBOL4 landing; tree tip advanced to `acea982` PL-RV-3 — my boxes RE-VERIFIED
+green against it) · .github this commit.
+**HANDOFF (2026-06-02, Opus 4.8) — SNOBOL4 loop-free pattern leaves COMPLETE; combinators unblocked via landed
+`x86_pair_loop()`.** This session landed `bb_pat_fence` + `bb_pat_break` (`c66bbc8`, pushed), completing the
+loop-free SNOBOL4 pattern-leaf conversion to `x86()` self-encoding. After the parallel Prolog session landed the
+shared `x86_pair_loop()` combinator primitive (`acea982`, touches the shared `x86_asm.h`), I synced + rebuilt +
+RE-GATED: SNOBOL4 m2 **7/7 HARD** / m3 5/6 / m4 0/6, BREAK/BREAKX + FENCE functionally correct (m3==m2==oracle),
+prove_lower2 **67/67**, pat-rung M2 **18/19** (pre-existing `053_pat_alt_commit`), `g_vstack` **0**, concurrency
+invariants OK (FACT RULES byte-identical ×3), b.size() ledger **110/17** (Prolog drove it down). Both repos clean +
+pushed + in sync at handoff. **FIRST INCOMPLETE STEP for the next session:** convert the SNOBOL4 combinators
+`bb_pat_cat`/`bb_pat_alt`/`bb_match` + the `FENCE(P)` with-children pair path to the EXISTING `x86_pair_loop()`
+(`return …prologue… + x86_pair_loop();`, drop `bb_bin_t`, make pBB-free) — NO new design, NO shared `x86_asm.h`
+edit needed (Prolog already landed the primitive; SNOBOL reads the same `g_emit.xa_bb_emit_pair_*` fields). Then
+the REG ladder REG-RO rung (RO addresses → `[rip+disp]`) to retire r10 and lift SNOBOL m4 off 0/6. ⚠ COORDINATION
+NOTE: 5 concurrent pushes across this session's turns (Icon `bb_unop`/`bb_succeed`, Prolog `x86_pair_loop`) — all
+rebased clean (everyone edits own boxes), but the SHARED `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` + `x86_asm.h` are
+genuine contention points (Prolog and I designed the pair-loop primitive simultaneously; theirs landed first and is
+superior — index-carrying `'E'`/`'F'` records vs my draft `'P'`/`'Q'` pointer records, which I discarded).
+
+**Watermark (prior).** SCRIP `c66bbc8` · .github this commit.
 **This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_fence` + `bb_pat_break` converted to x86() self-encoding (pBB-free); the LOOP-FREE pattern leaves are now ALL DONE:**
 - **`bb_pat_fence`** — LOOP-FREE single-shot convert (the bare-FENCE primitive, no argument). Per the mode-2 oracle
   (bb_exec.c IR_PAT_FENCE) + SPITBOL Manual ch.18 ("matches the null string and succeeds when the scanner is moving
