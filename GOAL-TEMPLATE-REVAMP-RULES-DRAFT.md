@@ -25,8 +25,10 @@ below: "RESOLVED — INTERNAL LABELS + ζ-FRAME SCRATCH" (the API + reference bo
 
 Each session converts its OWN boxes (table under "DIVVY-UP MATERIAL" below) and edits only its own files; the
 dispatch/decl inserts land on different lines and `x86_asm.h` additions are additive. The ONE remaining shared
-unknown is the VARIABLE-LENGTH define/jmp-pair loop for the combinators (`bb_pat_alt/cat/match`, FENCE pair path)
-— see "STILL OPEN" below; whoever reaches a combinator first designs that idiom once and records it here.
+item — the VARIABLE-LENGTH define/jmp-pair loop for the combinators (`bb_pat_alt/cat/match`, FENCE pair path) — is
+now **DESIGNED** (see "STILL OPEN → DESIGNED" below: two pointer-carrying records `'P'`/`'Q'` in `x86_asm.h`); it
+awaits a clean dedicated landing of the shared `x86_asm.h` edit (all four sessions aware), then each session
+converts its own combinators with the identical FOR-over-pair-array body.
 
 ---
 
@@ -241,7 +243,7 @@ when it fits, else imm32) · `x86_cmp_imm` (`cmp reg,imm`: imm8 / eax 0x3D / imm
 
 | Owner | Files (b.size count) |
 |-------|----------------------|
-| **SNOBOL4** | `bb_pat_cat`(2), `bb_pat_alt`(2) — pair-loop design now RESOLVED (`x86_pair_loop()`, PL-RV-3); convert each to `return x86_pat_…prologue… + x86_pair_loop();`; `bb_match`(1). Plus the loop-free remainder already convertible: `bb_pat_span`/`break`/`pos`/`tab`/`atp`/`arb`/`fence`/`defer`/`abort` (these use literal `bin={{}}`, convert TEXT-first). |
+| **SNOBOL4** | `bb_pat_cat`(2), `bb_pat_alt`(2), `bb_match`(1) + FENCE-pair path — pair-loop design RESOLVED (`x86_pair_loop()`, Prolog PL-RV-3); convert each to `return …prologue… + x86_pair_loop();` (reads the same `g_emit.xa_bb_emit_pair_*`, no further design). **Loop-free remainder ALL DONE** (`bb_pat_span`/`break`/`pos`/`tab`/`atp`/`arb`/`fence`/`defer`/`abort`/`rem`/`len`/`any`/`notany`/`lit`). |
 | **Prolog** | `bb_builtin`(28), `bb_goal`(13), `bb_choice`(6), `bb_disj`(2), `bb_unify`(1), `bb_catch`(1) remaining. DONE: `bb_cut`(PL-RV-1), `bb_arith`(PL-RV-2), `bb_ite`+`bb_conj`(PL-RV-3, via `x86_pair_loop()`). |
 | **Icon** | `bb_iterate`(17), `bb_binop_gen`(11), `bb_upto`(6), `bb_to_by`(5), `bb_to`(5), `bb_alt`(5), `bb_seq`(4), `bb_every`(2), `bb_suspend`(2), `bb_succeed`(2), `bb_binop_arith`(1), `bb_unop`(2). |
 | **Raku** | `bb_rk_gather` + `bb_nfa` (verify counts). |

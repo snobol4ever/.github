@@ -1864,10 +1864,17 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   dispatch calls → parameterless). No `x86_asm.h` edit — both boxes use the EXISTING encoders (the SPAN looping box
   already proved the internal-label + ζ-frame + strchr/r10 vocabulary; FENCE reuses the FR()/jmp/def forms).
 - **NEXT (SNOBOL4):** the loop-free pattern leaves are now ALL converted. What remains is the VARIABLE-LENGTH
-  combinators — `bb_pat_cat`, `bb_pat_alt`, `bb_match`, and the `FENCE(P)` with-children PAIR path — which share the
-  STILL-OPEN define/jmp-pair design (variable-count define/jmp pairs from `g_emit.xa_bb_emit_pair_n`). Whoever reaches
-  a combinator first designs that idiom once in `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. (Or pivot to the REG-RO rung
-  — RO addresses → `[rip+disp]` — to fully retire r10 and unblock SNOBOL m4, per the 🔴 CURRENT PRIORITY section.)
+  combinators — `bb_pat_cat`, `bb_pat_alt`, `bb_match`, and the `FENCE(P)` with-children PAIR path. The shared
+  define/jmp-pair idiom is now **RESOLVED + LANDED** by the parallel Prolog session (PL-RV-3, `80613ca7`):
+  `x86_pair_loop()` in `x86_asm.h` emits the whole `g_emit.xa_bb_emit_pair_*` define/jmp loop via two index-carrying
+  in-band records (`'E'` = define `xa_bb_emit_pair_define[idx]`; `'F'` = rel32-jmp to `xa_bb_emit_pair_jmp[idx]`),
+  so no raw pointer rides the byte stream and TEXT is byte-identical to the hand-rolled loops. A combinator's x86
+  arm emits ONLY label-defs + unconditional jmps over DRIVER-minted `bb_label_t*` (zero instruction encoding), so a
+  converted box is just `return x86_pair_loop();` (plus any leading comment). **SO THE SNOBOL4 combinators are now
+  a direct adopt of the EXISTING `x86_pair_loop()` — no new design, no shared `x86_asm.h` edit needed** (Prolog
+  already landed it; SNOBOL reads the same `g_emit` fields). Convert `bb_pat_cat`/`bb_pat_alt`/`bb_match` + the
+  `FENCE(P)` pair path to `x86_pair_loop()`, drop their `bb_bin_t`, make them pBB-free; gate as usual. (Or pivot to
+  the REG-RO rung — RO addresses → `[rip+disp]` — to fully retire r10 and unblock SNOBOL m4, per 🔴 CURRENT PRIORITY.)
 
 **Prior watermark.** SCRIP `fe94061` · .github this commit.
 **This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_arb` + `bb_pat_defer` converted to x86() self-encoding (pBB-free):**
