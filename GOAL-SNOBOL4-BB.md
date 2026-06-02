@@ -1,5 +1,50 @@
 # GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
+## 🔴🔴 FIRST NEXT STEP (Lon directive 2026-06-02, Opus 4.8) — KILL THE `bb_binop` ROUTER; TEMPLATES ARE CALLED DIRECTLY
+
+**There is NO such thing as a "router" template. A BB template emits its OWN bytes — it must never probe or call
+sibling templates to choose one. Templates are dispatched DIRECTLY, not redirected.** (The standard same-box split
+`bb_X()` → its own `static bb_X_str()` build-helper is NOT redirection and is fine — e.g. `bb_every`'s internal
+`bb_every_flat_str`. The offense is a template that calls *other* boxes' `_str()`.)
+
+**The ONE offender (audited @ SCRIP `cd10224` — the only redirecting template among the 36 boxes): `bb_binop.cpp`,**
+a dispatcher masquerading as a template:
+
+    extern "C" void bb_binop(IR_t * pBB) {
+        std::string s;
+        s = bb_binop_relop_str();       if (!s.empty()) { bb_emit_x86(s); return; }
+        s = bb_binop_arith_str();       if (!s.empty()) { bb_emit_x86(s); return; }
+        s = bb_binop_gvar_arith_str();  if (!s.empty()) { bb_emit_x86(s); return; }
+        s = bb_binop_concat_slot_str(); if (!s.empty()) { bb_emit_x86(s); return; }
+        bb_emit_x86(x86_bomb("bb_binop: shape not yet converted ..."));
+    }
+
+The four arms (`bb_binop_relop`/`_arith`/`_gvar_arith`/`_concat_slot`) currently expose ONLY a `bb_binop_X_str()` that
+returns its bytes — or empty-string when its shape does not apply. The shape predicate is hidden INSIDE each `_str()`
+and the router probes them in order; that probing is the redirection to remove.
+
+**TASK — dispatch each binop arm directly; delete the router:**
+1. **[design, do first] Move shape selection OUT of the templates.** Preferred: lower `IR_BINOP` into shape-specific
+   IR kinds in the LOWERER — `IR_BINOP_RELOP` / `IR_BINOP_ARITH` / `IR_BINOP_GVAR_ARITH` / `IR_BINOP_CONCAT` — so one
+   kind maps to exactly one template (the cleanest "direct" end-state). Fallback if a lowering change is too large
+   this slice: compute the shape in a small *dispatch* helper in `emit_core.c` and call the concrete arm directly
+   (still zero template-to-template calls). Either way the shape decision lives in the lowerer/dispatch, never in a
+   template.
+2. Give each arm a directly-callable template entry (`extern "C" void bb_binop_relop(IR_t*)`, etc.) that just emits
+   its bytes; the per-arm "does this shape apply?" check is no longer needed inside the arm (the dispatch already
+   chose it).
+3. `walk_bb_node`: replace `case IR_BINOP: bb_binop(nd)` with direct dispatch to the chosen arm — distinct `case`s
+   under (1-preferred), or `case IR_BINOP:` + shape-helper + direct call under (1-fallback).
+4. **Delete `bb_binop.cpp`**, its `RT_PIC_SRCS` + `scrip:` Makefile lines, and its `bb_templates.h` prototype.
+5. Unconverted/unknown binop shapes hit the existing **loud default** in `walk_bb_node` (per the TEMPLATE-ONLY FACT
+   RULE) — never a router fallback bomb.
+6. **Gates (must hold):** m2 SNOBOL4 **7/7** + Icon **12/12** HARD · m3 must not drop (SNOBOL ≥2 incl.
+   `OUTPUT = 2 + 3`; Icon ≥3) · m4 ≥0 · `prove_lower2` PASS · `no_bb_bin_t` 0 · concurrency **FACT-RULES
+   byte-identical x3**.
+
+After this, **no template calls another template** — the binop family is dispatched exactly like every other box.
+The LANGUAGE-INDEPENDENT de-name rung below resumes after this step.
+
 ## 🔴🔴 ACTIVE RUNG — READ FIRST (Lon PIVOT 2026-06-02): LANGUAGE-INDEPENDENT EMITTER + RUNTIME (de-name) + COMMENT PURGE
 
 **The EMITTER and RUNTIME are LANGUAGE-INDEPENDENT. Make it so.** Every emitter box, every runtime helper, every
@@ -152,8 +197,10 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
 again later — because the scaffolding stubs made it impossible to tell which BBs actually exist.** Deleted 54 files
 (SCRIP `cd10224`): 47 single-bomb stubs, multi-arm bomb stubs (`bb_case`/`bb_field`/`bb_idx`/`bb_limit`/
 `bb_nfa_passthrough`), 3 return-empty do-nothing boxes (`bb_clause`/`bb_cset`/`bb_stub`), 7 empty 1-line TUs
-(`bb_binop_{agpure,concat_lit,jct_relop,lit_arith}`, `bb_seq_{flat,gather,passthrough}`). **KEPT** the live
-`bb_binop` router + all 35 real boxes (`x86real>0`, incl. partial-bomb `bb_var`/`bb_gvar_assign`/`bb_unify`).
+(`bb_binop_{agpure,concat_lit,jct_relop,lit_arith}`, `bb_seq_{flat,gather,passthrough}`). **KEPT** the `bb_binop`
+router (it was the live `IR_BINOP` handler, so deleting it then would have broken binops — but a router IS itself an
+anti-pattern, now slated for removal: see the FIRST NEXT STEP at the top of this file) + all 35 real boxes
+(`x86real>0`, incl. partial-bomb `bb_var`/`bb_gvar_assign`/`bb_unify`).
 **Now a `bb_*.cpp` file existing ⇔ that box is real.**
 - **Coherence edits (no behavior change for any reached box):** Makefile −108 lines (54 `RT_PIC_SRCS` sources + 54
   `scrip:` compile lines; scrip/scrip-monitor/libscrip_rt all link via `$(OBJ)/*.o` glob → no per-`.o` prereqs).
