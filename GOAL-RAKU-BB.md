@@ -325,7 +325,7 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EA
 
 - [x] **RK-HY-0 — `bb_binop_jct_relop.cpp`.** ✅ DE-CRAM DONE 2026-06-01 (carried out of the `bb_binop.cpp` worked example). Raku junction-collapse relop is its own file.
 - [x] **RK-HY-1 — `bb_seq.cpp` (358).** ✅ DE-CRAM DONE 2026-06-02 (Opus 4.8). Three distinct four-port shapes (selected by n / has_suspend / medium) split into one-box-one-file templates behind a 34-line router (bb_binop.cpp pattern): `bb_seq_gather.cpp` (gather multi-yield — SUSPEND children, TEXT _str + raw-binary in-place), `bb_seq_flat.cpp` (flat in-order stmt sequence — Icon compound semantics), `bb_seq_passthrough.cpp` (goto-chain glue CATCH-ALL). emit_core dispatch + bb_templates.h decl UNCHANGED. Grouped near-identical (gather TEXT+BINARY co-located; the two byte-identical EMIT_PAIR glue loops merged → b.size() 4→2 bonus DUP FORM 1 collapse). Behavior-neutral (git-stash baseline diff): Raku 25/21/21, Icon 12/12/12, SNOBOL4 7/5/0 all byte-identical; prove_lower2 67/0; siblings unchanged. SCRIP `da8411b`.
-- [ ] **RK-HY-2 — `bb_nfa.cpp` (222).** Regex/grammar NFA: leaf-match / subrule-call / Match-tree-build shapes → split. Router. (Substrate for the #1 grammar goal; clean per-box files make resume-and-yield-next tractable.) **De-fuse + RT-check: Match-tree build is RUNTIME work — marshal + call an `rt_rk_*` helper, do not hand-walk at emit time (DISEASE 4).**
+- [x] **RK-HY-2 — `bb_nfa.cpp` (222).** ✅ DE-CRAM DONE 2026-06-02 (Opus 4.8). Nine co-located ISOLATED IR_NFA_* leaf boxes split one-box-one-file (the SNOBOL4 pattern-leaf convention `bb_pat_*`): `bb_nfa_passthrough.cpp` (EPS/CAP_OPEN/CAP_CLOSE — share one _str), `bb_nfa_char.cpp`, `bb_nfa_any.cpp`, `bb_nfa_class.cpp`, `bb_nfa_bol.cpp`, `bb_nfa_eol.cpp`, `bb_nfa_accept.cpp`; `bb_nfa.cpp` DELETED. NO router file — `emit_core.c`'s 9-case switch IS the router (each IR_NFA_* dispatched directly); dispatch + `bb_templates.h` decls UNCHANGED. Leaf semantics verified vs canonical `raku_re.c` `ss_add`. Each _str byte-faithful. Subrule-call / Match-tree-build shapes don't exist yet (RK-GRAM-3 future) — clean files make them tractable; RT-CHECK noted (Match-tree build = `rt_rk_*` call, not emit-time walk). Family DORMANT (`~~` on C matcher); behavior unaffected by construction (git-stash diff: regex tests abort identically pre-existing). Gates green; SCRIP `a04cf4f`.
 - [ ] **RK-HY-3 — Raku arms of `bb_call.cpp`.** When Icon runs ICN-HY-2, the RK-EMIT-1/2 arms (`rt_rk_call_arr`, IR_CALL dval==2.0 marshalling) are RAKU-OWNED → move to `bb_call_rk.cpp` (or `_<shape>` if >1). Coordinate per the FACT RULE (edit only your own language's boxes). Router stays Icon's.
 - [ ] **RK-HY-4 — de-dup + RT-fix, all Raku boxes.** Any algorithm in both media → one `rt_*` call. No emit-time value work.
 - [ ] **RK-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Raku-owned files. m3/m4 18/22 held; siblings byte-identical.
@@ -555,6 +555,38 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 ---
 
 ## Watermark
+
+**CHECKPOINT (2026-06-02, Opus 4.8) — RK-HY-2: bb_nfa.cpp de-crammed into one-box-one-file leaf templates.**
+Second rung of the #0 BB-HYGIENE LADDER. The 222-line `bb_nfa.cpp` co-located NINE distinct ISOLATED IR_NFA_*
+leaf boxes (a DUP FORM 4 "N boxes in one file" cram). Unlike RK-HY-1's `bb_seq` (ONE kind, multiple shapes →
+needed a router), each IR_NFA_* kind is dispatched DIRECTLY from `emit_core.c` (lines 490-499), so **`emit_core`'s
+9-case switch IS the router** — no router file needed. Split one-box-one-file, mirroring the SNOBOL4 pattern-leaf
+convention (`bb_pat_any`/`notany`/`span`/… each their own file); boxes that genuinely SHARE one `_str` stay grouped
+(the `bb_pat_pos` POS/RPOS idiom). Files: NEW `bb_nfa_passthrough.cpp` (51 — EPS/CAP_OPEN/CAP_CLOSE, pure epsilon
+joins sharing `bb_nfa_passthrough_str`; the CAP capture-write block is a documented follow-up), NEW `bb_nfa_char.cpp`
+(41 — literal char consume+advance), NEW `bb_nfa_any.cpp` (39 — `.` non-newline), NEW `bb_nfa_class.cpp` (60 — cset
+bitset, inline rodata, IP-relative per the RO-locals FACT RULE), NEW `bb_nfa_bol.cpp` (35 — `^` pos==0), NEW
+`bb_nfa_eol.cpp` (35 — `$` pos==slen), NEW `bb_nfa_accept.cpp` (36 — terminal success); `bb_nfa.cpp` (222) DELETED.
+**Leaf semantics verified against the canonical matcher** `src/frontend/raku/raku_re.c` `ss_add` (EPS/CAP=epsilon
+joins, ANCHOR_BOL=pos==0, ANCHOR_EOL=pos==slen, CHAR/ANY/CLASS=consuming leaves, ACCEPT=terminal) per the
+CONSULT-CANONICAL-SOURCES rule. Each `_str` body relocated **BYTE-FAITHFUL** (no logic change). `emit_core.c`
+dispatch (9 cases) + `bb_templates.h` decls (9) UNCHANGED. **The goal's subrule-call / Match-tree-build shapes do
+NOT exist yet** (RK-GRAM-3 future) — the clean per-box files make that resume-and-yield-next work tractable; the
+RT-CHECK constraint is recorded for then (Match-tree build = marshal + `rt_rk_*` call, NEVER an emit-time hand-walk;
+no such code exists today). **The IR_NFA_* family is DORMANT** (the `~~` regex path runs on the proven C matcher
+across all three modes; nothing invokes an IR_NFA_* graph), so the split is **behavior-neutral by construction** —
+proven by `git stash` baseline diff: the 6 regex corpus tests (`rk_re32-37`/`rk_regex23`) abort IDENTICALLY on the
+clean tree (`[lower2] UNHANDLED kind=45/143/149` — a pre-existing RK-NFA-LOWERING gap in the frontend→IR path, NOT
+the dormant emitter). Gates green (unchanged from RK-HY-1): **Raku m2 25/25 (HARD ✓) · m3 21 PASS / 0 FAIL / 4
+EXCISED · m4 21 PASS / 0 FAIL / 4 EXCISED**; **Icon 12/12/12**; **SNOBOL4 7/7 m2 · 5 m3 · 0 m4**; **prove_lower2
+67/0**; **audit_concurrency_invariants OK** (FACT RULES byte-identical x3/x4); **template-purity 8** (the 7 new files
+add ZERO fprintf/abort side-effects). `b.size()` ledger UNCHANGED (bb_nfa had 0 — not revamp debt). **SCRIP HEAD:
+`a04cf4f`** (committed LOCALLY as a checkpoint; push-to-origin awaits the next `perform hand off`). NEXT: **RK-HY-3**
+— Raku arms of `bb_call.cpp` (the RK-EMIT-1/2 `rt_rk_call_arr` + IR_CALL dval==2.0 marshalling) move to `bb_call_rk.cpp`
+when Icon runs ICN-HY-2; coordinate per the FACT RULE (edit only Raku's boxes; router stays Icon's). Then **RK-HY-4**
+(de-dup + RT-fix across all Raku boxes) and **RK-HY-FENCE** (gate).
+
+---
 
 **CHECKPOINT (2026-06-02, Opus 4.8) — RK-HY-1: bb_seq.cpp de-crammed into per-shape files behind a thin router.**
 First rung of the #0 BB-HYGIENE LADDER. The 358-line `bb_seq.cpp` carried THREE distinct four-port shapes selected
