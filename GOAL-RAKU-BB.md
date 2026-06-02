@@ -11,9 +11,16 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `bb_pat_span.cpp` (looping). **Recipe:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
 - **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
   — first to reach a combinator designs it once in the RULES-DRAFT.
-- **YOUR BOXES:** `bb_rk_gather`, `bb_nfa`. Start with `bb_rk_gather`; **`bb_nfa` likely needs the STILL-OPEN
-  variable-length idiom** — if so, design it once in the RULES-DRAFT (you may be the first to reach it) rather than
-  improvising locally. The single-loop scaffolding (internal labels + ζ-frame) is already landed for the simpler path.
+- **YOUR BOXES:** `bb_rk_gather` ✅ (converted to `x86()` self-encoding 2026-06-02, Opus 4.8 — see Watermark),
+  `bb_nfa` (NEXT). The `bb_nfa_*` leaf boxes are DORMANT (the `~~` path runs on the C matcher); they are
+  loop-free single-shot leaves except a future SPLIT choice-point — so most convert like POS, and **`bb_nfa`'s
+  variable-length need (if any) is SHELVED with leaf-emission per the TIER-SEAM decision**. Start with the
+  loop-free NFA leaves when leaf-emission is un-shelved; the variable-length combinator idiom (STILL-OPEN) is
+  only needed for the subrule seam (RK-GRAM-3), not the dormant leaves.
+- The single-loop scaffolding (internal labels `L(n)` + ζ-frame `FR(off)`/`FRQ(off)` + `bb_slot_claim`) is
+  landed and PROVEN by the `bb_rk_gather` conversion (its chk loop uses `L(0)`; cursor + result DESCR ride the
+  ζ-frame). New GATHER-tier encoders added to `x86_asm.h` (additive): `x86_cmp_imm64`, `x86_load_indexed8`,
+  `x86_frame_inc64` — all byte-verified vs `as`.
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
@@ -453,7 +460,9 @@ prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arm
   - **RK-EMIT-GATHER LANDED (2026-06-01, Opus 4.8) — m3 17→18/22, m4 17→18/22; the 4 map/grep rungs now LOUDLY
     EXCISE (not abort):** `gather_take` (`for gather { take 10;take 20;take 30 } -> $v {…}; say('done')` → `10,20,30,done`)
     emits real native x86 in BOTH modes via the NEW `bb_rk_gather.cpp` (`IR_GATHER`), the first genuinely Raku-only
-    `bb_rk_*` template. It is a yield-then-advance counted pump over the take literals (extracted at EMIT time → sealed
+    `bb_rk_*` template. **[REVAMPED 2026-06-02, Opus 4.8: `bb_rk_gather` converted to the `x86()` self-encoding API
+    — pBB-free x86 arm, ζ-frame cursor (was `&pBB->state` movabs), no `bb_bin_t`, no `b.size()`; behavior byte-identical
+    by `git stash` diff. See Watermark.]** It is a yield-then-advance counted pump over the take literals (extracted at EMIT time → sealed
     RO data, NO runtime bb-walking), writing each element as a DT_I DESCR into its own ζ slot (NO value stack); the
     resume cursor is `&pBB->state` (m3) / a `.data` quad (m4). **α does NOT reset** — the flat-chain BFS routes the
     for-loop body's re-pump back-edge to the box's α (never β), so α advances from `.state` (calloc zero-init ⇒ correct
@@ -555,6 +564,64 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 ---
 
 ## Watermark
+
+**CHECKPOINT (2026-06-02, Opus 4.8) — bb_rk_gather → `x86()` self-encoding (TEMPLATE-REVAMP, first Raku-owned box converted).**
+The #0-priority `x86()` template-revamp lands its first Raku box. `bb_rk_gather.cpp` (`IR_GATHER`, the Raku
+`gather { take … }` resumable Seq producer) is rewritten from the old two-divergent-arm form (hand-coded
+`MEDIUM_BINARY` byte map with literal offsets + separate `MEDIUM_TEXT` GAS + an in-process `&pBB->state`
+cursor movabs + a `.data` quad) into the unified `x86()` self-encoding API per RULES-DRAFT R1–R13: **ONE return
+per `PLATFORM_*`, pure `x86(mnem,…)` concat, NO `bb_bin_t`, medium invisible, and pBB-FREE in the x86 arm**
+(`pBB` is read ONLY in the extern wrapper to gather the emit-time take literals; the `bb_rk_gather_str()` x86
+arm references only `_` + pure parameterless accessors). KEY MOVES: (1) the resume **cursor moved from the
+in-process `&pBB->state` movabs (mode-3-only, broke mode-4 relocatability) into the ζ-frame `[r12+cursoff]`**
+via `bb_slot_claim(8)` — register-relative ⇒ **BINARY==TEXT** (the `.data` quad is GONE); (2) the yielded
+16-byte DT_I DESCR result slot stays NODE-KEYED via `bb_slot_alloc16(pBB)` so the consumer (`bb_assign` GZ-7)
+still recovers it with `bb_slot_get(gather_node)` — both slots bump the SAME `g_flat_slot_count` so offsets
+never collide; (3) the chk loop uses internal label `L(0)` (the landed keystone idiom — TEXT name `.Lx<uid>_0`
+via `x86_begin()`, BINARY a walker-allocated box-local label); (4) the take literals stay RO data — `.rodata`
+`.quad` table reached `lea[rip+label]` in TEXT (emitted as MEDIUM_TEXT-guarded directives before the code so
+the BINARY record walker never sees them), the in-process buffer movabs'd via `x86_load_ro` in BINARY (the
+sanctioned R10 medium-specific carve-out, same as every RO load). NO value stack (`g_vstack`=0; the ζ-frame
+cursor + result are PER-BOX LOCAL STORAGE, not a stack), NO `b.size()` (the box has ZERO function-byte-counter
+sites — it never did, but it now also has zero `bb_bin_t`), NO neighbor reads. **THREE NEW ENCODERS in the
+SHARED `x86_asm.h` (ADDITIVE — placed after the `FRQ` 64-bit ζ-frame helpers so their `x86_r12_modrm`/
+`x86_frame_text_mem` deps are in scope; each BYTE-VERIFIED vs `as`/`objdump`):** `x86_cmp_imm64` (`cmp r64,imm`
+— `48 83 /7` imm8 / `48 81 /7` imm32), `x86_load_indexed8` (`mov r64,[base+idx*8]` — `48 8B /r` SIB ss=3), and
+`x86_frame_inc64` (`inc qword [r12+off]` — `49 FF /0` r12-SIB), plus their three `x86(...)` front-end overloads
+(`"cmp64"`, the 3-`const char*` indexed-load form, the `x86_frameq`-only `inc` form). **BEHAVIOR-NEUTRAL,
+proven by `git stash` baseline diff:** the `gather_take` program (`for gather { take(10);take(20);take(30); }
+-> $v { say($v) }; say("done")` → `10/20/30/done`) produces **byte-identical output in BOTH mode-3 AND mode-4**
+on the converted tree vs the old hand-coded tree (m3 diff empty, m4 diff empty). The non-jump BINARY bytes were
+cross-checked against `as` on the isolated TEXT body and AGREE exactly (`mov rcx,[r12+16]`=`49 8b 4c 24 10`,
+`cmp rcx,3`=`48 83 f9 03`, `mov rsi,[rdx+rcx*8]`=`48 8b 34 ca`, `mov qword[r12+0],6`=`49 c7 04 24 06…`,
+`mov [r12+8],rsi`=`49 89 74 24 08`, `inc qword[r12+16]`=`49 ff 44 24 10`); jumps differ only as the sanctioned
+BINARY-rel32-vs-TEXT-named-label medium split (R10). The box's α is its first emitted byte (no `D` PORT_ALPHA
+record) exactly like the converted reference `bb_pat_pos` — the predecessor flat-chain edge lands there.
+**FINAL THREE-MODE STATE (UNCHANGED from pre-conversion — this is a pure mechanism rewrite): Raku m2 25/25
+(HARD ✓) · m3 21 PASS / 0 FAIL / 4 EXCISED · m4 21 PASS / 0 FAIL / 4 EXCISED.** Peers UNCHANGED: **Icon
+12/12/12**, **SNOBOL4 7/7 m2 · 5 m3 · 0 m4**. Gates green: **prove_lower2 67/0** (unchanged — no new topology,
+emitter-only rewrite), **audit_concurrency_invariants OK** (FACT RULES byte-identical x3/x4; the EMITTER
+one-dispatch + no-stray-bytes invariants hold — `emit_core.c` dispatch + `bb_templates`-style decl UNCHANGED),
+**no-vstack `g_vstack`=0**, **no-handencoded-bytes: bb_rk_gather has ZERO `b.size()`**. NOTE on template-purity:
+the count DROPPED **8→7** because the FLAT-take fall-loud `abort()` moved from the template `_str` body into the
+extern wrapper (the audit scans template bodies) — this is an IMPROVEMENT, the audit still passes
+(`PURITY_BASELINE=8`, count 7 ≤ 8); I LEFT the baseline at 8 (no speculative tightening — a future session or
+HQ may lower it to 7 to capture the gain). Files: `src/emitter/BB_templates/bb_rk_gather.cpp` (rewritten),
+`src/emitter/BB_templates/x86_asm.h` (3 additive encoders + 3 front-end overloads). No Makefile / dispatch /
+decl change (the box was already wired). **SCRIP HEAD: `d34faa0`** (rebased + PUSHED onto peer base `acea982`
+= PROLOG PL-RV-3 `bb_conj`+`bb_ite`→`x86()` via the new SHARED `x86_pair_loop()` variable-length combinator
+primitive; the keystone `24b9c78` + `a1779e6`/`3769d21` internal-label + ζ-frame are in history. NO file overlap
+with my `bb_rk_gather.cpp`; we BOTH additively extended `x86_asm.h` (my 3 GATHER-tier encoders vs the peer's
+`x86_pair_loop` + `E`/`F` pair-index records — different functions, clean auto-merge). Combined tree re-verified
+green: Raku 25/21/21, Icon 12/12/12, SNOBOL4 7/5/0, prove_lower2 67/0, concurrency OK — no cross-session
+regression).
+**NEXT:** `bb_nfa` (the other Raku-owned revamp box) — but its leaf templates are DORMANT and leaf-emission is
+SHELVED per the TIER-SEAM decision, so the practical Raku revamp work after this is either (a) un-shelving the
+loop-free NFA leaves (convert like POS) if leaf-emission is reopened, or (b) **RK-HY-3/4** (the BB-HYGIENE
+ladder: `bb_call.cpp` Raku arms travel to `bb_call_rk.cpp` WHEN Icon runs ICN-HY-2 — still blocked on Icon; then
+de-dup + RT-fix across all Raku boxes). Still DEFERRED: the lockstep "three → four" FACT-RULE roster expansion.
+
+---
 
 **CHECKPOINT (2026-06-02, Opus 4.8) — RK-HY-2: bb_nfa.cpp de-crammed into one-box-one-file leaf templates.**
 Second rung of the #0 BB-HYGIENE LADDER. The 222-line `bb_nfa.cpp` co-located NINE distinct ISOLATED IR_NFA_*
