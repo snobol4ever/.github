@@ -495,7 +495,8 @@ bash scripts/test_smoke_unified_broker.sh      # PASS>=25
 cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
-bash scripts/test_smoke_icon.sh                # PASS=5
+make libscrip_rt                               # mode-4 needs out/libscrip_rt.so — NOT built by build_scrip.sh; without it ALL m4 compiles silently link-fail (m4 1 vs 22). Verified 2026-06-02.
+bash scripts/test_smoke_icon.sh                # m2 12/12 · m3 12/12 · m4 12/12 (m4 only after libscrip_rt above)
 bash scripts/test_smoke_prolog.sh              # PASS=5
 bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 ```
