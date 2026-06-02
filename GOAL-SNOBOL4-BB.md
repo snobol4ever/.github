@@ -1,6 +1,104 @@
 # GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
-## ▶ CURRENT PRIORITY — READ FIRST (2026-06-02): x86() TEMPLATE-REVAMP
+## 🔴🔴 ACTIVE RUNG — READ FIRST (Lon PIVOT 2026-06-02): LANGUAGE-INDEPENDENT EMITTER + RUNTIME (de-name) + COMMENT PURGE
+
+**The EMITTER and RUNTIME are LANGUAGE-INDEPENDENT. Make it so.** Every emitter box, every runtime helper, every
+IR-facing name is named by its **computer-science / industry-standard concept**, NOT by the source language that
+happens to exercise it. Strip every language tag — `SNO`/`sno`, `ICN`/`icn`/`Icon`, `PL`/`pl`/`prolog`,
+`RAKU`/`raku`/`RK`/`rk`, `REB`/`rebus` — from `src/emitter` and `src/runtime`, **including in comments**.
+**WHY:** to remove the confusion. A session reads `sno_flat_chain_build` while working Icon, sees `sno`, concludes
+"that's the other language, I'll write a new one," and **duplication goes rampant**. One concept → one name → one
+implementation. (Scope: `src/emitter/**` + `src/runtime/**`. FRONTEND `src/frontend/**` is OUT OF SCOPE — language
+identity legitimately stops at the parser. The LI-0 comment purge is repo-wide across ALL `src`.)
+
+### ⛔ COMMENT POLICY (Lon, verbatim 2026-06-02) — THERE IS EXACTLY ONE COMMENT
+**The ONLY comment permitted in ANY SCRIP source is the LINE-BREAK separator** — `/*` + dashes + `*/`, **120
+characters long**, placed **between every function and every major block of source**. **`/*=====*/`** (equals,
+also 120 chars) is the variant used to separate LARGER files / larger sections. **Nothing else.** No block comment
+above a function, no inline comment, no `//`, no prose — **None. Zip. Zero.** (This SUPERSEDES the RULES.md line
+"Block comments above function, after separator" and corrects the separator length **200 → 120**; RULES.md updated
+in lockstep with LI-0.)
+
+### 🔢 THE LISTING (Lon's "first item") — language-tagged surface in EMITTER + RUNTIME (snapshot SCRIP `707b284`)
+- **Filenames** are nearly clean already (prior de-SNO + Ground-Zero rename did the bulk). The ONLY true
+  language-tagged filename is `src/emitter/BB_templates/bb_rk_gather.cpp` (`rk`=Raku). (`xa_prologue.cpp` is the
+  assembly **prologue** — CS-standard term, NOT Prolog; not a hit.) No runtime filename hits.
+- **In-file token occurrences** (emitter / runtime): SNO 109/483 · ICN 156/175 · PL 165/393 · RAKU·RK 75/231 ·
+  REB 0/2.
+- **Distinct EMITTER identifiers:** `IR_SNO_PROG` · `SM_BB_PL_INVOKE` · `RK_GATHER_MAX_TAKES` · `XA_PL_BUILDER`/
+  `_KIDS_RODATA`/`_REGISTRY_TABLE`/`_SEQ_DRIVE`/`_SUB_BUILDER` · `__rk_arr`/`__rk_jct_` · `bb_rk_gather`(`_str`) ·
+  `codegen_pl_callee_block`/`codegen_pl_program`/`codegen_sno_flat_chain_body` · `flat_drive_alt_icn`/
+  `flat_drive_icn_userproc`/`flat_drive_pl_alt`/`flat_drive_pl_choice`/`flat_drive_pl_ite`/`flat_drive_pl_seq` ·
+  `g_icn_call_args`/`g_icn_flat_chain` · `hdr_has_pl_reg` · `icn_chain_arity`/`icn_chain_operand_refs`/
+  `icn_flat_chain_build`(`_text`/`_proc`/`_proc_text`)/`icn_proc_`/`icn_ring_to_tree` · `pl_rich_body_root` ·
+  `reg_pl_count` · `rk_marshal_call_arg` · `rt_icn_arg_stage`/`rt_icn_call_proc_descr`/`rt_icn_size_d` ·
+  `rt_pl_arith`/`rt_pl_catch`/`rt_pl_choice_cut_unwind`/`rt_pl_compound_build_n`/`rt_pl_cut_set`/
+  `rt_pl_node_to_term`/`rt_pl_trail_*`/`rt_pl_unify_const`/`rt_pl_unify_terms` · `rt_rk_call_arr` ·
+  `sno_chain_arity`/`_is_real`/`_operand_refs`/`_prebuild_children`(`_text`)/`_resolve` · `sno_flat` ·
+  `sno_flat_chain_build`(`_text`) · `sno_prog_t`/`sno_stmt_t`/`sno_stmt_operand_refs`/`sno_ring_to_tree` ·
+  `v_raku_gather` · `test_sno_*` (doc refs).
+- **Distinct RUNTIME identifiers** (EXCLUDING `core/` SNOBOL-lib + snocone): `ICN_CALL_ARGS_MAX`/`ICN_CASE_EQ`/
+  `ICN_GEN_STATE_BASE`/`ICN_NULL`/`ICN_PROC_FRAME_DEPTH`/`_QWORDS`/`ICN_SCAN_PUSH`/`POP`/`ICN_SWAP_TOP2`/
+  `RT_ICN_PROC_MAX`/`descr_to_str_icn`/`g_icn_proc_arena`/`_depth`/`icn_cset_canonical`/`complement`/`diff`/
+  `inter`/`union`/`rt_icn_*` · `PL_BUILTIN`/`RT_PL_MARK_STACK_MAX`/`STAGE2_PL_PRED_TABLE_SIZE`/
+  `DRIVER_PL_RUNTIME_H`/`current_prolog_flag`/`g_pl_last_ok`/`interp_exec_pl_builtin`/`is_pl_user_call`/`pl_*`
+  (`arg`/`assert_term`/`box_choice`/`box_goal_from_ir`/`functor`/`output_str`/`runtime`/`term_to_string`/
+  `unify_atom`/`univ`/`var_bind`/`write`/`write_canonical`/`writeq`) · `RAKU_BUILTINS_H`/`RK_GRAM_MAX`/`RK_NFA_BB`/
+  `Raku_match`/`Raku_nfa`/`g_raku_match`/`_subject`/`raku_nfa_*`/`raku_re`/`raku_try_call_builtin_by_name`/
+  `__rk_*` · `SNO_BB_BOXES_WASM`/`SNO_RUNTIME_WASM`/`emit_wasm_prolog`. Plus `src/runtime/interp/` (the
+  language-interpreter layer: `gen_runtime`/`scan_builtins`/`script_builtins*`/`resolve_runtime`) — de-name by CS
+  concept (generator/scanner/resolver/builtin-table), resolving the `gen_` vs emitter-`bb_*` collisions flagged in
+  `HANDOFF-2026-05-31-OPUS48-GROUND-ZERO-COMMENT-PURGE.md`.
+
+### ⛔ EXCLUSIONS — NOT language-as-shared-layer naming; do NOT strip (carried from the SNOBOL DE-NAME ladder)
+1. **`IR_LANG_SNO`/`IR_LANG_ICN`/`IR_LANG_PL`/`IR_LANG_RAKU` (+ bare `LANG_SNO`/`LANG_ICN`/`LANG_RAKU`).** The
+   shared lowerer + shared emitter dispatch branch on this (`switch (cx.lang)`); it NAMES the language the shared
+   layer must know — NOT a per-language box/helper. **KEEP.**
+2. **Snocone is a DIFFERENT language; `sno` ⊂ `snocone`.** `snocone`/`_snoc_*` (incl. `eval_pat.c`'s `_snoc_pat_*`)/
+   `snoch`/`snotypes` — stripping `sno` CORRUPTS them. **KEEP (no blanket `sno` sed).**
+3. **`src/runtime/core/` SNOBOL runtime LIBRARY** (`SNO_INIT_fn`/`SnoRt`/`SnoSaveEnt`/`SNO_LIB`/`SNO_SAVE_MAX`/
+   `_sno_fail`/`g_sno_save`) — the SNOBOL execution model; stripping yields vague/colliding names. **SEPARATE
+   DECISION (LI-CORE, flag for Lon); do AFTER the unambiguous surface.**
+4. `prologue`/`epilogue` (assembly terms, not Prolog); `src/frontend/**` (out of scope).
+
+### 🪜 THE LADDER (gated; lowest first; build GREEN + m2 HARD invariant after EACH slice — name/comment edits are behavior-neutral BY CONSTRUCTION, so ANY gate delta = a real bug)
+- [ ] **LI-0 — STRIP ALL COMMENTS, repo-wide (step 1, absolute).** `scripts/strip_comments.py` (WRITTEN; string/
+  char-literal aware; excludes the 12 generated flex/bison files `*.lex.c`/`*.tab.c`/`*.tab.h`/`lex.*.c`).
+  Removes every `/* */` + `//`; KEEPS the line-break separators and NORMALIZES each to the 120-char canonical form
+  (`/*` + 116 `-` + `*/`, or `=` for major). Dry-run @ `707b284`: **274 files, 126 change, −3081 lines** (the `.c`/`.h`
+  were stripped 2026-05-31; the `.cpp` emitter tree + newly-commented files are the delta). Then update RULES.md C
+  style (separator 200→120; "one comment = the separator", drop "block comments above function"). Gate: build rc=0,
+  m2 7/7 HARD byte-identical. COMPLETION: zero non-separator comments under `src/**` (excl. generated).
+- [ ] **LI-1 — FILENAME de-name (emitter):** `bb_rk_gather.cpp` → a non-language CS name (⚠ `bb_seq_gather.cpp`
+  already exists — confirm distinct concept, pick non-colliding names or fold). `git mv` + Makefile + includes +
+  dispatch. Gate.
+- [ ] **LI-2 — CHAIN/DRIVE family (emitter), the most confusion-prone (Icon/SNOBOL twins) — DO FIRST of the symbol
+  slices.** `sno_flat_chain_build`/`icn_flat_chain_build`/`flat_drive_pl_seq`/`flat_drive_alt_icn`/
+  `flat_drive_icn_userproc` → ONE flat-wired-BB-sequence driver vocab (`flat_chain_build`, `flat_drive_seq`/`_alt`/
+  `_userproc`, `chain_arity`/`_operand_refs`/`_resolve`, `g_flat_chain`). `*_ring_to_tree`→`ring_to_tree`.
+  `sno_prog_t`/`sno_stmt_t`→`prog_t`/`stmt_t` (⚠ grep `stmt_t` collision first). `IR_SNO_PROG`→`IR_PROG`.
+- [ ] **LI-3 — Unification / trail / term (runtime, Prolog-tagged but general CS):** `rt_pl_unify_*`→`rt_unify_*`,
+  `rt_pl_trail_*`→`rt_trail_*` (WAM-standard "trail"), `rt_pl_compound_build_n`/`rt_pl_node_to_term`→
+  `rt_term_build_n`/`rt_node_to_term`, `pl_functor`/`pl_univ`/`pl_var_bind`→`functor`/`univ`/`var_bind` (⚠ collisions).
+- [ ] **LI-4 — Generator / scanner / cset (runtime, Icon-tagged but general CS):** `rt_icn_*`→`rt_*`,
+  `icn_cset_*`→`cset_*` (charset algebra), `ICN_SCAN_PUSH`/`POP`/`SWAP_TOP2`/`GEN_STATE_BASE`→de-tagged.
+- [ ] **LI-5 — NFA / junction (runtime, Raku-tagged but textbook CS):** `raku_nfa_*`→`nfa_*` (Thompson), `RK_NFA_BB`/
+  `RK_GRAM_MAX`→de-tagged, `__rk_jct_*`→`jct_*`, `rt_rk_call_arr`→`rt_call_arr`.
+- [ ] **LI-6 — emitter PL/RK macros + WASM/JS/JVM stubs:** `XA_PL_*`→builder/registry CS names, `SM_BB_PL_INVOKE`→
+  `SM_BB_INVOKE` (⚠ SM-zero rule), `RK_GATHER_MAX_TAKES`→`GATHER_MAX_TAKES`, `SNO_*_WASM`/`emit_wasm_prolog`→de-tagged
+  (`emit_wasm_prologue` = assembly prologue).
+- [ ] **LI-CORE — `src/runtime/core/` SNOBOL-lib — FLAG / Lon decision (DO LAST).** Runtime-unification question;
+  surface to Lon, no blanket sed.
+- [ ] **LI-FENCE — the zero-language gate.** `scripts/test_gate_no_lang_names.sh`: across `src/emitter`+`src/runtime`
+  the language-token grep returns ONLY the EXCLUDED set (IR_LANG_*/snocone/prologue·epilogue/the LI-CORE-pending
+  SNOBOL-lib). Wire into Session Setup. COMPLETION (rung): gate green modulo exclusions; every box/helper named by
+  its CS concept; build + behavioral gates invariant throughout.
+
+**Tooling ready:** `scripts/strip_comments.py` (dry-run/apply; spot-checked literal-safe). **First incomplete step =
+LI-0.** (The x86() TEMPLATE-REVAMP sub-track below remains valid and continues after the cleanup; a de-name does not
+change the BB/SM/XA template ladder, only its names.)
+
+## ▶ x86() TEMPLATE-REVAMP — sub-track (continues after the cleanup rung above; 2026-06-02)
 
 Convert this language's BB templates to the **`x86()` self-encoding API** (one return per `PLATFORM_*`, pure
 `x86(mnem,…)` concat, no `bb_bin_t`, pBB-free). The shared looping-box **keystone is LANDED at SCRIP
