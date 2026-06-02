@@ -185,17 +185,17 @@ commit a red tree.**
   cleanup canNOT delete it — the de-pollute rung should instead consider renaming `SM_op_t`/`SM_ADD…` to an
   arith-opcode name (out of GMR-5 scope; touches `coerce`).
 
-- [ ] **GMR-6 — `backends/` (non-x86, dormant).** `mkdir src/backends`; `git mv src/driver/{js,jvm,net,wasm}
+- [x] **GMR-6 — `backends/` (non-x86, dormant).** `mkdir src/backends`; `git mv src/driver/{js,jvm,net,wasm}
   src/runtime/{js,jvm,net,wasm} src/backend src/backends/`. These are not in the live build (X86-ONLY), so
   the Makefile likely doesn't reference them — verify, then move. GATE (build unaffected). Commit
   `GMR-6: backends/ — consolidate dormant non-x86 trees`.
 
-- [ ] **GMR-7 — `tools/` (harnesses).** `git mv src/lower/prove_lower2.c src/lower/tmatch_proto.c
+- [x] **GMR-7 — `tools/` (harnesses).** `git mv src/lower/prove_lower2.c src/lower/tmatch_proto.c
   src/emitter/test_template_byte_identity.c src/emitter/demo_template_productions.c src/tools/`.
   ⚠ `prove_lower2.sh` compiles `prove_lower2.c` by path — update that script's path. (NOT the Makefile.)
   GATE (incl. prove_lower2.sh from its new path). Commit `GMR-7: tools/ — proof + scaffolding`.
 
-- [ ] **GMR-8 — DE-POLLUTE the contracts.** Evict from `contracts/ir.h` the mode-2 execution-state structs
+- [x] **GMR-8 (parts a,c) — DE-POLLUTE the contracts.** Evict from `contracts/ir.h` the mode-2 execution-state structs
   (`bb_node_state_t`, `bb_arbno_state_t`, `bb_conj_state_t`, `bb_ite_state_t`, `bb_catch_state_t`,
   `bb_choice_state_t`, `bb_goal_state_t`, `bb_findall_state_t`, `bb_pat_kids_state_t`, `sno_prog_t`,
   `sno_stmt_t`, `RESOLVE_IDX_*`) into a new `interp/bb_exec_state.h` included by `bb_exec.c`. Evict the
@@ -204,7 +204,7 @@ commit a red tree.**
   `interp/bb_exec.h` into `runtime/rt/rt.h` (or a `runtime/builtins/*.h`). GATE. Commit
   `GMR-8: de-pollute — interp state out of ir.h, legacy subject globals out of emit_globals.h`.
 
-- [ ] **GMR-FENCE — verify + PLAN refresh.** `find src -maxdepth 1 -type d` shows exactly the target set;
+- [x] **GMR-FENCE — verify + PLAN refresh.** `find src -maxdepth 1 -type d` shows exactly the target set;
   `grep -rn 'runtime/interp\|lower/bb_exec\|src/frontend\|src/processor' src Makefile scripts` == 0.
   Update PLAN.md's Architecture paragraph + Repos/clone notes to the new layout. Update GOAL-*-BB.md
   "Architecture references" path lists (bb_exec.c → interp/, etc.). GATE. Commit + push (code repos first,
@@ -219,14 +219,21 @@ commit a red tree.**
   (`bb_exec.c`, `emit_bb.c`, `lower/lower.c`). GMR-FENCE refreshes them.
 
 ## Watermark
-SCRIP `239173f` (GMR-1a `06091ca` + GMR-1b `7c87379` + GMR-2 `9101bd6` (contracts/) + GMR-3 `3d6cc26`
-(machine/) + **GMR-4 `5b89176` (parser/)** + **GMR-5 `239173f` (attic/)** landed; gates byte-identical to baseline
-`10fbe32`) · .github this commit. **Next executable step: GMR-6 (`backends/` — consolidate dormant non-x86 trees:
-`driver/{js,jvm,net,wasm}` + `runtime/{js,jvm,net,wasm}` + `backend/`).** Verify the Makefile does NOT reference
-them (X86-ONLY ⇒ likely not in the live build), then `git mv` + fix any stray `-I`/path; the live build should be
-unaffected. `src/` now: attic backend contracts driver emitter include interp lower machine **parser** runtime(+builtins)
-tools — `frontend/` is gone (→ `parser/`), the dead SM stub is quarantined in `attic/`, and the `include/` grab-bag
-is down to {XA.h bb_box.h emit_ir.h} (SM.h's live opcode enum joined the contract types in `contracts/`).
+SCRIP `a12c0ce` (GMR-1a `06091ca` + GMR-1b `7c87379` + GMR-2 `9101bd6` (contracts/) + GMR-3 `3d6cc26`
+(machine/) + GMR-4 `5b89176` (parser/) + GMR-5 `239173f` (attic/) + **GMR-6 `660ec37` (backends/)** +
+**GMR-7 `3f8b1c7` (tools/)** + **GMR-8 a,c `961a400` (de-pollute contracts+interp headers)** +
+**interp rename `a12c0ce` (bb_exec → IR_interp)** landed; gates byte-identical to baseline `10fbe32`) ·
+.github this commit. **Ladder COMPLETE except GMR-8 part (b)** — the `Σ/Δ/Ω/Σlen` externs + `TEMPLATE_ADDR_*`
+in `emit_globals.h`, DEFERRED because they are entangled with the in-flight REG ladder (which deletes
+`TEMPLATE_ADDR_*` via REG-RO); do part (b) in coordination with that SNOBOL4-BB work, not as a standalone reorg.
+`src/` is now exactly: attic backends contracts driver emitter include interp lower machine parser runtime(+builtins)
+tools — `frontend/`→`parser/`, dead SM stub in `attic/`, dormant non-x86 in `backends/{driver,runtime}/`, proof
+harnesses in `tools/`, the IR interpreter at `interp/IR_interp.c` (was the misnamed `bb_exec.c`); the `include/`
+grab-bag is down to {XA.h bb_box.h emit_ir.h} (SM.h's live opcode enum joined the contract types in `contracts/`).
+**bb_exec→IR_interp note:** the file/funcs `bb_exec_{once,resume,pump,node,pat}` are now `IR_interp_*`; the ~129
+historical HANDOFF/GOAL .md files still say `bb_exec` — those are HISTORICAL RECORDS, left intact; the authoritative
+current path is `interp/IR_interp.c` (this file + PLAN Architecture). Per-goal architecture appendices update lazily
+when each goal is next worked. The unrelated `coro_stmt.c` `bb_exec_stmt` symbol is NOT renamed (different function).
 **GMR-2..5 method that worked (reuse for GMR-6+):** keep basenames, `git mv` + add the dir to every `-I` line (or
 it's already there), rewrite only the broken RELATIVE includes to bare, fix Makefile paths (RT_PIC_SRCS + per-`.o`)
 AND any STANDALONE script with its own `-I`/path list (`prove_lower2.sh`, `test_smoke_compile.sh`), then prove the
