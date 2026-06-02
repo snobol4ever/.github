@@ -160,6 +160,79 @@ byte-identical across the five GOAL-*-BB files once folded in.
 
 ---
 
+## ⛔ FACT RULE — `bb_bin_t` IS ABOLISHED; PATCH METADATA TRAVELS IN-BAND (Lon directive 2026-06-02)
+
+**The `bb_bin_t { sites, labels, is_def, bytes }` struct and `bb_emit_asm_result(out, bin)` are DELETED. No
+box may name `bb_bin_t`, declare a `bb_bin_t bin`, or call `bb_emit_asm_result`.** The struct was the carrier
+for a hand-counted/ FUNCTION-counted patch-offset table — the `bin.sites.push_back((int)b.size())` idiom that
+is invalid: it computes a patch offset with `b.size()` (a function of the running buffer) instead of letting
+the position be DISCOVERED. That idiom is the exact nonsense the revamp kills, and the strongest way to kill
+it is to remove the type so the idiom does not COMPILE (the same enforcement-by-deletion as the `pBB`-removal
+rule — a grep gate is unnecessary when the compiler rejects it).
+
+**THE ONE WAY: every BB template returns ONE concatenation of `x86(...)` calls and is emitted by
+`bb_emit_x86(out)`.** Patch sites are TAGGED RECORDS inside that string (`L` literal bytes / `J` rel32-to-port
+/ `D` define-port / internal-label `L(n)` / pair-loop `E`/`F`); `bb_emit_x86` walks them and DISCOVERS each
+byte position as it copies. There is NO separate offset list, so NOTHING can drift and no function ever counts
+bytes. (This SUPERSEDES the earlier "TWO LITERAL FORMS ONLY" framing for the BINARY arm: the hand-coded literal
+byte map with a literal offset tuple was a *transitional* form; the in-band record stream is the END form, and
+it is what the `b.size()` ledger was driving toward — the ledger reaches zero when the last `bb_bin_t` user is
+converted, not by rewriting offset tuples by hand.)
+
+**FORBIDDEN:** `struct bb_bin_t`, `bb_bin_t bin`, `bb_emit_asm_result(...)`, `bin.sites`/`bin.labels`/
+`bin.is_def`, and `(int)b.size()` (or any `.size()` of a running byte buffer used as a patch offset) anywhere
+in `src/emitter/BB_templates/`, `XA_templates/`, or `emit_str.*`. **ALLOWED / REQUIRED:** `bb_emit_x86(out)`;
+the `x86(...)` front-end and the `x86_*` encoders in `x86_asm.h`; the in-band records they emit. The carve-out
+for `bb_emit_asm_result` walking a finished string is GONE — that function no longer exists.
+
+**ENFORCEMENT:** structural (the compiler) — `bb_bin_t` is not declared anywhere, so any use fails to compile.
+Plus a one-line gate `scripts/test_gate_no_bb_bin_t.sh`: `grep -rn 'bb_bin_t\|bb_emit_asm_result' src/emitter/`
+== 0. **COMPLETION TEST:** (a) `emit_str.h` declares neither `bb_bin_t` nor `bb_emit_asm_result`; (b) the gate
+reads zero; (c) every BB template is emitted via `bb_emit_x86`; (d) `make scrip` + `make libscrip_rt` rc=0
+(the build comes back once every consumer is converted); (e) this FACT RULE body is byte-identical across the
+five GOAL-*-BB files once folded in.
+
+## ⛔ FACT RULE — ONE MEDIUM, INVISIBLE: NO `IF(MEDIUM_BINARY,…)` INSTRUCTION BRANCH, NO RAW-BYTE PRODUCER IN A TEMPLATE (Lon directive 2026-06-02)
+
+**A template NEVER writes an instruction twice — once as GAS text, once as raw bytes — and NEVER branches on
+the medium to pick between them.** The forbidden shape (the exact nonsense this rule kills):
+```
+  + IF(MEDIUM_TEXT,  std::string(" mov rbx, rsp\n"))      // same instruction…
+  + IF(MEDIUM_BINARY, x86_Lrec(x86_b3(0x48, 0x89, 0xE3))) // …written a second time as bytes
+```
+Every instruction goes through ONE `x86(mnem, …)` call; the encoder switches medium INTERNALLY, so the
+template body is identical for BINARY and TEXT and a reader cannot tell which medium is active (R2 made into a
+FACT RULE). If an instruction has no `x86()` form yet, ADD an encoder + dispatch case to `x86_asm.h` (one
+place, byte-verified vs `as`) — NEVER hand-encode it inline in the template. The missing encoder is the bug;
+the medium-branch is the symptom.
+
+**FORBIDDEN inside `src/emitter/BB_templates/*.cpp`:** the raw-byte producers `x86_Lrec`, `x86_Jrec`,
+`x86_Drec`, `x86_b1(`, `x86_b2(`, `x86_b3(`, `bytes(`, `u8(`, `u32le`, `u64le`; and any `IF(MEDIUM_BINARY, …)`
+or `IF(MEDIUM_MACRO_DEF, …)` carrying instruction bytes. Those record/byte primitives are PRIVATE to
+`x86_asm.h` (the encoders' implementation) — a template only ever sees the `x86(...)` front-end + the markers
+(`L(n)`, `FR(off)`, `FRQ(off)`, `PORT_*`).
+
+**ALLOWED carve-out — TEXT-ONLY ANNOTATIONS THAT HAVE NO BYTE FORM:** a box's leading `α:` label
+(`s_1asm(std::string(_.lbl_α)+":")`) and human comments (`s_comment(...)`) legitimately exist only in the GAS
+arm, so wrapping THOSE in `IF(MEDIUM_TEXT, …)` is fine (they emit nothing in BINARY and carry no instruction).
+The line is: `IF(MEDIUM_TEXT, <comment-or-label>)` with NO matching `IF(MEDIUM_BINARY, <bytes>)` is OK; an
+`IF(MEDIUM_TEXT,<gas-instruction>) + IF(MEDIUM_BINARY,<bytes>)` PAIR is the violation. Non-x86 platform arms
+(JVM/JS/NET/WASM) are out of scope (X86 ONLY for now) and keep their `s_*asm` text.
+
+**ENFORCEMENT:** mostly structural — the record/byte producers can be made `static`/file-private to
+`x86_asm.h` so a template that names them fails to compile (future hardening). Until then, a gate
+`scripts/test_gate_template_medium_invisible.sh`: in `BB_templates/*.cpp`, `grep` for `x86_Lrec`, `x86_b1(`,
+`x86_b2(`, `x86_b3(`, `bytes(`, `u32le`, `u64le`, `IF(MEDIUM_BINARY`, `IF(MEDIUM_MACRO_DEF` → must read zero;
+`IF(MEDIUM_TEXT` is allowed ONLY when the argument is `s_comment(`/`s_1asm(`-label (no instruction).
+**COMPLETION TEST:** (a) zero raw-byte producers and zero `IF(MEDIUM_BINARY,…)`/`IF(MEDIUM_MACRO_DEF,…)` in any
+`BB_templates/*.cpp`; (b) every instruction emitted via an `x86(...)` call; (c) the gate green and in the
+Session-Setup gate list; (d) this FACT RULE body byte-identical across the five GOAL-*-BB files once folded in.
+
+(NOTE — this rule, the `bb_bin_t`-ABOLISHED rule, and the no-`pBB`/`_.node` rule are three faces of ONE end
+state: a converted box is pure `x86()` concatenation reading only `_`. A box that still hand-encodes bytes also
+still carries `bb_bin_t` and still branches on the medium; converting it to `x86()` clears all three at once.
+The three gates therefore reach zero together, box-by-box, as the revamp completes.)
+
 ## WORKED EXEMPLARS (copy these)
 
 - **Conformant boxes (this session), all `pBB`-free end-to-end (fn/wrapper/prototype/dispatch all `void`):**

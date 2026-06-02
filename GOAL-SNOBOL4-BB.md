@@ -24,6 +24,75 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
 
 ---
 
+## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
+
+**The `bb_bin_t { sites, labels, is_def, bytes }` struct and `bb_emit_asm_result(out, bin)` /
+`bb_emit_asm_result_pairs(out)` are DELETED (Lon directive 2026-06-02). No box may name `bb_bin_t`, declare a
+`bb_bin_t bin`, or call `bb_emit_asm_result`.** The struct was the carrier for a hand-counted / FUNCTION-counted
+patch-offset table — the `bin.sites.push_back((int)b.size())` idiom, which is invalid: it computes a patch offset
+with `b.size()` (a function of the running buffer) instead of letting the position be DISCOVERED. That idiom is the
+exact nonsense the template revamp kills, and the strongest way to kill it is to remove the type so the idiom does
+not COMPILE — the same enforcement-by-deletion as the no-`pBB`/`_.node` rule (a grep gate is unnecessary when the
+compiler rejects it).
+
+**THE ONE WAY: every BB template returns ONE concatenation of `x86(...)` calls and is emitted by
+`bb_emit_x86(out)`.** Patch sites are TAGGED RECORDS inside that string (`L` literal bytes / `J` rel32-to-port /
+`D` define-port / internal-label `L(n)` / pair-loop `E`/`F`); `bb_emit_x86` walks them and DISCOVERS each byte
+position as it copies. There is NO separate offset list, so NOTHING can drift and no function ever counts bytes.
+This SUPERSEDES the earlier "TWO LITERAL FORMS ONLY" framing of the BINARY arm: the hand-coded literal byte map
+with a literal offset tuple was a TRANSITIONAL form; the in-band record stream is the END form, and it is what the
+`b.size()` ledger was driving toward — the ledger reaches zero when the last `bb_bin_t` user is converted, not by
+rewriting offset tuples by hand.
+
+**FORBIDDEN:** `struct bb_bin_t`, `bb_bin_t bin`, `bb_emit_asm_result(...)`, `bin.sites`/`bin.labels`/`bin.is_def`,
+and `(int)b.size()` (or any `.size()` of a running byte buffer used as a patch offset) anywhere in
+`src/emitter/BB_templates/`, `XA_templates/`, or `emit_str.*`. The carve-out for `bb_emit_asm_result` walking a
+finished string is GONE — that function no longer exists. (A box NOT YET converted is a LOUD `x86_bomb(msg)` stub
+— `extern "C" void bb_foo(...) { bb_emit_x86(x86_bomb("bb_foo: …")); }` — which COMPILES + LINKS so SCRIP stays
+green and ABORTS beautifully when reached; each owning session replaces its stubs with real `x86()` concatenations
+as its own test reaches them.)
+
+**ENFORCEMENT:** structural (the compiler) — `bb_bin_t` is declared nowhere, so any use fails to compile. Plus a
+one-line gate `scripts/test_gate_no_bb_bin_t.sh` (comments stripped): `bb_bin_t` / `bb_emit_asm_result` live code
+references == 0. **COMPLETION TEST:** (a) `emit_str.h` declares neither `bb_bin_t` nor `bb_emit_asm_result`; (b)
+the gate reads zero; (c) every BB template is emitted via `bb_emit_x86`; (d) `make scrip` + `make libscrip_rt`
+rc=0; (e) this FACT RULE body is byte-identical across the four GOAL-*-BB files.
+
+## ⛔ ONE MEDIUM, INVISIBLE — NO `IF(MEDIUM_BINARY,…)` INSTRUCTION BRANCH, NO RAW-BYTE PRODUCER IN A TEMPLATE (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
+
+**A template NEVER writes an instruction twice — once as GAS text, once as raw bytes — and NEVER branches on the
+medium to pick between them (Lon directive 2026-06-02).** The forbidden shape (the exact nonsense this rule kills):
+```
+  + IF(MEDIUM_TEXT,  std::string(" mov rbx, rsp\n"))      // same instruction…
+  + IF(MEDIUM_BINARY, x86_Lrec(x86_b3(0x48, 0x89, 0xE3))) // …written a second time as bytes
+```
+Every instruction goes through ONE `x86(mnem, …)` call; the encoder switches medium INTERNALLY, so the template
+body is identical for BINARY and TEXT and a reader cannot tell which medium is active. If an instruction has no
+`x86()` form yet, ADD an encoder + dispatch case to `x86_asm.h` (one place, byte-verified vs `as`) — NEVER
+hand-encode it inline in the template. The missing encoder is the bug; the medium-branch is the symptom.
+
+**FORBIDDEN inside `src/emitter/BB_templates/*.cpp`:** the raw-byte producers `x86_Lrec`, `x86_Jrec`, `x86_Drec`,
+`x86_b1(`, `x86_b2(`, `x86_b3(`, `bytes(`, `u8(`, `u32le`, `u64le`; and any `IF(MEDIUM_BINARY, …)` or
+`IF(MEDIUM_MACRO_DEF, …)` carrying instruction bytes. Those record/byte primitives are PRIVATE to `x86_asm.h` (the
+encoders' implementation); a template only ever sees the `x86(...)` front-end + the markers (`L(n)`, `FR(off)`,
+`FRQ(off)`, `PORT_*`) and the LOUD `x86_bomb(msg)` stub. **ALLOWED carve-out — TEXT-ONLY ANNOTATIONS WITH NO BYTE
+FORM:** a box's leading `α:` label (`s_1asm(std::string(_.lbl_α)+":")`) and comments (`s_comment(...)`) exist only
+in the GAS arm, so `IF(MEDIUM_TEXT, <comment-or-label>)` with NO matching `IF(MEDIUM_BINARY, <bytes>)` is fine; an
+`IF(MEDIUM_TEXT,<gas-instruction>) + IF(MEDIUM_BINARY,<bytes>)` PAIR is the violation. Non-x86 platform arms
+(JVM/JS/NET/WASM) are out of scope (X86 ONLY for now) and keep their `s_*asm` text.
+
+**ENFORCEMENT:** gate `scripts/test_gate_template_medium_invisible.sh` (comments stripped): in `BB_templates/*.cpp`,
+the raw-byte producers + `IF(MEDIUM_BINARY`/`IF(MEDIUM_MACRO_DEF` count == 0 (informational WIP baseline; `--strict`
+enforces zero). **COMPLETION TEST:** (a) zero raw-byte producers and zero `IF(MEDIUM_BINARY,…)`/`IF(MEDIUM_MACRO_DEF,…)`
+in any `BB_templates/*.cpp`; (b) every instruction emitted via an `x86(...)` call; (c) the gate green under `--strict`
+and in the Session-Setup gate list; (d) this FACT RULE body byte-identical across the four GOAL-*-BB files.
+
+**THREE FACES OF ONE END STATE.** This rule, the `bb_bin_t`-ABOLISHED rule above, and the no-`pBB`/`_.node` rule are
+three faces of ONE converted box: pure `x86()` concatenation reading only `_`. A box that still hand-encodes bytes
+ALSO still carries `bb_bin_t` and ALSO branches on the medium; converting it to `x86()` clears all three at once. The
+three gates therefore reach zero TOGETHER, box-by-box, as the revamp completes — the prison is escaped only by
+finishing the conversion.
+
 ## ⛔ NO C BYRD-BOX FUNCTIONS — A BOX IS ENTERED BY JUMPING TO ITS α/β LABELS, NEVER A `(ζ, int entry)` C CALL (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
 
 **There is NO such thing as a C byrd-box function. The "brokered BB" concept is ABOLISHED.** A byrd box is
@@ -917,6 +986,8 @@ bash scripts/prove_lower2.sh                 # 37/37 topology
 bash scripts/test_gate_sm_dead.sh            # <= 1
 bash scripts/audit_concurrency_invariants.sh # OK
 bash scripts/util_template_purity_audit.sh   # FACT 6 (byte-neutral baseline)
+bash scripts/test_gate_no_bb_bin_t.sh        # HARD: bb_bin_t ABOLISHED (must be 0) — TEMPLATE-REVAMP 2026-06-02
+bash scripts/test_gate_template_medium_invisible.sh # informational (1: bb_unop Icon); --strict at revamp end
 ```
 Behavioral gates MUST stay invariant under any byte-neutral change; any gate delta ⇒ a bug — revert that slice and diagnose.
 
@@ -1822,7 +1893,33 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `c66bbc8` (SNOBOL4 landing; tree tip advanced to `acea982` PL-RV-3 — my boxes RE-VERIFIED
+**Watermark.** SCRIP local (NOT pushed — see below) · .github this commit.
+**HANDOFF (2026-06-02, Opus 4.8) — `bb_bin_t` ABOLISHED + MEDIUM-INVISIBLE PRISON; SCRIP BUILDS GREEN + ABORTS
+BEAUTIFULLY (≈63 bomb stubs).** Lon directive: "get the build broke nice, build the prison of rules, leave it to
+the Four Musketeers to fix up on their particular test; ensure SCRIP builds and aborts in 100s of places
+beautifully." Done: (1) **Deleted `bb_bin_t` + `bb_emit_asm_result`/`_pairs`** from `emit_str.h`/`.cpp` — the
+`bin.sites.push_back((int)b.size())` function-byte-counter idiom no longer compiles. (2) **TWO new FACT RULES**
+folded byte-identical-×4 into all GOAL-*-BB files (this block at the top: `bb_bin_t` IS ABOLISHED + ONE MEDIUM,
+INVISIBLE) — md5 `17049e7a`; also staged in `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. They are THREE FACES (with the
+no-`pBB`/`_.node` rule) of one converted box = pure `x86()` concat reading only `_`; the three gates reach zero
+together. (3) **63 un-converted boxes → LOUD `x86_bomb()` stubs** + 9 empty router sub-TUs (binop/seq arms); each
+prints `libscrip_rt: BOMB — <box>: TEMPLATE-REVAMP not yet converted` then `Aborted`. (4) **`scrip` + `libscrip_rt`
+BUILD GREEN**; mode-2 ORACLE HARD-held (SNOBOL4 **7/7**, Icon **12/12**); modes 3/4 now bomb per-box (SNOBOL m3
+5→0, Icon m3 12→0) — restored as each lane converts. (5) New `x86_asm.h`: **`x86_and`** (byte-verified `and rsp,-16`
+= `48 83 E4 F0`) + **`x86_bomb`** (canonical stub, RO-encoders + ud2, medium-invisible). (6) Fixed the pasted
+`bb_pat_defer` medium-branch (alignment dance now via `x86()`); converted SNOBOL `bb_pat_cat`/`bb_pat_alt` →
+`x86_pair_loop()` (pBB-free, dispatch parameterless) + `xa_flat.cpp` off `bb_bin_t` (local one-site `xa_emit_one`,
+exact bytes, driver-label semantics). (7) New gates `scripts/test_gate_no_bb_bin_t.sh` (HARD, **0** live refs) +
+`scripts/test_gate_template_medium_invisible.sh` (informational; **1** left = `bb_unop`, Icon's box) wired into the
+gate suite. `g_vstack` 0 · prove_lower2 **67** · concurrency invariants OK (FACT RULES byte-identical) ·
+template-purity now GREEN (bomb stubs removed the side-effecting calls). **THE FOUR MUSKETEERS:** convert your
+lane's `x86_bomb` stubs to real `x86()` as your test reaches them (8 SNOBOL + 8 Prolog + 8 Raku + ~39 Icon/shared;
+`git show HEAD~1:<path>` has each box's original byte logic). Full manifest:
+`HANDOFF-2026-06-02-OPUS48-TEMPLATE-REVAMP-BB-BIN-T-ABOLISHED.md`. **NOTE — NOT pushed: this break spans all four
+lanes; Lon to decide whether to push the red-native/green-build state to `origin/main` or hold for the lanes to
+converge. Mode-2 stays the safe verified path throughout.**
+
+**Watermark (prior).** SCRIP `c66bbc8` (SNOBOL4 landing; tree tip advanced to `acea982` PL-RV-3 — my boxes RE-VERIFIED
 green against it) · .github this commit.
 **HANDOFF (2026-06-02, Opus 4.8) — SNOBOL4 loop-free pattern leaves COMPLETE; combinators unblocked via landed
 `x86_pair_loop()`.** This session landed `bb_pat_fence` + `bb_pat_break` (`c66bbc8`, pushed), completing the
