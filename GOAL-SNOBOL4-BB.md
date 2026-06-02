@@ -1826,6 +1826,10 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   side-effecting call (NV_SET print-path clobbers caller-saved r10 + rsp 16-align). varname = `_.op_sval` (==
   driver `op_name1` for IR_PAT_ATP). X86-only (no other arm). pBB-free; prototype + dispatch parameterless.
   **mode-3 == mode-2** verified: `LEN(3)@P`→P=3, `@Q LEN(2)@R`→Q=0/R=2, `BREAK(' ')@W` in "hello world"→W=5.
+- **Full session detail + NEXT STEPS:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V4-ABORT-TAB-ATP.md`
+  (next loop-free-ish leaves `bb_pat_arb` [generator, re-pump like SPAN] + `bb_pat_defer`; then looping
+  `bb_pat_break`; then the variable-length combinators `fence`/`cat`/`alt`/`match`). Parallel sessions landed
+  `bb_cut` (Prolog `ed42331`) + `bb_binop_arith` (Icon `b8db625`) — rebased clean, no conflict, rebuilt+reverified.
 - **`bb_pat_abort`** (`66eb967`) — TRIVIAL convert: x86 arm = `x86("jmp",PORT_OMEGA)+x86("def",PORT_BETA)+x86("jmp",PORT_OMEGA)`.
   pBB-free (reads `_` only); prototype + dispatch parameterless. Verified mode-3: a pattern hitting ABORT fails the
   match (SPITBOL Manual ch.18: ABORT causes pattern match failure).
