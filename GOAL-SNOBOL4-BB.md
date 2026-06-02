@@ -19,6 +19,20 @@ ONE IR kind and is dispatched 1:1; no template probes or calls another template.
   de-fuse would make them producer boxes read from ζ-slots like Icon's `bb_binop_arith`. Preserved byte-for-byte here.
 
 
+## 🔴🔴🔴 CURRENT — READ FIRST (Lon 2026-06-02): DE-NAME THE LANGUAGE RUNTIME BY CS CONCEPT (runtime first, then emitters)
+
+Every symbol **DEFINED in `src/runtime/**`** whose name carries a language tag (`sno`/`icn`/`icon`/`pl`/`prolog`/
+`raku`/`rk`/`reb`/`rebus`) is renamed to the CS / runtime concept it implements — the name chosen from its
+**usage**, not from the language that happens to exercise it. The data structures are language-independent; the
+point is full reuse. Call sites everywhere (incl. lower/emitter/frontend) update with the symbol — that is fixing a
+reference, not renaming a lower/parser symbol. **NOT IN SCOPE:** `src/lower/**`, `src/frontend/**` (parser/lexer).
+**Stays (genuinely single-language or not-a-language-tag):** `SNO_INIT_fn` (SNOBOL runtime-library init),
+`sno_parse_string_ast` (invokes the SNOBOL parser for `CODE`/`EVAL`), `IR_LANG_*`, `prologue`/`epilogue` (assembly),
+`snocone`/`snoc` (different language). `rt_pl_arith`→`rt_arith` is a MERGE with the existing `rt_arith` (handle with
+code, not sed). **After the runtime is clean: the identical sweep over `src/emitter/**`.**
+Gate (rename-only ⇒ program output byte-identical): m2 SNOBOL4 7/7 + Icon 12/12 + Prolog 5/5 HARD; prove_lower2 67;
+no_bb_bin_t 0; concurrency OK.
+
 ## 🔴🔴 ACTIVE RUNG — READ FIRST (Lon PIVOT 2026-06-02): LANGUAGE-INDEPENDENT EMITTER + RUNTIME (de-name) + COMMENT PURGE
 
 **The EMITTER and RUNTIME are LANGUAGE-INDEPENDENT. Make it so.** Every emitter box, every runtime helper, every
