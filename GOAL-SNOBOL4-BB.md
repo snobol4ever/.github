@@ -1870,7 +1870,16 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   loop-free + `bb_pat_span` looping; recipe in HANDOFF V3), and refreshed the `x86_asm.h` vocabulary list. The
   ONE remaining shared unknown is the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + likely
   Raku `bb_nfa`) — flagged "STILL OPEN," to be designed once by whoever reaches a combinator first. Did NOT edit
-  the other sessions' GOAL files (their own to touch).
+  the other sessions' GOAL files (their own to touch). [SUPERSEDED by the next bullet — Lon directed top-of-file RUNG.]
+- **RUNG NOW AT TOP OF EVERY GOAL FILE** (`.github` `09e07507`, Lon directive): a session reads its own
+  `GOAL-{LANG}-BB.md` top-down, so the revamp priority was being missed (it lived only in the RULES-DRAFT + the
+  bottom watermark — never "first"). Added a concise **"CURRENT PRIORITY — READ FIRST"** block right after the title
+  in SNOBOL4/Icon/Prolog/Raku: the x86() goal, keystone **LANDED `30e8422` (REBASE FIRST)**, START HERE → RULES-DRAFT,
+  reference boxes `bb_pat_pos`(loop-free)/`bb_pat_span`(looping), recipe HANDOFF V3, the STILL-OPEN combinator idiom,
+  and each file's box list. Inserted ABOVE the byte-identical NO-C-BYRD-BOX FACT RULE (its md5 unchanged across all 5
+  files, so that gate stays green); a top-of-file insertion is a different hunk from the bottom watermark, so live
+  sessions (Icon on `bb_binop_arith` — a loop-free leaf that needs no keystone) rebase clean. Snocone omitted (not in
+  the four-session divvy-up).
 
 **Prior session (2026-06-01, Opus 4.8) — REG-2 COMPLETE (6/6): `bb_pat_break` (BREAK + BREAKX) migrated:**
 - **REG-2 6/6** — finished by converting the last cursor-advancing leaf, `bb_pat_break`, off the legacy
