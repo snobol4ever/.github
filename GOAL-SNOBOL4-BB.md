@@ -365,8 +365,15 @@ count bytes; (c) the FACT RULE body is byte-identical across all five GOAL-*-BB 
 >      the design: it re-derived the four-port BB topology AT EMIT time from the mode-2 oracle's postfix AG-ring instead
 >      of LOWER producing that topology. The correct fix is in **LOWER**: lower each SNOBOL4 statement DIRECTLY into the
 >      `test_sno_1.c` four-port statement-BB topology (subject-BB → pattern-BBs → replacement-BB → substitution-BB), so
->      the emitter consumes it with no driver adapter. The adapter + its helpers are deleted and BOTH call sites (mode-3
->      `--run`, mode-4 `--compile`) now ABORT by design until LOWER emits the tree shape. The driver then shrinks to
+>      the emitter consumes it with no driver adapter. The adapter + its helpers are deleted.
+>      **[CORRECTION 2026-06-02, Opus 4.8]** The original wording below — that BOTH call sites "ABORT by design" —
+>      is inaccurate and is the verbiage Lon flagged for correction: (a) mode-3 `--run` does NOT abort — it was
+>      re-wired via `sno_flat_chain_build` and runs the full SNOBOL pattern family; (b) mode-4 `--compile` is NOT a
+>      design limit — it is the SAME boxes as mode-3 in the TEXT medium, pending only LOWER emitting the four-port
+>      statement-BB graph for SNOBOL4 (the emission scaffolding is intact; Icon/Prolog mode-4 already emit). So this
+>      is a narrow, temporary wiring gap, not an intentional abort. Original (stale) wording: "BOTH call sites (mode-3
+>      `--run`, mode-4 `--compile`) now ABORT by design until LOWER emits the tree shape."
+>      The driver then shrinks to
 >      "find main graph → hand it to the emitter." This is LM-6 DISPATCH-UNIFY territory and is now the #1 SNOBOL4 step.
 >
 > **EMITTER fix landed earlier (the segfault that proves the point):** the shared flat TEXT prologue/epilogue
@@ -1791,8 +1798,54 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `65686c2` · .github this commit.
-**This session (2026-06-01, Opus 4.8) — REG-2 COMPLETE (6/6): `bb_pat_break` (BREAK + BREAKX) migrated:**
+**Watermark.** SCRIP `30e8422` · .github this commit.
+**This session (2026-06-02, Opus 4.8) — TEMPLATE-REVAMP: x86() internal-label keystone + `bb_pat_pos` + `bb_pat_span` converted; mode-4 verbiage corrected:**
+- **x86() SELF-ENCODING REVAMP** (per GOAL-TEMPLATE-REVAMP-RULES-DRAFT): each BB becomes ONE return per PLATFORM_*,
+  pure `x86(mnem,…)` concatenation, NO `bb_bin_t`, pBB-free (reads `_` only). In-band records replace the hand-counted
+  offset table — `L`(literal bytes) / `J`(rel32 patch to a label) / `D`(define a label); the consumer `bb_emit_x86`
+  DISCOVERS byte positions as it copies, so no offset can drift.
+- **KEYSTONE `a1779e6`** (looping-box prerequisite for ALL FOUR sessions, purely additive → zero regression):
+  (1) INTERNAL (box-local) LABELS — record ids ≥ `X86_INTERNAL_BASE`(4) map in the walker to a fresh box-local
+  `bb_label_t`; forward+backward refs resolved by the EXISTING `bb_label_define`/`bb_emit_patch_rel32` patch list;
+  TEXT names `.Lx<uid>_<n>`, uid set per-box by `x86_begin()`; front-end `x86("jmp"/jcc/"def", L(n))`. (2) ζ-FRAME
+  `[r12+off]` MEM OPS (mov-imm/store/load/add-imm/add-to-reg) — register-relative so BINARY==TEXT bytes (PER-BOX
+  LOCAL STORAGE / NO-VALUE-STACK FACT RULES; no `movabs` to a process addr, no rip-rel `.data`); front-end via
+  `FR(off)`. (3) `cmp r32,imm` (imm8/imm32/eax). (4) `bb_slot_claim(bytes)` — node-free per-sequence frame claim so a
+  pBB-free box takes private scratch without an `IR_t*` key. Every encoder byte-verified vs `as`.
+- **`bb_pat_pos` `195bea4`** — POS/RPOS → x86() + ratified regs (REG-3); the LOOP-FREE register-migration reference.
+  POS `cmp r14d,N`; RPOS `mov ecx,r15d / sub ecx,N / cmp r14d,ecx`; then `jne ω / jmp γ / def β / jmp ω`. Legacy
+  `[r10]`/`&Σlen` GONE; cursor δ=R14d, length Δ=R15d read straight from the regs. RPOS distinguished by `sval[0]=='r'`
+  (authoritative per lower_pat_dcg.c), NOT `ival!=0`. Verified mode-3: POS(0)'abc'=Xde, POS(2)'c'=abXde,
+  'cde'RPOS(0)=abX, 'b'POS(0) correctly fails.
+- **`bb_pat_span` `3769d21` (+ encoders `24b9c78`)** — FIRST LOOPING box on x86(); validates the keystone end-to-end
+  and is the reference looping-box conversion for all sessions. Internal labels loop=`L(0)`/done=`L(1)`; the match-state
+  scalars z (matched length) and zo (β-undo origin) moved from the process-global deque (`movabs` to a fixed addr) to
+  ζ-frame z@`[r12+off]`/zo@`[r12+off+4]` via `bb_slot_claim(16)` → BINARY==TEXT, re-entrant; cset/strchr reuse the
+  any-style RO load. New encoders (byte-verified vs `as`): `jle`(0F 8E), `add reg,reg`(01/r), `add reg,[r12+off]`(03/r).
+  Verified mode-3: SPAN('a')/'aaabbb'=Xbbb, SPAN('ab')=X, SPAN('xyz')/'xyz123'=Q123, SPAN('a')/'bbb' fails, AND
+  SPAN('a')'ab'/'aaab'=X (β GIVE-BACK — exercises the internal labels + ζ-scratch + β port together).
+  ⚠ encoders for span were left unstaged in 3769d21 and added in 24b9c78 — the remote TIP 24b9c78 builds; 3769d21 alone does not.
+- **MODE-4 VERBIAGE CORRECTED (Lon directive):** mode-4 is NOT "aborting by design" and is NOT inferior to mode-3 — the
+  two are the SAME boxes in two media (BINARY run in-process vs TEXT relocatable), and for the ζ-frame/REG-ratified
+  boxes the bytes are identical. SNOBOL4 mode-4 is pending ONE wiring step (LOWER emitting the four-port statement-BB
+  graph directly; the emission scaffolding is intact, and Icon/Prolog mode-4 already emit). Corrected `scrip.c`'s
+  comment + abort message, and the stale historical note that claimed BOTH modes abort by design (mode-3 never aborted
+  after the `sno_flat_chain_build` re-wire). `eval_code.c`'s "by design" abort is a DIFFERENT, correct one (the removed
+  global value stack) — left as-is.
+- Files: `emit_globals.h` + `emit_bb.c` + `x86_asm.h` (keystone/encoders); `bb_pat_pos.cpp` + `bb_pat_span.cpp` +
+  `bb_templates.h` + `emit_core.c` (boxes); `src/driver/scrip.c` (verbiage).
+- Gates GREEN throughout: SNOBOL4 m2 **7/7 HARD** / m3 5/6 (floor 5) / m4 0/6 (floor 0 — a MEASURED state pending the
+  LOWER wiring, **not** a design abort), PAT-BB probes 3/3, prove_lower2 PASS, `g_vstack`==0. **Reference examples are now
+  ample:** POS (loop-free reg-migration) + SPAN (looping: internal labels + ζ-scratch + β give-back) + the five pBB-free
+  exemplars (rem/len/any/notany/lit) cover every remaining box's shape.
+- **NEXT (SNOBOL4 x86() conversion remainder), in order:** loop-free legacy→REG-ratified+x86(): `bb_pat_tab`
+  (TAB `cmp r14d,N / jg ω / mov r14d,N` — needs a `mov r32,imm32` encoder, 41 BF imm32; RTAB via Δ=r15d
+  `mov ecx,r15d/sub/cmp/jg/mov r14d,ecx`), `bb_pat_atp`, `bb_pat_arb`, `bb_pat_defer`, `bb_pat_abort` (TRIVIAL:
+  `jmp ω / def β / jmp ω`). LOOPING: `bb_pat_break` (follow the SPAN pattern; plain BREAK ≈ SPAN, BREAKX two-loop needs
+  L(0..3) and z/z_orig moved from `[zeta+8/+12]` to ζ-frame). VARIABLE-LENGTH (separate define/jmp-pair design, shared
+  with Icon/Prolog `xa_bb_emit_pair_*`): `bb_pat_fence` (pair-array path), `bb_pat_cat`, `bb_pat_alt`, `bb_match`.
+
+**Prior session (2026-06-01, Opus 4.8) — REG-2 COMPLETE (6/6): `bb_pat_break` (BREAK + BREAKX) migrated:**
 - **REG-2 6/6** — finished by converting the last cursor-advancing leaf, `bb_pat_break`, off the legacy
   `[r10]`-cursor + `&Σ`/`&Σlen` movabs bakes to Σ=R13/δ=R14d/Δ=R15d. **Both arms in one pass** (all-or-nothing for
   the REG-FENCE grep): plain BREAK **153B, sites {125,129,149}** (internal Δ jge +63 / jnz +19 / jmp loop −88);
