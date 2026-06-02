@@ -1,5 +1,24 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
+## ▶ CURRENT PRIORITY — READ FIRST (2026-06-02): x86() TEMPLATE-REVAMP
+
+Convert this language's BB templates to the **`x86()` self-encoding API** (one return per `PLATFORM_*`, pure
+`x86(mnem,…)` concat, no `bb_bin_t`, pBB-free). The shared looping-box **keystone is LANDED at SCRIP
+`origin/main`=`30e8422` — REBASE ONTO IT BEFORE CONVERTING ANY BOX** (internal-label + ζ-frame support lives in
+the SHARED `x86_asm.h`; do not rebuild it or you collide).
+- **START HERE:** `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (rules R1–R13, divvy-up table, landed API `x86_begin()`/
+  `L(n)`/`FR(off)`/`bb_slot_claim`, `x86_asm.h` vocabulary). **Reference:** `bb_pat_pos.cpp` (loop-free) +
+  `bb_pat_span.cpp` (looping). **Recipe:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
+- **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
+  — first to reach a combinator designs it once in the RULES-DRAFT.
+- **YOUR BOXES:** `bb_binop_arith` (IN PROGRESS), `bb_unop`, `bb_succeed`, `bb_suspend`, `bb_every`, `bb_seq`,
+  `bb_alt`, `bb_to`/`bb_to_by`, `bb_upto`, `bb_binop_gen`, `bb_iterate`. Loop-free leaves first; the generators
+  (`bb_iterate`/`bb_binop_gen`/`bb_to`/`bb_upto`/`bb_every`) use the landed internal-label + ζ-frame support.
+- Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
+- (Full live status is in the **Watermark** near the end of this file.)
+
+---
+
 ## ⛔ NO C BYRD-BOX FUNCTIONS — A BOX IS ENTERED BY JUMPING TO ITS α/β LABELS, NEVER A `(ζ, int entry)` C CALL (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
 
 **There is NO such thing as a C byrd-box function. The "brokered BB" concept is ABOLISHED.** A byrd box is
