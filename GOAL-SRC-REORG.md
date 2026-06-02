@@ -123,7 +123,16 @@ commit a red tree.**
   Fix the ~6 `#include "bb_exec.h"` referrers if any used a relative `../lower/` form (most are bare). GATE.
   Commit `GMR-1b: bb_exec (mode-2 BB-graph interpreter) lower/ → interp/`.
 
-- [ ] **GMR-2 — `contracts/` spine.** `mkdir src/contracts`. Move + add ONE `-I$(SRC)/contracts`:
+- [x] **GMR-2 — `contracts/` spine. ✅ DONE (SCRIP `9101bd6`).** 8 files → `src/contracts/`
+  (`descr.h`/`ast.h`/`IR.h`/`stage2.h`/`bb_program.h` + the IR allocator `scrip_ir.c` + `ast_print.c`/`ast_verify.c`);
+  `src/ast/` deleted. **Basenames KEPT** (IR.h not → ir.h) per the recommendation — rename is a later cosmetic rung.
+  `-I$(SRC)/contracts` added to every `-I` line. Dead redirect `lower/scrip_ir.h` (0 includers) + `ast/ast.h` deleted;
+  LIVE redirect `runtime/core/descr.h` repointed `→ ../../contracts/descr.h`. 42 broken relative includes rewritten
+  to bare (every source `+/-` line provably an `#include` change). Makefile: `scrip_ir.c`+`ast_print.c` paths in
+  RT_PIC_SRCS + per-`.o`. **Also fixed (move broke them):** standalone `scripts/prove_lower2.sh` (added `-Isrc/contracts`
+  + `scrip_ir.c` path) and `scripts/test_gate_stage2_isolation.sh` (greps `stage2.h` by path). `include/` remainder:
+  SM.h XA.h bb_box.h emit_ir.h (so `-I$(SRC)/include` stays). Gates byte-identical. Recipe below for reference:
+  `mkdir src/contracts`. Move + add ONE `-I$(SRC)/contracts`:
   - `git mv src/include/descr.h src/contracts/descr.h`
   - `git mv src/include/ast.h src/contracts/ast.h` ; fold `src/ast/{ast_print.c,ast_verify.c}` →
     `src/contracts/` (these are the AST allocator/printer; `ast/ast.h` was a 1-line redirect — delete it).
@@ -136,7 +145,13 @@ commit a red tree.**
   - Remove `-I$(SRC)/include` ONLY after `include/` is empty (it still holds SM.h, XA.h, bb_box.h, emit_ir.h).
   GATE after each file-group. Commit `GMR-2: contracts/ spine (descr+ast+ir+stage2, types beside allocators)`.
 
-- [ ] **GMR-3 — `machine/` substrate.** `mkdir src/machine`; `git mv src/processor/* src/machine/`
+- [x] **GMR-3 — `machine/` substrate. ✅ DONE (SCRIP `3d6cc26`).** `processor/*` (bb_pool.{c,h}, bb_boxes.c,
+  the bb_box.h redirect, bb_build.h, smx_dead_stubs.c) + `lower/sm_prog.c` → `src/machine/`; `src/processor/` deleted.
+  Same-depth ⇒ internal relatives survived; Makefile `processor/` paths + `BOXES` var + `-I$(SRC)/processor`→`machine/`,
+  `lower/sm_prog.c`→`machine/sm_prog.c`. 3 relative includes → bare (emit_bb.c, lower.h, rt.c). Standalone
+  `prove_lower2.sh` (-I) + `test_smoke_compile.sh` (paths; pre-broken at baseline — harness not built, unrelated)
+  updated. Gates byte-identical. Recipe below for reference:
+  `mkdir src/machine`; `git mv src/processor/* src/machine/`
   (bb_pool.*, bb_boxes.c, bb_box.h, bb_build.h, smx_dead_stubs.c → but smx_dead_stubs goes to attic in GMR-5);
   `git mv src/lower/sm_prog.c src/machine/`. Swap `-I$(SRC)/processor`→`-I$(SRC)/machine`; fix Makefile
   source-list + `.o` rules. GATE. Commit `GMR-3: machine/ (RX slab + stage2 preamble)`.
@@ -187,9 +202,15 @@ commit a red tree.**
   (`bb_exec.c`, `emit_bb.c`, `lower/lower.c`). GMR-FENCE refreshes them.
 
 ## Watermark
-SCRIP `7c87379` (GMR-1a `06091ca` + GMR-1b `7c87379` landed; gates byte-identical to baseline `10fbe32`) · .github
-this commit. **Next executable step: GMR-2 (contracts/ spine).** `src/` now: ast backend driver emitter frontend
-include **interp** lower machine? processor runtime(+**builtins**) tools — `interp/` = real mode-2 interpreter,
-`runtime/builtins/` = builtin/resolver layer. The two worst-named parts are fixed; the `include/` grab-bag (GMR-2)
-and `frontend→parser` (GMR-4) are the next big findability wins.
+SCRIP `3d6cc26` (GMR-1a `06091ca` + GMR-1b `7c87379` + **GMR-2 `9101bd6` (contracts/)** + **GMR-3 `3d6cc26`
+(machine/)** landed; gates byte-identical to baseline `10fbe32`) · .github this commit. **Next executable step:
+GMR-4 (`frontend/` → `parser/`) — the biggest include churn; deserves a fresh budget.** `src/` now: **contracts**
+backend driver emitter frontend include interp lower **machine** runtime(+builtins) tools — the `include/` grab-bag is
+cut down to {SM.h XA.h bb_box.h emit_ir.h} (the contract types now live beside their allocators in `contracts/`), and
+the RX slab + stage2 preamble are honestly named in `machine/`. **GMR-2/3 method that worked (reuse for GMR-4+):**
+keep basenames, `git mv` + add the dir to every `-I` line, rewrite only the broken RELATIVE includes to bare, fix
+Makefile paths (RT_PIC_SRCS + per-`.o`) AND any STANDALONE script with its own `-I`/path list (`prove_lower2.sh`,
+`test_smoke_compile.sh`), then prove the diff: `git diff HEAD -- src | grep '^[+-]' | grep -v '^[+-][+-]' |
+grep -vE '#include|^[+-]$'` must be EMPTY (every source change is an `#include`). Leave historical one-shot rename
+scripts (`rename_ir_to_bb_and_sm.sh`, `rename_phase2_recase_by_layer.sh`) untouched — they are applied history.
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
