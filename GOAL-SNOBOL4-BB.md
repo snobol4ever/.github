@@ -118,9 +118,14 @@ in lockstep with LI-0.)
   were stripped 2026-05-31; the `.cpp` emitter tree + newly-commented files are the delta). Then update RULES.md C
   style (separator 200→120; "one comment = the separator", drop "block comments above function"). Gate: build rc=0,
   m2 7/7 HARD byte-identical. COMPLETION: zero non-separator comments under `src/**` (excl. generated).
-- [ ] **LI-1 — FILENAME de-name (emitter):** `bb_rk_gather.cpp` → a non-language CS name (⚠ `bb_seq_gather.cpp`
-  already exists — confirm distinct concept, pick non-colliding names or fold). `git mv` + Makefile + includes +
-  dispatch. Gate.
+- [x] **LI-1 — FILENAME de-name (emitter). ✅ DONE (SCRIP `0b86f9e`, 2026-06-02 Opus 4.8).** `bb_rk_gather.cpp`→
+  `bb_gather.cpp` (the only language-tagged emitter FILENAME); symbols `bb_rk_gather(_str)`→`bb_gather(_str)`,
+  `RK_GATHER_MAX_TAKES`→`GATHER_MAX_TAKES`, `s_rkg_*`→`s_gather_*`, `Lrkg`→`Lgather`, `rkg_vals_rodata`→
+  `gather_vals_rodata`. `git mv` + Makefile `RT_PIC_SRCS` line + per-`.o` rule + `emit_core.c` `IR_GATHER`
+  dispatch. `bb_gather` confirmed free (distinct from `bb_seq_gather`). Gates byte-identical.
+  **Companion clean emitter slice ✅ DONE (SCRIP `db6d33d`):** `rk_marshal_call_arg`→`marshal_call_arg` (+ label
+  `.Lrkfn`→`.Lcallfn`) in `bb_call.cpp` — the generic call-arg marshaller (serves Icon/Prolog calls), Raku-origin
+  name, confined to that file. ⚠ NOT renamed: `_.bb_rk` (right-kind operand field in bb_unify/bb_arith — NOT Raku).
 - [ ] **LI-2 — CHAIN/DRIVE family (emitter), the most confusion-prone (Icon/SNOBOL twins) — DO FIRST of the symbol
   slices.** `sno_flat_chain_build`/`icn_flat_chain_build`/`flat_drive_pl_seq`/`flat_drive_alt_icn`/
   `flat_drive_icn_userproc` → ONE flat-wired-BB-sequence driver vocab (`flat_chain_build`, `flat_drive_seq`/`_alt`/
@@ -131,8 +136,14 @@ in lockstep with LI-0.)
   `rt_term_build_n`/`rt_node_to_term`, `pl_functor`/`pl_univ`/`pl_var_bind`→`functor`/`univ`/`var_bind` (⚠ collisions).
 - [ ] **LI-4 — Generator / scanner / cset (runtime, Icon-tagged but general CS):** `rt_icn_*`→`rt_*`,
   `icn_cset_*`→`cset_*` (charset algebra), `ICN_SCAN_PUSH`/`POP`/`SWAP_TOP2`/`GEN_STATE_BASE`→de-tagged.
-- [ ] **LI-5 — NFA / junction (runtime, Raku-tagged but textbook CS):** `raku_nfa_*`→`nfa_*` (Thompson), `RK_NFA_BB`/
-  `RK_GRAM_MAX`→de-tagged, `__rk_jct_*`→`jct_*`, `rt_rk_call_arr`→`rt_call_arr`.
+- [~] **LI-5 — NFA / junction (runtime, Raku-tagged but textbook CS) — SCOPE-CORRECTED 2026-06-02 (Opus 4.8):**
+  `raku_nfa_{build,exec,free,bb_match,state_count}` are **DEFINED in the PARSER** (`src/parser/raku/raku_nfa_bb.c`,
+  `raku_re.c`) → **OUT OF SCOPE** under Lon's standing "leave parser and lower stages alone" (this OVERRIDES the
+  old "rename the shared symbol at all sites incl frontend"; definition-location is authoritative, and the def is
+  in parser). `rt_rk_call_arr`→`rt_call_arr` is **already done** (no `rt_rk_*`/`rt_icn_*` remain in runtime). What
+  MAY still be in scope here: any `raku_*`/`rk_`/`__rk_jct_*`/`RK_NFA_BB`/`RK_GRAM_MAX` symbols **DEFINED in
+  `src/runtime/**`** (e.g. in `script_builtins*.c`, which DO appear to host some) vs merely called there — triage
+  by definition site before touching.
 - [ ] **LI-6 — emitter PL/RK macros + WASM/JS/JVM stubs:** `XA_PL_*`→builder/registry CS names, `SM_BB_PL_INVOKE`→
   `SM_BB_INVOKE` (⚠ SM-zero rule), `RK_GATHER_MAX_TAKES`→`GATHER_MAX_TAKES`, `SNO_*_WASM`/`emit_wasm_prolog`→de-tagged
   (`emit_wasm_prologue` = assembly prologue).
@@ -146,9 +157,11 @@ in lockstep with LI-0.)
 **Tooling ready:** `scripts/strip_comments.py` (dry-run/apply; spot-checked literal-safe).
 
 **⚠ COLLISION FINDINGS (survey 2026-06-02 — which symbol slices are CLEAN renames vs genuine MERGES):**
-- **CLEAN (de-tagged target name is FREE — pure rename):** `rt_pl_unify_*`→`rt_unify_*`, `rt_pl_trail_*`→`rt_trail_*`,
-  `rt_pl_compound_build_n`→`rt_compound_build_n`, `rt_pl_node_to_term`→`rt_node_to_term`, `rt_icn_size_d`→`rt_size_d`,
-  `raku_nfa_*`→`nfa_*`, `bb_rk_gather`→`bb_gather` (distinct from `bb_seq_gather`), and **`icn_cset_*`→`cset_*` ✅ DONE**.
+- **CLEAN (de-tagged target name FREE) — STATUS 2026-06-02:** `rt_pl_unify_*`→`rt_unify_*` ✅, `rt_pl_trail_*`→
+  `rt_trail_*` ✅, `rt_pl_compound_build_n`→`rt_compound_build_n` ✅, `rt_pl_node_to_term`→`rt_node_to_term` ✅,
+  `rt_icn_size_d`→`rt_size_d` ✅, `icn_cset_*`→`cset_*` ✅, **`bb_rk_gather`→`bb_gather` ✅ (`0b86f9e`)**,
+  **`rk_marshal_call_arg`→`marshal_call_arg` ✅ (`db6d33d`)**. ⚠ `raku_nfa_*`→`nfa_*` is NO LONGER a candidate:
+  parser-DEFINED ⇒ out of scope (Lon "leave parser alone"). The clean single-symbol surface is now EXHAUSTED.
 - **MERGE (NOT a sed — needs Lon/judgment):** `sno_flat_chain_build` + `icn_flat_chain_build` BOTH de-tag to
   `flat_chain_build` — two different functions, one name → fold into one (branch on `cx.lang`) or pick
   concept-distinct names (LI-2). And `rt_pl_arith`→`rt_arith` hits **3 existing** `rt_arith` occurrences → merge with
@@ -159,10 +172,35 @@ in lockstep with LI-0.)
   `rt_{unify,trail,compound_build_n,node_to_term}` (unification + WAM trail + term-building = language-independent CS)
   across bb_disj/bb_unify/bb_exec.{c,h}/rt.{c,h}; m2 SNOBOL4 7/7 + Icon 12/12 + Prolog 5/5 HARD, prove_lower2 67.
 
-**Next incomplete step:** remaining CLEAN slices — LI-5 `raku_nfa_*`→`nfa_*` (⚠ spans frontend `raku_nfa_bb.c` +
-runtime; rename the shared symbol at all sites), LI-1 `bb_rk_gather`→`bb_gather` (filename: `git mv` + Makefile
-`RT_PIC_SRCS` line + per-`.o` rule + emit_core dispatch + symbol). Then the MERGE slices (LI-2 chain/drive twins,
-`rt_pl_arith`→`rt_arith`) with judgment, then LI-CORE (SNOBOL-lib, Lon decision) + LI-FENCE gate. **`rt_icn_*` ✅
+**Next incomplete step (updated 2026-06-02, Opus 4.8 — post-SRC-REORG):** the CLEAN single-symbol emitter/runtime
+slices are now EXHAUSTED (LI-1 `bb_gather` + `marshal_call_arg` landed `0b86f9e`/`db6d33d`; `rt_rk_*`/`rt_icn_*`
+runtime leftovers were already 0; LI-3/LI-4 done). What REMAINS all needs per-symbol judgment, NOT blind sed:
+  1. **EMITTER MERGE family (LI-2, hardest).** Verified this session: `codegen_flat_chain_body` ALREADY EXISTS in
+     `emit_bb.c` as a SEPARATE function from `codegen_sno_flat_chain_body` ⇒ that pair is a MERGE (fold or pick
+     concept-distinct names), NOT a rename. Same shape for `sno_chain_*`+`icn_chain_*` twins, `sno_flat_chain_build`+
+     `icn_flat_chain_build`, the `flat_drive_{pl_seq,pl_alt,pl_choice,pl_ite,alt_icn,icn_userproc}` drivers, and
+     `g_icn_flat_chain` (⚠ `g_gvar_flat_chain` is the already-renamed SNOBOL one). `codegen_pl_program`/
+     `codegen_pl_callee_block` look 1:1 (targets free) BUT may be Prolog-SPECIFIC program codegen — decide as part of
+     unifying the per-language codegen, don't pre-empt. `*_ring_to_tree`→`ring_to_tree`. Read the function BODIES to
+     choose the merged vocabulary; do not sed.
+  2. **`sno_prog_t`/`sno_stmt_t`→`prog_t`/`stmt_t`** — NOTE these MOVED in GMR-8 to `interp/IR_interp_state.h` (were in
+     `contracts/IR.h`); still in scope (interp is past LOWER). ⚠ grep `stmt_t` collision FIRST. `IR_SNO_PROG`→`IR_PROG`
+     (IR enum in `contracts/IR.h`, produced by lower.c, consumed by emitter — updating those refs is a reference-fix,
+     allowed; the enum lives in contracts, not lower/parser).
+  3. **`rt_pl_arith`→`rt_arith` MERGE** (3 existing `rt_arith`) — with code, last.
+  4. **RUNTIME Prolog-builtin surface (`rt_pl_*`, now 31 decls in `runtime/rt/rt.h` after GMR-8(c), defs in
+     `interp/IR_interp.c`).** Prior LI slices renamed only the general-CS ones (unify/trail/compound_build/node_to_term).
+     The rest are GENUINELY-Prolog builtins (`atom_concat`, `findall`, `copy_term`, `sort_msort`, `term_cmp`,
+     `char_type`, `numbervars`, …) with no neutral CS name → NEEDS A DECISION (keep tag like the `SNO_INIT_fn`
+     precedent for single-language builtins, OR a `builtins_` namespace). Surface to Lon.
+  5. **RUNTIME raku_/pl_ definition-triage:** `prolog`(148)/`raku`(85)/`rk_`(82)/`pl_`(82) tokens in runtime — for EACH
+     symbol decide parser-DEFINED (SKIP, e.g. raku_nfa_*) vs runtime-DEFINED (rename). `XA_PL_*` (defined in
+     `emit_core.c`) → builder/registry CS names (LI-6); `RK_GATHER_MAX_TAKES` already done.
+  6. **LI-CORE** (`runtime/core/` SNOBOL-lib: SNO_INIT_fn/SnoRt/SNO_LIB/…) — Lon decision, DO LAST.
+  7. **LI-FENCE** — write `scripts/test_gate_no_lang_names.sh` (emitter+runtime token-grep == EXCLUDED set only).
+**Method reminder:** word-boundary sed but WATCH `_str`/suffix variants (trailing `\b` fails before `_`) — bit us in
+LI-1; confirm target free + no string-literal hits first; gate byte-identical after each slice; never start a MERGE
+you cannot finish+gate+commit. **`rt_icn_*` ✅
 DONE (SCRIP `ba6e912`):** `rt_icn_{size_d,arg_stage,call_proc_descr}`→`rt_{…}` across bb_call/bb_unop/xa_flat/rt.{c,h};
 m2 7/7+12/12, prove_lower2 67. (The x86() TEMPLATE-REVAMP sub-track below remains valid and continues after the cleanup; a de-name does not
 change the BB/SM/XA template ladder, only its names.)
@@ -2194,7 +2232,9 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**HANDOFF (2026-06-02, Opus 4.8) — LI RUNTIME DE-NAME, SLICE 1: 27 runtime-defined symbols + the `icnlist` datatype → CS-concept names. Pushed, tree GREEN, behavior byte-identical.** New CURRENT rung added (top of file; kept ACTIVE per Lon "keep our rung active"): de-name the language runtime by CS concept — runtime first, then emitters. This slice renamed ONLY symbols **DEFINED in `src/runtime/**`** (definition-location authoritative, NOT a token's use): `rt_pl_{write_int,write_var,write_atom,write_cstr,write_float,write_term_ptr,writeq_term_ptr,write_canonical_term_ptr,format_float,env_alloc,env_current,cp_save_caller_env,choice_cut_enter,choice_cut_exit,choice_cut_unwind,cut_set,get_cut_flag,main_init}`→`rt_*`; `rt_rk_{call_arr,jct_relop}`→`rt_*`; `interp_exec_pl_builtin`→`interp_exec_builtin`; `is_pl_user_call`→`is_user_call`; `g_pl_last_ok`→`g_last_ok`; `g_icn_{call_args,proc_arena,proc_depth}`→`g_*`; `descr_to_str_icn`→`descr_to_str`; runtime datatype string `"icnlist"`(+5 file-local once-guards)→`"list"` (purely internal: DEFDAT/DATCON/strcmp all in runtime, ZERO `.ref` dependency). 14 files touched (8 runtime defs/headers + call sites: 2 emitter / 2 lower / 1 driver / 1 frontend — call-site updates are reference fixes, not renames of those layers' own symbols). **HELD — frontend-DEFINED (out of scope):** `pl_arg`/`pl_univ`/`pl_functor`/`pl_write`/`pl_writeq`/`pl_write_canonical`/`pl_assert_term`/`pl_term_to_string` (prolog_builtin.c/prolog_lower.c), `prolog_atom_{init,name,intern}` (prolog_atom.c), `raku_nfa_{build,exec,free,bb_match,state_count}` (raku_re.c/raku_nfa_bb.c). **HELD — driver-DEFINED:** `g_raku_match` (interp_globals.c) — Lon named runtime then emitters, not driver. **HELD — genuine/merge:** `SNO_INIT_fn` (SNOBOL runtime-lib init), `sno_parse_string_ast` (invokes SNOBOL parser for CODE/EVAL), `rt_pl_arith`→`rt_arith` (MERGE with existing `rt_arith`, do with code). **Gates byte-identical @ pristine baseline:** m2 SNOBOL4 **7/7 HARD** / m3 2/6 / m4 0/6 · Icon m2 **12/12 HARD** / m3 3/12 / m4 3/12 · Prolog m2 **5/5 HARD** / m3 2/5 / m4 0/5 · prove_lower2 **67** · no_bb_bin_t 0 · concurrency OK. **NEXT:** rung CONTINUES — (1) deeper runtime statics/strings pass, (2) `rt_pl_arith` merge, (3) then the emitter sweep. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-LI-RUNTIME-DENAME-SLICE-1.md`.
+**HANDOFF (2026-06-02, Opus 4.8) — SRC-REORG GOAL CLOSED + `bb_exec`→`IR_interp` + LI clean-surface EXHAUSTED. All pushed, every gate byte-identical throughout.** Two threads landed this session: (A) the #0 SRC-REORG ladder is **COMPLETE** (GMR-6 backends/ `660ec37`, GMR-7 tools/ `3f8b1c7`, GMR-8 a+c de-pollute `961a400`, GMR-FENCE `c3d61ea`+.github `41e62dd9`) — `src/` is now role-sliced: attic backends contracts driver emitter include interp lower machine parser runtime(+core/rt/builtins) tools; GMR-8(b) (`Σ/Δ/Ω`+`TEMPLATE_ADDR_*` in emit_globals.h) deliberately DEFERRED to coordinate with the REG ladder. (B) **`bb_exec`→`IR_interp`** (`a12c0ce`): file+header+state-header + funcs `bb_exec_{once,resume,pump,node,pat}`→`IR_interp_*` (164 refs) — it interprets the IR graph, "BB" now means the emitter's templates; unrelated `coro_stmt.c` `bb_exec_stmt` left intact. (C) **LI clean slices** `bb_rk_gather`→`bb_gather` (`0b86f9e`) + `rk_marshal_call_arg`→`marshal_call_arg` (`db6d33d`). **KEY FINDINGS for the LI continuation** (see "Next incomplete step" above for the full list): the CLEAN single-symbol surface is now EXHAUSTED; `rt_rk_*`/`rt_icn_*` runtime leftovers are already 0; `raku_nfa_*` is **parser-defined ⇒ out of scope** (Lon "leave parser alone" overrides old LI-5); `codegen_flat_chain_body` already exists separately from `codegen_sno_flat_chain_body` ⇒ that's a MERGE not a rename; the 31 `rt_pl_*` now in `runtime/rt/rt.h` (GMR-8c) are mostly GENUINE Prolog builtins needing a naming DECISION; `sno_prog_t`/`sno_stmt_t` moved to `interp/IR_interp_state.h` (still in scope). Everything left is MERGE/judgment — read bodies, don't sed. **Gates @ each commit:** SNOBOL4 m2 **7/7 HARD**, Icon m2 **12/12 HARD**, prove_lower2 **67**, concurrency OK, no_bb_bin_t 0. Also repaired (FENCE): `test_sno_pat_bb_probe.sh` INC (broke at GMR-2's IR.h move) — probe_pb_rb_1 PASSES; pb_rb_3 are pre-existing pattern WIP, NOT reorg collateral. SCRIP tip `db6d33d`, .github tip this commit.
+
+ New CURRENT rung added (top of file; kept ACTIVE per Lon "keep our rung active"): de-name the language runtime by CS concept — runtime first, then emitters. This slice renamed ONLY symbols **DEFINED in `src/runtime/**`** (definition-location authoritative, NOT a token's use): `rt_pl_{write_int,write_var,write_atom,write_cstr,write_float,write_term_ptr,writeq_term_ptr,write_canonical_term_ptr,format_float,env_alloc,env_current,cp_save_caller_env,choice_cut_enter,choice_cut_exit,choice_cut_unwind,cut_set,get_cut_flag,main_init}`→`rt_*`; `rt_rk_{call_arr,jct_relop}`→`rt_*`; `interp_exec_pl_builtin`→`interp_exec_builtin`; `is_pl_user_call`→`is_user_call`; `g_pl_last_ok`→`g_last_ok`; `g_icn_{call_args,proc_arena,proc_depth}`→`g_*`; `descr_to_str_icn`→`descr_to_str`; runtime datatype string `"icnlist"`(+5 file-local once-guards)→`"list"` (purely internal: DEFDAT/DATCON/strcmp all in runtime, ZERO `.ref` dependency). 14 files touched (8 runtime defs/headers + call sites: 2 emitter / 2 lower / 1 driver / 1 frontend — call-site updates are reference fixes, not renames of those layers' own symbols). **HELD — frontend-DEFINED (out of scope):** `pl_arg`/`pl_univ`/`pl_functor`/`pl_write`/`pl_writeq`/`pl_write_canonical`/`pl_assert_term`/`pl_term_to_string` (prolog_builtin.c/prolog_lower.c), `prolog_atom_{init,name,intern}` (prolog_atom.c), `raku_nfa_{build,exec,free,bb_match,state_count}` (raku_re.c/raku_nfa_bb.c). **HELD — driver-DEFINED:** `g_raku_match` (interp_globals.c) — Lon named runtime then emitters, not driver. **HELD — genuine/merge:** `SNO_INIT_fn` (SNOBOL runtime-lib init), `sno_parse_string_ast` (invokes SNOBOL parser for CODE/EVAL), `rt_pl_arith`→`rt_arith` (MERGE with existing `rt_arith`, do with code). **Gates byte-identical @ pristine baseline:** m2 SNOBOL4 **7/7 HARD** / m3 2/6 / m4 0/6 · Icon m2 **12/12 HARD** / m3 3/12 / m4 3/12 · Prolog m2 **5/5 HARD** / m3 2/5 / m4 0/5 · prove_lower2 **67** · no_bb_bin_t 0 · concurrency OK. **NEXT:** rung CONTINUES — (1) deeper runtime statics/strings pass, (2) `rt_pl_arith` merge, (3) then the emitter sweep. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-LI-RUNTIME-DENAME-SLICE-1.md`.
 **Watermark.** SCRIP `10fbe32` · .github this commit.
 **HANDOFF (2026-06-02, Opus 4.8) — `bb_binop` ROUTER DELETED; ONE IR KIND PER ARM, 1:1 DISPATCH (Lon directive: "remove `bb_binop` completely, we do not redirect templates, make an IR for each").** The prior session's wiring-class→body "split binary/unary operator code" rung was REMOVED from this goal per Lon (it had gotten confused; it committed nothing). The straightforward thing was done instead and COMMITTED: the `bb_binop.cpp` router is gone, four IR kinds (`IR_BINOP_RELOP`/`IR_BINOP_ARITH`/`IR_BINOP_GVAR_ARITH`/`IR_BINOP_CONCAT`) dispatch 1:1, no template probes/calls a sibling. Full record in the ✅ DONE block at the TOP of this file. SCRIP `3a39174` (base `cd10224`). Verified the prior STUB CLEANUP (`cd10224`) deleted ONLY stubs/empties — all 54 deleted `bb_*.cpp` had zero real instruction emission (`x86("…")`=0, `bytes()`/`bb_bin_t`=0, no GAS-text/`_str`/`bb_emit_asm` either); `bb_capture`/`bb_match`/`bb_subject`/`bb_arbno` were 12-13-line `x86_bomb` one-liners at that commit, not real boxes. **Gates == pristine `cd10224` baseline (byte-identical change):** SNOBOL4 m2 **7/7 HARD** / m3 2/6 / m4 0/6 · Icon m2 **12/12 HARD** / m3 3/12 / m4 3/12 · prove_lower2 **67** · no_bb_bin_t 0 · concurrency OK. **OPEN (noted, not done):** `IR_BINOP_GVAR_ARITH` still bakes SNOBOL operands as immediates (the old fusion) — a later de-fuse would make them ζ-slot producer boxes like Icon's `bb_binop_arith`; preserved byte-for-byte here. **NEXT:** the LI de-name ACTIVE RUNG (now the top live rung) — remaining clean slices LI-5 `raku_nfa_*`→`nfa_*`, LI-1 `bb_rk_gather`→`bb_gather`, then the merge slices + LI-CORE + LI-FENCE.
 **Watermark.** SCRIP `3a39174` · .github this commit.
