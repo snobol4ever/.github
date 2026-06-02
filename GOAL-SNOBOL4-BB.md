@@ -11,9 +11,10 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `bb_pat_span.cpp` (looping). **Recipe:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
 - **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
   — first to reach a combinator designs it once in the RULES-DRAFT.
-- **YOUR BOXES:** `bb_pat_pos`✅ + `bb_pat_span`✅ DONE. Next loop-free leaves: `bb_pat_abort` (trivial) → `bb_pat_tab`
-  (needs a `mov r32,imm32` encoder) → `bb_pat_atp`/`bb_pat_arb`/`bb_pat_defer`. Looping: `bb_pat_break` (follow SPAN).
-  Variable-length (the STILL-OPEN design): `bb_pat_fence` (pair path), `bb_pat_cat`, `bb_pat_alt`, `bb_match`.
+- **YOUR BOXES:** `bb_pat_pos`✅ + `bb_pat_span`✅ + `bb_pat_abort`✅ + `bb_pat_tab`✅ DONE (`x86_movimm32` /
+  `mov32` encoder landed for TAB δ=r14d set). Next loop-free leaves: `bb_pat_atp`/`bb_pat_arb`/`bb_pat_defer`.
+  Looping: `bb_pat_break` (follow SPAN). Variable-length (the STILL-OPEN design): `bb_pat_fence` (pair path),
+  `bb_pat_cat`, `bb_pat_alt`, `bb_match`.
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
@@ -1817,8 +1818,28 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `30e8422` · .github this commit.
-**This session (2026-06-02, Opus 4.8) — TEMPLATE-REVAMP: x86() internal-label keystone + `bb_pat_pos` + `bb_pat_span` converted; mode-4 verbiage corrected:**
+**Watermark.** SCRIP `66eb967` · .github this commit.
+**This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_abort` + `bb_pat_tab` converted; `x86_movimm32` encoder added:**
+- **`bb_pat_abort`** (`66eb967`) — TRIVIAL convert: x86 arm = `x86("jmp",PORT_OMEGA)+x86("def",PORT_BETA)+x86("jmp",PORT_OMEGA)`.
+  pBB-free (reads `_` only); prototype + dispatch parameterless. Verified mode-3: a pattern hitting ABORT fails the
+  match (SPITBOL Manual ch.18: ABORT causes pattern match failure).
+- **`bb_pat_tab`** (`66eb967`) — LOOP-FREE convert on the ratified registers δ=R14d / Δ=R15d (legacy `[r10]`/`lea[rip+Σlen]`
+  GONE). TAB(N): `cmp r14d,N / jg ω / mov32 r14d,N / jmp γ / def β / jmp ω`. RTAB(N): `mov ecx,r15d / sub ecx,N /
+  cmp r14d,ecx / jg ω / mov r14d,ecx / jmp γ / def β / jmp ω`. RTAB distinguished by `sval[0]=='r'` (NOT `ival!=0`).
+  Semantics matched to mode-2 oracle (`bb_exec.c` IR_PAT_TAB): target = N (TAB) | Σlen−N (RTAB), fail if δ>target,
+  advance δ=target, β fails restoring δ. **mode-3 == mode-2** verified for TAB(2), TAB(0), RTAB(2), RTAB(0), and the
+  cursor-past-target failure path (`LEN(3) TAB(1)` / `LEN(3) RTAB(4)` both correctly fail).
+- **NEW ENCODER `x86_movimm32`** in `x86_asm.h` (+ `"mov32"` front-end mnemonic) — 32-bit `mov reg,imm32` (B8+rd,
+  REX.B when reg≥8; 5/6 bytes; `mov r14d,N`=`41 BE imm32`). Byte-verified vs `as` BEFORE use. ADDITIVE — no existing
+  encoder perturbed (the 64-bit `x86_movimm`/movabs path for operand-constant loads is untouched). The `mov` vs `mov32`
+  mnemonic split is the R7-sanctioned way to pick the immediate width at the call site.
+- Gates ALL GREEN: m2 **7/7 HARD**, m3 5/6 (`define` lone fail), PAT-BB rung 18/19 m2 (`053_pat_alt_commit` pre-existing),
+  g_vstack **0**, prove_lower2 PASS, concurrency invariants OK (FACT RULES byte-identical ×3), Icon smoke 2/2 (shared
+  `x86_asm.h` edit caused no Icon regression). Detail: this watermark (no separate HANDOFF file this turn).
+- **NEXT loop-free leaves:** `bb_pat_atp` / `bb_pat_arb` / `bb_pat_defer` (read each for its exact shape; arb/atp touch
+  variable storage). Then looping `bb_pat_break` (follow SPAN), then the variable-length combinators.
+
+**Prior session (2026-06-02, Opus 4.8) — TEMPLATE-REVAMP: x86() internal-label keystone + `bb_pat_pos` + `bb_pat_span` converted; mode-4 verbiage corrected:**
 - **x86() SELF-ENCODING REVAMP** (per GOAL-TEMPLATE-REVAMP-RULES-DRAFT): each BB becomes ONE return per PLATFORM_*,
   pure `x86(mnem,…)` concatenation, NO `bb_bin_t`, pBB-free (reads `_` only). In-band records replace the hand-counted
   offset table — `L`(literal bytes) / `J`(rel32 patch to a label) / `D`(define a label); the consumer `bb_emit_x86`
