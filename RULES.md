@@ -49,5 +49,8 @@ git config user.email "lcherryh@yahoo.com"
 - Scripts in `SCRIP/scripts/`. Every script: paths from `$0`, `< /dev/null` on scrip calls.
 
 ## C code style
-- **200-char line max.** Zero blank lines. Separators: `/*---*/` minor, `/*===*/` major (200 chars).
-- No inline comments. Block comments above function, after separator.
+- **200-char line max.** Zero blank lines.
+- **EXACTLY ONE COMMENT EXISTS: the LINE-BREAK separator** — `/*` + dashes + `*/`, **120 characters long**,
+  between every function and every major block. **`/*=====*/`** (equals, 120 chars) separates LARGER files /
+  sections. **Nothing else** — no block comment above a function, no inline comment, no `//`, no prose. None.
+  (Lon directive 2026-06-02; see the LANGUAGE-INDEPENDENT cleanup rung in GOAL-SNOBOL4-BB.md.)
