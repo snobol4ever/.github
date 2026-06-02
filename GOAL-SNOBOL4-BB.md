@@ -22,6 +22,34 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
+### ◀ THIS SESSION (2026-06-02, Opus 4.8) — α-OPERAND PROMOTION + `bb_lit_scalar` + `bb_sno_assign` → x86()
+**`OUTPUT = "hello"` RUNS END-TO-END IN MODE-3 (prints `hello`)** — first SNOBOL4 statement restored since the
+prison commit dropped m3 to 0. Three pieces landed (SCRIP):
+- **NEW shared infra — α-operand promotion.** `walk_bb_node` (emit_core.c) now sets `_.op_a_sval` /
+  `_.op_a_node_kind` from `nd->α` (added to `sm_emit_t` in emit_globals.h). This is the no-neighbor FACT RULE
+  made practical for BINARY consumers: the dispatcher (which sees the graph) marshals the α-operand onto `_`,
+  so a consumer box reads ONLY `_` — never `pBB->α`. Additive; Icon m2 12/12 unperturbed. The pattern the rest
+  of the SNOBOL4 lane builds on (next: `_.op_a_slot` = promote `bb_slot_get(nd->α)` for the int-binop arm).
+- **`bb_lit_scalar` → x86()** (was bb_bin_t offset-table). Pass-through arms (IR_LIT_S/NUL/F + non-flat IR_LIT_I)
+  = pBB-free `jmp γ; def β; jmp ω`, byte-identical to the original IR_LIT_S arm. The **IR_LIT_I flat-chain arm
+  (g_icn_flat_chain) is a documented LOUD bomb** — its 16-byte-DESCR→ζ-slot store needs a RELOCATABLE
+  rip-relative load of sealed in-blob VALUES; the keystone RO encoders load ADDRESSES only. That is the **REG-RO**
+  rung (anticipated in x86_asm.h, not built). Did NOT bend the RO-IP-relative FACT RULE with a movabs.
+- **`bb_sno_assign` → x86()** (pBB-free). `lit_s` + `var` arms CLEAN (two RO ptr loads + one call via
+  x86_load_ro/x86_call_ro): `rt_sno_assign_lit_s(dst,str)` / `rt_sno_assign_var(dst,src)`. `int-binop` +
+  `concat` arms are documented LOUD bombs (int-binop needs `_.op_a_slot`; concat is the STITCH_SEQ pattern-graph
+  work PB-RB-4, not a box rewrite). β = jmp ω (single-shot assign); no r10 guard / no align dance (rsp 16-aligned
+  at α entry → one direct call is SysV-correct, matches the original).
+
+**Gates GREEN:** SNOBOL4 m2 **7/7 HARD** · Icon m2 **12/12 HARD** · `test_gate_no_bb_bin_t` 0 · medium-invisible
+unchanged (only Icon `bb_unop`) · concurrency invariants rc=0 · `prove_lower2` PASS · g_vstack 0. m3 still 0/6 by
+the smoke harness (the `var` assign + arith/concat are gated on `bb_var` [shared lane] + `_.op_a_slot`), but
+`OUTPUT="hello"` is verified correct by direct `./scrip --run`. **NEXT (SNOBOL4):** (1) `bb_var` (shared lane;
+port pass-through for SNOBOL4 — check Icon's value-producing use first) → unblocks the `var` assign + `OUTPUT=S`;
+(2) `_.op_a_slot` promotion + `bb_sno_assign` int-binop arm; (3) `bb_sno_subject`+`bb_match` together (MATCH reads
+SUBJECT's ζ-slot), then `bb_capture`/`bb_arbno`; (4) **REG-RO** sealed-trailer encoder (unblocks `bb_lit_scalar`
+IR_LIT_I + mode-4 relocatability). Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-OP-A-PROMOTE-LIT-ASSIGN.md`.
+
 ---
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
