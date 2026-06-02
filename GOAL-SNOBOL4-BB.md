@@ -47,7 +47,7 @@ converted off its `x86_bomb` stub to x86() self-encoding (SCRIP this session's c
 
 **Gates GREEN (this session):** SNOBOL4 m2 **7/7 HARD** · Icon m2 **12/12 HARD** (shared `emit_bb.c` IR_VAR touch
 did NOT regress Icon — baseline-stashed proof: Icon m3 was already 0/12 at HEAD pre-change, the prison-commit
-state) · `test_gate_no_bb_bin_t` 0 · `prove_lower2` PASS · `test_gate_sm_dead` 0 · `audit_concurrency_invariants`
+state) · `test_gate_no_bb_bin_t` 0 · `prove_lower2` 67 PASS · `test_gate_sm_dead` 0 · `audit_concurrency_invariants`
 rc=0 · purity 1 (pre-existing Icon `bb_every`) · medium-invisible 1 (pre-existing Icon `bb_unop`) · `g_vstack`
 token 0. m3 smoke PASS=1 (the `pattern`/`concat`/`arith`/`goto_s`/`define` cases need the still-bombed
 subject/match/binop/goto/define boxes — `bb_var` alone unblocks the var-read leaf, verified by direct `./scrip
@@ -55,6 +55,12 @@ subject/match/binop/goto/define boxes — `bb_var` alone unblocks the var-read l
 bb_slot_get(nd->α) : -1`) + `bb_sno_assign` int-binop arm → unblocks `OUTPUT = 2 + 3`; (2) `bb_sno_subject` +
 `bb_match` together (MATCH reads SUBJECT's ζ-slot `g_sno_subject_slot`) → the `pattern` smoke; then
 `bb_capture`/`bb_arbno`. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-BB-VAR.md`.
+**POST-REBASE (merged `origin/main`):** a concurrent Icon-lane peer commit SCRIP `32d1d89` (`bb_lit_scalar`/
+`bb_call`/`bb_binop` router + relop/concat_slot → x86()) landed during this session and rebased cleanly UNDER my
+commit. On the merged tree the gates re-verified GREEN — SNOBOL4 m2 7/7 HARD · Icon m2 12/12 HARD · Icon m3/m4
+now **2/12** (the peer's boxes, NOT `bb_var`) · `no_bb_bin_t` 0 · `prove_lower2` 67 · concurrency OK · `bb_var`
+var-read (`hi`) + var-chain (`foo`) still correct. So a next session's sweep sees Icon m3=2, not 0 — peer gain.
+Final pushed tips: SCRIP `a4f7242`, `.github` (this commit).
 
 ### ◀ PRIOR SESSION (2026-06-02, Opus 4.8) — α-OPERAND PROMOTION + `bb_lit_scalar` + `bb_sno_assign` → x86()
 **`OUTPUT = "hello"` RUNS END-TO-END IN MODE-3 (prints `hello`)** — first SNOBOL4 statement restored since the
