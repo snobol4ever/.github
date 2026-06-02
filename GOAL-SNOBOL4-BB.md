@@ -1,90 +1,23 @@
 # GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
-## 🔴🔴🔴 FIRST NEXT STEP (Lon directive 2026-06-02, session-end handoff) — BINARY/UNARY OP BOXES: SPLIT BY (1) WIRING-CLASS then (2) EMITTED BODY. ONE IR ⇄ ONE BB.
+## ✅ DONE (2026-06-02 session) — `bb_binop` ROUTER DELETED; ONE IR KIND PER ARM, 1:1 DISPATCH
 
-**Decided after a long design conversation. This SUPERSEDES the "ONE `bb_binop`" idea AND the "4-arm router/dispatch-helper" idea below — both were wrong. The session that explored them committed NOTHING; the SCRIP tree is pristine at `cd10224` (router intact, m2 7/7 + Icon 12/12 HARD, m3 2/6). Start here.**
+The `bb_binop.cpp` router (which probed `bb_binop_{relop,arith,gvar_arith,concat_slot}_str()` in order) is GONE —
+deleted from the tree, `bb_templates.h`, the Makefile source list, and its per-`.o` rule. Each former arm now has
+ONE IR kind and is dispatched 1:1; no template probes or calls another template.
+- **New IR kinds** (`IR.h` + `scrip_ir.c` names): `IR_BINOP_RELOP` · `IR_BINOP_ARITH` · `IR_BINOP_GVAR_ARITH` · `IR_BINOP_CONCAT`.
+- **Dispatch** (`emit_core.c walk_bb_node`): four direct `case IR_BINOP_*: bb_binop_*(nd); return 0;`. Leftover `IR_BINOP`
+  (string-rel `SLT..SNE` / `POW` / degenerate — already a bomb under the old router) falls to the existing loud default.
+- **Arm entries**: each arm file (`bb_binop_relop/arith/gvar_arith/concat_slot.cpp`) gained an `extern "C" void bb_binop_X(IR_t*)`
+  that emits its OWN `_str()` — the sanctioned same-box split, NOT redirection.
+- **Kind minting**: the shape was already computed in `emit_bb.c` (`walk_bb_flat` IR_BINOP case + `flat_drive_binop_tree`);
+  it now retags the node to the concrete kind at the `FILL` boundary (the existing `IR_BINOP_GEN` idiom), so the ~15
+  `== IR_BINOP` consumers (arity / operand-refs / assign-rhs / if-detect, which run before FILL) are untouched. Byte-identical.
+- **Gates** (== pristine `cd10224` baseline): SNOBOL4 m2 **7/7 HARD** / m3 2/6 / m4 0/6 · Icon m2 **12/12 HARD** / m3 3/12 /
+  m4 3/12 · prove_lower2 **67** · no_bb_bin_t 0 · concurrency OK.
+- **OPEN (noted, not done):** `IR_BINOP_GVAR_ARITH` still bakes SNOBOL operands as immediates (the old fusion); a later
+  de-fuse would make them producer boxes read from ζ-slots like Icon's `bb_binop_arith`. Preserved byte-for-byte here.
 
-**THE LAW (operator identity is irrelevant; what the box EMITS is everything):** Two operators share one IR kind + one BB **iff** they have (a) the SAME port wiring AND (b) a byte-identical emitted body except for an immediate / opcode / runtime-helper address. Otherwise they are SEPARATE IR kinds + BBs. The lowerer mints the kind (it knows the operator + the language); emit dispatches 1:1. NO router, NO shape-probe in emit, NO operator baked into a consumer (operands are ALWAYS read from their ζ-slot — a baked operand like the old `gvar_arith` is a FUSION BUG to delete, not a shape to keep).
-
-**AXIS 1 — WIRING CLASS (primary; this is the part I kept getting wrong — the resume back-edge IS emitted control flow, i.e. it is part of the box's guts, not a shared skeleton):**
-- **EAGER / non-generator — SNOBOL4 and Prolog.** A binary op produces one value or fails; it is NEVER resumed for *more*. Degenerate Byrd box: `resume → fail`, NO back-edge into operands. (SNOBOL arith/concat/compare; Prolog `is/2` + deterministic compares over bound terms.)
-- **GENERATOR / goal-directed — Icon.** A relational re-drives its operand on compare-fail (`E2.succeed: if (¬cmp) goto E2.resume` — Proebsting §4.3 `LessThan`); operators thread a resume edge. This is the existing `IR_BINOP_GEN` family. **Different wiring ⇒ different boxes from the eager ones, even for "the same" operator** (Icon `<` and SNOBOL `<` share NEITHER guts NOR wiring).
-
-**AXIS 2 — EMITTED BODY (secondary, within a wiring class):**
-- **arith** `+ − × ÷ %` — inline ALU, one result, single-shot (opcode is the only per-op difference → ONE box, opcode parameterized; splitting +/−/× would duplicate guts).
-- **concat** — no ALU; a `str_concat` call with different register marshalling → its own body.
-- **relational (numeric)** `< > = ≤ ≥ ≠` — `cmp` + conditional jump (eager: to fail; generator: to `E2.resume`).
-- **string-relational + SNOBOL coercion** — ⚠ OPEN QUESTION, decides 3 vs 4 boxes per class: **if SNOBOL's comparison coercion emits instructions (a coerce call before the compare) → its own box; if coercion lives inside the runtime compare helper → it folds into the relational box.** CHECK THIS FIRST.
-
-**UNARY — SAME RULE.** Group unops by body: `neg` (arith negate) / `size` / `not` etc. are DIFFERENT bodies → different boxes; two unops differing only by opcode share one. Icon generator-unops (`IR_UNOP`/generator forms) are a separate wiring class from SNOBOL/Prolog eager unops.
-
-**THE GRID (target end-state; exact box list falls out of grouping bodies — verify each body before creating a box):**
-
-| wiring class | IR kind | BB | covers |
-|---|---|---|---|
-| eager (SNOBOL/Prolog) | `IR_BINOP_ARITH` | `bb_binop_arith` | `+ − × ÷ %` (eager) |
-| eager (SNOBOL/Prolog) | `IR_BINOP_CONCAT` | `bb_binop_concat` | concat (eager) |
-| eager (SNOBOL/Prolog) | `IR_BINOP_REL` | `bb_binop_rel` | numeric `< > = ≤ ≥ ≠` (eager, resume→fail) |
-| eager (SNOBOL) | `IR_BINOP_SREL` | `bb_binop_srel` | string-rel **+ coercion** — ONLY if coercion emits code (else fold into REL) |
-| generator (Icon) | `IR_BINOP_GEN` (+rel variant) | Icon gen boxes | Icon arith/rel that re-drive operands |
-| eager | `IR_UNOP_NEG`/`_SIZE`/`_NOT`/… | `bb_unop_*` | one per distinct unary body |
-
-⚠ **Eager SNOBOL vs eager Prolog share a box ONLY if their emitted bodies are byte-identical** (term/number marshalling may differ → Prolog may need its own arith/compare box; if identical, share). Group per-wiring-class, then per-body — do NOT fan out to one-per-operator (that is the duplication the NO-DUPLICATED-LOGIC FACT RULE forbids), and do NOT collapse to one-per-family (arith/concat/rel emit different bodies).
-
-**THE FUSION TO DELETE:** the current `bb_binop.cpp` is a ROUTER (probes `bb_binop_{relop,arith,gvar_arith,concat_slot}_str()` in order — an anti-pattern) and `bb_binop_gvar_arith` is `arith`'s guts with operands BAKED as immediates instead of read from slots (a FUSION = DUP FORM 3). The de-fuse = make SNOBOL's binop operands producer boxes (`bb_lit_scalar`) writing their `θ.value` into ζ-slots; the binop reads those slots (`[r12+sa+8]`/`[r12+sb+8]`), exactly as Icon's `bb_binop_arith` already does (verified this session: Icon `write(1+2)` emits two `bb_lit_scalar` producer boxes + a slot-reading arith box).
-
-**`θ.value` / OPERAND SLOT (Proebsting §4, read the uploaded `7_Simple_Translation_of_Goal_Directed_Evaluation.pdf`):** every operator owns one runtime temporary for the value it produces; its parent reads it. In SCRIP that is the ζ-frame slot `[r12+off]` (RW, register-relative). `plus.value ← E1.value + E2.value` IS `bb_binop_arith` reading two operand slots and writing its own. Operands are producer boxes; consumers read slots. NEVER bake.
-
-**KNOWN WIRINKLE (cost the prior session its m3 floor — heed it):** the SNOBOL statement chain is POSTFIX-FLAT — `--dump-bb` of `OUTPUT = 2+3` shows `LIT_I(2) → LIT_I(3) → BINOP → ASSIGN` as sibling γ-chain nodes; `sno_stmt_operand_refs` sets the binop's α/β to the two literals via a postfix stack pass. But `flat_drive_gvar_assign_binop` ALSO re-walks the binop as a TREE → double slot allocation. The de-fuse must reconcile these (operands are already chain nodes — do NOT re-walk them; just allocate their slot under `g_gvar_flat_chain` in the IR_LIT_I flat case + have the binop `bb_slot_get` them + have `bb_gvar_assign` read the binop result DESCR at `[slot+8]` not `[slot]`). Gate at EACH sub-step vs the SPITBOL oracle (`/home/claude/x64/bin/sbl -b`); keep m2 7/7 + Icon 12/12 HARD; raise MODE3_MIN only as it genuinely passes.
-
-**ORDER:** (0) decide SREL coercion (3 vs 4 boxes) by checking whether SNOBOL compare-coercion emits instructions. (1) De-fuse SNOBOL arith → operands as producer boxes filling slots; collapse `gvar_arith` into the eager `arith` box; verify `OUTPUT=2+3`=5 vs oracle. (2) Lower `IR_BINOP`(eager) → `IR_BINOP_{ARITH,CONCAT,REL[,SREL]}` in `lower.c` (shape from `tt_to_binop(e->t)` + `cx.lang`); emit becomes 1:1 cases; delete the router `bb_binop.cpp` + the dispatch-helper idea. (3) same for unary. Gate-green each slice; the grid above is the completion test.
-
----
-
-## 🔴🔴 (SUPERSEDED — kept for context) FIRST NEXT STEP — KILL THE `bb_binop` ROUTER; TEMPLATES ARE CALLED DIRECTLY
-
-**There is NO such thing as a "router" template. A BB template emits its OWN bytes — it must never probe or call
-sibling templates to choose one. Templates are dispatched DIRECTLY, not redirected.** (The standard same-box split
-`bb_X()` → its own `static bb_X_str()` build-helper is NOT redirection and is fine — e.g. `bb_every`'s internal
-`bb_every_flat_str`. The offense is a template that calls *other* boxes' `_str()`.)
-
-**The ONE offender (audited @ SCRIP `cd10224` — the only redirecting template among the 36 boxes): `bb_binop.cpp`,**
-a dispatcher masquerading as a template:
-
-    extern "C" void bb_binop(IR_t * pBB) {
-        std::string s;
-        s = bb_binop_relop_str();       if (!s.empty()) { bb_emit_x86(s); return; }
-        s = bb_binop_arith_str();       if (!s.empty()) { bb_emit_x86(s); return; }
-        s = bb_binop_gvar_arith_str();  if (!s.empty()) { bb_emit_x86(s); return; }
-        s = bb_binop_concat_slot_str(); if (!s.empty()) { bb_emit_x86(s); return; }
-        bb_emit_x86(x86_bomb("bb_binop: shape not yet converted ..."));
-    }
-
-The four arms (`bb_binop_relop`/`_arith`/`_gvar_arith`/`_concat_slot`) currently expose ONLY a `bb_binop_X_str()` that
-returns its bytes — or empty-string when its shape does not apply. The shape predicate is hidden INSIDE each `_str()`
-and the router probes them in order; that probing is the redirection to remove.
-
-**TASK — dispatch each binop arm directly; delete the router:**
-1. **[design, do first] Move shape selection OUT of the templates.** Preferred: lower `IR_BINOP` into shape-specific
-   IR kinds in the LOWERER — `IR_BINOP_RELOP` / `IR_BINOP_ARITH` / `IR_BINOP_GVAR_ARITH` / `IR_BINOP_CONCAT` — so one
-   kind maps to exactly one template (the cleanest "direct" end-state). Fallback if a lowering change is too large
-   this slice: compute the shape in a small *dispatch* helper in `emit_core.c` and call the concrete arm directly
-   (still zero template-to-template calls). Either way the shape decision lives in the lowerer/dispatch, never in a
-   template.
-2. Give each arm a directly-callable template entry (`extern "C" void bb_binop_relop(IR_t*)`, etc.) that just emits
-   its bytes; the per-arm "does this shape apply?" check is no longer needed inside the arm (the dispatch already
-   chose it).
-3. `walk_bb_node`: replace `case IR_BINOP: bb_binop(nd)` with direct dispatch to the chosen arm — distinct `case`s
-   under (1-preferred), or `case IR_BINOP:` + shape-helper + direct call under (1-fallback).
-4. **Delete `bb_binop.cpp`**, its `RT_PIC_SRCS` + `scrip:` Makefile lines, and its `bb_templates.h` prototype.
-5. Unconverted/unknown binop shapes hit the existing **loud default** in `walk_bb_node` (per the TEMPLATE-ONLY FACT
-   RULE) — never a router fallback bomb.
-6. **Gates (must hold):** m2 SNOBOL4 **7/7** + Icon **12/12** HARD · m3 must not drop (SNOBOL ≥2 incl.
-   `OUTPUT = 2 + 3`; Icon ≥3) · m4 ≥0 · `prove_lower2` PASS · `no_bb_bin_t` 0 · concurrency **FACT-RULES
-   byte-identical x3**.
-
-After this, **no template calls another template** — the binop family is dispatched exactly like every other box.
-The LANGUAGE-INDEPENDENT de-name rung below resumes after this step.
 
 ## 🔴🔴 ACTIVE RUNG — READ FIRST (Lon PIVOT 2026-06-02): LANGUAGE-INDEPENDENT EMITTER + RUNTIME (de-name) + COMMENT PURGE
 
@@ -2234,8 +2167,8 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**HANDOFF (2026-06-02, session-end) — BINOP/UNOP SPLIT DESIGN LANDED IN GOAL; CODE WIP DISCARDED, TREE PRISTINE.** A long design conversation converged on the wiring-class→body split for binary/unary operator boxes — written as the new 🔴🔴🔴 FIRST NEXT STEP at the TOP of this file (the authoritative directive). The session explored (a) killing the `bb_binop` router via a dispatch-helper [the goal's "fallback"], then (b) a de-fuse of the SNOBOL `gvar_arith` fusion. Both were intermediate/wrong relative to the final design, and the de-fuse broke `OUTPUT=2+3` (→0, then m3 floor 2→1 from an inconsistent revert). **Per the no-broken-commits rule, ALL SCRIP WIP was discarded — `git checkout .` back to `cd10224`. SCRIP tree is PRISTINE + GREEN: m2 SNOBOL4 7/7 + Icon 12/12 HARD, m3 2/6, m4 0/6, router (`bb_binop.cpp`) intact. NOTHING committed to SCRIP this session.** Durable artifacts: (1) the FIRST-NEXT-STEP design grid (wiring-class: eager SNOBOL/Prolog vs generator Icon → then body: arith/concat/rel[/srel]); (2) confirmed Icon `write(1+2)` already runs de-fused (two `bb_lit_scalar` producer boxes + slot-reading `bb_binop_arith`) — the model for the SNOBOL de-fuse; (3) the `θ.value`/operand-slot grounding from the uploaded Proebsting PDF; (4) the postfix-flat-chain wrinkle that cost the m3 floor (operands are already chain nodes — don't re-walk; the `flat_drive_gvar_assign_binop` tree re-walk double-allocates slots). **Next session: start from the TOP FIRST-NEXT-STEP; do step (0) SREL-coercion check first.** Prior watermark (the LI cleanup rung) is below and unchanged; its pushed SCRIP tip `ba6e912` is NOT this session's base — this session worked from `cd10224` and reverted, so origin/main is untouched by SCRIP.
-**Watermark.** SCRIP `ba6e912` · .github this commit.
+**HANDOFF (2026-06-02, Opus 4.8) — `bb_binop` ROUTER DELETED; ONE IR KIND PER ARM, 1:1 DISPATCH (Lon directive: "remove `bb_binop` completely, we do not redirect templates, make an IR for each").** The prior session's wiring-class→body "split binary/unary operator code" rung was REMOVED from this goal per Lon (it had gotten confused; it committed nothing). The straightforward thing was done instead and COMMITTED: the `bb_binop.cpp` router is gone, four IR kinds (`IR_BINOP_RELOP`/`IR_BINOP_ARITH`/`IR_BINOP_GVAR_ARITH`/`IR_BINOP_CONCAT`) dispatch 1:1, no template probes/calls a sibling. Full record in the ✅ DONE block at the TOP of this file. SCRIP `3a39174` (base `cd10224`). Verified the prior STUB CLEANUP (`cd10224`) deleted ONLY stubs/empties — all 54 deleted `bb_*.cpp` had zero real instruction emission (`x86("…")`=0, `bytes()`/`bb_bin_t`=0, no GAS-text/`_str`/`bb_emit_asm` either); `bb_capture`/`bb_match`/`bb_subject`/`bb_arbno` were 12-13-line `x86_bomb` one-liners at that commit, not real boxes. **Gates == pristine `cd10224` baseline (byte-identical change):** SNOBOL4 m2 **7/7 HARD** / m3 2/6 / m4 0/6 · Icon m2 **12/12 HARD** / m3 3/12 / m4 3/12 · prove_lower2 **67** · no_bb_bin_t 0 · concurrency OK. **OPEN (noted, not done):** `IR_BINOP_GVAR_ARITH` still bakes SNOBOL operands as immediates (the old fusion) — a later de-fuse would make them ζ-slot producer boxes like Icon's `bb_binop_arith`; preserved byte-for-byte here. **NEXT:** the LI de-name ACTIVE RUNG (now the top live rung) — remaining clean slices LI-5 `raku_nfa_*`→`nfa_*`, LI-1 `bb_rk_gather`→`bb_gather`, then the merge slices + LI-CORE + LI-FENCE.
+**Watermark.** SCRIP `3a39174` · .github this commit.
 **HANDOFF (2026-06-02, Opus 4.8) — LANGUAGE-INDEPENDENT EMITTER+RUNTIME CLEANUP RUNG launched: LI-0 COMMENT PURGE + 3 clean de-name slices. All pushed, tree GREEN, behavior byte-identical.** Lon PIVOT: EMITTER + RUNTIME are
 language-independent — strip every language tag (SNO/ICN/PL/RAKU/RK/REB), incl. comments, naming each box/helper by
 its CS/industry concept; the new ACTIVE RUNG at the TOP of this file holds the directive, the full listing, the
