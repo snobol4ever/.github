@@ -657,7 +657,7 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — post-PL-RV-4, SCRIP HEAD `ced1acd`+PL-RV-3+PL-RV-4)
+## 📊 Gate table (current — post-PL-RV-4, SCRIP HEAD `fc8f25d` (PL-RV-4 on origin/main))
 
 x86() revamp in progress (bb_cut PL-RV-1, bb_arith PL-RV-2, bb_conj+bb_ite PL-RV-3, bb_disj+bb_catch PL-RV-4 done)
 — counts UNCHANGED from post-PLG-9j: the converted boxes are dead-twin (cut/arith/disj/catch) or byte-identical
