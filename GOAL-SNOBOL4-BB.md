@@ -33,7 +33,7 @@ language-independent vocab. SCRIP `703eb83` (rebased onto peer `06826c8`). **REN
 behavior unchanged by construction; all gate baselines preserved).** Key new names the NEXT session uses:
 - **Name-value subsystem** (matches `rt_nv_get`/`NV_SET_fn`; distinct from Icon frame-slot `bb_assign`):
   `rt_sno_assign_{lit_s,int,var,concat}`→`rt_nv_assign_{str,int,var,concat}` · `bb_sno_assign*`→`bb_nv_assign*` ·
-  `flat_drive_sno_assign*`→`flat_drive_nv_assign*` · `g_sno_flat_chain`→`g_nv_flat_chain` · file→`bb_nv_assign.cpp`.
+  `flat_drive_sno_assign*`→`flat_drive_gvar_assign*` · `g_sno_flat_chain`→`g_gvar_flat_chain` · file→`bb_gvar_assign.cpp`.
 - **Pattern-matching subsystem** (subject/scan/match): `rt_sno_subject_load`→`rt_subject_load` ·
   `rt_sno_match_lit`→`rt_match_lit` · `rt_sno_exec_scan`→`rt_scan_exec` · `bb_sno_subject`→`bb_subject` ·
   `bb_sno_scan`→`bb_scan_stmt` (`bb_scan` = a BrokerMode enum, taken) · `flat_drive_sno_{subject,scan,
@@ -41,11 +41,27 @@ behavior unchanged by construction; all gate baselines preserved).** Key new nam
   files→`bb_scan_stmt.cpp`/`bb_subject.cpp`. Makefile (src-list + per-object rules + `.o` names) updated.
 - **LEFT (out of scope, flagged):** `IR_SNO_PROG` enum; `bb_exec.c` mode-2 statics `g_sno_save`/`g_sno_save_top`/
   `g_sno_cur_func`+`SnoSaveEnt`/`SNO_SAVE_MAX`; the broader `SNO_*`/`Sno*`/`Snocone*` frontend+mode-2 family
-  (a deeper mode-2/frontend sweep is a separate grand-master-reorg if Lon wants it).
-- **NEXT(1) re-confirmed with new names:** `rt_nv_assign_int` already EXISTS; `OUTPUT = 2 + 3` bombs in `bb_binop`
-  (no `g_nv_flat_chain` arith arm) BEFORE `bb_nv_assign`. Fix = a name-value int-arith arm in `bb_binop`
-  (raw-int64 → 8-byte slot) + `bb_nv_assign` int-binop arm + `op_a_slot` promotion (`sm_emit_t`/`emit_core.c`).
-  Full recipe: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-SNO-STRIP-RENAME.md`.
+  (a deeper mode-2/frontend sweep is a separate grand-master-reorg if Lon wants it). Also: the `bb_nv_assign`
+  names from the prior rename are now **further corrected** to `bb_gvar_assign` / `rt_gvar_assign_*` (see below).
+- **✅ NEXT(1) DONE (2026-06-02, Sonnet 4.6):** `OUTPUT = 2 + 3` → `5` in mode-3. See THIS SESSION below.
+
+### ◀ THIS SESSION (2026-06-02, Sonnet 4.6) — GVAR RENAME + `OUTPUT = 2 + 3` mode-3
+**`OUTPUT = 2 + 3` RUNS END-TO-END IN MODE-3 (prints `5`; verified vs SPITBOL oracle for +/-/*//).**
+**Also: second rename pivot** — `bb_nv_assign`→`bb_gvar_assign`, `rt_nv_assign_*`→`rt_gvar_assign_*`,
+`g_nv_flat_chain`→`g_gvar_flat_chain` (Lon directive: `NV` is opaque jargon; concept = **global variables**,
+what the user manual calls them; runtime is language-independent). SCRIP `03995b7` (rename) + `707b284` (arith).
+- **Rename** (SCRIP `03995b7`): 9 files, 42+/42- symmetric, zero behavior change. All gates green by construction.
+- **Arith** (SCRIP `707b284`): three pieces: (a) `op_a_slot` field added to `sm_emit_t` + promoted in
+  `walk_bb_node` (`g_emit.op_a_slot = bb_slot_get(nd->α)`); (b) new `bb_binop_gvar_arith.cpp` — gvar arith
+  arm gated on `g_gvar_flat_chain && op_off>=0`, reads `op_sa`/`op_sb` as literal ival immediates, stores raw
+  int64 into an 8-byte `bb_slot_alloc`-keyed ζ-slot (node-keyed so `bb_slot_get` finds it); (c) `bb_gvar_assign`
+  int-binop arm — reads `_.op_a_slot`, `lea rdi [rip+dst]`, `mov rsi [r12+slot]`, `call rt_gvar_assign_int`,
+  replaces the x86_bomb stub. MODE3_MIN floor corrected 5→2.
+- **Gates GREEN:** m2 **7/7 HARD** · m3 **2/6** (output+arith) · m4 0/6 · `no_bb_bin_t` 0 · `sm_dead` 0 ·
+  concurrency OK · prove_lower2 PASS · g_vstack 0.
+- **NEXT (SNOBOL4):** `bb_subject` + `bb_match` together → the `pattern` smoke (`S 'b' = 'X'` → `aXc`). MATCH
+  reads SUBJECT's ζ-slot via `g_subject_slot`; both boxes must be emitted in the same flat chain.
+  Then `bb_capture`/`bb_arbno`. Detail: `HANDOFF-2026-06-02-SONNET46-SNOBOL4-BB-GVAR-RENAME-ARITH.md`.
 
 ### ◀ PRIOR SESSION (2026-06-02, Opus 4.8) — `bb_var` → x86() (name-value pass-through + ICN slot-copy)
 **`S = 'hi'; OUTPUT = S` RUNS END-TO-END IN MODE-3 (prints `hi`)** — the `OUTPUT = S` / var-read path the
@@ -1983,7 +1999,21 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP local (NOT pushed — see below) · .github this commit.
+**Watermark.** SCRIP `707b284` · .github this commit.
+**HANDOFF (2026-06-02, Sonnet 4.6) — TWO RENAMES + `OUTPUT = 2 + 3` in mode-3 (m3 1→2).** (1) **PIVOT rename
+`bb_nv_assign`→`bb_gvar_assign`, `rt_nv_assign_*`→`rt_gvar_assign_*`, `g_nv_flat_chain`→`g_gvar_flat_chain`** —
+`NV` was opaque jargon; the runtime is language-independent; the concept is **global variables** (what the user
+manual calls them). Symmetric 42+/42- rename, zero behavior change, all gates green. SCRIP `03995b7`. (2)
+**`OUTPUT = 2 + 3` runs end-to-end in mode-3** (prints `5`; verified byte-identical vs SPITBOL oracle for
+`+`, `-`, `*`, `/`). Three pieces: `op_a_slot` added to `sm_emit_t` + promoted in `walk_bb_node`; new
+`bb_binop_gvar_arith.cpp` (gvar arith arm — takes literal ival values as x86 immediates, stores raw int64 into
+8-byte `bb_slot_alloc`-keyed ζ-slot); `bb_gvar_assign` int-binop arm landed (reads `_.op_a_slot`, calls
+`rt_gvar_assign_int`). MODE3_MIN floor corrected 5→2 (reflects actual post-revamp state). SCRIP `707b284`.
+Gates: m2 **7/7 HARD** · m3 **2/6** (output+arith) · m4 0/6 · `no_bb_bin_t` 0 · `sm_dead` 0 · concurrency OK ·
+prove_lower2 PASS · g_vstack 0. **NEXT (SNOBOL4):** `bb_subject` + `bb_match` together (the `pattern` smoke —
+`S 'b' = 'X'` → `aXc`); MATCH reads SUBJECT's ζ-slot `g_subject_slot`. Then `bb_capture`/`bb_arbno`. Detail:
+`HANDOFF-2026-06-02-SONNET46-SNOBOL4-BB-GVAR-RENAME-ARITH.md`.
+**Prior watermark.** SCRIP local (NOT pushed — see below) · .github this commit.
 **HANDOFF (2026-06-02, Opus 4.8) — `bb_bin_t` ABOLISHED + MEDIUM-INVISIBLE PRISON; SCRIP BUILDS GREEN + ABORTS
 BEAUTIFULLY (≈63 bomb stubs).** Lon directive: "get the build broke nice, build the prison of rules, leave it to
 the Four Musketeers to fix up on their particular test; ensure SCRIP builds and aborts in 100s of places
