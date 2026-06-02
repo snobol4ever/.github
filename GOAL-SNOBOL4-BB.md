@@ -2120,7 +2120,34 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `707b284` · .github this commit.
+**Watermark.** SCRIP `ba6e912` · .github this commit.
+**HANDOFF (2026-06-02, Opus 4.8) — LANGUAGE-INDEPENDENT EMITTER+RUNTIME CLEANUP RUNG launched: LI-0 COMMENT PURGE + 3 clean de-name slices. All pushed, tree GREEN, behavior byte-identical.** Lon PIVOT: EMITTER + RUNTIME are
+language-independent — strip every language tag (SNO/ICN/PL/RAKU/RK/REB), incl. comments, naming each box/helper by
+its CS/industry concept; the new ACTIVE RUNG at the TOP of this file holds the directive, the full listing, the
+EXCLUSIONS, and the LI-0…LI-FENCE ladder. **Comment policy (Lon, verbatim): exactly ONE comment exists — the
+120-char `/*---*/` line-break separator (`/*===*/` for larger files), between every function and major block.
+Nothing else. None.** Landed this session:
+- **LI-0 ✅ `062b0f9`** — stripped ALL comments from `src/**` (.c/.h/.cpp/.y/.l; 12 generated flex/bison files
+  excluded), 227 files, −3081 lines; the only `/*`/`//` left are inside string literals (Prolog `"//"` op, MSIL
+  text — correct). Every separator normalized to exactly 120 chars. `scripts/strip_comments.py` (string/char-literal
+  aware) + RULES.md C-style updated (separator 200→120; "one comment = the separator", dropped block-comments-above-fn).
+- **LI-3 ✅ `99fa787`** — `rt_pl_{unify,trail,compound_build_n,node_to_term}`→`rt_{…}` (unification + WAM trail +
+  term-building = language-independent CS) across bb_disj/bb_unify/bb_exec.{c,h}/rt.{c,h}.
+- **LI-4 ✅ `a9ab14a`** — `icn_cset_*`→`cset_*` (charset algebra) across gen_runtime.{c,h}/bb_exec.c/icon_runtime.c.
+- **rt_icn ✅ `ba6e912`** — `rt_icn_{size_d,arg_stage,call_proc_descr}`→`rt_{…}` across bb_call/bb_unop/xa_flat/rt.{c,h}.
+- **Gates GREEN + INVARIANT throughout** (name/comment edits are behavior-neutral by construction): SNOBOL4 m2 **7/7
+  HARD**, Icon m2 **12/12 HARD**, Prolog m2 **5/5 HARD**, prove_lower2 **67**, no_bb_bin_t 0, sm_dead 0, concurrency OK,
+  g_vstack 0. m3/m4 counts unchanged.
+- **⚠ COLLISION MAP (recorded in the rung):** remaining CLEAN renames = `raku_nfa_*`→`nfa_*` (⚠ spans frontend
+  `raku_nfa_bb.c` + runtime — rename the shared symbol at all sites) and `bb_rk_gather`→`bb_gather` (filename: `git mv`
+  + Makefile `RT_PIC_SRCS` + per-`.o` rule + emit_core dispatch + symbol). **MERGE slices needing Lon judgment (NOT a
+  sed):** `sno_flat_chain_build` + `icn_flat_chain_build` BOTH de-tag to `flat_chain_build` (two functions, one name →
+  fold on `cx.lang` or pick concept-distinct names — LI-2, the most confusion-prone twin), and `rt_pl_arith`→`rt_arith`
+  hits 3 existing. Then LI-CORE (`src/runtime/core` SNOBOL-lib — separate Lon decision) + LI-FENCE
+  (`scripts/test_gate_no_lang_names.sh`). **NEXT incomplete step = the remaining clean slices (LI-5 nfa, LI-1
+  bb_gather), then the merge slices.** Remaining language-tagged distinct identifiers in emitter+runtime (excl
+  IR_LANG/snocone/core SNOBOL-lib): ~270. (The x86() TEMPLATE-REVAMP sub-track + the older PB-RB/REG ladders below
+  remain valid and resume after the cleanup; de-naming changes names, not the BB/SM/XA template ladder.)
 **HANDOFF (2026-06-02, Sonnet 4.6) — TWO RENAMES + `OUTPUT = 2 + 3` in mode-3 (m3 1→2).** (1) **PIVOT rename
 `bb_nv_assign`→`bb_gvar_assign`, `rt_nv_assign_*`→`rt_gvar_assign_*`, `g_nv_flat_chain`→`g_gvar_flat_chain`** —
 `NV` was opaque jargon; the runtime is language-independent; the concept is **global variables** (what the user
