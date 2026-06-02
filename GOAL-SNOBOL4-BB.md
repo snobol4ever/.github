@@ -147,6 +147,32 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
+### ◀ THIS SESSION (2026-06-02, Opus 4.8) — STUB CLEANUP: delete 54 do-nothing `bb_*.cpp` (Lon PIVOT)
+**Lon directive: remove all empty / do-nothing / `x86_bomb`-stub `bb_*.cpp` files — even ones that will be needed
+again later — because the scaffolding stubs made it impossible to tell which BBs actually exist.** Deleted 54 files
+(SCRIP `cd10224`): 47 single-bomb stubs, multi-arm bomb stubs (`bb_case`/`bb_field`/`bb_idx`/`bb_limit`/
+`bb_nfa_passthrough`), 3 return-empty do-nothing boxes (`bb_clause`/`bb_cset`/`bb_stub`), 7 empty 1-line TUs
+(`bb_binop_{agpure,concat_lit,jct_relop,lit_arith}`, `bb_seq_{flat,gather,passthrough}`). **KEPT** the live
+`bb_binop` router + all 35 real boxes (`x86real>0`, incl. partial-bomb `bb_var`/`bb_gvar_assign`/`bb_unify`).
+**Now a `bb_*.cpp` file existing ⇔ that box is real.**
+- **Coherence edits (no behavior change for any reached box):** Makefile −108 lines (54 `RT_PIC_SRCS` sources + 54
+  `scrip:` compile lines; scrip/scrip-monitor/libscrip_rt all link via `$(OBJ)/*.o` glob → no per-`.o` prereqs).
+  `emit_core.c walk_bb_node`: 70 IR kinds whose only handler was a deleted stub now fall to the existing loud default
+  (`"; [walk_bb_node: kind=%d unhandled]"` + `return 1`); `IR_ASSIGN` keeps its `bb_gvar_assign` (SNOBOL) branch, the
+  deleted Icon `bb_assign` branch routes to default. `emit_bb.c`: −6 dangling no-op helper calls (`bb_case_store`/
+  `bb_case_gate`, `bb_limit_begin`/`inc`/`more`, `bb_eps(NULL)` in `walk_bb_flat`'s NULL path). `bb_templates.h`:
+  −51 phantom prototypes.
+- **Gate-provable safety:** a pure `x86_bomb` stub aborts the generated program when reached → no mode-3/4 test
+  passing today reaches one; mode-2 (`bb_exec.c` oracle) never calls the emitter templates. **Verified invariant:**
+  m2 SNOBOL4 **7/7** + Icon **12/12** (HARD) · m3 SNOBOL **2** / Icon **3** · m4 0/3 · `prove_lower2` PASS ·
+  `no_bb_bin_t` 0 · concurrency **FACT-RULES byte-identical x3** · `pat_rung` M2 **18/19** (`053_pat_alt_commit`
+  pre-existing). Mode-4 pattern tests now SKIP (compile/link fails at the loud default) instead of bombing — no floor
+  impact (MODE4_MIN=0).
+- **Serves the LI rung:** every remaining `bb_*.cpp` is a real box, so the de-name ladder no longer has to guess
+  which are scaffolding. Boxes re-created later (e.g. a real `bb_subject`/`bb_match` for the pattern smoke) come back
+  as genuine `x86()` implementations — not bombs. The de-name (LI) ladder + x86() TEMPLATE-REVAMP + PB-RB pattern
+  ladder below all remain valid future work, unchanged.
+
 ### ◀ THIS SESSION (2026-06-02, Opus 4.8) — SNO/sno STRIP RENAME (PIVOT; language-independent naming)
 **The runtime is language-independent; `sno`-tagged names falsely implied single-language ownership.** Stripped
 `SNO`/`sno` from all runtime functions + BB template names/vars/fns/filenames, mapping each to the EXISTING
