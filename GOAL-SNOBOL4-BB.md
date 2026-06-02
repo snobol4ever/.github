@@ -1844,6 +1844,14 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   `jmp ω / def β / jmp ω`). LOOPING: `bb_pat_break` (follow the SPAN pattern; plain BREAK ≈ SPAN, BREAKX two-loop needs
   L(0..3) and z/z_orig moved from `[zeta+8/+12]` to ζ-frame). VARIABLE-LENGTH (separate define/jmp-pair design, shared
   with Icon/Prolog `xa_bb_emit_pair_*`): `bb_pat_fence` (pair-array path), `bb_pat_cat`, `bb_pat_alt`, `bb_match`.
+- **OTHER SESSIONS CLEARED TO START** (`.github` `97355e35`): updated the SHARED `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`
+  so Icon/Prolog/Raku don't rebuild the keystone (it's in the shared `x86_asm.h` → would collide). Flipped its
+  "OPEN DESIGN ITEM — INTERNAL LABELS" to **RESOLVED (LANDED `30e8422`)** with the live API (`x86_begin`/`L(n)`/
+  `FR(off)`/`bb_slot_claim`), added a **START HERE** header (rebase onto `30e8422`; reference boxes `bb_pat_pos`
+  loop-free + `bb_pat_span` looping; recipe in HANDOFF V3), and refreshed the `x86_asm.h` vocabulary list. The
+  ONE remaining shared unknown is the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + likely
+  Raku `bb_nfa`) — flagged "STILL OPEN," to be designed once by whoever reaches a combinator first. Did NOT edit
+  the other sessions' GOAL files (their own to touch).
 
 **Prior session (2026-06-01, Opus 4.8) — REG-2 COMPLETE (6/6): `bb_pat_break` (BREAK + BREAKX) migrated:**
 - **REG-2 6/6** — finished by converting the last cursor-advancing leaf, `bb_pat_break`, off the legacy
