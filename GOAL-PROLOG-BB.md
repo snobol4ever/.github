@@ -15,23 +15,35 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `bb_goal`, `bb_builtin`. Loop-free/single-shot leaves first; choice/goal (backtracking) use the landed
   internal-label + ζ-frame support.
 - **PROGRESS (2026-06-02, Opus 4.8):** `bb_cut` ✅ (`ed42331`, PL-RV-1), `bb_arith` ✅ (`ced1acd`, PL-RV-2),
-  and `bb_conj`+`bb_ite` ✅ (PL-RV-3) converted. **PL-RV-3 designed + landed the SHARED pair-loop combinator**
-  `x86_pair_loop()` in `x86_asm.h` (the formerly-STILL-OPEN variable-length define/jmp-pair idiom): a runtime-count
-  loop over `g_emit.xa_bb_emit_pair_{n,define,jmp}` whose two new `bb_emit_x86` records `'E' <idx>`/`'F' <idx>`
-  index the driver-minted glue labels out of g_emit (no raw pointer in the record stream). It is byte-identical to
-  the hand-rolled loop in BOTH media, so `bb_conj`/`bb_ite` converted byte-preservingly (each is now `return
-  x86_pair_loop();`). The primitive ALSO serves SNOBOL4 `bb_pat_cat`/`bb_pat_alt` (byte-identical loop) — they
-  call it directly when they convert, no further shared design. `b.size()` ledger 55→**51** (bb_ite 2 + bb_conj 2),
-  20→18 files. Both boxes pBB-free, `(void)`-signature, dispatch updated. Technique proven (PL-RV-1/2): the
-  MEDIUM_BINARY path is unexercised by Prolog at runtime (mode-3 routes the oracle, mode-4 uses TEXT), but the
-  records reproduce the exact define/E9+rel32 bytes so it stays correct for SNOBOL4's live BINARY use. **NEXT =
-  `bb_unify`** — but note it is LIVE (no dead-box shortcut) AND calls the `emit_build_compound_term`/`_bin`
-  twin-walkers, so its conversion is coupled to the PL-HY-1a walker-deletion (delete the two walkers in favor of
-  one `rt_pl_compound_build_n`/`rt_pl_node_to_term` substrate, THEN convert the consumer) — and the corpus has
-  NESTED compounds in unify position (47/132 rungs hit compound-build; some build 3-5 per IR_UNIFY), so the
-  substrate must handle arbitrary depth (a fresh-context rung, not a quick conversion). Remaining single/clean:
-  `bb_catch`(1, has 2 pBB-derefs — promote first) `bb_disj`(2). Multi/looping: `bb_choice`(6) `bb_goal`(13)
-  `bb_builtin`(28).
+  `bb_conj`+`bb_ite` ✅ (PL-RV-3), and **`bb_disj`+`bb_catch` ✅ (PL-RV-4)** converted. **PL-RV-3 designed + landed
+  the SHARED pair-loop combinator** `x86_pair_loop()` in `x86_asm.h` (the formerly-STILL-OPEN variable-length
+  define/jmp-pair idiom): a runtime-count loop over `g_emit.xa_bb_emit_pair_{n,define,jmp}` whose two new
+  `bb_emit_x86` records `'E' <idx>`/`'F' <idx>` index the driver-minted glue labels out of g_emit (no raw pointer in
+  the record stream). It is byte-identical to the hand-rolled loop in BOTH media, so `bb_conj`/`bb_ite` converted
+  byte-preservingly (each is now `return x86_pair_loop();`). The primitive ALSO serves SNOBOL4
+  `bb_pat_cat`/`bb_pat_alt` (byte-identical loop) — they call it directly when they convert, no further shared
+  design. **PL-RV-4 (the two remaining single/clean boxes):** both are dead-twin conversions following the
+  `bb_cut`/`bb_arith` recipe — `abort()`-probe confirmed the MEDIUM_BINARY arm of each fires ZERO times across the
+  full rung suite + direct disjunction/catch rungs in all three modes (mode-3 routes the oracle, mode-4 uses TEXT),
+  so each dropped its dead BINARY twin (which hand-counted rel32 offsets via `b.size()`) and kept a TEXT-only,
+  pBB-free body. `bb_disj` is the `;` dispatcher: it reads NO pBB (only `_.resolve_choice_id`/`_n`, driver-promoted),
+  emits the α/pre/β trail-mark scaffold (α→pre[0]; pre[0]:trail_mark_push;jmp body[0]; pre[i>0]:trail_unwind_top;jmp
+  body[i]; β:jmp ω), with the two `rt_pl_trail_*` calls via `x86("call",…)` and the driver-minted name-deterministic
+  pre/body glue labels (`resolve_choice_clause_label(id,i,…)` — NOT ports, NOT box-internal `L(n)`) emitted as the
+  shared GAS scaffold under an `IF(MEDIUM_TEXT,…)` guard (BINARY yields empty). Byte-VERIFIED: after normalizing the
+  pre-existing run-to-run `bb<N>_α` counter noise (proven — 44 diffs between two runs of the UNMODIFIED binary) +
+  one added comment, converted output is byte-identical to the original for rung05_backtrack + rung10_puzzle_06.
+  `bb_catch` is the mode-4 STUB (catch/3 is fully EXCISED before emission — never reaches the TEXT arm on any rung;
+  the box existed only for the dead mode-3 BINARY arm + the WAM-CP-13 placeholder): now α→ω, β→ω via `x86()`, assembler-
+  equivalent to the original (`bb_cut`-style two-line `β: / jmp ω`). `rt_pl_catch` definition stays in `bb_exec.c` for
+  mode-2. `b.size()` ledger 51→**48** Prolog-owned (all-language gate 110→107, −3); bb_disj+bb_catch removed from the
+  gate list (17→15 files). Both pBB-free (only `pBB` mentions are in comments), zero `_.node`, `(void)` signatures
+  end-to-end, dispatch updated. **NEXT = `bb_unify`** — the sole remaining Prolog single, but LIVE (no dead-box
+  shortcut) AND calls the `emit_build_compound_term`/`_bin` twin-walkers, so its conversion is coupled to the
+  PL-HY-1a walker-deletion (delete the two walkers in favor of one `rt_pl_compound_build_n`/`rt_pl_node_to_term`
+  substrate, THEN convert the consumer) — and the corpus has NESTED compounds in unify position (47/132 rungs hit
+  compound-build; some build 3-5 per IR_UNIFY), so the substrate must handle arbitrary depth (a fresh-context rung,
+  not a quick conversion). Multi/looping after that: `bb_choice`(6) `bb_goal`(13) `bb_builtin`(28).
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
@@ -645,15 +657,16 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — post-PL-RV-3, SCRIP HEAD `ced1acd`+PL-RV-3)
+## 📊 Gate table (current — post-PL-RV-4, SCRIP HEAD `ced1acd`+PL-RV-3+PL-RV-4)
 
-x86() revamp in progress (bb_cut PL-RV-1, bb_arith PL-RV-2, bb_conj+bb_ite PL-RV-3 done) — counts UNCHANGED from
-post-PLG-9j: the converted boxes are dead-twin (cut/arith) or byte-identical (conj/ite via x86_pair_loop), so the
-conversions are byte-preserving on every live path.
+x86() revamp in progress (bb_cut PL-RV-1, bb_arith PL-RV-2, bb_conj+bb_ite PL-RV-3, bb_disj+bb_catch PL-RV-4 done)
+— counts UNCHANGED from post-PLG-9j: the converted boxes are dead-twin (cut/arith/disj/catch) or byte-identical
+(conj/ite via x86_pair_loop), so the conversions are byte-preserving on every live path. Prolog-owned `b.size()`
+ledger 51→48 (all-language gate 110→107); bb_disj+bb_catch removed from the gate list (17→15 files).
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5 PASS / 0 EXCISED ✅ | write_atom/unify/arith/clause/recursion all native in m4 |
 | GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **86 PASS / 0 FAIL / 25 EXCISED** | PLG-9h m4 76→80 (float); PLG-9i 80→81 (copy_term); PLG-9j 81→86 (+5 rung20 numbervars + the m4 write/1 list-rendering fix). WAM-CP-7a/7b (`b716e8c`) head-unify specialization: var-const 3→1 calls, first-occ self-unify 3→0 — optimization, no count change, byte-identical. m2/m3 byte-identical. EXCISED-not-FAIL (all substrate-requiring): findall, retract/retractall/abolish, aggregate, catch/throw, dcg_generate |
 | prove_lower2 | green ✅ | — | — | PLG-9h/9i/9j are bb_exec.c/bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
-| FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added (`rt_pl_is_f` is a runtime effect-helper; TEXT arms = s_2asm/movq-xmm/emit_build_compound_term/@PLT only); g_vstack still 0; bb_builtin.cpp not flagged by purity audit (7 baseline). Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
+| FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added; PL-RV-4 dropped two dead MEDIUM_BINARY arms (`b.size()` 110→107); g_vstack still 0; bb_disj/bb_catch pBB-free (only-`_` reads), zero `_.node`, `(void)` signatures; bb_builtin.cpp not flagged by purity audit (8 non-binary baseline, none in disj/catch). Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
