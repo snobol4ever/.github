@@ -12,11 +12,13 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
 - **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
   — first to reach a combinator designs it once in the RULES-DRAFT.
 - **YOUR BOXES:** `bb_pat_pos`✅ + `bb_pat_span`✅ + `bb_pat_abort`✅ + `bb_pat_tab`✅ + `bb_pat_atp`✅ +
-  `bb_pat_arb`✅ + `bb_pat_defer`✅ DONE (`x86_movimm32` / `mov32` encoder landed for TAB δ=r14d set; ARB uses
-  `bb_slot_claim(8)` for its z/zo ζ-frame generator state; DEFER off `[r10]`→δ=r14d with the 16-byte-aligned
-  `rt_defer_match` call preserved). Next loop-free leaf: `bb_pat_fence` (single-shot save/restore-Δ form first).
-  Looping: `bb_pat_break` (follow SPAN). Variable-length (the STILL-OPEN design): `bb_pat_fence` (pair path),
-  `bb_pat_cat`, `bb_pat_alt`, `bb_match`.
+  `bb_pat_arb`✅ + `bb_pat_defer`✅ + `bb_pat_fence`✅ + `bb_pat_break`✅ DONE (`x86_movimm32` / `mov32` encoder
+  landed for TAB δ=r14d set; ARB uses `bb_slot_claim(8)` for its z/zo ζ-frame generator state; DEFER off
+  `[r10]`→δ=r14d with the 16-byte-aligned `rt_defer_match` call preserved; FENCE single-shot save-δ-on-α/
+  restore-on-β via `bb_slot_claim(4)`; BREAK+BREAKX looping, z/z_orig in `bb_slot_claim(8)` ζ-frame, internal
+  labels plain L(0)/L(1) + BREAKX rescan L(2)/L(3), strchr with push/pop r10). Next loop-free leaf: NONE LEFT.
+  Variable-length combinators (the STILL-OPEN define/jmp-pair design): `bb_pat_cat`, `bb_pat_alt`, `bb_match`,
+  `bb_pat_fence` PAIR path (the with-children `FENCE(P)` form — the bare-FENCE primitive above is done).
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
@@ -1820,7 +1822,54 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `fe94061` · .github this commit.
+**Watermark.** SCRIP `c66bbc8` · .github this commit.
+**This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_fence` + `bb_pat_break` converted to x86() self-encoding (pBB-free); the LOOP-FREE pattern leaves are now ALL DONE:**
+- **`bb_pat_fence`** — LOOP-FREE single-shot convert (the bare-FENCE primitive, no argument). Per the mode-2 oracle
+  (bb_exec.c IR_PAT_FENCE) + SPITBOL Manual ch.18 ("matches the null string and succeeds when the scanner is moving
+  left to right, but fails if the scanner has to back up through it"): α saves δ to a ζ-frame slot then `jmp γ` (null
+  match, always succeeds forward); β restores δ from the slot then `jmp ω` (the fence effect — backtrack fails). One
+  ζ-frame dword saved_δ @ `[r12+off]` via `bb_slot_claim(4)`, register-relative so BINARY==TEXT (no movabs, no
+  rip-rel .data). Ratified cursor δ=R14d (REG-3). pBB-free end-to-end (fn/wrapper/prototype/dispatch all `void`).
+  No internal labels needed (single-shot, like POS/TAB). Verified: a pattern hitting FENCE on the forward pass
+  succeeds and matches null (`'a' FENCE 'b'` in `'abc'` → ok). NOTE: the two SPITBOL backtrack-blocking examples
+  (`ANY('AB') FENCE '+'` in `'1AB+'` → fail; `FENCE 'B'` as first component → anchored-fail) fail in BOTH m2 AND m3
+  (agreement) — a PRE-EXISTING mode-2 oracle gap in FENCE-through-ALT/ANY backtracking, NOT a regression from this
+  conversion (the box agrees with the oracle exactly; the oracle itself doesn't propagate the fence into those
+  ALT/capture-resume contexts — that is the same 124/114 DEFER-capture-resume blocker tracked elsewhere in this file).
+- **`bb_pat_break`** — LOOPING convert (BREAK + BREAKX, both arms in one pass). BREAK(S) scans from δ to the first
+  char in set S (NOT included), fails if the subject ends first; BREAKX(S) on backtrack "looks past" — steps past the
+  break char and rescans to the NEXT char in S (SPITBOL Manual ch.3 word4.spt; INTEGERS ? BREAKX('E') . OUT 'ER' →
+  INTEG). Grounded in the mode-2 oracle (bb_exec.c IR_PAT_BREAK: α scan-to-first; β plain = δ−=z+fail; β BREAKX =
+  origin=δ−z, rescan from origin+z to next, fail if none/i<=z else δ=origin+z). The match-state scalars moved OFF the
+  process-global `rt_cs_t` (`bb_cs_zeta` + `movabs &zeta`) INTO the ζ-frame: z @ `[r12+off]`, z_orig @ `[r12+off+4]`
+  via `bb_slot_claim(8)`, register-relative so BINARY==TEXT (PER-BOX LOCAL STORAGE / NO-VALUE-STACK FACT RULES).
+  Internal labels: plain BREAK loop=L(0)/done=L(1); BREAKX β-rescan adds loop2=L(2)/done2=L(3) — resolved by the
+  bb_emit_x86 walker. strchr(cs,ch)≠NULL ⇒ char in set; r10 push/pop around the call (r13/r14/r15 callee-saved,
+  survive). Ratified Σ=R13/δ=R14d/Δ=R15d (REG-2; was already register-migrated, this conversion drops the `bb_bin_t`
+  hand-counted byte map + the process-global zeta scratch). pBB-free end-to-end. r10-as-cursor mirror was already
+  gone (REG-2); the only r10 use left is the strchr push/pop guard. **Verified mode-3 == mode-2 == SPITBOL oracle**
+  for plain BREAK (delimiter found, delimiter absent→fail, word-split), AND BREAKX look-past (INTEGERS→INTEG) — all
+  4 cases byte-exact. The BREAKX β rescan loop + ζ z/z_orig + strchr-with-r10 all exercised together. TEXT arm
+  structure hand-assembled via `as` (both plain + BREAKX β rescan) to confirm the internal-label + ζ-frame GAS is
+  well-formed (SNOBOL4 mode-4 end-to-end still pends the LOWER four-port-statement-BB wiring, PB-RB-8 — not box-specific).
+- **`b.size()` count: 121 → 118** (this conversion REMOVED bb_pat_break's 3 hand-counted-offset sites; the box now
+  has ZERO `b.size()`, ZERO `bb_bin_t`, ZERO `TEMPLATE_ADDR`/`[r10]`-cursor/`movabs &zeta` in code — the 3 grep hits
+  in the file are comment mentions of what was removed). Progress toward the FACT-RULE zero goal.
+- **Gates ALL GREEN + INVARIANT:** make scrip rc=0, libscrip_rt rc=0, SNOBOL4 m2 **7/7 HARD** / m3 5/6 / m4 0/6,
+  pat-rung-suite M2 **18/19** (same pre-existing `053_pat_alt_commit`), prove_lower2 **67/67**, concurrency invariants
+  OK (FACT RULES byte-identical ×3 UNPERTURBED — `x86_asm.h` NOT touched this session, so it is byte-neutral to
+  Icon/Prolog/Raku; Icon m2/m3/m4 all-PASS confirmed), `g_vstack` **0**, broad interp corpus held at 108/280 (the
+  GATE-4 `inc/` corpus-snapshot gap noted in the prior watermark persists — orthogonal). Files touched: `bb_pat_fence.cpp`
+  + `bb_pat_break.cpp` (boxes, both rewritten) + `bb_templates.h` (two prototypes → `void`) + `emit_core.c` (two
+  dispatch calls → parameterless). No `x86_asm.h` edit — both boxes use the EXISTING encoders (the SPAN looping box
+  already proved the internal-label + ζ-frame + strchr/r10 vocabulary; FENCE reuses the FR()/jmp/def forms).
+- **NEXT (SNOBOL4):** the loop-free pattern leaves are now ALL converted. What remains is the VARIABLE-LENGTH
+  combinators — `bb_pat_cat`, `bb_pat_alt`, `bb_match`, and the `FENCE(P)` with-children PAIR path — which share the
+  STILL-OPEN define/jmp-pair design (variable-count define/jmp pairs from `g_emit.xa_bb_emit_pair_n`). Whoever reaches
+  a combinator first designs that idiom once in `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. (Or pivot to the REG-RO rung
+  — RO addresses → `[rip+disp]` — to fully retire r10 and unblock SNOBOL m4, per the 🔴 CURRENT PRIORITY section.)
+
+**Prior watermark.** SCRIP `fe94061` · .github this commit.
 **This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_arb` + `bb_pat_defer` converted to x86() self-encoding (pBB-free):**
 - **`bb_pat_arb`** (`fe94061`) — generator convert. ζ-frame state z (matched len) @ `[r12+off]` + zo (origin δ) @
   `[r12+off+4]` via `bb_slot_claim(8)` (PER-BOX LOCAL STORAGE / NO-VALUE-STACK FACT RULES) — the old process-global
