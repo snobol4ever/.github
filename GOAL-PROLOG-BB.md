@@ -639,7 +639,10 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — post-PLG-9j)
+## 📊 Gate table (current — post-PL-RV-2, SCRIP HEAD `ced1acd`)
+
+x86() revamp in progress (bb_cut PL-RV-1, bb_arith PL-RV-2 done) — counts UNCHANGED from post-PLG-9j: the two
+converted boxes were dead/twin-dead, so the conversion is byte-preserving on every live path.
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
