@@ -17,15 +17,37 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `[r10]`→δ=r14d with the 16-byte-aligned `rt_defer_match` call preserved; FENCE single-shot save-δ-on-α/
   restore-on-β via `bb_slot_claim(4)`; BREAK+BREAKX looping, z/z_orig in `bb_slot_claim(8)` ζ-frame, internal
   labels plain L(0)/L(1) + BREAKX rescan L(2)/L(3), strchr with push/pop r10). Next loop-free leaf: NONE LEFT.
-  Also DONE (statement-level, shared lane): `bb_lit_scalar`✅ (pass-through arms) + `bb_sno_assign`✅ (lit_s+var
-  arms) + `bb_var`✅ (SNO flat-chain pass-through `jmp γ;def β;jmp ω` + ICN flat-chain 16-byte DESCR slot-copy
-  via `x86_frame_load64`/`store64`; op_sa/op_off promoted at dispatch in walk_bb_flat IR_VAR — no neighbor read).
+  Also DONE (statement-level, shared lane): `bb_lit_scalar`✅ (pass-through arms) + `bb_nv_assign`✅ (lit_s+var
+  arms; **renamed from `bb_sno_assign` 2026-06-02 — see SNO-STRIP below**) + `bb_var`✅ (name-value flat-chain
+  pass-through `jmp γ;def β;jmp ω` + ICN flat-chain 16-byte DESCR slot-copy via `x86_frame_load64`/`store64`;
+  op_sa/op_off promoted at dispatch in walk_bb_flat IR_VAR — no neighbor read).
   Variable-length combinators (the STILL-OPEN define/jmp-pair design): `bb_pat_cat`, `bb_pat_alt`, `bb_match`,
   `bb_pat_fence` PAIR path (the with-children `FENCE(P)` form — the bare-FENCE primitive above is done).
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
-### ◀ THIS SESSION (2026-06-02, Opus 4.8) — `bb_var` → x86() (SNO pass-through + ICN slot-copy)
+### ◀ THIS SESSION (2026-06-02, Opus 4.8) — SNO/sno STRIP RENAME (PIVOT; language-independent naming)
+**The runtime is language-independent; `sno`-tagged names falsely implied single-language ownership.** Stripped
+`SNO`/`sno` from all runtime functions + BB template names/vars/fns/filenames, mapping each to the EXISTING
+language-independent vocab. SCRIP `703eb83` (rebased onto peer `06826c8`). **RENAME-ONLY (84/84 symmetric →
+behavior unchanged by construction; all gate baselines preserved).** Key new names the NEXT session uses:
+- **Name-value subsystem** (matches `rt_nv_get`/`NV_SET_fn`; distinct from Icon frame-slot `bb_assign`):
+  `rt_sno_assign_{lit_s,int,var,concat}`→`rt_nv_assign_{str,int,var,concat}` · `bb_sno_assign*`→`bb_nv_assign*` ·
+  `flat_drive_sno_assign*`→`flat_drive_nv_assign*` · `g_sno_flat_chain`→`g_nv_flat_chain` · file→`bb_nv_assign.cpp`.
+- **Pattern-matching subsystem** (subject/scan/match): `rt_sno_subject_load`→`rt_subject_load` ·
+  `rt_sno_match_lit`→`rt_match_lit` · `rt_sno_exec_scan`→`rt_scan_exec` · `bb_sno_subject`→`bb_subject` ·
+  `bb_sno_scan`→`bb_scan_stmt` (`bb_scan` = a BrokerMode enum, taken) · `flat_drive_sno_{subject,scan,
+  ref_invariant,program}`→`flat_drive_{subject,scan_stmt,ref_invariant,program}` · `g_sno_subject*`→`g_subject*` ·
+  files→`bb_scan_stmt.cpp`/`bb_subject.cpp`. Makefile (src-list + per-object rules + `.o` names) updated.
+- **LEFT (out of scope, flagged):** `IR_SNO_PROG` enum; `bb_exec.c` mode-2 statics `g_sno_save`/`g_sno_save_top`/
+  `g_sno_cur_func`+`SnoSaveEnt`/`SNO_SAVE_MAX`; the broader `SNO_*`/`Sno*`/`Snocone*` frontend+mode-2 family
+  (a deeper mode-2/frontend sweep is a separate grand-master-reorg if Lon wants it).
+- **NEXT(1) re-confirmed with new names:** `rt_nv_assign_int` already EXISTS; `OUTPUT = 2 + 3` bombs in `bb_binop`
+  (no `g_nv_flat_chain` arith arm) BEFORE `bb_nv_assign`. Fix = a name-value int-arith arm in `bb_binop`
+  (raw-int64 → 8-byte slot) + `bb_nv_assign` int-binop arm + `op_a_slot` promotion (`sm_emit_t`/`emit_core.c`).
+  Full recipe: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-SNO-STRIP-RENAME.md`.
+
+### ◀ PRIOR SESSION (2026-06-02, Opus 4.8) — `bb_var` → x86() (name-value pass-through + ICN slot-copy)
 **`S = 'hi'; OUTPUT = S` RUNS END-TO-END IN MODE-3 (prints `hi`)** — the `OUTPUT = S` / var-read path the
 prior session's NEXT(1) named. Also verified: `A='foo'; B=A; OUTPUT=B` → `foo` (var→var chain). `bb_var`
 converted off its `x86_bomb` stub to x86() self-encoding (SCRIP this session's commit):
