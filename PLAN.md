@@ -46,7 +46,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
-| **SRC REORG** ⬅ #0 (Lon 2026-06-02) | `GOAL-SRC-REORG.md` | Physical re-partition of `src/` by pipeline role — kill the `include/` grab-bag, rename `runtime/interp/`→`builtins/` (it is NOT the interpreter), move the real mode-2 interpreter `lower/bb_exec.c`→`interp/`, give the contract types (DESCR/AST/IR/stage2) one home beside their allocators. 9-rung gated ladder (GMR-1a…GMR-FENCE). **ALL OTHER SESSIONS ON HOLD.** Next: GMR-1a. |
+| **SRC REORG** ⬅ #0 (Lon 2026-06-02) | `GOAL-SRC-REORG.md` | Physical re-partition of `src/` by pipeline role — `include/` grab-bag emptied, `runtime/interp/`→`builtins/`, the real mode-2 interpreter `lower/bb_exec.c`→`interp/IR_interp.c` (renamed: it interprets the IR graph, it is not a Byrd-Box executor), contract types (DESCR/AST/IR/stage2/SM-enum) homed in `contracts/` beside their allocators, dormant non-x86 in `backends/`, proof harnesses in `tools/`, dead SM in `attic/`. **LADDER COMPLETE** (GMR-1a…FENCE) except GMR-8 part (b) (the `Σ/Δ/Ω` emitter-globals eviction, deferred to coordinate with the REG ladder). All gates byte-identical to baseline. **Other sessions may resume.** |
 | **SCRIP RENAME** (Lon 2026-05-30) | `GOAL-SCRIP-RENAME.md` | Eradicate "SCRIP" everywhere — product is now SCRIP; SCRIP → private → deleted. 522 files / ~2482 occurrences across SCRIP + .github + corpus, plus 2 literally-named files (`REPO-SCRIP.md`, `GOAL-README-SCRIP.md`). 7-slice gated rung (RN-1 build scripts → RN-7 zero-check). `grand master reorg`: PLAN Repos table + clone scripts get updated. Next: RN-1 (fix `build_scrip.sh` $ROOT/SCRIP breakage). |
 | **Ground Zero (Icon-BB)** ⬅ #1 | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. 2026-05-31: icn-derived `gen_` rascals stripped (prefix + `g_gen_`/`lower_gen_`/`rt_gen_` infixes); all comments + blank lines purged from `src` (.c/.h/.y/.l) with 200-char separators. Seed: `scrip --interp` → `hello`. `GOAL-LANG-INDEPENDENT-RENAME.md` deleted. |
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. *(corpus 93 PASS; next: `bb_call` builtins + generator re-pumping)* |
@@ -83,7 +83,9 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 ## Architecture
 
-Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared AST. SM-LOWER compiles AST to SM_Program. INTERP executes SM_Program. EMITTER walks SM_Program and emits native code (x86, JVM, .NET, JS, WASM).
+Every frontend (SNOBOL4, Icon, Prolog, Snocone, Rebus, Scrip) produces the shared AST. LOWER compiles AST to the shared IR graph. From the IR graph there are two consumers: the mode-2 INTERP (`interp/IR_interp.c`, the IR-graph interpreter — formerly mis-named `bb_exec.c`) executes it in software; the EMITTER (`emitter/`, the per-box templates + dispatch + x86 encoders) walks it and emits native code (mode-3 BINARY in-process / mode-4 TEXT via as+gcc; JVM/.NET/JS/WASM arms dormant under X86-ONLY).
+
+`src/` layout by pipeline role: `parser/` (the 6 language front-ends) · `contracts/` (the spine types beside their allocators: descr, ast, ir, stage2, SM opcode enum) · `lower/` (AST→IR only) · `interp/` (the mode-2 IR-graph interpreter + its execution-state structs) · `emitter/` (BB/XA templates + dispatch, serves mode-3 and mode-4) · `machine/` (the RX slab + stage2 preamble) · `runtime/` (the library: `core/` SNOBOL model, `rt/` shared low-level helpers, `builtins/` generator/scanner/resolver/builtin tables) · `driver/` (CLI + A/B/C mode selector) · `backends/` (dormant non-x86: driver+runtime sides + jasmin.jar) · `tools/` (proof/scaffolding harnesses) · `attic/` (dead Stack-Machine residue).
 
 ---
 
