@@ -11,8 +11,8 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `bb_pat_span.cpp` (looping). **Recipe:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
 - **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
   — first to reach a combinator designs it once in the RULES-DRAFT.
-- **YOUR BOXES:** `bb_pat_pos`✅ + `bb_pat_span`✅ + `bb_pat_abort`✅ + `bb_pat_tab`✅ DONE (`x86_movimm32` /
-  `mov32` encoder landed for TAB δ=r14d set). Next loop-free leaves: `bb_pat_atp`/`bb_pat_arb`/`bb_pat_defer`.
+- **YOUR BOXES:** `bb_pat_pos`✅ + `bb_pat_span`✅ + `bb_pat_abort`✅ + `bb_pat_tab`✅ + `bb_pat_atp`✅ DONE
+  (`x86_movimm32` / `mov32` encoder landed for TAB δ=r14d set). Next loop-free leaves: `bb_pat_arb`/`bb_pat_defer`.
   Looping: `bb_pat_break` (follow SPAN). Variable-length (the STILL-OPEN design): `bb_pat_fence` (pair path),
   `bb_pat_cat`, `bb_pat_alt`, `bb_match`.
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
@@ -1818,8 +1818,14 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
 
-**Watermark.** SCRIP `66eb967` · .github this commit.
-**This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_abort` + `bb_pat_tab` converted; `x86_movimm32` encoder added:**
+**Watermark.** SCRIP `52daa2e` · .github this commit.
+**This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_abort` + `bb_pat_tab` + `bb_pat_atp` converted; `x86_movimm32` encoder added:**
+- **`bb_pat_atp`** (`52daa2e`) — LOOP-FREE single-shot convert. @var cursor capture: α writes δ to var via
+  `rt_at_cursor` then → γ; β fails → ω. Cursor δ read from R14d (REG-3; legacy `[r10]` cell GONE). Varname is RO
+  via `x86_load_ro` (lea[rip] TEXT / movabs BINARY), call via `x86_call_ro`, double `push/pop r10` around the
+  side-effecting call (NV_SET print-path clobbers caller-saved r10 + rsp 16-align). varname = `_.op_sval` (==
+  driver `op_name1` for IR_PAT_ATP). X86-only (no other arm). pBB-free; prototype + dispatch parameterless.
+  **mode-3 == mode-2** verified: `LEN(3)@P`→P=3, `@Q LEN(2)@R`→Q=0/R=2, `BREAK(' ')@W` in "hello world"→W=5.
 - **`bb_pat_abort`** (`66eb967`) — TRIVIAL convert: x86 arm = `x86("jmp",PORT_OMEGA)+x86("def",PORT_BETA)+x86("jmp",PORT_OMEGA)`.
   pBB-free (reads `_` only); prototype + dispatch parameterless. Verified mode-3: a pattern hitting ABORT fails the
   match (SPITBOL Manual ch.18: ABORT causes pattern match failure).
