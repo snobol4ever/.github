@@ -7,58 +7,64 @@
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — PB-6 COMPLETE (value + `var` params). 2026-06-03, session 6. SCRIP HEAD `9af83ea` on `1b89f53`.**
-PB-0..PB-6 green. **PB-6 value-param portion** (session 5): value-parameter functions/procedures/calls,
-`recursion.pas` byte-identical to `pint` through `fact(7)`, `proc_stmt.pas`/`addtwo.pas` byte-identical;
-functions tagged with a return-var `c[3]` child on `TT_PROC_DECL`, body ends `IR_RETURN` whose `α` is
-`IR_VAR(funcname)`, recursion correct because each call clears `FRAME.returning` before the enclosing NV write.
+**Watermark — PB-7 COMPLETE (NESTED routines). 2026-06-03, session 7. SCRIP HEAD = this commit.**
+PB-0..PB-7 green. **PB-7 (nested procedures & functions) DONE** via the **static-link-as-static-chain** model
+(Lon's recommended representation, confirmed this session — matches `pint`'s `base()`, no display array, becomes
+the parent-port thread in mode-3/4). The gate `nestrec.pas` now prints **`11,21,31`** (was `11,11,11`),
+byte-identical to `pint`. Per-activation locals + uplevel non-local addressing both work.
 
-**PB-6 `var` (pass-by-reference) params DONE (session 6) — the unified slot-reference model.** Designed once
-from `pint` (`lda`+`ind`/`sto` = a param slot holding an address that every use dereferences; the same `base()`
-machinery PB-7 uplevel uses), NOT copy-out. A frame slot is either a **value** or a **reference to a location**
-`(GenFrame*, slot)` or `(NULL, NV-name)` — top-level `main` runs frame-less so its vars (e.g. `varparam`'s `k`)
-live in NV, the `(NULL,name)` case. `var`-param call setup resolves the actual's location **in the caller**
-(chasing if the caller's own var is already a reference → gives transitivity + `f(a,a)` aliasing for free) and
-installs it as the callee slot's reference; reads/writes chase to the home. **Files (SCRIP `9af83ea`):**
-`stage2.h` (`ProcEntry.byref_mask`), `pascal.{y,tab.c,tab.h}` (VARSY params sentinel-tagged; `mk_proc` folds the
-byref bitmask onto the unused `TT_VLIST` container `v.ival` — no child clobbered, arity intact; regen via the
-direct `bison -d -o pascal.tab.c pascal.y` workaround, `pascal.lex.c`/`pascal.l` unchanged), `polyglot.c`
-(populate `byref_mask` from the VLIST, `LANG_PASCAL`-guarded), `gen_runtime.h` (`GenFrame` gains
-`SlotRef slotref[]`), `IR_interp.c` (`pas_slot_read`/`pas_slot_write`/`pas_loc_of_name` chase helpers;
-`IR_VAR`/`IR_ASSIGN` intercept reference slots **before** the `sv.v!=0` NV-fallthrough; install refs at the
-dval==3.0 call setup, capturing `caller` before `frame_depth++`).
+**The model (grounded in `pint`'s `base(ld)` + `lod/str (level−vlev)`):** a frame slot is value / reference
+(PB-6) / *or now* reachable from a descendant via the static chain. `ProcEntry.decl_level` = lexical level the
+routine is **declared** at (main scope = 1; top-level procs = 1, bodies run at 2; their nested = 2, bodies at 3…).
+`GenFrame` gains `GenFrame *static_link` + `int level`. At call setup `static_link = pas_base(caller,
+caller_level − callee_decl_level)` (the `mst (level−pflev)` rule), `frame.level = decl_level+1`. Uplevel access
+reuses PB-6's `Loc` chase: `IR_VAR`/`IR_ASSIGN`, if the name isn't in the current frame's scope, walk
+`static_link` (Pascal-guarded) and read/write the found `(frame,slot)` **before** the NV fallthrough. The chain
+**bottoms out at NV**: a top-level proc's `static_link` is NULL, a walk reaching NULL resolves against NV — keeps
+`sieve` globals + the accidental-pass `nested.pas` correct. Recursion is correct because each call captures the
+**caller's** activation as the link before `frame_depth++`, so a nested helper always mutates its *own* parent
+activation's local (the `nestrec` proof).
 
-**Probes (corpus/programs/pascal/, committed):** `varparam.pas` byte-identical to `pint` (`7`); the
-copy-out-would-fail cases all byte-identical — `swap.pas` (two-way), `alias.pas` (`addto(a,a)`→`11`),
-`vartrans.pas` (var passed onward as var), `varframe.pas` (callee writes a live ancestor frame slot — the
-PB-7-shaped case); `varmix.pas` confirms value params untouched. One honest limitation: a `var` actual that
-isn't a simple variable (array element `a[i]`, record field) falls back to by-value (guarded
-`call_blks[k]->entry->t == IR_VAR`); `pcom.pas` will eventually need it but no probe does yet.
+**Files (SCRIP, this commit):** `stage2.h` (`ProcEntry.decl_level`); `pascal.{y,tab.c,tab.h}` (lexical-level
+counter via mid-rule `pas_proc_enter`/`pas_proc_exit` on `procedure_decl`'s block; previously-discarded
+**non-array local var names** now captured per-proc and appended as a trailing `TT_VLIST` child whose container
+`v.ival` carries `decl_level`; regen via the direct `bison -d -o pascal.tab.c pascal.y` workaround,
+`pascal.lex.c`/`pascal.l` unchanged; the 1 s/r conflict is the pre-existing dangling-else, **no new conflict**);
+`lower_program.c` (`is_function` made **type-aware** — return-var is `TT_VAR`, locals child is `TT_VLIST`, so a
+procedure's trailing locals VLIST is never mistaken for a return-var; `lower_sc` = params **then** locals;
+`decl_level` read off the locals VLIST); `IR_interp.c` (`pas_base`/`pas_uplevel_find`; `pas_loc_of_name` extended
+to chase uplevel so a `var` actual that is an enclosing-frame local resolves too; static-link+level set at the
+dval==3.0 call setup, Pascal-guarded; uplevel walk in `IR_VAR`/`IR_ASSIGN` before NV; param loop extended to seat
+locals init `NULVCL`); `GenFrame` from `gen_runtime.h`.
 
-**Proven zero cross-language regression (stash→rebuild→diff):** Icon `--interp` full ladder **130 PASS / 117
-FAIL / 36 XFAIL identical baseline-vs-post** (the 117 are rung36 advanced reflection/scan/structures, not
-Pascal); Prolog honest mode-2 **132/132, 0 ABORT**. Pascal edits stay isolated to the `LANG_PASCAL` path.
+**Probes (corpus/programs/pascal/, committed):** `nestrec.pas` byte-identical (`11,21,31`) — the gate;
+`nestcount.pas` (sibling nested procs share an outer counter → `3`); `nest2.pas` (three-level nesting, innermost
+does a **Δ2 grandparent** uplevel read+write and a Δ1 → `15,101`); `nestfunc.pas` (a nested **function** with its
+own param reading uplevel `base`+`n` and returning → `213`). All PB-6 probes + `sieve`/`nested` stay
+byte-identical; `recursion` matches through `fact(7)`.
 
-**16-bit overflow (still deferred, NOT a PB-6 blocker).** `fact(8)`=40320 > `maxint`=32767: `pint` traps
-(ERangeError) with an unmatchable fpc crash dump; SCRIP computes 40320. Needs its own Pascal integer-model rung
-(overflow detection + clean abort + writeln arg-eval ordering).
+**Proven zero cross-language regression (stash→rebuild→diff, the prescribed method):** Icon `--interp` full
+ladder **130 PASS / 117 FAIL / 36 XFAIL identical baseline-vs-post**; Prolog honest mode-2 **132/132, 0 ABORT
+identical**. Baseline `nestrec` confirmed `11,11,11`, post `11,21,31`. All edits stay isolated to the
+`LANG_PASCAL`/`IR_LANG_PAS`-guarded path.
 
-**Next — PB-7 (NESTED routines), DESIGNED, build held for Lon's nod on the static-link representation.** Gap
-characterized by the discriminating probe `nestrec.pas` (committed): recursive `outer` with a nested `inner`
-mutating a per-activation local — `pint` `11,21,31`, SCRIP `11,11,11` (because procedure **locals aren't
-frame-scoped** — they fall through to one shared NV global; `fact`/`fib` only dodge this by using params + the
-NV-return trick, and the simple `nested.pas` passes only *accidentally* via that shared NV). Frame-scoping locals
-and static-link uplevel are **coupled** (frame-scoping alone regresses `nested.pas`), so PB-7 is one design.
-Full design grounded in `pcom`/`pint` (lexical `level`, walk count `use_level−decl_level`, call static link
-`mst (level−pflev)` = `base()`): each `ProcEntry` gains `decl_level`; `lower_sc` = params **then** locals;
-`GenFrame` gains `GenFrame *static_link` (a **static chain, not a display** — matches `pint`, satisfies "no
-separate display array", becomes the parent-port thread in mode-3/4); the chain **bottoms out at NV** for
-frame-less `main` (top-level proc's `static_link`=NULL → walk reaching NULL resolves against NV — keeps `sieve`
-globals + `nested.pas` from regressing); **uplevel access reuses the PB-6 `(frame,slot)` Loc + chase** — it just
-produces the Loc by walking static links instead of by chasing a reference. Implementation plan + the
-representation fork are in `HANDOFF-2026-06-03-OPUS48-PASCAL-BB-PB6-VARPARAM-PB7-DESIGN.md`. Deferred: per-activation
-local arrays in nested/recursive procs (array-fill prologue still global-name-based; no probe needs it). Then
-PB-8 aggregates / PB-9 mode-3/4.
+**SEPARATE GAP FOUND — parameterless function call in an expression (its own rung, NOT PB-7).** A bare identifier
+in `factor` parses as `selector → mk_ident → TT_VAR` (a variable read); only `IDENT(...)` with parens becomes a
+call. So a zero-arg function used in an expression (`x := f + f`) reads an unset variable → `0`. This hits **flat
+functions too** (discriminating probe `flatnoarg.pas`, committed, XFAIL: oracle `10`, scrip `0`), so it is
+orthogonal to nesting — no prior probe exposed it because `fact`/`fib`/`inner(k)` are all parameterized. The fix
+needs its own design: the parser/lower must know which identifiers are **function names** and turn a non-local
+bare-IDENT-that-is-a-function into a call (careful not to turn genuine variable reads into calls). Recommend as
+the next small rung **PB-6b** before PB-8.
+
+**16-bit overflow (still deferred).** `fact(8)`=40320 > `maxint`=32767: `pint` traps, SCRIP computes 40320. Its
+own integer-model rung.
+
+**PB-6 value+`var` params (sessions 5–6) — still green.** Value params + functions + procedures +
+procedure-as-statement; `var` (pass-by-reference) via the unified slot-reference model (a frame slot is a value or
+a reference to a location `(frame,slot)`/`(NULL,NV-name)`; setup resolves the actual's location in the caller,
+chasing → transitivity + `f(a,a)` aliasing; `var` actuals that aren't simple variables still fall back to
+by-value). `varparam`/`swap`/`alias`/`vartrans`/`varframe`/`varmix` byte-identical.
 
 **Two residual issues (NOT introduced by Pascal work — flagged for attention):**
 - `scripts/regenerate_parser_and_lexer_from_sources.sh` is `set -e` and ABORTS at the snobol4 flex step
@@ -225,11 +231,18 @@ cd /home/claude/corpus/programs/pascal
   cross-language regression proven (Icon 130/117/36, Prolog 132/0/0 identical baseline-vs-post). Open-but-not-a-
   blocker: `var` actuals that aren't simple variables (array element/field) fall back to by-value. **DEFERRED:
   16-bit overflow** (`fact(8)` aborts in `pint` with an unmatchable fpc crash dump) — its own integer-model rung.
-- [ ] **PB-7 — NESTED procedures & functions (THE NEW RUNG).** A routine declared inside another,
-  reading/writing the enclosing locals. Implement static-link-as-parent-port: each activation a BB, uplevel
-  access walks parent links, 100% BB, stackless. **Design it here, once, carefully.** Probe: a nested helper
-  that reads & mutates an enclosing routine's local **while the enclosing routine is still active** (e.g. a
-  nested `partition` referencing the outer `quicksort`'s array, or a nested proc bumping an outer counter).
+- [x] **PB-7 — NESTED procedures & functions (THE NEW RUNG).** A routine declared inside another,
+  reading/writing the enclosing locals. **DONE** via static-link-as-static-chain: `ProcEntry.decl_level`,
+  `GenFrame.static_link`+`level`, parser lexical-level counter + non-array-local capture, `lower_sc`
+  params-then-locals, `pas_base(caller, caller_level−decl_level)` at call setup, uplevel walk in
+  `IR_VAR`/`IR_ASSIGN` before NV. Gate `nestrec.pas` `11,21,31`; probes `nestcount`/`nest2`/`nestfunc`
+  byte-identical; Icon 130/117/36 + Prolog 132/0/0 identical baseline-vs-post.
+- [ ] **PB-6b — Parameterless function call in an expression (SEPARATE GAP, recommend before PB-8).** A bare
+  identifier in `factor` parses as a variable read, not a call; only `IDENT(...)` becomes a call. So a zero-arg
+  function in an expression (`x := f`) reads an unset variable → `0`. Hits flat functions too (probe
+  `flatnoarg.pas`, XFAIL: oracle `10`, scrip `0`) — orthogonal to nesting. Fix: parser/lower must know function
+  names and promote a non-local bare-IDENT-that-is-a-function to a call (without turning genuine variable reads
+  into calls). `pcom.pas` uses these heavily.
 - [ ] **PB-8 — Aggregates as needed.** `record`, `array`, `set`, pointers/`new`. Add only what later probes
   require; `pint`'s store layout is the semantics oracle.
 - [ ] **PB-9 — Cross onto compiled BBs (mode-3/4).** Convert Pascal's boxes to the `x86()` self-encoding API
