@@ -406,8 +406,8 @@ proven negative test (injecting a resurrection makes it exit 1).
 
 Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step (and EACH sub-wave): GATE-3 m2/m3 **111/111** byte-identical (HARD) + m4 count held, smoke 5/5/5, purity green, commit. Copy the worked example: `bb_binop_*.cpp` + 38-line router.
 
-- [ ] **PL-HY-1 — `bb_builtin.cpp` (2,427) — THE WORST OFFENDER. FOUR diseases at once. Sub-waves, GATE-3 111/111 after EACH.**
-  - **1a — KILL DISEASE 3 + 4 FIRST (the bulk):** `emit_build_compound_term` (92L TEXT) + `emit_build_compound_term_bin` (94L BINARY) are ONE Term-builder hand-written TWICE doing a RUNTIME job. The runtime helpers ALREADY EXIST (`rt_pl_node_to_term`, `rt_pl_compound_build_n`). Replace BOTH walkers with a box that marshals operand slots and CALLs the rt helper once — emit-time tree-walking is RT MISUSE. This alone should shed >1,000 lines.
+- [ ] **PL-HY-1 — `bb_builtin.cpp` (was 2,427; now 2,187) — THE WORST OFFENDER. FOUR diseases at once. Sub-waves, GATE-3 111/111 after EACH.**
+  - **1a — DISEASE 3+4: BINARY half DONE (`abae7c1`), TEXT half RESOLVED-AS-NOT-DUP.** The two walkers `emit_build_compound_term` (TEXT, mode-4) + `emit_build_compound_term_bin` (BINARY, mode-3) were the SAME post-order IR→Term walker in two media — and BOTH duplicate the recursive `resolve_node_to_term()` already in `IR_interp.c`. **Fix landed:** added one exported wrapper `rt_node_to_term_ptr(void*)` over `resolve_node_to_term`; **DELETED `emit_build_compound_term_bin`** (90L) and rerouted all 23 mode-3 BINARY call-sites through a 2-instruction marshal+call (`movabs rdi,&node; call rt_node_to_term_ptr` → Term* in rax), mirroring the already-live `rt_is_eval` node-ptr-baking arm. Mode-3 is IN-PROCESS so the live `IR_t*` is valid. Net MORE correct: the old inline `_bin` built float-literal leaves as 0.0 (`xorps xmm0`); the runtime walker reads `dval`. **The TEXT twin is deliberately KEPT** — with `_bin` gone the DUP-FORM-1 ("same algo in two media") is RESOLVED; the lone surviving walker is the mode-4 SERIALIZED encoding (scalars-as-immediates + `lea [rip+strlbl]`, calls `rt_node_to_term@PLT`/`rt_compound_build_n`). Mode-4 produces a SEPARATE binary via as+gcc, so it CANNOT bake an in-process `&node` — verified live: a compound call-arg rung (`show(mary)`→`likes(X,Y)`) compiles+runs to `food` with 3 walker calls in its `.s`, and `bb_goal.cpp` (MEDIUM_TEXT-only) externs+uses it for IR_STRUCT call-args. Collapsing the TEXT walker to one `rt_*` call needs an IR→rodata serialization substrate (a real feature, flagged below as the mode-4 substrate) — NOT part of the 1a duplication-kill. Result: GATE-3 m2 111/111 · m3 111/111 byte-identical · m4 75/0/36 held; medium-invisible 384→343; no_bb_bin_t 0; −95 lines.
   - **1b — DE-CRAM the families:** each builtin family (type-tests, arith/is, sort/format, atom/string, writeq/numbervars/copy_term, …) → its own `bb_builtin_<family>.cpp`; group 95%-identical functors within a family. Router `bb_builtin.cpp` dispatches by name. ~18 shapes → ~18 files (each small), GATE-3 111/111 after each family.
   - **1c — DE-FUSE:** any arm reading `pBB->α->ival/sval` for an operand whose own box fills a slot.
 - [ ] **PL-HY-2 — `bb_choice.cpp` (318).** first-clause/next-clause/CP-elision shapes → split; group near-identical. Router. Coordinate WAM-CP.
@@ -575,15 +575,17 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — REGRESSION FIXED; SCRIP HEAD `fdf8915`, pushed)
+## 📊 Gate table (current — PL-HY-1a BINARY half landed; SCRIP HEAD `abae7c1`, local — push at handoff)
 
+PL-HY-1a: `emit_build_compound_term_bin` (90L mode-3 BINARY walker) DELETED; 23 call-sites → one
+`rt_node_to_term_ptr` runtime call. TEXT twin retained (mode-4 serialized encoding, not a dup). Prior:
 bb_builtin+bb_fail restored as `x86()` (PL-RV-6); `pl_rich_node_emittable` IR_UNIFY narrowed to scalar.
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | 4/5 | 4/5 | m3 `unify` + m4 `clause` are smoke-harness-only artifacts; the rung suite covers the same shapes and passes |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **75 PASS / 0 FAIL / 36 EXCISED** | m2/m3 byte-clean. m4 86→75 = compound-head-unify rungs now EXCISED (bb_unify scalar-only post-PL-RV-5); PL-HY-1a restores them. EXCISED = findall, retract/abolish/assertz, aggregate, catch/throw, dcg_generate, compound/float unify |
+| GATE-1 smoke | 5/5 ✅ | 4/5 | 5/5 | m3 `unify` is a smoke-harness-only artifact; the rung suite covers the same shapes and passes |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **75 PASS / 0 FAIL / 36 EXCISED** | m2/m3 byte-clean (unchanged by PL-HY-1a — proven by 24 compound-term rungs rung09/17/20/22/25/26). m4 held at 75; PL-HY-1a touched only the mode-3 BINARY path. EXCISED = findall, retract/abolish/assertz, aggregate, catch/throw, dcg_generate, compound/float unify |
 | no_bb_bin_t | 0 ✅ | — | — | `bb_bin_t`/`bb_emit_asm_result` zero across src/; type undeclared (compiler-enforced) |
-| medium-invisible | 384 (WIP) | — | — | **bb_builtin is `bb_bin_t`-CLEAR but NOT yet pure-`x86()`** — arm bodies still build straight-line bytes via `bytes()`/`u64le()` wrapped in `x86_lit_bytes(b)` (the handoff's restore recipe). Driving 384→0 (bodies → `x86(mnem,…)`) is the remaining PL-RV-6 revamp, separate from the regression restore. Informational gate (not `--strict`) |
-| siblings (HARD m2) | Prolog 111 ✅ · Icon 12 ✅ · SNOBOL4 7 ✅ | — | — | all three HARD gates green; sibling m3/m4 at/above floors (Icon 4/4, SNOBOL4 5/0 — pre-existing baselines). `bb_fail` restore is a cross-language net-positive (IR_FAIL is shared-lowerer) |
-| FACT RULE grep | 0 ✅ | — | — | g_vstack 0; bb_builtin not flagged by purity audit (its bytes are INSIDE a template) |
+| medium-invisible | **343** (was 384; WIP) | — | — | PL-HY-1a removed 41 byte-producers (the deleted `_bin` walker + 23 inline call expansions collapsed to one helper). Remaining 343 are bb_builtin's straight-line BINARY arm bodies (the PL-RV-6 `x86(mnem,…)` conversion, separate from PL-HY). Informational gate (not `--strict`) |
+| siblings (HARD m2) | Prolog 111 ✅ · Icon 12 ✅ · SNOBOL4 7 ✅ | — | — | all three HARD gates green after the shared-file touch; sibling m3/m4 at/above floors (Icon 4/4, SNOBOL4 5/0). PL-HY-1a edited only Prolog-owned `bb_builtin.cpp` + one Prolog runtime wrapper in `IR_interp.c` |
+| FACT RULE grep | 0 ✅ | — | — | g_vstack 0; seg_byte/SL_B 0; handencoded b.size() 0; prove_lower2 PASS |
