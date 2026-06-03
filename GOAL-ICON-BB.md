@@ -11,6 +11,16 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
   `bb_pat_span.cpp` (looping). **Recipe:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
 - **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
   — first to reach a combinator designs it once in the RULES-DRAFT.
+- ✅✅ **ICON x86() REVAMP IS COMPLETE (2026-06-02, `0b7a166`).** All three medium gates read 0 for Icon:
+  `test_gate_template_medium_invisible.sh` = 0, `test_gate_no_bb_bin_t.sh` = 0, `test_gate_no_handencoded_bytes.sh --strict` = 0.
+  **STALE-LEDGER CORRECTION:** the "YOUR BOXES" list below still names `bb_seq`/`bb_alt`/`bb_to`/`bb_to_by`/`bb_upto`/
+  `bb_binop_gen`/`bb_iterate`/`bb_suspend` as if they were unconverted `bb_*.cpp` template files with `b.size()` debt —
+  **they are NOT.** Those standalone files DO NOT EXIST; those generator families emit through the `emit_bb.c`
+  flat-drive machinery (`flat_drive_every`/`flat_drive_alt`/`flat_drive_gen_alt` + `FILL` → already-converted leaf
+  templates) and most still LOUDLY EXCISE in m3/m4 via `icn_kind_native_stub`. The ONLY file with raw-byte producers
+  is `x86_asm.h` (the private encoders — correct, per the rules). **THERE IS NOTHING LEFT TO x86()-CONVERT FOR ICON.**
+  The next Icon work is GROUND-ZERO native rungs (WRITE the stackless templates for the EXCISED families), tracked in
+  the rung ladder + watermark below — NOT revamp conversion. The "YOUR BOXES" text is kept verbatim for history only.
 - **YOUR BOXES:** `bb_binop_arith` ✅ **DONE (SCRIP `b8db625`)**, `bb_unop` ✅ **DONE + MEDIUM-INVISIBLE (SCRIP `0b7a166` — last raw NEG byte → `x86("neg")`)**, `bb_succeed` ✅ **DONE (SCRIP `2ac3fcd`)**, `bb_call` ✅ **DONE + MEDIUM-INVISIBLE (SCRIP `0b7a166` — all 60 raw-byte sites → `x86()`)**, `bb_suspend`, `bb_every` ✅ **DONE (SCRIP `f4b1f6b`, BINARY arm only — TEXT body-walk is irreducible, keeps pBB)**, `bb_seq`,
   `bb_alt`, `bb_to`/`bb_to_by`, `bb_upto`, `bb_binop_gen`, `bb_iterate`. **ALSO converted (bb_bin_t-free):** `bb_binop` router, `bb_binop_relop` (pBB-free), `bb_binop_concat_slot` (pBB-free). (`bb_lit_scalar` is pBB-free as of SNOBOL4 `76c5304`, NOT this lane — its IR_LIT_I arm now stores its slot per REG-RO.) **MEDIUM-INVISIBLE GATE now reads 0 across ALL Icon boxes** (`bb_call`+`bb_unop` were the last two carrying raw-byte producers). NOTE: `bb_call` keeps `pBB` (still reads neighbor `subs[i]->entry`/`pBB->α`) — full no-`pBB` FACT-RULE conversion (driver promotes operand slots to `g_emit`) is a SEPARATE later step; this slice only cleared the raw-byte/medium-branch debt. Loop-free leaves first; the generators
   (`bb_iterate`/`bb_binop_gen`/`bb_to`/`bb_upto`/`bb_every`) use the landed internal-label + ζ-frame support.
