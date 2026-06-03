@@ -188,13 +188,47 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
     block-local `extern void *dat_find_type` that conflicted with the canonical `DatType *dat_find_type`
     (`interp_private.h:115`) now in scope via the file's inherited includes — identical compiled call (same symbol,
     same truthiness test). No file added/removed ⇒ no Makefile change.
-  - [ ] **NEXT (cleanest-first):** `by_name_dispatch` (part 4) — the **intricate file-local-statics tier** (read
-    BODIES, move WHOLE coherent blocks, gate EACH): `builtins/script_builtins_byname.c` (junction/grammar/hash
-    by-name — `script_try_call_builtin_by_name`, `script_try_hash_mutating_builtin`/`script_try_hash_builtin`,
-    `elem_to_descr`, `junction_is`/`jct_one_cmp_*`/`junction_collapse`, `gram_set`/`gram_get_flavor`/`gram_expand`/
-    `gram_n`) + the `gen_runtime.c` by-name members (`try_call_builtin_by_name`, `call_builtin`, `rt_jct_relop`,
-    `proc_as_value`, `rt_call_arr`) + `fn_has_builtin` (core.c, **static + used only in core.c** ⇒ needs de-static
-    + decl for its core.c callers) + `builtin_is_generator`-style predicates from rt.c (`rt_builtin_is_known` DONE).
+  - [x] **slice 15 — `by_name_dispatch` (part 4a)** (SCRIP `a149ce4`): merge whole `builtins/script_builtins_byname.c`
+    (Raku junction/grammar/hash by-name — `script_try_call_builtin_by_name`, `script_try_mutating_builtin_by_name`,
+    `script_try_hash_mutating_builtin`/`script_try_hash_builtin`, `script_hash_set_str`/`script_hash_delete_str`,
+    `elem_to_descr`, `junction_is`/`jct_one_cmp_*`/`junction_collapse`, `gram_set`/`gram_get`/`gram_get_flavor`/
+    `gram_expand`/`gram_n`, statics `itos`/`rtos`/`to_cstring`/`hash_find`) → `by_name_dispatch.c`, then `git rm` the
+    emptied silo. WHOLE-coherent-block move: the file's statics are self-contained ⇒ travel as a unit, zero linkage
+    promotion. Dropped the 9 redundant include lines (destination already includes the superset); the source's own
+    `#define SOH`/`STX` … `#undef STX`/`#undef SOH` block is balanced + identical-valued, and by_name_dispatch.c's
+    pre-existing `SOH` is already `#undef`'d (line 483) before the append point ⇒ no macro conflict. The non-headered
+    externs `junction_is`/`junction_collapse` have callers in `rt.c`/`gen_runtime.c`/`lower_program.c` via local
+    `extern` — unaffected (same symbol/linkage, `*.o`-glob link). `script_builtins.h` KEPT (still declares the two
+    `*_by_name` entries, included by destination). Makefile lockstep (RT_PIC_SRCS line + scrip per-`.o` rule both
+    removed); stale `/tmp/si_objs/script_builtins_byname.o` deleted. Move-only; all 7 gates byte-identical.
+  - [x] **slice 16 — `by_name_dispatch` (part 4b-i)** (SCRIP `a149ce4`): move the contiguous tail cluster
+    `rt_call_arr`/`rt_jct_relop`/`call_builtin` (gen_runtime.c L1802-1844) → `by_name_dispatch.c`. AUDIT (saved
+    below, reuse it) proved the cluster clean: references ZERO gen_runtime.c file-level statics; uses NONE of the
+    giant's five macros; no `NO_AST_WALK_GUARD`. Cross-TU deps all reachable: `rt_call_arr`→`try_call_builtin_by_name`
+    (giant stays, decl `interp_private.h:121`); `call_builtin` decl `interp_private.h:120`; `rt_jct_relop` carries its
+    own local `extern junction_is`/`junction_collapse` whose defs now live in by_name_dispatch.c (slice 15);
+    `BINOP_*` via `gen_runtime.h`→`gen.h`, `TT_*`/`IS_INT_fn`/`VARVAL_fn`/`FAILDESCR` already used in destination.
+    Both files already wired ⇒ no Makefile change. Move-only; all 7 gates byte-identical.
+  - [x] **slice 17 — `by_name_dispatch` (part 4b-ii)** (SCRIP `a149ce4`): move `proc_as_value` (L369-394) + the
+    ~1300-line dispatch giant `try_call_builtin_by_name` (L501-1800) → `by_name_dispatch.c`, TOGETHER (giant calls
+    proc_as_value, which has no header decl; appended proc_as_value BEFORE giant ⇒ definition-before-use). Per the
+    pre-done audit: zero file-level-static refs; the giant's five macros all `#define`+`#undef`'d within it (balanced,
+    travel with it); function-local statics travel inside their fns. The mid-file `#include interp_private.h`+`<time.h>`
+    (former L396-7) STAYED (serve `string_section_assign` et seq.); the giant needed NO new includes — uses no time/
+    coerce symbols, externals resolve via `gen_runtime.h`, `script_try_call_builtin_by_name` same-file since slice 15.
+    Seams: giant → `real_str`/sep/`g_error`; proc_as_value → `lconcat_d`/sep/includes/`string_section_assign`. Both
+    files already wired ⇒ no Makefile change. Move-only; all 7 gates byte-identical. **✅ gen_runtime.c now holds ZERO
+    by-name members — `by_name_dispatch` .c-consolidation (parts 1–4) COMPLETE.**
+  - [ ] **NEXT (pick one):** the `by_name_dispatch` `.c` side has settled, so either **(A)** do its **HEADER
+    CONSOLIDATION now** (see the bold HEADER CONSOLIDATION note just below — create `by_name_dispatch.h`, fold the
+    decl-only orphans `builtins/script_builtins.h` + `builtins/scan_builtins.h`, repoint callers; this is a decl-reorg
+    not pure move-only, so keep it behavior-neutral — same symbols/signatures — and gate all 7), **or (B)** proceed to
+    the LANGUAGE-NAMED-file dissolution described below (start with `resolve_runtime.c` → `resolution`). ⚠ **`fn_has_builtin`
+    (core.c) — STILL A FINDING FOR LON, not a move:** `static` (decl `core.c:1463`, def `2704`), **ZERO callers
+    tree-wide** — vestigial near-dup of exported `core_fn_registered` (differs only by `e->fn != NULL`). Relocating it
+    either moves dead code or drags core.c's `_func_buckets`/`_func_init`/`_func_hash` registry statics ⇒ not a clean
+    move-only slice. Recommend Lon decide (likely delete = out of move-only scope). `rt_builtin_is_known`/
+    `builtin_is_generator` DONE (slice 14).
     THEN the rest of the LANGUAGE-NAMED files: `resolve_runtime.c` → `resolution.c` (and split its WAM
     choice-point/trail → `backtrack`, term/unify/env → `unification`; tightly-coupled shared statics, genuine
     multi-slice), `gen_runtime.c` remainder → `string_ops`/`keywords`/`name_binding`/`collections`/`monitor_trace`.
@@ -233,5 +267,5 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `fbd1412` · .github this commit. (RS-1 done; RS-2 slices 1-14 landed gated byte-identical (slices 10-14 rebased onto a concurrent push `0b7a166` = ICON-BB bb_call/bb_unop x86() revamp, then rebuilt + all 7 gates re-confirmed green at the combined HEAD `fbd1412` — note bb_call.cpp calls the slice-14-relocated rt_builtin_is_known, decl still in rt.h:139) — runtime_eval, unification, runtime_init, io_format, arithmetic ×2, pattern_match ×5 (`git mv pattern.c`; fold `eval_pat.c`; `rt_pat_*`+capture from `rt.c`; `patnd_*` classifiers from `stmt_exec.c`; `cset_*` from `scan_builtins.c`), by_name_dispatch ×3 (`git mv script_builtins.c → by_name_dispatch.c`; `scan_try_call_builtin` move **dissolving `scan_builtins.c`**; `rt_builtin_is_known`+`builtin_is_generator` from `rt.c`). **`arithmetic` COMPLETE; `pattern_match` COMPLETE** (only `kw_anchor` open, Lon call); **`by_name_dispatch` STARTED** (script entry + scan entry + the rt.c known/generator predicates landed; `scan_builtins.c` gone; `pattern_match.h` created). New header this batch: `src/runtime/pattern_match.h`. Decl-only orphans awaiting consolidation: `builtins/script_builtins.h`, `builtins/scan_builtins.h`. Deferred micro-slices pending homes: `rt_init` (slice-3), `rt_unop_*` (slice-6). **NEXT = `by_name_dispatch` part 4** — the file-local-statics tier: `script_builtins_byname.c` (junction/grammar/hash by-name) + `gen_runtime.c` by-name members + `fn_has_builtin` (core.c, de-static needed); then `resolve_runtime.c`→`resolution`(+`backtrack`/`unification` split), `gen_runtime.c` remainder → string_ops/keywords/name_binding/collections/monitor_trace; then `core/core.c`. See the RS CHECKLIST `NEXT` bullet + the RS-1 HANDOFF for the full map.)
+**Watermark.** SCRIP `a149ce4` (PUSHED) · .github this commit. **Slices 15–17 were re-integrated as a SINGLE commit `a149ce4` on top of the concurrent push `d51a4e1`** (ICON-BB ICN-HY-2 + SNOBOL4 define groundwork + Pascal rail) — the three originally landed as separate local commits (gated byte-identical each), then on handoff were rebased onto `d51a4e1`; upstream's Pascal `__pas_writeln`/`__pas_write` additions sat INSIDE `proc_as_value` + the giant, so they moved WITH them into `by_name_dispatch.c` (present there, gone from `gen_runtime.c`, no duplication); rebuilt + all 7 gates re-confirmed byte-identical at the combined HEAD. (RS-1 done; RS-2 slices 1-17 landed gated byte-identical (slices 10-14 rebased onto a concurrent push `0b7a166` = ICON-BB bb_call/bb_unop x86() revamp; pre-slice-15 HEAD was `fbd1412`) — runtime_eval, unification, runtime_init, io_format, arithmetic ×2, pattern_match ×5 (`git mv pattern.c`; fold `eval_pat.c`; `rt_pat_*`+capture from `rt.c`; `patnd_*` classifiers from `stmt_exec.c`; `cset_*` from `scan_builtins.c`), by_name_dispatch ×7 (`git mv script_builtins.c → by_name_dispatch.c`; `scan_try_call_builtin` move **dissolving `scan_builtins.c`**; `rt_builtin_is_known`+`builtin_is_generator` from `rt.c`; **slice 15 = whole `script_builtins_byname.c` merged + `git rm`** — Raku junction/grammar/hash silo GONE; **slice 16 = `rt_call_arr`/`rt_jct_relop`/`call_builtin` cluster** from `gen_runtime.c`; **slice 17 = `proc_as_value` + the ~1300-line `try_call_builtin_by_name` giant** from `gen_runtime.c`). **`arithmetic` COMPLETE; `pattern_match` COMPLETE** (only `kw_anchor` open, Lon call); **✅ `by_name_dispatch` .c-CONSOLIDATION (parts 1–4) COMPLETE — `gen_runtime.c` now holds ZERO by-name members; both `scan_builtins.c` AND `script_builtins_byname.c` dissolved.** New header earlier this batch: `src/runtime/pattern_match.h`. Decl-only orphans awaiting consolidation: `builtins/script_builtins.h` (declares the two `*_by_name` entries), `builtins/scan_builtins.h`. Deferred micro-slices pending homes: `rt_init` (slice-3), `rt_unop_*` (slice-6). **NEXT (pick one):** (A) **`by_name_dispatch` HEADER CONSOLIDATION** now that its `.c` settled — create `by_name_dispatch.h`, fold `script_builtins.h`+`scan_builtins.h`, repoint callers (decl-reorg, keep behavior-neutral, gate all 7); or (B) resume LANGUAGE-NAMED-file dissolution: `resolve_runtime.c`→`resolution`(+`backtrack`/`unification` split), `gen_runtime.c` remainder → string_ops/keywords/name_binding/collections/monitor_trace, then `core/core.c` (3449 lines, biggest; leave SNO-residue per LI-CORE). ⚠ **`fn_has_builtin` (core.c) is a FINDING FOR LON, not a move:** static, ZERO callers tree-wide, vestigial near-dup of `core_fn_registered` (differs only by `e->fn!=NULL`); relocating drags core.c's `_func_*` registry statics ⇒ Lon decide (likely delete = out of move-only scope). See the RS CHECKLIST `NEXT` bullet + the RS-1 HANDOFF for the full map.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
