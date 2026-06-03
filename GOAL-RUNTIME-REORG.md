@@ -103,6 +103,7 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
   | s22 | `name_binding` | Icon globals/statics/scope (`global_*`/`is_global`/`static_ent_t`+`static_*`/`scope_*`) from `builtins/gen_runtime.c` → `runtime/name_binding.c`; added missing `static_get`/`static_set` protos to `gen_runtime.h` (callers relied on TU-order). Header-less (arithmetic precedent) |
   | s23 | `values` | `descr_identical` (generalized `DESCR_t` structural identity; `===`/`~===` consumers self-extern in `by_name_dispatch.c`) from `builtins/gen_runtime.c` → `runtime/values.c`. Header-less; proto stays in `gen_runtime.h`. SCRIP `ae76122` |
   | s24 | `invocation` | `sm_call_proc`/`proc_table_call` from `builtins/gen_runtime.c` → `runtime/invocation.c`. Frame storage (`frame_stack`/`frame_depth`) STAYS in `gen_runtime.c` (already extern in `gen_runtime.h`) — invocation references it; single-def confirmed. Header-less; protos stay in `gen_runtime.h`. SCRIP `4aa19d7` |
+  | s25 | `aggregates` ✅ | **FIRST `core/core.c` carve-out.** array (`array_new`/`array_new2d`/`array_get`/`array_set`/`array_get2`/`array_set2`/`array_ptr`) + table (`_tbl_hash` static/`table_new`/`table_new_args`/`table_get`/`table_set`/`table_set_descr`/`table_has`/`table_ptr`) from `core/core.c` → `runtime/aggregates.c` (155 lines out; core.c 3327→3172). Generic container data-structures — NOT SNOBOL exec-model, so legitimately leaves `core/`. Header-less: all 15 protos already in `core.h`, call sites (the `_ARRAY_`/`_TABLE_`/`_CONVERT_`/`_COPY_` builtins + pattern_match.c/by_name_dispatch.c/interp_ref.c) UNTOUCHED. Includes `core.h`+`sil_macros.h`+`<string.h>`. SCRIP `97f807f` |
 
   **State:** `arithmetic`, `pattern_match`, `by_name_dispatch` (.c + header) COMPLETE; `keywords`/`string_ops`
   (.c + header) + `name_binding` (.c) + `values` (.c) + `invocation` (.c) COMPLETE. `gen_runtime.c` **654 → 209 lines**:
@@ -124,7 +125,22 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
       `is_suspendable`/`gen_bb_pump_proc_by_name`/`drive_val`; frame storage `frame_stack`/`frame_depth` stays here,
       already extern-exposed in `gen_runtime.h`) — this OVERLAPS ⓐ's backtrack split, so do them together. The
       `string_section_assign` straggler → `name_binding`/`control_flow` when one of those lands.
-    - **then `core/core.c`** (3449 lines, biggest split) → leave SNO-residue in `core/` (LI-CORE).
+    - **`core/core.c`** (now **3172 lines** after s25; biggest remaining split) → leave SNO-exec-model residue in
+      `core/` (LI-CORE). **Cluster map (bodies read this session, def-line order):** `aggregates` ✅ s25 (array+table,
+      EVICTED). REMAINING capability clusters still in core.c: **`monitor`/`ipc`** (~29–509: `mon_*`/`trace_*`/`comm_*`/
+      `load_names_file_bin`/`intern_name_bin`/`_b_MON_*` wire-protocol+tracing — clean but has `kw_stcount`/`kw_stno`
+      keyword globals interleaved @106–107 + exported `comm_*` called from driver/interp, so wider surface); **comparison
+      + arith builtin wrappers** (~509–768: `_GT_`/`_LT_`/.../`_b_add`/.../`_IDENT_`/`_DIFFER_` — note `_IDENT_`/`_DIFFER_`
+      are the canonical pair per the DELETE-dup open item); **datatypes/records** (`_data_ctor_fn`/`_make_ctor`/CTOR_FN/
+      FACC_FN/`_make_fget`/`_make_fset` ~1239–1350 + `DEFDAT_fn`/`DATCON_fn`/`FIELD_GET_fn`/`FIELD_SET_fn` ~2230–2317);
+      **`tree`** (`tree_*`/TREEBLK_t, sits just above aggregates, ends ~2072 — candidate next clean carve-out); **NV_\***
+      variable model (~2317–2660: `NV_*`/`INDR_*`/`NAME_fn`/`ASGNIC_fn` + N-stack `NPUSH/NINC/...` — likely LI-CORE SNO
+      residue, STAYS); **DEFINE/function-registry** (~2704–3044: `core_fn_registered`/`_parse_define_spec`/`DEFINE_fn`/
+      `register_fn_alias`/`APPLY_fn`/`FUNC_*` — note `fn_has_builtin` open-item delete lives here); **string-builtin
+      impls** (~3044–3219: `SIZE_fn`/`DUPL_fn`/`REPLACE_fn`/`SUBSTR_fn`/`TRIM_fn`/`lpad_fn`/`rpad_fn`/`REVERS_fn`/
+      `BCHAR_fn`/`INTGER_fn`/`real_fn`/`string_fn`/`ident`/`differ` — pairs with existing `string_ops.c`); **INPUT/OUTPUT**
+      (~3224–3316: `input_read`/`_INPUT_`/`_OUTPUT_`/`_io_*` — pairs with existing `io_format.c`). Method: read bodies,
+      one capability per gated slice, def already in `core.h` ⇒ usually header-less + call-sites-untouched (s25 precedent).
 
 - [ ] **RS-FENCE.** `scripts/test_gate_runtime_subsystems.sh` asserts the partition; wire into Session Setup.
 
@@ -188,10 +204,11 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `8970924` (this session, pushed) · prior RS watermark `4aa19d7` (RS-2 s1–s24, each gated
-byte-identical, PUSHED). RS-1 done; RS-2 slices 1–24 landed: `arithmetic` / `pattern_match` / `by_name_dispatch` /
-`keywords` / `string_ops` (.c + header) + `name_binding` / `values` / `invocation` (.c) COMPLETE; resolver renamed to
-`resolution`; `gen_runtime.c` 654 → 209 lines.
+**Watermark.** SCRIP `97f807f` (RS-2 **s25 aggregates**, gated byte-identical, this session) · prior `8970924`
+(LI-FENCE restore) · RS watermark `4aa19d7` (RS-2 s1–s24, each gated byte-identical). RS-1 done; RS-2 slices 1–25
+landed: `arithmetic` / `pattern_match` / `by_name_dispatch` / `keywords` / `string_ops` (.c + header) + `name_binding`
+/ `values` / `invocation` (.c) + **`aggregates` (.c — first `core.c` carve-out)** COMPLETE; resolver renamed to
+`resolution`; `gen_runtime.c` 654 → 209 lines; `core/core.c` **3327 → 3172 lines** (array+table evicted).
 
 **This session (Opus, 2026-06-03).** Arrived with HEAD `5dff1a8` — TWO commits past `4aa19d7` from other goals
 (GN-3 `7fc5ae9`, then Prolog-BB WAM-CP-7c `5dff1a8`). **Baseline was RED on LI-FENCE:** WAM-CP-7c put
