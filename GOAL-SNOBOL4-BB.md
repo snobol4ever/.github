@@ -1,5 +1,20 @@
 # GOAL-SNOBOL4-BB.md — SNOBOL4 Pattern BB Templates
 
+> **🔄 RESET 2026-06-02 (Lon) — THIS GOAL'S LIVE PURPOSE IS BUILDING SNOBOL4 BYRD BOXES FROM GROUND ZERO (the third time).**
+> Two cross-cutting rungs were SPLIT OUT into their own goal files (they touch ALL languages' runtime, not just SNOBOL4):
+> - **Runtime DE-NAME (rename by CS concept, the LI ladder) → `GOAL-RUNTIME-RENAME.md`.**
+> - **Runtime SUBSYSTEM REORG (organize files by capability, dissolve language silos) → `GOAL-RUNTIME-REORG.md`.**
+>
+> **The LIVE SNOBOL4-BB work is the BB / pattern / template ladders:** the **x86() TEMPLATE-REVAMP** sub-track, the
+> **PB-RB pattern ladder** (SUBJECT→PATTERN→MATCH→REPLACE as emitted byrd-box graphs), the **REG ladder** (pattern
+> family → ratified Σ=R13/δ=R14/Δ=R15/ζ=R12; the SNOBOL mode-4 unblocker), and **BROKERED-MODE-ERADICATION** — all
+> below, governed by the five byte-identical FACT RULES (NO VALUE STACK · NO C BYRD-BOX · PER-BOX LOCAL STORAGE ·
+> SHARED-LOWERER · X86-64 REGISTER). The FACT RULES STAY here (they are shared, byte-identical across the *-BB goals).
+>
+> **The DE-NAME / LI / REORG rung text retained below is PROVENANCE ONLY — it is NOT this goal's live work; follow the
+> two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
+
+
 ## ✅ DONE (2026-06-02 session) — `bb_binop` ROUTER DELETED; ONE IR KIND PER ARM, 1:1 DISPATCH
 
 The `bb_binop.cpp` router (which probed `bb_binop_{relop,arith,gvar_arith,concat_slot}_str()` in order) is GONE —
