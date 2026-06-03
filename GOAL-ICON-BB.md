@@ -505,6 +505,102 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EA
 - [ ] **ICN-HY-7 — de-dup + RT-fix, all Icon boxes.** Any algorithm appearing in both a TEXT and BINARY arm → DELETE both, replace with one `rt_*` call (marshal slots, call helper). No emit-time value work.
 - [ ] **ICN-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Icon-owned files. m2 130 HARD held.
 
+## 🔴 ICN-SCAN LADDER — A STACKLESS BB FOR EVERY ICON STRING-SCANNING OPERATION, ONE STEP PER BOX (Lon directive 2026-06-03)
+
+**Scope: EVERY string-scanning operation Icon offers gets its own BB.** The canonical set is closed:
+`refs/icon-master/src/runtime/fstranl.r` (any · bal · find · many · match · upto) + `fscan.r` (move · pos · tab)
++ the scan control forms (`?` env LIVE at `d46b943`; `?:=` and `=s` pending below). Per CONSULT-CANONICAL-SOURCES,
+each step re-reads its named `.r` function AND the Proebsting four-port templates (`refs/bb/Proebsting-…pdf`
+§4.1–4.5, Fig 1/2) before writing the box. **If lost, copy the SNOBOL4 pattern boxes** — `bb_pat_any.cpp` is the
+worked example: Σ=r13/δ=r14/Δ=r15 walk, cset sealed RO + `lea rdi,[rip+cset]; call strchr` membership test, pure
+`x86()` concatenation. Same register walk, different value contract (Icon RETURNS positions as DESCRs; SNOBOL
+threads the cursor).
+
+**REGISTER CONTRACT (the ratified X86-64 FACT table — same as SNOBOL4):** **R12=ζ** per-sequence RW frame, every
+mutable slot `[r12+off]` · **R13=Σ** subject BASE ptr · **R14=δ** cursor, 0-based byte offset (`&pos = δ+1`) ·
+**R15=Δ** subject LENGTH · **RBX=NV** globals HASH base (scan boxes never touch it; it rides through untouched,
+same as SNOBOL4). RO constants (literal cset char-strings, literal match strings, literal ints) SEALED next to the
+blob, reached `[rip+disp]` (`x86_ro_seal_str`/`_q`, the `bb_pat_any` idiom). Result DESCRs go to the box's OWN
+16-byte frame slot (`bb_to`/`bb_alt` slot model); consumers read the producer's slot. No value stack, no `pBB->`
+absolute slot address, no `bb_bin_t`, medium-invisible — the standing FACT rules apply to every box below.
+
+**SEMANTIC INVARIANT (fstranl.r/fscan.r — do not blur this):** any/many/match/upto/find/bal **RETURN positions
+and DO NOT move δ**; only **tab/move WRITE δ — and RESTORE it on β** (fscan.r: "Reverses effects if resumed").
+Generator state (cursors, bal's depth counter) lives in the box frame at `[r12+op_off+16…]`; the `{*}` boxes
+re-pump via the generator-β chain edge (landed `b48f0cd`, proven by `bb_to`/`bb_alt`).
+
+**WAVE-1 SHAPE CONTRACT (precise gating, the `bb_alt` discipline):** default-window forms only — `f(c)`/`f(s1)`/
+`f(n)` with LITERAL cset/string/positive-int args, inside a live `?` scan env (Σ/δ/Δ loaded). Explicit `(s,i,j)`
+args, dynamic/computed args, csets > literal strings, and 0/negative positions EXCISE `[SMX]` via the
+`icn_scan_subgraph_safe` extension — loud, never silent. fstranl.r's full `str_anal` defaulting and `cvpos` are
+RT value work for a later wave. tab's wave-1 operand may also be a sibling SCAN_* producer slot — `tab(upto(c))`
+/ `tab(many(c))` / `tab(match(s))` IS the idiom and must be in wave 1.
+
+**PER-STEP GATE (every step, no exceptions):** `make scrip` + `make libscrip_rt` rc=0 · step probe(s) m2==m3==m4
+· m2 corpus **130 HARD byte-identical** · Icon smoke m2 12/12 · the step's IR kind OFF `icn_kind_native_stub` the
+moment its box lands (and ONLY then) · bb_bin_t=0 · medium-invisible `--strict` · no-stack · one-reg-frame ·
+g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
+
+- [ ] **ICN-SCAN-0 — registerize the `?` env: `bb_gen_scan` loads Σ/δ/Δ.** ENTER glue (op_sb=1) additionally
+  loads **r13←subject byte ptr, r14←0 (δ for pos=1), r15←length** (rt_icn_scan_enter returns the triple — it
+  already coerces the subject DESCR to string); the ledger push/pop now saves/restores the prior register triple
+  too (nesting). SYNC CONTRACT: before any emitted `call rt_*` that may read/write `&pos`/`&subject`, store
+  δ→`scan_pos`; reload after. LEAVE (op_sb=2) restores. Gate: rung05 scan_subject + scan_concat_subject stay
+  m2==m3==m4; smoke 12/12 HARD.
+- [ ] **ICN-SCAN-1 — `bb_keyword` register arms.** Inside a native scan: `&pos` = `lea rax,[r14+1]` packed INTVAL
+  into the slot (no rt call); `&subject` marshals Σ/Δ → rt string-DESCR helper → slot. m2 keeps
+  `rt_icn_keyword_*`. Gate: same probes byte-identical.
+- [ ] **ICN-SCAN-2 — nine IR kinds + routing + LOUD EXCISE.** Add `IR_SCAN_ANY/MANY/MATCH/UPTO/FIND/BAL/TAB/
+  MOVE/POS` (contracts); lowerer Icon CALL arm maps the nine names → kinds (ONE case per kind, SHARED-LOWERER
+  discipline); m2 interp arms DELEGATE to the existing by-name impls (`by_name_dispatch.c`) so the oracle is
+  byte-identical — **if the oracle's builtin-generator resume machinery resists cheap delegation, the SANCTIONED
+  fallback is name→template mapping in the EMIT driver only** (emit_bb.c; precedent: `&`-prefix → `bb_keyword`),
+  lowerer untouched — templates stay language-blind either way; emit_core: one case per kind → `x86_bomb` stub;
+  all nine kinds onto `icn_kind_native_stub`. Gate: m2 corpus 130 **byte-identical**, everything EXCISES clean.
+- [ ] **ICN-SCAN-3 — `bb_scan_pos.cpp`** (fscan.r `pos(i)`, function{0,1}). Literal positive n RO. α: `cmp` n vs
+  δ+1; eq → INTVAL(n) into slot, γ; ne → ω. β → ω. Stateless single-shot — the smallest box; lands the
+  whole plumbing end-to-end. Probe: `"abc" ? if pos(1) then write("at1")`.
+- [ ] **ICN-SCAN-4 — `bb_scan_any.cpp`** (fstranl.r `any(c)`, {0,1}). Cset literal sealed RO. α: `δ==Δ → ω`;
+  `movzx esi,[r13+r14]`; `lea rdi,[rip+cset]`; `call strchr`; miss → ω; INTVAL(δ+2) → slot, γ. β → ω.
+  Copy `bb_pat_any`'s test, change the value contract (return position, δ untouched). Probe:
+  `"hello" ? write(any('h'))` → `2`.
+- [ ] **ICN-SCAN-5 — `bb_scan_match.cpp`** (fstranl.r `match(s1)`, {0,1}). s1 + len sealed RO. α:
+  `Δ−δ < len → ω`; byte-compare loop (internal `L(n)` labels) vs `[r13+r14+i]`; mismatch → ω;
+  INTVAL(δ+1+len) → slot, γ. β → ω. Probe: `"hello" ? write(match("he"))` → `3`.
+- [ ] **ICN-SCAN-6 — `bb_scan_many.cpp`** (fstranl.r `many(c)`, {0,1}). Cset RO. α: walk p from δ while
+  `p<Δ ∧ s[p]∈c` (strchr loop, scratch reg — δ NOT written); `p==δ → ω`; INTVAL(p+1) → slot, γ. β → ω.
+  Probe: `"  x" ? write(many(' '))` → `3`.
+- [ ] **ICN-SCAN-7 — `bb_scan_tab.cpp`** (fscan.r `tab(i)`, {0,1+} REVERSES on β). Operand = literal positive n
+  OR a sibling SCAN_* producer slot (the `tab(upto(c))` idiom — read `[r12+op_sa…]` like any consumer). α:
+  save δ → `[r12+op_off+16]`; bounds-check target ∈ [1,Δ+1] else ω; δ ← target−1; substring spanned
+  (order-normalized) via `rt_icn_substr(Σ, lo, hi)` → DESCR slot (RT value work, DUP-FORM-2); γ.
+  **β: δ ← saved; ω.** Probes: `"hello" ? write(tab(3))` → `he`; `"hello" ? write(tab(upto('l')))` → `he`.
+- [ ] **ICN-SCAN-8 — `bb_scan_move.cpp`** (fscan.r `move(i)`, {0,1+} REVERSES on β). Literal n. α:
+  `δ+1+n ∉ [1,Δ+1] → ω`; save δ; δ += n; substring moved over via `rt_icn_substr`; γ. β: restore δ; ω.
+  Probe: `"hello" ? write(move(2))` → `he`.
+- [ ] **ICN-SCAN-9 — `bb_scan_upto.cpp`** (fstranl.r `upto(c)`, function{*} — THE FIRST SCAN GENERATOR). Cset RO;
+  cursor `[r12+op_off+16]` seeded δ on α. Loop `L(0)`: `cursor≥Δ → ω`; `s[cursor]∈c` → INTVAL(cursor+1) →
+  slot, γ (cursor persists); miss → cursor++ → `L(0)`. **β: cursor++ → `L(0)`** (the `bb_to` re-pump). Probe:
+  `"hello" ? every write(upto('l'))` → `3 4`.
+- [ ] **ICN-SCAN-10 — `bb_scan_find.cpp`** (fstranl.r `find(s1)`, {*}). s1+len RO; cursor slot. Outer `L(0)`:
+  `cursor > Δ−len → ω`; inner byte-compare `L(1)` vs `[r13+cursor+i]`; hit → INTVAL(cursor+1) → slot, γ;
+  miss → cursor++ → `L(0)`. β: cursor++ → `L(0)`. Probe: `"banana" ? every write(find("an"))` → `2 4`.
+- [ ] **ICN-SCAN-11 — `bb_scan_bal.cpp`** (fstranl.r `bal(c1,c2,c3)`, {*}). Three csets RO (wave-1 defaults:
+  c1 literal, c2=`'('`, c3=`')'`); cursor + cnt slots (`[r12+op_off+16/+24]`). Loop per fstranl.r: `cnt==0 ∧
+  s[cursor]∈c1` → suspend INTVAL(cursor+1), γ; `∈c2 → cnt++`; `∈c3 → cnt−−`; `cnt<0 → ω`; cursor++; end → ω.
+  β: cursor++ → loop. Probe: `"(a)b" ? every write(bal('b'))` → `4`.
+- [ ] **ICN-SCAN-12 — `=s` sugar (NO new BB).** Lowerer Icon unary-`=` arm rewrites to the
+  SCAN_TAB(SCAN_MATCH(s)) composition (Icon definition: `=s ≡ tab(match(s))`). Probe:
+  `"hello" ? write(="he")` → `he`.
+- [ ] **ICN-SCAN-13 — `?:=` scan-assign.** Extend `bb_gen_scan`'s LEAVE-γ arm per canonical `ir_a_Scan`
+  (`refs/jcon-master/tran/irgen.icn` ~96–105, the `"?:="` arm): on body success, `:=` the scan result to the
+  lhs (existing assign boxes: varslot / `bb_gvar_assign_icn`), THEN ScanSwap, THEN γ. Probe:
+  `s := "hello"; s ?:= tab(3); write(s)` → `he`.
+- [ ] **ICN-SCAN-FENCE — gate + sweep.** `scripts/test_gate_icn_scan.sh`: (a) all nine kinds OFF
+  `icn_kind_native_stub`; (b) every probe above m2==m3==m4; (c) corpus scan bucket recorded (the 27
+  IR_GEN_SCAN-gated programs: EXCISED→PASS deltas); (d) all standing FACT/structural gates green. Update
+  Watermark.
+
 ## Premise
 
 Icon IS a Byrd Box graph. Every construct is a box. The whole program is one connected port-graph. **There is no SM around it at all.** **There is no value stack.**
