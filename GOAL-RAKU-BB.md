@@ -634,6 +634,32 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
+**⚠ VERIFY-ONLY CHECKPOINT (2026-06-02) — LIVE m3/m4 IS 1/2, NOT 21/21; the prior figure is STALE. (No source edit, no push.)**
+A diagnostic re-run on the actual current trunk (SCRIP `origin/main` = `d51a4e1` ICON-BB ICN-HY-2) measured Raku
+**m2 25/25 (HARD ✓) · m3 1 PASS / 20 FAIL / 4 EXCISED · m4 2 PASS / 19 FAIL / 4 EXCISED** — NOT the
+`m3 21 / m4 21` reported in the checkpoints below. **The 21/21 figure was measured on the Raku branch tip
+`d34faa0` and is STALE; do not cite it as live.** ROOT CAUSE — a SHARED, ICON-OWNED path, not a Raku change:
+nearly every Raku program (`my $x = …`) lowers an `IR_ASSIGN` whose store runs through the descr/ζ-frame
+flat-chain (`g_descr_flat_chain`). At `d34faa0`, `emit_core`'s descr-mode `IR_ASSIGN` arm called `bb_assign(nd)`
+(a real ζ-slot store, `bb_assign.cpp`). The Icon-BB template-revamp + de-fuse (`bb_bin_t` abolition + the
+`g_icn_flat_chain`→`g_descr_flat_chain` LI de-naming) **DELETED `bb_assign.cpp`** and left the descr-mode arm at
+`fprintf("…unhandled"); return 1;`, after which `bb_var` bombs (`op_off=-1`, the local was never slotted).
+Confirmed identical failure on `var` / `arith` / `while_loop` / `string_concat` / `gather_take` / all junction +
+array cases, vs a byte-identical handler printing the correct value at `d34faa0`. **THIS IS A KNOWN GROUND-ZERO
+GAP, NOT A RAKU BUG:** the same gap hits Icon (`while` with `i := i+1` bombs identically in m3; Icon smoke m3/m4
+= 4/12), and GOAL-ICON-BB lists *"richer `bb_assign` operand-ref shapes (~14)"* as explicit NEXT work — the Icon
+session is rebuilding exactly this slot-based store (GZ-7 var slots, ICN-HY IR_LIT_I/S slot producers). Per the
+SHARED-EMITTER FACT RULE ("edit only your own language's arm") + the NO-DUPLICATED-LOGIC rule, the descr-mode
+`IR_ASSIGN` ζ-slot store is ICON-OWNED shared work, NOT a `bb_rk_*` box; re-introducing `bb_assign.cpp` would
+resurrect the abolished `bb_bin_t` form. **CONSEQUENCE FOR THIS GOAL:** mode-2 (the HARD oracle) is fully healthy
+at 25/25 — Raku LOWER work proceeds. But ALL Raku NATIVE rungs are blocked behind this Icon dependency: **RK-HY-3
+and RK-HY-4 cannot be validated** (their done-bar is "m3/m4 18/22 held", unreachable while the store is missing),
+and `bb_rk_gather`'s native pass is currently masked too. Raku m3/m4 will recover automatically once Icon-BB lands
+the descr-mode `IR_ASSIGN` slot store. **No files changed this checkpoint; nothing committed/pushed (verify-only,
+no `perform hand off`).**
+
+---
+
 **CHECKPOINT (2026-06-02, Opus 4.8) — bb_rk_gather → `x86()` self-encoding (TEMPLATE-REVAMP, first Raku-owned box converted).**
 The #0-priority `x86()` template-revamp lands its first Raku box. `bb_rk_gather.cpp` (`IR_GATHER`, the Raku
 `gather { take … }` resumable Seq producer) is rewritten from the old two-divergent-arm form (hand-coded
