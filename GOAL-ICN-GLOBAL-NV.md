@@ -25,6 +25,16 @@ The correct model — and the one that enables cross-language variable sharing �
 
 **What does NOT change:** The one-register frame model (RULES.md). Locals keep their frame slots. The `g_descr_flat_chain` path is unchanged for locals. Only the global arm of `IR_VAR` is rerouted to NV.
 
+## ⛔ DUAL-MODE DIRECTIVE — KEEP THE OLD FRAME-SLOT WAY AND THE NEW NV-DICTIONARY WAY SIDE BY SIDE, CLI-SELECTED (Lon, 2026-06-03)
+
+**Do NOT delete the OLD frame-slot global path when the NEW shared-dictionary path lands. KEEP BOTH, selected by a command-line switch.** The OLD path (`g_bb_varslot` / `bb_varslot_peek`, `[r12+off]`) already exists and is proven; the NEW path (`NV_GET_fn`/`NV_SET_fn`, the shared hash dictionary) is being added at the SAME call sites (`IR_VAR` read → `bb_var`/`bb_var_global`; `IR_ASSIGN` write → `flat_drive_assign`/`flat_drive_icn_global_assign`), so making it switch-selectable is a cheap refactor, not a rewrite. Rationale, two parts:
+
+1. **PERFORMANCE MEASUREMENT.** We want the head-to-head cost of frame-slot globals vs NV-dictionary globals — a `[r12+off]` load/store vs a `_var_hash(name)` lookup + bucket-chain walk. The switch lets the SAME Icon corpus run BOTH ways for a clean A/B benchmark (record numbers in `BENCHMARKS.md` / `bench/`).
+
+2. **INDEPENDENT-ICON COMPILATION.** When Icon is compiled standalone (no polyglot mix needing cross-language sharing), the OLD frame-slot model stays available as the faster self-contained option; the NEW shared-dictionary model is for the cross-language case (Icon globals sharing the ONE namespace with SNOBOL4/Snocone/Rebus, EXACTLY the same dictionary). **End state = BOTH backends retained, switch-selected — not OLD-deleted-for-NEW.**
+
+**Switch shape (to be finalized in GN-3.5/GN-4):** a driver flag (e.g. `--icn-globals=slot|nv`, default TBD by Lon) that sets a global mode read by the `IR_VAR`/`IR_ASSIGN` dispatch arms; `slot` = OLD (`bb_varslot`), `nv` = NEW (`bb_var_global` + `NV_SET_fn`). The GN-2 `state=1` tag identifies which `IR_VAR`/`IR_ASSIGN` nodes are global *candidates*; the switch then chooses the backend for those nodes. Mode-2 already resolves globals through the dictionary regardless of the switch (see Objective note + ARCH-ICON.md "Variable model"); the switch is a mode-3/4 native-codegen distinction. **This dual-mode requirement REVISES GN-FENCE** (the "zero frame-slot for globals" grep is conditional on `nv` mode, not unconditional) — see GN-FENCE below.
+
 ---
 
 ## How the parser/lowerer already marks this
@@ -49,8 +59,8 @@ The correct model — and the one that enables cross-language variable sharing �
 - [x] **GN-3 — New `bb_var_global` template: NV_GET_fn call. DONE (SCRIP `7fc5ae9`), DORMANT pending GN-4.**
   `src/emitter/BB_templates/bb_var_global.cpp` written: seals the name string RO, loads its `char*` into `rdi` via `[rip+disp]` (`x86_ro_load_q` after `x86_ro_seal_str`), `call NV_GET_fn`, stores the returned `DESCR_t` `rax:rdx` into the box's own 16-byte frame slot `[r12+off]`/`[r12+off+8]`, then `jmp γ / def β / jmp ω`. Non-generator: succeeds once on α, fails on β (NV_GET_fn never fails — unset → NULVCL, confirmed core.c:2337). Pure `x86()` concatenation mirroring `bb_lit_scalar.cpp` + `bb_to.cpp` — FACT-clean (no raw-byte producers, no `MEDIUM_BINARY` branch, no `bb_bin_t`; absent from the medium-invisible REMAINING list). `NV_GET_fn`/`NV_SET_fn` confirmed exported (T) from `libscrip_rt.so` so mode-4 links `@PLT`. **Wiring:** `bb_templates.h` declares it; `emit_core.c` IR_VAR dispatch routes `nd->state==1 → bb_var_global` else `bb_var`; `emit_bb.c` IR_VAR flat arm allocates `op_off` (own 16-byte slot) for the global case (local keeps `bb_varslot_peek`); Makefile adds it to `RT_PIC_SRCS` + its own compile rule. **CLEAN EXCISE (honest GN-3 boundary):** a global-touching program previously ABORTED native (rc=134 — `bb_var` bombed on the global read, `IR_ASSIGN`-to-global was a `kind=5` unhandled tree node). Per "a missing box falls clean-LOUD, never silent," `icn_graph_native_emittable` (scrip.c) now declines (clean `[SMX]`, rc=0) any graph with an `IR_VAR state==1` OR an `IR_ASSIGN` to a global name. So the read template is written + wired but DORMANT until **GN-4** lands the `NV_SET_fn` assign path — exactly the staged pattern `bb_to` followed before ICN-HY-4. Verified `G:=10;write(G)` now prints `[SMX]` in `--run` and `--compile` instead of aborting. Gate: build rc=0; m2 corpus 130 PASS (HARD, unchanged); smoke m2 12/12; all FACT/structural gates green. **(The goal's per-kind `NEW=0 GONE=0` gate needs a full build with the audit tool linked — unavailable in this env, GONE=1115.)**
 
-- [ ] **GN-4 — Wire assign path: `IR_ASSIGN` with global lhs uses `NV_SET_fn`. Gate: build + m2 smoke ≥ pre-rung baseline.**
-  The `IR_ASSIGN` emitter path (`emit_bb.c:1597`) currently routes through `flat_drive_gvar_assign` (SNO) or `flat_drive_assign` (ICN). For Icon globals (`nd->α->t == IR_VAR && nd->α->state == 1`), route to a new `flat_drive_icn_global_assign` that emits a call to `NV_SET_fn(name, value)`. The value is the rhs result already in a frame slot or register. Gate: m2 smoke ≥ baseline; a new Icon global-assign probe program passes.
+- [ ] **GN-4 — Wire assign path: `IR_ASSIGN` with global lhs uses `NV_SET_fn` (NEW path, under the switch — KEEP the OLD slot assign). Gate: build + m2 smoke ≥ pre-rung baseline.**
+  The `IR_ASSIGN` emitter path (`emit_bb.c:1659`) currently routes through `flat_drive_gvar_assign` (SNO) or `flat_drive_assign` (ICN). For Icon globals (the assign is to a global name — `nd->sval && is_global(nd->sval)`, or `nd->α->t == IR_VAR && nd->α->state == 1`), add a new `flat_drive_icn_global_assign` that emits `call NV_SET_fn(name, value)` (value = rhs result already in a frame slot/reg). **Per the DUAL-MODE DIRECTIVE: this is the NEW arm, reached only when the global-mode switch is `nv`; the OLD frame-slot assign arm (`flat_drive_assign` + `bb_varslot`) STAYS in place and is reached when the switch is `slot`. Do NOT delete the slot assign.** This is also where the global-mode CLI switch is finalized (see the DUAL-MODE DIRECTIVE in the Objective): a driver flag setting the mode the `IR_VAR`/`IR_ASSIGN` arms read. Once the NEW assign lands AND the chain threads, remove the `IR_ASSIGN`-to-global decline from `icn_graph_native_emittable` (then, when the read chain also threads, the `IR_VAR state==1` decline) so `nv`-mode programs run native (m2==m3==m4); the `slot` mode keeps the existing behavior. Study `ir_a_Assign` in `refs/jcon-master/tran/irgen.icn` FIRST per CONSULT-CANONICAL-SOURCES. Gate: m2 smoke ≥ baseline; a new Icon global-assign probe passes under `nv`; the OLD `slot` path still passes its existing tests.
 
 - [ ] **GN-5 — Probe program: cross-language global read. Gate: probe passes m2.**
   Write `test/icn_global_nv_probe.icn` — a minimal Icon program that sets a global variable and reads it back through a SNOBOL4 statement (or vice versa) exercised via the mode-2 interp. Confirms the shared namespace is live. This is the proof-of-concept for the cross-language goal. Gate: probe passes `--interp`.
@@ -58,8 +68,11 @@ The correct model — and the one that enables cross-language variable sharing �
 - [ ] **GN-6 — Sweep Icon corpus globals. Gate: m2 corpus ≥ pre-rung baseline; no regressions.**
   Run `test_icon_all_rungs.sh`. Every program that previously passed must still pass. Programs that use globals should now go through NV. Regressions indicate a global that was misclassified as local or vice versa — fix the `icn_is_global` set construction. Gate: m2 PASS ≥ pre-rung count.
 
-- [ ] **GN-FENCE — Zero frame-slot references for names in the global set. Gate: structural grep.**
-  `grep` in the emitted text (mode-4 `--compile` output) for the global variable names — confirm none appear as `[reg+off]` frame-relative addresses; all appear as `NV_GET_fn` / `NV_SET_fn` call sites. This is the structural proof the rung is complete. Gate: `scripts/test_gate_icn_global_nv.sh` (new script, created this rung) exits 0.
+- [ ] **GN-PERF — A/B benchmark OLD (slot) vs NEW (nv) globals. Gate: numbers recorded.**
+  Per the DUAL-MODE DIRECTIVE rationale (1): run the SAME global-heavy Icon corpus under both `--icn-globals=slot` and `--icn-globals=nv` and record the wall-clock / instruction-count delta (frame-slot `[r12+off]` load/store vs `NV_GET_fn`/`NV_SET_fn` hash lookup + chain walk). Land the comparison in `BENCHMARKS.md` (and/or a `bench/` harness). This is the measurement that motivated keeping both paths; it informs the default switch value and whether standalone-Icon should default to `slot`.
+
+- [ ] **GN-FENCE — In `nv` mode, zero frame-slot references for names in the global set (CONDITIONAL — both backends coexist). Gate: structural grep.**
+  **REVISED per the DUAL-MODE DIRECTIVE: the fence is NOT unconditional.** With `--icn-globals=nv`, `grep` the emitted text (mode-4 `--compile` output) for the global variable names and confirm none appear as `[reg+off]` frame-relative addresses — all appear as `NV_GET_fn`/`NV_SET_fn` call sites (structural proof the NEW path is wired). With `--icn-globals=slot`, the OPPOSITE must hold — globals DO appear as `[reg+off]` and there are NO `NV_*` call sites for them (proof the OLD path is intact and was not deleted). The gate `scripts/test_gate_icn_global_nv.sh` (new this rung) runs BOTH modes and asserts each invariant for its mode; it exits 0 only when both the NEW and OLD backends are correctly switch-selected. (A unified `bb_var_global` for SNO+ICN globals with no language check is a possible LATER refinement of the `nv` arm only.)
 
 ---
 
@@ -93,11 +106,14 @@ bash /home/claude/SCRIP/scripts/test_icon_all_rungs.sh 2>/dev/null | tail -3
 
 ## Architecture Note
 
-After this rung, `bb_var` splits cleanly into two cases at the IR level:
+`IR_VAR`/`IR_ASSIGN` dispatch at the IR level, with `state` identifying global *candidates* and the global-mode switch picking the backend (DUAL-MODE DIRECTIVE):
 
 ```
-IR_VAR (nd->state == 0)  →  bb_var        (frame slot: local, param, static)
-IR_VAR (nd->state == 1)  →  bb_var_global (NV_GET_fn: global, shared namespace)
+IR_VAR (state == 0)                      →  bb_var        (frame slot: local, param, static — ALWAYS)
+IR_VAR (state == 1) + switch == slot     →  bb_var        (OLD: global as a frame slot [r12+off])
+IR_VAR (state == 1) + switch == nv       →  bb_var_global (NEW: NV_GET_fn, shared namespace)
+IR_ASSIGN to global + switch == slot     →  flat_drive_assign            (OLD: slot store)
+IR_ASSIGN to global + switch == nv       →  flat_drive_icn_global_assign (NEW: NV_SET_fn)
 ```
 
-The SNO/SCO/REB path already uses the NV dictionary for everything (via `g_gvar_flat_chain` and the by-name pass-through arm of `bb_var`). After this rung, Icon globals join that same path. The `g_bb_varslot` table continues to exist for locals only. A future rung can unify the SNO and ICN global arms into a single `bb_var_global` template with no language check.
+The SNO/SCO/REB path already uses the NV dictionary for everything (via `g_gvar_flat_chain` and the by-name pass-through arm of `bb_var`). In `nv` mode Icon globals join that same dictionary — the SAME hash, the SAME namespace, cross-language visible. In `slot` mode Icon globals keep the OLD `g_bb_varslot` frame-slot model (faster, self-contained, no sharing). **Both backends are retained and switch-selected (Lon, 2026-06-03) — the OLD path is NOT deleted.** Locals are frame slots in BOTH modes. A future rung can unify the SNO and ICN `nv` global arms into a single `bb_var_global` template with no language check; that unification touches only the `nv` arm and leaves the `slot` arm intact. See `ARCH-ICON.md` → "Variable model — frame slots (OLD) and shared NV dictionary (NEW)" for the full architectural statement.
