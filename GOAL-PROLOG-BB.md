@@ -381,7 +381,7 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER, lowest first.** After EACH step: G
 - [ ] **PL-HY-3** — `bb_goal.cpp` **actual 134** (watermark said 264) — one `bb_goal_str` + a `build_arg` helper; single call shape. **SUBSUMED; no split.**
 - [ ] **PL-HY-4** — `bb_unify.cpp` **actual 76** (watermark said 151) — already cleanly factored via inline `u_*` guards: vacuous, deferred-bomb (compound/float = PL-HY-1a's deferred arm), self-unify `x=x` (= WAM-CP-7 var-var, already present), var-const. **SUBSUMED; no split** (the WAM-CP-7 var-var arm is the self-unify case already here).
 - [ ] **PL-HY-5** — de-dup + RT-fix sweep — **EFFECTIVELY COMPLETE** (audit 2026-06-03): ZERO duplicated-algorithm TEXT/BINARY pairs remain; all 11 `bb_builtin_*` family files have 0 emit-time value-work loops (every arm = marshal args → `call rt_*` → wire 4 ports). The only recursive walker `emit_build_compound_term` is the SANCTIONED mode-4 serialized encoder (PL-HY-1a verdict: NOT a dup; its mode-3 twin is the single `rt_node_to_term_ptr` call). Re-sweep if a new box adds an inline walker/evaluator.
-- [ ] **PL-HY-FENCE** — `scripts/test_gate_bb_one_box.sh` **NOT YET AUTHORED**; the one-box property it would check ALREADY HOLDS (no Prolog-owned file has >1 `extern "C" void bb_*` box entry — `bb_builtin_*` are `_str` helpers behind the `bb_builtin.cpp` router). Remaining actionable work: write the gate script. GATE-3 111/111 HARD; m4 never regresses.
+- [x] **PL-HY-FENCE** — `scripts/test_gate_bb_one_box.sh` AUTHORED (`1a0127e`). Asserts each Prolog-owned box file (`bb_arith/atom/builtin/catch/choice/conj/cut/disj/fail/goal/ite/logicvar/unify.cpp`) has EXACTLY ONE `extern "C" void bb_*` entry (comments stripped via `perl -0777`) and each `bb_builtin_*.cpp` helper has 0 (they are `_str` helpers behind the `bb_builtin.cpp` router — exempt). Passes immediately (property held per the 2026-06-03 audit). Two PROVEN negatives: a 2nd box in `bb_cut.cpp` → FAIL; a box entry in `bb_builtin_io.cpp` → FAIL; both restore clean. Wired into Session Setup. GATE-3 111/111 HARD held; m4 75/0/36 unchanged.
 ## VSX — g_vstack ERADICATION (Lon 2026-05-31)
 
 SCRIP has NO value stack; apparatus deleted (`80431d0`/`caf8f6d`/`d2a6ca4`). KEPT (not value stacks): trail `g_resolve_trail`, CP ledger `g_resolve_bfr`, ζ-frame `g_frame_buf`, activation table `g_rt_frames`. Audit: `doc/VSTACK-ERADICATION-AUDIT-2026-05-31.md`.
@@ -434,6 +434,7 @@ cd /home/claude/SCRIP && bash scripts/install_system_packages.sh   # nasm/m4/lib
 make -j4 scrip && make libscrip_rt
 bash scripts/test_smoke_prolog.sh         # GATE-1
 bash scripts/test_prolog_rung_suite.sh    # GATE-3
+bash scripts/test_gate_bb_one_box.sh      # PL-HY-FENCE: one box per Prolog template file
 grep -rnE 'seg_byte\(SEG_CODE|SL_B\(' src/ --include="*.c" --include="*.cpp" | grep -v "_templates/" | grep -v emit_core.c | wc -l   # FACT 0
 grep -rn 'g_vstack' src/ | wc -l          # 0
 ```
@@ -470,7 +471,7 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (2026-06-03 Opus 4.8 AUDIT — no code touched; HY-ladder found largely SUBSUMED; gates re-verified green. SCRIP HEAD unchanged at `3610475`; .github-only handoff)
+## 📊 Gate table (2026-06-03 — PL-HY-FENCE landed: `test_gate_bb_one_box.sh` authored + wired into Session Setup. SCRIP HEAD `1a0127e`. Gates re-verified green; no template/runtime code touched. Prior audit row below this caption still stands: HY-ladder 1c blocked, 2/3/4/5 subsumed/complete awaiting Lon's reclassify call.)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
