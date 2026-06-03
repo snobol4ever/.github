@@ -496,14 +496,14 @@ step (see Watermark).
 
 ## 🔴🔴 #0 PRIORITY — BB-HYGIENE LADDER (ICON) — ORDERED, DO FIRST (Lon 2026-06-01)
 
-Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step: Icon m2 oracle **130 PASS** byte-identical (HARD), smoke 12/12, purity green, commit. **`bb_binop.cpp` split is the WORKED EXAMPLE — copy it.** The de-cram steps are prep; **ICN-HY-7 (de-dup + RT-fix) is the core fix** — collapse any logic written twice.
+Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step: Icon m2 oracle **129 PASS** byte-identical (HARD; 130→129 = SUITE-HONESTY rc-fix, the rung36_jcon_proto vacuous pass removed), smoke 12/12, purity green, commit. **`bb_binop.cpp` split is the WORKED EXAMPLE — copy it.** The de-cram steps are prep; **ICN-HY-7 (de-dup + RT-fix) is the core fix** — collapse any logic written twice.
 
 - [x] **ICN-HY-0 … ICN-HY-3 — DONE.** ICN-HY-0 `bb_binop.cpp` de-cram (523→38 router + per-shape files, `2f72ce1`); ICN-HY-1 de-fuse bb_binop — IR_LIT_S slot + `x86_ro_seal_str` string REG-RO, `write("a"||"b")` native, ZERO DUP-FORM-3 fusion remains (`186b9b0`); ICN-HY-2 `bb_call.cpp` de-fuse + de-cram (459→207 router + 4 shape files, `write(42)`/`write("hello")` to flat-chain slot path, `3487a90`); ICN-HY-3 Icon bang `!x` — lower `TT_ITERATE`→`IR_LIST_BANG` (m2 oracle, corpus 127→130) + staged native `bb_iterate` (dormant — xchain doesn't route it yet; EXCISES `[SMX]`), `f935c3b`. Full detail in watermark + git log.
 - [ ] **ICN-HY-4 — `bb_binop_gen.cpp` (382).** The cross-product odometer is ONE box; audit whether arith/relop are the same shape (likely 95% → group). Coupled to VSX-8 (`rt_vstack_pop` sites). Router only if >1 true shape.
 - [ ] **ICN-HY-5 — `bb_to.cpp` (233) + `bb_to_by.cpp` (207).** `to`/`to_by`-int/`to_by`-real: int+real likely 95%-identical (group); confirm. Routers if distinct.
 - [ ] **ICN-HY-6 — `bb_lit_scalar.cpp` (180).** Already correctly GROUPS IR_LIT_I/S/F/NUL (95% rule — KEEP grouped). Audit only for a stray non-literal shape; else NO-SPLIT-NEEDED.
 - [ ] **ICN-HY-7 — de-dup + RT-fix, all Icon boxes.** Any algorithm appearing in both a TEXT and BINARY arm → DELETE both, replace with one `rt_*` call (marshal slots, call helper). No emit-time value work.
-- [ ] **ICN-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Icon-owned files. m2 130 HARD held.
+- [ ] **ICN-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Icon-owned files. m2 129 HARD held.
 
 ## 🔴 ICN-SCAN LADDER — A STACKLESS BB FOR EVERY ICON STRING-SCANNING OPERATION, ONE STEP PER BOX (Lon directive 2026-06-03)
 
@@ -537,17 +537,22 @@ RT value work for a later wave. tab's wave-1 operand may also be a sibling SCAN_
 / `tab(many(c))` / `tab(match(s))` IS the idiom and must be in wave 1.
 
 **PER-STEP GATE (every step, no exceptions):** `make scrip` + `make libscrip_rt` rc=0 · step probe(s) m2==m3==m4
-· m2 corpus **130 HARD byte-identical** · Icon smoke m2 12/12 · the step's IR kind OFF `icn_kind_native_stub` the
+· m2 corpus **129 HARD byte-identical** (post-SUITE-HONESTY) · Icon smoke m2 12/12 · the step's IR kind OFF `icn_kind_native_stub` the
 moment its box lands (and ONLY then) · bb_bin_t=0 · medium-invisible `--strict` · no-stack · one-reg-frame ·
 g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
 
-- [ ] **SUITE-HONESTY (do FIRST — one line + re-baseline).** `test_icon_rung_suite.sh` `run_corpus` compares
-  stdout only and is BLIND TO EXIT CODES: a program that ABORTS with empty stdout against an EMPTY `.expected`
-  counts PASS. **Proven 2026-06-03:** `rung36_jcon_proto` (158-line V9 syntax sampler, empty .expected) parse-errors
-  at line 18, aborts rc=134, and is counted PASS in ALL THREE modes — a vacuous pass inflating every column.
-  FIX: in `run_corpus`, capture `run_prog`'s rc; `rc≠0` without `[SMX]` ⇒ FAIL (m2 included). Then re-baseline the
-  three columns and record the honest numbers here. Gate: rung36_jcon_proto flips PASS→FAIL in all modes; no
-  genuine passer regresses.
+- [x] **SUITE-HONESTY — DONE (`991a26b`, 2026-06-03).** `test_icon_rung_suite.sh` `run_corpus` compared
+  stdout only and was BLIND TO EXIT CODES: `rung36_jcon_proto` (158-line V9 sampler, empty .expected) aborts
+  rc=134 with empty stdout (today it dies at `[lower2] UNHANDLED kind=107` → "main BB graph not found"; the
+  abort site moved since the original parse-error diagnosis but the vacuous condition was identical) and was
+  counted PASS in ALL THREE modes. FIX (two sites): `run_corpus` captures `run_prog`'s rc — `rc≠0` without
+  `[SMX]` ⇒ FAIL in EVERY mode, m2 included, even when stdout matches (verbose prints `FAIL name (rc=N)`);
+  AND `run_prog`'s compile arm returns 1 (not 0) on emit/as/gcc failure so the rc check can see m4 failures
+  ([SMX]-before-rc ordering in run_corpus keeps loud declines EXCISED). **HONEST BASELINE (at `991a26b`):
+  m2 PASS=129 FAIL=118 XFAIL=36 (HARD GATE is now 129) · m3 PASS=13 FAIL=82 EXCISED=152 · m4 PASS=20
+  FAIL=136 EXCISED=91.** Gate verified: proto flipped PASS→FAIL in all three modes; per-mode PASS-set diff
+  shows the ONE vacuous passer as the ONLY change in every column (zero genuine regressions, EXCISED counts
+  byte-identical 152/91); smokes m2 12/12 + Prolog 5/5 + prove_lower2 held.
 - [ ] **ICN-SCAN-0 — registerize the `?` env: `bb_gen_scan` loads Σ/δ/Δ.** ENTER glue (op_sb=1) additionally
   loads **r13←subject byte ptr, r14←0 (δ for pos=1), r15←length** (rt_icn_scan_enter returns the triple — it
   already coerces the subject DESCR to string); the ledger push/pop now saves/restores the prior register triple
@@ -563,7 +568,7 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   byte-identical — **if the oracle's builtin-generator resume machinery resists cheap delegation, the SANCTIONED
   fallback is name→template mapping in the EMIT driver only** (emit_bb.c; precedent: `&`-prefix → `bb_keyword`),
   lowerer untouched — templates stay language-blind either way; emit_core: one case per kind → `x86_bomb` stub;
-  all nine kinds onto `icn_kind_native_stub`. Gate: m2 corpus 130 **byte-identical**, everything EXCISES clean.
+  all nine kinds onto `icn_kind_native_stub`. Gate: m2 corpus 129 **byte-identical**, everything EXCISES clean.
 - [ ] **ICN-SCAN-3 — `bb_scan_pos.cpp`** (fscan.r `pos(i)`, function{0,1}). Literal positive n RO. α: `cmp` n vs
   δ+1; eq → INTVAL(n) into slot, γ; ne → ω. β → ω. Stateless single-shot — the smallest box; lands the
   whole plumbing end-to-end. Probe: `"abc" ? if pos(1) then write("at1")`.
@@ -723,8 +728,27 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `d46b943` — UNCHANGED (BASELINE + MEASUREMENT session, no code commits). HEAD (.github) =
-this handoff.** Session 2026-06-03-b (Opus 4.8, "THREE-MODE-BASELINE-VACUOUS-PASS"): built at `d46b943`, ran the
+**HEAD (SCRIP) = `991a26b` — SUITE-HONESTY landed (rc-aware rung suite). HEAD (.github) = this handoff.**
+Session 2026-06-03-c (Opus 4.8, "SUITE-HONESTY"): the first ICN-SCAN-ladder step is DONE. `test_icon_rung_suite.sh`
+now captures `run_prog`'s exit code in `run_corpus` — `rc≠0` without the `[SMX]` banner ⇒ FAIL in EVERY mode (m2
+included), even when stdout matches `.expected`; and `run_prog`'s compile arm returns nonzero (was `return 0`) on
+emit/as/gcc failure so m4 failures are rc-visible. `[SMX]`-before-rc ordering keeps loud declines EXCISED. The
+`rung36_jcon_proto` vacuous pass (rc=134 abort, empty stdout vs empty `.expected` — today it aborts at `[lower2]
+UNHANDLED kind=107` → "main BB graph not found"; the abort site moved from the original parse-error since peer
+`715daa5`, the vacuous condition unchanged) flipped PASS→FAIL in all three modes. **Per-mode PASS-set diff proved
+the ONE vacuous passer is the ONLY change in every column — zero genuine regressions, EXCISED counts byte-identical.**
+**HONEST THREE-MODE BASELINE (at `991a26b`):** corpus m2 **129** PASS / 118 FAIL / 36 XFAIL **(the HARD GATE is now
+129)**; m3 **13** PASS / 82 FAIL / **152 EXCISED**; m4 **20** PASS / 136 FAIL / **91 EXCISED**. Smokes held: Icon m2
+12/12 (HARD) · m3 5/12 · m4 5/12 · Prolog m2 5/5 · prove_lower2 PASS. The four LIVE gate references to "m2 130"
+(BB-HYGIENE header, ICN-HY-FENCE, ICN-SCAN PER-STEP GATE, ICN-SCAN-2) are updated to 129; historical watermark
+entries keep their as-was numbers. Note: peer `715daa5` (m2 IR_CALL FNCEX/APPLY registry fall-through, SNOBOL lane)
+landed between baselines and moved NO Icon numbers (BEFORE re-measured at `715daa5` matched the `d46b943` baseline
+exactly). **NEXT = ICN-SCAN-0** (registerize the `?` env: `bb_gen_scan` loads Σ=r13/δ=r14/Δ=r15 on ENTER, ledger
+carries the register triple for nesting, RT-boundary δ↔`scan_pos` sync, LEAVE restores; gate rung05 scan_subject +
+scan_concat_subject m2==m3==m4, smoke 12/12 HARD).
+
+**PREV ENTRY — HEAD (SCRIP) = `d46b943` — UNCHANGED (BASELINE + MEASUREMENT session, no code commits). HEAD (.github) =
+that handoff.** Session 2026-06-03-b (Opus 4.8, "THREE-MODE-BASELINE-VACUOUS-PASS"): built at `d46b943`, ran the
 full ladder, measured coverage. **Fresh three-mode baseline:** smoke m2 **12/12 (HARD)**, m3 5/12, m4 5/12;
 corpus m2 **130** PASS / 117 FAIL / 36 XFAIL; m3 **14** PASS / 81 FAIL / **152 EXCISED**; m4 **21** PASS / 135
 FAIL / 91 EXCISED (m4 leads m3 by the global/proc cluster — the known m3 pool-blob user-proc segv decline).
