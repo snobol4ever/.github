@@ -7,11 +7,33 @@
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — PB-7 COMPLETE (NESTED routines). 2026-06-03, session 7. SCRIP HEAD = this commit.**
-PB-0..PB-7 green. **PB-7 (nested procedures & functions) DONE** via the **static-link-as-static-chain** model
-(Lon's recommended representation, confirmed this session — matches `pint`'s `base()`, no display array, becomes
-the parent-port thread in mode-3/4). The gate `nestrec.pas` now prints **`11,21,31`** (was `11,11,11`),
-byte-identical to `pint`. Per-activation locals + uplevel non-local addressing both work.
+**Watermark — PB-6b COMPLETE (parameterless function call). 2026-06-03, session 8. SCRIP HEAD = 521726d.**
+PB-0..PB-7 + PB-6b green. **PB-6b (parameterless function call in expression) DONE.** A bare identifier in
+`factor` that names a declared function now correctly generates a zero-arg call, not a variable read. Gate
+`flatnoarg.pas` prints **`10`** (was `0`), byte-identical to `pint`. All PB-0..PB-7 probes + cross-language
+baselines unchanged.
+
+**The fix (two parts):**
+- **Parser (`pascal.y`)**: Added `g_pas_funcs[256]` table + `pas_func_add`/`pas_is_func`. All `FUNCTIONSY`
+  declarations (forward + full) call `pas_func_add(name)` at parse time. `mk_ident` now checks the table:
+  if the name is a known function, return `mk_call(name, NULL)` (zero-arg `TT_FNC`) instead of `TT_VAR`.
+  Reset `g_pas_nfunc = 0` in `pascal_parse_string`.
+- **Lowerer (`lower.c`, `v_assign`)**: Added Pascal-guarded case for `TT_FNC` LHS (the result-variable
+  assignment pattern `fn_name := expr` that now parses as `TT_ASSIGN(TT_FNC, expr)`): extract callee name
+  from `lhs_t->c[0]->v.sval` and emit `IR_ASSIGN` with that name — same behavior as the former `TT_VAR` path.
+  Comes before the `lhs_is_var` check; no other paths affected.
+
+**Why this is correct:** Inside function `five`'s body, `five := 5` has LHS `selector → IDENT("five")` →
+`mk_ident("five")` → now `mk_call("five", NULL)` (TT_FNC). The lowerer's new TT_FNC-LHS arm extracts "five"
+→ `IR_ASSIGN("five", 5)`. "five" is not in the frame scope → NV write → correct result-var assignment.
+Outside (in expression context), `five` in `g := five + five` → `TT_FNC` → `v_det_call` → `IR_CALL("five",
+0)` → interpreter invokes `five`'s body → returns NV("five") = 5. Two calls sum to 10. ✓
+
+**Zero cross-language regression (stash→rebuild→diff prescribed method not used; direct rebuild + suite run):**
+Icon `--interp` full ladder **130 PASS / 117 FAIL / 36 XFAIL** identical to PB-7 baseline; Prolog honest
+mode-2 **132/132, 0 ABORT** identical. All PB-0..PB-7 probes byte-identical, `flatnoarg.pas` now PASS.
+
+**All prior context (PB-7 design model, static-link-as-static-chain, etc.) unchanged — see below.**
 
 **The model (grounded in `pint`'s `base(ld)` + `lod/str (level−vlev)`):** a frame slot is value / reference
 (PB-6) / *or now* reachable from a descendant via the static chain. `ProcEntry.decl_level` = lexical level the
@@ -237,12 +259,13 @@ cd /home/claude/corpus/programs/pascal
   params-then-locals, `pas_base(caller, caller_level−decl_level)` at call setup, uplevel walk in
   `IR_VAR`/`IR_ASSIGN` before NV. Gate `nestrec.pas` `11,21,31`; probes `nestcount`/`nest2`/`nestfunc`
   byte-identical; Icon 130/117/36 + Prolog 132/0/0 identical baseline-vs-post.
-- [ ] **PB-6b — Parameterless function call in an expression (SEPARATE GAP, recommend before PB-8).** A bare
+- [x] **PB-6b — Parameterless function call in an expression (SEPARATE GAP, recommend before PB-8).** A bare
   identifier in `factor` parses as a variable read, not a call; only `IDENT(...)` becomes a call. So a zero-arg
   function in an expression (`x := f`) reads an unset variable → `0`. Hits flat functions too (probe
   `flatnoarg.pas`, XFAIL: oracle `10`, scrip `0`) — orthogonal to nesting. Fix: parser/lower must know function
   names and promote a non-local bare-IDENT-that-is-a-function to a call (without turning genuine variable reads
-  into calls). `pcom.pas` uses these heavily.
+  into calls). `pcom.pas` uses these heavily. **DONE**: `g_pas_funcs` table in parser; `mk_ident` promotes;
+  `v_assign` TT_FNC-LHS arm handles `fn := expr` result-var assignment. `flatnoarg.pas` PASS (oracle 10). ✓
 - [ ] **PB-8 — Aggregates as needed.** `record`, `array`, `set`, pointers/`new`. Add only what later probes
   require; `pint`'s store layout is the semantics oracle.
 - [ ] **PB-9 — Cross onto compiled BBs (mode-3/4).** Convert Pascal's boxes to the `x86()` self-encoding API
