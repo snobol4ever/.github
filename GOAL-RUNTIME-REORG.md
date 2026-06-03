@@ -214,7 +214,24 @@ RS-2 slices 1–27 landed: `arithmetic` / `pattern_match` / `by_name_dispatch` /
 carve-outs this session)** COMPLETE; resolver renamed to `resolution`; `gen_runtime.c` 654 → 209 lines; `core/core.c`
 **3327 → 2940 lines** (array+table+tree+string/scalar-builtin-impls evicted — 387 lines / 4 capabilities out).
 
-**This session (Opus, 2026-06-03).** Arrived with HEAD `5dff1a8` — TWO commits past `4aa19d7` from other goals
+**This session (Opus, 2026-06-03) — resumed post-compaction; performed hand off.** Continued GOAL-RUNTIME-REORG
+with three clean `core/core.c` carve-outs, all MOVE-ONLY and gated byte-identical (7/7 · 12/12 · 5/5 · 67 · no-bb-bin-t
+· LI-FENCE · concurrency), each PUSHED: **s25 `aggregates`** (array+table → `runtime/aggregates.c`, SCRIP `97f807f`),
+**s26 `tree`** (`expr_new`+`tree_*` n-ary/treebank node → `runtime/tree.c`, `92b3b08`), **s27 `string_builtins`**
+(SIZE/DUPL/REPLACE/SUBSTR/TRIM/pad/REVERS/BCHAR + INTEGER/REAL/STRING + ident/differ → `runtime/string_builtins.c`,
+`5893518`). `core/core.c` **3327 → 2940 lines** (387 out / 4 capability clusters). Each was header-less (all protos
+already in `core.h`) ⇒ **zero call sites changed** — behavior-neutral by construction. Body-read catches the method
+exists to surface: s26 — `tree_new0` wraps `expr_new`, so the `expr_`-named ctor had to move WITH the `tree_*` ops
+(real boundary wider than the `tree_*` names); s27 — block uses `utf8_strlen`/`utf8_char_offset`/`utf8_char_bytes`
+(`static inline` in `core/utf8.h`), so a FRESH file `#include`-ing `utf8.h` was cleaner than merging into `string_ops.c`
+(which lacks it). **Paused after s27:** the trivially-clean veins are picked — every remaining `core.c` cluster carries
+an entanglement (full map in NEXT): monitor/ipc (interleaved `kw_*` globals + exported `comm_*` + `_b_MON_*`
+registration), comparison/arith (tied to the IDENT/DIFFER dup decision), datatypes (X-macros, two non-contiguous
+ranges), DEFINE/registry (`fn_has_builtin` open-item), NV_* (likely LI-CORE, STAYS), INPUT/OUTPUT (split tail+early).
+These want a fresh session's budget or a Lon decision on the open items. Both repos clean & pushed: SCRIP `5893518`,
+`.github` watermark-of-record.
+
+**Prior session (Opus, 2026-06-03).** Arrived with HEAD `5dff1a8` — TWO commits past `4aa19d7` from other goals
 (GN-3 `7fc5ae9`, then Prolog-BB WAM-CP-7c `5dff1a8`). **Baseline was RED on LI-FENCE:** WAM-CP-7c put
 `rt_pl_unify_var_var` into `unification.c` (an RS-2-de-languaged file); the `pl_` tag tripped
 `test_gate_no_lang_names.sh` (their GATE-3 was green — this goal's fence is a *different* invariant; the fence exists to
@@ -230,9 +247,9 @@ Then attempted comparison-home slice (a): prototyped moving `_rt_IDENT`/`_rt_DIF
 half a dup entrenches it); the real fix is a DELETE-the-dup decision for Lon. Confirmed a pre-existing mode-2
 IDENT/DIFFER dispatch anomaly along the way (Open-item). Tree restored to fence-fix-only; nothing else re-touched.
 
-**Open Lon decisions (clean move-only slices remain EXHAUSTED):** (a→) **DELETE rt.c `_rt_IDENT`/`_rt_DIFFER` dup**
+**Open Lon decisions** (NB: `core.c` clean carves are FLOWING — s25–s27 landed, 4 more clusters mapped in NEXT with entanglements noted; items below are the NON-move decisions): (a→) **DELETE rt.c `_rt_IDENT`/`_rt_DIFFER` dup**
 (keep core.c canonical; unblocks `rt_init`; behavioral → Lon); (b) resolution `builtins/`→`runtime/` layout; (c) the
-hard `backtrack` cluster (gen_runtime.c remainder, overlaps resolution split); (d) `core/core.c` (3449 lines, LI-CORE).
+hard `backtrack` cluster (gen_runtime.c remainder, overlaps resolution split); (d) `core/core.c` (now **2940 lines**, actively carving — s25–s27 done, remaining clusters mapped in NEXT; LI-CORE residue STAYS).
 Other open calls: `fn_has_builtin` (likely delete), `scan_try_call_builtin` dup decl, `kw_anchor`
 home; IDENT/DIFFER mode-2 anomaly (Open-item).
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
