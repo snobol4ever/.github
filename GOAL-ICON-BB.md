@@ -541,6 +541,13 @@ RT value work for a later wave. tab's wave-1 operand may also be a sibling SCAN_
 moment its box lands (and ONLY then) · bb_bin_t=0 · medium-invisible `--strict` · no-stack · one-reg-frame ·
 g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
 
+- [ ] **SUITE-HONESTY (do FIRST — one line + re-baseline).** `test_icon_rung_suite.sh` `run_corpus` compares
+  stdout only and is BLIND TO EXIT CODES: a program that ABORTS with empty stdout against an EMPTY `.expected`
+  counts PASS. **Proven 2026-06-03:** `rung36_jcon_proto` (158-line V9 syntax sampler, empty .expected) parse-errors
+  at line 18, aborts rc=134, and is counted PASS in ALL THREE modes — a vacuous pass inflating every column.
+  FIX: in `run_corpus`, capture `run_prog`'s rc; `rc≠0` without `[SMX]` ⇒ FAIL (m2 included). Then re-baseline the
+  three columns and record the honest numbers here. Gate: rung36_jcon_proto flips PASS→FAIL in all modes; no
+  genuine passer regresses.
 - [ ] **ICN-SCAN-0 — registerize the `?` env: `bb_gen_scan` loads Σ/δ/Δ.** ENTER glue (op_sb=1) additionally
   loads **r13←subject byte ptr, r14←0 (δ for pos=1), r15←length** (rt_icn_scan_enter returns the triple — it
   already coerces the subject DESCR to string); the ledger push/pop now saves/restores the prior register triple
@@ -716,8 +723,31 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `d46b943` — UNCHANGED this session (no SCRIP code commits). HEAD (.github) = the ICN-SCAN
-ladder + this handoff.** Session 2026-06-03 (Opus 4.8, "ICN-SCAN-LADDER") was a PLANNING session, Lon-directed:
+**HEAD (SCRIP) = `d46b943` — UNCHANGED (BASELINE + MEASUREMENT session, no code commits). HEAD (.github) =
+this handoff.** Session 2026-06-03-b (Opus 4.8, "THREE-MODE-BASELINE-VACUOUS-PASS"): built at `d46b943`, ran the
+full ladder, measured coverage. **Fresh three-mode baseline:** smoke m2 **12/12 (HARD)**, m3 5/12, m4 5/12;
+corpus m2 **130** PASS / 117 FAIL / 36 XFAIL; m3 **14** PASS / 81 FAIL / **152 EXCISED**; m4 **21** PASS / 135
+FAIL / 91 EXCISED (m4 leads m3 by the global/proc cluster — the known m3 pool-blob user-proc segv decline).
+**⚠ DISCOVERY — VACUOUS-PASS HOLE in the suite:** `run_corpus` compares stdout only, blind to exit codes;
+`rung36_jcon_proto` (158-line V9 syntax sampler, EMPTY .expected) parse-errors at line 18 (`();` → "expected
+expression"), aborts rc=134 with empty stdout, and is counted **PASS in all three modes**. All three columns are
+inflated by ≥1. Fix queued as the new **SUITE-HONESTY** step at the top of the ICN-SCAN ladder (rc≠0 without
+`[SMX]` ⇒ FAIL, then re-baseline). Genuine champions, run live and byte-verified: m2 = `rung37_file_io` (32
+lines — `&output` FH routing, open/write/close/open/read round-trip, write(fh,int)); m3 = single-construct
+4–6-liners (`every write("a"|"b"|"c")`, `("foo"||"bar") ? write(&subject)`, `every write(1 to 5)`); m4 =
+`rung25_global_global_three_procs` (3 procs mutating an NV global → `5`). **Coverage funnel (measured, not
+recalled):** TT enum 156 total, Icon parser emits 79, **76/79 = 96%** have a lower.c case (gaps:
+`TT_BANG_BINARY`, `TT_PROC_DECL`, `TT_STMT` — latter two likely consumed pre-switch); Icon IR vocabulary
+across all 283 corpus dumps = **26 kinds** (top: CALL 1858, SUCCEED 450, FAIL 375, VAR 291, LIT_I 261, LIT_S
+243, ASSIGN 224, BINOP 202, EVERY 121, IF 84); m2 interp arms **26/26 = 100%**; native dispatch case exists
+26/26 but **~18/26 ≈ 69%** have ≥1 passing native shape and **8 kinds have ZERO working native shape: IF,
+CONJ, WHILE, UNTIL, REPEAT, NEXT, SUSPEND, LIST_BANG** (the control cluster — the largest dead native block,
+same `bb_var`-operand-slot + relop tier the prior watermark names). Most of the 18 are SHAPE-PARTIAL (BINOP
+no relops, ASSIGN no locals, CALL no builtins, ALT ≤5 literal arms, GEN_SCAN safe shapes) — coverage
+multiplies per node, which is how 69%-per-kind collapses to 5–7% per-program native. **NEXT = SUITE-HONESTY,
+then ICN-SCAN-0.**
+
+**PREV ENTRY (same SCRIP HEAD `d46b943`, .github `562b455f`).** Session 2026-06-03 (Opus 4.8, "ICN-SCAN-LADDER") was a PLANNING session, Lon-directed:
 **authored the ICN-SCAN LADDER** (section above, .github `b411947b`) — one stackless BB per Icon string-scanning
 operation, the full canonical set closed against `fstranl.r` (any/bal/find/many/match/upto) + `fscan.r`
 (move/pos/tab) + `?:=` + `=s`, 16 steps ICN-SCAN-0 … ICN-SCAN-FENCE, each with its IR kind, port topology, frame
