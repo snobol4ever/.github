@@ -15,7 +15,7 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
-## 🟢 CURRENT FRONTIER — `define` mode-3 ✅ 6/6 — next: DE-FUSE SAVE/RESTORE into boxes (Lon 2026-06-03)
+## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a (save/restore helpers extracted) ✅ — next: SR-1b boxes (Lon 2026-06-03)
 
 **`DOUBLE(21)` → `42` LANDS. SNOBOL4 m3 is 6/6.** The with-arg param-binding blocker was a **one-bit x86
 encoding bug**, not the suspected wrong-path. Root cause + fix below; the prior handoff's "proc-call doesn't
@@ -56,14 +56,36 @@ it out — unless that's a bad idea. And: what if the BB-SAVE-RESTORE local stor
 for SNOBOL4/Snocone/Rebus, built into the BB local storage?"* Answer: it is FUSED into the runtime helper
 `rt_call_named_proc` (not a box). Verdict: **GOOD to de-fuse, in two rungs.**
 
-- [ ] **SR-1 — SAVE/RESTORE as boxes bracketing the body.** Split `rt_call_named_proc` into thin runtime
-  helpers `rt_name_save_push(names, actuals, n)` + `rt_name_restore(base)` called from a `bb_proc_save` box
-  (proc prologue: save old param/local/fn-name DESCRs, install actuals) and a `bb_proc_restore` box (proc
-  epilogue: restore LIFO). Topology becomes explicit four-port `SAVE → body → RESTORE` with real γ/ω threading
-  instead of one opaque C call. ⚠ HONEST CAVEAT: SNOBOL is by-name (`bb_var` = `jmp γ` pass-through; values
-  live in the global NV store), so each box is necessarily a thin wrapper around an NV helper — the win is
-  topology/relocatability, not avoiding the runtime. Gate: define m3 6/6 holds, oracle byte-match; m2 7/7 HARD;
-  Icon m2 12/12.
+- [x] **SR-1a — extract the thin name-save helpers (DONE, gated 2026-06-03).** `rt_call_named_proc` (`rt.c`)
+  no longer inlines the save/install/restore loops; it routes through two new extern helpers:
+  `int rt_name_save_push(const char **names, DESCR_t *args, int nargs, int n)` (save old DESCRs + install
+  actuals, NUL-filling for `k>=nargs`; returns the LIFO base) and `void rt_name_restore(int base)` (restore LIFO
+  down to base). BYTE-FAITHFUL — the loop bodies are verbatim, same NV ops in the same order; the fn-name
+  save+null is `rt_name_save_push(&name,0,0,1)`. Gate held: SNOBOL m2 7/7 HARD / m3 6/6 (`DOUBLE(21)`→`42`),
+  Icon m2 12/12 HARD, `prove_lower2`/`no_bb_bin_t`/LI-FENCE/concurrency all green; diff = `rt.c` only (+23/-15).
+  NOTE: `src/runtime/core/name_save.c` is a SEPARATE mechanism — the mode-3 userproc path is rt.c's
+  `rt_call_named_proc` (confirmed by the prior handoff's probe trace).
+- [ ] **SR-1b — SAVE/RESTORE as boxes bracketing the body (the remainder of SR-1).** Now that the helpers exist,
+  make the four-port `SAVE → body → RESTORE` topology explicit WITHOUT touching the shared `XA_FLAT_EPILOGUE`
+  (Icon shares it — changing the return contract there risks the Icon HARD gate). **KEY CONSTRAINT (verified this
+  session):** the function result is read via `NV_GET(name)` and must be captured BEFORE restore, and restore must
+  run on BOTH the RETURN (`lbl_γ`) and FRETURN (`lbl_ω`) paths. **FACTS:** inside the body `r12 = fb`
+  (`XA_FLAT_PROLOGUE` = `push r12; mov r12, rdi`); the success epilogue returns `eax=1`, the fail epilogue returns
+  `eax=99` and writes `[r12+0]=99` — the result is NOT in the return regs (rt_call_named_proc reads it from the
+  NV store after the body returns). **EPILOGUE-NEUTRAL DESIGN:** (1) `bb_proc_save` box at the body head (after
+  the prologue, before the first chain node) reads actuals from `[r12+16…]` + baked RO param names, calls
+  `rt_name_save_push`, stores the returned base into a STABLE frame slot `[r12+off_base]` (reserve it; must not be
+  reused by transient temps); (2) RESTORE-success box inserted at `lbl_γ` BEFORE `XA_FLAT_EPILOGUE`:
+  `g_proc_result = NV_GET(name); rt_name_restore([r12+off_base])`; (3) RESTORE-fail box at `lbl_ω`:
+  `rt_name_restore([r12+off_base])` only. `rt_call_named_proc` then stages actuals into `fb+16…` (normalize
+  nargs→np with NUL fill, like the `g_call_args` path at `rt.c:466`), invokes the body, reads the result from the
+  new `g_proc_result` global (no more C-side capture/restore), checks `fret` tag for fail. Recursion-safe:
+  rt_call_named_proc reads `g_proc_result` immediately after its body returns and RESTORE-success is the last box
+  before `ret`, so there is no clobber window. New box templates wired via `emit_core.c` dispatch. ⚠ HONEST
+  CAVEAT (from SR-1): SNOBOL is by-name (`bb_var` = `jmp γ`; values live in the global NV store), so each box is a
+  thin wrapper around an NV helper — the win is topology + mode-4 relocatability, not avoiding the runtime. Gate:
+  define m3 6/6 + oracle byte-match; m2 7/7 HARD; Icon m2 12/12; `XA_FLAT_EPILOGUE` bytes unchanged (Icon m3/m4
+  not regressed).
 - [ ] **SR-2 — the save-area IS the frame (Lon's cooler idea).** Migrate the save-records OUT of the global
   `g_name_save[]` stack INTO `bb_proc_save`/`restore`'s **per-activation ζ-frame local storage** (`[r12+off]`),
   laid out at emit time as N records `{name_ptr (8B), saved_DESCR (16B)}`. Kills the global fixed-max name-save
@@ -1207,11 +1229,14 @@ patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
 files and git history. Only the durable carry-forward + the current watermark are kept here.
 
-**Watermark.** SCRIP tip this commit (1-line REX.B fix in `x86_frame_lea` — `lea rsi,[r12+off]` was assembling
-as `[rsp+off]`; with-arg param binding now correct, `DOUBLE(21)`→`42`, **SNOBOL4 m3 6/6**). All five diagnostic
-probes removed; only the 1-line fix landed. NEXT: SR-1 de-fuse SAVE/RESTORE into boxes, then SR-2 (save-area =
-frame); string-arg `slen` still open (doesn't block the define smoke). .github tip this commit. Session handoff:
-`HANDOFF-2026-06-03-SONNET46-SNOBOL4-BB-REXB-FRAME-LEA.md`.
+**Watermark.** SCRIP tip this commit (**SR-1a**: `rt_call_named_proc` de-fused into thin `rt_name_save_push` /
+`rt_name_restore` helpers — byte-faithful refactor, no inlined save/install/restore loops; diff = `rt.c` only,
++23/-15). Gate GREEN: SNOBOL4 m2 **7/7 HARD** / m3 **6/6** (`DOUBLE(21)`→`42`) / m4 0/6; Icon m2 **12/12 HARD** /
+m3 4/12 / m4 4/12; `prove_lower2` / `no_bb_bin_t` / LI-FENCE / concurrency all PASS. NEXT: **SR-1b** (SAVE/RESTORE
+as boxes bracketing the body — epilogue-neutral design written into the SR-1b bullet above: `bb_proc_save` +
+RESTORE-succ@`lbl_γ` + RESTORE-fail@`lbl_ω`, result via a new `g_proc_result` global, actuals staged at
+`[r12+16…]`, base in a stable `[r12+off_base]` slot), then SR-2 (save-area = frame). String-arg `slen` still open
+(doesn't block the define smoke). .github tip this commit.
 
 ## Architecture references
 
