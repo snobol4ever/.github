@@ -166,13 +166,14 @@ cd /home/claude/corpus/programs/pascal
   builtins (interleaved `(value,width)` arg pairs): integer right-justified in `max(w,digits)`,
   default width 10 (real default 20); string as-is; `__pas_writeln` appends `\n`. `:w` is a minimum
   width (full value emitted when it exceeds `w`). 16-bit overflow not yet matched (deferred; document).
-- [~] **PB-5 — Control flow.** Constructs DONE ✅ 2026-06-02 (byte-identical to oracle, 11/11 probes):
-  `if/then/else`, bare `if`, `while/do`, `for/to`, `for/downto`, `repeat/until`, nested loops. Realized
-  as Pascal LOWER arms (`v_pascal_for` counted loop, `v_pascal_repeat` post-tested back-edge) on real
-  `TT_FOR`/`TT_REPEAT`/`TT_IF` nodes — NOT parser desugaring. **Gate `sieve.pas` NOT yet met**: needs the
-  boolean-array work (1-D `TT_IDX` load + `TT_ASSIGN(TT_IDX)` store as Pascal arms à la Raku
-  `arr_get`/`arr_set_pure`, array-var declaration/allocation since `var` is still parsed-and-discarded)
-  plus `sqr`. That overlaps PB-8 aggregates; do it as the next rung on the Pascal rail.
+- [x] **PB-5 — Control flow + `sieve.pas` gate.** ✅ DONE 2026-06-03. All control flow byte-identical to
+  `pint` (`if/then/else`, bare `if`, `while/do`, `for/to`, `for/downto`, `repeat/until`, nested loops) via
+  Pascal LOWER arms on real `TT_FOR`/`TT_REPEAT`/`TT_IF` nodes — NOT parser desugaring. `v_pascal_for`
+  lowers **directly to IR** (composes IR nodes + wires the four ports by hand, like `v_pascal_repeat`; no
+  synthetic AST). **`sieve.pas` gate MET**: 1-D `TT_IDX` load → `arr_get`, `TT_ASSIGN(TT_IDX)` store →
+  `arr_set_pure` writeback (Pascal arms on the Raku array rail); `const` folding, array-var decl +
+  pre-sized SOH-packed init prologue (`arr_set_pure` does NOT auto-grow), `true`/`false`→1/0, bare-boolean
+  conditions wrapped `expr ≠ 0`, `sqr`→`__pas_sqr`. (Details in the session-4 watermark below.)
 - [ ] **PB-6 — Top-level (flat) procedures & functions.** Definitions, value + `var` parameters, return
   values, calls. **No nesting yet.** Reuse the existing call machinery. **Target: `recursion.pas`**
   (`fact`, `fib` at top level) through `fact(7)`.
@@ -194,6 +195,68 @@ cd /home/claude/corpus/programs/pascal
 ---
 
 ## Watermark (live state)
+
+**2026-06-03 (session 4) — TT_FOR IR-DIRECT + PB-5 `sieve.pas` GATE MET (byte-identical to `pint`).**
+
+**(1) TT_FOR now lowers DIRECTLY to IR (commit `9a2ae17`).** Per Lon's directive ("make your TT_FOR and
+TT_REPEAT, follow Pascal at this level; the IR level is where things are generic & composable"),
+`v_pascal_for` (`src/lower/lower.c`) no longer synthesizes `TT_ASSIGN/TT_WHILE/TT_SEQ_EXPR` AST and
+re-lowers it. It now composes IR directly like `v_pascal_repeat`: init/cond/incr built as IR nodes, body
+via `lower2`, the four ports wired by hand. NO wrapper node (cond.ω → loop-exit `γ_in`); the limit `to`
+is a lowered sub-tree (so expression limits like `1 to n-1` work). Three Pascal-only helpers added just
+before `v_pascal_for`: `pas_leaf_node` (bare IR_VAR/IR_LIT_I), `pas_binop_ll` (binop from two leaf
+operands — increment `i±1`), `pas_binop_lt` (binop with op0 leaf + op1 a lowered sub-tree — condition
+`i REL to`). All reachable only from `IR_LANG_PAS`. `v_pascal_repeat` was already IR-direct (untouched).
+
+**(2) PB-5 `sieve.pas` gate MET** (arrays + const + sqr + booleans). Philosophy: keep `TT_IDX` faithful in
+the parser; do the generic array translation at LOWERING, on the Raku `arr_get`/`arr_set_pure` rail.
+- LOWER arms (`src/lower/lower.c`, both `IR_LANG_PAS`-gated): dedicated `case TT_IDX:` →
+  `v_raku_det_call(cx,"arr_get",{base,idx},2,...)` (pulled `TT_IDX` out of the shared `TT_FIELD/...` group);
+  in `v_assign`, `a[i]:=v` (TT_IDX LHS) → `v_raku_mutate_writeback(cx,base,"arr_set_pure",{base,idx,v},3,...)`
+  = `a := arr_set_pure(a,i,v)`.
+- PARSE-TIME (`src/parser/pascal/pascal.y`): **const** table + folding (`mk_ident` maps a const IDENT →
+  `ilit`; `const_decl` records; `scalar_constant`/`constant`/`simple_type`/`type` now carry `<ival>`).
+  **array** table (`var_decl` records name→high when `type` ival ≥ 0; the ARRAY `type` production carries
+  the index `simple_type`'s high; bare `type: simple_type` → −1 so subrange-scalar vars are NOT mistaken
+  for arrays). **init prologue** (`program:` prepends `a := <(high+1) "0" segments joined by SOH 0x01>` to
+  main's body via `mk_array_fill`, because `arr_set_pure` does NOT auto-grow — the array MUST be pre-sized;
+  raw index used so slots `0..low-1` are wasted but correct). `true`/`false`→`ilit(1)`/`ilit(0)` (both are
+  plain IDENTs in the lexer); `sqr`→`__pas_sqr` via `map_io`. Tables reset per parse in `pascal_parse_string`.
+- BOOLEAN ENCODING (the crux): `IR_IF` (`IR_interp.c:2287`) branches on `IS_FAIL_fn(cv)` — FAIL→else,
+  non-FAIL→then. A stored boolean must survive the string-segment array round-trip, so it can't be FAIL.
+  Encode true=`INTVAL(1)`/false=`INTVAL(0)` (round-trips: `arr_set_pure`→`to_cstring`→"1"/"0";
+  `arr_get`→`elem_to_descr` strtol→`INTVAL`). A **bare-boolean** condition is then wrapped `expr ≠ 0`
+  (`pas_cond` in pascal.y, applied in if/while/repeat): `1≠0`→non-FAIL (then), `0≠0`→FAIL (else).
+  Relationals (TT_LT/LE/GT/GE/EQ/NE, per `pas_is_rel`) are left untouched (already success/FAIL). `and`/`or`
+  are TT_MUL/TT_ADD in this grammar, so they wrap correctly too (`a*b≠0`, `a+b≠0`).
+- RUNTIME: `__pas_sqr(x)` = x*x (int or real, single evaluation), added at the top of
+  `script_try_call_builtin_by_name` (`src/runtime/builtins/script_builtins_byname.c`).
+
+**Verification:** `sieve.pas` byte-identical to `pint` (25 primes, 2..97). Pascal regression 10/10 (hello,
+pb4 widths, if/else, bare-if, while, repeat, for-to/downto). Icon mode-2 **12/12** + Prolog mode-2 **5/5**
+HARD gates green. Raku `rk_arith`/`rk_arrays` `--interp` byte-identical. A stash → rebuild → re-run diff
+proved ZERO behavioral change outside the Pascal path.
+
+**Two residual issues (NOT introduced this session — flagged for attention):**
+- `scripts/regenerate_parser_and_lexer_from_sources.sh` is `set -e` and ABORTS at the snobol4 flex step
+  (it deletes/clobbers `snobol4.lex.c` and never reaches the Pascal stanza at the very end). Workaround
+  used here: regenerate Pascal directly — `cd src/parser/pascal && bison -d -o pascal.tab.c pascal.y &&
+  flex --noline -o pascal.lex.c pascal.l` — then `git checkout` the snobol4 generated files. Script wants a fix.
+- `test/raku/rk_array_literal.raku` FAILS on the CLEAN baseline (proven by stash+rebuild) — pre-existing,
+  not from this work, despite the session-2 watermark having listed it green. (`rk_arith`/`rk_arrays` pass.)
+
+**Files touched (session 4):** `src/lower/lower.c`, `src/parser/pascal/pascal.{y,tab.c,tab.h}`, and the
+by-name builtin dispatch (`__pas_sqr`). NOTE: this session rebased onto upstream RS-2 (`a149ce4`), which
+dissolved `script_builtins_byname.c` into the new `src/runtime/by_name_dispatch.c` — so `__pas_sqr` landed
+in `by_name_dispatch.c` (top of `script_try_call_builtin_by_name`), not the old file. Commits: `9a2ae17`
+(TT_FOR IR-direct) + `f7cb3d5` (PB-5 sieve gate), both on top of `a149ce4`.
+
+**Next:** PB-6 flat procs (`recursion.pas`: `fact`,`fib` at top level through `fact(7)`; mind 16-bit
+maxint=32767 — `fact(8)` legitimately aborts in `pint`, so match that). Then PB-7 nested-function frames
+(static-link-as-parent-port — the one construct SCRIP has never lowered; design carefully). Then PB-8
+aggregates / PB-9 mode-3/4.
+
+---
 
 **✅ CROSS-LANGUAGE LOWER COUPLING EXCISED (session 3, 2026-06-02 — Lon: switch-TT_* / switch-LANG).**
 The LOWER dispatch is now the correct shape where Pascal participates: **outer `switch(tree->t)` → inner
