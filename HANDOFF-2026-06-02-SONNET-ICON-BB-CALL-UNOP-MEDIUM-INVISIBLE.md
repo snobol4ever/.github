@@ -113,3 +113,50 @@ mkdir -p refs && cd refs
 # git clone https://github.com/proebsting/jcon jcon-master
 # git clone https://github.com/gtownsend/icon  icon-master
 ```
+
+---
+
+## ADDENDUM (session close) — Icon x86() revamp is COMPLETE; ledger corrected (.github `5907a332`)
+
+After landing the `bb_call`+`bb_unop` slice, I went to pick up the next divvy-up box
+(`bb_suspend`) and discovered it has no template file. Investigation established that the
+**Icon x86() TEMPLATE-REVAMP is finished — nothing left to convert:**
+
+- `ls src/emitter/BB_templates/*.cpp` + grep for the `*_str` bodies: the ledger's "remaining"
+  boxes `bb_seq`/`bb_alt`/`bb_to`/`bb_to_by`/`bb_upto`/`bb_binop_gen`/`bb_iterate`/`bb_suspend`
+  **have NO standalone template files.** Those generator families emit through the `emit_bb.c`
+  flat-drive machinery (`flat_drive_every`/`flat_drive_alt`/`flat_drive_gen_alt` + `FILL` →
+  already-converted leaf templates) and most LOUDLY EXCISE in m3/m4 via `icn_kind_native_stub`.
+- The ledger's `b.size()` counts (17/11/6/5/5/5/4/2) were from an OLDER architecture; that debt
+  vanished when the boxes were restructured into flat-drive, and the ledger was never updated.
+- The ONLY file with raw-byte producers (`x86_Lrec`/`x86_b*`) is `x86_asm.h` — correct, those are
+  the private encoder implementations the rules require to live there.
+- **All three medium gates read 0 for Icon:** `test_gate_template_medium_invisible.sh`,
+  `test_gate_no_bb_bin_t.sh`, `test_gate_no_handencoded_bytes.sh --strict`.
+
+**Action taken (docs-only, no SCRIP source):** committed `.github 5907a332` adding a ✅✅
+completion banner to the CURRENT PRIORITY block of GOAL-ICON-BB.md and rewriting the Icon row of
+the divvy-up ledger in GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md, so the next session is not misled into
+chasing phantom `bb_*.cpp` files. The old "YOUR BOXES" prose is kept verbatim for history.
+
+## THE NEXT SESSION'S REAL WORK (not revamp — Ground-Zero native rungs)
+
+Light up native m3/m4 for the EXCISED generator families by WRITING their stackless templates
+(read the canonical JCON/Icon source FIRST per CONSULT-CANONICAL-SOURCES). Candidates, smallest first:
+- **GZ-DEFER** (EVAL/CODE/`*P`) per `.github/test_sno_3.c` — the ONE thing that broke the prior
+  stackless build; solved in the reference file.
+- The relop/concat tiers (`if_expr`/`while`/`until`/`repeat_break`/`string_op`): need a STRING
+  REG-RO analogue so `IR_LIT_S` produces a ζ-slot (the int REG-RO `x86_ro_load_q`/`x86_ro_seal_q`
+  landed `da9859c`; string is the next analogue).
+- Generator-operand binops (Proebsting Fig-1 native): the `every write(N < (1 to N)*…)` cluster.
+- Each EXCISED kind drops off `icn_kind_native_stub` the moment its real MEDIUM_TEXT+MEDIUM_BINARY
+  arm lands — that is what lights the mode up for the family.
+
+## FINAL STATE AT HAND OFF
+
+- **SCRIP HEAD `0b7a166`** (local == origin, clean) — bb_call+bb_unop x86() medium-invisible.
+- **.github HEAD `5907a332`** (local == origin, clean) — watermark + ledger correction + this handoff.
+- Gates re-confirmed at close: medium-invisible **0**, Icon smoke **m2 12/12 HARD**.
+- Icon corpus byte-stable vs baseline (m2 127 HARD, m3 5, m4 5, EXCISED 33); Prolog m2 5/5 HARD.
+- NOTE: a peer SNOBOL4-BB/Pascal-BB session may push SCRIP past `0b7a166` — `git pull --rebase`
+  at next session start (my x86_asm.h additions are append-only, conflict-free).
