@@ -7,7 +7,7 @@
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — PB-6 value-param portion GREEN (2026-06-03, session 5). SCRIP HEAD `b9ab902` on `f935c3b`.**
+**Watermark — PB-6 value-param portion GREEN (2026-06-03, session 5). SCRIP HEAD `b2a815d` on `fdf8915`.**
 PB-0..PB-5 green (see ladder). **PB-6 flat procs/functions:** value-parameter functions, procedures, and
 calls now work — **`recursion.pas` byte-identical to `pint` through `fact(7)`** (the explicit PB-6 target;
 `fact`,`fib` recursion correct, `fib(10)=55`), plus probes `proc_stmt.pas` (procedure-as-statement, value
@@ -24,7 +24,7 @@ baseline-vs-post** (55 PASS / 10 pre-existing FAIL — rung08 find_gen, rung10 a
 all present on the clean baseline, none introduced here). Prolog honest mode-2 **132/132, 0 ABORT**. Pascal
 edits are isolated to the `LANG_PASCAL` path (`pascal.y`, `lower_pascal_body`).
 
-**Files touched (session 5, SCRIP commit `b9ab902`):** `src/parser/pascal/pascal.{y,tab.c,tab.h}` (regen via the
+**Files touched (session 5, SCRIP commit `b2a815d`):** `src/parser/pascal/pascal.{y,tab.c,tab.h}` (regen via the
 direct bison/flex workaround — the regen script is still broken, see below; `pascal.lex.c` unchanged),
 `src/lower/lower_program.c`.
 
