@@ -43,7 +43,19 @@ comparison and the IBB-9-2 / IBB-9-RELOP-PORTS plan derived from it.
 
 ---
 
-## Statement-level dispatch (SM layer — already correct)
+## Variable model — frame slots (OLD) and shared NV dictionary (NEW), side by side (Lon directive, 2026-06-03)
+
+Icon variable *references* resolve through one of two backends. **Both are kept side by side, selected by a command-line switch** — the OLD path already exists and is proven, and the NEW path is being added at the SAME call sites (`IR_VAR` read, `IR_ASSIGN` write), so a switch is a cheap refactor rather than a rewrite. See `GOAL-ICN-GLOBAL-NV.md` for the rung ladder (GN-1…GN-FENCE) and the switch's exact name/default.
+
+- **OLD — per-procedure frame slots (`g_bb_varslot` / `bb_varslot_peek`).** A global gets an integer frame slot, addressed `[r12+off]` in the one-register frame. This is the model inherited from `icont`'s integer-index symbol resolution. It is local-optimal (a register-relative load, no hashing) but the namespace is per-graph: a global written by an Icon box is NOT visible to a SNOBOL4/Snocone/Rebus box, because those resolve names through the NV dictionary, not Icon frame slots.
+
+- **NEW — shared NV dictionary (`NV_GET_fn` / `NV_SET_fn`), EXACTLY like SNOBOL4.** An Icon global becomes a name-keyed lookup in the SAME hash dictionary (`_var_buckets[_var_hash(name)]`, core.c) that SNOBOL4/Snocone/Rebus already use for every variable. **This makes Icon globals share the one variable namespace with all those languages** — a global set by an Icon BB is read by a SNOBOL4 BB through the same `bb_var_global` / `NV_GET_fn` path, with zero dispatch and zero extra machinery (the four ports + DESCR_t are the universal protocol). Locals (procedure params + `local`/`static`) stay frame slots in BOTH modes — only the GLOBAL arm of `IR_VAR`/`IR_ASSIGN` is rerouted.
+
+**Why keep both (the directive's intent):** (1) **Performance measurement** — we want the head-to-head cost of frame-slot globals (OLD) vs NV-dictionary globals (NEW): a `[r12+off]` load/store vs a hash lookup + chain walk. The switch lets the SAME corpus run both ways for a clean A/B. (2) **Independent-Icon compilation** — when Icon is compiled standalone (not in a polyglot mix that needs cross-language sharing), the OLD frame-slot model may stay available as a faster, self-contained option; the NEW shared-dictionary model is for the cross-language case. The end state is therefore BOTH backends retained, switch-selected, not OLD-deleted-for-NEW.
+
+**Mode-2 note:** the interpreter already lives in the NEW world for globals regardless of the switch — `scope_patch` (name_binding.c) marks declared globals slotless (`ival=-1`), so the interp's `scope_get` misses and falls through to `NV_GET_fn`/`NV_SET_fn` (IR_interp.c:1749-1787). The OLD/NEW switch is therefore a mode-3/4 (native codegen) distinction; mode-2 is the oracle for both and uses the hash today. (This routing predates the GN ladder.)
+
+---
 
   lower.c emits:   SM_PUSH_EXPR <tree_t*>  +  SM_BB_PUMP
   sm_interp.c:     pops tree_t*, calls coro_eval() -> bb_node_t,
