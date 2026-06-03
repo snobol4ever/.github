@@ -15,7 +15,7 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
-## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; **SNOBOL4 mode-4 UNBLOCKED ✅ (m4 0/6 → 3/6, SCRIP `c43b723`)** — next: m4 concat (driver/lowerer const-fold) + IR_SCAN TEXT path (pattern/goto_s), then REG-RO + REG-FENCE TIER2
+## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; **SNOBOL4 mode-4 UNBLOCKED ✅ (m4 0/6 → 4/6, SCRIP `997ce7e`)** — next: m4 IR_SCAN TEXT path (pattern/goto_s), then REG-RO + REG-FENCE TIER2
 
 > **🔄 SR-1b WALKED BACK (Lon 2026-06-03; reconciled into this file 2026-06-03 OPUS48).** The "SAVE/RESTORE as
 > boxes bracketing the body" plan (`bb_proc_save` + RESTORE-succ@`lbl_γ` + RESTORE-fail@`lbl_ω`, result via a
@@ -157,7 +157,7 @@ for SNOBOL4/Snocone/Rebus, built into the BB local storage?"* Answer: it is FUSE
   — same one-register `[r12+off]` FACT-RULE discipline, different payload. Mode-4-relocatable by construction.
   Do AFTER SR-1. Gate: same as SR-1 + no-stack/one-register-frame gates hold for the new boxes.
 
-**Gate state (GREEN, verified 2026-06-03):** SNOBOL4 m2 **7/7 HARD** / m3 **6/6** / m4 **3/6** (output/arith/define
+**Gate state (GREEN, verified 2026-06-03):** SNOBOL4 m2 **7/7 HARD** / m3 **6/6** / m4 **4/6** (output/concat/arith/define
 emit→as→gcc→run; was 0/6) · Icon m2 **12/12 HARD** · `prove_lower2` PASS · `no_bb_bin_t` 0 · LI-FENCE OK ·
 concurrency invariants OK · REG-FENCE TIER1=0 · broad interp 105/280 + unified-broker 32 match clean baseline. ENV:
 `apt-get install -y libgc-dev`.
@@ -1346,6 +1346,14 @@ STALE watermark, not a regression — confirmed by `git stash` + rebuild + re-ru
 m3 **6/6** / m4 **3/6**; `prove_lower2` PASS; REG-FENCE TIER1=0. **NEXT:** m4 `concat` (constant-fold in
 driver/lowerer, NOT the template) → m4 `pattern`/`goto_s` (IR_SCAN TEXT arm) → then REG-RO + REG-FENCE TIER2.
 NOT pushed (no handoff phrase given); committed locally only. **— prior watermark below —**
+
+**Watermark (concat follow-up, SCRIP `997ce7e`, 2026-06-03).** m4 3/6 → **4/6**: `OUTPUT = 'ab' 'cd'` now passes
+m2/m3/m4. Fix is in the LOWERER (`v_seq_concat_pair`, `lower.c`), the correct layer per the no-IR-walking-in-templates
+rule: a fully-constant string concat (TT_QLIT + nested TT_SEQ of QLIT) folds to one IR_LIT_S via `GC_strdup` — exactly
+SPITBOL Appendix-C item 11 (constant sub-expressions pre-evaluated at compile time). Non-constant concat keeps the
+IR_SEQ path. SNOBOL-only. MODE4_MIN 3→4. Stash-verified no regression (broad interp 105/280, unified-broker 32,
+prove_lower2 PASS all unchanged). **Remaining m4: `pattern` + `goto_s` — the IR_SCAN TEXT arm** (the bb_scan_stmt
+TEXT path + native-pattern PB-RB work; `S 'b' = 'X'` and goto-on-match).
 
 **Watermark (prior).** SCRIP tip **`341b59f`** (this session committed ONE file: `scripts/test_gate_sno_pat_reg.sh`,
 the REG-FENCE gate — test-only, no emitter/runtime bytes; rebased onto the RUNTIME-REORG lane's `5893518`
