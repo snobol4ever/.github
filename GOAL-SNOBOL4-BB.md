@@ -1349,7 +1349,7 @@ patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
 files and git history. Only the durable carry-forward + the current watermark are kept here.
 
-**Watermark (m2 builtin-registry fall-through; SCRIP `715daa5` committed LOCAL-ONLY, 2026-06-03 OPUS48 session 2).**
+**Watermark (m2 builtin-registry fall-through; SCRIP `715daa5` PUSHED, 2026-06-03 OPUS48 session 2).**
 **ROOT CAUSE FOUND for the broad-corpus 251→105 collapse:** the m2 `IR_CALL` dval==2.0 dispatch (`IR_interp.c`)
 went user-proc → `try_call_builtin_by_name` → fail-to-ω and NEVER consulted the `register_fn` FNCBLK registry —
 so the ENTIRE SNOBOL4 builtin library (IDENT, DIFFER, REPLACE, CONVERT, TABLE, ARRAY, SORT, TRIM, DUPL, LPAD,
@@ -1373,7 +1373,7 @@ SESSION (goal-file reconciliation):** slen note struck RESOLVED-STALE (DT_S+slen
 (pos/tab/atp/fence/arb/defer all on r13/r14/r15 + ζ-slots; cat/alt pure `x86_pair_loop` wiring; arbno/capture
 files deleted by STUB CLEANUP). **REG-0 stays `[ ]`:** `bb_match` α is still the deliberate LEGACY subject model
 (per PB-RB-3 note) — the BB_MATCH-α register establishment (R13←Σ-slot, R15←Δ-slot, xor r14) is genuinely open.
-**NOT PUSHED (no handoff phrase): SCRIP `715daa5` + this .github edit are LOCAL.** **NEXT unchanged: REG-RO +
+**PUSHED on handoff: SCRIP `715daa5` → origin/main (no upstream movement, no rebase delta); .github this commit.** **NEXT unchanged: REG-RO +
 REG-FENCE TIER2; PB-RB-4 STITCH for m4 ALT/var-CAT; NEW named rung candidate: ROLE_VALUE TT_LEN/TT_FENCE arms
 (unlocks 136 + pattern-valued-variable corpus).** **— prior watermark below —**
 
