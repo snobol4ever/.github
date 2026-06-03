@@ -404,7 +404,7 @@ Build CP stack on TOP of existing `Term*` boxes (small rungs); tagged-word migra
 **Completed (collapsed):** WAM-CP-1..6 (CP record + push/pop/cut/m4-emit/LCO), CP-8 (first-arg indexing + CP-elision, GATE-SWI 57/57), CP-9/10 partial (m4 cut-scope, catch/throw m2 5/5), PLR-J-0..5 (JCON four-port), CP-7a/7b (head-unify spec).
 
 **Open (priority):**
-- [ ] WAM-CP-7c — var-vs-var unify spec (`eq(X,X)` arg2: `rt_pl_unify_var_var` reading both env slots; 3→1 calls).
+- [x] WAM-CP-7c — var-vs-var unify DONE (`5dff1a8`). New runtime `rt_pl_unify_var_var(lslot,rslot)` in `unification.c` (materializes both env slots like `rt_node_to_term` IR_LOGICVAR, then one `rt_unify_terms` = the audited deref/`X==X`-noop/bind law). `bb_unify.cpp` routes distinct var-var (`lk==rk==IR_LOGICVAR && li!=ri`) to it: **3 calls → 1** (was 2×`rt_node_to_term` + 1×`rt_unify_terms`). Self-unify `x=x` (li==ri) still the vacuous arm above it. GATE-3 111/111/75-0-36 held; m2==m4 on backtracking var-var trail test. Grounded in gprolog `src/EnginePl/unify.c` TAG_REF×TAG_REF branch.
 - [ ] WAM-CP-9 (rest) — committed-ITE node; bare `!` in `(A;B)` through truncate; retire `g_pl_cut_flag`.
 - [ ] WAM-CP-11 — deep-backtracking arg restore (`saved_args`) + nested choices.
 - [ ] WAM-CP-12 — determinism detection → CP elision (lower-time).
@@ -471,7 +471,7 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (2026-06-03 — PL-HY-FENCE landed: `test_gate_bb_one_box.sh` authored + wired into Session Setup. SCRIP HEAD `1a0127e`. Gates re-verified green; no template/runtime code touched. Prior audit row below this caption still stands: HY-ladder 1c blocked, 2/3/4/5 subsumed/complete awaiting Lon's reclassify call.)
+## 📊 Gate table (2026-06-03 — WAM-CP-7c landed (`5dff1a8`): var-var unify 3→1 calls via `rt_pl_unify_var_var`, grounded in gprolog `unify.c`. PL-HY-FENCE gate also landed this day (`1a0127e`). Gates re-verified green; GATE-3 byte-identical. Prior audit row below still stands: HY-ladder 1c blocked, 2/3/4/5 subsumed/complete awaiting Lon's reclassify call.)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
