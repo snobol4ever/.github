@@ -1,6 +1,6 @@
 # HANDOFF 2026-06-03 OPUS48 — Pascal BB: PB-6 `var` params closed + PB-7 nested-routine design
 
-**Goal:** `GOAL-PASCAL-BB.md`. **Repos:** SCRIP (HEAD `aebf204`), corpus (probes). PLAN.md untouched (routine handoff).
+**Goal:** `GOAL-PASCAL-BB.md`. **Repos:** SCRIP (HEAD `9af83ea`), corpus (probes). PLAN.md untouched (routine handoff).
 
 ---
 
@@ -23,7 +23,7 @@ call setup resolves the actual's `Loc` **in the caller** — chasing if the call
 reference, which gives **transitivity** (a `var` passed onward as a `var`) and **`f(a,a)` aliasing** for free —
 and installs it as the callee slot's reference. Reads/writes of a reference slot chase to the home.
 
-### Files (SCRIP `aebf204`)
+### Files (SCRIP `9af83ea`)
 - `src/contracts/stage2.h` — `ProcEntry.byref_mask` (`uint64_t`, bit k set ⇒ param k is `var`).
 - `src/parser/pascal/pascal.{y,tab.c,tab.h}` — `VARSY id_list COLON IDENT` arm pushes a sentinel `TT_SUCCEED`
   child onto each by-ref param node (value params have `n==0`); `mk_proc` detects `pv->n > 0`, sets the bit on

@@ -7,7 +7,7 @@
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — PB-6 COMPLETE (value + `var` params). 2026-06-03, session 6. SCRIP HEAD `aebf204` on `e09dcc2`.**
+**Watermark — PB-6 COMPLETE (value + `var` params). 2026-06-03, session 6. SCRIP HEAD `9af83ea` on `1b89f53`.**
 PB-0..PB-6 green. **PB-6 value-param portion** (session 5): value-parameter functions/procedures/calls,
 `recursion.pas` byte-identical to `pint` through `fact(7)`, `proc_stmt.pas`/`addtwo.pas` byte-identical;
 functions tagged with a return-var `c[3]` child on `TT_PROC_DECL`, body ends `IR_RETURN` whose `α` is
@@ -19,7 +19,7 @@ machinery PB-7 uplevel uses), NOT copy-out. A frame slot is either a **value** o
 `(GenFrame*, slot)` or `(NULL, NV-name)` — top-level `main` runs frame-less so its vars (e.g. `varparam`'s `k`)
 live in NV, the `(NULL,name)` case. `var`-param call setup resolves the actual's location **in the caller**
 (chasing if the caller's own var is already a reference → gives transitivity + `f(a,a)` aliasing for free) and
-installs it as the callee slot's reference; reads/writes chase to the home. **Files (SCRIP `aebf204`):**
+installs it as the callee slot's reference; reads/writes chase to the home. **Files (SCRIP `9af83ea`):**
 `stage2.h` (`ProcEntry.byref_mask`), `pascal.{y,tab.c,tab.h}` (VARSY params sentinel-tagged; `mk_proc` folds the
 byref bitmask onto the unused `TT_VLIST` container `v.ival` — no child clobbered, arity intact; regen via the
 direct `bison -d -o pascal.tab.c pascal.y` workaround, `pascal.lex.c`/`pascal.l` unchanged), `polyglot.c`
