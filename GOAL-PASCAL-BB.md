@@ -7,6 +7,25 @@
 
 ## ▶ CURRENT STATE — READ FIRST
 
+**Watermark — PB-9 DESIGNED (entry mapped end-to-end), build held. 2026-06-03, session 10. SCRIP HEAD = 1d92abc,
+corpus HEAD = 58a7174.** No functional code change this session — the deliverable is `SCRIP/PB-9-DESIGN.md`, a
+verified turn-key plan grounded by tracing the mode-3/4 path on `hello.pas`. Key reframings vs the goal doc's
+"rebase onto `x86_asm.h` and start": (1) **the wiring already exists** — Pascal rides the SNOBOL4 flat chain, so
+`--run`/`--compile` already reach `bb_call` with NO `is_pascal` flag, and `rt_call_arr` (`by_name_dispatch.c:1828`)
+already reaches `try_call_builtin_by_name`; (2) **the seed's apparent one-liner is a trap** — `rt_builtin_is_known`
+omits `__pas_*`, but its target arm `rt_call_builtin` is a dead `STACKLESS_ABORT` stub (`rt/rt.c:529`); the live
+path is `rt_call_arr` with a marshalled args array; (3) **the one missing primitive** is a frame-ADDRESS helper
+(`lea rsi,[r12+off]`) — only value load/store exist in `x86_asm.h`. **PB-9a (the `hello.pas` mode-3/4 seed) is
+FORKLESS and turn-key** (recipe in the design doc: add `x86_frame_lea`, add a `__pas_*`-guarded `bb_call` arm
+reusing `marshal_call_arg` → `rt_call_arr`). Held because it touches the JIT byte-encoding path (a wrong byte
+segfaults silently, not a compile error) and deserves a fresh-budget build+2-mode-test+full-regression+commit pass.
+**Ladder above the seed:** PB-9b (arith/assign/`writeln(expr)`) → PB-9c (the stretch: `IR_IF/WHILE/FOR/REPEAT` have
+NO emitter templates, must be authored per FACT RULES; `sieve` gate) → PB-9d (flat procs/params) → **PB-9e = the
+representation FORK (frame-as-BB / static-link-as-parent-port-thread, Invariants 2 & 4) — Lon's call, exactly the
+PB-7 model.** Baselines RE-VERIFIED green this session (direct rebuild + suites): Pascal **33/0/1**, Icon `--interp`
+**130/117/36**, Prolog honest mode-2 **133/0/0** (0 fail / 0 abort — the invariant; the script's PASS denominator
+differs from the 132 in prior watermarks, both honest). SNOBOL4 smoke 2/0.
+
 **Watermark — PB-8 COMPLETE: pointers/`new` landed. 2026-06-03, session 9. SCRIP HEAD = f79fae0, corpus HEAD = 58a7174.**
 **PB-0..PB-7 + PB-6b green; PB-8 DONE in full — `record` + `set` + pointers/`new`.** Next rung is PB-9 (mode-3/4
 compiled BBs). Pointers ride the **NV heap rail** with **one** small `IR_LANG_PAS`-gated `lower.c` arm and **zero**
@@ -345,13 +364,18 @@ cd /home/claude/corpus/programs/pascal
   names and promote a non-local bare-IDENT-that-is-a-function to a call (without turning genuine variable reads
   into calls). `pcom.pas` uses these heavily. **DONE**: `g_pas_funcs` table in parser; `mk_ident` promotes;
   `v_assign` TT_FNC-LHS arm handles `fn := expr` result-var assignment. `flatnoarg.pas` PASS (oracle 10). ✓
-- [ ] **PB-8 — Aggregates as needed.** `record`, `array`, `set`, pointers/`new`. Add only what later probes
-  require; `pint`'s store layout is the semantics oracle. **`record` DONE** (session 8) + **`set` DONE**
-  (session 9): records via field→index on the PB-5 array rail; sets via the integer-bitmask rail (`[..]`,
-  `in`, `+`/`*`/`-`/`<=`/`>=`/`=`/`<>`), both zero lower/interp structural change. `rec1/rec2/rec3` and
-  `set1,set2,set3,set5,set6,set7,set8` byte-identical to `pint`. Set ranges `[a..b]` out of scope (oracle
-  rejects). **Still open: pointers/`new`**, and the record limits in the watermark (nested records, `with`,
-  record-valued `var` params, per-activation record locals). `array` was PB-5.
+- [x] **PB-8 — Aggregates as needed.** `record`, `array`, `set`, pointers/`new`. **ALL DONE** — `record`
+  (session 8), `set` (session 9), pointers/`new` (session 9). Records via field→index on the PB-5 array rail;
+  sets via the integer-bitmask rail (`[..]`, `in`, `+`/`*`/`-`/`<=`/`>=`/`=`/`<>`); pointers on the NV heap rail
+  (integer cell numbers, `nil`=`ilit(0)`, one `lower.c` arm). All zero lower/interp structural change.
+  `rec1/rec2/rec3`, `set1,set2,set3,set5,set6,set7,set8`, `ptr1..ptr8` byte-identical to `pint`. Set ranges
+  `[a..b]` out of scope (oracle rejects). Deferred (no probe forces): variant-record `new(p,tag)`, `dispose`,
+  nested records, `with`, record-valued `var` params, per-activation record locals. `array` was PB-5.
 - [ ] **PB-9 — Cross onto compiled BBs (mode-3/4).** Convert Pascal's boxes to the `x86()` self-encoding API
-  per the FACT RULES (one `x86(...)` concat per box, `bb_emit_x86`, no `bb_bin_t`). Rebase onto
-  `x86_asm.h` first. Only after the mode-2 ladder is comfortably green.
+  per the FACT RULES (one `x86(...)` concat per box, `bb_emit_x86`, no `bb_bin_t`). **DESIGNED** (session 10) —
+  see `SCRIP/PB-9-DESIGN.md`. Wiring already exists (flat-chain ride); seed (`hello.pas`) blocker is the dead
+  `rt_call_builtin` stub + the missing `x86_frame_lea` helper, not a "rebase from scratch". Sub-rungs:
+  **PB-9a** seed (FORKLESS, turn-key recipe in the doc) · **PB-9b** arith/assign/`writeln(expr)` · **PB-9c** the
+  template-authoring stretch (`IR_IF/WHILE/FOR/REPEAT` have NO templates; `sieve` gate) · **PB-9d** flat
+  procs/params · **PB-9e** nested procs = the frame-as-BB representation FORK (Invariants 2 & 4, Lon's call, the
+  PB-7 model). Build held: PB-9a touches the JIT byte path (wrong byte = silent segfault) → fresh-budget pass.
