@@ -107,7 +107,15 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
     (around the interleaved `rt_cut_set`, which is cut/backtrack and stays) + `output_val`/`output_str` from
     `core/core.c` → new `runtime/io_format.c`. Move-only; rt.h/core.h decls + `bb_call.cpp` PLT refs unchanged; no
     new `.h`. SNOBOL/Icon value output + Prolog term output now ONE subsystem.
-  - [ ] **NEXT (cleanest-first):** `arithmetic` (`rt_arith`/`rt_acomp`/`rt_lcomp`/`rt_unop_*` + the core `add/sub/mul/...` block) →
+  - [x] **slice 5 — `arithmetic` (part 1/2)** (SCRIP `a0d3664`): contiguous core `add`/`sub`/`mul`/`DIVIDE_fn`/
+    `POWER_fn`/`neg`/`pos`/`eq`/`ne`/`lt`/`le`/`gt`/`ge` block + private static `coerce_numeric` (used only by
+    add/sub/mul) from `core/core.c` → new `runtime/arithmetic.c`. Move-only; core.h decls unchanged; `ident`/`differ`
+    + `to_int`/`to_real` stay (latter RS-1 values.c). **BUILD LESSON:** the `IS_*` macros live in
+    `emitter/sil_macros.h` not `core.h` — core.c-derived files must include BOTH `"core.h"` + `"sil_macros.h"` or the
+    `scrip` per-`.o` build (fewer `-I` than libscrip_rt) fails at LINK on implicit `IS_*` function refs.
+  - [ ] **NEXT (cleanest-first):** `arithmetic` (part 2/2 — the scattered rt.c helpers `rt_arith`/`rt_acomp`/
+    `rt_lcomp`/`rt_neg`/`rt_coerce_num`/`rt_incr`/`rt_decr`/`rt_exp`; the `rt_unop_*` set needs capability sorting —
+    `unop_size`=string-length, `unop_not`/`null_test`/`nonnull`=logical — not all arithmetic) →
     `pattern_match` (whole-file `git mv` of `core/pattern.c` + `core/eval_pat.c` + `scan_builtins.c`, then pull
     `rt_pat_*` in + `patnd_*` from `stmt_exec.c`) → the LANGUAGE-NAMED files (`gen_runtime.c`/`resolve_runtime.c`/
     `script_builtins*.c`) split by capability into `backtrack`/`unification`/`resolution`/`by_name_dispatch`/
@@ -143,5 +151,5 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `c4a0f13` · .github this commit. (RS-1 done; RS-2 slices 1-4 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format; `rt_init` deferred until invocation+comparison-builtins homes; remaining subsystems queued above + in the RS-1 HANDOFF.)
+**Watermark.** SCRIP `a0d3664` · .github this commit. (RS-1 done; RS-2 slices 1-5 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1; `rt_init` deferred; arithmetic part-2 (rt.c helpers) + remaining subsystems queued above + in the RS-1 HANDOFF.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
