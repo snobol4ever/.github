@@ -148,17 +148,17 @@ cd /home/claude/corpus/programs/pascal
 
 ## The Rung Ladder (each rung tiny; eyeball vs the oracle; no suite yet)
 
-- [ ] **PB-0 — Orient.** Build the reference `pcom`+`pint` (Session Setup). Read `grammar/pascalp.l`
+- [x] **PB-0 — Orient.** Build the reference `pcom`+`pint` (Session Setup). Read `grammar/pascalp.l`
   (tokens) and `pascalp.y` (productions). Skim the `case` in `pint.pas` for the opcode → semantics map.
   No SCRIP code yet — just know the spec.
-- [ ] **PB-1 — Lexer → `TT_*`.** Add the Pascal frontend lexer in `src/parser/`. **Minimal set first**:
+- [x] **PB-1 — Lexer → `TT_*`.** Add the Pascal frontend lexer in `src/parser/`. **Minimal set first**:
   `program`, `begin`, `end`, identifier, string literal (`'...'`, with `''` escape), `(`, `)`, `;`,
   `.`, and the `writeln` builtin. Comments `(* *)` and `{ }`. Emit the shared `TT_*` stream. Defer the
   full keyword/operator table (it's all in `pascalp.l`) until the constructs need it.
-- [ ] **PB-2 — Parser → AST.** Parse program-heading + a block whose body is one compound statement
+- [x] **PB-2 — Parser → AST.** Parse program-heading + a block whose body is one compound statement
   containing a single `writeln('...')`. Build it from **existing AST node kinds** (program/block,
   statement-seq, builtin-call, string-literal). No new contract types.
-- [ ] **PB-3 — SEED: hello via LOWER + `--interp`.** Hook the Pascal AST into `src/lower/` so
+- [x] **PB-3 — SEED: hello via LOWER + `--interp`.** Hook the Pascal AST into `src/lower/` so
   `writeln('Hello World!')` lowers to the same IR `print` uses elsewhere, and `scrip --interp hello.pas`
   prints `Hello World!`. **This is the Icon/Prolog/SNOBOL4 "hello" seed for Pascal.** ⟵ first green.
 - [ ] **PB-4 — Integers, `var`, assignment, `writeln(int)`.** `var i: integer; i := 2 + 3; writeln(i)`.
@@ -189,10 +189,46 @@ cd /home/claude/corpus/programs/pascal
 
 ## Watermark (live state)
 
-**2026-06-02 — SEEDED, nothing built yet.** Reference Pascal-P4 toolchain landed in
-`corpus/programs/pascal/` (pcom+pint build clean under fpc 3.2.2; self-host fixpoint reproduced
-byte-identical; sieve + recursion probes run). Included as a corpus test program (CC0 corpus + `NOTICE`
-attribution, same pattern as the Gimpel/Shafto entries) — `pcom.pas` itself is the ultimate end-state
-test. SCRIP implements the P4 subset in its own C (the frontend is original, not transliterated from
-`pcom`). SCRIP frontend not started. **Next: PB-0 (orient) → PB-1 (lexer).** No SCRIP source touched;
-`main` clean.
+**2026-06-02 — PB-3 GREEN (seed alive). The 7th frontend prints.** `scrip --interp hello.pas` →
+`Hello World!`, byte-identical to the `pint` oracle. Also byte-identical on a multi-statement +
+apostrophe-escape probe. Implemented PB-0..PB-3 via **Bison + Flex** (Lon directive 2026-06-02 — the
+P4 grammar is clean SLR, one expected dangling-else shift/reduce conflict, same as `pascalp.{l,y}`):
+
+- `src/parser/pascal/pascal.l` — flex lexer, `%option prefix="pascal_yy" caseless`. Case-insensitive
+  keywords + lowercased identifiers (Pascal semantics). Comments **both** `(* *)` and `{ }` (per PB-1
+  spec — note `pcom` itself only accepts `(* *)`, so oracle-comparison probes must avoid `{ }`; our
+  `{ }` support is a clean ISO superset, not a divergence). String `'...'` with `''` escape via the
+  single-regex `'([^']|'')*'` (no input/unput).
+- `src/parser/pascal/pascal.y` — bison grammar adapted from the MIT `pascalp.y` (the goal's designated
+  *syntactic* reference; original C, not transliterated from `pcom`). Full P4 statement/expression
+  grammar present; declarations (label/const/type/var) parsed-and-discarded for now; AST built for
+  statements + expressions. `writeln`→`write`, `write`→`writes` (SCRIP runtime `write` appends `\n`,
+  `writes` does not).
+- `src/parser/pascal/pascal_driver.{c,h}` — `pascal_compile()` → `pascal_parse_string()`.
+- Generated `pascal.tab.{c,h}` + `pascal.lex.c` committed (regen via
+  `scripts/regenerate_parser_and_lexer_from_sources.sh` — **Pascal stanza still needs adding to that
+  script**; for now regenerate manually: `bison -d -o pascal.tab.c pascal.y && flex --noline -o
+  pascal.lex.c pascal.l`).
+- `Makefile`: pascal sources added to `SRCS` + three per-file compile rules (mirrors Raku). `make
+  scrip` links them via the `$(OBJ)/*.o` glob.
+- `src/driver/scrip.c`: `.pas` → `lang_pascal` → `pascal_compile`.
+
+**Lowering reuse (the key seed decision):** Pascal rides the **Icon rail** for now — each routine is
+emitted as a `TT_STMT{:lang=LANG_ICN, :subj=TT_PROC_DECL}`; the main program becomes
+`TT_PROC_DECL{name="main", c[0]=TT_VAR, c[1]=TT_VLIST(params), c[2]=TT_PROGRAM(body)}`, exactly the
+shape `lower_icon_body` consumes (requires `proc->n>=3`, body must be `TT_PROGRAM`). `writeln('...')`
+lowers through the lang-independent `wire_det_builtin1` path (`IR_CALL dval=1.0` → `try_call_builtin_by_name`).
+**Zero new lower.c / IR_interp.c / contract code** for the seed — the whole point of the goal's
+"we already have almost all of this" premise. Top-level procedures/functions are collected flat (a
+global `g_pascal_procs` accumulator) — correct for PB-6 flat procs; **nested-scope (PB-7) is NOT yet
+modeled** (flattening loses lexical nesting — revisit at PB-7 with the static-link-as-parent-port design).
+
+**Build:** `make scrip` clean (49 pascal symbols linked). Reference `pcom`+`pint` build under fpc.
+Other frontends regression-checked (Icon `write`, Prolog `write` still green). `main` not yet committed
+at time of writing — commit pending.
+
+**Next: PB-4** (integers / `var` / assignment / `writeln(int)` — `sieve`-ward). The grammar already
+parses these and builds `TT_ASSIGN` / `TT_ADD` / `TT_ILIT` / `TT_VAR`; what's unverified is whether the
+Icon-rail lowering + `--interp` execute them correctly and whether `writeln(i)` (int arg) routes through
+`write` properly. Eyeball `var i: integer; i := 2+3; writeln(i)` against `pint`. Watch the 16-bit
+`maxint=32767` overflow semantics (document or match).
