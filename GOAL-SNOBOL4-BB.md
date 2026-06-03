@@ -15,7 +15,7 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
-## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; SR-1b box approach ❌ REJECTED (Lon 2026-06-03) — next: REG-RO + REG-FENCE (the genuine remaining register work)
+## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; **SNOBOL4 mode-4 UNBLOCKED ✅ (m4 0/6 → 3/6, SCRIP `c43b723`)** — next: m4 concat (driver/lowerer const-fold) + IR_SCAN TEXT path (pattern/goto_s), then REG-RO + REG-FENCE TIER2
 
 > **🔄 SR-1b WALKED BACK (Lon 2026-06-03; reconciled into this file 2026-06-03 OPUS48).** The "SAVE/RESTORE as
 > boxes bracketing the body" plan (`bb_proc_save` + RESTORE-succ@`lbl_γ` + RESTORE-fail@`lbl_ω`, result via a
@@ -157,8 +157,9 @@ for SNOBOL4/Snocone/Rebus, built into the BB local storage?"* Answer: it is FUSE
   — same one-register `[r12+off]` FACT-RULE discipline, different payload. Mode-4-relocatable by construction.
   Do AFTER SR-1. Gate: same as SR-1 + no-stack/one-register-frame gates hold for the new boxes.
 
-**Gate state (GREEN, verified this session):** SNOBOL4 m2 **7/7 HARD** / m3 **6/6** / m4 0/6 · Icon m2
-**12/12 HARD** · `prove_lower2` PASS · `no_bb_bin_t` 0 · LI-FENCE OK · concurrency invariants OK. ENV:
+**Gate state (GREEN, verified 2026-06-03):** SNOBOL4 m2 **7/7 HARD** / m3 **6/6** / m4 **3/6** (output/arith/define
+emit→as→gcc→run; was 0/6) · Icon m2 **12/12 HARD** · `prove_lower2` PASS · `no_bb_bin_t` 0 · LI-FENCE OK ·
+concurrency invariants OK · REG-FENCE TIER1=0 · broad interp 105/280 + unified-broker 32 match clean baseline. ENV:
 `apt-get install -y libgc-dev`.
 
 ## ✅ DONE (mode-3, byte-matched to the SPITBOL oracle)
@@ -1219,8 +1220,26 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
   (SUBJECT→REF/BUILD/STITCH→MATCH) covers the corpus breadth, retire `IR_SCAN`: lower `TT_SCAN` to the native
   chain for ALL modes (mode-2 arm drives the same box-graph), removing the super-node + the dual shape. Gate:
   m2 corpus parity held; broad corpus ≥ prior.
-- [ ] **PB-RB-8 — mode-4 parity sweep.** Every PB-RB box's TEXT arm assembles+links+runs; `--compile` smoke
-  ladder green. Driver re-stitch for `--compile` lands here (LOWER emits the graph; no `sno_ring_to_tree`).
+- [~] **PB-RB-8 — mode-4 parity sweep. ✅ UNBLOCKED 2026-06-03 (SCRIP `c43b723`): m4 0/6 → 3/6.** The
+  `scrip.c:801` abort is GONE — replaced with the real flat TEXT emitter (mirrors the Prolog mode-4 block):
+  header + `.text`; compile-time `rt_proc_register` per non-main proc (so `rt_proc_is_registered` fires the
+  userproc arm when emitting main); each proc body via `gvar_flat_chain_build_text`; a `sno_proc_startup` GAS fn
+  (runtime `rt_proc_reset`/`rt_proc_register`/`rt_proc_set_fn` with pnames rodata); the `main:` C stub
+  (`rt_frame` → `sno_flat_α`); `xa_emit_strtab_rodata`. **Output/arith/define PASS end-to-end** (emit→as→gcc→run).
+  Wiring fixes exposed (all mode-4-TEXT-only, mode-3 byte-neutral, gated on new `g_sno_m4_dense_nid`): (1)
+  `g_flat_node_id` kept MONOTONIC across proc bodies in the TEXT path (per-body reset collided `snoch%d` labels in
+  one asm file; mode-3 unaffected — each body is a separate sealed blob); (2) `bb_node_id` collision-free dense
+  pointer→id under the flag; (3) `bb_fill_alpha` per-EMISSION-unique `bb%d_α` self-label (the int-assign's binop RHS
+  is emitted twice — standalone chain node + inlined by the assign — which GAS rejects as a duplicate label though
+  mode-3 tolerates it; output correct, assign reads the inlined slot); (4) `bb_gvar_assign` `dst/rhs_label` fall
+  back to `strtab_label` (was `[rip + ??]`); (5) `bb_binop_gvar_arith` got a TEXT arm (strtab RO name ptrs, FRQ
+  slot, `rt_gvar_arith@PLT`). MODE4_MIN raised 0→3. **REMAINING m4 gaps:** **concat** (`'ab' 'cd'`) — the
+  `bb_gvar_assign` IR_SEQ arm bombs in TEXT because `rt_gvar_assign_concat` needs process-local subgraph `IR_graph_t*`
+  ptrs; the right fix is COMPILE-TIME constant-folding of constant concats in the **driver (`emit_bb.c`
+  flat_drive_gvar_assign) or lowerer (`v_seq_concat_pair`)**, NOT the template (the no-IR-walking-in-templates rule
+  forbids reading `IR_t->t` there); folding matches SPITBOL Appendix-C item 11 ("constant sub-expressions
+  pre-evaluated at compile time"). **pattern + goto_s** — need the IR_SCAN TEXT arm (the bigger native-pattern
+  work below). Original concrete-entry-point note retained below for the seams it documents.
   **▶ CONCRETE ENTRY POINT (scoped 2026-06-03 OPUS48 — this IS the SNOBOL m4 unblocker, m4 0/6 → >0/6):** the
   abort is `src/driver/scrip.c:801`, inside `if (PLATFORM_X86)` mode-4, in the SNOBOL `{ … }` block that already
   computes `stage2_t *s2 = sm_preamble(ast_prog)` and `IR_graph_t *sbbg = s2->bbp.table[main_bb_idx]` (the
@@ -1315,7 +1334,20 @@ patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
 files and git history. Only the durable carry-forward + the current watermark are kept here.
 
-**Watermark.** SCRIP tip **`341b59f`** (this session committed ONE file: `scripts/test_gate_sno_pat_reg.sh`,
+**Watermark.** SCRIP tip **`c43b723`** (2026-06-03) — **SNOBOL4 mode-4 UNBLOCKED: m4 0/6 → 3/6.** This session
+wired the dead `scrip.c:801` abort to the real flat TEXT emitter (`gvar_flat_chain_build_text`), mirroring the
+Prolog mode-4 block, plus 5 mode-4-TEXT-only wiring fixes (all gated on the new `g_sno_m4_dense_nid` / TEXT path,
+mode-3 byte-neutral — see the PB-RB-8 step above for the full list). `output`/`arith`/`define` now PASS
+emit→as→gcc→run. Files: `src/driver/scrip.c`, `src/emitter/emit_bb.c`, `src/emitter/emit_core.c`,
+`src/emitter/BB_templates/bb_gvar_assign.cpp`, `src/emitter/BB_templates/bb_binop_gvar_arith.cpp`,
+`scripts/test_smoke_snobol4.sh` (MODE4_MIN 0→3). **Verified non-regression by stash-compare:** broad interp
+**105/280** and unified-broker **32** are IDENTICAL on the clean tree (the goal's old "251/280" GATE-4 number is a
+STALE watermark, not a regression — confirmed by `git stash` + rebuild + re-run). Gates: SNOBOL m2 **7/7 HARD** /
+m3 **6/6** / m4 **3/6**; `prove_lower2` PASS; REG-FENCE TIER1=0. **NEXT:** m4 `concat` (constant-fold in
+driver/lowerer, NOT the template) → m4 `pattern`/`goto_s` (IR_SCAN TEXT arm) → then REG-RO + REG-FENCE TIER2.
+NOT pushed (no handoff phrase given); committed locally only. **— prior watermark below —**
+
+**Watermark (prior).** SCRIP tip **`341b59f`** (this session committed ONE file: `scripts/test_gate_sno_pat_reg.sh`,
 the REG-FENCE gate — test-only, no emitter/runtime bytes; rebased onto the RUNTIME-REORG lane's `5893518`
 RS-2-s27 move-only extraction. Last SNOBOL4-BB *code* commit remains **SR-1a** `3610475`; intervening commits are
 other lanes — GN-3, RS-2, PB-8, WAM-CP-7c, etc.). **This session (2026-06-03 OPUS48) landed NO code — it
