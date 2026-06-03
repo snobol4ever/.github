@@ -27,20 +27,30 @@ concept per LI; mirror the mode-2 `IR_interp.c` name-save path: save dummy-args 
 actuals, run the proc BB-graph on a per-activation arena, capture fn-named var as result, FAIL on FRETURN,
 restore LIFO).
 
-**TWO BUGS block `DOUBLE(21)`→`42` (next session starts here):**
-- **(a) string-arg `slen`** — `marshal_call_arg` (`bb_call.cpp`) IR_LIT_S writes the DT_S tag into the low
-  qword but leaves `slen`=0, so a string param reads zero-length. DESCR low qword packs `v | (slen<<32)`;
-  a `DT_S` with `slen==0` is read as a VARIABLE NAME by `VARVAL_d_fn` (`argval.c`), NOT a literal value.
-  FIX both arms: pack `v | ((uint64_t)strlen(s) << 32)`. Lane-safe (shared with Raku) or normalize in
-  `rt_call_named_proc`.
-- **(b) `X+X` param-to-param arith** bombs `bb_binop_arith` ("shape mismatch") — two IR_VAR operands in the
-  gvar chain fall to `flat_drive_binop_tree`→`IR_BINOP_ARITH`, whose predicate needs `g_descr_flat_chain`
-  (Icon). NOT the literal-literal `IR_BINOP_GVAR_ARITH` shape. FIX: add a gvar VAR-operand arm — read each
-  param's value from the NV table (new `rt_gvar_arith(name_a,name_b,op)`, or extend `bb_binop_gvar_arith`).
+**STATUS `DOUBLE(21)`→`42` (m3 5/6 — define still FAILs; next session starts here):**
+- **(b) `X+X` param arith — ✅ LANDED (SCRIP `f7a2ddc`).** Added a gvar VAR+VAR arm: `bb_binop_gvar_arith.cpp`
+  branches on `op_name1`/`op_name2` (VAR-mode, BINARY-only — TEXT bombs like the concat path) → `call
+  rt_gvar_arith(a,b,op)` which reads both vars via `NV_GET_fn` + `binop_apply` (oracle byte-identity) → raw
+  int64 into the ζ-slot the IR_ASSIGN reads. `emit_bb.c` IR_BINOP dispatch routes VAR+VAR to the existing
+  `IR_BINOP_GVAR_ARITH` kind and clears `op_name1/2` in the LIT+LIT arm for unambiguous discrimination. The
+  "shape mismatch" BOMB is gone; `X+X` no longer crashes. (Mixed `X+1` still falls to `flat_drive_binop_tree`.)
+- **🔴 REAL BLOCKER — with-arg user-proc calls don't bind the param.** `F()` (no-arg) → 42 ✅, but `G(X){G=X}`
+  called `G(21)` → BLANK and `DOUBLE(X){DOUBLE=X+X}` called `DOUBLE(21)` → 0 (X reads null). **The arg value
+  never reaches the parameter.** ⚠ CORRECTION TO PRIOR HANDOFF: the live mode-3 gvar proc-call does NOT route
+  through `rt_call_named_proc` / `call_native_chunk` — `fprintf` probes inside BOTH never fire, even for the
+  working `F()`. So `marshal_call_arg` + `bb_call_gvar_userproc_str` + `rt_call_named_proc` are NOT the live
+  path. **Next step: identify the ACTUAL mode-3 proc-call emit path** (likely a native inline-jump into the
+  proc body label, params bound somewhere else) by tracing the IR_CALL dispatch for a registered proc with
+  `dval==2.0` in `emit_bb.c` (~line 1542-1547) and which box actually emits — set a breakpoint / grep the emitted
+  asm for the `G`/`DOUBLE` call site. THEN fix where the actual arg DESCR is written vs where the param is read.
+- **(a) string-arg `slen`** (does NOT block this smoke; fix for `G('AB')`-style string args) — `marshal_call_arg`
+  IR_LIT_S writes the DT_S tag but leaves `slen`=0, so a string param reads zero-length (`v|slen<<32`; `slen==0
+  && DT_S` is read as a VARIABLE NAME by `VARVAL_d_fn`). FIX both arms: pack `v | ((uint64_t)strlen(s) << 32)`.
+  (Only relevant once the with-arg path above actually delivers args.)
 
-Once both land → raise MODE3_MIN 5→6. ⚠ `x86("mov",reg,uint64)` is a TRAP (emits `movabs rax,imm; call rax`)
-and `x86_movimm` truncates imm64→32 — to load a pointer/imm64 use `x86_load_ro(reg,"??",ptr)`; for an args-array
-address use `x86_frame_lea`. Detail: `HANDOFF-2026-06-03-SONNET46-SNOBOL4-BB-DEFINE-CALL-FRAME.md`.
+After the with-arg blocker → raise MODE3_MIN 5→6. ⚠ `x86("mov",reg,uint64)` is a TRAP (emits `movabs rax,imm;
+call rax`) and `x86_movimm` truncates imm64→32 — to load a pointer/imm64 use `x86_load_ro(reg,"??",ptr)`; for an
+args-array address use `x86_frame_lea`. Detail: `HANDOFF-2026-06-03-SONNET46-SNOBOL4-BB-DEFINE-CALL-FRAME.md`.
 
 **Gate state (GREEN):** SNOBOL4 m2 **7/7 HARD** / m3 **5/6** / m4 0/6 · Icon m2 **12/12 HARD** · `prove_lower2`
 PASS · `no_bb_bin_t` 0 · LI-FENCE OK · concurrency invariants OK · `sm_dead` OK. ENV: `apt-get install -y libgc-dev`.
