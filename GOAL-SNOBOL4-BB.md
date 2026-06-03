@@ -1186,8 +1186,10 @@ patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
 files and git history. Only the durable carry-forward + the current watermark are kept here.
 
-**Watermark.** SCRIP tip `24c593b` (define call-frame + RETURN/FRETURN routing + movabs/lea fixes; m3 5/6,
-`define` blocked on the string-`slen` + param-binop bugs — see CURRENT FRONTIER at top) · .github tip this commit.
+**Watermark.** SCRIP tip `f7a2ddc` (VAR+VAR param-arith via `rt_gvar_arith`/`binop_apply` — the `X+X`
+shape-mismatch BOMB is gone; m3 5/6 — `define` now blocked on WITH-ARG proc calls not binding the param,
+and the live mode-3 proc-call path is NOT `rt_call_named_proc`/`call_native_chunk` — see CURRENT FRONTIER at
+top) · .github tip this commit. Session handoff: `HANDOFF-2026-06-03-OPUS48-SNOBOL4-BB-VVARITH-PRUNE.md`.
 
 ## Architecture references
 
