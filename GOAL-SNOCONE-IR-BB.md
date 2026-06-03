@@ -1,5 +1,17 @@
 # GOAL-SNOCONE-IR-BB.md — Snocone IR Interpreter + BB Broker
 
+## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
+
+**No language-specific logic in any BB or XA C++ template.** All delineated operations are enveloped in
+unique BBs; each BB does NOT have varying runtime behavior depending on language. Templates dispatch on IR
+shape and representation flags only. FORBIDDEN inside `src/emitter/BB_templates/` and
+`src/emitter/XA_templates/`: language enums/guards (`IR_LANG_*`, `LANG_*`, `is_<lang>`), language-named
+template functions/files/dispatch arms, and hardcoded language-builtin names. Behavior that differs by
+language belongs in the runtime (by-name dispatch) or in LOWER (a different IR shape → its own unique BB) —
+never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scanned clean 2026-06-03); fix
+ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
+`XA_templates/` returns 0 sites.
+
 ## ⛔ NO C BYRD-BOX FUNCTIONS — A BOX IS ENTERED BY JUMPING TO ITS α/β LABELS, NEVER A `(ζ, int entry)` C CALL (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
 
 **There is NO such thing as a C byrd-box function. The "brokered BB" concept is ABOLISHED.** A byrd box is

@@ -1,11 +1,49 @@
 # GOAL-PASCAL-BB.md — Pascal, 100% Byrd Boxes, from zero
 
+## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
+
+**No language-specific logic in any BB or XA C++ template.** All delineated operations are enveloped in
+unique BBs; each BB does NOT have varying runtime behavior depending on language. Templates dispatch on IR
+shape and representation flags only. FORBIDDEN inside `src/emitter/BB_templates/` and
+`src/emitter/XA_templates/`: language enums/guards (`IR_LANG_*`, `LANG_*`, `is_<lang>`), language-named
+template functions/files/dispatch arms, and hardcoded language-builtin names. Behavior that differs by
+language belongs in the runtime (by-name dispatch) or in LOWER (a different IR shape → its own unique BB) —
+never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scanned clean 2026-06-03); fix
+ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
+`XA_templates/` returns 0 sites.
+
 **Repo:** SCRIP (frontend + lower) · corpus (reference compiler at `programs/pascal/`)
 **The 7th frontend.** SNOBOL4 · Snocone · Rebus · Icon · Prolog · Scrip · **Pascal**.
 
 ---
 
 ## ▶ CURRENT STATE — READ FIRST
+
+**Watermark — PB-9a LANDED (mode-3/4 seed, LANGUAGE-NEUTRAL) + LANG-BLIND FACT RULE + LB ladder. 2026-06-03,
+session 11. SCRIP HEAD = 6cc95c3 (PB-9a = 80ee2e3 after rebase), corpus HEAD = 58a7174 (untouched).**
+PB-9a is green BOTH modes: `scrip --run hello.pas` and `scrip --compile hello.pas` → `gcc -no-pie
+-lscrip_rt` → run print `Hello World!` byte-identical to `pint`. Implementation DEVIATES from
+`PB-9-DESIGN.md` Step 2 on Lon's same-day directive (the new LANGUAGE-BLIND FACT RULE above): instead of a
+`__pas_`-prefix arm (which would itself have been a new Tier-1 violator), `bb_call.cpp` gained
+shape-dispatched **`bb_call_byname_str`** — guard `g_gvar_flat_chain && dval==3.0 && fn[0] &&
+!rt_proc_is_registered(fn)` → `marshal_call_arg` per arg → `rt_call_arr` → `cmp eax,99; je ω; jmp γ` (the
+four-port FAIL contract landed at the seed, not deferred to PB-9b). Name knowledge (`__pas_*`) stays in
+`src/runtime/by_name_dispatch.c`. Precision proof: `v_det_call` (`lower.c:596`) is the ONLY dval=3.0 setter,
+reached only by `IR_LANG_ICN`/`IR_LANG_PAS` (`lower.c:955-6`), and Icon never rides the gvar chain. Design
+Step 1 was a NO-OP: `x86_frame_lea` pre-existed (added + REX.B-fixed in `3b655dc`) — no byte-encoder was
+touched, defusing the held-for-JIT-byte-risk concern. The push rebased onto concurrent `9e8e4b8` (SNOBOL4 m4
+scan, touches `x86_asm.h`+`emit_bb.c`); the MERGED build was re-verified green post-rebase. Gates pinned on
+the merged tree: hello m3+m4 byte-identical; Pascal `--interp` 33 PASS (the `33/0/1` bucket decoded: the 1
+XFAIL = `recursion.pas`, the documented fact(8)>maxint pint trap rc=217, identical through fact(7); pcom.pas
+excluded); Icon `--interp` **130/117/36** identical; Prolog honest **133/0/0**; SNOBOL4 smoke **19/0** incl.
+m4 6/0; all-langs m4 hello 5/1 — the 1 = **rebus FAIL-compile, PROVEN PRE-EXISTING on clean HEAD by
+stash→rebuild→test→pop** (NOT this change; flag for the Rebus owner). Next PB-9b wall probed: `--run
+flatnoarg.pas`/`sieve.pas` abort `flat_drive_assign: lhs (α) must be IR_VAR with sval (got kind=0)` —
+Pascal `IR_ASSIGN` under the flat chain is the PB-9b entry point. ALSO this session:
+`SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (Tier-1 = 8 named-code sites, Tier-2 = 14 tagged emitted strings, Tier-3
+= 3 language-naming C comments; ZERO `IR_LANG_*`/`is_<lang>` guards exist in any template; XA_templates
+appendix: scanned CLEAN), the LANGUAGE-BLIND FACT RULE placed atop all 6 `GOAL-*-BB.md`, and the **LB
+ladder** (one step per violator) appended at the bottom of this file.
 
 **Watermark — PB-9 DESIGNED (entry mapped end-to-end), build held. 2026-06-03, session 10. SCRIP HEAD = 1d92abc,
 corpus HEAD = 58a7174.** No functional code change this session — the deliverable is `SCRIP/PB-9-DESIGN.md`, a
@@ -379,3 +417,53 @@ cd /home/claude/corpus/programs/pascal
   template-authoring stretch (`IR_IF/WHILE/FOR/REPEAT` have NO templates; `sieve` gate) · **PB-9d** flat
   procs/params · **PB-9e** nested procs = the frame-as-BB representation FORK (Invariants 2 & 4, Lon's call, the
   PB-7 model). Build held: PB-9a touches the JIT byte path (wrong byte = silent segfault) → fresh-budget pass.
+  - [x] **PB-9a — seed.** `hello.pas` mode-3 + mode-4 byte-identical to `pint` (session 11, SCRIP 80ee2e3).
+    Landed LANGUAGE-NEUTRALLY per the FACT RULE — shape-dispatched `bb_call_byname_str` → `rt_call_arr`,
+    FAIL→ω contract included; NO `__pas_` string in the template (supersedes PB-9-DESIGN.md Step 2).
+  - [ ] **PB-9b — arith/assign/`writeln(expr)`.** First wall (probed): `flat_drive_assign: lhs (α) must be
+    IR_VAR with sval (got kind=0)` on `flatnoarg.pas`/`sieve.pas` — Pascal `IR_ASSIGN` under the flat chain.
+  - [ ] **PB-9c — control flow.** `IR_IF/WHILE/FOR/REPEAT` templates do not exist; author per FACT RULES
+    (and per the LANGUAGE-BLIND rule — these are shared imperative IR, serve every frontend). `sieve` gate.
+  - [ ] **PB-9d — flat procs/params.** `recursion.pas` (through fact(7)) gate.
+  - [ ] **PB-9e — nested procs = the representation FORK (Lon's call).** Frame-as-BB, static link on the
+    parent-port thread (Invariants 2 & 4, the PB-7 model).
+
+---
+
+## The LB Ladder — LANGUAGE-BLIND BB/XA templates (Lon directive 2026-06-03, session 11)
+
+Fix every violator inventoried in `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (audit at SCRIP `80ee2e3`; line
+numbers drift with edits — re-grep per step). Lon's mechanism for Tier-1 code arms: **replace the snippet
+with an ABORT** (`x86_bomb` body keeps the dispatch shape; any surviving traffic fails LOUD and names
+itself). Where a violation is naming-only the step says rename — confirm with Lon before downgrading a
+prescribed ABORT to a rename. EVERY step: run the named gate, pin before/after counts in this file, prove
+zero drift elsewhere (stash→rebuild→diff where feasible). XA_templates scanned CLEAN — no XA steps.
+
+- [ ] **LB-1 — `bb_call.cpp:209` Raku-named arm → ABORT.** Replace `return bb_call_rk_arr_str(pBB)` with an
+  `x86_bomb` arm ("IR_CALL dval=2 descr-chain arm aborted per LANGUAGE-BLIND rule"). Gates: Raku rungs (Raku
+  ON HOLD; `rk_array_literal.raku` already FAILs the clean baseline) + the full cross-language pin.
+- [ ] **LB-2 — `bb_call_rk.cpp` (whole file).** After LB-1: delete the file + the extern at
+  `bb_call.cpp:118`, or reduce to an ABORT stub if the symbol is still referenced. Also fix the `.Lrkarg`
+  label prefix in `marshal_call_arg` (`bb_call.cpp:80`) → `.Lcallarg` (it brands EVERY language's args).
+- [ ] **LB-3 — `bb_call.cpp:210` `DEFINE` name-gate → ABORT.** The dispatch may not know a builtin's name.
+  Gate WILL move: SNOBOL4 smoke 19/0 incl. m4 6/0 rides this arm — measure and report; the language-blind
+  re-route is LOWER giving DEFINE its own IR shape, or the generic by-name arm if `rt_call_arr` learns it.
+- [ ] **LB-4 — `bb_gvar_assign_icn.cpp` Icon fork → ABORT body.** Gates: Icon ladder 130/117/36 buckets +
+  ICN GLOBAL-NV GN-4/5 (`c66723e`) — pin exact deltas. Unification target: ONE shape-dispatched
+  `bb_gvar_assign`.
+- [ ] **LB-5 — `bb_templates.h:44`.** Remove the `bb_gvar_assign_icn` decl together with LB-4's resolution.
+- [ ] **LB-6 — `bb_pl_op_floaty` (3 sites: `bb_builtin.cpp:3`, `bb_builtin_common.h:61`,
+  `bb_builtin_is_cmp.cpp:77`).** Naming-only — an op-name predicate whose behavior does not vary by
+  language → rename `bb_op_floaty` at all 3 sites. An ABORT here regresses Prolog is/cmp float ops — flag to
+  Lon if he wants ABORT regardless. Gate: Prolog honest 133/0/0.
+- [ ] **LB-7 — Tier-2 emitted-string sweep (14 sites).** Neutralize every language tag in emitted asm:
+  `# BOX SNO …` → `# BOX …` (`bb_call.cpp:129,163`, `bb_binop_gvar_arith.cpp:25`,
+  `bb_gvar_assign.cpp:35,44,55,78`, `bb_scan_stmt.cpp:38`); ICN/RK/WAM rung tags out of `bb_to.cpp:21`,
+  `bb_var.cpp:19`, `bb_call_rk.cpp:37`, `bb_catch.cpp:12`, `bb_choice.cpp:62`, `bb_goal.cpp:66`; neutral
+  bomb texts (`bb_gvar_assign.cpp:64`, `bb_var.cpp:27`). Mode-4 TEXT diffs are comment-only — re-pin any
+  byte-gates on emitted `.s`.
+- [ ] **LB-8 — Tier-3 C comments (3 sites).** Delete `bb_choice.cpp:1` (+ inline `:59`), `bb_goal.cpp:1`,
+  `bb_builtin_term_inspect.cpp:106`. The ONE-COMMENT style rule mandates deletion regardless of language.
+- [ ] **LB-FENCE.** COMPLETION TEST green: the audit's Tier-1 grep over `BB_templates/` + `XA_templates/`
+  == 0; full matrix pinned (Pascal · Icon · Prolog · SNOBOL4 · all-langs m4 hello) with every delta from
+  LB-1..LB-8 accounted for in this file.
