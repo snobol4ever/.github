@@ -107,7 +107,10 @@ slab succ/fail. **Save/restore is FUSED in the runtime** (`rt_call_named_proc`, 
 param+fn-name DESCRs onto the global `g_name_save[]` stack → install actuals via `NV_SET_fn` → run body on
 `g_proc_frame_nest_arena` → capture result → restore LIFO. There is NO dedicated SAVE/RESTORE box.
 
-**⚠ STILL OPEN — string-arg `slen` (does NOT block the define smoke; needed for `G('AB')`-style string args).**
+**✅ RESOLVED-STALE — string-arg `slen` (audited 2026-06-03 session 2; no fix needed).** The note below mis-read
+the DESCR convention: `DT_S` with `slen=0` is the CANONICAL `STRVAL()` form (`descr.h:20`; `descr_slen` falls back
+to `strlen`), and `VARVAL_d_fn` treats only `DT_N` (tag 9) as a variable name — never `DT_S`+slen=0. Oracle-matched
+probes: `G('AB')`→`ABAB` and `SIZE(X)`→`2` pass m2+m3 with the marshal writing plain tag `1`. Retained for record:
 `marshal_call_arg` IR_LIT_S (BINARY `bb_call.cpp:96-107`, TEXT `:84`) writes the DT_S tag but leaves `slen`=0;
 a string param then reads zero-length (low qword packs `v | (slen<<32)`; `slen==0 && DT_S` is mis-read as a
 VARIABLE NAME by `VARVAL_d_fn`). FIX both arms: pack `tag | ((uint64_t)strlen(sval) << 32)`. ⚠ `marshal_call_arg`
@@ -835,14 +838,14 @@ templates only; m2 7/7 HARD must stay invariant every step.**
   BINARY+TEXT both; r11 + push/pop r11 dropped (Σ=r13 direct), only push/pop r10 around strchr remains. Token-clean:
   zero `TEMPLATE_ADDR_SIG*`/`[r10]` in code OR comment. β semantics preserved (BREAK δ−=z on β; BREAKX z_orig recover
   + z++ + rescan-to-next). Zero `b.size()` introduced (stash-verified: 123 with and without the diff).
-- [ ] **REG-3 — cursor-verify / position leaves.** `bb_pat_pos` (RPOS folded), `bb_pat_tab` (RTAB folded),
+- [x] **REG-3 — cursor-verify / position leaves. ✅ DONE (audit-confirmed 2026-06-03 session 2; was left unchecked — subsumed by the x86() revamp).** `bb_pat_pos`/`bb_pat_tab` carry `[REG-3 δ=r14 Δ=r15]` (RPOS/RTAB read Δ=r15d), `bb_pat_atp` `[REG-3 δ=r14]` (cursor read `mov esi,r14d` into `rt_at_cursor`); zero `TEMPLATE_ADDR_SIG*`; remaining `push/pop r10` guards around the @PLT calls are REG-RO's job. Original spec: `bb_pat_pos` (RPOS folded), `bb_pat_tab` (RTAB folded),
   `bb_pat_atp` (`@var` writes the cursor → write R14). POS/RPOS read R14 (and Δ=R15 for RPOS) and compare; TAB/RTAB
   advance R14 to a computed target. Gate; m2 invariant.
-- [ ] **REG-4 — combinators.** `bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence` — they thread δ via the ports and
+- [x] **REG-4 — combinators. ✅ DONE (audit-confirmed 2026-06-03 session 2).** `bb_pat_fence` saves/restores δ via r14d↔ζ-slot `FR(sdoff())` (`bb_slot_claim(4)`; its comment string says REG-3 but it IS this rung's saved-δ-to-ζ shape); `bb_pat_cat`/`bb_pat_alt` are pure `x86_pair_loop()` port wiring (14 lines each) — they thread δ via the ports BY CONSTRUCTION, zero cursor ops, zero r10. Original spec: `bb_pat_alt`, `bb_pat_cat`, `bb_pat_fence` — they thread δ via the ports and
   save/restore δ on backtrack: the saved-δ slot moves from the `[r10]` data-block field to a **ζ-slot save of R14**
   (`mov [r12+off], r14d` / restore), NOT `[r10]`. FENCE seals δ on α, restores on β (commit) — now via R14+ζ-slot.
   Gate; m2 invariant.
-- [ ] **REG-5 — generators + capture (coordinate with BROK-1/BROK-2).** `bb_pat_arb`, `bb_arbno`, `bb_capture`
+- [x] **REG-5 — generators + capture. ✅ DONE for all SURVIVING members (audit-confirmed 2026-06-03 session 2).** `bb_pat_arb` `[REG-4 Σ=r13 δ=r14 Δ=r15]` with z/zo generator state in ζ-slots (`bb_slot_claim(8)`, `FR(zoff/zooff)`, bound check `cmp eax,r15d`, zero r10); `bb_pat_defer` reads δ `mov edx,r14d` / writes back `mov r14d,eax` (push/pop r10 guard = REG-RO). `bb_arbno.cpp` + `bb_capture.cpp` NO LONGER EXIST (STUB CLEANUP — a `bb_*.cpp` existing ⇔ box is real); when recreated they come back as x86() on the ratified regs, and BROK-1/BROK-2 are their jump-wired rebirth. Original spec: `bb_pat_arb`, `bb_arbno`, `bb_capture`
   (the `std::deque<int>` saved-δ pattern stores R14 snapshots), `bb_pat_defer`. Per-activation δ state migrates
   from the `[r10]` block to R14 + ζ-slot/deque saves. Since BROK-1/BROK-2 convert CAPTURE/ARBNO to jump-to-α/β,
   do REG-5 **with or after** those rungs to avoid double-rework. Gate; m2 invariant.
@@ -1345,6 +1348,34 @@ patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 
 Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
 files and git history. Only the durable carry-forward + the current watermark are kept here.
+
+**Watermark (m2 builtin-registry fall-through; SCRIP `715daa5` committed LOCAL-ONLY, 2026-06-03 OPUS48 session 2).**
+**ROOT CAUSE FOUND for the broad-corpus 251→105 collapse:** the m2 `IR_CALL` dval==2.0 dispatch (`IR_interp.c`)
+went user-proc → `try_call_builtin_by_name` → fail-to-ω and NEVER consulted the `register_fn` FNCBLK registry —
+so the ENTIRE SNOBOL4 builtin library (IDENT, DIFFER, REPLACE, CONVERT, TABLE, ARRAY, SORT, TRIM, DUPL, LPAD,
+EVAL, CODE, …) was unreachable in m2 since SMX-4 deleted the SM path that reached it via `INVOKE_fn`/`APPLY_fn`.
+FIX (+5 lines, ONE hunk, SNOBOL dval==2.0 arm only): on try_call miss, probe `FNCEX_fn(bb->sval)` and call
+`APPLY_fn` ONLY on a registry hit — old proven semantics for registered names, current ω-fail preserved for
+unknowns (oracle ERROR 022 on undefined fns deliberately out of scope; Raku `__rk_jct_*` registry-absent →
+untouched). Oracle-matched probes: IDENT/DIFFER goto+predicate-concat, 1+2-arg, top-level + inside DEFINE bodies;
+`G('AB')`→`ABAB`. **Gates (all stash-compared where counts moved):** smoke m2 **7/7 HARD** / m3 **6/6** / m4
+**6/6** (plain + `SCRIP_M3_NATIVE=1`); broker 32; prove_lower2 67; no_bb_bin_t 0; REG-FENCE TIER1=0; native-arms
+audit OK; pat rung suite **byte-identical to clean tree** (M2 18 / FAIL 053_pat_alt_commit BOTH sides; M4 0/18
+BOTH sides — the Session-Setup `M2=19 M4=15` comment is STALE, same class as the 251/280). Broad interp 105→**104**:
+the single flip is `136_pat_balanced_parens_deep`, which PASSED BY ACCIDENT (DUPL+LEN both silently failed →
+null subject → vacuous `POS(0) RPOS(0)` match); with DUPL/LEN now executing it fails HONESTLY on the genuine
+blocker — **ROLE_VALUE lowering of TT_LEN(=33)/TT_FENCE(=39) is `lower_unhandled`** (DT_P pattern-construction
+in value position, e.g. `eps = LEN(0)`, `B = '(' FENCE(*B|eps) ')'` — the corrected-pattern-architecture/`DT_P`
+track owns this). ZERO FAIL→PASS gains confirms the 175 baseline failures are multi-bug: the registry was a
+NECESSARY unblock, not sufficient — expect compound gains as the value-role pattern arms land. **ALSO THIS
+SESSION (goal-file reconciliation):** slen note struck RESOLVED-STALE (DT_S+slen=0 IS canonical `STRVAL`;
+`descr_slen` strlen-fallback; only DT_N is a name); REG-3/REG-4/REG-5 flipped `[x]` with per-box audit evidence
+(pos/tab/atp/fence/arb/defer all on r13/r14/r15 + ζ-slots; cat/alt pure `x86_pair_loop` wiring; arbno/capture
+files deleted by STUB CLEANUP). **REG-0 stays `[ ]`:** `bb_match` α is still the deliberate LEGACY subject model
+(per PB-RB-3 note) — the BB_MATCH-α register establishment (R13←Σ-slot, R15←Δ-slot, xor r14) is genuinely open.
+**NOT PUSHED (no handoff phrase): SCRIP `715daa5` + this .github edit are LOCAL.** **NEXT unchanged: REG-RO +
+REG-FENCE TIER2; PB-RB-4 STITCH for m4 ALT/var-CAT; NEW named rung candidate: ROLE_VALUE TT_LEN/TT_FENCE arms
+(unlocks 136 + pattern-valued-variable corpus).** **— prior watermark below —**
 
 **Watermark (m4 scan single-lit guard + bomb TEXT label + constant-CAT fold; SCRIP `9e8e4b8` pushed, 2026-06-03 OPUS48).** Three layered fixes in the m4 scan fast-path, found by probing past the smoke (single-literal-only): **(1) compound patterns were SILENT-WRONG in m4** — `flat_drive_scan_stmt` classified any pattern whose graph `entry` is `IR_PAT_LIT` as a single literal, but for CAT/ALT the entry IS the first child literal, so `rt_scan_lit` matched only the first element (`S 'a' 'b'='Q'` on `xabz` → `xQbz`; `S ('q'|'b')='Q'` on `abc` → unmatched `abc`). m2/m3 never affected (m2 = IR_interp; the BINARY arm always drives the full graph via `rt_scan`). FIX `scan_pat_is_single_lit()`: only {IR_SUCCEED/IR_FAIL sentinels + exactly ONE IR_PAT_LIT} qualifies. **(2) Surfaced latent, ALL languages: every m4-TEXT `x86_bomb` was unassemblable** — emitted `lea rdi,[rip + ??]` because `emit_intern_str` ALWAYS returns NULL (`g_flat_intern_str`/`lower_flat_set_intern_str` is defined but wired NOWHERE; the scan template's own strings only ever resolved via `scan_lbl`'s `strtab_label` fallback). FIX: TEXT-only `strtab_label` fallback in `x86_bomb` (`x86_asm.h`, +2, BINARY ignores `label` in `x86_load_ro` → mode-3 bytes unchanged); bombs now print `BOMB — <msg>` + `ud2` (rc=134) — "falls LOUD never silent" restored for all languages' m4 bombs. **(3) Constant-CAT fold (PB-RB-OPT subset / manual Appendix-C item 11):** `scan_pat_cat_concat()` folds a PURE literal CAT (all[] = sentinels + ≥2 LIT + ≥1 CAT, NOTHING else — ALT/captures/operand matchers rejected) by concatenating svals along the γ-chain from entry (probe-verified order `LIT(a)→LIT(b)→[LIT(c)→]CAT→SUCCEED`) into a `GC_MALLOC_ATOMIC` buffer for `op_scan_pat_lit`; `S 'a' 'b'='Q'` and the 3-literal CAT now PASS m2==m3==m4. Fold lives in the EMIT DRIVER deliberately — a lowerer fold would shrink node counts and break `prove_lower2`'s `MATCH('a' 'b')` 4-node topology assertion. `rt_scan_lit` multi-char pre-verified (`S 'ab'='Q'` already m4-green). ALT + variable/captured CAT now LOUD-bomb in m4 naming PB-RB — the genuine **PB-RB-4** frontier. Files: `emit_bb.c` (+`<gc/gc.h>`, 2 helpers, guard+fold), `x86_asm.h` (+2 additive). Probe enum ground truth: IR_FAIL=11, IR_SUCCEED=12, IR_PAT_LIT=32, IR_PAT_CAT=38, IR_PAT_ALT=39. ⚠ FLAGGED OPEN: compound SUBJECT/REPLACEMENT beside a literal pattern (`S 'b' = (A B)`) — subj/replace classification is still entry-only (`IR_LIT_S`); compound replacement leaves `op_scan_replace_lit` NULL with `is_repl=1` → `rt_scan_lit(repl=NULL)` UNVERIFIED; likely needs the same guard. Gates (re-run green on rebased tree after mid-handoff upstream `1d92abc` Pascal + `873792f` Prolog float-unify, zero conflict): SNOBOL4 m2 **7/7 HARD** / m3 **6/6** / m4 **6/6**; Icon m2 **12/12 HARD**; prove_lower2 **67/0**; no_bb_bin_t 0; LI-FENCE **13 (Δ0)**; concurrency OK; REG-FENCE TIER1=0 (TIER2 r10=20 info unchanged); no-handencoded `--strict` 0; unified-broker **32**. **NEXT unchanged: REG-RO + REG-FENCE TIER2 — and PB-RB-4 STITCH is now the named, loud blocker for m4 ALT/var-CAT.** Detail: `HANDOFF-2026-06-03-OPUS48-SNOBOL4-BB-M4-SCAN-GUARD-BOMB-LABEL-CAT-FOLD.md`. **— prior watermark below —**
 
