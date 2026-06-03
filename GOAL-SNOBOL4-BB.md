@@ -32,26 +32,61 @@ consumed by `bb_pat_cat` + `bb_pat_alt`. OP-A-PROMOTE landed (`emit_core.c:389` 
 int-binop arm) so **`OUTPUT = 2 + 3` now PASSES mode-3** (the `arith` smoke went green).
 
 **TRUE LIVE mode-3 frontier (from failing smokes, IR kinds decoded via a probe):**
-- **`concat`** (`OUTPUT = 'ab' 'cd'`) → kind **10 = IR_SEQ** = the VALUE-side STITCH_SEQ (≠ IR_PAT_CAT). Oracle
-  `src/interp/IR_interp.c:1978`: interp left sub-graph → interp right sub-graph → `binop_apply(BINOP_CONCAT,lv,rv)`.
-  SPITBOL manual ch.3 (p.18): juxtaposition operator, right appended to left, operands unchanged, non-string
-  operands coerced to string form, fresh result string. `rt_concat` is currently a `STACKLESS_ABORT` STUB
-  (`rt.c:791`); `bb_gvar_assign` concat arm currently BOMBS ("relocatable form is STITCH_SEQ"). NOT a leaf.
+- **`concat`** (`OUTPUT = 'ab' 'cd'`) → kind **10 = IR_SEQ** = the VALUE-side STITCH_SEQ (≠ IR_PAT_CAT). ✅ **DONE
+  2026-06-02 (Opus 4.8) — mode-3 2/6 → 3/6.** See the `IR_SEQ value-concat` session block immediately below.
 - **`pattern`/`goto_s`** (`S 'b' = 'X'` / `'x' 'x' :S()`) → kind **28 = IR_SCAN** = the ch.18 unanchored OUTER
-  match loop (`bb_match` + subject-slot wiring). The LONG POLE.
+  match loop (`bb_match` + subject-slot wiring). The LONG POLE. **← NEXT.**
 - **`define`** (`DEFINE('DOUBLE(X)')` + call + `RETURN`) → empty output: needs DEFINE registration + a SNOBOL4
   call frame + RETURN.
+
+## ✅ DONE (2026-06-02 session, Opus 4.8) — IR_SEQ VALUE-CONCAT: `OUTPUT = 'ab' 'cd'` → `abcd` in mode-3 (m3 2/6 → 3/6)
+
+The `concat` smoke is GREEN in mode-3 and matches the SPITBOL oracle for literal, multi-operand, int-coercion,
+null-string, var, and var+literal forms. The mechanism is NOT a `STITCH_SEQ` box — it reuses the EXISTING
+`rt_gvar_assign_concat` (already in `IR_interp.c`, exported in `libscrip_rt.so`) which runs the two operand
+sub-graphs via `IR_interp_once` and applies `binop_apply(BINOP_CONCAT,lv,rv)` (manual ch.3: right appended to
+left, non-string operands coerced, null-string returns the other operand unchanged). `rt_concat` (the `rt.c`
+`STACKLESS_ABORT` stub) was NOT touched — it is unrelated dead scaffolding; the real concat path is
+`rt_gvar_assign_concat`. Five small edits, all gated byte-identical for the rest of the suite:
+- **`emit_globals.h`** — two new promoted fields `op_a_counter` / `op_a_ival_sg` on `sm_emit_t`.
+- **`emit_core.c` `walk_bb_node`** — promote them from `nd->α` at dispatch (`op_a_counter = α->counter`,
+  `op_a_ival_sg = α->ival`) so the box reads the concat sub-graph pointers from `_` (PEERS / no-pBB rule), never
+  touching `pBB`.
+- **`bb_gvar_assign.cpp`** — replaced the concat bomb with the IR_SEQ arm: BINARY loads `rdi`=dst (RO),
+  `rsi`=left_graph / `rdx`=right_graph (the `nd->α->counter`/`->ival` sub-graph pointers, `movabs` immediates —
+  valid in mode-3 in-process JIT), then `call rt_gvar_assign_concat`; jmp γ / def β / jmp ω. TEXT(mode-4) is a
+  LOUD bomb (the sub-graph addrs are not relocatable — same status as SNOBOL m4 0/6 pending the LOWER four-port
+  wiring). `int rt_gvar_assign_concat(const char*, void*, void*)` declared in the file's extern "C" block.
+- **`emit_bb.c`** — NEW `flat_drive_gvar_seq_passthrough` + a `walk_bb_flat` `case IR_SEQ` branch
+  (`g_gvar_flat_chain && dval==1.0`): the concat-descriptor IR_SEQ node emits a pure pass-through (`jmp γ`); the
+  actual concat is done by the downstream IR_ASSIGN box. **CRITICAL FINDING:** the first attempt — *skipping* the
+  IR_SEQ node from the `codegen_gvar_flat_chain_body` `nodes[]` array — was WRONG: other nodes (e.g. a preceding
+  `A='foo'` assignment) thread their γ *to* the IR_SEQ node, and removing it from `nodes[]` made the label lookup
+  fall back to the global success exit, so control jumped past the concat (symptom: `before` printed, nothing
+  after). Keeping IR_SEQ in `nodes[]` as a pass-through preserves the threading. `gvar_chain_arity` already
+  returns 0 for IR_SEQ(dval==1.0), so `gvar_stmt_operand_refs` correctly sets the consuming IR_ASSIGN's α=IR_SEQ.
+
+**⚠ BUILD NOTE (cost a detour this session):** the mode-3 emit path runs the emitter compiled into the **`scrip`**
+binary, NOT just `libscrip_rt.so`. After editing any `src/emitter/**` file you MUST rebuild BOTH
+(`bash scripts/build_scrip.sh && make libscrip_rt`) or you test stale emitter code and see phantom results.
+
+**Gates GREEN (this session):** SNOBOL4 m2 **7/7 HARD** / m3 **3/6** (output+arith+**concat**; MODE3_MIN floor
+raised 2→3) / m4 0/6 · Icon m2 **12/12 HARD** (byte-neutral — the shared `emit_bb.c`/`emit_core.c` touches are
+SNOBOL-guarded or additive) / m3 3/12 / m4 3/12 · `no_bb_bin_t` 0 · LI-FENCE holds · concurrency invariants OK
+(FACT RULES byte-identical ×3 untouched) · `prove_lower2` PASS · `g_vstack` **0**. **NEXT (smallest real unit):
+`pattern` (IR_SCAN)** — the ch.18 unanchored OUTER match loop (`bb_match` + SUBJECT subject-slot wiring); then
+`goto_s` (also IR_SCAN), then `define`. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-IR-SEQ-CONCAT.md`.
 
 **NEXT (smallest real unit) — IR_SEQ value-concat**, grounded + teed up: model on `IR_interp.c:1978` (left graph →
 ζ-slot, right graph → ζ-slot, runtime concat → result slot the assign reads via `FRQ`); give `rt_concat` a real
 two-arg string impl (manual ch.3 semantics); replace the `bb_gvar_assign` concat-arm bomb with a store from that
 result slot. Gate on the `concat` smoke (m2 already green as oracle) + the standing set below. THEN IR_SCAN, THEN define.
 
-**Gate state this session (GREEN, == baseline `1adcf09`):** SNOBOL4 m2 **7/7 HARD**; Icon m2 **12/12 HARD**;
-`prove_lower2` PASS; `no_bb_bin_t` 0; concurrency invariants OK (FACT-RULE byte-identical ×3 — untouched);
-`sm_dead` 0; `g_vstack` 3 (known VSX-scaffolding baseline, target 0, NOT a regression). mode-3 smoke: output✅
-arith✅ concat✗(IR_SEQ) pattern✗(IR_SCAN) goto_s✗(IR_SCAN) define✗. ENV: `apt-get install -y libgc-dev`.
-Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-FRONTIER-VERIFY.md`.
+**Gate state (GREEN, as of the IR_SEQ-concat session):** SNOBOL4 m2 **7/7 HARD**; Icon m2 **12/12 HARD**;
+`prove_lower2` PASS; `no_bb_bin_t` 0; LI-FENCE holds; concurrency invariants OK (FACT-RULE byte-identical ×3 — untouched);
+`sm_dead` 0; `g_vstack` **0**. mode-3 smoke: output✅ arith✅ **concat✅** pattern✗(IR_SCAN) goto_s✗(IR_SCAN) define✗
+(MODE3_MIN floor now 3). ENV: `apt-get install -y libgc-dev`.
+Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-IR-SEQ-CONCAT.md`.
 
 
 ## ✅ DONE (2026-06-02 session) — `bb_binop` ROUTER DELETED; ONE IR KIND PER ARM, 1:1 DISPATCH
@@ -2403,6 +2438,9 @@ capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
 - [ ] **L2-TMATCH** — STEP 5: refactor the proven box code into `tm`/`tm_g` pattern form (match-capture-recurse-wire);
   retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
 - [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
+
+**HANDOFF (2026-06-02, Opus 4.8) — IR_SEQ VALUE-CONCAT lands; SNOBOL4 mode-3 2/6 → 3/6 (`concat` green, oracle-matched).** `OUTPUT = 'ab' 'cd'` → `abcd` in mode-3, byte-matching the SPITBOL oracle across literal / three-operand / int-coercion / null-string-left / null-string-right / var / var-chain / var+literal forms; the prior-passing `output` + `arith` smokes still green. NO `STITCH_SEQ` box was built — the concat reuses the EXISTING `rt_gvar_assign_concat` (defined in `src/interp/IR_interp.c`, exported in `libscrip_rt.so`), which runs the two operand sub-graphs via `IR_interp_once` and applies `binop_apply(BINOP_CONCAT,lv,rv)` (manual ch.3 semantics; the `rt.c` `rt_concat` `STACKLESS_ABORT` stub is UNRELATED dead scaffolding and was left alone). **5 edits, all gated byte-identical for the rest of the suite:** (1) `emit_globals.h` — new `sm_emit_t` fields `op_a_counter`/`op_a_ival_sg`; (2) `emit_core.c walk_bb_node` — promote them from `nd->α->counter`/`->ival` so the box reads the sub-graph pointers from `_` (PEERS / no-pBB), never `pBB`; (3) `bb_gvar_assign.cpp` — IR_SEQ arm: BINARY loads rdi=dst(RO), rsi=left_graph / rdx=right_graph (movabs, valid mode-3 in-process), `call rt_gvar_assign_concat`, jmp γ/def β/jmp ω; TEXT(mode-4) LOUD-bombs (sub-graph addrs not relocatable — same status as SNOBOL m4 0/6); (4)+(5) `emit_bb.c` — new `flat_drive_gvar_seq_passthrough` + a `walk_bb_flat case IR_SEQ` branch (`g_gvar_flat_chain && dval==1.0`) emitting a `jmp γ` pass-through (the concat is done by the consuming IR_ASSIGN). **CRITICAL FINDING:** the obvious approach — *removing* the IR_SEQ node from the `codegen_gvar_flat_chain_body` `nodes[]` array — was WRONG: preceding nodes (e.g. `A='foo'`) thread their γ *to* the IR_SEQ, so dropping it from `nodes[]` made the label lookup fall back to the global success exit and control jumped past the concat (symptom: a preceding `OUTPUT='before'` printed, nothing after). Keep IR_SEQ in `nodes[]` as a pass-through; `gvar_chain_arity` already returns 0 for IR_SEQ(dval==1.0) so `gvar_stmt_operand_refs` sets the consuming IR_ASSIGN's α=IR_SEQ. **⚠ BUILD NOTE:** the mode-3 emit path runs the emitter compiled into the `scrip` BINARY, not just `libscrip_rt.so` — after any `src/emitter/**` edit rebuild BOTH (`bash scripts/build_scrip.sh && make libscrip_rt`) or you test stale emitter code. **Gates GREEN:** SNOBOL4 m2 **7/7 HARD** / m3 **3/6** (MODE3_MIN raised 2→3) / m4 0/6 · Icon m2 **12/12 HARD** (byte-neutral) / m3 3/12 / m4 3/12 · `no_bb_bin_t` 0 · LI-FENCE holds · concurrency invariants OK (FACT RULES byte-identical ×3 untouched) · `prove_lower2` PASS · `g_vstack` **0**. **NEXT:** `pattern` (IR_SCAN) — the ch.18 unanchored OUTER match loop (`bb_match` + SUBJECT subject-slot wiring); then `goto_s` (IR_SCAN), then `define`. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-IR-SEQ-CONCAT.md`.
+**Watermark.** SCRIP `42b63ad` · .github this commit. *(SNOBOL4 mode-3 frontier: output✅ arith✅ concat✅ pattern✗ goto_s✗ define✗.)*
 
 **HANDOFF (2026-06-02, Opus 4.8) — LI DE-NAME RUNG: EMITTER + RUNTIME COMPLETE. All gates byte-identical throughout; 7 commits local on SCRIP (push pending "perform hand off").** Lon directive resolved the rung's deferred judgment calls ("finish the rename — strip language from ANY emitter/runtime symbol or filename, pick generic-CS names"). Six gated rename-only slices + the fence cleared the entire in-scope surface: **A `a0478c4`** chain twins → concept-distinct (SNOBOL global-var model `gvar_*`, Icon typed-DESCR-slot model `descr_*`: `*_flat_chain_build`/`*_chain_{arity,is_real,resolve,operand_refs,prebuild_children}`/`codegen_*_flat_chain_body`/`g_*_flat_chain`); **B `d339c97`** `sno_prog_t`/`sno_stmt_t`→`prog_t`/`stmt_t`, `IR_SNO_PROG`→`IR_PROG`; **C `12b820d`** the 49-member `rt_pl_*` runtime ABI family → `rt_*` (the open "Prolog-builtin naming DECISION" resolved by taking each builtin's own descriptive name as the CS concept; the `rt_pl_arith`→`rt_arith` "merge" was really *delete the dead `STACKLESS_ABORT` `rt_arith` value-stack stub, zero callers, then `rt_pl_arith` takes the name*); **D `a822f80`** emitter drivers by IR-kind (`flat_drive_pl_seq/alt/choice/ite`→`conj/disj/choice/ite`, `flat_drive_alt_icn`→`gen_alt`, `flat_drive_icn_userproc`→`userproc`), `bb_prepare_pl`→`bb_prepare`, `codegen_pl_callee_block`→`codegen_callee_block`, `codegen_pl_program`→`codegen_clause_dispatch`, `hdr_has_pl_reg`/`reg_pl_count`→`hdr_has_reg`/`reg_count`, `XA_PL_*`→`XA_*` (6 enum members, `src/include/XA.h`), and rt.c const macros `ICN_*`/`RT_ICN_*`/`RT_PL_MARK_STACK_MAX`→de-tagged; **E `34b1406`** `__rk_out` param→`out_descr` (collided with a local `out`), `RK_GRAM_MAX`→`GRAMMAR_MAX`, stale header guards `RAKU_BUILTINS_H`→`SCRIPT_BUILTINS_H` / `DRIVER_PL_RUNTIME_H`→`RESOLVE_RUNTIME_H` (match their filenames); **LI-FENCE `85677cb`** `scripts/test_gate_no_lang_names.sh`, teeth-verified, wired into the Session-Setup gate block. **No language-tagged FILENAMES** in emitter/runtime (already CS-named). **Definition-location stayed authoritative** — only symbols DEFINED in `src/emitter/**`+`src/runtime/**` were renamed; call-site updates in driver/lower/parser are reference-fixes. **DELIBERATELY HELD (out of the emitter/runtime DEFINITION scope, all documented in "Next incomplete step"):** DRIVER-defined `icn_ring_to_tree`/`g_raku_match`/`g_raku_subject`/`has_non_sno` (suggest a DRIVER micro-slice); CONTRACTS-defined `STAGE2_PL_PRED_TABLE_SIZE` (suggest a CONTRACTS micro-slice); frontend-contract dispatch-name strings (`ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/`set_prolog_flag`/`current_prolog_flag` — need the out-of-scope frontends); emitted assembly label/comment strings (`"icn_proc_%s"`/`"sno_flat"`/`s_comment("# BOX SNO …")` — generated output, collision-risky); `RK_NFA_BB` getenv key; held parser API (`prolog_atom_*`, `pl_write*`, `Raku_nfa`/`raku_nfa_*`, `raku_re`). **ONLY LI-CORE remains on this rung** (`src/runtime/core/` SNOBOL runtime library — genuine SNOBOL execution model; `SNO_INIT_fn` precedent says a generic CS name would be vague; separate Lon decision). **Gates @ EVERY commit (byte-identical @ pristine baseline):** SNOBOL4 m2 **7/7 HARD**, Icon m2 **12/12 HARD**, Prolog m2 **5/5 HARD**, `prove_lower2` **67**, `no_bb_bin_t` 0, concurrency OK. SCRIP tip `85677cb` (6 rename-only commits unpushed: `a0478c4`/`d339c97`/`12b820d`/`a822f80`/`34b1406`/`85677cb`), .github tip this commit.
 **Watermark.** SCRIP `ef667d7` · .github this commit. *(RS rung: RS-1 CLUSTER done; RS-2 PARTITION in progress — `runtime_eval` `970dbf5` + `unification` `17e759e` landed gated byte-identical, RS-2 progress doc `ef667d7`; remaining subsystems queued in the RS-1 HANDOFF.)*
