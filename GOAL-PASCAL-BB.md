@@ -227,8 +227,34 @@ modeled** (flattening loses lexical nesting — revisit at PB-7 with the static-
 Other frontends regression-checked (Icon `write`, Prolog `write` still green). `main` not yet committed
 at time of writing — commit pending.
 
-**Next: PB-4** (integers / `var` / assignment / `writeln(int)` — `sieve`-ward). The grammar already
-parses these and builds `TT_ASSIGN` / `TT_ADD` / `TT_ILIT` / `TT_VAR`; what's unverified is whether the
-Icon-rail lowering + `--interp` execute them correctly and whether `writeln(i)` (int arg) routes through
-`write` properly. Eyeball `var i: integer; i := 2+3; writeln(i)` against `pint`. Watch the 16-bit
-`maxint=32767` overflow semantics (document or match).
+**Next: PB-4 — integer output formatting (fully scoped 2026-06-02).** The grammar already parses
+`var i: integer; i := 2+3; writeln(i)` and builds the right AST (`TT_ASSIGN` / `TT_ADD` / `TT_ILIT` /
+`TT_VAR`), and the Icon rail **already executes the arithmetic + assignment correctly** (SCRIP computes
+`5`). The ONLY gap is output formatting:
+
+- **pint integer format rule (measured):** default field width **10**, right-justified, blank-padded
+  (`5`→`␣␣␣␣␣␣␣␣␣5`, `42`→`␣␣␣␣␣␣␣␣42`, `12345`→`␣␣␣␣␣12345`). Explicit `:w` is a **minimum** width
+  (`7:3`→`␣␣7`; `99:1`→`99` — full value emitted when it exceeds `w`). Strings print as-is (seed already
+  matches). Reals/char/boolean formats: defer to a later rung.
+- **Why it's non-trivial:** the shared `write`/`writes` builtin (`gen_runtime.c:506`) renders every arg
+  generically via `descr_to_str` (integer → bare digits, no pad). Editing it would break Icon. There is
+  **no** `right`/`left`/`repl`/`pad`/`format`/`concat` builtin in `script_builtins_byname.c` to pad with.
+- **Recommended approach (descriptor-type dispatch — also solves the type problem):** add a small
+  **Pascal-specific** runtime helper, e.g. `__pas_write(value, width)` / `__pas_writeln(value, width)`,
+  registered in the byname dispatch. At runtime it inspects the descriptor: `IS_INT_fn` → right-justify
+  per the width rule above (default 10 when width<0, else min-width); string → emit as-is; (reals etc.
+  later). `writeln` variant appends `\n`. Then in `pascal.y` `mk_call`, route `write`/`writeln` to these
+  helpers and pass width as a trailing arg — the grammar already parses `argument: expression COLON
+  expression` (currently drops the `:w`; capture it instead, default -1). This keeps Pascal's
+  type/width-dependent formatting *out* of the shared runtime. (Alternative: add a generic Icon-style
+  `right`/`repl` primitive and synthesize padding in AST — more reusable but touches shared runtime.)
+- **Validate** against `/tmp/w.pas` cases above (cat -A, byte-identical), then `sieve`-ward. Mind the
+  16-bit `maxint=32767` overflow (match or document; `fact(8)` legitimately aborts in pint).
+
+**Then:** PB-5 control flow (`sieve.pas`), PB-6 flat procs (`recursion.pas`), PB-7 nested-function
+frames (the novel rung — replace the flat `g_pascal_procs` flattening with static-link-as-parent-port),
+PB-8 aggregates, PB-9 mode-3/4 compiled BBs.
+
+**Operational note:** PB-0..PB-3 are committed **locally only** (SCRIP `5fedaf7`, .github `b408d61e`) —
+a container reset loses them. Persisting requires `git push` (the handoff step). Also still TODO: add a
+Pascal stanza to `scripts/regenerate_parser_and_lexer_from_sources.sh`.
