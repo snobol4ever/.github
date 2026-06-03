@@ -15,6 +15,45 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
+## 🟢 VERIFY SESSION (2026-06-02, Opus 4.8) — NO CODE CHANGE; STALE-HANDOFF CORRECTION + TRUE LIVE FRONTIER
+
+This session VERIFIED the live state and made **NO code changes** (working tree clean at SCRIP HEAD `1adcf09`;
+full gate suite GREEN — see below). Its value is correcting the **stale-handoff problem**: the recent x86()
+revamp handoffs (V3/V4/BB-VAR) list as "NEXT" a stack of items that LATER sessions already finished. A session
+trusting that text re-confirms finished work. The frontier MUST be read from failing tests, not the handoff prose.
+
+**ALREADY DONE (verified by reading the files — do NOT re-do):** every loop-free + single-loop SNOBOL4 box is
+x86()-converted on the ratified regs (Σ=r13/δ=r14/Δ=r15/ζ=r12): `bb_pat_abort` `bb_pat_tab` `bb_pat_atp`
+`bb_pat_pos` `bb_pat_span` `bb_pat_len` `bb_pat_rem` `bb_pat_any` `bb_pat_notany` `bb_pat_arb` `bb_pat_defer`
+`bb_pat_break`(BREAK+BREAKX) `bb_pat_fence`(niladic) `bb_lit` `bb_lit_scalar` `bb_var`(SNO+ICN). **The
+variable-length define/jmp-pair design — flagged STILL-OPEN across four sessions — IS SOLVED:** `x86_pair_loop()`
+in `x86_asm.h` (`E`=define-driver-pair-label / `F`=rel32-patch-to-driver-pair-jmp records, walked by `bb_emit_x86`),
+consumed by `bb_pat_cat` + `bb_pat_alt`. OP-A-PROMOTE landed (`emit_core.c:389` `op_a_slot` + `bb_gvar_assign`
+int-binop arm) so **`OUTPUT = 2 + 3` now PASSES mode-3** (the `arith` smoke went green).
+
+**TRUE LIVE mode-3 frontier (from failing smokes, IR kinds decoded via a probe):**
+- **`concat`** (`OUTPUT = 'ab' 'cd'`) → kind **10 = IR_SEQ** = the VALUE-side STITCH_SEQ (≠ IR_PAT_CAT). Oracle
+  `src/interp/IR_interp.c:1978`: interp left sub-graph → interp right sub-graph → `binop_apply(BINOP_CONCAT,lv,rv)`.
+  SPITBOL manual ch.3 (p.18): juxtaposition operator, right appended to left, operands unchanged, non-string
+  operands coerced to string form, fresh result string. `rt_concat` is currently a `STACKLESS_ABORT` STUB
+  (`rt.c:791`); `bb_gvar_assign` concat arm currently BOMBS ("relocatable form is STITCH_SEQ"). NOT a leaf.
+- **`pattern`/`goto_s`** (`S 'b' = 'X'` / `'x' 'x' :S()`) → kind **28 = IR_SCAN** = the ch.18 unanchored OUTER
+  match loop (`bb_match` + subject-slot wiring). The LONG POLE.
+- **`define`** (`DEFINE('DOUBLE(X)')` + call + `RETURN`) → empty output: needs DEFINE registration + a SNOBOL4
+  call frame + RETURN.
+
+**NEXT (smallest real unit) — IR_SEQ value-concat**, grounded + teed up: model on `IR_interp.c:1978` (left graph →
+ζ-slot, right graph → ζ-slot, runtime concat → result slot the assign reads via `FRQ`); give `rt_concat` a real
+two-arg string impl (manual ch.3 semantics); replace the `bb_gvar_assign` concat-arm bomb with a store from that
+result slot. Gate on the `concat` smoke (m2 already green as oracle) + the standing set below. THEN IR_SCAN, THEN define.
+
+**Gate state this session (GREEN, == baseline `1adcf09`):** SNOBOL4 m2 **7/7 HARD**; Icon m2 **12/12 HARD**;
+`prove_lower2` PASS; `no_bb_bin_t` 0; concurrency invariants OK (FACT-RULE byte-identical ×3 — untouched);
+`sm_dead` 0; `g_vstack` 3 (known VSX-scaffolding baseline, target 0, NOT a regression). mode-3 smoke: output✅
+arith✅ concat✗(IR_SEQ) pattern✗(IR_SCAN) goto_s✗(IR_SCAN) define✗. ENV: `apt-get install -y libgc-dev`.
+Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-FRONTIER-VERIFY.md`.
+
+
 ## ✅ DONE (2026-06-02 session) — `bb_binop` ROUTER DELETED; ONE IR KIND PER ARM, 1:1 DISPATCH
 
 The `bb_binop.cpp` router (which probed `bb_binop_{relop,arith,gvar_arith,concat_slot}_str()` in order) is GONE —
