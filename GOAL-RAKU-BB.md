@@ -580,7 +580,7 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-03) — RK-NFA-1 + RK-NFA-2 + RK-NFA-3 DONE (mode-2 regex via IR_NFA_* graph: verdicts + L4-L12 cset/anchor/alt verdict set + captures; `~~`/`$0`/`$<name>` lowering); RK-HY-3 DONE; m2 25/25 HARD ✓; m3/m4 blocked on an Icon-owned gap.**
+**STATE (2026-06-03) — RK-NFA-1 + RK-NFA-2 + RK-NFA-3 DONE (mode-2 regex via IR_NFA_* graph: verdicts + L4-L12 cset/anchor/alt verdict set + captures; `~~`/`$0`/`$<name>` lowering) + RK-NFA hardening (fuzz-found epsilon-loop SIGSEGV fixed via a (node,pos) memo); RK-HY-3 DONE; m2 25/25 HARD ✓; m3/m4 blocked on an Icon-owned gap.**
 
 - **Modes:** m2 **25/25** (HARD ✓). m3 **1 PASS / 20 FAIL / 4 EXCISED**, m4 **2 PASS / 19 FAIL / 4 EXCISED**
   on the live trunk. (A `21/21` figure in old checkpoints was measured on a since-merged Raku branch tip and
@@ -588,13 +588,35 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
   `g_vstack`=0, FACT md5 `5097ed94`/`307534d6`/`8255d653` unchanged. SCRIP HEAD post-`1b89f53` (RK-NFA-2 is
   gate+corpus only; no C touched — rebased onto peer Pascal `9af83ea`).
 
-- **RK-NFA-2 ✅ 2026-06-03 (ISOLATED, gate+corpus only):** L4-L12 cset/anchor/ordered-alt verdict set
-  formalized into `test_gate_raku_nfa_oracle.sh` (23 cset/anchor verdicts + 8 safe-extent captures, all
+- **RK-NFA-2 ✅ 2026-06-03 (ISOLATED, gate+corpus only):** L4-L12 cset/anchor/ordered-alt verdict set  formalized into `test_gate_raku_nfa_oracle.sh` (23 cset/anchor verdicts + 8 safe-extent captures, all
   IR-graph-walk == parallel-NFA-oracle byte-identical) + durable `test/raku/rk_re38.raku`/`.expected`. The
   `|` (LTM, leftmost-longest, parallel oracle) vs `||` (ordered, leftmost-first, IR-graph walker) SPLIT-
   resolution seam is now documented in-gate + in the rung: verdicts agree everywhere; extent agrees only
   where leftmost-longest==leftmost-first; overlapping-`|` extent divergence is the Phase-2 boundary, by
   design. Zero C/lowerer/emitter/template change; SNOBOL4/Icon m2 byte-unchanged.
+
+- **RK-NFA hardening ✅ 2026-06-03 (fuzz-found SIGSEGV fix, Raku-only C, ISOLATED):** a differential
+  verdict-fuzz (deterministic seeded generator over the supported subset; ~9200 probes; verdicts always
+  agree across the `|`/`||` seam) caught the IR-graph walker (`raku_nfa_bb.c nfa_bt_ir_cap`, `RK_NFA_BB=1`)
+  **SIGSEGV-ing on 82/100 seeds** where the parallel oracle ran clean. ROOT CAUSE: a quantifier over an
+  empty-matchable subpattern (`(a?)*`, `(a*)*`, `()*`, `(|a)*`, and the same shapes under a backtrack-
+  forcing suffix like `(a?)*$` on "aab") builds an EPSILON LOOP (SPLIT→…→back-to-SPLIT, no char consumed);
+  the recursive backtracker spun on the zero-width cycle and overflowed the C stack (the `depth>100000`
+  guard dies of stack exhaustion far sooner). The oracle survives via its per-eps-closure `visited[]`.
+  FIX: a **(node,pos) visited memo** mirroring the oracle — node id in `IR_t.counter`, an n·(slen+1) byte
+  grid cleared per leftmost-sweep, set-without-restore. Keying by BOTH node and pos is essential (a single
+  per-node stamp gets overwritten when a node is in-progress at several positions during backtracking,
+  re-opening the cycle — that was a rejected first attempt). Sound for verdict + ordered (||) leftmost
+  captures; as a bonus it bounds total work at n·(slen+1) so the ordered walk no longer degrades to
+  exponential backtracking (catastrophic shapes `(a*)*$`/`(a+)+$`/`((a|b|c)*)*$` on 18-20-char subjects
+  now finish instantly). Verified: ~9200 differential probes 0 crashes 0 divergences; new 12-probe
+  epsilon-loop TERMINATION battery in `test_gate_raku_nfa_oracle.sh` (requires both matchers rc=0 AND
+  identical); curated RK-NFA-1/2/3 captures stay byte-identical. ISOLATED to the Raku-only IR_NFA_* walker:
+  SNOBOL4 7/7 / Icon 12/12 m2 byte-unchanged, prove_lower2 67/0, FACT md5 ×3 unchanged. (Pre-existing,
+  NOT this change: standalone corpus `rk_re32` — `raku_nfa_compile` kind-45 `[lower2] UNHANDLED role=0` —
+  and `rk_re37` global-subst DIFF on the pristine tree; plus the SHARED mode-2 driver aborts at ≥32
+  statements/program with a misleading `[SBB] FATAL: … SNOBOL4 main BB graph not found`. Both flagged for
+  the team; out of the isolated RK-NFA lane.)
 
 - **THE BLOCKER (Icon-owned, NOT a Raku bug):** nearly every Raku program (`my $x = …`) lowers an `IR_ASSIGN`
   whose store runs through the descr/ζ-frame flat-chain. The Icon template-revamp DELETED `bb_assign.cpp` and
