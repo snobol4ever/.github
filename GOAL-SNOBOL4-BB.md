@@ -35,11 +35,60 @@ int-binop arm) so **`OUTPUT = 2 + 3` now PASSES mode-3** (the `arith` smoke went
 - **`concat`** (`OUTPUT = 'ab' 'cd'`) → kind **10 = IR_SEQ** = the VALUE-side STITCH_SEQ (≠ IR_PAT_CAT). ✅ **DONE
   2026-06-02 (Opus 4.8) — mode-3 2/6 → 3/6.** See the `IR_SEQ value-concat` session block immediately below.
 - **`pattern`/`goto_s`** (`S 'b' = 'X'` / `'x' 'x' :S()`) → kind **28 = IR_SCAN** = the ch.18 unanchored OUTER
-  match loop (`bb_match` + subject-slot wiring). The LONG POLE. **← NEXT.**
+  match loop. ✅ **DONE 2026-06-02 (Opus 4.8) — mode-3 3/6 → 5/6.** See the `IR_SCAN` session block immediately below.
 - **`define`** (`DEFINE('DOUBLE(X)')` + call + `RETURN`) → empty output: needs DEFINE registration + a SNOBOL4
-  call frame + RETURN.
+  call frame + RETURN. **← NEXT.**
 
-## ✅ DONE (2026-06-02 session, Opus 4.8) — IR_SEQ VALUE-CONCAT: `OUTPUT = 'ab' 'cd'` → `abcd` in mode-3 (m3 2/6 → 3/6)
+## ✅ DONE (2026-06-02 session, Opus 4.8) — IR_SCAN: `pattern` (`S 'b' = 'X'` → `aXc`) + `goto_s` (`'x' 'x' :S()` → `hit`) in mode-3 (m3 3/6 → 5/6)
+
+Both `pattern` (match-and-replace) and `goto_s` (match-only, branch-on-success) are GREEN in mode-3 and
+byte-identical to the SPITBOL oracle (`aXc`, `hit`). A third form `S 'world' :S(ok)F(bad)` (S+F branches, no
+keyword prelude) also matches the oracle (`matched`), confirming the four-port success/failure wiring beyond the
+two target smokes. The mechanism follows the ACCEPTED IR_SEQ-concat precedent exactly: NOT a native scan-loop
+box (the `bb_match`/`bb_subject` PB-RB ladder + its `sno_flat_chain_build` scaffold are still unbuilt, and the
+SUBJECT-storage fork — ζ-slot vs register sweep — remains flagged for Lon). Instead it reuses `IR_interp_once`
+as the sanctioned mode-3 runtime helper (distinct from the FORBIDDEN `bb_exec_*` SM/BB walker). Six edits:
+- **`IR_interp.c`** — NEW `rt_scan(pat_graph, subj_graph, is_repl, subj_name, repl_graph)` (exported in
+  `libscrip_rt.so`, beside `rt_gvar_assign_concat`). Mirrors the mode-2 `IR_SCAN` handler EXACTLY (manual ch.18):
+  saves Σ/Σlen/Ω/Δ + dcap; gets the subject by `IR_interp_once(subj_graph)` (covers literal & var); sets
+  Σ=subj/Σlen=Ω=len; runs the unanchored OUTER start-loop 0..(kw_anchor?0:len) calling `IR_interp_once(pat)` per
+  cursor; on match, if is_repl reads the replacement via `IR_interp_once(repl_graph)`, splices
+  subj[0:m_start]+repl+subj[m_end:], `NV_SET_fn(subj_name, spliced)`; restores Σ/etc; returns 1 match / 0 no-match.
+- **`lower.c` `v_scan`** — populates the IR_SCAN node's `operand_aux` with the subject (and, for repl, the
+  replacement) VALUE sub-graphs built via `lower_value_subgraph` (real `IR_graph_t*` blocks, stored cast to
+  `IR_t*` — verified safe: `bb_operand_aux_set/get` store/return pointers verbatim, and NO generic pass
+  clone/free/GC dereferences operand_aux operands as `IR_t*`, so `IR_interp_once`+`bb_reset` get real blocks).
+  Additive — mode-2 paths (ring peek / `NV_GET`) untouched, so mode-2 does not regress.
+- **`emit_globals.h`** — three new promoted `sm_emit_t` fields `op_scan_pat`/`op_scan_subj`/`op_scan_repl`.
+- **`emit_bb.c` `flat_drive_scan_stmt`** — promotes the pattern graph (`pBB->counter`) + subject/replacement
+  sub-graph pointers (from `operand_aux`, read like `flat_drive_match`/`flat_drive_ref_invariant`) onto `_` so
+  the box reads ONLY `_` (no-neighbor / PEERS rule); then `EMIT_PAIR_FILL` drives the box.
+- **`emit_core.c` `walk_bb_node`** — NEW `case IR_SCAN: bb_scan_stmt(nd)` (was hitting `default:` →
+  `kind=28 unhandled`, the exact mode-3 error). `walk_bb_node` already promotes `op_sval`=subj_name /
+  `op_ival`=is_repl generically, so the box reads those directly.
+- **`bb_scan_stmt.cpp`** (NEW template, modeled on `bb_gvar_assign.cpp`) — BINARY/mode-3 loads `rdi`=pat_graph,
+  `rsi`=subj_graph (RO `movabs`), `rdx`=is_repl, `rcx`=subj_name (RO), `r8`=repl_graph (RO), `call rt_scan`,
+  then `test eax,eax; je ω; jmp γ; def β; jmp ω` (match→γ, no-match→ω — the four-port test, idiom from `bb_lit`).
+  TEXT(mode-4) is a LOUD bomb (sub-graph addrs not relocatable — same status as concat). NAME NOTE: the box is
+  `bb_scan_stmt`, NOT `bb_scan` — `bb_scan` is a live `BrokerMode` enum value (`bb_box.h`); `bb_scan_stmt` is the
+  language-neutral interim that clears both the enum collision and the LI-FENCE (`no_lang_names`). The DN-2
+  collapse `bb_scan_stmt`→`bb_scan` awaits resolving/removing that dead broker enum value.
+
+**⚠ BUILD NOTE:** the mode-3 emit path lives in BOTH the `scrip` binary AND `libscrip_rt.so`. After any
+`src/emitter/**` edit rebuild BOTH (`bash scripts/build_scrip.sh && make libscrip_rt`). New `.cpp` templates must
+be registered in TWO Makefile places: the `RT_PIC_SRCS` list (libscrip_rt) AND the `scrip:` target `.o` rule.
+
+**Gates GREEN (this session):** SNOBOL4 m2 **7/7 HARD** / m3 **5/6** (output+arith+concat+**pattern**+**goto_s**;
+only `define` left; MODE3_MIN floor raised 3→5) / m4 0/6 · Icon m2 **12/12 HARD** (shared
+`emit_bb.c`/`emit_core.c`/`emit_globals.h` touches are SNOBOL-guarded or additive — no regress) / m3 3/12 / m4
+3/12 · `no_bb_bin_t` 0 · `sm_dead` 0 · LI-FENCE holds (`no_lang_names` exit 0) · concurrency invariants OK
+(FACT RULES byte-identical ×3 untouched) · `prove_lower2` PASS · m3-native-binary-arms audit OK · `g_vstack` 0.
+`template_byte_identity` 1/4 and `template_medium_invisible` 61 are PRE-EXISTING (the former's 3 fails are
+keyword-assignment `&ANCHOR=`/`&FULLSCAN=` + multi-term arith trees crashing in mode-3, confirmed via isolation —
+NOT scan; the latter is `bb_call`/`bb_unop` WIP). **NEXT:** `define` (DEFINE registration + SNOBOL4 call frame +
+RETURN — IR-kind-adjacent but a distinct build-out).
+
+
 
 The `concat` smoke is GREEN in mode-3 and matches the SPITBOL oracle for literal, multi-operand, int-coercion,
 null-string, var, and var+literal forms. The mechanism is NOT a `STITCH_SEQ` box — it reuses the EXISTING
