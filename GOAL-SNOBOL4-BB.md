@@ -32,7 +32,24 @@ gvar arms, RETURN/FRETURN routing). Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-B
 
 **Gate state (GREEN):** SNOBOL4 m2 **7/7 HARD** / m3 **5/6** / m4 0/6 · Icon m2 **12/12 HARD** · `prove_lower2`
 PASS · `no_bb_bin_t` 0 · **LI-FENCE now OK** (was failing) · concurrency invariants OK · `sm_dead` OK. SCRIP tip
-`a9e1ff1`, .github tip this commit. ENV: `apt-get install -y libgc-dev`.
+`24c593b`, .github tip this commit. ENV: `apt-get install -y libgc-dev`.
+
+**🟢 SESSION (2026-06-03, Sonnet 4.6) — define call frame + RETURN routing LAND; no-arg user calls GREEN (m3 still 5/6).**
+The 4 byte-producing `define` steps are now implemented (SCRIP `24c593b`, build BOTH): (1) driver proc-registration
+loop, (2) `bb_call` DEFINE arm `bb_call_gvar_define_str`, (3) `bb_call` user-proc arm `bb_call_gvar_userproc_str`
+(marshal → `rt_call_named_proc` → store result → `cmp eax,99/je ω` so FRETURN fails the call), (4) IR_ASSIGN(call-result)
+arm in `bb_gvar_assign` + `rt_gvar_assign_descr` runtime helper + `flat_drive_return` rewritten to jump direct to slab
+succ/fail exits (the FILL-of-IR_RETURN had no template → crash; this is also step 4). **3 bugs fixed:** `x86("mov",reg,
+(uint64_t)ptr)` is a trap (that overload ignores the mnemonic and emits `movabs rax,imm; call rax` → use
+`x86_load_ro` for ptr/imm64 loads; `x86_movimm` also truncates imm64→32b); args-array needed an address not a load
+(added `x86_frame_lea` encoder, byte-neutral); the IR_RETURN crash. **WORKS in m3:** DEFINE reg, jump-around,
+RETURN/FRETURN, no-arg user calls (`F()→X`), literal-returning + global-reading bodies. **REMAINING (blocks `DOUBLE(21)`
+→`42`):** (a) string args lose `slen` — `marshal_call_arg` IR_LIT_S writes tag but leaves slen=0 → string params read
+zero-length; pack `v|((u64)strlen<<32)` lane-safely (shared w/ Raku) or normalize in `rt_call_named_proc`; (b) `X+X`
+param-to-param arith bombs `bb_binop_arith` (not the literal-literal `IR_BINOP_GVAR_ARITH` shape — needs the de-fuse,
+operands as ζ-slot producer boxes). Once both land → smoke passes, raise MODE3_MIN 5→6. ⚠ same `x86("mov",reg,u64)`
+trap still in `bb_call_rk_arr_str` + nested-call marshal (Raku path) — LEFT ALONE (out of SNOBOL lane). Detail:
+`HANDOFF-2026-06-03-SONNET46-SNOBOL4-BB-DEFINE-CALL-FRAME.md`.
 
 ## 🟢 VERIFY SESSION (2026-06-02, Opus 4.8) — NO CODE CHANGE; STALE-HANDOFF CORRECTION + TRUE LIVE FRONTIER
 
