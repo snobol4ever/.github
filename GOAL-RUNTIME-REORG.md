@@ -101,8 +101,13 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
     convergence point dragging file-local statics owned by OTHER subsystems (`_rt_IDENT`/`_rt_DIFFER` = comparison
     builtins; `_rt_usercall`→`chunk_reg_lookup`/`call_native_chunk` = native-chunk invocation); moving it now would
     break move-only or recreate the grab-bag. It moves cleanly once invocation + comparison builtins have homes.
-  - [ ] **NEXT (cleanest-first):** `io_format` (`rt_write_*` + core
-    `output_*`) → `arithmetic` (`rt_arith`/`rt_acomp`/`rt_lcomp`/`rt_unop_*` + the core `add/sub/mul/...` block) →
+  - [x] **slice 4 — `io_format`** (SCRIP `c4a0f13`): unified output formatting — `rt_write_str_nl`/`_int_nl`/
+    `_any_nl`/`_strz_nl` + `rt_write_atom`/`_int`/`_float`/`_cstr` (+ static `rt_format_float`) + the Prolog term
+    serializers `rt_write_var`/`_term_ptr`/`_writeq_term_ptr`/`_canonical_term_ptr` pulled from grab-bag `rt/rt.c`
+    (around the interleaved `rt_cut_set`, which is cut/backtrack and stays) + `output_val`/`output_str` from
+    `core/core.c` → new `runtime/io_format.c`. Move-only; rt.h/core.h decls + `bb_call.cpp` PLT refs unchanged; no
+    new `.h`. SNOBOL/Icon value output + Prolog term output now ONE subsystem.
+  - [ ] **NEXT (cleanest-first):** `arithmetic` (`rt_arith`/`rt_acomp`/`rt_lcomp`/`rt_unop_*` + the core `add/sub/mul/...` block) →
     `pattern_match` (whole-file `git mv` of `core/pattern.c` + `core/eval_pat.c` + `scan_builtins.c`, then pull
     `rt_pat_*` in + `patnd_*` from `stmt_exec.c`) → the LANGUAGE-NAMED files (`gen_runtime.c`/`resolve_runtime.c`/
     `script_builtins*.c`) split by capability into `backtrack`/`unification`/`resolution`/`by_name_dispatch`/
@@ -138,5 +143,5 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `0655bd4` · .github this commit. (RS-1 done; RS-2 slices 1-3 landed gated byte-identical — runtime_eval, unification, runtime_init; `rt_init` deferred until invocation+comparison-builtins homes; remaining subsystems queued above + in the RS-1 HANDOFF.)
+**Watermark.** SCRIP `c4a0f13` · .github this commit. (RS-1 done; RS-2 slices 1-4 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format; `rt_init` deferred until invocation+comparison-builtins homes; remaining subsystems queued above + in the RS-1 HANDOFF.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
