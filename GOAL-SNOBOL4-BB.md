@@ -1196,7 +1196,25 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
 > is therefore NOT the base-case drive — it is the primitive for PB-RB-OPT's all-invariant BLOB freeze and
 > pattern-valued vars (Fork B) only; the base single-element case emits the element INLINE.
 
-- [x] **PB-RB-3 — BB_MATCH driver (phase 3), BINARY arm + edge probes DONE (2026-06-01, Opus 4.8; HEAD `706d665`).**
+- [~] **PB-RB-3 — BB_MATCH driver (phase 3) — ⚠ STRUCTURALLY REGRESSED (found 2026-06-03 OPUS48 session 3; was [x]).**
+  The `bb_match.cpp` box NO LONGER EXISTS: it was stubbed to `x86_bomb` during TEMPLATE-REVAMP ("was offset-table",
+  i.e. never converted off the abolished `bb_bin_t` form) and the stub was then deleted by STUB CLEANUP `cd10224`.
+  `emit_core.c` has NO IR_PAT_MATCH / IR_SUBJECT dispatch arms (FILL emits nothing); `g_subject_slot` (emit_bb.c:118)
+  is declared with ZERO consumers; `flat_drive_match`/`flat_drive_subject` survive in emit_bb.c. The probe suite was
+  DARK (all 3 probes failed to COMPILE since the LI-2 `sno_*`→`gvar_*` rename — now repaired, SCRIP this commit) so
+  nobody saw it: honest probe state is **1/3** (`probe_pb_rb_1_ref_invariant` PASS; both `_3_match*` die at
+  `bb_emit_end: unresolved 'smatch%d_adv'` — the label only bb_match's body defined). **RESTORE = REG-0** (the
+  watermark already says bb_match-α register establishment is the open REG-0): recreate per the pinned PB-RB-2 ABI
+  + Model A on the RATIFIED registers (NOT the legacy Σ/Σlen-globals model the original used). Restore spec, from
+  this session's vocabulary audit: (1) SUBJECT box writes Σ→`[r12+off]`, Δ→`[r12+off+8]` (driver pre-claims via
+  `bb_slot_alloc16`, promotes off through a `_` field — the established op_sa/op_off promote-at-dispatch pattern);
+  (2) bb_match head template α: `mov r13,[r12+Σoff]; mov r15,[r12+Σoff+8]`, claim start FR slot, `mov FR,0`, fall
+  THROUGH to the element (elem_entry is defined immediately after the box — no jump vocabulary needed);
+  (3) match_retry/match_advance are DRIVER labels wired with the sanctioned `EMIT_PAIR_JMP/DEF` glue; the advance
+  ARITHMETIC (`start++; cmp start,Δ(r15); jg ω; kw_anchor jne ω; jmp retry`) is its own small dispatched template
+  emitted after the element, sharing the driver-claimed start-slot offset; retry body `mov r14d,FR(start)` likewise
+  (templates emit PORT records + FR/L(n) only — cross-box targets belong to the driver). Original PB-RB-3 landing
+  text retained below for the ABI/probe detail; its gates/checkbox describe `706d665`, NOT the current tree.
   Inline-jump (Model A). `flat_drive_match` (emit_bb.c) resolves the element from `operand_aux[0]` (PEERS RULE) and
   inline-emits it via `walk_bb_flat(elem, lbl_γ, match_advance, elem_β)`. `bb_match.cpp` BINARY: α loads Σ/Σlen from
   SUBJECT's ζ-slot (`g_sno_subject_slot`) + re-establishes `r10=&Δ` + seeds start=0; `match_retry` sets `Δ=start, jmp
