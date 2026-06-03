@@ -48,6 +48,12 @@ driver-DEFINED → HELD. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-LI-RUNTIM
 
 ## 🔴🔴 ACTIVE RUNG — READ FIRST (Lon PIVOT 2026-06-02, evening): RUNTIME SUBSYSTEM REORG — DISSOLVE THE LANGUAGE SILOS
 
+> **➡ MOVED 2026-06-02: this rung now lives in its own goal file `GOAL-RUNTIME-REORG.md` (Lon split it out to run as a
+> separate session). The text below is retained for context/provenance; the LIVE checklist + watermark for the reorg
+> are in `GOAL-RUNTIME-REORG.md`. RS-1 CLUSTER done; RS-2 PARTITION in progress (`runtime_eval` `970dbf5` +
+> `unification` `17e759e` landed). Full map + findings: `HANDOFF-2026-06-02-SONNET46-SNOBOL4-BB-RS-1-CLUSTER.md`.**
+
+
 **SCRIP unifies 6+ languages (SNOBOL4, Snocone, Icon, Prolog, Raku, Rebus) into ONE consolidated multi-language
 system. The runtime must reflect that.** Today the runtime is still partitioned *by language*: `core/` is the SNOBOL
 execution model, `builtins/gen_runtime.c` is Icon generators, `builtins/resolve_runtime.c` is Prolog resolution,
