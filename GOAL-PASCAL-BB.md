@@ -7,9 +7,31 @@
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — PB-8 RECORDS landed. 2026-06-03, session 8. SCRIP HEAD = 48ef9f8.**
-PB-0..PB-7 + PB-6b green; **PB-8 partial: `record` DONE** (the foundational aggregate; `set`/pointers still
-open). Records reuse the **existing array rail** with **zero lower/interpreter changes** — the parser resolves
+**Watermark — PB-8 SETS landed. 2026-06-03, session 9. SCRIP HEAD = 1b4e0fe, corpus HEAD = 54d5ce5.**
+PB-0..PB-7 + PB-6b green; **PB-8 partial: `record` + `set` DONE** (pointers/`new` still open). Sets ride the
+**integer-bitmask rail** with **zero lower/interpreter structural changes** — a `set of 0..47` is a 48-bit mask
+stored as `INTVAL`. Parser maps `[a,b,c]`→`__pas_set(a,b,c)` and `e in s`→`__pas_in(e,s)`; a set-var table
+(type sentinel `-2` in `var_decl`) lets `pas_is_setexpr` redirect `+`/`*`/`-`/`<=`/`>=` to
+`__pas_setuni`/`__pas_setint`/`__pas_setdif`/`__pas_subset`/`__pas_super` **only when an operand is a set-expr**,
+leaving integer arithmetic untouched; `=`/`<>` work for free via bitmask integer compare. Seven name-gated
+builtins in `script_try_call_builtin_by_name` (`by_name_dispatch.c`). Probes `set1,set2,set3,set5,set6,set7,set8`
+byte-identical to `pint` (incl. **overlapping union** `{1,2}+{2,3}`→3, the case integer-`+` got wrong). **Set
+ranges `[a..b]` confirmed OUT OF SCOPE** — the corpus `pcom.pas` itself rejects them (error 6); also note the
+corpus oracle is `sethigh=47,setsize=1` (the uploaded `comp.p` is a *different* copy at 63). Zero cross-language
+regression: Icon `--interp` **130/117/36**, Prolog honest mode-2 **132/0/0**, SNOBOL4 smoke **2/0**, Pascal suite
+**24/24**, `recursion` through `fact(7)` byte-identical. All edits on the `LANG_PASCAL`/`IR_LANG_PAS` path.
+
+**Two cross-language borrows logged this session (NOT yet cleaned — Lon reviewed, deferred):** (1) Pascal's
+`TT_IDX` lower arms call **Raku-named** helpers `v_raku_det_call`/`v_raku_mutate_writeback` (the documented PB-5
+"Raku array rail"; smell is the naming entanglement, not the IR_CALL-to-runtime-helper approach). (2) Pascal
+procs are wrapped in the SNOBOL4-style `TT_STMT`+`:subj` envelope — **rebus** is the cleaner precedent (bare
+`TT_PROGRAM`, no envelope). Recommended cleanup when prioritized: rename the helpers to neutral names AND drop
+the `:subj` envelope for Pascal. (Confirmed NOT contamination: `IR_IF`/`IR_WHILE` are shared imperative-control
+IR used by 5–6 frontends with a lang-agnostic interpreter — not language tags; the goal doc's boolean model
+relies on `IR_IF`.)
+
+**PB-8 RECORDS (session 8) — still green.**
+PB-0..PB-7 + PB-6b green. Records reuse the **existing array rail** with **zero lower/interpreter changes** — the parser resolves
 field names to indices at parse time and emits `TT_IDX(record_var, ilit(field_index))` instead of `TT_FIELD`,
 so `arr_get`/`arr_set_pure` (PB-5) handle reads/writes and the array-fill prologue sizes the record. Probes
 `rec1/rec2/rec3.pas` byte-identical to `pint`. All PB-0..PB-7 probes + cross-language baselines unchanged.
@@ -297,12 +319,12 @@ cd /home/claude/corpus/programs/pascal
   into calls). `pcom.pas` uses these heavily. **DONE**: `g_pas_funcs` table in parser; `mk_ident` promotes;
   `v_assign` TT_FNC-LHS arm handles `fn := expr` result-var assignment. `flatnoarg.pas` PASS (oracle 10). ✓
 - [ ] **PB-8 — Aggregates as needed.** `record`, `array`, `set`, pointers/`new`. Add only what later probes
-  require; `pint`'s store layout is the semantics oracle. **`record` DONE** (session 8): field access mapped
-  onto the PB-5 array rail — parser resolves field names → indices at parse time and emits `TT_IDX(var,
-  ilit(idx))`, so `arr_get`/`arr_set_pure` and the array-fill prologue handle everything (zero lower/interp
-  changes). `rec1/rec2/rec3.pas` byte-identical to `pint`. Still open: `set`, pointers/`new`, and the record
-  limits listed in the watermark (nested records, `with`, record-valued `var` params, per-activation record
-  locals). `array` was PB-5.
+  require; `pint`'s store layout is the semantics oracle. **`record` DONE** (session 8) + **`set` DONE**
+  (session 9): records via field→index on the PB-5 array rail; sets via the integer-bitmask rail (`[..]`,
+  `in`, `+`/`*`/`-`/`<=`/`>=`/`=`/`<>`), both zero lower/interp structural change. `rec1/rec2/rec3` and
+  `set1,set2,set3,set5,set6,set7,set8` byte-identical to `pint`. Set ranges `[a..b]` out of scope (oracle
+  rejects). **Still open: pointers/`new`**, and the record limits in the watermark (nested records, `with`,
+  record-valued `var` params, per-activation record locals). `array` was PB-5.
 - [ ] **PB-9 — Cross onto compiled BBs (mode-3/4).** Convert Pascal's boxes to the `x86()` self-encoding API
   per the FACT RULES (one `x86(...)` concat per box, `bb_emit_x86`, no `bb_bin_t`). Rebase onto
   `x86_asm.h` first. Only after the mode-2 ladder is comfortably green.
