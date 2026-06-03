@@ -1,28 +1,18 @@
 # GOAL-PROLOG-BB.md — Prolog: BB-land DCG per predicate + lower_pl DCG
 
-## 🔴🔴🔴 REGRESSION — READ FIRST (2026-06-02, Opus 4.8) — m3/m4 BROKEN, FIX STAGED
+## ✅ REGRESSION FIXED (2026-06-02→06-03) — m2/m3 restored, m4 0→75
 
-A **two-stage regression** between the watermark (`fc8f25d`) and SCRIP `origin/main` (`c83de6d`) silently
-broke Prolog mode-3 + mode-4. Full diagnosis + a landed-ready fix (appliable patch + 4 converted boxes):
-**`.github/HANDOFF-2026-06-02-OPUS48-PROLOG-BB-REGRESSION-DIAGNOSIS.md`**.
-
-- **Cause:** (1) `06826c8` (PL-RV-5) re-bombed the LIVE 2427-line `bb_builtin.cpp` on the false belief it
-  was "already a stub from `9afac84`" (it was the real box at `fc8f25d`); (2) `cd10224` (STUB CLEANUP)
-  then DELETED `bb_builtin`/`bb_goal`/`bb_choice`/`bb_atom`/`bb_logicvar` + stripped their `walk_bb_node`
-  dispatch cases from `emit_core.c`. Neither commit ran the Prolog gate (both checked only SNOBOL4+Icon).
-  Removing the dispatch case (not just the box) turned the intended loud-abort into a **silent miscompile**:
-  the kind hits `walk_bb_node`'s `default:`, emits a stray `; [walk_bb_node: kind=55 unhandled]` text comment
-  into the mode-3 byte stream, and produces no output.
-- **Current real numbers @ `c83de6d`:** GATE-3 **m2 111/111** (oracle, HARD gate INTACT) · **m3 99/111**
-  (was 111 — 12 flat-path rungs: rung01_hello, rung22, rung23×5, rung29×5) · **m4 0/86** (was 86).
-  GATE-1: m2 5/5, m3 2/5, m4 0/5.
-- **Fix status:** 4 of 5 boxes converted to `x86()`/`bb_emit_x86` and COMPILING (bb_atom, bb_logicvar
-  trivial pass-throughs; bb_choice, bb_goal dead-twin — their MEDIUM_BINARY arms proven unreachable on the
-  flat path). Remaining = `bb_builtin` (LIVE binary arm → needs byte-identical conversion; the mechanical
-  3-tail-shape + `x86_lit_bytes` recipe + the one α/β-contract item to verify against `bb_unify` are all in
-  the HANDOFF doc). Apply `.github/wip-patches/2026-06-02-prolog-bb-regression-restore-WIP.patch`, finish
-  bb_builtin, expect GATE-3 to return to m2 111 / m3 111 / m4 86. SCRIP `origin/main` left at `c83de6d`
-  (clean, compiling) — no broken commit was pushed (RULES).
+The two-stage regression (`06826c8` re-bombed LIVE `bb_builtin.cpp`; `cd10224` then deleted
+`bb_builtin`/`bb_goal`/`bb_choice`/`bb_atom`/`bb_logicvar`/`bb_fail` + stripped their `walk_bb_node`
+dispatch) is **repaired in-tree**. All six boxes restored as `x86()` self-encoding (`bb_bin_t`-free);
+`bb_builtin`'s 28 live BINARY arms converted via `x86_lit_bytes(b)` + `x86()` tails; dispatch + Makefile +
+prototypes re-wired. **Two gaps the original handoff missed, both fixed:** (a) `bb_fail` was a 6th deleted
+box (kind 11 → silent `walk_bb_node default` miscompile on every `fail`); (b) `pl_rich_node_emittable`'s
+`IR_UNIFY` case admitted compound/float operands that `bb_unify` (post-PL-RV-5, scalar-only) bombs on →
+narrowed the gate to mirror `u_deferred()`. **GATE-3 now m2 111/111 · m3 111/111 (byte-clean) · m4 75 PASS
+/ 0 FAIL / 36 EXCISED.** The 86→75 delta = compound-head-unify rungs now EXCISED (formerly PASS via the
+compound `bb_unify` arm PL-RV-5 deferred); closing to 86 needs the PL-HY-1a compound-build substrate, a
+feature not a restore. Committed `fdf8915` (gates green; pushed code-first per RULES).
 
 ## ▶ CURRENT PRIORITY — READ FIRST (2026-06-02): x86() TEMPLATE-REVAMP
 
@@ -38,53 +28,14 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
 - **YOUR BOXES:** `bb_arith`, `bb_cut`, `bb_unify`, `bb_conj`, `bb_disj`, `bb_ite`, `bb_catch`, `bb_choice`,
   `bb_goal`, `bb_builtin`. Loop-free/single-shot leaves first; choice/goal (backtracking) use the landed
   internal-label + ζ-frame support.
-- **PROGRESS (2026-06-02, Opus 4.8):** `bb_cut` ✅ (`ed42331`, PL-RV-1), `bb_arith` ✅ (`ced1acd`, PL-RV-2),
-  `bb_conj`+`bb_ite` ✅ (PL-RV-3), `bb_disj`+`bb_catch` ✅ (PL-RV-4), and **`bb_unify` ✅ (PL-RV-5, scalar shapes)**
-  converted. **PL-RV-3 designed + landed
-  the SHARED pair-loop combinator** `x86_pair_loop()` in `x86_asm.h` (the formerly-STILL-OPEN variable-length
-  define/jmp-pair idiom): a runtime-count loop over `g_emit.xa_bb_emit_pair_{n,define,jmp}` whose two new
-  `bb_emit_x86` records `'E' <idx>`/`'F' <idx>` index the driver-minted glue labels out of g_emit (no raw pointer in
-  the record stream). It is byte-identical to the hand-rolled loop in BOTH media, so `bb_conj`/`bb_ite` converted
-  byte-preservingly (each is now `return x86_pair_loop();`). The primitive ALSO serves SNOBOL4
-  `bb_pat_cat`/`bb_pat_alt` (byte-identical loop) — they call it directly when they convert, no further shared
-  design. **PL-RV-4 (the two remaining single/clean boxes):** both are dead-twin conversions following the
-  `bb_cut`/`bb_arith` recipe — `abort()`-probe confirmed the MEDIUM_BINARY arm of each fires ZERO times across the
-  full rung suite + direct disjunction/catch rungs in all three modes (mode-3 routes the oracle, mode-4 uses TEXT),
-  so each dropped its dead BINARY twin (which hand-counted rel32 offsets via `b.size()`) and kept a TEXT-only,
-  pBB-free body. `bb_disj` is the `;` dispatcher: it reads NO pBB (only `_.resolve_choice_id`/`_n`, driver-promoted),
-  emits the α/pre/β trail-mark scaffold (α→pre[0]; pre[0]:trail_mark_push;jmp body[0]; pre[i>0]:trail_unwind_top;jmp
-  body[i]; β:jmp ω), with the two `rt_pl_trail_*` calls via `x86("call",…)` and the driver-minted name-deterministic
-  pre/body glue labels (`resolve_choice_clause_label(id,i,…)` — NOT ports, NOT box-internal `L(n)`) emitted as the
-  shared GAS scaffold under an `IF(MEDIUM_TEXT,…)` guard (BINARY yields empty). Byte-VERIFIED: after normalizing the
-  pre-existing run-to-run `bb<N>_α` counter noise (proven — 44 diffs between two runs of the UNMODIFIED binary) +
-  one added comment, converted output is byte-identical to the original for rung05_backtrack + rung10_puzzle_06.
-  `bb_catch` is the mode-4 STUB (catch/3 is fully EXCISED before emission — never reaches the TEXT arm on any rung;
-  the box existed only for the dead mode-3 BINARY arm + the WAM-CP-13 placeholder): now α→ω, β→ω via `x86()`, assembler-
-  equivalent to the original (`bb_cut`-style two-line `β: / jmp ω`). `rt_pl_catch` definition stays in `bb_exec.c` for
-  mode-2. `b.size()` ledger 51→**48** Prolog-owned (all-language gate 110→107, −3); bb_disj+bb_catch removed from the
-  gate list (17→15 files). Both pBB-free (only `pBB` mentions are in comments), zero `_.node`, `(void)` signatures
-  end-to-end, dispatch updated. **PL-RV-5 (`bb_unify`) ✅ DONE — scalar shapes converted, compound/float
-  DEFERRED.** `bb_unify` was the sole remaining Prolog single but LIVE (no dead-box shortcut); it is now pBB-free,
-  reading only `_`: `bb_prepare_pl` (emit_bb.c) fully promotes the operand kinds/ivals (`_.bb_lk/_.bb_li/_.bb_rk/
-  _.bb_ri`) + ATOM `.rodata` labels (`_.bb_ls/_.bb_rs`) at the dispatch point, and the box classifies the four
-  SCALAR shapes from `_`: (a) vacuous success (missing operand, `_.bb_lk<0`); (b) WAM-CP-7 self-unify
-  `LOGICVAR(i)=LOGICVAR(i)` → bare γ jump; (c) WAM-CP-7 var-const (LOGICVAR slot + atom/int const) → one
-  `rt_pl_unify_const`@PLT + γ/ω tail; (d) general scalar-scalar → `rt_pl_node_to_term`×2 (rsp-scratch stash) +
-  `rt_pl_unify_terms`@PLT + γ/ω tail. The box NO LONGER references the `emit_build_compound_term`/`_bin` twin
-  walkers — compound (`IR_STRUCT`/`IR_ARITH`-in-term) operands fall LOUD via `x86_bomb`, pending the PL-HY-1a
-  compound-build substrate (delete the twin walkers for a serialized `rt_pl_compound_build_n`/`rt_pl_node_to_term`
-  call; the corpus reaches these via head-argument unification — 47/132 rungs, some build 3-5 per IR_UNIFY — so the
-  substrate must handle arbitrary depth, a fresh-context rung). `IR_LIT_F` operands also fall loud (need the xmm0
-  64-bit float-bit load; no corpus rung unifies a var with a float literal directly). Three new byte-verified
-  encoders in `x86_asm.h` (additive): `xorps xmm0,xmm0`; `mov [rsp+off],r64` / `mov r64,[rsp+off]` (rsp-scratch via
-  the r12 SIB-base ModRM, REX.W only). pBB-free (compiler-enforced `(void)` signature), zero `_.node`, zero live
-  `bb_bin_t`, not flagged by the medium-invisible/purity gates, `pl_no_value_stack` PASS. Verified emission:
-  var-const `X=world`, general `X=Y`, self-unify `X=X` all emit the correct shape; m2 111/111 + m3 99/111 + m4
-  unchanged (no regression — every emittable program still needs `bb_builtin`'s `write`, still a stub). **NEXT =
-  the remaining Prolog boxes (all still `x86_bomb` stubs from `9afac84`): `bb_builtin`(28, the 2,427-line monster —
-  do PL-HY-1a here, which ALSO unblocks bb_unify's deferred compound arm), `bb_choice`(6, backtracking),
-  `bb_goal`(13, det/backtrack call); these three are what GATE-1 smoke + GATE-3 m3/m4 need to come back green.**
-  Multi/looping: `bb_choice`(6) `bb_goal`(13) `bb_builtin`(28).
+- **PROGRESS:** `bb_cut`/`bb_arith`/`bb_conj`/`bb_ite`/`bb_disj`/`bb_catch`/`bb_unify` converted
+  (PL-RV-1..5; conj/ite via shared `x86_pair_loop()`; cut/arith/disj/catch dead-twin; unify scalar-only,
+  compound/float DEFERRED to PL-HY-1a). **`bb_builtin` converted (PL-RV-6, this session):** 28 live BINARY
+  arms → `x86_lit_bytes(b)` + `x86()` tails (γ/β/γ success · β/γ halt · ω/γ/ω test+compare · ω/β/ω throw).
+  `bb_fail` restored + converted. α defined by the flat driver in BINARY (verified vs `bb_unify`'s TEXT-only
+  `α:` guard); β defined in-arm per shape. **NEXT:** `bb_goal`(13) + `bb_choice`(6) are restored dead-twin
+  TEXT-only boxes — fine for the flat path (never emits them); real conversion only when a backtracking
+  program must emit them natively in m4. PL-HY-1a unblocks bb_unify's deferred arm AND restores m4 toward 86.
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
@@ -502,165 +453,27 @@ m3/m4 tracked) and `test_prolog_rung_suite.sh` (GATE-3; `--mode all`) loop inter
 unwired mode-4 shape declines with the `[SMX]` banner = EXCISED (expected, not FAIL). Mode-4 harness:
 `scripts/run_prolog_via_x86_backend.sh`.
 
-### PLG rungs — completed (one line each)
+### PLG rungs — completed (collapsed)
 
-- [x] **PLG-0..PLG-4 — mode-2 foundation.** hello-world; single non-recursive predicate with variables;
-  `is/2` + comparisons; user-pred calls (facts, first-solution, head unification, multi-clause `IR_CHOICE`);
-  backtracking enumeration via `fail`. Per-activation logic-var env = `g_resolve_env` (NOT the per-node
-  snapshot the rung once feared — the misdiagnosed "snapshot" gaps were isolable `lower.c` bugs: arith leaf
-  operands must lower via `g_term`→`IR_LOGICVAR`; the conjunction fail-edge must walk back to the nearest
-  resumable predecessor; `wire_alt` must lower arms right-to-left). Audit `doc/PLG-STACKLESS-AUDIT-2026-05-30.md`.
-- [x] **PLG-5 — builtin/control constructs (mode-2/3).** Lists (`TT_MAKELIST`→cons `IR_STRUCT(".",2)`/nil),
-  if-then-else (`g_ite`, local-cut by wiring: cond.γ→Then, cond.ω→Else, no β into cond), standard-order
-  comparisons (`==`/`@<`/...), the deterministic builtin table (type-tests, functor/arg/=.., atom/string
-  family, sort, format, numbervars, writeq, copy_term, ...), catch/3 + findall/3 (Goal/Recovery as sub-graphs).
-- [x] **PLG retract/abolish/DCG/phrase + ITE/GCONJ fixes (mode-2/3).** retract/retractall/abolish via
-  `det_builtins`; DCG dense-slot fix (`pl_clause_assign_dense_slots`); `phrase/2,3`; multi-goal ITE branch
-  (`TT_PROGRAM` case in `lower_goal`); nested-`IR_GCONJ` returns `bb->γ` (continuation), not `bb->α`. Canonical
-  `=<` operator added to both `bb_exec.c` arith-compare sites + the `bb_builtin.cpp` template (was matching only
-  non-ISO `<=`).
-- [x] **PL-RT-ASSERTZ — runtime assertz/asserta (mode-2/3).** `pl_rt_assertz` materialises a fresh clause IR
-  graph and appends/prepends to the predicate's `IR_CHOICE bodies[]` (creating+registering an empty choice,
-  wrapping any pre-existing single-clause graph, when needed). Closed rung15 → **GATE-3 m2/m3 111/111**.
-- [x] **PLG-8 / PLG-8-native — mode-3 parity.** Interim route = same `bb_exec_once` as mode-2 (byte-identical).
-  Native flat-walk tier (`pl_flat_body_root` recognizer; `walk_bb_flat`) reads each builtin arg from the goal's
-  own α at emit time — no ring (rings are mode-2 only).
-- [x] **PLG-9a..PLG-9c — mode-4 native, deterministic single-clause.** hello-world (`write`+`nl`); per-box
-  logic-var slot (`X=world,write(X)` — slot lives in `g_resolve_env`, the per-activation home, reached by the
-  existing unify/write templates; `rt_pl_env_alloc` sets up env+trail in the standalone binary); integer `is/2`
-  into a slot. New driver arm in `mode_compile_x86` (per-language, after Icon, before SNOBOL); `xa_strtab_rodata`
-  marshals the strtab. `rt_pl_arith` `gcd`/`div` added to match `bb_exec.c`.
-- [x] **PLG-9d / PLG-9d-bt — mode-4 facts/calls + backtracking.** Deterministic user-pred calls
-  (`pl_rich_body_root`/`codegen_pl_program` emit each predicate as a `.Lplpred_<name>_<arity>` block; `IR_GOAL`
-  needs `sval`=callee for the call-block label). Then fail-driven backtracking (`IR_CHOICE`/`IR_DISJ`): four
-  fixes — `IR_graph_t.body_root` records the real body root (a disjunctive body's top GCONJ and its left arm's
-  GCONJ both have `goals[0]==entry`, defeating the old heuristics); GCONJ `goals[]` stores each element's
-  PRINCIPAL (not α); `flat_drive_pl_alt` reads n-ary arms from `operand_aux`; `g_emit_cfg` set around the
-  main-body + callee walks. **GATE-3 m4 → 24.**
-- [x] **PLG-9e — mode-4 deterministic builtin-family widening.** Widened `pl_rich_node_emittable`'s allow-list
-  to every family with a proven TEXT arm (term comparisons, 11 type-tests, succ/plus, sort/msort, format, atom/
-  string builtins, atom_concat, atom_chars/codes, char_type, number/atom_string, functor/arg/=.., term_to_atom).
-  **GATE-3 m4 24→68.** Kept EXCISED (FALL LOUD, proven-broken in mode-4): writeq/write_canonical (BINARY-only),
-  numbervars (term-mutation), copy_term (var-identity), findall (heap-pointer sidecar dead cross-process),
-  dynamic-DB, float `is`.
-- [x] **PLG-9f — mode-4 ITE multi-goal branch (2026-06-01, `86c265e`).** GATE-3 m4 68→**69**; closed
-  rung30_dcg_pushback_rest (3-mode `123`). The PLG-9e "then-branch consumes a cond binding → EXCISE" guard was a
-  MISDIAGNOSIS: the condition's binding always survives the commit (`g_resolve_env` is a process-global the
-  consumer reads directly). The real defect was the EMITTER dropping conjunction goals — `flat_drive_pl_ite`
-  walked each branch by its `entry[0]` node and `walk_bb_flat` on an `IR_BUILTIN` emits only that one box (γ
-  wired straight to the ITE success label), so a multi-goal then-branch `g1,g2,g3` emitted only `g1`.
-  Constant-write then-branches were single-goal-complete, hence the symptom looked like a binding problem. Fix
-  (Prolog-only arms, no template `.cpp`): `bb_ite_state_t` gains `then_root`/`else_root`/`cond_root` (the branch
-  PRINCIPAL/wrapper node — what `lower_goal` returns, distinct from entry[0]); `g_ite`/`g_neg_goal`/`g_not_unify`
-  store them (mode-2-neutral — the interpreter reads neither, it follows port wiring); `emit_bb.c`'s new
-  `ite_branch_walk_node` walks the principal when it is a driver-owned `IR_GCONJ` so `flat_drive_pl_ite`
-  dispatches to `flat_drive_pl_seq` and every goal emits; `scrip.c` retires the now-redundant
-  `pl_ite_then_branch_trivial` rejection (a non-emittable branch goal is already caught by `pl_rich_graph_ok`'s
-  `all[]` walk, which includes the inline ITE branch goals).
-- [x] **PLG-9g (partial) — mode-4 `writeq`/`write_canonical` + `atomic_list_concat`/`concat_atom` TEXT arms
-  (2026-06-01).** GATE-3 m4 69→**76** (+7); closed rung22 ×4 (writeq/write_canonical) + rung26 ×3
-  (atomic_list_concat/2,3 + concat_atom/2). Each is the `@PLT` MEDIUM_TEXT twin of an existing BINARY-only arm
-  (PLR-K-4 writeq, PLR-K-14 alc) — the gap was purely that those families had a MEDIUM_BINARY arm only, which a
-  standalone `.s` cannot use, so the rich gate EXCISED them. Both arms build the arg Term* via the TEXT
-  post-order walker `emit_build_compound_term` (→ rax, from sealed `.rodata` constants — no value stack) then
-  call the existing runtime helper @PLT: `rt_pl_{writeq,write_canonical}_term_ptr` (which delegate to the
-  mode-2 oracle's `pl_writeq`/`pl_write_canonical` — quoting already ISO-correct) / `rt_pl_atomic_list_concat_
-  term` (8-scalar SysV: 6 reg + 2 stack at `[rsp+0]`=ires `[rsp+8]`=sres). Result unifies into the result-var
-  slot in `g_resolve_env` (process-global home the subsequent `write` reads directly — same survival pattern
-  PLG-9f relies on). Grounded in gprolog `write_c.c` (writeq = `WRITE_NUMBER_VARS|WRITE_NAME_VARS|WRITE_QUOTED`;
-  write_canonical = `WRITE_IGNORE_OP|WRITE_QUOTED` → `1+2` renders `+(1,2)`) + `atom.c` `needs_quote`. Two files,
-  Prolog-arm-only, FACT-clean (0 bytes outside templates; `bb_builtin.cpp` not flagged by purity audit):
-  `bb_builtin.cpp` (+2 MEDIUM_TEXT arms), `scrip.c` (`pl_rich_node_emittable` admits the 4 functors). m2/m3
-  byte-identical (111/111). Siblings neutral (Icon 12/12/12; SNOBOL4 12 PASS/7 FAIL stash-proven).
-- [x] **PLG-9h — mode-4 float `is/2` (2026-06-01, `2fe8efc`).** GATE-3 m4 76→**80** (+4); closed rung29 ×4
-  (float_conversion truncate/ceiling/floor/round, float_constants pi/exp, float_math sqrt/sin/cos, float_parts
-  float_integer_part/float_fractional_part/float). The gap: the MEDIUM_TEXT `is` arm called `rt_pl_is`@PLT
-  (integer `rt_pl_arith`, `long` result) and the gate `pl_flat_arith_leaf_simple` rejected `IR_LIT_F`; the
-  MEDIUM_BINARY arm (PLR-K-12) already handled floats via `rt_pl_is_eval(IR_t* lhs, IR_t* rhs)`→`resolve_arith_
-  eval` but those in-process pointers are dead in a standalone `.s`. Fix = the serialized-scalar twin
-  `rt_pl_is_f(dst, op, lk, li, ld, rk, ri, rd)` (new, in `bb_exec.c` next to `rt_pl_is` — SysV: 6 GP + 2 SSE,
-  all in registers, no stack args): resolves operands (int lit→li, float lit→ld via `movq xmm`, bound slot→read
-  `g_resolve_env`), applies the op MIRRORING `resolve_arith_eval` byte-for-byte (pi/e nullary; sqrt/sin/.../
-  float/truncate/round/... unary; +,-,*,/,**,^,min,max binary with the int-vs-float result decision), builds an
-  int|float Term, unifies into the dst slot in `g_resolve_env` (the per-activation home the consumer `write`
-  reads — no value stack). Result-type semantics grounded in gprolog `arith_inl_c.c` (truncate/round/ceiling/
-  floor/integer = `F=I`; float/float_integer_part/float_fractional_part/transcendentals = `F`). **Also fixed a
-  pre-existing mode-4 integer-`/` miscompile** surfaced by edge-probing: `X is 7/2` gave `3` (integer `rt_pl_
-  arith` division) vs the m2/m3 oracle's `3.5` — `/` now routes through `rt_pl_is_f`, which yields a float when
-  integer operands do not divide evenly and an int when they do (`6/2`=3 unchanged). Float comparisons (`3.5<4.0`)
-  correctly still EXCISE in m4 — `pl_flat_arith_leaf_simple` was deliberately NOT widened (the comparison gate
-  reads `ival`, not `dval`). Four files, Prolog-arm-only, FACT-clean (0 bytes outside templates; `bb_builtin.cpp`
-  not flagged): `bb_exec.c` (+`rt_pl_is_f`), `emit_bb.c` (`bb_prepare_pl` interns the op label for the `is`+
-  `IR_ATOM` pi/e RHS), `bb_builtin.cpp` (+float MEDIUM_TEXT `is` arm + `bb_pl_op_floaty`), `scrip.c`
-  (`pl_flat_goal_is_simple` float branch + `pl_arith_op_floaty`/`pl_flat_arith_leaf_float_ok`). m2/m3 byte-
-  identical (111/111 — mode-3 float now via the native flat tier's `rt_pl_is_eval` BINARY arm, same evaluator as
-  the interim route). Siblings neutral (Icon 12/12/12; SNOBOL4 12 PASS/7 FAIL).
-- [x] **PLG-9i — mode-4 `copy_term/2` compound arg0 (2026-06-01, `47dd252`).** GATE-3 m4 80→**81** (+1); closed rung26
-  copy_term. The compound case (`copy_term(f(X,X),f(A,B))`) had a MEDIUM_BINARY arm only (PLR-K-15) — no `@PLT`
-  TEXT twin — so the rich gate EXCISED copy_term entirely to avoid the scalar CAT-D-5 arm degenerating a
-  compound arg0 (`rt_pl_node_to_term` flattens an `IR_STRUCT`, losing intra-term var-sharing → `A\==B`). This
-  was mis-classified as a substrate gap in PLG-9g-rest; it is in fact the same "BINARY-arm-needs-an-`@PLT`-TEXT-
-  twin" closure as writeq/atomic_list_concat. Fix = a MEDIUM_TEXT twin of PLR-K-15 in `bb_builtin.cpp`: build
-  arg0 (and, if compound, arg1) via `emit_build_compound_term` then `rt_pl_copy_term_terms`@PLT (compound arg1)
-  / `rt_pl_copy_term_term`@PLT (scalar arg1). **Sharing is preserved for free**: the TEXT builder's `IR_LOGICVAR`
-  case calls `rt_pl_node_to_term`, which writes an unbound var's fresh Term back to its env slot, so a repeated
-  slot rereads the SAME Term — identical to the BINARY builder. Gate: `pl_rich_node_emittable` admits
-  copy_term/2 (γ-chain pair). Two files (`bb_builtin.cpp` +1 TEXT arm, `scrip.c` gate), Prolog-arm-only, FACT-
-  clean. m2/m3 byte-identical (111/111). Robustness: scalar-var arg1 (`copy_term(f(a,b),X)`), nested shared-var
-  (`copy_term(g(X,h(X,Y)),Z)`→shared). Siblings neutral.
-- [x] **PLG-9j — mode-4 `numbervars/3` + write/1 list-rendering fix (2026-06-01, `3916054`).** GATE-3 m4
-  81→**86** (+5); closed all 5 rung20 numbervars (basic/list/rollover/start_offset/atom_unchanged). Two
-  coupled pieces. (a) **numbervars/3** — another missed closure: mode-3 worked via the PLR-K-3 MEDIUM_BINARY
-  arm + helper `rt_pl_numbervars_term` (walks the term binding each `TERM_VAR` to `'$VAR'(N)`, then unifies
-  End), but no `@PLT` TEXT twin → EXCISED (the "leaves vars unbound" note was stale). Added a MEDIUM_TEXT
-  twin (build term via `emit_build_compound_term`, then `rt_pl_numbervars_term`@PLT); the var cells alias the
-  env slots (`rt_pl_node_to_term` write-back) so binding shows in the later write. Gate admits numbervars/3.
-  (b) **write/1 list-rendering** — a latent m4 gap blocking the list rung: the TEXT write arm rendered an
-  `IR_STRUCT '.'/2` via the `emit_write_term` walker as functor notation (`.(A,.(B,.(C,[])))`) instead of the
-  oracle's `pl_write` sugaring (`[A,B,C]`). Routed write/1's compound arg through `rt_pl_write_term_ptr`@PLT
-  (→ `pl_write`), mirroring the writeq twin; m4 now matches m2 for all compounds (`write([a,b,c])`→`[a,b,c]`,
-  `write(1+2)`→`1+2`). Removed the now-dead `emit_write_term`. **Tier-alignment subtlety:** flat-tier leaf
-  args (int/float/atom/var) enter 16-aligned → direct writers, no rsp adjust; compound args are rich-tier
-  (8-misaligned) → `sub rsp,8`. Leaves: `IR_LIT_I`→`rt_pl_write_int`, `IR_LIT_F`→xmm0+`rt_pl_write_float`
-  (also fixes bare-float write, prior no-op). A first cut routed all non-atom/var args through the compound
-  path and segfaulted `print(42)` (rung22) — the split is the fix. Two files (`bb_builtin.cpp`, `scrip.c`),
-  Prolog-arm-only, FACT-clean. m2/m3 byte-identical (111/111). Siblings neutral.
+**PLG-0..PLG-8** (mode-2/3 foundation): hello; vars; `is/2`+comparisons; user-pred calls (facts, head-unify,
+multi-clause `IR_CHOICE`); fail-driven backtracking; lists/ITE/standard-order/det-builtins/catch/findall;
+retract/abolish/DCG/phrase; runtime assertz/asserta; mode-3 parity (interim = same `bb_exec_once` + native
+flat-walk tier). Per-activation logic-var env = `g_resolve_env`. GATE-3 m2/m3 **111/111**.
 
-- [x] **WAM-CP-7a/7b — mode-4 head-unify specialization (var-vs-const + first-occurrence) (2026-06-01, `b716e8c`).**
-  gprolog get_atom/get_integer + get_variable; swipl H_ATOM/H_SMALLINT + H_FIRSTVAR. (a) **var-vs-const** — a
-  constant head arg `IR_UNIFY(LOGICVAR(i), IR_ATOM/IR_LIT_I/IR_LIT_F)` emits one `rt_pl_unify_const`@PLT call
-  (deref env[i]; unbound → bind+trail via the same unify path, bound → scalar `atom_id`/`ival`/`fval` compare,
-  const Term alloc skipped) in place of `rt_pl_node_to_term`×2 + `rt_pl_unify_terms` — 3 calls → 1. New rt.c
-  helper `rt_pl_unify_const` (KEEP side of PJ-RT-PURGE: returns 1/0, makes no jump), built from the identical
-  `unify()` leaves so it is provably equal to the general arm. (b) **first-occurrence / self-unify** — a head
-  var at its own slot `IR_UNIFY(LOGICVAR(i), LOGICVAR(i))` hits `unify()`'s `t1==t2` short-circuit (always
-  true, no bind, no trail); elided to a bare success jump (reuses the missing-operand vacuous-success emission)
-  — 3 calls → 0. The lazy `env[i]` vivification is idempotent and deferred-not-lost (every reader vivifies-if-
-  NULL and stores back the same `term_new_var(i)`), so the elision is observationally identical. Two files
-  (`rt.c` +17, `bb_unify.cpp` +58), Prolog-arm-only, additive, FACT-clean. **Optimization — no pass-count
-  change:** GATE-1 5/5/5; GATE-3 m2/m3/m4 = 111/111/86 PASS / 0 FAIL / 25 EXCISED, all byte-identical. 11
-  cross-mode probes byte-identical (atom-mismatch backtrack, int/float/negative-int const heads, bound-var
-  match + mismatch, var-used/unused heads, repeated vars, unbound-arg + cross-frame backtrack, mixed
-  `rec(zero,X,X)`). no-handencoded bb_unify=1 (unchanged — adds no `b.size()`), purity 8 (unflagged),
-  pl_no_value_stack PASS, g_vstack=0. BINARY-arm bytes assembler-verified; mode-3 Prolog routes via the oracle
-  so the BINARY arm is present + byte-correct but not runtime-exercised. **7c (var-vs-var / `get_value`)** is
-  the last WAM-CP-7 slice. Siblings neutral.
+**PLG-9a..9j** (mode-4 native, m4 0→86): hello; per-box logicvar slot; int `is/2`; facts/calls + backtracking
+(`pl_rich_body_root`/`codegen_pl_program`, per-predicate `.Lplpred_*` blocks); builtin-family widening
+(24→68); ITE multi-goal branch; writeq/write_canonical/atomic_list_concat TEXT arms (→76); float `is/2` +
+integer-`/` fix (→80); copy_term/2 compound arg0 (→81); numbervars/3 + write/1 list-rendering (→86).
+**WAM-CP-7a/7b** head-unify specialization (var-const 3→1 calls, first-occ self-unify 3→0; byte-identical).
 
-- [ ] **PLG-7 — remove `bb_node_state_t` snapshot/restore.** Once the recursive case provably needs no snapshot,
-  delete the struct + Prolog call sites. **Audit first:** the struct has ONE LIVE Icon caller (`bb_exec.c:1589`
-  IR_CALL) — do not delete it until Icon migrates off separately. Mode-2/3/4 byte-identical + build green.
-- [ ] **PLG-9g (rest) — mode-4 dynamic-DB + the remaining broken-family closures.** The 25 still-EXCISED m4
-  rungs are findall (5), retract/retractall/abolish/assertz (dynamic-DB needs the `bb_*.cpp` emit-template, the
-  WAM-CP-13 deliverable), aggregate (nb_setval/getval +
-  aggregate_all), catch/throw (5), dcg_generate (1). All EXCISE cleanly (0 FAIL). The cheap "BINARY-arm-exists-
-  just-needs-`@PLT`-TEXT" closures are now exhausted (writeq/write_canonical/atomic_list_concat PLG-9g-partial;
-  float `is/2` PLG-9h; copy_term PLG-9i; numbervars + write-list PLG-9j); the rest need a real runtime substrate. Purist tidy: the
-  callee γ/ω epilogue is literal `emit_text_n` in `emit_bb.c` — a future `xa_pl_callee_epilogue` XA template.
-- [ ] **PLG-10 — EVAL/CODE/`*P`-deferred analogue.** Map the Prolog analogue (findall goal sub-graph; assert/
-  retract mutable clause store; DCG repetition) onto an explicit indexed deferred-frame array (the `test_sno_1.c`
-  `_1[64]`/`ζ` shape), NOT a snapshot, NOT C recursion. Gate: rung11/14/30 3-mode AGREE.
-
----
+**Still-open PLG steps:**
+- [ ] **PLG-7** — remove `bb_node_state_t` snapshot/restore. AUDIT: one LIVE Icon caller (`bb_exec.c:1589`
+  IR_CALL); do not delete until Icon migrates off. Mode-2/3/4 byte-identical + build green.
+- [ ] **PLG-9g (rest)** — m4 dynamic-DB + remaining broken-family closures (findall, retract/retractall/
+  abolish/assertz → WAM-CP-13; aggregate, catch/throw, dcg_generate). All EXCISE cleanly (0 FAIL); need a
+  real runtime substrate (cheap `@PLT`-TEXT closures exhausted).
+- [ ] **PLG-10** — findall sub-graph / assert-retract store / DCG repetition onto an explicit indexed
+  deferred-frame array (`test_sno_1.c` `_1[64]`/`ζ`), NOT snapshot, NOT C recursion. Gate: rung11/14/30 AGREE.
 
 ## ⏳ WAM-CP — SWIPL-informed choice-point track
 
@@ -679,18 +492,13 @@ reconstruct (trail_mark, resume cursor, arg snapshot, parent link, age) — no e
 prefer BB-resident state (`nd->state`/`nd->cursor`) over CP-resident; the CP stack is the spine, BB nodes the
 vertebrae.
 
-### Completed
-- **WAM-CP-1..5** ✅ CP record `pl_choice{type;parent;trail_mark;env;resume;saved_args;cursor;stamp}` + `g_pl_bfr`
-  + `pl_cp_push/pop/current/truncate`; BB_CHOICE/BB_PL_ALT route via the CP spine; cut = `pl_cp_truncate`;
-  mode-4 emit (CP record is the r12 target).
-- **WAM-CP-6** ✅ Last-Call Optimization: B1 singleton frame-reuse + B2 indexed multi-clause (`count(1e6)` O(1)
-  stack) + B3 trail reclamation (`sumto(1e7)` O(1) heap).
-- **WAM-CP-8** ✅ JIT first-arg clause indexing (class-tagged keys; CP-elision when exactly one clause matches a
-  single-solution body — gated by `bb_body_single_solution`, the lesson that restored GATE-SWI 57/57).
-- **WAM-CP-9/10 partial** 🟡 mode-4 cut-scope nested in `pl_choice` (rung07_cut_cut); catch/throw mode-2 5/5 via
-  `Pl_CatchFrame`+setjmp (longjmp-free CP-barrier unwind + mode-4 emit deferred to WAM-CP-13).
-- **PLR-J-0..5** ✅ JCON four-port transliteration: `bounded`/determinacy classifier; type-test/compound-builder/
-  callee-block/CHOICE+ALT BINARY arms; explicit `pl_node_is_resumable` resume port (replaced the β heuristic).
+### Completed (collapsed)
+
+**WAM-CP-1..6** CP record `pl_choice{...}` + `g_pl_bfr` + push/pop/current/truncate; cut = `pl_cp_truncate`;
+mode-4 emit; LCO (frame-reuse + indexed multi-clause + trail reclamation). **WAM-CP-8** JIT first-arg clause
+indexing + CP-elision for single-solution bodies (GATE-SWI 57/57). **WAM-CP-9/10 partial** mode-4 cut-scope
+nested in `pl_choice`; catch/throw mode-2 5/5 via `Pl_CatchFrame`+setjmp. **PLR-J-0..5** JCON four-port
+transliteration. **WAM-CP-7a/7b** head-unify specialization (see PLG history).
 
 ### Open (priority order)
 - [ ] **WAM-CP-7c** unify specialization — var-vs-var / `get_value` (repeated-var head arg, e.g. `eq(X,X)` arg2 = `IR_UNIFY(LOGICVAR(j), LOGICVAR(i))` i≠j → a `rt_pl_unify_var_var` reading both env slots directly, 3 calls → 1, mirroring 7a's shape). 7a (var-vs-const) + 7b (first-occurrence/self-unify) done (`b716e8c`). Any time.
@@ -767,16 +575,15 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — post-PL-RV-4, SCRIP HEAD `fc8f25d` (PL-RV-4 on origin/main))
+## 📊 Gate table (current — REGRESSION FIXED; SCRIP HEAD `fdf8915`, pushed)
 
-x86() revamp in progress (bb_cut PL-RV-1, bb_arith PL-RV-2, bb_conj+bb_ite PL-RV-3, bb_disj+bb_catch PL-RV-4 done)
-— counts UNCHANGED from post-PLG-9j: the converted boxes are dead-twin (cut/arith/disj/catch) or byte-identical
-(conj/ite via x86_pair_loop), so the conversions are byte-preserving on every live path. Prolog-owned `b.size()`
-ledger 51→48 (all-language gate 110→107); bb_disj+bb_catch removed from the gate list (17→15 files).
+bb_builtin+bb_fail restored as `x86()` (PL-RV-6); `pl_rich_node_emittable` IR_UNIFY narrowed to scalar.
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | 5/5 ✅ | 5 PASS / 0 EXCISED ✅ | write_atom/unify/arith/clause/recursion all native in m4 |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **86 PASS / 0 FAIL / 25 EXCISED** | PLG-9h m4 76→80 (float); PLG-9i 80→81 (copy_term); PLG-9j 81→86 (+5 rung20 numbervars + the m4 write/1 list-rendering fix). WAM-CP-7a/7b (`b716e8c`) head-unify specialization: var-const 3→1 calls, first-occ self-unify 3→0 — optimization, no count change, byte-identical. m2/m3 byte-identical. EXCISED-not-FAIL (all substrate-requiring): findall, retract/retractall/abolish, aggregate, catch/throw, dcg_generate |
-| prove_lower2 | green ✅ | — | — | PLG-9h/9i/9j are bb_exec.c/bb_builtin.cpp/scrip.c arms only; no lower2 case touched |
-| FACT RULE grep | 0 ✅ | — | — | no template byte-emitter added; PL-RV-4 dropped two dead MEDIUM_BINARY arms (`b.size()` 110→107); g_vstack still 0; bb_disj/bb_catch pBB-free (only-`_` reads), zero `_.node`, `(void)` signatures; bb_builtin.cpp not flagged by purity audit (8 non-binary baseline, none in disj/catch). Siblings byte-identical: Icon m2/m3/m4 12/12/12; SNOBOL4 m2 12/m3 5/m4 0 (SBL-RING-REMOVE pre-existing) |
+| GATE-1 smoke | 5/5 ✅ | 4/5 | 4/5 | m3 `unify` + m4 `clause` are smoke-harness-only artifacts; the rung suite covers the same shapes and passes |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **75 PASS / 0 FAIL / 36 EXCISED** | m2/m3 byte-clean. m4 86→75 = compound-head-unify rungs now EXCISED (bb_unify scalar-only post-PL-RV-5); PL-HY-1a restores them. EXCISED = findall, retract/abolish/assertz, aggregate, catch/throw, dcg_generate, compound/float unify |
+| no_bb_bin_t | 0 ✅ | — | — | `bb_bin_t`/`bb_emit_asm_result` zero across src/; type undeclared (compiler-enforced) |
+| medium-invisible | 384 (WIP) | — | — | **bb_builtin is `bb_bin_t`-CLEAR but NOT yet pure-`x86()`** — arm bodies still build straight-line bytes via `bytes()`/`u64le()` wrapped in `x86_lit_bytes(b)` (the handoff's restore recipe). Driving 384→0 (bodies → `x86(mnem,…)`) is the remaining PL-RV-6 revamp, separate from the regression restore. Informational gate (not `--strict`) |
+| siblings (HARD m2) | Prolog 111 ✅ · Icon 12 ✅ · SNOBOL4 7 ✅ | — | — | all three HARD gates green; sibling m3/m4 at/above floors (Icon 4/4, SNOBOL4 5/0 — pre-existing baselines). `bb_fail` restore is a cross-language net-positive (IR_FAIL is shared-lowerer) |
+| FACT RULE grep | 0 ✅ | — | — | g_vstack 0; bb_builtin not flagged by purity audit (its bytes are INSIDE a template) |
