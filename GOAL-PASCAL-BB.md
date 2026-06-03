@@ -7,8 +7,35 @@
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — PB-8 SETS landed. 2026-06-03, session 9. SCRIP HEAD = 1b4e0fe, corpus HEAD = 54d5ce5.**
-PB-0..PB-7 + PB-6b green; **PB-8 partial: `record` + `set` DONE** (pointers/`new` still open). Sets ride the
+**Watermark — PB-8 COMPLETE: pointers/`new` landed. 2026-06-03, session 9. SCRIP HEAD = f79fae0, corpus HEAD = 58a7174.**
+**PB-0..PB-7 + PB-6b green; PB-8 DONE in full — `record` + `set` + pointers/`new`.** Next rung is PB-9 (mode-3/4
+compiled BBs). Pointers ride the **NV heap rail** with **one** small `IR_LANG_PAS`-gated `lower.c` arm and **zero**
+interpreter structural changes: all pointers are **integer cell numbers** sharing one file-scope counter
+(`g_pas_heap_ctr`), `nil`=`ilit(0)` (integer 0, distinct from every allocation — a STRING key was tried first and
+REJECTED because it coerces to 0 and collides with nil under `<>`), heap cell key = `__heap_<n>`. Record cells
+store the **SOH-packed record on the array rail** so `arr_get` handles field reads for free. Parser: `nil`→
+`ilit(0)`; `new(p)`→`p := __pas_alloc()` (scalar) or `p := __pas_alloc_rec(nf)` (record, `nf` from the pointed-to
+rectype) with the write-back routed through `mk_assign` so `new(head^.next)` (allocate into a **field**) works;
+`^` deref→`__pas_deref(p)`; scalar `p^ := v`→ the `lower.c` arm → `__pas_deref_set(p,v)`; record `p^.field`→
+`TT_IDX(__pas_deref(p), ilit(idx))` (read = `arr_get` for free; write = parser `mk_assign`→`__pas_field_set(p,idx,v)`
+read-modify-write of the SOH cell). **Chained** `head^.next^.val` resolves via per-field pointer-target tracking
+(`fldptrto[]` in the rectype table) + mutually-recursive `pas_selector_rectype`/`pas_ptrexpr_target`. Pointer-to-
+record **parameters** register in both value and `var` parameter arms (else `p^.field` inside a proc body falls to
+`TT_FIELD` — the bug `ptr8` caught). A second bug `ptr4` caught: a record's pointer **field** (`next:link`) leaked
+`g_pas_pend_ptrtarget` up to the enclosing `type:` rule, mis-registering the record itself as a pointer type —
+fixed by clearing the leaked target in the record/array/set/file `type` arms and propagating the `-3` pointer
+sentinel through `type: simple_type`. Five name-gated builtins (`__pas_alloc`, `__pas_alloc_rec`, `__pas_field_set`,
+`__pas_deref`, `__pas_deref_set`). Probes `ptr1..ptr8` byte-identical to `pint`: scalar; two-cell arithmetic; `nil`
+compare; linked list with chained deref; build-in-loop+`while` traversal (`p := p^.next`); aliasing/identity;
+pointer-as-param + `new`-on-field. **Pointer limits (deferred, no probe forces):** variant-record `new(p,tag)`,
+`dispose`, nested records, `with`; the flat `g_pas_ptrvars`/`g_pas_ptrtypes` tables are global (same scoping
+limitation as arrays/recvars). Zero cross-language regression (direct rebuild + full-suite, AND a stash/rebuild
+byte-identical proof for the spot-check): Icon `--interp` **130/117/36** (exact baseline, every bucket pinned),
+Prolog **0 fail / 0 abort** (111 `.expected`-covered programs), Pascal suite **25/0/1** + 8 pointer probes = 33/0/1.
+All edits on the `LANG_PASCAL`/`IR_LANG_PAS` path. (Note: this push rebased cleanly onto concurrent SNOBOL4/Icon/
+Prolog commits that also touched `lower.c`; the merged build was re-verified green before push.)
+
+**PB-8 SETS (session 9) — still green.** Sets ride the
 **integer-bitmask rail** with **zero lower/interpreter structural changes** — a `set of 0..47` is a 48-bit mask
 stored as `INTVAL`. Parser maps `[a,b,c]`→`__pas_set(a,b,c)` and `e in s`→`__pas_in(e,s)`; a set-var table
 (type sentinel `-2` in `var_decl`) lets `pas_is_setexpr` redirect `+`/`*`/`-`/`<=`/`>=` to
