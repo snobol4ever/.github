@@ -15,6 +15,25 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
+## 🟢 SESSION (2026-06-02, Opus 4.8) — `define` RUNTIME GROUNDWORK + LI-FENCE repair
+
+Two landed commits (SCRIP `76ff512` LI-FENCE repair → `a9e1ff1` define groundwork; build BOTH `scrip` +
+`libscrip_rt`). Started on the TRUE live frontier (`define`, m3 5/6) after orienting from the SPITBOL manual
+(ch.8 "Program-Defined Functions" + ch.3 concat/coercion). Found + fixed a pre-existing **LI-FENCE false
+positive**: the gate's tag regex matches `_pl` as a substring, and the `__pas_writeln` helper in
+`gen_runtime.c` had a printf-length scratch local `_pl` (a field-width counter, NOT a Prolog tag) → renamed to
+`_pfmtlen` (rename-only, byte-identical). LI-FENCE was FAILING at session start; it now holds.
+
+**`define` runtime groundwork (additive, byte-neutral — m3 unchanged 5/6):** added `rt_call_named_proc` (the
+name-save call frame) + `rt_proc_define` to `rt.c`/`rt.h`, named by CS concept per the LI rung (NOT `rt_sno_*`).
+They mirror the proven mode-2 `IR_interp.c` name-save path. See the `define` frontier line below for the full
+design + the precise REMAINING byte-producing steps (driver proc-registration, `bb_call` DEFINE + user-proc
+gvar arms, RETURN/FRETURN routing). Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-DEFINE-GROUNDWORK.md`.
+
+**Gate state (GREEN):** SNOBOL4 m2 **7/7 HARD** / m3 **5/6** / m4 0/6 · Icon m2 **12/12 HARD** · `prove_lower2`
+PASS · `no_bb_bin_t` 0 · **LI-FENCE now OK** (was failing) · concurrency invariants OK · `sm_dead` OK. SCRIP tip
+`a9e1ff1`, .github tip this commit. ENV: `apt-get install -y libgc-dev`.
+
 ## 🟢 VERIFY SESSION (2026-06-02, Opus 4.8) — NO CODE CHANGE; STALE-HANDOFF CORRECTION + TRUE LIVE FRONTIER
 
 This session VERIFIED the live state and made **NO code changes** (working tree clean at SCRIP HEAD `1adcf09`;
@@ -37,7 +56,31 @@ int-binop arm) so **`OUTPUT = 2 + 3` now PASSES mode-3** (the `arith` smoke went
 - **`pattern`/`goto_s`** (`S 'b' = 'X'` / `'x' 'x' :S()`) → kind **28 = IR_SCAN** = the ch.18 unanchored OUTER
   match loop. ✅ **DONE 2026-06-02 (Opus 4.8) — mode-3 3/6 → 5/6.** See the `IR_SCAN` session block immediately below.
 - **`define`** (`DEFINE('DOUBLE(X)')` + call + `RETURN`) → empty output: needs DEFINE registration + a SNOBOL4
-  call frame + RETURN. **← NEXT.**
+  call frame + RETURN. **← IN PROGRESS (2026-06-02).** ✅ **RUNTIME GROUNDWORK LANDED** (SCRIP `a9e1ff1`): the
+  name-save call-frame helper `rt_call_named_proc(name,args,nargs)` + `rt_proc_define(spec)` are in `rt.c`/`rt.h`
+  (named by CS concept per LI — NOT `rt_sno_*`; it IS a name-save call frame). They mirror the proven mode-2
+  `IR_interp.c` logic (SPITBOL ch.8 p.106): save each dummy-arg + the function-named binding via `NV_GET_fn`/push,
+  install actuals/null via `NV_SET_fn`, run the proc's BB-graph `fn` on a per-activation arena frame (recursion
+  safe), capture the function-named var as the result (FAIL on FRETURN), restore LIFO. **ADDITIVE/byte-neutral —
+  not yet wired (m3 still 5/6).** **REMAINING (byte-producing emit + driver, the focused continuation):**
+  (1) **driver** — register SNOBOL4 procs in the mode-3 SNOBOL path (`scrip.c`, the `else{}` block that today only
+      builds `main` via `gvar_flat_chain_build`): `rt_proc_reset()`, then for each non-`main` proc build its chain
+      (a `gvar_flat_chain_build`-style proc builder over the proc's entry — DOUBLE's view is entry node 7) and
+      `rt_proc_register(name, entry, pnames, nparams)` + `rt_proc_set_fn(name, fn)`. The proc graph + entry + the
+      `lower_sc` param names already live in `s2->proc_table[]` (SBL-EXEC-3). Model: the Icon mode-3 loop at
+      `scrip.c:~887`.
+  (2) **`bb_call` DEFINE arm** (gvar path, `g_gvar_flat_chain`) — `fn=="DEFINE"`: emit a `call rt_proc_define`
+      (RO spec arg) then `jmp γ` / `def β` / `jmp ω` (single-shot success). The DEFINE/DOUBLE calls are both
+      `IR_CALL dval==2.0`, args on `counter` (verified via a temporary `bb_print` IR_CALL/RETURN/BINOP dump).
+  (3) **`bb_call` user-proc arm** (gvar path) — `rt_proc_is_registered(fn)`: marshal each arg sub-graph's value
+      into a small DESCR arg array (or stage by name), `call rt_call_named_proc(fn, args, narg)`, store the
+      returned DESCR into this call's ζ-slot the consuming IR_ASSIGN reads, `test`/`je ω`/`jmp γ`.
+  (4) **RETURN/FRETURN** — the gvar chain reaches `IR_RETURN`; `flat_drive_return` already jumps to the slab
+      success exit (correct for return-by-value: the function-named var holds the result, the slab exit returns
+      to `rt_call_named_proc` which reads it). `IR_RETURN dval==2.0` (FRETURN) must route to the slab FAILURE
+      exit instead — add a `dval==2.0` arm in `flat_drive_return` (or its gvar caller) jumping to `flat_fail_p`.
+  Build BOTH `scrip` + `libscrip_rt` after any `src/emitter/**` edit; byte-verify any new encoder vs `as`. Gate:
+  `define` smoke green (m2 is the oracle, → `42`), m3 5/6 → 6/6, MODE3_MIN 5→6.
 
 ## ✅ DONE (2026-06-02 session, Opus 4.8) — IR_SCAN: `pattern` (`S 'b' = 'X'` → `aXc`) + `goto_s` (`'x' 'x' :S()` → `hit`) in mode-3 (m3 3/6 → 5/6)
 
