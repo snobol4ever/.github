@@ -375,12 +375,13 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER, lowest first.** After EACH step: G
 
 - [x] **PL-HY-1a** — DUP-kill on `bb_builtin.cpp`: deleted `emit_build_compound_term_bin` (90L); 23 mode-3 sites → `rt_node_to_term_ptr`; TEXT twin KEPT (mode-4 serialized encoding, not a dup). `abae7c1`.
 - [x] **PL-HY-1b** — DE-CRAM: `bb_builtin.cpp` (2,187L) → ~130L name-dispatch router + 11 family files `bb_builtin_{io,is_cmp,type_test,term_inspect,aggregate_nb,atom_string,term_io,findall,succ_plus,list,retract_throw}.cpp` + shared `bb_builtin_common.h`. Blocks copied VERBATIM, classified by predicate (28 BINARY + 28 TEXT, zero unclassified). Shared helpers (`emit_build_compound_term`/`emit_term_from_node_bin`/`bb_pl_op_floaty`) stay in router, externed via common.h. Makefile RT_PIC_SRCS + scrip rule += 11 files. GATE-3 byte-identical; medium-invisible 343 (redistributed, total unchanged).
-- [ ] **PL-HY-1c** — DE-FUSE: any arm reading `pBB->α->ival/sval` for an operand whose own box fills a slot.
-- [ ] **PL-HY-2** — `bb_choice.cpp` (318): first-clause/next-clause/CP-elision shapes → split + router. Coordinate WAM-CP.
-- [ ] **PL-HY-3** — `bb_goal.cpp` (264): det-call/backtrack-call/callee-epilogue → split + router (future `xa_pl_callee_epilogue` lands here).
-- [ ] **PL-HY-4** — `bb_unify.cpp` (151): var-const / first-occ / var-var (WAM-CP-7) → split + router.
-- [ ] **PL-HY-5** — de-dup + RT-fix sweep, all Prolog boxes (every VALUE helper = ONE `rt_*` call).
-- [ ] **PL-HY-FENCE** — `scripts/test_gate_bb_one_box.sh` green for Prolog files; GATE-3 111/111 HARD; m4 never regresses.
+> **AUDIT 2026-06-03 (Opus 4.8) — the ladder below is largely SUBSUMED by the x86() revamp; watermark sizes were stale (pre-revamp). No code touched this session; all gates verified green. See HANDOFF-2026-06-03-OPUS48-PROLOG-BB-HY-LADDER-AUDIT.md for the evidence (greps + wc -l). Awaiting Lon's confirm before reclassifying `[x]` vs deleting steps.**
+- [ ] **PL-HY-1c** — DE-FUSE — **VACUOUS in the current Prolog path** (proven 2026-06-03): NO Prolog-owned template calls `bb_slot_alloc`; `emit_bb.c` gives IR_ATOM/IR_ARITH/IR_BUILTIN a FILL-only dispatch (no slot); `bb_atom`/`bb_logicvar`/`bb_arith` write 0 frame slots. 136 operand-scalar reads exist but NONE has a producer slot to route through — there is nothing to de-fuse. **BLOCKED on the `g_pl_flat_chain` lowerer prereq** (slot-filling Prolog operand boxes) — a DESIGN step needing Lon's sign-off (touches shared `lower.c` + the proven 111/111 gate), not a 1c-only mechanical task.
+- [ ] **PL-HY-2** — `bb_choice.cpp` **actual 163** (watermark said 318) — ONE coherent CP state machine (single `out` accumulator; clause variation = loop over `n` with shared CP record / cut-save-restore / dispatch / epilogue; the "first-clause/next-clause" distinction is the `pre[0]` vs `pre[i>0]` arms inside one flow; "CP-elision" shape is ABSENT — that is WAM-CP-12, still open). **SUBSUMED by x86() revamp; a router-split would OVER-SPLIT** (NO-DUP rule: grouping near-identical shapes is correct, splitting a single coherent box is over-splitting).
+- [ ] **PL-HY-3** — `bb_goal.cpp` **actual 134** (watermark said 264) — one `bb_goal_str` + a `build_arg` helper; single call shape. **SUBSUMED; no split.**
+- [ ] **PL-HY-4** — `bb_unify.cpp` **actual 76** (watermark said 151) — already cleanly factored via inline `u_*` guards: vacuous, deferred-bomb (compound/float = PL-HY-1a's deferred arm), self-unify `x=x` (= WAM-CP-7 var-var, already present), var-const. **SUBSUMED; no split** (the WAM-CP-7 var-var arm is the self-unify case already here).
+- [ ] **PL-HY-5** — de-dup + RT-fix sweep — **EFFECTIVELY COMPLETE** (audit 2026-06-03): ZERO duplicated-algorithm TEXT/BINARY pairs remain; all 11 `bb_builtin_*` family files have 0 emit-time value-work loops (every arm = marshal args → `call rt_*` → wire 4 ports). The only recursive walker `emit_build_compound_term` is the SANCTIONED mode-4 serialized encoder (PL-HY-1a verdict: NOT a dup; its mode-3 twin is the single `rt_node_to_term_ptr` call). Re-sweep if a new box adds an inline walker/evaluator.
+- [ ] **PL-HY-FENCE** — `scripts/test_gate_bb_one_box.sh` **NOT YET AUTHORED**; the one-box property it would check ALREADY HOLDS (no Prolog-owned file has >1 `extern "C" void bb_*` box entry — `bb_builtin_*` are `_str` helpers behind the `bb_builtin.cpp` router). Remaining actionable work: write the gate script. GATE-3 111/111 HARD; m4 never regresses.
 ## VSX — g_vstack ERADICATION (Lon 2026-05-31)
 
 SCRIP has NO value stack; apparatus deleted (`80431d0`/`caf8f6d`/`d2a6ca4`). KEPT (not value stacks): trail `g_resolve_trail`, CP ledger `g_resolve_bfr`, ζ-frame `g_frame_buf`, activation table `g_rt_frames`. Audit: `doc/VSTACK-ERADICATION-AUDIT-2026-05-31.md`.
@@ -469,7 +470,7 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (PL-HY-1b landed — bb_builtin split into router + 11 family files; SCRIP HEAD `7fd076f`, push at handoff)
+## 📊 Gate table (2026-06-03 Opus 4.8 AUDIT — no code touched; HY-ladder found largely SUBSUMED; gates re-verified green. SCRIP HEAD unchanged at `3610475`; .github-only handoff)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
