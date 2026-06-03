@@ -7,13 +7,43 @@
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — PB-6b COMPLETE (parameterless function call). 2026-06-03, session 8. SCRIP HEAD = 521726d.**
-PB-0..PB-7 + PB-6b green. **PB-6b (parameterless function call in expression) DONE.** A bare identifier in
-`factor` that names a declared function now correctly generates a zero-arg call, not a variable read. Gate
+**Watermark — PB-8 RECORDS landed. 2026-06-03, session 8. SCRIP HEAD = 48ef9f8.**
+PB-0..PB-7 + PB-6b green; **PB-8 partial: `record` DONE** (the foundational aggregate; `set`/pointers still
+open). Records reuse the **existing array rail** with **zero lower/interpreter changes** — the parser resolves
+field names to indices at parse time and emits `TT_IDX(record_var, ilit(field_index))` instead of `TT_FIELD`,
+so `arr_get`/`arr_set_pure` (PB-5) handle reads/writes and the array-fill prologue sizes the record. Probes
+`rec1/rec2/rec3.pas` byte-identical to `pint`. All PB-0..PB-7 probes + cross-language baselines unchanged.
+
+**Records — the design (parser-only, on the array rail):**
+- `pascal.y` gains a record-type table `g_pas_rectypes[name]→ordered fields`, a record-var table
+  `g_pas_recvars[name]→ordered fields`, and a `g_pas_pend_fields` accumulator that bridges them.
+- `record_field` appends each `id_list` name to pending (flat scalar fields; nested-record fields deferred).
+- `type_decl` registers the pending fields under the type name (`pas_rectype_add`); a type-alias to a record
+  type inherits its fields for free. `simple_type → IDENT` loads a named record type's fields into pending
+  (`pas_rectype_to_pend`) so `var p : point` works.
+- `var_decl`, if pending is nonempty, registers the var (`pas_recvar_add`) and sizes it via the existing
+  `pas_array_add(name, nf-1)` so the program-level array-fill prologue inits it to `nf` "0" segments.
+  Pending is reset at the end of every `var_decl`/`type_decl` to prevent staleness across declarations.
+- `selector PERIOD IDENT`: if `selector` is a `TT_VAR` naming a record var and the field resolves, emit
+  `TT_IDX(var, ilit(index))`; else fall back to `TT_FIELD`. Read context → `arr_get`; `p.f := v` →
+  `TT_ASSIGN(TT_IDX,…)` → existing Pascal `v_assign` TT_IDX arm → `arr_set_pure`. Both already worked.
+- Reset `g_pas_nrectype`/`g_pas_nrecvar`/`g_pas_pend_nf` in `pascal_parse_string`.
+
+**Record limits (deferred, no probe needs yet):** nested records (record-typed field) — `simple_type`'s
+pending load would clobber accumulation mid-record, so a record-typed field is not resolved (falls to
+`TT_FIELD`); `with`-statement field shorthand; record-valued `var` params (whole-record by-reference);
+per-activation record locals in nested/recursive procs (array-fill prologue is global-name-based, same
+limitation as arrays). Whole-record copy `p := q` happens to work (string-value copy via `TT_VAR` assign).
+
+**Zero cross-language regression (direct rebuild + suite run):** Icon `--interp` **130/117/36** identical to
+baseline; Prolog honest mode-2 **132/132, 0 ABORT** identical.
+
+**Earlier this session — PB-6b (parameterless function call in expression) — COMPLETE, HEAD 521726d.** A bare
+identifier in `factor` that names a declared function now correctly generates a zero-arg call, not a variable read. Gate
 `flatnoarg.pas` prints **`10`** (was `0`), byte-identical to `pint`. All PB-0..PB-7 probes + cross-language
 baselines unchanged.
 
-**The fix (two parts):**
+**The PB-6b fix (two parts):**
 - **Parser (`pascal.y`)**: Added `g_pas_funcs[256]` table + `pas_func_add`/`pas_is_func`. All `FUNCTIONSY`
   declarations (forward + full) call `pas_func_add(name)` at parse time. `mk_ident` now checks the table:
   if the name is a known function, return `mk_call(name, NULL)` (zero-arg `TT_FNC`) instead of `TT_VAR`.
@@ -23,7 +53,7 @@ baselines unchanged.
   from `lhs_t->c[0]->v.sval` and emit `IR_ASSIGN` with that name — same behavior as the former `TT_VAR` path.
   Comes before the `lhs_is_var` check; no other paths affected.
 
-**Why this is correct:** Inside function `five`'s body, `five := 5` has LHS `selector → IDENT("five")` →
+**Why PB-6b is correct:** Inside function `five`'s body, `five := 5` has LHS `selector → IDENT("five")` →
 `mk_ident("five")` → now `mk_call("five", NULL)` (TT_FNC). The lowerer's new TT_FNC-LHS arm extracts "five"
 → `IR_ASSIGN("five", 5)`. "five" is not in the frame scope → NV write → correct result-var assignment.
 Outside (in expression context), `five` in `g := five + five` → `TT_FNC` → `v_det_call` → `IR_CALL("five",
@@ -267,7 +297,12 @@ cd /home/claude/corpus/programs/pascal
   into calls). `pcom.pas` uses these heavily. **DONE**: `g_pas_funcs` table in parser; `mk_ident` promotes;
   `v_assign` TT_FNC-LHS arm handles `fn := expr` result-var assignment. `flatnoarg.pas` PASS (oracle 10). ✓
 - [ ] **PB-8 — Aggregates as needed.** `record`, `array`, `set`, pointers/`new`. Add only what later probes
-  require; `pint`'s store layout is the semantics oracle.
+  require; `pint`'s store layout is the semantics oracle. **`record` DONE** (session 8): field access mapped
+  onto the PB-5 array rail — parser resolves field names → indices at parse time and emits `TT_IDX(var,
+  ilit(idx))`, so `arr_get`/`arr_set_pure` and the array-fill prologue handle everything (zero lower/interp
+  changes). `rec1/rec2/rec3.pas` byte-identical to `pint`. Still open: `set`, pointers/`new`, and the record
+  limits listed in the watermark (nested records, `with`, record-valued `var` params, per-activation record
+  locals). `array` was PB-5.
 - [ ] **PB-9 — Cross onto compiled BBs (mode-3/4).** Convert Pascal's boxes to the `x86()` self-encoding API
   per the FACT RULES (one `x86(...)` concat per box, `bb_emit_x86`, no `bb_bin_t`). Rebase onto
   `x86_asm.h` first. Only after the mode-2 ladder is comfortably green.
