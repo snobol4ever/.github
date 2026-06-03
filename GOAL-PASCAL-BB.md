@@ -195,6 +195,26 @@ cd /home/claude/corpus/programs/pascal
 
 ## Watermark (live state)
 
+**✅ CROSS-LANGUAGE LOWER COUPLING EXCISED (session 3, 2026-06-02 — Lon: switch-TT_* / switch-LANG).**
+The LOWER dispatch is now the correct shape where Pascal participates: **outer `switch(tree->t)` → inner
+`switch(cx.lang)`**, choosing *add an arm* or *share an arm* at each cell. Concretely in `src/lower/lower.c`:
+- TT_FNC call (`:860`): `switch (cx.lang) { case IR_LANG_ICN: v_det_call(...,1); case IR_LANG_PAS:
+  v_det_call(...,0); }` — Icon and Pascal are **distinct arms** over the **shared** language-neutral
+  builder `v_det_call(cx,e,allow_generator,...)` (the only per-lang knob is the generator check). Pascal
+  no longer appears in any Icon-gated `||`.
+- bare-`if` else-target in `v_if` (`:290`): `switch (cx.lang) { case IR_LANG_RKU: case IR_LANG_PAS:
+  elseα=γ_in; ... }` — Raku and Pascal **share an arm** via C fall-through.
+- TT_FOR (`:965`) / TT_REPEAT (`:761`): Pascal-only arms → `v_pascal_for` / `v_pascal_repeat` (down-tree
+  special functions branch off once the (TT_*,LANG) context is landed).
+**Result: 100% code sharing where behavior is identical, dedicated arms only where it diverges.** Verified
+11/11 Pascal probes byte-identical to `pint`; Icon/Prolog/Raku/SNOBOL4 regression-green (Icon call path
+behavior unchanged — `v_det_call(...,1)` is exactly the old inline code).
+
+**Residual (non-LOWER) Icon adjacency — generic proc-registration infra, lower priority:**
+`src/driver/polyglot.c:43,90,128` — `LANG_PASCAL` is gated *alongside* `LANG_ICN`/`LANG_RAKU` in the
+init guard, proc-table collection, and `nparams` shape. These are language-neutral driver plumbing, not
+LOWER semantics; break `LANG_PASCAL` into its own clauses when convenient for zero adjacency.
+
 **2026-06-02 (session 2) — PB-4 GREEN + PB-5 CONTROL FLOW GREEN, ON PASCAL'S OWN RAIL.**
 Pascal is no longer riding the Icon rail. It has its own identity end-to-end: parser tag
 **`LANG_PASCAL`=6** (`src/parser/snobol4/scrip_cc.h`), IR graph tag **`IR_LANG_PAS`=7**
@@ -211,14 +231,11 @@ language-independent). **11/11 probes byte-identical to `pint`**: hello, PB-4 (d
 `:w` min-width), if/else, bare-if, while, for-to, for-downto, repeat-until, nested loops. Other frontends
 regression-checked green (Icon hello, Prolog init, Raku rk_arith/rk_array_literal, SNOBOL4 pattern).
 
-**⚠ REMAINING CROSS-LANGUAGE COUPLING — DELETE NEXT (Lon: "we don't do that here"):**
-- `src/lower/lower.c:830` — Pascal calls ride **Icon's** det-call arm: `(cx.lang == IR_LANG_ICN ||
-  cx.lang == IR_LANG_PAS)`; line 847 the generator check. **Fix:** revert 830 to Icon-only, add a
-  dedicated `v_pascal_call` arm (det `IR_CALL`, `call_beta=ω_in`, no generator notion).
-- `src/lower/lower.c:289` — bare-`if` else-target rides **Raku's** branch: `(cx.lang == IR_LANG_RKU ||
-  cx.lang == IR_LANG_PAS)`. **Fix:** give Pascal its own `v_if`-equivalent or a Pascal `elseα=γ_in` clause.
-- `src/driver/polyglot.c:43,90,128` — generic proc-registration infra *gated alongside* Icon/Raku
-  (init guard, proc collection, `nparams` shape). Break `LANG_PASCAL` into its own clauses for zero adjacency.
+**⚠ (session 2 note — now RESOLVED in session 3, see top of watermark):** the lower.c call/if coupling
+described below was excised by the switch-TT_*/switch-LANG refactor. Kept for history:
+- `src/lower/lower.c:830` — Pascal calls rode **Icon's** det-call arm. **FIXED** → own arm + shared `v_det_call`.
+- `src/lower/lower.c:289` — bare-`if` else-target rode **Raku's** branch. **FIXED** → shared arm via switch fall-through.
+- `src/driver/polyglot.c:43,90,128` — generic proc-registration infra (still gated alongside Icon/Raku; low priority).
 
 **Files touched session 2 (committed):** `src/contracts/IR.h`, `src/parser/snobol4/scrip_cc.h`,
 `src/parser/pascal/pascal.{y,tab.c,tab.h}`, `src/driver/polyglot.c`, `src/lower/lower_program.c`,
