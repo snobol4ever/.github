@@ -154,15 +154,55 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
     already wired). Capture fns reach `NV_*_fn` via `core.h`, `NAME_DEREF_PTR`/`IS_NAMEVAL`/`IS_NAMEPTR` via
     `sil_macros.h`, subject externs (`Σ`/`Σlen`/`Ω`/`Δ`)+`exec_stmt` as block-local externs; `rt.h` decls unchanged.
     Move-only; gates byte-identical. **`rt_pat_*` family DONE — grab-bag `rt.c` no longer holds any pattern ops.**
-  - [ ] **NEXT (cleanest-first):** `pattern_match` (part 4) — the `patnd_*`
-    classification helpers from `stmt_exec.c` (~9 predicates) + `cset_resolve`/`cset_has` from `scan_builtins.c`
-    (its `scan_try_call_builtin` goes to `by_name_dispatch`, NOT here). → then the LANGUAGE-NAMED files
-    (`gen_runtime.c`/`resolve_runtime.c`/`script_builtins*.c`) split by capability into `backtrack`/`unification`/
-    `resolution`/`by_name_dispatch`/`keywords`/`name_binding` (intricate file-local statics ⇒ each is its own multi-
-    slice effort, move whole coherent blocks) → `core/core.c` (3449 lines, the biggest split) → leave SNO-residue in
-    `core/` (LI-CORE). **Deferred micro-slices to fold in along the way:** `rt_unop_*` (above; lands with
-    `string_ops` + the logical home) and `rt_init` (slice-3 deferral; lands once invocation + comparison builtins
-    have homes).
+  - [x] **slice 10 — `pattern_match` (part 4)** (SCRIP `2997f12`): move the 9 `patnd_*` classification helpers
+    (`contains_arbno`/`contains_defer`/`is_simple_atom`/`is_capture_wrapped_safe`/`tree_eligible`/
+    `is_combinator_root`/`needs_xlate`/`is_pure_altcat_leaf`/`is_pure_altcat`) from `core/stmt_exec.c` →
+    `pattern_match.c`. The 5 called by `exec_stmt` promoted to external linkage (decls added to `core/patnd.h`,
+    already pulled in by both files via `core.h`); the 4 internal-only stay static. `exec_stmt` + call sites
+    untouched (it goes to `control_flow.c` later). No files added/removed ⇒ no Makefile change. Move-only.
+  - [x] **slice 11 — `pattern_match` (part 5)** (SCRIP `1d09cda`): move `cset_resolve`/`cset_has` from
+    `builtins/scan_builtins.c` → `pattern_match.c` (de-static; `cset_has` de-inlined). **Created
+    `src/runtime/pattern_match.h`** — the subsystem's own header (SUBSYSTEM 7) — declaring the two, chosen over
+    stuffing them into `patnd.h` (they're cset primitives, not PATND-node ops; homing-by-convenience is the
+    anti-pattern this reorg removes). Self-contained via `../contracts/descr.h`; included by both `.c`s; resolves
+    both builds via `-I$(RT)`. Header-only ⇒ no Makefile change. **`pattern_match` subsystem COMPLETE** (parts
+    1–5; ONLY `kw_anchor` open — map lists it under both pattern_match + `keywords.c`, a Lon call). `patnd.h`
+    keeps the part-4 `patnd_*` decls (those genuinely operate on `PATND_t`).
+  - [x] **slice 12 — `by_name_dispatch` (part 1)** (SCRIP `d7d7055`): `git mv builtins/script_builtins.c →
+    src/runtime/by_name_dispatch.c` — opens SUBSYSTEM 13 with a whole-file move of its simplest source
+    (`script_try_call_builtin`: single fn, only a function-local static, ZERO callers tree-wide / Raku ON HOLD).
+    Slice-8 relative-include fix (5 paths: `builtins/` prefix for sibling headers; `../driver`/`../parser`; `core.h`
+    unchanged). `script_builtins.h` stays in `builtins/` (shared with `script_builtins_byname.c`); no
+    `by_name_dispatch.h` yet. Makefile lockstep (RT_PIC_SRCS + per-`.o` → `by_name_dispatch.o`); removed stale
+    `/tmp/si_objs/script_builtins.o` (would double-define at the `*.o` glob link).
+  - [x] **slice 13 — `by_name_dispatch` (part 2)** (SCRIP `8c75c83`): move `scan_try_call_builtin` →
+    `by_name_dispatch.c`; after the part-5 cset move this **emptied `builtins/scan_builtins.c` ⇒ `git rm`** (Icon
+    string-scan silo file GONE). Added `pattern_match.h` to by_name_dispatch.c (calls relocated `cset_*`).
+    `scan_builtins.h` KEPT (decl-only; still included by `gen_runtime.c`, mirrored in `interp_private.h:124`).
+    Makefile: removed scan_builtins.c from RT_PIC_SRCS + per-`.o`; removed stale `scan_builtins.o`. Move-only.
+  - [x] **slice 14 — `by_name_dispatch` (part 3)** (SCRIP `fbd1412`): move `rt_builtin_is_known` + its static
+    helper `builtin_is_generator` from grab-bag `rt/rt.c` → `by_name_dispatch.c` (shrinks the grab-bag; the
+    function-local `known[]` table travels). Added `#include "rt/rt.h"` for `rt_proc_is_registered` (slice-2/6
+    relative-include mechanic); `rt_builtin_is_known` decl stays in `rt.h:139` so emitter callers
+    (`bb_call.cpp`/`emit_bb.c`) are untouched. **Behavior-neutral fix the move SURFACED:** dropped a loose
+    block-local `extern void *dat_find_type` that conflicted with the canonical `DatType *dat_find_type`
+    (`interp_private.h:115`) now in scope via the file's inherited includes — identical compiled call (same symbol,
+    same truthiness test). No file added/removed ⇒ no Makefile change.
+  - [ ] **NEXT (cleanest-first):** `by_name_dispatch` (part 4) — the **intricate file-local-statics tier** (read
+    BODIES, move WHOLE coherent blocks, gate EACH): `builtins/script_builtins_byname.c` (junction/grammar/hash
+    by-name — `script_try_call_builtin_by_name`, `script_try_hash_mutating_builtin`/`script_try_hash_builtin`,
+    `elem_to_descr`, `junction_is`/`jct_one_cmp_*`/`junction_collapse`, `gram_set`/`gram_get_flavor`/`gram_expand`/
+    `gram_n`) + the `gen_runtime.c` by-name members (`try_call_builtin_by_name`, `call_builtin`, `rt_jct_relop`,
+    `proc_as_value`, `rt_call_arr`) + `fn_has_builtin` (core.c, **static + used only in core.c** ⇒ needs de-static
+    + decl for its core.c callers) + `builtin_is_generator`-style predicates from rt.c (`rt_builtin_is_known` DONE).
+    THEN the rest of the LANGUAGE-NAMED files: `resolve_runtime.c` → `resolution.c` (and split its WAM
+    choice-point/trail → `backtrack`, term/unify/env → `unification`; tightly-coupled shared statics, genuine
+    multi-slice), `gen_runtime.c` remainder → `string_ops`/`keywords`/`name_binding`/`collections`/`monitor_trace`.
+    THEN `core/core.c` (3449 lines, biggest split) → leave SNO-residue in `core/` (LI-CORE). **`by_name_dispatch`
+    HEADER CONSOLIDATION (do when the subsystem settles):** create `by_name_dispatch.h`, fold the now-orphaned
+    decl-only `builtins/script_builtins.h` + `builtins/scan_builtins.h` into it, repoint callers (`gen_runtime.c`,
+    `interp_private.h`). **Deferred micro-slices:** `rt_unop_*` (lands with `string_ops` + a logical/control home),
+    `rt_init` (slice-3 deferral; lands once invocation + comparison builtins have homes).
 - [ ] **RS-FENCE.** `scripts/test_gate_runtime_subsystems.sh` asserts the partition; wire into Session Setup.
 
 **Method reminder:** definition-location authoritative; move/rename-only, no behavior change; update the build system
@@ -193,5 +233,5 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `ef53557` · .github this commit. (RS-1 done; RS-2 slices 1-9 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1, arithmetic-part-2, pattern_match-part-1 (`git mv core/pattern.c`), pattern_match-part-2 (fold `core/eval_pat.c`), pattern_match-part-3 (`rt_pat_*` family + capture from grab-bag `rt.c`); **`arithmetic` subsystem COMPLETE; `pattern_match` whole-file moves + `rt_pat_*` family COMPLETE** (`core/` pattern `.c` files relocated, only `patnd.h` stays; grab-bag `rt.c` no longer holds any pattern ops). Deferred micro-slices pending homes: `rt_init` (slice-3) + `rt_unop_*` (slice-6). Next = `pattern_match` part 4 (`patnd_*` classification helpers from `stmt_exec.c` + `cset_resolve`/`cset_has` from `scan_builtins.c`), then the LANGUAGE-NAMED files (`gen_runtime.c`/`resolve_runtime.c`/`script_builtins*.c`) split by capability, then `core/core.c`; remaining subsystems queued above + in the RS-1 HANDOFF.)
+**Watermark.** SCRIP `fbd1412` · .github this commit. (RS-1 done; RS-2 slices 1-14 landed gated byte-identical (slices 10-14 rebased onto a concurrent push `0b7a166` = ICON-BB bb_call/bb_unop x86() revamp, then rebuilt + all 7 gates re-confirmed green at the combined HEAD `fbd1412` — note bb_call.cpp calls the slice-14-relocated rt_builtin_is_known, decl still in rt.h:139) — runtime_eval, unification, runtime_init, io_format, arithmetic ×2, pattern_match ×5 (`git mv pattern.c`; fold `eval_pat.c`; `rt_pat_*`+capture from `rt.c`; `patnd_*` classifiers from `stmt_exec.c`; `cset_*` from `scan_builtins.c`), by_name_dispatch ×3 (`git mv script_builtins.c → by_name_dispatch.c`; `scan_try_call_builtin` move **dissolving `scan_builtins.c`**; `rt_builtin_is_known`+`builtin_is_generator` from `rt.c`). **`arithmetic` COMPLETE; `pattern_match` COMPLETE** (only `kw_anchor` open, Lon call); **`by_name_dispatch` STARTED** (script entry + scan entry + the rt.c known/generator predicates landed; `scan_builtins.c` gone; `pattern_match.h` created). New header this batch: `src/runtime/pattern_match.h`. Decl-only orphans awaiting consolidation: `builtins/script_builtins.h`, `builtins/scan_builtins.h`. Deferred micro-slices pending homes: `rt_init` (slice-3), `rt_unop_*` (slice-6). **NEXT = `by_name_dispatch` part 4** — the file-local-statics tier: `script_builtins_byname.c` (junction/grammar/hash by-name) + `gen_runtime.c` by-name members + `fn_has_builtin` (core.c, de-static needed); then `resolve_runtime.c`→`resolution`(+`backtrack`/`unification` split), `gen_runtime.c` remainder → string_ops/keywords/name_binding/collections/monitor_trace; then `core/core.c`. See the RS CHECKLIST `NEXT` bullet + the RS-1 HANDOFF for the full map.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
