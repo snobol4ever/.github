@@ -1,46 +1,13 @@
 # GOAL-PROLOG-BB.md — Prolog: BB-land DCG per predicate + lower_pl DCG
 
-## ✅ REGRESSION FIXED (2026-06-02→06-03) — m2/m3 restored, m4 0→75
+## ▶ STATE (2026-06-03)
 
-The two-stage regression (`06826c8` re-bombed LIVE `bb_builtin.cpp`; `cd10224` then deleted
-`bb_builtin`/`bb_goal`/`bb_choice`/`bb_atom`/`bb_logicvar`/`bb_fail` + stripped their `walk_bb_node`
-dispatch) is **repaired in-tree**. All six boxes restored as `x86()` self-encoding (`bb_bin_t`-free);
-`bb_builtin`'s 28 live BINARY arms converted via `x86_lit_bytes(b)` + `x86()` tails; dispatch + Makefile +
-prototypes re-wired. **Two gaps the original handoff missed, both fixed:** (a) `bb_fail` was a 6th deleted
-box (kind 11 → silent `walk_bb_node default` miscompile on every `fail`); (b) `pl_rich_node_emittable`'s
-`IR_UNIFY` case admitted compound/float operands that `bb_unify` (post-PL-RV-5, scalar-only) bombs on →
-narrowed the gate to mirror `u_deferred()`. **GATE-3 now m2 111/111 · m3 111/111 (byte-clean) · m4 75 PASS
-/ 0 FAIL / 36 EXCISED.** The 86→75 delta = compound-head-unify rungs now EXCISED (formerly PASS via the
-compound `bb_unify` arm PL-RV-5 deferred); closing to 86 needs the PL-HY-1a compound-build substrate, a
-feature not a restore. Committed `fdf8915` (gates green; pushed code-first per RULES).
+m2/m3 **111/111** byte-identical · m4 **75/0/36** · siblings Icon m2 12 · SNOBOL4 m2 7. SCRIP HEAD: see Gate table (end).
 
-## ▶ CURRENT PRIORITY — READ FIRST (2026-06-02): x86() TEMPLATE-REVAMP
-
-Convert this language's BB templates to the **`x86()` self-encoding API** (one return per `PLATFORM_*`, pure
-`x86(mnem,…)` concat, no `bb_bin_t`, pBB-free). The shared looping-box **keystone is LANDED at SCRIP
-`origin/main`=`30e8422` — REBASE ONTO IT BEFORE CONVERTING ANY BOX** (internal-label + ζ-frame support lives in
-the SHARED `x86_asm.h`; do not rebuild it or you collide).
-- **START HERE:** `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (rules R1–R13, divvy-up table, landed API `x86_begin()`/
-  `L(n)`/`FR(off)`/`bb_slot_claim`, `x86_asm.h` vocabulary). **Reference:** `bb_pat_pos.cpp` (loop-free) +
-  `bb_pat_span.cpp` (looping). **Recipe:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
-- **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
-  — first to reach a combinator designs it once in the RULES-DRAFT.
-- **YOUR BOXES:** `bb_arith`, `bb_cut`, `bb_unify`, `bb_conj`, `bb_disj`, `bb_ite`, `bb_catch`, `bb_choice`,
-  `bb_goal`, `bb_builtin`. Loop-free/single-shot leaves first; choice/goal (backtracking) use the landed
-  internal-label + ζ-frame support.
-- **PROGRESS:** `bb_cut`/`bb_arith`/`bb_conj`/`bb_ite`/`bb_disj`/`bb_catch`/`bb_unify` converted
-  (PL-RV-1..5; conj/ite via shared `x86_pair_loop()`; cut/arith/disj/catch dead-twin; unify scalar-only,
-  compound/float DEFERRED to PL-HY-1a). **`bb_builtin` converted (PL-RV-6, this session):** 28 live BINARY
-  arms → `x86_lit_bytes(b)` + `x86()` tails (γ/β/γ success · β/γ halt · ω/γ/ω test+compare · ω/β/ω throw).
-  `bb_fail` restored + converted. α defined by the flat driver in BINARY (verified vs `bb_unify`'s TEXT-only
-  `α:` guard); β defined in-arm per shape. **NEXT:** `bb_goal`(13) + `bb_choice`(6) are restored dead-twin
-  TEXT-only boxes — fine for the flat path (never emits them); real conversion only when a backtracking
-  program must emit them natively in m4. PL-HY-1a unblocks bb_unify's deferred arm AND restores m4 toward 86.
-- Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
-- (Full live status is in the **Watermark** near the end of this file.)
-
----
-
+**x86() TEMPLATE-REVAMP** — convert BB templates to `x86()` self-encoding (one return per `PLATFORM_*`, pure `x86(mnem,…)` concat, no `bb_bin_t`, pBB-free). Rules: `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. Reference: `bb_pat_pos.cpp` (loop-free) + `bb_pat_span.cpp` (looping). Shared keystone landed (internal-label + ζ-frame in `x86_asm.h`) — `git pull --rebase` before touching any box; `x86_asm.h` edits are additive.
+- DONE: bb_cut/arith/conj/ite/disj/catch/unify (PL-RV-1..5; unify scalar-only, compound/float DEFERRED to PL-HY-1a) · bb_builtin 28 BINARY arms + bb_fail (PL-RV-6).
+- OPEN: bb_goal(13)+bb_choice(6) real `x86()` conversion only when a backtracking program emits them natively in m4. PL-HY-1a unblocks bb_unify's deferred arm + restores m4 toward 86.
+- STILL OPEN (shared): variable-length define/jmp-pair loop (combinators + FENCE pair + Raku bb_nfa) — first to a combinator designs it in RULES-DRAFT.
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
 **The `bb_bin_t { sites, labels, is_def, bytes }` struct and `bb_emit_asm_result(out, bin)` /
@@ -402,122 +369,49 @@ proven negative test (injecting a resurrection makes it exit 1).
 
 ---
 
-## 🔴🔴 #0 PRIORITY — BB-HYGIENE LADDER (PROLOG) — ORDERED, DO FIRST (Lon 2026-06-01)
+## 🔴🔴 #0 PRIORITY — BB-HYGIENE LADDER (PROLOG) — ORDERED (Lon 2026-06-01)
 
-Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step (and EACH sub-wave): GATE-3 m2/m3 **111/111** byte-identical (HARD) + m4 count held, smoke 5/5/5, purity green, commit. Copy the worked example: `bb_binop_*.cpp` + 38-line router.
+Per the BB-HYGIENE FACT RULE. **STRICT ORDER, lowest first.** After EACH step: GATE-3 m2/m3 **111/111** byte-identical (HARD) + m4 held, smoke 5/5/5, purity green, commit. Worked example: `bb_binop_*.cpp` + 38-line router.
 
-- [ ] **PL-HY-1 — `bb_builtin.cpp` (was 2,427; now 2,187) — THE WORST OFFENDER. FOUR diseases at once. Sub-waves, GATE-3 111/111 after EACH.**
-  - **1a — DISEASE 3+4: BINARY half DONE (`abae7c1`), TEXT half RESOLVED-AS-NOT-DUP.** The two walkers `emit_build_compound_term` (TEXT, mode-4) + `emit_build_compound_term_bin` (BINARY, mode-3) were the SAME post-order IR→Term walker in two media — and BOTH duplicate the recursive `resolve_node_to_term()` already in `IR_interp.c`. **Fix landed:** added one exported wrapper `rt_node_to_term_ptr(void*)` over `resolve_node_to_term`; **DELETED `emit_build_compound_term_bin`** (90L) and rerouted all 23 mode-3 BINARY call-sites through a 2-instruction marshal+call (`movabs rdi,&node; call rt_node_to_term_ptr` → Term* in rax), mirroring the already-live `rt_is_eval` node-ptr-baking arm. Mode-3 is IN-PROCESS so the live `IR_t*` is valid. Net MORE correct: the old inline `_bin` built float-literal leaves as 0.0 (`xorps xmm0`); the runtime walker reads `dval`. **The TEXT twin is deliberately KEPT** — with `_bin` gone the DUP-FORM-1 ("same algo in two media") is RESOLVED; the lone surviving walker is the mode-4 SERIALIZED encoding (scalars-as-immediates + `lea [rip+strlbl]`, calls `rt_node_to_term@PLT`/`rt_compound_build_n`). Mode-4 produces a SEPARATE binary via as+gcc, so it CANNOT bake an in-process `&node` — verified live: a compound call-arg rung (`show(mary)`→`likes(X,Y)`) compiles+runs to `food` with 3 walker calls in its `.s`, and `bb_goal.cpp` (MEDIUM_TEXT-only) externs+uses it for IR_STRUCT call-args. Collapsing the TEXT walker to one `rt_*` call needs an IR→rodata serialization substrate (a real feature, flagged below as the mode-4 substrate) — NOT part of the 1a duplication-kill. Result: GATE-3 m2 111/111 · m3 111/111 byte-identical · m4 75/0/36 held; medium-invisible 384→343; no_bb_bin_t 0; −95 lines.
-  - **1b — DE-CRAM the families:** each builtin family (type-tests, arith/is, sort/format, atom/string, writeq/numbervars/copy_term, …) → its own `bb_builtin_<family>.cpp`; group 95%-identical functors within a family. Router `bb_builtin.cpp` dispatches by name. ~18 shapes → ~18 files (each small), GATE-3 111/111 after each family.
-  - **1c — DE-FUSE:** any arm reading `pBB->α->ival/sval` for an operand whose own box fills a slot.
-- [ ] **PL-HY-2 — `bb_choice.cpp` (318).** first-clause/next-clause/CP-elision shapes → split; group near-identical. Router. Coordinate WAM-CP.
-- [ ] **PL-HY-3 — `bb_goal.cpp` (264).** det-call/backtrack-call/callee-epilogue shapes → split (the `xa_pl_callee_epilogue` future-XA lands here). Router.
-- [ ] **PL-HY-4 — `bb_unify.cpp` (151).** var-vs-const / first-occ / var-vs-var specializations (WAM-CP-7) are distinct shapes → split now so WAM-CP-7 drops into ready files. Router.
-- [ ] **PL-HY-5 — de-dup + RT-fix sweep, all Prolog boxes.** Confirm every VALUE helper is ONE `rt_*` call and no arm re-implements runtime work inline in either medium.
-- [ ] **PL-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Prolog-owned files. GATE-3 111/111 HARD held; m4 never regresses.
+- [x] **PL-HY-1a** — DUP-kill on `bb_builtin.cpp`: deleted `emit_build_compound_term_bin` (90L); 23 mode-3 sites → `rt_node_to_term_ptr`; TEXT twin KEPT (mode-4 serialized encoding, not a dup). `abae7c1`.
+- [x] **PL-HY-1b** — DE-CRAM: `bb_builtin.cpp` (2,187L) → ~130L name-dispatch router + 11 family files `bb_builtin_{io,is_cmp,type_test,term_inspect,aggregate_nb,atom_string,term_io,findall,succ_plus,list,retract_throw}.cpp` + shared `bb_builtin_common.h`. Blocks copied VERBATIM, classified by predicate (28 BINARY + 28 TEXT, zero unclassified). Shared helpers (`emit_build_compound_term`/`emit_term_from_node_bin`/`bb_pl_op_floaty`) stay in router, externed via common.h. Makefile RT_PIC_SRCS + scrip rule += 11 files. GATE-3 byte-identical; medium-invisible 343 (redistributed, total unchanged).
+- [ ] **PL-HY-1c** — DE-FUSE: any arm reading `pBB->α->ival/sval` for an operand whose own box fills a slot.
+- [ ] **PL-HY-2** — `bb_choice.cpp` (318): first-clause/next-clause/CP-elision shapes → split + router. Coordinate WAM-CP.
+- [ ] **PL-HY-3** — `bb_goal.cpp` (264): det-call/backtrack-call/callee-epilogue → split + router (future `xa_pl_callee_epilogue` lands here).
+- [ ] **PL-HY-4** — `bb_unify.cpp` (151): var-const / first-occ / var-var (WAM-CP-7) → split + router.
+- [ ] **PL-HY-5** — de-dup + RT-fix sweep, all Prolog boxes (every VALUE helper = ONE `rt_*` call).
+- [ ] **PL-HY-FENCE** — `scripts/test_gate_bb_one_box.sh` green for Prolog files; GATE-3 111/111 HARD; m4 never regresses.
+## VSX — g_vstack ERADICATION (Lon 2026-05-31)
 
-## ★★★ VSX — g_vstack ERADICATION (Lon directive 2026-05-31) ★★★
+SCRIP has NO value stack; apparatus deleted (`80431d0`/`caf8f6d`/`d2a6ca4`). KEPT (not value stacks): trail `g_resolve_trail`, CP ledger `g_resolve_bfr`, ζ-frame `g_frame_buf`, activation table `g_rt_frames`. Audit: `doc/VSTACK-ERADICATION-AUDIT-2026-05-31.md`.
+- [x] VSX-0..7 — DONE. `g_vstack` token 0 across all src (code+comments) and STAYS 0.
+- [ ] VSX-8 — ZERO-CHECK blocked on the Icon/SNOBOL4 `IR_BINOP_GEN` emitter (`bb_binop_gen.cpp` emits 2 `rt_vstack_pop@PLT` + the `rt_vstack_ops_t` type + 2 abort-shims). Cross-language GOAL task; Prolog has ZERO ties.
+## PLG — Prolog onto Byrd Boxes (HISTORY)
 
-SCRIP has NO value stack. The whole apparatus is **deleted** (commits `80431d0`/`caf8f6d`/`d2a6ca4`):
-array `g_vstack[]`/`VSTACK_CAP`, the data (`g_vtop`/`g_vframe_base`/`g_last_ok`/`g_default_ops`/`g_ops`),
-the ops layer + wrappers (`vstack_push/pop/peek/...`, `_default_*`, `LAST_OK_GET/SET`), and the ~63 `rt_*`
-that pushed/popped — now one-line `STACKLESS_ABORT` bodies (signatures kept for ABI; every one already
-aborted at runtime, so the BB-world live paths never enter them). **KEPT (not value stacks):** the Prolog
-trail `g_resolve_trail`, the choice-point ledger `g_resolve_bfr`, the ζ-frame `g_frame_buf`, the activation
-table `g_rt_frames`. Audit: `doc/VSTACK-ERADICATION-AUDIT-2026-05-31.md`.
+Pipeline: `Prolog AST → lower_pl (four-port IR) → bb_exec.c (m2/3 interp) → bb_pl_*.cpp → x86 (m4)`. m2 `--interp` = correctness reference; m3 `--run` = same `bb_exec_once` + native flat-walk; m4 `--compile --target=x86` = `.s` via `codegen_flat_build`/`walk_bb_flat` + TEXT arms. **TEST ALL THREE MODES** (`test_smoke_prolog.sh` GATE-1, `test_prolog_rung_suite.sh --mode all` GATE-3). Reference: Proebsting `bench/Simple Translation of Goal Directed Evaluation.pdf`, `bench/test_icon.c`+`test_sno_1.c`.
 
-- [x] **VSX-0..VSX-7 — DONE** (audit + the delete-everything pivot). `test_gate_no_vstack.sh` total 166→5; the
-  `g_vstack` token is **0** across all `src/` (code + comments) and STAYS 0.
-- [ ] **VSX-8 — ZERO-CHECK, blocked only on the Icon/SNOBOL4 binop-gen emitter (CROSS-LANGUAGE).** The remaining
-  5 refs are NON-data: `bb_binop_gen.cpp` emits two `call rt_vstack_pop@PLT` strings for the Icon/SNOBOL
-  `IR_BINOP_GEN` odometer; the `rt_vstack_ops_t` TYPE in `rt.h`; the two abort-shims `rt_vstack_depth`/
-  `rt_vstack_pop` that exist so that emitter's output links. Driving to 0 is an **Icon/SNOBOL4 GOAL task**
-  (migrate `IR_BINOP_GEN` to a stackless ζ-frame box); then delete the 2 shims + the type → gate flips to a
-  HARD `--strict` standing gate. Prolog has ZERO ties to `g_vstack`.
+**Completed (collapsed):** PLG-0..8 (m2/m3 foundation — hello/vars/is/calls/backtracking/lists/ITE/det-builtins/catch/findall/retract/DCG/assertz; GATE-3 m2/m3 111/111). PLG-9a..9j (m4 0→86 — native facts/calls/backtracking, builtin families, ITE, writeq/float-is/copy_term/numbervars/write-list).
 
----
+**Still-open PLG:**
+- [ ] PLG-7 — remove `bb_node_state_t` snapshot/restore. One LIVE Icon caller (`bb_exec.c:1589`); don't delete until Icon migrates.
+- [ ] PLG-9g (rest) — m4 dynamic-DB + broken-family closures (findall/retract/assertz→WAM-CP-13, aggregate, catch/throw, dcg_generate). All EXCISE cleanly; need a real runtime substrate.
+- [ ] PLG-10 — findall sub-graph / assert-retract store / DCG repetition onto an explicit indexed deferred-frame array (`test_sno_1.c` `_1[64]`), NOT snapshot/C-recursion. Gate: rung11/14/30 AGREE.
+## WAM-CP — SWIPL-informed choice-point track
 
-## PLG — Prolog onto Byrd Boxes (HISTORY, terse)
+Build CP stack on TOP of existing `Term*` boxes (small rungs); tagged-word migration is LATER. References: `doc/SWIPL-STUDY-2026-05-28-OPUS.md`, `doc/GPROLOG-STUDY-2026-05-28-OPUS.md`, `doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`. **DESIGN:** the BB graph replaces the WAM *environment* stack (per-predicate BB allocations + α/β/γ/ω), NOT the *choice-point* ledger — `g_pl_bfr` + parent-linked `pl_choice` is the irreducible dynamic CP ledger, kept LEAN.
 
-**Pipeline:** `Prolog AST → lower_pl (four-port IR graph) → bb_exec.c (mode 2/3 interp) → bb_pl_*.cpp → x86 (mode 4)`.
-Mode-2 `--interp` = correctness reference (`bb_exec_once`); mode-3 `--run` interim-routes through the same
-`bb_exec_once` (byte-identical) AND has a native flat-walk tier; mode-4 `--compile --target=x86` emits a
-standalone `.s` via `codegen_flat_build`/`walk_bb_flat` + the `bb_pl_*.cpp` TEXT arms. **Reference (read at CP
-work):** Proebsting `bench/Simple Translation of Goal Directed Evaluation.pdf` (four-port α/β/γ/ω, no value
-stack, no recursion), `bench/test_icon.c` + `bench/test_sno_1.c` (flat per-box slots; ARBNO `_1[64]` indexed
-deferred frame), `archive/frontend/prolog/prolog_emit.c` (the target static-emit shape: predicate→C fn, clause
-body = flat α/β/γ/ω, only surviving dynamic state = resume cursor + trail mark).
+**Completed (collapsed):** WAM-CP-1..6 (CP record + push/pop/cut/m4-emit/LCO), CP-8 (first-arg indexing + CP-elision, GATE-SWI 57/57), CP-9/10 partial (m4 cut-scope, catch/throw m2 5/5), PLR-J-0..5 (JCON four-port), CP-7a/7b (head-unify spec).
 
-**⛔ TEST ALL THREE MODES, ALWAYS** (Lon, 2026-05-31). `test_smoke_prolog.sh` (GATE-1; m2 = HARD all-PASS,
-m3/m4 tracked) and `test_prolog_rung_suite.sh` (GATE-3; `--mode all`) loop interp/run/compile per test; an
-unwired mode-4 shape declines with the `[SMX]` banner = EXCISED (expected, not FAIL). Mode-4 harness:
-`scripts/run_prolog_via_x86_backend.sh`.
+**Open (priority):**
+- [ ] WAM-CP-7c — var-vs-var unify spec (`eq(X,X)` arg2: `rt_pl_unify_var_var` reading both env slots; 3→1 calls).
+- [ ] WAM-CP-9 (rest) — committed-ITE node; bare `!` in `(A;B)` through truncate; retire `g_pl_cut_flag`.
+- [ ] WAM-CP-11 — deep-backtracking arg restore (`saved_args`) + nested choices.
+- [ ] WAM-CP-12 — determinism detection → CP elision (lower-time).
+- [ ] WAM-CP-13 — m4 parity for 9/10/11 (`pl_cp_*`→`rt_pl_cp_*` FACT-clean); owns m4 dynamic-DB emit (PLG-9g).
+- [ ] WAM-CP-14 — [doc] tagged-word migration audit → `doc/WAM-CP-TAGGED-WORD-BRIDGE.md`.
+- [ ] PL-INDEX-L2-1 — Level-2 hash dispatch for first-arg indexing (O(1) clause select when >8 clauses).
 
-### PLG rungs — completed (collapsed)
-
-**PLG-0..PLG-8** (mode-2/3 foundation): hello; vars; `is/2`+comparisons; user-pred calls (facts, head-unify,
-multi-clause `IR_CHOICE`); fail-driven backtracking; lists/ITE/standard-order/det-builtins/catch/findall;
-retract/abolish/DCG/phrase; runtime assertz/asserta; mode-3 parity (interim = same `bb_exec_once` + native
-flat-walk tier). Per-activation logic-var env = `g_resolve_env`. GATE-3 m2/m3 **111/111**.
-
-**PLG-9a..9j** (mode-4 native, m4 0→86): hello; per-box logicvar slot; int `is/2`; facts/calls + backtracking
-(`pl_rich_body_root`/`codegen_pl_program`, per-predicate `.Lplpred_*` blocks); builtin-family widening
-(24→68); ITE multi-goal branch; writeq/write_canonical/atomic_list_concat TEXT arms (→76); float `is/2` +
-integer-`/` fix (→80); copy_term/2 compound arg0 (→81); numbervars/3 + write/1 list-rendering (→86).
-**WAM-CP-7a/7b** head-unify specialization (var-const 3→1 calls, first-occ self-unify 3→0; byte-identical).
-
-**Still-open PLG steps:**
-- [ ] **PLG-7** — remove `bb_node_state_t` snapshot/restore. AUDIT: one LIVE Icon caller (`bb_exec.c:1589`
-  IR_CALL); do not delete until Icon migrates off. Mode-2/3/4 byte-identical + build green.
-- [ ] **PLG-9g (rest)** — m4 dynamic-DB + remaining broken-family closures (findall, retract/retractall/
-  abolish/assertz → WAM-CP-13; aggregate, catch/throw, dcg_generate). All EXCISE cleanly (0 FAIL); need a
-  real runtime substrate (cheap `@PLT`-TEXT closures exhausted).
-- [ ] **PLG-10** — findall sub-graph / assert-retract store / DCG repetition onto an explicit indexed
-  deferred-frame array (`test_sno_1.c` `_1[64]`/`ζ`), NOT snapshot, NOT C recursion. Gate: rung11/14/30 AGREE.
-
-## ⏳ WAM-CP — SWIPL-informed choice-point track
-
-**Strategy:** build the CP stack on TOP of existing `Term*` boxes first (small, bisectable rungs); the
-tagged-word/global-stack migration is a separate LATER track. **Reference:** `doc/SWIPL-STUDY-2026-05-28-OPUS.md`
-(CP-stack idea #4 = current track), `doc/GPROLOG-STUDY-2026-05-28-OPUS.md` (gprolog CP-frame). Full study of
-JCON: `doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`; feature comparison: `doc/PROLOG-FEATURE-COMPARISON-2026-05-29-SONNET.md`.
-
-**⚠️ DESIGN PRINCIPLE — BB graph replaces the WAM *environment* stack, NOT the *choice-point* ledger.** The
-WAM env stack (clause locals + continuation) IS the BB graph (per-predicate BB-local allocations + α/β/γ/ω
-wiring) → no SCRIP analogue. The CP ledger MUST survive: a CP outlives the box that made it and is re-entered
-after failure; two calls to the same predicate are the same BB nodes but distinct live CPs. `g_pl_bfr` +
-parent-linked `pl_choice` is that irreducible dynamic ledger, kept LEAN. Consequences: (1) never materialize a
-CP when the alternative is statically dead (WAM-CP-8/12); (2) the CP record carries only what a BB node can't
-reconstruct (trail_mark, resume cursor, arg snapshot, parent link, age) — no env frame, no PC, no H/HB; (3)
-prefer BB-resident state (`nd->state`/`nd->cursor`) over CP-resident; the CP stack is the spine, BB nodes the
-vertebrae.
-
-### Completed (collapsed)
-
-**WAM-CP-1..6** CP record `pl_choice{...}` + `g_pl_bfr` + push/pop/current/truncate; cut = `pl_cp_truncate`;
-mode-4 emit; LCO (frame-reuse + indexed multi-clause + trail reclamation). **WAM-CP-8** JIT first-arg clause
-indexing + CP-elision for single-solution bodies (GATE-SWI 57/57). **WAM-CP-9/10 partial** mode-4 cut-scope
-nested in `pl_choice`; catch/throw mode-2 5/5 via `Pl_CatchFrame`+setjmp. **PLR-J-0..5** JCON four-port
-transliteration. **WAM-CP-7a/7b** head-unify specialization (see PLG history).
-
-### Open (priority order)
-- [ ] **WAM-CP-7c** unify specialization — var-vs-var / `get_value` (repeated-var head arg, e.g. `eq(X,X)` arg2 = `IR_UNIFY(LOGICVAR(j), LOGICVAR(i))` i≠j → a `rt_pl_unify_var_var` reading both env slots directly, 3 calls → 1, mirroring 7a's shape). 7a (var-vs-const) + 7b (first-occurrence/self-unify) done (`b716e8c`). Any time.
-- [ ] **WAM-CP-9 (rest)** committed-ITE node; route bare `!` inside `(A;B)` through truncate (`bb_pl_alt` uses a
-  separate mark stack, not `pl_choice`); retire `g_pl_cut_flag` once mode-4 drives off `pl_cp_current()` identity.
-- [ ] **WAM-CP-11** deep-backtracking arg restore (`saved_args`) + nested choices (rung02/05/06 exhaustive).
-- [ ] **WAM-CP-12** determinism detection → CP elision (lower-time; complements WAM-CP-6/8).
-- [ ] **WAM-CP-13** mode-4 parity for 9/10/11: `pl_cp_*` → `rt_pl_cp_*` effect-helpers (FACT-clean); committed-ITE
-  + catch barrier through templates. **Owns the dynamic-DB mode-4 emit (PLG-9g).**
-- [ ] **WAM-CP-14** [BRIDGE, doc only] tagged-word migration readiness audit → `doc/WAM-CP-TAGGED-WORD-BRIDGE.md`.
-- [ ] **PL-INDEX-L2-1** Level-2 hash dispatch for first-arg indexing (O(1) clause selection vs the current O(N)
-  filter scan; build a `key→clause-indices` hash on the `IR_CHOICE` sidecar when clause count > ~8; merge
-  var-headed wildcard clauses). Mode-2 first, byte-identical output, reduced candidate-scan count.
-
-> **PL-TRAIL-COND ⛔ CLOSED (won't-fix-as-designed).** Conditional trailing (trail only when the bound var is
-> older than the youngest CP) was implemented and reverted — it BREAKS backtracking in the boxed GC model,
-> which has no heap-segment reclamation (the WAM's second undo mechanism). Every mutable binding must be
-> trailed. Viable only after a per-CP heap-reclamation substrate exists.
-
+> **PL-TRAIL-COND CLOSED (won't-fix):** conditional trailing breaks backtracking in the boxed GC model (no heap-segment reclamation). Every mutable binding must be trailed.
 ---
 
 ## 🔴 Other open work
@@ -575,17 +469,13 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (current — PL-HY-1a BINARY half landed; SCRIP HEAD `abae7c1`, local — push at handoff)
-
-PL-HY-1a: `emit_build_compound_term_bin` (90L mode-3 BINARY walker) DELETED; 23 call-sites → one
-`rt_node_to_term_ptr` runtime call. TEXT twin retained (mode-4 serialized encoding, not a dup). Prior:
-bb_builtin+bb_fail restored as `x86()` (PL-RV-6); `pl_rich_node_emittable` IR_UNIFY narrowed to scalar.
+## 📊 Gate table (PL-HY-1b landed — bb_builtin split into router + 11 family files; SCRIP HEAD `7fd076f`, push at handoff)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | 4/5 | 5/5 | m3 `unify` is a smoke-harness-only artifact; the rung suite covers the same shapes and passes |
-| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **75 PASS / 0 FAIL / 36 EXCISED** | m2/m3 byte-clean (unchanged by PL-HY-1a — proven by 24 compound-term rungs rung09/17/20/22/25/26). m4 held at 75; PL-HY-1a touched only the mode-3 BINARY path. EXCISED = findall, retract/abolish/assertz, aggregate, catch/throw, dcg_generate, compound/float unify |
-| no_bb_bin_t | 0 ✅ | — | — | `bb_bin_t`/`bb_emit_asm_result` zero across src/; type undeclared (compiler-enforced) |
-| medium-invisible | **343** (was 384; WIP) | — | — | PL-HY-1a removed 41 byte-producers (the deleted `_bin` walker + 23 inline call expansions collapsed to one helper). Remaining 343 are bb_builtin's straight-line BINARY arm bodies (the PL-RV-6 `x86(mnem,…)` conversion, separate from PL-HY). Informational gate (not `--strict`) |
-| siblings (HARD m2) | Prolog 111 ✅ · Icon 12 ✅ · SNOBOL4 7 ✅ | — | — | all three HARD gates green after the shared-file touch; sibling m3/m4 at/above floors (Icon 4/4, SNOBOL4 5/0). PL-HY-1a edited only Prolog-owned `bb_builtin.cpp` + one Prolog runtime wrapper in `IR_interp.c` |
-| FACT RULE grep | 0 ✅ | — | — | g_vstack 0; seg_byte/SL_B 0; handencoded b.size() 0; prove_lower2 PASS |
+| GATE-1 smoke | 5/5 ✅ | 4/5 | 5/5 | m3 unify = smoke-harness artifact; rung suite covers it |
+| GATE-3 rung suite | **111/111** ✅ | **111/111** ✅ | **75 / 0 / 36** | byte-identical pre/post split. EXCISED = findall, retract/abolish/assertz, aggregate, catch/throw, dcg_generate, compound/float unify |
+| no_bb_bin_t | 0 ✅ | — | — | compiler-enforced |
+| medium-invisible | **343** | — | — | redistributed across 11 family files (total unchanged); informational |
+| siblings (HARD m2) | Prolog 111 ✅ · Icon 12 ✅ · SNOBOL4 7 ✅ | — | — | shared-file invariant intact |
+| FACT grep | 0 ✅ | — | — | g_vstack 0; seg_byte/SL_B 0; handencoded b.size() 0; pl-value-stack PASS; prove_lower2 PASS; purity 2 pre-existing non-Prolog |
