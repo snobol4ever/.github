@@ -15,7 +15,7 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
-## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; **SNOBOL4 mode-4 UNBLOCKED ✅ (m4 0/6 → 4/6, SCRIP `047dded`)** — next: m4 IR_SCAN TEXT path (pattern/goto_s), then REG-RO + REG-FENCE TIER2
+## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; **SNOBOL4 mode-4 ✅ m4 6/6 (IR_SCAN TEXT arm — `pattern`+`goto_s`; SCRIP `faea0f4` pushed, rebased onto upstream `c66723e`)** — next: REG-RO + REG-FENCE TIER2
 
 > **🔄 SR-1b WALKED BACK (Lon 2026-06-03; reconciled into this file 2026-06-03 OPUS48).** The "SAVE/RESTORE as
 > boxes bracketing the body" plan (`bb_proc_save` + RESTORE-succ@`lbl_γ` + RESTORE-fail@`lbl_ω`, result via a
@@ -157,8 +157,8 @@ for SNOBOL4/Snocone/Rebus, built into the BB local storage?"* Answer: it is FUSE
   — same one-register `[r12+off]` FACT-RULE discipline, different payload. Mode-4-relocatable by construction.
   Do AFTER SR-1. Gate: same as SR-1 + no-stack/one-register-frame gates hold for the new boxes.
 
-**Gate state (GREEN, verified 2026-06-03):** SNOBOL4 m2 **7/7 HARD** / m3 **6/6** / m4 **4/6** (output/concat/arith/define
-emit→as→gcc→run; was 0/6) · Icon m2 **12/12 HARD** · `prove_lower2` PASS · `no_bb_bin_t` 0 · LI-FENCE OK ·
+**Gate state (GREEN, verified 2026-06-03):** SNOBOL4 m2 **7/7 HARD** / m3 **6/6** / m4 **6/6** (output/concat/arith/define/pattern/goto_s
+emit→as→gcc→run; was 0/6) · Icon m2 **12/12 HARD** · `prove_lower2` PASS · `no_bb_bin_t` 0 · LI-FENCE 13 (this work's delta 0; 7 prior + 6 from rebased-in Icon GN `c66723e`) ·
 concurrency invariants OK · REG-FENCE TIER1=0 · broad interp 105/280 + unified-broker 32 match clean baseline. ENV:
 `apt-get install -y libgc-dev`.
 
@@ -1334,7 +1334,9 @@ patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
 files and git history. Only the durable carry-forward + the current watermark are kept here.
 
-**Watermark.** SCRIP tip **`2a146b2`** (2026-06-03) — **SNOBOL4 mode-4 UNBLOCKED: m4 0/6 → 3/6.** This session
+**Watermark (m4 IR_SCAN TEXT arm — `pattern` + `goto_s`, SCRIP `faea0f4` pushed, 2026-06-03).** m4 4/6 → **6/6**: `S 'b'='X'`→`aXc` (`pattern`) and `'x' 'x' :S(HIT)`→`hit` (`goto_s`) now pass m2/m3/m4. Both smoke cases are the SIMPLE-LITERAL scan (pattern `IR_PAT_LIT`, subject `IR_VAR` or `IR_LIT_S`, replacement `IR_LIT_S`/absent — emit-time probe confirmed). NEW runtime entry `rt_scan_lit(subj_name, subj_lit, pat_lit, is_repl, repl_lit)` in `IR_interp.c`: unanchored `memcmp` honoring `kw_anchor` (manual ch.18 OUTER loop) + ch.14 prefix/replacement/suffix splice on match (only the matched portion replaced); no IR-graph run, so no Σ/Δ save. `emit_bb.c flat_drive_scan_stmt` reads the literal strings off the scan sub-graph ENTRY nodes (emit-time IR inspection in the DRIVER, not the template) and promotes them onto 3 new `_` fields (`op_scan_pat_lit/subj_lit/replace_lit`); `bb_scan_stmt.cpp` TEXT arm emits the call with `[rip+label]` RO-string args (`mov reg,0` for absent), `is_repl` imm, then `test eax,eax / je ω / jmp γ / def β / jmp ω`. Non-literal patterns still honestly `x86_bomb` (the separate native PB-RB pattern ladder). BINARY (mode-3) arm UNTOUCHED — parallels the concat fix (handle the constant case, keep the general path). **LI-FENCE gotcha:** the field, first named `op_scan_repl_lit`, tripped the gate's Prolog `pl_` tag inside `re`**`pl_`**`it` (false positive — concept is "replacement", not Prolog); renamed `op_scan_replace_lit` (`pl`→`a`), my LI-FENCE delta back to 0. (Aside: `BB_templates/` is incidentally outside LI-FENCE because the ALLOW token `template` matches the dir name, but the field name lives in-scope in `emit_bb.c`/`emit_globals.h`.) Files: `emit_globals.h`, `emit_bb.c`, `IR_interp.c`, `BB_templates/bb_scan_stmt.cpp` (4 files). Gates (re-run GREEN post-rebase): m2 **7/7 HARD** / m3 **6/6** / m4 **6/6**; unified-broker 32; native-arms audit OK; REG-FENCE TIER1=0; SCRIP_M3_NATIVE 19/0; no-bb-bin-t 0; medium-invisible (bb_scan_stmt absent); no-vstack 3 (baseline); no-handencoded-bytes 0; LI-FENCE **13** (this work's delta 0 — the +6 vs the prior 7 are the rebased-in upstream Icon GN commit `c66723e`: `g_icn_globals_nv` / `bb_gvar_assign_icn` / `flat_drive_icn_global_assign`). SNOBOL gates count-identical vs `047dded`; rebased onto upstream `c66723e` (Icon GN, m4 12→19) + `bfabff3` (Prolog) with no conflict. MODE4_MIN left at 4 (6/6 ≥ floor). **Committed + pushed: SCRIP `faea0f4` (rebased onto `c66723e`).** **NEXT:** REG-RO + REG-FENCE TIER2. **— prior watermark below —**
+
+**Watermark (m4 unblock 0→3, `2a146b2`).** SCRIP tip **`2a146b2`** (2026-06-03) — **SNOBOL4 mode-4 UNBLOCKED: m4 0/6 → 3/6.** This session
 wired the dead `scrip.c:801` abort to the real flat TEXT emitter (`gvar_flat_chain_build_text`), mirroring the
 Prolog mode-4 block, plus 5 mode-4-TEXT-only wiring fixes (all gated on the new `g_sno_m4_dense_nid` / TEXT path,
 mode-3 byte-neutral — see the PB-RB-8 step above for the full list). `output`/`arith`/`define` now PASS
