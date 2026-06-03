@@ -15,7 +15,60 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
-## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a (save/restore helpers extracted) ✅ — next: SR-1b boxes (Lon 2026-06-03)
+## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; SR-1b box approach ❌ REJECTED (Lon 2026-06-03) — next: REG-RO + REG-FENCE (the genuine remaining register work)
+
+> **🔄 SR-1b WALKED BACK (Lon 2026-06-03; reconciled into this file 2026-06-03 OPUS48).** The "SAVE/RESTORE as
+> boxes bracketing the body" plan (`bb_proc_save` + RESTORE-succ@`lbl_γ` + RESTORE-fail@`lbl_ω`, result via a
+> `g_proc_result` global) was explored and **rejected**; the partial implementation was fully reverted (SCRIP
+> clean at `3610475`). **The call-frame save/restore STAYS FUSED in the runtime** `rt_call_named_proc` (→ the
+> SR-1a helpers `rt_name_save_push` / `rt_name_restore`) — it is correct and green there. Why box-ification was
+> wrong: a SNOBOL4 call is **single-shot** (enters once, exits `:(RETURN)`/`:(FRETURN)`), NOT a backtrackable
+> generator, so the FENCE/ALT "save-on-α / restore-on-β" model has **no resume edge** to hang a restore on (the
+> call box's β is already degenerate `jmp ω`); box-ifying fixes no bug and (SNOBOL being by-name) each box would
+> be a thin wrapper around an NV helper; its only payoff is mode-4 relocatability, which is structural debt with
+> **no test delta** and premature while m4 is blocked for an UNRELATED reason (below). The caller-side
+> `BB_SAVE_RESTORE`+`BB_CALL` pairing was incoherent (caller graph vs. callee body, no port edge) and abandoned.
+> See `HANDOFF-2026-06-03-OPUS48-SNOBOL4-BB-SR-1B-BOX-APPROACH-REJECTED.md`. The SR-1b bullet below is kept,
+> struck through, for the record; **SR-2** ("the save-area IS the frame") remains the right *future* shape if
+> this is ever revisited — ONE callee-side bracket whose saved-name records live in the ζ-frame, killing the
+> global `g_name_save[]` stack, NOT a 3-box / caller-pair spelling.
+
+> **🔭 REG-LADDER + m4 RECONCILIATION (audited 2026-06-03 OPUS48, grep-proven against SCRIP `8970924`).** The
+> REG-ladder checkboxes below understate reality: **(1)** the `TEMPLATE_ADDR_SIGMA`/`TEMPLATE_ADDR_SIGLEN`
+> process-local-address bake — the thing the ladder calls "the m4 blocker" — is **already GONE family-wide**
+> (`grep -lE 'TEMPLATE_ADDR_SIG(MA|LEN)' bb_pat_*.cpp bb_lit.cpp` == empty). **(2) REG-1 (`bb_lit`) is DONE but
+> was left unchecked** — `bb_lit.cpp` carries the literal comment `[REG-1 Σ=r13 δ=r14 Δ=r15]`, reads cursor=r14d
+> / base=r13 / length=r15d, zero `TEMPLATE_ADDR_SIG*` (checkbox flipped below). **(3)** REG-3/4/5 boxes are
+> register-migrated already (cursor on r14, no SIG): of the whole family the boxes that still name `r10` are
+> **7 files / 20 refs** — `bb_lit`(4), `bb_pat_atp`(4), `bb_pat_break`(4), `bb_pat_any`(2), `bb_pat_notany`(2),
+> `bb_pat_span`(2), `bb_pat_defer`(2) (the `push r10`/`pop r10` guards around `memcmp`/`strchr` + `bb_lit`'s
+> `[r10]` cursor-mirror writes); the other leaves/combinators (`len`/`pos`/`tab`/`alt`/`cat`/`fence`/`arb`/`rem`/
+> `abort`) are r10-free. `bb_capture.cpp` no longer exists. **(4) m4 is STILL 0/6 and the ladder's premise is now
+> STALE: SIG-removal did NOT lift m4.** `--compile` aborts BEFORE any relocation, with: *"sno_ring_to_tree
+> REMOVED (VIOLATION, Lon 2026-05-31) … SNOBOL4 mode-4 emission must come from LOWER producing the four-port
+> statement-BB graph directly … this is a wiring gap, not a design limit."* So **the real m4 unblocker is the
+> LOWER→four-port-graph wiring** (the `## ⭐ MODES 3 & 4` note), NOT the register bake. **(5)** the genuine
+> remaining REG work is **REG-RO + REG-FENCE**, and REG-RO is NOT a trivial "delete the dead r10": the `[r10]`
+> cursor field is still **live-coupled** to `xa_flat.cpp:140` (`movsxd rcx, dword ptr [r10]`) — the cursor lives
+> in BOTH r14 (boxes) and `[r10]` (flat driver), so REG-RO must migrate `xa_flat`'s read to r14 (or keep the
+> SUBJECT box syncing it) BEFORE `bb_lit`'s `mov [r10], r14d` mirror writes + the `push/pop r10` guards can be
+> removed. **(6)** the **BB-HYGIENE #0 ladder line counts are stale** and largely **subsumed by the x86()
+> revamp** (e.g. `bb_pat_cat`/`bb_pat_alt` cited 194/185 are now **14** lines; `bb_capture` cited 226 is gone;
+> `bb_pat_break` cited 349 is 200) — same verdict as the Prolog hygiene audit (`4063911c`). **Net NEXT (ordering
+> revised after the audit):** **(0) REG-FENCE — ✅ AUTHORED this session** (`scripts/test_gate_sno_pat_reg.sh`,
+> TIER 1 = `TEMPLATE_ADDR_SIG*` HARD/0 locked, TIER 2 = r10 residue informational until REG-RO; add to Session
+> Setup — see gate list below). **(1) The real m4 unblocker: LOWER four-port wiring** — the abort is at
+> `src/driver/scrip.c:801`, which ALREADY has `sbbg` (the four-port `IR_graph_t` for `main` from `sm_preamble`)
+> in hand and just `(void)sbbg`-aborts; wire it to the flat **TEXT** emitter (the mode-4 twin of mode-3's
+> `bb_build_flat`/`codegen_flat_*`, SAME boxes, TEXT vs BINARY medium). This has a real test delta (m4 0/6 →
+> >0/6) and is the genuine #1. **(2) REG-RO — DEFERRED behind (1)** — it is broader than first stated (7 files /
+> 20 r10 refs PLUS the SHARED `xa_flat` non-frame epilogue's BINARY+TEXT `[r10]` cursor read + `ADDR_SIGMA`
+> base), touches an Icon-shared return contract, and the flat pattern path it polishes is NOT the load-bearing
+> m3 pattern driver (that is `rt_scan`/`IR_SCAN`) and is gated by NOTHING standing (only the un-wired
+> `test_sno_pat_bb_probe.sh`). So REG-RO is zero-test-delta debt on an ungated shared path — do it only AFTER the
+> flat chain is the real m3 pattern driver (PB-RB-CONV) AND under a gate. m2 **7/7 HARD** must hold every step.
+
+
 
 **`DOUBLE(21)` → `42` LANDS. SNOBOL4 m3 is 6/6.** The with-arg param-binding blocker was a **one-bit x86
 encoding bug**, not the suspected wrong-path. Root cause + fix below; the prior handoff's "proc-call doesn't
@@ -65,7 +118,7 @@ for SNOBOL4/Snocone/Rebus, built into the BB local storage?"* Answer: it is FUSE
   Icon m2 12/12 HARD, `prove_lower2`/`no_bb_bin_t`/LI-FENCE/concurrency all green; diff = `rt.c` only (+23/-15).
   NOTE: `src/runtime/core/name_save.c` is a SEPARATE mechanism — the mode-3 userproc path is rt.c's
   `rt_call_named_proc` (confirmed by the prior handoff's probe trace).
-- [ ] **SR-1b — SAVE/RESTORE as boxes bracketing the body (the remainder of SR-1).** Now that the helpers exist,
+- [~] **SR-1b — ❌ REJECTED / WALKED BACK (Lon 2026-06-03). Save/restore STAYS FUSED in `rt_call_named_proc`; no `bb_proc_save`/`bb_proc_restore_*`/`g_proc_result`. See the SR-1b WALK-BACK note at the top of this file + `HANDOFF-2026-06-03-OPUS48-SNOBOL4-BB-SR-1B-BOX-APPROACH-REJECTED.md`. The text below is retained for the record only — do NOT implement it.** ~~SAVE/RESTORE as boxes bracketing the body (the remainder of SR-1).~~ Now that the helpers exist,
   make the four-port `SAVE → body → RESTORE` topology explicit WITHOUT touching the shared `XA_FLAT_EPILOGUE`
   (Icon shares it — changing the return contract there risks the Icon HARD gate). **KEY CONSTRAINT (verified this
   session):** the function result is read via `NV_GET(name)` and must be captured BEFORE restore, and restore must
@@ -746,7 +799,7 @@ templates only; m2 7/7 HARD must stay invariant every step.**
   unit-test elements before BB_MATCH — a thin subject-register prologue shim in `sno_flat_chain_build`/`_text`
   that loads R13/R15 from SUBJECT's ζ-slots + zeroes R14 after the SUBJECT box. Gate: build rc=0; all gates
   invariant (no element bytes changed yet).
-- [ ] **REG-1 — migrate `bb_lit` (the proven reference element).** BINARY+TEXT: cursor read `mov eax,[r10]` →
+- [x] **REG-1 — migrate `bb_lit` (the proven reference element). ✅ DONE (audit-confirmed 2026-06-03, was left unchecked).** `bb_lit.cpp` carries `[REG-1 Σ=r13 δ=r14 Δ=r15]`, reads cursor=r14d / base=r13 / length=r15d, with ZERO `TEMPLATE_ADDR_SIG*`. Only residue is the `[r10]` cursor-mirror writes + `push/pop r10` guards, which are REG-RO's job (and coupled to `xa_flat.cpp:140` — see the REG-LADDER RECONCILIATION note at top). Original spec retained:
   `mov eax, r14d`; cursor write `mov [r10], eax` → `mov r14d, eax`; Σ-base `movabs rax,&Σ; mov rax,[rax]` (BIN) /
   `lea rcx,[rip+Σ]; mov rax,[rcx]` (TEXT) → use `r13` directly; Δ-compare `movabs rcx,&Σlen; cmp eax,[rcx]` →
   `cmp eax, r15d`. β arm: `δ -= len` becomes `sub r14d, len` (no `[r10]`). Re-derive the byte sequence + patch
@@ -804,7 +857,7 @@ templates only; m2 7/7 HARD must stay invariant every step.**
   (rung): no `movabs` loading an RO ADDRESS (lit / cset / helper-fn ptr) remains in the SNOBOL pattern BINARY arms —
   each is `[rip+disp]` into sealed RO data; **zero `r10` in ANY form** (`[r10]`, `push r10`, `pop r10`) in the
   pattern family; m3 ≥ floor; probes green.
-- [ ] **REG-FENCE — the no-legacy-cursor / no-r10 gate (completion test).** Add `scripts/test_gate_sno_pat_reg.sh`:
+- [~] **REG-FENCE — gate AUTHORED 2026-06-03 (TIER 1 locked; TIER 2 flips to HARD at REG-RO).** `scripts/test_gate_sno_pat_reg.sh` exists: **TIER 1** = `TEMPLATE_ADDR_SIGMA|TEMPLATE_ADDR_SIGLEN` in the SNOBOL pattern family == **0** (HARD, passes now under `--strict` — the &Σ/&Σlen bake removal is done); **TIER 2** = `r10` residue (currently 20 refs / 7 files), INFORMATIONAL until REG-RO migrates `xa_flat`'s `[r10]` cursor read to r14 and drops the bb_lit mirror + memcmp/strchr guards, at which point flip the marked line in the script to enforce `r10_total==0`. Still TODO: wire it into the live Session-Setup gate runner, and re-measure SNOBOL m4 after the LOWER four-port wiring lands (NOT after the bake removal — that is already done and did not lift m4; the real m4 blocker is the `sno_ring_to_tree` removal at `scrip.c:801`). Original spec retained:
   `grep -lE 'TEMPLATE_ADDR_SIGMA|TEMPLATE_ADDR_SIGLEN' src/emitter/BB_templates/bb_pat_*.cpp src/emitter/BB_templates/bb_lit.cpp src/emitter/BB_templates/bb_capture.cpp src/emitter/BB_templates/bb_arbno.cpp`
   == empty, AND no `[r10]`-as-cursor read/write remains in those files (cursor is r14, subject r13, length r15),
   AND (post-REG-RO) **zero `r10` in any form** (`[r10]`/`push r10`/`pop r10`) in the pattern family with every RO
@@ -919,6 +972,7 @@ bash scripts/test_mode4_broad_corpus_snobol4.sh      # GATE-3: 178/280
 bash scripts/test_interp_broad_corpus_and_beauty.sh  # GATE-4: 251/280
 bash scripts/test_snobol4_pat_rung_suite.sh          # M2=19 M4=15 SKIP=0
 bash scripts/audit_m3_native_binary_arms.sh          # GATE OK
+bash scripts/test_gate_sno_pat_reg.sh                # REG-FENCE: TIER1 SIG=0 (HARD); TIER2 r10=20 (info, pending REG-RO)
 SCRIP_M3_NATIVE=1 bash scripts/test_smoke_snobol4.sh                                # 13/13
 INTERP=$(pwd)/scrip SCRIP_M3_NATIVE=1 bash scripts/test_interp_broad_corpus_and_beauty.sh  # 195/280
 ```
@@ -1167,6 +1221,28 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
   m2 corpus parity held; broad corpus ≥ prior.
 - [ ] **PB-RB-8 — mode-4 parity sweep.** Every PB-RB box's TEXT arm assembles+links+runs; `--compile` smoke
   ladder green. Driver re-stitch for `--compile` lands here (LOWER emits the graph; no `sno_ring_to_tree`).
+  **▶ CONCRETE ENTRY POINT (scoped 2026-06-03 OPUS48 — this IS the SNOBOL m4 unblocker, m4 0/6 → >0/6):** the
+  abort is `src/driver/scrip.c:801`, inside `if (PLATFORM_X86)` mode-4, in the SNOBOL `{ … }` block that already
+  computes `stage2_t *s2 = sm_preamble(ast_prog)` and `IR_graph_t *sbbg = s2->bbp.table[main_bb_idx]` (the
+  four-port graph for `main`) — then `(void)sbbg; abort()`. **REUSE, don't invent:** the body emitter already
+  exists — `gvar_flat_chain_build_text(IR_graph_t *g, FILE *out, const char *prefix)` (`emit_bb.c:2153`) emits
+  the statement-chain BODY for an `IR_graph_t` (REF-prebuild + operand-refs + slot reset + `g_gvar_flat_chain=1`
+  + `codegen_gvar_flat_chain_body` + `emitter_init_text`/`end`). It does NOT emit the header / per-proc
+  prologue+epilogue / strtab — the wiring must add those, exactly as the **Prolog mode-4 block IMMEDIATELY ABOVE
+  (scrip.c:~770-787) does for itself** (that block is the working template: emit a `main` C-entry stub →
+  `codegen_flat_build(flat_root, stdout, "main")` under `g_frame_active=1` → `xa_emit_strtab_rodata()`). Recipe:
+  (1) `xa_file_header()`; (2) emit the `main` C-entry stub that inits the SNOBOL runtime (mirror the Prolog stub
+  + the SNOBOL `--run` init: `rt_proc_register`/`gvar_flat_chain_build`/`rt_proc_set_fn` per the define m3 path)
+  and tail-calls `main_α`; (3) for the main proc AND each non-main proc in `s2->proc_table[]`: `xa_flat_prologue()`
+  → `gvar_flat_chain_build_text(s2->bbp.table[proc.bb_idx], stdout, proc.name)` → `xa_flat_epilogue()`, with
+  `g_frame_active=1` around proc bodies (the GZ-10 frame epilogue path — NOT the non-frame `[rip+Σ]/[r10]` path);
+  (4) `xa_emit_strtab_rodata()`; (5) replace `abort()` with `return rc`. **Then the debug tail:** `--compile
+  --target=x86` → `as` → `gcc -no-pie -lscrip_rt` → run; chase TEXT-arm assembly bugs box-by-box until the
+  `scripts/test_smoke_snobol4.sh` mode-4 ladder climbs (raise `MODE4_MIN` as it does). ⚠ This is a STANDALONE
+  RUNG with a real assembly-debug tail (the boxes' TEXT arms are claimed present but SNOBOL m4 is 0/6, so the
+  pipeline has untested seams) — START IT FRESH; do not interleave with REG-RO. ⚠ The XA epilogue is SHARED with
+  Icon — use the `g_frame_active=1` (frame) path, leave the non-frame path's bytes untouched so Icon m4 (already
+  green) does not regress.
 - [ ] **PB-RB-OPT — ALL-INVARIANT BLOB FREEZE (the optimization).** When a pattern is FULLY invariant,
   collapse its REF_INVARIANT + STITCH sequence into ONE sealed `bb_box_fn` BLOB emitted at compile time (the
   wiring frozen to direct jumps, no ε, no runtime stitch); REF_INVARIANT hands MATCH that sealed head
@@ -1239,14 +1315,36 @@ patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
 files and git history. Only the durable carry-forward + the current watermark are kept here.
 
-**Watermark.** SCRIP tip this commit (**SR-1a**: `rt_call_named_proc` de-fused into thin `rt_name_save_push` /
-`rt_name_restore` helpers — byte-faithful refactor, no inlined save/install/restore loops; diff = `rt.c` only,
-+23/-15). Gate GREEN: SNOBOL4 m2 **7/7 HARD** / m3 **6/6** (`DOUBLE(21)`→`42`) / m4 0/6; Icon m2 **12/12 HARD** /
-m3 4/12 / m4 4/12; `prove_lower2` / `no_bb_bin_t` / LI-FENCE / concurrency all PASS. NEXT: **SR-1b** (SAVE/RESTORE
-as boxes bracketing the body — epilogue-neutral design written into the SR-1b bullet above: `bb_proc_save` +
-RESTORE-succ@`lbl_γ` + RESTORE-fail@`lbl_ω`, result via a new `g_proc_result` global, actuals staged at
-`[r12+16…]`, base in a stable `[r12+off_base]` slot), then SR-2 (save-area = frame). String-arg `slen` still open
-(doesn't block the define smoke). .github tip this commit.
+**Watermark.** SCRIP tip **`341b59f`** (this session committed ONE file: `scripts/test_gate_sno_pat_reg.sh`,
+the REG-FENCE gate — test-only, no emitter/runtime bytes; rebased onto the RUNTIME-REORG lane's `5893518`
+RS-2-s27 move-only extraction. Last SNOBOL4-BB *code* commit remains **SR-1a** `3610475`; intervening commits are
+other lanes — GN-3, RS-2, PB-8, WAM-CP-7c, etc.). **This session (2026-06-03 OPUS48) landed NO code — it
+RECONCILED this goal file** after confirming via git history (`bd8d6453`) + handoff that **SR-1b's box approach
+was REJECTED** and reverted (save/restore stays fused in `rt_call_named_proc` via the SR-1a helpers
+`rt_name_save_push` / `rt_name_restore`). Edits made: frontier header re-pointed; SR-1b WALK-BACK note added at
+top; SR-1b bullet struck through; **REG-1 flipped to [x]** (was done-but-unchecked — `bb_lit` is on Σ=r13/δ=r14/
+Δ=r15, zero `TEMPLATE_ADDR_SIG*`); REG-LADDER + m4 reconciliation note added. **Audited baseline (grep + gate,
+clean tree):** SNOBOL4 m2 **7/7 HARD** / m3 **6/6** (`DOUBLE(21)`→`42`) / m4 0/6; `TEMPLATE_ADDR_SIG*` ZERO
+family-wide; `r10` residue is **20 refs / 7 files** (`bb_lit`, `bb_pat_atp`, `bb_pat_break`, `bb_pat_any`,
+`bb_pat_notany`, `bb_pat_span`, `bb_pat_defer` — push/pop guards + bb_lit mirror); `prove_lower2` / `no_bb_bin_t` /
+LI-FENCE / concurrency all PASS. **CORRECTED m4 cause:** m4 0/6 is NOT the address bake (gone) — `--compile`
+aborts at `src/driver/scrip.c:801` with *"sno_ring_to_tree REMOVED … mode-4 emission must come from LOWER
+producing the four-port statement-BB graph directly … wiring gap"* (the abort site ALREADY holds `sbbg`, the
+four-port `IR_graph_t` for `main`). **ALSO THIS SESSION (safe, test-only):** authored `scripts/test_gate_sno_pat_reg.sh`
+(REG-FENCE) — TIER 1 `TEMPLATE_ADDR_SIG*`==0 HARD (locked, passes `--strict`), TIER 2 r10 informational; added to
+the goal's Session Setup gate list; REG-FENCE bullet marked `[~]`. **NEXT (re-pointed after audit):** **(1) the
+real m4 unblocker — LOWER four-port wiring** at `scrip.c:801`: walk `sbbg` through the flat TEXT emitter (mode-4
+twin of mode-3 `bb_build_flat`/`codegen_flat_*`, SAME boxes TEXT-vs-BINARY) instead of `(void)sbbg`-aborting; real
+test delta (m4 0/6 → >0/6). **(2) REG-RO — DEFERRED behind (1)**: it is broad (7 files + the Icon-SHARED `xa_flat`
+non-frame epilogue's BINARY+TEXT `[r10]` cursor read + `ADDR_SIGMA` base) and zero-test-delta on an UNGATED path
+(the m3 pattern driver is `rt_scan`/`IR_SCAN`, not the flat chain; the flat chain is tested only by the un-wired
+`test_sno_pat_bb_probe.sh`) — do it only after the flat chain becomes the real m3 driver (PB-RB-CONV) AND a gate
+covers it; then flip REG-FENCE TIER 2 to HARD. **SR-2** (save-area = ζ-frame) remains the right *future* call-frame
+shape if ever revisited (NOT the rejected 3-box spelling). String-arg `slen` still open (doesn't block the define
+smoke). m2 **7/7 HARD** must hold every step. **No emitter/runtime code landed this session — only the new
+REG-FENCE gate script** (SCRIP `341b59f`, rebuilt + re-gated green on the rebased tree: m2 7/7 HARD, m3 6/6,
+REG-FENCE TIER1=0). Session detail: `HANDOFF-2026-06-03-OPUS48-SNOBOL4-BB-SR1B-RECONCILE-REGFENCE-M4-SCOPE.md`.
+.github tip this commit.
 
 ## Architecture references
 
