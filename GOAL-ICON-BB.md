@@ -12,7 +12,7 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ CURRENT PRIORITY (2026-06-03): GROUND-ZERO NATIVE RUNGS (BB-HYGIENE ladder)
+## ▶ CURRENT PRIORITY (2026-06-03): GROUND-ZERO NATIVE RUNGS (BB-HYGIENE ladder) + **ICN-SCAN LADDER (NEW — Lon 2026-06-03: one stackless BB per Icon string-scanning op; see the "ICN-SCAN LADDER" section below; next step = ICN-SCAN-0)**
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`): all three medium gates read 0
 (`test_gate_template_medium_invisible.sh`, `test_gate_no_bb_bin_t.sh`, `test_gate_no_handencoded_bytes.sh --strict`).
@@ -716,7 +716,23 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `eca2dcb` — native `IR_ALT` generator (`bb_alt`); `every write(1|2|3)` m2==m3==m4.** The
+**HEAD (SCRIP) = `d46b943` — UNCHANGED this session (no SCRIP code commits). HEAD (.github) = the ICN-SCAN
+ladder + this handoff.** Session 2026-06-03 (Opus 4.8, "ICN-SCAN-LADDER") was a PLANNING session, Lon-directed:
+**authored the ICN-SCAN LADDER** (section above, .github `b411947b`) — one stackless BB per Icon string-scanning
+operation, the full canonical set closed against `fstranl.r` (any/bal/find/many/match/upto) + `fscan.r`
+(move/pos/tab) + `?:=` + `=s`, 16 steps ICN-SCAN-0 … ICN-SCAN-FENCE, each with its IR kind, port topology, frame
+slots, probes, and the per-step gate. Register contract = the SNOBOL4 layout verbatim (R12=ζ, R13=Σ, R14=δ,
+R15=Δ, RBX=NV hash). Wave-1 shape gating per the `bb_alt` discipline (literal args, default window, dynamic
+shapes EXCISE `[SMX]`). Cross-referenced in `ARCH-ICON.md` (new "String scanning — the ICN-SCAN BB family"
+section). Also corrected here: the previous watermark header still said HEAD=`eca2dcb`; the true tree at session
+start was `d46b943` (the `bb_gen_scan`/`bb_keyword` IR_GEN_SCAN landing — its rung entry was already marked DONE
+in the GZ-11+ list but the header had not been advanced). **NEXT = ICN-SCAN-0** (registerize the `?` env:
+`bb_gen_scan` loads Σ/δ/Δ, ledger carries the triple, RT-boundary δ↔`scan_pos` sync). Canonical sources for next
+session: extract the uploaded `icon-master.zip`/`jcon-master.zip` into `SCRIP/refs/`; the Proebsting four-port
+paper is at `SCRIP/refs/bb/`. Gates were NOT re-run this session (no code changed); the standing numbers below
+(at `d46b943`/`eca2dcb`) remain the baseline.
+
+**PREV HEAD (SCRIP) = `eca2dcb` — native `IR_ALT` generator (`bb_alt`); `every write(1|2|3)` m2==m3==m4.** The
 second "big box" of the IR_ALT/IR_GEN_SCAN pair is landed (first was `bb_to` at `b48f0cd`). **`bb_alt.cpp`** is a
 stackless counter-driven alternation generator that mirrors `bb_to`: it reads its arms from `operand_aux`
 (requiring `g_emit_cfg` to be set on the ICN emit path — see below), seals each arm constant RO
