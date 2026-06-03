@@ -70,12 +70,27 @@ Also done earlier: `bb_rk_gather`→`bb_gather` (`0b86f9e`), `rk_marshal_call_ar
 `rt_icn_*`→`rt_*` (`ba6e912`), LI-0 comment purge (`062b0f9`). **No language-tagged FILENAMES** remain in
 emitter/runtime.
 
-**🔴 REMAINING — ONLY LI-CORE:**
-- [ ] **LI-CORE** — `src/runtime/core/` SNOBOL runtime LIBRARY (`SNO_INIT_fn`/`SnoRt`/`SnoSaveEnt`/`SNO_LIB`/
-  `SNO_SAVE_MAX`/`g_sno_save`/`_top`). This IS the SNOBOL execution model; stripping `SNO` yields vague/colliding
-  names (`INIT_fn`, …). It is a runtime-UNIFICATION question, NOT a mechanical rename. **Surface to Lon for the
-  naming decision; no blanket sed.** (Coordinates with `GOAL-RUNTIME-REORG.md`, which dissolves `core/` by capability
-  — the "which subsystem owns SNOBOL runtime-init" question is the same one.)
+**LI-CORE-1 done (`d8262f2`, Opus 4.8):** `SNO_INIT_fn`→`core_lib_init`. Investigation showed it was NOT
+SNOBOL-specific: called unconditionally in `rt_init()` + the driver (not gated on `cx.lang==SNO`), body does
+`GC_INIT`/`&ALPHABET`/monitor/trace + registers the SHARED builtin ABI (`add/sub/LT/GT/INTEGER…`) Icon and Prolog
+lowered code call — the universal runtime-library init, so the `SNO_` tag actively misled (the exact directive WHY).
+Blind strip to `INIT_fn` was impossible (collides with the existing shim). Dropped its now-dead `SNO_INIT_fn|SNOBOL`
+carve-out from LI-FENCE ⇒ fence tightened. Gates byte-identical.
+
+**SCOPE CORRECTION (the other names the old LI-CORE line listed are NOT in `core/` and NOT in this goal's scope):**
+- `SnoRt` — emitter STRING-LITERALS only (`rt/SnoRt/init()V`, `void SnoRt::_init()`) naming the DORMANT JVM/.NET
+  runtime classes (`SnoRt.j`/`SnoRt.il`). Exclusion #5 + X86-ONLY + they're backend FILENAMES. HELD.
+- `SnoSaveEnt`/`SNO_SAVE_MAX`/`g_sno_save` — live in `src/interp/IR_interp.c` (mode-2 IR interpreter). OUT of the
+  emitter+runtime scope — an INTERP micro-slice, not RUNTIME-RENAME.
+- `SNO_LIB` — `src/driver/scrip.c` (driver-defined, exclusion #6) + dormant JS backend. OUT of scope.
+
+**🔴 REMAINING — ONLY LI-CORE-2 (the genuine SNOBOL library):**
+- [ ] **LI-CORE-2** — the SNOBOL runtime LIBRARY proper inside `src/runtime/core/` (the NV/keyword tables, the
+  pattern engine, the SNOBOL builtins). This IS the SNOBOL execution model; renaming is a runtime-UNIFICATION
+  question, NOT a mechanical strip. **Lon's naming decision; no blanket sed.** Coordinates with
+  `GOAL-RUNTIME-REORG.md` (which dissolves `core/` by capability — "which subsystem owns the SNOBOL runtime" is the
+  same question). Open Lon question from the LI-CORE-1 handoff: (a) leave the library named as-is and let REORG home
+  it, or (b) unify/rename it as part of REORG.
 
 ---
 
@@ -108,5 +123,5 @@ bash scripts/audit_concurrency_invariants.sh         # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `ef667d7` · .github this commit. (Emitter+runtime de-name COMPLETE; only LI-CORE pending Lon's decision.)
+**Watermark.** SCRIP `d8262f2` · .github this commit. (LI-CORE-1 `SNO_INIT_fn`→`core_lib_init` done + LI-FENCE tightened; only LI-CORE-2 — the genuine SNOBOL library in `core/` — pending Lon's unification decision, coordinates with RUNTIME-REORG.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
