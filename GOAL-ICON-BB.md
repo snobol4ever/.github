@@ -422,6 +422,30 @@ FACT 0, smokes hold.
     only if ALL nodes are in the safe generator set (IR_ALT/CALL/EVERY/FAIL/SUCCEED/LIT_*), so nested-alt
     (`("a"|"b")||("x"|"y")`) and multi-feature alt programs cleanly EXCISE `[SMX]` (loud, never silent
     miscompile). corpus m3/m4 PASS 10→12, EXCISED 37→45.
+  - [x] **`bb_gen_scan` NATIVE (`?` scan environment) + `&subject`/`&pos` keyword producer — DONE (`d46b943`).**
+    `"hello" ? write(&subject)` and `("foo"||"bar") ? write(&subject)` (rung05 scan_subject /
+    scan_concat_subject) now run m2==m3==m4. Stackless: `flat_drive_gen_scan` inlines the subject SUBGRAPH
+    (`pBB->counter`) via `flat_emit_arg_subchain`, reads its terminal slot (`descr_chain_terminal`+`bb_slot_get`)
+    → ENTER glue (`bb_gen_scan.cpp` phase op_sb=1: slot DESCR→rdi:rsi→`rt_icn_scan_enter` pushes
+    scan_subj/scan_pos on the scan LEDGER — env save/restore, not a value stack — sets subj, pos=1) → body
+    subgraph (`pBB->ival`) inlined → LEAVE glue (op_sb=2: `rt_icn_scan_leave` pops) on BOTH body-γ→outer-γ and
+    body-ω→outer-ω. Phase travels in `op_sb` because `walk_bb_node`'s prologue clobbers `op_ival` from
+    `nd->ival` (= body_sg pointer). DISCOVERY: the Icon lowerer emits `&kw` as `IR_VAR("&kw")`, NOT
+    `IR_KEYWORD` — emit_core `IR_VAR` dispatches '&'-prefixed sval to `bb_keyword.cpp` (`rt_icn_keyword_subject`
+    /`_pos` DESCR rax:rdx→slot; `&null`→{DT_SNUL,0}; `&fail`→ω), which shares the SAME `scan_subj` global
+    `kw_read` uses, so m2/m3/m4 see one environment. `IR_GEN_SCAN` off `icn_kind_native_stub`; `IR_KEYWORD`
+    STAYS on it (muxed kind — blocks unsupported TOP-LEVEL keywords → clean EXCISE; scan-body keywords live in
+    subgraphs invisible to the blanket check and dispatch fine). Emittability PRECISELY gated:
+    `icn_scan_subgraph_safe` recursively requires dval==1.0 + only LIT_*/&kw-VAR(subject|pos|null|fail)/
+    write|writes-CALL/CONCAT-BINOP/nested-GEN_SCAN in both subgraphs, so scan_var/restores/nested (local
+    assign) cleanly EXCISE `[SMX]`. Bounded one-shot subjects only (generator subjects need a β re-pump edge —
+    gated out, future). GEN_SCAN's own result value is NOT yet slot-propagated (statement-level scans only —
+    fine while its γ is SUCCEED). corpus scan EXCISED 5→3, m3/m4 PASS +2. Gates green: smoke m2 12/12 HARD,
+    m3/m4 5/12 unchanged, Prolog m2 5/5, broker 32, no_bb_bin_t/no_handencoded/no_vstack/icn_no_stack/
+    icn_one_reg_frame/prove_lower2 all PASS. Corpus segvs (rung15_real_swap_real_literal m3, rung36_jcon_fncs1
+    m2) reproduce at `eca2dcb` — PRE-EXISTING, untouched by this rung. NEXT in scan family: `any`/`match`/
+    `many`/`upto`/`find` value-wrappers per `fstranl.r` (the `?` env box they need is now live), scan-value
+    slot propagation, generator subjects.
 
 ---
 
