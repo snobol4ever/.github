@@ -136,18 +136,28 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
 - **`scan_try_call_builtin` dup decl** at `interp_private.h:124` — identical pre-existing decl (NOT an orphan).
   Harmless (`WARN := -w`, no `-Werror`). One-line follow-up if a single decl-site is wanted.
 - **`kw_anchor`** — RS-1 map lists it under BOTH `pattern_match` and `keywords.c`; pick a home.
-- **`_rt_IDENT`/`_rt_DIFFER` home (the "comparison" builtins)** — surfaced trying to clear `rt_init` (below). NOT a
-  clean slice. Bodies ARE self-contained (SNOBOL string-identity: `VARVAL_fn`+`strcmp`, NOT `descr_identical`), but
-  the **RS-1 map defines no `comparison` subsystem** — it folds comparison into `arithmetic.c` ("numeric ops,
-  comparison"), yet lists `ident`/`differ` on their OWN "Identity/differ" row (≠ the numeric "comparison" rows).
-  Three defensible homes: (1) `arithmetic.c` (map says comparison→arithmetic, but these are string not numeric);
-  (2) `values.c` (identity kinship with s23 `descr_identical`); (3) new `comparison.c` (contradicts the 17-subsystem
-  partition). Also needs de-staticizing the two `static` fns in `rt.c` (body-neutral linkage change). **Pick a home.**
+- **`_rt_IDENT`/`_rt_DIFFER` — NOT a "home" decision; a DELETE-the-DUPLICATE decision (Opus 2026-06-03).** Reading the
+  bodies revealed `IDENT`/`DIFFER` are **DOUBLE-REGISTERED**: `core/core.c:1663-64` `register_fn("IDENT",_IDENT_,0,2)` /
+  `register_fn("DIFFER",_DIFFER_,0,2)` AND `rt/rt.c:186-87` `register_fn("IDENT",_rt_IDENT,1,2)` /
+  `register_fn("DIFFER",_rt_DIFFER,1,2)` — same names, two impls, conflicting min-args (0 vs 1), and NOT equal:
+  core.c's `_IDENT_`/`_DIFFER_` (defs `core.c:641-50`) are **type-correct** (delegate to `ident()`/`differ()`, min 0 =>
+  proper `IDENT(X)`-vs-null); rt.c's `_rt_IDENT`/`_rt_DIFFER` (defs `rt.c:68-82`) are an **inferior STRING-ONLY copy**
+  (`VARVAL_fn`+`strcmp`, so integer `5` would equal string `"5"` — WRONG under SPITBOL), min 1. This is exactly the
+  "parallel copy of a capability that already exists" the reorg targets. **Resolution: DELETE rt.c's `_rt_IDENT`/
+  `_rt_DIFFER` + their two `register_fn` lines; keep core.c's canonical pair** (already in the SNOBOL model — its proper
+  home). Dissolves the open item WITHOUT any values.c/arithmetic.c/comparison.c move, and clears the
+  `_rt_IDENT`/`_rt_DIFFER` half of the `rt_init` blocker (below). It is a **DELETE = behavioral** (if the inferior copy
+  currently wins the registration race) — a Lon call, NOT a move-only slice. (A values.c move WAS prototyped this session
+  + gated byte-identical, then REVERTED: relocating one half of a dup just entrenches it.)
+- **`IDENT`/`DIFFER` mode-2 dispatch anomaly (pre-existing — NOT caused by any reorg work).** A 4-case `--interp` probe
+  (`IDENT("a","a")`, `IDENT("a","b")`, `DIFFER("a","b")`, `DIFFER("x","x")`) shows the two should-SUCCEED cases FAILING.
+  NEITHER body explains it (both return success for `("a","a")`), so the fault is upstream in mode-2 builtin dispatch;
+  reproduced on the clean tree after the revert. Worth a separate diagnosis; out of move-only scope.
 
 ### Deferred micro-slices (pending destination homes)
 - **`rt_init`** (slice-3) — convergence point dragging OTHER subsystems' statics (`_rt_IDENT`/`_rt_DIFFER` =
   comparison [home decision in Open-items above, OPEN]; `_rt_usercall` → `chunk_reg_lookup`/`call_native_chunk` =
-  native-chunk invocation). `invocation` now HAS a home (s24); `rt_init` still blocked on the comparison-builtins home.
+  native-chunk invocation). `invocation` now HAS a home (s24); `rt_init` still blocked on the comparison-builtins — now a DELETE-dup call (see updated Open-item), not a home.
 - **`rt_unop_*`** (slice-6) — capability-split: `unop_size` → `string_ops`; `unop_not`/`null_test`/`nonnull` → a
   logical/control home; `unop_neg`/`unop_pos` → `arithmetic`. Lands with those homes (don't strand a half-block).
 
@@ -178,17 +188,30 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `4aa19d7` (2 slices landed this session, each gated byte-identical, PUSHED) ·
-.github this commit = watermark + checklist update for the 2 slices (no SCRIP code re-touched here;
-`.github` is a different repo from SCRIP). RS-1 done; RS-2 slices 1–24 landed gated byte-identical.
-`arithmetic` / `pattern_match` / `by_name_dispatch` / `keywords` / `string_ops` (.c + header) + `name_binding`
-/ `values` / `invocation` (.c) COMPLETE; resolver renamed to `resolution`. This session (Opus, rebased onto
-`4501209` — upstream Pascal PB-8 was runtime-disjoint; combined tree re-built + re-gated green before push):
-s23 `values` (`descr_identical`) `ae76122`, s24 `invocation` (`sm_call_proc`/`proc_table_call`) `4aa19d7` — both
-carved from `builtins/gen_runtime.c` (654 → 209 lines). The clean move-only slices are now EXHAUSTED; every
-remaining target needs a Lon decision: (a) the `_rt_IDENT`/`_rt_DIFFER` **comparison-home** call (arithmetic.c vs
-values.c vs new comparison.c — see Open items; unblocks `rt_init`); (b) resolution `builtins/`→`runtime/` layout;
-(c) the hard `backtrack` cluster (gen_runtime.c remainder, overlaps the resolution split); (d) `core/core.c` (3449
-lines, LI-CORE). Open Lon calls: `fn_has_builtin` (likely delete), `scan_try_call_builtin` dup decl, `kw_anchor`
-home, comparison-home.
+**Watermark.** SCRIP `8970924` (this session, pushed) · prior RS watermark `4aa19d7` (RS-2 s1–s24, each gated
+byte-identical, PUSHED). RS-1 done; RS-2 slices 1–24 landed: `arithmetic` / `pattern_match` / `by_name_dispatch` /
+`keywords` / `string_ops` (.c + header) + `name_binding` / `values` / `invocation` (.c) COMPLETE; resolver renamed to
+`resolution`; `gen_runtime.c` 654 → 209 lines.
+
+**This session (Opus, 2026-06-03).** Arrived with HEAD `5dff1a8` — TWO commits past `4aa19d7` from other goals
+(GN-3 `7fc5ae9`, then Prolog-BB WAM-CP-7c `5dff1a8`). **Baseline was RED on LI-FENCE:** WAM-CP-7c put
+`rt_pl_unify_var_var` into `unification.c` (an RS-2-de-languaged file); the `pl_` tag tripped
+`test_gate_no_lang_names.sh` (their GATE-3 was green — this goal's fence is a *different* invariant; the fence exists to
+catch exactly this cross-goal collision). **Fix — SCRIP `8970924`, PUSHED:** de-named to `rt_unify_var_var` (def +
+extern decl + emit-call label/pointer in `bb_unify.cpp`); siblings are `rt_unify_terms`/`rt_unify_const`; NOT
+allow-listed (allow-listed `pl_`/`prolog` names are all PARSER-side carve-outs; this is runtime-defined). Re-gated
+byte-identical — all gates green, mode-2 == mode-4 var-var (`hello`). **HEADS-UP to Prolog-BB: `rt_pl_unify_var_var` is
+now `rt_unify_var_var`.**
+
+Then attempted comparison-home slice (a): prototyped moving `_rt_IDENT`/`_rt_DIFFER` → `values.c`, gated byte-identical
+— but reading the bodies exposed that they are an inferior string-only DUPLICATE of core.c's canonical
+`_IDENT_`/`_DIFFER_` (both register "IDENT"/"DIFFER"; see the rewritten Open-item). **Reverted the move** (relocating
+half a dup entrenches it); the real fix is a DELETE-the-dup decision for Lon. Confirmed a pre-existing mode-2
+IDENT/DIFFER dispatch anomaly along the way (Open-item). Tree restored to fence-fix-only; nothing else re-touched.
+
+**Open Lon decisions (clean move-only slices remain EXHAUSTED):** (a→) **DELETE rt.c `_rt_IDENT`/`_rt_DIFFER` dup**
+(keep core.c canonical; unblocks `rt_init`; behavioral → Lon); (b) resolution `builtins/`→`runtime/` layout; (c) the
+hard `backtrack` cluster (gen_runtime.c remainder, overlaps resolution split); (d) `core/core.c` (3449 lines, LI-CORE).
+Other open calls: `fn_has_builtin` (likely delete), `scan_try_call_builtin` dup decl, `kw_anchor`
+home; IDENT/DIFFER mode-2 anomaly (Open-item).
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
