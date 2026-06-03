@@ -30,11 +30,11 @@ The correct model — and the one that enables cross-language variable sharing �
 
 ## Steps
 
-- [ ] **GN-1 — Collect global names at lower time. Gate: build green.**
-  The lowerer walks `TT_GLOBAL` nodes before lowering procedure bodies and records each declared global name into a per-graph set. Add `int icn_is_global(const char *name)` (checked against that set) to the lower context. No IR changes. No emitter changes. No behavior change — pure bookkeeping. Gate: `make -j4 scrip` rc=0; Icon smoke m2 baseline unchanged.
+- [x] **GN-1 — Collect global names at lower time. DONE (SCRIP `ed47496`).**
+  The collection already happens: `polyglot_init` (polyglot.c:92-95) walks every `TT_GLOBAL` node and calls `global_register` (name_binding.c:13) into `global_names[]` BEFORE `lower` runs, and `is_global(name)` (name_binding.c:7) does the lookup. `lower.h` already includes `gen_runtime.h` which declares `is_global`. So GN-1 is one line: `static int icn_is_global(const char *name) { return name ? is_global(name) : 0; }` in lower.c (beside `icn_proc_is_generator`), giving GN-2 a named hook. The `prove_lower2.c` standalone harness (which links neither name_binding.o) gained a local `is_global` stub returning 0 — Figure-1 ASTs declare no globals — mirroring its existing standalone `g_stage2` definition. No IR changes, no emitter changes, no behavior change. Gate: `make -j4 scrip` rc=0; m2 corpus 130 PASS (unchanged); prove_lower2 67 PASS.
 
-- [ ] **GN-2 — Tag `IR_VAR` nodes for globals. Gate: build + m2 smoke unchanged.**
-  In `lower.c:174` (the `TT_VAR` / `TT_NAME` → `IR_VAR` path), when `cx.lang == IR_LANG_ICN` and `icn_is_global(sval)` is true, set a flag on the IR node (use `nd->state = 1` — "global"; `state = 0` = local, the default). No emitter changes yet — the `state` field is ignored by the emitter. Gate: m2 smoke baseline unchanged.
+- [x] **GN-2 — Tag `IR_VAR` nodes for globals. DONE (SCRIP `ed47496`).**
+  In `v_literal` (lower.c:184, after the leaf switch — ONE check, not duplicated across the `TT_VAR`/`TT_NAME` arms), when `cx.lang == IR_LANG_ICN && icn_is_global(n->sval)` is true, set `n->state = 1` (global; 0 = local, the default). The other `IR_VAR` sites (`pas_leaf_node`, Pascal for-loop) are `IR_LANG_PAS` and excluded by the lang guard. **Grounded in JCON `irgen.icn` `ir_a_Ident` (lines 1061-1079): a variable reference emits a bare `ir_Var(coord, target, p.id)` carrying the name symbolically — global/local is NOT decided at IR-gen, it is a late binding the linker resolves against `ir_Global`'s nameList (`ir.icn:6,15`). `state=1` is exactly the SCRIP encoding of that resolution, recorded on the node at lower time.** Verified zero-behavior-change against the m2 oracle: the interp `IR_VAR` case (IR_interp.c:1749-1768) never reads `state` — it recomputes from the frame slot (`frame_depth>0`+`scope_get`) or falls through to `NV_GET_fn` (the global path); and every consumer that re-dispatches an `IR_VAR` operand resets `operand->state=0` first (IR_interp.c:2206-2207, 2220, 2007). The emitter likewise ignores `state` on `IR_VAR`. `dump-bb` now annotates `IR_VAR` with ` scope=global` when `state==1` (debug formatter, scrip_ir.c:346; aids GN-FENCE). Probe `global G / local L; G:=10; L:=20` → dump shows `IR_VAR var="G" scope=global` and `IR_VAR var="L"` (no scope). Gate: m2 corpus 130 PASS (unchanged).
 
 - [ ] **GN-3 — New `bb_var_global` template: NV_GET_fn call. Gate: build green; per-kind audit NEW=0 GONE=0.**
   Add `src/emitter/BB_templates/bb_var_global.cpp`. The template emits an x86 call to `NV_GET_fn(sval)` and jumps γ on success (always — NV_GET returns a DESCR_t, never fails; unset variables return SNUL). On β (resume) jumps ω. This is a non-generator: start → succeed immediately; resume → fail. Wire it into `emit_bb.c` dispatch: add `extern "C" void bb_var_global(IR_t*)` and call it from the `IR_VAR` case when `nd->state == 1`. Establish a per-kind baseline for `BB_VAR_GLOBAL` in `baselines/per_kind/`. Gate: `test_per_kind_diff.sh` PASS unchanged NEW=0 GONE=0 (new kind adds its own baseline cell, does not disturb existing ones).
@@ -60,7 +60,9 @@ Pre-rung Icon baselines (2026-06-02, SCRIP HEAD `85677cb`):
 - `test_icon_all_rungs.sh`: m2 127 PASS / 120 FAIL / 36 XFAIL (the meaningful gate for this rung)
 - `test_per_kind_diff.sh`: PASS=504 FAIL=0 STUB=625 NEW=0 GONE=0
 
-This rung's gate is **m2 corpus does not regress below 127 PASS** and **GN-FENCE exits 0**.
+**Current state (2026-06-03, SCRIP HEAD `ed47496` — GN-1+GN-2 landed):** `test_icon_all_rungs.sh` m2 **130 PASS** / 117 FAIL / 36 XFAIL (the +3 vs the 127 baseline is from ICN-HY-3 bang + `to`/`to_by` native landing on the GOAL-ICON-BB main line between the baseline snapshot and this rung; not from GN work — GN-1/GN-2 are zero-behavior-change). **GN-6's floor is therefore m2 ≥ 130** (must not regress below the live count, not the stale 127). `test_per_kind_diff.sh` reports GONE=1115 in THIS environment because the per-kind audit tool is unlinked here (environment limitation per the design handoff, NOT a regression) — GN-3's `NEW=0 GONE=0` per-kind gate must be run from a full build with the audit tool linked.
+
+This rung's gate is **m2 corpus does not regress below 130 PASS** and **GN-FENCE exits 0**.
 
 ---
 
