@@ -402,6 +402,14 @@ FACT 0, smokes hold.
     m2==m3==m4. The stackless `bb_to` int-range generator is live; `IR_TO`/`IR_TO_BY` removed from
     `icn_kind_native_stub`. The `every`→generator re-pump back-edge is wired (see watermark for the three-layer
     fix). corpus m3/m4 PASS 6→10, EXCISED 59→37.
+  - [x] **`bb_alt` NATIVE — DONE (`eca2dcb`).** `every write(1|2|3)` and `every write("a"|"b"|"c")` now run
+    m2==m3==m4. Stackless counter-driven alternation generator (`bb_alt.cpp`): each arm constant sealed RO, a
+    frame counter (`op_off+16`) indexes arms yielding each value DESCR into the shared result slot (`op_off`),
+    re-pumped on β via the generator-β chain edge (mirrors `bb_to`). ≤5 literal arms (IR_LIT_I/IR_LIT_S).
+    `IR_ALT` removed from `icn_kind_native_stub`; emittability PRECISELY gated — an alt-containing graph emits
+    only if ALL nodes are in the safe generator set (IR_ALT/CALL/EVERY/FAIL/SUCCEED/LIT_*), so nested-alt
+    (`("a"|"b")||("x"|"y")`) and multi-feature alt programs cleanly EXCISE `[SMX]` (loud, never silent
+    miscompile). corpus m3/m4 PASS 10→12, EXCISED 37→45.
 
 ---
 
@@ -576,7 +584,64 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `b48f0cd` — ICN-HY-4: native `to`/`to_by` generators; `every` re-pump wired.** `every write(1 to N)` and `every write(1 to N by k)` now run **m2==m3==m4** (verified `1 2 3` and `1 3 5 7 9`). The staged-dormant `bb_to` generator is LIVE — `IR_TO`/`IR_TO_BY` removed from `icn_kind_native_stub`. **Three-layer fix for the re-pump back-edge:** (1) **`scrip.c`** — `g_icn_postfix_resume=1` is now set for Icon in the `--run`, `--compile`, AND `--dump-bb` paths (it was `--interp`-only); this makes the shared lowerer wire `expr.success -> generator.resume` per canonical `ir_a_Every` (irgen.icn 325-330), where previously m3/m4 got `write.gamma -> IR_EVERY` so the generator pumped exactly once (`every write(1 to 3)` printed only `1`). (2) **`emit_bb.c` `codegen_flat_chain_body`** — a BACKWARD chain edge (`i > k`) whose gamma-target `nodes[k]` is a generator now resolves to that generator's **beta (resume) label** (`betas[k]`), not its alpha (fresh) label — so re-pump STEPS the cursor (`inc`/`add`) instead of reseeding `lo` (which would loop forever). New helper `ir_is_generator_kind(IR_e)`. (3) **`emit_bb.c` `flat_drive_every`** bodyless `ival==0` arm — when `pBB->alpha` is already a member of the outer chain (`g_flat_chain_set`, populated by the BFS + reset in both build entry points), the every node is a SUCCESS LANDING PAD (`EMIT_PAIR_JMP(lbl_gamma)`) reached when the generator exhausts (`IR_TO.omega -> every`), with NO re-walk of alpha (which had double-emitted the operand chain); the old re-walk path is KEPT as the fallback for a nested `every` whose alpha-expr is not in the outer chain. **ZERO REGRESSION:** m2 corpus **130 (HARD)**, Icon smoke m2 **12/12 (HARD)**, Prolog smoke m2 **5/5 (HARD)**, unified-broker PASS 27 (unchanged). m3/m4 corpus PASS **6->10**, EXCISED **59->37** (symmetric m3==m4). Icon-lane gates green: bb_bin_t=0 . no-handencoded=0 (`--strict`) . g_vstack=0 . no-stack 10<=127 . one-reg-frame 0<=21 . prove_lower2 PASS . FACT (bytes outside templates)=0. Rebased cleanly onto peer `00ef311` (Raku RK-NFA-2) / `d1e881b` (Pascal PB-7), both orthogonal; m2 HARD re-verified post-rebase.
+**HEAD (SCRIP) = `eca2dcb` — native `IR_ALT` generator (`bb_alt`); `every write(1|2|3)` m2==m3==m4.** The
+second "big box" of the IR_ALT/IR_GEN_SCAN pair is landed (first was `bb_to` at `b48f0cd`). **`bb_alt.cpp`** is a
+stackless counter-driven alternation generator that mirrors `bb_to`: it reads its arms from `operand_aux`
+(requiring `g_emit_cfg` to be set on the ICN emit path — see below), seals each arm constant RO
+(`x86_ro_seal_q`/`x86_ro_seal_str`, internal indices `0..n-1`), and uses a frame counter at `[r12+op_off+16]` to
+index the arms: on each pump it compares the counter to `0,1,2,…` (`je L(n+1+i)`), loads `arm[i]`'s sealed value
+DESCR into the SHARED result slot `[r12+op_off]`, increments the counter, and jumps γ; the counter starting at 0
+on α and the β port jumping back to the dispatch label `L(n)` give the re-pump (the consumer's success returns to
+`bb_alt`'s β via the generator-β chain edge added at `b48f0cd`). Verified `1|2|3`, `"a"|"b"|"c"`, `10|20`,
+`1|2|3|4|5`, `1|"x"|3` all m2==m3==m4. **Pure `x86()` concatenation — zero stack, zero raw-byte producers, zero
+`IF(MEDIUM_BINARY)` (FACT-clean).** ≤5 arms, arms must be `IR_LIT_I`/`IR_LIT_S` (the common case;
+`fstranl.r`-style generator/var arms are future work).
+
+**Three coordinated wiring changes besides the template:** (1) **`emit_core.c`** — `case IR_ALT: bb_alt(nd)`.
+(2) **`emit_bb.c`** — `flat_drive_alt_icn_gen` (descr-flat-chain arm of `IR_ALT`; allocates the result+counter
+slot, sets `g_emit.node` so the template can fetch arms); `ir_node_is_alt_arm`/`ir_skip_alt_arms` so the chain
+BFS REDIRECTS entry past the bare arms and SKIPS them (they're subsumed by `bb_alt`, which reads their constants
+directly — they must NOT be emitted as standalone lit boxes); `IR_ALT` added as arity-0 producer in
+`descr_chain_arity` so the consumer (`write`) resolves its operand slot to the alt node. The pre-existing
+`flat_drive_gen_alt` is kept for the SNOBOL/gvar path (`else` arm). (3) **`scrip.c`** — `IR_ALT` removed from
+`icn_kind_native_stub`; **`g_emit_cfg` is now set at the 4 ICN build sites** (proc/main × text/binary) — it was
+NULL on the ICN path, which `bb_operand_aux_get` needs to read the alt arms; **`icn_graph_native_emittable`
+PRECISELY gated for alt** via `icn_graph_has_alt` + `icn_alt_safe_kind` + `icn_alt_arms_all_simple_lit`: a graph
+containing any `IR_ALT` is emittable ONLY if every node is in the safe generator set
+(IR_ALT/CALL/EVERY/FAIL/SUCCEED/LIT_I/S/F/NUL) AND each alt's arms are ≤5 simple literals — so nested-alt
+(`("a"|"b")||("x"|"y")`) and alt-plus-other-construct programs cleanly EXCISE `[SMX]` rather than aborting
+(verified: nested-alt declines, does not miscompile). This honours "A MISSING BOX FALLS LOUD, NEVER SILENT".
+**Makefile**: `bb_alt.cpp` in source list + compile rule. **ZERO REGRESSION:** m2 corpus **130 (HARD)**, Icon
+smoke m2 **12/12 (HARD)**, Prolog smoke m2 **5/5 (HARD)**, unified-broker **32** (unchanged); m3/m4 corpus PASS
+**10→12**, EXCISED **37→45** (symmetric m3==m4), FAIL unchanged at **190** (no new silent fails); all 10 baseline
+m3 passes intact. Icon-lane gates green: bb_bin_t=0 · no-handencoded=0 (`--strict`) · g_vstack=0 · no-stack
+10≤127 · one-reg-frame 0≤21 · prove_lower2 PASS · FACT (bytes outside templates)=0. Rebased cleanly onto peer
+`1b4e0fe` (Pascal PB-8 sets), orthogonal; build + m2 HARD re-verified post-rebase.
+
+**NEXT — `IR_GEN_SCAN` (the FIRST of the two "big boxes" the user named; the LARGER one).** This is Icon string
+scanning `s ? expr` (corpus `IR_GEN_SCAN` gates **27** programs — the single largest EXCISED bucket). **DO NOT
+assume it equals SNOBOL4 pattern matching — it does not** (this was checked against canonical sources this
+session). Per `refs/icon-master/src/runtime/fstranl.r` the scanning functions split two ways: `any(c,s,i,j)`,
+`many(c,s,i,j)`, `match(s1,s2,i,j)` are `function{0,1}` (RETURN a position, 0-or-1 results) while `upto(c,s,i,j)`,
+`find(s1,s2,i,j)`, `bal(...)` are `function{*}` (GENERATORS that `suspend` every position — they re-pump like
+`bb_to`/`bb_alt`, NOT like a SNOBOL pattern leaf). The REUSABLE parts (confirmed): the Σ/δ/Δ subject-register
+model (RULES.md X86-64 convention — R13/R14/R15 already shared by "SNOBOL4, Icon scan") and the cset-scan inner
+loops inside `bb_pat_span`/`bb_pat_any`/`bb_pat_break`. The NEW parts: each scan function needs an Icon
+value-return wrapper (write the new position as a DESCR + set `&pos`), and the `{*}` ones need the generator
+re-pump β-edge (the same mechanism `bb_alt` just used). Read `fscan.r` (the `?` scan-environment / `&subject`
+/`&pos` save-restore) and `fstranl.r` (each primitive) FIRST per CONSULT-CANONICAL-SOURCES; then build the
+non-generator `any`/`match`/`many` value-wrappers first (smaller, reuse the cset matchers), gate them into
+`icn_graph_native_emittable` with the same precise-shape discipline used for alt (emit only fully-supported scan
+graphs; EXCISE the rest), then the `{*}` generators. Parallel still-open tiers unchanged: `bb_binop_gen`
+cross-product (Fig-1; `IR_BINOP_GEN`); native `!x` (`IR_LIST_BANG`); relop tiers (`if_expr`/`while`/`until`/
+`repeat_break` — the `bb_var` operand-slot gap + `IR_IF`/`IR_RETURN`/`IR_CONJ` native arms); `rt_call_builtin`;
+GZ-DEFER (EVAL/CODE/`*P`). **NOTE for whoever does the relop/control tiers:** there are ~150 corpus programs that
+currently abort (rc=-6/-11) in `walk_bb_node` rather than EXCISING — `icn_graph_native_emittable` is too permissive
+for the non-alt kinds (`IR_IF`/`IR_RETURN`/`IR_CONJ`/generator-`IR_BINOP` reach the unhandled `default` abort).
+This is PRE-EXISTING (not from this commit) but worth a systemic decline-gate pass so the harness's FAIL bucket
+reflects real miscompiles, not loud aborts.
+
+**PREV HEAD (SCRIP) = `b48f0cd` — ICN-HY-4: native `to`/`to_by` generators; `every` re-pump wired.** `every write(1 to N)` and `every write(1 to N by k)` now run **m2==m3==m4** (verified `1 2 3` and `1 3 5 7 9`). The staged-dormant `bb_to` generator is LIVE — `IR_TO`/`IR_TO_BY` removed from `icn_kind_native_stub`. **Three-layer fix for the re-pump back-edge:** (1) **`scrip.c`** — `g_icn_postfix_resume=1` is now set for Icon in the `--run`, `--compile`, AND `--dump-bb` paths (it was `--interp`-only); this makes the shared lowerer wire `expr.success -> generator.resume` per canonical `ir_a_Every` (irgen.icn 325-330), where previously m3/m4 got `write.gamma -> IR_EVERY` so the generator pumped exactly once (`every write(1 to 3)` printed only `1`). (2) **`emit_bb.c` `codegen_flat_chain_body`** — a BACKWARD chain edge (`i > k`) whose gamma-target `nodes[k]` is a generator now resolves to that generator's **beta (resume) label** (`betas[k]`), not its alpha (fresh) label — so re-pump STEPS the cursor (`inc`/`add`) instead of reseeding `lo` (which would loop forever). New helper `ir_is_generator_kind(IR_e)`. (3) **`emit_bb.c` `flat_drive_every`** bodyless `ival==0` arm — when `pBB->alpha` is already a member of the outer chain (`g_flat_chain_set`, populated by the BFS + reset in both build entry points), the every node is a SUCCESS LANDING PAD (`EMIT_PAIR_JMP(lbl_gamma)`) reached when the generator exhausts (`IR_TO.omega -> every`), with NO re-walk of alpha (which had double-emitted the operand chain); the old re-walk path is KEPT as the fallback for a nested `every` whose alpha-expr is not in the outer chain. **ZERO REGRESSION:** m2 corpus **130 (HARD)**, Icon smoke m2 **12/12 (HARD)**, Prolog smoke m2 **5/5 (HARD)**, unified-broker PASS 27 (unchanged). m3/m4 corpus PASS **6->10**, EXCISED **59->37** (symmetric m3==m4). Icon-lane gates green: bb_bin_t=0 . no-handencoded=0 (`--strict`) . g_vstack=0 . no-stack 10<=127 . one-reg-frame 0<=21 . prove_lower2 PASS . FACT (bytes outside templates)=0. Rebased cleanly onto peer `00ef311` (Raku RK-NFA-2) / `d1e881b` (Pascal PB-7), both orthogonal; m2 HARD re-verified post-rebase.
 
 **NEXT — `bb_binop_gen` cross-product (Proebsting Fig-1) is the next native rung.** With `to`/`to_by` native and the generator-beta re-pump resolution now in `codegen_flat_chain_body`, the cross-product odometer `every write(N < (1 to A)*(1 to B))` is the natural follow-on (corpus `rung01_paper_compound`). It needs: (a) `IR_BINOP_GEN` removed from `icn_kind_native_stub` once its stackless template threads two nested generator operands — the inner generator's success re-pumps via the SAME `i>k` generator-beta edge this commit added, so the chain-walker side is likely already correct; (b) verify `icn_graph_native_emittable` lets a graph with nested `IR_TO` operands through rather than declining. Study `ir_a_Sectionop`/`ir_a_Binop` in `refs/jcon-master/tran/irgen.icn` FIRST per CONSULT-CANONICAL-SOURCES. Then the still-open tiers, unchanged: native `!x` (`IR_LIST_BANG`); relop tiers (`if_expr`/`while`/`until`/`repeat_break`, the `bb_var` operand-slot gap); `rt_call_builtin` (find/upto/many/any); GZ-DEFER (EVAL/CODE/`*P`). The `IR_ALT` family also remains EXCISED and would benefit from the same re-pump edge.
 
