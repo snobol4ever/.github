@@ -1,0 +1,2427 @@
+/* bb_builtin.cpp — BB template for IR_BUILTIN: write/1, nl/0, halt/0.
+   PL-T-1 (GOAL-BB-TEMPLATE-LADDER.md). x86 only per Invariant #14 (2026-05-22). */
+#include <string>
+#include <cstring>
+#include "emit_str.h"
+extern "C" {
+#include "bb_template_common.h"
+#include "emit.h"
+#include "emit_bb.h"
+#include "emit_core.h"
+#include <stdio.h>
+extern "C" void rt_write_atom(const char *s);
+extern "C" void rt_write_var(int slot);
+extern "C" void rt_write_term_ptr(void *t);
+extern "C" void rt_writeq_term_ptr(void *t);
+extern "C" void rt_write_canonical_term_ptr(void *t);
+extern "C" int  rt_is(int dst_slot, const char *op, int lk, long li, int rk, long ri);
+extern "C" int  rt_is_f(int dst_slot, const char *op, int lk, long li, double ld, int rk, long ri, double rd);
+extern "C" int  rt_is_eval(void *lhs_bb, void *rhs_bb);
+extern "C" int  rt_arith_cmp(const char *op, int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_term_cmp(const char *op, int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_type_test(const char *fn, int k0, long i0, const char *s0);
+extern "C" int  rt_type_test_term(const char *fn, void *t0);
+extern "C" void *rt_node_to_term(int kind, long ival, const char *sval, double dval);
+extern "C" void *rt_compound_build_n(const char *functor_name, int arity, void *args_ptr);
+extern "C" int  rt_functor_term(void *t0, int k1, long i1, const char *s1, int k2, long i2, const char *s2);
+extern "C" int  rt_arg_term(int k0, long i0, const char *s0, void *t1, int k2, long i2, const char *s2);
+extern "C" int  rt_univ_term(void *t0, int k1, long i1, const char *s1);
+extern "C" int  rt_univ_term_list(int k0, long i0, const char *s0, void *t1);
+extern "C" int  rt_univ_term_term(void *t0, void *t1);
+extern "C" int  rt_atom_length(int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_upcase_atom(int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_downcase_atom(int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_atom_string_pair(int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_number_string_pair(int num_first, int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_format(int arity, int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_format_term(int arity, int k0, long i0, const char *s0, void *args_term_ptr);
+extern "C" int  rt_term_to_atom_term(void *t0, int k1, long i1, const char *s1);
+extern "C" int  rt_atomic_list_concat_term(void *list, int arity, int ksep, long isep, const char *ssep, int kres, long ires, const char *sres);
+extern "C" int  rt_sort_msort(int do_msort, int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_sort_msort_term(int do_msort, void *t0, int k1, long i1, const char *s1);
+extern "C" int  rt_copy_term(int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_copy_term_term(void *t0, int k1, long i1, const char *s1);
+extern "C" int  rt_copy_term_terms(void *t0, void *t1);
+extern "C" int  rt_nb_setval_term(void *key, void *val);
+extern "C" int  rt_nb_getval_term(void *key, int kres, long ires, const char *sres);
+extern "C" int  rt_aggregate_all_term(void *tmpl, void *goal, int kres, long ires, const char *sres);
+extern "C" int  rt_atom_concat(int k0, long i0, const char *s0, int k1, long i1, const char *s1, int k2, long i2, const char *s2);
+extern "C" int  rt_atom_chars_codes(int as_codes, int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_atom_chars_codes_term(int as_codes, int k0, long i0, const char *s0, void *t1);
+extern "C" int  rt_char_type(int k0, long i0, const char *s0, const char *ty, int is_compound, int ki, long ii, const char *si);
+extern "C" int  rt_numbervars_term(void *t0, long start, int k2, long i2, const char *s2);
+extern "C" int  rt_succ(int k0, long i0, const char *s0, int k1, long i1, const char *s1);
+extern "C" int  rt_plus(int k0, long i0, const char *s0, int k1, long i1, const char *s1, int k2, long i2, const char *s2);
+extern "C" int  rt_findall(void *fs_ptr);
+extern "C" int  rt_throw(void *alpha_ptr);}
+/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+/* PLG-9h (2026-06-01): is the `is/2` RHS evaluable functor one that needs the float evaluator
+   rt_is_f? True for the transcendental/float-producing functors (sqrt/sin/.../float/
+   float_integer_part/float_fractional_part) AND for the rounding functors that CONSUME a float
+   and yield an int (truncate/round/ceiling/floor/integer) — those still need the float operand
+   path because a float-literal operand carries its value in dval, not ival — AND for `/` (true
+   division), which yields a FLOAT when integer operands do not divide evenly (7/2 = 3.5) but an
+   INT when they do (6/2 = 3); rt_is_f makes that liv%riv decision exactly as the mode-2 oracle
+   resolve_arith_eval does, so routing `/` here fixes the pre-existing mode-4 integer-division
+   miscompile (the integer rt_arith arm gave 7/2 = 3, diverging from m2/m3 = 3.5). A plain
+   add/sub/mul op over a float-literal operand is routed by the operand-kind check in the emit arm
+   / gate, not here. Mirrored byte-for-byte by pl_arith_op_floaty in scrip.c (the admission gate). */
+static int bb_pl_op_floaty(const char *fn) {
+    static const char *f[] = { "sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "exp", "log",
+                               "float", "float_integer_part", "float_fractional_part",
+                               "truncate", "round", "ceiling", "floor", "integer", "/", NULL };
+    for (int i = 0; f[i]; i++) if (!strcmp(fn, f[i])) return 1;
+    return 0;
+}
+/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+/* CAT-D-9b (2026-05-27, Opus 4.7): emit_build_compound_term — post-order asm walker that constructs a   */
+/* real Term* tree from a IR_t subgraph. Each invocation emits asm that leaves the Term* for that         */
+/* subtree in rax. For IR_STRUCT */
+/* with arity N, we sub rsp by aligned(N*8) to reserve an args slot-array, recursively build each child   */
+/* into its slot, then call rt_compound_build_n(functor_name, N, rsp). For leaves we route to          */
+/* rt_node_to_term — same serialized-scalar shape used everywhere in CAT-D-*. Used by the IR_BUILTIN   */
+/* ==/\==/@</@>/@=</@>= compound-arg path; the scalar-only CAT-D-9 fast path still handles                */
+/* leaf-leaf compares. Both paths use the same op string and rt_term_cmp_terms decides the comparison. */
+/* CAT-B (2026-05-27, Opus 4.7): de-staticized so bb_unify.cpp can call it for compound-operand unify.    */
+std::string emit_build_compound_term(const IR_t *nd) {
+    if (!nd) {
+        return s_2asm("xor", "eax, eax")
+             + s_2asm("xor", "edi, edi")
+             + s_2asm("xor", "esi, esi")
+             + s_2asm("xor", "edx, edx")
+             + s_2asm("xor", "ecx, ecx")
+             + s_2asm("call", "rt_node_to_term@PLT");
+    }
+    if (nd->t == IR_LIT_I || nd->t == IR_LIT_F || nd->t == IR_ATOM || nd->t == IR_LOGICVAR) {
+        char slbl[64]; slbl[0] = 0;
+        if (nd->t == IR_ATOM && nd->sval) strtab_label(slbl, sizeof slbl, nd->sval);
+        return s_2asm("mov edi,",  emit_fmt("%d",  (int)nd->t))
+             + s_2asm("mov rsi,",  emit_fmt("%ld", (long)nd->ival))
+             + (slbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", slbl)) : s_2asm("xor", "edx, edx"))
+             + s_2asm("xor", "ecx, ecx")
+             + s_2asm("call", "rt_node_to_term@PLT");
+    }
+    if (nd->t == IR_STRUCT) {
+        int arity = (int)nd->ival;
+        if (arity <= 0 || !nd->α) {
+            char fnlbl[64]; fnlbl[0] = 0;
+            if (nd->sval) strtab_label(fnlbl, sizeof fnlbl, nd->sval);
+            return s_2asm("mov edi,",  emit_fmt("%d", (int)IR_ATOM))
+                 + s_2asm("xor", "rsi, rsi")
+                 + (fnlbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", fnlbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("xor", "ecx, ecx")
+                 + s_2asm("call", "rt_node_to_term@PLT");
+        }
+        int slots_bytes = arity * 8;
+        int frame = (slots_bytes + 15) & ~15;
+        std::string out = s_2asm("sub rsp,", emit_fmt("%d", frame));
+        const IR_t *child = nd->α;
+        for (int i = 0; i < arity && child; i++) {
+            out += emit_build_compound_term(child);
+            out += s_2asm("mov", emit_fmt("qword ptr [rsp + %d], rax", i * 8));
+            child = child->γ;
+        }
+        char fnlbl[64]; fnlbl[0] = 0;
+        if (nd->sval) strtab_label(fnlbl, sizeof fnlbl, nd->sval);
+        out += (fnlbl[0] ? s_2asm("lea rdi,", emit_fmt("[rip + %s]", fnlbl)) : s_2asm("xor", "edi, edi"))
+             + s_2asm("mov esi,", emit_fmt("%d", arity))
+             + s_2asm("mov", "rdx, rsp")
+             + s_2asm("call", "rt_compound_build_n@PLT")
+             + s_2asm("add rsp,", emit_fmt("%d", frame));
+        return out;
+    }
+    if (nd->t == IR_ARITH) {
+        /* PLR-K-9 (2026-05-29): a IR_ARITH node in TERM position (not evaluated) is a compound term,  */
+        /* e.g. term_to_atom(1+2, A). Mirror the MEDIUM_BINARY twin's IR_ARITH branch + resolve_node_to_term: */
+        /* functor = sval, operands on α and β (NOT γ-chained like IR_STRUCT). arity 0 → atom; 1 →   */
+        /* f(α); 2 → f(α,β). The TEXT walker previously had NO IR_ARITH branch → fell to the unhandled-  */
+        /* kind comment → rax garbage → 1+2 rendered empty in mode-4 (the BINARY twin already had it).   */
+        int arity = (int)nd->ival;
+        if (arity <= 0 || !nd->α) {
+            char fnlbl[64]; fnlbl[0] = 0;
+            if (nd->sval) strtab_label(fnlbl, sizeof fnlbl, nd->sval);
+            return s_2asm("mov edi,",  emit_fmt("%d", (int)IR_ATOM))
+                 + s_2asm("xor", "rsi, rsi")
+                 + (fnlbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", fnlbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("xor", "ecx, ecx")
+                 + s_2asm("call", "rt_node_to_term@PLT");
+        }
+        const IR_t *ops[2] = { nd->α, (arity >= 2) ? nd->β : NULL };
+        int slots_bytes = arity * 8;
+        int frame = (slots_bytes + 15) & ~15;
+        std::string out = s_2asm("sub rsp,", emit_fmt("%d", frame));
+        for (int i = 0; i < arity && ops[i]; i++) {
+            out += emit_build_compound_term(ops[i]);
+            out += s_2asm("mov", emit_fmt("qword ptr [rsp + %d], rax", i * 8));
+        }
+        char fnlbl[64]; fnlbl[0] = 0;
+        if (nd->sval) strtab_label(fnlbl, sizeof fnlbl, nd->sval);
+        out += (fnlbl[0] ? s_2asm("lea rdi,", emit_fmt("[rip + %s]", fnlbl)) : s_2asm("xor", "edi, edi"))
+             + s_2asm("mov esi,", emit_fmt("%d", arity))
+             + s_2asm("mov", "rdx, rsp")
+             + s_2asm("call", "rt_compound_build_n@PLT")
+             + s_2asm("add rsp,", emit_fmt("%d", frame));
+        return out;
+    }
+    return s_comment(emit_fmt("# build_compound_term: unhandled kind %d", (int)nd->t));
+}
+/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+/* PLR-J-3 (2026-05-29): emit_build_compound_term_bin — MEDIUM_BINARY twin of emit_build_compound_term.   */
+/* Same post-order walker, same calling convention (leaves Term* in rax), but emits raw x86-64 bytes      */
+/* instead of assembly text: absolute movabs for interned string pointers (valid in-process for mode-3    */
+/* native, where this path runs) and movabs rax,&helper; call rax instead of RIP-relative lea + PLT.      */
+/* rt_node_to_term(int kind, long ival, const char *sval, double dval): SysV edi=kind rsi=ival         */
+/* rdx=sval xmm0=dval. dval always 0.0 here (no float literals reach this builder) → xorps xmm0,xmm0.     */
+/* rt_compound_build_n(const char *functor, int arity, void *args_ptr): rdi=functor esi=arity rdx=ptr. */
+/* Stack discipline: caller (the builtin arm) must enter with rsp 16-aligned; each STRUCT level subtracts */
+/* an aligned frame and restores it, so alignment is preserved across the recursion.                      */
+std::string emit_build_compound_term_bin(const IR_t *nd) {
+    if (!nd) {
+        std::string b;
+        b += bytes(2, "\x31\xFF");
+        b += bytes(2, "\x31\xF6");
+        b += bytes(2, "\x31\xD2");
+        b += bytes(3, "\x0F\x57\xC0");
+        b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_node_to_term) + bytes(2, "\xFF\xD0");
+        return b;
+    }
+    if (nd->t == IR_LIT_I || nd->t == IR_LIT_F || nd->t == IR_ATOM || nd->t == IR_LOGICVAR) {
+        const char *s = (nd->t == IR_ATOM && nd->sval) ? nd->sval : NULL;
+        std::string b;
+        b += bytes(1, "\xBF") + u32le((uint32_t)(int)nd->t);
+        b += bytes(2, "\x48\xBE") + u64le((uint64_t)(long)nd->ival);
+        if (s) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)s);
+        else   b += bytes(2, "\x31\xD2");
+        b += bytes(3, "\x0F\x57\xC0");
+        b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_node_to_term) + bytes(2, "\xFF\xD0");
+        return b;
+    }
+    if (nd->t == IR_STRUCT) {
+        int arity = (int)nd->ival;
+        const char *fn = nd->sval;
+        if (arity <= 0 || !nd->α) {
+            std::string b;
+            b += bytes(1, "\xBF") + u32le((uint32_t)(int)IR_ATOM);
+            b += bytes(2, "\x31\xF6");
+            if (fn) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)fn);
+            else    b += bytes(2, "\x31\xD2");
+            b += bytes(3, "\x0F\x57\xC0");
+            b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_node_to_term) + bytes(2, "\xFF\xD0");
+            return b;
+        }
+        int slots_bytes = arity * 8;
+        int frame = (slots_bytes + 15) & ~15;
+        std::string b;
+        b += bytes(3, "\x48\x81\xEC") + u32le((uint32_t)frame);
+        const IR_t *child = nd->α;
+        for (int i = 0; i < arity && child; i++) {
+            b += emit_build_compound_term_bin(child);
+            int off = i * 8;
+            if (off == 0) b += bytes(4, "\x48\x89\x04\x24");
+            else if (off < 128) { char d = (char)(uint8_t)off; b += bytes(4, "\x48\x89\x44\x24") + std::string(&d, 1); }
+            else                b += bytes(4, "\x48\x89\x84\x24") + u32le((uint32_t)off);
+            child = child->γ;
+        }
+        if (fn) b += bytes(2, "\x48\xBF") + u64le((uint64_t)(uintptr_t)fn);
+        else    b += bytes(2, "\x31\xFF");
+        b += bytes(1, "\xBE") + u32le((uint32_t)arity);
+        b += bytes(3, "\x48\x89\xE2");
+        b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_compound_build_n) + bytes(2, "\xFF\xD0");
+        b += bytes(3, "\x48\x81\xC4") + u32le((uint32_t)frame);
+        return b;
+    }
+    if (nd->t == IR_ARITH) {
+        /* PLR-K-4 (2026-05-29): a IR_ARITH node in TERM position (not evaluated) is a compound term, */
+        /* e.g. write_canonical(1+2). Mirror resolve_node_to_term's IR_ARITH case: functor = sval, operands */
+        /* on α and β (NOT γ-chained like IR_STRUCT). arity 0 → atom; 1 → f(α); 2 → f(α,β).         */
+        int arity = (int)nd->ival;
+        const char *fn = nd->sval;
+        if (arity <= 0 || !nd->α) {
+            std::string b;
+            b += bytes(1, "\xBF") + u32le((uint32_t)(int)IR_ATOM);
+            b += bytes(2, "\x31\xF6");
+            if (fn) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)fn);
+            else    b += bytes(2, "\x31\xD2");
+            b += bytes(3, "\x0F\x57\xC0");
+            b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_node_to_term) + bytes(2, "\xFF\xD0");
+            return b;
+        }
+        const IR_t *ops[2] = { nd->α, (arity >= 2) ? nd->β : NULL };
+        int slots_bytes = arity * 8;
+        int frame = (slots_bytes + 15) & ~15;
+        std::string b;
+        b += bytes(3, "\x48\x81\xEC") + u32le((uint32_t)frame);
+        for (int i = 0; i < arity && ops[i]; i++) {
+            b += emit_build_compound_term_bin(ops[i]);
+            int off = i * 8;
+            if (off == 0) b += bytes(4, "\x48\x89\x04\x24");
+            else if (off < 128) { char d = (char)(uint8_t)off; b += bytes(4, "\x48\x89\x44\x24") + std::string(&d, 1); }
+            else                b += bytes(4, "\x48\x89\x84\x24") + u32le((uint32_t)off);
+        }
+        if (fn) b += bytes(2, "\x48\xBF") + u64le((uint64_t)(uintptr_t)fn);
+        else    b += bytes(2, "\x31\xFF");
+        b += bytes(1, "\xBE") + u32le((uint32_t)arity);
+        b += bytes(3, "\x48\x89\xE2");
+        b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_compound_build_n) + bytes(2, "\xFF\xD0");
+        b += bytes(3, "\x48\x81\xC4") + u32le((uint32_t)frame);
+        return b;
+    }
+    return std::string();
+}
+/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+static std::string bb_builtin_str(IR_t * pBB, bb_bin_t & bin) {
+    bin = {};
+    if (PLATFORM_X86) {
+        const char *fn = pBB->sval ? pBB->sval : "";
+        if (MEDIUM_MACRO_DEF) {
+            return s_comment("# no macro form — RESOLVE_BUILTIN");
+        }
+        std::string hdr = s_1asm(emit_fmt("%s:", _.lbl_α))
+                        + s_1asm(emit_fmt("# BOX RESOLVE_BUILTIN(%s/%d)", fn, pBB->ival));
+        if (MEDIUM_BINARY) {
+            if (strcmp(fn, "nl") == 0) {
+                std::string b = bytes(1, "\xBF") + u32le(10)
+                              + bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)putchar) + bytes(2, "\xFF\xD0");
+                int j = (int)b.size();
+                bin = { {j + 1, j + 5, j + 6}, {_.lbl_γ_p, _.lbl_β_p, _.lbl_γ_p}, {false, true, false} };
+                return b + bytes(1, "\xE9") + u32le(0) + bytes(1, "\xE9") + u32le(0);
+            }
+            if (strcmp(fn, "halt") == 0) {
+                std::string b = bytes(2, "\x31\xFF")
+                              + bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)exit) + bytes(2, "\xFF\xD0");
+                int j = (int)b.size();
+                bin = { {j, j + 1}, {_.lbl_β_p, _.lbl_γ_p}, {true, false} };
+                return b + bytes(1, "\xE9") + u32le(0);
+            }
+            if (strcmp(fn, "write") == 0 || strcmp(fn, "writeln") == 0 || strcmp(fn, "print") == 0) {
+                std::string b;
+                if (pBB->ival >= 1 && pBB->α) {
+                    IR_t *arg = pBB->α;
+                    if (arg->t == IR_ATOM) {
+                        const char *atom = arg->sval ? arg->sval : "";
+                        /* mov rdi, imm64(atom)   48 BF [8] ; movabs rax,&rt_write_atom ; call rax */
+                        b += bytes(2, "\x48\xBF") + u64le((uint64_t)(uintptr_t)atom)
+                           + bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_write_atom)
+                           + bytes(2, "\xFF\xD0");
+                    } else if (arg->t == IR_LOGICVAR) {
+                        /* mov edi, slot          BF [4] ; movabs rax,&rt_write_var ; call rax */
+                        b += bytes(1, "\xBF") + u32le((uint32_t)(int)arg->ival)
+                           + bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_write_var)
+                           + bytes(2, "\xFF\xD0");
+                    } else {
+                        /* PLR-K-3 (2026-05-29): compound / int / float arg. Build the Term* via       */
+                        /* emit_build_compound_term_bin (→ rax) then rt_write_term_ptr(rdi=rax).     */
+                        /* sub rsp,8 keeps 16-alignment across the build's and helper's internal calls. */
+                        b += bytes(4, "\x48\x83\xEC\x08");
+                        b += emit_build_compound_term_bin(arg);
+                        b += bytes(3, "\x48\x89\xC7");   /* mov rdi, rax */
+                        b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_write_term_ptr)
+                           + bytes(2, "\xFF\xD0");
+                        b += bytes(4, "\x48\x83\xC4\x08");   /* add rsp, 8 */
+                    }
+                }
+                if (strcmp(fn, "writeln") == 0) {
+                    b += bytes(1, "\xBF") + u32le(10)
+                       + bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)putchar) + bytes(2, "\xFF\xD0");
+                }
+                int j = (int)b.size();
+                bin = { {j + 1, j + 5, j + 6}, {_.lbl_γ_p, _.lbl_β_p, _.lbl_γ_p}, {false, true, false} };
+                return b + bytes(1, "\xE9") + u32le(0) + bytes(1, "\xE9") + u32le(0);
+            }
+            /* PLR-K-4 (Opus 4.8, 2026-05-29): writeq/1 + write_canonical/1 MEDIUM_BINARY arm. Build  */
+            /* the arg Term* uniformly via emit_build_compound_term_bin (atom/var/int/float/struct),  */
+            /* then route through the quoting writer rt_writeq_term_ptr / rt_write_canonical_    */
+            /* term_ptr (which call pl_writeq / pl_write_canonical — the mode-2 oracle's own writers). */
+            /* sub rsp,8 keeps 16-alignment across the build's and writer's internal calls. Always    */
+            /* succeeds → γ; β→γ (write-family arms never fail). No nl suffix (callers add nl).        */
+            if ((strcmp(fn, "writeq") == 0 || strcmp(fn, "write_canonical") == 0) && pBB->α) {
+                IR_t *arg = pBB->α;
+                void *writer = (strcmp(fn, "writeq") == 0)
+                    ? (void *)rt_writeq_term_ptr
+                    : (void *)rt_write_canonical_term_ptr;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x08");          /* sub rsp, 8 */
+                b += emit_build_compound_term_bin(arg);
+                b += bytes(3, "\x48\x89\xC7");              /* mov rdi, rax */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)writer) + bytes(2, "\xFF\xD0");
+                b += bytes(4, "\x48\x83\xC4\x08");          /* add rsp, 8 */
+                int j = (int)b.size();
+                bin = { {j + 1, j + 5, j + 6}, {_.lbl_γ_p, _.lbl_β_p, _.lbl_γ_p}, {false, true, false} };
+                return b + bytes(1, "\xE9") + u32le(0) + bytes(1, "\xE9") + u32le(0);
+            }
+            /* PLR-K-12 (2026-05-29): `Var is Expr` native arm — calls rt_is_eval(lhs_bb, rhs_bb)  */
+            /* with the actual in-process IR_t* pointers. The helper walks the whole RHS subtree via   */
+            /* resolve_arith_eval (full float/gcd/pi/e/sqrt/sin/cos/nested support) and builds either a      */
+            /* TERM_INT or TERM_FLOAT result. Supersedes the scalar rt_is flatten, which was         */
+            /* integer-only + single-op (floats → 0, gcd → wrong, nested → wrong). The RHS may be:      */
+            /*   - IR_ARITH (operator/function, arity 0/1/2 — incl. nullary pi/e with no α),            */
+            /*   - a bare IR_LIT_I / IR_LIT_F (X is 5, X is 2.5),                                       */
+            /*   - a bare IR_LOGICVAR (X is Y),                                                            */
+            /*   - a bare IR_ATOM pi/e.                                                                  */
+            /* resolve_arith_eval dispatches on the node kind internally, so all route through one helper.   */
+            /* SysV: rdi=lhs rsi=rhs. sub rsp,16 keeps the call 16-aligned across resolve_arith_eval's libm  */
+            /* calls (sqrt/pow may touch SSE). eax → γ(ok)/ω(fail); β falls to ω.                       */
+            if (strcmp(fn, "is") == 0 && pBB->α && pBB->α->t == IR_LOGICVAR && pBB->β
+                && (pBB->β->t == IR_ARITH || pBB->β->t == IR_LIT_I || pBB->β->t == IR_LIT_F
+                    || pBB->β->t == IR_LOGICVAR || pBB->β->t == IR_ATOM)) {
+                std::string b;
+                /* sub rsp, 16              48 83 EC 10                                              */
+                b += bytes(4, "\x48\x83\xEC\x10");
+                /* mov rdi, lhs_bb          48 BF [8]                                                */
+                b += bytes(2, "\x48\xBF") + u64le((uint64_t)(uintptr_t)(void*)pBB->α);
+                /* mov rsi, rhs_bb          48 BE [8]                                                */
+                b += bytes(2, "\x48\xBE") + u64le((uint64_t)(uintptr_t)(void*)pBB->β);
+                /* movabs rax, &rt_is_eval; call rax     48 B8 [8] FF D0                          */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_is_eval) + bytes(2, "\xFF\xD0");
+                /* add rsp, 16              48 83 C4 10                                              */
+                b += bytes(4, "\x48\x83\xC4\x10");
+                /* test eax, eax            85 C0                                                   */
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                /* je ω (0F 84 rel32) ; jmp γ (E9 rel32) ; β: jmp ω (E9 rel32)                      */
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* M3-PL-NOINTERP-1e (Opus 4.8, 2026-05-29): comparison operators native arm — ports the */
+            /* CAT-D-9 MEDIUM_TEXT block. rt_arith_cmp / rt_term_cmp(op, k0,i0,s0, k1,i1,s1).   */
+            /* SysV: rdi=op rsi=k0 rdx=i0 rcx=s0 r8=k1 r9=i1, [rsp+0]=s1. One stack slot ⇒ sub rsp,16 */
+            /* (8B data + 8B pad for 16B call alignment). Previously fell through to the no-op double- */
+            /* jump → every comparison "succeeded" (5<3 wrongly true). s0/s1 from IR_ATOM sval ptrs;   */
+            /* NULL for VAR/LIT. eax → γ(ok)/ω(fail); β→ω.                                             */
+            if (pBB->α && pBB->β &&
+                (strcmp(fn,"==")==0   || strcmp(fn,"\\==")==0 || strcmp(fn,"@<")==0 || strcmp(fn,"@>")==0
+              || strcmp(fn,"@=<")==0  || strcmp(fn,"@>=")==0
+              || strcmp(fn,"=:=")==0  || strcmp(fn,"=\\=")==0 || strcmp(fn,"<")==0  || strcmp(fn,">")==0
+              || strcmp(fn,"=<")==0   || strcmp(fn,"<=")==0   || strcmp(fn,">=")==0)) {
+                IR_t *a0 = pBB->α, *a1 = pBB->β;
+                int  k0 = (int)a0->t,    k1 = (int)a1->t;
+                long i0 = (long)a0->ival, i1 = (long)a1->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                int is_arith = (strcmp(fn,"=:=")==0 || strcmp(fn,"=\\=")==0 || strcmp(fn,"<")==0
+                             || strcmp(fn,">")==0   || strcmp(fn,"=<")==0   || strcmp(fn,"<=")==0 || strcmp(fn,">=")==0);
+                void *callee = is_arith ? (void*)rt_arith_cmp : (void*)rt_term_cmp;
+                std::string b;
+                /* sub rsp, 16              48 83 EC 10                                               */
+                b += bytes(4, "\x48\x83\xEC\x10");
+                /* mov rdi, op (fn name)    48 BF [8]                                                */
+                b += bytes(2, "\x48\xBF") + u64le((uint64_t)(uintptr_t)fn);
+                /* mov esi, k0              BE [4]                                                   */
+                b += bytes(1, "\xBE") + u32le((uint32_t)k0);
+                /* mov rdx, i0              48 BA [8]                                                */
+                b += bytes(2, "\x48\xBA") + u64le((uint64_t)i0);
+                /* mov rcx, s0 (or xor ecx,ecx)   48 B9 [8] / 31 C9                                 */
+                if (s0) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s0);
+                else    b += bytes(2, "\x31\xC9");
+                /* mov r8d, k1              41 B8 [4]                                                */
+                b += bytes(2, "\x41\xB8") + u32le((uint32_t)k1);
+                /* mov r9, i1               49 B9 [8]                                                */
+                b += bytes(2, "\x49\xB9") + u64le((uint64_t)i1);
+                /* mov rax, s1 (or xor eax,eax) ; mov [rsp+0], rax   48 B8[8]/31 C0 ; 48 89 04 24    */
+                if (s1) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)s1);
+                else    b += bytes(2, "\x31\xC0");
+                b += bytes(4, "\x48\x89\x04\x24");
+                /* movabs rax, &callee; call rax   48 B8 [8] FF D0                                  */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)callee) + bytes(2, "\xFF\xD0");
+                /* add rsp, 16              48 83 C4 10                                              */
+                b += bytes(4, "\x48\x83\xC4\x10");
+                /* test eax, eax            85 C0                                                   */
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-J-1 (Sonnet 4.6, 2026-05-29): CAT-D-10 type-test builtins MEDIUM_BINARY arm.       */
+            /* Was TEXT-only → asm strings emitted as raw bytes → atom(42)/integer(hello) falsely ok.  */
+            /* rt_type_test(fn, k0, i0, s0): SysV rdi=fn rsi=k0 rdx=i0 rcx=s0 — 4 regs, no stack. */
+            /* IR_STRUCT compound arg stays honest-abort-guarded until PLR-J-3.                     */
+            if (pBB->ival == 1 && pBB->α &&
+                (strcmp(fn,"var")==0      || strcmp(fn,"nonvar")==0   || strcmp(fn,"atom")==0
+              || strcmp(fn,"atomic")==0   || strcmp(fn,"number")==0   || strcmp(fn,"integer")==0
+              || strcmp(fn,"float")==0    || strcmp(fn,"compound")==0 || strcmp(fn,"callable")==0
+              || strcmp(fn,"is_list")==0  || strcmp(fn,"ground")==0)) {
+                IR_t *a0 = pBB->α;
+                if (a0->t == IR_STRUCT || a0->t == IR_ARITH) {
+                    /* PLR-K-5 (Opus 4.8, 2026-05-29): compound-literal arg, e.g. is_list([1,2,3]) /   */
+                    /* compound(f(a)) / ground(g(X,Y)). Build the Term* via emit_build_compound_term_bin */
+                    /* (→ rax), pass as t0=rsi, fn ptr=rdi, call rt_type_test_term. sub rsp,8 keeps   */
+                    /* 16-alignment across the build's internal calls. Std test/je-ω/jmp-γ/β→ω tail.      */
+                    std::string b;
+                    b += bytes(4, "\x48\x83\xEC\x08");          /* sub rsp, 8 */
+                    b += emit_build_compound_term_bin(a0);
+                    b += bytes(3, "\x48\x89\xC6");              /* mov rsi, rax */
+                    b += bytes(2, "\x48\xBF") + u64le((uint64_t)(uintptr_t)fn);   /* mov rdi, fn */
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_type_test_term) + bytes(2, "\xFF\xD0");
+                    b += bytes(4, "\x48\x83\xC4\x08");          /* add rsp, 8 */
+                    b += bytes(2, "\x85\xC0");                  /* test eax, eax */
+                    int j = (int)b.size();
+                    bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                            {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                            {false, false, false} };
+                    return b + bytes(2, "\x0F\x84") + u32le(0)
+                             + bytes(1, "\xE9")     + u32le(0)
+                             + bytes(1, "\xE9")     + u32le(0);
+                }
+                int  k0 = (int)a0->t;
+                long i0 = (long)a0->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                std::string b;
+                /* mov rdi, fn (ptr)     48 BF [8]                                                    */
+                b += bytes(2, "\x48\xBF") + u64le((uint64_t)(uintptr_t)fn);
+                /* mov esi, k0           BE [4]                                                        */
+                b += bytes(1, "\xBE") + u32le((uint32_t)k0);
+                /* mov rdx, i0           48 BA [8]                                                     */
+                b += bytes(2, "\x48\xBA") + u64le((uint64_t)i0);
+                /* mov rcx, s0 (or xor ecx,ecx)   48 B9 [8] / 31 C9                                   */
+                if (s0) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s0);
+                else    b += bytes(2, "\x31\xC9");
+                /* movabs rax, &rt_type_test; call rax   48 B8 [8] FF D0                            */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_type_test) + bytes(2, "\xFF\xD0");
+                /* test eax, eax    85 C0                                                              */
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-J-3 (2026-05-29): functor/3, arg/3, =../2 MEDIUM_BINARY arms — compound-literal args. */
+            /* Mirror the MEDIUM_TEXT CAT-D-12-S2 arms but in raw bytes, using emit_build_compound_term_bin */
+            /* for the term-position argument and absolute movabs for interned-string + helper pointers.   */
+            /* Standard tail: test eax,eax ; je ω ; jmp γ ; β: jmp ω (the bin patch triple).               */
+            /* functor(Term, Name, Arity) — a0 compound literal → rt_functor_term(t0, k1,i1,s1, k2,i2,s2). */
+            if (strcmp(fn,"functor")==0 && pBB->ival==3 && pBB->α && pBB->α->γ && pBB->α->γ->γ
+                && pBB->α->t == IR_STRUCT) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+                int  k1 = (int)a1->t,  k2 = (int)a2->t;
+                long i1 = (long)a1->ival, i2 = (long)a2->ival;
+                const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                const char *s2 = (k2 == IR_ATOM) ? a2->sval : NULL;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");
+                b += emit_build_compound_term_bin(a0);
+                b += bytes(3, "\x48\x89\xC7");
+                b += bytes(1, "\xBE") + u32le((uint32_t)k1);
+                b += bytes(2, "\x48\xBA") + u64le((uint64_t)i1);
+                if (s1) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s1);
+                else    b += bytes(2, "\x31\xC9");
+                b += bytes(2, "\x41\xB8") + u32le((uint32_t)k2);
+                b += bytes(2, "\x49\xB9") + u64le((uint64_t)i2);
+                if (s2) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)s2);
+                else    b += bytes(2, "\x31\xC0");
+                b += bytes(4, "\x48\x89\x04\x24");
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_functor_term) + bytes(2, "\xFF\xD0");
+                b += bytes(4, "\x48\x83\xC4\x10");
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1}, {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p}, {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0) + bytes(1, "\xE9") + u32le(0) + bytes(1, "\xE9") + u32le(0);
+            }
+            /* arg(N, Term, Arg) — a1 compound literal → rt_arg_term(k0,i0,s0, t1, k2,i2,s2). */
+            if (strcmp(fn,"arg")==0 && pBB->ival==3 && pBB->α && pBB->α->γ && pBB->α->γ->γ
+                && pBB->α->γ->t == IR_STRUCT) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+                int  k0 = (int)a0->t,  k2 = (int)a2->t;
+                long i0 = (long)a0->ival, i2 = (long)a2->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                const char *s2 = (k2 == IR_ATOM) ? a2->sval : NULL;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");
+                b += emit_build_compound_term_bin(a1);
+                b += bytes(3, "\x48\x89\xC1");
+                b += bytes(1, "\xBF") + u32le((uint32_t)k0);
+                b += bytes(2, "\x48\xBE") + u64le((uint64_t)i0);
+                if (s0) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)s0);
+                else    b += bytes(2, "\x31\xD2");
+                b += bytes(2, "\x41\xB8") + u32le((uint32_t)k2);
+                b += bytes(2, "\x49\xB9") + u64le((uint64_t)i2);
+                if (s2) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)s2);
+                else    b += bytes(2, "\x31\xC0");
+                b += bytes(4, "\x48\x89\x04\x24");
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_arg_term) + bytes(2, "\xFF\xD0");
+                b += bytes(4, "\x48\x83\xC4\x10");
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1}, {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p}, {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0) + bytes(1, "\xE9") + u32le(0) + bytes(1, "\xE9") + u32le(0);
+            }
+            /* =..(Term, List) — compound-literal variants: term_term / term(a0) / term_list(a1) / scalar. */
+            if (strcmp(fn,"=..")==0 && pBB->ival==2 && pBB->α && pBB->α->γ
+                && (pBB->α->t == IR_STRUCT || pBB->α->γ->t == IR_STRUCT)) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ;
+                int compound0 = (a0->t == IR_STRUCT);
+                int compound1 = (a1->t == IR_STRUCT);
+                int  k0 = (int)a0->t,  k1 = (int)a1->t;
+                long i0 = (long)a0->ival, i1 = (long)a1->ival;
+                const char *s0 = (!compound0 && k0 == IR_ATOM) ? a0->sval : NULL;
+                const char *s1 = (!compound1 && k1 == IR_ATOM) ? a1->sval : NULL;
+                std::string b;
+                if (compound0 && compound1) {
+                    b += bytes(4, "\x48\x83\xEC\x10");
+                    b += emit_build_compound_term_bin(a0);
+                    b += bytes(4, "\x48\x89\x04\x24");
+                    b += emit_build_compound_term_bin(a1);
+                    b += bytes(3, "\x48\x89\xC6");
+                    b += bytes(4, "\x48\x8B\x3C\x24");
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_univ_term_term) + bytes(2, "\xFF\xD0");
+                    b += bytes(4, "\x48\x83\xC4\x10");
+                } else if (compound0) {
+                    b += bytes(4, "\x48\x83\xEC\x08");
+                    b += emit_build_compound_term_bin(a0);
+                    b += bytes(3, "\x48\x89\xC7");
+                    b += bytes(1, "\xBE") + u32le((uint32_t)k1);
+                    b += bytes(2, "\x48\xBA") + u64le((uint64_t)i1);
+                    if (s1) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s1);
+                    else    b += bytes(2, "\x31\xC9");
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_univ_term) + bytes(2, "\xFF\xD0");
+                    b += bytes(4, "\x48\x83\xC4\x08");
+                } else {
+                    b += bytes(4, "\x48\x83\xEC\x08");
+                    b += emit_build_compound_term_bin(a1);
+                    b += bytes(3, "\x48\x89\xC1");
+                    b += bytes(1, "\xBF") + u32le((uint32_t)k0);
+                    b += bytes(2, "\x48\xBE") + u64le((uint64_t)i0);
+                    if (s0) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)s0);
+                    else    b += bytes(2, "\x31\xD2");
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_univ_term_list) + bytes(2, "\xFF\xD0");
+                    b += bytes(4, "\x48\x83\xC4\x08");
+                }
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1}, {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p}, {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0) + bytes(1, "\xE9") + u32le(0) + bytes(1, "\xE9") + u32le(0);
+            }
+            /* PLR-K-17 (2026-05-29): aggregate_all/3 (count/sum/max/min) MEDIUM_BINARY arm. Was NO     */
+            /* emitter arm → mode-3 native printed `_` (result var never bound). a0=template, a1=goal,  */
+            /* a2=result. Build template + goal via emit_build_compound_term_bin (they share the value  */
+            /* var slot so the goal's binding shows through the template); hold template in [rsp+0]     */
+            /* across the goal build, then rt_aggregate_all_term(tmpl, goal, kres,ires,sres). 5 args */
+            /* all in regs: rdi=tmpl rsi=goal edx=kres rcx=ires r8=sres. sub rsp,16 (slot + align).     */
+            if (strcmp(fn, "aggregate_all") == 0 && pBB->α && pBB->α->γ
+                && pBB->α->γ->γ && pBB->ival == 3) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+                int  kres = (int)a2->t;
+                long ires = (long)a2->ival;
+                const char *sres = (kres == IR_ATOM) ? a2->sval : NULL;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");                /* sub rsp, 16 */
+                b += emit_build_compound_term_bin(a0);            /* build template → rax */
+                b += bytes(4, "\x48\x89\x04\x24");                /* mov [rsp+0], rax (hold tmpl) */
+                b += emit_build_compound_term_bin(a1);            /* build goal → rax */
+                b += bytes(3, "\x48\x89\xC6");                    /* mov rsi, rax (goal) */
+                b += bytes(4, "\x48\x8B\x3C\x24");                /* mov rdi, [rsp+0] (tmpl) */
+                b += bytes(1, "\xBA") + u32le((uint32_t)kres);    /* mov edx, kres */
+                b += bytes(2, "\x48\xB9") + u64le((uint64_t)ires);/* mov rcx, ires */
+                if (sres) b += bytes(2, "\x49\xB8") + u64le((uint64_t)(uintptr_t)sres);  /* mov r8, sres */
+                else      b += bytes(3, "\x45\x31\xC0");          /* xor r8d, r8d */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_aggregate_all_term) + bytes(2, "\xFF\xD0");
+                b += bytes(4, "\x48\x83\xC4\x10");                /* add rsp, 16 */
+                b += bytes(2, "\x85\xC0");                        /* test eax, eax */
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-16 (2026-05-29): nb_setval/2 + nb_getval/2 MEDIUM_BINARY arm. Non-backtrackable    */
+            /* global store keyed by atom. Was NO emitter arm → mode-3 native printed `_` (getval var   */
+            /* never bound; setval silently no-op). a0 = key atom, a1 = value (setval) / result (getval).*/
+            /* Build key via emit_build_compound_term_bin (atom builds fine). setval: build value too,  */
+            /* hold key in [rsp+0] across value's build, rt_nb_setval_term(key, val). getval: pass    */
+            /* result-var scalars, rt_nb_getval_term(key, kres,ires,sres). sub rsp,16 (slot + align). */
+            if ((strcmp(fn, "nb_setval") == 0 || strcmp(fn, "nb_getval") == 0)
+                && pBB->α && pBB->α->γ && pBB->ival == 2) {
+                int   is_set = (strcmp(fn, "nb_setval") == 0);
+                IR_t *a0 = pBB->α, *a1 = a0->γ;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");                /* sub rsp, 16 */
+                if (is_set) {
+                    b += emit_build_compound_term_bin(a0);        /* build key → rax */
+                    b += bytes(4, "\x48\x89\x04\x24");            /* mov [rsp+0], rax (hold key) */
+                    b += emit_build_compound_term_bin(a1);        /* build value → rax */
+                    b += bytes(3, "\x48\x89\xC6");                /* mov rsi, rax (val) */
+                    b += bytes(4, "\x48\x8B\x3C\x24");            /* mov rdi, [rsp+0] (key) */
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_nb_setval_term) + bytes(2, "\xFF\xD0");
+                } else {
+                    int  kres = (int)a1->t;
+                    long ires = (long)a1->ival;
+                    const char *sres = (kres == IR_ATOM) ? a1->sval : NULL;
+                    b += emit_build_compound_term_bin(a0);        /* build key → rax */
+                    b += bytes(3, "\x48\x89\xC7");                /* mov rdi, rax (key) */
+                    b += bytes(1, "\xBE") + u32le((uint32_t)kres);/* mov esi, kres */
+                    b += bytes(2, "\x48\xBA") + u64le((uint64_t)ires);  /* mov rdx, ires */
+                    if (sres) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)sres);  /* mov rcx, sres */
+                    else      b += bytes(2, "\x31\xC9");          /* xor ecx, ecx */
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_nb_getval_term) + bytes(2, "\xFF\xD0");
+                }
+                b += bytes(4, "\x48\x83\xC4\x10");                /* add rsp, 16 */
+                b += bytes(2, "\x85\xC0");                        /* test eax, eax */
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-15 (2026-05-29): copy_term/2 with a COMPOUND arg0 (IR_STRUCT / IR_ARITH). The   */
+            /* shared 6-scalar arm below cannot carry a tree (k0=IR_STRUCT → rt_node_to_term       */
+            /* degenerates it, losing intra-term var-sharing → copy_term(f(X,X),f(A,B)) gave A\==B).     */
+            /* Build arg0's Term* via emit_build_compound_term_bin (preserves sharing: an unbound var's  */
+            /* fresh Term is written back to its env slot, so a repeated occurrence rereads the same     */
+            /* Term). If arg1 (destination) is ALSO compound it must be built too (else the unify binds  */
+            /* nothing); hold arg0 in a stack slot across arg1's build, then rt_copy_term_terms(t0,   */
+            /* t1). Scalar arg1 → rt_copy_term_term(t0, k1,i1,s1). Scalar arg0 flows through the      */
+            /* CAT-D-1/3/4/5 arm. sub rsp,16 for the stack slot + 16B alignment across builder calls.    */
+            if (strcmp(fn, "copy_term") == 0 && pBB->α && pBB->α->γ
+                && (pBB->α->t == IR_STRUCT || pBB->α->t == IR_ARITH)) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ;
+                int  a1_compound = (a1->t == IR_STRUCT || a1->t == IR_ARITH);
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");                /* sub rsp, 16 */
+                if (a1_compound) {
+                    b += emit_build_compound_term_bin(a0);        /* build arg0 → rax */
+                    b += bytes(4, "\x48\x89\x04\x24");            /* mov [rsp+0], rax (hold across build) */
+                    b += emit_build_compound_term_bin(a1);        /* build arg1 → rax */
+                    b += bytes(3, "\x48\x89\xC6");                /* mov rsi, rax (t1) */
+                    b += bytes(4, "\x48\x8B\x3C\x24");            /* mov rdi, [rsp+0] (t0) */
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_copy_term_terms) + bytes(2, "\xFF\xD0");
+                } else {
+                    int  k1 = (int)a1->t;
+                    long i1 = (long)a1->ival;
+                    const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                    b += emit_build_compound_term_bin(a0);        /* build arg0 → rax */
+                    b += bytes(3, "\x48\x89\xC7");                /* mov rdi, rax */
+                    b += bytes(1, "\xBE") + u32le((uint32_t)k1);  /* mov esi, k1 */
+                    b += bytes(2, "\x48\xBA") + u64le((uint64_t)i1);  /* mov rdx, i1 */
+                    if (s1) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s1);  /* mov rcx, s1 */
+                    else    b += bytes(2, "\x31\xC9");            /* xor ecx, ecx */
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_copy_term_term) + bytes(2, "\xFF\xD0");
+                }
+                b += bytes(4, "\x48\x83\xC4\x10");                /* add rsp, 16 */
+                b += bytes(2, "\x85\xC0");                        /* test eax, eax */
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-1 (Opus 4.8, 2026-05-29): CAT-D-1/3/4/5 2-arg atom builtins MEDIUM_BINARY arm.       */
+            /* atom_length/upcase_atom/downcase_atom (+string_ aliases) → rt_atom_length/_upcase/      */
+            /* _downcase; atom_string/string_to_atom → rt_atom_string_pair; copy_term → rt_copy_term. */
+            /* All share the 6-scalar signature (int k0, long i0, const char*s0, int k1, long i1, const   */
+            /* char*s1) — SysV edi/rsi/rdx, ecx/r8/r9, no stack. Was TEXT-only → in mode-3 native the asm  */
+            /* strings emitted as raw bytes → result var never bound (write printed "_"). In-process the   */
+            /* atom sval pointer is loaded absolute (movabs) like the write arm, not lea[rip+strtab].      */
+            if ((strcmp(fn,"atom_length")==0   || strcmp(fn,"upcase_atom")==0   || strcmp(fn,"downcase_atom")==0
+              || strcmp(fn,"string_length")==0 || strcmp(fn,"string_upper")==0  || strcmp(fn,"string_lower")==0
+              || strcmp(fn,"atom_string")==0   || strcmp(fn,"string_to_atom")==0 || strcmp(fn,"copy_term")==0)
+                && pBB->α && pBB->α->γ) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ;
+                int  k0 = (int)a0->t,    k1 = (int)a1->t;
+                long i0 = (long)a0->ival, i1 = (long)a1->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                void *callee =
+                    (strcmp(fn,"atom_length")==0   || strcmp(fn,"string_length")==0) ? (void*)rt_atom_length   :
+                    (strcmp(fn,"upcase_atom")==0   || strcmp(fn,"string_upper")==0)  ? (void*)rt_upcase_atom   :
+                    (strcmp(fn,"downcase_atom")==0 || strcmp(fn,"string_lower")==0)  ? (void*)rt_downcase_atom :
+                    (strcmp(fn,"copy_term")==0)                                      ? (void*)rt_copy_term     :
+                                                                                       (void*)rt_atom_string_pair;
+                std::string b;
+                /* mov edi, k0    BF [4]                                                                 */
+                b += bytes(1, "\xBF") + u32le((uint32_t)k0);
+                /* mov rsi, i0    48 BE [8]                                                              */
+                b += bytes(2, "\x48\xBE") + u64le((uint64_t)i0);
+                /* mov rdx, s0    48 BA [8]   (or xor edx,edx  31 D2)                                    */
+                if (s0) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)s0);
+                else    b += bytes(2, "\x31\xD2");
+                /* mov ecx, k1    B9 [4]                                                                 */
+                b += bytes(1, "\xB9") + u32le((uint32_t)k1);
+                /* mov r8, i1     49 B8 [8]                                                              */
+                b += bytes(2, "\x49\xB8") + u64le((uint64_t)i1);
+                /* mov r9, s1     49 B9 [8]   (or xor r9d,r9d  45 31 C9)                                 */
+                if (s1) b += bytes(2, "\x49\xB9") + u64le((uint64_t)(uintptr_t)s1);
+                else    b += bytes(3, "\x45\x31\xC9");
+                /* movabs rax, &callee; call rax   48 B8 [8] FF D0                                       */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)callee) + bytes(2, "\xFF\xD0");
+                /* test eax, eax   85 C0                                                                 */
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-7 (Opus 4.8, 2026-05-29): number_string/2 + atom_number/2 MEDIUM_BINARY arm. Was      */
+            /* NO arm at all (neither TEXT nor BINARY) → mode-3 native + mode-4 emit both printed "_" (the  */
+            /* double-jump-stub bug class — the result var never bound). rt_number_string_pair(num_first,*/
+            /* k0,i0,s0, k1,i1,s1) — 7 scalars: num_first prepended, so SysV shifts vs the 6-scalar atom_  */
+            /* string arm: edi=num_first esi=k0 rdx=i0 rcx=s0 r8d=k1 r9=i1, s1 on the stack at [rsp+0].     */
+            /* num_first=1 for number_string (arg0=num), 0 for atom_number (arg0=text). sub rsp,16 keeps    */
+            /* 16B alignment across the call. Std bin-patch tail.                                           */
+            if ((strcmp(fn,"number_string")==0 || strcmp(fn,"atom_number")==0)
+                && pBB->α && pBB->α->γ) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ;
+                int  num_first = (strcmp(fn,"number_string")==0) ? 1 : 0;
+                int  k0 = (int)a0->t,    k1 = (int)a1->t;
+                long i0 = (long)a0->ival, i1 = (long)a1->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                std::string b;
+                /* sub rsp, 16     48 83 EC 10                                                           */
+                b += bytes(4, "\x48\x83\xEC\x10");
+                /* mov edi, num_first    BF [4]                                                          */
+                b += bytes(1, "\xBF") + u32le((uint32_t)num_first);
+                /* mov esi, k0    BE [4]                                                                 */
+                b += bytes(1, "\xBE") + u32le((uint32_t)k0);
+                /* mov rdx, i0    48 BA [8]                                                              */
+                b += bytes(2, "\x48\xBA") + u64le((uint64_t)i0);
+                /* mov rcx, s0    48 B9 [8]   (or xor ecx,ecx  31 C9)                                    */
+                if (s0) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s0);
+                else    b += bytes(2, "\x31\xC9");
+                /* mov r8d, k1    41 B8 [4]                                                              */
+                b += bytes(2, "\x41\xB8") + u32le((uint32_t)k1);
+                /* mov r9, i1     49 B9 [8]                                                              */
+                b += bytes(2, "\x49\xB9") + u64le((uint64_t)i1);
+                /* mov rax, s1 (or xor eax,eax) ; mov [rsp+0], rax    48 B8[8]/31 C0 ; 48 89 04 24       */
+                if (s1) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)s1);
+                else    b += bytes(2, "\x31\xC0");
+                b += bytes(4, "\x48\x89\x04\x24");
+                /* movabs rax, &rt_number_string_pair; call rax                                       */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_number_string_pair) + bytes(2, "\xFF\xD0");
+                /* add rsp, 16     48 83 C4 10                                                           */
+                b += bytes(4, "\x48\x83\xC4\x10");
+                /* test eax, eax   85 C0                                                                 */
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-1 (Opus 4.8, 2026-05-29): CAT-D-2/3 atom_concat/3 (+string_concat) MEDIUM_BINARY arm. */
+            /* rt_atom_concat(k0,i0,s0, k1,i1,s1, k2,i2,s2) — 9 scalars: first 6 in regs, last triplet  */
+            /* (k2,i2,s2) on the stack. SysV: sub rsp,32 (3*8 data + 8 pad for 16B alignment at call).     */
+            if ((strcmp(fn,"atom_concat")==0 || strcmp(fn,"string_concat")==0)
+                && pBB->α && pBB->α->γ && pBB->α->γ->γ) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+                int  k0 = (int)a0->t,    k1 = (int)a1->t,    k2 = (int)a2->t;
+                long i0 = (long)a0->ival, i1 = (long)a1->ival, i2 = (long)a2->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                const char *s2 = (k2 == IR_ATOM) ? a2->sval : NULL;
+                std::string b;
+                /* sub rsp, 32     48 83 EC 20                                                           */
+                b += bytes(4, "\x48\x83\xEC\x20");
+                /* mov edi, k0 ; mov rsi, i0 ; mov rdx, s0                                               */
+                b += bytes(1, "\xBF") + u32le((uint32_t)k0);
+                b += bytes(2, "\x48\xBE") + u64le((uint64_t)i0);
+                if (s0) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)s0);
+                else    b += bytes(2, "\x31\xD2");
+                /* mov ecx, k1 ; mov r8, i1 ; mov r9, s1                                                 */
+                b += bytes(1, "\xB9") + u32le((uint32_t)k1);
+                b += bytes(2, "\x49\xB8") + u64le((uint64_t)i1);
+                if (s1) b += bytes(2, "\x49\xB9") + u64le((uint64_t)(uintptr_t)s1);
+                else    b += bytes(3, "\x45\x31\xC9");
+                /* mov dword ptr [rsp+0], k2    C7 04 24 [4]                                             */
+                b += bytes(3, "\xC7\x04\x24") + u32le((uint32_t)k2);
+                /* mov rax, i2 ; mov [rsp+8], rax    48 B8 [8] ; 48 89 44 24 08                          */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)i2);
+                b += bytes(5, "\x48\x89\x44\x24\x08");
+                /* mov rax, s2 (or xor eax,eax) ; mov [rsp+16], rax    48 B8[8]/31 C0 ; 48 89 44 24 10   */
+                if (s2) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)s2);
+                else    b += bytes(2, "\x31\xC0");
+                b += bytes(5, "\x48\x89\x44\x24\x10");
+                /* movabs rax, &rt_atom_concat; call rax                                              */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_atom_concat) + bytes(2, "\xFF\xD0");
+                /* add rsp, 32     48 83 C4 20                                                           */
+                b += bytes(4, "\x48\x83\xC4\x20");
+                /* test eax, eax   85 C0                                                                 */
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-1 (Opus 4.8, 2026-05-29): CAT-D-6 atom_chars/atom_codes/string_chars/string_codes    */
+            /* MEDIUM_BINARY arm. Two paths mirror the TEXT arm: (A) scalar a1 → rt_atom_chars_codes    */
+            /* (as_codes,k0,i0,s0,k1,i1,s1) — 7 scalars, [rsp+0]=s1, sub rsp,16; (B) literal cons-cell a1  */
+            /* (IR_STRUCT) → build Term* via emit_build_compound_term_bin into r8, then                 */
+            /* rt_atom_chars_codes_term(as_codes,k0,i0,s0,Term*) — 5 args, all in regs. Path B uses an   */
+            /* 8-byte scratch frame to keep rsp 16-aligned across the compound build's internal call.       */
+            if ((strcmp(fn,"atom_chars")==0 || strcmp(fn,"atom_codes")==0
+              || strcmp(fn,"string_chars")==0 || strcmp(fn,"string_codes")==0)
+                && pBB->α && pBB->α->γ) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ;
+                int  k0 = (int)a0->t;
+                long i0 = (long)a0->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                int  as_codes = (strcmp(fn,"atom_codes")==0 || strcmp(fn,"string_codes")==0) ? 1 : 0;
+                std::string b;
+                if (a1->t == IR_STRUCT) {
+                    /* Path B: build the list Term* then call the _term helper.                          */
+                    /* sub rsp, 8     48 83 EC 08   (align: one odd push to balance the build's call)     */
+                    b += bytes(4, "\x48\x83\xEC\x08");
+                    b += emit_build_compound_term_bin(a1);
+                    /* mov r8, rax    49 89 C0                                                            */
+                    b += bytes(3, "\x49\x89\xC0");
+                    /* mov edi, as_codes ; mov esi, k0 ; mov rdx, i0 ; mov rcx, s0                        */
+                    b += bytes(1, "\xBF") + u32le((uint32_t)as_codes);
+                    b += bytes(1, "\xBE") + u32le((uint32_t)k0);
+                    b += bytes(2, "\x48\xBA") + u64le((uint64_t)i0);
+                    if (s0) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s0);
+                    else    b += bytes(2, "\x31\xC9");
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_atom_chars_codes_term) + bytes(2, "\xFF\xD0");
+                    /* add rsp, 8     48 83 C4 08                                                         */
+                    b += bytes(4, "\x48\x83\xC4\x08");
+                } else {
+                    /* Path A: scalar a1 (VAR or ATOM). 7th arg s1 on the stack.                         */
+                    int  k1 = (int)a1->t;
+                    long i1 = (long)a1->ival;
+                    const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                    /* sub rsp, 16    48 83 EC 10                                                         */
+                    b += bytes(4, "\x48\x83\xEC\x10");
+                    /* mov edi, as_codes ; mov esi, k0 ; mov rdx, i0 ; mov rcx, s0                        */
+                    b += bytes(1, "\xBF") + u32le((uint32_t)as_codes);
+                    b += bytes(1, "\xBE") + u32le((uint32_t)k0);
+                    b += bytes(2, "\x48\xBA") + u64le((uint64_t)i0);
+                    if (s0) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s0);
+                    else    b += bytes(2, "\x31\xC9");
+                    /* mov r8d, k1 ; mov r9, i1                                                           */
+                    b += bytes(2, "\x41\xB8") + u32le((uint32_t)k1);
+                    b += bytes(2, "\x49\xB9") + u64le((uint64_t)i1);
+                    /* mov rax, s1 (or xor eax,eax) ; mov [rsp+0], rax                                    */
+                    if (s1) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)s1);
+                    else    b += bytes(2, "\x31\xC0");
+                    b += bytes(4, "\x48\x89\x04\x24");
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_atom_chars_codes) + bytes(2, "\xFF\xD0");
+                    /* add rsp, 16    48 83 C4 10                                                         */
+                    b += bytes(4, "\x48\x83\xC4\x10");
+                }
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-2 (Opus 4.8, 2026-05-29): char_type/2 MEDIUM_BINARY arm. a0 = char arg (α), a1 =    */
+            /* type arg (α->γ). Boolean form: a1 is IR_ATOM, sval = type name, is_compound=0, inner    */
+            /* triplet zeroed. Extractor form: a1 is IR_STRUCT/IR_ARITH, sval = functor, a1->α = the */
+            /* inner var → its (k,i,s) triplet. rt_char_type(k0,i0,s0, ty, is_compound, ki,ii,si):    */
+            /* SysV rdi=k0 rsi=i0 rdx=s0 rcx=ty r8=is_compound r9=ki, [rsp+0]=ii [rsp+8]=si → sub rsp,16. */
+            if (strcmp(fn,"char_type")==0 && pBB->ival==2 && pBB->α && pBB->α->γ) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ;
+                int  k0 = (int)a0->t;
+                long i0 = (long)a0->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                int  is_compound = ((a1->t == IR_STRUCT || a1->t == IR_ARITH) && a1->sval) ? 1 : 0;
+                const char *ty = a1->sval;
+                IR_t *inner = is_compound ? a1->α : NULL;
+                int  ki = inner ? (int)inner->t : 0;
+                long ii = inner ? (long)inner->ival : 0;
+                const char *si = (inner && inner->t == IR_ATOM) ? inner->sval : NULL;
+                std::string b;
+                /* sub rsp, 16    48 83 EC 10                                                          */
+                b += bytes(4, "\x48\x83\xEC\x10");
+                /* mov edi, k0 ; mov rsi, i0 ; mov rdx, s0 (or xor edx,edx)                            */
+                b += bytes(1, "\xBF") + u32le((uint32_t)k0);
+                b += bytes(2, "\x48\xBE") + u64le((uint64_t)i0);
+                if (s0) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)s0);
+                else    b += bytes(2, "\x31\xD2");
+                /* mov rcx, ty (or xor ecx,ecx)    48 B9 [8] / 31 C9                                   */
+                if (ty) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)ty);
+                else    b += bytes(2, "\x31\xC9");
+                /* mov r8d, is_compound    41 B8 [4]                                                   */
+                b += bytes(2, "\x41\xB8") + u32le((uint32_t)is_compound);
+                /* mov r9d, ki             41 B9 [4]                                                   */
+                b += bytes(2, "\x41\xB9") + u32le((uint32_t)ki);
+                /* mov rax, ii ; mov [rsp+0], rax    48 B8 [8] ; 48 89 04 24                           */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)ii);
+                b += bytes(4, "\x48\x89\x04\x24");
+                /* mov rax, si (or xor eax,eax) ; mov [rsp+8], rax                                     */
+                if (si) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)si);
+                else    b += bytes(2, "\x31\xC0");
+                b += bytes(5, "\x48\x89\x44\x24\x08");
+                /* movabs rax, &rt_char_type; call rax                                              */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_char_type) + bytes(2, "\xFF\xD0");
+                /* add rsp, 16    48 83 C4 10                                                          */
+                b += bytes(4, "\x48\x83\xC4\x10");
+                /* test eax, eax   85 C0                                                               */
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-3 (Opus 4.8, 2026-05-29): numbervars/3 MEDIUM_BINARY arm. RESOLVE_BI_CHAIN: a0 = term   */
+            /* (α), a1 = start int (α->γ), a2 = End var (α->γ->γ). Build the term via                   */
+            /* emit_build_compound_term_bin (its TERM_VARs alias the live env slots → binding them      */
+            /* shows in a later write), keep it in rdi across the start/End loads, then call            */
+            /* rt_numbervars_term(t0=rdi, start=rsi, k2=edx, i2=rcx, s2=r8). Std bin-patch tail.      */
+            if (strcmp(fn, "numbervars") == 0 && pBB->ival == 3 && pBB->α && pBB->α->γ && pBB->α->γ->γ) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+                long start = (long)a1->ival;
+                int  k2 = (int)a2->t;
+                long i2 = (long)a2->ival;
+                const char *s2 = (k2 == IR_ATOM) ? a2->sval : NULL;
+                std::string b;
+                /* sub rsp, 8 (keep 16-alignment across the build's internal calls)   48 83 EC 08      */
+                b += bytes(4, "\x48\x83\xEC\x08");
+                /* build a0's term → rax                                                               */
+                b += emit_build_compound_term_bin(a0);
+                /* mov rdi, rax    48 89 C7                                                             */
+                b += bytes(3, "\x48\x89\xC7");
+                /* mov rsi, start    48 BE [8]                                                          */
+                b += bytes(2, "\x48\xBE") + u64le((uint64_t)start);
+                /* mov edx, k2    BA [4]                                                                */
+                b += bytes(1, "\xBA") + u32le((uint32_t)k2);
+                /* mov rcx, i2    48 B9 [8]                                                             */
+                b += bytes(2, "\x48\xB9") + u64le((uint64_t)i2);
+                /* mov r8, s2 (or xor r8d,r8d)    49 B8 [8] / 45 31 C0                                  */
+                if (s2) b += bytes(2, "\x49\xB8") + u64le((uint64_t)(uintptr_t)s2);
+                else    b += bytes(3, "\x45\x31\xC0");
+                /* movabs rax, &rt_numbervars_term; call rax                                         */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_numbervars_term) + bytes(2, "\xFF\xD0");
+                /* add rsp, 8    48 83 C4 08                                                            */
+                b += bytes(4, "\x48\x83\xC4\x08");
+                /* test eax, eax    85 C0                                                               */
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-9 (Opus 4.8, 2026-05-29): term_to_atom/2 + term_string/2 MEDIUM_BINARY arm. Both   */
+            /* were NO arm at all → mode-3 native + mode-4 emit printed "_" (result var never bound).   */
+            /* Forward-only (oracle): render a0's term, unify the atom into a1. Build a0 via            */
+            /* emit_build_compound_term_bin (atom/int/float/compound/list) → rdi, then text-arg scalars */
+            /* esi=k1 rdx=i1 rcx=s1; rt_term_to_atom_term(t0,k1,i1,s1). sub rsp,16: pl_term_to_string */
+            /* calls open_memstream (SSE-alignment-sensitive) so rsp must be 16-aligned. Std tail.      */
+            if ((strcmp(fn, "term_to_atom") == 0 || strcmp(fn, "term_string") == 0)
+                && pBB->α && pBB->α->γ) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ;
+                int   k1 = (int)a1->t;
+                long  i1 = (long)a1->ival;
+                const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");                /* sub rsp, 16 */
+                b += emit_build_compound_term_bin(a0);            /* build a0's term → rax */
+                b += bytes(3, "\x48\x89\xC7");                    /* mov rdi, rax */
+                b += bytes(1, "\xBE") + u32le((uint32_t)k1);      /* mov esi, k1 */
+                b += bytes(2, "\x48\xBA") + u64le((uint64_t)i1);  /* mov rdx, i1 */
+                if (s1) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s1);  /* mov rcx, s1 */
+                else    b += bytes(2, "\x31\xC9");                /* xor ecx, ecx */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_term_to_atom_term) + bytes(2, "\xFF\xD0");
+                b += bytes(4, "\x48\x83\xC4\x10");                /* add rsp, 16 */
+                b += bytes(2, "\x85\xC0");                        /* test eax, eax */
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-8 (Opus 4.8, 2026-05-29): format/1 + format/2 MEDIUM_BINARY arm. Was MEDIUM_TEXT-  */
+            /* only → in mode-3 native the asm strings emitted as raw bytes → format produced EMPTY      */
+            /* output (the whole printf-style emit silently did nothing). Two paths mirror the TEXT arm: */
+            /* Path B (compound args1, e.g. [world]): build the args-list Term* via                      */
+            /* emit_build_compound_term_bin into r8, call rt_format_term(arity,k0,i0,s0, args*).      */
+            /* Path A (scalar/absent args1): rt_format(arity,k0,i0,s0, k1,i1,s1) — 7 scalars, s1 on   */
+            /* the stack at [rsp+0]. sub rsp,16 holds the stack arg + keeps 16B alignment across the     */
+            /* build's and helper's internal calls. movabs absolute pointers (in-process). Std tail.    */
+            if (strcmp(fn, "format") == 0 && pBB->α && (pBB->ival == 1 || pBB->ival == 2)) {
+                int   arity = (int)pBB->ival;
+                IR_t *a0 = pBB->α;
+                IR_t *a1 = (arity == 2) ? a0->γ : NULL;
+                int   k0 = (int)a0->t;
+                long  i0 = (long)a0->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                int   compound1 = (a1 && a1->t == IR_STRUCT);
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");                /* sub rsp, 16 */
+                if (compound1) {
+                    /* Path B: build args-list Term* (→ rax), move to r8, then scalar fmt args. */
+                    b += emit_build_compound_term_bin(a1);
+                    b += bytes(3, "\x49\x89\xC0");                /* mov r8, rax */
+                    b += bytes(1, "\xBF") + u32le((uint32_t)arity);          /* mov edi, arity */
+                    b += bytes(1, "\xBE") + u32le((uint32_t)k0);             /* mov esi, k0 */
+                    b += bytes(2, "\x48\xBA") + u64le((uint64_t)i0);         /* mov rdx, i0 */
+                    if (s0) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s0);  /* mov rcx, s0 */
+                    else    b += bytes(2, "\x31\xC9");                       /* xor ecx, ecx */
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_format_term) + bytes(2, "\xFF\xD0");
+                } else {
+                    /* Path A: scalar args1 (variable, atom, or absent for arity 1). */
+                    int   k1 = a1 ? (int)a1->t : 0;
+                    long  i1 = a1 ? (long)a1->ival : 0;
+                    const char *s1 = (a1 && k1 == IR_ATOM) ? a1->sval : NULL;
+                    b += bytes(1, "\xBF") + u32le((uint32_t)arity);          /* mov edi, arity */
+                    b += bytes(1, "\xBE") + u32le((uint32_t)k0);             /* mov esi, k0 */
+                    b += bytes(2, "\x48\xBA") + u64le((uint64_t)i0);         /* mov rdx, i0 */
+                    if (s0) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s0);  /* mov rcx, s0 */
+                    else    b += bytes(2, "\x31\xC9");                       /* xor ecx, ecx */
+                    b += bytes(2, "\x41\xB8") + u32le((uint32_t)k1);         /* mov r8d, k1 */
+                    b += bytes(2, "\x49\xB9") + u64le((uint64_t)i1);         /* mov r9, i1 */
+                    if (s1) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)s1);  /* mov rax, s1 */
+                    else    b += bytes(2, "\x31\xC0");                       /* xor eax, eax */
+                    b += bytes(4, "\x48\x89\x04\x24");                       /* mov [rsp+0], rax */
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_format) + bytes(2, "\xFF\xD0");
+                }
+                b += bytes(4, "\x48\x83\xC4\x10");                /* add rsp, 16 */
+                b += bytes(2, "\x85\xC0");                        /* test eax, eax */
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-10 (2026-05-29): findall/3 MEDIUM_BINARY arm. nd->ival holds the bb_findall_state_t* */
+            /* sidecar (NOT the arity int the common path uses). Pass the pointer directly as rdi; the      */
+            /* helper (rt_findall) runs the goal sub-graph, copies the template per solution, builds the  */
+            /* cons list, and unifies the result. sub rsp,16 keeps rsp 16-aligned across the call: the */
+            /* arm begins with rsp 16-aligned, and rt_findall reaches bb_exec_node→snprintf, whose   */
+            /* movaps spill faults on a misaligned rbp/rsp (sub rsp,8 left the call site 8-mod-16 →     */
+            /* SIGSEGV inside __vsnprintf_internal). std bin-patch tail (test/je-ω/jmp-γ/β→ω).        */
+            if (strcmp(fn, "findall") == 0) {
+                void *fs_ptr = (void *)(intptr_t)pBB->ival;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");                /* sub rsp, 16 */
+                b += bytes(2, "\x48\xBF") + u64le((uint64_t)(uintptr_t)fs_ptr);
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_findall) + bytes(2, "\xFF\xD0");
+                b += bytes(4, "\x48\x83\xC4\x10");                /* add rsp, 16 */
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-11 (2026-05-29): succ/2 MEDIUM_BINARY arm. Byte-twin of the MEDIUM_TEXT succ arm    */
+            /* (~line 1807). AB style: pBB->α = arg0 (X), pBB->β = arg1 (Y). 6-scalar SysV signature     */
+            /* rt_succ(k0,i0,s0, k1,i1,s1) — edi/rsi/rdx, ecx/r8/r9, no stack. Was TEXT-only → in      */
+            /* mode-3 native the asm strings emitted as raw bytes → result var never bound (succ(4,B)     */
+            /* printed "_"). Atom sval loaded absolute (movabs), not lea[rip+strtab].                     */
+            if (strcmp(fn, "succ") == 0 && pBB->ival == 2 && pBB->α && pBB->β) {
+                IR_t *a0 = pBB->α, *a1 = pBB->β;
+                int  k0 = (int)a0->t,    k1 = (int)a1->t;
+                long i0 = (long)a0->ival, i1 = (long)a1->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                std::string b;
+                b += bytes(1, "\xBF") + u32le((uint32_t)k0);
+                b += bytes(2, "\x48\xBE") + u64le((uint64_t)i0);
+                if (s0) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)s0);
+                else    b += bytes(2, "\x31\xD2");
+                b += bytes(1, "\xB9") + u32le((uint32_t)k1);
+                b += bytes(2, "\x49\xB8") + u64le((uint64_t)i1);
+                if (s1) b += bytes(2, "\x49\xB9") + u64le((uint64_t)(uintptr_t)s1);
+                else    b += bytes(3, "\x45\x31\xC9");
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_succ) + bytes(2, "\xFF\xD0");
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-11 (2026-05-29): plus/3 MEDIUM_BINARY arm. Byte-twin of the MEDIUM_TEXT plus arm     */
+            /* (~line 1832). CHAIN style: args hang the γ-chain off pBB->α (a0->γ=a1, a1->γ=a2).         */
+            /* 9-scalar rt_plus(k0,i0,s0, k1,i1,s1, k2,i2,s2) — first 6 in regs, last triplet on the   */
+            /* stack (k2 dword [rsp+0], i2 [rsp+8], s2 [rsp+16]). sub rsp,32 (3*8 data + 8 pad for 16B    */
+            /* alignment at the call). Was TEXT-only → mode-3 native printed "_" for the unbound arg.     */
+            if (strcmp(fn, "plus") == 0 && pBB->ival == 3 && pBB->α && pBB->α->γ && pBB->α->γ->γ) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+                int  k0 = (int)a0->t,    k1 = (int)a1->t,    k2 = (int)a2->t;
+                long i0 = (long)a0->ival, i1 = (long)a1->ival, i2 = (long)a2->ival;
+                const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                const char *s2 = (k2 == IR_ATOM) ? a2->sval : NULL;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x20");
+                b += bytes(1, "\xBF") + u32le((uint32_t)k0);
+                b += bytes(2, "\x48\xBE") + u64le((uint64_t)i0);
+                if (s0) b += bytes(2, "\x48\xBA") + u64le((uint64_t)(uintptr_t)s0);
+                else    b += bytes(2, "\x31\xD2");
+                b += bytes(1, "\xB9") + u32le((uint32_t)k1);
+                b += bytes(2, "\x49\xB8") + u64le((uint64_t)i1);
+                if (s1) b += bytes(2, "\x49\xB9") + u64le((uint64_t)(uintptr_t)s1);
+                else    b += bytes(3, "\x45\x31\xC9");
+                b += bytes(3, "\xC7\x04\x24") + u32le((uint32_t)k2);
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)i2);
+                b += bytes(5, "\x48\x89\x44\x24\x08");
+                if (s2) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)s2);
+                else    b += bytes(2, "\x31\xC0");
+                b += bytes(5, "\x48\x89\x44\x24\x10");
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_plus) + bytes(2, "\xFF\xD0");
+                b += bytes(4, "\x48\x83\xC4\x20");
+                b += bytes(2, "\x85\xC0");
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-14 (2026-05-29): atomic_list_concat/2,3 + concat_atom/2 MEDIUM_BINARY arm. Was     */
+            /* MEDIUM_TEXT-... actually had NO emitter arm at all → mode-3 native printed `_` (result   */
+            /* var never bound). Builds arg0's cons-list Term* via emit_build_compound_term_bin → rdi,  */
+            /* then rt_atomic_list_concat_term(list, arity, ksep,isep,ssep, kres,ires,sres). 8 args: */
+            /* rdi=list esi=arity edx=ksep rcx=isep r8=ssep r9d=kres, [rsp+0]=ires [rsp+8]=sres. arity  */
+            /* from pBB->ival (2 or 3). For arity 2 the result is a1 (sep triple zeroed); for arity 3   */
+            /* sep is a1 and result is a2. sub rsp,16 (two stack args + 16B alignment across builder/   */
+            /* helper internal calls). movabs absolute pointers (in-process). Std bin-patch tail.       */
+            if ((strcmp(fn, "atomic_list_concat") == 0 || strcmp(fn, "concat_atom") == 0)
+                && pBB->α && (pBB->ival == 2 || pBB->ival == 3)) {
+                int   arity = (int)pBB->ival;
+                IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1 ? a1->γ : NULL;
+                IR_t *sepN = (arity == 3) ? a1 : NULL;
+                IR_t *resN = (arity == 3) ? a2 : a1;
+                int   ksep = sepN ? (int)sepN->t : 0;
+                long  isep = sepN ? (long)sepN->ival : 0;
+                const char *ssep = (sepN && ksep == IR_ATOM) ? sepN->sval : NULL;
+                int   kres = resN ? (int)resN->t : 0;
+                long  ires = resN ? (long)resN->ival : 0;
+                const char *sres = (resN && kres == IR_ATOM) ? resN->sval : NULL;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");                /* sub rsp, 16 */
+                b += emit_build_compound_term_bin(a0);            /* build arg0 list → rax */
+                b += bytes(3, "\x48\x89\xC7");                    /* mov rdi, rax */
+                b += bytes(1, "\xBE") + u32le((uint32_t)arity);   /* mov esi, arity */
+                b += bytes(1, "\xBA") + u32le((uint32_t)ksep);    /* mov edx, ksep */
+                b += bytes(2, "\x48\xB9") + u64le((uint64_t)isep);/* mov rcx, isep */
+                if (ssep) b += bytes(2, "\x49\xB8") + u64le((uint64_t)(uintptr_t)ssep);  /* mov r8, ssep */
+                else      b += bytes(3, "\x45\x31\xC0");          /* xor r8d, r8d */
+                b += bytes(2, "\x41\xB9") + u32le((uint32_t)kres);/* mov r9d, kres */
+                /* ires → [rsp+0] */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)ires);/* mov rax, ires */
+                b += bytes(4, "\x48\x89\x04\x24");                /* mov [rsp+0], rax */
+                /* sres → [rsp+8] */
+                if (sres) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)sres);  /* mov rax, sres */
+                else      b += bytes(2, "\x31\xC0");              /* xor eax, eax */
+                b += bytes(5, "\x48\x89\x44\x24\x08");            /* mov [rsp+8], rax */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_atomic_list_concat_term) + bytes(2, "\xFF\xD0");
+                b += bytes(4, "\x48\x83\xC4\x10");                /* add rsp, 16 */
+                b += bytes(2, "\x85\xC0");                        /* test eax, eax */
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-13 (2026-05-29): sort/2 + msort/2 MEDIUM_BINARY arm. Byte-twin of the CAT-D-11   */
+            /* MEDIUM_TEXT arm below. Was TEXT-only → in mode-3 native the asm strings emitted as raw  */
+            /* bytes → the result var stayed unbound (S = [A,B,C,D] then write printed `_`). Args hang */
+            /* off the γ-chain (a0 = pBB->α, a1 = a0->γ — lower_pl.c RESOLVE_BI_CHAIN convention).          */
+            /*   Path B (a0 = IR_STRUCT list literal, the corpus case [c,a,b,a]): build a0's Term*  */
+            /*     via emit_build_compound_term_bin → rsi; rt_sort_msort_term(do_msort, Term*, k1,  */
+            /*     i1, s1) with rdi=do_msort rsi=Term* edx=k1 rcx=i1 r8=s1.                            */
+            /*   Path A (a0 scalar — IR_LOGICVAR bound to a list): 7-scalar rt_sort_msort(do_msort,   */
+            /*     k0,i0,s0, k1,i1,s1), s1 on the stack at [rsp+0].                                     */
+            /* sub rsp,16 in both paths: holds the Path-A stack arg AND keeps rsp 16-aligned across    */
+            /* the builder's / helper's internal calls (sort allocs + unify). movabs absolute pointers */
+            /* (in-process); s* from IR_ATOM sval. Std bin-patch tail (test/je-ω/jmp-γ/β→ω).           */
+            if ((strcmp(fn, "sort") == 0 || strcmp(fn, "msort") == 0) && pBB->α && pBB->α->γ) {
+                IR_t *a0 = pBB->α, *a1 = a0->γ;
+                int   do_msort = (strcmp(fn, "msort") == 0) ? 1 : 0;
+                int   k1 = (int)a1->t;
+                long  i1 = (long)a1->ival;
+                const char *s1 = (k1 == IR_ATOM) ? a1->sval : NULL;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");                /* sub rsp, 16 */
+                if (a0->t == IR_STRUCT) {
+                    /* Path B: build a0's term → rax → rsi, then scalar args in rdi/edx/rcx/r8. */
+                    b += emit_build_compound_term_bin(a0);
+                    b += bytes(3, "\x48\x89\xC6");                /* mov rsi, rax */
+                    b += bytes(1, "\xBF") + u32le((uint32_t)do_msort);       /* mov edi, do_msort */
+                    b += bytes(1, "\xBA") + u32le((uint32_t)k1);             /* mov edx, k1 */
+                    b += bytes(2, "\x48\xB9") + u64le((uint64_t)i1);         /* mov rcx, i1 */
+                    if (s1) b += bytes(2, "\x49\xB8") + u64le((uint64_t)(uintptr_t)s1);  /* mov r8, s1 */
+                    else    b += bytes(3, "\x45\x31\xC0");                   /* xor r8d, r8d */
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_sort_msort_term) + bytes(2, "\xFF\xD0");
+                } else {
+                    /* Path A: 7 scalars — do_msort + 2×(k,i,s); s1 on stack [rsp+0]. */
+                    int   k0 = (int)a0->t;
+                    long  i0 = (long)a0->ival;
+                    const char *s0 = (k0 == IR_ATOM) ? a0->sval : NULL;
+                    b += bytes(1, "\xBF") + u32le((uint32_t)do_msort);       /* mov edi, do_msort */
+                    b += bytes(1, "\xBE") + u32le((uint32_t)k0);             /* mov esi, k0 */
+                    b += bytes(2, "\x48\xBA") + u64le((uint64_t)i0);         /* mov rdx, i0 */
+                    if (s0) b += bytes(2, "\x48\xB9") + u64le((uint64_t)(uintptr_t)s0);  /* mov rcx, s0 */
+                    else    b += bytes(2, "\x31\xC9");                       /* xor ecx, ecx */
+                    b += bytes(2, "\x41\xB8") + u32le((uint32_t)k1);         /* mov r8d, k1 */
+                    b += bytes(2, "\x49\xB9") + u64le((uint64_t)i1);         /* mov r9, i1 */
+                    if (s1) b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)s1);  /* mov rax, s1 */
+                    else    b += bytes(2, "\x31\xC0");                       /* xor eax, eax */
+                    b += bytes(4, "\x48\x89\x04\x24");            /* mov [rsp+0], rax */
+                    b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_sort_msort) + bytes(2, "\xFF\xD0");
+                }
+                b += bytes(4, "\x48\x83\xC4\x10");                /* add rsp, 16 */
+                b += bytes(2, "\x85\xC0");                        /* test eax, eax */
+                int j = (int)b.size();
+                bin = { {j + 2, j + 6 + 1, j + 6 + 5 + 1},
+                        {_.lbl_ω_p, _.lbl_γ_p, _.lbl_ω_p},
+                        {false, false, false} };
+                return b + bytes(2, "\x0F\x84") + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0)
+                         + bytes(1, "\xE9")     + u32le(0);
+            }
+            /* PLR-K-6 (Opus 4.8, 2026-05-29): retract/1 + retractall/1. The rt_retract effect      */
+            /* helper (bb_exec.c) matches + mutates the live BB clause vector zc->bodies[], and that    */
+            /* works for binding (retract(age(bob,X))→X=25) and absence (retract(ghost(x))→fail). BUT  */
+            /* in mode-3 native the IR_CHOICE dispatcher emits each clause as a FIXED flat code block   */
+            /* with the clause count baked in (bb_choice.cpp: `cmp edi, n`, n = compile-time         */
+            /* _.resolve_choice_n), so a runtime zc->nbodies-- is INVISIBLE to the emitted enumerator — a    */
+            /* later color(X) still tries all originally-emitted clauses. Clause REMOVAL (retract's     */
+            /* defining semantics) therefore cannot be delivered against the statically-compiled clause */
+            /* model; it needs a runtime-mutable clause store the native dispatcher consults (the same  */
+            /* PL-RT-ASSERTZ substrate). Per the NO-MODE-FALLBACK rule, abort honestly rather than      */
+            /* silently no-op the removal and report the clause as gone when it is not.                 */
+            if ((strcmp(fn, "retract") == 0 || strcmp(fn, "retractall") == 0) && pBB->α) {
+                extern int g_sm_native_unsupported;
+                g_sm_native_unsupported = 1;
+                return bytes(1, "\xE9") + u32le(0) + bytes(1, "\xE9") + u32le(0);
+            }
+            /* PLR-K-18 (2026-05-29): throw/1 MEDIUM_BINARY arm. Was falling through to the default     */
+            /* double-jump stub which sets NO bin descriptor → the β label (here a callee-block's      */
+            /* .Lplpb%d_β, supplied via FILL) went UNDEFINED → bb_emit_end unresolved-forward-ref abort */
+            /* whenever a thrown predicate body was emitted as a callee block (e.g. foo :- throw(X)).   */
+            /* rt_throw(pBB->α) materializes the ball from the α term subtree (in-process pointer)   */
+            /* and resolve_throw_term longjmps to the nearest matching catch frame — no return on match.    */
+            /* sub rsp,16 keeps rsp 16-aligned (resolve_node_to_term/resolve_throw_term may touch glibc). The     */
+            /* tail (test/je-ω/jmp-γ) is unreachable on a matched throw but defines β and resolves all  */
+            /* three port labels so the callee-block β is defined and the program emit closes cleanly.  */
+            if (strcmp(fn, "throw") == 0) {
+                void *alpha_ptr = (void *)pBB->α;
+                std::string b;
+                b += bytes(4, "\x48\x83\xEC\x10");                                            /* sub rsp, 16 */
+                b += bytes(2, "\x48\xBF") + u64le((uint64_t)(uintptr_t)alpha_ptr);            /* movabs rdi, &α */
+                b += bytes(2, "\x48\xB8") + u64le((uint64_t)(uintptr_t)(void*)rt_throw);  /* movabs rax, &rt_throw */
+                b += bytes(2, "\xFF\xD0");                                                     /* call rax */
+                b += bytes(4, "\x48\x83\xC4\x10");                                            /* add rsp, 16 */
+                int j = (int)b.size();
+                /* tail: jmp ω (unreachable on matched throw) | β: jmp ω (redo also fails).            */
+                /* Defining β here is the load-bearing fix: a thrown predicate body emitted as a       */
+                /* callee block (foo :- throw(X)) supplies its .Lplpb%d_β via FILL and the block's     */
+                /* redo label jmp's to it — the old default stub left β undefined → unresolved ref.    */
+                bin = { {j + 1, j + 5, j + 6}, {_.lbl_ω_p, _.lbl_β_p, _.lbl_ω_p}, {false, true, false} };
+                return b + bytes(1, "\xE9") + u32le(0)
+                         + bytes(1, "\xE9") + u32le(0);
+            }
+            return bytes(1, "\xE9") + u32le(0) + bytes(1, "\xE9") + u32le(0);
+        }
+        if (MEDIUM_TEXT) {
+        std::string succ_back = s_2asm("jmp", _.lbl_γ)
+                              + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_γ);
+        if (strcmp(fn, "nl") == 0) {
+            return hdr + s_2asm("mov", "edi, 10") + s_2asm("call", "putchar@PLT") + succ_back;
+        }
+        if (strcmp(fn, "halt") == 0) {
+            return hdr + s_2asm("xor", "edi, edi") + s_2asm("call", "exit@PLT")
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_γ);
+        }
+        if (strcmp(fn, "write") == 0 || strcmp(fn, "writeln") == 0 || strcmp(fn, "print") == 0) {
+            std::string write_body;
+            if (pBB->ival >= 1 && pBB->α) {
+                IR_t *arg = pBB->α;
+                if (arg->t == IR_ATOM) {
+                    write_body = _.bb_ls
+                        ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", _.bb_ls)) + s_2asm("mov", "rdi, rcx")
+                        : s_2asm("xor", "edi, edi");
+                    write_body += s_2asm("call", "rt_write_atom@PLT");
+                } else if (arg->t == IR_LOGICVAR) {
+                    write_body = s_2asm("mov edi,", emit_fmt("%d", (int)arg->ival))
+                               + s_2asm("call", "rt_write_var@PLT");
+                } else if (arg->t == IR_LIT_I) {
+                    /* PLG-9j: bare int is a flat-tier arg (PLG-9b gate) — 16-aligned box entry, so a direct */
+                    /* rt_write_int with no rsp adjust is correct (a sub rsp,8 here would mis-align the    */
+                    /* call and fault). Restores the pre-PLG-9j leaf path; only compounds need pl_write.      */
+                    write_body = s_2asm("mov rdi,", emit_fmt("%ld", (long)arg->ival))
+                               + s_2asm("call", "rt_write_int@PLT");
+                } else if (arg->t == IR_LIT_F) {
+                    /* PLG-9j: bare float — likewise a flat-tier leaf (16-aligned entry). Load the literal's  */
+                    /* bits into xmm0 (no .rodata constant) and call rt_write_float directly, no rsp       */
+                    /* adjust. emit_build_compound_term hard-codes xmm0=0 for leaves, so the build+pl_write   */
+                    /* path below would render 0.0 (and a sub rsp,8 would mis-align the leaf's call → fault).  */
+                    uint64_t fb = 0; double dv = arg->dval; memcpy(&fb, &dv, sizeof fb);
+                    write_body = s_2asm("mov rax,", emit_fmt("%llu", (unsigned long long)fb))
+                               + s_2asm("movq", "xmm0, rax")
+                               + s_2asm("call", "rt_write_float@PLT");
+                } else {
+                    /* PLG-9j (2026-06-01, Opus 4.8): compound / op-term arg (IR_STRUCT / IR_ARITH — rich     */
+                    /* tier, 8-misaligned box entry) → build the Term* via emit_build_compound_term then      */
+                    /* rt_write_term_ptr@PLT (which calls pl_write — the mode-2 oracle's writer, so it     */
+                    /* sugars cons-cells against ATOM_DOT/ATOM_NIL: [a,b,c] not .(a,.(b,.(c,[])))). Replaces  */
+                    /* the old emit_write_term inline walker, which rendered an IR_STRUCT '.'/2 generically   */
+                    /* as functor notation (the m4 write-list gap — rung20 list). Byte-twin of the writeq     */
+                    /* TEXT arm. sub rsp,8 realigns to 16 across the build's and writer's internal calls.     */
+                    write_body = s_2asm("sub", "rsp, 8")
+                               + emit_build_compound_term(arg)
+                               + s_2asm("mov", "rdi, rax")
+                               + s_2asm("call", "rt_write_term_ptr@PLT")
+                               + s_2asm("add", "rsp, 8");
+                }
+            } else {
+                write_body = s_comment("# RESOLVE_BUILTIN write: no arg");
+            }
+            std::string nl_suffix = (strcmp(fn, "writeln") == 0)
+                ? s_2asm("mov", "edi, 10") + s_2asm("call", "putchar@PLT")
+                : std::string();
+            return hdr + write_body + nl_suffix + succ_back;
+        }
+        /* PLG-9g (2026-06-01, Opus 4.8): writeq/1 + write_canonical/1 MEDIUM_TEXT arm — the @PLT twin of  */
+        /* the PLR-K-4 MEDIUM_BINARY arm above. Build the arg Term* uniformly via emit_build_compound_term */
+        /* (atom/var/int/float/struct → rax — the TEXT post-order walker, byte-twin of the BINARY one),    */
+        /* then route through the quoting writer rt_writeq_term_ptr / rt_write_canonical_term_ptr    */
+        /* (which call pl_writeq / pl_write_canonical — the mode-2 oracle's own writers, so the quoting    */
+        /* decisions are already ISO-correct). gprolog write_c.c: writeq = WRITE_NUMBER_VARS|WRITE_NAME_   */
+        /* VARS|WRITE_QUOTED; write_canonical = WRITE_IGNORE_OP|WRITE_QUOTED (operator form suppressed →   */
+        /* 1+2 renders +(1,2)). sub rsp,8 keeps 16-alignment across the build's and writer's internal      */
+        /* calls. Always succeeds → γ; β→γ (write-family arms never fail). No nl suffix (callers add nl).  */
+        if ((strcmp(fn, "writeq") == 0 || strcmp(fn, "write_canonical") == 0) && pBB->α) {
+            const char *writer = (strcmp(fn, "writeq") == 0)
+                ? "rt_writeq_term_ptr@PLT"
+                : "rt_write_canonical_term_ptr@PLT";
+            return hdr
+                 + s_2asm("sub", "rsp, 8")
+                 + emit_build_compound_term(pBB->α)
+                 + s_2asm("mov", "rdi, rax")
+                 + s_2asm("call", writer)
+                 + s_2asm("add", "rsp, 8")
+                 + succ_back;
+        }
+        /* PLG-9g (2026-06-01, Opus 4.8): atomic_list_concat/2,3 + concat_atom/2 MEDIUM_TEXT arm — the    */
+        /* @PLT twin of the PLR-K-14 MEDIUM_BINARY arm above. Builds arg0's cons-list Term* via           */
+        /* emit_build_compound_term (→ rax → rdi), then rt_atomic_list_concat_term(list, arity, ksep,  */
+        /* isep, ssep, kres, ires, sres) — 8 scalars (SysV: 6 in rdi/esi/edx/rcx/r8/r9d + 2 on the stack  */
+        /* at [rsp+0]=ires, [rsp+8]=sres). arity from pBB->ival (2 or 3): arity 2 → result is a1, sep     */
+        /* triple zeroed; arity 3 → sep is a1, result is a2. The helper concatenates each list element's  */
+        /* atomic text (joining with the separator for arity 3) and unifies the result atom into the      */
+        /* result-term's slot (in g_resolve_env, the process-global home the subsequent write reads).     */
+        /* sub rsp,16: holds the two stack args AND keeps rsp 16-aligned across the builder's/helper's    */
+        /* internal calls. Always-test tail: test eax → je ω / jmp γ; β→ω. Proven 3-mode in rung26.      */
+        if ((strcmp(fn, "atomic_list_concat") == 0 || strcmp(fn, "concat_atom") == 0)
+            && pBB->α && (pBB->ival == 2 || pBB->ival == 3)) {
+            int   arity = (int)pBB->ival;
+            IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1 ? a1->γ : NULL;
+            IR_t *sepN = (arity == 3) ? a1 : NULL;
+            IR_t *resN = (arity == 3) ? a2 : a1;
+            int   ksep = sepN ? (int)sepN->t : 0;
+            long  isep = sepN ? (long)sepN->ival : 0;
+            char  ssepl[64]; ssepl[0] = 0;
+            if (sepN && ksep == IR_ATOM && sepN->sval) strtab_label(ssepl, sizeof ssepl, sepN->sval);
+            int   kres = resN ? (int)resN->t : 0;
+            long  ires = resN ? (long)resN->ival : 0;
+            char  sresl[64]; sresl[0] = 0;
+            if (resN && kres == IR_ATOM && resN->sval) strtab_label(sresl, sizeof sresl, resN->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 16")
+                 + emit_build_compound_term(a0)
+                 + s_2asm("mov", "rdi, rax")
+                 + s_2asm("mov esi,", emit_fmt("%d", arity))
+                 + s_2asm("mov edx,", emit_fmt("%d", ksep))
+                 + s_2asm("mov rcx,", emit_fmt("%ld", isep))
+                 + (ssepl[0] ? s_2asm("lea r8,", emit_fmt("[rip + %s]", ssepl)) : s_2asm("xor", "r8d, r8d"))
+                 + s_2asm("mov r9d,", emit_fmt("%d", kres))
+                 + s_2asm("mov rax,", emit_fmt("%ld", ires))
+                 + s_2asm("mov", "[rsp + 0], rax")
+                 + (sresl[0]
+                       ? (s_2asm("lea rax,", emit_fmt("[rip + %s]", sresl)) + s_2asm("mov", "[rsp + 8], rax"))
+                       : s_2asm("mov", "qword ptr [rsp + 8], 0"))
+                 + s_2asm("call", "rt_atomic_list_concat_term@PLT")
+                 + s_2asm("add", "rsp, 16")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PLG-9h (2026-06-01, Opus 4.8): float `is/2` MEDIUM_TEXT arm — the serialized-scalar twin of    */
+        /* the PLR-K-12 MEDIUM_BINARY rt_is_eval arm (which passes in-process IR_t* pointers, dead in a */
+        /* standalone .s). Fires for a float-producing/consuming RHS BEFORE the integer arms: nullary pi/e */
+        /* (β=IR_ATOM); a floaty unary functor (sqrt/sin/.../float/truncate/round/...); or any arith with  */
+        /* a float-literal operand. Operands serialize to (kind, ival, dval-bits): the int rides rcx/r9,   */
+        /* the float bits load through rax → movq xmm0/xmm1 (no .rodata constant, no value stack). The op  */
+        /* string is _.bb_op_lbl (bb_prepare now interns it for both the IR_ARITH and the IR_ATOM pi/e  */
+        /* RHS). rt_is_f mirrors resolve_arith_eval's int-vs-float result decision and unifies the      */
+        /* result Term into the dst slot in g_resolve_env — the per-activation home the consumer write     */
+        /* reads directly. sub rsp,8 keeps 16-alignment across rt_is_f's libm calls (sqrt/pow touch     */
+        /* SSE). test eax → je ω / jmp γ; β→ω. Proven 3-mode in rung29 (m2/m3 via resolve_arith_eval).     */
+        if (strcmp(fn, "is") == 0 && pBB->α && pBB->α->t == IR_LOGICVAR && pBB->β) {
+            const IR_t *rhs = pBB->β;
+            int is_const = rhs->t == IR_ATOM && rhs->sval
+                        && (!strcmp(rhs->sval, "pi") || !strcmp(rhs->sval, "e"));
+            int is_floaty = 0;
+            if (rhs->t == IR_ARITH) {
+                const char *rop = rhs->sval ? rhs->sval : "+";
+                is_floaty = bb_pl_op_floaty(rop)
+                         || (rhs->α && rhs->α->t == IR_LIT_F)
+                         || (rhs->β && rhs->β->t == IR_LIT_F);
+            }
+            if (is_const || is_floaty) {
+                int      dst_slot = (int)pBB->α->ival;
+                int      lk = -1, rk = -1;
+                long     li = 0,  ri = 0;
+                uint64_t lb = 0,  rb = 0;
+                if (rhs->t == IR_ARITH) {
+                    const IR_t *L = rhs->α, *R = rhs->β;
+                    if (L) { lk = (int)L->t; li = (long)L->ival;
+                             double d = (L->t == IR_LIT_F) ? L->dval : 0.0; memcpy(&lb, &d, 8); }
+                    if (R) { rk = (int)R->t; ri = (long)R->ival;
+                             double d = (R->t == IR_LIT_F) ? R->dval : 0.0; memcpy(&rb, &d, 8); }
+                }
+                std::string load_op = _.bb_op_lbl
+                    ? s_2asm("lea rsi,", emit_fmt("[rip + %s]", _.bb_op_lbl))
+                    : s_2asm("xor", "esi, esi");
+                return hdr
+                     + s_2asm("sub", "rsp, 8")
+                     + s_2asm("mov edi,", emit_fmt("%d", dst_slot))
+                     + load_op
+                     + s_2asm("mov edx,", emit_fmt("%d", lk))
+                     + s_2asm("mov rcx,", emit_fmt("%ld", li))
+                     + s_2asm("mov rax,", emit_fmt("%llu", (unsigned long long)lb))
+                     + s_2asm("movq", "xmm0, rax")
+                     + s_2asm("mov r8d,", emit_fmt("%d", rk))
+                     + s_2asm("mov r9,",  emit_fmt("%ld", ri))
+                     + s_2asm("mov rax,", emit_fmt("%llu", (unsigned long long)rb))
+                     + s_2asm("movq", "xmm1, rax")
+                     + s_2asm("call", "rt_is_f@PLT")
+                     + s_2asm("add", "rsp, 8")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je", _.lbl_ω)
+                     + s_2asm("jmp", _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+        }
+        if (strcmp(fn, "is") == 0 && pBB->α && pBB->β && pBB->β->t == IR_ARITH
+            && pBB->α->t == IR_LOGICVAR && pBB->β->α && pBB->β->β) {
+            /* V-2 (2026-05-27): `Var is L op R` for the common binary-arith RHS. Flatten operands at  */
+            /* emit time into serializable scalars (kind+value) — NO cross-process IR_t pointers. The  */
+            /* op string was interned by bb_prepare into _.bb_op_lbl. Call rt_is(dst_slot,     */
+            /* op, lk, li, rk, ri) which evaluates + unifies; branch eax → γ (ok) / ω (fail). The       */
+            /* template owns ALL bytes incl. both four-port jmps; rt_is carries no port logic.       */
+            int   dst_slot = (int)pBB->α->ival;
+            IR_t *L = pBB->β->α, *R = pBB->β->β;
+            int   lk = (int)L->t, rk = (int)R->t;
+            long  li = (long)L->ival, ri = (long)R->ival;
+            std::string load_op = _.bb_op_lbl
+                ? s_2asm("lea rsi,", emit_fmt("[rip + %s]", _.bb_op_lbl))
+                : s_2asm("xor", "esi, esi");
+            return hdr
+                 + s_2asm("mov edi,", emit_fmt("%d", dst_slot))
+                 + load_op
+                 + s_2asm("mov edx,", emit_fmt("%d", lk))
+                 + s_2asm("mov rcx,", emit_fmt("%ld", li))
+                 + s_2asm("mov r8d,", emit_fmt("%d", rk))
+                 + s_2asm("mov r9,",  emit_fmt("%ld", ri))
+                 + s_2asm("call", "rt_is@PLT")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je", _.lbl_ω)
+                 + s_2asm("jmp", _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PROLOG-BB unary-arith (2026-05-28): `Var is op(L)` — arity-1 evaluable functor on RHS         */
+        /* (sign/abs/truncate/integer/round/ceiling/floor/\\/msb, integer-result). IR_ARITH node has    */
+        /* α=operand, β=NULL, sval=fn-name (interned into _.bb_op_lbl). Reuse rt_is by passing    */
+        /* the right-operand kind as -1 sentinel and ri=0 — rt_arith matches unary op names early    */
+        /* (before any binary dispatch) so the right-operand values are ignored. Float-result unary     */
+        /* (sqrt/sin/cos/exp/log/...) is NOT handled here yet — needs a float-returning rt path.        */
+        if (strcmp(fn, "is") == 0 && pBB->α && pBB->β && pBB->β->t == IR_ARITH
+            && pBB->α->t == IR_LOGICVAR && pBB->β->α && !pBB->β->β) {
+            int   dst_slot = (int)pBB->α->ival;
+            IR_t *L = pBB->β->α;
+            int   lk = (int)L->t;
+            long  li = (long)L->ival;
+            std::string load_op = _.bb_op_lbl
+                ? s_2asm("lea rsi,", emit_fmt("[rip + %s]", _.bb_op_lbl))
+                : s_2asm("xor", "esi, esi");
+            return hdr
+                 + s_2asm("mov edi,", emit_fmt("%d", dst_slot))
+                 + load_op
+                 + s_2asm("mov edx,", emit_fmt("%d", lk))
+                 + s_2asm("mov rcx,", emit_fmt("%ld", li))
+                 + s_2asm("mov r8d,", "-1")     /* unary sentinel — rk=-1 */
+                 + s_2asm("mov r9,",  "0")      /* ri=0 (unused for unary) */
+                 + s_2asm("call", "rt_is@PLT")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je", _.lbl_ω)
+                 + s_2asm("jmp", _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-1 (2026-05-27): 2-arg atom builtins atom_length/upcase_atom/downcase_atom. Args hang   */
+        /* off pBB->α and pBB->α->γ (γ-chain convention, lower_pl.c:354-357). Flatten each to its        */
+        /* (kind,ival,sval) scalars and call the shared 6-arg rt helper. The helper materializes Terms  */
+        /* via rt_node_to_term, applies the transform, unifies the result into arg1 under a trail    */
+        /* mark, returns 1/0. Template owns the γ/ω jumps; helper has no port logic.                     */
+        /* CAT-D-3 (2026-05-27): string_length/string_upper/string_lower aliased here. Mode-2 in        */
+        /* bb_exec.c handles them identically — both flow through resolve_atomic_text → prolog_atom_intern,  */
+        /* with no atom-vs-string distinction at the runtime Term level (SCRIP atoms back both forms).  */
+        /* Mapping: string_length → rt_atom_length; string_upper → rt_upcase_atom; string_lower → */
+        /* rt_downcase_atom. ZERO new rt helpers — the existing CAT-D-1 ones cover both.              */
+        if ((strcmp(fn,"atom_length")==0   || strcmp(fn,"upcase_atom")==0   || strcmp(fn,"downcase_atom")==0
+          || strcmp(fn,"string_length")==0 || strcmp(fn,"string_upper")==0  || strcmp(fn,"string_lower")==0)
+            && pBB->α && pBB->α->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ;
+            int  k0 = (int)a0->t,    k1 = (int)a1->t;
+            long i0 = (long)a0->ival, i1 = (long)a1->ival;
+            /* CAT-D-1 (2026-05-27): strtab_label only for nodes that genuinely carry an atom string.   */
+            /* IR_LOGICVAR's sval is unionized with ival in the AST (see lower_pl.c:65 nd->sval =          */
+            /* e->v.sval where the same union slot holds the variable slot index as ival), so for a     */
+            /* variable arg, sval is garbage (typically the slot index reinterpreted as a pointer). The */
+            /* helper does not need sval for VAR args anyway — it materializes them via the IR_LOGICVAR   */
+            /* arm of rt_node_to_term, which reads only ival (the slot). Restrict strtab_label to    */
+            /* atom/literal-typed args.                                                                 */
+            char s0lbl[64]; s0lbl[0] = 0;
+            char s1lbl[64]; s1lbl[0] = 0;
+            /* Note: do NOT require *sval to be non-empty here — empty-atom '' (sval = "") is a   */
+            /* distinct atom from [] (sval = NULL → defaults to "[]" in rt_node_to_term). For   */
+            /* atom_length('', Z) the helper must see sval = "" so strlen returns 0. The empty    */
+            /* string IS in the strtab (resolve_pre_intern_pred_names walks every IR_ATOM->sval).      */
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            const char *helper =
+                (strcmp(fn,"atom_length")==0   || strcmp(fn,"string_length")==0) ? "rt_atom_length@PLT"   :
+                (strcmp(fn,"upcase_atom")==0   || strcmp(fn,"string_upper")==0)  ? "rt_upcase_atom@PLT"   :
+                                                                                   "rt_downcase_atom@PLT";
+            return hdr
+                 + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("mov ecx,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r8,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea r9,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "r9d, r9d"))
+                 + s_2asm("call", helper)
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-4 (2026-05-27): atom_string/2 + string_to_atom/2 bidirectional aliases. Same shape as   */
+        /* CAT-D-1 (6 scalars, no stack), different helper (rt_atom_string_pair) because the helper   */
+        /* must detect which side is ground and unify into the other. Mode-2 logic in bb_exec.c:2956-    */
+        /* 2966 (atom_string) and :2931-2942 (string_to_atom) is symmetric — both predicates accept a    */
+        /* ground arg on either side and produce an atom with the same text on the other side. SCRIP    */
+        /* Terms make no atom-vs-string distinction (both TERM_ATOM), so one helper serves both.        */
+        /* PLG-9j (2026-06-01, Opus 4.8): numbervars/3 MEDIUM_TEXT arm — the @PLT twin of the PLR-K-3      */
+        /* BINARY arm. a0 = term (α), a1 = start int (α->γ), a2 = End var (α->γ->γ). Build a0 via           */
+        /* emit_build_compound_term: its IR_LOGICVARs alias the live env slots (rt_node_to_term writes   */
+        /* an unbound var's fresh Term back to g_resolve_env[slot]), so rt_numbervars_term binding each  */
+        /* TERM_VAR to '$VAR'(N) via unify mutates the very cells the later write rereads. Hold the term in */
+        /* rdi across the start/End loads: rt_numbervars_term(t0=rdi, start=rsi, k2=edx, i2=rcx, s2=r8). */
+        /* sub rsp,8 keeps 16-alignment across the builder's/helper's calls. test eax → je ω / jmp γ; β→ω.  */
+        if (strcmp(fn, "numbervars") == 0 && pBB->ival == 3 && pBB->α && pBB->α->γ && pBB->α->γ->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+            long start = (long)a1->ival;
+            int  k2 = (int)a2->t;
+            long i2 = (long)a2->ival;
+            char s2lbl[64]; s2lbl[0] = 0;
+            if (k2 == IR_ATOM && a2->sval) strtab_label(s2lbl, sizeof s2lbl, a2->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 8")
+                 + emit_build_compound_term(a0)
+                 + s_2asm("mov", "rdi, rax")
+                 + s_2asm("mov rsi,", emit_fmt("%ld", start))
+                 + s_2asm("mov edx,", emit_fmt("%d", k2))
+                 + s_2asm("mov rcx,", emit_fmt("%ld", i2))
+                 + (s2lbl[0] ? s_2asm("lea r8,", emit_fmt("[rip + %s]", s2lbl)) : s_2asm("xor", "r8d, r8d"))
+                 + s_2asm("call", "rt_numbervars_term@PLT")
+                 + s_2asm("add", "rsp, 8")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PLG-9i (2026-06-01, Opus 4.8): copy_term/2 with a COMPOUND arg0 (IR_STRUCT/IR_ARITH) — the @PLT  */
+        /* MEDIUM_TEXT twin of the PLR-K-15 BINARY arm. The shared scalar CAT-D-5 arm below degenerates a   */
+        /* compound arg0 (rt_node_to_term flattens an IR_STRUCT, losing intra-term var-sharing →         */
+        /* copy_term(f(X,X),f(A,B)) gave A\==B), which is why the rich gate EXCISED copy_term entirely.      */
+        /* Build arg0's Term* via emit_build_compound_term (the TEXT post-order walker): an unbound var's    */
+        /* fresh Term is written back to its env slot by rt_node_to_term, so a repeated occurrence        */
+        /* rereads the SAME Term — sharing preserved, identical to the BINARY twin. If arg1 is ALSO          */
+        /* compound, build it too (hold arg0 in a stack slot across arg1's build) then rt_copy_term_      */
+        /* terms(t0,t1) — bb_copy_term deep-clones t0 with fresh-var rename and unifies into t1. Scalar      */
+        /* arg1 → rt_copy_term_term(t0, k1,i1,s1). sub rsp,16 = the slot + 16B alignment across the       */
+        /* builder's and helper's calls (same as PLR-K-15 + the proven atomic_list_concat TEXT arm). test    */
+        /* eax → je ω / jmp γ; β→ω. */
+        if (strcmp(fn, "copy_term") == 0 && pBB->α && pBB->α->γ
+            && (pBB->α->t == IR_STRUCT || pBB->α->t == IR_ARITH)) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ;
+            int   a1_compound = (a1->t == IR_STRUCT || a1->t == IR_ARITH);
+            std::string b = hdr + s_2asm("sub", "rsp, 16");
+            if (a1_compound) {
+                b += emit_build_compound_term(a0)
+                   + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                   + emit_build_compound_term(a1)
+                   + s_2asm("mov", "rsi, rax")
+                   + s_2asm("mov", "rdi, qword ptr [rsp + 0]")
+                   + s_2asm("call", "rt_copy_term_terms@PLT");
+            } else {
+                int  k1 = (int)a1->t;
+                long i1 = (long)a1->ival;
+                char s1lbl[64]; s1lbl[0] = 0;
+                if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+                b += emit_build_compound_term(a0)
+                   + s_2asm("mov", "rdi, rax")
+                   + s_2asm("mov esi,", emit_fmt("%d", k1))
+                   + s_2asm("mov rdx,", emit_fmt("%ld", i1))
+                   + (s1lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "ecx, ecx"))
+                   + s_2asm("call", "rt_copy_term_term@PLT");
+            }
+            return b + s_2asm("add", "rsp, 16")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-5 (2026-05-27): copy_term/2 joins this arm — same 6-scalar shape, distinct rt helper   */
+        /* (rt_copy_term) that calls the static bb_copy_term (deep-clone, fresh-var rename) and       */
+        /* unifies the result into arg1. Mode-2 oracle bb_exec.c:2904-2908.                               */
+        if ((strcmp(fn,"atom_string")==0 || strcmp(fn,"string_to_atom")==0 || strcmp(fn,"copy_term")==0)
+            && pBB->α && pBB->α->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ;
+            int  k0 = (int)a0->t,    k1 = (int)a1->t;
+            long i0 = (long)a0->ival, i1 = (long)a1->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            char s1lbl[64]; s1lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            const char *helper2 =
+                (strcmp(fn,"copy_term")==0) ? "rt_copy_term@PLT"
+                                            : "rt_atom_string_pair@PLT";
+            return hdr
+                 + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("mov ecx,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r8,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea r9,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "r9d, r9d"))
+                 + s_2asm("call", helper2)
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PLR-K-7 (2026-05-29, Opus 4.8): number_string/2 + atom_number/2 MEDIUM_TEXT arm (mode-4).      */
+        /* Byte-twin of the BINARY arm via @PLT + lea[rip+strtab]. 7 scalars (num_first prepended):       */
+        /* edi=num_first esi=k0 rdx=i0 rcx=s0 r8d=k1 r9=i1, s1 on the stack at [rsp+0]. num_first=1 for    */
+        /* number_string (arg0=num), 0 for atom_number (arg0=text). sub rsp,16 holds the stack arg + keeps */
+        /* 16B alignment at the call. Mode-2 oracle: bb_exec.c number_string/atom_number block.            */
+        if ((strcmp(fn,"number_string")==0 || strcmp(fn,"atom_number")==0)
+            && pBB->α && pBB->α->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ;
+            int  num_first = (strcmp(fn,"number_string")==0) ? 1 : 0;
+            int  k0 = (int)a0->t,    k1 = (int)a1->t;
+            long i0 = (long)a0->ival, i1 = (long)a1->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            char s1lbl[64]; s1lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 16")
+                 + s_2asm("mov edi,",  emit_fmt("%d",  num_first))
+                 + s_2asm("mov esi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rdx,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "ecx, ecx"))
+                 + s_2asm("mov r8d,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r9,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "eax, eax"))
+                 + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                 + s_2asm("call", "rt_number_string_pair@PLT")
+                 + s_2asm("add", "rsp, 16")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PLR-K-10 (2026-05-29): findall/3 MEDIUM_TEXT arm (mode-4). HONEST-ABORT: the bb_findall_  */
+        /* state_t* sidecar is a compile-time heap pointer (stored in bb->ival at lower time). In mode-4 */
+        /* the emitted binary runs in a SEPARATE process — that pointer is dead. A correct mode-4 findall*/
+        /* requires emitting the goal sub-graph as a nested function, which is deferred. Per NO-MODE-    */
+        /* FALLBACK, abort honestly (g_sm_native_unsupported) rather than dereference a stale pointer.  */
+        if (strcmp(fn, "findall") == 0) {
+            extern int g_sm_native_unsupported;
+            g_sm_native_unsupported = 1;
+            return hdr + s_2asm("jmp", _.lbl_ω) + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PLR-K-9 (2026-05-29, Opus 4.8): term_to_atom/2 + term_string/2 MEDIUM_TEXT arm (mode-4).        */
+        /* Byte-twin of the BINARY arm via @PLT + lea[rip+strtab]. Forward-only: build a0's term          */
+        /* (emit_build_compound_term: atom/int/float/compound/list) into rdi, then text-arg scalars       */
+        /* esi=k1 rdx=i1 rcx=s1; rt_term_to_atom_term(t0,k1,i1,s1). pl_term_to_string operator-notation */
+        /* writer (mode-2 oracle term_to_atom/term_string arms). sub rsp,16: pl_term_to_string calls     */
+        /* open_memstream (SSE-alignment-sensitive) so rsp must be 16-aligned at the call.          */
+        if ((strcmp(fn, "term_to_atom") == 0 || strcmp(fn, "term_string") == 0)
+            && pBB->α && pBB->α->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ;
+            int   k1 = (int)a1->t;
+            long  i1 = (long)a1->ival;
+            char s1lbl[64]; s1lbl[0] = 0;
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 16")
+                 + emit_build_compound_term(a0)
+                 + s_2asm("mov", "rdi, rax")
+                 + s_2asm("mov esi,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov rdx,",  emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "ecx, ecx"))
+                 + s_2asm("call", "rt_term_to_atom_term@PLT")
+                 + s_2asm("add", "rsp, 16")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-2 (2026-05-27): 3-arg atom_concat/3. Three arg-triplets (k,i,sval) — 9 scalars total.   */
+        /* System V AMD64 ABI: first 6 go in rdi/rsi/rdx/rcx/r8/r9; remaining 3 (k2,i2,s2) on the stack. */
+        /* Stack: 3 × 8B = 24B; pad to 32B for 16B alignment at call. rax used as scratch to materialize */
+        /* immediates and the optional s2 label before pushing to the stack slots. As with CAT-D-1, only */
+        /* genuine IR_ATOM args get a strtab_label — VAR args read only ival and pass NULL for sval.    */
+        /* CAT-D-3 (2026-05-27): string_concat/3 aliased here — same shape, same rt helper. SCRIP's     */
+        /* atom-table represents both forms (see CAT-D-3 note on the 2-arg arm above).                  */
+        if ((strcmp(fn,"atom_concat")==0 || strcmp(fn,"string_concat")==0)
+            && pBB->α && pBB->α->γ && pBB->α->γ->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+            int  k0 = (int)a0->t,    k1 = (int)a1->t,    k2 = (int)a2->t;
+            long i0 = (long)a0->ival, i1 = (long)a1->ival, i2 = (long)a2->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            char s1lbl[64]; s1lbl[0] = 0;
+            char s2lbl[64]; s2lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            if (k2 == IR_ATOM && a2->sval) strtab_label(s2lbl, sizeof s2lbl, a2->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 32")
+                 + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("mov ecx,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r8,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea r9,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "r9d, r9d"))
+                 + s_2asm("mov dword ptr [rsp + 0],", emit_fmt("%d",  k2))
+                 + s_2asm("mov rax,",  emit_fmt("%ld", i2))
+                 + s_2asm("mov", "qword ptr [rsp + 8], rax")
+                 + (s2lbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", s2lbl)) : s_2asm("xor", "eax, eax"))
+                 + s_2asm("mov", "qword ptr [rsp + 16], rax")
+                 + s_2asm("call", "rt_atom_concat@PLT")
+                 + s_2asm("add", "rsp, 32")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-6 (2026-05-27, Sonnet 4.6): atom_chars/2, atom_codes/2, string_chars/2,                */
+        /* string_codes/2.  as_codes=0 → chars; as_codes=1 → codes.  Two paths:                         */
+        /* (A) a1 is a scalar (IR_LOGICVAR or IR_ATOM): 7-scalar call to rt_atom_chars_codes. System V: */
+        /*     rdi=as_codes, rsi=k0, rdx=i0, rcx=s0, r8=k1, r9=i1, [rsp+0]=s1. sub rsp,16.             */
+        /* (B) a1 is a literal cons-cell (IR_STRUCT): build Term* via emit_build_compound_term, then  */
+        /*     call rt_atom_chars_codes_term(as_codes, k0, i0, s0, Term*). System V: rdi=as_codes,    */
+        /*     rsi=k0, rdx=i0, rcx=s0, r8=Term*. Term* arrives in rax after emit_build_compound_term.    */
+        /*     Stack frame: sub rsp,16 for Term* save slot across a0 loads (alignment + scratch).        */
+        if ((strcmp(fn,"atom_chars")==0 || strcmp(fn,"atom_codes")==0
+          || strcmp(fn,"string_chars")==0 || strcmp(fn,"string_codes")==0)
+            && pBB->α && pBB->α->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ;
+            int  k0 = (int)a0->t;
+            long i0 = (long)a0->ival;
+            int  as_codes = (strcmp(fn,"atom_codes")==0 || strcmp(fn,"string_codes")==0) ? 1 : 0;
+            char s0lbl[64]; s0lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (a1->t == IR_STRUCT) {
+                /* Path B: literal list in a1 — build Term* from cons-cell tree, pass as pointer. */
+                return hdr
+                     + s_2asm("sub", "rsp, 16")
+                     + emit_build_compound_term(a1)
+                     + s_2asm("mov", "r8, rax")
+                     + s_2asm("mov edi,",  emit_fmt("%d",  as_codes))
+                     + s_2asm("mov esi,",  emit_fmt("%d",  k0))
+                     + s_2asm("mov rdx,",  emit_fmt("%ld", i0))
+                     + (s0lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "ecx, ecx"))
+                     + s_2asm("call", "rt_atom_chars_codes_term@PLT")
+                     + s_2asm("add", "rsp, 16")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+            /* Path A: scalar a1 (VAR or ATOM). */
+            int  k1 = (int)a1->t;
+            long i1 = (long)a1->ival;
+            char s1lbl[64]; s1lbl[0] = 0;
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 16")
+                 + s_2asm("mov edi,",  emit_fmt("%d",  as_codes))
+                 + s_2asm("mov esi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rdx,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "ecx, ecx"))
+                 + s_2asm("mov r8d,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r9,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "eax, eax"))
+                 + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                 + s_2asm("call", "rt_atom_chars_codes@PLT")
+                 + s_2asm("add", "rsp, 16")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-10 (2026-05-27, Sonnet 4.6): 1-arg type-test builtins (var, nonvar, atom, atomic,       */
+        /* number, integer, float, compound, callable, is_list, ground).  Two paths: scalar arg uses     */
+        /* rt_type_test(fn, k, i, s) — 4 args, all 4 regs (no stack).  Compound-literal arg (e.g.     */
+        /* is_list([1,2,3])) builds Term* via emit_build_compound_term, then calls rt_type_test_term. */
+        /* Op string interned via strtab_label (IR_BUILTIN is in resolve_ir_kind_uses_sval).                  */
+        if (pBB->ival == 1 && pBB->α &&
+            (strcmp(fn,"var")==0      || strcmp(fn,"nonvar")==0   || strcmp(fn,"atom")==0
+          || strcmp(fn,"atomic")==0   || strcmp(fn,"number")==0   || strcmp(fn,"integer")==0
+          || strcmp(fn,"float")==0    || strcmp(fn,"compound")==0 || strcmp(fn,"callable")==0
+          || strcmp(fn,"is_list")==0  || strcmp(fn,"ground")==0)) {
+            char op_lbl[64]; strtab_label(op_lbl, sizeof op_lbl, fn);
+            IR_t *a0 = pBB->α;
+            if (a0->t == IR_STRUCT) {
+                return hdr
+                     + s_2asm("sub", "rsp, 16")
+                     + emit_build_compound_term(a0)
+                     + s_2asm("mov", "rsi, rax")
+                     + s_2asm("lea rdi,", emit_fmt("[rip + %s]", op_lbl))
+                     + s_2asm("call", "rt_type_test_term@PLT")
+                     + s_2asm("add", "rsp, 16")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+            int  k0 = (int)a0->t;
+            long i0 = (long)a0->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            return hdr
+                 + s_2asm("lea rdi,", emit_fmt("[rip + %s]", op_lbl))
+                 + s_2asm("mov esi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rdx,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "ecx, ecx"))
+                 + s_2asm("call", "rt_type_test@PLT")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PLR-K-2 (2026-05-29): char_type/2 MEDIUM_TEXT arm (mode-4). a0 = char (α), a1 = type (α->γ).  */
+        /* Boolean: a1 IR_ATOM sval=type, is_compound=0; extractor: a1 IR_STRUCT/IR_ARITH sval=functor,*/
+        /* a1->α = inner var. rt_char_type(k0,i0,s0, ty, is_compound, ki,ii,si): rdi=k0 rsi=i0 rdx=s0  */
+        /* rcx=ty r8=is_compound r9=ki, [rsp+0]=ii [rsp+8]=si → sub rsp,16. String ptrs via strtab_label. */
+        if (strcmp(fn,"char_type")==0 && pBB->ival==2 && pBB->α && pBB->α->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ;
+            int  k0 = (int)a0->t;
+            long i0 = (long)a0->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            int  is_compound = ((a1->t == IR_STRUCT || a1->t == IR_ARITH) && a1->sval) ? 1 : 0;
+            char tylbl[64]; tylbl[0] = 0;
+            if (a1->sval) strtab_label(tylbl, sizeof tylbl, a1->sval);
+            IR_t *inner = is_compound ? a1->α : NULL;
+            int  ki = inner ? (int)inner->t : 0;
+            long ii = inner ? (long)inner->ival : 0;
+            char silbl[64]; silbl[0] = 0;
+            if (inner && inner->t == IR_ATOM && inner->sval) strtab_label(silbl, sizeof silbl, inner->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 16")
+                 + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                 + (tylbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", tylbl)) : s_2asm("xor", "ecx, ecx"))
+                 + s_2asm("mov r8d,",  emit_fmt("%d",  is_compound))
+                 + s_2asm("mov r9d,",  emit_fmt("%d",  ki))
+                 + s_2asm("mov rax,",  emit_fmt("%ld", ii))
+                 + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                 + (silbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", silbl)) : s_2asm("xor", "eax, eax"))
+                 + s_2asm("mov", "qword ptr [rsp + 8], rax")
+                 + s_2asm("call", "rt_char_type@PLT")
+                 + s_2asm("add", "rsp, 16")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-11 (2026-05-27, Opus 4.7): mode-4 sort/2 + msort/2. Direct port of bb_exec.c            */
+        /* IR_BUILTIN sort/msort arm at lines 3505-3539. Two paths analogous to CAT-D-6:                  */
+        /* (A) a0 scalar (IR_LOGICVAR bound to a list, future-proofing): 7-scalar call to rt_sort_msort.*/
+        /*     System V: rdi=do_msort, rsi=k0, rdx=i0, rcx=s0, r8=k1, r9=i1, [rsp+0]=s1. sub rsp,16.    */
+        /* (B) a0 literal cons-cell (IR_STRUCT): build Term* via emit_build_compound_term, call      */
+        /*     rt_sort_msort_term(do_msort, Term*, k1, i1, s1). System V: rdi=do_msort, rsi=Term*,   */
+        /*     rdx=k1, rcx=i1, r8=s1 — 5 args, all in regs (Term* arrives in rax post-build).            */
+        /*     Stack frame: sub rsp,16 for alignment + walker scratch (emit_build_compound_term assumes  */
+        /*     16-aligned rsp on entry for its recursive sub rsp,frame inside).                          */
+        /* do_msort = 0 (sort) or 1 (msort). Selected by fn-name match. Helper owns trail discipline.    */
+        if ((strcmp(fn,"sort")==0 || strcmp(fn,"msort")==0) && pBB->α && pBB->α->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ;
+            int  do_msort = (strcmp(fn,"msort")==0) ? 1 : 0;
+            int  k1 = (int)a1->t;
+            long i1 = (long)a1->ival;
+            char s1lbl[64]; s1lbl[0] = 0;
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            if (a0->t == IR_STRUCT) {
+                return hdr
+                     + s_2asm("sub", "rsp, 16")
+                     + emit_build_compound_term(a0)
+                     + s_2asm("mov", "rsi, rax")
+                     + s_2asm("mov edi,",  emit_fmt("%d",  do_msort))
+                     + s_2asm("mov edx,",  emit_fmt("%d",  k1))
+                     + s_2asm("mov rcx,",  emit_fmt("%ld", i1))
+                     + (s1lbl[0] ? s_2asm("lea r8,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "r8d, r8d"))
+                     + s_2asm("call", "rt_sort_msort_term@PLT")
+                     + s_2asm("add", "rsp, 16")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+            int  k0 = (int)a0->t;
+            long i0 = (long)a0->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 16")
+                 + s_2asm("mov edi,",  emit_fmt("%d",  do_msort))
+                 + s_2asm("mov esi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rdx,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "ecx, ecx"))
+                 + s_2asm("mov r8d,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r9,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "eax, eax"))
+                 + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                 + s_2asm("call", "rt_sort_msort@PLT")
+                 + s_2asm("add", "rsp, 16")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-9b (2026-05-27, Opus 4.7): compound-term arg path for the six term-compare ops          */
+        /* (==, \==, @<, @>, @=<, @>=). When either operand is IR_STRUCT, the CAT-D-9 scalar fast      */
+        /* path can't carry the tree shape — flatten via emit_build_compound_term post-order walkers      */
+        /* into two Term*'s held across the build via a stack slot, then call rt_term_cmp_terms(op,    */
+        /* t0, t1). Arith ops (=:=, =\=, <, >, <=, >=) on compounds are illegal in Prolog so they stay    */
+        /* on the scalar path (will fail-extract → return 0 = ω, semantically correct). The leaf-leaf    */
+        /* case in CAT-D-9 is preserved verbatim below — strictly faster for the common path.            */
+        if (pBB->α && pBB->β
+            && (pBB->α->t == IR_STRUCT || pBB->β->t == IR_STRUCT)
+            && (strcmp(fn,"==")==0 || strcmp(fn,"\\==")==0 || strcmp(fn,"@<")==0 || strcmp(fn,"@>")==0
+             || strcmp(fn,"@=<")==0 || strcmp(fn,"@>=")==0)) {
+            char op_lbl[64]; strtab_label(op_lbl, sizeof op_lbl, fn);
+            return hdr
+                 + s_2asm("sub", "rsp, 16")
+                 + emit_build_compound_term(pBB->α)
+                 + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                 + emit_build_compound_term(pBB->β)
+                 + s_2asm("mov", "rdx, rax")
+                 + s_2asm("mov", "rsi, qword ptr [rsp + 0]")
+                 + s_2asm("lea rdi,", emit_fmt("[rip + %s]", op_lbl))
+                 + s_2asm("call", "rt_term_cmp_terms@PLT")
+                 + s_2asm("add", "rsp, 16")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-9 (2026-05-27, Opus 4.7): mode-4 comparison operators. Twelve fn-names, two helpers:    */
+        /* term-compare (==, \==, @<, @>, @=<, @>= → rt_term_cmp) and arith-compare (=:=, =\=, <,    */
+        /* >, <=, >= → rt_arith_cmp). Both have the SAME 7-scalar shape: op-string + 2 × (k,i,s)    */
+        /* triples. System V AMD64: rdi=op, rsi=k0, rdx=i0, rcx=s0, r8=k1, r9=i1, [rsp+0]=s1. One stack */
+        /* slot ⇒ `sub rsp,16` (8B data + 8B pad for 16B alignment at call). Args at pBB->α (arg0) and  */
+        /* pBB->β (arg1), per lower_pl.c:326-327. Op string interned by resolve_pre_intern_pred_names since   */
+        /* IR_BUILTIN is in resolve_ir_kind_uses_sval → strtab_label resolves at emit time. strtab_label     */
+        /* only for arg sides that genuinely carry an atom text (IR_ATOM); VAR/LIT_I args pass NULL.    */
+        if (pBB->α && pBB->β &&
+            (strcmp(fn,"==")==0   || strcmp(fn,"\\==")==0 || strcmp(fn,"@<")==0 || strcmp(fn,"@>")==0
+          || strcmp(fn,"@=<")==0  || strcmp(fn,"@>=")==0
+          || strcmp(fn,"=:=")==0  || strcmp(fn,"=\\=")==0 || strcmp(fn,"<")==0  || strcmp(fn,">")==0
+          || strcmp(fn,"=<")==0   || strcmp(fn,"<=")==0   || strcmp(fn,">=")==0)) {
+            IR_t *a0 = pBB->α, *a1 = pBB->β;
+            int  k0 = (int)a0->t,    k1 = (int)a1->t;
+            long i0 = (long)a0->ival, i1 = (long)a1->ival;
+            char op_lbl[64]; strtab_label(op_lbl, sizeof op_lbl, fn);
+            char s0lbl[64]; s0lbl[0] = 0;
+            char s1lbl[64]; s1lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            int is_arith = (strcmp(fn,"=:=")==0 || strcmp(fn,"=\\=")==0 || strcmp(fn,"<")==0
+                         || strcmp(fn,">")==0   || strcmp(fn,"=<")==0   || strcmp(fn,"<=")==0 || strcmp(fn,">=")==0);
+            const char *callee = is_arith ? "rt_arith_cmp@PLT" : "rt_term_cmp@PLT";
+            return hdr
+                 + s_2asm("sub", "rsp, 16")
+                 + s_2asm("lea rdi,", emit_fmt("[rip + %s]", op_lbl))
+                 + s_2asm("mov esi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rdx,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "ecx, ecx"))
+                 + s_2asm("mov r8d,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r9,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "eax, eax"))
+                 + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                 + s_2asm("call", callee)
+                 + s_2asm("add", "rsp, 16")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* CAT-D-12-S2 (2026-05-27, Opus 4.7): functor/3, arg/3, =../2 — mode-4 templates.                */
+        /* Each predicate has a "term position" (the only slot that can carry a IR_STRUCT compound      */
+        /* literal at emit time): functor/3 arg0, arg/3 arg1, =../2 arg0 AND arg1 (list literal).         */
+        /* Scalar path (no compound literal): pack all args as (k,i,s) triples and call rt_xxx with    */
+        /* 9 (functor/arg) or 6 (univ) serializable scalars. Compound-literal path: build Term* via       */
+        /* emit_build_compound_term, call rt_xxx_term variant. Helpers do all unification, trail       */
+        /* marking, and γ/ω decision; templates own only the test/je/jmp jump triplet. No port logic.     */
+        /*                                                                                                 */
+        /* SysV AMD64: 6 register args (rdi rsi rdx rcx r8 r9), then stack [rsp+0], [rsp+8], ...           */
+        /* rt_functor / rt_arg: 9 args = 3 stack args = sub rsp,32 (24B + 8B pad).                  */
+        /* rt_functor_term / rt_arg_term: 7 args = 1 stack arg = sub rsp,16 (8B + 8B pad).           */
+        /* rt_univ: 6 args = all in registers = sub rsp,8 (just alignment).                             */
+        /* rt_univ_term / rt_univ_term_list: 5 args = all in registers = sub rsp,8.                  */
+        /* rt_univ_term_term: 2 args = all in registers = sub rsp,8.                                     */
+        if (strcmp(fn,"functor")==0 && pBB->ival==3 && pBB->α && pBB->α->γ && pBB->α->γ->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+            /* Name/Arity (a1/a2) are by Prolog semantics never compound literals (atom + int). Only a0    */
+            /* may be a compound literal (e.g. `functor(foo(a,b), N, A)`). */
+            int  k1 = (int)a1->t,  k2 = (int)a2->t;
+            long i1 = (long)a1->ival, i2 = (long)a2->ival;
+            char s1lbl[64]; s1lbl[0] = 0;
+            char s2lbl[64]; s2lbl[0] = 0;
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            if (k2 == IR_ATOM && a2->sval) strtab_label(s2lbl, sizeof s2lbl, a2->sval);
+            if (a0->t == IR_STRUCT) {
+                /* a0 compound-literal path: rt_functor_term(t0, k1,i1,s1, k2,i2,s2) */
+                return hdr
+                     + s_2asm("sub", "rsp, 16")
+                     + emit_build_compound_term(a0)
+                     + s_2asm("mov", "rdi, rax")
+                     + s_2asm("mov esi,",  emit_fmt("%d",  k1))
+                     + s_2asm("mov rdx,",  emit_fmt("%ld", i1))
+                     + (s1lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "ecx, ecx"))
+                     + s_2asm("mov r8d,",  emit_fmt("%d",  k2))
+                     + s_2asm("mov r9,",   emit_fmt("%ld", i2))
+                     + (s2lbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", s2lbl)) : s_2asm("xor", "eax, eax"))
+                     + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                     + s_2asm("call", "rt_functor_term@PLT")
+                     + s_2asm("add", "rsp, 16")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+            /* Scalar a0 path: rt_functor(k0,i0,s0, k1,i1,s1, k2,i2,s2). 3 stack args ⇒ sub rsp,32. */
+            int  k0 = (int)a0->t;
+            long i0 = (long)a0->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 32")
+                 + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("mov ecx,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r8,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea r9,",  emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "r9d, r9d"))
+                 + s_2asm("mov dword ptr [rsp + 0],", emit_fmt("%d",  k2))
+                 + s_2asm("mov rax,",  emit_fmt("%ld", i2))
+                 + s_2asm("mov", "qword ptr [rsp + 8], rax")
+                 + (s2lbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", s2lbl)) : s_2asm("xor", "eax, eax"))
+                 + s_2asm("mov", "qword ptr [rsp + 16], rax")
+                 + s_2asm("call", "rt_functor@PLT")
+                 + s_2asm("add", "rsp, 32")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        if (strcmp(fn,"arg")==0 && pBB->ival==3 && pBB->α && pBB->α->γ && pBB->α->γ->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+            /* arg(N, Term, Arg): N is int, Term is the compound-literal candidate (a1), Arg is var.       */
+            int  k0 = (int)a0->t,  k2 = (int)a2->t;
+            long i0 = (long)a0->ival, i2 = (long)a2->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            char s2lbl[64]; s2lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (k2 == IR_ATOM && a2->sval) strtab_label(s2lbl, sizeof s2lbl, a2->sval);
+            if (a1->t == IR_STRUCT) {
+                /* a1 compound-literal path: rt_arg_term(k0,i0,s0, t1, k2,i2,s2). */
+                return hdr
+                     + s_2asm("sub", "rsp, 16")
+                     + emit_build_compound_term(a1)
+                     + s_2asm("mov", "rcx, rax")
+                     + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                     + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                     + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                     + s_2asm("mov r8d,",  emit_fmt("%d",  k2))
+                     + s_2asm("mov r9,",   emit_fmt("%ld", i2))
+                     + (s2lbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", s2lbl)) : s_2asm("xor", "eax, eax"))
+                     + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                     + s_2asm("call", "rt_arg_term@PLT")
+                     + s_2asm("add", "rsp, 16")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+            /* Scalar a1 path: rt_arg(k0,i0,s0, k1,i1,s1, k2,i2,s2). */
+            int  k1 = (int)a1->t;
+            long i1 = (long)a1->ival;
+            char s1lbl[64]; s1lbl[0] = 0;
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 32")
+                 + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("mov ecx,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r8,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea r9,",  emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "r9d, r9d"))
+                 + s_2asm("mov dword ptr [rsp + 0],", emit_fmt("%d",  k2))
+                 + s_2asm("mov rax,",  emit_fmt("%ld", i2))
+                 + s_2asm("mov", "qword ptr [rsp + 8], rax")
+                 + (s2lbl[0] ? s_2asm("lea rax,", emit_fmt("[rip + %s]", s2lbl)) : s_2asm("xor", "eax, eax"))
+                 + s_2asm("mov", "qword ptr [rsp + 16], rax")
+                 + s_2asm("call", "rt_arg@PLT")
+                 + s_2asm("add", "rsp, 32")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        if (strcmp(fn,"=..")==0 && pBB->ival==2 && pBB->α && pBB->α->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ;
+            int compound0 = (a0->t == IR_STRUCT);
+            int compound1 = (a1->t == IR_STRUCT);
+            char s0lbl[64]; s0lbl[0] = 0;
+            char s1lbl[64]; s1lbl[0] = 0;
+            int  k0 = (int)a0->t,  k1 = (int)a1->t;
+            long i0 = (long)a0->ival, i1 = (long)a1->ival;
+            if (!compound0 && k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (!compound1 && k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            if (compound0 && compound1) {
+                /* Both compound literals: rt_univ_term_term(t0, t1). Save t0 across t1 build.           */
+                return hdr
+                     + s_2asm("sub", "rsp, 16")
+                     + emit_build_compound_term(a0)
+                     + s_2asm("mov", "qword ptr [rsp + 0], rax")
+                     + emit_build_compound_term(a1)
+                     + s_2asm("mov", "rsi, rax")
+                     + s_2asm("mov", "rdi, qword ptr [rsp + 0]")
+                     + s_2asm("call", "rt_univ_term_term@PLT")
+                     + s_2asm("add", "rsp, 16")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+            if (compound0) {
+                /* a0 compound literal: rt_univ_term(t0, k1,i1,s1) — t0=rdi, k1=esi, i1=rdx, s1=rcx. */
+                return hdr
+                     + s_2asm("sub", "rsp, 8")
+                     + emit_build_compound_term(a0)
+                     + s_2asm("mov", "rdi, rax")
+                     + s_2asm("mov esi,",  emit_fmt("%d",  k1))
+                     + s_2asm("mov rdx,",  emit_fmt("%ld", i1))
+                     + (s1lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "ecx, ecx"))
+                     + s_2asm("call", "rt_univ_term@PLT")
+                     + s_2asm("add", "rsp, 8")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+            if (compound1) {
+                /* a1 compound literal (list literal): rt_univ_term_list(k0,i0,s0, t1).                  */
+                return hdr
+                     + s_2asm("sub", "rsp, 8")
+                     + emit_build_compound_term(a1)
+                     + s_2asm("mov", "rcx, rax")
+                     + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                     + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                     + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                     + s_2asm("call", "rt_univ_term_list@PLT")
+                     + s_2asm("add", "rsp, 8")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+            /* Both scalars: rt_univ(k0,i0,s0, k1,i1,s1). All 6 args in registers. */
+            return hdr
+                 + s_2asm("sub", "rsp, 8")
+                 + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("mov ecx,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r8,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea r9,",  emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "r9d, r9d"))
+                 + s_2asm("call", "rt_univ@PLT")
+                 + s_2asm("add", "rsp, 8")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PROLOG-BB (2026-05-28): succ/2 — bidirectional. RESOLVE_BI_AB style: pBB->α = arg0 (X),
+           pBB->β = arg1 (Y). Flatten each to (k,i,sval) scalars; call rt_succ which mirrors
+           mode-2 bb_exec.c:3247 logic (binds whichever arg is unbound, fails on negative).
+           Template owns γ/ω jmps; helper has no port logic. */
+        if (strcmp(fn, "succ") == 0 && pBB->ival == 2 && pBB->α && pBB->β) {
+            IR_t *a0 = pBB->α, *a1 = pBB->β;
+            int  k0 = (int)a0->t,    k1 = (int)a1->t;
+            long i0 = (long)a0->ival, i1 = (long)a1->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            char s1lbl[64]; s1lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            return hdr
+                 + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("mov ecx,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r8,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea r9,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "r9d, r9d"))
+                 + s_2asm("call", "rt_succ@PLT")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PROLOG-BB (2026-05-28): plus/3 — bidirectional. RESOLVE_BI_CHAIN style: args hang γ-chain
+           off pBB->α (a0->γ = a1, a1->γ = a2). Mirrors mode-2 resolve_runtime.c:1208-1222: exactly one
+           of the three args may be unbound; bind it from the other two by add/sub. System V AMD64
+           ABI: 9 scalars total = first 6 in regs, remaining 3 on stack (24B; pad to 32B). */
+        if (strcmp(fn, "plus") == 0 && pBB->ival == 3 && pBB->α && pBB->α->γ && pBB->α->γ->γ) {
+            IR_t *a0 = pBB->α, *a1 = a0->γ, *a2 = a1->γ;
+            int  k0 = (int)a0->t,    k1 = (int)a1->t,    k2 = (int)a2->t;
+            long i0 = (long)a0->ival, i1 = (long)a1->ival, i2 = (long)a2->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            char s1lbl[64]; s1lbl[0] = 0;
+            char s2lbl[64]; s2lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            if (k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            if (k2 == IR_ATOM && a2->sval) strtab_label(s2lbl, sizeof s2lbl, a2->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 32")
+                 + s_2asm("mov edi,",  emit_fmt("%d",  k0))
+                 + s_2asm("mov rsi,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rdx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "edx, edx"))
+                 + s_2asm("mov ecx,",  emit_fmt("%d",  k1))
+                 + s_2asm("mov r8,",   emit_fmt("%ld", i1))
+                 + (s1lbl[0] ? s_2asm("lea r9,", emit_fmt("[rip + %s]", s1lbl)) : s_2asm("xor", "r9d, r9d"))
+                 + s_2asm("mov dword ptr [rsp + 0],", emit_fmt("%d",  k2))
+                 + s_2asm("mov rax,",  emit_fmt("%ld", i2))
+                 + s_2asm("mov", "[rsp + 8], rax")
+                 + (s2lbl[0]
+                       ? (s_2asm("lea rax,", emit_fmt("[rip + %s]", s2lbl)) + s_2asm("mov", "[rsp + 16], rax"))
+                       : s_2asm("mov", "qword ptr [rsp + 16], 0"))
+                 + s_2asm("call", "rt_plus@PLT")
+                 + s_2asm("add", "rsp, 32")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        /* PROLOG-BB (2026-05-28): format/1 + format/2 — printf-style emit. Mirror mode-2
+           bb_exec.c:3772. RESOLVE_BI_CHAIN args: pBB->α = fmt-string (IR_ATOM or compound char-list);
+           pBB->α->γ = args-list (only for arity==2). Two paths analogous to CAT-D-6 / CAT-D-11:
+           Path A (scalar args1): rt_format(arity, k0,i0,s0, k1,i1,s1). Used when args1 is a
+             variable or atom (format/1 falls here with arity=1 + dummy args1).
+           Path B (compound args1): rt_format_term(arity, k0,i0,s0, Term*). Used when args1
+             is a literal list like [world] — built via emit_build_compound_term post-order. */
+        if (strcmp(fn, "format") == 0 && pBB->α && (pBB->ival == 1 || pBB->ival == 2)) {
+            int arity = (int)pBB->ival;
+            IR_t *a0 = pBB->α;
+            IR_t *a1 = (arity == 2) ? a0->γ : NULL;
+            int  k0 = (int)a0->t;
+            long i0 = (long)a0->ival;
+            char s0lbl[64]; s0lbl[0] = 0;
+            if (k0 == IR_ATOM && a0->sval) strtab_label(s0lbl, sizeof s0lbl, a0->sval);
+            int compound1 = (a1 && a1->t == IR_STRUCT);
+            if (compound1) {
+                /* Path B: build args-list Term* in rax, then call rt_format_term(arity, k0,i0,s0, args). */
+                return hdr
+                     + s_2asm("sub", "rsp, 16")          /* 16B alignment + scratch */
+                     + emit_build_compound_term(a1)
+                     + s_2asm("mov", "r8, rax")          /* args-list Term* → r8 */
+                     + s_2asm("mov edi,",  emit_fmt("%d", arity))
+                     + s_2asm("mov esi,",  emit_fmt("%d", k0))
+                     + s_2asm("mov rdx,",  emit_fmt("%ld", i0))
+                     + (s0lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "ecx, ecx"))
+                     + s_2asm("call", "rt_format_term@PLT")
+                     + s_2asm("add", "rsp, 16")
+                     + s_2asm("test", "eax, eax")
+                     + s_2asm("je",   _.lbl_ω)
+                     + s_2asm("jmp",  _.lbl_γ)
+                     + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+            }
+            /* Path A: scalar args1 (variable, atom, or absent for arity 1). */
+            int  k1 = a1 ? (int)a1->t : 0;
+            long i1 = a1 ? (long)a1->ival : 0;
+            char s1lbl[64]; s1lbl[0] = 0;
+            if (a1 && k1 == IR_ATOM && a1->sval) strtab_label(s1lbl, sizeof s1lbl, a1->sval);
+            return hdr
+                 + s_2asm("sub", "rsp, 16")
+                 + s_2asm("mov edi,",  emit_fmt("%d", arity))
+                 + s_2asm("mov esi,",  emit_fmt("%d", k0))
+                 + s_2asm("mov rdx,",  emit_fmt("%ld", i0))
+                 + (s0lbl[0] ? s_2asm("lea rcx,", emit_fmt("[rip + %s]", s0lbl)) : s_2asm("xor", "ecx, ecx"))
+                 + s_2asm("mov r8d,",  emit_fmt("%d", k1))
+                 + s_2asm("mov r9,",   emit_fmt("%ld", i1))
+                 /* s1 (7th arg) lives at [rsp+0]; if absent, NULL */
+                 + (s1lbl[0]
+                       ? (s_2asm("lea rax,", emit_fmt("[rip + %s]", s1lbl)) + s_2asm("mov", "[rsp + 0], rax"))
+                       : s_2asm("mov", "qword ptr [rsp + 0], 0"))
+                 + s_2asm("call", "rt_format@PLT")
+                 + s_2asm("add", "rsp, 16")
+                 + s_2asm("test", "eax, eax")
+                 + s_2asm("je",   _.lbl_ω)
+                 + s_2asm("jmp",  _.lbl_γ)
+                 + s_L2asm(emit_fmt("%s:", _.lbl_β), "jmp", _.lbl_ω);
+        }
+        return hdr + s_1asm(emit_fmt("# RESOLVE_BUILTIN: unknown '%s' — stub", fn)) + succ_back;
+        }
+    }
+    return std::string();
+}
+/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+extern "C" void bb_builtin(IR_t * pBB) {
+    bb_bin_t bin;
+    bb_emit_asm_result(bb_builtin_str(pBB, bin), bin);
+}
