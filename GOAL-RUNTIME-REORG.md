@@ -143,9 +143,18 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
     `builtins/` for the new location). `git rm core/eval_pat.c` + removed its 2 Makefile entries in lockstep. Move-
     only; `interp_eval_pat` declared in `driver/interp.h` (unchanged). Gates byte-identical. **`pattern_match`
     parts 1-2 (the two whole-file moves) COMPLETE; `core/` pattern `.c` files both relocated (only `patnd.h` stays).**
-  - [ ] **NEXT (cleanest-first):** `pattern_match` (part 3+) — pull the big `rt_pat_*` family (~30 fns:
-    `rt_pat_lit`…`rt_pat_usercall_args` + capture/`rt_dcap_*`/`rt_at_cursor`/`rt_defer_match`) out of grab-bag `rt.c`
-    into `pattern_match.c` (READ THE BODIES — `rt.c` interleaves them with cut/backtrack that STAYS); then `patnd_*`
+  - [x] **slice 9 — `pattern_match` (part 3)** (SCRIP `ef53557`): pull the big `rt_pat_*` family out of grab-bag
+    `rt.c` into `pattern_match.c` — the contiguous block `rt.c:519-789` (`rt_exec_stmt_pat`, `rt_match_blob`,
+    `rt_pat_lit`…`rt_pat_rem`, `rt_pat_fence`…`rt_pat_usercall_args`, `rt_match_variant`; all dead value-stack
+    abort-stubs whose symbols are preserved by relocating into the same binary) + the CAPTURE machinery
+    `rt_dcap_record`(static)+`g_rt_dcap[]`/`_n` statics+exported `g_rt_dcap_active`, `rt_dcap_flush`/`_clear`,
+    `rt_cap_assign`/`_cursor`, `rt_at_cursor`, `rt_defer_match`. The static `rt_dcap_record`+its statics travel with
+    the block (sole callers `rt_cap_assign`/`_cursor` moved too); `g_rt_dcap_active` is referenced nowhere else in
+    the tree. Added the file-local `STACKLESS_ABORT` macro (arithmetic.c precedent). No Makefile change (both files
+    already wired). Capture fns reach `NV_*_fn` via `core.h`, `NAME_DEREF_PTR`/`IS_NAMEVAL`/`IS_NAMEPTR` via
+    `sil_macros.h`, subject externs (`Σ`/`Σlen`/`Ω`/`Δ`)+`exec_stmt` as block-local externs; `rt.h` decls unchanged.
+    Move-only; gates byte-identical. **`rt_pat_*` family DONE — grab-bag `rt.c` no longer holds any pattern ops.**
+  - [ ] **NEXT (cleanest-first):** `pattern_match` (part 4) — the `patnd_*`
     classification helpers from `stmt_exec.c` (~9 predicates) + `cset_resolve`/`cset_has` from `scan_builtins.c`
     (its `scan_try_call_builtin` goes to `by_name_dispatch`, NOT here). → then the LANGUAGE-NAMED files
     (`gen_runtime.c`/`resolve_runtime.c`/`script_builtins*.c`) split by capability into `backtrack`/`unification`/
@@ -184,5 +193,5 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `0f817f9` · .github this commit. (RS-1 done; RS-2 slices 1-8 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1, arithmetic-part-2, pattern_match-part-1 (`git mv core/pattern.c`), pattern_match-part-2 (fold `core/eval_pat.c`); **`arithmetic` subsystem COMPLETE; `pattern_match` whole-file moves COMPLETE** (`core/` pattern `.c` files relocated, only `patnd.h` stays). Deferred micro-slices pending homes: `rt_init` (slice-3) + `rt_unop_*` (slice-6). Next = `pattern_match` part 3+ (`rt_pat_*` family from grab-bag `rt.c`, then `patnd_*` from `stmt_exec.c` + `cset_*` from `scan_builtins.c`); remaining subsystems queued above + in the RS-1 HANDOFF.)
+**Watermark.** SCRIP `ef53557` · .github this commit. (RS-1 done; RS-2 slices 1-9 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1, arithmetic-part-2, pattern_match-part-1 (`git mv core/pattern.c`), pattern_match-part-2 (fold `core/eval_pat.c`), pattern_match-part-3 (`rt_pat_*` family + capture from grab-bag `rt.c`); **`arithmetic` subsystem COMPLETE; `pattern_match` whole-file moves + `rt_pat_*` family COMPLETE** (`core/` pattern `.c` files relocated, only `patnd.h` stays; grab-bag `rt.c` no longer holds any pattern ops). Deferred micro-slices pending homes: `rt_init` (slice-3) + `rt_unop_*` (slice-6). Next = `pattern_match` part 4 (`patnd_*` classification helpers from `stmt_exec.c` + `cset_resolve`/`cset_has` from `scan_builtins.c`), then the LANGUAGE-NAMED files (`gen_runtime.c`/`resolve_runtime.c`/`script_builtins*.c`) split by capability, then `core/core.c`; remaining subsystems queued above + in the RS-1 HANDOFF.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
