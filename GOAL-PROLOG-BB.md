@@ -471,7 +471,7 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (2026-06-03 — WAM-CP-7c landed (`5dff1a8`): var-var unify 3→1 calls via `rt_pl_unify_var_var`, grounded in gprolog `unify.c`. PL-HY-FENCE gate also landed this day (`1a0127e`). Gates re-verified green; GATE-3 byte-identical. Prior audit row below still stands: HY-ladder 1c blocked, 2/3/4/5 subsumed/complete awaiting Lon's reclassify call.)
+## 📊 Gate table (2026-06-03 session end — three landed: PL-HY-FENCE gate `1a0127e` (`test_gate_bb_one_box.sh`, wired into Session Setup); WAM-CP-7c `5dff1a8` (var-var unify 3→1 via `rt_pl_unify_var_var`, gprolog-grounded); WAM-CP-9-rest SCOPED (ITE-commit m2-oracle bug, swipl-proven — see its handoff, no code). SCRIP HEAD `5dff1a8`. Gates re-verified green, GATE-3 byte-identical. Prior audit: HY-ladder 1c blocked, 2/3/4/5 subsumed/complete awaiting Lon's reclassify call.)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
