@@ -93,9 +93,15 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
   - [x] **slice 1 — `runtime_eval`** (SCRIP `970dbf5`): `git mv core/eval_code.c → runtime/runtime_eval.c`. Validated the loop.
   - [x] **slice 2 — `unification`** (SCRIP `17e759e`): WAM core (`rt_unify_*`/`rt_trail_*`/`rt_env_*`/`rt_choice_cut_*`/
     `rt_node_to_term`/`rt_get_cut_flag`/`rt_main_init`) extracted from grab-bag `rt/rt.c` → `runtime/unification.c`.
-    ⚠ residual: `rt_main_init` (runtime-init) rode along — re-home to `runtime_init.c`; trail/choice/cut may later
-    split to `backtrack.c`.
-  - [ ] **NEXT (cleanest-first):** `runtime_init` (+ re-home `rt_main_init`) → `io_format` (`rt_write_*` + core
+    (residual `rt_main_init` ✅ re-homed in slice 3; trail/choice/cut may later split to `backtrack.c`.)
+  - [x] **slice 3 — `runtime_init`** (SCRIP `0655bd4`): `rt_gc_init`/`rt_set_lang`/`rt_finalize` (+ its private
+    read-only statics `g_halt_rc`/`g_halt_set`, never written ⇒ constant-0)/`rt_bomb`/`rt_unhandled_op` pulled from
+    grab-bag `rt/rt.c` + `rt_main_init` re-homed from `unification.c` → new `runtime/runtime_init.c`. Move-only; no
+    new `.h` (rt.h decls + the `xa_file_header.cpp` PLT strings unchanged). **`rt_init` DEFERRED** — its body is a
+    convergence point dragging file-local statics owned by OTHER subsystems (`_rt_IDENT`/`_rt_DIFFER` = comparison
+    builtins; `_rt_usercall`→`chunk_reg_lookup`/`call_native_chunk` = native-chunk invocation); moving it now would
+    break move-only or recreate the grab-bag. It moves cleanly once invocation + comparison builtins have homes.
+  - [ ] **NEXT (cleanest-first):** `io_format` (`rt_write_*` + core
     `output_*`) → `arithmetic` (`rt_arith`/`rt_acomp`/`rt_lcomp`/`rt_unop_*` + the core `add/sub/mul/...` block) →
     `pattern_match` (whole-file `git mv` of `core/pattern.c` + `core/eval_pat.c` + `scan_builtins.c`, then pull
     `rt_pat_*` in + `patnd_*` from `stmt_exec.c`) → the LANGUAGE-NAMED files (`gen_runtime.c`/`resolve_runtime.c`/
@@ -132,5 +138,5 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `ef667d7` · .github this commit. (RS-1 done; RS-2 slices 1-2 landed gated byte-identical; remaining subsystems queued above + in the RS-1 HANDOFF.)
+**Watermark.** SCRIP `0655bd4` · .github this commit. (RS-1 done; RS-2 slices 1-3 landed gated byte-identical — runtime_eval, unification, runtime_init; `rt_init` deferred until invocation+comparison-builtins homes; remaining subsystems queued above + in the RS-1 HANDOFF.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
