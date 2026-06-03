@@ -57,6 +57,34 @@ Icon variable *references* resolve through one of two backends. **Both are kept 
 
 ---
 
+## String scanning — the ICN-SCAN BB family (Lon directive, 2026-06-03)
+
+**Every string-scanning operation Icon offers is its own stackless BB.** The canonical set is closed —
+`refs/icon-master/src/runtime/fstranl.r`: `any` `bal` `find` `many` `match` `upto`; `fscan.r`: `move` `pos`
+`tab`; plus the control forms `?` (scan env, LIVE — `bb_gen_scan.cpp` + `bb_keyword.cpp`, SCRIP `d46b943`),
+`?:=` (scan-assign) and `=s` (sugar, `tab(match(s))`, a lowerer rewrite — no box). Rung ladder with ONE STEP
+PER BOX: **GOAL-ICON-BB.md → "ICN-SCAN LADDER"** (ICN-SCAN-0 … ICN-SCAN-FENCE).
+
+**Register contract — the SNOBOL4 layout verbatim (ratified X86-64 FACT table):** R12=ζ per-sequence RW frame
+(`[r12+off]`) · R13=Σ subject base ptr · R14=δ cursor (0-based; `&pos = δ+1`) · R15=Δ subject length ·
+RBX=NV globals hash base (rides through untouched). RO constants (cset char-strings, match strings) sealed
+`[rip+disp]`; the membership test is the `bb_pat_any.cpp` idiom (`lea rdi,[rip+cset]; call strchr`). Result
+DESCRs go to the box's own 16-byte frame slot (the `bb_to`/`bb_alt` model); consumers read the producer's slot.
+
+**Two semantic families (fstranl.r function signatures — do not blur):**
+- **Position-returners, δ untouched:** `any`/`match`/`many` are `function{0,1}` (one result or fail);
+  `upto`/`find`/`bal` are `function{*}` GENERATORS (suspend each position; β re-pumps via the generator-β
+  chain edge, the `bb_to` mechanism). None of these moves `&pos`.
+- **Cursor-movers, REVERSED on resume:** `tab`/`move` (`function{0,1+}`, fscan.r) write δ and restore the
+  saved δ on β then fail. `pos` is a stateless `{0,1}` compare. Only tab/move ever write δ — `tab(upto(c))`
+  is the composition idiom and reads upto's slot like any consumer.
+
+This is genuinely DIFFERENT from SNOBOL4 pattern matching (checked against canonical sources 2026-06-03 — see
+GOAL-ICON-BB Watermark): SNOBOL pattern leaves thread the cursor; Icon scan functions return position VALUES.
+Reuse = the Σ/δ/Δ register walk + the cset test loop; the value contract and the `{*}` re-pump are Icon's own.
+
+---
+
   lower.c emits:   SM_PUSH_EXPR <tree_t*>  +  SM_BB_PUMP
   sm_interp.c:     pops tree_t*, calls coro_eval() -> bb_node_t,
                    then bb_broker(node, BB_PUMP, pump_print, NULL)
