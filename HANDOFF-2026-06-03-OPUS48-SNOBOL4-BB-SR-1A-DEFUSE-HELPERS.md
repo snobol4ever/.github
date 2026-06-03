@@ -88,5 +88,6 @@ bash scripts/test_gate_no_lang_names.sh ; bash scripts/audit_concurrency_invaria
 
 ## Watermark
 
-SCRIP tip = `b05170c` (SR-1a helper de-fuse; SNOBOL4 m3 6/6). .github tip = this commit. Goal single-source-of-truth
+SCRIP tip = `3610475` (SR-1a helper de-fuse, rebased onto RS-2 subsystem extractions; rebuilt + re-gated green on
+the merged tree — SNOBOL m2 7/7 / m3 6/6, Icon m2 12/12). .github tip = this commit. Goal single-source-of-truth
 updated in `GOAL-SNOBOL4-BB.md` (SR-1a `[x]`, SR-1b spec + allocator/layout, watermark). Detail: this file.
