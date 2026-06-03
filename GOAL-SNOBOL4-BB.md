@@ -85,7 +85,17 @@ for SNOBOL4/Snocone/Rebus, built into the BB local storage?"* Answer: it is FUSE
   CAVEAT (from SR-1): SNOBOL is by-name (`bb_var` = `jmp γ`; values live in the global NV store), so each box is a
   thin wrapper around an NV helper — the win is topology + mode-4 relocatability, not avoiding the runtime. Gate:
   define m3 6/6 + oracle byte-match; m2 7/7 HARD; Icon m2 12/12; `XA_FLAT_EPILOGUE` bytes unchanged (Icon m3/m4
-  not regressed).
+  not regressed). **ALLOCATOR/LAYOUT (resolved 2026-06-03):** the frame allocator is a trivial bump —
+  `g_flat_slot_count` (`emit_bb.c:61`), `bb_slot_alloc16` bumps +16. The gvar body path (`emit_bb.c:2096`) starts
+  it at 0; offset 0 already doubles as the result slot (the fail epilogue writes `[r12+0]=99`). SR-1b does NOT need
+  the body's emitted bytes byte-identical to baseline (boxes are being ADDED) — only OUTPUT-correct (m3 6/6) +
+  Icon byte-unchanged. So reserve at body-head BEFORE the node walk by pre-bumping `g_flat_slot_count`: result
+  `[0]`, actuals `[16 .. 16+16*np)` (matches the existing staging convention at `rt.c:466`, `fb+16*(k+1)`), base
+  `[16+16*np]`, body temps from `16+16*np+8` up. `rt_call_named_proc` stages actuals at `fb+16*(k+1)`
+  (np-normalized, NUL-fill); `bb_proc_save` reads `[r12+16*(k+1)]`; the RESTORE boxes read base at
+  `[r12+16+16*np]`. Remaining work is purely mechanical (2-3 box templates with TEXT+BINARY arms calling
+  `rt_name_save_push` / `rt_name_restore` / a new `g_proc_result` setter via @PLT, `emit_core.c` dispatch, the
+  codegen insertion in `codegen_gvar_flat_chain_body`, the `rt_call_named_proc` rewrite) + gating.
 - [ ] **SR-2 — the save-area IS the frame (Lon's cooler idea).** Migrate the save-records OUT of the global
   `g_name_save[]` stack INTO `bb_proc_save`/`restore`'s **per-activation ζ-frame local storage** (`[r12+off]`),
   laid out at emit time as N records `{name_ptr (8B), saved_DESCR (16B)}`. Kills the global fixed-max name-save
