@@ -161,12 +161,18 @@ cd /home/claude/corpus/programs/pascal
 - [x] **PB-3 — SEED: hello via LOWER + `--interp`.** Hook the Pascal AST into `src/lower/` so
   `writeln('Hello World!')` lowers to the same IR `print` uses elsewhere, and `scrip --interp hello.pas`
   prints `Hello World!`. **This is the Icon/Prolog/SNOBOL4 "hello" seed for Pascal.** ⟵ first green.
-- [ ] **PB-4 — Integers, `var`, assignment, `writeln(int)`.** `var i: integer; i := 2 + 3; writeln(i)`.
-  Reuse existing integer literal / arithmetic / assignment / load-store IR. Remember the reference
-  models a 16-bit `maxint = 32767` — match its overflow behavior or document the divergence.
-- [ ] **PB-5 — Control flow.** `if/then/else`, `while/do`, `for/to`/`downto`, `repeat/until`. Reuse the
-  existing conditional + loop boxes. **Target program: `sieve.pas`** (pure control flow + boolean array)
-  — when SCRIP's `--interp` output matches `pint`'s primes-under-100, PB-5 is done.
+- [x] **PB-4 — Integers, `var`, assignment, `writeln(int)`.** ✅ 2026-06-02. `var i: integer; i := 2+3;
+  writeln(i)` → byte-identical to `pint`. Implemented Pascal-specific `__pas_writeln`/`__pas_write`
+  builtins (interleaved `(value,width)` arg pairs): integer right-justified in `max(w,digits)`,
+  default width 10 (real default 20); string as-is; `__pas_writeln` appends `\n`. `:w` is a minimum
+  width (full value emitted when it exceeds `w`). 16-bit overflow not yet matched (deferred; document).
+- [~] **PB-5 — Control flow.** Constructs DONE ✅ 2026-06-02 (byte-identical to oracle, 11/11 probes):
+  `if/then/else`, bare `if`, `while/do`, `for/to`, `for/downto`, `repeat/until`, nested loops. Realized
+  as Pascal LOWER arms (`v_pascal_for` counted loop, `v_pascal_repeat` post-tested back-edge) on real
+  `TT_FOR`/`TT_REPEAT`/`TT_IF` nodes — NOT parser desugaring. **Gate `sieve.pas` NOT yet met**: needs the
+  boolean-array work (1-D `TT_IDX` load + `TT_ASSIGN(TT_IDX)` store as Pascal arms à la Raku
+  `arr_get`/`arr_set_pure`, array-var declaration/allocation since `var` is still parsed-and-discarded)
+  plus `sqr`. That overlaps PB-8 aggregates; do it as the next rung on the Pascal rail.
 - [ ] **PB-6 — Top-level (flat) procedures & functions.** Definitions, value + `var` parameters, return
   values, calls. **No nesting yet.** Reuse the existing call machinery. **Target: `recursion.pas`**
   (`fact`, `fib` at top level) through `fact(7)`.
@@ -188,6 +194,43 @@ cd /home/claude/corpus/programs/pascal
 ---
 
 ## Watermark (live state)
+
+**2026-06-02 (session 2) — PB-4 GREEN + PB-5 CONTROL FLOW GREEN, ON PASCAL'S OWN RAIL.**
+Pascal is no longer riding the Icon rail. It has its own identity end-to-end: parser tag
+**`LANG_PASCAL`=6** (`src/parser/snobol4/scrip_cc.h`), IR graph tag **`IR_LANG_PAS`=7**
+(`src/contracts/IR.h`), own proc-body walker **`lower_pascal_body`** (`src/lower/lower_program.c:217`),
+own program-dispatch block (`lower_program.c:583`, returns `g_stage2.lang=IR_LANG_PAS`). Parser emits
+**real AST nodes** (no desugaring): `TT_FOR[var,from,to,body]`+`v.ival`(downto), `TT_REPEAT[body,cond]`,
+bare `TT_IF[cond,then]`. Realization lives in Pascal LOWER arms at the top of `lower_value`
+(`src/lower/lower.c`): **`v_pascal_for`** (counted loop: synthesizes init+while+increment, reusing the
+shared boxes) and **`v_pascal_repeat`** (post-tested until via direct four-port back-edge: `cond->ω=bα`).
+Shared language-independent boxes (literal/binop/assign/`if`/`while`/seq) are reused via role dispatch.
+Driver mode-2 is lang-agnostic (`scrip.c` `!is_icon && !is_prolog` branch finds `main`, runs
+`IR_interp_once`). Also added `TT_SUCCEED`/`TT_FAIL` as no-op leaves in `lower_value` (empty statement,
+language-independent). **11/11 probes byte-identical to `pint`**: hello, PB-4 (default-10 + multi-arg +
+`:w` min-width), if/else, bare-if, while, for-to, for-downto, repeat-until, nested loops. Other frontends
+regression-checked green (Icon hello, Prolog init, Raku rk_arith/rk_array_literal, SNOBOL4 pattern).
+
+**⚠ REMAINING CROSS-LANGUAGE COUPLING — DELETE NEXT (Lon: "we don't do that here"):**
+- `src/lower/lower.c:830` — Pascal calls ride **Icon's** det-call arm: `(cx.lang == IR_LANG_ICN ||
+  cx.lang == IR_LANG_PAS)`; line 847 the generator check. **Fix:** revert 830 to Icon-only, add a
+  dedicated `v_pascal_call` arm (det `IR_CALL`, `call_beta=ω_in`, no generator notion).
+- `src/lower/lower.c:289` — bare-`if` else-target rides **Raku's** branch: `(cx.lang == IR_LANG_RKU ||
+  cx.lang == IR_LANG_PAS)`. **Fix:** give Pascal its own `v_if`-equivalent or a Pascal `elseα=γ_in` clause.
+- `src/driver/polyglot.c:43,90,128` — generic proc-registration infra *gated alongside* Icon/Raku
+  (init guard, proc collection, `nparams` shape). Break `LANG_PASCAL` into its own clauses for zero adjacency.
+
+**Files touched session 2 (committed):** `src/contracts/IR.h`, `src/parser/snobol4/scrip_cc.h`,
+`src/parser/pascal/pascal.{y,tab.c,tab.h}`, `src/driver/polyglot.c`, `src/lower/lower_program.c`,
+`src/lower/lower.c`.
+
+**Next:** (1) excise the coupling above (dedicated `v_pascal_call`); (2) PB-5 `sieve` array gate
+(`TT_IDX`→`arr_get`, `TT_ASSIGN(TT_IDX)`→`arr_set_pure` Pascal arms + array-var decl/alloc + `sqr`);
+(3) PB-6 flat procs (`recursion.pas`); (4) PB-7 nested-frame static-link-as-parent-port.
+
+---
+
+### Session 1 watermark (PB-0..PB-3 seed, superseded by the Pascal-rail rebuild above)
 
 **2026-06-02 — PB-3 GREEN (seed alive), P4 case-sensitive only. The 7th frontend prints.**
 `scrip --interp hello.pas` → `Hello World!`, byte-identical to the `pint` oracle. Also byte-identical
