@@ -189,15 +189,20 @@ cd /home/claude/corpus/programs/pascal
 
 ## Watermark (live state)
 
-**2026-06-02 — PB-3 GREEN (seed alive). The 7th frontend prints.** `scrip --interp hello.pas` →
-`Hello World!`, byte-identical to the `pint` oracle. Also byte-identical on a multi-statement +
-apostrophe-escape probe. Implemented PB-0..PB-3 via **Bison + Flex** (Lon directive 2026-06-02 — the
-P4 grammar is clean SLR, one expected dangling-else shift/reduce conflict, same as `pascalp.{l,y}`):
+**2026-06-02 — PB-3 GREEN (seed alive), P4 case-sensitive only. The 7th frontend prints.**
+`scrip --interp hello.pas` → `Hello World!`, byte-identical to the `pint` oracle. Also byte-identical
+on a multi-statement + apostrophe-escape probe. Implemented PB-0..PB-3 via **Bison + Flex** (Lon
+directive 2026-06-02 — the P4 grammar is clean SLR, one expected dangling-else shift/reduce conflict,
+same as `pascalp.{l,y}`):
 
-- `src/parser/pascal/pascal.l` — flex lexer, `%option prefix="pascal_yy" caseless`. Case-insensitive
-  keywords + lowercased identifiers (Pascal semantics). Comments **both** `(* *)` and `{ }` (per PB-1
-  spec — note `pcom` itself only accepts `(* *)`, so oracle-comparison probes must avoid `{ }`; our
-  `{ }` support is a clean ISO superset, not a divergence). String `'...'` with `''` escape via the
+- `src/parser/pascal/pascal.l` — flex lexer, `%option prefix="pascal_yy"`. **Case-sensitive,
+  lowercase-only P4 keywords; identifiers preserved verbatim** (Lon directive 2026-06-02: P4
+  case-sensitive ONLY / P4 subset only, aligning Pascal with SCRIP's own case-sensitivity — dropped the
+  earlier `caseless` + identifier-lowercasing). The all-lowercase P4 corpus is unaffected; mixed-case
+  symbols (`BEGIN`, `WriteLn`) are now identifiers, not keywords (verified: uppercase `BEGIN` → parse
+  error, as intended). Comments **both** `(* *)` and `{ }` (per PB-1 spec — but `pcom` itself only
+  accepts `(* *)`, so oracle-comparison probes must avoid `{ }`; our `{ }` is a small ISO superset and
+  the one spot to tighten if strict-P4-only is later wanted). String `'...'` with `''` escape via the
   single-regex `'([^']|'')*'` (no input/unput).
 - `src/parser/pascal/pascal.y` — bison grammar adapted from the MIT `pascalp.y` (the goal's designated
   *syntactic* reference; original C, not transliterated from `pcom`). Full P4 statement/expression
@@ -206,9 +211,8 @@ P4 grammar is clean SLR, one expected dangling-else shift/reduce conflict, same 
   `writes` does not).
 - `src/parser/pascal/pascal_driver.{c,h}` — `pascal_compile()` → `pascal_parse_string()`.
 - Generated `pascal.tab.{c,h}` + `pascal.lex.c` committed (regen via
-  `scripts/regenerate_parser_and_lexer_from_sources.sh` — **Pascal stanza still needs adding to that
-  script**; for now regenerate manually: `bison -d -o pascal.tab.c pascal.y && flex --noline -o
-  pascal.lex.c pascal.l`).
+  `scripts/regenerate_parser_and_lexer_from_sources.sh` — Pascal stanza added to that script at
+  hand-off 2026-06-02).
 - `Makefile`: pascal sources added to `SRCS` + three per-file compile rules (mirrors Raku). `make
   scrip` links them via the `$(OBJ)/*.o` glob.
 - `src/driver/scrip.c`: `.pas` → `lang_pascal` → `pascal_compile`.
@@ -224,8 +228,8 @@ global `g_pascal_procs` accumulator) — correct for PB-6 flat procs; **nested-s
 modeled** (flattening loses lexical nesting — revisit at PB-7 with the static-link-as-parent-port design).
 
 **Build:** `make scrip` clean (49 pascal symbols linked). Reference `pcom`+`pint` build under fpc.
-Other frontends regression-checked (Icon `write`, Prolog `write` still green). `main` not yet committed
-at time of writing — commit pending.
+Other frontends regression-checked (Icon `write`, Prolog `write` still green). Committed and pushed
+(SCRIP + `.github`) at hand-off 2026-06-02.
 
 **Next: PB-4 — integer output formatting (fully scoped 2026-06-02).** The grammar already parses
 `var i: integer; i := 2+3; writeln(i)` and builds the right AST (`TT_ASSIGN` / `TT_ADD` / `TT_ILIT` /
