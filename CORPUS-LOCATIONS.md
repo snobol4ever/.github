@@ -22,6 +22,7 @@ All paths are absolute, rooted at the standard checkout layout
 | Prolog   | `/home/claude/corpus/programs/prolog/`   | varies                             | — |
 | Raku     | `/home/claude/corpus/programs/raku/`     | varies                             | — |
 | Rebus    | `/home/claude/corpus/programs/rebus/`    | varies                             | — |
+| Pascal   | `/home/claude/corpus/programs/pascal/`   | our `.pas` probes + README (reference oracle fetched separately, not bundled; no suite yet) | — |
 
 **Each `.icn` (or `.sno`, etc.) program has a sibling `.expected`
 file** with the canonical SPITBOL/oracle output.  The corpus runner
