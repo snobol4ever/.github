@@ -109,18 +109,17 @@ BB model the way Prolog stresses backtracking and Icon stresses generators.
 
 | Thing | Path | Role |
 |-------|------|------|
-| **Reference compiler** | `/home/claude/pp4ref/pcom.pas` *(fetched, not bundled)* | The grammar + semantics oracle. What does construct X mean? Read its P-code. |
-| **Reference P-machine** | `/home/claude/pp4ref/pint.pas` *(fetched, not bundled)* | The execution oracle. Run a probe here, diff SCRIP's output against it. |
-| **Token + grammar blueprint** | `/home/claude/pp4ref/grammar/pascalp.{l,y}` *(fetched, MIT)* | The lex token rules map straight to a `TT_*` set; the yacc grammar scopes the parser. |
+| **Reference compiler** | `corpus/programs/pascal/pcom.pas` | The grammar + semantics oracle. What does construct X mean? Read its P-code. |
+| **Reference P-machine** | `corpus/programs/pascal/pint.pas` | The execution oracle. Run a probe here, diff SCRIP's output against it. |
+| **Token + grammar blueprint** | `corpus/programs/pascal/grammar/pascalp.{l,y}` | The lex token rules map straight to a `TT_*` set; the yacc grammar scopes the parser. (MIT-licensed.) |
 | **Bootstrap writeup + probes** | `corpus/programs/pascal/` (`README.md`, `recursion.pas`) | How the reference builds/self-hosts, plus our own Pascal probes. |
 | Pascal frontend | `src/parser/` (new `pascal.l` + `pascal.y`, alongside the other 6) | Source → `TT_*` → shared AST. |
 | Lowering | `src/lower/` (`lower2.c` / AST→IR) | Pascal AST → shared IR graph. Reuse existing arms; add nested-frame lowering at PB-7. |
 | Mode-2 interpreter | `src/interp/IR_interp.c` | Executes the IR. The early-rung target. |
 | BB templates | `src/emitter/BB_templates/` | Only from PB-9 (mode-3/4). |
 
-**Start every Pascal session by fetching the reference and reading its grammar**
-(`/home/claude/pp4ref/grammar/pascalp.l` for tokens, `pascalp.y` for the production shapes) — it is the
-cheapest possible spec for the front end. The reference is **never committed**; it is an oracle only.
+**Start every Pascal session by reading the reference grammar** (`corpus/programs/pascal/grammar/pascalp.l`
+for tokens, `pascalp.y` for the production shapes) — it is the cheapest possible spec for the front end.
 
 ---
 
@@ -133,15 +132,14 @@ cd /home/claude/SCRIP && make -j4 scrip > /tmp/build_full.log 2>&1
 for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
-# Reference oracle (NOT bundled, never committed) — fetch once locally, then build with Free Pascal:
-[ -d /home/claude/pp4ref ] || git clone https://github.com/BackupTheBerlios/pp4fpc.git /home/claude/pp4ref
-( cd /home/claude/pp4ref && fpc -Ci -Co -Cr -gl pcom.pas && fpc -Ci -Co -Cr -gl pint.pas )
+# Reference toolchain (the oracle) — build once with Free Pascal:
+( cd /home/claude/corpus/programs/pascal && fpc -Ci -Co -Cr -gl pcom.pas && fpc -Ci -Co -Cr -gl pint.pas )
 # Sanity: the reference still self-hosts (see corpus/programs/pascal/README.md "bootstrap fixpoint").
 ```
 
 To check a probe against the oracle:
 ```bash
-cd /home/claude/pp4ref
+cd /home/claude/corpus/programs/pascal
 ./pcom < probe.pas && cp prr prd && ./pint < /dev/null   # reference output (the oracle)
 /home/claude/SCRIP/scrip --interp probe.pas              # SCRIP output — must match
 ```
@@ -191,9 +189,10 @@ cd /home/claude/pp4ref
 
 ## Watermark (live state)
 
-**2026-06-02 — SEEDED, nothing built yet.** Reference Pascal-P4 oracle verified working (pcom+pint build
-clean under fpc 3.2.2; self-host fixpoint reproduced byte-identical; sieve + recursion probes run). The
-reference is **fetched on-demand, NOT bundled** (clone-on-demand in Session Setup) — SCRIP implements the
-P4 subset in its own C; no ETH source is committed to any repo. `corpus/programs/pascal/` holds our
-`README.md` (bootstrap writeup) + `recursion.pas` probe. SCRIP frontend not started. **Next: PB-0 (orient)
-→ PB-1 (lexer).** No SCRIP source touched; `main` clean.
+**2026-06-02 — SEEDED, nothing built yet.** Reference Pascal-P4 toolchain landed in
+`corpus/programs/pascal/` (pcom+pint build clean under fpc 3.2.2; self-host fixpoint reproduced
+byte-identical; sieve + recursion probes run). Included as a corpus test program (CC0 corpus + `NOTICE`
+attribution, same pattern as the Gimpel/Shafto entries) — `pcom.pas` itself is the ultimate end-state
+test. SCRIP implements the P4 subset in its own C (the frontend is original, not transliterated from
+`pcom`). SCRIP frontend not started. **Next: PB-0 (orient) → PB-1 (lexer).** No SCRIP source touched;
+`main` clean.
