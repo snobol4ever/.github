@@ -113,14 +113,28 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
     + `to_int`/`to_real` stay (latter RS-1 values.c). **BUILD LESSON:** the `IS_*` macros live in
     `emitter/sil_macros.h` not `core.h` — core.c-derived files must include BOTH `"core.h"` + `"sil_macros.h"` or the
     `scrip` per-`.o` build (fewer `-I` than libscrip_rt) fails at LINK on implicit `IS_*` function refs.
-  - [ ] **NEXT (cleanest-first):** `arithmetic` (part 2/2 — the scattered rt.c helpers `rt_arith`/`rt_acomp`/
-    `rt_lcomp`/`rt_neg`/`rt_coerce_num`/`rt_incr`/`rt_decr`/`rt_exp`; the `rt_unop_*` set needs capability sorting —
-    `unop_size`=string-length, `unop_not`/`null_test`/`nonnull`=logical — not all arithmetic) →
-    `pattern_match` (whole-file `git mv` of `core/pattern.c` + `core/eval_pat.c` + `scan_builtins.c`, then pull
-    `rt_pat_*` in + `patnd_*` from `stmt_exec.c`) → the LANGUAGE-NAMED files (`gen_runtime.c`/`resolve_runtime.c`/
-    `script_builtins*.c`) split by capability into `backtrack`/`unification`/`resolution`/`by_name_dispatch`/
-    `keywords`/`name_binding` (intricate file-local statics ⇒ each is its own multi-slice effort, move whole
-    coherent blocks) → `core/core.c` (3449 lines, the biggest split) → leave SNO-residue in `core/` (LI-CORE).
+  - [x] **slice 6 — `arithmetic` (part 2/2)** (SCRIP `1adcf09`): the scattered grab-bag helpers `rt_arith` (the
+    real operator-dispatch: bitwise `/\`/`\/`/`xor`/`<<`/`>>`/`\`, `mod`/`rem`/`gcd`/`div`/`//`, `**`/`^`, `min`/
+    `max`/`abs`/`sign`, +the IR_LOGICVAR deref path) + 7 dead value-stack stubs (`rt_coerce_num`/`rt_exp`/`rt_neg`/
+    `rt_incr`/`rt_decr`/`rt_acomp`/`rt_lcomp`) cut from `rt/rt.c` → existing `runtime/arithmetic.c`. Move-only;
+    rt.h decls unchanged; no Makefile change (arithmetic.c already in RT_PIC_SRCS + scrip per-`.o` from slice 5).
+    arithmetic.c gained `rt/rt.h`+`builtins/resolve_runtime.h`+`../parser/prolog/prolog_atom.h`+`<stdio.h>` (Term
+    API for rt_arith, the proven `unification.c` include set) + the file-local `STACKLESS_ABORT` macro.
+    **BODY-READ LESSON:** the names `rt_neg`/`rt_incr`/`rt_acomp`/… *look* like live arithmetic but are abort-stubs
+    from the removed value stack — only `rt_arith` carries logic; the filename was the language/era lie. RS-1 map
+    has `arithmetic.c = numeric ops + comparison`, so both `rt_acomp` (arith-cmp) and `rt_lcomp` (lexical-cmp) home
+    here. **`rt_unop_*` LEFT in rt.c on purpose** — genuinely capability-split (`unop_size`=string-length →
+    `string_ops`; `unop_not`/`null_test`/`nonnull`=logical → a logical/control home; `unop_neg`/`unop_pos`=arith),
+    and those destinations aren't homed yet ⇒ splitting now would strand a half-block. **`arithmetic` subsystem now
+    COMPLETE** (part 1 `6899f7f` + part 2 `1adcf09`). Gates byte-identical.
+  - [ ] **NEXT (cleanest-first):** `pattern_match` (whole-file `git mv` of `core/pattern.c` + `core/eval_pat.c` +
+    `scan_builtins.c`, then pull `rt_pat_*` in + `patnd_*` from `stmt_exec.c`) → the LANGUAGE-NAMED files
+    (`gen_runtime.c`/`resolve_runtime.c`/`script_builtins*.c`) split by capability into `backtrack`/`unification`/
+    `resolution`/`by_name_dispatch`/`keywords`/`name_binding` (intricate file-local statics ⇒ each is its own
+    multi-slice effort, move whole coherent blocks) → `core/core.c` (3449 lines, the biggest split) → leave
+    SNO-residue in `core/` (LI-CORE). **Deferred micro-slices to fold in along the way:** `rt_unop_*` (above; lands
+    with `string_ops` + the logical home) and `rt_init` (slice-3 deferral; lands once invocation + comparison
+    builtins have homes).
 - [ ] **RS-FENCE.** `scripts/test_gate_runtime_subsystems.sh` asserts the partition; wire into Session Setup.
 
 **Method reminder:** definition-location authoritative; move/rename-only, no behavior change; update the build system
@@ -151,5 +165,5 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `6899f7f` · .github this commit. (RS-1 done; RS-2 slices 1-5 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1; `rt_init` deferred; arithmetic part-2 (rt.c helpers) + remaining subsystems queued above + in the RS-1 HANDOFF.)
+**Watermark.** SCRIP `1adcf09` · .github this commit. (RS-1 done; RS-2 slices 1-6 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1, arithmetic-part-2; **`arithmetic` subsystem COMPLETE**. Deferred micro-slices pending homes: `rt_init` (slice-3) + `rt_unop_*` (slice-6). Next = `pattern_match`; remaining subsystems queued above + in the RS-1 HANDOFF.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
