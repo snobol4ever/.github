@@ -15,510 +15,81 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
-## 🟢 SESSION (2026-06-02, Opus 4.8) — `define` RUNTIME GROUNDWORK + LI-FENCE repair
+## 🟢 CURRENT FRONTIER — `define` mode-3 (m3 5/6 → 6/6)
 
-Two landed commits (SCRIP `76ff512` LI-FENCE repair → `a9e1ff1` define groundwork; build BOTH `scrip` +
-`libscrip_rt`). Started on the TRUE live frontier (`define`, m3 5/6) after orienting from the SPITBOL manual
-(ch.8 "Program-Defined Functions" + ch.3 concat/coercion). Found + fixed a pre-existing **LI-FENCE false
-positive**: the gate's tag regex matches `_pl` as a substring, and the `__pas_writeln` helper in
-`gen_runtime.c` had a printf-length scratch local `_pl` (a field-width counter, NOT a Prolog tag) → renamed to
-`_pfmtlen` (rename-only, byte-identical). LI-FENCE was FAILING at session start; it now holds.
+`DEFINE` registration + name-save call frame + RETURN/FRETURN routing all LAND (SCRIP `24c593b`): no-arg
+user-proc calls run end-to-end in mode-3, matching the SPITBOL oracle (manual ch.8). DEFINE arm
+`bb_call_gvar_define_str`; user-proc arm `bb_call_gvar_userproc_str` (marshal args → `rt_call_named_proc`
+→ store result DESCR → `cmp eax,99/je ω` so FRETURN fails the call); IR_ASSIGN(call-result) arm in
+`bb_gvar_assign` + `rt_gvar_assign_descr`; `flat_drive_return` jumps direct to slab succ/fail exits.
+Runtime groundwork `rt_call_named_proc(name,args,nargs)` + `rt_proc_define(spec)` in `rt.c` (named by CS
+concept per LI; mirror the mode-2 `IR_interp.c` name-save path: save dummy-args + fn-named binding, install
+actuals, run the proc BB-graph on a per-activation arena, capture fn-named var as result, FAIL on FRETURN,
+restore LIFO).
 
-**`define` runtime groundwork (additive, byte-neutral — m3 unchanged 5/6):** added `rt_call_named_proc` (the
-name-save call frame) + `rt_proc_define` to `rt.c`/`rt.h`, named by CS concept per the LI rung (NOT `rt_sno_*`).
-They mirror the proven mode-2 `IR_interp.c` name-save path. See the `define` frontier line below for the full
-design + the precise REMAINING byte-producing steps (driver proc-registration, `bb_call` DEFINE + user-proc
-gvar arms, RETURN/FRETURN routing). Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-DEFINE-GROUNDWORK.md`.
+**TWO BUGS block `DOUBLE(21)`→`42` (next session starts here):**
+- **(a) string-arg `slen`** — `marshal_call_arg` (`bb_call.cpp`) IR_LIT_S writes the DT_S tag into the low
+  qword but leaves `slen`=0, so a string param reads zero-length. DESCR low qword packs `v | (slen<<32)`;
+  a `DT_S` with `slen==0` is read as a VARIABLE NAME by `VARVAL_d_fn` (`argval.c`), NOT a literal value.
+  FIX both arms: pack `v | ((uint64_t)strlen(s) << 32)`. Lane-safe (shared with Raku) or normalize in
+  `rt_call_named_proc`.
+- **(b) `X+X` param-to-param arith** bombs `bb_binop_arith` ("shape mismatch") — two IR_VAR operands in the
+  gvar chain fall to `flat_drive_binop_tree`→`IR_BINOP_ARITH`, whose predicate needs `g_descr_flat_chain`
+  (Icon). NOT the literal-literal `IR_BINOP_GVAR_ARITH` shape. FIX: add a gvar VAR-operand arm — read each
+  param's value from the NV table (new `rt_gvar_arith(name_a,name_b,op)`, or extend `bb_binop_gvar_arith`).
+
+Once both land → raise MODE3_MIN 5→6. ⚠ `x86("mov",reg,uint64)` is a TRAP (emits `movabs rax,imm; call rax`)
+and `x86_movimm` truncates imm64→32 — to load a pointer/imm64 use `x86_load_ro(reg,"??",ptr)`; for an args-array
+address use `x86_frame_lea`. Detail: `HANDOFF-2026-06-03-SONNET46-SNOBOL4-BB-DEFINE-CALL-FRAME.md`.
 
 **Gate state (GREEN):** SNOBOL4 m2 **7/7 HARD** / m3 **5/6** / m4 0/6 · Icon m2 **12/12 HARD** · `prove_lower2`
-PASS · `no_bb_bin_t` 0 · **LI-FENCE now OK** (was failing) · concurrency invariants OK · `sm_dead` OK. SCRIP tip
-`24c593b`, .github tip this commit. ENV: `apt-get install -y libgc-dev`.
+PASS · `no_bb_bin_t` 0 · LI-FENCE OK · concurrency invariants OK · `sm_dead` OK. ENV: `apt-get install -y libgc-dev`.
 
-**🟢 SESSION (2026-06-03, Sonnet 4.6) — define call frame + RETURN routing LAND; no-arg user calls GREEN (m3 still 5/6).**
-The 4 byte-producing `define` steps are now implemented (SCRIP `24c593b`, build BOTH): (1) driver proc-registration
-loop, (2) `bb_call` DEFINE arm `bb_call_gvar_define_str`, (3) `bb_call` user-proc arm `bb_call_gvar_userproc_str`
-(marshal → `rt_call_named_proc` → store result → `cmp eax,99/je ω` so FRETURN fails the call), (4) IR_ASSIGN(call-result)
-arm in `bb_gvar_assign` + `rt_gvar_assign_descr` runtime helper + `flat_drive_return` rewritten to jump direct to slab
-succ/fail exits (the FILL-of-IR_RETURN had no template → crash; this is also step 4). **3 bugs fixed:** `x86("mov",reg,
-(uint64_t)ptr)` is a trap (that overload ignores the mnemonic and emits `movabs rax,imm; call rax` → use
-`x86_load_ro` for ptr/imm64 loads; `x86_movimm` also truncates imm64→32b); args-array needed an address not a load
-(added `x86_frame_lea` encoder, byte-neutral); the IR_RETURN crash. **WORKS in m3:** DEFINE reg, jump-around,
-RETURN/FRETURN, no-arg user calls (`F()→X`), literal-returning + global-reading bodies. **REMAINING (blocks `DOUBLE(21)`
-→`42`):** (a) string args lose `slen` — `marshal_call_arg` IR_LIT_S writes tag but leaves slen=0 → string params read
-zero-length; pack `v|((u64)strlen<<32)` lane-safely (shared w/ Raku) or normalize in `rt_call_named_proc`; (b) `X+X`
-param-to-param arith bombs `bb_binop_arith` (not the literal-literal `IR_BINOP_GVAR_ARITH` shape — needs the de-fuse,
-operands as ζ-slot producer boxes). Once both land → smoke passes, raise MODE3_MIN 5→6. ⚠ same `x86("mov",reg,u64)`
-trap still in `bb_call_rk_arr_str` + nested-call marshal (Raku path) — LEFT ALONE (out of SNOBOL lane). Detail:
-`HANDOFF-2026-06-03-SONNET46-SNOBOL4-BB-DEFINE-CALL-FRAME.md`.
+## ✅ DONE (mode-3, byte-matched to the SPITBOL oracle)
 
-## 🟢 VERIFY SESSION (2026-06-02, Opus 4.8) — NO CODE CHANGE; STALE-HANDOFF CORRECTION + TRUE LIVE FRONTIER
+- **IR_SEQ value-concat** (`OUTPUT='ab' 'cd'`→`abcd`) — reuses `rt_gvar_assign_concat` (`IR_interp.c`),
+  which runs the two operand sub-graphs via `IR_interp_once` + `binop_apply(BINOP_CONCAT)` (manual ch.3); m3 →3/6.
+- **IR_SCAN** `pattern` (`S 'b'='X'`→`aXc`) + `goto_s` (`'x' 'x' :S()`→`hit`) — `rt_scan` in `IR_interp.c`
+  mirrors the mode-2 IR_SCAN handler (manual ch.18 unanchored OUTER loop); `bb_scan_stmt.cpp` box; m3 →5/6.
+  NOT the native PB-RB `bb_match` ladder — reuses `IR_interp_once` as the sanctioned mode-3 helper (distinct
+  from the FORBIDDEN `bb_exec_*` walker). `lower.c v_scan` populates `operand_aux` with the subject/replacement
+  VALUE sub-graphs; `emit_bb.c flat_drive_scan_stmt` promotes them onto `_`; `emit_core.c` adds `case IR_SCAN`.
+- **arith** `OUTPUT = 2 + 3`→`5` (`IR_BINOP_GVAR_ARITH`, LIT+LIT, `op_a_slot`) + **`OUTPUT = "hello"`** (`bb_gvar_assign`).
+- **`bb_binop` ROUTER DELETED** — four IR kinds (`IR_BINOP_{RELOP,ARITH,GVAR_ARITH,CONCAT}`) dispatch 1:1 in
+  `emit_core.c`; no template probes a sibling. (OPEN: `IR_BINOP_GVAR_ARITH` still bakes operands as immediates
+  — a de-fuse would make them ζ-slot producer boxes like Icon's `bb_binop_arith`.)
 
-This session VERIFIED the live state and made **NO code changes** (working tree clean at SCRIP HEAD `1adcf09`;
-full gate suite GREEN — see below). Its value is correcting the **stale-handoff problem**: the recent x86()
-revamp handoffs (V3/V4/BB-VAR) list as "NEXT" a stack of items that LATER sessions already finished. A session
-trusting that text re-confirms finished work. The frontier MUST be read from failing tests, not the handoff prose.
+## RUNTIME DE-NAME + SUBSYSTEM REORG — split into their own goal files
 
-**ALREADY DONE (verified by reading the files — do NOT re-do):** every loop-free + single-loop SNOBOL4 box is
-x86()-converted on the ratified regs (Σ=r13/δ=r14/Δ=r15/ζ=r12): `bb_pat_abort` `bb_pat_tab` `bb_pat_atp`
-`bb_pat_pos` `bb_pat_span` `bb_pat_len` `bb_pat_rem` `bb_pat_any` `bb_pat_notany` `bb_pat_arb` `bb_pat_defer`
-`bb_pat_break`(BREAK+BREAKX) `bb_pat_fence`(niladic) `bb_lit` `bb_lit_scalar` `bb_var`(SNO+ICN). **The
-variable-length define/jmp-pair design — flagged STILL-OPEN across four sessions — IS SOLVED:** `x86_pair_loop()`
-in `x86_asm.h` (`E`=define-driver-pair-label / `F`=rel32-patch-to-driver-pair-jmp records, walked by `bb_emit_x86`),
-consumed by `bb_pat_cat` + `bb_pat_alt`. OP-A-PROMOTE landed (`emit_core.c:389` `op_a_slot` + `bb_gvar_assign`
-int-binop arm) so **`OUTPUT = 2 + 3` now PASSES mode-3** (the `arith` smoke went green).
+The runtime DE-NAME (rename every `src/runtime/**`-DEFINED symbol by its CS concept) and the runtime
+SUBSYSTEM REORG (dissolve the language silos so each FILE is a capability, not a language) were SPLIT OUT
+(they touch ALL languages' runtime, not just SNOBOL4):
+- **DE-NAME → `GOAL-RUNTIME-RENAME.md`.** ✅ Emitter+runtime de-name COMPLETE (gated byte-identical slices +
+  LI-FENCE). Only **LI-CORE** (`src/runtime/core/` SNOBOL-lib naming) remains — a runtime-unification decision
+  for Lon. **Definition-location is authoritative** — a token's *use* in runtime does NOT make it runtime-owned.
+- **REORG → `GOAL-RUNTIME-REORG.md`.** RS-1 CLUSTER done (562-fn inventory + 17-subsystem partition map);
+  RS-2 PARTITION in progress (`runtime_eval`, `unification`, `runtime_init`, `io_format`, `arithmetic`,
+  `pattern_match` landed). Move/rename-only, byte-identical, build-system in lockstep.
 
-**TRUE LIVE mode-3 frontier (from failing smokes, IR kinds decoded via a probe):**
-- **`concat`** (`OUTPUT = 'ab' 'cd'`) → kind **10 = IR_SEQ** = the VALUE-side STITCH_SEQ (≠ IR_PAT_CAT). ✅ **DONE
-  2026-06-02 (Opus 4.8) — mode-3 2/6 → 3/6.** See the `IR_SEQ value-concat` session block immediately below.
-- **`pattern`/`goto_s`** (`S 'b' = 'X'` / `'x' 'x' :S()`) → kind **28 = IR_SCAN** = the ch.18 unanchored OUTER
-  match loop. ✅ **DONE 2026-06-02 (Opus 4.8) — mode-3 3/6 → 5/6.** See the `IR_SCAN` session block immediately below.
-- **`define`** (`DEFINE('DOUBLE(X)')` + call + `RETURN`) → empty output: needs DEFINE registration + a SNOBOL4
-  call frame + RETURN. **← IN PROGRESS (2026-06-02).** ✅ **RUNTIME GROUNDWORK LANDED** (SCRIP `a9e1ff1`): the
-  name-save call-frame helper `rt_call_named_proc(name,args,nargs)` + `rt_proc_define(spec)` are in `rt.c`/`rt.h`
-  (named by CS concept per LI — NOT `rt_sno_*`; it IS a name-save call frame). They mirror the proven mode-2
-  `IR_interp.c` logic (SPITBOL ch.8 p.106): save each dummy-arg + the function-named binding via `NV_GET_fn`/push,
-  install actuals/null via `NV_SET_fn`, run the proc's BB-graph `fn` on a per-activation arena frame (recursion
-  safe), capture the function-named var as the result (FAIL on FRETURN), restore LIFO. **ADDITIVE/byte-neutral —
-  not yet wired (m3 still 5/6).** **REMAINING (byte-producing emit + driver, the focused continuation):**
-  (1) **driver** — register SNOBOL4 procs in the mode-3 SNOBOL path (`scrip.c`, the `else{}` block that today only
-      builds `main` via `gvar_flat_chain_build`): `rt_proc_reset()`, then for each non-`main` proc build its chain
-      (a `gvar_flat_chain_build`-style proc builder over the proc's entry — DOUBLE's view is entry node 7) and
-      `rt_proc_register(name, entry, pnames, nparams)` + `rt_proc_set_fn(name, fn)`. The proc graph + entry + the
-      `lower_sc` param names already live in `s2->proc_table[]` (SBL-EXEC-3). Model: the Icon mode-3 loop at
-      `scrip.c:~887`.
-  (2) **`bb_call` DEFINE arm** (gvar path, `g_gvar_flat_chain`) — `fn=="DEFINE"`: emit a `call rt_proc_define`
-      (RO spec arg) then `jmp γ` / `def β` / `jmp ω` (single-shot success). The DEFINE/DOUBLE calls are both
-      `IR_CALL dval==2.0`, args on `counter` (verified via a temporary `bb_print` IR_CALL/RETURN/BINOP dump).
-  (3) **`bb_call` user-proc arm** (gvar path) — `rt_proc_is_registered(fn)`: marshal each arg sub-graph's value
-      into a small DESCR arg array (or stage by name), `call rt_call_named_proc(fn, args, narg)`, store the
-      returned DESCR into this call's ζ-slot the consuming IR_ASSIGN reads, `test`/`je ω`/`jmp γ`.
-  (4) **RETURN/FRETURN** — the gvar chain reaches `IR_RETURN`; `flat_drive_return` already jumps to the slab
-      success exit (correct for return-by-value: the function-named var holds the result, the slab exit returns
-      to `rt_call_named_proc` which reads it). `IR_RETURN dval==2.0` (FRETURN) must route to the slab FAILURE
-      exit instead — add a `dval==2.0` arm in `flat_drive_return` (or its gvar caller) jumping to `flat_fail_p`.
-  Build BOTH `scrip` + `libscrip_rt` after any `src/emitter/**` edit; byte-verify any new encoder vs `as`. Gate:
-  `define` smoke green (m2 is the oracle, → `42`), m3 5/6 → 6/6, MODE3_MIN 5→6.
+Follow those two files for that work — it is NOT this goal's live frontier (the BB/pattern/template ladders are).
 
-## ✅ DONE (2026-06-02 session, Opus 4.8) — IR_SCAN: `pattern` (`S 'b' = 'X'` → `aXc`) + `goto_s` (`'x' 'x' :S()` → `hit`) in mode-3 (m3 3/6 → 5/6)
+## ✅ RUNG COMPLETE — LANGUAGE-INDEPENDENT EMITTER + RUNTIME (de-name) + COMMENT PURGE
 
-Both `pattern` (match-and-replace) and `goto_s` (match-only, branch-on-success) are GREEN in mode-3 and
-byte-identical to the SPITBOL oracle (`aXc`, `hit`). A third form `S 'world' :S(ok)F(bad)` (S+F branches, no
-keyword prelude) also matches the oracle (`matched`), confirming the four-port success/failure wiring beyond the
-two target smokes. The mechanism follows the ACCEPTED IR_SEQ-concat precedent exactly: NOT a native scan-loop
-box (the `bb_match`/`bb_subject` PB-RB ladder + its `sno_flat_chain_build` scaffold are still unbuilt, and the
-SUBJECT-storage fork — ζ-slot vs register sweep — remains flagged for Lon). Instead it reuses `IR_interp_once`
-as the sanctioned mode-3 runtime helper (distinct from the FORBIDDEN `bb_exec_*` SM/BB walker). Six edits:
-- **`IR_interp.c`** — NEW `rt_scan(pat_graph, subj_graph, is_repl, subj_name, repl_graph)` (exported in
-  `libscrip_rt.so`, beside `rt_gvar_assign_concat`). Mirrors the mode-2 `IR_SCAN` handler EXACTLY (manual ch.18):
-  saves Σ/Σlen/Ω/Δ + dcap; gets the subject by `IR_interp_once(subj_graph)` (covers literal & var); sets
-  Σ=subj/Σlen=Ω=len; runs the unanchored OUTER start-loop 0..(kw_anchor?0:len) calling `IR_interp_once(pat)` per
-  cursor; on match, if is_repl reads the replacement via `IR_interp_once(repl_graph)`, splices
-  subj[0:m_start]+repl+subj[m_end:], `NV_SET_fn(subj_name, spliced)`; restores Σ/etc; returns 1 match / 0 no-match.
-- **`lower.c` `v_scan`** — populates the IR_SCAN node's `operand_aux` with the subject (and, for repl, the
-  replacement) VALUE sub-graphs built via `lower_value_subgraph` (real `IR_graph_t*` blocks, stored cast to
-  `IR_t*` — verified safe: `bb_operand_aux_set/get` store/return pointers verbatim, and NO generic pass
-  clone/free/GC dereferences operand_aux operands as `IR_t*`, so `IR_interp_once`+`bb_reset` get real blocks).
-  Additive — mode-2 paths (ring peek / `NV_GET`) untouched, so mode-2 does not regress.
-- **`emit_globals.h`** — three new promoted `sm_emit_t` fields `op_scan_pat`/`op_scan_subj`/`op_scan_repl`.
-- **`emit_bb.c` `flat_drive_scan_stmt`** — promotes the pattern graph (`pBB->counter`) + subject/replacement
-  sub-graph pointers (from `operand_aux`, read like `flat_drive_match`/`flat_drive_ref_invariant`) onto `_` so
-  the box reads ONLY `_` (no-neighbor / PEERS rule); then `EMIT_PAIR_FILL` drives the box.
-- **`emit_core.c` `walk_bb_node`** — NEW `case IR_SCAN: bb_scan_stmt(nd)` (was hitting `default:` →
-  `kind=28 unhandled`, the exact mode-3 error). `walk_bb_node` already promotes `op_sval`=subj_name /
-  `op_ival`=is_repl generically, so the box reads those directly.
-- **`bb_scan_stmt.cpp`** (NEW template, modeled on `bb_gvar_assign.cpp`) — BINARY/mode-3 loads `rdi`=pat_graph,
-  `rsi`=subj_graph (RO `movabs`), `rdx`=is_repl, `rcx`=subj_name (RO), `r8`=repl_graph (RO), `call rt_scan`,
-  then `test eax,eax; je ω; jmp γ; def β; jmp ω` (match→γ, no-match→ω — the four-port test, idiom from `bb_lit`).
-  TEXT(mode-4) is a LOUD bomb (sub-graph addrs not relocatable — same status as concat). NAME NOTE: the box is
-  `bb_scan_stmt`, NOT `bb_scan` — `bb_scan` is a live `BrokerMode` enum value (`bb_box.h`); `bb_scan_stmt` is the
-  language-neutral interim that clears both the enum collision and the LI-FENCE (`no_lang_names`). The DN-2
-  collapse `bb_scan_stmt`→`bb_scan` awaits resolving/removing that dead broker enum value.
-
-**⚠ BUILD NOTE:** the mode-3 emit path lives in BOTH the `scrip` binary AND `libscrip_rt.so`. After any
-`src/emitter/**` edit rebuild BOTH (`bash scripts/build_scrip.sh && make libscrip_rt`). New `.cpp` templates must
-be registered in TWO Makefile places: the `RT_PIC_SRCS` list (libscrip_rt) AND the `scrip:` target `.o` rule.
-
-**Gates GREEN (this session):** SNOBOL4 m2 **7/7 HARD** / m3 **5/6** (output+arith+concat+**pattern**+**goto_s**;
-only `define` left; MODE3_MIN floor raised 3→5) / m4 0/6 · Icon m2 **12/12 HARD** (shared
-`emit_bb.c`/`emit_core.c`/`emit_globals.h` touches are SNOBOL-guarded or additive — no regress) / m3 3/12 / m4
-3/12 · `no_bb_bin_t` 0 · `sm_dead` 0 · LI-FENCE holds (`no_lang_names` exit 0) · concurrency invariants OK
-(FACT RULES byte-identical ×3 untouched) · `prove_lower2` PASS · m3-native-binary-arms audit OK · `g_vstack` 0.
-`template_byte_identity` 1/4 and `template_medium_invisible` 61 are PRE-EXISTING (the former's 3 fails are
-keyword-assignment `&ANCHOR=`/`&FULLSCAN=` + multi-term arith trees crashing in mode-3, confirmed via isolation —
-NOT scan; the latter is `bb_call`/`bb_unop` WIP). **NEXT:** `define` (DEFINE registration + SNOBOL4 call frame +
-RETURN — IR-kind-adjacent but a distinct build-out).
-
-
-
-The `concat` smoke is GREEN in mode-3 and matches the SPITBOL oracle for literal, multi-operand, int-coercion,
-null-string, var, and var+literal forms. The mechanism is NOT a `STITCH_SEQ` box — it reuses the EXISTING
-`rt_gvar_assign_concat` (already in `IR_interp.c`, exported in `libscrip_rt.so`) which runs the two operand
-sub-graphs via `IR_interp_once` and applies `binop_apply(BINOP_CONCAT,lv,rv)` (manual ch.3: right appended to
-left, non-string operands coerced, null-string returns the other operand unchanged). `rt_concat` (the `rt.c`
-`STACKLESS_ABORT` stub) was NOT touched — it is unrelated dead scaffolding; the real concat path is
-`rt_gvar_assign_concat`. Five small edits, all gated byte-identical for the rest of the suite:
-- **`emit_globals.h`** — two new promoted fields `op_a_counter` / `op_a_ival_sg` on `sm_emit_t`.
-- **`emit_core.c` `walk_bb_node`** — promote them from `nd->α` at dispatch (`op_a_counter = α->counter`,
-  `op_a_ival_sg = α->ival`) so the box reads the concat sub-graph pointers from `_` (PEERS / no-pBB rule), never
-  touching `pBB`.
-- **`bb_gvar_assign.cpp`** — replaced the concat bomb with the IR_SEQ arm: BINARY loads `rdi`=dst (RO),
-  `rsi`=left_graph / `rdx`=right_graph (the `nd->α->counter`/`->ival` sub-graph pointers, `movabs` immediates —
-  valid in mode-3 in-process JIT), then `call rt_gvar_assign_concat`; jmp γ / def β / jmp ω. TEXT(mode-4) is a
-  LOUD bomb (the sub-graph addrs are not relocatable — same status as SNOBOL m4 0/6 pending the LOWER four-port
-  wiring). `int rt_gvar_assign_concat(const char*, void*, void*)` declared in the file's extern "C" block.
-- **`emit_bb.c`** — NEW `flat_drive_gvar_seq_passthrough` + a `walk_bb_flat` `case IR_SEQ` branch
-  (`g_gvar_flat_chain && dval==1.0`): the concat-descriptor IR_SEQ node emits a pure pass-through (`jmp γ`); the
-  actual concat is done by the downstream IR_ASSIGN box. **CRITICAL FINDING:** the first attempt — *skipping* the
-  IR_SEQ node from the `codegen_gvar_flat_chain_body` `nodes[]` array — was WRONG: other nodes (e.g. a preceding
-  `A='foo'` assignment) thread their γ *to* the IR_SEQ node, and removing it from `nodes[]` made the label lookup
-  fall back to the global success exit, so control jumped past the concat (symptom: `before` printed, nothing
-  after). Keeping IR_SEQ in `nodes[]` as a pass-through preserves the threading. `gvar_chain_arity` already
-  returns 0 for IR_SEQ(dval==1.0), so `gvar_stmt_operand_refs` correctly sets the consuming IR_ASSIGN's α=IR_SEQ.
-
-**⚠ BUILD NOTE (cost a detour this session):** the mode-3 emit path runs the emitter compiled into the **`scrip`**
-binary, NOT just `libscrip_rt.so`. After editing any `src/emitter/**` file you MUST rebuild BOTH
-(`bash scripts/build_scrip.sh && make libscrip_rt`) or you test stale emitter code and see phantom results.
-
-**Gates GREEN (this session):** SNOBOL4 m2 **7/7 HARD** / m3 **3/6** (output+arith+**concat**; MODE3_MIN floor
-raised 2→3) / m4 0/6 · Icon m2 **12/12 HARD** (byte-neutral — the shared `emit_bb.c`/`emit_core.c` touches are
-SNOBOL-guarded or additive) / m3 3/12 / m4 3/12 · `no_bb_bin_t` 0 · LI-FENCE holds · concurrency invariants OK
-(FACT RULES byte-identical ×3 untouched) · `prove_lower2` PASS · `g_vstack` **0**. **NEXT (smallest real unit):
-`pattern` (IR_SCAN)** — the ch.18 unanchored OUTER match loop (`bb_match` + SUBJECT subject-slot wiring); then
-`goto_s` (also IR_SCAN), then `define`. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-IR-SEQ-CONCAT.md`.
-
-**NEXT (smallest real unit) — IR_SEQ value-concat**, grounded + teed up: model on `IR_interp.c:1978` (left graph →
-ζ-slot, right graph → ζ-slot, runtime concat → result slot the assign reads via `FRQ`); give `rt_concat` a real
-two-arg string impl (manual ch.3 semantics); replace the `bb_gvar_assign` concat-arm bomb with a store from that
-result slot. Gate on the `concat` smoke (m2 already green as oracle) + the standing set below. THEN IR_SCAN, THEN define.
-
-**Gate state (GREEN, as of the IR_SEQ-concat session):** SNOBOL4 m2 **7/7 HARD**; Icon m2 **12/12 HARD**;
-`prove_lower2` PASS; `no_bb_bin_t` 0; LI-FENCE holds; concurrency invariants OK (FACT-RULE byte-identical ×3 — untouched);
-`sm_dead` 0; `g_vstack` **0**. mode-3 smoke: output✅ arith✅ **concat✅** pattern✗(IR_SCAN) goto_s✗(IR_SCAN) define✗
-(MODE3_MIN floor now 3). ENV: `apt-get install -y libgc-dev`.
-Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-IR-SEQ-CONCAT.md`.
-
-
-## ✅ DONE (2026-06-02 session) — `bb_binop` ROUTER DELETED; ONE IR KIND PER ARM, 1:1 DISPATCH
-
-The `bb_binop.cpp` router (which probed `bb_binop_{relop,arith,gvar_arith,concat_slot}_str()` in order) is GONE —
-deleted from the tree, `bb_templates.h`, the Makefile source list, and its per-`.o` rule. Each former arm now has
-ONE IR kind and is dispatched 1:1; no template probes or calls another template.
-- **New IR kinds** (`IR.h` + `scrip_ir.c` names): `IR_BINOP_RELOP` · `IR_BINOP_ARITH` · `IR_BINOP_GVAR_ARITH` · `IR_BINOP_CONCAT`.
-- **Dispatch** (`emit_core.c walk_bb_node`): four direct `case IR_BINOP_*: bb_binop_*(nd); return 0;`. Leftover `IR_BINOP`
-  (string-rel `SLT..SNE` / `POW` / degenerate — already a bomb under the old router) falls to the existing loud default.
-- **Arm entries**: each arm file (`bb_binop_relop/arith/gvar_arith/concat_slot.cpp`) gained an `extern "C" void bb_binop_X(IR_t*)`
-  that emits its OWN `_str()` — the sanctioned same-box split, NOT redirection.
-- **Kind minting**: the shape was already computed in `emit_bb.c` (`walk_bb_flat` IR_BINOP case + `flat_drive_binop_tree`);
-  it now retags the node to the concrete kind at the `FILL` boundary (the existing `IR_BINOP_GEN` idiom), so the ~15
-  `== IR_BINOP` consumers (arity / operand-refs / assign-rhs / if-detect, which run before FILL) are untouched. Byte-identical.
-- **Gates** (== pristine `cd10224` baseline): SNOBOL4 m2 **7/7 HARD** / m3 2/6 / m4 0/6 · Icon m2 **12/12 HARD** / m3 3/12 /
-  m4 3/12 · prove_lower2 **67** · no_bb_bin_t 0 · concurrency OK.
-- **OPEN (noted, not done):** `IR_BINOP_GVAR_ARITH` still bakes SNOBOL operands as immediates (the old fusion); a later
-  de-fuse would make them producer boxes read from ζ-slots like Icon's `bb_binop_arith`. Preserved byte-for-byte here.
-
-
-## 🔴🔴🔴 CURRENT — READ FIRST (Lon 2026-06-02): DE-NAME THE LANGUAGE RUNTIME BY CS CONCEPT (runtime first, then emitters)
-
-Every symbol **DEFINED in `src/runtime/**`** whose name carries a language tag (`sno`/`icn`/`icon`/`pl`/`prolog`/
-`raku`/`rk`/`reb`/`rebus`) is renamed to the CS / runtime concept it implements — the name chosen from its
-**usage**, not from the language that happens to exercise it. The data structures are language-independent; the
-point is full reuse. Call sites everywhere (incl. lower/emitter/frontend) update with the symbol — that is fixing a
-reference, not renaming a lower/parser symbol. **NOT IN SCOPE:** `src/lower/**`, `src/frontend/**` (parser/lexer).
-**Stays (genuinely single-language or not-a-language-tag):** `SNO_INIT_fn` (SNOBOL runtime-library init),
-`sno_parse_string_ast` (invokes the SNOBOL parser for `CODE`/`EVAL`), `IR_LANG_*`, `prologue`/`epilogue` (assembly),
-`snocone`/`snoc` (different language). `rt_pl_arith`→`rt_arith` is a MERGE with the existing `rt_arith` (handle with
-code, not sed). **After the runtime is clean: the identical sweep over `src/emitter/**`.**
-Gate (rename-only ⇒ program output byte-identical): m2 SNOBOL4 7/7 + Icon 12/12 + Prolog 5/5 HARD; prove_lower2 67;
-no_bb_bin_t 0; concurrency OK.
-
-**STATUS — RUNG ACTIVE (do NOT close).** ✅ **SLICE 1 LANDED (SCRIP `10fbe32`):** 27 runtime-defined exported
-symbols + the `icnlist` datatype renamed to CS concepts — `rt_pl_*`→`rt_*` (write/env/choice_cut/cut/format/main_init),
-`rt_rk_*`→`rt_*`, `interp_exec_pl_builtin`→`interp_exec_builtin`, `is_pl_user_call`→`is_user_call`,
-`g_pl_last_ok`→`g_last_ok`, `g_icn_*`→`g_*` (call_args/proc_arena/proc_depth), `descr_to_str_icn`→`descr_to_str`,
-datatype `"icnlist"`(+5 once-guards)→`"list"`. Gates byte-identical (m2 7/7+12/12+5/5 HARD, prove_lower2 67,
-no_bb_bin_t 0, concurrency OK). **NEXT (rung continues):** (1) deeper runtime pass — language-tagged STATICS +
-STRING literals (datatype names, DEFDAT/DATCON, debug text) remaining in `src/runtime/**` beyond the exported
-surface; verify each is runtime-only (no `.ref` dependency) before renaming. (2) `rt_pl_arith`→`rt_arith` MERGE
-(code, not sed). (3) THEN the identical sweep over `src/emitter/**`. **⚠ DEFINITION-LOCATION IS AUTHORITATIVE** —
-a token's *use* in runtime does NOT make it runtime-owned: `pl_arg`/`pl_univ`/`pl_functor`/`pl_write*`/
-`pl_assert_term`/`pl_term_to_string`/`prolog_atom_*`/`raku_nfa_*` are frontend-DEFINED → HELD; `g_raku_match` is
-driver-DEFINED → HELD. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-LI-RUNTIME-DENAME-SLICE-1.md`.
-
-## 🔴🔴 ACTIVE RUNG — READ FIRST (Lon PIVOT 2026-06-02, evening): RUNTIME SUBSYSTEM REORG — DISSOLVE THE LANGUAGE SILOS
-
-> **➡ MOVED 2026-06-02: this rung now lives in its own goal file `GOAL-RUNTIME-REORG.md` (Lon split it out to run as a
-> separate session). The text below is retained for context/provenance; the LIVE checklist + watermark for the reorg
-> are in `GOAL-RUNTIME-REORG.md`. RS-1 CLUSTER done; RS-2 PARTITION in progress (`runtime_eval` `970dbf5` +
-> `unification` `17e759e` landed). Full map + findings: `HANDOFF-2026-06-02-SONNET46-SNOBOL4-BB-RS-1-CLUSTER.md`.**
-
-
-**SCRIP unifies 6+ languages (SNOBOL4, Snocone, Icon, Prolog, Raku, Rebus) into ONE consolidated multi-language
-system. The runtime must reflect that.** Today the runtime is still partitioned *by language*: `core/` is the SNOBOL
-execution model, `builtins/gen_runtime.c` is Icon generators, `builtins/resolve_runtime.c` is Prolog resolution,
-`builtins/script_builtins*.c` is the Raku-flavored by-name layer, and `rt/rt.c` is a grab-bag mixing arith / unify /
-trail / generators / proc-frames / Prolog builtins. **REORGANIZE the entire `src/runtime/**` so each FILE is a
-SUBSYSTEM (a CS capability), NOT a language.** The languages contributed IDEAS; SCRIP now uses ALL ideas in ALL
-languages TOGETHER. Breaking the file↔language coupling is what makes that real — it removes the standing invitation
-to write a parallel language-specific copy of a capability that already exists.
-
-**WHY (Lon, verbatim intent):** Prolog, Icon, and Raku already SHARE enormous machinery — backtracking, goal-directed
-evaluation, choice points, pattern/regex/string-scanning, term/value coercion. Siloing them by language hides that
-overlap and breeds duplication (the same disease the LI de-name rung just treated, now at the FILE level). Cluster the
-shared capability into ONE subsystem file and every language draws from it. **PUSH THE ENVELOPE even on the "language
-builtins":** yes, some predicates/functions feel language-specific, but far more generalize than first appears
-(Icon `find`/Raku `index`/SNOBOL pattern-scan are the same search; Prolog `findall`/Icon generator-collect are the same
-solution-gathering; Prolog backtracking / Icon goal-direction / Raku junctions are one backtracking engine). Default to
-generalizing; only keep a thing language-private when it genuinely cannot be shared.
-
-### METHOD (this is the whole rung)
-1. **RS-1 — CLUSTER (analysis, do FIRST, no moves yet).** Inventory EVERY function/global/type DEFINED in
-   `src/runtime/**` (core/ + rt/ + builtins/). For each, record: signature, current file, the CS capability it serves,
-   and which languages call it (definition-location stays authoritative — a parser/driver-defined symbol merely *called*
-   in runtime is NOT runtime's to move). CLUSTER by capability, ignoring source-language origin. Emit a written
-   partition map (proposed `subsystem → {symbols}` and `subsystem → new filename`) into the Watermark / a HANDOFF doc
-   BEFORE moving anything. This map is the artifact RS-1 produces; Lon reviews it.
-2. **RS-2…RS-N — PARTITION (one subsystem per gated slice).** For each proposed subsystem file, MOVE its members
-   there (`git mv` for whole-file relocations; for symbols split out of a grab-bag like `rt.c`, cut+paste the
-   definition into the new file, add the decl to the subsystem header, leave call sites untouched). **MOVE-ONLY /
-   RENAME-ONLY — zero behavioral change.** Update the build system (`Makefile` `RT_PIC_SRCS` + per-`.o` rules,
-   `scripts/build_scrip.sh`) IN LOCKSTEP with every file add/move/delete. One subsystem at a time; gate byte-identical;
-   commit; never start a split you can't finish+gate+commit.
-3. **RS-FENCE — the partition gate.** A script (`scripts/test_gate_runtime_subsystems.sh`) that asserts the runtime
-   file set matches the agreed subsystem partition (no file reintroduces a language silo; each subsystem header is the
-   single home for its capability). Wire into Session Setup.
-
-### STARTING CLUSTERING HYPOTHESIS (RS-1 input, NOT yet validated — refine against the real inventory)
-Candidate subsystems (capability → likely current sources to merge): **values+coercion** (`descr.h`/`coerce.c`/
-`argval.c`/type-tests) · **name/variable binding** (`name_t.c`/`name_save.c` + global-var store — SNOBOL's name model,
-generalized) · **string scanning & pattern matching** (SNOBOL `pattern.c`+`eval_pat.c` + Icon scan in `scan_builtins.c`
-+ Raku NFA dispatch in `script_builtins*.c` — all string-position search) · **terms & unification** (Prolog term-build /
-`rt_unify*` / WAM `rt_trail*` out of `rt.c`+`resolve_runtime.c`) · **backtracking / generators / choice** (Icon
-generators in `gen_runtime.c` + Prolog choice-points/cut in `rt.c`/`resolve_runtime.c` + Raku junctions — ONE
-goal-directed/backtracking engine; this is the highest-value unification Lon called out) · **arithmetic** (`rt_arith*`
-+ numeric coercion) · **string builtins** (concat/substr/length/case — already cross-language) · **I/O & format**
-(write/print/`rt_format*`) · **invocation & call frames** (`invoke.c` + proc-frame arena + call marshalling) ·
-**statement / control flow** (`stmt_exec.c` — SNOBOL goto/label model, generalized) · **by-name dispatch & resolution**
-(`resolve_runtime.c` predicate resolution + `script_builtins_byname.c` by-name builtin table). Validate, split, or
-merge these against the actual symbol inventory in RS-1.
-
-### CARVE-OUTS / GATES
-- **Frontend-contract dispatch-name STRINGS stay** (`ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/
-  `set_prolog_flag`/`current_prolog_flag` and the like): the parser mints these names and the runtime strcmp-dispatches
-  them; the dispatch TABLE may move into a subsystem, but the string values cannot change without the (out-of-scope)
-  frontends. **Parser/driver-DEFINED symbols stay where they are** (definition-location authoritative).
-- **Genuinely-private language builtins** that survive the generalization attempt may keep a small language-private
-  file (or a clearly-marked section) — but that is the EXCEPTION to justify, not the default. Push hard to generalize.
-- **This rung SUBSUMES LI-CORE.** `src/runtime/core/` is not a "rename the SNOBOL-lib" question any more — it is
-  dissolved: its members are clustered into the subsystem files above (pattern→pattern-subsystem, name→binding-subsystem,
-  stmt_exec→control-subsystem, coerce→values-subsystem, …). The `SNO_INIT_fn`-precedent naming decision is reframed as
-  "which subsystem owns SNOBOL runtime-init," handled inside RS-2…N.
-- **GATES (move/rename-only ⇒ byte-identical, EVERY commit):** SNOBOL4 m2 **7/7 HARD** · Icon m2 **12/12 HARD** ·
-  Prolog m2 **5/5 HARD** · `prove_lower2` **67** · `no_bb_bin_t` 0 · `audit_concurrency_invariants` OK ·
-  `test_gate_no_lang_names.sh` (LI-FENCE) holds throughout. Build (`make scrip` + `make libscrip_rt`) rc=0 after each
-  file move with the Makefile/build-script updated in lockstep.
-
-### RS CHECKLIST
-- [x] **RS-1 — CLUSTER. ✅ DONE (SCRIP `85677cb`, 2026-06-02 Sonnet 4.6).** Full runtime symbol inventory (562 functions across `core/`, `rt/`, `builtins/`) + capability tagging + written `subsystem→{symbols}` / `subsystem→filename` partition map in `HANDOFF-2026-06-02-SONNET46-SNOBOL4-BB-RS-1-CLUSTER.md`. NO moves. 17 proposed subsystems: `values`, `name_binding`, `string_ops`, `arithmetic`, `backtrack`, `unification`, `pattern_match`, `invocation`, `control_flow`, `collections`, `io_format`, `resolution`, `by_name_dispatch`, `runtime_eval`, `runtime_init`, `monitor_trace`, `keywords`. Gates byte-identical (m2 SNOBOL4 7/7 + Icon 12/12 + Prolog 5/5 HARD, prove_lower2 67, no_bb_bin_t 0, concurrency OK — RS-1 is analysis only, no code committed). **Lon reviews the map** before RS-2 begins.
-- [~] **RS-2…RS-N — PARTITION. IN PROGRESS (Sonnet 4.6, 2026-06-02).** ✅ **SLICE 1** `runtime_eval` (SCRIP `970dbf5`): `git mv core/eval_code.c → runtime/runtime_eval.c` (EVAL/CODE), validated the gated-slice loop. ✅ **SLICE 2** `unification` (SCRIP `17e759e`): extracted the WAM execution core (`rt_node_to_term`/`rt_unify_*`/`rt_trail_*`/`rt_env_*`/`rt_choice_cut_*`/`rt_get_cut_flag`/`rt_main_init`) from grab-bag `rt/rt.c` into `runtime/unification.c`. Both gated byte-identical + committed. **🔑 FINDINGS:** (a) build lockstep = Makefile ONLY (RT_PIC_SRCS line + scrip per-`.o` rule); (b) files in `src/runtime/` must use relative includes `"rt/rt.h"`/`"builtins/X.h"`/`"../parser/..."` (the `scrip:` per-`.o` build lacks `-I.../rt`); (c) **Prolog builtins `rt_findall`/`rt_compound_build_n`/`rt_atom_*`/`rt_copy_term`/`rt_sort_msort` are DEFINED in `src/interp/IR_interp.c` — OUT OF SCOPE** (definition-location authoritative). **NEXT (cleanest-first):** `runtime_init` (+ re-home `rt_main_init`), `io_format`, `arithmetic`, `pattern_match` (whole-file `git mv` pattern.c/eval_pat.c first), then the language-named files (`gen_runtime`/`resolve_runtime`/`script_builtins*`) split by capability, then `core/core.c`. Detail: `HANDOFF-2026-06-02-SONNET46-SNOBOL4-BB-RS-1-CLUSTER.md`. (Enumerate the concrete N as slices land.)
-- [ ] **RS-FENCE.** `scripts/test_gate_runtime_subsystems.sh` asserts the subsystem partition; wired into Session Setup.
-
-**Method reminder (carried from LI):** definition-location authoritative; move/rename-only, no behavior change; update
-the build system in lockstep with every file op; gate byte-identical after each slice; never start a split you cannot
-finish+gate+commit. Read the bodies before clustering — do not guess a function's subsystem from its current filename
-(that filename is exactly the language lie we're removing).
-
-## ✅ RUNG COMPLETE — LANGUAGE-INDEPENDENT EMITTER + RUNTIME (de-name) + COMMENT PURGE (emitter+runtime DONE 2026-06-02; LI-CORE folded into the SUBSYSTEM-REORG rung above)
-
-**The EMITTER and RUNTIME are LANGUAGE-INDEPENDENT. Make it so.** Every emitter box, every runtime helper, every
-IR-facing name is named by its **computer-science / industry-standard concept**, NOT by the source language that
-happens to exercise it. Strip every language tag — `SNO`/`sno`, `ICN`/`icn`/`Icon`, `PL`/`pl`/`prolog`,
-`RAKU`/`raku`/`RK`/`rk`, `REB`/`rebus` — from `src/emitter` and `src/runtime`, **including in comments**.
-**WHY:** to remove the confusion. A session reads `sno_flat_chain_build` while working Icon, sees `sno`, concludes
-"that's the other language, I'll write a new one," and **duplication goes rampant**. One concept → one name → one
-implementation. (Scope: `src/emitter/**` + `src/runtime/**`. FRONTEND `src/frontend/**` is OUT OF SCOPE — language
-identity legitimately stops at the parser. The LI-0 comment purge is repo-wide across ALL `src`.)
-
-### ⛔ COMMENT POLICY (Lon, verbatim 2026-06-02) — THERE IS EXACTLY ONE COMMENT
-**The ONLY comment permitted in ANY SCRIP source is the LINE-BREAK separator** — `/*` + dashes + `*/`, **120
-characters long**, placed **between every function and every major block of source**. **`/*=====*/`** (equals,
-also 120 chars) is the variant used to separate LARGER files / larger sections. **Nothing else.** No block comment
-above a function, no inline comment, no `//`, no prose — **None. Zip. Zero.** (This SUPERSEDES the RULES.md line
-"Block comments above function, after separator" and corrects the separator length **200 → 120**; RULES.md updated
-in lockstep with LI-0.)
-
-### 🔢 THE LISTING (Lon's "first item") — language-tagged surface in EMITTER + RUNTIME (snapshot SCRIP `707b284`)
-- **Filenames** are nearly clean already (prior de-SNO + Ground-Zero rename did the bulk). The ONLY true
-  language-tagged filename is `src/emitter/BB_templates/bb_rk_gather.cpp` (`rk`=Raku). (`xa_prologue.cpp` is the
-  assembly **prologue** — CS-standard term, NOT Prolog; not a hit.) No runtime filename hits.
-- **In-file token occurrences** (emitter / runtime): SNO 109/483 · ICN 156/175 · PL 165/393 · RAKU·RK 75/231 ·
-  REB 0/2.
-- **Distinct EMITTER identifiers:** `IR_SNO_PROG` · `SM_BB_PL_INVOKE` · `RK_GATHER_MAX_TAKES` · `XA_PL_BUILDER`/
-  `_KIDS_RODATA`/`_REGISTRY_TABLE`/`_SEQ_DRIVE`/`_SUB_BUILDER` · `__rk_arr`/`__rk_jct_` · `bb_rk_gather`(`_str`) ·
-  `codegen_pl_callee_block`/`codegen_pl_program`/`codegen_sno_flat_chain_body` · `flat_drive_alt_icn`/
-  `flat_drive_icn_userproc`/`flat_drive_pl_alt`/`flat_drive_pl_choice`/`flat_drive_pl_ite`/`flat_drive_pl_seq` ·
-  `g_icn_call_args`/`g_icn_flat_chain` · `hdr_has_pl_reg` · `icn_chain_arity`/`icn_chain_operand_refs`/
-  `icn_flat_chain_build`(`_text`/`_proc`/`_proc_text`)/`icn_proc_`/`icn_ring_to_tree` · `pl_rich_body_root` ·
-  `reg_pl_count` · `rk_marshal_call_arg` · `rt_icn_arg_stage`/`rt_icn_call_proc_descr`/`rt_icn_size_d` ·
-  `rt_pl_arith`/`rt_pl_catch`/`rt_pl_choice_cut_unwind`/`rt_pl_compound_build_n`/`rt_pl_cut_set`/
-  `rt_pl_node_to_term`/`rt_pl_trail_*`/`rt_pl_unify_const`/`rt_pl_unify_terms` · `rt_rk_call_arr` ·
-  `sno_chain_arity`/`_is_real`/`_operand_refs`/`_prebuild_children`(`_text`)/`_resolve` · `sno_flat` ·
-  `sno_flat_chain_build`(`_text`) · `sno_prog_t`/`sno_stmt_t`/`sno_stmt_operand_refs`/`sno_ring_to_tree` ·
-  `v_raku_gather` · `test_sno_*` (doc refs).
-- **Distinct RUNTIME identifiers** (EXCLUDING `core/` SNOBOL-lib + snocone): `ICN_CALL_ARGS_MAX`/`ICN_CASE_EQ`/
-  `ICN_GEN_STATE_BASE`/`ICN_NULL`/`ICN_PROC_FRAME_DEPTH`/`_QWORDS`/`ICN_SCAN_PUSH`/`POP`/`ICN_SWAP_TOP2`/
-  `RT_ICN_PROC_MAX`/`descr_to_str_icn`/`g_icn_proc_arena`/`_depth`/`icn_cset_canonical`/`complement`/`diff`/
-  `inter`/`union`/`rt_icn_*` · `PL_BUILTIN`/`RT_PL_MARK_STACK_MAX`/`STAGE2_PL_PRED_TABLE_SIZE`/
-  `DRIVER_PL_RUNTIME_H`/`current_prolog_flag`/`g_pl_last_ok`/`interp_exec_pl_builtin`/`is_pl_user_call`/`pl_*`
-  (`arg`/`assert_term`/`box_choice`/`box_goal_from_ir`/`functor`/`output_str`/`runtime`/`term_to_string`/
-  `unify_atom`/`univ`/`var_bind`/`write`/`write_canonical`/`writeq`) · `RAKU_BUILTINS_H`/`RK_GRAM_MAX`/`RK_NFA_BB`/
-  `Raku_match`/`Raku_nfa`/`g_raku_match`/`_subject`/`raku_nfa_*`/`raku_re`/`raku_try_call_builtin_by_name`/
-  `__rk_*` · `SNO_BB_BOXES_WASM`/`SNO_RUNTIME_WASM`/`emit_wasm_prolog`. Plus `src/runtime/interp/` (the
-  language-interpreter layer: `gen_runtime`/`scan_builtins`/`script_builtins*`/`resolve_runtime`) — de-name by CS
-  concept (generator/scanner/resolver/builtin-table), resolving the `gen_` vs emitter-`bb_*` collisions flagged in
-  `HANDOFF-2026-05-31-OPUS48-GROUND-ZERO-COMMENT-PURGE.md`.
-
-### ⛔ EXCLUSIONS — NOT language-as-shared-layer naming; do NOT strip (carried from the SNOBOL DE-NAME ladder)
-1. **`IR_LANG_SNO`/`IR_LANG_ICN`/`IR_LANG_PL`/`IR_LANG_RAKU` (+ bare `LANG_SNO`/`LANG_ICN`/`LANG_RAKU`).** The
-   shared lowerer + shared emitter dispatch branch on this (`switch (cx.lang)`); it NAMES the language the shared
-   layer must know — NOT a per-language box/helper. **KEEP.**
-2. **Snocone is a DIFFERENT language; `sno` ⊂ `snocone`.** `snocone`/`_snoc_*` (incl. `eval_pat.c`'s `_snoc_pat_*`)/
-   `snoch`/`snotypes` — stripping `sno` CORRUPTS them. **KEEP (no blanket `sno` sed).**
-3. **`src/runtime/core/` SNOBOL runtime LIBRARY** (`SNO_INIT_fn`/`SnoRt`/`SnoSaveEnt`/`SNO_LIB`/`SNO_SAVE_MAX`/
-   `_sno_fail`/`g_sno_save`) — the SNOBOL execution model; stripping yields vague/colliding names. **SEPARATE
-   DECISION (LI-CORE, flag for Lon); do AFTER the unambiguous surface.**
-4. `prologue`/`epilogue` (assembly terms, not Prolog); `src/frontend/**` (out of scope).
-
-### 🪜 THE LADDER (gated; lowest first; build GREEN + m2 HARD invariant after EACH slice — name/comment edits are behavior-neutral BY CONSTRUCTION, so ANY gate delta = a real bug)
-- [x] **LI-0 — STRIP ALL COMMENTS, repo-wide (step 1, absolute). ✅ DONE (SCRIP `062b0f9`, 2026-06-02).** 227 files
-  rewritten, −3081 lines; every comment gone except the one 120-char separator; the only `/*`/`//` left are inside
-  string literals (the Prolog `"//"` op, MSIL output text — correct). Build GREEN + m2 7/7 HARD (SNOBOL4) + 12/12
-  (Icon) byte-identical. `scripts/strip_comments.py` (WRITTEN; string/
-  char-literal aware; excludes the 12 generated flex/bison files `*.lex.c`/`*.tab.c`/`*.tab.h`/`lex.*.c`).
-  Removes every `/* */` + `//`; KEEPS the line-break separators and NORMALIZES each to the 120-char canonical form
-  (`/*` + 116 `-` + `*/`, or `=` for major). Dry-run @ `707b284`: **274 files, 126 change, −3081 lines** (the `.c`/`.h`
-  were stripped 2026-05-31; the `.cpp` emitter tree + newly-commented files are the delta). Then update RULES.md C
-  style (separator 200→120; "one comment = the separator", drop "block comments above function"). Gate: build rc=0,
-  m2 7/7 HARD byte-identical. COMPLETION: zero non-separator comments under `src/**` (excl. generated).
-- [x] **LI-1 — FILENAME de-name (emitter). ✅ DONE (SCRIP `0b86f9e`, 2026-06-02 Opus 4.8).** `bb_rk_gather.cpp`→
-  `bb_gather.cpp` (the only language-tagged emitter FILENAME); symbols `bb_rk_gather(_str)`→`bb_gather(_str)`,
-  `RK_GATHER_MAX_TAKES`→`GATHER_MAX_TAKES`, `s_rkg_*`→`s_gather_*`, `Lrkg`→`Lgather`, `rkg_vals_rodata`→
-  `gather_vals_rodata`. `git mv` + Makefile `RT_PIC_SRCS` line + per-`.o` rule + `emit_core.c` `IR_GATHER`
-  dispatch. `bb_gather` confirmed free (distinct from `bb_seq_gather`). Gates byte-identical.
-  **Companion clean emitter slice ✅ DONE (SCRIP `db6d33d`):** `rk_marshal_call_arg`→`marshal_call_arg` (+ label
-  `.Lrkfn`→`.Lcallfn`) in `bb_call.cpp` — the generic call-arg marshaller (serves Icon/Prolog calls), Raku-origin
-  name, confined to that file. ⚠ NOT renamed: `_.bb_rk` (right-kind operand field in bb_unify/bb_arith — NOT Raku).
-- [x] **LI-2 — CHAIN/DRIVE family (emitter), the most confusion-prone (Icon/SNOBOL twins). ✅ DONE (SCRIP slices A/B/D
-  `a0478c4`/`d339c97`/`a822f80`, 2026-06-02 Opus 4.8).** Resolved the twins as CONCEPT-DISTINCT names (the rung's
-  sanctioned alternative to merging): SNOBOL chain = global-variable name-value model → `gvar_*`
-  (`sno_flat_chain_build`→`gvar_flat_chain_build`, `sno_chain_{arity,is_real,resolve,operand_refs,prebuild_children}`→
-  `gvar_chain_*`, `codegen_sno_flat_chain_body`→`codegen_gvar_flat_chain_body`, `sno_stmt_operand_refs`→
-  `gvar_stmt_operand_refs`); Icon chain = typed-DESCR-slot model → `descr_*` (`icn_flat_chain_build`→
-  `descr_flat_chain_build`, `icn_chain_*`→`descr_chain_*`, `g_icn_flat_chain`→`g_descr_flat_chain`). Drivers named by
-  their IR kind: `flat_drive_pl_seq`→`flat_drive_conj`(IR_GCONJ), `flat_drive_pl_alt`→`flat_drive_disj`(IR_DISJ),
-  `flat_drive_pl_choice`→`flat_drive_choice`, `flat_drive_pl_ite`→`flat_drive_ite`, `flat_drive_alt_icn`→
-  `flat_drive_gen_alt`(IR_ALT generator-alternation; existing `flat_drive_alt`=IR_PAT_ALT left untagged),
-  `flat_drive_icn_userproc`→`flat_drive_userproc`. `sno_prog_t`/`sno_stmt_t`→`prog_t`/`stmt_t`, `IR_SNO_PROG`→`IR_PROG`
-  (collision-checked free). ⚠ `*_ring_to_tree`: only `icn_ring_to_tree` is real and it lives in `src/driver/scrip.c`
-  (DRIVER scope — held with the other driver symbols, NOT emitter/runtime); `sno_ring_to_tree` was only an abort
-  doc-string.
-- [ ] **LI-3 — Unification / trail / term (runtime, Prolog-tagged but general CS):** `rt_pl_unify_*`→`rt_unify_*`,
-  `rt_pl_trail_*`→`rt_trail_*` (WAM-standard "trail"), `rt_pl_compound_build_n`/`rt_pl_node_to_term`→
-  `rt_term_build_n`/`rt_node_to_term`, `pl_functor`/`pl_univ`/`pl_var_bind`→`functor`/`univ`/`var_bind` (⚠ collisions).
-- [ ] **LI-4 — Generator / scanner / cset (runtime, Icon-tagged but general CS):** `rt_icn_*`→`rt_*`,
-  `icn_cset_*`→`cset_*` (charset algebra), `ICN_SCAN_PUSH`/`POP`/`SWAP_TOP2`/`GEN_STATE_BASE`→de-tagged.
-- [~] **LI-5 — NFA / junction (runtime, Raku-tagged but textbook CS) — SCOPE-CORRECTED 2026-06-02 (Opus 4.8):**
-  `raku_nfa_{build,exec,free,bb_match,state_count}` are **DEFINED in the PARSER** (`src/parser/raku/raku_nfa_bb.c`,
-  `raku_re.c`) → **OUT OF SCOPE** under Lon's standing "leave parser and lower stages alone" (this OVERRIDES the
-  old "rename the shared symbol at all sites incl frontend"; definition-location is authoritative, and the def is
-  in parser). `rt_rk_call_arr`→`rt_call_arr` is **already done** (no `rt_rk_*`/`rt_icn_*` remain in runtime). What
-  MAY still be in scope here: any `raku_*`/`rk_`/`__rk_jct_*`/`RK_NFA_BB`/`RK_GRAM_MAX` symbols **DEFINED in
-  `src/runtime/**`** (e.g. in `script_builtins*.c`, which DO appear to host some) vs merely called there — triage
-  by definition site before touching.
-- [x] **LI-6 — emitter PL/RK macros. ✅ DONE (SCRIP slice D `a822f80`).** `XA_PL_*`→`XA_*` (6 XA template-kind enum
-  members in `src/include/XA.h`: KIDS_RODATA/SUB_BUILDER/BUILDER/REGISTRY_TABLE/PREDICATE_REGISTRY), `bb_prepare_pl`→
-  `bb_prepare`, `codegen_pl_callee_block`→`codegen_callee_block`, `codegen_pl_program`→`codegen_clause_dispatch`
-  (`codegen_program` was taken), `hdr_has_pl_reg`/`reg_pl_count`→`hdr_has_reg`/`reg_count`. `RK_GATHER_MAX_TAKES`
-  already done in LI-1. (No `SM_BB_PL_INVOKE`/`SNO_*_WASM` survive — already clean; `emit_wasm_prologue` = assembly
-  prologue, carve-out.)
-- [ ] **LI-CORE — `src/runtime/core/` SNOBOL-lib — FLAG / Lon decision (DO LAST).** Runtime-unification question;
-  surface to Lon, no blanket sed.
-- [x] **LI-FENCE — the zero-language gate. ✅ DONE (SCRIP `85677cb`).** `scripts/test_gate_no_lang_names.sh`: scans
-  `src/emitter`+`src/runtime`, fails on any language-tagged SOURCE symbol outside the documented carve-out allowlist
-  (IR_LANG_*/LANG_{SNO,ICN,PL,RAKU}, snocone, prologue·epilogue, `src/runtime/core/**` SNOBOL-lib = LI-CORE-pending,
-  frontend-contract dispatch strings `ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/`set_prolog_flag`/
-  `current_prolog_flag`, held parser API `prolog_atom_*`/`pl_write*`/`Raku_nfa`/`raku_nfa_*`, driver `g_raku_*`,
-  emitted label/comment strings, `STAGE2_PL_PRED_TABLE_SIZE` contract). TEETH-VERIFIED (injected `sno_newbox_count` →
-  exit 1; reverted → OK). **Wire into Session Setup:** add `bash scripts/test_gate_no_lang_names.sh` (expect "OK:
-  LI-FENCE holds") to the gate block alongside `test_gate_no_bb_bin_t` / `audit_concurrency_invariants`.
-
-**Tooling ready:** `scripts/strip_comments.py` (dry-run/apply; spot-checked literal-safe).
-
-**⚠ COLLISION FINDINGS (survey 2026-06-02 — which symbol slices are CLEAN renames vs genuine MERGES):**
-- **CLEAN (de-tagged target name FREE) — STATUS 2026-06-02:** `rt_pl_unify_*`→`rt_unify_*` ✅, `rt_pl_trail_*`→
-  `rt_trail_*` ✅, `rt_pl_compound_build_n`→`rt_compound_build_n` ✅, `rt_pl_node_to_term`→`rt_node_to_term` ✅,
-  `rt_icn_size_d`→`rt_size_d` ✅, `icn_cset_*`→`cset_*` ✅, **`bb_rk_gather`→`bb_gather` ✅ (`0b86f9e`)**,
-  **`rk_marshal_call_arg`→`marshal_call_arg` ✅ (`db6d33d`)**. ⚠ `raku_nfa_*`→`nfa_*` is NO LONGER a candidate:
-  parser-DEFINED ⇒ out of scope (Lon "leave parser alone"). The clean single-symbol surface is now EXHAUSTED.
-- **MERGE (NOT a sed — needs Lon/judgment):** `sno_flat_chain_build` + `icn_flat_chain_build` BOTH de-tag to
-  `flat_chain_build` — two different functions, one name → fold into one (branch on `cx.lang`) or pick
-  concept-distinct names (LI-2). And `rt_pl_arith`→`rt_arith` hits **3 existing** `rt_arith` occurrences → merge with
-  the existing shared arith helper. Do these with full context, last.
-- **LI-4 cset ✅ DONE (SCRIP `a9ab14a`):** `icn_cset_union/diff/inter/complement/canonical`→`cset_*` across
-  gen_runtime.{c,h} + bb_exec.c + icon_runtime.c (call site); m2 7/7+12/12 invariant, prove_lower2 67.
-- **LI-3 unify/trail/term ✅ DONE (SCRIP `99fa787`):** `rt_pl_{unify,trail,compound_build_n,node_to_term}`→
-  `rt_{unify,trail,compound_build_n,node_to_term}` (unification + WAM trail + term-building = language-independent CS)
-  across bb_disj/bb_unify/bb_exec.{c,h}/rt.{c,h}; m2 SNOBOL4 7/7 + Icon 12/12 + Prolog 5/5 HARD, prove_lower2 67.
-
-**✅ EMITTER + RUNTIME DE-NAME COMPLETE (2026-06-02, Opus 4.8 — Lon directive "finish the rename, any emitter/runtime
-symbol or filename, generic-CS names").** Six gated byte-identical slices (`a0478c4` A · `d339c97` B · `12b820d` C ·
-`a822f80` D · `34b1406` E · `85677cb` LI-FENCE) cleared the WHOLE in-scope surface. The judgment calls the rung had
-deferred to Lon are now RESOLVED: (LI-2) chain twins → concept-distinct `gvar_*`/`descr_*`; (rt_pl_arith merge) the
-existing `rt_arith` was a DEAD `STACKLESS_ABORT` value-stack stub (zero callers) → deleted, `rt_pl_arith` took the
-name; (LI-3/runtime Prolog builtins) the open "naming DECISION" resolved by treating each builtin's own descriptive
-name as the CS concept and stripping only the `pl_` tag → `rt_*` (49 helpers). LI-FENCE locks it in.
-**No language-tagged FILENAMES** in emitter/runtime (all already CS-named; `xa_prologue`/`xa_epilogue` = assembly,
-carve-out). **DELIBERATELY HELD (documented, NOT in emitter/runtime DEFINITION scope):** (a) DRIVER-defined symbols
-in `src/driver/scrip.c`+`interp_globals.c` — `icn_ring_to_tree`, `g_raku_match`, `g_raku_subject`, `has_non_sno` (Lon:
-"runtime then emitters, not driver" — suggest a future DRIVER micro-slice); (b) CONTRACTS-defined `STAGE2_PL_PRED_TABLE_SIZE`
-(`src/contracts/stage2.h` — suggest a future CONTRACTS micro-slice, like IR_PROG was); (c) frontend-contract dispatch
-NAME strings the parser mints + runtime strcmp-dispatches (`ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/
-`set_prolog_flag`/`current_prolog_flag`) — renaming needs the out-of-scope frontends; (d) emitted assembly LABEL-prefix /
-COMMENT strings (`"icn_proc_%s"`, `"sno_flat"`, `s_comment("# BOX SNO …")`) — generated-output text, not source symbols,
-and changing them risks cross-language label collisions + churns mode-4 .s; (e) `RK_NFA_BB` getenv() config-key
-(interface string); (f) `LI-CORE` (`src/runtime/core/` SNOBOL-lib) — Lon decision, below. **REMAINING on this rung:
-only LI-CORE** (the SNOBOL runtime library — genuine SNOBOL execution model where a generic CS name would be vague per
-the `SNO_INIT_fn` precedent; separate runtime-unification decision). 
-
-**Historical per-symbol triage (now executed — kept for provenance):**
-  1. **EMITTER MERGE family (LI-2, hardest).** Verified this session: `codegen_flat_chain_body` ALREADY EXISTS in
-     `emit_bb.c` as a SEPARATE function from `codegen_sno_flat_chain_body` ⇒ that pair is a MERGE (fold or pick
-     concept-distinct names), NOT a rename. Same shape for `sno_chain_*`+`icn_chain_*` twins, `sno_flat_chain_build`+
-     `icn_flat_chain_build`, the `flat_drive_{pl_seq,pl_alt,pl_choice,pl_ite,alt_icn,icn_userproc}` drivers, and
-     `g_icn_flat_chain` (⚠ `g_gvar_flat_chain` is the already-renamed SNOBOL one). `codegen_pl_program`/
-     `codegen_pl_callee_block` look 1:1 (targets free) BUT may be Prolog-SPECIFIC program codegen — decide as part of
-     unifying the per-language codegen, don't pre-empt. `*_ring_to_tree`→`ring_to_tree`. Read the function BODIES to
-     choose the merged vocabulary; do not sed.
-  2. **`sno_prog_t`/`sno_stmt_t`→`prog_t`/`stmt_t`** — NOTE these MOVED in GMR-8 to `interp/IR_interp_state.h` (were in
-     `contracts/IR.h`); still in scope (interp is past LOWER). ⚠ grep `stmt_t` collision FIRST. `IR_SNO_PROG`→`IR_PROG`
-     (IR enum in `contracts/IR.h`, produced by lower.c, consumed by emitter — updating those refs is a reference-fix,
-     allowed; the enum lives in contracts, not lower/parser).
-  3. **`rt_pl_arith`→`rt_arith` MERGE** (3 existing `rt_arith`) — with code, last.
-  4. **RUNTIME Prolog-builtin surface (`rt_pl_*`, now 31 decls in `runtime/rt/rt.h` after GMR-8(c), defs in
-     `interp/IR_interp.c`).** Prior LI slices renamed only the general-CS ones (unify/trail/compound_build/node_to_term).
-     The rest are GENUINELY-Prolog builtins (`atom_concat`, `findall`, `copy_term`, `sort_msort`, `term_cmp`,
-     `char_type`, `numbervars`, …) with no neutral CS name → NEEDS A DECISION (keep tag like the `SNO_INIT_fn`
-     precedent for single-language builtins, OR a `builtins_` namespace). Surface to Lon.
-  5. **RUNTIME raku_/pl_ definition-triage:** `prolog`(148)/`raku`(85)/`rk_`(82)/`pl_`(82) tokens in runtime — for EACH
-     symbol decide parser-DEFINED (SKIP, e.g. raku_nfa_*) vs runtime-DEFINED (rename). `XA_PL_*` (defined in
-     `emit_core.c`) → builder/registry CS names (LI-6); `RK_GATHER_MAX_TAKES` already done.
-  6. **LI-CORE** (`runtime/core/` SNOBOL-lib: SNO_INIT_fn/SnoRt/SNO_LIB/…) — Lon decision, DO LAST.
-  7. **LI-FENCE** — write `scripts/test_gate_no_lang_names.sh` (emitter+runtime token-grep == EXCLUDED set only).
-**Method reminder:** word-boundary sed but WATCH `_str`/suffix variants (trailing `\b` fails before `_`) — bit us in
-LI-1; confirm target free + no string-literal hits first; gate byte-identical after each slice; never start a MERGE
-you cannot finish+gate+commit. **`rt_icn_*` ✅
-DONE (SCRIP `ba6e912`):** `rt_icn_{size_d,arg_stage,call_proc_descr}`→`rt_{…}` across bb_call/bb_unop/xa_flat/rt.{c,h};
-m2 7/7+12/12, prove_lower2 67. (The x86() TEMPLATE-REVAMP sub-track below remains valid and continues after the cleanup; a de-name does not
-change the BB/SM/XA template ladder, only its names.)
+The EMITTER and RUNTIME are language-independent: every box / runtime helper / IR-facing name is its
+computer-science concept, NOT the source language that exercises it (so a session never sees `sno_*` while
+working Icon and writes a duplicate). Six gated byte-identical slices cleared the whole in-scope surface
+(`src/emitter/**` + `src/runtime/**`); **LI-FENCE** (`scripts/test_gate_no_lang_names.sh`, wired into the
+Session-Setup gate list) locks it. COMMENT POLICY (RULES.md, Lon 2026-06-02): the ONLY comment permitted in
+any source is the 120-char `/*---*/` line-break separator (`/*===*/` for larger sections) between every
+function/major block — nothing else (no block comment, no inline, no `//`).
+**REMAINING on this rung: only LI-CORE** (`src/runtime/core/` SNOBOL runtime library — a generic CS name
+would be vague per the `SNO_INIT_fn` precedent; separate Lon decision).
+**HELD (out of emitter/runtime DEFINITION scope):** driver-defined symbols (`icn_ring_to_tree`, `g_raku_*`,
+`has_non_sno`); contracts `STAGE2_PL_PRED_TABLE_SIZE`; frontend-contract dispatch-name strings
+(`ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/`set_prolog_flag`/`current_prolog_flag`);
+emitted asm label/comment strings; parser API (`prolog_atom_*`, `pl_write*`, `raku_nfa_*`). EXCLUSIONS kept:
+`IR_LANG_*`/`LANG_*` (shared-lowerer dispatch), snocone (different language), `prologue`/`epilogue` (assembly).
+The x86() TEMPLATE-REVAMP + PB-RB + REG ladders below remain valid (de-naming changes names, not the ladder).
 
 ## ▶ x86() TEMPLATE-REVAMP — sub-track (continues after the cleanup rung above; 2026-06-02)
 
@@ -546,137 +117,19 @@ the SHARED `x86_asm.h`; do not rebuild it or you collide).
 - Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
 - (Full live status is in the **Watermark** near the end of this file.)
 
-### ◀ THIS SESSION (2026-06-02, Opus 4.8) — STUB CLEANUP: delete 54 do-nothing `bb_*.cpp` (Lon PIVOT)
-**Lon directive: remove all empty / do-nothing / `x86_bomb`-stub `bb_*.cpp` files — even ones that will be needed
-again later — because the scaffolding stubs made it impossible to tell which BBs actually exist.** Deleted 54 files
-(SCRIP `cd10224`): 47 single-bomb stubs, multi-arm bomb stubs (`bb_case`/`bb_field`/`bb_idx`/`bb_limit`/
-`bb_nfa_passthrough`), 3 return-empty do-nothing boxes (`bb_clause`/`bb_cset`/`bb_stub`), 7 empty 1-line TUs
-(`bb_binop_{agpure,concat_lit,jct_relop,lit_arith}`, `bb_seq_{flat,gather,passthrough}`). **KEPT** the `bb_binop`
-router (it was the live `IR_BINOP` handler, so deleting it then would have broken binops — but a router IS itself an
-anti-pattern, now slated for removal: see the FIRST NEXT STEP at the top of this file) + all 35 real boxes
-(`x86real>0`, incl. partial-bomb `bb_var`/`bb_gvar_assign`/`bb_unify`).
-**Now a `bb_*.cpp` file existing ⇔ that box is real.**
-- **Coherence edits (no behavior change for any reached box):** Makefile −108 lines (54 `RT_PIC_SRCS` sources + 54
-  `scrip:` compile lines; scrip/scrip-monitor/libscrip_rt all link via `$(OBJ)/*.o` glob → no per-`.o` prereqs).
-  `emit_core.c walk_bb_node`: 70 IR kinds whose only handler was a deleted stub now fall to the existing loud default
-  (`"; [walk_bb_node: kind=%d unhandled]"` + `return 1`); `IR_ASSIGN` keeps its `bb_gvar_assign` (SNOBOL) branch, the
-  deleted Icon `bb_assign` branch routes to default. `emit_bb.c`: −6 dangling no-op helper calls (`bb_case_store`/
-  `bb_case_gate`, `bb_limit_begin`/`inc`/`more`, `bb_eps(NULL)` in `walk_bb_flat`'s NULL path). `bb_templates.h`:
-  −51 phantom prototypes.
-- **Gate-provable safety:** a pure `x86_bomb` stub aborts the generated program when reached → no mode-3/4 test
-  passing today reaches one; mode-2 (`bb_exec.c` oracle) never calls the emitter templates. **Verified invariant:**
-  m2 SNOBOL4 **7/7** + Icon **12/12** (HARD) · m3 SNOBOL **2** / Icon **3** · m4 0/3 · `prove_lower2` PASS ·
-  `no_bb_bin_t` 0 · concurrency **FACT-RULES byte-identical x3** · `pat_rung` M2 **18/19** (`053_pat_alt_commit`
-  pre-existing). Mode-4 pattern tests now SKIP (compile/link fails at the loud default) instead of bombing — no floor
-  impact (MODE4_MIN=0).
-- **Serves the LI rung:** every remaining `bb_*.cpp` is a real box, so the de-name ladder no longer has to guess
-  which are scaffolding. Boxes re-created later (e.g. a real `bb_subject`/`bb_match` for the pattern smoke) come back
-  as genuine `x86()` implementations — not bombs. The de-name (LI) ladder + x86() TEMPLATE-REVAMP + PB-RB pattern
-  ladder below all remain valid future work, unchanged.
+### ✅ x86() conversions DONE (loop-free + single-loop SNOBOL4 pattern leaves + statement boxes)
 
-### ◀ THIS SESSION (2026-06-02, Opus 4.8) — SNO/sno STRIP RENAME (PIVOT; language-independent naming)
-**The runtime is language-independent; `sno`-tagged names falsely implied single-language ownership.** Stripped
-`SNO`/`sno` from all runtime functions + BB template names/vars/fns/filenames, mapping each to the EXISTING
-language-independent vocab. SCRIP `703eb83` (rebased onto peer `06826c8`). **RENAME-ONLY (84/84 symmetric →
-behavior unchanged by construction; all gate baselines preserved).** Key new names the NEXT session uses:
-- **Name-value subsystem** (matches `rt_nv_get`/`NV_SET_fn`; distinct from Icon frame-slot `bb_assign`):
-  `rt_sno_assign_{lit_s,int,var,concat}`→`rt_nv_assign_{str,int,var,concat}` · `bb_sno_assign*`→`bb_nv_assign*` ·
-  `flat_drive_sno_assign*`→`flat_drive_gvar_assign*` · `g_sno_flat_chain`→`g_gvar_flat_chain` · file→`bb_gvar_assign.cpp`.
-- **Pattern-matching subsystem** (subject/scan/match): `rt_sno_subject_load`→`rt_subject_load` ·
-  `rt_sno_match_lit`→`rt_match_lit` · `rt_sno_exec_scan`→`rt_scan_exec` · `bb_sno_subject`→`bb_subject` ·
-  `bb_sno_scan`→`bb_scan_stmt` (`bb_scan` = a BrokerMode enum, taken) · `flat_drive_sno_{subject,scan,
-  ref_invariant,program}`→`flat_drive_{subject,scan_stmt,ref_invariant,program}` · `g_sno_subject*`→`g_subject*` ·
-  files→`bb_scan_stmt.cpp`/`bb_subject.cpp`. Makefile (src-list + per-object rules + `.o` names) updated.
-- **LEFT (out of scope, flagged):** `IR_SNO_PROG` enum; `bb_exec.c` mode-2 statics `g_sno_save`/`g_sno_save_top`/
-  `g_sno_cur_func`+`SnoSaveEnt`/`SNO_SAVE_MAX`; the broader `SNO_*`/`Sno*`/`Snocone*` frontend+mode-2 family
-  (a deeper mode-2/frontend sweep is a separate grand-master-reorg if Lon wants it). Also: the `bb_nv_assign`
-  names from the prior rename are now **further corrected** to `bb_gvar_assign` / `rt_gvar_assign_*` (see below).
-- **✅ NEXT(1) DONE (2026-06-02, Sonnet 4.6):** `OUTPUT = 2 + 3` → `5` in mode-3. See THIS SESSION below.
+All loop-free + single-loop SNOBOL4 boxes are x86()-self-encoding (pBB-free, read only `_`) on the ratified
+regs (Σ=r13/δ=r14/Δ=r15/ζ=r12): `bb_pat_{abort,tab,atp,pos,span,len,rem,any,notany,arb,defer,break,fence}` ·
+`bb_lit` · `bb_lit_scalar` · `bb_var`(SNO+ICN) · `bb_gvar_assign`. The variable-length define/jmp-pair loop is
+SOLVED: `x86_pair_loop()` in `x86_asm.h` (in-band `E`=define-pair-label / `F`=rel32-patch records walked by
+`bb_emit_x86`), consumed by `bb_pat_cat` + `bb_pat_alt`. OP-A-PROMOTE landed (`OUTPUT = 2 + 3` passes m3).
+STUB CLEANUP deleted 54 do-nothing `bb_*.cpp` so a `bb_*.cpp` existing ⇔ that box is real. Boxes recreated
+later come back as genuine `x86()` (not bombs). Detail: the `HANDOFF-*.md` files + git history.
 
-### ◀ THIS SESSION (2026-06-02, Sonnet 4.6) — GVAR RENAME + `OUTPUT = 2 + 3` mode-3
-**`OUTPUT = 2 + 3` RUNS END-TO-END IN MODE-3 (prints `5`; verified vs SPITBOL oracle for +/-/*//).**
-**Also: second rename pivot** — `bb_nv_assign`→`bb_gvar_assign`, `rt_nv_assign_*`→`rt_gvar_assign_*`,
-`g_nv_flat_chain`→`g_gvar_flat_chain` (Lon directive: `NV` is opaque jargon; concept = **global variables**,
-what the user manual calls them; runtime is language-independent). SCRIP `03995b7` (rename) + `707b284` (arith).
-- **Rename** (SCRIP `03995b7`): 9 files, 42+/42- symmetric, zero behavior change. All gates green by construction.
-- **Arith** (SCRIP `707b284`): three pieces: (a) `op_a_slot` field added to `sm_emit_t` + promoted in
-  `walk_bb_node` (`g_emit.op_a_slot = bb_slot_get(nd->α)`); (b) new `bb_binop_gvar_arith.cpp` — gvar arith
-  arm gated on `g_gvar_flat_chain && op_off>=0`, reads `op_sa`/`op_sb` as literal ival immediates, stores raw
-  int64 into an 8-byte `bb_slot_alloc`-keyed ζ-slot (node-keyed so `bb_slot_get` finds it); (c) `bb_gvar_assign`
-  int-binop arm — reads `_.op_a_slot`, `lea rdi [rip+dst]`, `mov rsi [r12+slot]`, `call rt_gvar_assign_int`,
-  replaces the x86_bomb stub. MODE3_MIN floor corrected 5→2.
-- **Gates GREEN:** m2 **7/7 HARD** · m3 **2/6** (output+arith) · m4 0/6 · `no_bb_bin_t` 0 · `sm_dead` 0 ·
-  concurrency OK · prove_lower2 PASS · g_vstack 0.
-- **NEXT (SNOBOL4):** `bb_subject` + `bb_match` together → the `pattern` smoke (`S 'b' = 'X'` → `aXc`). MATCH
-  reads SUBJECT's ζ-slot via `g_subject_slot`; both boxes must be emitted in the same flat chain.
-  Then `bb_capture`/`bb_arbno`. Detail: `HANDOFF-2026-06-02-SONNET46-SNOBOL4-BB-GVAR-RENAME-ARITH.md`.
-
-### ◀ PRIOR SESSION (2026-06-02, Opus 4.8) — `bb_var` → x86() (name-value pass-through + ICN slot-copy)
-**`S = 'hi'; OUTPUT = S` RUNS END-TO-END IN MODE-3 (prints `hi`)** — the `OUTPUT = S` / var-read path the
-prior session's NEXT(1) named. Also verified: `A='foo'; B=A; OUTPUT=B` → `foo` (var→var chain). `bb_var`
-converted off its `x86_bomb` stub to x86() self-encoding (SCRIP this session's commit):
-- **SNO flat-chain arm** (`g_sno_flat_chain`): pure pass-through `IF(MEDIUM_TEXT, α:+comment) + jmp γ; def β;
-  jmp ω`. SPITBOL semantics (manual p.23 "Using variables"): a variable reference on an assignment's rhs is
-  resolved NON-DESTRUCTIVELY by the runtime name-value table at call time — the IR_VAR box produces no value;
-  the downstream `bb_sno_assign` var arm does NV_GET(src)→NV_SET(dst) via `rt_sno_assign_var`. So IR_VAR is a
-  by-name port pass-through (mirrors the `bb_lit_scalar` IR_LIT_S pass-through), NO value stack, NO ring.
-- **ICN flat-chain arm** (`g_icn_flat_chain`, op_off≥0): GZ-7 16-byte DESCR copy — Icon vars are typed DESCRs
-  (two qwords: lo=type tag, hi=payload) — from the named var slot `[r12+op_sa]` into this box's own slot
-  `[r12+op_off]` via two 64-bit `x86_frame_load64`/`x86_frame_store64` (REX.W ζ-frame ops, BINARY==TEXT),
-  then `jmp γ; def β; jmp ω`. Register-relative `[r12+off]` only (ζ-frame FACT RULE) — no movabs, no value stack.
-- **NEW dispatch-time promotion (`emit_bb.c` walk_bb_flat IR_VAR case):** sets `g_emit.op_sa` =
-  `bb_varslot_peek(name)` (the named var's ζ-slot) and `g_emit.op_off` = `bb_slot_alloc16(nd)` (this box's own
-  slot) under `g_icn_flat_chain`; `-1`/`-1` otherwise. This is the no-neighbor FACT RULE: the driver (which
-  legitimately sees the graph + owns the slot maps) marshals the slot offsets onto `_`; the box reads ONLY `_`,
-  never calls `bb_varslot_peek`/`bb_slot_alloc16` itself (the old box did — a side-effecting neighbor read).
-- pBB-free + `_.node`-free + zero `bb_bin_t`/`b.size()`/raw-byte-producer/`IF(MEDIUM_BINARY)` (self-checked 0).
-
-**Gates GREEN (this session):** SNOBOL4 m2 **7/7 HARD** · Icon m2 **12/12 HARD** (shared `emit_bb.c` IR_VAR touch
-did NOT regress Icon — baseline-stashed proof: Icon m3 was already 0/12 at HEAD pre-change, the prison-commit
-state) · `test_gate_no_bb_bin_t` 0 · `prove_lower2` 67 PASS · `test_gate_sm_dead` 0 · `audit_concurrency_invariants`
-rc=0 · purity 1 (pre-existing Icon `bb_every`) · medium-invisible 1 (pre-existing Icon `bb_unop`) · `g_vstack`
-token 0. m3 smoke PASS=1 (the `pattern`/`concat`/`arith`/`goto_s`/`define` cases need the still-bombed
-subject/match/binop/goto/define boxes — `bb_var` alone unblocks the var-read leaf, verified by direct `./scrip
---run` above). **NEXT (SNOBOL4):** (1) `_.op_a_slot` promotion (`emit_core.c`: `g_emit.op_a_slot = nd->α ?
-bb_slot_get(nd->α) : -1`) + `bb_sno_assign` int-binop arm → unblocks `OUTPUT = 2 + 3`; (2) `bb_sno_subject` +
-`bb_match` together (MATCH reads SUBJECT's ζ-slot `g_sno_subject_slot`) → the `pattern` smoke; then
-`bb_capture`/`bb_arbno`. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-BB-VAR.md`.
-**POST-REBASE (merged `origin/main`):** a concurrent Icon-lane peer commit SCRIP `32d1d89` (`bb_lit_scalar`/
-`bb_call`/`bb_binop` router + relop/concat_slot → x86()) landed during this session and rebased cleanly UNDER my
-commit. On the merged tree the gates re-verified GREEN — SNOBOL4 m2 7/7 HARD · Icon m2 12/12 HARD · Icon m3/m4
-now **2/12** (the peer's boxes, NOT `bb_var`) · `no_bb_bin_t` 0 · `prove_lower2` 67 · concurrency OK · `bb_var`
-var-read (`hi`) + var-chain (`foo`) still correct. So a next session's sweep sees Icon m3=2, not 0 — peer gain.
-Final pushed tips: SCRIP `a4f7242`, `.github` (this commit).
-
-### ◀ PRIOR SESSION (2026-06-02, Opus 4.8) — α-OPERAND PROMOTION + `bb_lit_scalar` + `bb_sno_assign` → x86()
-**`OUTPUT = "hello"` RUNS END-TO-END IN MODE-3 (prints `hello`)** — first SNOBOL4 statement restored since the
-prison commit dropped m3 to 0. Three pieces landed (SCRIP):
-- **NEW shared infra — α-operand promotion.** `walk_bb_node` (emit_core.c) now sets `_.op_a_sval` /
-  `_.op_a_node_kind` from `nd->α` (added to `sm_emit_t` in emit_globals.h). This is the no-neighbor FACT RULE
-  made practical for BINARY consumers: the dispatcher (which sees the graph) marshals the α-operand onto `_`,
-  so a consumer box reads ONLY `_` — never `pBB->α`. Additive; Icon m2 12/12 unperturbed. The pattern the rest
-  of the SNOBOL4 lane builds on (next: `_.op_a_slot` = promote `bb_slot_get(nd->α)` for the int-binop arm).
-- **`bb_lit_scalar` → x86()** (was bb_bin_t offset-table). Pass-through arms (IR_LIT_S/NUL/F + non-flat IR_LIT_I)
-  = pBB-free `jmp γ; def β; jmp ω`, byte-identical to the original IR_LIT_S arm. The **IR_LIT_I flat-chain arm
-  (g_icn_flat_chain) is a documented LOUD bomb** — its 16-byte-DESCR→ζ-slot store needs a RELOCATABLE
-  rip-relative load of sealed in-blob VALUES; the keystone RO encoders load ADDRESSES only. That is the **REG-RO**
-  rung (anticipated in x86_asm.h, not built). Did NOT bend the RO-IP-relative FACT RULE with a movabs.
-- **`bb_sno_assign` → x86()** (pBB-free). `lit_s` + `var` arms CLEAN (two RO ptr loads + one call via
-  x86_load_ro/x86_call_ro): `rt_sno_assign_lit_s(dst,str)` / `rt_sno_assign_var(dst,src)`. `int-binop` +
-  `concat` arms are documented LOUD bombs (int-binop needs `_.op_a_slot`; concat is the STITCH_SEQ pattern-graph
-  work PB-RB-4, not a box rewrite). β = jmp ω (single-shot assign); no r10 guard / no align dance (rsp 16-aligned
-  at α entry → one direct call is SysV-correct, matches the original).
-
-**Gates GREEN:** SNOBOL4 m2 **7/7 HARD** · Icon m2 **12/12 HARD** · `test_gate_no_bb_bin_t` 0 · medium-invisible
-unchanged (only Icon `bb_unop`) · concurrency invariants rc=0 · `prove_lower2` PASS · g_vstack 0. m3 still 0/6 by
-the smoke harness (the `var` assign + arith/concat are gated on `bb_var` [shared lane] + `_.op_a_slot`), but
-`OUTPUT="hello"` is verified correct by direct `./scrip --run`. **NEXT (SNOBOL4):** (1) `bb_var` (shared lane;
-port pass-through for SNOBOL4 — check Icon's value-producing use first) → unblocks the `var` assign + `OUTPUT=S`;
-(2) `_.op_a_slot` promotion + `bb_sno_assign` int-binop arm; (3) `bb_sno_subject`+`bb_match` together (MATCH reads
-SUBJECT's ζ-slot), then `bb_capture`/`bb_arbno`; (4) **REG-RO** sealed-trailer encoder (unblocks `bb_lit_scalar`
-IR_LIT_I + mode-4 relocatability). Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-OP-A-PROMOTE-LIT-ASSIGN.md`.
-
----
+NAMING NOTE: the assignment box was renamed `bb_sno_assign`→`bb_nv_assign`→`bb_gvar_assign` (concept = global
+variables, the user-manual term; runtime is language-independent); `rt_*` helpers track it. The scan box is
+`bb_scan_stmt` (not `bb_scan` — a live `BrokerMode` enum value).
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -838,89 +291,12 @@ to literal offset maps; any session that raises it has violated this rule. **COM
 (b) every `MEDIUM_BINARY` arm uses a hand-coded LITERAL byte map with hardcoded offsets, never a function to
 count bytes; (c) the FACT RULE body is byte-identical across all five GOAL-*-BB files.
 
-> **⛔⛔⛔ ACTIVE TOP PRIORITY — DE-NAME: NO `SNO`/`sno` IN EMITTER OR RUNTIME (Lon directive 2026-06-01). DO THIS
-> NEXT, BEFORE more pattern dev.** Language-specific naming STOPS AT THE PARSER (frontend). The IR, the emitter
-> boxes, the runtime helpers, and the lowerer are LANGUAGE-INDEPENDENT — **there is NO `BB_*`/`IR_*`/box/runtime
-> identifier particular to a language.** Every `SNO`/`sno` prefix/infix/suffix in `src/emitter`, `src/runtime`,
-> `src/lower`, `src/processor`, `src/driver` is STRIPPED (the symbol is removed; e.g. `bb_sno_match` → `bb_match`).
->
-> **✅ STARTED (2026-06-01, Opus 4.8): `bb_sno_match` → `bb_match`** (the box created this session; the directive's
-> named example). Renamed: file `bb_sno_match.cpp`→`bb_match.cpp` (git mv), `bb_sno_match`/`_str`→`bb_match`/`_str`,
-> `flat_drive_sno_match`→`flat_drive_match`, `g_sno_match_*`→`g_match_*`, emit_core dispatch, Makefile, lower.c
-> comment, de-SNO'd error strings. Gates GREEN + probe 2/2. The REST of the surface (below) is the next session.
->
-> **THE LADDER (one box-cluster per slice, gate green each — mirror the BB→IR rename's slice discipline). Each
-> strips the token; a file rename is `git mv` + Makefile (`RT_PIC_SRCS` line + per-`.o` rule) + every `#include`/
-> call site + emit_core dispatch + comments/strings. Run the full gate suite (smoke SNOBOL4 m2 7/7 HARD + Icon m2
-> 12/12 HARD + prove_lower2 65 + probes + sm_dead + concurrency + purity + g_vstack==0) after EACH slice.**
-> - **DN-1 SUBJECT:** `bb_sno_subject`→`bb_subject` (file+sym+`_str`), `flat_drive_sno_subject`→`flat_drive_subject`,
->   `rt_sno_subject_load`→`rt_subject_load`, `g_sno_subject_slot`→`g_subject_slot` (read in `bb_match.cpp` — update
->   there too), `g_sno_subject_dbg_*`→`g_subject_dbg_*`, `Lsno_subj*`→`Lsubj*`. Touches bb_sno_subject.cpp, emit_bb.c,
->   emit_core.c, rt.c, bb_match.cpp, lower.c, prove_lower2.c.
-> - **DN-2 SCAN:** `bb_sno_scan`→`bb_scan` (file+sym+`_str`), `flat_drive_sno_scan`→`flat_drive_scan`,
->   `rt_sno_exec_scan`→`rt_exec_scan`. (`bb_scan` is free — `gen_scan` is `bb_gen_scan`.) Touches bb_sno_scan.cpp,
->   emit_bb.c, emit_core.c, rt.c, bb_exec.c.
-> - **DN-3 CHAIN:** `sno_flat_chain_build`/`_text`→`flat_chain_build`/`_text`, `codegen_sno_flat_chain_body`→
->   `codegen_flat_chain_body`, `sno_chain_*`→`chain_*` (arity/is_real/operand_refs/prebuild_children[_text]/resolve),
->   `sno_stmt_operand_refs`→`chain_stmt_operand_refs`, `sno_stmt_t`/`sno_prog_t`→`stmt_t`/`prog_t` (⚠ grep `stmt_t`
->   first for a collision), `g_sno_flat_chain`→`g_flat_chain` (emit_bb.c + emit_bb.h + bb_var.cpp), `sno_flat`
->   label-prefix→`flat`. Touches emit_bb.c, emit_bb.h, bb_var.cpp, scrip.c, driver. (These sit beside the Icon
->   `icn_flat_chain_*`/`icn_chain_*` twins — the generic names are free; the prefix-drop is the point.)
-> - **DN-4 PROG / REF / MATCH-LIT:** `IR_SNO_PROG`→`IR_PROG` (IR.h enum + scrip_ir.c kind_names + emit_bb.c +
->   lower.c), `flat_drive_sno_program`→`flat_drive_program`, `flat_drive_sno_ref_invariant`→`flat_drive_ref_invariant`,
->   `rt_sno_match_lit`→`rt_match_lit` (rt.c), `g_sno_cur_func`→`g_cur_func` (bb_exec.c — grep collision first).
-> - **DN-5 ASSIGN — ⚠⚠ COLLISION / MERGE DECISION (NOT a pure rename — needs Lon/judgment).** `bb_sno_assign`
->   stripped is `bb_assign`, which ALREADY EXISTS (the Icon assign box, `bb_assign.cpp`). This is exactly the
->   "no `BB_*` particular to a language" END STATE: IR_ASSIGN should be ONE box `bb_assign` that branches on
->   `operand kind` (lit-string / int-binop / var / concat — the SNOBOL arms) vs the Icon var-store arm, inside the
->   one template (the SHARED-LOWERER/EMITTER concurrency model already routes both via `case IR_ASSIGN`). So DN-5 is
->   a **box merge**, not a rename: fold `bb_sno_assign.cpp`'s arms into `bb_assign.cpp`, collapse the walk_bb_flat
->   `IR_ASSIGN` dispatch (currently SNO `α==IR_LIT_S|VAR|SEQ` → bb_sno_assign / `α==IR_BINOP` → bb_sno_assign_binop
->   vs Icon → bb_assign) into one box, rename `rt_sno_assign_*`→`rt_assign_*`, `flat_drive_sno_assign[_binop]`→
->   `flat_drive_assign[_binop]` (⚠ `flat_drive_assign` EXISTS — merge), `bb_sno_assign_var`/`_concat`/`_int`→ the
->   merged box's arms, `Lsno_dst/iname/name/src/str`→`L*`. bb_var.cpp's `bb_sno_assign_var`/`rt_sno_assign_var` refs
->   follow. **Do DN-5 LAST and with full context** — it is the architecture seam, not a sed.
-> - **DN-6 RESIDUE:** strip leftover `sno` from `dump_sno`/`dump_sno_value` (prove_lower2.c → `dump_pat`/`dump_pat_value`,
->   grep collision), the dead-`sno_ring_to_tree` comment mentions, `has_non_sno` (scrip.c), and any `sno`/`SNO` token
->   in comments/strings of the touched files. Then a ZERO-CHECK: `grep -rnE '\b[A-Za-z_]*([Ss][Nn][Oo])[A-Za-z_]*'
->   src/emitter src/runtime src/lower src/processor src/driver` returns ONLY the EXCLUDED set below.
->
-> **⛔ EXCLUDED — DO NOT TOUCH (these are NOT language-as-box-naming):**
-> - **Snocone (a DIFFERENT language; `sno` is a substring of `snocone`, stripping it CORRUPTS the name):**
->   `snocone`, `_snoc_*`, `snoch`, `snotypes`, `lang_snocone`, `snocone_compile`, `snocone_driver`.
-> - **The language-identity enum `IR_LANG_SNO`/`LANG_SNO`:** this is the tag the ONE shared lowerer branches on
->   (`switch (cx.lang)`), inherent to the unified-lowerer design (SHARED-LOWERER FACT RULE) — it is NOT a per-language
->   box/IR-kind. KEEP (it names the language, which the lowerer legitimately must know).
-> - **Parser / frontend bridge (language-specific stops AT the parser, so these are fine):** `sno_parse_ast`,
->   `sno_parse_string_ast`, `sno_parse_define_proto`, `sno_add_include_dir`, `tree_to_sno`, `lower_sno`/`lower_sno.c`
->   (the AST→`.sno` SOURCE transpiler — a frontend/`--dump-sno` tool, not the IR lowerer), `LOWER_SNO_H`, `test_sno_*`.
-> - **⚠ SEPARATE LARGER DECISION (flag for Lon — NOT in this ladder):** the SNOBOL RUNTIME-LIBRARY core in
->   `src/runtime/core` (`SNOBOL`, `SnoRt`, `SnoSaveEnt`, `SNO_INIT_fn`, `SNO_LIB`, `SNO_LINEBUF`, `SNO_LINE_SPLIT_AT`,
->   `SNO_LOOP_STACK_MAX`, `SNO_SAVE_MAX`, `g_sno_save`/`_top`) IS the SNOBOL execution model itself. Stripping `SNO`
->   there yields vague/colliding names (`INIT_fn`, …) and is a runtime-UNIFICATION question, not a rename. The IR/
->   emit/BB-facing surface (the ladder above) is unambiguous and goes FIRST; the core-runtime de-SNO awaits Lon's
->   call on whether/how the SNOBOL runtime library merges.
-
-> **🚧 ACTIVE RUNG — STOP-AND-DEV (Lon directive 2026-05-31). READ THIS FIRST.**
-> The next work is the **5-phase SNOBOL4 statement execution, 100% through BBs**: SUBJECT → PATTERN → MATCH →
-> REPLACEMENT → REPLACE, built as the **SESSION RUNG #0 — SBL-PAT-BB** ladder (**PB-0 … PB-OPT**, in this file
-> below). **DO THIS DEV FIRST.** ⛔ Do **NOT** start climbing test/rung ladders (prove_lower2 rungs, smoke-floor
-> bumps, corpus-parity sweeps, per-language bring-up) until the 5-phase pattern execution is FULLY NATIVE through
-> BBs. **PB-RB-1 (REF_INVARIANT) + PB-RB-2 (matcher-element four-port ABI, SPEC+VERIFY) are DONE (2026-06-01,
-> Opus 4.8). First incomplete step = PB-RB-3 (BB_MATCH driver)** — see the REBUILT LADDER (PB-RB) below. ⚠
-> PB-RB-3 has an OPEN SUBJECT-STORAGE fork flagged for Lon (ζ-slot-as-canonical vs register sweep) — see the
-> "PB-RB-2 MATCHER-ELEMENT FOUR-PORT ABI" block in the ladder.
-> **⛔⛔ ALSO PINNED — BROKERED-MODE-ERADICATION (Lon directive 2026-06-01): there is NO need for two ways to
-> enter a box. `bb_build_brokered` + `EMIT_BINARY_BROKERED` + the `(ζ,int entry)` call convention in
-> `bb_capture.cpp`/`bb_arbno.cpp` are the unfinished residue of the `cc23c9f` C-byrd-box deletion and MUST go
-> (BROK-0…BROK-3 rung below, after PB-RB-OPT). "Still compiles" ≠ "needed" — it is the green-build preservation
-> the top FACT RULE outlaws.** (PB-0 SUBJECT BB landed at SCRIP 179bf4d; OLD PB-1 landed at 6483bb5 but built a
-> PATND_t and is superseded — see PB-1-REWORK.) (The SBL-M3-CHAIN mode-3 5/6 already landed runs non-pattern
-> statements from LOWER's graph + static patterns via the IR_SCAN *interpreter bridge* — that is the substrate,
-> NOT this native pattern ladder.) **Pattern construction — CORRECTED (Lon 2026-06-01):** a pattern is a graph
-> of EMITTED BYRD-BOXES (`bb_box_fn`), built by REF_INVARIANT (sealed) + STITCH/BUILD (variant); NOT a baked
-> `tree_t` (that is EVAL/CODE only) and NOT a PATND_t (being demolished). See **CORRECTED PATTERN
-> ARCHITECTURE** below; the older `tree_t`-bake "DESIGN QUESTION (DECIDED)" is SUPERSEDED.
+> **⛔ SNO/sno DE-NAME — ✅ SUPERSEDED + DONE.** This directive (strip `SNO`/`sno` from emitter/runtime,
+> naming by CS concept) is COMPLETE and subsumed by the LANGUAGE-INDEPENDENT cleanup rung above +
+> `GOAL-RUNTIME-RENAME.md`; LI-FENCE enforces it. Carve-outs preserved: `IR_LANG_SNO`/`LANG_SNO` (the shared
+> lowerer's `switch(cx.lang)`); snocone (a DIFFERENT language — `sno` ⊂ `snocone`, never blanket-sed);
+> `src/runtime/core/` SNOBOL runtime LIBRARY (LI-CORE, pending Lon); parser/frontend bridge (`sno_parse_*`,
+> `lower_sno`, `tree_to_sno`, `test_sno_*`).
 
 > **⭐⭐⭐ CORRECTED PATTERN ARCHITECTURE (Lon directive, 2026-06-01, Opus 4.8). THIS SUPERSEDES the `tree_t`-bake
 > "DESIGN QUESTION (DECIDED)" below AND the PATND_t-based PB-1/PB-2 as previously landed. READ THIS FIRST; the
@@ -1089,63 +465,21 @@ count bytes; (c) the FACT RULE body is byte-identical across all five GOAL-*-BB 
 > REG-1 work (both are about what lives in the frame vs. what is baked), but `BB_LINK` is a PB-RB-4+/PB-OPT-era
 > concern (shared sealed heads), NOT a REG-ladder blocker — the REG ladder ships first.
 
-> **⭐⭐ MODES 3 & 4: HOW THEY WERE MISSED — AND WHERE THE WORK ACTUALLY LIVES (Lon directive, 2026-05-31 Opus 4.8).**
-> **The whole job is LOWER + EMITTER. Get those two right and modes 3 and 4 run like magic — automatically, from the
-> SAME IR graph and the SAME per-box templates. Nothing else is needed.**
+> **⭐ MODES 3 & 4 = TWO ARMS OF ONE TEMPLATE PER BOX (Lon, 2026-05-31).** The whole job is LOWER + EMITTER;
+> get those right and modes 3/4 run from the SAME IR graph + the SAME per-box template — **BINARY arm = mode 3**
+> (raw x86 into the mmap'd RX pool, `bb_build_flat`) / **TEXT arm = mode 4** (GAS → `as`/`gcc`,
+> `codegen_flat_build`). Mode 2 is the C oracle (`IR_interp.c`). There is NO per-mode driver code and NO
+> ring→tree adapter — `sno_ring_to_tree` is DELETED; LOWER must emit the four-port statement-BB shape directly.
+> Recipe per statement: (a) LOWER it into the four-port BB graph (Icon `lower_expr_threaded` is the model;
+> `test_sno_1.c` is the SNOBOL4 topology); (b) give each box a BINARY + a TEXT arm, stackless (`[ζ=r12+off]` RW
+> + RO `[rip+disp]`, NO ring, NO value stack); (c) both native modes pass from the one graph + one template.
+> SNOBOL m4 (0/6) is pending only LOWER emitting that graph — the emission scaffolding is intact and Icon/Prolog
+> m4 already emit.
 >
-> **THE MISS (be honest about it so it never recurs):** prior sessions treated modes 3 and 4 as *driver* problems.
-> The mode-3 work went into `scrip.c` — the `sno_ring_to_tree` adapter (un-flattening the AG-ring graph into a tree
-> the emitter wants) + `mode_run` wiring. Mode 4 was left as a flat `[SMX]` abort and *reported* as "excised, not
-> rebuilt" for days. Both framings were wrong:
->   1. **Mode 4 was NOT missing a backend.** The EMITTER side was fully intact the whole time — `codegen_flat_build`
->      (the GAS/TEXT flat emitter) + all 15 XA wrap templates (`xa_file_header`/`xa_file_footer`/`xa_flat_*`). ONLY the
->      one-line driver *call* into them had been severed. Verified empirically this session: re-stitching the driver +
->      adding the box's TEXT arm took mode 4 from 0/6 → 1/6 with the `output` shape running end-to-end (real
->      `scrip --compile` → `as` → `gcc -no-pie -lscrip_rt --allow-shlib-undefined` → prints `hello`).
->   2. **The real engine is two arms of ONE template per box.** A SNOBOL4 statement BB has ONE IR shape (LOWER) and ONE
->      template with TWO arms (EMITTER): the **BINARY arm = mode 3** (raw x86 into the mmap'd RX pool, `bb_build_flat`),
->      the **TEXT arm = mode 4** (GAS → `as`/`gcc`, `codegen_flat_build`). Mode 2 is the C oracle (`bb_exec.c`).
->      `bb_sno_assign` is the proof: its BINARY arm gave mode 3 (verified: 86 bytes, disassembled, stackless, `r12=ζ`),
->      and adding its TEXT arm this session gave mode 4 — SAME box, SAME graph, both native modes. **That is the "magic":
->      you write the box once in LOWER + EMITTER and all three modes light up. You do NOT write per-mode driver code.**
->   3. **`sno_ring_to_tree` (in `scrip.c`) is REMOVED (Lon directive 2026-05-31 — VIOLATION).** It was a STOPGAP, never
->      the design: it re-derived the four-port BB topology AT EMIT time from the mode-2 oracle's postfix AG-ring instead
->      of LOWER producing that topology. The correct fix is in **LOWER**: lower each SNOBOL4 statement DIRECTLY into the
->      `test_sno_1.c` four-port statement-BB topology (subject-BB → pattern-BBs → replacement-BB → substitution-BB), so
->      the emitter consumes it with no driver adapter. The adapter + its helpers are deleted.
->      **[CORRECTION 2026-06-02, Opus 4.8]** The original wording below — that BOTH call sites "ABORT by design" —
->      is inaccurate and is the verbiage Lon flagged for correction: (a) mode-3 `--run` does NOT abort — it was
->      re-wired via `sno_flat_chain_build` and runs the full SNOBOL pattern family; (b) mode-4 `--compile` is NOT a
->      design limit — it is the SAME boxes as mode-3 in the TEXT medium, pending only LOWER emitting the four-port
->      statement-BB graph for SNOBOL4 (the emission scaffolding is intact; Icon/Prolog mode-4 already emit). So this
->      is a narrow, temporary wiring gap, not an intentional abort. Original (stale) wording: "BOTH call sites (mode-3
->      `--run`, mode-4 `--compile`) now ABORT by design until LOWER emits the tree shape."
->      The driver then shrinks to
->      "find main graph → hand it to the emitter." This is LM-6 DISPATCH-UNIFY territory and is now the #1 SNOBOL4 step.
->
-> **EMITTER fix landed earlier (the segfault that proves the point):** the shared flat TEXT prologue/epilogue
-> (`xa_flat.cpp`) ignored `g_frame_active` — it always emitted the Σ/`[r10]`-deref Icon-pattern-return epilogue. `r10`
-> is SysV caller-saved, so the `@PLT` store clobbered it → mode-4 segfault. The BINARY arm already honored
-> `g_frame_active` (clean `pop r12; ret`); the TEXT arm now does too (`push r12;mov r12,rdi` prologue + no-deref
-> `pop r12;ret` epilogue). Byte-neutral to Icon (Icon m2 6/6 HARD held; Icon m3 5/6 held).
->
-> **SO, NEXT, AND FOR EVERY STATEMENT AFTER:** the recipe is fixed. (a) LOWER the statement into the four-port BB graph
-> (Icon `lower_expr_threaded` is the model; `test_sno_1.c` is the SNOBOL4 statement topology). (b) EMITTER: give each new
-> box a BINARY arm (mode 3) and a TEXT arm (mode 4) — SAME processing, only BINARY-bytes vs GAS-text differs — stackless
-> (`[ζ=r12+off]` RW frame + RO `[rip+disp]`), NO ring, NO value stack, NO storage outside the boxes (PER-BOX LOCAL
-> STORAGE FACT RULE). (c) Both native modes pass from the one graph + one template. There is NO ring→tree adapter to lean
-> on anymore — LOWER must emit the four-port shape directly.
-
-> **⚠️ SHARED-LOWERER LOCKSTEP NOTE (Sonnet, 2026-05-31, Prolog PLG-4 commit).** Two shared three-language
-> helpers in `lower.c` changed SEMANTICS as STRICT GENERALIZATIONS during Prolog backtracking work:
-> `wire_seq`'s fail-chain now walks back past bounded elements to the nearest resumable predecessor (was a
-> single hop that dead-ended after one bounded element), and `wire_alt` now lowers arms right-to-left so each
-> arm's exhaustion threads to the next arm's entry via its own deepest-fail edge (was patching only the
-> wrapper node's ω, which missed multi-element arms). `wire_seq` backs SNOBOL CAT and `wire_alt` backs
-> SNOBOL ALT, so both touch latent backtracking bugs for concatenations/alternations with 2+ bounded
-> elements after a generator. Re-proven non-regressive for SNOBOL4 (m2 smoke 6/7 — byte-identical via
-> stash/rebuild/compare; the mode-4 pattern suite is all-SKIP under the current SMX excision). No action
-> needed unless you edit `wire_seq`/`wire_alt`; the FACT RULE policy below is unchanged.
+> **⚠ SHARED-LOWERER LOCKSTEP NOTE.** `wire_seq` (backs SNOBOL CAT) and `wire_alt` (backs SNOBOL ALT) are SHARED
+> three-language helpers; changing their signature/semantics is a LOCKSTEP edit across all three GOAL files +
+> re-prove all three. `wire_seq`'s fail-chain walks back past bounded elements to the nearest resumable
+> predecessor; `wire_alt` lowers arms right-to-left threading each arm's exhaustion to the next arm's entry.
 
 ## ⛔ SHARED-LOWERER ONE-FILE CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
@@ -1425,112 +759,19 @@ is gone). The convention TABLE is byte-identical-×3 and UNCHANGED (this rung co
 
 ---
 
-## ⭐ SESSION 2026-05-31 (Opus 4.8) — GROUND-ZERO LOWER REWRITE (unified four-port AST→IR) — FOUNDATION LAID + PROVEN
+## ✅ GROUND-ZERO LOWER REWRITE (unified four-port AST→IR) — FOUNDATION PROVEN (2026-05-31)
 
-**Post-PIVOT direction (Lon):** rip-and-replace the lowerer with ONE unified AST→IR pass on the Proebsting
-four-port attribute-grammar model. SNOBOL4 pattern lowering (the legacy `build_node`) becomes the **PATTERN
-role** of that unified pass. Ground zero — old build may break; old `lower.c` left untouched for now.
-
-**Survey:** `src/lower/lower.c` is the ONLY real AST→IR lowerer (7 tangled `TT_` dispatchers). `prolog_lower.c`/
-`rebus_lower.c` are AST→AST normalizers; `lower_sno.c` is a tree→`.sno` source emitter. 156 `TT_` in, 110 `IR_` out.
-
-**Architecture — ROLE × kind.** One funnel `lower2(cx, e, γ_in, ω_in, &α_out, &β_out)` → branch on
-`cx.role ∈ {VALUE, PATTERN, GOAL}` → ONE `switch(tree_e)` per role. ~2/3 of kinds role-monomorphic; only
-QLIT/VAR/FNC + arith/rel (shared VALUE↔GOAL) split on role.
-
-**Canonical signature = the attribute grammar** (jcon `ir_a_X(p,st,inuse,target,bounded,rval)`; Proebsting):
-γ/ω (succeed/fail) INHERITED in as 2 pointers; α/β (start/resume) SYNTHESIZED out as 2 ptr-to-ptr. `IR_t`
-ports are POINTERS → goto-chains COLLAPSE = the paper's Fig-2 optimization for free. Two template classes:
-BOUNDED LEAF (`emit_leaf`, honors `cx.bounded` = jcon `/bounded`) + RESUMABLE GENERATOR. Discipline in 3
-primitives: `nalloc`, `set_succ_fail` (default-only — never clobber a threaded port), `ret`.
-
-**Landed (SCRIP `3c66694`, NEW standalone TUs — NOT in Makefile/driver, nothing regressed):**
-- `src/lower/lower2.c` (358 ln, 0 errors). 5 FOUNDATION BOXES wired + PROVEN faithful to Proebsting Figs 1&2:
-  literal §4.1, unop §4.2, binop §4.3 (plus+LessThan, relational flag `dval=1.0`), to/to_by §4.4 (ir_a_ToBy),
-  if §4.5 (runtime-gated; E1 lowered `bounded=1`). PATTERN leaves (LIT/ARB/REM + SPAN/ANY/NOTANY/BREAK/BREAKX
-  via centralized `pat_cset_arg` — the cset trichotomy that was copy-pasted 5× in legacy `build_node`). GOAL
-  leaves (cut/true/fail). 118/156 kinds armed; rest = labelled stubs → LOUD `lower_unhandled`, each annotated
-  with its `ir_a_*` source.
-- `src/lower/prove_lower2.c` — topology proof harness (links lower2+scrip_ir ONLY; local `kind_is_resumable`
-  + `cset_try_fold` stub so the old lowerer is NOT linked). Dumps each IR node idx + α/β/γ/ω.
-- `src/lower/tmatch_proto.c` — `tm`/`tm_g` tree-pattern match+capture PROTOTYPE (compiles) + `#if 0` rewrite
-  exhibit (foundation arms + nested `EVERY(ASSIGN(VAR,TO(lo,hi)))` + Prolog ladder in pattern form).
-
-**PROOF (why this is a SOLID foundation, not a guess):** `5 > ((1 to 2)*(3 to 4))` → exactly **9 IR nodes**
-(paper's "nine expanded templates"); **14/17 control edges == Figure 1**, the 3 = FAITHFUL Fig-2 collapses
-(constant bounds). Proof CAUGHT a real `v_to` bug — wired both children's fail to outer ω; canonical
-`ir_a_ToBy` requires **`to.fail → from.resume`**. FIXED, RE-PROVEN on `(1 to 2) to (3 to 4)` (paper §2
-"initiated four times"): critical edge now `to2.fail → to1`. **Topology proven; NOT executed** — value-level
-proof pending and depends on `bb_exec.c` honoring the relational flag (`dval=1.0`) + if-gate (`node.β` runtime
-dispatch) as encoded — VERIFY against the executor, do not assume (RULES: consult canonical sources).
-
-**Tree-pattern matching — WHAT IT IS (Lon's "two shots"; STEP 2, AFTER the foundation is complete).**
-A lowering rule is really "*if the AST node looks like SHAPE, bind its parts and wire them*." Tree-pattern
-matching makes that literal: a matcher tests a node's SHALLOW shape (its kind, optionally one child's kind /
-an sval tag / arity) and **captures** the immediate sub-expressions into named pointers; the rule body then
-recursively lowers the captured parts and wires the ports. This is the AST-side analog of SNOBOL `subj ? pat`:
-the AST node is the subject, the shape is the pattern, captures bind sub-trees, ordered alternation gives the
-"first matching rule wins" fall-through (the same effect as today's if-ladders).
-
-THE FACILITY (prototyped + compiles in `src/lower/tmatch_proto.c`):
-```c
-/* match kind + arity, capture the first nargs children into (const tree_t **) out-params */
-int tm  (const tree_t *e, tree_e kind,            int nargs, /* &cap0, &cap1, ... */ ...);
-/* same, plus require e->v.sval == tag  (the FNC(",",a,b) / FNC("phrase",...) style dispatch) */
-int tm_g(const tree_t *e, tree_e kind, const char *tag, int nargs, /* &cap0, ... */ ...);
-```
-`tm` returns 1 and binds the capture pointers iff `e->t==kind && e->n>=nargs`. Captures are the subtrees to
-lower next (NOT yet lowered — capture defers, exactly like a DEFER pattern binds-then-matches).
-
-THE "TWO SHOTS":
-- **Shot 1** = `tm`/`tm_g` (match + capture).
-- **Shot 2** = the per-role switch where each arm is `if (pattern matches) → produce wiring`.
-
-WORKED EXAMPLE (hand-coded vs pattern form), the `binop` arm:
-```c
-/* hand-coded today (lower2.c v_binop): */
-if (e->n < 2 || !e->c[0] || !e->c[1]) return NULL;
-IR_t *E1 = e->c[0], *E2 = e->c[1];                 ... lower E1, lower E2, patch, wire ...
-/* pattern form: the guard + the child-grab become ONE line that reads as the shape */
-const tree_t *E1, *E2;
-if (!tm(e, e->t, 2, &E1, &E2)) return NULL;        ... lower E1, lower E2, patch, wire ...
-```
-And the NESTED case (today a 3-deep manual guard at legacy lower.c:753) reads top-down as the AST shape:
-```c
-/* EVERY(ASSIGN(VAR, TO(lo,hi))) */
-tm(e,TT_EVERY,1,&asn) && tm(asn,TT_ASSIGN,2,&var,&rhs) && var->t==TT_VAR && tm(rhs,TT_TO,2,&lo,&hi)
-```
-And the Prolog goal if-ladder collapses to a table: `if (tm_g(e,TT_FNC,",",2,&A,&B)) return lower_conj(...);`
-one readable `shape ? builder` line per control construct.
-
-WHY (measured on legacy lower.c): decisions are SHALLOW — 120 decision-peeks but only **12 sites peek two
-levels**, **0 peek three**; wiring is uniform recursion (78 lower-calls, one per child subexpression). So
-every rule = MATCH shallow shape + CAPTURE children + RECURSE + WIRE — exactly what `tm`/`tm_g` serve. LOC
-shrink is ~30%; the real win is UNIFORMITY (every `e->n<k`/null guard vanishes into the match; nested peeks
-read as the tree; dispatch ladders become tables). **Sequencing:** do this AFTER the hand-coded foundation
-boxes are all in and proven — refactor proven code into pattern form, don't design two things at once.
-
-ENDGAME: this pattern form is the bridge to an **Icon-bootstrap lowerer** — the lowerer IS an Icon program
-over `tree_t` (each rule a SNOBOL pattern over `node.kind ++ node.sval` with children captured, Icon
-alternation giving ordered match). Once Icon-BB executes enough, the pattern-form C transliterates almost
-mechanically. (Parse symmetry: the parser is an LALR match tokens→tree; `tm`/`tm_g` is the symmetric match
-tree→IR on the way down. DEFER symmetry: `IR_PAT_DEFER`/`rt_defer_match` is the runtime analog of a
-compile-time capture.)
-
-**Endgame threads:** (a) parse = LALR match tokens→tree; tmatch = SYMMETRIC match tree→IR. (b) `IR_PAT_DEFER`
-(`rt_defer_match`) is the runtime analog of a compile-time capture — same deferral discipline, one level up.
-(c) the pattern-form C transliterates to an Icon-bootstrap lowerer once Icon-BB executes.
-
-**Next:** (1) add `Every`/`Alt`(first SIBLING-backtrack box)/conjunction, prove each via the harness;
-(2) wire `lower2`→`bb_exec` on `1 to 5` for value-level proof + confirm/adjust the relational+if-gate encodings;
-(3) rebuild program/proc walkers (`lower`/`lower_proc_body`/`lower_pl_predicate`/`IR_lower_pat`) → `stage2_t`;
-(4) fill VALUE/PATTERN/GOAL arms box-by-box, grounded in `ir_a_*`, proven; (5) THEN tmatch refactor;
-(6) later, Icon bootstrap. Refs: `Proebsting-...-Goal-Directed-Evaluation.pdf`, `jcon_irgen.icn` (`ir_a_*`).
-
-**(The pattern-BB-template work below — BINARY/TEXT arms, mode-3/4 — is the PRIOR track and remains valid;
-the lower rewrite is upstream of emission and does not change the BB/SM/XA template ladder.)**
-
----
+`src/lower/lower.c` (was `lower2.c`, the new tree root after the old `lower.c` was deleted) is the ONE unified
+AST→IR pass on the Proebsting four-port attribute-grammar model: one funnel
+`lower2(cx, e, γ_in, ω_in, &α_out, &β_out)` → branch on `cx.role ∈ {VALUE, PATTERN, GOAL}` → ONE
+`switch(tree_e)` per role (~2/3 of kinds role-monomorphic). γ/ω (succeed/fail) INHERITED in; α/β (start/resume)
+SYNTHESIZED out; `IR_t` ports are POINTERS so goto-chains COLLAPSE (Proebsting Fig-2 for free). Three primitives:
+`nalloc` / `set_succ_fail` (default-only) / `ret`. Proven faithful to Proebsting Figs 1&2 via
+`scripts/prove_lower2.sh` (topology = node counts + α/β/γ/ω; `5 > ((1 to 2)*(3 to 4))` → exactly 9 IR nodes).
+Tree-pattern matching (`tm`/`tm_g`, match shallow shape + capture children) is a later STEP-5 refactor of proven
+box code into match-capture-recurse-wire form — the bridge to an Icon-bootstrap lowerer. Refs:
+`Proebsting-...-Goal-Directed-Evaluation.pdf`, `jcon_irgen.icn` (`ir_a_*`). (The per-box BB/SM/XA template ladder
+below is downstream of emission and is unchanged by this rewrite.)
 
 ## ⛔ MANDATORY READ BEFORE EVERY SESSION
 
@@ -1588,97 +829,15 @@ SNOBOL4 source → CMPILE parser → tree_t* → lower_pat_dcg.c (BB_lower_pat)
 
 ---
 
-## ⭐ THIS SESSION (Lon directive 2026-05-30): RENAME BB → IR (uppercase IR-graph constructs only)
+## ✅ RENAME BB → IR COMPLETE (2026-05-30)
 
-**Why.** With the Stack Machine gone (SMX-4), the uppercase `BB_*` directed graph IS the
-intermediate representation. Restore its historical name **IR** so the codebase visibly separates
-**IR constructs** (the lowered graph — uppercase, → `IR_*`) from **emitted byrd-box constructs** (the
-executable boxes — lowercase `bb_*`, UNCHANGED). The casing split (`BB` vs `bb`) already in place
-makes this mechanically safe; `BB.h`'s include guard is already `SCRIP_IR_H` (residue of the prior IR name).
-
-**Reliability facts (measured this session on clean `a0bb9be4`).**
-- Target namespace is clean: the ONLY pre-existing `IR_*` tokens are `IR_IS_GEN_KIND_TO` and
-  `IR_WALK_MAX` (macros in `emit_ir.h`) — no collision with `IR_t`/`IR_graph_t`/`IR_op_t` or any
-  enum-member rename.
-- The casing split is real and reliable: lowercase `bb_alloc` (pool allocator) ≠ uppercase `BB_alloc`
-  (IR-graph allocator); lowercase `bb_node_t`/`bb_node_id` ≠ uppercase `BB_t`/`BB_node_alloc`. A
-  `\bBB[_A-Z]` (rename) vs `\bbb_` (leave) regex cleanly separates IR from byrd-box.
-- UTF-8 hazard: source carries `α/β/γ/ω` — every grep/sed MUST use `-a` / byte-level (the token `BB_t`
-  never overlaps the Greek bytes, so a byte-level sed is safe and lossless).
-
-### Scope tiers
-- **TIER A — rename (Lon-named, definite):** `BB_t`→`IR_t` (1346 occ / 88 files); `BB_graph_t`→`IR_graph_t`
-  (301 occ / 24 files).
-- **TIER B — rename (CONFIRMED in scope; the IR node-kind taxonomy + IR API):** `BB_op_t`→`IR_e`
-  (23) — enum-suffix convention `_e` (structs are `IR_t`/`IR_graph_t`, the node-kind enum is `IR_e`);
-  the ~125 `BB_op_t` enum members `BB_LIT_I … BB_PAT_ATP` incl. `BB_GEN_*`/`BB_NFA_*`/`BB_CSET_*`
-  + `BB_OP_COUNT` → `IR_*` (~1850 occ); `BB_LANG_*`→`IR_LANG_*` (27); IR API fns
-  `BB_alloc`/`BB_free`/`BB_node_alloc`/`BB_lower_pat`→`IR_*` (~214). **Rationale:** leaving the node-kind
-  enum as `BB_*` while the node type is `IR_t` (`switch(n->t){ case BB_VAR: … }`) reintroduces the exact
-  IR/emit confusion this rename exists to remove — a half-renamed IR is worse than either pure state.
-- **TIER C — STAYS `BB` (these ARE the emitted-construct layer, NOT the IR):** `BB_MEDIUM_*` (emission
-  medium), `BB_MODE_*` (byrd-box execution mode), `BB_PLATFORM_*` (codegen target), `BB_templates`
-  (template directory), the bb_*.h header guards (`BB_POOL_H`/`BB_EXEC_H`/`BB_BOX_H`/`BB_BROKER_H`/`BB_BUILD_BIN_H`),
-  and ALL lowercase `bb_*` (324 identifiers — pool / broker / exec / templates / byrd-box). **Untouched.**
-
-**Template boundary (Lon-clarified 2026-05-30) — templates are TRANSLATORS: they receive the IR
-(`IR_t`) and emit BB asm (byrd-box x86).** So inside `src/emitter/BB_templates/*.cpp`, the IR-type/enum
-tokens the templates CONSUME **do** get renamed (the 330 `BB_t`→`IR_t`, 134 `BB_PAT_*`→`IR_PAT_*`,
-3 `BB_op_t`→`IR_e`) — that is the IR being handed to them. But the template MACHINERY stays `BB`/`bb`:
-the file names (`bb_pat_span.cpp`), the `BB_templates/` directory, the `bb_*` function names, the
-`g_emit.bb_*` fields, and `BB_MEDIUM_*`/`MEDIUM_TEXT`/`MEDIUM_BINARY`. Net effect on a template:
-`bb_pat_span(BB_t * pBB)` → `bb_pat_span(IR_t * pBB)`, same file, same dir, still reading `g_emit`.
-**NO `typedef IR_t BB_t;` alias** — zero `BB_t` remains after the rename (Reading X).
-
-### ⛔ Gate suite — run before EVERY commit  (ALL THREE MODES per the TESTING DIRECTIVE above)
-```bash
-make scrip                                   # rc=0
-make libscrip_rt                             # rc=0
-bash scripts/test_smoke_snobol4.sh           # ALL 3 modes: m2 7/7 (HARD); m3 5/6 + m4 1/6 (tracked, reported) @ 18357d4
-bash scripts/test_smoke_icon.sh              # m2 6/6 (HARD), m3 4/6 (tracked)
-bash scripts/prove_lower2.sh                 # 37/37 topology
-bash scripts/test_gate_sm_dead.sh            # <= 1
-bash scripts/audit_concurrency_invariants.sh # OK
-bash scripts/util_template_purity_audit.sh   # FACT 6 (byte-neutral baseline)
-bash scripts/test_gate_no_bb_bin_t.sh        # HARD: bb_bin_t ABOLISHED (must be 0) — TEMPLATE-REVAMP 2026-06-02
-bash scripts/test_gate_no_lang_names.sh      # LI-FENCE: no language-tagged emitter/runtime source symbols (2026-06-02)
-bash scripts/test_gate_template_medium_invisible.sh # informational (1: bb_unop Icon); --strict at revamp end
-```
-Behavioral gates MUST stay invariant under any byte-neutral change; any gate delta ⇒ a bug — revert that slice and diagnose.
-
-### Slices (ATOMIC PER TOKEN — typedef/enum body + all uses change together so the build stays green)
-- [x] **RN-IR-1** — `\bBB_graph_t\b` → `IR_graph_t` across `src/**` (24 files; smaller, first). Gate. Commit `RN-IR-1 BB_graph_t→IR_graph_t`.
-- [x] **RN-IR-2** — `\bBB_t\b` → `IR_t` across `src/**` (88 files). Word-boundary exact (does NOT touch `BB_templates`/`BB_to_by`/lowercase). Gate. Commit. **[TIER A COMPLETE]**
-- [x] **RN-IR-3** — `\bBB_op_t\b` → `IR_e` (enum type; `_e` = enum, distinct from the `_t` structs). Gate. Commit.
-- [x] **RN-IR-4** — curated enum-member rename: the 125 `BB_op_t` values listed in `BB.h` (`BB_LIT_I`…`BB_PAT_ATP`) + `BB_OP_COUNT` + the `BB_GEN_*`/`BB_NFA_*`/`BB_CSET_*` members → `IR_*` (CONFIRMED: `BB_VAR`→`IR_VAR`, `BB_PAT_SPAN`→`IR_PAT_SPAN`, `BB_OP_COUNT`→`IR_OP_COUNT`, …). **NOT a blanket `BB_[A-Z]*`** — explicitly EXCLUDE every TIER-C token (`BB_MEDIUM_*`,`BB_MODE_*`,`BB_PLATFORM_*`,`BB_templates`,bb_*.h guards). Rewrite the enum body in `BB.h` AND every `case`/construction site in one pass. Gate. Commit.
-- [x] **RN-IR-5** — `\bBB_LANG_(\w+)` → `IR_LANG_\1` (6 values: SNO/SCO/REB/ICN/PL/RKU). Gate. Commit.
-- [x] **RN-IR-6** — IR API (CONFIRMED): `\bBB_alloc\b`→`IR_alloc`, `\bBB_free\b`→`IR_free`, `\bBB_node_alloc\b`→`IR_node_alloc`, `\bBB_lower_pat\b`→`IR_lower_pat` (watch: lowercase `bb_alloc`/`bb_node_id`/`bb_node_t` STAY); any remaining bare `BB` in comments/strings (the `(BB_t*)` casts were already converted by RN-IR-2). Gate. Commit. **[TIER B COMPLETE]**
-- [x] **RN-IR-7a** (FILE rename — CONFIRMED, Lon 2026-05-30 "BB*.* files become IR*.* files") — `git mv src/include/BB.h src/include/IR.h`; update every `#include "BB.h"` across `src/**`, plus `Makefile` + `scripts/build_scrip.sh`. Guard is already `SCRIP_IR_H`. Gate. Commit.
-- [x] **RN-IR-7b** (baseline artifacts — same rule) — the **1330 git-tracked `baselines/per_kind/**/BB_*.*`** files (x86/jvm/net/wasm × text/binary, named after IR kinds) → `IR_*.*` via basename prefix `BB_`→`IR_` (`for f in $(git ls-files 'baselines/per_kind/**/BB_*'); do git mv "$f" "$(dirname "$f")/$(basename "$f" | sed 's/^BB_/IR_/')"; done`). Pairs with RN-IR-4. NOTE: the per-kind diff gate is flagged STALE (SBL-G-2) so these are currently inert; rename keeps names consistent with the new IR kinds. No build gate (fixtures, not source) — verify `git ls-files 'baselines/per_kind/**/BB_*'` is empty. Commit.
-  - ✅ **`src/emitter/BB_templates/` DIRECTORY STAYS `BB` (DECIDED, Lon 2026-05-30)** — templates are emit-side: they reach state only through `g_emit` globals, i.e. they live PAST the IR boundary, not in it. Not a `BB*.*` file, 140 path refs (src + Makefile + build_scrip.sh), TIER C. No directory rename.
-- [x] **RN-IR-8** — zero-check + handoff. `grep -rhoaE '\bBB[_A-Z][A-Za-z0-9_]*' src` must return ONLY the TIER-C set (`BB_MEDIUM_*`,`BB_MODE_*`,`BB_PLATFORM_*`,`BB_templates`,bb_*.h guards); `git ls-files 'baselines/per_kind/**/BB_*'` empty. Full gate. `git pull --rebase && git push` (code repos first, `.github` last). Confirm `git log origin/main --oneline -1` shows the hash.
-
-**Scope decision (Lon 2026-05-30) — FULLY SETTLED, no open items:** TIER A + TIER B are confirmed.
-Enum members `BB_*`→`IR_*`, `BB_LANG_*`→`IR_LANG_*`, constructors `BB_alloc`/`BB_free`/`BB_node_alloc`/`BB_lower_pat`→`IR_*`,
-and **all `BB*.*` files → `IR*.*`** (source header `BB.h`→`IR.h` + the 1330 `baselines/per_kind/**/BB_*.*`
-artifacts) confirmed. **STAYS `BB`** (emit-side, reached only via `g_emit` globals — past the IR boundary):
-the `BB_templates/` directory and TIER C tokens (`BB_MEDIUM_*`/`BB_MODE_*`/`BB_PLATFORM_*`/bb_*.h guards),
-plus all lowercase `bb_*`. Ready to execute RN-IR-1 → RN-IR-8.
-
-**✅ RENAME COMPLETE (2026-05-30, this session).** All 8 slices landed + RN-IR-8b cosmetic comment polish.
-SCRIP commits `b2a13e2`(1)→`7cbd3c9`(2)→`2018dd6`(3)→`222755f`(4)→`8730787`(5)→`0466698`(6)→`15418a0`(7a)→`bc69550`(7b)→`9ff631f`(8)→`29aaac0`(8b),
-on top of base `c334861`. **Zero whole-word IR identifiers remain as `BB_`** (verified: exact-111-member
-grep = 0; `BB_t`/`BB_graph_t`/`BB_op_t`/`BB_LANG_*`/ctors = 0; baselines `BB_*` = 0). Every remaining
-`BB[_A-Z]` token is emit/byrd-box machinery (Tier-C: PLATFORM/MEDIUM/MODE/WIRED/BROKERED/templates/LABEL/
-PATCH/POOL/DCAP/BANNER/bb_*.h-guards/ENTER/ALPHA + the `BBCopyMap` Term-struct + box-descriptive `.cpp`
-comments) OR the AST-layer `BB_DEFINE_NAMES` guard (ast.h — outside scope). Gates held INVARIANT every
-slice: `make scrip` rc=0, `make libscrip_rt` rc=0, Icon m2 **6/6** (HARD), m3 2/6, sm_dead 1 (≤1),
-FACT **6** (pre-existing baseline — predates `a0bb9be4`; my byte-neutral rename moved it 0). **NOT pushed
-yet** (10 SCRIP commits local; `.github` goal-file local). Open follow-ups (Lon's call, NOT done): the
-AST-layer `BB_DEFINE_NAMES`→`AST_DEFINE_NAMES`? and the vestigial `-DIR_DEFINE_NAMES` Makefile flag
-(checked nowhere in src). NOTE the watermark's old "FACT 0" was stale.
-
----
+The uppercase IR-graph constructs were renamed `BB_*`→`IR_*` (the directed graph IS the IR now that the Stack
+Machine is gone): `BB_t`→`IR_t`, `BB_graph_t`→`IR_graph_t`, `BB_op_t`→`IR_e`, the ~125 node-kind enum members
+(`BB_LIT_I`…`BB_PAT_ATP`+`BB_OP_COUNT`), `BB_LANG_*`→`IR_LANG_*`, the IR API ctors (`BB_alloc`/`BB_free`/
+`BB_node_alloc`/`BB_lower_pat`→`IR_*`), the header `BB.h`→`IR.h`, and the `baselines/per_kind/**/BB_*` fixtures.
+**STAYS `BB`** (emit-side, reached only via `g_emit` — past the IR boundary): the `BB_templates/` directory +
+`BB_MEDIUM_*`/`BB_MODE_*`/`BB_PLATFORM_*`/bb_*.h guards + all lowercase `bb_*`. Templates are TRANSLATORS — they
+CONSUME `IR_t` (renamed) but the template MACHINERY (file/dir/fn names, `g_emit.bb_*` fields) stays `BB`/`bb`.
 
 ## Session Setup
 
@@ -2021,59 +1180,15 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
 
 **COMPLETION TEST (rung):** `bb_build_brokered`/`EMIT_BINARY_BROKERED`/`g_bb_brokered`/`BB_MODE_BROKERED`/`BB_MODE_DRIVER` all grep to 0 in `src/`; no `bb_*.cpp` template enters a child box by `call` with an entry selector (every box reached by `jmp α`/`jmp β`); `test_gate_no_brokered.sh` green and in the Session Setup list; SNOBOL/Icon HARD gates survive. ONE way to enter a box, not two.
 
-### ⭐ DESIGN QUESTION (Lon 2026-05-31, raised mid-SBL-M3-CHAIN): how do the PATTERN-builder BBs represent the pattern? — ✅ **DECIDED (Lon 2026-05-31): BOTH** — ⚠️ **SUPERSEDED 2026-06-01 (see CORRECTED PATTERN ARCHITECTURE at top): the pattern is a `bb_box_fn` byrd-box graph, NOT a baked `tree_t`. `tree_t` is for EVAL/CODE only. The `beauty.sno` / `tree(t,v,n,c)` memorial below stands as the AST shape for EVAL/CODE, not for patterns. History kept below.**
+### DESIGN QUESTION (how PATTERN-builder BBs represent the pattern) — ✅ SUPERSEDED
 
-**✅ DECISION (Lon 2026-05-31): WE HAVE BOTH. This is the MAX OPTIMIZATION.** The two mechanisms are not
-rivals — they compose:
-- **The baked path (for INVARIANT patterns — and MOST patterns are invariant).** The pattern's AST is
-  **compiled in / hard-coded as a pure static `tree_t` constant** (the `tree(t,v,n,c)` node — see below).
-  **ONE BB** takes that baked-in `tree_t` and **builds the entire invariant pattern's dynamic BB graph from
-  it in a single shot** (one tree-walk-construct). One box, one baked constant, the whole matcher graph
-  materialized. This is the maximum optimization: an invariant pattern costs ONE baked AST + ONE builder BB,
-  not N threaded builders.
-- **The threaded path (for VARIANT parts).** Variable args (`LEN(N)`), pattern-valued var refs, and deferred
-  `*E` stay as threaded builder BBs (the general PB-2 mechanism). They splice into / compose with the baked
-  invariant subgraphs.
-- **Classification (PB-OPT)** at lower time decides, per subtree, baked-invariant vs threaded-variant.
-
-**Why this stays HONEST (the AST-prohibition is preserved, not broken).** The baked `tree_t` is consumed by a
-**CONSTRUCTION BB** that *builds a pattern graph* from it — it is **never interpreted as the matcher**. The
-matcher (PB-3 `BB_MATCH`, SPITBOL ch.18) still runs the *pattern graph*, never `tree_t`. So "one BB from a
-baked AST" is real box work (construct), not the dead-mode-1 cheat (interpret `tree_t` as a stand-in for
-execution). The prohibition's true line — *modes must never interpret `tree_t` in place of doing their job* —
-holds: here the AST is the INPUT to honest construction work, exactly as it is for `EVAL`/`CODE`.
-
-**🏛 MEMORIALIZED FOREVER: `beauty.sno` and `tree(t,v,n,c)`.** The baked AST node is `tree(t, v, n, c)` —
-**t** = tag/kind, **v** = value (sval/ival/dval union), **n** = arity (child count), **c** = children array —
-byte-for-byte the C `struct tree_t { tree_e t; union {char* sval; long long ival; double dval;} v; int n;
-tree_t **c; }` (`src/include/ast.h`). That four-field tree representation comes from Lon's own
-`corpus/programs/snobol4/demo/beauty/beauty.sno` (the SNOBOL4 Beautifier, 2002–2005; `tree.inc` /
-`ShiftReduce.inc` / `TDump.inc`). `tree(t,v,n,c)` is the canonical shape of the compiled-in constant the
-one-BB-from-AST builder consumes. *This will SCREAM.*
-
----
-
-**The question (as originally posed).** The pattern-builder BBs (PB-2: "builder BBs that build OTHER BBs dynamically") must end up with the pattern's structure. Two ways Lon posed:
-1. **BAKE the parser AST** — the parser-built tree (the exact `tree_t`) is baked into generated code as an RO constant; the builder references it.
-2. **THREAD builder BBs** — a sequence of BBs assembles that same tree at runtime, each BB constructing one node.
-
-**Context (Lon).** AST was historically FORBIDDEN because modes 2 & 3 would *cheat* — run the `tree_t` interpreter instead of doing their real job (the C oracle / native BBs). The dead **mode-1** WAS that `tree_t` interpreter (it lost its usefulness → removed; we'd otherwise have 4 modes). BUT **AST will legitimately be used in the backend for `EVAL` and `CODE`** (both inherently runtime-compile a string of SNOBOL source), "so why not PATTERN" — patterns are runtime-dynamic too.
-
-**Claude's recommendation (now SUPERSEDED by the DECISION above — kept for the record).** Option 2 (threaded) canonical + Option 1 (bake) as PB-OPT, building a pattern-specific graph, never `tree_t`. Lon's crystallization sharpened the baked side: the baked artifact is the pure-constant `tree_t` AST, and ONE BB reconstitutes the whole invariant pattern graph from it — which is cleaner than baking a pattern graph (a graph has runtime pointers/allocation; an AST is a pure constant). Reasoning that still holds:
-- **(a) Dynamic patterns force threaded construction anyway.** `LEN(N)` / `SPAN(C)` with variable args, `P1 | P2` over pattern-VALUED variables, and deferred `*E` (recursive patterns `P = *P 'x' | ''`) can't be baked. Threaded is the *general* mechanism; the baked one-BB-from-AST is the *invariant-subtree* fast path.
-- **(b) The baked AST is consumed by CONSTRUCTION, never interpreted as the matcher** — so the mode-1 cheat does not return.
-- **(c) The matcher interprets a pattern graph, never `tree_t`** — domain-specific, legitimate (SPITBOL itself interprets a pattern node graph).
-
-**AST-prohibition refinement (ADOPTED with the DECISION).** *AST is permitted in the BACKEND for inherently-dynamic constructs — `EVAL`, `CODE`, and PATTERN construction (the one-BB-from-baked-AST builder + the threaded variant builders) — because there building/compiling from a tree IS the actual job. The absolute invariant: modes 2/3/4 must never interpret `tree_t` as a stand-in for STATIC code that already has a defined oracle (mode 2) or native-BB (modes 3/4) path. The matcher interprets a pattern-specific graph, never `tree_t`.*
-
-- **SBL-SPAN-2 / SBL-ARBNO-3 BINARY arms.** Use `std::deque<int>` slot pattern from bb_capture.cpp (NOT GC_MALLOC). SPAN: TWO persistent int slots (z, z_orig); β yields successively shorter spans using ABSOLUTE z_orig. ARBNO: uses `nd->counter`, deque pattern + brokered child call. Validate via `--run`.
-- **SBL-BREAKX-2 ✅ DONE** (2026-05-29 Opus 4.8). Own BINARY arm. TEXT β rescans-to-next using z_orig + z. z lives in [zeta+8]; z_orig recovered arithmetically (Δ - z) so no second slot needed. 302-byte α-scan + β-rescan, assembled+verified via `as`. Native +2 (W05_breakx, word4); zero regression.
-- **SBL-ATP** (`@var` cursor capture). ✅ FULLY DONE (mode-2 oracle `877f61fe` + native template `745c7536`, 2026-05-30). Native +3: cross/W07_capt_cur/074. Key: `rt_pat_capture(kind=2)` builds `pat_cat(EPS, pat_at_cursor(var))` so XEPS must join XATP in `patnd_is_simple_atom` for the enclosing XCAT to be tree_eligible. ✅ COMPLETE (lifts cross/W07_capt_cur/074 native): (4) `build_patnd` XATP("@")→`BB_PAT_ATP`; `bb_pat_atp.cpp` TEXT+BINARY arms (model on `bb_pat_pos.cpp`; BINARY writes Δ→var int — add `rt_at_cursor` near rt.c:873); `emit_core` dispatch + `walk_bb_flat case`. Byte-producing → own session. (Interim: `BB_PAT_ATP` hits `walk_bb_flat default:` = honest `jmp ω` fail, RULES-OK.)
-- **SBL-SM-BINARY (HQ-track).** `sm_pat_nullary.cpp` BINARY arm embeds emitter-process `rt_pat_*` fn-ptr as imm64 — Invariant-8 violation. Fix: call `rt_pat_*@PLT` directly.
-- **SBL-G-2.** Re-freeze GATE-PK in `test_per_kind_diff.sh`. Baseline references deleted `rt_bb_*` boxes — stale.
-- **SBL-LOWER-CLEANUP.** Delete `lower_subj_pat_split` + `lower.c:1750` duplicate after Snocone confirmed unused.
-- **SBL-VERIFY-1/2.** Corpus climb after all BINARY arms + SBL-ATP: target ≥260/280 broad corpus.
-- **Pre-existing m2 oracle gaps** (audit-only). Rungs 044/045/046/048/052/054/055/056/057 fail m2 too: `bb_exec.c` doesn't implement what rung suite expects for POS/RPOS/TAB/REM/star_deref/fail_builtin. Separate session.
+Resolved by the CORRECTED PATTERN ARCHITECTURE at the top of this file: a SNOBOL4 pattern is a `bb_box_fn`
+byrd-box GRAPH (emitted matcher boxes driven four-port), NOT a baked `tree_t` (which is for EVAL/CODE only —
+those parse a runtime source string → `tree_t` → build boxes; a pattern's structure is known at compile time).
+The invariant fast path is the all-invariant single-sealed-BLOB freeze (PB-RB-OPT), not a `tree_t` re-walk.
+🏛 MEMORIAL: the AST node `tree(t, v, n, c)` (tag / value-union / arity / children) = `struct tree_t` in
+`ast.h`, from Lon's `corpus/programs/snobol4/demo/beauty/beauty.sno` — the canonical shape the EVAL/CODE
+runtime-codegen builder consumes.
 
 ### M3-NATIVE-5 (final)
 
@@ -2083,367 +1198,32 @@ Gate sweep + corpus, all langs. Honest failure for unbuilt opcodes.
 
 ---
 
-## Completed (summary)
+## Completed (summary) + Session State
 
-**Templates with x86 TEXT arms filled:** LIT, ARB, LEN, POS/RPOS, TAB/RTAB, REM, ALT, CAT, FENCE, ABORT, EPS, FAIL, ANY, NOTANY, BREAK (plain), SPAN, ARBNO, CAPTURE, DEFER.
+**x86 TEXT+BINARY arms filled & `--run`-validated** for the SNOBOL4 pattern family (LIT/ARB/LEN/POS/RPOS/
+TAB/RTAB/REM/ALT/CAT/FENCE/ABORT/EPS/FAIL/ANY/NOTANY/BREAK/SPAN/ARBNO/CAPTURE/DEFER). Runtime translators
+`patnd_to_bb_graph` (γ-chain, mode-2) + `patnd_to_bb_tree` (tree-shape, mode-3). Infra: `cap_alloc_saved_delta_slot()`
+deque-int pattern; `bomb_text`/`bomb_bytes`/`rt_bomb`; `emit_label_alloc()` session-stable label arena.
+**Recovery:** original hand-written boxes at `git show 660339cd~1:src/runtime/boxes/<box>/<file>.s`;
+native-SM semantic spec at `git show 22a17fa3~1:src/processor/sm_jit_interp.c`.
 
-**Templates with x86 BINARY arms filled and validated by `--run`:** LIT, LEN, POS, UPTO, ANY, NOTANY, BREAK (plain), CAPTURE. Combinator arms (ALT/CAT/FENCE/PL_SEQ/PL_ITE/SUCCEED) emit real bytes via inline EP-walk (per-template, FACT-clean).
+**Done (structural):** LOWER-MERGE LM-1…LM-5 (four lowering files → one `src/lower/lower.c`); PND-1 (SNOBOL4
+patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 
-**Runtime translators:** `patnd_to_bb_graph()` (γ-chain, mode-2) + `patnd_to_bb_tree()` (tree-shape, mode-3 flat-wire). `patnd_needs_xlate` covers XARBN trees + simple-atom roots + capture-wrapped. `patnd_is_combinator_root` + `patnd_tree_eligible` route XCAT/XOR/XFNCE/XNME/XFNME/XARBN through tree builder.
-
-**Infra:** `cap_alloc_saved_delta_slot()` deque-int pattern. `bomb_text`/`bomb_bytes`/`rt_bomb`. `audit_m3_native_binary_arms.sh`. `emit_label_alloc()` session-stable label arena. `_assign_varname_str` populates STRVAL_fn at construction time (NAMEPTR reverse-lookup via `NV_name_from_ptr`).
-
-**Recovery resource:** original hand-written boxes at `git show 660339cd~1:src/runtime/boxes/<box>/<file>.s`. Native-SM engine semantic spec at `git show 22a17fa3~1:src/processor/sm_jit_interp.c` (bytes through templates only).
-
----
-
-## Session State
-
-Live HEAD is in the **Watermark** below; per-session detail (HEAD-by-HEAD writeups, gate logs, design
-deliberations) lives in the `.github/HANDOFF-*.md` files. Only durable carry-forward is kept here.
-
-**Done (structural, no logic change):** LOWER-MERGE LM-1…LM-5 (`9326db2`) — the four lowering files folded into
-one `src/lower/lower.c` + `lower.h`, section order driver → Icon (the model) → Prolog → SNOBOL4 pattern → context.
-PND-1 (KILL PATND_t lower bridge) — SNOBOL4 patterns lower `TT_*`→`IR_t` directly (like Icon/Prolog); the
-`PATND_t` *type* removal from `pattern.c`/`rt.c`/`descr.h`/`patnd.h` is the separate Track-B runtime demolition.
-
-**Open (ONE AST → ONE IR → ONE LOWER, Icon `lower_expr_threaded` the canonical four-port model):**
+**Open (ONE AST → ONE IR → ONE LOWER; Icon `lower_expr_threaded` is the canonical four-port model):**
 - [ ] **LM-6 (DISPATCH-UNIFY)** — collapse lower.c's three dispatch entry points (`lower_expr_threaded` [Icon] /
   `lower_pl_goal` [Prolog] / `build_node` [SNOBOL4 pat]) into ONE `tree_e`-keyed dispatch. Do AFTER all lower2
   roles are armed + exec-proven.
 - [ ] **BOX-ZERO** — cut byrd boxes against the register-allocation scheme (Icon STACKLESS ONE-REGISTER FRAME,
   `[reg+off]` per-sequence frame distinct from r10/r13; RO constants IP-relative; no value stack).
----
 
-### ⚠ PRE-SMX-4 corpus state (historical — engine deleted, numbers not reachable today)
+## Session log
 
-```
-HEAD SCRIP       = 1f011f10  SBL-ARBNO-BROKERED: ARBNO combinator roots via patnd_to_bb_tree in BROKERED (--interp +2: Qize, XDump)
-GATE-1 smoke       = 13/13 (mode-2 AND mode-3)
-GATE-2 broker      = 61/5
-DEFAULT/NATIVE     = 265/280
-true --interp      = 263/280
-Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
-```
+Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
+files and git history. Only the durable carry-forward + the current watermark are kept here.
 
-## Session log (last few, terse)
-
-- **2026-06-01 (Opus 4.8) — PB-RB-4 TOPOLOGY PREREQ** (SCRIP `e39c329`, pushed). `prove_lower2.c` MATCH('a' 'b')
-  + MATCH('a'|'b') proofs (4 real nodes each, composite element γ+ω → MATCH). Finding: `lower2_match_entry`'s
-  `lower2(cx,e,m,m,…)` under ROLE_PATTERN already handles TT_CAT/TT_ALT, so PB-RB-4's lowering layer exists; the
-  new work is emitter STITCH wiring + drive. Test-only, byte-neutral; prove_lower2 65→67; all gates invariant.
-- **2026-06-01 (Opus 4.8) — PB-RB-3 EDGE PROBES** (SCRIP `706d665`, pushed). Hardened the landed BB_MATCH BINARY
-  arm: `probe_pb_rb_3_match_fail.c` exercises the two ch.18 step-6 edges the happy-path probe missed —
-  whole-match-fail (`'z'`∉`'abc'` → start-loop exhausts → v=99) and anchored-fail (`&ANCHOR=1` suppresses the
-  start-cursor slide → v=99), with an unanchored control (v=1) proving the anchor flag is the sole cause. Found two
-  apparent bugs that are correct: `kw_anchor` is genuinely 8 bytes in the live `.so` (the `int` line is
-  STMT_EXEC_STANDALONE-only) so `cmp qword` is right; `result.v==99` is the canonical FAIL code (xa_flat_epilogue
-  fail_half), not garbage. Test-only, byte-neutral. Probe suite 3/3; all gates invariant.
-- **2026-05-31 (Opus 4.8) — SBL-M3-CHAIN: SNOBOL4 MODE-3 RUNS FROM LOWER'S FOUR-PORT GRAPH (the `sno_ring_to_tree` replacement) ✅ mode-3 0/6 → 5/6**
-  (SCRIP `7c26eb7`, base `641e45d`; .github this commit). The banned `sno_ring_to_tree` adapter stays deleted; mode-3
-  now consumes LOWER's four-port statement-BB graph DIRECTLY via a new SNOBOL4 flat-chain emitter. **5 cases pass
-  natively via `--run`: output `'hello'`, concat `'ab' 'cd'`→`abcd`, arith `2+3`→`5`, pattern `S 'b'='X'`→`aXc`, goto_s
-  `:S(HIT)`→`hit`** (all confirmed vs SPITBOL oracle `/home/claude/x64/bin/sbl -b`). mode-2 **7/7 HARD held**; only
-  `define` (user functions, IR_CALL+frame) remains for mode-3. **New (emit_bb.c, all SNOBOL-specific, byte-neutral to
-  Icon — confirmed Icon m2 6/6 + m3 6/6 + m4 6/6 via `git stash` rebuild):** `sno_flat_chain_build(IR_graph_t*)` (BINARY)
-  + `_text` (mode-4 future) mirror `icn_flat_chain_build` but (1) RESOLVE the `IR_SUCCEED` LANDING nodes transitively
-  (`sno_chain_resolve` — a port to a landing follows through to its target; terminal `IR_SUCCEED` γ==NULL → success
-  epilogue, `IR_FAIL` → failure epilogue), so the per-statement landing threading is transparent; (2) do NOT set
-  `g_icn_flat_chain` (so `walk_bb_flat` takes the SNOBOL arms), instead set new `g_sno_flat_chain` (makes a standalone
-  `IR_VAR` a by-name PASS-THROUGH — its value is read by-name in `bb_sno_assign_var`, so it must NOT push the excised
-  value stack / `rt_nv_get` → `[SMX]` abort). Operand-ref pass `sno_chain_operand_refs(IR_graph_t*)` runs PER STATEMENT
-  (`sno_stmt_operand_refs` over each statement-head = landing-resolved γ-target of entry + every landing) so statements
-  reachable only via a failure/ω edge or a goto still get their consumer's `α` set (the `goto_s`/skipped-statement
-  bug). `sno_chain_arity`: SNOBOL concat `IR_SEQ`(dval==1.0) = arity-0 LEAF (operands in sub-graphs) → `ASSIGN.α`=SEQ;
-  `IR_SCAN` = arity-1 (consumes its γ-predecessor: subject for plain form / replacement for repl form) → `SCAN.α` set;
-  else delegates to `icn_chain_arity` (covers the postfix LIT_I/LIT_I/BINOP/ASSIGN arith chain). Driver `scrip.c`:
-  the mode-3 SNOBOL4 ABORT replaced with `sno_flat_chain_build(sbbg)` run under `g_frame_active=1` via `fn(rt_frame(),0)`;
-  unbuilt shapes → SOFT honest fall (loud `[SBB]` stderr, clean exit, NO abort), so working shapes run while `define`
-  just yields empty output. `bb_var.cpp` gained a `g_sno_flat_chain` pass-through arm (10-byte `jmp γ; β: jmp ω`).
-  **NOTE — patterns run via the EXISTING IR_SCAN interpreter bridge** (`rt_sno_exec_scan`→`bb_exec_once` over the
-  `IR_SCAN.counter` pattern sub-graph, mode-2's 19-arm engine, process-valid pointer baked imm64): this is the pragmatic
-  static-pattern path, **NOT** the native PB-2/PB-3 builder-BB/`BB_MATCH` ladder (still future; see DESIGN QUESTION above).
-  **Gates:** make scrip rc=0, make libscrip_rt rc=0, SNOBOL4 smoke m2 **7/7 HARD** + m3 **5/6** (floor MODE3_MIN raised
-  0→5), prove_lower2 **55 PASS**, sm_dead 1 (≤1), Icon m2 **6/6 HARD** (byte-neutral). **PRE-EXISTING (NOT this session,
-  proven via `git stash` at clean `8a01bb3`):** `audit_concurrency_invariants.sh` flags template-purity 7 > baseline 6
-  (bb_assign/bb_binop/bb_call/bb_every/bb_field/bb_list_bang/bb_swap) — none touched here; my 4 files add ZERO purity
-  side-effects. **NEXT:** (define) SNOBOL4 user functions in mode-3 (IR_CALL + call frame); then the real PB-0..PB-3
-  native pattern ladder per the DESIGN QUESTION decision; mode-4 SNOBOL4 still 0/6 (driver `--compile` re-stitch is PB-5).
-
-- **2026-05-31 (Opus 4.8) — SBL-M4-STACKLESS-1: SNOBOL4 MODE 4 LANDS (literal-assign) + modes-3/4 MISS diagnosed ✅**
-  (SCRIP `80e6c22`, base `aa307b7`, rebased over `17096f3` RK-LOWER; .github this commit). Mode 4 **0/6 → 1/6**: `OUTPUT='hello'` emits a complete
-  `.intel_syntax` program via real `scrip --compile --target=x86`, assembles (`as`), links (`gcc -no-pie -lscrip_rt
-  --allow-shlib-undefined`), runs → `hello`. SAME box + SAME IR graph as mode 3 — proof that **modes 3 and 4 are two
-  template arms (BINARY=m3, TEXT=m4) of ONE box, driven from ONE LOWER graph.** **The miss (now a top-of-file banner):**
-  prior sessions treated m3/m4 as *driver* problems (the `sno_ring_to_tree` adapter; the `[SMX]` "not rebuilt" abort).
-  In fact the mode-4 EMITTER was fully intact (`codegen_flat_build` + 15 XA templates) — only the driver *call* was
-  severed. **Landed:** (1) EMITTER `bb_sno_assign.cpp` TEXT/GAS arm (rodata + `lea[rip+.L]` + `call …@PLT`, four-port,
-  no value stack); (2) EMITTER `xa_flat.cpp` shared TEXT prologue+epilogue now honor `g_frame_active` (push/pop r12,
-  no Σ/[r10] deref) — ROOT CAUSE of the 1st segfault was the `@PLT` store clobbering caller-saved r10 then the
-  vestigial Icon epilogue deref'ing [r10]; byte-neutral to Icon; (3) DRIVER `scrip.c` mode_compile_x86 re-stitched
-  (header → call-glue → main-close → codegen_flat_build → `.note.GNU-stack` LAST — the note had stranded the body in a
-  discarded section, 2nd bug); (4) smoke link line += `--allow-shlib-undefined` (4 unreachable SMX-residue undefs in
-  the .so). **Gates GREEN+INVARIANT:** scrip rc=0, libscrip_rt rc=0, m2 **7/7** HARD, m3 1/6, m4 **0→1**, prove_lower2
-  **49/49**, sm_dead 1(≤1), concurrency OK, purity FACT 6 (baseline; new TEXT-arm byte-producers sit in the
-  MEDIUM_BINARY-exempt path), Icon m2 **6/6** HARD + m3 5/6 (byte-neutral). **MODE3_MIN/MODE4_MIN can both go to 1.**
-  **NEXT = pure LOWER+EMITTER:** lower `S 'b'='X'` (the `pattern` smoke) into the `test_sno_1.c` four-port statement-BB
-  chain (subject-BB → LIT-match-BB → splice-BB), BINARY+TEXT arms each; both native modes pass from the one graph;
-  then retire `sno_ring_to_tree`.
-
-- **2026-05-31 (Opus 4.8) — SBL-M3-STACKLESS-1: SNOBOL4 mode-3 LANDS (literal-assign), STACKLESS ✅** (SCRIP `79e62f7`,
-  base `7d3a15b`; .github this commit). First SNOBOL4 native mode-3 since SMX-4. **NO value stack** (Lon directive:
-  "do NOT create a value stack. Forbidden!!!"). `OUTPUT = 'hello'` now runs via `--run`: m3 **0→1**. The other
-  five smoke shapes SOFT-fail honestly (loud `[SBB]` stderr, clean exit, NO abort — the old `[SMX] FATAL` is gone for
-  SNOBOL4; Prolog `--run` keeps its by-design abort). **What landed:** (1) `bb_sno_assign.cpp` — stackless box for
-  `IR_ASSIGN` of a literal-string rhs: name+str baked as RO immediates, passed in `rdi`/`rsi` to `rt_sno_assign_lit_s`;
-  42-byte BINARY arm (`movabs rdi,name; movabs rsi,str; movabs rax,&fn; call; jmp γ; β:jmp ω`); TEXT arm bombs
-  (mode-4 excised). Touches NO `g_vstack`/`rt_push_*`/`rt_pop_*`. (2) `rt.c` `rt_sno_assign_lit_s(name,str)` — stackless
-  store via `NV_SET_fn` (OUTPUT→write-line, core.c:2397). (3) `emit_core.c` + `walk_bb_flat`: `IR_ASSIGN` branches
-  SNO(`α==IR_LIT_S`)→`bb_sno_assign` vs Icon(`α==IR_VAR`)→`bb_assign` — Icon untouched/byte-neutral. (4) `scrip.c`
-  `sno_ring_to_tree` (skip landing IR_SUCCEED, postfix-fold; recognizes ONLY `landing→LIT_S→ASSIGN→PSUCC` today,
-  returns NULL else) + `mode_run` SNOBOL4 wiring → `bb_build_flat`, soft-fail on NULL. **Gates GREEN+INVARIANT:**
-  scrip rc=0, libscrip_rt rc=0, m2 **7/7** HARD, m3 0→1, m4 0/6 (excised), Icon m2 **6/6** HARD (byte-neutral),
-  prove_lower2 **38/38**, sm_dead 1(≤1), concurrency OK, purity **6** (baseline; the box's FATAL-guard `fprintf` sits
-  inside the `MEDIUM_BINARY` exempt range so it is NOT counted). Local commits; NOT pushed (no handoff trigger).
-  **MODE3_MIN can now be raised to 1.**
-
-  **⭐ STATEMENT-BB MODEL (Lon directive 2026-05-31 — the shape for the pattern/goto/full-statement work; evidenced in
-  the uploaded `test_sno_1.c`/`test_sno_2.c`/`test_sno_3.c`, which build the EXACT four-port goto-threaded form):**
-  Treat **each SNOBOL4 statement like an Icon expression** — a four-port (α/β/γ/ω) BB. The order, per `test_sno_1.c`
-  (`POS(0) ARBNO('Bird'|'Blue'|LEN(1)) $ OUTPUT RPOS(0)` over `Σ`/`Δ`/`Ω`):
-  1. **Statement BB starts BEFORE the subject.** The outer BB's α enters first; the subject expression is evaluated
-     inside it (`seq_α: seq = str(Σ+Δ,0)` then into the pattern chain). Σ=subject base (R13), Δ=cursor (R14),
-     Ω=length (R15) — matches the X86-64 REGISTER FACT table exactly.
-  2. **Subject gets ONE SHOT — no β-backtrack, but CAN fail.** The subject is evaluated once; if it fails, the
-     statement fails to ω. It does NOT participate in pattern backtracking (no resume edge back into the subject).
-  3. **BUILD PATTERN = a BB.** The pattern is constructed as its own four-port BB (each primitive POS0/BIRD/BLUE/
-     LEN1/alt/ARBNO/RPOS0 is a BB with _α/_β/_γ/_ω; alternation threads `alt_i`; ARBNO carries `ζ`-frame `_1[64]`
-     with per-instance slots — the `[r12+off]` one-register frame, NOT a stack). Built at runtime, OR
-  4. **statically compiled** as an OPTIONAL optimization (the "2nd pass, optimization" block in `test_icon.c`/the
-     test_sno programs — the pattern flattened to straight-line code when shapes are known at compile time).
-  5. **Run the MATCH** from the built (or compiled) pattern BB against the subject; on γ, do the `$`/`.` captures +
-     `= REPLACEMENT` splice; thread the statement's γ/ω to the SPITBOL `:S`/`:F`/`:(L)` goto exits (ch.4/ch.14).
-  This is why `pattern` (`S 'b' = 'X'`, an `IR_SCAN`) and `goto_s` need: an `IR_SCAN` flat driver that emits the
-  statement-BB (subject one-shot eval → build/emit the pattern BB → run match → splice) + `IR_GOTO`/landing
-  threading — all stackless (`ζ`-frame `[r12+off]` + RO `[rip+disp]`), NEVER a value stack. The 19-arm pattern
-  engine becomes per-primitive stackless BBs (model leaves on `test_sno_1.c`'s POS0/LEN1/alt/ARBNO bodies).
-
-  **NEXT (next full-budget session, stackless byte-producing):** (1) widen `sno_ring_to_tree` / add an `IR_ASSIGN`
-  arm for non-literal rhs (var, arith) — needs the operand sub-expr to deliver its value stacklessly (per-box
-  `ζ`-slot, not vstack); (2) `IR_SCAN` statement-BB driver per the model above (the `pattern` smoke); (3) `IR_GOTO`
-  + landing threading (the `goto_s` smoke); (4) SNOBOL4 user-proc call (the `define` smoke). Each: emit stackless,
-  prove, gate (m2 7/7 HARD invariant; raise MODE3_MIN as they land). Recovery model = `test_sno_1.c` four-port bodies.
-
-- **2026-05-31 (Opus 4.8) — MODE-3 SNOBOL4 ROUTING: SUBSTRATE DIAGNOSIS (superseded by SBL-M3-STACKLESS-1 above).**
-  Lon: "Mode 3. Continue." Investigated routing SNOBOL4's `mode_run` onto `bb_build_flat` (the stated #1 next step,
-  "Icon proves it works"). **Finding: the mode-3 native substrate is mid-GROUND-ZERO-3 migration and internally
-  inconsistent — routing SNOBOL4 onto it now would route onto abort-stubs / a half-converted value-passing
-  convention.** NOTHING committed (the real work is byte-producing → reserved for a dedicated session per the
-  TEMPLATE-ONLY ONE-DISPATCH rule); recording the exact blocking facts so the next session doesn't re-spend a
-  session rediscovering them.
-  **Blocking facts (all grounded in source this session):**
-  1. **Store/write/call runtime family is STUBBED.** `rt.c` `STACKLESS_ABORT` set: `rt_pop_nv_set`, `rt_pop_write_int_nl`,
-     `rt_pop_write_any_nl`, `rt_pop_store_i64`/`_descr`, `rt_push_stored_i64`, `rt_call_proc`, `rt_call_builtin`,
-     `rt_gen_concat`, all `rt_unop_*`, `rt_field_get`/`_set`, `rt_idx_get`/`_set`, `rt_list_bang`, `rt_limit_begin`,
-     `rt_toby_real`, `rt_case_eq` — each aborts ("Icon value stack removed (GROUND ZERO 3); rebuild stackless").
-  2. **Icon m3 5/6 passes ONLY via the `write(...)` call path** (write_str/int/string_op/every/arith) which uses the
-     still-LIVE `vstack_push/pop` + `rt_nv_get` + `rt_nv_set` + `rt_arith` + `rt_push_int`/`rt_push_str`. None store
-     to a variable, so none hit a stub. The lone m3 FAIL (`if_expr`) + the whole assign-store family are where the
-     stubs bite. SNOBOL4 has no `write(...)` — it uses `OUTPUT = expr`, i.e. the stubbed/assign path.
-  3. **Half-converted value-passing convention.** `bb_lit_scalar` IR_LIT_I (GZ-2) AND IR_LIT_S (R-HW-2) are now pure
-     four-port PASS-THROUGHS (RO constants the *consumer* box seals `[rip+disp]`, NOT pushed) — yet `bb_binop`'s
-     arith arm still POPS the vstack via `rt_arith`. So lits don't deliver a value the way `rt_arith`/`rt_nv_set`
-     expect. The convention (value-stack vs stackless ζ-frame) is in flux and MUST be settled before any box lands.
-  4. **SNOBOL4 IR node shapes ≠ Icon flat-template shapes.** `IR_ASSIGN` (SNO): `α=β=NULL`, value on the AG γ-ring
-     (postfix), target name in `sval`; `OUTPUT`/`TERMINAL`/keyword writes route through `NV_SET_fn` (core.c:2384 —
-     `OUTPUT`→`output_val` writes a line; the LIVE `rt_nv_set` calls `NV_SET_fn`, CONFIRMED reachable). But Icon's
-     `flat_drive_assign` + `bb_assign.cpp` require `α=IR_VAR` and call the STUBBED `rt_pop_nv_set` → would abort.
-     `IR_SCAN` + `IR_GOTO` have NO `walk_bb_flat` case (→ `default: jmp ω`). SNOBOL4 concat (`IR_SEQ`, `dval=1.0`)
-     keeps operands in ISOLATED `IR_graph_t` sub-graphs (not the flat ring), and `flat_drive_seq` reads `pBB->α`
-     (NULL for SNO) → emits empty-seq no-op. `icn_ring_to_tree` returns NULL on the SNO graph (entry is a landing
-     IR_SUCCEED), so the Icon mirror falls back to `bbg->entry` (a landing) → walk emits jmp-γ → empty output.
-  **The fork (Lon's architectural call — coupled to GROUND ZERO #1's shared register/ABI FACT RULE, x3 lockstep):**
-  - **A — target the LIVE value stack now** (`rt_nv_set`/`rt_push_int`/`rt_arith`/`vstack_*`). Fast green on the simple
-    expression-assign family, but builds ONTO the value stack GROUND ZERO 3 is removing → those boxes are knowingly
-    throwaway (need stackless rebuild later). NOT lockstep (SNOBOL4-own box; no Icon re-prove).
-  - **B — build SNOBOL4 boxes STACKLESS from the start** (per-box ζ-frame `[r12+off]`, no `g_vstack`; matches RULES
-    ICON STACKLESS ONE-REGISTER FRAME + the goal's BOX-ZERO directive). Correct end-state, no rework — but means
-    writing the stackless store primitive that `rt_pop_nv_set` is a stub FOR = a slice of the GROUND ZERO 3 rebuild,
-    LOCKSTEP-shared with Icon (ABI change → all three GOAL files in one commit + re-prove all three).
-  Lean = **B** (BOX-ZERO + the stackless rule are central; A's output is disposable). A is a legitimate stopgap only
-  if a same-day mode-3 number is wanted (flag boxes for rebuild).
-  **ORDERED PLAN (next session, byte-producing — pick A or B convention first):**
-  (1) `sno_ring_to_tree` adapter (in scrip.c, NON-byte-producing, reused by BOTH A and B): skip leading landing
-      IR_SUCCEED, collect the single statement's γ-chain to PSUCC/PFAIL/next-landing, postfix-fold by SNO arities
-      (LIT*/VAR=0, BINOP=2, ASSIGN=1 with value→child + name kept in sval), return root or NULL (soft-fail) on
-      multi-statement / IR_SCAN / IR_GOTO / isolated-subgraph-concat shapes.
-  (2) SNOBOL4-OWN assign box `bb_sno_assign.cpp` (TEXT+BINARY) on the chosen convention — A: call LIVE `rt_nv_set`
-      (32-byte movabs-name/movabs-fn/call/jmp-γ/β:jmp-ω, model bb_assign but `rt_nv_set` not `rt_pop_nv_set`);
-      B: stackless ζ-frame store. + emit_core dispatch case + walk_bb_flat SNO-assign arm (lang-guarded) + Makefile
-      RT_PIC_SRCS line.
-  (3) Make IR_LIT_I/S deliver a value in the flat path under the chosen convention (A: restore the `rt_push_int`/
-      `rt_push_str` push for the SNO path; B: seal RO + consumer reads `[rip+disp]`).
-  (4) Wire scrip.c `mode_run` `!is_icon && !is_prolog` arm → `sno_ring_to_tree` + `bb_build_flat`, replacing the
-      `[SMX] FATAL` abort, with a SOFT honest fallback (loud stderr "shape not yet flat-emittable", clean exit, NO
-      abort) when the adapter returns NULL. Target: `output`/`arith` first (MODE3 0→2); `concat` needs isolated-
-      subgraph flattening; `pattern`(IR_SCAN)/`goto_s`(IR_GOTO)/`define`(user-proc) are the LONG POLE (separate boxes).
-  (5) Gate: m2 7/7 HARD (byte-neutral — SNO mode_run arm only), raise MODE3_MIN as cases land, prove_lower2 38/38,
-      sm_dead ≤1, concurrency OK, purity (new template's byte-producers are MEDIUM_BINARY-exempt). Build: scrip rc=0,
-      libscrip_rt rc=0. NO regression. Gates verified GREEN + INVARIANT at session start on `7d3a15b`.
-
-- **2026-05-31 (Opus 4.8) — SBL-EXEC-4: SNOBOL4 KEYWORD-ASSIGN + COMPUTED/INDIRECT GOTO ✅** (SCRIP this handoff,
-  base `81d721b`; .github this handoff). Two SNOBOL4 stmt-level features landed on the four-port IR; mode-2 stays 7/7.
-  **(A) KEYWORD-ASSIGN `&NAME = expr`** (SPITBOL Manual ch.16 "Unprotected Keywords"). `v_assign` (lower.c) rejected
-  any non-`TT_VAR` lhs → `&ANCHOR = 1` hit `lower_unhandled` (kind 47). Fix: accept a `TT_KEYWORD` lhs **only when
-  `cx.lang==IR_LANG_SNO`** (FACT RULE: variation inside the one TT_ASSIGN case, Icon `:=` untouched). The lexer
-  already strips the `&` (snobol4.l:154 `yytext+1`), so `as->sval` = bare keyword name; the runtime write path
-  ALREADY EXISTED — `NV_SET_fn` (core.c:2403+) maps `ANCHOR/TRIM/FULLSCAN/MAXLNGTH/STLIMIT/CODE/ERRLIMIT/FTRACE/
-  TRACE` → the `kw_*` globals and rejects protected `&CASE` (Error 10, SCRIP is case-sensitive). Same four-port
-  topology as a var-assign (verified: anchored matching flips `"abc" ? 'b'` S→F; keywords round-trip; `&CASE`
-  rejected). **(B) COMPUTED/INDIRECT GOTO `:($X)` / `:S($X)` / `:F($X)`** (SPITBOL ch.4). Used the free `IR_GOTO`
-  enum slot (no exec arm, never constructed). **Parser fact:** `:($IDENT)` does NOT parse to an expr node — it
-  folds to a `TT_QLIT` label STRING with a leading `$` (snobol4.y goto_label_expr:120); the rarer `:($(expr))`
-  form (line 121) carries a real expr. So `goto_node_str` returns `"$L"`, NOT caught by `goto_node_expr`. New in
-  lower_program.c: a run-time label registry (`g_bb_labels[]` + `bb_label_landing()`, populated after PASS-1 with
-  every labeled stmt's landing), `make_computed_goto` (lowers the goto expr into an isolated value sub-graph on
-  `IR_GOTO.counter`, like IR_SCAN/IR_CALL operands), and `make_indirect_goto` (the `$`-prefix string form →
-  synthesize `TT_VAR(suffix)` → resolver). Wired into the U/S/F branch resolution. `IR_GOTO` exec arm (bb_exec.c):
-  run the sub-graph, `VARVAL_fn` → label string, `bb_label_landing` → landing node, return it (unresolved/fail →
-  `bb->ω` = the lowerer's fall-through). **CAUGHT A REAL BUG:** `bb_reset` (scrip_ir.c:201) zeroed `counter` for
-  every kind except ARBNO/SCAN/SNO-SEQ/SNO-CALL → the resolver's sub-graph pointer was wiped on re-entry; added
-  `IR_GOTO` to the preserve-list. All three branches verified (U/S/F → reached/hit/failure-routed). +1 prove case
-  (`&ANCHOR = 1`, via new `dump_sno_value` since `IR_LANG_SNO=1`≠the shared lang-0 dump) + `kw()` builder.
-  **Gates GREEN + INVARIANT:** scrip rc=0, libscrip_rt rc=0, prove_lower2 **38/38** (37+1), snobol4 m2 **7/7**
-  (HARD), icon m2 **6/6** (HARD, byte-neutral — SNO-only guards), sm_dead 1(≤1), concurrency OK, purity FACT 6
-  (no template touched). **MODE-3/4 ASSESSMENT (empirical, Lon-requested):** SNOBOL4 m2 7/7 (BB exec via
-  `bb_exec_once`); **m3 = `[SMX] FATAL` abort** — mode-3 `--run` is gated `if (is_icon)` in scrip.c:478, Icon
-  flows through `bb_build_flat`→`bb_box_fn` native (PROVEN: `hello from icon mode-3`, exit 0, icon m3 5/6), SNOBOL4/
-  Prolog fall to the SMX abort (the native run-path EXISTS + works for Icon — SNOBOL4 just isn't routed onto it =
-  the long pole); **m4 = blanket `[SMX]` abort** (scrip.c:396, returns before ANY emission for ALL langs incl.
-  Icon — BB-native x86 emission excised by SMX-4, not rebuilt). **NEXT (high→low):** route SNOBOL4 onto the mode-3
-  `bb_build_flat` path (highest value — Icon proves it works); rebuild mode-4 BB-native x86 emission; then
-  `IR_PAT_DEFER` runtime (Track B), broader builtins (ARRAY/TABLE/APPLY), `&ANCHOR` already done.
-
-- **2026-05-31 (Opus 4.8) — TESTING DIRECTIVE: ALL THREE MODES, ALWAYS ✅** (.github + SCRIP this handoff). Per Lon:
-  every SCRIP test for this GOAL now runs modes 2/3/4. `scripts/test_smoke_snobol4.sh` rewritten — mode 2
-  (`--interp`) is the HARD gate; mode 3 (`--run` / SB-LINEAR) + mode 4 (`--compile --target=x86` → `as` → `gcc
-  -no-pie … -lscrip_rt` → run) are RUN + REPORTED on EVERY invocation (tracked, `MODE3_MIN`/`MODE4_MIN` PASS
-  floors, default 0). Current: **m2 7/7, m3 5/6, m4 1/6** @ 18357d4 (the `--run` native path and the SMX-4-excised
-  `--compile` x86 emission are not yet rebuilt — now VISIBLE every run). Gate exits 0 (mode-2 clean + floors
-  met). The Mode-defs block gained a ⛔ TESTING DIRECTIVE and the gate-suite block was updated to match. Raise
-  the floors as 3/4 come back so regressions in them fail the gate too.
-
-- **2026-05-31 (Opus 4.8) — SBL-EXEC-3: SNOBOL4 PROGRAM-DEFINED FUNCTIONS + COMPARISON PREDICATES + RECURSION ✅**
-  (SCRIP `cb5946a`, rebased onto `eccb4f6` PLG-3; .github this handoff). Mode-2 smoke **6/7 → 7/7** (`define` was the last fail).
-  **(A) CALL LOWERING** — `lower.c` VALUE-role `TT_FNC`, `cx.lang==IR_LANG_SNO` arm → `IR_CALL` (sval=name,
-  ival=nargs, `dval=2.0` SNO marker; each arg lowered into its OWN isolated `lower_value_subgraph`, the array
-  riding on `counter`). The Icon arm (callee child c[0]) is untouched — the SHAPE split keys on `cx.lang`.
-  `scrip_ir.c` `bb_reset` now also preserves `counter` for `IR_CALL(dval==2.0)`. **(B) FUNCTION REGISTRATION** —
-  `lower_program.c`: scan `DEFINE('NAME(p..)l..')`, parse the prototype, and register a proc whose graph is a
-  **VIEW** over the one landing-node graph `g` (`*fg=*g; fg->entry = land[label NAME]` — shared node set, own AG
-  ring, distinct entry; no body extraction). `lower_sc` carries the saved-name list (params, then locals, then
-  NAME); `nparams=#params`. Shared `RET`/`FRET` `IR_RETURN` nodes created up front; bare-subject and `:(L)`-goto
-  `RETURN`/`FRETURN`/`NRETURN` wire to them (NRETURN→RET placeholder). **(C) CALL EXEC** — `bb_exec.c` `IR_CALL`
-  `dval==2.0`: evaluate the arg sub-graphs (a failing arg fails the call); a proc-table user function runs through
-  the **SNOBOL4 global save/restore frame** (save the globals named in `lower_sc`, bind dummy args to actuals,
-  null locals+result var, push an EMPTY-scope `GenFrame` so the body's vars route through the global name table,
-  snapshot/reset/`bb_exec_once(fg)`, capture `g_ir_return_val` on `FRAME.returning`, restore globals LIFO); any
-  other name falls to `try_call_builtin_by_name`. **AG-ring save/restore around the nested call** (the ring is
-  graph-level state `bb_snapshot/restore_state` don't cover, and recursion re-enters the SAME view graph) — this
-  is what makes `N * FACT(N-1)` survive the recursive descent. `IR_RETURN` now branches on `dval`: `1.0`=value is
-  the function-named global (RETURN), `2.0`=failure (FRETURN), else generic α-return (Icon/Prolog). **(D)
-  PREDICATES** — `gen_runtime.c try_call_builtin_by_name`: numeric `EQ/NE/LT/LE/GT/GE` + lexical
-  `LGT/LLT/LGE/LLE/LEQ/LNE` comparison FUNCTIONS (null string on success, FAIL otherwise) beside the existing
-  relational OPERATORS; these were newly reachable (TT_FNC used to hit `lower_unhandled`) and are needed by the
-  recursion base case. **Verified:** `DOUBLE(21)`→42, `FACT(5)`→120, `T(0)/T(5)`→1/99, top-level `EQ(0,0)`→equal.
-  **Gates GREEN:** scrip rc=0, libscrip_rt rc=0, prove_lower2 37/37, sm_dead 1(≤1), purity FACT 6 (byte-neutral —
-  no template touched), concurrency OK, Icon m2 6/6 (HARD), Prolog m2 3/5 (eccb4f6 PLG-3 lifted +1). All SNOBOL4-gated edits are
-  byte-neutral for Icon/Prolog by construction (lang/dval guards). **NEXT:** `&ANCHOR`/keyword-assign, computed/
-  indirect goto `:($X)`, true NRETURN (return-by-name) + DEFINE 2nd-arg entry-label, the `IR_BINOP` multi-node
-  AG-ring fragility (`(10+20)+(3+4)`→11; same sub-graph fix as IR_SEQ), `IR_PAT_DEFER` runtime (Track B), broader
-  SNOBOL4 builtin coverage (ARRAY/TABLE/APPLY/…).
-
-- **2026-05-31 Opus 4.8 — SBL-EXEC-2: SNOBOL4 CONCAT + GOTO ✅** (SCRIP `687aa58`, base `f4f4d9a`; .github this
-  handoff). Mode-2 smoke **4/7 → 6/7** (only `define` left). **(A) CONCAT** — Lon's steer: `TT_SEQ` → `IR_SEQ`,
-  not a BINOP fold. `v_conj` branches `cx.lang==IR_LANG_SNO` → left-assoc binary `IR_SEQ` chain; each node lowers
-  its 2 operands into ISOLATED `IR_graph_t` sub-graphs (`lower_value_subgraph`, γ=NULL terminal value-node) and
-  the `bb_exec.c IR_SEQ` arm (marker `dval==1.0`) runs each via `bb_exec_once` + `binop_apply(BINOP_CONCAT)`.
-  Robust for multi-node operands (`(2+3) ' ' (4+5)`→`5 9`; `(10+20) ' x ' (3+4)`→`30 x 7`; vars→foobar/foo-bar).
-  `bb_reset` preserves `counter` for SNO-concat `IR_SEQ`. Value-role `TT_ALT`→`v_alt`→`IR_ALT` added too.
-  **FINDING: `IR_BINOP` has the SAME AG-ring multi-node fragility** (`(10+20)+(3+4)`→11, not 37) — apply the
-  sub-graph fix there later. **(C) GOTO** — `lower_program.c` SNOBOL4 walker rewritten: two-pass LANDING-NODE
-  scheme (every stmt gets an `IR_SUCCEED` landing; label→landing map; `:S`/`:F`/`:(L)` resolve fwd+bwd with
-  SPITBOL ch.4 precedence; subject-less bare-goto/END transfer via landing; entry=`land[0]`). Verified S/F/
-  unconditional/backward-loop/combined. **Concurrency-audit false-positive FIXED** (`g_term`/`g_builtin` Prolog
-  helpers between `lower_pattern`/`lower_goal` were misattributed to block#2 → bogus `TT_QLIT`/`TT_VAR` dup): the
-  LOWER(a) awk now scopes counting to the 3 role dispatchers (`in_role`); still catches a real injected dup.
-  **Gates GREEN:** scrip rc=0, libscrip_rt rc=0, prove_lower2 35/0, sm_dead OK, purity 6 (byte-neutral),
-  concurrency OK, Icon m2 5/6 (HARD, byte-neutral via stash). **NEXT:** DEFINE/`TT_FNC` user functions (the last
-  smoke fail — call frame + param binding + RETURN; `INVOKE_fn`/`IR_CALL` are refs), `&ANCHOR=N` keyword-assign,
-  computed goto, `IR_PAT_DEFER` runtime (Track B).
-
-- **2026-05-31 Opus 4.8 — REGISTER CONVENTION LOCKED IN CODE + SNOBOL4 PATTERN LEAVES ✅** (this handoff). Lon: cover
-  the register base before the 3-session race, "SET the registers up front in the code before we JUMP into BB land."
-  **Findings:** (1) the x86 BB-native emission backend is EXCISED by SMX-4 (`--compile` says "BB-native x86 emission not
-  yet rebuilt"; `--run` silent; `bb_program` was an unwired empty stub) — so emitted bytes are assemble-verifiable only,
-  not run-provable; rebuilding it IS the race. (2) THREE contradictory register conventions existed: GOAL FACT RULE
-  (r12=ζ, r13/r14/r15=Σ/δ/Δ) vs REGISTER-LAYOUT.md (r12=SM value-stack TOS, r13-15 free) vs RULES.md ICON-STACKLESS
-  ("r13=SM-state register") — all SMX-4 residue (SM engine gone → no value-stack, no SM-state). **Lon ratified the GOAL
-  FACT RULE as winner.** **Done:** created `src/emitter/bb_regs.h` — THE single register source the 3 sessions reference
-  (BBREG_* GAS names + BBREGN_* reg numbers); filled `bb_program.cpp` with the register-setup prologue (mov r12,rsp;
-  lea r10,[rip+Δ_root_data]; jmp root α) — assemble-verified via `as` (`49 89 e4`/`4c 8d 15…`); synced REGISTER-LAYOUT.md
-  to the live convention (supersession banner + table). **Lon register decisions captured:** rbx=DESCR base pointer
-  (dual-width 8/16-byte DESCR; concurrent 32-bit session in flight), rbp=variable hash-table base (RESERVED — GET/SET
-  stay C calls for now, inlining is a future optimization). ζ (r12) = ONE load per BB-BLOB sequence BEGIN, amortized
-  across the sequence's boxes, survives C calls (callee-saved); R10 = caller-saved re-loadable constant data (flat) — the
-  RO-const-vs-RW-dynamic axis is why ζ is callee-saved and r10 caller-saved. **SNOBOL4 PATTERN leaves added to lower.c
-  `lower_pattern`:** LEN/POS/RPOS/TAB/RTAB/FENCE/ABORT/FAIL/SUCCEED/ARBNO + captures (COND/IMMED/CURSOR) + DEFER(*var) +
-  bare VAR; `kind_is_resumable` extended with the pattern generators. Flag/payload encodings match the bb_exec.c oracle
-  arms. **Gates green throughout:** make scrip rc=0, make libscrip_rt rc=0, prove_lower2.sh 17/17, purity FACT 6, sm_dead
-  1, concurrency invariants OK. **OPEN:** (a) the pattern leaves are NOT YET PROVEN (no prove_lower2.c cases — next step);
-  (b) R10 flat-data-ptr vs brokered-current-node fork is the one unresolved byte-affecting decision; (c) the 3 GOAL-file
-  register FACT tables (byte-identical x3) now LAG bb_regs.h — a lockstep amendment is deferred until R10 settles + the
-  dual-width session's rbx work lands (co-owned). Per Lon: do not tangle on the HASH inline optimization now.
-
-- **2026-05-31 Opus 4.8 — CONCURRENCY GROUND RULES for 3-session LOWER+EMITTER fill ✅** (SCRIP `d1c082f`,
-  .github `0b3e3bea`). Lon greenlit firing up 3 concurrent sessions (SNOBOL4/Icon/Prolog) to fill LOWER + EMITTER
-  to 100% BBs on x86 by EOD, all platforms next; asked to verify the herding discipline first ("LOWER turning into
-  a mess and code flying outside EMITTERS"). **Audit:** LOWER already herded (SHARED-LOWERER FACT RULE, verified
-  byte-identical x3 — the earlier sed mismatch was a false alarm, the phrase recurs in this file's watermark). **Gap:
-  EMITTER had NO concurrency rule** — `emit_core.c` is one giant shared `switch` (108 cases), 67 per-box template
-  `.cpp`s, one shared Makefile `RT_PIC_SRCS`; RULES.md TEMPLATE-ONLY governed only WHERE bytes live. **Installed:**
-  (1) `TEMPLATE-ONLY EMISSION — ONE-DISPATCH CONCURRENCY` FACT RULE, byte-identical x3 (md5 307534d6), mirroring the
-  LOWER rule. (2) `scripts/audit_concurrency_invariants.sh` — the herding gate enforcing both rules' completion tests
-  (no dup `case TT_` per role switch, no dup `case IR_` in emit_core.c, no byte-emitter regression vs baseline 6,
-  FACT RULE blocks byte-identical x3 via awk). (3) `prove_lower2.c` `main()` sectioned per-language (BEGIN/END markers)
-  so concurrent appends auto-merge. (4) Fixed the LOWER rule's self-check (c) sed→awk (over-matched in SNOBOL4-BB),
-  re-synced byte-identical x3 (md5 5097ed94). Gates green: audit_concurrency_invariants OK, prove_lower2.sh 17/17,
-  make scrip rc=0. No code logic changed (rules + gate + harness sectioning only); Icon m2 stays 5/6.
-
-- **2026-05-31 Opus 4.8 — ICON EXECUTES AGAIN (m2 0/6 → 5/6) ✅** (SCRIP `212ed70`, base `593fbf3`; .github this
-  handoff). Continuation of the shared-combinator session (Lon: "Finish."). Made Icon run on the four-port IR via
-  `bb_exec_once(main)`. (1) Promoted `g_det_builtin1` → SHARED role-agnostic `wire_det_builtin1`, called from BOTH
-  the Icon VALUE role (write/writes) AND the Prolog GOAL role (write/writeln/print) — another sharing seam. Set
-  `dval=1.0` (is_deep) so the IR_CALL exec arm reads the threaded arg from the AG ring (verified `bb_exec_once`
-  pushes each node value between steps). (2) Added the VALUE-role `TT_FNC` write arm; the per-language TT_FNC SHAPE
-  is handled inside the one case (FACT RULE: variation lives in the case) — Icon carries the callee as child
-  c[0]=TT_VAR with args c[1..], Prolog carries it in sval. (3) `lower_icon_body` (lower_program.c): builds each
-  registered Icon proc's four-port graph from the TT_PROC_DECL body (c[2]), reverse-threads its statements
-  VALUE-role, fills proc_table bb_idx. FAIL-LOUD — any unhandled statement sinks the whole body (-1) so the driver
-  keeps its clean `[IBB] FATAL` rather than silently running a partial graph (verified: `write("one"); x:=[1,2,3]`
-  aborts with NO partial output, satisfying the concern that made me revert this in the prior handoff). (4)
-  **`tt_to_binop` fix** — `v_binop` stored the raw `tree_e` in `ival`, but the IR_BINOP exec arm casts ival to
-  `BinopKind` (TT_ADD=13 ≠ BINOP_ADD=0) → binop_apply computed the wrong op. Latent since the lower2 rewrite (only
-  topology was ever proven); Icon arith is the first executor. Added a tree_e→BinopKind mapper; this also fixes
-  SNOBOL4 value binops (`OUTPUT = 2 + 3`→5, was wrong). **Icon m2 now 5/6** (write_str/write_int/arith/string_op/
-  if_expr); the lone fail `every write(1 to 3)` (outputs `1`) needs generator-through-call resumption (L2-E
-  suspend/resume frame) — IMMEDIATE NEXT in the Watermark. Gates: make scrip rc=0, make libscrip_rt rc=0,
-  prove_lower2.sh 17/17, sm_dead 1, FACT 6. corpus UNTOUCHED. bb_exec.c UNTOUCHED. FACT RULE block byte-identical
-  across the 3 goal files preserved.
-
-(Older entries pruned; see git history of GOAL-SNOBOL4-BB.md.)
-
----
+**Watermark.** SCRIP tip `24c593b` (define call-frame + RETURN/FRETURN routing + movabs/lea fixes; m3 5/6,
+`define` blocked on the string-`slen` + param-binop bugs — see CURRENT FRONTIER at top) · .github tip this commit.
 
 ## Architecture references
 
@@ -2462,460 +1242,20 @@ Rung suite         = M2=19/19 SKIP=0  (M4=18/19, 053 pre-existing)
 
 ---
 
-## ⭐ SESSION 2026-05-31 (Opus 4.8) — LOWER2 BOX LADDER: proof gate restored + L2-A/L2-B-core proven
+## LOWER2 BOX LADDER — role arms proven via prove_lower2.sh (2026-05-31)
 
-**Directive (Lon):** continue lower2.c; read Proebsting + irgen.icn (+ found: GOAL-LOWER-REDESIGN.md §318 wiring
-table — the authoritative cross-check); implement all TT_* kinds; rungs in small proven groups; read the
-tree-pattern notes. **Read this session:** Proebsting §4.1–4.6+Figs1&2, `jcon_irgen.icn` ir_a_Every/Alt/
-conjunction/Limitation/While/Until/Repeat/Not, `lower.c` lower_new_*_ag (exec-compat reference),
-GOAL-LOWER-REDESIGN.md (the four-port node §204, canonical wiring table §318, "lower wires the DCG directly"
-§759, final pipeline §788). **NOT yet read** (next session): GOAL-SM-LOWER-REFACTOR.md, GOAL-ICON-LOWER-REDESIGN.md.
+The lower2 role-arm ladder (VALUE / PATTERN / GOAL) was built + proven box-by-box against Proebsting §4 + jcon
+`ir_a_*` + GOAL-LOWER-REDESIGN.md's wiring table, via `scripts/prove_lower2.sh` (topology only = node counts +
+α/β/γ/ω; value-plumbing deferred to LOWER2-EXEC). Proven: foundation (literal/unop/binop/to/if), combinators
+(conjunction/alternation), loops (every/while/until/repeat/not), the full PATTERN role (all leaves +
+LEN/POS/RPOS/TAB/RTAB/FENCE/ABORT/FAIL/SUCCEED/ARBNO + CAT/ALT via shared `wire_seq`/`wire_alt` + captures +
+DEFER + bare-VAR + BAL), and GOAL-role unify / arith-compares / conj / disj. SNOBOL4 pattern-match statements
+EXECUTE (`v_scan`→`IR_SCAN`, 13/13 byte-identical to the SPITBOL oracle).
 
-**INFRA RESTORED (was local-only in the prior session — never committed; confirmed via `git log -S`):**
-- 3 public role-entry shims added to lower2.c: `lower2_value_entry`/`_pattern_entry`/`_goal_entry` (the only
-  external surface — `lower2()` stays static; each seeds the cursor with a role and funnels in).
-- `prove_lower2.c` rewritten: proves Fig-1 `5 > ((1 to 2)*(3 to 4))` (=9 real IR nodes) AND nested
-  `(1 to 2) to (3 to 4)` (=7; `to-child.fail → from-child`), each with a PASS/FAIL node-count assertion + a
-  full α/β/γ/ω port dump. Builders lit/bin/un/tri; kname covers all wired kinds.
-- `scripts/prove_lower2.sh` — committed reproducible gate (compiles lower2.c+scrip_ir.c+prove_lower2.c
-  standalone; the production lower.c is NOT linked, via local kind_is_resumable+cset_try_fold). **9/9 PASS.**
-
-**Method.** Each box transcribes the canonical port equations (Proebsting §4 + `ir_a_*` + the §318 table) into
-lower2's idiom (lcx_t cursor + `lower2()` recursion + nalloc/set_succ_fail/ret), in PURE four-port form (α/β
-synthesized out, γ/ω inherited in) matching the foundation. lower.c's lower_new_*_ag are the exec-compat
-reference. Value-plumbing (which node reads which operand `.value`) is DEFERRED to LOWER2-EXEC (IR_t lacks the
-`c[]` child array the design §204 imagined; operands collapsed onto α/β — verify against the executor, do not
-assume). The proof checks TOPOLOGY only.
-
-**TREE-PATTERN NOTES (read, acknowledged):** `tmatch_proto.c` `tm`/`tm_g` is a STEP-5 *refactor* of already-proven
-box code into uniform MATCH-shape + CAPTURE-children + RECURSE + WIRE. MEASURED shallow (120 peeks, 12 two-level,
-0 three-level; 78 uniform recursion calls); ~30% LOC shrink; win = uniformity. "Refactor proven code into pattern
-form — don't design two things at once." Correctly deferred until all role arms are implemented + proven. Endgame:
-(a) parse=LALR tokens→tree is SYMMETRIC to tmatch tree→IR; (b) IR_PAT_DEFER = runtime analog of a compile-time
-capture; (c) the pattern-form C transliterates to the Icon-bootstrap lowerer.
-
-### Rung ladder (VALUE role unless noted) — proven box-by-box via scripts/prove_lower2.sh
-
-- [x] **L2-A — combinators**: conjunction `TT_SEQ`/`TT_SEQ_EXPR` (= binop w/o compute; `ir_conjunction` —
-  `c0.γ→c1.α`, `c0.ω→ω`, `c1.γ→conj`, `c1.ω→c0.β`, resume=c1.β), alternation `TT_ALTERNATE` (2nd runtime-gated
-  box; `ir_a_Alt` — `arm.γ→alt`, fail-chain `arm[i].ω→arm[i+1].α`, last→ω, resume=alt, arm resumes in operand_aux).
-- [x] **L2-B-core — loops**: `TT_EVERY` (`ir_a_Every`: E1.γ→body.α, body.γ=body.ω=E1.β, E1.ω→every.fail; no-body
-  E1.γ→E1.β drain), `TT_WHILE` (`ir_a_While`: cond bounded, body.γ=body.ω=cond.α, E1.ω→while.fail), `TT_UNTIL`
-  (`ir_a_Until`: E1.γ→until.fail, E1.ω→body/loop via UNTIL-node trampoline), `TT_REPEAT` (`ir_a_Repeat`:
-  E.γ=E.ω→REPEAT-node trampoline→E.α), `TT_NOT` (`ir_a_Not`: E.γ→not.fail, E.ω→not⇒null,succeed). Bodies bounded.
-  **Fixed** a latent NULL-ω in until/repeat (generator children stranded) by threading the loop node as the
-  concrete restart trampoline (matches every/while). All ports concrete; 9/9 PASS.
-- [ ] **L2-B2 — loop escapes + non-Icon loops**: `TT_LOOP_BREAK`/`TT_LOOP_NEXT` (`ir_a_Break`/`ir_a_Next` via a
-  loop-context in lcx_t: break→loop.fail, next→loop nextlabel), `TT_DO_WHILE`, `TT_FOR`, `TT_FOR_RANGE`, `TT_UNLESS`.
-- [ ] **L2-C — limitation / interrogation**: `TT_LIMIT` (`ir_a_Limitation` — counter box: lim.α=N.α, N.γ→E.α,
-  E.γ→lim.γ, E.ω→N.β, resume decrements counter), `TT_INTERROGATE`, `TT_NONNULL` (verify v_unop route),
-  `TT_IDENTICAL`/`TT_INDIRECT`.
-- [ ] **L2-D — assignment**: `TT_ASSIGN`, `TT_SWAP`, `TT_AUGOP` (`ir_augmented_assignment`), `TT_REVASSIGN`, `TT_REVSWAP`.
-- [ ] **L2-E — calls & access**: `TT_FNC` (`ir_a_Call` — suspend/resume frame), `TT_METHCALL`, `TT_FIELD`
-  (`ir_a_Field`), `TT_IDX`, `TT_SECTION`/`_PLUS`/`_MINUS` (`ir_a_Sectionop`), `TT_INITIAL` (`ir_a_Initial`).
-- [ ] **L2-F — scan / match**: `TT_SCAN` (`ir_a_Scan`), `TT_SMATCH` (`subj ? pat` → flips cx.role=ROLE_PATTERN).
-- [ ] **L2-G — returns / decls / goto / case**: `TT_RETURN`/`TT_NRETURN` (`ir_a_Return`), `TT_SUSPEND`
-  (`ir_a_Suspend`), `TT_PROC_FAIL` (`ir_a_Fail`), `TT_CASE` (`ir_a_Case`), `TT_GLOBAL`/`TT_LOCAL`/`TT_STATIC_DECL`/
-  `TT_DECL`/`TT_OPSYN`, `TT_GOTO_U`/`TT_GOTO_S`/`TT_GOTO_F`, `TT_TRY`/`TT_DIE`.
-- [ ] **L2-H — data / cset / IO**: `TT_MAKELIST`/`TT_VLIST`/`TT_RECORD`/`TT_NEW`/`TT_SORT`, `TT_MAP`/`TT_GREP`/
-  `TT_GATHER`, `TT_HASH_*`/`TT_ARR_*`, `TT_CSET_UNION`/`_DIFF`/`_INTER`, `TT_PRINT`/`TT_PRINT_FH`/`TT_SAY`/`TT_SAY_FH`.
-- [x] **L2-P — PATTERN role** (lowering COMPLETE 2026-05-31; exec arms deferred to LOWER2-EXEC): **`TT_LEN`/`POS`/`RPOS`/`TAB`/`RTAB` ✅**, **`TT_FENCE` ✅**, **`TT_ABORT`/`TT_FAIL`/`TT_SUCCEED` ✅**,
-  **`TT_ARBNO` ✅**, **CAT chain (`TT_SEQ`/`TT_CAT`) ✅**, **ALT (`TT_ALT`) ✅**, **captures `TT_CAPT_COND_ASGN`/`_IMMED_ASGN`/`_CURSOR` ✅**,
-  **`TT_DEFER`(*var) + bare `TT_VAR` ✅**, **`TT_BAL` ✅** (2026-05-31 — IR_PAT_BAL generator, proven). **`TT_FNC` pattern-primitive folds: N/A ✅** — INVESTIGATED 2026-05-31 (Sonnet 4.6): the SNOBOL4 parser NEVER delivers SPAN/ANY/LEN/etc. as a generic `TT_FNC`. In `snobol4.y` the `T_FUNCTION` production calls `pat_prim_kind(name)`, and `tal_fnc_close` builds `ast_node_new(k==TT_VAR ? TT_FNC : k)` — so a recognized primitive name (ANY/NOTANY/SPAN/BREAK/BREAKX/LEN/POS/RPOS/TAB/RTAB/ARB/ARBNO/REM/FAIL/SUCCEED/FENCE/ABORT/BAL) is constructed DIRECTLY as its dedicated `TT_*` kind (all already handled in `lower_pattern`); only a non-primitive name becomes `TT_FNC`. A `TT_FNC` reaching `lower_pattern` is therefore a user function returning a pattern value used in pattern position — runtime-resolved (DEFER territory), NOT a compile-time primitive fold — and correctly falls to `lower_unhandled` (loud). **L2-P lowering is COMPLETE; no fold arm needed.**
-  (foundation leaves LIT/ARB/REM/SPAN/ANY/NOTANY/BREAK/BREAKX already in lower_pattern via pat_cset_arg.)
-  CAT/ALT done 2026-05-31 via SHARED `wire_seq`/`wire_alt`. **Leaves added 2026-05-31 (this handoff):** LEN→IR_PAT_LEN,
-  POS/RPOS→IR_PAT_POS (RPOS sval="r"/dval=1.0; bounded, β=ω_in), TAB/RTAB→IR_PAT_TAB (generator, self-β), FENCE→IR_PAT_FENCE
-  (bounded; FENCE(inner) lowers inner then FENCE-successor), ABORT→IR_PAT_ABORT, FAIL→IR_FAIL, SUCCEED→IR_SUCCEED,
-  ARBNO→IR_PAT_ARBNO (inner pattern in own IR_alloc sub-graph + bb_arbno_state_t), CAPT_COND/IMMED→IR_PAT_ASSIGN_COND/_IMM
-  (inner.γ→capture, varname in sval), CAPT_CURSOR→IR_PAT_ATP, DEFER→IR_PAT_DEFER(ival=1), bare VAR→IR_PAT_DEFER(ival=0).
-  `kind_is_resumable` extended with the pattern generators (β=self) so emit_leaf wires self-retry for generators and β=ω_in
-  for POS/RPOS/FENCE/ABORT. Flag/payload encodings match the bb_exec.c oracle arms exactly. **NOT YET PROVEN — no prove_lower2.c
-  cases for these arms yet (the 17/17 covers only the pre-existing arms). NEXT: add SNOBOL4 dump_pat cases (node counts + α/β/γ/ω).**
-- [~] **L2-Goal — GOAL role**: **`TT_UNIFY` (+`=/2`) ✅**, **arith-compares (`< > =< >= =:= =\=`) ✅**, `TT_IF`, `TT_VAR`/`TT_FNC`
-  call/builtin, **conj `,` ✅ / disj `;` ✅** /ITE (cut/true/fail leaves already in lower_goal).
-  conj/disj done 2026-05-31 via SHARED `wire_seq`/`wire_alt` (IR_GCONJ/IR_DISJ); unify=`g_unify` (IR_UNIFY),
-  compares=`g_compare` (IR_ARITH, ival=BinopKind). Remaining: ITE (`->`/`*->`), `is/2`, user-pred Call, `nl`,
-  term-comparison (`==`/`@<`…), findall/catch. (Prolog EXEC stays resolve-runtime + sm_interp_run per RULES;
-  these arms are topology-only, proven via prove_lower2.sh, feeding the eventual goal graph.)
-- [~] **LOWER2-EXEC** — **SNOBOL4 pattern-match statements EXECUTE ✅ (2026-05-31 Opus 4.8, the long pole — first since SMX-4):**
-  `v_scan` lowers `SUBJECT ? PATTERN` (+ `= REPLACEMENT`) to `IR_SCAN`; the `IR_SCAN` exec arm drives the pattern
-  sub-graph through the 19-arm `IR_PAT_*` oracle with anchored start-iteration + deferred-capture flush + replacement
-  splice; `bb_reset` preserves `IR_SCAN.counter`; walker does match-replace synthesis + default fall-through; bare
-  ARB/REM/BAL/FAIL/SUCCEED/FENCE/ABORT recognized. 13/13 byte-identical to SPITBOL oracle. (See Watermark.) **STILL OPEN:**
-  Icon value-level proof — wire `lower2_value_entry` → bb_exec on `1 to 5`; confirm/adjust the relational flag (`dval=1.0`)
-  + if-gate (`node.β` runtime dispatch) + alt-gate (operand_aux) AGAINST the executor.
-- [ ] **L2-TMATCH** — STEP 5: refactor the proven box code into `tm`/`tm_g` pattern form (match-capture-recurse-wire);
-  retire `tmatch_proto.c`'s `#if 0` exhibit. Don't start until the arms above are proven.
-- [ ] **LM-6 DISPATCH-UNIFY** — once all roles armed + exec-proven, retire lower.c's 3 dispatch entry points; lower2 IS the lowerer.
-
-**HANDOFF (2026-06-02, Opus 4.8) — IR_SEQ VALUE-CONCAT lands; SNOBOL4 mode-3 2/6 → 3/6 (`concat` green, oracle-matched).** `OUTPUT = 'ab' 'cd'` → `abcd` in mode-3, byte-matching the SPITBOL oracle across literal / three-operand / int-coercion / null-string-left / null-string-right / var / var-chain / var+literal forms; the prior-passing `output` + `arith` smokes still green. NO `STITCH_SEQ` box was built — the concat reuses the EXISTING `rt_gvar_assign_concat` (defined in `src/interp/IR_interp.c`, exported in `libscrip_rt.so`), which runs the two operand sub-graphs via `IR_interp_once` and applies `binop_apply(BINOP_CONCAT,lv,rv)` (manual ch.3 semantics; the `rt.c` `rt_concat` `STACKLESS_ABORT` stub is UNRELATED dead scaffolding and was left alone). **5 edits, all gated byte-identical for the rest of the suite:** (1) `emit_globals.h` — new `sm_emit_t` fields `op_a_counter`/`op_a_ival_sg`; (2) `emit_core.c walk_bb_node` — promote them from `nd->α->counter`/`->ival` so the box reads the sub-graph pointers from `_` (PEERS / no-pBB), never `pBB`; (3) `bb_gvar_assign.cpp` — IR_SEQ arm: BINARY loads rdi=dst(RO), rsi=left_graph / rdx=right_graph (movabs, valid mode-3 in-process), `call rt_gvar_assign_concat`, jmp γ/def β/jmp ω; TEXT(mode-4) LOUD-bombs (sub-graph addrs not relocatable — same status as SNOBOL m4 0/6); (4)+(5) `emit_bb.c` — new `flat_drive_gvar_seq_passthrough` + a `walk_bb_flat case IR_SEQ` branch (`g_gvar_flat_chain && dval==1.0`) emitting a `jmp γ` pass-through (the concat is done by the consuming IR_ASSIGN). **CRITICAL FINDING:** the obvious approach — *removing* the IR_SEQ node from the `codegen_gvar_flat_chain_body` `nodes[]` array — was WRONG: preceding nodes (e.g. `A='foo'`) thread their γ *to* the IR_SEQ, so dropping it from `nodes[]` made the label lookup fall back to the global success exit and control jumped past the concat (symptom: a preceding `OUTPUT='before'` printed, nothing after). Keep IR_SEQ in `nodes[]` as a pass-through; `gvar_chain_arity` already returns 0 for IR_SEQ(dval==1.0) so `gvar_stmt_operand_refs` sets the consuming IR_ASSIGN's α=IR_SEQ. **⚠ BUILD NOTE:** the mode-3 emit path runs the emitter compiled into the `scrip` BINARY, not just `libscrip_rt.so` — after any `src/emitter/**` edit rebuild BOTH (`bash scripts/build_scrip.sh && make libscrip_rt`) or you test stale emitter code. **Gates GREEN:** SNOBOL4 m2 **7/7 HARD** / m3 **3/6** (MODE3_MIN raised 2→3) / m4 0/6 · Icon m2 **12/12 HARD** (byte-neutral) / m3 3/12 / m4 3/12 · `no_bb_bin_t` 0 · LI-FENCE holds · concurrency invariants OK (FACT RULES byte-identical ×3 untouched) · `prove_lower2` PASS · `g_vstack` **0**. **NEXT:** `pattern` (IR_SCAN) — the ch.18 unanchored OUTER match loop (`bb_match` + SUBJECT subject-slot wiring); then `goto_s` (IR_SCAN), then `define`. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-IR-SEQ-CONCAT.md`.
-**Watermark.** SCRIP `42b63ad` · .github this commit. *(SNOBOL4 mode-3 frontier: output✅ arith✅ concat✅ pattern✗ goto_s✗ define✗.)*
-
-**HANDOFF (2026-06-02, Opus 4.8) — LI DE-NAME RUNG: EMITTER + RUNTIME COMPLETE. All gates byte-identical throughout; 7 commits local on SCRIP (push pending "perform hand off").** Lon directive resolved the rung's deferred judgment calls ("finish the rename — strip language from ANY emitter/runtime symbol or filename, pick generic-CS names"). Six gated rename-only slices + the fence cleared the entire in-scope surface: **A `a0478c4`** chain twins → concept-distinct (SNOBOL global-var model `gvar_*`, Icon typed-DESCR-slot model `descr_*`: `*_flat_chain_build`/`*_chain_{arity,is_real,resolve,operand_refs,prebuild_children}`/`codegen_*_flat_chain_body`/`g_*_flat_chain`); **B `d339c97`** `sno_prog_t`/`sno_stmt_t`→`prog_t`/`stmt_t`, `IR_SNO_PROG`→`IR_PROG`; **C `12b820d`** the 49-member `rt_pl_*` runtime ABI family → `rt_*` (the open "Prolog-builtin naming DECISION" resolved by taking each builtin's own descriptive name as the CS concept; the `rt_pl_arith`→`rt_arith` "merge" was really *delete the dead `STACKLESS_ABORT` `rt_arith` value-stack stub, zero callers, then `rt_pl_arith` takes the name*); **D `a822f80`** emitter drivers by IR-kind (`flat_drive_pl_seq/alt/choice/ite`→`conj/disj/choice/ite`, `flat_drive_alt_icn`→`gen_alt`, `flat_drive_icn_userproc`→`userproc`), `bb_prepare_pl`→`bb_prepare`, `codegen_pl_callee_block`→`codegen_callee_block`, `codegen_pl_program`→`codegen_clause_dispatch`, `hdr_has_pl_reg`/`reg_pl_count`→`hdr_has_reg`/`reg_count`, `XA_PL_*`→`XA_*` (6 enum members, `src/include/XA.h`), and rt.c const macros `ICN_*`/`RT_ICN_*`/`RT_PL_MARK_STACK_MAX`→de-tagged; **E `34b1406`** `__rk_out` param→`out_descr` (collided with a local `out`), `RK_GRAM_MAX`→`GRAMMAR_MAX`, stale header guards `RAKU_BUILTINS_H`→`SCRIPT_BUILTINS_H` / `DRIVER_PL_RUNTIME_H`→`RESOLVE_RUNTIME_H` (match their filenames); **LI-FENCE `85677cb`** `scripts/test_gate_no_lang_names.sh`, teeth-verified, wired into the Session-Setup gate block. **No language-tagged FILENAMES** in emitter/runtime (already CS-named). **Definition-location stayed authoritative** — only symbols DEFINED in `src/emitter/**`+`src/runtime/**` were renamed; call-site updates in driver/lower/parser are reference-fixes. **DELIBERATELY HELD (out of the emitter/runtime DEFINITION scope, all documented in "Next incomplete step"):** DRIVER-defined `icn_ring_to_tree`/`g_raku_match`/`g_raku_subject`/`has_non_sno` (suggest a DRIVER micro-slice); CONTRACTS-defined `STAGE2_PL_PRED_TABLE_SIZE` (suggest a CONTRACTS micro-slice); frontend-contract dispatch-name strings (`ICN_NULL`/`ICN_CASE_EQ`/`ICN_SCAN_*`/`__rk_jct_*`/`__rk_arr`/`set_prolog_flag`/`current_prolog_flag` — need the out-of-scope frontends); emitted assembly label/comment strings (`"icn_proc_%s"`/`"sno_flat"`/`s_comment("# BOX SNO …")` — generated output, collision-risky); `RK_NFA_BB` getenv key; held parser API (`prolog_atom_*`, `pl_write*`, `Raku_nfa`/`raku_nfa_*`, `raku_re`). **ONLY LI-CORE remains on this rung** (`src/runtime/core/` SNOBOL runtime library — genuine SNOBOL execution model; `SNO_INIT_fn` precedent says a generic CS name would be vague; separate Lon decision). **Gates @ EVERY commit (byte-identical @ pristine baseline):** SNOBOL4 m2 **7/7 HARD**, Icon m2 **12/12 HARD**, Prolog m2 **5/5 HARD**, `prove_lower2` **67**, `no_bb_bin_t` 0, concurrency OK. SCRIP tip `85677cb` (6 rename-only commits unpushed: `a0478c4`/`d339c97`/`12b820d`/`a822f80`/`34b1406`/`85677cb`), .github tip this commit.
-**Watermark.** SCRIP `ef667d7` · .github this commit. *(RS rung: RS-1 CLUSTER done; RS-2 PARTITION in progress — `runtime_eval` `970dbf5` + `unification` `17e759e` landed gated byte-identical, RS-2 progress doc `ef667d7`; remaining subsystems queued in the RS-1 HANDOFF.)*
-
- Two threads landed this session: (A) the #0 SRC-REORG ladder is **COMPLETE** (GMR-6 backends/ `660ec37`, GMR-7 tools/ `3f8b1c7`, GMR-8 a+c de-pollute `961a400`, GMR-FENCE `c3d61ea`+.github `41e62dd9`) — `src/` is now role-sliced: attic backends contracts driver emitter include interp lower machine parser runtime(+core/rt/builtins) tools; GMR-8(b) (`Σ/Δ/Ω`+`TEMPLATE_ADDR_*` in emit_globals.h) deliberately DEFERRED to coordinate with the REG ladder. (B) **`bb_exec`→`IR_interp`** (`a12c0ce`): file+header+state-header + funcs `bb_exec_{once,resume,pump,node,pat}`→`IR_interp_*` (164 refs) — it interprets the IR graph, "BB" now means the emitter's templates; unrelated `coro_stmt.c` `bb_exec_stmt` left intact. (C) **LI clean slices** `bb_rk_gather`→`bb_gather` (`0b86f9e`) + `rk_marshal_call_arg`→`marshal_call_arg` (`db6d33d`). **KEY FINDINGS for the LI continuation** (see "Next incomplete step" above for the full list): the CLEAN single-symbol surface is now EXHAUSTED; `rt_rk_*`/`rt_icn_*` runtime leftovers are already 0; `raku_nfa_*` is **parser-defined ⇒ out of scope** (Lon "leave parser alone" overrides old LI-5); `codegen_flat_chain_body` already exists separately from `codegen_sno_flat_chain_body` ⇒ that's a MERGE not a rename; the 31 `rt_pl_*` now in `runtime/rt/rt.h` (GMR-8c) are mostly GENUINE Prolog builtins needing a naming DECISION; `sno_prog_t`/`sno_stmt_t` moved to `interp/IR_interp_state.h` (still in scope). Everything left is MERGE/judgment — read bodies, don't sed. **Gates @ each commit:** SNOBOL4 m2 **7/7 HARD**, Icon m2 **12/12 HARD**, prove_lower2 **67**, concurrency OK, no_bb_bin_t 0. Also repaired (FENCE): `test_sno_pat_bb_probe.sh` INC (broke at GMR-2's IR.h move) — probe_pb_rb_1 PASSES; pb_rb_3 are pre-existing pattern WIP, NOT reorg collateral. SCRIP tip `db6d33d`, .github tip this commit.
-
- New CURRENT rung added (top of file; kept ACTIVE per Lon "keep our rung active"): de-name the language runtime by CS concept — runtime first, then emitters. This slice renamed ONLY symbols **DEFINED in `src/runtime/**`** (definition-location authoritative, NOT a token's use): `rt_pl_{write_int,write_var,write_atom,write_cstr,write_float,write_term_ptr,writeq_term_ptr,write_canonical_term_ptr,format_float,env_alloc,env_current,cp_save_caller_env,choice_cut_enter,choice_cut_exit,choice_cut_unwind,cut_set,get_cut_flag,main_init}`→`rt_*`; `rt_rk_{call_arr,jct_relop}`→`rt_*`; `interp_exec_pl_builtin`→`interp_exec_builtin`; `is_pl_user_call`→`is_user_call`; `g_pl_last_ok`→`g_last_ok`; `g_icn_{call_args,proc_arena,proc_depth}`→`g_*`; `descr_to_str_icn`→`descr_to_str`; runtime datatype string `"icnlist"`(+5 file-local once-guards)→`"list"` (purely internal: DEFDAT/DATCON/strcmp all in runtime, ZERO `.ref` dependency). 14 files touched (8 runtime defs/headers + call sites: 2 emitter / 2 lower / 1 driver / 1 frontend — call-site updates are reference fixes, not renames of those layers' own symbols). **HELD — frontend-DEFINED (out of scope):** `pl_arg`/`pl_univ`/`pl_functor`/`pl_write`/`pl_writeq`/`pl_write_canonical`/`pl_assert_term`/`pl_term_to_string` (prolog_builtin.c/prolog_lower.c), `prolog_atom_{init,name,intern}` (prolog_atom.c), `raku_nfa_{build,exec,free,bb_match,state_count}` (raku_re.c/raku_nfa_bb.c). **HELD — driver-DEFINED:** `g_raku_match` (interp_globals.c) — Lon named runtime then emitters, not driver. **HELD — genuine/merge:** `SNO_INIT_fn` (SNOBOL runtime-lib init), `sno_parse_string_ast` (invokes SNOBOL parser for CODE/EVAL), `rt_pl_arith`→`rt_arith` (MERGE with existing `rt_arith`, do with code). **Gates byte-identical @ pristine baseline:** m2 SNOBOL4 **7/7 HARD** / m3 2/6 / m4 0/6 · Icon m2 **12/12 HARD** / m3 3/12 / m4 3/12 · Prolog m2 **5/5 HARD** / m3 2/5 / m4 0/5 · prove_lower2 **67** · no_bb_bin_t 0 · concurrency OK. **NEXT:** rung CONTINUES — (1) deeper runtime statics/strings pass, (2) `rt_pl_arith` merge, (3) then the emitter sweep. Detail: `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-LI-RUNTIME-DENAME-SLICE-1.md`.
-**Watermark.** SCRIP `10fbe32` · .github this commit.
-**HANDOFF (2026-06-02, Opus 4.8) — `bb_binop` ROUTER DELETED; ONE IR KIND PER ARM, 1:1 DISPATCH (Lon directive: "remove `bb_binop` completely, we do not redirect templates, make an IR for each").** The prior session's wiring-class→body "split binary/unary operator code" rung was REMOVED from this goal per Lon (it had gotten confused; it committed nothing). The straightforward thing was done instead and COMMITTED: the `bb_binop.cpp` router is gone, four IR kinds (`IR_BINOP_RELOP`/`IR_BINOP_ARITH`/`IR_BINOP_GVAR_ARITH`/`IR_BINOP_CONCAT`) dispatch 1:1, no template probes/calls a sibling. Full record in the ✅ DONE block at the TOP of this file. SCRIP `3a39174` (base `cd10224`). Verified the prior STUB CLEANUP (`cd10224`) deleted ONLY stubs/empties — all 54 deleted `bb_*.cpp` had zero real instruction emission (`x86("…")`=0, `bytes()`/`bb_bin_t`=0, no GAS-text/`_str`/`bb_emit_asm` either); `bb_capture`/`bb_match`/`bb_subject`/`bb_arbno` were 12-13-line `x86_bomb` one-liners at that commit, not real boxes. **Gates == pristine `cd10224` baseline (byte-identical change):** SNOBOL4 m2 **7/7 HARD** / m3 2/6 / m4 0/6 · Icon m2 **12/12 HARD** / m3 3/12 / m4 3/12 · prove_lower2 **67** · no_bb_bin_t 0 · concurrency OK. **OPEN (noted, not done):** `IR_BINOP_GVAR_ARITH` still bakes SNOBOL operands as immediates (the old fusion) — a later de-fuse would make them ζ-slot producer boxes like Icon's `bb_binop_arith`; preserved byte-for-byte here. **NEXT:** the LI de-name ACTIVE RUNG (now the top live rung) — remaining clean slices LI-5 `raku_nfa_*`→`nfa_*`, LI-1 `bb_rk_gather`→`bb_gather`, then the merge slices + LI-CORE + LI-FENCE.
-**Watermark.** SCRIP `3a39174` · .github this commit.
-**HANDOFF (2026-06-02, Opus 4.8) — LANGUAGE-INDEPENDENT EMITTER+RUNTIME CLEANUP RUNG launched: LI-0 COMMENT PURGE + 3 clean de-name slices. All pushed, tree GREEN, behavior byte-identical.** Lon PIVOT: EMITTER + RUNTIME are
-language-independent — strip every language tag (SNO/ICN/PL/RAKU/RK/REB), incl. comments, naming each box/helper by
-its CS/industry concept; the new ACTIVE RUNG at the TOP of this file holds the directive, the full listing, the
-EXCLUSIONS, and the LI-0…LI-FENCE ladder. **Comment policy (Lon, verbatim): exactly ONE comment exists — the
-120-char `/*---*/` line-break separator (`/*===*/` for larger files), between every function and major block.
-Nothing else. None.** Landed this session:
-- **LI-0 ✅ `062b0f9`** — stripped ALL comments from `src/**` (.c/.h/.cpp/.y/.l; 12 generated flex/bison files
-  excluded), 227 files, −3081 lines; the only `/*`/`//` left are inside string literals (Prolog `"//"` op, MSIL
-  text — correct). Every separator normalized to exactly 120 chars. `scripts/strip_comments.py` (string/char-literal
-  aware) + RULES.md C-style updated (separator 200→120; "one comment = the separator", dropped block-comments-above-fn).
-- **LI-3 ✅ `99fa787`** — `rt_pl_{unify,trail,compound_build_n,node_to_term}`→`rt_{…}` (unification + WAM trail +
-  term-building = language-independent CS) across bb_disj/bb_unify/bb_exec.{c,h}/rt.{c,h}.
-- **LI-4 ✅ `a9ab14a`** — `icn_cset_*`→`cset_*` (charset algebra) across gen_runtime.{c,h}/bb_exec.c/icon_runtime.c.
-- **rt_icn ✅ `ba6e912`** — `rt_icn_{size_d,arg_stage,call_proc_descr}`→`rt_{…}` across bb_call/bb_unop/xa_flat/rt.{c,h}.
-- **Gates GREEN + INVARIANT throughout** (name/comment edits are behavior-neutral by construction): SNOBOL4 m2 **7/7
-  HARD**, Icon m2 **12/12 HARD**, Prolog m2 **5/5 HARD**, prove_lower2 **67**, no_bb_bin_t 0, sm_dead 0, concurrency OK,
-  g_vstack 0. m3/m4 counts unchanged.
-- **⚠ COLLISION MAP (recorded in the rung):** remaining CLEAN renames = `raku_nfa_*`→`nfa_*` (⚠ spans frontend
-  `raku_nfa_bb.c` + runtime — rename the shared symbol at all sites) and `bb_rk_gather`→`bb_gather` (filename: `git mv`
-  + Makefile `RT_PIC_SRCS` + per-`.o` rule + emit_core dispatch + symbol). **MERGE slices needing Lon judgment (NOT a
-  sed):** `sno_flat_chain_build` + `icn_flat_chain_build` BOTH de-tag to `flat_chain_build` (two functions, one name →
-  fold on `cx.lang` or pick concept-distinct names — LI-2, the most confusion-prone twin), and `rt_pl_arith`→`rt_arith`
-  hits 3 existing. Then LI-CORE (`src/runtime/core` SNOBOL-lib — separate Lon decision) + LI-FENCE
-  (`scripts/test_gate_no_lang_names.sh`). **NEXT incomplete step = the remaining clean slices (LI-5 nfa, LI-1
-  bb_gather), then the merge slices.** Remaining language-tagged distinct identifiers in emitter+runtime (excl
-  IR_LANG/snocone/core SNOBOL-lib): ~270. (The x86() TEMPLATE-REVAMP sub-track + the older PB-RB/REG ladders below
-  remain valid and resume after the cleanup; de-naming changes names, not the BB/SM/XA template ladder.)
-**HANDOFF (2026-06-02, Sonnet 4.6) — TWO RENAMES + `OUTPUT = 2 + 3` in mode-3 (m3 1→2).** (1) **PIVOT rename
-`bb_nv_assign`→`bb_gvar_assign`, `rt_nv_assign_*`→`rt_gvar_assign_*`, `g_nv_flat_chain`→`g_gvar_flat_chain`** —
-`NV` was opaque jargon; the runtime is language-independent; the concept is **global variables** (what the user
-manual calls them). Symmetric 42+/42- rename, zero behavior change, all gates green. SCRIP `03995b7`. (2)
-**`OUTPUT = 2 + 3` runs end-to-end in mode-3** (prints `5`; verified byte-identical vs SPITBOL oracle for
-`+`, `-`, `*`, `/`). Three pieces: `op_a_slot` added to `sm_emit_t` + promoted in `walk_bb_node`; new
-`bb_binop_gvar_arith.cpp` (gvar arith arm — takes literal ival values as x86 immediates, stores raw int64 into
-8-byte `bb_slot_alloc`-keyed ζ-slot); `bb_gvar_assign` int-binop arm landed (reads `_.op_a_slot`, calls
-`rt_gvar_assign_int`). MODE3_MIN floor corrected 5→2 (reflects actual post-revamp state). SCRIP `707b284`.
-Gates: m2 **7/7 HARD** · m3 **2/6** (output+arith) · m4 0/6 · `no_bb_bin_t` 0 · `sm_dead` 0 · concurrency OK ·
-prove_lower2 PASS · g_vstack 0. **NEXT (SNOBOL4):** `bb_subject` + `bb_match` together (the `pattern` smoke —
-`S 'b' = 'X'` → `aXc`); MATCH reads SUBJECT's ζ-slot `g_subject_slot`. Then `bb_capture`/`bb_arbno`. Detail:
-`HANDOFF-2026-06-02-SONNET46-SNOBOL4-BB-GVAR-RENAME-ARITH.md`.
-**Prior watermark.** SCRIP local (NOT pushed — see below) · .github this commit.
-**HANDOFF (2026-06-02, Opus 4.8) — `bb_bin_t` ABOLISHED + MEDIUM-INVISIBLE PRISON; SCRIP BUILDS GREEN + ABORTS
-BEAUTIFULLY (≈63 bomb stubs).** Lon directive: "get the build broke nice, build the prison of rules, leave it to
-the Four Musketeers to fix up on their particular test; ensure SCRIP builds and aborts in 100s of places
-beautifully." Done: (1) **Deleted `bb_bin_t` + `bb_emit_asm_result`/`_pairs`** from `emit_str.h`/`.cpp` — the
-`bin.sites.push_back((int)b.size())` function-byte-counter idiom no longer compiles. (2) **TWO new FACT RULES**
-folded byte-identical-×4 into all GOAL-*-BB files (this block at the top: `bb_bin_t` IS ABOLISHED + ONE MEDIUM,
-INVISIBLE) — md5 `17049e7a`; also staged in `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. They are THREE FACES (with the
-no-`pBB`/`_.node` rule) of one converted box = pure `x86()` concat reading only `_`; the three gates reach zero
-together. (3) **63 un-converted boxes → LOUD `x86_bomb()` stubs** + 9 empty router sub-TUs (binop/seq arms); each
-prints `libscrip_rt: BOMB — <box>: TEMPLATE-REVAMP not yet converted` then `Aborted`. (4) **`scrip` + `libscrip_rt`
-BUILD GREEN**; mode-2 ORACLE HARD-held (SNOBOL4 **7/7**, Icon **12/12**); modes 3/4 now bomb per-box (SNOBOL m3
-5→0, Icon m3 12→0) — restored as each lane converts. (5) New `x86_asm.h`: **`x86_and`** (byte-verified `and rsp,-16`
-= `48 83 E4 F0`) + **`x86_bomb`** (canonical stub, RO-encoders + ud2, medium-invisible). (6) Fixed the pasted
-`bb_pat_defer` medium-branch (alignment dance now via `x86()`); converted SNOBOL `bb_pat_cat`/`bb_pat_alt` →
-`x86_pair_loop()` (pBB-free, dispatch parameterless) + `xa_flat.cpp` off `bb_bin_t` (local one-site `xa_emit_one`,
-exact bytes, driver-label semantics). (7) New gates `scripts/test_gate_no_bb_bin_t.sh` (HARD, **0** live refs) +
-`scripts/test_gate_template_medium_invisible.sh` (informational; **1** left = `bb_unop`, Icon's box) wired into the
-gate suite. `g_vstack` 0 · prove_lower2 **67** · concurrency invariants OK (FACT RULES byte-identical) ·
-template-purity now GREEN (bomb stubs removed the side-effecting calls). **THE FOUR MUSKETEERS:** convert your
-lane's `x86_bomb` stubs to real `x86()` as your test reaches them (8 SNOBOL + 8 Prolog + 8 Raku + ~39 Icon/shared;
-`git show HEAD~1:<path>` has each box's original byte logic). Full manifest:
-`HANDOFF-2026-06-02-OPUS48-TEMPLATE-REVAMP-BB-BIN-T-ABOLISHED.md`. **NOTE — NOT pushed: this break spans all four
-lanes; Lon to decide whether to push the red-native/green-build state to `origin/main` or hold for the lanes to
-converge. Mode-2 stays the safe verified path throughout.**
-
-**Watermark (prior).** SCRIP `c66bbc8` (SNOBOL4 landing; tree tip advanced to `acea982` PL-RV-3 — my boxes RE-VERIFIED
-green against it) · .github this commit.
-**HANDOFF (2026-06-02, Opus 4.8) — SNOBOL4 loop-free pattern leaves COMPLETE; combinators unblocked via landed
-`x86_pair_loop()`.** This session landed `bb_pat_fence` + `bb_pat_break` (`c66bbc8`, pushed), completing the
-loop-free SNOBOL4 pattern-leaf conversion to `x86()` self-encoding. After the parallel Prolog session landed the
-shared `x86_pair_loop()` combinator primitive (`acea982`, touches the shared `x86_asm.h`), I synced + rebuilt +
-RE-GATED: SNOBOL4 m2 **7/7 HARD** / m3 5/6 / m4 0/6, BREAK/BREAKX + FENCE functionally correct (m3==m2==oracle),
-prove_lower2 **67/67**, pat-rung M2 **18/19** (pre-existing `053_pat_alt_commit`), `g_vstack` **0**, concurrency
-invariants OK (FACT RULES byte-identical ×3), b.size() ledger **110/17** (Prolog drove it down). Both repos clean +
-pushed + in sync at handoff. **FIRST INCOMPLETE STEP for the next session:** convert the SNOBOL4 combinators
-`bb_pat_cat`/`bb_pat_alt`/`bb_match` + the `FENCE(P)` with-children pair path to the EXISTING `x86_pair_loop()`
-(`return …prologue… + x86_pair_loop();`, drop `bb_bin_t`, make pBB-free) — NO new design, NO shared `x86_asm.h`
-edit needed (Prolog already landed the primitive; SNOBOL reads the same `g_emit.xa_bb_emit_pair_*` fields). Then
-the REG ladder REG-RO rung (RO addresses → `[rip+disp]`) to retire r10 and lift SNOBOL m4 off 0/6. ⚠ COORDINATION
-NOTE: 5 concurrent pushes across this session's turns (Icon `bb_unop`/`bb_succeed`, Prolog `x86_pair_loop`) — all
-rebased clean (everyone edits own boxes), but the SHARED `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` + `x86_asm.h` are
-genuine contention points (Prolog and I designed the pair-loop primitive simultaneously; theirs landed first and is
-superior — index-carrying `'E'`/`'F'` records vs my draft `'P'`/`'Q'` pointer records, which I discarded).
-
-**Watermark (prior).** SCRIP `c66bbc8` · .github this commit.
-**This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_fence` + `bb_pat_break` converted to x86() self-encoding (pBB-free); the LOOP-FREE pattern leaves are now ALL DONE:**
-- **`bb_pat_fence`** — LOOP-FREE single-shot convert (the bare-FENCE primitive, no argument). Per the mode-2 oracle
-  (bb_exec.c IR_PAT_FENCE) + SPITBOL Manual ch.18 ("matches the null string and succeeds when the scanner is moving
-  left to right, but fails if the scanner has to back up through it"): α saves δ to a ζ-frame slot then `jmp γ` (null
-  match, always succeeds forward); β restores δ from the slot then `jmp ω` (the fence effect — backtrack fails). One
-  ζ-frame dword saved_δ @ `[r12+off]` via `bb_slot_claim(4)`, register-relative so BINARY==TEXT (no movabs, no
-  rip-rel .data). Ratified cursor δ=R14d (REG-3). pBB-free end-to-end (fn/wrapper/prototype/dispatch all `void`).
-  No internal labels needed (single-shot, like POS/TAB). Verified: a pattern hitting FENCE on the forward pass
-  succeeds and matches null (`'a' FENCE 'b'` in `'abc'` → ok). NOTE: the two SPITBOL backtrack-blocking examples
-  (`ANY('AB') FENCE '+'` in `'1AB+'` → fail; `FENCE 'B'` as first component → anchored-fail) fail in BOTH m2 AND m3
-  (agreement) — a PRE-EXISTING mode-2 oracle gap in FENCE-through-ALT/ANY backtracking, NOT a regression from this
-  conversion (the box agrees with the oracle exactly; the oracle itself doesn't propagate the fence into those
-  ALT/capture-resume contexts — that is the same 124/114 DEFER-capture-resume blocker tracked elsewhere in this file).
-- **`bb_pat_break`** — LOOPING convert (BREAK + BREAKX, both arms in one pass). BREAK(S) scans from δ to the first
-  char in set S (NOT included), fails if the subject ends first; BREAKX(S) on backtrack "looks past" — steps past the
-  break char and rescans to the NEXT char in S (SPITBOL Manual ch.3 word4.spt; INTEGERS ? BREAKX('E') . OUT 'ER' →
-  INTEG). Grounded in the mode-2 oracle (bb_exec.c IR_PAT_BREAK: α scan-to-first; β plain = δ−=z+fail; β BREAKX =
-  origin=δ−z, rescan from origin+z to next, fail if none/i<=z else δ=origin+z). The match-state scalars moved OFF the
-  process-global `rt_cs_t` (`bb_cs_zeta` + `movabs &zeta`) INTO the ζ-frame: z @ `[r12+off]`, z_orig @ `[r12+off+4]`
-  via `bb_slot_claim(8)`, register-relative so BINARY==TEXT (PER-BOX LOCAL STORAGE / NO-VALUE-STACK FACT RULES).
-  Internal labels: plain BREAK loop=L(0)/done=L(1); BREAKX β-rescan adds loop2=L(2)/done2=L(3) — resolved by the
-  bb_emit_x86 walker. strchr(cs,ch)≠NULL ⇒ char in set; r10 push/pop around the call (r13/r14/r15 callee-saved,
-  survive). Ratified Σ=R13/δ=R14d/Δ=R15d (REG-2; was already register-migrated, this conversion drops the `bb_bin_t`
-  hand-counted byte map + the process-global zeta scratch). pBB-free end-to-end. r10-as-cursor mirror was already
-  gone (REG-2); the only r10 use left is the strchr push/pop guard. **Verified mode-3 == mode-2 == SPITBOL oracle**
-  for plain BREAK (delimiter found, delimiter absent→fail, word-split), AND BREAKX look-past (INTEGERS→INTEG) — all
-  4 cases byte-exact. The BREAKX β rescan loop + ζ z/z_orig + strchr-with-r10 all exercised together. TEXT arm
-  structure hand-assembled via `as` (both plain + BREAKX β rescan) to confirm the internal-label + ζ-frame GAS is
-  well-formed (SNOBOL4 mode-4 end-to-end still pends the LOWER four-port-statement-BB wiring, PB-RB-8 — not box-specific).
-- **`b.size()` count: 121 → 118** (this conversion REMOVED bb_pat_break's 3 hand-counted-offset sites; the box now
-  has ZERO `b.size()`, ZERO `bb_bin_t`, ZERO `TEMPLATE_ADDR`/`[r10]`-cursor/`movabs &zeta` in code — the 3 grep hits
-  in the file are comment mentions of what was removed). Progress toward the FACT-RULE zero goal.
-- **Gates ALL GREEN + INVARIANT:** make scrip rc=0, libscrip_rt rc=0, SNOBOL4 m2 **7/7 HARD** / m3 5/6 / m4 0/6,
-  pat-rung-suite M2 **18/19** (same pre-existing `053_pat_alt_commit`), prove_lower2 **67/67**, concurrency invariants
-  OK (FACT RULES byte-identical ×3 UNPERTURBED — `x86_asm.h` NOT touched this session, so it is byte-neutral to
-  Icon/Prolog/Raku; Icon m2/m3/m4 all-PASS confirmed), `g_vstack` **0**, broad interp corpus held at 108/280 (the
-  GATE-4 `inc/` corpus-snapshot gap noted in the prior watermark persists — orthogonal). Files touched: `bb_pat_fence.cpp`
-  + `bb_pat_break.cpp` (boxes, both rewritten) + `bb_templates.h` (two prototypes → `void`) + `emit_core.c` (two
-  dispatch calls → parameterless). No `x86_asm.h` edit — both boxes use the EXISTING encoders (the SPAN looping box
-  already proved the internal-label + ζ-frame + strchr/r10 vocabulary; FENCE reuses the FR()/jmp/def forms).
-- **NEXT (SNOBOL4):** the loop-free pattern leaves are now ALL converted. What remains is the VARIABLE-LENGTH
-  combinators — `bb_pat_cat`, `bb_pat_alt`, `bb_match`, and the `FENCE(P)` with-children PAIR path. The shared
-  define/jmp-pair idiom is now **RESOLVED + LANDED** by the parallel Prolog session (PL-RV-3, `80613ca7`):
-  `x86_pair_loop()` in `x86_asm.h` emits the whole `g_emit.xa_bb_emit_pair_*` define/jmp loop via two index-carrying
-  in-band records (`'E'` = define `xa_bb_emit_pair_define[idx]`; `'F'` = rel32-jmp to `xa_bb_emit_pair_jmp[idx]`),
-  so no raw pointer rides the byte stream and TEXT is byte-identical to the hand-rolled loops. A combinator's x86
-  arm emits ONLY label-defs + unconditional jmps over DRIVER-minted `bb_label_t*` (zero instruction encoding), so a
-  converted box is just `return x86_pair_loop();` (plus any leading comment). **SO THE SNOBOL4 combinators are now
-  a direct adopt of the EXISTING `x86_pair_loop()` — no new design, no shared `x86_asm.h` edit needed** (Prolog
-  already landed it; SNOBOL reads the same `g_emit` fields). Convert `bb_pat_cat`/`bb_pat_alt`/`bb_match` + the
-  `FENCE(P)` pair path to `x86_pair_loop()`, drop their `bb_bin_t`, make them pBB-free; gate as usual. (Or pivot to
-  the REG-RO rung — RO addresses → `[rip+disp]` — to fully retire r10 and unblock SNOBOL m4, per 🔴 CURRENT PRIORITY.)
-
-**Prior watermark.** SCRIP `fe94061` · .github this commit.
-**This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_arb` + `bb_pat_defer` converted to x86() self-encoding (pBB-free):**
-- **`bb_pat_arb`** (`fe94061`) — generator convert. ζ-frame state z (matched len) @ `[r12+off]` + zo (origin δ) @
-  `[r12+off+4]` via `bb_slot_claim(8)` (PER-BOX LOCAL STORAGE / NO-VALUE-STACK FACT RULES) — the old process-global
-  `std::deque<int>` z/zo + `movabs &z`/`&zo`/`&Σlen` bakes are GONE. Ratified registers Σ=R13/δ=R14d/Δ=R15d.
-  Two-entry generator, NO internal loop label (like POS): α sets z=0, zo=δ, → γ (offers the 0-char match first per
-  SPITBOL ch.18 "shortest possible substring … behaves like a spring"); β does z++, eax=zo+z, `cmp eax,r15d`/`jg ω`,
-  δ=zo+z, → γ (expands one char per retry). Driven correctly by the existing `add reg,[r12+off]` / `mov [r12+off],imm`
-  encoders — no new x86_asm.h vocabulary needed.
-- **`bb_pat_defer`** (`fe94061`) — runtime-resolved pattern-valued variable. Migrated off the legacy `[r10]` cursor to
-  δ=R14d (REG-3); pBB-free (varname=`_.op_sval`, flag=`_.op_ival`). α: rdi=&varname (RO via `x86_load_ro` lea[rip]/
-  movabs), esi=flag, edx=δ, call `rt_defer_match`; `test eax,eax`/`js ω` (return <0 = fail); δ=eax; → γ. β: → ω
-  (single-attempt). The 16-byte-aligned call sequence is PRESERVED (sub-pattern path → exec_stmt → SSE stores need
-  aligned rsp): `push r10; push rbx; mov rbx,rsp; and rsp,-16; call; mov rsp,rbx; pop rbx; pop r10` — the three raw
-  qword-mov/and bytes (`48 89 e3` / `48 83 e4 f0` / `48 89 dc`) `as`+objdump-verified before writing. X86-only.
-- **Verified:** m2 smoke **7/7 HARD** (unchanged), pat-rung-suite **M2 18/19** (same pre-existing 053_pat_alt_commit),
-  **ARB+DEFER green in BOTH m2 AND m3-native** (`'O' ARB 'A'`→matched; `'O' ARB P` with P='NT'→matched both modes,
-  exercising ARB spring-expansion + DEFER string-literal resolution + the aligned call). Concurrency invariants hold
-  (FACT RULES byte-identical ×3 UNPERTURBED), `g_vstack` 0, purity baseline (my two files NOT in the side-effect list),
-  net −54 lines. Files: `bb_pat_arb.cpp` + `bb_pat_defer.cpp` (boxes) + `bb_templates.h` + `emit_core.c` (parameterless
-  decl/dispatch). Rebased clean over sibling Raku `RK-HY-1/2` (`bb_seq`/`bb_nfa` de-cram) — no conflict.
-- **ENV NOTE for next session:** GATE-4 (`test_interp_broad_corpus_and_beauty.sh`) reports ~108/280 not the ~251
-  Session-Setup figure, because the script's `INC=corpus/programs/snobol4/demo/inc` directory is ABSENT from the
-  current corpus checkout (include-dependent tests fail in the harness though they pass run-directly — verified
-  `097_keyword_alphabet` emits the exact ref). A corpus-snapshot/harness gap, NOT a regression and orthogonal to the
-  conversion; restore that `inc/` dir (or repoint the script) to re-baseline GATE-4. Also: the clone token's last
-  char before `5dK` is lowercase `h` (`…Sy0xh5dK`); an uppercase-`H` variant 401s — set the remote URL accordingly.
-- **NEXT (SNOBOL4):** next loop-free leaf is `bb_pat_fence` (do the single-shot save-Δ-on-α / restore-on-β form
-  first); then looping `bb_pat_break` (follow SPAN); then the STILL-OPEN variable-length define/jmp-pair combinators
-  `bb_pat_cat`/`bb_pat_alt`/`bb_match` + FENCE's pair path (whoever reaches a combinator first designs that idiom once
-  in `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`).
-
-**This session (2026-06-02, Opus 4.8 cont.) — TEMPLATE-REVAMP: `bb_pat_abort` + `bb_pat_tab` + `bb_pat_atp` converted; `x86_movimm32` encoder added:**
-- **`bb_pat_atp`** (`52daa2e`) — LOOP-FREE single-shot convert. @var cursor capture: α writes δ to var via
-  `rt_at_cursor` then → γ; β fails → ω. Cursor δ read from R14d (REG-3; legacy `[r10]` cell GONE). Varname is RO
-  via `x86_load_ro` (lea[rip] TEXT / movabs BINARY), call via `x86_call_ro`, double `push/pop r10` around the
-  side-effecting call (NV_SET print-path clobbers caller-saved r10 + rsp 16-align). varname = `_.op_sval` (==
-  driver `op_name1` for IR_PAT_ATP). X86-only (no other arm). pBB-free; prototype + dispatch parameterless.
-  **mode-3 == mode-2** verified: `LEN(3)@P`→P=3, `@Q LEN(2)@R`→Q=0/R=2, `BREAK(' ')@W` in "hello world"→W=5.
-- **Full session detail + NEXT STEPS:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V4-ABORT-TAB-ATP.md`
-  (next loop-free-ish leaves `bb_pat_arb` [generator, re-pump like SPAN] + `bb_pat_defer`; then looping
-  `bb_pat_break`; then the variable-length combinators `fence`/`cat`/`alt`/`match`). Parallel sessions landed
-  `bb_cut` (Prolog `ed42331`) + `bb_binop_arith` (Icon `b8db625`) — rebased clean, no conflict, rebuilt+reverified.
-- **`bb_pat_abort`** (`66eb967`) — TRIVIAL convert: x86 arm = `x86("jmp",PORT_OMEGA)+x86("def",PORT_BETA)+x86("jmp",PORT_OMEGA)`.
-  pBB-free (reads `_` only); prototype + dispatch parameterless. Verified mode-3: a pattern hitting ABORT fails the
-  match (SPITBOL Manual ch.18: ABORT causes pattern match failure).
-- **`bb_pat_tab`** (`66eb967`) — LOOP-FREE convert on the ratified registers δ=R14d / Δ=R15d (legacy `[r10]`/`lea[rip+Σlen]`
-  GONE). TAB(N): `cmp r14d,N / jg ω / mov32 r14d,N / jmp γ / def β / jmp ω`. RTAB(N): `mov ecx,r15d / sub ecx,N /
-  cmp r14d,ecx / jg ω / mov r14d,ecx / jmp γ / def β / jmp ω`. RTAB distinguished by `sval[0]=='r'` (NOT `ival!=0`).
-  Semantics matched to mode-2 oracle (`bb_exec.c` IR_PAT_TAB): target = N (TAB) | Σlen−N (RTAB), fail if δ>target,
-  advance δ=target, β fails restoring δ. **mode-3 == mode-2** verified for TAB(2), TAB(0), RTAB(2), RTAB(0), and the
-  cursor-past-target failure path (`LEN(3) TAB(1)` / `LEN(3) RTAB(4)` both correctly fail).
-- **NEW ENCODER `x86_movimm32`** in `x86_asm.h` (+ `"mov32"` front-end mnemonic) — 32-bit `mov reg,imm32` (B8+rd,
-  REX.B when reg≥8; 5/6 bytes; `mov r14d,N`=`41 BE imm32`). Byte-verified vs `as` BEFORE use. ADDITIVE — no existing
-  encoder perturbed (the 64-bit `x86_movimm`/movabs path for operand-constant loads is untouched). The `mov` vs `mov32`
-  mnemonic split is the R7-sanctioned way to pick the immediate width at the call site.
-- Gates ALL GREEN: m2 **7/7 HARD**, m3 5/6 (`define` lone fail), PAT-BB rung 18/19 m2 (`053_pat_alt_commit` pre-existing),
-  g_vstack **0**, prove_lower2 PASS, concurrency invariants OK (FACT RULES byte-identical ×3), Icon smoke 2/2 (shared
-  `x86_asm.h` edit caused no Icon regression). Detail: this watermark (no separate HANDOFF file this turn).
-- **NEXT loop-free leaves:** `bb_pat_atp` / `bb_pat_arb` / `bb_pat_defer` (read each for its exact shape; arb/atp touch
-  variable storage). Then looping `bb_pat_break` (follow SPAN), then the variable-length combinators.
-
-**Prior session (2026-06-02, Opus 4.8) — TEMPLATE-REVAMP: x86() internal-label keystone + `bb_pat_pos` + `bb_pat_span` converted; mode-4 verbiage corrected:**
-- **x86() SELF-ENCODING REVAMP** (per GOAL-TEMPLATE-REVAMP-RULES-DRAFT): each BB becomes ONE return per PLATFORM_*,
-  pure `x86(mnem,…)` concatenation, NO `bb_bin_t`, pBB-free (reads `_` only). In-band records replace the hand-counted
-  offset table — `L`(literal bytes) / `J`(rel32 patch to a label) / `D`(define a label); the consumer `bb_emit_x86`
-  DISCOVERS byte positions as it copies, so no offset can drift.
-- **KEYSTONE `a1779e6`** (looping-box prerequisite for ALL FOUR sessions, purely additive → zero regression):
-  (1) INTERNAL (box-local) LABELS — record ids ≥ `X86_INTERNAL_BASE`(4) map in the walker to a fresh box-local
-  `bb_label_t`; forward+backward refs resolved by the EXISTING `bb_label_define`/`bb_emit_patch_rel32` patch list;
-  TEXT names `.Lx<uid>_<n>`, uid set per-box by `x86_begin()`; front-end `x86("jmp"/jcc/"def", L(n))`. (2) ζ-FRAME
-  `[r12+off]` MEM OPS (mov-imm/store/load/add-imm/add-to-reg) — register-relative so BINARY==TEXT bytes (PER-BOX
-  LOCAL STORAGE / NO-VALUE-STACK FACT RULES; no `movabs` to a process addr, no rip-rel `.data`); front-end via
-  `FR(off)`. (3) `cmp r32,imm` (imm8/imm32/eax). (4) `bb_slot_claim(bytes)` — node-free per-sequence frame claim so a
-  pBB-free box takes private scratch without an `IR_t*` key. Every encoder byte-verified vs `as`.
-- **`bb_pat_pos` `195bea4`** — POS/RPOS → x86() + ratified regs (REG-3); the LOOP-FREE register-migration reference.
-  POS `cmp r14d,N`; RPOS `mov ecx,r15d / sub ecx,N / cmp r14d,ecx`; then `jne ω / jmp γ / def β / jmp ω`. Legacy
-  `[r10]`/`&Σlen` GONE; cursor δ=R14d, length Δ=R15d read straight from the regs. RPOS distinguished by `sval[0]=='r'`
-  (authoritative per lower_pat_dcg.c), NOT `ival!=0`. Verified mode-3: POS(0)'abc'=Xde, POS(2)'c'=abXde,
-  'cde'RPOS(0)=abX, 'b'POS(0) correctly fails.
-- **`bb_pat_span` `3769d21` (+ encoders `24b9c78`)** — FIRST LOOPING box on x86(); validates the keystone end-to-end
-  and is the reference looping-box conversion for all sessions. Internal labels loop=`L(0)`/done=`L(1)`; the match-state
-  scalars z (matched length) and zo (β-undo origin) moved from the process-global deque (`movabs` to a fixed addr) to
-  ζ-frame z@`[r12+off]`/zo@`[r12+off+4]` via `bb_slot_claim(16)` → BINARY==TEXT, re-entrant; cset/strchr reuse the
-  any-style RO load. New encoders (byte-verified vs `as`): `jle`(0F 8E), `add reg,reg`(01/r), `add reg,[r12+off]`(03/r).
-  Verified mode-3: SPAN('a')/'aaabbb'=Xbbb, SPAN('ab')=X, SPAN('xyz')/'xyz123'=Q123, SPAN('a')/'bbb' fails, AND
-  SPAN('a')'ab'/'aaab'=X (β GIVE-BACK — exercises the internal labels + ζ-scratch + β port together).
-  ⚠ encoders for span were left unstaged in 3769d21 and added in 24b9c78 — the remote TIP 24b9c78 builds; 3769d21 alone does not.
-- **MODE-4 VERBIAGE CORRECTED (Lon directive):** mode-4 is NOT "aborting by design" and is NOT inferior to mode-3 — the
-  two are the SAME boxes in two media (BINARY run in-process vs TEXT relocatable), and for the ζ-frame/REG-ratified
-  boxes the bytes are identical. SNOBOL4 mode-4 is pending ONE wiring step (LOWER emitting the four-port statement-BB
-  graph directly; the emission scaffolding is intact, and Icon/Prolog mode-4 already emit). Corrected `scrip.c`'s
-  comment + abort message, and the stale historical note that claimed BOTH modes abort by design (mode-3 never aborted
-  after the `sno_flat_chain_build` re-wire). `eval_code.c`'s "by design" abort is a DIFFERENT, correct one (the removed
-  global value stack) — left as-is.
-- Files: `emit_globals.h` + `emit_bb.c` + `x86_asm.h` (keystone/encoders); `bb_pat_pos.cpp` + `bb_pat_span.cpp` +
-  `bb_templates.h` + `emit_core.c` (boxes); `src/driver/scrip.c` (verbiage).
-- Gates GREEN throughout: SNOBOL4 m2 **7/7 HARD** / m3 5/6 (floor 5) / m4 0/6 (floor 0 — a MEASURED state pending the
-  LOWER wiring, **not** a design abort), PAT-BB probes 3/3, prove_lower2 PASS, `g_vstack`==0. **Reference examples are now
-  ample:** POS (loop-free reg-migration) + SPAN (looping: internal labels + ζ-scratch + β give-back) + the five pBB-free
-  exemplars (rem/len/any/notany/lit) cover every remaining box's shape.
-- **NEXT (SNOBOL4 x86() conversion remainder), in order:** loop-free legacy→REG-ratified+x86(): `bb_pat_tab`
-  (TAB `cmp r14d,N / jg ω / mov r14d,N` — needs a `mov r32,imm32` encoder, 41 BF imm32; RTAB via Δ=r15d
-  `mov ecx,r15d/sub/cmp/jg/mov r14d,ecx`), `bb_pat_atp`, `bb_pat_arb`, `bb_pat_defer`, `bb_pat_abort` (TRIVIAL:
-  `jmp ω / def β / jmp ω`). LOOPING: `bb_pat_break` (follow the SPAN pattern; plain BREAK ≈ SPAN, BREAKX two-loop needs
-  L(0..3) and z/z_orig moved from `[zeta+8/+12]` to ζ-frame). VARIABLE-LENGTH (separate define/jmp-pair design, shared
-  with Icon/Prolog `xa_bb_emit_pair_*`): `bb_pat_fence` (pair-array path), `bb_pat_cat`, `bb_pat_alt`, `bb_match`.
-- **OTHER SESSIONS CLEARED TO START** (`.github` `97355e35`): updated the SHARED `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`
-  so Icon/Prolog/Raku don't rebuild the keystone (it's in the shared `x86_asm.h` → would collide). Flipped its
-  "OPEN DESIGN ITEM — INTERNAL LABELS" to **RESOLVED (LANDED `30e8422`)** with the live API (`x86_begin`/`L(n)`/
-  `FR(off)`/`bb_slot_claim`), added a **START HERE** header (rebase onto `30e8422`; reference boxes `bb_pat_pos`
-  loop-free + `bb_pat_span` looping; recipe in HANDOFF V3), and refreshed the `x86_asm.h` vocabulary list. The
-  ONE remaining shared unknown is the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + likely
-  Raku `bb_nfa`) — flagged "STILL OPEN," to be designed once by whoever reaches a combinator first. Did NOT edit
-  the other sessions' GOAL files (their own to touch). [SUPERSEDED by the next bullet — Lon directed top-of-file RUNG.]
-- **RUNG NOW AT TOP OF EVERY GOAL FILE** (`.github` `09e07507`, Lon directive): a session reads its own
-  `GOAL-{LANG}-BB.md` top-down, so the revamp priority was being missed (it lived only in the RULES-DRAFT + the
-  bottom watermark — never "first"). Added a concise **"CURRENT PRIORITY — READ FIRST"** block right after the title
-  in SNOBOL4/Icon/Prolog/Raku: the x86() goal, keystone **LANDED `30e8422` (REBASE FIRST)**, START HERE → RULES-DRAFT,
-  reference boxes `bb_pat_pos`(loop-free)/`bb_pat_span`(looping), recipe HANDOFF V3, the STILL-OPEN combinator idiom,
-  and each file's box list. Inserted ABOVE the byte-identical NO-C-BYRD-BOX FACT RULE (its md5 unchanged across all 5
-  files, so that gate stays green); a top-of-file insertion is a different hunk from the bottom watermark, so live
-  sessions (Icon on `bb_binop_arith` — a loop-free leaf that needs no keystone) rebase clean. Snocone omitted (not in
-  the four-session divvy-up).
-
-**Prior session (2026-06-01, Opus 4.8) — REG-2 COMPLETE (6/6): `bb_pat_break` (BREAK + BREAKX) migrated:**
-- **REG-2 6/6** — finished by converting the last cursor-advancing leaf, `bb_pat_break`, off the legacy
-  `[r10]`-cursor + `&Σ`/`&Σlen` movabs bakes to Σ=R13/δ=R14d/Δ=R15d. **Both arms in one pass** (all-or-nothing for
-  the REG-FENCE grep): plain BREAK **153B, sites {125,129,149}** (internal Δ jge +63 / jnz +19 / jmp loop −88);
-  BREAKX **290B, sites {125,130,134,265,286}** (α scan to first cset char + β rescan to next; identical per-loop
-  internal jumps jge +87 / jnz +19 / jmp loop −88). `z` lives in `[zeta+8]`; BREAKX `z_orig` lives in `[zeta+12]`
-  (the 4B padding of the 16B `rt_cs_t`), recovered as δ−z BEFORE the z++ at β entry. r11 + push/pop r11 dropped
-  (Σ=r13 used directly in `movzx esi,[r13+rcx+0]` — the disp8 SIB form, 6B); only push/pop r10 around `strchr`
-  remains. BINARY+TEXT both converted; both arms assembled via the `as`-transcribe route, objdump-verified, then
-  Python byte-recounted to confirm every site and every internal-jump literal. Token-clean: zero
-  `TEMPLATE_ADDR_SIG*`/`[r10]` in code OR comment. Zero `b.size()` introduced (stash-verified: 123 with AND without
-  the diff — the +1 over the 122 watermark is the intervening Prolog tree, not this change).
-- Single file touched: `src/emitter/BB_templates/bb_pat_break.cpp` (+155/−144).
-- Gates all GREEN + invariant; m2 7/7 HARD held; no regression. **REG-2 is done → next is REG-RO** (then REG-3…5,
-  REG-FENCE). REG-FENCE can now re-check SNOBOL m4 once a full pattern chain assembles+links (the `&Σ`/`&Σlen`
-  bakes are gone from the cursor-advancing family; r10 traffic + RO `movabs` addresses are what REG-RO finishes).
-
-**Prior session (2026-06-01, Opus 4.8) — REG-2 (5/6) cursor leaves + REG-RO step added:**
-- **REG-2 5/6** (SCRIP `eb4bf7c`): migrated `bb_pat_len`/`rem`/`any`/`notany`/`span` off the `[r10]`-cursor +
-  `&Σ`/`&Σlen` bakes to Σ=R13/δ=R14/Δ=R15. BINARY+TEXT both; span also dropped r11 + its push/pop (Σ=r13 used
-  directly in the indexed byte load). Every BINARY byte map disasm-verified with `as`+`objdump` BEFORE writing
-  (caught a real `movzx [r13+rcx]` SIB-encoding bug — r13 base needs the disp8 form, 6 bytes not 5); all 5
-  token-clean. Per-box β semantics preserved. Per-box sizes/sites in the REG-2 rung above.
-- **NEW STEP REG-RO** (REG ladder, inserted before REG-FENCE): READ-ONLY locals → IP-relative. The SNOBOL pattern
-  BINARY arms bake RO ADDRESSES (lit / cset / `memcmp` / `strchr`) as `movabs` imm64, violating the RULES.md
-  **ICON READ-ONLY LOCALS ARE IP-RELATIVE FACT RULE**; move each to `[rip+disp]` into a sealed RO trailer (the
-  TEXT arms already do this). Makes the BINARY arm position-independent (a 2nd m4 lever) and — together with the
-  RW register ladder — eliminates r10 entirely (the `[r10]` mirror writes + `push/pop r10` guards become dead).
-  (Lon directive.)
-
-**Prior session (2026-06-01, Opus 4.8) — FACT RULE + REG-0/1 + bb_match literal conversion:**
-- **NEW FACT RULE "TWO LITERAL FORMS ONLY"** (above, after the NO-VALUE-STACK rule) — byte-identical ×5 GOAL-*-BB
-  (block md5 `67020897`). The two literal forms (MEDIUM_BINARY = hand-coded byte map with HARDCODED literal offsets;
-  MEDIUM_TEXT = literal asm) are CORRECT; the ONLY bad site is a FUNCTION that counts bytes (`b.size()`). `bytes()`,
-  hardcoded `bin={{..}}`, literal rel32 deltas, `u32le/u64le`, `TEMPLATE_ADDR_*` are explicitly NOT bad.
-- **NEW GUARD** `scripts/test_gate_no_handencoded_bytes.sh` — counts `b.size()` per `BB_templates/*.cpp` (comments
-  stripped). Baseline **121 across 23 files** (informational; `--strict` = hard zero-check).
-- **REG-0** (bb_match α establishes Σ=R13/Δ=R15/δ=R14 from SUBJECT ζ-slot; legacy `&Σ`/`&Σlen`/[r10] cells kept) +
-  **REG-1** (bb_lit cursor→r14d / Σ→r13 / Δ→r15d; `&Σ`/`&Σlen` bakes removed; [r10] kept as mirror) — both LITERAL
-  byte maps. **bb_match converted off `b.size()` → literal offset map** {87,91,121,141,150,151}, internal back-jump
-  literal −78 (a genuine bad-site fix). PAT-BB probe **3/3** validates the offsets.
-- (Mid-session a WRONG pivot abort-stubbed bb_lit/bb_match on a backward reading — REVERSED after Lon clarified.
-  Net committed state is clean: literal byte maps, probe-green.)
-**SNOBOL4 status:** mode-2 **7/7 HARD**, mode-3 5/6 (`define`/user-fn the lone fail — needs DEFINE registration +
-a SNOBOL4 call frame + RETURN), mode-4 0/6 (pattern boxes bake `&Σ`/`&Σlen` imm64 → not relocatable; the REG
-ladder removes that). prove_lower2 **67**, PAT-BB probes **3/3**, Icon m2 12/12 / m3 12/12 / m4 12/12, sm_dead 0,
-concurrency OK (FACT RULES byte-identical-×3), purity 7 (MEDIUM_BINARY-exempt), g_vstack 0. FACT-RULE md5s the
-audit pins: LOWER `5097ed94`, EMITTER `307534d6` (do not perturb the byte-identical-×3 blocks). ENV NOTE: the
-build needs `libgc-dev` (`apt-get install -y libgc-dev`) — `core.h`/`raku_nfa_bb.c` include `<gc/gc.h>`.
-
-**🔶 TEMPLATE-REVAMP v1 (PIVOT — Lon directive, 2026-06-01, SCRIP `2111555`).** Kill the two-divergent-arm +
-hand-counted-`bb_bin_t` churn. New header-only `src/emitter/BB_templates/x86_asm.h`: self-encoding `x86_*`
-helpers that switch BINARY/TEXT on `g_medium` (invisible in the template) + in-band patch records (L/J/D)
-walked by `bb_emit_x86` (positions DISCOVERED, no offset table). Template API is ONE
-`x86(mnem, ...)` keyed on the mnemonic (1st arg; trailing args' cardinality/type select the form via overloading;
-the typed encoders are the internal impl) — Lon eureka 2026-06-01. `bb_lit` converted → ONE return, pure concat,
-NO template locals, `MEDIUM_MACRO_DEF` dropped; BINARY arm byte-identical to `65686c2` (addr-masked). GO-FORWARD
-(Lon): **TEXT-FIRST** — keep the GAS arm as source of truth, **throw away the hand-coded BINARY**, let `x86_*`
-regenerate it position-independent (= REG-RO); **no safety net / no full regression** (four sessions fix typos),
-move straight-forward, we are at GROUND ZERO. ⚠ This SUPERSEDES the TWO-LITERAL-FORMS / TEMPLATE-ONLY-EMISSION
-FACT RULES — the rule text (5 GOAL files + RULES.md) + purity/concurrency gates need the coordinated rewrite to
-land (grand-master-reorg). Detail + next steps: `HANDOFF-2026-06-01-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V1.md`.
-
-**⭐ NEXT (SNOBOL4).** **(0) BB-LITERAL CLEANUP — drive the new GUARD's `b.size()` count to zero**
-(`scripts/test_gate_no_handencoded_bytes.sh`, **121/23** baseline): rewrite each `b.size()` function-counter to a
-hardcoded LITERAL offset map (the way bb_match was converted this session). ⚠ The in-scope handful is
-`bb_pat_alt` + `bb_pat_cat`, but these are NOT a mechanical conversion: their `b.size()` sits inside a loop over
-`g_emit.xa_bb_emit_pair_n` (a runtime-variable define/jmp pair count), so literal offsets need a DESIGN answer
-(how a variable-length box gets literal patch offsets) — solve that before touching them. The other ~21 files are
-Icon/Prolog/generic boxes (outside the SNOBOL goal). **(1) REG LADDER** (see the 🔴 CURRENT PRIORITY
-section at the top): migrate the pattern BB templates off the legacy `[r10]`/`&Σ`/`&Σlen` model to the ratified
-registers Σ=R13/δ=R14/Δ=R15/ζ=R12 — REG-0/REG-1 (bb_match α + bb_lit) landed, and **REG-2 is now COMPLETE 6/6**
-(bb_pat_len/rem/any/notany/span SCRIP `eb4bf7c`; **bb_pat_break BREAK+BREAKX this session**). **Next is REG-RO**
-(RO addresses → `[rip+disp]`, kills r10), then REG-3 (pos/tab) → REG-4 (combinators) → REG-5 (generators) →
-REG-FENCE. **(2) THEN** PB-RB-4 (STITCH_SEQ/STITCH_ALT — topology already proven, only the emitter wiring + drive
-remain; mode-3 `S ('a'|'b')` and `S 'a' 'b'`), PB-RB-5…OPT, and BROK-0…BROK-3. The pattern-engine breadth (PB-RB
-ladder) is the LONG POLE for the SNOBOL4 corpus. Older per-session writeups live in the `HANDOFF-*.md` files.
-
-**🔶 TEMPLATE-REVAMP v2 (continuation — 2026-06-01, Opus 4.8, SCRIP `d96e1b0`).** Four more boxes converted
-to the `x86()` self-encoding form + `bb_lit` hardened: **`bb_pat_rem`, `bb_pat_len`, `bb_pat_any`,
-`bb_pat_notany`, `bb_lit`** are now **`pBB`-free END-TO-END** (template fn / `extern "C" void bb_X(void)` /
-`bb_templates.h` prototype / `emit_core.c` dispatch all parameterless) and **`_.node`-free** (grep proof: 0
-of each in all five, code + comments). New op-promotion: `sm_emit_t.op_sval/op_ival` set at the single
-dispatch point from `nd->sval/ival`; templates read `_.op_*`. `x86_asm.h` += 64-bit `test rax,rax`
-(width-aware ALU), `x86_movzx_subj_byte` (indexed subject-byte load), and imm8 short-form for `x86_add`/`sub`
-(BINARY now matches `as`). **NEW rules draft `.github/GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`** (R1–R13 normal +
-the "reads only `_`, no `pBB`, no neighbor" **FACT RULE** — compiler-enforced via parameter removal + a
-one-line `_.node` grep gate; reasons: no confusion + BB-fusion impossible). NOT yet folded into the 5 GOAL
-files (that + the internal-label record design + `test_gate_template_no_node.sh` are the next session's
-grand-master-reorg). Gates: m2 7/7 HARD · m3 5/6 · m4 0/6 · probes 3/3 · prove_lower2 67 · Icon m2 12/12 ·
-concurrency OK (sm_emit_t field add did NOT perturb the byte-identical-×3 blocks) · purity clean · g_vstack 0.
-Detail: `HANDOFF-2026-06-01-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V2-NO-PBB.md`. **OPEN (gates looping boxes):**
-internal-label record kind for SPAN/BREAK/combinators/generators (L/J/D only encode the 4 ports today).
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
+**Open arms:** L2-B2/C/D/E/F/G/H (loop-escapes, limitation, assignment, calls/access, scan/match, returns/decls,
+data/cset/IO) value-role; remaining GOAL ITE/`is`/user-pred-Call/term-comparison/findall/catch. **LOWER2-EXEC:**
+Icon value-level proof — wire `lower2_value_entry`→`IR_interp` on `1 to 5` and confirm/adjust the relational
+flag (`dval=1.0`) + if-gate (`node.β` runtime dispatch) + alt-gate (`operand_aux`) AGAINST the executor (do not
+assume). **L2-TMATCH:** refactor proven box code into `tm`/`tm_g` pattern form. **LM-6 DISPATCH-UNIFY:** retire
+lower.c's 3 dispatch entry points once all roles armed + exec-proven. Refs:
+`Proebsting-...-Goal-Directed-Evaluation.pdf`, `jcon_irgen.icn`.
