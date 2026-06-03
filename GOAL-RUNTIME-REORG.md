@@ -94,20 +94,20 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
   - [x] **slice 2 — `unification`** (SCRIP `17e759e`): WAM core (`rt_unify_*`/`rt_trail_*`/`rt_env_*`/`rt_choice_cut_*`/
     `rt_node_to_term`/`rt_get_cut_flag`/`rt_main_init`) extracted from grab-bag `rt/rt.c` → `runtime/unification.c`.
     (residual `rt_main_init` ✅ re-homed in slice 3; trail/choice/cut may later split to `backtrack.c`.)
-  - [x] **slice 3 — `runtime_init`** (SCRIP `0655bd4`): `rt_gc_init`/`rt_set_lang`/`rt_finalize` (+ its private
+  - [x] **slice 3 — `runtime_init`** (SCRIP `458f8a3`): `rt_gc_init`/`rt_set_lang`/`rt_finalize` (+ its private
     read-only statics `g_halt_rc`/`g_halt_set`, never written ⇒ constant-0)/`rt_bomb`/`rt_unhandled_op` pulled from
     grab-bag `rt/rt.c` + `rt_main_init` re-homed from `unification.c` → new `runtime/runtime_init.c`. Move-only; no
     new `.h` (rt.h decls + the `xa_file_header.cpp` PLT strings unchanged). **`rt_init` DEFERRED** — its body is a
     convergence point dragging file-local statics owned by OTHER subsystems (`_rt_IDENT`/`_rt_DIFFER` = comparison
     builtins; `_rt_usercall`→`chunk_reg_lookup`/`call_native_chunk` = native-chunk invocation); moving it now would
     break move-only or recreate the grab-bag. It moves cleanly once invocation + comparison builtins have homes.
-  - [x] **slice 4 — `io_format`** (SCRIP `c4a0f13`): unified output formatting — `rt_write_str_nl`/`_int_nl`/
+  - [x] **slice 4 — `io_format`** (SCRIP `5e92b35`): unified output formatting — `rt_write_str_nl`/`_int_nl`/
     `_any_nl`/`_strz_nl` + `rt_write_atom`/`_int`/`_float`/`_cstr` (+ static `rt_format_float`) + the Prolog term
     serializers `rt_write_var`/`_term_ptr`/`_writeq_term_ptr`/`_canonical_term_ptr` pulled from grab-bag `rt/rt.c`
     (around the interleaved `rt_cut_set`, which is cut/backtrack and stays) + `output_val`/`output_str` from
     `core/core.c` → new `runtime/io_format.c`. Move-only; rt.h/core.h decls + `bb_call.cpp` PLT refs unchanged; no
     new `.h`. SNOBOL/Icon value output + Prolog term output now ONE subsystem.
-  - [x] **slice 5 — `arithmetic` (part 1/2)** (SCRIP `a0d3664`): contiguous core `add`/`sub`/`mul`/`DIVIDE_fn`/
+  - [x] **slice 5 — `arithmetic` (part 1/2)** (SCRIP `6899f7f`): contiguous core `add`/`sub`/`mul`/`DIVIDE_fn`/
     `POWER_fn`/`neg`/`pos`/`eq`/`ne`/`lt`/`le`/`gt`/`ge` block + private static `coerce_numeric` (used only by
     add/sub/mul) from `core/core.c` → new `runtime/arithmetic.c`. Move-only; core.h decls unchanged; `ident`/`differ`
     + `to_int`/`to_real` stay (latter RS-1 values.c). **BUILD LESSON:** the `IS_*` macros live in
@@ -151,5 +151,5 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `a0d3664` · .github this commit. (RS-1 done; RS-2 slices 1-5 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1; `rt_init` deferred; arithmetic part-2 (rt.c helpers) + remaining subsystems queued above + in the RS-1 HANDOFF.)
+**Watermark.** SCRIP `6899f7f` · .github this commit. (RS-1 done; RS-2 slices 1-5 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1; `rt_init` deferred; arithmetic part-2 (rt.c helpers) + remaining subsystems queued above + in the RS-1 HANDOFF.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
