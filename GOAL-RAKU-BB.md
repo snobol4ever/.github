@@ -1,5 +1,17 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
+## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
+
+**No language-specific logic in any BB or XA C++ template.** All delineated operations are enveloped in
+unique BBs; each BB does NOT have varying runtime behavior depending on language. Templates dispatch on IR
+shape and representation flags only. FORBIDDEN inside `src/emitter/BB_templates/` and
+`src/emitter/XA_templates/`: language enums/guards (`IR_LANG_*`, `LANG_*`, `is_<lang>`), language-named
+template functions/files/dispatch arms, and hardcoded language-builtin names. Behavior that differs by
+language belongs in the runtime (by-name dispatch) or in LOWER (a different IR shape → its own unique BB) —
+never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scanned clean 2026-06-03); fix
+ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
+`XA_templates/` returns 0 sites.
+
 ## ▶ CURRENT PRIORITY — READ FIRST (2026-06-02): x86() TEMPLATE-REVAMP
 
 Convert this language's BB templates to the **`x86()` self-encoding API** (one return per `PLATFORM_*`, pure
