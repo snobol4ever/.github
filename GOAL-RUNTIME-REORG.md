@@ -105,6 +105,7 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
   | s24 | `invocation` | `sm_call_proc`/`proc_table_call` from `builtins/gen_runtime.c` → `runtime/invocation.c`. Frame storage (`frame_stack`/`frame_depth`) STAYS in `gen_runtime.c` (already extern in `gen_runtime.h`) — invocation references it; single-def confirmed. Header-less; protos stay in `gen_runtime.h`. SCRIP `4aa19d7` |
   | s25 | `aggregates` ✅ | **FIRST `core/core.c` carve-out.** array (`array_new`/`array_new2d`/`array_get`/`array_set`/`array_get2`/`array_set2`/`array_ptr`) + table (`_tbl_hash` static/`table_new`/`table_new_args`/`table_get`/`table_set`/`table_set_descr`/`table_has`/`table_ptr`) from `core/core.c` → `runtime/aggregates.c` (155 lines out; core.c 3327→3172). Generic container data-structures — NOT SNOBOL exec-model, so legitimately leaves `core/`. Header-less: all 15 protos already in `core.h`, call sites (the `_ARRAY_`/`_TABLE_`/`_CONVERT_`/`_COPY_` builtins + pattern_match.c/by_name_dispatch.c/interp_ref.c) UNTOUCHED. Includes `core.h`+`sil_macros.h`+`<string.h>`. SCRIP `97f807f` |
   | s26 | `tree` ✅ | n-ary tree / treebank node from `core/core.c` → `runtime/tree.c` (55 lines out; core.c 3172→3117). `expr_new` (TREEBLK_t node ctor) + `tree_new0` + `_tree_ensure_cap` static + `tree_append`/`tree_prepend`/`tree_insert`/`tree_remove` — one cohesive cluster (BODIES read: `tree_new0` wraps `expr_new`, so the `expr_`-named ctor moved WITH the `tree_*` ops). Header-less: all 6 protos already in `core.h`, call sites (snocone parser `snocone_parse.y`/`.tab.c` + lower_sno + scrip.c) UNTOUCHED. Same include set as s25. SCRIP `92b3b08` |
+  | s27 | `string_builtins` ✅ | scalar/string builtin IMPLEMENTATIONS from `core/core.c` → `runtime/string_builtins.c` (177 lines out; core.c 3117→2940). `SIZE_fn`/`DUPL_fn`/`REPLACE_fn`/`SUBSTR_fn`/`TRIM_fn`/`lpad_fn`/`rpad_fn`/`REVERS_fn`/`BCHAR_fn` (string ops) + `INTGER_fn`/`real_fn`/`string_fn` (conversions) + `ident`/`differ` (identity) — one contiguous block (sibling to existing `string_ops.c`). Header-less: all 14 protos already in `core.h` (incl. `ident`/`differ` @198–199); call sites (the `_SIZE_`/`_DUPL_`/… builtin wrappers in core.c + prolog test harnesses) UNTOUCHED. Needs `utf8.h` (the `utf8_*` are `static inline` in `core/utf8.h`, resolves via the runtime `-I` path), so a FRESH file was cleaner than merging into `string_ops.c` (which lacks `utf8.h`). Includes `core.h`+`sil_macros.h`+`utf8.h`+`<string.h>`+`<stdlib.h>`. **Caveat:** conversions (`INTGER`/`real`/`string`) + `ident`/`differ` ride along by contiguity; could later regroup to a conversions/comparison home when those clusters are carved. SCRIP `5893518` |
 
   **State:** `arithmetic`, `pattern_match`, `by_name_dispatch` (.c + header) COMPLETE; `keywords`/`string_ops`
   (.c + header) + `name_binding` (.c) + `values` (.c) + `invocation` (.c) COMPLETE. `gen_runtime.c` **654 → 209 lines**:
@@ -126,9 +127,10 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
       `is_suspendable`/`gen_bb_pump_proc_by_name`/`drive_val`; frame storage `frame_stack`/`frame_depth` stays here,
       already extern-exposed in `gen_runtime.h`) — this OVERLAPS ⓐ's backtrack split, so do them together. The
       `string_section_assign` straggler → `name_binding`/`control_flow` when one of those lands.
-    - **`core/core.c`** (now **3117 lines** after s25–s26; biggest remaining split) → leave SNO-exec-model residue in
+    - **`core/core.c`** (now **2940 lines** after s25–s27; biggest remaining split) → leave SNO-exec-model residue in
       `core/` (LI-CORE). **Cluster map (bodies read this session, def-line order):** `aggregates` ✅ s25 (array+table) +
-      `tree` ✅ s26 (`expr_new`+`tree_*`/TREEBLK_t) EVICTED. REMAINING capability clusters still in core.c: **`monitor`/`ipc`** (~29–509: `mon_*`/`trace_*`/`comm_*`/
+      `tree` ✅ s26 (`expr_new`+`tree_*`/TREEBLK_t) + `string_builtins` ✅ s27 (SIZE/DUPL/REPLACE/SUBSTR/TRIM/pad/REVERS/
+      BCHAR/INTEGER/REAL/STRING/ident/differ) EVICTED. REMAINING capability clusters still in core.c: **`monitor`/`ipc`** (~29–509: `mon_*`/`trace_*`/`comm_*`/
       `load_names_file_bin`/`intern_name_bin`/`_b_MON_*` wire-protocol+tracing — clean but has `kw_stcount`/`kw_stno`
       keyword globals interleaved @106–107 + exported `comm_*` called from driver/interp, so wider surface); **comparison
       + arith builtin wrappers** (~509–768: `_GT_`/`_LT_`/.../`_b_add`/.../`_IDENT_`/`_DIFFER_` — note `_IDENT_`/`_DIFFER_`
@@ -136,11 +138,12 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
       FACC_FN/`_make_fget`/`_make_fset` ~1239–1350 + `DEFDAT_fn`/`DATCON_fn`/`FIELD_GET_fn`/`FIELD_SET_fn` ~2230–2317);
       **NV_\*** variable model (~2317–2660: `NV_*`/`INDR_*`/`NAME_fn`/`ASGNIC_fn` + N-stack `NPUSH/NINC/...` — likely LI-CORE SNO
       residue, STAYS); **DEFINE/function-registry** (~2704–3044: `core_fn_registered`/`_parse_define_spec`/`DEFINE_fn`/
-      `register_fn_alias`/`APPLY_fn`/`FUNC_*` — note `fn_has_builtin` open-item delete lives here); **string-builtin
-      impls** (~3044–3219: `SIZE_fn`/`DUPL_fn`/`REPLACE_fn`/`SUBSTR_fn`/`TRIM_fn`/`lpad_fn`/`rpad_fn`/`REVERS_fn`/
-      `BCHAR_fn`/`INTGER_fn`/`real_fn`/`string_fn`/`ident`/`differ` — pairs with existing `string_ops.c`); **INPUT/OUTPUT**
-      (~3224–3316: `input_read`/`_INPUT_`/`_OUTPUT_`/`_io_*` — pairs with existing `io_format.c`). Method: read bodies,
+      `register_fn_alias`/`APPLY_fn`/`FUNC_*` — note `fn_has_builtin` open-item delete lives here). **INPUT/OUTPUT**
+      (~3224–3316: `input_read`/`_INPUT_`/`_OUTPUT_`/`_io_*` — pairs with existing `io_format.c`; note `_input_fp`/`_input_buf`
+      statics sit right after `differ` @former-3011, and `_io_chan_*` helpers are earlier ~former-778, so I/O is split — two sub-slices). Method: read bodies,
       one capability per gated slice, def already in `core.h` ⇒ usually header-less + call-sites-untouched (s25 precedent).
+      **NOTE:** line numbers above are ORIGINAL-file (pre-s25) approximate — re-grep current positions before slicing
+      (core.c shrank 387 lines across s25–s27, so clusters below ~line 2019 have shifted up).
 
 - [ ] **RS-FENCE.** `scripts/test_gate_runtime_subsystems.sh` asserts the partition; wire into Session Setup.
 
@@ -204,11 +207,12 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `92b3b08` (RS-2 **s26 tree**, gated byte-identical, this session) · prior `97f807f`
-(s25 aggregates) · `8970924` (LI-FENCE restore) · RS watermark `4aa19d7` (RS-2 s1–s24). RS-1 done; RS-2 slices 1–26
-landed: `arithmetic` / `pattern_match` / `by_name_dispatch` / `keywords` / `string_ops` (.c + header) + `name_binding`
-/ `values` / `invocation` (.c) + **`aggregates` + `tree` (.c — first two `core.c` carve-outs)** COMPLETE; resolver
-renamed to `resolution`; `gen_runtime.c` 654 → 209 lines; `core/core.c` **3327 → 3117 lines** (array+table+tree evicted).
+**Watermark.** SCRIP `5893518` (RS-2 **s27 string_builtins**, gated byte-identical, this session) · prior `92b3b08`
+(s26 tree) · `97f807f` (s25 aggregates) · `8970924` (LI-FENCE) · RS watermark `4aa19d7` (RS-2 s1–s24). RS-1 done;
+RS-2 slices 1–27 landed: `arithmetic` / `pattern_match` / `by_name_dispatch` / `keywords` / `string_ops` (.c + header)
++ `name_binding` / `values` / `invocation` (.c) + **`aggregates` + `tree` + `string_builtins` (.c — three `core.c`
+carve-outs this session)** COMPLETE; resolver renamed to `resolution`; `gen_runtime.c` 654 → 209 lines; `core/core.c`
+**3327 → 2940 lines** (array+table+tree+string/scalar-builtin-impls evicted — 387 lines / 4 capabilities out).
 
 **This session (Opus, 2026-06-03).** Arrived with HEAD `5dff1a8` — TWO commits past `4aa19d7` from other goals
 (GN-3 `7fc5ae9`, then Prolog-BB WAM-CP-7c `5dff1a8`). **Baseline was RED on LI-FENCE:** WAM-CP-7c put
