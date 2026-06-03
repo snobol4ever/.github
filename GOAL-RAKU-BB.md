@@ -186,26 +186,11 @@ to literal offset maps; any session that raises it has violated this rule. **COM
 (b) every `MEDIUM_BINARY` arm uses a hand-coded LITERAL byte map with hardcoded offsets, never a function to
 count bytes; (c) the FACT RULE body is byte-identical across all five GOAL-*-BB files.
 
-## ⏸ ON HOLD → SPINNING UP (2026-05-31)
+## STATUS — Raku is the FOURTH concurrent BB session (peer to SNOBOL4/Icon/Prolog)
 
-**Lon directive (2026-05-31): Raku is being re-prioritized as the FOURTH concurrent BB session,
-peer to SNOBOL4 / Icon / Prolog.** This file was revamped to match the other three musketeers:
-same three FACT RULES (byte-identical bodies), same MANDATORY-READ pipeline, same post-SMX-4
-reality (no Stack Machine engine; ONE unified `lower.c`; `IR_*` node taxonomy; the BB run-path
-via `bb_exec_once`). The prior ON-HOLD content (SM-era `BB_*`/`SM_*` vocabulary, `BB.h`,
-`SM_BB_INVOKE`) is preserved verbatim under **APPENDIX A — PRE-SMX-4 RAKU STATE (historical)**
-at the foot of this file; its numbers are NOT reachable today (the SM engine it ran on was
-deleted by SMX-4) and must not be cited as live.
-
-**LANGUAGE LIFE (per the correction in GOAL-SNOBOL4-BB, Lon 2026-05-31):** "tombstoned" was
-over-broad. SMX-4 deleted the SM EXECUTION BACKEND, not any language. After the AST and before
-the IR — exactly where `lower()` sits — ALL SIX languages are alive. LIVE: SNOBOL4, Icon, Prolog.
-VICARIOUS (through SNOBOL4): Snocone, Rebus. Raku was the ONE flagged DEAD only in the sense of
-being ON HOLD — it still parses + builds AST; what is NOT yet wired is Raku *lowering* onto the
-unified `lower.c` four-port IR + *execution* over the BB run-path. **That wiring is this goal.**
-
-**Spin-up entry rung:** RK-LOWER-0 (below) — first Raku arm into the unified `lower.c`, proven via
-`scripts/prove_lower2.sh` (topology), then a mode-2 `say("hello")` through `bb_exec_once`.
+Raku is LIVE through `lower.c` (RK-LOWER-0..4 + 5a/5b done; mode-2 oracle healthy). Post-SMX-4: no Stack
+Machine engine; ONE unified `lower.c`; `IR_*` node taxonomy; BB run-path via `bb_exec_once`. The SM-era
+`BB_*`/`SM_*` content is preserved as SEMANTIC SPECS in **APPENDIX A** (numbers NOT reachable today; don't cite as live).
 
 ---
 
@@ -399,12 +384,12 @@ Raku source → raku.l / raku.y → tree_t* (TT_* AST)
 
 Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step: Raku m3/m4 corpus held (18/22), Icon/SNOBOL4/Prolog siblings byte-identical, commit. Reference Raku box: `bb_binop_jct_relop.cpp` (RK-EMIT-3, already broken out by the worked example). The de-cram steps are prep; **RK-HY-4 (de-dup + RT-fix) is the core fix** — collapse any logic written twice.
 
-- [x] **RK-HY-0 — `bb_binop_jct_relop.cpp`.** ✅ DE-CRAM DONE 2026-06-01 (carried out of the `bb_binop.cpp` worked example). Raku junction-collapse relop is its own file.
-- [x] **RK-HY-1 — `bb_seq.cpp` (358).** ✅ DE-CRAM DONE 2026-06-02 (Opus 4.8). Three distinct four-port shapes (selected by n / has_suspend / medium) split into one-box-one-file templates behind a 34-line router (bb_binop.cpp pattern): `bb_seq_gather.cpp` (gather multi-yield — SUSPEND children, TEXT _str + raw-binary in-place), `bb_seq_flat.cpp` (flat in-order stmt sequence — Icon compound semantics), `bb_seq_passthrough.cpp` (goto-chain glue CATCH-ALL). emit_core dispatch + bb_templates.h decl UNCHANGED. Grouped near-identical (gather TEXT+BINARY co-located; the two byte-identical EMIT_PAIR glue loops merged → b.size() 4→2 bonus DUP FORM 1 collapse). Behavior-neutral (git-stash baseline diff): Raku 25/21/21, Icon 12/12/12, SNOBOL4 7/5/0 all byte-identical; prove_lower2 67/0; siblings unchanged. SCRIP `eef2659` (rebased+pushed onto peer base `cf4f0c5`).
-- [x] **RK-HY-2 — `bb_nfa.cpp` (222).** ✅ DE-CRAM DONE 2026-06-02 (Opus 4.8). Nine co-located ISOLATED IR_NFA_* leaf boxes split one-box-one-file (the SNOBOL4 pattern-leaf convention `bb_pat_*`): `bb_nfa_passthrough.cpp` (EPS/CAP_OPEN/CAP_CLOSE — share one _str), `bb_nfa_char.cpp`, `bb_nfa_any.cpp`, `bb_nfa_class.cpp`, `bb_nfa_bol.cpp`, `bb_nfa_eol.cpp`, `bb_nfa_accept.cpp`; `bb_nfa.cpp` DELETED. NO router file — `emit_core.c`'s 9-case switch IS the router (each IR_NFA_* dispatched directly); dispatch + `bb_templates.h` decls UNCHANGED. Leaf semantics verified vs canonical `raku_re.c` `ss_add`. Each _str byte-faithful. Subrule-call / Match-tree-build shapes don't exist yet (RK-GRAM-3 future) — clean files make them tractable; RT-CHECK noted (Match-tree build = `rt_rk_*` call, not emit-time walk). Family DORMANT (`~~` on C matcher); behavior unaffected by construction (git-stash diff: regex tests abort identically pre-existing). Gates green; SCRIP `43c42d2` (rebased+pushed onto peer base `cf4f0c5`).
-- [ ] **RK-HY-3 — Raku arms of `bb_call.cpp`.** When Icon runs ICN-HY-2, the RK-EMIT-1/2 arms (`rt_rk_call_arr`, IR_CALL dval==2.0 marshalling) are RAKU-OWNED → move to `bb_call_rk.cpp` (or `_<shape>` if >1). Coordinate per the FACT RULE (edit only your own language's boxes). Router stays Icon's.
-- [ ] **RK-HY-4 — de-dup + RT-fix, all Raku boxes.** Any algorithm in both media → one `rt_*` call. No emit-time value work.
-- [ ] **RK-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Raku-owned files. m3/m4 18/22 held; siblings byte-identical.
+- [x] **RK-HY-0 — `bb_binop_jct_relop.cpp`.** ✅ DONE 2026-06-01. Junction-collapse relop is its own file.
+- [x] **RK-HY-1 — `bb_seq.cpp`.** ✅ DONE 2026-06-02. Split into 3 shape files (`bb_seq_gather`/`_flat`/`_passthrough`) behind a 34-line router; emit_core dispatch + decl unchanged. Behavior-neutral.
+- [x] **RK-HY-2 — `bb_nfa.cpp`.** ✅ DONE 2026-06-02. 9 ISOLATED IR_NFA_* leaves split one-box-one-file (`bb_nfa_passthrough`/`_char`/`_any`/`_class`/`_bol`/`_eol`/`_accept`); no router (the `emit_core` 9-case switch IS the router). Leaf semantics vs canonical `raku_re.c` `ss_add`. Family DORMANT (`~~` on C matcher); behavior-neutral.
+- [x] **RK-HY-3 — Raku arms of `bb_call.cpp`.** ✅ DONE 2026-06-03 (SCRIP `eef2621`). `bb_call_rk_arr_str` (the `dval==2.0` `rt_call_arr` box) extracted from `bb_call.cpp` into `bb_call_rk.cpp`; router declares `extern bb_call_rk_arr_str` and calls it; `emit_core` dispatch + `bb_templates.h` UNCHANGED (router stays Icon's). `marshal_call_arg` left in the router as a NON-STATIC shared helper (now also called by SNOBOL4's `bb_call_gvar_*` boxes from peer `24c593b` — generic marshalling, not port logic); `bb_call_rk.cpp` declares it `extern`. Makefile +1 src +1 rule. Behavior-neutral (m2 25/25, m3 1/20/4, m4 2/19/4 pre==post; SNOBOL4 7/7 m3 5, Icon 12/12, Prolog 5/5; purity 3 ≤ 8).
+- [ ] **RK-HY-4 — de-dup + RT-fix, all Raku boxes.** Any algorithm in both media → one `rt_*` call. No emit-time value work. (Done-bar `m3/m4 18/22` unreachable until Icon lands the descr-mode `IR_ASSIGN` ζ-slot store — see Watermark.)
+- [ ] **RK-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Raku-owned files; siblings byte-identical.
 
 ## The insight (Raku is a Seq language → ONE four-port pull protocol)
 
@@ -452,103 +437,20 @@ but the *mechanism* (SM opcodes, `SM_BB_INVOKE`, `BB.h`) is gone. Each rung: low
 arm in `lower.c`, prove TOPOLOGY via `scripts/prove_lower2.sh` (append Raku cases in the RAKU section), then
 prove BEHAVIOR via mode-2 `bb_exec_once`, then (later) the mode-3/4 template arms.
 
-- [x] **RK-LOWER-0 — spin-up: first Raku arm + `say("hello")`.** ✅ DONE (2026-05-31, Opus). Add `IR_LANG_RKU` to the lang enum if
-  absent; route the Raku frontend through `lower2_value_entry`. Lower `say(STR)` / `print(STR)` via the
-  SHARED `wire_det_builtin1` (the same role-agnostic builtin-call wirer Icon `write` and Prolog `write`
-  already use — another sharing seam). Prove: `prove_lower2.sh` gains a RAKU `say("hello")` case (node count
-  + gamma/omega); mode-2 `say("hello world")` → one record. Gate suite green (below). **This is the entry rung.**
-- [x] **RK-LOWER-1 — lazy range → `IR_TO`/`IR_TO_BY`.** ✅ DONE (2026-05-31, Opus). `for $a..$b { }` and `$a,$b … $c`. REUSE Icon's
-  `IR_TO`/`IR_TO_BY` case; add the Raku arm inside it (range sigil/step semantics per docs.raku.org §Range).
-  Prove topology + mode-2 `for 1..3 { say $_ }` → 1,2,3.
-- [x] **RK-LOWER-2 — KEYSTONE: lazy Seq `gather`/`take` → resumable generator PUMP.** ✅ DONE (2026-05-31).
-  `gather { take E1; take E2; ... }` lowers to a NEW resumable Seq-producer kind `IR_GATHER` (its own resume,
-  β=self, exactly like `IR_TO`) realizing the APPENDIX-A `RK-M2-GATHER` spec — counter-as-resume-cursor: yield
-  ONE take per (re)entry, walking past the last (or empty gather) → FAIL (Seq drained). Driven by the EXISTING
-  generator PUMP via `v_raku_for` (no new pump machinery): reached BOTH as the iterate source of
-  `for gather {..} -> $v` (the `TT_EVERY` Raku guard now admits a `TT_GATHER` iterate child) AND as a bare value
-  expr (dedicated `TT_GATHER` case, Raku arm; non-Raku → `lower_unhandled`). Take payloads lower into SEPARATE
-  value sub-graphs (the SNOBOL4 call-arg idiom — `lower_value_subgraph`, cursor carries `IR_LANG_RKU`); the
-  subs-array ptr rides on `IR_GATHER.counter` (now PRESERVED across `bb_reset` — the drain-on-first-entry fix),
-  the take COUNT on `.ival`, the resume cursor on `.state`. Mode-2 `for gather { take(10);take(20);take(30) } ->
-  $v { say $v }` → `10,20,30,done`. FLAT-take model (corpus/keystone are flat); dynamic-scope takes (inside
-  loops/conditionals, the docs.raku.org `factors()` example) are a later refinement on this same node.
-- [x] **RK-LOWER-3 — lazy `map`/`grep` as Seq consumers.** ✅ DONE (2026-05-31, Opus). Eager-drain a producer Seq through a
-  transform/filter. NEW resumable Seq-consumer kinds `IR_MAP`/`IR_GREP` (own resume, β=self, like `IR_TO`/`IR_GATHER`),
-  reached from the Raku arm of the shared `TT_EVERY` (guard now admits `TT_MAP`/`TT_GREP` iterate children) AND a
-  dedicated Raku-gated `TT_MAP`/`TT_GREP` case (non-Raku → `lower_unhandled`). SOURCE → its own value sub-graph
-  (`lower_value_subgraph`, ptr on `.counter`, preserved across `bb_reset`); closure BODY → second sub-graph (ptr on
-  `.ival`); resume cursor on `.state`. Mode-2 exec arm eager-drains SOURCE via the `aggregate_all` idiom
-  (`bb_reset`+`bb_exec_once`+`bb_exec_resume`) into a node-keyed `DESCR_t` cache, binds `$_` with `NV_SET_fn` per
-  element, runs the closure: map yields the transform; grep keeps the element iff the closure is truthy
-  (`binop_apply` rel-fail = false). Semantics per docs.raku.org/routine/{map,grep}. Mode-2:
-  `for map { $_ * 2 } 1..3 -> $v` → 2,4,6; `for grep { $_ > 2 } 1..5 -> $v` → 3,4,5; map/grep over `gather` compose.
-- [x] **RK-LOWER-4 — junctions `any`/`all`/`one`/`none` + infix bar/amp.** ✅ DONE (2026-05-31, Opus 4.8). Constructor + infix forms share
-  ONE lowering (the APPENDIX-A `RK-BB-4a/4b` finding: infix bar/amp build the SAME `TT_FNC` the constructors
-  do; same-flavor chains flatten at parse time). Mode-2 collapse via the tagged-junction value; the `IR_ALT`
-  fail-chain is the eventual mode-3/4 substrate.
-- [ ] **RK-LOWER-5 — eager core onto straight-line IR.** `say`/`print` (done in RK-LOWER-0), arithmetic,
-  hash/array element ops, `sort`, `try`/`CATCH`, class/method dispatch — each a deterministic `IR_*` arm
-  (beta=omega_in, no generator). Port the APPENDIX-A RK-HASH / RK-IO / RK-EXCEPTIONS / RK-CLASS *semantics*
-  onto the four-port IR (they worked on the SM engine; the behaviors are the spec, the SM opcodes are not).
-  **5a DONE (2026-05-31, Opus 4.8): read-only value ops** — list construction `(e1,..)`→`__rk_arr`, `@a[i]`→`arr_get`,
-  `%h<k>`/`%h{k}`→`hash_get`, membership→`hash_exists`, `sort(@a)`→`array_sort`, plus the `elems`/`reverse`/`join`/
-  `sum`/`unique`/`head`/`tail`/`chars`/`length`/`lc`/`uc`/`trim`/`substr`/`index`/`rindex` whitelist — all via the
-  SHARED `v_raku_det_call`→`IR_CALL` (dval=2.0, det). **5b DONE (2026-06-01, Opus 4.8): mutating ops** — `push`/`pop`/
-  `arr_set`/`hash_set`/`hash_delete` via the PURE-VARIANT writeback (IR_t stays LEAN per PEERS — NO new field, NO
-  exec-side vname peek): each lowers to `CONTAINER = pure_fn(CONTAINER, args…)` (IR_ASSIGN over IR_CALL dval=2.0,
-  helper `v_raku_mutate_writeback`), the container var being BOTH the assignment target and the call's first operand,
-  so the IR_ASSIGN supplies the writeback. New read-only runtime `*_pure` twins (`push_pure`/`arr_set_pure`/
-  `hash_set_pure`/`hash_delete_pure` — return the new container string, NO NV_SET; hash twins delegate to the
-  now-exposed `script_hash_set_str`/`script_hash_delete_str`, zero logic dup). `pop` is the one exception (its
-  returned popped element ≠ the new container) → split into `$p = arr_last(@a); @a = arr_init(@a)` (two pure reads +
-  IR_ASSIGN stores, `v_raku_pop`) — still NO new IR kind, NO vname thread. BOTH surface syntaxes wired: sigil
-  `%h<k>=v`/`@a[i]=v`/`delete %h<k>` (TT_HASH_SET/TT_ARR_SET/TT_HASH_DELETE dedicated cases) AND explicit calls
-  `push(@a,x)`/`hash_set($h,k,v)`/`hash_delete($h,k)`/`arr_set(@a,i,v)` (table-driven arm in TT_FNC). Semantics per
-  docs.raku.org (type/Array#push, type/Hash postcircumfix+:delete, language/list `@a[$i]=$y`, routine/pop). BONUS:
-  because everything rides `IR_ASSIGN`+`IR_CALL` (both already have native templates) it is NOT just mode-2-proven
-  but NATIVE in modes 3+4 too — `rk_arrays.raku` corpus PASS (strict +1, proven by stash diff), smoke `array_push_pop`/
-  `hash_set_get`/`hash_sigil_delete` all PASS ×3 modes. **5c:** `try`/`CATCH`/`die` (exception propagation through
-  shared SEQ/sub-call exec — FACT-RULE-sensitive). **5d:** class/method/field/new + `say(jct)`/`say(list)` composite output.
-- [ ] **RK-EMIT-1..N — mode-3/4 template arms.** Once the lowered Raku arms are mode-2-proven, fill the
-  `bb_rk_*.cpp` MEDIUM_BINARY (mode-3) + MEDIUM_TEXT (mode-4) arms, ONE box per file, dispatched from
-  `emit_core.c`, per the TEMPLATE-ONLY FACT RULE. Gate each via `--run` / `--compile` corpus delta + the
-  emitter purity/byte-identity gates. (Mirrors SNOBOL4's "TOP PRIORITY: complete all pattern BB BINARY/TEXT
-  arms" rung — Raku's is the generator + junction + NFA box set.)
-  - **RK-EMIT-1/2/3 LANDED (2026-05-31, Opus 4.8) — m3 0→16/22, m4 0→16/22 (Icon 9/9/9 + SNOBOL4 7/7 m2 intact):**
-    Raku now rides **Icon's existing LOWER-direct native driver** (scrip.c: `is_raku` flag → the `is_icon || is_raku`
-    mode-3 `--run` and mode-4 `--compile` branches). The prior "blocked on the severed `[SBB]` driver" diagnosis was
-    WRONG: `.raku` simply set no routing flag, so it fell into the SNOBOL `[SBB]` abort. Raku's IR is built from Icon's
-    kinds, so Icon's `icn_flat_chain_build` + the SHARED `bb_*` templates emit it. **0 new `bb_rk_*` files** — instead
-    extended SHARED templates: `bb_call.cpp` (dval==2.0 general builtin call → marshal arg-leaf DESCRs into a per-call
-    ζ-frame vector → new `rt_rk_call_arr`), `bb_lit_scalar.cpp` (`IR_LIT_S` → slot), `bb_assign.cpp` (producer guard
-    widened to `IR_LIT_S`/`IR_CALL`), `bb_binop.cpp` (junction-collapse relop on `__rk_jct_` operands → new
-    `rt_rk_jct_relop`), and `emit_bb.c` (`IR_CONJ` flat-chain pass-through so statements after an `if`/block aren't
-    dropped; `icn_chain_arity` returns 0 for dval==2.0 calls; string-literal concat duplicate-label short-circuit).
-    Runtime trampolines in `gen_runtime.c` reuse the mode-2 `try_call_builtin_by_name`/`junction_collapse` ⇒ m2==m3==m4,
-    NO bb-walking at m3/m4 run time, NO value stack (per-call arg vector is the sanctioned ARBNO-style frame array).
-  - **RK-EMIT-GATHER LANDED (2026-06-01, Opus 4.8) — m3 17→18/22, m4 17→18/22; the 4 map/grep rungs now LOUDLY
-    EXCISE (not abort):** `gather_take` (`for gather { take 10;take 20;take 30 } -> $v {…}; say('done')` → `10,20,30,done`)
-    emits real native x86 in BOTH modes via the NEW `bb_rk_gather.cpp` (`IR_GATHER`), the first genuinely Raku-only
-    `bb_rk_*` template. **[REVAMPED 2026-06-02, Opus 4.8: `bb_rk_gather` converted to the `x86()` self-encoding API
-    — pBB-free x86 arm, ζ-frame cursor (was `&pBB->state` movabs), no `bb_bin_t`, no `b.size()`; behavior byte-identical
-    by `git stash` diff. See Watermark.]** It is a yield-then-advance counted pump over the take literals (extracted at EMIT time → sealed
-    RO data, NO runtime bb-walking), writing each element as a DT_I DESCR into its own ζ slot (NO value stack); the
-    resume cursor is `&pBB->state` (m3) / a `.data` quad (m4). **α does NOT reset** — the flat-chain BFS routes the
-    for-loop body's re-pump back-edge to the box's α (never β), so α advances from `.state` (calloc zero-init ⇒ correct
-    first entry); β is a safety landing. Wired via the 6-site flat-chain treatment (`gen_bb_is_gen_arg`,
-    `icn_chain_arity`→0, `walk_bb_flat` FILL, `bb_assign` producer guard, `emit_core` dispatch, Makefile ×2). **NEW
-    finding:** a Raku `for GEN -> $v {…}; CONT` lowers (`v_raku_for`) to a raw goto-chain whose CONTINUATION (`CONT`)
-    hangs off the generator's **ω** port — the γ-only flat-chain BFS never reached it, so BOTH `codegen_flat_chain_body`
-    and `icn_chain_operand_refs` now follow `ω` **for `IR_GATHER` only** (Raku-only kind ⇒ zero blast radius on
-    Icon/SNOBOL/Prolog). Template-purity baseline 7→8 (one sanctioned FLAT-take fall-loud guard). SCOPE: single
-    evaluation (smoke/corpus shape); a gather re-evaluated fresh from an OUTER loop wants a true α-reset (later refinement).
-  - **MAP/GREP — m2 PASS, m3/m4 EXCISED (the remaining lift):** `map_range`/`grep_range`/`map_over_gather`/
-    `grep_over_gather` still need `bb_rk_map.cpp`/`bb_rk_grep.cpp` (`IR_MAP`/`IR_GREP`) — the genuine large lift: a
-    CLOSURE (`$_*2`, `$_>2`, `$_%2==0`) emitted as native code and invoked per element, plus pumping a source generator
-    that may itself be a gather. Until built, `IR_MAP`/`IR_GREP` are listed in `icn_kind_native_stub` so m3/m4 EXCISE
-    LOUDLY (`[SMX]`), making the rungs DONE under the COMPLETION BAR (m2 PASS + m3/m4 EXCISED, tracked not crashing).
-    ROADMAP: identical 6-site treatment + emit-time `walk_bb_flat` of the body sub-graph (`.ival`) stitched as
-    source-pump → bind `$_` slot → closure → conditional yield (map yields the result; grep yields the element when truthy).
+- [x] **RK-LOWER-0 — spin-up + `say`/`print`.** ✅ 2026-05-31. Raku frontend → `lower2_value_entry`; `say`/`print` via SHARED `wire_det_builtin1` → `IR_CALL` (say=`write`+nl, print=`writes`). Entry rung.
+- [x] **RK-LOWER-1 — lazy range → `IR_TO`/`IR_TO_BY`.** ✅ 2026-05-31. `for $a..$b`, `$a,$b … $c` reuse Icon's `IR_TO`/`IR_TO_BY` (Raku arm inside the shared case; semantics per docs.raku.org §Range). `for 1..3 { say $_ }` → 1,2,3.
+- [x] **RK-LOWER-2 — KEYSTONE: `gather`/`take` → resumable PUMP.** ✅ 2026-05-31. NEW `IR_GATHER` (own resume, β=self, like `IR_TO`): counter-as-resume-cursor yields ONE take per (re)entry, past-last → FAIL. Driven by the existing generator PUMP via `v_raku_for`. Takes → separate value sub-graphs (subs ptr on `.counter` PRESERVED across `bb_reset`, count on `.ival`, cursor on `.state`). FLAT-take model; dynamic-scope takes are a later refinement on this node.
+- [x] **RK-LOWER-3 — `map`/`grep` as Seq consumers.** ✅ 2026-05-31. NEW `IR_MAP`/`IR_GREP` (own resume, β=self). SOURCE + closure BODY in sub-graphs; exec eager-drains SOURCE (`aggregate_all` idiom) into a node-keyed cache, binds `$_`, runs closure: map yields the transform, grep keeps the element iff truthy. Semantics per docs.raku.org/routine/{map,grep}.
+- [x] **RK-LOWER-4 — junctions + infix bar/amp.** ✅ 2026-05-31. `any`/`all`/`one`/`none` + infix `|`/`&` share ONE lowering → `IR_CALL __rk_jct_*` (dval=2.0, det); members in isolated value sub-graphs (nested junction = one opaque member). Mode-2 collapse via the tagged-junction value; `IR_ALT` fail-chain is the eventual native substrate.
+- [ ] **RK-LOWER-5 — eager core onto straight-line IR.**
+  - **5a ✅** read-only value ops — list ctor `(e1,..)`→`__rk_arr`, `@a[i]`→`arr_get`, `%h<k>`→`hash_get`, membership→`hash_exists`, `sort`→`array_sort`, + `elems`/`reverse`/`join`/`sum`/`unique`/`head`/`tail`/`chars`/`length`/`lc`/`uc`/`trim`/`substr`/`index`/`rindex` whitelist — all via SHARED `v_raku_det_call`→`IR_CALL` (dval=2.0).
+  - **5b ✅** mutating ops — `push`/`pop`/`arr_set`/`hash_set`/`hash_delete` via PURE-VARIANT writeback: each lowers to `CONTAINER = pure_fn(CONTAINER, args…)` (IR_ASSIGN over IR_CALL dval=2.0); `pop` splits into `arr_last`+`arr_init`. IR_t stays LEAN (no new field, no vname thread). Both sigil + explicit-call syntaxes wired. Native in m3/m4 too (rides IR_ASSIGN+IR_CALL). Semantics per docs.raku.org.
+  - **5c** `try`/`CATCH`/`die` (exception propagation through shared SEQ/sub-call exec — FACT-RULE-sensitive).
+  - **5d** class/method/field/new + `say(jct)`/`say(list)` composite output.
+- [ ] **RK-EMIT-1..N — mode-3/4 template arms.** Fill `bb_rk_*.cpp` BINARY+TEXT arms, one box per file, per the TEMPLATE-ONLY FACT RULE; gate via `--run`/`--compile` corpus delta.
+  - **RK-EMIT-1/2/3 ✅ 2026-05-31** — Raku rides Icon's LOWER-direct native driver (scrip.c `is_raku` flag → `is_icon || is_raku` m3/m4 branches); IR built from Icon's kinds so the SHARED `bb_*` templates emit it. 0 new `bb_rk_*`; extended `bb_call`/`bb_lit_scalar`/`bb_binop`/`emit_bb.c` + runtime trampolines (`rt_call_arr`, jct relop) reusing the mode-2 helpers ⇒ m2==m3==m4, no bb-walk at run time, no value stack.
+  - **RK-EMIT-GATHER ✅ 2026-06-01** — `gather_take` emits native x86 (m3+m4) via NEW `bb_rk_gather.cpp` (`IR_GATHER`), the first Raku-only `bb_rk_*` (later converted to the `x86()` self-encoding API: pBB-free, ζ-frame cursor, no `bb_bin_t`/`b.size()`; +3 additive `x86_asm.h` encoders). Yield-then-advance counted pump over take literals sealed RO at emit time; α advances from `.state` (the for-body re-pump back-edge routes to α, not β). Wired via the 6-site flat-chain treatment; `IR_GATHER` ω-follow is Raku-only (zero peer blast radius). SCOPE: single evaluation.
+  - **MAP/GREP — m2 PASS, m3/m4 EXCISED (remaining lift):** `map`/`grep` need `bb_rk_map.cpp`/`bb_rk_grep.cpp` (`IR_MAP`/`IR_GREP`) — a CLOSURE emitted as native code + invoked per element, pumping a source that may itself be a gather. Listed in `icn_kind_native_stub` so m3/m4 EXCISE LOUDLY (`[SMX]`) = DONE under the COMPLETION BAR. ROADMAP: 6-site treatment + emit-time `walk_bb_flat` of the body sub-graph → bind `$_` → closure → conditional yield.
 
 ### RK-NFA — Raku regex onto an ISOLATED `IR_NFA_*` family
 
@@ -634,505 +536,44 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**⚠ VERIFY-ONLY CHECKPOINT (2026-06-02) — LIVE m3/m4 IS 1/2, NOT 21/21; the prior figure is STALE. (No source edit, no push.)**
-A diagnostic re-run on the actual current trunk (SCRIP `origin/main` = `d51a4e1` ICON-BB ICN-HY-2) measured Raku
-**m2 25/25 (HARD ✓) · m3 1 PASS / 20 FAIL / 4 EXCISED · m4 2 PASS / 19 FAIL / 4 EXCISED** — NOT the
-`m3 21 / m4 21` reported in the checkpoints below. **The 21/21 figure was measured on the Raku branch tip
-`d34faa0` and is STALE; do not cite it as live.** ROOT CAUSE — a SHARED, ICON-OWNED path, not a Raku change:
-nearly every Raku program (`my $x = …`) lowers an `IR_ASSIGN` whose store runs through the descr/ζ-frame
-flat-chain (`g_descr_flat_chain`). At `d34faa0`, `emit_core`'s descr-mode `IR_ASSIGN` arm called `bb_assign(nd)`
-(a real ζ-slot store, `bb_assign.cpp`). The Icon-BB template-revamp + de-fuse (`bb_bin_t` abolition + the
-`g_icn_flat_chain`→`g_descr_flat_chain` LI de-naming) **DELETED `bb_assign.cpp`** and left the descr-mode arm at
-`fprintf("…unhandled"); return 1;`, after which `bb_var` bombs (`op_off=-1`, the local was never slotted).
-Confirmed identical failure on `var` / `arith` / `while_loop` / `string_concat` / `gather_take` / all junction +
-array cases, vs a byte-identical handler printing the correct value at `d34faa0`. **THIS IS A KNOWN GROUND-ZERO
-GAP, NOT A RAKU BUG:** the same gap hits Icon (`while` with `i := i+1` bombs identically in m3; Icon smoke m3/m4
-= 4/12), and GOAL-ICON-BB lists *"richer `bb_assign` operand-ref shapes (~14)"* as explicit NEXT work — the Icon
-session is rebuilding exactly this slot-based store (GZ-7 var slots, ICN-HY IR_LIT_I/S slot producers). Per the
-SHARED-EMITTER FACT RULE ("edit only your own language's arm") + the NO-DUPLICATED-LOGIC rule, the descr-mode
-`IR_ASSIGN` ζ-slot store is ICON-OWNED shared work, NOT a `bb_rk_*` box; re-introducing `bb_assign.cpp` would
-resurrect the abolished `bb_bin_t` form. **CONSEQUENCE FOR THIS GOAL:** mode-2 (the HARD oracle) is fully healthy
-at 25/25 — Raku LOWER work proceeds. But ALL Raku NATIVE rungs are blocked behind this Icon dependency: **RK-HY-3
-and RK-HY-4 cannot be validated** (their done-bar is "m3/m4 18/22 held", unreachable while the store is missing),
-and `bb_rk_gather`'s native pass is currently masked too. Raku m3/m4 will recover automatically once Icon-BB lands
-the descr-mode `IR_ASSIGN` slot store. **No files changed this checkpoint; nothing committed/pushed (verify-only,
-no `perform hand off`).**
+**STATE (2026-06-03) — RK-HY-3 DONE; m2 25/25 HARD ✓; m3/m4 blocked on an Icon-owned gap.**
 
----
+- **Modes:** m2 **25/25** (HARD ✓). m3 **1 PASS / 20 FAIL / 4 EXCISED**, m4 **2 PASS / 19 FAIL / 4 EXCISED**
+  on the live trunk. (A `21/21` figure in old checkpoints was measured on a since-merged Raku branch tip and
+  is STALE — do not cite it.) Peers: Icon m2 12/12, SNOBOL4 m2 7/7, prove_lower2 67/0, concurrency OK,
+  `g_vstack`=0, FACT md5 `5097ed94`/`307534d6`/`8255d653` unchanged.
 
-**CHECKPOINT (2026-06-02, Opus 4.8) — bb_rk_gather → `x86()` self-encoding (TEMPLATE-REVAMP, first Raku-owned box converted).**
-The #0-priority `x86()` template-revamp lands its first Raku box. `bb_rk_gather.cpp` (`IR_GATHER`, the Raku
-`gather { take … }` resumable Seq producer) is rewritten from the old two-divergent-arm form (hand-coded
-`MEDIUM_BINARY` byte map with literal offsets + separate `MEDIUM_TEXT` GAS + an in-process `&pBB->state`
-cursor movabs + a `.data` quad) into the unified `x86()` self-encoding API per RULES-DRAFT R1–R13: **ONE return
-per `PLATFORM_*`, pure `x86(mnem,…)` concat, NO `bb_bin_t`, medium invisible, and pBB-FREE in the x86 arm**
-(`pBB` is read ONLY in the extern wrapper to gather the emit-time take literals; the `bb_rk_gather_str()` x86
-arm references only `_` + pure parameterless accessors). KEY MOVES: (1) the resume **cursor moved from the
-in-process `&pBB->state` movabs (mode-3-only, broke mode-4 relocatability) into the ζ-frame `[r12+cursoff]`**
-via `bb_slot_claim(8)` — register-relative ⇒ **BINARY==TEXT** (the `.data` quad is GONE); (2) the yielded
-16-byte DT_I DESCR result slot stays NODE-KEYED via `bb_slot_alloc16(pBB)` so the consumer (`bb_assign` GZ-7)
-still recovers it with `bb_slot_get(gather_node)` — both slots bump the SAME `g_flat_slot_count` so offsets
-never collide; (3) the chk loop uses internal label `L(0)` (the landed keystone idiom — TEXT name `.Lx<uid>_0`
-via `x86_begin()`, BINARY a walker-allocated box-local label); (4) the take literals stay RO data — `.rodata`
-`.quad` table reached `lea[rip+label]` in TEXT (emitted as MEDIUM_TEXT-guarded directives before the code so
-the BINARY record walker never sees them), the in-process buffer movabs'd via `x86_load_ro` in BINARY (the
-sanctioned R10 medium-specific carve-out, same as every RO load). NO value stack (`g_vstack`=0; the ζ-frame
-cursor + result are PER-BOX LOCAL STORAGE, not a stack), NO `b.size()` (the box has ZERO function-byte-counter
-sites — it never did, but it now also has zero `bb_bin_t`), NO neighbor reads. **THREE NEW ENCODERS in the
-SHARED `x86_asm.h` (ADDITIVE — placed after the `FRQ` 64-bit ζ-frame helpers so their `x86_r12_modrm`/
-`x86_frame_text_mem` deps are in scope; each BYTE-VERIFIED vs `as`/`objdump`):** `x86_cmp_imm64` (`cmp r64,imm`
-— `48 83 /7` imm8 / `48 81 /7` imm32), `x86_load_indexed8` (`mov r64,[base+idx*8]` — `48 8B /r` SIB ss=3), and
-`x86_frame_inc64` (`inc qword [r12+off]` — `49 FF /0` r12-SIB), plus their three `x86(...)` front-end overloads
-(`"cmp64"`, the 3-`const char*` indexed-load form, the `x86_frameq`-only `inc` form). **BEHAVIOR-NEUTRAL,
-proven by `git stash` baseline diff:** the `gather_take` program (`for gather { take(10);take(20);take(30); }
--> $v { say($v) }; say("done")` → `10/20/30/done`) produces **byte-identical output in BOTH mode-3 AND mode-4**
-on the converted tree vs the old hand-coded tree (m3 diff empty, m4 diff empty). The non-jump BINARY bytes were
-cross-checked against `as` on the isolated TEXT body and AGREE exactly (`mov rcx,[r12+16]`=`49 8b 4c 24 10`,
-`cmp rcx,3`=`48 83 f9 03`, `mov rsi,[rdx+rcx*8]`=`48 8b 34 ca`, `mov qword[r12+0],6`=`49 c7 04 24 06…`,
-`mov [r12+8],rsi`=`49 89 74 24 08`, `inc qword[r12+16]`=`49 ff 44 24 10`); jumps differ only as the sanctioned
-BINARY-rel32-vs-TEXT-named-label medium split (R10). The box's α is its first emitted byte (no `D` PORT_ALPHA
-record) exactly like the converted reference `bb_pat_pos` — the predecessor flat-chain edge lands there.
-**FINAL THREE-MODE STATE (UNCHANGED from pre-conversion — this is a pure mechanism rewrite): Raku m2 25/25
-(HARD ✓) · m3 21 PASS / 0 FAIL / 4 EXCISED · m4 21 PASS / 0 FAIL / 4 EXCISED.** Peers UNCHANGED: **Icon
-12/12/12**, **SNOBOL4 7/7 m2 · 5 m3 · 0 m4**. Gates green: **prove_lower2 67/0** (unchanged — no new topology,
-emitter-only rewrite), **audit_concurrency_invariants OK** (FACT RULES byte-identical x3/x4; the EMITTER
-one-dispatch + no-stray-bytes invariants hold — `emit_core.c` dispatch + `bb_templates`-style decl UNCHANGED),
-**no-vstack `g_vstack`=0**, **no-handencoded-bytes: bb_rk_gather has ZERO `b.size()`**. NOTE on template-purity:
-the count DROPPED **8→7** because the FLAT-take fall-loud `abort()` moved from the template `_str` body into the
-extern wrapper (the audit scans template bodies) — this is an IMPROVEMENT, the audit still passes
-(`PURITY_BASELINE=8`, count 7 ≤ 8); I LEFT the baseline at 8 (no speculative tightening — a future session or
-HQ may lower it to 7 to capture the gain). Files: `src/emitter/BB_templates/bb_rk_gather.cpp` (rewritten),
-`src/emitter/BB_templates/x86_asm.h` (3 additive encoders + 3 front-end overloads). No Makefile / dispatch /
-decl change (the box was already wired). **SCRIP HEAD: `d34faa0`** (rebased + PUSHED onto peer base `acea982`
-= PROLOG PL-RV-3 `bb_conj`+`bb_ite`→`x86()` via the new SHARED `x86_pair_loop()` variable-length combinator
-primitive; the keystone `24b9c78` + `a1779e6`/`3769d21` internal-label + ζ-frame are in history. NO file overlap
-with my `bb_rk_gather.cpp`; we BOTH additively extended `x86_asm.h` (my 3 GATHER-tier encoders vs the peer's
-`x86_pair_loop` + `E`/`F` pair-index records — different functions, clean auto-merge). Combined tree re-verified
-green: Raku 25/21/21, Icon 12/12/12, SNOBOL4 7/5/0, prove_lower2 67/0, concurrency OK — no cross-session
-regression).
-**NEXT:** `bb_nfa` (the other Raku-owned revamp box) — but its leaf templates are DORMANT and leaf-emission is
-SHELVED per the TIER-SEAM decision, so the practical Raku revamp work after this is either (a) un-shelving the
-loop-free NFA leaves (convert like POS) if leaf-emission is reopened, or (b) **RK-HY-3/4** (the BB-HYGIENE
-ladder: `bb_call.cpp` Raku arms travel to `bb_call_rk.cpp` WHEN Icon runs ICN-HY-2 — still blocked on Icon; then
-de-dup + RT-fix across all Raku boxes). Still DEFERRED: the lockstep "three → four" FACT-RULE roster expansion.
+- **THE BLOCKER (Icon-owned, NOT a Raku bug):** nearly every Raku program (`my $x = …`) lowers an `IR_ASSIGN`
+  whose store runs through the descr/ζ-frame flat-chain. The Icon template-revamp DELETED `bb_assign.cpp` and
+  left the descr-mode `IR_ASSIGN` arm at `unhandled`, so `bb_var` then bombs (slot never allocated). This is the
+  same gap GOAL-ICON-BB tracks as GZ-7 var-slot / richer `bb_assign` operand-ref work. Per the SHARED-EMITTER
+  FACT RULE this ζ-slot store is ICON-owned shared work, not a `bb_rk_*` box; re-introducing `bb_assign.cpp`
+  would resurrect the abolished `bb_bin_t` form. **Raku m3/m4 recover automatically once Icon lands it.** mode-2
+  (the HARD oracle) is fully healthy, so Raku LOWER work proceeds; all Raku NATIVE rungs (RK-HY-3/4 done-bar
+  `m3/m4 18/22`, `bb_rk_gather`'s native pass) wait behind this Icon dependency.
 
----
+- **Done (terse history):** RK-LOWER-0..4 + 5a/5b (lower onto the unified four-port IR, mode-2 oracle: say/print,
+  lazy range→IR_TO, gather/take→IR_GATHER, map/grep→IR_MAP/IR_GREP, junctions→__rk_jct_* IR_CALL, read-only +
+  mutating eager value ops via pure-variant writeback). RK-EMIT-1/2/3 (Raku rides Icon's LOWER-direct native
+  driver via the `is_raku` flag + shared `bb_*` templates; 0 new `bb_rk_*` beyond gather). RK-EMIT-GATHER
+  (`bb_rk_gather.cpp` — the first Raku-only native box, later converted to the `x86()` self-encoding API:
+  pBB-free x86 arm, ζ-frame cursor, no `bb_bin_t`/`b.size()`; +3 additive `x86_asm.h` encoders). RK-HY-0/1/2
+  de-cram (`bb_binop_jct_relop`, `bb_seq`→3 shape files + router, `bb_nfa`→7 leaf files, no router). **RK-HY-3
+  (2026-06-03): Raku `dval==2.0` `rt_call_arr` box extracted from `bb_call.cpp` into `bb_call_rk.cpp`** —
+  `bb_call_rk_arr_str` moved; router declares `extern bb_call_rk_arr_str` and calls it; `emit_core` dispatch
+  + `bb_templates.h` UNCHANGED. `marshal_call_arg` stays in the router as a NON-STATIC shared helper (it is
+  also called by the peer's SNOBOL4 `bb_call_gvar_define_str`/`bb_call_gvar_userproc_str` boxes landed in
+  `24c593b` — generic arg-marshalling, not language port logic, so sharing is correct); `bb_call_rk.cpp`
+  declares it `extern`. Makefile +1 src +1 rule. Behavior-neutral by `git stash` diff (m2 25/25, m3 1/20/4,
+  m4 2/19/4 pre==post; SNOBOL4 7/7 m3 5, Icon 12/12, Prolog 5/5; purity 3 ≤ 8). SCRIP `eef2621` (rebased onto
+  peer base `d4b264e`).
 
-**CHECKPOINT (2026-06-02, Opus 4.8) — RK-HY-2: bb_nfa.cpp de-crammed into one-box-one-file leaf templates.**
-Second rung of the #0 BB-HYGIENE LADDER. The 222-line `bb_nfa.cpp` co-located NINE distinct ISOLATED IR_NFA_*
-leaf boxes (a DUP FORM 4 "N boxes in one file" cram). Unlike RK-HY-1's `bb_seq` (ONE kind, multiple shapes →
-needed a router), each IR_NFA_* kind is dispatched DIRECTLY from `emit_core.c` (lines 490-499), so **`emit_core`'s
-9-case switch IS the router** — no router file needed. Split one-box-one-file, mirroring the SNOBOL4 pattern-leaf
-convention (`bb_pat_any`/`notany`/`span`/… each their own file); boxes that genuinely SHARE one `_str` stay grouped
-(the `bb_pat_pos` POS/RPOS idiom). Files: NEW `bb_nfa_passthrough.cpp` (51 — EPS/CAP_OPEN/CAP_CLOSE, pure epsilon
-joins sharing `bb_nfa_passthrough_str`; the CAP capture-write block is a documented follow-up), NEW `bb_nfa_char.cpp`
-(41 — literal char consume+advance), NEW `bb_nfa_any.cpp` (39 — `.` non-newline), NEW `bb_nfa_class.cpp` (60 — cset
-bitset, inline rodata, IP-relative per the RO-locals FACT RULE), NEW `bb_nfa_bol.cpp` (35 — `^` pos==0), NEW
-`bb_nfa_eol.cpp` (35 — `$` pos==slen), NEW `bb_nfa_accept.cpp` (36 — terminal success); `bb_nfa.cpp` (222) DELETED.
-**Leaf semantics verified against the canonical matcher** `src/frontend/raku/raku_re.c` `ss_add` (EPS/CAP=epsilon
-joins, ANCHOR_BOL=pos==0, ANCHOR_EOL=pos==slen, CHAR/ANY/CLASS=consuming leaves, ACCEPT=terminal) per the
-CONSULT-CANONICAL-SOURCES rule. Each `_str` body relocated **BYTE-FAITHFUL** (no logic change). `emit_core.c`
-dispatch (9 cases) + `bb_templates.h` decls (9) UNCHANGED. **The goal's subrule-call / Match-tree-build shapes do
-NOT exist yet** (RK-GRAM-3 future) — the clean per-box files make that resume-and-yield-next work tractable; the
-RT-CHECK constraint is recorded for then (Match-tree build = marshal + `rt_rk_*` call, NEVER an emit-time hand-walk;
-no such code exists today). **The IR_NFA_* family is DORMANT** (the `~~` regex path runs on the proven C matcher
-across all three modes; nothing invokes an IR_NFA_* graph), so the split is **behavior-neutral by construction** —
-proven by `git stash` baseline diff: the 6 regex corpus tests (`rk_re32-37`/`rk_regex23`) abort IDENTICALLY on the
-clean tree (`[lower2] UNHANDLED kind=45/143/149` — a pre-existing RK-NFA-LOWERING gap in the frontend→IR path, NOT
-the dormant emitter). Gates green (unchanged from RK-HY-1): **Raku m2 25/25 (HARD ✓) · m3 21 PASS / 0 FAIL / 4
-EXCISED · m4 21 PASS / 0 FAIL / 4 EXCISED**; **Icon 12/12/12**; **SNOBOL4 7/7 m2 · 5 m3 · 0 m4**; **prove_lower2
-67/0**; **audit_concurrency_invariants OK** (FACT RULES byte-identical x3/x4); **template-purity 8** (the 7 new files
-add ZERO fprintf/abort side-effects). `b.size()` ledger UNCHANGED (bb_nfa had 0 — not revamp debt). **SCRIP HEAD:
-`43c42d2`** (rebased + PUSHED onto peer base `cf4f0c5` = PROLOG PL-RV-1/2 `bb_cut`+`bb_arith`→x86() + `bb_pat_atp`; NO
-file overlap with my `bb_seq*`/`bb_nfa*`/Makefile — combined tree re-verified green: Raku 25/21/21, Icon 12/12/12,
-SNOBOL4 7/7 m2, Prolog 5/5/5, prove_lower2 67/0, concurrency OK). NEXT: **RK-HY-3**
-— Raku arms of `bb_call.cpp` (the RK-EMIT-1/2 `rt_rk_call_arr` + IR_CALL dval==2.0 marshalling) move to `bb_call_rk.cpp`
-when Icon runs ICN-HY-2; coordinate per the FACT RULE (edit only Raku's boxes; router stays Icon's). Then **RK-HY-4**
-(de-dup + RT-fix across all Raku boxes) and **RK-HY-FENCE** (gate).
-
----
-
-**CHECKPOINT (2026-06-02, Opus 4.8) — RK-HY-1: bb_seq.cpp de-crammed into per-shape files behind a thin router.**
-First rung of the #0 BB-HYGIENE LADDER. The 358-line `bb_seq.cpp` carried THREE distinct four-port shapes selected
-by n / has_suspend / medium (a DUP FORM 4 cram); split into one-box-one-file templates behind a 34-line router (the
-`bb_binop.cpp` worked-example pattern), with `emit_core.c` dispatch + `bb_templates.h` decl UNCHANGED (one dispatch
-case → one router fn). Files: NEW `bb_seq_gather.cpp` (188 — Raku gather multi-yield driver, SUSPEND children: the
-MEDIUM_TEXT `bb_seq_gather_str` + the raw-binary in-place `bb_seq_gather_binary`; legacy SM-era path, primary gather
-is now `IR_GATHER`→`bb_rk_gather.cpp`), NEW `bb_seq_flat.cpp` (89 — flat in-order statement sequence: TEXT, n>0, no
-SUSPEND; Icon compound semantics, stmt γ→next stmt α, last γ→outer γ, ω→outer ω), NEW `bb_seq_passthrough.cpp` (60 —
-goto-chain glue CATCH-ALL: MEDIUM_MACRO_DEF comment, TEXT n==0 empty-seq glue, BINARY any-n flat-chain glue); `bb_seq.cpp`
-358→34 (router). Router order mirrors the original in-file fall-through: gather-binary (raw) → gather-text → flat →
-passthrough. **GROUP-NEAR-IDENTICAL satisfied** (the gather TEXT+BINARY arms co-locate as two encodings of one logic);
-**BONUS DUP FORM 1 collapse** — the two byte-identical EMIT_PAIR binary glue loops (the monolith's n==0 branch AND its
-bottom n>0 branch) merged into ONE passthrough loop, so the **`b.size()` ledger went 4→2**. `Makefile` RT_PIC_SRCS +
-.o rules append-only after `bb_seq` (3 lines each, one hunk). **BEHAVIOR-NEUTRAL, proven by `git stash` baseline diff**
-(clean tree re-run identical): **Raku m2 25/25 (HARD ✓) · m3 21 PASS / 0 FAIL / 4 EXCISED · m4 21 PASS / 0 FAIL / 4
-EXCISED** — byte-identical to pre-de-cram. Peers UNCHANGED: **Icon 12/12/12**, **SNOBOL4 7/7 m2 · 5 m3 · 0 m4**. Gates
-green: **prove_lower2 67/0** (unchanged — pure structural relocation, no new topology), **audit_concurrency_invariants
-OK** (FACT RULES byte-identical x3/x4), **template-purity 8** (UNCHANGED — the 3 new files add ZERO fprintf/abort
-side-effects). **SCRIP HEAD: `eef2659`** (rebased + PUSHED onto peer base `cf4f0c5`). NEXT: **RK-HY-2** — `bb_nfa.cpp` (222): split leaf-match / subrule-call / Match-tree-build shapes + RT-check
-(Match-tree build is RUNTIME work — marshal + call an `rt_rk_*` helper, do not hand-walk at emit time, DUP FORM 2/4).
-
----
-
-**CHECKPOINT (2026-06-01, Opus 4.8) — RK-LOWER-5b: Raku in-place hash/array MUTATION lands (m2 HARD + native m3/m4).**
-`push`/`pop`/`arr_set`/`hash_set`/`hash_delete` now lower onto the unified four-port IR via the PURE-VARIANT
-WRITEBACK: each mutation is `CONTAINER = pure_fn(CONTAINER, args…)` — an `IR_ASSIGN` over an `IR_CALL` (dval=2.0,
-helper `v_raku_mutate_writeback`) where the container variable is BOTH the assignment target AND the call's first
-operand, so the existing `IR_ASSIGN` exec supplies the `NV_SET_fn` writeback. **IR_t stays LEAN (PEERS): NO new
-field, NO exec-side vname peek, NO value stack (`g_vstack`=0), NO new IR kind.** `pop` is the lone exception (its
-returned popped element ≠ the new container) → split into `$p = arr_last(@a); @a = arr_init(@a)` (two pure reads +
-`IR_ASSIGN` stores, `v_raku_pop`), still no new kind / no vname thread. **BONUS — native in modes 3+4, not just
-mode-2:** because everything rides `IR_ASSIGN`+`IR_CALL` (both already have native templates) the rung is mode-2-proven
-AND compiles natively. **FINAL THREE-MODE STATE: Raku m2 25/25 (HARD ✓) · m3 21 PASS / 0 FAIL / 4 EXCISED · m4 21 PASS
-/ 0 FAIL / 4 EXCISED.** Peers UNCHANGED: **Icon 12/12/12**, **SNOBOL4 7/7 m2 · 5 m3 · 0 m4**. Corpus `rk_arrays.raku`
-PASS (strict **+1**, proven by `git stash` baseline diff — clean tree 11 PASS, mine 12, `rk_arrays` the only delta;
-every other corpus file fails IDENTICALLY on both trees = pre-existing top-level-no-`main` / grammar / regex / class
-gaps, NOT 5b regressions). Gates green: **prove_lower2 67/0** (unchanged — mutators reuse already-proven IR_ASSIGN/
-IR_CALL shapes, no new topology case), audit_concurrency_invariants OK (FACT RULES byte-identical x3/x4),
-template-purity 8 (UNCHANGED — zero emitter files touched). **SCRIP HEAD: `fbe38ea`** (pushed; rebased cleanly onto
-peer base `cd6fbe2` = GZ-11+ IR_NOT/NONNULL/SIZE Icon/Prolog work — NO file overlap with my `lower.c`/
-`script_builtins_byname.c`/`test_smoke_raku.sh`; rebuilt + re-verified the COMBINED tree green: Raku 25/21/21, Icon
-12/12/12, SNOBOL4 7/5/0, prove_lower2 67/0 — no cross-session regression).
-
-- **RUNTIME (`src/runtime/interp/script_builtins_byname.c`):** added read-only PURE twins `push_pure` (append, return
-  new array), `arr_set_pure` (replace element [i]), `arr_last` (last element — pop's value), `arr_init` (array minus
-  last — pop's new container), `hash_set_pure` / `hash_delete_pure`. The hash twins DELEGATE to the now-non-static
-  `script_hash_set_str` / `script_hash_delete_str` (renamed from file-static `hash_set_str`/`hash_delete_str`; the two
-  internal callers in `script_try_hash_mutating_builtin` updated) — ZERO byte-building duplication. All reachable in
-  all three modes via the shared `try_call_builtin_by_name` → `script_try_call_builtin_by_name` path (mode-2) and the
-  `rt_rk_call_arr` trampoline (mode-3/4).
-- **LOWERING (`src/lower/lower.c`):** `v_raku_mutate_writeback` (the `var = pure(var,args)` IR_ASSIGN-over-IR_CALL
-  wirer) + `v_raku_pop` (the two-assignment pop split). Sigil cases `TT_HASH_SET`/`TT_HASH_DELETE`/`TT_ARR_SET` pulled
-  out of the loud-unhandled group into dedicated Raku-gated cases; a table-driven explicit-call arm in `TT_FNC` covers
-  `push`/`hash_set`/`hash_delete`/`arr_set` (the explicit-call twins of the sigil syntax — same `v_raku_mutate_writeback`,
-  so both surface forms are semantically identical); the `pop` special-case sits in the shared `v_assign` (Raku-gated).
-  All Raku arms live INSIDE their shared `tree_e` cases (FACT RULE); non-Raku falls loud to `lower_unhandled`.
-- **SMOKE (`scripts/test_smoke_raku.sh`):** +3 cases — `array_push_pop` (push/arr_set/pop/elems composite),
-  `hash_set_get` (explicit-call hash set/get/exists/update), `hash_sigil_delete` (sigil `%h<k>=v` + `delete`) — all
-  PASS ×3 modes (25 total cases).
-- **CANONICAL GROUNDING:** push/pop/`@a[i]=v`/`%h<k>=v`/`delete` verified against docs.raku.org (type/Array#method_push,
-  type/Hash postcircumfix + routine/delete, language/list `@a[$i]=$y`, routine/pop) per the CONSULT-CANONICAL-SOURCES rule.
-- **HONEST SCOPE:** `rk_hashes.raku` still aborts in mode-2 — it is a TOP-LEVEL-statements program with no `sub main()`,
-  a PRE-EXISTING mode-2 driver limitation (the driver only runs a `main` proc; confirmed identical on the clean tree),
-  independent of 5b; the hash mutating LOGIC is proven via the `main`-wrapped smoke cases. REMAINING in RK-LOWER-5:
-  **5c** try/CATCH/die, **5d** class/method/field/new + `say(jct)`/`say(list)` composite output. Still DEFERRED: the
-  lockstep "three → four" FACT-RULE roster expansion across all four GOAL files.
-
----
-
-**CHECKPOINT (2026-06-01, Opus 4.8) — RK-EMIT-GATHER lands m3/m4 + Raku adopts the three-mode COMPLETION BAR.**
-Two deliverables. (1) `gather_take` now emits native x86 in modes 3 AND 4 via the new `bb_rk_gather.cpp`
-(`IR_GATHER`, the first Raku-only `bb_rk_*`): **Raku m2 22/22 (HARD ✓), m3 17→18/22, m4 17→18/22.** (2) **Methodology
-change (per GOAL-ICON-BB / GOAL-PROLOG-BB):** Raku now follows the three-mode COMPLETION BAR — a rung is promoted only
-when all three modes are accounted for together (m2 PASS, m3/m4 PASS-or-EXCISED, never a silent FAIL/abort). The 4
-unbuilt `map`/`grep` rungs are now LOUDLY EXCISED (`IR_MAP`/`IR_GREP` added to `icn_kind_native_stub`; the mode-3/4
-excise pre-flight in `scrip.c` extended from `is_icon` to `(is_icon || is_raku)`), and `test_smoke_raku.sh` upgraded to
-the three-column `PASS / FAIL / EXCISED` report whose exit gate requires zero silent m3/m4 FAIL. **FINAL THREE-MODE
-STATE: Raku m2 22/22 · m3 18 PASS / 0 FAIL / 4 EXCISED · m4 18 PASS / 0 FAIL / 4 EXCISED.** Peers UNCHANGED:
-**Icon 12/12/12**, **SNOBOL4 7/7 m2 · 5 m3 · 0 m4** (no regression). Gates green: **prove_lower2 64/0**,
-audit_concurrency_invariants OK, template-purity 8 (baseline 7→8 for the one `bb_rk_gather` FLAT-take fall-loud guard).
-Files: NEW `src/emitter/BB_templates/bb_rk_gather.cpp`; `src/emitter/emit_bb.c` (6-site: `gen_bb_is_gen_arg`,
-`icn_chain_arity`→0, `walk_bb_flat` FILL, `codegen_flat_chain_body` + `icn_chain_operand_refs` ω-follow for `IR_GATHER`,
-`bb_assign` guard); `src/emitter/emit_core.c` (dispatch); `src/driver/scrip.c` (stub list + Raku excise gate ×2);
-`Makefile` (RT_PIC_SRCS + `scrip` compile line); `scripts/test_smoke_raku.sh` (3-column EXCISED); 
-`scripts/audit_concurrency_invariants.sh` (baseline 7→8). REMAINING: `map`/`grep` need `bb_rk_map.cpp`/`bb_rk_grep.cpp`
-with inline closure emission (the genuine large lift) — full ROADMAP in the RK-EMIT rung above.
-
----
-
-**CHECKPOINT (2026-06-01, Opus 4.8) — RK-EMIT-2-NEST: jct_nested crosses to m3/m4.** Net deliverable:
-the `jct_nested` case (nested junctions — `all(50, any(50|60))`, per docs.raku.org/type/Junction) now passes
-modes 3 AND 4. **Raku m2 22/22 (HARD ✓), m3 16→17/22, m4 16→17/22**; **Icon 10/10 m2, 9/9 m3/m4 UNCHANGED**;
-**SNOBOL4 7/7 m2, 5 m3, 0 m4 UNCHANGED** (no peer regression). prove_lower2 **64/0** unchanged (lowering
-untouched — emitter-only fix); concurrency invariants OK (FACT RULES byte-identical x3/x4); template-purity
-**7** unchanged (bb_call.cpp fprintf count 4→4, ZERO new side-effects). SCRIP HEAD: `c1f8e2e` (pushed; rebased
-onto peer base `67ce946` — PROLOG-BB PLG-5 + GZ-10 zero-arg user-proc, which also touched bb_call.cpp/bb_exec.c/
-lower.c/emit_bb.c; rebuilt + re-verified the COMBINED tree green: Raku m2 22/22·m3 17·m4 17, Icon m2 11/11·m3 10·m4 9,
-SNOBOL4 7/7·5·0, prove_lower2 64/0, concurrency OK — no cross-session regression). Pushed to origin this handoff.
-
-- **THE FIX (ONE file — `src/emitter/BB_templates/bb_call.cpp`):** the prior RK-EMIT-2 `dval==2.0` arm required
-  EVERY arg sub-graph entry to be a SIMPLE leaf (`IR_LIT_I/S/F/NUL`/`IR_VAR`); a junction member that is itself a
-  junction (`any(50|60)` inside `all(...)`) has a sub-graph entry that is a NESTED `IR_CALL dval==2.0`, so
-  `leaves_ok` went 0 → the loud `[IBB] FATAL bb_call: unsupported call shape … arg0_kind=-1` abort fired. Added a
-  recursive `static rk_marshal_call_arg(lf, aoff, owner, idx)` helper (TEMPLATE-PURE — all bytes stay inside this
-  one BB_template, reached only via the emit_core dispatch): a LEAF is loaded exactly as before (byte-identical →
-  the 16 prior m3/m4 passes are unchanged); a NESTED `IR_CALL dval==2.0` is emitted INLINE — its own args go into
-  a FRESH contiguous ζ arg-vector region (allocated AFTER this level's vector so contiguity holds), `rt_rk_call_arr`
-  is invoked, and its rax:rdx result DESCR is stored into the outer arg slot `[r12+aoff]`, EXACTLY mirroring the
-  mode-2 oracle (which `bb_exec_once`s the nested sub-graph to a DESCR and passes THAT) ⇒ m2==m3==m4. Verified
-  general to ARBITRARY nesting depth (3-level `1|(2&(7|9))`) and to variable members (`7|($a&8)`), all three modes
-  agreeing. The arg-acceptance check widened `leaves_ok`→`args_ok` to admit `IR_CALL dval==2.0`. NO value stack (the
-  per-call arg vector is the sanctioned ARBNO-style per-activation frame array); NO name-table round-trip; NO new
-  `bb_rk_*` file (the nested-call path reuses the SAME `rt_rk_call_arr` runtime trampoline). Build trap re-confirmed:
-  `bash scripts/build_scrip.sh && make libscrip_rt` (templates compile into BOTH `scrip` and `libscrip_rt`).
-
-- **EXACT REMAINING m3/m4 FAILURES (5, same in both):** `gather_take`, `map_range`, `grep_range`, `map_over_gather`,
-  `grep_over_gather` — the genuinely Raku-only generators needing NEW `bb_rk_gather`/`bb_rk_map`/`bb_rk_grep` templates
-  for the `IR_GATHER`/`IR_MAP`/`IR_GREP` resumable-pump boxes (the largest remaining lift; the next session's work).
-
-**SESSION HANDOFF (2026-05-31 late, Opus 4.8) — RK-EMIT-1/2/3.** Net deliverable: **Raku crossed onto modes 3 & 4**
-for the eager/junction/array tier — **m2 22/22 (HARD GATE), m3 0→16/22, m4 0→16/22**, with **Icon 9/9/9** and
-**SNOBOL4 7/7 m2** unchanged (no peer regression; the shared-template edits are additive arms gated on Raku
-conditions or generic producer-kind widening). prove_lower2 PASS; concurrency invariants OK (FACT RULES byte-identical
-x3); template-purity unchanged from baseline (same 7 pre-existing `fprintf`-in-FATAL flags, exits 1 at baseline — I added
-zero new side-effects; verified fprintf counts identical to HEAD in every touched file).
-
-**THE KEY CORRECTION:** the previous handoff's claim that "Raku m3/m4 = 0/22 is blocked on SHARED SNOBOL-family `[SBB]`
-infrastructure, NOT a Raku-fixable gap" was **WRONG**. Raku fell into the `[SBB]` abort ONLY because `.raku` set no
-routing flag in `scrip.c`. Raku's lowered IR is built entirely from Icon's kinds (IR_CALL/IR_LIT_*/IR_VAR/IR_TO/IR_ASSIGN/
-IR_IF/IR_WHILE/IR_BINOP/IR_ALT + the Raku-only IR_GATHER/IR_MAP/IR_GREP), so routing Raku through **Icon's own proven
-LOWER-direct driver** (`icn_flat_chain_build` for m3, `codegen_flat_build`/`icn_flat_chain_build_text` for m4) + the
-SHARED `bb_*` templates lights up every shared kind immediately. No `[SBB]` adapter was touched.
-
-**Which BBs this session (created / reused):** Byrd-Box emitter templates — **0 new `bb_rk_*` files created; 4 SHARED
-templates REUSED/extended** (`bb_call`, `bb_lit_scalar`, `bb_assign`, `bb_binop`) plus the shared chain emitter
-(`emit_bb.c`) and 2 runtime trampolines (`gen_runtime.c`: `rt_rk_call_arr`, `rt_rk_jct_relop`). The deliberate choice was
-to REUSE Icon's path rather than author new boxes, exactly as the ladder anticipated ("REUSE the existing bb_lit/bb_call…
-for shared kinds; bb_rk_* only for generator/junction/NFA boxes"). The genuinely Raku-only `bb_rk_gather`/`map`/`grep`
-generator boxes remain UNWRITTEN (the 5 generator failures).
-
-**EXACT REMAINING FAILURES (6 in m3, same 6 in m4):** `jct_nested` (nested `IR_CALL` arg sub-graph — dval==2.0 arm
-declines nested-call args; needs recursive sub-graph emission in `bb_call.cpp`), `gather_take`, `map_range`, `grep_range`,
-`map_over_gather`, `grep_over_gather` (need `IR_GATHER`/`IR_MAP`/`IR_GREP` resumable-pump templates). These are the next
-session's work and are the larger lift.
-
-**BUILD TRAP (cost a cycle):** `bb_*.cpp` compile into BOTH `scrip` AND `libscrip_rt`. After editing a template you MUST
-`bash scripts/build_scrip.sh && make libscrip_rt` — a stale `scrip` gives misleading aborts that look like emitter bugs.
-Also: a C comment containing `IR_LIT_` followed by `*` then `/` closes the comment early — write `IR_LIT scalars`, not the
-glob form. SCRIP HEAD before this session: `80431d0`; this session committed as `47e84d7`.
-
----
-
-Net deliverable this session: **RK-LOWER-5a** (Raku read-only eager value ops — hash/array reads, `sort`, list ctor,
-`elems`/`reverse`/… whitelist — onto the unified `lower.c`, mode-2) PLUS the **3-mode TESTING DIRECTIVE restored** in
-`scripts/test_smoke_raku.sh`. Verified 3-mode matrix at handoff (clean step-zero rebuild, rc=0):
-
-| frontend | mode-2 `--interp` | mode-3 `--run` | mode-4 `--compile` |
-|---|---|---|---|
-| Raku    | **22/22** (HARD ✓) | 0/22 | 0/22 |
-| Icon    | 6/6 ✓ | 6/6 ✓ | 6/6 ✓ |
-| SNOBOL4 | 7/7 ✓ | 0/6  | 0/6  |
-
-prove_lower2 **61/0**; FACT-rule md5 `5097ed94` ×4; concurrency audit baseline-7-staleness pre-existing (Icon/SNOBOL,
-zero Raku). **Why Raku m3/m4 = 0/22 (DIAGNOSED, NOT a Raku-fixable gap):** Raku rides the SNOBOL4-family `[SBB]` mode-3/4
-driver, severed by Lon 2026-05-31 (`sno_ring_to_tree` removed; LOWER-direct path unwired) — same root cause as SNOBOL4's
-0/6. Icon is 6/6/6 because it has its own native path. So modes 3/4 need the SNOBOL4-BB / Ground-Zero `[SBB]` LOWER-direct
-driver rewired FIRST (shared infra, not a Raku-session task); then Raku reuses Icon's proven `bb_call`/`bb_lit`/`bb_to`
-templates for shared kinds + `bb_rk_*` only for generator/junction/NFA boxes. **NEXT:** (A) RK-LOWER-5b redo (mutating
-hash/array writeback via the sound dval=3.0 exec-vname-recovery — fix the statement-position call's γ/ω return so a
-successful mutation continues the sequence); (B) coordinate the `[SBB]` LOWER-direct driver with the SNOBOL4-BB session.
-**STILL DEFERRED:** the lockstep "three → four" FACT-RULE roster expansion across all four GOAL files.
-
----
-
-**3-MODE TESTING DISCIPLINE RESTORED + 5b REVERTED (2026-05-31, Opus 4.8).** Correcting a process violation: the
-GOAL "TESTING DIRECTIVE — ALWAYS RUN ALL THREE MODES" (Lon 2026-05-31, "Never report a mode-2 number alone") was
-NOT being honored — `scripts/test_smoke_raku.sh` ran only `--interp`. It now runs mode 2 (`--interp`, HARD),
-mode 3 (`--run`), AND mode 4 (`--compile --target=x86` → `as` → `gcc -no-pie -lscrip_rt` → run) on the SAME program
-per case, reporting all three, mirroring `test_smoke_icon.sh` (floors `MODE3_MIN`/`MODE4_MIN` default 0). **The honest
-full picture (the point of the directive):** mode-2 **22/22** (HARD ✓), mode-3 **0/22**, mode-4 **0/22**. Modes 3/4 are
-by-design SMX abort because **RK-EMIT is entirely unbuilt — there are ZERO `bb_rk_*.cpp` emitter templates.** EVERYTHING
-in RK-LOWER-0..5a is mode-2 only (the `bb_exec.c` IR oracle); nothing Raku exists in the modes-3/4 EMITTER yet. The
-in-flight RK-LOWER-5b (mutating hash/array writeback via an exec-side vname-recovery branch keyed on `IR_CALL` dval=3.0)
-was UNCOMMITTED + broken (push-as-statement produced no output — the mutating call's success/fail port wiring needs
-rework) so it was **reverted to the clean committed 5a baseline** (`git checkout src/lower/{lower.c,bb_exec.c}`); it will
-be redone under the 3-mode discipline. SCRIP HEAD: `137e930` (RK-LOWER-5a). Build clean (`scrip` + `libscrip_rt` rc=0);
-prove_lower2 **61/0** unchanged; Icon 6/6, SNOBOL4 7/7 m2 unchanged. FACT-rule md5 `5097ed94` ×4. The pre-existing
-`audit_concurrency_invariants` 7>6 baseline staleness (Icon/SNOBOL emitter `fprintf`s, zero Raku) is still owed by Icon/HQ.
-
-- **BB ACCOUNTING (clarified for the record):** "BBs created for Raku" splits by stage. In modes 3/4 (EMITTER / actual
-  Byrd Box templates): **0 created, 0 reused** — RK-EMIT unstarted. In mode-2 (LOWER-stage `IR_*` kinds): **3 created** —
-  `IR_GATHER` (RK-LOWER-2), `IR_MAP` + `IR_GREP` (RK-LOWER-3), all lazy-Seq generators with no pre-existing analog;
-  **~13 reused** — `IR_LIT_I/S/F/NUL` (literals — Raku invents NO literal kind; flows through the SHARED `v_literal`
-  arm, NOT a custom `BB_ILIT/SLIT/DLIT` — those names do not exist), `IR_VAR`, `IR_KEYWORD`, `IR_CALL`, `IR_TO/IR_TO_BY`,
-  `IR_ASSIGN`, `IR_IF`, `IR_WHILE`, `IR_BINOP/IR_UNOP`, `IR_ALT`, the generator PUMP (`v_raku_for`), `IR_SUCCEED/IR_FAIL`.
-  When RK-EMIT lands, Raku literals/arith/etc. will likewise REUSE the existing `bb_lit.cpp`/`bb_lit_scalar.cpp` and
-  peer templates; only the generator/junction/NFA box set gets the `bb_rk_*` prefix.
-
-**NEXT (two tracks, both now gated by the 3-mode smoke):** (A) RK-LOWER-5b redo — mutating hash/array writeback (the
-dval=3.0 exec-recovery approach is sound; the bug was port wiring of the statement-position call — fix the γ/ω return so a
-successful mutation continues the sequence). (B) **Modes 3/4 — DIAGNOSED 2026-05-31 (Opus 4.8):** Raku `--run`/`--compile`
-abort with `[SBB] sno_ring_to_tree REMOVED (VIOLATION, Lon 2026-05-31) ... must come from LOWER producing the four-port
-statement-BB graph directly ... not yet wired. Aborting (by design).` i.e. Raku routes through the SNOBOL4-family `[SBB]`
-mode-3/4 driver, which Lon SEVERED 2026-05-31 (ring→tree adapter removed; LOWER-direct path unwired) — the SAME reason
-SNOBOL4 is 0/6 in m3/m4. Icon is 6/6 because it has its OWN native path. **So Raku m3/m4 = 0/22 is blocked on SHARED
-SNOBOL-family infrastructure (SNOBOL4-BB / Ground-Zero track), NOT a Raku-only RK-EMIT task. Writing `bb_rk_*.cpp` templates
-is necessary but NOT SUFFICIENT until that upstream `[SBB]` driver consumes the four-port LOWER graph directly (or Raku is
-given its own LOWER-direct m3/m4 driver like Icon's).** Recommended sequencing: coordinate with the SNOBOL4-BB session on
-the statement-BB-graph-from-LOWER driver; once Raku can reach its `IR_CALL`/generator nodes in m3/m4, reuse the proven Icon
-templates (`bb_call`/`bb_lit`/`bb_to`/…) for the shared kinds and add `bb_rk_*` only for the generator/junction/NFA box set.
-
----
-
-**RK-LOWER-5a LANDED (2026-05-31, Opus 4.8).** Raku eager-core READ-ONLY value ops cross onto the unified `lower.c`
-for mode-2. SCRIP HEAD before this work: `641e45d` (the RK-LOWER-4 junction commit). My 3 files: `src/lower/{lower.c,
-prove_lower2.c}`, `scripts/test_smoke_raku.sh`; ZERO emitter files — same discipline as RK-LOWER-0/1/2/3/4. Build clean
-(`scrip` + `libscrip_rt` rc=0). Mode-3≡mode-4 invariant kept BY CONSTRUCTION (no emitter touched ⇒ both modes process
-the new `IR_CALL`s through the SAME shared dispatch → by-design SMX abort, RK-EMIT deferred; nothing can diverge).
-
-- **The lowering (lower.c):** ONE new SHARED helper `v_raku_det_call` (byte-for-byte the junction arm's packing: ONE
-  `IR_CALL`, `dval=2.0`, each operand in its OWN `lower_value_subgraph`, ptr array on `.counter`, count on `.ival`, det
-  so β=ω_in). It is the reach into the already-proven script-builtin runtime (`script_builtins_byname.c`, via the
-  RK-LOWER-4 tail delegation). Wired through (a) FOUR newly-split dedicated cases — `TT_HASH_GET`→`hash_get`,
-  `TT_HASH_EXISTS`→`hash_exists`, `TT_ARR_GET`→`arr_get`, `TT_SORT`→`array_sort` (pulled out of the loud-fall group;
-  non-Raku still → `lower_unhandled`, zero peer change); and (b) a PURE-builtin WHITELIST arm in the existing `TT_FNC`
-  case (`__rk_arr`/`elems`/`reverse`/`sort`/`join`/`sum`/`unique`/`head`/`tail`/`chars`/`length`/`lc`/`uc`/`trim`/`substr`/
-  `index`/`rindex` + the explicit-call read forms). List literal `(e1,e2,..)` desugars (parser) to `__rk_arr(..)`, so
-  list CONSTRUCTION + multi-element `sort`/`reverse`/`@a[i]` reads are all reachable. Semantics per docs.raku.org/type/
-  {List,Hash,Array} + /routine/{elems,reverse,sort}. **0 NEW BBs — reuses `IR_CALL`** (Raku's footprint stays 3 invented
-  : ~13 reused).
-- **THE CRITICAL EXCLUSION (logged for the next dev):** the MUTATING builtins (`push`/`pop`/`arr_set`/`hash_set`/
-  `hash_delete`) and the effectful ones (`open`/`close`/`slurp`/`spurt`/`die`/`meth_call`/`obj_new`/grammar/regex/nfa)
-  are DELIBERATELY NOT whitelisted — routing them through the pure value path would compute a result but silently DROP
-  their variable-writeback / side effect. Per the FACT RULE they instead fall LOUD to `lower_unhandled`, landing properly
-  in 5b/5c. Consequence: hash reads (`hash_get`/`hash_exists`) are WIRED + correct but only round-trip-testable once
-  `hash_set` lands in 5b; the array read+construct+sort path is fully self-contained and proven now.
-- **TWO TRAPS HIT + FIXED (for the next dev):** (1) `make scrip` left a STALE `lower.c` object — use `bash scripts/
-  build_scrip.sh` for a reliable rebuild. (2) A C comment containing `grammar_*/re_*/nfa_*` had `*/` sub-sequences that
-  CLOSED the comment early (stray-`\342` / "5b integer-suffix" errors downstream); rewrote without glob asterisks.
-
-**Gates at handoff:** prove_lower2 **61 PASS** / 0 FAIL (RAKU section +4: `__rk_arr(1,2,3)`, `@a[1]`, `sort(@a)`,
-`elems(@a)` — all 1-principal-node, PASS). Mode-2 HARD all green: Raku **22/22** (added list_construct_read, array_sort,
-array_elems, array_reverse, str_reverse), Icon 6/6 (UNCHANGED — Raku-gated + `IR_LANG_RKU`-gated edits), SNOBOL4 7/7
-(UNCHANGED — NFA isolation intact). FACT-rule md5 `5097ed94` byte-identical ×4; no dup `case IR_`/`TT_` (the four split
-cases route to ONE `v_raku_det_call`, the whitelist lives inside the existing `TT_FNC` case — no new case label).
-**Pre-existing baseline confirmed NOT mine:** `audit_concurrency_invariants.sh` purity COUNT 7 > baseline 6 — all 7 are
-loud-error `fprintf`s in ICON/SNOBOL emitter boxes (`bb_assign/binop/call/every/field/list_bang/swap`), ZERO Raku/`lower.c`
-(I touched no emitter file). **FIX STILL OWED BY ICON/HQ: bump baseline 6→7.** Modes 3/4 = by-design SMX abort for Raku
-(floors MODE3_MIN/MODE4_MIN=0). NOTE: committed LOCALLY as a checkpoint; push-to-origin awaits the next `perform hand off`.
-
-**NEXT:** RK-LOWER-5b — hash/array MUTATING ops with writeback. Cleanest path (IR_t is LEAN, no new field per PEERS):
-add pure-variant runtime twins (`*_pure` returning the new container string, no `NV_SET`) and lower `push(@a,x)`/`%h<k>=v`
-/`@a[i]=v` as `var = pure_op(var, args)` (IR_ASSIGN over IR_CALL). `pop($p=pop(@a))` is the exception — it returns a
-DIFFERENT value than the new container, so it genuinely needs vname threading (exec-side peek of the first sub-graph's
-`IR_VAR`, or a sanctioned marker). Then 5c try/CATCH/die, 5d class/method/field/new.
-
----
-
-**RK-LOWER-4 LANDED (2026-05-31, Opus 4.8).** Raku junctions `any`/`all`/`one`/`none` + infix `|`/`&` cross onto
-the unified `lower.c` for mode-2. SCRIP HEAD before this work: `8a01bb3`. My 5 files: `src/lower/{lower.c,
-lower_program.c,prove_lower2.c}`, `src/runtime/interp/gen_runtime.c`, `scripts/test_smoke_raku.sh` (+ session design
-note `SCRIP/RK-LOWER-4-DESIGN.md`); ZERO emitter files — same discipline as RK-LOWER-0/1/2/3. Build clean (`scrip`
-+ `libscrip_rt` rc=0). Mode-3≡mode-4 invariant kept BY CONSTRUCTION (no emitter touched ⇒ both modes process the
-junction `IR_CALL` through the SAME shared dispatch → by-design SMX abort, RK-EMIT deferred; nothing can diverge).
-
-- **The lowering (lower.c, TT_FNC value-role, `cx.lang==IR_LANG_RKU` arm):** constructor `any(…)`/`all(…)`/`one(…)`/
-  `none(…)` AND infix forms share ONE arm — the parser's `mk_junction` flattens same-flavor infix chains into the
-  SAME `TT_FNC(sval=flavor, c[0]=TT_VAR(flavor), c[1..]=members)` the constructors produce. Lowers to ONE `IR_CALL`
-  to `__rk_jct_{any,all,one,none}` with `dval=2.0` (the SNOBOL4 isolated-value-subgraph call idiom); each member →
-  its OWN `lower_value_subgraph` (cursor keeps `IR_LANG_RKU` so a NESTED junction member re-enters this arm), sub-graph
-  ptr array on `.counter`, member count on `.ival`, det (β=ω_in). Semantics per docs.raku.org/type/Junction.
-- **THE NESTING BUG (logged for the next dev):** the first cut wired members into a FLAT α/γ chain (dval=0.0); that
-  flattened mixed-flavor nesting — `10 | (50 & 60)` collapsed to `10 | 50`, losing the nested `all` (`cat -v` on the
-  value: `^Ca^A10^A50^D`). FIX: lower each member as an isolated value sub-graph (dval=2.0 idiom), so a nested-junction
-  member evaluates to ONE opaque ETX-tagged value; `junction_collapse` already recurses on `\x03` members via `\x04`
-  EOT spans. After the fix flat + nested + precedence + var-roundtrip + string-collapse all pass.
-- **DISPATCH-GAP FIX #1 (gen_runtime.c):** the mode-2 `IR_CALL` exec arm calls `try_call_builtin_by_name` (gen_runtime.c),
-  but `__rk_jct_*` lives in `script_try_call_builtin_by_name` (script_builtins_byname.c) which post-SMX-4 had NO live call
-  site (orphaned SM-era arm). Added a TAIL delegation: names gen_runtime rejects fall through to script's dispatcher.
-  Placed AFTER every gen_runtime arm so the 6 overlapping names (close/open/pop/push/reverse/trim) keep gen_runtime's
-  semantics and NO live path is disturbed — only previously-REJECTED names newly served. The documented APPENDIX-A
-  "SM dispatch-gap fix" shape. Side benefit: the whole script-builtin layer (hash/IO/regex/array) is now reachable in
-  mode-2 for later rungs (RK-LOWER-5, RK-NFA).
-- **DISPATCH-GAP FIX #2 (lower_program.c binop_apply):** a junction collapses to Bool only in a relop. The mode-2 relop
-  evaluator is `lower_program.c`'s `binop_apply` (NOT rt.c's — that's compiled mode-3/4 runtime). Added a prologue: if
-  either operand `junction_is()` (ETX-tagged), call `junction_collapse(scalar, jct, tt_op, numeric)` threading the relop
-  (any=OR, all=AND, one=XOR1, none=NONE). Covers numeric relops (`==`/`<`/…) AND string relops (`eq`/`lt`/… → numeric=0).
-  ETX prefix is unused by any SNOBOL4/Icon/Prolog value ⇒ FACT-RULE-safe in shared C (Icon 6/6, SNOBOL4 7/7 unchanged).
-- **RAKU VOID-IF FIX (lower.c v_if):** the canonical test interleaves passing + FAILING `if`s and expects the sequence to
-  continue past a failed condition. A failed scalar `if ($x==7)` was aborting the whole statement sequence — confirmed
-  PRE-EXISTING (clean tree, `git stash`), independent of junctions. Per docs.raku.org/language/control an `if` with no
-  `else` whose condition is false yields `Empty` and CONTINUES (does NOT fail). Fixed inside shared `v_if` (FACT RULE:
-  branch on `cx.lang`): for `IR_LANG_RKU` a no-else condition-failure routes to `γ_in` (continue) not `ω_in` (fail);
-  Icon/SNOBOL/Prolog keep `ω_in` (goal-directed expression failure, jcon ir_a_If).
-
-**Gates at handoff:** prove_lower2 **57 PASS** / 0 FAIL (RAKU section: say + print + for-loop + gather + map + grep +
-**any(1,2,3)** + **any(1,all(5,5)) nested**, all PASS). Mode-2 HARD all green: Raku **17/17** (added jct_any, jct_all,
-jct_one, jct_none, jct_infix, jct_str, jct_nested), Icon 6/6 (UNCHANGED — shared binop_apply ETX-guard + v_if lang-gate
-did NOT regress), SNOBOL4 7/7 (UNCHANGED — NFA isolation intact). The three canonical junction corpus files
-(`test/raku/rk_junctions.raku`, `rk_junction_nest.raku`, `rk_junction_prec.raku`) all MATCH their `.expected`.
-**Pre-existing baseline items confirmed NOT mine (verified by `git stash` on clean `8a01bb3`):** (a)
-`audit_concurrency_invariants.sh` purity COUNT 7 > hardcoded baseline 6 — all 7 are loud-error `fprintf`s in ICON/SNOBOL
-boxes (`bb_assign/binop/call/every/field/list_bang/swap`), ZERO Raku; **FIX STILL OWED BY ICON/HQ: bump baseline 6→7**;
-(b) `test_gate_em_template_byte_identity.sh` = 1/4 (SM/BB emitter migration mid-flight). FACT-rule md5 `5097ed94`
-byte-identical ×4; no dup `case IR_`/`TT_` within any one switch (the junction arm added NO new case label — it lives
-inside the existing `TT_FNC` value case). Modes 3/4 = by-design SMX abort for Raku (floors MODE3_MIN/MODE4_MIN=0).
-
----
-
-**RK-LOWER-3 LANDED (2026-05-31, Opus 4.8).** Raku `map`/`grep` cross onto resumable Byrd-Box Seq CONSUMERS for
-mode-2. SCRIP HEAD at this handoff: `fd54615` (committed; parents the RK-LOWER-2 keystone `3571829`). My 6 files:
-`src/include/IR.h`, `src/lower/{scrip_ir.c,lower.c,bb_exec.c,prove_lower2.c}`, `scripts/test_smoke_raku.sh` (+ the
-session design note `SCRIP/RK-LOWER-3-DESIGN.md`); ZERO emitter files — same discipline as RK-LOWER-0/1/2. Build
-clean (`scrip` + `libscrip_rt` rc=0). Mode-3≡mode-4 invariant kept BY CONSTRUCTION: no emitter touched ⇒ both
-modes process `IR_MAP`/`IR_GREP` through the SAME shared dispatch (by-design SMX abort, RK-EMIT deferred), nothing
-can diverge; the byte-identity gate is unchanged (proved via `git stash` — identical 1/4 before my edits).
-
-- **RK-LOWER-0 (`say`/`print`):** `TT_SAY`/`TT_PRINT` arm in `lower.c` routes through the SHARED `wire_det_builtin1`
-  → `IR_CALL` (say→`"write"` = .gist+newline, print→`"writes"` = .Str+no-newline per docs.raku.org/routine/{say,print};
-  for str/int `.gist`≡`.Str` so only the trailing newline differs — the Icon write/writes split, ZERO runtime change).
-  The eager core (arith/var/while/concat) came FOR FREE through the already-shared lang-agnostic value arms. Raku smoke clean.
-- **RK-LOWER-1 (lazy range → loop):** dedicated Raku-gated `v_raku_for` helper in `lower.c` (reached only from the
-  `cx.lang==IR_LANG_RKU` arms of the shared `TT_EVERY` and the `TT_FOR_RANGE` case). Reuses Icon's resumable
-  `IR_TO`; wires the four ports directly — `gen.γ→bind(IR_ASSIGN)`, `bind.γ→body`, `body.γ/ω→gen.β` (re-pump:
-  `IR_TO` is its own resume), `gen.ω→γ_in` (range drained ⇒ `for` STATEMENT completes & falls through). Handles
-  `for 1..3 { say $_ }` ($_ default) AND `for 1..3 -> $i {…}`; `..^` exclusive; empty range falls through.
-- **RK-LOWER-2 (KEYSTONE — gather/take):** NEW resumable Seq-producer kind `IR_GATHER` in `lower.c`'s `v_raku_gather`,
-  its OWN resume (β=self, like `IR_TO`). Realizes the APPENDIX-A `RK-M2-GATHER` spec — counter-as-resume-cursor:
-  yield ONE take per (re)entry, drain (cursor ≥ count, or empty gather) → FAIL→ω. Driven by the EXISTING generator
-  PUMP via `v_raku_for` — NO new pump machinery. Reached BOTH as the iterate source of `for gather {..} -> $v`
-  (the `TT_EVERY` Raku guard now admits a `TT_GATHER` iterate child) AND as a bare value expr (dedicated `TT_GATHER`
-  case, Raku arm; non-Raku → `lower_unhandled`). Take payloads → SEPARATE value sub-graphs (`lower_value_subgraph`,
-  cursor carries `IR_LANG_RKU`); subs-array ptr on `IR_GATHER.counter`, count on `.ival`, cursor on `.state`.
-  **THE BUG (logged for the next dev):** `bb_reset` zeroes `.counter` for every node except a special list — it was
-  wiping the subs-array ptr → drain-on-first-entry (output `done` only). FIX: added `IR_GATHER` to the `bb_reset`
-  counter-preservation list (cursor lives in `.state`, correctly reset; subs-array in `.counter`, now preserved),
-  exactly as `IR_CALL`(dval==2.0)/`IR_SCAN`/`IR_PAT_ARBNO` do. New IR kind wired additively in 7 sites (enum, name
-  table, `kind_is_resumable`, `ir_is_single_shot`, `bb_is_gen_kind_raw`, `ALT_IS_GEN`, exec case). Mode-2
-  `for gather { take(10);take(20);take(30) } -> $v { say $v }` → `10,20,30,done`. FLAT-take model only; dynamic-scope
-  takes (inside loops/conditionals, docs.raku.org `factors()`) are a later refinement on this SAME node.
-- **RK-LOWER-3 (map/grep Seq consumers):** TWO NEW resumable Seq-consumer kinds `IR_MAP`/`IR_GREP` in `lower.c`'s
-  `v_raku_map_grep` (one helper, `is_grep` flag selects kind + filter-vs-transform), each its OWN resume (β=self,
-  like `IR_GATHER`). REUSES the gather producer MODEL + the Prolog `aggregate_all` eager-drain idiom — NO new pump.
-  AST (verified `--dump-ast`): `map {C} S` / `grep {P} S` = `TT_MAP`/`TT_GREP`(c0=closure-body-expr reading `$_`,
-  c1=SOURCE). Reached BOTH as the iterate source of `for map/grep {..} SOURCE -> $v` (the `TT_EVERY` Raku guard now
-  admits `TT_MAP`/`TT_GREP`) AND as a bare value expr (dedicated case, Raku arm; non-Raku → `lower_unhandled`).
-  SOURCE → its own value sub-graph (ptr on `.counter`, added to the `bb_reset` preserve-list alongside `IR_GATHER`);
-  closure BODY → second sub-graph (ptr on `.ival`); resume cursor on `.state`. Exec arm (mode-2 oracle): on FRESH
-  entry eager-drains SOURCE (`bb_reset`+`bb_exec_once`+`bb_exec_resume` loop) into a NODE-KEYED `DESCR_t` side-cache
-  (`rk_seq_cache_t`, so re-yields across PUMP re-entries don't re-drain), then per (re)entry binds `$_` via
-  `NV_SET_fn("_",elem)` and runs the closure: **map** yields the closure RETURN (failing transform → NULVCL, one
-  per element); **grep** KEEPS the source element iff the closure is NOT FAIL (`binop_apply`'s relational arms
-  return FAIL when false — the value-model truthiness convention), skips on FAIL. Drain → ω (for completes).
-  Wired additively in the same site-set as `IR_GATHER` (enum, name table, `bb_reset` preserve, `kind_is_resumable`,
-  `ir_is_single_shot`, `bb_is_gen_kind_raw`, `ALT_IS_GEN`, exec case, `TT_EVERY` guard). Semantics grounded in
-  docs.raku.org/routine/{map,grep} (map gathers each element's return into a lazy Seq; grep returns matching
-  elements in original order — order + duplicates preserved). SCOPE = the for-driven consumer form (mirrors
-  RK-LOWER-2's for-driven gather scope); bare-value `say map {…} 1..3` (List-as-value) waits on RK-LOWER-5.
-
-**Gates at handoff:** prove_lower2 **55 PASS** / 0 FAIL (RAKU section: say + print + for-loop + gather + **map** +
-**grep**, all PASS). Mode-2 HARD all green: Raku **10/10** (added `map_range`, `grep_range`, `map_over_gather`,
-`grep_over_gather`), Icon 6/6 (UNCHANGED — Raku-gated edits), SNOBOL4 7/7 (UNCHANGED — NFA isolation intact).
-**Pre-existing baseline items confirmed NOT mine (verified by `git stash` → identical on clean `18357d4`):**
-(a) `test_gate_em_template_byte_identity.sh` = 1/4 (SM/BB emitter migration mid-flight per `MIGRATION-MODE4-IS-MODE3-DUMP.md`);
-(b) `audit_concurrency_invariants.sh` template-purity COUNT 7 > hardcoded baseline 6 — all 7 are loud-error
-`fprintf`s in ICON/SNOBOL boxes (`bb_assign/binop/call/every/field/list_bang/swap`), ZERO Raku; the 7th
-(`bb_call.cpp` `[GZ-3] FATAL`) is from Icon peer `582c3bc`. **FIX STILL OWED BY ICON/HQ: bump baseline 6→7.**
-FACT-rule md5 `5097ed94` byte-identical ×4; no dup `case IR_`/`TT_`. Modes 3/4 = by-design SMX abort for Raku
-(RK-EMIT not built; floors MODE3_MIN/MODE4_MIN=0) — same shape as SNOBOL4, identical across both modes.
-
-**NEXT:** RK-LOWER-5 — eager core onto straight-line IR: arithmetic (mostly free already), hash/array element
-ops, `sort`, `try`/`CATCH`, class/method dispatch, and `say(jct)`/`say(list)` composite-value output. Port the
-APPENDIX-A RK-HASH / RK-IO / RK-EXCEPTIONS / RK-CLASS *semantics* onto the four-port IR (the behaviors are the
-spec; the SM opcodes are not). NOTE the dispatch-gap delegation landed in RK-LOWER-4 already makes the whole
-script-builtin layer (hash/IO/regex/array in `script_builtins_byname.c`) reachable in mode-2 — RK-LOWER-5 lowers
-the Raku AST arms that feed it. Also still open: the `…` sequence operator — `IR_SEQ_GEN` already exists as the
-infinite `…` counter generator (SM-era exec at `bb_exec.c`, not yet lowered); keep it DISTINCT from `IR_GATHER`.
-
-**STILL DEFERRED (NOT done this session):** the lockstep "three → four" roster/body expansion across all four GOAL
-files (the FACT-RULE clause-5 obligation) — high-blast-radius, best as its own focused commit. The FACT RULES remain
-byte-identical x3 with Raku as the fourth carrier (md5 `5097ed94` / `307534d6` / `8255d653` unchanged); audit passes.
+- **NEXT:** RK-HY-4 (de-dup + RT-fix across Raku boxes — any algorithm in both media → one `rt_*` call) then
+  RK-HY-FENCE — but their done-bar (`m3/m4 18/22`) is unreachable until Icon lands the descr-mode `IR_ASSIGN`
+  ζ-slot store. Otherwise: `map`/`grep` native (`bb_rk_map.cpp`/`bb_rk_grep.cpp` — inline closure emission, the
+  large lift), RK-NFA / RK-GRAM (leaf-emission SHELVED; the real seam is RK-GRAM-3 subrule via the generator
+  PUMP), RK-LOWER-5c/5d (try/CATCH/die, class/method). Still deferred: the lockstep "three → four" FACT-RULE
+  roster expansion across all four GOAL files.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
 
