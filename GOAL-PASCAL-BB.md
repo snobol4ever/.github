@@ -7,41 +7,58 @@
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — PB-6 value-param portion GREEN (2026-06-03, session 5). SCRIP HEAD `b2a815d` on `fdf8915`.**
-PB-0..PB-5 green (see ladder). **PB-6 flat procs/functions:** value-parameter functions, procedures, and
-calls now work — **`recursion.pas` byte-identical to `pint` through `fact(7)`** (the explicit PB-6 target;
-`fact`,`fib` recursion correct, `fib(10)=55`), plus probes `proc_stmt.pas` (procedure-as-statement, value
-param), `addtwo.pas` (multi value-param function) byte-identical. **Implementation (session 5):** functions
-are tagged in the parser with a return-var `c[3]` child on `TT_PROC_DECL` (`mk_proc(...,is_function)`); a
-function body ends with an `IR_RETURN` (dval 0.0) whose `α` is `IR_VAR(funcname)`, so the value assigned via
-`fact := …` (which lands in the global NV table — `fact` not in frame scope) is read back as the return
-value. Recursion is correct because each recursive call completes (clearing `FRAME.returning`) **before** the
-enclosing assignment to NV runs, so NV always holds the most recent return. NO interpreter changes — the
-existing dval==3.0 frame path already handles `FRAME.returning`/`g_ir_return_val`.
+**Watermark — PB-6 COMPLETE (value + `var` params). 2026-06-03, session 6. SCRIP HEAD `aebf204` on `e09dcc2`.**
+PB-0..PB-6 green. **PB-6 value-param portion** (session 5): value-parameter functions/procedures/calls,
+`recursion.pas` byte-identical to `pint` through `fact(7)`, `proc_stmt.pas`/`addtwo.pas` byte-identical;
+functions tagged with a return-var `c[3]` child on `TT_PROC_DECL`, body ends `IR_RETURN` whose `α` is
+`IR_VAR(funcname)`, recursion correct because each call clears `FRAME.returning` before the enclosing NV write.
 
-**Proven zero cross-language regression (stash→rebuild→diff):** Icon mode-2 rungs 1-12 slice **byte-identical
-baseline-vs-post** (55 PASS / 10 pre-existing FAIL — rung08 find_gen, rung10 augops, rung11 bang/augconcat —
-all present on the clean baseline, none introduced here). Prolog honest mode-2 **132/132, 0 ABORT**. Pascal
-edits are isolated to the `LANG_PASCAL` path (`pascal.y`, `lower_pascal_body`).
+**PB-6 `var` (pass-by-reference) params DONE (session 6) — the unified slot-reference model.** Designed once
+from `pint` (`lda`+`ind`/`sto` = a param slot holding an address that every use dereferences; the same `base()`
+machinery PB-7 uplevel uses), NOT copy-out. A frame slot is either a **value** or a **reference to a location**
+`(GenFrame*, slot)` or `(NULL, NV-name)` — top-level `main` runs frame-less so its vars (e.g. `varparam`'s `k`)
+live in NV, the `(NULL,name)` case. `var`-param call setup resolves the actual's location **in the caller**
+(chasing if the caller's own var is already a reference → gives transitivity + `f(a,a)` aliasing for free) and
+installs it as the callee slot's reference; reads/writes chase to the home. **Files (SCRIP `aebf204`):**
+`stage2.h` (`ProcEntry.byref_mask`), `pascal.{y,tab.c,tab.h}` (VARSY params sentinel-tagged; `mk_proc` folds the
+byref bitmask onto the unused `TT_VLIST` container `v.ival` — no child clobbered, arity intact; regen via the
+direct `bison -d -o pascal.tab.c pascal.y` workaround, `pascal.lex.c`/`pascal.l` unchanged), `polyglot.c`
+(populate `byref_mask` from the VLIST, `LANG_PASCAL`-guarded), `gen_runtime.h` (`GenFrame` gains
+`SlotRef slotref[]`), `IR_interp.c` (`pas_slot_read`/`pas_slot_write`/`pas_loc_of_name` chase helpers;
+`IR_VAR`/`IR_ASSIGN` intercept reference slots **before** the `sv.v!=0` NV-fallthrough; install refs at the
+dval==3.0 call setup, capturing `caller` before `frame_depth++`).
 
-**Files touched (session 5, SCRIP commit `b2a815d`):** `src/parser/pascal/pascal.{y,tab.c,tab.h}` (regen via the
-direct bison/flex workaround — the regen script is still broken, see below; `pascal.lex.c` unchanged),
-`src/lower/lower_program.c`.
+**Probes (corpus/programs/pascal/, committed):** `varparam.pas` byte-identical to `pint` (`7`); the
+copy-out-would-fail cases all byte-identical — `swap.pas` (two-way), `alias.pas` (`addto(a,a)`→`11`),
+`vartrans.pas` (var passed onward as var), `varframe.pas` (callee writes a live ancestor frame slot — the
+PB-7-shaped case); `varmix.pas` confirms value params untouched. One honest limitation: a `var` actual that
+isn't a simple variable (array element `a[i]`, record field) falls back to by-value (guarded
+`call_blks[k]->entry->t == IR_VAR`); `pcom.pas` will eventually need it but no probe does yet.
 
-**PB-6 REMAINING — `var` (pass-by-reference) parameters.** Currently `var` params are parsed but passed
-**by value** (probe `varparam.pas`: `bump(var n)` → SCRIP prints `5`, `pint` prints `7`). Pass-by-reference
-is the **same capability PB-7 needs** (a name referring to storage in another frame). Per the goal's
-"design the frame/reference model once, carefully," **co-design `var` params with PB-7's
-static-link/uplevel machinery** rather than bolting on a copy-out now. This is the one open item before PB-6
-can be marked `[x]`.
+**Proven zero cross-language regression (stash→rebuild→diff):** Icon `--interp` full ladder **130 PASS / 117
+FAIL / 36 XFAIL identical baseline-vs-post** (the 117 are rung36 advanced reflection/scan/structures, not
+Pascal); Prolog honest mode-2 **132/132, 0 ABORT**. Pascal edits stay isolated to the `LANG_PASCAL` path.
 
-**16-bit overflow (still deferred).** `fact(8)`=40320 > `maxint`=32767: `pint` traps (ERangeError) and emits
-an **fpc-specific crash dump that cannot be byte-matched**; SCRIP uses full-width ints (computes 40320). A
-faithful match needs a Pascal integer-model rung (overflow detection + clean abort + writeln arg-eval
-ordering so the partial `k` prints first). Out of scope for "flat procedures"; its own small rung.
+**16-bit overflow (still deferred, NOT a PB-6 blocker).** `fact(8)`=40320 > `maxint`=32767: `pint` traps
+(ERangeError) with an unmatchable fpc crash dump; SCRIP computes 40320. Needs its own Pascal integer-model rung
+(overflow detection + clean abort + writeln arg-eval ordering).
 
-**Next:** close PB-6 `var` params **as part of** PB-7 nested-function frames (static-link-as-parent-port — the
-one construct SCRIP has never lowered; design carefully). Then PB-8 aggregates / PB-9 mode-3/4.
+**Next — PB-7 (NESTED routines), DESIGNED, build held for Lon's nod on the static-link representation.** Gap
+characterized by the discriminating probe `nestrec.pas` (committed): recursive `outer` with a nested `inner`
+mutating a per-activation local — `pint` `11,21,31`, SCRIP `11,11,11` (because procedure **locals aren't
+frame-scoped** — they fall through to one shared NV global; `fact`/`fib` only dodge this by using params + the
+NV-return trick, and the simple `nested.pas` passes only *accidentally* via that shared NV). Frame-scoping locals
+and static-link uplevel are **coupled** (frame-scoping alone regresses `nested.pas`), so PB-7 is one design.
+Full design grounded in `pcom`/`pint` (lexical `level`, walk count `use_level−decl_level`, call static link
+`mst (level−pflev)` = `base()`): each `ProcEntry` gains `decl_level`; `lower_sc` = params **then** locals;
+`GenFrame` gains `GenFrame *static_link` (a **static chain, not a display** — matches `pint`, satisfies "no
+separate display array", becomes the parent-port thread in mode-3/4); the chain **bottoms out at NV** for
+frame-less `main` (top-level proc's `static_link`=NULL → walk reaching NULL resolves against NV — keeps `sieve`
+globals + `nested.pas` from regressing); **uplevel access reuses the PB-6 `(frame,slot)` Loc + chase** — it just
+produces the Loc by walking static links instead of by chasing a reference. Implementation plan + the
+representation fork are in `HANDOFF-2026-06-03-OPUS48-PASCAL-BB-PB6-VARPARAM-PB7-DESIGN.md`. Deferred: per-activation
+local arrays in nested/recursive procs (array-fill prologue still global-name-based; no probe needs it). Then
+PB-8 aggregates / PB-9 mode-3/4.
 
 **Two residual issues (NOT introduced by Pascal work — flagged for attention):**
 - `scripts/regenerate_parser_and_lexer_from_sources.sh` is `set -e` and ABORTS at the snobol4 flex step
@@ -199,12 +216,15 @@ cd /home/claude/corpus/programs/pascal
   arms on real `TT_FOR`/`TT_REPEAT`/`TT_IF` (IR-direct, not desugaring). Arrays + const + `sqr` + booleans;
   `sieve.pas` gate MET (25 primes, 2..97).
 
-- [ ] **PB-6 — Top-level (flat) procedures & functions.** **Value params + functions + procedures +
-  procedure-as-statement DONE** (session 5): `recursion.pas` byte-identical to `pint` through `fact(7)`
-  (`fact`/`fib` recursion), `proc_stmt.pas`/`addtwo.pas` byte-identical; zero cross-language regression
-  proven. **OPEN: `var` (pass-by-reference) parameters** — currently by-value (`varparam.pas` prints 5 vs
-  pint's 7); co-design with PB-7 reference machinery. **DEFERRED: 16-bit overflow** (`fact(8)` aborts in
-  `pint` with an unmatchable fpc crash dump) — its own integer-model rung.
+- [x] **PB-6 — Top-level (flat) procedures & functions.** Value params + functions + procedures +
+  procedure-as-statement (session 5): `recursion.pas` byte-identical to `pint` through `fact(7)`. **`var`
+  (pass-by-reference) params DONE** (session 6) via the unified slot-reference model — a frame slot is a value
+  or a reference to a location `(frame,slot)`/`(NULL,NV-name)`; setup resolves the actual's location in the
+  caller (chasing → transitivity + `f(a,a)` aliasing) and installs it as the callee slot's reference; the
+  primitive PB-7 uplevel reuses. `varparam`/`swap`/`alias`/`vartrans`/`varframe` byte-identical to `pint`; zero
+  cross-language regression proven (Icon 130/117/36, Prolog 132/0/0 identical baseline-vs-post). Open-but-not-a-
+  blocker: `var` actuals that aren't simple variables (array element/field) fall back to by-value. **DEFERRED:
+  16-bit overflow** (`fact(8)` aborts in `pint` with an unmatchable fpc crash dump) — its own integer-model rung.
 - [ ] **PB-7 — NESTED procedures & functions (THE NEW RUNG).** A routine declared inside another,
   reading/writing the enclosing locals. Implement static-link-as-parent-port: each activation a BB, uplevel
   access walks parent links, 100% BB, stackless. **Design it here, once, carefully.** Probe: a nested helper
