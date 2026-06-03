@@ -493,9 +493,26 @@ next-state / backtrack edge.
   `cclass :name<.>` non-newline; `|`=`alt`/LTM-Phase2 vs `||`=ordered/backtracking). ISOLATED: edits only in
   `raku_nfa_bb.c` + the Raku `TT_SMATCH` arm; SNOBOL4 7/7 / Icon 12/12 / Prolog 5/5 m2 byte-unchanged,
   prove_lower2 67/0, concurrency OK.
-- [ ] **RK-NFA-2 — mode-2 csets + anchors + ordered alt** (L4-L12). *(Largely exercised already by the RK-NFA-1
-  battery — formalize the L4-L12 verdict set + named/enumerated cset edge cases; the IR-graph walk already
-  handles `[...]`/`\d\w\s` + negations + `^`/`$` + ordered `|`/`||`.)*
+- [x] **RK-NFA-2 — mode-2 csets + anchors + ordered alt** (L4-L12). ✅ 2026-06-03. FORMALIZED the
+  L4-L12 verdict set into `scripts/test_gate_raku_nfa_oracle.sh` (new RK-NFA-2 section): a 23-probe
+  cset/anchor battery (negated shorthands `\D`/`\W`/`\S`; enumerated csets with multi-range +
+  negation `[a-z0-9]`/`[^0-9]`/`[A-Za-z]`; mixed shorthands inside `[...]` — `[\d\s]`/`[\w-]`; BOL/EOL
+  anchors `^`/`$`/`^…$`/`^$`) + an 8-probe safe-extent capture battery, both proven byte-identical
+  between the IR-graph walk (`RK_NFA_BB=1`) and the parallel-NFA oracle (`RK_NFA_BB=0`). Durable corpus
+  artifact `test/raku/rk_re38.raku` + `.expected` added (matchers identical). **THE `|` LTM vs `||`
+  ORDERED SEAM, made explicit (KEEP):** the C builder (`raku_re.c`) parses only single `|` → NFA
+  SPLIT; the oracle resolves SPLIT leftmost-LONGEST (Raku `|` LTM), the backtracking IR-graph walker
+  resolves leftmost-FIRST (Raku `||` ordered). **VERDICTS always agree** (any branch reaching ACCEPT ⇒
+  matched) so the verdict battery spans alternation freely; **EXTENT/captures agree only where
+  leftmost-longest == leftmost-first** (greedy quantifiers, disjoint/anchored alts) — the safe-extent
+  battery stays inside that envelope. Overlapping-`|` extent (`/(a|ab)/`~"ab" → oracle "ab" vs walker
+  "a") DIVERGES BY DESIGN (the Phase-2 `|`-LTM-on-parallel-NFA vs `||`-ordered-on-IR_NFA_* boundary);
+  not probed, not a bug. `||` itself is not yet parseable; angle-bracket enum csets `<[...]>` not
+  supported (SCRIP uses POSIX `[...]` for charclass). ISOLATED: gate + corpus only — zero C/lowerer/
+  emitter/template touched; SNOBOL4 7/7 / Icon 12/12 m2 byte-unchanged, prove_lower2 67/0, FACT md5 ×3
+  unchanged. Semantics grounded in Rakudo `src/Raku/ast/regex.rakumod` (CharClass::{Digit,Word,Space}
+  `:rxtype<cclass> :negate`; Any `:name<.>` non-newline; `Alternation`=`alt`/LTM vs
+  `SequentialAlternation`=`altseq`/ordered).
 - [x] **RK-NFA-3 — mode-2 captures** `$0`/`$1`/`$<name>` → recorded on the IR-graph path. ✅ 2026-06-03.
   `raku_nfa_bb_exec` (new, in `raku_nfa_bb.c`) walks the `IR_NFA_*` graph recording group spans via a
   `Cap_snap`-by-value threaded through `nfa_bt_ir_cap` (CAP_OPEN sets gs[i]=pos, CAP_CLOSE sets ge[i]=pos;
@@ -536,7 +553,7 @@ make scrip                                    # rc=0
 make libscrip_rt                              # rc=0
 bash scripts/prove_lower2.sh                  # topology — Raku cases ADDITIVE in the RAKU section; stays green
 bash scripts/test_smoke_raku.sh               # mode 2 HARD; m3/m4 tracked (floors MODE3_MIN/MODE4_MIN)
-bash scripts/test_gate_raku_nfa_oracle.sh     # RK-NFA-1: IR_NFA_* graph walk == parallel-NFA oracle (mode-2, ISOLATED)
+bash scripts/test_gate_raku_nfa_oracle.sh     # RK-NFA-1/2/3: IR_NFA_* graph walk == parallel-NFA oracle (mode-2, ISOLATED): verdicts + cset/anchor L4-L12 + captures
 bash scripts/test_smoke_icon.sh               # m2 6/6 (HARD) — REUSED generator kinds; must not regress
 bash scripts/test_smoke_snobol4.sh            # m2 7/7 (HARD) — NFA isolation proof: must stay byte-unchanged
 bash scripts/audit_concurrency_invariants.sh  # OK — no dup case TT_/IR_, FACT RULES byte-identical
@@ -563,13 +580,21 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-03) — RK-NFA-1 + RK-NFA-3 DONE (mode-2 regex via IR_NFA_* graph: verdicts + captures; `~~`/`$0`/`$<name>` lowering); RK-HY-3 DONE; m2 25/25 HARD ✓; m3/m4 blocked on an Icon-owned gap.**
+**STATE (2026-06-03) — RK-NFA-1 + RK-NFA-2 + RK-NFA-3 DONE (mode-2 regex via IR_NFA_* graph: verdicts + L4-L12 cset/anchor/alt verdict set + captures; `~~`/`$0`/`$<name>` lowering); RK-HY-3 DONE; m2 25/25 HARD ✓; m3/m4 blocked on an Icon-owned gap.**
 
 - **Modes:** m2 **25/25** (HARD ✓). m3 **1 PASS / 20 FAIL / 4 EXCISED**, m4 **2 PASS / 19 FAIL / 4 EXCISED**
   on the live trunk. (A `21/21` figure in old checkpoints was measured on a since-merged Raku branch tip and
   is STALE — do not cite it.) Peers: Icon m2 12/12, SNOBOL4 m2 7/7, prove_lower2 67/0, concurrency OK,
-  `g_vstack`=0, FACT md5 `5097ed94`/`307534d6`/`8255d653` unchanged. SCRIP HEAD `1b89f53` (rebased onto peer
-  ICN-HY-4 `8570c97` + SNOBOL4-define-m3 `3b655dc`).
+  `g_vstack`=0, FACT md5 `5097ed94`/`307534d6`/`8255d653` unchanged. SCRIP HEAD post-`1b89f53` (RK-NFA-2 is
+  gate+corpus only; no C touched — rebased onto peer Pascal `9af83ea`).
+
+- **RK-NFA-2 ✅ 2026-06-03 (ISOLATED, gate+corpus only):** L4-L12 cset/anchor/ordered-alt verdict set
+  formalized into `test_gate_raku_nfa_oracle.sh` (23 cset/anchor verdicts + 8 safe-extent captures, all
+  IR-graph-walk == parallel-NFA-oracle byte-identical) + durable `test/raku/rk_re38.raku`/`.expected`. The
+  `|` (LTM, leftmost-longest, parallel oracle) vs `||` (ordered, leftmost-first, IR-graph walker) SPLIT-
+  resolution seam is now documented in-gate + in the rung: verdicts agree everywhere; extent agrees only
+  where leftmost-longest==leftmost-first; overlapping-`|` extent divergence is the Phase-2 boundary, by
+  design. Zero C/lowerer/emitter/template change; SNOBOL4/Icon m2 byte-unchanged.
 
 - **THE BLOCKER (Icon-owned, NOT a Raku bug):** nearly every Raku program (`my $x = …`) lowers an `IR_ASSIGN`
   whose store runs through the descr/ζ-frame flat-chain. The Icon template-revamp DELETED `bb_assign.cpp` and
@@ -612,12 +637,13 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
   IR path. Gate extended (rk_re34 positional + rk_re35 named) — byte-identical to the parallel-NFA oracle. New
   struct-visible accessors `raku_nfa_ngroups`/`raku_nfa_group_name_copy` in `raku_re.c`. SNOBOL4/Icon/Prolog
   m2 byte-unchanged. SCRIP `1b89f53` (same commit as RK-NFA-1; rebased onto peer ICN-HY-4 + SNOBOL4-define-m3).
-- **NEXT:** RK-NFA-2 (formalize the remaining L4-L12 cset/anchor/ordered-alt + named-cset edge verdicts — much
-  already exercised by the gate battery). Then RK-HY-4 (de-dup + RT-fix across Raku boxes) + RK-HY-FENCE — but
-  their done-bar (`m3/m4 18/22`) is unreachable until Icon lands the descr-mode `IR_ASSIGN` ζ-slot store.
-  Otherwise: `map`/`grep` native (`bb_rk_map.cpp`/`bb_rk_grep.cpp` — inline closure emission, the large lift),
-  RK-GRAM (leaf-emission SHELVED; the real seam is RK-GRAM-3 subrule via the generator PUMP), RK-LOWER-5c/5d
-  (try/CATCH/die, class/method). Still deferred: the lockstep "three → four" FACT-RULE roster expansion.
+- **NEXT:** RK-HY-4 (de-dup + RT-fix across Raku boxes) + RK-HY-FENCE — but their done-bar
+  (`m3/m4 18/22`) is unreachable until Icon lands the descr-mode `IR_ASSIGN` ζ-slot store.
+  Otherwise: `map`/`grep` native (`bb_rk_map.cpp`/`bb_rk_grep.cpp` — inline closure emission, the large
+  lift), RK-GRAM (leaf-emission SHELVED; the real seam is RK-GRAM-3 subrule via the generator PUMP),
+  RK-LOWER-5c/5d (try/CATCH/die, class/method). Still deferred: the lockstep "three → four" FACT-RULE
+  roster expansion. (RK-NFA-2 ✅ 2026-06-03: L4-L12 cset/anchor/alt verdict set formalized in the
+  oracle gate + rk_re38 corpus; the `|`-LTM vs `||`-ordered extent seam documented.)
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
 
