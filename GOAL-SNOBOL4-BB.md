@@ -15,45 +15,66 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
-## 🟢 CURRENT FRONTIER — `define` mode-3 (m3 5/6 → 6/6)
+## 🟢 CURRENT FRONTIER — `define` mode-3 ✅ 6/6 — next: DE-FUSE SAVE/RESTORE into boxes (Lon 2026-06-03)
 
-`DEFINE` registration + name-save call frame + RETURN/FRETURN routing all LAND (SCRIP `24c593b`): no-arg
-user-proc calls run end-to-end in mode-3, matching the SPITBOL oracle (manual ch.8). DEFINE arm
-`bb_call_gvar_define_str`; user-proc arm `bb_call_gvar_userproc_str` (marshal args → `rt_call_named_proc`
-→ store result DESCR → `cmp eax,99/je ω` so FRETURN fails the call); IR_ASSIGN(call-result) arm in
-`bb_gvar_assign` + `rt_gvar_assign_descr`; `flat_drive_return` jumps direct to slab succ/fail exits.
-Runtime groundwork `rt_call_named_proc(name,args,nargs)` + `rt_proc_define(spec)` in `rt.c` (named by CS
-concept per LI; mirror the mode-2 `IR_interp.c` name-save path: save dummy-args + fn-named binding, install
-actuals, run the proc BB-graph on a per-activation arena, capture fn-named var as result, FAIL on FRETURN,
-restore LIFO).
+**`DOUBLE(21)` → `42` LANDS. SNOBOL4 m3 is 6/6.** The with-arg param-binding blocker was a **one-bit x86
+encoding bug**, not the suspected wrong-path. Root cause + fix below; the prior handoff's "proc-call doesn't
+route through `rt_call_named_proc`" diagnosis was WRONG (the probes DO fire — see this session's handoff).
 
-**STATUS `DOUBLE(21)`→`42` (m3 5/6 — define still FAILs; next session starts here):**
-- **(b) `X+X` param arith — ✅ LANDED (SCRIP `f7a2ddc`).** Added a gvar VAR+VAR arm: `bb_binop_gvar_arith.cpp`
-  branches on `op_name1`/`op_name2` (VAR-mode, BINARY-only — TEXT bombs like the concat path) → `call
-  rt_gvar_arith(a,b,op)` which reads both vars via `NV_GET_fn` + `binop_apply` (oracle byte-identity) → raw
-  int64 into the ζ-slot the IR_ASSIGN reads. `emit_bb.c` IR_BINOP dispatch routes VAR+VAR to the existing
-  `IR_BINOP_GVAR_ARITH` kind and clears `op_name1/2` in the LIT+LIT arm for unambiguous discrimination. The
-  "shape mismatch" BOMB is gone; `X+X` no longer crashes. (Mixed `X+1` still falls to `flat_drive_binop_tree`.)
-- **🔴 REAL BLOCKER — with-arg user-proc calls don't bind the param.** `F()` (no-arg) → 42 ✅, but `G(X){G=X}`
-  called `G(21)` → BLANK and `DOUBLE(X){DOUBLE=X+X}` called `DOUBLE(21)` → 0 (X reads null). **The arg value
-  never reaches the parameter.** ⚠ CORRECTION TO PRIOR HANDOFF: the live mode-3 gvar proc-call does NOT route
-  through `rt_call_named_proc` / `call_native_chunk` — `fprintf` probes inside BOTH never fire, even for the
-  working `F()`. So `marshal_call_arg` + `bb_call_gvar_userproc_str` + `rt_call_named_proc` are NOT the live
-  path. **Next step: identify the ACTUAL mode-3 proc-call emit path** (likely a native inline-jump into the
-  proc body label, params bound somewhere else) by tracing the IR_CALL dispatch for a registered proc with
-  `dval==2.0` in `emit_bb.c` (~line 1542-1547) and which box actually emits — set a breakpoint / grep the emitted
-  asm for the `G`/`DOUBLE` call site. THEN fix where the actual arg DESCR is written vs where the param is read.
-- **(a) string-arg `slen`** (does NOT block this smoke; fix for `G('AB')`-style string args) — `marshal_call_arg`
-  IR_LIT_S writes the DT_S tag but leaves `slen`=0, so a string param reads zero-length (`v|slen<<32`; `slen==0
-  && DT_S` is read as a VARIABLE NAME by `VARVAL_d_fn`). FIX both arms: pack `v | ((uint64_t)strlen(s) << 32)`.
-  (Only relevant once the with-arg path above actually delivers args.)
+**ROOT CAUSE (fixed, SCRIP this commit): `x86_frame_lea` emitted REX `0x48` (W only), missing REX.B.**
+`x86_frame_lea(reg, off)` addresses the **r12** frame base via SIB byte `0x24`; r12's low-3-bits (`100`)
+alias `rsp` unless **REX.B (0x01)** is set. So `lea rsi,[r12+16]` silently assembled as `lea rsi,[rsp+16]` —
+`rsi` pointed into the C stack, not the ζ-frame. The marshalled arg DESCR was written correctly to `[r12+16]`
+(stores use `0x49`=REX.W+B), but `rt_call_named_proc` read `args` from `[rsp+16]` (garbage) → `NV_SET_fn("X",
+garbage)` → `X+X` = 0. Every sibling frame helper (`x86_frame_store64`/`load64`/`mov_imm`) correctly sets
+REX.B; `x86_frame_lea` was the lone outlier. FIX (1 line, `x86_asm.h:269`): `rex = 0x48` → `0x49`, still
+OR-ing `0x04` (REX.R) for an extended dest reg. **Only one caller** (`bb_call.cpp:189`), so zero regression
+surface. Found by probing `bb_call_str`/`marshal_call_arg`/`rt_call_named_proc` + a blob hexdump, hand-
+disassembled to spot `48 8d 74 24 10` vs the correct `49 …`. ALL PROBES REMOVED — only the 1-line fix remains.
 
-After the with-arg blocker → raise MODE3_MIN 5→6. ⚠ `x86("mov",reg,uint64)` is a TRAP (emits `movabs rax,imm;
-call rax`) and `x86_movimm` truncates imm64→32 — to load a pointer/imm64 use `x86_load_ro(reg,"??",ptr)`; for an
-args-array address use `x86_frame_lea`. Detail: `HANDOFF-2026-06-03-SONNET46-SNOBOL4-BB-DEFINE-CALL-FRAME.md`.
+**HOW `define` works now (m3, oracle-matched, SPITBOL manual ch.8):** DEFINE registration in the `scrip.c`
+SNOBOL `--run` block (`rt_proc_register` + `gvar_flat_chain_build` per non-main proc + `rt_proc_set_fn`);
+DEFINE arm `bb_call_gvar_define_str`; user-proc arm `bb_call_gvar_userproc_str` (marshal args → ζ-frame DESCR
+array → `call rt_call_named_proc` → store result DESCR → `cmp eax,99/je ω` so FRETURN fails the call);
+IR_ASSIGN(call-result) arm in `bb_gvar_assign` + `rt_gvar_assign_descr`; VAR+VAR param arith via
+`bb_binop_gvar_arith` → `rt_gvar_arith` (`NV_GET_fn`×2 + `binop_apply`); `flat_drive_return` jumps direct to
+slab succ/fail. **Save/restore is FUSED in the runtime** (`rt_call_named_proc`, rt.c:481): save old
+param+fn-name DESCRs onto the global `g_name_save[]` stack → install actuals via `NV_SET_fn` → run body on
+`g_proc_frame_nest_arena` → capture result → restore LIFO. There is NO dedicated SAVE/RESTORE box.
 
-**Gate state (GREEN):** SNOBOL4 m2 **7/7 HARD** / m3 **5/6** / m4 0/6 · Icon m2 **12/12 HARD** · `prove_lower2`
-PASS · `no_bb_bin_t` 0 · LI-FENCE OK · concurrency invariants OK · `sm_dead` OK. ENV: `apt-get install -y libgc-dev`.
+**⚠ STILL OPEN — string-arg `slen` (does NOT block the define smoke; needed for `G('AB')`-style string args).**
+`marshal_call_arg` IR_LIT_S (BINARY `bb_call.cpp:96-107`, TEXT `:84`) writes the DT_S tag but leaves `slen`=0;
+a string param then reads zero-length (low qword packs `v | (slen<<32)`; `slen==0 && DT_S` is mis-read as a
+VARIABLE NAME by `VARVAL_d_fn`). FIX both arms: pack `tag | ((uint64_t)strlen(sval) << 32)`. ⚠ `marshal_call_arg`
+is SHARED with the Raku `rt_call_arr` path — make it byte-neutral to Raku (or normalize `slen` inside
+`rt_call_named_proc`; prefer the emitter fix if lane-safe).
+
+### NEXT LADDER — DE-FUSE the call-frame save/restore (Lon 2026-06-03, two ideas)
+
+Lon: *"Do we have a BB dedicated to save/restore params, or is it FUSED with the FNC-CALL box? If fused, break
+it out — unless that's a bad idea. And: what if the BB-SAVE-RESTORE local storage becomes the effective FRAME
+for SNOBOL4/Snocone/Rebus, built into the BB local storage?"* Answer: it is FUSED into the runtime helper
+`rt_call_named_proc` (not a box). Verdict: **GOOD to de-fuse, in two rungs.**
+
+- [ ] **SR-1 — SAVE/RESTORE as boxes bracketing the body.** Split `rt_call_named_proc` into thin runtime
+  helpers `rt_name_save_push(names, actuals, n)` + `rt_name_restore(base)` called from a `bb_proc_save` box
+  (proc prologue: save old param/local/fn-name DESCRs, install actuals) and a `bb_proc_restore` box (proc
+  epilogue: restore LIFO). Topology becomes explicit four-port `SAVE → body → RESTORE` with real γ/ω threading
+  instead of one opaque C call. ⚠ HONEST CAVEAT: SNOBOL is by-name (`bb_var` = `jmp γ` pass-through; values
+  live in the global NV store), so each box is necessarily a thin wrapper around an NV helper — the win is
+  topology/relocatability, not avoiding the runtime. Gate: define m3 6/6 holds, oracle byte-match; m2 7/7 HARD;
+  Icon m2 12/12.
+- [ ] **SR-2 — the save-area IS the frame (Lon's cooler idea).** Migrate the save-records OUT of the global
+  `g_name_save[]` stack INTO `bb_proc_save`/`restore`'s **per-activation ζ-frame local storage** (`[r12+off]`),
+  laid out at emit time as N records `{name_ptr (8B), saved_DESCR (16B)}`. Kills the global fixed-max name-save
+  stack (cleaner recursion/reentrancy), and **unifies the frame concept** across languages: Icon's ζ-frame
+  holds *live* values, the SNOBOL/Snocone/Rebus ζ-frame holds the *saved* values for the activation's lifetime
+  — same one-register `[r12+off]` FACT-RULE discipline, different payload. Mode-4-relocatable by construction.
+  Do AFTER SR-1. Gate: same as SR-1 + no-stack/one-register-frame gates hold for the new boxes.
+
+**Gate state (GREEN, verified this session):** SNOBOL4 m2 **7/7 HARD** / m3 **6/6** / m4 0/6 · Icon m2
+**12/12 HARD** · `prove_lower2` PASS · `no_bb_bin_t` 0 · LI-FENCE OK · concurrency invariants OK. ENV:
+`apt-get install -y libgc-dev`.
 
 ## ✅ DONE (mode-3, byte-matched to the SPITBOL oracle)
 
@@ -1186,10 +1207,11 @@ patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
 files and git history. Only the durable carry-forward + the current watermark are kept here.
 
-**Watermark.** SCRIP tip `f7a2ddc` (VAR+VAR param-arith via `rt_gvar_arith`/`binop_apply` — the `X+X`
-shape-mismatch BOMB is gone; m3 5/6 — `define` now blocked on WITH-ARG proc calls not binding the param,
-and the live mode-3 proc-call path is NOT `rt_call_named_proc`/`call_native_chunk` — see CURRENT FRONTIER at
-top) · .github tip this commit. Session handoff: `HANDOFF-2026-06-03-OPUS48-SNOBOL4-BB-VVARITH-PRUNE.md`.
+**Watermark.** SCRIP tip this commit (1-line REX.B fix in `x86_frame_lea` — `lea rsi,[r12+off]` was assembling
+as `[rsp+off]`; with-arg param binding now correct, `DOUBLE(21)`→`42`, **SNOBOL4 m3 6/6**). All five diagnostic
+probes removed; only the 1-line fix landed. NEXT: SR-1 de-fuse SAVE/RESTORE into boxes, then SR-2 (save-area =
+frame); string-arg `slen` still open (doesn't block the define smoke). .github tip this commit. Session handoff:
+`HANDOFF-2026-06-03-SONNET46-SNOBOL4-BB-REXB-FRAME-LEA.md`.
 
 ## Architecture references
 
