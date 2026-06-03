@@ -14,7 +14,7 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ STATE (2026-06-03)
 
-m2/m3 **114/114** byte-identical · m4 **89/0/25** · siblings Icon m2 12 · SNOBOL4 m2 7. SCRIP HEAD `873792f`.
+m2/m3 **115/115** byte-identical · m4 **91/0/24** · siblings Icon m2 12 · SNOBOL4 m2 7. SCRIP HEAD `62426a6` (PT-0/1a/2a landed).
 
 **x86() TEMPLATE-REVAMP** — convert BB templates to `x86()` self-encoding (one return per `PLATFORM_*`, pure `x86(mnem,…)` concat, no `bb_bin_t`, pBB-free). Rules: `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. Reference: `bb_pat_pos.cpp` (loop-free) + `bb_pat_span.cpp` (looping). Shared keystone landed (internal-label + ζ-frame in `x86_asm.h`) — `git pull --rebase` before touching any box; `x86_asm.h` edits are additive.
 - DONE: bb_cut/arith/conj/ite/disj/catch/unify (PL-RV-1..5; **unify now covers compound (list/struct) operands AND scalar float literals — PL-HY-1a/1c LANDED `374c2ff`; scalar float-unify (`X = 3.14`, both orders, float==/\=) LANDED `873792f` m4 87→89, mode-4-native + mode-3-interpreted; only compound-NESTED float (`point(1.5,2.5)` via `emit_build_compound_term`) and float-RESULT arith `IR_LIT_F`/`IR_ARITH`-in-`is` deferred to CAT-D**) · bb_builtin 28 BINARY arms + bb_fail (PL-RV-6).
@@ -409,7 +409,54 @@ Pipeline: `Prolog AST → lower_pl (four-port IR) → bb_exec.c (m2/3 interp) �
 **Still-open PLG:**
 - [ ] PLG-7 — remove `bb_node_state_t` snapshot/restore. One LIVE Icon caller (`bb_exec.c:1589`); don't delete until Icon migrates.
 - [ ] PLG-9g (rest) — m4 dynamic-DB + broken-family closures (findall/retract/assertz→WAM-CP-13, aggregate, catch/throw, dcg_generate). All EXCISE cleanly; need a real runtime substrate.
-- [ ] PLG-10 — findall sub-graph / assert-retract store / DCG repetition onto an explicit indexed deferred-frame array (`test_sno_1.c` `_1[64]`), NOT snapshot/C-recursion. Gate: rung11/14/30 AGREE.
+- [ ] PLG-10 — findall sub-graph / assert-retract store / DCG repetition onto an explicit indexed deferred-frame array (`test_sno_1.c` `_1[64]`), NOT snapshot/C-recursion. Gate: rung11/14/30 AGREE. **SUPERSEDED BY THE PT LADDER BELOW (Lon approved 2026-06-03).**
+
+## 🔴 PT — PREDICATE-TABLE META-CALL SUBSTRATE (the PLG-10 / WAM-CP-13 unlock — Lon approved 2026-06-03)
+
+**Canonical grounding (BOTH systems READ on this exact question, 2026-06-03 Opus 4.8, from the uploaded zips):**
+gprolog `BipsPl/bc_supp.c:860` `Pl_BC_Call_Terminal_Pred_3` — decompose goal TERM (`Pl_Rd_Callable_Check`) →
+`Pl_Lookup_Pred(func,arity)` runtime table → marshal `A(i)=args[i]` → `return pred->codep` (native jump); dynamic
+preds = clause TERMS run by `BC_Emulate_Pred` through the SAME table. gprolog `BipsPl/all_solut.pl`
+`'$store_solutions'` — findall is a failure-driven loop around the meta-call + `Pl_Copy_Term` per solution into a
+malloc'd chain. swipl `pl-vmi.c:5402` `i_metacall_common` — simple goal → `resolveProcedure(functor,module)` table →
+`normal_call`; control construct → `compileClause` on the fly. swipl `boot/bags.pl` `findall_loop` — identical
+failure-driven shape. **CONVERGENT LAW: a runtime goal is a TERM; a resident predicate table maps
+(functor,arity)→code; meta-call = decompose+lookup+marshal+call; findall = drive the meta-call to exhaustion,
+copy_term per solution, build list, unify.** The `fs_ptr` baked-IR-graph-pointer design has NO canonical precedent
+(the in-process trap, `HANDOFF-2026-06-03-OPUS48-PROLOG-BB-FINDALL-M4-INPROC-POINTER-TRAP.md`); substrate options
+(a) serialize-the-IR-graph and (c) descriptor-table are graph-shipping, equally non-canonical — **DROPPED**. Terms
+are first-class runtime data; a term-level resolver does NOT violate NO-SM/BB-WALKING (which bans IR/BB-graph
+walking) — walking terms is what every Prolog runtime does. **SCRIP convergences already in place:** the m4
+predicate blocks (`codegen_callee_block`) are ALREADY C-callable with the exact protocol rt_call_term needs —
+`call .Lplpred_<n>_<a>` / `_redo`, args via `resolve_bb_env_save_push`+`resolve_bb_bind_arg`, verdict via
+`rt_set_last_ok`/`rt_last_ok`, env hand-back via `resolve_bb_env_install`+`rt_cp_save_caller_env` (bb_goal.cpp is
+the byte-exact reference transcription); head args already land in env slots 0..arity-1 (`prolog_lower.c`
+`reserved = head->compound.arity` — the `A(i)` analog); goal/tmpl/result terms are built relocatably by
+`emit_build_compound_term` (zero runtime pointers).
+
+- [x] **PT-0** — LANDED `62426a6`. emit the PREDICATE TABLE into the m4 binary: after `codegen_clause_dispatch`, a `.data` block of
+      rows `(name .quad [strlabel], arity, α=.Lplpred_n_a, β=.Lplpred_n_a_redo)`; main prologue installs it via
+      `rt_pl_table_install(&table, count)` (the `resolve_bb_env_install` precedent — user code hands the runtime
+      its addresses; libscrip_rt never links user symbols). Runtime `rt_pl_pred_lookup(name, arity)`.
+- [ ] **PT-1** — **PT-1a LANDED `62426a6`** (rt_call_term + rt_redo_meta in unification.c; true/fail inline; single-level meta). OPEN: PT-1b control constructs. `rt_call_term(Term *goal)`: deref → atom/compound → (name, arity, args); `true`/`fail` inline;
+      table lookup; marshal args into callee slots; `call` α; `rt_last_ok()` verdict; env install/pop exactly as
+      bb_goal phases 2–5. `rt_redo_meta(entry_cp)`: reinstall `cp->env`, `call` redo, on success reinstall
+      `cp->saved_args` (bb_goal β path transcription); `entry_cp` boundary = exhausted. PT-1a = simple goals +
+      single-level meta (one live redo target); PT-1b (later) = control constructs (`,`/`;`/`->`/`\+`) as a small
+      TERM-level resolver + nested meta-call stack. **Cut inside a meta-called goal is LOCAL to the call** (gprolog
+      hidden `A(arity)` cut register) — design PT-1b jointly with WAM-CP-9 ITE-commit (same local-barrier mechanism).
+- [ ] **PT-2** — **PT-2a LANDED `62426a6`** (rung43 `[]` m2==m3==m4; one old EXCISED rung also unlocked → m4 91). OPEN: PT-2b nondet goals. findall onto the rail: `bb_findall_state_t` gains `goal_node` (additive; set in lower.c
+      `g_findall`); m4 TEXT arm builds goal/tmpl/result TERMS via `emit_build_compound_term` (vars share through
+      `g_resolve_env` slots) → `call rt_findall_term@PLT`; `rt_findall_term` = trail-mark → drive
+      `rt_call_term`/`rt_redo_meta` to exhaustion → `bb_copy_term(tmpl)` per solution into the acc array (KEPT) →
+      unwind → cons list (KEPT tail) → `rt_unify_terms(result, list)`. **PT-2a (degenerate, this session):**
+      admission gated to goal ∈ {`true`,`fail`,`false`} atoms; new corpus rung `findall(X, fail, Xs)` → `[]`,
+      m2==m4. PT-2b: nondeterministic goals (admission widens as PT-1b lands) → the 5 findall rungs.
+- [ ] **PT-3** — catch/throw on the rail: `rt_call_term` inside a CP/trail barrier (`g_resolve_bfr`); throw unwinds
+      to the mark (replaces the `zc_ptr` baked-pointer `rt_catch`). 5 catch/throw rungs.
+- [ ] **PT-4** — dynamic DB (OWNS WAM-CP-13 / PLG-9g): assertz stores clause TERMS in a runtime store; the table
+      routes dynamic preds to the term resolver over the store (gprolog `BC_Emulate_Pred` minus byte-code);
+      retract/abolish mutate the store. 15 rungs (retract/abolish/assertz/aggregate) + dcg_generate.
   - **ROOT CAUSE NAILED 2026-06-03 (Opus 4.8) — the in-process absolute-pointer trap.** `bb_builtin_findall.cpp` already has a COMPLETE mode-3 BINARY arm + `rt_findall(void*)` engine (drives `fs->gcfg` to exhaustion via `IR_interp_*`, accumulates into `acc=calloc(4096)` — sanctioned deferred-frame array, NOT a value stack — builds list, unifies `fs->result`). The mode-4 TEXT arm was the only gap; I wrote it (sanctioned per-medium twin: `sub rsp,16; mov rdi,<fs_ptr>; call rt_findall@PLT; test eax,eax; je ω; jmp γ`) + admitted findall to `pl_rich_node_emittable`. **Emission clean, but the linked binary SEGFAULTS:** `fs_ptr`(==`pBB->ival`) is an ABSOLUTE pointer to the compile-time `bb_findall_state_t`/`gcfg` in scrip's heap. Mode-3 `--run` jumps into blobs IN-PROCESS so the pointer is live; mode-4 emits a SEPARATE-PROCESS `.s` where the baked `mov rdi,imm64` dangles → `fs->gcfg` deref faults. Admitting it would turn 5 EXCISED rungs into segfaults → REVERTED (clean EXCISE > crashing false-PASS). **Same trap blocks catch (`rt_catch(void*)` takes `bb_catch_state_t*` identically) + aggregates → all 25 EXCISED rungs cluster on this ONE substrate problem.** Real fix = reconstruct the sub-graph AT RUNTIME in the target process: (a) emit a relocatable serialization of `gcfg` + a runtime rebuilder (re-enters `IR_interp_*`, needs the `--run` no-walking carve-out widened — Lon call); (b) emit the sub-graph itself as callable native code + a runtime findall-driver loop (end-state, no interpreter re-entry — cleanest vs the no-runtime-walking rule); (c) descriptor table the runtime walks. Cracks ~20 of 25 at once. Full evidence: HANDOFF-2026-06-03-OPUS48-PROLOG-BB-FINDALL-M4-INPROC-POINTER-TRAP.md.
 ## WAM-CP — SWIPL-informed choice-point track
 
