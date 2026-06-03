@@ -86,7 +86,7 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
 ## RS CHECKLIST
 
 - [x] **RS-1 — CLUSTER.** 562-fn inventory + 17-subsystem map (RS-1 HANDOFF). No moves.
-- [~] **RS-2 — PARTITION.** Slices 1–19 landed, each gated byte-identical (full detail: git + RS-1 HANDOFF):
+- [~] **RS-2 — PARTITION.** Slices 1–22 landed, each gated byte-identical (full detail: git + RS-1 HANDOFF):
 
   | done | subsystem | source → dest |
   |------|-----------|---------------|
@@ -98,9 +98,16 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
   | s7–11 | `pattern_match` ✅ | `git mv core/pattern.c`; fold `eval_pat.c`; `rt_pat_*`+capture from `rt.c`; `patnd_*` from `stmt_exec.c`; `cset_*` from `scan_builtins.c` (new `pattern_match.h`) |
   | s12–18 | `by_name_dispatch` ✅ | `git mv script_builtins.c`; `scan_try_call_builtin` (dissolved `scan_builtins.c`); `rt_builtin_is_known` from `rt.c`; merged `script_builtins_byname.c` (Raku silo GONE); `rt_call_arr`/`rt_jct_relop`/`call_builtin` + `proc_as_value` + the ~1300-line `try_call_builtin_by_name` giant from `gen_runtime.c`; header consolidation (new `by_name_dispatch.h`, folded + `git rm` `script_builtins.h`+`scan_builtins.h`) |
   | s19 | `resolution` | `git mv builtins/resolve_runtime.{c,h}` → `builtins/resolution.{c,h}` (de-language the resolver; kept in `builtins/` to preserve relatives) |
+  | s20 | `keywords` ✅ | `&NAME` keyword-var system (`g_error`/`g_trace`/`g_dump`/`g_random`/`g_jcon` + `kw_assign`/`kw_can_assign`/`kw_read`/`kw_cset_*`/`make_kw_cset`) from `builtins/gen_runtime.c` → `runtime/keywords.{c,h}` |
+  | s21 | `string_ops` ✅ | `str_concat_d`/`lconcat_d`/`real_str` from `builtins/gen_runtime.c` → `runtime/string_ops.{c,h}`; `gen_value.h` decls → `#include`. (`string_section_assign` LEFT — frame-coupled) |
+  | s22 | `name_binding` | Icon globals/statics/scope (`global_*`/`is_global`/`static_ent_t`+`static_*`/`scope_*`) from `builtins/gen_runtime.c` → `runtime/name_binding.c`; added missing `static_get`/`static_set` protos to `gen_runtime.h` (callers relied on TU-order). Header-less (arithmetic precedent) |
 
-  **State:** `arithmetic`, `pattern_match`, `by_name_dispatch` (.c + header) COMPLETE. `gen_runtime.c` holds ZERO
-  by-name members. Silos dissolved: `scan_builtins.c`, `script_builtins_byname.c`.
+  **State:** `arithmetic`, `pattern_match`, `by_name_dispatch` (.c + header) COMPLETE; `keywords`/`string_ops`
+  (.c + header) + `name_binding` (.c) COMPLETE. `gen_runtime.c` **654 → 310 lines**: holds ZERO by-name members
+  and zero keyword/string-op/name-binding members. Silos dissolved: `scan_builtins.c`, `script_builtins_byname.c`.
+  `gen_runtime.c` now = the Icon generator/frame engine (`frame_*`/`sm_yield_to_caller`/`is_suspendable`/
+  `gen_bb_pump_proc_by_name`/`drive_val`) + invocation (`sm_call_proc`/`proc_table_call`) + scan-state globals +
+  `descr_identical` + the `string_section_assign` straggler.
 
   - [ ] **NEXT — pick one:**
     - **ⓐ resolver dissolution:** relocate `builtins/resolution.{c,h}` → `runtime/` (rewrite the file's
@@ -109,7 +116,11 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
       lists `builtins/` as the resolver-tables home), and/or the **`backtrack`/`unification` static-split** out of
       `resolution.c` (hard multi-slice: WAM choice-point/trail → `backtrack`, term/unify/env → `unification`;
       tightly-coupled shared statics — scope the static surface, one bounded sub-slice at a time).
-    - **ⓑ `gen_runtime.c` remainder** → `string_ops` / `keywords` / `name_binding` / `collections` / `monitor_trace`.
+    - **ⓑ `gen_runtime.c` remainder** — `keywords`/`string_ops`/`name_binding` DONE (s20–22). What's LEFT is the
+      tightly-coupled **generator/frame engine = the `backtrack` subsystem** (`frame_*`/`sm_yield_to_caller`/
+      `is_suspendable`/`gen_bb_pump_proc_by_name`/`drive_val`) — this OVERLAPS ⓐ's backtrack split, so do them
+      together — plus **`invocation`** (`sm_call_proc`/`proc_table_call`) and a trivial **`descr_identical` → new
+      `values.c`**. The `string_section_assign` straggler → `name_binding`/`control_flow` when one of those lands.
     - **then `core/core.c`** (3449 lines, biggest split) → leave SNO-residue in `core/` (LI-CORE).
 
 - [ ] **RS-FENCE.** `scripts/test_gate_runtime_subsystems.sh` asserts the partition; wire into Session Setup.
@@ -157,12 +168,14 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `d4b264e` (PUSHED, UNCHANGED this session) · .github this commit = **DOC PRUNE ONLY**
-(collapsed completed slices 1–19 to a ledger + surfaced open items/deferred micro-slices into their own sections;
-no code touched, behavior provably unchanged, gates not re-run — `.github` is a different repo from SCRIP). RS-1
-done; RS-2 slices 1–19 landed gated byte-identical. `arithmetic` / `pattern_match` / `by_name_dispatch` (.c + header) COMPLETE; resolver renamed to
-`resolution`. NEXT: pick ⓐ (resolution `builtins/`→`runtime/` relocation [Lon layout call] + `backtrack`/
-`unification` split) or ⓑ (`gen_runtime.c` remainder → string_ops/keywords/name_binding/collections/monitor_trace)
-→ then `core/core.c`. Open Lon calls: `fn_has_builtin` (likely delete), `scan_try_call_builtin` dup decl,
-`kw_anchor` home.
+**Watermark.** SCRIP `01342a4` (3 slices landed this session, each gated byte-identical, PUSHED) ·
+.github this commit = watermark + checklist update for the 3 slices (no SCRIP code re-touched here;
+`.github` is a different repo from SCRIP). RS-1 done; RS-2 slices 1–22 landed gated byte-identical.
+`arithmetic` / `pattern_match` / `by_name_dispatch` / `keywords` / `string_ops` (.c + header) + `name_binding`
+(.c) COMPLETE; resolver renamed to `resolution`. This session (Sonnet, rebased onto `7fd076f`): s20 `keywords`
+`d82021e`, s21 `string_ops` `0247170`, s22 `name_binding` `01342a4` — all carved from `builtins/gen_runtime.c`
+(654 → 310 lines). NEXT: pick ⓐ (resolution `builtins/`→`runtime/` relocation [Lon layout call] + `backtrack`/
+`unification` split) or ⓑ-remainder = the generator/frame engine (= `backtrack`, overlaps ⓐ) + `invocation`
+(`sm_call_proc`/`proc_table_call`) + trivial `descr_identical`→`values.c` → then `core/core.c`. Open Lon calls:
+`fn_has_builtin` (likely delete), `scan_try_call_builtin` dup decl, `kw_anchor` home.
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
