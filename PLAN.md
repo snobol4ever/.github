@@ -1,6 +1,6 @@
 # PLAN.md — snobol4ever HQ
 
-**Product:** SCRIP — SNOBOL4, Snocone, Rebus, Icon, Prolog. Ten times faster.
+**Product:** SCRIP — SNOBOL4, Snocone, Rebus, Icon, Prolog, Pascal. Ten times faster.
 **Team:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
 
 ---
@@ -55,6 +55,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. *(GATE-3 m2/m3 **109/111**; retract/abolish/DCG/phrase/ITE landed `5c97162`. mode-4 prereq (GCONJ goals sidecar) landed → follow Icon/SNOBOL `codegen_flat_build` pattern at `scrip.c:532`; next: PLG-9a hello + PL-RT-ASSERTZ + 0'-char/atom_codes)* |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(ACTIVE 2026-05-31: ground-zero unified four-port AST→IR lower rewrite — `lower2.c` foundation laid + proven vs Proebsting Figs 1&2; SNOBOL pattern lowering = the PATTERN role. Prior pattern-BB-template track (native broad 255; deferred capture-commit, mode-2 DEFER, SPAN/ARBNO/FENCE) remains valid below it.)* |
 | **Raku BB** | `GOAL-RAKU-BB.md` | ⏸ **ON HOLD** (2026-05-30). Raku development paused indefinitely. Grammar/subrule BB-generator tier deferred. SM-0+SM-1 clean; SM-2 diagnosed (BB_ITERATE/SM_CALL_FN mode-4 crash); resume when Raku is re-prioritized. |
+| **Pascal BB** ⬅ NEW (Lon 2026-06-02) | `GOAL-PASCAL-BB.md` | The **7th frontend** — a plain imperative language (the P4 subset). SEEDED: Pascal-P4 reference oracle verified self-hosting (fetched on-demand, **not bundled** — own C frontend). SCRIP frontend not started. Tiny rungs, **no test suite yet**; seed is `scrip --interp hello.pas`. Reuses all existing AST/LOWER/boxes; the **one novel construct is nested-function scoping**, lowered as Byrd-Box activation frames (static link = parent-port thread). Next: PB-1 lexer → `TT_*`. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
 | **PST Parent** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | Stage 2 PST-LR-0 bulk rename. |
 | **PST SNOBOL4** | `GOAL-PST-SNOBOL4.md` | SN4-SC-6 smoke blocked by EC-3* regression. |
