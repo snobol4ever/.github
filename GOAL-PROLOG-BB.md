@@ -1,5 +1,29 @@
 # GOAL-PROLOG-BB.md — Prolog: BB-land DCG per predicate + lower_pl DCG
 
+## 🔴🔴🔴 REGRESSION — READ FIRST (2026-06-02, Opus 4.8) — m3/m4 BROKEN, FIX STAGED
+
+A **two-stage regression** between the watermark (`fc8f25d`) and SCRIP `origin/main` (`c83de6d`) silently
+broke Prolog mode-3 + mode-4. Full diagnosis + a landed-ready fix (appliable patch + 4 converted boxes):
+**`.github/HANDOFF-2026-06-02-OPUS48-PROLOG-BB-REGRESSION-DIAGNOSIS.md`**.
+
+- **Cause:** (1) `06826c8` (PL-RV-5) re-bombed the LIVE 2427-line `bb_builtin.cpp` on the false belief it
+  was "already a stub from `9afac84`" (it was the real box at `fc8f25d`); (2) `cd10224` (STUB CLEANUP)
+  then DELETED `bb_builtin`/`bb_goal`/`bb_choice`/`bb_atom`/`bb_logicvar` + stripped their `walk_bb_node`
+  dispatch cases from `emit_core.c`. Neither commit ran the Prolog gate (both checked only SNOBOL4+Icon).
+  Removing the dispatch case (not just the box) turned the intended loud-abort into a **silent miscompile**:
+  the kind hits `walk_bb_node`'s `default:`, emits a stray `; [walk_bb_node: kind=55 unhandled]` text comment
+  into the mode-3 byte stream, and produces no output.
+- **Current real numbers @ `c83de6d`:** GATE-3 **m2 111/111** (oracle, HARD gate INTACT) · **m3 99/111**
+  (was 111 — 12 flat-path rungs: rung01_hello, rung22, rung23×5, rung29×5) · **m4 0/86** (was 86).
+  GATE-1: m2 5/5, m3 2/5, m4 0/5.
+- **Fix status:** 4 of 5 boxes converted to `x86()`/`bb_emit_x86` and COMPILING (bb_atom, bb_logicvar
+  trivial pass-throughs; bb_choice, bb_goal dead-twin — their MEDIUM_BINARY arms proven unreachable on the
+  flat path). Remaining = `bb_builtin` (LIVE binary arm → needs byte-identical conversion; the mechanical
+  3-tail-shape + `x86_lit_bytes` recipe + the one α/β-contract item to verify against `bb_unify` are all in
+  the HANDOFF doc). Apply `.github/wip-patches/2026-06-02-prolog-bb-regression-restore-WIP.patch`, finish
+  bb_builtin, expect GATE-3 to return to m2 111 / m3 111 / m4 86. SCRIP `origin/main` left at `c83de6d`
+  (clean, compiling) — no broken commit was pushed (RULES).
+
 ## ▶ CURRENT PRIORITY — READ FIRST (2026-06-02): x86() TEMPLATE-REVAMP
 
 Convert this language's BB templates to the **`x86()` self-encoding API** (one return per `PLATFORM_*`, pure
