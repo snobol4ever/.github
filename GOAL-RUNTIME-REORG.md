@@ -127,14 +127,33 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
     `string_ops`; `unop_not`/`null_test`/`nonnull`=logical → a logical/control home; `unop_neg`/`unop_pos`=arith),
     and those destinations aren't homed yet ⇒ splitting now would strand a half-block. **`arithmetic` subsystem now
     COMPLETE** (part 1 `6899f7f` + part 2 `1adcf09`). Gates byte-identical.
-  - [ ] **NEXT (cleanest-first):** `pattern_match` (whole-file `git mv` of `core/pattern.c` + `core/eval_pat.c` +
-    `scan_builtins.c`, then pull `rt_pat_*` in + `patnd_*` from `stmt_exec.c`) → the LANGUAGE-NAMED files
+  - [x] **slice 7 — `pattern_match` (part 1)** (SCRIP `33fc8b3`): whole-file `git mv core/pattern.c →
+    src/runtime/pattern_match.c` — de-silo the SNOBOL pattern-BUILDER layer out of `core/` into the language-
+    independent `runtime/` subsystem. Fixed one relative include (`../../parser/` → `../parser/`, the slice-1
+    mechanic). Makefile RT_PIC_SRCS + scrip per-`.o` updated in lockstep (relocated both into the moved-subsystems
+    block; `.o` renamed `snobol4_pattern.o` → `pattern_match.o`). Move-only; decls live in `core/patnd.h` + `core.h`
+    (unchanged). **way-station note:** the whole-file move carried a few non-pattern residents the RS-1 map assigns
+    elsewhere — `subscript_*`/`sort_fn`/`rsort_fn` → `collections.c`; `EVAL_fn`/`opsyn`/`compile_to_expression` →
+    existing `runtime_eval.c` — to be pulled out in those subsystems' slices. Gates byte-identical.
+  - [x] **slice 8 — `pattern_match` (part 2)** (SCRIP `0f817f9`): fold `core/eval_pat.c` (the mode-2 pattern
+    EVALUATOR — `interp_eval_pat` + static inline `NAME_DEREF`) INTO `pattern_match.c`, matching the RS-1 single-
+    file target (builder + evaluator now one subsystem file). Bodies cut byte-identical; dropped the dup includes +
+    dup `extern eval_node` (already present). Added two includes pattern_match.c now needs: `sil_macros.h` (the
+    `IS_NAME`/`IS_FAIL_fn` macros, emitter dir via `-I`) + `builtins/gen_runtime.h` (relative `../builtins/` →
+    `builtins/` for the new location). `git rm core/eval_pat.c` + removed its 2 Makefile entries in lockstep. Move-
+    only; `interp_eval_pat` declared in `driver/interp.h` (unchanged). Gates byte-identical. **`pattern_match`
+    parts 1-2 (the two whole-file moves) COMPLETE; `core/` pattern `.c` files both relocated (only `patnd.h` stays).**
+  - [ ] **NEXT (cleanest-first):** `pattern_match` (part 3+) — pull the big `rt_pat_*` family (~30 fns:
+    `rt_pat_lit`…`rt_pat_usercall_args` + capture/`rt_dcap_*`/`rt_at_cursor`/`rt_defer_match`) out of grab-bag `rt.c`
+    into `pattern_match.c` (READ THE BODIES — `rt.c` interleaves them with cut/backtrack that STAYS); then `patnd_*`
+    classification helpers from `stmt_exec.c` (~9 predicates) + `cset_resolve`/`cset_has` from `scan_builtins.c`
+    (its `scan_try_call_builtin` goes to `by_name_dispatch`, NOT here). → then the LANGUAGE-NAMED files
     (`gen_runtime.c`/`resolve_runtime.c`/`script_builtins*.c`) split by capability into `backtrack`/`unification`/
-    `resolution`/`by_name_dispatch`/`keywords`/`name_binding` (intricate file-local statics ⇒ each is its own
-    multi-slice effort, move whole coherent blocks) → `core/core.c` (3449 lines, the biggest split) → leave
-    SNO-residue in `core/` (LI-CORE). **Deferred micro-slices to fold in along the way:** `rt_unop_*` (above; lands
-    with `string_ops` + the logical home) and `rt_init` (slice-3 deferral; lands once invocation + comparison
-    builtins have homes).
+    `resolution`/`by_name_dispatch`/`keywords`/`name_binding` (intricate file-local statics ⇒ each is its own multi-
+    slice effort, move whole coherent blocks) → `core/core.c` (3449 lines, the biggest split) → leave SNO-residue in
+    `core/` (LI-CORE). **Deferred micro-slices to fold in along the way:** `rt_unop_*` (above; lands with
+    `string_ops` + the logical home) and `rt_init` (slice-3 deferral; lands once invocation + comparison builtins
+    have homes).
 - [ ] **RS-FENCE.** `scripts/test_gate_runtime_subsystems.sh` asserts the partition; wire into Session Setup.
 
 **Method reminder:** definition-location authoritative; move/rename-only, no behavior change; update the build system
@@ -165,5 +184,5 @@ bash scripts/audit_concurrency_invariants.sh           # OK
 ---
 
 **Repo:** SCRIP + .github
-**Watermark.** SCRIP `1adcf09` · .github this commit. (RS-1 done; RS-2 slices 1-6 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1, arithmetic-part-2; **`arithmetic` subsystem COMPLETE**. Deferred micro-slices pending homes: `rt_init` (slice-3) + `rt_unop_*` (slice-6). Next = `pattern_match`; remaining subsystems queued above + in the RS-1 HANDOFF.)
+**Watermark.** SCRIP `0f817f9` · .github this commit. (RS-1 done; RS-2 slices 1-8 landed gated byte-identical — runtime_eval, unification, runtime_init, io_format, arithmetic-part-1, arithmetic-part-2, pattern_match-part-1 (`git mv core/pattern.c`), pattern_match-part-2 (fold `core/eval_pat.c`); **`arithmetic` subsystem COMPLETE; `pattern_match` whole-file moves COMPLETE** (`core/` pattern `.c` files relocated, only `patnd.h` stays). Deferred micro-slices pending homes: `rt_init` (slice-3) + `rt_unop_*` (slice-6). Next = `pattern_match` part 3+ (`rt_pat_*` family from grab-bag `rt.c`, then `patnd_*` from `stmt_exec.c` + `cset_*` from `scan_builtins.c`); remaining subsystems queued above + in the RS-1 HANDOFF.)
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
