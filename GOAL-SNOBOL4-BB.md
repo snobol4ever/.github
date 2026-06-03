@@ -889,13 +889,7 @@ simultaneously, exactly as SBL-1016 demonstrated: fix once, both modes gain). Ve
 
 ### Next phase: ORACLE-PARITY (lifts both modes)
 
-**Completed (mode-2 oracle + native, terse — full narrative in git log / HANDOFFs):**
-- [x] VARIABLE-ARGUMENT PATTERN FAMILY (SPAN/ANY/NOTANY/BREAK/BREAKX/LEN/POS/RPOS/TAB/RTAB accept `TT_VAR` args, resolved late in `bb_exec.c`) + SBL-SIZE-SHADOW. m2 248→253, native 255→256.
-- [x] ANY/SPAN w/ CONSTANT charset EXPRESSION arg; charset-EXPR / ARBNO-combinator brokered wiring (XDump).
-- [x] SBL-ARB-CAT-BACKTRACK (mode-3 native + mode-4 flat); ARB-as-pattern-VARIABLE backtracking (mode-2 oracle).
-- [x] DEFERRED capture-commit; POS/RPOS-NON-FIRST-IN-CAT; 1010 SEGV (OPSYN-alias recursion); 1016 EVAL SEGV (deferred-expr dispatch).
-- [x] 046/047 TAB/RTAB SIGSEGV native (site off-by-one + RTAB writeback); SPAN already complete (SBL-SPAN-2 was phantom); nested XDSAR `*var` in combinator under sm_run_native (walk_bb_flat DEFER case + tree-route + 16-byte align) — native 223→243.
-- [x] Flip default to native (getenv gate removed; honest `[NO-SM-BB]`, no fallback).
+**Completed (mode-2 oracle + native) — full narrative in git log / HANDOFFs:** variable-argument pattern family (SPAN/ANY/NOTANY/BREAK/LEN/POS/RPOS/TAB/RTAB accept `TT_VAR`, resolved late in `bb_exec.c`) + charset-EXPR + ARBNO-combinator wiring; SBL-ARB-CAT-BACKTRACK (m3 native + m4 flat) + ARB-as-pattern-VAR (m2 oracle); DEFERRED capture-commit; 046/047 TAB/RTAB native SIGSEGV fixes; default flipped to native (no fallback). native →243.
 
 **Open (mode-2 oracle gaps — fix oracle first, native parity follows):**
 - [ ] 1011_func_redefine / 1013_func_nreturn / 1017_arg_local — fail in BOTH modes (DEFINE-redefinition, NRETURN-as-lvalue, ARG/local introspection). Audit-only bucket.
@@ -938,54 +932,14 @@ Each step's discipline: prove the four-port TOPOLOGY first (`prove_lower2.sh`: n
 the BINARY arm (verify mode-3 `--run`), then the TEXT arm (verify mode-4 `--compile` → `as` → `gcc` → run).
 Smoke target ladder: `S 'b'` (plain match) → `S 'b' = 'X'` → `aXc` (match+replace).
 
-- [x] **PB-0 — SUBJECT BB (phase 1).** Lower the subject value-expr → a SUBJECT box that loads `Σ` (base),
-  `δ` (cursor=0), `Δ` (len) into the locked registers / `ζ` frame. BINARY + TEXT arms. Prove topology on
-  `S 'b'`; verify mode-3 `--run` loads the subject (disasm / probe).
-  **[DONE 2026-05-31, Opus 4.8]** New `IR_SUBJECT` kind + `lower2_subject_entry` (lower.c) + mode-2 arm
-  (bb_exec.c) + `bb_sno_subject.cpp` template (BINARY 58-byte + TEXT @PLT arms) + emit_core dispatch +
-  `flat_drive_sno_subject`/walk_bb_flat case (emit_bb.c) + `rt_sno_subject_load` (rt.c, returns {base,len}
-  in rax:rdx). Box stores Σ→`[r12+off]`, Δ→`[r12+off+8]` in a 16-byte ζ-frame slot (ABI-safe, r12 preserved
-  by the flat prologue; per SPITBOL ch.18 the cursor δ is zeroed when the match begins, so it is the
-  matcher's state — SUBJECT loads only the fixed whole + bound). **v_scan deliberately NOT rewired** (the
-  mode-2 IR_SCAN super-node stays intact → zero regression); IR_SUBJECT is exercised by the prove_lower2
-  topology gate (2 new cases) + a standalone mode-3 execution probe (`SUBJECT('abc')→SUCCEED` JIT'd via
-  `sno_flat_chain_build`, ran, confirmed Σ base="abc" / Δ len=3). v_scan re-stitch to the five-phase chain
-  is deferred to PB-2/PB-5 (when BB_MATCH consumes Σ/δ/Δ in one sealed sequence). Gates: prove_lower2 59/0
-  (was 57), smoke m2 7/7 (HARD) / m3 5/6 / m4 0/6 (UNCHANGED), concurrency invariants OK, sm_dead 1.
-- [x] **PB-1 — PATTERN-BUILDER BB, literal first (phase 2).** Lower `TT_QLIT` pattern → a builder BB whose
-  runtime effect CONSTRUCTS a LIT pattern-box; the built pattern-graph head lands in a `ζ` slot. BINARY +
-  TEXT. (This is the "BBs that build BBs" core — model the construction protocol here, reuse for all kinds.)
-  **[DONE 2026-06-01, Opus 4.8]** New `IR_PAT_BUILD_LIT` kind (IR.h, append-only) + `lower2_pat_build_entry`
-  (lower.c): `TT_QLIT` → ONE builder box, bounded single-shot (β=ω; a builder is NOT a generator). DISTINCT
-  from the matcher-leaf `IR_PAT_LIT` the mode-2 IR_SCAN super-node consumes (stays intact → ZERO regression).
-  `rt_sno_pat_build_lit` (rt.c) is VALUE-STACK-FREE — it wraps the proven `pat_lit` constructor and returns
-  the built `PATND_t*` head (NOT the deleted `rt_pat_lit` vstack-assembler wrapper). `bb_sno_pat_build_lit.cpp`
-  template: BINARY (40-byte) + TEXT (@PLT) arms, mirroring `bb_sno_subject`; literal is RO (`[rip+disp]`/movabs),
-  built head is RW into an 8-byte ζ-slot `[r12+off]` (PER-BOX LOCAL STORAGE FACT RULE). emit_core dispatch +
-  `flat_drive_sno_pat_build_lit`/walk_bb_flat case (emit_bb.c) + dormant mode-2 arm (bb_exec.c, concurrency
-  completeness). v_scan deliberately NOT rewired (re-stitch is PB-2). Gates: prove_lower2 **64/0** (+1 BLDLIT
-  topology: own α, β=ω, 1 real node), smoke m2 **7/7 HARD** / m3 5/6 / m4 0/6 (UNCHANGED), concurrency
-  invariants OK, purity +0 (fail-loud is MEDIUM_BINARY-exempt), no-vstack `g_vstack`==0. **Mode-3 execution
-  probe PASS**: `BLDLIT('abc')`→SUCCEED JIT'd via `sno_flat_chain_build`, ran with `rt_frame`, built a
-  `PATND_t{kind=XCHR, STRVAL="abc"}`; disasm confirms stackless ζ=r12 frame, no value stack.
-- [~] **PB-1-REWORK — SUPERSEDED by the CORRECTED PATTERN ARCHITECTURE (2026-06-01).** PB-1 as landed
-  (`6483bb5`) built a `PATND_t` (the type slated for demolition) via `rt_sno_pat_build_lit`. Per the
-  corrected architecture above, a pattern element is an EMITTED BYRD-BOX (`bb_box_fn`), not a `PATND_t`, and a
-  literal is INVARIANT → it is the EXISTING `IR_PAT_LIT` matcher box (`bb_lit.cpp`) referenced via
-  **`REF_INVARIANT`** as a sealed element, with NO runtime builder (Fork A/E). So `IR_PAT_BUILD_LIT` +
-  `rt_sno_pat_build_lit` + `bb_sno_pat_build_lit.cpp` are to be RETIRED, replaced by `REF_INVARIANT` +
-  `IR_PAT_LIT`. The `rt_sno_match_lit` ch.18 scan kernel (PB-2 prep, `PATND_t`-free, raw subj/lit, unit-tested
-  7/7) SURVIVES as the literal element matcher's inner scan. **Done in PB-RB-1 below** (the rebuilt ladder);
-  this row marks the OLD PB-1 superseded so its watermark "done" is not mistaken for the corrected design.
-- [ ] **PB-2 — BB_MATCH box (phase 3). [RE-CUT — see PB-RB ladder below; OLD text SUPERSEDED.]** The MATCH
-  PHASE survives but as a `bb_box_fn`-graph DRIVER (broker, ch.18 outer start-loop), NOT a `PATND_t` reader.
-  The draft PB-2 (`IR_PAT_MATCH` + `bb_sno_match.cpp` calling a `PATND_t`-inspecting `rt_sno_match`) was
-  REVERTED (uncommitted) on 2026-06-01 when the corrected architecture landed. `rt_sno_match_lit` (the scan
-  kernel) remains valid. See PB-RB-3 below.
-- [ ] **PB-OPT — [RE-CUT — see PB-RB-OPT below; OLD `tree_t`-bake mechanism SUPERSEDED.]** The OLD PB-OPT
-  baked the pattern AST as a static `tree_t` and had ONE BB tree-walk-construct the graph from it. Per the
-  corrected architecture, there is NO `tree_t` in the pattern path; the invariant fast path is the
-  all-invariant single-sealed-BLOB freeze (REF_INVARIANT hands MATCH the sealed head). See PB-RB-OPT.
+**OLD PB-0…PB-OPT ladder — ✅ done / superseded (history in git + HANDOFFs).** PB-0 (`IR_SUBJECT` +
+`bb_sno_subject`, loads Σ/δ/Δ into the locked regs / ζ-frame; `rt_sno_subject_load`) and PB-1
+(`IR_PAT_BUILD_LIT` literal builder) landed — then the CORRECTED PATTERN ARCHITECTURE (below) retired the
+`PATND_t`-builder approach: a pattern element is an EMITTED byrd-box (the existing `IR_PAT_*` matcher template
+referenced via `REF_INVARIANT`), NOT a `PATND_t` or a `tree_t`, and an invariant literal needs NO runtime
+builder. The `rt_sno_match_lit` ch.18 scan kernel (`PATND_t`-free, raw subj/lit, unit-tested 7/7) SURVIVES as
+the literal element's inner scan. The MATCH phase survives as a `bb_box_fn`-graph DRIVER (ch.18 outer
+start-loop), not a `PATND_t` reader. Rebuilt as PB-RB-1/2/3 below.
 
 ---
 
