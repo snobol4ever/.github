@@ -15,7 +15,7 @@
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
-## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; **SNOBOL4 mode-4 UNBLOCKED ✅ (m4 0/6 → 4/6, SCRIP `997ce7e`)** — next: m4 IR_SCAN TEXT path (pattern/goto_s), then REG-RO + REG-FENCE TIER2
+## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; **SNOBOL4 mode-4 UNBLOCKED ✅ (m4 0/6 → 4/6, SCRIP `047dded`)** — next: m4 IR_SCAN TEXT path (pattern/goto_s), then REG-RO + REG-FENCE TIER2
 
 > **🔄 SR-1b WALKED BACK (Lon 2026-06-03; reconciled into this file 2026-06-03 OPUS48).** The "SAVE/RESTORE as
 > boxes bracketing the body" plan (`bb_proc_save` + RESTORE-succ@`lbl_γ` + RESTORE-fail@`lbl_ω`, result via a
@@ -1220,7 +1220,7 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
   (SUBJECT→REF/BUILD/STITCH→MATCH) covers the corpus breadth, retire `IR_SCAN`: lower `TT_SCAN` to the native
   chain for ALL modes (mode-2 arm drives the same box-graph), removing the super-node + the dual shape. Gate:
   m2 corpus parity held; broad corpus ≥ prior.
-- [~] **PB-RB-8 — mode-4 parity sweep. ✅ UNBLOCKED 2026-06-03 (SCRIP `c43b723`): m4 0/6 → 3/6.** The
+- [~] **PB-RB-8 — mode-4 parity sweep. ✅ UNBLOCKED 2026-06-03 (SCRIP `2a146b2`): m4 0/6 → 3/6.** The
   `scrip.c:801` abort is GONE — replaced with the real flat TEXT emitter (mirrors the Prolog mode-4 block):
   header + `.text`; compile-time `rt_proc_register` per non-main proc (so `rt_proc_is_registered` fires the
   userproc arm when emitting main); each proc body via `gvar_flat_chain_build_text`; a `sno_proc_startup` GAS fn
@@ -1334,7 +1334,7 @@ patterns lower `TT_*`→`IR_t` directly like Icon/Prolog).
 Per-session detail (HEAD-by-HEAD writeups, gate logs, design deliberations) lives in the `.github/HANDOFF-*.md`
 files and git history. Only the durable carry-forward + the current watermark are kept here.
 
-**Watermark.** SCRIP tip **`c43b723`** (2026-06-03) — **SNOBOL4 mode-4 UNBLOCKED: m4 0/6 → 3/6.** This session
+**Watermark.** SCRIP tip **`2a146b2`** (2026-06-03) — **SNOBOL4 mode-4 UNBLOCKED: m4 0/6 → 3/6.** This session
 wired the dead `scrip.c:801` abort to the real flat TEXT emitter (`gvar_flat_chain_build_text`), mirroring the
 Prolog mode-4 block, plus 5 mode-4-TEXT-only wiring fixes (all gated on the new `g_sno_m4_dense_nid` / TEXT path,
 mode-3 byte-neutral — see the PB-RB-8 step above for the full list). `output`/`arith`/`define` now PASS
@@ -1347,7 +1347,7 @@ m3 **6/6** / m4 **3/6**; `prove_lower2` PASS; REG-FENCE TIER1=0. **NEXT:** m4 `c
 driver/lowerer, NOT the template) → m4 `pattern`/`goto_s` (IR_SCAN TEXT arm) → then REG-RO + REG-FENCE TIER2.
 NOT pushed (no handoff phrase given); committed locally only. **— prior watermark below —**
 
-**Watermark (concat follow-up, SCRIP `997ce7e`, 2026-06-03).** m4 3/6 → **4/6**: `OUTPUT = 'ab' 'cd'` now passes
+**Watermark (concat follow-up, SCRIP `047dded`, 2026-06-03).** m4 3/6 → **4/6**: `OUTPUT = 'ab' 'cd'` now passes
 m2/m3/m4. Fix is in the LOWERER (`v_seq_concat_pair`, `lower.c`), the correct layer per the no-IR-walking-in-templates
 rule: a fully-constant string concat (TT_QLIT + nested TT_SEQ of QLIT) folds to one IR_LIT_S via `GC_strdup` — exactly
 SPITBOL Appendix-C item 11 (constant sub-expressions pre-evaluated at compile time). Non-constant concat keeps the
