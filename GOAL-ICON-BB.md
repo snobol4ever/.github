@@ -634,9 +634,21 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   re-verified; smokes 12/12+5/5+32; all structural gates green; bb_scan_any.cpp 0 raw-byte producers.
   Rebased onto peer `2cfd1bb` (Prolog PT-1b/2b, orthogonal); post-rebase m2 HARD + PASS-set identity
   re-verified.
-- [ ] **ICN-SCAN-5 — `bb_scan_match.cpp`** (fstranl.r `match(s1)`, {0,1}). s1 + len sealed RO. α:
-  `Δ−δ < len → ω`; byte-compare loop (internal `L(n)` labels) vs `[r13+r14+i]`; mismatch → ω;
-  INTVAL(δ+1+len) → slot, γ. β → ω. Probe: `"hello" ? write(match("he"))` → `3`.
+- [x] **ICN-SCAN-5 — `bb_scan_match.cpp` — DONE (`f9677cc`, 2026-06-03).** Third real scan box (fstranl.r
+  `match(s1)`, function{0,1}): bound check `mov rax,r15; sub rax,r14; cmp64 rax,len; jl ω` (Δ−δ<len → ω); s1
+  sealed RO; **ONE `memcmp(s1, Σ+δ, len)` call** (r10-preserved) — the sketched internal `L(n)` byte-loop was
+  deliberately NOT built per NO-DUPLICATED-LOGIC (an emit-time comparator reimplements memcmp = DUP-FORM-2
+  value work; the strchr precedent); mismatch → ω; `{DT_I, δ+1+len}` → slot, γ; **δ UNTOUCHED**; β → ω.
+  `len` = emit-time strlen of the literal; `match("")` correctly succeeds at pos 1 (canonical). Driver: the
+  SCAN-4 arm GENERALIZED to `(any|match)` — one arm, two names, same IR_LIT_S→op_name1 dig. Safe-set: `match`
+  admitted with `icn_scan_fn_lit_arg(IR_LIT_S)`; dynamic args EXCISE (verified rc=0). `IR_SCAN_MATCH` off the
+  stub list. Probes `"hello" ? write(match("he"))` → `3`, `match("xx")` → fail, `"he" ? match("hello")` →
+  fail (subject-too-short), `match("")` → `1`, ALL **m2==m3==m4** — the recorded m2 match-moves-scan_pos
+  divergence does NOT surface on statement-level probes (nothing reads &pos after). Corpus set-diff vs SCAN-4
+  baseline: ALL THREE columns byte-identical zero drift (m2 **129 HARD** PASS-set identical / m3 14+151E /
+  m4 21+90E) — no corpus program carries the wave-1 literal-match shape; the probes carry the rung (SCAN-3
+  precedent). Smokes 12/12+5/5+32; all gates green; bb_scan_match.cpp 0 raw-byte producers. Rebased onto peer
+  `3d9f434` (Pascal PB-9c); post-rebase m2 HARD + probes re-verified.
 - [ ] **ICN-SCAN-6 — `bb_scan_many.cpp`** (fstranl.r `many(c)`, {0,1}). Cset RO. α: walk p from δ while
   `p<Δ ∧ s[p]∈c` (strchr loop, scratch reg — δ NOT written); `p==δ → ω`; INTVAL(p+1) → slot, γ. β → ω.
   Probe: `"  x" ? write(many(' '))` → `3`.
@@ -786,7 +798,29 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `18940fb` — ICN-SCAN-4 landed (`bb_scan_any`). HEAD (.github) = this handoff.** Session
+**HEAD (SCRIP) = `f9677cc` — ICN-SCAN-5 landed (`bb_scan_match`). HEAD (.github) = this handoff.** Session
+2026-06-03-e continued (Opus 4.8, "ICN-SCAN-4 + ICN-SCAN-5"): two gated rungs, each committed + pushed with a
+clean rebase onto orthogonal peers (`18940fb` onto Prolog PT-1b/2b; `f9677cc` onto Pascal PB-9c), post-rebase
+m2 HARD re-verified each time. Full rung detail in the two DONE entries above. Transferable findings beyond
+SCAN-4's (op_name1 carrier, safe-set arg validation): **the memcmp decision** — where the ladder sketch shows
+an internal byte-compare `L(n)` loop, the NO-DUPLICATED-LOGIC FACT rule wins: prefix comparison is VALUE work
+= ONE libc/rt call (memcmp), exactly as membership is strchr; the loop sketch would be DUP-FORM-2. Apply the
+same lens to SCAN-6 many (a strchr-walk loop IS port work — the cursor walk is the generator topology, keep
+it) vs any future box tempted to inline a comparator. **Corpus zero-drift is the EXPECTED shape for wave-1
+match/many-class rungs** (no corpus program uses the gated literal shapes; probes carry the rung — SCAN-3
+precedent), vs SCAN-4's one EXCISED→PASS (`rung06_cset_any_basic` used the literal-any shape). Standing
+numbers at `f9677cc`: corpus m2 **129 HARD** / m3 **14**/82/**151E** / m4 **21**/136/**90E**; smokes 12/12
+HARD + 5/5 + broker 32; all structural gates green. **NEXT = ICN-SCAN-6 (`bb_scan_many.cpp`)** — fstranl.r
+`many(c)` {0,1}: cset RO; walk p from δ in a SCRATCH reg while `p<Δ ∧ s[p]∈c` (internal `L(n)` loop + strchr
+per iteration, r10-preserved; δ NOT written); `p==δ → ω`; `{DT_I, p+1}` → slot, γ; β → ω. The (any|match)
+driver arm generalizes to (any|match|many) — same IR_LIT_S→op_name1 dig; admit `many` with
+`icn_scan_fn_lit_arg(IR_LIT_S)`; `IR_SCAN_MANY` off the stub list when the box lands. Probe:
+`"  x" ? write(many(' '))` → `3`. After SCAN-6, SCAN-7 tab is the first δ-WRITER (save δ to
+`[r12+op_off+16]`, restore on β — the fscan.r "Reverses effects if resumed" contract) and the first
+sibling-producer-slot consumer (`tab(upto(c))` wave-1 idiom needs SCAN-9 upto's slot, so consider landing
+SCAN-7's literal-n form first, then upto, then the tab(upto) composition).
+
+**PREV ENTRY — HEAD (SCRIP) = `18940fb` — ICN-SCAN-4 landed (`bb_scan_any`). HEAD (.github) = that handoff.** Session
 2026-06-03-e (Opus 4.8, "ICN-SCAN-4"): one gated rung. `bb_scan_any.cpp` is the second REAL scan box (full
 detail in its rung entry above). The transferable findings: **(1) the prologue-safe STRING carrier is
 `op_name1`** — `walk_bb_node`'s prologue clobbers `op_sval` from `nd->sval` (= the fn name for an IR_CALL),
