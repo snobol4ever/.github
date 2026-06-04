@@ -19,6 +19,45 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
+**Watermark — PB-9d LANDED (flat procs/params, mode-3+4, LANGUAGE-BLIND). 2026-06-03, session 13 (same
+session as PB-9c). SCRIP HEAD = 66e9e19, corpus untouched. POST-REBASE: rebased onto concurrent
+`c3d5547` (SNOBOL4 PB-RB-CONV, touches `emit_bb.c` flat_drive_alt); merged tree re-verified — recursion
+m3+m4 fact(7) identical, sieve m3 identical, flatnoarg 10, SNOBOL4 19/0, Icon 130/117/36, Prolog 136/0/0.** GATES MET: `recursion.pas` byte-identical to
+`pint` through fact(7) in BOTH mode-3 and mode-4 (pint traps at fact(8), the documented 16-bit XFAIL — SCRIP
+computes the full table, fib(10)=55 correct); `flatnoarg.pas` byte-identical BOTH modes. KEY DISCOVERY: the
+driver ALREADY compiles + registers every non-main proc body in both modes (mode-3: `rt_proc_register` +
+`gvar_flat_chain_build` + `rt_proc_set_fn` per proc, scrip.c~1297; mode-4: per-proc
+`gvar_flat_chain_build_text` emitting `<name>_α` + the `sno_proc_startup` shim) — and `rt_call_named_proc`
+(rt.c:515) is a complete NV-seating invoker whose result convention (`NV_GET_fn(name)` after the body) IS
+Pascal's funcname-as-return-variable model. So PB-9d was call-site-only, four pieces: (A) **dispatch** — the
+registered-proc gvar arm now accepts dval==3.0 alongside 2.0 (`bb_call.cpp:310`) → `bb_call_gvar_userproc_str`
+→ `rt_call_named_proc`. (B) **marshal nested CALL args** (`writeln(k, fact(k), fib(k))` — arg subgraph entry
+IS the IR_CALL) — the nested-call arm in `marshal_call_arg` now accepts dval 2.0|3.0 and picks the runtime
+entry by `rt_proc_is_registered`: registered → `rt_call_named_proc`, else → `rt_call_arr`; ALSO FIXED the
+arm's previously-broken MEDIUM_BINARY idiom (was `x86("mov","rdi",u64)` — which the PB-9b gotcha says
+resolves to x86_call_ro! — plus a `frame_load64` of an address; now the proven byname idiom: `x86_load_ro`
+rdi + `x86_frame_lea` rsi). (C) **NEW TEMPLATE `bb_binop_gvar_arith_slot.cpp`** (+`IR_BINOP_GVAR_ARITH_SLOT`
+kind, emit_core case, Makefile×2) — general gvar arith with per-operand LIT-imm / VAR-via-`rt_gvar_get_int`
+/ slot-resident shapes (same `bb_lk/bb_li/bb_rk/bb_ri`+`op_name1/2`+`op_sa/sb` contract as PB-9c's relop;
++8 disp for IR_CALL DESCR operands, +0 for raw qwords; result = raw qword at `op_off` matching the
+`bb_gvar_assign` int-binop read convention; op_off doubles as the rax stash around a right-VAR call) —
+serves `n * fact(n-1)` (VAR×CALL), `fib(n-1)+fib(n-2)` (CALL×CALL), `five+five`; dispatch arm sits after the
+four exact-shape arith arms, before the relop arm. (D) **`IR_RETURN` gvar junction — THE 0s BUG.** Symptom:
+all fact/fib returned 0, even the base case. Root cause read off the emitted TEXT: `gvar_stmt_operand_refs`
+gives IR_RETURN arity 1, CLOBBERING the lower-set α (or NULL) with the chain's stack top = the
+else-branch ASSIGN; `flat_drive_return` then RE-WALKS that α, so BOTH branch tails re-emit the else-assign
+inline — on the then-path it reads an unwritten slot and OVERWRITES the correct `fact := 1` with 0. Under
+the gvar model the return value rides NV entirely (`rt_call_named_proc` reads `NV_GET_fn(name)`), so the
+gvar IR_RETURN is a pure junction: skip the α-walk, define β, jmp the dval-chosen exit — PRESERVING the
+SNOBOL4 FRETURN contract (`dval==2.0 → flat_fail_p`, exactly flat_drive_return's exit choice; SNOBOL4
+FRET also has α=NULL at lower so no walk is lost). Gates pinned: recursion m3+m4 byte-identical through
+fact(7) (THE GATE); flatnoarg m3+m4; sieve + 4 probes m3+m4 (PB-9c preserved); Pascal `--interp` **35/0/1**;
+SNOBOL4 smoke **19/0** incl. m4 6/0 (the FRETURN-contract pin); Icon **130/117/36**; Prolog honest
+**136/0/0**; all-langs m4 hello **5/1** (rebus pre-existing); new template lang-names CLEAN. NEXT: **PB-9e**
+— nested procs = the representation FORK (frame-as-BB, static link on the parent-port thread, Invariants
+2 & 4 — Lon's call). Note for PB-9e probing: `rt_call_named_proc` seats params into NV flat — nested probes
+(`nestrec` etc.) will need the static-link model, not more NV flattening; the LB ladder also remains.
+
 **Watermark — PB-9c LANDED (control flow, mode-3+4, LANGUAGE-BLIND). 2026-06-03, session 13. SCRIP HEAD =
 3d9f434, corpus untouched. POST-REBASE: the push rebased onto concurrent `18940fb` (ICN-SCAN-4, touches
 `emit_bb.c` IR_CALL flat-chain arm + `bb_scan_any.cpp` + `scrip.c`) atop `2cfd1bb` (Prolog meta resolver);
@@ -512,7 +551,10 @@ cd /home/claude/corpus/programs/pascal
   - [x] **PB-9c — control flow.** DONE (session 13) — `sieve.pas` byte-identical to `pint` in BOTH mode-3
     and mode-4. Five walls knocked down, all shape-dispatched/language-blind; new template
     `bb_binop_gvar_relop.cpp`. See watermark for the wall list and the PB-9d entry map.
-  - [ ] **PB-9d — flat procs/params.** `recursion.pas` (through fact(7)) gate.
+  - [x] **PB-9d — flat procs/params.** DONE (session 13, same session as PB-9c) — `recursion.pas`
+    byte-identical to `pint` through fact(7) in BOTH modes; `flatnoarg.pas` byte-identical both modes.
+    Three pieces: registered dval==3.0 call arm, marshal nested-CALL generalization, gvar arith-slot
+    template, plus the IR_RETURN gvar junction (the α-clobber fix). See watermark.
   - [ ] **PB-9e — nested procs = the representation FORK (Lon's call).** Frame-as-BB, static link on the
     parent-port thread (Invariants 2 & 4, the PB-7 model).
 
