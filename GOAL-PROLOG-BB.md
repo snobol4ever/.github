@@ -12,13 +12,17 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ STATE (2026-06-04)
+## ▶ STATE (2026-06-04 — RESET)
 
-m2/m3 **115/115** byte-identical · m4 **105/0/10** · siblings Icon m2 12 · SNOBOL4 m2 7. SCRIP HEAD `c5d1737` (PT-4a aggregate/nb meta-rail landed; prior PT-3 catch/throw `f44c20c`, PT-1b meta resolver + PT-2b conj `2cfd1bb`, PT-2b-SIMPLE `ea9e5ea` + literal-int-LHS is `c8063ec`, PT-0/1a/2a `62426a6`). **2026-06-04 Lon directives landed (.github `a4508461`):** PROEBSTING IS THE CANON · PL-M34 (m3 ≡ m4) · PL-BBL (pull GDE into boxes) · PT-4b fork → B-full. **Next session openers: PL-M34-0 or PL-BBL-0 (both no-code audits) or PT-4b/B-full.** Session detail: `SCRIP/HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PT-4A-AGG-NB-AND-DIRECTIVES.md`.
+**PROLOG GROUND ZERO (Lon directive, 2026-06-04 second session): Prolog development is RESET to square one
+on the Proebsting-pure track — see the 🔴 PL-GZ ladder below.** PL-M34 and PL-BBL are ABSORBED into PL-GZ
+(they were retrofit ladders; PL-GZ builds their end states by construction); PT and WAM-CP are LEGACY (see
+LEGACY DISPOSITION below PL-GZ). Frozen legacy watermark at reset: m2/m3 **115/115** byte-identical ·
+m4 **105/0/10** · SCRIP HEAD `89c730c` · siblings Icon m2 12 · SNOBOL4 m2 7. Grounding: Proebsting paper
+(uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_sno_1/2/3/4.c` + `test_icon.c` in
+`.github/` · the reset rationale + coupling measurement in this session's handoff. **Next opener:
+PL-GZ-0 (the seed `test_pl_1.c`), then PL-GZ-1 (coupling gate).**
 
-**x86() TEMPLATE-REVAMP** — convert BB templates to `x86()` self-encoding (one return per `PLATFORM_*`, pure `x86(mnem,…)` concat, no `bb_bin_t`, pBB-free). Rules: `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. Reference: `bb_pat_pos.cpp` (loop-free) + `bb_pat_span.cpp` (looping). Shared keystone in `x86_asm.h` — `git pull --rebase` before touching any box; `x86_asm.h` edits are additive.
-- DONE: bb_cut/arith/conj/ite/disj/catch/unify (PL-RV-1..5) · bb_builtin 28 BINARY arms + bb_fail (PL-RV-6) · unify covers compound + scalar-float via the `g_emit.bb_ln/bb_rn` node-ptr sidecar (`374c2ff`/`873792f`; compound-NESTED float + float-result arith deferred to CAT-D).
-- OPEN: bb_goal(13)+bb_choice(6) real `x86()` conversion only when a backtracking program emits them natively in m4 · variable-length define/jmp-pair loop (combinators + FENCE pair + Raku bb_nfa) — first to a combinator designs it in RULES-DRAFT.
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
 **The `bb_bin_t { sites, labels, is_def, bytes }` struct and `bb_emit_asm_result(out, bin)` /
@@ -320,7 +324,7 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 
 **Three modes:**
 - **Mode 2 (`--interp`):** `sm_interp_run` → `SM_BB_SWITCH` → `pl_bb_dcg` → `bb_exec_once`. Correctness reference.
-- **Mode 3 (`--run`):** routes through `sm_interp_run` for Prolog (AGW-1c, V-5). TRANSITIONAL — owned by the PL-M34 ladder below (Lon 2026-06-04: m3 ≡ m4); touch ONLY via PL-M34 rungs.
+- **Mode 3 (`--run`):** routes through `sm_interp_run` for Prolog (AGW-1c, V-5). TRANSITIONAL — owned by the PL-GZ ladder below (Lon 2026-06-04: RESET; m3 ≡ m4 by construction); touch ONLY via PL-GZ rungs.
 - **Mode 4 (`--compile --target=x86`):** emitter port-DFS walks BB graph, emits via `bb_pl_*.cpp`. Graph freed by `stage2_free_bb_after_emit`.
 
 **Absolute rules:** No C Byrd boxes. No SM/BB walking at runtime in Mode 3/4. Four ports = Greek letters (α/β/γ/ω) only. No `rt_*` port-logic helpers (conversion/effect helpers like `trail_mark`/`unify`/`term_new_*` are OK).
@@ -404,45 +408,92 @@ Pipeline: `Prolog AST → lower_pl (four-port IR) → bb_exec.c (m2/3 interp) �
 **Completed (collapsed):** PLG-0..8 (m2/m3 foundation, GATE-3 111/111) · PLG-9a..9j (m4 0→86). PLG-9g dynamic-DB remainder + PLG-10 SUPERSEDED by the PT ladder (PT-4, Lon approved 2026-06-03).
 - [ ] PLG-7 — remove `bb_node_state_t` snapshot/restore. One LIVE Icon caller (`bb_exec.c:1589`); don't delete until Icon migrates.
 
-## 🔴 PL-M34 — MODE-3 ≡ MODE-4 PARITY (Lon directive 2026-06-04)
+## 🔴 PL-GZ — PROLOG GROUND ZERO (Lon directive 2026-06-04: RESET TO SQUARE ONE)
 
-**THE LAW: for Prolog, mode 3 and mode 4 are the SAME emitted program** — identical template bodies, identical
-block/port topology, identical admission verdicts — differing in exactly ONE thing: the medium (mode 3 =
-MEDIUM_BINARY into the in-process RX slab, executed immediately; mode 4 = MEDIUM_TEXT through as+gcc into a
-standalone binary). The hard-wired facts and rules of mode 4 must be hard-wired identically in mode 3. The
-current m3 `sm_interp_run` routing is TRANSITIONAL DEBT, and every "RICH-gate-only (m4-native, m3-interpreted)"
-admission (findall, catch, float-unify, PT-4a aggregate/nb) is a debt entry this ladder pays down. This is the
-ONE-MEDIUM-INVISIBLE FACT RULE applied at program scale.
+**THE RESET.** Prolog was bootstrapped in the Stack-Machine era, so its GDE control lives in a C engine
+(resolution.c env-swap/last_ok/cut-flag/heap-CP + the unification.c meta rail) and the boxes are call-out
+shims. Measured at reset (control-coupling C-call sites emitted per template): **bb_choice 24**
+(`resolve_cp_current` ×10!) · **bb_goal 14** · vs sibling SNOBOL4/Icon boxes **0–2**, and those 0–2 are
+VALUE calls (`strchr`). Lon's call: do not retrofit — REBUILD from square one on the Proebsting-pure track,
+seed-first, GDE INSIDE the boxes from rung 1. NOBODY compiles Prolog this way — clauses hard-wired as
+two-entry α/β machine-code boxes, no WAM, no byte-code, no C control engine. The paper (§4.6) never even
+wrote the procedure-call template and never wrote ANY Prolog template; the seed writes them down for the
+first time.
 
-- [ ] **PL-M34-0** [audit, no code] — divergence inventory as a checklist table HERE: (a) the driver's m3 Prolog route (`sm_interp_run` carve-out sites); (b) every template whose TEXT arm lacks a same-body BINARY form (bb_choice, bb_goal, bb_catch, the bb_builtin_* TEXT-only arms incl. PT-4a's) and every legacy BINARY arm still baking absolute pointers (`movabs &rt_*` vs `call rt_*@PLT` — two encodings of one call, to be unified under one `x86("call",sym,addr)` per ONE-MEDIUM-INVISIBLE); (c) the RICH-vs-flat admission split per rung.
-- [ ] **PL-M34-1** — native hello in m3: route Prolog `--run` through BINARY-medium emit + RX-slab execution for the simplest admitted program (write/nl); m2==m3==m4 byte-identical; non-admitted programs fall back to interp LOUDLY and are counted m3-EXCISED (same bookkeeping as m4-EXCISED).
-- [ ] **PL-M34-2** — dual-medium for free via the x86() revamp: each box converted to one `x86()` body serves both media by construction; extend GATE-3 to report m3-NATIVE vs m3-INTERP counts; the native count is a ratchet (never decreases).
-- [ ] **PL-M34-3** — kill the @PLT/movabs fork at every rt_* call site (one encoder, medium switched internally); zero `IF(MEDIUM_BINARY,…)` call-site pairs remain in Prolog templates.
-- [ ] **PL-M34-4** — retire the `sm_interp_run` carve-out for admitted programs; ONE admission gate serves both modes.
-- [ ] **PL-M34-FENCE** — completion: GATE-3 prints m3 N/0/E == m4 N/0/E with the IDENTICAL excised set; a gate script diffs per-rung m3-vs-m4 admission verdicts (must be byte-identical); the smoke "m3 unify harness artifact" is gone.
+**KEEP (retained substrate):** Prolog parser/AST · the shared lower.c one-file discipline (Prolog arms are
+rewritten IN PLACE under the one-case law as graph shapes change) · the m2 IR-graph interpreter as the
+observable-semantics reference during transition (swipl/gprolog remain PRINT oracles only) · the 115-rung
+corpus + .expected (the reconquest ratchet) · ALL FACT RULES above · the trail as the ONE spine · the
+x86()-revamped VALUE boxes largely survive (bb_unify, bb_arith, bb_conj pair-loop, bb_builtin_* families).
 
-## 🔴 PL-BBL — PULL GDE BACK INTO BB LAND (Lon directive 2026-06-04)
+**GUT (scheduled for deletion as the new path re-admits each rung — KEEPING THE BUILD GREEN IS NOT A
+LICENSE TO PRESERVE A SUPERSEDED ENGINE, per the brokered-BB precedent):** the resolution.c CONTROL engine
+(`g_resolve_env` swap, `rt_last_ok` verdict global, cut-flag global, the heap `resolve_choice` protocol as
+shaped today) · the meta rail (`rt_meta_solve`/`rt_meta_redo` frame tree — the second GDE engine in C;
+findall/catch/aggregate rebuild on the new substrate at PL-GZ-9) · the bb_goal/bb_choice/bb_catch
+control-coupled template bodies · the `sm_interp_run` m3 carve-out.
 
-**THE CLAIM TO REACH (the SNOBOL4 standard):** no stack for CONTROL, no stack for DATA PASSING — stacks that
-are needed live INSIDE the box that needs them (the ARBNO / ALT-SEQ precedent). Each BB is purely functional
-except through its DECLARED stores: RO `[rip+disp]` inputs, RW `[ζ+off]` store, and the named variable stores.
-This ladder measures and reduces every UNDECLARED world-coupling a Prolog box still carries — maximizing the
-purely-functional fraction of the graph. Classification per item: **IN-BOX CANDIDATE** (move it into box-owned
-storage) vs **IRREDUCIBLE SPINE** (cross-box by nature; keep LEAN; needs Lon's sign-off to stay).
+**THE LAWS (from the seeds + the paper — one per former PL-BBL ledger row):**
+· clause cursor + trail-mark = slots in the choice's OWN per-activation frame row (test_sno_1 ARBNO arena).
+· activation env = ζ-TREE: each call site owns a child-frame pointer slot, `enter()`-reset on fresh α
+  (test_sno_3 X→E→X recursion). No `g_resolve_env` swap.
+· verdict travels IN THE RETURN VALUE — no `last_ok` global (test_sno_3 empty-str idiom → rax).
+· cut = pure WIRING when the barrier is lexical (cut's β routed straight to the enclosing choice's
+  exhausted arm); a frame-local GATE (paper §4.5 indirect-goto) only when dynamic.
+· trail = the one shared spine (mark/unwind ints); logic vars = frame cells; EVERY binding trailed.
+· the C call stack is the sanctioned recursion spine (the NO-VALUE-STACK carve-out).
+· ONE x86() body per box serves m3 (MEDIUM_BINARY → RX slab) and m4 (MEDIUM_TEXT → as+gcc) behind ONE
+  shared admission gate — m3 ≡ m4 by construction, never by retrofit.
 
-- [ ] **PL-BBL-0** [audit, no code] — the coupling ledger, seeded from the 2026-06-04 diagnostic, one row per coupling with classification + evidence:
-  · clause CURSOR — lives in a heap `resolve_choice` (`[rax+48]` after a C call); **CANDIDATE**: a ζ-frame slot owned by the choice box (per-activation indexed frame arrays are already sanctioned — the ARBNO precedent).
-  · activation ENV (`g_resolve_env` calloc/swap via `resolve_bb_env_save_push/pop`) — Prolog's activation is C-heap while Icon/SNOBOL4 use ζ slots; **CANDIDATE**: per-activation frame slots anchoring the logic-var Terms.
-  · `last_ok` verdict flag (C global tested after every `call .Lplpred_*`) — **CANDIDATE**: the residual brokered shape inside bb_goal; the four-port answer is γ/ω return routing, not flag+test.
-  · cut flag (`rt_get_cut_flag` C global) — **CANDIDATE**: choice-box slot or port-wired barrier.
-  · trail (`g_resolve_trail`) — **SPINE** (binding-undo ledger, sanctioned).
-  · CP parent CHAIN (`g_resolve_bfr`) — **SPINE** today, but it slims to a bare resume chain once the cursor payload moves in-box.
-  · META RAIL (`rt_meta_solve` MK_* frame tree, unification.c) — a SECOND GDE ENGINE IN C; policy: **STARVE IT** — every construct gaining a native box path exits the rail; the rail's residue is true runtime-constructed goals (call/1 on a var), and even those route table→native α/β at the leaves.
-  · catch/throw setjmp/longjmp — **TBD**: unwinding across native frames may keep longjmp as spine; the CP-truncate + trail-mark law from PT-3 is the candidate port-wired form.
-- [ ] **PL-BBL-1..n** — one rung per CANDIDATE row, smallest first (cursor→ζ-slot is the likely opener), each gated m2/m3/m4 identical + siblings held; a CANDIDATE either lands in-box or is reclassified SPINE with Lon's sign-off.
-- [ ] **PL-BBL-FENCE** — completion: the ledger has zero unclassified rows and zero un-actioned CANDIDATEs; every box value reference is RO `[rip+disp]`, RW `[ζ+off]`, or a named variable store — nothing else.
+- [ ] **PL-GZ-0 — THE SEED `test_pl_1.c`** [no SCRIP code]: hand-written four-port C in the test_sno_3
+  idiom for `edge(a,b). edge(b,c). edge(b,d). path(X,Y):-edge(X,Y). path(X,Z):-edge(X,Y),path(Y,Z).
+  firstpath(Q):-path(a,Q),'!'.` driven by `?- path(a,Q), write(Q), nl, fail.` then
+  `?- firstpath(Q), write(Q), nl.` (expected: `b c d` then `b` — all solutions, then the cut'd first).
+  Embodies every LAW above; gcc-compiled; output pinned. The seed is the byte-shape oracle every emitted
+  Prolog box must match and answers every former PL-BBL-0 classification in executable form. Lives in
+  `.github/` beside test_sno_*.c, post-rename names.
+- [ ] **PL-GZ-1 — coupling gate** `scripts/test_gate_pl_coupling.sh`: counts CONTROL-coupling call sites
+  (`resolve_cp_current`, `rt_last_ok`, `rt_get_cut_flag`, `resolve_bb_env_*`, `rt_env_current`,
+  `rt_choice_cut_*`, `rt_cp_save_caller_env`) per Prolog template and in emitted `.s`. Reset baseline:
+  choice 24 · goal 14 · unify 4 · others ≤2. VALUE calls (`rt_unify_terms`, `rt_pl_arith`, write helpers)
+  are sanctioned — the strchr class. New-path boxes emit ZERO control calls; the count ratchets down, never up.
+- [ ] **PL-GZ-2 — hello** (write/nl): new-path emission, ONE x86() body per box, m2==m3==m4 byte-identical,
+  ONE shared admission gate; non-admitted programs fall to interp LOUDLY and are counted EXCISED
+  identically in m3 and m4.
+- [ ] **PL-GZ-3 — facts + unify**: ground facts, head unify via the surviving bb_unify arms (var-const,
+  var-var — the WAM-CP-7 specializations absorbed here), every binding trailed.
+- [ ] **PL-GZ-4 — choice**: multi-clause + backtracking — THE seed-transcription rung. Cursor/trail-mark in
+  the box's own frame row; ZERO `resolve_cp_current` refetches (legacy 24 → 0); the CP ledger slims to the
+  bare resume spine the seed shows.
+- [ ] **PL-GZ-5 — conj + recursion**: GCONJ pair-loop + user-predicate call as ζ-tree activation with
+  verdict-in-rax. Kills `last_ok` + the env swap on the new path.
+- [ ] **PL-GZ-6 — cut**: lexical cut = pure wiring (seed form); dynamic cut = frame gate (paper §4.5).
+  Deletes the `rt_get_cut_flag`/`rt_choice_cut_*` global protocol from the new path.
+- [ ] **PL-GZ-7 — ITE**: paper §4.5 ifstmt template VERBATIM (bounded condition + gate). FIX THE m2 ORACLE
+  to canon — `( a(X),X>=2 -> true ; X=0 )` → `2` (absorbs WAM-CP-9; the swipl citation is REPLACED by the
+  paper; re-baseline audit of any rung that matched the buggy m2).
+- [ ] **PL-GZ-8 — arith/is + builtins**: re-admit the x86()-revamped bb_builtin families onto the new
+  substrate.
+- [ ] **PL-GZ-9 — corpus reconquest**: ratchet all 115 rungs onto the new path with per-rung m3/m4 verdicts
+  byte-identical. findall = drive the NEW boxes, no meta rail; catch/throw = PT-3's CP-truncate + ball-copy
+  LAW re-landed; aggregate/nb likewise; dynamic DB = **B-full** (runtime assert = lower + MEDIUM_BINARY
+  emit into the RX slab — the SAME in-process path m3 already is, so dynamics get m3 ≡ m4 by construction).
+- [ ] **PL-GZ-FENCE**: coupling gate reads ZERO control calls across all Prolog templates · GATE-3 prints
+  m2/m3/m4 verdict-identical with identical EXCISED sets · the resolution.c control engine + the meta rail
+  are DELETED · the seed and the emitted `.s` for the seed program are shape-isomorphic (a reader can map
+  one onto the other box-for-box, port-for-port).
 
-## 🔴 PT — PREDICATE-TABLE META-CALL SUBSTRATE (Lon approved 2026-06-03)
+## LEGACY DISPOSITION AT RESET (2026-06-04)
+
+| Track | Disposition |
+|---|---|
+| **PL-M34** | ABSORBED — its LAW (m3 ≡ m4) is PL-GZ's construction principle (rungs 2 + 9); ladder retired unstarted. |
+| **PL-BBL** | SUBSUMED — its ledger rows became THE LAWS above; its FENCE is PL-GZ-FENCE; ladder retired unstarted. |
+| **PT** | PT-0 predicate table SURVIVES (seed-compatible). PT-1b meta rail = STARVE AND DELETE at PL-GZ-9. PT-2 findall admissions = legacy-path only until PL-GZ-9. PT-3 catch CP-truncate/ball-copy LAW re-lands at PL-GZ-9. PT-4a re-lands at PL-GZ-9. PT-4b's B-full LAW is absorbed into PL-GZ-9. |
+| **WAM-CP** | CLOSED as a track (the name cites an abandoned authority). Survivors: CP-7 unify specializations → PL-GZ-3 · CP-9 → PL-GZ-7 (paper canon) · CP-8 first-arg indexing + CP-11/12 + PL-INDEX-L2-1 → post-FENCE optimization tier · CP-13 moot at PL-GZ-9. |
+| **Legacy m4 path** | Remains the GATE-3 suite runner ONLY as scaffolding during reconquest; a program admitted to the new path NEVER falls back; each legacy mechanism is deleted when its last rung migrates. |
+
+## ⏸ PT — PREDICATE-TABLE META-CALL SUBSTRATE (LEGACY at 2026-06-04 RESET — see LEGACY DISPOSITION; Lon approved 2026-06-03)
 
 **Canonical law (gprolog `bc_supp.c` `Pl_BC_Call_Terminal_Pred_3` + `all_solut.pl` `'$store_solutions'` + `call.pl` `'$call_internal_with_cut'`; swipl `pl-vmi.c` `i_metacall_common` + `boot/bags.pl` `findall_loop`):** a runtime goal is a TERM; a resident predicate table maps (functor,arity)→code; meta-call = decompose+lookup+marshal+call; findall = drive the meta-call to exhaustion, copy_term per solution, build list, unify. Graph-shipping substrates DROPPED — the `fs_ptr` baked-pointer in-process trap (HANDOFF-2026-06-03-OPUS48-PROLOG-BB-FINDALL-M4-INPROC-POINTER-TRAP.md). SCRIP convergences: m4 callee blocks are C-callable with exactly the protocol the rail needs (`bb_goal.cpp` = the byte-exact reference transcription); head args land in env slots 0..arity-1; goal/tmpl/result terms built relocatably by `emit_build_compound_term`.
 
@@ -453,7 +504,7 @@ storage) vs **IRREDUCIBLE SPINE** (cross-box by nature; keep LEAN; needs Lon's s
 - [x] **PT-4a** — aggregate/nb on the meta rail. **LANDED `c5d1737` (2026-06-04 Opus 4.8) — m4 101→105/0/10.** `rt_aggregate_all_meta` = rt_findall_term's drive (rt_meta_solve/redo, CP-truncate, trail unwind, env/cut restore) + the m2 fold transcribed exactly (incl. max/min-over-zero-solutions → int 0, m2 parity over SWI); bb_builtin_aggregate_nb.cpp MEDIUM_TEXT arms (per-template agg_build_term, @PLT + RIP-relative, zero raw bytes/baked ptrs); RICH-gate admission. The graph-rail `rt_aggregate_all_term` stays m2/m3-only (graph absent in standalone m4). Siblings stash-proven identical.
 - [ ] **PT-4b** ⬅ NEXT — dynamic DB (OWNS WAM-CP-13 / PLG-9g): the 10 remaining m4-EXCISED rungs (retract×5 · abolish×5). **FINDING (2026-06-04 diagnostic): the m2 oracle ALREADY runs the code route** — `pl_rt_assertz` (lower_program.c) compiles the asserted Term through the REAL lowerer (`pl_assert_term` → `lower_pl_clause_graph`) into an executable BB clause graph appended to the live IR_CHOICE `bodies[]` (registering the pred if new); m2 retract head-matches by EXECUTING each clause sub-graph and splices `bodies[]`; abolish sets `nbodies=0`. Facts/rules — including dynamic — are EXECUTABLE CODE in m2/m3; the only data is the clause CHAIN. This matches canon (gprolog compiles asserts to byte-code, `bc_supp.c`; swipl `compileClause` — both: bodies=code, chain=data) and SNOBOL4 EVAL()/CODE(). The PRIOR "store TERMS / term-resolver / minus byte-code" spec is RETIRED: it would invert the law (m4 dynamics as data while the oracle's are code) and grow the second C engine. **The m4 gap in one sentence: native bb_choice bakes `n` + the cmp/je ladder as immediates — the standalone binary's clause chain is frozen.** DESIGN FORK (Lon's call, PB-9e style): a dynamic pred emits a DATA-DRIVEN choice — cursor indexes a runtime clause TABLE (rows: clause entry ptr + head term + metadata), indirect dispatch through the table; chain=data, bodies=code. **B-full:** m4-runtime assertz runs pl_rt_assertz's exact pipeline in-process (lowerer + MEDIUM_BINARY emitters + RX slab are ALL in libscrip_rt, linked into the standalone binary; the in-process pointer trap does not apply — we ARE in-process at runtime) and appends the JIT-emitted block's address to the table. **B-lite (recommended first rung):** same table+dispatch architecture, but rows initially carry the clause Term run via the existing term resolver; JIT swaps in row-by-row later with zero re-architecture. retract first rung: head-match via per-row head Term + `rt_unify_terms` + unwind, splice row. **LATENT ORACLE DIVERGENCE (log, do not fix silently):** m2 retract matches a RULE by executing its whole clause graph INCLUDING the body; SWI unifies (H:-B) without executing B — unobservable in the 5 fact-only rungs; same re-baseline class as WAM-CP-9/PT-3. PT-3's frame + throw rail is the substrate for PT-4b's error paths. **FORK RESOLVED by the 2026-06-04 m3≡m4 directive: B-full is the END STATE** (runtime assert = lower + MEDIUM_BINARY emit into the RX slab, the SAME code path in m3 and m4 since both are in-process-native at assert time); B-lite term-resolver rows are admissible ONLY as a transitional scaffold rung (they make dynamic preds interp-driven, which PL-M34 forbids as an end state) — completion test is JIT'd clause bodies.
 
-## WAM-CP — SWIPL-informed choice-point track
+## ⏸ WAM-CP — SWIPL-informed choice-point track (CLOSED at 2026-06-04 RESET — see LEGACY DISPOSITION)
 
 Build CP stack on TOP of existing `Term*` boxes (small rungs); tagged-word migration is LATER. References: `doc/SWIPL-STUDY-2026-05-28-OPUS.md`, `doc/GPROLOG-STUDY-2026-05-28-OPUS.md`, `doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`. **DESIGN:** the BB graph replaces the WAM *environment* stack (per-predicate BB allocations + α/β/γ/ω), NOT the *choice-point* ledger — `g_pl_bfr` + parent-linked `pl_choice` is the irreducible dynamic CP ledger, kept LEAN.
 
@@ -528,3 +579,5 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 | siblings (HARD m2) | Prolog 115 ✅ · Icon 12 ✅ · SNOBOL4 7 ✅ | — | — | Icon m3/m4 5/7 stash-proven PRE-EXISTING; all re-verified at merged HEAD after rebase over PB-9d/PB-RB-CONV |
 
 NOTE: corpus `.s` box labels are generation-NONDETERMINISTIC (address-derived `bbNNNNN_α`) — `.s` byte-churn across sessions is expected; the suite set-diff is the invariant; a deterministic label counter is a future hygiene item.
+
+RESET NOTE (2026-06-04): the table above is the LEGACY-path watermark FROZEN at reset. The new-path (PL-GZ) counter starts at 0 at PL-GZ-2 and only ratchets up; legacy counts must not regress while legacy remains the suite runner.
