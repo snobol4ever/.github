@@ -1,6 +1,8 @@
 # HANDOFF — PROLOG-BB · PL-GZ-5a + PL-GZ-5b (calls, ζ-tree, recursion) — 2026-06-04, Opus 4.8
 
-**SCRIP commits:** `da9228d` (5a calls via δ/ε) → `9cba9ab` (5b-i ζ-tree substrate) → `c285ea1` (5b-ii recursion).
+**SCRIP commits:** `e8e728c` (5a calls via δ/ε) → `a8993f4` (5b-i ζ-tree substrate) → `7bb6843` (5b-ii recursion) —
+hashes are post-rebase atop Lon's concurrent f36dc13 (ICN-VAR-1 + sno chain-label, shared emit_bb.c/emit_core.c);
+the FULL gate sweep re-ran GREEN at the merged HEAD before this handoff shipped.
 **.github commits:** `bb0bfe38` (GOAL prune + 5a watermark) → `05095ed1` (5b watermark) → this handoff.
 **Watermark at close:** GATE-1 m2 5/5 HARD · m3 4/0/1-EXC (`recursion` only — multi-clause, flips at 5c) · m4 5/5;
 GATE-3 m2 115/115 HARD · m3 18/0/97-EXC · m4 105/0/10-EXC; gz2/3/4/5a/5b PASS all corrupt-proven; coupling
@@ -9,7 +11,7 @@ VALUE-class); one-box PASS; g_vstack 0; SNOBOL4 19/19; Icon 5/7 standing.
 
 ## What landed
 
-**5a — user-predicate CALLS (`da9228d`).** The call IS a port edge to another box's α: two new port fills
+**5a — user-predicate CALLS (`e8e728c`).** The call IS a port edge to another box's α: two new port fills
 **δ = callee α / ε = callee β** beside γ/ω/β (`PORT_DELTA`=4/`PORT_EPSILON`=5; `X86_INTERNAL_BASE` 4→6,
 single-sited symmetric — grep-verified no hardcoded base anywhere); call encoder `x86("call",port)` =
 `Lrec(0xE8)+Jrec(port)` / ` call name`. New boxes `bb_cell_call.cpp` (arg CELL-POINTER marshal → call δ →
@@ -20,7 +22,7 @@ cross-var/const heads = CELL_UNIFY vs arg cells), det body class; caller const a
 mutated); callees memoized per clause graph. 5a's one-frame interim + its stale-mark soundness argument are
 HISTORY — superseded by 5b, recorded in the GOAL's 5a entry.
 
-**5b-i — ζ-TREE substrate (`9cba9ab`).** Each call SITE owns a child-frame POINTER slot in the caller's frame
+**5b-i — ζ-TREE substrate (`a8993f4`).** Each call SITE owns a child-frame POINTER slot in the caller's frame
 (the seed's `&ζ->p2_ζ`); `rt_enter(void **slot, int nslots)` (src/runtime/unification.c) = reuse-or-alloc.
 Register protocol = the seed's print form `path(&ζ->p2_ζ,α,a0,a1)`: call δ with **rdi=child, rsi/rdx=arg cell
 ptrs**; call ε with **rdi=child ONLY** (args already live in the child frame); callee α/β: push caller ζ (saves
@@ -28,7 +30,7 @@ r12 AND restores SysV alignment), `mov r12,rdi`. Callee slots = clause slots DIR
 mark at [ζ+0] mirroring bb_query_frame). Emitted callee blocks are REENTRANT. All 5a probes stayed byte-identical
 across the swap — the substrate landed green before recursion touched it.
 
-**5b-ii — recursion (`c285ea1`).** IR_GOAL admitted in rule bodies (per-goal structural check + deep admission
+**5b-ii — recursion (`7bb6843`).** IR_GOAL admitted in rule bodies (per-goal structural check + deep admission
 at build); `pl_gz_callee_get` = memo with **SHELL-FIRST insertion** (self/mutual recursion finds the shell at
 admit; call_states hold only the pointer; fields finalized before the drive reads them). Body builder reworked:
 nested-call const args = synthetic cells **APPENDED TO THE CALLEE'S LOCALS** (covered by its per-activation
