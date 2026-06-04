@@ -16,15 +16,15 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 **PROLOG GROUND ZERO (Lon 2026-06-04): development RESET to square one on the Proebsting-pure track — the
 🔴 PL-GZ ladder below.** PL-M34/PL-BBL ABSORBED into PL-GZ; PT/WAM-CP LEGACY (see LEGACY DISPOSITION).
-Watermark: SCRIP HEAD `da9228d` — **PL-GZ-0..4 + 5a LANDED** (details collapsed into the ladder entries).
+Watermark: SCRIP HEAD `c285ea1` — **PL-GZ-0..4 + 5a + 5b LANDED** (details collapsed into the ladder entries).
 Gates: GATE-1 m2 **5/5 HARD** · m3 4/0/1-EXC (`recursion` only — flips at 5b/5c) · m4 5/5; GATE-3 m2
 **115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (the 10 = PT-4b retract/abolish); coupling ceilings
-choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a gates
+choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b gates
 PASS, all corrupt-proven. Siblings: Icon m2 12 (m3/m4 5/7 standing) · SNOBOL4 smoke 19/19. Grounding:
 Proebsting paper (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_pl_1.c` +
 `test_sno_1/2/3/4.c` + `test_icon.c` in `.github/` · reset rationale
 `HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`.
-Next opener: **PL-GZ-5b** — `rt_enter` ζ-tree child frames + recursion (register protocol recon in the
+Next opener: **PL-GZ-5c** — multi-clause RULE predicates = full path/2 (design sketch in the
 GZ-5 entry below).
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
@@ -515,16 +515,19 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
     a choice/query unwind predating the stale bindings) — recursion REQUIRES 5b's ζ-tree. Gate
     `test_gate_pl_gz5a.sh` (8 probes: value-flow-out through head vars, redo-through-call ε, choice-driven
     α re-entry, cross-var head; 2-clause + nested-call decline identically; corrupt-proof exits 1).
-  - [ ] **5b — `rt_enter` ζ-TREE + recursion**: each call SITE owns a child-frame POINTER slot in the
-    CALLER's frame (the seed's `&ζ->p2_ζ`); `rt_enter(void **slot, int nslots)` = reuse-or-calloc;
-    recursion depth works because each caller ACTIVATION has its own frame, hence its own child slots.
-    Register protocol mirrors the seed's print form `path(&ζ->p2_ζ, α, a0, a1)`: call δ with **rdi=child,
-    rsi=arg0, rdx=arg1**; callee α: push r12 (saves caller ζ AND restores alignment), mov r12,rdi, save
-    args into frame, mark→[ζ+0], locals init; call ε with **rdi=child only** (args already live in the
-    frame); callee β: push r12, mov r12,rdi, jmp redo. Callee slots = clause slots DIRECT in its own
-    frame (no base offset — simplifies the body rebuild); landings pop r12 = caller ζ restored. Kills the
-    5a stale-mark caveat and the one-frame slot budget. Admit: allow CELL_CALL inside callee bodies
-    (nested + self-recursive). GATE-1 `recursion` flips only together with 5c (it is multi-clause).
+  - [x] **5b — `rt_enter` ζ-TREE + recursion** ✅ 5b-i `9cba9ab` + 5b-ii `c285ea1` — each call SITE owns a
+    child-frame POINTER slot in the caller's frame (the seed's `&ζ->p2_ζ`); `rt_enter(slot,nslots)` =
+    reuse-or-alloc; register protocol = the seed's print form `path(&ζ->p2_ζ,α,a0,a1)`: call δ with
+    rdi=child rsi/rdx=arg cell ptrs, call ε with rdi=child ONLY; callee α/β push caller ζ + mov r12,rdi;
+    callee slots = clause slots DIRECT, mark at [ζ+0]. Recursion: depth sound because every activation
+    has its own frame; admit-time recursion terminates via the SHELL-FIRST memo (`pl_gz_callee_get`);
+    nested-call const args = synthetic cells APPENDED TO THE CALLEE'S LOCALS (covered by its
+    per-activation cells_init); child slots sit AFTER locals+synths, OUTSIDE the init range —
+    **rt_enter reads before write** (fresh frames zeroed by GC_malloc; query frame by BSS) — the
+    load-bearing invariant; emission = worklist (gz_emit_callee discovers nested callees). Killed the 5a
+    stale-mark caveat + one-frame budget; emitted callee blocks REENTRANT. Gate `test_gate_pl_gz5b.sh`
+    (nested · callee-frame synth · self-recursion depth-2, m2-verified first; 2-clause + deep-arith
+    decline; corrupt-proven). GZ5A gate RATCHETED (nested-call negative → compound-body negative).
   - [ ] **5c — multi-clause RULE predicates** (full `path/2`): callee-level choice over rule clauses —
     cursor in the callee's own frame row, per-clause body chains, β dispatch as bb_cell_choice's
     cmp-chain; head-unify per clause as in 5a.
@@ -654,7 +657,7 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ HARD | 4 / 0 / 1-EXCISED | 5/5 | m3 EXC = `recursion` only (multi-clause+recursive → 5b/5c) |
 | GATE-3 rung suite | **115/115** ✅ HARD | **18 / 0 / 97-EXCISED** | **105 / 0 / 10** | m3 truth-counted; m4 EXCISED 10 = retract×5 + abolish×5 (PT-4b → PL-GZ-9) |
-| GZ gates | — | gz2 · gz3 · gz4 · gz5a | same | all PASS, all corrupt-proven; coupling ceilings 19/10/0/39 (new-path boxes 0) |
+| GZ gates | — | gz2 · gz3 · gz4 · gz5a · gz5b | same | all PASS, all corrupt-proven; coupling ceilings 19/10/0/39 (new-path boxes 0) |
 | FACT greps | 0 ✅ | — | — | g_vstack 0 · seg_byte/SL_B 0 · no_bb_bin_t 0 · pl-no-value-stack PASS · PL-HY-FENCE PASS |
 | siblings (HARD m2) | Icon 12 ✅ · SNOBOL4 7 ✅ | Icon 5/7 standing | SNOBOL4 smoke 19/19 | — |
 
