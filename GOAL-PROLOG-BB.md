@@ -325,8 +325,6 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 
 ---
 
----
-
 ## ⛔ PER-BOX LOCAL STORAGE — ALL STATE LIVES INSIDE THE BOXES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
 **ONLY local BB allocation variables are used; NOTHING is stored outside the boxes.** Every value a
@@ -384,11 +382,11 @@ proven negative test (injecting a resurrection makes it exit 1).
 
 PL-HY-1a (dup-kill `abae7c1`) · PL-HY-1b (de-cram → ~130L router + 11 `bb_builtin_*` family files) · PL-HY-1c (compound-unify `374c2ff`, m4 75→86) · PL-HY-FENCE (`1a0127e` one-box gate, 2 proven negatives) — ALL LANDED. PL-HY-2/3/4/5 **SUBSUMED by the x86() revamp** (2026-06-03 audit: actual file sizes far under the stale watermarks; bb_choice/goal/unify are single coherent boxes — router-splits would OVER-SPLIT per NO-DUP; HY-5 de-dup sweep effectively complete, zero TEXT/BINARY algorithm pairs; `emit_build_compound_term` is the SANCTIONED mode-4 serialized encoder, not a dup). Reclassify `[x]` vs delete: **awaiting Lon's confirm.** Evidence: HANDOFF-2026-06-03-OPUS48-PROLOG-BB-HY-LADDER-AUDIT.md. Worked example for any future split: `bb_binop_*.cpp` + 38-line router. Re-sweep only if a new box adds an inline walker/evaluator.
 
-## VSX — g_vstack ERADICATION (Lon 2026-05-31)
+## VSX — g_vstack ERADICATION (Lon 2026-05-31) — VSX-0..7 DONE
 
-SCRIP has NO value stack; apparatus deleted (`80431d0`/`caf8f6d`/`d2a6ca4`). KEPT (not value stacks): trail `g_resolve_trail`, CP ledger `g_resolve_bfr`, ζ-frame `g_frame_buf`, activation table `g_rt_frames`. Audit: `doc/VSTACK-ERADICATION-AUDIT-2026-05-31.md`.
-- [x] VSX-0..7 — DONE. `g_vstack` token 0 across all src (code+comments) and STAYS 0.
-- [ ] VSX-8 — ZERO-CHECK blocked on the Icon/SNOBOL4 `IR_BINOP_GEN` emitter (`bb_binop_gen.cpp` emits 2 `rt_vstack_pop@PLT` + the `rt_vstack_ops_t` type + 2 abort-shims). Cross-language GOAL task; Prolog has ZERO ties.
+`g_vstack` token 0 across all src (code+comments) and STAYS 0; apparatus deleted (`80431d0`/`caf8f6d`/`d2a6ca4`). KEPT (not value stacks): trail `g_resolve_trail` · CP ledger `g_resolve_bfr` · ζ-frame `g_frame_buf` · activation table `g_rt_frames`. Audit: `doc/VSTACK-ERADICATION-AUDIT-2026-05-31.md`.
+- [ ] VSX-8 — ZERO-CHECK blocked on the Icon/SNOBOL4 `IR_BINOP_GEN` emitter (`bb_binop_gen.cpp`: 2 `rt_vstack_pop@PLT` + `rt_vstack_ops_t` + 2 abort-shims). Cross-language GOAL task; Prolog has ZERO ties.
+
 ## PLG — Prolog onto Byrd Boxes (HISTORY)
 
 Pipeline: `Prolog AST → lower_pl (four-port IR) → bb_exec.c (m2/3 interp) → bb_pl_*.cpp → x86 (m4)`. m2 `--interp` = correctness reference; m3 `--run` = same interp + native flat-walk; m4 = `.s` via `codegen_flat_build`. **TEST ALL THREE MODES** (GATE-1 `test_smoke_prolog.sh`, GATE-3 `test_prolog_rung_suite.sh --mode all`). Reference: Proebsting `bench/Simple Translation of Goal Directed Evaluation.pdf`, `bench/test_icon.c`+`test_sno_1.c`.
@@ -428,9 +426,7 @@ Build CP stack on TOP of existing `Term*` boxes (small rungs); tagged-word migra
 - **CAT-D float-result unary arith** (`sqrt`/`sin`/`cos`/`exp`/`log`): needs `rt_pl_arith_d`→`double` +
   `rt_pl_is_d`→`TERM_FLOAT`. No corpus test yet; defer until one surfaces.
 - **PJ-AGW-6b** — `IR_PAT_ARBNO`/DCG repetition port wiring.
-- **SWI-PLUNIT** — drive `test_prolog_swi_suite.sh` toward ≥80%. Honest GATE-SWI baseline 55/57 (3 `.ref`
-  re-baselined EMPTY→FAIL); `test_string` segfaults on a deep `pj_rev` recursion. clause/2, `Var==Val` option
-  normalisation, `:- if/else/endif`, and per-suite 3-mode rung scripts are the remaining pieces.
+- **SWI-PLUNIT** — drive `test_prolog_swi_suite.sh` toward ≥80% (honest GATE-SWI baseline 55/57; `test_string` segfaults on deep `pj_rev` recursion). Remaining: clause/2 · `Var==Val` option normalisation · `:- if/else/endif` · per-suite 3-mode rung scripts.
 
 ---
 
@@ -451,15 +447,9 @@ Full mode-4 corpus: loop `corpus/programs/prolog/rung*.pl` through `scripts/run_
 
 ## Architecture reference
 
-### Port semantics
-| Port | Direction | Prolog meaning |
-|---|---|---|
-| γ | inherited DOWN | success continuation |
-| ω | inherited DOWN | failure continuation (pop choice + unwind trail) |
-| α | synthesized UP | this node's fresh-solve entry |
-| β | synthesized UP | this node's redo/retry entry |
+Port semantics (α/β/γ/ω): the four-port table in ⛔ MANDATORY READ above.
 
-### Per-construct port wiring
+### Per-construct port wiring### Per-construct port wiring
 | Construct | α | β | γ | ω |
 |---|---|---|---|---|
 | `IR_GCONJ` (seq) | first goal's α | last goal's β | `goal[i].γ = goal[i+1].α` | `goal[i+1].ω = goal[i].β`; first → ω_in |
