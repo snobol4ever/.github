@@ -19,6 +19,55 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
+**Watermark — PB-9c LANDED (control flow, mode-3+4, LANGUAGE-BLIND). 2026-06-03, session 13. SCRIP HEAD =
+3d9f434, corpus untouched. POST-REBASE: the push rebased onto concurrent `18940fb` (ICN-SCAN-4, touches
+`emit_bb.c` IR_CALL flat-chain arm + `bb_scan_any.cpp` + `scrip.c`) atop `2cfd1bb` (Prolog meta resolver);
+the MERGED tree re-verified green in full — sieve m3+m4 byte-identical, 4 probes m3+m4 PASS, Pascal
+`--interp` 35/0/1, SNOBOL4 19/0 incl. m4 6/0, Icon 130/117/36, Prolog honest 136/0/0, all-langs m4 hello
+5/1.** GATE MET: `sieve.pas` byte-identical to `pint` in BOTH mode-3 and mode-4
+(nested WHILE + IF + two lowered FORs + array rail). Five walls, all shape-dispatched, zero language names:
+(1) **`gvar_chain_operand_refs` missed ω-only-reachable chains** — nodes reachable ONLY via ω edges (the
+post-FOR `i := 2` LIT_I head n48, the WHILE junctions) never became operand-chain heads, so downstream
+`IR_ASSIGN.α` stayed NULL → `flat_drive_assign: missing α`. Fix = a third head-scan loop over every node's
+resolved ω target (`emit_bb.c`). SAFETY PROOF: a mid-chain re-walk can only NO-write (stack-underflow arm
+`else if (ar >= 1) sp = 0` writes nothing), never wrong-write — consumers' top-of-stack operands are
+invariant to chain entry point; SNOBOL4 (ω-rich graphs) pinned identical. (2) **`IR_WHILE`/`IR_UNTIL` gvar
+junction jumped ω** — in the chain topology the WHILE node is reached ONLY when its condition fails (cond
+chain's ω → WHILE), so its emission must `jmp γ` (after-loop), was `jmp ω` (graph failure). The
+`g_gvar_flat_chain` arm goes FIRST (before `while_cond_emittable`) because under the chain the body/cond are
+separate chain nodes — `flat_drive_while` must never fire. Non-gvar fallback preserved byte-for-byte.
+(3) **`IR_IF` gvar junction had no template** — `EMIT_PAIR_FILL` dispatched into a nonexistent IR_IF
+template. Under the chain IR_IF is structural (the cond chain's γ/ω do the branching); fix = `jmp γ`
+junction arm, descr-chain EMIT_PAIR path untouched. `IR_CONJ` (the loop-back junction) was already correct.
+(4) **dval==2.0 by-name calls had NO gvar arm** — `arr_set_pure` (the PB-5 array rail, `v_raku_det_call`
+sets dval=2.0, args ride `counter` as `IR_graph_t**` — IDENTICAL layout to dval=3.0) fell through every
+dispatch arm → `bb_call: unsupported call shape`. Fix = one `bb_call.cpp` arm: `g_gvar_flat_chain &&
+dval==2.0 && !rt_proc_is_registered(fn) && !rt_builtin_is_known(fn)` → `bb_call_byname_str`. The
+`!rt_builtin_is_known` guard is LOAD-BEARING: SNOBOL4 `TT_FNC` calls are ALSO dval==2.0 (`lower.c:912`) and
+must keep their existing `bb_call_builtin_str` route — pinned by SNOBOL4 smoke. Runtime resolution chain
+verified: `rt_call_arr` → `try_call_builtin_by_name` → `script_try_call_builtin_by_name` (holds
+`arr_get`/`arr_set_pure`). (5) **gvar relops had NO template** (`sqr(i) <= n`, `arr_get(a,i) <> 0`, `i <=
+100`) — `bb_binop_relop` is descr-chain-only (predicate requires `g_descr_flat_chain` + slot operands) →
+shape-mismatch bomb. NEW TEMPLATE `bb_binop_gvar_relop.cpp` (+ `IR_BINOP_GVAR_RELOP` kind, emit_core case,
+Makefile×2): numeric relops `BINOP_LT..NE`, per-operand shapes LIT-imm / VAR-via-`rt_gvar_get_int` /
+slot-resident, communicated via `bb_lk/bb_li/bb_rk/bb_ri` + `op_name1/2` + `op_sa/sb`; slot displacement
+dispatches on producer kind (`IR_CALL` result = 16-byte DESCR, value at +8; gvar-arith result = raw qword at
++0); the template's own 8-byte slot doubles as the rax stash around a right-VAR call; fail-jcc table
+duplicated into the file per the byte-duplication doctrine. Dispatch arm in `walk_bb_flat` classifies both
+operands or falls through to `flat_drive_binop_tree`; γ-chain BFS guarantees operand slots are allocated
+before their consuming relop walks. Gates pinned: **sieve m3+m4 byte-identical** (THE GATE); 4 probes
+(`m4asg`,`m4arith`,`m4wexpr`,`hello`) m3+m4 PASS; Pascal `--interp` **35/0/1** (XFAIL=recursion fact(8));
+SNOBOL4 smoke **19/0** incl. m4 6/0; Icon `--interp` **130/117/36**; Prolog honest **136/0/0**; all-langs m4
+hello **5/1** (the 1 = rebus, pre-existing); lang-names gate = only pre-existing `rt_icn_*`/`g_pl_meta`
+sites, new template CLEAN. STASH PROOF of causation AND non-regression: clean HEAD aborts sieve+ptr5 at
+`flat_drive_assign`, rec2 at the `arr_set_pure` wall — rec2/ptr5 now segv DEEPER (record-field/heap
+`__pas_*` arms — never passed m3, walls moved, not regressions; same pattern as flatnoarg in PB-9b). PB-9d
+ENTRY MAPPED: `recursion.pas` m3 — the FOR loop now iterates and prints column 1 (k=1..10) but
+`fact(k)`/`fib(k)` produce nothing = the documented missing REGISTERED-proc dval==3.0 gvar arm;
+`flatnoarg.pas` m3 segv unchanged at that same arm (m4 emits 192 lines rc=0, emitter clean). PB-9d =
+that one `bb_call.cpp` arm + CALL-operand BINOPs (the relop template's slot shapes already handle
+CALL×LIT — arith may need the same slot extension).
+
 **Watermark — PB-9b LANDED (arith/assign/writeln(expr), mode-3+4, LANGUAGE-BLIND). 2026-06-03, session 12.
 SCRIP HEAD = see commit, corpus HEAD = see commit (3 new probes).** Four walls, all shape-dispatched on IR kind
 (zero new Tier-1 sites; lang-names gate run, only pre-existing `rt_icn_*` hits, none in touched files):
@@ -460,8 +509,9 @@ cd /home/claude/corpus/programs/pascal
     down, all language-blind; probes `m4asg`/`m4arith`/`m4wexpr` + `hello` byte-identical to `pint` in BOTH
     mode-3 and mode-4. See watermark for the wall list, the two new `rt_gvar_get_*` helpers, and the
     precisely-mapped PB-9c/PB-9d entry points.
-  - [ ] **PB-9c — control flow.** `IR_IF/WHILE/FOR/REPEAT` templates do not exist; author per FACT RULES
-    (and per the LANGUAGE-BLIND rule — these are shared imperative IR, serve every frontend). `sieve` gate.
+  - [x] **PB-9c — control flow.** DONE (session 13) — `sieve.pas` byte-identical to `pint` in BOTH mode-3
+    and mode-4. Five walls knocked down, all shape-dispatched/language-blind; new template
+    `bb_binop_gvar_relop.cpp`. See watermark for the wall list and the PB-9d entry map.
   - [ ] **PB-9d — flat procs/params.** `recursion.pas` (through fact(7)) gate.
   - [ ] **PB-9e — nested procs = the representation FORK (Lon's call).** Frame-as-BB, static link on the
     parent-port thread (Invariants 2 & 4, the PB-7 model).
