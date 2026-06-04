@@ -1425,7 +1425,15 @@ old 105 watermark was STALE (intervening lanes moved it); SNOBOL m2 **7/7 HARD**
 no_bb_bin_t 0; concurrency OK; REG-FENCE TIER1=0 (TIER2 r10=20 info unchanged). **Pascal m3 nested-fn segv observed
 during regression sweep is PRE-EXISTING** (clean-tree baseline rc=139 identical, stash-proven) — belongs to
 GOAL-PASCAL-BB, flagged there-ward, not touched. Diff = `src/emitter/emit_bb.c` +1 line. NOT pushed (no handoff
-phrase); committed locally only. **— prior watermark below —**
+phrase); committed locally only. **FOLLOW-UP PROBES (same session, post-commit):** conditional **`:S(RETURN)`** AND
+**`:F(RETURN)`** from mid-body both verified m2==m3==oracle (the label-registry path to the RET node — all THREE
+RETURN-goto flavors now proven). **RECURSIVE DEFINE is GREEN in m3** — `R(S)` 4 activations deep matches the oracle
+exactly (incl. the null-string OUTPUT line): the `rt_name_save_push`/`rt_name_restore` LIFO is recursion-proven across
+nested activations (the SR-2 prerequisite data point), VAR-arg recursive call shape is supported, and
+pattern-match-with-replacement on a PARAM works in m3. **NEW M3 GAP (LOUD, correct failure mode):** the numeric
+predicate builtins **GT/LE** (manual ch.4 conditional functions) have NO bb_call arm — `[IBB] FATAL bb_call:
+unsupported call shape fn='GT' narg=2 a0=-1`; blocks any predicate-conditioned define body in m3 (FACT(5) untestable
+until it lands); next-session candidate alongside PB-RB-4. **— prior watermark below —**
 
 **Watermark (m4 unblock 0→3, `2a146b2`).** SCRIP tip **`2a146b2`** (2026-06-03) — **SNOBOL4 mode-4 UNBLOCKED: m4 0/6 → 3/6.** This session
 wired the dead `scrip.c:801` abort to the real flat TEXT emitter (`gvar_flat_chain_build_text`), mirroring the
