@@ -21,21 +21,29 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — session 14 (2026-06-04): LB-3 + LB-FENCE CLOSED · PB-9e-0 LANDED · PB-9e DESIGNED (build
-held). SCRIP `f4a7187` (LB-3 = `95fdc2f`), corpus `10940fd`.** DEFINE is now its own IR shape (IR_CALL
-dval=5.0, set by LOWER); the bb_call.cpp name-gate is DELETED; the LB ladder is COMPLETE — Tier-1 grep over
-`BB_templates/`+`XA_templates/` = **0**, the FACT-RULE completion test. PB-9e is designed to turn-key
-fidelity in **`SCRIP/PB-9E-DESIGN.md`** with two pinned failing gates: `nestrec` (oracle 11/21/31, m3
-11/11/11 — recursion clobber) and NEW `nestshadow` (oracle 7/101, m3 107/107 — sibling-through-shadow;
-structurally kills deepened NV shallow binding, which is dynamic-chain semantics). Baselines pinned at
-HEAD this session: Pascal `--interp` **37/0/1** (XFAIL=recursion; +nestshadow); probes
-hello/sieve/flatnoarg/recursion-fact7 m3+m4 byte-identical; SNOBOL4 smoke **19/0** (m2 7/0 HARD, m3 6/6,
-m4 6/6 — the LB-3 named gate, NEVER MOVED); Icon smoke m2 **12/12** HARD (m3/m4 5/12 pre-existing);
-Prolog smoke m2 **5/5** HARD, m4 5/0 (m3 `unify` FAIL stash-proven pre-existing); Snocone smoke 2/3
-stash-proven pre-existing; raku smoke m2 **25/0** HARD, m3 1/1/23, m4 **1/1/23** (m4 FAIL=`str_reverse`,
-the LB-1 delta, re-confirmed identical); all-langs m4 hello **5/1** (rebus pre-existing, exact pin);
-lang-names gate output byte-identical pre/post LB-3 (exit-1 hits = LB-7-NEW ICN-SCAN emit_core sites,
-concurrent-session-owned). Session-13 full-corpus pins (Icon 130/117/36, Prolog honest 136/0/0) not re-run.
+**Watermark — session 15 (2026-06-04): PB-9e-1 + PB-9e-3 CLOSED — nested frames with static links live in
+all three modes.** Forks decided: (A) program-wide nested-only migration — if ANY proc has decl_level>1 the
+whole program's procs move to frame slots; flat programs are untouched BY CONSTRUCTION, proven by `cmp` on
+emitted .s (Pascal `sieve.s` + SNOBOL `hello.s` byte-identical pre/post). (B) explicit
+`rt_call_named_proc_sl(name, args, nargs, void *sl)`; fb[0]=SL, slots seeded params-then-NULVCL, funcname
+NV-save only. Migration marker = `IR_graph_t.nslots` with +1 encoding (0=unmigrated, k+1 = k slots).
+Pascal m2 `--interp` **36/0 + recursion XFAIL** with the rewrite LIVE. m3 `--run`: ALL SIX nested probes
+green vs oracle — nestrec 11/21/31, nestshadow 7/101, nest2, nested, nestcount, nestfunc — plus flat
+hello/flatnoarg/sieve and recursion fact-7 line `7 5040 13`. m4 `--compile`: same six nested probes PASS
+end-to-end (gcc -no-pie + out/libscrip_rt.so) plus flat hello/flatnoarg/sieve and recursion fact-7.
+Var-param probes (varparam 5, swap 3/8, alias 0, varframe 7/7, varmix 1, vartrans 4) FAIL m3 but are
+stash-proven byte-identical pre/post — pre-existing, var params have NO m3 mechanism = PB-9e-2 scope.
+SNOBOL m3 19-program ad-hoc set: pass/fail pattern IDENTICAL pre/post (stash-proof). Mechanism: LOWER
+rewrites IR_VAR/IR_ASSIGN → IR_VAR_FRAME/IR_ASSIGN_FRAME (ival=slot, dval=hops) via lexical scope-chain
+walk (pas_scope_chain over proc_table decl_levels, recursing into IR_CALL dval 2/3 arg subgraphs,
+idempotent); m2 arms hop GenFrame.static_link; emitter templates hop `[fb+0]` at emit-time-constant depth
+(caller_dl from `g_emit_frame_caller_dl`, h = caller_dl+1 − callee_dl, main → mov32 ecx,0); frame layout
+[fb+0]=SL, [fb+16+k*16]=DESCR slot k in lower_sc order, box scratch starts after via g_flat_slot_count
+prologue. bb_call SL plumbing covers direct calls, marshal nested-call args, marshal IR_VAR_FRAME args, and
+inline-binop frame operands; gva/gvr_slot_disp +8 for IR_VAR_FRAME. m4 startup emits
+`rt_proc_set_frame@PLT` per migrated proc after register/set_fn. Prior session-14 cross-language pins
+(Icon/Prolog/Snocone/raku/all-langs-hello) NOT re-run this session; SNOBOL emission proven untouched by
+the byte-identity cmp above.
 
 Mechanisms that now exist (dispatch is shape-only, see git history for the full wall lists):
 - DEFINE rides its own IR shape: IR_CALL **dval=5.0**, tagged by LOWER (lower.c SNO TT_FNC arm — name
@@ -56,10 +64,9 @@ Mechanisms that now exist (dispatch is shape-only, see git history for the full 
 - Icon NV-global assign is UNIFIED into `bb_gvar_assign` (descr first arm, modulo-ID byte-identical to the
   deleted fork; if Lon wants the originally-prescribed ABORT it is one line in that arm).
 
-NEXT: **PB-9e-1** — the representation fork is surfaced in `SCRIP/PB-9E-DESIGN.md`, awaiting Lon's call on
-(A) nested-only vs uniform slot migration (recommend nested-only, LB-3-style move-the-gate-last) and (B)
-explicit `rt_call_named_proc_sl(...,void *sl)` vs in-band `args[np]` SL (recommend explicit); the recipe is
-then turn-key — emit-time-constant `[fb+0]` hop chains, IR_VAR_FRAME/IR_ASSIGN_FRAME (ival=slot, dval=hops).
+NEXT: **PB-9e-2** — var params across levels (SlotRef → cell address). The six var-param probes
+(varparam 5, swap 3/8, alias 0, varframe 7/7, varmix 1, vartrans 4) FAIL m3 vs oracle but are stash-proven
+byte-identical pre/post PB-9e-1 — var params have no m3 mechanism at all yet; that is this rung.
 Known deeper Pascal m3/m4 walls, stash-proven never-passing (NOT regressions): rec2/ptr5 segv at
 record-field/heap `__pas_*` arms.
 
@@ -209,9 +216,14 @@ cd /home/claude/corpus/programs/pascal
     - [x] **PB-9e-0** — discriminator probe `nestshadow.pas` (corpus `10940fd`): sibling-through-shadow,
       oracle 7/101, m2 PASS (suite 36→37/0/1), m3 107/107 expected-fail pinned. Together with `nestrec`
       (11/21/31 vs 11/11/11) this structurally kills the NV-shallow-binding shortcut.
-    - [ ] **PB-9e-1** — SL plumbing + nested locals/params → frame slots; gates in the design doc.
+    - [x] **PB-9e-1** — SL plumbing + nested locals/params → frame slots (session 15). Fork A = program-wide
+      nested-only migration (IR_graph_t.nslots+1 encoding, 0=unmigrated); fork B = explicit
+      `rt_call_named_proc_sl(name, args, nargs, void *sl)`. New IR kinds IR_VAR_FRAME/IR_ASSIGN_FRAME
+      (ival=slot, dval=hops) rewritten in LOWER; m2 arms hop GenFrame.static_link; templates
+      bb_var_frame.cpp/bb_assign_frame.cpp hop `[fb+0]` chains at emit-time-constant depth.
     - [ ] **PB-9e-2** — var params across levels (SlotRef → cell address).
-    - [ ] **PB-9e-3** — nested functions under recursion (`nestfunc`/`nestcount` m3+m4).
+    - [x] **PB-9e-3** — nested functions under recursion: `nestfunc`/`nestcount` PASS m3+m4 (closed by the
+      PB-9e-1 mechanism, session 15; per-activation fb makes recursion clobber structurally impossible).
 
 ---
 
