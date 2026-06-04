@@ -649,25 +649,25 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   m4 21+90E) — no corpus program carries the wave-1 literal-match shape; the probes carry the rung (SCAN-3
   precedent). Smokes 12/12+5/5+32; all gates green; bb_scan_match.cpp 0 raw-byte producers. Rebased onto peer
   `3d9f434` (Pascal PB-9c); post-rebase m2 HARD + probes re-verified.
-- [ ] **ICN-SCAN-6 — `bb_scan_many.cpp`** (fstranl.r `many(c)`, {0,1}). Cset RO. α: walk p from δ while
+- [x] **ICN-SCAN-6 — `bb_scan_many.cpp`** (fstranl.r `many(c)`, {0,1}). Cset RO. α: walk p from δ while
   `p<Δ ∧ s[p]∈c` (strchr loop, scratch reg — δ NOT written); `p==δ → ω`; INTVAL(p+1) → slot, γ. β → ω.
   Probe: `"  x" ? write(many(' '))` → `3`.
-- [ ] **ICN-SCAN-7 — `bb_scan_tab.cpp`** (fscan.r `tab(i)`, {0,1+} REVERSES on β). Operand = literal positive n
+- [x] **ICN-SCAN-7 — `bb_scan_tab.cpp`** (fscan.r `tab(i)`, {0,1+} REVERSES on β). Operand = literal positive n
   OR a sibling SCAN_* producer slot (the `tab(upto(c))` idiom — read `[r12+op_sa…]` like any consumer). α:
   save δ → `[r12+op_off+16]`; bounds-check target ∈ [1,Δ+1] else ω; δ ← target−1; substring spanned
   (order-normalized) via `rt_icn_substr(Σ, lo, hi)` → DESCR slot (RT value work, DUP-FORM-2); γ.
   **β: δ ← saved; ω.** Probes: `"hello" ? write(tab(3))` → `he`; `"hello" ? write(tab(upto('l')))` → `he`.
-- [ ] **ICN-SCAN-8 — `bb_scan_move.cpp`** (fscan.r `move(i)`, {0,1+} REVERSES on β). Literal n. α:
+- [x] **ICN-SCAN-8 — `bb_scan_move.cpp`** (fscan.r `move(i)`, {0,1+} REVERSES on β). Literal n. α:
   `δ+1+n ∉ [1,Δ+1] → ω`; save δ; δ += n; substring moved over via `rt_icn_substr`; γ. β: restore δ; ω.
   Probe: `"hello" ? write(move(2))` → `he`.
-- [ ] **ICN-SCAN-9 — `bb_scan_upto.cpp`** (fstranl.r `upto(c)`, function{*} — THE FIRST SCAN GENERATOR). Cset RO;
+- [x] **ICN-SCAN-9 — `bb_scan_upto.cpp`** (fstranl.r `upto(c)`, function{*} — THE FIRST SCAN GENERATOR). Cset RO;
   cursor `[r12+op_off+16]` seeded δ on α. Loop `L(0)`: `cursor≥Δ → ω`; `s[cursor]∈c` → INTVAL(cursor+1) →
   slot, γ (cursor persists); miss → cursor++ → `L(0)`. **β: cursor++ → `L(0)`** (the `bb_to` re-pump). Probe:
   `"hello" ? every write(upto('l'))` → `3 4`.
-- [ ] **ICN-SCAN-10 — `bb_scan_find.cpp`** (fstranl.r `find(s1)`, {*}). s1+len RO; cursor slot. Outer `L(0)`:
+- [x] **ICN-SCAN-10 — `bb_scan_find.cpp`** (fstranl.r `find(s1)`, {*}). s1+len RO; cursor slot. Outer `L(0)`:
   `cursor > Δ−len → ω`; inner byte-compare `L(1)` vs `[r13+cursor+i]`; hit → INTVAL(cursor+1) → slot, γ;
   miss → cursor++ → `L(0)`. β: cursor++ → `L(0)`. Probe: `"banana" ? every write(find("an"))` → `2 4`.
-- [ ] **ICN-SCAN-11 — `bb_scan_bal.cpp`** (fstranl.r `bal(c1,c2,c3)`, {*}). Three csets RO (wave-1 defaults:
+- [x] **ICN-SCAN-11 — `bb_scan_bal.cpp`** (fstranl.r `bal(c1,c2,c3)`, {*}). Three csets RO (wave-1 defaults:
   c1 literal, c2=`'('`, c3=`')'`); cursor + cnt slots (`[r12+op_off+16/+24]`). Loop per fstranl.r: `cnt==0 ∧
   s[cursor]∈c1` → suspend INTVAL(cursor+1), γ; `∈c2 → cnt++`; `∈c3 → cnt−−`; `cnt<0 → ω`; cursor++; end → ω.
   β: cursor++ → loop. Probe: `"(a)b" ? every write(bal('b'))` → `4`.
@@ -798,7 +798,40 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `f9677cc` — ICN-SCAN-5 landed (`bb_scan_match`). HEAD (.github) = this handoff.** Session
+**HEAD (SCRIP) = `5de8d37` (+ handoff doc `49cea79`) — ICN-SCAN-6…11 landed; THE WAVE-1 SCAN FAMILY IS COMPLETE
+(`icn_kind_native_stub` carries ZERO `IR_SCAN_*` kinds — pos/any/match/many/tab/move/upto/find/bal all have
+native Byrd Boxes). HEAD (.github) = this handoff.** Session 2026-06-04 (Opus 4.8, "ICN-SCAN-7…11"; SCAN-6
+`b1a54a0` many landed at window start): six gated rungs, each probe-green m2==m3==m4, corpus set-diffs clean or
+explained, full battery per commit; clean rebases onto orthogonal peers (Prolog PT-4a `89c730c`, Pascal PB-9e-1
+`bd79c8b`) with merged-HEAD re-verification each time. Hashes + the one-line of each: SCAN-7 `cc77b63` tab —
+first δ-WRITER (saved-δ slot, β restore→ω) + new `rt_icn_substr` + sibling-producer-slot consumption
+(`tab(many('he'))` green). SCAN-8 `14ec99a` move + **FAMILY-WIDE TERMINALITY FIX**: frontend lowers `-1` as
+`LIT_I(1)→γ→NEG`; entry-only digs mis-admitted it (live divergences `tab(-1)`/`pos(-1)` — native silently ran
+the +1 form); a literal now counts only when entry IS the whole subgraph, mirrored in all six driver digs; zero
+corpus flips (purely defensive). SCAN-9 `c72e27d` upto — THE FIRST SCAN GENERATOR (slot cursor, **β re-pump**)
++ subchain generator plumbing gated `g_icn_scan_regs_live` (IR_CALL-ω BFS · `g_flat_chain_set` registration ·
+dormant γ→betas redirect) + **bb_every flat-dispatch parity fix** (`(MEDIUM_BINARY||g_descr_flat_chain)`→flat
+stub; the legacy text template re-walks the body inside the box string → undefined `.Levery*_body_α` on
+GEN_SCAN bodies). SCAN-10 `c9a728e` find — UNROLLED literal compare (encoder `movzx` is hardwired to the
+`[r13+rcx]` subject form; needle bytes as `cmp64` immediates — zero calls/seals/pushes; needle 1..32) + oracle
+1-arg scan-context find at BOTH dispatch sites, gated baseline-free. SCAN-11 `5de8d37` bal — cursor+cnt
+two-slot state; canon `cnt<0→ω`; **β-soundness BY ADMISSION** (c1∩{'(',')'}=∅ makes the re-pump's skipped
+bracket-count a no-op — the SCAN-8 lens generalized) + oracle site-2 clause + site-1 canon fix (c1-test-first;
+unconditional cnt-- failing on negative, was clamped), gated baseline-free. Standing numbers at `5de8d37`:
+corpus m2 **129 HARD** / m3 **18**/82/**147E** / m4 **25**/136/**86E**; smokes 12/12 HARD + 5/5 + broker 32;
+gates green (no-stack 10≤127 · one-reg-frame 0 · no-vstack 3 · handencoded --strict 0 · prove_lower2).
+**THREE FLAGS FOR LON** (full detail in SCRIP `HANDOFF-2026-06-04-OPUS48-ICN-SCAN-7-11.md`): (1) **ORACLE
+SCAN-FN GENERATIVITY** — goal probes specify multi-result (`every write(upto('l'))` → `3 4`); the m2 oracle is
+one-shot for every scan builtin (no per-call resumption; IR_interp's non-single-shot grouping is intent only);
+native matches the oracle bit-for-bit and is PUMP-READY (β re-pumps live, redirect dormant pending lowerer
+gen-arg recognition); making m2 generative SHIFTS THE 129 BASELINE — sequencing is Lon's call. (2) rung02
+userproc recursion: PLAIN `write(fact(5))` aborts m4 `[GZ-10]` depth-4096, silent-empty m3 — pre-existing
+userproc-lane, surfaced by the parity fix changing which body copy executes (FAIL membership unchanged).
+(3) bal site-1 canon fix moved a possibly-live non-m2 consumer toward fstranl.r canon. **NEXT =
+ICN-SCAN-12 (`=s` sugar, NO new BB)** — lowerer Icon unary-`=` arm rewrites to the `tab(match(s))` shape per
+the entry above; then SCAN-13 `?:=` scan-assign, SCAN-FENCE.
+
+**PREV ENTRY — HEAD (SCRIP) = `f9677cc` — ICN-SCAN-5 landed (`bb_scan_match`). HEAD (.github) = this handoff.** Session
 2026-06-03-e continued (Opus 4.8, "ICN-SCAN-4 + ICN-SCAN-5"): two gated rungs, each committed + pushed with a
 clean rebase onto orthogonal peers (`18940fb` onto Prolog PT-1b/2b; `f9677cc` onto Pascal PB-9c), post-rebase
 m2 HARD re-verified each time. Full rung detail in the two DONE entries above. Transferable findings beyond
