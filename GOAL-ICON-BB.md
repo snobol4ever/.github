@@ -698,10 +698,26 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   either slotmap-alias the GEN_SCAN node to body_slot, or copy 16B into a fresh `bb_slot_alloc16(pBB)` at
   `body_done` before the LEAVE-γ glue), making GEN_SCAN an arity-0 slot producer any consumer (write/assign)
   reads. Probe stays `s := "hello"; s ?:= tab(3); write(s)` → `he` m3/m4.
-- [ ] **ICN-SCAN-FENCE — gate + sweep.** `scripts/test_gate_icn_scan.sh`: (a) all nine kinds OFF
-  `icn_kind_native_stub`; (b) every probe above m2==m3==m4 (13b probe waits on the bb_var tier); (c) corpus scan
-  bucket recorded (the 27 IR_GEN_SCAN-gated programs: EXCISED→PASS deltas); (d) all standing FACT/structural
-  gates green. Update Watermark.
+- [x] **ICN-SCAN-FENCE — DONE (`1246c18`, 2026-06-04).** `scripts/test_gate_icn_scan.sh`, four sections, DETERMINISTIC
+  (two full runs byte-identical): (a) awk-extracted `icn_kind_native_stub` body greps `IR_SCAN_*` == 0 + all nine kinds
+  present in `src/contracts/`; (b) 28-probe three-mode sweep covering SCAN-0…13a — policies STRICT (m2==m3==m4==exp AND
+  no `[SMX]`, so an excision can't masquerade as a fail-probe pass), M34 (the pos success probe — the documented SCAN-3
+  oracle gap, m2 recorded), PIN (upto/find pinned to the ONE-SHOT value 3/2 per the ORACLE GENERATIVITY flag — three-mode
+  AGREEMENT until Lon's re-baseline call), X34 (m2==exp + m3/m4 LOUD `[SMX]` rc=0 — the two `?:=` probes per the SCAN-13b
+  bb_var deferral, the `=s` var operand, the `any(c)` dynamic-arg decline) — **28/28 PASS**; (c) corpus IR_GEN_SCAN
+  bucket: **N=47** (the spec's "27" was the planning estimate; every interim count was a SIGPIPE-race undercount, see
+  below) — m2 31/16 · m3 7/2/38E · m4 7/2/38E, ratchet floors pinned m2≥31 m3≥7 m4≥7 (the 2 non-excised m3/m4 FAILs =
+  `scan_simple`/`scan_var`, missing-`.expected` corpus-data gaps; all three columns agree on them); (d) no_bb_bin_t ·
+  handencoded `--strict` · icn_no_stack · icn_one_reg_frame · prove_lower2 HARD, no_vstack informational,
+  medium-invisible SCOPED to the scan-family templates (bb_scan_*/bb_gen_scan/bb_keyword clean; the global `--strict`
+  RED is the documented Prolog-lane bb_builtin_* WIP). **TRANSFERABLE BUG CLASS:** under `set -o pipefail`,
+  `scrip --dump-bb | grep -q` is a SIGPIPE RACE — `grep -q` exits at first match, scrip dies 141, pipefail fails the
+  pipeline, `|| continue` skips the program; whether scrip out-runs grep is scheduling roulette (membership flapped
+  N=32…38 across runs). Fix = capture-then-match (`dump=$(…); case "$dump" in *IR_GEN_SCAN*)`). Audit other gate
+  scripts for the same `cmd | grep -q` shape. **FLAG (Lon):** `rung36_jcon_scan1` ABORTS rc=134 in ALL THREE modes at
+  `[lower2] UNHANDLED role=0 kind=77` (TT_CSET_DIFF — line 59 `&cset -- &ascii`) — the cset-ops tier, not scan; it
+  never reaches IR so it sits outside the bucket; pre-existing FAIL-bucket member, candidate for a cset-tier or
+  loud-decline rung.
 
 ## Premise
 
@@ -818,7 +834,21 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `b59c9e6` — ICN-SCAN-12 (`84ea1ca`) + ICN-SCAN-13a (`b59c9e6`) landed; the `=s` and `?:=`
+**HEAD (SCRIP) = `1246c18` — ICN-SCAN-FENCE landed; THE ICN-SCAN LADDER IS CLOSED (13b deferred into the bb_var
+tier by its own entry). HEAD (.github) = this entry.** Session 2026-06-04-c (Opus 4.8, "GOAL-ICON-BB continue"): one
+gated rung, SCRIPT-ONLY (zero `src/` changes) → corpus three columns trivially byte-identical to the session-start
+baseline (m2 **129 HARD** / m3 **18**/82/**147E** / m4 **25**/136/**86E**, re-measured at session start on the cloned
+HEAD `de8c4ad`, the post-`b59c9e6` peer state). Full gate detail + the pipefail/SIGPIPE-race lesson + the
+TT_CSET_DIFF flag are in the FENCE DONE entry above. Probe sweep **28/28**; measured scan bucket **N=47** (m2 31 ·
+m3 7+38E · m4 7+38E; ratchet floors pinned 31/7/7 — the EXCISED→PASS deltas of future scan-shape admissions land
+here); smokes Icon m2 12/12 HARD · m3 5/12 · m4 5/12 · Prolog m2 5/5 · broker 32; structural gates green via the
+fence's own (d) section (no_bb_bin_t 0 · handencoded `--strict` 0 · icn_no_stack ≤127 · one-reg-frame 0 ·
+prove_lower2 PASS · no_vstack 3 standing). **NEXT = the bb_var tier** (the prior watermark's fork, now the clear
+priority: it unblocks SCAN-13b native, var-subject scans — `s ? …`, hence every desugared `?:=` — AND the
+relop/if/while/until control cluster, the largest dead native block: 8 kinds with zero working native shape) — or
+ICN-HY-4 `bb_binop_gen` if Lon prefers the hygiene ladder first.
+
+**PREV ENTRY — HEAD (SCRIP) = `b59c9e6` — ICN-SCAN-12 (`84ea1ca`) + ICN-SCAN-13a (`b59c9e6`) landed; the `=s` and `?:=`
 constructs EXIST and are m2-canon. HEAD (.github) = this entry.** Session 2026-06-04-b (Opus 4.8,
 "GOAL-ICON-BB continue"): two gated rungs, each probe-green, zero corpus flips ALL THREE modes at each, clean
 rebases onto orthogonal peers (Prolog PL-GZ-1/1b + LOWER-SPLIT `d6d93c6` lower_prolog.c extraction; SNOBOL4
