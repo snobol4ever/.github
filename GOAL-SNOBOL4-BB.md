@@ -640,3 +640,15 @@ Each: the bomb fires when the dispatcher sends an unrecognized shape. Cherry-pic
 - [ ] **ACT-3** `bb_keyword` — add `&anchor`, `&maxno`, `&rtracing` and other SNOBOL4 keyword arms.
 - [ ] **ACT-4** `bb_scan_stmt` TEXT non-literal arm — requires full native PB-RB pattern graph, blocked on scan architecture.
 - [ ] **ACT-5** Shape-by-shape extension of W5/W6 admission criteria as new test programs expose them.
+
+---
+
+### X86-ONE + S-ASM ABOLITION (SCRIP 47883c4 + 68ba77c)
+
+**ONE x86() function** (`x86_asm.h`): `x86(mnem, xop a={}, b={}, c={}, d={})`. Operands are strings that read like Intel asm; `xop` implicit ctors absorb const char*/int/long/uint64_t/std::string (via 16-slot keep ring). Parser classifies REG/IMM/PORT/ILBL/FR32/FR64/RSP64/MEMIND/MEMIDX8/R13RCX/R10MIR/RIPSEAL/SYM (space-normalized), ONE switch dives per opcode → proven byte encoders. PORT_*/FR/FRQ/L/RSP/F64 are string producers. TEXT-only forms: "label", "comment", "directive", "raw", "ins1/ins2/ins3/Lins1/Lins2" (passthrough), SYM-target jmp/jcc/call, "movsd"+f64.
+
+**s_*asm DELETED** from the entire tree: dead JVM/JS/NET/WASM arms purged (12 files, 949 calls); BB + XA templates fully migrated; definitions and _c wrappers removed from emit_str.h/.cpp. 105 files, −2429 lines.
+
+**Next refinement (optional):** ins2 passthrough sites still carry joined operand strings ("rax, [rip+...]") — converting them to true parsed form (`x86("mov","rax","[rip+lbl]")`) per-file unlocks BINARY for those TEXT-only arms.
+
+**Gates at 68ba77c:** smoke m2 7/7 HARD, m3 6/6, m4 6/6; rung M2 18 / M4 17 (053 pre-existing FAIL-M2, 054 FAIL-M4 frame-corruption open).
