@@ -17,7 +17,9 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 **PROLOG GROUND ZERO (Lon directive, 2026-06-04 second session): Prolog development is RESET to square one
 on the Proebsting-pure track — see the 🔴 PL-GZ ladder below.** PL-M34 and PL-BBL are ABSORBED into PL-GZ
 (they were retrofit ladders; PL-GZ builds their end states by construction); PT and WAM-CP are LEGACY (see
-LEGACY DISPOSITION below PL-GZ). Frozen legacy watermark at reset: m2/m3 **115/115** byte-identical ·
+LEGACY DISPOSITION below PL-GZ). Frozen legacy watermark at reset: m2/m3 **115/115** byte-identical (the
+m3 115 = **12 native + 103 interp-fallback** — PL-GZ-1b census 2026-06-04; the byte-identity is the
+FALLBACK's, not the slab's) ·
 m4 **105/0/10** · SCRIP HEAD `89c730c` · siblings Icon m2 12 · SNOBOL4 m2 7. Grounding: Proebsting paper
 (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_sno_1/2/3/4.c` + `test_icon.c` in
 `.github/` · the reset rationale + coupling measurement in
@@ -324,10 +326,10 @@ output.
 study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05-28-OPUS.md`
 (gprolog CP-frame layout that grounded WAM-CP-1).
 
-**Three modes:**
-- **Mode 2 (`--interp`):** `sm_interp_run` → `SM_BB_SWITCH` → `pl_bb_dcg` → `bb_exec_once`. Correctness reference.
-- **Mode 3 (`--run`):** routes through `sm_interp_run` for Prolog (AGW-1c, V-5). TRANSITIONAL — owned by the PL-GZ ladder below (Lon 2026-06-04: RESET; m3 ≡ m4 by construction); touch ONLY via PL-GZ rungs.
-- **Mode 4 (`--compile --target=x86`):** emitter port-DFS walks BB graph, emits via `bb_pl_*.cpp`. Graph freed by `stage2_free_bb_after_emit`.
+**Three modes (Lon 2026-06-04 — NORMATIVE DEFINITIONS: mode-2 is the ONLY interpreter mode; 3 and 4 are EMIT modes):**
+- **Mode 2 (`--interp`):** the interpreter — `IR_interp.c` walks the BB port-graph in-process. The ONLY interpreter mode; the correctness oracle.
+- **Mode 3 (`--run`):** EMIT x86 BB blobs and RUN them in-memory in the CURRENT process (sealed slab, jump in). Prolog TODAY violates this: a thin flat-walk (`pl_flat_body_root`→`bb_build_flat`, single-GCONJ-of-simple-goals — 12 of the 115 rungs) plus an INTERP-FALLBACK to mode-2 `IR_interp_once` for everything else, LOUD on stderr since PL-GZ-1b (was SILENT; the old `sm_interp_run` naming here was stale). TRANSITIONAL — owned by the PL-GZ ladder below (Lon 2026-06-04: RESET; m3 ≡ m4 by construction); touch ONLY via PL-GZ rungs.
+- **Mode 4 (`--compile --target=x86`):** EMIT standalone `.s`, assemble (`as`), link `libscrip_rt.so`, EXECUTE as a separate system process.
 
 **Absolute rules:** No C Byrd boxes. No SM/BB walking at runtime in Mode 3/4. Four ports = Greek letters (α/β/γ/ω) only. No `rt_*` port-logic helpers (conversion/effect helpers like `trail_mark`/`unify`/`term_new_*` are OK).
 
@@ -459,11 +461,35 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
   Embodies every LAW above; gcc-compiled; output pinned. The seed is the byte-shape oracle every emitted
   Prolog box must match and answers every former PL-BBL-0 classification in executable form. Lives in
   `.github/` beside test_sno_*.c, post-rename names.
-- [ ] **PL-GZ-1 — coupling gate** `scripts/test_gate_pl_coupling.sh`: counts CONTROL-coupling call sites
+- [x] **PL-GZ-1 — coupling gate** `scripts/test_gate_pl_coupling.sh`: counts CONTROL-coupling call sites
   (`resolve_cp_current`, `rt_last_ok`, `rt_get_cut_flag`, `resolve_bb_env_*`, `rt_env_current`,
   `rt_choice_cut_*`, `rt_cp_save_caller_env`) per Prolog template and in emitted `.s`. Reset baseline:
   choice 24 · goal 14 · unify 4 · others ≤2. VALUE calls (`rt_unify_terms`, `rt_pl_arith`, write helpers)
   are sanctioned — the strchr class. New-path boxes emit ZERO control calls; the count ratchets down, never up.
+  **LANDED `882ee24` (2026-06-04)** — measured normative baseline baked as ceilings: **choice 19 · goal 10 ·
+  all other templates 0 · rung05 emitted `.s` 39** (the 24/14/4 sketch counted CP-push/trail/unify sites
+  outside the normative symbol set; bb_unify's 4 were sanctioned `rt_unify_*` VALUE calls = 0 here).
+  Call site == comment-stripped `SYM@PLT` emission; negative proven (injected call → exit 1).
+- [ ] **PL-GZ-1b — MODE-3 TRUTH** (Lon 2026-06-04: m2 is the ONLY interpreter mode; m3 = EMIT + RUN
+  in-memory in the CURRENT process; m4 = EMIT, assemble, link, EXECUTE as a system process. The Prolog
+  `--run` branch violated this by SILENTLY executing `IR_interp_once` and counting it as a mode-3 PASS):
+  - [x] (a) fallback made LOUD (`a007e43`): `[PBB] MODE-3 INTERP-FALLBACK` on stderr before
+    `IR_interp_once`; GATE-1 harness m3 capture split `2>&1`→`2>/dev/null` matching m2/m4.
+  - [x] (b) census 2026-06-04: of GATE-3's 115, **12 native** (rung01 hello · rung22 write_canonical ·
+    rung23 arith_ext ×5 · rung29 number_ops ×5) / **103 interp-fallback**.
+  - [x] (c) native MISCOMPILE evicted (`a007e43`): flat-walk var↔ATOM unify printed the rodata LABEL
+    (`.S0`) instead of the atom, BOTH orders — THIS was GATE-1's "m3 4/5 known harness artifact".
+    `IR_ATOM` dropped from `pl_flat_goal_is_simple`'s const set (var↔`LIT_I` probe-proven correct, stays).
+    GATE-1 m3 now **5/5**.
+  - [ ] (d) suite counts m3 EXCISED via the marker and re-baselines m3 to its true native count;
+    PL-M34 law m3 EXCISED set == m4 EXCISED set (lands with PL-GZ-2's ONE shared admission gate).
+  - [ ] (e) FENCE inherits: the fallback is DELETED — an uncovered program under `--run` prints EXCISED
+    and exits exactly like m4.
+- [ ] **CORPUS-S-HYGIENE** (Lon 2026-06-04): gates STOP updating corpus `*.s`; tracked `.s` are frozen
+  DEMO artifacts only (roman, wordcount, claws5, treebank, …).
+  - [x] (a) `run_prolog_via_x86_backend.sh` emits `.s` + `bb_macros.s` into its mktemp WORK dir
+    (`8066f16`); full GATE-3 compile leg proven corpus-clean (git status 0 dirty).
+  - [ ] (b) prune tracked corpus `.s` down to the DEMO keep-list — needs Lon's confirmed list.
 - [ ] **PL-GZ-2 — hello** (write/nl): new-path emission, ONE x86() body per box, m2==m3==m4 byte-identical,
   ONE shared admission gate; non-admitted programs fall to interp LOUDLY and are counted EXCISED
   identically in m3 and m4.
