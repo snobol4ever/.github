@@ -518,6 +518,8 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EA
   the step are no longer in this file (IR_LIT_NUL is consumed by the assign_frame family; a flat-chain F literal is a
   future shape) — no stray shape, KEEP grouped.
 - [ ] **ICN-HY-7 — de-dup + RT-fix, all Icon boxes.** Any algorithm appearing in both a TEXT and BINARY arm → DELETE both, replace with one `rt_*` call (marshal slots, call helper). No emit-time value work.
+  **LANDED 2026-06-04 (HY-7a `6764f03` + HY-7b `000158f`): baseline items (2) RAW BYTES, (3) NO-STACK residue, (4) pBB-purity are CLEARED.** HY-7a: four shared encoders `x86_reg_disp32_{load64,store64,store_imm64,lea64}` added to `x86_asm.h` (additive, the sanctioned one-place form); the five per-file `x86_Lrec`+`u32le` local helpers DELETED (bb_call `bcall_fr_*`; bb_var_frame/ref + bb_assign_frame/ref `fr_*`) — medium-invisible 363→343, bb_call(4)+frame-family(16) off the list, ALL remaining sites are the documented Prolog-lane `bb_builtin_*` WIP; `rt_pop_write_*` ERADICATED (`bb_call_write_legacy_str` → loud `x86_bomb`; its runtime targets were STACKLESS_ABORT stubs and write(non-slot-arg) shapes EXCISE pre-emission, so a dead path until the bb_var tier) — **icn_no_stack 10→0, the GROUND ZERO 3 target REACHED for the whole Icon emission path**. HY-7b: all six bb_call-family files read only `_` (bb_call 17→0, proc_staged 3→0, write_slot/userproc/builtin/every 2→0); two prologue carriers ADDED (`op_dval`, `op_counter` — the op_a_counter precedent); pointer-needing sites (`bb_slot_alloc16`, marshal owner, `->α`) → `_.node` (the bb_return.cpp precedent). NOTE: the baseline's "MEDIUM_TEXT/else pairs ~122-123/136" are the marshal gvar-read sites — rip-label-vs-baked-pointer of ONE logical load+call, the sanctioned per-medium difference, NOT an instruction pair; the gate now reads bb_call at 0 — do not chase them.
+  **REMAINING = baseline item (1) DUP-FORM-3 FUSION** — `marshal_call_arg`/`marshal_varparam_addr` read `lf->t`/`fin->α/β->t==IR_LIT_I|IR_VAR|IR_VAR_FRAME*` + `->ival/sval/dval` on operand subgraph nodes (parameter reads, untouched by 7b); the standing PREREQ applies — de-fuse needs the lowerer to chain literal operands as producer boxes first (the GZ-3/GZ-4 class). (5) FENCE intel unchanged: `scripts/test_gate_bb_one_box.sh` is PROLOG-SCOPED; extend its file set to Icon AFTER the fusion fix or it arrives RED.
   **MEASURED BASELINE (2026-06-04 sweep at `4df5bfd` — the debt is CONCENTRATED in the `bb_call` family; scan/to/alt/
   lit/unop/binop-slot families are CLEAN):** (1) DUP-FORM-3 FUSION — `bb_call.cpp` ~115-136 reads
   `fin->α/β->t==IR_LIT_I|IR_VAR|IR_VAR_FRAME*` + `->ival/sval/dval` inside the consumer (the GZ-3/GZ-4 class; the
@@ -862,7 +864,39 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `4df5bfd` — ICN-HY-4/5/6 CLOSED (two audits + one purity fix). HEAD (.github) = this entry.**
+**HEAD (SCRIP) = `000158f` — ICN-HY-7a (`6764f03`) + ICN-HY-7b (`000158f`) landed: the bb_call-family RAW-BYTE / NO-STACK / pBB debt is CLEARED; the Icon lane reads ZERO on the medium-invisible strict list; the GROUND ZERO 3 no-stack gate target is REACHED (10→0). HEAD (.github) = this entry.**
+Session 2026-06-04-d (Opus 4.8, "GOAL-ICON-BB continue"): two gated rungs, each committed + pushed with a clean
+rebase onto orthogonal Prolog peers (`6f69e3f` PL-GZ-3b, `20f15db` PL-GZ-4a), merged-HEAD m2 HARD + smoke
+re-verified each time. **HY-7a `6764f03`:** four shared encoders `x86_reg_disp32_{load64,store64,store_imm64,
+lea64}` ADDED to `x86_asm.h` (additive — the sanctioned "missing encoder is the bug" form); the five per-file
+`x86_Lrec`+`u32le` local helpers DELETED (bb_call `bcall_fr_load64/lea64`; bb_var_frame/ref + bb_assign_frame/ref
+`fr_load64/store64/store_imm`) — **medium-invisible 363→343** (bb_call(4) + the SHARED frame family(16) off the
+list; every remaining site is the documented Prolog-lane `bb_builtin_*` WIP); `rt_pop_write_int_nl`/`_any_nl`
+ERADICATED (`bb_call_write_legacy_str` → loud `x86_bomb` — its runtime targets were STACKLESS_ABORT stubs and the
+write(non-slot-arg) shapes EXCISE pre-emission, so a dead path until the bb_var tier) — **icn_no_stack 10→0**.
+**HY-7b `000158f`:** bb_call-family pBB purity — ALL SIX files read only `_` (bb_call 17→0, proc_staged 3→0,
+write_slot/userproc/builtin/every 2→0); two prologue carriers ADDED to `walk_bb_node` + `g_emit` (`op_dval`,
+`op_counter` — the op_a_counter precedent); field reads → `_.op_sval/_.op_ival/_.op_dval/_.op_counter/_.nid`;
+pointer-needing sites (`bb_slot_alloc16`, marshal owner, `->α`) → `_.node` (the bb_return.cpp precedent);
+nested-call marshal recursion (`lf->*`) untouched — parameter reads of operand subgraph nodes, the separate
+fusion item. **TRANSFERABLE LESSON (struct-layout hazard):** `op_dval`/`op_counter` were inserted MID-STRUCT in
+`g_emit` → every TU's offsets for later fields shift → a stale `.o` is SILENT CORRUPTION; the rung did
+`rm -rf /tmp/si_objs` + full clean rebuild of scrip AND libscrip_rt and re-verified. Future carrier additions:
+append at struct end, or always clean-rebuild. **FLAT-PATH PROOF (recorded for future migrations):** `FILL` →
+`walk_bb_node` → the prologue runs before EVERY template in BOTH the tree and flat-chain paths, so carriers are
+always fresh for the dispatched node — the migration class is safe by construction. Gates at BOTH rungs: corpus
+ALL THREE columns byte-identical zero drift (m2 **129 HARD** / m3 **18**+147E / m4 **25**+86E — full suite at
+each rung + post-rebase m2 re-checks); smoke Icon m2 12/12 HARD · m3 5/12 · m4 5/12 · Prolog m2 5/5 HARD m4 5/5
+· broker 32; scan fence composite PASS (28/28, bucket 31/7/7 N=47); bb_bin_t 0 · handencoded `--strict` 0 ·
+one-reg-frame 0 · **no-stack 0** · g_vstack 3 standing · prove_lower2 PASS · FACT 0. **NEXT = HY-7's remaining
+item, the marshal DUP-FORM-3 fusion — BLOCKED on the standing lowerer PREREQ** (chain literal operands as
+producer boxes, the GZ-3/GZ-4 class — a LOWERER rung first, then delete the operand-kind arms); ICN-HY-FENCE
+(extend `test_gate_bb_one_box.sh` to Icon files) FOLLOWS the fusion fix or arrives RED. **Or jump to the bb_var
+tier** (still the largest single unblock: SCAN-13b, var-subject scans — `s ? …`, hence every desugared `?:=` —
+AND the relop/if/while/until control cluster, 8 kinds with zero working native shape). Handoff doc:
+`HANDOFF-2026-06-04-OPUS48-ICON-BB-HY-7A-7B.md`.
+
+**PREV ENTRY — HEAD (SCRIP) = `4df5bfd` — ICN-HY-4/5/6 CLOSED (two audits + one purity fix). HEAD (.github) = this entry.**
 Session 2026-06-04-c continued (Opus 4.8): the BB-HYGIENE ladder's three de-cram steps closed in one pass — their
 line-count premises were STALE (written 2026-06-01, pre-revamp). **HY-4 MOOT-BY-DELETION** (`bb_binop_gen.cpp`
 ABSENT, zero refs; `IR_BINOP_GEN` EXCISED via stub; VSX coupling moot). **HY-5 ALREADY GROUPED** (ONE 42-line
