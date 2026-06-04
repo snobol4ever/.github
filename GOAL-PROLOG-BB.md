@@ -16,7 +16,7 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 **PROLOG GROUND ZERO (Lon 2026-06-04): development RESET to square one on the Proebsting-pure track — the
 🔴 PL-GZ ladder below.** PL-M34/PL-BBL ABSORBED into PL-GZ; PT/WAM-CP LEGACY (see LEGACY DISPOSITION).
-Watermark: SCRIP HEAD `c285ea1` — **PL-GZ-0..4 + 5a + 5b LANDED** (details collapsed into the ladder entries).
+Watermark: SCRIP HEAD `7bb6843` — **PL-GZ-0..4 + 5a + 5b LANDED** (details collapsed into the ladder entries).
 Gates: GATE-1 m2 **5/5 HARD** · m3 4/0/1-EXC (`recursion` only — flips at 5b/5c) · m4 5/5; GATE-3 m2
 **115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (the 10 = PT-4b retract/abolish); coupling ceilings
 choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b gates
@@ -498,7 +498,7 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
   N≤4/arity≤2; general 2-arm disjunction (redo-into-right-arm) deferred. Gate `test_gate_pl_gz4.sh`
   negative-proven.
 - [~] **PL-GZ-5 — conj + recursion** (kills `last_ok` + the env swap on the new path):
-  - [x] **5a — user-predicate CALLS** ✅ `da9228d` (2026-06-04 Opus 4.8) — the call IS a port edge to
+  - [x] **5a — user-predicate CALLS** ✅ `e8e728c` (2026-06-04 Opus 4.8) — the call IS a port edge to
     another box's α: TWO new port fills **δ = callee α / ε = callee β** beside γ/ω/β (PORT_DELTA=4 /
     PORT_EPSILON=5; `X86_INTERNAL_BASE` 4→6, single-sited symmetric); call encoder `x86("call",port)` =
     `Lrec(0xE8)+Jrec(port)` / ` call name`. Boxes: `bb_cell_call.cpp` (arg CELL-POINTER marshal rdi/rsi
@@ -515,7 +515,7 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
     a choice/query unwind predating the stale bindings) — recursion REQUIRES 5b's ζ-tree. Gate
     `test_gate_pl_gz5a.sh` (8 probes: value-flow-out through head vars, redo-through-call ε, choice-driven
     α re-entry, cross-var head; 2-clause + nested-call decline identically; corrupt-proof exits 1).
-  - [x] **5b — `rt_enter` ζ-TREE + recursion** ✅ 5b-i `9cba9ab` + 5b-ii `c285ea1` — each call SITE owns a
+  - [x] **5b — `rt_enter` ζ-TREE + recursion** ✅ 5b-i `a8993f4` + 5b-ii `7bb6843` — each call SITE owns a
     child-frame POINTER slot in the caller's frame (the seed's `&ζ->p2_ζ`); `rt_enter(slot,nslots)` =
     reuse-or-alloc; register protocol = the seed's print form `path(&ζ->p2_ζ,α,a0,a1)`: call δ with
     rdi=child rsi/rdx=arg cell ptrs, call ε with rdi=child ONLY; callee α/β push caller ζ + mov r12,rdi;
@@ -652,7 +652,7 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (2026-06-04 — PL-GZ-5a, SCRIP `da9228d`)
+## 📊 Gate table (2026-06-04 — PL-GZ-5a, SCRIP `e8e728c`)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
