@@ -407,9 +407,10 @@ FACT 0, smokes hold.
     `write(2+3)` native m3/m4 (`da9859c`); IR_LIT_S slot + `x86_ro_seal_str` string REG-RO → `write("a"||"b")` native
     (`186b9b0`). See watermark.
   - [ ] remaining GZ-11+ families: `not`/`size`/`nonnull` stackless `bb_unop`; **relop tiers
-    (`if_expr`/`while`/`until`/`repeat_break`) NOT LIT — relop-var operand needs a slot: `bb_var` bombs (assigned var
-    has no ζ-slot in this path) + a `kind=5 unhandled` node + the if/relop GZ-8 control flow → multi-subsystem**;
-    generator-operand binops (Fig-1 native m3/m4); `rt_call_builtin` (find/upto/many/any).
+    (`if_expr`/`while`/`until`/`repeat_break`) NOT LIT — (PARTIALLY SUPERSEDED 2026-06-04-e: the "assigned var has no
+    ζ-slot" half is CLOSED by ICN-VAR-1 `bb_assign_local` varslots; remaining = the binop/relop operand-read arms +
+    the if/relop GZ-8 control flow — see the ICN-VAR LADDER, step VAR-2)**; generator-operand binops (Fig-1 native
+    m3/m4); `rt_call_builtin` (find/upto/many/any).
   - [x] **`bb_to` NATIVE — DONE (`b48f0cd`).** `every write(1 to N)` and `every write(1 to N by k)` now run
     m2==m3==m4. The stackless `bb_to` int-range generator is live; `IR_TO`/`IR_TO_BY` removed from
     `icn_kind_native_stub`. The `every`→generator re-pump back-edge is wired (see watermark for the three-layer
@@ -749,6 +750,39 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   never reaches IR so it sits outside the bucket; pre-existing FAIL-bucket member, candidate for a cset-tier or
   loud-decline rung.
 
+## 🔴 ICN-VAR LADDER — NATIVE LOCAL VARIABLES (the bb_var tier; opened 2026-06-04-e at `cf204ed`)
+
+**Scope:** local (non-NV-global) Icon variables on the descr-flat-chain native path — assign, read, then the operand
+positions (binop/relop/scan-subject) that were blocked on "var has no ζ-slot". Substrate: `bb_varslot(name)` /
+`bb_varslot_peek` name-keyed 16B frame slots `[r12+off]` (the PER-BOX LOCAL STORAGE law's `bb_varslot` clause); proc
+params pre-register varslots at build entry. Register contract = the ratified X86-64 FACT table. All standing FACT
+rules apply to every box below. **GATING DISCIPLINE (learned at VAR-1, keep on every widening):** an assign-containing
+graph emits only if ALL nodes are in the safe set AND every IR_CALL is **write/writes BY NAME** — the TT_AUGOP/swap
+lowerer misroute (`x +:= 5` → bare `v_det_call("x")` IR_CALLs) defeats any naive kind set; m4 (`for_run=0`) has no
+builtin-call shield. Plus: every local IR_VAR read must be assigned-or-param in its graph (loud EXCISE, never the
+`op_off=-1` runtime bomb).
+
+- [x] **ICN-VAR-1 — `bb_assign_local.cpp` — DONE (`cf204ed`, 2026-06-04).** Native local assign + read, wave-1 rhs
+  {LIT_I, LIT_S, VAR}: rhs DESCR slot 16B → varslot + own slot; β→ω single-shot (canonical `ir_a_Binop ":="` for
+  these shapes); driver deposits op_sb/op_off, prologue already carries op_a_slot/op_a_node_kind; emit_core routes
+  descr-flat-chain locals. Probes `x:=42;write(x)`/`s:="hi"`/`y:=x`/reassign m2==m3==m4; negatives EXCISE rc=0.
+  Corpus all three columns byte-identical every bucket (m2 129 HARD / m3 18+147E / m4 25+86E). Full detail + the
+  twice-hardened gate story in the Watermark + `HANDOFF-2026-06-04-OPUS48-ICON-BB-VAR-1.md`.
+- [ ] **ICN-VAR-2 — binop/relop var operands.** `x := x + 1` and `if x > 5` reading varslot-produced operand slots:
+  the binop arith/relop boxes take operand slots (the producers — IR_VAR — now exist); assign's rhs admission grows
+  IR_BINOP (raw-int64 slot → DT_I retag arm, the `bb_gvar_assign`/`bb_assign_frame` IR_BINOP precedent). THE DIRECT
+  UNBLOCK for the if_expr/while/until/repeat smoke cluster (IF/CONJ/WHILE/UNTIL/REPEAT/NEXT/SUSPEND/LIST_BANG — 8
+  kinds, zero native shapes); `flat_drive_while`/`while_cond_emittable` + the IR_IF EMIT_PAIR arm are the existing
+  consumers waiting on these operand slots. Widen the safe set per-kind with the by-name lens; never blanket.
+- [ ] **ICN-VAR-3 — SCAN-13b adoption.** The deferred var-subject scan slice: `icn_scan_subgraph_safe` admits local
+  IR_VAR subjects; `flat_drive_gen_scan` adopts the body-terminal slot as the scan node's value (the written-up
+  slot-adoption piece in the SCAN-13b entry); probe `s := "hello"; s ?:= tab(3); write(s)` → `he` m3/m4.
+- [ ] **ICN-VAR-AUGOP-PREREQ — TT_AUGOP desugar rung** (Rebus `rebus_lower.c` precedent; the SCAN-13a flag, now
+  doubly motivated): `x +:= e` → `x := x + e` in the lowerer kills the misroute the VAR-1 gate fences around; the
+  11 fenced m4 programs (rung10/11/15/36/37 augop+swap families) are its ready-made probe set.
+- [ ] **ICN-VAR-FENCE — gate.** Probe sweep + corpus var-bucket floors + the structural battery, the ICN-SCAN-FENCE
+  pattern (capture-then-match, never `cmd | grep -q` under pipefail).
+
 ## Premise
 
 Icon IS a Byrd Box graph. Every construct is a box. The whole program is one connected port-graph. **There is no SM around it at all.** **There is no value stack.**
@@ -864,7 +898,35 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `000158f` — ICN-HY-7a (`6764f03`) + ICN-HY-7b (`000158f`) landed: the bb_call-family RAW-BYTE / NO-STACK / pBB debt is CLEARED; the Icon lane reads ZERO on the medium-invisible strict list; the GROUND ZERO 3 no-stack gate target is REACHED (10→0). HEAD (.github) = this entry.**
+**HEAD (SCRIP) = `331877c` (code rung `cf204ed` + handoff doc) — ICN-VAR-1 LANDED: THE bb_var TIER OPENS — native local-variable
+ASSIGN + READ (`bb_assign_local.cpp`). HEAD (.github) = this entry.**
+Session 2026-06-04-e (Opus 4.8, "GOAL-ICON-BB, your choice"): one gated rung, chosen per the standing watermark fork (bb_var =
+largest single unblock). **`bb_assign_local.cpp`** (NEW box, pure `x86()`, reads only `_`, 0 raw-byte producers): rhs DESCR slot
+`[r12+op_a_slot]` 16B-copied to varslot `[r12+op_sb]` + own slot `[r12+op_off]`; single-shot β→ω, faithful per canonical
+`ir_a_Binop ":="` for the gated rhs shapes. Driver arm (walk_bb_flat IR_ASSIGN local): `op_sb=bb_varslot(sval)` +
+`op_off=bb_slot_alloc16(nd)`; emit_core IR_ASSIGN routes descr-flat-chain locals (one line after the NV-global route); Makefile
+src+rule. **The READ side needed NOTHING** — `bb_var`'s varslot arm + the IR_VAR dispatch (`bb_varslot_peek`→op_sa) already
+existed; assigns now create the varslots they read. **DISCOVERY:** `walk_bb_node`'s prologue ALREADY auto-deposits
+`op_a_slot=bb_slot_get(nd->α)` + `op_a_node_kind` — consumers get their α-operand's slot for free; driver arms only need
+op_sb/op_off-class extras. **PRECISE WAVE-1 GATING, hardened TWICE in-rung — THE LOAD-BEARING LESSON:** the first draft (safe
+KIND set only, the bb_alt discipline: {ASSIGN,VAR,CALL,SUCCEED,FAIL,LIT_*}) flipped **11 m4 programs EXCISED→FAIL**, ALL
+carriers of the flagged **TT_AUGOP/swap lowerer misroute** (`x +:= 5` lowers as bare `v_det_call("x")` IR_CALLs that sit inside
+ANY naive kind set; m3 was shielded only by `for_run=1`'s builtin-call excise — m4 `for_run=0` admits them). **Fix: IR_CALL
+inside an assign-containing graph is admissible only as write/writes BY NAME** — keep this lens on every widening until the
+AUGOP desugar rung lands. Second hardening: every local IR_VAR read must be assigned-or-param in its graph → the latent
+`op_off=-1` runtime bomb becomes a loud EXCISE (a slice of the known ~150-abort permissiveness retired). rhs admission:
+{LIT_I, LIT_S, VAR}. Probes `x:=42;write(x)` / `s:="hi"` / `y:=x` chain / reassign all **m2==m3==m4**; negatives (binop rhs,
+unassigned read, the 11 misroute programs) EXCISE rc=0. **Corpus ALL THREE columns byte-identical in EVERY bucket** via full
+stash/rebuild/set-diff: m2 **129 HARD** / m3 **18**+147E / m4 **25**+86E — zero drift (no corpus program carries the pure
+wave-1 shape; probes carry the rung, the SCAN-3 precedent). Smoke Icon 12/12 HARD · m3 5/12 · m4 5/12 · Prolog 5/5 · broker
+32; bb_bin_t 0 · handencoded `--strict` 0 · **icn_no_stack 0** · one-reg-frame 0 · scan fence PASS (28/28) · prove_lower2
+PASS · FACT 0 · medium-invisible 343 unchanged (all documented Prolog-lane `bb_builtin_*`). Rebase was a no-op (no peer
+commits this window). **NEXT = ICN-VAR-2** (binop/relop var operands — see the new ICN-VAR LADDER above: operand-slot reads
+in the binop arith/relop boxes; raw-int64 binop slots need the DT_I retag arm, the `bb_gvar_assign` IR_BINOP precedent) —
+the direct unblock for the **if_expr/while/until/repeat smoke cluster** (8 kinds, zero native shapes); then VAR-3 = SCAN-13b
+adoption; the TT_AUGOP desugar rung is now doubly motivated. Handoff doc: `HANDOFF-2026-06-04-OPUS48-ICON-BB-VAR-1.md`.
+
+**PREV ENTRY — HEAD (SCRIP) = `000158f` — ICN-HY-7a (`6764f03`) + ICN-HY-7b (`000158f`) landed: the bb_call-family RAW-BYTE / NO-STACK / pBB debt is CLEARED; the Icon lane reads ZERO on the medium-invisible strict list; the GROUND ZERO 3 no-stack gate target is REACHED (10→0). HEAD (.github) = this entry.**
 Session 2026-06-04-d (Opus 4.8, "GOAL-ICON-BB continue"): two gated rungs, each committed + pushed with a clean
 rebase onto orthogonal Prolog peers (`6f69e3f` PL-GZ-3b, `20f15db` PL-GZ-4a), merged-HEAD m2 HARD + smoke
 re-verified each time. **HY-7a `6764f03`:** four shared encoders `x86_reg_disp32_{load64,store64,store_imm64,
