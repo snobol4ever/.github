@@ -569,6 +569,11 @@ itself). Where a violation is naming-only the step says rename — confirm with 
 prescribed ABORT to a rename. EVERY step: run the named gate, pin before/after counts in this file, prove
 zero drift elsewhere (stash→rebuild→diff where feasible). XA_templates scanned CLEAN — no XA steps.
 
+LB BATCH LANDING NOTE (session 13): SCRIP `37eefa1`, rebased onto concurrent `d2405a6` which did PARALLEL
+overlapping cleanup the same hour — ONE conflict (bb_catch.cpp LB-7 wording, both sides neutralized
+WAM-CP-13; resolved to d2405a6's "non-admitted shape" text). Merged tree re-verified: SNOBOL4 19/0, Icon
+130/117/36, Prolog 136/0/0, sieve + recursion m3 green.
+
 - [x] **LB-1 — Raku-named arm → ABORT.** DONE (session 13). Arm at (drifted) `bb_call.cpp:311` now
   `x86_bomb("IR_CALL dval=2 descr-chain arm aborted per LANGUAGE-BLIND rule")`. MEASURED DELTA: raku smoke
   m4 PASS 2→1 / FAIL 0→1 — the moved test is `str_reverse` (m3 was already FAIL); m2 HARD 25/0 unchanged;
