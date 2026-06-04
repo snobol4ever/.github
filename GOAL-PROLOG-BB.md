@@ -20,8 +20,10 @@ on the Proebsting-pure track — see the 🔴 PL-GZ ladder below.** PL-M34 and P
 LEGACY DISPOSITION below PL-GZ). Frozen legacy watermark at reset: m2/m3 **115/115** byte-identical ·
 m4 **105/0/10** · SCRIP HEAD `89c730c` · siblings Icon m2 12 · SNOBOL4 m2 7. Grounding: Proebsting paper
 (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_sno_1/2/3/4.c` + `test_icon.c` in
-`.github/` · the reset rationale + coupling measurement in this session's handoff. **Next opener:
-PL-GZ-0 (the seed `test_pl_1.c`), then PL-GZ-1 (coupling gate).**
+`.github/` · the reset rationale + coupling measurement in
+`HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`. **PL-GZ-0 LANDED this session
+(`b4c935c3`, output pinned `b c d b`, -O0..-O3, 20/20 runs identical). Next opener: PL-GZ-1
+(coupling gate, first SCRIP commit of the new track), then PL-GZ-2 (hello).**
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
