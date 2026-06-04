@@ -449,7 +449,7 @@ Full mode-4 corpus: loop `corpus/programs/prolog/rung*.pl` through `scripts/run_
 
 Port semantics (α/β/γ/ω): the four-port table in ⛔ MANDATORY READ above.
 
-### Per-construct port wiring### Per-construct port wiring
+### Per-construct port wiring
 | Construct | α | β | γ | ω |
 |---|---|---|---|---|
 | `IR_GCONJ` (seq) | first goal's α | last goal's β | `goal[i].γ = goal[i+1].α` | `goal[i+1].ω = goal[i].β`; first → ω_in |
