@@ -569,31 +569,40 @@ itself). Where a violation is naming-only the step says rename — confirm with 
 prescribed ABORT to a rename. EVERY step: run the named gate, pin before/after counts in this file, prove
 zero drift elsewhere (stash→rebuild→diff where feasible). XA_templates scanned CLEAN — no XA steps.
 
-- [ ] **LB-1 — `bb_call.cpp:209` Raku-named arm → ABORT.** Replace `return bb_call_rk_arr_str(pBB)` with an
-  `x86_bomb` arm ("IR_CALL dval=2 descr-chain arm aborted per LANGUAGE-BLIND rule"). Gates: Raku rungs (Raku
-  ON HOLD; `rk_array_literal.raku` already FAILs the clean baseline) + the full cross-language pin.
-- [ ] **LB-2 — `bb_call_rk.cpp` (whole file).** After LB-1: delete the file + the extern at
-  `bb_call.cpp:118`, or reduce to an ABORT stub if the symbol is still referenced. Also fix the `.Lrkarg`
-  label prefix in `marshal_call_arg` (`bb_call.cpp:80`) → `.Lcallarg` (it brands EVERY language's args).
-- [ ] **LB-3 — `bb_call.cpp:210` `DEFINE` name-gate → ABORT.** The dispatch may not know a builtin's name.
-  Gate WILL move: SNOBOL4 smoke 19/0 incl. m4 6/0 rides this arm — measure and report; the language-blind
-  re-route is LOWER giving DEFINE its own IR shape, or the generic by-name arm if `rt_call_arr` learns it.
-- [ ] **LB-4 — `bb_gvar_assign_icn.cpp` Icon fork → ABORT body.** Gates: Icon ladder 130/117/36 buckets +
-  ICN GLOBAL-NV GN-4/5 (`c66723e`) — pin exact deltas. Unification target: ONE shape-dispatched
-  `bb_gvar_assign`.
-- [ ] **LB-5 — `bb_templates.h:44`.** Remove the `bb_gvar_assign_icn` decl together with LB-4's resolution.
-- [ ] **LB-6 — `bb_pl_op_floaty` (3 sites: `bb_builtin.cpp:3`, `bb_builtin_common.h:61`,
-  `bb_builtin_is_cmp.cpp:77`).** Naming-only — an op-name predicate whose behavior does not vary by
-  language → rename `bb_op_floaty` at all 3 sites. An ABORT here regresses Prolog is/cmp float ops — flag to
-  Lon if he wants ABORT regardless. Gate: Prolog honest 133/0/0.
-- [ ] **LB-7 — Tier-2 emitted-string sweep (14 sites).** Neutralize every language tag in emitted asm:
-  `# BOX SNO …` → `# BOX …` (`bb_call.cpp:129,163`, `bb_binop_gvar_arith.cpp:25`,
-  `bb_gvar_assign.cpp:35,44,55,78`, `bb_scan_stmt.cpp:38`); ICN/RK/WAM rung tags out of `bb_to.cpp:21`,
-  `bb_var.cpp:19`, `bb_call_rk.cpp:37`, `bb_catch.cpp:12`, `bb_choice.cpp:62`, `bb_goal.cpp:66`; neutral
-  bomb texts (`bb_gvar_assign.cpp:64`, `bb_var.cpp:27`). Mode-4 TEXT diffs are comment-only — re-pin any
-  byte-gates on emitted `.s`.
-- [ ] **LB-8 — Tier-3 C comments (3 sites).** Delete `bb_choice.cpp:1` (+ inline `:59`), `bb_goal.cpp:1`,
-  `bb_builtin_term_inspect.cpp:106`. The ONE-COMMENT style rule mandates deletion regardless of language.
+- [x] **LB-1 — Raku-named arm → ABORT.** DONE (session 13). Arm at (drifted) `bb_call.cpp:311` now
+  `x86_bomb("IR_CALL dval=2 descr-chain arm aborted per LANGUAGE-BLIND rule")`. MEASURED DELTA: raku smoke
+  m4 PASS 2→1 / FAIL 0→1 — the moved test is `str_reverse` (m3 was already FAIL); m2 HARD 25/0 unchanged;
+  raku m4 rung 0/47 unchanged (all-FAIL baseline). Cross-language pin: SNOBOL4 19/0, Icon --interp
+  130/117/36, Prolog 136/0/0, all-langs m4 5/1 — zero drift.
+- [x] **LB-2 — `bb_call_rk.cpp` deleted.** DONE (session 13). File + extern + 2 Makefile entries gone;
+  `.Lrkarg` → `.Lcallarg`. Build clean, gates as LB-1.
+- [ ] **LB-3 — `DEFINE` name-gate → ABORT. DEFERRED (session 13) — the only LB step left before FENCE.**
+  Investigation note for next session: the abort would drop SNOBOL4 smoke m3/m4 from 6/6 to ~5/5 (floors
+  3/4 — survivable but ugly); the CLEAN re-route is LOWER tagging DEFINE with its own IR shape (a dval or
+  a dedicated kind) so dispatch needs no name. Prefer re-route + abort in one step so the gate never moves.
+- [x] **LB-4 — Icon fork RESOLVED AT THE UNIFICATION TARGET (not abort).** DONE (session 13). Rationale:
+  the fork carried LIVE GN-4/5 traffic AND two concurrent ICN-SCAN sessions were mid-flight this hour —
+  an abort would have invalidated their in-flight pins; the step's own stated target ("ONE shape-dispatched
+  bb_gvar_assign") was achievable with ZERO drift, so unification chosen over abort. The fork body moved
+  verbatim into `bb_gvar_assign_str` as a `g_descr_flat_chain` first arm (x86_begin + sealed-RO idiom
+  preserved; slotless rhs → in-arm bomb preserving the fork's failure mode); `emit_core.c:419` re-pointed.
+  PROOF: Icon NV-global probe m4 `.s` before/after MODULO-ID BYTE-IDENTICAL (the only diff = bb<addr>
+  box-ID labels, proven run-noise by same-binary double emission); Icon --interp 130/117/36; crosscheck
+  3/1 with the 1 (`if_expr`) stash-proven pre-existing on clean HEAD. If Lon wants the prescribed ABORT
+  regardless, it is now a one-line change to the unified arm.
+- [x] **LB-5 — decl removed with LB-4.** DONE (session 13).
+- [x] **LB-6 — `bb_pl_op_floaty` → `bb_op_floaty`.** DONE (session 13), all 3 sites. Gate: Prolog honest
+  136/0/0 (count moved 133→136 by concurrent PT-1b/PT-2b before this step; unchanged by the rename).
+- [x] **LB-7 — Tier-2 sweep, AUDIT SCOPE.** DONE (session 13) for every audit-enumerated site (the
+  `bb_call_rk.cpp:37` site vanished with LB-2): BOX SNO → BOX (bb_call ×2, bb_binop_gvar_arith,
+  bb_gvar_assign ×4, bb_scan_stmt); WAM-CP tags out of bb_catch/bb_choice/bb_goal; ICN-HY-4 tag out of
+  bb_to; bb_var tags → mode words (gvar/descr flat-chain) + neutral bombs (bb_var, bb_gvar_assign concat).
+  NEW INVENTORY (post-audit, NOT swept — concurrent ICN-SCAN sessions actively own these): `# BOX ICN`
+  tags in bb_gen_scan.cpp:19,36, bb_keyword.cpp:23,32,43,54,64,73, bb_scan_any.cpp:19, bb_scan_match.cpp:20
+  (+ siblings bb_scan_pos/tab/upto) — sweep when ICN-SCAN settles, or fold into their next rung.
+- [x] **LB-8 — Tier-3 C comments deleted.** DONE (session 13): bb_choice header + the 5-line inline
+  cluster (separators preserved — first attempt over-deleted 2, caught and redone precisely), bb_goal
+  header, bb_builtin_term_inspect 2-line comment. Gate: Prolog 136/0/0.
 - [ ] **LB-FENCE.** COMPLETION TEST green: the audit's Tier-1 grep over `BB_templates/` + `XA_templates/`
   == 0; full matrix pinned (Pascal · Icon · Prolog · SNOBOL4 · all-langs m4 hello) with every delta from
   LB-1..LB-8 accounted for in this file.
