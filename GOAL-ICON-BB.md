@@ -871,10 +871,15 @@ ABSENT, zero refs; `IR_BINOP_GEN` EXCISED via stub; VSX coupling moot). **HY-5 A
 `emit_core.c:385-386` prologue carriers), pBB reads 0, value-identical. **HY-6 NO-SPLIT-NEEDED** (50-line
 `bb_lit_scalar.cpp`, all-literal, zero stray shapes). Full detail in the three DONE entries above. Gate at
 `4df5bfd`: to/to_by probes m2==m3==m4 · smoke 12/12 HARD · m2 corpus **129 HARD** byte-identical · scan-fence
-composite green (28/28 probes; bucket N=47, floors 31/7/7; structural OK). **NEXT = ICN-HY-7** (de-dup + RT-fix
-sweep, all Icon boxes — the ladder's core fix) then **ICN-HY-FENCE** (`scripts/test_gate_bb_one_box.sh` for
-Icon-owned files), or jump to the **bb_var tier** (still the largest single unblock: SCAN-13b, var-subject scans,
-the relop/if/while control cluster).
+composite green (28/28 probes; bucket N=47, floors 31/7/7; structural OK). **POST-WATERMARK SAME SESSION: the
+ICN-HY-7 MEASURED BASELINE landed** (.github `b15f833f`, full inventory in the HY-7 step entry): the debt is
+CONCENTRATED in the `bb_call` family (DUP-3 fusion ~115-136 · `x86_Lrec`/`u32le` raw bytes 36-37/54-55 ·
+`MEDIUM_TEXT/else` pairs · `rt_pop_write_*` no-stack residue · pBB reads 17) plus the SHARED frame family on the
+strict list (bb_var_frame/ref, bb_assign_frame/ref — NOT only Prolog-lane); `scripts/test_gate_bb_one_box.sh`
+EXISTS but is PROLOG-SCOPED (HY-FENCE = extend its file set to Icon). **NEXT = ICN-HY-7** (bb_call rework —
+inventory in hand; mind the standing lowerer de-fuse PREREQ) then **ICN-HY-FENCE**, or jump to the **bb_var tier**
+(still the largest single unblock: SCAN-13b, var-subject scans, the relop/if/while control cluster). Handoff doc:
+`HANDOFF-2026-06-04-OPUS48-ICON-BB-SCAN-FENCE-HY-456.md`.
 
 **PREV ENTRY — HEAD (SCRIP) = `1246c18` — ICN-SCAN-FENCE landed; THE ICN-SCAN LADDER IS CLOSED (13b deferred into the bb_var
 tier by its own entry). HEAD (.github) = this entry.** Session 2026-06-04-c (Opus 4.8, "GOAL-ICON-BB continue"): one
