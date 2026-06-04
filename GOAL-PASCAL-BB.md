@@ -21,17 +21,26 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — session 13 (2026-06-03/04): PB-9c + PB-9d + LB-1/2/4/5/6/7/8 ALL LANDED. SCRIP `37eefa1`,
-.github `965b047b`, corpus untouched.** Pascal now runs end-to-end on compiled BBs through flat
-procs/params: `sieve.pas` byte-identical to `pint` in mode-3 AND mode-4; `recursion.pas` byte-identical
-through fact(7) both modes (pint traps at fact(8), the 16-bit XFAIL — SCRIP computes the full table,
-fib(10)=55); `flatnoarg.pas` both modes. Baselines pinned at HEAD: Pascal `--interp` **35/0/1**
-(XFAIL=recursion); probes `hello`/`m4asg`/`m4arith`/`m4wexpr` m3+m4; SNOBOL4 smoke **19/0** incl. m4 6/0;
-Icon `--interp` **130/117/36**; Prolog honest **136/0/0**; all-langs m4 hello **5/1** (rebus pre-existing);
-raku smoke m2 **25/0** HARD, m3 1/1/23, m4 **1/1/23** (the m4 FAIL = `str_reverse`, the LB-1 measured
-delta); Icon crosscheck 3/1 (`if_expr` FAIL pre-existing, stash-proven); lang-names gate: 0 template hits.
+**Watermark — session 14 (2026-06-04): LB-3 + LB-FENCE CLOSED · PB-9e-0 LANDED · PB-9e DESIGNED (build
+held). SCRIP `f4a7187` (LB-3 = `95fdc2f`), corpus `10940fd`.** DEFINE is now its own IR shape (IR_CALL
+dval=5.0, set by LOWER); the bb_call.cpp name-gate is DELETED; the LB ladder is COMPLETE — Tier-1 grep over
+`BB_templates/`+`XA_templates/` = **0**, the FACT-RULE completion test. PB-9e is designed to turn-key
+fidelity in **`SCRIP/PB-9E-DESIGN.md`** with two pinned failing gates: `nestrec` (oracle 11/21/31, m3
+11/11/11 — recursion clobber) and NEW `nestshadow` (oracle 7/101, m3 107/107 — sibling-through-shadow;
+structurally kills deepened NV shallow binding, which is dynamic-chain semantics). Baselines pinned at
+HEAD this session: Pascal `--interp` **37/0/1** (XFAIL=recursion; +nestshadow); probes
+hello/sieve/flatnoarg/recursion-fact7 m3+m4 byte-identical; SNOBOL4 smoke **19/0** (m2 7/0 HARD, m3 6/6,
+m4 6/6 — the LB-3 named gate, NEVER MOVED); Icon smoke m2 **12/12** HARD (m3/m4 5/12 pre-existing);
+Prolog smoke m2 **5/5** HARD, m4 5/0 (m3 `unify` FAIL stash-proven pre-existing); Snocone smoke 2/3
+stash-proven pre-existing; raku smoke m2 **25/0** HARD, m3 1/1/23, m4 **1/1/23** (m4 FAIL=`str_reverse`,
+the LB-1 delta, re-confirmed identical); all-langs m4 hello **5/1** (rebus pre-existing, exact pin);
+lang-names gate output byte-identical pre/post LB-3 (exit-1 hits = LB-7-NEW ICN-SCAN emit_core sites,
+concurrent-session-owned). Session-13 full-corpus pins (Icon 130/117/36, Prolog honest 136/0/0) not re-run.
 
 Mechanisms that now exist (dispatch is shape-only, see git history for the full wall lists):
+- DEFINE rides its own IR shape: IR_CALL **dval=5.0**, tagged by LOWER (lower.c SNO TT_FNC arm — name
+  knowledge stays in LOWER per the FACT RULE); consumers shape-only: m2 interp generic arm, flat-chain
+  driver FILL, chain-arity (arity-0, args ride counter blks), nested-call marshal, bb_call dispatch.
 - gvar-chain operand heads include ω-edge-reachable chains (`gvar_chain_operand_refs`, emit_bb.c).
 - IR_WHILE/IR_UNTIL, IR_IF, IR_RETURN are pure junctions under `g_gvar_flat_chain` (`jmp γ`; RETURN keeps
   the dval==2.0 fail-exit FRETURN contract; result rides NV — `rt_call_named_proc` reads `NV_GET_fn(name)`,
@@ -47,10 +56,12 @@ Mechanisms that now exist (dispatch is shape-only, see git history for the full 
 - Icon NV-global assign is UNIFIED into `bb_gvar_assign` (descr first arm, modulo-ID byte-identical to the
   deleted fork; if Lon wants the originally-prescribed ABORT it is one line in that arm).
 
-NEXT, in order of value: **LB-3 + LB-FENCE** (see ladder — do the LOWER re-route so the SNOBOL4 gate never
-moves), then **PB-9e** (the representation FORK — Lon's call; note `rt_call_named_proc` seats params into
-NV FLAT, so nested probes need the static-link model, not more NV flattening). Known deeper Pascal m3/m4
-walls, stash-proven never-passing (NOT regressions): rec2/ptr5 segv at record-field/heap `__pas_*` arms.
+NEXT: **PB-9e-1** — the representation fork is surfaced in `SCRIP/PB-9E-DESIGN.md`, awaiting Lon's call on
+(A) nested-only vs uniform slot migration (recommend nested-only, LB-3-style move-the-gate-last) and (B)
+explicit `rt_call_named_proc_sl(...,void *sl)` vs in-band `args[np]` SL (recommend explicit); the recipe is
+then turn-key — emit-time-constant `[fb+0]` hop chains, IR_VAR_FRAME/IR_ASSIGN_FRAME (ival=slot, dval=hops).
+Known deeper Pascal m3/m4 walls, stash-proven never-passing (NOT regressions): rec2/ptr5 segv at
+record-field/heap `__pas_*` arms.
 
 ---
 
@@ -193,7 +204,14 @@ cd /home/claude/corpus/programs/pascal
     procs/params (`recursion` through fact(7) gate). All landed sessions 11–13, all language-blind; gates
     in the watermark above.
   - [ ] **PB-9e — nested procs = the representation FORK (Lon's call).** Frame-as-BB, static link on the
-    parent-port thread (Invariants 2 & 4, the PB-7 model).
+    parent-port thread (Invariants 2 & 4, the PB-7 model). **DESIGNED session 14 → `SCRIP/PB-9E-DESIGN.md`**
+    (turn-key; fork points A migration-scope / B rt-signature await Lon).
+    - [x] **PB-9e-0** — discriminator probe `nestshadow.pas` (corpus `10940fd`): sibling-through-shadow,
+      oracle 7/101, m2 PASS (suite 36→37/0/1), m3 107/107 expected-fail pinned. Together with `nestrec`
+      (11/21/31 vs 11/11/11) this structurally kills the NV-shallow-binding shortcut.
+    - [ ] **PB-9e-1** — SL plumbing + nested locals/params → frame slots; gates in the design doc.
+    - [ ] **PB-9e-2** — var params across levels (SlotRef → cell address).
+    - [ ] **PB-9e-3** — nested functions under recursion (`nestfunc`/`nestcount` m3+m4).
 
 ---
 
@@ -210,15 +228,23 @@ run the named gate, pin before/after counts here, prove zero drift elsewhere.
   fork deleted — abort would have collided with concurrent in-flight ICN-SCAN sessions);
   `bb_pl_op_floaty`→`bb_op_floaty`; Tier-2 audit-scope string sweep; Tier-3 comments deleted. Full pins in
   git history (`.github` log around `965b047b`).
-- [ ] **LB-3 — `DEFINE` name-gate → ABORT.** The dispatch may not know a builtin's name. DO THE RE-ROUTE
-  FIRST so the gate never moves: LOWER tags DEFINE with its own IR shape (a dval or dedicated kind) so
-  dispatch needs no name; then the abort is a no-traffic formality. (Bare abort would drop SNOBOL4 smoke
-  m3/m4 from 6/6 to ~5/5 — floors 3/4, survivable but ugly.)
+- [x] **LB-3 — `DEFINE` name-gate → ELIMINATED via LOWER re-route** (session 14, SCRIP `95fdc2f`). Done
+  re-route-FIRST exactly as directed: LOWER tags DEFINE IR_CALL dval=5.0; six single-line shape-only
+  consumer edits (lower.c producer, m2 interp arm, flat-driver FILL, chain-arity, nested-marshal,
+  bb_call dispatch); the `strcmp(fn,"DEFINE")` snippet DELETED outright — nothing left to abort. THE
+  NAMED GATE NEVER MOVED: SNOBOL4 smoke 19/0 (m3 6/6, m4 6/6) byte-identical pre/post; zero drift
+  everywhere (Snocone 2/3 + Prolog m3 `unify` stash-proven pre-existing; lang-names gate output
+  byte-identical).
 - [ ] **LB-7-NEW — post-audit inventory (NOT yet swept; concurrent ICN-SCAN sessions actively own these).**
   `# BOX ICN` tags in `bb_gen_scan.cpp:19,36`, `bb_keyword.cpp:23,32,43,54,64,73`, `bb_scan_any.cpp:19`,
   `bb_scan_match.cpp:20` (+ siblings `bb_scan_pos/tab/upto`). Sweep when ICN-SCAN settles, or fold into
   their next rung.
-- [ ] **LB-FENCE.** COMPLETION TEST green: the audit's Tier-1 grep over `BB_templates/` + `XA_templates/`
-  == 0; full matrix pinned (Pascal · Icon · Prolog · SNOBOL4 · Raku · all-langs m4 hello) with every delta
-  from LB-1..LB-8 accounted for in this file.
+- [x] **LB-FENCE — CLOSED** (session 14). COMPLETION TEST green: Tier-1 grep over `BB_templates/` +
+  `XA_templates/` == **0** (all eight audit items: 1/2/4/5/6/7/8 session 13, item 3 = LB-3 session 14).
+  Full matrix pinned at `95fdc2f`: Pascal 37/0/1 + m3/m4 probes · Icon smoke m2 12/12 · Prolog smoke m2
+  5/5 + m4 5/0 · SNOBOL4 19/0 · Raku 25/0 + m3 1/1/23 + m4 1/1/23 · all-langs m4 hello 5/1. Every
+  LB-1..LB-8 delta accounted: the SINGLE measured delta is raku m4 `str_reverse` PASS→FAIL-loud (LB-1,
+  pinned session 13, re-confirmed identical session 14); LB-2/4/5/6/7/8 byte-identical/modulo-ID (session
+  13); LB-3 zero drift (stash-proven session 14). LB-7-NEW remains open BY DESIGN below — Tier-2-class
+  `# BOX ICN` strings, outside the Tier-1 completion test, concurrent-ICN-SCAN-owned.
 
