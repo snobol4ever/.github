@@ -499,9 +499,24 @@ step (see Watermark).
 Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step: Icon m2 oracle **129 PASS** byte-identical (HARD; 130→129 = SUITE-HONESTY rc-fix, the rung36_jcon_proto vacuous pass removed), smoke 12/12, purity green, commit. **`bb_binop.cpp` split is the WORKED EXAMPLE — copy it.** The de-cram steps are prep; **ICN-HY-7 (de-dup + RT-fix) is the core fix** — collapse any logic written twice.
 
 - [x] **ICN-HY-0 … ICN-HY-3 — DONE.** ICN-HY-0 `bb_binop.cpp` de-cram (523→38 router + per-shape files, `2f72ce1`); ICN-HY-1 de-fuse bb_binop — IR_LIT_S slot + `x86_ro_seal_str` string REG-RO, `write("a"||"b")` native, ZERO DUP-FORM-3 fusion remains (`186b9b0`); ICN-HY-2 `bb_call.cpp` de-fuse + de-cram (459→207 router + 4 shape files, `write(42)`/`write("hello")` to flat-chain slot path, `3487a90`); ICN-HY-3 Icon bang `!x` — lower `TT_ITERATE`→`IR_LIST_BANG` (m2 oracle, corpus 127→130) + staged native `bb_iterate` (dormant — xchain doesn't route it yet; EXCISES `[SMX]`), `f935c3b`. Full detail in watermark + git log.
-- [ ] **ICN-HY-4 — `bb_binop_gen.cpp` (382).** The cross-product odometer is ONE box; audit whether arith/relop are the same shape (likely 95% → group). Coupled to VSX-8 (`rt_vstack_pop` sites). Router only if >1 true shape.
-- [ ] **ICN-HY-5 — `bb_to.cpp` (233) + `bb_to_by.cpp` (207).** `to`/`to_by`-int/`to_by`-real: int+real likely 95%-identical (group); confirm. Routers if distinct.
-- [ ] **ICN-HY-6 — `bb_lit_scalar.cpp` (180).** Already correctly GROUPS IR_LIT_I/S/F/NUL (95% rule — KEEP grouped). Audit only for a stray non-literal shape; else NO-SPLIT-NEEDED.
+- [x] **ICN-HY-4 — MOOT-BY-DELETION (audit, 2026-06-04).** `bb_binop_gen.cpp` DOES NOT EXIST (the "(382)" premise was
+  pre-revamp-stale): zero references in `src/` + Makefile; `IR_BINOP_GEN` EXCISED loud via `icn_kind_native_stub`; the
+  VSX `rt_vstack_pop` coupling is moot (no file = no sites). The cross-product odometer is born clean under the
+  standing FACT rules at its GZ-11+ Fig-1 native rung — nothing to de-cram today.
+- [x] **ICN-HY-5 — ALREADY GROUPED + one purity fix (`4df5bfd`, 2026-06-04).** ONE 42-line `bb_to.cpp` (the "(233)+(207)"
+  premise was stale; `bb_to_by.cpp` is absent) muxes `to`/`to_by` by a parameterized step immediate (`inc` vs
+  `add rax,by`) — the sanctioned 95%-grouping form (NOT-DUPLICATION (c)); non-matching shapes return "" → LOUD
+  `x86_bomb`. Real-typed ranges are a future native shape, not a cram. **The one real defect found and FIXED:** the box
+  read `pBB->t`/`pBB->ival` directly, violating the keystone "the box stays pBB-free and reads only `_`" — swapped to
+  `_.op_node_kind`/`_.op_ival` (the `emit_core.c:385-386` dispatch-prologue carriers; the bb_lit_scalar /
+  bb_binop_concat_slot / SCAN-3 pattern), pBB reads now **0**, value-identical by construction (`op_ival==nd->ival`,
+  `op_node_kind==(int)nd->t`). Gated: to/to_by probes m2==m3==m4 · smoke 12/12 HARD · m2 corpus **129 HARD** ·
+  scan-fence composite green.
+- [x] **ICN-HY-6 — NO-SPLIT-NEEDED (audit, 2026-06-04).** `bb_lit_scalar.cpp` is 50 lines (the "(180)" premise was
+  stale): IR_LIT_I + IR_LIT_S frame-slot producers (same shape parameterized by DT tag + `x86_ro_seal_q`/`_str`) + the
+  RO pass-through arm — all literal, zero non-literal kind reads, pure `x86()`, reads only `_`. The F/NUL arms named in
+  the step are no longer in this file (IR_LIT_NUL is consumed by the assign_frame family; a flat-chain F literal is a
+  future shape) — no stray shape, KEEP grouped.
 - [ ] **ICN-HY-7 — de-dup + RT-fix, all Icon boxes.** Any algorithm appearing in both a TEXT and BINARY arm → DELETE both, replace with one `rt_*` call (marshal slots, call helper). No emit-time value work.
 - [ ] **ICN-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Icon-owned files. m2 129 HARD held.
 
@@ -834,7 +849,21 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `1246c18` — ICN-SCAN-FENCE landed; THE ICN-SCAN LADDER IS CLOSED (13b deferred into the bb_var
+**HEAD (SCRIP) = `4df5bfd` — ICN-HY-4/5/6 CLOSED (two audits + one purity fix). HEAD (.github) = this entry.**
+Session 2026-06-04-c continued (Opus 4.8): the BB-HYGIENE ladder's three de-cram steps closed in one pass — their
+line-count premises were STALE (written 2026-06-01, pre-revamp). **HY-4 MOOT-BY-DELETION** (`bb_binop_gen.cpp`
+ABSENT, zero refs; `IR_BINOP_GEN` EXCISED via stub; VSX coupling moot). **HY-5 ALREADY GROUPED** (ONE 42-line
+`bb_to.cpp` muxes to/to_by — the sanctioned 95% form) **+ the one real defect FIXED**: bb_to read
+`pBB->t`/`pBB->ival` against the keystone "reads only `_`" — swapped to `_.op_node_kind`/`_.op_ival` (the
+`emit_core.c:385-386` prologue carriers), pBB reads 0, value-identical. **HY-6 NO-SPLIT-NEEDED** (50-line
+`bb_lit_scalar.cpp`, all-literal, zero stray shapes). Full detail in the three DONE entries above. Gate at
+`4df5bfd`: to/to_by probes m2==m3==m4 · smoke 12/12 HARD · m2 corpus **129 HARD** byte-identical · scan-fence
+composite green (28/28 probes; bucket N=47, floors 31/7/7; structural OK). **NEXT = ICN-HY-7** (de-dup + RT-fix
+sweep, all Icon boxes — the ladder's core fix) then **ICN-HY-FENCE** (`scripts/test_gate_bb_one_box.sh` for
+Icon-owned files), or jump to the **bb_var tier** (still the largest single unblock: SCAN-13b, var-subject scans,
+the relop/if/while control cluster).
+
+**PREV ENTRY — HEAD (SCRIP) = `1246c18` — ICN-SCAN-FENCE landed; THE ICN-SCAN LADDER IS CLOSED (13b deferred into the bb_var
 tier by its own entry). HEAD (.github) = this entry.** Session 2026-06-04-c (Opus 4.8, "GOAL-ICON-BB continue"): one
 gated rung, SCRIPT-ONLY (zero `src/` changes) → corpus three columns trivially byte-identical to the session-start
 baseline (m2 **129 HARD** / m3 **18**/82/**147E** / m4 **25**/136/**86E**, re-measured at session start on the cloned
