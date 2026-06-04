@@ -493,3 +493,122 @@ bash scripts/test_smoke_snobol4.sh          # shows m2 / m3 / m4 counts
 SCRIP_M3_NATIVE=1 bash scripts/test_smoke_snobol4.sh
 bash scripts/test_snobol4_pat_rung_suite.sh  # shows M2=N M4=N per rung
 ```
+
+---
+
+## 🔴 TEMPLATE-REVAMP-2 — Mass Hygiene Conversion Ladder
+
+**Hygiene rules (from RULES.md):**
+- Every byte of x86 lives in a template function — no helpers outside `BB_templates/` that return opcode bytes
+- No `BB_t*` / `bb_bin_t` / `bb_emit_asm_result` / `bb_node_id()` anywhere
+- No `pBB->value|counter|state` absolute slot emission — use `[reg+off]` ζ-frame
+- `pBB->ival/sval/dval` → `_.op_ival/op_sval/op_dval` (emit-time IR metadata reads)
+- `bb_node_id(pBB)` → `_.nid`; `bb_node_id(other)` → `other->id` field
+- No x86_pair_loop() shim — write pair-table loop inline
+- Four ports: α β γ ω only — no English synonyms
+- No inline comments, no `//` — only 120-char `/*---*/` separator blocks
+- No vstack (`rt_push_*`/`rt_pop_*`) for Icon stackless rule
+- All per-box RW state → `[r12+off]` ζ-frame via `bb_slot_claim`
+- All per-box RO constants → `[rip+disp]` via strtab/rodata labels
+
+**Source of TEXT arm assembly for all conversions:** `git show 713c581:src/emitter/BB_templates/<f>.cpp` or `/home/claude/one4all/src/emitter/BB_templates/<f>.cpp`
+
+---
+
+### WAVE 1 — Trivial API fixes (no logic change)
+
+- [ ] **W1-1 `bb_call.cpp`** — `bb_node_id(lf)` → `lf->id`; `bb_node_id(owner)` → `owner->id`. Fix the 2 OLD_API refs. Gate: build clean.
+- [ ] **W1-2 `bb_gather.cpp`** — `bb_node_id(pBB)` → `_.nid`. Gate: build clean.
+- [ ] **W1-3 ALL `bb_builtin*.cpp`** (9 files) — `pBB->ival` → `_.op_ival`, `pBB->sval` → `_.op_sval`, `pBB->dval` → `_.op_dval`. Mass sed. Gate: build clean + Prolog smoke unchanged.
+
+---
+
+### WAVE 2 — SNOBOL4 critical bombs (pattern system)
+
+- [ ] **W2-1 `bb_match.cpp`** — bomb: "subject/start slot not promoted". Fix: driver `flat_drive_match` must claim and promote the subject/start slot before dispatch. Cherry-pick TEXT arm from one4all. Gate: rung M2 unchanged, M4 scan tests advance.
+- [ ] **W2-2 `bb_subject.cpp`** — bomb: "subject slot not promoted". Fix: `flat_drive_subject` slot promotion. Cherry-pick TEXT arm. Gate: same.
+- [ ] **W2-3 `bb_pat_capture.cpp`** — bomb: "start slot not promoted". Fix: `flat_drive_capture`. Cherry-pick TEXT arm. Gate: same.
+- [ ] **W2-4 `bb_scan_stmt.cpp`** — 3 bombs: TEXT non-literal pattern. Cherry-pick TEXT arm from one4all (SNOBOL4 scan statement driver). Gate: rung 038–057 M4 advance.
+- [ ] **W2-5 `bb_gvar_assign.cpp`** — 5 bombs: descr arm + other shapes. Cherry-pick TEXT arm from one4all. Gate: SNOBOL4 smoke M4 unchanged or better.
+- [ ] **W2-6 `bb_keyword.cpp`** — 2 bombs: no-slot arm. Cherry-pick TEXT arm from one4all (`NV_GET_fn` → `rt_nv_get`, register updates). Gate: keyword tests.
+- [ ] **W2-7 `bb_pat_arbno.cpp`** — 2 bombs: no-child-label + BINARY arm. BINARY: cherry-pick from one4all and convert bytes() to x86() in-band records. Gate: 052/054 M3+M4 PASS.
+
+---
+
+### WAVE 3 — SNOBOL4 scan primitives (9 files, all identical bomb pattern)
+
+Each: cherry-pick TEXT arm from one4all, update runtime fn names (`NV_GET_fn→rt_nv_get` etc.), update registers (`r10→r14d`), x86() BINARY arm or bomb.
+
+- [ ] **W3-1 `bb_scan_any.cpp`** — needs literal cset arg + descr flat-chain
+- [ ] **W3-2 `bb_scan_bal.cpp`** — needs nonempty bracket-free literal
+- [ ] **W3-3 `bb_scan_find.cpp`** — needs nonempty literal needle ≤32 chars
+- [ ] **W3-4 `bb_scan_many.cpp`** — needs literal cset arg + descr flat-chain
+- [ ] **W3-5 `bb_scan_match.cpp`** — needs literal string arg + descr flat-chain
+- [ ] **W3-6 `bb_scan_move.cpp`** — needs literal integer arg + descr flat-chain
+- [ ] **W3-7 `bb_scan_pos.cpp`** — needs literal positive n + descr flat-chain
+- [ ] **W3-8 `bb_scan_tab.cpp`** — needs literal positive n or sibling
+- [ ] **W3-9 `bb_scan_upto.cpp`** — needs literal cset arg + descr flat-chain
+
+---
+
+### WAVE 4 — Icon variable/value bombs
+
+- [ ] **W4-1 `bb_var.cpp`** — unhandled arm. Cherry-pick TEXT arm from one4all (`call rt_nv_get@PLT → jmp γ / jmp ω`). Gate: Icon var tests.
+- [ ] **W4-2 `bb_var_frame.cpp`** — needs gvar flat-chain + own slot. Also fix `pBB->ival/dval` → `_.op_*`. Gate: Icon nested proc tests.
+- [ ] **W4-3 `bb_var_frame_ref.cpp`** — same as W4-2. Gate: same.
+- [ ] **W4-4 `bb_var_global.cpp`** — needs descr flat-chain + own slot. Cherry-pick TEXT arm. Gate: Icon global var tests.
+- [ ] **W4-5 `bb_return.cpp`** — needs descr flat-chain. Cherry-pick TEXT arm from one4all. Gate: Icon return tests.
+- [ ] **W4-6 `bb_assign_local.cpp`** — needs descr flat-chain + rhs slot + varslot. Gate: Icon assign tests.
+- [ ] **W4-7 `bb_assign_frame.cpp`** — gvar flat-chain only + `pBB->ival` cleanup. Gate: Pascal frame tests.
+- [ ] **W4-8 `bb_assign_frame_ref.cpp`** — same as W4-7. Gate: same.
+- [ ] **W4-9 `bb_to.cpp`** — needs static int operands. Cherry-pick TEXT arm from one4all (static lo/hi arm; dynamic arm stays bombed). Gate: Icon to-pump tests.
+- [ ] **W4-10 `bb_iterate.cpp`** — IR_LIST_BANG slot missing. Cherry-pick TEXT arm from one4all (string-split iterator). Gate: Icon iterate tests.
+
+---
+
+### WAVE 5 — Icon binop bombs (all shape-mismatch defensive guards)
+
+Each: the bomb fires when the dispatcher sends an unrecognized shape. Cherry-pick TEXT arm, handle the shape or bomb loudly with shape description.
+
+- [ ] **W5-1 `bb_binop_arith.cpp`**
+- [ ] **W5-2 `bb_binop_relop.cpp`**
+- [ ] **W5-3 `bb_binop_concat_slot.cpp`**
+- [ ] **W5-4 `bb_binop_gvar_arith.cpp`**
+- [ ] **W5-5 `bb_binop_gvar_arith_slot.cpp`**
+- [ ] **W5-6 `bb_binop_gvar_relop.cpp`**
+
+---
+
+### WAVE 6 — Prolog bombs
+
+- [ ] **W6-1 `bb_cell_unify.cpp`** — unadmitted operand shape. Extend admit conditions or bomb loudly.
+- [ ] **W6-2 `bb_cell_choice.cpp`** — unadmitted choice shape. Same.
+- [ ] **W6-3 `bb_cell_call.cpp`** — unadmitted call shape. Same.
+- [ ] **W6-4 `bb_callee_frame.cpp`** — unadmitted callee shape. Same.
+
+---
+
+### WAVE 7 — Remaining misc bombs
+
+- [ ] **W7-1 `bb_alt.cpp`** — needs ≤5 literal arms (descr flat-chain). Extend arm count or bomb louder.
+- [ ] **W7-2 `bb_call_write_slot.cpp`** — write(non-slot arg). Extend or bomb.
+- [ ] **W7-3 `bb_gen_scan.cpp`** — leave glue without regs. Cherry-pick TEXT arm.
+
+---
+
+### Conversion recipe (every file)
+
+```
+1. Open one4all or git show 713c581 for TEXT arm
+2. Strip: BB_t*→IR_t*, bb_bin_t, bb_emit_asm_result, bb_node_id→_.nid
+3. BINARY: convert bytes()/u32le() → x86() in-band records, OR bomb
+4. Registers: [r10]→r14d (cursor δ), movabs&Σ→r13, movabs&Σlen→r15d
+5. Runtime fns: NV_GET_fn→rt_nv_get, rt_push_str naming updates
+6. pBB->ival→_.op_ival, pBB->sval→_.op_sval, pBB->dval→_.op_dval
+7. RO data: .section .data labels OR strtab_label() for strings
+8. RW state: bb_slot_claim(N) → [r12+off] ζ-frame
+9. Build: bash scripts/build_scrip.sh
+10. Gate: run the relevant test before commit
+```
+
+**Order of execution:** W1 first (trivial, validates build stays clean), then W2 (SNOBOL4 unblocking), then W3-W7 in order. Each wave is independently committable.
