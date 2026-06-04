@@ -614,10 +614,26 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   m3 13+152EXC / m4 20+91EXC — zero drift; corpus pos programs use if/conj shapes still gated out, the probes
   carry the rung); smokes 12/12+5/5+32; SCAN-0/1 probes re-verified post-encoder-fix; all structural gates
   green; bb_scan_pos.cpp 0 raw-byte producers. Rebased onto peer `591ed37` (SNOBOL4); post-rebase re-verified.
-- [ ] **ICN-SCAN-4 — `bb_scan_any.cpp`** (fstranl.r `any(c)`, {0,1}). Cset literal sealed RO. α: `δ==Δ → ω`;
-  `movzx esi,[r13+r14]`; `lea rdi,[rip+cset]`; `call strchr`; miss → ω; INTVAL(δ+2) → slot, γ. β → ω.
-  Copy `bb_pat_any`'s test, change the value contract (return position, δ untouched). Probe:
-  `"hello" ? write(any('h'))` → `2`.
+- [x] **ICN-SCAN-4 — `bb_scan_any.cpp` — DONE (`18940fb`, 2026-06-03).** Second real scan box (fstranl.r
+  `any(c)`, function{0,1}): α `mov eax,r14d; cmp eax,r15d; jge ω` (δ==Δ → ω); `movsxd rcx,r14d; movzx esi,
+  [r13+rcx]`; cset sealed RO via `x86_ro_seal_str` read `x86_ro_load_q("rdi",0)` `[rip+disp]`; `call strchr`
+  (r10 push/popped per the `bb_pat_any` idiom); NULL → ω; `{DT_I, r14+2}` → slot (Icon 1-based `cnv_i+1`),
+  γ; **δ UNTOUCHED**; β → ω single-shot. Driver (emit_bb.c IR_CALL flat-chain, parallel to SCAN-3 pos): digs
+  literal cset from `counter` blks[0] (IR_LIT_S sval) → **`op_name1` — the prologue-safe string carrier**
+  (`walk_bb_node`'s prologue clobbers `op_sval` to the fn name "any", the SCAN-3 op_ival lesson's string
+  twin); result slot `bb_slot_alloc16`. Safe-set: `any` admitted to `icn_scan_subgraph_safe` **WITH wave-1
+  literal-arg validation** — new `icn_scan_fn_lit_arg` helper digs the counter blks and requires dval==3.0 +
+  IR_LIT_S, so dynamic/computed cset args EXCISE `[SMX]` (verified `c:='h'; "hello"?write(any(c))` m3
+  declines rc=0 — loud, never a runtime bomb; this implements the spec's "icn_scan_subgraph_safe extension"
+  that SCAN-3's name-only pos admission left latent); pos/write/writes admission byte-identical.
+  `IR_SCAN_ANY` off `icn_kind_native_stub`. Probes `"hello" ? write(any('h'))` → `2`, `any('xeh')` → `2`,
+  `any('x')` → fail/empty, `"" ? any('h')` → fail/empty, ALL **m2==m3==m4** (`any` HAS an m2 oracle arm,
+  unlike pos — the full PER-STEP gate clause holds). Corpus stash/rebuild/set-diff: m2 **129 HARD**
+  byte-identical zero drift; m3 13→**14** PASS / 152→**151** EXCISED; m4 20→**21** PASS / 91→**90** EXCISED —
+  the ONE symmetric delta is `rung06_cset_any_basic` EXCISED→PASS, zero new FAILs. SCAN-0/1/3 probes
+  re-verified; smokes 12/12+5/5+32; all structural gates green; bb_scan_any.cpp 0 raw-byte producers.
+  Rebased onto peer `2cfd1bb` (Prolog PT-1b/2b, orthogonal); post-rebase m2 HARD + PASS-set identity
+  re-verified.
 - [ ] **ICN-SCAN-5 — `bb_scan_match.cpp`** (fstranl.r `match(s1)`, {0,1}). s1 + len sealed RO. α:
   `Δ−δ < len → ω`; byte-compare loop (internal `L(n)` labels) vs `[r13+r14+i]`; mismatch → ω;
   INTVAL(δ+1+len) → slot, γ. β → ω. Probe: `"hello" ? write(match("he"))` → `3`.
@@ -770,7 +786,33 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `d629a36` — ICN-SCAN-1 + ICN-SCAN-2 + ICN-SCAN-3 landed (three gated rungs, one session). HEAD
+**HEAD (SCRIP) = `18940fb` — ICN-SCAN-4 landed (`bb_scan_any`). HEAD (.github) = this handoff.** Session
+2026-06-03-e (Opus 4.8, "ICN-SCAN-4"): one gated rung. `bb_scan_any.cpp` is the second REAL scan box (full
+detail in its rung entry above). The transferable findings: **(1) the prologue-safe STRING carrier is
+`op_name1`** — `walk_bb_node`'s prologue clobbers `op_sval` from `nd->sval` (= the fn name for an IR_CALL),
+exactly as it clobbers `op_ival` (the SCAN-3 lesson); `op_name1`/`op_name2`/`op_sa`/`op_sb`/`op_off` survive,
+so string operands dug from counter blks travel in `op_name1` (the IR_PAT_* arms' precedent). **(2) Wave-1
+arg-shape validation lives in the safe set, not just the template bomb:** new `icn_scan_fn_lit_arg(nd, want)`
+digs `counter` blks[0] and the `any` admission requires dval==3.0 + IR_LIT_S — dynamic args EXCISE `[SMX]`
+instead of emitting a box that bombs at run time. SCAN-3's pos admission is name-only (a `pos(n)` with
+variable n would emit + bomb) — retrofitting pos with `icn_scan_fn_lit_arg(nd, IR_LIT_I)` is a small queued
+cleanup for a later SCAN rung (left untouched here to keep corpus columns byte-identical). **(3) `any` HAS an
+m2 oracle arm** (the by-name icon block), so unlike pos the full probe m2==m3==m4 gate clause holds for the
+any/match/many class; the pos-specific oracle gap + match-moves-&pos divergence remain queued as their own
+re-baseline rung. Corpus: m2 **129 HARD** zero drift · m3 **14**/82/**151E** · m4 **21**/136/**90E** — single
+symmetric delta `rung06_cset_any_basic` EXCISED→PASS in both native modes. Smokes 12/12 HARD + 5/5 + broker
+32; all structural gates green (bb_bin_t=0, medium-invisible non-Prolog-lane clean, no-stack 10≤127,
+one-reg-frame 0≤21, g_vstack=0, prove_lower2 PASS, FACT=0). Rebased onto peer `2cfd1bb` (Prolog PT-1b/2b);
+post-rebase m2 HARD + PASS-set identity re-verified. **NEXT = ICN-SCAN-5 (`bb_scan_match.cpp`)** — fstranl.r
+`match(s1)` {0,1}: s1 + len sealed RO; α `Δ−δ < len → ω`; byte-compare loop with internal `L(n)` labels vs
+`[r13+r14+i]`; mismatch → ω; `{DT_I, δ+1+len}` → slot, γ; β → ω. The SCAN-4 driver arm generalizes directly
+(dig IR_LIT_S sval → op_name1, the literal's strlen is emit-time); admit `match` to the safe set with
+`icn_scan_fn_lit_arg(nd, IR_LIT_S)` and take `IR_SCAN_MATCH` off the stub list when the box lands. Probe:
+`"hello" ? write(match("he"))` → `3`. ⚠ the recorded oracle note (m2 icon-block `match` MOVES scan_pos vs
+canonical fstranl.r match does NOT) means the match probes may hit m2 divergence like pos did — gate on m2
+byte-identity + m3==m4-vs-canonical if so.
+
+**PREV ENTRY — HEAD (SCRIP) = `d629a36` — ICN-SCAN-1 + ICN-SCAN-2 + ICN-SCAN-3 landed (three gated rungs, one session). HEAD
 (.github) = this handoff.** Session 2026-06-03-d (Opus 4.8, "ICN-SCAN-1/2/3"): the ICN-SCAN ladder advanced three
 steps, each individually gated + committed + pushed (`d82003b` → `5091102` → `d629a36`, with clean rebases onto
 orthogonal Pascal/Prolog/SNOBOL4 peer commits at each push, post-rebase re-verified every time). **(1) ICN-SCAN-1
