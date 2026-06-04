@@ -445,7 +445,12 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
 · ONE x86() body per box serves m3 (MEDIUM_BINARY → RX slab) and m4 (MEDIUM_TEXT → as+gcc) behind ONE
   shared admission gate — m3 ≡ m4 by construction, never by retrofit.
 
-- [ ] **PL-GZ-0 — THE SEED `test_pl_1.c`** [no SCRIP code]: hand-written four-port C in the test_sno_3
+- [x] **PL-GZ-0 — THE SEED `test_pl_1.c`** ✅ LANDED 2026-06-04 (this session) — compiles clean at
+  -O0..-O3, 20/20 runs byte-identical, output PINNED `b c d b` (all solutions of path(a,Q) by
+  backtracking, then firstpath's cut committing to the first). The segfault found and fixed during
+  landing is itself a seed lesson: a `goto` that JUMPS OVER a C initializer leaves the frame pointer
+  garbage — frame-slot init belongs AT THE α LABEL, never in the declaration. Hand-written four-port C
+  in the test_sno_3
   idiom for `edge(a,b). edge(b,c). edge(b,d). path(X,Y):-edge(X,Y). path(X,Z):-edge(X,Y),path(Y,Z).
   firstpath(Q):-path(a,Q),'!'.` driven by `?- path(a,Q), write(Q), nl, fail.` then
   `?- firstpath(Q), write(Q), nl.` (expected: `b c d` then `b` — all solutions, then the cut'd first).
