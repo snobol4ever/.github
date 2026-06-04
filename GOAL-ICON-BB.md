@@ -518,6 +518,19 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EA
   the step are no longer in this file (IR_LIT_NUL is consumed by the assign_frame family; a flat-chain F literal is a
   future shape) — no stray shape, KEEP grouped.
 - [ ] **ICN-HY-7 — de-dup + RT-fix, all Icon boxes.** Any algorithm appearing in both a TEXT and BINARY arm → DELETE both, replace with one `rt_*` call (marshal slots, call helper). No emit-time value work.
+  **MEASURED BASELINE (2026-06-04 sweep at `4df5bfd` — the debt is CONCENTRATED in the `bb_call` family; scan/to/alt/
+  lit/unop/binop-slot families are CLEAN):** (1) DUP-FORM-3 FUSION — `bb_call.cpp` ~115-136 reads
+  `fin->α/β->t==IR_LIT_I|IR_VAR|IR_VAR_FRAME*` + `->ival/sval/dval` inside the consumer (the GZ-3/GZ-4 class; the
+  standing PREREQ applies — de-fuse needs the lowerer to chain literal operands as producer boxes first). (2)
+  DUP-FORM-1 / RAW BYTES — `bb_call.cpp:36-37,54-55` hand-roll REX/ModRM via `x86_Lrec`+`u32le` (private-to-x86_asm.h
+  primitives), plus `if (MEDIUM_TEXT){…}else{…}` instruction pairs at ~122-123/136 — these are bb_call.cpp's 4 sites
+  on the medium-invisible `--strict` REMAINING list (which also carries the SHARED frame family:
+  bb_var_frame(2)/bb_var_frame_ref(2)/bb_assign_frame(6)/bb_assign_frame_ref(6) — NOT only Prolog-lane). (3)
+  NO-STACK residue — `rt_pop_write_int_nl`/`rt_pop_write_any_nl` trailers in `bb_call.cpp` + `bb_call_write_slot.cpp`
+  (the icn_no_stack gate's standing 10-count). (4) pBB-purity — pBB reads per file: bb_call 17 · bb_call_proc_staged 3
+  · bb_every/bb_call_write_slot/bb_call_userproc/bb_call_builtin 2 each (migrate to the `_.op_*` prologue carriers,
+  the `4df5bfd` bb_to pattern). (5) **ICN-HY-FENCE intel:** `scripts/test_gate_bb_one_box.sh` EXISTS but is
+  PROLOG-SCOPED ("every Prolog box file…") — the FENCE step = extend its file set to the Icon-owned templates.
 - [ ] **ICN-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Icon-owned files. m2 129 HARD held.
 
 ## 🔴 ICN-SCAN LADDER — A STACKLESS BB FOR EVERY ICON STRING-SCANNING OPERATION, ONE STEP PER BOX (Lon directive 2026-06-03)
