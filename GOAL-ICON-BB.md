@@ -671,17 +671,37 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   c1 literal, c2=`'('`, c3=`')'`); cursor + cnt slots (`[r12+op_off+16/+24]`). Loop per fstranl.r: `cnt==0 ∧
   s[cursor]∈c1` → suspend INTVAL(cursor+1), γ; `∈c2 → cnt++`; `∈c3 → cnt−−`; `cnt<0 → ω`; cursor++; end → ω.
   β: cursor++ → loop. Probe: `"(a)b" ? every write(bal('b'))` → `4`.
-- [ ] **ICN-SCAN-12 — `=s` sugar (NO new BB).** Lowerer Icon unary-`=` arm rewrites to the
-  SCAN_TAB(SCAN_MATCH(s)) composition (Icon definition: `=s ≡ tab(match(s))`). Probe:
-  `"hello" ? write(="he")` → `he`.
-- [ ] **ICN-SCAN-13 — `?:=` scan-assign.** Extend `bb_gen_scan`'s LEAVE-γ arm per canonical `ir_a_Scan`
-  (`refs/jcon-master/tran/irgen.icn` ~96–105, the `"?:="` arm): on body success, `:=` the scan result to the
-  lhs (existing assign boxes: varslot / `bb_gvar_assign_icn`), THEN ScanSwap, THEN γ. Probe:
-  `s := "hello"; s ?:= tab(3); write(s)` → `he`.
+- [x] **ICN-SCAN-12 — `=s` sugar (NO new BB) — DONE (`84ea1ca`, 2026-06-04).** Lowerer Icon `TT_MATCH_UNARY` arm
+  (own case in `lower_value`) synthesizes `TT_FNC{tab, TT_FNC{match, operand}}` via `ast_node_new`/`ast_push` →
+  `v_det_call` — IR dump BYTE-IDENTICAL to hand-written `tab(match(s))`, so safe-set gating / driver digs / native
+  boxes / oracle are exercised identically. Canonical: `omisc.r` `tabmat` doc string literally reads
+  *"=x - tab(match(x))"*. **RODE THE RUNG (baseline-free, SCAN-11 precedent): oracle `match` canon fix at BOTH
+  dispatch sites** (`by_name_dispatch.c` ~645 + ~2708) — `match` no longer moves `scan_pos` (fstranl.r: `&pos`
+  read-only, return = i+*s1); this was the SCAN-3-flagged divergence and the blocker for ANY `tab(match(…))`
+  composition in m2. Zero corpus flips ALL THREE modes. Probes: `"hello" ? write(="he")` → `he` **m2==m3==m4**;
+  `="x"` fails clean; `{ ="he"; write(tab(0)) }` → `llo`; `=s` (var operand) m2 `he` / m3 LOUD `[SMX]`.
+- [x] **ICN-SCAN-13a — `?:=` EXISTS (lowerer desugar) — DONE (`b59c9e6`, 2026-06-04).** Pre-switch rewrite in
+  `lower_value` (lang==ICN ∧ `AUGOP_SCAN` ∧ TT_VAR lhs): `lhs ?:= rhs` → `lhs := lhs ? rhs`, IR byte-identical to
+  the hand-written form; equivalent to canonical `ir_a_Scan` `"?:="` (assign-before-ScanSwap is indistinguishable
+  for a plain-variable lhs). Probes m2: `s ?:= tab(3)` → `he`; fail keeps s (`tab(99)` → `hello`); combo
+  `s ?:= ="he"` → `he`. m3/m4 EXCISE LOUD, symmetric with the desugared shape. Zero corpus flips. **FLAG (Lon):
+  Icon `TT_AUGOP` family is otherwise UNCONSUMED** — `x +:= 2` falls into the TT_FNC group, misroutes to
+  `v_det_call("x")` and silently no-ops (prints 1). Pre-existing; needs its own desugar rung (Rebus precedent:
+  `rebus_lower.c` TT_AUGOP arm).
+- [ ] **ICN-SCAN-13b — native `var := GEN_SCAN` — DEFERRED INTO THE `bb_var` TIER (scoped 2026-06-04).** NOT a
+  scan-ladder slice: two blockers are the standing bb_var operand-slot gap, not scan machinery. (1)
+  `icn_scan_subgraph_safe` rejects every non-`&` `IR_VAR` → ANY var-subject scan (`s ? …`) declines, and the
+  desugared `?:=` always has a var subject; (2) the admission's `IR_ASSIGN` arm: local/varslot store box not
+  built (only NV-global `bb_gvar_assign_icn`). The scan-side piece is SMALL and ready when the tier lands:
+  in `flat_drive_gen_scan`, adopt the body-terminal slot as the scan node's value
+  (`descr_chain_terminal(body_sg->entry)` + `bb_slot_get` — the exact subject pattern at emit_bb.c ~1208-1210;
+  either slotmap-alias the GEN_SCAN node to body_slot, or copy 16B into a fresh `bb_slot_alloc16(pBB)` at
+  `body_done` before the LEAVE-γ glue), making GEN_SCAN an arity-0 slot producer any consumer (write/assign)
+  reads. Probe stays `s := "hello"; s ?:= tab(3); write(s)` → `he` m3/m4.
 - [ ] **ICN-SCAN-FENCE — gate + sweep.** `scripts/test_gate_icn_scan.sh`: (a) all nine kinds OFF
-  `icn_kind_native_stub`; (b) every probe above m2==m3==m4; (c) corpus scan bucket recorded (the 27
-  IR_GEN_SCAN-gated programs: EXCISED→PASS deltas); (d) all standing FACT/structural gates green. Update
-  Watermark.
+  `icn_kind_native_stub`; (b) every probe above m2==m3==m4 (13b probe waits on the bb_var tier); (c) corpus scan
+  bucket recorded (the 27 IR_GEN_SCAN-gated programs: EXCISED→PASS deltas); (d) all standing FACT/structural
+  gates green. Update Watermark.
 
 ## Premise
 
@@ -798,7 +818,29 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `5de8d37` (+ handoff doc `49cea79`) — ICN-SCAN-6…11 landed; THE WAVE-1 SCAN FAMILY IS COMPLETE
+**HEAD (SCRIP) = `b59c9e6` — ICN-SCAN-12 (`84ea1ca`) + ICN-SCAN-13a (`b59c9e6`) landed; the `=s` and `?:=`
+constructs EXIST and are m2-canon. HEAD (.github) = this entry.** Session 2026-06-04-b (Opus 4.8,
+"GOAL-ICON-BB continue"): two gated rungs, each probe-green, zero corpus flips ALL THREE modes at each, clean
+rebases onto orthogonal peers (Prolog PL-GZ-1/1b + LOWER-SPLIT `d6d93c6` lower_prolog.c extraction; SNOBOL4
+PB-RB capture/scan-native `fc10199`/`55ec228`/`2704f2e`) with merged-HEAD re-verification each time. **SCAN-12
+`84ea1ca`**: `TT_MATCH_UNARY` → synthesized `tab(match(s))` AST (`v_det_call`; dump byte-identical to
+hand-written) + **oracle `match` canon fix BOTH sites** (no `scan_pos` move, per fstranl.r — the SCAN-3-flagged
+divergence; baseline-free). **SCAN-13a `b59c9e6`**: pre-switch `lower_value` desugar `lhs ?:= rhs` →
+`lhs := lhs ? rhs` (TT_VAR lhs); canonical-equivalent for plain vars; m3/m4 EXCISE LOUD symmetric with the
+desugared shape. **SCAN-13b SCOPED OUT to the `bb_var` tier** (var-subject scans + local store box are the
+blockers; the GEN_SCAN slot-adoption piece is written up in the 13b ladder entry, ready when the tier lands).
+**TWO FLAGS FOR LON**: (1) Icon `TT_AUGOP` family otherwise UNCONSUMED — `x +:= 2` misroutes to
+`v_det_call("x")`, silent no-op; needs a desugar rung (Rebus precedent). (2) `scan_try_call_builtin`
+(by_name_dispatch.c:531, site-1 incl. its tab `newp < scan_pos` no-backward divergence) has NO callers — dead
+site; candidate deletion rung (site-1 got the match canon fix anyway, harmless either way). Standing numbers at
+`b59c9e6`: corpus m2 **129 HARD** / m3 **18**/82/**147E** / m4 **25**/136/**86E** (all three set-diffs vs
+session-start baseline EMPTY at both rungs); smokes Icon 12/12 HARD · Prolog m2 5/5 HARD (m3 2/0/3E = peer
+PL-GZ-1b re-baseline, m4 5/5) · broker 32; gates green (no-stack 10≤127 · one-reg-frame 0≤21 · bb_bin_t 0 ·
+handencoded --strict 0 · g_vstack 3 standing · prove_lower2 PASS · FACT 0). **NEXT = ICN-SCAN-FENCE**
+(gate script + scan-bucket sweep; the 13b probe clause waits on the bb_var tier) **or jump the priority ladder
+to the bb_var tier itself** (unblocks 13b + var-subject scans + relop/if/while tiers at once — Lon's call).
+
+**PREV ENTRY — HEAD (SCRIP) = `5de8d37` (+ handoff doc `49cea79`) — ICN-SCAN-6…11 landed; THE WAVE-1 SCAN FAMILY IS COMPLETE
 (`icn_kind_native_stub` carries ZERO `IR_SCAN_*` kinds — pos/any/match/many/tab/move/upto/find/bal all have
 native Byrd Boxes). HEAD (.github) = this handoff.** Session 2026-06-04 (Opus 4.8, "ICN-SCAN-7…11"; SCAN-6
 `b1a54a0` many landed at window start): six gated rungs, each probe-green m2==m3==m4, corpus set-diffs clean or
