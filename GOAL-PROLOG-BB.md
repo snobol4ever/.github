@@ -12,9 +12,9 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ STATE (2026-06-03)
+## ▶ STATE (2026-06-04)
 
-m2/m3 **115/115** byte-identical · m4 **96/0/19** · siblings Icon m2 12 · SNOBOL4 m2 7. SCRIP HEAD `2cfd1bb` (PT-1b meta resolver + PT-2b conj admission landed; prior PT-2b-SIMPLE `ea9e5ea` + literal-int-LHS is `c8063ec`, PT-0/1a/2a `62426a6`).
+m2/m3 **115/115** byte-identical · m4 **101/0/14** · siblings Icon m2 12 · SNOBOL4 m2 7. SCRIP HEAD `1fe43fd` (PT-3 catch/throw native landed; prior PT-1b meta resolver + PT-2b conj `2cfd1bb`, PT-2b-SIMPLE `ea9e5ea` + literal-int-LHS is `c8063ec`, PT-0/1a/2a `62426a6`).
 
 **x86() TEMPLATE-REVAMP** — convert BB templates to `x86()` self-encoding (one return per `PLATFORM_*`, pure `x86(mnem,…)` concat, no `bb_bin_t`, pBB-free). Rules: `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. Reference: `bb_pat_pos.cpp` (loop-free) + `bb_pat_span.cpp` (looping). Shared keystone landed (internal-label + ζ-frame in `x86_asm.h`) — `git pull --rebase` before touching any box; `x86_asm.h` edits are additive.
 - DONE: bb_cut/arith/conj/ite/disj/catch/unify (PL-RV-1..5; **unify now covers compound (list/struct) operands AND scalar float literals — PL-HY-1a/1c LANDED `374c2ff`; scalar float-unify (`X = 3.14`, both orders, float==/\=) LANDED `873792f` m4 87→89, mode-4-native + mode-3-interpreted; only compound-NESTED float (`point(1.5,2.5)` via `emit_build_compound_term`) and float-RESULT arith `IR_LIT_F`/`IR_ARITH`-in-`is` deferred to CAT-D**) · bb_builtin 28 BINARY arms + bb_fail (PL-RV-6).
@@ -452,7 +452,7 @@ the byte-exact reference transcription); head args already land in env slots 0..
       unwind → cons list (KEPT tail) → `rt_unify_terms(result, list)`. **PT-2a (degenerate, this session):**
       admission gated to goal ∈ {`true`,`fail`,`false`} atoms; new corpus rung `findall(X, fail, Xs)` → `[]`,
       m2==m4. PT-2b: nondeterministic goals (admission widens as PT-1b lands) → the 5 findall rungs.
-- [ ] **PT-3** — catch/throw on the rail: `rt_call_term` inside a CP/trail barrier (`g_resolve_bfr`); throw unwinds
+- [x] **PT-3** — **LANDED `1fe43fd` (2026-06-04 Opus 4.8) — m4 96→101/0/14, all 5 rung28_exceptions PASS m2==m3==m4 (incl. nested rethrow).** Design DIVERGED from the rt_call_term sketch below (recovery goals are write/nl conjunctions the PT-1b resolver doesn't carry): catch's goal_g/rec_g emit as native callable `.Lplcatch_<i>_{goal,rec}` blocks (codegen_callee_block refactored → label-parameterized `codegen_graph_block`, byte-identical; recursive collector covers main + pred graphs + nested catches), reached RIP-relative — zero baked pointers, `zc_ptr` trap eliminated. `rt_catch_native(goal_fn,rec_fn,catcher)` drives the EXISTING m2 setjmp/longjmp catch-frame substrate (shared, orchestration twins like rt_findall/rt_findall_term); `rt_throw_term` = ball copy (swipl duplicate_term law) + resolve_throw_term; landing adds canon CP-truncate-to-mark (new `Resolve_CatchFrame.cp_mark`; gprolog Pl_Throw_2 cut-to-B / swipl cut-since — native-frame safety). m2 oracle LACKS both (latent divergence, unobservable in corpus — future re-baseline audit w/ Lon, same class as WAM-CP-9). bb_zn sidecar + bb_prepare IR_CATCH arm; bb_catch.cpp real TEXT arm (0 raw producers) + throw TEXT arm; RICH-gate-only admission (m4-native, m3-interpreted; flat untouched). catch/throw INSIDE meta-calls still LOUDLY rejected (PT-1b remainder, by design). Original sketch: catch/throw on the rail: `rt_call_term` inside a CP/trail barrier (`g_resolve_bfr`); throw unwinds
       to the mark (replaces the `zc_ptr` baked-pointer `rt_catch`). 5 catch/throw rungs.
 - [ ] **PT-4** — dynamic DB (OWNS WAM-CP-13 / PLG-9g): assertz stores clause TERMS in a runtime store; the table
       routes dynamic preds to the term resolver over the store (gprolog `BC_Emulate_Pred` minus byte-code);
@@ -537,7 +537,7 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
 | GATE-1 smoke | 5/5 ✅ | 4/5 | 5/5 | m3 unify = smoke-harness artifact; rung suite covers it |
-| GATE-3 rung suite | **115/115** ✅ | **115/115** ✅ | **96 / 0 / 19** | byte-identical m2/m3. m4 95→96 (findall_arith — conjunction goal through the PT-1b frame-tree resolver). EXCISED 19 = 5 retract · 5 abolish (PT-4) · 4 aggregate/nb (PT-4) · 5 catch/throw (PT-3) — the whole cluster sits on the PT ladder |
+| GATE-3 rung suite | **115/115** ✅ | **115/115** ✅ | **101 / 0 / 14** | byte-identical m2/m3. m4 96→101 (PT-3: all 5 rung28_exceptions catch/throw rungs native). EXCISED 14 = 5 retract · 5 abolish (PT-4) · 4 aggregate/nb (PT-4) — the whole remaining cluster is PT-4 dynamic DB |
 | no_bb_bin_t | 0 ✅ | — | — | compiler-enforced |
 | medium-invisible | **343** | — | — | bb_unify.cpp = 0 (x86()-pure); the 343 all in bb_builtin_* family files (new is-lint arm is pure s_2asm TEXT, count unchanged); informational |
 | siblings (HARD m2) | Prolog 115 ✅ · Icon 12 ✅ · SNOBOL4 7 ✅ | — | — | PT-1b/PT-2b touches are Prolog-territory only (unification.c meta resolver reachable only via rt_findall_term; bb_builtin*/bb_builtin_findall TEXT arms; scrip.c pl_findall_* gates) → Icon smoke 12/12 + SNOBOL4 smoke 7/7 re-run green at merged HEAD `2cfd1bb` (post-rebase onto ICN-SCAN-3 `d629a36`, which touched shared scrip.c/emit_bb.c/x86_asm.h — clean merge, all gates re-verified at the merged tree) |
