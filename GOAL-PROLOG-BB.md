@@ -527,7 +527,8 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
     load-bearing invariant; emission = worklist (gz_emit_callee discovers nested callees). Killed the 5a
     stale-mark caveat + one-frame budget; emitted callee blocks REENTRANT. Gate `test_gate_pl_gz5b.sh`
     (nested · callee-frame synth · self-recursion depth-2, m2-verified first; 2-clause + deep-arith
-    decline; corrupt-proven). GZ5A gate RATCHETED (nested-call negative → compound-body negative).
+    decline; corrupt-proven). GZ5A gate RATCHETED (nested-call negative → compound-body negative). Detail:
+    HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-5A-5B.md.
   - [ ] **5c — multi-clause RULE predicates** (full `path/2`): callee-level choice over rule clauses —
     cursor in the callee's own frame row, per-clause body chains, β dispatch as bb_cell_choice's
     cmp-chain; head-unify per clause as in 5a.
