@@ -495,6 +495,33 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
 - [ ] **PL-GZ-2 — hello** (write/nl): new-path emission, ONE x86() body per box, m2==m3==m4 byte-identical,
   ONE shared admission gate; non-admitted programs fall to interp LOUDLY and are counted EXCISED
   identically in m3 and m4.
+  **DESIGN (2026-06-04 recon at `305eb44` — seed ABI ↔ existing machinery):** the seed collapses the four
+  ports to (entry∈{α,β}, verdict-in-rax); the x86()-self-encoding template idiom (bb_pat_pos.cpp style:
+  ONE body, PORT_GAMMA/PORT_OMEGA/PORT_BETA wiring, IF(MEDIUM_TEXT,…) decoration only) ALREADY serves both
+  mediums — m3 consumes via `bb_build_flat` (emit_bb.c:2495, EMIT_BINARY_WIRED → RX slab), m4 via the
+  codegen text walk; both Prolog driver branches already call `pl_flat_body_root` as tier one, so the ONE
+  shared gate slots in FRONT of both. Build steps:
+  - [ ] (a) `pl_gz_admit(IR_graph_t *main_g)` — ONE shared C predicate beside `pl_flat_body_root`, called
+    FIRST by BOTH the mode_run and mode_compile Prolog branches. GZ-2 admits exactly the hello class:
+    single body = GCONJ (or lone leaf) of `write(ATOM|LIT_I)` / `nl` / SUCCEED, zero slots, no
+    GOAL/CHOICE/UNIFY/CUT. Non-admitted falls THROUGH to today's tiers untouched (m3 flat-walk → LOUD
+    interp fallback; m4 flat → rich → SMX) — GATE-3 legacy counts frozen by construction.
+  - [ ] (b) new-path boxes in NEW template files, seed ABI, x86() idiom, language-blind concept names
+    (`bb_query_frame.cpp` — query prologue/epilogue: ζ activation + trail-mark on α, verdict-in-rax at
+    γ/ω; `bb_det_write.cpp` / `bb_det_nl.cpp` — det VALUE calls to the rt write helpers, verdict 1;
+    names Lon-adjustable). Conjunction of det goals = WIRING ONLY (goal_i.γ → goal_{i+1}.α — the seed's
+    λ pattern degenerate for det) — NO conj box. Coupling gate ceiling 0 auto-enforces on new files.
+  - [ ] (c) m3 consumption: admitted graph → new-path build (`bb_build_flat` over the GZ box set,
+    EMIT_BINARY_WIRED → RX slab) → jump in the CURRENT process; verdict back to the driver in rax.
+  - [ ] (d) m4 consumption: the SAME bodies emitted MEDIUM_TEXT inside a standalone `main` shell →
+    `.s` → as → gcc+libscrip_rt → EXECUTE as a system process; stdout byte-identical to m2 and m3.
+  - [ ] (e) gate `scripts/test_gate_pl_gz2.sh`: hello probe → m2==m3==m4 stdout byte-identical AND
+    neither m3 nor m4 printed a fallback/SMX banner (BOTH took the new path); non-admitted probe
+    (`X = a`) → BOTH declined identically (m3 INTERP-FALLBACK marker · m4 flat/rich-or-SMX as today) —
+    the PL-M34 equal-sets LAW enforced at the new-path boundary from day one. Negative proven.
+  - [ ] (f) regression sweep: GATE-1 (5/5 · 2/0/3 · 5/5) and GATE-3 (115 · 12/0/103 · 105/0/10) verdicts
+    unchanged except hello/write-class rows may move flat-tier→gz-tier (same PASS); coupling gate new
+    files = 0; corpus clean; siblings untouched.
 - [ ] **PL-GZ-3 — facts + unify**: ground facts, head unify via the surviving bb_unify arms (var-const,
   var-var — the WAM-CP-7 specializations absorbed here), every binding trailed.
 - [ ] **PL-GZ-4 — choice**: multi-clause + backtracking — THE seed-transcription rung. Cursor/trail-mark in
