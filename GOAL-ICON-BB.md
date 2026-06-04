@@ -567,19 +567,53 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   m2==m3==m4; nested (`"outer" ? ("inner" ? write(&subject))` → `inner`) and sequential two-scan probes
   m2==m3==m4; corpus ALL THREE columns byte-identical to the honest baseline (m2 129 HARD zero set drift, m3
   13/152EXC, m4 20/91EXC); smoke 12/12 HARD; bb_gen_scan.cpp 0 raw-byte producers.
-- [ ] **ICN-SCAN-1 — `bb_keyword` register arms.** Inside a native scan: `&pos` = `lea rax,[r14+1]` packed INTVAL
-  into the slot (no rt call); `&subject` marshals Σ/Δ → rt string-DESCR helper → slot. m2 keeps
-  `rt_icn_keyword_*`. Gate: same probes byte-identical.
-- [ ] **ICN-SCAN-2 — nine IR kinds + routing + LOUD EXCISE.** Add `IR_SCAN_ANY/MANY/MATCH/UPTO/FIND/BAL/TAB/
-  MOVE/POS` (contracts); lowerer Icon CALL arm maps the nine names → kinds (ONE case per kind, SHARED-LOWERER
-  discipline); m2 interp arms DELEGATE to the existing by-name impls (`by_name_dispatch.c`) so the oracle is
-  byte-identical — **if the oracle's builtin-generator resume machinery resists cheap delegation, the SANCTIONED
-  fallback is name→template mapping in the EMIT driver only** (emit_bb.c; precedent: `&`-prefix → `bb_keyword`),
-  lowerer untouched — templates stay language-blind either way; emit_core: one case per kind → `x86_bomb` stub;
-  all nine kinds onto `icn_kind_native_stub`. Gate: m2 corpus 129 **byte-identical**, everything EXCISES clean.
-- [ ] **ICN-SCAN-3 — `bb_scan_pos.cpp`** (fscan.r `pos(i)`, function{0,1}). Literal positive n RO. α: `cmp` n vs
-  δ+1; eq → INTVAL(n) into slot, γ; ne → ω. β → ω. Stateless single-shot — the smallest box; lands the
-  whole plumbing end-to-end. Probe: `"abc" ? if pos(1) then write("at1")`.
+- [x] **ICN-SCAN-1 — `bb_keyword` register arms — DONE (`d82003b`, 2026-06-03).** Inside a native scan body:
+  `&pos` = `{DT_I, r14+1}` packed straight to the slot (mov rax,r14 / add rax,1 — no rt call); `&subject` =
+  `{DT_S, slen=0, ptr=r13}` straight to the slot (no rt call — the DESCR is built from Σ in-register; slen=0 =
+  null-terminated, same contract as bb_lit_scalar IR_LIT_S). Gating: new `g_icn_scan_regs_live` (emit_bb.c),
+  set with SAVE/RESTORE around `flat_emit_arg_subchain(body_sg->entry,…)` in `flat_drive_gen_scan` so nested
+  scans keep the flag through the outer body; rt_icn_keyword_* call arms KEPT as the fallback outside a scan
+  (flag=0) and for m2 (oracle untouched). Verified: probes scan_subject/scan_concat_subject/nested/sequential/
+  `"hello" ? write(&pos)`→1 all m2==m3==m4; emitted asm shows both reg arms, zero rt calls; corpus ALL THREE
+  columns byte-identical via stash/rebuild/set-diff (m2 129 HARD / m3 13+152EXC / m4 20+91EXC, zero drift);
+  smokes 12/12+5/5+32; bb_bin_t=0; no-handencoded `--strict` PASS; g_vstack=0; one-reg-frame 0; prove_lower2
+  PASS; bb_keyword.cpp 0 raw-byte producers. Rebased onto peer `40ec5bc` (Pascal PB-9b, orthogonal); post-rebase
+  m2 HARD re-verified.
+- [x] **ICN-SCAN-2 — nine IR kinds + routing + LOUD EXCISE — DONE (`5091102`, 2026-06-03).** SANCTIONED FALLBACK
+  taken (the spec's anticipated case): the oracle's Icon IR_CALL arm entangles arg-subgraph eval, susp_gen_cache,
+  suspend-buffer collection, and the gen-arg odometer — builtin-generator resume RESISTS cheap delegation — so the
+  name→template mapping lives in the EMIT side only, lowerer + m2 STRUCTURALLY UNTOUCHED (byte-identity automatic).
+  Landed: `IR_SCAN_{ANY,MANY,MATCH,UPTO,FIND,BAL,TAB,MOVE,POS}` appended to IR_e END (renumber-free) + dump names
+  in scrip_ir.c; nine LOUD `x86_bomb` stub templates `bb_scan_*.cpp` (own files per ONE-TEMPLATE-FILE-PER-BOX,
+  Makefile src list + compile rules); emit_core ONE case per kind appended after IR_ALT (end of Icon block);
+  name→kind routing INSIDE emit_core's IR_CALL case gated on `g_icn_scan_regs_live` (the exact `&`-prefix→
+  bb_keyword precedent at the IR_VAR case) — unreachable today because `icn_scan_subgraph_safe` still declines
+  the nine names (each SCAN-N step admits its own name when its real box lands); all nine kinds onto
+  `icn_kind_native_stub` (inert belt — graphs carry IR_CALL, the live gating lever is the safe-set). Gate:
+  corpus three columns byte-identical set-diff (m2 129 HARD / m3 13+152EXC / m4 20+91EXC); `tab(3)` probe
+  m2=`he`, m3 `[SMX]` EXCISED rc=0; SCAN-1 probes re-verified; smokes 12/12+5/5+32; all structural gates green.
+  Rebased onto peer `63bd1a2`; post-rebase m2 HARD re-verified.
+- [x] **ICN-SCAN-3 — `bb_scan_pos.cpp` — DONE (`d629a36`, 2026-06-03).** First REAL scan box; the whole
+  plumbing (safe-set admission → driver slot promotion → emit_core name route → template → consumer slot read)
+  is proven end-to-end. Template (pure x86(), medium-invisible): α `cmp64 r14,(n-1)` (fscan.r: succeed iff
+  &pos==n, δ untouched); eq → `{DT_I,n}`→slot→γ; ne → ω; β → ω (single-shot). Driver (emit_bb.c IR_CALL
+  flat-chain arm, the operand-slot promotion pattern): digs literal n from `counter` blks[0] (IR_LIT_I, the
+  empirically-verified arg shape — args live in counter SUBGRAPHS, the call chains arity-0 before its consumer)
+  → `op_sb`; `op_off = bb_slot_alloc16(nd)` so write reads the producer slot. `pos` admitted to
+  `icn_scan_subgraph_safe`; `IR_SCAN_POS` off `icn_kind_native_stub`. **ENCODER FIX (shared x86_asm.h,
+  byte-identical for all prior users):** `x86_cmp_imm64` lacked REX.B for r8+ — MEDIUM_BINARY `cmp64 r14,imm`
+  encoded `cmp rsi,imm` (wrong register) → silent m3 scan failure while m4 (gas text) was correct; only prior
+  user was rcx. Probes: `"abc" ? write(pos(1))` → `1`, `pos(2)` → fail/empty, **m3==m4 per canonical fscan.r**.
+  **⚠ m2 DIVERGES on the probes — PRE-EXISTING ORACLE GAP (verified at stashed baseline, NOT from this rung):**
+  the icon-flavor by-name dispatch block (~by_name_dispatch.c:2617) has any/many/upto/tab/move/match/find but
+  **no `pos` arm**, and the generic pos impl (:621) is unreached on the scan path — `write(pos(1))` is empty in
+  m2 (also the if/conj forms; `write(match("a"))` works → gap is pos-specific). The m2 fix flips FAIL→PASS
+  programs ⇒ it is its OWN re-baseline rung (SUITE-HONESTY precedent), queued. NOTE also recorded: that icon
+  block's `match` MOVES scan_pos (canonical fstranl.r match does NOT move &pos) — a second pre-existing oracle
+  divergence for the same future rung. Gate: corpus ALL THREE columns byte-identical set-diff (m2 129 HARD /
+  m3 13+152EXC / m4 20+91EXC — zero drift; corpus pos programs use if/conj shapes still gated out, the probes
+  carry the rung); smokes 12/12+5/5+32; SCAN-0/1 probes re-verified post-encoder-fix; all structural gates
+  green; bb_scan_pos.cpp 0 raw-byte producers. Rebased onto peer `591ed37` (SNOBOL4); post-rebase re-verified.
 - [ ] **ICN-SCAN-4 — `bb_scan_any.cpp`** (fstranl.r `any(c)`, {0,1}). Cset literal sealed RO. α: `δ==Δ → ω`;
   `movzx esi,[r13+r14]`; `lea rdi,[rip+cset]`; `call strchr`; miss → ω; INTVAL(δ+2) → slot, γ. β → ω.
   Copy `bb_pat_any`'s test, change the value contract (return position, δ untouched). Probe:
@@ -736,7 +770,38 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `f13838f` — ICN-SCAN-0 landed (the `?` env is registerized). HEAD (.github) = this handoff.**
+**HEAD (SCRIP) = `d629a36` — ICN-SCAN-1 + ICN-SCAN-2 + ICN-SCAN-3 landed (three gated rungs, one session). HEAD
+(.github) = this handoff.** Session 2026-06-03-d (Opus 4.8, "ICN-SCAN-1/2/3"): the ICN-SCAN ladder advanced three
+steps, each individually gated + committed + pushed (`d82003b` → `5091102` → `d629a36`, with clean rebases onto
+orthogonal Pascal/Prolog/SNOBOL4 peer commits at each push, post-rebase re-verified every time). **(1) ICN-SCAN-1
+(`d82003b`):** `bb_keyword` register arms — `&pos`=`{DT_I,r14+1}`, `&subject`=`{DT_S,0,r13}` straight to the slot
+(zero rt calls) inside a native scan body, gated on new `g_icn_scan_regs_live` (emit_bb.c, SAVE/RESTORE around the
+body subchain so nesting holds); rt_icn_keyword_* fallback outside scans; m2 untouched. **(2) ICN-SCAN-2
+(`5091102`):** SANCTIONED FALLBACK taken (oracle's IR_CALL arm — arg-subgraph eval + susp_gen_cache + suspend-buf
++ gen-arg odometer — resists cheap delegation): nine `IR_SCAN_*` kinds appended to IR_e END (renumber-free) +
+dump names; nine LOUD x86_bomb stubs `bb_scan_*.cpp` (own files, Makefile src+rules); emit_core ONE case per kind
+after IR_ALT; name→template routing INSIDE emit_core's IR_CALL case gated on `g_icn_scan_regs_live` (the
+`&`-prefix→bb_keyword precedent); all nine onto `icn_kind_native_stub` (inert belt — graphs carry IR_CALL; the
+LIVE gating lever is the `icn_scan_subgraph_safe` name set, which each SCAN-N step extends); lowerer + m2
+STRUCTURALLY untouched. **(3) ICN-SCAN-3 (`d629a36`):** `bb_scan_pos` real (see its rung entry above) + the
+`x86_cmp_imm64` REX.B encoder fix (BINARY `cmp64 r8+,imm` encoded the wrong register; m3-vs-m4 divergence root
+cause; prior users unaffected). Probes m3==m4 per canonical fscan.r; **m2 diverges on the pos probes = PRE-EXISTING
+oracle gap** (icon-flavor by-name block lacks a `pos` arm; verified at stashed baseline) — queued as its own
+re-baseline rung, together with the recorded `match`-moves-&pos oracle divergence. **Every rung's corpus gate was
+the full stash/rebuild/set-diff (SCAN-1) or set-diff vs prior rung (SCAN-2/3): ALL THREE columns byte-identical
+throughout — m2 129 HARD / m3 13 PASS+152 EXCISED / m4 20 PASS+91 EXCISED, zero PASS-set drift in any mode in any
+rung.** Smokes Icon m2 12/12 HARD · m3 5/12 · m4 5/12 · Prolog 5/5 · broker 32; structural gates all green at
+every rung (bb_bin_t=0, no-handencoded `--strict`, g_vstack=0, no-stack 10≤127, one-reg-frame 0≤21, prove_lower2,
+FACT bytes-outside-templates=0, new templates 0 raw-byte producers). Canonical sources consulted per rung:
+`fscan.r` (pos/tab/move semantics + the "REVERSES on β" contract), `fstranl.r` function{} signatures, the
+SCAN-0 ScanEntry ledger. **NEXT = ICN-SCAN-4 (`bb_scan_any.cpp`)** — copy `bb_pat_any`'s strchr cset test, change
+the value contract (return INTVAL(δ+2) position DESCR, δ untouched); the SCAN-3 driver arm generalizes from the
+single `pos` name to the name→kind table (dig the cset/string literal the same counter-blks way; seal it RO via
+`x86_ro_seal_str`); admit `any` to the safe set + IR_SCAN_ANY off the stub list when the box lands. The
+`probe m2==m3==m4` clause of the PER-STEP GATE is BLOCKED for pos/any-class probes by the pre-existing m2 gap
+above — gate those rungs on m2 BYTE-IDENTITY + m3==m4-vs-canonical until the oracle re-baseline rung lands.
+
+**PREV ENTRY — HEAD (SCRIP) = `f13838f` — ICN-SCAN-0 landed (the `?` env is registerized). HEAD (.github) = that handoff.**
 Session 2026-06-03-c continued (Opus 4.8, "SUITE-HONESTY + ICN-SCAN-0"): two ladder steps in one session. After
 SUITE-HONESTY (`991a26b`, see PREV ENTRY below) the same session landed ICN-SCAN-0: `rt_icn_scan_enter` now takes
 the prior r13/r14/r15 as args, pushes them on the scan ledger (`ScanEntry` += `sigma/delta/Delta`), and returns
