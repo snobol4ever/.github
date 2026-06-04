@@ -14,7 +14,7 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ STATE (2026-06-04)
 
-m2/m3 **115/115** byte-identical · m4 **105/0/10** · siblings Icon m2 12 · SNOBOL4 m2 7. SCRIP HEAD `c5d1737` (PT-4a aggregate/nb meta-rail landed; prior PT-3 catch/throw `f44c20c`, PT-1b meta resolver + PT-2b conj `2cfd1bb`, PT-2b-SIMPLE `ea9e5ea` + literal-int-LHS is `c8063ec`, PT-0/1a/2a `62426a6`).
+m2/m3 **115/115** byte-identical · m4 **105/0/10** · siblings Icon m2 12 · SNOBOL4 m2 7. SCRIP HEAD `c5d1737` (PT-4a aggregate/nb meta-rail landed; prior PT-3 catch/throw `f44c20c`, PT-1b meta resolver + PT-2b conj `2cfd1bb`, PT-2b-SIMPLE `ea9e5ea` + literal-int-LHS is `c8063ec`, PT-0/1a/2a `62426a6`). **2026-06-04 Lon directives landed (.github `a4508461`):** PROEBSTING IS THE CANON · PL-M34 (m3 ≡ m4) · PL-BBL (pull GDE into boxes) · PT-4b fork → B-full. **Next session openers: PL-M34-0 or PL-BBL-0 (both no-code audits) or PT-4b/B-full.** Session detail: `SCRIP/HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PT-4A-AGG-NB-AND-DIRECTIVES.md`.
 
 **x86() TEMPLATE-REVAMP** — convert BB templates to `x86()` self-encoding (one return per `PLATFORM_*`, pure `x86(mnem,…)` concat, no `bb_bin_t`, pBB-free). Rules: `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. Reference: `bb_pat_pos.cpp` (loop-free) + `bb_pat_span.cpp` (looping). Shared keystone in `x86_asm.h` — `git pull --rebase` before touching any box; `x86_asm.h` edits are additive.
 - DONE: bb_cut/arith/conj/ite/disj/catch/unify (PL-RV-1..5) · bb_builtin 28 BINARY arms + bb_fail (PL-RV-6) · unify covers compound + scalar-float via the `g_emit.bb_ln/bb_rn` node-ptr sidecar (`374c2ff`/`873792f`; compound-NESTED float + float-result arith deferred to CAT-D).
