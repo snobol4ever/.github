@@ -25,6 +25,15 @@ extern int printf(const char *, ...);
 /*    cut                         = pure WIRING (firstpath_β routes to ω, never resumes path)      */
 /*    trail                       = the ONE shared spine; logic vars = frame cells; ALL trailed    */
 /*    recursion spine             = the C call stack (the NO-VALUE-STACK carve-out)                */
+/*                                                                                                 */
+/*  SEED → EMITTED PROJECTION.  C cannot jump to a label inside another function, so this seed     */
+/*  prints cross-predicate α/β entry as a C call — the SAME convention as test_sno_2/3/4.c.        */
+/*  This is NOT license for brokered `(ζ, int entry)` boxes in src/ — that signature stays         */
+/*  FORBIDDEN there (NO C BYRD-BOX FUNCTIONS fact rule).  The mapping the emitter must realize:    */
+/*      v = path(&ζ->p2_ζ, α, …)      ⇒  jmp path_α   (callee frame slots reset at α)              */
+/*      v = path(&ζ->p2_ζ, β, …)      ⇒  jmp path_β                                                */
+/*      return 1 / return 0 + λ-test  ⇒  callee jumps to the caller's γ / ω continuation           */
+/*      the `int entry` dispatch      ⇒  does not exist — α and β ARE the two emitted labels       */
 /*------------------------------------------------------------------------------------------------*/
 typedef struct { unsigned int pos; __global char * buffer; } output_t;
 /*------------------------------------------------------------------------------------------------*/
