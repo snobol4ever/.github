@@ -18,19 +18,30 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 on the Proebsting-pure track — see the 🔴 PL-GZ ladder below.** PL-M34 and PL-BBL are ABSORBED into PL-GZ
 (they were retrofit ladders; PL-GZ builds their end states by construction); PT and WAM-CP are LEGACY (see
 LEGACY DISPOSITION below PL-GZ). Frozen legacy watermark at reset: m2/m3 **115/115** byte-identical (the
-m3 115 = **12 native + 103 interp-fallback** — PL-GZ-1b census 2026-06-04; the byte-identity is the
-FALLBACK's, not the slab's; suite truth-counts since `25549a5`: m3 = 12/0/103-EXCISED) ·
-m4 **105/0/10** · SCRIP HEAD `de8c4ad` (2026-06-04: PL-GZ-2 landed; rebased atop Lon's `b59c9e6`
-ICN-SCAN-13a) · siblings Icon m2 12 (m3/m4 5/7 standing, stash-verified == pre-GZ-2 HEAD) ·
+m3 115 = **18 native + 97 interp-fallback** — PL-GZ-4b census 2026-06-04; the byte-identity is the
+FALLBACK's, not the slab's; suite truth-counts since `25549a5`: m3 = 18/0/97-EXCISED) ·
+m4 **105/0/10** · SCRIP HEAD `84fee42` (2026-06-04: PL-GZ-3 + PL-GZ-4 landed; rebased atop Lon's
+concurrent HEADs) · siblings Icon m2 12 (m3/m4 5/7 standing, stash-verified == pre-GZ-2 HEAD) ·
 SNOBOL4 m2 7 (smoke 19/19). Grounding: Proebsting paper
-(uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_sno_1/2/3/4.c` + `test_icon.c` in
+(uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_pl_1.c` + `test_sno_1/2/3/4.c` + `test_icon.c` in
 `.github/` · the reset rationale + coupling measurement in
 `HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`. **PL-GZ-0 LANDED
 (`b4c935c3`, output pinned `b c d b`, -O0..-O3, 20/20 runs identical). PL-GZ-1/1b LANDED (coupling gate +
 m3-truth/LOWER split). PL-GZ-2 hello LANDED 2026-06-04 (`de8c4ad`): m2==m3==m4 byte-identical `hello\n`
-on the new path, both branches behind the ONE `pl_gz_admit`, negative proven, all legacy counts frozen
-(GATE-1 5/2+3EXC/5 · GATE-3 115 / 12+103EXC / 105+10EXC · coupling 19/10/0/39 · one-box PASS).
-Next opener: PL-GZ-3 (facts + unify) — head unify via surviving bb_unify arms, every binding trailed.**
+on the new path, both branches behind the ONE `pl_gz_admit`, negative proven. PL-GZ-3 facts+unify LANDED
+2026-06-04 (3a `b7bb399` frame-cell logic vars + CELL_UNIFY + lazy trail init; 3b `6f69e3f` single-clause
+ground-fact head-unify inlined at admit, const↔const emit-time fold). PL-GZ-4 choice LANDED 2026-06-04
+(4a `20f15db` bb_cell_choice = the seed's edge/2 shape — cursor+mark in the box's OWN frame row, backward
+redo chain so bb_fail IS the backtracking driver, ZERO resolve_cp_current on the new path; 4b `84fee42`
+query-tail (G ; true) soft-fail promotion — fail landing returns 1 after unwind for one-shot main; general
+2-arm disjunction with redo-into-right-arm deferred to GZ-5-adjacent). All legacy counts frozen, all gates
+negative-proven (GATE-1 5 / 4+1EXC / 5 — only `recursion` remains · GATE-3 115 / 18+97EXC / 105+10EXC ·
+coupling 19/10/0/39 · gz2/gz3/gz4 PASS).
+Next opener: PL-GZ-5 (conj + recursion) — recon DONE in the 3-4 handoff: seed path/2 fixes two-entry-label
+predicate functions, ζ-tree slots via rt_enter (reuse-or-calloc), args as cell pointers saved at α,
+pair-loop redo; Lrec(0xE8)+Jrec call encoder is opcode-generic (~6 lines), δ-target fill plumbing is the
+one design decision; sub-ladder 5a call encoder + single-clause var-head rule callee · 5b rt_enter +
+recursion · 5c multi-clause rule predicates (full path/2).**
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -537,11 +548,19 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
   - [x] (f) regression sweep: GATE-1 (5/5 · 2/0/3 · 5/5) and GATE-3 (115 · 12/0/103 · 105/0/10) verdicts
     unchanged except hello/write-class rows may move flat-tier→gz-tier (same PASS); coupling gate new
     files = 0; corpus clean; siblings untouched.
-- [ ] **PL-GZ-3 — facts + unify**: ground facts, head unify via the surviving bb_unify arms (var-const,
-  var-var — the WAM-CP-7 specializations absorbed here), every binding trailed.
-- [ ] **PL-GZ-4 — choice**: multi-clause + backtracking — THE seed-transcription rung. Cursor/trail-mark in
-  the box's own frame row; ZERO `resolve_cp_current` refetches (legacy 24 → 0); the CP ledger slims to the
-  bare resume spine the seed shows.
+- [x] **PL-GZ-3 — facts + unify** ✅ LANDED 2026-06-04 (3a `b7bb399` + 3b `6f69e3f`): ground facts, head
+  unify via the surviving bb_unify arms (var-const, var-var — the WAM-CP-7 specializations absorbed here:
+  bb_cell_unify self-unify vacuous / cell↔cell / cell↔const / const↔const emit-time fold), every binding
+  trailed (`rt_trail_mark` lazy-inits — the zero-cap `GC_realloc` segfault killed); single-clause
+  ground-fact GOAL inlined at admit as CELL_UNIFY chains. Gate `test_gate_pl_gz3.sh` negative-proven.
+- [x] **PL-GZ-4 — choice** ✅ LANDED 2026-06-04 (4a `20f15db` + 4b `84fee42`): multi-clause + backtracking —
+  THE seed-transcription rung. Cursor/trail-mark in the box's own frame row (`bb_cell_choice` = edge/2
+  verbatim: 1-based cursor, β cmp-chain to clause-k ω, advance-unwind-fallthrough); ZERO
+  `resolve_cp_current` refetches on the new path (legacy 24 → 0); conjunction = backward redo chain
+  (goal[i].ω → goal[i-1].β) so the pure-wiring bb_fail leaf IS the backtracking driver; 4b = query-tail
+  (G ; true) soft-fail promotion (fail landing returns 1 after unwind — one-shot-main-exact). Caps
+  N≤4/arity≤2; general 2-arm disjunction (redo-into-right-arm) deferred. Gate `test_gate_pl_gz4.sh`
+  negative-proven.
 - [ ] **PL-GZ-5 — conj + recursion**: GCONJ pair-loop + user-predicate call as ζ-tree activation with
   verdict-in-rax. Kills `last_ok` + the env swap on the new path.
 - [ ] **PL-GZ-6 — cut**: lexical cut = pure wiring (seed form); dynamic cut = frame gate (paper §4.5).
