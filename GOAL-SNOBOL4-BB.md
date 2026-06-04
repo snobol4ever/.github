@@ -517,9 +517,9 @@ bash scripts/test_snobol4_pat_rung_suite.sh  # shows M2=N M4=N per rung
 
 ### WAVE 1 — Trivial API fixes (no logic change)
 
-- [ ] **W1-1 `bb_call.cpp`** — `bb_node_id(lf)` → `lf->id`; `bb_node_id(owner)` → `owner->id`. Fix the 2 OLD_API refs. Gate: build clean.
-- [ ] **W1-2 `bb_gather.cpp`** — `bb_node_id(pBB)` → `_.nid`. Gate: build clean.
-- [ ] **W1-3 ALL `bb_builtin*.cpp`** (9 files) — `pBB->ival` → `_.op_ival`, `pBB->sval` → `_.op_sval`, `pBB->dval` → `_.op_dval`. Mass sed. Gate: build clean + Prolog smoke unchanged.
+- [x] **W1-1 `bb_call.cpp`** — `bb_node_id(lf)` → `lf->id`; `bb_node_id(owner)` → `owner->id`. Fix the 2 OLD_API refs. Gate: build clean.
+- [x] **W1-2 `bb_gather.cpp`** — `bb_node_id(pBB)` → `_.nid`. Gate: build clean.
+- [x] **W1-3 ALL `bb_builtin*.cpp`** (9 files) — `pBB->ival` → `_.op_ival`, `pBB->sval` → `_.op_sval`, `pBB->dval` → `_.op_dval`. Mass sed. Gate: build clean + Prolog smoke unchanged.
 
 ---
 
@@ -612,3 +612,31 @@ Each: the bomb fires when the dispatcher sends an unrecognized shape. Cherry-pic
 ```
 
 **Order of execution:** W1 first (trivial, validates build stays clean), then W2 (SNOBOL4 unblocking), then W3-W7 in order. Each wave is independently committable.
+
+---
+
+### REVAMP-2 STATUS UPDATE (post-W1 audit)
+
+**Key finding:** All 40 bombs are ADMISSION GUARDS — every file has real x86() code above the bomb; the bomb fires when a shape reaches the template that doesn't satisfy current admission criteria. No file has "zero implementation." This changes the nature of the remaining work from "write from scratch" to "extend admission criteria or fix drivers."
+
+**W1: DONE.** `bb_node_id→_.nid` (bb_call, bb_gather); `pBB->ival/sval/dval→_.op_ival/op_sval/op_dval` (13 files). Zero old-API refs remaining in compiled templates.
+
+**W2 status:**
+- W2-1/2/3 (match/subject/capture): templates complete with real code. Bombs = driver-side slot-promotion guard. Driver (emit_bb.c flat_drive_*) correctly promotes slots; bombs only fire on abnormal paths.
+- W2-4 (scan_stmt): TEXT non-literal arm genuinely pending (needs native PB-RB scan graph — full pattern architecture). BINARY arm complete.
+- W2-5 (gvar_assign): 5 bombs = admission guards for unhandled rhs shapes. 6 arms complete (lit_s, lit_i, var, int-binop, concat, call-result).
+- W2-6 (keyword): 2 bombs = admission guards (no-slot and unsupported keyword). 4 keywords complete (subject, pos, null, fail).
+- W2-7 (pat_arbno): TEXT arm done. BINARY arm = bomb.
+
+**W3:** All 9 scan_* NOT in one4all. Need Icon canonical `refs/jcon-master/` + `refs/icon-master/src/runtime/fstranl.r`. Each file has 1 bomb guard; real x86() code pending for each shape.
+
+**W4:** one4all TEXT arms use `rt_nv_get`/`rt_push_null` (vstack — FORBIDDEN per RULES). Current files are AHEAD of one4all. Bombs are admission guards; files not in one4all (var_frame, var_frame_ref, var_global, assign_local) were created post-713c581 with x86() API directly.
+
+**W5/W6/W7:** All admission guards. Real x86() code exists (10–33 calls per file). Each bomb catches an unrecognized shape dispatched by the driver.
+
+**Revised action plan — ordered by impact:**
+- [ ] **ACT-1** `bb_pat_arbno` BINARY arm: convert one4all BINARY arm (bytes()/u32le() → x86() in-band 'E'/'F' records). Gate: 052/054 M3 PASS.
+- [ ] **ACT-2** Extend Icon canonical `refs/` for W3 scan_* implementations. Restore: `git clone https://TOKEN@github.com/proebsting/jcon refs/jcon-master && git clone https://TOKEN@github.com/gtownsend/icon refs/icon-master`. Then implement each scan box against `fstranl.r`.
+- [ ] **ACT-3** `bb_keyword` — add `&anchor`, `&maxno`, `&rtracing` and other SNOBOL4 keyword arms.
+- [ ] **ACT-4** `bb_scan_stmt` TEXT non-literal arm — requires full native PB-RB pattern graph, blocked on scan architecture.
+- [ ] **ACT-5** Shape-by-shape extension of W5/W6 admission criteria as new test programs expose them.
