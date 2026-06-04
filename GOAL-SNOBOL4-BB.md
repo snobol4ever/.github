@@ -1215,6 +1215,8 @@ Smoke ladder unchanged: `S 'b'` (plain) → `S 'b' = 'X'` → `aXc`.
   emitted after the element, sharing the driver-claimed start-slot offset; retry body `mov r14d,FR(start)` likewise
   (templates emit PORT records + FR/L(n) only — cross-box targets belong to the driver). Original PB-RB-3 landing
   text retained below for the ABI/probe detail; its gates/checkbox describe `706d665`, NOT the current tree.
+  **Drafted x86() bodies + integration checklist + 2 VERIFY-FIRST items:
+  `HANDOFF-2026-06-03-OPUS48-SNOBOL4-BB-PBRB3-RESTORE-DESIGN.md`.**
   Inline-jump (Model A). `flat_drive_match` (emit_bb.c) resolves the element from `operand_aux[0]` (PEERS RULE) and
   inline-emits it via `walk_bb_flat(elem, lbl_γ, match_advance, elem_β)`. `bb_match.cpp` BINARY: α loads Σ/Σlen from
   SUBJECT's ζ-slot (`g_sno_subject_slot`) + re-establishes `r10=&Δ` + seeds start=0; `match_retry` sets `Δ=start, jmp
