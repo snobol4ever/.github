@@ -553,12 +553,20 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   FAIL=136 EXCISED=91.** Gate verified: proto flipped PASS→FAIL in all three modes; per-mode PASS-set diff
   shows the ONE vacuous passer as the ONLY change in every column (zero genuine regressions, EXCISED counts
   byte-identical 152/91); smokes m2 12/12 + Prolog 5/5 + prove_lower2 held.
-- [ ] **ICN-SCAN-0 — registerize the `?` env: `bb_gen_scan` loads Σ/δ/Δ.** ENTER glue (op_sb=1) additionally
-  loads **r13←subject byte ptr, r14←0 (δ for pos=1), r15←length** (rt_icn_scan_enter returns the triple — it
-  already coerces the subject DESCR to string); the ledger push/pop now saves/restores the prior register triple
-  too (nesting). SYNC CONTRACT: before any emitted `call rt_*` that may read/write `&pos`/`&subject`, store
-  δ→`scan_pos`; reload after. LEAVE (op_sb=2) restores. Gate: rung05 scan_subject + scan_concat_subject stay
-  m2==m3==m4; smoke 12/12 HARD.
+- [x] **ICN-SCAN-0 — DONE (`f13838f`, 2026-06-03): registerized the `?` env.** ENTER glue (op_sb=1) marshals the
+  subject DESCR slot → rdi:rsi AND the prior live triple r13/r14/r15 → rdx/rcx/r8; `rt_icn_scan_enter(lo,hi,
+  sigma,delta,Delta)` pushes the triple on the scan LEDGER (`ScanEntry` grew `sigma/delta/Delta`), coerces +
+  installs the subject, and RETURNS `{ptr,len}` in rax:rdx → template sets **r13←rax (Σ), r15←rdx (Δ),
+  r14←0 (δ for pos=1)**. LEAVE glue (op_sb=2): `rt_icn_scan_leave(out3)` pops (restoring `&subject`/`&pos`)
+  and writes the popped triple through a 24-byte frame out-area (`bb_slot_claim(24)`, carried in `op_off` via
+  `flat_drive_scan_glue`) → template reloads r13/r14/r15 from `[r12+off..off+16]`. **PAIRED ENTER/LEAVE IS THE
+  CALLEE-SAVED PRESERVATION** — net identity on r13–r15 across the scan, so the flat-chain prologue (which
+  saves only r12) needed NO change. SYNC CONTRACT trivially holds at this rung (no native box writes δ yet, so
+  δ==scan_pos−1 is invariant through the body; it becomes load-bearing at ICN-SCAN-7/8 tab/move). m2 oracle
+  untouched (its IR_GEN_SCAN arm never called enter/leave). Verified: rung05 scan_subject + scan_concat_subject
+  m2==m3==m4; nested (`"outer" ? ("inner" ? write(&subject))` → `inner`) and sequential two-scan probes
+  m2==m3==m4; corpus ALL THREE columns byte-identical to the honest baseline (m2 129 HARD zero set drift, m3
+  13/152EXC, m4 20/91EXC); smoke 12/12 HARD; bb_gen_scan.cpp 0 raw-byte producers.
 - [ ] **ICN-SCAN-1 — `bb_keyword` register arms.** Inside a native scan: `&pos` = `lea rax,[r14+1]` packed INTVAL
   into the slot (no rt call); `&subject` marshals Σ/Δ → rt string-DESCR helper → slot. m2 keeps
   `rt_icn_keyword_*`. Gate: same probes byte-identical.
@@ -728,7 +736,27 @@ The read-only-string-literal write box (string analog of GZ-2's `write(42)`): `"
 
 ## Watermark
 
-**HEAD (SCRIP) = `991a26b` — SUITE-HONESTY landed (rc-aware rung suite). HEAD (.github) = this handoff.**
+**HEAD (SCRIP) = `f13838f` — ICN-SCAN-0 landed (the `?` env is registerized). HEAD (.github) = this handoff.**
+Session 2026-06-03-c continued (Opus 4.8, "SUITE-HONESTY + ICN-SCAN-0"): two ladder steps in one session. After
+SUITE-HONESTY (`991a26b`, see PREV ENTRY below) the same session landed ICN-SCAN-0: `rt_icn_scan_enter` now takes
+the prior r13/r14/r15 as args, pushes them on the scan ledger (`ScanEntry` += `sigma/delta/Delta`), and returns
+the coerced subject `{ptr,len}` in rax:rdx; the ENTER glue sets Σ=r13←rax, Δ=r15←rdx, δ=r14←0; `rt_icn_scan_leave(
+out3)` pops + writes the prior triple through a 24-byte frame out-area (claimed `bb_slot_claim(24)`, carried in
+`op_off`) which the LEAVE glue reloads into r13/r14/r15. **Paired enter/leave is itself the callee-saved
+preservation** (net identity on r13–r15 across every gated scan shape) so the flat-chain prologue — which saves
+only r12 — needed no change; this is WHY the ledger carries the triple. m2 oracle untouched (its arm never called
+the helpers). Gates: probes rung05 scan_subject/scan_concat_subject + nested + sequential scans all m2==m3==m4;
+corpus three columns BYTE-IDENTICAL to the honest baseline (m2 **129** HARD / m3 13+152EXC / m4 20+91EXC, zero
+PASS-set drift in any mode); smokes Icon m2 12/12 · Prolog 5/5 · broker 32; bb_bin_t=0 · no-handencoded `--strict`
+PASS · no-vstack/no-stack/one-reg-frame PASS · prove_lower2 PASS · FACT bytes-outside-templates 0. The
+medium-invisible `--strict` gate is RED on 343 sites ALL in the Prolog-lane `bb_builtin_*` family (the documented
+peer WIP; `bb_gen_scan.cpp` has 0). Rebased cleanly onto peer `62426a6` (Prolog PT-0/1a/2a predicate-table
+substrate, orthogonal); build + m2 HARD + smokes re-verified post-rebase. **NEXT = ICN-SCAN-1** (`bb_keyword`
+register arms: inside a native scan `&pos` = `lea rax,[r14+1]` packed INTVAL straight to the slot — no rt call;
+`&subject` marshals Σ/Δ → rt string-DESCR helper → slot; m2 keeps `rt_icn_keyword_*`; gate = same probes
+byte-identical).
+
+**PREV ENTRY — HEAD (SCRIP) = `991a26b` — SUITE-HONESTY landed (rc-aware rung suite). HEAD (.github) = that handoff.**
 Session 2026-06-03-c (Opus 4.8, "SUITE-HONESTY"): the first ICN-SCAN-ladder step is DONE. `test_icon_rung_suite.sh`
 now captures `run_prog`'s exit code in `run_corpus` — `rc≠0` without the `[SMX]` banner ⇒ FAIL in EVERY mode (m2
 included), even when stdout matches `.expected`; and `run_prog`'s compile arm returns nonzero (was `return 0`) on
