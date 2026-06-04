@@ -20,12 +20,17 @@ on the Proebsting-pure track — see the 🔴 PL-GZ ladder below.** PL-M34 and P
 LEGACY DISPOSITION below PL-GZ). Frozen legacy watermark at reset: m2/m3 **115/115** byte-identical (the
 m3 115 = **12 native + 103 interp-fallback** — PL-GZ-1b census 2026-06-04; the byte-identity is the
 FALLBACK's, not the slab's; suite truth-counts since `25549a5`: m3 = 12/0/103-EXCISED) ·
-m4 **105/0/10** · SCRIP HEAD `89c730c` · siblings Icon m2 12 · SNOBOL4 m2 7. Grounding: Proebsting paper
+m4 **105/0/10** · SCRIP HEAD `de8c4ad` (2026-06-04: PL-GZ-2 landed; rebased atop Lon's `b59c9e6`
+ICN-SCAN-13a) · siblings Icon m2 12 (m3/m4 5/7 standing, stash-verified == pre-GZ-2 HEAD) ·
+SNOBOL4 m2 7 (smoke 19/19). Grounding: Proebsting paper
 (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_sno_1/2/3/4.c` + `test_icon.c` in
 `.github/` · the reset rationale + coupling measurement in
-`HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`. **PL-GZ-0 LANDED this session
-(`b4c935c3`, output pinned `b c d b`, -O0..-O3, 20/20 runs identical). Next opener: PL-GZ-1
-(coupling gate, first SCRIP commit of the new track), then PL-GZ-2 (hello).**
+`HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`. **PL-GZ-0 LANDED
+(`b4c935c3`, output pinned `b c d b`, -O0..-O3, 20/20 runs identical). PL-GZ-1/1b LANDED (coupling gate +
+m3-truth/LOWER split). PL-GZ-2 hello LANDED 2026-06-04 (`de8c4ad`): m2==m3==m4 byte-identical `hello\n`
+on the new path, both branches behind the ONE `pl_gz_admit`, negative proven, all legacy counts frozen
+(GATE-1 5/2+3EXC/5 · GATE-3 115 / 12+103EXC / 105+10EXC · coupling 19/10/0/39 · one-box PASS).
+Next opener: PL-GZ-3 (facts + unify) — head unify via surviving bb_unify arms, every binding trailed.**
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -493,34 +498,43 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
   - [x] (a) `run_prolog_via_x86_backend.sh` emits `.s` + `bb_macros.s` into its mktemp WORK dir
     (`15642ab`); full GATE-3 compile leg proven corpus-clean (git status 0 dirty).
   - [ ] (b) prune tracked corpus `.s` down to the DEMO keep-list — needs Lon's confirmed list.
-- [ ] **PL-GZ-2 — hello** (write/nl): new-path emission, ONE x86() body per box, m2==m3==m4 byte-identical,
+- [x] **PL-GZ-2 — hello** (write/nl): new-path emission, ONE x86() body per box, m2==m3==m4 byte-identical,
   ONE shared admission gate; non-admitted programs fall to interp LOUDLY and are counted EXCISED
   identically in m3 and m4.
+  **LANDED (2026-06-04, Opus 4.8, SCRIP `de8c4ad`):** all six sub-steps in one commit. New IR kinds
+  IR_QUERY_FRAME/IR_DET_WRITE/IR_DET_NL (end of Prolog block; driver-side REWRITE — m2 never sees them).
+  `pl_gz_admit` (scrip.c, beside `pl_flat_body_root`) admits + rewrites; both branches call it FIRST.
+  Boxes: bb_query_frame.cpp (op_sa aspect 0=prologue: push r12/mov r12,rdi/rt_trail_mark→[ζ+0]/jmp γ;
+  1=epilogue: def γ→rax=1/ret, def ω→rt_trail_unwind+rax=0/ret), bb_det_write.cpp (atom via
+  x86_ro_seal_str in-box [rip+disp] both mediums; int via rt_write_int; β→ω det redo=fail),
+  bb_det_nl.cpp (putchar 10). flat_drive_gz_query = wiring only; pl_gz_build (m3 slab) / pl_gz_codegen
+  (m4 text) share walk_bb_flat. Added `ret` encoder to x86_asm.h. Gate test_gate_pl_gz2.sh GREEN,
+  negative proven (corrupt→exit 1). Hello rows moved flat→gz tier, same PASS; ALL gate counts frozen.
   **DESIGN (2026-06-04 recon at `25549a5` — seed ABI ↔ existing machinery):** the seed collapses the four
   ports to (entry∈{α,β}, verdict-in-rax); the x86()-self-encoding template idiom (bb_pat_pos.cpp style:
   ONE body, PORT_GAMMA/PORT_OMEGA/PORT_BETA wiring, IF(MEDIUM_TEXT,…) decoration only) ALREADY serves both
   mediums — m3 consumes via `bb_build_flat` (emit_bb.c:2495, EMIT_BINARY_WIRED → RX slab), m4 via the
   codegen text walk; both Prolog driver branches already call `pl_flat_body_root` as tier one, so the ONE
   shared gate slots in FRONT of both. Build steps:
-  - [ ] (a) `pl_gz_admit(IR_graph_t *main_g)` — ONE shared C predicate beside `pl_flat_body_root`, called
+  - [x] (a) `pl_gz_admit(IR_graph_t *main_g)` — ONE shared C predicate beside `pl_flat_body_root`, called
     FIRST by BOTH the mode_run and mode_compile Prolog branches. GZ-2 admits exactly the hello class:
     single body = GCONJ (or lone leaf) of `write(ATOM|LIT_I)` / `nl` / SUCCEED, zero slots, no
     GOAL/CHOICE/UNIFY/CUT. Non-admitted falls THROUGH to today's tiers untouched (m3 flat-walk → LOUD
     interp fallback; m4 flat → rich → SMX) — GATE-3 legacy counts frozen by construction.
-  - [ ] (b) new-path boxes in NEW template files, seed ABI, x86() idiom, language-blind concept names
+  - [x] (b) new-path boxes in NEW template files, seed ABI, x86() idiom, language-blind concept names
     (`bb_query_frame.cpp` — query prologue/epilogue: ζ activation + trail-mark on α, verdict-in-rax at
     γ/ω; `bb_det_write.cpp` / `bb_det_nl.cpp` — det VALUE calls to the rt write helpers, verdict 1;
     names Lon-adjustable). Conjunction of det goals = WIRING ONLY (goal_i.γ → goal_{i+1}.α — the seed's
     λ pattern degenerate for det) — NO conj box. Coupling gate ceiling 0 auto-enforces on new files.
-  - [ ] (c) m3 consumption: admitted graph → new-path build (`bb_build_flat` over the GZ box set,
+  - [x] (c) m3 consumption: admitted graph → new-path build (`bb_build_flat` over the GZ box set,
     EMIT_BINARY_WIRED → RX slab) → jump in the CURRENT process; verdict back to the driver in rax.
-  - [ ] (d) m4 consumption: the SAME bodies emitted MEDIUM_TEXT inside a standalone `main` shell →
+  - [x] (d) m4 consumption: the SAME bodies emitted MEDIUM_TEXT inside a standalone `main` shell →
     `.s` → as → gcc+libscrip_rt → EXECUTE as a system process; stdout byte-identical to m2 and m3.
-  - [ ] (e) gate `scripts/test_gate_pl_gz2.sh`: hello probe → m2==m3==m4 stdout byte-identical AND
+  - [x] (e) gate `scripts/test_gate_pl_gz2.sh`: hello probe → m2==m3==m4 stdout byte-identical AND
     neither m3 nor m4 printed a fallback/SMX banner (BOTH took the new path); non-admitted probe
     (`X = a`) → BOTH declined identically (m3 INTERP-FALLBACK marker · m4 flat/rich-or-SMX as today) —
     the PL-M34 equal-sets LAW enforced at the new-path boundary from day one. Negative proven.
-  - [ ] (f) regression sweep: GATE-1 (5/5 · 2/0/3 · 5/5) and GATE-3 (115 · 12/0/103 · 105/0/10) verdicts
+  - [x] (f) regression sweep: GATE-1 (5/5 · 2/0/3 · 5/5) and GATE-3 (115 · 12/0/103 · 105/0/10) verdicts
     unchanged except hello/write-class rows may move flat-tier→gz-tier (same PASS); coupling gate new
     files = 0; corpus clean; siblings untouched.
 - [ ] **PL-GZ-3 — facts + unify**: ground facts, head unify via the surviving bb_unify arms (var-const,
