@@ -77,8 +77,7 @@ bb_scan_stmt exemption); REG-FENCE TIER1=0. On green: flip PB-RB-3 `[~]`→`[x] 
 
 ## Tree state
 
-SCRIP local `a6bc843` (probe rename sweep) on `454d9ff` (scan guards) on origin `991a26b` — NOT pushed.
-.github local `86e08c4a` + this doc — NOT pushed. All gates green at `a6bc843` (m2 7/7 / m3 6/6 / m4 6/6,
-Icon 12/12, prove_lower2 67, no_bb_bin_t 0). Push on Lon's handoff phrase.
+SCRIP **PUSHED**: `c4da0b1` (probe sweep) on `f406239` (scan guards), rebased over `f13838f`+`0604ae5`. All gates
+green (m2 7/7 / m3 6/6 / m4 6/6, Icon 12/12, prove_lower2 67, no_bb_bin_t 0).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
