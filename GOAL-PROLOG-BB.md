@@ -19,7 +19,7 @@ on the Proebsting-pure track — see the 🔴 PL-GZ ladder below.** PL-M34 and P
 (they were retrofit ladders; PL-GZ builds their end states by construction); PT and WAM-CP are LEGACY (see
 LEGACY DISPOSITION below PL-GZ). Frozen legacy watermark at reset: m2/m3 **115/115** byte-identical (the
 m3 115 = **12 native + 103 interp-fallback** — PL-GZ-1b census 2026-06-04; the byte-identity is the
-FALLBACK's, not the slab's; suite truth-counts since `305eb44`: m3 = 12/0/103-EXCISED) ·
+FALLBACK's, not the slab's; suite truth-counts since `25549a5`: m3 = 12/0/103-EXCISED) ·
 m4 **105/0/10** · SCRIP HEAD `89c730c` · siblings Icon m2 12 · SNOBOL4 m2 7. Grounding: Proebsting paper
 (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_sno_1/2/3/4.c` + `test_icon.c` in
 `.github/` · the reset rationale + coupling measurement in
@@ -189,21 +189,21 @@ count bytes; (c) the FACT RULE body is byte-identical across all five GOAL-*-BB 
 
 ## ⛔ SHARED-LOWERER ONE-FILE CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
-The unified AST→IR lowerer is **ONE file** — `src/lower/lower.c` (formerly `lower2.c`, the new tree root after old `lower.c` was deleted 2026-05-31) — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** (every `TT_*`). SNOBOL4, Icon, and Prolog are developed CONCURRENTLY in SEPARATE sessions, all writing into this one file. Each language adds ARMS the others don't; the discipline below makes three concurrent sessions **conflict-free and mutually beneficial** (one session's added case label / shared helper is the next session's ready slot):
+The AST→IR lowerer’s SHARED SPINE is **ONE file** — `src/lower/lower.c` — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** for the co-located languages. **AMENDED (Lon 2026-06-04): the shared IR graph is the LANGUAGE-INDEPENDENT contract — LOWER splits per language.** Prolog’s goal-role family now lives in `src/lower/lower_prolog.c` (`d6d93c6`; shared helpers de-static’d into `lower_internal.h`); remaining languages stay co-located in `lower.c` until Lon splits them out. The discipline below keeps concurrent sessions **conflict-free and mutually beneficial**:
 
 1. **ONE CASE PER KIND.** Each `TT_*` is at most ONE `case` label per role switch. If your language needs a kind with no case yet → ADD the case. If the case exists → ADD YOUR ARM to it. **NEVER duplicate the label.** (Win-win: SNOBOL4 adding `case TT_ASSIGN` hands Icon/Prolog a ready slot.)
 
-2. **LANGUAGE VARIATION LIVES INSIDE THE CASE — NEVER A PER-LANGUAGE FORK.** When a kind behaves differently per language, branch on `cx.lang` (or role) WITHIN the one case (`switch (cx.lang) { case IR_LANG_SNO: …; case IR_LANG_PL: …; }`, or if/else). No per-language lowering functions, no per-language files. One kind → one case → language arms inside.
+2. **LANGUAGE VARIATION LIVES INSIDE THE CASE — NEVER A PER-LANGUAGE FORK.** When a kind behaves differently per language, branch on `cx.lang` (or role) WITHIN the one case (`switch (cx.lang) { case IR_LANG_SNO: …; case IR_LANG_PL: …; }`, or if/else). One kind → one case → language arms inside. A language graduates to its OWN `lower_<lang>.c` ONLY by Lon’s directive (Prolog: 2026-06-04), taking its whole role-family with it — never an ad-hoc fork.
 
-3. **EDIT ONLY YOUR OWN LANGUAGE'S ARM.** A session may ADD or MODIFY the `cx.lang` arm for its OWN language inside any case. It must **NEVER modify, reorder, or delete another language's arm.** This is what makes the three sessions' diffs non-overlapping → git auto-merges with **zero conflicts**.
+3. **EDIT ONLY YOUR OWN LANGUAGE’S ARM.** A session may ADD or MODIFY the `cx.lang` arm for its OWN language inside any case. It must **NEVER modify, reorder, or delete another language’s arm.** A language owning its own `lower_<lang>.c` edits ONLY that file (plus lockstep scaffolding per rule 5) and never a peer’s. This is what makes concurrent sessions’ diffs non-overlapping → git auto-merges with **zero conflicts**.
 
-4. **A MISSING LANGUAGE ARM FALLS LOUD, NEVER SILENT.** Inside a case, a language with no arm yet routes to `lower_unhandled` (loud stderr + NULL) — never a silent or wrong default. A half-built arm fails LOUDLY so it can never corrupt a peer's proven path.
+4. **A MISSING LANGUAGE ARM FALLS LOUD, NEVER SILENT.** Inside a case, a language with no arm yet routes to `lower_unhandled` (loud stderr + NULL) — never a silent or wrong default. A half-built arm fails LOUDLY so it can never corrupt a peer’s proven path.
 
-5. **SHARED SCAFFOLDING IS ADDITIVE; SIGNATURE/SEMANTIC CHANGES ARE LOCKSTEP.** The cursor (`lcx_t`), the port primitives (`nalloc`/`set_succ_fail`/`ret`/`emit_leaf`), and the match-collect library (`tm`/`tm_g`) are SHARED. ADDING a helper or a case label is free (no conflict). CHANGING the signature/semantics of an existing shared helper or of `lcx_t` affects all three cats → it MUST update all three GOAL files' FACT RULE in the SAME commit and re-prove all three.
+5. **SHARED SCAFFOLDING IS ADDITIVE; SIGNATURE/SEMANTIC CHANGES ARE LOCKSTEP.** The cursor (`lcx_t`), the port primitives (`nalloc`/`set_succ_fail`/`ret`/`emit_leaf`), and the match-collect library (`tm`/`tm_g`) are SHARED (declared in `lower_internal.h`, defined in `lower.c`). ADDING a helper or a case label is free (no conflict). CHANGING the signature/semantics of an existing shared helper or of `lcx_t` affects all three cats → it MUST update all three GOAL files’ FACT RULE in the SAME commit and re-prove all three.
 
-6. **THE TOPOLOGY PROOF GATE IS THE SHARED GREEN SIGNAL.** `scripts/prove_lower2.sh` must stay green before every commit. Each cat's proof cases are ADDITIVE (append your own; never delete a peer's). Green = your arm wired right AND you didn't disturb a peer.
+6. **THE TOPOLOGY PROOF GATE IS THE SHARED GREEN SIGNAL.** `scripts/prove_lower2.sh` must stay green before every commit (it compiles `lower.c` + `lower_prolog.c` + the harness). Each cat’s proof cases are ADDITIVE (append your own; never delete a peer’s). Green = your arm wired right AND you didn’t disturb a peer.
 
-**COMPLETION TEST:** (a) no duplicated `case TT_` label within any one switch in `lower.c`; (b) every case's language branches end in a real arm or `lower_unhandled` (no silent default); (c) the FACT RULE body is byte-identical across the three GOAL files (`awk '/SHARED-LOWERER ONE-FILE/{p=1} p{print} /prove_lower2.sh green/{if(p)exit}'` md5 matches — first-match, not greedy `sed`); (d) `scripts/prove_lower2.sh` green.
+**COMPLETION TEST:** (a) no duplicated `case TT_` label within any one switch in `lower.c` (nor within any per-language lowerer file); (b) every case’s language branches end in a real arm or `lower_unhandled` (no silent default); (c) the FACT RULE body is byte-identical across the three GOAL files (`awk '/SHARED-LOWERER ONE-FILE/{p=1} p{print} /prove_lower2.sh green/{if(p)exit}'` md5 matches — first-match, not greedy `sed`); (d) `scripts/prove_lower2.sh` green.
 
 ## ⛔ TEMPLATE-ONLY EMISSION — ONE-DISPATCH CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
@@ -424,8 +424,9 @@ two-entry α/β machine-code boxes, no WAM, no byte-code, no C control engine. T
 wrote the procedure-call template and never wrote ANY Prolog template; the seed writes them down for the
 first time.
 
-**KEEP (retained substrate):** Prolog parser/AST · the shared lower.c one-file discipline (Prolog arms are
-rewritten IN PLACE under the one-case law as graph shapes change) · the m2 IR-graph interpreter as the
+**KEEP (retained substrate):** Prolog parser/AST · the per-language LOWER split (Lon 2026-06-04: Prolog's
+goal-role family in `lower_prolog.c` per `d6d93c6`, arms rewritten IN PLACE under the one-case law as
+graph shapes change; the shared spine stays `lower.c` + `lower_internal.h`) · the m2 IR-graph interpreter as the
 observable-semantics reference during transition (swipl/gprolog remain PRINT oracles only) · the 115-rung
 corpus + .expected (the reconquest ratchet) · ALL FACT RULES above · the trail as the ONE spine · the
 x86()-revamped VALUE boxes largely survive (bb_unify, bb_arith, bb_conj pair-loop, bb_builtin_* families).
@@ -466,23 +467,23 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
   `rt_choice_cut_*`, `rt_cp_save_caller_env`) per Prolog template and in emitted `.s`. Reset baseline:
   choice 24 · goal 14 · unify 4 · others ≤2. VALUE calls (`rt_unify_terms`, `rt_pl_arith`, write helpers)
   are sanctioned — the strchr class. New-path boxes emit ZERO control calls; the count ratchets down, never up.
-  **LANDED `882ee24` (2026-06-04)** — measured normative baseline baked as ceilings: **choice 19 · goal 10 ·
+  **LANDED `04804fb` (2026-06-04)** — measured normative baseline baked as ceilings: **choice 19 · goal 10 ·
   all other templates 0 · rung05 emitted `.s` 39** (the 24/14/4 sketch counted CP-push/trail/unify sites
   outside the normative symbol set; bb_unify's 4 were sanctioned `rt_unify_*` VALUE calls = 0 here).
   Call site == comment-stripped `SYM@PLT` emission; negative proven (injected call → exit 1).
 - [ ] **PL-GZ-1b — MODE-3 TRUTH** (Lon 2026-06-04: m2 is the ONLY interpreter mode; m3 = EMIT + RUN
   in-memory in the CURRENT process; m4 = EMIT, assemble, link, EXECUTE as a system process. The Prolog
   `--run` branch violated this by SILENTLY executing `IR_interp_once` and counting it as a mode-3 PASS):
-  - [x] (a) fallback made LOUD (`a007e43`): `[PBB] MODE-3 INTERP-FALLBACK` on stderr before
+  - [x] (a) fallback made LOUD (`5a7bb41`): `[PBB] MODE-3 INTERP-FALLBACK` on stderr before
     `IR_interp_once`; GATE-1 harness m3 capture split `2>&1`→`2>/dev/null` matching m2/m4.
   - [x] (b) census 2026-06-04: of GATE-3's 115, **12 native** (rung01 hello · rung22 write_canonical ·
     rung23 arith_ext ×5 · rung29 number_ops ×5) / **103 interp-fallback**.
-  - [x] (c) native MISCOMPILE evicted (`a007e43`): flat-walk var↔ATOM unify printed the rodata LABEL
+  - [x] (c) native MISCOMPILE evicted (`5a7bb41`): flat-walk var↔ATOM unify printed the rodata LABEL
     (`.S0`) instead of the atom, BOTH orders — THIS was GATE-1's "m3 4/5 known harness artifact".
     `IR_ATOM` dropped from `pl_flat_goal_is_simple`'s const set (var↔`LIT_I` probe-proven correct, stays).
     GATE-1 m3 now **5/5**.
   - [x] (d) suite + smoke count m3 EXCISED via the marker, output STILL verified (mismatch = FAIL) —
-    re-baselined (`305eb44`): GATE-3 m3 **12 / 0 / 103-EXCISED** (zero FAILs — every fallback
+    re-baselined (`25549a5`): GATE-3 m3 **12 / 0 / 103-EXCISED** (zero FAILs — every fallback
     output-verified) · GATE-1 m3 **2 / 0 / 3-EXCISED**. The PL-M34 equal-EXCISED-sets LAW still lands
     with PL-GZ-2's ONE shared admission gate.
   - [ ] (e) FENCE inherits: the fallback is DELETED — an uncovered program under `--run` prints EXCISED
@@ -490,12 +491,12 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
 - [ ] **CORPUS-S-HYGIENE** (Lon 2026-06-04): gates STOP updating corpus `*.s`; tracked `.s` are frozen
   DEMO artifacts only (roman, wordcount, claws5, treebank, …).
   - [x] (a) `run_prolog_via_x86_backend.sh` emits `.s` + `bb_macros.s` into its mktemp WORK dir
-    (`8066f16`); full GATE-3 compile leg proven corpus-clean (git status 0 dirty).
+    (`15642ab`); full GATE-3 compile leg proven corpus-clean (git status 0 dirty).
   - [ ] (b) prune tracked corpus `.s` down to the DEMO keep-list — needs Lon's confirmed list.
 - [ ] **PL-GZ-2 — hello** (write/nl): new-path emission, ONE x86() body per box, m2==m3==m4 byte-identical,
   ONE shared admission gate; non-admitted programs fall to interp LOUDLY and are counted EXCISED
   identically in m3 and m4.
-  **DESIGN (2026-06-04 recon at `305eb44` — seed ABI ↔ existing machinery):** the seed collapses the four
+  **DESIGN (2026-06-04 recon at `25549a5` — seed ABI ↔ existing machinery):** the seed collapses the four
   ports to (entry∈{α,β}, verdict-in-rax); the x86()-self-encoding template idiom (bb_pat_pos.cpp style:
   ONE body, PORT_GAMMA/PORT_OMEGA/PORT_BETA wiring, IF(MEDIUM_TEXT,…) decoration only) ALREADY serves both
   mediums — m3 consumes via `bb_build_flat` (emit_bb.c:2495, EMIT_BINARY_WIRED → RX slab), m4 via the
@@ -630,11 +631,11 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (2026-06-04 — PT-3 catch/throw `f44c20c`; details in HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PT-3-CATCH-THROW.md)
+## 📊 Gate table (2026-06-04 — LOWER split + PL-GZ-1 + PL-GZ-1b MODE-3 TRUTH + CORPUS-S-HYGIENE, SCRIP `b6913ec`; details in HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-1-1B-MODE3-TRUTH-LOWER-SPLIT.md)
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | 2 / 0 / 3-EXCISED | 5/5 | m3 truth-counted since PL-GZ-1b(d) `305eb44`; the old "m3 4/5 harness artifact" was a REAL native var↔ATOM unify miscompile, evicted `a007e43` |
+| GATE-1 smoke | 5/5 ✅ | 2 / 0 / 3-EXCISED | 5/5 | m3 truth-counted since PL-GZ-1b(d) `25549a5`; the old "m3 4/5 harness artifact" was a REAL native var↔ATOM unify miscompile, evicted `5a7bb41` |
 | GATE-3 rung suite | **115/115** ✅ | **12 / 0 / 103-EXCISED** | **105 / 0 / 10** | m2 oracle HARD · m3 truth-counted (PL-GZ-1b(d)): 12 native, 103 verified interp-fallbacks pending GZ regrow · zero m4 FAILs · m4 EXCISED 10 = retract×5 + abolish×5 — ALL PT-4b |
 | FACT greps | 0 ✅ | — | — | g_vstack 0 · seg_byte/SL_B 0 · no_bb_bin_t 0 · pl-no-value-stack PASS · PL-HY-FENCE PASS |
 | medium-invisible | 343 | — | — | all in bb_builtin_* family files; bb_catch/bb_unify 0 raw producers; informational |
