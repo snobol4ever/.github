@@ -27,7 +27,7 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 > two split-out files for those.** (Physical removal of that dead rung text from this file is a future cleanup pass.)
 
 
-## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; SNOBOL4 mode-4 ✅ m4 6/6; **define-body `:(RETURN)`/`:(FRETURN)` final-statement DOUBLE-EXECUTION fixed m3+m4 (SCRIP `e05f3e5`, local)** — next: PB-RB-4 (m4 ALT + variable CAT native graph); REG-RO + REG-FENCE TIER2 deferred behind PB-RB-CONV per the reconciliation note
+## 🟢 CURRENT FRONTIER — `define` m3 ✅ 6/6; SR-1a ✅; SNOBOL4 mode-4 ✅ m4 6/6; **define-body `:(RETURN)`/`:(FRETURN)` final-statement DOUBLE-EXECUTION fixed m3+m4 (SCRIP `591ed37`, local)** — next: PB-RB-4 (m4 ALT + variable CAT native graph); REG-RO + REG-FENCE TIER2 deferred behind PB-RB-CONV per the reconciliation note
 
 > **🔄 SR-1b WALKED BACK (Lon 2026-06-03; reconciled into this file 2026-06-03 OPUS48).** The "SAVE/RESTORE as
 > boxes bracketing the body" plan (`bb_proc_save` + RESTORE-succ@`lbl_γ` + RESTORE-fail@`lbl_ω`, result via a
@@ -1403,7 +1403,7 @@ REG-FENCE TIER2; PB-RB-4 STITCH for m4 ALT/var-CAT; NEW named rung candidate: RO
 
 **Watermark (m4 IR_SCAN TEXT arm — `pattern` + `goto_s`, SCRIP `faea0f4` pushed, 2026-06-03).** m4 4/6 → **6/6**: `S 'b'='X'`→`aXc` (`pattern`) and `'x' 'x' :S(HIT)`→`hit` (`goto_s`) now pass m2/m3/m4. Both smoke cases are the SIMPLE-LITERAL scan (pattern `IR_PAT_LIT`, subject `IR_VAR` or `IR_LIT_S`, replacement `IR_LIT_S`/absent — emit-time probe confirmed). NEW runtime entry `rt_scan_lit(subj_name, subj_lit, pat_lit, is_repl, repl_lit)` in `IR_interp.c`: unanchored `memcmp` honoring `kw_anchor` (manual ch.18 OUTER loop) + ch.14 prefix/replacement/suffix splice on match (only the matched portion replaced); no IR-graph run, so no Σ/Δ save. `emit_bb.c flat_drive_scan_stmt` reads the literal strings off the scan sub-graph ENTRY nodes (emit-time IR inspection in the DRIVER, not the template) and promotes them onto 3 new `_` fields (`op_scan_pat_lit/subj_lit/replace_lit`); `bb_scan_stmt.cpp` TEXT arm emits the call with `[rip+label]` RO-string args (`mov reg,0` for absent), `is_repl` imm, then `test eax,eax / je ω / jmp γ / def β / jmp ω`. Non-literal patterns still honestly `x86_bomb` (the separate native PB-RB pattern ladder). BINARY (mode-3) arm UNTOUCHED — parallels the concat fix (handle the constant case, keep the general path). **LI-FENCE gotcha:** the field, first named `op_scan_repl_lit`, tripped the gate's Prolog `pl_` tag inside `re`**`pl_`**`it` (false positive — concept is "replacement", not Prolog); renamed `op_scan_replace_lit` (`pl`→`a`), my LI-FENCE delta back to 0. (Aside: `BB_templates/` is incidentally outside LI-FENCE because the ALLOW token `template` matches the dir name, but the field name lives in-scope in `emit_bb.c`/`emit_globals.h`.) Files: `emit_globals.h`, `emit_bb.c`, `IR_interp.c`, `BB_templates/bb_scan_stmt.cpp` (4 files). Gates (re-run GREEN post-rebase): m2 **7/7 HARD** / m3 **6/6** / m4 **6/6**; unified-broker 32; native-arms audit OK; REG-FENCE TIER1=0; SCRIP_M3_NATIVE 19/0; no-bb-bin-t 0; medium-invisible (bb_scan_stmt absent); no-vstack 3 (baseline); no-handencoded-bytes 0; LI-FENCE **13** (this work's delta 0 — the +6 vs the prior 7 are the rebased-in upstream Icon GN commit `c66723e`: `g_icn_globals_nv` / `bb_gvar_assign_icn` / `flat_drive_icn_global_assign`). SNOBOL gates count-identical vs `047dded`; rebased onto upstream `c66723e` (Icon GN, m4 12→19) + `bfabff3` (Prolog) with no conflict. MODE4_MIN left at 4 (6/6 ≥ floor). **Committed + pushed: SCRIP `faea0f4` (rebased onto `c66723e`).** **NEXT:** REG-RO + REG-FENCE TIER2. **— prior watermark below —**
 
-**Watermark (define-body RETURN double-execution fix, `e05f3e5`, 2026-06-03, LOCAL ONLY — no handoff phrase given).** A
+**Watermark (define-body RETURN double-execution fix, `591ed37`, 2026-06-03, LOCAL ONLY — no handoff phrase given).** A
 function body's FINAL statement (the one carrying `:(RETURN)`/`:(FRETURN)`) executed TWICE in m3 AND m4. Root cause: the
 SNOBOL goto-RETURN IR nodes (`lower_program.c:465`, `RET dval=1.0` / `FRET dval=2.0`, **`α=NULL` by design** — SNOBOL
 RETURN has no expression; the value lives in the NV store) fell through `gvar_chain_arity` to the shared
@@ -1424,8 +1424,9 @@ old 105 watermark was STALE (intervening lanes moved it); SNOBOL m2 **7/7 HARD**
 **12/12 HARD** (m3/m4 5/12 unchanged); Prolog smoke m2 5/5 / m3 4/5 / m4 5/5 unchanged; broker 32; prove_lower2 67;
 no_bb_bin_t 0; concurrency OK; REG-FENCE TIER1=0 (TIER2 r10=20 info unchanged). **Pascal m3 nested-fn segv observed
 during regression sweep is PRE-EXISTING** (clean-tree baseline rc=139 identical, stash-proven) — belongs to
-GOAL-PASCAL-BB, flagged there-ward, not touched. Diff = `src/emitter/emit_bb.c` +1 line. NOT pushed (no handoff
-phrase); committed locally only. **FOLLOW-UP PROBES (same session, post-commit):** conditional **`:S(RETURN)`** AND
+GOAL-PASCAL-BB, flagged there-ward, not touched. Diff = `src/emitter/emit_bb.c` +1 line. PUSHED on handoff as **`591ed37`** (rebased onto upstream `5091102`
+ICN-SCAN-2; rebuilt + re-gated green on the rebased tree: SNOBOL m2 7/7 HARD / m3 6/6 / m4 6/6, Icon m2 12/12 HARD,
+prove_lower2 67, REG-FENCE TIER1=0, probes re-verified). **FOLLOW-UP PROBES (same session, post-commit):** conditional **`:S(RETURN)`** AND
 **`:F(RETURN)`** from mid-body both verified m2==m3==oracle (the label-registry path to the RET node — all THREE
 RETURN-goto flavors now proven). **RECURSIVE DEFINE is GREEN in m3** — `R(S)` 4 activations deep matches the oracle
 exactly (incl. the null-string OUTPUT line): the `rt_name_save_push`/`rt_name_restore` LIFO is recursion-proven across
