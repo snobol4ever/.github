@@ -21,6 +21,36 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
+**Watermark — session 16 (2026-06-04): PB-9e-2 CLOSED — var params live in all three modes via cell
+addresses.** All six gates PASS m3 `--run` AND m4 `--compile` vs pcom/pint oracle: varparam 7, swap 8/3,
+alias 11, varframe 107/7, varmix 6, vartrans 15. Combined m2+m3 regression set 15/15 (six var-param + six
+nested nestrec/nestshadow/nest2/nested/nestcount/nestfunc + flat hello/flatnoarg/sieve); recursion fact-7
+line `7 5040 13` intact; SNOBOL smoke 19/0 (m3 6/6, m4 6/6); byte-identity stash-proofs: Pascal `sieve.s`,
+SNOBOL `hello.s` + `083_define_simple_return.s` ALL `cmp`-identical pre/post — flat-no-varparam programs
+untouched BY CONSTRUCTION. KEY DESIGN FACT discovered this session: the six probes are FLAT programs
+(first-level procs carry decl_level=1, NOT >1), so PB-9e-1 frames did not cover them and main-level vars
+are NV globals with no frame cell. Mechanism landed: (1) migration trigger extended to
+`decl_level>1 || byref_mask!=0` (lower_program.c) — var-param programs migrate, main stays unmigrated and
+skipped as before; (2) NV globals get stable cell addresses via NEW `rt_gvar_cell(name)` (rt.c wrapper over
+existing `NV_PTR_fn` — chained hash, entries never move); (3) two NEW language-blind IR kinds
+`IR_VAR_FRAME_REF`/`IR_ASSIGN_FRAME_REF` (ival=slot, dval=hops, ONE extra pointer indirection: the slot
+holds the actual cell's address); LOWER picks REF when the resolved slot is `< nparams` with its
+`byref_mask` bit set (pas_scope_chain now carries proc indices `pis[]`); (4) call-site marshal
+(`marshal_varparam_addr` in bb_call.cpp, branched per-arg on emit-time `rt_proc_byref_mask(fn)` in BOTH the
+userproc loops and the nested-call arm): IR_VAR_FRAME arg → hop+`lea` of the slot; IR_VAR_FRAME_REF arg →
+hop+load `[slot+8]` (TRANSITIVE forwarding, the vartrans case); IR_VAR arg → `rt_gvar_cell@PLT`; address
+stored as {tag 0, ptr} in the arg DESCR — `rt_call_named_proc_sl` copies verbatim, NO runtime ABI change,
+m4 startup unchanged (mask is emit-time-only, set by the driver via NEW `rt_proc_set_byref` at both m3/m4
+build spots). Templates: NEW bb_var_frame_ref.cpp / bb_assign_frame_ref.cpp (deref through `[base+voff+8]`);
+plain bb_assign_frame.cpp grew an IR_VAR_FRAME_REF rhs arm (`t := x` in swap); both binop gvar templates'
+slot_disp accept the REF kind (+8); inline-binop marshal arm accepts REF operands (`n + 2` in varparam);
+value-marshal REF arm added (writeln of a ref var, ungated). m2: REF kinds share the FRAME case arms
+(slotref machinery already indirects); byref seeding accepts IR_VAR_FRAME_REF entries. rt_proc_t grew
+`byref_mask` (init 0 in BOTH new-entry branches). Makefile: explicit rules for the two new templates.
+
+Prior session-15 state (PB-9e-1 + PB-9e-3, nested frames + static links) preserved below for mechanism
+detail; all its gates re-verified green this session as part of the 15/15 regression set.
+
 **Watermark — session 15 (2026-06-04): PB-9e-1 + PB-9e-3 CLOSED — nested frames with static links live in
 all three modes.** Forks decided: (A) program-wide nested-only migration — if ANY proc has decl_level>1 the
 whole program's procs move to frame slots; flat programs are untouched BY CONSTRUCTION, proven by `cmp` on
@@ -221,7 +251,12 @@ cd /home/claude/corpus/programs/pascal
       `rt_call_named_proc_sl(name, args, nargs, void *sl)`. New IR kinds IR_VAR_FRAME/IR_ASSIGN_FRAME
       (ival=slot, dval=hops) rewritten in LOWER; m2 arms hop GenFrame.static_link; templates
       bb_var_frame.cpp/bb_assign_frame.cpp hop `[fb+0]` chains at emit-time-constant depth.
-    - [ ] **PB-9e-2** — var params across levels (SlotRef → cell address).
+    - [x] **PB-9e-2** — var params across levels (SlotRef → cell address). CLOSED session 16: all six
+      gates (varparam/swap/alias/varframe/varmix/vartrans) PASS m3+m4 vs oracle. Design pivot: probes are
+      FLAT programs (first-level procs have decl_level=1), so migration trigger extended to
+      `decl_level>1 || byref_mask` and NV globals got stable cell addresses via `rt_gvar_cell`
+      (wraps existing `NV_PTR_fn`). Two new language-blind IR kinds IR_VAR_FRAME_REF/IR_ASSIGN_FRAME_REF
+      (one extra pointer indirection through the slot). See HANDOFF-2026-06-04-OPUS48-PASCAL-BB-PB9E2-VARPARAMS.md.
     - [x] **PB-9e-3** — nested functions under recursion: `nestfunc`/`nestcount` PASS m3+m4 (closed by the
       PB-9e-1 mechanism, session 15; per-activation fb makes recursion clobber structurally impossible).
 
