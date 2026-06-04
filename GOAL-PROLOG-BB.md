@@ -19,7 +19,7 @@ on the Proebsting-pure track — see the 🔴 PL-GZ ladder below.** PL-M34 and P
 (they were retrofit ladders; PL-GZ builds their end states by construction); PT and WAM-CP are LEGACY (see
 LEGACY DISPOSITION below PL-GZ). Frozen legacy watermark at reset: m2/m3 **115/115** byte-identical (the
 m3 115 = **12 native + 103 interp-fallback** — PL-GZ-1b census 2026-06-04; the byte-identity is the
-FALLBACK's, not the slab's) ·
+FALLBACK's, not the slab's; suite truth-counts since `305eb44`: m3 = 12/0/103-EXCISED) ·
 m4 **105/0/10** · SCRIP HEAD `89c730c` · siblings Icon m2 12 · SNOBOL4 m2 7. Grounding: Proebsting paper
 (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_sno_1/2/3/4.c` + `test_icon.c` in
 `.github/` · the reset rationale + coupling measurement in
@@ -481,8 +481,10 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
     (`.S0`) instead of the atom, BOTH orders — THIS was GATE-1's "m3 4/5 known harness artifact".
     `IR_ATOM` dropped from `pl_flat_goal_is_simple`'s const set (var↔`LIT_I` probe-proven correct, stays).
     GATE-1 m3 now **5/5**.
-  - [ ] (d) suite counts m3 EXCISED via the marker and re-baselines m3 to its true native count;
-    PL-M34 law m3 EXCISED set == m4 EXCISED set (lands with PL-GZ-2's ONE shared admission gate).
+  - [x] (d) suite + smoke count m3 EXCISED via the marker, output STILL verified (mismatch = FAIL) —
+    re-baselined (`305eb44`): GATE-3 m3 **12 / 0 / 103-EXCISED** (zero FAILs — every fallback
+    output-verified) · GATE-1 m3 **2 / 0 / 3-EXCISED**. The PL-M34 equal-EXCISED-sets LAW still lands
+    with PL-GZ-2's ONE shared admission gate.
   - [ ] (e) FENCE inherits: the fallback is DELETED — an uncovered program under `--run` prints EXCISED
     and exits exactly like m4.
 - [ ] **CORPUS-S-HYGIENE** (Lon 2026-06-04): gates STOP updating corpus `*.s`; tracked `.s` are frozen
@@ -605,8 +607,8 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 | Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
 |---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ | 4/5 | 5/5 | m3 unify = smoke-harness artifact |
-| GATE-3 rung suite | **115/115** ✅ | **115/115** ✅ | **105 / 0 / 10** | byte-identical m2/m3 · zero m4 FAILs · EXCISED 10 = retract×5 + abolish×5 — ALL PT-4b |
+| GATE-1 smoke | 5/5 ✅ | 2 / 0 / 3-EXCISED | 5/5 | m3 truth-counted since PL-GZ-1b(d) `305eb44`; the old "m3 4/5 harness artifact" was a REAL native var↔ATOM unify miscompile, evicted `a007e43` |
+| GATE-3 rung suite | **115/115** ✅ | **12 / 0 / 103-EXCISED** | **105 / 0 / 10** | m2 oracle HARD · m3 truth-counted (PL-GZ-1b(d)): 12 native, 103 verified interp-fallbacks pending GZ regrow · zero m4 FAILs · m4 EXCISED 10 = retract×5 + abolish×5 — ALL PT-4b |
 | FACT greps | 0 ✅ | — | — | g_vstack 0 · seg_byte/SL_B 0 · no_bb_bin_t 0 · pl-no-value-stack PASS · PL-HY-FENCE PASS |
 | medium-invisible | 343 | — | — | all in bb_builtin_* family files; bb_catch/bb_unify 0 raw producers; informational |
 | siblings (HARD m2) | Prolog 115 ✅ · Icon 12 ✅ · SNOBOL4 7 ✅ | — | — | Icon m3/m4 5/7 stash-proven PRE-EXISTING; all re-verified at merged HEAD after rebase over PB-9d/PB-RB-CONV |
