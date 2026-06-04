@@ -19,6 +19,42 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
+**Watermark — PB-9b LANDED (arith/assign/writeln(expr), mode-3+4, LANGUAGE-BLIND). 2026-06-03, session 12.
+SCRIP HEAD = see commit, corpus HEAD = see commit (3 new probes).** Four walls, all shape-dispatched on IR kind
+(zero new Tier-1 sites; lang-names gate run, only pre-existing `rt_icn_*` hits, none in touched files):
+(1) **`IR_ASSIGN` α=`IR_LIT_I`** (`x := 5`) crashed `flat_drive_assign got kind=0` — `IR_LIT_I` added to BOTH
+duplicate dispatch guards (`emit_bb.c` IR_ASSIGN arm AND `emit_core.c:416` — the guard list exists twice!) +
+new `IR_LIT_I` arm in `bb_gvar_assign.cpp` (`x86_movabs_r64` imm64 → `rt_gvar_assign_int`; the value rides
+`_.op_a_ival_sg`). (2) **Mixed `VAR×LIT`/`LIT×VAR` gvar BINOP** (`y := x * 7`) bombed shape-mismatch — two new
+dispatch arms in `emit_bb.c` (MUST clear the unused `op_name1/2` — sticky globals) + mixed arms in
+`bb_binop_gvar_arith.cpp` via new helper `rt_gvar_get_int`. (3) **`writeln(2+3)` silently printed `2`** —
+`marshal_call_arg` marshaled the subgraph ENTRY node, not the chain result; fix = the gvar dval==3.0 IR_CALL
+dispatch arm now runs `gvar_stmt_operand_refs` on every arg subgraph (forward-decl added), and
+`marshal_call_arg` resolves the chain-final node and inline-emits arith (frame-slot scratch, DT_I tag 6) per
+the template byte-duplication doctrine. (4) **`writeln(x)` read an uninitialized FRAME slot** — gvar-chain
+vars live in NV; new gvar `IR_VAR` marshal arm calls `rt_gvar_get_descr` (DESCR in rax:rdx). New rt helpers
+(`rt.c`/`rt.h`, exported in libscrip_rt): `rt_gvar_get_int(name)`, `rt_gvar_get_descr(name)`. BUILD GOTCHAS
+(cost a cycle each): the `x86(mnem,reg,uint64_t)` overload resolves to `x86_call_ro` — imm64 loads must call
+`x86_movabs_r64` directly; template externs to C symbols must sit in the file's `extern "C"` block (inline
+fn-body externs mangle); `libscrip_rt.so` must be REBUILT alongside scrip (a stale .so carries mangled
+undefined refs that only surface at exe link). Gates pinned: 4 probes (`m4asg`,`m4arith`,`m4wexpr`,`hello`)
+byte-identical to `pint` in m3 AND m4; Pascal `--interp` **36/0/1** (33+3 new probes; XFAIL=recursion);
+Icon `--interp` **130/117/36** identical; Prolog honest **135/0/0** — **stash-proven the CLEAN baseline is
+also 135** (+2 vs session-11's 133 comes from concurrent `715daa5`/`d46b943`, not this change); SNOBOL4 smoke
+**19/0** incl. m4 6/0; all-langs m4 hello **5/1** (the 1 = rebus pre-existing). Stash proof of causation:
+clean HEAD gives m4asg ABORT, m4arith ABORT, m4wexpr silent-wrong `2`. NEXT WALLS precisely mapped:
+**PB-9c** (`sieve.pas`) now aborts `flat_drive_assign: missing α` — assigns whose operand chain crosses
+control-flow nodes (arity −1 resets the operand stack); the real work is the missing `IR_IF/WHILE/FOR/REPEAT`
+templates. **PB-9d** (`flatnoarg.pas`) — a REGISTERED proc called with dval==3.0 has NO gvar arm in
+`bb_call.cpp` dispatch (line ~262 requires dval==2.0, line ~264 excludes registered) → mode-3 segv in
+EMITTED code (the emitter itself is clean: mode-4 emits 192 lines, rc=0); plus CALL-operand BINOPs need
+slot-fed operands. flatnoarg's failure MOVED DEEPER vs clean HEAD (was the assign abort) — not a regression,
+the function body's `five := 5` now emits and the program reaches the unimplemented call arm. POST-REBASE:
+the push rebased onto concurrent `c4da0b1` (PB-RB probe renames, test-only) atop `f406239` (SNOBOL4 m4 scan
+loud-bomb); the MERGED tree re-verified green — 4 probes m3+m4 PASS, SNOBOL4 smoke 19/0, Icon 130/117/36,
+Prolog honest **136/0/0** (denominator drifted again with concurrent work; the 0-fail/0-abort invariant is
+the gate, both honest). SCRIP commit = `40ec5bc`, corpus = `f0adcc5`.
+
 **Watermark — PB-9a LANDED (mode-3/4 seed, LANGUAGE-NEUTRAL) + LANG-BLIND FACT RULE + LB ladder. 2026-06-03,
 session 11. SCRIP HEAD = 6cc95c3 (PB-9a = 80ee2e3 after rebase), corpus HEAD = 58a7174 (untouched).**
 PB-9a is green BOTH modes: `scrip --run hello.pas` and `scrip --compile hello.pas` → `gcc -no-pie
@@ -420,8 +456,10 @@ cd /home/claude/corpus/programs/pascal
   - [x] **PB-9a — seed.** `hello.pas` mode-3 + mode-4 byte-identical to `pint` (session 11, SCRIP 80ee2e3).
     Landed LANGUAGE-NEUTRALLY per the FACT RULE — shape-dispatched `bb_call_byname_str` → `rt_call_arr`,
     FAIL→ω contract included; NO `__pas_` string in the template (supersedes PB-9-DESIGN.md Step 2).
-  - [ ] **PB-9b — arith/assign/`writeln(expr)`.** First wall (probed): `flat_drive_assign: lhs (α) must be
-    IR_VAR with sval (got kind=0)` on `flatnoarg.pas`/`sieve.pas` — Pascal `IR_ASSIGN` under the flat chain.
+  - [x] **PB-9b — arith/assign/`writeln(expr)`.** DONE (session 12) — four shape-dispatched walls knocked
+    down, all language-blind; probes `m4asg`/`m4arith`/`m4wexpr` + `hello` byte-identical to `pint` in BOTH
+    mode-3 and mode-4. See watermark for the wall list, the two new `rt_gvar_get_*` helpers, and the
+    precisely-mapped PB-9c/PB-9d entry points.
   - [ ] **PB-9c — control flow.** `IR_IF/WHILE/FOR/REPEAT` templates do not exist; author per FACT RULES
     (and per the LANGUAGE-BLIND rule — these are shared imperative IR, serve every frontend). `sieve` gate.
   - [ ] **PB-9d — flat procs/params.** `recursion.pas` (through fact(7)) gate.
