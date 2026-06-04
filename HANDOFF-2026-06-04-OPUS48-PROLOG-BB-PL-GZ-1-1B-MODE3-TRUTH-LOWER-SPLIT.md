@@ -44,9 +44,9 @@
   the SHARED-LOWERER FACT RULE completion test during this handoff.
 
 ## .github landed
-`eff2e68d` (Three-modes block rewritten to the normative definitions; PL-GZ-1b rung inserted; watermark
-annotated; PL-GZ-1 marked LANDED; CORPUS-S-HYGIENE step) · `8142d530` (1b(d) marked; gate table
-re-baselined) · `eea711ff` (PL-GZ-2 DESIGN) · this commit (SHARED-LOWERER FACT RULE lockstep-amended in
+`3b3bc01f` (Three-modes block rewritten to the normative definitions; PL-GZ-1b rung inserted; watermark
+annotated; PL-GZ-1 marked LANDED; CORPUS-S-HYGIENE step) · `88121e64` (1b(d) marked; gate table
+re-baselined) · `c7ddbf25` (PL-GZ-2 DESIGN) · `97cbb750` (SHARED-LOWERER FACT RULE lockstep-amended in
 all three GOAL files for the per-language split, md5-verified identical; KEEP-list wording; gate-table
 header; this handoff).
 
