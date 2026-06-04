@@ -449,3 +449,47 @@ INTERP=$(pwd)/scrip SCRIP_M3_NATIVE=1 bash scripts/test_interp_broad_corpus_and_
 For full failure list patch `head -40` to `head -300` in test_interp_broad_corpus_and_beauty.sh copy.
 
 ---
+
+---
+
+## 🔴 RECOVERY LADDER — STUB-CLEANUP CASUALTY RECONSTRUCTION
+
+**What happened:** Commit `9afac84` (TEMPLATE-REVAMP) converted all non-working boxes to `x86_bomb` stubs. Commit `cd10224` (STUB CLEANUP) then deleted all 54 bomb stubs with the intent that future sessions would recreate them as real `x86()` implementations. Most boxes were correctly recreated; a handful were missed, breaking SNOBOL4 pattern work. Recovered originals live at `git show 713c581:src/emitter/BB_templates/<name>.cpp`.
+
+**Recovered on 2026-06-04 (Sonnet 4.6):**
+- `bb_pat_arbno.cpp` — BROK-2, adapted from 713c581 TEXT arm (r14d cursor, `call child_lbl` with `rdi=r12`, BINARY=bomb). Pre-build via `pre_build_children_text` scanning IR_SCAN subgraphs. Status: **TEXT ARM EXISTS, needs verification**.
+- All other 713c581 originals dumped to disk as `bb_binop_gen.cpp`, `bb_seq.cpp`, `bb_to_by.cpp`, `bb_limit.cpp`, `bb_upto.cpp`, `bb_suspend.cpp`, `bb_case.cpp`, `bb_list_bang.cpp`, `bb_initial.cpp`, `bb_field.cpp`, `bb_if.cpp`, `bb_swap.cpp`, `bb_idx.cpp`, `bb_assign.cpp`, `bb_eps.cpp`, `bb_cset.cpp`, `bb_program.cpp`, `bb_proc.cpp`, `bb_clause.cpp`, `bb_proc_gen.cpp`, `bb_gen_alt.cpp` — NOT in Makefile, NOT compiled; they use old API (`BB_t*`/`bb_bin_t`/`bb_emit_asm_result`/`bb_node_id`) and serve as REFERENCE for reconstruction.
+
+**Already correctly recreated (not lost):**
+- `bb_pat_alt.cpp` → `x86_pair_loop()` ✓  
+- `bb_pat_cat.cpp` → `x86_pair_loop()` ✓  
+- `bb_pat_capture.cpp` → `flat_drive_capture` inline ✓  
+- `bb_match.cpp`, `bb_subject.cpp`, `bb_scan_stmt.cpp` — all real ✓
+
+### Recovery steps (ordered by language need)
+
+**SNOBOL4 patterns:**
+- [~] **REC-1 — `bb_pat_arbno.cpp` (BROK-2) TEXT arm working.** `pre_build_children_text` correctly finds child via `az->inner->entry`; child built as `sno_flat_c0_α`; `bb_pat_arbno_str()` calls it with `rdi=r12`. Gate: 052/054 m4 PASS. NOTE: child epilogue writes `[r12+0]=99` on fail — may corrupt SUBJECT slot. Verify with 054 (ARBNO+ALT).
+- [ ] **REC-2 — `bb_pat_arbno.cpp` BINARY arm.** Convert the 713c581 BINARY arm (in `bb_arbno.cpp` reference copy) to x86() API: `x86_bomb` placeholder currently. Requires: `bb_slot_claim` for saved/depth/stack, child pre-built via `pre_build_children` (`bb_build_flat`), x86() body for α/β/done/pop/restore. Gate: 052/054 m3 PASS (currently works via rt_scan fallback; BINARY arm needed for true native pattern).
+
+**Icon/Raku:**
+- [ ] **REC-3 — `bb_to_by.cpp` (207 lines).** IR_TO_BY (Icon `lo to hi by step`). Reference in `src/emitter/BB_templates/bb_to_by.cpp`. Convert `BB_t*`→`IR_t*`, `bb_bin_t`→`x86()`, add to Makefile + dispatch. Gate: Icon to-by test.
+- [ ] **REC-4 — `bb_seq.cpp` (358 lines).** IR_SEQ compound-statement sequence (Icon/Raku). Reference in `src/emitter/BB_templates/bb_seq.cpp`. Convert API. Gate: Icon proc-body test.
+- [ ] **REC-5 — `bb_suspend.cpp` (111 lines).** IR_SUSPEND (Raku `take`). Reference in `src/emitter/BB_templates/bb_suspend.cpp`.
+- [ ] **REC-6 — `bb_to_by.cpp`, `bb_limit.cpp`, `bb_upto.cpp`, `bb_list_bang.cpp`, `bb_binop_gen.cpp`** — remaining meaningful originals. Convert per RULES.md.
+
+**Conversion recipe** (same for every REC-* box):
+1. `BB_t * pBB` → `IR_t * pBB`; remove `bb_bin_t & bin` param
+2. Remove `#include "bb_box.h"`, `#include "emit_bb.h"`; add current includes
+3. `bb_emit_asm_result(str, bin)` → `bb_emit_x86(str)`
+4. `bb_node_id(pBB)` → `_.nid`
+5. `bytes(...)` / `u32le(...)` / `bb_bin_t` blocks → `x86_bomb(...)` for now (BINARY arm last)
+6. `[r10]` cursor → `r14d`; `movabs &Σ` → `r13`; `movabs &Σlen` → `r15d`
+7. Add to Makefile `RT_PIC_SRCS` and compile rule; add dispatch to `emit_core.c`; add decl to `bb_templates.h`
+
+**Testing protocol for ALL recovery rungs:** No testing until ALL three modes are wired. Run:
+```bash
+bash scripts/test_smoke_snobol4.sh          # shows m2 / m3 / m4 counts
+SCRIP_M3_NATIVE=1 bash scripts/test_smoke_snobol4.sh
+bash scripts/test_snobol4_pat_rung_suite.sh  # shows M2=N M4=N per rung
+```
