@@ -46,6 +46,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
+| **BB-FIXUP** ⬅ NEW (Lon 2026-06-04) | `GOAL-BB-FIXUP.md` | The CONTINUOUS hygiene sweep: ONE looping session (or scheduled Claude Code routine) cleaning all template code the 4–8 generator sessions leave behind. Behavior-neutral, one file per commit, gates are the only brake. Next: FIX-0 (author rank scanner + emit-blind gate). |
 | **SRC REORG** ⬅ #0 (Lon 2026-06-02) | `GOAL-SRC-REORG.md` | Re-partition `src/` by pipeline role. LADDER COMPLETE except GMR-8(b) (Σ/Δ/Ω emitter-globals eviction, deferred to REG ladder). All gates byte-identical. Other sessions may resume. |
 | **RUNTIME RENAME** (Lon 2026-06-02) | `GOAL-RUNTIME-RENAME.md` | Language-independent DE-NAME of `src/emitter/**`+`src/runtime/**`. ✅ COMPLETE except LI-CORE (`src/runtime/core/` SNOBOL-lib naming) — a runtime-unification decision for Lon. |
 | **RUNTIME REORG** (Lon 2026-06-02) | `GOAL-RUNTIME-REORG.md` | Each FILE in `src/runtime/**` becomes a CS SUBSYSTEM. RS-1 (562-fn inventory) + RS-2 partial (`runtime_eval`/`unification`) landed byte-identical. Next: `runtime_init`/`io_format`/`arithmetic`/`pattern_match`, then `core.c`, then RS-FENCE. |
