@@ -6,7 +6,7 @@
 
 ## PURPOSE — N sessions generate; ONE session cleans
 
-4–8 concurrent generator sessions produce new boxes and features and leave non-conforming template code behind. THIS goal is the ONE dedicated fixup session — run in a loop, or as a scheduled **Claude Code routine** (see DEPLOYMENT below) — that sweeps `src/emitter/BB_templates/` + `XA_templates/` to TEMPLATE SPEC v2 and the FACT RULES, file by file, behavior-neutral. Quality enforcement is its ONLY job. It adds no features, fixes no bugs beyond hygiene, and makes no semantic decisions — those get flagged for Lon.
+4–8 concurrent generator sessions produce new boxes and features and leave non-conforming template code behind. THIS goal is the ONE dedicated fixup session — **ATTENDED, opened by Lon for periodic runs** — that sweeps `src/emitter/BB_templates/` + `XA_templates/` to TEMPLATE SPEC v2 and the FACT RULES via a **ROUND-ROBIN CURSOR**: fix the file at the cursor, commit, push, advance, next. The cursor persists in the tracker, so every new session resumes exactly where the last one left off. Quality enforcement is its ONLY job. It adds no features, fixes no bugs beyond hygiene, and makes no semantic decisions — those get flagged for Lon.
 
 ## THE TARGET — what "clean" means (pointer list; canonical text lives in GOAL-SNOBOL4-BB.md)
 
@@ -22,58 +22,61 @@
 ## ⛔ FIXUP DISCIPLINE (the laws of the loop)
 
 1. **BEHAVIOR-NEUTRAL ALWAYS.** Full gate battery green before AND after every file. TIER H additionally proves asm equivalence where the transform claims identity: `git stash`-baseline method — emit `--compile` output for the rung corpus before and after, `diff` must be empty (or differences explained by the sanctioned transform, e.g. label renames).
-2. **ONE FILE PER COMMIT.** A conflict then costs one file, not a batch. Commit message: `FIXUP <file>: <criteria cleared>`.
-3. **PULL BEFORE EVERY FILE.** `git pull --rebase` on SCRIP + .github at the top of every iteration. Push immediately after each green commit.
-4. **SKIP HOT FILES.** If `git log --since="6 hours ago" -- <file>` shows a non-fixup commit, a generator session owns it right now — skip, take the next ranked violator. Never fight a live session for a file.
+2. **ONE FILE PER COMMIT, STRAIGHT TO MAIN.** No branches — ever, for this goal. The unit of work is small enough that main + gates IS the safety. Commit message: `FIXUP <file>: <criteria cleared>`. A conflict then costs one file, not a batch.
+3. **PULL BEFORE EVERY FILE, PUSH AFTER EVERY FILE.** `git pull --rebase` on SCRIP at the top of every cursor stop; push immediately after the green commit. The cursor advance travels IN the same commit as the file's tick (both live in the tracker).
+4. **SKIP HOT FILES.** If `git log --since="6 hours ago" -- <file>` shows a non-fixup commit, a generator session owns it right now — advance the cursor past it (it gets caught next lap). Never fight a live session for a file.
 5. **NEVER WIDEN SCOPE.** No feature work, no bug fixes beyond the hygiene transform, no "while I'm here." A discovered functional bug → tracker note + handoff doc, untouched.
-6. **GATES ARE THE ONLY BRAKE** (this matters for unattended routine runs): no green → no commit → no push. A run that cannot get green REVERTS its working tree and writes a tracker note instead.
-7. **BOUNDED WORK PER RUN.** 1–3 files maximum per iteration/routine-run. Small, verifiable, mergeable.
+6. **GATES ARE THE ONLY BRAKE.** No green → no commit. A file that cannot get green REVERTS its working tree, gets a tracker note at its entry, cursor advances.
+7. **CONTEXT-BUDGET HANDOFF.** The session loops until Lon ends it OR its context window reaches ~70% consumed — then it finishes the current file, commits, pushes, updates the watermark, and stops cleanly. A senile session pushing to main is worse than a short one. (This law exists because a "continuous" session decays; the cursor makes short sessions free.)
 
-## THE LOOP (one iteration — also the routine-run body)
+## THE CURSOR (the resume mechanism)
+
+`SCRIP/BB-REVAMP-TRACKER.md` carries one header line: `# CURSOR: <file>`. The file list in the tracker (alphabetical) is the ring. A session reads the cursor, works that file, and the cursor advance commits TOGETHER with the file's tick/note — one commit, one file, cursor moved. End of list wraps to the top: **laps**. Ticked files are NOT skipped on later laps — they get a cheap re-audit (the per-file checker), because generators keep dirtying the tree; clean → advance free, dirty → un-tick, re-fix, re-tick. The tracker is a living document; the cursor makes every session resumable from cold.
+
+## THE LOOP (one cursor stop)
 
 ```
-1. Clone/pull SCRIP + .github (rebase).  git config per RULES.md identity.
-2. Session Setup (below): install, build, libscrip_rt.
-3. Baseline gate battery — must be green BEFORE touching anything (else: tracker note "inherited red", stop).
-4. Run the AUDIT BATTERY → ranked violator list.
-5. Pick top violator that is (a) unticked in BB-REVAMP-TRACKER.md, (b) not HOT (law 4), (c) TIER H unless the ladder says a TIER S rung is next.
-6. REGENERATE the file whole to SPEC v2.
-7. Build + full gate battery + (TIER H) asm-equivalence diff.
-8. Green → tick + annotate tracker → commit (one file) → pull --rebase → push (SCRIP first, .github last if touched).
-9. ≤3 files this run? GOTO 4. Else stop (routine run ends; next trigger resumes).
+0. Session open (once): clone/pull SCRIP + .github; git config per RULES.md; Session Setup; baseline gates GREEN
+   (else: tracker note "inherited red at <file>", stop and tell Lon).
+1. git pull --rebase. Read # CURSOR from tracker.
+2. HOT? (law 4) → advance cursor, commit "FIXUP cursor: skip <file> (hot)", GOTO 1.
+3. Per-file audit (audit battery below) → clean? → advance cursor (tick stands), commit, GOTO 1.
+4. Dirty → classify TIER H / TIER S.
+   TIER H: REGENERATE whole to SPEC v2.
+   TIER S, design pinned in LADDER: execute the rung (its own commit chain, prove_lower2 + full gates per rung).
+   TIER S, design NOT pinned: do the TIER H portion only, leave [S] flag in tracker, advance.
+5. Build + full gate battery + (TIER H) asm-equivalence diff.
+6. Green → tick + annotate + ADVANCE CURSOR in tracker → commit (one file) → push.
+   Red → revert tree, tracker note, advance cursor, commit, push.
+7. Context < ~70% consumed AND Lon hasn't stopped the session? GOTO 1. Else: watermark, final push, stop.
 ```
 
-## AUDIT BATTERY (ranked-violator detector)
+## AUDIT BATTERY (the per-file checker + lap progress table)
 
-Per-file grep counts (comments stripped), summed as the rank score:
+Per-file grep counts (comments stripped) — the checker run at every cursor stop, and summed across the tree as the lap-progress metric:
 `pBB->[αβγω]` (EMIT-BLIND) · neighbor `->t ==` via local aliases · `b.size(` · `x86_Lrec|x86_Jrec|x86_Drec|x86_b[123]\(|bytes\(|u8\(|u32le|u64le` · `IF(MEDIUM_BINARY|IF(MEDIUM_MACRO_DEF` · `emit_fmt\(` · `^\s*//` + prose block comments · blank lines · `PORT_ALPHA|PORT_BETA|PORT_GAMMA|PORT_OMEGA` · local variable declarations at template top level.
 Plus the standing gates: `test_gate_no_bb_bin_t.sh` · `test_gate_template_medium_invisible.sh` · `test_gate_no_handencoded_bytes.sh` · `test_gate_sno_pat_reg.sh` · `util_template_purity_audit.sh` · `test_gate_no_vstack.sh`.
-**FIX-0 authors `scripts/audit_bb_fixup_rank.sh`** to print this as one ranked table, and `scripts/test_gate_bb_emit_blind.sh` (informational baseline → `--strict` zero at FIX-FENCE).
+**FIX-0 authors `scripts/audit_bb_fixup_file.sh <file>`** (the per-file checker; rc=0 clean) and `scripts/audit_bb_fixup_rank.sh` (whole-tree table — the lap progress report, printed at session open and close), and `scripts/test_gate_bb_emit_blind.sh` (informational baseline → `--strict` zero at FIX-FENCE).
 
-## DEPLOYMENT — Claude Code ROUTINE (Lon's "routine runs" question: YES, this is the fit)
+## OPERATION — ATTENDED SESSIONS ONLY (Lon 2026-06-04)
 
-A **routine** = saved prompt + repositories + environment + connectors, run unattended as a fresh Claude Code session on Anthropic-managed cloud infra, fired by a **schedule** (hourly minimum cadence), an **API POST**, or a **GitHub event**. Research preview; Pro/Max/Team/Enterprise; daily run cap per account; draws subscription usage like interactive sessions. Manage at `claude.ai/code/routines`, `/schedule` in the CLI, or Desktop → Routines → New routine → Remote.
+Lon opens a session when a periodic run is wanted; the cursor resumes it from cold. **NO branches** (one file straight to gated main, per law 2). **NO unattended/scheduled runs.**
 
-**Why it fits THIS goal:** each run is a FRESH session — no context-window decay — and this goal file + the tracker + git ARE the externalized state, so stateless re-entry is free. The HQ session-start protocol already assumes it.
+**WHY ATTENDED — READ THIS, it is recorded so no session re-litigates it.** The track record is in the goal files: the `(ζ, int entry)` deletion was ordered THREE times over TWO months and sessions declined, re-introduced, or reverted it "to keep the build green"; the TWO-LITERAL-FORMS rule had to be RE-ISSUED after a session INVERTED it. Every one of those sessions had green gates throughout. Gates verify BEHAVIOR; they do not verify JUDGMENT — and the failure mode this goal exists to clean up is confident wrongness that passes every automated check. An unattended fixer is built from the same material as the generators; Lon watching is the only control with a working track record, catching the first wrong move at file #1 instead of file #40. (Claude Code "routines" — scheduled unattended cloud runs — exist and would mechanically fit the cursor model; they stay OFF the table until the attended runs have earned trust. Revisit only on Lon's word.)
 
-**Routine prompt (paste as the routine's prompt; keep it this short — the goal file carries the protocol):**
-> Clone github.com/snobol4ever/.github and github.com/snobol4ever/SCRIP. Read /.github/GOAL-BB-FIXUP.md and execute ONE iteration of THE LOOP exactly as written, honoring all FIXUP DISCIPLINE laws. Maximum 3 files. If gates cannot go green, revert and write a tracker note. Do not widen scope.
-
-**Configuration:** repositories = SCRIP + .github (both; cloned fresh from default branch each run) · environment must allow `apt-get` (Session Setup installs libgc-dev etc.) · trigger = **schedule, hourly or nightly** (steady, predictable usage) — a GitHub push-trigger on SCRIP is the elegant alternative (generators push → fixer wakes) but preview-period webhook caps and 4–8 active generators make schedule the calmer choice · connectors: none needed.
-**Branch policy decision for Lon:** default, routines push only `claude/`-prefixed branches → fixup lands on `claude/bb-fixup-*` and Lon merges (SAFEST while trust is earned, but goes stale fast against 8 generators). Enabling **"Allow unrestricted branch pushes"** lets it commit gated work straight to main like every other session (house style; the gates + laws 1/6/7 are the brake). RECOMMENDATION: start restricted for the first few runs, flip to unrestricted once the run transcripts look right.
-**One-off test:** create the routine, hit **Run now**, read the session transcript at claude.ai before trusting the schedule.
+**Session open protocol (what a fixup session does on "here we go"):** standard PLAN.md session start → open THIS goal file → run Session Setup → print `audit_bb_fixup_rank.sh` table → enter THE LOOP at the cursor. Stop when Lon says stop or law 7 fires.
 
 ## LADDER
 
-- [ ] **FIX-0** — Author `scripts/audit_bb_fixup_rank.sh` (ranked table) + `scripts/test_gate_bb_emit_blind.sh` (baseline from tracker snapshot 2026-06-04). Add both to Session Setup here. Gate: scripts run clean on current tree; counts match tracker snapshot.
-- [ ] **FIX-1** — TIER H sweep, builtin family by rank: `bb_builtin_is_cmp`(28) → `bb_builtin_atom_string`(28) → `bb_builtin_term_inspect`(15) → `bb_builtin_term_io`(12) → `bb_builtin_aggregate_nb`(9) → `bb_builtin_succ_plus`(8) → `bb_builtin_list`(8) → `bb_builtin_io`(8) → `bb_builtin_type_test`(4) → `bb_builtin_retract_throw`(4). NOTE: their `pBB->α/β` reads are EMIT-BLIND (TIER S where the fix needs LOWER operand delivery) — clear the TIER H criteria per file now, leave a `[S]` tracker mark for the residue.
-- [ ] **FIX-2** — `bb_assign_frame` + `bb_assign_frame_ref`: operand fusion (`pBB->α->ival/dval`) → `_.op_*` plumbing (driver prepares; template goes blind).
-- [ ] **FIX-3** — `bb_call` family (`bb_call`, `bb_call_proc_staged`, `bb_call_write_slot`, `bb_return`, `bb_every`): two-level neighbor classification (`lf->t`, `fin->α->t`) moves to LOWER. TIER S; design the IR shapes first, one split per commit chain.
-- [ ] **FIX-4** — `bb_gvar_assign` ONE-IR-ONE-LOGIC split: 6 arms → per-shape IR codes + templates. TIER S.
-- [ ] **FIX-5** — `bb_match` split: HEAD/RETRY/ADVANCE → three IR codes, three templates. TIER S.
-- [ ] **FIX-6** — Audit residue: `bb_keyword` (4 arms — confirm near-identical-parameterized vs distinct), `bb_scan_stmt` (literal vs non-literal arms), then everything `audit_bb_fixup_rank.sh` still ranks > 0.
-- [ ] **FIX-LOOP** — Steady state: tracker fully ticked once; the routine keeps running the AUDIT BATTERY and catches NEW violations from generator sessions within one cadence period.
-- [ ] **FIX-FENCE** — All v2 gates `--strict` zero · `test_gate_bb_emit_blind.sh --strict` green · tracker clean · this fence in every generator goal file's Session Setup.
+- [ ] **FIX-0** — Author `scripts/audit_bb_fixup_file.sh` (per-file checker, rc=0 clean) + `scripts/audit_bb_fixup_rank.sh` (lap progress table) + `scripts/test_gate_bb_emit_blind.sh` (baseline from tracker snapshot 2026-06-04). Add to Session Setup here. Gate: scripts run clean on current tree; counts match tracker snapshot.
+- [ ] **FIX-1** — LAP 1: cursor round-robin from `# CURSOR` through the whole tracker ring, TIER H per file. The 2026-06-04 violator snapshot is the expected heavy stops (builtin family: is_cmp 28, atom_string 28, term_inspect 15, term_io 12, aggregate_nb 9, succ_plus 8, list 8, io 8, type_test 4, retract_throw 4 — their `pBB->α/β` reads are TIER S residue; clear TIER H now, mark `[S]`).
+- [ ] **FIX-2** — `bb_assign_frame` + `bb_assign_frame_ref`: operand fusion (`pBB->α->ival/dval`) → `_.op_*` plumbing (driver prepares; template goes blind). TIER S, design pinned: execute when the cursor arrives.
+- [ ] **FIX-3** — `bb_call` family (`bb_call`, `bb_call_proc_staged`, `bb_call_write_slot`, `bb_return`, `bb_every`): two-level neighbor classification (`lf->t`, `fin->α->t`) moves to LOWER. TIER S, design NOT pinned — flag on arrival; Lon pins the IR shapes first.
+- [ ] **FIX-4** — `bb_gvar_assign` ONE-IR-ONE-LOGIC split: 6 arms → per-shape IR codes + templates. TIER S, design NOT pinned — flag on arrival until Lon names the kinds.
+- [ ] **FIX-5** — `bb_match` split: HEAD/RETRY/ADVANCE → three IR codes, three templates. TIER S, design NOT pinned — flag on arrival.
+- [ ] **FIX-6** — Audit residue: `bb_keyword` (4 arms — confirm near-identical-parameterized vs distinct), `bb_scan_stmt` (literal vs non-literal arms), then everything `audit_bb_fixup_rank.sh` still counts > 0.
+- [ ] **FIX-LOOP** — Steady state: laps continue indefinitely; a lap that completes with zero dirty files is the green signal that generators' new code is being caught within one lap period.
+- [ ] **FIX-FENCE** — All v2 gates `--strict` zero · `test_gate_bb_emit_blind.sh --strict` green · a full clean lap · this fence in every generator goal file's Session Setup.
 
 ## Session Setup
 
@@ -99,4 +102,4 @@ bash scripts/test_gate_no_vstack.sh                  # g_vstack 0
 
 ## Watermark
 
-**Carved 2026-06-04 (Opus 4.8 session, Lon directive).** No fixup commits yet. Baseline = BB-REVAMP-TRACKER.md violator snapshot 2026-06-04 (EMIT-BLIND: 12 files w/ direct `pBB->[αβγω]` totaling 132 refs + 5 files w/ aliased neighbor walks). Tracker v1-done marks carried over. Next: FIX-0.
+**Carved 2026-06-04, REVISED same day to ATTENDED-CURSOR model (Opus 4.8 session, Lon directive: no branches, no unattended runs, round-robin cursor in tracker).** No fixup commits yet. `# CURSOR` initialized at top of ring (`bb_alt.cpp`). Baseline = BB-REVAMP-TRACKER.md violator snapshot 2026-06-04 (EMIT-BLIND: 12 files w/ direct `pBB->[αβγω]` totaling 132 refs + 5 files w/ aliased neighbor walks). Tracker v1-done marks carried over. Next: FIX-0.
