@@ -13,6 +13,10 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 > **🔄 RESET 2026-06-02.** Live purpose: SNOBOL4 Byrd Boxes from ground zero. DE-NAME and REORG split to their own goal files.
 
+## ⛔ TEMPLATE SPEC v2 (Lon 2026-06-04) — REGENERATE, DON'T PATCH
+
+No local variables · ONE return per PLATFORM returning ONE concatenated string · IF()/FOR() string functions for all conditionals/loops · ONE source line == ONE asm line · REAL Greek α β γ ω (no PORT_ALPHA/BETA/GAMMA/OMEGA spellings) · no MEDIUM_TEXT/MEDIUM_BINARY at template top level (hide in helper functions) · zero emit_fmt() · zero C comments [separator status vs RULES.md: confirm with Lon] · zero blank lines. Each template is REGENERATED whole to this spec, not patched. Full directive + session state: `HANDOFF-2026-06-04-OPUS48-SNOBOL4-BB-HYGIENE-SWEEP-SPEC-V2.md`. Tracker: `SCRIP/BB-REVAMP-TRACKER.md` (reset to v2 semantics; v1 sweep — prose comments stripped + all >200-char lines wrapped — landed at SCRIP `2af3880`+`cd577ed`, gates sno 19/19 / icn m2 12/12 HARD).
+
 ## 🟢 CURRENT FRONTIER — CAPTURE ✅ + m4 SCAN-NATIVE ✅ + CHAIN-LABEL DRIFT ✅ — M2 18 / M4 16; probes 8/8
 
 **NEXT: (1) BROK-2 ARBNO** (052/054 still SKIP — ARBNO still uses brokered `child_cache_get` path). **(2) REG-RO** (r10=22).
