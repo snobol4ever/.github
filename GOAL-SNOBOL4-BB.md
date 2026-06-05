@@ -652,3 +652,43 @@ Each: the bomb fires when the dispatcher sends an unrecognized shape. Cherry-pic
 **Next refinement (optional):** ins2 passthrough sites still carry joined operand strings ("rax, [rip+...]") — converting them to true parsed form (`x86("mov","rax","[rip+lbl]")`) per-file unlocks BINARY for those TEXT-only arms.
 
 **Gates at 68ba77c:** smoke m2 7/7 HARD, m3 6/6, m4 6/6; rung M2 18 / M4 17 (053 pre-existing FAIL-M2, 054 FAIL-M4 frame-corruption open).
+
+---
+
+## HANDOFF (session end — X86-ONE + S-ASM abolition complete)
+
+**Repos at handoff:** SCRIP `68ba77c`, .github `c07a03e0`, both pushed. Working tree clean.
+
+**Rebuild + verify from cold:**
+```
+cd /home/claude/SCRIP
+bash scripts/build_scrip.sh                          # → OK scrip built
+rm -f out/libscrip_rt.so obj/*.o && make libscrip_rt # → Built: out/libscrip_rt.so
+bash scripts/test_smoke_snobol4.sh                   # expect m2 7/7 HARD, m3 6/6, m4 6/6
+bash scripts/test_snobol4_pat_rung_suite.sh          # expect PASS-M2=18 FAIL-M2=1, PASS-M4=17 FAIL-M4=1 SKIP-M4=1
+```
+(053 FAIL-M2 + SKIP-M4 pre-existing; 054 FAIL-M4 = ARBNO child-epilogue frame-corruption, open.)
+
+**What this session delivered (read these commits first):**
+1. `ad430d3` PURGE — 22 dead old-API files deleted (content lives at 713c581/one4all).
+2. `b3327fe`+ bb_pat_arbno TEXT arm restored; rung 052 PASS-M4.
+3. `10903d6` pair-table recovery: bb_pat_cat/alt/conj/ite with inline pair iteration (no shims).
+4. `6c0653e`+`703042c` REVAMP-2: zero old-API/vstack/pBB-field violations in all 47 compiled templates. 40 bombs remain = ADMISSION GUARDS ONLY (every file has real x86() code above its bomb).
+5. `47883c4` X86-ONE: ONE x86(mnem, xop a,b,c,d) — operand strings parsed like Intel asm, one switch per opcode, routed to proven encoders. PORT_*/FR/FRQ/L/RSP/F64 are string producers.
+6. `68ba77c` S-ASM ABOLISHED: zero s_*asm in the tree. Dead JVM/JS/NET/WASM arms purged. BB+XA migrated.
+
+**Architecture law going forward:** all instruction emission flows through the ONE `x86()` in `src/emitter/BB_templates/x86_asm.h`. New shapes = new parse kinds + opcode-switch routes there, never new functions.
+
+**Next-session menu (in priority order):**
+- [ ] **NEXT-1** ins2→parsed: convert `x86("ins2","mov","rax, [rip+...]")` passthrough sites to true split operands per-file (unlocks BINARY for those TEXT-only arms). Mechanical per-file; verify with asm diff (`git stash` baseline method).
+- [ ] **NEXT-2** 054_pat_arbno_alt FAIL-M4: child β-epilogue writes `[r12+0]=99` clobbering SUBJECT slot on fail path — trace with the 052-vs-054 asm diff.
+- [ ] **NEXT-3** ACT-2: W3 nine Icon scan_* shapes against `refs/icon-master/src/runtime/fstranl.r` (refs cloned, in .gitignore).
+- [ ] **NEXT-4** ACT-3: bb_keyword &anchor etc.
+- [ ] **NEXT-5** ACT-1: bb_pat_arbno BINARY arm (needs ζ-frame rewrite, not deque port).
+
+**Facts that cost time to learn (do not re-derive):**
+- one4all == 713c581: old API + forbidden vstack; NOT a source for current-architecture files.
+- All bb_scan_*/bb_var_frame*/bb_cell_*/bb_gvar_assign etc. were born post-713c581 on x86() API — git has no cleaner version.
+- Brace-stripping platform arms REQUIRES string-literal-aware scanning (first attempt broke bb_lit on `{`/`}` inside strings).
+- Old s_L1asm semantics: label arg ALREADY contains ':', single line — Lins1/Lins2 match this exactly.
+- emit_fmt has ONE static buffer — never two emit_fmt in one x86() call; FR/FRQ/L/RSP/F64/x86_strkeep use rotating rings for this reason.
