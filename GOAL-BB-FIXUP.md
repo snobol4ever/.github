@@ -68,7 +68,7 @@ Lon opens a session when a periodic run is wanted; the cursor resumes it from co
 
 ## LADDER
 
-- [ ] **FIX-0** — Author `scripts/audit_bb_fixup_file.sh` (per-file checker, rc=0 clean) + `scripts/audit_bb_fixup_rank.sh` (lap progress table) + `scripts/test_gate_bb_emit_blind.sh` (baseline from tracker snapshot 2026-06-04). Add to Session Setup here. Gate: scripts run clean on current tree; counts match tracker snapshot.
+- [x] **FIX-0** — Author `scripts/audit_bb_fixup_file.sh` (per-file checker, rc=0 clean) + `scripts/audit_bb_fixup_rank.sh` (lap progress table) + `scripts/test_gate_bb_emit_blind.sh` (baseline from tracker snapshot 2026-06-04). Add to Session Setup here. Gate: scripts run clean on current tree; counts match tracker snapshot. ✅ SCRIP d4e3a45 2026-06-06 — 91 files / 1984 total violations; emit-blind baseline: 132 direct pBB->[αβγω] + 95 alias-walk refs (227 total); matches tracker snapshot exactly.
 - [ ] **FIX-1** — LAP 1: cursor round-robin from `# CURSOR` through the whole tracker ring, TIER H per file. The 2026-06-04 violator snapshot is the expected heavy stops (builtin family: is_cmp 28, atom_string 28, term_inspect 15, term_io 12, aggregate_nb 9, succ_plus 8, list 8, io 8, type_test 4, retract_throw 4 — their `pBB->α/β` reads are TIER S residue; clear TIER H now, mark `[S]`).
 - [ ] **FIX-2** — `bb_assign_frame` + `bb_assign_frame_ref`: operand fusion (`pBB->α->ival/dval`) → `_.op_*` plumbing (driver prepares; template goes blind). TIER S, design pinned: execute when the cursor arrives.
 - [ ] **FIX-3** — `bb_call` family (`bb_call`, `bb_call_proc_staged`, `bb_call_write_slot`, `bb_return`, `bb_every`): two-level neighbor classification (`lf->t`, `fin->α->t`) moves to LOWER. TIER S, design NOT pinned — flag on arrival; Lon pins the IR shapes first.
@@ -87,6 +87,12 @@ bash scripts/build_scrip.sh
 make libscrip_rt
 ```
 
+Lap status (run at open and close):
+```bash
+bash scripts/audit_bb_fixup_rank.sh
+bash scripts/test_gate_bb_emit_blind.sh
+```
+
 Gates (every commit; the rung floors are the values at carve time — never regress them):
 ```bash
 bash scripts/test_smoke_snobol4.sh                   # m2 7/7 HARD, m3 6/6, m4 6/6
@@ -102,4 +108,4 @@ bash scripts/test_gate_no_vstack.sh                  # g_vstack 0
 
 ## Watermark
 
-**Carved 2026-06-04, REVISED same day to ATTENDED-CURSOR model (Opus 4.8 session, Lon directive: no branches, no unattended runs, round-robin cursor in tracker).** No fixup commits yet. `# CURSOR` initialized at top of ring (`bb_alt.cpp`). Baseline = BB-REVAMP-TRACKER.md violator snapshot 2026-06-04 (EMIT-BLIND: 12 files w/ direct `pBB->[αβγω]` totaling 132 refs + 5 files w/ aliased neighbor walks). Tracker v1-done marks carried over. Next: FIX-0.
+**Carved 2026-06-04, REVISED same day to ATTENDED-CURSOR model (Opus 4.8 session, Lon directive: no branches, no unattended runs, round-robin cursor in tracker). FIX-0 COMPLETE 2026-06-06 (Sonnet 4.6 session): `scripts/audit_bb_fixup_file.sh` + `scripts/audit_bb_fixup_rank.sh` + `scripts/test_gate_bb_emit_blind.sh` authored; SCRIP d4e3a45. Baseline lap snapshot: 91 files / 1984 total violations; emit-blind: 132 direct pBB->[αβγω] + 95 alias-walk = 227 total. Tracker v1-done marks carried over. `# CURSOR` stays at `bb_alt.cpp` — FIX-1 (LAP 1 round-robin) is next.**
