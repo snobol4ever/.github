@@ -12,7 +12,7 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER (next = **ICN-VAR-FENCE**) · BB-HYGIENE remainder (HY-7 marshal fusion, lowerer PREREQ, then HY-FENCE) · ICN-SCAN WAVE-1 CLOSED (13b LANDED at ICN-VAR-3)
+## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER **CLOSED** (FENCE landed `e65893f`) · next = BB-HYGIENE remainder (HY-7 marshal fusion: lowerer PREREQ first, then the operand-arm deletion, then HY-FENCE) · ICN-SCAN WAVE-1 CLOSED (13b LANDED at ICN-VAR-3)
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`): all three medium gates read 0. The keystone pattern for
 every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them
@@ -577,8 +577,16 @@ builtin-call shield. Plus: every local IR_VAR read must be assigned-or-param in 
   family + rung35), all EXCISED→PASS zero →FAIL. `rung36_jcon_augment` m4 rc 134→1 (failure-mode change inside FAIL).
   The VAR-1 by-name CALL fence STAYS (non-var lhs `a[i] +:= 1` still misroutes). Swap (`:=:`) is its own future tier.
   Detail: `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-AUGOP.md`.
-- [ ] **ICN-VAR-FENCE — gate.** Probe sweep + corpus var-bucket floors + the structural battery, the ICN-SCAN-FENCE
-  pattern (capture-then-match, never `cmd | grep -q` under pipefail).
+- [x] **ICN-VAR-FENCE — DONE (`e65893f`, 2026-06-06).** `scripts/test_gate_icn_var.sh`, the ICN-SCAN-FENCE pattern
+  (capture-then-match, never `cmd | grep -q` under pipefail). (a) IR_ASSIGN/IR_VAR off `icn_kind_native_stub` +
+  present in contracts; (b) 19-probe three-mode sweep (VAR-1 assign/read · VAR-2 binop/relop/loops · AUGOP chains ·
+  VAR-3 `?:=`/var-subject scans) — STRICT except `augop_concat` X34 (concat BINOP outside the VAR-2 numrel+arith
+  lens; m2-correct + clean EXCISE) and `neg_unassigned` X34; `static_single_call` STRICT pins that TT_STATIC_DECL
+  lowers as a local (cross-call persistence = its own future tier, blocked behind userproc); (c) corpus IR_ASSIGN
+  bucket N=104, floors m2≥62 m3≥12 m4≥22 PLUS the HARD law m3/m4 FAIL==0 (PASS or EXCISED only); (d) the standing
+  structural battery. GATE PASS; columns unchanged m2 143 / m3 30 / m4 40; re-verified green at merged HEAD over the
+  concurrent BB-FIXUP `bb_binop_relop.cpp` regeneration (`282c71c`). **THE ICN-VAR LADDER IS CLOSED.**
+  Detail: `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-FENCE.md`.
 
 ## Premise
 
@@ -693,34 +701,30 @@ Transition note: SNOBOL4/Snocone/Rebus/Raku keep `g_vstack` only until BB-conver
 
 ## Watermark## Watermark
 
-**HEAD (SCRIP) = `63a8748` — TWO RUNGS LANDED 2026-06-06-b: ICN-VAR-3 (`e239560`, SCAN-13b adoption — var-subject
-scans native, GEN_SCAN arity-0 producer + body-slot alias) and ICN-VAR-AUGOP-PREREQ (`63a8748`, augop desugar —
-REPAIRED THE ORACLE: m2 129→143). Columns: m2 143 HARD · m3 22→30 · m4 32→40, every flip EXCISED→PASS, zero →FAIL.
-HEAD (.github) = this entry.**
-Session 2026-06-06-b (Opus 4.8, "GOAL-ICON-BB"): one gated rung, ICN-VAR-3. **THE DISCOVERY THAT SHAPED IT:**
-`descr_chain_arity` returned -1 for IR_GEN_SCAN — the RPN resolver RESET its stack and never pushed the scan, so any
-chain CONSUMER (`write(s ? tab(4))`) got no α → op_a_slot=-1 → generic bb_call → the abolished `rt_call_builtin`
-RUNTIME BOMB — pre-existing at HEAD for literal subjects too (masked in the corpus FAIL bucket); the rung-probe shape
-only worked because the lowerer pre-wires ASSIGN.α. Fix = the goal file's own phrase made literal: `IR_GEN_SCAN → 0`
-(arity-0 slot producer) + `flat_drive_gen_scan` slotmap-aliases the node to `bb_slot_get(descr_chain_terminal(body))`
-(zero instruction bytes, driver bookkeeping only; canonical per `ir_a_Scan` — the `?` value IS the body value).
-ADMISSION: `icn_scan_subgraph_safe(s2,gi,g,…)` admits local IR_VAR subjects ONLY assigned-or-param in the PARENT graph
-(subgraph vars escape the line-244 main-graph check — `lower_value_subgraph` blocks are standalone unregistered
-graphs, verified); safe set += GEN_SCAN; new `icn_gen_scan_body_slotful` lens (terminal ∈ lits/local-var/registerized
-scan builtins) on ASSIGN-rhs AND on CALL-consumed GEN_SCAN (`γ==IR_CALL`) — the slotless-body-consumed bomb class now
-EXCISES clean. FENCE LIFECYCLE: `augop_scan`/`augop_scan_fail` promoted X34→STRICT (the X34 header doc literally named
-"the SCAN-13b deferral"); bucket floors m3/m4 7→11. Probes: rung probe `he` m2==m3==m4; `?:=move`, `write(var ? tab)`,
-`write(lit ? tab)` (the repaired pre-existing bomb), statement scans — all three-mode; unassigned-subject EXCISE rc=0.
-Corpus stash/set-diff vs VERIFIED baseline (binary confirmed to EXCISE the probe BEFORE its sweep — the VAR-2 lesson
-applied): m3 22P+82F+143E→25P+82F+140E, m4 32P+136F+79E→35P+136F+76E — flips rung05_scan_scan_{var,nested,restores}
-×2 modes, **every flip EXCISED→PASS, zero →FAIL**. Scan fence GATE: PASS (28/28 probes; bucket FAIL=2 =
-scan_simple/scan_var, CONFIRMED PRE-EXISTING at baseline — empty .expected, m2 FAILs them too). Smoke Icon 12/12 HARD
-· m3 10/12 · m4 10/12 · Prolog 5/5 · broker 32 · bb_bin_t 0 · handencoded --strict 0 · icn_no_stack 0 · one-reg-frame
-0 · g_vstack 3 (pre-existing rt.c/rt.h) · prove_lower2 PASS · medium-invisible 347 (template-free diff). AUGOP rung rode the same session: desugar at the SCAN-13a interception point, plain-var lhs, canonical
-`ir_augmented_assignment`; cset augops excluded; VAR-1 CALL fence STAYS (non-var lhs still misroutes);
-`rung36_jcon_augment` m4 rc 134→1 = failure-mode change inside FAIL. m2 HARD baseline is now **143**.
-**NEXT = ICN-VAR-FENCE** (probe sweep + var-bucket floors + structural battery, capture-then-match). Handoff docs:
-`HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-3.md` + `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-AUGOP.md`.
+**HEAD (SCRIP) = `e65893f` — ICN-VAR-FENCE LANDED 2026-06-06-c: `scripts/test_gate_icn_var.sh` GATE PASS — the
+ICN-VAR LADDER IS CLOSED. Columns unchanged: m2 143 HARD · m3 30 · m4 40. Diff script-only (gate + handoff), zero
+source changes. HEAD (.github) = this entry.**
+Session 2026-06-06-c (Opus 4.8, "GOAL-ICON-BB"): one gated rung, ICN-VAR-FENCE. The gate is the ICN-SCAN-FENCE
+pattern: (a) IR_ASSIGN/IR_VAR off the stub list; (b) 19 probes three-mode (VAR-1/2/AUGOP/3) — STRICT except
+`augop_concat` X34 (concat BINOP outside the VAR-2 numrel+arith lens, the documented AUGOP-handoff EXCISE) and
+`neg_unassigned` X34; **`static_single_call` STRICT pins a finding:** the draft expected static to EXCISE — FALSE;
+TT_STATIC_DECL lowers as a no-op IR_SUCCEED (lower.c ~1108) and the var rides the same bb_varslot path as a local,
+m2==m3==m4 verified; cross-call persistence is unexercised in the native lane and becomes its own tier behind
+userproc (flag 4). Probe drafting lessons: `writes()` (vs `write()`) routes to the abolished `rt_call_builtin` and
+aborts m3/m4 — a builtin-lane gap, not a var defect. (c) Corpus IR_ASSIGN bucket N=104, ratchet floors m2≥62 m3≥12
+m4≥22 PLUS the HARD law m3/m4 FAIL==0 — a silent var-bucket miscompile now fails the gate. (d) Standing battery all
+green; medium-invisible scoped to bb_assign_local/bb_var_frame*. CONCURRENCY: a BB-FIXUP session landed
+`bb_binop_relop.cpp` v2 (`282c71c`) mid-session; the fence rebased over it and was RE-RUN GREEN at merged HEAD
+(asm-diff-EMPTY claim verified against the relop probes + bucket). Full suite confirms m2 143 / m3 30 / m4 40
+byte-identical. Smoke Icon 12/12 · 10/12 · 10/12 · Prolog 5/5 · broker 32 · bb_bin_t 0 · handencoded --strict 0 ·
+icn_no_stack 0 · one-reg-frame 0 · g_vstack 3 (pre-existing rt.c/rt.h) · prove_lower2 PASS.
+**NEXT = BB-HYGIENE remainder:** the HY-7 marshal-fusion lowerer PREREQ (chain literal operands as producer boxes,
+the GZ-3/GZ-4 class), then delete `marshal_call_arg`/`marshal_varparam_addr` operand-kind arms, then ICN-HY-FENCE
+(extend `test_gate_bb_one_box.sh` to Icon files only AFTER the fusion fix). Handoff doc:
+`HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-FENCE.md`.
+PREV 2026-06-06-b (condensed): ICN-VAR-3 (`e239560`) + ICN-VAR-AUGOP-PREREQ (`63a8748`) — var-subject scans native
+(GEN_SCAN arity-0 producer + body-slot alias; the `descr_chain_arity` -1 discovery) and the augop desugar that
+REPAIRED THE ORACLE m2 129→143; detail in the two HANDOFF docs + git log.
 
 **PREV ENTRIES PRUNED (Lon directive, 2026-06-04-f).** Full per-session history: `git log` (SCRIP + .github) and the
 SCRIP `HANDOFF-*.md` docs. **Standing flags / open intel carried forward:** (1) ORACLE SCAN-FN GENERATIVITY — every
