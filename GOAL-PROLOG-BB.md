@@ -1,35 +1,17 @@
-# GOAL-PROLOG-BB.md — Prolog: BB-land DCG per predicate + lower_pl DCG
+# GOAL-PROLOG-BB.md — Prolog: GDE inside Byrd-Box machine code (PL-GZ track)
+
+Pruned 2026-06-06 (Lon directive): landed rungs + closed-track history DELETED — git history holds them. Byte-identical FACT-RULE bodies kept VERBATIM (md5 invariant with sibling GOAL-*-BB files preserved).
 
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
+No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
-**No language-specific logic in any BB or XA C++ template.** All delineated operations are enveloped in
-unique BBs; each BB does NOT have varying runtime behavior depending on language. Templates dispatch on IR
-shape and representation flags only. FORBIDDEN inside `src/emitter/BB_templates/` and
-`src/emitter/XA_templates/`: language enums/guards (`IR_LANG_*`, `LANG_*`, `is_<lang>`), language-named
-template functions/files/dispatch arms, and hardcoded language-builtin names. Behavior that differs by
-language belongs in the runtime (by-name dispatch) or in LOWER (a different IR shape → its own unique BB) —
-never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scanned clean 2026-06-03); fix
-ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
-`XA_templates/` returns 0 sites.
+## ▶ STATE (2026-06-06)
 
-## ▶ STATE (2026-06-06 — PL-GZ-7a)
-
-**PROLOG GROUND ZERO (Lon 2026-06-04): development RESET to square one on the Proebsting-pure track — the
-🔴 PL-GZ ladder below.** PL-M34/PL-BBL ABSORBED into PL-GZ; PT/WAM-CP LEGACY (see LEGACY DISPOSITION).
-Watermark: SCRIP HEAD `7a7bf75` — **PL-GZ-0..4 + 5a + 5b + 5c + 6 + 6b + 7a LANDED** (details collapsed into the ladder entries).
-Gates: GATE-1 m2 **5/5 HARD** · m3 4/0/1-EXC (`recursion` only — cut+arith clause, flips by GZ-8) · m4 5/5; GATE-3 m2
-**115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (the 10 = PT-4b retract/abolish); coupling ceilings
-choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b/5c/6/6b gates
-PASS, all corrupt-proven (5c neg1 RATCHETED to query-level cut); gz7 PASS (behavioral cross-mode pin — corrupt-proof + GZ-path ratchet arrive with 7b). Siblings: Icon m2 12 (m3/m4 10/12 standing) · SNOBOL4 smoke 19/19. Grounding:
-Proebsting paper (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_pl_1.c` +
-`test_sno_1/2/3/4.c` + `test_icon.c` in `.github/` · reset rationale
-`HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`.
-Next opener: **PL-GZ-7b** — the new-path §4.5 ifstmt box (`IR_CELL_ITE`, bounded condition by
-unreferenced β wiring, gate row = the bb_cell_choice cursor-β indexed-goto dialect); recon complete,
-implement straight from `HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-7A-LANDED-7B-RECIPE.md`. The 7a
-half (m2 oracle ITE-commit, WAM-CP-9) is LANDED + gated; the cluster remainder (gz6b disj
-trust_me_else_fail — ROOT-CAUSED to the GCONJ-resume↔disj-advance control path, liveness proven NOT the
-gate — and the mid-cut pre-cut-generator gap) is folded under 7b as legacy-m2 sweeps.
+Watermark: SCRIP `7a7bf75` (battery green on merged main `62c1554`). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a LANDED** — details: git history of this file + `HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-7A-LANDED-7B-RECIPE.md`.
+Gates: GATE-1 m2 5/5 HARD · m3 4/0/1-EXC (`recursion`, flips at GZ-8) · m4 5/5. GATE-3 m2 **115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (10 = retract/abolish → GZ-9). gz2..7 gates PASS, corrupt-proven. Coupling ceilings: choice 19 · goal 10 · others 0 · rung05 .s 39; new-path boxes emit ZERO control calls.
+Grounding: Proebsting paper (`bench/Simple Translation of Goal Directed Evaluation.pdf`); seeds `test_pl_1.c` + `test_sno_1/2/3/4.c` + `test_icon.c` in `.github/`.
+**Next opener: PL-GZ-7b** — implement straight from the 7a/7b handoff RECIPE.
+Logged m2-only divergences (NOT fixed; m3/m4 already canon; sweep only if a ratchet demands, else FENCE deletes the machinery): gz6b disj trust_me_else_fail (fix point = GCONJ-resume↔disj-advance control path) · mid-cut pre-cut-generator gap · 7a per-NODE cp_mark/committed (recursive ITE-in-cond under-truncates; 7b frame rows are per-activation).
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -283,25 +265,17 @@ Locked callee-saved layout the three concurrent BB sessions MUST share (canonica
 
 ## ⛔ MANDATORY READ BEFORE EVERY SESSION
 
-**Pipeline:** `Prolog AST → lower_pl (AG-wired BB_t graph) → bb_exec.c (Mode 2/3) → bb_pl_*.cpp → x86 (Mode 4)`
+**Pipeline:** `Prolog AST → lower_prolog (four-port IR) → IR_interp.c (m2) → bb_*.cpp x86() templates (m3 BINARY / m4 TEXT)`
 
 **⛔ PROEBSTING IS THE CANON — GPROLOG/SWI IMPLEMENTATION AUTHORITY ABANDONED (Lon directive, 2026-06-04).**
 SCRIP Prolog is a NEW compilation model: Proebsting four-port goal-directed evaluation HARD-WIRED to machine
-code (two-entry α/β boxes). Proebsting's paper emits C with gotos; JCON emits JVM; nobody hard-wired asm, and
-nobody did it for Prolog. Therefore gprolog and SWI-Prolog are **OBSERVABLE-SEMANTICS ORACLES ONLY** — they
-define what a conforming program PRINTS, never HOW. Their internals (WAM, byte-code, CP-stack layouts,
-`'$call_internal'`, `BC_Emulate_Pred`) are NOT design authority and are NOT to be transcribed going forward.
-The study docs below remain as historical grounding for ALREADY-LANDED work only; new design questions are
-answered from the four-port model + the BB FACT RULES, with external Prologs consulted solely to pin expected
-output.
+code (two-entry α/β boxes). gprolog and SWI-Prolog are **OBSERVABLE-SEMANTICS ORACLES ONLY** — they define
+what a conforming program PRINTS, never HOW. Their internals are NOT design authority. New design questions
+are answered from the four-port model + the BB FACT RULES.
 
-**Target model (historical grounding for landed CP work only):** `SCRIP/doc/SWIPL-STUDY-2026-05-28-OPUS.md` (SWIPL engine
-study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05-28-OPUS.md`
-(gprolog CP-frame layout that grounded WAM-CP-1).
-
-**Three modes (Lon 2026-06-04 — NORMATIVE DEFINITIONS: mode-2 is the ONLY interpreter mode; 3 and 4 are EMIT modes):**
-- **Mode 2 (`--interp`):** the interpreter — `IR_interp.c` walks the BB port-graph in-process. The ONLY interpreter mode; the correctness oracle.
-- **Mode 3 (`--run`):** EMIT x86 BB blobs and RUN them in-memory in the CURRENT process (sealed slab, jump in). Prolog TODAY violates this: a thin flat-walk (`pl_flat_body_root`→`bb_build_flat`, single-GCONJ-of-simple-goals — 12 of the 115 rungs) plus an INTERP-FALLBACK to mode-2 `IR_interp_once` for everything else, LOUD on stderr since PL-GZ-1b (was SILENT; the old `sm_interp_run` naming here was stale). TRANSITIONAL — owned by the PL-GZ ladder below (Lon 2026-06-04: RESET; m3 ≡ m4 by construction); touch ONLY via PL-GZ rungs.
+**Three modes (Lon 2026-06-04 — NORMATIVE: mode-2 is the ONLY interpreter mode; 3 and 4 are EMIT modes):**
+- **Mode 2 (`--interp`):** `IR_interp.c` walks the BB port-graph in-process. The correctness oracle.
+- **Mode 3 (`--run`):** EMIT x86 BB blobs and RUN them in-memory in the CURRENT process (sealed slab, jump in). Prolog TODAY still has a LOUD INTERP-FALLBACK for unadmitted programs — TRANSITIONAL, owned by PL-GZ; touch ONLY via PL-GZ rungs.
 - **Mode 4 (`--compile --target=x86`):** EMIT standalone `.s`, assemble (`as`), link `libscrip_rt.so`, EXECUTE as a separate system process.
 
 **Absolute rules:** No C Byrd boxes. No SM/BB walking at runtime in Mode 3/4. Four ports = Greek letters (α/β/γ/ω) only. No `rt_*` port-logic helpers (conversion/effect helpers like `trail_mark`/`unify`/`term_new_*` are OK).
@@ -313,8 +287,6 @@ study; CP-stack idea #4 is the current track) + `SCRIP/doc/GPROLOG-STUDY-2026-05
 | ω | inherited DOWN | failure continuation (pop choice + unwind trail) |
 | α | synthesized UP | this node's fresh-solve entry |
 | β | synthesized UP | this node's redo/retry entry |
-
----
 
 ## ⛔ PER-BOX LOCAL STORAGE — ALL STATE LIVES INSIDE THE BOXES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
@@ -369,318 +341,66 @@ proven negative test (injecting a resurrection makes it exit 1).
 
 ---
 
-## BB-HYGIENE LADDER (PROLOG) — #0 COMPLETE / SUBSUMED (Lon 2026-06-01; audit 2026-06-03)
-
-PL-HY-1a (dup-kill `abae7c1`) · PL-HY-1b (de-cram → ~130L router + 11 `bb_builtin_*` family files) · PL-HY-1c (compound-unify `374c2ff`, m4 75→86) · PL-HY-FENCE (`1a0127e` one-box gate, 2 proven negatives) — ALL LANDED. PL-HY-2/3/4/5 **SUBSUMED by the x86() revamp** (2026-06-03 audit: actual file sizes far under the stale watermarks; bb_choice/goal/unify are single coherent boxes — router-splits would OVER-SPLIT per NO-DUP; HY-5 de-dup sweep effectively complete, zero TEXT/BINARY algorithm pairs; `emit_build_compound_term` is the SANCTIONED mode-4 serialized encoder, not a dup). Reclassify `[x]` vs delete: **awaiting Lon's confirm.** Evidence: HANDOFF-2026-06-03-OPUS48-PROLOG-BB-HY-LADDER-AUDIT.md. Worked example for any future split: `bb_binop_*.cpp` + 38-line router. Re-sweep only if a new box adds an inline walker/evaluator.
-
-## VSX — g_vstack ERADICATION (Lon 2026-05-31) — VSX-0..7 DONE
-
-`g_vstack` token 0 across all src (code+comments) and STAYS 0; apparatus deleted (`80431d0`/`caf8f6d`/`d2a6ca4`). KEPT (not value stacks): trail `g_resolve_trail` · CP ledger `g_resolve_bfr` · ζ-frame `g_frame_buf` · activation table `g_rt_frames`. Audit: `doc/VSTACK-ERADICATION-AUDIT-2026-05-31.md`.
-- [ ] VSX-8 — ZERO-CHECK blocked on the Icon/SNOBOL4 `IR_BINOP_GEN` emitter (`bb_binop_gen.cpp`: 2 `rt_vstack_pop@PLT` + `rt_vstack_ops_t` + 2 abort-shims). Cross-language GOAL task; Prolog has ZERO ties.
-
-## PLG — Prolog onto Byrd Boxes (HISTORY)
-
-Pipeline: `Prolog AST → lower_pl (four-port IR) → bb_exec.c (m2/3 interp) → bb_pl_*.cpp → x86 (m4)`. m2 `--interp` = correctness reference; m3 `--run` = same interp + native flat-walk; m4 = `.s` via `codegen_flat_build`. **TEST ALL THREE MODES** (GATE-1 `test_smoke_prolog.sh`, GATE-3 `test_prolog_rung_suite.sh --mode all`). Reference: Proebsting `bench/Simple Translation of Goal Directed Evaluation.pdf`, `bench/test_icon.c`+`test_sno_1.c`.
-
-**Completed (collapsed):** PLG-0..8 (m2/m3 foundation, GATE-3 111/111) · PLG-9a..9j (m4 0→86). PLG-9g dynamic-DB remainder + PLG-10 SUPERSEDED by the PT ladder (PT-4, Lon approved 2026-06-03).
-- [ ] PLG-7 — remove `bb_node_state_t` snapshot/restore. One LIVE Icon caller (`bb_exec.c:1589`); don't delete until Icon migrates.
-
 ## 🔴 PL-GZ — PROLOG GROUND ZERO (Lon directive 2026-06-04: RESET TO SQUARE ONE)
 
-**THE RESET.** Prolog was bootstrapped in the Stack-Machine era, so its GDE control lives in a C engine
-(resolution.c env-swap/last_ok/cut-flag/heap-CP + the unification.c meta rail) and the boxes are call-out
-shims. Measured at reset (control-coupling C-call sites emitted per template): **bb_choice 24**
-(`resolve_cp_current` ×10!) · **bb_goal 14** · vs sibling SNOBOL4/Icon boxes **0–2**, and those 0–2 are
-VALUE calls (`strchr`). Lon's call: do not retrofit — REBUILD from square one on the Proebsting-pure track,
-seed-first, GDE INSIDE the boxes from rung 1. NOBODY compiles Prolog this way — clauses hard-wired as
-two-entry α/β machine-code boxes, no WAM, no byte-code, no C control engine. The paper (§4.6) never even
-wrote the procedure-call template and never wrote ANY Prolog template; the seed writes them down for the
-first time.
+Proebsting-pure rebuild; GDE INSIDE the boxes; no WAM, no byte-code, no C control engine. Landed-rung detail: git history of this file.
 
-**KEEP (retained substrate):** Prolog parser/AST · the per-language LOWER split (Lon 2026-06-04: Prolog's
-goal-role family in `lower_prolog.c` per `d6d93c6`, arms rewritten IN PLACE under the one-case law as
-graph shapes change; the shared spine stays `lower.c` + `lower_internal.h`) · the m2 IR-graph interpreter as the
-observable-semantics reference during transition (swipl/gprolog remain PRINT oracles only) · the 115-rung
-corpus + .expected (the reconquest ratchet) · ALL FACT RULES above · the trail as the ONE spine · the
-x86()-revamped VALUE boxes largely survive (bb_unify, bb_arith, bb_conj pair-loop, bb_builtin_* families).
+KEEP: parser/AST · `lower_prolog.c` split · m2 IR interp as semantics reference · 115-rung corpus + `.expected` · ALL FACT RULES · trail as the ONE spine · x86()-revamped VALUE boxes (bb_unify, bb_arith, bb_conj pair-loop, bb_builtin_*).
+GUT (deleted as the new path re-admits each rung; build-green is no license to preserve): resolution.c control engine (`g_resolve_env` swap, `rt_last_ok`, cut-flag, heap CP protocol) · meta rail (`rt_meta_solve/redo`) · control-coupled bb_goal/bb_choice/bb_catch bodies · `sm_interp_run` m3 carve-out.
 
-**GUT (scheduled for deletion as the new path re-admits each rung — KEEPING THE BUILD GREEN IS NOT A
-LICENSE TO PRESERVE A SUPERSEDED ENGINE, per the brokered-BB precedent):** the resolution.c CONTROL engine
-(`g_resolve_env` swap, `rt_last_ok` verdict global, cut-flag global, the heap `resolve_choice` protocol as
-shaped today) · the meta rail (`rt_meta_solve`/`rt_meta_redo` frame tree — the second GDE engine in C;
-findall/catch/aggregate rebuild on the new substrate at PL-GZ-9) · the bb_goal/bb_choice/bb_catch
-control-coupled template bodies · the `sm_interp_run` m3 carve-out.
+**THE LAWS:**
+· clause cursor + trail-mark = slots in the choice's OWN per-activation frame row.
+· activation env = ζ-TREE: each call site owns a child-frame ptr slot, reset at fresh α. No env swap.
+· verdict travels IN THE RETURN VALUE — no `last_ok` global.
+· cut = pure WIRING when lexical; frame-local GATE (paper §4.5 indirect-goto) when dynamic.
+· trail = the one shared spine; logic vars = frame cells; EVERY binding trailed.
+· C call stack = the sanctioned recursion spine.
+· ONE x86() body per box serves m3 (BINARY → RX slab) and m4 (TEXT → as+gcc); m3 ≡ m4 by construction.
 
-**THE LAWS (from the seeds + the paper — one per former PL-BBL ledger row):**
-· clause cursor + trail-mark = slots in the choice's OWN per-activation frame row (test_sno_1 ARBNO arena).
-· activation env = ζ-TREE: each call site owns a child-frame pointer slot, `enter()`-reset on fresh α
-  (test_sno_3 X→E→X recursion). No `g_resolve_env` swap.
-· verdict travels IN THE RETURN VALUE — no `last_ok` global (test_sno_3 empty-str idiom → rax).
-· cut = pure WIRING when the barrier is lexical (cut's β routed straight to the enclosing choice's
-  exhausted arm); a frame-local GATE (paper §4.5 indirect-goto) only when dynamic.
-· trail = the one shared spine (mark/unwind ints); logic vars = frame cells; EVERY binding trailed.
-· the C call stack is the sanctioned recursion spine (the NO-VALUE-STACK carve-out).
-· ONE x86() body per box serves m3 (MEDIUM_BINARY → RX slab) and m4 (MEDIUM_TEXT → as+gcc) behind ONE
-  shared admission gate — m3 ≡ m4 by construction, never by retrofit.
-
-- [x] **PL-GZ-0 — THE SEED `test_pl_1.c`** ✅ `b4c935c3` — hand-written four-port C (test_sno_3 idiom) for
-  `edge/2 + path/2 + firstpath/1`, output PINNED `b c d b`, -O0..-O3 20/20 byte-identical; embodies every
-  LAW above and answers every former PL-BBL-0 classification in executable form; the byte-shape oracle
-  every emitted Prolog box must match. Lesson kept: a `goto` that JUMPS OVER a C initializer leaves the
-  slot garbage — frame-slot init belongs AT THE α LABEL, never in the declaration.
-- [x] **PL-GZ-1 — coupling gate** ✅ `04804fb` `scripts/test_gate_pl_coupling.sh` — counts CONTROL-coupling
-  call sites (`resolve_cp_current`, `rt_last_ok`, `rt_get_cut_flag`, `resolve_bb_env_*`, `rt_env_current`,
-  `rt_choice_cut_*`, `rt_cp_save_caller_env`) per template + in emitted `.s`; measured ceilings BAKED:
-  **choice 19 · goal 10 · all other templates 0 · rung05 .s 39**; VALUE calls (rt_unify/arith/write — the
-  strchr class) sanctioned; the count ratchets DOWN, never up; negative proven (injected call → exit 1).
-- [ ] **PL-GZ-1b — MODE-3 TRUTH** (Lon 2026-06-04: m2 is the ONLY interpreter mode; m3 = EMIT + RUN
-  in-process; m4 = EMIT/assemble/link/EXECUTE as a system process). (a–d) DONE `5a7bb41`+`25549a5`: loud
-  `[PBB] MODE-3 INTERP-FALLBACK` stderr marker before `IR_interp_once`; native var↔ATOM flat-walk
-  miscompile evicted (printed the rodata LABEL — GATE-1 m3 now 5/5); suite + smoke count m3 EXCISED via
-  the marker with output STILL verified (mismatch = FAIL).
-  - [ ] (e) FENCE inherits: the fallback is DELETED — an uncovered program under `--run` prints EXCISED
-    and exits exactly like m4.
-- [ ] **CORPUS-S-HYGIENE** (Lon 2026-06-04): gates STOP updating corpus `*.s`; tracked `.s` are frozen
-  DEMO artifacts only (roman, wordcount, claws5, treebank, …).
-  - [x] (a) `run_prolog_via_x86_backend.sh` emits `.s` + `bb_macros.s` into its mktemp WORK dir
-    (`15642ab`); full GATE-3 compile leg proven corpus-clean (git status 0 dirty).
-  - [ ] (b) prune tracked corpus `.s` down to the DEMO keep-list — needs Lon's confirmed list.
-- [x] **PL-GZ-2 — hello** ✅ `de8c4ad` — new-path emission behind ONE shared `pl_gz_admit` (scrip.c, beside
-  `pl_flat_body_root`; BOTH driver branches call it FIRST; non-admitted falls to legacy tiers untouched —
-  m3 LOUD fallback / m4 flat→rich→SMX — so legacy counts freeze by construction). New IR kinds
-  IR_QUERY_FRAME/IR_DET_WRITE/IR_DET_NL appended at the END of the Prolog block (driver-side REWRITE —
-  m2 never sees them). Boxes: bb_query_frame.cpp (op_sa aspect 0 = α: push r12 / mov r12,rdi /
-  rt_trail_mark→[ζ+0] / jmp γ; aspect 1 = landings: def γ→rax=1 ret, def ω→rt_trail_unwind rax=0 ret) ·
-  bb_det_write.cpp (atom via in-box x86_ro_seal_str [rip+disp] BOTH mediums; int via rt_write_int;
-  det β→ω) · bb_det_nl.cpp. Det conjunction = pure wiring (no conj box). m3 `pl_gz_build` → RX slab; m4
-  `pl_gz_codegen` → text inside the standalone main shell; shared `flat_drive_gz_query` + `walk_bb_flat`.
-  Gate gz2 PASS, corrupt-proven. Gotcha kept: the Makefile needs every new template file in TWO places
-  (sources list + compile rule).
-- [x] **PL-GZ-3 — facts + unify** ✅ LANDED 2026-06-04 (3a `b7bb399` + 3b `6f69e3f`): ground facts, head
-  unify via the surviving bb_unify arms (var-const, var-var — the WAM-CP-7 specializations absorbed here:
-  bb_cell_unify self-unify vacuous / cell↔cell / cell↔const / const↔const emit-time fold), every binding
-  trailed (`rt_trail_mark` lazy-inits — the zero-cap `GC_realloc` segfault killed); single-clause
-  ground-fact GOAL inlined at admit as CELL_UNIFY chains. Gate `test_gate_pl_gz3.sh` negative-proven;
-  RATCHETED at 5a (rule-clause negative became a capability → `consthead` positive + arith-body negative).
-- [x] **PL-GZ-4 — choice** ✅ LANDED 2026-06-04 (4a `20f15db` + 4b `84fee42`): multi-clause + backtracking —
-  THE seed-transcription rung. Cursor/trail-mark in the box's own frame row (`bb_cell_choice` = edge/2
-  verbatim: 1-based cursor, β cmp-chain to clause-k ω, advance-unwind-fallthrough); ZERO
-  `resolve_cp_current` refetches on the new path (legacy 24 → 0); conjunction = backward redo chain
-  (goal[i].ω → goal[i-1].β) so the pure-wiring bb_fail leaf IS the backtracking driver; 4b = query-tail
-  (G ; true) soft-fail promotion (fail landing returns 1 after unwind — one-shot-main-exact). Caps
-  N≤4/arity≤2; general 2-arm disjunction (redo-into-right-arm) deferred. Gate `test_gate_pl_gz4.sh`
-  negative-proven.
-- [~] **PL-GZ-5 — conj + recursion** (kills `last_ok` + the env swap on the new path):
-  - [x] **5a — user-predicate CALLS** ✅ `e8e728c` (2026-06-04 Opus 4.8) — the call IS a port edge to
-    another box's α: TWO new port fills **δ = callee α / ε = callee β** beside γ/ω/β (PORT_DELTA=4 /
-    PORT_EPSILON=5; `X86_INTERNAL_BASE` 4→6, single-sited symmetric); call encoder `x86("call",port)` =
-    `Lrec(0xE8)+Jrec(port)` / ` call name`. Boxes: `bb_cell_call.cpp` (arg CELL-POINTER marshal rdi/rsi
-    from frame slots → call δ → verdict-in-rax λ-test jne-γ/jmp-ω; β reloads args + call ε) ·
-    `bb_callee_frame.cpp` (5a INTERIM: same query ζ=r12, callee region [args|locals|mark] after
-    query+synth cells, cap 62; push r12 BOTH entries for SysV alignment; **arg-save BEFORE
-    `rt_trail_mark` — rt calls clobber rdi/rsi**; per-activation locals re-init via `rt_pl_cells_init` =
-    the seed enter() law; γ→1 / ω→unwind+0, pop+ret; β re-push + jmp δ = body redo entry). Admit:
-    single-clause NON-recursive rule callees ar≤2; head goals UNIFY(LV i, LV|const) — self folds at
-    rewrite, cross-var/const heads = CELL_UNIFY vs the arg cells; det body class; caller const args =
-    synthetic query cells (PASS-A prescan; query cells_init covers ncells = nslots+nsynth); callee bodies
-    REBUILT FRESH base-offset (shared m2 graphs NEVER mutated); callees memoized per clause graph.
-    **Stale-mark unwind is sound ONLY in 5a's one-frame scheme** (every redo that resumes forward passes
-    a choice/query unwind predating the stale bindings) — recursion REQUIRES 5b's ζ-tree. Gate
-    `test_gate_pl_gz5a.sh` (8 probes: value-flow-out through head vars, redo-through-call ε, choice-driven
-    α re-entry, cross-var head; 2-clause + nested-call decline identically; corrupt-proof exits 1).
-  - [x] **5b — `rt_enter` ζ-TREE + recursion** ✅ 5b-i `a8993f4` + 5b-ii `7bb6843` — each call SITE owns a
-    child-frame POINTER slot in the caller's frame (the seed's `&ζ->p2_ζ`); `rt_enter(slot,nslots)` =
-    reuse-or-alloc; register protocol = the seed's print form `path(&ζ->p2_ζ,α,a0,a1)`: call δ with
-    rdi=child rsi/rdx=arg cell ptrs, call ε with rdi=child ONLY; callee α/β push caller ζ + mov r12,rdi;
-    callee slots = clause slots DIRECT, mark at [ζ+0]. Recursion: depth sound because every activation
-    has its own frame; admit-time recursion terminates via the SHELL-FIRST memo (`pl_gz_callee_get`);
-    nested-call const args = synthetic cells APPENDED TO THE CALLEE'S LOCALS (covered by its
-    per-activation cells_init); child slots sit AFTER locals+synths, OUTSIDE the init range —
-    **rt_enter reads before write** (fresh frames zeroed by GC_malloc; query frame by BSS) — the
-    load-bearing invariant; emission = worklist (gz_emit_callee discovers nested callees). Killed the 5a
-    stale-mark caveat + one-frame budget; emitted callee blocks REENTRANT. Gate `test_gate_pl_gz5b.sh`
-    (nested · callee-frame synth · self-recursion depth-2, m2-verified first; 2-clause + deep-arith
-    decline; corrupt-proven). GZ5A gate RATCHETED (nested-call negative → compound-body negative). Detail:
-    HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-5A-5B.md.
-  - [x] **5c — multi-clause RULE predicates** (full `path/2`) ✅ `aa587c9` — callee-level choice over rule
-    clauses on the seed's exact shape: ONE frame `[args | per-clause locals+synth | child slots]`, mark
-    `[ζ+0]`, 1-based cursor `[ζ+4]` (the seed's `ζ->i`, init at α); per-clause body chains keep the
-    backward redo wiring; clause-K exhausted = advance block (`cursor=K+2; rt_trail_unwind(mark); jmp`
-    clause K+1 α — the seed's `fK_ω`), last clause falls to the ω landing; β re-entry = bb_cell_choice's
-    cmp-chain as per-clause template fragments (one `cmp/je` each, δ = that clause's redo; det βs pass
-    through to ω so all-det clauses collapse onto the advance block). Facts admit as empty-body rule
-    clauses ⇒ multi-clause FACT preds called from callee bodies become framed callees (the seed's
-    `edge/2`); query-level fact choices keep the gz4 inline. Self/mutual recursion terminates via the
-    validation visiting list + shell-first build memo; slot remap `pl_gz_slot_map(s,ar,lbase)` keeps the
-    single-clause path identical (lbase==ar ⇒ identity — ONE body builder). LESSON: driver→template
-    immediates ride `op_off`/`op_sa`/`op_sb` ONLY — `walk_bb_node` stomps `op_ival` with `nd->ival` (==
-    the callee pointer for CALLEE_FRAME), the b-then-segfault bug. Gate `test_gate_pl_gz5c.sh` (path
-    `b c d` · all-det 2-clause · mixed fact+rule · depth chain `b c d e`, m2-verified first; cut +
-    list-head + 5-clause decline; corrupt-proven). GZ5A+GZ5B gates RATCHETED (2-clause-rule negative,
-    now a 5c positive → arity-3 negative: outside the rsi/rdx arg ABI).
-- [x] **PL-GZ-6 — cut** *(2026-06-06, `5d4aea9`)*: LEXICAL cut LANDED as pure wiring — `IR_CELL_CUT` det
-  box (α falls to γ; β jmp ω; body IDENTICAL to vacuous-success unify) whose ω the driver wires to the
-  callee fail landing `cl_ω` instead of the backward chain (`gz_emit_callee`, one ternary). Redo never
-  resumes pre-cut goals nor later clauses; post-cut alternatives stay live; cut-not-reached advances;
-  single-clause redo[0]=cut's β = the seed's `firstpath_β→ω` literally. Gate `test_gate_pl_gz6.sh`
-  (commit/redo-past/not-reached/firstpath-redo, m2==m3==m4; query-level + soft-disj-arm cut declined).
-  **m2 ORACLE RE-BASELINED** (cut β re-entry RE-SUCCEEDED: truncated-away choice CP misread as liveness +
-  cut re-truncating on resume re-walks; fixed via stateful cut, `cp_cut_away` commit detection, cut-aware
-  liveness — GATE-1/GATE-3 counts byte-identical pre/post). GZ5C gate RATCHETED (cut-clause negative, now
-  a gz6 positive → query-level cut). LOGGED m2 GAP for GZ-7's commit cluster: mid-cut with pre-cut AND
-  post-cut generators (resume re-walk advances the pre-cut node). DEFERRED → **PL-GZ-6b**: query-prefix
-  soft-disj for the one-program full seed `b c d b` (recipe in the 6-CUT handoff). Dynamic cut = frame
-  gate (paper §4.5) remains future. The `rt_get_cut_flag`/`rt_choice_cut_*` globals: new-path boxes
-  reference ZERO (coupling gate holds); protocol deletion completes when legacy dies.
-- [x] **PL-GZ-6b — query-prefix soft-disj (two-segment query frame)** *(2026-06-06)*: the FULL seed
-  runs as ONE program → `b c d b`. Admission: disj at goals[0] of a LONGER query conj, RESTRICTED
-  to arm0 ending in IR_FAIL (fail-driven — arm0 never succeeds, no arm0-success wiring); A-chain =
-  arm0's goals → `qf->α`, B-chain = outer goals[1..] → `qf->β`, `dval=2.0` (degenerates to 1.0 when
-  B is all-SUCCEED); builder/synth-prescan factored into `pl_gz_build_goal`/`pl_gz_count_synth`
-  (NO-DUP — one builder serves both segments; synth/cslot counters + callees array shared across
-  A+B in the ONE query frame). Wiring (seed `q1_ω: goto q2_α` literally): NEW bb_query_frame aspect
-  op_sa=1/op_sb=2 = unwind(query mark [ζ+0]) + `jmp` δ (B0 α — the advance-block lbl_δ precedent),
-  emitted BETWEEN segments by the now two-segment `flat_drive_gz_query`; B0 ω → hard land_ω; last
-  B γ → land_γ; hard landing keeps op_sb=0. Gate `test_gate_pl_gz6b.sh` (full seed · soft-unwind
-  observable `a b a` · single-FAIL arm0 · B-fail hard-ω pinned m3==m4==gprolog canon; non-FAIL arm0
-  + mid-conj disj decline; corrupt-proven via sb=2→1 → loud undefined-label `as` failure). **LOGGED
-  LATENT m2 DIVERGENCE (NOT fixed — PL-GZ-7 commit cluster, PT-3/WAM-CP-9 precedent):** B-segment
-  failure re-enters the exhausted soft-disj in m2 (resume re-walk re-prints the pump: `a a`);
-  gprolog canon (syn_sugar.pl `linearize` = (P;Q) → 2-clause aux pred; indexing.pl last clause =
-  `trust_me_else_fail`; wam_inst.c `Pl_Delete_Choice_Point`) deletes the disj CP on entering the
-  LAST arm — B's failure must NOT re-enter; m3/m4 match canon AND the seed. GATE-1/GATE-3 counts
-  byte-identical pre/post.
-- [x] **PL-GZ-7a — ITE m2 ORACLE to canon (§4.5 bounded condition)** *(2026-06-06, `3d9ccfd`; gate
-  `7a7bf75`)*: `( a(X),X>=2 -> true ; X=0 )` fail-driven — m2 was `2 3 0`, now `2`, m2 == m3 == m4.
-  `IR_ITE` marks the CP ledger + resets `committed` on every forward entry (stateless — the published
-  construct β = ω_in means in-conjunction redo bypasses the node, so every arrival IS forward);
-  `IR_ITE_COMMIT` on cond.γ truncates the condition's CPs at first success; `IR_ITE_GATE` on cond.ω routes
-  post-commit condition exhaustion to ω_in instead of Else (§4.5 E1.fail gate). `IR_CHOICE` liveness made
-  ledger-coherent (cp-membership generalizes gz6 `cp_cut_away`) — the goal-spine never re-walks a bounded
-  condition. `\+` and `\=` share the bound. Construct semidet (β = ω_in), m2 now AGREEING with the m4
-  flat_drive_ite β→ω tombstone. m4 untouched BY CONSTRUCTION (legacy walker is structure-driven; the new
-  kinds are γ/ω-edge-only — but whitelisted in `pl_rich_node_emittable`, whose g->all default-reject would
-  otherwise de-admit every ->/\+ graph from RICH). Gate `test_gate_pl_gz7.sh` (commit · barecall ·
-  reentry · semidet · negbound, m2==m3==m4==canon). GATE-1/GATE-3 byte-identical pre/post; ZERO
-  re-baselines. Absorbs WAM-CP-9. ACCEPTED CAVEAT: per-NODE cp_mark/committed — recursive
-  ITE-in-condition under-truncates (legacy-only; 7b frame rows are per-activation). LOGGED: the gz6b disj
-  divergence is NOT liveness-reachable — isolated (disj alone canon; disj + ANY failing later goal = `a a`)
-  to the GCONJ backward-resume threading the static β-chain into arm0's self-reset internals; a last-arm
-  liveness guard was implemented, proven ineffective, REVERTED; fix point = GCONJ-resume↔disj-advance
-  control path; the rebased `cs->disj_hint`/`cp_floor` scaffolding is orthogonal. Full notes:
-  `HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-7A-LANDED-7B-RECIPE.md`.
-- [ ] **PL-GZ-7b — ITE new-path box, paper §4.5 ifstmt VERBATIM**: `IR_CELL_ITE` onto the GZ substrate.
-  §4.5 in the house dialect: E1 success → gate row ← 1, jmp E2.α; E1 fail-landing → gate ← 2, jmp E3.α;
-  ifstmt.β → cmp/je gate dispatch to E2/E3 resume (the bb_cell_choice cursor-β idiom = the paper's
-  indirect goto); E2/E3 fail → ifstmt.ω; **E1's cell β labels emitted UNREFERENCED = the condition CP
-  deleted structurally** (cut-cell pure-wiring; for a CELL_CHOICE condition this IS Delete_Choice_Point;
-  coupling stays 0). Det branches degenerate (gz6b dval precedent). Driver: `pl_gz_ite_state_t`
-  {cond/then/else chain heads, gate_slot}; `pl_gz_build_goal` IR_ITE arm recursing the SAME builder over
-  the zi roots (NO-DUP; GCONJ → zs->goals[]; SUCCEED → empty); synth/cslot through `pl_gz_count_synth`;
-  `bb_kind_is_driver_owned` += the kind. Emitter: recursive sub-chain drive (gz_emit_callee pgl/pgb
-  scheme; CELL_CUT cl_ω ternary preserved inside branches) + `bb_cell_ite.cpp` aspects (Makefile ×2).
-  m3 ≡ m4 by construction. Floor probes: fact-unify conds; MONEY probe = choice cond `p(a). p(b).
-  ( ( p(X) -> write(X) ; write(n) ), nl, fail ; true )` → exactly `a` all modes (m2 canon pinned at 7a).
-  Arith conds wait for GZ-8 (the 7a headline stays legacy until then). Ratchet `test_gate_pl_gz7.sh`:
-  GZ-path markers + declines + corrupt-proof (gate 1↔2 → loud). Sweeps the cluster remainder: gz6b disj
-  trust_me_else_fail at the GCONJ-resume↔disj-advance control path (diagnosis at 7a) + the logged mid-cut
-  pre-cut-generator gap — both legacy-m2-only, already shadowed by m3/m4 canon; sweep only if a ratchet
-  demands m2 parity, else the FENCE deletes the machinery.
-- [ ] **PL-GZ-8 — arith/is + builtins**: re-admit the x86()-revamped bb_builtin families onto the new
-  substrate.
-- [ ] **PL-GZ-9 — corpus reconquest**: ratchet all 115 rungs onto the new path with per-rung m3/m4 verdicts
-  byte-identical. findall = drive the NEW boxes, no meta rail; catch/throw = PT-3's CP-truncate + ball-copy
-  LAW re-landed; aggregate/nb likewise; dynamic DB = **B-full** (runtime assert = lower + MEDIUM_BINARY
-  emit into the RX slab — the SAME in-process path m3 already is, so dynamics get m3 ≡ m4 by construction).
-- [ ] **PL-GZ-FENCE**: coupling gate reads ZERO control calls across all Prolog templates · GATE-3 prints
-  m2/m3/m4 verdict-identical with identical EXCISED sets · the resolution.c control engine + the meta rail
-  are DELETED · the seed and the emitted `.s` for the seed program are shape-isomorphic (a reader can map
-  one onto the other box-for-box, port-for-port).
+Ladder (LANDED rungs 0..4, 5a–5c, 6, 6b, 7a DELETED — git history):
+- [ ] **PL-GZ-1b(e)** — FENCE inherits: the m3 INTERP-FALLBACK is DELETED; an uncovered `--run` program prints EXCISED and exits exactly like m4.
+- [ ] **CORPUS-S-HYGIENE(b)** — prune tracked corpus `.s` to the DEMO keep-list (needs Lon's confirmed list).
+- [ ] **PL-GZ-7b — new-path §4.5 ifstmt box (`IR_CELL_ITE`).** Implement from the 7a/7b handoff RECIPE. Idiom: bb_cell_cut (pure wiring) + bb_cell_choice (cursor-β indexed goto = the gate dialect) + bb_query_frame (op_sa aspects). E1 success stub gate←1 jmp E2.α; E1 fail landing gate←2 jmp E3.α; ifstmt.β = cmp/je gate dispatch; **E1 resume labels emitted UNREFERENCED = the bounded condition** (Delete_Choice_Point by wiring; coupling stays 0). Driver: `pl_gz_ite_state_t`, `pl_gz_build_goal` IR_ITE arm recursing the SAME builder (NO-DUP), synth/cslot via `pl_gz_count_synth`. Emitter: recursive sub-chain drive factored from gz_emit_callee's pgl/pgb loop; CELL_CUT cl_ω ternary preserved inside branches. `bb_cell_ite.cpp` + Makefile ×2. Probes: floor det conds; MONEY `p(a). p(b). ((p(X)->write(X);write(n)),nl,fail;true)` → exactly `a` all modes. Arith conds wait for GZ-8. Ratchet `test_gate_pl_gz7.sh`: keep 7a probes; ADD GZ-path assertions (m3 no INTERP-FALLBACK; `.s` has ifstmt labels), DECLINES (arith cond → legacy, verdicts equal), CORRUPT-PROOF (gate 1↔2 → loud).
+- [ ] **PL-GZ-8** — arith/is + builtins: re-admit the x86()-revamped bb_builtin families onto the new substrate.
+- [ ] **PL-GZ-9** — corpus reconquest: all 115 rungs onto the new path, per-rung m3/m4 verdicts byte-identical. findall = drive the NEW boxes (no meta rail); catch/throw = PT-3 CP-truncate + ball-copy LAW re-landed; aggregate/nb likewise; dynamic DB = **B-full** (runtime assert = lower + MEDIUM_BINARY emit into the RX slab; m3 ≡ m4 by construction).
+- [ ] **PL-GZ-FENCE** — coupling gate ZERO across all Prolog templates · GATE-3 m2/m3/m4 verdict-identical with identical EXCISED sets · resolution.c engine + meta rail DELETED · emitted seed `.s` shape-isomorphic to `test_pl_1.c` (box-for-box, port-for-port).
 
 ## LEGACY DISPOSITION AT RESET (2026-06-04)
 
 | Track | Disposition |
 |---|---|
-| **PL-M34** | ABSORBED — its LAW (m3 ≡ m4) is PL-GZ's construction principle (rungs 2 + 9); ladder retired unstarted. |
-| **PL-BBL** | SUBSUMED — its ledger rows became THE LAWS above; its FENCE is PL-GZ-FENCE; ladder retired unstarted. |
-| **PT** | PT-0 predicate table SURVIVES (seed-compatible). PT-1b meta rail = STARVE AND DELETE at PL-GZ-9. PT-2 findall admissions = legacy-path only until PL-GZ-9. PT-3 catch CP-truncate/ball-copy LAW re-lands at PL-GZ-9. PT-4a re-lands at PL-GZ-9. PT-4b's B-full LAW is absorbed into PL-GZ-9. |
-| **WAM-CP** | CLOSED as a track (the name cites an abandoned authority). Survivors: CP-7 unify specializations → PL-GZ-3 · CP-9 ABSORBED at PL-GZ-7a (paper canon) · CP-8 first-arg indexing + CP-11/12 + PL-INDEX-L2-1 → post-FENCE optimization tier · CP-13 moot at PL-GZ-9. |
-| **Legacy m4 path** | Remains the GATE-3 suite runner ONLY as scaffolding during reconquest; a program admitted to the new path NEVER falls back; each legacy mechanism is deleted when its last rung migrates. |
-
-## ⏸ PT — PREDICATE-TABLE META-CALL SUBSTRATE (LEGACY at 2026-06-04 RESET — see LEGACY DISPOSITION; Lon approved 2026-06-03)
-
-**Canonical law (gprolog `bc_supp.c` `Pl_BC_Call_Terminal_Pred_3` + `all_solut.pl` `'$store_solutions'` + `call.pl` `'$call_internal_with_cut'`; swipl `pl-vmi.c` `i_metacall_common` + `boot/bags.pl` `findall_loop`):** a runtime goal is a TERM; a resident predicate table maps (functor,arity)→code; meta-call = decompose+lookup+marshal+call; findall = drive the meta-call to exhaustion, copy_term per solution, build list, unify. Graph-shipping substrates DROPPED — the `fs_ptr` baked-pointer in-process trap (HANDOFF-2026-06-03-OPUS48-PROLOG-BB-FINDALL-M4-INPROC-POINTER-TRAP.md). SCRIP convergences: m4 callee blocks are C-callable with exactly the protocol the rail needs (`bb_goal.cpp` = the byte-exact reference transcription); head args land in env slots 0..arity-1; goal/tmpl/result terms built relocatably by `emit_build_compound_term`.
-
-- [x] **PT-0** — predicate TABLE in the m4 binary (`.Lpl_pred_table` rows name/arity/α/β) + `rt_pl_table_install`/`rt_pl_pred_lookup`. `62426a6`.
-- [ ] **PT-1** — meta rail. **PT-1a `62426a6`** (rt_call_term/rt_redo_meta, single-level) · **PT-1b CONJ/DISJ `2cfd1bb`** (term-level frame-tree resolver in unification.c transcribing gprolog `'$call_internal_with_cut'`: MK_CONJ fwd/back driver · MK_DISJ per-branch CP+trail marks · MK_PRED per-frame α/β protocol, reentrant `rt_meta_solve`/`rt_meta_redo` · MK_BUILTIN {is,=:=,=\\=,<,>,=<,>=,=,\\=}, `is/2` = recursive eval + GENERAL UNIFY, int core = one `rt_arith` call). **OPEN remainder:** `!`/`->`/`\\+`/catch/throw inside meta-calls rejected LOUDLY — cut in a meta-called goal is LOCAL to the call (gprolog hidden `A(arity)` cut register); design jointly with WAM-CP-9 (Lon sign-off).
-- [ ] **PT-2** — findall on the rail. **PT-2a `62426a6` · PT-2b-SIMPLE `ea9e5ea`+`c8063ec` (literal-int-LHS is) · PT-2b-CONJ `2cfd1bb`** — admissions `pl_findall_goal_graph_simple` / `pl_findall_goal_conj_admissible`; encoder gained IR_GOAL/IR_GCONJ/IR_BUILTIN arms; `rt_findall_term` saves/restores outer env+cut. **OPEN:** DISJ admission (term-level resolver arm exists, dormant) — defer until a rung demands it.
-- [x] **PT-3** — catch/throw native ✅ `f44c20c` — m4 96→101/0/14, all 5 rung28_exceptions m2==m3==m4 incl.
-  nested rethrow. Goal/recovery graphs emit as native callable `.Lplcatch_<i>_{goal,rec}` blocks
-  (`codegen_graph_block`); `rt_catch_native` drives the m2 setjmp/longjmp catch-frame substrate;
-  `rt_throw_term` = ball copy + `resolve_throw_term`; landing adds canon CP-truncate-to-mark
-  (`Resolve_CatchFrame.cp_mark`). RIP-relative — `zc_ptr` trap eliminated. **m2 oracle LACKS CP-truncate +
-  ball-copy** (latent, corpus-unobservable — re-baseline audit w/ Lon, same class as WAM-CP-9). Detail:
-  HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PT-3-CATCH-THROW.md.
-- [x] **PT-4a** — aggregate/nb on the meta rail ✅ `c5d1737` — m4 101→105/0/10; `rt_aggregate_all_meta` =
-  rt_findall_term's drive + the m2 fold transcribed exactly (incl. max/min-over-zero → int 0, m2 parity
-  over SWI); RICH-gate admission; zero raw bytes/baked ptrs.
-- [ ] **PT-4b** — dynamic DB (retract×5 + abolish×5 = the 10 m4-EXCISED rungs) — LEGACY; its **B-full LAW
-  re-lands at PL-GZ-9**: the m2 oracle already runs the CODE route (`pl_rt_assertz` compiles asserted
-  Terms through the REAL lowerer into executable clause graphs appended to the live IR_CHOICE `bodies[]`;
-  bodies = code, chain = data — matches gprolog/swipl canon). The m4 gap in one sentence: native
-  bb_choice bakes `n` + the cmp/je ladder as immediates — the standalone binary's clause chain is frozen.
-  Design: a dynamic pred emits a DATA-DRIVEN choice (cursor indexes a runtime clause TABLE; indirect
-  dispatch; rows = clause entry ptr + head term + metadata). **B-full is the END STATE** (2026-06-04
-  m3≡m4 directive): runtime assert = lower + MEDIUM_BINARY emit into the RX slab — the SAME in-process
-  path m3 already is; B-lite term-resolver rows admissible ONLY as a transitional scaffold (completion
-  test = JIT'd clause bodies). LATENT ORACLE DIVERGENCE (log, do not fix silently): m2 retract matches a
-  RULE by executing its whole clause graph incl. body; SWI unifies (H:-B) without executing B —
-  unobservable in the 5 fact-only rungs; re-baseline class of WAM-CP-9/PT-3.
-
-## ⏸ WAM-CP — SWIPL-informed choice-point track (CLOSED at 2026-06-04 RESET — see LEGACY DISPOSITION)
-
-Build CP stack on TOP of existing `Term*` boxes (small rungs); tagged-word migration is LATER. References: `doc/SWIPL-STUDY-2026-05-28-OPUS.md`, `doc/GPROLOG-STUDY-2026-05-28-OPUS.md`, `doc/JCON-ICON-STUDY-2026-05-29-OPUS.md`. **DESIGN:** the BB graph replaces the WAM *environment* stack (per-predicate BB allocations + α/β/γ/ω), NOT the *choice-point* ledger — `g_pl_bfr` + parent-linked `pl_choice` is the irreducible dynamic CP ledger, kept LEAN.
-
-**Completed (collapsed):** WAM-CP-1..6 (CP record + push/pop/cut/m4-emit/LCO), CP-8 (first-arg indexing + CP-elision, GATE-SWI 57/57), CP-9/10 partial (m4 cut-scope, catch/throw m2 5/5), PLR-J-0..5 (JCON four-port), CP-7a/7b (head-unify spec), CP-7c var-var unify (`5dff1a8` — `rt_pl_unify_var_var`, 3 calls→1, grounded in gprolog unify.c TAG_REF×TAG_REF).
-
-**Open (priority):**
-- [ ] WAM-CP-9 (rest) — ITE-commit semantics where the **m2 oracle is WRONG**: `( a(X),X>=2 -> true ; X=0 )` → m2 `2 3 0`, m4 (correct) `2`; swipl `pl-comp.c:2312` proves `(C->T;E)` cuts C's CPs locally. Fix = local-cut barrier on the condition in shared `lower.c` IR_ITE arm + m2 ports + m4 emit; risks 115/115 byte-identity (some rungs may pass BECAUSE they match the buggy m2 → re-baseline audit). **Needs Lon's design sign-off.** Parser-side nested-ITE normalization already FIXED (`bfabff3` `pl_rewrite_control`). Scope: HANDOFF-2026-06-03-…-WAM-CP-9-ITE-COMMIT-SCOPED.md. Joint design partner: PT-1b cut-local-to-meta-call.
-- [ ] WAM-CP-11 — deep-backtracking arg restore (`saved_args`) + nested choices.
-- [ ] WAM-CP-12 — determinism detection → CP elision (lower-time).
-- [ ] WAM-CP-13 — m4 parity for 9/10/11 (`pl_cp_*`→`rt_pl_cp_*` FACT-clean); owns m4 dynamic-DB emit (PLG-9g).
-- [ ] WAM-CP-14 — [doc] tagged-word migration audit → `doc/WAM-CP-TAGGED-WORD-BRIDGE.md`.
-- [ ] PL-INDEX-L2-1 — Level-2 hash dispatch for first-arg indexing (O(1) clause select when >8 clauses).
-
-> **PL-TRAIL-COND CLOSED (won't-fix):** conditional trailing breaks backtracking in the boxed GC model (no heap-segment reclamation). Every mutable binding must be trailed.
----
+| PL-M34 / PL-BBL | ABSORBED into PL-GZ (m3≡m4 principle + THE LAWS); retired. |
+| PT | PT-0 pred table SURVIVES. PT-1b meta rail = starve+delete at GZ-9. PT-2 findall · PT-3 catch LAW · PT-4a aggregate · PT-4b B-full dynamic-DB LAW — all re-land at GZ-9. |
+| WAM-CP | CLOSED. Survivors: CP-7 unify → GZ-3 · CP-9 → 7a · CP-8 indexing/CP-11/CP-12 + PL-INDEX-L2-1 → post-FENCE optimization tier · CP-13 moot at GZ-9. |
+| Legacy m4 path | GATE-3 scaffolding during reconquest only; an admitted program NEVER falls back; each mechanism deleted when its last rung migrates. |
 
 ## 🔴 Other open work
 
-- **CAT-D float-result unary arith** (`sqrt`/`sin`/`cos`/`exp`/`log`): needs `rt_pl_arith_d`→`double` +
-  `rt_pl_is_d`→`TERM_FLOAT`. No corpus test yet; defer until one surfaces.
-- **PJ-AGW-6b** — `IR_PAT_ARBNO`/DCG repetition port wiring.
-- **SWI-PLUNIT** — drive `test_prolog_swi_suite.sh` toward ≥80% (honest GATE-SWI baseline 55/57; `test_string` segfaults on deep `pj_rev` recursion). Remaining: clause/2 · `Var==Val` option normalisation · `:- if/else/endif` · per-suite 3-mode rung scripts.
-
----
+- PLG-7 — remove `bb_node_state_t` snapshot/restore (one live Icon caller, bb_exec.c:1589).
+- VSX-8 — vstack-scaffolding zero-check; blocked on Icon/SNOBOL4 `bb_binop_gen.cpp`; Prolog has zero ties.
+- CAT-D float-result unary arith (sqrt/sin/cos/exp/log) — defer until a corpus test surfaces.
+- PJ-AGW-6b — `IR_PAT_ARBNO`/DCG repetition port wiring.
+- SWI-PLUNIT — drive `test_prolog_swi_suite.sh` toward ≥80% (honest baseline 55/57).
 
 ## Session setup
 
 ```bash
-cd /home/claude/SCRIP && bash scripts/install_system_packages.sh   # nasm/m4/libgc-dev
+cd /home/claude/SCRIP && bash scripts/install_system_packages.sh
 make -j4 scrip && make libscrip_rt
 bash scripts/test_smoke_prolog.sh         # GATE-1
 bash scripts/test_prolog_rung_suite.sh    # GATE-3
-bash scripts/test_gate_bb_one_box.sh      # PL-HY-FENCE: one box per Prolog template file
-grep -rnE 'seg_byte\(SEG_CODE|SL_B\(' src/ --include="*.c" --include="*.cpp" | grep -v "_templates/" | grep -v emit_core.c | wc -l   # FACT 0
+bash scripts/test_gate_bb_one_box.sh      # PL-HY-FENCE
+bash scripts/test_gate_pl_gz7.sh          # + gz2..6b as touched
+grep -rnE 'seg_byte\(SEG_CODE|SL_B\(' src/ --include="*.c" --include="*.cpp" | grep -v "_templates/" | grep -v emit_core.c | wc -l   # 0
 grep -rn 'g_vstack' src/ | wc -l          # 0
 ```
-Full mode-4 corpus: loop `corpus/programs/prolog/rung*.pl` through `scripts/run_prolog_via_x86_backend.sh`, diff `.expected`.
-
----
+Full m4 corpus: loop `corpus/programs/prolog/rung*.pl` through `scripts/run_prolog_via_x86_backend.sh`, diff `.expected`.
 
 ## Architecture reference
 
-Port semantics (α/β/γ/ω): the four-port table in ⛔ MANDATORY READ above.
+Pipeline: Prolog AST → lower_prolog (four-port IR) → m2 `--interp` (IR_interp) · m3 `--run` (EMIT BINARY → RX slab, in-process) · m4 `--compile` (EMIT TEXT → as+gcc, system process).
+GZ ports: δ = callee α, ε = callee β (PORT_DELTA/PORT_EPSILON beside γ/ω/β).
+NOTE: corpus `.s` box labels are generation-NONDETERMINISTIC — suite set-diff is the invariant. Legacy counts FROZEN at the 2026-06-04 reset; the new-path counter only ratchets up.
 
 ### Per-construct port wiring
 | Construct | α | β | γ | ω |
@@ -701,16 +421,3 @@ or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`t
 
 ---
 
-## 📊 Gate table (2026-06-04 — PL-GZ-5a, SCRIP `e8e728c`)
-
-| Gate | Mode-2 | Mode-3 | Mode-4 | Notes |
-|---|---|---|---|---|
-| GATE-1 smoke | 5/5 ✅ HARD | 4 / 0 / 1-EXCISED | 5/5 | m3 EXC = `recursion` only (multi-clause+recursive → 5b/5c) |
-| GATE-3 rung suite | **115/115** ✅ HARD | **18 / 0 / 97-EXCISED** | **105 / 0 / 10** | m3 truth-counted; m4 EXCISED 10 = retract×5 + abolish×5 (PT-4b → PL-GZ-9) |
-| GZ gates | — | gz2 · gz3 · gz4 · gz5a · gz5b | same | all PASS, all corrupt-proven; coupling ceilings 19/10/0/39 (new-path boxes 0) |
-| FACT greps | 0 ✅ | — | — | g_vstack 0 · seg_byte/SL_B 0 · no_bb_bin_t 0 · pl-no-value-stack PASS · PL-HY-FENCE PASS |
-| siblings (HARD m2) | Icon 12 ✅ · SNOBOL4 7 ✅ | Icon 5/7 standing | SNOBOL4 smoke 19/19 | — |
-
-NOTE: corpus `.s` box labels are generation-NONDETERMINISTIC — `.s` byte-churn across sessions is expected;
-the suite set-diff is the invariant. The legacy-path counts above are FROZEN at the 2026-06-04 reset; the
-new-path (PL-GZ) counter only ratchets up; legacy counts must not regress while legacy remains the runner.
