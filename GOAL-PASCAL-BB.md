@@ -19,14 +19,25 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — session 18 (2026-06-06, Sonnet): Boolean semantics audit — no code committed; prior
-36/36 held.** Read pcom.pas + pint.pas end-to-end. Found three latent bugs not covered by any existing probe:
-(1) `not b` is goal-directed inversion (swaps γ/ω) instead of boolean NOT (0↔1); (2) `b := relop_false`
-kills the program silently instead of assigning INTVAL(0); (3) `b := relop_true` assigns rv (the rhs value)
-not INTVAL(1). Also confirmed: `writeln(boolean_expr)` is error(399) in P4 Pascal — that write path is
-intentionally unsupported; the probe explored earlier was invalid Pascal and the investigation was correctly
-terminated. Hop>1 var-param paths (nestvar/nestvar2/nestvar3 probes, m2+m3+m4) confirmed green — not
-committed as no code changed. New PB-10a/10b/10c ladder added below.
+**Watermark — session 19 (2026-06-06, Opus): PB-10a LANDED. Gate m2 41/0 (36 legacy + nestvar/2/3 +
+boolassign + boolnot), m3 39/0, m4 39/0, SNOBOL smoke 19/0.** All three audited boolean bugs fixed,
+parser-only. DEVIATION from the spec'd NOTSY shape, forced by a measured fact: a TT_IF subgraph as an
+ARITH OPERAND silently dies in m2 even on the true path, so `TT_IF(pas_cond(f),0,1)` fails its own
+chain gate (`not a or b`). NOTSY instead emits `pas_flip_rel(pas_cond($2))` — boolean NOT stays in the
+relop algebra (LT↔GE, LE↔GT, EQ↔NE; non-relop factor → `EQ(x,0)`), which is also correct for
+or-encoded stored values >1. `pas_bool` (relop → `TT_IF(relop,1,0)`) is applied only at the two value
+BOUNDARIES — assignment RHS and call-arg value slot (width arg untouched) — so PB-10b's expected arg
+IR shape is exactly as designed. FOURTH BUG DISCOVERED (not in the session-18 audit, NOT fixed): a
+FALSE relop as an arith operand propagates goal-failure and kills the statement chain in m2
+(`c := (i = 0) or b` prints nothing; a TRUE relop leaks rv instead of 1). Pinned by new XFAIL probe
+`boolmix.pas` (`c := not a or b`, oracle 0, scrip empty); fix requires LOWER work (value-subgraphs
+don't run junctions) → new rung PB-10a2 below. boolnot.pas rewritten to the 6-line oracle-verified
+form within fixed semantics (and/or chains over stored 0/1 vars are pure arith and green). Landmine
+confirmed twice this session: `scrip:` Makefile target has NO prerequisites — `rm -f scrip` before
+`make scrip` or the recipe never runs; and `regenerate_parser_and_lexer_from_sources.sh` DELETED
+`snobol4.lex.c` (aborts at the snobol4 flex step) — regen pascal with
+`cd src/parser/pascal && bison -d -o pascal.tab.c pascal.y` directly, restore snobol4 casualties via
+`git checkout`.
 
 Root cause: `marshal_call_arg`'s inline gvar-arith arm (bb_call.cpp) admitted only LIT/VAR/FRAME operand
 shapes; a BINOP arg with builtin-call operands (`arr_get`/`__pas_deref`) failed the gate and silently fell
@@ -61,10 +72,10 @@ Mechanism inventory (terse; detail in git history + HANDOFF-*.md):
   (funcname-as-return-variable, recursion-safe). Binop templates `bb_binop_gvar_{relop,arith_slot}.cpp`:
   LIT-imm / VAR / slot operand shapes; slot disp +8 for DESCRs, +0 for raw qwords.
 
-NEXT: PB-10a (parser) → PB-10b (marshal m3/m4 call-arg) → PB-10c (assignment m3/m4). Landmine:
-Makefile compile rules for templates are explicit — `touch` the template before `make scrip` or the .o may
-not rebuild. Hop>1 var-param paths (nestvar/nestvar2/nestvar3, 3-level nesting through static links)
-confirmed green m2+m3+m4 — commit them as part of PB-10a gate suite.
+NEXT: PB-10a2 (lower: relop/IF as arith operand) or PB-10b (marshal m3/m4 call-arg) — Lon's ordering call;
+10b does not depend on 10a2. Landmines: `scrip:` target has no prerequisites — `rm -f scrip` before
+`make scrip`; Makefile compile rules for templates are explicit — `touch` the template before `make scrip`
+or the .o may not rebuild; do NOT run the full parser-regen script (kills snobol4.lex.c).
 
 ---
 
@@ -185,21 +196,20 @@ cd /home/claude/corpus/programs/pascal
   - [x] **PB-9f** — record-field/heap m3-m4 wall: inline-arith marshal accepts CALL + nested-BINOP
     operands across both binop layouts (operand_aux sidecar, sg threaded); single-call label fix.
     Session 17 (watermark above).
-- [ ] **PB-10a — boolean operators: parser-only fix (m2 + sets up m3/m4).** Three bugs confirmed by
-  reading pcom.pas/pint.pas and probing (see session 18 watermark). All three invisible to existing probes.
-  Changes all in `pascal.y` only; regen `pascal.tab.c` with bison (1 s/r conflict = pre-existing, expected).
-  - `pas_bool(e)`: if `pas_is_rel(e)`, wrap as `TT_IF(e, ilit(1), ilit(0))`; else return e unchanged. Add
-    after `pas_cond` in the `%{ ... %}` section.
-  - `not b`: change grammar arm `NOTSY factor { $$ = un(TT_NOT, $2); }` to emit
-    `TT_IF(pas_cond($2), ilit(0), ilit(1))` — if factor truthy → 0; else → 1. Boolean NOT as a value.
-    This is the same IF-wrapping used for if/while conditions, but inverted (swapped then/else literals).
-  - `b := relop`: change `assignment: selector BECOMES expression` to apply `pas_bool($3)` to the RHS.
-    Fixes both the "silent death on false" bug and the "rv instead of 1 on true" bug in m2.
-  - Proc arg boolean: apply `pas_bool($1)` to value expression in `argument:` rule (width expression `$3`
-    is NOT wrapped — it is always an integer).
-  - **Gate**: new probes `boolassign.pas` (b:=relop, all six relops), `boolnot.pas` (not/and/or chains),
-    `nestvar.pas`/`nestvar2.pas`/`nestvar3.pas` (hop>1 var-param, already green — commit as gate). All m2.
-    Baseline: 36/36 must hold; sieve.pas still correct (boolean array unaffected). SNOBOL smoke 19/0.
+- [x] **PB-10a — boolean operators: parser-only fix (m2 + sets up m3/m4).** LANDED session 19. Three
+  audited bugs fixed in `pascal.y` only; parser regenerated. `pas_bool` (relop → `TT_IF(relop,1,0)`) at the
+  two value boundaries: assignment RHS and call-arg value slot (width untouched). NOTSY deviates from the
+  spec'd IF shape (measured: TT_IF as arith operand dies in m2 even when true) — emits
+  `pas_flip_rel(pas_cond($2))` instead, keeping NOT in the relop algebra; boundary IR shapes for 10b/10c
+  unchanged. Gate green: m2 41/0, m3 39/0, m4 39/0, SNOBOL smoke 19/0; probes
+  nestvar/nestvar2/nestvar3 + boolassign + boolnot committed.
+- [ ] **PB-10a2 — relop/IF as arith operand (m2 LOWER fix).** Discovered session 19, pinned by XFAIL probe
+  `boolmix.pas` (`c := not a or b` → oracle 0, scrip silent death). Fact: a relop operand of TT_ADD/TT_MUL
+  is goal-directed in the IR — FALSE propagates failure and kills the statement chain; TRUE leaks rv as the
+  value. A TT_IF operand dies on both paths (value-subgraphs don't run junctions). Fix lives in LOWER
+  (`v_binop`/`lower_value_subgraph`): a relop operand must lower to a value-producing subgraph storing
+  INTVAL(1)/INTVAL(0) with converging control, or the operand-subgraph executor must learn junctions.
+  **Gate**: boolmix.pas m2 + chains `(i = 0) or b`, `not a or b`, `not a and b` all matching oracle.
 - [ ] **PB-10b — boolean marshal fix (m3/m4 call-arg).** After PB-10a, the IR for `writeln(f(b_expr))`
   or `proc(relop)` has a `TT_IF(relop, 1, 0)` subgraph as the arg. Entry node of that subgraph is
   `IR_VAR_x` (lhs of relop), NOT the IR_BINOP; the γ-chase finds `fin=IR_LIT_I(1)` (then-branch) and the
