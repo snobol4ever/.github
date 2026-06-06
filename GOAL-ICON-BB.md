@@ -1,6 +1,6 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-## ▶ CURRENT PRIORITY (2026-06-06): BB-HYGIENE — HY-FENCE LANDED: `test_gate_bb_one_box.sh` extended with ICN_BOX_FILES (32 entries) + ICN_HELPER_FILES (4 entries); PASS; added to Session Setup. Next = GZ-DEFER or BB-REVAMP-TRACKER cursor (`bb_alt.cpp` TIER H).
+## ▶ CURRENT PRIORITY (2026-06-06): GOAL-ICON-FULL-PASS — ICN-FULL-1..9 lowerer LANDED (`1589bd5`, m2 143→171 +28). Next session: fix 6 open bugs in HANDOFF-2026-06-06-SONNET46-ICON-BB-FULL-PASS-1.md (IR_LIMIT topology, IR_CASE segfault, IR_SWAP operands, IDX_SET assignment, pow→real, initial once-flag). See GOAL-ICON-FULL-PASS.md for full ladder.
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`). Keystone for every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them as `g_emit.op_*` scalars (the `walk_bb_node` prologue auto-deposits `op_a_slot`/`op_a_node_kind` and clobbers `op_sval/op_ival/op_dval/op_counter` from the node); the box stays pBB-free and reads only `_`. Shared `x86_asm.h` is additive only; `git pull --rebase` before push.
 
@@ -403,8 +403,8 @@ Floor = System V AMD64; durables are callee-saved (canonical semantics = the X86
 
 ## Watermark
 
-**HEAD (SCRIP) = `bc95d97` — ICN-HY-7g LANDED 2026-06-06-g. Columns: m2 143 HARD · m3 31 · m4 41 (baseline identical to HY-7f). HEAD (.github) = ICN-HY-FENCE LANDED 2026-06-06-h.**
-Session 2026-06-06-h (Sonnet 4.6, GOAL-ICON-BB): ICN-HY-FENCE COMPLETE. `scripts/test_gate_bb_one_box.sh` extended with ICN_BOX_FILES (32 box files, each 1 extern "C" void bb_* entry) + ICN_HELPER_FILES (bb_call_fn, bb_call_proc_staged, bb_call_userproc, bb_call_write_slot — each 0 entries). Header comment updated to cover PL-HY-FENCE + ICN-HY-FENCE. Gate runs PASS. Added to GOAL-ICON-BB.md Session Setup. Completed rung deleted. m2 143 HARD held; m3 31 · m4 41 baseline unchanged. Refs extracted: icon-master + jcon-master → SCRIP/refs/ (from uploaded zips).
+**HEAD (SCRIP) = `1589bd5` — ICN-FULL-1..9 LANDED 2026-06-06. m2 171 · m3 31 · m4 41. HEAD (.github) = HANDOFF-2026-06-06-SONNET46-ICON-BB-FULL-PASS-1.md.**
+Session 2026-06-06 (Sonnet 4.6, GOAL-ICON-FULL-PASS): ICN-HY-FENCE gate landed. GOAL-ICON-FULL-PASS.md 32-step plan created. ICN-FULL-1..9 lowerer: TT_INITIAL/LIMIT/CASE/REVASSIGN/IDX/MAKELIST/FIELD/SECTION/CSET_* Icon arms — m2 +28 (143→171). 6 open bugs in handoff doc (IR_LIMIT topology wrong, IR_CASE segfault, IR_SWAP VAR nodes, IDX_SET assignment lhs, pow→real type, initial once-flag).
 
 **Standing flags / open intel:** (1) ORACLE SCAN-FN GENERATIVITY — m2 scan builtins are one-shot; making m2 generative SHIFTS the 143 baseline (Lon's call; scan fence PIN until then). (2) m2 `pos` oracle gap (fence M34-pins) — fix is its own re-baseline rung. (3) `rung36_jcon_scan1` rc=134 `[lower2] UNHANDLED kind=77` (TT_CSET_DIFF) — cset tier. (4) rung02 userproc recursion: m4 depth-4096 / m3 silent-empty — userproc lane. (5) `scan_try_call_builtin` (by_name_dispatch.c:531) dead — deletion candidate. (6) ~150 corpus programs ABORT (rc=-6/-11) in `walk_bb_node` instead of EXCISING — systemic decline-gate pass wanted. (7) swap `:=:` future tier. (8) Open tiers: GZ-DEFER, `bb_binop_gen` Fig-1, native `!x` (IR_LIST_BANG), `rt_call_builtin`. (9) medium-invisible grep misses statement-form `if (MEDIUM_BINARY)` branches — gate hardening. (10) `write(&null)` m3 PRE-EXISTING abort — keyword path, `pat_flat_β` unresolved forward ref (NOT the LIT_NUL arm; `&null` lowers to IR_VAR"&null"→bb_keyword). (11) Pascal `writeln(real)` blank-pads identically m2/m3/m4 — Pascal real path unbuilt, out of Icon scope.
 

@@ -299,17 +299,23 @@ Before implementing ANY construct: grep the canonical sources FIRST.
 
 | Step | Rungs unlocked | M2 delta | Status |
 |------|---------------|----------|--------|
-| ICN-FULL-1 TT_INITIAL | 21, 25 | +5 | ☐ |
-| ICN-FULL-2 TT_LIMIT | 14 | +5 | ☐ |
-| ICN-FULL-3 TT_MAKELIST | 22 (+31,35 partial) | +5 | ☐ |
-| ICN-FULL-4 TT_IDX/SECTION | 16, 20 | +8 | ☐ |
-| ICN-FULL-5 TT_CASE | 33 | +5 | ☐ |
-| ICN-FULL-6 TT_IDX tables | 23, 35 | +8 | ☐ |
-| ICN-FULL-7 TT_FIELD/RECORD | 24 | +5 | ☐ |
-| ICN-FULL-8 TT_CSET_DIFF | 37 subset | +2 | ☐ |
-| ICN-FULL-9 TT_REVASSIGN | 15, 37 | +3 | ☐ |
+| ICN-FULL-1 TT_INITIAL | 21, 25 | +5 | ✅ landed `1589bd5` (partial — BUG-6 initial-once open) |
+| ICN-FULL-2 TT_LIMIT | 14 | +5 | ✅ landed `1589bd5` (partial — BUG-1 body topology open) |
+| ICN-FULL-3 TT_MAKELIST | 22 (+31,35 partial) | +5 | ✅ landed `1589bd5` |
+| ICN-FULL-4 TT_IDX/SECTION | 16, 20 | +8 | ✅ landed `1589bd5` (partial — BUG-4 IDX_SET open) |
+| ICN-FULL-5 TT_CASE | 33 | +5 | ✅ landed `1589bd5` (BUG-2 segfault open) |
+| ICN-FULL-6 TT_IDX tables | 23, 35 | +8 | ✅ landed `1589bd5` (partial — BUG-4 open) |
+| ICN-FULL-7 TT_FIELD/RECORD | 24 | +5 | ✅ landed `1589bd5` (partial — BUG-4 FIELD_SET open) |
+| ICN-FULL-8 TT_CSET_DIFF | 37 subset | +2 | ✅ landed `1589bd5` |
+| ICN-FULL-9 TT_REVASSIGN | 15, 37 | +3 | ✅ landed `1589bd5` (BUG-3 VAR operand open) |
+| **BUG-1 IR_LIMIT body topology** | 14 | fix | ☐ open — lim->α must be generator not chain-entry |
+| **BUG-2 IR_CASE segfault** | 33 | fix | ☐ open — arm chain wiring NULL ptr |
+| **BUG-3 IR_SWAP VAR operands** | 15 | fix | ☐ open — must use nalloc(IR_VAR) not lower2 |
+| **BUG-4 IDX_SET/FIELD_SET** | 13,23,24 | fix | ☐ open — TT_ASSIGN with IDX/FIELD lhs |
+| **BUG-5 pow→real** | 19,26 | fix | ☐ open — BINOP_POW must always return real |
+| **BUG-6 initial once-flag** | 21,25 | fix | ☐ open — ival reset across calls |
 | ICN-FULL-10 find() generative | 08 | +2 | ☐ |
-| ICN-FULL-11 pow() result type | 19, 26 | +8 | ☐ |
+| ICN-FULL-11 pow() result type | 19, 26 | +8 | ☐ (same as BUG-5) |
 | ICN-FULL-12 coerce() | 36, 37 | +5 | ☐ |
 | ICN-FULL-13 keywords | 37 | +3 | ☐ |
 | ICN-FULL-14 scan-alt | 37 | +2 | ☐ |
