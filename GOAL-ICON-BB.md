@@ -1,6 +1,6 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-## ▶ CURRENT PRIORITY (2026-06-06): BB-HYGIENE — HY-7g LANDED (`bc95d97`, gvar/frame-var producer boxes + DELETE operand-kind arms in marshal_call_arg + DELETE gamma-chain walk in marshal_varparam_addr). Next = HY-FENCE: extend `scripts/test_gate_bb_one_box.sh` to Icon-owned files.
+## ▶ CURRENT PRIORITY (2026-06-06): BB-HYGIENE — HY-FENCE LANDED: `test_gate_bb_one_box.sh` extended with ICN_BOX_FILES (32 entries) + ICN_HELPER_FILES (4 entries); PASS; added to Session Setup. Next = GZ-DEFER or BB-REVAMP-TRACKER cursor (`bb_alt.cpp` TIER H).
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`). Keystone for every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them as `g_emit.op_*` scalars (the `walk_bb_node` prologue auto-deposits `op_a_slot`/`op_a_node_kind` and clobbers `op_sval/op_ival/op_dval/op_counter` from the node); the box stays pBB-free and reads only `_`. Shared `x86_asm.h` is additive only; `git pull --rebase` before push.
 
@@ -323,8 +323,6 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 
 Per the NO-DUPLICATED-LOGIC FACT RULE. STRICT ORDER. After EACH step: Icon m2 oracle **143 PASS** byte-identical (HARD), smoke 12/12, purity green, commit. `bb_binop.cpp` split is the WORKED EXAMPLE — copy it. HY-0…7f DONE (de-cram · de-fuse · `!x` · marshal medium-collapse · N-arg slot carrier + frame[0..15] result-slot reservation · LIT_I/S/F/NUL producer adoption + float containment — git log).
 
-- [ ] **ICN-HY-FENCE** — extend `scripts/test_gate_bb_one_box.sh` to Icon-owned files. Pre-audit clean (all Icon box files: 1 entry; all helper files: 0 entries — verified bc95d97). Add ICN_BOX_FILES + ICN_HELPER_FILES lists, update header, run PASS, add to Session Setup gate list, delete HY-7g/7f completed rungs. m2 143 HARD held.
-
 ## Premise
 
 Icon IS a Byrd-Box port-graph; every construct is a box; **no SM, no value stack.** Mode 2: driver calls `bb_exec_once(s2->sm.bb_table[main_bb_idx])` directly; Icon SM stream is empty. Modes 3/4: `lea r10,[rip+Δ_root]; jmp .Lroot_α`; boxes are CODE+DATA in `bb_pool` (m3) or the linked binary (m4); transitions are `jmp rel32` — no call/ret/dispatch/broker/walker/push-pop. Target shape per `test_icon.c`: `_start/_resume/_succeed/_fail` labels wired by flat goto, named per-box slots, three-column LABEL/ACTION/GOTO.
@@ -393,6 +391,7 @@ make libscrip_rt                               # mode-4 needs out/libscrip_rt.so
 bash scripts/test_smoke_icon.sh                # m2 12/12 · m3 12/12 · m4 12/12 (m4 only after libscrip_rt above)
 bash scripts/test_smoke_prolog.sh              # PASS=5
 bash scripts/test_smoke_unified_broker.sh      # PASS>=35
+bash scripts/test_gate_bb_one_box.sh           # PASS: every PL+ICN box file has exactly 1 entry; all helpers 0 (ICN-HY-FENCE)
 ```
 
 ---
@@ -404,8 +403,8 @@ Floor = System V AMD64; durables are callee-saved (canonical semantics = the X86
 
 ## Watermark
 
-**HEAD (SCRIP) = `bc95d97` — ICN-HY-7g LANDED 2026-06-06-g. Columns: m2 143 HARD · m3 31 · m4 41 (baseline identical to HY-7f). HEAD (.github) = this entry.**
-Session 2026-06-06-g (Sonnet 4.6, GOAL-ICON-BB): HY-7g DUP-FORM-3 de-fuse complete. `gvar_callarg_admit` widened to IR_VAR_FRAME/IR_VAR_FRAME_REF/IR_VAR (non-keyword, terminal). `bb_var.cpp` new `g_gvar_flat_chain + slot` arm: NV_GET_fn → [r12+op_off]; `x86_begin()` added to entry (TEXT-mode UID uniqueness; duplicate `.Lx*` label bug closed). `emit_bb.c` IR_VAR walk_bb_node: slot alloc under g_gvar_flat_chain. `marshal_call_arg`: `bb_slot_get(lf)` fallback added (nested marshal_single_call); inline IR_VAR/IR_VAR_FRAME/IR_VAR_FRAME_REF arms DELETED. `marshal_varparam_addr`: gamma-chain walk DELETED. Proof: SNO DOUBLE(A) m2==m3==m4=42; TEXT assembles (no dup labels); suite 143/31/41 held; all gates 0/PASS. Handoff: `SCRIP/HANDOFF-2026-06-06-SONNET46-ICON-BB-HY-7G.md`.
+**HEAD (SCRIP) = `bc95d97` — ICN-HY-7g LANDED 2026-06-06-g. Columns: m2 143 HARD · m3 31 · m4 41 (baseline identical to HY-7f). HEAD (.github) = ICN-HY-FENCE LANDED 2026-06-06-h.**
+Session 2026-06-06-h (Sonnet 4.6, GOAL-ICON-BB): ICN-HY-FENCE COMPLETE. `scripts/test_gate_bb_one_box.sh` extended with ICN_BOX_FILES (32 box files, each 1 extern "C" void bb_* entry) + ICN_HELPER_FILES (bb_call_fn, bb_call_proc_staged, bb_call_userproc, bb_call_write_slot — each 0 entries). Header comment updated to cover PL-HY-FENCE + ICN-HY-FENCE. Gate runs PASS. Added to GOAL-ICON-BB.md Session Setup. Completed rung deleted. m2 143 HARD held; m3 31 · m4 41 baseline unchanged. Refs extracted: icon-master + jcon-master → SCRIP/refs/ (from uploaded zips).
 
 **Standing flags / open intel:** (1) ORACLE SCAN-FN GENERATIVITY — m2 scan builtins are one-shot; making m2 generative SHIFTS the 143 baseline (Lon's call; scan fence PIN until then). (2) m2 `pos` oracle gap (fence M34-pins) — fix is its own re-baseline rung. (3) `rung36_jcon_scan1` rc=134 `[lower2] UNHANDLED kind=77` (TT_CSET_DIFF) — cset tier. (4) rung02 userproc recursion: m4 depth-4096 / m3 silent-empty — userproc lane. (5) `scan_try_call_builtin` (by_name_dispatch.c:531) dead — deletion candidate. (6) ~150 corpus programs ABORT (rc=-6/-11) in `walk_bb_node` instead of EXCISING — systemic decline-gate pass wanted. (7) swap `:=:` future tier. (8) Open tiers: GZ-DEFER, `bb_binop_gen` Fig-1, native `!x` (IR_LIST_BANG), `rt_call_builtin`. (9) medium-invisible grep misses statement-form `if (MEDIUM_BINARY)` branches — gate hardening. (10) `write(&null)` m3 PRE-EXISTING abort — keyword path, `pat_flat_β` unresolved forward ref (NOT the LIT_NUL arm; `&null` lowers to IR_VAR"&null"→bb_keyword). (11) Pascal `writeln(real)` blank-pads identically m2/m3/m4 — Pascal real path unbuilt, out of Icon scope.
 
