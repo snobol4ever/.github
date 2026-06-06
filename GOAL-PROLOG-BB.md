@@ -159,37 +159,6 @@ or that adds a new value-stack array under any name, has violated this rule. **C
 (c) `scripts/test_gate_no_vstack.sh` `g_vstack` line reads 0; (d) the FACT RULE body is byte-identical
 across all five GOAL-*-BB files.
 
-## ⛔ TWO LITERAL FORMS ONLY — MEDIUM_BINARY IS A HAND-CODED LITERAL BYTE MAP; NO FUNCTION MAY COUNT BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
-
-**Every BB template emits its x86 in exactly TWO LITERAL forms, both counted BY HAND.** (1) `MEDIUM_BINARY`
-is a hand-coded LITERAL byte map — `bytes("\x..")` opcode literals plus a LITERAL patch-offset map
-(`bin = {{13,65,80,84,95}, {…}, {…}}` with HARDCODED constant offsets). (2) `MEDIUM_TEXT` is literal GAS asm.
-Both forms are LITERALS. This is DELIBERATE, not a stopgap: a single shared/computed template proved
-unmaintainable — it kept getting split apart — so each box is its own small template carrying its own
-hand-coded byte map, and that literal form is the one that stays correct. (Lon directive, 2026-06-01 —
-re-issued after a session INVERTED it: literal bytes + literal asm are RIGHT; the function-counter is WRONG.)
-
-**FORBIDDEN — the ONLY thing that makes a site BAD: using a FUNCTION to count or compute the bytes.**
-Specifically `b.size()` in any form (`bin.sites.push_back((int)b.size())`, `int off = (int)b.size()`,
-`int mr_off = (int)b.size()`), or any helper that DERIVES a patch offset from the running buffer length
-instead of a hardcoded literal constant. Every offset in `bin` must be a LITERAL integer, never a function
-of the buffer. (CARVE-OUT: `bb_emit_asm_result` in `emit_str.cpp` may walk the FINISHED byte string with
-`.size()` when it emits/patches — that is the consumer reading a complete literal, NOT a template counting
-its own bytes; the prohibition is on a TEMPLATE deriving its patch offsets from a function.)
-
-**NOT bad — explicitly allowed, do NOT flag or "fix" these:** hand-written `bytes("\x..")` opcode literals;
-hardcoded `bin = {{…},{…},{…}}` literal offset tuples; literal internal rel32 deltas (`+65`, `-98`) written
-as constants; `u8()/u32le()/u64le()` building literal immediates; `TEMPLATE_ADDR_*` address bakes. These ARE
-the hand-coded byte map — the CORRECT, supported form. A box that hand-encodes bytes with literal offsets is GREEN.
-
-**GUARD:** `scripts/test_gate_no_handencoded_bytes.sh` (informational baseline now; flips to a HARD `--strict`
-zero-check). It counts, per `BB_templates/*.cpp` (comments stripped), every `b.size()` — the function
-byte-counter — which is the ONLY bad pattern. The count only ever decreases as `b.size()` sites are rewritten
-to literal offset maps; any session that raises it has violated this rule. **COMPLETION TEST:** (a)
-`scripts/test_gate_no_handencoded_bytes.sh --strict` green — zero `b.size()` in any `BB_templates/*.cpp`;
-(b) every `MEDIUM_BINARY` arm uses a hand-coded LITERAL byte map with hardcoded offsets, never a function to
-count bytes; (c) the FACT RULE body is byte-identical across all five GOAL-*-BB files.
-
 ## ⛔ SHARED-LOWERER ONE-FILE CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
 The AST→IR lowerer’s SHARED SPINE is **ONE file** — `src/lower/lower.c` — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** for the co-located languages. **AMENDED (Lon 2026-06-04): the shared IR graph is the LANGUAGE-INDEPENDENT contract — LOWER splits per language.** Prolog’s goal-role family now lives in `src/lower/lower_prolog.c` (`d6d93c6`; shared helpers de-static’d into `lower_internal.h`); remaining languages stay co-located in `lower.c` until Lon splits them out. The discipline below keeps concurrent sessions **conflict-free and mutually beneficial**:
