@@ -1,5 +1,8 @@
 # GOAL-PROLOG-BB-BYRD — Wire Prolog into the Byrd Box Broker
 
+## ⛔ FACT RULES POINTER (Lon 2026-06-06)
+ONE MEDIUM, INVISIBLE + TEMPLATE-ONLY EMISSION (corrected): canonical text in GOAL-SNOBOL4-BB.md / GOAL-ICON-BB.md / GOAL-PROLOG-BB.md / GOAL-RAKU-BB.md and RULES.md. ZERO BINARY emission anywhere in a `bb_*.cpp` (top level or helpers); `x86()` internals are the ONLY emitter of BINARY and TEXT.
+
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
 ╠══════════════════════════════════════════════════════════════════════════════════════════════════╣

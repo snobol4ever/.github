@@ -1,5 +1,8 @@
 # GOAL-ICON-BB-NATIVE.md — Icon via native Byrd Box templates
 
+## ⛔ FACT RULES POINTER (Lon 2026-06-06)
+ONE MEDIUM, INVISIBLE + TEMPLATE-ONLY EMISSION (corrected): canonical text in GOAL-SNOBOL4-BB.md / GOAL-ICON-BB.md / GOAL-PROLOG-BB.md / GOAL-RAKU-BB.md and RULES.md. ZERO BINARY emission anywhere in a `bb_*.cpp` (top level or helpers); `x86()` internals are the ONLY emitter of BINARY and TEXT.
+
 **STATUS (2026-06-04, Lon prune directive): SUPERSEDED-ERA GOAL.** The IB-* rung ladder and its watermark were
 pre-GROUND-ZERO-3 SM/value-stack work (last session 2026-05-12) and are PRUNED. **The live Icon ladder is
 `GOAL-ICON-BB.md`.** This file is retained for its doctrine sections only (architecture distinction, box
