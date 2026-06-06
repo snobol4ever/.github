@@ -19,9 +19,14 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — session 17 (2026-06-06): PB-9f CLOSED — record-field/heap m3-m4 wall down; the entire
-Pascal probe corpus is 36/36 across m2+m3+m4** (every existing `.pas` probe green in every mode, including
-the formerly-segv ptr5 and the whole rec/ptr/set families; recursion fact-7 line `7 5040 13` intact).
+**Watermark — session 18 (2026-06-06, Sonnet): Boolean semantics audit — no code committed; prior
+36/36 held.** Read pcom.pas + pint.pas end-to-end. Found three latent bugs not covered by any existing probe:
+(1) `not b` is goal-directed inversion (swaps γ/ω) instead of boolean NOT (0↔1); (2) `b := relop_false`
+kills the program silently instead of assigning INTVAL(0); (3) `b := relop_true` assigns rv (the rhs value)
+not INTVAL(1). Also confirmed: `writeln(boolean_expr)` is error(399) in P4 Pascal — that write path is
+intentionally unsupported; the probe explored earlier was invalid Pascal and the investigation was correctly
+terminated. Hop>1 var-param paths (nestvar/nestvar2/nestvar3 probes, m2+m3+m4) confirmed green — not
+committed as no code changed. New PB-10a/10b/10c ladder added below.
 
 Root cause: `marshal_call_arg`'s inline gvar-arith arm (bb_call.cpp) admitted only LIT/VAR/FRAME operand
 shapes; a BINOP arg with builtin-call operands (`arr_get`/`__pas_deref`) failed the gate and silently fell
@@ -56,12 +61,10 @@ Mechanism inventory (terse; detail in git history + HANDOFF-*.md):
   (funcname-as-return-variable, recursion-safe). Binop templates `bb_binop_gvar_{relop,arith_slot}.cpp`:
   LIT-imm / VAR / slot operand shapes; slot disp +8 for DESCRs, +0 for raw qwords.
 
-NEXT (candidate rungs, none blocking): (a) nested var-param hardening probes — hop>0 LEA paths supported
-but only hop 0/1 gate-covered; (b) relop-final arg chains in the marshal still fall through silently
-(cover or bomb); (c) `.Lcallarg%d_%d` LIT_S labels can collide for two string-arg operand calls under one
-owner (no current traffic hits it); (d) LB-7-NEW below, parked on ICN-SCAN. New probes may open new walls —
-the ladder stays open at PB-10. Landmine: Makefile compile rules for templates are explicit — `touch` the
-template before `make scrip` or the .o may not rebuild.
+NEXT: PB-10a (parser) → PB-10b (marshal m3/m4 call-arg) → PB-10c (assignment m3/m4). Landmine:
+Makefile compile rules for templates are explicit — `touch` the template before `make scrip` or the .o may
+not rebuild. Hop>1 var-param paths (nestvar/nestvar2/nestvar3, 3-level nesting through static links)
+confirmed green m2+m3+m4 — commit them as part of PB-10a gate suite.
 
 ---
 
@@ -182,8 +185,36 @@ cd /home/claude/corpus/programs/pascal
   - [x] **PB-9f** — record-field/heap m3-m4 wall: inline-arith marshal accepts CALL + nested-BINOP
     operands across both binop layouts (operand_aux sidecar, sg threaded); single-call label fix.
     Session 17 (watermark above).
-- [ ] **PB-10 — open.** No failing probe today; the next rung is whatever the next probe demands
-  (candidates in NEXT above).
+- [ ] **PB-10a — boolean operators: parser-only fix (m2 + sets up m3/m4).** Three bugs confirmed by
+  reading pcom.pas/pint.pas and probing (see session 18 watermark). All three invisible to existing probes.
+  Changes all in `pascal.y` only; regen `pascal.tab.c` with bison (1 s/r conflict = pre-existing, expected).
+  - `pas_bool(e)`: if `pas_is_rel(e)`, wrap as `TT_IF(e, ilit(1), ilit(0))`; else return e unchanged. Add
+    after `pas_cond` in the `%{ ... %}` section.
+  - `not b`: change grammar arm `NOTSY factor { $$ = un(TT_NOT, $2); }` to emit
+    `TT_IF(pas_cond($2), ilit(0), ilit(1))` — if factor truthy → 0; else → 1. Boolean NOT as a value.
+    This is the same IF-wrapping used for if/while conditions, but inverted (swapped then/else literals).
+  - `b := relop`: change `assignment: selector BECOMES expression` to apply `pas_bool($3)` to the RHS.
+    Fixes both the "silent death on false" bug and the "rv instead of 1 on true" bug in m2.
+  - Proc arg boolean: apply `pas_bool($1)` to value expression in `argument:` rule (width expression `$3`
+    is NOT wrapped — it is always an integer).
+  - **Gate**: new probes `boolassign.pas` (b:=relop, all six relops), `boolnot.pas` (not/and/or chains),
+    `nestvar.pas`/`nestvar2.pas`/`nestvar3.pas` (hop>1 var-param, already green — commit as gate). All m2.
+    Baseline: 36/36 must hold; sieve.pas still correct (boolean array unaffected). SNOBOL smoke 19/0.
+- [ ] **PB-10b — boolean marshal fix (m3/m4 call-arg).** After PB-10a, the IR for `writeln(f(b_expr))`
+  or `proc(relop)` has a `TT_IF(relop, 1, 0)` subgraph as the arg. Entry node of that subgraph is
+  `IR_VAR_x` (lhs of relop), NOT the IR_BINOP; the γ-chase finds `fin=IR_LIT_I(1)` (then-branch) and the
+  IR_BINOP itself sits between lf and fin with `ω→IR_LIT_I(0)`. The existing marshal falls into the gvar-read
+  arm (reads lf=IR_VAR_x, emits x's value). Fix in `marshal_call_arg` (bb_call.cpp): walk γ chain from lf to
+  find IR_BINOP with `arith_is_relop`; confirm `fin→t==IR_LIT_I(1)` and `relop_nd→ω→t==IR_LIT_I(0)`;
+  `arith_operands` to get lhs/rhs; emit CMP + conditional INTVAL(0/1) store using `x86_jcc_id`/
+  `x86_deflabel_id` (IDs 0,1 — safe for ≤1 relop arg per call). Also add `arith_is_relop` + `relop_fail_mnem`
+  static helpers (duplicated per RULES, not shared). **Gate**: m3+m4 versions of PB-10a probes.
+- [ ] **PB-10c — boolean assignment RHS (m3/m4).** `b := pas_bool(relop)` lowers the RHS as
+  `TT_IF(relop, 1, 0)`, producing an IR_IF subgraph. In gvar flat-chain mode the assignment template reads
+  the RHS subgraph's "final" value by γ-chase; for a TT_IF subgraph the γ chase finds the then-branch
+  literal (IR_LIT_I(1)) and emits a constant store — ignoring the conditional. Diagnose the exact IR shape
+  produced by `v_assign(TT_ASSIGN(b, TT_IF(...)))` in gvar mode, then add the needed detection arm (likely
+  in `bb_gvar_assign.cpp` or `bb_assign_frame.cpp`). **Gate**: m3+m4 boolassign/boolnot probes.
 
 ---
 
