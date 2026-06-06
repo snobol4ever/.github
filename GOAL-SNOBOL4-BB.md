@@ -361,7 +361,7 @@ Open arms: L2-B2/C/D/E/F/G/H value-role (loop-escapes/limitation/assignment/call
 
 ## Session log
 
-**Watermark (SNO-HY-3a; origin/main=`75b5bd6`, rebased over ICN-HY-7f `e642753` zero-overlap, merged tree re-verified; 2026-06-06 Opus 4.8).** Lit-rhs split landed per 13-site recipe. Floors: smoke 19/19 (m2 7/7 HARD) · M3-native 19/19 · rung M2=18/M4=18 (053 pre-existing) · REG-FENCE 0 HARD · no_brokered 0 · no_bb_bin_t 0 · g_vstack 0 · purity floor 2 · prove_lower2 66 exit 0 (66 BOTH trees this container; old "68" = env/counter drift — ALWAYS stash-baseline) · per-kind gate red BOTH trees (container baseline GONE=1115). Probes /tmp/hy3/. Manual: `/mnt/user-data/uploads/1-spitbol-manual-v3_7.pdf`. **NEXT: SNO-HY-3b, or Lon pins 3c.**
+**Watermark (SNO-HY-3a + HQ PRUNE; SCRIP origin/main=`3ffff27` (3a=`75b5bd6` + tracker prune), .github prune=`778317ee`; rebased over ICN-HY-7f `e642753` zero-overlap, merged tree re-verified; 2026-06-06 Opus 4.8, ended ~80% per law 7, no WIP).** Lit-rhs split landed per 13-site recipe. Floors: smoke 19/19 (m2 7/7 HARD) · M3-native 19/19 · rung M2=18/M4=18 (053 pre-existing) · REG-FENCE 0 HARD · no_brokered 0 · no_bb_bin_t 0 · g_vstack 0 · purity floor 2 · prove_lower2 66 exit 0 (66 BOTH trees this container; old "68" = env/counter drift — ALWAYS stash-baseline) · per-kind gate red BOTH trees (container baseline GONE=1115). Probes /tmp/hy3/ (container-ephemeral). Manual: `/mnt/user-data/uploads/1-spitbol-manual-v3_7.pdf`. HQ PRUNE landed (this file, PLAN rows→pointers, tracker [x] tersed); lockstep FACT RULE bodies + RULES.md + GOAL-BB-FIXUP.md deliberately untouched — compressing FACT RULES = a 5-file lockstep rung on Lon's word. **NEXT: SNO-HY-3b, or Lon pins 3c.**
 
 ## Session Setup
 
