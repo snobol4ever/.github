@@ -12,23 +12,24 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ STATE (2026-06-06 — PL-GZ-6b)
+## ▶ STATE (2026-06-06 — PL-GZ-7a)
 
 **PROLOG GROUND ZERO (Lon 2026-06-04): development RESET to square one on the Proebsting-pure track — the
 🔴 PL-GZ ladder below.** PL-M34/PL-BBL ABSORBED into PL-GZ; PT/WAM-CP LEGACY (see LEGACY DISPOSITION).
-Watermark: SCRIP HEAD `35cf032` — **PL-GZ-0..4 + 5a + 5b + 5c + 6 + 6b LANDED** (details collapsed into the ladder entries).
+Watermark: SCRIP HEAD `7a7bf75` — **PL-GZ-0..4 + 5a + 5b + 5c + 6 + 6b + 7a LANDED** (details collapsed into the ladder entries).
 Gates: GATE-1 m2 **5/5 HARD** · m3 4/0/1-EXC (`recursion` only — cut+arith clause, flips by GZ-8) · m4 5/5; GATE-3 m2
 **115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (the 10 = PT-4b retract/abolish); coupling ceilings
 choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b/5c/6/6b gates
-PASS, all corrupt-proven (5c neg1 RATCHETED to query-level cut). Siblings: Icon m2 12 (m3/m4 10/12 standing) · SNOBOL4 smoke 19/19. Grounding:
+PASS, all corrupt-proven (5c neg1 RATCHETED to query-level cut); gz7 PASS (behavioral cross-mode pin — corrupt-proof + GZ-path ratchet arrive with 7b). Siblings: Icon m2 12 (m3/m4 10/12 standing) · SNOBOL4 smoke 19/19. Grounding:
 Proebsting paper (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_pl_1.c` +
 `test_sno_1/2/3/4.c` + `test_icon.c` in `.github/` · reset rationale
 `HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`.
-Next opener: **PL-GZ-7** — ITE, paper §4.5 ifstmt template VERBATIM; sweeps the m2 commit-bug
-cluster: ITE-commit (WAM-CP-9) + the logged mid-cut pre-cut-generator resume gap + the gz6b-logged
-disj-resume re-walk (B-segment failure re-enters the exhausted soft-disj in m2; gprolog canon =
-trust_me_else_fail deletes the disj CP on the last arm — m3/m4 already canon-true; recipe in
-`HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-6B-TWO-SEGMENT.md`).
+Next opener: **PL-GZ-7b** — the new-path §4.5 ifstmt box (`IR_CELL_ITE`, bounded condition by
+unreferenced β wiring, gate row = the bb_cell_choice cursor-β indexed-goto dialect); recon complete,
+implement straight from `HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-7A-LANDED-7B-RECIPE.md`. The 7a
+half (m2 oracle ITE-commit, WAM-CP-9) is LANDED + gated; the cluster remainder (gz6b disj
+trust_me_else_fail — ROOT-CAUSED to the GCONJ-resume↔disj-advance control path, liveness proven NOT the
+gate — and the mid-cut pre-cut-generator gap) is folded under 7b as legacy-m2 sweeps.
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -549,9 +550,42 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
   `trust_me_else_fail`; wam_inst.c `Pl_Delete_Choice_Point`) deletes the disj CP on entering the
   LAST arm — B's failure must NOT re-enter; m3/m4 match canon AND the seed. GATE-1/GATE-3 counts
   byte-identical pre/post.
-- [ ] **PL-GZ-7 — ITE**: paper §4.5 ifstmt template VERBATIM (bounded condition + gate). FIX THE m2 ORACLE
-  to canon — `( a(X),X>=2 -> true ; X=0 )` → `2` (absorbs WAM-CP-9; the swipl citation is REPLACED by the
-  paper; re-baseline audit of any rung that matched the buggy m2).
+- [x] **PL-GZ-7a — ITE m2 ORACLE to canon (§4.5 bounded condition)** *(2026-06-06, `3d9ccfd`; gate
+  `7a7bf75`)*: `( a(X),X>=2 -> true ; X=0 )` fail-driven — m2 was `2 3 0`, now `2`, m2 == m3 == m4.
+  `IR_ITE` marks the CP ledger + resets `committed` on every forward entry (stateless — the published
+  construct β = ω_in means in-conjunction redo bypasses the node, so every arrival IS forward);
+  `IR_ITE_COMMIT` on cond.γ truncates the condition's CPs at first success; `IR_ITE_GATE` on cond.ω routes
+  post-commit condition exhaustion to ω_in instead of Else (§4.5 E1.fail gate). `IR_CHOICE` liveness made
+  ledger-coherent (cp-membership generalizes gz6 `cp_cut_away`) — the goal-spine never re-walks a bounded
+  condition. `\+` and `\=` share the bound. Construct semidet (β = ω_in), m2 now AGREEING with the m4
+  flat_drive_ite β→ω tombstone. m4 untouched BY CONSTRUCTION (legacy walker is structure-driven; the new
+  kinds are γ/ω-edge-only — but whitelisted in `pl_rich_node_emittable`, whose g->all default-reject would
+  otherwise de-admit every ->/\+ graph from RICH). Gate `test_gate_pl_gz7.sh` (commit · barecall ·
+  reentry · semidet · negbound, m2==m3==m4==canon). GATE-1/GATE-3 byte-identical pre/post; ZERO
+  re-baselines. Absorbs WAM-CP-9. ACCEPTED CAVEAT: per-NODE cp_mark/committed — recursive
+  ITE-in-condition under-truncates (legacy-only; 7b frame rows are per-activation). LOGGED: the gz6b disj
+  divergence is NOT liveness-reachable — isolated (disj alone canon; disj + ANY failing later goal = `a a`)
+  to the GCONJ backward-resume threading the static β-chain into arm0's self-reset internals; a last-arm
+  liveness guard was implemented, proven ineffective, REVERTED; fix point = GCONJ-resume↔disj-advance
+  control path; the rebased `cs->disj_hint`/`cp_floor` scaffolding is orthogonal. Full notes:
+  `HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-7A-LANDED-7B-RECIPE.md`.
+- [ ] **PL-GZ-7b — ITE new-path box, paper §4.5 ifstmt VERBATIM**: `IR_CELL_ITE` onto the GZ substrate.
+  §4.5 in the house dialect: E1 success → gate row ← 1, jmp E2.α; E1 fail-landing → gate ← 2, jmp E3.α;
+  ifstmt.β → cmp/je gate dispatch to E2/E3 resume (the bb_cell_choice cursor-β idiom = the paper's
+  indirect goto); E2/E3 fail → ifstmt.ω; **E1's cell β labels emitted UNREFERENCED = the condition CP
+  deleted structurally** (cut-cell pure-wiring; for a CELL_CHOICE condition this IS Delete_Choice_Point;
+  coupling stays 0). Det branches degenerate (gz6b dval precedent). Driver: `pl_gz_ite_state_t`
+  {cond/then/else chain heads, gate_slot}; `pl_gz_build_goal` IR_ITE arm recursing the SAME builder over
+  the zi roots (NO-DUP; GCONJ → zs->goals[]; SUCCEED → empty); synth/cslot through `pl_gz_count_synth`;
+  `bb_kind_is_driver_owned` += the kind. Emitter: recursive sub-chain drive (gz_emit_callee pgl/pgb
+  scheme; CELL_CUT cl_ω ternary preserved inside branches) + `bb_cell_ite.cpp` aspects (Makefile ×2).
+  m3 ≡ m4 by construction. Floor probes: fact-unify conds; MONEY probe = choice cond `p(a). p(b).
+  ( ( p(X) -> write(X) ; write(n) ), nl, fail ; true )` → exactly `a` all modes (m2 canon pinned at 7a).
+  Arith conds wait for GZ-8 (the 7a headline stays legacy until then). Ratchet `test_gate_pl_gz7.sh`:
+  GZ-path markers + declines + corrupt-proof (gate 1↔2 → loud). Sweeps the cluster remainder: gz6b disj
+  trust_me_else_fail at the GCONJ-resume↔disj-advance control path (diagnosis at 7a) + the logged mid-cut
+  pre-cut-generator gap — both legacy-m2-only, already shadowed by m3/m4 canon; sweep only if a ratchet
+  demands m2 parity, else the FENCE deletes the machinery.
 - [ ] **PL-GZ-8 — arith/is + builtins**: re-admit the x86()-revamped bb_builtin families onto the new
   substrate.
 - [ ] **PL-GZ-9 — corpus reconquest**: ratchet all 115 rungs onto the new path with per-rung m3/m4 verdicts
@@ -570,7 +604,7 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
 | **PL-M34** | ABSORBED — its LAW (m3 ≡ m4) is PL-GZ's construction principle (rungs 2 + 9); ladder retired unstarted. |
 | **PL-BBL** | SUBSUMED — its ledger rows became THE LAWS above; its FENCE is PL-GZ-FENCE; ladder retired unstarted. |
 | **PT** | PT-0 predicate table SURVIVES (seed-compatible). PT-1b meta rail = STARVE AND DELETE at PL-GZ-9. PT-2 findall admissions = legacy-path only until PL-GZ-9. PT-3 catch CP-truncate/ball-copy LAW re-lands at PL-GZ-9. PT-4a re-lands at PL-GZ-9. PT-4b's B-full LAW is absorbed into PL-GZ-9. |
-| **WAM-CP** | CLOSED as a track (the name cites an abandoned authority). Survivors: CP-7 unify specializations → PL-GZ-3 · CP-9 → PL-GZ-7 (paper canon) · CP-8 first-arg indexing + CP-11/12 + PL-INDEX-L2-1 → post-FENCE optimization tier · CP-13 moot at PL-GZ-9. |
+| **WAM-CP** | CLOSED as a track (the name cites an abandoned authority). Survivors: CP-7 unify specializations → PL-GZ-3 · CP-9 ABSORBED at PL-GZ-7a (paper canon) · CP-8 first-arg indexing + CP-11/12 + PL-INDEX-L2-1 → post-FENCE optimization tier · CP-13 moot at PL-GZ-9. |
 | **Legacy m4 path** | Remains the GATE-3 suite runner ONLY as scaffolding during reconquest; a program admitted to the new path NEVER falls back; each legacy mechanism is deleted when its last rung migrates. |
 
 ## ⏸ PT — PREDICATE-TABLE META-CALL SUBSTRATE (LEGACY at 2026-06-04 RESET — see LEGACY DISPOSITION; Lon approved 2026-06-03)
