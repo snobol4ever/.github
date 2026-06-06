@@ -303,8 +303,6 @@ Locked callee-saved layout the three concurrent BB sessions MUST share (canonica
 
 **RETIREMENT (all three sessions must honor):** the old **`Ω`** (omega — mode-2 `refs/bb/test_*.c` oracle) and **`Σlen`** (mode-3/4 `bb_pat_*.cpp` templates) are ONE quantity under two names → **both fold into `Δ`**; always moved in lockstep. Rename sweep: `Δ(old cursor)→δ`, `Ω→Δ`, `Σlen→Δ`. Substring nesting is held on the C stack (`save_Σ`/`save_Σlen`), so ONE length register suffices. **Pre-flight gate before deleting a name:** grep that no path ever sets `Σlen ≠ Ω`. Changing any assignment in this table is LOCKSTEP — update all three GOAL files in the SAME commit (mirrors the SHARED-LOWERER / EMITTER FACT RULES).
 
-## 🧹 COMMENT & BLANK-LINE PURGE — DONE 2026-05-31 (187 files, 72,442→60,455 lines; detail in git log).
-
 ## ⛔⛔ GROUND ZERO 3 — STACKLESS REBUILD (Reset 2026-05-30) ⛔⛔
 
 **Third ground-zero reset; the wrong premise both prior times: a value stack.** A complete stackless emitter
@@ -376,21 +374,8 @@ FACT 0, smokes hold.
 - [ ] **GZ-11+ — corpus features rebuilt stackless** (lists, tables, records, scanning, csets,
   builtins, sort, ...). Each: read the canonical JCON/Icon source first, then a flat slot/arena
   template, gated m2==m3 + zero-SM + no-stack=0 + no corpus regression.
-  - [x] **DONE:** chain-entry sentinel + unary-minus + slot-concat (`10f6863`); REG-RO + int-literal slot producer →
-    `write(2+3)` native m3/m4 (`da9859c`); IR_LIT_S slot + `x86_ro_seal_str` string REG-RO → `write("a"||"b")` native
-    (`186b9b0`). See watermark.
-  - [ ] remaining GZ-11+ families: `not`/`size`/`nonnull` stackless `bb_unop`; **relop tiers
-    (`if_expr`/`while`/`until`/`repeat_break`) NOT LIT — (PARTIALLY SUPERSEDED 2026-06-04-e: the "assigned var has no
-    ζ-slot" half is CLOSED by ICN-VAR-1 `bb_assign_local` varslots; remaining = the binop/relop operand-read arms +
-    the if/relop GZ-8 control flow — see the ICN-VAR LADDER, step VAR-2)**; generator-operand binops (Fig-1 native
-    m3/m4); `rt_call_builtin` (find/upto/many/any).
-  - [x] **`bb_to` NATIVE — DONE (`b48f0cd`).** Stackless int-range generator; the `every`→generator re-pump
-    back-edge (generator-β chain edge) landed with it.
-  - [x] **`bb_alt` NATIVE — DONE (`eca2dcb`).** Counter-driven alternation generator, ≤5 literal arms, precisely
-    gated (nested/mixed shapes EXCISE `[SMX]`).
-  - [x] **`bb_gen_scan` NATIVE + `&subject`/`&pos` keyword producer — DONE (`d46b943`).** `?` env ENTER/LEAVE glue
-    over the scan LEDGER (env save/restore, not a value stack); `&kw` lowers as `IR_VAR("&kw")` → `bb_keyword`.
-    Scan-value slot propagation + generator subjects = ICN-VAR-3 / a future wave.
+  - [x] **DONE:** chain-entry sentinel/unary-minus/slot-concat · REG-RO int+string slot producers (`write(2+3)`, `write("a"||"b")` native) · `bb_to` (generator-β re-pump edge) · `bb_alt` (≤5 literal arms, precise gating) · `bb_gen_scan` + `&kw` keyword producer. Hashes in git log.
+  - [ ] remaining GZ-11+ families: `not`/`size`/`nonnull` stackless `bb_unop`; relop-tier control flow remainder (binop/relop operand-read arms — see ICN-VAR LADDER summary); generator-operand binops (Fig-1 native m3/m4); `rt_call_builtin` (find/upto/many/any).
 
 ---
 
@@ -440,177 +425,19 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 
 Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step: Icon m2 oracle **129 PASS** byte-identical (HARD; 130→129 = SUITE-HONESTY rc-fix, the rung36_jcon_proto vacuous pass removed), smoke 12/12, purity green, commit. **`bb_binop.cpp` split is the WORKED EXAMPLE — copy it.** The de-cram steps are prep; **ICN-HY-7 (de-dup + RT-fix) is the core fix** — collapse any logic written twice.
 
-- [x] **ICN-HY-0 … ICN-HY-3 — DONE.** ICN-HY-0 `bb_binop.cpp` de-cram (523→38 router + per-shape files, `2f72ce1`); ICN-HY-1 de-fuse bb_binop — IR_LIT_S slot + `x86_ro_seal_str` string REG-RO, `write("a"||"b")` native, ZERO DUP-FORM-3 fusion remains (`186b9b0`); ICN-HY-2 `bb_call.cpp` de-fuse + de-cram (459→207 router + 4 shape files, `write(42)`/`write("hello")` to flat-chain slot path, `3487a90`); ICN-HY-3 Icon bang `!x` — lower `TT_ITERATE`→`IR_LIST_BANG` (m2 oracle, corpus 127→130) + staged native `bb_iterate` (dormant — xchain doesn't route it yet; EXCISES `[SMX]`), `f935c3b`. Full detail in watermark + git log.
-- [x] **ICN-HY-4/5/6 — CLOSED (two audits + `4df5bfd`, 2026-06-04).** HY-4 moot (`bb_binop_gen.cpp` absent, zero
-  refs); HY-5 `bb_to.cpp` already the sanctioned 95%-grouped form + the one defect FIXED (pBB reads →
-  `_.op_node_kind`/`_.op_ival` prologue carriers); HY-6 `bb_lit_scalar.cpp` 50 lines, all-literal, no split needed.
-- [ ] **ICN-HY-7 — de-dup + RT-fix, all Icon boxes.** Any algorithm appearing in both a TEXT and BINARY arm → DELETE both, replace with one `rt_*` call (marshal slots, call helper). No emit-time value work.
-  **LANDED (HY-7a `6764f03` + HY-7b `000158f`):** four shared `x86_reg_disp32_*` encoders replaced the five
-  per-file raw-byte helpers (medium-invisible 363→343; every remaining site = documented Prolog-lane `bb_builtin_*`);
-  `rt_pop_write_*` ERADICATED (**icn_no_stack 10→0 — the GROUND ZERO 3 target REACHED**); all six bb_call-family
-  files read only `_` (carriers `op_dval`/`op_counter` added — STRUCT-LAYOUT LESSON: clean-rebuild ALL objs after any
-  `g_emit` change). **REMAINING = DUP-FORM-3 marshal fusion** — `marshal_call_arg`/`marshal_varparam_addr` read
-  operand-subgraph `->t/->ival/->sval/->dval`; BLOCKED on the standing lowerer PREREQ (chain literal operands as
-  producer boxes, the GZ-3/GZ-4 class): lowerer rung first, then delete the operand-kind arms. FENCE intel:
-  `scripts/test_gate_bb_one_box.sh` is PROLOG-SCOPED — extend its file set to Icon AFTER the fusion fix or it
-  arrives RED. **LANDED (HY-7c `58af8d3`, 2026-06-06):** `marshal_call_arg`'s lit/var tail — the same marshal
-  algorithm in twin `if(MEDIUM_TEXT)/else if(MEDIUM_BINARY)` statement-form arms — collapsed to ONE
-  medium-invisible `x86()` body; the BINARY LIT_S absolute-`sval`-pointer RO violation fixed (in-band
-  `x86_ro_seal_str` + rip-relative load, both media). **PREREQ VERDICT: the 2026-06-01 lowerer blocker is STALE** —
-  `descr_chain_operand_refs` + `flat_emit_arg_subchain` + `bb_slot_get(terminal)` (live since SCAN-7 /
-  `flat_drive_userproc`) IS the producer-box chaining; the DUP-FORM-3 deletion is UNBLOCKED and needs: N-arg slot
-  carrier + per-shape driver adoption + delete the operand-kind arms in `marshal_call_arg`/`marshal_varparam_addr`.
-  GATE-INTEL: the medium-invisible grep counts only the `IF(MEDIUM_BINARY,…)` MACRO form — statement-form medium
-  branches are a blind spot (total stayed 347 across this fix); gate-hardening candidate.
-  **LANDED (HY-7d `1ec4252`, 2026-06-06):** the N-arg slot carrier + FIRST DUP-FORM-3 de-fuse slice —
-  `g_emit.op_arg_slot[16]`/`op_arg_slot_n` (struct-END append, no offset shifts) + `gvar_drive_call_arg_slots`
-  (emit_bb.c): pre-scans admitted args (terminal `IR_LIT_I`, leading SUCCEED/FAIL resolved), **RESERVES
-  frame[0..15]** before any pre-alloc (the gvar proc-RESULT slot — `descr_flat_chain_build_proc` reserves it,
-  the gvar builds did NOT; latent function-result corruption found+fixed, proven by the nested
-  `F=G(10)+X; OUTPUT=F(1)`→21 stress probe), emits each admitted arg as a `bb_lit_scalar` producer box
-  (`g_gvar_callarg_live` window widens the LIT_I arm + the walk case slot-alloc), deposits terminal slots;
-  `marshal_call_arg` slot-first arm = owner-guarded (`owner == _.node`) pure 16B `[r12+ps]→[r12+aoff]` copy,
-  ZERO `lf->t` reads, medium-invisible. Wired BOTH gvar call branches: dval==3.0 (Pascal) + dval==2.0 (SNOBOL
-  TT_FNC; DEFINE 5.0 excluded). Carrier reset at `case IR_CALL` top (no cross-call staleness); nested
-  `marshal_single_call` args fall through by the owner guard (their adoption = a later slice). The LIT_I/F/NUL/S
-  operand-kind arms REMAIN as fallback until all shapes adopt — the deletion is the ladder's last slice.
-  **LANDED (HY-7e `447edd9`, 2026-06-06):** LIT_S adoption — admit terminal `IR_LIT_S`; the `IR_LIT_S` walk case
-  + the `bb_lit_scalar` LIT_S arm widened to the `g_gvar_callarg_live` window (3-line diff). Probes SNO
-  `F('AB')`→ABAB / PAS `writeln('hello')` m2==m3==m4 incl. gcc-linked m4; string sealed RO `[rip+disp]`; suite
-  143/30/40 byte-identical; smokes icon 12/10/10 · sno 7/6/6 · prolog 5.
-- [ ] **ICN-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Icon-owned files. m2 129 HARD held.
+- [x] **ICN-HY-0…6 — DONE.** bb_binop de-cram (the worked example) · de-fuse via IR_LIT_S REG-RO · bb_call de-cram · `!x` lower+staged native · HY-4 moot / HY-5 fixed / HY-6 clean. Hashes: `2f72ce1 186b9b0 3487a90 f935c3b 4df5bfd`.
+- [ ] **ICN-HY-7 — de-dup + RT-fix, all Icon boxes.** Any algorithm appearing in both a TEXT and BINARY arm → DELETE both, ONE `rt_*` call (marshal slots, call helper). No emit-time value work.
+  **LANDED:** HY-7a/b `6764f03`/`000158f` — shared `x86_reg_disp32_*` encoders; `rt_pop_write_*` ERADICATED (**icn_no_stack 0 — the GROUND ZERO 3 target REACHED**); STRUCT-LAYOUT LESSON: clean-rebuild ALL objs after any `g_emit` change. HY-7c `58af8d3` — marshal lit/var tail medium collapse to ONE x86() body + LIT_S abs-pointer RO fix + PREREQ VERDICT: the 2026-06-01 lowerer blocker is STALE (`flat_emit_arg_subchain` machinery satisfies it). HY-7d `1ec4252` — **N-arg slot carrier** `g_emit.op_arg_slot[16]` (struct-END append) + `gvar_drive_call_arg_slots`: pre-scan admits (terminal LIT_I, SUCCEED/FAIL resolved) → **frame[0..15] RESULT-SLOT RESERVATION** (the gvar builds didn't reserve the proc-result slot `descr_flat_chain_build_proc` does; latent function-result corruption found+fixed, nested `F=G(10)+X`→21 proof) → producer boxes + terminal-slot deposit; `marshal_call_arg` slot-first arm = owner-guarded (`owner == _.node`) pure 16B copy, ZERO `lf->t` reads; wired dval==2.0 (SNOBOL TT_FNC, DEFINE excluded) + 3.0 (Pascal); carrier reset at case-top. HY-7e `447edd9` — LIT_S adoption (3-line gate-widen; strings RO `[rip+disp]`).
+  **REMAINING (DUP-FORM-3):** HY-7f LIT_F/NUL producer arms (bb_lit_scalar has ONLY pass-through for these — new template bytes, byte-verify vs `as`) → gvar/frame-var reads as producer boxes → nested `marshal_single_call` args (owner-guard excludes them today) → **DELETE** the operand-kind arms in `marshal_call_arg` + the `->t/->sval` reads in `marshal_varparam_addr`. GATE-INTEL: the medium-invisible grep counts only the `IF(MEDIUM_BINARY,…)` MACRO form — statement-form branches are a blind spot; hardening candidate.
+- [ ] **ICN-HY-FENCE — gate.** Extend `scripts/test_gate_bb_one_box.sh` to Icon-owned files ONLY AFTER the fusion fix (arrives RED before). m2 143 HARD held.
 
-## 🔴 ICN-SCAN LADDER — A STACKLESS BB FOR EVERY ICON STRING-SCANNING OPERATION, ONE STEP PER BOX (Lon directive 2026-06-03) — **WAVE-1 CLOSED** (`1246c18`; 13b → ICN-VAR-3)
+## 🔴 ICN-SCAN LADDER — **WAVE-1 CLOSED** (`1246c18`; fence `scripts/test_gate_icn_scan.sh` — 28 probes, IR_GEN_SCAN bucket ratchets m2≥31 m3≥11 m4≥11)
 
-**Scope: EVERY string-scanning operation Icon offers gets its own BB.** The canonical set is closed:
-`refs/icon-master/src/runtime/fstranl.r` (any · bal · find · many · match · upto) + `fscan.r` (move · pos · tab)
-+ the scan control forms (`?` env LIVE at `d46b943`; `?:=` and `=s` pending below). Per CONSULT-CANONICAL-SOURCES,
-each step re-reads its named `.r` function AND the Proebsting four-port templates (`refs/bb/Proebsting-…pdf`
-§4.1–4.5, Fig 1/2) before writing the box. **If lost, copy the SNOBOL4 pattern boxes** — `bb_pat_any.cpp` is the
-worked example: Σ=r13/δ=r14/Δ=r15 walk, cset sealed RO + `lea rdi,[rip+cset]; call strchr` membership test, pure
-`x86()` concatenation. Same register walk, different value contract (Icon RETURNS positions as DESCRs; SNOBOL
-threads the cursor).
+All wave-1 boxes landed: pos/any/match/many/tab/move/upto/find/bal + `?` env registerization (scan LEDGER ENTER/LEAVE) + `&kw` register arms + `=s`→`tab(match(s))` desugar + `?:=`→`lhs := lhs ? rhs` desugar + var-subject scans (via ICN-VAR-3). **SEMANTIC INVARIANT (fstranl.r/fscan.r, do not blur):** any/many/match/upto/find/bal RETURN positions and DO NOT move δ; only tab/move WRITE δ — and β-RESTORE it. Generator state in the box frame; `{*}` boxes re-pump via the generator-β chain edge. Registers = the X86-64 FACT table (Σ=r13 δ=r14 Δ=r15 ζ=r12; RO sealed `[rip+disp]`). Wave-2 shapes (explicit `(s,i,j)`/dynamic args, csets>literal strings, generative m2 oracle) EXCISE `[SMX]` via `icn_scan_subgraph_safe`. Per-step detail: git log + `HANDOFF-2026-06-03/04-*ICN-SCAN*.md`. LESSON: `cmd | grep -q` under pipefail is a SIGPIPE race — always capture-then-match.
 
-**REGISTER CONTRACT (the ratified X86-64 FACT table — same as SNOBOL4):** **R12=ζ** per-sequence RW frame, every
-mutable slot `[r12+off]` · **R13=Σ** subject BASE ptr · **R14=δ** cursor, 0-based byte offset (`&pos = δ+1`) ·
-**R15=Δ** subject LENGTH · **RBX=NV** globals HASH base (scan boxes never touch it; it rides through untouched,
-same as SNOBOL4). RO constants (literal cset char-strings, literal match strings, literal ints) SEALED next to the
-blob, reached `[rip+disp]` (`x86_ro_seal_str`/`_q`, the `bb_pat_any` idiom). Result DESCRs go to the box's OWN
-16-byte frame slot (`bb_to`/`bb_alt` slot model); consumers read the producer's slot. No value stack, no `pBB->`
-absolute slot address, no `bb_bin_t`, medium-invisible — the standing FACT rules apply to every box below.
+## 🔴 ICN-VAR LADDER — **CLOSED** (`e65893f`; fence `scripts/test_gate_icn_var.sh` — 19 probes, IR_ASSIGN bucket N=104 floors m2≥62 m3≥12 m4≥22 + HARD m3/m4 FAIL==0)
 
-**SEMANTIC INVARIANT (fstranl.r/fscan.r — do not blur this):** any/many/match/upto/find/bal **RETURN positions
-and DO NOT move δ**; only **tab/move WRITE δ — and RESTORE it on β** (fscan.r: "Reverses effects if resumed").
-Generator state (cursors, bal's depth counter) lives in the box frame at `[r12+op_off+16…]`; the `{*}` boxes
-re-pump via the generator-β chain edge (landed `b48f0cd`, proven by `bb_to`/`bb_alt`).
-
-**WAVE-1 SHAPE CONTRACT (precise gating, the `bb_alt` discipline):** default-window forms only — `f(c)`/`f(s1)`/
-`f(n)` with LITERAL cset/string/positive-int args, inside a live `?` scan env (Σ/δ/Δ loaded). Explicit `(s,i,j)`
-args, dynamic/computed args, csets > literal strings, and 0/negative positions EXCISE `[SMX]` via the
-`icn_scan_subgraph_safe` extension — loud, never silent. fstranl.r's full `str_anal` defaulting and `cvpos` are
-RT value work for a later wave. tab's wave-1 operand may also be a sibling SCAN_* producer slot — `tab(upto(c))`
-/ `tab(many(c))` / `tab(match(s))` IS the idiom and must be in wave 1.
-
-**PER-STEP GATE (every step, no exceptions):** `make scrip` + `make libscrip_rt` rc=0 · step probe(s) m2==m3==m4
-· m2 corpus **129 HARD byte-identical** (post-SUITE-HONESTY) · Icon smoke m2 12/12 · the step's IR kind OFF `icn_kind_native_stub` the
-moment its box lands (and ONLY then) · bb_bin_t=0 · medium-invisible `--strict` · no-stack · one-reg-frame ·
-g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
-
-- [x] **SUITE-HONESTY — DONE (`991a26b`).** `run_corpus` is rc-aware (rc≠0 without `[SMX]` ⇒ FAIL in every mode);
-  the one vacuous passer flipped; **honest baseline: m2 129 HARD**.
-- [x] **ICN-SCAN-0 — DONE (`f13838f`).** `?` env registerized: ENTER/LEAVE glue loads/restores Σ/δ/Δ via the scan
-  LEDGER (carries the prior r13/r14/r15 triple) — **paired ENTER/LEAVE IS the callee-saved preservation**.
-- [x] **ICN-SCAN-1 — DONE (`d82003b`).** `bb_keyword` register arms inside a native scan body (`&pos`={DT_I,r14+1},
-  `&subject`={DT_S,0,r13}, zero rt calls), gated on `g_icn_scan_regs_live`; rt fallback outside scans; m2 untouched.
-- [x] **ICN-SCAN-2 — DONE (`5091102`).** Nine `IR_SCAN_*` kinds + LOUD stub templates + emit_core routing inside
-  the IR_CALL case (gated on `g_icn_scan_regs_live`); lowerer + m2 untouched; the LIVE gating lever is the
-  `icn_scan_subgraph_safe` name set.
-- [x] **ICN-SCAN-3 — DONE (`d629a36`).** First real scan box (`pos`, fscan.r). **Encoder fix rode it:**
-  `x86_cmp_imm64` lacked REX.B for r8+ (silent wrong-register m3). ⚠ The m2 `pos` oracle gap was found here
-  (standing flag in the Watermark; fence M34-pins the probe).
-- [x] **ICN-SCAN-4 — DONE (`18940fb`).** `any(c)` (strchr cset test, the `bb_pat_any` idiom; position DESCR, δ
-  untouched). **Lessons:** the prologue-safe STRING carrier is `op_name1` (op_sval is clobbered to the fn name);
-  wave-1 arg validation lives in the safe set (`icn_scan_fn_lit_arg`), not only the template bomb.
-- [x] **ICN-SCAN-5 — DONE (`f9677cc`).** `match(s1)` via ONE `memcmp` call — an internal compare loop would be
-  DUP-FORM-2 value work (the lens for every future box); `match("")` succeeds at pos 1.
-- [x] **ICN-SCAN-6…11 — many/tab/move/upto/find/bal DONE** (`b1a54a0`/`cc77b63`/`14ec99a`/`c72e27d`/`c9a728e`/
-  `5de8d37`). tab/move are the δ-WRITERS (saved-δ slot, **β restores δ** per fscan.r); upto/find/bal are the `{*}`
-  GENERATORS (cursor slot, β re-pump); SCAN-7 added `rt_icn_substr` + sibling-producer-slot consumption
-  (`tab(upto(c))`); SCAN-8 added the FAMILY-WIDE literal-arg terminality fix (a literal counts only when entry IS
-  the whole subgraph — the `-1`→`LIT_I(1)→NEG` lowering trap); SCAN-10 find = unrolled literal compare (needle
-  1..32); SCAN-11 bal β-soundness BY ADMISSION (c1∩{'(',')'}=∅). Detail: `HANDOFF-2026-06-04-OPUS48-ICN-SCAN-7-11.md`.
-- [x] **ICN-SCAN-12 — DONE (`84ea1ca`).** `=s` desugars in the lowerer to `tab(match(s))` (omisc.r tabmat — IR
-  byte-identical to the hand-written form). **Oracle `match` canon fix rode it** (no `scan_pos` move, per fstranl.r;
-  BOTH dispatch sites); zero corpus flips.
-- [x] **ICN-SCAN-13a — DONE (`b59c9e6`).** `lhs ?:= rhs` → `lhs := lhs ? rhs` pre-switch desugar (plain-var lhs;
-  canonical-equivalent per `ir_a_Scan`). The TT_AUGOP-misroute flag was raised here → now ICN-VAR-AUGOP-PREREQ.
-- [x] **ICN-SCAN-13b — native `var := GEN_SCAN` — LANDED VIA ICN-VAR-3 (`e239560`, 2026-06-06).** Was: NOT a
-  scan-ladder slice: two blockers are the standing bb_var operand-slot gap, not scan machinery. (1)
-  `icn_scan_subgraph_safe` rejects every non-`&` `IR_VAR` → ANY var-subject scan (`s ? …`) declines, and the
-  desugared `?:=` always has a var subject; (2) the admission's `IR_ASSIGN` arm: local/varslot store box not
-  built (only NV-global `bb_gvar_assign_icn`). The scan-side piece is SMALL and ready when the tier lands:
-  in `flat_drive_gen_scan`, adopt the body-terminal slot as the scan node's value
-  (`descr_chain_terminal(body_sg->entry)` + `bb_slot_get` — the exact subject pattern at emit_bb.c ~1208-1210;
-  either slotmap-alias the GEN_SCAN node to body_slot, or copy 16B into a fresh `bb_slot_alloc16(pBB)` at
-  `body_done` before the LEAVE-γ glue), making GEN_SCAN an arity-0 slot producer any consumer (write/assign)
-  reads. Probe stays `s := "hello"; s ?:= tab(3); write(s)` → `he` m3/m4.
-- [x] **ICN-SCAN-FENCE — DONE (`1246c18`).** `scripts/test_gate_icn_scan.sh`: stub-list zero-grep + 28-probe
-  three-mode sweep (STRICT/M34/PIN/X34 policies) + corpus IR_GEN_SCAN bucket N=47 (ratchet floors m2≥31 m3≥7 m4≥7)
-  + structural battery — deterministic. **LESSON: `cmd | grep -q` under pipefail is a SIGPIPE RACE — always
-  capture-then-match** (audit other gates for the shape). ⚠ `rung36_jcon_scan1` TT_CSET_DIFF abort flag is in the
-  Watermark flags.
-
-## 🔴 ICN-VAR LADDER## 🔴 ICN-VAR LADDER — NATIVE LOCAL VARIABLES (the bb_var tier; opened 2026-06-04-e at `cf204ed`)
-
-**Scope:** local (non-NV-global) Icon variables on the descr-flat-chain native path — assign, read, then the operand
-positions (binop/relop/scan-subject) that were blocked on "var has no ζ-slot". Substrate: `bb_varslot(name)` /
-`bb_varslot_peek` name-keyed 16B frame slots `[r12+off]` (the PER-BOX LOCAL STORAGE law's `bb_varslot` clause); proc
-params pre-register varslots at build entry. Register contract = the ratified X86-64 FACT table. All standing FACT
-rules apply to every box below. **GATING DISCIPLINE (learned at VAR-1, keep on every widening):** an assign-containing
-graph emits only if ALL nodes are in the safe set AND every IR_CALL is **write/writes BY NAME** — the TT_AUGOP/swap
-lowerer misroute (`x +:= 5` → bare `v_det_call("x")` IR_CALLs) defeats any naive kind set; m4 (`for_run=0`) has no
-builtin-call shield. Plus: every local IR_VAR read must be assigned-or-param in its graph (loud EXCISE, never the
-`op_off=-1` runtime bomb).
-
-- [x] **ICN-VAR-1 — `bb_assign_local.cpp` — DONE (`cf204ed`, 2026-06-04).** Native local assign + read, wave-1 rhs
-  {LIT_I, LIT_S, VAR}: rhs DESCR slot 16B → varslot + own slot; β→ω single-shot (canonical `ir_a_Binop ":="` for
-  these shapes); driver deposits op_sb/op_off, prologue already carries op_a_slot/op_a_node_kind; emit_core routes
-  descr-flat-chain locals. Probes `x:=42;write(x)`/`s:="hi"`/`y:=x`/reassign m2==m3==m4; negatives EXCISE rc=0.
-  Corpus all three columns byte-identical every bucket (m2 129 HARD / m3 18+147E / m4 25+86E). Full detail + the
-  twice-hardened gate story in the Watermark + `HANDOFF-2026-06-04-OPUS48-ICON-BB-VAR-1.md`.
-- [x] **ICN-VAR-2 — binop/relop var operands — DONE (`ab2141a`, 2026-06-06).** `x := x + 1` / `if x > 5` native via
-  chain-resolved operand slots (`descr_chain_operand_refs` fills BINOP α/β from chain predecessors — ZERO template
-  changes; driver+admission diff only); IR_WHILE/IR_UNTIL/IR_IF descr passthroughs (the cluster kinds are pure chain
-  joins; IF must never route through walk_bb_node — no emit_core template); safe set += BINOP/IF/WHILE/UNTIL/REPEAT/
-  BREAK/NEXT/CONJ; BINOP lens numrel+arith only; rhs_ok += arith BINOP; LIT_F/LIT_NUL+binop lassign fence (LIT_F is
-  SLOTLESS — float-fed relop bombs). Smoke m3/m4 5→10; corpus m3 18→22 m4 25→32, zero →FAIL flips; m2 129 HARD.
-  Detail: watermark + `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-2.md`.
-- [x] **ICN-VAR-3 — SCAN-13b adoption — DONE (`e239560`, 2026-06-06).** Var-subject scans native: `icn_scan_subgraph_safe`
-  admits local IR_VAR subjects (assigned-or-param in the PARENT graph — subgraph vars escape the main line-244 check
-  since `lower_value_subgraph` blocks are standalone); `flat_drive_gen_scan` slotmap-aliases the GEN_SCAN node to the
-  body-terminal slot; **`descr_chain_arity: IR_GEN_SCAN → 0`** (was -1/stack-reset — the discovery: chain consumers got
-  no α → the abolished `rt_call_builtin` bomb, pre-existing at HEAD for lit subjects too, repaired by the arity fix);
-  `icn_gen_scan_body_slotful` lens on ASSIGN-rhs AND CALL-consumed GEN_SCAN (slotless-body bomb class → clean EXCISE).
-  Probe `s := "hello"; s ?:= tab(3); write(s)` → `he` m2==m3==m4. Corpus m3 22→25 m4 32→35 (rung05_scan_scan_{var,
-  nested,restores} ×2), all EXCISED→PASS zero →FAIL, m2 129 HARD. Fence: augop pins X34→STRICT, floors m3/m4 7→11.
-  Detail: `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-3.md`.
-- [x] **ICN-VAR-AUGOP-PREREQ — TT_AUGOP desugar — DONE (`63a8748`, 2026-06-06).** `x op:= e → x := x op e` for
-  plain-var lhs at the SCAN-13a interception point (canonical `ir_augmented_assignment`; map = 7 binops + 12 relops;
-  cset augops EXCLUDED — the TT_CSET_* abort tier). THE FINDING: the misroute broke the ORACLE (bare no-op IR_CALL —
-  m2 printed stale values); the desugar repaired m2 too: **m2 129→143 (+14)**. m3 25→30, m4 35→40 (rung10 augop
-  family + rung35), all EXCISED→PASS zero →FAIL. `rung36_jcon_augment` m4 rc 134→1 (failure-mode change inside FAIL).
-  The VAR-1 by-name CALL fence STAYS (non-var lhs `a[i] +:= 1` still misroutes). Swap (`:=:`) is its own future tier.
-  Detail: `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-AUGOP.md`.
-- [x] **ICN-VAR-FENCE — DONE (`e65893f`, 2026-06-06).** `scripts/test_gate_icn_var.sh`, the ICN-SCAN-FENCE pattern
-  (capture-then-match, never `cmd | grep -q` under pipefail). (a) IR_ASSIGN/IR_VAR off `icn_kind_native_stub` +
-  present in contracts; (b) 19-probe three-mode sweep (VAR-1 assign/read · VAR-2 binop/relop/loops · AUGOP chains ·
-  VAR-3 `?:=`/var-subject scans) — STRICT except `augop_concat` X34 (concat BINOP outside the VAR-2 numrel+arith
-  lens; m2-correct + clean EXCISE) and `neg_unassigned` X34; `static_single_call` STRICT pins that TT_STATIC_DECL
-  lowers as a local (cross-call persistence = its own future tier, blocked behind userproc); (c) corpus IR_ASSIGN
-  bucket N=104, floors m2≥62 m3≥12 m4≥22 PLUS the HARD law m3/m4 FAIL==0 (PASS or EXCISED only); (d) the standing
-  structural battery. GATE PASS; columns unchanged m2 143 / m3 30 / m4 40; re-verified green at merged HEAD over the
-  concurrent BB-FIXUP `bb_binop_relop.cpp` regeneration (`282c71c`). **THE ICN-VAR LADDER IS CLOSED.**
-  Detail: `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-FENCE.md`.
+Native local variables on the descr-flat-chain path: VAR-1 `bb_assign_local` varslot assign/read (rhs {LIT_I,LIT_S,VAR}) · VAR-2 binop/relop var operands via chain-resolved slots + IR_IF/WHILE/UNTIL descr passthroughs (IF never routes through walk_bb_node) · VAR-3 var-subject scans (`descr_chain_arity: IR_GEN_SCAN→0` arity-0 producer + body-slot alias) · AUGOP-PREREQ `x op:= e → x := x op e` desugar at the SCAN-13a interception (REPAIRED THE ORACLE: m2 129→143). Substrate: `bb_varslot(name)` 16B `[r12+off]`; proc params pre-register at build entry. **GATING (keep on every widening):** assign graphs emit only when ALL nodes safe AND every IR_CALL is write/writes BY NAME; every local IR_VAR read assigned-or-param (loud EXCISE, never the op_off=-1 runtime bomb); LIT_F is SLOTLESS (float-fed relop bombs). Future tiers: swap `:=:` · static cross-call persistence (blocked on userproc) · concat-BINOP lens. Detail: `HANDOFF-2026-06-04/06-*ICON-BB-VAR*.md`.
 
 ## Premise
 
@@ -717,51 +544,10 @@ bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 
 Transition note: SNOBOL4/Snocone/Rebus/Raku keep `g_vstack` only until BB-converted; Icon and Prolog have NO value stack. Goal: `g_vstack` retires entirely.
 
-**C BB BOX DEMOLITION (RULES; `icn_bb_dcg` NOT exempt).** A C BB box = a C fn that (a) switches on entry α/β AND (b) wires four ports inside. The remaining genuine four-port C boxes are `bb_deferred_var` (SNOBOL4, stmt_exec.c) and `pl_cat_fn` (Prolog, pl_broker.c). The x86 α/β selector (`cmp esi,0; jne β`) is LIVE — how brokered boxes are re-entered at β from `stmt_exec.c`/`pl_runtime.c`; deletable only after those re-entries become wired `jmp`s.
 
-## RUNG R-HW — `write("hello world")` — DONE (RO-string write box; R-HW-2/3 m3+m4 parity landed on the ratified layout).
+## Watermark
 
----
+**HEAD (SCRIP) = `6933744` (handoff doc; code = `447edd9`) — ICN-HY-7d (`1ec4252`) + ICN-HY-7e (`447edd9`) LANDED 2026-06-06-e. Columns: m2 143 HARD · m3 30 · m4 40, byte-identical across both rungs. HEAD (.github) = this entry.**
+Session 2026-06-06-e (Opus 4.8, "GOAL-ICON-BB"): two gated rungs — the N-arg call-arg slot carrier + LIT_I/LIT_S producer-box adoption on the gvar flat chain (first DUP-FORM-3 de-fuse slices; full detail in the HY-7 ladder bullet above). THE FINDING: gvar builds don't reserve frame[0..15] (the proc-result slot) — fixed by pre-scan + conditional `bb_slot_claim`, zero byte-churn for non-adopted programs. Blast radius proven via stash-baseline: raku 1/1/23 · snocone 2/3 · rebus 0/4 · crosscheck FAIL=1 · broker 32/35 all pre-existing. CONCURRENCY: rebased over SNO-HY-2a (`178b6e8`) + a BB-FIXUP; re-verified green at merged HEAD. **GOAL FILE PRUNED this handoff (Lon directive):** SCAN/VAR ladders collapsed to closed-summaries, HY/GZ landed bullets condensed, R-HW + comment-purge one-offs and the stale C-BB-DEMOLITION para deleted; ALL FACT-RULE bodies untouched (cross-file byte-identity verified at handoff). **NEXT = HY-7f LIT_F/NUL.** Handoff: `HANDOFF-2026-06-06-OPUS48-ICON-BB-HY-7D-7E-CARRIER-LIT-ADOPTION.md`.
 
-## Watermark## Watermark
-
-**HEAD (SCRIP) = `1ec4252` — ICN-HY-7d LANDED 2026-06-06-e: N-arg call-arg slot carrier + LIT_I producer-box
-adoption on the gvar flat chain — the first DUP-FORM-3 de-fuse slice, riding the HY-7c UNBLOCKED verdict. Columns
-unchanged: m2 143 HARD · m3 30 · m4 40. HEAD (.github) = this entry.**
-Session 2026-06-06-e (Opus 4.8, \"GOAL-ICON-BB\"): one gated rung, 4 files (emit_globals.h carrier struct-END append;
-emit_bb.c `gvar_drive_call_arg_slots` + dval==2.0/3.0 wiring + IR_CALL-top carrier reset + IR_LIT_I case gate widen;
-bb_lit_scalar.cpp `g_gvar_callarg_live` window; bb_call.cpp marshal_call_arg slot-first arm). THE FINDING (latent,
-fixed in-rung): the gvar builds do NOT reserve frame[0..15] (the proc-RESULT slot the ω FAILDESCR epilogue and
-`rt_call_proc_descr` read) — `descr_flat_chain_build_proc` does; the first arg pre-alloc stole offset 0. Fix =
-pre-scan admits, then `bb_slot_claim(16-count)` only when adopting (zero byte-churn for non-adopted programs);
-proven by nested `F=G(10)+X`→21 m2==m3==m4 incl. gcc-linked m4. Probes SNO `F(41)`→42 / PAS `q(42)`→42 / nested →21
-all three modes. Gates: suite 143/30/40 byte-identical zero flips · smokes icon 12/10/10 · prolog 5/4+1E/5 · sno
-7/6/6 · raku 1/1/23 · snocone 2/3 · rebus 0/4 ALL == stash-baseline (crosscheck FAIL=1 + broker 32/35 pre-existing)
-· FACT 0 · bb_bin_t 0 · handencoded --strict 0 · medium-invisible 347 (new arm pure x86()) · icn_no_stack 0 ·
-one-reg-frame 0 · VAR fence PASS · SCAN fence PASS · prove_lower2 PASS. CONCURRENCY: BB-FIXUP advanced HEAD to
-`9a684b8` pre-rung; disjoint files, no conflict. **HY-7e LIT_S LANDED `447edd9` (same session). NEXT = HY-7f LIT_F/NUL adoption**, then gvar/frame-var reads as
-producer boxes, nested marshal_single_call args, THEN delete the operand-kind arms in `marshal_call_arg` +
-`marshal_varparam_addr` → ICN-HY-FENCE (extend `test_gate_bb_one_box.sh` to Icon files only after).
-PREV 2026-06-06-d (condensed): ICN-HY-7c (`58af8d3`) — marshal_call_arg lit/var tail medium collapse (twin
-TEXT/BINARY statement-form arms → ONE x86() body) + LIT_S abs-pointer RO fix + the PREREQ VERDICT (the 2026-06-01
-lowerer blocker is STALE; `flat_emit_arg_subchain` machinery satisfies it). STRUCT-LAYOUT/stale-objects lesson +
-medium-invisible statement-form grep blind spot. Detail: `HANDOFF-2026-06-06-OPUS48-ICON-BB-HY-7C-MARSHAL-MEDIUM-COLLAPSE.md`.
-PREV 2026-06-06-c (condensed): ICN-VAR-FENCE (`e65893f`) — VAR LADDER CLOSED; gate `test_gate_icn_var.sh`
-(19 probes, bucket N=104 floors 62/12/22, m3/m4 FAIL==0 HARD); static-lowers-as-local finding; detail in
-`HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-FENCE.md`.
-PREV 2026-06-06-b (condensed): ICN-VAR-3 (`e239560`) + ICN-VAR-AUGOP-PREREQ (`63a8748`) — var-subject scans native
-(GEN_SCAN arity-0 producer + body-slot alias; the `descr_chain_arity` -1 discovery) and the augop desugar that
-REPAIRED THE ORACLE m2 129→143; detail in the two HANDOFF docs + git log.
-
-**PREV ENTRIES PRUNED (Lon directive, 2026-06-04-f).** Full per-session history: `git log` (SCRIP + .github) and the
-SCRIP `HANDOFF-*.md` docs. **Standing flags / open intel carried forward:** (1) ORACLE SCAN-FN GENERATIVITY — every
-m2 scan builtin is one-shot; goal probes specify multi-result; native is pump-ready; making m2 generative SHIFTS the
-129 baseline (Lon's call; the scan fence pins PIN-policy three-mode agreement until then). (2) m2 `pos` oracle gap
-(icon by-name block has no arm; fence M34-pins it) — its fix is its own re-baseline rung. (3) `rung36_jcon_scan1`
-aborts rc=134 in all modes at `[lower2] UNHANDLED kind=77` (TT_CSET_DIFF) — cset-ops tier candidate. (4) rung02
-userproc recursion: plain `write(fact(5))` aborts m4 `[GZ-10]` depth-4096 / m3 silent-empty — pre-existing userproc
-lane. (5) `scan_try_call_builtin` (by_name_dispatch.c:531) has no callers — dead-site deletion candidate. (6) ~150
-corpus programs still ABORT (rc=-6/-11) in `walk_bb_node` instead of EXCISING — `icn_graph_native_emittable` remains
-too permissive for the non-alt/non-assign kinds; a systemic decline-gate pass is wanted (VAR-1 retired the
-unassigned-var slice). (7) TT_AUGOP misroute — see ICN-VAR-AUGOP-PREREQ. (8) Open tiers: GZ-DEFER (EVAL/CODE/`*P`),
-`bb_binop_gen` Fig-1 cross-product, native `!x` (`IR_LIST_BANG`), `rt_call_builtin`.
+**Standing flags / open intel:** (1) ORACLE SCAN-FN GENERATIVITY — every m2 scan builtin is one-shot; making m2 generative SHIFTS the 143 baseline (Lon's call; scan fence PIN-policy until then). (2) m2 `pos` oracle gap (icon by-name block has no arm; fence M34-pins) — its fix is its own re-baseline rung. (3) `rung36_jcon_scan1` aborts rc=134 `[lower2] UNHANDLED kind=77` (TT_CSET_DIFF) — cset-ops tier candidate. (4) rung02 userproc recursion: m4 `[GZ-10]` depth-4096 / m3 silent-empty — userproc lane. (5) `scan_try_call_builtin` (by_name_dispatch.c:531) dead site — deletion candidate. (6) ~150 corpus programs ABORT (rc=-6/-11) in `walk_bb_node` instead of EXCISING — systemic decline-gate pass wanted. (7) swap (`:=:`) is its own future tier. (8) Open tiers: GZ-DEFER (EVAL/CODE/`*P`), `bb_binop_gen` Fig-1 cross-product, native `!x` (`IR_LIST_BANG`), `rt_call_builtin`. (9) medium-invisible statement-form grep blind spot — gate hardening.
