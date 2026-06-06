@@ -12,7 +12,7 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER **CLOSED** (`e65893f`) · BB-HYGIENE: HY-7c LANDED (`58af8d3`, medium collapse + PREREQ verdict: de-fuse UNBLOCKED) · next = HY-7 DUP-FORM-3 deletion (N-arg slot carrier → driver adoption → delete operand-kind arms) → HY-FENCE
+## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER **CLOSED** (`e65893f`) · BB-HYGIENE: HY-7d LANDED (`afdf4c5`, N-arg slot carrier + LIT_I producer-box adoption, frame[0] reservation) · next = HY-7 remaining-shape adoption (LIT_S → LIT_F/NUL → gvar/frame-var → nested-call) → delete operand-kind arms → HY-FENCE
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`): all three medium gates read 0. The keystone pattern for
 every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them
@@ -462,6 +462,18 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EA
   carrier + per-shape driver adoption + delete the operand-kind arms in `marshal_call_arg`/`marshal_varparam_addr`.
   GATE-INTEL: the medium-invisible grep counts only the `IF(MEDIUM_BINARY,…)` MACRO form — statement-form medium
   branches are a blind spot (total stayed 347 across this fix); gate-hardening candidate.
+  **LANDED (HY-7d `afdf4c5`, 2026-06-06):** the N-arg slot carrier + FIRST DUP-FORM-3 de-fuse slice —
+  `g_emit.op_arg_slot[16]`/`op_arg_slot_n` (struct-END append, no offset shifts) + `gvar_drive_call_arg_slots`
+  (emit_bb.c): pre-scans admitted args (terminal `IR_LIT_I`, leading SUCCEED/FAIL resolved), **RESERVES
+  frame[0..15]** before any pre-alloc (the gvar proc-RESULT slot — `descr_flat_chain_build_proc` reserves it,
+  the gvar builds did NOT; latent function-result corruption found+fixed, proven by the nested
+  `F=G(10)+X; OUTPUT=F(1)`→21 stress probe), emits each admitted arg as a `bb_lit_scalar` producer box
+  (`g_gvar_callarg_live` window widens the LIT_I arm + the walk case slot-alloc), deposits terminal slots;
+  `marshal_call_arg` slot-first arm = owner-guarded (`owner == _.node`) pure 16B `[r12+ps]→[r12+aoff]` copy,
+  ZERO `lf->t` reads, medium-invisible. Wired BOTH gvar call branches: dval==3.0 (Pascal) + dval==2.0 (SNOBOL
+  TT_FNC; DEFINE 5.0 excluded). Carrier reset at `case IR_CALL` top (no cross-call staleness); nested
+  `marshal_single_call` args fall through by the owner guard (their adoption = a later slice). The LIT_I/F/NUL/S
+  operand-kind arms REMAIN as fallback until all shapes adopt — the deletion is the ladder's last slice.
 - [ ] **ICN-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Icon-owned files. m2 129 HARD held.
 
 ## 🔴 ICN-SCAN LADDER — A STACKLESS BB FOR EVERY ICON STRING-SCANNING OPERATION, ONE STEP PER BOX (Lon directive 2026-06-03) — **WAVE-1 CLOSED** (`1246c18`; 13b → ICN-VAR-3)
@@ -709,24 +721,28 @@ Transition note: SNOBOL4/Snocone/Rebus/Raku keep `g_vstack` only until BB-conver
 
 ## Watermark## Watermark
 
-**HEAD (SCRIP) = `58af8d3` — ICN-HY-7c LANDED 2026-06-06-d: marshal_call_arg medium collapse (DUP-FORM-1 twin
-TEXT/BINARY arms → ONE medium-invisible x86() body) + the LIT_S abs-pointer RO-rule fix + the PREREQ VERDICT:
-the HY-7 marshal-de-fuse lowerer blocker (2026-06-01) is STALE — `flat_emit_arg_subchain` machinery satisfies it;
-DUP-FORM-3 deletion UNBLOCKED. Columns unchanged: m2 143 HARD · m3 30 · m4 40. HEAD (.github) = this entry.**
-Session 2026-06-06-d (Opus 4.8, "GOAL-ICON-BB"): one gated rung, HY-7c (bb_call.cpp only, 77→29+48 lines).
-LIT_I/F via `x86_movabs_r64`+`x86_frame_store64`; LIT_NUL two FRQ stores; LIT_S jump-over in-band
-`x86_ro_seal_str` (ids idx*2/idx*2+1 — the call family used ZERO internal ids, verified); var arm = pure
-frame-slot copy; gvar heads + `marshal_single_call` untouched (sanctioned per-medium call encoding). LESSON
-(generalized STRUCT-LAYOUT): the FIRST incremental build after the template edit produced an inconsistent binary
-(multi-arg probe anomaly while suites ran green); a full clean rebuild of the SAME source EXCISED it rc=0 ==
-baseline — treat any post-template-edit anomaly as STALE OBJECTS first, and re-run gates on the clean build (done:
-probes, smoke 12/10/10, suite 143/30/40 byte-identical, VAR fence 19/19 PASS, SCAN fence 28/28 PASS, full battery).
-CONCURRENCY: pushed over PL-GZ-6b (`35cf032`, scrip.c+emit_bb.c) — disjoint hunks, RE-VERIFIED green at merged
-HEAD (build + smoke + suite + var fence). GATE-INTEL: medium-invisible grep misses statement-form
-`if (MEDIUM_BINARY)` branches (macro-form only; total 347 unchanged across a real DUP-FORM-1 fix) — hardening
-candidate. **NEXT = HY-7 DUP-FORM-3 deletion (now UNBLOCKED):** N-arg slot carrier → per-shape driver adoption
-(`flat_emit_arg_subchain` pattern) → delete the operand-kind arms in `marshal_call_arg` +
-`marshal_varparam_addr` → ICN-HY-FENCE. Handoff: `HANDOFF-2026-06-06-OPUS48-ICON-BB-HY-7C-MARSHAL-MEDIUM-COLLAPSE.md`.
+**HEAD (SCRIP) = `afdf4c5` — ICN-HY-7d LANDED 2026-06-06-e: N-arg call-arg slot carrier + LIT_I producer-box
+adoption on the gvar flat chain — the first DUP-FORM-3 de-fuse slice, riding the HY-7c UNBLOCKED verdict. Columns
+unchanged: m2 143 HARD · m3 30 · m4 40. HEAD (.github) = this entry.**
+Session 2026-06-06-e (Opus 4.8, \"GOAL-ICON-BB\"): one gated rung, 4 files (emit_globals.h carrier struct-END append;
+emit_bb.c `gvar_drive_call_arg_slots` + dval==2.0/3.0 wiring + IR_CALL-top carrier reset + IR_LIT_I case gate widen;
+bb_lit_scalar.cpp `g_gvar_callarg_live` window; bb_call.cpp marshal_call_arg slot-first arm). THE FINDING (latent,
+fixed in-rung): the gvar builds do NOT reserve frame[0..15] (the proc-RESULT slot the ω FAILDESCR epilogue and
+`rt_call_proc_descr` read) — `descr_flat_chain_build_proc` does; the first arg pre-alloc stole offset 0. Fix =
+pre-scan admits, then `bb_slot_claim(16-count)` only when adopting (zero byte-churn for non-adopted programs);
+proven by nested `F=G(10)+X`→21 m2==m3==m4 incl. gcc-linked m4. Probes SNO `F(41)`→42 / PAS `q(42)`→42 / nested →21
+all three modes. Gates: suite 143/30/40 byte-identical zero flips · smokes icon 12/10/10 · prolog 5/4+1E/5 · sno
+7/6/6 · raku 1/1/23 · snocone 2/3 · rebus 0/4 ALL == stash-baseline (crosscheck FAIL=1 + broker 32/35 pre-existing)
+· FACT 0 · bb_bin_t 0 · handencoded --strict 0 · medium-invisible 347 (new arm pure x86()) · icn_no_stack 0 ·
+one-reg-frame 0 · VAR fence PASS · SCAN fence PASS · prove_lower2 PASS. CONCURRENCY: BB-FIXUP advanced HEAD to
+`9a684b8` pre-rung; disjoint files, no conflict. **NEXT = HY-7e LIT_S adoption** (same pattern: admit terminal
+IR_LIT_S, widen the bb_lit_scalar LIT_S arm + the IR_LIT_S case), then LIT_F/NUL, gvar/frame-var reads as
+producer boxes, nested marshal_single_call args, THEN delete the operand-kind arms in `marshal_call_arg` +
+`marshal_varparam_addr` → ICN-HY-FENCE (extend `test_gate_bb_one_box.sh` to Icon files only after).
+PREV 2026-06-06-d (condensed): ICN-HY-7c (`58af8d3`) — marshal_call_arg lit/var tail medium collapse (twin
+TEXT/BINARY statement-form arms → ONE x86() body) + LIT_S abs-pointer RO fix + the PREREQ VERDICT (the 2026-06-01
+lowerer blocker is STALE; `flat_emit_arg_subchain` machinery satisfies it). STRUCT-LAYOUT/stale-objects lesson +
+medium-invisible statement-form grep blind spot. Detail: `HANDOFF-2026-06-06-OPUS48-ICON-BB-HY-7C-MARSHAL-MEDIUM-COLLAPSE.md`.
 PREV 2026-06-06-c (condensed): ICN-VAR-FENCE (`e65893f`) — VAR LADDER CLOSED; gate `test_gate_icn_var.sh`
 (19 probes, bucket N=104 floors 62/12/22, m3/m4 FAIL==0 HARD); static-lowers-as-local finding; detail in
 `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-FENCE.md`.
