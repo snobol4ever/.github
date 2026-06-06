@@ -12,7 +12,7 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER **CLOSED** (`e65893f`) · BB-HYGIENE: HY-7d LANDED (`1ec4252`, N-arg slot carrier + LIT_I producer-box adoption, frame[0] reservation) · next = HY-7 remaining-shape adoption (LIT_S → LIT_F/NUL → gvar/frame-var → nested-call) → delete operand-kind arms → HY-FENCE
+## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER **CLOSED** (`e65893f`) · BB-HYGIENE: HY-7d LANDED (`1ec4252`, N-arg slot carrier + LIT_I producer-box adoption, frame[0] reservation) · HY-7e LANDED (`447edd9`, LIT_S adoption) · next = LIT_F/NUL → gvar/frame-var → nested-call → delete operand-kind arms → HY-FENCE
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`): all three medium gates read 0. The keystone pattern for
 every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them
@@ -474,6 +474,10 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EA
   TT_FNC; DEFINE 5.0 excluded). Carrier reset at `case IR_CALL` top (no cross-call staleness); nested
   `marshal_single_call` args fall through by the owner guard (their adoption = a later slice). The LIT_I/F/NUL/S
   operand-kind arms REMAIN as fallback until all shapes adopt — the deletion is the ladder's last slice.
+  **LANDED (HY-7e `447edd9`, 2026-06-06):** LIT_S adoption — admit terminal `IR_LIT_S`; the `IR_LIT_S` walk case
+  + the `bb_lit_scalar` LIT_S arm widened to the `g_gvar_callarg_live` window (3-line diff). Probes SNO
+  `F('AB')`→ABAB / PAS `writeln('hello')` m2==m3==m4 incl. gcc-linked m4; string sealed RO `[rip+disp]`; suite
+  143/30/40 byte-identical; smokes icon 12/10/10 · sno 7/6/6 · prolog 5.
 - [ ] **ICN-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Icon-owned files. m2 129 HARD held.
 
 ## 🔴 ICN-SCAN LADDER — A STACKLESS BB FOR EVERY ICON STRING-SCANNING OPERATION, ONE STEP PER BOX (Lon directive 2026-06-03) — **WAVE-1 CLOSED** (`1246c18`; 13b → ICN-VAR-3)
@@ -735,8 +739,7 @@ all three modes. Gates: suite 143/30/40 byte-identical zero flips · smokes icon
 7/6/6 · raku 1/1/23 · snocone 2/3 · rebus 0/4 ALL == stash-baseline (crosscheck FAIL=1 + broker 32/35 pre-existing)
 · FACT 0 · bb_bin_t 0 · handencoded --strict 0 · medium-invisible 347 (new arm pure x86()) · icn_no_stack 0 ·
 one-reg-frame 0 · VAR fence PASS · SCAN fence PASS · prove_lower2 PASS. CONCURRENCY: BB-FIXUP advanced HEAD to
-`9a684b8` pre-rung; disjoint files, no conflict. **NEXT = HY-7e LIT_S adoption** (same pattern: admit terminal
-IR_LIT_S, widen the bb_lit_scalar LIT_S arm + the IR_LIT_S case), then LIT_F/NUL, gvar/frame-var reads as
+`9a684b8` pre-rung; disjoint files, no conflict. **HY-7e LIT_S LANDED `447edd9` (same session). NEXT = HY-7f LIT_F/NUL adoption**, then gvar/frame-var reads as
 producer boxes, nested marshal_single_call args, THEN delete the operand-kind arms in `marshal_call_arg` +
 `marshal_varparam_addr` → ICN-HY-FENCE (extend `test_gate_bb_one_box.sh` to Icon files only after).
 PREV 2026-06-06-d (condensed): ICN-HY-7c (`58af8d3`) — marshal_call_arg lit/var tail medium collapse (twin
