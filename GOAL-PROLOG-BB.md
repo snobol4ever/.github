@@ -7,10 +7,11 @@ No language-specific logic in any BB/XA template: templates dispatch on IR shape
 
 ## ▶ STATE (2026-06-06)
 
-Watermark: SCRIP `7a7bf75` (battery green on merged main `62c1554`). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a LANDED** — details: git history of this file + `HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-7A-LANDED-7B-RECIPE.md`.
-Gates: GATE-1 m2 5/5 HARD · m3 4/0/1-EXC (`recursion`, flips at GZ-8) · m4 5/5. GATE-3 m2 **115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (10 = retract/abolish → GZ-9). gz2..7 gates PASS, corrupt-proven. Coupling ceilings: choice 19 · goal 10 · others 0 · rung05 .s 39; new-path boxes emit ZERO control calls.
+Watermark: SCRIP `d85d8f3` (battery green on merged main). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b LANDED** — details: git history of this file + `HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-7B-LANDED-GZ8-NOTES.md`.
+Gates: GATE-1 m2 5/5 HARD · m3 4/0/1-EXC (`recursion`, flips at GZ-8) · m4 5/5. GATE-3 m2 **115/115 HARD** · m3 **20**/0/95-EXC (7b ratchet +2: ITE rungs newly GZ-admitted) · m4 105/0/10-EXC (10 = retract/abolish → GZ-9). gz2..7 gates PASS, corrupt-proven (gz7 now also pins the 7b box: gzfloor1/2 · gzmoney GZ-asserted · arith-decline · stub-routing corrupt-proof). Coupling ceilings: choice 19 · goal 10 · others 0 · rung05 .s 39; new-path boxes (incl. CELL_ITE) emit ZERO control calls.
+7b law residue: ITE Then/Else admitted DET-ONLY (`pl_gz_chain_det` declines CELL_CHOICE/CELL_CALL) — the gz7 `semidet` probe PINS construct-semidet β=ω, and the §4.5 gate dispatch is truthful only to tombstone resumes; to admit resumable branches later, route the β-dispatch δ/ε to gw instead of chain resumes. Cond is unrestricted (bounded by the UNREFERENCED E1 resume). m2-interp 7a caveat (per-NODE cp_mark; recursive ITE-in-cond under-truncates) remains a logged m2-only divergence — the new-path box is per-activation by construction (gate = frame slot).
 Grounding: Proebsting paper (`bench/Simple Translation of Goal Directed Evaluation.pdf`); seeds `test_pl_1.c` + `test_sno_1/2/3/4.c` + `test_icon.c` in `.github/`.
-**Next opener: PL-GZ-7b** — implement straight from the 7a/7b handoff RECIPE.
+**Next opener: PL-GZ-8** — arith/is + builtins onto the GZ substrate; unlocks ITE arith conditions (the 7a headline `(a(X),X>=2->…)` flips from legacy) and the GATE-1 `recursion` EXC.
 Logged m2-only divergences (NOT fixed; m3/m4 already canon; sweep only if a ratchet demands, else FENCE deletes the machinery): gz6b disj trust_me_else_fail (fix point = GCONJ-resume↔disj-advance control path) · mid-cut pre-cut-generator gap · 7a per-NODE cp_mark/committed (recursive ITE-in-cond under-truncates; 7b frame rows are per-activation).
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
@@ -357,10 +358,9 @@ GUT (deleted as the new path re-admits each rung; build-green is no license to p
 · C call stack = the sanctioned recursion spine.
 · ONE x86() body per box serves m3 (BINARY → RX slab) and m4 (TEXT → as+gcc); m3 ≡ m4 by construction.
 
-Ladder (LANDED rungs 0..4, 5a–5c, 6, 6b, 7a DELETED — git history):
+Ladder (LANDED rungs 0..4, 5a–5c, 6, 6b, 7a, 7b DELETED — git history):
 - [ ] **PL-GZ-1b(e)** — FENCE inherits: the m3 INTERP-FALLBACK is DELETED; an uncovered `--run` program prints EXCISED and exits exactly like m4.
 - [ ] **CORPUS-S-HYGIENE(b)** — prune tracked corpus `.s` to the DEMO keep-list (needs Lon's confirmed list).
-- [ ] **PL-GZ-7b — new-path §4.5 ifstmt box (`IR_CELL_ITE`).** Implement from the 7a/7b handoff RECIPE. Idiom: bb_cell_cut (pure wiring) + bb_cell_choice (cursor-β indexed goto = the gate dialect) + bb_query_frame (op_sa aspects). E1 success stub gate←1 jmp E2.α; E1 fail landing gate←2 jmp E3.α; ifstmt.β = cmp/je gate dispatch; **E1 resume labels emitted UNREFERENCED = the bounded condition** (Delete_Choice_Point by wiring; coupling stays 0). Driver: `pl_gz_ite_state_t`, `pl_gz_build_goal` IR_ITE arm recursing the SAME builder (NO-DUP), synth/cslot via `pl_gz_count_synth`. Emitter: recursive sub-chain drive factored from gz_emit_callee's pgl/pgb loop; CELL_CUT cl_ω ternary preserved inside branches. `bb_cell_ite.cpp` + Makefile ×2. Probes: floor det conds; MONEY `p(a). p(b). ((p(X)->write(X);write(n)),nl,fail;true)` → exactly `a` all modes. Arith conds wait for GZ-8. Ratchet `test_gate_pl_gz7.sh`: keep 7a probes; ADD GZ-path assertions (m3 no INTERP-FALLBACK; `.s` has ifstmt labels), DECLINES (arith cond → legacy, verdicts equal), CORRUPT-PROOF (gate 1↔2 → loud).
 - [ ] **PL-GZ-8** — arith/is + builtins: re-admit the x86()-revamped bb_builtin families onto the new substrate.
 - [ ] **PL-GZ-9** — corpus reconquest: all 115 rungs onto the new path, per-rung m3/m4 verdicts byte-identical. findall = drive the NEW boxes (no meta rail); catch/throw = PT-3 CP-truncate + ball-copy LAW re-landed; aggregate/nb likewise; dynamic DB = **B-full** (runtime assert = lower + MEDIUM_BINARY emit into the RX slab; m3 ≡ m4 by construction).
 - [ ] **PL-GZ-FENCE** — coupling gate ZERO across all Prolog templates · GATE-3 m2/m3/m4 verdict-identical with identical EXCISED sets · resolution.c engine + meta rail DELETED · emitted seed `.s` shape-isomorphic to `test_pl_1.c` (box-for-box, port-for-port).
