@@ -520,7 +520,7 @@ g_vstack=0 · prove_lower2 PASS · commit per RULES.md.
   BOTH dispatch sites); zero corpus flips.
 - [x] **ICN-SCAN-13a — DONE (`b59c9e6`).** `lhs ?:= rhs` → `lhs := lhs ? rhs` pre-switch desugar (plain-var lhs;
   canonical-equivalent per `ir_a_Scan`). The TT_AUGOP-misroute flag was raised here → now ICN-VAR-AUGOP-PREREQ.
-- [x] **ICN-SCAN-13b — native `var := GEN_SCAN` — LANDED VIA ICN-VAR-3 (`94841cd`, 2026-06-06).** Was: NOT a
+- [x] **ICN-SCAN-13b — native `var := GEN_SCAN` — LANDED VIA ICN-VAR-3 (`e239560`, 2026-06-06).** Was: NOT a
   scan-ladder slice: two blockers are the standing bb_var operand-slot gap, not scan machinery. (1)
   `icn_scan_subgraph_safe` rejects every non-`&` `IR_VAR` → ANY var-subject scan (`s ? …`) declines, and the
   desugared `?:=` always has a var subject; (2) the admission's `IR_ASSIGN` arm: local/varslot store box not
@@ -561,7 +561,7 @@ builtin-call shield. Plus: every local IR_VAR read must be assigned-or-param in 
   BREAK/NEXT/CONJ; BINOP lens numrel+arith only; rhs_ok += arith BINOP; LIT_F/LIT_NUL+binop lassign fence (LIT_F is
   SLOTLESS — float-fed relop bombs). Smoke m3/m4 5→10; corpus m3 18→22 m4 25→32, zero →FAIL flips; m2 129 HARD.
   Detail: watermark + `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-2.md`.
-- [x] **ICN-VAR-3 — SCAN-13b adoption — DONE (`94841cd`, 2026-06-06).** Var-subject scans native: `icn_scan_subgraph_safe`
+- [x] **ICN-VAR-3 — SCAN-13b adoption — DONE (`e239560`, 2026-06-06).** Var-subject scans native: `icn_scan_subgraph_safe`
   admits local IR_VAR subjects (assigned-or-param in the PARENT graph — subgraph vars escape the main line-244 check
   since `lower_value_subgraph` blocks are standalone); `flat_drive_gen_scan` slotmap-aliases the GEN_SCAN node to the
   body-terminal slot; **`descr_chain_arity: IR_GEN_SCAN → 0`** (was -1/stack-reset — the discovery: chain consumers got
@@ -570,7 +570,7 @@ builtin-call shield. Plus: every local IR_VAR read must be assigned-or-param in 
   Probe `s := "hello"; s ?:= tab(3); write(s)` → `he` m2==m3==m4. Corpus m3 22→25 m4 32→35 (rung05_scan_scan_{var,
   nested,restores} ×2), all EXCISED→PASS zero →FAIL, m2 129 HARD. Fence: augop pins X34→STRICT, floors m3/m4 7→11.
   Detail: `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-3.md`.
-- [x] **ICN-VAR-AUGOP-PREREQ — TT_AUGOP desugar — DONE (`77e3d1f`, 2026-06-06).** `x op:= e → x := x op e` for
+- [x] **ICN-VAR-AUGOP-PREREQ — TT_AUGOP desugar — DONE (`63a8748`, 2026-06-06).** `x op:= e → x := x op e` for
   plain-var lhs at the SCAN-13a interception point (canonical `ir_augmented_assignment`; map = 7 binops + 12 relops;
   cset augops EXCLUDED — the TT_CSET_* abort tier). THE FINDING: the misroute broke the ORACLE (bare no-op IR_CALL —
   m2 printed stale values); the desugar repaired m2 too: **m2 129→143 (+14)**. m3 25→30, m4 35→40 (rung10 augop
@@ -693,8 +693,8 @@ Transition note: SNOBOL4/Snocone/Rebus/Raku keep `g_vstack` only until BB-conver
 
 ## Watermark## Watermark
 
-**HEAD (SCRIP) = `77e3d1f` — TWO RUNGS LANDED 2026-06-06-b: ICN-VAR-3 (`94841cd`, SCAN-13b adoption — var-subject
-scans native, GEN_SCAN arity-0 producer + body-slot alias) and ICN-VAR-AUGOP-PREREQ (`77e3d1f`, augop desugar —
+**HEAD (SCRIP) = `63a8748` — TWO RUNGS LANDED 2026-06-06-b: ICN-VAR-3 (`e239560`, SCAN-13b adoption — var-subject
+scans native, GEN_SCAN arity-0 producer + body-slot alias) and ICN-VAR-AUGOP-PREREQ (`63a8748`, augop desugar —
 REPAIRED THE ORACLE: m2 129→143). Columns: m2 143 HARD · m3 22→30 · m4 32→40, every flip EXCISED→PASS, zero →FAIL.
 HEAD (.github) = this entry.**
 Session 2026-06-06-b (Opus 4.8, "GOAL-ICON-BB"): one gated rung, ICN-VAR-3. **THE DISCOVERY THAT SHAPED IT:**
