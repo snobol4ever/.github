@@ -21,3 +21,6 @@ Gates at floors: smoke 19/0 · pat-rung M2=18/M4=18 (053 pre-existing) · purity
 
 ## NEXT SESSION
 Resume THE LOOP at `bb_succ_plus.cpp` (cold; rank eb=8 nw=4 rb=30 ef=18 pe=2 lv=11 TOTAL=73 — same TIER-H treatment + LIVE succ/plus probe). bb_call family re-audit on arrival (FIX-3, HOT history). Ask Lon for the prove_lower2 verdict first if a TIER S rung is contemplated — the gate is mandatory there and currently carries inherited FAILs.
+
+## ADDENDUM — run continued (same session, Lon: "Continue")
+**Stop 17 — `bb_succ_plus.cpp` → `e25b11a`.** TIER H: ef 18→0, pe 2→0, lv 11→0 (bsp_lbl/bsp_bin_succ/bsp_bin_plus/bsp_txt_succ/bsp_txt_plus + shared ports/tail helpers; dead `succ_back` excised). succ takes its second operand from the **β-port** (unlike the γ-chain siblings) — admission preserved verbatim. Asm-diff EMPTY (bbN-normalized, 17-file corpus + 3 probes); LIVE probe `succ(3,X)+plus(2,3,Z)` fires both TEXT arms byte-identical. prove_lower2 verdict-list A/B identical (66 PASS + the 2 inherited FAILs — unchanged, still Lon's call). Lap 1542→1514; emit-blind 225→233 (de-aliasing honesty). Cursor → `bb_term_inspect.cpp`.
