@@ -368,7 +368,7 @@ Open arms: L2-B2/C/D/E/F/G/H value-role (loop-escapes/limitation/assignment/call
 
 ## Session log
 
-**Watermark (SNO-HY-5; SCRIP origin/main=`26bc2bb`; 2026-06-06 Sonnet 4.6, ~80% context).** bb_pat_cat + bb_pat_alt regenerated SPEC-v2 (x86_pair_loop()). bb_pat_arb regenerated SPEC-v2 (PORT_* → real Greek). **MODE-4 ONLY directive (Lon 2026-06-06):** test_smoke_snobol4.sh and test_snobol4_pat_rung_suite.sh rewritten — mode-4 is the ONLY gate; modes 2 and 3 are not run for SNOBOL4. Gates: smoke M4=7/7 HARD · pat_rung M4=18/18 HARD (053 pre-existing skip) · REG-FENCE 0/0 · BROK-3 fence 0. **NEXT: SNO-HY-6.**
+**Watermark (SNO-HY-5 + MODE-4-ONLY; SCRIP origin/main=`0fb2118`; 2026-06-06 Sonnet 4.6, ~90% context).** bb_pat_cat + bb_pat_alt regenerated SPEC-v2 (x86_pair_loop()). bb_pat_arb regenerated SPEC-v2 (PORT_* → real Greek). **MODE-4 ONLY directive (Lon 2026-06-06):** ALL 7 SNOBOL4 test scripts rewritten — mode-4 is the ONLY gate; modes 2 and 3 are not run for SNOBOL4 (test_smoke_snobol4.sh, test_snobol4_pat_rung_suite.sh, test_smoke_snobol4_run.sh, test_interp_broad_corpus_and_beauty.sh, test_crosscheck_snobol4.sh, test_bench_snobol4_modes.sh, test_snobol4_all_modes.sh). Gates: smoke M4=7/7 HARD · pat_rung M4=18/18 HARD (053 pre-existing skip) · REG-FENCE 0/0 · BROK-3 fence 0. **NEXT: SNO-HY-6** — audit bb_pat_len + bb_pat_pos; split only if >1 four-port shape.
 
 ## Session Setup
 
