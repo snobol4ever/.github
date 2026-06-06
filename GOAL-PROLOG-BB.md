@@ -16,7 +16,7 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 **PROLOG GROUND ZERO (Lon 2026-06-04): development RESET to square one on the Proebsting-pure track — the
 🔴 PL-GZ ladder below.** PL-M34/PL-BBL ABSORBED into PL-GZ; PT/WAM-CP LEGACY (see LEGACY DISPOSITION).
-Watermark: SCRIP HEAD `761fa66` — **PL-GZ-0..4 + 5a + 5b + 5c LANDED** (details collapsed into the ladder entries).
+Watermark: SCRIP HEAD `aa587c9` — **PL-GZ-0..4 + 5a + 5b + 5c LANDED** (details collapsed into the ladder entries).
 Gates: GATE-1 m2 **5/5 HARD** · m3 4/0/1-EXC (`recursion` only — cut+arith clause, flips by GZ-8) · m4 5/5; GATE-3 m2
 **115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (the 10 = PT-4b retract/abolish); coupling ceilings
 choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b/5c gates
@@ -529,7 +529,7 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
     (nested · callee-frame synth · self-recursion depth-2, m2-verified first; 2-clause + deep-arith
     decline; corrupt-proven). GZ5A gate RATCHETED (nested-call negative → compound-body negative). Detail:
     HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-5A-5B.md.
-  - [x] **5c — multi-clause RULE predicates** (full `path/2`) ✅ `761fa66` — callee-level choice over rule
+  - [x] **5c — multi-clause RULE predicates** (full `path/2`) ✅ `aa587c9` — callee-level choice over rule
     clauses on the seed's exact shape: ONE frame `[args | per-clause locals+synth | child slots]`, mark
     `[ζ+0]`, 1-based cursor `[ζ+4]` (the seed's `ζ->i`, init at α); per-clause body chains keep the
     backward redo wiring; clause-K exhausted = advance block (`cursor=K+2; rt_trail_unwind(mark); jmp`
