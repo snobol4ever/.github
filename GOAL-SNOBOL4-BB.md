@@ -15,7 +15,7 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 No local variables · ONE return per PLATFORM returning ONE concatenated string · IF()/FOR() string functions for all conditionals/loops · ONE source line == ONE asm line · REAL Greek α β γ ω (no PORT_ALPHA/BETA/GAMMA/OMEGA spellings) · no MEDIUM_TEXT/MEDIUM_BINARY at template top level (hide in helper functions) · zero emit_fmt() · zero C comments [separator status vs RULES.md: confirm with Lon] · zero blank lines · **ONE-IR-ONE-LOGIC (Lon 2026-06-04):** a template may serve SEVERAL IR kinds (near-identical shapes parameterized — the `bb_lit_scalar` grouping), and most are one-to-one; but ONE IR kind carrying MULTIPLE distinct four-port BB logics inside one template is FORBIDDEN — a bb_*.cpp that obviously needs it is broken out by splitting the IR kind in LOWER into separate IR codes, each reaching its OWN template via its own `emit_core.c` dispatch case. N IR → 1 BB allowed; 1 IR → 1 BB the norm; 1 IR → N BB never. **EMIT-BLIND / NO NEIGHBOR INQUIRY (Lon 2026-06-04):** a template reads ONLY its own emit context `_` (own labels, own ζ-slots, the `_.op_*` metadata the driver prepared) — it NEVER dereferences a neighboring IR node: no `pBB->α/β/γ/ω->t` kind tests, no neighbor `->ival/sval/dval` value reads, no neighbor kids/operand_aux walks, whether to ADMIT a shape or to CHOOSE an emission. A template inquiring about its neighbors is doing IR LOWERING inside the emitter — a design flaw in the lowering stage, not a template feature. The fix is always upstream: LOWER produces a DISTINCT IR shape per case (ONE-IR-ONE-LOGIC) and delivers operand values via `_.op_*`/ζ-slot offsets; the driver (`emit_bb.c`/`emit_core.c`) is where graph inspection lives. Scope: forbidden inside `src/emitter/BB_templates/` + `XA_templates/`. Separation of concerns: LOWER decides, templates emit. Each template is REGENERATED whole to this spec, not patched. Full directive + session state: `HANDOFF-2026-06-04-OPUS48-SNOBOL4-BB-HYGIENE-SWEEP-SPEC-V2.md`. Tracker: `SCRIP/BB-REVAMP-TRACKER.md` (reset to v2 semantics; v1 sweep — prose comments stripped + all >200-char lines wrapped — landed at SCRIP `2af3880`+`cd577ed`, gates sno 19/19 / icn m2 12/12 HARD).
 
-## 🟢 CURRENT FRONTIER — SNO-HY-3 (3a ✅ `75b5bd6`; 3b ✅ `d3d5688`; 3c open)
+## 🟢 CURRENT FRONTIER — SNO-HY-4 ✅ `26bc2bb` → SNO-HY-5 open
 
 **⚠ FLAGS FOR LON — sbl divergences, probe-proven; each fix its OWN rung:**
 (1) **M2-ARBNO-SHY** — m2 ARBNO (`IR_interp.c:3811`) GREEDY vs sbl shy: `'aaa' ARBNO('a') . V` → sbl+m4 `[]`, m2 `[aaa]` (manual pp.121-122/212).
@@ -31,7 +31,7 @@ No local variables · ONE return per PLATFORM returning ONE concatenated string 
 Per the BB-HYGIENE FACT RULE. After EACH step: SNOBOL4 m2 7/7 HARD byte-identical, purity green, commit.
 
 - [ ] **SNO-HY-3** — `bb_gvar_assign.cpp` + `bb_pat_capture.cpp`. 3a ✅ `75b5bd6`: lit-rhs split. 3b ✅ `d3d5688`: var/concat/call/descr arms split (IR_ASSIGN_VAR/CONCAT/CALL/DESCR; 13-site recipe; old arms RETAINED for synthesized plain-IR_ASSIGN + non-SNO). **3c ⚠ DESIGN NOT PINNED (Lon):** capture save vs write — `flat_drive_capture` fills ONE node twice (ival=0→save, 1/2→write); (i) driver-side two-template dispatch keeps m2 untouched vs (ii) LOWER SAVE→child→WRITE topology breaks m2 byte-identity.
-- [ ] **SNO-HY-4** — `bb_pat_any.cpp` + `bb_pat_notany.cpp`. cset-blob vs single-char; routers.
+- [x] **SNO-HY-4** — `bb_pat_any.cpp` + `bb_pat_notany.cpp` ✅ `26bc2bb`. SPEC-v2: PORT_* → real Greek, int nid removed, cs_test helper for single-char (cmp) vs multi-char (strchr) dispatch.
 - [ ] **SNO-HY-5** — `bb_pat_cat.cpp` + `bb_pat_alt.cpp` + `bb_pat_arb.cpp`. Combinators; variable-length define/jmp-pair shape separate.
 - [ ] **SNO-HY-6** — audit rest (`bb_pat_len`, `bb_pat_pos`). Split only if >1 four-port shape.
 - [ ] **SNO-HY-7** — de-dup + RT-fix, all SNOBOL4 boxes. Algorithm in TEXT+BINARY arm → DELETE both, replace with one `rt_*` call.
@@ -368,7 +368,7 @@ Open arms: L2-B2/C/D/E/F/G/H value-role (loop-escapes/limitation/assignment/call
 
 ## Session log
 
-**Watermark (SNO-HY-3b; SCRIP origin/main=`d3d5688`; 2026-06-06 Sonnet 4.6, ~85% context).** 13-site recipe: IR_ASSIGN_VAR/CONCAT/CALL/DESCR added. Floors: smoke 19/19 (m2 7/7 HARD) · rung M2=18/M4=18 · M4 135/280 · interp 162/280 · REG-FENCE 0 HARD · no_brokered 0 · prove_lower2 inherited-2-FAIL unchanged. Old var/concat/call/descr arms RETAINED in bb_gvar_assign for synthesized plain-IR_ASSIGN creators + non-SNO. **NEXT: SNO-HY-3c (Lon pins design), or SNO-HY-4.**
+**Watermark (SNO-HY-4; SCRIP origin/main=`26bc2bb`; 2026-06-06 Sonnet 4.6, ~20% context).** bb_pat_any + bb_pat_notany regenerated SPEC-v2. Gates: smoke 19/19 (m2 7/7 HARD) · pat_rung M2=18 M3=18 M4=18. **NEXT: SNO-HY-5.**
 
 ## Session Setup
 
