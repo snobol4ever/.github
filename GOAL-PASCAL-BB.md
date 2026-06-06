@@ -16,22 +16,22 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 22 (2026-06-06): PB-0..PB-11 ALL COMPLETE** — interpreter + compiled-BB rail end-to-end:
-all control flow incl. `case`, flat+nested procs/functions, var params,
-records/arrays/sets/pointers/`new`, booleans in every destination shape. Rung detail lives in git
-history + `HANDOFF-*-PASCAL-BB-*.md`. Gate: **m2 49/1, m3 49/1, m4 49/1 — UNIFORM** over 50 probes;
-sole fail = recursion.pas (16-bit maxint pin). SNOBOL smoke 19/0. Session 22 commits: SCRIP
-`2419bb8` (PB-10d) + `046bfe1` (PB-11); corpus `92b2b88` + `24babd7` (probes); .github `81d9be09`
-(goal prune −66%). Handoff: `HANDOFF-2026-06-06-OPUS48-PASCAL-BB-PB10D-PRUNE-PB11-CASE.md`.
+**Session 23 (2026-06-06): PB-12 `goto`/label LANDED** — the last control-flow stub is real. Gate:
+**m2 52/1, m3 52/1, m4 52/1 — UNIFORM** over 53 probes; sole fail = recursion.pas (16-bit maxint
+pin). SNOBOL smoke 19/0; Icon/Prolog smokes at pre-session baselines (Icon m3/m4 10/2 stash-proven
+pre-existing). Commits: SCRIP `d8a5c1d`, corpus `2c7c68b` (goto1/2/3 probes). Handoff:
+`HANDOFF-2026-06-06-OPUS48-PASCAL-BB-PB12-GOTO.md`.
 
-NEXT — Lon picks: (a) `goto` (TT_SUCCEED stub until a probe forces it); (b) the 16-bit maxint rung
-for recursion.pas; (c) the residues below if a probe ever forces them.
+NEXT — Lon picks: (a) the 16-bit maxint rung for recursion.pas; (b) the pcom/pint ladder proper —
+char type, enum ordinals, file I/O (prd/prr/f^), packed-array alfa, `with` binding, variant records;
+(c) the residues below if a probe ever forces them.
 
 RESIDUES (documented, no probe): (1) right-relop diamond hoisted over a side-effecting left operand
 reorders evaluation vs pcom's strict l-to-r; (2) NV `__pbt`/`__pct` temps can clobber under recursive
-re-entry of the same expression (frame-slot temps would cure); (3) `goto` is a TT_SUCCEED stub;
-(4) case no-match: pcom emits ujc → pint halts "value out of range"; our if-chain silently continues
-(error trap = runtime work, out of parser scope).
+re-entry of the same expression (frame-slot temps would cure); (3) case no-match: pcom emits ujc →
+pint halts "value out of range"; our if-chain silently continues (error trap = runtime work, out of
+parser scope); (4) labels nested inside compounds register + lower but no probe pins that position
+(probes pin top-level labels + nested gotos).
 
 Open ladder item: **LB-7-NEW** — `# BOX ICN` tag inventory in bb_gen_scan/bb_keyword/bb_scan_*
 (ICN-SCAN sessions own these files; sweep when ICN-SCAN settles).
@@ -63,6 +63,12 @@ Open ladder item: **LB-7-NEW** — `# BOX ICN` tag inventory in bb_gen_scan/bb_k
   chain prefix with a bare `IR_VAR(__pbtN)` left in operand position — forced by
   `gvar_stmt_operand_refs`' stack simulation (a consumer's operands must be the most recent γ-spine
   pushes; IR_IF arity −1 = stack reset breaks any in-place diamond).
+- **goto/label (PB-12):** parser → `TT_GOTO_U`(sval=label digits, strdup'd) + `TT_LABEL_DEF`(sval,
+  c[0]=stmt). `lower_pascal_body` pass-1 recursively pre-registers one IR_SUCCEED landing per label
+  (`bb_label_registry_*`, reset per body = per-proc scoping; both goto directions resolve). The
+  `TT_LABEL_DEF` arm wires landing→γ to the inner α and exposes the LANDING as the statement's α;
+  `TT_GOTO_U` lowers to an IR_SUCCEED hop with γ pinned to the landing (γ_in ignored). Zero new IR
+  kinds, zero template work — m3/m4 came free. Intra-procedure only, matching pcom error 399.
 - **I/O:** `__pas_writeln`/`__pas_write` take interleaved (value,width) pairs; int right-justified in
   max(w,digits), default width 10 (real 20); `:w` is a minimum. `__pas_sqr(x)`=x*x.
 - **Arrays/records/pointers:** TT_IDX faithful in parser; LOWER → `arr_get`, `a[i]:=v` →
