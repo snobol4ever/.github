@@ -12,20 +12,23 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ STATE (2026-06-06 — PL-GZ-5c)
+## ▶ STATE (2026-06-06 — PL-GZ-6)
 
 **PROLOG GROUND ZERO (Lon 2026-06-04): development RESET to square one on the Proebsting-pure track — the
 🔴 PL-GZ ladder below.** PL-M34/PL-BBL ABSORBED into PL-GZ; PT/WAM-CP LEGACY (see LEGACY DISPOSITION).
-Watermark: SCRIP HEAD `aa587c9` — **PL-GZ-0..4 + 5a + 5b + 5c LANDED** (details collapsed into the ladder entries).
+Watermark: SCRIP HEAD `5d4aea9` — **PL-GZ-0..4 + 5a + 5b + 5c + 6 LANDED** (details collapsed into the ladder entries).
 Gates: GATE-1 m2 **5/5 HARD** · m3 4/0/1-EXC (`recursion` only — cut+arith clause, flips by GZ-8) · m4 5/5; GATE-3 m2
 **115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (the 10 = PT-4b retract/abolish); coupling ceilings
-choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b/5c gates
-PASS, all corrupt-proven. Siblings: Icon m2 12 (m3/m4 5/7 standing) · SNOBOL4 smoke 19/19. Grounding:
+choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b/5c/6 gates
+PASS, all corrupt-proven (5c neg1 RATCHETED to query-level cut). Siblings: Icon m2 12 (m3/m4 5/7 standing) · SNOBOL4 smoke 19/19. Grounding:
 Proebsting paper (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_pl_1.c` +
 `test_sno_1/2/3/4.c` + `test_icon.c` in `.github/` · reset rationale
 `HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`.
-Next opener: **PL-GZ-6** — cut: lexical cut = pure wiring (seed form `firstpath/1` → output `b c d b`);
-dynamic cut = frame gate (paper §4.5); deletes the cut-global protocol from the new path.
+Next opener: **PL-GZ-6b** — query-prefix soft-disj so the FULL seed runs as ONE program → `b c d b`
+(admission: disj at goals[0] of a longer query conj, RESTRICTED to arm0 ending in IR_FAIL; soft landing
+becomes unwind(query mark)+jmp B0 α via lbl_δ; flat_drive_gz_query goes two-segment; recipe in
+`HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-6-CUT.md`). Then PL-GZ-7 (ITE, sweeps the m2 commit-bug
+cluster: ITE-commit + the logged mid-cut pre-cut-generator resume gap).
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -545,8 +548,20 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
     `b c d` · all-det 2-clause · mixed fact+rule · depth chain `b c d e`, m2-verified first; cut +
     list-head + 5-clause decline; corrupt-proven). GZ5A+GZ5B gates RATCHETED (2-clause-rule negative,
     now a 5c positive → arity-3 negative: outside the rsi/rdx arg ABI).
-- [ ] **PL-GZ-6 — cut**: lexical cut = pure wiring (seed form); dynamic cut = frame gate (paper §4.5).
-  Deletes the `rt_get_cut_flag`/`rt_choice_cut_*` global protocol from the new path.
+- [x] **PL-GZ-6 — cut** *(2026-06-06, `5d4aea9`)*: LEXICAL cut LANDED as pure wiring — `IR_CELL_CUT` det
+  box (α falls to γ; β jmp ω; body IDENTICAL to vacuous-success unify) whose ω the driver wires to the
+  callee fail landing `cl_ω` instead of the backward chain (`gz_emit_callee`, one ternary). Redo never
+  resumes pre-cut goals nor later clauses; post-cut alternatives stay live; cut-not-reached advances;
+  single-clause redo[0]=cut's β = the seed's `firstpath_β→ω` literally. Gate `test_gate_pl_gz6.sh`
+  (commit/redo-past/not-reached/firstpath-redo, m2==m3==m4; query-level + soft-disj-arm cut declined).
+  **m2 ORACLE RE-BASELINED** (cut β re-entry RE-SUCCEEDED: truncated-away choice CP misread as liveness +
+  cut re-truncating on resume re-walks; fixed via stateful cut, `cp_cut_away` commit detection, cut-aware
+  liveness — GATE-1/GATE-3 counts byte-identical pre/post). GZ5C gate RATCHETED (cut-clause negative, now
+  a gz6 positive → query-level cut). LOGGED m2 GAP for GZ-7's commit cluster: mid-cut with pre-cut AND
+  post-cut generators (resume re-walk advances the pre-cut node). DEFERRED → **PL-GZ-6b**: query-prefix
+  soft-disj for the one-program full seed `b c d b` (recipe in the 6-CUT handoff). Dynamic cut = frame
+  gate (paper §4.5) remains future. The `rt_get_cut_flag`/`rt_choice_cut_*` globals: new-path boxes
+  reference ZERO (coupling gate holds); protocol deletion completes when legacy dies.
 - [ ] **PL-GZ-7 — ITE**: paper §4.5 ifstmt template VERBATIM (bounded condition + gate). FIX THE m2 ORACLE
   to canon — `( a(X),X>=2 -> true ; X=0 )` → `2` (absorbs WAM-CP-9; the swipl citation is REPLACED by the
   paper; re-baseline audit of any rung that matched the buggy m2).
