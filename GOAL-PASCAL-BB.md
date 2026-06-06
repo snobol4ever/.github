@@ -22,9 +22,17 @@ pin). SNOBOL smoke 19/0; Icon/Prolog smokes at pre-session baselines (Icon m3/m4
 pre-existing). Commits: SCRIP `d8a5c1d`, corpus `2c7c68b` (goto1/2/3 probes). Handoff:
 `HANDOFF-2026-06-06-OPUS48-PASCAL-BB-PB12-GOTO.md`.
 
-NEXT — Lon picks: (a) the 16-bit maxint rung for recursion.pas; (b) the pcom/pint ladder proper —
-char type, enum ordinals, file I/O (prd/prr/f^), packed-array alfa, `with` binding, variant records;
-(c) the residues below if a probe ever forces them.
+**Session 23 continued — PB-13 enum ordinals LANDED.** Gate: **m2 54/1, m3 54/1, m4 54/1**. Commits:
+SCRIP `ab599a4`, corpus `2c581f4` (enum1/2 probes). Mechanism: `simple_type: (id_list)` production
+now iterates the id_list and calls `pas_const_add(name, ordinal)` (0,1,2,...); `mk_call("ord",…)`
+rewrites to the single arg (integer-valued enums → identity). ord() for char deferred to char rung.
+Residue: enum range overflow in for-loop matches pint's `-Cr` crash but is not a SCRIP bug — the
+existing gate runner uses `./pint < /dev/null 2>/dev/null` (stderr only suppressed), so probes must
+not trigger pint range-check exits that mix into stdout; a probe redesign discipline noted.
+
+NEXT — Lon picks: (a) 16-bit maxint (closes recursion.pas); (b) char type (literals, ord/chr, I/O,
+case-over-char — large but foundational for pcom/pint); (c) `with` binding (currently drops selector
+— latent wrong code on real programs); (d) file I/O (prd/prr/f^); (e) packed-array/alfa.
 
 RESIDUES (documented, no probe): (1) right-relop diamond hoisted over a side-effecting left operand
 reorders evaluation vs pcom's strict l-to-r; (2) NV `__pbt`/`__pct` temps can clobber under recursive
