@@ -19,6 +19,36 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
+**Session 27 (2026-06-06): PB-18 (sin/cos/exp/sqrt/ln/arctan + pas_real_str E-format) + PB-19 (write(r:w) width specifier) + PB-20 (char literal in write position) + PB-21 (real/string named constants) LANDED.**
+Gate: **m2 70/0** over 70 probes (sole fail = recursion.pas XFAIL).
+Commits: SCRIP `a390e46`, corpus `032e833`.
+New probes: stdlib2.pas, realwidth.pas, charlit.pas, constreal.pas.
+m3/m4 pre-existing failures unchanged (marshal_call_arg root cause, not touched).
+
+Mechanism (PB-18): sin/cos/exp/sqrt/ln/arctan → mk_fnc1("__pas_sin"/etc, arg) in mk_call;
+runtime: one combined dispatch arm (1 arg int-or-real, returns DT_R); added pas_real_str(r, buf, bufsz, prec)
+formatting %.12E with 3-digit exponent padding; __pas_writeln real branch uses pas_real_str.
+
+Mechanism (PB-19): write(r:w) width specifier; prec = max(1, w-8) clamped at 16;
+output width = max(w, prec+8); default (no :w) = prec 12, width 20 unchanged.
+
+Mechanism (PB-20): char literal writeln fix. 1-char STRINGCONST in factor production emits
+TT_FNC("__pas_chrlit", ilit(ord)) sentinel (identity at runtime, transparent in arithmetic/compare/index).
+pas_is_charexpr extended to recognise __pas_chrlit → write path wraps with __pas_chr.
+ord('A') in mk_call strips sentinel → returns bare ilit.
+
+Mechanism (PB-21): real/string named constants. Added g_pas_rconsts[] (double) and g_pas_sconsts[]
+(char*) parallel tables. const_decl extended with 4 new alternatives intercepting REALCONST and
+STRINGCONST before integer constant production. mk_ident checks all three tables: int→ilit,
+real→flit, string→TT_QLIT.
+
+RESIDUES (carry-forward): recursion.pas XFAIL (16-bit maxint); case no-match silently continues
+(pint halts "value out of range"); NV __pbt/__pct temps can clobber under recursive re-entry;
+right-relop diamond hoists over side-effecting left operand.
+
+NEXT — Lon picks from open areas: (a) 16-bit integer clamp (recursion.pas XFAIL → 71/0);
+(b) subrange type bounds; (c) more write/read coverage.
+
 **Session 26 (2026-06-06): PB-16 (read/readln/eof/eoln) + PB-17 (abs/trunc/odd/pred/succ) LANDED.**
 Gate: **m2 65/1** over 66 probes; sole fail = recursion.pas (16-bit maxint pin, XFAIL).
 Commits: SCRIP `4e4cbf8`, corpus `80e95e7` (read1-4 + .in files, stdlib1).
