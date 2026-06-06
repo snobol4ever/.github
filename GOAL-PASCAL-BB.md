@@ -19,24 +19,29 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 24 (2026-06-06): PB-14 `with` binding LANDED.** Gate: **m2 57/1, m3 57/1, m4 57/1 —
-UNIFORM** over 58 probes; sole fail = recursion.pas (16-bit maxint pin). Commits: SCRIP `7b7ba9c`,
-corpus `66f21ac` (with1/2/3 probes).
+**Session 25 (2026-06-06): PB-15 char type LANDED.** Gate: **m2 60/1** over 61 probes; sole fail =
+recursion.pas (16-bit maxint pin). Commits: SCRIP `3cb0be3`, corpus `e515505` (char1/2/3 probes).
+m3/m4 28 pre-existing failures (25 pre-char + 3 new char probes, all marshal_call_arg root cause).
 
-Mechanism: `g_with_stk[8]` stack + `g_with_depth` counter in `pascal.y`. Grammar restructured:
-`with_statement: WITHSY with_open DOSY statement` where `with_open` is right-recursive (each
-comma-separated selector calls `pas_with_push` on reduce, before the body parses). `mk_ident`
-extended: before returning `TT_VAR`, walks stack top-down; if bare IDENT matches a field of an
-active with-record, returns `TT_IDX(pas_tree_clone(sel), ilit(fi))`. `pas_tree_clone` is a shallow
-malloc clone (handles TT_VAR, TT_FNC, TT_IDX, TT_ILIT). `pas_with_sel_rtype` resolves selector
-to rectype name by matching field lists. Write path unchanged — `mk_assign` already dispatches
-`TT_IDX(deref,idx)→__pas_field_set` and `TT_IDX(VAR,idx)→TT_ASSIGN` correctly. Zero new IR kinds,
-zero template work — m3/m4 free. Probes: with1 (read+write on flat rec var), with2 (sequential
-with blocks), with3 (ptr^ selector). Known scope boundary: named nested sub-record fields
-(`o.s.a` where `s : inner_type`) is a pre-existing TT_FIELD limitation, not introduced here.
+Mechanism: Chars stored as integer ordinals throughout. `scalar_constant: STRINGCONST` len=1 →
+`(long long)s[0]` (covers `const`, `case` labels, for-loop bounds). `factor: STRINGCONST` len=1 →
+`ilit(ord)` (arithmetic/comparison/assignment contexts). `ord(x)` and `chr(n)` both → identity
+(ord/chr are no-ops when chars = ints). `var c : char` / value param `x : char` → `pas_charvar_add`
+into `g_pas_charvars[256]`. In `mk_call` write/writeln path: charvar args get `mk_chr_wrap(val)`
+(→ `TT_FNC(__pas_chr, val)`) and width sentinel `-2` for default (width 1 = pint `wrc` default).
+`__pas_chr` runtime: integer ordinal → 1-char `GC_malloc(2)` string DESCR. Write string branch:
+width `-2` → `fputc` (1 char); width `≥0` → `fprintf("%*s", w, s)` right-justified.
+char1 (var assign, chr/ord, explicit width), char2 (comparisons, for-over-char), char3 (char
+params/returns, case-over-char) — all 3×m2 uniform first run. m3/m4 char write fails = pre-existing
+marshal_call_arg (`__pas_chr(c)` is a computed write arg, same root as m4wexpr/rec*/goto*).
 
-NEXT — Lon picks: (a) char type (literals, ord/chr, I/O, case-over-char — large, foundational
-for pcom/pint); (b) file I/O (prd/prr/f^, reset/rewrite, get/put, eof/eoln); (c) packed-array/alfa.
+RESIDUES (PB-15): (1) char literal directly in write position (`writeln('A')`) prints integer 65
+not `A` — write call site has no type info for ilit; (2) charvar table is global/unscoped —
+param name shadows across nested procs if the same name is used with different types (doesn't
+affect probes).
+
+NEXT — Lon picks: (a) file I/O (prd/prr/f^, reset/rewrite, get/put, eof/eoln); (b) packed-array/alfa;
+(c) 16-bit maxint (recursion.pas XFAIL close).
 
 NOTE: 16-bit maxint (recursion.pas) stays XFAIL. The mismatch is that pint writes k=8 before
 computing fact(8) (sequential P-machine ops), while SCRIP's __pas_writeln evaluates all args
@@ -44,19 +49,21 @@ before writing any. Reproducing the partial row requires per-arg eager writeln o
 TT_SEQ_EXPR desugaring approach breaks m3/m4 (computed-expr args in SEQ_EXPR via IR_CONJ
 don't emit correctly in native mode — pre-existing limitation). Not worth fixing in isolation.
 
-PRE-EXISTING m3/m4 REGRESSION (not from PB-14): computed-expression args to __pas_writeln
-fail in m3/m4 (e.g. writeln(2+3), writeln(p.x+p.y)). Root cause: ICN-HY-7g (bc95d97)
-deleted marshal_call_arg operand-kind arms that Pascal computed args rely on. m2 gate is
-clean (57/1); m3/m4 have ~25 pre-existing failures including rec1/2/3, bool*, goto1/2/3,
-ptr1/2/4/5/6/8, set2/5/6/7, m4wexpr, nestfunc, nestrec, with1/2/3. ICN-SCAN session
-owners should stash-prove these against bc95d97 and fix marshal_call_arg.
+PRE-EXISTING m3/m4 REGRESSION (not from PB-15): computed-expression args to __pas_writeln
+fail in m3/m4 (e.g. writeln(2+3), writeln(p.x+p.y), writeln(c) where c is charvar). Root
+cause: ICN-HY-7g (bc95d97) deleted marshal_call_arg operand-kind arms that Pascal computed
+args rely on. m2 gate is clean (60/1); m3/m4 have 28 pre-existing failures including rec1/2/3,
+bool*, goto1/2/3, ptr1/2/4/5/6/8, set2/5/6/7, m4wexpr, nestfunc, nestrec, with1/2/3,
+char1/2/3. ICN-SCAN session owners should stash-prove these against bc95d97 and fix marshal_call_arg.
 
 RESIDUES (documented, no probe): (1) right-relop diamond hoisted over a side-effecting left operand
 reorders evaluation vs pcom's strict l-to-r; (2) NV `__pbt`/`__pct` temps can clobber under recursive
 re-entry of the same expression (frame-slot temps would cure); (3) case no-match: pcom emits ujc →
 pint halts "value out of range"; our if-chain silently continues (error trap = runtime work, out of
 parser scope); (4) labels nested inside compounds register + lower but no probe pins that position
-(probes pin top-level labels + nested gotos).
+(probes pin top-level labels + nested gotos); (5) char literal directly in write position (`writeln('A')`)
+prints integer 65 not `A` — write call site has no type info for plain ilit; (6) charvar table
+global/unscoped — param name shadows across nested procs with different types (doesn't affect probes).
 
 Open ladder item: **LB-7-NEW** — `# BOX ICN` tag inventory in bb_gen_scan/bb_keyword/bb_scan_*
 (ICN-SCAN sessions own these files; sweep when ICN-SCAN settles).
@@ -96,6 +103,13 @@ Open ladder item: **LB-7-NEW** — `# BOX ICN` tag inventory in bb_gen_scan/bb_k
   kinds, zero template work — m3/m4 came free. Intra-procedure only, matching pcom error 399.
 - **I/O:** `__pas_writeln`/`__pas_write` take interleaved (value,width) pairs; int right-justified in
   max(w,digits), default width 10 (real 20); `:w` is a minimum. `__pas_sqr(x)`=x*x.
+- **Char (PB-15):** chars stored as integer ordinals. `scalar_constant: STRINGCONST` len=1 →
+  `(long long)s[0]` (for const/case/for-bounds). `factor: STRINGCONST` len=1 → `ilit(ord)`.
+  `ord`/`chr` both → identity. `var c:char`/value-param `x:char` → `pas_charvar_add`. Write path:
+  charvar args wrapped with `mk_chr_wrap` (→ `TT_FNC(__pas_chr, val)`) + width sentinel `-2`
+  (default char width = 1). `__pas_chr` runtime: ordinal → 1-char GC string. Width `-2` →
+  `fputc`; width ≥0 → `fprintf("%*s", w, s)`. Char lit in write position prints as int (no type
+  info available at write call site for plain ilit). Charvar table global/unscoped (probes unaffected).
 - **Arrays/records/pointers:** TT_IDX faithful in parser; LOWER → `arr_get`, `a[i]:=v` →
   `a := arr_set_pure(a,i,v)` (no auto-grow; parser prepends an init prologue sizing to high+1).
   Records = field-index arrays; `p^` = `__pas_deref`, `p^.f := v` = `__pas_field_set`,
