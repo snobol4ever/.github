@@ -19,31 +19,42 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — session 19 (2026-06-06, Opus 4.8): PB-10a LANDED (SCRIP `6e6e29a`, corpus `440a19c` +
-boolarg). PB-10b DIAGNOSED, zero emitter code written — implementation is mapped and de-risked; resume
-straight into bb_call.cpp.** Gate at close: m2 41/0 (36 legacy + nestvar/2/3 + boolassign + boolnot),
-m3 39/0, m4 39/0, SNOBOL smoke 19/0. XFAIL pins: boolmix.pas (PB-10a2), boolarg.pas m3/m4 (PB-10b,
-m2 green `1 0 1`, m3+m4 print `1 1 1`).
+**Watermark — session 20 (2026-06-06, Opus 4.8): PB-10b LANDED (SCRIP `1ad0019`) + PB-10c LANDED (SCRIP
+`3ec6470`). The boolean m3/m4 story is closed.** Gate at close: m2 42/2, m3 42/2, m4 42/2 — UNIFORM across
+modes for the first time; the only fails are the standing pins boolmix.pas (PB-10a2) and recursion.pas
+(16-bit maxint), identical in every mode. SNOBOL smoke 19/0. boolarg m3+m4 `1 0 1`; boolassign + boolnot
+oracle-exact m2/m3/m4. sieve.s + m4wexpr.s byte-identical through both rungs. Re-verified green after
+rebasing onto concurrent BB-FIXUP pushes (incl. the bb_builtin_*->bb_* rename).
 
-PB-10b diagnosis facts (verified by probe + reading bb_call.cpp / bb_binop_gvar_relop.cpp / x86_asm.h):
-session 18's predicted IR shape CONFIRMED — `show(relop)` arg subgraph entry is IR_VAR (relop lhs), the
-γ-chase (bb_call.cpp:233-234) runs to fin=IR_LIT_I(1) (then-branch), the relop IR_BINOP sits mid-chain
-with ω→IR_LIT_I(0); the gvar-read arm (bb_call.cpp:246, `lf->t == IR_VAR`) fires first and marshals the
-lhs var's value — i=3 truthy → `1` printed for every arg. Fix site: inside `marshal_call_arg`'s
-`g_gvar_flat_chain` block, a new arm BEFORE the gvar-read arm: γ-walk lf for an IR_BINOP with relop
-ival; confirm fin→t==IR_LIT_I && fin→ival==1 && relop→ω→t==IR_LIT_I && relop→ω→ival==0; then
-`arith_operands(sg, relop, &a, &b)` (handles BOTH binop layouts — direct α/β and the PEERS operand_aux
-sidecar, sg already threaded) and reuse `arith_opnd_a` (→rax, spill to `bb_slot_alloc16` scratch) +
-`arith_opnd_b` (→rcx) for operand loading; emit
-`mov qword [r12+aoff], 6` (INTVAL tag) + reload rax + `cmp rax, rcx` + `x86_jcc_id(fail_mnem, 0)` +
-store 1 → `[r12+aoff+8]` + `x86_jmp_id(1)` + `x86_deflabel_id(0)` + store 0 + `x86_deflabel_id(1)`.
-Label IDs 0/1 are collision-safe: `x86_internal_name` = `.Lx<_.x86_uid>_<n>`, uid is per emitting box
-(x86_asm.h:216), and ≤1 relop arg per call by spec. Fail mnemonics (from gvr_mnem, duplicate per
-RULES into bb_call.cpp as `relop_fail_mnem`, plus `arith_is_relop`): LT→jge, LE→jg, GT→jle, GE→jl,
-EQ→jne, NE→je. Both MEDIUM_TEXT and MEDIUM_BINARY ride the same x86_*_id helpers. Relop BINOP_* codes
-form the contiguous range tested by `gvr_numrel()` (BINOP_LT..BINOP_NE). PB-10c after: same detection
-for the assignment-RHS IF subgraph (bb_gvar_assign.cpp / bb_assign_frame.cpp γ-chase, diagnose exact
-shape first).
+PB-10b (bb_call.cpp, +44 lines): session 19's map executed verbatim — new arm in `marshal_call_arg` before
+the gvar-read arm; γ-walk lf to the relop, require fin→IR_LIT_I(1) and relop→ω→IR_LIT_I(0);
+`arith_operands(sg,...)` (both binop layouts); reuse `arith_opnd_a` (→rax, `bb_slot_alloc16` spill) +
+`arith_opnd_b` (→rcx); `cmp rax,rcx` + conditional INTVAL(0/1) store; `arith_is_relop` + `relop_fail_mnem`
+duplicated per RULES. ONE deviation, forced by the assembler: the map's label IDs 0/1 are NOT collision-safe
+in mode-4 — the "uid per emitting box" premise is FALSE on the Pascal gvar flat chain (the WHOLE chain
+shares one `_.x86_uid`; `.Lx4_0` was defined three times across the three show() calls; m3 passed because
+BINARY label records ARE per-box). Fix per the session-17 single-call precedent: MEDIUM_TEXT labels
+`.Lbrel%d_f/_e` keyed by `bb_node_id(relnd)`; MEDIUM_BINARY keeps per-box ids `idx*2/idx*2+1` (the LIT_S
+namespace — an arg is one or the other, never both), guarded against X86_INTERNAL_MAX (16). FACT for all
+future Pascal-chain work: never assume per-box uid for TEXT internal labels.
+
+PB-10c (pascal.y only + direct regen): the sketched emitter arm was abandoned AFTER the mandated diagnosis.
+Measured: the IR diamond is CORRECT (relop γ→LIT(1)→ASSIGN, ω→LIT(0)→ASSIGN, converging control); the bug
+is `IR_ASSIGN(lit_i)` resolving its RHS at EMIT time to whichever single literal `assign.α` points at
+(emit_core.c `walk_bb_node`: `op_a_node_kind = α->t`, `op_a_ival_sg = α->ival` — boolassign stmt 1 stored
+constant 0, stmts 2-6 stored 1). The relop is UNREACHABLE from template handles (no back-pointers, nothing
+in the emit context), so an emitter arm needs new dispatcher plumbing plus a redundant relop re-eval — and
+the LANGUAGE-BLIND FACT RULE puts language-shaped behavior in parser/LOWER, never in a template arm. Fix:
+the `assignment:` action rewrites `var := relop` (dst TT_VAR only) into the statement-IF
+`TT_IF(relop, var:=1, var:=0)` — proven-green statement-IF + lit-assign shapes in ALL modes, gvar AND frame
+destinations at once. The pas_bool diamond is retained where correct: the call-arg boundary (10b's arm) and
+non-VAR destinations. RESIDUE (no probe forces these): `a[i] := relop` and `funcname := relop` (funcname
+selector is TT_FNC via mk_ident) still ride the diamond → wrong in m3/m4 if ever exercised.
+
+Landmines (re-confirmed): (1) `rm -f scrip` before `make scrip`; (2) `touch` templates before building;
+(3) pascal regen ONLY via `cd src/parser/pascal && bison -d -o pascal.tab.c pascal.y` (1 s/r =
+dangling-else), never the full regen script; (4) fpc on this image: `apt-get update` first, then plain
+`apt-get install -y fpc` works (s19's liblzma 404 is cured by the update).
 
 DEVIATION (PB-10a, documented): NOTSY emits `pas_flip_rel(pas_cond($2))` — boolean NOT stays in the
 relop algebra (LT↔GE, LE↔GT, EQ↔NE; non-relop factor → `EQ(x,0)`, also correct for or-encoded stored
@@ -94,10 +105,10 @@ Mechanism inventory (terse; detail in git history + HANDOFF-*.md):
   (funcname-as-return-variable, recursion-safe). Binop templates `bb_binop_gvar_{relop,arith_slot}.cpp`:
   LIT-imm / VAR / slot operand shapes; slot disp +8 for DESCRs, +0 for raw qwords.
 
-NEXT: PB-10a2 (lower: relop/IF as arith operand) or PB-10b (marshal m3/m4 call-arg) — Lon's ordering call;
-10b does not depend on 10a2. Landmines: `scrip:` target has no prerequisites — `rm -f scrip` before
-`make scrip`; Makefile compile rules for templates are explicit — `touch` the template before `make scrip`
-or the .o may not rebuild; do NOT run the full parser-regen script (kills snobol4.lex.c).
+NEXT: PB-10a2 — the LAST boolean rung and the only non-pin failure (LOWER: relop/IF as arith operand,
+boolmix.pas; FALSE relop operand of TT_ADD/TT_MUL propagates goal-failure and kills the statement chain,
+TRUE leaks rv; fix in `v_binop`/`lower_value_subgraph` per the rung below). After it the suite is clean
+modulo the recursion maxint pin; case/goto remain TT_SUCCEED stubs until a probe forces them.
 
 ---
 
@@ -232,7 +243,7 @@ cd /home/claude/corpus/programs/pascal
   (`v_binop`/`lower_value_subgraph`): a relop operand must lower to a value-producing subgraph storing
   INTVAL(1)/INTVAL(0) with converging control, or the operand-subgraph executor must learn junctions.
   **Gate**: boolmix.pas m2 + chains `(i = 0) or b`, `not a or b`, `not a and b` all matching oracle.
-- [ ] **PB-10b — boolean marshal fix (m3/m4 call-arg).** DIAGNOSED session 19 (zero code written; full
+- [x] **PB-10b — boolean marshal fix (m3/m4 call-arg).** LANDED session 20 (SCRIP `1ad0019`; map executed verbatim except TEXT label keying — see watermark). DIAGNOSED session 19 (zero code written; full
   implementation map + verified IR-shape facts in the watermark above — resume straight into
   `marshal_call_arg`, new arm before the gvar-read arm at bb_call.cpp:246). After PB-10a, the IR for `writeln(f(b_expr))`
   or `proc(relop)` has a `TT_IF(relop, 1, 0)` subgraph as the arg. Entry node of that subgraph is
@@ -244,7 +255,7 @@ cd /home/claude/corpus/programs/pascal
   `x86_deflabel_id` (IDs 0,1 — safe for ≤1 relop arg per call). Also add `arith_is_relop` + `relop_fail_mnem`
   static helpers (duplicated per RULES, not shared). **Gate**: `boolarg.pas` m3+m4 (committed, oracle
   `1 0 1`; currently both print `1 1 1`) + m3/m4 of boolassign/boolnot; legacy 39 m3/m4 + SNOBOL smoke hold.
-- [ ] **PB-10c — boolean assignment RHS (m3/m4).** `b := pas_bool(relop)` lowers the RHS as
+- [x] **PB-10c — boolean assignment RHS (m3/m4).** LANDED session 20 (SCRIP `3ec6470`; parser statement-IF rewrite — deviation from the emitter-arm sketch below, rationale in watermark). `b := pas_bool(relop)` lowers the RHS as
   `TT_IF(relop, 1, 0)`, producing an IR_IF subgraph. In gvar flat-chain mode the assignment template reads
   the RHS subgraph's "final" value by γ-chase; for a TT_IF subgraph the γ chase finds the then-branch
   literal (IR_LIT_I(1)) and emits a constant store — ignoring the conditional. Diagnose the exact IR shape
