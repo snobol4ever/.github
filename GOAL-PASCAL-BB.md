@@ -19,23 +19,25 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 23 (2026-06-06): PB-12 `goto`/label LANDED** — the last control-flow stub is real. Gate:
-**m2 52/1, m3 52/1, m4 52/1 — UNIFORM** over 53 probes; sole fail = recursion.pas (16-bit maxint
-pin). SNOBOL smoke 19/0; Icon/Prolog smokes at pre-session baselines (Icon m3/m4 10/2 stash-proven
-pre-existing). Commits: SCRIP `d8a5c1d`, corpus `2c7c68b` (goto1/2/3 probes). Handoff:
-`HANDOFF-2026-06-06-OPUS48-PASCAL-BB-PB12-GOTO.md`.
+**Session 24 (2026-06-06): PB-14 `with` binding LANDED.** Gate: **m2 57/1, m3 57/1, m4 57/1 —
+UNIFORM** over 58 probes; sole fail = recursion.pas (16-bit maxint pin). Commits: SCRIP `7b7ba9c`,
+corpus `66f21ac` (with1/2/3 probes).
 
-**Session 23 continued — PB-13 enum ordinals LANDED.** Gate: **m2 54/1, m3 54/1, m4 54/1**. Commits:
-SCRIP `ab599a4`, corpus `2c581f4` (enum1/2 probes). Mechanism: `simple_type: (id_list)` production
-now iterates the id_list and calls `pas_const_add(name, ordinal)` (0,1,2,...); `mk_call("ord",…)`
-rewrites to the single arg (integer-valued enums → identity). ord() for char deferred to char rung.
-Residue: enum range overflow in for-loop matches pint's `-Cr` crash but is not a SCRIP bug — the
-existing gate runner uses `./pint < /dev/null 2>/dev/null` (stderr only suppressed), so probes must
-not trigger pint range-check exits that mix into stdout; a probe redesign discipline noted.
+Mechanism: `g_with_stk[8]` stack + `g_with_depth` counter in `pascal.y`. Grammar restructured:
+`with_statement: WITHSY with_open DOSY statement` where `with_open` is right-recursive (each
+comma-separated selector calls `pas_with_push` on reduce, before the body parses). `mk_ident`
+extended: before returning `TT_VAR`, walks stack top-down; if bare IDENT matches a field of an
+active with-record, returns `TT_IDX(pas_tree_clone(sel), ilit(fi))`. `pas_tree_clone` is a shallow
+malloc clone (handles TT_VAR, TT_FNC, TT_IDX, TT_ILIT). `pas_with_sel_rtype` resolves selector
+to rectype name by matching field lists. Write path unchanged — `mk_assign` already dispatches
+`TT_IDX(deref,idx)→__pas_field_set` and `TT_IDX(VAR,idx)→TT_ASSIGN` correctly. Zero new IR kinds,
+zero template work — m3/m4 free. Probes: with1 (read+write on flat rec var), with2 (sequential
+with blocks), with3 (ptr^ selector). Known scope boundary: named nested sub-record fields
+(`o.s.a` where `s : inner_type`) is a pre-existing TT_FIELD limitation, not introduced here.
 
-NEXT — Lon picks: (a) 16-bit maxint (closes recursion.pas); (b) char type (literals, ord/chr, I/O,
-case-over-char — large but foundational for pcom/pint); (c) `with` binding (currently drops selector
-— latent wrong code on real programs); (d) file I/O (prd/prr/f^); (e) packed-array/alfa.
+NEXT — Lon picks: (a) 16-bit maxint (closes recursion.pas — gate 58/0 uniform); (b) char type
+(literals, ord/chr, I/O, case-over-char — large, foundational for pcom/pint); (c) file I/O
+(prd/prr/f^, reset/rewrite, get/put, eof/eoln); (d) packed-array/alfa.
 
 RESIDUES (documented, no probe): (1) right-relop diamond hoisted over a side-effecting left operand
 reorders evaluation vs pcom's strict l-to-r; (2) NV `__pbt`/`__pct` temps can clobber under recursive
