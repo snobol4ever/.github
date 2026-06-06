@@ -19,30 +19,34 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — session 21 (2026-06-06, Opus 4.8): PB-10a2 LANDED (SCRIP lower.c only; corpus +boolchain.pas).
-The boolean m2 story is closed.** Gate at close: m2 44/1 over 45 probes (recursion maxint = the ONLY m2
-fail), m3 42/3, m4 42/3 — m3/m4 fails = boolmix + boolchain (the new relop-diamond shape, LOUD:
-`walk_bb_node kind=7 IR_BINOP unhandled` + `bb_gvar_assign op_a_slot==-1` bomb, rc=134) + recursion; the
-42 m3/m4 passes are the SAME 42 as session 20 — zero regression. SNOBOL smoke 19/0. sieve.s + m4wexpr.s
-byte-identical pre/post.
+**Watermark — session 21 (2026-06-06, Opus 4.8): PB-10a2 LANDED in TWO rungs, the second superseding the
+first's mechanism. The boolean story is CLOSED IN ALL MODES.** Gate at close: **m2 44/1, m3 44/1,
+m4 44/1 — UNIFORM**, the single fail being the recursion maxint pin, over 45 probes (+boolchain).
+boolmix + boolchain oracle-exact m2/m3/m4; chains in if-condition position with proc calls verified all
+modes. SNOBOL smoke 19/0. sieve.s + m4wexpr.s byte-identical vs the rebased base (stash-proven; the
+HY-7d/7e concurrent push moved those baselines — old captures are stale, re-baseline after any rebase).
 
-PB-10a2 mechanism (`pas_bool_operand`, lower.c): for `cx.lang==IR_LANG_PAS`, a RELATIONAL child of ANY
-v_binop lowers as the rung-prescribed converging diamond — relop γ→IR_LIT_I(1), ω→IR_LIT_I(0), both lits
-γ→one ring-mode IR_IF join (α=β NULL). FACT: the m2 driver pushes EVERY node's value to the ag_ring after
-each step (IR_interp.c:5282), so at the join ring(0) is ALWAYS the just-executed lit, never FAIL (the
-relop's own FAILDESCR push sits at depth ≥1); the join copies ring(0) into its OWN value and continues γ,
-giving `bb_operand_aux_get` a single node holding INTVAL(1)/INTVAL(0) in both arms. Applied uniformly to
-relational AND non-relational outers (a relop child of a relop = boolean comparison, also correct; no
-green traffic existed with relop-as-operand, so no drift is possible). When neither child is relational
-the function executes the EXACT original statements with original arguments — byte-identity for legacy
-traffic BY CONSTRUCTION (proven: sieve.s/m4wexpr.s cmp-identical). Verified beyond the gate:
-double-diamond `(i<2) or (i>2)`, chains in if-condition position, chains as proc-call boundaries — all
-oracle-exact m2.
+PB-10a2 mechanism v2 (`pas_bool_diamond`, lower.c — supersedes the same-session ring-mode IR_IF join,
+which was m2-only): for `cx.lang==IR_LANG_PAS`, a RELATIONAL child of ANY v_binop lowers as the proven
+statement-IF shape — relop γ→IR_LIT_I(1)→IR_ASSIGN(__pbtN), ω→IR_LIT_I(0)→IR_ASSIGN(__pbtN) — with the
+diamond HOISTED AS A CHAIN PREFIX before the expression and a bare `IR_VAR(__pbtN)` left in operand
+position. WHY the hoist (the m3/m4 FACT that forced it): `gvar_stmt_operand_refs` (emit_bb.c:2732)
+resolves gvar-chain binop α/β by a STACK SIMULATION over the γ-spine (`gvar_chain_arity` pops/pushes per
+node) — a consumer's operands must be the MOST RECENT pushes, so any in-place diamond interleaves junk
+pushes (the relop, the arm assign) between sibling operand pushes and breaks every multi-operand case;
+IR_IF has arity -1 = stack reset, which is why v1's join left the outer ADD with α=β NULL → raw IR_BINOP
+→ walk_bb_node kind=7 unhandled → bb_gvar_assign op_a_slot==-1 bomb. With the prefix hoist, junk sits
+below all expression pushes and every pop lines up; the resulting shapes are 100% pre-existing
+(GVAR_RELOP branch, gvar lit-assign, gvar var read, GVAR_ARITH/ARITH_SLOT) — ZERO emitter changes,
+LANGUAGE-BLIND rule untouched. m2 unchanged in behavior: arms store via ring(0)=lit, rd reads NV,
+binop aux reads rd.value. NV temps `__pbt%d` (static counter, deterministic per run; P4 idents can't
+collide with `__`).
 
-RESIDUE (new, loud, own rung if wanted — PB-10a2-m34): the diamond inside an arith chain is NOT emittable
-in m3/m4 — walk_bb_node has no junction arm for a chain-interior IR_BINOP-with-LIT-targets, and
-bb_gvar_assign can't slot-promote through the IR_IF join. boolmix/boolchain m3/m4 bomb loudly (better
-than s20's silent wrong store). Session-20 state below stands.
+RESIDUE (documented, no probe): (1) hoisting a RIGHT relop diamond over a LEFT non-relop operand
+reorders evaluation when the left operand has side effects (function calls) — affects all modes
+uniformly, diverges from pcom's strict l-to-r only for side-effecting boolean operand mixes;
+(2) recursion can clobber an NV `__pbt` temp if a call in a LATER operand re-enters the same expression
+— same hazard class as node-value aux reads, frame-slot temps would cure it if a probe ever forces it.
 
 Session 20: PB-10b LANDED (SCRIP `1ad0019`) + PB-10c LANDED (SCRIP
 `3ec6470`). The boolean m3/m4 story is closed. Gate at close: m2 42/2, m3 42/2, m4 42/2 — UNIFORM across
@@ -130,10 +134,10 @@ Mechanism inventory (terse; detail in git history + HANDOFF-*.md):
   (funcname-as-return-variable, recursion-safe). Binop templates `bb_binop_gvar_{relop,arith_slot}.cpp`:
   LIT-imm / VAR / slot operand shapes; slot disp +8 for DESCRs, +0 for raw qwords.
 
-NEXT: the m2 suite is clean modulo the recursion maxint pin. Open candidates, Lon picks: (a) PB-10a2-m34 —
-emit the relop-diamond-in-arith shape (boolmix/boolchain m3/m4, loud bombs, residue note in watermark);
-(b) the PB-10c residue shapes `a[i] := relop` / `funcname := relop` (still ride the value diamond, no
-probe forces them); (c) case/goto remain TT_SUCCEED stubs until a probe forces them.
+NEXT: the suite is clean AND UNIFORM (44/1 every mode) modulo the recursion maxint pin. Open candidates,
+Lon picks: (a) the PB-10c residue shapes `a[i] := relop` / `funcname := relop` (still ride the value
+diamond, no probe forces them); (b) case/goto remain TT_SUCCEED stubs until a probe forces them;
+(c) the 16-bit maxint rung if recursion.pas is ever to go green.
 
 ---
 
@@ -261,12 +265,13 @@ cd /home/claude/corpus/programs/pascal
   `pas_flip_rel(pas_cond($2))` instead, keeping NOT in the relop algebra; boundary IR shapes for 10b/10c
   unchanged. Gate green: m2 41/0, m3 39/0, m4 39/0, SNOBOL smoke 19/0; probes
   nestvar/nestvar2/nestvar3 + boolassign + boolnot committed.
-- [x] **PB-10a2 — relop/IF as arith operand (m2 LOWER fix).** LANDED session 21 (lower.c
-  `pas_bool_operand`: relational v_binop child → relop γ→LIT_I(1)/ω→LIT_I(0) converging into a ring-mode
-  IR_IF join = the aux operand node; mechanism + m3/m4 residue in watermark). Gate green: boolmix.pas m2
-  oracle-exact; boolchain.pas (committed) covers `(i = 0) or b`, `not a or b`, `not a and b` + double
-  diamonds, all oracle-exact m2; suite m2 44/1 (recursion pin only); m3/m4 42 holds; SNOBOL smoke 19/0;
-  sieve.s/m4wexpr.s byte-identical. Discovered session 19, pinned by XFAIL probe
+- [x] **PB-10a2 — relop/IF as arith operand (ALL MODES, two same-session rungs).** LANDED session 21
+  (lower.c `pas_bool_diamond`: relational v_binop child → statement-IF-shaped diamond relop
+  γ→LIT_I(1)→ASSIGN(__pbtN) / ω→LIT_I(0)→ASSIGN(__pbtN), HOISTED as a chain prefix, bare IR_VAR(__pbtN)
+  in operand position; the prefix hoist is forced by the gvar-chain operand stack simulation — mechanism,
+  the superseded v1 ring-IF join, and residues in watermark). Gate green: boolmix + boolchain (committed)
+  oracle-exact m2/m3/m4 incl. double diamonds; suite 44/1 UNIFORM all modes (recursion pin only); SNOBOL
+  smoke 19/0; sieve.s/m4wexpr.s byte-identical vs rebased base. Discovered session 19, pinned by XFAIL probe
   `boolmix.pas` (`c := not a or b` → oracle 0, scrip silent death). Fact: a relop operand of TT_ADD/TT_MUL
   is goal-directed in the IR — FALSE propagates failure and kills the statement chain; TRUE leaks rv as the
   value. A TT_IF operand dies on both paths (value-subgraphs don't run junctions). Fix lives in LOWER
