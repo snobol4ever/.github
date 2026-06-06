@@ -19,29 +19,33 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 25 (2026-06-06): PB-15 char type LANDED.** Gate: **m2 60/1** over 61 probes; sole fail =
-recursion.pas (16-bit maxint pin). Commits: SCRIP `3cb0be3`, corpus `e515505` (char1/2/3 probes).
-m3/m4 28 pre-existing failures (25 pre-char + 3 new char probes, all marshal_call_arg root cause).
+**Session 26 (2026-06-06): PB-16 (read/readln/eof/eoln) + PB-17 (abs/trunc/odd/pred/succ) LANDED.**
+Gate: **m2 65/1** over 66 probes; sole fail = recursion.pas (16-bit maxint pin, XFAIL).
+Commits: SCRIP `4e4cbf8`, corpus `80e95e7` (read1-4 + .in files, stdlib1).
+m3/m4 pre-existing failures unchanged (marshal_call_arg root cause, not touched this session).
 
-Mechanism: Chars stored as integer ordinals throughout. `scalar_constant: STRINGCONST` len=1 →
-`(long long)s[0]` (covers `const`, `case` labels, for-loop bounds). `factor: STRINGCONST` len=1 →
-`ilit(ord)` (arithmetic/comparison/assignment contexts). `ord(x)` and `chr(n)` both → identity
-(ord/chr are no-ops when chars = ints). `var c : char` / value param `x : char` → `pas_charvar_add`
-into `g_pas_charvars[256]`. In `mk_call` write/writeln path: charvar args get `mk_chr_wrap(val)`
-(→ `TT_FNC(__pas_chr, val)`) and width sentinel `-2` for default (width 1 = pint `wrc` default).
-`__pas_chr` runtime: integer ordinal → 1-char `GC_malloc(2)` string DESCR. Write string branch:
-width `-2` → `fputc` (1 char); width `≥0` → `fprintf("%*s", w, s)` right-justified.
-char1 (var assign, chr/ord, explicit width), char2 (comparisons, for-over-char), char3 (char
-params/returns, case-over-char) — all 3×m2 uniform first run. m3/m4 char write fails = pre-existing
-marshal_call_arg (`__pas_chr(c)` is a computed write arg, same root as m4wexpr/rec*/goto*).
+Mechanism (PB-16): `read(v)` → parser emits `mk_assign(v, mk_fnc0("__pas_read_i"))` for int vars,
+`mk_assign(v, mk_fnc0("__pas_read_c"))` for charvars; `readln` with no args → `mk_fnc0("__pas_readln")`;
+`readln(v,...)` → seq of reads + readln; bare `eof`/`eoln` identifiers → `mk_ident` intercepts and
+emits `mk_fnc0("__pas_eof")`/`mk_fnc0("__pas_eoln")` (critical: `eof` appears as bare selector in
+expression, not as `call_with_args`, so intercept is in `mk_ident` not `mk_call`).
+Runtime: `__pas_read_i` = `scanf(" %lld", &v)`; `__pas_read_c` = `getchar()` (no ws-skip);
+`__pas_readln` = drain to `\n`; `__pas_eof` = peek getchar/ungetc; `__pas_eoln` = peek for `\n`.
+Probes with stdin use `.in` companion files; gate uses `inp=${base}.in` when present, else `/dev/null`.
 
-RESIDUES (PB-15): (1) char literal directly in write position (`writeln('A')`) prints integer 65
-not `A` — write call site has no type info for ilit; (2) charvar table is global/unscoped —
-param name shadows across nested procs if the same name is used with different types (doesn't
-affect probes).
+Mechanism (PB-17): all pure parser transforms in `mk_call`:
+`pred(i)` → `TT_SUB(i, 1)`; `succ(i)` → `TT_ADD(i, 1)`;
+`trunc(r)` → `mk_fnc1("__pas_trunc", r)` (runtime: `(long long)d`);
+`abs(x)` → `mk_fnc1("__pas_abs", x)` (runtime: int or real absolute value);
+`odd(i)` → `bin(TT_NE, bin(TT_MOD, i, ilit(2)), ilit(0))` (raw relop — NOT pre-wrapped in pas_bool;
+pre-wrapping caused a double-diamond IR_BINOP(NE, IR_IF(...), 0) with null α/β that the interpreter
+short-circuits to FAILDESCR).
 
-NEXT — Lon picks: (a) file I/O (prd/prr/f^, reset/rewrite, get/put, eof/eoln); (b) packed-array/alfa;
-(c) 16-bit maxint (recursion.pas XFAIL close).
+RESIDUES (carry-forward): char literal in write position prints as int; charvar table global/unscoped;
+recursion.pas XFAIL (per-arg eager writeln vs all-args-first evaluation order).
+
+NEXT — Lon picks: (a) more stdlib (sqrt/sin/cos/ln/arctan — pint csp 14-19); (b) packed-array/alfa;
+(c) 16-bit maxint close (recursion.pas); (d) write(real:w:d) two-width specifier (wrr).
 
 NOTE: 16-bit maxint (recursion.pas) stays XFAIL. The mismatch is that pint writes k=8 before
 computing fact(8) (sequential P-machine ops), while SCRIP's __pas_writeln evaluates all args
