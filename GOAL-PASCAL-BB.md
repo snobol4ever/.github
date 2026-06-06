@@ -20,7 +20,9 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 all control flow incl. `case`, flat+nested procs/functions, var params,
 records/arrays/sets/pointers/`new`, booleans in every destination shape. Rung detail lives in git
 history + `HANDOFF-*-PASCAL-BB-*.md`. Gate: **m2 49/1, m3 49/1, m4 49/1 — UNIFORM** over 50 probes;
-sole fail = recursion.pas (16-bit maxint pin). SNOBOL smoke 19/0.
+sole fail = recursion.pas (16-bit maxint pin). SNOBOL smoke 19/0. Session 22 commits: SCRIP
+`2419bb8` (PB-10d) + `046bfe1` (PB-11); corpus `92b2b88` + `24babd7` (probes); .github `81d9be09`
+(goal prune −66%). Handoff: `HANDOFF-2026-06-06-OPUS48-PASCAL-BB-PB10D-PRUNE-PB11-CASE.md`.
 
 NEXT — Lon picks: (a) `goto` (TT_SUCCEED stub until a probe forces it); (b) the 16-bit maxint rung
 for recursion.pas; (c) the residues below if a probe ever forces them.
