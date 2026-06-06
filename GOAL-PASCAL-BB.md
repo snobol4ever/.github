@@ -35,9 +35,21 @@ zero template work — m3/m4 free. Probes: with1 (read+write on flat rec var), w
 with blocks), with3 (ptr^ selector). Known scope boundary: named nested sub-record fields
 (`o.s.a` where `s : inner_type`) is a pre-existing TT_FIELD limitation, not introduced here.
 
-NEXT — Lon picks: (a) 16-bit maxint (closes recursion.pas — gate 58/0 uniform); (b) char type
-(literals, ord/chr, I/O, case-over-char — large, foundational for pcom/pint); (c) file I/O
-(prd/prr/f^, reset/rewrite, get/put, eof/eoln); (d) packed-array/alfa.
+NEXT — Lon picks: (a) char type (literals, ord/chr, I/O, case-over-char — large, foundational
+for pcom/pint); (b) file I/O (prd/prr/f^, reset/rewrite, get/put, eof/eoln); (c) packed-array/alfa.
+
+NOTE: 16-bit maxint (recursion.pas) stays XFAIL. The mismatch is that pint writes k=8 before
+computing fact(8) (sequential P-machine ops), while SCRIP's __pas_writeln evaluates all args
+before writing any. Reproducing the partial row requires per-arg eager writeln output; the
+TT_SEQ_EXPR desugaring approach breaks m3/m4 (computed-expr args in SEQ_EXPR via IR_CONJ
+don't emit correctly in native mode — pre-existing limitation). Not worth fixing in isolation.
+
+PRE-EXISTING m3/m4 REGRESSION (not from PB-14): computed-expression args to __pas_writeln
+fail in m3/m4 (e.g. writeln(2+3), writeln(p.x+p.y)). Root cause: ICN-HY-7g (bc95d97)
+deleted marshal_call_arg operand-kind arms that Pascal computed args rely on. m2 gate is
+clean (57/1); m3/m4 have ~25 pre-existing failures including rec1/2/3, bool*, goto1/2/3,
+ptr1/2/4/5/6/8, set2/5/6/7, m4wexpr, nestfunc, nestrec, with1/2/3. ICN-SCAN session
+owners should stash-prove these against bc95d97 and fix marshal_call_arg.
 
 RESIDUES (documented, no probe): (1) right-relop diamond hoisted over a side-effecting left operand
 reorders evaluation vs pcom's strict l-to-r; (2) NV `__pbt`/`__pct` temps can clobber under recursive
