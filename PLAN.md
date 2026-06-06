@@ -46,17 +46,17 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
-| **BB-FIXUP** ⬅ NEW (Lon 2026-06-04) | `GOAL-BB-FIXUP.md` | The continuous hygiene sweep: ONE ATTENDED session Lon opens for periodic runs, ROUND-ROBIN CURSOR (in BB-REVAMP-TRACKER.md) — fix file at cursor, commit straight to main, push, advance, resume from cold next session. No branches, no unattended runs. Next: FIX-0 (per-file checker + lap table + emit-blind gate). |
-| **SRC REORG** ⬅ #0 (Lon 2026-06-02) | `GOAL-SRC-REORG.md` | Re-partition `src/` by pipeline role. LADDER COMPLETE except GMR-8(b) (Σ/Δ/Ω emitter-globals eviction, deferred to REG ladder). All gates byte-identical. Other sessions may resume. |
-| **RUNTIME RENAME** (Lon 2026-06-02) | `GOAL-RUNTIME-RENAME.md` | Language-independent DE-NAME of `src/emitter/**`+`src/runtime/**`. ✅ COMPLETE except LI-CORE (`src/runtime/core/` SNOBOL-lib naming) — a runtime-unification decision for Lon. |
-| **RUNTIME REORG** (Lon 2026-06-02) | `GOAL-RUNTIME-REORG.md` | Each FILE in `src/runtime/**` becomes a CS SUBSYSTEM. RS-1 (562-fn inventory) + RS-2 partial (`runtime_eval`/`unification`) landed byte-identical. Next: `runtime_init`/`io_format`/`arithmetic`/`pattern_match`, then `core.c`, then RS-FENCE. |
-| **SCRIP RENAME** (Lon 2026-05-30) | `GOAL-SCRIP-RENAME.md` | Eradicate "SCRIP" everywhere → SCRIP. 7-slice gated rung (RN-1 build scripts → RN-7 zero-check). Next: RN-1 (fix `build_scrip.sh` $ROOT/SCRIP breakage). |
+| **BB-FIXUP** ⬅ NEW (Lon 2026-06-04) | `GOAL-BB-FIXUP.md` | Attended round-robin hygiene sweep; cursor in `SCRIP/BB-REVAMP-TRACKER.md`. See goal file. |
+| **SRC REORG** ⬅ #0 (Lon 2026-06-02) | `GOAL-SRC-REORG.md` | Re-partition `src/` by pipeline role. Open: GMR-8(b). See goal file. |
+| **RUNTIME RENAME** (Lon 2026-06-02) | `GOAL-RUNTIME-RENAME.md` | DE-NAME emitter/runtime. Open: LI-CORE (Lon decision). See goal file. |
+| **RUNTIME REORG** (Lon 2026-06-02) | `GOAL-RUNTIME-REORG.md` | Each runtime FILE → CS subsystem. See goal file. |
+| **SCRIP RENAME** (Lon 2026-05-30) | `GOAL-SCRIP-RENAME.md` | 7-slice gated rename rung. See goal file. |
 | **Ground Zero (Icon-BB)** ⬅ #1 | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. Seed: `scrip --interp` → `hello`. See goal file for live state. |
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. |
-| **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(unified four-port AST→IR lower rewrite in `lower2.c`; pattern-BB-template track below it)* |
-| **Raku BB** | `GOAL-RAKU-BB.md` | ⏸ **ON HOLD** (2026-05-30). Raku development paused indefinitely. Grammar/subrule BB-generator tier deferred. SM-0+SM-1 clean; SM-2 diagnosed (BB_ITERATE/SM_CALL_FN mode-4 crash); resume when Raku is re-prioritized. |
-| **Pascal BB** | `GOAL-PASCAL-BB.md` | See goal file for live state. *(PB-0..10d complete, 47/1 uniform ×3 modes; next: case/goto, maxint rung, or residues — Lon picks)* |
+| **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. |
+| **Raku BB** | `GOAL-RAKU-BB.md` | ⏸ ON HOLD (2026-05-30); resume on Lon's word. See goal file. |
+| **Pascal BB** | `GOAL-PASCAL-BB.md` | 7th frontend (P4 subset); reference toolchain in `corpus/programs/pascal/`. See goal file. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
 | **PST Parent** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | Stage 2 PST-LR-0 bulk rename. |
 | **PST SNOBOL4** | `GOAL-PST-SNOBOL4.md` | SN4-SC-6 smoke blocked by EC-3* regression. |
