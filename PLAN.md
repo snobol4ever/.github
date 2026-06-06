@@ -56,7 +56,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(unified four-port AST→IR lower rewrite in `lower2.c`; pattern-BB-template track below it)* |
 | **Raku BB** | `GOAL-RAKU-BB.md` | ⏸ **ON HOLD** (2026-05-30). Raku development paused indefinitely. Grammar/subrule BB-generator tier deferred. SM-0+SM-1 clean; SM-2 diagnosed (BB_ITERATE/SM_CALL_FN mode-4 crash); resume when Raku is re-prioritized. |
-| **Pascal BB** ⬅ NEW (Lon 2026-06-02) | `GOAL-PASCAL-BB.md` | The **7th frontend** — a plain imperative language (the P4 subset). SEEDED: reference Pascal-P4 toolchain landed in `corpus/programs/pascal/` (pcom+pint, self-host fixpoint verified; CC0 corpus + NOTICE, like Gimpel/Shafto; `pcom.pas` is the ultimate end-state test). SCRIP frontend not started — implemented in its own C. Tiny rungs, **no test suite yet**; seed is `scrip --interp hello.pas`. Reuses all existing AST/LOWER/boxes; the **one novel construct is nested-function scoping**, lowered as Byrd-Box activation frames (static link = parent-port thread). Next: PB-1 lexer → `TT_*`. |
+| **Pascal BB** | `GOAL-PASCAL-BB.md` | See goal file for live state. *(PB-0..10d complete, 47/1 uniform ×3 modes; next: case/goto, maxint rung, or residues — Lon picks)* |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
 | **PST Parent** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | Stage 2 PST-LR-0 bulk rename. |
 | **PST SNOBOL4** | `GOAL-PST-SNOBOL4.md` | SN4-SC-6 smoke blocked by EC-3* regression. |
