@@ -1,6 +1,6 @@
 # GOAL-ICON-FULL-PASS.md — Icon: 247/247 non-xfail PASS in modes 2, 3, and 4
 
-**Status baseline (2026-06-06-h):** m2 143/247 · m3 31/247 · m4 41/247. Target: 247/247 all modes.
+**Status baseline (2026-06-06-i):** m2 181/247 · m3 31/247 · m4 34/247. Target: 247/247 all modes.
 **XFAIL pool (36):** not in scope — those are known-unimplemented tiers with explicit xfail markers.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 count must never decrease; m3/m4 must PASS or EXCISE, never silent FAIL.
 
@@ -308,7 +308,7 @@ Before implementing ANY construct: grep the canonical sources FIRST.
 | ICN-FULL-7 TT_FIELD/RECORD | 24 | +5 | ✅ landed `1589bd5` (partial — BUG-4 FIELD_SET open) |
 | ICN-FULL-8 TT_CSET_DIFF | 37 subset | +2 | ✅ landed `1589bd5` |
 | ICN-FULL-9 TT_REVASSIGN | 15, 37 | +3 | ✅ landed `1589bd5` (BUG-3 VAR operand open) |
-| **BUG-1 IR_LIMIT body topology** | 14 | fix | ☐ open — lim->α must be generator not chain-entry |
+| **BUG-1 IR_LIMIT body topology** | 14 | fix | ✅ landed `f86427a` — ring-contamination fix (IR_ALT state=0 + LIMIT mini-loop + lim->α=bα) |
 | **BUG-2 IR_CASE segfault** | 33 | fix | ☐ open — arm chain wiring NULL ptr |
 | **BUG-3 IR_SWAP VAR operands** | 15 | fix | ☐ open — must use nalloc(IR_VAR) not lower2 |
 | **BUG-4 IDX_SET/FIELD_SET** | 13,23,24 | fix | ☐ open — TT_ASSIGN with IDX/FIELD lhs |
