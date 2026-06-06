@@ -12,23 +12,23 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ STATE (2026-06-06 — PL-GZ-6)
+## ▶ STATE (2026-06-06 — PL-GZ-6b)
 
 **PROLOG GROUND ZERO (Lon 2026-06-04): development RESET to square one on the Proebsting-pure track — the
 🔴 PL-GZ ladder below.** PL-M34/PL-BBL ABSORBED into PL-GZ; PT/WAM-CP LEGACY (see LEGACY DISPOSITION).
-Watermark: SCRIP HEAD `5d4aea9` — **PL-GZ-0..4 + 5a + 5b + 5c + 6 LANDED** (details collapsed into the ladder entries).
+Watermark: SCRIP HEAD `35cf032` — **PL-GZ-0..4 + 5a + 5b + 5c + 6 + 6b LANDED** (details collapsed into the ladder entries).
 Gates: GATE-1 m2 **5/5 HARD** · m3 4/0/1-EXC (`recursion` only — cut+arith clause, flips by GZ-8) · m4 5/5; GATE-3 m2
 **115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (the 10 = PT-4b retract/abolish); coupling ceilings
-choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b/5c/6 gates
-PASS, all corrupt-proven (5c neg1 RATCHETED to query-level cut). Siblings: Icon m2 12 (m3/m4 5/7 standing) · SNOBOL4 smoke 19/19. Grounding:
+choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b/5c/6/6b gates
+PASS, all corrupt-proven (5c neg1 RATCHETED to query-level cut). Siblings: Icon m2 12 (m3/m4 10/12 standing) · SNOBOL4 smoke 19/19. Grounding:
 Proebsting paper (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_pl_1.c` +
 `test_sno_1/2/3/4.c` + `test_icon.c` in `.github/` · reset rationale
 `HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`.
-Next opener: **PL-GZ-6b** — query-prefix soft-disj so the FULL seed runs as ONE program → `b c d b`
-(admission: disj at goals[0] of a longer query conj, RESTRICTED to arm0 ending in IR_FAIL; soft landing
-becomes unwind(query mark)+jmp B0 α via lbl_δ; flat_drive_gz_query goes two-segment; recipe in
-`HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-6-CUT.md`). Then PL-GZ-7 (ITE, sweeps the m2 commit-bug
-cluster: ITE-commit + the logged mid-cut pre-cut-generator resume gap).
+Next opener: **PL-GZ-7** — ITE, paper §4.5 ifstmt template VERBATIM; sweeps the m2 commit-bug
+cluster: ITE-commit (WAM-CP-9) + the logged mid-cut pre-cut-generator resume gap + the gz6b-logged
+disj-resume re-walk (B-segment failure re-enters the exhausted soft-disj in m2; gprolog canon =
+trust_me_else_fail deletes the disj CP on the last arm — m3/m4 already canon-true; recipe in
+`HANDOFF-2026-06-06-OPUS48-PROLOG-BB-PL-GZ-6B-TWO-SEGMENT.md`).
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -562,6 +562,24 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
   soft-disj for the one-program full seed `b c d b` (recipe in the 6-CUT handoff). Dynamic cut = frame
   gate (paper §4.5) remains future. The `rt_get_cut_flag`/`rt_choice_cut_*` globals: new-path boxes
   reference ZERO (coupling gate holds); protocol deletion completes when legacy dies.
+- [x] **PL-GZ-6b — query-prefix soft-disj (two-segment query frame)** *(2026-06-06)*: the FULL seed
+  runs as ONE program → `b c d b`. Admission: disj at goals[0] of a LONGER query conj, RESTRICTED
+  to arm0 ending in IR_FAIL (fail-driven — arm0 never succeeds, no arm0-success wiring); A-chain =
+  arm0's goals → `qf->α`, B-chain = outer goals[1..] → `qf->β`, `dval=2.0` (degenerates to 1.0 when
+  B is all-SUCCEED); builder/synth-prescan factored into `pl_gz_build_goal`/`pl_gz_count_synth`
+  (NO-DUP — one builder serves both segments; synth/cslot counters + callees array shared across
+  A+B in the ONE query frame). Wiring (seed `q1_ω: goto q2_α` literally): NEW bb_query_frame aspect
+  op_sa=1/op_sb=2 = unwind(query mark [ζ+0]) + `jmp` δ (B0 α — the advance-block lbl_δ precedent),
+  emitted BETWEEN segments by the now two-segment `flat_drive_gz_query`; B0 ω → hard land_ω; last
+  B γ → land_γ; hard landing keeps op_sb=0. Gate `test_gate_pl_gz6b.sh` (full seed · soft-unwind
+  observable `a b a` · single-FAIL arm0 · B-fail hard-ω pinned m3==m4==gprolog canon; non-FAIL arm0
+  + mid-conj disj decline; corrupt-proven via sb=2→1 → loud undefined-label `as` failure). **LOGGED
+  LATENT m2 DIVERGENCE (NOT fixed — PL-GZ-7 commit cluster, PT-3/WAM-CP-9 precedent):** B-segment
+  failure re-enters the exhausted soft-disj in m2 (resume re-walk re-prints the pump: `a a`);
+  gprolog canon (syn_sugar.pl `linearize` = (P;Q) → 2-clause aux pred; indexing.pl last clause =
+  `trust_me_else_fail`; wam_inst.c `Pl_Delete_Choice_Point`) deletes the disj CP on entering the
+  LAST arm — B's failure must NOT re-enter; m3/m4 match canon AND the seed. GATE-1/GATE-3 counts
+  byte-identical pre/post.
 - [ ] **PL-GZ-7 — ITE**: paper §4.5 ifstmt template VERBATIM (bounded condition + gate). FIX THE m2 ORACLE
   to canon — `( a(X),X>=2 -> true ; X=0 )` → `2` (absorbs WAM-CP-9; the swipl citation is REPLACED by the
   paper; re-baseline audit of any rung that matched the buggy m2).
