@@ -19,8 +19,33 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
-**Watermark — session 20 (2026-06-06, Opus 4.8): PB-10b LANDED (SCRIP `1ad0019`) + PB-10c LANDED (SCRIP
-`3ec6470`). The boolean m3/m4 story is closed.** Gate at close: m2 42/2, m3 42/2, m4 42/2 — UNIFORM across
+**Watermark — session 21 (2026-06-06, Opus 4.8): PB-10a2 LANDED (SCRIP lower.c only; corpus +boolchain.pas).
+The boolean m2 story is closed.** Gate at close: m2 44/1 over 45 probes (recursion maxint = the ONLY m2
+fail), m3 42/3, m4 42/3 — m3/m4 fails = boolmix + boolchain (the new relop-diamond shape, LOUD:
+`walk_bb_node kind=7 IR_BINOP unhandled` + `bb_gvar_assign op_a_slot==-1` bomb, rc=134) + recursion; the
+42 m3/m4 passes are the SAME 42 as session 20 — zero regression. SNOBOL smoke 19/0. sieve.s + m4wexpr.s
+byte-identical pre/post.
+
+PB-10a2 mechanism (`pas_bool_operand`, lower.c): for `cx.lang==IR_LANG_PAS`, a RELATIONAL child of ANY
+v_binop lowers as the rung-prescribed converging diamond — relop γ→IR_LIT_I(1), ω→IR_LIT_I(0), both lits
+γ→one ring-mode IR_IF join (α=β NULL). FACT: the m2 driver pushes EVERY node's value to the ag_ring after
+each step (IR_interp.c:5282), so at the join ring(0) is ALWAYS the just-executed lit, never FAIL (the
+relop's own FAILDESCR push sits at depth ≥1); the join copies ring(0) into its OWN value and continues γ,
+giving `bb_operand_aux_get` a single node holding INTVAL(1)/INTVAL(0) in both arms. Applied uniformly to
+relational AND non-relational outers (a relop child of a relop = boolean comparison, also correct; no
+green traffic existed with relop-as-operand, so no drift is possible). When neither child is relational
+the function executes the EXACT original statements with original arguments — byte-identity for legacy
+traffic BY CONSTRUCTION (proven: sieve.s/m4wexpr.s cmp-identical). Verified beyond the gate:
+double-diamond `(i<2) or (i>2)`, chains in if-condition position, chains as proc-call boundaries — all
+oracle-exact m2.
+
+RESIDUE (new, loud, own rung if wanted — PB-10a2-m34): the diamond inside an arith chain is NOT emittable
+in m3/m4 — walk_bb_node has no junction arm for a chain-interior IR_BINOP-with-LIT-targets, and
+bb_gvar_assign can't slot-promote through the IR_IF join. boolmix/boolchain m3/m4 bomb loudly (better
+than s20's silent wrong store). Session-20 state below stands.
+
+Session 20: PB-10b LANDED (SCRIP `1ad0019`) + PB-10c LANDED (SCRIP
+`3ec6470`). The boolean m3/m4 story is closed. Gate at close: m2 42/2, m3 42/2, m4 42/2 — UNIFORM across
 modes for the first time; the only fails are the standing pins boolmix.pas (PB-10a2) and recursion.pas
 (16-bit maxint), identical in every mode. SNOBOL smoke 19/0. boolarg m3+m4 `1 0 1`; boolassign + boolnot
 oracle-exact m2/m3/m4. sieve.s + m4wexpr.s byte-identical through both rungs. Re-verified green after
@@ -105,10 +130,10 @@ Mechanism inventory (terse; detail in git history + HANDOFF-*.md):
   (funcname-as-return-variable, recursion-safe). Binop templates `bb_binop_gvar_{relop,arith_slot}.cpp`:
   LIT-imm / VAR / slot operand shapes; slot disp +8 for DESCRs, +0 for raw qwords.
 
-NEXT: PB-10a2 — the LAST boolean rung and the only non-pin failure (LOWER: relop/IF as arith operand,
-boolmix.pas; FALSE relop operand of TT_ADD/TT_MUL propagates goal-failure and kills the statement chain,
-TRUE leaks rv; fix in `v_binop`/`lower_value_subgraph` per the rung below). After it the suite is clean
-modulo the recursion maxint pin; case/goto remain TT_SUCCEED stubs until a probe forces them.
+NEXT: the m2 suite is clean modulo the recursion maxint pin. Open candidates, Lon picks: (a) PB-10a2-m34 —
+emit the relop-diamond-in-arith shape (boolmix/boolchain m3/m4, loud bombs, residue note in watermark);
+(b) the PB-10c residue shapes `a[i] := relop` / `funcname := relop` (still ride the value diamond, no
+probe forces them); (c) case/goto remain TT_SUCCEED stubs until a probe forces them.
 
 ---
 
@@ -236,7 +261,12 @@ cd /home/claude/corpus/programs/pascal
   `pas_flip_rel(pas_cond($2))` instead, keeping NOT in the relop algebra; boundary IR shapes for 10b/10c
   unchanged. Gate green: m2 41/0, m3 39/0, m4 39/0, SNOBOL smoke 19/0; probes
   nestvar/nestvar2/nestvar3 + boolassign + boolnot committed.
-- [ ] **PB-10a2 — relop/IF as arith operand (m2 LOWER fix).** Discovered session 19, pinned by XFAIL probe
+- [x] **PB-10a2 — relop/IF as arith operand (m2 LOWER fix).** LANDED session 21 (lower.c
+  `pas_bool_operand`: relational v_binop child → relop γ→LIT_I(1)/ω→LIT_I(0) converging into a ring-mode
+  IR_IF join = the aux operand node; mechanism + m3/m4 residue in watermark). Gate green: boolmix.pas m2
+  oracle-exact; boolchain.pas (committed) covers `(i = 0) or b`, `not a or b`, `not a and b` + double
+  diamonds, all oracle-exact m2; suite m2 44/1 (recursion pin only); m3/m4 42 holds; SNOBOL smoke 19/0;
+  sieve.s/m4wexpr.s byte-identical. Discovered session 19, pinned by XFAIL probe
   `boolmix.pas` (`c := not a or b` → oracle 0, scrip silent death). Fact: a relop operand of TT_ADD/TT_MUL
   is goal-directed in the IR — FALSE propagates failure and kills the statement chain; TRUE leaks rv as the
   value. A TT_IF operand dies on both paths (value-subgraphs don't run junctions). Fix lives in LOWER
