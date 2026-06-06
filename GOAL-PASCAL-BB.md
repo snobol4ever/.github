@@ -16,18 +16,20 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 22 (2026-06-06): PB-0..PB-10d ALL COMPLETE** — interpreter + compiled-BB rail end-to-end:
-all control flow, flat+nested procs/functions, var params, records/arrays/sets/pointers/`new`,
-booleans in every destination shape. Rung detail lives in git history + `HANDOFF-*-PASCAL-BB-*.md`.
-Gate: **m2 47/1, m3 47/1, m4 47/1 — UNIFORM** over 48 probes; sole fail = recursion.pas (16-bit
-maxint pin). SNOBOL smoke 19/0.
+**Session 22 (2026-06-06): PB-0..PB-11 ALL COMPLETE** — interpreter + compiled-BB rail end-to-end:
+all control flow incl. `case`, flat+nested procs/functions, var params,
+records/arrays/sets/pointers/`new`, booleans in every destination shape. Rung detail lives in git
+history + `HANDOFF-*-PASCAL-BB-*.md`. Gate: **m2 49/1, m3 49/1, m4 49/1 — UNIFORM** over 50 probes;
+sole fail = recursion.pas (16-bit maxint pin). SNOBOL smoke 19/0.
 
-NEXT — Lon picks: (a) case/goto (TT_SUCCEED stubs until a probe forces them); (b) the 16-bit maxint
-rung for recursion.pas; (c) the residues below if a probe ever forces them.
+NEXT — Lon picks: (a) `goto` (TT_SUCCEED stub until a probe forces it); (b) the 16-bit maxint rung
+for recursion.pas; (c) the residues below if a probe ever forces them.
 
 RESIDUES (documented, no probe): (1) right-relop diamond hoisted over a side-effecting left operand
-reorders evaluation vs pcom's strict l-to-r; (2) NV `__pbt` temps can clobber under recursive
-re-entry of the same expression (frame-slot temps would cure); (3) case/goto are TT_SUCCEED stubs.
+reorders evaluation vs pcom's strict l-to-r; (2) NV `__pbt`/`__pct` temps can clobber under recursive
+re-entry of the same expression (frame-slot temps would cure); (3) `goto` is a TT_SUCCEED stub;
+(4) case no-match: pcom emits ujc → pint halts "value out of range"; our if-chain silently continues
+(error trap = runtime work, out of parser scope).
 
 Open ladder item: **LB-7-NEW** — `# BOX ICN` tag inventory in bb_gen_scan/bb_keyword/bb_scan_*
 (ICN-SCAN sessions own these files; sweep when ICN-SCAN settles).
@@ -65,6 +67,10 @@ Open ladder item: **LB-7-NEW** — `# BOX ICN` tag inventory in bb_gen_scan/bb_k
   `a := arr_set_pure(a,i,v)` (no auto-grow; parser prepends an init prologue sizing to high+1).
   Records = field-index arrays; `p^` = `__pas_deref`, `p^.f := v` = `__pas_field_set`,
   `new(p)` = `__pas_alloc(_rec)`. Sets = `__pas_set{,uni,int,dif}`/`__pas_in`.
+- **case (PB-11):** parse-time desugar, no new IR. `case e of …` → TT_SEQ_EXPR(`__pctN := e`,
+  if-chain): each arm = TT_IF(pas_cond(or-chain of `__pctN = const`), stmt) folded right-to-left into
+  else slots; multi-label = TT_ADD of EQ diamonds (boolchain-proven). Temp stack depth 8 (nested
+  cases), names strdup'd per leaf, counter reset per parse; labels = folded integer constants only.
 - **Functions:** body ends with IR_RETURN(dval 0) whose α reads `IR_VAR(funcname)`; `f := …` writes
   the NV global (recursion-safe). Parse-time tables (reset per parse): const folding, array
   name→high, true/false→ilit(1/0), sqr→__pas_sqr.
