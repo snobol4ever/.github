@@ -12,20 +12,20 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ STATE (2026-06-04 — PL-GZ-5a)
+## ▶ STATE (2026-06-06 — PL-GZ-5c)
 
 **PROLOG GROUND ZERO (Lon 2026-06-04): development RESET to square one on the Proebsting-pure track — the
 🔴 PL-GZ ladder below.** PL-M34/PL-BBL ABSORBED into PL-GZ; PT/WAM-CP LEGACY (see LEGACY DISPOSITION).
-Watermark: SCRIP HEAD `7bb6843` — **PL-GZ-0..4 + 5a + 5b LANDED** (details collapsed into the ladder entries).
-Gates: GATE-1 m2 **5/5 HARD** · m3 4/0/1-EXC (`recursion` only — flips at 5b/5c) · m4 5/5; GATE-3 m2
+Watermark: SCRIP HEAD `761fa66` — **PL-GZ-0..4 + 5a + 5b + 5c LANDED** (details collapsed into the ladder entries).
+Gates: GATE-1 m2 **5/5 HARD** · m3 4/0/1-EXC (`recursion` only — cut+arith clause, flips by GZ-8) · m4 5/5; GATE-3 m2
 **115/115 HARD** · m3 18/0/97-EXC · m4 105/0/10-EXC (the 10 = PT-4b retract/abolish); coupling ceilings
-choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b gates
+choice 19 · goal 10 · others 0 · rung05 .s 39 (new-path boxes emit ZERO control calls); gz2/3/4/5a/5b/5c gates
 PASS, all corrupt-proven. Siblings: Icon m2 12 (m3/m4 5/7 standing) · SNOBOL4 smoke 19/19. Grounding:
 Proebsting paper (uploaded PDF; gprolog/swipl = PRINT oracles ONLY) · seeds `test_pl_1.c` +
 `test_sno_1/2/3/4.c` + `test_icon.c` in `.github/` · reset rationale
 `HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-RESET-AND-SEED.md`.
-Next opener: **PL-GZ-5c** — multi-clause RULE predicates = full path/2 (design sketch in the
-GZ-5 entry below).
+Next opener: **PL-GZ-6** — cut: lexical cut = pure wiring (seed form `firstpath/1` → output `b c d b`);
+dynamic cut = frame gate (paper §4.5); deletes the cut-global protocol from the new path.
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -529,9 +529,22 @@ control-coupled template bodies · the `sm_interp_run` m3 carve-out.
     (nested · callee-frame synth · self-recursion depth-2, m2-verified first; 2-clause + deep-arith
     decline; corrupt-proven). GZ5A gate RATCHETED (nested-call negative → compound-body negative). Detail:
     HANDOFF-2026-06-04-OPUS48-PROLOG-BB-PL-GZ-5A-5B.md.
-  - [ ] **5c — multi-clause RULE predicates** (full `path/2`): callee-level choice over rule clauses —
-    cursor in the callee's own frame row, per-clause body chains, β dispatch as bb_cell_choice's
-    cmp-chain; head-unify per clause as in 5a.
+  - [x] **5c — multi-clause RULE predicates** (full `path/2`) ✅ `761fa66` — callee-level choice over rule
+    clauses on the seed's exact shape: ONE frame `[args | per-clause locals+synth | child slots]`, mark
+    `[ζ+0]`, 1-based cursor `[ζ+4]` (the seed's `ζ->i`, init at α); per-clause body chains keep the
+    backward redo wiring; clause-K exhausted = advance block (`cursor=K+2; rt_trail_unwind(mark); jmp`
+    clause K+1 α — the seed's `fK_ω`), last clause falls to the ω landing; β re-entry = bb_cell_choice's
+    cmp-chain as per-clause template fragments (one `cmp/je` each, δ = that clause's redo; det βs pass
+    through to ω so all-det clauses collapse onto the advance block). Facts admit as empty-body rule
+    clauses ⇒ multi-clause FACT preds called from callee bodies become framed callees (the seed's
+    `edge/2`); query-level fact choices keep the gz4 inline. Self/mutual recursion terminates via the
+    validation visiting list + shell-first build memo; slot remap `pl_gz_slot_map(s,ar,lbase)` keeps the
+    single-clause path identical (lbase==ar ⇒ identity — ONE body builder). LESSON: driver→template
+    immediates ride `op_off`/`op_sa`/`op_sb` ONLY — `walk_bb_node` stomps `op_ival` with `nd->ival` (==
+    the callee pointer for CALLEE_FRAME), the b-then-segfault bug. Gate `test_gate_pl_gz5c.sh` (path
+    `b c d` · all-det 2-clause · mixed fact+rule · depth chain `b c d e`, m2-verified first; cut +
+    list-head + 5-clause decline; corrupt-proven). GZ5A+GZ5B gates RATCHETED (2-clause-rule negative,
+    now a 5c positive → arity-3 negative: outside the rsi/rdx arg ABI).
 - [ ] **PL-GZ-6 — cut**: lexical cut = pure wiring (seed form); dynamic cut = frame gate (paper §4.5).
   Deletes the `rt_get_cut_flag`/`rt_choice_cut_*` global protocol from the new path.
 - [ ] **PL-GZ-7 — ITE**: paper §4.5 ifstmt template VERBATIM (bounded condition + gate). FIX THE m2 ORACLE
