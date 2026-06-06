@@ -12,7 +12,7 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER **CLOSED** (FENCE landed `e65893f`) · next = BB-HYGIENE remainder (HY-7 marshal fusion: lowerer PREREQ first, then the operand-arm deletion, then HY-FENCE) · ICN-SCAN WAVE-1 CLOSED (13b LANDED at ICN-VAR-3)
+## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER **CLOSED** (`e65893f`) · BB-HYGIENE: HY-7c LANDED (`58af8d3`, medium collapse + PREREQ verdict: de-fuse UNBLOCKED) · next = HY-7 DUP-FORM-3 deletion (N-arg slot carrier → driver adoption → delete operand-kind arms) → HY-FENCE
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`): all three medium gates read 0. The keystone pattern for
 every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them
@@ -453,7 +453,15 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EA
   operand-subgraph `->t/->ival/->sval/->dval`; BLOCKED on the standing lowerer PREREQ (chain literal operands as
   producer boxes, the GZ-3/GZ-4 class): lowerer rung first, then delete the operand-kind arms. FENCE intel:
   `scripts/test_gate_bb_one_box.sh` is PROLOG-SCOPED — extend its file set to Icon AFTER the fusion fix or it
-  arrives RED.
+  arrives RED. **LANDED (HY-7c `58af8d3`, 2026-06-06):** `marshal_call_arg`'s lit/var tail — the same marshal
+  algorithm in twin `if(MEDIUM_TEXT)/else if(MEDIUM_BINARY)` statement-form arms — collapsed to ONE
+  medium-invisible `x86()` body; the BINARY LIT_S absolute-`sval`-pointer RO violation fixed (in-band
+  `x86_ro_seal_str` + rip-relative load, both media). **PREREQ VERDICT: the 2026-06-01 lowerer blocker is STALE** —
+  `descr_chain_operand_refs` + `flat_emit_arg_subchain` + `bb_slot_get(terminal)` (live since SCAN-7 /
+  `flat_drive_userproc`) IS the producer-box chaining; the DUP-FORM-3 deletion is UNBLOCKED and needs: N-arg slot
+  carrier + per-shape driver adoption + delete the operand-kind arms in `marshal_call_arg`/`marshal_varparam_addr`.
+  GATE-INTEL: the medium-invisible grep counts only the `IF(MEDIUM_BINARY,…)` MACRO form — statement-form medium
+  branches are a blind spot (total stayed 347 across this fix); gate-hardening candidate.
 - [ ] **ICN-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Icon-owned files. m2 129 HARD held.
 
 ## 🔴 ICN-SCAN LADDER — A STACKLESS BB FOR EVERY ICON STRING-SCANNING OPERATION, ONE STEP PER BOX (Lon directive 2026-06-03) — **WAVE-1 CLOSED** (`1246c18`; 13b → ICN-VAR-3)
@@ -701,26 +709,26 @@ Transition note: SNOBOL4/Snocone/Rebus/Raku keep `g_vstack` only until BB-conver
 
 ## Watermark## Watermark
 
-**HEAD (SCRIP) = `e65893f` — ICN-VAR-FENCE LANDED 2026-06-06-c: `scripts/test_gate_icn_var.sh` GATE PASS — the
-ICN-VAR LADDER IS CLOSED. Columns unchanged: m2 143 HARD · m3 30 · m4 40. Diff script-only (gate + handoff), zero
-source changes. HEAD (.github) = this entry.**
-Session 2026-06-06-c (Opus 4.8, "GOAL-ICON-BB"): one gated rung, ICN-VAR-FENCE. The gate is the ICN-SCAN-FENCE
-pattern: (a) IR_ASSIGN/IR_VAR off the stub list; (b) 19 probes three-mode (VAR-1/2/AUGOP/3) — STRICT except
-`augop_concat` X34 (concat BINOP outside the VAR-2 numrel+arith lens, the documented AUGOP-handoff EXCISE) and
-`neg_unassigned` X34; **`static_single_call` STRICT pins a finding:** the draft expected static to EXCISE — FALSE;
-TT_STATIC_DECL lowers as a no-op IR_SUCCEED (lower.c ~1108) and the var rides the same bb_varslot path as a local,
-m2==m3==m4 verified; cross-call persistence is unexercised in the native lane and becomes its own tier behind
-userproc (flag 4). Probe drafting lessons: `writes()` (vs `write()`) routes to the abolished `rt_call_builtin` and
-aborts m3/m4 — a builtin-lane gap, not a var defect. (c) Corpus IR_ASSIGN bucket N=104, ratchet floors m2≥62 m3≥12
-m4≥22 PLUS the HARD law m3/m4 FAIL==0 — a silent var-bucket miscompile now fails the gate. (d) Standing battery all
-green; medium-invisible scoped to bb_assign_local/bb_var_frame*. CONCURRENCY: a BB-FIXUP session landed
-`bb_binop_relop.cpp` v2 (`282c71c`) mid-session; the fence rebased over it and was RE-RUN GREEN at merged HEAD
-(asm-diff-EMPTY claim verified against the relop probes + bucket). Full suite confirms m2 143 / m3 30 / m4 40
-byte-identical. Smoke Icon 12/12 · 10/12 · 10/12 · Prolog 5/5 · broker 32 · bb_bin_t 0 · handencoded --strict 0 ·
-icn_no_stack 0 · one-reg-frame 0 · g_vstack 3 (pre-existing rt.c/rt.h) · prove_lower2 PASS.
-**NEXT = BB-HYGIENE remainder:** the HY-7 marshal-fusion lowerer PREREQ (chain literal operands as producer boxes,
-the GZ-3/GZ-4 class), then delete `marshal_call_arg`/`marshal_varparam_addr` operand-kind arms, then ICN-HY-FENCE
-(extend `test_gate_bb_one_box.sh` to Icon files only AFTER the fusion fix). Handoff doc:
+**HEAD (SCRIP) = `58af8d3` — ICN-HY-7c LANDED 2026-06-06-d: marshal_call_arg medium collapse (DUP-FORM-1 twin
+TEXT/BINARY arms → ONE medium-invisible x86() body) + the LIT_S abs-pointer RO-rule fix + the PREREQ VERDICT:
+the HY-7 marshal-de-fuse lowerer blocker (2026-06-01) is STALE — `flat_emit_arg_subchain` machinery satisfies it;
+DUP-FORM-3 deletion UNBLOCKED. Columns unchanged: m2 143 HARD · m3 30 · m4 40. HEAD (.github) = this entry.**
+Session 2026-06-06-d (Opus 4.8, "GOAL-ICON-BB"): one gated rung, HY-7c (bb_call.cpp only, 77→29+48 lines).
+LIT_I/F via `x86_movabs_r64`+`x86_frame_store64`; LIT_NUL two FRQ stores; LIT_S jump-over in-band
+`x86_ro_seal_str` (ids idx*2/idx*2+1 — the call family used ZERO internal ids, verified); var arm = pure
+frame-slot copy; gvar heads + `marshal_single_call` untouched (sanctioned per-medium call encoding). LESSON
+(generalized STRUCT-LAYOUT): the FIRST incremental build after the template edit produced an inconsistent binary
+(multi-arg probe anomaly while suites ran green); a full clean rebuild of the SAME source EXCISED it rc=0 ==
+baseline — treat any post-template-edit anomaly as STALE OBJECTS first, and re-run gates on the clean build (done:
+probes, smoke 12/10/10, suite 143/30/40 byte-identical, VAR fence 19/19 PASS, SCAN fence 28/28 PASS, full battery).
+CONCURRENCY: pushed over PL-GZ-6b (`35cf032`, scrip.c+emit_bb.c) — disjoint hunks, RE-VERIFIED green at merged
+HEAD (build + smoke + suite + var fence). GATE-INTEL: medium-invisible grep misses statement-form
+`if (MEDIUM_BINARY)` branches (macro-form only; total 347 unchanged across a real DUP-FORM-1 fix) — hardening
+candidate. **NEXT = HY-7 DUP-FORM-3 deletion (now UNBLOCKED):** N-arg slot carrier → per-shape driver adoption
+(`flat_emit_arg_subchain` pattern) → delete the operand-kind arms in `marshal_call_arg` +
+`marshal_varparam_addr` → ICN-HY-FENCE. Handoff: `HANDOFF-2026-06-06-OPUS48-ICON-BB-HY-7C-MARSHAL-MEDIUM-COLLAPSE.md`.
+PREV 2026-06-06-c (condensed): ICN-VAR-FENCE (`e65893f`) — VAR LADDER CLOSED; gate `test_gate_icn_var.sh`
+(19 probes, bucket N=104 floors 62/12/22, m3/m4 FAIL==0 HARD); static-lowers-as-local finding; detail in
 `HANDOFF-2026-06-06-OPUS48-ICON-BB-VAR-FENCE.md`.
 PREV 2026-06-06-b (condensed): ICN-VAR-3 (`e239560`) + ICN-VAR-AUGOP-PREREQ (`63a8748`) — var-subject scans native
 (GEN_SCAN arity-0 producer + body-slot alias; the `descr_chain_arity` -1 discovery) and the augop desugar that
