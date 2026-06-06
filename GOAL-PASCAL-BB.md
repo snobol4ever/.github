@@ -19,6 +19,23 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 
 ## ▶ CURRENT STATE — READ FIRST
 
+**Watermark — session 22 (2026-06-06, Opus 4.8): PB-10d LANDED — the PB-10c residue shapes are CLOSED.**
+Gate at close: **m2 47/1, m3 47/1, m4 47/1 — UNIFORM** (+3 probes: boolfn, boolidx, boolptr), sole fail
+the recursion maxint pin. SNOBOL smoke 19/0. sieve.s/m4wexpr.s/boolassign.s/recursion.s byte-identical
+pre/post (recursion.s identity proves the non-relop funcname path untouched).
+
+PB-10d facts (measured BEFORE fixing): (1) `a[i] := relop` and `p^.f := relop` ALREADY PASS all modes —
+the LOWER rewrites (arr_set_pure / __pas_field_set) make the pas_bool diamond a CALL ARG, which PB-10b's
+marshal arm covers; the s20/s21 residue claim was stale for these shapes. Probes boolidx.pas +
+boolptr.pas pin them. (2) The live bug was `funcname := relop` ONLY: lower.c:754 normalizes a
+bare-funcname selector (TT_FNC, n==1, c[0]=TT_VAR(name)) to IR_ASSIGN(name) with the RHS lowered INLINE
+— same IR shape as `var := relop`, so it missed PB-10c's parser rewrite; m3/m4 emitted the single
+literal the assign's α pointed at (boolfn `0 0` vs oracle `1 0`), m2 correct. Fix (pascal.y only +
+direct bison regen): the `assignment:` statement-IF rewrite accepts the bare-funcname selector alongside
+TT_VAR; the else-arm rebuilds a fresh `TT_FNC(leaf TT_VAR name)` node (never reuse $1 twice). Both arms
+are the recursion-proven funcname-lit-assign shape; ZERO lower/emitter changes, LANGUAGE-BLIND rule
+untouched. Probe boolfn.pas.
+
 **Watermark — session 21 (2026-06-06, Opus 4.8): PB-10a2 LANDED in TWO rungs, the second superseding the
 first's mechanism. The boolean story is CLOSED IN ALL MODES.** Gate at close: **m2 44/1, m3 44/1,
 m4 44/1 — UNIFORM**, the single fail being the recursion maxint pin, over 45 probes (+boolchain).
@@ -134,10 +151,11 @@ Mechanism inventory (terse; detail in git history + HANDOFF-*.md):
   (funcname-as-return-variable, recursion-safe). Binop templates `bb_binop_gvar_{relop,arith_slot}.cpp`:
   LIT-imm / VAR / slot operand shapes; slot disp +8 for DESCRs, +0 for raw qwords.
 
-NEXT: the suite is clean AND UNIFORM (44/1 every mode) modulo the recursion maxint pin. Open candidates,
-Lon picks: (a) the PB-10c residue shapes `a[i] := relop` / `funcname := relop` (still ride the value
-diamond, no probe forces them); (b) case/goto remain TT_SUCCEED stubs until a probe forces them;
-(c) the 16-bit maxint rung if recursion.pas is ever to go green.
+NEXT: the suite is clean AND UNIFORM (47/1 every mode) modulo the recursion maxint pin. The boolean
+story including ALL destination shapes is CLOSED. Open candidates, Lon picks: (a) case/goto remain
+TT_SUCCEED stubs until a probe forces them; (b) the 16-bit maxint rung if recursion.pas is ever to go
+green; (c) the documented PB-10a2 residues (operand-order with side effects; __pbt recursion clobber)
+if a probe ever forces them.
 
 ---
 
@@ -296,6 +314,14 @@ cd /home/claude/corpus/programs/pascal
   literal (IR_LIT_I(1)) and emits a constant store — ignoring the conditional. Diagnose the exact IR shape
   produced by `v_assign(TT_ASSIGN(b, TT_IF(...)))` in gvar mode, then add the needed detection arm (likely
   in `bb_gvar_assign.cpp` or `bb_assign_frame.cpp`). **Gate**: m3+m4 boolassign/boolnot probes.
+- [x] **PB-10d — boolean assignment residue shapes (ALL MODES).** LANDED session 22 (pascal.y only +
+  direct bison regen). Measured first: `a[i] := relop` + `p^.f := relop` already green all modes (the
+  LOWER call rewrites put the diamond in call-arg position, covered by PB-10b's marshal arm — stale
+  residue claim corrected); the live bug was `funcname := relop` only (lower.c:754 inline-RHS
+  normalization; m3/m4 stored a constant). Fix: the `assignment:` statement-IF rewrite extended to
+  bare-funcname selectors (TT_FNC n==1); else-arm rebuilds a fresh TT_FNC(name) node. Probes
+  boolfn/boolidx/boolptr committed. **Gate**: 47/1 UNIFORM ×3 modes; smoke 19/0; 4-file byte-identity
+  incl. recursion.s.
 
 ---
 
