@@ -12,7 +12,7 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER **CLOSED** (`e65893f`) · BB-HYGIENE: HY-7d LANDED (`afdf4c5`, N-arg slot carrier + LIT_I producer-box adoption, frame[0] reservation) · next = HY-7 remaining-shape adoption (LIT_S → LIT_F/NUL → gvar/frame-var → nested-call) → delete operand-kind arms → HY-FENCE
+## ▶ CURRENT PRIORITY (2026-06-06): ICN-VAR LADDER **CLOSED** (`e65893f`) · BB-HYGIENE: HY-7d LANDED (`1ec4252`, N-arg slot carrier + LIT_I producer-box adoption, frame[0] reservation) · next = HY-7 remaining-shape adoption (LIT_S → LIT_F/NUL → gvar/frame-var → nested-call) → delete operand-kind arms → HY-FENCE
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`): all three medium gates read 0. The keystone pattern for
 every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them
@@ -462,7 +462,7 @@ Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EA
   carrier + per-shape driver adoption + delete the operand-kind arms in `marshal_call_arg`/`marshal_varparam_addr`.
   GATE-INTEL: the medium-invisible grep counts only the `IF(MEDIUM_BINARY,…)` MACRO form — statement-form medium
   branches are a blind spot (total stayed 347 across this fix); gate-hardening candidate.
-  **LANDED (HY-7d `afdf4c5`, 2026-06-06):** the N-arg slot carrier + FIRST DUP-FORM-3 de-fuse slice —
+  **LANDED (HY-7d `1ec4252`, 2026-06-06):** the N-arg slot carrier + FIRST DUP-FORM-3 de-fuse slice —
   `g_emit.op_arg_slot[16]`/`op_arg_slot_n` (struct-END append, no offset shifts) + `gvar_drive_call_arg_slots`
   (emit_bb.c): pre-scans admitted args (terminal `IR_LIT_I`, leading SUCCEED/FAIL resolved), **RESERVES
   frame[0..15]** before any pre-alloc (the gvar proc-RESULT slot — `descr_flat_chain_build_proc` reserves it,
@@ -721,7 +721,7 @@ Transition note: SNOBOL4/Snocone/Rebus/Raku keep `g_vstack` only until BB-conver
 
 ## Watermark## Watermark
 
-**HEAD (SCRIP) = `afdf4c5` — ICN-HY-7d LANDED 2026-06-06-e: N-arg call-arg slot carrier + LIT_I producer-box
+**HEAD (SCRIP) = `1ec4252` — ICN-HY-7d LANDED 2026-06-06-e: N-arg call-arg slot carrier + LIT_I producer-box
 adoption on the gvar flat chain — the first DUP-FORM-3 de-fuse slice, riding the HY-7c UNBLOCKED verdict. Columns
 unchanged: m2 143 HARD · m3 30 · m4 40. HEAD (.github) = this entry.**
 Session 2026-06-06-e (Opus 4.8, \"GOAL-ICON-BB\"): one gated rung, 4 files (emit_globals.h carrier struct-END append;
