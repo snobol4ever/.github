@@ -136,25 +136,18 @@ Silly exception: CSNOBOL4 is sole oracle for Silly goals (SS-MONITOR, GOAL-SILLY
 
 | Path | What |
 |------|------|
-| `src/frontend/snobol4/CMPILE.c` | SNOBOL4 parser |
-| `src/ast/ast.h` | shared AST node type (tree_t / tree_e) |
-| `src/driver/scrip.c` | unified scrip executable |
+| `src/driver/scrip.c` | unified scrip executable + mode selector + native-emittable gates |
+| `src/parser/` | the 6 language front-ends (snobol4/icon/prolog/snocone/raku/rebus/pascal) |
+| `src/contracts/IR.h`, `descr.h`, `ast.h` | spine types: IR_t kinds, DESCR_t, shared AST |
+| `src/lower/lower.c` (+`lower_prolog.c`) | AST -> IR graph (the shared lowerer) |
+| `src/interp/IR_interp.c` | mode-2 IR-graph interpreter (the oracle) |
+| `src/emitter/emit_core.c` | one IR->template dispatch |
+| `src/emitter/emit_bb.c` | BB driver: slot resolution, operand promotion, flat chains |
+| `src/emitter/{BB,XA}_templates/` | per-box x86 templates (the only byte emitters) |
+| `src/machine/bb_pool.c` | mmap pool for binary Byrd boxes |
+| `src/runtime/` | rt/ shared helpers, core/ SNOBOL model, builtins/ |
 | `src/lower/lower.c` | AST → SM_Program compiler pass |
-| `src/lower/sm_prog.h` | SM_Program flat instruction array |
-| `src/lower/scrip_ir.h` | IR_prog_t / IR_t DCG node types |
-| `src/lower/ir_exec.c` | DCG graph-walk executor |
-| `src/lower/lower_pat_dcg.c` | build IR_prog_t from pattern tree_t |
-| `src/processor/sm_interp.c` | mode-2 SM C dispatch loop |
-| `src/processor/sm_jit_interp.c` | mode-3 JIT runner |
-| `src/processor/bb_broker.c` | unified Byrd box broker |
-| `src/processor/bb_pool.c` | mmap pool for binary Byrd boxes |
 | `src/emitter/emit_core.c` | x86 byte/label/patch primitives |
-| `src/emitter/emit_bb.c` | BB box x86 templates |
-| `src/emitter/emit_sm.c` | SM opcode x86 templates |
-| `src/runtime/snobol4/snobol4.c` | runtime (TRACE, comm_var, monitor hooks) |
-| `src/runtime/snobol4/stmt_exec.c` | 5-phase statement executor |
-| `src/runtime/snobol4/descr.h` | DESCR_t universal value type |
-| `src/runtime/interp/` | Icon / Prolog / Raku interpreter runtimes |
 | `src/runtime/rt/rt.c` | libscrip_rt.so (mode-4 ABI) |
 | `src/silly/` | Silly SNOBOL4 faithful C rewrite |
 | `test/monitor/` | sync-step monitor infrastructure |
@@ -199,9 +192,9 @@ Adapt, don't copy verbatim — SCRIP uses Boehm GC + 64-bit; silly uses arena + 
 
 | Flag | Mode |
 |------|------|
-| `scrip --interp file.sno` | IR tree-walk interpreter |
-| `scrip --interp file.sno` | Stack machine (default) |
-| `scrip --gen file.sno` | In-memory x86 generation |
+| `scrip --interp f` | mode 2 — IR-graph interpreter (oracle) |
+| `scrip --run f` | mode 3 — native x86 in-process (bb_pool) |
+| `scrip --compile f` | mode 4 — standalone asm -> gcc -no-pie + libscrip_rt.so |
 
 ---
 

@@ -23,7 +23,7 @@ All languages × all backends green.
 ## ⛔ SESSION START — every session, no exceptions
 
 Lon names a goal. You:
-1. **Read `GOAL-ICON-BB.md` (the live ground-zero goal) before anything else.** The former `GOAL-LANG-INDEPENDENT-RENAME.md` was deleted 2026-05-31 (bogus per Lon); its only valid residue — the icn-derived `gen_` rascal strip — is done and folded into Ground Zero.
+1. **Read `GOAL-ICON-BB.md` (the live ground-zero goal) before anything else.**
 2. Clone `.github`: `git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github`
 3. Read `PLAN.md`. Find goal in table below.
 4. Read `RULES.md` in full.
@@ -52,7 +52,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **RUNTIME REORG** (Lon 2026-06-02) | `GOAL-RUNTIME-REORG.md` | Each FILE in `src/runtime/**` becomes a CS SUBSYSTEM. RS-1 (562-fn inventory) + RS-2 partial (`runtime_eval`/`unification`) landed byte-identical. Next: `runtime_init`/`io_format`/`arithmetic`/`pattern_match`, then `core.c`, then RS-FENCE. |
 | **SCRIP RENAME** (Lon 2026-05-30) | `GOAL-SCRIP-RENAME.md` | Eradicate "SCRIP" everywhere → SCRIP. 7-slice gated rung (RN-1 build scripts → RN-7 zero-check). Next: RN-1 (fix `build_scrip.sh` $ROOT/SCRIP breakage). |
 | **Ground Zero (Icon-BB)** ⬅ #1 | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. Seed: `scrip --interp` → `hello`. See goal file for live state. |
-| **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. *(corpus 93 PASS; next: `bb_call` builtins + generator re-pumping)* |
+| **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. *(unified four-port AST→IR lower rewrite in `lower2.c`; pattern-BB-template track below it)* |
 | **Raku BB** | `GOAL-RAKU-BB.md` | ⏸ **ON HOLD** (2026-05-30). Raku development paused indefinitely. Grammar/subrule BB-generator tier deferred. SM-0+SM-1 clean; SM-2 diagnosed (BB_ITERATE/SM_CALL_FN mode-4 crash); resume when Raku is re-prioritized. |
