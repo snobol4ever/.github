@@ -373,6 +373,9 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 
 ## Session log
 
+**HANDOFF (2026-06-06 Opus 4.8 — PIVOT/MANDATE session, closed ~97%).** Landed: MODE-4-ONLY pivot · m4-only runner SCRIP `083401d` · inventory smoke 7/7 / pat-rung 18+1SKIP(053) / corpus 148-103-29 / beauty 1/17 · probes capA(capture-cond) capB(rt_scan BOMB) 053-FATAL · `SCRIP/SNOBOL4-5STAGE-OWNED-BUILD.md` (D1-D5 · S0-S7 · RoE 1-4 · ledger) · S0-DUMP ✅ SCRIP `d312290` (pattern BBs visible, smoke held). ⛔ **BLOCKED ON LON: ledger stamps — nv get/set · raw allocator.** NEXT: "here we go" → **S1 SUBJECT-EVERYWHERE**. Full record: `SCRIP/HANDOFF-2026-06-06-OPUS48-SNOBOL4-MODE4-PIVOT-OWNED-BUILD.md`.
+
+
 **Watermark (OWNED-BUILD inscribed; SCRIP=`083401d`+design doc; 2026-06-06 Opus 4.8, same session as PIVOT).** Lon mandate received: boundaries only, Claude owns design+build, no coaxing loop. Assigned reading DONE: one4all/archive doc set (IR_LOWER_SNOBOL4, M-G4-SHARED-CAPTURE ENMI lineage), SCRIP MDs, ARCH-SNOBOL4.md native section (= the corrected architecture of record). Decisions D1-D4 made and recorded in `SCRIP/SNOBOL4-5STAGE-OWNED-BUILD.md`; S1-S7 ladder inscribed above. Probe artifacts this session: capA (capture-cond, native), capB (rt_scan m4 BOMB), 053 FATAL trace. S0-DUMP ✅ (IR_SCAN pat/subj/repl recursion + operand fallback landed same session; residue: ARBNO-inner graphs + S3 instance graphs dump at S3). **NEXT: S1 SUBJECT-EVERYWHERE** — drop the named-var-only guard in `flat_drive_scan_native`, subject value-chain → ζ → Σ/δ/Δ on all routes; probe-first; m4 gates; corpus non-decreasing.
 
 
