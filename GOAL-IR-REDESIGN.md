@@ -16,6 +16,8 @@ struct IR_t {
     IR_ref_t   ω;           /* failure wire → some box's α or β          */
     IR_t    ** operands;    /* realloc array: boxes whose RESULT feeds this op */
     int        n_operands;
+    int        idx;         /* sidecar key — lit[]/exec[] parallel arrays (Lon ruling 2026-06-07) */
+    IR_graph_t * own;       /* owning graph — resolves idx for IR_LIT/IR_EXEC (Lon ruling 2026-06-07) */
 };
 ```
 
@@ -41,8 +43,14 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 - [ ] **IRD-3 — OPERANDS: α/β children → operands[]/n_operands.**
   Scaffold LANDED (operands/n_operands on IR_t, calloc-zeroed;
-  ir_operand_push() in scrip_ir.c). REMAINING: per-language sweep
-  (one commit each: sno, icon, prolog, raku, pascal, program): every
+  ir_operand_push() in scrip_ir.c). SNO SWEPT (e070535, 2026-06-07):
+  PAT_ASSIGN_COND/IMM α→operands[0]; SCAN subj/repl graphs
+  aux→operands (cast preserved, move-not-fix); REF_INVARIANT +
+  PAT_MATCH aux→operands[0] incl. emit-time scan_native producer;
+  ir_is_single_shot walks operands with IR_SCAN explicit-cased
+  (graph-ptr operands MUST NOT be walked as nodes — repeat this
+  guard in every generic walker added later). REMAINING per-language
+  (one commit each: icon, prolog, raku, pascal, program): every
   nd->α/nd->β CHILD-OPERAND use → operands[0]/[1]; 3+-ary and
   γ-chained arg lists → operands[2..n]. operand_aux callers fold in;
   operand_aux DELETED at sweep end. α/β fields still exist, now only
@@ -51,7 +59,10 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   lower_icon.c 23, lower_prolog.c 20, lower.c 7, lower_program.c 5,
   lower_sno.c 2; 34 operand_aux call sites. Each touch needs
   classifying child-operand vs port-wire-residue per op kind.
-  GATE per language: baselines identical.
+  GATE per language: baselines identical
+  (scripts/bake_ird3_baseline.sh: m2 per-file sweeps byte-identical;
+  m2/m3 smoke rows identical; prove_lower PASS count; dump-bb and
+  prove_lower port-table columns drift BY DESIGN when children move).
 
 - [ ] **IRD-4 — WIRES: γ/ω become IR_ref_t; α/β fields DELETED.**
   Change IR_t.γ/ω from IR_t* to IR_ref_t{node, sz}. Every wire write
@@ -66,7 +77,8 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 - [ ] **IRD-5 — FENCE: audit + doc.**
   sizeof(IR_t) recorded before/after. Grep gates: no ->value/->counter/
   ->state outside exec sidecar; no ->sval/->ival/->dval outside lit
-  sidecar; IR_t struct has exactly 5 members. Update ARCH-IR.md.
+  sidecar; IR_t struct has exactly 7 members (5 ratified + idx/own
+  sidecar key, Lon ruling 2026-06-07). Update ARCH-IR.md.
 
 ## DO NOT
 
@@ -101,9 +113,18 @@ session); audit 9fc612a confirms zero stragglers (all ->ival hits are
 prolog Term*). KNOWN: dump-bb prints GCONJ ival heap ptr → prolog
 baselines need ival-ptr masking; test_lower_byte_identical.sh uses
 removed --dump-sm (vacuous baseline) — rewrite to --dump-bb.
-RULING NEEDED (Lon): ratified 5-member IR_t has no idx/own, but
-sidecars key on idx and macros walk own — IRD-5 fence vs sidecar
-mechanism in tension. NEXT: IRD-3 sweep, sno first. Per-language
+RULING RESOLVED (Lon 2026-06-07, in-session): idx/own STAY on IR_t —
+the sidecar key survives; IR_t = 7 members; IRD-5 fence updated.
+IRD-3a SNO LANDED e070535 (2026-06-07, Opus 4.8, Lon attending):
+5 sno kinds swept producer+consumer, gates green on merged tree over
+parallel FIXUP lap (0a57954). ENV NOTE: m4 needs `make libscrip_rt`
+— absent in fresh container, ALL m4 vacuous-fails at gcc link; with
+it: sno m4 7/7, pat_rung 18/0 (053 SKIP pre-existing A/B-proven),
+icon m4 10/12, prolog m4 5/5. FLAG (law 5, owner RAKU-BB): raku
+broken at HEAD AND at pre-IRD c792829 — `scrip x.raku` aborts "main
+BB graph not found" all modes (driver looks up proc "main"); smoke
+0/17, full suite m2 17/47; the IRD-1/2 handoff's "raku 25/25" does
+not reproduce. NEXT: IRD-3b icon sweep. Per-language
 helpers (sno_conj, v_raku_*, pas_*) migrate to the 5-param signature
 during their language's sweep. See
 HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-1-2-LANDED.md.**
