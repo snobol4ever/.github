@@ -39,30 +39,19 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## LADDER — strict order, gate after each
 
-- [ ] **IRD-1 — BREAKOUT: finish per-language lower split.**
-  lower.c (1393 ln) still serves SNO/SCO/REB/RKU/PAS via cx.lang branches.
-  Split: lower_sno absorbs SNO+SCO arms, new lower_raku.c, new
-  lower_pascal.c; lower.c keeps ONLY the shared spine (dispatch, wire
-  helpers, tmp alloc). Icon+Prolog already out. NO semantic change.
-  GATE: build green; smokes icon 12/12 prolog 5/5 broker >=25; corpus
-  baselines byte-identical per language.
-
-- [ ] **IRD-2 — SIDECAR: payload + runtime state out of IR_t.**
-  Add to IR_graph_t parallel arrays keyed by node idx:
-  `IR_lit_t *lit` {sval,ival,dval} · `IR_exec_t *exec` {value,counter,state}.
-  Add `int idx` to IR_t (set at IR_node_alloc). Mechanical rewrite:
-  nd->sval → LIT(g,nd).sval etc., nd->value → EXEC(g,nd).value etc.
-  (accessor macros). ival-as-state-pointer and dval-as-mode-flag sites
-  KEEP WORKING (they move with their field); flagged for later cleanup,
-  not fixed here. GATE: build green; all smokes; baselines identical.
-
 - [ ] **IRD-3 — OPERANDS: α/β children → operands[]/n_operands.**
-  Add operands/n_operands to IR_t (realloc array; ir_operand_push()).
-  Per-language sweep (one commit each: sno, icon, prolog, raku, pascal,
-  program): every nd->α/nd->β CHILD-OPERAND use → operands[0]/[1];
-  3+-ary and γ-chained arg lists → operands[2..n]. operand_aux callers
-  fold in; operand_aux DELETED at sweep end. α/β fields still exist,
-  now only as port-wire residue. GATE per language: baselines identical.
+  Scaffold LANDED (operands/n_operands on IR_t, calloc-zeroed;
+  ir_operand_push() in scrip_ir.c). REMAINING: per-language sweep
+  (one commit each: sno, icon, prolog, raku, pascal, program): every
+  nd->α/nd->β CHILD-OPERAND use → operands[0]/[1]; 3+-ary and
+  γ-chained arg lists → operands[2..n]. operand_aux callers fold in;
+  operand_aux DELETED at sweep end. α/β fields still exist, now only
+  as port-wire residue. SIZING (audited 2026-06-07): consumers carry
+  the bulk — IR_interp.c 387 + emit_bb.c 320 ->α/->β touches,
+  lower_icon.c 23, lower_prolog.c 20, lower.c 7, lower_program.c 5,
+  lower_sno.c 2; 34 operand_aux call sites. Each touch needs
+  classifying child-operand vs port-wire-residue per op kind.
+  GATE per language: baselines identical.
 
 - [ ] **IRD-4 — WIRES: γ/ω become IR_ref_t; α/β fields DELETED.**
   Change IR_t.γ/ω from IR_t* to IR_ref_t{node, sz}. Every wire write
@@ -89,10 +78,34 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**OPEN — design ratified + ladder written 2026-06-07 (Opus 4.8, Lon
-attending). Design Q&A: result field REJECTED (multi-instance), lhs
-recognized as JCON's explicit result slot → implicit via identity,
-operands arity 0..N proven from irgen.icn (sectionop=3, call=N).
-No steps landed. NEXT: IRD-1.**
+**OPEN — IRD-1 LANDED, IRD-2 VERIFIED COMPLETE, IRD-3 SCAFFOLDED
+(2026-06-07, Opus 4.8, Lon attending).**
+IRD-1: 6961de3 (split) + 92422d9 (drain) this session, merged over
+parallel closeout 293b1d0 (prove_lower.sh repair + bb_label registry
+to spine); merged HEAD 9fc612a re-verified green (build, icon 12/12,
+prolog 5/5, raku 25/25, prove_lower 68 PASS, baselines identical).
+NAMING CONTRACT (Lon 2026-06-07): AG signature is
+`f(lcx_t cx, const tree_t * e, IR_t * γ, IR_t * ω, IR_ref_t * α,
+IR_ref_t * β)` — no _in/_out suffixes. `lower` = canonical
+new-signature dispatcher (ICN→lower_icn, SNO/SCO/REB→lower_sno,
+RKU→lower_rku, PAS→lower_pas, PL+default→role switch via iref()).
+`lower_program` = old-signature (IR_t** α/β) thin unwrap wrapper over
+lower; all legacy call sites renamed. stage2_t* lower_program →
+lower_stage2 (name freed; 1 caller scrip_sm.c; Lon may rename).
+lower.c = pure spine: cx.lang only in dispatch + IR_alloc tag;
+wire_if(else_succeeds) exported (RKU/PAS pass 1 = else→γ);
+PAS bool-diamond moved whole into lower_pascal.c (b1/b2 checked
+BEFORE node alloc — preserves node order).
+IRD-2: sidecars/idx/IR_LIT/IR_EXEC pre-existed at HEAD (prior
+session); audit 9fc612a confirms zero stragglers (all ->ival hits are
+prolog Term*). KNOWN: dump-bb prints GCONJ ival heap ptr → prolog
+baselines need ival-ptr masking; test_lower_byte_identical.sh uses
+removed --dump-sm (vacuous baseline) — rewrite to --dump-bb.
+RULING NEEDED (Lon): ratified 5-member IR_t has no idx/own, but
+sidecars key on idx and macros walk own — IRD-5 fence vs sidecar
+mechanism in tension. NEXT: IRD-3 sweep, sno first. Per-language
+helpers (sno_conj, v_raku_*, pas_*) migrate to the 5-param signature
+during their language's sweep. See
+HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-1-2-LANDED.md.**
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
