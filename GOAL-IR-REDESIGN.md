@@ -97,10 +97,11 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   cond → operands[0]; consumers dual-read (interp IF/WHILE arms via
   cnd accessor + ring-guard extension; emit while_cond_emittable
   CALLSITE + flat_drive_while via bb_child0 — UNTIL rides the α
-  fallback). NEW RESIDUE FLAGS (bulk scope): IF/WHILE ->β reads are
-  chain-shape then/body; while_cond_emittable INTERNAL cond->α/β
-  reads are BINOP-child residue on a swept kind (pre-existing m3
-  behavior preserved — do not "fix" inside a sweep). IRD-3e-2
+  fallback). RESIDUE FLAGS (bulk scope): interp IF/WHILE ->β then/body
+  reads have ZERO writers in src (write census 2026-06-07-D) —
+  verify-then-delete candidates, NOT chain-fed; while_cond_emittable
+  internals CONVERTED in IRD-3-CHAIN-1 (d20c45e, jointly with the
+  writer flip). IRD-3e-2
   RESOLVED-DEAD: DISJ->α had ZERO readers (census + behavioral
   proof, both producer writes DELETED — wire_alt + pl_wire_alt);
   arms flow via operand_aux only, folds to operands[] at the bulk
@@ -136,29 +137,58 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**OPEN — SNO-ISO + IRD-3e-1 LANDED (2026-06-07-C, Opus 4.8, Lon
-attending; prioritization directive: complete+isolated SNOBOL4
-lower first).**
-This session: 2f17bf4 (SNO-ISO-1 — lower_sno.c complete+isolated,
-lower_value_shared SEVERED from the SNO route, full kind census
-recorded in step text) + 5a40338 (IRD-3e-1 — IF/WHILE cond →
-operands[0], consumers dual-read, three encoding regimes
-lowered/chain/ring proven identical). GATE both: sno 153 / icn 9 /
-pl 8 / pas 5 / sco 191 sweeps + rebus smoke + 4 smoke logs ALL
-byte-identical vs pre-session baseline; prove_lower PASS rows
-md5-identical (68; raw byte-diff is ASLR pointer noise in dump
-rows — compare PASS/FAIL rows). sco sweep (191 .sc, test/snocone +
-corpus/crosscheck/snocone) + rebus smoke ADDED to the gate set
-alongside bake_ird3_baseline.sh.
-Plus IRD-3e-2 RESOLVED-DEAD: DISJ->α zero readers, both writes
-DELETED, gate identical — no DISJ cluster remains (aux fold =
-bulk stage).
-NEXT: IRD-3d prolog
+**OPEN — IRD-3-CHAIN-1 LANDED (2026-06-07-D, Opus 4.8, Lon
+attending; directive: SNOBOL4 COMPLETELY CONVERTED FIRST —
+operands[]/n_operands used everywhere on the SNO route, α/β
+child-stuffing eliminated; a concurrent session is designing
+pattern-build BBs — keep commits small and pushed for cheap
+rebases).**
+Prior (2026-06-07-C): 2f17bf4 SNO-ISO (lower_sno.c isolated, zero
+α/β writes) + 5a40338 IF/WHILE cond → operands[0]; DISJ->α
+resolved-dead.
+This session: d20c45e IRD-3-CHAIN-1 — both emit-time RPN chain
+writers (descr_chain_operand_refs, gvar_stmt_operand_refs) now
+fill operands[0..1] (reset+push, idempotent); α/β chain writes
+DELETED except two flagged residues: IR_CALL (α+γ-chained arg
+lists) and IR_SCAN (gvar subject α — operands hold IRD-3a
+subj/repl GRAPHS, so generic operand-first EXEMPTS SCAN).
+Consumers operand-first/dual-read: bb_child1 added beside
+bb_child0; flat_drive_binop_tree/binop_gen_tree/unop/to; gvar
+IR_BINOP case block; binop_operand_streams + gen_bb_is_gen_arg +
+ASSIGN β-walks; while_operand_simple + while_cond_emittable
+internals; emit_core.c op_a_* generic priming block (THE central
+template operand feed — the hidden SCAN-α consumer, falsifying
+the earlier no-reader read) + bb_walk_rec now walks operands[]
+SCAN-guarded (its α/β-only walk was the live break: operand-held
+literals never interned → empty .rodata strings; smoke-RED,
+pinned by A/B asm diff, fixed). interp UNTOUCHED — writer output
+is emit-only; interp α/β tree reads serve icn_ring_to_tree (icon
+scope). GATE: sno 153 / icn 9 / pl 8 / pas 5 / sco 191 sweeps +
+5 smokes (rebus incl.) byte-identical; prove_lower 68. sco sweep
++ rebus smoke folded INTO scripts/bake_ird3_baseline.sh.
+SNO STATUS: lowering carries ZERO α/β stuffing (SNO-ISO) and the
+chain ecosystem is operands-first ⇒ SNOBOL4 is fully converted
+in usage EXCEPT the arg-list sub-cluster: IR_CALL args (writer
+α/β for 1-2-arg + α-headed γ-chain walks in
+flat_drive_call_userproc/call_builtin/call_args_single_shot,
+gvar_drive_call_arg_slots, interp CALL arms ~2400-2454 +
+ir_is_single_shot ~287-299, templates bb_call.cpp:487 +
+bb_call_write_slot.cpp:35/67) and IR_SCAN subject α (gvar writer
++ op_a/bb_walk_rec exemptions). CAUTION: icn_ring_to_tree
+(driver/scrip.c 85-92) builds the SAME CALL/arg shapes for icon
+ring trees — CHAIN-2 must convert it in lockstep or keep
+dual-read walkers. α/β FIELD DELETION stays global at IRD-4
+(IR_t shared) — SNO reaches zero-USAGE first, struct change
+lands once icon/prolog catch up.
+NEXT: IRD-3-CHAIN-2 arg-list sub-cluster (CALL args →
+operands[], SCAN subject channel; lockstep with icn_ring_to_tree)
+= SNO 100% → IRD-3d prolog
 remaining (ITE 313/334/355; γ-chained STRUCT 229/254 + g_builtin
 272 arg lists; name-aware BUILTIN pair 179/194/209; kind ~381) →
 IRD-3e-rest icon-scope shared sites (ITERATE-bang 182, EVERY 347,
-UNTIL 424, REPEAT 437 — zero SNO hits) → bulk stage (c) → IRD-4 →
-IRD-5. See
-HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-SNO-ISO-IRD-3E1.md.
+UNTIL 424, REPEAT 437 — zero SNO hits; + IR_PROC_GEN self-loop
+lower_program.c 139/140; + icn_ring_to_tree if not folded into
+CHAIN-2) → bulk stage (c) (gz-synth, operand_aux deletion) →
+IRD-4 → IRD-5. Detail in commit d20c45e message.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
