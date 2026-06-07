@@ -49,8 +49,20 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   PAT_MATCH aux→operands[0] incl. emit-time scan_native producer;
   ir_is_single_shot walks operands with IR_SCAN explicit-cased
   (graph-ptr operands MUST NOT be walked as nodes — repeat this
-  guard in every generic walker added later). REMAINING per-language
-  (one commit each: icon, prolog, raku, pascal, program): every
+  guard in every generic walker added later). ICON CLUSTER 1 SWEPT
+  (4699ab8, 2026-06-07): IDX_SET/FIELD_SET/FIELD_GET/SECTION/SWAP
+  producer+consumer; β→γ third-operand parking stitch DROPPED
+  (walk_bb_flat is single-node label-driven, stored γ inert;
+  descr_chain_arity −1 for these kinds — verified both); AG-ring
+  dual-mode gates !α&&!β → n_operands==0; flat_drive_every
+  deep-reads migrated. REMAINING ICON (IRD-3b-2, lower_icon.c
+  line refs at 4699ab8): ASSIGN 137 (⚠ multi-writer: producer sets
+  only α=rhs, but gen_resume_target reads ->β and flat_drive_every
+  reads gen_assign->β — full producer census of ASSIGN->β REQUIRED
+  before moving; suspects: every-gen wiring, descr_chain arity-1),
+  RANDOM 170, INITIAL 202, LIMIT 217/221, CASE 236/279/286
+  (chain-shaped arms). THEN per-language (one commit each: prolog,
+  raku, pascal, program): every
   nd->α/nd->β CHILD-OPERAND use → operands[0]/[1]; 3+-ary and
   γ-chained arg lists → operands[2..n]. operand_aux callers fold in;
   operand_aux DELETED at sweep end. α/β fields still exist, now only
@@ -115,16 +127,25 @@ baselines need ival-ptr masking; test_lower_byte_identical.sh uses
 removed --dump-sm (vacuous baseline) — rewrite to --dump-bb.
 RULING RESOLVED (Lon 2026-06-07, in-session): idx/own STAY on IR_t —
 the sidecar key survives; IR_t = 7 members; IRD-5 fence updated.
-IRD-3a SNO LANDED e070535 (2026-06-07, Opus 4.8, Lon attending):
-5 sno kinds swept producer+consumer, gates green on merged tree over
-parallel FIXUP lap (0a57954). ENV NOTE: m4 needs `make libscrip_rt`
+IRD-3a SNO LANDED e070535 + IRD-3b-1 ICON CLUSTER LANDED 4699ab8
+(2026-06-07, Opus 4.8, Lon attending): sno 5 kinds + icon 5 kinds
+swept producer+consumer, gates green on merged tree over parallel
+FIXUP lap (0a57954, 0cccd27..). Live-kind proof post-change:
+rung13_tables 5/5 (IDX_SET), rung24 records 3/3 m2 (FIELD_GET/SET),
+SECTION+SWAP dialect probes correct. ENV NOTE: m4 needs
+`make libscrip_rt`
 — absent in fresh container, ALL m4 vacuous-fails at gcc link; with
 it: sno m4 7/7, pat_rung 18/0 (053 SKIP pre-existing A/B-proven),
 icon m4 10/12, prolog m4 5/5. FLAG (law 5, owner RAKU-BB): raku
 broken at HEAD AND at pre-IRD c792829 — `scrip x.raku` aborts "main
 BB graph not found" all modes (driver looks up proc "main"); smoke
 0/17, full suite m2 17/47; the IRD-1/2 handoff's "raku 25/25" does
-not reproduce. NEXT: IRD-3b icon sweep. Per-language
+not reproduce. ALSO pre-existing A/B-proven: rung36_jcon_lists/
+string1 m2 FAIL (icon, sections); pat_rung 053_pat_alt_commit m4
+SKIP. NEXT: IRD-3b-2 (remaining icon, see step — ASSIGN producer
+census first). See
+HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-3A-3B1-LANDED.md.
+Per-language
 helpers (sno_conj, v_raku_*, pas_*) migrate to the 5-param signature
 during their language's sweep. See
 HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-1-2-LANDED.md.**
