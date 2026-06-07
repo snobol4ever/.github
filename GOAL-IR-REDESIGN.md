@@ -42,74 +42,57 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 ## LADDER — strict order, gate after each
 
 - [ ] **IRD-3 — OPERANDS: α/β children → operands[]/n_operands.**
-  SNO SWEPT (e070535). ICON SWEPT COMPLETE (4699ab8 cluster 1 +
-  fbfd71c cluster 2 — lower_icon.c carries ZERO child α/β writes;
-  CASE arm encoding NEW: cas->operands[0]=selector,
-  operands[1..]=LIT_NUL wrappers each holding key/val in OWN
-  operands, default wrapper = 1 operand — the IRD-4 "arm lists via
-  ->ω" prereq is DONE for icon). PROLOG PAIR CLUSTER SWEPT
-  (c6b09f5): UNIFY + ARITH kind-complete; emit ARITH/UNIFY marshal
-  arms DUAL-READ (operands-first, α/β fallback) because the GZ
-  SYNTHESIZER (driver/scrip.c pl_gz_*) writes α/β on synthesized
-  CELL_UNIFY/DET_IS/DET_CMP/DET_WRITE/ARITH-copy nodes — gz-synth
-  subsystem needs its own sweep entry in the bulk stage.
-  SURVEY (2026-06-07-B): raku/pascal/sno/program lowering files
-  carry ZERO child α/β writes — the per-language ladder collapses
-  to lower_prolog.c + shared lower.c + the bulk stage. REMAINING:
-  (a) lower_prolog.c 10 writes (LIVE-GREPPED at b2cfd08; DISJ 117
-  DELETED-DEAD): ITE cond 312/333/354; STRUCT 228/253 + g_builtin
-  271 γ-CHAINED ARG LISTS (the IRD-4 "arg lists via ->γ" prereq);
-  pair-shape BUILTIN 178/193 + IS 208 — ⚠ BUILTIN is DUAL-ENCODED
-  by builtin NAME (pair α/β vs γ-chain-from-α); its sweep must be
-  name-aware across interp/emit/driver consumers; kind at 380
-  (α=cα, ival=subgraph). NOTE 427/428 zc->args[]=aaα are local-α
-  captures into the zc args array, NOT IR_t child-field writes.
-  (b) lower.c (shared) 4 single-child writes remain, ALL
-  icon-scope (zero SNO hits, census-proven): ITERATE-bang 181,
-  EVERY 346, UNTIL 423, REPEAT 436 — consumers incl. v_every/
-  interp EVERY bb->α/bb->β, flat_drive_every (its ival==2
-  ASSIGN-gen branch at ~1892 is DEAD CODE — guard requires
-  never-written ASSIGN->β). DONE: DISJ 105 deleted-dead; WHILE +
-  IF swept 5a40338 (the old "CONJ 292" entry was MISLABELED — it
-  was the wire_if site; no CONJ child write ever existed; UNTIL
-  rides the while_cond_emittable α fallback until its sweep).
-  (c) BULK consumer-internal α/β classification: IR_interp.c +
-  emit_bb.c residue; the THREE emit-time RPN α/β writers
-  (descr_chain_operand_refs, gvar_stmt_operand_refs emit_bb.c;
-  icn_ring_to_tree driver/scrip.c) + their chain consumers;
-  gz-synth nodes; RETURN chain residue (descr_chain_arity RETURN
-  STAYS 1 — chain codegen slot-priming consumes the RPN α,
-  empirically proven at fbfd71c: arity→0 broke proc m3 rows).
-  CENSUS LAW (fbfd71c lesson): driver/scrip.c classifiers
-  (icn_local_assign_rhs_ok, icn_graph_native_emittable_mode,
-  pl_flat_goal_is_simple, pl_gz_*) ARE consumers — census every
-  kind in driver/ too, and never truncate the consumer grep.
-  bb_child0 (emit_bb.c) = the dual-read accessor for kinds where
-  chain-RPN α coexists with lowering operands.
-  SNO-ISO LANDED (2f17bf4, Lon directive 2026-06-07-C): lower_sno.c
-  is COMPLETE+ISOLATED — own sno_value_shared dispatch, default →
-  lower_unhandled, ZERO lower_value_shared reachability from the
-  SNO route; 15 shared v_* helpers exported in lower_internal.h as
-  infrastructure. CENSUS (sno 153 + sco 191 + rebus): only lang=1
-  fires (sco/rebus transpile through SNO); SNO-live α-writers were
-  IF/WHILE/ALT-DISJ only; UNTIL/REPEAT/EVERY/ITERATE-bang have
-  ZERO SNO hits (icon-scope). IRD-3e-1 LANDED (5a40338): IF + WHILE
-  cond → operands[0]; consumers dual-read (interp IF/WHILE arms via
-  cnd accessor + ring-guard extension; emit while_cond_emittable
-  CALLSITE + flat_drive_while via bb_child0 — UNTIL rides the α
-  fallback). RESIDUE FLAGS (bulk scope): interp IF/WHILE ->β then/body
-  reads have ZERO writers in src (write census 2026-06-07-D) —
-  verify-then-delete candidates, NOT chain-fed; while_cond_emittable
-  internals CONVERTED in IRD-3-CHAIN-1 (d20c45e, jointly with the
-  writer flip). IRD-3e-2
-  RESOLVED-DEAD: DISJ->α had ZERO readers (census + behavioral
-  proof, both producer writes DELETED — wire_alt + pl_wire_alt);
-  arms flow via operand_aux only, folds to operands[] at the bulk
-  stage with the operand_aux deletion. No DISJ cluster remains.
-  operand_aux callers fold in; operand_aux DELETED at sweep end.
-  GATE per cluster: scripts/bake_ird3_baseline.sh sweeps
-  byte-identical; smoke rows identical; prove_lower PASS count
-  (68); live-kind probes per kind; A/B git-stash for any anomaly.
+  STATUS: sno/icon/raku/pascal/program lowering files carry ZERO
+  child α/β writes; prolog pair-cluster, IF/WHILE cond, SNO-ISO and
+  the chain-writer flip are LANDED (history + encoding specs in
+  commits e070535, 4699ab8, fbfd71c, c6b09f5, 2f17bf4, 5a40338,
+  d20c45e). REMAINING:
+  (a) lower_prolog.c 10 writes (LIVE-GREPPED at b2cfd08): ITE cond
+  312/333/354; STRUCT 228/253 + g_builtin 271 γ-CHAINED ARG LISTS
+  (the IRD-4 "arg lists via ->γ" prereq); pair-shape BUILTIN
+  178/193 + IS 208 — ⚠ BUILTIN is DUAL-ENCODED by builtin NAME
+  (pair α/β vs γ-chain-from-α); its sweep must be name-aware
+  across interp/emit/driver consumers; kind at 380 (α=cα,
+  ival=subgraph). NOTE 427/428 zc->args[]=aaα are local-α captures
+  into the zc args array, NOT IR_t child-field writes.
+  (b) lower.c (shared) 4 single-child writes, ALL icon-scope (zero
+  SNO hits, census-proven): ITERATE-bang 181, EVERY 346, UNTIL
+  423, REPEAT 436 — consumers incl. v_every / interp EVERY
+  bb->α/bb->β, flat_drive_every (its ival==2 ASSIGN-gen branch
+  ~1892 is DEAD — guard requires never-written ASSIGN->β); UNTIL
+  rides the while_cond_emittable bb_child0 fallback until its
+  sweep. PLUS IR_PROC_GEN self-loop lower_program.c 139/140
+  (icon, GeneratorState sentinel).
+  (c) BULK remaining: IRD-3-CHAIN-2 arg-list sub-cluster (see
+  NEXT) = SNO 100%; icn_ring_to_tree (driver/scrip.c 85-92) — the
+  third RPN writer, icon ring trees, hard-rejects CALL ar!=1;
+  gz-synth (driver pl_gz_* writes α/β on synthesized CELL_UNIFY/
+  DET_IS/DET_CMP/DET_WRITE/ARITH-copy nodes — emit marshal arms
+  already dual-read); interp consumer-internal α/β tree reads
+  (serve ring/gz shapes — icon/prolog scope); operand_aux callers
+  fold in; operand_aux DELETED at sweep end. RETURN chain:
+  descr_chain_arity RETURN STAYS 1 — the slot-priming consumer is
+  emit_core.c:440 dual-read (arity→0 empirically broke proc m3 at
+  fbfd71c).
+  LAWS: census every kind in driver/ too — classifiers ARE
+  consumers; never truncate the consumer grep (fbfd71c). Generic
+  WALKERS and the generic op_a_* template feed are consumers
+  (d20c45e RED cycle: bb_walk_rec missed operand-held literals →
+  empty .rodata strings; op_a_* was the hidden SCAN-α reader —
+  same-line greps lie for switch-case consumers). Any walker over
+  operands[] MUST exempt IR_SCAN (operands hold IRD-3a subj/repl
+  GRAPHS cast as IR_t*). bb_child0/bb_child1 (emit_bb.c) = the
+  dual-read accessors.
+  RESIDUE FLAGS (bulk scope): interp IF/WHILE ->β then/body reads
+  have ZERO writers in src (write census 2026-06-07-D) —
+  verify-then-delete candidates, NOT chain-fed.
+  GATE per cluster: build = apt-get install -y libgc-dev; make;
+  make libscrip_rt (MANDATORY for m4). Bake
+  scripts/bake_ird3_baseline.sh BEFORE touching code (script now
+  includes sco sweep 191 + rebus smoke; rebus PASS=0 FAIL=4
+  pre-existing); post-bake and diff: all sweeps byte-identical;
+  smoke rows identical; prove_lower PASS count (68); live-kind
+  probes per kind; A/B git-stash for any anomaly.
 
 - [ ] **IRD-4 — WIRES: γ/ω become IR_ref_t; α/β fields DELETED.**
   Change IR_t.γ/ω from IR_t* to IR_ref_t{node, sz}. Every wire write
@@ -209,5 +192,17 @@ UNTIL 424, REPEAT 437 — zero SNO hits; + IR_PROC_GEN self-loop
 lower_program.c 139/140; + icn_ring_to_tree if not folded into
 CHAIN-2) → bulk stage (c) (gz-synth, operand_aux deletion) →
 IRD-4 → IRD-5. Detail in commit d20c45e message.
+HANDOFF 2026-06-07-D CLOSED (Opus 4.8, context exhausted): SCRIP
+origin = d20c45e, .github origin = this commit; both trees CLEAN,
+all work pushed. Next session: clone/pull BOTH repos
+(authenticate origin remotes with Lon's token first — git remote
+set-url origin https://TOKEN@github.com/snobol4ever/<repo>), set
+git identity LCherryholmes/lcherryh@yahoo.com per repo, build per
+GATE recipe, bake /tmp/base_pre, then execute IRD-3-CHAIN-2 as
+planned above. Concurrent sessions active: BB-FIXUP (cursor
+bb_scan_many.cpp, owns BB_templates — coordinate before touching
+bb_call*.cpp) and pattern-BB design (joint owner of the
+SCAN-subject decision). ALWAYS git pull --rebase both repos
+before working — origin advances between sessions.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
