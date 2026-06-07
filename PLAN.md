@@ -68,6 +68,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **TEMPLATES .NET** | `GOAL-TEMPLATES-NET.md` | Backend: SCRIP MSIL emitter (≠ snobol4dotnet repo), all languages. |
 | **TEMPLATES JS** | `GOAL-TEMPLATES-JS.md` | Backend: JavaScript (node), all languages. |
 | **TEMPLATES WASM** | `GOAL-TEMPLATES-WASM.md` | Backend: WebAssembly (WAT → node host), all languages. |
+| **IR REDESIGN** ⬅ NEW (Lon 2026-06-07) | `GOAL-IR-REDESIGN.md` | Slim IR_t: drop value/counter/state; rename α→a β→b; exec state → parallel array. IRD-0 open. |
 | **IR Emitter** | `GOAL-IR-EMITTER-PREREQ.md` | IEP-8 can proceed; IEP-5/6/7/9 blocked on CHUNKS. |
 | **Universal Gen IR** | `GOAL-LOWER-REDESIGN.md` | LR-S2 — delete bb_node_t path. |
 | **Parser-SC Transpile** | `GOAL-PARSER-SC-TRANSPILE.md` | SCT-1f or SCT-BEAUTY-SC-PARSE. |
