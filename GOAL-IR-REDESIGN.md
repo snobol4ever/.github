@@ -42,39 +42,49 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 ## LADDER — strict order, gate after each
 
 - [ ] **IRD-3 — OPERANDS: α/β children → operands[]/n_operands.**
-  Scaffold LANDED (operands/n_operands on IR_t, calloc-zeroed;
-  ir_operand_push() in scrip_ir.c). SNO SWEPT (e070535, 2026-06-07):
-  PAT_ASSIGN_COND/IMM α→operands[0]; SCAN subj/repl graphs
-  aux→operands (cast preserved, move-not-fix); REF_INVARIANT +
-  PAT_MATCH aux→operands[0] incl. emit-time scan_native producer;
-  ir_is_single_shot walks operands with IR_SCAN explicit-cased
-  (graph-ptr operands MUST NOT be walked as nodes — repeat this
-  guard in every generic walker added later). ICON CLUSTER 1 SWEPT
-  (4699ab8, 2026-06-07): IDX_SET/FIELD_SET/FIELD_GET/SECTION/SWAP
-  producer+consumer; β→γ third-operand parking stitch DROPPED
-  (walk_bb_flat is single-node label-driven, stored γ inert;
-  descr_chain_arity −1 for these kinds — verified both); AG-ring
-  dual-mode gates !α&&!β → n_operands==0; flat_drive_every
-  deep-reads migrated. REMAINING ICON (IRD-3b-2, lower_icon.c
-  line refs at 4699ab8): ASSIGN 137 (⚠ multi-writer: producer sets
-  only α=rhs, but gen_resume_target reads ->β and flat_drive_every
-  reads gen_assign->β — full producer census of ASSIGN->β REQUIRED
-  before moving; suspects: every-gen wiring, descr_chain arity-1),
-  RANDOM 170, INITIAL 202, LIMIT 217/221, CASE 236/279/286
-  (chain-shaped arms). THEN per-language (one commit each: prolog,
-  raku, pascal, program): every
-  nd->α/nd->β CHILD-OPERAND use → operands[0]/[1]; 3+-ary and
-  γ-chained arg lists → operands[2..n]. operand_aux callers fold in;
-  operand_aux DELETED at sweep end. α/β fields still exist, now only
-  as port-wire residue. SIZING (audited 2026-06-07): consumers carry
-  the bulk — IR_interp.c 387 + emit_bb.c 320 ->α/->β touches,
-  lower_icon.c 23, lower_prolog.c 20, lower.c 7, lower_program.c 5,
-  lower_sno.c 2; 34 operand_aux call sites. Each touch needs
-  classifying child-operand vs port-wire-residue per op kind.
-  GATE per language: baselines identical
-  (scripts/bake_ird3_baseline.sh: m2 per-file sweeps byte-identical;
-  m2/m3 smoke rows identical; prove_lower PASS count; dump-bb and
-  prove_lower port-table columns drift BY DESIGN when children move).
+  SNO SWEPT (e070535). ICON SWEPT COMPLETE (4699ab8 cluster 1 +
+  fbfd71c cluster 2 — lower_icon.c carries ZERO child α/β writes;
+  CASE arm encoding NEW: cas->operands[0]=selector,
+  operands[1..]=LIT_NUL wrappers each holding key/val in OWN
+  operands, default wrapper = 1 operand — the IRD-4 "arm lists via
+  ->ω" prereq is DONE for icon). PROLOG PAIR CLUSTER SWEPT
+  (c6b09f5): UNIFY + ARITH kind-complete; emit ARITH/UNIFY marshal
+  arms DUAL-READ (operands-first, α/β fallback) because the GZ
+  SYNTHESIZER (driver/scrip.c pl_gz_*) writes α/β on synthesized
+  CELL_UNIFY/DET_IS/DET_CMP/DET_WRITE/ARITH-copy nodes — gz-synth
+  subsystem needs its own sweep entry in the bulk stage.
+  SURVEY (2026-06-07-B): raku/pascal/sno/program lowering files
+  carry ZERO child α/β writes — the per-language ladder collapses
+  to lower_prolog.c + shared lower.c + the bulk stage. REMAINING:
+  (a) lower_prolog.c 11 writes: DISJ 117 first-arm; ITE cond
+  312/333/354; STRUCT 228/253 + g_builtin 271 γ-CHAINED ARG LISTS
+  (the IRD-4 "arg lists via ->γ" prereq); pair-shape BUILTIN
+  178/193/208 — ⚠ BUILTIN is DUAL-ENCODED by builtin NAME (pair
+  α/β vs γ-chain-from-α); its sweep must be name-aware across
+  interp/emit/driver consumers; kind at ~380 (α=cα, ival=subgraph).
+  (b) lower.c (shared) 7 single-child writes: DISJ 105, ITERATE
+  182, CONJ 292, EVERY 347, WHILE 403, UNTIL 424, REPEAT 437 —
+  consumers incl. v_every/interp EVERY bb->α/bb->β,
+  while_cond_emittable(nd->α), flat_drive_every (its ival==2
+  ASSIGN-gen branch at ~1892 is DEAD CODE — guard requires
+  never-written ASSIGN->β).
+  (c) BULK consumer-internal α/β classification: IR_interp.c +
+  emit_bb.c residue; the THREE emit-time RPN α/β writers
+  (descr_chain_operand_refs, gvar_stmt_operand_refs emit_bb.c;
+  icn_ring_to_tree driver/scrip.c) + their chain consumers;
+  gz-synth nodes; RETURN chain residue (descr_chain_arity RETURN
+  STAYS 1 — chain codegen slot-priming consumes the RPN α,
+  empirically proven at fbfd71c: arity→0 broke proc m3 rows).
+  CENSUS LAW (fbfd71c lesson): driver/scrip.c classifiers
+  (icn_local_assign_rhs_ok, icn_graph_native_emittable_mode,
+  pl_flat_goal_is_simple, pl_gz_*) ARE consumers — census every
+  kind in driver/ too, and never truncate the consumer grep.
+  bb_child0 (emit_bb.c) = the dual-read accessor for kinds where
+  chain-RPN α coexists with lowering operands.
+  operand_aux callers fold in; operand_aux DELETED at sweep end.
+  GATE per cluster: scripts/bake_ird3_baseline.sh sweeps
+  byte-identical; smoke rows identical; prove_lower PASS count
+  (68); live-kind probes per kind; A/B git-stash for any anomaly.
 
 - [ ] **IRD-4 — WIRES: γ/ω become IR_ref_t; α/β fields DELETED.**
   Change IR_t.γ/ω from IR_t* to IR_ref_t{node, sz}. Every wire write
@@ -102,52 +112,37 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**OPEN — IRD-1 LANDED, IRD-2 VERIFIED COMPLETE, IRD-3 SCAFFOLDED
-(2026-06-07, Opus 4.8, Lon attending).**
-IRD-1: 6961de3 (split) + 92422d9 (drain) this session, merged over
-parallel closeout 293b1d0 (prove_lower.sh repair + bb_label registry
-to spine); merged HEAD 9fc612a re-verified green (build, icon 12/12,
-prolog 5/5, raku 25/25, prove_lower 68 PASS, baselines identical).
-NAMING CONTRACT (Lon 2026-06-07): AG signature is
-`f(lcx_t cx, const tree_t * e, IR_t * γ, IR_t * ω, IR_ref_t * α,
-IR_ref_t * β)` — no _in/_out suffixes. `lower` = canonical
-new-signature dispatcher (ICN→lower_icn, SNO/SCO/REB→lower_sno,
-RKU→lower_rku, PAS→lower_pas, PL+default→role switch via iref()).
-`lower_program` = old-signature (IR_t** α/β) thin unwrap wrapper over
-lower; all legacy call sites renamed. stage2_t* lower_program →
-lower_stage2 (name freed; 1 caller scrip_sm.c; Lon may rename).
-lower.c = pure spine: cx.lang only in dispatch + IR_alloc tag;
-wire_if(else_succeeds) exported (RKU/PAS pass 1 = else→γ);
-PAS bool-diamond moved whole into lower_pascal.c (b1/b2 checked
-BEFORE node alloc — preserves node order).
-IRD-2: sidecars/idx/IR_LIT/IR_EXEC pre-existed at HEAD (prior
-session); audit 9fc612a confirms zero stragglers (all ->ival hits are
-prolog Term*). KNOWN: dump-bb prints GCONJ ival heap ptr → prolog
-baselines need ival-ptr masking; test_lower_byte_identical.sh uses
-removed --dump-sm (vacuous baseline) — rewrite to --dump-bb.
-RULING RESOLVED (Lon 2026-06-07, in-session): idx/own STAY on IR_t —
-the sidecar key survives; IR_t = 7 members; IRD-5 fence updated.
-IRD-3a SNO LANDED e070535 + IRD-3b-1 ICON CLUSTER LANDED 4699ab8
-(2026-06-07, Opus 4.8, Lon attending): sno 5 kinds + icon 5 kinds
-swept producer+consumer, gates green on merged tree over parallel
-FIXUP lap (0a57954, 0cccd27..). Live-kind proof post-change:
-rung13_tables 5/5 (IDX_SET), rung24 records 3/3 m2 (FIELD_GET/SET),
-SECTION+SWAP dialect probes correct. ENV NOTE: m4 needs
-`make libscrip_rt`
-— absent in fresh container, ALL m4 vacuous-fails at gcc link; with
-it: sno m4 7/7, pat_rung 18/0 (053 SKIP pre-existing A/B-proven),
-icon m4 10/12, prolog m4 5/5. FLAG (law 5, owner RAKU-BB): raku
-broken at HEAD AND at pre-IRD c792829 — `scrip x.raku` aborts "main
-BB graph not found" all modes (driver looks up proc "main"); smoke
-0/17, full suite m2 17/47; the IRD-1/2 handoff's "raku 25/25" does
-not reproduce. ALSO pre-existing A/B-proven: rung36_jcon_lists/
-string1 m2 FAIL (icon, sections); pat_rung 053_pat_alt_commit m4
-SKIP. NEXT: IRD-3b-2 (remaining icon, see step — ASSIGN producer
-census first). See
-HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-3A-3B1-LANDED.md.
-Per-language
-helpers (sno_conj, v_raku_*, pas_*) migrate to the 5-param signature
-during their language's sweep. See
-HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-1-2-LANDED.md.**
+**OPEN — IRD-3 ICON COMPLETE + PROLOG PAIR CLUSTER LANDED
+(2026-06-07-B, Opus 4.8, Lon attending).**
+This session: fbfd71c (IRD-3b-2 icon control cluster —
+ASSIGN/RETURN/INITIAL/LIMIT/CASE producer+consumer; CASE arm chain
+flattened to operand wrappers; RETURN kind-complete across
+icon+pascal+sno producers) + c6b09f5 (IRD-3c prolog pair cluster —
+UNIFY/ARITH kind-complete incl. the full gz driver classifier set).
+Both gated on the merged tree over the parallel FIXUP lap
+(…28b0c52): 4 m2 per-file sweeps byte-identical ×175, prove_lower
+68 PASS, all 4 smoke row-sets identical; live-kind probes per kind.
+CENSUS RESULTS RECORDED IN STEP TEXT (do not re-derive): ASSIGN->β
+zero writers / every-1892 dead; RETURN chain arity stays 1; three
+RPN writers; gz-synth subsystem; BUILTIN dual-encoding; driver
+classifiers are consumers; bb_child0 dual-read pattern.
+ENV (fresh container): apt-get install -y libgc-dev; make;
+make libscrip_rt MANDATORY before any m4 (else vacuous link fails).
+LAW-5 PRE-EXISTING (A/B git-stash-proven this session, NOT chased):
+icon LIMIT m2 over-generates (every write(1 to 9 \\ 3) prints 1..9
+×3 — interp transcription diverges from JCON ir_a_Limitation
+counter); icon LIMIT m3 FATAL-aborts on LIT-headed generator entry
+(flat_drive_limit kind gate); prolog 2-arg rule-call probe (add7)
+not gz-admitted m3 (PBB FATAL fence) — all byte-identical at
+pre-change HEAD. CARRIED from prior session: RAKU "main BB graph
+not found" all modes (owner RAKU-BB); rung36_jcon_lists/string1 m2
+FAIL; pat_rung 053 m4 SKIP; icon proc_zeroarg/proc_recursion m3/m4
+smoke FAIL; icon CASE m3 segfault (flat_drive_case walks a γ-list
+shape icn_case never built — desynced pre-IRD, rung33 m3 rc=139).
+NEXT: IRD-3d prolog remaining (DISJ/ITE first; then the γ-chained
+STRUCT/g_builtin arg lists; then name-aware BUILTIN pair sites;
+site ~380) → IRD-3e shared lower.c 7 sites → bulk stage (c) →
+IRD-4. See
+HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-3B2-3C-LANDED.md.**
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
