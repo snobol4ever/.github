@@ -5,12 +5,13 @@ Pruned 2026-06-06 (Lon directive): landed rungs + closed-track history DELETED �
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
-## ▶ STATE (2026-06-06)
+## ▶ STATE (2026-06-07)
 
-Watermark: SCRIP `7f4b3db` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED + PL-GZ-9 in progress** — details: git history + handoff docs.
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **115/115 HARD** · m3 **31**/84-FAIL · m4 105/0/10-EXC.
-**PL-GZ-9 progress (7f4b3db)**: admission gates extended — `IR_LIT_F` in UNIFY (all paths); const=const UNIFY fold; `succ/2` + `plus/3` flat admission; ITE-as-entry γ-chain walk (when gconj==NULL); `rt_pl_unify_cell_float` for `X=3.14`; `bb_cell_unify` float arm + const=const LIT_F fold. m3 ratchet 24→31 (+rung18 succ/plus 5 tests, +rung42 float-unify 2 tests). rung19_format1_nl also PASS.
-**NEXT OPENER — DIAGNOSE ITE-BUILTIN-COND REJECTION:** `pl_gz_admit` returns NULL for programs whose ITE cond is a bare BUILTIN (atom/1, @>/2, etc.) even though the scan loop does NOT reject BUILTIN nodes. Root cause unconfirmed — add `fprintf(stderr, "DBG L%d\n", __LINE__)` to each `return NULL` in the scan body (lines 1004–1058) to pinpoint the exact site, then fix ONLY that site. Avoid touching the `goals_buf` construction order (ITE-priority-before-gconj caused a regression — the correct fix is narrower). `gz_fill_goal` IR_BUILTIN op_sval fix is safe but had no effect while admit still returns NULL.
+Watermark: SCRIP `27c797f` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED** — details: git history + handoff docs.
+Gates: GATE-1 m2 5/5 HARD · m3 4/5 · m4 4/5. GATE-3 m2 **114/115** (rung23_arith_ext_power: `27^3` returns `27.0` not `27` — int-power float promotion bug) · m3 **29**/86-FAIL · m4 88/17-FAIL (59 of those m4 passes are through the legacy rich-tier, NOT the GZ path — not legitimate m3≡m4).
+**IRD-2b regression fixed (2026-06-07):** `pl_gz_choice_inline` stored `units[j]->β` as the fact-clause constant; post-IRD-2b that field is a port wire. Fix: `units[j]->operands[1]`. Restored m3 from 22→29 (+7).
+**M34-PARITY diagnosed (2026-06-07):** Three structural violations confirmed — (1) `g_resolve_env` allocated in m3 Prolog block only (scrip.c ~2131); (2) `rt_is_f` reads `g_resolve_env[slot]` instead of ζ-frame cells, causing rung23/29 arith/float divergence; (3) m4 `pl_rich_body_root` third tier has no m3 equivalent — 59 extra m4 passes through legacy C engine; (4) `rt_last_ok` still in `bb_goal.cpp` (3 sites). New ladder M34-PARITY added with 5 rungs.
+**NEXT OPENER — M34-1:** Delete `g_resolve_env` allocation from the m3 Prolog driver block in `scrip.c` (~line 2131). One-line delete; rebuild and re-gate to establish the honest m3 baseline.
 Logged m2-only divergences (NOT fixed; m3/m4 already canon): gz6b disj trust_me_else_fail · mid-cut pre-cut-generator gap · 7a per-NODE cp_mark/committed.
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
@@ -364,8 +365,34 @@ GUT (deleted as the new path re-admits each rung; build-green is no license to p
 · C call stack = the sanctioned recursion spine.
 · ONE x86() body per box serves m3 (BINARY → RX slab) and m4 (TEXT → as+gcc); m3 ≡ m4 by construction.
 
+## 🔴 PL-M34-PARITY — m3 ≡ m4: same driver path, same admitted set, no GDE coupling (Lon directive 2026-06-07)
+
+**THE INVARIANT:** For every Prolog program, m3 (`--run`) and m4 (`--compile --target=x86`) must take structurally identical paths through the driver: same admission gate, same box chain, same templates, same runtime helpers — differing ONLY in the final encoding step (BINARY into the RX slab vs TEXT to `as+gcc`). Any rung that passes m3 must pass m4 with byte-identical output, and vice versa. A rung that neither admits must produce an identical SMX/FATAL signal on both sides.
+
+**CURRENT VIOLATIONS (diagnosed 2026-06-07):**
+
+1. **`g_resolve_env` allocated in m3 only** — scrip.c line ~2131 allocates `g_resolve_env` before calling `pl_gz_admit`. This is the old WAM env; THE LAWS forbid it. `rt_is_f` reads `g_resolve_env[slot]` to fetch variable values → works in m3 (env allocated), returns 0 in m4 standalone (env NULL). Causes rung23/29 arith+float family to diverge.
+
+2. **`rt_is_f` is GDE-coupled** — reads `g_resolve_env[slot]` instead of the ζ-frame. Must be replaced by a frame-reading helper `rt_is_cell(int dst_cell, const char *op, int lk, int li_or_cell, double ld, int rk, int ri_or_cell, double rd)` where LOGICVAR args pass their frame-cell address (obtained via `[r12 + GZ_CELL_OFF(slot)]`) not a slot index into the old env.
+
+3. **Three tiers in m4, two in m3** — m4 falls back to `pl_rich_body_root` + `codegen_clause_dispatch` (legacy `RESOLVE`-box flat chain, old C engine behind it); m3 has no matching tier and hard-aborts. These extra tiers in m4 pass rungs that m3 aborts on — they are NOT legitimate m3≡m4 passes. The fix is NOT to add the rich tier to m3; it is to expand `pl_gz_admit` to cover those shapes so both sides go through the GZ path.
+
+4. **`rt_last_ok` in `bb_goal.cpp`** — 3 call sites (`rt_last_ok@PLT`) remain in the goal template, the old verdict global. Must be deleted; verdict travels in the return value per THE LAWS.
+
+Ladder — strict order, gate after each:
+
+- [ ] **M34-1 — DELETE `g_resolve_env` alloc from m3 Prolog driver path.** In `scrip.c` m3 Prolog block: remove `g_resolve_env = GC_MALLOC(...)` line. Rebuild + re-run GATE-3. Any rung that now fails m3 but was passing was silently depending on the old env — those become honest FAILs (correct). Ratchet: m3 PASS count may only decrease or hold; a decrease is the honest baseline. Gate: `grep -n 'g_resolve_env' src/driver/scrip.c | grep -v 'extern\|//\|^\s*/\*'` must show zero live assignments in the m3 Prolog block.
+
+- [ ] **M34-2 — REPLACE `rt_is_f` with `rt_is_cell`.** `rt_is_f(dst_slot, op, lk, li, ld, rk, ri, rd)` reads `g_resolve_env[li]` / `g_resolve_env[ri]` for LOGICVAR args. Replace with `rt_is_cell(void *dst_cell, const char *op, int lk, void *larg, double ld, int rk, void *rarg, double rd)` where for `IR_LOGICVAR` the caller passes a pointer directly into the ζ-frame cell (`lea rdi,[r12+GZ_CELL_OFF(slot)]`) — no env lookup, no global. `bb_is_cmp.cpp` template updated: `x86("mov","rdi",FRQ(GZ_CELL_OFF(dst)))` + `x86("lea","rsi",[r12+GZ_CELL_OFF(lslot)])` for LOGICVAR lhs, literal value packed for LIT_I/LIT_F. `IR_interp.c` `rt_is_f` definition updated in-place (rename + signature). `libscrip_rt` rebuilt. Completion: rung23/29 m3≡m4 byte-identical. Gate: `grep -rn 'g_resolve_env' src/interp/IR_interp.c | grep rt_is` == 0.
+
+- [ ] **M34-3 — ASSERT m3 and m4 take identical tier for every admitted rung.** Write `scripts/test_gate_pl_m34_parity.sh`: for each `rung*.pl` in corpus, run m3 and m4, compare outputs. Any rung where one side produces output and the other aborts/SMX is a FAIL. Any rung where both produce output but differ is a FAIL. Rungs where both abort identically (SMX or FATAL) are EXCISED — not failures. Gate must be green (zero FAIL) before PL-GZ-FENCE. Initial run establishes the honest baseline after M34-1 and M34-2.
+
+- [ ] **M34-4 — DELETE `rt_last_ok` from `bb_goal.cpp`.** The 3 `rt_last_ok@PLT` call sites in the goal template use the old verdict global. Identify the enclosing logic, replace with return-value wiring per THE LAWS. Coupling gate must hold (zero new `rt_last_ok` references in templates). Gate: `grep -rn 'rt_last_ok' src/emitter/BB_templates/` == 0.
+
+- [ ] **M34-5 — PARITY SEAL: m4 rich-tier forbidden for admitted shapes.** After M34-1..4, audit: any rung that passes m4 via the `pl_rich_body_root` / `codegen_clause_dispatch` path but fails m3 is a legitimate admission gap — add it to the PL-GZ-9 admission queue (do not patch the m4 fallback path). Verify by temporarily disabling the rich-tier fallback in m4 and confirming the set of passing rungs matches m3 exactly. The rich tier remains for truly unadmitted shapes during reconquest; it is not a crutch for shapes the GZ path should cover.
+
 Ladder (LANDED rungs 0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b DELETED — git history):
-- [ ] **PL-GZ-9** — corpus reconquest: all 115 rungs onto the new path, m3/m4 verdicts byte-identical. Strategy: admission-gate expansion in `pl_flat_goal_is_simple` / `pl_gz_rule_body_goal_ok` / `pl_gz_build_goal` / `pl_gz_admit` for each IR shape encountered; `gz_fill_goal` IR_BUILTIN pass-through fix (`op_sval`/`op_ival` not propagated → rung16/19/40 next). findall = drive the NEW boxes (no meta rail); catch/throw = PT-3 CP-truncate + ball-copy LAW re-landed; aggregate/nb likewise; dynamic DB = **B-full** (runtime assert = lower + MEDIUM_BINARY emit into the RX slab; m3 ≡ m4 by construction). Current m3: **31**/84-FAIL. Ratchet: never regress.
+- [ ] **PL-GZ-9** — corpus reconquest: all 115 rungs onto the new path, m3/m4 verdicts byte-identical. Strategy: admission-gate expansion in `pl_flat_goal_is_simple` / `pl_gz_rule_body_goal_ok` / `pl_gz_build_goal` / `pl_gz_admit` for each IR shape encountered; `gz_fill_goal` IR_BUILTIN pass-through fix (`op_sval`/`op_ival` not propagated → rung16/19/40 next). findall = drive the NEW boxes (no meta rail); catch/throw = PT-3 CP-truncate + ball-copy LAW re-landed; aggregate/nb likewise; dynamic DB = **B-full** (runtime assert = lower + MEDIUM_BINARY emit into the RX slab; m3 ≡ m4 by construction). Current m3: **29**/86-FAIL (29 = post-IRD-2b-fix baseline 2026-06-07). Ratchet: never regress.
 - [ ] **PL-GZ-FENCE** — coupling gate ZERO across all Prolog templates · GATE-3 m2/m3/m4 verdict-identical with identical EXCISED sets · resolution.c engine + meta rail DELETED · emitted seed `.s` shape-isomorphic to `test_pl_1.c` (box-for-box, port-for-port).
 
 ## LEGACY DISPOSITION AT RESET (2026-06-04)
