@@ -47,13 +47,24 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   the chain-writer flip are LANDED (history + encoding specs in
   commits e070535, 4699ab8, fbfd71c, c6b09f5, 2f17bf4, 5a40338,
   d20c45e). REMAINING:
-  (a) lower_prolog.c 10 writes (LIVE-GREPPED at b2cfd08): ITE cond
-  312/333/354; STRUCT 228/253 + g_builtin 271 γ-CHAINED ARG LISTS
+  (a) lower_prolog.c 7 writes (LIVE-GREPPED at c03d46b; ITE
+  312/333/354 DONE → operands[0]): STRUCT 228/253 + g_builtin 271
+  γ-CHAINED ARG LISTS
   (the IRD-4 "arg lists via ->γ" prereq); pair-shape BUILTIN
   178/193 + IS 208 — ⚠ BUILTIN is DUAL-ENCODED by builtin NAME
   (pair α/β vs γ-chain-from-α); its sweep must be name-aware
-  across interp/emit/driver consumers; kind at 380 (α=cα,
-  ival=subgraph). NOTE 427/428 zc->args[]=aaα are local-α captures
+  across interp/emit/driver consumers; PAIR-NAME SET BANKED
+  (routing lower_prolog.c ~495-511): g_compare < > =< >= =:= =\=
+  · g_is is · g_term_compare == \== @< @> @=< @>= succ; ALL else
+  γ-chains via g_builtin. Pair needs NEW ir_pair_arg(nd,j)
+  (operands-first else j?β:α) — ir_call_arg fallback WRONG for
+  pair arg1 (lα->γ wires into arith-subgraph internals); γ-chain
+  reuses ir_call_arg as-is. Driver ~517 guard (ival==2 && α && β)
+  shape-sniffs by β-presence — name set (is_cmp) must gate
+  post-conversion; return-0 semantics proven equal both regimes.
+  kind at 380 (α=cα,
+  ival=subgraph; interp 4763 bb->α + driver 1242 zc->catcher
+  sidecar). NOTE 427/428 zc->args[]=aaα are local-α captures
   into the zc args array, NOT IR_t child-field writes.
   (b) lower.c (shared) 4 single-child writes, ALL icon-scope (zero
   SNO hits, census-proven): ITERATE-bang 181, EVERY 346, UNTIL
@@ -124,70 +135,66 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**OPEN — IRD-3-CHAIN-2 LANDED (2026-06-07-E, Opus 4.8, Lon
-attending): CALL arg-list sub-cluster → operands[] ⇒ SNOBOL4 at
-ZERO α/β USAGE END-TO-END.**
-This session: SCRIP fec38d4 — NEW contracts/IR.h ir_call_arg(nd,j)
-dual-read (operands-bounded if n_operands>0, else EXACT legacy
-α+γ-hop walk; identical node sequences both regimes). Writers:
-descr+gvar chain CALL ar 1/2 → operands[0..ar-1], CALL α/β writes
-DELETED (β proven zero-reader vestige — walks read α then γ-hop
-statement wires); icn_ring_to_tree CALL ar==1 → operands[0]
-lockstep, ring BINOP/UNOP arms untouched (bulk). Consumers →
-ir_call_arg: emit flat_drive_call_intexpr/userproc/builtin,
-call_args_single_shot, dispatch a0; interp ir_is_single_shot both
-CALL walks + CALL-arm has_gen_arg/argv/both pull loops; templates
-bb_call.cpp + bb_call_write_slot.cpp ×3 one-liners (BB-FIXUP
-coordination noted; rebased over their 451bfd0 at push, merged
-tree re-gated green). Out-of-cluster confirmed: interp 352 =
-IR_STRUCT γ-chain (IRD-3d), 2508 = IR_SEQ raku/ring,
-bb_atom_string.cpp = prolog BUILTIN γ-chain (IRD-3d); emit_core
-386 generic op_a priming already operands-first.
-SCAN DECISION (recorded): subject α KEPT in the gvar writer until
-the pattern-BB joint ruling / IRD-4 — SCAN operands hold IRD-3a
-type-punned subj/repl GRAPHS (count 1-2 varies with replacement),
-pattern graph in EXEC.counter, subject name in LIT.sval; appending
-the subject NODE to the punned array forces SCAN-aware positional
-walkers = the slot-map redesign pattern-BB co-owns.
-GATE: sno 153/icn 9/pl 8/pas 5/sco 191 sweeps + 5 smokes
-byte-identical (sno resweep clean after one borderline row);
-prove_lower 68 rows md5-identical; SNO m4 7/7 HARD GATE; A/B asm
-diff EMPTY at stash pre-HEAD on CALL-hot icon (userproc/builtin/
-intexpr/size) + sno (DEFINE/gvar) probes.
-LAW-5 A/B-PROVEN PRE-EXISTING: 100_roman_numeral.sno m2 = 7.8-8.5s
-at pre-HEAD too — borderline 8s-fence flake (one bake row rc
-0→124 under load; resweep byte-identical), not chased.
-SNO STATUS: lowering (SNO-ISO) + chain writers + CALL ecosystem
-speak {op, γ, ω, operands} + sidecars exclusively. Sole SNO-route
-α residue = SCAN subject (emit-time gvar writer, NOT lower_sno.c).
-lower_sno.c needs ZERO touches at IRD-4. Census caveat unchanged:
-PROGRAM/IDX/stray-pattern-kinds-in-value-role route to
-lower_unhandled (pre-existing semantic gaps, owner SNOBOL4-BB).
-NEXT (order per Lon 2026-06-07-C):
-1. IRD-3d prolog remaining — ITE 312/333/354; γ-chained STRUCT
-228/253 + g_builtin 271 arg lists (IRD-4 prereq; consumers incl.
-interp resolve 352 STRUCT walk + bb_atom_string.cpp BUILTIN
-sites — name-aware per census); name-aware BUILTIN pair
-178/193/208; kind ~380 (live-grepped this session at fec38d4).
+**OPEN — IRD-3d-ITE LANDED (2026-06-07-F, Opus 4.8, Lon
+attending): prolog ITE cond-entry α → operands[0]; merged tree
+re-gated green over Lon's DUMP-V2 d3907e8.**
+This session: SCRIP c03d46b — writers g_ite/g_neg_goal/g_not_unify
+(lower_prolog.c 312/333/354) ite->α=cα DELETED → ir_operand_push;
+sole runtime reader interp case IR_ITE → ir_call_arg(bb,0)
+dual-read (resume path reads zi->then_/else_ sidecar, untouched).
+Census-proven invariant: emit flat_drive_ite + ALL driver gz/flat
+ITE classifiers read the zi SIDECAR — zero α; op_a priming already
+operands-first (same node); ir_is_single_shot walks α AND β AND
+operands; bb_ite.cpp port-free; zero IR_ITE in m4 marshal outside
+emit_bb/emit_core.
+GATE: sno 153/icn 9/pl 8/pas 5/sco 191 sweeps + 5 smokes + rebus
+BYTE-IDENTICAL pre/post AND re-baked green on the merged tree
+post-rebase; prove_lower PASS=68, git-stash A/B dump diff EXACTLY
+the ITE α column (8→-1, 7→-1; ITE rows' node-count FAILs
+pre-existing, identical both sides); live-kind probe
+(scratch-instrumented) [ITE-LIVE ops=1]×2 m2 with correct lt/ge;
+m4 asm probe ITE arms live via sidecar; m3 ->-probe rejection
+(pl_gz_admit no-blob FATAL) A/B-PROVEN PRE-EXISTING at c9e018e
+(LAW-5, not chased).
+LAWS RECORDED: (1) prove_lower ival column prints sidecar
+POINTERS — ASLR noise, md5 INVALID for prolog rows, STRUCTURAL
+diff is the comparator. (2) prove_lower.sh RECOMPILES lower*.c
+from source — a post-edit bake contaminates its prove_lower log
+even with a stale binary; git-stash A/B for the true pre dump.
+(3) Background jobs are REAPED between tool calls — run
+bake_ird3_baseline.sh FOREGROUND (~2-3 min).
+DUMP-V2 COORDINATION (Lon d3907e8, mid-session): print_port
+DELETED, --dump-bb one-line revamp, α/β dump columns dropped
+(dying fields), PORT-LAW idx+entry-letter until IRD-4
+IR_ref_t.sz; lower_sno verified 0 α/β. Anticipates IRD-4.
+NEXT (Lon 2026-06-07-C order; ITE done):
+1. IRD-3d remainder — γ-chained STRUCT 228/253 + g_builtin 271
+arg lists (IRD-4 prereq; consumers: interp resolve 352 STRUCT
+walk + case IR_STRUCT 4725, ~40 builtin a0/a1/a2 γ-hop sites
+interp 4836-5500 incl. a1->α at 5055 = nested-STRUCT arg0,
+bb_atom_string.cpp BUILTIN sites, driver classifiers ~293-335 /
+505-523 + gz-synth LOWERED-node reads 617-700 — name-aware per
+banked census in IRD-3(a)); then pair-shape 178/193/208 (NEW
+ir_pair_arg, see IRD-3(a)); then kind 380 g_catch.
 2. IRD-3e-rest icon-scope — ITERATE-bang 181, EVERY 346, UNTIL
 423, REPEAT 436 (lower.c) + IR_PROC_GEN self-loop
 lower_program.c 139/140.
 3. Bulk stage (c) — ring BINOP/UNOP arms + interp tree reads,
-gz-synth, SCAN subject ruling, RETURN chain residue, operand_aux
-DELETED.
+gz-synth SYNTHESIZED-node writes, SCAN subject ruling, RETURN
+chain residue, operand_aux DELETED.
 4. IRD-4 → 5. IRD-5.
-HANDOFF 2026-06-07-E CLOSED (Opus 4.8): SCRIP origin = fec38d4,
-.github origin = this commit; both trees CLEAN, all pushed. Next
+HANDOFF 2026-06-07-F CLOSED (Opus 4.8): SCRIP origin = c03d46b,
+.github origin = this commit; both trees CLEAN, all pushed. See
+HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-3D-ITE.md. Next
 session: clone/pull BOTH repos (authenticate origin with Lon's
 token: git remote set-url origin
 https://TOKEN@github.com/snobol4ever/<repo>), git identity
 LCherryholmes/lcherryh@yahoo.com per repo, apt-get install -y
 libgc-dev; make; make libscrip_rt (MANDATORY for m4), bake
-scripts/bake_ird3_baseline.sh /tmp/base_pre BEFORE touching code,
-then IRD-3d per NEXT. Concurrent sessions: BB-FIXUP (owns
-BB_templates, cursor past bb_scan_upto — bb_call*.cpp received 3
-one-line dual-reads this session, rebase before touching) and
-pattern-BB design (joint owner of the SCAN-subject ruling).
-ALWAYS git pull --rebase both repos before working.
+scripts/bake_ird3_baseline.sh /tmp/base_pre FOREGROUND BEFORE
+touching code, then IRD-3d remainder per NEXT. Concurrent
+sessions: BB-FIXUP (owns BB_templates, rebase before touching
+bb_*.cpp) and pattern-BB design (joint owner of the SCAN-subject
+ruling). ALWAYS git pull --rebase both repos before working.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
