@@ -81,6 +81,27 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   kind in driver/ too, and never truncate the consumer grep.
   bb_child0 (emit_bb.c) = the dual-read accessor for kinds where
   chain-RPN α coexists with lowering operands.
+  SNO-ISO LANDED (2f17bf4, Lon directive 2026-06-07-C): lower_sno.c
+  is COMPLETE+ISOLATED — own sno_value_shared dispatch, default →
+  lower_unhandled, ZERO lower_value_shared reachability from the
+  SNO route; 15 shared v_* helpers exported in lower_internal.h as
+  infrastructure. CENSUS (sno 153 + sco 191 + rebus): only lang=1
+  fires (sco/rebus transpile through SNO); SNO-live α-writers were
+  IF/WHILE/ALT-DISJ only; UNTIL/REPEAT/EVERY/ITERATE-bang have
+  ZERO SNO hits (icon-scope). IRD-3e-1 LANDED (5a40338): IF + WHILE
+  cond → operands[0]; consumers dual-read (interp IF/WHILE arms via
+  cnd accessor + ring-guard extension; emit while_cond_emittable
+  CALLSITE + flat_drive_while via bb_child0 — UNTIL rides the α
+  fallback). NEW RESIDUE FLAGS (bulk scope): IF/WHILE ->β reads are
+  chain-shape then/body; while_cond_emittable INTERNAL cond->α/β
+  reads are BINOP-child residue on a swept kind (pre-existing m3
+  behavior preserved — do not "fix" inside a sweep). IRD-3e-2 NEXT:
+  DISJ as its own cluster — shared wire_alt 105 + prolog
+  pl_wire_alt 117 producers TOGETHER + driver gz DISJ census
+  (scrip.c 378/531/994/1156/1203/1231) + operand_aux arm-list fold
+  (interp 4428 + flat_drive_disj 687 read arms via
+  bb_operand_aux_get, not α — the α write may be near-dead;
+  census before assuming).
   operand_aux callers fold in; operand_aux DELETED at sweep end.
   GATE per cluster: scripts/bake_ird3_baseline.sh sweeps
   byte-identical; smoke rows identical; prove_lower PASS count
@@ -112,37 +133,27 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**OPEN — IRD-3 ICON COMPLETE + PROLOG PAIR CLUSTER LANDED
-(2026-06-07-B, Opus 4.8, Lon attending).**
-This session: fbfd71c (IRD-3b-2 icon control cluster —
-ASSIGN/RETURN/INITIAL/LIMIT/CASE producer+consumer; CASE arm chain
-flattened to operand wrappers; RETURN kind-complete across
-icon+pascal+sno producers) + c6b09f5 (IRD-3c prolog pair cluster —
-UNIFY/ARITH kind-complete incl. the full gz driver classifier set).
-Both gated on the merged tree over the parallel FIXUP lap
-(…28b0c52): 4 m2 per-file sweeps byte-identical ×175, prove_lower
-68 PASS, all 4 smoke row-sets identical; live-kind probes per kind.
-CENSUS RESULTS RECORDED IN STEP TEXT (do not re-derive): ASSIGN->β
-zero writers / every-1892 dead; RETURN chain arity stays 1; three
-RPN writers; gz-synth subsystem; BUILTIN dual-encoding; driver
-classifiers are consumers; bb_child0 dual-read pattern.
-ENV (fresh container): apt-get install -y libgc-dev; make;
-make libscrip_rt MANDATORY before any m4 (else vacuous link fails).
-LAW-5 PRE-EXISTING (A/B git-stash-proven this session, NOT chased):
-icon LIMIT m2 over-generates (every write(1 to 9 \\ 3) prints 1..9
-×3 — interp transcription diverges from JCON ir_a_Limitation
-counter); icon LIMIT m3 FATAL-aborts on LIT-headed generator entry
-(flat_drive_limit kind gate); prolog 2-arg rule-call probe (add7)
-not gz-admitted m3 (PBB FATAL fence) — all byte-identical at
-pre-change HEAD. CARRIED from prior session: RAKU "main BB graph
-not found" all modes (owner RAKU-BB); rung36_jcon_lists/string1 m2
-FAIL; pat_rung 053 m4 SKIP; icon proc_zeroarg/proc_recursion m3/m4
-smoke FAIL; icon CASE m3 segfault (flat_drive_case walks a γ-list
-shape icn_case never built — desynced pre-IRD, rung33 m3 rc=139).
-NEXT: IRD-3d prolog remaining (DISJ/ITE first; then the γ-chained
-STRUCT/g_builtin arg lists; then name-aware BUILTIN pair sites;
-site ~380) → IRD-3e shared lower.c 7 sites → bulk stage (c) →
-IRD-4. See
-HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-3B2-3C-LANDED.md.**
+**OPEN — SNO-ISO + IRD-3e-1 LANDED (2026-06-07-C, Opus 4.8, Lon
+attending; prioritization directive: complete+isolated SNOBOL4
+lower first).**
+This session: 2f17bf4 (SNO-ISO-1 — lower_sno.c complete+isolated,
+lower_value_shared SEVERED from the SNO route, full kind census
+recorded in step text) + 5a40338 (IRD-3e-1 — IF/WHILE cond →
+operands[0], consumers dual-read, three encoding regimes
+lowered/chain/ring proven identical). GATE both: sno 153 / icn 9 /
+pl 8 / pas 5 / sco 191 sweeps + rebus smoke + 4 smoke logs ALL
+byte-identical vs pre-session baseline; prove_lower PASS rows
+md5-identical (68; raw byte-diff is ASLR pointer noise in dump
+rows — compare PASS/FAIL rows). sco sweep (191 .sc, test/snocone +
+corpus/crosscheck/snocone) + rebus smoke ADDED to the gate set
+alongside bake_ird3_baseline.sh.
+NEXT (order per Lon 2026-06-07-C): IRD-3e-2 DISJ cluster (shared +
+prolog producers together + gz census + aux fold) → IRD-3d prolog
+remaining (ITE 313/334/355; γ-chained STRUCT 229/254 + g_builtin
+272 arg lists; name-aware BUILTIN pair 179/194/209; kind ~381) →
+IRD-3e-rest icon-scope shared sites (ITERATE-bang 182, EVERY 347,
+UNTIL 424, REPEAT 437 — zero SNO hits) → bulk stage (c) → IRD-4 →
+IRD-5. See
+HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-SNO-ISO-IRD-3E1.md.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
