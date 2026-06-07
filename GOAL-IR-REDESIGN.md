@@ -180,9 +180,28 @@ ring trees — CHAIN-2 must convert it in lockstep or keep
 dual-read walkers. α/β FIELD DELETION stays global at IRD-4
 (IR_t shared) — SNO reaches zero-USAGE first, struct change
 lands once icon/prolog catch up.
-NEXT: IRD-3-CHAIN-2 arg-list sub-cluster (CALL args →
-operands[], SCAN subject channel; lockstep with icn_ring_to_tree)
-= SNO 100% → IRD-3d prolog
+NEXT: IRD-3-CHAIN-2 arg-list sub-cluster = SNO 100%. CENSUS
+PINNED (2026-06-07-D): NO multi-arg arg-chain builder exists —
+the γ hops in CALL arg walks are pre-existing statement-flow
+wires; CALL->α is only a first-arg marker written by the 3 RPN
+writers (descr/gvar: ar 1-2 only, ar>=3 resets sp and wires
+NOTHING; icn_ring_to_tree driver/scrip.c:83 hard-rejects ar!=1).
+lower.c γ writes are all control wires; lower_sno.c has zero.
+gvar dval 2/3/5 CALL shapes carry args as counter-held csubs
+subgraphs (arity 0, untouched). PLAN: writers push ar∈{1,2} args
+as operands[0..ar-1] (stack already holds them, order
+stk[sp-2],stk[sp-1]); ring_to_tree pushes operands[0] lockstep;
+walkers (flat_drive_call_userproc/call_builtin/
+call_args_single_shot/call_intexpr, gvar_drive_call_arg_slots,
+interp CALL arms ~2400-2454, ir_is_single_shot ~287-299) get an
+ir_call_arg(bb,j) dual-read (operands[j] else α/γ-hop);
+templates bb_call.cpp:487 + bb_call_write_slot.cpp:35/67 read
+operands[0]-else-α — COORDINATE: BB-FIXUP session owns
+BB_templates (cursor bb_scan_many.cpp per its 15th-run handoff).
+SCAN subject channel: decide layout against IRD-3a graph slots
+(transcript 2026-06-07 has exact SCAN operand map) — candidate:
+keep SCAN-α as port-style wire until IRD-4, since op_a +
+bb_walk_rec already carry the SCAN exemption. → IRD-3d prolog
 remaining (ITE 313/334/355; γ-chained STRUCT 229/254 + g_builtin
 272 arg lists; name-aware BUILTIN pair 179/194/209; kind ~381) →
 IRD-3e-rest icon-scope shared sites (ITERATE-bang 182, EVERY 347,
