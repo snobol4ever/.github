@@ -2,7 +2,11 @@
 
 **This goal is MODE-4 BUG FIXING ONLY until ALL SNOBOL4 mode-4 test suites read 100% PASS (zero FAIL, zero SKIP).** Mode 2 and mode 3 are OUT OF SCOPE: do NOT run m2/m3 tests, do NOT gate on them, do NOT fix them — not needed, not wanted (Lon: "could not care less about mode 2 or mode 3"). Verification = mode-4 output vs .ref files + SPITBOL `sbl` oracle only. Hygiene/revamp/SPEC-v2 sweep rungs are NO LONGER in this goal — they are owned EXCLUSIVELY by `GOAL-BB-FIXUP.md` + `SCRIP/BB-REVAMP-TRACKER.md`; do not duplicate them here. The FACT RULE blocks below REMAIN (they are the canonical byte-identical copies other goals point at) — they constrain HOW fixes are written, not WHAT this goal works on. COMPLETION TEST: `test_smoke_snobol4.sh` m4 7/7 · `test_snobol4_pat_rung_suite.sh` M4 19/19 (no SKIP) · `test_mode4_only_corpus_snobol4.sh` 280/280 · `test_gate_em_beauty_subsystems_mode4.sh` 17/17.
 
-## 🔴🔴 #0 PRIORITY — MODE 4 BUG LADDER
+## 🔴🔴 #0 PRIORITY — OWNED 5-STAGE BUILD (Lon mandate 2026-06-06: boundaries only; Claude owns design + build)
+
+**Master ladder + all design decisions (D1 jmp-threaded instances replacing the dead broker clause · D2 STITCH twins · D3 capture-commit · D4 shim policy): `SCRIP/SNOBOL4-5STAGE-OWNED-BUILD.md`. Rungs: S1 SUBJECT-EVERYWHERE → S2 OPERAND-VARIANCE → S3 INSTANCES+BUILDERS (kills 053 + star-var + exec_stmt landmine) → S4 CH18-CORRECTNESS (one-shot β, FENCE, ARBNO re-entry) → S5 REPLACEMENT+SUBSTITUTION+CAPTURE-COMMIT → S6 CONV (retire IR_SCAN/rt_scan*/defer-exec) → S7 OPT+non-pattern clusters.** Architecture of record: `.github/ARCH-SNOBOL4.md` native section (Lon-corrected 2026-06-01), one stale clause (bb_broker drive) superseded by D1. No design questions to Lon; SPITBOL manual is semantic authority; probe-first vs sbl; one rung = one commit; m4 gates only, corpus count non-decreasing HARD. The bug-cluster inventory below is the SPECIMEN RECORD feeding the S-rungs (M4-FENCE/M4-ONESHOT/M4-ARBNO-REENTRY→S4 · M4-CAPTURE-COND→S5 · M4-STARVAR+053→S3 · M4-CRASH residue+M4-DATA/DEFINE/BUILTIN/BEAUTY→S7 · M4-REPL-NATIVE→S5).
+
+## MODE 4 BUG LADDER (specimen record for the S-rungs)
 
 Inventory of record 2026-06-06 (post-b42ef1c build): smoke m4 **7/7** · pat-rung m4 **18 PASS / 1 SKIP** (053 emitter FATAL) · broad m4 corpus **148 PASS / 103 FAIL / 29 SKIP** of 280 · beauty subsystems m4 **1/17** (emit=4 link=5 diff=7). Standing inventory command: `SCRIP=$PWD/scrip bash scripts/test_mode4_only_corpus_snobol4.sh` (m4-only; prints FAIL + SKIP names). Clusters, each fix its OWN rung, crash class first:
 
@@ -368,6 +372,9 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 - **RECOVERY / REC-*** rungs (m3 BINARY arms, Icon/Raku boxes) — m3/other-language; removed (git history preserves; Icon/Raku rungs belong to their own goal files).
 
 ## Session log
+
+**Watermark (OWNED-BUILD inscribed; SCRIP=`083401d`+design doc; 2026-06-06 Opus 4.8, same session as PIVOT).** Lon mandate received: boundaries only, Claude owns design+build, no coaxing loop. Assigned reading DONE: one4all/archive doc set (IR_LOWER_SNOBOL4, M-G4-SHARED-CAPTURE ENMI lineage), SCRIP MDs, ARCH-SNOBOL4.md native section (= the corrected architecture of record). Decisions D1-D4 made and recorded in `SCRIP/SNOBOL4-5STAGE-OWNED-BUILD.md`; S1-S7 ladder inscribed above. Probe artifacts this session: capA (capture-cond, native), capB (rt_scan m4 BOMB), 053 FATAL trace. **NEXT: S1 SUBJECT-EVERYWHERE** — drop the named-var-only guard in `flat_drive_scan_native`, subject value-chain → ζ → Σ/δ/Δ on all routes; probe-first; m4 gates; corpus non-decreasing.
+
 
 **Watermark (MODE-4 PIVOT; SCRIP origin/main=`b42ef1c`+m4-runner; 2026-06-06 Opus 4.8).** Lon directive: mode-4 bugs ONLY until 100% PASS all suites; m2/m3 dead to this goal; hygiene/revamp excised (owner GOAL-BB-FIXUP). Goal file restructured: M4 BUG LADDER seeded from fresh inventory (smoke 7/7 · pat-rung 18+1SKIP · corpus 148/103/29 · beauty 1/17). New m4-only corpus runner `scripts/test_mode4_only_corpus_snobol4.sh` committed to SCRIP (the all-modes `test_mode4_broad_corpus_snobol4.sh` runs m2+m3 — do not use). Statement-anatomy findings recorded under Architecture references. **NEXT: M4-CRASH** — enumerate the 29 SKIPs by FATAL bucket, fix the 053 `flat_drive_assign` pattern-assign FATAL first.
 
