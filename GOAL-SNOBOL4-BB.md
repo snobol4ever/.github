@@ -381,6 +381,8 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 
 **Watermark (MODE-4 PIVOT; SCRIP origin/main=`b42ef1c`+m4-runner; 2026-06-06 Opus 4.8).** Lon directive: mode-4 bugs ONLY until 100% PASS all suites; m2/m3 dead to this goal; hygiene/revamp excised (owner GOAL-BB-FIXUP). Goal file restructured: M4 BUG LADDER seeded from fresh inventory (smoke 7/7 · pat-rung 18+1SKIP · corpus 148/103/29 · beauty 1/17). New m4-only corpus runner `scripts/test_mode4_only_corpus_snobol4.sh` committed to SCRIP (the all-modes `test_mode4_broad_corpus_snobol4.sh` runs m2+m3 — do not use). Statement-anatomy findings recorded under Architecture references. **NEXT: M4-CRASH** — enumerate the 29 SKIPs by FATAL bucket, fix the 053 `flat_drive_assign` pattern-assign FATAL first.
 
+**Watermark (BBVIZ/PORT-LAW/IRT-V2; SCRIP origin/main=`c1cc84b`; 2026-06-06 Opus 4.8).** PIVOT session (Lon word): V2-GUI step (b) LANDED — `tools/bbviz` force-directed renderer, PORT-LAW enforcing (γ/ω→α/β only; ω→α only fresh-alternatives, canon irgen.icn:196). IRT-V2 typed-stub IR_t contract designed+compiler-proven (`tools/bbviz/irt_v2_demo.c`); lower_icon.c α/β-as-operand overloading diagnosed. Full record: SCRIP/HANDOFF-2026-06-06-OPUS48-BBVIZ-PORT-LAW-IRT-V2.md + SNOBOL4-5STAGE-OWNED-BUILD.md rungs (DUMP-JSON, IRT-V2). No C-source changes; m4 gates untouched. S1 SUBJECT-EVERYWHERE still the open mode-4 rung.
+
 **(superseded) Watermark (SNO-HY-6; SCRIP origin/main=`24bdc82`; 2026-06-06 Sonnet 4.6).** bb_pat_len + bb_pat_pos regenerated SPEC-v2. Gates: smoke M4=7/7 HARD · pat_rung M4=18/18 HARD (053 pre-existing skip).
 
 ## Session Setup
