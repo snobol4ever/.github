@@ -63,13 +63,17 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   rides the while_cond_emittable bb_child0 fallback until its
   sweep. PLUS IR_PROC_GEN self-loop lower_program.c 139/140
   (icon, GeneratorState sentinel).
-  (c) BULK remaining: IRD-3-CHAIN-2 arg-list sub-cluster (see
-  NEXT) = SNO 100%; icn_ring_to_tree (driver/scrip.c 85-92) — the
-  third RPN writer, icon ring trees, hard-rejects CALL ar!=1;
+  (c) BULK remaining: icn_ring_to_tree (driver/scrip.c) BINOP/
+  UNOP/EVERY arms still write α/β — its CALL arm CONVERTED to
+  operands[0] at CHAIN-2 — plus the interp tree reads those ring
+  shapes serve (BINOP ~2598 / UNOP ~2712 / SEQ ~2508 — icon/raku
+  scope); SCAN subject α (gvar writer ONLY — SCAN operands hold
+  IRD-3a type-punned subj/repl GRAPHS so the slot map is a
+  pattern-BB joint ruling; op_a, bb_walk_rec and both chain
+  writers carry the SCAN exemption);
   gz-synth (driver pl_gz_* writes α/β on synthesized CELL_UNIFY/
   DET_IS/DET_CMP/DET_WRITE/ARITH-copy nodes — emit marshal arms
-  already dual-read); interp consumer-internal α/β tree reads
-  (serve ring/gz shapes — icon/prolog scope); operand_aux callers
+  already dual-read); operand_aux callers
   fold in; operand_aux DELETED at sweep end. RETURN chain:
   descr_chain_arity RETURN STAYS 1 — the slot-priming consumer is
   emit_core.c:440 dual-read (arity→0 empirically broke proc m3 at
@@ -120,89 +124,70 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**OPEN — IRD-3-CHAIN-1 LANDED (2026-06-07-D, Opus 4.8, Lon
-attending; directive: SNOBOL4 COMPLETELY CONVERTED FIRST —
-operands[]/n_operands used everywhere on the SNO route, α/β
-child-stuffing eliminated; a concurrent session is designing
-pattern-build BBs — keep commits small and pushed for cheap
-rebases).**
-Prior (2026-06-07-C): 2f17bf4 SNO-ISO (lower_sno.c isolated, zero
-α/β writes) + 5a40338 IF/WHILE cond → operands[0]; DISJ->α
-resolved-dead.
-This session: d20c45e IRD-3-CHAIN-1 — both emit-time RPN chain
-writers (descr_chain_operand_refs, gvar_stmt_operand_refs) now
-fill operands[0..1] (reset+push, idempotent); α/β chain writes
-DELETED except two flagged residues: IR_CALL (α+γ-chained arg
-lists) and IR_SCAN (gvar subject α — operands hold IRD-3a
-subj/repl GRAPHS, so generic operand-first EXEMPTS SCAN).
-Consumers operand-first/dual-read: bb_child1 added beside
-bb_child0; flat_drive_binop_tree/binop_gen_tree/unop/to; gvar
-IR_BINOP case block; binop_operand_streams + gen_bb_is_gen_arg +
-ASSIGN β-walks; while_operand_simple + while_cond_emittable
-internals; emit_core.c op_a_* generic priming block (THE central
-template operand feed — the hidden SCAN-α consumer, falsifying
-the earlier no-reader read) + bb_walk_rec now walks operands[]
-SCAN-guarded (its α/β-only walk was the live break: operand-held
-literals never interned → empty .rodata strings; smoke-RED,
-pinned by A/B asm diff, fixed). interp UNTOUCHED — writer output
-is emit-only; interp α/β tree reads serve icn_ring_to_tree (icon
-scope). GATE: sno 153 / icn 9 / pl 8 / pas 5 / sco 191 sweeps +
-5 smokes (rebus incl.) byte-identical; prove_lower 68. sco sweep
-+ rebus smoke folded INTO scripts/bake_ird3_baseline.sh.
-SNO STATUS: lowering carries ZERO α/β stuffing (SNO-ISO) and the
-chain ecosystem is operands-first ⇒ SNOBOL4 is fully converted
-in usage EXCEPT the arg-list sub-cluster: IR_CALL args (writer
-α/β for 1-2-arg + α-headed γ-chain walks in
-flat_drive_call_userproc/call_builtin/call_args_single_shot,
-gvar_drive_call_arg_slots, interp CALL arms ~2400-2454 +
-ir_is_single_shot ~287-299, templates bb_call.cpp:487 +
-bb_call_write_slot.cpp:35/67) and IR_SCAN subject α (gvar writer
-+ op_a/bb_walk_rec exemptions). CAUTION: icn_ring_to_tree
-(driver/scrip.c 85-92) builds the SAME CALL/arg shapes for icon
-ring trees — CHAIN-2 must convert it in lockstep or keep
-dual-read walkers. α/β FIELD DELETION stays global at IRD-4
-(IR_t shared) — SNO reaches zero-USAGE first, struct change
-lands once icon/prolog catch up.
-NEXT: IRD-3-CHAIN-2 arg-list sub-cluster = SNO 100%. CENSUS
-PINNED (2026-06-07-D): NO multi-arg arg-chain builder exists —
-the γ hops in CALL arg walks are pre-existing statement-flow
-wires; CALL->α is only a first-arg marker written by the 3 RPN
-writers (descr/gvar: ar 1-2 only, ar>=3 resets sp and wires
-NOTHING; icn_ring_to_tree driver/scrip.c:83 hard-rejects ar!=1).
-lower.c γ writes are all control wires; lower_sno.c has zero.
-gvar dval 2/3/5 CALL shapes carry args as counter-held csubs
-subgraphs (arity 0, untouched). PLAN: writers push ar∈{1,2} args
-as operands[0..ar-1] (stack already holds them, order
-stk[sp-2],stk[sp-1]); ring_to_tree pushes operands[0] lockstep;
-walkers (flat_drive_call_userproc/call_builtin/
-call_args_single_shot/call_intexpr, gvar_drive_call_arg_slots,
-interp CALL arms ~2400-2454, ir_is_single_shot ~287-299) get an
-ir_call_arg(bb,j) dual-read (operands[j] else α/γ-hop);
-templates bb_call.cpp:487 + bb_call_write_slot.cpp:35/67 read
-operands[0]-else-α — COORDINATE: BB-FIXUP session owns
-BB_templates (cursor bb_scan_many.cpp per its 15th-run handoff).
-SCAN subject channel: decide layout against IRD-3a graph slots
-(transcript 2026-06-07 has exact SCAN operand map) — candidate:
-keep SCAN-α as port-style wire until IRD-4, since op_a +
-bb_walk_rec already carry the SCAN exemption. → IRD-3d prolog
-remaining (ITE 313/334/355; γ-chained STRUCT 229/254 + g_builtin
-272 arg lists; name-aware BUILTIN pair 179/194/209; kind ~381) →
-IRD-3e-rest icon-scope shared sites (ITERATE-bang 182, EVERY 347,
-UNTIL 424, REPEAT 437 — zero SNO hits; + IR_PROC_GEN self-loop
-lower_program.c 139/140; + icn_ring_to_tree if not folded into
-CHAIN-2) → bulk stage (c) (gz-synth, operand_aux deletion) →
-IRD-4 → IRD-5. Detail in commit d20c45e message.
-HANDOFF 2026-06-07-D CLOSED (Opus 4.8, context exhausted): SCRIP
-origin = d20c45e, .github origin = this commit; both trees CLEAN,
-all work pushed. Next session: clone/pull BOTH repos
-(authenticate origin remotes with Lon's token first — git remote
-set-url origin https://TOKEN@github.com/snobol4ever/<repo>), set
-git identity LCherryholmes/lcherryh@yahoo.com per repo, build per
-GATE recipe, bake /tmp/base_pre, then execute IRD-3-CHAIN-2 as
-planned above. Concurrent sessions active: BB-FIXUP (cursor
-bb_scan_many.cpp, owns BB_templates — coordinate before touching
-bb_call*.cpp) and pattern-BB design (joint owner of the
-SCAN-subject decision). ALWAYS git pull --rebase both repos
-before working — origin advances between sessions.
+**OPEN — IRD-3-CHAIN-2 LANDED (2026-06-07-E, Opus 4.8, Lon
+attending): CALL arg-list sub-cluster → operands[] ⇒ SNOBOL4 at
+ZERO α/β USAGE END-TO-END.**
+This session: SCRIP fec38d4 — NEW contracts/IR.h ir_call_arg(nd,j)
+dual-read (operands-bounded if n_operands>0, else EXACT legacy
+α+γ-hop walk; identical node sequences both regimes). Writers:
+descr+gvar chain CALL ar 1/2 → operands[0..ar-1], CALL α/β writes
+DELETED (β proven zero-reader vestige — walks read α then γ-hop
+statement wires); icn_ring_to_tree CALL ar==1 → operands[0]
+lockstep, ring BINOP/UNOP arms untouched (bulk). Consumers →
+ir_call_arg: emit flat_drive_call_intexpr/userproc/builtin,
+call_args_single_shot, dispatch a0; interp ir_is_single_shot both
+CALL walks + CALL-arm has_gen_arg/argv/both pull loops; templates
+bb_call.cpp + bb_call_write_slot.cpp ×3 one-liners (BB-FIXUP
+coordination noted; rebased over their 451bfd0 at push, merged
+tree re-gated green). Out-of-cluster confirmed: interp 352 =
+IR_STRUCT γ-chain (IRD-3d), 2508 = IR_SEQ raku/ring,
+bb_atom_string.cpp = prolog BUILTIN γ-chain (IRD-3d); emit_core
+386 generic op_a priming already operands-first.
+SCAN DECISION (recorded): subject α KEPT in the gvar writer until
+the pattern-BB joint ruling / IRD-4 — SCAN operands hold IRD-3a
+type-punned subj/repl GRAPHS (count 1-2 varies with replacement),
+pattern graph in EXEC.counter, subject name in LIT.sval; appending
+the subject NODE to the punned array forces SCAN-aware positional
+walkers = the slot-map redesign pattern-BB co-owns.
+GATE: sno 153/icn 9/pl 8/pas 5/sco 191 sweeps + 5 smokes
+byte-identical (sno resweep clean after one borderline row);
+prove_lower 68 rows md5-identical; SNO m4 7/7 HARD GATE; A/B asm
+diff EMPTY at stash pre-HEAD on CALL-hot icon (userproc/builtin/
+intexpr/size) + sno (DEFINE/gvar) probes.
+LAW-5 A/B-PROVEN PRE-EXISTING: 100_roman_numeral.sno m2 = 7.8-8.5s
+at pre-HEAD too — borderline 8s-fence flake (one bake row rc
+0→124 under load; resweep byte-identical), not chased.
+SNO STATUS: lowering (SNO-ISO) + chain writers + CALL ecosystem
+speak {op, γ, ω, operands} + sidecars exclusively. Sole SNO-route
+α residue = SCAN subject (emit-time gvar writer, NOT lower_sno.c).
+lower_sno.c needs ZERO touches at IRD-4. Census caveat unchanged:
+PROGRAM/IDX/stray-pattern-kinds-in-value-role route to
+lower_unhandled (pre-existing semantic gaps, owner SNOBOL4-BB).
+NEXT (order per Lon 2026-06-07-C):
+1. IRD-3d prolog remaining — ITE 312/333/354; γ-chained STRUCT
+228/253 + g_builtin 271 arg lists (IRD-4 prereq; consumers incl.
+interp resolve 352 STRUCT walk + bb_atom_string.cpp BUILTIN
+sites — name-aware per census); name-aware BUILTIN pair
+178/193/208; kind ~380 (live-grepped this session at fec38d4).
+2. IRD-3e-rest icon-scope — ITERATE-bang 181, EVERY 346, UNTIL
+423, REPEAT 436 (lower.c) + IR_PROC_GEN self-loop
+lower_program.c 139/140.
+3. Bulk stage (c) — ring BINOP/UNOP arms + interp tree reads,
+gz-synth, SCAN subject ruling, RETURN chain residue, operand_aux
+DELETED.
+4. IRD-4 → 5. IRD-5.
+HANDOFF 2026-06-07-E CLOSED (Opus 4.8): SCRIP origin = fec38d4,
+.github origin = this commit; both trees CLEAN, all pushed. Next
+session: clone/pull BOTH repos (authenticate origin with Lon's
+token: git remote set-url origin
+https://TOKEN@github.com/snobol4ever/<repo>), git identity
+LCherryholmes/lcherryh@yahoo.com per repo, apt-get install -y
+libgc-dev; make; make libscrip_rt (MANDATORY for m4), bake
+scripts/bake_ird3_baseline.sh /tmp/base_pre BEFORE touching code,
+then IRD-3d per NEXT. Concurrent sessions: BB-FIXUP (owns
+BB_templates, cursor past bb_scan_upto — bb_call*.cpp received 3
+one-line dual-reads this session, rebase before touching) and
+pattern-BB design (joint owner of the SCAN-subject ruling).
+ALWAYS git pull --rebase both repos before working.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
