@@ -7,13 +7,10 @@ No language-specific logic in any BB/XA template: templates dispatch on IR shape
 
 ## ▶ STATE (2026-06-06)
 
-Watermark: SCRIP `9569504` (battery green on merged main). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED** — details: git history of this file + handoff docs.
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **115/115 HARD** · m3 **24**/91-FAIL · m4 105/0/10-EXC. gz2..7+gz8+gz8b+gz9a+gz9b gates PASS, corrupt-proven. Coupling ceilings: choice 19 · goal 10 · others 0 · rung05 .s 39; new-path boxes (incl. CELL_ITE, DET_IS, DET_CMP) emit ZERO control calls.
-7b law residue: ITE Then/Else admitted DET-ONLY (`pl_gz_chain_det` declines CELL_CHOICE/CELL_CALL) — the gz7 `semidet` probe PINS construct-semidet β=ω, and the §4.5 gate dispatch is truthful only to tombstone resumes; to admit resumable branches later, route the β-dispatch δ/ε to gw instead of chain resumes. Cond is unrestricted (bounded by the UNREFERENCED E1 resume). m2-interp 7a caveat (per-NODE cp_mark; recursive ITE-in-cond under-truncates) remains a logged m2-only divergence — the new-path box is per-activation by construction (gate = frame slot).
-Grounding: Proebsting paper (`bench/Simple Translation of Goal Directed Evaluation.pdf`); seeds `test_pl_1.c` + `test_sno_1/2/3/4.c` + `test_icon.c` in `.github/`.
-**PL-GZ-9b LANDED (9569504)**: callee bodies with arith IS/CMP. Extended `pl_gz_rule_clause` to allow `IR_ARITH` nodes and `is`/`>`/`<`/`>=`/`=<`/`=:=`/`=\=` builtins. Extended `pl_gz_rule_body_goal_ok` to accept IS (const/varop/bivar rhs) and arith-cmp. Added `pl_gz_arith_slot_map` to remap LOGICVAR slots inside ARITH trees. Extended `pl_gz_rule_callee_body` with IS/CMP arms emitting `IR_DET_IS`/`IR_DET_CMP` nodes with slot-mapped operands. Added `rt_pl_is_cell_bivar` for `X is Y op Z` (two-variable arith). Added bivar arm to `bb_det_is.cpp`. Added `x86_begin()` to `bb_det_is_str()` and `bb_det_cmp_str()` (missing UID allocation caused m4 label collision). Added `body_emitted` flag to `pl_gz_callee_t` to guard `gz_emit_callee` against re-emission of recursive callee bodies. **Deleted INTERP-FALLBACK** from m3 --run path (programs now ABORT if not admitted — no silent degradation). Deleted fallback detection from `test_prolog_rung_suite.sh`. Updated `test_gate_pl_gz7.sh`: added `pin24()` (m2+m4 only) for commit/semidet/negbound whose callee bodies contain ITE (not yet GZ-admitted). rung08 (fib/factorial) PASS in all three modes. GATE-1 now 5/5 m3 (recursion smoke fully native). m3 PASS ratchet 22→24.
-**Next opener: PL-GZ-9** — corpus reconquest: push more of the 91 failing m3 rungs onto the GZ path. Immediate targets: rung10 puzzles (arithmetic recursion, no lists), rung23 arith-ext. The 91 FAILs are honest aborts — the fallback is gone.
-Logged m2-only divergences (NOT fixed; m3/m4 already canon; sweep only if a ratchet demands, else FENCE deletes the machinery): gz6b disj trust_me_else_fail (fix point = GCONJ-resume↔disj-advance control path) · mid-cut pre-cut-generator gap · 7a per-NODE cp_mark/committed (recursive ITE-in-cond under-truncates; 7b frame rows are per-activation).
+Watermark: SCRIP `7f4b3db` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED + PL-GZ-9 in progress** — details: git history + handoff docs.
+Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **115/115 HARD** · m3 **31**/84-FAIL · m4 105/0/10-EXC.
+**PL-GZ-9 in progress (7f4b3db)**: admission gates extended — `IR_LIT_F` in UNIFY (all paths); const=const UNIFY fold; `succ/2` + `plus/3` flat admission; ITE-as-entry γ-chain walk; `format/1` atom-arg; `@>/@</@>=/@=<` ord-cmp; `atom/integer/compound/callable/…` type-tests; STRUCT as child of BUILTIN; `rt_pl_unify_cell_float` for `X=3.14`; `bb_cell_unify` float arm + const=const LIT_F fold. m3 ratchet 24→31 (+rung18 succ/plus 5 tests, +rung42 float-unify 2 tests). IN FLIGHT: `gz_fill_goal` IR_BUILTIN pass-through fix (op_sval/op_ival not set for GZ IR_BUILTIN nodes) needed for rung16/rung19/rung40.
+Logged m2-only divergences (NOT fixed; m3/m4 already canon): gz6b disj trust_me_else_fail · mid-cut pre-cut-generator gap · 7a per-NODE cp_mark/committed.
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -366,11 +363,8 @@ GUT (deleted as the new path re-admits each rung; build-green is no license to p
 · C call stack = the sanctioned recursion spine.
 · ONE x86() body per box serves m3 (BINARY → RX slab) and m4 (TEXT → as+gcc); m3 ≡ m4 by construction.
 
-Ladder (LANDED rungs 0..4, 5a–5c, 6, 6b, 7a, 7b DELETED — git history):
-- [ ] **PL-GZ-1b(e)** — FENCE inherits: the m3 INTERP-FALLBACK is DELETED; an uncovered `--run` program prints EXCISED and exits exactly like m4.
-- [ ] **CORPUS-S-HYGIENE(b)** — prune tracked corpus `.s` to the DEMO keep-list (needs Lon's confirmed list).
-- [x] **PL-GZ-8** — is/2 + LIT_I arith-cmp const-fold LANDED (ad6372f). Remaining: LOGICVAR rhs/operand expansion → frame-slot ABI.
-- [ ] **PL-GZ-9** — corpus reconquest: all 115 rungs onto the new path, per-rung m3/m4 verdicts byte-identical. findall = drive the NEW boxes (no meta rail); catch/throw = PT-3 CP-truncate + ball-copy LAW re-landed; aggregate/nb likewise; dynamic DB = **B-full** (runtime assert = lower + MEDIUM_BINARY emit into the RX slab; m3 ≡ m4 by construction).
+Ladder (LANDED rungs 0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b DELETED — git history):
+- [ ] **PL-GZ-9** — corpus reconquest: all 115 rungs onto the new path, m3/m4 verdicts byte-identical. Strategy: admission-gate expansion in `pl_flat_goal_is_simple` / `pl_gz_rule_body_goal_ok` / `pl_gz_build_goal` / `pl_gz_admit` for each IR shape encountered; `gz_fill_goal` IR_BUILTIN pass-through fix (`op_sval`/`op_ival` not propagated → rung16/19/40 next). findall = drive the NEW boxes (no meta rail); catch/throw = PT-3 CP-truncate + ball-copy LAW re-landed; aggregate/nb likewise; dynamic DB = **B-full** (runtime assert = lower + MEDIUM_BINARY emit into the RX slab; m3 ≡ m4 by construction). Current m3: **31**/84-FAIL. Ratchet: never regress.
 - [ ] **PL-GZ-FENCE** — coupling gate ZERO across all Prolog templates · GATE-3 m2/m3/m4 verdict-identical with identical EXCISED sets · resolution.c engine + meta rail DELETED · emitted seed `.s` shape-isomorphic to `test_pl_1.c` (box-for-box, port-for-port).
 
 ## LEGACY DISPOSITION AT RESET (2026-06-04)
@@ -381,14 +375,7 @@ Ladder (LANDED rungs 0..4, 5a–5c, 6, 6b, 7a, 7b DELETED — git history):
 | PT | PT-0 pred table SURVIVES. PT-1b meta rail = starve+delete at GZ-9. PT-2 findall · PT-3 catch LAW · PT-4a aggregate · PT-4b B-full dynamic-DB LAW — all re-land at GZ-9. |
 | WAM-CP | CLOSED. Survivors: CP-7 unify → GZ-3 · CP-9 → 7a · CP-8 indexing/CP-11/CP-12 + PL-INDEX-L2-1 → post-FENCE optimization tier · CP-13 moot at GZ-9. |
 | Legacy m4 path | GATE-3 scaffolding during reconquest only; an admitted program NEVER falls back; each mechanism deleted when its last rung migrates. |
-
-## 🔴 Other open work
-
-- PLG-7 — remove `bb_node_state_t` snapshot/restore (one live Icon caller, bb_exec.c:1589).
-- VSX-8 — vstack-scaffolding zero-check; blocked on Icon/SNOBOL4 `bb_binop_gen.cpp`; Prolog has zero ties.
-- CAT-D float-result unary arith (sqrt/sin/cos/exp/log) — defer until a corpus test surfaces.
-- PJ-AGW-6b — `IR_PAT_ARBNO`/DCG repetition port wiring.
-- SWI-PLUNIT — drive `test_prolog_swi_suite.sh` toward ≥80% (honest baseline 55/57).
+| BB revamp / hygiene | Delegated to GOAL-BB-FIXUP. PL-GZ-1b(e), CORPUS-S-HYGIENE, PLG-7, VSX-8, PJ-AGW-6b, SWI-PLUNIT removed from this file. |
 
 ## Session setup
 
