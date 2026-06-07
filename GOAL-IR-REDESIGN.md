@@ -56,18 +56,23 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   SURVEY (2026-06-07-B): raku/pascal/sno/program lowering files
   carry ZERO child α/β writes — the per-language ladder collapses
   to lower_prolog.c + shared lower.c + the bulk stage. REMAINING:
-  (a) lower_prolog.c 11 writes: DISJ 117 first-arm; ITE cond
-  312/333/354; STRUCT 228/253 + g_builtin 271 γ-CHAINED ARG LISTS
-  (the IRD-4 "arg lists via ->γ" prereq); pair-shape BUILTIN
-  178/193/208 — ⚠ BUILTIN is DUAL-ENCODED by builtin NAME (pair
-  α/β vs γ-chain-from-α); its sweep must be name-aware across
-  interp/emit/driver consumers; kind at ~380 (α=cα, ival=subgraph).
-  (b) lower.c (shared) 7 single-child writes: DISJ 105, ITERATE
-  182, CONJ 292, EVERY 347, WHILE 403, UNTIL 424, REPEAT 437 —
-  consumers incl. v_every/interp EVERY bb->α/bb->β,
-  while_cond_emittable(nd->α), flat_drive_every (its ival==2
+  (a) lower_prolog.c 10 writes (LIVE-GREPPED at b2cfd08; DISJ 117
+  DELETED-DEAD): ITE cond 312/333/354; STRUCT 228/253 + g_builtin
+  271 γ-CHAINED ARG LISTS (the IRD-4 "arg lists via ->γ" prereq);
+  pair-shape BUILTIN 178/193 + IS 208 — ⚠ BUILTIN is DUAL-ENCODED
+  by builtin NAME (pair α/β vs γ-chain-from-α); its sweep must be
+  name-aware across interp/emit/driver consumers; kind at 380
+  (α=cα, ival=subgraph). NOTE 427/428 zc->args[]=aaα are local-α
+  captures into the zc args array, NOT IR_t child-field writes.
+  (b) lower.c (shared) 4 single-child writes remain, ALL
+  icon-scope (zero SNO hits, census-proven): ITERATE-bang 181,
+  EVERY 346, UNTIL 423, REPEAT 436 — consumers incl. v_every/
+  interp EVERY bb->α/bb->β, flat_drive_every (its ival==2
   ASSIGN-gen branch at ~1892 is DEAD CODE — guard requires
-  never-written ASSIGN->β).
+  never-written ASSIGN->β). DONE: DISJ 105 deleted-dead; WHILE +
+  IF swept 5a40338 (the old "CONJ 292" entry was MISLABELED — it
+  was the wire_if site; no CONJ child write ever existed; UNTIL
+  rides the while_cond_emittable α fallback until its sweep).
   (c) BULK consumer-internal α/β classification: IR_interp.c +
   emit_bb.c residue; the THREE emit-time RPN α/β writers
   (descr_chain_operand_refs, gvar_stmt_operand_refs emit_bb.c;

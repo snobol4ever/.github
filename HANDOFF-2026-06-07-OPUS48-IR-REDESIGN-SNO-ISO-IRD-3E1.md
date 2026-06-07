@@ -3,6 +3,7 @@
 ## Commits (SCRIP origin/main)
 - `2f17bf4` SNO-ISO-1 — complete+isolated SNOBOL4 value lower
 - `5a40338` IRD-3e-1 — IF/WHILE cond child → operands[0], consumers dual-read
+- `b2cfd08` IRD-3e-2 RESOLVED-DEAD — DISJ α writes deleted from BOTH producers (zero readers, behaviorally proven)
 
 ## Lon directive this session
 Prioritize a COMPLETE and ISOLATED SNOBOL4 lower ahead of the IRD-3d prolog order.
@@ -29,7 +30,7 @@ bake_ird3_baseline.sh at pre-session HEAD vs post: sno 153 / icn 9 / pl 8 / pas 
 apt-get install -y libgc-dev; make. `make libscrip_rt` MANDATORY before any m4 work.
 
 ## NEXT (order per Lon 2026-06-07-C)
-1. **IRD-3e-2 DISJ cluster** — shared wire_alt + prolog pl_wire_alt producers TOGETHER + driver gz DISJ census + operand_aux arm-list fold.
+1. **IRD-3e-2 — DONE (b2cfd08, this session).** DISJ->α had zero readers; both writes deleted; arm-list aux fold = bulk stage.
 2. **IRD-3d prolog remaining** — ITE 313/334/355; γ-chained STRUCT 229/254 + g_builtin 272 arg lists (IRD-4 prereq); name-aware BUILTIN pair 179/194/209; kind ~381.
 3. **IRD-3e-rest icon-scope** — ITERATE-bang 182, EVERY 347, UNTIL 424, REPEAT 437.
 4. **Bulk stage (c)** — IR_interp.c/emit_bb.c residue, three RPN writers + chain consumers, gz-synth, RETURN chain residue, operand_aux DELETED.
