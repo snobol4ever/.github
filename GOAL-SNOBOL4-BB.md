@@ -1,3 +1,25 @@
+## ⛔ SESSION DIRECTIVE — MODE 4 ONLY (Lon 2026-06-06, PIVOT)
+
+**This goal is MODE-4 BUG FIXING ONLY until ALL SNOBOL4 mode-4 test suites read 100% PASS (zero FAIL, zero SKIP).** Mode 2 and mode 3 are OUT OF SCOPE: do NOT run m2/m3 tests, do NOT gate on them, do NOT fix them — not needed, not wanted (Lon: "could not care less about mode 2 or mode 3"). Verification = mode-4 output vs .ref files + SPITBOL `sbl` oracle only. Hygiene/revamp/SPEC-v2 sweep rungs are NO LONGER in this goal — they are owned EXCLUSIVELY by `GOAL-BB-FIXUP.md` + `SCRIP/BB-REVAMP-TRACKER.md`; do not duplicate them here. The FACT RULE blocks below REMAIN (they are the canonical byte-identical copies other goals point at) — they constrain HOW fixes are written, not WHAT this goal works on. COMPLETION TEST: `test_smoke_snobol4.sh` m4 7/7 · `test_snobol4_pat_rung_suite.sh` M4 19/19 (no SKIP) · `test_mode4_only_corpus_snobol4.sh` 280/280 · `test_gate_em_beauty_subsystems_mode4.sh` 17/17.
+
+## 🔴🔴 #0 PRIORITY — MODE 4 BUG LADDER
+
+Inventory of record 2026-06-06 (post-b42ef1c build): smoke m4 **7/7** · pat-rung m4 **18 PASS / 1 SKIP** (053 emitter FATAL) · broad m4 corpus **148 PASS / 103 FAIL / 29 SKIP** of 280 · beauty subsystems m4 **1/17** (emit=4 link=5 diff=7). Standing inventory command: `SCRIP=$PWD/scrip bash scripts/test_mode4_only_corpus_snobol4.sh` (m4-only; prints FAIL + SKIP names). Clusters, each fix its OWN rung, crash class first:
+
+- [ ] **M4-CRASH** — `scrip --compile` must never abort/segfault: 29 corpus SKIPs + 4 beauty emit-crashes + 053. First specimen: 053_pat_alt_commit `P = ('a'|'b'|'c')` → `[IBB] FATAL flat_drive_assign: lhs (α) must be IR_VAR with sval (got kind=22)` — pattern-valued-variable assign reaches the gvar flat chain. Enumerate every SKIP, bucket by FATAL message, fix each bucket.
+- [ ] **M4-FENCE** — ~10 corpus fails (061/062/064/066_pat_fence_fn_*, 100/101/103/108/110/112_pat_fence_*). FENCE primitive + FENCE(pattern) function + fence-via-pattern-var. Manual: FENCE matches null moving L→R, FAILS the portion when retreated through (p.204, ch.19 FENCE(pattern) = pass-through-once on rematch). Suspect β-arm wiring class (see M4-ONESHOT).
+- [ ] **M4-ONESHOT (ex SNO-SPAN-BETA)** — probe-proven sbl divergence: `'aab' ? SPAN('ab') . A 'b' . B` → sbl `:`, m4 `aa:b`. SPITBOL stream primitives are ONE-SHOT on rematch (only BREAKX/ARB/ARBNO/BAL re-generate; &FULLSCAN forced, p.123). Fix = β→ω on BOTH span twins (`bb_pat_span.cpp`, `bb_pat_span_var.cpp`), then audit ANY/NOTANY/BREAK/LEN/TAB/RTAB/POS/RPOS β arms.
+- [ ] **M4-STARVAR** — deferred/dynamic patterns: 070_pat_arbno_star_var_digits, 071_pat_star_var_concat, 073_pat_star_var_capture, 075_pat_arbno_star_backtrack, 061_capture_in_arbno, + the 053 class. This IS PB-RB-6 (BB_PAT_BUILD for `*E`/`$NAME`/pattern-valued var) — execute it as a MODE-4 rung.
+- [ ] **M4-ARBNO-REENTRY** — (ex BROK residue) matched ARBNO instance's remaining child alternatives not re-enterable on backtrack: `ARBNO('ab'|'a') 'b'` on `'ab'`. Probe in m4; fix the native arbno wiring.
+- [ ] **M4-DATA** — ARRAY/TABLE/DATA: 091_array_create_access, 092_array_loop_fill, 093_table_create_access, 094_data_define_access, 095_data_field_set, 096_data_datatype_check.
+- [ ] **M4-DEFINE** — 084_define_loop_call, 088_define_recursive_fib, 089_define_in_pattern.
+- [ ] **M4-BUILTIN** — 076_builtin_ident, 077_builtin_differ, 081_builtin_datatype, 082_keyword_stcount, 097/006_keyword_alphabet, 030_arith_remdr, 020_concat_integer_string, 014/015_assign_indirect (`$`).
+- [ ] **M4-BEAUTY** — beauty subsystems 16 fails: link=5 (Qize/ReadWrite/XDump/assign/case — missing rt symbols?), diff=7 (ShiftReduce/counter/fence/global/match/stack/tree), emit=4 (→ M4-CRASH). Then test_case/test_math/test_stack/test_string + triplet + 100_roman_numeral from corpus.
+- [ ] **M4-REPL-NATIVE** — replacement form natively (PB-RB-7: REPLACEMENT BB + SUBSTITUTION BB); today repl statements route through the `rt_scan`/`rt_scan_lit` shim (works for simple cases — smoke green — but is the architecture rung; native gate now MODE 4: `S 'b' = 'X'` → `aXc`).
+- [ ] **M4-FENCE-GATE** — all four suites at 100%; add them to Session Setup of every SNOBOL4-touching goal.
+
+Discipline per fix: probe first (minimal .sno + sbl oracle expectation), one rung = one commit, gate battery (m4 suites ONLY) before commit, FACT RULES govern the how.
+
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 
 **No language-specific logic in any BB or XA C++ template.** All delineated operations are enveloped in
@@ -14,31 +36,6 @@ ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep ov
 ## ⛔ TEMPLATE SPEC v2 (Lon 2026-06-04) — REGENERATE, DON'T PATCH
 
 No local variables · ONE return per PLATFORM returning ONE concatenated string · IF()/FOR() string functions for all conditionals/loops · ONE source line == ONE asm line · REAL Greek α β γ ω (no PORT_ALPHA/BETA/GAMMA/OMEGA spellings) · no MEDIUM_TEXT/MEDIUM_BINARY at template top level (hide in helper functions) · zero emit_fmt() · zero C comments [separator status vs RULES.md: confirm with Lon] · zero blank lines · **ONE-IR-ONE-LOGIC (Lon 2026-06-04):** a template may serve SEVERAL IR kinds (near-identical shapes parameterized — the `bb_lit_scalar` grouping), and most are one-to-one; but ONE IR kind carrying MULTIPLE distinct four-port BB logics inside one template is FORBIDDEN — a bb_*.cpp that obviously needs it is broken out by splitting the IR kind in LOWER into separate IR codes, each reaching its OWN template via its own `emit_core.c` dispatch case. N IR → 1 BB allowed; 1 IR → 1 BB the norm; 1 IR → N BB never. **EMIT-BLIND / NO NEIGHBOR INQUIRY (Lon 2026-06-04):** a template reads ONLY its own emit context `_` (own labels, own ζ-slots, the `_.op_*` metadata the driver prepared) — it NEVER dereferences a neighboring IR node: no `pBB->α/β/γ/ω->t` kind tests, no neighbor `->ival/sval/dval` value reads, no neighbor kids/operand_aux walks, whether to ADMIT a shape or to CHOOSE an emission. A template inquiring about its neighbors is doing IR LOWERING inside the emitter — a design flaw in the lowering stage, not a template feature. The fix is always upstream: LOWER produces a DISTINCT IR shape per case (ONE-IR-ONE-LOGIC) and delivers operand values via `_.op_*`/ζ-slot offsets; the driver (`emit_bb.c`/`emit_core.c`) is where graph inspection lives. Scope: forbidden inside `src/emitter/BB_templates/` + `XA_templates/`. Separation of concerns: LOWER decides, templates emit. Each template is REGENERATED whole to this spec, not patched. Full directive + session state: `HANDOFF-2026-06-04-OPUS48-SNOBOL4-BB-HYGIENE-SWEEP-SPEC-V2.md`. Tracker: `SCRIP/BB-REVAMP-TRACKER.md` (reset to v2 semantics; v1 sweep — prose comments stripped + all >200-char lines wrapped — landed at SCRIP `2af3880`+`cd577ed`, gates sno 19/19 / icn m2 12/12 HARD).
-
-## 🟢 CURRENT FRONTIER — SNO-HY-6 ✅ `24bdc82` → SNO-HY-7 open
-
-**⚠ FLAGS FOR LON — sbl divergences, probe-proven; each fix its OWN rung:**
-(1) **M2-ARBNO-SHY** — m2 ARBNO (`IR_interp.c:3811`) GREEDY vs sbl shy: `'aaa' ARBNO('a') . V` → sbl+m4 `[]`, m2 `[aaa]` (manual pp.121-122/212).
-(2) **SNO-SPAN-BETA** — both span twins β-RETREAT one char per retry; SPITBOL SPAN is ONE-SHOT on rematch (only BREAKX/ARB/ARBNO/BAL re-generate; no Quickscan, &FULLSCAN forced, p.123). Probe `'aab' ? SPAN('ab') . A 'b' . B` → sbl/m2 `:`, m4 `aa:b`. Fix = β→ω on BOTH twins, then audit ANY/NOTANY/BREAK/LEN/TAB β arms.
-
-## SR-2 — call-frame save/restore
-
-- SR-1b ❌ REJECTED (Lon 2026-06-03): SAVE/RESTORE stays FUSED in `rt_call_named_proc`.
-- [ ] **SR-2** — Save-records migrate INTO per-activation ζ-frame `[r12+off]` (kills global `g_name_save[]`). Gate: define m3 6/6 + oracle; m2 7/7 HARD; no-stack/one-reg gates.
-
-## 🔴🔴 #0 PRIORITY — BB-HYGIENE LADDER (SNOBOL4)
-
-Per the BB-HYGIENE FACT RULE. After EACH step: SNOBOL4 m2 7/7 HARD byte-identical, purity green, commit.
-
-- [ ] **SNO-HY-3** — `bb_gvar_assign.cpp` + `bb_pat_capture.cpp`. 3a ✅ `75b5bd6`: lit-rhs split. 3b ✅ `d3d5688`: var/concat/call/descr arms split (IR_ASSIGN_VAR/CONCAT/CALL/DESCR; 13-site recipe; old arms RETAINED for synthesized plain-IR_ASSIGN + non-SNO). **3c ⚠ DESIGN NOT PINNED (Lon):** capture save vs write — `flat_drive_capture` fills ONE node twice (ival=0→save, 1/2→write); (i) driver-side two-template dispatch keeps m2 untouched vs (ii) LOWER SAVE→child→WRITE topology breaks m2 byte-identity.
-- [x] **SNO-HY-4** — `bb_pat_any.cpp` + `bb_pat_notany.cpp` ✅ `26bc2bb`. SPEC-v2: PORT_* → real Greek, int nid removed, cs_test helper for single-char (cmp) vs multi-char (strchr) dispatch.
-- [ ] **SNO-HY-5** — `bb_pat_cat.cpp` + `bb_pat_alt.cpp` + `bb_pat_arb.cpp`. Combinators; variable-length define/jmp-pair shape separate.
-- [ ] **SNO-HY-7** — de-dup + RT-fix, all SNOBOL4 boxes. Algorithm in TEXT+BINARY arm → DELETE both, replace with one `rt_*` call.
-- [ ] **SNO-HY-FENCE** — `scripts/test_gate_bb_one_box.sh` green for SNOBOL4 files; in Session Setup. m2 7/7 HARD held.
-
-## REG residue (ladder ✅ — git; REG-FENCE 0 HARD in Setup)
-
-- [ ] **REG-RO-2** (if Lon wants calls rip-sealed): BINARY `x86("call",name,addr)` fn-ptr movabs bakes are mode-3-absolute; xa_flat PROLOGUE r10 load consumer-dead.
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -338,14 +335,13 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 
 ## ⭐⭐ REBUILT LADDER — PB-RB (CORRECTED PATTERN ARCHITECTURE)
 
-`wire_seq`/`wire_alt` are shared LOCKSTEP helpers. Open:
+`wire_seq`/`wire_alt` are shared LOCKSTEP helpers. **All PB-RB gates re-pinned to MODE 4 (Lon pivot 2026-06-06)** — read every "mode-3" gate below as mode-4. Open:
 
 - [ ] **PB-RB-5** — Operand-variant element matchers (Fork A). `LEN(N)`/`SPAN(cvar)` etc.: existing `IR_PAT_LEN`/`IR_PAT_SPAN` box reads operand late from ζ-slot. NO builder box. Prove + mode-3 `S LEN(2)`, `S SPAN('abc')`.
 - [ ] **PB-RB-6** — BB_PAT_BUILD for STRUCTURAL variance (Fork A/B). `*E`/`$NAME`/pattern-valued var.
 - [ ] **PB-RB-7** — REPLACEMENT BB (ph.4) + SUBSTITUTION BB (ph.5). mode-3 `S 'b' = 'X'` → `aXc`.
 - [ ] **PB-RB-CONV** — IR_SCAN convergence: retire dual shape once native chain covers corpus breadth.
 - [ ] **PB-RB-OPT** — All-invariant BLOB freeze: collapse REF_INVARIANT+STITCH into ONE sealed blob. After correctness rungs done.
-
 ## BROK residue (eradication ✅ — git; fence 0 HARD in Setup)
 
 - [ ] ARBNO child-β re-entry gap: a matched instance's remaining alternatives are not re-enterable on backtrack (`ARBNO('ab'|'a') 'b'` on `'ab'`); own rung.
@@ -360,14 +356,21 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 - Lowering: `src/lower/lower.c` + `lower_prolog.c` + `lower_program.c`
 - Bomb infra: `src/emitter/emit_str.{cpp,h}`
 - Audit gate: `scripts/audit_m3_native_binary_arms.sh`
+- M4 statement anatomy (verified 2026-06-06): per-statement `IR_SUCCEED` landing nodes (`lower_program.c:514-611`); labels registered land[i]; γ_tgt/ω_tgt = U|S/F-goto landing or fall-through — HARD graph edges at lower time → direct `jmp` in flat emission; computed/undefined gotos via `IR_GOTO` (runtime resolve + indirect jmp). NO setjmp/longjmp in the SNOBOL4 path (longjmp = Prolog catch/throw only, `runtime/builtins/resolution.c`).
+- M4 scan routing (`emit_bb.c flat_drive_scan_stmt`): literal pattern → `bb_scan_stmt` literal arm → `rt_scan_lit`; non-literal + named-var subject + NO repl → `flat_drive_scan_native` (native bb_pat_* chain — where SPAN-BETA fires); everything else (repl form, computed subject) → `bb_scan_stmt` general arm → `rt_scan` graph-walk shim. Dual shape: legacy `IR_SCAN` (lower.c v_scan ~786) vs native chain `IR_SUBJECT`→pat→`IR_PAT_MATCH` (bb_match HEAD/RETRY/ADVANCE, ch.18) — PB-RB-CONV retires the former.
 
-## LOWER2 BOX LADDER (prove_lower2.sh)
+## ⏸ PARKED — OUT OF MODE-4 SCOPE (do not work, do not test, do not gate)
 
-Open arms: L2-B2/C/D/E/F/G/H value-role (loop-escapes/limitation/assignment/calls/scan/returns/data/cset/IO); GOAL ITE/findall/catch; LOWER2-EXEC Icon value proof; L2-TMATCH → `tm`/`tm_g`.
+- **M2-ARBNO-SHY** — m2 ARBNO (`IR_interp.c:3811`) GREEDY vs sbl shy (`'aaa' ARBNO('a') . V` → sbl+m4 `[]`, m2 `[aaa]`, manual pp.121-122/212). m4 already matches sbl — mode-2-only bug, parked per pivot.
+- **SR-2** save/restore→ζ-frame migration (was gated m2/m3) — parked.
+- **LOWER2 BOX LADDER** (prove_lower2 proof arms) — parked; harness also inherited-broken (PB-12 link miss, owner PASCAL-BB/Lon).
+- **RECOVERY / REC-*** rungs (m3 BINARY arms, Icon/Raku boxes) — m3/other-language; removed (git history preserves; Icon/Raku rungs belong to their own goal files).
 
 ## Session log
 
-**Watermark (SNO-HY-6; SCRIP origin/main=`24bdc82`; 2026-06-06 Sonnet 4.6).** bb_pat_len + bb_pat_pos regenerated SPEC-v2 (PORT_* → real Greek `"\xCF\x89"`/`"\xCE\xB3"`/`"\xCE\xB2"`, local vars removed, one return, no blank lines). Both confirmed one four-port shape each — no split. Gates: smoke M4=7/7 HARD · pat_rung M4=18/18 HARD (053 pre-existing skip) · REG-FENCE 0/0 · BROK-3 fence 0. **NEXT: SNO-HY-7** — de-dup + RT-fix, all SNOBOL4 boxes. Algorithm in TEXT+BINARY arm → DELETE both, replace with one `rt_*` call.
+**Watermark (MODE-4 PIVOT; SCRIP origin/main=`b42ef1c`+m4-runner; 2026-06-06 Opus 4.8).** Lon directive: mode-4 bugs ONLY until 100% PASS all suites; m2/m3 dead to this goal; hygiene/revamp excised (owner GOAL-BB-FIXUP). Goal file restructured: M4 BUG LADDER seeded from fresh inventory (smoke 7/7 · pat-rung 18+1SKIP · corpus 148/103/29 · beauty 1/17). New m4-only corpus runner `scripts/test_mode4_only_corpus_snobol4.sh` committed to SCRIP (the all-modes `test_mode4_broad_corpus_snobol4.sh` runs m2+m3 — do not use). Statement-anatomy findings recorded under Architecture references. **NEXT: M4-CRASH** — enumerate the 29 SKIPs by FATAL bucket, fix the 053 `flat_drive_assign` pattern-assign FATAL first.
+
+**(superseded) Watermark (SNO-HY-6; SCRIP origin/main=`24bdc82`; 2026-06-06 Sonnet 4.6).** bb_pat_len + bb_pat_pos regenerated SPEC-v2. Gates: smoke M4=7/7 HARD · pat_rung M4=18/18 HARD (053 pre-existing skip).
 
 ## Session Setup
 
@@ -376,161 +379,19 @@ cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 make libscrip_rt
+git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64   # SPITBOL oracle: /home/claude/x64/bin/sbl -b file.sno
 ```
 
-Gates:
+Gates — MODE 4 ONLY (never invoke --interp or --run; never use the all-modes runners):
 ```bash
-bash scripts/test_smoke_snobol4.sh                   # GATE-1: 19/19 (m2 7/7 HARD)
-bash scripts/test_smoke_unified_broker.sh            # GATE-2: ~30-36 (sibling-influenced; 32 @ 2026-06-06)
-SCRIP=$PWD/scrip bash scripts/test_mode4_broad_corpus_snobol4.sh      # GATE-3: container-dependent (floor 128, +change 130 @ 2026-06-06 env B; ALWAYS stash-baseline)
-bash scripts/test_interp_broad_corpus_and_beauty.sh  # GATE-4: container-dependent (160/280 @ 2026-06-06 env)
-bash scripts/test_snobol4_pat_rung_suite.sh          # M2=18 M4=18 (053 FAIL-M2 pre-existing)
-bash scripts/audit_m3_native_binary_arms.sh          # GATE OK
-bash scripts/test_gate_sno_pat_reg.sh                # REG-FENCE: TIER1+TIER2 both 0 (HARD)
-bash scripts/test_gate_no_brokered.sh                # BROK-3 fence: 0 (HARD)
-SCRIP_M3_NATIVE=1 bash scripts/test_smoke_snobol4.sh                                # 19/19
-INTERP=$(pwd)/scrip SCRIP_M3_NATIVE=1 bash scripts/test_interp_broad_corpus_and_beauty.sh  # container-dependent (160/280 @ 2026-06-06 env)
+bash scripts/test_smoke_snobol4.sh                                    # m4 7/7 HARD
+bash scripts/test_snobol4_pat_rung_suite.sh                           # M4: PASS+SKIP→19/19 target
+SCRIP=$PWD/scrip bash scripts/test_mode4_only_corpus_snobol4.sh       # 148/280 floor; prints FAIL+SKIP names
+bash scripts/test_gate_em_beauty_subsystems_mode4.sh                  # 1/17 floor
+bash scripts/test_gate_sno_pat_reg.sh                                 # static source fence (mode-agnostic): HARD
 ```
 
-For full failure list patch `head -40` to `head -300` in test_interp_broad_corpus_and_beauty.sh copy.
-
----
-
-## 🔴 RECOVERY LADDER — STUB-CLEANUP CASUALTY RECONSTRUCTION
-
-Recovered originals: `git show 713c581:src/emitter/BB_templates/<name>.cpp`. Old-API reference copies on disk (NOT in Makefile, NOT compiled): `bb_binop_gen/seq/to_by/limit/upto/suspend/case/list_bang/initial/field/if/swap/idx/assign/eps/cset/program/proc/clause/proc_gen/gen_alt.cpp`. Conversion recipe: see TEMPLATE-REVAMP-2 below.
-
-### Recovery steps (ordered by language need)
-
-**SNOBOL4 patterns:**
-- [ ] **REC-2 — `bb_pat_arbno.cpp` BINARY arm.** Convert the 713c581 BINARY arm (in `bb_arbno.cpp` reference copy) to x86() API: `x86_bomb` placeholder currently. Requires: `bb_slot_claim` for saved/depth/stack, child pre-built via `pre_build_children` (`bb_build_flat`), x86() body for α/β/done/pop/restore. Gate: 052/054 m3 PASS (currently works via rt_scan fallback; BINARY arm needed for true native pattern). NOTE: prefer doing AFTER BROK-2 so the wired-child contract is settled once.
-
-**Icon/Raku:**
-- [ ] **REC-3 — `bb_to_by.cpp` (207 lines).** IR_TO_BY (Icon `lo to hi by step`). Reference in `src/emitter/BB_templates/bb_to_by.cpp`. Convert `BB_t*`→`IR_t*`, `bb_bin_t`→`x86()`, add to Makefile + dispatch. Gate: Icon to-by test.
-- [ ] **REC-4 — `bb_seq.cpp` (358 lines).** IR_SEQ compound-statement sequence (Icon/Raku). Reference in `src/emitter/BB_templates/bb_seq.cpp`. Convert API. Gate: Icon proc-body test.
-- [ ] **REC-5 — `bb_suspend.cpp` (111 lines).** IR_SUSPEND (Raku `take`). Reference in `src/emitter/BB_templates/bb_suspend.cpp`.
-- [ ] **REC-6 — `bb_to_by.cpp`, `bb_limit.cpp`, `bb_upto.cpp`, `bb_list_bang.cpp`, `bb_binop_gen.cpp`** — remaining meaningful originals. Convert per RULES.md.
-
-**Testing protocol for ALL recovery rungs:** No testing until ALL three modes are wired. Run:
-```bash
-bash scripts/test_smoke_snobol4.sh          # shows m2 / m3 / m4 counts
-SCRIP_M3_NATIVE=1 bash scripts/test_smoke_snobol4.sh
-bash scripts/test_snobol4_pat_rung_suite.sh  # shows M2=N M4=N per rung
-```
-
----
-
-## 🔴 TEMPLATE-REVAMP-2 — Mass Hygiene Conversion Ladder
-
-**Hygiene rules:** RULES.md + TEMPLATE SPEC v2 (top of this file). Key per-conversion reminders: `pBB->ival/sval/dval` → `_.op_*`; `bb_node_id(pBB)` → `_.nid`; RW state → `[r12+off]` via `bb_slot_claim`; RO → `[rip+disp]` strtab/rodata; no vstack; α β γ ω only.
-
-**Source of TEXT arm assembly for all conversions:** `git show 713c581:src/emitter/BB_templates/<f>.cpp` or `/home/claude/one4all/src/emitter/BB_templates/<f>.cpp`
-
----
-
-### WAVE 2 — SNOBOL4 critical bombs (pattern system)
-
-- [ ] **W2-1 `bb_match.cpp`** — bomb: "subject/start slot not promoted". Fix: driver `flat_drive_match` must claim and promote the subject/start slot before dispatch. Cherry-pick TEXT arm from one4all. Gate: rung M2 unchanged, M4 scan tests advance.
-- [ ] **W2-2 `bb_subject.cpp`** — bomb: "subject slot not promoted". Fix: `flat_drive_subject` slot promotion. Cherry-pick TEXT arm. Gate: same.
-- [ ] **W2-3 `bb_pat_capture.cpp`** — bomb: "start slot not promoted". Fix: `flat_drive_capture`. Cherry-pick TEXT arm. Gate: same.
-- [ ] **W2-4 `bb_scan_stmt.cpp`** — 3 bombs: TEXT non-literal pattern. Cherry-pick TEXT arm from one4all (SNOBOL4 scan statement driver). Gate: rung 038–057 M4 advance.
-- [ ] **W2-5 `bb_gvar_assign.cpp`** — 5 bombs: descr arm + other shapes. Cherry-pick TEXT arm from one4all. Gate: SNOBOL4 smoke M4 unchanged or better.
-- [ ] **W2-6 `bb_keyword.cpp`** — 2 bombs: no-slot arm. Cherry-pick TEXT arm from one4all (`NV_GET_fn` → `rt_nv_get`, register updates). Gate: keyword tests.
-- [ ] **W2-7 `bb_pat_arbno.cpp`** — 2 bombs: no-child-label + BINARY arm. BINARY: cherry-pick from one4all and convert bytes() to x86() in-band records. Gate: 052/054 M3+M4 PASS.
-
----
-
-### WAVE 3 — SNOBOL4 scan primitives (9 files, all identical bomb pattern)
-
-Each: cherry-pick TEXT arm from one4all, update runtime fn names (`NV_GET_fn→rt_nv_get` etc.), update registers (`r10→r14d`), x86() BINARY arm or bomb.
-
-- [ ] **W3-1 `bb_scan_any.cpp`** — needs literal cset arg + descr flat-chain
-- [ ] **W3-2 `bb_scan_bal.cpp`** — needs nonempty bracket-free literal
-- [ ] **W3-3 `bb_scan_find.cpp`** — needs nonempty literal needle ≤32 chars
-- [ ] **W3-4 `bb_scan_many.cpp`** — needs literal cset arg + descr flat-chain
-- [ ] **W3-5 `bb_scan_match.cpp`** — needs literal string arg + descr flat-chain
-- [ ] **W3-6 `bb_scan_move.cpp`** — needs literal integer arg + descr flat-chain
-- [ ] **W3-7 `bb_scan_pos.cpp`** — needs literal positive n + descr flat-chain
-- [ ] **W3-8 `bb_scan_tab.cpp`** — needs literal positive n or sibling
-- [ ] **W3-9 `bb_scan_upto.cpp`** — needs literal cset arg + descr flat-chain
-
----
-
-### WAVE 4 — Icon variable/value bombs
-
-- [ ] **W4-1 `bb_var.cpp`** — unhandled arm. Cherry-pick TEXT arm from one4all (`call rt_nv_get@PLT → jmp γ / jmp ω`). Gate: Icon var tests.
-- [ ] **W4-2 `bb_var_frame.cpp`** — needs gvar flat-chain + own slot. Also fix `pBB->ival/dval` → `_.op_*`. Gate: Icon nested proc tests.
-- [ ] **W4-3 `bb_var_frame_ref.cpp`** — same as W4-2. Gate: same.
-- [ ] **W4-4 `bb_var_global.cpp`** — needs descr flat-chain + own slot. Cherry-pick TEXT arm. Gate: Icon global var tests.
-- [ ] **W4-5 `bb_return.cpp`** — needs descr flat-chain. Cherry-pick TEXT arm from one4all. Gate: Icon return tests.
-- [ ] **W4-6 `bb_assign_local.cpp`** — needs descr flat-chain + rhs slot + varslot. Gate: Icon assign tests.
-- [ ] **W4-7 `bb_assign_frame.cpp`** — gvar flat-chain only + `pBB->ival` cleanup. Gate: Pascal frame tests.
-- [ ] **W4-8 `bb_assign_frame_ref.cpp`** — same as W4-7. Gate: same.
-- [ ] **W4-9 `bb_to.cpp`** — needs static int operands. Cherry-pick TEXT arm from one4all (static lo/hi arm; dynamic arm stays bombed). Gate: Icon to-pump tests.
-- [ ] **W4-10 `bb_iterate.cpp`** — IR_LIST_BANG slot missing. Cherry-pick TEXT arm from one4all (string-split iterator). Gate: Icon iterate tests.
-
----
-
-### WAVE 5 — Icon binop bombs (all shape-mismatch defensive guards)
-
-Each: the bomb fires when the dispatcher sends an unrecognized shape. Cherry-pick TEXT arm, handle the shape or bomb loudly with shape description.
-
-- [ ] **W5-1 `bb_binop_arith.cpp`**
-- [ ] **W5-2 `bb_binop_relop.cpp`**
-- [ ] **W5-3 `bb_binop_concat_slot.cpp`**
-- [ ] **W5-4 `bb_binop_gvar_arith.cpp`**
-- [ ] **W5-5 `bb_binop_gvar_arith_slot.cpp`**
-- [ ] **W5-6 `bb_binop_gvar_relop.cpp`**
-
----
-
-### WAVE 6 — Prolog bombs
-
-- [ ] **W6-1 `bb_cell_unify.cpp`** — unadmitted operand shape. Extend admit conditions or bomb loudly.
-- [ ] **W6-2 `bb_cell_choice.cpp`** — unadmitted choice shape. Same.
-- [ ] **W6-3 `bb_cell_call.cpp`** — unadmitted call shape. Same.
-- [ ] **W6-4 `bb_callee_frame.cpp`** — unadmitted callee shape. Same.
-
----
-
-### WAVE 7 — Remaining misc bombs
-
-- [ ] **W7-1 `bb_alt.cpp`** — needs ≤5 literal arms (descr flat-chain). Extend arm count or bomb louder.
-- [ ] **W7-2 `bb_call_write_slot.cpp`** — write(non-slot arg). Extend or bomb.
-- [ ] **W7-3 `bb_gen_scan.cpp`** — leave glue without regs. Cherry-pick TEXT arm.
-
----
-
-### Conversion recipe (every file)
-
-```
-1. Open one4all or git show 713c581 for TEXT arm
-2. Strip: BB_t*→IR_t*, bb_bin_t, bb_emit_asm_result, bb_node_id→_.nid
-3. BINARY: convert bytes()/u32le() → x86() in-band records, OR bomb
-4. Registers: [r10]→r14d (cursor δ), movabs&Σ→r13, movabs&Σlen→r15d
-5. Runtime fns: NV_GET_fn→rt_nv_get, rt_push_str naming updates
-6. pBB->ival→_.op_ival, pBB->sval→_.op_sval, pBB->dval→_.op_dval
-7. RO data: .section .data labels OR strtab_label() for strings
-8. RW state: bb_slot_claim(N) → [r12+off] ζ-frame
-9. Build: bash scripts/build_scrip.sh
-10. Gate: run the relevant test before commit
-```
-
-**Order:** W2 (SNOBOL4 unblocking) → W3-W7. Each wave independently committable.
-
----
-
-### REVAMP-2 STATUS (post-W1 audit)
-
-All 40 bombs are ADMISSION GUARDS — every file has real x86() code above the bomb; bombs fire on unadmitted shapes. Work = extend admission or fix drivers, NOT write-from-scratch. W2-1/2/3 bombs = driver slot-promotion guards (abnormal paths only). W2-4 TEXT non-literal arm needs the native PB-RB scan graph. W2-5 has 6 rhs arms live, W2-6 has 4 keywords live; bombs = admission guards. W3 scan_* NOT in one4all — implement against `refs/icon-master/src/runtime/fstranl.r` (ACT-2 restores clones). W4 one4all arms use vstack (FORBIDDEN) — current files are AHEAD of one4all. W5/W6/W7 all guards.
-
-- [ ] **ACT-1** `bb_pat_arbno` BINARY arm: convert one4all BINARY arm to x86() in-band 'E'/'F' records. Gate: 052/054 M3 PASS. (BROK-2 landed; wired-child contract settled.)
-- [ ] **ACT-2** Restore Icon canonical refs for W3: `git clone https://github.com/proebsting/jcon refs/jcon-master && git clone https://github.com/gtownsend/icon refs/icon-master`.
-- [ ] **ACT-3** `bb_keyword` — add `&anchor`, `&maxno`, `&rtracing` + other keyword arms.
-- [ ] **ACT-4** `bb_scan_stmt` TEXT non-literal arm — blocked on native PB-RB scan graph.
-- [ ] **ACT-5** Shape-by-shape extension of W5/W6 admission as tests expose them.
-
-### X86-ONE + S-ASM ABOLITION (SCRIP 47883c4 + 68ba77c)
+## X86-ONE + S-ASM ABOLITION (SCRIP 47883c4 + 68ba77c)
 
 **ONE x86() function** (`x86_asm.h`): `x86(mnem, xop a={}, b={}, c={}, d={})`. Operands are strings that read like Intel asm; `xop` implicit ctors absorb const char*/int/long/uint64_t/std::string (via 16-slot keep ring). Parser classifies REG/IMM/PORT/ILBL/FR32/FR64/RSP64/MEMIND/MEMIDX8/R13RCX/R10MIR/RIPSEAL/SYM (space-normalized), ONE switch dives per opcode → proven byte encoders. PORT_*/FR/FRQ/L/RSP/F64 are string producers. TEXT-only forms: "label", "comment", "directive", "raw", "ins1/ins2/ins3/Lins1/Lins2" (passthrough), SYM-target jmp/jcc/call, "movsd"+f64.
 
@@ -553,3 +414,4 @@ All 40 bombs are ADMISSION GUARDS — every file has real x86() code above the b
 - ALWAYS grep-count after any perl/python batch edit and re-anchor with str_replace on miss (a trailing \n inside a line-match silently deleted a lower.c line once).
 - SPITBOL stream primitives are ONE-SHOT on rematch (SPAN/BREAK/ANY/NOTANY/LEN/TAB/RTAB/POS/RPOS); only BREAKX/ARB/ARBNO/BAL generate rematch alternatives (manual BREAKX entry + Ch18; SNO-SPAN-BETA probe). Quickscan heuristics do NOT exist in SPITBOL (&FULLSCAN forced non-zero, p.123).
 - Stream-fn by-var kind-split recipe = 13 sites + optional rt helper: IR.h end-of-SNO-block, scrip_ir names, lower kind-select (KEEP ival/dval flags verbatim), lower leaf-predicate, m2 case-label SHARE (byte-identical interp), is_pat_chain_elem, walk_bb_flat FILL case, emit_core dispatch, bb_templates.h, new template (faithful twin), Makefile ×2, prove_lower2 (+name +case), emit_per_kind_audit.
+
