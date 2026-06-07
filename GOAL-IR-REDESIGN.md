@@ -95,13 +95,11 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   fallback). NEW RESIDUE FLAGS (bulk scope): IF/WHILE ->β reads are
   chain-shape then/body; while_cond_emittable INTERNAL cond->α/β
   reads are BINOP-child residue on a swept kind (pre-existing m3
-  behavior preserved — do not "fix" inside a sweep). IRD-3e-2 NEXT:
-  DISJ as its own cluster — shared wire_alt 105 + prolog
-  pl_wire_alt 117 producers TOGETHER + driver gz DISJ census
-  (scrip.c 378/531/994/1156/1203/1231) + operand_aux arm-list fold
-  (interp 4428 + flat_drive_disj 687 read arms via
-  bb_operand_aux_get, not α — the α write may be near-dead;
-  census before assuming).
+  behavior preserved — do not "fix" inside a sweep). IRD-3e-2
+  RESOLVED-DEAD: DISJ->α had ZERO readers (census + behavioral
+  proof, both producer writes DELETED — wire_alt + pl_wire_alt);
+  arms flow via operand_aux only, folds to operands[] at the bulk
+  stage with the operand_aux deletion. No DISJ cluster remains.
   operand_aux callers fold in; operand_aux DELETED at sweep end.
   GATE per cluster: scripts/bake_ird3_baseline.sh sweeps
   byte-identical; smoke rows identical; prove_lower PASS count
@@ -147,8 +145,10 @@ md5-identical (68; raw byte-diff is ASLR pointer noise in dump
 rows — compare PASS/FAIL rows). sco sweep (191 .sc, test/snocone +
 corpus/crosscheck/snocone) + rebus smoke ADDED to the gate set
 alongside bake_ird3_baseline.sh.
-NEXT (order per Lon 2026-06-07-C): IRD-3e-2 DISJ cluster (shared +
-prolog producers together + gz census + aux fold) → IRD-3d prolog
+Plus IRD-3e-2 RESOLVED-DEAD: DISJ->α zero readers, both writes
+DELETED, gate identical — no DISJ cluster remains (aux fold =
+bulk stage).
+NEXT: IRD-3d prolog
 remaining (ITE 313/334/355; γ-chained STRUCT 229/254 + g_builtin
 272 arg lists; name-aware BUILTIN pair 179/194/209; kind ~381) →
 IRD-3e-rest icon-scope shared sites (ITERATE-bang 182, EVERY 347,
