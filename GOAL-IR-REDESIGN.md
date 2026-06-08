@@ -234,6 +234,21 @@ BB-FIXUP/Pascal pushes are constant — 3 races last session alone):
   real marker BEFORE populating, exactly as TO required. Producers lower.c (v_binop, lower_value.c:188)
   + lower_pascal.c:51/68/80; consumers interp 325(gen_resume)/2616 + the emit op_a_* feed across
   bb_binop_*/bb_gvar_assign/bb_assign_frame_ref/bb_call (BB-FIXUP-owned — coordinate/rebase).
+  PRECISE DISCRIMINATOR (187ae78 census): emit_bb.c:2288 `else if (!bb_child0(nd) && !bb_child1(nd))`
+  is the operands-emptiness fall-through (aux-only binop → EMIT_PAIR_FILL as-is, bb_binop_* template
+  reads AUX); the g_gvar_flat_chain arith/relop arms (2212-2266) and the descr-slot arm (2281) all
+  GUARD on `bb_child0(nd)` being non-NULL. v_binop is aux-only (sets aux, never operands/α — sole
+  non-pascal producer, lower_sno 881/903 push onto PATTERN_ALT/CAT not binop), so EVERY v_binop
+  binop currently takes the 2288 fall-through. CONFIRMED LIVE-SNOBOL BLAST RADIUS: `X = 3 + 4` m4
+  fires the gvar-arith template — integer arith codegen flows through this exact region. THEREFORE
+  the BINOP flip MUST (per the operands-emptiness LAW) re-express BOTH the 2288 fall-through AND the
+  bb_child0-guarded arm guards on a REAL MARKER (v_binop already writes IR_LIT.dval=1.0 for relop /
+  0.0 for arith and sval=op-name — a third marker or reusing these can encode "operands available")
+  BEFORE pushing operands[]; then migrate the bb_binop_* template + interp 325/2616 off aux. This is
+  a multi-file change touching live SNOBOL emit — NOT a one-commit flip. OPEN (pin next session with
+  a focused --compile dump of `X=3+4`): the exact path by which gvar-arith fires today given
+  bb_child0==NULL on a v_binop binop (re-kind elsewhere vs a populated sibling path) — resolve before
+  the marker design so the re-expression covers the true firing site.
 - ALT/DISJ arm-lists: interp 3009/4493, scrip 113/1012, emit 321/697 + bb_alt.cpp.
 - APPLY/call-args: lower.c:103 + lower_prolog.c:115; consumers bb_call.cpp:94 + emit 366/388.
 - single-child: lower.c:494.
