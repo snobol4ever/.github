@@ -123,19 +123,7 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   (415e465 gate), 153/153 identical on idle re-run; pre-existing,
   bump the timeout when convenient.
 
-- [ ] **IRD-4b — CARRIER FLIP: γ/ω become IR_ref_t.** (t→op rename DONE
-  + pushed, SCRIP `aae8686`; grep '->t' == 0 in pure consumers, baselines
-  byte-identical, 35-file 761/761 pure rename.) REMAINING = carrier flip:
-  Change IR_t.γ/ω from IR_t* to IR_ref_t{node, sz}. Every wire write
-  states its target block: strcpy(r.sz,"α") fresh-entry, "β" resume
-  (conjunction right-ω→left-β, every body→expr-β, etc. per irgen.icn).
-  Interp/emitter follow ref.node + dispatch on ref.sz[1] (0xB1/0xB2).
-  Chain-edge abuses of γ/ω (arm lists via ->ω, arg lists via ->γ)
-  already migrated in IRD-3. iref() carrier already exists. DO NOT change
-  γ/ω SEMANTICS — only carrier type (all targets currently fresh-entry, so
-  sz="α" initially preserves behavior; β-targeting is a later semantic
-  step). GATE: build green; full suites; baselines identical. Fresh +
-  atomic; NO safe partial (field-type change breaks every deref at once).
+- [x] **IRD-4b — CARRIER FLIP: γ/ω become IR_ref_t.** ✅ LANDED SCRIP `5477fbc` (2026-06-08, Sonnet 4.6). 830 ins/830 del across 30 files. sz="α" uniformly on all writes (behaviour-preserving; all current targets are fresh-entry). β-targeting wires remain a separate semantic step. GATE PASSED: 5 sweeps (sno153/icn9/pl8/sco191/pas5) byte-identical, 4 smokes (icon/prolog/snobol4/rebus) identical, prove_lower col-7-ptr-masked IDENTICAL rc=0. Rebased cleanly onto concurrent BB-FIXUP `441a6b3`.
 
 - [ ] **IRD-5 — FENCE: audit + doc.**
   sizeof(IR_t): BEFORE 64 (t+α+β+γ+ω+operands+n_operands+idx+own), AFTER
@@ -157,6 +145,8 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 - Change γ/ω SEMANTICS — only their carrier type.
 
 ## Watermark
+
+**▶ HANDOFF (2026-06-08, Sonnet 4.6) — IRD-4b γ/ω CARRIER FLIP DONE + PUSHED. SHA: SCRIP `5477fbc` (rebased onto concurrent BB-FIXUP `441a6b3` — disjoint files, clean). IR_t.γ/ω changed from IR_t* to IR_ref_t{node,sz[4]} across 30 files (830 ins/830 del). sz="α" uniformly on all write sites (behaviour-preserving — all current targets fresh-entry; β-targeting is a separate later semantic step per goal DO-NOT rules). Three edge cases required manual brace surgery after automated script: lower_pascal.c compound `if (b1) X; else if (!c1) Y;` chain; lower_sno.c `if (prev) WRITE; else OTHER;` (2 instances); scrip.c `if (!head) head=X; else tail->γ=cu;` pattern (10 instances, two variants). GATE PASSED: 5 sweeps (sno153/icn9/pl8/sco191/pas5) BYTE-IDENTICAL, 4 smokes (icon/prolog/snobol4/rebus) IDENTICAL, prove_lower col-7-ptr-masked IDENTICAL rc=0. IR_t is now {op, γ:IR_ref_t, ω:IR_ref_t, operands, n_operands, idx, own} — all 7 members at correct types. NEXT = IRD-5 (sizeof fence doc 64→48 already met; ADD IR_t struct-shape section to ARCH-IR.md now that γ/ω types are final). After IRD-5: IRD-3 residue (BINOP/ALT/DISJ/APPLY/single-child operand_aux retirement, then delete bb_operand_aux_set/get).**
 
 **▶ HANDOFF (2026-06-08, Opus 4.8, Lon attending "your choice, perform hand off") — BREAKOUT-FIRST
 PREREQUISITE VERIFIED COMPLETE + dead goal-bridge removed. SHAs: SCRIP `2c51b3e` (rebased onto
