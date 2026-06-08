@@ -1,5 +1,63 @@
 # GOAL-LOWER-REDESIGN.md — Unified SM+BB Pipeline (IR_t / IR_t)
 
+> ## 🔔 CROSS-SESSION NOTE (2026-06-08, Opus 4.8 — LOWER REGENERATION: per-level forked switches) 🔔
+> **`git pull --rebase` first.** Lon clarified the target lowering shape this session. The 2026-05-31
+> `lower2.c` note below is **stale on one point**: `src/lower/lower2.c` and `prove_lower2.c` are **no
+> longer in the tree** — the four-port redesign now lives IN `lower.c` itself (`IR_ref_t{node,sz}` γ/ω,
+> role dispatch, the `v_*` builder suite + `lower_value_shared`). "Build on lower2.c" ⇒ build on the live
+> `lower.c`.
+>
+> **TARGET SHAPE (Lon, 2026-06-08).** Lowering = a set of **mutually-recursive functions, one per grammar
+> level**, each a `switch(e->t)` with an **explicit arm for every `TT_*` legal at that level** — NOT one
+> catch-all VALUE switch that everything falls through. Where a language (or position) starts behaving
+> differently as the walk descends, **fork** the level function there; everything above/around stays a
+> clean shared-shape walk. Generate by a straight AST traversal; fill each arm/slot from the current
+> lower code.
+>
+> **Levels + recursion edges:** `program`→`stmt`→{`expr`,`cond`,`lhs`}; `expr`→`expr`; `expr`→`pattern`
+> (match ctx); `subject`→`expr`; `goal` (Prolog). Coverage (from the live dispatchers):
+>   - program: `TT_PROGRAM`/`PROC_DECL`/`SUB_DECL`/decls — `lower_program.c`.
+>   - stmt: `SEQ`/`STMT` + `ASSIGN`/`IF`/`WHILE`/`UNTIL`/`REPEAT`/`FOR`/`FOR_RANGE`/`EVERY`/`CASE`/
+>     `RETURN`/`SUSPEND`/`LOOP_BREAK`|`NEXT`/`GOTO_*`/`LABEL_DEF`/`PRINT`|`SAY`/call-as-stmt.
+>   - expr: arith `ADD..POW`, rel `LT..NE` & `LLT..LNE`, `CAT`/`LCONCAT`, `VAR`/`NAME`/`KEYWORD`,
+>     literals, `FNC`/`IDX`/`FIELD`, `MNS`/`PLS`/`NOT`/`SIZE`, `TO`/`TO_BY`, generators, `SCAN`.
+>   - cond / pattern / lhs / subject as named (pattern = SNOBOL/Raku regex arms).
+>
+> **Fork map:** the `expr` common core (arith / rel / concat / literals / var / basic-assign / seq) is
+> byte-identical across SNO/ICN/RKU/PAS/SCO — each language keeps its OWN identical copy (per the
+> isolate-like-`lower_prolog.c` directive). Divergence concentrates in `cond` (Pascal boolean-diamond vs
+> Icon/SNOBOL success-fail generator), `pattern` (SNOBOL vs Raku), and the generator/scan/call/section
+> arms of `expr`.
+>
+> **Generation ("traverse + fill"):** for each (language, level) emit `X_<level>(cx,e,γ,ω,&α,&β)` with a
+> switch whose arms are exactly the legal `TT_*`; fill each arm by lifting the matching body from the
+> current code (the language's dispatcher case → else the `lower_value_shared` arm → else the specific
+> helper: `pas_bool_diamond`, `icn_scan`, `v_scan`, `wire_if`…); repoint child recursion to the level
+> fns; **replace `default → lower_value_shared` with the explicit arm set** (truly-unreachable →
+> `unhandled`). RISK: dropping a reachable `TT_*` silently changes behavior — seed each switch with
+> (current explicit cases ∪ what the fallback actually serviced) and let the gate arbitrate.
+>
+> **Gate (unchanged, proven byte-identical):** `bash scripts/bake_ird3_baseline.sh <out>`, then diff vs a
+> pristine bake — 5 sweeps (sno153/icn9/pl8/sco191/pas5) + 5 smokes 0-diff; prove_lower **col-7-masked**
+> PASS=68 rc=0 (col 7 = pointers/ivals: `awk '{if(NF>=7)$7="PTR";print}'`; strip the build-warning
+> preamble). prove_lower.sh compiles the lower files directly — keep its source list in sync.
+>
+> **Done this session (SCRIP, local + unpushed — push on hand off):**
+>   - `fe00a0a` (1/N): folded `lower_value.c` INTO `lower.c` (common residue), deleted the file, trimmed
+>     Makefile + prove_lower.sh. Byte-identical.
+>   - `88eee7c` (2/N): `lower_pascal.c` made fully self-contained like `lower_prolog.c` — own `pas_` spine
+>     (`pas_lower`) + value suite + its own copies of the two Raku array helpers it used to borrow; only
+>     contract APIs (`IR_node_alloc`, `bb_operand_aux_set`, `ir_operand_push`, `bb_label_landing`) remain
+>     shared. Byte-identical (228→848 ln). **This file is now the arm-source for Pascal's regeneration.**
+>
+> **NEXT:** regenerate **Pascal** as the per-level exemplar (`pas_program`/`stmt`/`expr`/`cond`/`lhs`,
+> arms lifted from `88eee7c`), gate byte-identical, lock the skeleton → then Raku → Icon → SNOBOL →
+> Snocone. `lower_prolog.c` already ≈ this shape (`pl_lower_goal` spine + `g_*` builders).
+>
+> **OPEN (Lon):** confirm the per-level forked switches REPLACE the role×kind single-switch as the
+> canonical shape (they refine it: role = coarse level → finer levels + forks). The two commits above are
+> interim isolation steps that the regeneration then restructures into the level skeleton.
+
 > ## 🔔 CROSS-SESSION NOTE (2026-05-31, Opus 4.8 — READ BEFORE TOUCHING THE LOWERER) 🔔
 > A **parallel session laid a unified four-port AST→IR lower-rewrite foundation** that is directly this
 > goal's concern. **`git pull --rebase origin main` FIRST** — it is on `main` now (SCRIP `e8ed243`).
