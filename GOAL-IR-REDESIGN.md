@@ -149,6 +149,32 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
+**▶ HANDOFF (2026-06-08, Opus 4.8, ~84% ctx). SHAs: SCRIP `3a0bf21`, .github `c14d0310` — both
+clean, in sync, SCRIP builds green from clean. /tmp baselines are EPHEMERAL (gone next session) —
+re-bake before any gate: `make && make libscrip_rt && bash scripts/bake_ird3_baseline.sh <outdir>`.
+PASS = 5 sweeps (sno153/icn9/pl8/sco191/pas5) + 5 smokes byte-identical (ignore wall-clock TIME
+lines; smoke_raku is 100% PRE-EXISTING FAIL — Tiny-Raku frontend on hold) + prove_lower col-7(ptr)-
+masked PASS=68 rc=0 (3 inherited FAILs: PL-GZ-7 ITE-pair, PL-GZ-8 arith-is). bash_tool runs /bin/sh
+-> use `bash -c` for process substitution; mask col-7 with `awk '{if(NF>=7)$7="PTR";print}'`.
+STATE: raku_nfa migrated off α/β -> operands (committed 3a0bf21); β has ZERO writers pipeline-wide;
+the 4 shared accessors (bb_child0/1, ir_pair_arg, ir_call_arg) are operands-only. NEXT, in order:
+  1. β-ONLY DELETION — clean atomic win, NO ruling needed, do in a FRESH context. Method (Lon's
+     delete-first): delete β from IR_t struct (+ remove scrip_ir.c:216 NULL-init) -> compiler flags
+     ~50 `bb->β` reads in IR_interp.c + emit_bb.c (+ emit_core.c:731 bb_walk_rec) -> convert each to
+     NULL (all dead/always-NULL; WATCH IR_EXEC(bb->β) — sidecar macro, and walk_bb_flat(pBB->β,…) /
+     bb->β->t / bb->β->γ) -> gate byte-identical -> commit SCRIP, then update this watermark. Optional:
+     fix emit_per_kind_audit.c β-writes (NOT in Makefile, won't block the build).
+  2. α DELETION — BLOCKED on Lon's SCAN ruling: where does IR_SCAN's runtime SUBJECT live once α is
+     gone? (a 3rd slot operands[2], or relayout the IRD-3a punned subj/repl-GRAPH slots). Writes to
+     rehome: emit_bb.c:2689/2800 (both chain-walkers, arity-1 else-branch). Reads to repoint:
+     emit_core.c:386 + emit_bb.c:2038/2576/2589/2627. After the ruling it's mechanical (2 writes +
+     5 reads + remaining dead α-reads -> NULL).
+  3. CARRIER FLIP (IRD-4 finish): t->op rename; γ/ω from IR_t* -> IR_ref_t{node, sz[4]} dispatching on
+     sz[1]. Then IRD-5: sizeof fence + ARCH-IR.md. NOTE α/β-deletion is DECOUPLED from finishing IRD-3
+     (aux kinds survive via operands-empty->NULL in bb_child0). COORDINATE with BB-FIXUP — emit_bb.c is
+     shared; rebase + re-gate on guard trip, push code repos first, .github last. Full detail +
+     independent-confirmation history in the entries below.**
+
 **RAKU-NFA NOW COMMITTED (resolves decision 2 below) + honest scope. (2026-06-08, Opus 4.8, "Yes
 migrate to operands; remove fields first, 5 min" — a SECOND IR-REDESIGN session, coordinating with
 the delete-first session's entry directly below; identical diagnosis reached independently.) Per
