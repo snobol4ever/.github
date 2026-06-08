@@ -19,90 +19,19 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 29 (2026-06-07): PB-24 (2D comma-syntax array, flat-index encoding) + PB-25 (mark/release no-ops + stdlib/misc probes) LANDED.**
-Gate: **m2 81/0** over 82 probes (sole fail = recursion.pas XFAIL).
-Commits: SCRIP `2daa9d0`, corpus `f45e1e74`.
+**Session 30 (2026-06-08): PB-26 LANDED — named-type array var init fix.**
+Gate: **m2 77/0** over 78 probes (recursion.pas XFAIL).
+Commits: SCRIP `6b4ff36`, corpus `39d39d11`.
 
-BUG DIAGNOSED (PB-26, NOT YET FIXED): Array value params — `nparams` never set for Pascal TT_PROC_DECL.
-Fix: one line in `lower_program.c` before the `int np = ...` line (~line 641):
-`g_stage2.proc_table[pi].nparams = plist2 ? plist2->n : 0;` where `plist2 = proc->c[1]`.
-See HANDOFF-2026-06-07-SONNET46-PASCAL-BB-PB24-PB25.md for full recipe + test probe.
-New probes: enumarr.pas, subarr.pas, enumsubarr.pas, varrec.pas.
-m3/m4 pre-existing failures unchanged (marshal_call_arg root cause, not touched).
+**CRITICAL: Upstream force-push collision.** FIX-7a commit (`7c7fe07`) force-updated SCRIP main, erasing session 29 SCRIP commit `2daa9d0`. PB-24 (2D arrays) and PB-25 (matmul/markrel/forward1 probes) pascal.y code are **permanently lost**. Probes arr2d/arr2d2/arr2d3/arr2denum/matmul/markrel/forward1 removed from corpus. Must re-implement PB-24 2D arrays next.
 
-Mechanism (PB-22): `g_pas_enumtypes[]`/`g_pas_subtypes[]` tables; `type_decl` action registers
-enum max ordinal + subrange low/high by name; `simple_type` IDENT arm looks up both tables before
-falling through to record/pointer; `simple_type` DOTDOT arm captures low/high into pending state;
-`simple_type` LPARENT arm sets `g_pas_pend_enum_max` and returns `_eo-1` (not -1).
+**PB-26 bug (named-type array vars):** `type vec = array[0..4]; var v: vec` — `v` never registered in `g_pas_arrays[]` because `type → simple_type → IDENT "vec"` always returned -1 (array high was thrown away). Fix: added `g_pas_arrtypes[64]` table in `pascal.y`; `type_decl` registers named array types; `type → simple_type` now propagates high for named array types; `simple_type IDENT` looks up `g_pas_arrtypes`. Also: `lower_program.c` nparams redundancy clarified. New probes: `arrparam.pas`, `intparam.pas`, `realparam.pas`.
 
-Mechanism (PB-23): `record_case_opt`/`record_case_list`/`record_case_arm` productions added to
-`record_body`; tag field + all variant arm fields flattened into `g_pas_pend_fields[]` accumulator;
-overlap semantics correct for non-aliasing probes (each variant field gets a distinct named slot).
+NEXT — Lon picks:
+**(a) PB-24 RE-IMPLEMENT** — 2D comma-syntax arrays (lost; see handoff for full recipe).
+**(b) PB-27** — record value params (same root cause; `recparam.pas` fails).
+**(c) More named-type value params.**
 
-PB-24 (2D comma-syntax arrays) — ATTEMPTED, REVERTED. Segfault on assignment; root cause:
-TT_FNC node layout in mk_assign desugar needs to match lower.c:566 TT_FNC dispatch.
-Recipe in HANDOFF-2026-06-07-SONNET46-PASCAL-BB-PB22-23.md.
-
-RESIDUES (carry-forward): recursion.pas XFAIL (16-bit maxint); case no-match silently continues;
-NV __pbt/__pct temps can clobber under recursive re-entry; right-relop diamond hoists over
-side-effecting left operand; variant record cross-arm aliasing not supported (non-tested).
-
-NEXT — Lon picks from open areas: (a) PB-26 — array value params (one-liner fix in lower_program.c, recipe in handoff); (b) 3D arrays; (c) named-type value params (int/real/record) — all gated on PB-26 fix.
-
-**Session 26 (2026-06-06): PB-16 (read/readln/eof/eoln) + PB-17 (abs/trunc/odd/pred/succ) LANDED.**
-Gate: **m2 65/1** over 66 probes; sole fail = recursion.pas (16-bit maxint pin, XFAIL).
-Commits: SCRIP `4e4cbf8`, corpus `80e95e7` (read1-4 + .in files, stdlib1).
-m3/m4 pre-existing failures unchanged (marshal_call_arg root cause, not touched this session).
-
-Mechanism (PB-16): `read(v)` → parser emits `mk_assign(v, mk_fnc0("__pas_read_i"))` for int vars,
-`mk_assign(v, mk_fnc0("__pas_read_c"))` for charvars; `readln` with no args → `mk_fnc0("__pas_readln")`;
-`readln(v,...)` → seq of reads + readln; bare `eof`/`eoln` identifiers → `mk_ident` intercepts and
-emits `mk_fnc0("__pas_eof")`/`mk_fnc0("__pas_eoln")` (critical: `eof` appears as bare selector in
-expression, not as `call_with_args`, so intercept is in `mk_ident` not `mk_call`).
-Runtime: `__pas_read_i` = `scanf(" %lld", &v)`; `__pas_read_c` = `getchar()` (no ws-skip);
-`__pas_readln` = drain to `\n`; `__pas_eof` = peek getchar/ungetc; `__pas_eoln` = peek for `\n`.
-Probes with stdin use `.in` companion files; gate uses `inp=${base}.in` when present, else `/dev/null`.
-
-Mechanism (PB-17): all pure parser transforms in `mk_call`:
-`pred(i)` → `TT_SUB(i, 1)`; `succ(i)` → `TT_ADD(i, 1)`;
-`trunc(r)` → `mk_fnc1("__pas_trunc", r)` (runtime: `(long long)d`);
-`abs(x)` → `mk_fnc1("__pas_abs", x)` (runtime: int or real absolute value);
-`odd(i)` → `bin(TT_NE, bin(TT_MOD, i, ilit(2)), ilit(0))` (raw relop — NOT pre-wrapped in pas_bool;
-pre-wrapping caused a double-diamond IR_BINOP(NE, IR_IF(...), 0) with null α/β that the interpreter
-short-circuits to FAILDESCR).
-
-RESIDUES (carry-forward): char literal in write position prints as int; charvar table global/unscoped;
-recursion.pas XFAIL (per-arg eager writeln vs all-args-first evaluation order).
-
-NEXT — Lon picks: (a) more stdlib (sqrt/sin/cos/ln/arctan — pint csp 14-19); (b) packed-array/alfa;
-(c) 16-bit maxint close (recursion.pas); (d) write(real:w:d) two-width specifier (wrr).
-
-NOTE: 16-bit maxint (recursion.pas) stays XFAIL. The mismatch is that pint writes k=8 before
-computing fact(8) (sequential P-machine ops), while SCRIP's __pas_writeln evaluates all args
-before writing any. Reproducing the partial row requires per-arg eager writeln output; the
-TT_SEQ_EXPR desugaring approach breaks m3/m4 (computed-expr args in SEQ_EXPR via IR_CONJ
-don't emit correctly in native mode — pre-existing limitation). Not worth fixing in isolation.
-
-PRE-EXISTING m3/m4 REGRESSION (not from PB-15): computed-expression args to __pas_writeln
-fail in m3/m4 (e.g. writeln(2+3), writeln(p.x+p.y), writeln(c) where c is charvar). Root
-cause: ICN-HY-7g (bc95d97) deleted marshal_call_arg operand-kind arms that Pascal computed
-args rely on. m2 gate is clean (60/1); m3/m4 have 28 pre-existing failures including rec1/2/3,
-bool*, goto1/2/3, ptr1/2/4/5/6/8, set2/5/6/7, m4wexpr, nestfunc, nestrec, with1/2/3,
-char1/2/3. ICN-SCAN session owners should stash-prove these against bc95d97 and fix marshal_call_arg.
-
-RESIDUES (documented, no probe): (1) right-relop diamond hoisted over a side-effecting left operand
-reorders evaluation vs pcom's strict l-to-r; (2) NV `__pbt`/`__pct` temps can clobber under recursive
-re-entry of the same expression (frame-slot temps would cure); (3) case no-match: pcom emits ujc →
-pint halts "value out of range"; our if-chain silently continues (error trap = runtime work, out of
-parser scope); (4) labels nested inside compounds register + lower but no probe pins that position
-(probes pin top-level labels + nested gotos); (5) char literal directly in write position (`writeln('A')`)
-prints integer 65 not `A` — write call site has no type info for plain ilit; (6) charvar table
-global/unscoped — param name shadows across nested procs with different types (doesn't affect probes).
-
-Open ladder item: **LB-7-NEW** — `# BOX ICN` tag inventory in bb_gen_scan/bb_keyword/bb_scan_*
-(ICN-SCAN sessions own these files; sweep when ICN-SCAN settles).
-
----
 
 ## Mechanism inventory (how it works NOW)
 
