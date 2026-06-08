@@ -19,9 +19,14 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 28 (2026-06-07): PB-22 (enum type + named subrange type as array index) + PB-23 (variant record grammar) LANDED.**
-Gate: **m2 73/0** over 73 probes (sole fail = recursion.pas XFAIL).
-Commits: SCRIP `74fd567`, corpus `d1d789a`.
+**Session 29 (2026-06-07): PB-24 (2D comma-syntax array, flat-index encoding) + PB-25 (mark/release no-ops + stdlib/misc probes) LANDED.**
+Gate: **m2 81/0** over 82 probes (sole fail = recursion.pas XFAIL).
+Commits: SCRIP `2daa9d0`, corpus `f45e1e74`.
+
+BUG DIAGNOSED (PB-26, NOT YET FIXED): Array value params — `nparams` never set for Pascal TT_PROC_DECL.
+Fix: one line in `lower_program.c` before the `int np = ...` line (~line 641):
+`g_stage2.proc_table[pi].nparams = plist2 ? plist2->n : 0;` where `plist2 = proc->c[1]`.
+See HANDOFF-2026-06-07-SONNET46-PASCAL-BB-PB24-PB25.md for full recipe + test probe.
 New probes: enumarr.pas, subarr.pas, enumsubarr.pas, varrec.pas.
 m3/m4 pre-existing failures unchanged (marshal_call_arg root cause, not touched).
 
@@ -42,9 +47,7 @@ RESIDUES (carry-forward): recursion.pas XFAIL (16-bit maxint); case no-match sil
 NV __pbt/__pct temps can clobber under recursive re-entry; right-relop diamond hoists over
 side-effecting left operand; variant record cross-arm aliasing not supported (non-tested).
 
-NEXT — Lon picks from open areas: (a) PB-24 retry — 2D comma-syntax array (recipe in handoff);
-(b) mark/release as no-ops (trivial); (c) more stdlib coverage;
-(d) direct subrange var type `var x: 1..10` (currently works as integer, no bounds).
+NEXT — Lon picks from open areas: (a) PB-26 — array value params (one-liner fix in lower_program.c, recipe in handoff); (b) 3D arrays; (c) named-type value params (int/real/record) — all gated on PB-26 fix.
 
 **Session 26 (2026-06-06): PB-16 (read/readln/eof/eoln) + PB-17 (abs/trunc/odd/pred/succ) LANDED.**
 Gate: **m2 65/1** over 66 probes; sole fail = recursion.pas (16-bit maxint pin, XFAIL).
