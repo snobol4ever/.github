@@ -149,78 +149,64 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**OPEN — IRD-3 bulk (c): RING CLUSTER + SEQ α-ORPHAN COMPLETE
-(2026-06-07-H, Opus 4.8, Lon attending).**
-This session, SCRIP commits (each fully gated, all pushed):
-8af31d1 RING CONSUMERS — interp arms for every
-icn_ring_to_tree-served kind → operands-first dual-read
-(BINOP_GEN/TO/TO_BY hoisted ir_pair_arg Lc/Hc locals incl
-ring-mode discriminators; UNOP/NEG/POS/NONNULL/NOT/SIZE
-single-child c0 idiom; EVERY already dual since 3e); emitter
-side pre-verified dual BEFORE edits (flat_drive_* via
-bb_child0/1, bb_every.cpp via ir_call_arg,
-descr_chain_operand_refs already operands SCAN-exempt,
-bb_walk_rec operands-aware, ir_is_single_shot walks operands);
-m2-safety proof: lowering carries these kinds via
-γ-chain/aux/operands so α/β NULL in m2 — NULL-for-NULL
-identical. 21add4c RING WRITER FLIP — icn_ring_to_tree
-ar==2/ar==1 → operands[0..1], order [0]=left [1]=right matching
-ir_pair_arg + descr_chain_operand_refs; function now ZERO α/β
-writes; PROOFS: gdb live-path (pre-flip bp scrip.c:92 fires on
-write(*&subject) ring-live probe; post-flip ir_operand_push
-frame#1 = icn_ring_to_tree:94 same probe), stash A/B behavior
-parity ×2 probes (both hit PRE-EXISTING GROUND-ZERO-3
-rt_call_builtin abort downstream, rc=134 parity — B-ladder
-scope), static dump A/B EMPTY-class (ring conversion runs in
-m3/m4 driver AFTER --dump-bb, faa9b52 precedent). 6c12e26 SEQ
-α-ORPHAN DELETIONS — zero writers by broadened census (LAW 8) +
-builder proof (wire_seq γ-chains children, never stores
-node->α); deleted flat_drive_seq dead BFS (~45 lines, guard
-pair-jmp path IS the function, still serves SEQ + SEQ_EXPR
-dispatch) + orphan seq_node_label + interp raku-SUSPEND arm +
-tail return-α→NULL fold; dval==1.0 concat arm has no α
-dependence, STAYS; proof = bake byte-identity (A/B-EMPTY
-deletion standard).
-GATES per commit: full bake scripts/bake_ird3_baseline.sh diff
-vs pristine /tmp/base_pre = prove_lower col-7 pointer ivals ONLY
-(LAW 6) masked-identical PASS=68; 5 sweeps (sno 153/icn 9/pl 8/
-pas 5/sco 191) + 5 smokes byte-identical; icon m2 12/12 HARD
-m3/m4 10/2 floors.
-RACE ABSORBED ×1: pull-rebase pulled ed5fe6e + 8f4f773 (IRD-2b
-gz reader flip units[j]->β→operands[1], pl rungs m3 22→29) +
-0af3eb7 + 66c7bdf (BB-FIXUP bb_unify/bb_unop); merged head
-REBUILT + FULL RE-BAKE byte-identical (LAW: clean rebase is NOT
-a gate). gz-synth therefore ACTIVE-CONCURRENT — see REMAINING.
-COUNTS: IR_interp.c α/β refs 184→105; emit_bb.c →46;
-icn_ring_to_tree →0 writes.
-FINDING (IRD-4 lever): lower_internal.h iref() ALREADY writes
-IR_ref_t{node,"α"/"β"} — the target carrier exists in lowering.
-NEXT (goal order):
-1. Bulk (c) — gz-synth regime FIRST but FRESH census + IRD-2b
-coordination mandatory (8f4f773 owner active in those files);
-then SCAN ruling (pattern-BB joint), flat_drive_gz_query
-γ-walks, emit_bb 2045 arm-via-ω, bb_call.cpp:93, operand_aux
-sub-cluster (LOAD-BEARING) LAST. Residue verifies opportunistic:
-IR_SEQ_EXPR α-chain; raku_nfa ruling from Lon.
-2. IRD-4 → 3. IRD-5 (incl. prove_lower ops column + CATCH kname
-+ sno sweep timeout bump).
-HANDOFF 2026-06-07-H CLOSED (Opus 4.8): SCRIP origin = f06732d
-(6c12e26 + handoff doc), .github origin = this commit; both
-trees CLEAN, all pushed. See
-HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-3C-RING-SEQ.md.
-Next session: clone/pull BOTH repos (authenticate origin with
-Lon's token: git remote set-url origin
-https://TOKEN@github.com/snobol4ever/<repo>), git identity
-LCherryholmes/lcherryh@yahoo.com per repo, apt-get install -y
-libgc-dev; make; make libscrip_rt (MANDATORY for m4), clone
-canonical refs (proebsting/jcon + gtownsend/icon → refs/,
-gitignored), bake scripts/bake_ird3_baseline.sh /tmp/base_pre
-FOREGROUND BEFORE touching code, git pull --rebase both repos
-before working, then bulk (c) per NEXT. Concurrent sessions:
-IRD-2b/PROLOG (owns the gz reader sites — coordinate),
-BB-FIXUP (owns BB_templates + tracker, cursor at bb_var.cpp,
-rebase before touching bb_*.cpp), B0/B-ladder (runtime purges +
-GROUND-ZERO-3 box rebuilds), pattern-BB design (joint owner of
-the SCAN-subject ruling). ALWAYS re-verify any rebased head.
+**OPEN — IRD-3 bulk (c): GZ-SYNTH CLUSTER COMPLETE + gen_alt/arith_operands/SEQ_EXPR done
+(2026-06-08, Opus 4.8, Lon attending). ⚠ WORK IS ON BRANCH origin/ird3-gz-recovery,
+NOT main — TWO force-push incidents this session erased it from main (see INCIDENT).**
+
+### Done this session (all gated: full bake vs pristine = prove_lower LAW-6 col-7
+pointer ivals masked-identical PASS=68; all sweeps + smokes byte-identical; reconciled
+final bake GREEN, prolog 5/5/5, icon m2 12 / m3 10 / m4 10 at floors):
+- GZ CONSUMERS dual-read (was SCRIP c526ad3): gz_fill_goal DET_WRITE, flat_drive_gz_query
+  QUERY_FRAME hd/hdB=bb_child0/1 (9 fetches; gamma-walks STAY = legitimate success chain),
+  marshal DET_IS/DET_CMP arms, bb_det_is 3 helpers, bb_is_cmp rhs+pBB child-hops, bterm_arith,
+  scrip.c:890 units twin (8f4f773 sibling, fprintf-probe-proven DEAD on full pl corpus).
+- GZ WRITERS flip (was f8b3a91): all 15 a/b writes in pl_gz_* synth (scrip.c 603-1108) ->
+  ir_operand_push, [0]=a-role [1]=b-role; null-guards locals-first; QUERY_FRAME four-combo-
+  exact (push head iff head||headB, push headB iff headB); ARITH-copy mirrors m0/m1.
+- flat_drive_gen_alt arm-via-omega DELETED + bb_call arith_operands operands-first (was fb4ffcc):
+  verify-then-delete, zero-writer (a-writers EXTINCT src-wide post-flip) + builder proof.
+- interp IR_SEQ_EXPR alpha-chain DELETED (9c42343): guard !bb->a always-true -> fold to NULVCL/gamma.
+
+### RATCHET (proven, stash-A/B): prolog smoke arith m3+m4 FAIL->PASS (4->5 both). Pristine
+rc=134 'unresolved gzq0_g0_b' = bb_is_cmp is-arm guard read ->a/b NULL on LOWERED operands-only
+ARITH rhs (scrip.c:960); IRD-2b producer flip had STRANDED these readers; consumer dual-read
+repaired it. Live IRD-2b-class fix, not refactor anomaly.
+
+### FINDINGS
+- IR_GEN_ALT kind is CONSTRUCTOR-LESS (zero builders src-wide; flat_drive_gen_alt serves IR_ALT
+  non-flat-chain branch; interp 4295 arm is exec-sidecar DCG, its a/b are port-CONSTANTS not
+  fields). Kind-garden deletion candidate — OUTSIDE IRD scope, flag for Lon.
+- 053_pat_alt_commit.sno m2 output delta is B3-owned (7a12aed TT_ALT lowering), not IRD.
+- flat_drive_gz_query gamma-walks = legitimate success wiring, NOT chain-edge abuse; stay until
+  IRD-4 carrier-type change.
+
+### ⚠⚠ INCIDENT — TWO FORCE-PUSHES erased pushed history this session:
+1. M34 (Prolog) session force-reset origin from a STALE clone: erased my pushed gz commits
+   c526ad3/f8b3a91/fb4ffcc AND reverted session-H work (21add4c ring writer flip, 6c12e26
+   seq_node_label deletion resurrected). Recovered by restoring src/+Makefile from fb4ffcc and
+   replaying M34/FIX-7a intended deltas (cherry-pick 090c28c dd6b5b7 7c7fe07; conflicts resolved
+   take-theirs + la/rb defs corrected rhs->a/b => ir_pair_arg). libscrip_rt.so needed FORCED
+   rebuild (rm first) — pattern-template objects (B3) were stale.
+2. Pascal-BB then landed on the M34 line (origin/main now 6b4ff36), still WITHOUT my gz cluster.
+I did NOT force-push to fix (that is the disease). LON: WORKFLOW RULING NEEDED — mandate
+--force-with-lease / ban resets / require pull-rebase-before-push.
+
+### RECOVERY (next session — do NOT wholesale-restore, it clobbers Pascal):
+1. git fetch; branch from origin/main (6b4ff36).
+2. git cherry-pick c526ad3 f8b3a91 fb4ffcc  (the 3 erased gz commits as deltas; conflicts only
+   in bb_det_is/bb_is_cmp where M34 re-landed — keep ir_pair_arg + rt_is_cell, EXACT resolution
+   recorded on origin/ird3-gz-recovery commit 4a8236b). Then gen_alt+arith_operands+SEQ_EXPR.
+   OR simplest: diff origin/ird3-gz-recovery against origin/main, re-apply the src delta onto a
+   fresh Pascal-based branch (the recovery branch IS the full reconciled tree, sans Pascal PB-26).
+3. rm -f out/libscrip_rt.so; apt-get install -y libgc-dev; make; make libscrip_rt; full bake
+   scripts/bake_ird3_baseline.sh; expect arith 5/5, LAW-6 only. Push with --force-with-lease ONLY
+   after confirming no new origin movement.
+4. Then prune IRD-3(c) ladder: gz-synth + emit_bb arm-via-omega + bb_call.cpp:93 + SEQ_EXPR
+   residue are DONE; flat_drive_gz_query gamma resolved-by-analysis.
+
+### REMAINING IRD-3 (c): SCAN subject a (joint pattern-BB ruling); operand_aux sub-cluster
+(LOAD-BEARING, 8+ live get callers, LAST); raku_nfa_bb.c 154/158 a-writers (Lon ruling: missed
+cluster vs NFA exemption). Then IRD-4 (gamma/omega -> IR_ref_t, delete a/b, t->op; iref() carrier
+already exists) -> IRD-5 (sizeof fence + ARCH-IR.md).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
