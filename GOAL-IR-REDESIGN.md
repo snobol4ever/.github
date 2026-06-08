@@ -158,6 +158,32 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
+**▶ HANDOFF (2026-06-08, Opus 4.8, Lon attending "your choice, perform hand off") — BREAKOUT-FIRST
+PREREQUISITE VERIFIED COMPLETE + dead goal-bridge removed. SHAs: SCRIP `2c51b3e` (rebased onto
+concurrent BB-FIXUP `7f8855c` bb_choice FIX-8b — disjoint files, clean), .github THIS COMMIT. SCRIP
+builds green from clean (scrip + libscrip_rt), pushed via guarded fast-forward. The per-language lower
+BREAKOUT (the "DO NOT reorder — BREAKOUT FIRST" item) is DONE: all 5 language categories lower through
+standalone, segregated entries — SNOBOL4/Snocone/Rebus→`lower_sno` (lower_sno.c), Icon→`lower_icn`
+(lower_icon.c), Raku→`lower_rku` (lower_raku.c), Pascal→`lower_pas` (lower_pascal.c) on the shared
+`lcx_t`/`lower()` spine (VALUE+PATTERN roles, sharing `lower_value_shared`+`lower_pattern` helpers by
+design); Prolog→`pl_lower_goal` via `lower_clause_body_entry` (lower_prolog.c) on its OWN `plcx_t`
+spine, NEVER entering `lower()`. REMOVED the vestigial bridge that made the `lcx_t` spine pretend to
+lower goals: the `case ROLE_GOAL: lower_goal(...)` arm in `lower()` (lower.c), the dead `lower_goal`
+`lcx_t` shim (lower_prolog.c), its prototype (lower_internal.h), and the `ROLE_GOAL` enum value —
+PROVABLY UNREACHABLE (census: nothing in src ever set `lcx_t.role=ROLE_GOAL`; every live `…ROLE_GOAL`
+is `PL_ROLE_GOAL` in the `plcx_t` world). `lcx_t` roles are now exactly {VALUE, PATTERN}; goals are
+`plcx_t`-exclusive. Changeset SCRIP +1/−10 across 3 files, BYTE-IDENTICAL BY CONSTRUCTION (dead-code
+removal). GATE PASSED — pristine bake at `cd52558` (`/tmp/base`) vs the COMBINED rebased tree
+(`/tmp/post2`, = `7f8855c` + this change): 5 interp sweeps (sno153/icn9/pl8/sco191/pas5)
+byte-identical, 5 smokes (icon/prolog/snobol4/raku/rebus) byte-identical (TIME-masked), prove_lower
+col-7-ptr-masked PASS=68 rc=0, both build targets rc=0 (the 114 core.h INTVAL/REALVAL redefinition +
+write-strings warnings are PRE-EXISTING, present in the baseline build, not introduced here). NOTE:
+`core.h` macro-redefine warnings are a latent cleanup item, out of IRD scope. NEXT (unchanged) =
+**IRD-4b SUB-TASK 2 — γ/ω CARRIER FLIP** (γ/ω: `IR_t*`→`IR_ref_t{node,sz[4]}`; do FRESH + ATOMIC, NO
+SAFE PARTIAL — 489 derefs across 27 files, 420 in IR_interp.c; `iref()` carrier already exists; set
+sz="α" UNIFORMLY first, behavior-preserving; do NOT start near a context limit). Then IRD-5 (sizeof
+fence 64→48 already met; ADD IR_t struct-shape section to ARCH-IR.md after the carrier flip).**
+
 **▶ HANDOFF (2026-06-08, Opus 4.8) — IRD-4b SUB-TASK 1 (t→op) DONE + PUSHED. SHAs: SCRIP `aae8686`,
 .github THIS COMMIT — SCRIP builds green from clean (scrip + libscrip_rt), pushed to origin. Re-bake
 recipe + PASS criteria UNCHANGED (see the demoted block directly below). DONE THIS SESSION: the IR_t
