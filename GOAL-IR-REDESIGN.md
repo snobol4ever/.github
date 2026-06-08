@@ -123,24 +123,6 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   (415e465 gate), 153/153 identical on idle re-run; pre-existing,
   bump the timeout when convenient.
 
-- [x] **IRD-4a — α/β FIELDS DELETED.** ✅ 53f861b (2026-06-08, Opus 4.8,
-  Lon attending, "remove bogus fields, deal with the fallout, leave them
-  removed"). α and β pointers gone from IR_t (+ allocator NULL-init);
-  sizeof(IR_t) 64 -> 48. SCAN RULING (Lon, this session) = operands[2]:
-  IR_SCAN's runtime subject node (formerly α's sole non-NULL writer, the
-  gvar-chain walker arity-1 else-branch) now lives in reserved operands[2]
-  via idempotent scan_set_subj_node(); operands[0]/[1] keep the IRD-3a
-  type-punned subj/repl GRAPHS; walkers already exempt IR_SCAN operands so
-  [2] is walker-safe; emit_core op_a read repointed (SCAN->operands[2],
-  others->operands[0]). 174 always-NULL α/β reads -> ((IR_t*)0) (IR_interp
-  126 / emit_bb 31 / prove_lower 16 / scrip 1) — all were already NULL at
-  runtime (β zero writers; α only the 2 rehomed SCAN sites), guards
-  (!bb->α&&!bb->β) already always-true, α/β tails already dead. 3 fprintf
-  error-string α/β left intact. DEFERRED (not in Makefile): emit_per_kind_
-  audit.c α/β writes. GATE: 5 sweeps byte-identical + 5 smokes (mod TIME) +
-  prove_lower col-7-masked PASS=68 rc=0; mode-3 SCAN (ANY+replacement) runs
-  correct; mode-4 non-literal SCAN bomb is pre-existing bb_scan_stmt.cpp
-  PB-RB stub, unrelated.
 - [ ] **IRD-4b — CARRIER FLIP: γ/ω become IR_ref_t; t→op rename.**
   Change IR_t.γ/ω from IR_t* to IR_ref_t{node, sz}. Every wire write
   states its target block: strcpy(r.sz,"α") fresh-entry, "β" resume
@@ -183,8 +165,11 @@ lines; smoke_raku is 100% PRE-EXISTING FAIL — Tiny-Raku frontend on hold) + pr
 masked PASS=68 rc=0 (3 inherited FAILs: PL-GZ-7 ITE-pair, PL-GZ-8 arith-is). bash_tool runs /bin/sh
 -> use `bash -c` for process substitution; mask col-7 with `awk '{if(NF>=7)$7="PTR";print}'`.
 STATE: **α AND β FIELDS DELETED from IR_t (53f861b)** — sizeof 64->48, member count now 7 (target).
-SCAN subject rehomed to operands[2] (Lon ruling this session); see IRD-4a above for full detail.
-IR_t is now {t, γ, ω, operands, n_operands, idx, own}. NEXT = IRD-4b CARRIER FLIP (do FRESH +
+SCAN SUBJECT RULING (Lon, this session) = operands[2]: IR_SCAN slot layout is now operands[0]=subj
+GRAPH, operands[1]=repl GRAPH (both IRD-3a type-punned IR_graph_t*), operands[2]=runtime subject
+NODE (formerly α; set by scan_set_subj_node in the gvar-chain walker; emit_core op_a reads it).
+Generic walkers already exempt IR_SCAN operands, so [2] is walker-safe. Full IRD-4a detail in commit
+53f861b. IR_t is now {t, γ, ω, operands, n_operands, idx, own}. NEXT = IRD-4b CARRIER FLIP (do FRESH +
 ATOMIC, it is delicate):
   1. t→op rename — ⚠ `->t` is AMBIGUOUS (tree_t/AST also uses ->t). Disambiguate: rename ONLY IR_t
      consumers (interp/IR_interp.c, emitter/*, lower/*, contracts/scrip_ir.c, driver dispatch). Do a
