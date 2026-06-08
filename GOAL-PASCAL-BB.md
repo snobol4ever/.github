@@ -19,20 +19,22 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 31 (2026-06-07): PB-24 + PB-27 LANDED — 2D arrays and record value params.**
-Gate: **m2 86/0** over 87 probes (recursion.pas XFAIL).
-Commits: SCRIP `4f2ae74`, corpus `794a8c58`.
+**Session 32 (2026-06-08): PB-28 LANDED — named-type 2D array params (value + var).**
+Gate: **m2 89/0** over 90 probes (recursion.pas XFAIL).
+Commits: SCRIP `71d0d49`, corpus `c550eb56`.
 
-**PB-24:** 2D comma-syntax arrays. `type mat2 = array[0..1,0..1] of integer` parses and indexes correctly. `var_decl` registers flat high + ncols; `selector` desugars `a[i,j]` → `TT_IDX(a, i*ncols+j)` at parse time. Probes: arr2d/arr2d2/arr2d3/matmul.
+**PB-28:** Five bugs fixed in `pascal.y` (no lowerer/interp changes):
+1. `type_decl` subtype leak: array type names falsely registered as subtypes due to residual `g_pas_pend_sub_high` from bracket dim parsing. Fixed by guarding `pas_subtype_add` with `$3 < 0 && g_pas_pend_arr_ncols < 0`.
+2. `var_decl` ncols: named-type vars used `pas_array_add` (1D) instead of `pas_array_add2d`. Fixed with `_varnc` from `pas_arrtype_ncols(g_pas_pend_typename)`.
+3. `type → simple_type` propagation: added ncols propagation into `g_pas_pend_arr_ncols` for named array types.
+4. `is_param` prologue skip: program prologue was overwriting value params with `mk_array_fill`. Added `is_param` field to `g_pas_arrays`; prologue skips is_param=1 entries.
+5. VARSY params: byref param arm never called `pas_array_add*`, so 2D desugar failed inside var-param procedures. Fixed by mirroring value-param arm.
 
-**PB-27:** Record value params. `id_list COLON IDENT` param rule calls `pas_recvar_add_from_type` so `q.x` resolves at parse time inside callee. Also registers array-typed params. Probes: recparam/recparam2/recparam3/forward1/markrel.
-
-**OPEN BUG: 2D named-type array VALUE PARAM + locals.** When a procedure receives a named-2D-array type param AND declares local vars, the index is off by +1. Root cause: interaction between `g_pas_arrays` containing the formal param (added by PB-27 param rule) and frame Scope slot ordering. Without locals: works. Fix hypothesis: separate formal params from globals in `g_pas_arrays` (add `is_param` flag or a separate `g_pas_param_arrays` table checked by selector but skipped by program init loop).
+Probes: arr2dtype/arr2dtype2/arr2dtype3.
 
 NEXT — Lon picks:
-**(a) Fix 2D named-type array param + locals bug** (described above).
-**(b) PB-28** — any other construct.
-**(c) PB-24 3D** — extend to 3 dimensions.
+**(a) PB-29** — more named-type probes or another construct.
+**(b)** Any open bug (char-literal write; case no-match; __pbt/__pct clobber).
 
 
 ## Mechanism inventory (how it works NOW)
