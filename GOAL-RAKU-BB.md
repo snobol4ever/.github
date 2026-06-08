@@ -368,16 +368,6 @@ Raku source → raku.l / raku.y → tree_t* (TT_* AST)
 
 ---
 
-## 🔴🔴 #0 PRIORITY — BB-HYGIENE LADDER (RAKU) — ORDERED, DO FIRST (Lon 2026-06-01)
-
-Per the BB-HYGIENE FACT RULE. **STRICT ORDER — lowest number first.** After EACH step: Raku m3/m4 corpus held (18/22), Icon/SNOBOL4/Prolog siblings byte-identical, commit. Reference Raku box: `bb_binop_jct_relop.cpp` (RK-EMIT-3, already broken out by the worked example). The de-cram steps are prep; **RK-HY-4 (de-dup + RT-fix) is the core fix** — collapse any logic written twice.
-
-- [x] **RK-HY-0 — `bb_binop_jct_relop.cpp`.** ✅ DONE 2026-06-01. Junction-collapse relop is its own file.
-- [x] **RK-HY-1 — `bb_seq.cpp`.** ✅ DONE 2026-06-02. Split into 3 shape files (`bb_seq_gather`/`_flat`/`_passthrough`) behind a 34-line router; emit_core dispatch + decl unchanged. Behavior-neutral.
-- [x] **RK-HY-2 — `bb_nfa.cpp`.** ✅ DONE 2026-06-02. 9 ISOLATED IR_NFA_* leaves split one-box-one-file (`bb_nfa_passthrough`/`_char`/`_any`/`_class`/`_bol`/`_eol`/`_accept`); no router (the `emit_core` 9-case switch IS the router). Leaf semantics vs canonical `raku_re.c` `ss_add`. Family DORMANT (`~~` on C matcher); behavior-neutral.
-- [x] **RK-HY-3 — Raku arms of `bb_call.cpp`.** ✅ DONE 2026-06-03 (SCRIP `eef2621`). `bb_call_rk_arr_str` (the `dval==2.0` `rt_call_arr` box) extracted from `bb_call.cpp` into `bb_call_rk.cpp`; router declares `extern bb_call_rk_arr_str` and calls it; `emit_core` dispatch + `bb_templates.h` UNCHANGED (router stays Icon's). `marshal_call_arg` left in the router as a NON-STATIC shared helper (now also called by SNOBOL4's `bb_call_gvar_*` boxes from peer `24c593b` — generic marshalling, not port logic); `bb_call_rk.cpp` declares it `extern`. Makefile +1 src +1 rule. Behavior-neutral (m2 25/25, m3 1/20/4, m4 2/19/4 pre==post; SNOBOL4 7/7 m3 5, Icon 12/12, Prolog 5/5; purity 3 ≤ 8).
-- [ ] **RK-HY-4 — de-dup + RT-fix, all Raku boxes.** Any algorithm in both media → one `rt_*` call. No emit-time value work. (Done-bar `m3/m4 18/22` unreachable until Icon lands the descr-mode `IR_ASSIGN` ζ-slot store — see Watermark.)
-- [ ] **RK-HY-FENCE — gate.** `scripts/test_gate_bb_one_box.sh` green for Raku-owned files; siblings byte-identical.
 
 ## The insight (Raku is a Seq language → ONE four-port pull protocol)
 
