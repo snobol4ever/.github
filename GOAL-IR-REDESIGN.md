@@ -149,6 +149,30 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
+**IRD-4 ATTEMPT (delete-fields-first, per Lon) — BLOCKED ON α BY IR_SCAN; β CLEAN. (2026-06-08,
+Opus 4.8, "remove bogus fields FIRST then fixup, 5 min"). Executed the delete-first plan: bulk-swept
+all 186 always-NULL α/β READS -> ((IR_t*)0) across IR_interp.c(126)/emit_bb.c(33+1 chained
+bb_child0(pBB)->β)/emit_core.c(4)/scrip.c(1)/prove_lower.c(16) — COMPILES + BYTE-IDENTICAL (verified:
+5 sweeps + 4 smokes identical, prove_lower cols 3-4 stay -1 -1 since idx_of(NULL)=-1, PASS=68). The
+bb_every/bb_cell_ite 'body.β/Then.α/Else.α' + emit_bb 'bb->α' hits were FALSE POSITIVES (string/
+comment text, not field access). raku_nfa MIGRATED off α/β -> operands (3 edits: drop dead α
+self-loop@154, SPLIT out2 β->ir_operand_push@158, reader s->β->ir_pair_arg(s,0)@77).
+*** CENSUS CORRECTION (supersedes the entry below): α is NOT dead-storage — IR_SCAN WRITES it. ***
+Field deletion BROKE at emit_bb.c:2689 & :2800 (lvalue error): both chain-walkers
+(descr_chain_arity / gvar_chain_arity), arity-1 case, do `if (n->t != IR_SCAN){...operands...} else {
+n->α = stk[sp-1]; }` — α is IR_SCAN's LIVE SUBJECT SLOT, distinct from its operands (which hold
+IRD-3a type-punned subj/repl GRAPHS). Census missed it (buried in conditional else). So:
+  • β — CLEANLY DELETABLE NOW (only raku_nfa used it, now migrated; ~5 min as Lon said): β-reads->NULL
+    sweep + raku_nfa(done) + delete β field. No SCAN entanglement.
+  • α — BLOCKED. Needs the SCAN joint pattern-BB ruling (Lon): where does SCAN's subject go in
+    operands[] without colliding with the subj/repl graph slots? Cannot freelance (RULES reserve it).
+REVERTED the α-touching sweep -> main green at SCRIP ab515ff (now absorbed into BB-FIXUP's 42f07cd).
+raku_nfa migration HELD UNCOMMITTED + UNVERIFIED: smoke_raku is 100% PRE-EXISTING FAIL (Tiny-Raku
+frontend on-hold/broken — every rung 'say string literal'/arithmetic returns EMPTY output), so the
+suite is byte-identical but does NOT exercise the migrated NFA SPLIT path. DECISIONS NEEDED: (1) SCAN
+α->operands slot ruling (unblocks α); (2) commit raku_nfa now (mechanically correct, removes β's last
+writer) or hold for a real raku regex test; (3) land β-only deletion now as the clean partial win?**
+
 **IRD-4 PREP + STRATEGIC FINDING — ✅ LANDED ab515ff (2026-06-08, Opus 4.8, "I want what you
 want"). HOW-SOON-TO-DELETE-α/β ANSWERED: α/β are ALREADY DEAD STORAGE for 6 of 7 languages.
 Whole-pipeline α/β WRITER census (arrow+dot+all forms): the ONLY non-NULL writers are
