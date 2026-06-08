@@ -149,16 +149,27 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**IRD-3(c) GZ-SYNTH CLUSTER + gen_alt/arith_operands/SEQ_EXPR — ✅ LANDED ON MAIN at
-1d3b397 (2026-06-08, Opus 4.8, Lon attending). Recovery complete: reconstructed by taking the
-25 non-Pascal GZ files from origin/ird3-gz-recovery onto origin/main, then REBASED over a
-concurrent parallel push (M34-2-complete 2127c82, PB-24 2D-arrays f90afa4, FIX-7b x86_asm.h
-11a3062). IR_interp.c was the only shared file; its hunks were disjoint (M34=rt_is_cell 667-793,
-GZ=IR_interp_node 2504+) so the rebase auto-merged clean. Landed via GUARDED fast-forward (NO
-force) — a parallel push moved origin mid-session and the pre-push guard correctly aborted then
-rebased. Post-rebase gate GREEN: prove_lower PASS=68, prolog 5/5/5 (arith ratchet holds under
-M34-2-complete), icon m2 12 / m3 10 / m4 10 at floors. origin/ird3-gz-recovery now redundant —
-safe to delete on Lon's word.**
+**IRD-3 TO operand_aux fold (INTERP half) — ✅ LANDED ON MAIN at e8c9d49 (2026-06-08, Opus 4.8,
+Lon attending, "it's all on you"). v_to now populates node->operands[]=[lo,hi] (the aux SET is
+RETAINED, serving ONLY the emit slot machinery, not yet migrated). The IR_TO interp arm reads
+bounds via ir_pair_arg(bb,0/1) (Lc/Hc) instead of bb_operand_aux_get, and the static-ag guard
+tests the 'a' sval marker instead of !Lc&&!Hc. ROOT-CAUSE FINDING + NEW LAW: the aux kinds encode
+operands[]-EMPTINESS AS A STATIC-vs-DYNAMIC DISCRIMINATOR — TO's !Lc&&!Hc (ir_pair_arg is
+operands-first) double-served as "this is a static-ag node, read bounds from aux", so naively
+populating operands[] silently flipped static-ag TO into the dynamic branch (caught as roman.icn
+m2 -> empty in a reverted probe, then root-caused). Any operand_aux flip MUST re-express that
+discriminator on a real marker BEFORE populating operands[]. v_to (lower.c:252) is the SOLE IR_TO
+producer and never sets a/b, so the dynamic interp branch is unreachable and the change is
+byte-identical. GATE: 5 sweeps (sno153/icn9/pl8/sco191/pas5) byte-identical, prove_lower PASS=68,
+all smokes identical — VERIFIED ON TWO BASES (A/B bake vs fresh origin), landed via GUARDED
+fast-forward after absorbing 3 concurrent races (re-baseline 4554a14, M34-4, PB-28 71d0d49) by
+rebase+rebuild+re-gate each time.**
+
+**Prior milestone — IRD-3(c) GZ-SYNTH CLUSTER ✅ at 1d3b397 (git history + the
+HANDOFF-2026-06-07-*-IRD-3D/3E docs preserve the full recovery saga). origin/ird3-gz-recovery
+redundant, safe to delete on Lon's word. Workflow ruling STILL WANTED: the pre-push GUARD (assert
+origin/main == HEAD~1 else rebase, never --force) prevented races on BOTH the GZ session and this
+one — recommend mandating it as the standard push wrapper.**
 
 ### Done this session (all gated: full bake vs pristine = prove_lower LAW-6 col-7
 pointer ivals masked-identical PASS=68; all sweeps + smokes byte-identical; reconciled
@@ -196,9 +207,26 @@ GUARD (assert origin/main == HEAD~1 parent, else abort+rebase, never --force) is
 a THIRD incident this session when a parallel push moved origin mid-work; recommend adopting it
 as the standard push wrapper.
 
-### REMAINING IRD-3 (c): SCAN subject a (joint pattern-BB ruling); operand_aux sub-cluster
-(LOAD-BEARING, 8+ live get callers, LAST); raku_nfa_bb.c 154/158 a-writers (Lon ruling: missed
-cluster vs NFA exemption). Then IRD-4 (gamma/omega -> IR_ref_t, delete a/b, t->op; iref() carrier
-already exists) -> IRD-5 (sizeof fence + ARCH-IR.md).
+### REMAINING IRD-3 (c) — operand_aux retirement, now kind-by-kind GATED flips (TO interp DONE
+e8c9d49). Each flip: re-express the kind's discriminator off operands[]-emptiness FIRST, then
+populate operands[], migrate consumers, and A/B-gate vs a FRESH origin bake (concurrent
+BB-FIXUP/Pascal pushes are constant — 3 races this session alone):
+- TO **emit** half: bb_to.cpp op_sa/op_sb are fed by the descr_chain_arity slot path; move that
+  source off aux, then DROP the v_to aux SET (TO fully migrated). The reverted probe proved
+  operands[] population does NOT disturb smoke_icon m3/m4, so emit reads slots/chain not aux —
+  verify the op_sa/op_sb assignment site before flipping.
+- BINOP — EASIER profile than TO: its interp guard reads the a/b FIELDS (!bb->a && !bb->b), NOT
+  ir_pair_arg, so populating operands[] does NOT flip it. Producers lower.c:230 +
+  lower_pascal.c:51/68/80; consumers interp 325(gen_resume)/2616 + the emit op_a_* feed across
+  bb_binop_*/bb_gvar_assign/bb_assign_frame_ref/bb_call (BB-FIXUP-owned — coordinate/rebase).
+- ALT/DISJ arm-lists: interp 3009/4493, scrip 113/1012, emit 321/697 + bb_alt.cpp.
+- APPLY/call-args: lower.c:103 + lower_prolog.c:115; consumers bb_call.cpp:94 + emit 366/388.
+- single-child: lower.c:494.
+- THEN DELETE bb_operand_aux_set/get + the operand_aux field/typedef (IR.h + scrip_ir.c).
+- STILL PENDING LON RULINGS (unchanged): SCAN subject a (joint pattern-BB owner); raku_nfa_bb.c
+  154/158 a-writers (missed cluster vs NFA exemption) — both cleaner to absorb at IRD-4 since
+  their a/b writes change with the carrier type anyway.
+Then IRD-4 (gamma/omega -> IR_ref_t, delete a/b, t->op; iref() carrier already exists; lower_sno
+is AG-clean, should need zero touches) -> IRD-5 (sizeof fence + ARCH-IR.md).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
