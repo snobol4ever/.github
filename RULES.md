@@ -2,7 +2,7 @@
 
 ## ⛔ ABSOLUTE RULES (violations = rejection)
 
-**DO NOT READ BB-REVAMP-TRACKER.md.** It is large, unrelated to B-ladder or mode-4 bug fixing, and eats context. Never open `SCRIP/BB-REVAMP-TRACKER.md` in any SNOBOL4-BB session.
+**DO NOT READ BB-REVAMP-TRACKER.md.** It is large, unrelated to B-ladder or mode-4 bug fixing, and eats context. Never open `.github/BB-REVAMP-TRACKER.md` in any SNOBOL4-BB session.
 
 **DO NOT READ UNRELATED GOAL FILES.** When working GOAL-SNOBOL4-BB.md, do NOT open GOAL-BB-FIXUP.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-PASCAL-BB.md, or any other goal file. Read only the goal Lon names.
 
