@@ -149,9 +149,16 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**OPEN — IRD-3 bulk (c): GZ-SYNTH CLUSTER COMPLETE + gen_alt/arith_operands/SEQ_EXPR done
-(2026-06-08, Opus 4.8, Lon attending). ⚠ WORK IS ON BRANCH origin/ird3-gz-recovery,
-NOT main — TWO force-push incidents this session erased it from main (see INCIDENT).**
+**IRD-3(c) GZ-SYNTH CLUSTER + gen_alt/arith_operands/SEQ_EXPR — ✅ LANDED ON MAIN at
+1d3b397 (2026-06-08, Opus 4.8, Lon attending). Recovery complete: reconstructed by taking the
+25 non-Pascal GZ files from origin/ird3-gz-recovery onto origin/main, then REBASED over a
+concurrent parallel push (M34-2-complete 2127c82, PB-24 2D-arrays f90afa4, FIX-7b x86_asm.h
+11a3062). IR_interp.c was the only shared file; its hunks were disjoint (M34=rt_is_cell 667-793,
+GZ=IR_interp_node 2504+) so the rebase auto-merged clean. Landed via GUARDED fast-forward (NO
+force) — a parallel push moved origin mid-session and the pre-push guard correctly aborted then
+rebased. Post-rebase gate GREEN: prove_lower PASS=68, prolog 5/5/5 (arith ratchet holds under
+M34-2-complete), icon m2 12 / m3 10 / m4 10 at floors. origin/ird3-gz-recovery now redundant —
+safe to delete on Lon's word.**
 
 ### Done this session (all gated: full bake vs pristine = prove_lower LAW-6 col-7
 pointer ivals masked-identical PASS=68; all sweeps + smokes byte-identical; reconciled
@@ -180,29 +187,14 @@ repaired it. Live IRD-2b-class fix, not refactor anomaly.
 - flat_drive_gz_query gamma-walks = legitimate success wiring, NOT chain-edge abuse; stay until
   IRD-4 carrier-type change.
 
-### ⚠⚠ INCIDENT — TWO FORCE-PUSHES erased pushed history this session:
-1. M34 (Prolog) session force-reset origin from a STALE clone: erased my pushed gz commits
-   c526ad3/f8b3a91/fb4ffcc AND reverted session-H work (21add4c ring writer flip, 6c12e26
-   seq_node_label deletion resurrected). Recovered by restoring src/+Makefile from fb4ffcc and
-   replaying M34/FIX-7a intended deltas (cherry-pick 090c28c dd6b5b7 7c7fe07; conflicts resolved
-   take-theirs + la/rb defs corrected rhs->a/b => ir_pair_arg). libscrip_rt.so needed FORCED
-   rebuild (rm first) — pattern-template objects (B3) were stale.
-2. Pascal-BB then landed on the M34 line (origin/main now 6b4ff36), still WITHOUT my gz cluster.
-I did NOT force-push to fix (that is the disease). LON: WORKFLOW RULING NEEDED — mandate
---force-with-lease / ban resets / require pull-rebase-before-push.
-
-### RECOVERY (next session — do NOT wholesale-restore, it clobbers Pascal):
-1. git fetch; branch from origin/main (6b4ff36).
-2. git cherry-pick c526ad3 f8b3a91 fb4ffcc  (the 3 erased gz commits as deltas; conflicts only
-   in bb_det_is/bb_is_cmp where M34 re-landed — keep ir_pair_arg + rt_is_cell, EXACT resolution
-   recorded on origin/ird3-gz-recovery commit 4a8236b). Then gen_alt+arith_operands+SEQ_EXPR.
-   OR simplest: diff origin/ird3-gz-recovery against origin/main, re-apply the src delta onto a
-   fresh Pascal-based branch (the recovery branch IS the full reconciled tree, sans Pascal PB-26).
-3. rm -f out/libscrip_rt.so; apt-get install -y libgc-dev; make; make libscrip_rt; full bake
-   scripts/bake_ird3_baseline.sh; expect arith 5/5, LAW-6 only. Push with --force-with-lease ONLY
-   after confirming no new origin movement.
-4. Then prune IRD-3(c) ladder: gz-synth + emit_bb arm-via-omega + bb_call.cpp:93 + SEQ_EXPR
-   residue are DONE; flat_drive_gz_query gamma resolved-by-analysis.
+### HISTORY (resolved — git preserves full detail): the IRD-3c gz commits c526ad3/f8b3a91/
+fb4ffcc were erased from main by TWO force-pushes (a stale-clone reset, then a Pascal/M34
+landing), preserved meanwhile on origin/ird3-gz-recovery (reconciled tree 4a8236b), and
+re-landed this session as recorded in the watermark above. LON: WORKFLOW RULING STILL WANTED —
+mandate --force-with-lease / ban hard resets / require fetch+rebase-before-push. The pre-push
+GUARD (assert origin/main == HEAD~1 parent, else abort+rebase, never --force) is what prevented
+a THIRD incident this session when a parallel push moved origin mid-work; recommend adopting it
+as the standard push wrapper.
 
 ### REMAINING IRD-3 (c): SCAN subject a (joint pattern-BB ruling); operand_aux sub-cluster
 (LOAD-BEARING, 8+ live get callers, LAST); raku_nfa_bb.c 154/158 a-writers (Lon ruling: missed
