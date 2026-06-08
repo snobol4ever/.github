@@ -149,6 +149,19 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
+**IRD-3 TO emit half — ✅ LANDED ON MAIN at 187ae78 (2026-06-08, Opus 4.8, Lon attending,
+"your choice, continue"). TO NOW FULLY MIGRATED OFF operand_aux. Dropped the dead
+bb_operand_aux_set in v_to (lower_value.c:224): consumer census proved NOTHING reads IR_TO's
+aux — interp reads operands[] via ir_pair_arg (e8c9d49), emit reads flat_drive_to via
+bb_child0/bb_child1 (operands-first dual-read, slots derived by bb_slot_get on the operand node).
+The two emit_bb aux GETs at 2558/2617 serve IR_REF_INVARIANT; 321/366/388/697/2432 serve ALT
+arm-lists + chain-children; bb_alt.cpp:34 + scrip.c:113/1033 are ALT; bb_call.cpp:94 is CALL —
+none TO. So the v_to aux SET was a dead write; deleting it is byte-identical (operands push lines
+RETAINED unchanged). GATE vs pristine bake: 5 sweeps (sno153/icn9/pl8/sco191/pas5) BYTE-IDENTICAL,
+5 smokes (icon/prolog/snobol4/raku/rebus) BYTE-IDENTICAL, prove_lower col-7-pointer-ival-masked
+IDENTICAL PASS=68 rc=0, IR_TO live m2=m3=m4 (every write(1 to 5)+(2 to 10 by 3) -> 1 2 3 4 5 / 2 5 8
+on all three modes). Pre-push GUARD passed clean (origin/main==HEAD~1, no race this push).**
+
 **IRD-3 TO operand_aux fold (INTERP half) — ✅ LANDED ON MAIN at e8c9d49 (2026-06-08, Opus 4.8,
 Lon attending, "it's all on you"). v_to now populates node->operands[]=[lo,hi] (the aux SET is
 RETAINED, serving ONLY the emit slot machinery, not yet migrated). The IR_TO interp arm reads
@@ -207,17 +220,19 @@ GUARD (assert origin/main == HEAD~1 parent, else abort+rebase, never --force) is
 a THIRD incident this session when a parallel push moved origin mid-work; recommend adopting it
 as the standard push wrapper.
 
-### REMAINING IRD-3 (c) — operand_aux retirement, now kind-by-kind GATED flips (TO interp DONE
-e8c9d49). Each flip: re-express the kind's discriminator off operands[]-emptiness FIRST, then
+### REMAINING IRD-3 (c) — operand_aux retirement, now kind-by-kind GATED flips (TO FULLY MIGRATED
+187ae78). Each flip: re-express the kind's discriminator off operands[]-emptiness FIRST, then
 populate operands[], migrate consumers, and A/B-gate vs a FRESH origin bake (concurrent
-BB-FIXUP/Pascal pushes are constant — 3 races this session alone):
-- TO **emit** half: bb_to.cpp op_sa/op_sb are fed by the descr_chain_arity slot path; move that
-  source off aux, then DROP the v_to aux SET (TO fully migrated). The reverted probe proved
-  operands[] population does NOT disturb smoke_icon m3/m4, so emit reads slots/chain not aux —
-  verify the op_sa/op_sb assignment site before flipping.
-- BINOP — EASIER profile than TO: its interp guard reads the a/b FIELDS (!bb->a && !bb->b), NOT
-  ir_pair_arg, so populating operands[] does NOT flip it. Producers lower.c:230 +
-  lower_pascal.c:51/68/80; consumers interp 325(gen_resume)/2616 + the emit op_a_* feed across
+BB-FIXUP/Pascal pushes are constant — 3 races last session alone):
+- BINOP — NEXT. EASIER interp profile than TO: its interp guard reads the a/b FIELDS
+  (!bb->a && !bb->b), NOT ir_pair_arg, so populating operands[] does NOT flip the INTERP arm.
+  ⚠ EMIT HAZARD (found this session, 187ae78 census): the emit IR_BINOP case (emit_bb.c:2207)
+  reads children via bb_child0/bb_child1 which are operands-FIRST-then-field, and its
+  g_gvar_flat_chain arith/relop arms GUARD on `&& bb_child0(nd) && bb_child1(nd)` — for a
+  v_binop BINOP those are NULL today (aux-only), so pushing operands[] would newly-SATISFY those
+  guards = a TO-style discriminator flip on the EMIT side. Re-express that emptiness guard on a
+  real marker BEFORE populating, exactly as TO required. Producers lower.c (v_binop, lower_value.c:188)
+  + lower_pascal.c:51/68/80; consumers interp 325(gen_resume)/2616 + the emit op_a_* feed across
   bb_binop_*/bb_gvar_assign/bb_assign_frame_ref/bb_call (BB-FIXUP-owned — coordinate/rebase).
 - ALT/DISJ arm-lists: interp 3009/4493, scrip 113/1012, emit 321/697 + bb_alt.cpp.
 - APPLY/call-args: lower.c:103 + lower_prolog.c:115; consumers bb_call.cpp:94 + emit 366/388.
