@@ -149,6 +149,25 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
+**RAKU-NFA NOW COMMITTED (resolves decision 2 below) + honest scope. (2026-06-08, Opus 4.8, "Yes
+migrate to operands; remove fields first, 5 min" — a SECOND IR-REDESIGN session, coordinating with
+the delete-first session's entry directly below; identical diagnosis reached independently.) Per
+Lon's "Yes, migrate to operands," committed the raku_nfa α/β->operands migration at SCRIP 3a0bf21
+(rebased onto BB-FIXUP 69b3417; prove_lower rc=0; raku NFA isolation re-confirmed — IR_NFA_*/raku_nfa
+absent from shared interp/emit, so the delta cannot move any gated artifact). This REMOVES β's LAST
+WRITER pipeline-wide (β now has ZERO writers -> the β-only-deletion raku prerequisite is MET) and α's
+self-loop write (α's sole remaining writer is now the 2 IR_SCAN subject sites). CAVEAT (in commit):
+smoke_raku is pre-existing-FAIL, so the SPLIT path is byte-identical but behaviorally UNVERIFIED;
+raku is on hold so verification defers to resumption regardless. STILL OPEN for Lon: the SCAN
+α->operands slot ruling (decision 1) — the SOLE remaining α blocker; precise sites in the entry
+below (writes emit_bb.c:2689/2800; reads emit_core.c:386 + emit_bb.c:2038/2576/2589/2627). HONEST
+SCOPE CORRECTION on "5 min": the β-only deletion is the clean partial win but is a ~50+-site
+byte-identical bb->β-read->NULL sweep across IR_interp.c + emit_bb.c (incl IR_EXEC(bb->β)/walk_bb_flat
+/bb->β->t·γ) — minutes of edits but error-prone; best run ATOMICALLY in a fresh context (delete field
+-> compiler flags every site -> fix -> gate -> commit) to honor the no-broken-commit rule, not
+started near a context limit. Recommend: (a) land β-only deletion fresh; (b) Lon rules SCAN α slot;
+(c) α deletion + t->op + γ/ω->IR_ref_t follows.**
+
 **IRD-4 ATTEMPT (delete-fields-first, per Lon) — BLOCKED ON α BY IR_SCAN; β CLEAN. (2026-06-08,
 Opus 4.8, "remove bogus fields FIRST then fixup, 5 min"). Executed the delete-first plan: bulk-swept
 all 186 always-NULL α/β READS -> ((IR_t*)0) across IR_interp.c(126)/emit_bb.c(33+1 chained
