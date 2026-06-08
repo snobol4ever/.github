@@ -123,24 +123,25 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   (415e465 gate), 153/153 identical on idle re-run; pre-existing,
   bump the timeout when convenient.
 
-- [ ] **IRD-4b — CARRIER FLIP: γ/ω become IR_ref_t; t→op rename.**
+- [ ] **IRD-4b — CARRIER FLIP: γ/ω become IR_ref_t.** (t→op rename DONE
+  + pushed, SCRIP `aae8686`; grep '->t' == 0 in pure consumers, baselines
+  byte-identical, 35-file 761/761 pure rename.) REMAINING = carrier flip:
   Change IR_t.γ/ω from IR_t* to IR_ref_t{node, sz}. Every wire write
   states its target block: strcpy(r.sz,"α") fresh-entry, "β" resume
   (conjunction right-ω→left-β, every body→expr-β, etc. per irgen.icn).
   Interp/emitter follow ref.node + dispatch on ref.sz[1] (0xB1/0xB2).
   Chain-edge abuses of γ/ω (arm lists via ->ω, arg lists via ->γ)
-  already migrated in IRD-3. Rename t→op (⚠ disambiguate from tree_t->t
-  — IR consumers only; iref() carrier already exists). DO NOT change γ/ω
-  SEMANTICS — only carrier type (all targets currently fresh-entry, so
+  already migrated in IRD-3. iref() carrier already exists. DO NOT change
+  γ/ω SEMANTICS — only carrier type (all targets currently fresh-entry, so
   sz="α" initially preserves behavior; β-targeting is a later semantic
-  step). GATE: build green; full suites; grep '->t\b' == 0 in IR
-  consumers; baselines identical. Best done fresh + atomic.
+  step). GATE: build green; full suites; baselines identical. Fresh +
+  atomic; NO safe partial (field-type change breaks every deref at once).
 
 - [ ] **IRD-5 — FENCE: audit + doc.**
   sizeof(IR_t): BEFORE 64 (t+α+β+γ+ω+operands+n_operands+idx+own), AFTER
   α/β deletion 48 (53f861b). MEMBER COUNT NOW 7 (target met:
-  t,γ,ω,operands,n_operands,idx,own — only t→op rename + γ/ω carrier-type
-  remain, IRD-4b). Grep gates: no ->value/->counter/->state outside exec
+  op,γ,ω,operands,n_operands,idx,own — t→op DONE aae8686; only γ/ω
+  carrier-type remains, IRD-4b sub-task 2). Grep gates: no ->value/->counter/->state outside exec
   sidecar; no ->sval/->ival/->dval outside lit sidecar; IR_t struct has
   exactly 7 members (5 ratified + idx/own sidecar key, Lon ruling
   2026-06-07). ARCH-IR.md currently documents tree_t (AST) + the SM/broker
@@ -156,6 +157,36 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 - Change γ/ω SEMANTICS — only their carrier type.
 
 ## Watermark
+
+**▶ HANDOFF (2026-06-08, Opus 4.8) — IRD-4b SUB-TASK 1 (t→op) DONE + PUSHED. SHAs: SCRIP `aae8686`,
+.github THIS COMMIT — SCRIP builds green from clean (scrip + libscrip_rt), pushed to origin. Re-bake
+recipe + PASS criteria UNCHANGED (see the demoted block directly below). DONE THIS SESSION: the IR_t
+kind field renamed `IR_e t -> IR_e op` across every consumer that touches it — IR_interp.c, all
+emitter/** (BB_templates + emit_bb.c + emit_core.c), scrip_ir.c (alloc+dump), the AST→IR producers'
+IR-side accesses (lower_program.c, lower_value.c, driver/scrip.c gz-synth, parser/raku/raku_nfa_bb.c),
+runtime/unification.c, and the SEPARATELY-COMPILED harnesses tools/prove_lower.c +
+tools/emit_per_kind_audit.c (⚠ NOT built by `make` — the gate caught them; a future field-touching
+step MUST include them). tree_t (AST) ->t left untouched, verified PER-LINE (textual `->t` count ==
+compiler-flagged count on every edited line ⇒ no mixed IR_t/tree_t line was blanket-edited; the lone
+scrip.c tree_t->t and a 1-line lower_value mixed case were correctly excluded). GATE PASSED: clean
+build 0 errors both targets; grep '->t' == 0 in pure consumers (interp/emitter/scrip_ir); 5 sweeps
+(sno153/icn9/pl8/sco191/pas5) + 5 smokes byte-identical; prove_lower PASS=68 rc=0 byte-identical
+(col-7 ptr-masked). Changeset = clean 761/761 ins/del pure rename, 35 files. **IR_t is now {op, γ, ω,
+operands, n_operands, idx, own}.** NEXT = **IRD-4b SUB-TASK 2 — γ/ω CARRIER FLIP** (do FRESH + ATOMIC;
+⚠ NO SAFE PARTIAL — changing the γ/ω field type breaks every deref at once, so it is all-or-nothing
+through to green build + byte-identical gate + commit; do NOT start near a context limit). Change
+IR_t.γ/ω from IR_t* to IR_ref_t{node, sz[4]}; interp/emitter follow ref.node + dispatch on ref.sz[1]
+(0xB1='α' fresh / 0xB2='β' resume); iref() carrier helper already exists — update it. DO NOT change
+γ/ω SEMANTICS: every current target is fresh-entry, so set sz="α" UNIFORMLY first (behavior-
+preserving); β-targeting wires (conjunction right-ω→left-β etc. per irgen.icn) are a SEPARATE later
+semantic step. Then IRD-5 (sizeof fence already 64->48; ADD the IR_t struct-shape section to
+ARCH-IR.md — best done AFTER the carrier flip so γ/ω's type is documented correctly). NOTES: (a)
+src/parser/icon/icon_lex_test.c is DEAD/unbuilt and ALREADY-broken independent of this work — its 37
+"member t" errors are about IcnToken, NOT IR_t — out of scope, latent cleanup only. (b) bash_tool
+runs /bin/sh — use `bash -c` for process substitution; mask prove_lower col-7 with
+`awk '{if(NF>=7)$7="PTR";print}'`. (c) COORDINATE with BB-FIXUP — emit_bb.c is shared; the pre-push
+GUARD held (rebased cleanly onto concurrent FIXUP commits 793a613/ed50f54/97b5f5e — disjoint files,
+their bb_fail.cpp has zero IR_t refs); push code repos first, .github last, never --force.**
 
 **▶ HANDOFF (2026-06-08, Opus 4.8, Lon attending). SHAs: SCRIP `53f861b`, .github THIS COMMIT —
 SCRIP builds green from clean, pushed to origin. /tmp baselines are EPHEMERAL (gone next session) —
