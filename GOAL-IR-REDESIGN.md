@@ -123,21 +123,47 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   (415e465 gate), 153/153 identical on idle re-run; pre-existing,
   bump the timeout when convenient.
 
-- [ ] **IRD-4 — WIRES: γ/ω become IR_ref_t; α/β fields DELETED.**
+- [x] **IRD-4a — α/β FIELDS DELETED.** ✅ 53f861b (2026-06-08, Opus 4.8,
+  Lon attending, "remove bogus fields, deal with the fallout, leave them
+  removed"). α and β pointers gone from IR_t (+ allocator NULL-init);
+  sizeof(IR_t) 64 -> 48. SCAN RULING (Lon, this session) = operands[2]:
+  IR_SCAN's runtime subject node (formerly α's sole non-NULL writer, the
+  gvar-chain walker arity-1 else-branch) now lives in reserved operands[2]
+  via idempotent scan_set_subj_node(); operands[0]/[1] keep the IRD-3a
+  type-punned subj/repl GRAPHS; walkers already exempt IR_SCAN operands so
+  [2] is walker-safe; emit_core op_a read repointed (SCAN->operands[2],
+  others->operands[0]). 174 always-NULL α/β reads -> ((IR_t*)0) (IR_interp
+  126 / emit_bb 31 / prove_lower 16 / scrip 1) — all were already NULL at
+  runtime (β zero writers; α only the 2 rehomed SCAN sites), guards
+  (!bb->α&&!bb->β) already always-true, α/β tails already dead. 3 fprintf
+  error-string α/β left intact. DEFERRED (not in Makefile): emit_per_kind_
+  audit.c α/β writes. GATE: 5 sweeps byte-identical + 5 smokes (mod TIME) +
+  prove_lower col-7-masked PASS=68 rc=0; mode-3 SCAN (ANY+replacement) runs
+  correct; mode-4 non-literal SCAN bomb is pre-existing bb_scan_stmt.cpp
+  PB-RB stub, unrelated.
+- [ ] **IRD-4b — CARRIER FLIP: γ/ω become IR_ref_t; t→op rename.**
   Change IR_t.γ/ω from IR_t* to IR_ref_t{node, sz}. Every wire write
   states its target block: strcpy(r.sz,"α") fresh-entry, "β" resume
   (conjunction right-ω→left-β, every body→expr-β, etc. per irgen.icn).
   Interp/emitter follow ref.node + dispatch on ref.sz[1] (0xB1/0xB2).
   Chain-edge abuses of γ/ω (arm lists via ->ω, arg lists via ->γ)
-  already migrated in IRD-3. DELETE α/β fields; rename t→op.
-  GATE: build green; full suites; grep '->t\b' == 0 in IR consumers;
-  baselines identical.
+  already migrated in IRD-3. Rename t→op (⚠ disambiguate from tree_t->t
+  — IR consumers only; iref() carrier already exists). DO NOT change γ/ω
+  SEMANTICS — only carrier type (all targets currently fresh-entry, so
+  sz="α" initially preserves behavior; β-targeting is a later semantic
+  step). GATE: build green; full suites; grep '->t\b' == 0 in IR
+  consumers; baselines identical. Best done fresh + atomic.
 
 - [ ] **IRD-5 — FENCE: audit + doc.**
-  sizeof(IR_t) recorded before/after. Grep gates: no ->value/->counter/
-  ->state outside exec sidecar; no ->sval/->ival/->dval outside lit
-  sidecar; IR_t struct has exactly 7 members (5 ratified + idx/own
-  sidecar key, Lon ruling 2026-06-07). Update ARCH-IR.md.
+  sizeof(IR_t): BEFORE 64 (t+α+β+γ+ω+operands+n_operands+idx+own), AFTER
+  α/β deletion 48 (53f861b). MEMBER COUNT NOW 7 (target met:
+  t,γ,ω,operands,n_operands,idx,own — only t→op rename + γ/ω carrier-type
+  remain, IRD-4b). Grep gates: no ->value/->counter/->state outside exec
+  sidecar; no ->sval/->ival/->dval outside lit sidecar; IR_t struct has
+  exactly 7 members (5 ratified + idx/own sidecar key, Lon ruling
+  2026-06-07). ARCH-IR.md currently documents tree_t (AST) + the SM/broker
+  model, NOT the IR_t struct fields (the α/β/γ/ω there are conceptual
+  PORTS, still valid) — ADD an IR_t struct-shape section here after IRD-4b.
 
 ## DO NOT
 
@@ -149,31 +175,30 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**▶ HANDOFF (2026-06-08, Opus 4.8, ~84% ctx). SHAs: SCRIP `3a0bf21`, .github `c14d0310` — both
-clean, in sync, SCRIP builds green from clean. /tmp baselines are EPHEMERAL (gone next session) —
+**▶ HANDOFF (2026-06-08, Opus 4.8, Lon attending). SHAs: SCRIP `53f861b`, .github THIS COMMIT —
+SCRIP builds green from clean, pushed to origin. /tmp baselines are EPHEMERAL (gone next session) —
 re-bake before any gate: `make && make libscrip_rt && bash scripts/bake_ird3_baseline.sh <outdir>`.
 PASS = 5 sweeps (sno153/icn9/pl8/sco191/pas5) + 5 smokes byte-identical (ignore wall-clock TIME
 lines; smoke_raku is 100% PRE-EXISTING FAIL — Tiny-Raku frontend on hold) + prove_lower col-7(ptr)-
 masked PASS=68 rc=0 (3 inherited FAILs: PL-GZ-7 ITE-pair, PL-GZ-8 arith-is). bash_tool runs /bin/sh
 -> use `bash -c` for process substitution; mask col-7 with `awk '{if(NF>=7)$7="PTR";print}'`.
-STATE: raku_nfa migrated off α/β -> operands (committed 3a0bf21); β has ZERO writers pipeline-wide;
-the 4 shared accessors (bb_child0/1, ir_pair_arg, ir_call_arg) are operands-only. NEXT, in order:
-  1. β-ONLY DELETION — clean atomic win, NO ruling needed, do in a FRESH context. Method (Lon's
-     delete-first): delete β from IR_t struct (+ remove scrip_ir.c:216 NULL-init) -> compiler flags
-     ~50 `bb->β` reads in IR_interp.c + emit_bb.c (+ emit_core.c:731 bb_walk_rec) -> convert each to
-     NULL (all dead/always-NULL; WATCH IR_EXEC(bb->β) — sidecar macro, and walk_bb_flat(pBB->β,…) /
-     bb->β->t / bb->β->γ) -> gate byte-identical -> commit SCRIP, then update this watermark. Optional:
-     fix emit_per_kind_audit.c β-writes (NOT in Makefile, won't block the build).
-  2. α DELETION — BLOCKED on Lon's SCAN ruling: where does IR_SCAN's runtime SUBJECT live once α is
-     gone? (a 3rd slot operands[2], or relayout the IRD-3a punned subj/repl-GRAPH slots). Writes to
-     rehome: emit_bb.c:2689/2800 (both chain-walkers, arity-1 else-branch). Reads to repoint:
-     emit_core.c:386 + emit_bb.c:2038/2576/2589/2627. After the ruling it's mechanical (2 writes +
-     5 reads + remaining dead α-reads -> NULL).
-  3. CARRIER FLIP (IRD-4 finish): t->op rename; γ/ω from IR_t* -> IR_ref_t{node, sz[4]} dispatching on
-     sz[1]. Then IRD-5: sizeof fence + ARCH-IR.md. NOTE α/β-deletion is DECOUPLED from finishing IRD-3
-     (aux kinds survive via operands-empty->NULL in bb_child0). COORDINATE with BB-FIXUP — emit_bb.c is
-     shared; rebase + re-gate on guard trip, push code repos first, .github last. Full detail +
-     independent-confirmation history in the entries below.**
+STATE: **α AND β FIELDS DELETED from IR_t (53f861b)** — sizeof 64->48, member count now 7 (target).
+SCAN subject rehomed to operands[2] (Lon ruling this session); see IRD-4a above for full detail.
+IR_t is now {t, γ, ω, operands, n_operands, idx, own}. NEXT = IRD-4b CARRIER FLIP (do FRESH +
+ATOMIC, it is delicate):
+  1. t→op rename — ⚠ `->t` is AMBIGUOUS (tree_t/AST also uses ->t). Disambiguate: rename ONLY IR_t
+     consumers (interp/IR_interp.c, emitter/*, lower/*, contracts/scrip_ir.c, driver dispatch). Do a
+     scoped census first; the RULES "no ->t in modes 2/3/4" refers to AST tree_t, not IR_t. Gate
+     grep '->t\b' == 0 in IR consumers when done.
+  2. γ/ω carrier IR_t* -> IR_ref_t{node, sz[4]} dispatching on sz[1] (0xB1='α' fresh / 0xB2='β'
+     resume). DO NOT change γ/ω SEMANTICS — every current target is fresh-entry, so set sz="α"
+     uniformly first (behavior-preserving); β-targeting wires (conjunction right-ω→left-β etc. per
+     irgen.icn) are a SEPARATE later semantic step. iref() carrier helper already exists.
+  3. Then IRD-5: record sizeof fence (done: 64->48), ADD an IR_t struct-shape section to ARCH-IR.md
+     (it currently documents only tree_t/AST + the SM/broker model, NOT the IR_t struct). COORDINATE with BB-FIXUP — emit_bb.c is shared; the pre-push
+     GUARD (assert origin/main==HEAD~1 else rebase, never --force) caught a concurrent push this
+     session (e9e8b7f tracker-only); push code repos first, .github last. Full detail + independent-
+     confirmation history in the entries below.**
 
 **RAKU-NFA NOW COMMITTED (resolves decision 2 below) + honest scope. (2026-06-08, Opus 4.8, "Yes
 migrate to operands; remove fields first, 5 min" — a SECOND IR-REDESIGN session, coordinating with
