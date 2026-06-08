@@ -19,18 +19,20 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 30 (2026-06-08): PB-26 LANDED — named-type array var init fix.**
-Gate: **m2 77/0** over 78 probes (recursion.pas XFAIL).
-Commits: SCRIP `6b4ff36`, corpus `39d39d11`.
+**Session 31 (2026-06-07): PB-24 + PB-27 LANDED — 2D arrays and record value params.**
+Gate: **m2 86/0** over 87 probes (recursion.pas XFAIL).
+Commits: SCRIP `4f2ae74`, corpus `794a8c58`.
 
-**CRITICAL: Upstream force-push collision.** FIX-7a commit (`7c7fe07`) force-updated SCRIP main, erasing session 29 SCRIP commit `2daa9d0`. PB-24 (2D arrays) and PB-25 (matmul/markrel/forward1 probes) pascal.y code are **permanently lost**. Probes arr2d/arr2d2/arr2d3/arr2denum/matmul/markrel/forward1 removed from corpus. Must re-implement PB-24 2D arrays next.
+**PB-24:** 2D comma-syntax arrays. `type mat2 = array[0..1,0..1] of integer` parses and indexes correctly. `var_decl` registers flat high + ncols; `selector` desugars `a[i,j]` → `TT_IDX(a, i*ncols+j)` at parse time. Probes: arr2d/arr2d2/arr2d3/matmul.
 
-**PB-26 bug (named-type array vars):** `type vec = array[0..4]; var v: vec` — `v` never registered in `g_pas_arrays[]` because `type → simple_type → IDENT "vec"` always returned -1 (array high was thrown away). Fix: added `g_pas_arrtypes[64]` table in `pascal.y`; `type_decl` registers named array types; `type → simple_type` now propagates high for named array types; `simple_type IDENT` looks up `g_pas_arrtypes`. Also: `lower_program.c` nparams redundancy clarified. New probes: `arrparam.pas`, `intparam.pas`, `realparam.pas`.
+**PB-27:** Record value params. `id_list COLON IDENT` param rule calls `pas_recvar_add_from_type` so `q.x` resolves at parse time inside callee. Also registers array-typed params. Probes: recparam/recparam2/recparam3/forward1/markrel.
+
+**OPEN BUG: 2D named-type array VALUE PARAM + locals.** When a procedure receives a named-2D-array type param AND declares local vars, the index is off by +1. Root cause: interaction between `g_pas_arrays` containing the formal param (added by PB-27 param rule) and frame Scope slot ordering. Without locals: works. Fix hypothesis: separate formal params from globals in `g_pas_arrays` (add `is_param` flag or a separate `g_pas_param_arrays` table checked by selector but skipped by program init loop).
 
 NEXT — Lon picks:
-**(a) PB-24 RE-IMPLEMENT** — 2D comma-syntax arrays (lost; see handoff for full recipe).
-**(b) PB-27** — record value params (same root cause; `recparam.pas` fails).
-**(c) More named-type value params.**
+**(a) Fix 2D named-type array param + locals bug** (described above).
+**(b) PB-28** — any other construct.
+**(c) PB-24 3D** — extend to 3 dimensions.
 
 
 ## Mechanism inventory (how it works NOW)
