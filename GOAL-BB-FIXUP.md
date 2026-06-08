@@ -31,6 +31,21 @@ The ONLY sanctioned pe-fix inside a `MEDIUM_BINARY` arm is the **literal Greek g
 6. **GATES ARE THE ONLY BRAKE.** No green → revert tree, tracker note, advance, commit.
 7. **CONTEXT-BUDGET HANDOFF (~70%).** Finish current file, commit, push, watermark, stop cleanly.
 
+## ⛔ OPERATING MODE v3 — ONE FILE · ALL RULES · ONE VERIFICATION (Lon 2026-06-08, 34th attended run)
+**Why:** the FIX-8 "dedicated census lap / ONE HELPER PER COMMIT" cadence (28th run) paid the full rebuild + 10-gate battery + asm-identity proof PER HELPER, when that cost is fixed PER FILE. Same total violations cleared, but the number of expensive verification passes collapses when a file's WHOLE conversion rides ONE battery. **The cross-cutting helper-hunt is RETIRED.** At each cursor stop, REGENERATE the cursor file to satisfy ALL CONVERSION RULES below, then run the PER-FILE CHECKS ONCE, commit the file, advance. GRAND now drops per-FILE (large chunks), not per-helper.
+**CONVERSION RULES** (apply every applicable one to the cursor file until `audit_bb_fixup_file.sh <file>` rc=0; these are the former ladder rungs, now per-file steps):
+- **R1 (was 8a) — TERSE COMMENT.** Each `x86("comment", …)` → the bare `IR_<KIND>` the box dispatches from (emit_core.c + scrip_ir.c name table); drop the rest. Counter-neutral; terseness only.
+- **R2 (was 8b) — INLINE MULTI-EMIT HELPERS.** Every helper composing ≥2 `x86`/`x86_*` emission calls (NOT the `bb_*_str` entry/arm) inlined verbatim at its call site(s) + deleted. KEEP: zero-emit "characters-on-a-line" fragment builders (label/value/slot computers spliced INTO one `x86()` operand) and the `x86()` primitive itself. Per-FILE all such helpers go in one commit (the prior one-helper-per-commit sub-rule is dropped). `scripts/audit_multi_emit_helpers.py` is now a per-file lookup ("does THIS file have one?"), not a cross-file worklist.
+- **R3 (was 9) — DE-ESCAPE ins*.** `x86("ins1"|"ins2"|"ins3"|"Lins1"|"Lins2", …)` are TEXT-only escape hatches emitting ZERO bytes in BINARY (a ONE-MEDIUM violation) → replace each with a real byte-emitting `x86()` form. Cat A (existing encoder) trivial; Cat B (needs new XK_RIPLBL `[rip+lbl]` / XK_LBLDIFF encoders) → add+byte-verify the encoder in x86_asm.h first, or if it blocks the file, [S]-note and route to the FIX-9 encoder task.
+- **R4 (was 7c) — V2 HYGIENE.** ONE return per PLATFORM via IF()/FOR() string combinators · kill signature-line decls + static-helper constellations · drop MEDIUM_* head wrappers (post-7b encoders are medium-complete) · 1-src-line == 1-asm-line (split multi-`x86(` lines) · ≤200 col · purge non-separator C comments (KEEP only the R1 box-name comment) · zero blank lines · add missing 120-char separators.
+- **R5 (SPEC) — ABSOLUTES.** zero raw bytes / MEDIUM_BINARY anywhere (`x86()` internals are the ONLY emitter) · zero emit_fmt() · real Greek α β γ ω · EMIT-BLIND (no neighbor inquiry — LOWER decides). If R4/R5 cannot be met without losing logic, the file is a **ONE-IR-ONE-LOGIC violator → [S] note naming the split**, routed to its split rung (FIX-3/FIX-4). PINNED splits execute as that file's conversion when the cursor lands on it; UNPINNED → one-session design spike + tracker note. Helper tolerance is NOT the out.
+**PER-FILE CHECKS** (run ONCE, after ALL rules applied — this is the amortized verification):
+- **C1** `build_scrip.sh` + `make libscrip_rt` green.
+- **C2 EMITTED-ASM IDENTITY** (30th-run standard; object-byte-identity INVALID at -O0): for EACH box the file changes, a corpus-firing probe → `--compile --target=x86` .s, `bbN+RESOLVE+.LcallN`-normalized A/B diff EMPTY (or the ONLY delta is the sanctioned R1 comment text); behavior m2/m3/m4 parity. Behavior-changing structural splits prove via prove_lower + gate-equivalence instead of empty diff.
+- **C3** full gate battery at floors: smoke m4 7/7 HARD · pat M4 19/0 · prove_lower 68P + 3 inherited FAIL rc=0 · prolog m2 5/5 HARD m3=m4 5/5 · purity 2 · bin_t 0 · medium_invisible ≤103 · handencoded 0 · vstack 3 · sno_pat_reg HARD.
+- **C4** rank: file TOTAL ↓, GRAND ↓, NO-GROWTH on every other file.
+- **C5** ONE commit (the whole file), `git pull --rebase`, push, cursor-advance tick IN the same commit.
+
 ## THE CURSOR
 `SCRIP/BB-REVAMP-TRACKER.md` header: `# CURSOR: <file>`. The tracker list is the ring — **DOCUMENT ORDER** since the 2026-06-06 rename (re-sort only at lap end, on Lon's word). End wraps to top: laps. Ticked files get a cheap re-audit on later laps (clean → free advance; dirty → un-tick, re-fix).
 
@@ -41,8 +56,8 @@ The ONLY sanctioned pe-fix inside a `MEDIUM_BINARY` arm is the **literal Greek g
 1. git pull --rebase. Read # CURSOR from tracker.
 2. HOT? (law 4) → advance cursor, commit "FIXUP cursor: skip <file> (hot)", GOTO 1.
 3. Per-file audit → clean? → advance cursor, commit, GOTO 1.
-4. Dirty → TIER H: REGENERATE whole to v2. TIER S pinned (design known): execute the rung — add IR kinds, split lower, new templates, dispatch, retire old. TIER S ambiguous (design unclear): one-session design spike, commit design note to tracker, execute next session.
-5. Build + full gate battery + (TIER H) asm-equivalence diff.
+4. Dirty → apply ALL CONVERSION RULES R1–R5 (OPERATING MODE v3): REGENERATE whole to v2 incl. inline EVERY multi-emit helper (R2) + de-escape ins* (R3) + terse comments (R1) + hygiene (R4) + absolutes (R5). TIER S pinned: execute the split as this file's conversion. TIER S ambiguous: one-session design spike + tracker note, execute next session.
+5. Run the PER-FILE CHECKS C1–C5 ONCE (build · emitted-asm identity per changed box · full gate battery at floors · rank no-growth).
 6. Green → tick + annotate + ADVANCE CURSOR → one commit → push. Red → revert, note, advance, commit, push.
 7. Context < ~70% AND Lon hasn't stopped? GOTO 1. Else: watermark, final push, stop.
 ```
