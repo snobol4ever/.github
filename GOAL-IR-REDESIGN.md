@@ -43,29 +43,28 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 - [ ] **IRD-3 — OPERANDS: α/β children → operands[]/n_operands.**
   STATUS: sno/icon/raku/pascal/program AND prolog lowering files
-  carry ZERO child α/β writes. IRD-3d COMPLETE (γ-chain STRUCT/
-  BUILTIN arg lists, pair cluster + ir_pair_arg, g_catch) and
-  IRD-3e-rest COMPLETE (icon LIST_BANG/EVERY/UNTIL/REPEAT +
-  IR_PROC_GEN self-loops DELETED — zero-reader census) this
-  session: commits 470cdd0 9134387 e7e1e22 415e465 28dad0b
-  5334ead 3cedeea faa9b52. Remaining lowering-side α/β writes
-  live ONLY in driver gz-synth + ring builders (bulk).
+  carry ZERO child α/β writes (IRD-3d/3e, session -G). RING
+  CLUSTER COMPLETE (session -H, commits 8af31d1 21add4c):
+  icn_ring_to_tree carries ZERO α/β writes; every ring-served
+  kind's interp arm (BINOP_GEN/TO/TO_BY/UNOP/NEG/POS/NONNULL/
+  NOT/SIZE) operands-first dual-read. SEQ α-orphan DELETED
+  (6c12e26): flat_drive_seq dead BFS + interp raku-SUSPEND arm
+  + tail, zero-writer + builder-source proven, bake-identical.
+  Remaining α/β writes live ONLY in driver gz-synth (+ raku NFA,
+  ruling pending below).
   REMAINING:
-  (c) BULK: icn_ring_to_tree (driver/scrip.c 89/92) BINOP/
-  UNOP arms still write α/β — its CALL arm CONVERTED to
-  operands[0] at CHAIN-2 — plus the interp tree reads those ring
-  shapes serve (BINOP ~2598 / UNOP ~2712 / SEQ ~2508 — icon/raku
-  scope); SCAN subject α (gvar writer ONLY — SCAN operands hold
+  (c) BULK: SCAN subject α (gvar writer ONLY — SCAN operands hold
   IRD-3a type-punned subj/repl GRAPHS so the slot map is a
   pattern-BB joint ruling; op_a, bb_walk_rec and both chain
   writers carry the SCAN exemption);
-  gz-synth (driver pl_gz_* writes α/β on synthesized CELL_UNIFY/
-  DET_IS/DET_CMP/DET_WRITE/ARITH-copy nodes at ~598/617-23/
-  652-3/673-7/683-4/693-5/701/882/917-8/944/952/961/1099 — emit
-  marshal arms + bb_det_is.cpp + bb_is_cmp rhs-ARITH internals +
-  bterm_arith all read that regime, already dual-read);
+  gz-synth (⚠ ACTIVE-CONCURRENT since 8f4f773 IRD-2b fix flipped
+  reader units[j]->β→operands[1] mid-session-H — FRESH census
+  mandatory before touching; driver pl_gz_* writes α/β on
+  synthesized CELL_UNIFY/DET_IS/DET_CMP/DET_WRITE/ARITH-copy
+  nodes ~598-1099 — emit marshal arms + bb_det_is.cpp + bb_is_cmp
+  rhs-ARITH internals + bterm_arith read that regime, dual-read);
   flat_drive_gz_query γ-walks ~572-595 (synthesized DET chains);
-  flat_drive_seq ~927 (raku/ring); emit_bb 2045 arm-list-via-ω;
+  emit_bb 2045 arm-list-via-ω;
   bb_call.cpp:93 CALL fallback helper; operand_aux callers fold
   in THEN operand_aux DELETED at sweep end — ⚠ LOAD-BEARING,
   census 2026-06-07-G: 8+ live get callers (emit_bb 315/360/382/
@@ -91,10 +90,19 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   guards that name a kind by sval/ival WITHOUT mentioning α/β
   hide parallel readers from α-keyed sweeps (pl_gz_rule_callee_body
   write arm, caught+fixed in 9134387) — grep by BUILTIN NAME too.
+  NEW LAW (8) (2026-06-07-H): writer censuses MUST include
+  dot-access / deref / memcpy write shapes, not just '->field ='
+  (broadened sweep caught only audit-tool dot-writes this time;
+  the shape gap was real).
   RESIDUE FLAGS (bulk scope): interp IF/WHILE/UNTIL/EVERY ->β
   then/body reads have ZERO writers in src (write census
   2026-06-07-D, re-verified -G at the 3e-rest flip) —
-  verify-then-delete candidates, NOT chain-fed.
+  verify-then-delete candidates, NOT chain-fed. interp
+  IR_SEQ_EXPR α-chain reads: same zero-writer class (census -H),
+  needs its own verify pass before deletion. raku_nfa_bb.c
+  154/158 NFA α writers (self-loop init + out2) are OUTSIDE this
+  goal's enumerated remaining list — LON RULING NEEDED: missed
+  cluster vs NFA exemption.
   COVERAGE GAP (fence-era, owner=admission layer NOT IRD): compound
   format/2 (format("~w~n",[42])) m3 ABORTS at PL-GZ FENCE
   ('not admitted by pl_gz_admit or pl_flat_body_root'), m4 rc=1
@@ -141,83 +149,78 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
-**OPEN — IRD-3d + IRD-3e COMPLETE (2026-06-07-G, Opus 4.8, Lon
-attending): prolog lowering AND icon-scope single-child carries
-fully on operands[]; PROC_GEN self-loops deleted.**
+**OPEN — IRD-3 bulk (c): RING CLUSTER + SEQ α-ORPHAN COMPLETE
+(2026-06-07-H, Opus 4.8, Lon attending).**
 This session, SCRIP commits (each fully gated, all pushed):
-470cdd0 γ-chain TEMPLATE consumers (9 files, strict count
-asserts, bnth deleted); 9134387 γ-chain WRITER FLIP (STRUCT
-228/253 MAKELIST cons-pairs, g_builtin 271) — REGRESSION CAUGHT
-IN-COMMIT: pl_gz_rule_callee_body write arm (scrip.c ~697) was a
-SECOND parallel gz write-arg reader whose guard names write by
-sval/ival only (no α mention → α-keyed census missed it;
-admission validates name+ival only so flipped bodies were
-ADMITTED then builder deref'd NULL) — gdb bt diagnosis, fixed
-via ir_call_arg(gg,0), post-fix residue audit banked; e7e1e22
-PAIR consumers + NEW ir_pair_arg(nd,j) in contracts/IR.h
-(operands-first else j?β:α) — flip-safety analysis: post-flip
-guards over-admit γ-chain 2-arg names ONLY where in-body is_cmp
-checks reject identically (519/686/953) or gz admission
-name-filters; NO separate name-set gate needed; 415e465 PAIR
-WRITER FLIP (178/193/208, A/B = exactly 6 BLTIN rows α+β→-1
-together); 28dad0b g_catch FLIP (zero α readers — all consumers
-read zc->catcher sidecar — but bare deletion forbidden:
-bb_walk_rec reaches the catcher subgraph through the child carry,
-d20c45e class; operands[0] preserves reachability); 5334ead
-IRD-3e-rest ICON FOUR KINDS (LIST_BANG 181 / EVERY 346 / UNTIL
-423 / REPEAT 436 → operands[0], REPEAT rp->γ=eα loop-back STAYS
-— A/B-proven γ=4 both sides; v_while precedent mirror: cond push
-only, β-body reads in those arms serve other producers and stay
-VERBATIM; writers+consumers one commit justified by
-single-consumer-per-kind dual-read); 3cedeea bb_term_io format
-a1 hybrid (a0->γ → ir_call_arg(pBB,1) ×2) + INHERITED-RED TRIAGE:
-BB-FIXUP b8e3a04's format/2-compound m3/m4 failure is
-worktree-PROVEN PRE-EXISTING at 6e3cb1e~1 — fence-era admission
-gap, NOT an IRD-3d interaction; faa9b52 PROC_GEN self-loops
-DELETED (zero-reader census; bb_walk_rec revisit-guard verified;
-operands-push rejected as arity/dump pollution; A/B EMPTY —
-runtime-synthesized graphs never in static prove corpus).
-GATES per commit: 5 sweeps (sno 153/icn 9/pl 8/pas 5/sco 191)
-byte-identical vs pristine /tmp/base_pre; 5 smokes clean;
-prove_lower PASS=68; pl smoke m2 5/5 HARD m3 3/2 m4 3/2; icon
-m2 12/12 HARD m3 10/2 m4 10/2; git-stash masked-ival A/B dump
-diff per writer flip showing EXACTLY the flipped kind's columns.
-RACES ABSORBED ×3 (BB-FIXUP b8e3a04 bb_term_io regen
-re-certified on my raced heads, their PUSH-RACE ABSORPTION note;
-27c797f pattern_match stub text — libscrip_rt rebuilt; b7a2717
-B0 AST-evaluator deletion) — each rebase followed by merged-tree
-rebuild + smoke re-verify; LAW: a clean rebase is NOT a gate,
-re-verify the merged head.
-LAWS RECORDED THIS SESSION: (4) freestanding RELATIVE γ-hops on
-fetched arg locals (a1 = a0->γ) escape α-keyed censuses — grep
-'->γ' per kind at every flip (bb_term_io 141/155). (5) guards
-naming kinds by sval/ival without α/β mention hide parallel
-readers — grep by BUILTIN NAME too (9134387). (6) prove_lower
-LVAR/ITE/GCONJ rows carry pointer-punned ivals — mask column 7
-before structural diff. (7) sno 100_roman_numeral.sno is a
-7.7-7.9s/8s timeout-boundary flake under load — idle re-run
-adjudicates.
+8af31d1 RING CONSUMERS — interp arms for every
+icn_ring_to_tree-served kind → operands-first dual-read
+(BINOP_GEN/TO/TO_BY hoisted ir_pair_arg Lc/Hc locals incl
+ring-mode discriminators; UNOP/NEG/POS/NONNULL/NOT/SIZE
+single-child c0 idiom; EVERY already dual since 3e); emitter
+side pre-verified dual BEFORE edits (flat_drive_* via
+bb_child0/1, bb_every.cpp via ir_call_arg,
+descr_chain_operand_refs already operands SCAN-exempt,
+bb_walk_rec operands-aware, ir_is_single_shot walks operands);
+m2-safety proof: lowering carries these kinds via
+γ-chain/aux/operands so α/β NULL in m2 — NULL-for-NULL
+identical. 21add4c RING WRITER FLIP — icn_ring_to_tree
+ar==2/ar==1 → operands[0..1], order [0]=left [1]=right matching
+ir_pair_arg + descr_chain_operand_refs; function now ZERO α/β
+writes; PROOFS: gdb live-path (pre-flip bp scrip.c:92 fires on
+write(*&subject) ring-live probe; post-flip ir_operand_push
+frame#1 = icn_ring_to_tree:94 same probe), stash A/B behavior
+parity ×2 probes (both hit PRE-EXISTING GROUND-ZERO-3
+rt_call_builtin abort downstream, rc=134 parity — B-ladder
+scope), static dump A/B EMPTY-class (ring conversion runs in
+m3/m4 driver AFTER --dump-bb, faa9b52 precedent). 6c12e26 SEQ
+α-ORPHAN DELETIONS — zero writers by broadened census (LAW 8) +
+builder proof (wire_seq γ-chains children, never stores
+node->α); deleted flat_drive_seq dead BFS (~45 lines, guard
+pair-jmp path IS the function, still serves SEQ + SEQ_EXPR
+dispatch) + orphan seq_node_label + interp raku-SUSPEND arm +
+tail return-α→NULL fold; dval==1.0 concat arm has no α
+dependence, STAYS; proof = bake byte-identity (A/B-EMPTY
+deletion standard).
+GATES per commit: full bake scripts/bake_ird3_baseline.sh diff
+vs pristine /tmp/base_pre = prove_lower col-7 pointer ivals ONLY
+(LAW 6) masked-identical PASS=68; 5 sweeps (sno 153/icn 9/pl 8/
+pas 5/sco 191) + 5 smokes byte-identical; icon m2 12/12 HARD
+m3/m4 10/2 floors.
+RACE ABSORBED ×1: pull-rebase pulled ed5fe6e + 8f4f773 (IRD-2b
+gz reader flip units[j]->β→operands[1], pl rungs m3 22→29) +
+0af3eb7 + 66c7bdf (BB-FIXUP bb_unify/bb_unop); merged head
+REBUILT + FULL RE-BAKE byte-identical (LAW: clean rebase is NOT
+a gate). gz-synth therefore ACTIVE-CONCURRENT — see REMAINING.
+COUNTS: IR_interp.c α/β refs 184→105; emit_bb.c →46;
+icn_ring_to_tree →0 writes.
+FINDING (IRD-4 lever): lower_internal.h iref() ALREADY writes
+IR_ref_t{node,"α"/"β"} — the target carrier exists in lowering.
 NEXT (goal order):
-1. Bulk stage (c) — START WITH ring BINOP/UNOP (scrip.c 89/92 +
-interp tree reads ~2508/2598/2712), then gz-synth regime, SCAN
-ruling (pattern-BB joint), flat_drive_gz_query γ-walks,
-operand_aux sub-cluster (LOAD-BEARING — see census above) LAST.
+1. Bulk (c) — gz-synth regime FIRST but FRESH census + IRD-2b
+coordination mandatory (8f4f773 owner active in those files);
+then SCAN ruling (pattern-BB joint), flat_drive_gz_query
+γ-walks, emit_bb 2045 arm-via-ω, bb_call.cpp:93, operand_aux
+sub-cluster (LOAD-BEARING) LAST. Residue verifies opportunistic:
+IR_SEQ_EXPR α-chain; raku_nfa ruling from Lon.
 2. IRD-4 → 3. IRD-5 (incl. prove_lower ops column + CATCH kname
 + sno sweep timeout bump).
-HANDOFF 2026-06-07-G CLOSED (Opus 4.8): SCRIP origin = faa9b52,
-.github origin = this commit; both trees CLEAN, all pushed. See
-HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-3D-3E-COMPLETE.md.
+HANDOFF 2026-06-07-H CLOSED (Opus 4.8): SCRIP origin = f06732d
+(6c12e26 + handoff doc), .github origin = this commit; both
+trees CLEAN, all pushed. See
+HANDOFF-2026-06-07-OPUS48-IR-REDESIGN-IRD-3C-RING-SEQ.md.
 Next session: clone/pull BOTH repos (authenticate origin with
 Lon's token: git remote set-url origin
 https://TOKEN@github.com/snobol4ever/<repo>), git identity
 LCherryholmes/lcherryh@yahoo.com per repo, apt-get install -y
-libgc-dev; make; make libscrip_rt (MANDATORY for m4), bake
-scripts/bake_ird3_baseline.sh /tmp/base_pre FOREGROUND BEFORE
-touching code, then bulk stage (c) per NEXT. Concurrent
-sessions: BB-FIXUP (owns BB_templates + BB-REVAMP-TRACKER.md,
-rebase before touching bb_*.cpp, answer tracker notes in commit
-messages not their tracker), B0 (runtime/AST purges), and
-pattern-BB design (joint owner of the SCAN-subject ruling).
-ALWAYS git pull --rebase both repos before working.
+libgc-dev; make; make libscrip_rt (MANDATORY for m4), clone
+canonical refs (proebsting/jcon + gtownsend/icon → refs/,
+gitignored), bake scripts/bake_ird3_baseline.sh /tmp/base_pre
+FOREGROUND BEFORE touching code, git pull --rebase both repos
+before working, then bulk (c) per NEXT. Concurrent sessions:
+IRD-2b/PROLOG (owns the gz reader sites — coordinate),
+BB-FIXUP (owns BB_templates + tracker, cursor at bb_var.cpp,
+rebase before touching bb_*.cpp), B0/B-ladder (runtime purges +
+GROUND-ZERO-3 box rebuilds), pattern-BB design (joint owner of
+the SCAN-subject ruling). ALWAYS re-verify any rebased head.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
