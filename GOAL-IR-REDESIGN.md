@@ -149,6 +149,29 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 
 ## Watermark
 
+**IRD-4 PREP + STRATEGIC FINDING — ✅ LANDED ab515ff (2026-06-08, Opus 4.8, "I want what you
+want"). HOW-SOON-TO-DELETE-α/β ANSWERED: α/β are ALREADY DEAD STORAGE for 6 of 7 languages.
+Whole-pipeline α/β WRITER census (arrow+dot+all forms): the ONLY non-NULL writers are
+raku_nfa_bb.c:154/158 (NFA self-loop α=b + out2 β; ISOLATED — consumed by its own nfa_bt_ir_*
+backtracker, IR_NFA_* appears NOWHERE in shared interp/emit) + emit_per_kind_audit.c (diagnostic
+tool, not pipeline) + scrip_ir.c:215 (allocator NULL-init). So SNOBOL/Icon/Prolog/Snocone/Rebus/
+Pascal nodes ALL have α/β==NULL always. KEY CONSEQUENCE: FIELD DELETION IS DECOUPLED FROM IRD-3
+COMPLETION — aux-using kinds (BINOP/ALT/APPLY/single-child) work via operands-empty->NULL in
+bb_child0, which `(n_operands>0)?operands[0]:NULL` reproduces exactly once α is gone. So α/β can be
+removed AFTER (1) raku_nfa migrated off α/β->operands[] (self-contained ~2 writes + its own readers;
+the 'Lon ruling pending' item — ruling is FORCED: can't keep a field one subsystem uses while
+deleting it) + (2) the reader sweep (mechanical, byte-identical: every ->α/->β read is NULL-valued
+or in a dead branch). NOT gated on finishing BINOP/ALT/APPLY operand migration. Estimate 2-3 focused
+sessions to fields-gone. THIS COMMIT = reader-sweep chunk 1: bb_child0/bb_child1 (emit_bb.c) +
+ir_pair_arg/ir_call_arg (IR.h) dropped their α/β/α-γ-chain fallback -> operands-only, byte-identical
+(raku NFA never reaches these; other nodes' α/β==NULL; IR_BINOP aux discriminator at emit_bb.c:2288
+preserved exactly). GATE: 5 sweeps (sno153/icn9/pl8/sco191/pas5) + smokes byte-identical (snobol4
+only a wall-clock TIME line), prove_lower col-7-masked PASS=68 rc=0. Guard passed clean.
+SUGGESTED LADDER REORDER FOR LON: promote α/β field-deletion ahead of full IRD-3 — gate it on
+raku_nfa + reader-sweep only. The remaining reader-sweep chunks: interp direct ->α/->β reads (all
+dead branches, e.g. BINOP arm fall-through, since the guard !bb->α&&!bb->β is now always-true) +
+emit EMIT-BLIND ->α->t residue + the audit-tool + raku_nfa. Then field delete + t->op + γ/ω->IR_ref_t.**
+
 **IRD-3 TO emit half — ✅ LANDED ON MAIN at 187ae78 (2026-06-08, Opus 4.8, Lon attending,
 "your choice, continue"). TO NOW FULLY MIGRATED OFF operand_aux. Dropped the dead
 bb_operand_aux_set in v_to (lower_value.c:224): consumer census proved NOTHING reads IR_TO's
