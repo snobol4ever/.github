@@ -462,6 +462,26 @@ generators (NEWFAIL=0 throughout). Live spec → `## NODE-EXACT CONVENTIONS`; op
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
 
+**▶ HANDOFF (2026-06-09, Sonnet 4.6, Lon "Continue") — LOWER REWRITE: LAD-3c pattern cluster landed; snobol4 121→130/153; snocone 142 held; icon 6 held; NEWFAIL=0. SHA: SCRIP `2354a73` (HEAD==origin/main, build GREEN rc=0, tree clean), .github THIS COMMIT.**
+
+**COMMITS THIS SESSION (one guarded push, NEWFAIL=0):**
+- `2354a73` LAD-3c patterns: PAT_ALT n-way chain (TT_ALT flattened left-recursively, right-to-left alloc, intermediate γ→final_alt); FAIL builtin → IR_FAIL (not PAT_DEFER); capture backtrack-ω: rc.ω→le_tail if consumer or capture operand; chained captures share single PAT_CAT (need_cat fires only when succ==pg->all[0]); lc_has_capture path: pre-alloc PAT_CAT, lower rc with succ=PAT_CAT, lower lc with succ=rc_entry, backtrack-ω via le_tail operand; lower_assign TT_ALT: flatten nested ALT tree, interleaved PATTERN_LIT+PATTERN_ALT alloc, intermediate ALT γ→next literal. NEW MATCHES: 048 REM.V, 049 ARB.V, 050/051 ALT 2/3-way, 052/054 ARBNO+RPOS, 053 P=alt value-assign, 055 chained captures, 057 FAIL. **sno 121→130/153**.
+
+**SCORES AT HANDOFF:** snobol4 **130/153** · snocone **142/142** · icon **6/8** · pascal **12/91** · NEWFAIL=0 everywhere.
+
+**REMAINING 23 DIFFERs (updated clusters):**
+- functions: 8 — DEFINE multi-proc (LAD-3e, blocked on Lon's API ruling)
+- capture: 3 — 060/062/063 (complex multiple-capture backtracking)
+- strings: 2 — cross/wordcount (complex SCAN with capture)
+- rung10: 3 — 1013/1015/1016
+- rung11: 2 — 1110/1112 arrays
+- keywords: 1 — 100_roman_numeral
+- library: 2 — test_case/test_stack
+- control: 1 — expr_eval
+- coverage: 1 — coverage_sno_nodes
+
+**NEXT-RUNG OPTIONS:** (a) LAD-3c remaining — capture 060/062/063 (multiple captures, complex backtrack ω chain); (b) LAD-2c Pascal control flow; (c) LAD-1a Icon queens (scope=global + generator procs).
+
 **▶ HANDOFF (2026-06-09, Sonnet 4.6, Lon "perform hand off") — LOWER REWRITE: SNOBOL4 LAD-3a through LAD-3h complete; sno153 climbed 0→120/153, NEWFAIL=0 throughout. SHAs: SCRIP `1d3f6c2` (HEAD==origin/main, build GREEN rc=0, tree clean), .github THIS COMMIT.**
 
 **COMMITS THIS SESSION (all on origin/main, guarded fast-forward, NEWFAIL=0 every rung):**
