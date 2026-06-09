@@ -278,18 +278,39 @@ nested functions — a pre-existing AST-printer bug, NOT in the `--dump-bb/bb2` 
 scores against BOTH sno153 (`test/snobol4/*.sno`) AND sco191 (`test/snocone` +
 `corpus/crosscheck/snocone`). Statement model: TT_STMT carries `:subj`/`:pat`/`:repl` +
 TT_GOTO_S/F/U; gotos wire onto γ/ω (the `stmt_subj` helper already extracts `:subj`).
-- [ ] **LAD-3a — goal-directed rewrite of `lower_snobol4_nl.c`.** Skeleton→goal-directed. Start
-  NON-pattern (assignment, arithmetic, write, function calls, goto control flow). GATE: first
-  SNOBOL MATCH.
-- [ ] **LAD-3b — value layer + statement/goto control flow.** ASSIGN, BINOP, CALL, `:subj`
-  extraction, S/F/U goto→γ/ω wiring, DEFINE function bodies. GATE: the goto/arith subset of sno153
-  climbs.
-- [ ] **LAD-3c — PATTERN MATCHING (the deep core).** `:pat`/`:repl` + pattern constructors
-  (concatenation, alternation `|`, deferred eval, conditional/immediate assignment, cursor,
-  builtin patterns). The bulk of SNOBOL semantics and the hardest part — stage sub-pattern by
-  sub-pattern, each gated. GATE: pattern programs MATCH; large-portion sno153 + sco191.
-- [ ] **LAD-3d — Snocone/Rebus deltas.** AST forms specific to Snocone/Rebus (not covered by the
-  SNOBOL core) surface as sco191 divergences; address them. GATE: large-portion sco191.
+LAD-3a ✅ DONE (SCRIP `bd1e868`, Sonnet) — goal-directed `lower_snobol4_nl.c` rewrite; first SNOBOL MATCH, sno 0→22.
+LAD-3b ✅ DONE (SCRIP `b28440b`/`1916489`, Sonnet) — value layer + S/F/U goto→γ/ω wiring; sno→104.
+LAD-3d ✅ DONE — **Snocone CLEAN SWEEP 0→142/142 (SCRIP `5a8968c`..`fbdd37f`, Opus, 7 rungs)**. The Snocone
+parser builds a DIFFERENT AST than SNOBOL4 (assignment = `TT_ASSIGN(VAR,RHS)` not `:eq/:repl`; control flow
+= TT_IF/TT_WHILE/TT_FOR/… not gotos). KEY SHAPES decoded: TT_ASSIGN routes to `lower_assign`; control-flow
++ decl statements PUNT to NULL (label chains to nxt) — UNLESS the oracle allocates an ORPHAN node: **TT_IF →
+bare `IR_IF` (γ=· ω=·), TT_WHILE → bare `IR_WHILE` + its condition lowered (γ=orphan, ω=WHILE); a TT_SCAN
+condition → bare orphan `IR_SCAN`; a TT_ASSIGN condition (`while(s=INPUT)`) → `lower_assign(γ=orphan, ω=WHILE)`.**
+The discriminator: oracle `[lower] UNHANDLED` reporting the construct's OWN kind ⇒ pure punt; reporting the
+BODY kind (116 TT_PROGRAM) ⇒ oracle allocated a node. Also: VLIST RHS (tuple `('','')`) → orphan ASSIGN;
+TT_SEQ statement subj (`%=` augmented assign) → orphan `IR_SEQ`; TT_ALT-of-literals pattern-VALUE assign
+(`p='foo'|'hello'`) → `DTP_ASSIGN`(ops:[ALT]) + `PATTERN_LIT`×n chained + `PATTERN_ALT` (entry=first lit).
+NOTE the PATTERN_*/DTP_ASSIGN value-assign family is DISTINCT from the PAT_*/match-context family below.
+- [ ] **LAD-3c — PATTERN MATCHING (the deep core; sno153 only — snocone is done).** 32 sno DIFFERs remain,
+  biggest cluster is patterns. **Capture backtrack-ω rule FULLY DERIVED + verified** (044/045/046/048/049/
+  052/054/061): in a concatenation [E₁..Eₙ], element Eᵢ's failure-ω = btarget(i); btarget(1)=FAIL;
+  btarget(i) = (E\_{i-1} is POS ? propagate E\_{i-1}.ω : resumption(E\_{i-1})); resumption(capture)=its inner
+  operand node, else the element node. RPOS shares `IR_PAT_POS` (`sval="r"`) so gate on `IR_PAT_POS` ALONE.
+  LANDED narrow case (SCRIP `7d326de`, Opus): capture.ω→preceding element when it is a deterministic consumer
+  (`is_pat_consumer`: LEN/TAB/RTAB/REM/BREAK/BREAKX/SPAN/ANY/NOTANY/LIT) — fixes 046, sno 120→121, no
+  regression. **TWO BLOCKERS for the general threading (both proven, both reverted as net-neutral):** (1)
+  concatenation is LEFT-ASSOCIATIVE — `lc` can be a sub-sequence, so `le`=lower_pat_node(lc) returns the
+  HEAD/leftmost, NOT the tail/immediately-preceding element the backtrack needs; `lower_pat_node` must gain a
+  TAIL out-param (leaf→itself, capture→wrapper, SEQ→tail of rc). (2) left-side captures (049 `ARB.V LEN(1)`,
+  052 `POS ARBNO.V RPOS`) need a structural `PAT_CAT` insertion the code only does for RIGHT-side captures.
+  FAIL builtin (057) is mis-lowered to `PAT_DEFER`; should be `IR_FAIL` node + backtrack-ω + PAT_CAT. The
+  ALTERNATION cluster (050/051/053, `PAT_ALT` match-context, n=6 vs mine n=4 for `'cat'|'dog'`) is a SEPARATE
+  mechanism from both the capture-ω work and the PATTERN_ALT value-assign path. GATE: pattern programs MATCH.
+- [ ] **LAD-3e — SNOBOL4 multi-proc DEFINE (8 `functions/*` programs, ~2× node ratio) — BLOCKED on Lon.**
+  Oracle emits one `; proc funcname` graph per DEFINE body; `lower_snobol4` returns ONE graph and scrip.c
+  calls it once. MUST NOT modify scrip.c. OPEN QUESTION: how to expose multi-proc through the single-graph
+  path? Other sno DIFFERs: capture 060/062/063, arrays 1110/1112 (label-wiring), strings cross/wordcount,
+  control/expr_eval, rung10 1013/1015/1016.
 
 ### Phase 4 — PROLOG (own goal-spine: clauses, unification, backtracking)
 Corpus = `test/prolog/*.pl` (pl8). Structurally distinct: clauses→goals, compound terms→IR_STRUCT
@@ -318,6 +339,52 @@ Snocone = **295 scoreable through the single `lower_snobol4`** (Phase 3) vs 91 f
 (Phase 2). Re-run any suite with `scripts/scoreboard.sh LANG` to refresh.
 
 ## Watermark
+
+**▶ HANDOFF (2026-06-09, Opus 4.8, Lon "Hand off") — LOWER REWRITE: SNOCONE CLEAN SWEEP 0→142/142 +
+SNOBOL4 120→121. SHAs: SCRIP `7d326de` (HEAD==origin/main, build GREEN rc=0, tree clean), .github THIS
+COMMIT. Eight guarded-push rungs this session, NEWFAIL=0 every rung, zero regressions to icon/pascal.**
+
+  **SCORES AT HANDOFF:** snobol4 **121/153** · snocone **142/142 (DIFFER=0)** · icon **6/8** · pascal
+  **12/91** · NEWFAIL=0 everywhere. (snocone shares `lower_snobol4` — held at 142 through every later edit.)
+
+  **THE SNOCONE 0→142 STORY (7 rungs, all detail in LAD-3d above):** root cause it was 0 — the Snocone
+  parser emits a DIFFERENT AST than SNOBOL4 (TT_ASSIGN / TT_IF / TT_WHILE, not `:eq`/gotos), so the
+  SNOBOL-shaped lowerer produced nothing. `5a8968c` TT_ASSIGN→lower_assign (0→66) · `318a21b` control-flow
+  punts (66→78) · `9ba0670` IF/WHILE orphan nodes + WHILE lowers its condition (78→135, the big unlock) ·
+  `41c29b3` WHILE-SCAN condition→bare orphan SCAN (135→136) · `3f1669e` VLIST RHS→orphan ASSIGN + WHILE-
+  assign condition (136→140) · `ec424e4` TT_SEQ subj→orphan IR_SEQ (140→141) · `fbdd37f` TT_ALT-of-literals
+  →DTP_ASSIGN+PATTERN_ALT (141→142 CLEAN SWEEP). The diff→fix→commit discipline held throughout.
+
+  **THE SNOBOL4 PATTERN RUNG (`7d326de`):** capture backtrack-ω → preceding deterministic-consumer element
+  (fixes 046_pat_tab). The COMPLETE backtrack rule + the two blockers that stop the general threading are
+  written into LAD-3c above — that is the highest-value next-session spec: implement the `lower_pat_node`
+  TAIL out-param (concatenation is left-associative) + the left-side-capture `PAT_CAT` insertion, gate on
+  `IR_PAT_POS` alone (RPOS shares it). Verified rule unblocks 048/052/054/055 and contributes to 049.
+
+  ⛔ **CARRIED-FORWARD TASK (NOT done this session, predates it — see the `2c3e466` block below):** the code
+  one-liners in the OTHER FOUR `_nl` files (icon/pascal/prolog/raku) still exceed the 200-char line max and
+  must be wrapped ≤200. `lower_snobol4_nl.c` IS clean (re-verified 0 lines >200 this session). The exact
+  violator list in the `2c3e466` block may have shifted since the Sonnet SNOBOL work — RE-MEASURE per file
+  before wrapping. WRAP STYLE + verify-whitespace-only procedure unchanged (in that block).
+
+  **OPEN FOR LON (carried):** (1) LAD-0b pointer-ival ruling — `scoreboard.sh`'s `ival≥7-digit→PTR` sed is
+  load-bearing (`--raw` drops icon 6→4); needs sign-off + a named in-repo flag. (2) LAD-3e SNOBOL multi-proc
+  DEFINE — how to expose >1 proc graph through the single-graph `--dump-bb2` path WITHOUT touching scrip.c
+  (8 programs blocked). (3) `--dump-ast` segfaults on ALL multi-proc Pascal (pre-existing AST-printer bug,
+  not the lowering path). (4) Icon/Pascal/SNOBOL lowerers use plain switch + inline field tests, NOT the
+  prescribed pmatch tree-pattern gauntlet (aspirational vs the working reference style). (5) LAD-0c —
+  `--dump-bb2` is dump-only, no execution validation; (6) TT_SCAN is a node-only stub for execution.
+
+  **NEXT-RUNG OPTIONS (by leverage):** (a) LAD-3c general pattern backtrack threading (spec ready above —
+  the deep core; unblocks ~4-5 pattern programs); (b) the icon/pascal/prolog/raku 200-char wrap (mechanical,
+  safe, clears the carried task); (c) LAD-2c Pascal control flow (if/while/for/repeat/case + VAR_FRAME nested
+  vars + nested-operand BINOP); (d) LAD-1a Icon queens (IR_VAR scope=global + generator procedures).
+
+  **METHOD (held again this session):** `--dump-bb` oracle vs `--dump-bb2` new → normalized diff
+  (`ival=PTR`) → fix FIRST divergence → rebuild (isolate `make` in its own command — dash aborts a whole
+  line on a `<(...)` syntax error, silently skipping a bundled make) → re-diff → COMMIT each green rung +
+  guarded push. Reproduce oracle BYTES; never theorize past them; never read the OLD lower source.
+
 
 **▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off") — C-STYLE: separators standardized to
 200 chars total + RULES.md reconciled. SHAs: SCRIP `2c3e466` (HEAD==origin/main, build GREEN rc=0,
