@@ -294,6 +294,13 @@ Corpus = `test/prolog/*.pl` (pl8). Structurally distinct: clauses→goals, compo
 A tracked MATCH/total per suite in `scoreboard.sh` output. Target = large-portion, NOT 100% —
 generators/suspend/full-pattern depth may legitimately lag. Lon sets the per-language bar.
 
+BASELINE (SCRIP `a103ae7`, 2026-06-09, normalize=1): icon **6/8** · pascal **0/91** (SKIP 2) ·
+prolog[pl8] **0/7** (SKIP 1) · snobol4[sno153] **0/153** (SKIP 0) · snocone[sco191] **0/142**
+(SKIP 49). NEWFAIL=0 everywhere — the four skeleton lowerers already emit a graph for every
+oracle-parseable program, so this is pure SHAPE-correction, not crash-fixing. LEVER: SNOBOL +
+Snocone = **295 scoreable through the single `lower_snobol4`** (Phase 3) vs 91 for Pascal
+(Phase 2). Re-run any suite with `scripts/scoreboard.sh LANG` to refresh.
+
 ## Watermark
 
 **▶ MID-SESSION UPDATE (2026-06-09, Opus 4.8, Lon attending "your choice, continue") —
