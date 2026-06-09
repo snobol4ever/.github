@@ -1,8 +1,16 @@
-# GOAL-IR-REDESIGN.md — IR_t = pure BB wiring: {op, γ, ω, operands}
+# GOAL-IR-REDESIGN.md — LOWER REWRITE (the `src/lower/nl/` lowerers ARE the goal)
 
-**Owner repo:** SCRIP + this file. **Scope: ALL LANGUAGES** — IR_t is shared.
+**Owner repo:** SCRIP + this file. **Scope: ALL LANGUAGES** — five segregated per-language lowerers.
 
-## TARGET SHAPE (Lon ratified 2026-06-07)
+## WHAT THIS GOAL IS (Lon 2026-06-09)
+
+The lower rewrite is the ONLY thing. The five new lowerers at
+`src/lower/nl/lower_*_nl.c` ARE the goal. The old-`IR_t`-struct work
+(operand_aux retirement, γ/ω carrier flip, t→op rename, α/β field deletion,
+sizeof fence) is DONE and has been REMOVED from this file — git history
+preserves every rung. Do not re-add old-system steps here.
+
+## TARGET NODE SHAPE — what the lowerers build
 
 ```c
 typedef struct {
@@ -16,133 +24,34 @@ struct IR_t {
     IR_ref_t   ω;           /* failure wire → some box's α or β          */
     IR_t    ** operands;    /* realloc array: boxes whose RESULT feeds this op */
     int        n_operands;
-    int        idx;         /* sidecar key — lit[]/exec[] parallel arrays (Lon ruling 2026-06-07) */
-    IR_graph_t * own;       /* owning graph — resolves idx for IR_LIT/IR_EXEC (Lon ruling 2026-06-07) */
+    int        idx;         /* sidecar key — lit[]/exec[] parallel arrays */
+    IR_graph_t * own;       /* owning graph — resolves idx for IR_LIT/IR_EXEC */
 };
 ```
 
 Box = operator + two outbound port wires + operand list. NOTHING else.
 A box's α/β are not fields — they are this node at "α"/"β" in someone's
-IR_ref_t. Result value: NOT in IR_t (multi-instance; interp/emitted code
-memory-manage it). Literal payload (sval/ival/dval): SIDECAR. Runtime
-state (value/counter/state): SIDECAR or per-activation. Use literal "α"
-"β" strings in code, never named constants (IDE color).
+`IR_ref_t`. Result value: NOT in `IR_t` (multi-instance; interp/emitted code
+memory-manage it). Literal payload (sval/ival/dval): SIDECAR. Runtime state:
+SIDECAR or per-activation. Use literal "α" "β" strings in code, never named
+constants (IDE color).
 
-## RATIONALE RECORD
+## THE FOUR-ATTRIBUTE GRAMMAR — lower guide
 
-JCON ir_OpFunction(coord, lhs, fn, argList, failLabel) maps: fn→op,
-failLabel→ω, success→γ, lhs→IMPLICIT (box's own result; identity names
-the slot), argList→operands. Arity 0..N proven required: 0=literals,
-1=unop, 2=binop, 3=sectionop x[i:j], N=call args/MakeList. γ/ω are
-INHERITED attributes (passed down by parent); α/β are SYNTHESIZED (the
-node's own blocks, selected by op). The 4-pointer α/β/γ/ω IR_t conflated
-operand links, chain edges, port wires, and runtime state — 876
-value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
-
-## LADDER — strict order, gate after each
-
-- [ ] **IRD-3 — OPERANDS: α/β children → operands[]/n_operands.**
-  STATUS: sno/icon/raku/pascal/program AND prolog lowering files
-  carry ZERO child α/β writes (IRD-3d/3e, session -G). RING
-  CLUSTER COMPLETE (session -H, commits 8af31d1 21add4c):
-  icn_ring_to_tree carries ZERO α/β writes; every ring-served
-  kind's interp arm (BINOP_GEN/TO/TO_BY/UNOP/NEG/POS/NONNULL/
-  NOT/SIZE) operands-first dual-read. SEQ α-orphan DELETED
-  (6c12e26): flat_drive_seq dead BFS + interp raku-SUSPEND arm
-  + tail, zero-writer + builder-source proven, bake-identical.
-  Remaining α/β writes live ONLY in driver gz-synth (+ raku NFA,
-  ruling pending below).
-  REMAINING:
-  (c) BULK: SCAN subject α (gvar writer ONLY — SCAN operands hold
-  IRD-3a type-punned subj/repl GRAPHS so the slot map is a
-  pattern-BB joint ruling; op_a, bb_walk_rec and both chain
-  writers carry the SCAN exemption);
-  gz-synth (⚠ ACTIVE-CONCURRENT since 8f4f773 IRD-2b fix flipped
-  reader units[j]->β→operands[1] mid-session-H — FRESH census
-  mandatory before touching; driver pl_gz_* writes α/β on
-  synthesized CELL_UNIFY/DET_IS/DET_CMP/DET_WRITE/ARITH-copy
-  nodes ~598-1099 — emit marshal arms + bb_det_is.cpp + bb_is_cmp
-  rhs-ARITH internals + bterm_arith read that regime, dual-read);
-  flat_drive_gz_query γ-walks ~572-595 (synthesized DET chains);
-  emit_bb 2045 arm-list-via-ω;
-  bb_call.cpp:93 CALL fallback helper; operand_aux callers fold
-  in THEN operand_aux DELETED at sweep end — ⚠ LOAD-BEARING,
-  census 2026-06-07-G: 8+ live get callers (emit_bb 315/360/382/
-  689/2481/2607 ALT-arms/chain-child + bb_alt.cpp:34 +
-  bb_call.cpp:96), set callers uncounted — a real sub-cluster,
-  NOT a micro-commit. RETURN chain:
-  descr_chain_arity RETURN STAYS 1 — the slot-priming consumer is
-  emit_core.c:440 dual-read (arity→0 empirically broke proc m3 at
-  fbfd71c).
-  LAWS: census every kind in driver/ too — classifiers ARE
-  consumers; never truncate the consumer grep (fbfd71c). Generic
-  WALKERS and the generic op_a_* template feed are consumers
-  (d20c45e RED cycle: bb_walk_rec missed operand-held literals →
-  empty .rodata strings; op_a_* was the hidden SCAN-α reader —
-  same-line greps lie for switch-case consumers). Any walker over
-  operands[] MUST exempt IR_SCAN (operands hold IRD-3a subj/repl
-  GRAPHS cast as IR_t*). bb_child0/bb_child1 (emit_bb.c) = the
-  dual-read accessors; ir_call_arg/ir_pair_arg (IR.h) = the
-  contract-level pair. NEW LAW (2026-06-07-G, bb_term_io 141/155):
-  α-keyed censuses MISS freestanding RELATIVE γ-hops on
-  already-fetched arg locals (a1 = a0->γ) — at every flip, grep
-  '->γ' in the kind's consumer files too, not just '->α'. NEW LAW:
-  guards that name a kind by sval/ival WITHOUT mentioning α/β
-  hide parallel readers from α-keyed sweeps (pl_gz_rule_callee_body
-  write arm, caught+fixed in 9134387) — grep by BUILTIN NAME too.
-  NEW LAW (8) (2026-06-07-H): writer censuses MUST include
-  dot-access / deref / memcpy write shapes, not just '->field ='
-  (broadened sweep caught only audit-tool dot-writes this time;
-  the shape gap was real).
-  RESIDUE FLAGS (bulk scope): interp IF/WHILE/UNTIL/EVERY ->β
-  then/body reads have ZERO writers in src (write census
-  2026-06-07-D, re-verified -G at the 3e-rest flip) —
-  verify-then-delete candidates, NOT chain-fed. interp
-  IR_SEQ_EXPR α-chain reads: same zero-writer class (census -H),
-  needs its own verify pass before deletion. raku_nfa_bb.c
-  154/158 NFA α writers (self-loop init + out2) are OUTSIDE this
-  goal's enumerated remaining list — LON RULING NEEDED: missed
-  cluster vs NFA exemption.
-  COVERAGE GAP (fence-era, owner=admission layer NOT IRD): compound
-  format/2 (format("~w~n",[42])) m3 ABORTS at PL-GZ FENCE
-  ('not admitted by pl_gz_admit or pl_flat_body_root'), m4 rc=1
-  empty, m2 correct — worktree-PROVEN PRE-EXISTING at 6e3cb1e~1
-  (pre-IRD-3d); BB-FIXUP b8e3a04 tracker attribution to the
-  IRD-3d flip is WRONG on causality (answered in 3cedeea). Smoke
-  corpus has no compound-format case — add one when admission
-  lands.
-  GATE per cluster: build = apt-get install -y libgc-dev; make;
-  make libscrip_rt (MANDATORY for m4). Bake
-  scripts/bake_ird3_baseline.sh BEFORE touching code (script now
-  includes sco sweep 191 + rebus smoke; rebus PASS=0 FAIL=4
-  pre-existing); post-bake and diff: all sweeps byte-identical;
-  smoke rows identical; prove_lower PASS count (68); live-kind
-  probes per kind; A/B git-stash for any anomaly. KNOWN FLAKE:
-  test/snobol4/keywords/100_roman_numeral.sno runs 7.7-7.9s vs
-  the 8s sweep timeout — flaked rc=124 once under bake load
-  (415e465 gate), 153/153 identical on idle re-run; pre-existing,
-  bump the timeout when convenient.
-
-- [x] **IRD-4b — CARRIER FLIP: γ/ω become IR_ref_t.** ✅ LANDED SCRIP `5477fbc` (2026-06-08, Sonnet 4.6). 830 ins/830 del across 30 files. sz="α" uniformly on all writes (behaviour-preserving; all current targets are fresh-entry). β-targeting wires remain a separate semantic step. GATE PASSED: 5 sweeps (sno153/icn9/pl8/sco191/pas5) byte-identical, 4 smokes (icon/prolog/snobol4/rebus) identical, prove_lower col-7-ptr-masked IDENTICAL rc=0. Rebased cleanly onto concurrent BB-FIXUP `441a6b3`.
-
-- [ ] **IRD-5 — FENCE: audit + doc.**
-  sizeof(IR_t): BEFORE 64 (t+α+β+γ+ω+operands+n_operands+idx+own), AFTER
-  α/β deletion 48 (53f861b). MEMBER COUNT NOW 7 (target met:
-  op,γ,ω,operands,n_operands,idx,own — t→op DONE aae8686; only γ/ω
-  carrier-type remains, IRD-4b sub-task 2). Grep gates: no ->value/->counter/->state outside exec
-  sidecar; no ->sval/->ival/->dval outside lit sidecar; IR_t struct has
-  exactly 7 members (5 ratified + idx/own sidecar key, Lon ruling
-  2026-06-07). ARCH-IR.md currently documents tree_t (AST) + the SM/broker
-  model, NOT the IR_t struct fields (the α/β/γ/ω there are conceptual
-  PORTS, still valid) — ADD an IR_t struct-shape section here after IRD-4b.
+JCON `ir_OpFunction(coord, lhs, fn, argList, failLabel)` maps: fn→op,
+failLabel→ω, success→γ, lhs→IMPLICIT (box's own result; identity names the
+slot), argList→operands. Arity 0..N proven required: 0=literals, 1=unop,
+2=binop, 3=sectionop x[i:j], N=call args/MakeList. **γ/ω are INHERITED
+attributes** (passed down by parent); **α/β are SYNTHESIZED** (the node's own
+blocks, selected by op). So `lower(cx, t, γ, ω) -> IR_t*` IS the four-attribute
+grammar: γ/ω come in as params, α/β are the returned node addressed via
+`IR_ref_t.sz`. The live interp (`interp/IR_interp.c`) is a goal-directed
+γ/ω-FOLLOWER — each arm returns `bb->γ.node`/`bb->ω.node` as the next node and
+`bb_print` hardcodes the α(γ)/β(ω) labels — NOT a tree-walker. The new lower
+must REPRODUCE the OLD graph's goal-directed shape.
 
 ## DO NOT
 
-- Touch chunk.h/.c or the JCON chunk-IR path (GOAL-ICON-IRGEN owns it).
-- Fix ival-pointer / dval-flag abuses inside IRD-2 (move, don't fix).
-- Reorder ladder: BREAKOUT FIRST (Lon 2026-06-07) — per-language sweeps
-  in IRD-3/4 need the per-language files to exist.
-- Change γ/ω SEMANTICS — only their carrier type.
 - **LOWER REBUILD — DO NOT LOOK AT / TRANSCRIBE THE OLD LOWER (Lon ruling 2026-06-08).**
   Never read or replicate the OLD lowering source (`lower.c`, `lower_program.c`,
   `lower_value.c` if present, `lower_icon.c`, `lower_sno`/`lower_snobol4.c`,
@@ -162,8 +71,7 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   `lower_rku` + new). The `_nl` suffix avoids the flat-object-dir basename collision;
   added to the EXPLICIT compile recipe in `Makefile` (the `scrip:` recipe, ~line 540)
   AND the prereq list (~line 238). `emit()` helper renamed `build()` in all five
-  (emit is reserved for emitters). All UNCOMMITTED — fold into handoff; default build
-  unchanged so gates are safe.
+  (emit is reserved for emitters). Default build path unchanged so gates are safe.
 - `scrip --dump-bb2 FILE` routes the parsed AST through the new lowerer for that
   language and prints via `bb_print` (handler in `scrip.c`, opt-in flag, default path
   untouched). `--dump-bb` = old (oracle).
@@ -171,37 +79,24 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   program run both dumps, strip `^; proc` + blank lines, `diff`, tally
   MATCH/DIFFER/NEWFAIL. BASELINE 2026-06-08 on `icn9` (test/icon/*.icn):
   MATCH=0 DIFFER=9 NEWFAIL=0 — new lowering produces a graph for all 9, none match,
-  new ~1.5-2x node count. TARGET: drive MATCH 0→9 on icn9, then the other sweeps.
-  PROGRESS 2026-06-08 (Opus 4.8): hello.icn → MATCH (1/9), byte-identical vs oracle.
-  Landed in `lower_icon_nl.c`: lightweight `pmatch` + `p_bin`/`p_un` (binop/unop
-  dispatch now model-tree matched); goal-directed `lower_call` (CALL = sval/ival, args
-  γ-threaded, ZERO operands, entry-returning) + `lower_proc_body` (SUCCEED@0 / FAIL@1
-  first, reverse-thread stmts, entry = leftmost leaf) + `find_proc` (unwrap
-  STMT→:subj→PROC_DECL). `lower_icon` emits the FIRST proc's body only — MULTI-PROC
-  emission is the next structural step (oracle dumps all procs), alongside
-  goal-directed if/while/every and binop. AST note: top is `STMT` whose `:subj` is the
-  `TT_PROC_DECL`; body = `c[2]`; `TT_FNC` = c[0] callee VAR + c[1..] args.
+  new ~1.5-2x node count. TARGET: drive MATCH up on icn9, then the other sweeps.
 - hello target SHAPE (read off `--dump-bb`, no source): per-proc graph (NO PROG/PROC
   wrapper); allocate `IR_SUCCEED`(idx0)+`IR_FAIL`(idx1) FIRST; `lower()` threads
   `(γ,ω)` and RETURNS THE ENTRY node (leftmost-evaluated leaf, not the result);
   CALL = `sval`=name + `ival`=argcount with args γ-threaded (arg is the entry);
-  success wires target port `α`, failure wires target port `β`. The current nl
-  `lower()` returns the RESULT node + null wiring + PROG/PROC wrapper — the
-  re-derivation flips it to entry-returning goal-directed, one switch arm at a time,
-  each gated by the scoreboard (compiling partials safe behind `--dump-bb2`).
+  success wires target port `α`, failure wires target port `β`.
 - **DISPATCH = TREE-PATTERN GAUNTLET, model-tree applied like a SNOBOL4 pattern
   (Lon rulings 2026-06-08, refined).** TOP level is a flat `switch (t->t)` over TT_*.
   WITHIN a case, NO `if/else-if/else` field-poking. Instead a GAUNTLET: a sequence of
   TREE-PATTERN matches tried in order, first hit builds + returns; sub-casing = more
   patterns (the tree analogue of SNOBOL4 `|`). CRUCIAL — a "tree match" is NOT a
-  procedural helper (the earlier `m0/m1/m2/attr` sketch was WRONG: no model, nothing
-  applied). It is a MODEL TREE (data) that describes the AST form to match AND marks
-  CAPTURE, APPLIED to the node by a generic engine — EXACTLY a SNOBOL4 PATTERN applied
-  to a string: the pattern is a first-class value; capture binds matched subtrees /
-  values (the tree analogue of `. VAR`). A lowering rule = build pattern P → apply to
-  node → use the captures to build the IR. This is the SAME design the self-hosted
-  bootstrap lower stage (written in Icon) will use — tree patterns over the AST — so
-  the C `nl` version must use it too, never ad-hoc conditionals. Core shape: a
+  procedural helper. It is a MODEL TREE (data) that describes the AST form to match AND
+  marks CAPTURE, APPLIED to the node by a generic engine — EXACTLY a SNOBOL4 PATTERN
+  applied to a string: the pattern is a first-class value; capture binds matched
+  subtrees / values (the tree analogue of `. VAR`). A lowering rule = build pattern P →
+  apply to node → use the captures to build the IR. This is the SAME design the
+  self-hosted bootstrap lower stage (written in Icon) will use — tree patterns over the
+  AST — so the C `nl` version must use it too, never ad-hoc conditionals. Core shape: a
   pattern node = { require-kind | capture-into-slot | wildcard } + a child-pattern
   list (+ an sval constraint to match TT_ATTR names like `:subj`); engine
   `pmatch(pat, t, caps[])` recurses on kind+children and fills `caps[]`. NO inline
@@ -217,318 +112,204 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
   (cost-based optimal, = "Icon for optimization"); self-hosted matcher = Prolog
   unification (logic vars = captures) / term rewriting. Same tree matching either way.
 
+## NODE-EXACT CONVENTIONS — the live spec (byte-verified vs `--dump-bb`)
+
+These are reverse-engineered node-for-node from the oracle and confirmed
+byte-identical in the matched programs. The Icon lowerer (`lower_icon_nl.c`)
+implements all of them; the other four `_nl` files follow the same shapes.
+
+### Value layer
+- **Leaves** chained via `γ`. **Statements REVERSE-threaded:** alloc
+  `IR_SUCCEED`@0 / `IR_FAIL`@1 first, then stmts in reverse source order so
+  entry = first-executed (highest index).
+- **BINOP:** `ival=BinopKind`; operands ride the value-ring (NO `ops:[]`);
+  chained LEFT→RIGHT (alloc op, then left, then right; `left.result.γ→right.entry`;
+  `right.result.γ→op`; entry=left).
+- **UNOP:** `ival=(tree_e)t->t`; operand chained.
+- **CALL arg model:** ONLY `write`/`writes` CHAIN args via the value-ring
+  (visible). EVERY other call — `map`, all other builtins, `[]`, `MAKELIST`,
+  user procs — SUB-GRAPHS its args (invisible; entry = the call node).
+  *(Supersedes the earlier "user-proc detected by name ∈ PROC_DECL set" heuristic,
+  which was wrong: `map(s)` sub-graphs while `write(count)` chains.)*
+- **subscript** `a[i]` → CALL `[]` `ival=n`. **list** `[…]` → CALL `MAKELIST`
+  `ival=count`.
+- **ASSIGN** simple-var-LHS = `sval`=name + EXACTLY ONE operand (rhs result),
+  goal-directed (complex LHS → 2-operand fallback).
+- **AUGOP** `x OP:=y` DECOMPOSES to ASSIGN+BINOP.
+- **RETURN:** contextual passed `γ`/`ω` (NOT forced PSUCC/PFAIL). Oracle's last-stmt
+  `return "yes"` has `γ=PSUCC` only because threading passes PSUCC there; a nested
+  `return "no"` inside an if has `γ`=next-stmt. *(Corrected from the initial
+  forced-PSUCC/PFAIL version.)*
+- **MULTI-PROC:** `collect_procs` (DFS, STMT→:subj→PROC_DECL, skip globals/records);
+  `--dump-bb2` iterates procs in source order emitting `; proc <name>` + `bb_print`
+  exactly like `--dump-bb`. AST note: top is `STMT` whose `:subj` is the
+  `TT_PROC_DECL`; body = `c[2]`; `TT_FNC` = c[0] callee VAR + c[1..] args.
+
+### Control flow
+- **CONJ** = a multi-statement braced block (`TT_SEQ_EXPR`) used in expression
+  context (while/then/else body). Single-statement blocks get NO CONJ (parser
+  unwraps `nc==1`). Built first, `γ`/`ω` = passed; stmts reverse-threaded to it.
+  NOT the loop back-edge.
+- **Failure-ω rule for block stmts:** each stmt's RESULT node `ω` → the nearest
+  PRECEDING resumable stmt's result, else the enclosing `ω`. `is_resumable` =
+  TT_IF/SCAN/EVERY/TO/TO_BY/ALTERNATE/REPEAT/WHILE/UNTIL. (Sub-nodes keep
+  `ω`=enclosing.) Explains palindrome later-stmts→IF vs meander else-block
+  both-assignments→loop-resume.
+- **WHILE:** body success AND failure both loop to condition-entry; WHILE node =
+  loop EXIT (reached via condition-fail `ω`); while-entry = condition entry;
+  `ops:[cond-entry]`. No fabricated CONJ.
+- **IF:** condition INLINED as the if-entry; IF node = resume anchor (reached only
+  via `ω`); `ops:[cond-entry]`; no-else wires condition-fail → passed `ω`;
+  else-branch supported.
+
+### Generators
+- **EVERY/TO:** `TO`/`TO_BY` node `sval="ag"`, `ops:[lo,hi]`, chained lo→hi→node,
+  entry=lo (leftmost leaf). **TO_BY drops the by-expression entirely — it produces
+  NO visible node** (matches oracle; by value not materialized in the dump — flag if
+  execution ever matters). `EVERY` node `γ=ω=`next-stmt (loop exit), `ops:[gen-entry]`.
+  For `every VAR := GEN do BODY`: the generator (TO) is the assignment's single
+  operand; assignment.`γ`→body-entry (fixup), generator.`ω`→EVERY. **Body loop-back =
+  the generator node IF the body is_resumable (roman `while`→TO), ELSE the EVERY node
+  (sieve `sieve[j]:=0`→EVERY).**
+- **IDX_SET:** subscripted assignment `lhs[idx]:=val` → `IR_IDX_SET`, operands
+  `[base, index.., value]`, each operand `γ`→the IDX_SET node (NOT chained to each
+  other), entry = base.
+
+## STANDING CAVEATS — open / need Lon's ruling
+
+1. **Scoreboard pointer-`ival` normalization is MINE and UNRULED.** `/tmp/scoreboard.sh`
+   (scratch, not in repo) does `sed -E 's/ival=[0-9]{7,}/ival=PTR/g'` because the oracle
+   stores a non-deterministic heap pointer in `GEN_SCAN.ival` (observed 921023984 then
+   164042224 across runs). Defensible (heap addresses aren't semantic) but it changes the
+   yardstick — **Lon should confirm it's legitimate** before MATCH counts are fully
+   trusted. Legit ivals are ≤3 digits (opcodes/argcounts/tree-codes); the 7-digit floor
+   only catches pointers. wordcount + meander both rely on it.
+2. **`--dump-bb2` is DUMP-ONLY — zero execution validation, and it's STRUCTURAL.**
+   `scrip.c` returns right after `bb_print`; mode-2 interp (`IR_interp_once`) runs the OLD
+   lowerer's graph from `s2->bbp.table`, never the new `lower_icon` graph. Every "MATCH" =
+   dump bytes agree, NOT "runs correctly." Wiring `--dump-bb2`→mode-2 is a separate
+   prerequisite-for-trust task.
+3. **`TT_SCAN` is still a NODE-ONLY STUB.** Emits `IR_GEN_SCAN` with `ival` = a
+   freshly-alloc'd EMPTY sub-graph; subject+body are NOT lowered into it. Dump-correct
+   (`bb_print` doesn't recurse GEN_SCAN, so body is legitimately invisible) but
+   executionally empty. wordcount/meander match because of that invisibility, not because
+   the scan is complete. TODO: lower subject+body into the sub-graph.
+
+## LADDER — per-language gauntlet, strict order, gate each rung
+
+Method is fixed (see `## LOWER REBUILD`): `--dump-bb` oracle vs `--dump-bb2` new → diff →
+fix first divergence → rebuild → re-diff → COMMIT each green rung + guarded push. Each
+language repeats the arc Icon proved: **(a)** value layer + multi-proc/clause structure,
+**(b)** control flow, **(c)** generators/backtracking, **(d)** the deep construct (patterns /
+suspend / unification). Commit per green program; never theorize past the bytes. ALL FIVE
+already dispatch through `--dump-bb2` (scrip.c:1664-1689); only `lower_icon_nl.c` is
+goal-directed today — the other four are the same null-wired skeleton Icon had before `8bd1ebf`
+and need the same rewrite. ORDER RATIONALE: finish the reference language (Icon), then the
+easiest (Pascal), then the highest-leverage (SNOBOL serves snobol4+snocone+rebus), then the
+structurally-unique (Prolog), then the parked one (Raku). **Lon may reprioritize SNOBOL ahead of
+Pascal for strategic reasons — flagged.**
+
+### Phase 0 — DURABLE HARNESS (prerequisite; do first)
+- [ ] **LAD-0a — Commit the scoreboard.** It is `/tmp` scratch and dies with the container.
+  Write `scripts/scoreboard.sh LANG` (LANG ∈ icon|snobol4|snocone|prolog|pascal|raku) that
+  enumerates that language's corpus (icon→`test/icon/*.icn`; snobol4→`test/snobol4/*.sno`;
+  snocone→`test/snocone` + `corpus/crosscheck/snocone/*.sc`; prolog→`test/prolog/*.pl`;
+  pascal→`corpus/programs/pascal/*.pas`; raku→`test/raku/*`), runs `--dump-bb` vs `--dump-bb2`
+  per program, strips `^; proc` + blank lines, diffs, tallies MATCH/DIFFER/NEWFAIL, prints a
+  per-program table + totals. GATE: re-run icon and reproduce 6/8 (parity with the retired /tmp
+  version) before trusting it on any other language.
+- [ ] **LAD-0b — Pointer-ival ruling baked in (caveat 1).** Get Lon's ruling on the
+  `ival=[0-9]{7,}→PTR` normalization, then encode it in `scoreboard.sh` as a named, commented
+  flag (default = Lon's ruling) so the yardstick is explicit and in-repo, not a hidden sed.
+- [ ] **LAD-0c — (trust, optional) wire `--dump-bb2`→mode-2 (caveat 2).** Converts every MATCH
+  from "dump bytes agree" to "runs correctly." Defer if it blocks momentum, but it is the only
+  thing that makes a MATCH an execution guarantee.
+
+### Phase 1 — ICON to floor (closest to done: 6/8)
+- [ ] **LAD-1a — queens.** First divergence = `scope=global` annotation on IR_VAR (collect
+  top-level `TT_GLOBAL`/decl names, thread through `icx_t`, annotate matching IR_VAR; check how
+  `bb_print` sources the scope field). Then generator PROCEDURES (`safe`/`try_col` are user procs
+  in `every…if…`/recursive-backtracking) + `if…then fail`. TRACE oracle `safe`/`try_col`
+  node-exact BEFORE coding (datapoint: my `safe` n=18 vs oracle n=33 — not yet understood). GATE:
+  queens MATCH, icn9 6→7, full sweep byte-identical.
+- [ ] **LAD-1b — generators.icn.** `suspend`, generator caching, `IR_PROC_GEN` — the deepest Icon
+  construct; expect real work, may stay DIFFER a while. GATE: generators MATCH → icn9 8/8.
+- [ ] **LAD-1c — scan sub-graph (caveat 3).** Lower TT_SCAN subject+body into the GEN_SCAN
+  sub-graph so wordcount/meander matches are EXECUTION-real, not invisibility artifacts. GATE:
+  re-MATCH wordcount/meander with the sub-graph populated (under LAD-0c if wired).
+
+### Phase 2 — PASCAL (easiest second language; structured, no generators/patterns)
+Corpus = `corpus/programs/pascal/*.pas` (test/pascal is empty); curated floor = pas5.
+- [ ] **LAD-2a — goal-directed rewrite of `lower_pascal_nl.c`.** Replace the null-wired skeleton
+  (`push_kids`/`lower_nary`/`lower(...,NULL,NULL)`) with the goal-directed γ/ω-threading model
+  proven in `lower_icon_nl.c`. Start at the smallest corpus program; reproduce the oracle per-proc
+  shape. GATE: first Pascal MATCH.
+- [ ] **LAD-2b — value layer + procedures/functions.** BINOP/UNOP/ASSIGN/CALL per the conventions;
+  Pascal proc/func decls + params; reverse-threaded statement blocks. GATE: pas5 MATCH climbs.
+- [ ] **LAD-2c — control flow.** if/then/else, while, `for` (bounded → reuse the TO/EVERY wiring
+  family), repeat/until, case. GATE: broaden across `corpus/programs/pascal/*.pas`; record
+  MATCH/total.
+- [ ] **LAD-2d — types/records/sets/pointers** as divergences demand. GATE: large-portion MATCH on
+  the Pascal corpus.
+
+### Phase 3 — SNOBOL4 + SNOCONE + REBUS (highest leverage: ONE lowerer, two suites)
+`--dump-bb2` routes all three through `lower_snobol4` (scrip.c:1688 default arm), so this phase
+scores against BOTH sno153 (`test/snobol4/*.sno`) AND sco191 (`test/snocone` +
+`corpus/crosscheck/snocone`). Statement model: TT_STMT carries `:subj`/`:pat`/`:repl` +
+TT_GOTO_S/F/U; gotos wire onto γ/ω (the `stmt_subj` helper already extracts `:subj`).
+- [ ] **LAD-3a — goal-directed rewrite of `lower_snobol4_nl.c`.** Skeleton→goal-directed. Start
+  NON-pattern (assignment, arithmetic, write, function calls, goto control flow). GATE: first
+  SNOBOL MATCH.
+- [ ] **LAD-3b — value layer + statement/goto control flow.** ASSIGN, BINOP, CALL, `:subj`
+  extraction, S/F/U goto→γ/ω wiring, DEFINE function bodies. GATE: the goto/arith subset of sno153
+  climbs.
+- [ ] **LAD-3c — PATTERN MATCHING (the deep core).** `:pat`/`:repl` + pattern constructors
+  (concatenation, alternation `|`, deferred eval, conditional/immediate assignment, cursor,
+  builtin patterns). The bulk of SNOBOL semantics and the hardest part — stage sub-pattern by
+  sub-pattern, each gated. GATE: pattern programs MATCH; large-portion sno153 + sco191.
+- [ ] **LAD-3d — Snocone/Rebus deltas.** AST forms specific to Snocone/Rebus (not covered by the
+  SNOBOL core) surface as sco191 divergences; address them. GATE: large-portion sco191.
+
+### Phase 4 — PROLOG (own goal-spine: clauses, unification, backtracking)
+Corpus = `test/prolog/*.pl` (pl8). Structurally distinct: clauses→goals, compound terms→IR_STRUCT
+(the skeleton already emits IR_STRUCT for binop/unop).
+- [ ] **LAD-4a — goal-directed rewrite of `lower_prolog_nl.c`.** Reproduce the oracle clause/goal
+  graph (read the GRAPH only — never the old `pl_lower_goal` source). GATE: first Prolog MATCH.
+- [ ] **LAD-4b — facts/rules/queries + unification + arithmetic (`is/2`, comparisons).** GATE: pl8
+  climbs.
+- [ ] **LAD-4c — backtracking / cut / control (`,` `;` `->` `!`)** as divergences demand. GATE:
+  large-portion pl8.
+
+### Phase 5 — RAKU (parked; frontend on hold)
+- [ ] **LAD-5 — DEFERRED.** smoke_raku is 100% pre-existing FAIL (Tiny-Raku frontend on hold). The
+  lowerer can be brought up opportunistically the same way, but MATCH cannot be execution-trusted
+  until the frontend resumes. Resume on Lon's word.
+
+### Done-condition (Lon's "large portion of the test suites")
+A tracked MATCH/total per suite in `scoreboard.sh` output. Target = large-portion, NOT 100% —
+generators/suspend/full-pattern depth may legitimately lag. Lon sets the per-language bar.
+
 ## Watermark
 
-**▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off" — GOOD SESSION) — LOWER REBUILD (Icon): control flow + generators landed, icn9 MATCH 1→6 of 8. SHAs: SCRIP `4fa4b74` (HEAD==origin/main, pushed; build GREEN rc=0; working tree clean), .github THIS COMMIT. Six commits this session, each an immediately-pushed green rung (the method that finally worked — see below). New `lower_icon_nl.c` is 195 lines / ~17.7 KB total. MATCH: hello, wordcount, palindrome, meander, roman, sieve. DIFFER: queens, generators (NEWFAIL=0 throughout).**
+**▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off" — GOOD SESSION) — LOWER REWRITE
+(Icon): control flow + generators landed, icn9 MATCH 1→6 of 8. SHAs: SCRIP `4fa4b74`
+(HEAD==origin/main, pushed; build GREEN rc=0; working tree clean), .github THIS COMMIT. Six
+commits this session, each an immediately-pushed green rung. New `lower_icon_nl.c` is 195 lines
+/ ~17.7 KB. MATCH: hello, wordcount, palindrome, meander, roman, sieve. DIFFER: queens,
+generators (NEWFAIL=0 throughout). Live spec → `## NODE-EXACT CONVENTIONS`; open items →
+`## STANDING CAVEATS`; the ordered plan → `## LADDER`.**
 
-  **METHOD THAT WORKED (vs prior sessions that ended in analysis+handoff):** tight `--dump-bb` (oracle) vs `--dump-bb2` (new) → diff → fix the first divergence → rebuild → re-diff → COMMIT each green rung immediately + push (guarded). Treat the oracle as correct-by-construction (it's the old lower the interp already runs); do NOT theorize about whether its graph is "semantically right" — reproduce the bytes. Each of the last four matches was 1–2 fixes found straight from the diff.
+  **METHOD THAT WORKED (vs prior sessions that ended in analysis+handoff):** tight `--dump-bb`
+  (oracle) vs `--dump-bb2` (new) → diff → fix the first divergence → rebuild → re-diff → COMMIT
+  each green rung immediately + push (guarded). Treat the oracle as correct-by-construction (it's
+  the old lower the interp already runs); do NOT theorize about whether its graph is
+  "semantically right" — reproduce the bytes. Each of the last four matches was 1–2 fixes found
+  straight from the diff.
 
-  **COMMITS THIS SESSION (all on origin/main, guarded fast-forward, no --force):** `8bd1ebf` value layer + multi-proc (1→2) · `ca6dc4d` WHILE/IF/CONJ + write-only arg chaining → palindrome (2→3) · `b135278` CONJ = braced-block conjunction not loop back-edge → meander (3→4) · `d2a56b1` EVERY/TO generators → roman (4→5) · `4fa4b74` IDX_SET + TO_BY-2-operand + every-body loop-back → sieve (5→6).
-
-  **CONVENTIONS VERIFIED NODE-EXACT THIS SESSION (all byte-matched; the value-layer set is in the older entries below):**
-  - **CONJ** = a multi-statement braced block (`TT_SEQ_EXPR`) used in expression context (while/then/else body). Single-statement blocks get NO CONJ (parser unwraps `nc==1`). Built first, `γ`/`ω` = passed; stmts reverse-threaded to it. NOT the loop back-edge.
-  - **Failure-ω rule for block stmts:** each stmt's RESULT node `ω` → the nearest PRECEDING resumable stmt's result, else the enclosing `ω`. `is_resumable` = TT_IF/SCAN/EVERY/TO/TO_BY/ALTERNATE/REPEAT/WHILE/UNTIL. (Sub-nodes keep `ω`=enclosing.) Explains palindrome later-stmts→IF vs meander else-block both-assignments→loop-resume.
-  - **WHILE:** body success AND failure both loop to condition-entry; WHILE node = loop EXIT (reached via condition-fail `ω`); while-entry = condition entry; `ops:[cond-entry]`. No fabricated CONJ.
-  - **IF:** condition INLINED as the if-entry; IF node = resume anchor (reached only via `ω`); `ops:[cond-entry]`; no-else wires condition-fail → passed `ω`; else-branch supported.
-  - **RETURN:** contextual passed `γ`/`ω` (NOT forced PSUCC/PFAIL).
-  - **CALL arg model:** ONLY `write`/`writes` CHAIN args via the value-ring (visible). EVERY other call — `map`, all other builtins, `[]`, `MAKELIST`, user procs — SUB-GRAPHS args (invisible; entry = call node). (Proved by `map(s)` sub-graphing while `write(count)` chains; the earlier user-proc-set heuristic was wrong.)
-  - **EVERY/TO:** `TO`/`TO_BY` node `sval="ag"`, `ops:[lo,hi]`, chained lo→hi→node, entry=lo (leftmost leaf). **TO_BY drops the by-expression entirely — it produces NO visible node** (matches oracle; by value not materialized in the dump — flag if execution ever matters). `EVERY` node `γ=ω=`next-stmt (loop exit), `ops:[gen-entry]`. For `every VAR := GEN do BODY`: the generator (TO) is the assignment's single operand; assignment.`γ`→body-entry (fixup), generator.`ω`→EVERY. **Body loop-back = the generator node IF the body is_resumable (roman `while`→TO), ELSE the EVERY node (sieve `sieve[j]:=0`→EVERY).**
-  - **IDX_SET:** subscripted assignment `lhs[idx]:=val` → `IR_IDX_SET`, operands `[base, index.., value]`, each operand `γ`→the IDX_SET node (NOT chained to each other), entry = base.
-
-  **⚠ STANDING CAVEATS — STILL NEED LON'S RULING / STILL OPEN (unchanged from prior handoff, do not let the MATCH=6 number bury them):**
-  1. **Scoreboard pointer-`ival` normalization is MINE and UNRULED.** `/tmp/scoreboard.sh` (scratch, not in repo) does `sed -E 's/ival=[0-9]{7,}/ival=PTR/g'` because the oracle stores a non-deterministic heap pointer in `GEN_SCAN.ival`. Defensible (heap addresses aren't semantic) but it changes the yardstick — **Lon should confirm it's legitimate** before MATCH counts are fully trusted. wordcount + meander both rely on it.
-  2. **`--dump-bb2` is DUMP-ONLY — zero execution validation, and it's structural.** `scrip.c` returns right after `bb_print`; mode-2 interp (`IR_interp_once`) runs the OLD lowerer's graph from `s2->bbp.table`, never the new `lower_icon` graph. Every "MATCH" = dump bytes agree, NOT "runs correctly." Wiring `--dump-bb2`→mode-2 is a separate prerequisite-for-trust task.
-  3. **`TT_SCAN` is still a NODE-ONLY STUB.** Emits `IR_GEN_SCAN` with `ival` = a freshly-alloc'd EMPTY sub-graph; subject+body are NOT lowered into it. Dump-correct (bb_print doesn't recurse GEN_SCAN, so body is legitimately invisible) but executionally empty. wordcount/meander match because of that invisibility, not because the scan is complete. TODO: lower subject+body into the sub-graph.
-
-  **REMAINING WORK — queens + generators (generator-heavy, substantial, NOT a quick rung):**
-  - **queens:** FIRST visible divergence is **`scope=global` annotation** — the oracle prints `var="n" scope=global` on VAR nodes that reference `global`-declared names; mine prints no scope. Next session: collect the `global` decl names (top-level `TT_GLOBAL`/decl), thread them through `icx_t`, and annotate matching `IR_VAR` nodes (check how bb_print sources the scope field — likely an IR_VAR attribute). Beyond that queens needs **generator PROCEDURES** (`safe`/`try_col` are user procs called in `every … if …` / recursive-backtracking context) and **`if … then fail`**. Datapoint: my `safe` proc came out n=18 vs oracle n=33 — the oracle materializes substantially more (global index exprs `n+r-c`, `r+c-1`, and/or scope/clone handling), so `safe` alone is not yet understood; dump oracle `safe`/`try_col` and trace before coding.
-  - **generators.icn:** needs `suspend`, generator caching, `IR_PROC_GEN` — the deepest constructs; expect real work, will likely stay DIFFER for a while. Be honest about that.
-
-  **NEXT SESSION, IN ORDER:** (1) Lon's ruling on the pointer-normalization; (2) queens `scope=global` annotation (smallest concrete step, likely closes the first divergence); (3) trace queens `safe`/`try_col` oracle node-exact (generator procedures) before coding; (4) finish the scan sub-graph so wordcount/meander matches are execution-real; (5) consider wiring `--dump-bb2`→mode-2 for actual execution validation; (6) generators.icn (suspend) last; (7) then snobol4/raku/pascal/prolog `_nl` the same way (staged). Keep committing each green rung; keep reporting calibrated (state matches plainly, flag the 3 caveats once, don't over-narrate).
-
-**▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off") — LOWER REBUILD (Icon): goal-directed VALUE LAYER + MULTI-PROC landed; icn9 MATCH 1→2. SHAs: SCRIP `8bd1ebf` (one commit this session, atop `ae654ca`; build GREEN rc=0; HEAD~1==origin/main so push-guard satisfied), .github THIS COMMIT. Working tree reverted clean — I had begun a control-flow extension and forward-declared `lower_if`/`lower_while`/`lower_do_body` WITHOUT defining them (would not build), so I reverted that scaffolding rather than commit a broken/rushed tree. The committed deliverable is the value layer only.**
-
-  **WHAT LANDED (`8bd1ebf`, all in `lower_icon_nl.c` + `scrip.c` `--dump-bb2` branch):** full goal-directed rewrite reproducing the oracle's γ/ω graph shape (replaces the prior pmatch/structural cut). Verified node-for-node against `--dump-bb` on roman/wordcount/palindrome value layers: leaves chained via γ; statements REVERSE-threaded (SUCCEED@0/FAIL@1 first, alloc in reverse source order so entry=first-executed, highest index); BINOP `ival=BinopKind`, operands ride the value-ring (NO `ops:[]`), chained LEFT→RIGHT (alloc op, then left, then right; left.result.γ→right.entry; right.result.γ→op; entry=left); UNOP `ival=(tree_e)t->t`, operand chained; CALL — **builtins (write…) CHAIN args via ring (visible), user-procs + `[]` + `MAKELIST` SUB-GRAPH args (invisible, entry=call itself)** — user-proc detected by name ∈ collected PROC_DECL set; subscript `a[i]`→CALL `[]` ival=n; list `[…]`→CALL `MAKELIST` ival=count; ASSIGN simple-var-LHS = `sval`=name + EXACTLY ONE operand (rhs result), goal-directed (complex LHS → 2-operand fallback); AUGOP `x OP:=y` DECOMPOSES to ASSIGN+BINOP; RETURN currently FORCES PSUCC/PFAIL (see TODO — needs contextual γ/ω). MULTI-PROC: `collect_procs` (DFS, STMT→:subj→PROC_DECL, skip globals/records), `lower_icon_enum`/`lower_icon_proc`; `--dump-bb2` now iterates procs in source order emitting `; proc <name>`+`bb_print` exactly like `--dump-bb`. Default build UNCHANGED; flag is opt-in.
-
-  **⚠ THREE HONEST CAVEATS ON THE "MATCH=2" — DO NOT TAKE THE NUMBER AT FACE VALUE:**
-  1. **The pointer-normalization in the scoreboard is MINE and UNRULED — needs Lon's call.** `wordcount`'s match depends on `/tmp/scoreboard.sh` (scratch, NOT in repo) normalizing `sed -E 's/ival=[0-9]{7,}/ival=PTR/g'`. The oracle stores a NON-DETERMINISTIC heap pointer in `GEN_SCAN.ival` (observed 921023984 then 164042224 across runs) so raw byte-match there is impossible. Normalizing heap addresses is defensible (they're not semantic) BUT it changes the yardstick; **Lon should confirm this is legitimate and not a way of defeating the test's purpose** before it's trusted. Legit ivals are ≤3 digits (opcodes/argcounts/tree-codes); the 7-digit floor only catches pointers.
-  2. **The `TT_SCAN` handler is a NODE-ONLY STUB.** It emits `IR_GEN_SCAN` whose `ival` points at a freshly-`IR_alloc`'d **EMPTY** sub-graph — subject and body are NOT lowered into it. Dump shape is correct (bb_print doesn't recurse GEN_SCAN, so body is legitimately invisible) but the scan does nothing executable. `wordcount`'s match reflects dump-shape agreement, not a complete scan. TODO: lower subject+body into that sub-graph.
-  3. **ZERO execution validation exists, and it's STRUCTURAL not laziness.** `--dump-bb2` is DUMP-ONLY: `scrip.c` returns right after `bb_print` (~L1689). The mode-2 interp (`IR_interp_once`, ~L2036) runs the OLD lowerer's graph from `s2->bbp.table`, NEVER the new `lower_icon` graph. So nothing routes the new graph to the interp — "match" = bytes agree with the old dump, NOT "it runs correctly." Wiring `--dump-bb2`'s graph into mode-2 is a separate, prerequisite-for-trust task.
-
-  **FULLY-TRACED CONTROL-FLOW WIRING (next session: implement, but VERIFY SEMANTICS FIRST — see ⚠ below).** Reverse-engineered node-exact from `palindrome.icn`'s `palindrome` proc (`--dump-bb`):
-  - **RETURN fix (do this first; safe, keeps MATCH=2):** use PASSED γ/ω, not forced PSUCC/PFAIL. Oracle's `return "yes"` (last stmt) has γ=PSUCC only because threading passes PSUCC there; nested `return "no"` inside an if has γ=next-stmt(15). roman/wordcount/hello unaffected (returns are last-stmt or absent).
-  - **`lower_while(C,B,γ,ω)`** [γ==ω==next-stmt at top level]: build WHILE (γ,ω) FIRST; `centry=lower(C, /*γ fixup*/NULL, /*ω*/WHILE, &cval)`; build CONJ(centry,centry) [back-edge]; `b_entry=lower_do_body(B, R=centry, K=CONJ)`; `γ_to(cval,b_entry)`; `ir_operand_push(WHILE,centry)` → `ops:[cond-entry]`; *res=WHILE; **return centry** (while-stmt entry = condition entry; WHILE node is the loop-EXIT, reached via condition-fail ω). Alloc order: WHILE, C(BINOP,left,right), CONJ, body. Verified `[4]WHILE γ=3 ω=3 ops:[6]`, `[5]LT γ=21 ω=4`, `[8]CONJ γ=6 ω=6`.
-  - **`lower_do_body(B,R,K)`**: stmts S[0..k-1]; reverse-thread γ `succ=K; for i=k-1..0 { ent[i]=lower(S[i],succ,/*ω*/R,&val[i]); succ=ent[i]; }`; B_entry=ent[0]; ω FIXUP `for i=1..k-1: ω_to(val[i], val[0])` (later body-stmt RESULT nodes' ω→FIRST stmt's result; sub-nodes keep ω=R). Verified `j-:=1 [9]ASSIGN γ=8 ω=17` (subs ω=6), `i+:=1 [13]ASSIGN γ=11 ω=17`.
-  - **`lower_if(C,T,E,γ,ω)`** (no-else verified; sieve/roman ifs also no-else): build IF(γ,ω); `tentry=lower(T,γ,ω,&tval)`; [`eentry=lower(E,γ,ω)` if E]; `centry=lower(C, /*γ*/tentry, /*ω*/E?eentry:ω, &cval)`; `ir_operand_push(IF,centry)` → `ops:[cond-entry]`; *res=IF; **return centry** (if-entry = INLINED condition entry; IF node is a resume anchor reached only via ω). Alloc: IF, THEN, C. Verified `[17]IF γ=15 ω=6 ops:[21]`, `[18]RETURN γ=15 ω=6`, `[20]~== γ=19 ω=6 ival=17`, `[21]s[i]CALL[] γ=22 ω=6`.
-  - **⚠ SEMANTIC QUESTION TO RESOLVE BEFORE REPRODUCING:** in the traced palindrome graph, when the if-condition `s[i]~==s[j]` FAILS (chars equal), `[20]~==`'s ω=6 routes back to the while-condition top, which APPEARS to skip `i+:=1`/`j-:=1` (would be an infinite loop on equal chars). Either (a) I'm misreading the resume-anchor/`[17]IF`-via-ω semantics, (b) the IF node re-entry handles the fall-through, or (c) the oracle graph is itself questionable. **Do not reproduce a structure you believe is wrong just to pass the diff — confirm the interp semantics (`IR_IF`/`IR_WHILE`/`IR_CONJ` arms; note the body pointer is `((IR_t*)0)`-excised in this build, real access via `bb_operand_aux_get`) or ask Lon first.**
-  - **DEEPER (roman/sieve/queens/generators), traced but NOT yet specced to node-exact:** EVERY (`ival`∈{0,1,2} state machine, `ops:[gen-entry]`), TO (`sval="ag"` static marker, `ops:[lo,hi]`), TO_BY, nested EVERY/WHILE back-edges through TO, SUSPEND/generator caching, scan-with-body (meander). These dominate the remaining 6 DIFFERs and are the bulk of the work left.
-
-  **NEXT (in order):** (1) get Lon's ruling on the pointer-normalization; (2) RETURN fix; (3) WHILE/IF/CONJ per above AFTER resolving the semantic question → target palindrome MATCH; (4) finish scan sub-graph (subject+body) so wordcount's match is real; (5) EVERY/TO/generators for roman/sieve; (6) consider wiring `--dump-bb2`→mode-2 so the rebuild can be EXECUTION-validated, not just dump-matched; (7) snobol4/raku/pascal/prolog `_nl` the same way. Be honest in each handoff about dump-match vs execution-correct.
-
-**▶ HANDOFF (2026-06-08, Opus 4.8, Lon "perform hand off") — LOWER REBUILD continues: ARCHITECTURE CORRECTED + first MATCH. SHAs: SCRIP `ae654ca` (rebased onto concurrent push `5b8a8da`, disjoint/clean; rebuilt green + hello MATCH re-verified post-rebase), .github THIS COMMIT. The prior "structured-marker / template-owns-control-flow" plan (entry below) is SUPERSEDED: the live interp (`interp/IR_interp.c`) is a GOAL-DIRECTED γ/ω-FOLLOWER — each arm returns `bb->γ.node`/`bb->ω.node` as the next node and `bb_print` hardcodes the α(γ)/β(ω) labels — NOT a tree-walker. So the new lower must REPRODUCE the OLD graph's goal-directed shape, gated by `--dump-bb` (old = oracle) vs `--dump-bb2` (new). LON RULINGS (full text in `## DO NOT` + `## LOWER REBUILD — method`): (1) NEVER read/transcribe the OLD lower source — the in-memory graph is the SOLE spec; (2) dispatch = TREE-PATTERN GAUNTLET, model trees applied like SNOBOL4 patterns (lightweight hand-rolled `pmatch` ~50 lines, NOT a lib; BURS/iburg-in-Icon = the later OPTIMIZATION-matching path); (3) the `.md` migration is a SEPARATE session's job — I reverted mine (SCRIP `.md` untouched). TOOLING (committed this handoff; default build UNCHANGED → gates safe): five new lowerers compiled INTO scrip beside the old ones at `src/lower/nl/lower_*_nl.c` (externs `lower_icon`/`lower_snobol4`/`lower_raku`/`lower_pascal`/`lower_prolog`; `_nl` basename dodges the flat-object collision; wired in the Makefile `scrip:` recipe ~L540 + prereq list ~L238); `emit()`→`build()` in all five; `--dump-bb2` handler in `scrip.c` runs the parsed AST through the new lowerer + `bb_print`. SCOREBOARD (rebuild in /tmp per the method section — NOT container-durable): icn9 MATCH **0→1**, hello.icn byte-identical to oracle. LANDED in `lower_icon_nl.c`: `pmatch`+`p_bin`/`p_un` (binop/unop dispatch model-tree matched), goal-directed `lower_call` (CALL sval=name/ival=argcount, args γ-threaded, ZERO operands, ENTRY-returning) + `lower_proc_body` (SUCCEED@0/FAIL@1 first, reverse-thread, entry = leftmost leaf) + `find_proc` (STMT→:subj→PROC_DECL). NEXT: (a) MULTI-PROC emission — oracle dumps EVERY proc, `lower_icon` emits only the first; gating step to climb past single-proc programs; (b) goal-directed `if`/`while`/`every` + binop → drive icn9 MATCH 1→9; (c) then snobol4/prolog/pascal `_nl` files the same way (already staged). Other Icon programs DIFFER as expected (unconverted constructs + multi-proc).**
-
-**▶ HANDOFF (2026-06-08, Opus 4.8, Lon "perform hand off") — PIVOT TO LOWER REBUILD (separate sub-effort, NOT an IRD ladder step). Full detail: `.github/HANDOFF-2026-06-08-OPUS48-LOWER-REBUILD-GROUND-ZERO.md`; WIP files + repro in `.github/lower-rebuild/`. Lon redirected to a from-scratch ground-zero rebuild of the five per-language LOWER functions (segregated / parallel / no-sharing / static-except-one-extern), JCON `tran/irgen.icn` as the Icon guide, on the slim IR_t — confirmed IR_t needs NOTHING added (γ/ω inherited params, α/β synthesized = the returned node addressed via IR_ref_t `sz`; `lower(cx,t,γ,ω)->IR_t*` IS the four-attribute grammar). Five `lower_*.c` built + ALL compile clean against the contracts; they live ONLY in `.github/lower-rebuild/` — **the SCRIP tree was not touched this session and still builds green at HEAD.** Architecture: STRUCTURED marker nodes (emit IR_IF/WHILE/…, push children as operands, wire γ/ω; template owns control flow) + generic IR_BINOP/IR_UNOP w/ operator-in-LIT (Prolog arith = IR_STRUCT). Icon validated GRAPH-LEVEL through the REAL parser (`pipe_icon` harness): `hello` → PROG→PROC→CALL→[VAR,LIT_S]; 2-stmt body → γ chains [2]→[5]α. KEY FINDING: statement convention (`src/driver/stmt_ast.c`) — TT_STMT carries `:subj`/`:pat`/`:repl` TT_ATTR children + TT_GOTO_S/F/U children; content = `:subj`; SNOBOL gotos wire onto γ/ω (all five lowerers extract `:subj` via a `stmt_subj` helper). Findings: `IR_CLAUSE` absent (clause→IR_GOAL); `TT_COMPOUND`/`TT_ATOM`/`TT_UNKNOWN` are not real `tree_e`. NEXT = integrate `lower_icon` into the live build (retire old multi-file `lower_icn` path; `lower.c`+`lower_program.c`+Makefile+`lower.h`; promote files into `src/lower/`) + reconcile interp `IR_CALL`/`IR_PROG`/`IR_PROC` arms to the new operand contracts + link `libscrip_rt` → `write("hello")` to actual stdout (rung 0 LIVE), then climb the shared rung ladder per language. **LANE B — the byte-identical gate WILL churn.** Promoting `.github/lower-rebuild/*.c` into `src/lower/` collides with the existing `lower_*` symbols = that collision IS the integration step.**
-
-**▶ HANDOFF (2026-06-08, Sonnet 4.6) — IRD-4b γ/ω CARRIER FLIP DONE + PUSHED. SHA: SCRIP `5477fbc` (rebased onto concurrent BB-FIXUP `441a6b3` — disjoint files, clean). IR_t.γ/ω changed from IR_t* to IR_ref_t{node,sz[4]} across 30 files (830 ins/830 del). sz="α" uniformly on all write sites (behaviour-preserving — all current targets fresh-entry; β-targeting is a separate later semantic step per goal DO-NOT rules). Three edge cases required manual brace surgery after automated script: lower_pascal.c compound `if (b1) X; else if (!c1) Y;` chain; lower_sno.c `if (prev) WRITE; else OTHER;` (2 instances); scrip.c `if (!head) head=X; else tail->γ=cu;` pattern (10 instances, two variants). GATE PASSED: 5 sweeps (sno153/icn9/pl8/sco191/pas5) BYTE-IDENTICAL, 4 smokes (icon/prolog/snobol4/rebus) IDENTICAL, prove_lower col-7-ptr-masked IDENTICAL rc=0. IR_t is now {op, γ:IR_ref_t, ω:IR_ref_t, operands, n_operands, idx, own} — all 7 members at correct types. NEXT = IRD-5 (sizeof fence doc 64→48 already met; ADD IR_t struct-shape section to ARCH-IR.md now that γ/ω types are final). After IRD-5: IRD-3 residue (BINOP/ALT/DISJ/APPLY/single-child operand_aux retirement, then delete bb_operand_aux_set/get).**
-
-**▶ HANDOFF (2026-06-08, Opus 4.8, Lon attending "your choice, perform hand off") — BREAKOUT-FIRST
-PREREQUISITE VERIFIED COMPLETE + dead goal-bridge removed. SHAs: SCRIP `2c51b3e` (rebased onto
-concurrent BB-FIXUP `7f8855c` bb_choice FIX-8b — disjoint files, clean), .github THIS COMMIT. SCRIP
-builds green from clean (scrip + libscrip_rt), pushed via guarded fast-forward. The per-language lower
-BREAKOUT (the "DO NOT reorder — BREAKOUT FIRST" item) is DONE: all 5 language categories lower through
-standalone, segregated entries — SNOBOL4/Snocone/Rebus→`lower_sno` (lower_sno.c), Icon→`lower_icn`
-(lower_icon.c), Raku→`lower_rku` (lower_raku.c), Pascal→`lower_pas` (lower_pascal.c) on the shared
-`lcx_t`/`lower()` spine (VALUE+PATTERN roles, sharing `lower_value_shared`+`lower_pattern` helpers by
-design); Prolog→`pl_lower_goal` via `lower_clause_body_entry` (lower_prolog.c) on its OWN `plcx_t`
-spine, NEVER entering `lower()`. REMOVED the vestigial bridge that made the `lcx_t` spine pretend to
-lower goals: the `case ROLE_GOAL: lower_goal(...)` arm in `lower()` (lower.c), the dead `lower_goal`
-`lcx_t` shim (lower_prolog.c), its prototype (lower_internal.h), and the `ROLE_GOAL` enum value —
-PROVABLY UNREACHABLE (census: nothing in src ever set `lcx_t.role=ROLE_GOAL`; every live `…ROLE_GOAL`
-is `PL_ROLE_GOAL` in the `plcx_t` world). `lcx_t` roles are now exactly {VALUE, PATTERN}; goals are
-`plcx_t`-exclusive. Changeset SCRIP +1/−10 across 3 files, BYTE-IDENTICAL BY CONSTRUCTION (dead-code
-removal). GATE PASSED — pristine bake at `cd52558` (`/tmp/base`) vs the COMBINED rebased tree
-(`/tmp/post2`, = `7f8855c` + this change): 5 interp sweeps (sno153/icn9/pl8/sco191/pas5)
-byte-identical, 5 smokes (icon/prolog/snobol4/raku/rebus) byte-identical (TIME-masked), prove_lower
-col-7-ptr-masked PASS=68 rc=0, both build targets rc=0 (the 114 core.h INTVAL/REALVAL redefinition +
-write-strings warnings are PRE-EXISTING, present in the baseline build, not introduced here). NOTE:
-`core.h` macro-redefine warnings are a latent cleanup item, out of IRD scope. NEXT (unchanged) =
-**IRD-4b SUB-TASK 2 — γ/ω CARRIER FLIP** (γ/ω: `IR_t*`→`IR_ref_t{node,sz[4]}`; do FRESH + ATOMIC, NO
-SAFE PARTIAL — 489 derefs across 27 files, 420 in IR_interp.c; `iref()` carrier already exists; set
-sz="α" UNIFORMLY first, behavior-preserving; do NOT start near a context limit). Then IRD-5 (sizeof
-fence 64→48 already met; ADD IR_t struct-shape section to ARCH-IR.md after the carrier flip).**
-
-**▶ HANDOFF (2026-06-08, Opus 4.8) — IRD-4b SUB-TASK 1 (t→op) DONE + PUSHED. SHAs: SCRIP `aae8686`,
-.github THIS COMMIT — SCRIP builds green from clean (scrip + libscrip_rt), pushed to origin. Re-bake
-recipe + PASS criteria UNCHANGED (see the demoted block directly below). DONE THIS SESSION: the IR_t
-kind field renamed `IR_e t -> IR_e op` across every consumer that touches it — IR_interp.c, all
-emitter/** (BB_templates + emit_bb.c + emit_core.c), scrip_ir.c (alloc+dump), the AST→IR producers'
-IR-side accesses (lower_program.c, lower_value.c, driver/scrip.c gz-synth, parser/raku/raku_nfa_bb.c),
-runtime/unification.c, and the SEPARATELY-COMPILED harnesses tools/prove_lower.c +
-tools/emit_per_kind_audit.c (⚠ NOT built by `make` — the gate caught them; a future field-touching
-step MUST include them). tree_t (AST) ->t left untouched, verified PER-LINE (textual `->t` count ==
-compiler-flagged count on every edited line ⇒ no mixed IR_t/tree_t line was blanket-edited; the lone
-scrip.c tree_t->t and a 1-line lower_value mixed case were correctly excluded). GATE PASSED: clean
-build 0 errors both targets; grep '->t' == 0 in pure consumers (interp/emitter/scrip_ir); 5 sweeps
-(sno153/icn9/pl8/sco191/pas5) + 5 smokes byte-identical; prove_lower PASS=68 rc=0 byte-identical
-(col-7 ptr-masked). Changeset = clean 761/761 ins/del pure rename, 35 files. **IR_t is now {op, γ, ω,
-operands, n_operands, idx, own}.** NEXT = **IRD-4b SUB-TASK 2 — γ/ω CARRIER FLIP** (do FRESH + ATOMIC;
-⚠ NO SAFE PARTIAL — changing the γ/ω field type breaks every deref at once, so it is all-or-nothing
-through to green build + byte-identical gate + commit; do NOT start near a context limit). Change
-IR_t.γ/ω from IR_t* to IR_ref_t{node, sz[4]}; interp/emitter follow ref.node + dispatch on ref.sz[1]
-(0xB1='α' fresh / 0xB2='β' resume); iref() carrier helper already exists — update it. DO NOT change
-γ/ω SEMANTICS: every current target is fresh-entry, so set sz="α" UNIFORMLY first (behavior-
-preserving); β-targeting wires (conjunction right-ω→left-β etc. per irgen.icn) are a SEPARATE later
-semantic step. Then IRD-5 (sizeof fence already 64->48; ADD the IR_t struct-shape section to
-ARCH-IR.md — best done AFTER the carrier flip so γ/ω's type is documented correctly). NOTES: (a)
-src/parser/icon/icon_lex_test.c is DEAD/unbuilt and ALREADY-broken independent of this work — its 37
-"member t" errors are about IcnToken, NOT IR_t — out of scope, latent cleanup only. (b) bash_tool
-runs /bin/sh — use `bash -c` for process substitution; mask prove_lower col-7 with
-`awk '{if(NF>=7)$7="PTR";print}'`. (c) COORDINATE with BB-FIXUP — emit_bb.c is shared; the pre-push
-GUARD held (rebased cleanly onto concurrent FIXUP commits 793a613/ed50f54/97b5f5e — disjoint files,
-their bb_fail.cpp has zero IR_t refs); push code repos first, .github last, never --force.**
-
-**▶ HANDOFF (2026-06-08, Opus 4.8, Lon attending). SHAs: SCRIP `53f861b`, .github THIS COMMIT —
-SCRIP builds green from clean, pushed to origin. /tmp baselines are EPHEMERAL (gone next session) —
-re-bake before any gate: `make && make libscrip_rt && bash scripts/bake_ird3_baseline.sh <outdir>`.
-PASS = 5 sweeps (sno153/icn9/pl8/sco191/pas5) + 5 smokes byte-identical (ignore wall-clock TIME
-lines; smoke_raku is 100% PRE-EXISTING FAIL — Tiny-Raku frontend on hold) + prove_lower col-7(ptr)-
-masked PASS=68 rc=0 (3 inherited FAILs: PL-GZ-7 ITE-pair, PL-GZ-8 arith-is). bash_tool runs /bin/sh
--> use `bash -c` for process substitution; mask col-7 with `awk '{if(NF>=7)$7="PTR";print}'`.
-STATE: **α AND β FIELDS DELETED from IR_t (53f861b)** — sizeof 64->48, member count now 7 (target).
-SCAN SUBJECT RULING (Lon, this session) = operands[2]: IR_SCAN slot layout is now operands[0]=subj
-GRAPH, operands[1]=repl GRAPH (both IRD-3a type-punned IR_graph_t*), operands[2]=runtime subject
-NODE (formerly α; set by scan_set_subj_node in the gvar-chain walker; emit_core op_a reads it).
-Generic walkers already exempt IR_SCAN operands, so [2] is walker-safe. Full IRD-4a detail in commit
-53f861b. IR_t is now {t, γ, ω, operands, n_operands, idx, own}. NEXT = IRD-4b CARRIER FLIP (do FRESH +
-ATOMIC, it is delicate):
-  1. t→op rename — ⚠ `->t` is AMBIGUOUS (tree_t/AST also uses ->t). Disambiguate: rename ONLY IR_t
-     consumers (interp/IR_interp.c, emitter/*, lower/*, contracts/scrip_ir.c, driver dispatch). Do a
-     scoped census first; the RULES "no ->t in modes 2/3/4" refers to AST tree_t, not IR_t. Gate
-     grep '->t\b' == 0 in IR consumers when done.
-  2. γ/ω carrier IR_t* -> IR_ref_t{node, sz[4]} dispatching on sz[1] (0xB1='α' fresh / 0xB2='β'
-     resume). DO NOT change γ/ω SEMANTICS — every current target is fresh-entry, so set sz="α"
-     uniformly first (behavior-preserving); β-targeting wires (conjunction right-ω→left-β etc. per
-     irgen.icn) are a SEPARATE later semantic step. iref() carrier helper already exists.
-  3. Then IRD-5: record sizeof fence (done: 64->48), ADD an IR_t struct-shape section to ARCH-IR.md
-     (it currently documents only tree_t/AST + the SM/broker model, NOT the IR_t struct). COORDINATE with BB-FIXUP — emit_bb.c is shared; the pre-push
-     GUARD (assert origin/main==HEAD~1 else rebase, never --force) caught a concurrent push this
-     session (e9e8b7f tracker-only); push code repos first, .github last. Full detail + independent-
-     confirmation history in the entries below.**
-
-**RAKU-NFA NOW COMMITTED (resolves decision 2 below) + honest scope. (2026-06-08, Opus 4.8, "Yes
-migrate to operands; remove fields first, 5 min" — a SECOND IR-REDESIGN session, coordinating with
-the delete-first session's entry directly below; identical diagnosis reached independently.) Per
-Lon's "Yes, migrate to operands," committed the raku_nfa α/β->operands migration at SCRIP 3a0bf21
-(rebased onto BB-FIXUP 69b3417; prove_lower rc=0; raku NFA isolation re-confirmed — IR_NFA_*/raku_nfa
-absent from shared interp/emit, so the delta cannot move any gated artifact). This REMOVES β's LAST
-WRITER pipeline-wide (β now has ZERO writers -> the β-only-deletion raku prerequisite is MET) and α's
-self-loop write (α's sole remaining writer is now the 2 IR_SCAN subject sites). CAVEAT (in commit):
-smoke_raku is pre-existing-FAIL, so the SPLIT path is byte-identical but behaviorally UNVERIFIED;
-raku is on hold so verification defers to resumption regardless. STILL OPEN for Lon: the SCAN
-α->operands slot ruling (decision 1) — the SOLE remaining α blocker; precise sites in the entry
-below (writes emit_bb.c:2689/2800; reads emit_core.c:386 + emit_bb.c:2038/2576/2589/2627). HONEST
-SCOPE CORRECTION on "5 min": the β-only deletion is the clean partial win but is a ~50+-site
-byte-identical bb->β-read->NULL sweep across IR_interp.c + emit_bb.c (incl IR_EXEC(bb->β)/walk_bb_flat
-/bb->β->t·γ) — minutes of edits but error-prone; best run ATOMICALLY in a fresh context (delete field
--> compiler flags every site -> fix -> gate -> commit) to honor the no-broken-commit rule, not
-started near a context limit. Recommend: (a) land β-only deletion fresh; (b) Lon rules SCAN α slot;
-(c) α deletion + t->op + γ/ω->IR_ref_t follows.**
-
-**IRD-4 ATTEMPT (delete-fields-first, per Lon) — BLOCKED ON α BY IR_SCAN; β CLEAN. (2026-06-08,
-Opus 4.8, "remove bogus fields FIRST then fixup, 5 min"). Executed the delete-first plan: bulk-swept
-all 186 always-NULL α/β READS -> ((IR_t*)0) across IR_interp.c(126)/emit_bb.c(33+1 chained
-bb_child0(pBB)->β)/emit_core.c(4)/scrip.c(1)/prove_lower.c(16) — COMPILES + BYTE-IDENTICAL (verified:
-5 sweeps + 4 smokes identical, prove_lower cols 3-4 stay -1 -1 since idx_of(NULL)=-1, PASS=68). The
-bb_every/bb_cell_ite 'body.β/Then.α/Else.α' + emit_bb 'bb->α' hits were FALSE POSITIVES (string/
-comment text, not field access). raku_nfa MIGRATED off α/β -> operands (3 edits: drop dead α
-self-loop@154, SPLIT out2 β->ir_operand_push@158, reader s->β->ir_pair_arg(s,0)@77).
-*** CENSUS CORRECTION (supersedes the entry below): α is NOT dead-storage — IR_SCAN WRITES it. ***
-Field deletion BROKE at emit_bb.c:2689 & :2800 (lvalue error): both chain-walkers
-(descr_chain_arity / gvar_chain_arity), arity-1 case, do `if (n->t != IR_SCAN){...operands...} else {
-n->α = stk[sp-1]; }` — α is IR_SCAN's LIVE SUBJECT SLOT, distinct from its operands (which hold
-IRD-3a type-punned subj/repl GRAPHS). Census missed it (buried in conditional else). So:
-  • β — CLEANLY DELETABLE NOW (only raku_nfa used it, now migrated; ~5 min as Lon said): β-reads->NULL
-    sweep + raku_nfa(done) + delete β field. No SCAN entanglement.
-  • α — BLOCKED. Needs the SCAN joint pattern-BB ruling (Lon): where does SCAN's subject go in
-    operands[] without colliding with the subj/repl graph slots? Cannot freelance (RULES reserve it).
-REVERTED the α-touching sweep -> main green at SCRIP ab515ff (now absorbed into BB-FIXUP's 42f07cd).
-raku_nfa migration HELD UNCOMMITTED + UNVERIFIED: smoke_raku is 100% PRE-EXISTING FAIL (Tiny-Raku
-frontend on-hold/broken — every rung 'say string literal'/arithmetic returns EMPTY output), so the
-suite is byte-identical but does NOT exercise the migrated NFA SPLIT path. DECISIONS NEEDED: (1) SCAN
-α->operands slot ruling (unblocks α); (2) commit raku_nfa now (mechanically correct, removes β's last
-writer) or hold for a real raku regex test; (3) land β-only deletion now as the clean partial win?**
-
-**IRD-4 PREP + STRATEGIC FINDING — ✅ LANDED ab515ff (2026-06-08, Opus 4.8, "I want what you
-want"). HOW-SOON-TO-DELETE-α/β ANSWERED: α/β are ALREADY DEAD STORAGE for 6 of 7 languages.
-Whole-pipeline α/β WRITER census (arrow+dot+all forms): the ONLY non-NULL writers are
-raku_nfa_bb.c:154/158 (NFA self-loop α=b + out2 β; ISOLATED — consumed by its own nfa_bt_ir_*
-backtracker, IR_NFA_* appears NOWHERE in shared interp/emit) + emit_per_kind_audit.c (diagnostic
-tool, not pipeline) + scrip_ir.c:215 (allocator NULL-init). So SNOBOL/Icon/Prolog/Snocone/Rebus/
-Pascal nodes ALL have α/β==NULL always. KEY CONSEQUENCE: FIELD DELETION IS DECOUPLED FROM IRD-3
-COMPLETION — aux-using kinds (BINOP/ALT/APPLY/single-child) work via operands-empty->NULL in
-bb_child0, which `(n_operands>0)?operands[0]:NULL` reproduces exactly once α is gone. So α/β can be
-removed AFTER (1) raku_nfa migrated off α/β->operands[] (self-contained ~2 writes + its own readers;
-the 'Lon ruling pending' item — ruling is FORCED: can't keep a field one subsystem uses while
-deleting it) + (2) the reader sweep (mechanical, byte-identical: every ->α/->β read is NULL-valued
-or in a dead branch). NOT gated on finishing BINOP/ALT/APPLY operand migration. Estimate 2-3 focused
-sessions to fields-gone. THIS COMMIT = reader-sweep chunk 1: bb_child0/bb_child1 (emit_bb.c) +
-ir_pair_arg/ir_call_arg (IR.h) dropped their α/β/α-γ-chain fallback -> operands-only, byte-identical
-(raku NFA never reaches these; other nodes' α/β==NULL; IR_BINOP aux discriminator at emit_bb.c:2288
-preserved exactly). GATE: 5 sweeps (sno153/icn9/pl8/sco191/pas5) + smokes byte-identical (snobol4
-only a wall-clock TIME line), prove_lower col-7-masked PASS=68 rc=0. Guard passed clean.
-SUGGESTED LADDER REORDER FOR LON: promote α/β field-deletion ahead of full IRD-3 — gate it on
-raku_nfa + reader-sweep only. The remaining reader-sweep chunks: interp direct ->α/->β reads (all
-dead branches, e.g. BINOP arm fall-through, since the guard !bb->α&&!bb->β is now always-true) +
-emit EMIT-BLIND ->α->t residue + the audit-tool + raku_nfa. Then field delete + t->op + γ/ω->IR_ref_t.**
-
-**IRD-3 TO emit half — ✅ LANDED ON MAIN at 187ae78 (2026-06-08, Opus 4.8, Lon attending,
-"your choice, continue"). TO NOW FULLY MIGRATED OFF operand_aux. Dropped the dead
-bb_operand_aux_set in v_to (lower_value.c:224): consumer census proved NOTHING reads IR_TO's
-aux — interp reads operands[] via ir_pair_arg (e8c9d49), emit reads flat_drive_to via
-bb_child0/bb_child1 (operands-first dual-read, slots derived by bb_slot_get on the operand node).
-The two emit_bb aux GETs at 2558/2617 serve IR_REF_INVARIANT; 321/366/388/697/2432 serve ALT
-arm-lists + chain-children; bb_alt.cpp:34 + scrip.c:113/1033 are ALT; bb_call.cpp:94 is CALL —
-none TO. So the v_to aux SET was a dead write; deleting it is byte-identical (operands push lines
-RETAINED unchanged). GATE vs pristine bake: 5 sweeps (sno153/icn9/pl8/sco191/pas5) BYTE-IDENTICAL,
-5 smokes (icon/prolog/snobol4/raku/rebus) BYTE-IDENTICAL, prove_lower col-7-pointer-ival-masked
-IDENTICAL PASS=68 rc=0, IR_TO live m2=m3=m4 (every write(1 to 5)+(2 to 10 by 3) -> 1 2 3 4 5 / 2 5 8
-on all three modes). Pre-push GUARD passed clean (origin/main==HEAD~1, no race this push).**
-
-**IRD-3 TO operand_aux fold (INTERP half) — ✅ LANDED ON MAIN at e8c9d49 (2026-06-08, Opus 4.8,
-Lon attending, "it's all on you"). v_to now populates node->operands[]=[lo,hi] (the aux SET is
-RETAINED, serving ONLY the emit slot machinery, not yet migrated). The IR_TO interp arm reads
-bounds via ir_pair_arg(bb,0/1) (Lc/Hc) instead of bb_operand_aux_get, and the static-ag guard
-tests the 'a' sval marker instead of !Lc&&!Hc. ROOT-CAUSE FINDING + NEW LAW: the aux kinds encode
-operands[]-EMPTINESS AS A STATIC-vs-DYNAMIC DISCRIMINATOR — TO's !Lc&&!Hc (ir_pair_arg is
-operands-first) double-served as "this is a static-ag node, read bounds from aux", so naively
-populating operands[] silently flipped static-ag TO into the dynamic branch (caught as roman.icn
-m2 -> empty in a reverted probe, then root-caused). Any operand_aux flip MUST re-express that
-discriminator on a real marker BEFORE populating operands[]. v_to (lower.c:252) is the SOLE IR_TO
-producer and never sets a/b, so the dynamic interp branch is unreachable and the change is
-byte-identical. GATE: 5 sweeps (sno153/icn9/pl8/sco191/pas5) byte-identical, prove_lower PASS=68,
-all smokes identical — VERIFIED ON TWO BASES (A/B bake vs fresh origin), landed via GUARDED
-fast-forward after absorbing 3 concurrent races (re-baseline 4554a14, M34-4, PB-28 71d0d49) by
-rebase+rebuild+re-gate each time.**
-
-**Prior milestone — IRD-3(c) GZ-SYNTH CLUSTER ✅ at 1d3b397 (git history + the
-HANDOFF-2026-06-07-*-IRD-3D/3E docs preserve the full recovery saga). origin/ird3-gz-recovery
-redundant, safe to delete on Lon's word. Workflow ruling STILL WANTED: the pre-push GUARD (assert
-origin/main == HEAD~1 else rebase, never --force) prevented races on BOTH the GZ session and this
-one — recommend mandating it as the standard push wrapper.**
-
-### Done this session (all gated: full bake vs pristine = prove_lower LAW-6 col-7
-pointer ivals masked-identical PASS=68; all sweeps + smokes byte-identical; reconciled
-final bake GREEN, prolog 5/5/5, icon m2 12 / m3 10 / m4 10 at floors):
-- GZ CONSUMERS dual-read (was SCRIP c526ad3): gz_fill_goal DET_WRITE, flat_drive_gz_query
-  QUERY_FRAME hd/hdB=bb_child0/1 (9 fetches; gamma-walks STAY = legitimate success chain),
-  marshal DET_IS/DET_CMP arms, bb_det_is 3 helpers, bb_is_cmp rhs+pBB child-hops, bterm_arith,
-  scrip.c:890 units twin (8f4f773 sibling, fprintf-probe-proven DEAD on full pl corpus).
-- GZ WRITERS flip (was f8b3a91): all 15 a/b writes in pl_gz_* synth (scrip.c 603-1108) ->
-  ir_operand_push, [0]=a-role [1]=b-role; null-guards locals-first; QUERY_FRAME four-combo-
-  exact (push head iff head||headB, push headB iff headB); ARITH-copy mirrors m0/m1.
-- flat_drive_gen_alt arm-via-omega DELETED + bb_call arith_operands operands-first (was fb4ffcc):
-  verify-then-delete, zero-writer (a-writers EXTINCT src-wide post-flip) + builder proof.
-- interp IR_SEQ_EXPR alpha-chain DELETED (9c42343): guard !bb->a always-true -> fold to NULVCL/gamma.
-
-### RATCHET (proven, stash-A/B): prolog smoke arith m3+m4 FAIL->PASS (4->5 both). Pristine
-rc=134 'unresolved gzq0_g0_b' = bb_is_cmp is-arm guard read ->a/b NULL on LOWERED operands-only
-ARITH rhs (scrip.c:960); IRD-2b producer flip had STRANDED these readers; consumer dual-read
-repaired it. Live IRD-2b-class fix, not refactor anomaly.
-
-### FINDINGS
-- IR_GEN_ALT kind is CONSTRUCTOR-LESS (zero builders src-wide; flat_drive_gen_alt serves IR_ALT
-  non-flat-chain branch; interp 4295 arm is exec-sidecar DCG, its a/b are port-CONSTANTS not
-  fields). Kind-garden deletion candidate — OUTSIDE IRD scope, flag for Lon.
-- 053_pat_alt_commit.sno m2 output delta is B3-owned (7a12aed TT_ALT lowering), not IRD.
-- flat_drive_gz_query gamma-walks = legitimate success wiring, NOT chain-edge abuse; stay until
-  IRD-4 carrier-type change.
-
-### HISTORY (resolved — git preserves full detail): the IRD-3c gz commits c526ad3/f8b3a91/
-fb4ffcc were erased from main by TWO force-pushes (a stale-clone reset, then a Pascal/M34
-landing), preserved meanwhile on origin/ird3-gz-recovery (reconciled tree 4a8236b), and
-re-landed this session as recorded in the watermark above. LON: WORKFLOW RULING STILL WANTED —
-mandate --force-with-lease / ban hard resets / require fetch+rebase-before-push. The pre-push
-GUARD (assert origin/main == HEAD~1 parent, else abort+rebase, never --force) is what prevented
-a THIRD incident this session when a parallel push moved origin mid-work; recommend adopting it
-as the standard push wrapper.
-
-### REMAINING IRD-3 (c) — operand_aux retirement, now kind-by-kind GATED flips (TO FULLY MIGRATED
-187ae78). Each flip: re-express the kind's discriminator off operands[]-emptiness FIRST, then
-populate operands[], migrate consumers, and A/B-gate vs a FRESH origin bake (concurrent
-BB-FIXUP/Pascal pushes are constant — 3 races last session alone):
-- BINOP — NEXT. EASIER interp profile than TO: its interp guard reads the a/b FIELDS
-  (!bb->a && !bb->b), NOT ir_pair_arg, so populating operands[] does NOT flip the INTERP arm.
-  ⚠ EMIT HAZARD (found this session, 187ae78 census): the emit IR_BINOP case (emit_bb.c:2207)
-  reads children via bb_child0/bb_child1 which are operands-FIRST-then-field, and its
-  g_gvar_flat_chain arith/relop arms GUARD on `&& bb_child0(nd) && bb_child1(nd)` — for a
-  v_binop BINOP those are NULL today (aux-only), so pushing operands[] would newly-SATISFY those
-  guards = a TO-style discriminator flip on the EMIT side. Re-express that emptiness guard on a
-  real marker BEFORE populating, exactly as TO required. Producers lower.c (v_binop, lower_value.c:188)
-  + lower_pascal.c:51/68/80; consumers interp 325(gen_resume)/2616 + the emit op_a_* feed across
-  bb_binop_*/bb_gvar_assign/bb_assign_frame_ref/bb_call (BB-FIXUP-owned — coordinate/rebase).
-  PRECISE DISCRIMINATOR (187ae78 census): emit_bb.c:2288 `else if (!bb_child0(nd) && !bb_child1(nd))`
-  is the operands-emptiness fall-through (aux-only binop → EMIT_PAIR_FILL as-is, bb_binop_* template
-  reads AUX); the g_gvar_flat_chain arith/relop arms (2212-2266) and the descr-slot arm (2281) all
-  GUARD on `bb_child0(nd)` being non-NULL. v_binop is aux-only (sets aux, never operands/α — sole
-  non-pascal producer, lower_sno 881/903 push onto PATTERN_ALT/CAT not binop), so EVERY v_binop
-  binop currently takes the 2288 fall-through. CONFIRMED LIVE-SNOBOL BLAST RADIUS: `X = 3 + 4` m4
-  fires the gvar-arith template — integer arith codegen flows through this exact region. THEREFORE
-  the BINOP flip MUST (per the operands-emptiness LAW) re-express BOTH the 2288 fall-through AND the
-  bb_child0-guarded arm guards on a REAL MARKER (v_binop already writes IR_LIT.dval=1.0 for relop /
-  0.0 for arith and sval=op-name — a third marker or reusing these can encode "operands available")
-  BEFORE pushing operands[]; then migrate the bb_binop_* template + interp 325/2616 off aux. This is
-  a multi-file change touching live SNOBOL emit — NOT a one-commit flip. OPEN (pin next session with
-  a focused --compile dump of `X=3+4`): the exact path by which gvar-arith fires today given
-  bb_child0==NULL on a v_binop binop (re-kind elsewhere vs a populated sibling path) — resolve before
-  the marker design so the re-expression covers the true firing site.
-- ALT/DISJ arm-lists: interp 3009/4493, scrip 113/1012, emit 321/697 + bb_alt.cpp.
-- APPLY/call-args: lower.c:103 + lower_prolog.c:115; consumers bb_call.cpp:94 + emit 366/388.
-- single-child: lower.c:494.
-- THEN DELETE bb_operand_aux_set/get + the operand_aux field/typedef (IR.h + scrip_ir.c).
-- STILL PENDING LON RULINGS (unchanged): SCAN subject a (joint pattern-BB owner); raku_nfa_bb.c
-  154/158 a-writers (missed cluster vs NFA exemption) — both cleaner to absorb at IRD-4 since
-  their a/b writes change with the carrier type anyway.
-Then IRD-4 (gamma/omega -> IR_ref_t, delete a/b, t->op; iref() carrier already exists; lower_sno
-is AG-clean, should need zero touches) -> IRD-5 (sizeof fence + ARCH-IR.md).
+  **COMMITS THIS SESSION (all on origin/main, guarded fast-forward, no --force):** `8bd1ebf`
+  value layer + multi-proc (1→2) · `ca6dc4d` WHILE/IF/CONJ + write-only arg chaining → palindrome
+  (2→3) · `b135278` CONJ = braced-block conjunction not loop back-edge → meander (3→4) · `d2a56b1`
+  EVERY/TO generators → roman (4→5) · `4fa4b74` IDX_SET + TO_BY-2-operand + every-body loop-back →
+  sieve (5→6).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
