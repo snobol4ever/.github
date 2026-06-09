@@ -143,8 +143,83 @@ value/counter/state hits in IR_interp.c, 0 in emit_bb.c.
 - Reorder ladder: BREAKOUT FIRST (Lon 2026-06-07) — per-language sweeps
   in IRD-3/4 need the per-language files to exist.
 - Change γ/ω SEMANTICS — only their carrier type.
+- **LOWER REBUILD — DO NOT LOOK AT / TRANSCRIBE THE OLD LOWER (Lon ruling 2026-06-08).**
+  Never read or replicate the OLD lowering source (`lower.c`, `lower_program.c`,
+  `lower_value.c` if present, `lower_icon.c`, `lower_sno`/`lower_snobol4.c`,
+  `lower_raku.c`, `lower_pascal.c`, `lower_prolog.c`). The SOLE spec for the new
+  lowering is the GRAPH RESULT read in memory: `scrip --dump-bb FILE` (old = the
+  oracle) vs `scrip --dump-bb2 FILE` (new). Compare graphs, fix the new lower to
+  match — never by copying old code. Replicating the old source recreates its mess;
+  the rebuild's whole point is clean code. The new lower is a proper switch/case
+  hierarchy derived from the AST + the target graph ONLY.
+
+## LOWER REBUILD — method + tooling (Lon 2026-06-08, graph-only)
+
+- Five new lowerers live at `src/lower/nl/lower_*_nl.c` (externs
+  `lower_icon`/`lower_snobol4`/`lower_raku`/`lower_pascal`/`lower_prolog`,
+  signature `IR_graph_t * lower_X(const tree_t *)`), compiled INTO `scrip` next to
+  the OLD ones — both symbol sets coexist (old `lower_icn`/`lower_sno`/`lower_pas`/
+  `lower_rku` + new). The `_nl` suffix avoids the flat-object-dir basename collision;
+  added to the EXPLICIT compile recipe in `Makefile` (the `scrip:` recipe, ~line 540)
+  AND the prereq list (~line 238). `emit()` helper renamed `build()` in all five
+  (emit is reserved for emitters). All UNCOMMITTED — fold into handoff; default build
+  unchanged so gates are safe.
+- `scrip --dump-bb2 FILE` routes the parsed AST through the new lowerer for that
+  language and prints via `bb_print` (handler in `scrip.c`, opt-in flag, default path
+  untouched). `--dump-bb` = old (oracle).
+- SCOREBOARD loop (reconstruct in `/tmp`; does NOT survive a new container): for each
+  program run both dumps, strip `^; proc` + blank lines, `diff`, tally
+  MATCH/DIFFER/NEWFAIL. BASELINE 2026-06-08 on `icn9` (test/icon/*.icn):
+  MATCH=0 DIFFER=9 NEWFAIL=0 — new lowering produces a graph for all 9, none match,
+  new ~1.5-2x node count. TARGET: drive MATCH 0→9 on icn9, then the other sweeps.
+  PROGRESS 2026-06-08 (Opus 4.8): hello.icn → MATCH (1/9), byte-identical vs oracle.
+  Landed in `lower_icon_nl.c`: lightweight `pmatch` + `p_bin`/`p_un` (binop/unop
+  dispatch now model-tree matched); goal-directed `lower_call` (CALL = sval/ival, args
+  γ-threaded, ZERO operands, entry-returning) + `lower_proc_body` (SUCCEED@0 / FAIL@1
+  first, reverse-thread stmts, entry = leftmost leaf) + `find_proc` (unwrap
+  STMT→:subj→PROC_DECL). `lower_icon` emits the FIRST proc's body only — MULTI-PROC
+  emission is the next structural step (oracle dumps all procs), alongside
+  goal-directed if/while/every and binop. AST note: top is `STMT` whose `:subj` is the
+  `TT_PROC_DECL`; body = `c[2]`; `TT_FNC` = c[0] callee VAR + c[1..] args.
+- hello target SHAPE (read off `--dump-bb`, no source): per-proc graph (NO PROG/PROC
+  wrapper); allocate `IR_SUCCEED`(idx0)+`IR_FAIL`(idx1) FIRST; `lower()` threads
+  `(γ,ω)` and RETURNS THE ENTRY node (leftmost-evaluated leaf, not the result);
+  CALL = `sval`=name + `ival`=argcount with args γ-threaded (arg is the entry);
+  success wires target port `α`, failure wires target port `β`. The current nl
+  `lower()` returns the RESULT node + null wiring + PROG/PROC wrapper — the
+  re-derivation flips it to entry-returning goal-directed, one switch arm at a time,
+  each gated by the scoreboard (compiling partials safe behind `--dump-bb2`).
+- **DISPATCH = TREE-PATTERN GAUNTLET, model-tree applied like a SNOBOL4 pattern
+  (Lon rulings 2026-06-08, refined).** TOP level is a flat `switch (t->t)` over TT_*.
+  WITHIN a case, NO `if/else-if/else` field-poking. Instead a GAUNTLET: a sequence of
+  TREE-PATTERN matches tried in order, first hit builds + returns; sub-casing = more
+  patterns (the tree analogue of SNOBOL4 `|`). CRUCIAL — a "tree match" is NOT a
+  procedural helper (the earlier `m0/m1/m2/attr` sketch was WRONG: no model, nothing
+  applied). It is a MODEL TREE (data) that describes the AST form to match AND marks
+  CAPTURE, APPLIED to the node by a generic engine — EXACTLY a SNOBOL4 PATTERN applied
+  to a string: the pattern is a first-class value; capture binds matched subtrees /
+  values (the tree analogue of `. VAR`). A lowering rule = build pattern P → apply to
+  node → use the captures to build the IR. This is the SAME design the self-hosted
+  bootstrap lower stage (written in Icon) will use — tree patterns over the AST — so
+  the C `nl` version must use it too, never ad-hoc conditionals. Core shape: a
+  pattern node = { require-kind | capture-into-slot | wildcard } + a child-pattern
+  list (+ an sval constraint to match TT_ATTR names like `:subj`); engine
+  `pmatch(pat, t, caps[])` recurses on kind+children and fills `caps[]`. NO inline
+  `t->c[0]->t == TT_X` conditionals anywhere.
+- **PRIOR ART + SUBSTRATE (scan 2026-06-08).** Tree-pattern-matching codegen is the
+  BURS / twig / burg / iburg family (tree patterns + dynamic programming). iburg is
+  Fraser/Hanson/Proebsting — SAME Proebsting as the canonical JCON (RULES) — and is
+  ~200-700 lines of Icon / ~950 C (vs ~3000 twig, ~5000 burg); lcc uses a burg-style
+  matcher. DECISION (Lon 2026-06-08): patterns are simple, so the C bootstrap lower
+  uses a LIGHTWEIGHT hand-rolled `pmatch` (~50 lines), NOT a heavyweight lib — twig/
+  burg are instruction-SELECTION (cost-optimal covering), overkill for structural
+  lowering. Reference paths it grows into: OPTIMIZATION matching = BURS/iburg-in-Icon
+  (cost-based optimal, = "Icon for optimization"); self-hosted matcher = Prolog
+  unification (logic vars = captures) / term rewriting. Same tree matching either way.
 
 ## Watermark
+
+**▶ HANDOFF (2026-06-08, Opus 4.8, Lon "perform hand off") — LOWER REBUILD continues: ARCHITECTURE CORRECTED + first MATCH. SHAs: SCRIP `ae654ca` (rebased onto concurrent push `5b8a8da`, disjoint/clean; rebuilt green + hello MATCH re-verified post-rebase), .github THIS COMMIT. The prior "structured-marker / template-owns-control-flow" plan (entry below) is SUPERSEDED: the live interp (`interp/IR_interp.c`) is a GOAL-DIRECTED γ/ω-FOLLOWER — each arm returns `bb->γ.node`/`bb->ω.node` as the next node and `bb_print` hardcodes the α(γ)/β(ω) labels — NOT a tree-walker. So the new lower must REPRODUCE the OLD graph's goal-directed shape, gated by `--dump-bb` (old = oracle) vs `--dump-bb2` (new). LON RULINGS (full text in `## DO NOT` + `## LOWER REBUILD — method`): (1) NEVER read/transcribe the OLD lower source — the in-memory graph is the SOLE spec; (2) dispatch = TREE-PATTERN GAUNTLET, model trees applied like SNOBOL4 patterns (lightweight hand-rolled `pmatch` ~50 lines, NOT a lib; BURS/iburg-in-Icon = the later OPTIMIZATION-matching path); (3) the `.md` migration is a SEPARATE session's job — I reverted mine (SCRIP `.md` untouched). TOOLING (committed this handoff; default build UNCHANGED → gates safe): five new lowerers compiled INTO scrip beside the old ones at `src/lower/nl/lower_*_nl.c` (externs `lower_icon`/`lower_snobol4`/`lower_raku`/`lower_pascal`/`lower_prolog`; `_nl` basename dodges the flat-object collision; wired in the Makefile `scrip:` recipe ~L540 + prereq list ~L238); `emit()`→`build()` in all five; `--dump-bb2` handler in `scrip.c` runs the parsed AST through the new lowerer + `bb_print`. SCOREBOARD (rebuild in /tmp per the method section — NOT container-durable): icn9 MATCH **0→1**, hello.icn byte-identical to oracle. LANDED in `lower_icon_nl.c`: `pmatch`+`p_bin`/`p_un` (binop/unop dispatch model-tree matched), goal-directed `lower_call` (CALL sval=name/ival=argcount, args γ-threaded, ZERO operands, ENTRY-returning) + `lower_proc_body` (SUCCEED@0/FAIL@1 first, reverse-thread, entry = leftmost leaf) + `find_proc` (STMT→:subj→PROC_DECL). NEXT: (a) MULTI-PROC emission — oracle dumps EVERY proc, `lower_icon` emits only the first; gating step to climb past single-proc programs; (b) goal-directed `if`/`while`/`every` + binop → drive icn9 MATCH 1→9; (c) then snobol4/prolog/pascal `_nl` files the same way (already staged). Other Icon programs DIFFER as expected (unconverted constructs + multi-proc).**
 
 **▶ HANDOFF (2026-06-08, Opus 4.8, Lon "perform hand off") — PIVOT TO LOWER REBUILD (separate sub-effort, NOT an IRD ladder step). Full detail: `.github/HANDOFF-2026-06-08-OPUS48-LOWER-REBUILD-GROUND-ZERO.md`; WIP files + repro in `.github/lower-rebuild/`. Lon redirected to a from-scratch ground-zero rebuild of the five per-language LOWER functions (segregated / parallel / no-sharing / static-except-one-extern), JCON `tran/irgen.icn` as the Icon guide, on the slim IR_t — confirmed IR_t needs NOTHING added (γ/ω inherited params, α/β synthesized = the returned node addressed via IR_ref_t `sz`; `lower(cx,t,γ,ω)->IR_t*` IS the four-attribute grammar). Five `lower_*.c` built + ALL compile clean against the contracts; they live ONLY in `.github/lower-rebuild/` — **the SCRIP tree was not touched this session and still builds green at HEAD.** Architecture: STRUCTURED marker nodes (emit IR_IF/WHILE/…, push children as operands, wire γ/ω; template owns control flow) + generic IR_BINOP/IR_UNOP w/ operator-in-LIT (Prolog arith = IR_STRUCT). Icon validated GRAPH-LEVEL through the REAL parser (`pipe_icon` harness): `hello` → PROG→PROC→CALL→[VAR,LIT_S]; 2-stmt body → γ chains [2]→[5]α. KEY FINDING: statement convention (`src/driver/stmt_ast.c`) — TT_STMT carries `:subj`/`:pat`/`:repl` TT_ATTR children + TT_GOTO_S/F/U children; content = `:subj`; SNOBOL gotos wire onto γ/ω (all five lowerers extract `:subj` via a `stmt_subj` helper). Findings: `IR_CLAUSE` absent (clause→IR_GOAL); `TT_COMPOUND`/`TT_ATOM`/`TT_UNKNOWN` are not real `tree_e`. NEXT = integrate `lower_icon` into the live build (retire old multi-file `lower_icn` path; `lower.c`+`lower_program.c`+Makefile+`lower.h`; promote files into `src/lower/`) + reconcile interp `IR_CALL`/`IR_PROG`/`IR_PROC` arms to the new operand contracts + link `libscrip_rt` → `write("hello")` to actual stdout (rung 0 LIVE), then climb the shared rung ladder per language. **LANE B — the byte-identical gate WILL churn.** Promoting `.github/lower-rebuild/*.c` into `src/lower/` collides with the existing `lower_*` symbols = that collision IS the integration step.**
 
