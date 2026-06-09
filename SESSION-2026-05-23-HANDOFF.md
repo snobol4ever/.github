@@ -1,52 +1,81 @@
-# SESSION HANDOFF — 2026-05-23 (orientation only, no code changes)
+# SESSION HANDOFF — 2026-05-23 (Sonnet 4.6)
 
-## Repos at handoff
+**SCRIP HEAD: `3604d252`** ✅ GATE GREEN 442/0/612
+**.github HEAD: `dc27e998`**
 
-| Repo | HEAD |
-|------|------|
-| SCRIP | `cf9284f5` |
-| corpus | `3e223db` |
-| .github | `db558a72` |
+---
 
-## Gate
+## What was accomplished this session
 
-**PASS=409 FAIL=0 STUB=645** — confirmed at session start. Zero regressions.
-Icon --interp: PASS=195 FAIL=36 XFAIL=35 TOTAL=266 (normal mode)
-Icon --interp honest (SCRIP_NO_AST_WALK=1): PASS=195 FAIL=36 XFAIL=35
+### DM-3/4/5 segfault fix (`d41e99a0`)
+Root cause: `bb_arbno.cpp` had `if (MEDIUM_TEXT) { ... } else { ...binary arm... }`.
+The bare `else` caught `MEDIUM_MACRO_DEF`, routing it into the binary arm where
+`lbl_back_p=NULL` (audit only sets _p fields for EMIT_BINARY_WIRED).
+Fix: one line — `} else {` → `} if (MEDIUM_BINARY) {`.
+14 x86/text_macro baselines refrozen. PASS 419→433, STUB 635→621.
 
-## What was done this session
+### DM-6 (`0bfffb89`, `53445731`)
+Migrated `emit_core.c` + `emit_bb.c` + `bb_lit.cpp`:
+- `IS_TEXT` → `!MEDIUM_BINARY`
+- `IS_BIN` → `MEDIUM_BINARY`
+- `IS_JVM/JS/NET/WASM` → `PLATFORM_*`
+- `bb_emit_mode == EMIT_MACRO_DEF` → `MEDIUM_MACRO_DEF`
+4 more x86/text_macro baselines refrozen.
 
-Orientation only. Three repos cloned, PLAN.md + GOAL-ICON-BB.md + RULES.md read.
-Session-start gates confirmed clean. No code written, no commits, no regressions.
+### DM-7 prereq (`27347511`)
+All 17 remaining BB_templates `.c` → `.cpp` (ER wave pattern).
+Groups: 7 pure stubs, 7 X86-text-only bodies, 3 complex multi-backend.
+Makefile updated CC→CXX for all 17. 15 text_macro baselines refrozen.
+PASS 433→442, STUB 621→612.
 
-### Key findings
+### DM-7 (`d60c890c`)
+Deleted IS_TEXT/IS_BIN/IS_WIRED/IS_BROKERED/IS_X86/IS_MACRO_DEF/IS_JVM/IS_JS/IS_NET/IS_WASM
+from emit_core.h. All template and emitter code now uses PLATFORM_xx/MEDIUM_xx exclusively.
+bb_emit_mode variable and enum retained (used internally).
 
-- rung01 `to_by` passes in all modes (--interp, SCRIP_NO_AST_WALK=1, --run)
-  because lower_icn.c emits BB_TO_BY (old SNOBOL4 node) for Icon `to by`, not BB_ICN_TO_BY.
-  ICN-T-2's x86 arm in bb_icn_to_by.c will require lower_icn.c to emit BB_ICN_TO_BY
-  for Icon (TT_TO_BY → BB_ICN_TO_BY instead of BB_TO_BY).
+### Nesting fix (`3604d252`)
+MEDIUM_MACRO_DEF nested inside PLATFORM_X86 in three SM templates where it floated outside:
+- sm_jumps.cpp: sm_jump_group_str, sm_label
+- sm_push_pop_lits.cpp: sm_push_lit_i_str, sm_push_lit_s_str, sm_push_lit_f_str, sm_var_str
+- sm_returns.cpp: sm_return_str
+No output change. NEW=0 GONE=0.
 
-- GATE-PK script is `scripts/test_per_kind_diff.sh` (PASS=409 FAIL=0 STUB=645).
+---
 
-- Non-rung36 honest failures (pre-existing, not new):
-  - rung06_cset_upto_basic: infinite output (both normal + honest) — scan loop bug
-  - rung13_alt_alt_filter: no output (both normal + honest) — conjunction-in-every bug
+## DECOMPOSE-MODE rung status
 
-## NEXT: complete ICN-T-2 (same steps as SESSION-2026-05-22-HANDOFF-B.md)
+- [x] DM-1 through DM-7 ✅ complete
+- [ ] **DM-8 NEXT** — add `emit_text_and_binary_in_one()` in emit_str.h/.cpp.
+  Given opcode + args, returns string representing:
+  - macro call text when USE_SM_MACROS
+  - raw instruction sequence when !USE_SM_MACROS
+  - macro definition body when MEDIUM_MACRO_DEF
+  All three representations in one function — no gap between defining and calling macros.
+  Migrate first SM template (e.g. sm_push_lit_i) as proof-of-concept. Gate green after.
 
-1. emit_core.c: pull BB_ICN_TO_BY out of stub fallthrough → `bb_icn_to_by(nd); return 0;`
-2. lower_icn.c: change TT_TO_BY arm to emit BB_ICN_TO_BY (not BB_TO_BY) for Icon lang
-3. Implement IS_X86 arm in bb_icn_to_by.c (semantics: step in ival3, lo in ival, hi in ival2;
-   on α seed counter=lo; on β counter+=step; exhaust if (step>0 && counter>hi) or (step<0 && counter<hi))
-4. Makefile: add bb_icn_to_by.c to SRCS
-5. make -j4 scrip
-6. bash scripts/test_per_kind_diff.sh  # must hold PASS=409 FAIL=0
-7. bash scripts/test_icon_all_rungs.sh # rung01_paper_to_by must PASS
-8. SCRIP_NO_AST_WALK=1 bash scripts/test_icon_all_rungs.sh  # same
-9. Mark ICN-T-2 [x] in GOAL-BB-TEMPLATE-LADDER.md, update watermark → NEXT ICN-T-3
-10. Update PLAN.md BB Template Ladder row
-11. Commit SCRIP; commit .github last; push both
+## ER rung status
 
-## Session health note
+- [x] ER-0 through ER-7 ✅
+- [ ] ER-8 — relocation rethink (future session)
 
-Context window was ~40-45% at handoff. Session was deliberately kept short to preserve headroom.
+⛔ Beauty gate SUSPENDED throughout.
+
+---
+
+## Gate baseline
+
+PASS=442 FAIL=0 STUB=612 NEW=0 GONE=0
+
+## Session start for next session
+
+```bash
+git clone https://TOKEN@github.com/snobol4ever/.github /home/claude/.github
+git clone https://TOKEN@github.com/snobol4ever/SCRIP /home/claude/SCRIP
+git clone https://TOKEN@github.com/snobol4ever/corpus  /home/claude/corpus
+cat /home/claude/.github/PLAN.md
+cat /home/claude/.github/GOAL-HEADQUARTERS.md
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && make -j4 scrip
+bash /home/claude/SCRIP/scripts/test_per_kind_diff.sh
+# Expect: PASS=442 FAIL=0 STUB=612
+```
