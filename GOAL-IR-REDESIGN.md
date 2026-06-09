@@ -291,26 +291,33 @@ BODY kind (116 TT_PROGRAM) ⇒ oracle allocated a node. Also: VLIST RHS (tuple `
 TT_SEQ statement subj (`%=` augmented assign) → orphan `IR_SEQ`; TT_ALT-of-literals pattern-VALUE assign
 (`p='foo'|'hello'`) → `DTP_ASSIGN`(ops:[ALT]) + `PATTERN_LIT`×n chained + `PATTERN_ALT` (entry=first lit).
 NOTE the PATTERN_*/DTP_ASSIGN value-assign family is DISTINCT from the PAT_*/match-context family below.
-- [ ] **LAD-3c — PATTERN MATCHING (the deep core; sno153 only — snocone is done).** 32 sno DIFFERs remain,
-  biggest cluster is patterns. **Capture backtrack-ω rule FULLY DERIVED + verified** (044/045/046/048/049/
-  052/054/061): in a concatenation [E₁..Eₙ], element Eᵢ's failure-ω = btarget(i); btarget(1)=FAIL;
-  btarget(i) = (E\_{i-1} is POS ? propagate E\_{i-1}.ω : resumption(E\_{i-1})); resumption(capture)=its inner
-  operand node, else the element node. RPOS shares `IR_PAT_POS` (`sval="r"`) so gate on `IR_PAT_POS` ALONE.
-  LANDED narrow case (SCRIP `7d326de`, Opus): capture.ω→preceding element when it is a deterministic consumer
-  (`is_pat_consumer`: LEN/TAB/RTAB/REM/BREAK/BREAKX/SPAN/ANY/NOTANY/LIT) — fixes 046, sno 120→121, no
-  regression. **TWO BLOCKERS for the general threading (both proven, both reverted as net-neutral):** (1)
-  concatenation is LEFT-ASSOCIATIVE — `lc` can be a sub-sequence, so `le`=lower_pat_node(lc) returns the
-  HEAD/leftmost, NOT the tail/immediately-preceding element the backtrack needs; `lower_pat_node` must gain a
-  TAIL out-param (leaf→itself, capture→wrapper, SEQ→tail of rc). (2) left-side captures (049 `ARB.V LEN(1)`,
-  052 `POS ARBNO.V RPOS`) need a structural `PAT_CAT` insertion the code only does for RIGHT-side captures.
-  FAIL builtin (057) is mis-lowered to `PAT_DEFER`; should be `IR_FAIL` node + backtrack-ω + PAT_CAT. The
-  ALTERNATION cluster (050/051/053, `PAT_ALT` match-context, n=6 vs mine n=4 for `'cat'|'dog'`) is a SEPARATE
-  mechanism from both the capture-ω work and the PATTERN_ALT value-assign path. GATE: pattern programs MATCH.
-- [ ] **LAD-3e — SNOBOL4 multi-proc DEFINE (8 `functions/*` programs, ~2× node ratio) — BLOCKED on Lon.**
-  Oracle emits one `; proc funcname` graph per DEFINE body; `lower_snobol4` returns ONE graph and scrip.c
-  calls it once. MUST NOT modify scrip.c. OPEN QUESTION: how to expose multi-proc through the single-graph
-  path? Other sno DIFFERs: capture 060/062/063, arrays 1110/1112 (label-wiring), strings cross/wordcount,
-  control/expr_eval, rung10 1013/1015/1016.
+- [ ] **LAD-3c — PATTERN MATCHING (the deep core; sno153 only — snocone is done).** Capture cluster
+  CLOSED this session (Opus): 060 (multiple captures) — nested left-capture concat was allocating a
+  spurious SECOND `PAT_CAT`; fix = apply the SAME `need_cat` guard the `rc_is_capture` branch already had
+  to the `lc_is_capture` branch (only a fresh PAT_CAT when `succ` is the graph SUCCEED@0; an inner concat
+  whose succ is a real continuation chains directly). 062/063 (pattern REPLACEMENT `SUBJ PAT = REPL`) —
+  the `has_eq` branch with a `TT_SCAN` subject now emits the replacement SCAN (`ival=1`) instead of bailing
+  to NULL: pattern→`IR_EXEC.counter`, subject→`operands[0]`, NEW replacement sub-graph→`operands[1]`
+  (`lower_repl_graph` = FAIL+LIT_S, mirrors `lower_subj_graph`), replacement value rides the main graph as
+  the entry leaf chaining into SCAN; empty replacement (deletion) shares the path. The earlier (Sonnet
+  `2354a73`) backtrack-ω rule + PAT_ALT n-way + FAIL-builtin work stands. REMAINING pattern work lives in
+  the harder DIFFERs below (`cross.sno` is now SKIP — oracle segfaults). GATE: pattern programs MATCH.
+- [x] **LAD-3e — SNOBOL4 multi-proc DEFINE — DONE (Opus 2026-06-09, SCRIP `a968d81`).** Resolved NOT by an
+  enum/proc API but by a FEATURE FIX Lon directed: `--dump-bb` was re-dumping the SAME whole-program graph
+  once per DEFINE. Each DEFINE shallow-copies the `IR_graph_t` (`*fg = *g` in `lower_program.c`), sharing
+  the identical `all[]` node array and changing only `entry=`; the dump loop walked `proc_table` and printed
+  that shared graph N+1 times (`; proc main` + one per function). The new `--dump-bb2` already produced the
+  correct single graph. FIX: in the `--dump-bb` loop, dedup by shared node-array pointer (`->all`) — print
+  each DISTINCT graph once (LINEAR SEQUENCE); Icon/Pascal (genuinely distinct per-proc graphs, different
+  `all`) untouched. Also made the `--dump-bb2` SNOBOL/Prolog/etc fall-through arm emit the matching
+  `; proc main` header. **scrip.c WAS touched — but only the dump-feature loop, NOT the lowering dispatch;
+  no enum/proc contortion needed.** Unblocked all 8 `functions/*`: sno 130→138.
+- [ ] **LAD-3f — remaining 5 sno DIFFERs (the heavy tail).** `1016_eval` (eval builtin), `expr_eval`
+  (likely shares eval), `100_roman_numeral`, `library/test_case`, `coverage/coverage_sno_nodes`. Each is
+  65–289 diff lines = multi-fix rungs, unlike this session's one-shot fixes. CLOSED this session by single
+  fixes: 1015_opsyn (orphan CALL on `TT_OPSYN` arg), 1112/1110 arrays (bare `TT_IDX` stmt subject punts to
+  NULL — was hitting `lower_expr`'s SUCCEED default), 1013_func_nreturn (`TT_NAME` RHS `.var` → ASSIGN_VAR +
+  empty-name VAR, no UNOP; + NULL-body label chains to nxt not the success-goto target). GATE: each MATCH.
 
 ### Phase 4 — PROLOG (own goal-spine: clauses, unification, backtracking)
 Corpus = `test/prolog/*.pl` (pl8). Structurally distinct: clauses→goals, compound terms→IR_STRUCT
@@ -338,7 +345,71 @@ oracle-parseable program, so this is pure SHAPE-correction, not crash-fixing. LE
 Snocone = **295 scoreable through the single `lower_snobol4`** (Phase 3) vs 91 for Pascal
 (Phase 2). Re-run any suite with `scripts/scoreboard.sh LANG` to refresh.
 
+CURRENT (SCRIP `e887217`, 2026-06-09, normalize=1): icon **6/8** · pascal **12/91** · snobol4[sno153]
+**147/153** (DIFFER 5, SKIP 1) · snocone[sco191] **142/142** (DIFFER 0, SKIP 49) · NEWFAIL=0 everywhere.
+**ORACLE-CRASH SKIP LIST** now in `scoreboard.sh` (Lon ruling 2026-06-09): the OLD lower (`--dump-bb`)
+SEGFAULTS partway through 7 programs, emitting a PARTIAL dump before crashing (so they scored DIFFER or
+hid in the empty-oracle SKIP bucket). `oracle_crashes()` forces them to SKIP by path: `cross.sno`
+(@N cursor-capture scan) + 6 B07 Snocone compound-assign (`+= -= *= /= ^=`). These are real OLD-lower
+bugs, parked until the oracle is fixed.
+
 ## Watermark
+
+**▶ HANDOFF (2026-06-09, Opus 4.8, Lon "Hand off") — LOWER REWRITE: SNOBOL4 130→147/153, DEFINE UNBLOCKED.
+SHAs: SCRIP `e887217` (HEAD==origin/main, build GREEN rc=0, tree clean), .github THIS COMMIT. Seven
+guarded-push rungs this session, NEWFAIL=0 every rung, snocone held 142/142 throughout, zero regressions.**
+
+  **SCORES AT HANDOFF:** snobol4 **147/153** (DIFFER 5, SKIP 1) · snocone **142/142** · icon **6/8** ·
+  pascal **12/91** · NEWFAIL=0. Full detail in `## NODE-EXACT CONVENTIONS` is unchanged; the per-rung
+  story is in LAD-3c/3e/3f above; the current scores line is `CURRENT (SCRIP e887217 …)` under LADDER.
+
+  **THE DEFINE UNBLOCK (the headline, SCRIP `a968d81`) — a FEATURE FIX, not the feared scrip.c contortion.**
+  LAD-3e ("multi-proc DEFINE, BLOCKED on Lon") turned out to be a DUMP problem, not a lowering problem: the
+  new `--dump-bb2` already produced the correct single whole-program graph. The OLD `--dump-bb` oracle was
+  re-dumping that SAME graph once per DEFINE — each DEFINE shallow-copies the `IR_graph_t` (`*fg = *g` in
+  `lower_program.c`), sharing the identical `all[]` node array, changing only `entry=`; the dump loop walked
+  `proc_table` printing the shared graph N+1 times. Lon directed: make `--dump-bb` a LINEAR SEQUENCE. FIX =
+  dedup the dump loop by shared node-array pointer (`->all`), printing each DISTINCT graph once; Icon/Pascal
+  (real distinct per-proc graphs) untouched; `--dump-bb2` fall-through now prints the matching `; proc main`.
+  All 8 `functions/*` flipped MATCH (130→138). NOTE scrip.c was edited — but ONLY the dump-feature loop.
+
+  **THE OTHER SIX RUNGS (all one-shot diff→fix→commit, sno 138→147):** `f2c983c` capture 060 — spurious 2nd
+  PAT_CAT; the `lc_is_capture` branch needed the same `need_cat`-guard the `rc_is_capture` branch had (138→139).
+  `2aaafce` pattern replacement 062/063 — `has_eq` + `TT_SCAN` subject emits SCAN `ival=1` + 3 sub-graphs
+  (pattern/subject/NEW replacement via `lower_repl_graph`), replacement value as entry leaf; empty-replacement
+  deletion shares it (139→143). `95179f8` 1015_opsyn — orphan CALL when an arg is `TT_OPSYN` (opsyn-redefined
+  operator), same rule as TT_IDX/TT_INDIRECT complex-arg (143→144). `b592a59` bare `TT_IDX` stmt subject punts
+  to NULL — was hitting `lower_expr`'s SUCCEED default and emitting a spurious node; fixes 1112+1110 (144→146).
+  `9805ee8` 1013_func_nreturn — `TT_NAME` RHS (`.var` name-of) → `ASSIGN_VAR` + empty-name VAR (no UNOP), AND
+  NULL-body label chains to `nxt` not the success-goto target (only unconditional `:go` honored) (146→147).
+  `e887217` scoreboard oracle-crash SKIP list (Lon ruling) — no lowering touched.
+
+  **REMAINING 5 sno DIFFERs (the heavy tail, all 65–289 diff lines = multi-fix rungs, see LAD-3f):**
+  `1016_eval`, `expr_eval` (likely shares the eval builtin), `100_roman_numeral`, `library/test_case`,
+  `coverage/coverage_sno_nodes`. Unlike this session's one-shot fixes, expect each to need several.
+
+  **OPEN FOR LON (carried + new):** (1) LAD-0b pointer-ival ruling — `scoreboard.sh`'s `ival≥7-digit→PTR` sed
+  is load-bearing (`--raw` drops icon 6→4); still needs sign-off + a named in-repo flag. (2) **NEW — 7 OLD-LOWER
+  ORACLE CRASHES** now parked in the scoreboard SKIP list (`cross.sno` + 6 B07 Snocone compound-assign): real
+  segfaults in `--dump-bb`; if execution-trusted coverage there is wanted, the OLD lower needs fixing. (3)
+  `--dump-ast` segfaults on ALL multi-proc Pascal (pre-existing AST-printer bug, not the lowering path). (4)
+  Icon/Pascal/SNOBOL lowerers use plain switch + inline field tests, NOT the prescribed pmatch gauntlet
+  (aspirational vs working reference). (5) LAD-0c — `--dump-bb2` is dump-only, no execution validation. (6)
+  TT_SCAN sub-graph is node-only for execution. (7) the icon/pascal/prolog/raku 200-char wrap (carried,
+  mechanical) — `lower_snobol4_nl.c` re-verified 0 lines >200 this session (including all rungs above).
+
+  **NEXT-RUNG OPTIONS (by leverage):** (a) LAD-3f `1016_eval`/`expr_eval` (the eval builtin — likely one
+  mechanism unlocks two programs); (b) LAD-2c Pascal control flow (if/while/for/repeat/case + VAR_FRAME +
+  nested-operand BINOP) — Pascal is at 12/91, the biggest headroom; (c) LAD-1a Icon queens; (d) the
+  icon/pascal/prolog/raku 200-char wrap (clears the carried mechanical task).
+
+  **METHOD (held all session):** `--dump-bb` oracle vs `--dump-bb2` new → normalized diff (`ival=PTR`) → fix
+  FIRST divergence → rebuild (isolate `make` in its own command) → re-diff → COMMIT each green rung + guarded
+  push. Reproduce oracle BYTES; never theorize past them; never read the OLD lower source. When the oracle
+  itself crashes (cross/B07), do NOT chase it — SKIP and flag for Lon.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
+
 
 **▶ HANDOFF (2026-06-09, Opus 4.8, Lon "Hand off") — LOWER REWRITE: SNOCONE CLEAN SWEEP 0→142/142 +
 SNOBOL4 120→121. SHAs: SCRIP `7d326de` (HEAD==origin/main, build GREEN rc=0, tree clean), .github THIS
