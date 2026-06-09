@@ -210,17 +210,22 @@ structurally-unique (Prolog), then the parked one (Raku). **Lon may reprioritize
 Pascal for strategic reasons — flagged.**
 
 ### Phase 0 — DURABLE HARNESS (prerequisite; do first)
-- [ ] **LAD-0a — Commit the scoreboard.** It is `/tmp` scratch and dies with the container.
+- [x] **LAD-0a — Commit the scoreboard.** ✅ LANDED SCRIP `a103ae7`. It is `/tmp` scratch and dies with the container.
   Write `scripts/scoreboard.sh LANG` (LANG ∈ icon|snobol4|snocone|prolog|pascal|raku) that
   enumerates that language's corpus (icon→`test/icon/*.icn`; snobol4→`test/snobol4/*.sno`;
   snocone→`test/snocone` + `corpus/crosscheck/snocone/*.sc`; prolog→`test/prolog/*.pl`;
   pascal→`corpus/programs/pascal/*.pas`; raku→`test/raku/*`), runs `--dump-bb` vs `--dump-bb2`
   per program, strips `^; proc` + blank lines, diffs, tallies MATCH/DIFFER/NEWFAIL, prints a
   per-program table + totals. GATE: re-run icon and reproduce 6/8 (parity with the retired /tmp
-  version) before trusting it on any other language.
+  version) before trusting it on any other language. RESULT: reproduces icon MATCH=6
+  DIFFER=2 (queens, generators) NEWFAIL=0 SKIP=1 — the SKIP class catches oracle-unparseable
+  programs (`coverage_x64_gaps.icn`) that the retired /tmp version would have false-MATCHed,
+  and explains the prior 8-vs-9 count gap.
 - [ ] **LAD-0b — Pointer-ival ruling baked in (caveat 1).** Get Lon's ruling on the
   `ival=[0-9]{7,}→PTR` normalization, then encode it in `scoreboard.sh` as a named, commented
   flag (default = Lon's ruling) so the yardstick is explicit and in-repo, not a hidden sed.
+  EVIDENCE (a103ae7): `--raw` (normalization OFF) drops icon 6→4 — wordcount + meander flip to
+  DIFFER — so the normalization is LOAD-BEARING for 2 of 6 matches, not cosmetic.
 - [ ] **LAD-0c — (trust, optional) wire `--dump-bb2`→mode-2 (caveat 2).** Converts every MATCH
   from "dump bytes agree" to "runs correctly." Defer if it blocks momentum, but it is the only
   thing that makes a MATCH an execution guarantee.
@@ -290,6 +295,14 @@ A tracked MATCH/total per suite in `scoreboard.sh` output. Target = large-portio
 generators/suspend/full-pattern depth may legitimately lag. Lon sets the per-language bar.
 
 ## Watermark
+
+**▶ MID-SESSION UPDATE (2026-06-09, Opus 4.8, Lon attending "your choice, continue") —
+LADDER added to this file + LAD-0a LANDED. SHAs: SCRIP `a103ae7` (durable scoreboard harness;
+HEAD==origin/main, build green rc=0), .github THIS COMMIT. Old `IR_t`-struct system stripped at
+`c20e000c`. `scripts/scoreboard.sh LANG [--raw]` reproduces icon 6/8. OPEN FOR LON: (1) LAD-0b
+pointer-ival ruling — concrete stakes: `--raw` drops icon 6→4 (wordcount + meander depend on it);
+(2) Phase order — Pascal (my pick: fast rungs, proves the goal-directed model generalizes) vs
+SNOBOL (the two-suite lever) next. Then Phase 1 queens (LAD-1a).**
 
 **▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off" — GOOD SESSION) — LOWER REWRITE
 (Icon): control flow + generators landed, icn9 MATCH 1→6 of 8. SHAs: SCRIP `4fa4b74`
