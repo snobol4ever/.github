@@ -319,6 +319,37 @@ Snocone = **295 scoreable through the single `lower_snobol4`** (Phase 3) vs 91 f
 
 ## Watermark
 
+**▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off") — C-STYLE: separators standardized to
+200 chars total + RULES.md reconciled. SHAs: SCRIP `2c3e466` (HEAD==origin/main, build GREEN rc=0,
+tree clean), .github THIS COMMIT. This turn resolved a 120-vs-200 separator conflict in the HQ docs:
+GOAL-STYLE-200COL.md + the 2026-05-31 ground-zero purge established 200-char-total separators
+tree-wide, but RULES.md line 59 had drifted to "120-char" and the five new-lower files (incl. the
+Icon reference) sat at 120-dash/124-char separators. Lon ruled 200 official + consistent everywhere.
+LANDED: (1) SCRIP `2c3e466` — normalized every `/*---*/`/`/*===*/` line in src/lower/nl/*.c to
+exactly 200 chars (`/*` + 196 + `*/`); 80 ins / 80 del, 100% separator lines, ZERO code touched;
+build GREEN, intparam.pas still EXACT MATCH, pascal 12/91, icon 6/8, NEWFAIL=0 (unchanged —
+comment-only). (2) .github THIS COMMIT — RULES.md line 59 now reads "200 chars total". ⛔ NEXT TASK
+(session interrupted mid-measure, NOT started): the code one-liners in the five new-lower files
+exceed the 200-CHAR line max and must be wrapped to ≤200 (Lon: "the new lower_*.c should follow the
+200 max line rule"). MEASURE CHARACTERS NOT BYTES (γ/α/β/ω are 2 bytes each; the 2026-05-31 precedent
+tolerates slight byte-overflow from Greek — but these lines exceed 200 in CHARS too). EXACT >200-char
+violator list (already measured, don't re-measure): icon lines
+13,15,17,21,23,25,53,62,68,76,80,81,83,90,182 (15); pascal 7,17,19,21,23,42,44,46 (8); prolog
+7,23,25 (3); raku 7,23,25,120 (4); snobol4 7,23,25,139,140 (5). WRAP STYLE: split at top-level
+`;`/`case`/`{`/`}` boundaries, 4-space body indent, pack short statements up to ≤200, zero blank
+lines, NEVER split a string literal, match the existing multi-line fns in the same files
+(lower_while/lower_if/lower_proc_body in icon). VERIFY per file: the change is WHITESPACE-ONLY (token
+stream identical), build GREEN, scores unchanged (icon 6/8, pascal 12/91, NEWFAIL=0), then re-run the
+python char-count check → 0 lines >200. These are the PROVEN reference + working files; a misplaced
+newline breaks them. THEN the ladder fork stands: (a) LAD-2c Pascal control flow
+(if/while/for/repeat/case) + the VAR_FRAME frame-variable layer & nested-operand BINOP nestfunc/ppp
+need; (b) LAD-3a SNOBOL goal-directed rewrite (the 295-program lever). OPEN FOR LON: (1) LAD-0b
+pointer-ival ruling — `--raw` drops icon 6→4, normalization load-bearing; (2) Pascal-vs-SNOBOL order;
+(3) `--dump-ast` segfaults on ALL multi-proc pascal (procedure-only too) — pre-existing AST-printer
+bug, not in the lowering path; (4) Icon/Pascal use plain switch + inline field tests, not the
+prescribed pmatch gauntlet. Method: oracle vs new → diff → fix first divergence → rebuild → commit
+each green rung + guarded push.**
+
 **▶ HANDOFF (2026-06-09, Opus 4.8, Lon "your choice / continue") — LOWER REWRITE: Pascal LAD-2b′
 (multi-proc + function bodies) landed green. SHAs: SCRIP `e4833e2` (HEAD==origin/main, build GREEN
 rc=0, tree clean), .github THIS COMMIT. ONE pushed rung this session. The parser flattens all
