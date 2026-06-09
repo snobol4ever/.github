@@ -224,17 +224,8 @@ structurally-unique (Prolog), then the parked one (Raku). **Lon may reprioritize
 Pascal for strategic reasons — flagged.**
 
 ### Phase 0 — DURABLE HARNESS (prerequisite; do first)
-- [x] **LAD-0a — Commit the scoreboard.** ✅ LANDED SCRIP `a103ae7`. It is `/tmp` scratch and dies with the container.
-  Write `scripts/scoreboard.sh LANG` (LANG ∈ icon|snobol4|snocone|prolog|pascal|raku) that
-  enumerates that language's corpus (icon→`test/icon/*.icn`; snobol4→`test/snobol4/*.sno`;
-  snocone→`test/snocone` + `corpus/crosscheck/snocone/*.sc`; prolog→`test/prolog/*.pl`;
-  pascal→`corpus/programs/pascal/*.pas`; raku→`test/raku/*`), runs `--dump-bb` vs `--dump-bb2`
-  per program, strips `^; proc` + blank lines, diffs, tallies MATCH/DIFFER/NEWFAIL, prints a
-  per-program table + totals. GATE: re-run icon and reproduce 6/8 (parity with the retired /tmp
-  version) before trusting it on any other language. RESULT: reproduces icon MATCH=6
-  DIFFER=2 (queens, generators) NEWFAIL=0 SKIP=1 — the SKIP class catches oracle-unparseable
-  programs (`coverage_x64_gaps.icn`) that the retired /tmp version would have false-MATCHed,
-  and explains the prior 8-vs-9 count gap.
+LAD-0a ✅ DONE — `scripts/scoreboard.sh LANG [--raw]` (SCRIP `a103ae7`); reproduces icon 6/8, SKIP
+class skips oracle-unparseable programs. Corpus map + behaviour live in the script header.
 - [ ] **LAD-0b — Pointer-ival ruling baked in (caveat 1).** Get Lon's ruling on the
   `ival=[0-9]{7,}→PTR` normalization, then encode it in `scoreboard.sh` as a named, commented
   flag (default = Lon's ruling) so the yardstick is explicit and in-repo, not a hidden sed.
@@ -259,23 +250,20 @@ Pascal for strategic reasons — flagged.**
 
 ### Phase 2 — PASCAL (easiest second language; structured, no generators/patterns)
 Corpus = `corpus/programs/pascal/*.pas` (test/pascal is empty); curated floor = pas5.
-- [x] **LAD-2a — goal-directed rewrite of `lower_pascal_nl.c`.** ✅ DONE SCRIP `c5225c7`. Also
-  fixed a real `--dump-bb2` dispatch bug: `is_pascal` was re-derived from a stale `argi` (already
-  advanced to `argc` by the file-loop) so every `.pas` mis-routed to `lower_snobol4`; now derived
-  at parse time beside is_icon/is_raku/is_prolog. lower_pascal: SUCCEED@0/FAIL@1 first, no PROG
-  wrapper, entry=body leftmost leaf, γ→α / ω→β. hello.pas + m4wexpr.pas MATCH.
-- [~] **LAD-2b — value layer (DONE) + procedures/functions (NEXT).** VALUE LAYER ✅ SCRIP
-  `e1b25a3`: ASSIGN (sval=LHS var, RHS rides the γ value-ring, entry=RHS leaf) + LIT_I/LIT_F/LIT_S
-  leaves → pascal 2→**8/91**, icon still 6/8. STILL OPEN (verified from intparam.pas):
+LAD-2a ✅ DONE (SCRIP `c5225c7`: goal-directed `lower_pascal` + a real `--dump-bb2` dispatch-bug
+fix — is_pascal had come from a stale `argi`, so `.pas` ran `lower_snobol4`; now parse-time).
+LAD-2b value layer ✅ DONE (SCRIP `e1b25a3`: ASSIGN sval=LHS with RHS on the γ-ring + LIT_I/F/S
+leaves → pascal **8/91**). Pascal node-exact shapes are in `## NODE-EXACT CONVENTIONS`.
+- [ ] **LAD-2b′ — Pascal procedures / multi-proc (NEXT RUNG).** Verified from intparam.pas:
   • MULTI-PROC — oracle emits one graph PER proc/function, each with its own SUCCEED@0/FAIL@1;
   mirror Icon's `lower_icon_enum`/`lower_icon_proc` + the `; proc` loop in scrip.c dump_bb2 (today
   only the first proc is emitted). • BINOP — operands chain left→right→binop (Icon-style) but the
   pascal oracle prints NO sval/ival on BINOP (investigate the op encoding; differs from icon's
   ival=BinopKind). • RETURN — `RETURN γ→SUCCEED ops:[result-var]`; the function result is a VAR
   named after the function, assigned in the body (`doubled := expr`). • VAR visible leaf —
-  `var="name"` in expression context (invisible as a call arg). FOUND: `--dump-ast` SEGFAULTS on
-  nested-function programs (intparam.pas) — pre-existing AST-printer bug, NOT in the lowering path
-  (--dump-bb/bb2 are fine); flag separately.
+  `var="name"` in expression context (invisible as a call arg). GATE: intparam.pas MATCH, pascal
+  climbs. SIDE-FINDING: `--dump-ast` SEGFAULTS on nested-function programs (intparam.pas) — a
+  pre-existing AST-printer bug, NOT in the lowering path (--dump-bb/bb2 are fine); flag separately.
 - [ ] **LAD-2c — control flow.** if/then/else, while, `for` (bounded → reuse the TO/EVERY wiring
   family), repeat/until, case. GATE: broaden across `corpus/programs/pascal/*.pas`; record
   MATCH/total.
@@ -328,23 +316,22 @@ Snocone = **295 scoreable through the single `lower_snobol4`** (Phase 3) vs 91 f
 
 ## Watermark
 
-**▶ MID-SESSION (2026-06-09, Opus 4.8, "your choice, continue") — PASCAL PHASE 2: three rungs
-landed. SHAs: SCRIP `e1b25a3` (HEAD==origin/main, build green rc=0), .github THIS COMMIT.
-(LAD-0a) durable `scripts/scoreboard.sh LANG [--raw]`, reproduces icon 6/8; (dispatch fix
-`c5225c7`) `--dump-bb2` .pas had mis-routed to lower_snobol4 — now derived at parse time;
-(LAD-2a + LAD-2b value layer `e1b25a3`) Pascal goal-directed lower → **pascal 0→8/91**, icon
-still 6/8. NEXT (Pascal): MULTI-PROC emission + BINOP + RETURN + visible VAR (verified findings
-in LAD-2b); then Phase 3 SNOBOL (295-program lever). OPEN FOR LON: (1) LAD-0b pointer-ival ruling
-— `--raw` drops icon 6→4 (wordcount+meander depend on it); (2) confirm Pascal-before-SNOBOL
-ordering. (Supersedes the entry below.)**
-
-**▶ MID-SESSION UPDATE (2026-06-09, Opus 4.8, Lon attending "your choice, continue") —
-LADDER added to this file + LAD-0a LANDED. SHAs: SCRIP `a103ae7` (durable scoreboard harness;
-HEAD==origin/main, build green rc=0), .github THIS COMMIT. Old `IR_t`-struct system stripped at
-`c20e000c`. `scripts/scoreboard.sh LANG [--raw]` reproduces icon 6/8. OPEN FOR LON: (1) LAD-0b
-pointer-ival ruling — concrete stakes: `--raw` drops icon 6→4 (wordcount + meander depend on it);
-(2) Phase order — Pascal (my pick: fast rungs, proves the goal-directed model generalizes) vs
-SNOBOL (the two-suite lever) next. Then Phase 1 queens (LAD-1a).**
+**▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off") — LOWER REWRITE: durable harness +
+Pascal Phase 2 opened. SHAs: SCRIP `e1b25a3` (HEAD==origin/main, build GREEN rc=0, tree clean),
+.github THIS COMMIT. FOUR pushed rungs this session, each green: (1) stripped the old
+`IR_t`-struct system + wrote the per-language LADDER (`c20e000c`); (2) LAD-0a — durable
+`scripts/scoreboard.sh LANG [--raw]` (`a103ae7`), replaces the /tmp scratch, adds a SKIP class,
+reproduces icon 6/8, baselines recorded; (3) LAD-2a — fixed a real `--dump-bb2` dispatch bug
+(`.pas` ran through `lower_snobol4` because is_pascal came from a stale `argi`) + rewrote
+`lower_pascal` goal-directed (`c5225c7`); (4) LAD-2b value layer — ASSIGN on the γ-ring + literal
+leaves (`e1b25a3`). SCORE: **pascal 0→8/91**, icon held **6/8** all session, NEWFAIL=0 everywhere.
+Verified Pascal node-exact conventions are in `## NODE-EXACT CONVENTIONS`. NEXT RUNG: Pascal
+procedures / MULTI-PROC (LAD-2b′) — oracle emits one graph per function, mirror Icon's enum +
+`; proc` loop — then BINOP / RETURN / VAR (findings + the `--dump-ast` nested-fn segfault are in
+LAD-2b′). Then Phase 3 SNOBOL (the 295-program two-suite lever). OPEN FOR LON: (1) LAD-0b
+pointer-ival ruling — `--raw` drops icon 6→4, so the normalization is load-bearing; (2) confirm
+Pascal-before-SNOBOL ordering. Method that worked again: oracle vs new → diff → fix first
+divergence → rebuild → commit each green rung + guarded push.**
 
 **▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off" — GOOD SESSION) — LOWER REWRITE
 (Icon): control flow + generators landed, icn9 MATCH 1→6 of 8. SHAs: SCRIP `4fa4b74`
