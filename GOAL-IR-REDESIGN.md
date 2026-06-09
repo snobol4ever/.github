@@ -254,16 +254,19 @@ LAD-2a ✅ DONE (SCRIP `c5225c7`: goal-directed `lower_pascal` + a real `--dump-
 fix — is_pascal had come from a stale `argi`, so `.pas` ran `lower_snobol4`; now parse-time).
 LAD-2b value layer ✅ DONE (SCRIP `e1b25a3`: ASSIGN sval=LHS with RHS on the γ-ring + LIT_I/F/S
 leaves → pascal **8/91**). Pascal node-exact shapes are in `## NODE-EXACT CONVENTIONS`.
-- [ ] **LAD-2b′ — Pascal procedures / multi-proc (NEXT RUNG).** Verified from intparam.pas:
-  • MULTI-PROC — oracle emits one graph PER proc/function, each with its own SUCCEED@0/FAIL@1;
-  mirror Icon's `lower_icon_enum`/`lower_icon_proc` + the `; proc` loop in scrip.c dump_bb2 (today
-  only the first proc is emitted). • BINOP — operands chain left→right→binop (Icon-style) but the
-  pascal oracle prints NO sval/ival on BINOP (investigate the op encoding; differs from icon's
-  ival=BinopKind). • RETURN — `RETURN γ→SUCCEED ops:[result-var]`; the function result is a VAR
-  named after the function, assigned in the body (`doubled := expr`). • VAR visible leaf —
-  `var="name"` in expression context (invisible as a call arg). GATE: intparam.pas MATCH, pascal
-  climbs. SIDE-FINDING: `--dump-ast` SEGFAULTS on nested-function programs (intparam.pas) — a
-  pre-existing AST-printer bug, NOT in the lowering path (--dump-bb/bb2 are fine); flag separately.
+LAD-2b′ multi-proc + function bodies ✅ DONE (SCRIP `e4833e2`: the parser flattens all procs into a
+single top-level TT_STMT list in bottom-up reduction order = the oracle's post-order, program LAST
+and named "main" by the parser → naming = `pd->v.sval`, no special-case like Icon. `lower_pascal_enum`
+iterates the list; `lower_pascal_proc` lowers one body; is_function ⟺ `c[3]==TT_VAR` → synthesized
+`RETURN(γ→SUCCEED, ω→SUCCEED) ops:[bare VAR funcname]`, body threaded succ=RETURN; BINOP has NO ival,
+operands leaf-chain on the γ-ring; function-result LHS is a 0-arg TT_FNC (mk_ident returns a call for
+known function names) so ASSIGN sval falls back to `lhs->c[0]->v.sval`. scrip.c is_pascal `--dump-bb2`
+arm mirrors the Icon enum + `; proc` loop. intparam.pas MATCH → pascal **8→12/91**, icon held 6/8,
+NEWFAIL=0; new: forward1/intparam/m4asg/m4wexpr.) NEXT PASCAL DIVERGENCE (nestfunc/ppp): nested-scope
+variables use VAR_FRAME (`sval` + `ival`=frame depth/slot), and BINOP needs the nested-operand case
+(`inner(1)+inner(2)`) — the current leaf-chaining only wires leaf operands. CORRECTION to the
+side-finding below: `--dump-ast` SEGFAULTS on ALL multi-proc pascal (procedure-only too), not just
+nested functions — a pre-existing AST-printer bug, NOT in the `--dump-bb/bb2` lowering path.
 - [ ] **LAD-2c — control flow.** if/then/else, while, `for` (bounded → reuse the TO/EVERY wiring
   family), repeat/until, case. GATE: broaden across `corpus/programs/pascal/*.pas`; record
   MATCH/total.
@@ -316,22 +319,27 @@ Snocone = **295 scoreable through the single `lower_snobol4`** (Phase 3) vs 91 f
 
 ## Watermark
 
-**▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off") — LOWER REWRITE: durable harness +
-Pascal Phase 2 opened. SHAs: SCRIP `e1b25a3` (HEAD==origin/main, build GREEN rc=0, tree clean),
-.github THIS COMMIT. FOUR pushed rungs this session, each green: (1) stripped the old
-`IR_t`-struct system + wrote the per-language LADDER (`c20e000c`); (2) LAD-0a — durable
-`scripts/scoreboard.sh LANG [--raw]` (`a103ae7`), replaces the /tmp scratch, adds a SKIP class,
-reproduces icon 6/8, baselines recorded; (3) LAD-2a — fixed a real `--dump-bb2` dispatch bug
-(`.pas` ran through `lower_snobol4` because is_pascal came from a stale `argi`) + rewrote
-`lower_pascal` goal-directed (`c5225c7`); (4) LAD-2b value layer — ASSIGN on the γ-ring + literal
-leaves (`e1b25a3`). SCORE: **pascal 0→8/91**, icon held **6/8** all session, NEWFAIL=0 everywhere.
-Verified Pascal node-exact conventions are in `## NODE-EXACT CONVENTIONS`. NEXT RUNG: Pascal
-procedures / MULTI-PROC (LAD-2b′) — oracle emits one graph per function, mirror Icon's enum +
-`; proc` loop — then BINOP / RETURN / VAR (findings + the `--dump-ast` nested-fn segfault are in
-LAD-2b′). Then Phase 3 SNOBOL (the 295-program two-suite lever). OPEN FOR LON: (1) LAD-0b
-pointer-ival ruling — `--raw` drops icon 6→4, so the normalization is load-bearing; (2) confirm
-Pascal-before-SNOBOL ordering. Method that worked again: oracle vs new → diff → fix first
-divergence → rebuild → commit each green rung + guarded push.**
+**▶ HANDOFF (2026-06-09, Opus 4.8, Lon "your choice / continue") — LOWER REWRITE: Pascal LAD-2b′
+(multi-proc + function bodies) landed green. SHAs: SCRIP `e4833e2` (HEAD==origin/main, build GREEN
+rc=0, tree clean), .github THIS COMMIT. ONE pushed rung this session. The parser flattens all
+procs/functions into a single top-level TT_STMT list (g_pascal_procs) in bottom-up reduction order =
+the oracle's post-order (nested/earlier first, program LAST and named "main" by the parser, so
+naming = pd->v.sval, no special-case like Icon). lower_pascal_enum iterates that list;
+lower_pascal_proc lowers one body (SUCCEED@0/FAIL@1); is_function ⟺ c[3]==TT_VAR → synthesized
+RETURN(γ→SUCCEED, ω→SUCCEED) ops:[bare VAR funcname], body threaded succ=RETURN; BINOP carries NO
+ival (operands leaf-chain on the γ-ring); function-result LHS is a 0-arg TT_FNC (mk_ident returns a
+call for known function names) so ASSIGN sval falls back to lhs->c[0]->v.sval. scrip.c is_pascal
+--dump-bb2 arm now mirrors the Icon enum + "; proc" loop. SCORE: **pascal 8→12/91** (new:
+forward1/intparam/m4asg/m4wexpr), icon held **6/8**, NEWFAIL=0 everywhere. Gate intparam.pas: EXACT
+MATCH. NEXT RUNG OPTIONS: (a) Pascal LAD-2c control flow (if/while/for/repeat/case) + the VAR_FRAME
+frame-variable layer and nested-operand BINOP that nestfunc/ppp now need; (b) Phase 3 SNOBOL LAD-3a
+— the 295-program two-suite lever (highest leverage). OPEN FOR LON: (1) LAD-0b pointer-ival ruling —
+`--raw` drops icon 6→4, normalization is load-bearing; (2) Pascal-vs-SNOBOL ordering; (3) CORRECTION:
+`--dump-ast` segfaults on ALL multi-proc pascal (not just nested fns) — pre-existing AST-printer bug,
+not in the lowering path; (4) the Icon & Pascal lowerers use plain switch + inline field tests, NOT
+the prescribed pmatch tree-pattern gauntlet — the gauntlet design is aspirational vs the working
+reference style. Method that worked again: oracle vs new → diff → fix first divergence → rebuild →
+commit each green rung + guarded push.**
 
 **▶ HANDOFF (2026-06-09, Opus 4.8, Lon "perform hand off" — GOOD SESSION) — LOWER REWRITE
 (Icon): control flow + generators landed, icn9 MATCH 1→6 of 8. SHAs: SCRIP `4fa4b74`
