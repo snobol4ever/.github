@@ -394,3 +394,42 @@ generators (NEWFAIL=0 throughout). Live spec → `## NODE-EXACT CONVENTIONS`; op
   sieve (5→6).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
+
+**▶ HANDOFF (2026-06-09, Sonnet 4.6, Lon "perform hand off") — LOWER REWRITE: SNOBOL4 LAD-3a through LAD-3h complete; sno153 climbed 0→120/153, NEWFAIL=0 throughout. SHAs: SCRIP `1d3f6c2` (HEAD==origin/main, build GREEN rc=0, tree clean), .github THIS COMMIT.**
+
+**COMMITS THIS SESSION (all on origin/main, guarded fast-forward, NEWFAIL=0 every rung):**
+- `bd1e868` LAD-3a: complete goal-directed `lower_snobol4_nl.c` rewrite. Oracle graph structure decoded from `--dump-bb` (n=4+N prefix nodes + N SUCCEED labels + body nodes; entry=label[0]). AST structure decoded from `stmt_ast.c` (TT_GOTO_S/F/U direct children, TT_ATTR for `:subj`/`:repl`/`:eq`/`:lbl`). Implemented: ASSIGN_LIT_S/I, ASSIGN_VAR, ASSIGN (complex expr), BINOP, UNOP, CALL (FNC), SCAN stub, label→SUCCEED map, END-marker filtering. **sno 0→22/153.**
+- `6889e92` LAD-3b (batch 1): BINOP ival via `sno_binop_code()` (same codes as Icon: ADD=0 SUB=1...); TT_FNC name from `t->v.sval` not `c[0]` (SNOBOL4 FNC stores name in node sval, all children are args); TT_SEQ concat: constant-fold all-TT_QLIT → `ASSIGN_CONCAT + LIT_S("combined")`, else `ASSIGN_CONCAT + IR_SEQ(ival=100000000LL → normalizes PTR)`; non-VAR LHS guard (indirect/indirect assigns → NULL body → label chains nxt). **sno 22→61/153.**
+- `b28440b` LAD-3b (batch 2): `ASSIGN_CALL + CALL` when RHS is TT_FNC (oracle uses IR_ASSIGN_CALL not IR_ASSIGN for function-call RHS); unknown label → NULL fallback → nxt (lowercase "freturn" not in label map → chains to next stmt, not PSUCC); TT_KEYWORD LHS → lower_assign handles it; SCAN sub-graph lowering: `bb_print` recursively prints SCAN sub-graphs via `IR_EXEC(bb).counter` (pattern graph ptr) and `bb->operands[0]` (subject graph ptr) — built PAT_LIT/PAT_DEFER/PAT_*  sub-graphs + subject FAIL+VAR sub-graph, main graph gets SCAN+VAR entry chain. **sno 61→88/153.**
+- `6d619b1` LAD-3c: TT_FLIT → plain `IR_ASSIGN` (not IR_ASSIGN_LIT_I); orphan CALL when any arg is TT_IDX/TT_INDIRECT (oracle allocates CALL with γ=·, ω=·; label chains nxt — confirmed from `differ(t<"cat">)` vs `GT(N,5)` comparison); TT_IDX as assignment RHS → orphan IR_ASSIGN + return NULL. **sno 88→99/153.**
+- `1916489` LAD-3d: split `lower_assign` to take separate γ/ω targets (for `:goF DONE` threading, ASSIGN.ω → DONE label, not nxt); KEYWORD LHS (`&TRIM=1`) uses IR_ASSIGN not IR_ASSIGN_LIT_I/S. **sno 99→104/153.**
+- `1497f6c` LAD-3e: `PAT_ASSIGN_COND` / `PAT_ASSIGN_IMM` via `ir_operand_push(nd, child_entry)` — entry=nd (the capture node itself), child pattern lowered and pushed as `ops:[idx]` operand (oracle shows `ops:[3]` in dump); previously was returning child as entry (wrong). **sno 104→113/153.**
+- `f27beba` LAD-3f: TT_SEQ in pattern context → no PAT_CAT (straight chain: left.γ→right entry); TT_VAR builtins in pattern ctx (REM→IR_PAT_REM, ARB→IR_PAT_ARB, FENCE→IR_PAT_FENCE, ABORT→IR_PAT_ABORT, BAL→IR_PAT_BAL); `sno_has_pat()` detector: pattern-containing TT_SEQ as assignment RHS → ORPHAN ASSIGN_CONCAT+SEQ (γ=·, ω=·), label chains nxt. **sno 113→115/153.**
+- `26abcea` LAD-3g: PAT_CAT inserted before TT_SEQ right-child when that child is TT_CAPT_COND_ASGN/TT_CAPT_IMMED_ASGN — oracle allocates PAT_CAT FIRST (becomes index 2) as success continuation, PAT_ASSIGN_COND.γ→PAT_CAT (not directly to SUCCEED). **sno 115→117/153.**
+- `1d3f6c2` LAD-3h: PAT_RTAB sval="r"; TT_DEFER node → IR_PAT_DEFER with child var name in sval + ival=1; TT_VAR/TT_KEYWORD children in TT_POS/TT_LEN/TT_TAB/TT_RPOS → use sval not ival (oracle stores var name for dynamic pos/len/tab args). **sno 117→120/153.**
+
+**SCORES AT HANDOFF:** icon **6/8** · pascal **12/91** · snobol4 **120/153** · NEWFAIL=0.
+
+**REMAINING 33 DIFFERs (by cluster):**
+- patterns: 12 — complex backtracking in PAT_ASSIGN_COND.ω (oracle chains to another PAT node for retry, not FAIL); PAT_ALT sub-graph structure; PAT_CAT needed in non-SEQ contexts (049/052/054/057 class)
+- functions: 8 — DEFINE functions need multi-proc emission (oracle emits separate `; proc funcname` graphs for each DEFINE body — `lower_snobol4` returns ONE graph currently)
+- strings: 2 — word3/wordcount use complex SCAN with PAT_ASSIGN patterns (CAPT_COND_ASGN in SCAN subject/pattern)
+- capture: 4 — multiple captures in one pattern (backtracking ω wiring between capture nodes)
+- rung10: 3, rung11: 2 — `differ(prototype(ta), "2,2")` style CALL with TT_FNC first arg (currently connected — oracle also connects it, so something else is off)
+- library: 2, keywords/coverage/control: 1 each
+
+**KEY DISCOVERIES THIS SESSION:**
+1. TT_STMT/AST structure: gotos are TT_GOTO_S/F/U direct children (label in c[0]->v.sval from make_goto_node); TT_FNC sval=function name, all children are args (n=nargs, not n-1 as in Icon).
+2. Oracle SCAN sub-graph: `IR_EXEC(scan_node).counter = (int64_t)(intptr_t)pat_graph`; `scan_node.operands[0] = (IR_t*)(void*)subj_graph`. `bb_print` recurses both.
+3. Orphan body pattern: when oracle can't lower inline (TT_IDX/INDIRECT args, pattern assignments), it allocates nodes with γ=·, ω=· and chains label to nxt — same n but different wiring.
+4. PAT_ASSIGN_COND wiring: entry=PAT_ASSIGN_COND (not child), child goes in `ir_operand_push(nd, child_entry)` → shows as `ops:[idx]` in dump.
+5. Separate γ/ω to lower_assign: for stmts with `:goF`, ASSIGN.ω ≠ nxt (failure goes to goF target; success goes to nxt).
+
+**NEXT RUNG OPTIONS (ordered by leverage):**
+1. **Multi-proc DEFINE emission** (8 functions programs): oracle emits one graph per DEFINE body with separate `; proc funcname` headers. `lower_snobol4` needs to return the HEAD of a linked structure, or the `--dump-bb2` path (scrip.c:1703) needs a `lower_snobol4_enum`+`lower_snobol4_proc` API (like Pascal/Icon). RULE: MUST NOT modify scrip.c — so the solution must be within the graph structure returned by `lower_snobol4` (linked list via operands? or multiple graphs stored as SCAN-style operands?). NOTE: scrip.c:1703 calls `lower_snobol4(ast_prog)` → `bb_print(g)` ONCE — so all proc graphs must be reachable from that one call. The oracle for snobol4 `--dump-bb` uses a different path (the oracle's `lower_snobol4.c` internal representation). The `--dump-bb2` path only prints one graph. OPEN QUESTION for Lon: how to expose multi-proc output through the `--dump-bb2` single-graph path?
+2. **Complex PAT_ASSIGN_COND backtracking ω** (patterns cluster): oracle wires PAT_ASSIGN_COND.ω → a retry/fallback node (not FAIL). For `LEN(1) . FIRST  REM . LAST`, oracle has complex ω-chaining between capture nodes for SNOBOL4 backtracking semantics.
+3. **PAT_ALT sub-graph** (patterns 050/051 class): oracle has n=6 for `'cat' | 'dog'` but mine n=4 — two extra nodes for the ALT structure.
+
+**OPEN FOR LON:** (1) LAD-0b pointer-ival ruling (--raw drops icon 6→4; normalization is load-bearing; ival≥7-digit floor catches all heap pointers); (2) Multi-proc DEFINE API for `--dump-bb2` path; (3) Pre-existing: `--dump-ast` segfaults on all multi-proc Pascal (AST-printer bug, not lowering path); (4) Snocone/Rebus (sco191) not yet re-run — they share lower_snobol4 but were not measured this session.
+
+**METHOD:** `--dump-bb` (oracle) vs `--dump-bb2` (new) → normalized diff (ival=PTR for 7+ digit ivals) → fix first divergence → rebuild → commit each green rung + push. Scoreboard `scripts/scoreboard.sh snobol4` gives authoritative MATCH/DIFFER/NEWFAIL counts.
