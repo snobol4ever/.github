@@ -26,7 +26,7 @@ handencoded b.size() 0; pl-value-stack PASS; prove_lower2 PASS; purity audit 2 p
 medium-invisible **343** — redistributed across the 11 family files (3+24+95+5+21+20+37+6+28+51+40+13), total unchanged.
 
 ## Two notes
-- Family files keep the original blocks' comments verbatim (not RULES 120-char separators — but neither
+- Family files keep the original blocks' comments verbatim (not RULES 200-char separators — but neither
   was the original `bb_builtin.cpp`; comment reformat is orthogonal to the split, no hard gate checks it).
 - `%d`/`int64` hdr-comment line left verbatim (low-32-bits of a small arity → identical output text).
 

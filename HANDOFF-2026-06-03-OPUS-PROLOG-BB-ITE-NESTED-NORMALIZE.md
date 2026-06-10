@@ -48,7 +48,7 @@ helpers, and applied it to **every** body goal (not just top-level `;` goals):
   (`(IfThen ; R)` and `(P -> Q)` clauses) and swipl `pl-comp.c` `compileBody`'s control
   recursion.
 
-C-style verified: no line >200 chars, zero blank lines, only the 120-char `/*---*/` separator.
+C-style verified: no line >200 chars, zero blank lines, only the 200-char `/*---*/` separator.
 The now-dead `pl_maybe_ifthenelse` wrapper was deleted (zero-dead-code rule).
 
 ## Canonical grounding (uploaded sources)
