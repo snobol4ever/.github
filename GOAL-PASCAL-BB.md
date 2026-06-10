@@ -19,18 +19,13 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 32 (2026-06-08): PB-28 LANDED — named-type 2D array params (value + var).**
+**Session 33 (2026-06-10): nl lowerer swap + realparam fix LANDED.**
 Gate: **m2 89/0** over 90 probes (recursion.pas XFAIL).
-Commits: SCRIP `71d0d49`, corpus `c550eb56`.
+Commits: SCRIP `298651c`.
 
-**PB-28:** Five bugs fixed in `pascal.y` (no lowerer/interp changes):
-1. `type_decl` subtype leak: array type names falsely registered as subtypes due to residual `g_pas_pend_sub_high` from bracket dim parsing. Fixed by guarding `pas_subtype_add` with `$3 < 0 && g_pas_pend_arr_ncols < 0`.
-2. `var_decl` ncols: named-type vars used `pas_array_add` (1D) instead of `pas_array_add2d`. Fixed with `_varnc` from `pas_arrtype_ncols(g_pas_pend_typename)`.
-3. `type → simple_type` propagation: added ncols propagation into `g_pas_pend_arr_ncols` for named array types.
-4. `is_param` prologue skip: program prologue was overwriting value params with `mk_array_fill`. Added `is_param` field to `g_pas_arrays`; prologue skips is_param=1 entries.
-5. VARSY params: byref param arm never called `pas_array_add*`, so 2D desugar failed inside var-param procedures. Fixed by mirroring value-param arm.
+**nl lowerer swap:** Removed `src/lower/lower_pascal.c`; `lower_pascal_nl.c` is now the sole Pascal lowerer. Makefile updated; dead `lower_pas` arm in `lower.c` replaced with `abort()`; six dead helper declarations removed from `lower_internal.h`.
 
-Probes: arr2dtype/arr2dtype2/arr2dtype3.
+**realparam fix:** `writeln(half(r):10:1)` — parser lacked `expr COLON expr COLON expr` arm. Added to `argument` in `pascal.y` with sentinel `ilit(-3)` (skip-write). Runtime `__pas_writeln` in `by_name_dispatch.c`: `w == -3 → continue` (skip item, matching pcom error(399) behavior where no `wrr` is emitted).
 
 NEXT — Lon picks:
 **(a) PB-29** — more named-type probes or another construct.
