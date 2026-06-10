@@ -369,6 +369,69 @@ bugs, parked until the oracle is fixed.
 
 ## Watermark
 
+**▶ HANDOFF (2026-06-10, Opus 4.8, Lon "convert this session") — THE CONVERSION BEGAN: ICON PRODUCTION
+LOWERING IS NOW `lower_icon_nl` (default flipped); PASCAL channels proven, flip gated on LAD-2c. SHAs: SCRIP
+`a7842c6` (HEAD==origin/main, build GREEN rc=0, tree clean), .github THIS COMMIT. Six guarded-push rungs,
+every gate held, zero regressions.**
+
+  **THE HEADLINE FINDING — dump-byte MATCH ≠ execution parity.** `bb_print` HARDCODES the port α/β labels and
+  prints NEITHER `IR_LIT.dval`, NOR `IR_EXEC.counter`, NOR the `operand_aux` side table — three INVISIBLE
+  EXECUTION CHANNELS the interp dispatches on. A graph can be dump-byte-identical and still execute wrong
+  (icon hello m2 was silent; fact(3)=12). The channels, decoded from the INTERP arms (the consumer = the
+  legitimate spec; the old lower source stayed unread) + empirically from old graphs via the NEW
+  `SCRIP_DUMP_X=1` env-guarded extended dump (scrip_ir.c bb_print; default dump bytes UNCHANGED; recurses
+  CALL arg-blocks + GEN_SCAN blocks):
+  - **CALL `IR_LIT.dval` taxonomy:** 1.0 = write/writes ring-chained args (`ag_ring_peek`); 2.0 = synthetic
+    ops ([]/MAKELIST icon; arr_get/arr_set_pure/__pas_deref_set pascal) w/ arg-block array; 3.0 = all other
+    named calls (frame model, generators, pascal static links) w/ arg-block array; 2.0/5.0 also = SNOBOL
+    name-save/restore model. Arg blocks = `IR_graph_t **` in `IR_EXEC(call).counter`; each block = FAIL@0 +
+    expr ring-chained + result γ=NULL (value falls out of IR_interp_once).
+  - **BINOP `operand_aux`** (`bb_operand_aux_set(g, op, [lres,rres], 2)`): IR_RETURN RE-INTERPRETS its
+    operand; without aux the re-run ring-peeks POST-ADVANCE stale values (fact(3): 2×6=12). Aux re-reads only
+    VAR/KEYWORD fresh + uses cached CALL values. Relop BINOPs (ival 5–10) also carry dval=1.0.
+  - **GEN_SCAN (icon `s ? e`):** dval=1.0, subject block → `IR_EXEC.counter`, body block → `IR_LIT.ival`
+    (both arg-block convention). LAD-1c CLOSED — wordcount/meander matches are now execution-real.
+
+  **THE MECHANISM (lower_program.c):** `nl_on(dflt)` reads `SCRIP_NL` (env overrides per-language compiled
+  defaults); `g_nl_prog` root captured at lower_stage2 entry; `lower_icon_body`/`lower_pascal_body` route to
+  `lower_*_proc` under the gate; `pas_rewrite_graph` is OLD-PATH-ONLY (NL graphs are already frame-aware;
+  nslots still set). `scoreboard.sh` oracle leg pinned `SCRIP_NL=0` so --dump-bb-vs--dump-bb2 keeps meaning
+  OLD-vs-NEW. `SCRIP_NL=0` is the full oracle escape hatch.
+
+  **ICON = CONVERTED (default NL, `c3b1dbb`).** Gates: smoke m2 12/12 m3 10/12 m4 10/12 == old baseline
+  (same 2 pre-existing m3/m4 emitter fails: proc_zeroarg/proc_recursion); icn corpus execution cross-check
+  m2 7/8 + m3 6/6 SAME incl generators; scoreboard 6/8 NEWFAIL=0. queens (sole execution DIFF) is BROKEN ON
+  BOTH ENGINES (old: 0 of 4 solutions; new: 1, garbled board) — LAD-1a, not a regression vector. Icon rungs
+  also landed: bodiless `every f(gen)` (icx_t last_gen; expr-result γ loops to the inner generator, no
+  fabricated SUCCEED), TT_UNTIL (WHILE w/ inverted cond: γ→exit, ω→body), TT_REPEAT (γ→body back-edge),
+  TT_LOOP_BREAK (loop_exit ctx), `&`-prefix TT_VAR → IR_KEYWORD (mirrors FULL-13).
+
+  **PASCAL = CHANNELS PROVEN, DEFAULT STILL OLD (`a7842c6`).** All 4 CALL sites wired (dvals probed);
+  BINOP aux fixed the two dump-MATCH execution divergences (recparam3 dot()=12-not-11, matmul). GATE RESULT:
+  full-corpus m2 cross-check old-vs-new SAME=86/93; the 7 DIFFs are EXACTLY the dump-DIFFER unlowered
+  constructs (boolchain boolmix case1 case2 goto1 goto2 goto3) and all 7 WORK on old → flip would regress.
+  **PASCAL FLIP GATE = LAD-2c case + goto + bool-chain in lower_pascal_nl.** Goto note: pcx_t already has the
+  label registry but the OLD graph allocates label landings BEFORE the SUCCEED/FAIL prefix (goto1 old n=19 vs
+  new n=14) — structural reorder needed, diff-driven.
+
+  **CONVERSION LADDER REMAINING:** (a) pascal LAD-2c → flip; (b) SNOBOL4/snocone — the SNO block in
+  lower_stage2 is INLINE (not a *_body fn); `lower_snobol4` (nl) returns ONE graph; DEFINE registration needs
+  a label-landing export (labels live at all[4..4+N-1], name map internal) — then the heavy gates (sno smoke
+  m3/m4 7/7, beauty, broad corpus, pat M4); (c) raku (1/29) + prolog (0/7) stay OLD until their lowerers
+  mature. Per-language defaults flip ONLY on execution-parity evidence, never on dump MATCH alone.
+
+  **OPEN FOR LON (new):** (1) the icon/pascal NL lowerers now contain calloc + execution-channel code 200-char
+  -wrapped but NOT yet style-swept; (2) SCRIP_DUMP_X recursion prints argblk/scan blocks — keep or fold into
+  LAD-0b ruling; (3) queens broken on the OLD engine too (0 solutions) — separate bug, predates conversion;
+  (4) parallel session landed FULL-10/13 on the OLD lower_icon.c mid-session (rebased clean) — coordinate.
+
+  **METHOD THAT WORKED:** interp arm = the spec for invisible channels; SCRIP_DUMP_X probe of old graphs =
+  the empirical oracle; fix; gate on EXECUTION suites old-vs-new (never dump alone); commit each green rung;
+  flip a default only at full parity with regressions impossible.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
+
+
 **▶ HANDOFF (2026-06-09, Opus 4.8, Lon "Hand off") — LOWER REWRITE: SNOBOL4 130→147/153, DEFINE UNBLOCKED.
 SHAs: SCRIP `e887217` (HEAD==origin/main, build GREEN rc=0, tree clean), .github THIS COMMIT. Seven
 guarded-push rungs this session, NEWFAIL=0 every rung, snocone held 142/142 throughout, zero regressions.**
