@@ -1,156 +1,93 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 non-xfail PASS
 
-**PIVOT 2026-06-06 (Lon):** REVAMP and HYGIENE work is DELEGATED to GOAL-BB-FIXUP. This goal owns ONLY: lowerer correctness (`lower_icon.c`), m2 interpreter semantics (`IR_interp.c`), and Icon runtime behavior. Native template work (m3/m4) follows organically once m2 is correct; no Phase 3/4 template steps here.
+**PIVOT 2026-06-06 (Lon):** REVAMP/HYGIENE delegated to GOAL-BB-FIXUP. This goal owns ONLY: lowerer correctness (`src/lower/nl/lower_icon_nl.c` — the NL lowerer is now the SOLE Icon path; `lower_icon.c` is DELETED), m2 interpreter semantics (`IR_interp.c`), and Icon runtime (`by_name_dispatch.c`, `aggregates.c`, `keywords.c`). Native m3/m4 follows once m2 is correct — no template steps here.
 
-**Status (2026-06-06-j):** m2 194/247 · m3 31 · m4 34. Target: 247/247 m2.
-**XFAIL pool (36):** not in scope — known-unimplemented tiers with explicit xfail markers.
+**Status:** m2 155/247 · m3 10 · m4 10. Target 247/247 m2. XFAIL pool (36) out of scope.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 count must never decrease.
 
 ---
 
-## Failure taxonomy (updated 2026-06-06-j)
+## ⛔ STANDING FINDING — NL β-chain (2026-06-10, this session's headline)
 
-### A. LOWER UNHANDLED — m2 ABORTS (rc=134, `[lower2] UNHANDLED role=0 kind=N`)
-Fix = add a lowerer case in `src/lower/lower_icon.c`. Consult JCON `refs/jcon-master/tran/irgen.icn` first.
+The 193→150 m2 cliff was NOT post-flip BB-FIXUP/Pascal work (the prior handoff's guess). Two bisect passes pin it at **`3546ea2` (DELETE lower_icon.c)**. After that commit `SCRIP_NL=0` selects nothing — so the 8-program flip-gate cross-checks that justified the `c3b1dbb` conversion compared the NL lowerer **against itself**. The real defect: NL never threaded the generator **β-chain**.
 
-*(All Phase-1 constructs landed — no open LOWER UNHANDLED for the current rung set)*
+OLD contract (from `v_binop`/`v_to`/`emit_leaf` in `lower.c`): a BINOP lowers its RIGHT operand with ω = LEFT's β; `v_to` lowers HI with ω = LO's β. β(TO)=the-node · β(leaf)=inherited-ω · β(BINOP)=right-child-β. So an exhausted inner generator **re-pumps the outer generator** (its β), not the enclosing EVERY. NL passed the caller's ω to every child → inner TO aborted to EVERY (`rung01_paper_mult` inner TO ω=2β-EVERY vs oracle ω=5β-outerTO).
 
-### B. M2 OUTPUT MISMATCH — interpreter runs but wrong result
-Fix = IR_interp.c / runtime semantics / by_name_dispatch.c.
+**Partial fix landed (`aff86df`):** `icx_t.beta` threaded — `lower()` entry defaults beta=ω; BINOP right child + `lower_to` hi get the left's β; `lower_to` sets beta=to; `lower_call` chains args through beta then resets beta=ω (det-call contract); `lower_every` loop_back = the threaded β. `rung01_paper_mult` dump now byte-identical to the 15608cf oracle. **+5 of 21 regressions** (paper_compound, paper_mult, nested_add, nested_filter, proc_locals).
 
-| Symptom | Construct | Rungs |
-|---------|-----------|-------|
-| `find()` returns only first match (not generative) | find() generator mode | 08 |
-| alt cross-arg partial (only first combination) | alt with proc call side-effects | 13 |
-| coerce() fails (`integer("3")` etc) | string→int/real coercion builtins | 36, 37 |
-| `type()` returns wrong type name | &type keyword / type() builtin | 37 |
-| `&lcase`/`&ucase` keyword values | keyword cset values | 37 |
-| `&pos` lhs/rhs swap incorrect | &pos in swap lhs/rhs | 37 |
-| scan resumable across alt not completing | scan-in-alt generator | 37 |
-| str relop `ac=='ca'` missing | lexicographic relop remaining cases | 37 |
-| mutual recursion crashes | mutual proc forward refs | 37 |
-| `integer(x)` / `real(x)` coercion | integer() / real() builtins | 37 |
-| `sort()` unimplemented | sort(L) / sort(T,i) | 31 |
+**16 regressions still open** — same β-contract not yet applied to their constructs. Diff-driven recipe: `git show 15608cf:src/lower/lower_icon.c` (the deleted oracle lowerer) + `git show 15608cf` build → `--dump-bb prog.icn` is the byte oracle; make NL match. Open set:
+`rung03_suspend_gen{,_compose,_filter}` · `rung01_paper_nested_to` · `rung06_cset_any_fail` · `rung07_control_not` · `rung07_control_repeat_break` · `rung08_strbuiltins_find_gen` · `rung08_strbuiltins_match` · `rung10_augop_break_repeat` · `rung11_bang_augconcat_bang_{concat,str}` · `rung13_table_iterate` · `rung20_section_seqexpr_section_{basic,full,var}`.
+Constructs needing the β-thread: UNOP (`!x`), SECTION, SUSPEND arg-blocks, GEN_SCAN (`?`), `not`, REPEAT/BREAK, the bang generator.
+
+**Flag for Lon:** the conversion-ladder evidence bar (full-corpus execution parity, not 8-program samples) should gate any future lowerer flip — the broken `SCRIP_NL=0` oracle let a deficit-carrying flip pass.
 
 ---
 
-## Steps — m2 interpreter + lowerer only
+## Failure taxonomy
 
-### FULL-10: find() generative mode (rung 08)
-- `find(s1,s2)` must be generative: resume finds next occurrence.
-- Consult `refs/icon-master/src/runtime/fstranl.r` — `find` is generative in canonical Icon.
-- Fix: `IR_FIND_GEN` node in `IR_interp.c` or `by_name_dispatch.c` — ensure resume cursor advances.
-- Gate: rung08 m2 PASS (+2 or +3 subtests).
+**A. LOWER UNHANDLED** (rc=134 `[lower2] UNHANDLED kind=N`) — add a case in `lower_icon_nl.c`; consult JCON `irgen.icn` first. *(none open for current rung set.)*
 
-### FULL-12: coerce() / integer() / real() (rungs 36, 37)
-- `integer(x)` converts string/real to integer; `real(x)` converts to real.
-- Verify `rt_integer_fn` / `rt_real_fn` in `by_name_dispatch.c` handle all type combinations.
-- Consult `refs/icon-master/src/runtime/oarith.r` for coercion rules.
-- Gate: rung36_jcon_coerce m2 PASS, rung37_coerce m2 PASS (+5).
+**B. M2 OUTPUT MISMATCH** — fix in `IR_interp.c` / `by_name_dispatch.c` / runtime:
 
-### FULL-13: keywords (&type, &lcase, &ucase, &pos) (rung 37)
-- `&type` → type name string; `&lcase` / `&ucase` → cset constants; `&pos` lhs/rhs.
-- Fix: `IR_KEYWORD` / `keywords.c` / NV entries for &lcase &ucase.
-- Consult `refs/icon-master/src/runtime/fmiscops.r` for &type semantics.
-- Gate: rung37_type, rung37_keywords m2 PASS (+3).
-
-### FULL-14: scan-in-alt generator (rung 37)
-- `s ? (expr1 | expr2)` — scan resumable across alt branches.
-- Fix: `IR_GEN_SCAN` interp in `IR_interp.c` — verify alt resume re-enters scan correctly.
-- Gate: rung37_scan_alt m2 PASS (+2).
-
-### FULL-15: str relop remaining (rung 37)
-- Lexicographic relop for remaining cases (ac == ca etc).
-- Fix: `by_name_dispatch.c` str compare operators.
-- Gate: rung37_str_relop m2 PASS (+1).
-
-### FULL-16: mutual recursion (rung 37)
-- Forward proc references resolve lazily via `rt_call_named_proc` — verify no crash.
-- Gate: rung37_mutual m2 PASS (+1).
-
-### FULL-17: sort() (rung 31)
-- `sort(L)` → new sorted list; `sort(T,i)` sorts table by key/value.
-- Runtime: add `rt_list_sort` / `rt_table_sort` to `aggregates.c`.
-- Consult `refs/icon-master/src/runtime/fstranl.r` — `sort`.
-- Gate: rung31 m2 PASS (+5).
-
-### FULL-18: alt cross-arg (rung 13)
-- `every f(1|2) | g(3|4)` — all cross-product combinations.
-- Verify `IR_ALT` wiring in lowerer per JCON `ir_a_Alt`.
-- Gate: rung13_alt_alt_cross_arg m2 PASS (+1).
-
-### FULL-32: rung36/37 remainder sweep
-- After above, triage remaining rung36/37 failures one by one.
-- Each residual failure diagnosed from `./scrip --interp prog.icn 2>&1`.
-- Gate: maximize m2 PASS count; document genuine XFAILs.
+| Symptom | Rung |
+|---|---|
+| nested-generator β mis-wire (16 cases) | see STANDING FINDING |
+| coerce `integer("3")`/`real(x)` all type combos | 36, 37 |
+| `type()` wrong name; `&lcase`/`&ucase`/`&pos` keywords | 37 |
+| scan-in-alt `s ? (e1\|e2)` resume | 37 |
+| str relop remaining (`ac=='ca'`) | 37 |
+| mutual recursion forward refs | 37 |
+| `sort(L)` / `sort(T,i)` unimplemented | 31 |
+| alt cross-arg partial | 13 |
 
 ---
 
-## Session Setup (inherited from GOAL-ICON-BB.md)
+## Open steps (m2 interpreter + lowerer only)
+
+- **β-CHAIN-REST** — apply the β-contract to UNOP/SECTION/SUSPEND/GEN_SCAN/not/REPEAT-BREAK/bang. Diff each vs the 15608cf `--dump-bb` oracle. +16 target.
+- **FULL-12 coerce()** — `integer(x)`/`real(x)` all type combos; consult `oarith.r`. Rungs 36, 37. +5.
+- **FULL-13-resid keywords** — rung37_keywords 3 residuals: `& &e` parse ambiguity, &error write-back, &dump/trace/random.
+- **FULL-14 scan-alt** — `IR_GEN_SCAN` resume re-enters scan across alt. Rung 37. +2.
+- **FULL-15 str relop** — remaining lexicographic cases in `by_name_dispatch.c`. +1.
+- **FULL-16 mutual recursion** — forward refs via `rt_call_named_proc`, verify no crash. +1.
+- **FULL-17 sort()** — `rt_list_sort`/`rt_table_sort` in `aggregates.c`; consult `fstranl.r`. Rung 31. +5.
+- **FULL-18 alt cross-arg** — `IR_ALT` wiring per JCON `ir_a_Alt`. Rung 13. +1.
+- **FULL-32 rung36/37 sweep** — triage residuals one by one; document genuine XFAILs.
+
+---
+
+## Session Setup
 
 ```bash
 cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
 make libscrip_rt
-bash scripts/test_smoke_icon.sh
-bash scripts/test_smoke_prolog.sh
-bash scripts/test_smoke_unified_broker.sh
+bash scripts/test_smoke_icon.sh        # m2 12/12 HARD
+bash scripts/test_smoke_prolog.sh      # m2 5/5 HARD
 bash scripts/test_gate_bb_one_box.sh
 ```
+Extract the uploaded Icon/JCON zips into `refs/` if absent.
 
 ## Gate after every step
 
 ```bash
-bash scripts/build_scrip.sh
-make libscrip_rt
-bash scripts/test_icon_rung_suite.sh
-# m2 count must be >= previous run's count
-# m3/m4: PASS or EXCISED only, no silent FAIL
+bash scripts/build_scrip.sh && make libscrip_rt
+bash scripts/test_icon_rung_suite.sh   # m2 >= previous; m3/m4 PASS-or-EXCISED only
 bash scripts/test_gate_bb_one_box.sh
 bash scripts/test_smoke_prolog.sh
-bash scripts/test_smoke_unified_broker.sh
 ```
 
-## Canonical source rule (from RULES.md)
+## Canonical source rule (RULES.md)
 
-Before implementing ANY construct: grep the canonical sources FIRST.
-- Port topology: `refs/jcon-master/tran/irgen.icn` — procedure `ir_a_<Construct>`.
-- Runtime semantics: `refs/icon-master/src/runtime/*.r` — `fstranl.r`, `oarith.r`, `oref.r`, `ocomp.r`.
-- The m2 oracle (`IR_interp.c`) is a transcription; canonical wins when they disagree.
+Before ANY construct: grep canonical FIRST. Port topology → `refs/jcon-master/tran/irgen.icn` (`ir_a_<Construct>`). Runtime → `refs/icon-master/src/runtime/*.r` (`fstranl.r`, `oarith.r`, `oref.r`, `ocomp.r`). The m2 oracle (`IR_interp.c`) is a transcription; canonical wins.
 
 ---
 
-## Progress tracker
+## Watermark
 
-| Step | Rungs unlocked | M2 delta | Status |
-|------|---------------|----------|--------|
-| ICN-FULL-1 TT_INITIAL | 21, 25 | +5 | ✅ `1589bd5` |
-| ICN-FULL-2 TT_LIMIT | 14 | +5 | ✅ `1589bd5` |
-| ICN-FULL-3 TT_MAKELIST | 22 (+31,35 partial) | +5 | ✅ `1589bd5` |
-| ICN-FULL-4 TT_IDX/SECTION | 16, 20 | +8 | ✅ `1589bd5` |
-| ICN-FULL-5 TT_CASE | 33 | +5 | ✅ `1589bd5` |
-| ICN-FULL-6 TT_IDX tables | 23, 35 | +8 | ✅ `1589bd5` |
-| ICN-FULL-7 TT_FIELD/RECORD | 24 | +5 | ✅ `1589bd5` |
-| ICN-FULL-8 TT_CSET_DIFF | 37 subset | +2 | ✅ `1589bd5` |
-| ICN-FULL-9 TT_REVASSIGN | 15, 37 | +3 | ✅ `1589bd5` |
-| BUG-1 IR_LIMIT body topology | 14 | fix | ✅ `f86427a` |
-| BUG-2 IR_CASE arm-descriptor chain | 33 | +5 | ✅ `f15cfc8` — flat-pair AST, arm_key descriptor (γ=key,β=val,ω=next), selector sentinel sel->γ=cas |
-| BUG-3 TT_SWAP dispatch missing | 15 | +2 | ✅ `f15cfc8` — add TT_SWAP to icn_swap case |
-| BUG-4 IDX_SET/FIELD_SET | 13,23,24 | — | ✅ already working in icn_assign |
-| BUG-5 BINOP_POW→real | 19,26 | +9 | ✅ `f15cfc8` — remove int shortcut in binop_apply |
-| BUG-6 IR_INITIAL NV flag | 21,25 | +5 | ✅ `f15cfc8` — NV_GET/SET keyed on bb ptr |
-| **ICN-FULL-10 find() generative** | 08 | +1 | ✅ `15608cf` — allow_gen for find/upto in icn_det_call; dval==3.0 precompute-all-matches into susp_gen_cache |
-| **ICN-FULL-12 coerce()** | 36, 37 | +5 | ☐ |
-| **ICN-FULL-13 keywords** | 37 | +0 net | ✅ `15608cf` — TT_VAR with sval[0]=='&' → IR_KEYWORD in lower_icon.c; unblocks downstream. rung37_keywords still FAIL (3 residuals: `& &e` parse ambiguity, &error write-back, &dump/trace/random) |
-| **ICN-FULL-14 scan-alt** | 37 | +2 | ☐ |
-| **ICN-FULL-15 str relop** | 37 | +1 | ☐ |
-| **ICN-FULL-16 mutual recursion** | 37 | +1 | ☐ |
-| **ICN-FULL-17 sort()** | 31 | +5 | ☐ |
-| **ICN-FULL-18 alt cross-arg** | 13 | +1 | ☐ |
-| **ICN-FULL-32 rung36/37 sweep** | 36, 37 | triage | ☐ |
+**HEAD (SCRIP) = `aff86df`** — NL β-chain partial fix. m2 **155** · m3 10 · m4 10. HEAD (.github) = this session's handoff.
 
-**Watermark:** HEAD (SCRIP) = `6be7c4b` — lower_icon.c DELETED; NL lowerer sole Icon path; parity at m2=150. m2 150 · m3 10 · m4 10.
-Session 2026-06-06 (Sonnet 4.6, PIVOT + BUG fixes): BUG-2 IR_CASE arm-descriptor chain (5/5 rung33 PASS) · BUG-3 TT_SWAP dispatch (all rung15 swap PASS) · BUG-4 IDX_SET already working · BUG-5 BINOP_POW→real (all rung26 PASS) · BUG-6 IR_INITIAL NV persistent flag (all rung21/25 PASS). Revamp/hygiene delegated to GOAL-BB-FIXUP per Lon directive. Phase 3/4 native template steps REMOVED from this goal.
+Session 2026-06-10 (Sonnet 4.6 / Opus): two-pass bisect overturned prior handoff — regression root is `3546ea2` (lower_icon.c deletion), not later commits; the NL flip's cross-check was self-comparing because `SCRIP_NL=0` no longer selected the old lowerer. Threaded `icx_t.beta` (generator β-chain) through lower/BINOP/lower_to/lower_call/lower_every. m2 150→155 (+5 nested-generator regressions). Icon smoke 12/12 HARD, prolog 5/5 HARD ×3, one-box gate PASS. 16 regressions remain — same β-contract for UNOP/SECTION/SUSPEND/GEN_SCAN/not/REPEAT-BREAK/bang.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
