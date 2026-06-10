@@ -7,19 +7,11 @@
 
 ---
 
-## ⛔ STANDING FINDING — NL β-chain (2026-06-10, this session's headline)
+## ⛔ STANDING FINDING — NL β-chain (RESOLVED 2026-06-10)
 
-The 193→150 m2 cliff was NOT post-flip BB-FIXUP/Pascal work (the prior handoff's guess). Two bisect passes pin it at **`3546ea2` (DELETE lower_icon.c)**. After that commit `SCRIP_NL=0` selects nothing — so the 8-program flip-gate cross-checks that justified the `c3b1dbb` conversion compared the NL lowerer **against itself**. The real defect: NL never threaded the generator **β-chain**.
+The 193→150 cliff was `3546ea2` (DELETE lower_icon.c): post-deletion `SCRIP_NL=0` selected nothing, so the flip-gate cross-checks compared NL against itself. Root defect was the generator β-chain plus a cluster of missing/mis-routed constructs. RESOLVED this session (m2 150→178). Recipe that worked: build the real `15608cf` oracle in a `git worktree add /tmp/oracle 15608cf` (then `make -j4 scrip` directly — `build_scrip.sh` hard-codes `$ROOT/SCRIP`), and for each failing rung `diff <(./scrip --dump-bb f) <(/tmp/oracle/scrip --dump-bb f)` — BUT confirm by output too, since `--dump-bb` hides `operand_aux`.
 
-OLD contract (from `v_binop`/`v_to`/`emit_leaf` in `lower.c`): a BINOP lowers its RIGHT operand with ω = LEFT's β; `v_to` lowers HI with ω = LO's β. β(TO)=the-node · β(leaf)=inherited-ω · β(BINOP)=right-child-β. So an exhausted inner generator **re-pumps the outer generator** (its β), not the enclosing EVERY. NL passed the caller's ω to every child → inner TO aborted to EVERY (`rung01_paper_mult` inner TO ω=2β-EVERY vs oracle ω=5β-outerTO).
-
-**Partial fix landed (`aff86df`):** `icx_t.beta` threaded — `lower()` entry defaults beta=ω; BINOP right child + `lower_to` hi get the left's β; `lower_to` sets beta=to; `lower_call` chains args through beta then resets beta=ω (det-call contract); `lower_every` loop_back = the threaded β. `rung01_paper_mult` dump now byte-identical to the 15608cf oracle. **+5 of 21 regressions** (paper_compound, paper_mult, nested_add, nested_filter, proc_locals).
-
-**16 regressions still open** — same β-contract not yet applied to their constructs. Diff-driven recipe: `git show 15608cf:src/lower/lower_icon.c` (the deleted oracle lowerer) + `git show 15608cf` build → `--dump-bb prog.icn` is the byte oracle; make NL match. Open set:
-`rung03_suspend_gen{,_compose,_filter}` · `rung01_paper_nested_to` · `rung06_cset_any_fail` · `rung07_control_not` · `rung07_control_repeat_break` · `rung08_strbuiltins_find_gen` · `rung08_strbuiltins_match` · `rung10_augop_break_repeat` · `rung11_bang_augconcat_bang_{concat,str}` · `rung13_table_iterate` · `rung20_section_seqexpr_section_{basic,full,var}`.
-Constructs needing the β-thread: UNOP (`!x`), SECTION, SUSPEND arg-blocks, GEN_SCAN (`?`), `not`, REPEAT/BREAK, the bang generator.
-
-**Flag for Lon:** the conversion-ladder evidence bar (full-corpus execution parity, not 8-program samples) should gate any future lowerer flip — the broken `SCRIP_NL=0` oracle let a deficit-carrying flip pass.
+**Flag for Lon (still open):** future lowerer flips need full-corpus EXECUTION parity as the gate, not 8-program dump samples — the broken `SCRIP_NL=0` oracle let a deficit-carrying flip through. Consider snapshotting expected `--dump-bb` per rung before the next conversion.
 
 ---
 
@@ -44,7 +36,8 @@ Constructs needing the β-thread: UNOP (`!x`), SECTION, SUSPEND arg-blocks, GEN_
 
 ## Open steps (m2 interpreter + lowerer only)
 
-- **β-CHAIN-REST** — apply the β-contract to UNOP/SECTION/SUSPEND/GEN_SCAN/not/REPEAT-BREAK/bang. Diff each vs the 15608cf `--dump-bb` oracle. +16 target.
+- **β-CHAIN-REST** ✅ DONE 2026-06-10 (m2 155→178). UNOP/bang/section/not/conjunction/augop/generator-call all fixed; see Watermark.
+- **FULL-14 scan-alt** — `rung08_strbuiltins_match` residual: `"world" ? write(match("xyz") | 0)` yields nothing, expects `0`. Top-level dump byte-identical to oracle; divergence is the `IR_ALT` β-resume INSIDE the GEN_SCAN subgraph (`match | 0` — alt doesn't fall to `0` when match fails). Consult JCON `ir_a_Alt` + `ir_a_Scan`. Dump the scan-body subgraph (arg_block) to compare.
 - **FULL-12 coerce()** — `integer(x)`/`real(x)` all type combos; consult `oarith.r`. Rungs 36, 37. +5.
 - **FULL-13-resid keywords** — rung37_keywords 3 residuals: `& &e` parse ambiguity, &error write-back, &dump/trace/random.
 - **FULL-14 scan-alt** — `IR_GEN_SCAN` resume re-enters scan across alt. Rung 37. +2.
@@ -86,8 +79,10 @@ Before ANY construct: grep canonical FIRST. Port topology → `refs/jcon-master/
 
 ## Watermark
 
-**HEAD (SCRIP) = `aff86df`** — NL β-chain partial fix. m2 **155** · m3 10 · m4 10. HEAD (.github) = this session's handoff.
+**HEAD (SCRIP) = `d6964d4`** — NL β-chain + missing-construct sweep. m2 **178** · m3 27 · m4 30. HEAD (.github) = this session's handoff.
 
-Session 2026-06-10 (Sonnet 4.6 / Opus): two-pass bisect overturned prior handoff — regression root is `3546ea2` (lower_icon.c deletion), not later commits; the NL flip's cross-check was self-comparing because `SCRIP_NL=0` no longer selected the old lowerer. Threaded `icx_t.beta` (generator β-chain) through lower/BINOP/lower_to/lower_call/lower_every. m2 150→155 (+5 nested-generator regressions). Icon smoke 12/12 HARD, prolog 5/5 HARD ×3, one-box gate PASS. 16 regressions remain — same β-contract for UNOP/SECTION/SUSPEND/GEN_SCAN/not/REPEAT-BREAK/bang.
+Session 2026-06-10 (Opus, β-CHAIN-REST + missing constructs): built the REAL 15608cf oracle in a `/tmp/oracle` git worktree (prior `SCRIP_NL=0` oracle was vacuous post-deletion). Eight fixes, m2 155→178 (+23), all gates green throughout (icon m2 12/12 HARD, prolog 5/5 HARD, one-box PASS): (1) `c9ec94c` write/writes chaining call resumes to last-arg β — NL ignored the driver-set `g_icn_postfix_resume`; (2) `20bee0e` subgraph generator calls (find/upto/gen-procs) self-resume β=call via `icn_call_allow_gen`; (3) `38382a1` `not`→IR_NOT (was IR_UNOP); (4) `c734630` bang `!x`→IR_LIST_BANG self-β (+11, widely used); (5) `1f57db3` `s[i:j]`→IR_SECTION; (6) `35718b7` `x op:= y` AST-rewritten to `x:=(x op y)` so the BINOP gets operand_aux + β-chain; (7) `d6964d4` `&` conjunction (TT_SEQ) routed through IR_CONJ like TT_SEQ_EXPR — old handler ran the right operand even when the left failed. Several fixes are byte-identical to the oracle `--dump-bb`; the residual deltas (NOT/SECTION/BANG) are the HEAD interp's `operands[]`-vs-`operand_aux` convention (output is ground truth — `operand_aux` is invisible in `--dump-bb`, which made the augop bug look like a phantom interp regression).
+
+**Standing intel:** (a) the `--dump-bb` view does NOT show `operand_aux`; two graphs printing identically can still differ — verify by output, not dump alone. (b) the 15608cf oracle interp read `operand_aux` for NOT/SECTION/BANG; HEAD reads `bb->operands[0]` — when matching the oracle, push operands via `ir_operand_push`, not `bb_operand_aux_set`. (c) ONE original-16 item remains: `rung08_strbuiltins_match` (alt-in-scan `match("xyz") | 0` — top-level dump identical, divergence inside the GEN_SCAN subgraph) = FULL-14.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
