@@ -198,16 +198,14 @@ TT_PROC_DECL.
    yardstick — **Lon should confirm it's legitimate** before MATCH counts are fully
    trusted. Legit ivals are ≤3 digits (opcodes/argcounts/tree-codes); the 7-digit floor
    only catches pointers. wordcount + meander both rely on it.
-2. **`--dump-bb2` is DUMP-ONLY — zero execution validation, and it's STRUCTURAL.**
-   `scrip.c` returns right after `bb_print`; mode-2 interp (`IR_interp_once`) runs the OLD
-   lowerer's graph from `s2->bbp.table`, never the new `lower_icon` graph. Every "MATCH" =
-   dump bytes agree, NOT "runs correctly." Wiring `--dump-bb2`→mode-2 is a separate
-   prerequisite-for-trust task.
-3. **`TT_SCAN` is still a NODE-ONLY STUB.** Emits `IR_GEN_SCAN` with `ival` = a
-   freshly-alloc'd EMPTY sub-graph; subject+body are NOT lowered into it. Dump-correct
-   (`bb_print` doesn't recurse GEN_SCAN, so body is legitimately invisible) but
-   executionally empty. wordcount/meander match because of that invisibility, not because
-   the scan is complete. TODO: lower subject+body into the sub-graph.
+2. **Execution validation status (was: dump-only).** RESOLVED FOR ICON by the CONVERSION
+   (2026-06-10): the production interp/emitters now RUN the new icon graphs (default flipped);
+   pascal validated by the 86/93 full-corpus m2 cross-check (default still old pending LAD-2c).
+   sno/snocone/raku/prolog MATCHes remain dump-only until their conversions. Beware the
+   INVISIBLE EXECUTION CHANNELS (dval / EXEC.counter / operand_aux) — see the 2026-06-10
+   watermark; dump MATCH alone never licenses a flip.
+3. ~~TT_SCAN node-only stub~~ RESOLVED (LAD-1c CLOSED, SCRIP `a875c77`): GEN_SCAN carries real
+   subject (`EXEC.counter`) + body (`LIT.ival`) blocks; wordcount/meander execution-real.
 
 ## LADDER — per-language gauntlet, strict order, gate each rung
 
@@ -244,9 +242,6 @@ class skips oracle-unparseable programs. Corpus map + behaviour live in the scri
   queens MATCH, icn9 6→7, full sweep byte-identical.
 - [ ] **LAD-1b — generators.icn.** `suspend`, generator caching, `IR_PROC_GEN` — the deepest Icon
   construct; expect real work, may stay DIFFER a while. GATE: generators MATCH → icn9 8/8.
-- [ ] **LAD-1c — scan sub-graph (caveat 3).** Lower TT_SCAN subject+body into the GEN_SCAN
-  sub-graph so wordcount/meander matches are EXECUTION-real, not invisibility artifacts. GATE:
-  re-MATCH wordcount/meander with the sub-graph populated (under LAD-0c if wired).
 
 ### Phase 2 — PASCAL (easiest second language; structured, no generators/patterns)
 Corpus = `corpus/programs/pascal/*.pas` (test/pascal is empty); curated floor = pas5.
