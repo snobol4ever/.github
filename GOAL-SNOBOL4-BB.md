@@ -1,4 +1,4 @@
-**SESSION WATERMARK — 2026-06-08 · Opus 4.8 · PLANNING/REPRIORITIZE (NO code written).** Moved ground-zero pattern-building-through-RT-functions (NO BB_INVARIANT) to the #1 block below; hardened the scope and folded in VERIFIED encoder facts. Gates at floor, no regression: smoke 7/7/7 · pat-rung M4 19/19, M2/M3 18/19 (053) · corpus M2 184 / M3 161 / M4 155 · fence HARD. SCRIP `origin/main` unchanged. NEXT = D7-RB-1 starting with LIT. Session detail: `HANDOFF-2026-06-08-OPUS48-SNOBOL4-BB-GROUNDZERO.md`.
+**SESSION WATERMARK — 2026-06-10 · Sonnet 4.6 · D7-RB-1 DESIGN COMPLETE (no code written, floor intact).** Fully designed and verified D7-RB-1: 125-byte LIT proto tested live (all displacements verified, match/fail correct with rt_dtp_run harness), 36-byte HEAD proto verified, complete implementation recipes in HANDOFF-2026-06-10. Floor: smoke 7/7/7 · pat-rung M4 19/19, M2/M3 18/19 (053) · fence HARD. NEXT = execute D7-RB-1 exactly per HANDOFF-2026-06-10-SONNET46-SNOBOL4-BB-D7-RB1-DESIGN.md — all binary bytes proven, all encoder additions identified, all IR_interp.c cases designed.
 
 ---
 
