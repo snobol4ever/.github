@@ -150,7 +150,7 @@ Before implementing ANY construct: grep the canonical sources FIRST.
 | **ICN-FULL-18 alt cross-arg** | 13 | +1 | ☐ |
 | **ICN-FULL-32 rung36/37 sweep** | 36, 37 | triage | ☐ |
 
-**Watermark:** HEAD (SCRIP) = `15608cf` — FULL-10 + FULL-13 LANDED 2026-06-10. m2 193 · m3 30 · m4 33.
+**Watermark:** HEAD (SCRIP) = `6be7c4b` — lower_icon.c DELETED; NL lowerer sole Icon path; parity at m2=150. m2 150 · m3 10 · m4 10.
 Session 2026-06-06 (Sonnet 4.6, PIVOT + BUG fixes): BUG-2 IR_CASE arm-descriptor chain (5/5 rung33 PASS) · BUG-3 TT_SWAP dispatch (all rung15 swap PASS) · BUG-4 IDX_SET already working · BUG-5 BINOP_POW→real (all rung26 PASS) · BUG-6 IR_INITIAL NV persistent flag (all rung21/25 PASS). Revamp/hygiene delegated to GOAL-BB-FIXUP per Lon directive. Phase 3/4 native template steps REMOVED from this goal.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
