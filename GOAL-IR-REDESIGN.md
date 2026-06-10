@@ -200,7 +200,7 @@ TT_PROC_DECL.
    only catches pointers. wordcount + meander both rely on it.
 2. **Execution validation status (was: dump-only).** RESOLVED FOR ICON by the CONVERSION
    (2026-06-10): the production interp/emitters now RUN the new icon graphs (default flipped);
-   pascal validated by the 86/93 full-corpus m2 cross-check (default still old pending LAD-2c).
+   RESOLVED FOR PASCAL by the CONVERSION (e5ee443, 2026-06-10): m2 parity SAME=91 DIFF=0.
    sno/snocone/raku/prolog MATCHes remain dump-only until their conversions. Beware the
    INVISIBLE EXECUTION CHANNELS (dval / EXEC.counter / operand_aux) — see the 2026-06-10
    watermark; dump MATCH alone never licenses a flip.
@@ -257,16 +257,17 @@ iterates the list; `lower_pascal_proc` lowers one body; is_function ⟺ `c[3]==T
 operands leaf-chain on the γ-ring; function-result LHS is a 0-arg TT_FNC (mk_ident returns a call for
 known function names) so ASSIGN sval falls back to `lhs->c[0]->v.sval`. scrip.c is_pascal `--dump-bb2`
 arm mirrors the Icon enum + `; proc` loop. intparam.pas MATCH → pascal **8→12/91**, icon held 6/8,
-NEWFAIL=0; new: forward1/intparam/m4asg/m4wexpr.) NEXT PASCAL DIVERGENCE (nestfunc/ppp): nested-scope
-variables use VAR_FRAME (`sval` + `ival`=frame depth/slot), and BINOP needs the nested-operand case
-(`inner(1)+inner(2)`) — the current leaf-chaining only wires leaf operands. CORRECTION to the
+NEWFAIL=0; new: forward1/intparam/m4asg/m4wexpr.) CORRECTED (5959b33): VAR_FRAME `ival` = SLOT in the
+DECLARING proc (params then locals), NOT depth — depth rides an invisible channel (execution-side TBD);
+own vars frame ONLY when the proc participates in nesting (outer || byref || has_children). nestfunc MATCH.
+CORRECTION to the
 side-finding below: `--dump-ast` SEGFAULTS on ALL multi-proc pascal (procedure-only too), not just
 nested functions — a pre-existing AST-printer bug, NOT in the `--dump-bb/bb2` lowering path.
-- [ ] **LAD-2c — control flow.** if/then/else, while, `for` (bounded → reuse the TO/EVERY wiring
-  family), repeat/until, case. GATE: broaden across `corpus/programs/pascal/*.pas`; record
-  MATCH/total.
+- [x] **LAD-2c — control flow.** ✅ DONE (SCRIP `41b7deb`→`e5ee443`, 2026-06-10): goto (TT_LABEL_DEF
+  scan + landings), bool-chain (`__pbtN` materialization), case (parser-desugared; seq flattening),
+  resumable-ω, framing rule. Pascal **89/93** dumps + full m2 exec parity SAME=91 DIFF=0 → FLIPPED.
 - [ ] **LAD-2d — types/records/sets/pointers** as divergences demand. GATE: large-portion MATCH on
-  the Pascal corpus.
+  the Pascal corpus. Remaining DIFFER: pcom, ppp (heavy multi-construct tails).
 
 ### Phase 3 — SNOBOL4 + SNOCONE + REBUS (highest leverage: ONE lowerer, two suites)
 `--dump-bb2` routes all three through `lower_snobol4` (scrip.c:1688 default arm), so this phase
@@ -354,7 +355,7 @@ oracle-parseable program, so this is pure SHAPE-correction, not crash-fixing. LE
 Snocone = **295 scoreable through the single `lower_snobol4`** (Phase 3) vs 91 for Pascal
 (Phase 2). Re-run any suite with `scripts/scoreboard.sh LANG` to refresh.
 
-CURRENT (SCRIP `e887217`, 2026-06-09, normalize=1): icon **6/8** · pascal **12/91** · snobol4[sno153]
+CURRENT (SCRIP `e5ee443`, 2026-06-10, normalize=1): icon **6/8** · pascal **89/93** (DIFFER 2: pcom ppp, SKIP 2; **CONVERTED**, m2 parity SAME=91 DIFF=0) · snobol4[sno153]
 **147/153** (DIFFER 5, SKIP 1) · snocone[sco191] **142/142** (DIFFER 0, SKIP 49) · NEWFAIL=0 everywhere.
 **ORACLE-CRASH SKIP LIST** now in `scoreboard.sh` (Lon ruling 2026-06-09): the OLD lower (`--dump-bb`)
 SEGFAULTS partway through 7 programs, emitting a PARTIAL dump before crashing (so they scored DIFFER or
@@ -365,7 +366,7 @@ bugs, parked until the oracle is fixed.
 ## Watermark
 
 **▶ HANDOFF (2026-06-10, Opus 4.8, Lon "convert this session") — THE CONVERSION BEGAN: ICON PRODUCTION
-LOWERING IS NOW `lower_icon_nl` (default flipped); PASCAL channels proven, flip gated on LAD-2c. SHAs: SCRIP
+LOWERING IS NOW `lower_icon_nl` (default flipped); PASCAL CONVERTED (e5ee443, LAD-2c complete). SHAs: SCRIP
 `a7842c6` (HEAD==origin/main, build GREEN rc=0, tree clean), .github THIS COMMIT. Six guarded-push rungs,
 every gate held, zero regressions.**
 
@@ -401,23 +402,28 @@ every gate held, zero regressions.**
   fabricated SUCCEED), TT_UNTIL (WHILE w/ inverted cond: γ→exit, ω→body), TT_REPEAT (γ→body back-edge),
   TT_LOOP_BREAK (loop_exit ctx), `&`-prefix TT_VAR → IR_KEYWORD (mirrors FULL-13).
 
-  **PASCAL = CHANNELS PROVEN, DEFAULT STILL OLD (`a7842c6`).** All 4 CALL sites wired (dvals probed);
-  BINOP aux fixed the two dump-MATCH execution divergences (recparam3 dot()=12-not-11, matmul). GATE RESULT:
-  full-corpus m2 cross-check old-vs-new SAME=86/93; the 7 DIFFs are EXACTLY the dump-DIFFER unlowered
-  constructs (boolchain boolmix case1 case2 goto1 goto2 goto3) and all 7 WORK on old → flip would regress.
-  **PASCAL FLIP GATE = LAD-2c case + goto + bool-chain in lower_pascal_nl.** Goto note: pcx_t already has the
-  label registry but the OLD graph allocates label landings BEFORE the SUCCEED/FAIL prefix (goto1 old n=19 vs
-  new n=14) — structural reorder needed, diff-driven. LANDED as groundwork (SCRIP `2845670`, gates held): landings now
-  alloc BEFORE the prefix + omega→FAIL post-alloc — but INERT because `scan_labels` hunts SNOBOL-style
-  `TT_STMT/:lbl` attrs while the pascal AST is `TT_LABEL_DEF <num> (labeled-stmt-as-child)` (per --dump-ast
-  goto1) — the scan finds NOTHING. FIRST goto FIX: scan TT_LABEL_DEF nodes (name = the node's own
-  sval/ival), register landing, and the TT_LABEL_DEF lower arm wires landing γ→child entry; TT_GOTO_U
-  resolves by the same name (this arm already exists and works once the registry fills).
+  **PASCAL = CONVERTED (default NL, `e5ee443`, 2026-06-10).** Eight rungs `41b7deb`→`e5ee443`: goto
+  cluster (TT_LABEL_DEF scan, name = the node's OWN sval per the pascal parser; lower arm returns the
+  LANDING so the preceding stmt chains to it, landing γ→child entry); framing rule (above); bool-chain
+  (`__pbtN` materialization: parser desugars or→TT_ADD and→TT_MUL not-a→EQ(a,0); relop operands of
+  arithmetic BINOPs spill per-operand as LIT1,LIT0,ASN_T,ASN_F,VAR + relop γ→LIT1 ω→LIT0; mats execute
+  first, then ring reads; npbt counter program-global); resumable-ω fixup in lower_seq (anchor.ω →
+  nearest PRECEDING resumable's anchor; **resumable = IF/UNLESS ONLY — loops EXHAUST on normal exit, a
+  following stmt's failure resumes the ENCLOSING construct, never the completed loop** — read4/markrel/
+  sieve diff-proved this scoping); case (parser desugars fully: __pct0 assign + IF-else chain, multi-label
+  → NE(ADD(EQ,EQ),0) riding the pbt path; **statement-position nested TT_SEQ_EXPR FLATTENS — one CONJ for
+  the outermost block only**); exec-channel fix (mixed-path BINOP aux must carry RESULT nodes not entry
+  leaves — 3-label case arms read the leaf value, dump-invisible, caught ONLY by the m2 cross-check —
+  char3). FLIP GATES (all green at `e5ee443`): full-corpus m2 old-vs-default SAME=91 DIFF=0 SKIP=2;
+  scoreboards pascal 89/93 + icon 6/8 NEWFAIL=0 (oracle leg pinned SCRIP_NL=0); icon smoke m2 12/12 HARD
+  m3 10/12 m4 10/12 == c3b1dbb baseline (m4 needs `make libscrip_rt` in fresh containers — artifact, not
+  code); prolog smoke 5/5 HARD; sno smoke m4 7/7 HARD. Remaining pascal DIFFER: pcom, ppp (heavy tails;
+  old path reachable via SCRIP_NL=0).
 
-  **CONVERSION LADDER REMAINING:** (a) pascal LAD-2c → flip; (b) SNOBOL4/snocone — the SNO block in
+  **CONVERSION LADDER REMAINING:** (a) SNOBOL4/snocone — the SNO block in
   lower_stage2 is INLINE (not a *_body fn); `lower_snobol4` (nl) returns ONE graph; DEFINE registration needs
   a label-landing export (labels live at all[4..4+N-1], name map internal) — then the heavy gates (sno smoke
-  m3/m4 7/7, beauty, broad corpus, pat M4); (c) raku (1/29) + prolog (0/7) stay OLD until their lowerers
+  m3/m4 7/7, beauty, broad corpus, pat M4); (b) raku (1/29) + prolog (0/7) stay OLD until their lowerers
   mature. Per-language defaults flip ONLY on execution-parity evidence, never on dump MATCH alone.
 
   **OPEN FOR LON (new):** (1) the icon/pascal NL lowerers now contain calloc + execution-channel code 200-char
