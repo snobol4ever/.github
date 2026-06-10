@@ -12,7 +12,7 @@
 5. NO PORT_ALPHA / PORT_BETA / PORT_GAMMA / PORT_OMEGA spellings — REAL Greek characters (α β γ ω).
 6. NO MEDIUM_TEXT / MEDIUM_BINARY at template top level — make functions that hide them.
 7. ERADICATE all emit_fmt() calls.
-8. REMOVE ALL C source comments completely. [OPEN QUESTION for Lon: RULES.md still names the 120-char `/*---*/` separator as the ONE permitted comment — confirm whether separators survive v2.]
+8. REMOVE ALL C source comments completely. [OPEN QUESTION for Lon: RULES.md still names the 200-char `/*---*/` separator as the ONE permitted comment — confirm whether separators survive v2.]
 9. NO blank lines.
 
 **Strategy (Lon, verbatim intent): REGENERATE each template whole from spec — do not make 100 edits to code that should have been generated in this form already.**
