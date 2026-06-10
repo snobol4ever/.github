@@ -19,45 +19,54 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 35 (2026-06-10): pcom.pas blocker sweep — 5 bugs fixed, gate 98/0.**
-Gate: **m2 98/0** over 99 probes (recursion.pas XFAIL).
-Commits: SCRIP `2654333`, corpus `50651e50`.
+**Session 36 (2026-06-10): Pascal file I/O builtins + bare-if-in-loop fix. Gate 99/0.**
+Gate: **m2 99/0** over 100 probes (recursion.pas no `.ref`, excluded). New probe `ifnoelse.pas`.
 
-**Fixed this session (all parser-side, `pascal.y`):**
-1. **Char arrays print as chars** — new `g_pas_chararrs[]` table; `pas_is_charexpr` matches TT_IDX
-   on a char-array base; named types (`alpha = packed array[1..8] of char`) propagate via new
-   `g_pas_arrtypes[].ischar`. Probes: `chararr1.pas`, `chararr2.pas`.
-2. **`array[char]` index type** — `simple_type: IDENT` "char" arm returns high=255. Probe: `chararr3.pas`.
-3. **Tagfield-only variant records** — added `CASESY IDENT OFSY record_case_list` arm (pint.pas
-   `case datatype of` form). pint.pas now PARSES clean.
-4. **Array-of-record** — registered as 2D array (ncols=nf) + new `g_pas_arrrecs[]` (aname→rname,nf).
-   `d[i].f` flattens to `d[i*nf+fi]` in the `selector PERIOD IDENT` arm (anonymous-rectype fallback
-   scans rectypes by nf match); `with d[i]` works via `pas_with_sel_rtype` arrrec arm + `mk_ident`
-   flatten through `pas_arrrec_flatten`. Also fixed `pas_rectype_to_pend` wiping
-   `g_pas_pend_typename` (re-set after the call in `simple_type: IDENT`). Probes: `arrrec1.pas`, `arrrec2.pas`.
-5. **`pas_tree_clone` union corruption** — clone did `strdup(e->v.sval)` unconditionally; on TT_ILIT
-   the union aliases ival as a pointer (ival=2 → strdup(0x2) → SEGV; ival=0 masked it). Now guards
-   `(t==TT_VAR || t==TT_QLIT)`. This was the silent killer behind `with d[i]` for i≠0.
+**Fixed this session:**
+1. **File I/O builtins (PB-30 unblock)** — pcom's `assign(prr,'prr'); rewrite(prr); writeln(prr,…); close(prr)`
+   were unrecognized → returned FAIL → broke the `ω→PFAIL` statement chain at the first file call, so
+   pcom exited silently with 0 bytes. Implemented end-to-end:
+   - Parser (`pascal.y` `mk_call`): `assign(f,nm)`→`f:=__pas_fassign(nm)`, `rewrite(f)`→`f:=__pas_rewrite(f)`,
+     `reset(f)`→`f:=__pas_reset(f)` (clone f for the arg copy; `pas_tree_clone` forward-declared),
+     `close(f)`→`__pas_fclose(f)`. Two-step model: fassign stashes the filename string in f's NV cell,
+     rewrite/reset read it back, fopen, and store `FHVAL(idx)`.
+   - Parser: `eof(input)`/`eoln(input)` one-arg forms now map to the stdin `__pas_eof`/`__pas_eoln`
+     (P4 single readable stream = stdin; the file arg is discarded). pcom's `nextch` uses `eof(input)`.
+   - Runtime (`by_name_dispatch.c`): `__pas_fassign`/`__pas_rewrite`/`__pas_reset`/`__pas_fclose` over the
+     existing `fh_alloc`/`fh_get`/`fh_free` table. `__pas_writeln`/`__pas_write` now detect a LEADING
+     `IS_FH_fn` arg and route the whole call to that `FILE*` (`writeln(prr,…)`→file; `writeln(output,…)`
+     still → stdout, since `output` resolves to empty and is skipped). Registered the 4 new names in the
+     name-as-value `builtins[]` list.
+2. **Bare `if cond then S` (no else) failed inside loop bodies** (`lower_pascal_nl.c` `lower_if`). The
+   no-else false path routed `else_entry = γ`, so the failed condition (NE leaves FAILDESCR on the ag-ring)
+   fell through via an ω/β edge into `lower_seq`'s tail CONJ. The CONJ interpreter peeks the ring top and
+   propagates FAILDESCR→ω→PFAIL, killing the loop. (Worked in straight-line code only because the false
+   path there lands on a CALL, which overwrites the ring value.) FIX: `else_entry = build(cx, IR_SUCCEED,
+   γ, ω)` for the no-else arm — SUCCEED sets a non-fail value and returns γ at any port, clearing the
+   FAILDESCR before the CONJ. One-line change; gate stayed green. Regression probe: `ifnoelse.pas`.
 
-**Corpus note:** 81 missing `.ref` files regenerated from oracle (`./pcom < p.pas && cp prr prd
-&& ./pint < input`) and committed — the gate now runs against checked-in refs.
+**Active lowering path reminder:** `nl_on(1)` defaults TRUE → Pascal uses the **NL lowering**
+(`src/lower/nl/lower_pascal_nl.c`: `lower_if`/`lower_while`/`lower_for`/`lower_repeat`/`lower_seq`), NOT
+`lower.c`'s `v_if`/`v_repeat` (those are the `SCRIP_NL=0` path, which currently ABORTS on the bare-if
+reproducer). Edit the NL functions.
 
-**pcom.pas / pint.pas status (the PB-30 ladder):**
-- pint.pas: PARSES clean. Not yet run.
-- pcom.pas: PARSES clean, `--interp` runs WITHOUT crash but exits silently (0 bytes stdout, prr
-  created empty). `--dump-ast` segfaults (huge AST, separate issue, not blocking).
-- Verified working in isolation: pcom's full type-decl block (3-level nested variant records,
-  forward pointers stp/ctp), `with display[0] do` (array-of-record with), `chartp[chr(i)] :=`
-  (chr is parse-time identity), set-of-enum constructors.
-- NEXT HUNT: bisect pcom main body — `initscalars; initsets; inittables;` then
-  `enterstdtypes; stdnames; entstdnames; enterundecl;` then `insymbol; programme(...)`.
-  Suspects: pointer-record chains built in entstdnames (new + p^.field := chains at scale),
-  `prr` file output (`assign(prr,'prr'); rewrite(prr)` — file builtins likely missing → silent
-  no-op), 25 nested procs sharing globals, PAS_LOCAL_MAX=64/PAS_FIELD_MAX=32 limits vs pcom's
-  identifier record (10 fields, nested variants count extra via pas_pend_add).
+**pcom.pas status — big advance, two new blockers:**
+- BEFORE: silent 0-byte exit at the first `assign(prr,…)`.
+- NOW: runs through assign+rewrite, `nextch`/`insymbol` read the WHOLE source, and pcom emits the full
+  source listing on stdout for `hello.pas` (program/begin/writeln lines all appear).
+- TWO REMAINING BLOCKERS (the next hunt):
+  **(i) spurious error on line 1** — endofline prints `     1   ****  , ` (errinx>0; `error()` was called
+  while scanning `program hello;`). Some token/classification in insymbol's post-letter handling
+  (reserved-word lookup `for i := frw[k] to frw[k+1]-1`, `chartp`, or the `sy`/`op` assignment) misfires.
+  **(ii) hang (timeout 30s)** — pcom no longer terminates; likely an error-recovery loop triggered by (i),
+  or a construct that loops forever under scrip. Also note the `ic` listing counter reads 9 where the
+  oracle shows 3 — an addressing/counter divergence worth checking alongside (i).
+  Bisect entry: instrument `insymbol` to print `sy`/`id`/`k` after each symbol on `hello.pas`; compare the
+  first few symbols (programsy, ident 'hello', semicolon, beginsy) against the oracle to find the first
+  divergent classification.
 
 NEXT — Lon picks:
-**(a) PB-30** — continue pcom.pas silent-exit bisect (plan above).
+**(a) PB-30** — chase pcom blockers (i)+(ii) per the bisect entry above.
 **(b)** Any open bug (case no-match; __pbt/__pct clobber; --dump-ast segv on huge AST).
 
 
