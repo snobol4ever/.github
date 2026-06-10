@@ -412,7 +412,12 @@ every gate held, zero regressions.**
   constructs (boolchain boolmix case1 case2 goto1 goto2 goto3) and all 7 WORK on old → flip would regress.
   **PASCAL FLIP GATE = LAD-2c case + goto + bool-chain in lower_pascal_nl.** Goto note: pcx_t already has the
   label registry but the OLD graph allocates label landings BEFORE the SUCCEED/FAIL prefix (goto1 old n=19 vs
-  new n=14) — structural reorder needed, diff-driven.
+  new n=14) — structural reorder needed, diff-driven. LANDED as groundwork (SCRIP `2845670`, gates held): landings now
+  alloc BEFORE the prefix + omega→FAIL post-alloc — but INERT because `scan_labels` hunts SNOBOL-style
+  `TT_STMT/:lbl` attrs while the pascal AST is `TT_LABEL_DEF <num> (labeled-stmt-as-child)` (per --dump-ast
+  goto1) — the scan finds NOTHING. FIRST goto FIX: scan TT_LABEL_DEF nodes (name = the node's own
+  sval/ival), register landing, and the TT_LABEL_DEF lower arm wires landing γ→child entry; TT_GOTO_U
+  resolves by the same name (this arm already exists and works once the registry fills).
 
   **CONVERSION LADDER REMAINING:** (a) pascal LAD-2c → flip; (b) SNOBOL4/snocone — the SNO block in
   lower_stage2 is INLINE (not a *_body fn); `lower_snobol4` (nl) returns ONE graph; DEFINE registration needs
