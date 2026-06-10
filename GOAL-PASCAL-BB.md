@@ -19,17 +19,46 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 34 (2026-06-10): downto + repeat..until fixes LANDED.**
-Gate: **m2 93/0** over 94 probes (recursion.pas XFAIL).
-Commits: SCRIP `bb04262`, corpus `f03cd86f`.
+**Session 35 (2026-06-10): pcom.pas blocker sweep — 5 bugs fixed, gate 98/0.**
+Gate: **m2 98/0** over 99 probes (recursion.pas XFAIL).
+Commits: SCRIP `2654333`, corpus `50651e50`.
 
-**downto fix** (`lower_pascal_nl.c` `lower_for`): Added `is_downto = (t->v.ival == 1)`. `cmp_op = is_downto ? 8 (GE) : 6 (LE)`; `inc_op = is_downto ? 1 (SUB) : 0 (ADD)`. Probes: `downto1.pas`, `downto2.pas`.
+**Fixed this session (all parser-side, `pascal.y`):**
+1. **Char arrays print as chars** — new `g_pas_chararrs[]` table; `pas_is_charexpr` matches TT_IDX
+   on a char-array base; named types (`alpha = packed array[1..8] of char`) propagate via new
+   `g_pas_arrtypes[].ischar`. Probes: `chararr1.pas`, `chararr2.pas`.
+2. **`array[char]` index type** — `simple_type: IDENT` "char" arm returns high=255. Probe: `chararr3.pas`.
+3. **Tagfield-only variant records** — added `CASESY IDENT OFSY record_case_list` arm (pint.pas
+   `case datatype of` form). pint.pas now PARSES clean.
+4. **Array-of-record** — registered as 2D array (ncols=nf) + new `g_pas_arrrecs[]` (aname→rname,nf).
+   `d[i].f` flattens to `d[i*nf+fi]` in the `selector PERIOD IDENT` arm (anonymous-rectype fallback
+   scans rectypes by nf match); `with d[i]` works via `pas_with_sel_rtype` arrrec arm + `mk_ident`
+   flatten through `pas_arrrec_flatten`. Also fixed `pas_rectype_to_pend` wiping
+   `g_pas_pend_typename` (re-set after the call in `simple_type: IDENT`). Probes: `arrrec1.pas`, `arrrec2.pas`.
+5. **`pas_tree_clone` union corruption** — clone did `strdup(e->v.sval)` unconditionally; on TT_ILIT
+   the union aliases ival as a pointer (ival=2 → strdup(0x2) → SEGV; ival=0 masked it). Now guards
+   `(t==TT_VAR || t==TT_QLIT)`. This was the silent killer behind `with d[i]` for i≠0.
 
-**repeat..until fix** (`lower_pascal_nl.c` `lower_repeat`): Was using `IR_REPEAT` (wrong — forward-jump only) then `IR_UNTIL` (loop exits on NOT-fail but only re-ran ucnd, not body). Fix: pure γ/ω back-edge — cond.ω → body_entry; entry = body_entry; no loop-container node. Same model as `lower_for`. Relop cond: `lower(cond, γ, NULL)`; `ω_to(cond_res, body_entry)`. Non-relop: NE-wrap with same wiring. Probe: `repeat2.pas`. Also added `writenl.pas` (write without writeln).
+**Corpus note:** 81 missing `.ref` files regenerated from oracle (`./pcom < p.pas && cp prr prd
+&& ./pint < input`) and committed — the gate now runs against checked-in refs.
+
+**pcom.pas / pint.pas status (the PB-30 ladder):**
+- pint.pas: PARSES clean. Not yet run.
+- pcom.pas: PARSES clean, `--interp` runs WITHOUT crash but exits silently (0 bytes stdout, prr
+  created empty). `--dump-ast` segfaults (huge AST, separate issue, not blocking).
+- Verified working in isolation: pcom's full type-decl block (3-level nested variant records,
+  forward pointers stp/ctp), `with display[0] do` (array-of-record with), `chartp[chr(i)] :=`
+  (chr is parse-time identity), set-of-enum constructors.
+- NEXT HUNT: bisect pcom main body — `initscalars; initsets; inittables;` then
+  `enterstdtypes; stdnames; entstdnames; enterundecl;` then `insymbol; programme(...)`.
+  Suspects: pointer-record chains built in entstdnames (new + p^.field := chains at scale),
+  `prr` file output (`assign(prr,'prr'); rewrite(prr)` — file builtins likely missing → silent
+  no-op), 25 nested procs sharing globals, PAS_LOCAL_MAX=64/PAS_FIELD_MAX=32 limits vs pcom's
+  identifier record (10 fields, nested variants count extra via pas_pend_add).
 
 NEXT — Lon picks:
-**(a) PB-29** — more named-type probes or another construct.
-**(b)** Any open bug (case no-match; __pbt/__pct clobber).
+**(a) PB-30** — continue pcom.pas silent-exit bisect (plan above).
+**(b)** Any open bug (case no-match; __pbt/__pct clobber; --dump-ast segv on huge AST).
 
 
 ## Mechanism inventory (how it works NOW)
