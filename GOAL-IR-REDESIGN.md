@@ -216,7 +216,9 @@ of open items 4/5).
 
 ## Watermark
 
-**▶ SESSION (2026-06-10, Fable 5, in progress) — PROLOG DUMP SWEEP COMPLETE 0→7/7.**
+**▶ HANDOFF (2026-06-10, Fable 5, Lon "perform hand off") — PROLOG DUMP SWEEP COMPLETE 0→7/7 +
+ICON PHASE 1 CLOSED. SHAs: SCRIP `cb127cb` (HEAD==origin/main, build GREEN, tree clean), .github
+THIS COMMIT. Three pushed rungs total; gates held every rung.**
 Goal-directed rewrite of `src/lower/nl/lower_prolog_nl.c` landed in 2 pushed rungs (SCRIP `984cd27`
 → `cb127cb`, HEAD==origin/main): MAIN clause-body graph = SUCCEED@0/FAIL@1/GCONJ@2(ival=argblk PTR),
 goals REVERSE-allocated (entry=first source goal, each node before its args), BUILTIN
@@ -228,9 +230,15 @@ args-in-order ival=arity, MAKELIST desugar tail-first `.`/2 cells, n-ary `,`/`;`
 in term position), disjunction goal = DISJ anchor + branches LAST-FIRST (atom→SUCCEED/FAIL node,
 conj→GCONJ wrapper) ω-chained branch→next-branch→base, construct entry = first branch's first goal;
 frontend emits BINARY right-nested `,`-chains inside `;` (n-ary only at clause top) — collect_conj
-flattens both. Gates held every rung: sno 152/153, icon 9/9, NEWFAIL=0. FLAGS: pascal scoreboard
-UNSCOREABLE (OPEN 9); icon suite now 9/9 incl. queens/generators (LAD-1a/1b verify). NEXT: LAD-4d
-prolog conversion (exec channels + all-predicate graphs) · raku single-sub (pending ruling).**
+flattens both. Gates held every rung: sno 152/153, icon 9/9, NEWFAIL=0. ICON LAD-1a queens +
+LAD-1b generators verified MATCH and CLOSED (landed via intervening ICON-FULL-PASS work). FLAGS:
+pascal scoreboard UNSCOREABLE — OLD oracle leg aborts silently on every corpus .pas in a fresh
+container, NL leg runs (OPEN 9, verified pre-existing via stash baseline). KEY FINDING: the prolog
+dump bar is SHALLOW — oracle dumps ONLY main's clause-body graph, so 7/7 says nothing about other
+predicates or exec channels; GOAL/GCONJ/findall ival arg-blocks are placeholder calloc PTRs.
+NEXT: LAD-4d prolog conversion (all-predicate clause graphs + exec channels per interp arms +
+SCRIP_DUMP_X probe, m2 cross-check old-vs-new before any default flip) · raku single-sub
+constructs (pending Lon's multi-sub ruling) · pascal heavy tails (blocked on OPEN 9 for scoring).**
 
 **▶ HANDOFF (2026-06-10, Fable 5, Lon "perform hand off") — SNOBOL4 SWEEP COMPLETE + CONVERTED.
 sno153 dump 148→152/153 MATCH, DIFFER 4→0 (1 SKIP=cross oracle-segfault); m2 exec cross-check
