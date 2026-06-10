@@ -19,17 +19,17 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 33 (2026-06-10): nl lowerer swap + realparam fix LANDED.**
-Gate: **m2 89/0** over 90 probes (recursion.pas XFAIL).
-Commits: SCRIP `298651c`.
+**Session 34 (2026-06-10): downto + repeat..until fixes LANDED.**
+Gate: **m2 93/0** over 94 probes (recursion.pas XFAIL).
+Commits: SCRIP `bb04262`, corpus `f03cd86f`.
 
-**nl lowerer swap:** Removed `src/lower/lower_pascal.c`; `lower_pascal_nl.c` is now the sole Pascal lowerer. Makefile updated; dead `lower_pas` arm in `lower.c` replaced with `abort()`; six dead helper declarations removed from `lower_internal.h`.
+**downto fix** (`lower_pascal_nl.c` `lower_for`): Added `is_downto = (t->v.ival == 1)`. `cmp_op = is_downto ? 8 (GE) : 6 (LE)`; `inc_op = is_downto ? 1 (SUB) : 0 (ADD)`. Probes: `downto1.pas`, `downto2.pas`.
 
-**realparam fix:** `writeln(half(r):10:1)` — parser lacked `expr COLON expr COLON expr` arm. Added to `argument` in `pascal.y` with sentinel `ilit(-3)` (skip-write). Runtime `__pas_writeln` in `by_name_dispatch.c`: `w == -3 → continue` (skip item, matching pcom error(399) behavior where no `wrr` is emitted).
+**repeat..until fix** (`lower_pascal_nl.c` `lower_repeat`): Was using `IR_REPEAT` (wrong — forward-jump only) then `IR_UNTIL` (loop exits on NOT-fail but only re-ran ucnd, not body). Fix: pure γ/ω back-edge — cond.ω → body_entry; entry = body_entry; no loop-container node. Same model as `lower_for`. Relop cond: `lower(cond, γ, NULL)`; `ω_to(cond_res, body_entry)`. Non-relop: NE-wrap with same wiring. Probe: `repeat2.pas`. Also added `writenl.pas` (write without writeln).
 
 NEXT — Lon picks:
 **(a) PB-29** — more named-type probes or another construct.
-**(b)** Any open bug (char-literal write; case no-match; __pbt/__pct clobber).
+**(b)** Any open bug (case no-match; __pbt/__pct clobber).
 
 
 ## Mechanism inventory (how it works NOW)
