@@ -329,10 +329,24 @@ Corpus = `test/prolog/*.pl` (pl8). Structurally distinct: clauses→goals, compo
 - [ ] **LAD-4c — backtracking / cut / control (`,` `;` `->` `!`)** as divergences demand. GATE:
   large-portion pl8.
 
-### Phase 5 — RAKU (parked; frontend on hold)
-- [ ] **LAD-5 — DEFERRED.** smoke_raku is 100% pre-existing FAIL (Tiny-Raku frontend on hold). The
-  lowerer can be brought up opportunistically the same way, but MATCH cannot be execution-trusted
-  until the frontend resumes. Resume on Lon's word.
+### Phase 5 — RAKU (UNPARKED 2026-06-10 on Lon's word; lowerer live, execution-trust still gated)
+- [x] **LAD-5 — UNPARKED.** Lon unparked Raku ("new plan"). Lowering resumed via the standard graph-diff
+  method (execution-trust still gated on the Tiny-Raku frontend per the original note). Skeleton
+  lower_raku used the WRONG model (single IR_PROG + ops:[]); oracle emits per-proc VALUE-RING graphs
+  (BINOP ival=opcode, CALL ival=argcount invisible-args, gamma-chaining) like Icon/Pascal. PIVOT LANDED
+  (0ecd99c): lower_raku_enum (TT_SUB_DECL; name=c[0], stmts=c[1..]) + lower_raku_proc (value-ring lower_rv,
+  res out-param) + is_raku dump-bb2 dispatch; omega marker alpha->beta. Opcodes +0 -1 *2 /3 %4, relops
+  5-10, ~(concat)=11; say/print -> write/print. Old lower_raku kept as np<=0 fallback. **raku 0->1/29
+  (rk_arith MATCH), NEWFAIL=0; risk-free (raku was 0, changes raku-scoped).**
+- [ ] **RAKU MULTI-SUB ORACLE DEGENERACY — NEEDS LON RULING.** `--dump-bb` (OLD) emits only ONE proc graph
+  for MULTI-sub programs (rk_subs 5, rk_interp 2, rk_combinator 9 -> all 1 proc), a shared-node-array dedup
+  artifact; NOT cleanly byte-matchable. SINGLE-sub programs (oracle_procs=1=source_subs=1: rk_arith, rk_join,
+  rk_control, rk_forloop, rk_gather, rk_range_for, rk_for_array*, rk_junctions/nest/prec, rk_re33/34/35/38,
+  rk_reverse, rk_array_literal, rk_arrays, rk_strings, rk_str22, rk_map_grep_sort24 ~17) are the matchable set.
+  Rule needed like the oracle-crash SKIP list.
+- [ ] **NEXT CONSTRUCTS** for the ~16 remaining single-sub DIFFERs: `my $x=expr` (TT_ASSIGN/DECL value-ring,
+  not yet handled), for/while (TT_FOR_RANGE/TT_WHILE), string interp, junctions (TT_ALT), regex. NOTE rk_join
+  has an oracle ival QUIRK (join ival=2 vs 4 for structurally identical calls) — likely unmatchable, defer.
 
 ### Done-condition (Lon's "large portion of the test suites")
 A tracked MATCH/total per suite in `scoreboard.sh` output. Target = large-portion, NOT 100% —
