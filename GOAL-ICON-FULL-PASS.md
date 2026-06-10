@@ -140,9 +140,9 @@ Before implementing ANY construct: grep the canonical sources FIRST.
 | BUG-4 IDX_SET/FIELD_SET | 13,23,24 | — | ✅ already working in icn_assign |
 | BUG-5 BINOP_POW→real | 19,26 | +9 | ✅ `f15cfc8` — remove int shortcut in binop_apply |
 | BUG-6 IR_INITIAL NV flag | 21,25 | +5 | ✅ `f15cfc8` — NV_GET/SET keyed on bb ptr |
-| **ICN-FULL-10 find() generative** | 08 | +2 | ☐ |
+| **ICN-FULL-10 find() generative** | 08 | +1 | ✅ `15608cf` — allow_gen for find/upto in icn_det_call; dval==3.0 precompute-all-matches into susp_gen_cache |
 | **ICN-FULL-12 coerce()** | 36, 37 | +5 | ☐ |
-| **ICN-FULL-13 keywords** | 37 | +3 | ☐ |
+| **ICN-FULL-13 keywords** | 37 | +0 net | ✅ `15608cf` — TT_VAR with sval[0]=='&' → IR_KEYWORD in lower_icon.c; unblocks downstream. rung37_keywords still FAIL (3 residuals: `& &e` parse ambiguity, &error write-back, &dump/trace/random) |
 | **ICN-FULL-14 scan-alt** | 37 | +2 | ☐ |
 | **ICN-FULL-15 str relop** | 37 | +1 | ☐ |
 | **ICN-FULL-16 mutual recursion** | 37 | +1 | ☐ |
@@ -150,7 +150,7 @@ Before implementing ANY construct: grep the canonical sources FIRST.
 | **ICN-FULL-18 alt cross-arg** | 13 | +1 | ☐ |
 | **ICN-FULL-32 rung36/37 sweep** | 36, 37 | triage | ☐ |
 
-**Watermark:** HEAD (SCRIP) = `f15cfc8` — BUG-2..6 LANDED 2026-06-06. m2 194 · m3 31 · m4 34.
+**Watermark:** HEAD (SCRIP) = `15608cf` — FULL-10 + FULL-13 LANDED 2026-06-10. m2 193 · m3 30 · m4 33.
 Session 2026-06-06 (Sonnet 4.6, PIVOT + BUG fixes): BUG-2 IR_CASE arm-descriptor chain (5/5 rung33 PASS) · BUG-3 TT_SWAP dispatch (all rung15 swap PASS) · BUG-4 IDX_SET already working · BUG-5 BINOP_POW→real (all rung26 PASS) · BUG-6 IR_INITIAL NV persistent flag (all rung21/25 PASS). Revamp/hygiene delegated to GOAL-BB-FIXUP per Lon directive. Phase 3/4 native template steps REMOVED from this goal.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
