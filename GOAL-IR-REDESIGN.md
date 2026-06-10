@@ -177,10 +177,13 @@ m2 exec cross-check **SAME=153 DIFF=0** · default flipped `b11a963`.
 - [ ] **Old `lower_snobol4.c` deletion** — Lon's SNOBOL4 session (mirror icon `3546ea2`).
 - [ ] Snocone/Rebus conversion verify (share lower path; snocone smoke 2/5 pre-existing both legs).
 
-### Phase 4 — PROLOG (0/7; OLD default)
-- [ ] **LAD-4a** — goal-directed rewrite of `lower_prolog_nl.c` (clause/goal graph). GATE: first MATCH.
-- [ ] **LAD-4b** — facts/rules/queries + unification + arithmetic. GATE: pl8 climbs.
-- [ ] **LAD-4c** — backtracking / cut / control as divergences demand.
+### Phase 4 — PROLOG (7/7 dump COMPLETE 2026-06-10; OLD default — conversion pending)
+Dump sweep DONE (LAD-4a/4b/4c collapsed into one session): 7/7 MATCH DIFFER=0 NEWFAIL=0 (1 SKIP =
+coverage_pl_nodes, pre-existing). The dump spec is MAIN's clause-body graph ONLY (oracle never dumps
+other predicates), so the dump bar is shallow for prolog — conversion is the real ladder.
+- [ ] **LAD-4d — CONVERSION.** m2 exec cross-check old-vs-new; clause graphs for ALL predicates +
+  exec channels (GOAL/GCONJ/findall arg blocks are placeholder calloc PTRs today — spec = interp
+  arms + SCRIP_DUMP_X). Default stays OLD until execution parity.
 
 ### Phase 5 — RAKU (1/29; OLD default; unparked 2026-06-10)
 Value-ring model pinned at `0ecd99c`: lower_raku_enum/proc, opcodes +0 −1 *2 /3 %4 relops 5-10
@@ -194,9 +197,11 @@ Value-ring model pinned at `0ecd99c`: lower_raku_enum/proc, opcodes +0 −1 *2 /
 ### Done-condition
 Per-language bar set by Lon; CONVERSION = the terminal rung per language.
 
-CURRENT (SCRIP `b11a963`, 2026-06-10, normalize=1): icon **6/8 CONVERTED** · pascal **89/93
-CONVERTED** · snobol4 **152/153 DIFFER=0 CONVERTED** · snocone **142/142** · prolog **0/7** ·
-raku **1/29** · NEWFAIL=0 everywhere.
+CURRENT (SCRIP `cb127cb`, 2026-06-10, normalize=1): icon **9/9 DIFFER=0 CONVERTED** (suite grew;
+queens+generators now MATCH — LAD-1a/1b dump bar appears met, verify before closing) · pascal
+**CONVERTED, scoreboard UNSCOREABLE in fresh container** (OLD oracle leg aborts silently → 102
+SKIP; see OPEN 9) · snobol4 **152/153 DIFFER=0 CONVERTED** · snocone **142/142** · prolog
+**7/7 dump COMPLETE, OLD default** · raku **1/29** · NEWFAIL=0 everywhere.
 
 ## OPEN FOR LON (consolidated)
 
@@ -205,9 +210,28 @@ multi-sub degeneracy ruling; (4) OLD leg segfaults on beauty self-beautify from 
 (NL leg runs; blocks old-vs-new beauty baseline); (5) sno smoke m4 + icon m4 need
 `make libscrip_rt` in fresh containers (artifact, not code); (6) `--dump-ast` segfaults on all
 multi-proc pascal (AST-printer bug); (7) NL lowerers not yet 200-char style-swept;
-(8) SCRIP_DUMP_X extended dump — keep or fold into LAD-0b.
+(8) SCRIP_DUMP_X extended dump — keep or fold into LAD-0b; (9) pascal OLD-leg `--dump-bb`
+ABORTS silently (no output) on every corpus .pas in a fresh container while the NL leg runs —
+scoreboard pascal = 102 SKIP, UNSCOREABLE; verified pre-existing at `984cd27` baseline (likely kin
+of open items 4/5).
 
 ## Watermark
+
+**▶ SESSION (2026-06-10, Fable 5, in progress) — PROLOG DUMP SWEEP COMPLETE 0→7/7.**
+Goal-directed rewrite of `src/lower/nl/lower_prolog_nl.c` landed in 2 pushed rungs (SCRIP `984cd27`
+→ `cb127cb`, HEAD==origin/main): MAIN clause-body graph = SUCCEED@0/FAIL@1/GCONJ@2(ival=argblk PTR),
+goals REVERSE-allocated (entry=first source goal, each node before its args), BUILTIN
+(write/nl/format/aggregate_all: visible ops + ival=nargs; findall: ival=PTR, goal arg
+dump-invisible) vs GOAL (user pred + once/forall/member, sval=name ival=argblk PTR, args reified
+after but NOT in ops), `=`/2→UNIFY (visible ops, non-resumable), failure-ω → nearest PRECEDING
+IR_GOAL's β else base, terms reified (ATOM/LIT_I/LIT_F/LOGICVAR ival=AST slot, STRUCT node-first
+args-in-order ival=arity, MAKELIST desugar tail-first `.`/2 cells, n-ary `,`/`;` re-nested binary
+in term position), disjunction goal = DISJ anchor + branches LAST-FIRST (atom→SUCCEED/FAIL node,
+conj→GCONJ wrapper) ω-chained branch→next-branch→base, construct entry = first branch's first goal;
+frontend emits BINARY right-nested `,`-chains inside `;` (n-ary only at clause top) — collect_conj
+flattens both. Gates held every rung: sno 152/153, icon 9/9, NEWFAIL=0. FLAGS: pascal scoreboard
+UNSCOREABLE (OPEN 9); icon suite now 9/9 incl. queens/generators (LAD-1a/1b verify). NEXT: LAD-4d
+prolog conversion (exec channels + all-predicate graphs) · raku single-sub (pending ruling).**
 
 **▶ HANDOFF (2026-06-10, Fable 5, Lon "perform hand off") — SNOBOL4 SWEEP COMPLETE + CONVERTED.
 sno153 dump 148→152/153 MATCH, DIFFER 4→0 (1 SKIP=cross oracle-segfault); m2 exec cross-check
