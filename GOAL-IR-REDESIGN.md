@@ -162,11 +162,10 @@ backtracking, (d) the deep construct. Commit per green program.
 ### Phase 0 — HARNESS
 - [ ] **LAD-0b** — pointer-ival ruling baked into scoreboard.sh (caveat 1).
 
-### Phase 1 — ICON (6/8; CONVERTED)
-- [ ] **LAD-1a — queens.** scope=global IR_VAR annotation + generator procedures. NOTE queens is
-  broken on the OLD engine too (0 solutions) — predates conversion. GATE: MATCH, 6→7.
-- [ ] **LAD-1b — generators.icn.** suspend / generator caching / IR_PROC_GEN — deepest Icon
-  construct. GATE: 8/8.
+### Phase 1 — ICON ✅ dump COMPLETE (9/9 DIFFER=0 verified 2026-06-10; CONVERTED)
+LAD-1a (queens) + LAD-1b (generators.icn) both MATCH on the current suite — gates met (closed by
+the intervening ICON-FULL-PASS work, verified this session). Residual icon m2 exec regressions are
+tracked in GOAL-ICON-FULL-PASS, not here.
 
 ### Phase 2 — PASCAL (89/93; CONVERTED, m2 parity SAME=91 DIFF=0)
 - [ ] **LAD-2d — heavy tails:** pcom, ppp (old path reachable via SCRIP_NL=0).
