@@ -420,16 +420,39 @@ every gate held, zero regressions.**
   code); prolog smoke 5/5 HARD; sno smoke m4 7/7 HARD. Remaining pascal DIFFER: pcom, ppp (heavy tails;
   old path reachable via SCRIP_NL=0).
 
-  **CONVERSION LADDER REMAINING:** (a) SNOBOL4/snocone — the SNO block in
-  lower_stage2 is INLINE (not a *_body fn); `lower_snobol4` (nl) returns ONE graph; DEFINE registration needs
-  a label-landing export (labels live at all[4..4+N-1], name map internal) — then the heavy gates (sno smoke
-  m3/m4 7/7, beauty, broad corpus, pat M4); (b) raku (1/29) + prolog (0/7) stay OLD until their lowerers
-  mature. Per-language defaults flip ONLY on execution-parity evidence, never on dump MATCH alone.
+  **CONVERSION LADDER REMAINING:** (a) SNOBOL4 — NL WIRED + FULL m2 PARITY at SCRIP `3e7fed3`, FLIP NOT YET
+  COMMITTED. `lower_sno_nl()` in lower_program.c gated `nl_on(0)` (SCRIP_NL=1 opt-in): registers main +
+  DEFINE procs (sno_parse_define_proto, label-landing export lower_snobol4_label feeds bb_label_registry).
+  Evidence at 3e7fed3: scripts/xcheck_sno_nl.sh **SAME=153/153 DIFF=0** (filters '^\[lower\]' diagnostic
+  lines BOTH legs — old NARRATES punts, NL punts silently, program bytes identical — FLAGGED FOR LON);
+  dump scoreboard sno **148/153** NEWFAIL=0 (test_case now graph-matches too); sno smoke **m2 7/7 m3 7/7**
+  under SCRIP_NL=1 (m4 0/7 on BOTH legs — container toolchain, pre-existing, NOT conversion). REMAINING
+  FLIP GATES: (i) beauty — from corpus/programs/snobol4/demo/beauty/ (cwd matters for -INCLUDE): NL leg
+  RUNS self-beautify (md5 1c75f97d1907f92f4c0a8a3ef49eb9ee) but the OLD leg SEGFAULTS there in a fresh
+  container — old can't establish the baseline; run scripts/test_gate_ec_uni_complete.sh (carries baseline
+  md5 6bf2e9da…/882524B + drifted M1 oracle abfd19a7…) under both legs and judge; FLAG the old-leg segv for
+  Lon. (ii) snocone scoreboard re-run (shares lower_snobol4). (iii) icon/pascal/prolog smoke holds. Then
+  flip `nl_on(0)`→`nl_on(1)` in lower_sno_nl and commit. EXECUTION-CHANNEL CONTRACTS DECODED THIS PASS
+  (dump-invisible; spec = interp arms + SCRIP_DUMP_X): IR_SEQ concat dval=1.0 ctr=LEFT argblk ival=RIGHT
+  argblk; PAT_ARBNO ctr=bb_arbno_state_t* (IR_interp_state.h: inner=lower_pat_graph(child), cap=64,
+  calloc'd pos_stack); positional dvals POS(var)=2.0 RPOS(var)=1.0 LEN(var)=1.0 TAB(var)=2.0 RTAB(var)=1.0;
+  ω port sz=α (sno is α-UNIFORM like icon — m3/m4 emitters dispatch on sz); user-FNC-in-pattern = ORPHAN
+  SCAN, stmt falls through ignoring :S/:F; literal-subject scan = LIT_S entry + FAIL+LIT_S subject block,
+  SCAN sval empty; bare RETURN/FRETURN stmt = spine γ straight to PRET/PFRET landing, no node. GC HAZARD
+  CLASS (rung 3 root cause): proc_table is plain-realloc — Boehm never scans it; anything stored there or
+  in the plain-calloc exec[] sidecar must be plain strdup/calloc, NEVER lp_strdup/GC_MALLOC (old path
+  survives on conservative false roots; NL layout shift exposed it as the roman APPLY_fn↔_usercall_hook
+  infinite recursion). (b) snocone stays on shared lower_snobol4 — verify at flip; (c) raku (1/29) +
+  prolog (0/7) stay OLD until their lowerers mature. Per-language defaults flip ONLY on execution-parity
+  evidence, never on dump MATCH alone.
 
-  **OPEN FOR LON (new):** (1) the icon/pascal NL lowerers now contain calloc + execution-channel code 200-char
-  -wrapped but NOT yet style-swept; (2) SCRIP_DUMP_X recursion prints argblk/scan blocks — keep or fold into
-  LAD-0b ruling; (3) queens broken on the OLD engine too (0 solutions) — separate bug, predates conversion;
-  (4) parallel session landed FULL-10/13 on the OLD lower_icon.c mid-session (rebased clean) — coordinate.
+  **OPEN FOR LON (new):** (1) xcheck_sno_nl.sh '^\[lower\]' diagnostic-line filter — legitimate yardstick
+  normalization or not (program output identical; only the old lower's UNHANDLED narration differs); (2) the
+  OLD leg SEGFAULTS on beauty self-beautify from the beauty dir in a fresh container (NL leg runs fine) —
+  pre-existing old-path bug, blocks old-vs-new beauty baseline; (3) sno smoke m4 0/7 on BOTH legs in fresh
+  containers — toolchain artifact, not conversion; (4) icon/pascal NL lowerers calloc + exec-channel code
+  200-char-wrapped but NOT style-swept; (5) SCRIP_DUMP_X recursion prints argblk/scan blocks — keep or fold
+  into LAD-0b ruling; (6) queens broken on the OLD engine too (0 solutions) — predates conversion.
 
   **METHOD THAT WORKED:** interp arm = the spec for invisible channels; SCRIP_DUMP_X probe of old graphs =
   the empirical oracle; fix; gate on EXECUTION suites old-vs-new (never dump alone); commit each green rung;
