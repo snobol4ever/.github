@@ -2,7 +2,7 @@
 
 **PIVOT 2026-06-06 (Lon):** REVAMP/HYGIENE delegated to GOAL-BB-FIXUP. This goal owns ONLY: lowerer correctness (`src/lower/nl/lower_icon_nl.c` — the NL lowerer is now the SOLE Icon path; `lower_icon.c` is DELETED), m2 interpreter semantics (`IR_interp.c`), and Icon runtime (`by_name_dispatch.c`, `aggregates.c`, `keywords.c`). Native m3/m4 follows once m2 is correct — no template steps here.
 
-**Status:** m2 155/247 · m3 10 · m4 10. Target 247/247 m2. XFAIL pool (36) out of scope.
+**Status:** m2 184/247 · m3 29 · m4 32. Target 247/247 m2. XFAIL pool (36) out of scope.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 count must never decrease.
 
 ---
@@ -37,14 +37,13 @@ The 193→150 cliff was `3546ea2` (DELETE lower_icon.c): post-deletion `SCRIP_NL
 ## Open steps (m2 interpreter + lowerer only)
 
 - **β-CHAIN-REST** ✅ DONE 2026-06-10 (m2 155→178). UNOP/bang/section/not/conjunction/augop/generator-call all fixed; see Watermark.
-- **FULL-14 ALTERNATION (root cause found, NOT a scan bug)** — `a | b` (TT_ALTERNATE) is ENTIRELY UNHANDLED in `lower_icon_nl.c`: it's in `is_resumable` but has no `lower()` case, so it falls to `default`→IR_SUCCEED. `write(1 | 2)` prints nothing (oracle: `1`); `"world" ? write(match("xyz") | 0)` prints nothing (oracle: `0`). This is the `rung08_strbuiltins_match` residual AND likely FULL-18 (alt cross-arg). FIX: add a `lower_alt` mirroring oracle `wire_alt(IR_ALT,…)` (lower.c:172) + route `case TT_ALTERNATE:`/`TT_ALT:`. Wiring per arm j: γ=ALT node, ω=entry[j+1] (next arm) or ω_in (last arm); set arm.γ=node if unset; `bb_operand_aux_set(node, arms, n)`; entry=arms[0] entry; β=node (self-resume). **CRUCIAL:** the HEAD interp IR_ALT (IR_interp.c:3021) reads arms via `bb_operand_aux_get` — so for ALT use `bb_operand_aux_set` (NOT `ir_operand_push` — opposite of the NOT/SECTION/BANG convention). Expected to clear several tests at once.
 - **FULL-12 coerce()** — `integer(x)`/`real(x)` all type combos; consult `oarith.r`. Rungs 36, 37. +5.
 - **FULL-13-resid keywords** — rung37_keywords 3 residuals: `& &e` parse ambiguity, &error write-back, &dump/trace/random.
 - **FULL-14 scan-alt** — `IR_GEN_SCAN` resume re-enters scan across alt. Rung 37. +2.
 - **FULL-15 str relop** — remaining lexicographic cases in `by_name_dispatch.c`. +1.
 - **FULL-16 mutual recursion** — forward refs via `rt_call_named_proc`, verify no crash. +1.
 - **FULL-17 sort()** — `rt_list_sort`/`rt_table_sort` in `aggregates.c`; consult `fstranl.r`. Rung 31. +5.
-- **FULL-18 alt cross-arg** — `IR_ALT` wiring per JCON `ir_a_Alt`. Rung 13. +1.
+- **FULL-18-resid assign-gen β (alt cross-arg, partial)** — `lower_alt` LANDED this session; `rung13_alt_nested` (cross-product) now PASSES. Residual `rung13_alt_filter` `every (x := (1|2|3|4)) > 2 & write(x)` still empty. NOT an alt bug: `(1|2|3|4) > 2` alone yields `2 2` correctly (relop returns its right operand). The gap is the **assign-generator** `x := alt` not propagating its self-resume β up through the chaining `write` call to the enclosing `every` — the chaining-call path in `lower_call` resets `cx->beta = ω` unless `g_icn_postfix_resume` is set (the `c9ec94c` gate). β-chain family, distinct from alt lowering; needs its own step (do not loosen the `c9ec94c` gate blindly — it guards the write-chaining tests). Rung 13.
 - **FULL-32 rung36/37 sweep** — triage residuals one by one; document genuine XFAILs.
 
 ---
@@ -79,10 +78,12 @@ Before ANY construct: grep canonical FIRST. Port topology → `refs/jcon-master/
 
 ## Watermark
 
-**HEAD (SCRIP) = `f5072d0`** — NL β-chain + missing-construct sweep. m2 **178** · m3 27 · m4 30. HEAD (.github) = this session's handoff.
+**HEAD (SCRIP) = `2dd9a2a`** — FULL-14 alternation lowering (`lower_alt`). m2 **184** · m3 29 · m4 32. HEAD (.github) = this session's handoff.
+
+Session 2026-06-10 (Opus 4.8, FULL-14 ALTERNATION): `lower_alt` added to `lower_icon_nl.c` — `TT_ALTERNATE` was entirely unhandled (fell to `default`→IR_SUCCEED, so `write(1|2)` printed nothing). Mirrors oracle `wire_alt` (lower.c:124): arms lowered right-to-left, arm j's ω = arm j+1's entry (last → inherited ω), `arm_succ` = ALT node, arms deposited via `bb_operand_aux_set` (verified the HEAD interp `IR_ALT` at IR_interp.c:3021 reads `bb_operand_aux_get`, the OPPOSITE of the NOT/SECTION/BANG `ir_operand_push` convention — the flagged trap), β = node self-resume; route `case TT_ALTERNATE`. m2 178→184 (+6), m3 27→29, m4 30→32, zero regression; icon m2 12/12 HARD, prolog 5/5 HARD, one-box PASS. Proofs: `write(1|2)`→1, `every write(1|2|3)`→1,2,3, scan-in-alt `match("xyz")|0`→0. FULL-18: `rung13_alt_nested` (cross-product) now PASSES; residual `rung13_alt_filter` is assign-generator β-propagation — see FULL-18-resid step.
 
 Session 2026-06-10 (Opus, β-CHAIN-REST + missing constructs): built the REAL 15608cf oracle in a `/tmp/oracle` git worktree (prior `SCRIP_NL=0` oracle was vacuous post-deletion). Eight fixes, m2 155→178 (+23), all gates green throughout (icon m2 12/12 HARD, prolog 5/5 HARD, one-box PASS): (1) `c9ec94c` write/writes chaining call resumes to last-arg β — NL ignored the driver-set `g_icn_postfix_resume`; (2) `20bee0e` subgraph generator calls (find/upto/gen-procs) self-resume β=call via `icn_call_allow_gen`; (3) `38382a1` `not`→IR_NOT (was IR_UNOP); (4) `c734630` bang `!x`→IR_LIST_BANG self-β (+11, widely used); (5) `1f57db3` `s[i:j]`→IR_SECTION; (6) `35718b7` `x op:= y` AST-rewritten to `x:=(x op y)` so the BINOP gets operand_aux + β-chain; (7) `d6964d4` `&` conjunction (TT_SEQ) routed through IR_CONJ like TT_SEQ_EXPR — old handler ran the right operand even when the left failed. Several fixes are byte-identical to the oracle `--dump-bb`; the residual deltas (NOT/SECTION/BANG) are the HEAD interp's `operands[]`-vs-`operand_aux` convention (output is ground truth — `operand_aux` is invisible in `--dump-bb`, which made the augop bug look like a phantom interp regression).
 
-**Standing intel:** (a) the `--dump-bb` view does NOT show `operand_aux`; two graphs printing identically can still differ — verify by output, not dump alone. (b) the 15608cf oracle interp read `operand_aux` for NOT/SECTION/BANG; HEAD reads `bb->operands[0]` — when matching the oracle, push operands via `ir_operand_push`, not `bb_operand_aux_set`. (c) ONE original-16 item remains: `rung08_strbuiltins_match` (alt-in-scan `match("xyz") | 0` — top-level dump identical, divergence inside the GEN_SCAN subgraph) = FULL-14.
+**Standing intel:** (a) the `--dump-bb` view does NOT show `operand_aux`; two graphs printing identically can still differ — verify by output, not dump alone. (b) the 15608cf oracle interp read `operand_aux` for NOT/SECTION/BANG; HEAD reads `bb->operands[0]` — when matching the oracle, push operands via `ir_operand_push`, not `bb_operand_aux_set`. (c) the original-16 regression cluster is CLOSED — the last item `rung08_strbuiltins_match` (alt-in-scan `match("xyz") | 0`) was the unhandled-alternation bug, fixed this session by `lower_alt`.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
