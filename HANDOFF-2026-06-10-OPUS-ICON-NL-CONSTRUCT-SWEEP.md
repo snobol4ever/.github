@@ -2,7 +2,7 @@
 
 **Session:** 2026-06-10 · Claude (Opus)
 **Goal:** GOAL-ICON-FULL-PASS — β-CHAIN-REST + missing-construct sweep
-**HEAD (SCRIP):** `d6964d4`
+**HEAD (SCRIP):** `f5072d0`
 **m2:** 155 → **178** (+23)
 
 ---
@@ -56,12 +56,20 @@ was NL-vs-NL. Against the real oracle binary, 15/16 genuinely differed and were 
 - icon smoke m2 12/12 HARD · m3 10/12 · m4 10/12 (same 2 pre-existing: proc_zeroarg, proc_recursion)
 - prolog smoke m2 5/5 HARD · one-box gate PASS · no value stack · no C byrd-box · no bb_bin_t
 
-## Open
+## Open — next session, start here
 
-- **FULL-14 scan-alt** — `rung08_strbuiltins_match`: `"world" ? write(match("xyz") | 0)` yields nothing,
-  expects `0`. Top-level dump identical to oracle; the `IR_ALT` β-resume inside the GEN_SCAN subgraph doesn't
-  fall to `0` when `match` fails. Consult JCON `ir_a_Alt` + `ir_a_Scan`; dump the arg_block subgraph to compare.
-- Untouched goal items: FULL-12 coerce, FULL-13 keyword residuals, FULL-15 str relop, FULL-16 mutual recursion,
-  FULL-17 sort(), FULL-18 alt cross-arg.
+- **FULL-14 = ALTERNATION is entirely unhandled (root cause found this session).** `a | b` (TT_ALTERNATE)
+  is in `is_resumable` but has NO `lower()` case → falls to `default`→IR_SUCCEED. `write(1 | 2)` prints
+  nothing (oracle: `1`); the `rung08_strbuiltins_match` residual `"world" ? write(match("xyz") | 0)` prints
+  nothing (oracle: `0`). FIX: add `lower_alt` mirroring oracle `wire_alt(IR_ALT,…)` (lower.c:172) and route
+  `case TT_ALTERNATE:`/`TT_ALT:`. Per arm j: γ=ALT node, ω=entry[j+1] or ω_in (last); `bb_operand_aux_set`
+  the arms; entry=arms[0]; β=node. **The HEAD interp IR_ALT (IR_interp.c:3021) reads arms via
+  `bb_operand_aux_get`** — so ALT uses `bb_operand_aux_set`, the OPPOSITE of the NOT/SECTION/BANG
+  `ir_operand_push` convention this session established. Likely also clears FULL-18 (alt cross-arg). I was
+  mid-writing `lower_alt` when the session ended — no code landed, tree is clean.
+- Untouched goal items: FULL-12 coerce, FULL-13 keyword residuals, FULL-15 str relop, FULL-16 mutual
+  recursion, FULL-17 sort(). FULL-18 alt cross-arg likely subsumed by the alternation fix above.
+
+**Reproduce the oracle:** `git worktree add /tmp/oracle 15608cf && cd /tmp/oracle && make -j4 scrip`.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
