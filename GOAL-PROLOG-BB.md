@@ -5,7 +5,11 @@ Pruned 2026-06-06 (Lon directive): landed rungs + closed-track history DELETED �
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
-## ▶ STATE (2026-06-11-term-order)
+## ▶ STATE (2026-06-11-format)
+
+Watermark: SCRIP `8a41154` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED** — details: git history + handoff docs.
+Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114/115** (rung23_arith_ext_power: `27^3` returns `27.0` not `27` — int-power float promotion bug, pre-existing) · m3 **43**/72-FAIL (ratchet floor = 43) · m4 **49**/49-FAIL+17-EXCISED (ratchet floor = 49).
+**PL-GZ-9 FORMAT LANDED (2026-06-11, commit `8a41154`):** Wired `format/1` and `format/2` onto the m3/m4 GZ path. New IR kind `IR_DET_FORMAT`; new runtime function `rt_pl_format_cell(const char *fmt, void *list_cell)` in `unification.c`; new template `bb_det_format.cpp`; `bb_prepare` block for `IR_DET_FORMAT` in `emit_bb.c`; dispatch case in `emit_core.c`; admission in `pl_gz_rule_body_goal_ok`, `pl_gz_rule_clause`, `pl_gz_count_synth_goal`, and `pl_gz_build_goal` (format/1 handled in the arity-1 arm; format/2 handled inline in the arity-2 comparator arm with guard `strcmp(fn,"format") != 0` preventing early rejection). m3: 38→43 (+5). Newly passing: rung19_format_format1_nl, rung19_format_format2_a, rung19_format_format2_d, rung19_format_format2_i, rung19_format_format2_w. No regressions (m2=114, m4=49+17excised).
 
 Watermark: SCRIP `3cce039` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED** — details: git history + handoff docs.
 Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114/115** (rung23_arith_ext_power: `27^3` returns `27.0` not `27` — int-power float promotion bug, pre-existing) · m3 **38**/77-FAIL (ratchet floor = 38) · m4 **49**/49-FAIL+17-EXCISED (ratchet floor = 49).
