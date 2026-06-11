@@ -176,17 +176,17 @@ m2 exec cross-check **SAME=153 DIFF=0** · default flipped `b11a963`.
 - [ ] **Old `lower_snobol4.c` deletion** — Lon's SNOBOL4 session (mirror icon `3546ea2`).
 - [ ] Snocone/Rebus conversion verify (share lower path; snocone smoke 2/5 pre-existing both legs).
 
-### Phase 4 — PROLOG (7/7 dump · CONVERSION IN FLIGHT: m2 xcheck 123/143; OLD default)
-Gate seam LANDED (`58a7d8d`): `lower_pl_clause_graph` routes `lower_prolog_nl_clause` under `nl_on(0)`
-— one seam covers main/register_all_preds/choice/assertz; `SCRIP_NL=1` selects NL end-to-end.
-Real exec channels LANDED: bb_goal_state_t/bb_conj_state_t/bb_findall_state_t (plain calloc/strdup
-per GC-hazard rule), DISJ arms via operand_aux, full ~70-functor builtin routing + inherited arg-ω,
-IR_ARITH reification, TT_IF→ITE/ITE_COMMIT/ITE_GATE construct, head-arg UNIFY chain.
-- [ ] **LAD-4d remaining 20 DIFFs:** exceptions ×5 (bb_catch_state_t unbuilt — catch/3 needs goal
-  sub-graph + catcher term + recovery sub-graph per the IR_CATCH arm), DCG ×5, puzzles/backtrack ×8
-  (rung05/06 + puzzles 02/04/07/10/14/17 — suspect GOAL re-entry/LCO or between/member resume),
-  plunit, rung40 typetest. Yardstick: the inline old-vs-new m2 xcheck loop (SCRIP_NL=0 vs =1 over
-  corpus/programs/prolog/*.pl, 143 programs). Default flips ONLY at SAME=143 + smoke gates.
+### Phase 4 — PROLOG (7/7 dump · m2 xcheck 141/143 — CODE COMPLETE; flip blocked on 2 Lon rulings)
+Gate seam + all exec channels LANDED through `20ac230`: bb_goal/conj/findall/catch/ite state sidecars
+(plain calloc/strdup per GC-hazard rule), DISJ arms via operand_aux, ~70-functor builtin routing,
+arg-ω inherit = exactly {is,<,>,=<,>=,=:=,=\=} (oracle-probed over 14 builtins), IR_ARITH
+reification, TT_IF + structural \=/2 desugar (X=Y→fail;true) ITE constructs, TT_PROGRAM GCONJ wrap
+(frontend wraps → branches in TT_PROGRAM=116), phrase/2,3 difference-list rewrite (DCG RULE
+translation is FRONTEND work — prolog_parse.c dcg_expand_body, both legs), bar-tail lists
+(TT_MAKELIST v.ival=1, LAST CHILD = tail), head-arg UNIFY chain.
+- [ ] **FLIP DEFAULT once rulings (2)+(10) land.** Yardstick: the inline old-vs-new m2 xcheck loop
+  (SCRIP_NL=0 vs =1, --interp, 143 programs). Raw 141/143; plunit = ruling (2) narration filter;
+  puzzle_10 = ruling (10) OLD-leg DISJ-redo bug. Smoke gates already at bar.
 
 ### Phase 5 — RAKU (1/29; OLD default; unparked 2026-06-10)
 Value-ring model pinned at `0ecd99c`: lower_raku_enum/proc, opcodes +0 −1 *2 /3 %4 relops 5-10
@@ -208,17 +208,63 @@ SKIP; see OPEN 9) · snobol4 **152/153 DIFFER=0 CONVERTED** · snocone **142/142
 
 ## OPEN FOR LON (consolidated)
 
-(1) LAD-0b pointer-ival ruling; (2) xcheck `^\[lower\]` filter ruling (caveat 3); (3) raku
-multi-sub degeneracy ruling; (4) OLD leg segfaults on beauty self-beautify from the beauty dir
-(NL leg runs; blocks old-vs-new beauty baseline); (5) sno smoke m4 + icon m4 need
-`make libscrip_rt` in fresh containers (artifact, not code); (6) `--dump-ast` segfaults on all
-multi-proc pascal (AST-printer bug); (7) NL lowerers not yet 200-char style-swept;
-(8) SCRIP_DUMP_X extended dump — keep or fold into LAD-0b; (9) pascal OLD-leg `--dump-bb`
-ABORTS silently (no output) on every corpus .pas in a fresh container while the NL leg runs —
-scoreboard pascal = 102 SKIP, UNSCOREABLE; verified pre-existing at `984cd27` baseline (likely kin
-of open items 4/5).
+(1) LAD-0b pointer-ival ruling; (2) xcheck `^\[lower\]` filter ruling (caveat 3) — now ALSO gates
+the prolog flip (plunit byte-identical modulo OLD punt narration); (3) raku multi-sub degeneracy
+ruling; (4) OLD leg segfaults on beauty self-beautify from the beauty dir (NL leg runs; blocks
+old-vs-new beauty baseline); (5) sno smoke m4 + icon m4 + prolog smoke m4 need `make libscrip_rt`
+in fresh containers (artifact, not code — prolog confirmed 2026-06-11); (6) `--dump-ast` segfaults
+on all multi-proc pascal AND prolog (AST-printer bug, broader than first logged); (7) NL lowerers
+not yet 200-char style-swept; (8) SCRIP_DUMP_X extended dump — keep or fold into LAD-0b; (9) pascal
+OLD-leg `--dump-bb` ABORTS silently (no output) on every corpus .pas in a fresh container while the
+NL leg runs — scoreboard pascal = 102 SKIP, UNSCOREABLE; verified pre-existing at `984cd27` baseline
+(likely kin of open items 4/5); (10) **puzzle_10 parking ruling — OLD-LEG SEMANTIC BUG:** fail-driven
+re-entry through `(X=a;X=b)` DISJ re-succeeds arm 1 on stale binding. Minimal probe `v(a). v(b).
+p :- v(X),(X=a;X=b),write(X),nl,fail.` → OLD `a,a`; NL `a,b`; SWI-Prolog (installed as third oracle)
+`a,b`. NL is correct ISO behavior and must NOT reproduce the bug; needs an exempt entry kin to the
+oracle-crash SKIP list; (11) sno SCOREBOARD in fresh containers reads MATCH=10 DIFFER=125 — verified
+identical at stashed `58a7d8d` baseline, kin of (9)/the icon SCRIP_NL=0-no-oracle finding post
+old-lowerer deletions; the sno yardstick (xcheck_sno_nl.sh) is unaffected.
 
 ## Watermark
+
+**▶ HANDOFF (2026-06-11, Fable 5, Lon "perform hand off") — PROLOG LAD-4d CODE COMPLETE: m2 xcheck
+123 → 141/143 SAME in 4 pushed rungs; the 2 residuals are BOTH ruling items, not code. SHAs: SCRIP
+`20ac230` (HEAD==origin/main, build GREEN, tree clean), .github THIS COMMIT. Gates held every rung;
+3 clean rebases over concurrent upstream commits (`56db90f` icon FULL-14, `5032a45`, pascal).**
+
+  **RUNG `908b303` (catch):** catch/3 → IR_CATCH + bb_catch_state_t{goal_g,catcher,rec_g}; goal and
+  recovery each lowered into separate IR_graph_t via thread_goals (the findall gcfg pattern); catcher
+  reified in the MAIN graph AFTER the CATCH node and pushed as sole operand (oracle order); throw/1
+  already routed via IR_BUILTIN. Exceptions ×5 closed; byte-verified rung28. 123→128.
+
+  **RUNG `4fcf9c9` (DCG):** (1) DCG RULE translation is FRONTEND work (prolog_parse.c
+  dcg_expand_body — both legs see translated clauses); the missing NL piece was ONLY the call-site
+  phrase/2,3 → GOAL G.functor args G.args++[L, Rest-or-synthetic-nil]. (2) TT_PROGRAM (t->t=116)
+  goal case — the frontend wraps ITE then/else conjunctions in TT_PROGRAM; goal()'s default arm
+  silently swallowed them as bare SUCCEED (pushback_rest main produced EMPTY output). Now
+  GCONJ-wrapped via thread_goals+conj_owner, the DISJ-comma-branch idiom. (3) arg-ω inherit
+  NARROWED to exactly {is,<,>,=<,>=,=:=,=\=} — oracle probe over 14 builtins; ==/plus/succ/
+  atom_codes/atom_length/functor/var args carry ω=·. 128→133.
+
+  **RUNG `ffddd34` (bar-tail — the big one):** frontend encodes [X|T] as TT_MAKELIST v.ival=1 with
+  the TAIL as the LAST CHILD (pt_list); NL capped EVERY list with nil, so [a|b] reified as
+  .(a,.(b,[])) and every [H|T] pattern in the corpus unified against the wrong shape. One fix closed
+  rung40 typetest + rung05/06 backtrack/lists + puzzles 04/07/14/17. 133→140. METHOD NOTE: /tmp
+  probe files do NOT persist across tool calls — an earlier false dump-MATCH was both legs erroring
+  on a vanished file; recreate probes in-call.
+
+  **RUNG `20ac230` (\=):** X \= Y is NOT a builtin anywhere — no interp arm; the oracle lowers it
+  STRUCTURALLY as (X = Y → fail ; true): synthesized SUCCEED/FAIL arms + COMMIT/GATE +
+  UNIFY(cond, ops=[lhs,rhs]) + ITE sharing one bb_ite_state_t, TT_IF allocation order, entry=ITE.
+  Closed puzzle_02. 140→141.
+
+  **RESIDUAL 2 (NOT code):** plunit → ruling (2) (`^\[lower\]` filter; IDENTICAL modulo OLD punt
+  narration). puzzle_10 → NEW ruling (10): OLD-leg DISJ-redo semantic bug, NL matches SWI-Prolog
+  (installed in-container as third oracle). Flip bar (SAME=143 + smoke gates) is met under those
+  two rulings; smoke already 5/5 all modes.
+
+  **NEXT:** Lon rules (2)+(10) → flip prolog default → old lower_prolog.c deletion eligible ·
+  pcom chararr __pas_strput (awaits Lon design) · raku single-sub constructs (awaits ruling (3)).
 
 **▶ HANDOFF (2026-06-10, Fable 5, Lon "perform hand off") — PROLOG LAD-4d CONVERSION RUNG 1 +
 PASCAL LAD-2d TWO SHARED BUG FIXES. SHAs: SCRIP `58a7d8d` (HEAD==origin/main, build GREEN, tree
