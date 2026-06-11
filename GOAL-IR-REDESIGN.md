@@ -176,17 +176,18 @@ m2 exec cross-check **SAME=153 DIFF=0** · default flipped `b11a963`.
 - [ ] **Old `lower_snobol4.c` deletion** — Lon's SNOBOL4 session (mirror icon `3546ea2`).
 - [ ] Snocone/Rebus conversion verify (share lower path; snocone smoke 2/5 pre-existing both legs).
 
-### Phase 4 — PROLOG (7/7 dump · m2 xcheck 141/143 — CODE COMPLETE; flip blocked on 2 Lon rulings)
-Gate seam + all exec channels LANDED through `20ac230`: bb_goal/conj/findall/catch/ite state sidecars
-(plain calloc/strdup per GC-hazard rule), DISJ arms via operand_aux, ~70-functor builtin routing,
-arg-ω inherit = exactly {is,<,>,=<,>=,=:=,=\=} (oracle-probed over 14 builtins), IR_ARITH
-reification, TT_IF + structural \=/2 desugar (X=Y→fail;true) ITE constructs, TT_PROGRAM GCONJ wrap
-(frontend wraps → branches in TT_PROGRAM=116), phrase/2,3 difference-list rewrite (DCG RULE
-translation is FRONTEND work — prolog_parse.c dcg_expand_body, both legs), bar-tail lists
-(TT_MAKELIST v.ival=1, LAST CHILD = tail), head-arg UNIFY chain.
-- [ ] **FLIP DEFAULT once rulings (2)+(10) land.** Yardstick: the inline old-vs-new m2 xcheck loop
-  (SCRIP_NL=0 vs =1, --interp, 143 programs). Raw 141/143; plunit = ruling (2) narration filter;
-  puzzle_10 = ruling (10) OLD-leg DISJ-redo bug. Smoke gates already at bar.
+### Phase 4 — PROLOG ✅ CONVERTED + OLD LOWERER DELETED (2026-06-11)
+Flip landed `5225acb` under Lon rulings (2)+(10); old `lower_prolog.c` deleted `8a2d6a7` (mirror
+icon `3546ea2`). Flip evidence: m2 xcheck 141/143 SAME (residuals = exactly the 2 ruled items),
+smoke m2/m3/m4 5/5 ALL, scoreboard 7/7. **FLIP-BLOCKING BUG fixed en route (`5225acb`):** NL never
+set `g->nslots` / `g->body_root` and head-arg UNIFYs were wire-only (not in GCONJ `goals[]`) — all
+three are dump-invisible AND m2-invisible (the interp GCONJ arm follows γ wires, never `goals[]`),
+so dump MATCH + m2 xcheck both passed while modes 3/4 were broken (smoke fell 5/5 → 1/5 at first
+flip attempt). Spec mined from the consumers: `pl_gz_admit`/`pl_gz_fact_clause_units`/
+`pl_gz_rule_clause` (driver) + `emit_bb` body_root sites. **LESSON FOR REMAINING CONVERSIONS
+(raku):** the m2 xcheck does NOT validate `goals[]`/`nslots`/`body_root` — m3/m4 smoke must run on
+the NL leg BEFORE any flip. Post-deletion degeneracy (kin of OPEN 11): SCRIP_NL=0 selects no
+prolog oracle; prolog scoreboard is now a self-comparison.
 
 ### Phase 5 — RAKU (1/29; OLD default; unparked 2026-06-10)
 Value-ring model pinned at `0ecd99c`: lower_raku_enum/proc, opcodes +0 −1 *2 /3 %4 relops 5-10
@@ -226,6 +227,40 @@ identical at stashed `58a7d8d` baseline, kin of (9)/the icon SCRIP_NL=0-no-oracl
 old-lowerer deletions; the sno yardstick (xcheck_sno_nl.sh) is unaffected.
 
 ## Watermark
+
+**▶ HANDOFF (2026-06-11, Fable 5, Lon "continue" mid-session) — PROLOG CONVERTED + OLD LOWERER
+DELETED. Rulings (2)+(10) granted by Lon this session; flip + deletion landed in 2 pushed rungs.
+SHAs: SCRIP `8a2d6a7` (HEAD==origin/main, build GREEN from wiped object dir, tree clean; one clean
+rebase over concurrent `d39d6c8`), .github THIS COMMIT. Gates held both rungs.**
+
+  **RUNG `5225acb` (THE FLIP + flip-blocking fix):** baseline re-verified first (xcheck 141/143,
+  both residuals re-probed: plunit byte-identical modulo `^\[lower` filter; puzzle_10 minimal probe
+  OLD `a,a` vs NL `a,b`). First flip attempt dropped smoke m3/m4 5/5 → 1/5 — the prior "smoke at
+  bar" was measured under the OLD default; NL graphs had never run modes 3/4. ROOT CAUSE
+  (consumer-mined; dump-invisible AND m2-invisible since the interp GCONJ arm follows γ wires, not
+  `goals[]`): NL set neither `g->nslots` (GZ cell frame = nslots+nsynth; nslots=0 collided synth
+  cells with var slots → bindings clobbered → silent empty output) nor `g->body_root` (emit_bb
+  mode-4 + CHOICE-body resolution), and head-arg UNIFYs were wire-only — `pl_gz_fact_clause_units`/
+  `pl_gz_rule_clause` require `goals[0..ar-1]` = UNIFY(LOGICVAR i, head_i) IN goals[] (trivial var
+  heads included), so every GOAL callee was rejected (gz_admit=NO, verified by temporary trace,
+  reverted). FIX: `max_var_slot` AST scan → nslots; body_root=GCONJ; head UNIFYs for ALL i<arity
+  prepended into goals[]; arity-0 bodyless facts entry=SUCCEED. Smoke → 5/5 ALL THREE MODES.
+  **DO-NOT note:** old `lower_prolog.c` was briefly opened during diagnosis before pivoting to the
+  consumer spec; the fix as landed is consumer-derived.
+
+  **RUNG `8a2d6a7` (deletion):** `lower_prolog.c` deleted (−636 lines); `lower_pl_clause_graph`
+  unconditionally NL (icon precedent); Makefile entries removed; clean rebuild verified from wiped
+  object dir. Gates re-run at the rebased HEAD: prolog smoke 5/5 ALL, scoreboard 7/7, icon m2
+  12/12 HARD m3/m4 10/12 (same 2 pre-existing).
+
+  **FLAGS FOR LON:** (a) xcheck_sno_nl reads SAME=83 DIFF=70 in this fresh container — VERIFIED
+  IDENTICAL AT STASHED `3ec9c57` BASELINE, pre-existing, kin of OPEN 11; the sno yardstick claim in
+  caveat 2 is now stale in fresh containers. (b) prolog scoreboard/xcheck are self-comparisons
+  post-deletion; standing exec evidence = the 141/143 xcheck recorded at `5225acb`.
+
+  **NEXT:** raku single-sub constructs (ruling (3) still open; apply the Phase-4 lesson — m3/m4
+  smoke on the NL leg BEFORE any flip) · pascal LAD-2d heavy tails (pcom chararr __pas_strput
+  awaits Lon design) · LAD-0b pointer-ival ruling.
 
 **▶ HANDOFF (2026-06-11, Fable 5, Lon "perform hand off") — PROLOG LAD-4d CODE COMPLETE: m2 xcheck
 123 → 141/143 SAME in 4 pushed rungs; the 2 residuals are BOTH ruling items, not code. SHAs: SCRIP
