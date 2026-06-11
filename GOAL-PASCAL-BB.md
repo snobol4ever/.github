@@ -19,29 +19,49 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 38 (2026-06-11): PB-30 diagnosis — gate reconfirmed 100/0, pcom symptom isolated. No code changes.**
-Gate: **m2 100/0** over 101 probes. Gate script corrected to use `${base}.in` stdin files for read1-4.pas
-(previously was `< /dev/null`; oracle `.ref` files were generated with actual input). read probes already
-pass in scrip; the fix is in the gate harness only, no SCRIP code changed.
+**Session 39 (2026-06-11): PB-30 — IR_WHILE infinite-loop fix landed. Gate 101/0.**
+Gate: **m2 101/0** (101 probes, +1 new pb30.pas). SCRIP `da7b809`, corpus `7a963f57`.
 
-**PB-30 investigation this session:**
-- Confirmed: `scrip --interp pcom.pas < hello.pas` outputs `     1        9 program hello;` then exits 0
-  after ~16s. Both hello.pas and minimal `program x; begin end.` behave identically (both exit 0 after
-  line 1 — the previous "hang vs early exit" distinction was a timeout-length artifact, not a real diff).
-- `--dump-bb pcom.pas` takes 135ms — parse+lower is fast. The 16s is pure execution time.
-- All isolated constructs pass: goto-out-of-while, goto-out-of-for, goto-in-case, while-not-eof,
-  repeat-until-set-in, nested variant records (3 levels, matching pcom identifier type), set-of-46-enum
-  params passed to procedures, 70-procedure programs, 5-level deep nesting.
-- The 16s is spent executing pcom.pas's init routines (initscalars→inittables→entstdnames→enterundecl)
-  before insymbol fires. All of those complete (line 1 IS printed). Then programme()→block()→body()→
-  statement() runs for writeln('Hello World!') and something there causes exit 0.
-- **Root cause hypothesis (unverified):** body()'s `repeat statement(fsys+[semicolon,endsy]) until
-  not (sy in statbegsys)` condition — `sy in statbegsys` where statbegsys is a `set of symbol` global
-  variable — may exhibit the same re-walked-complex-expr → ag_ring churn as the fixed for-loop. The
-  `while sy in [procsy,funcsy] do` in block() is another candidate. Neither was reproduced in isolation
-  because the issue only manifests at pcom.pas execution scale. Next step: write a probe that exactly
-  reproduces block()'s inner structure at the point after beginsy is consumed — a procedure with
-  setofsys parameter + while-sy-in-set + call chain mirroring body()'s repeat-statement pattern.
+**Fixed this session:**
+- **IR_WHILE infinite loop on set-membership while-conditions** (`src/interp/IR_interp.c`).
+  The `IR_WHILE` handler called `IR_interp_node(cnd)` once and checked `IS_FAIL_fn(IR_EXEC(cnd).value)`.
+  For conditions like `while sy in statbegsys` the parser wraps via `pas_cond()` as
+  `TT_NE(TT_FNC(__pas_in,...), ILIT(0))`. The entry node is the `__pas_in` CALL which always returns
+  INTVAL(0/1), never FAILDESCR. The downstream BINOP_NE that converts 0→FAIL was never reached.
+  Result: `while sy in set` inside any outer loop (for, repeat) ran forever.
+  Fix: replaced single-shot call with a mini chain-walk loop mirroring `IR_interp_once` semantics —
+  walks from `cnd` through γ edges calling `ag_ring_push` at each step, stops when `cur==bb` (WHILE
+  node reached via ω = condition false) or FAIL. Covers all non-relop while conditions including
+  set-membership, boolean-func, and any compound non-relop expression.
+  Bisect confirmed: `for i:=1 to 3 do begin sy:=5; while sy in s do ... end` — for 1..2 passed,
+  1..3 hung. Zero-iteration while (sy not in set) also hung on 3rd for-iteration proving spurious
+  condition fire, not body loop.
+- **New probe:** `corpus/programs/pascal/pb30.pas` — 20 cycles of `while sy in funcprocsy` +
+  `repeat statement until not (sy in statbegsys)`. Was timeout; now correct (20/120/20).
+
+**pcom.pas status after fix:**
+- `scrip --interp pcom.pas < hello.pas` STILL exits after line 1 (`     1        9 program hello;`).
+  The IR_WHILE fix removes one blocker but another survives. The while-sy-in-[procsy,funcsy] in
+  block() is now correct; the early exit is in a different path inside body()/compoundstatement()/
+  statement() call chain for the actual writeln('Hello World!') statement.
+- `program x; begin end.` HANGS (timeout). Truncated input (no begin/end) causes pcom's insymbol
+  to print `*** eof encountered` in a tight loop (expected pcom behavior for truncated input, not
+  a SCRIP bug). The hang with complete input is a separate blocker from the while-set fix.
+- Isolated constructs all pass: block/body repeat-until-set, statement dispatch with setuni,
+  setofsys-param procs, nested call chains. The remaining blocker only manifests at pcom scale.
+
+**NEXT — PB-30 continues:**
+Write a probe that exactly mirrors pcom's `programme()→block()→body()→compoundstatement()→
+statement()` chain at full call depth with the correct set-membership conditions at every level:
+- `programme`: `repeat block until (sy=period) or eof`  
+- `block`: `repeat [while sy in [procsy,funcsy]] until (sy in statbegsys) or eof` + `repeat body until (sy=fsy) or (sy in blockbegsys) or eof`
+- `body`: `repeat repeat statement until not (sy in statbegsys); test:=sy<>semicolon until test`
+- `statement`: `if sy in statbegsys+[ident] then case sy of ident: call(...)`
+Run this at the same token sequence as `program hello; begin writeln(...) end.` to isolate which
+of these constructs produces the early exit. Candidates: (a) body()'s outer `repeat body until
+(sy=fsy) or (sy in blockbegsys)` — the `sy in blockbegsys` part is a set-membership condition
+inside a repeat, which goes through lower_repeat's NE-wrap path; (b) statement()'s
+`if sy in statbegsys+[ident]` — a set-union then set-membership in an if-condition.
 
 **Fixed this session (Session 37 fix summary retained for reference):**
 
