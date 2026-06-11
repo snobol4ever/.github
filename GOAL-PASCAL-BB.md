@@ -19,10 +19,31 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 37 (2026-06-10): decode char-by-char alpha in string `=` + for-loop evaluate-limit-once. Gate 100/0.**
-Gate: **m2 100/0** over 101 probes (recursion.pas no `.ref`, excluded). New probe `alphacmp.pas`. Landed on
-top of concurrent `1c687d2` (LAD-2d) which had just added the string-relop arm to `binop_apply` — see fix 1.
-Resolves PB-30 blocker (i) fully and the control-flow sever; pcom still incomplete downstream (below).
+**Session 38 (2026-06-11): PB-30 diagnosis — gate reconfirmed 100/0, pcom symptom isolated. No code changes.**
+Gate: **m2 100/0** over 101 probes. Gate script corrected to use `${base}.in` stdin files for read1-4.pas
+(previously was `< /dev/null`; oracle `.ref` files were generated with actual input). read probes already
+pass in scrip; the fix is in the gate harness only, no SCRIP code changed.
+
+**PB-30 investigation this session:**
+- Confirmed: `scrip --interp pcom.pas < hello.pas` outputs `     1        9 program hello;` then exits 0
+  after ~16s. Both hello.pas and minimal `program x; begin end.` behave identically (both exit 0 after
+  line 1 — the previous "hang vs early exit" distinction was a timeout-length artifact, not a real diff).
+- `--dump-bb pcom.pas` takes 135ms — parse+lower is fast. The 16s is pure execution time.
+- All isolated constructs pass: goto-out-of-while, goto-out-of-for, goto-in-case, while-not-eof,
+  repeat-until-set-in, nested variant records (3 levels, matching pcom identifier type), set-of-46-enum
+  params passed to procedures, 70-procedure programs, 5-level deep nesting.
+- The 16s is spent executing pcom.pas's init routines (initscalars→inittables→entstdnames→enterundecl)
+  before insymbol fires. All of those complete (line 1 IS printed). Then programme()→block()→body()→
+  statement() runs for writeln('Hello World!') and something there causes exit 0.
+- **Root cause hypothesis (unverified):** body()'s `repeat statement(fsys+[semicolon,endsy]) until
+  not (sy in statbegsys)` condition — `sy in statbegsys` where statbegsys is a `set of symbol` global
+  variable — may exhibit the same re-walked-complex-expr → ag_ring churn as the fixed for-loop. The
+  `while sy in [procsy,funcsy] do` in block() is another candidate. Neither was reproduced in isolation
+  because the issue only manifests at pcom.pas execution scale. Next step: write a probe that exactly
+  reproduces block()'s inner structure at the point after beginsy is consumed — a procedure with
+  setofsys parameter + while-sy-in-set + call chain mirroring body()'s repeat-statement pattern.
+
+**Fixed this session (Session 37 fix summary retained for reference):**
 
 **Fixed this session:**
 1. **Char-by-char `alpha` never matched a bulk `alpha` under `=`/`<>`** (`lower_program.c` `binop_apply`).
@@ -77,10 +98,35 @@ the NL functions, not `lower.c`'s `v_if`/`v_repeat` (the `SCRIP_NL=0` path).
   independently of `stdbuf` so line-by-line visibility needs instrumentation.
 
 NEXT — Lon picks:
-**(a) PB-30** — resume the pcom hunt: instrument `insymbol`/`programme`/`block` (or feed minimal programs)
-to localize where flow severs (hello) and hangs (minimal) after the header; audit `lower_while`/case/call
-lowerings for the same re-walked-complex-expr → `ag_ring`-churn pattern that `lower_for` had.
+**(a) PB-30** — next probe: write a program that exactly reproduces block()'s structure (setofsys param +
+`while sy in [procsy,funcsy] do` + `repeat body_stub(fsys+[casesy])` with nested call inside body_stub
+mirroring statement()'s call-dispatch path), fed with beginsy input, to see if `sy in statbegsys` with
+a setofsys-as-global causes ag_ring churn at scale. Also audit `lower_while` in lower_pascal_nl.c for
+the same re-walked-complex-cond pattern the for-loop fix addressed.
 **(b)** Any open bug (case no-match; __pbt/__pct clobber; --dump-ast segv on huge AST).
+
+**Gate harness note:** Use `/tmp/run_gate.sh` (checked against `.ref` files + `.in` for stdin probes):
+```bash
+cat > /tmp/run_gate.sh << 'EOF'
+#!/bin/bash
+cd /home/claude/corpus/programs/pascal
+PASS=0; FAIL=0; XFAIL=0; FAILS=""
+for f in *.pas; do
+    case "$f" in pcom.pas|pint.pas|ppp.pas) continue ;; esac
+    base="${f%.pas}"
+    [[ "$f" == "recursion.pas" ]] && { XFAIL=$((XFAIL+1)); continue; }
+    [[ ! -f "${base}.ref" ]] && { echo "SKIP (no ref): $f"; continue; }
+    inp=/dev/null; [[ -f "${base}.in" ]] && inp="${base}.in"
+    expected=$(cat "${base}.ref")
+    got=$(timeout 6s /home/claude/SCRIP/scrip --interp "$f" < "$inp" 2>/dev/null)
+    if [[ "$expected" == "$got" ]]; then PASS=$((PASS+1))
+    else FAIL=$((FAIL+1)); FAILS="$FAILS $f"; fi
+done
+echo "PASS=$PASS FAIL=$FAIL XFAIL=$XFAIL"
+[[ -n "$FAILS" ]] && echo "FAILING:$FAILS"
+EOF
+chmod +x /tmp/run_gate.sh && bash /tmp/run_gate.sh
+```
 
 
 ## Mechanism inventory (how it works NOW)
