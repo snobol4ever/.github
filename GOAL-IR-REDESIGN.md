@@ -189,23 +189,27 @@ flip attempt). Spec mined from the consumers: `pl_gz_admit`/`pl_gz_fact_clause_u
 the NL leg BEFORE any flip. Post-deletion degeneracy (kin of OPEN 11): SCRIP_NL=0 selects no
 prolog oracle; prolog scoreboard is now a self-comparison.
 
-### Phase 5 — RAKU (1/29; OLD default; unparked 2026-06-10)
-Value-ring model pinned at `0ecd99c`: lower_raku_enum/proc, opcodes +0 −1 *2 /3 %4 relops 5-10
-~=11, say/print→write/print, CALL alloc'd BEFORE its arg.
-- [ ] **MULTI-SUB ORACLE DEGENERACY — NEEDS LON RULING.** Oracle collapses multi-sub programs to
-  ONE graph (shared-node-array artifact). Matchable set = ~17 single-sub programs. Rule needed
-  like the oracle-crash SKIP list.
-- [ ] **Next constructs** for ~16 single-sub DIFFERs: `my $x=expr`, for/while, string interp,
-  junctions, regex. rk_join oracle ival QUIRK — likely unmatchable, defer.
+### Phase 5 — RAKU (26/47 DIFFER=3; SINGLE-SUB DUMP SWEEP COMPLETE 2026-06-11; OLD default)
+Value-ring model pinned at `0ecd99c` + this session's construct set (see watermark). DIFFER=3 =
+EXACTLY the ruling-(3) multi-sub class (combinator/interp/subs). First m2 xcheck recorded:
+SAME=26 DIFF=0 SKIP=21(both-legs-abort rc=134); 4 of 26 SAME are EMPTY-SAME (both legs print
+nothing — shared m2 runtime limit, not lowering): for_array_simple/for_array_underscore/
+map_grep_sort24/reverse; rk_unique_sum partially blank both legs.
+- [ ] **MULTI-SUB ORACLE DEGENERACY — NEEDS LON RULING (3).** Oracle UNHANDLED-degenerates on
+  multi-sub programs (collapses/drops procs); NL dumps all procs. Exempt list kin of the
+  oracle-crash SKIPs closes the raku board.
+- [ ] **EXEC CHANNELS before any flip (Phase-4 lesson):** LIST_BANG/GATHER loop-var binding
+  UNSET in NL (dump-invisible); MAP/GREP ival=body-argblk PTR + counter=source-argblk are
+  PLACEHOLDERS (kin of prolog GOAL/GCONJ note). Spec = interp arms + SCRIP_DUMP_X. m3/m4 smoke
+  on the NL leg MANDATORY before flip; m2 xcheck alone does not validate these.
 
 ### Done-condition
 Per-language bar set by Lon; CONVERSION = the terminal rung per language.
 
-CURRENT (SCRIP `cb127cb`, 2026-06-10, normalize=1): icon **9/9 DIFFER=0 CONVERTED** (suite grew;
-queens+generators now MATCH — LAD-1a/1b dump bar appears met, verify before closing) · pascal
-**CONVERTED, scoreboard UNSCOREABLE in fresh container** (OLD oracle leg aborts silently → 102
-SKIP; see OPEN 9) · snobol4 **152/153 DIFFER=0 CONVERTED** · snocone **142/142** · prolog
-**7/7 dump COMPLETE, OLD default** · raku **1/29** · NEWFAIL=0 everywhere.
+CURRENT (SCRIP `b90d5a1`, 2026-06-11, normalize=1): icon **7/2 fresh-container (OPEN 11 kin)** ·
+pascal **CONVERTED, UNSCOREABLE fresh (OPEN 9)** · snobol4 **10/125 fresh (OPEN 11)** · snocone
+**7/111 fresh (OPEN 11 kin)** · prolog **7/7 CONVERTED** · raku **26/47 DIFFER=3 (= ruling-3 set),
+single-sub dump sweep COMPLETE** · NEWFAIL=0 everywhere.
 
 ## OPEN FOR LON (consolidated)
 
@@ -227,6 +231,49 @@ identical at stashed `58a7d8d` baseline, kin of (9)/the icon SCRIP_NL=0-no-oracl
 old-lowerer deletions; the sno yardstick (xcheck_sno_nl.sh) is unaffected.
 
 ## Watermark
+
+**▶ HANDOFF (2026-06-11, Fable 5, Lon "perform hand off") — RAKU SINGLE-SUB DUMP SWEEP COMPLETE
+1→26/47 MATCH in 11 pushed rungs + FIRST m2 XCHECK (SAME=26 DIFF=0). DIFFER=3 = exactly the
+ruling-(3) multi-sub set. SHAs: SCRIP `b90d5a1` (HEAD==origin/main, build GREEN, tree clean),
+.github THIS COMMIT. Gates held every rung (prolog 7/7 icon 7/2; sno/snocone/pascal at documented
+OPEN-9/11 fresh-container states; NEWFAIL=0 throughout); 1 clean rebase over concurrent
+`bfd261f`.**
+
+  **RUNGS (all in lower_rv, the live value-ring path):** `0da44dd` ASSIGN simple-var (ASSIGN
+  alloc'd first sval=name, RHS ring result γ→ASSIGN, entry=RHS) · `87fb378` CALL ARG MODEL — only
+  write/print CHAIN args visibly; every named TT_FNC SUB-GRAPHS args (icon arg_block mirror,
+  plain-calloc IR_graph_t** → IR_EXEC.counter); closed rk_join (the "unmatchable ival quirk"
+  defer is OBSOLETE — quirk was the missing sub-graph model) · `e2f439e` IF (alloc IF, then-CONJ,
+  then-block, [else-CONJ, else-block], cond; cond γ→then-entry ω→else-entry-or-stmt-succ@β;
+  IF/CONJ γ→next-stmt; ops:[cond-entry]; entry=cond entry; single-stmt blocks DO get CONJ —
+  raku ≠ icon) + string relops eq=16 ne=17 oracle-probed · `89dfe98` WHILE (per doc convention)
+  + FOR_RANGE (alloc ASSIGN(var),TO sval="ag" ops:[lo,hi],lo,hi,CONJ,body-rev; entry=lo;
+  TO γ→ASSIGN ω=stmt-succ@β; body ω→TO@β; CONJ γ/ω→TO; by-ILIT dropped) · `592b028` EVERY
+  (for LIST → v: alloc EVERY,LIST_BANG,src,CONJ,body; entry=LIST_BANG; src γ=NULL ω=EVERY@β
+  as LIST_BANG operand; NO visible loopvar ASSIGN — binding dump-invisible) + statement
+  push(@a,x)→@a=push_pure ival=2 invisible · `b9784bc` junctions any/all/one/none→__rk_jct_*
+  + PROC PARAM SKIP (bare TT_VAR children were lowered as stmts; oracle titled n=8 pins skip) ·
+  `57570eb` ARR_SET→arr_set_pure ival=3 + $p=pop(@a)→alloc ASSIGN(a),arr_init,ASSIGN(p),
+  arr_last; ring arr_last→ASSIGN(p)→arr_init→ASSIGN(a) · `e769d0b` for-gather THIRD generator
+  shape (no EVERY/LIST_BANG: ASSIGN(v),GATHER ival=take-count γ→ASSIGN ω=stmt-succ@β,CONJ,body;
+  entry=GATHER) · `4ff66b8` regex family: SMATCH→re_match ival=2 (mode-tag QLIT dropped),
+  CAPTURE→re_capture, NAMED_CAPTURE→re_named_capture — closed 5 programs · `b90d5a1`
+  SORT→array_sort + MAP/GREP ival=body-argblk PTR, counter=src-argblk (PLACEHOLDERS).
+
+  **EXEC EVIDENCE (first measurement):** inline m2 xcheck SCRIP_NL=0-vs-1 over 47 programs:
+  SAME=26 DIFF=0 SKIP=21 (both-legs rc=134 abort class). VACUOUSNESS AUDIT (Phase-4 lesson):
+  4 SAME are EMPTY-SAME both legs (for_array_simple/underscore, map_grep_sort24, reverse —
+  shared m2 runtime limit); ~21 verified real output.
+
+  **FLAGS FOR LON:** (a) ruling (3) is now THE raku blocker — DIFFER=3 all multi-sub-degenerate
+  (oracle UNHANDLED + drops procs, NL dumps all); exempt list closes the board. (b) push/pop/
+  arr_set desugars implemented for the EVIDENCED shapes only (simple-VAR array, pop-in-assign);
+  other mutators (shift/unshift) unprobed. (c) MAP/GREP exec channel placement is a placeholder
+  guess beyond the dump bytes — consumer-mine before trusting.
+
+  **NEXT:** ruling (3) → raku exempt list → board clean · raku exec channels (LIST_BANG/GATHER
+  var binding, MAP/GREP arg-blocks) consumer-mined + m3/m4 NL-leg smoke BEFORE flip talk ·
+  pascal LAD-2d pcom chararr (awaits Lon design) · LAD-0b pointer-ival ruling.
 
 **▶ HANDOFF (2026-06-11, Fable 5, Lon "continue" mid-session) — PROLOG CONVERTED + OLD LOWERER
 DELETED. Rulings (2)+(10) granted by Lon this session; flip + deletion landed in 2 pushed rungs.
