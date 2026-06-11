@@ -19,54 +19,67 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 36 (2026-06-10): Pascal file I/O builtins + bare-if-in-loop fix. Gate 99/0.**
-Gate: **m2 99/0** over 100 probes (recursion.pas no `.ref`, excluded). New probe `ifnoelse.pas`.
+**Session 37 (2026-06-10): decode char-by-char alpha in string `=` + for-loop evaluate-limit-once. Gate 100/0.**
+Gate: **m2 100/0** over 101 probes (recursion.pas no `.ref`, excluded). New probe `alphacmp.pas`. Landed on
+top of concurrent `1c687d2` (LAD-2d) which had just added the string-relop arm to `binop_apply` — see fix 1.
+Resolves PB-30 blocker (i) fully and the control-flow sever; pcom still incomplete downstream (below).
 
 **Fixed this session:**
-1. **File I/O builtins (PB-30 unblock)** — pcom's `assign(prr,'prr'); rewrite(prr); writeln(prr,…); close(prr)`
-   were unrecognized → returned FAIL → broke the `ω→PFAIL` statement chain at the first file call, so
-   pcom exited silently with 0 bytes. Implemented end-to-end:
-   - Parser (`pascal.y` `mk_call`): `assign(f,nm)`→`f:=__pas_fassign(nm)`, `rewrite(f)`→`f:=__pas_rewrite(f)`,
-     `reset(f)`→`f:=__pas_reset(f)` (clone f for the arg copy; `pas_tree_clone` forward-declared),
-     `close(f)`→`__pas_fclose(f)`. Two-step model: fassign stashes the filename string in f's NV cell,
-     rewrite/reset read it back, fopen, and store `FHVAL(idx)`.
-   - Parser: `eof(input)`/`eoln(input)` one-arg forms now map to the stdin `__pas_eof`/`__pas_eoln`
-     (P4 single readable stream = stdin; the file arg is discarded). pcom's `nextch` uses `eof(input)`.
-   - Runtime (`by_name_dispatch.c`): `__pas_fassign`/`__pas_rewrite`/`__pas_reset`/`__pas_fclose` over the
-     existing `fh_alloc`/`fh_get`/`fh_free` table. `__pas_writeln`/`__pas_write` now detect a LEADING
-     `IS_FH_fn` arg and route the whole call to that `FILE*` (`writeln(prr,…)`→file; `writeln(output,…)`
-     still → stdout, since `output` resolves to empty and is skipped). Registered the 4 new names in the
-     name-as-value `builtins[]` list.
-2. **Bare `if cond then S` (no else) failed inside loop bodies** (`lower_pascal_nl.c` `lower_if`). The
-   no-else false path routed `else_entry = γ`, so the failed condition (NE leaves FAILDESCR on the ag-ring)
-   fell through via an ω/β edge into `lower_seq`'s tail CONJ. The CONJ interpreter peeks the ring top and
-   propagates FAILDESCR→ω→PFAIL, killing the loop. (Worked in straight-line code only because the false
-   path there lands on a CALL, which overwrites the ring value.) FIX: `else_entry = build(cx, IR_SUCCEED,
-   γ, ω)` for the no-else arm — SUCCEED sets a non-fail value and returns γ at any port, clearing the
-   FAILDESCR before the CONJ. One-line change; gate stayed green. Regression probe: `ifnoelse.pas`.
+1. **Char-by-char `alpha` never matched a bulk `alpha` under `=`/`<>`** (`lower_program.c` `binop_apply`).
+   Concurrent commit `1c687d2` had already added the both-operands-string arm (slen-aware `memcmp` lexical
+   compare, CSET excluded) that fixed the old "two strings → `(long)lv.r` union garbage → everything EQUAL"
+   bug. But that `memcmp` compares RAW bytes, and the two `alpha` build methods diverge: a char-by-char
+   `alpha` (`id[k]:=ch`) is a SOH(0x01)-delimited string of integer ORDINALS with a leading "0" element-0
+   filler, while a bulk `alpha` (`id:='do      '`) is a plain packed string — so raw `memcmp` never matched
+   them (the "chararr elementwise stores" blocker 1c687d2 left noted/unfixed). FIX: added static helper
+   `pas_norm_charseq(DESCR_t)` that decodes the SOH-ordinal form to the logical char string (per segment:
+   all-digits→`chr(value&0xFF)` skipping value==0 filler, else literal bytes; no SOH→string as-is), and
+   applied it inside 1c687d2's string-relop block **only when a 0x01 is present** in an operand — so normal
+   (non-array) strings, incl. SNOBOL4/Icon, are byte-for-byte unchanged. pcom's reserved-word lookup
+   `rw[i]=id` (bulk `rw[]` table vs char-by-char `id`) now classifies correctly (blocker i gone).
+2. **For-loop with a complex `to` bound severed all continuation after the loop completed**
+   (`lower_pascal_nl.c` `lower_for`). EXPOSED once `=` worked (the old always-true compare fired the inner
+   `goto` on iteration 1 every time, so loop-completion paths never ran). The limit `BINOP` reads its
+   operands from the bounded `ag_ring` (no explicit aux), and `lower_for` RE-WALKED the `to` subgraph every
+   iteration. A complex `to` (e.g. `frw[k+1]-1` = an `arr_get` CALL + lit + SUB) pushed ~3 values/iter onto
+   the ring; the churn eventually corrupted the ring state the procedure RETURN relied on → after a
+   completed array-bound loop, ALL subsequent statements were silently dropped (no hang, exit 0). Bisected:
+   `D1` (param proc, LITERAL bound) works; `D2` (no-param proc, `frw[]` ARRAY bound) severs; source-level
+   cache (`hi:=frw[3]-1; for i:=… to hi`) works → confirms re-eval is the cause, NOT the parameter. FIX:
+   evaluate `to` ONCE on the init path; give `lim_cmp` explicit `bb_operand_aux_set` (aux[0]=`lim_var`,
+   aux[1]=`to_res`=`all[to_mark]`, the once-computed limit node) so the limit is read from the cached node
+   value rather than re-walked; loop-back goes increment→`lim_var`→`lim_cmp` (skips `to_entry`). Also
+   ISO-Pascal-correct (limit evaluated once at entry). Touches ALL for-loops → full gate re-run 100/0.
+   Regression probe: `alphacmp.pas` (exact pcom reserved-word mechanism: bulk `rw[]` table vs char-by-char
+   `id`, with empty-bucket + no-match calls). NOTE probes must use `(* *)`, NOT `{ }` (P4 rejects braces).
+
+**REPRESENTATION fact (used by fix 1):** `var id: alpha` (=`packed array[1..8] of char`) init prologue
+builds a 9-slot SOH array (indices 0..8, all `"0"`). `id[k]:='d'` pokes `__pas_chrlit(100)` → the array
+stores the decimal ORDINAL "100" at raw slot k (slot 0 unused = "0" filler; element reads in write
+position get `__pas_chr`-decoded, so chararr1/2 still pass). Bulk `id:='do      '` OVERWRITES the prologue
+with a plain 8-char string. So the two build methods diverge; `pas_norm_charseq` reconciles them. (Whole-
+array `writeln(id)` of a char-by-char array still prints raw ordinals — separate write-path bug, no probe.)
 
 **Active lowering path reminder:** `nl_on(1)` defaults TRUE → Pascal uses the **NL lowering**
-(`src/lower/nl/lower_pascal_nl.c`: `lower_if`/`lower_while`/`lower_for`/`lower_repeat`/`lower_seq`), NOT
-`lower.c`'s `v_if`/`v_repeat` (those are the `SCRIP_NL=0` path, which currently ABORTS on the bare-if
-reproducer). Edit the NL functions.
+(`src/lower/nl/lower_pascal_nl.c`: `lower_if`/`lower_while`/`lower_for`/`lower_repeat`/`lower_seq`). Edit
+the NL functions, not `lower.c`'s `v_if`/`v_repeat` (the `SCRIP_NL=0` path).
 
-**pcom.pas status — big advance, two new blockers:**
-- BEFORE: silent 0-byte exit at the first `assign(prr,…)`.
-- NOW: runs through assign+rewrite, `nextch`/`insymbol` read the WHOLE source, and pcom emits the full
-  source listing on stdout for `hello.pas` (program/begin/writeln lines all appear).
-- TWO REMAINING BLOCKERS (the next hunt):
-  **(i) spurious error on line 1** — endofline prints `     1   ****  , ` (errinx>0; `error()` was called
-  while scanning `program hello;`). Some token/classification in insymbol's post-letter handling
-  (reserved-word lookup `for i := frw[k] to frw[k+1]-1`, `chartp`, or the `sy`/`op` assignment) misfires.
-  **(ii) hang (timeout 30s)** — pcom no longer terminates; likely an error-recovery loop triggered by (i),
-  or a construct that loops forever under scrip. Also note the `ic` listing counter reads 9 where the
-  oracle shows 3 — an addressing/counter divergence worth checking alongside (i).
-  Bisect entry: instrument `insymbol` to print `sy`/`id`/`k` after each symbol on `hello.pas`; compare the
-  first few symbols (programsy, ident 'hello', semicolon, beginsy) against the oracle to find the first
-  divergent classification.
+**pcom.pas status — blocker (i) resolved; still incomplete downstream:**
+- blocker (i) GONE: classification correct, line-1 listing emits `     1        9 program hello;` with NO
+  spurious `**** ,` error. The array-bound-loop sever (the largest part of old blocker (ii)) is fixed.
+- STILL FAILS — two distinct input-dependent downstream symptoms past the header:
+  - `hello.pas` → emits line 1 correctly, then exits 0 EARLY (continuation lost after the program header,
+    before lines 2-4).
+  - minimal `program x; begin end.` → HANGS (timeout 30s, ~1 byte out).
+  Both are downstream of the two fixes, in paths beyond simple for-loops — likely the `programme()`→
+  `block()` transition, output flush, and/or ANOTHER construct (while/case/nested call) that re-evaluates a
+  complex expression and churns the `ag_ring` the same way the for-loop did. pcom's `output` buffers
+  independently of `stdbuf` so line-by-line visibility needs instrumentation.
 
 NEXT — Lon picks:
-**(a) PB-30** — chase pcom blockers (i)+(ii) per the bisect entry above.
+**(a) PB-30** — resume the pcom hunt: instrument `insymbol`/`programme`/`block` (or feed minimal programs)
+to localize where flow severs (hello) and hangs (minimal) after the header; audit `lower_while`/case/call
+lowerings for the same re-walked-complex-expr → `ag_ring`-churn pattern that `lower_for` had.
 **(b)** Any open bug (case no-match; __pbt/__pct clobber; --dump-ast segv on huge AST).
 
 
