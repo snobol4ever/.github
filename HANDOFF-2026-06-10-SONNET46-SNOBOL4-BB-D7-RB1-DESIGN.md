@@ -1,3 +1,5 @@
+> ⚠️ **SUPERSEDED 2026-06-10 by `HANDOFF-2026-06-10-OPUS48-SNOBOL4-BB-D7-RB1-LANDED.md`.** This design was NEVER compiled and is materially inaccurate: (1) it requires ZERO `x86_asm.h` edits (its encoder list is stale/redundant); (2) it OMITS the required `IR_PAT_DEFER` DT_P→`rt_dtp_run` consumer fix — as written, m2 would `abort()`; (3) shared proto/desc + `rt_dtp_head_build` belong in `pattern_match.c`, not the template. Read the LANDED handoff for what actually shipped.
+
 # HANDOFF — 2026-06-10 · Sonnet 4.6 · D7-RB-1 RESEARCH COMPLETE, CODE NOT YET WRITTEN
 
 **SESSION WATERMARK — 2026-06-10 · Sonnet 4.6 · D7-RB-1 RESEARCH+DESIGN COMPLETE (zero code written, floor intact).** This session fully designed and verified the D7-RB-1 implementation. Gates confirmed: smoke 7/7/7 · pat-rung M4 19/19, M2/M3 18/19 (053) · fence HARD. Floor unchanged from prior session. NEXT = execute D7-RB-1 exactly per the recipes below (all binary bytes verified with live execution tests). Session detail: `HANDOFF-2026-06-10-SONNET46-SNOBOL4-BB-D7-RB1-DESIGN.md`.
