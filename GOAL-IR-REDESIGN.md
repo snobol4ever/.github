@@ -1,14 +1,16 @@
-# GOAL-IR-REDESIGN.md — LOWER REWRITE (the `src/lower/nl/` lowerers ARE the goal)
+# GOAL-IR-REDESIGN.md — LOWER REWRITE (the `src/lower/lower_*.c` lowerers ARE src/lower)
 
 **Owner repo:** SCRIP + this file. **Scope: ALL LANGUAGES** — five segregated per-language lowerers.
 
 ## WHAT THIS GOAL IS (Lon 2026-06-09)
 
-The lower rewrite is the ONLY thing. The five new lowerers at `src/lower/nl/lower_*_nl.c` ARE the
-goal. The old-`IR_t`-struct work is DONE and REMOVED from this file — git history preserves every
-rung. **CONVERTED (production default = NL): ICON, PASCAL, SNOBOL4.** Raku + Prolog stay OLD until
-their lowerers mature. Per-language defaults flip ONLY on execution-parity evidence, never on dump
-MATCH alone.
+The lower rewrite is the ONLY thing. **PROMOTION COMPLETE (Lon ruling 2026-06-11, SCRIP
+`662f249`):** the five lowerers ARE `src/lower/lower_{icon,snobol4,raku,pascal,prolog}.c` — `nl/`
+folded up, `_nl` dropped from files and symbols, ALL FIVE production-active, the OLD machinery
+(`lower.c`, old `lower_raku.c`, `lower_internal.h`, `nl_on()`/`SCRIP_NL`, the old SNO/pascal/raku
+arms in `lower_program.c`) DELETED. Each lowerer is segregated: only its `lower_<lang>{,_enum,
+_proc,_clause,_labels}` entries are extern (nm-audited), all internals static, each with its own
+local `lcx_t`. Remaining work = exec-channel maturation tails, NOT lowering structure.
 
 ## TARGET NODE SHAPE — what the lowerers build
 
@@ -54,12 +56,14 @@ NOT a tree-walker. The new lower must REPRODUCE the OLD graph's goal-directed sh
 
 ## METHOD + TOOLING (Lon 2026-06-08, graph-only)
 
-- Five lowerers at `src/lower/nl/lower_*_nl.c`, compiled INTO `scrip` beside the OLD ones (both
-  symbol sets coexist; `_nl` suffix avoids basename collision; in the Makefile explicit recipe
-  ~540 + prereqs ~238). `emit()` helper is named `build()` (emit is reserved for emitters).
+- Five lowerers at `src/lower/lower_*.c` (post-promotion; OLD symbol set deleted). `emit()`
+  helper is named `build()` (emit is reserved for emitters).
 - `scrip --dump-bb2 FILE` routes the parsed AST through the new lowerer; `--dump-bb` = oracle.
 - `scripts/scoreboard.sh LANG [--raw]` = the yardstick: MATCH/DIFFER/NEWFAIL/SKIP per suite
-  (langs: icon snobol4 snocone prolog pascal raku). Oracle leg pinned `SCRIP_NL=0`. Has the
+  (langs: icon snobol4 snocone prolog pascal raku). POST-PROMOTION the oracle leg is GONE —
+  the board is NL-vs-NL (`--dump-bb` full-pipeline vs `--dump-bb2` direct) and largely vacuous
+  except where the pipelines differ (pascal stage2 frame-rewrite: 11 DIFFER). Retirement or
+  repointing needs a ruling. `SCRIP_NL` is ignored; `xcheck_sno_nl.sh` is vacuous. Has the
   ORACLE-CRASH SKIP LIST (Lon ruling 2026-06-09): 7 programs where the OLD lower segfaults
   mid-dump (`cross.sno` @N cursor scan + 6 B07 Snocone compound-assigns) — parked OLD-lower bugs.
 - THE LOOP: oracle vs new → normalized diff (`ival≥7digits→PTR`) → fix FIRST divergence →
@@ -71,11 +75,11 @@ NOT a tree-walker. The new lower must REPRODUCE the OLD graph's goal-directed sh
 
 ## CONVERSION MECHANISM (lower_program.c)
 
-`nl_on(dflt)` reads `SCRIP_NL` (env overrides compiled per-language defaults); `SCRIP_NL=0` is the
-full oracle escape hatch. Gate sites: `lower_icon_body` / `lower_pascal_body` (nl_on(1)) /
-LANG_SNO `lower_sno_nl` (nl_on(1), pure-SNO only); `pas_rewrite_graph` is OLD-PATH-ONLY. Flip a
-default ONLY at full execution parity: dump sweep + m2 cross-check old-vs-new + smoke gates at
-baseline (sno: `scripts/xcheck_sno_nl.sh`).
+DELETED 2026-06-11 (`662f249`): `nl_on()`/`SCRIP_NL` removed with the old paths — there is no
+oracle to escape to. `lower_{icon,pascal,raku}_body` call `lower_*_proc` unconditionally;
+LANG_SNO calls static `lower_sno` (pure-SNO only — mixed-language SNO declines to a no-op; the
+polyglot fallback died with the old arm, sole consumer `test/cross_lang.scrip` was already broken
+both legs at baseline).
 
 ## NODE-EXACT CONVENTIONS — the live spec (byte-verified vs `--dump-bb`)
 
@@ -167,14 +171,17 @@ LAD-1a (queens) + LAD-1b (generators.icn) both MATCH on the current suite — ga
 the intervening ICON-FULL-PASS work, verified this session). Residual icon m2 exec regressions are
 tracked in GOAL-ICON-FULL-PASS, not here.
 
-### Phase 2 — PASCAL (89/93; CONVERTED, m2 parity SAME=91 DIFF=0)
-- [ ] **LAD-2d — heavy tails:** pcom, ppp (old path reachable via SCRIP_NL=0).
+### Phase 2 — PASCAL (CONVERTED; scoreboard newly scoreable 93/11 post-promotion)
+- [ ] **LAD-2d — heavy tails:** pcom (chararr `__pas_strput` design awaits Lon), ppp. NO old
+  path remains — spec = interp arms + corpus refs.
+- [ ] **Scoreboard DIFFER=11 triage:** the `--dump-bb` leg includes stage2 frame-rewriting the
+  `--dump-bb2` leg lacks — pipeline delta, NEWFAIL=0; needs normalization-or-accept ruling.
 
 ### Phase 3 — SNOBOL4 + SNOCONE + REBUS ✅ COMPLETE + CONVERTED (2026-06-10)
 sno153 **152/153 MATCH DIFFER=0** (1 SKIP=cross oracle-segfault) · sco191 **142/142** ·
 m2 exec cross-check **SAME=153 DIFF=0** · default flipped `b11a963`.
-- [ ] **Old `lower_snobol4.c` deletion** — Lon's SNOBOL4 session (mirror icon `3546ea2`).
-- [ ] Snocone/Rebus conversion verify (share lower path; snocone smoke 2/5 pre-existing both legs).
+- [ ] Snocone/Rebus conversion verify (share lower path; snocone smoke 2/5 pre-existing both legs;
+  snocone board now 153 MATCH DIFFER=0 post-promotion).
 
 ### Phase 4 — PROLOG ✅ CONVERTED + OLD LOWERER DELETED (2026-06-11)
 Flip landed `5225acb` under Lon rulings (2)+(10); old `lower_prolog.c` deleted `8a2d6a7` (mirror
@@ -189,46 +196,51 @@ flip attempt). Spec mined from the consumers: `pl_gz_admit`/`pl_gz_fact_clause_u
 the NL leg BEFORE any flip. Post-deletion degeneracy (kin of OPEN 11): SCRIP_NL=0 selects no
 prolog oracle; prolog scoreboard is now a self-comparison.
 
-### Phase 5 — RAKU (26/47 DIFFER=3; SINGLE-SUB DUMP SWEEP COMPLETE 2026-06-11; OLD default)
+### Phase 5 — RAKU ✅ CONVERTED 2026-06-11 (`87b62df`; promotion `662f249`)
+Flip evidence: m2 xcheck SAME=26 DIFF=0; 21 old-leg aborts → NL aborts only 10 kin, runs 11
+clean (8 with output) — NEWFAIL=0. m3/m4 validated post-promotion at watermark with libscrip_rt
+(icon m4 10/12, prolog m4 5/5 — the smoke m4 zeros were open-(5) artifact). Board DIFFER=3
+ruling-(3) class ELIMINATED (oracle degeneracy died with the oracle): raku 38 MATCH DIFFER=0.
+(History below predates conversion:)
 Value-ring model pinned at `0ecd99c` + this session's construct set (see watermark). DIFFER=3 =
 EXACTLY the ruling-(3) multi-sub class (combinator/interp/subs). First m2 xcheck recorded:
 SAME=26 DIFF=0 SKIP=21(both-legs-abort rc=134); 4 of 26 SAME are EMPTY-SAME (both legs print
 nothing — shared m2 runtime limit, not lowering): for_array_simple/for_array_underscore/
 map_grep_sort24/reverse; rk_unique_sum partially blank both legs.
-- [ ] **MULTI-SUB ORACLE DEGENERACY — NEEDS LON RULING (3).** Oracle UNHANDLED-degenerates on
-  multi-sub programs (collapses/drops procs); NL dumps all procs. Exempt list kin of the
-  oracle-crash SKIPs closes the raku board.
-- [ ] **EXEC CHANNELS before any flip (Phase-4 lesson):** LIST_BANG/GATHER loop-var binding
-  UNSET in NL (dump-invisible); MAP/GREP ival=body-argblk PTR + counter=source-argblk are
-  PLACEHOLDERS (kin of prolog GOAL/GCONJ note). Spec = interp arms + SCRIP_DUMP_X. m3/m4 smoke
-  on the NL leg MANDATORY before flip; m2 xcheck alone does not validate these.
+- [x] Multi-sub oracle degeneracy (ruling 3) — MOOT post-promotion; board self-consistent.
+- [ ] **EXEC-CHANNEL TAILS (no longer flip-blocking; m2 parity incl. empty-empty):**
+  LIST_BANG/GATHER loop-var binding UNSET; MAP/GREP ival=body-argblk + counter=source-argblk
+  PLACEHOLDERS — the 4 EMPTY-SAME programs (for_array*/map_grep_sort24/reverse) are this. CALL
+  dval tags + GATHER take-blocks landed `87b62df`. Spec = interp arms.
+- [ ] **Raku residue census (post-promotion):** 10 NL aborts (grammar family x4, hashes x2,
+  typed_vars, unless_until, class26 — old-leg abort kin); 4 silent-clean (given, given18, re37,
+  stdio39); top-level MAINLESS programs unsupported (no TT_SUB_DECL → no main graph → FATAL both
+  modes; this is the entire raku smoke 0/17, pre-existing both legs, owner RAKU frontend).
 
 ### Done-condition
 Per-language bar set by Lon; CONVERSION = the terminal rung per language.
 
-CURRENT (SCRIP `b90d5a1`, 2026-06-11, normalize=1): icon **7/2 fresh-container (OPEN 11 kin)** ·
-pascal **CONVERTED, UNSCOREABLE fresh (OPEN 9)** · snobol4 **10/125 fresh (OPEN 11)** · snocone
-**7/111 fresh (OPEN 11 kin)** · prolog **7/7 CONVERTED** · raku **26/47 DIFFER=3 (= ruling-3 set),
-single-sub dump sweep COMPLETE** · NEWFAIL=0 everywhere.
+CURRENT (SCRIP `662f249`, 2026-06-11, normalize=1, POST-PROMOTION — boards are NL-vs-NL):
+icon **7/2** · pascal **93/11 (stage2 pipeline delta)** · snobol4 **152/153 DIFFER=0** · snocone
+**153 DIFFER=0** · prolog **7/7** · raku **38 DIFFER=0** · NEWFAIL=0 everywhere. OPEN 9 + OPEN 11
+RESOLVED (the zombie oracle legs were the cause; deleted). Smoke with libscrip_rt: icon m2 12/12
+m3 10/12 m4 10/12 · prolog m2/m3/m4 5/5.
 
 ## OPEN FOR LON (consolidated)
 
-(1) LAD-0b pointer-ival ruling; (2) xcheck `^\[lower\]` filter ruling (caveat 3) — now ALSO gates
-the prolog flip (plunit byte-identical modulo OLD punt narration); (3) raku multi-sub degeneracy
-ruling; (4) OLD leg segfaults on beauty self-beautify from the beauty dir (NL leg runs; blocks
-old-vs-new beauty baseline); (5) sno smoke m4 + icon m4 + prolog smoke m4 need `make libscrip_rt`
-in fresh containers (artifact, not code — prolog confirmed 2026-06-11); (6) `--dump-ast` segfaults
-on all multi-proc pascal AND prolog (AST-printer bug, broader than first logged); (7) NL lowerers
-not yet 200-char style-swept; (8) SCRIP_DUMP_X extended dump — keep or fold into LAD-0b; (9) pascal
-OLD-leg `--dump-bb` ABORTS silently (no output) on every corpus .pas in a fresh container while the
-NL leg runs — scoreboard pascal = 102 SKIP, UNSCOREABLE; verified pre-existing at `984cd27` baseline
-(likely kin of open items 4/5); (10) **puzzle_10 parking ruling — OLD-LEG SEMANTIC BUG:** fail-driven
-re-entry through `(X=a;X=b)` DISJ re-succeeds arm 1 on stale binding. Minimal probe `v(a). v(b).
-p :- v(X),(X=a;X=b),write(X),nl,fail.` → OLD `a,a`; NL `a,b`; SWI-Prolog (installed as third oracle)
-`a,b`. NL is correct ISO behavior and must NOT reproduce the bug; needs an exempt entry kin to the
-oracle-crash SKIP list; (11) sno SCOREBOARD in fresh containers reads MATCH=10 DIFFER=125 — verified
-identical at stashed `58a7d8d` baseline, kin of (9)/the icon SCRIP_NL=0-no-oracle finding post
-old-lowerer deletions; the sno yardstick (xcheck_sno_nl.sh) is unaffected.
+(1) LAD-0b pointer-ival ruling — STILL load-bearing (two invocations, fresh heaps); (4) beauty
+self-beautify baseline (old leg gone — NL-only baseline needed now); (5) m4 smokes need
+`make libscrip_rt` in fresh containers — RE-CONFIRMED post-promotion (icon m4 0→10/12, prolog
+m4 0→5/5 once built); (6) `--dump-ast` segfaults on multi-proc pascal AND prolog; (7) NL lowerers
+not yet 200-char style-swept; (8) SCRIP_DUMP_X — keep or fold into LAD-0b; (12) HARNESS
+RETIREMENT ruling: scoreboard.sh is NL-vs-NL (vacuous except the pascal pipeline delta);
+xcheck_sno_nl.sh compares identical legs (SCRIP_NL ignored) — retire, or repoint at SPITBOL/m-mode
+cross-checks; (13) hygiene: `lower.h` retains the dead old-icon `lower_new_*` decl block (shared
+header — prolog/rebus parsers + gen_runtime include it); `src/tools/{prove_lower,tmatch_proto}.c`
+(not in build) reference deleted symbols; (14) cross_lang polyglot revival = teach `lower_sno`
+mixed-language programs (the old fallback died broken). RESOLVED-AND-CLOSED: (2) xcheck filter
+(xcheck vacuous), (3) raku multi-sub (moot), (9) pascal UNSCOREABLE + (11) sno 10/125 (both were
+the zombie oracle legs — deleted), (10) puzzle_10 (the buggy OLD leg no longer exists to exempt).
 
 ## Watermark
 
@@ -437,5 +449,44 @@ rungs; snocone 142/142 + scoreboards held every rung; NEWFAIL=0 throughout.**
 
   **NEXT:** old `lower_snobol4.c` deletion (Lon's SNOBOL4 session) · prolog LAD-4a (hello.pl
   cheapest) · raku single-sub constructs (pending multi-sub ruling) · icon queens/generators.
+
+**▶ HANDOFF (2026-06-11, Fable 5, Lon "perform hand off") — RAKU CONVERTED (the fifth and last)
++ LOWER PROMOTION: nl/ FOLDED UP, _nl DROPPED, OLD MACHINERY DELETED. SHAs: SCRIP `662f249`
+(HEAD==origin/main, clean build GREEN rc=0, tree clean; rebased over upstream `d07afad`/`8a41154`
+emitter work, no overlap), .github THIS COMMIT. Two pushed SCRIP rungs; gates held both.**
+
+  **RUNG `87b62df` (raku conversion):** the NL lowerer was dump-complete, execution-dead — the
+  seam: `lower_rcall` never set `IR_LIT.dval`, the interp IR_CALL dispatch key (1.0 ring-visible
+  say/write args, 2.0 sub-graphed-arg calls; old raku set 2.0, icon NL sets both). Plus BINOP
+  operands → bb_operand_aux (PEERS), GATHER take-expr sub-graph array in EXEC.counter, SMATCH
+  dval=2.0. m2 xcheck 4→26 SAME DIFF=0; the 21 old-leg rc=134 aborts: NL aborts only 10 kin,
+  runs 11 clean (8 with output) — NEWFAIL=0, strictly better. METHOD NOTE: this session began
+  with uncommitted dval work already on disk from an interrupted prior turn — verified coherent
+  against the diagnosis, adopted, gated, committed.
+
+  **RUNG `662f249` (the promotion, Lon directive):** nl/lower_*_nl.c → lower_*.c; symbols
+  lower_prolog_nl_clause → lower_prolog_clause, static lower_sno_nl → lower_sno. DELETED:
+  lower.c (label registry — its only live exports, used by lower_sno + IR_interp — relocated
+  into lower_program.c), old lower_raku.c (zero link consumers, nm-verified), lower_internal.h
+  (all-dead decls), nl_on()/SCRIP_NL, old SNO/pascal/raku arms + pas_register_labels +
+  pas_rewrite_node/graph + make_{computed,indirect}_goto. ISOLATION nm-AUDITED: each lowerer
+  exports only its lower_<lang> entry family, internals static, zero _nl symbols. Boards went
+  NL-vs-NL: sno 10/125→152/153 DIFFER=0, snocone 7/111→153 DIFFER=0, raku 26/3→38/0, pascal
+  UNSCOREABLE→93/11 (stage2 frame-rewrite pipeline delta), icon 7/2 prolog 7/7 held — OPEN
+  9/11 root-caused as the zombie legs and CLOSED. Stale-obj hazard: /tmp/si_objs must be
+  cleaned across this commit or old .o files link silently.
+
+  **POST-PROMOTION m3/m4 VALIDATION (Phase-4 lesson honored):** with `make libscrip_rt`
+  (open-5 artifact re-confirmed) icon m2 12/12 HARD m3 10/12 m4 10/12, prolog m2/m3/m4 5/5 —
+  full watermark, all modes, on the promoted tree. raku smoke 0/17 diagnosed: top-level
+  MAINLESS programs (no TT_SUB_DECL → no main graph, FATAL both modes, both legs at baseline) —
+  RAKU frontend gap, not the promotion.
+
+  **REMAINING (the goal's structure is DONE; tails):** raku exec-channel tails (LIST_BANG/GATHER
+  loop-var binding, MAP/GREP placeholder arg-blocks — the 4 EMPTY-SAME programs) + raku residue
+  census (10 abort-kin, 4 silent, mainless support) · pascal LAD-2d pcom `__pas_strput`
+  (Lon design) + ppp + the 11-DIFFER pipeline-delta ruling · snocone/rebus conversion verify ·
+  harness retirement ruling (12) · hygiene (13) · cross_lang polyglot revival (14) ·
+  style sweep (7).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
