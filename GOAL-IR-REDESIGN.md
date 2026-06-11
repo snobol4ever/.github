@@ -176,13 +176,17 @@ m2 exec cross-check **SAME=153 DIFF=0** · default flipped `b11a963`.
 - [ ] **Old `lower_snobol4.c` deletion** — Lon's SNOBOL4 session (mirror icon `3546ea2`).
 - [ ] Snocone/Rebus conversion verify (share lower path; snocone smoke 2/5 pre-existing both legs).
 
-### Phase 4 — PROLOG (7/7 dump COMPLETE 2026-06-10; OLD default — conversion pending)
-Dump sweep DONE (LAD-4a/4b/4c collapsed into one session): 7/7 MATCH DIFFER=0 NEWFAIL=0 (1 SKIP =
-coverage_pl_nodes, pre-existing). The dump spec is MAIN's clause-body graph ONLY (oracle never dumps
-other predicates), so the dump bar is shallow for prolog — conversion is the real ladder.
-- [ ] **LAD-4d — CONVERSION.** m2 exec cross-check old-vs-new; clause graphs for ALL predicates +
-  exec channels (GOAL/GCONJ/findall arg blocks are placeholder calloc PTRs today — spec = interp
-  arms + SCRIP_DUMP_X). Default stays OLD until execution parity.
+### Phase 4 — PROLOG (7/7 dump · CONVERSION IN FLIGHT: m2 xcheck 123/143; OLD default)
+Gate seam LANDED (`58a7d8d`): `lower_pl_clause_graph` routes `lower_prolog_nl_clause` under `nl_on(0)`
+— one seam covers main/register_all_preds/choice/assertz; `SCRIP_NL=1` selects NL end-to-end.
+Real exec channels LANDED: bb_goal_state_t/bb_conj_state_t/bb_findall_state_t (plain calloc/strdup
+per GC-hazard rule), DISJ arms via operand_aux, full ~70-functor builtin routing + inherited arg-ω,
+IR_ARITH reification, TT_IF→ITE/ITE_COMMIT/ITE_GATE construct, head-arg UNIFY chain.
+- [ ] **LAD-4d remaining 20 DIFFs:** exceptions ×5 (bb_catch_state_t unbuilt — catch/3 needs goal
+  sub-graph + catcher term + recovery sub-graph per the IR_CATCH arm), DCG ×5, puzzles/backtrack ×8
+  (rung05/06 + puzzles 02/04/07/10/14/17 — suspect GOAL re-entry/LCO or between/member resume),
+  plunit, rung40 typetest. Yardstick: the inline old-vs-new m2 xcheck loop (SCRIP_NL=0 vs =1 over
+  corpus/programs/prolog/*.pl, 143 programs). Default flips ONLY at SAME=143 + smoke gates.
 
 ### Phase 5 — RAKU (1/29; OLD default; unparked 2026-06-10)
 Value-ring model pinned at `0ecd99c`: lower_raku_enum/proc, opcodes +0 −1 *2 /3 %4 relops 5-10
@@ -215,6 +219,43 @@ scoreboard pascal = 102 SKIP, UNSCOREABLE; verified pre-existing at `984cd27` ba
 of open items 4/5).
 
 ## Watermark
+
+**▶ HANDOFF (2026-06-10, Fable 5, Lon "perform hand off") — PROLOG LAD-4d CONVERSION RUNG 1 +
+PASCAL LAD-2d TWO SHARED BUG FIXES. SHAs: SCRIP `58a7d8d` (HEAD==origin/main, build GREEN, tree
+clean), .github THIS COMMIT. Two pushed SCRIP rungs; gates held.**
+
+  **RUNG `1c687d2` (pascal LAD-2d, en route to pcom):** (1) binop_apply numeric relops had NO
+  string arm — two string operands fell into `(long)lv.r` union garbage comparing everything EQUAL;
+  pcom's `rw[i]=id` reserved-word lookup matched the first entry per length bucket → error 18 →
+  hang. Fixed: both-strings → slen-aware memcmp before the numeric path. (2) Pascal set-type
+  ALIASES never registered (type_decl dropped −2, simple_type never resolved set typenames, type:
+  collapsed −2→−1, params unregistered) so set `+ - *` via named types (setofsys!) lowered to
+  integer BINOPs — 5+14=19; disjoint/subset cases coincide, which is why the 103-corpus never
+  caught it. Fixed in pascal.y (+tab.c regen). pcom now scans symbols correctly; NEXT pcom blocker
+  DIAGNOSED UNFIXED: chararr elementwise stores (`id[k]:=ch`) hit generic arr_set_pure and build an
+  int-array (phantom slot-0, int codes) instead of mutating a string — needs a __pas_strput rewrite
+  in mk_assign for pas_is_chararr bases + blank-string init decision (length vs [1..8] mapping —
+  Lon may want to weigh in).
+
+  **RUNG `58a7d8d` (prolog LAD-4d rung 1):** gate seam + real exec channels; inline m2 xcheck
+  (SCRIP_NL=0 vs 1, 143 programs) first-wiring 86 → 123 SAME. Spec mined from interp arms ONLY
+  (DO-NOT honored): bb_goal_state_t args = the term() nodes (were DISCARDED), conj goals[]
+  transferred to bb_conj_state_t, findall goal arg → separate sub-graph in bb_findall_state_t,
+  DISJ arms operand_aux (pl_disj_arm_enter enters GCONJ arms at goals[0]), builtin set 4→~70
+  (the IR_BUILTIN arm's strcmp inventory), non-display builtin args inherit arg-ω (oracle: is/<
+  args ω=…β, write args ω=·), arith functors → IR_ARITH (resolve_arith_eval rejects STRUCT —
+  is/2 was silently failing), TT_IF (frontend's (C→T;E) desugar) → ITE/ITE_COMMIT/ITE_GATE shared
+  bb_ite_state_t with oracle allocation order else-then-COMMIT-GATE-cond-ITE (rung04 byte-checked),
+  head args → UNIFY(LOGICVAR i, head_i) chain. All sidecars plain calloc/strdup (GC-hazard rule).
+
+  **FLAGS FOR LON:** (a) icon scoreboard MATCH=7 DIFFER=2 (generators, coverage_x64_gaps) in this
+  fresh container — VERIFIED IDENTICAL AT STASHED BASELINE, pre-existing; kin of the aff86df
+  finding (SCRIP_NL=0 selects no icon oracle since lower_icon.c deletion `3546ea2`); the goal
+  file's "icon 9/9" CURRENT line does not reproduce here. (b) chararr design decision above.
+
+  **NEXT:** LAD-4d remaining 20 DIFFs (Phase 4 list — exceptions/catch is the cleanest next bite:
+  bb_catch_state_t{goal_g, catcher, rec_g} mirrors the findall sub-graph pattern) · pcom chararr
+  strput · raku single-sub constructs (pending Lon's multi-sub ruling).
 
 **▶ HANDOFF (2026-06-10, Fable 5, Lon "perform hand off") — PROLOG DUMP SWEEP COMPLETE 0→7/7 +
 ICON PHASE 1 CLOSED. SHAs: SCRIP `cb127cb` (HEAD==origin/main, build GREEN, tree clean), .github
