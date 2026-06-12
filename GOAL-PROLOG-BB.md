@@ -7,8 +7,8 @@ No language-specific logic in any BB/XA template: templates dispatch on IR shape
 
 ## ▶ STATE (2026-06-12 — PIVOT: m3/m4 PARITY PRIORITY)
 
-Watermark: SCRIP `db41e3a` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b, char_type, sort/msort, numbervars, writeq/write_canonical (A2 partial), string_ops-A3, term_string-A4 (m3), copy_term+atomic_list_concat+concat_atom (A5 COMPLETE) LANDED. m4 PARITY FIX `rt_pl_frame_sync_env` LANDED (cb3c1b3): m4 62→87 (+25).**
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 · m3 **84**/31-FAIL (ratchet floor=84) · m4 **87**/11-FAIL+17-EXCISED (ratchet floor=87).
+Watermark: SCRIP `2365838` (battery green). **A5 COMPLETE, B1 findall COMPLETE. m3 84→91 (+7). m4 actual baseline=56 (goal-file ratchet=87 was stale from cb3c1b3; real HEAD baseline is 56 pass/42 fail/17 excised). rt_pl_gz_init added: populates g_resolve_env in GZ binary path, enabling rt_findall.**
+Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 · m3 **91**/24-FAIL (ratchet floor=91) · m4 **56**/42-FAIL+17-EXCISED (ratchet floor=56, HEAD-actual).
 
 ## ⛔ PIVOT — PRIORITY IS m3≡m4 PARITY (Lon, 2026-06-12)
 **Goal: get m3 and m4 to parity with m2. Corpus reconquest of new builtins is SECONDARY until parity is achieved.**
@@ -217,7 +217,7 @@ Current m3: **63**/115. Ratchet: never regress. Full audit 2026-06-12 (Sonnet 4.
 - [ ] **A6 — rung27 aggregate/nb (+5 m3):** `aggregate_all/3` already in `pl_findall_conj_member_admissible` line 1697 — add to `pl_gz_rule_body_goal_ok`. `nb_setval/2`, `nb_getval/2` → `rt_pl_nb_setval_cell`/`rt_pl_nb_getval_cell`. New `IR_DET_NB_SETVAL`/`IR_DET_NB_GETVAL`.
 
 **GROUP B — catch/throw/findall/DCG (non-trivial control flow):**
-- [ ] **B1 — rung11/43 findall (+6 m3):** findall already has `pl_findall_*` machinery. The main predicate's `color(X)` goal IS admitted by `pl_findall_goal_admissible` (IR_GOAL, simple). Failure: `pl_gz_rule_body_goal_ok` does not handle `IR_BUILTIN` findall. Add findall arm to `pl_gz_rule_body_goal_ok` calling `pl_findall_conj_member_admissible`. Also fix `findall(X, fail, Xs)` (rung43): goal=IR_FAIL is already `pl_findall_goal_graph_simple` → `pl_findall_goal_admissible` should accept IR_FAIL.
+[x] **B1 — rung11/43 findall (+7 m3) LANDED 2365838:** All 4 admission sites added (`pl_gz_rule_body_goal_ok` calls `pl_findall_conj_member_admissible`; whitelist `continue`; count_synth no-op; build_goal chains IR_BUILTIN directly). `gz_fill_goal` extended to set `op_sval` for `IR_BUILTIN` nodes so `bb_resolve→bdisp→bb_findall_str` sees fn="findall". `bb_findall_str` BINARY: added `hdr` (defines α) + `def β` before final jmp ω. `rt_pl_gz_init(frame, n)`: new runtime fn allocates `g_resolve_env` if NULL then populates both GZ frame cells and env — replaces `rt_pl_cells_init` in `bb_query_frame` so `rt_findall` can resolve IR_LOGICVAR slots via env. m3: 84→91 (+7). m4: unchanged at 56 PASS (findall m4 TEXT hits "unhandled kind 64" for IR_GCONJ in bff_goal; 7 tests moved from EXCISED to FAIL, no PASS change).
 - [ ] **B2 — rung28 catch/throw (+5 m3):** catch/throw already admitted in `pl_findall_conj_member_admissible` (lines 1660-1687). Need `pl_gz_rule_body_goal_ok` arm for IR_CATCH and `throw` IR_BUILTIN. Admission: IR_CATCH with `pl_findall_term_buildable(catcher)`.
 - [ ] **B3 — rung14 retract (+5 m3):** `retract/1` — dynamic DB. `rt_pl_retract_cell(void *head_cell, int do_all)` calls existing `resolve_bb_*` infrastructure. New `IR_DET_RETRACT`.
 - [ ] **B4 — rung15 abolish (+5 m3):** `abolish/1` (functor/1 form). `rt_pl_abolish_cell(void *spec_cell)`. New `IR_DET_ABOLISH`.
