@@ -169,7 +169,8 @@ backtracking, (d) the deep construct. Commit per green program.
 ### Phase 1 — ICON ✅ dump COMPLETE (9/9 DIFFER=0 verified 2026-06-10; CONVERTED)
 LAD-1a (queens) + LAD-1b (generators.icn) both MATCH on the current suite — gates met (closed by
 the intervening ICON-FULL-PASS work, verified this session). Residual icon m2 exec regressions are
-tracked in GOAL-ICON-FULL-PASS, not here.
+tracked in GOAL-ICON-FULL-PASS, not here. EXCEPTION (Lon 2026-06-11): the JCON-canon LOWER-WIRING
+tightening lives HERE — rung 1 LANDED `5a73b45`; continuation ⏸ ON HOLD at Phase 1b below.
 
 ### Phase 2 — PASCAL (CONVERTED; scoreboard newly scoreable 93/11 post-promotion)
 - [ ] **LAD-2d — heavy tails:** pcom (chararr `__pas_strput` design awaits Lon), ppp. NO old
@@ -207,24 +208,92 @@ EXACTLY the ruling-(3) multi-sub class (combinator/interp/subs). First m2 xcheck
 SAME=26 DIFF=0 SKIP=21(both-legs-abort rc=134); 4 of 26 SAME are EMPTY-SAME (both legs print
 nothing — shared m2 runtime limit, not lowering): for_array_simple/for_array_underscore/
 map_grep_sort24/reverse; rk_unique_sum partially blank both legs.
-- [x] Multi-sub oracle degeneracy (ruling 3) — MOOT post-promotion; board self-consistent.
-- [ ] **EXEC-CHANNEL TAILS (no longer flip-blocking; m2 parity incl. empty-empty):**
-  LIST_BANG/GATHER loop-var binding UNSET; MAP/GREP ival=body-argblk + counter=source-argblk
-  PLACEHOLDERS — the 4 EMPTY-SAME programs (for_array*/map_grep_sort24/reverse) are this. CALL
-  dval tags + GATHER take-blocks landed `87b62df`. Spec = interp arms.
+- [ ] **EXEC-CHANNEL TAILS (queued behind Phase 6):** \x01 array-iteration bug — `list_bang_at`
+  (src/interp/IR_interp.c:2122) falls through to the frame-string branch for push_pure arrays and
+  iterates \x01-separated chars ("10" prints as "1\n0\n"); detect DT_DATA before the string
+  fallthrough (2151) OR unify push_pure repr with the DT_DATA "list" gen_type path (2123, already
+  correct). Blocks the 4 EMPTY-SAME programs (for_array*/map_grep_sort24/reverse); MAP/GREP
+  ival=body-argblk placeholders likely resolve with it. Raku gate target 42+/0. (LIST_BANG/GATHER
+  loop-var binding LANDED `45e1fca`; CALL dval tags + GATHER take-blocks `87b62df`.)
 - [ ] **Raku residue census (post-promotion):** 10 NL aborts (grammar family x4, hashes x2,
   typed_vars, unless_until, class26 — old-leg abort kin); 4 silent-clean (given, given18, re37,
   stdio39); top-level MAINLESS programs unsupported (no TT_SUB_DECL → no main graph → FATAL both
   modes; this is the entire raku smoke 0/17, pre-existing both legs, owner RAKU frontend).
 
+### Phase 6 — LOWER CONSOLIDATION + DYNAMIC IR LISTS ◀ IMMEDIATE NEXT (Lon pivot 2026-06-11)
+Scan ALL FIVE lower_<lang>.c looking to refactor the whole thing to share more code across all
+six files: MORE lower_common.c, LESS lower_<lang>.c — but promoted code must be TRULY shared
+helper functions (parameterized by data, never language semantics; 040becb shim precedent).
+Then make every list of IR nodes dynamically allocated and remove hard array limits wherever the
+code needs growth — small genuinely-known-size arrays may stay, but NO limit may be hit because a
+structure could not grow. Baseline wc -l: common 209 · icon 476 · pascal 692 · prolog 539 ·
+raku 359 · snobol4 1054. Shrink ALL of them.
+- [ ] **LCD-1 duplication matrix:** catalog every static function across the five lowerers; mark
+  identical / rename-only / parameterizable. Visible candidates: stmt reverse-threading driver
+  (SUCCEED@0/FAIL@1 alloc + reverse walk — icon lower_proc_body, pascal st[]/anchor[] walkers,
+  prolog clause body, raku sub body), value-ring chain builders, sub-graph arg-block assembly,
+  proc/clause collection DFS (icon collect_procs/fill_pnames vs pascal/prolog kin), label
+  registries (pascal labels[]/lnames[] vs common g_bb_labels), leaf-literal constructors,
+  loop-ctx save/restore.
+- [ ] **LCD-2 growable vector:** one `lc_vec` in lower_common.{c,h} (GC_MALLOC/GC_REALLOC
+  doubling; push/at/len), used by ALL lowerers; C-style observed (200-col, zero blank lines,
+  dash separators only).
+- [ ] **LCD-3 fixed-array sweep (grep-verified inventory):** common g_bb_labels[1024] · icon
+  S/val/ent[128] entry/apply[64] ps/pn[256] · pascal labels/lnames[128] av[34]
+  st/anchor/stmts[512] scs/dls/pis[16] · prolog gl[1024] · snobol4 alts/qleaves/lits/leaves/
+  pats[64] stk/stk2/stk3[128] — every IR_t*/tree_t* list → lc_vec; char name-key buffers
+  (prolog key[256]/keybuf[128], sno fname/params[][64]) ruled case-by-case (snprintf-bounded
+  may stay).
+- [ ] **LCD-4 promote + delete:** move each verified-shared helper into lower_common.c (lc_
+  prefix), delete the per-language copies; one-liner shims only where call-site churn is large;
+  nm-audit isolation invariant must hold (each lowerer exports only its lower_<lang> family).
+- [ ] **LCD-5 gate EVERY rung (PURE-REFACTOR bar — outputs byte-identical):** make scrip +
+  libscrip_rt green · icon smoke m2 12/12 HARD (m3 10 m4 10) · prolog smoke 5/5/5 · all six
+  boards at floors icon 7/2 sno 152/0 snocone 153/0 prolog 7/0 pascal 94/11 raku 38/0
+  NEWFAIL=0 · before/after wc -l shrink table into the watermark. Commit per green rung.
+
+### Phase 1b — ICON JCON-CANON EXEC TIGHTENING ⏸ ON HOLD (Lon 2026-06-11; rung 1 LANDED `5a73b45`)
+Authority: refs/jcon-master/tran/irgen.icn ir_a_* (CONSULT CANONICAL SOURCES rule). Rung 1 landed:
+SEQ_EXPR compound fall-forward (TT_SEQ conjunction keeps backtrack), loop_next wiring
+(while/until→cond entry, repeat→body, every→gen-resume), return-expr ω→PFAIL, variable to-by via
+operands[2] + interp TO_BY operand read, is_resumable TT_FNC→icn_call_allow_gen. Evidence kept:
+probes p1-p7 canonical; primes .std distance 95→4, sieve prints 2..47 (was empty), palindrome
+yes/yes; recent/checkfpx/ck/string deltas = previously-skipped stmts now executing (pre-existing
+fp/feature gaps, canon-correct). Parked steps, in order:
+- [ ] **ICX-0 NEWFAIL FIRST:** corpus icon/parser/{break_op,next_op}.icn m2 now infinite-loop
+  (baseline: empty output; their .out hold stale parser AST dumps — read the companion .ref).
+  Hypothesis: break/next inside a SEQ_EXPR that IS the every-GENERATOR (no do-body) — rung 1 sets
+  loop_exit/loop_next around the BODY only, so the generator lowers with stale loop ctx; canon
+  keeps the whole every on ir_loop_stack with nextlabel→expr.resume, but gen_node is unknown
+  while the generator lowers → post-patch LOOP_NEXT placeholders or anchor-node approach. After
+  fix: probes p1-p7 must stay canonical, smoke m2 12/12 HARD, full corpus icon m2 rediff
+  (1311 programs; regenerate the pre-fix baseline — container baselines do not persist) with
+  NEWFAIL=0 beyond the vetted canon-corrections, boards at floors.
+- [ ] **ICX-1 (E) fall-off-end of a procedure body must FAIL** (canon ir_Fail; probe p6_falloff
+  prints T today): verify the m2 driver tolerates main ending at PFAIL, then flip
+  lower_proc_body's final stmt γ from PSUCC.
+- [ ] **ICX-2 (F) limitation e\\n lowers LIMIT FIRST:** entry=limit, limit γ→expr entry, expr
+  ω→limit resume; interp LIMIT arm reads the already-evaluated lim (today the limit expr is
+  never evaluated — probe p8_limit prints only x).
+- [ ] **ICX-3 (I) break WITH expression:** parse sites icon_parse.c ~139-148/~506-507; canon
+  evaluates the break-expr with the LOOP's continuations (γ→loop exit, ω→loop ω); today the
+  value is dropped.
+- [ ] **ICX-4 small canon set:** (J) every-in-expression-position exhaustion → FAIL not γ ·
+  (K) icn_call_allow_gen += bal/seq/key · (L) Sectionop val→left→right resume chain ·
+  (G-var) probe return-not-last-stmt position.
+- [ ] **ICX-5 interp-arm canon deltas (low-frequency):** IF resume re-evaluates the cond entry
+  leaf (canon: IndirectGoto into the taken branch) · WHILE exit re-runs the cond chain (double
+  side-effects, cosmetic) · runtime !S/!T/key(T) must skip DELETED elements (gener.std "stale"
+  lines) · queens.icn 653186-line output — verify solution count/termination · TT_CREATE
+  co-expressions unsupported · MAKELIST isolated arg_blocks lose canon cross-arg backtracking.
+
 ### Done-condition
 Per-language bar set by Lon; CONVERSION = the terminal rung per language.
 
-CURRENT (SCRIP `662f249`, 2026-06-11, normalize=1, POST-PROMOTION — boards are NL-vs-NL):
-icon **7/2** · pascal **93/11 (stage2 pipeline delta)** · snobol4 **152/153 DIFFER=0** · snocone
-**153 DIFFER=0** · prolog **7/7** · raku **38 DIFFER=0** · NEWFAIL=0 everywhere. OPEN 9 + OPEN 11
-RESOLVED (the zombie oracle legs were the cause; deleted). Smoke with libscrip_rt: icon m2 12/12
-m3 10/12 m4 10/12 · prolog m2/m3/m4 5/5.
+CURRENT (SCRIP `5a73b45`, 2026-06-11, normalize=1, boards re-run at this SHA post-rebase onto
+upstream `8a2d959`): icon **7/2** · pascal **94/11 (stage2 pipeline delta)** · snobol4 **152/153
+DIFFER=0** · snocone **153 DIFFER=0** · prolog **7/0** · raku **38 DIFFER=0** · NEWFAIL=0
+everywhere. Smoke with libscrip_rt: icon m2 12/12 HARD m3 10/12 m4 10/12 · prolog m2/m3/m4 5/5.
 
 ## OPEN FOR LON (consolidated)
 
@@ -538,5 +607,49 @@ NEWFAIL=0 throughout.**
   · **Pascal LAD-2d:** `__pas_strput` (Lon design) + ppp + 11-DIFFER pipeline-delta ruling.
   · **OPEN (Lon-blocked):** LAD-0b pointer-ival ruling; items (4)(5)(6)(7)(8)(12)(13)(14).
   · **Icon:** queens/generators exec tails.
+
+**▶ HANDOFF (2026-06-11, Fable 5, Lon "perform hand off") — ICON JCON-CANON RUNG 1 LANDED +
+PIVOT TO LOWER CONSOLIDATION (Phase 6). SHAs: SCRIP `5a73b45` (HEAD==origin/main, build GREEN,
+tree clean, rebased onto upstream `8a2d959` arr_get fix and re-gated), .github THIS COMMIT.
+One SCRIP commit this session; all gates held at floors.**
+
+  **SESSION DIRECTIVE (Lon):** the NEW lower stage is the spec-bearer — the OLD IR graph that
+  "looked wrong" is no longer the reference. Scrutinized src/lower/lower_icon.c against JCON
+  canon (jcon-master/tran/irgen.icn ir_a_* — uploaded zip; refs/ clone per RULES when absent)
+  and tightened everything provably wrong, probe-driven.
+
+  **RUNG `5a73b45` (icon JCON-canon rung 1):** TT_SEQ_EXPR braced/paren statement blocks now
+  fall FORWARD on statement failure per ir_a_Compound (stmt[i] ω → stmt[i+1] entry; the old
+  backtrack post-pass remains ONLY for TT_SEQ conjunction e1&e2, canon right.failure→
+  left.resume). icx_t gained loop_next; TT_LOOP_NEXT wires to it (while/until→cond entry,
+  repeat→body entry, every→generator-resume via gen_node loop-back); lower_while/until/repeat/
+  every save/set/restore loop_exit+loop_next around the BODY. TT_RETURN bounds its expr with
+  ω→enclosing PFAIL (canon ir_Fail) — a failing return-expr no longer masks into null-success.
+  Variable to-by: the by-expr is lowered+chained (ω→hi resume, γ→TO entry) and pushed as
+  operands[2]; IR_interp.c TO_BY operand path reads the evaluated step (int, or DT_R cast)
+  instead of dropping it. is_resumable: TT_FNC→icn_call_allow_gen. Probes p1-p7 canonical
+  (break-in-every exits with value path, next-in-while skips, to-by-variable steps, compound
+  falls forward, conjunction backtracks, return-expr failure fails the call). Corpus-exec wins:
+  primes .std distance 95→4, sieve prints 2..47 (was empty), palindrome yes/yes.
+  **KNOWN PARKED (Lon hold):** corpus icon/parser/{break_op,next_op}.icn m2 infinite-loop
+  NEWFAIL (were empty-output) — break/next inside a SEQ_EXPR used AS the every-generator see
+  stale loop ctx. Full diagnosis + ordered punch list (fall-off-end FAIL, limit-first,
+  break-expr value, bal/seq/key, section resume, stale set/table generation, queens runaway
+  check) = Phase 1b, ICX-0..ICX-5.
+
+  **PIVOT (Lon, this handoff):** Phase 6 — LOWER CONSOLIDATION + DYNAMIC IR LISTS — is the
+  IMMEDIATE NEXT item: scan all five lowerers, grow lower_common.c with TRULY shared helpers
+  only, shrink every lower_<lang>.c, convert every IR-node list to dynamic growth (no hard
+  limits hit for want of realloc; small genuinely-fixed arrays exempt). Grep-verified
+  fixed-array inventory + duplication-candidate list + PURE-REFACTOR gate bar are in Phase 6,
+  LCD-1..LCD-5. Baseline wc -l recorded there.
+
+  **GATES AT HANDOFF (re-run post-rebase):** make scrip + libscrip_rt GREEN · icon smoke
+  m2 12/12 HARD m3 10/12 m4 10/12 · prolog smoke m2/m3/m4 5/5 · boards icon 7/2 sno 152/0
+  snocone 153/0 prolog 7/0 pascal 94/11 raku 38/0 · NEWFAIL=0 all.
+
+  **REMAINING OPEN WORK:** Phase 6 ◀ IMMEDIATE NEXT · Phase 1b icon canon ⏸ ON HOLD (ICX-0
+  NEWFAIL first when resumed) · raku \x01 array-iteration bug + residue census (queued behind
+  Phase 6) · pascal LAD-2d · OPEN (Lon-blocked) (1)(4)(5)(6)(7)(8)(12)(13)(14).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
