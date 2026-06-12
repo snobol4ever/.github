@@ -2,7 +2,7 @@
 
 **PIVOT 2026-06-06 (Lon):** REVAMP/HYGIENE delegated to GOAL-BB-FIXUP. This goal owns ONLY: lowerer correctness (`src/lower/lower_icon.c` — NL-promoted, sole Icon path), m2 interpreter semantics (`IR_interp.c`), and Icon runtime (`by_name_dispatch.c`, `aggregates.c`, `keywords.c`). Native m3/m4 follows once m2 is correct.
 
-**Status:** m2 195/247 · m3 29 · m4 32. Target 247/247 m2. XFAIL pool (36) out of scope.
+**Status:** m2 198/247 · m3 29 · m4 32. Target 247/247 m2. XFAIL pool (36) out of scope.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 count must never decrease.
 
 ---
@@ -28,7 +28,9 @@
 
 ## Open steps (m2 interpreter + lowerer only)
 
-- [ ] **FULL-11 next-in-every** — `NEXT.γ` wired to generator α (fresh) instead of β (resume). Fix `lower_every` in `lower_icon.c`: `cx->loop_next` → generator's β node. Per JCON `ir_a_Every` line 322. Visible: primes outputs non-primes 27/35/87/95. +~4.
+- **FULL-11 next-in-every** — INVESTIGATED: `NEXT.γ=generator.α` was hypothesized but not the real bug. The primes test (`rung36_jcon_primes`) ALREADY PASSES at m2=198. Closed.
+- **FULL-19 real to-by** ✅ DONE 2026-06-12 (`3e08aaa`). `IR_TO_BY` `is_real` detection fixed for `sval="ar"` (ag+real with operand nodes). rung19 +2.
+- [ ] **FULL-18-resid generator-in-user-proc-call-arg** — `every write(tag("a"|"b"|"c"))` outputs only `[a]`; `every write(s[1 to 3])` outputs only `a`. Root: `lower_call` in `lower_icon.c` line 82 sets `cx->beta = icn_call_allow_gen(name) ? call : ω` — user procs like `tag` return false from `icn_call_allow_gen`, so `cx->beta=ω`, and the ALT/TO arg generator is never wired into the flat graph (disappears from `--dump-bb`). Fix: detect generator in arg subtree and keep `cx->beta = call`. Affects rung16 (+1), rung32 (+1), many rung36/37. Do NOT loosen `g_icn_postfix_resume` gate blindly.
 - **FULL-12 coerce()** — `integer(x)`/`real(x)` all type combos; consult `oarith.r`. Rungs 36, 37. +5.
 - **FULL-13-resid keywords** — rung37_keywords 3 residuals: `& &e` parse ambiguity, &error write-back, &dump/trace/random.
 - **FULL-14 scan-alt** — `IR_GEN_SCAN` resume re-enters scan across alt. Rung 37. +2.
@@ -70,7 +72,7 @@ Before ANY construct: grep canonical FIRST. Port topology → `refs/jcon-master/
 
 ## Watermark
 
-**HEAD (SCRIP) = `f6286b2`** — IR_interp: fix write+ALT ring-duplication (counter==0 guard). m2 **195** · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-LOWER-EVERY-WRITE-ALT.md.
+**HEAD (SCRIP) = `3e08aaa`** — IR_TO_BY: fix is_real for sval='ar' with operand nodes; real to-by works. m2 **198** · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-TOBY-REAL-GENARG.md.
 
 **Key intel:** `--dump-bb` does NOT show `operand_aux` — two identical dumps can still differ; verify by output. NOT/SECTION/BANG push via `ir_operand_push` (HEAD reads `bb->operands[0]`), while ALT uses `bb_operand_aux_set` (HEAD interp reads `bb_operand_aux_get`).
 
