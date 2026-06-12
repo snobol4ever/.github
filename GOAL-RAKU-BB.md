@@ -456,21 +456,29 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-12 PIVOT) — GROUP C WIP at HEAD `3fd0f01`. m3/m4 6/0/25. SCRIP HEAD `3fd0f01`.**
+**STATE (2026-06-12 SESSION 2) — GROUP C GATE DIAGNOSIS COMPLETE. bb_call_fn MEDIUM arm fixed. m3/m4 still 6/0/25 — gate not yet open. SCRIP HEAD `6cae820`.**
 
 - **Modes:** m2 **31/31** (HARD ✓). m3 **6 PASS / 0 FAIL / 25 EXCISED**, m4 **6 PASS / 0 FAIL / 25 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 7/7, NFA oracle **5/5 PASS**, `g_vstack`=0.
 
-- **PIVOT (Lon 2026-06-12):** Goal = m3/m4 parity with m2 (31/31). 25 EXCISED diagnosed into 4 groups; Group C (11 tests) is immediate target with WIP at HEAD.
+- **bb_call_fn.cpp MEDIUM arm FIXED ✅ (`6cae820`):** MEDIUM_BINARY arm converted to pure `x86()` — forbidden `x86_load_ro`/`x86_frame_lea`/`x86_call_ro`/`x86_frame_store64` replaced with `x86("mov","rdi","[rip + __]",ptr,"??")` / `x86("lea","rsi",FRQ(argbase))` / `x86("call","rt_call_arr",fptr)` / `x86("mov",FRQ(off),"rax")`. Arg-copy loop unified (no if/MEDIUM split). ONE MEDIUM rule satisfied.
 
-- **GROUP C WIP — two-part fix, part 2 incomplete (`3fd0f01`):**
-  - **Part 1 LANDED ✅:** `icn_rhs_kind_ok` extended to accept `IR_CALL dval==0.0` as ASSIGN rhs (`src/driver/scrip.c`). Gate now passes `arr_get`, `hash_exists`, `elems`, `meth_call`, `obj_new`, etc.
-  - **Part 2 INCOMPLETE ⚠:** `bb_call_fn.cpp` rewritten to slot-based `rt_call_arr` (alloc `resoff`+`argbase`, copy operand slots, call `rt_call_arr`, store result, `cmp eax,99` fail-check). MEDIUM_TEXT arm: correct pure `x86(...)`. MEDIUM_BINARY arm: FORBIDDEN — uses `x86_load_ro`, `x86_frame_lea`, `x86_call_ro`, `x86_frame_store64` directly, bypassing `x86()` funnel. Fix required: convert each to `x86("call", fn, fptr)` / `x86("mov", FRQ(off), "rax")` etc. Check `x86_asm.h` for existing dispatch cases; add missing ones there (additive).
+- **ROOT CAUSE DIAGNOSED — TWO GATE BUGS in `src/driver/scrip.c` block all Group C:**
 
-- **while_loop FIXED ✅ 2026-06-12:** `bb_call_rk_bool_str` relop pass-through (`rkbool_arg_is_relop`). Commit `b5df67a`.
+  **BUG 1 — `icn_graph_native_emittable_mode` (~line 258):** `if (nd->op == IR_CALL && IR_LIT(nd).dval == 2.0) return 0;` rejects ALL `dval==2.0` IR_CALL nodes. BUT every Raku builtin from `lower_rv` TT_FNC → `lower_rcall(...,visible=0)` → `lc_call_argblks(nd, 2.0, ...)` gets `dval=2.0`. So `sort`, `arr_get`, `elems`, `push`, `hash_set`, `meth_call`, `obj_new`, etc. are ALL gated out. **Fix:** only reject when `sval` is `"__rk_bool"` or `"__rk_try"` (the sub-graph-executing calls needing IR_interp intercept). Change to: `if (nd->op == IR_CALL && IR_LIT(nd).dval == 2.0 && IR_LIT(nd).sval && (!strcmp(IR_LIT(nd).sval,"__rk_bool")||!strcmp(IR_LIT(nd).sval,"__rk_try"))) return 0;`
 
-- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix (git log).
+  **BUG 2 — `icn_rhs_kind_ok` (~line 207):** ASSIGN rhs check finds γ-parent (e.g. `__rk_arr` with `dval=2.0`) but `icn_rhs_kind_ok` only accepts `IR_CALL dval==0.0`. **Fix:** also accept `dval==2.0` for non-special svals. Add: `if (r->op == IR_CALL && IR_LIT(r).dval == 2.0 && !(IR_LIT(r).sval && (!strcmp(IR_LIT(r).sval,"__rk_bool")||!strcmp(IR_LIT(r).sval,"__rk_try")))) return 1;`
 
-- **NEXT (ordered):** (1) Fix MEDIUM_BINARY arm in `bb_call_fn.cpp` — expect Group C 11 tests EXCISED→PASS. (2) Group B `__rk_bool(dval=2.0)` inline-cmp (9 tests). (3) Group A GATHER/MAP/GREP (5 tests). (4) RK-GRAM-3.
+- **NEXT (ordered):**
+  1. Fix BUG 1 in `icn_graph_native_emittable_mode` (scrip.c ~line 258) — blanket dval==2.0 → targeted __rk_bool/__rk_try rejection.
+  2. Fix BUG 2 in `icn_rhs_kind_ok` (scrip.c ~line 207) — accept dval==2.0 for non-special calls.
+  3. Expect Group C (11 tests) EXCISED→PASS after both fixes. m3/m4 target: 17/0/14.
+  4. Group B `__rk_bool(dval=2.0)` inline-cmp (9 tests).
+  5. Group A GATHER/MAP/GREP (5 tests).
+  6. RK-GRAM-3.
+
+- **NOTE:** 57 template files still contain `MEDIUM_TEXT`/`MEDIUM_BINARY` branches (115 violation lines). Open gate first, verify Group C passes, then sweep remaining violators. `bb_call_fn.cpp` is clean.
+
+- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm (git log).
 ---
 ---
 
