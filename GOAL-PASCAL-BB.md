@@ -19,6 +19,17 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
+**Session 42 (2026-06-12): Deep-dive on pcom hang; no fix landed; gate 103/0 throughout. Nothing committed.**
+
+**NEW BLOCKER — WITH-FILE-LIST HANG (higher priority than blocker #3):**
+- Symptom: `program t(output); begin end.` AND `program t(output); begin write(1) end.` BOTH hang (exit=124 at 8s timeout). Only `program t; begin end.` exits 0.
+- Process state: `State: S (sleeping)` = blocking on I/O, NOT a CPU infinite loop. `cat /proc/PID/syscall` shows syscall 130 on linux/amd64. Check `cat /usr/include/x86_64-linux-gnu/asm/unistd_64.h | grep " 130$"` to confirm which syscall.
+- MOST LIKELY CAUSE: pcom's `nextch` is blocking on `read(ch)` (stdin) when stdin has no more data, because `eof(input)` incorrectly returns FALSE. Test immediately: `printf "program t(output);\nbegin end.\n\n\n" | timeout 8s scrip --interp pcom.pas` — if the extra blank lines fix the hang, eof/eoln detection is the cause.
+- What was ELIMINATED: searchid binary-tree walk, enterid/display chain, fextfilep chain loop, write(output,ch), __pas_eof getchar blocking, repeat-until-false+goto pattern, for-downto loop, arr_get(errlist[k].pos), pointer chain walk, standard write handler logic.
+- NEXT STEP (binary search): inject `writeln(output,'CP:A')` through `CP:H` checkpoints in pcom's block() body (pcom.pas ~3469-3563) to find last CP printed before hang. Key positions: A=before repeat-statement loop, B=after until-test, C=after `if sy=endsy then insymbol`, D-E=while-llp, F=before gen-calls, G=after gen-calls/before fextfilep-while, H=after fextfilep-while.
+- WARNING: do NOT re-attempt the nested TT_IDX fix in mk_assign — it was attempted and reverted (caused new hang in begin-end case; arr_set_pure idx=0 issue).
+
+
 **Session 41 (2026-06-12): Three runtime bugs fixed; pb40 LANDED; gate 103/0. pcom blocker #3 root-caused.**
 Gate: **m2 103/0** (+pb40). Commit hashes: see git log (SCRIP + corpus pushed this session).
 
