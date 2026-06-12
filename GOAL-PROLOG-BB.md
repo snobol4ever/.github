@@ -5,10 +5,13 @@ Landed-rung history DELETED (git holds it). FACT-RULE bodies kept VERBATIM (md5-
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
-## ▶ STATE (2026-06-12)
+## ▶ STATE (2026-06-12 — PIVOT: m3/m4 PARITY PRIORITY)
 
-Watermark: SCRIP `c718f58` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b, char_type, sort/msort, numbervars, writeq/write_canonical (A2 partial), string_ops-A3, term_string-A4 (m3), copy_term+atomic_list_concat infra (A5 partial) LANDED.**
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 (rung23_arith_ext_power: pre-existing int-power float bug) · m3 **80**/35-FAIL (ratchet floor=80) · m4 **62**/36-FAIL+17-EXCISED (ratchet floor=62).
+Watermark: SCRIP `cb3c1b3` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b, char_type, sort/msort, numbervars, writeq/write_canonical (A2 partial), string_ops-A3, term_string-A4 (m3), copy_term+atomic_list_concat infra (A5 partial) LANDED. m4 PARITY FIX `rt_pl_frame_sync_env` LANDED (cb3c1b3): m4 62→87 (+25).**
+Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 · m3 **80**/35-FAIL (ratchet floor=80) · m4 **87**/11-FAIL+17-EXCISED (ratchet floor=87).
+
+## ⛔ PIVOT — PRIORITY IS m3≡m4 PARITY (Lon, 2026-06-12)
+**Goal: get m3 and m4 to parity with m2. Corpus reconquest of new builtins is SECONDARY until parity is achieved.**
 
 **A2 writeq/write_canonical (2026-06-12):** `writeq` and `write_canonical` admitted in `pl_gz_rule_body_goal_ok` and `pl_gz_rule_clause` whitelist for LOGICVAR/ATOM/STRUCT args. `IR_DET_WRITE` extended with write-mode discriminator (`ival=0`=write, `ival=1`=writeq, `ival=2`=write_canonical) in `bb_det_write.cpp`; dispatches `rt_pl_writeq_cell`/`rt_pl_write_canonical_cell` already present in `unification.c`. IR_ARITH arg (`write_canonical(1+2)`) excluded — m4 IR-pointer-embedding issue (same root cause as rung17 m4 failures); stays m2-only. Net: m3 68→71 (+3), m4 56 unchanged.
 
@@ -220,11 +223,15 @@ Current m3: **63**/115. Ratchet: never regress. Full audit 2026-06-12 (Sonnet 4.
 - [ ] **B4 — rung15 abolish (+5 m3):** `abolish/1` (functor/1 form). `rt_pl_abolish_cell(void *spec_cell)`. New `IR_DET_ABOLISH`.
 - [ ] **B5 — rung30 DCG/phrase (+5 m3):** `phrase/2,3` already lowered to `IR_GOAL` by lower_prolog.c. The `pl_gz_rule_body_goal_ok` IR_GOAL arm should admit it if the underlying grammar predicate is admitted. Check: callee graph uses IR_CHOICE. Likely needs `pl_gz_choice_rule_clauses` check.
 
-**GROUP C — m4 parity bugs (m3 passes, m4 wrong output):**
-- [ ] **C1 — rung03/rung05/rung06/rung09 m4 callee label bug:** `.Lplpred__S1_2` generated instead of `.Lplpred_member_2` in m4 TEXT. Root: `IR_LIT(nd).sval` for IR_GOAL in flat/rich-body-root path gets a scope variable name `_S1` not the predicate name. Fix: in `resolve_call_block_label`, when sval starts with `_S`, use the `bb_goal_state_t::callee` field instead; or fix lower_prolog to always put the clean predicate name in `IR_LIT(nd).sval`.
-- [ ] **C2 — rung17 m4 sort/msort (+4 m4):** `rt_pl_sort_cell` uses `prolog_atom_intern(".")` and `prolog_atom_intern("[]")` which require the atom table to be initialized. In m4 GZ path, `rt_main_init` IS called by the rich-body-root preamble. Check if rung17 m4 actually goes through GZ path. Actual output is `[]` for everything — likely `ATOM_DOT`/`ATOM_NIL` issue in `unification.c`'s `rt_pl_sort_cell`. Verify and switch to `prolog_atom_intern`.
-- [ ] **C3 — rung21 m4 char_type inner var (+3 m4):** `char_type('7', digit(V))` — compound type arg `digit(V)` inner var not extractable in m4 GZ path. Check `rt_pl_char_type_cell` for m4 atom-init issue.
-- [ ] **C4 — rung12 m4 atom_chars/atom_codes (+2 m4):** m4 gives `[]`/`[]`. Same `prolog_atom_intern` vs `ATOM_*` root cause likely.
+**GROUP C — m4 parity bugs:**
+- [x] **C-ROOT — rt_pl_frame_sync_env LANDED (cb3c1b3, m4 62→87 +25):** Root cause: `g_resolve_env` (WAM-style env, used by RESOLVE helpers) and GZ frame cells `[r12+8+slot*8]` (read by bb_det_write etc.) were TWO DISCONNECTED arrays. After unification bound `g_resolve_env[slot]`, the GZ cell still held unbound TERM_VAR — write read `[]`. Fix: `rt_pl_cells_init` now also sets `g_resolve_env[i]` to the same `Term*`; new `rt_pl_frame_sync_env(frame, nslots)` called from m4 rich/flat-body-root preamble (after `rt_env_alloc`) does the same. Unification mutates the shared struct in-place; both arrays see binding via `term_deref`. Fixed rung03/09/12/17/20/21/25 + all A3/A4/A5 m4 variants.
+- [ ] **C-LABEL — rung05/rung06 m4 callee label bug (+4 m4):** `.Lplpred__S1_2` undefined at link — DCG scope var `_S1` (from `dcg_fresh_var()` in `prolog_parse.c`) leaks into `resolve_call_block_label` instead of actual predicate name. Fix: when `name` starts with `_S`, use `bb_goal_state_t::callee` field or look up from predicate table. Alternatively fix `lower_prolog.c` to always store clean predicate name in `IR_LIT(nd).sval` for IR_GOAL.
+
+**REMAINING m4 FAILURES (11, ratchet floor=87):**
+- rung05, rung06: C-LABEL bug above (+4 m4 when fixed)
+- rung27 agg_max_min: also fails m3 (needs A6)
+- rung28 ×4: also fails m3 (needs B2 catch/throw)
+- rung30 ×4: also fails m3 (needs B5 DCG)
 
 - [ ] **PL-GZ-9** — ongoing. See rungs above.
 - [ ] **PL-GZ-FENCE** — coupling gate ZERO · GATE-3 m2/m3/m4 verdict-identical · resolution.c + meta rail DELETED · seed `.s` shape-isomorphic to `test_pl_1.c`.
