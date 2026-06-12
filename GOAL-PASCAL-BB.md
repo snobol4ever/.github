@@ -19,11 +19,17 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 40 (2026-06-11): PB-30 — arr_get packed-string fix landed; pcom blocker #2 ROOT-CAUSED with minimal reproducer (pb40.pas). Gate 102/0.**
-Gate: **m2 102/0** (+pb39). Commit hashes: see git log (SCRIP + corpus pushed this session).
+**Session 41 (2026-06-12): Three runtime bugs fixed; pb40 LANDED; gate 103/0. pcom blocker #3 root-caused.**
+Gate: **m2 103/0** (+pb40). Commit hashes: see git log (SCRIP + corpus pushed this session).
+
+**pcom blocker #3 — ROOT-CAUSED, FIX PENDING (start here next session):**
+- Symptom: `program t; begin writeln(42) end.` → pcom generates 3 position-0 errors at line 2 (any program without `(...)` file list errors). `program t(output); begin writeln(42) end.` compiles clean.
+- Errors are at chcnt=0: generated right after `endofline` resets chcnt but before first nextch on the new line. Points to pcom state set by the extra `insymbol` calls that process the file list being absent when there is no file list.
+- `kk` (initialized to 8 in `initscalars`), `id`, `eol`, or chcnt sequencing is the likely culprit. Next session: bisect pcom insymbol + block entry to isolate which state differs.
+- Smoke: `echo "program x; begin end." | scrip --interp pcom.pas` → listing only, no errors (passes).
 
 **Fixed this session:**
-- **arr_get FAILed on element reads of bulk-assigned char arrays** (`src/runtime/by_name_dispatch.c` arr_get, ~line 1126).
+- **arr_get FAILed on element reads of bulk-assigned char arrays** (session-40, reference) (`src/runtime/by_name_dispatch.c` arr_get, ~line 1126).
   Bulk assign `src := 'x.        '` stores a PLAIN string (no SOH); arr_get only walked
   SOH-delimited segments, so `ch := src[i]` returned FAILDESCR for any i>=1, silently severing
   continuation (straight-line: silent early exit; inside repeat/while ω-cycles: spin until the
