@@ -489,50 +489,51 @@ emitter work, no overlap), .github THIS COMMIT. Two pushed SCRIP rungs; gates he
   harness retirement ruling (12) · hygiene (13) · cross_lang polyglot revival (14) ·
   style sweep (7).
 
-**▶ HANDOFF (2026-06-11, Fable 5, Lon "perform hand off") — lower_common.c DE-LANG RUNG +
-RAKU LIST_BANG BINDING. SHAs: SCRIP `aa6425b` (HEAD==origin/main, clean build GREEN rc=0,
-tree clean; rebased over upstream PL-GZ-9 work, no overlap), .github THIS COMMIT. Two SCRIP
-rungs pushed; all gates held, NEWFAIL=0 throughout.**
+**▶ HANDOFF (2026-06-11, Fable 5, Lon "perform hand off") — lower_common.c HYGIENE SWEEP
++ SHARED HELPERS CONSOLIDATED. SHAs: SCRIP `040becb` (HEAD==origin/main, clean build GREEN
+rc=0, tree clean), .github THIS COMMIT. Four SCRIP commits this session; all gates held,
+NEWFAIL=0 throughout.**
 
-  **RUNG `45e1fca` (raku LIST_BANG loop-var binding):** `for @a -> $x { ... }` previously left
-  the loop variable unbound (the 4 EMPTY-SAME programs). CONJ now loops back to LIST_BANG (not
-  ASSIGN): EVERY→LIST_BANG→ASSIGN(var)→body→CONJ→LIST_BANG(retry). Gate: raku board 38/0/0.
-  REMAINING BUG: element-wise delivery still iterates \x01 frame-string characters — arrays built
-  by push_pure are stored as \x01-separated strings; `list_bang_at` falls through to the string
-  branch and iterates characters. `for @a -> $x { say($x) }` prints "1\n0\n..." for element 10
-  instead of "10\n". Key interp locations: LIST_BANG arm ~3799/3814, string fallthrough 2151-2160.
-  Fix: detect array-typed DESCR_t before the string fallthrough in `list_bang_at`
-  (src/interp/IR_interp.c:2122) OR unify push_pure/array repr with the DT_DATA "list" gen_type
-  path that `list_bang_at` already handles correctly at line 2123.
+  **RUNG `45e1fca` (raku LIST_BANG loop-var binding):** for @a -> $x now correctly binds $x
+  each iteration. CONJ loops back to LIST_BANG (not ASSIGN). Gate: raku 38/0/0.
+  REMAINING BUG: element-wise delivery iterates \x01 frame-string chars — push_pure stores
+  arrays as \x01-separated strings; `list_bang_at` falls through to the string branch.
+  `for @a -> $x { say($x) }` prints "1\n0\n..." for element 10 instead of "10\n".
+  Fix target: src/interp/IR_interp.c:2122 — detect array DT_DATA before string fallthrough
+  OR unify push_pure repr with the DT_DATA "list" gen_type path (already handles correctly
+  at line 2123). Four EMPTY-SAME programs blocked: rk_for_array, rk_for_array_underscore,
+  rk_map_grep_sort24, rk_reverse.
 
-  **RUNG `aa6425b` (lower_program.c → lower_common.c, Lon directive):** all language-specific
-  code purged from the common lower file and relocated to its owning lower_<lang>.c. Per-language
-  additions: lower_icon.c ← lower_proc_gen (ABI-kept, zero .c callers), icn_{subtree,body}_has_
-  suspend (renamed from proc_*), lower_icon_body(prog,proc), lower_icon_stage2; lower_pascal.c ←
-  pas_scope_chain, lower_pascal_body(prog,proc), lower_pascal_stage2 (param/local scope fill,
-  decl_level, nesting nslots); lower_prolog.c ← lower_pl_{clause,choice}_graph,
-  lower_pl_register_all_preds, pl_rt_assertz (LOAD-BEARING runtime export, nm-verified resolves
-  from lower_prolog.o), lower_pl_stage2 (goal_key from initialization directive, main reg);
-  lower_raku.c ← lower_raku_body(prog,proc), lower_raku_stage2; lower_snobol4.c ←
-  sno_parse_define_proto, lower_sno_stage2 (lang-purity check, label registry fill, DEFINE
-  proc-table). lower_common.c keeps: bb_label registry trio (sno + IR_interp consumers),
-  binop_apply (all langs), norm_charseq (renamed from pas_norm_charseq — \x01 repr is
-  cross-language), exported lp_s_int/lp_s_expr/lp_strdup (≥2 lowerers each), thin dispatcher.
-  g_nl_prog eliminated (prog as param). One build fix: LANG_* macros in scrip_cc.h — added
-  include in relocated snobol4/prolog sections. test_gate_stage2_isolation FAIL pre-existing on
-  baseline (unification.c — stash-verified rc=1 both legs).
+  **RUNG `aa6425b` (lower_program.c → lower_common.c):** all language-specific code purged
+  from the common lower file; each lower_<lang>.c got its own lower_<lang>_stage2 entry.
+  lower_common.c keeps: bb_label registry, binop_apply, norm_charseq, lp_s_int/expr/strdup,
+  dispatcher. g_nl_prog eliminated. One build fix: LANG_* macros in scrip_cc.h.
 
-  **SCOREBOARD FLOORS (gates, held this handoff):** sno 152/0, snocone 153/0, icon 7 (2 DIFFER
-  pre-existing), prolog 7/0, pascal 94 (11 DIFFER pre-existing stage2 delta), raku 38/0/9 SKIP.
+  **RUNG `9084faa` (lower.h dead decl purge):** all 59 lower_new_*/_ag and 12 dead
+  free-function declarations removed (zero .c implementations, zero .c callers confirmed).
+  lim_dcg_t dead typedef removed. Duplicate struct tree_t; forward decls removed. Kept:
+  lower_stage2, binop_apply, lower_proc_gen, alt_dcg_t, binop_dcg_t (live in IR_interp.c).
+
+  **RUNG `040becb` (γ_to/ω_to/build/stmt_subj consolidated):** four helpers duplicated
+  across all five lower_<lang>.c files moved to lower_common.c as lc_γ_to / lc_ω_to /
+  lc_build(IR_graph_t*, ...) / lc_stmt_subj; declared in lower.h. Each lowerer keeps
+  one-liner shims so ~270 call sites are untouched. Fixes the icon/snobol4 ω_to bug
+  (had "α" on the ω port; canonical lc_ω_to uses "β" per FOUR PORTS rule). Prolog's
+  γα_to/ωβ_to aliases also collapse to the shared functions. stmt_subj was in icon+raku+
+  prolog (3 copies); snobol4 uses sno_attr(s,":subj") for the same pattern — unchanged.
+
+  **SCOREBOARD FLOORS (held every rung):** sno 152/0, snocone 153/0, icon 7 (2 DIFFER
+  pre-existing), prolog 7/0, pascal 94 (11 DIFFER pre-existing), raku 38/0/9 SKIP.
   Boards: `bash scripts/scoreboard.sh {lang}`. Smokes: `scripts/test_smoke_*` (with
   `make libscrip_rt` first for mode-4); snocone smoke 3 pre-existing FAILs (OK).
 
   **REMAINING OPEN WORK:**
-  · **RAKU \x01 array iteration bug (IMMEDIATE NEXT):** `list_bang_at` string-branch iterates
-    characters of push_pure results. Fix: detect array DT_DATA before string fallthrough, OR
-    unify push_pure repr with DT_DATA "list" gen_type (src/interp/IR_interp.c:2122). Four
-    EMPTY-SAME programs unblocked: rk_for_array, rk_for_array_underscore, rk_map_grep_sort24,
-    rk_reverse. MAP/GREP blanks likely resolve with it. Raku gate target: 42+ MATCH / 0 DIFFER.
+  · **RAKU \x01 array iteration bug (IMMEDIATE NEXT):** fix `list_bang_at` at
+    src/interp/IR_interp.c:2122. Detect DT_DATA array before the string fallthrough
+    (line 2151), OR unify push_pure repr with DT_DATA "list" gen_type (line 2123 already
+    handles it correctly for DT_DATA with gen_type="list"). Four EMPTY-SAME programs
+    blocked: rk_for_array, rk_for_array_underscore, rk_map_grep_sort24, rk_reverse.
+    MAP/GREP blanks likely resolve with it. Raku gate target: 42+ MATCH / 0 DIFFER.
   · **Raku residue census:** 10 abort-kin, 4 silent, mainless program support.
   · **Pascal LAD-2d:** `__pas_strput` (Lon design) + ppp + 11-DIFFER pipeline-delta ruling.
   · **OPEN (Lon-blocked):** LAD-0b pointer-ival ruling; items (4)(5)(6)(7)(8)(12)(13)(14).
