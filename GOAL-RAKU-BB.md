@@ -558,7 +558,7 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-03) — RK-NFA-1 + RK-NFA-2 + RK-NFA-3 DONE (mode-2 regex via IR_NFA_* graph: verdicts + L4-L12 cset/anchor/alt verdict set + captures; `~~`/`$0`/`$<name>` lowering) + RK-NFA hardening (fuzz-found epsilon-loop SIGSEGV fixed via a (node,pos) memo); RK-HY-3 DONE; m2 25/25 HARD ✓; m3/m4 blocked on an Icon-owned gap.**
+**STATE (2026-06-12) — RK-LOWER fixes landed: m2 21/25 (was 16/25); m3/m4 0 silent FAIL (was 1). lower_rv() extended with TT_TO (standalone IR_TO src_sg for map/grep source drain, gamma=NULL), TT_GATHER (standalone IR_GATHER src_sg, gamma=NULL), TT_ARR_GET (chain base->idx->IR_IDX feeding ag_ring correctly), TT_HASH_GET/EXISTS (visible lower_rcall), TT_HASH_SET/DELETE (pure-variant writeback), TT_EVERY non-gather (direct generator pump, omega->outer-gamma for post-loop reach). IR_LIST_BANG extended with generator arm (IR_MAP/IR_GREP/IR_GATHER/IR_TO pump by re-calling IR_interp_node). scrip.c: IR_CALL dval==2.0 excised in icn_graph_native_emittable_mode (str_reverse bomb->clean SMX). Remaining 4 m2 failures: list_construct_read/array_sort/array_reverse (subscript_get is 1-based: @a[i] needs +1 offset or arr_get path), hash_set_get (hash_set_pure routing to verify). SCRIP HEAD 7463c09.**
 
 - **Modes:** m2 **25/25** (HARD ✓). m3 **1 PASS / 20 FAIL / 4 EXCISED**, m4 **2 PASS / 19 FAIL / 4 EXCISED**
   on the live trunk. (A `21/21` figure in old checkpoints was measured on a since-merged Raku branch tip and
