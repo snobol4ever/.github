@@ -469,11 +469,15 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 - **while_loop FIXED ✅ 2026-06-12:** Root cause: `bb_binop_relop` branches γ/ω via `cmp`+`j<cond>` but never writes a truthy descr into its slot; `bb_call_rk_bool` then read stale zeros → `rt_rk_is_truthy(0,0)` always 0 → while condition always false. Fix: `bb_call_rk_bool_str` detects when its arg is a BINOP relop (`rkbool_arg_is_relop(a0)`) and emits a pass-through (`jmp γ; def β; jmp ω`) — no slot read, no `rt_rk_is_truthy` call — because the BINOP template already sorted γ/ω before reaching `__rk_bool`. Single-file fix in `bb_call_rk_bool.cpp` (added `gen.h` include + `rkbool_arg_is_relop` predicate).
 
-- **RK-M34-1 ✅ 2026-06-12:** (history) Native m3/m4 unblocked for `var`, `arith`, `string_concat` (3 new PASS; `say_str` + `toplevel_no_main` retained). Also added `rt_rk_is_truthy()` and `bb_call_rk_bool.cpp`.
+- **Blocker analysis (2026-06-12) — next 3 EXCISED targets diagnosed:**
+  - **`bool_truthiness` / `bool_compare_store`:** Use `__rk_bool(dval=2.0)` — the if-condition/bool-assign form. The `dval==2.0` gate blocks these correctly; `bb_call.cpp` bombs dval==2.0. The dval==2.0 form carries a sub-graph (`IR_EXEC(bk).counter` = `IR_graph_t**`) — native emission requires sub-graph inlining or a pre-emission sub-graph flatten step. **Needed:** either (a) a new specialized path that detects `__rk_bool(dval=2.0)` with a simple-relop or literal-bool cblk and emits inline `cmp`/`jmp` without recursive sub-graph emission, or (b) a proper sub-graph inlining mechanism. NOT ready this session; stay EXCISED correctly.
+  - **`class_method`:** Uses `obj_new`, `meth_call`, `FIELD_GET` — none of these have native CALL templates writing a result slot. The ASSIGN gate (`icn_local_assign_rhs_ok_g`) rejects `IR_CALL` rhs (only LIT_I/S/VAR/BINOP-arith+concat/GEN_SCAN accepted). Unblocking requires: (a) native `obj_new`/`meth_call`/`FIELD_GET` templates that write to ζ-frame slot, (b) gate extension to accept `IR_CALL(dval==0.0)` as a valid ASSIGN rhs. Complex multi-template work; stay EXCISED.
+
+- **RK-M34-1 ✅ 2026-06-12:** (history) Native m3/m4 unblocked for `var`, `arith`, `string_concat`. Also added `rt_rk_is_truthy()` and `bb_call_rk_bool.cpp`.
 
 - **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop relop fix (all detailed in git log).
 
-- **NEXT:** (1) Extend m3/m4 PASS to `bool_truthiness` and `bool_compare_store` — these have `__rk_bool` with a non-relop boolean arg (likely a `VAR` reading a bool-valued slot); `bb_call_rk_bool` already handles that path via `rt_rk_is_truthy`. Check emittable gate: likely the BINOP/ASSIGN chain is accepted but the `bool_truthiness` arg shape is not relop. (2) `class_method` — proc dispatch. (3) RK-EMIT-MAP/GREP (blocked on Icon GZ-7). (4) RK-GRAM-3. The lockstep "three->four" FACT-RULE roster expansion still deferred.
+- **NEXT:** (1) `__rk_bool(dval=2.0)` — simplest path: detect in `bb_call.cpp` when `cblk` is a simple relop sub-graph (single BINOP-relop entry node), emit inline `cmp`+branch without recursion; gate then allows it. (2) `class_method` — needs `obj_new`/`meth_call`/`FIELD_GET` native arms + gate extension. (3) RK-EMIT-MAP/GREP (blocked on Icon GZ-7). (4) RK-GRAM-3.
 
 
 
