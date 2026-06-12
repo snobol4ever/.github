@@ -1,10 +1,10 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 · m3/m4 parity
 
-**PIVOT 2026-06-12 (Lon):** Priority is M3/M4 PARITY. m3=39, m4=39 vs m2=200. 95 m3 FAILs are silent miscompiles (empty output, not excised). Fix `emit_bb.c` + BB templates so native output matches m2. Gate: m3 PASS must increase each step.
+**PIVOT 2026-06-12 (Lon, session 2):** flat_drive_binop_gen_tree fixed (infinite loop + missing slot setup). m3/m4 now 44 (was 39). rung01_paper_lt now PASSES. paper_mult/compound still failing — retry-wiring interaction between EMIT_PAIR pair-table and bb_fill_alpha α-label needs one more session. Priority: finish binop_gen_tree retry wiring, then TO+relop compound chains.
 
 **PIVOT 2026-06-06 (Lon):** REVAMP/HYGIENE in GOAL-BB-FIXUP. This goal owns: lowerer (`lower_icon.c`), m2 interpreter (`IR_interp.c`), Icon runtime (`by_name_dispatch.c`, `aggregates.c`, `keywords.c`), and now m3/m4 native codegen parity.
 
-**Status:** m2 200/247 · m3 39/247 · m4 39/247 · XFAIL 36 (out of scope). HEAD=99e96e9.
+**Status:** m2 200/247 · m3 44/247 · m4 44/247 · XFAIL 36 (out of scope). HEAD=10db0c2.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 never decreases; m3/m4 trend up.
 
 ---
