@@ -12,29 +12,22 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ CURRENT PRIORITY — READ FIRST (2026-06-02): x86() TEMPLATE-REVAMP
+## ▶ CURRENT PRIORITY — READ FIRST (2026-06-12 PIVOT): m3/m4 PARITY WITH m2
 
-Convert this language's BB templates to the **`x86()` self-encoding API** (one return per `PLATFORM_*`, pure
-`x86(mnem,…)` concat, no `bb_bin_t`, pBB-free). The shared looping-box **keystone is LANDED at SCRIP
-`origin/main`=`30e8422` — REBASE ONTO IT BEFORE CONVERTING ANY BOX** (internal-label + ζ-frame support lives in
-the SHARED `x86_asm.h`; do not rebuild it or you collide).
-- **START HERE:** `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` (rules R1–R13, divvy-up table, landed API `x86_begin()`/
-  `L(n)`/`FR(off)`/`bb_slot_claim`, `x86_asm.h` vocabulary). **Reference:** `bb_pat_pos.cpp` (loop-free) +
-  `bb_pat_span.cpp` (looping). **Recipe:** `HANDOFF-2026-06-02-OPUS48-SNOBOL4-BB-TEMPLATE-REVAMP-V3-KEYSTONE-POS-SPAN.md`.
-- **STILL OPEN (shared):** the VARIABLE-LENGTH define/jmp-pair loop (combinators + FENCE pair path + Raku `bb_nfa`)
-  — first to reach a combinator designs it once in the RULES-DRAFT.
-- **YOUR BOXES:** `bb_rk_gather` ✅ (converted to `x86()` self-encoding 2026-06-02, Opus 4.8 — see Watermark),
-  `bb_nfa` (NEXT). The `bb_nfa_*` leaf boxes are DORMANT (the `~~` path runs on the C matcher); they are
-  loop-free single-shot leaves except a future SPLIT choice-point — so most convert like POS, and **`bb_nfa`'s
-  variable-length need (if any) is SHELVED with leaf-emission per the TIER-SEAM decision**. Start with the
-  loop-free NFA leaves when leaf-emission is un-shelved; the variable-length combinator idiom (STILL-OPEN) is
-  only needed for the subrule seam (RK-GRAM-3), not the dormant leaves.
-- The single-loop scaffolding (internal labels `L(n)` + ζ-frame `FR(off)`/`FRQ(off)` + `bb_slot_claim`) is
-  landed and PROVEN by the `bb_rk_gather` conversion (its chk loop uses `L(0)`; cursor + result DESCR ride the
-  ζ-frame). New GATHER-tier encoders added to `x86_asm.h` (additive): `x86_cmp_imm64`, `x86_load_indexed8`,
-  `x86_frame_inc64` — all byte-verified vs `as`.
-- Edit only your boxes + their dispatch/decl lines; `x86_asm.h` edits are additive; `git pull --rebase` before push.
-- (Full live status is in the **Watermark** near the end of this file.)
+**Pivoted by Lon 2026-06-12: drive m3/m4 to 31/31 matching m2 31/31. Stop case-by-case analysis; close the gap systematically.**
+
+The 25 EXCISED rungs fall into four groups — attack in order:
+
+**GROUP C (11 tests) — `bb_call_fn` slot-based MEDIUM_BINARY arm — WIP at HEAD `3fd0f01`:**
+`list_construct_read`, `array_sort`, `array_elems`, `array_reverse`, `str_reverse`, `array_push_pop`, `hash_set_get`, `hash_sigil_delete`, `say_jct`, `say_list`, `class_method`. Gate fix landed (`icn_rhs_kind_ok` now accepts `IR_CALL dval==0.0`). `bb_call_fn.cpp` rewritten to slot-based `rt_call_arr`, BUT the MEDIUM_BINARY arm uses forbidden raw-byte helpers (`x86_load_ro`, `x86_frame_lea`, `x86_call_ro`, `x86_frame_store64`) directly — violating the ONE-MEDIUM FACT RULE. **First task next session:** convert MEDIUM_BINARY arm to pure `x86(...)` calls (add missing dispatch cases to `x86_asm.h` if needed). Expect Group C to flip EXCISED→PASS.
+
+**GROUP B (9 tests) — `__rk_bool(dval=2.0)` sub-graph condition:**
+`jct_any/all/one/none/infix/str/nested`, `bool_truthiness`, `bool_compare_store`. Condition sub-graph in `IR_EXEC.counter`. Simplest path: detect when `cblk->entry` is BINOP-relop or VAR/literal, emit inline cmp+branch in `bb_call.cpp`. Gate fix needed (whitelist `__rk_bool dval==2.0`).
+
+**GROUP A (5 tests) — GATHER/MAP/GREP IR nodes:**
+`gather_take`, `map_range`, `grep_range`, `map_over_gather`, `grep_over_gather`. Complex generator machinery; tackle after B and C.
+
+**x86() TEMPLATE-REVAMP (prior priority — now SECONDARY):** `bb_rk_gather` ✅ done. `bb_nfa` SHELVED per TIER-SEAM decision.
 
 ---
 
@@ -463,26 +456,21 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-12) — while_loop FIXED: m3/m4 6 PASS / 0 FAIL. SCRIP HEAD `b5df67a`.**
+**STATE (2026-06-12 PIVOT) — GROUP C WIP at HEAD `3fd0f01`. m3/m4 6/0/25. SCRIP HEAD `3fd0f01`.**
 
 - **Modes:** m2 **31/31** (HARD ✓). m3 **6 PASS / 0 FAIL / 25 EXCISED**, m4 **6 PASS / 0 FAIL / 25 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 7/7, NFA oracle **5/5 PASS**, `g_vstack`=0.
 
-- **while_loop FIXED ✅ 2026-06-12:** Root cause: `bb_binop_relop` branches γ/ω via `cmp`+`j<cond>` but never writes a truthy descr into its slot; `bb_call_rk_bool` then read stale zeros → `rt_rk_is_truthy(0,0)` always 0 → while condition always false. Fix: `bb_call_rk_bool_str` detects when its arg is a BINOP relop (`rkbool_arg_is_relop(a0)`) and emits a pass-through (`jmp γ; def β; jmp ω`) — no slot read, no `rt_rk_is_truthy` call — because the BINOP template already sorted γ/ω before reaching `__rk_bool`. Single-file fix in `bb_call_rk_bool.cpp` (added `gen.h` include + `rkbool_arg_is_relop` predicate).
+- **PIVOT (Lon 2026-06-12):** Goal = m3/m4 parity with m2 (31/31). 25 EXCISED diagnosed into 4 groups; Group C (11 tests) is immediate target with WIP at HEAD.
 
-- **Blocker analysis (2026-06-12) — next 3 EXCISED targets diagnosed:**
-  - **`bool_truthiness` / `bool_compare_store`:** Use `__rk_bool(dval=2.0)` — the if-condition/bool-assign form. The `dval==2.0` gate blocks these correctly; `bb_call.cpp` bombs dval==2.0. The dval==2.0 form carries a sub-graph (`IR_EXEC(bk).counter` = `IR_graph_t**`) — native emission requires sub-graph inlining or a pre-emission sub-graph flatten step. **Needed:** either (a) a new specialized path that detects `__rk_bool(dval=2.0)` with a simple-relop or literal-bool cblk and emits inline `cmp`/`jmp` without recursive sub-graph emission, or (b) a proper sub-graph inlining mechanism. NOT ready this session; stay EXCISED correctly.
-  - **`class_method`:** Uses `obj_new`, `meth_call`, `FIELD_GET` — none of these have native CALL templates writing a result slot. The ASSIGN gate (`icn_local_assign_rhs_ok_g`) rejects `IR_CALL` rhs (only LIT_I/S/VAR/BINOP-arith+concat/GEN_SCAN accepted). Unblocking requires: (a) native `obj_new`/`meth_call`/`FIELD_GET` templates that write to ζ-frame slot, (b) gate extension to accept `IR_CALL(dval==0.0)` as a valid ASSIGN rhs. Complex multi-template work; stay EXCISED.
+- **GROUP C WIP — two-part fix, part 2 incomplete (`3fd0f01`):**
+  - **Part 1 LANDED ✅:** `icn_rhs_kind_ok` extended to accept `IR_CALL dval==0.0` as ASSIGN rhs (`src/driver/scrip.c`). Gate now passes `arr_get`, `hash_exists`, `elems`, `meth_call`, `obj_new`, etc.
+  - **Part 2 INCOMPLETE ⚠:** `bb_call_fn.cpp` rewritten to slot-based `rt_call_arr` (alloc `resoff`+`argbase`, copy operand slots, call `rt_call_arr`, store result, `cmp eax,99` fail-check). MEDIUM_TEXT arm: correct pure `x86(...)`. MEDIUM_BINARY arm: FORBIDDEN — uses `x86_load_ro`, `x86_frame_lea`, `x86_call_ro`, `x86_frame_store64` directly, bypassing `x86()` funnel. Fix required: convert each to `x86("call", fn, fptr)` / `x86("mov", FRQ(off), "rax")` etc. Check `x86_asm.h` for existing dispatch cases; add missing ones there (additive).
 
-- **RK-M34-1 ✅ 2026-06-12:** (history) Native m3/m4 unblocked for `var`, `arith`, `string_concat`. Also added `rt_rk_is_truthy()` and `bb_call_rk_bool.cpp`.
+- **while_loop FIXED ✅ 2026-06-12:** `bb_call_rk_bool_str` relop pass-through (`rkbool_arg_is_relop`). Commit `b5df67a`.
 
-- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop relop fix (all detailed in git log).
+- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix (git log).
 
-- **NEXT:** (1) `__rk_bool(dval=2.0)` — simplest path: detect in `bb_call.cpp` when `cblk` is a simple relop sub-graph (single BINOP-relop entry node), emit inline `cmp`+branch without recursion; gate then allows it. (2) `class_method` — needs `obj_new`/`meth_call`/`FIELD_GET` native arms + gate extension. (3) RK-EMIT-MAP/GREP (blocked on Icon GZ-7). (4) RK-GRAM-3.
-
-
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
-
+- **NEXT (ordered):** (1) Fix MEDIUM_BINARY arm in `bb_call_fn.cpp` — expect Group C 11 tests EXCISED→PASS. (2) Group B `__rk_bool(dval=2.0)` inline-cmp (9 tests). (3) Group A GATHER/MAP/GREP (5 tests). (4) RK-GRAM-3.
 ---
 ---
 
