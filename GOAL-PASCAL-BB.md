@@ -19,49 +19,57 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ## ▶ CURRENT STATE
 
-**Session 39 (2026-06-11): PB-30 — IR_WHILE infinite-loop fix landed. Gate 101/0.**
-Gate: **m2 101/0** (101 probes, +1 new pb30.pas). SCRIP `da7b809`, corpus `7a963f57`.
+**Session 40 (2026-06-11): PB-30 — arr_get packed-string fix landed; pcom blocker #2 ROOT-CAUSED with minimal reproducer (pb40.pas). Gate 102/0.**
+Gate: **m2 102/0** (+pb39). Commit hashes: see git log (SCRIP + corpus pushed this session).
 
 **Fixed this session:**
-- **IR_WHILE infinite loop on set-membership while-conditions** (`src/interp/IR_interp.c`).
-  The `IR_WHILE` handler called `IR_interp_node(cnd)` once and checked `IS_FAIL_fn(IR_EXEC(cnd).value)`.
-  For conditions like `while sy in statbegsys` the parser wraps via `pas_cond()` as
-  `TT_NE(TT_FNC(__pas_in,...), ILIT(0))`. The entry node is the `__pas_in` CALL which always returns
-  INTVAL(0/1), never FAILDESCR. The downstream BINOP_NE that converts 0→FAIL was never reached.
-  Result: `while sy in set` inside any outer loop (for, repeat) ran forever.
-  Fix: replaced single-shot call with a mini chain-walk loop mirroring `IR_interp_once` semantics —
-  walks from `cnd` through γ edges calling `ag_ring_push` at each step, stops when `cur==bb` (WHILE
-  node reached via ω = condition false) or FAIL. Covers all non-relop while conditions including
-  set-membership, boolean-func, and any compound non-relop expression.
-  Bisect confirmed: `for i:=1 to 3 do begin sy:=5; while sy in s do ... end` — for 1..2 passed,
-  1..3 hung. Zero-iteration while (sy not in set) also hung on 3rd for-iteration proving spurious
-  condition fire, not body loop.
-- **New probe:** `corpus/programs/pascal/pb30.pas` — 20 cycles of `while sy in funcprocsy` +
-  `repeat statement until not (sy in statbegsys)`. Was timeout; now correct (20/120/20).
+- **arr_get FAILed on element reads of bulk-assigned char arrays** (`src/runtime/by_name_dispatch.c` arr_get, ~line 1126).
+  Bulk assign `src := 'x.        '` stores a PLAIN string (no SOH); arr_get only walked
+  SOH-delimited segments, so `ch := src[i]` returned FAILDESCR for any i>=1, silently severing
+  continuation (straight-line: silent early exit; inside repeat/while ω-cycles: spin until the
+  IR_interp_once safety counter bails — i.e. an apparent hang). READ-path twin of the session-37
+  pas_norm_charseq relop fix. Fix: one guarded arm before the SOH walk — if no SOH present and
+  1 <= idx <= strlen, return INTVAL(ordinal of cur[idx-1]) (1-based packed read, matches
+  elem_to_descr's INT convention). idx==0 and OOB behavior unchanged; SOH arrays unchanged.
+- **New probe:** `corpus/programs/pascal/pb39.pas` (+.ref) — bulk-assign then element reads,
+  straight-line and in a repeat. Was silent-exit; now correct.
 
-**pcom.pas status after fix:**
-- `scrip --interp pcom.pas < hello.pas` STILL exits after line 1 (`     1        9 program hello;`).
-  The IR_WHILE fix removes one blocker but another survives. The while-sy-in-[procsy,funcsy] in
-  block() is now correct; the early exit is in a different path inside body()/compoundstatement()/
-  statement() call chain for the actual writeln('Hello World!') statement.
-- `program x; begin end.` HANGS (timeout). Truncated input (no begin/end) causes pcom's insymbol
-  to print `*** eof encountered` in a tight loop (expected pcom behavior for truncated input, not
-  a SCRIP bug). The hang with complete input is a separate blocker from the while-set fix.
-- Isolated constructs all pass: block/body repeat-until-set, statement dispatch with setuni,
-  setofsys-param procs, nested call chains. The remaining blocker only manifests at pcom scale.
+**pcom blocker #2 — ROOT-CAUSED, FIX PENDING (start here):**
+- Minimal reproducer: **`corpus/programs/pascal/pb40.pas`** (intentionally NO .ref → gate skips).
+  Structure: a case arm containing `if c then s else <repeat or while>;` followed by a for-loop.
+  Oracle prints `0`; SCRIP silently exits (small graph) / appears to hang (pcom-size graph).
+- Mechanism (verified by IR dump of the reproducer, `scrip --dump-bb`): the for-loop's exit edge
+  (limit-compare BINOP's ω) is wired to the PRECEDING if-statement's IR_IF marker node instead of
+  the next statement. The IR_IF handler (IR_interp.c ~2843), when reached, evaluates its condition
+  and returns bb->γ — which points at the for-INIT → cycle: for-init → limit-compare fails →
+  IR_IF → γ → for-init, forever. Runtime path irrelevant (then-branch taken also fails);
+  empty/non-empty for range irrelevant (any for-exit enters the cycle). This is the insymbol
+  rw-lookup spin: `for i := frw[k] to frw[k+1]-1` re-reads both bounds endlessly after the
+  letter-token case-arm's `if k >= kk then ... else repeat id[kk]:=' '...` — explains BOTH
+  original symptoms (hello.pas early exit + `program x; begin end.` hang).
+- Reproducer ladder kept in this note for re-derivation if needed: case+if/else-loop+for FAILS
+  (pb40); remove the case → passes; remove the else-loop → passes; replace for with plain stmt →
+  passes; while-in-else also fails; goto/label NOT required; chararr NOT required.
+- **NEXT:** fix the wiring in `src/lower/nl/lower_pascal_nl.c` (lower_if continuation/ω handling
+  when an else-branch contains a loop and a for-statement follows inside a case arm) — or make
+  IR_IF reached-via-ω fail through to its own ω instead of returning γ. Verify with pb40 (then
+  add pb40.ref = `0`), then `echo "program x; begin end." | scrip --interp pcom.pas` (expect the
+  ';' to echo and parsing to proceed), then hello.pas end-to-end, then full gate.
+- After blocker #2: pcom may surface further blockers; the per-char echo listing makes the
+  bisection loop fast (`stdbuf -o0`, watch where the echo stops; strace shows pure-CPU spin vs IO).
 
-**NEXT — PB-30 continues:**
-Write a probe that exactly mirrors pcom's `programme()→block()→body()→compoundstatement()→
-statement()` chain at full call depth with the correct set-membership conditions at every level:
-- `programme`: `repeat block until (sy=period) or eof`  
-- `block`: `repeat [while sy in [procsy,funcsy]] until (sy in statbegsys) or eof` + `repeat body until (sy=fsy) or (sy in blockbegsys) or eof`
-- `body`: `repeat repeat statement until not (sy in statbegsys); test:=sy<>semicolon until test`
-- `statement`: `if sy in statbegsys+[ident] then case sy of ident: call(...)`
-Run this at the same token sequence as `program hello; begin writeln(...) end.` to isolate which
-of these constructs produces the early exit. Candidates: (a) body()'s outer `repeat body until
-(sy=fsy) or (sy in blockbegsys)` — the `sy in blockbegsys` part is a set-membership condition
-inside a repeat, which goes through lower_repeat's NE-wrap path; (b) statement()'s
-`if sy in statbegsys+[ident]` — a set-union then set-membership in an if-condition.
+**Refactor request (Lon, session 40): dynamic arrays everywhere.**
+Replace fixed-cap arrays/stacks/queues (FRAME_SLOT_MAX=64 Scope.e, FRAME_STACK_MAX=256
+frame_stack, SNO_SAVE_MAX=4096, NAME_SAVE_MAX, rt_frames, etc.) with malloc/calloc/realloc/free
+dynamic growth — Lon explicitly wants realloc-style one-line insert/delete idioms. Notes from
+session 40: (1) wrap as xrealloc — realloc(p,0) is implementation-defined (C17) / UB (C23);
+map size 0 → free+NULL to keep the idiom portable. (2) GC HAZARD: arrays holding DESCR_t roots
+(frame_stack, g_sno_save, Scope) are statics that Boehm GC scans automatically; plain-malloc'd
+replacements are INVISIBLE to the collector → use GC_malloc/GC_realloc (GC_malloc_uncollectable)
+or GC_add_roots for descriptor-bearing arrays; plain realloc is fine for non-DESCR metadata.
+(3) Known silent-truncation sites to kill: lower_program.c scope build (~560, ~700, ~720),
+IR_interp.c dval==3.0 IR_CALL scope copy (~2426, no guard — truncates >64 silently),
+invocation.c nslots clamp, rt.c rt_frames.
 
 **Fixed this session (Session 37 fix summary retained for reference):**
 
