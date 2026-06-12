@@ -489,4 +489,53 @@ emitter work, no overlap), .github THIS COMMIT. Two pushed SCRIP rungs; gates he
   harness retirement ruling (12) · hygiene (13) · cross_lang polyglot revival (14) ·
   style sweep (7).
 
+**▶ RUNG `aa6425b` (2026-06-11, Fable 5, Lon directive) — lower_program.c → lower_common.c: ALL
+language-specific code PURGED, executed as planned below. (Also `45e1fca`: raku LIST_BANG
+loop-var binding — ASSIGN binds -> $x each iteration; element-wise \x01-repr delivery still
+open.) — lower_program.c → lower_common.c: PURGE ALL
+LANGUAGE-SPECIFIC CODE. The LOWER stages are segregated; the common file keeps only helpers
+that serve all/most lowerers (reduce duplication, increase sharing).**
+
+  **SURVEY (605 lines):** language-specific residue = Icon (lower_proc_gen GeneratorState wrapper,
+  proc_{subtree,body}_has_suspend, lower_icon_body, ICN stage2 block), Pascal (pas_scope_chain,
+  lower_pascal_body, PASCAL stage2 block w/ scope-fill + nesting nslots), Prolog (lower_pl_clause_
+  graph/choice_graph/register_all_preds, pl_rt_assertz runtime hook, PL stage2 goal_key block,
+  term.h/prolog_atom.h includes), Raku (lower_raku_body, RAKU stage2 block), SNOBOL4
+  (sno_parse_define_proto, lower_sno DEFINE/proc-table builder). Neutral keepers: bb_label
+  registry trio (lower_sno + IR_interp consumers), binop_apply (all langs), charseq \x01
+  normalizer (the SHARED frame-string runtime repr — raku arrays use it too, not Pascal-only:
+  rename pas_norm_charseq → norm_charseq, stays), lp_s_int/lp_s_expr/lp_strdup (≥2 lowerers
+  each → export via lower.h), lower_stage2 dispatcher skeleton + polyglot init.
+
+  **STEPS:**
+  1. Icon → lower_icon.c: lower_proc_gen, suspend scanners, lower_icon_body (takes prog param,
+     drops g_nl_prog), ICN block → `void lower_icon_stage2(const tree_t *prog)`.
+  2. Pascal → lower_pascal.c: pas_scope_chain, lower_pascal_body, PASCAL block →
+     `void lower_pascal_stage2(const tree_t *prog)`.
+  3. Prolog → lower_prolog.c: the 4 pl functions + PL block → `void lower_pl_stage2(const
+     tree_t *prog)`; move term.h/prolog_atom.h includes with them. pl_rt_assertz is a
+     LOAD-BEARING runtime export — keep extern linkage, verify nm after move.
+  4. Raku → lower_raku.c: lower_raku_body, RAKU block → `void lower_raku_stage2(const tree_t *)`.
+  5. SNOBOL4 → lower_snobol4.c: sno_parse_define_proto + lower_sno →
+     `int lower_sno_stage2(const tree_t *prog)`.
+  6. Common keeps: label registry, norm_charseq (renamed), binop_apply, exported lp_* helpers
+     (prototypes → lower.h), thin lower_stage2 dispatching to the 5 extern stage2 entries.
+  7. git mv lower_program.c lower_common.c; Makefile lines 237 + 523 (lower_program.o →
+     lower_common.o); clean /tmp/si_objs (stale-obj hazard per `662f249`).
+  8. GATE: clean build; smoke; all 6 boards at floor — sno 152, snocone 153, icon 7 (2 DIFFER
+     pre-existing), prolog 7, pascal 94 (11 DIFFER pre-existing), raku 38/0. nm-audit: each
+     lowerer exports only its lower_<lang> family + stage2 entry; common exports no lang symbols.
+
+  **GATE EVIDENCE (`aa6425b`, 645+/607−, 8 files):** build GREEN; all 6 boards AT floor,
+  NEWFAIL=0 everywhere; smokes at watermark with `make libscrip_rt` (sno 7/7 HARD, icon m3+m4
+  10/12 same 2 pre-existing, prolog m3+m4 5/5, snocone 2/5 pre-existing, raku 1 PASS/1 FAIL/23
+  EXCISED both modes == baseline via stash A/B); test_gate_lower_isolation OK;
+  test_gate_stage2_isolation FAIL is PRE-EXISTING on baseline (unification.c g_pl_pred_table
+  bare refs, file untouched — stash-verified rc=1 both legs). nm-AUDIT: lower_common.o exports
+  only {bb_label_* trio, binop_apply, lower_stage2, lp_s_int/lp_s_expr/lp_strdup}; each lowerer
+  only its lower_<lang> family + stage2 entry; pl_rt_assertz resolves from lower_prolog.o.
+  ONE BUILD FIX vs plan: LANG_* macros live in parser/snobol4/scrip_cc.h — included in the
+  relocated sections of lower_snobol4.c and lower_prolog.c. Stale-obj hazard honored
+  (/tmp/si_objs cleaned both legs).
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
