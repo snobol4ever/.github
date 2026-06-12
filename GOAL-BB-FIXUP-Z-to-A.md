@@ -1,7 +1,7 @@
 # GOAL-BB-FIXUP-Z-to-A.md — BB Template Sweep: Z → A (descending order)
 
 **Carved:** 2026-06-12 (Lon directive — split from GOAL-BB-FIXUP.md)
-**Direction:** Z→A (bb_var_global … bb_aggregate_nb) — sweeps backward alphabetically; crosses A-to-Z twin somewhere in the middle; second lap after crossing.
+**Direction:** Z→A — DESCENDING alphabetical order. bb_var_global is the FIRST stop (nearest Z). bb_aggregate_nb is the LAST stop (nearest A). Each session resumes from the `# CURSOR:` line at the bottom of this file and moves to the NEXT FILE ALPHABETICALLY EARLIER (i.e., the next file whose name sorts BEFORE the cursor in standard A→Z order). Example sequence: bb_var_global → bb_unop → bb_unify → bb_to → bb_succeed → … → bb_aggregate_nb → wrap to bb_var_global.
 **Scope expanded:** 2026-06-07 (Lon directive, 13th run) — ALL other BB hygiene/revamp goals abandoned; this goal is the SINGLE OWNER of every BB template problem.
 **Repo:** SCRIP + .github
 **Sister:** GOAL-SNOBOL4-BB.md (canonical TEMPLATE SPEC v2 text) · GOAL-ICON-BB.md · GOAL-PROLOG-BB.md · `.github/BB-REVAMP-TRACKER.md` (work queue + per-file [S] state + cursor; MOVED from SCRIP→.github 2026-06-08 35th run)
@@ -96,6 +96,13 @@ Lon opens a session when a run is wanted; the cursor resumes it from cold. NO br
 - [ ] **FIX-FENCE** — All v2 gates `--strict` zero · emit-blind `--strict` green · a full clean lap · this fence in every generator goal's Session Setup.
 
 ## Session Setup
+⛔ **CURSOR ORIENTATION — READ THIS FIRST:**
+The `# CURSOR:` line at the bottom of this file names the file currently being worked.
+Z→A means DESCENDING: after finishing the cursor file, advance to the file whose name comes JUST BEFORE it alphabetically.
+Example: cursor=bb_unop → next=bb_unify → next=bb_to → next=bb_succeed → …
+If cursor file is HOT (non-fixup commit in last 6h) or has a PIN-NEEDED [S] block: skip it, advance to the next.
+DO NOT jump to random files. DO NOT go forward (A→Z). Always go backward (Z→A).
+
 ```bash
 cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
@@ -138,6 +145,6 @@ bash scripts/test_gate_no_vstack.sh                  # g_vstack 0
 
 **2026-06-12 57th attended run (Sonnet 4.6), Lon attending ("What % … Continue" / "What % … Perform hand off"). ORIENTATION + DEEP ANALYSIS of cursor file; NO commits. Session open: GRAND=2014 (125 files / 108 dirty / 17 clean — concurrent reductions since 56th close). RING STOP bb_gvar_assign.cpp TOTAL=66 (mt=7 rp=30 hc=14 sd=4 cl=1 bp=10) — FULL ANALYSIS COMPLETE, regeneration NOT executed (law-7 context stop at ~75%). FINDINGS: (1) bb_gvar_assign dispatched ONLY when !g_descr_flat_chain (emit_core.c:449); the internal descr arm (if g_descr_flat_chain) is DEAD CODE — never reachable — DELETE on next session. (2) IR_SEQ arm has load-bearing BINARY/TEXT split: BINARY uses x86_load_ro (movabs raw graph pointer — ONE-MEDIUM violation); TEXT uses bga_seq_parts parts loop. Per 56th-run Lon directive "mode 3 and mode 4 should be identical" — BINARY movabs arm DELETE, keep TEXT parts path only; [S] note: mode-3 IR_SEQ assign loses fast path (acceptable since g_descr_flat_chain=1 in all production). (3) 5× IF(MEDIUM_TEXT, label+comment) wrappers → delete all (label+comment medium-complete in x86()). (4) bga_seq_parts multi-emit helper → inline at call site (R2). (5) x86_frame_load64/x86_frame_store64 → convert to x86("mov",FRQ(...)) dispatch form (bp reduction). (6) x86_ro_load_q/x86_ro_seal_str — no dispatch equivalent exists, remain as bp= residue (structural limit, noted). (7) All 15 static inline helpers → inline at call sites (R4 helper-constellation dissolution). (8) IR_CALL arm: TEXT/BINARY paths identical except label+comment head → merge. (9) ONE return per PLATFORM via chained IF/ternary. SCRIP @ a1a2191 (no change). .github @ this commit. NEXT SESSION: execute bb_gvar_assign.cpp regeneration per above design — stash baseline, regenerate, full gate battery, asm-diff proof, commit.**
 
-**TWIN DIRECTION: Z→A. Sweeps bb_var_global.cpp … bb_aggregate_nb.cpp in descending alphabetical order. Starts at the Z end and works backward. Crosses GOAL-BB-FIXUP-A-to-Z twin mid-alphabet; second round begins after crossing. Cursor starts at the last file (Z end).**
+**TWIN DIRECTION: Z→A = DESCENDING = BACKWARD through alphabet. bb_var_global is FIRST (Z end). bb_aggregate_nb is LAST (A end). Each stop moves to a SMALLER name. Sister goal GOAL-BB-FIXUP-A-to-Z goes the other direction.**
 
 `# CURSOR: bb_gvar_assign.cpp`
