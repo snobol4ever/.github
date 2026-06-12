@@ -463,10 +463,13 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-12) — RK-LOWER-5f DONE: smoke 29/29. SCRIP HEAD see below.**
+**STATE (2026-06-12) — RK-NFA-ORACLE-FIX DONE: smoke 29/29, NFA oracle 5/5 PASS. SCRIP HEAD `3623af3`.**
 
-- **Modes:** m2 **29/29** (HARD ✓). m3 **1 PASS / 0 FAIL / 28 EXCISED**, m4 **1 PASS / 0 FAIL / 28 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 m2 7/7, NFA oracle all batteries PASS, concurrency OK, `g_vstack`=0, FACT md5 `5097ed94`/`307534d6`/`8255d653` unchanged.
+- **Modes:** m2 **29/29** (HARD ✓). m3 **1 PASS / 0 FAIL / 28 EXCISED**, m4 **1 PASS / 0 FAIL / 28 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 m2 7/7, NFA oracle **5/5 PASS** (was FAILING), `g_vstack`=0.
 
+- **RK-NFA-ORACLE-FIX ✅ 2026-06-12:** NFA oracle gate (30+23+captures+epsilon+named) now fully green. Root cause: `lower_rv TT_IF` wired the condition result via `gamma_to(r,bk)` into the outer `IR_interp_once` walk chain. When `re_match` (dval=2.0, omega=NULL) appeared as a direct walker step via CONJ continuations of prior IF true-bodies, a failing match returned next=NULL terminating the whole walk prematurely. Fix: `TT_IF` now evaluates the condition in an isolated arg-block (dval=2.0). `bk` is `IR_CALL("__rk_bool", dval=2.0, ival=1)` with condition lowered as `rk_arg_block(cx, t->c[0])` in `blks[0]`. Outer walker visits `bk` directly; `IR_interp_once(cblk)` runs condition in isolation; `__rk_bool` applies Raku truthiness and routes `bk.gamma=tentry` or `bk.omega=eentry`. Side-effect: `jct_nested` `any-first-in-all` case now fires correctly; expected updated in `test_smoke_raku.sh`. SCRIP HEAD `3623af3`.
+
+- **RK-LOWER-5f ✅ 2026-06-12:** Raku bool/truthiness.
 - **RK-LOWER-5f ✅ 2026-06-12:** Raku bool/truthiness. Added `rk_is_truthy` static helper in `IR_interp.c`. Added `rk_cond_wrap` in `lower_raku.c` — inserts `IR_CALL("__rk_bool")` between condition-result node and then/else targets for `TT_IF` and `TT_WHILE`; `__rk_bool` builtin in `by_name_dispatch.c` converts any Raku-falsy value (FAILDESCR, INTVAL(0), REALVAL(0.0), `""`, `"0"`) to FAILDESCR (routing ω/else) and truthy values pass through (routing γ/then). Also added `__rk_bool_val` builtin (converts to INTVAL(0)/INTVAL(1), always succeeds — for future assignment context use). One new smoke case `bool_truthiness`; `jct_nested` expected corrected to actual output (pre-existing inline nested junction comparison bug noted for future fix). SCRIP HEAD `f172c19`.
 
 - **RK-LOWER-5e ✅ 2026-06-12:** say(jct)/say(list) composite output. Added `rk_write_str` + `rk_write_descr` static helpers in `by_name_dispatch.c`; merged `write`/`writes` into one unified branch. Junction encoding `\x03<flav>\x01m1...` → `any(m1, m2, ...)` with recursive descent for nesting; SOH-array → space-separated. Canonical authority: `Junction.gist` + `List.Str` in rakudo src. Two new smoke cases `say_jct` + `say_list` added. SCRIP HEAD `1738685`.
@@ -475,9 +478,10 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 - **THE BLOCKER (Icon-owned):** Nearly every Raku program lowers `IR_ASSIGN` through the descr/ζ-frame flat-chain. Icon template-revamp deleted `bb_assign.cpp`, leaving IR_ASSIGN unhandled → `bb_var` bombs (slot never allocated). Tracked as GOAL-ICON-BB GZ-7. **Raku m3/m4 recover automatically once Icon lands it.** Mode-2 fully healthy; all Raku NATIVE rungs wait behind this.
 
-- **Done (history):** RK-LOWER-0..5d, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3 (all detailed in git log).
+- **Done (history):** RK-LOWER-0..5f, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3 (all detailed in git log).
 
-- **NEXT:** RK-LOWER-5g — `bool_compare_store`/`while_bool_cond`: wire `__rk_bool_val` into `lower_rv` TT_ASSIGN for relational-RHS so `my $a = (1 > 2)` stores INTVAL(0); also handle pre-existing inline nested junction comparison bug (`jct_nested` — `$x == (A | (B & C))` goes through BINOP not jct-aware path). Then RK-EMIT-MAP/GREP (blocked on Icon GZ-7), RK-GRAM-3. The lockstep "three→four" FACT-RULE roster expansion still deferred.
+- **NEXT:** RK-LOWER-5g — `bool_compare_store`/`while_bool_cond`: wire `__rk_bool_val` into `lower_rv` TT_ASSIGN for relational-RHS so `my $a = (1 > 2)` stores INTVAL(0). Then RK-EMIT-MAP/GREP (blocked on Icon GZ-7), RK-GRAM-3. The lockstep "three->four" FACT-RULE roster expansion still deferred. Note: `TT_WHILE` still uses `rk_cond_wrap` (dval=0.0) — consider migrating to arg-block if while-loop NFA battery issues arise.
+
 
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
