@@ -7,8 +7,8 @@ No language-specific logic in any BB/XA template: templates dispatch on IR shape
 
 ## ▶ STATE (2026-06-12)
 
-Watermark: SCRIP `fa6aefb` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b, char_type, sort/msort LANDED.**
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 (rung23_arith_ext_power: pre-existing int-power float bug) · m3 **63**/57-FAIL (ratchet floor=63) · m4 **57**/41-FAIL+17-EXCISED (ratchet floor=57).
+Watermark: SCRIP `d75d8c8` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b, char_type, sort/msort, numbervars LANDED.**
+Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 (rung23_arith_ext_power: pre-existing int-power float bug) · m3 **68**/47-FAIL (ratchet floor=68) · m4 **56**/42-FAIL+17-EXCISED (ratchet floor=56).
 
 **sort/2 + msort/2 LANDED (2026-06-12):** `IR_DET_SORT`; `rt_pl_sort_cell(int do_msort, void *list_cell, void *result_cell)` in `unification.c` — list walk + insertion sort + dup-filter (msort skips) + rebuild cons list + `unify(result_cell, result, trail)`; uses `prolog_atom_intern(".")` and `prolog_atom_intern("[]")` (NOT `ATOM_DOT`/`ATOM_NIL` — those are uninitialized in m4 separate-process binary until `rt_main_init` runs, and `sort_msort_common` in `IR_interp.c` is called from `libscrip_rt.so` via the rich-body-root path before that). `bb_det_sort.cpp` (edi=do_msort, rsi=FRQ list_cell, rdx=FRQ result_cell, call, test/jne γ/jmp ω); 3-part prepare (ival[0]=do_msort, [1]=list_slot, [2]=result_slot) in `emit_bb.c`; dispatch in `emit_core.c`; Makefile. Four scrip.c sites: `pl_gz_rule_body_goal_ok` (IR_STRUCT/ATOM/LOGICVAR list, LOGICVAR result), `pl_gz_rule_clause` whitelist, `pl_gz_count_synth_goal` (+1 if list non-LOGICVAR), `pl_gz_build_goal` (sort arm before comparator — list synth slot when IR_STRUCT/ATOM). Same fix applied to `sort_msort_common` in `IR_interp.c` (rich-body-root path). m3: 58→63 (+5). No m4 regression (rung17 non-empty m4 failures are pre-existing rich-body-root architectural mismatch, not caused by this change).
 
@@ -199,16 +199,32 @@ GUT (as new path re-admits each rung): resolution.c control engine · meta rail 
 
 ## 🔴 PL-GZ-9 — corpus reconquest
 
-Current m3: **63**/57-FAIL. Ratchet: never regress.
+Current m3: **63**/115. Ratchet: never regress. Full audit 2026-06-12 (Sonnet 4.6).
 
-Recommended next targets (each ~5 rungs, deterministic, same admission recipe):
-- **rung20** — `numbervars/3`: new `IR_DET_NUMBERVARS`, `rt_pl_numbervars_cell`; mirrors `rt_numbervars_term` in `IR_interp.c`. Three `ir_call_arg`s.
-- **rung26** — `copy_term/2`, `string_to_atom/2`: follow atom_op recipe.
-- **rung29** — `float_integer_part/1`, `float_fractional_part/1`, `truncate/1`, `ceiling/1`, `floor/1`: arith extensions via `IR_DET_IS` (already admitted) or new `IR_DET_FLOAT_OP`.
+**52 m3 failures, 44 m4 failures.** All m3 failures hit PL-GZ FENCE ("not admitted"). Groups:
 
-findall/catch/throw/aggregate/dynamic-DB are larger work (PT-2/PT-3/PT-4); defer until simpler deterministic shapes exhausted.
+**GROUP A — new IR_DET_* builtins (deterministic, cell-based, admission recipe):**
+- [x] **A1 — rung20 numbervars/3 (+5 m3) LANDED d75d8c8:** `IR_DET_NUMBERVARS`; `rt_pl_numbervars_cell(void *term_cell, void *start_cell, void *end_cell)` in `unification.c` — iterative stack walk, bind vars to `'$VAR'(N)`, unify end. Three `ir_call_arg`s. Mirror `rt_numbervars_term` in `IR_interp.c`. Also: `write(IR_STRUCT)` admitted (synth slot via `IR_CELL_UNIFY`); `rt_pl_writeq_cell` + `rt_pl_write_canonical_cell` added to `unification.c` (not yet wired — see A2).
+- [ ] **A2 — rung22 writeq/write_canonical (+4 m3):** Already in `pl_findall_conj_member_admissible`. Add to `pl_gz_rule_body_goal_ok` (arity-1, `ir_call_arg(nd,0)` any atom/logicvar/struct) and `pl_gz_rule_clause` whitelist. Route to existing `IR_DET_WRITE` with `sval=NULL, ival=-1` write-mode flag, OR add `IR_DET_WRITEQ`/`IR_DET_WRITE_CANONICAL` kinds dispatching `rt_pl_writeq_cell` / `rt_pl_write_canonical_cell` in `unification.c`.
+- [ ] **A3 — rung24 string_ops (+5 m3):** `atom_string/2`, `number_string/2`, `string_length/2`, `string_concat/2`, `string_lower/upper/2`. Extend `IR_DET_ATOM_OP` with fn dispatch for these names. Add to four sites in `scrip.c`.
+- [ ] **A4 — rung25 term_string/term_to_atom (+3 m3):** `term_string/2`, `term_to_atom/2`. `rt_pl_term_string_cell(void *term_cell, void *str_cell)` — write term to string, unify. Use `pl_writeq` machinery. New `IR_DET_TERM_STRING` or fold into `IR_DET_ATOM_OP`.
+- [ ] **A5 — rung26 copy_term/concat_atom (+5 m3):** `copy_term/2` → `rt_pl_copy_term_cell`; `atomic_list_concat/2,3`, `string_to_atom/2`, `concat_atom/2` → extend `IR_DET_ATOM_OP`.
+- [ ] **A6 — rung27 aggregate/nb (+5 m3):** `aggregate_all/3` already in `pl_findall_conj_member_admissible` line 1697 — add to `pl_gz_rule_body_goal_ok`. `nb_setval/2`, `nb_getval/2` → `rt_pl_nb_setval_cell`/`rt_pl_nb_getval_cell`. New `IR_DET_NB_SETVAL`/`IR_DET_NB_GETVAL`.
 
-- [ ] **PL-GZ-9** — ongoing. See above.
+**GROUP B — catch/throw/findall/DCG (non-trivial control flow):**
+- [ ] **B1 — rung11/43 findall (+6 m3):** findall already has `pl_findall_*` machinery. The main predicate's `color(X)` goal IS admitted by `pl_findall_goal_admissible` (IR_GOAL, simple). Failure: `pl_gz_rule_body_goal_ok` does not handle `IR_BUILTIN` findall. Add findall arm to `pl_gz_rule_body_goal_ok` calling `pl_findall_conj_member_admissible`. Also fix `findall(X, fail, Xs)` (rung43): goal=IR_FAIL is already `pl_findall_goal_graph_simple` → `pl_findall_goal_admissible` should accept IR_FAIL.
+- [ ] **B2 — rung28 catch/throw (+5 m3):** catch/throw already admitted in `pl_findall_conj_member_admissible` (lines 1660-1687). Need `pl_gz_rule_body_goal_ok` arm for IR_CATCH and `throw` IR_BUILTIN. Admission: IR_CATCH with `pl_findall_term_buildable(catcher)`.
+- [ ] **B3 — rung14 retract (+5 m3):** `retract/1` — dynamic DB. `rt_pl_retract_cell(void *head_cell, int do_all)` calls existing `resolve_bb_*` infrastructure. New `IR_DET_RETRACT`.
+- [ ] **B4 — rung15 abolish (+5 m3):** `abolish/1` (functor/1 form). `rt_pl_abolish_cell(void *spec_cell)`. New `IR_DET_ABOLISH`.
+- [ ] **B5 — rung30 DCG/phrase (+5 m3):** `phrase/2,3` already lowered to `IR_GOAL` by lower_prolog.c. The `pl_gz_rule_body_goal_ok` IR_GOAL arm should admit it if the underlying grammar predicate is admitted. Check: callee graph uses IR_CHOICE. Likely needs `pl_gz_choice_rule_clauses` check.
+
+**GROUP C — m4 parity bugs (m3 passes, m4 wrong output):**
+- [ ] **C1 — rung03/rung05/rung06/rung09 m4 callee label bug:** `.Lplpred__S1_2` generated instead of `.Lplpred_member_2` in m4 TEXT. Root: `IR_LIT(nd).sval` for IR_GOAL in flat/rich-body-root path gets a scope variable name `_S1` not the predicate name. Fix: in `resolve_call_block_label`, when sval starts with `_S`, use the `bb_goal_state_t::callee` field instead; or fix lower_prolog to always put the clean predicate name in `IR_LIT(nd).sval`.
+- [ ] **C2 — rung17 m4 sort/msort (+4 m4):** `rt_pl_sort_cell` uses `prolog_atom_intern(".")` and `prolog_atom_intern("[]")` which require the atom table to be initialized. In m4 GZ path, `rt_main_init` IS called by the rich-body-root preamble. Check if rung17 m4 actually goes through GZ path. Actual output is `[]` for everything — likely `ATOM_DOT`/`ATOM_NIL` issue in `unification.c`'s `rt_pl_sort_cell`. Verify and switch to `prolog_atom_intern`.
+- [ ] **C3 — rung21 m4 char_type inner var (+3 m4):** `char_type('7', digit(V))` — compound type arg `digit(V)` inner var not extractable in m4 GZ path. Check `rt_pl_char_type_cell` for m4 atom-init issue.
+- [ ] **C4 — rung12 m4 atom_chars/atom_codes (+2 m4):** m4 gives `[]`/`[]`. Same `prolog_atom_intern` vs `ATOM_*` root cause likely.
+
+- [ ] **PL-GZ-9** — ongoing. See rungs above.
 - [ ] **PL-GZ-FENCE** — coupling gate ZERO · GATE-3 m2/m3/m4 verdict-identical · resolution.c + meta rail DELETED · seed `.s` shape-isomorphic to `test_pl_1.c`.
 
 ## Session setup
