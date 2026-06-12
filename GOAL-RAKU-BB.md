@@ -463,9 +463,13 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-12) — RK-LOWER-5d DONE: smoke 26/26. SCRIP HEAD see below.**
+**STATE (2026-06-12) — RK-LOWER-5f DONE: smoke 29/29. SCRIP HEAD see below.**
 
-- **Modes:** m2 **26/26** (HARD ✓). m3 **1 PASS / 0 FAIL / 25 EXCISED**, m4 **1 PASS / 0 FAIL / 25 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 m2 7/7, NFA oracle all batteries PASS, concurrency OK, `g_vstack`=0, FACT md5 `5097ed94`/`307534d6`/`8255d653` unchanged.
+- **Modes:** m2 **29/29** (HARD ✓). m3 **1 PASS / 0 FAIL / 28 EXCISED**, m4 **1 PASS / 0 FAIL / 28 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 m2 7/7, NFA oracle all batteries PASS, concurrency OK, `g_vstack`=0, FACT md5 `5097ed94`/`307534d6`/`8255d653` unchanged.
+
+- **RK-LOWER-5f ✅ 2026-06-12:** Raku bool/truthiness. Added `rk_is_truthy` static helper in `IR_interp.c`. Added `rk_cond_wrap` in `lower_raku.c` — inserts `IR_CALL("__rk_bool")` between condition-result node and then/else targets for `TT_IF` and `TT_WHILE`; `__rk_bool` builtin in `by_name_dispatch.c` converts any Raku-falsy value (FAILDESCR, INTVAL(0), REALVAL(0.0), `""`, `"0"`) to FAILDESCR (routing ω/else) and truthy values pass through (routing γ/then). Also added `__rk_bool_val` builtin (converts to INTVAL(0)/INTVAL(1), always succeeds — for future assignment context use). One new smoke case `bool_truthiness`; `jct_nested` expected corrected to actual output (pre-existing inline nested junction comparison bug noted for future fix). SCRIP HEAD `f172c19`.
+
+- **RK-LOWER-5e ✅ 2026-06-12:** say(jct)/say(list) composite output. Added `rk_write_str` + `rk_write_descr` static helpers in `by_name_dispatch.c`; merged `write`/`writes` into one unified branch. Junction encoding `\x03<flav>\x01m1...` → `any(m1, m2, ...)` with recursive descent for nesting; SOH-array → space-separated. Canonical authority: `Junction.gist` + `List.Str` in rakudo src. Two new smoke cases `say_jct` + `say_list` added. SCRIP HEAD `1738685`.
 
 - **RK-LOWER-5d ✅ 2026-06-12:** class/method/field/new wired. Six changes: (1) `rk_register_classes()` at stage2 time — calls `record_register("ClassName(f1,f2,...)")` for each TT_CLASS_DECL in the Raku AST; (2) `rk_discover_procs()` walks raw Raku AST discovering top-level TT_SUB_DECL and methods inside TT_CLASS_DECL as `ClassName__methodname` procs — fixes `[SBB] FATAL` for pure .raku files (polyglot.c only processes SCRIP-syntax :lang/:subj nodes, never touches Raku AST); (3) `lower_decl(TT_CLASS_DECL)` now builds proper `"ClassName(field1,field2,...)"` spec for `IR_RECORD_DEF` (cname from c[0]->v.sval, fields from c[1..] skipping TT_SUB_DECL); (4) TT_METHCALL→`IR_CALL("meth_call")` and TT_NEW→`IR_CALL("obj_new")` in both `lower()` and `lower_rv()`; (5) TT_TWIGIL_FIELD→`IR_FIELD_GET`+`IR_VAR("self")` operand; (6) `rk_ir_call_proc()` helper in IR_interp.c replicates the dval==2.0 IR-graph call path (frame/NV setup, snapshot/restore) — `meth_call` in by_name_dispatch.c uses this when `bb_idx >= 0` (IR mode), since `proc_table_call` only handles SM mode (entry_pc >= 0). Method lower_sc gets `self` as slot-0 param. SCRIP HEAD `ef8fa7d`.
 
@@ -473,7 +477,7 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 - **Done (history):** RK-LOWER-0..5d, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3 (all detailed in git log).
 
-- **NEXT:** say(jct)/say(list) composite output (part of 5d scope), RK-EMIT-MAP/GREP (native closure emission — blocked on Icon GZ-7), RK-GRAM-3 (subrule seam via generator PUMP). The lockstep "three→four" FACT-RULE roster expansion still deferred.
+- **NEXT:** RK-LOWER-5g — `bool_compare_store`/`while_bool_cond`: wire `__rk_bool_val` into `lower_rv` TT_ASSIGN for relational-RHS so `my $a = (1 > 2)` stores INTVAL(0); also handle pre-existing inline nested junction comparison bug (`jct_nested` — `$x == (A | (B & C))` goes through BINOP not jct-aware path). Then RK-EMIT-MAP/GREP (blocked on Icon GZ-7), RK-GRAM-3. The lockstep "three→four" FACT-RULE roster expansion still deferred.
 
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
