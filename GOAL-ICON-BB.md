@@ -1,6 +1,6 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-## ▶ CURRENT PRIORITY (2026-06-06): GOAL-ICON-FULL-PASS — ICN-FULL-1..9 lowerer LANDED (`1589bd5`, m2 143→171 +28). Next session: fix 6 open bugs in HANDOFF-2026-06-06-SONNET46-ICON-BB-FULL-PASS-1.md (IR_LIMIT topology, IR_CASE segfault, IR_SWAP operands, IDX_SET assignment, pow→real, initial once-flag). See GOAL-ICON-FULL-PASS.md for full ladder.
+## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m2 195/247. Next: `next`-in-every NEXT.γ bug (fires α not β of generator); FULL-12 coerce; FULL-18-resid assign-gen β. See GOAL-ICON-FULL-PASS.md.
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`). Keystone for every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them as `g_emit.op_*` scalars (the `walk_bb_node` prologue auto-deposits `op_a_slot`/`op_a_node_kind` and clobbers `op_sval/op_ival/op_dval/op_counter` from the node); the box stays pBB-free and reads only `_`. Shared `x86_asm.h` is additive only; `git pull --rebase` before push.
 
@@ -279,9 +279,9 @@ Every test runs --interp/--run/--compile on the SAME source and reports all thre
 
 ### Rung ladder (each gated: stackless, m2==m3, zero-SM, no-stack 0, no corpus regression)
 
-- GZ-0…GZ-SCAN **DONE at the m2 oracle** (HELLO→scan; detail in git log + HANDOFF-*). Landed native families: chain-entry sentinel/unary-minus/slot-concat · REG-RO int+string slot producers · `bb_to` · `bb_alt` (≤5 literal arms) · `bb_gen_scan` + `&kw` · LIT_I/S/F/NUL producer boxes.
-- [ ] **GZ-DEFER** — EVAL / CODE / `*P` deferred patterns via the `test_sno_3.c` model (the ONE thing that broke the prior stackless build; solved in the reference).
-- [ ] **GZ-11+** remaining: `not`/`size`/`nonnull` stackless `bb_unop` · relop-tier control-flow remainder (binop/relop operand-read arms) · generator-operand binops (Fig-1 native m3/m4) · `rt_call_builtin` (find/upto/many/any) · lists/tables/records/csets/sort — each grounded in canonical JCON/Icon first.
+- GZ-0…GZ-SCAN **DONE** (HELLO→scan; landed: chain-entry sentinel/unary-minus/slot-concat · REG-RO int+string · `bb_to` · `bb_alt` · `bb_gen_scan`+`&kw` · LIT_I/S/F/NUL producers — git log).
+- [ ] **GZ-DEFER** — EVAL / CODE / `*P` deferred patterns via `test_sno_3.c` model.
+- [ ] **GZ-11+** — `not`/`size`/`nonnull` `bb_unop` · relop remainder · generator-operand binops (Fig-1 m3/m4) · `rt_call_builtin` · lists/tables/records/csets/sort — canonical JCON/Icon first.
 
 ## ⛔ PER-BOX LOCAL STORAGE## ⛔ PER-BOX LOCAL STORAGE — ALL STATE LIVES INSIDE THE BOXES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
@@ -321,11 +321,11 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 
 ## 🔴🔴 #0 PRIORITY — BB-HYGIENE LADDER (ICON) (Lon 2026-06-01)
 
-Per the NO-DUPLICATED-LOGIC FACT RULE. STRICT ORDER. After EACH step: Icon m2 oracle **143 PASS** byte-identical (HARD), smoke 12/12, purity green, commit. `bb_binop.cpp` split is the WORKED EXAMPLE — copy it. HY-0…7f DONE (de-cram · de-fuse · `!x` · marshal medium-collapse · N-arg slot carrier + frame[0..15] result-slot reservation · LIT_I/S/F/NUL producer adoption + float containment — git log).
+Per the NO-DUPLICATED-LOGIC FACT RULE. HY-0…7g ALL DONE (de-cram · de-fuse · `!x` · marshal medium-collapse · N-arg slot carrier + frame[0..15] result-slot reservation · LIT_I/S/F/NUL producer adoption + float containment — git log). `bb_binop.cpp` split is the worked example.
 
 ## Premise
 
-Icon IS a Byrd-Box port-graph; every construct is a box; **no SM, no value stack.** Mode 2: driver calls `bb_exec_once(s2->sm.bb_table[main_bb_idx])` directly; Icon SM stream is empty. Modes 3/4: `lea r10,[rip+Δ_root]; jmp .Lroot_α`; boxes are CODE+DATA in `bb_pool` (m3) or the linked binary (m4); transitions are `jmp rel32` — no call/ret/dispatch/broker/walker/push-pop. Target shape per `test_icon.c`: `_start/_resume/_succeed/_fail` labels wired by flat goto, named per-box slots, three-column LABEL/ACTION/GOTO.
+Icon IS a Byrd-Box port-graph; every construct is a box; no SM, no value stack. Mode 2: `bb_exec_once(s2->sm.bb_table[main_bb_idx])` directly. Modes 3/4: `lea r10,[rip+Δ_root]; jmp .Lroot_α`; boxes in `bb_pool`/linked binary; transitions are `jmp rel32` — no call/ret/dispatch/broker/walker/push-pop. Target shape: `test_icon.c` (`_start/_resume/_succeed/_fail` flat goto, named slots, three-column LABEL/ACTION/GOTO).
 
 ## ⛔ GOAL RULE (Icon SM streams)
 
@@ -333,7 +333,7 @@ Icon IS a Byrd-Box port-graph; every construct is a box; **no SM, no value stack
 
 ## ⛔ CONSULT CANONICAL SOURCES (JCON + Icon)
 
-Every port-topology / resume-wiring / builtin-semantics question: grep/read the canonical procedure FIRST — `refs/jcon-master/tran/irgen.icn` (`ir_a_Every/Limitation/Call/Alt`, …) and `refs/icon-master/src/runtime/*.r` (`fstranl.r`, `ocomp.r`, `fscan.r`). The m2 oracle is a transcription; canonical wins. Full statement in RULES.md. Extract the uploaded zips into `refs/` at session start if absent.
+Every port-topology / resume-wiring / builtin-semantics question: read canonical FIRST — `refs/jcon-master/tran/irgen.icn` and `refs/icon-master/src/runtime/*.r` (`fstranl.r`, `ocomp.r`, `fscan.r`). The m2 oracle is a transcription; canonical wins. See RULES.md. Extract uploaded zips into `refs/` at session start if absent.
 
 ## Per-rung gate
 
@@ -387,11 +387,11 @@ bash scripts/test_smoke_unified_broker.sh      # PASS>=25
 cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
-make libscrip_rt                               # mode-4 needs out/libscrip_rt.so — NOT built by build_scrip.sh; without it ALL m4 compiles silently link-fail (m4 1 vs 22). Verified 2026-06-02.
-bash scripts/test_smoke_icon.sh                # m2 12/12 · m3 12/12 · m4 12/12 (m4 only after libscrip_rt above)
+make libscrip_rt                               # mode-4 needs out/libscrip_rt.so
+bash scripts/test_smoke_icon.sh                # m2 12/12 · m3 10/12 · m4 10/12
 bash scripts/test_smoke_prolog.sh              # PASS=5
 bash scripts/test_smoke_unified_broker.sh      # PASS>=35
-bash scripts/test_gate_bb_one_box.sh           # PASS: every PL+ICN box file has exactly 1 entry; all helpers 0 (ICN-HY-FENCE)
+bash scripts/test_gate_bb_one_box.sh           # PASS
 ```
 
 ---
@@ -403,10 +403,11 @@ Floor = System V AMD64; durables are callee-saved (canonical semantics = the X86
 
 ## Watermark
 
-**HEAD (SCRIP) = `f6286b2`** — IR_interp: fix write+ALT ring-duplication (counter==0 guard in IR_interp_once/resume). m2 195 · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-LOWER-EVERY-WRITE-ALT.md.**
-Session 2026-06-06 (Sonnet 4.6, lower_icon.c isolation + BUG-1): Isolation fix (`2016c04`, m2 178). BUG-1 IR_LIMIT+IR_ALT ring contamination fixed (`f86427a`, rung14 5/5, m2 181). BUG-2 IR_CASE diagnosed (segfault from sel->γ=cas wiring); full fix spec in handoff but not committed. BUG-3..6 open.
+**HEAD (SCRIP) = `f6286b2`** — IR_interp: fix write+ALT ring-duplication (counter==0 guard). m2 195 · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-LOWER-EVERY-WRITE-ALT.md.
 
-**Standing flags / open intel:** (1) ORACLE SCAN-FN GENERATIVITY — m2 scan builtins are one-shot; making m2 generative SHIFTS the 143 baseline (Lon's call; scan fence PIN until then). (2) m2 `pos` oracle gap (fence M34-pins) — fix is its own re-baseline rung. (3) `rung36_jcon_scan1` rc=134 `[lower2] UNHANDLED kind=77` (TT_CSET_DIFF) — cset tier. (4) rung02 userproc recursion: m4 depth-4096 / m3 silent-empty — userproc lane. (5) `scan_try_call_builtin` (by_name_dispatch.c:531) dead — deletion candidate. (6) ~150 corpus programs ABORT (rc=-6/-11) in `walk_bb_node` instead of EXCISING — systemic decline-gate pass wanted. (7) swap `:=:` future tier. (8) Open tiers: GZ-DEFER, `bb_binop_gen` Fig-1, native `!x` (IR_LIST_BANG), `rt_call_builtin`. (9) medium-invisible grep misses statement-form `if (MEDIUM_BINARY)` branches — gate hardening. (10) `write(&null)` m3 PRE-EXISTING abort — keyword path, `pat_flat_β` unresolved forward ref (NOT the LIT_NUL arm; `&null` lowers to IR_VAR"&null"→bb_keyword). (11) Pascal `writeln(real)` blank-pads identically m2/m3/m4 — Pascal real path unbuilt, out of Icon scope.
+**Open bug (2026-06-12):** `NEXT.γ = generator.α` (fresh-entry) in `every … do { if … then next }` should be `generator.β` (resume). Per JCON `ir_a_Every` line 322: `nextlabel → p.expr.ir.resume`. Fix in `lower_icon.c` `lower_every`: `cx->loop_next` must point to generator β. Visible: primes outputs 27/35/87/95 (non-primes).
+
+**Standing flags:** (1) m2 scan builtins one-shot — generative would shift 195 baseline (Lon's call; PIN). (2) `rung36_jcon_scan1` rc=134 TT_CSET_DIFF unhandled. (3) rung02 userproc m4 depth-4096/m3 silent-empty. (4) ~150 corpus ABORT in `walk_bb_node` — systemic decline-gate pass wanted. (5) Open tiers: GZ-DEFER, `bb_binop_gen` Fig-1, native `!x`, `rt_call_builtin`. (6) `write(&null)` m3 abort — `&null`→IR_VAR"&null"→`bb_keyword`, unresolved forward ref.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
-**Architecture pointers:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c` · `.github/test_sno_1.c` · `.github/test_sno_3.c` · `.github/jcon_irgen.icn`
+**Architecture pointers:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c` · `.github/test_sno_1.c` · `.github/test_sno_3.c`
