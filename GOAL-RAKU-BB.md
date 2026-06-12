@@ -463,17 +463,17 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-12) — RK-M34-1 DONE: m3/m4 5 PASS (up from 2). SCRIP HEAD `194d978`.**
+**STATE (2026-06-12) — while_loop FIXED: m3/m4 6 PASS / 0 FAIL. SCRIP HEAD `b5df67a`.**
 
-- **Modes:** m2 **31/31** (HARD ✓). m3 **5 PASS / 1 FAIL / 25 EXCISED**, m4 **5 PASS / 1 FAIL / 25 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 7/7, NFA oracle **5/5 PASS**, `g_vstack`=0.
+- **Modes:** m2 **31/31** (HARD ✓). m3 **6 PASS / 0 FAIL / 25 EXCISED**, m4 **6 PASS / 0 FAIL / 25 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 7/7, NFA oracle **5/5 PASS**, `g_vstack`=0.
 
-- **RK-M34-1 ✅ 2026-06-12:** Native m3/m4 unblocked for `var`, `arith`, `string_concat` (3 new PASS; `say_str` + `toplevel_no_main` retained). Root cause of all 29 EXCISED cases: `icn_graph_native_emittable_mode` used `icn_local_assign_rhs_ok(nd)` which reads `nd->operands[0]`; Raku `lower_rv` TT_ASSIGN chains RHS via γ (not `ir_operand_push`), so `operands[0]=NULL` at gate time → all Raku programs with `my $x = anything` returned 0 → EXCISED. Fix: `icn_rhs_kind_ok()` (accepts LIT_I/S/VAR/BINOP-arith/BINOP_CONCAT/GEN_SCAN); `icn_local_assign_rhs_ok_g(g,nd)` scans γ-predecessors when `operands[0]` is NULL (emittable gate runs before `descr_chain_operand_refs` wires operands). Also added `rt_rk_is_truthy()` (public truthiness predicate; rt.h + by_name_dispatch.c) and `bb_call_rk_bool.cpp` (descr-flat-chain template for `__rk_bool(dval=0.0)`: loads arg slot, calls `rt_rk_is_truthy`, branches γ/ω).
+- **while_loop FIXED ✅ 2026-06-12:** Root cause: `bb_binop_relop` branches γ/ω via `cmp`+`j<cond>` but never writes a truthy descr into its slot; `bb_call_rk_bool` then read stale zeros → `rt_rk_is_truthy(0,0)` always 0 → while condition always false. Fix: `bb_call_rk_bool_str` detects when its arg is a BINOP relop (`rkbool_arg_is_relop(a0)`) and emits a pass-through (`jmp γ; def β; jmp ω`) — no slot read, no `rt_rk_is_truthy` call — because the BINOP template already sorted γ/ω before reaching `__rk_bool`. Single-file fix in `bb_call_rk_bool.cpp` (added `gen.h` include + `rkbool_arg_is_relop` predicate).
 
-- **OPEN BUG — `while_loop` m3/m4 FAIL:** `while_loop` now passes the emittable gate (BINOP/ASSIGN/VAR/CALL all accepted). Assembly is generated and links, but produces no output. Root cause: BINOP-relop template (`$i <= 3`) routes γ/ω by branching but **never writes its result slot**; `__rk_bool` then reads stale zeros from that slot → `rt_rk_is_truthy` always returns 0 → while condition always false → zero iterations. Fix: in `bb_call_rk_bool_str`, detect when `op_a` is a BINOP-relop (`BINOP_LT/LE/GT/GE/EQ/NE`) — the BINOP template already sorted γ/ω, so `__rk_bool` becomes a pass-through (`jmp γ; def β; jmp ω`). This is the **first task next session** (one edit to bb_call_rk_bool.cpp + need `BINOP_LT`/etc. headers visible in the template).
+- **RK-M34-1 ✅ 2026-06-12:** (history) Native m3/m4 unblocked for `var`, `arith`, `string_concat` (3 new PASS; `say_str` + `toplevel_no_main` retained). Also added `rt_rk_is_truthy()` and `bb_call_rk_bool.cpp`.
 
-- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1 (all detailed in git log).
+- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop relop fix (all detailed in git log).
 
-- **NEXT:** (1) Fix `while_loop` relop-slot/`__rk_bool` pass-through (see OPEN BUG above). (2) Extend to remaining simple cases (`bool_truthiness`, `bool_compare_store`, loop-body patterns). (3) RK-EMIT-MAP/GREP (blocked on Icon GZ-7). (4) RK-GRAM-3. The lockstep "three->four" FACT-RULE roster expansion still deferred.
+- **NEXT:** (1) Extend m3/m4 PASS to `bool_truthiness` and `bool_compare_store` — these have `__rk_bool` with a non-relop boolean arg (likely a `VAR` reading a bool-valued slot); `bb_call_rk_bool` already handles that path via `rt_rk_is_truthy`. Check emittable gate: likely the BINOP/ASSIGN chain is accepted but the `bool_truthiness` arg shape is not relop. (2) `class_method` — proc dispatch. (3) RK-EMIT-MAP/GREP (blocked on Icon GZ-7). (4) RK-GRAM-3. The lockstep "three->four" FACT-RULE roster expansion still deferred.
 
 
 
