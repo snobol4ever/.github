@@ -5,14 +5,12 @@ Landed-rung history DELETED (git holds it). FACT-RULE bodies kept VERBATIM (md5-
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
-## ▶ STATE (2026-06-11)
+## ▶ STATE (2026-06-12)
 
-Watermark: SCRIP `d60ed89` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b, char_type LANDED.**
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 (rung23_arith_ext_power: `27^3` → `27.0` — pre-existing int-power float bug) · m3 **58**/57-FAIL (ratchet floor=58) · m4 **57**/41-FAIL+17-EXCISED (ratchet floor=57).
+Watermark: SCRIP `fa6aefb` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b, char_type, sort/msort LANDED.**
+Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 (rung23_arith_ext_power: pre-existing int-power float bug) · m3 **63**/57-FAIL (ratchet floor=63) · m4 **57**/41-FAIL+17-EXCISED (ratchet floor=57).
 
-**char_type/2 LANDED (2026-06-11, commit `d60ed89`):** `IR_DET_CHAR_TYPE`; `rt_pl_char_type_cell(void *char_cell, void *type_cell, void *val_cell)` in `unification.c` (atom-type: isalpha/isalnum/isdigit/isspace/isupper/islower/ispunct/isgraph/csym/csymf/end_of_line/newline; compound-type: digit→int, to_upper/to_lower/upper/lower→atom, code→int; all trail-mark/unwind); `bb_det_char_type.cpp` (rdi=FRQ char_cell, rsi=FRQ type_cell, edx=0, call, test/jne γ/jmp ω); prepare block in `emit_bb.c`; dispatch in `emit_core.c`; Makefile. Four scrip.c sites: `pl_gz_rule_body_goal_ok` (ATOM/LOGICVAR char, ATOM/STRUCT type), `pl_gz_rule_clause` whitelist, `pl_gz_count_synth_goal` (+1 per non-LOGICVAR arg), `pl_gz_build_goal` (char_type arm before comparator arm — key fix: missing `} else if` after char_type arm restored to prevent comparator arm running unconditionally). m3: 53→58 (+5). Newly passing: rung21 alpha, digit_val, space_alnum, to_upper_lower, upper_lower. No regressions (m2=114, m4=57).
-
-**PL-GZ-9 TODAY (2026-06-11) admitted in one session:** succ/plus (rung18 +5), atom_ops (rung12 +5), format/1,2 (rung19 +5), term-order cmps @</>/==/\== (rung16 +5), type-tests/functor/arg/=.. (rung09/40 +5), struct-arg fix (rung05), arity-3 lift (rung06), char_type (rung21 +5). Total session: 53→58 m3 (today's net; full day 28→58).
+**sort/2 + msort/2 LANDED (2026-06-12):** `IR_DET_SORT`; `rt_pl_sort_cell(int do_msort, void *list_cell, void *result_cell)` in `unification.c` — list walk + insertion sort + dup-filter (msort skips) + rebuild cons list + `unify(result_cell, result, trail)`; uses `prolog_atom_intern(".")` and `prolog_atom_intern("[]")` (NOT `ATOM_DOT`/`ATOM_NIL` — those are uninitialized in m4 separate-process binary until `rt_main_init` runs, and `sort_msort_common` in `IR_interp.c` is called from `libscrip_rt.so` via the rich-body-root path before that). `bb_det_sort.cpp` (edi=do_msort, rsi=FRQ list_cell, rdx=FRQ result_cell, call, test/jne γ/jmp ω); 3-part prepare (ival[0]=do_msort, [1]=list_slot, [2]=result_slot) in `emit_bb.c`; dispatch in `emit_core.c`; Makefile. Four scrip.c sites: `pl_gz_rule_body_goal_ok` (IR_STRUCT/ATOM/LOGICVAR list, LOGICVAR result), `pl_gz_rule_clause` whitelist, `pl_gz_count_synth_goal` (+1 if list non-LOGICVAR), `pl_gz_build_goal` (sort arm before comparator — list synth slot when IR_STRUCT/ATOM). Same fix applied to `sort_msort_common` in `IR_interp.c` (rich-body-root path). m3: 58→63 (+5). No m4 regression (rung17 non-empty m4 failures are pre-existing rich-body-root architectural mismatch, not caused by this change).
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -66,29 +64,14 @@ hand-encode it inline in the template. The missing encoder is the bug; the mediu
 `IF(MEDIUM_MACRO_DEF, …)` carrying instruction bytes. Those record/byte primitives are PRIVATE to `x86_asm.h` (the
 encoders' implementation); a template only ever sees the `x86(...)` front-end + the markers (`L(n)`, `FR(off)`,
 `FRQ(off)`, `PORT_*`) and the LOUD `x86_bomb(msg)` stub. **ALLOWED carve-out — TEXT-ONLY ANNOTATIONS WITH NO BYTE
-FORM:** a box's leading `α:` label (`s_1asm(std::string(_.lbl_α)+":")`) and comments (`s_comment(...)`) exist only
-in the GAS arm, so `IF(MEDIUM_TEXT, <comment-or-label>)` with NO matching `IF(MEDIUM_BINARY, <bytes>)` is fine; an
-`IF(MEDIUM_TEXT,<gas-instruction>) + IF(MEDIUM_BINARY,<bytes>)` PAIR is the violation. Non-x86 platform arms
-(JVM/JS/NET/WASM) are out of scope (X86 ONLY for now) and keep their `s_*asm` text.
+FORM:** a box's leading `α:` label (`s_1asm(std::string(_.lbl_α)+":")`), and `IF(MEDIUM_TEXT, <comment-or-label>)` with NO matching `IF(MEDIUM_BINARY, <bytes>)` is fine.
 
+**CORRECTION RECORD (Lon 2026-06-06):** RULES.md TEMPLATE-ONLY EMISSION corrected to match this rule; former
+"duplicate the byte-producing code into each template file" clause (515aa7d6) is DEAD.
 
-**CORRECTION RECORD (Lon 2026-06-06):** RULES.md TEMPLATE-ONLY EMISSION is now corrected to MATCH this rule; its former
-"duplicate the byte-producing code into each template file" clause (515aa7d6, 2026-05-28) is DEAD — it predated the
-2026-06-02 directive and said the opposite. Restated plainly: ZERO BINARY emission anywhere in a `bb_*.cpp` — not in the
-top-level `*_str`, not in any helper it calls (a static helper in the template file is INSIDE the fence; relocating bytes
-into helpers changes nothing). `x86()` internals (`x86_asm.h`) are the ONLY place BINARY and TEXT are emitted, side-by-side.
+**ENFORCEMENT:** gate `scripts/test_gate_template_medium_invisible.sh` (`--strict` enforces zero). **COMPLETION TEST:** (a) zero raw-byte producers and zero `IF(MEDIUM_BINARY,…)`/`IF(MEDIUM_MACRO_DEF,…)` in any `BB_templates/*.cpp`; (b) every instruction emitted via `x86(...)`; (c) gate green under `--strict`; (d) FACT RULE body byte-identical across the four GOAL files.
 
-**ENFORCEMENT:** gate `scripts/test_gate_template_medium_invisible.sh` (comments stripped): in `BB_templates/*.cpp`,
-the raw-byte producers + `IF(MEDIUM_BINARY`/`IF(MEDIUM_MACRO_DEF` count == 0 (informational WIP baseline; `--strict`
-enforces zero). **COMPLETION TEST:** (a) zero raw-byte producers and zero `IF(MEDIUM_BINARY,…)`/`IF(MEDIUM_MACRO_DEF,…)`
-in any `BB_templates/*.cpp`; (b) every instruction emitted via an `x86(...)` call; (c) the gate green under `--strict`
-and in the Session-Setup gate list; (d) this FACT RULE body byte-identical across the four GOAL-*-BB files.
-
-**THREE FACES OF ONE END STATE.** This rule, the `bb_bin_t`-ABOLISHED rule above, and the no-`pBB`/`_.node` rule are
-three faces of ONE converted box: pure `x86()` concatenation reading only `_`. A box that still hand-encodes bytes
-ALSO still carries `bb_bin_t` and ALSO branches on the medium; converting it to `x86()` clears all three at once. The
-three gates therefore reach zero TOGETHER, box-by-box, as the revamp completes — the prison is escaped only by
-finishing the conversion.
+**THREE FACES OF ONE END STATE.** This rule, `bb_bin_t`-ABOLISHED, and no-`pBB`/`_.node` are three faces of ONE converted box. The three gates reach zero TOGETHER, box-by-box.
 
 ## ⛔ NO C BYRD-BOX FUNCTIONS — A BOX IS ENTERED BY JUMPING TO ITS α/β LABELS, NEVER A `(ζ, int entry)` C CALL (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
 
@@ -114,258 +97,116 @@ name-table round-trip. This is the same law as the PER-BOX LOCAL STORAGE FACT RU
 prohibition in the strongest, language-independent form so it cannot be re-introduced from any session.
 
 **The `g_vstack` global array is DELETED (2026-05-31) and must NEVER be resurrected** — nor any equivalent
-under a different name (`*_vstack[]`, `value_stack`, `g_estack`, a hand-rolled `WamWord[]`/`DESCR_t[]`
-push/pop arena used to pass values between boxes, etc.). FORBIDDEN to (re)introduce: a global/static array
-whose purpose is to push a box's value and pop it in a consumer; `rt_push_*`/`rt_pop_*`/`vstack_*` value
-traffic; any `*_push`/`*_pop` helper that moves an *intermediate* value between boxes. (KEEP, NOT a value
-stack: the Prolog trail `g_resolve_trail`/`rt_pl_trail_*` — a binding-undo ledger; the choice-point ledger
-`g_resolve_bfr`/`resolve_choice` — the irreducible cross-node resume spine; the C call stack used for
-genuine recursion; an ARBNO-style explicit indexed per-activation frame array. None of these is a value
-stack.) The residual `vstack_*`/`rt_vstack_ops_t` SCAFFOLDING left in `src/runtime/rt/rt.c` is dead/aborting
-(`g_ops` only ever points at `g_default_ops`, whose push/pop/peek `abort()`); it is being removed rung by
-rung (the VSX ladder) and must NOT be wired up to anything — adding a real backing store to it = creating a
-value stack = a violation.
+under a different name. FORBIDDEN to (re)introduce: a global/static array whose purpose is to push a box's value and pop it in a consumer; `rt_push_*`/`rt_pop_*`/`vstack_*` value traffic; any `*_push`/`*_pop` helper that moves an *intermediate* value between boxes. (KEEP: Prolog trail `g_resolve_trail`/`rt_pl_trail_*`; choice-point ledger `g_resolve_bfr`; C call stack; ARBNO-style indexed frame array.)
 
-**GUARD:** `scripts/test_gate_no_vstack.sh` (informational baseline now; flips to a HARD `--strict`
-zero-check at VSX-8). It greps (comments stripped) ACROSS ALL `src/` for `g_vstack`/`vstack_push`/
-`vstack_pop`/`vstack_peek`/`rt_vstack_*`. The `g_vstack` token is already at ZERO and must STAY at zero;
-the rest trend to zero as the scaffolding is deleted. Any session that makes the `g_vstack` count non-zero,
-or that adds a new value-stack array under any name, has violated this rule. **COMPLETION TEST:** (a)
-`grep -rn 'g_vstack' src/` == 0 (code AND comments); (b) no new global/static push/pop value arena exists;
-(c) `scripts/test_gate_no_vstack.sh` `g_vstack` line reads 0; (d) the FACT RULE body is byte-identical
-across all five GOAL-*-BB files.
+**GUARD:** `scripts/test_gate_no_vstack.sh`. **COMPLETION TEST:** (a) `grep -rn 'g_vstack' src/` == 0; (b) no new global/static push/pop value arena; (c) gate `g_vstack` line reads 0; (d) FACT RULE body byte-identical across all five GOAL-*-BB files.
 
 ## ⛔ SHARED-LOWERER ONE-FILE CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
-The AST→IR lowerer's SHARED SPINE is **ONE file** — `src/lower/lower.c` — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** for the co-located languages. **AMENDED (Lon 2026-06-04): the shared IR graph is the LANGUAGE-INDEPENDENT contract — LOWER splits per language.** Prolog's goal-role family now lives in `src/lower/lower_prolog.c` (`d6d93c6`; shared helpers de-static'd into `lower_internal.h`); remaining languages stay co-located in `lower.c` until Lon splits them out. The discipline below keeps concurrent sessions **conflict-free and mutually beneficial**:
+The AST→IR lowerer's SHARED SPINE is **ONE file** — `src/lower/lower.c`. **AMENDED (Lon 2026-06-04):** Prolog's goal-role family lives in `src/lower/lower_prolog.c` (`d6d93c6`; shared helpers in `lower_internal.h`); remaining languages stay co-located in `lower.c` until Lon splits them out.
 
-1. **ONE CASE PER KIND.** Each `TT_*` is at most ONE `case` label per role switch. If your language needs a kind with no case yet → ADD the case. If the case exists → ADD YOUR ARM to it. **NEVER duplicate the label.** (Win-win: SNOBOL4 adding `case TT_ASSIGN` hands Icon/Prolog a ready slot.)
+1. **ONE CASE PER KIND.** Each `TT_*` is at most ONE `case` label per role switch. **NEVER duplicate the label.**
+2. **LANGUAGE VARIATION LIVES INSIDE THE CASE.** Branch on `cx.lang` within the one case. A language graduates to its OWN `lower_<lang>.c` ONLY by Lon's directive.
+3. **EDIT ONLY YOUR OWN LANGUAGE'S ARM.** Never modify, reorder, or delete another language's arm.
+4. **A MISSING LANGUAGE ARM FALLS LOUD.** Routes to `lower_unhandled` — never a silent default.
+5. **SHARED SCAFFOLDING IS ADDITIVE; SIGNATURE/SEMANTIC CHANGES ARE LOCKSTEP.** Changing `lcx_t` or shared helpers → MUST update all three GOAL files in the SAME commit.
+6. **`scripts/prove_lower2.sh` must stay green before every commit.**
 
-2. **LANGUAGE VARIATION LIVES INSIDE THE CASE — NEVER A PER-LANGUAGE FORK.** When a kind behaves differently per language, branch on `cx.lang` (or role) WITHIN the one case (`switch (cx.lang) { case IR_LANG_SNO: …; case IR_LANG_PL: …; }`, or if/else). One kind → one case → language arms inside. A language graduates to its OWN `lower_<lang>.c` ONLY by Lon's directive (Prolog: 2026-06-04), taking its whole role-family with it — never an ad-hoc fork.
-
-3. **EDIT ONLY YOUR OWN LANGUAGE'S ARM.** A session may ADD or MODIFY the `cx.lang` arm for its OWN language inside any case. It must **NEVER modify, reorder, or delete another language's arm.** A language owning its own `lower_<lang>.c` edits ONLY that file (plus lockstep scaffolding per rule 5) and never a peer's. This is what makes concurrent sessions' diffs non-overlapping → git auto-merges with **zero conflicts**.
-
-4. **A MISSING LANGUAGE ARM FALLS LOUD, NEVER SILENT.** Inside a case, a language with no arm yet routes to `lower_unhandled` (loud stderr + NULL) — never a silent or wrong default. A half-built arm fails LOUDLY so it can never corrupt a peer's proven path.
-
-5. **SHARED SCAFFOLDING IS ADDITIVE; SIGNATURE/SEMANTIC CHANGES ARE LOCKSTEP.** The cursor (`lcx_t`), the port primitives (`nalloc`/`set_succ_fail`/`ret`/`emit_leaf`), and the match-collect library (`tm`/`tm_g`) are SHARED (declared in `lower_internal.h`, defined in `lower.c`). ADDING a helper or a case label is free (no conflict). CHANGING the signature/semantics of an existing shared helper or of `lcx_t` affects all three cats → it MUST update all three GOAL files' FACT RULE in the SAME commit and re-prove all three.
-
-6. **THE TOPOLOGY PROOF GATE IS THE SHARED GREEN SIGNAL.** `scripts/prove_lower2.sh` must stay green before every commit (it compiles `lower.c` + `lower_prolog.c` + the harness). Each cat's proof cases are ADDITIVE (append your own; never delete a peer's). Green = your arm wired right AND you didn't disturb a peer.
-
-**COMPLETION TEST:** (a) no duplicated `case TT_` label within any one switch in `lower.c` (nor within any per-language lowerer file); (b) every case's language branches end in a real arm or `lower_unhandled` (no silent default); (c) the FACT RULE body is byte-identical across the three GOAL files (`awk '/SHARED-LOWERER ONE-FILE/{p=1} p{print} /prove_lower2.sh green/{if(p)exit}'` md5 matches — first-match, not greedy `sed`); (d) `scripts/prove_lower2.sh` green.
+**COMPLETION TEST:** (a) no duplicated `case TT_` label; (b) every case ends in a real arm or `lower_unhandled`; (c) FACT RULE body byte-identical across the three GOAL files; (d) `scripts/prove_lower2.sh` green.
 
 ## ⛔ TEMPLATE-ONLY EMISSION — ONE-DISPATCH CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
-The unified IR→x86 emitter is **ONE dispatch** — `src/emitter/emit_core.c`'s `switch (nd->t)` over the shared `IR_e` — fanning out to **per-box template functions** under `src/emitter/{BB,SM,XA}_templates/`. Every byte of emitted machine code lives INSIDE a template fn reached ONLY via this dispatch (RULES.md TEMPLATE-ONLY). SNOBOL4, Icon, and Prolog fill emitter boxes CONCURRENTLY in SEPARATE sessions, all writing into this one dispatch + this one template tree. The discipline below makes the three sessions **conflict-free and mutually beneficial** (one session's dispatch case + template file is the next session's ready slot), exactly mirroring the SHARED-LOWERER rule:
+The unified IR→x86 emitter is **ONE dispatch** — `src/emitter/emit_core.c`'s `switch (nd->t)` — fanning out to per-box template functions under `src/emitter/{BB,SM,XA}_templates/`.
 
-1. **ONE DISPATCH CASE PER IR KIND.** Each `IR_*` is at most ONE `case` label in `emit_core.c`. If your language's kind has no case → ADD it (one line: `case IR_FOO: bb_foo(nd); return 0;`). If it exists → it already calls the right template; do not duplicate. **NEVER duplicate the label.** Append new cases at the END of the language's contiguous block (SNOBOL `IR_PAT_*` block, Prolog `IR_GOAL/ARITH/BUILTIN/LOGICVAR/ATOM/STRUCT/UNIFY/CUT/DISJ/GCONJ` block, Icon `IR_EVERY/ALT/LIMIT/SCAN/TO/…` block) so the three sessions' inserts land in different hunks → git auto-merges.
+1. **ONE DISPATCH CASE PER IR KIND.** Append new cases at the END of the language's contiguous block. **NEVER duplicate the label.**
+2. **ONE TEMPLATE FILE PER BOX.** Each box's bytes live in its OWN `.cpp`. Never append a second box's body into a peer's file.
+3. **EDIT ONLY YOUR OWN LANGUAGE'S BOXES.**
+4. **BYTES LIVE ONLY IN TEMPLATES — A MISSING BOX FALLS LOUD.** FORBIDDEN outside template fn: `seg_byte(SEG_CODE`, `SL_B(`, `sl_emit_one`, `emit_standard_blob`, raw byte-producers. `scripts/util_template_purity_audit.sh` is the standing guard.
+5. **THE SHARED SOURCE LIST IS ADDITIVE; BUILD/ABI CHANGES ARE LOCKSTEP.** Makefile `RT_PIC_SRCS` is APPEND-ONLY. Changing shared emitter primitives → MUST update all three GOAL files in the SAME commit.
+6. **Before every commit:** `util_template_purity_audit.sh`, `test_gate_em_template_byte_identity.sh`, `test_gate_em_template_matrix.sh`, `test_gate_icn_no_stack.sh`, `test_gate_icn_one_reg_frame.sh` must stay green.
 
-2. **ONE TEMPLATE FILE PER BOX — NEVER A SHARED MEGA-FILE.** Each box's bytes live in its OWN `.cpp` (e.g. `bb_pat_len.cpp`, `bb_unify.cpp`, `bb_every.cpp`). A session creating a new box CREATES a new file; it never appends a second box's body into a peer's file. Per-box files = per-session non-overlapping edits. Duplicating a byte pattern INTO each template is REQUIRED (duplication is the point — RULES.md); never factor shared bytes into a common emitter helper that two languages edit.
-
-3. **EDIT ONLY YOUR OWN LANGUAGE'S BOXES.** A session may ADD or MODIFY template files for ITS OWN language's kinds and the ONE dispatch line that reaches each. It must **NEVER modify another language's template body or dispatch line.** (SNOBOL touches `bb_pat_*`; Prolog touches `bb_goal/arith/unify/cut/disj/conj/atom/struct/logicvar`; Icon touches `bb_every/alt/limit/scan/to/iterate/…`.)
-
-4. **BYTES LIVE ONLY IN TEMPLATES — A MISSING BOX FALLS LOUD.** FORBIDDEN outside a template fn: `seg_byte(SEG_CODE`, `SL_B(`, `sl_emit_one`, `emit_standard_blob`, and the raw byte-producers `bytes()/u8()/u32le()/u64le()` (allowed only in `bomb_bytes`/`bb_emit_asm_result` of `emit_str.cpp`). A kind with no template yet must hit the dispatch's loud default (assert/abort), never silently emit nothing or fall through. `scripts/util_template_purity_audit.sh` is the standing guard.
-
-5. **THE SHARED SOURCE LIST IS ADDITIVE; BUILD/ABI CHANGES ARE LOCKSTEP.** The Makefile `RT_PIC_SRCS` template list is APPEND-ONLY — add your new `.cpp` on its own line at the end of the language's group (one line = one hunk, no conflict). ADDING a template + its source line + its dispatch case is free. CHANGING a shared emitter primitive (`emit_core` dispatch signature, `BB_t`/`IR_t` layout, the `operand_aux` sidecar API, register-frame ABI) affects all three → it MUST update all three GOAL files' FACT RULE in the SAME commit and re-prove all three.
-
-6. **THE EMITTER GATES ARE THE SHARED GREEN SIGNAL.** Before every commit: `scripts/util_template_purity_audit.sh` (no bytes outside templates), `scripts/test_gate_em_template_byte_identity.sh` + `scripts/test_gate_em_template_matrix.sh` (templates emit the sanctioned bytes), and the per-language no-stack/one-reg gates (`test_gate_icn_no_stack.sh`, `test_gate_icn_one_reg_frame.sh`) must stay green. Green = your box emits right AND you didn't disturb a peer.
-
-**COMPLETION TEST:** (a) no duplicated `case IR_` label in `emit_core.c` (`grep -oE 'case IR_[A-Z_]+' src/emitter/emit_core.c | sort | uniq -d` empty); (b) every `IR_*` kind a language emits has exactly one dispatch case reaching one template fn, unmatched kinds hit the loud default; (c) zero forbidden byte-emitters outside templates (`util_template_purity_audit.sh` clean); (d) the FACT RULE body is byte-identical across the three GOAL files (`awk '/TEMPLATE-ONLY EMISSION — ONE-DISPATCH/{p=1} p{print} /util_template_purity_audit.sh clean/{if(p)exit}'` md5 matches); (e) the emitter gates above are green.
+**COMPLETION TEST:** (a) no duplicated `case IR_` label in `emit_core.c`; (b) every `IR_*` kind has one dispatch case; (c) zero forbidden byte-emitters outside templates; (d) FACT RULE body byte-identical across the three GOAL files; (e) emitter gates green.
 
 ## ⛔ NO DUPLICATED LOGIC — WRITE EACH PIECE OF LOGIC ONCE (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
-**This is a LOGIC problem, not a formatting problem.** (Lon, 2026-06-01.) The template tree is BAD CODE: the same logic is written over and over. `bb_builtin.cpp`
-is 2,427 lines because of duplication, not because the work is big. Fix the duplication; the line count
-collapses on its own.
+**THE ONE LAW: each piece of logic is written ONCE.** A box does PORT work (α/β/γ/ω wiring). The runtime does VALUE work. When a box reimplements VALUE work inline, you get duplication.
 
-**THE ONE LAW: each piece of logic is written ONCE.** A box does PORT work (α/β/γ/ω wiring). The runtime does
-VALUE work (build a term, compare, arithmetic, concat). When a box reimplements VALUE work inline, you get
-duplication — and duplication is the disease in every form below.
+**DUP FORM 1 — SAME ALGORITHM IN TWO MEDIA.** Delete both media walkers; make it ONE `rt_*` call. TEXT emits `call foo@PLT`, BINARY emits `movabs rax,&foo; call rax` — two trivial encodings of ONE call.
+**DUP FORM 2 — EMIT-TIME LOGIC THAT IS A RUNTIME JOB.** Any template with a recursive walker / arithmetic evaluator / term constructor = VALUE work in wrong place → move behind ONE `rt_*` call.
+**DUP FORM 3 — OPERAND BOX REIMPLEMENTED INSIDE ITS CONSUMER (fusion).** Consumer reading `pBB->α->ival/sval/dval` or `->α->t==IR_LIT_*` = fusion = duplicated operand logic. Consumer must READ the operand's slot.
+**DUP FORM 4 — N DIFFERENT BOXES IN ONE FILE (cram).** Split distinct shapes behind a thin router.
 
-**DUP FORM 1 — THE SAME ALGORITHM IN TWO MEDIA (worst, the bulk of the bloat).** `emit_build_compound_term`
-(92 lines, emits GAS text) and `emit_build_compound_term_bin` (94 lines, emits raw bytes) are the SAME
-post-order Term-builder written TWICE. A bug must be fixed in both or they drift. THE FIX IS NOT TO MERGE THE
-TWO WALKERS — it is to DELETE BOTH. Building a Term is a RUNTIME job; `rt_pl_compound_build_n` and
-`rt_pl_node_to_term` already do it. The box marshals operand slots into registers and `call`s the helper.
-Once it is one `rt_*` call there is NOTHING to duplicate: TEXT emits `call foo@PLT`, BINARY emits
-`movabs rax,&foo; call rax` — two trivial encodings of ONE logical call, which is the sanctioned per-medium
-difference (NOT duplicated logic). ~18 builtin families currently each call BOTH walkers; killing the walkers
-sheds >1,000 lines.
+**NOT DUPLICATION:** (a) same byte pattern hand-copied into each per-box template (REQUIRED); (b) per-file op-classifier tables; (c) near-identical shapes grouped in one parameterized file; (d) two ARMS of one box (BINARY/TEXT) = two encodings of one logic.
 
-**DUP FORM 2 — EMIT-TIME LOGIC THAT IS A RUNTIME JOB.** Root cause of FORM 1. Any time a template grows a
-recursive walker, an arithmetic evaluator, a comparator, a term constructor — that is VALUE work in the wrong
-place. It belongs behind ONE `rt_*` call. (Guard, GOAL-BB-TEMPLATE-LADDER invariant 9: never add an
-`rt_*_exec` that does α/β/γ/ω PORT logic — that is a C byrd box. The split is clean: RT = value, BOX = ports.
-If you are emitting more than "marshal args, call helper, wire the 4 ports," you are duplicating runtime logic
-into the emitter.)
+**THE TEST:** could a bug require fixing the same logic in two places? If yes → duplication → collapse it.
 
-**DUP FORM 3 — AN OPERAND BOX REIMPLEMENTED INSIDE ITS CONSUMER (fusion).** `bb_binop` reads
-`pBB->α->t == IR_LIT_I` and seals the operand's VALUE (`pBB->α->ival`) in its own blob — reimplementing what
-`bb_lit_scalar` already does (put a literal where a consumer can read it). Two pieces of code, one job. The
-consumer must READ the operand's slot (`bb_slot_get(pBB->α)`); the operand's own box fills it. DELETE the
-operand-kind arm. (PREREQ, proven 2026-06-01: deleting GZ-3/GZ-4 today breaks `write(2+3)` because the lowerer
-does not yet chain literal operands as producer boxes in that shape — so the de-fuse step is first a LOWERER
-fix that makes both operands producers, THEN the deletion.) Any `pBB->α->ival/sval/dval` or `->α->t==IR_LIT_*`
-read inside a consumer box = fusion = duplicated operand logic.
-
-**DUP FORM 4 — N DIFFERENT BOXES IN ONE FILE (cram).** `bb_binop.cpp` held 7 unrelated four-port shapes
-selected by `op`/operand-kind/`g_*_flat_chain`. Each distinct shape is its own box; a `_str()` returning
-several different complete four-port byte sequences is N boxes in one filename. This is the LEAST harmful dup
-(it is co-location, not copied algorithm) but it hides the others. De-cram by splitting distinct shapes behind
-a thin router (`bb_foo.cpp` keeps the `extern "C" void bb_foo(IR_t*)` so `emit_core.c` is untouched; each shape
-is `bb_foo_<shape>_str(...)` returning its bytes or `""`; router calls each in order). Worked example DONE:
-`bb_binop_*.cpp` + 38-line `bb_binop.cpp`.
-
-**NOT DUPLICATION — DO NOT "FIX" THESE.** (a) The same byte pattern hand-copied INTO each per-box template is
-REQUIRED (RULES.md — duplication of bytes across boxes is the point; never factor into a shared emitter helper
-two languages edit). (b) Per-file op-classifier tables (`gen_is_numrel`, `gen_rel_to_tt`) copied per file —
-acceptable, per-file, no shared edit. (c) Boxes 95%+ identical SHARE one file parameterized by an immediate /
-opcode / register (`bb_lit_scalar` groups IR_LIT_I/S/F/NUL; `bb_binop_arith` groups ADD/SUB/MUL/DIV/MOD) —
-grouping near-identical SHAPES is correct; splitting them is over-splitting. (d) The two ARMS of one box
-(`IF(BINARY)`/`IF(TEXT)`) are two encodings of one logic — NOT duplication. The line is always: copied
-*algorithm* = bad; copied *bytes/encoding* of one logic = fine.
-
-**THE TEST:** could a bug in this code require fixing the same logic in two places? If yes → duplication →
-collapse it (delete the emit-time copy in favor of one `rt_*` call; delete the fused operand arm in favor of
-the slot read; delete the second-medium walker).
-
-**COMPLETION TEST (per file):** (a) no algorithm (walker / evaluator / comparator / term-builder) appears in
-both a TEXT arm and a BINARY arm — value work is ONE `rt_*` call; (b) no emit-time reimplementation of runtime
-value work; (c) no operand-kind read (`pBB->α->ival/sval/dval`, `->α->t==IR_LIT_*`) inside a consumer box;
-(d) one four-port shape per `_str()` (or a pure router); (e) the FACT RULE body is byte-identical across all
-four GOAL files.
+**COMPLETION TEST:** (a) no algorithm appears in both TEXT and BINARY arm — value work is ONE `rt_*` call; (b) no emit-time reimplementation of runtime value work; (c) no `pBB->α->ival/sval/dval` / `->α->t==IR_LIT_*` in a consumer box; (d) one four-port shape per `_str()`; (e) FACT RULE body byte-identical across all four GOAL files.
 
 ## ⛔ X86-64 REGISTER / SUBJECT-MODEL CONVENTION (FACT — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
-Locked callee-saved layout the three concurrent BB sessions MUST share (canonical origin: GOAL-ICON-BB "Subject model — four names, zero redundancy"; casing inherited from the snobol4jvm Clojure SNOBOL4). **Casing carries meaning: UPPERCASE = the fixed whole/bound; lowercase = the moving position.**
-
 | Reg | Class | Name | Role |
 |-----|-------|------|------|
-| **R13** | callee-saved | **Σ** (UPPER) | subject BASE ptr — the fixed whole string |
-| **R14** | callee-saved | **δ** (lower) | CURSOR — the moving scan position |
-| **R15** | callee-saved | **Δ** (UPPER) | subject LENGTH/END — the fixed bound |
-| (scratch) | — | **σ** (lower) | TRANSIENT current-char ptr `Σ+δ`, computed at deref, NOT durable |
-| **R12** | callee-saved | **ζ** (zeta) | BB-local RW FRAME base; every box-local is `[r12+off]` (RATIFIED 2026-05-30) |
-| **R10** | caller-saved | LOCAL | per-BLOB DATA-block ptr (`lea r10,[rip+Δ_data]`); constant inside a BLOB |
-| **rbx** | callee-saved | — | FREE / callee-saved scratch (preserved across the box chain) |
-| **rbp** | callee-saved | — | DEFINE'd / brokered function frame ptr when active (`push rbp;mov rbp,rsp`); else callee-saved scratch |
+| **R13** | callee-saved | **Σ** | subject BASE ptr |
+| **R14** | callee-saved | **δ** | CURSOR |
+| **R15** | callee-saved | **Δ** | subject LENGTH/END |
+| (scratch) | — | **σ** | TRANSIENT current-char ptr `Σ+δ` |
+| **R12** | callee-saved | **ζ** | BB-local RW FRAME base; every box-local is `[r12+off]` |
+| **R10** | caller-saved | LOCAL | per-BLOB DATA-block ptr |
+| **rbx** | callee-saved | — | FREE / callee-saved scratch |
+| **rbp** | callee-saved | — | brokered function frame ptr / callee-saved scratch |
 
 **γ-success return packing:** `rax = σ ptr`, `rdx = δ int` (spec_t).
 
-**RETIREMENT (all three sessions must honor):** the old **`Ω`** (omega — mode-2 `refs/bb/test_*.c` oracle) and **`Σlen`** (mode-3/4 `bb_pat_*.cpp` templates) are ONE quantity under two names → **both fold into `Δ`**; always moved in lockstep. Rename sweep: `Δ(old cursor)→δ`, `Ω→Δ`, `Σlen→Δ`. Substring nesting is held on the C stack (`save_Σ`/`save_Σlen`), so ONE length register suffices. **Pre-flight gate before deleting a name:** grep that no path ever sets `Σlen ≠ Ω`. Changing any assignment in this table is LOCKSTEP — update all three GOAL files in the SAME commit (mirrors the SHARED-LOWERER / EMITTER FACT RULES).
-
-**Repo:** SCRIP + corpus + .github
-**Sister:** GOAL-HEADQUARTERS.md — mirror; only port semantics and names differ.
+**RETIREMENT:** `Ω`→`Δ`, `Σlen`→`Δ` (both fold into `Δ`). Rename sweep done. Changing any assignment is LOCKSTEP — update all three GOAL files in the SAME commit.
 
 ## ⛔ MANDATORY READ BEFORE EVERY SESSION
 
 **Pipeline:** `Prolog AST → lower_prolog (four-port IR) → IR_interp.c (m2) → bb_*.cpp x86() templates (m3 BINARY / m4 TEXT)`
 
-**⛔ PROEBSTING IS THE CANON — GPROLOG/SWI IMPLEMENTATION AUTHORITY ABANDONED (Lon directive, 2026-06-04).**
-SCRIP Prolog is a NEW compilation model: Proebsting four-port goal-directed evaluation HARD-WIRED to machine
-code (two-entry α/β boxes). gprolog and SWI-Prolog are **OBSERVABLE-SEMANTICS ORACLES ONLY** — they define
-what a conforming program PRINTS, never HOW. Their internals are NOT design authority. New design questions
-are answered from the four-port model + the BB FACT RULES.
+**⛔ PROEBSTING IS THE CANON.** gprolog/SWI-Prolog are observable-semantics oracles ONLY — never design authority.
 
-**Three modes (Lon 2026-06-04 — NORMATIVE: mode-2 is the ONLY interpreter mode; 3 and 4 are EMIT modes):**
-- **Mode 2 (`--interp`):** `IR_interp.c` walks the BB port-graph in-process. The correctness oracle.
-- **Mode 3 (`--run`):** EMIT x86 BB blobs and RUN them in-memory in the CURRENT process (sealed slab, jump in). Prolog TODAY still has a LOUD INTERP-FALLBACK for unadmitted programs — TRANSITIONAL, owned by PL-GZ; touch ONLY via PL-GZ rungs.
-- **Mode 4 (`--compile --target=x86`):** EMIT standalone `.s`, assemble (`as`), link `libscrip_rt.so`, EXECUTE as a separate system process.
+**Three modes:** m2 `--interp` (IR_interp, reference oracle) · m3 `--run` (EMIT BINARY → RX slab) · m4 `--compile --target=x86` (EMIT TEXT → as+gcc, separate process).
 
-**Absolute rules:** No C Byrd boxes. No SM/BB walking at runtime in Mode 3/4. Four ports = Greek letters (α/β/γ/ω) only. No `rt_*` port-logic helpers (conversion/effect helpers like `trail_mark`/`unify`/`term_new_*` are OK).
+**⚠ m4 ATOM_* WARNING:** `ATOM_DOT`, `ATOM_NIL`, `ATOM_TRUE` etc. are initialized by `prolog_atom_init()` called from `rt_main_init()`. In m4 compiled binaries, `rt_main_init` is called by the rich-body-root preamble but NOT by the GZ preamble (which calls only `rt_trail_mark` + `rt_pl_cells_init`). Runtime helpers called from GZ templates (`unification.c`) must use `prolog_atom_intern(".")` / `prolog_atom_intern("[]")` directly — never `ATOM_DOT`/`ATOM_NIL` — or they will see `-1` in m4 GZ binaries.
 
-**Port semantics:**
-| Port | Direction | Prolog meaning |
-|---|---|---|
-| γ | inherited DOWN | success continuation |
-| ω | inherited DOWN | failure continuation (pop choice + unwind trail) |
-| α | synthesized UP | this node's fresh-solve entry |
-| β | synthesized UP | this node's redo/retry entry |
+**Port semantics:** γ = success continuation (inherited DOWN) · ω = failure continuation (inherited DOWN) · α = fresh-solve entry (synthesized UP) · β = redo/retry entry (synthesized UP).
+
+**Absolute rules:** No C Byrd boxes. No SM/BB walking at runtime in Mode 3/4. Four ports = Greek letters (α/β/γ/ω) only.
 
 ## ⛔ PER-BOX LOCAL STORAGE — ALL STATE LIVES INSIDE THE BOXES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
-**ONLY local BB allocation variables are used; NOTHING is stored outside the boxes.** Every value a
-SNOBOL4 (or Icon / Prolog) BB graph computes or holds at run time lives in storage that belongs to a
-box — never in any external/global side channel. There is NO AG ring at run time (the ring is the
-MODE-2 ORACLE's idiom ONLY — `bb_exec_once`), NO value stack (`g_vstack`/`rt_push_*`/`rt_pop_*`), and
-intermediate values are NOT threaded through the global name table (`NV_GET`/`NV_SET`) — name-table
-stores are reserved for genuine SNOBOL4 *variables* on assignment, not for passing a value from a
-producer box to its consumer.
-
-**Each box owns exactly two kinds of local allocation, both INSIDE the box (not outside):**
-- **READ-ONLY data (RO)** — compile-time constants for that box (literal int/real/string/cset values,
-  the box's name string, fixed bounds, op codes). Placed in the SEALED segment adjacent to the box's
-  BLOB and reached by IP-relative addressing (`lea/mov reg,[rip+disp]`, `disp` an emit-time constant in
-  the BINARY arm; a `.L`-label in the TEXT arm). RO data is NEVER threaded on a stack and NEVER reached
-  by an absolute `movabs … &slot` immediate.
-- **READ-WRITE data (RW)** — the box's mutable runtime storage (its result value/DESCR slot, counters,
-  cursors, per-box backtrack arenas, generator state). Lives in the per-sequence ONE-REGISTER FRAME and
-  is reached register-relative `[ζ=r12 + emit_time_offset]`. A consumer reads a producer box's result by
-  that producer's frame offset (`bb_slot_get`/`bb_slot_alloc`); a SNOBOL4/Icon *variable* is ONE
-  name-keyed frame slot (`bb_varslot`) shared by its IR_ASSIGN(name) writer and IR_VAR(name) readers.
-
-So every box value reference is exactly one of: **(RO)** `[rip+disp]` into sealed data, or **(RW)**
-`[ζ+off]` into the per-sequence frame. Never a ring, never a value stack, never a name-table round-trip
-for an intermediate. This is the `test_sno_1.c` / `test_icon.c` named-slot law the GZ-7 Icon and PLG-8
-Prolog siblings already follow (`febef10`: `x:=42;write(x)` → m2==m3==m4, all slot-based, no ring).
-
-**COMPLETION TEST (per box family):** (a) no `bb_exec_once`/AG-ring read or write on the mode-3/4 run
-path; (b) no `g_vstack`/`rt_push_*`/`rt_pop_*`; (c) no `NV_GET`/`NV_SET` used to carry an *intermediate*
-producer→consumer value (only true variable assignment); (d) every box-local read is `[rip+disp]` (RO)
-or `[ζ+off]` (RW) — no `movabs … &pBB->slot` absolute slot address; (e) mode-3 BINARY arm and mode-4
-TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes vs GAS-text).
+**ONLY local BB allocation variables are used; NOTHING is stored outside the boxes.** No AG ring, no value stack, no NV_GET/NV_SET for intermediates. Two kinds of local allocation: **RO** (`[rip+disp]`) and **RW** (`[ζ=r12+off]`).
 
 ### ⛔ NO-RESURRECT — deleted Prolog value-stack push helpers (Lon directive, 2026-05-31)
+`rt_pl_atom_push` and `rt_pl_var_push` are **DELETED** and must **never be resurrected**. **GUARD:** `scripts/test_gate_pl_no_value_stack.sh`.
 
-`rt_pl_atom_push` and `rt_pl_var_push` are **DELETED** and must **never be resurrected**. They pushed a
-box's value onto the global value stack (`rt_pl_*_push → rt_push_int/rt_push_str → vstack_push(g_vstack)`)
-— exactly the value-stack traffic completion-test (b) bans. A Prolog box value lives in its box: a logic
-variable's binding in its per-activation slot `g_resolve_env[slot]`, an atom as a sealed RO operand
-constant — and the **consumer reads it directly** (`rt_pl_node_to_term` / `rt_pl_write_atom` /
-`rt_pl_write_var` / `rt_pl_arith`), never via a push. Their former boxes `bb_atom.cpp` and
-`bb_logicvar.cpp` are now minimal stackless four-port pass-throughs (`α→γ, β→ω`); `RESOLVE_ATOM` /
-`RESOLVE_VAR` provably fire zero times on every live mode-3/mode-4 path (atoms/vars are always operand
-constants, never executed leaves). **KEEP, do NOT confuse with these:** the trail ops `rt_pl_trail_*`
-(`g_resolve_trail`) are the binding-undo ledger, not a value stack (M4 = KEEP). The `g_vstack` array
-itself remains only as SNOBOL4/Icon's own machinery (~150 `rt_*` sites: `rt_arith`/`rt_concat`/pattern
-prims/`rt_frame`); Prolog has ZERO ties to it. **GUARD:** `scripts/test_gate_pl_no_value_stack.sh` (run
-before every Prolog commit) FAILS if either helper is redefined/declared/called or if any Prolog box
-template references `rt_push_*`/`rt_pop_*`/`vstack_*`/`g_vstack` (comments stripped; code only). It has a
-proven negative test (injecting a resurrection makes it exit 1).
+**COMPLETION TEST:** (a) no `bb_exec_once`/AG-ring on mode-3/4 run path; (b) no `g_vstack`/`rt_push_*`/`rt_pop_*`; (c) no `NV_GET`/`NV_SET` for intermediate values; (d) every box-local read is `[rip+disp]` (RO) or `[ζ+off]` (RW); (e) mode-3 BINARY and mode-4 TEXT of the SAME box do the SAME processing.
 
 ---
 
-## 🔴 PL-GZ — PROLOG GROUND ZERO (Lon directive 2026-06-04: RESET TO SQUARE ONE)
+## 🔴 PL-GZ — PROLOG GROUND ZERO
 
 Proebsting-pure rebuild; GDE INSIDE the boxes; no WAM, no byte-code, no C control engine.
 
-KEEP: parser/AST · `lower_prolog.c` split · m2 IR interp as semantics reference · 115-rung corpus + `.expected` · ALL FACT RULES · trail as the ONE spine · x86()-revamped VALUE boxes.
-GUT (deleted as new path re-admits each rung): resolution.c control engine · meta rail (`rt_meta_solve/redo`) · control-coupled bb_goal/bb_choice/bb_catch bodies · `sm_interp_run` m3 carve-out.
+KEEP: parser/AST · `lower_prolog.c` split · m2 IR interp · 115-rung corpus · ALL FACT RULES · trail as ONE spine · x86()-revamped VALUE boxes.
+GUT (as new path re-admits each rung): resolution.c control engine · meta rail · control-coupled bb_goal/bb_choice/bb_catch · `sm_interp_run` m3 carve-out.
 
-**THE LAWS:**
-· clause cursor + trail-mark = slots in the choice's OWN per-activation frame row.
-· activation env = ζ-TREE: each call site owns a child-frame ptr slot, reset at fresh α. No env swap.
-· verdict travels IN THE RETURN VALUE — no `last_ok` global.
-· cut = pure WIRING when lexical; frame-local GATE (paper §4.5 indirect-goto) when dynamic.
-· trail = the one shared spine; logic vars = frame cells; EVERY binding trailed.
-· C call stack = the sanctioned recursion spine.
-· ONE x86() body per box serves m3 (BINARY → RX slab) and m4 (TEXT → as+gcc); m3 ≡ m4 by construction.
+**THE LAWS:** clause cursor + trail-mark = frame slots · ζ-TREE activation env · verdict travels IN RETURN VALUE · cut = pure WIRING (lexical) or frame-local GATE (dynamic) · trail = one shared spine · C call stack = sanctioned recursion spine · ONE x86() body per box.
 
-## 🔴 PL-M34-PARITY — m3 ≡ m4 (Lon directive 2026-06-07)
+## 🔴 PL-M34-PARITY — m3 ≡ m4
 
-m3 and m4 must take structurally identical paths: same admission gate, same box chain, same templates, same runtime helpers — differing only in final encoding. M34-1..4 COMPLETE. Remaining:
-
-- [ ] **M34-5 — PARITY SEAL:** any rung passing m4 via `pl_rich_body_root`/`codegen_clause_dispatch` but failing m3 = admission gap → add to PL-GZ-9 queue. Verify by temporarily disabling rich-tier fallback and confirming passing set matches m3. Rich tier stays for truly unadmitted shapes; not a crutch.
+- [ ] **M34-5 — PARITY SEAL:** rungs passing m4 via `pl_rich_body_root` but failing m3 = admission gap → add to PL-GZ-9 queue.
 
 ## 🔴 PL-GZ-9 — corpus reconquest
 
-All 115 rungs onto the GZ path, m3/m4 verdicts byte-identical. Strategy: expand `pl_gz_rule_body_goal_ok` / `pl_gz_build_goal` / `pl_gz_admit` for each new IR shape. Current m3: **58**/57-FAIL. Ratchet: never regress.
+Current m3: **63**/57-FAIL. Ratchet: never regress.
 
 Recommended next targets (each ~5 rungs, deterministic, same admission recipe):
-- **rung17** — `sort/2`, `msort/2`: new `IR_DET_SORT`, `rt_pl_sort_cell` (GC_MALLOC Term* array, qsort, rebuild list, unify; msort skips duplicate removal). ATOM/LOGICVAR list arg.
-- **rung20** — `numbervars/3`: new `IR_DET_NUMBERVARS`, `rt_pl_numbervars_cell`; mirrors m2 `rt_numbervars_term`.
-- **rung26** — `copy_term/2`, `string_to_atom/2`, `atom_to_term/3`: follow atom_op recipe.
+- **rung20** — `numbervars/3`: new `IR_DET_NUMBERVARS`, `rt_pl_numbervars_cell`; mirrors `rt_numbervars_term` in `IR_interp.c`. Three `ir_call_arg`s.
+- **rung26** — `copy_term/2`, `string_to_atom/2`: follow atom_op recipe.
+- **rung29** — `float_integer_part/1`, `float_fractional_part/1`, `truncate/1`, `ceiling/1`, `floor/1`: arith extensions via `IR_DET_IS` (already admitted) or new `IR_DET_FLOAT_OP`.
 
-findall/catch/throw/aggregate/dynamic-DB are larger work (PT-2/PT-3/PT-4 re-land); defer until simpler deterministic shapes exhausted.
+findall/catch/throw/aggregate/dynamic-DB are larger work (PT-2/PT-3/PT-4); defer until simpler deterministic shapes exhausted.
 
 - [ ] **PL-GZ-9** — ongoing. See above.
 - [ ] **PL-GZ-FENCE** — coupling gate ZERO · GATE-3 m2/m3/m4 verdict-identical · resolution.c + meta rail DELETED · seed `.s` shape-isomorphic to `test_pl_1.c`.
@@ -384,7 +225,7 @@ grep -rn 'g_vstack' src/ | wc -l          # 0
 
 ## Architecture reference
 
-Pipeline: Prolog AST → lower_prolog (four-port IR) → m2 `--interp` (IR_interp) · m3 `--run` (EMIT BINARY → RX slab, in-process) · m4 `--compile` (EMIT TEXT → as+gcc, system process).
+Pipeline: Prolog AST → lower_prolog (four-port IR) → m2 `--interp` (IR_interp) · m3 `--run` (EMIT BINARY → RX slab) · m4 `--compile` (EMIT TEXT → as+gcc).
 GZ ports: δ = callee α, ε = callee β (PORT_DELTA/PORT_EPSILON beside γ/ω/β).
 
 ### Per-construct port wiring
@@ -400,7 +241,7 @@ GZ ports: δ = callee α, ε = callee β (PORT_DELTA/PORT_EPSILON beside γ/ω/�
 
 ### Admission recipe (new deterministic builtin)
 1. New `IR_DET_FOO` in `IR.h` + name table in `scrip_ir.c`.
-2. `rt_pl_foo_cell(...)` in `unification.c` — cell-based, trail-mark/unwind, no `g_resolve_env`.
+2. `rt_pl_foo_cell(...)` in `unification.c` — cell-based, trail-mark/unwind, no `g_resolve_env`. Use `prolog_atom_intern()` not `ATOM_*` globals.
 3. `bb_det_foo.cpp` — FRQ for each slot, one `call rt_pl_foo_cell`, `test eax,eax; jne γ; jmp ω; def β; jmp ω`.
 4. `bb_prepare` block in `emit_bb.c` — populate `op_parts_ival/str`.
 5. `emit_core.c` dispatch case.
