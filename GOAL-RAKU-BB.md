@@ -411,7 +411,6 @@ SNOBOL4's pattern opcodes — isolation decision below). Grammar/LTM deferred to
 
 Completed rungs (git history has full detail): RK-LOWER-0 (say/print ✅), RK-LOWER-1 (lazy range→IR_TO ✅), RK-LOWER-2 (gather/take→IR_GATHER ✅), RK-LOWER-3 (map/grep→IR_MAP/IR_GREP ✅), RK-LOWER-4 (junctions→__rk_jct_* ✅), RK-LOWER-5a (read-only value ops ✅), RK-LOWER-5b (mutating ops via pure-variant writeback ✅), RK-LOWER-5c (try/CATCH/die ✅ 2026-06-12 — TT_DIE→IR_CALL("die"); TT_TRY→IR_CALL("__rk_try", dval=2.0, na=1or2) with body/catch as sub-graphs in EXEC.counter; IR_interp intercepts "__rk_try", runs body, checks g_script_exception, runs/swallows catch. **ALSO FIXED:** `lower_raku_stage2` now populates `lower_sc` with param names after assigning bb_idx — mirroring `lower_icon_stage2` — so the dval==2.0 IR_CALL dispatch can bind args via NV_SET; previously lower_sc was always empty → all proc params read as NUL/0. `rk_try_catch25.expected` corrected: `might_die(0)` fires die before say, so the two bogus "0" lines removed.), RK-EMIT-1/2/3 (Raku rides Icon's native driver via is_raku flag ✅), RK-EMIT-GATHER (bb_rk_gather.cpp, x86() API ✅), RK-HY-0/1/2 (de-cram: bb_binop_jct_relop, bb_seq→3 files, bb_nfa→7 leaf files ✅), RK-HY-3 (bb_call_rk.cpp extracted ✅), RK-NFA-1 (IR_NFA_* graph builder + mode-2 walk ✅), RK-NFA-2 (csets/anchors/ordered-alt gate ✅), RK-NFA-3 (captures $0/$1/$<name> ✅).
 
-- [ ] **RK-LOWER-5d — class/method/field/new + say(jct)/say(list) composite output.**
 - [ ] **RK-EMIT-MAP/GREP** — `bb_rk_map.cpp`/`bb_rk_grep.cpp` (`IR_MAP`/`IR_GREP`). m2 PASS, m3/m4 EXCISED. Closure emitted as native + invoked per element. Blocked on Icon GZ-7 (IR_ASSIGN ζ-slot store).
 - [ ] **RK-NFA-4/5 — mode-3/4 emission. ⏸ SHELVED** per tier-seam decision; `~~` stays on C matcher.
 - [ ] **RK-GRAM-3 (THE SEAM) — subrule `<name>` backtracking via the generator PUMP.** Resume-and-yield-next across subrule call boundary, Match-tree build. Routes through IR_* SUSPEND/ALT/PUMP (already exist).
@@ -464,17 +463,17 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-12) — RK-LOWER-5c DONE: smoke 25/25. SCRIP HEAD see below.**
+**STATE (2026-06-12) — RK-LOWER-5d DONE: smoke 26/26. SCRIP HEAD see below.**
 
-- **Modes:** m2 **25/25** (HARD ✓). m3 **1 PASS / 0 FAIL / 24 EXCISED**, m4 **1 PASS / 0 FAIL / 24 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 m2 7/7, NFA oracle all batteries PASS, concurrency OK, `g_vstack`=0, FACT md5 `5097ed94`/`307534d6`/`8255d653` unchanged.
+- **Modes:** m2 **26/26** (HARD ✓). m3 **1 PASS / 0 FAIL / 25 EXCISED**, m4 **1 PASS / 0 FAIL / 25 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 m2 7/7, NFA oracle all batteries PASS, concurrency OK, `g_vstack`=0, FACT md5 `5097ed94`/`307534d6`/`8255d653` unchanged.
 
-- **RK-LOWER-5c ✅ 2026-06-12:** try/CATCH/die wired. **Also fixed this session:** `lower_raku_stage2` now populates `lower_sc` with param names (mirroring `lower_icon_stage2`), so dval==2.0 IR_CALL dispatch can bind proc args via NV_SET. Previously lower_sc was always empty → all proc params read as NUL/0 → `if ($x==0)` always true. `rk_try_catch25.expected` corrected (removed two bogus "0" lines — `might_die(0)` dies before say).
+- **RK-LOWER-5d ✅ 2026-06-12:** class/method/field/new wired. Six changes: (1) `rk_register_classes()` at stage2 time — calls `record_register("ClassName(f1,f2,...)")` for each TT_CLASS_DECL in the Raku AST; (2) `rk_discover_procs()` walks raw Raku AST discovering top-level TT_SUB_DECL and methods inside TT_CLASS_DECL as `ClassName__methodname` procs — fixes `[SBB] FATAL` for pure .raku files (polyglot.c only processes SCRIP-syntax :lang/:subj nodes, never touches Raku AST); (3) `lower_decl(TT_CLASS_DECL)` now builds proper `"ClassName(field1,field2,...)"` spec for `IR_RECORD_DEF` (cname from c[0]->v.sval, fields from c[1..] skipping TT_SUB_DECL); (4) TT_METHCALL→`IR_CALL("meth_call")` and TT_NEW→`IR_CALL("obj_new")` in both `lower()` and `lower_rv()`; (5) TT_TWIGIL_FIELD→`IR_FIELD_GET`+`IR_VAR("self")` operand; (6) `rk_ir_call_proc()` helper in IR_interp.c replicates the dval==2.0 IR-graph call path (frame/NV setup, snapshot/restore) — `meth_call` in by_name_dispatch.c uses this when `bb_idx >= 0` (IR mode), since `proc_table_call` only handles SM mode (entry_pc >= 0). Method lower_sc gets `self` as slot-0 param. SCRIP HEAD `ef8fa7d`.
 
 - **THE BLOCKER (Icon-owned):** Nearly every Raku program lowers `IR_ASSIGN` through the descr/ζ-frame flat-chain. Icon template-revamp deleted `bb_assign.cpp`, leaving IR_ASSIGN unhandled → `bb_var` bombs (slot never allocated). Tracked as GOAL-ICON-BB GZ-7. **Raku m3/m4 recover automatically once Icon lands it.** Mode-2 fully healthy; all Raku NATIVE rungs wait behind this.
 
-- **Done (history):** RK-LOWER-0..5c, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3 (all detailed in git log).
+- **Done (history):** RK-LOWER-0..5d, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3 (all detailed in git log).
 
-- **NEXT:** RK-LOWER-5d (class/method), RK-EMIT-MAP/GREP (native closure emission, large lift — blocked on Icon GZ-7), RK-GRAM-3 (subrule seam via generator PUMP). The lockstep "three→four" FACT-RULE roster expansion still deferred.
+- **NEXT:** say(jct)/say(list) composite output (part of 5d scope), RK-EMIT-MAP/GREP (native closure emission — blocked on Icon GZ-7), RK-GRAM-3 (subrule seam via generator PUMP). The lockstep "three→four" FACT-RULE roster expansion still deferred.
 
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet · Claude Opus
