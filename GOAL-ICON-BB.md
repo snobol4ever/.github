@@ -1,6 +1,6 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m2 195/247. Next: `next`-in-every NEXT.γ bug (fires α not β of generator); FULL-12 coerce; FULL-18-resid assign-gen β. See GOAL-ICON-FULL-PASS.md.
+## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m2 198/247. Next: FULL-18-resid generator-in-user-proc-call-arg (`lower_call` cx->beta fix); FULL-12 coerce. See GOAL-ICON-FULL-PASS.md.
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`). Keystone for every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them as `g_emit.op_*` scalars (the `walk_bb_node` prologue auto-deposits `op_a_slot`/`op_a_node_kind` and clobbers `op_sval/op_ival/op_dval/op_counter` from the node); the box stays pBB-free and reads only `_`. Shared `x86_asm.h` is additive only; `git pull --rebase` before push.
 
@@ -403,9 +403,9 @@ Floor = System V AMD64; durables are callee-saved (canonical semantics = the X86
 
 ## Watermark
 
-**HEAD (SCRIP) = `f6286b2`** — IR_interp: fix write+ALT ring-duplication (counter==0 guard). m2 195 · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-LOWER-EVERY-WRITE-ALT.md.
+**HEAD (SCRIP) = `3e08aaa`** — IR_TO_BY: fix is_real for sval='ar' (ag+real with operand nodes); real to-by works. m2 198 · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-TOBY-REAL-GENARG.md.
 
-**Open bug (2026-06-12):** `NEXT.γ = generator.α` (fresh-entry) in `every … do { if … then next }` should be `generator.β` (resume). Per JCON `ir_a_Every` line 322: `nextlabel → p.expr.ir.resume`. Fix in `lower_icon.c` `lower_every`: `cx->loop_next` must point to generator β. Visible: primes outputs 27/35/87/95 (non-primes).
+**Open bug (FULL-18-resid, 2026-06-12):** Generator in user-proc call arg disappears from BB graph. `lower_call` sets `cx->beta = ω` (not call) for non-gen-allowed procs, so ALT/TO arg to `tag("a"|"b"|"c")` is never wired into the flat graph. Fix: in `lower_icon.c` `lower_call` (line 82/94), detect when arg subtree contains a generator and set `cx->beta = call` so it stays in chain. Affected: rung16 `s[1 to 3]` (+1), rung32 `tag("a"|"b"|"c")` (+1), many rung36/37.
 
 **Standing flags:** (1) m2 scan builtins one-shot — generative would shift 195 baseline (Lon's call; PIN). (2) `rung36_jcon_scan1` rc=134 TT_CSET_DIFF unhandled. (3) rung02 userproc m4 depth-4096/m3 silent-empty. (4) ~150 corpus ABORT in `walk_bb_node` — systemic decline-gate pass wanted. (5) Open tiers: GZ-DEFER, `bb_binop_gen` Fig-1, native `!x`, `rt_call_builtin`. (6) `write(&null)` m3 abort — `&null`→IR_VAR"&null"→`bb_keyword`, unresolved forward ref.
 
