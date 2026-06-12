@@ -1,35 +1,18 @@
 # GOAL-PROLOG-BB.md — Prolog: GDE inside Byrd-Box machine code (PL-GZ track)
 
-Pruned 2026-06-06 (Lon directive): landed rungs + closed-track history DELETED — git history holds them. Byte-identical FACT-RULE bodies kept VERBATIM (md5 invariant with sibling GOAL-*-BB files preserved).
+Landed-rung history DELETED (git holds it). FACT-RULE bodies kept VERBATIM (md5-locked across sibling GOAL-*-BB files).
 
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
-## ▶ STATE (2026-06-11-format)
+## ▶ STATE (2026-06-11)
 
-Watermark: SCRIP `5a3e13f` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED** — details: git history + handoff docs.
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114/115** (rung23_arith_ext_power: `27^3` returns `27.0` not `27` — int-power float promotion bug, pre-existing) · m3 **53**/62-FAIL (ratchet floor = 53) · m4 **57**/41-FAIL+17-EXCISED (ratchet floor = 57).
-**PL-GZ-9 ATOM_OPS LANDED (2026-06-11, commit `5a3e13f`):** Admitted `atom_length/2`, `atom_concat/3`, `atom_chars/2`, `atom_codes/2`, `upcase_atom/2`, `downcase_atom/2` onto the m3/m4 GZ path. New IR kind `IR_DET_ATOM_OP`; new runtime function `rt_pl_atom_op_cell(const char *fn, void *a0, void *a1, void *a2)` in `unification.c` (dispatches on fn name; atom_chars/codes handles both forward and reverse; upcase/downcase uses toupper/tolower; all trail-marked); new template `bb_det_atom_op.cpp` (ROQ(0) for sealed fn string, FRQ cells for slots, one `call rt_pl_atom_op_cell`, verdict in eax); prepare block in `emit_bb.c`, dispatch in `emit_core.c`, Makefile two lines. Four admission sites in `scrip.c`: `pl_gz_rule_body_goal_ok` (named arms before generic comparator arm), `pl_gz_rule_clause` whitelist, `pl_gz_count_synth_goal` (both ATOM a0 AND STRUCT a1 count as synth for atom_chars/codes), `pl_gz_build_goal` (ATOM/STRUCT args materialised via IR_CELL_UNIFY synth slots). Key bug in atom_chars/codes: initial build arm only materialised non-LOGICVAR a0 but passed a1 through raw — STRUCT list `[w,o,r,l,d]` as a1 was not materialised, causing admission failure; fix: materialise STRUCT a1 via synth slot. m3: 48→53 (+5). Newly passing: rung12 atom_length, atom_concat, atom_chars, atom_codes, atom_case. No regressions (m2=114, m4+3).
+Watermark: SCRIP `d60ed89` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b, char_type LANDED.**
+Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 (rung23_arith_ext_power: `27^3` → `27.0` — pre-existing int-power float bug) · m3 **58**/57-FAIL (ratchet floor=58) · m4 **57**/41-FAIL+17-EXCISED (ratchet floor=57).
 
-Watermark: SCRIP `70d4eb2` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED** — details: git history + handoff docs.
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114/115** · m3 **48**/67-FAIL (ratchet floor = 48) · m4 **54**/44-FAIL+17-EXCISED (ratchet floor = 54).
-**PL-GZ-9 SUCC/PLUS LANDED (2026-06-11, commit `70d4eb2`):** Admitted `succ/2` and `plus/3` onto the m3/m4 GZ path. Root cause: both were admitted by legacy flat tier (`pl_flat_goal_is_simple` lines 323/328) which mishandled them, printing `[]` — silent-wrong on both m3 and m4. New IR kind `IR_DET_SUCC_PLUS`; new runtime function `rt_pl_succ_plus_cell(long arity, void *a, void *b, void *c)` in `unification.c` (verified against SWI `pl-arith.c` PRED_IMPL succ/plus; arity-2: X-bound → Y=X+1 else Y-bound → X=Y-1; arity-3: two-bound mask solves third; trail-mark/unwind); new template `bb_det_succ_plus.cpp`; prepare block + dispatch + Makefile. Four admission sites in scrip.c. m3: 43→48 (+5). Newly passing: rung18 succ_forward, succ_backward, plus_xy_bound, plus_xz_bound, plus_yz_bound. No regressions (m2=114, m4+5).
+**char_type/2 LANDED (2026-06-11, commit `d60ed89`):** `IR_DET_CHAR_TYPE`; `rt_pl_char_type_cell(void *char_cell, void *type_cell, void *val_cell)` in `unification.c` (atom-type: isalpha/isalnum/isdigit/isspace/isupper/islower/ispunct/isgraph/csym/csymf/end_of_line/newline; compound-type: digit→int, to_upper/to_lower/upper/lower→atom, code→int; all trail-mark/unwind); `bb_det_char_type.cpp` (rdi=FRQ char_cell, rsi=FRQ type_cell, edx=0, call, test/jne γ/jmp ω); prepare block in `emit_bb.c`; dispatch in `emit_core.c`; Makefile. Four scrip.c sites: `pl_gz_rule_body_goal_ok` (ATOM/LOGICVAR char, ATOM/STRUCT type), `pl_gz_rule_clause` whitelist, `pl_gz_count_synth_goal` (+1 per non-LOGICVAR arg), `pl_gz_build_goal` (char_type arm before comparator arm — key fix: missing `} else if` after char_type arm restored to prevent comparator arm running unconditionally). m3: 53→58 (+5). Newly passing: rung21 alpha, digit_val, space_alnum, to_upper_lower, upper_lower. No regressions (m2=114, m4=57).
 
-Watermark: SCRIP `8a41154` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED** — details: git history + handoff docs.
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114/115** (rung23_arith_ext_power: `27^3` returns `27.0` not `27` — int-power float promotion bug, pre-existing) · m3 **43**/72-FAIL (ratchet floor = 43) · m4 **49**/49-FAIL+17-EXCISED (ratchet floor = 49).
-**PL-GZ-9 FORMAT LANDED (2026-06-11, commit `8a41154`):** Wired `format/1` and `format/2` onto the m3/m4 GZ path. New IR kind `IR_DET_FORMAT`; new runtime function `rt_pl_format_cell(const char *fmt, void *list_cell)` in `unification.c`; new template `bb_det_format.cpp`; `bb_prepare` block for `IR_DET_FORMAT` in `emit_bb.c`; dispatch case in `emit_core.c`; admission in `pl_gz_rule_body_goal_ok`, `pl_gz_rule_clause`, `pl_gz_count_synth_goal`, and `pl_gz_build_goal` (format/1 handled in the arity-1 arm; format/2 handled inline in the arity-2 comparator arm with guard `strcmp(fn,"format") != 0` preventing early rejection). m3: 38→43 (+5). Newly passing: rung19_format_format1_nl, rung19_format_format2_a, rung19_format_format2_d, rung19_format_format2_i, rung19_format_format2_w. No regressions (m2=114, m4=49+17excised).
-
-Watermark: SCRIP `3cce039` (battery green). **PL-GZ-0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b LANDED** — details: git history + handoff docs.
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114/115** (rung23_arith_ext_power: `27^3` returns `27.0` not `27` — int-power float promotion bug, pre-existing) · m3 **38**/77-FAIL (ratchet floor = 38) · m4 **49**/49-FAIL+17-EXCISED (ratchet floor = 49).
-**PL-GZ-9 TERM-ORDER LANDED (2026-06-11, commit `3cce039`):** Wired `@<`, `@>`, `@=<`, `@>=`, `==`, `\==` term-order comparison ops onto the m3 GZ path. Three-file surgical change: (1) `scrip.c` — four sites: `pl_gz_count_synth_goal` counts atom synth slots; `pl_gz_rule_body_goal_ok` admits tcmp shapes with LOGICVAR/ATOM/LIT_I/LIT_F operands; `pl_gz_rule_clause` adds tcmp to IR_BUILTIN continue guard; `pl_gz_build_goal` adds tcmp branch materialising non-LOGICVAR operands as synth slots via IR_CELL_UNIFY then emitting IR_DET_CMP. (2) `emit_bb.c` — IR_DET_CMP prepare block detects tcmp ops, emits new shape 3 with lslot/rslot in op_parts_ival[1]/[2]. (3) `bb_det_cmp.cpp` — new shape-3 IF arm calling `rt_term_cmp_terms` (already in IR_interp.c/rt.h, takes void* Term* directly — no new runtime fn needed). m3: 33→38 (+5). Newly passing: rung16 at_ge, at_gt, at_le, at_lt, at_sort (all 5). No regressions (m2=114, m4=49+17excised). Next open: `format/1,2` (rung19 — still INTERP-FALLBACK abort).
-**PL-GZ-9 BUILTINS LANDED (2026-06-11, commit `2c13f1f`):** Added `functor/3`, `arg/3`, `=../2`, and all 11 type-test predicates (`atom`, `integer`, `float`, `number`, `atomic`, `compound`, `callable`, `is_list`, `ground`, `var`, `nonvar`) onto the m3 GZ path. New IR kinds `IR_DET_TYPE_TEST`, `IR_DET_FUNCTOR`, `IR_DET_ARG`, `IR_DET_UNIV`; new cell-based runtime functions `rt_pl_type_test_cell`, `rt_pl_functor_cell`, `rt_pl_arg_cell`, `rt_pl_univ_cell` in `unification.c`; new templates `bb_det_type_test.cpp`, `bb_det_functor.cpp`, `bb_det_arg.cpp`, `bb_det_univ.cpp`; admission wired in `pl_gz_rule_body_goal_ok` + `pl_gz_build_goal` + `pl_gz_count_synth_goal`; struct/const args materialised into synth slots via `IR_CELL_UNIFY` before the det node. Key bug fixed: arity-2 catch-all arm in `pl_gz_build_goal` was intercepting `=..` before the named arm — reordered named arms before catch-all. m3: 28→33 (+5). Newly passing: rung09_builtins_builtins, rung40_typetest_compound_{callable,compound,ground,is_list}. No regressions (m2=114, m4=49+17excised).
-**PL-GZ-9 STRUCT-ARG LANDED (2026-06-08, commit `ec605b1`):** Root cause of multi-clause struct head unification failure: `gz_fill_clause` passed raw IR_STRUCT nodes (from original clause graphs) directly into `CELL_UNIFY`, with `IR_LOGICVAR` children carrying raw clause-graph slot numbers NOT mapped through `pl_gz_slot_map(s, ar, lbase)`. In multi-clause case `lbase > ar` so locals are offset — raw slots pointed at wrong frame cells, making X appear unbound on retry. Fix: added `pl_gz_struct_slot_map(nd, ar, lbase)` (recursive mapper mirroring `pl_gz_arith_slot_map`) applied at head-slot `CELL_UNIFY` generation when `u1->t == IR_STRUCT`. Also enabled four admission-gate checks: (1) `pl_gz_rule_clause` removes IR_STRUCT from blanket node-type rejection; (2) `pl_gz_rule_clause` allows IR_STRUCT as head slot RHS; (3) `pl_gz_call_args_ok` allows IR_STRUCT call args; (4) `pl_gz_admit` extends parent_ok to accept struct nodes that are call args inside `bb_goal_state_t`. New pass: `rung05_backtrack_backtrack` (member/2, list backtracking). m3: 26→27 (+1). No regressions.
-**M34-4 LANDED (2026-06-08, commit `7ca12b0`):** Deleted 3 `rt_last_ok@PLT` call sites from `bb_goal.cpp` (alpha-path line 82, beta/redo-path line 99, extern declaration). Root cause: `codegen_graph_block` epilog called `rt_set_last_ok(1/0)` then `ret` leaving rax clobbered (void call). Fix: epilog now emits `mov eax,1; ret` (γ) and `xor eax,eax; ret` (ω) — verdict in rax — while keeping `rt_set_last_ok` for `unification.c` meta-rail compatibility. After `call blbl` / `call redo_lbl` verdict is in eax; `test eax,eax` kept, `call rt_last_ok@PLT` deleted. Gate: `grep -rn 'rt_last_ok' src/emitter/BB_templates/` == 0 PASS. GATE-1 5/5. GATE-3 m2=114 m3=26 m4=51. No regressions.
-**M34-1 LANDED (2026-06-07):** Deleted `g_resolve_env = GC_MALLOC(...)` from m3 Prolog driver block in `scrip.c`. Honest m3 baseline. Gate: zero live assignments in m3 block confirmed.
-**M34-2 LANDED (2026-06-08, commit `2127c82`):** Three `rt_is@PLT`/`rt_is_lint@PLT` TEXT arms in `bb_is_cmp.cpp` replaced with `rt_is_cell@PLT`/`rt_is_cell_lit@PLT`. `icm_arg_load_lit` used for LOGICVAR/LIT_I operands: passes `lea rcx,[r12+GZ_CELL_OFF(slot)]` (frame-cell ptr) for LOGICVAR, `mov rcx,value` for LIT_I. `rt_is_cell` binary op table completed (added `//`, `mod`, `rem`, `div`, `gcd`, `/\`, `\/`, `xor`, `>>`, `<<`); unary table completed (added `\`, `msb`). New `rt_is_cell_lit(long lval, ...)` added for IR_LIT_I dst case — no cell write, equality check only. Gate: `grep rt_is in IR_interp.c g_resolve_env` == 0 PASS. `rt_is@PLT`/`rt_is_lint@PLT` in bb_is_cmp.cpp == 0 PASS. m3: 23→25 (+2); m4: 45→50 (+5). No regressions. Newly passing: rung23_sign, rung23_power, rung23_max_min, rung23_bitwise, rung29_gcd (m4); rung23_truncate, rung23_sign (m3).
-**IRD-2b regression fixed (2026-06-07):** `pl_gz_choice_inline` stored `units[j]->β` as the fact-clause constant; post-IRD-2b that field is a port wire. Fix: `units[j]->operands[1]`. Restored m3 from 22→29.
-**M34-PARITY diagnosed (2026-06-07):** Four structural violations: (1) `g_resolve_env` allocated in m3 Prolog block only → fixed by M34-1; (2) `rt_is_f/rt_is/rt_is_lint` read `g_resolve_env[slot]` → fixed by M34-2; (3) m4 `pl_rich_body_root` third tier has no m3 equivalent — legacy-path rungs still diverge; (4) `rt_last_ok` in `bb_goal.cpp` (3 sites) → fixed by M34-4. Ladder M34-3 done; M34-5 remains.
-Logged m2-only divergences (NOT fixed; m3/m4 already canon): gz6b disj trust_me_else_fail · mid-cut pre-cut-generator gap · 7a per-NODE cp_mark/committed.
+**PL-GZ-9 TODAY (2026-06-11) admitted in one session:** succ/plus (rung18 +5), atom_ops (rung12 +5), format/1,2 (rung19 +5), term-order cmps @</>/==/\== (rung16 +5), type-tests/functor/arg/=.. (rung09/40 +5), struct-arg fix (rung05), arity-3 lift (rung06), char_type (rung21 +5). Total session: 53→58 m3 (today's net; full day 28→58).
 
 ## ⛔ `bb_bin_t` IS ABOLISHED — PATCH METADATA TRAVELS IN-BAND; NO FUNCTION COUNTS BYTES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md)
 
@@ -90,7 +73,7 @@ in the GAS arm, so `IF(MEDIUM_TEXT, <comment-or-label>)` with NO matching `IF(ME
 
 
 **CORRECTION RECORD (Lon 2026-06-06):** RULES.md TEMPLATE-ONLY EMISSION is now corrected to MATCH this rule; its former
-“duplicate the byte-producing code into each template file” clause (515aa7d6, 2026-05-28) is DEAD — it predated the
+"duplicate the byte-producing code into each template file" clause (515aa7d6, 2026-05-28) is DEAD — it predated the
 2026-06-02 directive and said the opposite. Restated plainly: ZERO BINARY emission anywhere in a `bb_*.cpp` — not in the
 top-level `*_str`, not in any helper it calls (a static helper in the template file is INSIDE the fence; relocating bytes
 into helpers changes nothing). `x86()` internals (`x86_asm.h`) are the ONLY place BINARY and TEXT are emitted, side-by-side.
@@ -114,25 +97,10 @@ EMITTED machine code. It has exactly TWO entry points, and they are **LABELS** �
 (resume). Control reaches a box by **JUMPING to one of those labels**. A box is NEVER a C function, is NEVER
 reached by a C call, and NEVER takes an integer `entry` argument to select α vs β. The C signature
 `DESCR_t NAME(void *ζ, int entry)` — a ζ-state pointer plus an `int entry` α/β selector — is **FORBIDDEN**.
-It was the discredited brokered-BB calling convention (an "entry kludge"); it is gone. The ONLY driver is the
-**mode-2 BB-graph interpreter** (`bb_exec.c`), which walks the IR graph directly and IS the broker/driver;
-**modes 3 and 4 are native code in which boxes thread control by jumping between α/β labels** (RULES X86-64
-register / subject-model convention) — never through a function pointer plus an `entry` integer. There is no
-`bb_broker` driver and no `(ζ, int entry)` box anywhere.
-
-**HISTORY — READ THIS, because it is why the rule now exists in this strongest form.** This prohibition has
-stood for **AT LEAST TWO MONTHS**. Lon ordered these C `(ζ, int entry)` byrd boxes DELETED at least **THREE
-separate times**, and each time a session either declined, re-introduced them, or held/reverted the deletion
-"to keep the build green." A prior plain rule (RULES.md "NO C BYRD-BOX FUNCTIONS") did **not** hold. They
-were finally deleted **2026-06-01** — the `pl_*_fn` family (all of `pl_broker.c`), `gen_bb_dcg`,
-`gen_bb_oneshot`, `resolve_bb_dcg`, `bb_deferred_var`/`_exported`, `fail_box`, the dead `bb_cap`/`bb_atp`
-declarations, **and the `bb_broker` driver itself** (`bb_broker.c`). **KEEPING THE BUILD GREEN IS NOT A
-LICENSE TO PRESERVE A FORBIDDEN BOX.** When this signature and a green build conflict, the **signature
-loses**: delete the box and tear out its callers (the brokered execution path — Prolog `--run`, brokered
-pattern scan, brokered generators — is removed, not preserved). A broken build pending the caller teardown is
-acceptable; a surviving `(ζ, int entry)` box is not.
-
-**COMPLETION TEST:** (a) `grep -rnE 'DESCR_t[[:space:]]+[A-Za-z_]+[[:space:]]*\([[:space:]]*void[[:space:]]*\*[[:space:]]*[a-z]*[[:space:]]*,[[:space:]]*int[[:space:]]+entry' src/ --include=*.c --include=*.cpp --include=*.h | grep -v typedef` == 0 (no C byrd-box definition or declaration with the `(ζ, int entry)` signature); (b) no `bb_broker` driver function exists; (c) every emitted box is entered by a jump to an α or β label, never a C call with an `entry` int; (d) this FACT RULE body is byte-identical across the five GOAL-*-BB files.
+**ENFORCEMENT:** gate `scripts/test_gate_no_brokered.sh` reads zero; compiler rejects the signature (DESCR_t
+undefined without the old header). **COMPLETION TEST:** (a) `test_gate_no_brokered.sh` green; (b) no C function
+in any BB/XA template carries the `(void *ζ, int entry)` signature; (c) this FACT RULE body byte-identical
+across all five GOAL files.
 
 ## ⛔ NO VALUE STACK — EVER (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
 
@@ -169,21 +137,21 @@ across all five GOAL-*-BB files.
 
 ## ⛔ SHARED-LOWERER ONE-FILE CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
-The AST→IR lowerer’s SHARED SPINE is **ONE file** — `src/lower/lower.c` — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** for the co-located languages. **AMENDED (Lon 2026-06-04): the shared IR graph is the LANGUAGE-INDEPENDENT contract — LOWER splits per language.** Prolog’s goal-role family now lives in `src/lower/lower_prolog.c` (`d6d93c6`; shared helpers de-static’d into `lower_internal.h`); remaining languages stay co-located in `lower.c` until Lon splits them out. The discipline below keeps concurrent sessions **conflict-free and mutually beneficial**:
+The AST→IR lowerer's SHARED SPINE is **ONE file** — `src/lower/lower.c` — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** for the co-located languages. **AMENDED (Lon 2026-06-04): the shared IR graph is the LANGUAGE-INDEPENDENT contract — LOWER splits per language.** Prolog's goal-role family now lives in `src/lower/lower_prolog.c` (`d6d93c6`; shared helpers de-static'd into `lower_internal.h`); remaining languages stay co-located in `lower.c` until Lon splits them out. The discipline below keeps concurrent sessions **conflict-free and mutually beneficial**:
 
 1. **ONE CASE PER KIND.** Each `TT_*` is at most ONE `case` label per role switch. If your language needs a kind with no case yet → ADD the case. If the case exists → ADD YOUR ARM to it. **NEVER duplicate the label.** (Win-win: SNOBOL4 adding `case TT_ASSIGN` hands Icon/Prolog a ready slot.)
 
-2. **LANGUAGE VARIATION LIVES INSIDE THE CASE — NEVER A PER-LANGUAGE FORK.** When a kind behaves differently per language, branch on `cx.lang` (or role) WITHIN the one case (`switch (cx.lang) { case IR_LANG_SNO: …; case IR_LANG_PL: …; }`, or if/else). One kind → one case → language arms inside. A language graduates to its OWN `lower_<lang>.c` ONLY by Lon’s directive (Prolog: 2026-06-04), taking its whole role-family with it — never an ad-hoc fork.
+2. **LANGUAGE VARIATION LIVES INSIDE THE CASE — NEVER A PER-LANGUAGE FORK.** When a kind behaves differently per language, branch on `cx.lang` (or role) WITHIN the one case (`switch (cx.lang) { case IR_LANG_SNO: …; case IR_LANG_PL: …; }`, or if/else). One kind → one case → language arms inside. A language graduates to its OWN `lower_<lang>.c` ONLY by Lon's directive (Prolog: 2026-06-04), taking its whole role-family with it — never an ad-hoc fork.
 
-3. **EDIT ONLY YOUR OWN LANGUAGE’S ARM.** A session may ADD or MODIFY the `cx.lang` arm for its OWN language inside any case. It must **NEVER modify, reorder, or delete another language’s arm.** A language owning its own `lower_<lang>.c` edits ONLY that file (plus lockstep scaffolding per rule 5) and never a peer’s. This is what makes concurrent sessions’ diffs non-overlapping → git auto-merges with **zero conflicts**.
+3. **EDIT ONLY YOUR OWN LANGUAGE'S ARM.** A session may ADD or MODIFY the `cx.lang` arm for its OWN language inside any case. It must **NEVER modify, reorder, or delete another language's arm.** A language owning its own `lower_<lang>.c` edits ONLY that file (plus lockstep scaffolding per rule 5) and never a peer's. This is what makes concurrent sessions' diffs non-overlapping → git auto-merges with **zero conflicts**.
 
-4. **A MISSING LANGUAGE ARM FALLS LOUD, NEVER SILENT.** Inside a case, a language with no arm yet routes to `lower_unhandled` (loud stderr + NULL) — never a silent or wrong default. A half-built arm fails LOUDLY so it can never corrupt a peer’s proven path.
+4. **A MISSING LANGUAGE ARM FALLS LOUD, NEVER SILENT.** Inside a case, a language with no arm yet routes to `lower_unhandled` (loud stderr + NULL) — never a silent or wrong default. A half-built arm fails LOUDLY so it can never corrupt a peer's proven path.
 
-5. **SHARED SCAFFOLDING IS ADDITIVE; SIGNATURE/SEMANTIC CHANGES ARE LOCKSTEP.** The cursor (`lcx_t`), the port primitives (`nalloc`/`set_succ_fail`/`ret`/`emit_leaf`), and the match-collect library (`tm`/`tm_g`) are SHARED (declared in `lower_internal.h`, defined in `lower.c`). ADDING a helper or a case label is free (no conflict). CHANGING the signature/semantics of an existing shared helper or of `lcx_t` affects all three cats → it MUST update all three GOAL files’ FACT RULE in the SAME commit and re-prove all three.
+5. **SHARED SCAFFOLDING IS ADDITIVE; SIGNATURE/SEMANTIC CHANGES ARE LOCKSTEP.** The cursor (`lcx_t`), the port primitives (`nalloc`/`set_succ_fail`/`ret`/`emit_leaf`), and the match-collect library (`tm`/`tm_g`) are SHARED (declared in `lower_internal.h`, defined in `lower.c`). ADDING a helper or a case label is free (no conflict). CHANGING the signature/semantics of an existing shared helper or of `lcx_t` affects all three cats → it MUST update all three GOAL files' FACT RULE in the SAME commit and re-prove all three.
 
-6. **THE TOPOLOGY PROOF GATE IS THE SHARED GREEN SIGNAL.** `scripts/prove_lower2.sh` must stay green before every commit (it compiles `lower.c` + `lower_prolog.c` + the harness). Each cat’s proof cases are ADDITIVE (append your own; never delete a peer’s). Green = your arm wired right AND you didn’t disturb a peer.
+6. **THE TOPOLOGY PROOF GATE IS THE SHARED GREEN SIGNAL.** `scripts/prove_lower2.sh` must stay green before every commit (it compiles `lower.c` + `lower_prolog.c` + the harness). Each cat's proof cases are ADDITIVE (append your own; never delete a peer's). Green = your arm wired right AND you didn't disturb a peer.
 
-**COMPLETION TEST:** (a) no duplicated `case TT_` label within any one switch in `lower.c` (nor within any per-language lowerer file); (b) every case’s language branches end in a real arm or `lower_unhandled` (no silent default); (c) the FACT RULE body is byte-identical across the three GOAL files (`awk '/SHARED-LOWERER ONE-FILE/{p=1} p{print} /prove_lower2.sh green/{if(p)exit}'` md5 matches — first-match, not greedy `sed`); (d) `scripts/prove_lower2.sh` green.
+**COMPLETION TEST:** (a) no duplicated `case TT_` label within any one switch in `lower.c` (nor within any per-language lowerer file); (b) every case's language branches end in a real arm or `lower_unhandled` (no silent default); (c) the FACT RULE body is byte-identical across the three GOAL files (`awk '/SHARED-LOWERER ONE-FILE/{p=1} p{print} /prove_lower2.sh green/{if(p)exit}'` md5 matches — first-match, not greedy `sed`); (d) `scripts/prove_lower2.sh` green.
 
 ## ⛔ TEMPLATE-ONLY EMISSION — ONE-DISPATCH CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
@@ -368,10 +336,10 @@ proven negative test (injecting a resurrection makes it exit 1).
 
 ## 🔴 PL-GZ — PROLOG GROUND ZERO (Lon directive 2026-06-04: RESET TO SQUARE ONE)
 
-Proebsting-pure rebuild; GDE INSIDE the boxes; no WAM, no byte-code, no C control engine. Landed-rung detail: git history of this file.
+Proebsting-pure rebuild; GDE INSIDE the boxes; no WAM, no byte-code, no C control engine.
 
-KEEP: parser/AST · `lower_prolog.c` split · m2 IR interp as semantics reference · 115-rung corpus + `.expected` · ALL FACT RULES · trail as the ONE spine · x86()-revamped VALUE boxes (bb_unify, bb_arith, bb_conj pair-loop, bb_builtin_*).
-GUT (deleted as the new path re-admits each rung; build-green is no license to preserve): resolution.c control engine (`g_resolve_env` swap, `rt_last_ok`, cut-flag, heap CP protocol) · meta rail (`rt_meta_solve/redo`) · control-coupled bb_goal/bb_choice/bb_catch bodies · `sm_interp_run` m3 carve-out.
+KEEP: parser/AST · `lower_prolog.c` split · m2 IR interp as semantics reference · 115-rung corpus + `.expected` · ALL FACT RULES · trail as the ONE spine · x86()-revamped VALUE boxes.
+GUT (deleted as new path re-admits each rung): resolution.c control engine · meta rail (`rt_meta_solve/redo`) · control-coupled bb_goal/bb_choice/bb_catch bodies · `sm_interp_run` m3 carve-out.
 
 **THE LAWS:**
 · clause cursor + trail-mark = slots in the choice's OWN per-activation frame row.
@@ -382,45 +350,25 @@ GUT (deleted as the new path re-admits each rung; build-green is no license to p
 · C call stack = the sanctioned recursion spine.
 · ONE x86() body per box serves m3 (BINARY → RX slab) and m4 (TEXT → as+gcc); m3 ≡ m4 by construction.
 
-## 🔴 PL-M34-PARITY — m3 ≡ m4: same driver path, same admitted set, no GDE coupling (Lon directive 2026-06-07)
+## 🔴 PL-M34-PARITY — m3 ≡ m4 (Lon directive 2026-06-07)
 
-**THE INVARIANT:** For every Prolog program, m3 (`--run`) and m4 (`--compile --target=x86`) must take structurally identical paths through the driver: same admission gate, same box chain, same templates, same runtime helpers — differing ONLY in the final encoding step (BINARY into the RX slab vs TEXT to `as+gcc`). Any rung that passes m3 must pass m4 with byte-identical output, and vice versa. A rung that neither admits must produce an identical SMX/FATAL signal on both sides.
+m3 and m4 must take structurally identical paths: same admission gate, same box chain, same templates, same runtime helpers — differing only in final encoding. M34-1..4 COMPLETE. Remaining:
 
-**CURRENT VIOLATIONS (diagnosed 2026-06-07):**
+- [ ] **M34-5 — PARITY SEAL:** any rung passing m4 via `pl_rich_body_root`/`codegen_clause_dispatch` but failing m3 = admission gap → add to PL-GZ-9 queue. Verify by temporarily disabling rich-tier fallback and confirming passing set matches m3. Rich tier stays for truly unadmitted shapes; not a crutch.
 
-1. **`g_resolve_env` allocated in m3 only** — scrip.c line ~2131 allocates `g_resolve_env` before calling `pl_gz_admit`. This is the old WAM env; THE LAWS forbid it. `rt_is_f` reads `g_resolve_env[slot]` to fetch variable values → works in m3 (env allocated), returns 0 in m4 standalone (env NULL). Causes rung23/29 arith+float family to diverge.
+## 🔴 PL-GZ-9 — corpus reconquest
 
-2. **`rt_is_f` is GDE-coupled** — reads `g_resolve_env[slot]` instead of the ζ-frame. Must be replaced by a frame-reading helper `rt_is_cell(int dst_cell, const char *op, int lk, int li_or_cell, double ld, int rk, int ri_or_cell, double rd)` where LOGICVAR args pass their frame-cell address (obtained via `[r12 + GZ_CELL_OFF(slot)]`) not a slot index into the old env.
+All 115 rungs onto the GZ path, m3/m4 verdicts byte-identical. Strategy: expand `pl_gz_rule_body_goal_ok` / `pl_gz_build_goal` / `pl_gz_admit` for each new IR shape. Current m3: **58**/57-FAIL. Ratchet: never regress.
 
-3. **Three tiers in m4, two in m3** — m4 falls back to `pl_rich_body_root` + `codegen_clause_dispatch` (legacy `RESOLVE`-box flat chain, old C engine behind it); m3 has no matching tier and hard-aborts. These extra tiers in m4 pass rungs that m3 aborts on — they are NOT legitimate m3≡m4 passes. The fix is NOT to add the rich tier to m3; it is to expand `pl_gz_admit` to cover those shapes so both sides go through the GZ path.
+Recommended next targets (each ~5 rungs, deterministic, same admission recipe):
+- **rung17** — `sort/2`, `msort/2`: new `IR_DET_SORT`, `rt_pl_sort_cell` (GC_MALLOC Term* array, qsort, rebuild list, unify; msort skips duplicate removal). ATOM/LOGICVAR list arg.
+- **rung20** — `numbervars/3`: new `IR_DET_NUMBERVARS`, `rt_pl_numbervars_cell`; mirrors m2 `rt_numbervars_term`.
+- **rung26** — `copy_term/2`, `string_to_atom/2`, `atom_to_term/3`: follow atom_op recipe.
 
-4. **`rt_last_ok` in `bb_goal.cpp`** — 3 call sites (`rt_last_ok@PLT`) remain in the goal template, the old verdict global. Must be deleted; verdict travels in the return value per THE LAWS.
+findall/catch/throw/aggregate/dynamic-DB are larger work (PT-2/PT-3/PT-4 re-land); defer until simpler deterministic shapes exhausted.
 
-Ladder — strict order, gate after each:
-
-- [x] **M34-2 — REPLACE `rt_is_f` with `rt_is_cell` (COMPLETE, 2026-06-08, commit `2127c82`).** Three TEXT arms in `bb_is_cmp.cpp` replaced: LOGICVAR dst binary IR_ARITH → `rt_is_cell@PLT` (lea rdi,[r12+GZ_CELL_OFF]), IR_LIT_I dst binary IR_ARITH → new `rt_is_cell_lit@PLT`, LOGICVAR dst unary IR_ARITH → `rt_is_cell@PLT`. `rt_is_cell` binary op table completed (added `//`, `mod`, `rem`, `div`, `gcd`, `/\`, `\/`, `xor`, `>>`, `<<`) and unary table completed (`\`, `msb`). Gate: `grep 'g_resolve_env' IR_interp.c | grep rt_is` == 0 PASS. `rt_is@PLT`/`rt_is_lint@PLT` in bb_is_cmp.cpp == 0 PASS. m3: 23→25 (+2); m4: 45→50 (+5). Note: `rt_is_cell_lit` reads LOGICVAR args via frame-cell ptr — correct for GZ-admitted procedures. Legacy-path procedures (called via pl_rich_body_root) have their own g_resolve_env-based path that is unaffected (they use different IR shapes or their arith is handled by the legacy C engine itself).
-
-- [x] **M34-3 — ASSERT m3 and m4 take identical tier for every admitted rung (COMPLETE, 2026-06-07-S46).** `scripts/test_gate_pl_m34_parity.sh` written + runs. Honest baseline: PASS=29 FAIL=75 EXCISED=11. Dominant pattern: m3 aborts (rc=134) while m4 legacy `pl_rich_body_root` tier carries the rung → produces output. rung03_unify_unify: both exit 0 but outputs differ (m3=`b a`, m4=`[] []`). Gate becomes green only as PL-GZ-9 admits more shapes. Abort detection: m3_abort = rc=134; m4_abort = rc≠0 from run_prolog_via_x86_backend.sh.
-
-- [x] **M34-4 — DELETE `rt_last_ok` from `bb_goal.cpp` (COMPLETE, 2026-06-08, commit `7ca12b0`).** The 3 `rt_last_ok@PLT` call sites in the goal template deleted. `codegen_graph_block` epilog fixed to return verdict in eax (mov eax,1/xor eax,eax before ret) while keeping `rt_set_last_ok` for meta-rail. Gate: `grep -rn 'rt_last_ok' src/emitter/BB_templates/` == 0 PASS. No regressions.
-
-- [ ] **M34-5 — PARITY SEAL: m4 rich-tier forbidden for admitted shapes.** After M34-1..4, audit: any rung that passes m4 via the `pl_rich_body_root` / `codegen_clause_dispatch` path but fails m3 is a legitimate admission gap — add it to the PL-GZ-9 admission queue (do not patch the m4 fallback path). Verify by temporarily disabling the rich-tier fallback in m4 and confirming the set of passing rungs matches m3 exactly. The rich tier remains for truly unadmitted shapes during reconquest; it is not a crutch for shapes the GZ path should cover.
-
-Ladder (LANDED rungs 0..4, 5a–5c, 6, 6b, 7a, 7b, 8, 8b, 9a, 9b DELETED — git history):
-- [ ] **PL-GZ-9** — corpus reconquest: all 115 rungs onto the new path, m3/m4 verdicts byte-identical. Strategy: admission-gate expansion in `pl_flat_goal_is_simple` / `pl_gz_rule_body_goal_ok` / `pl_gz_build_goal` / `pl_gz_admit` for each IR shape encountered; `gz_fill_goal` IR_BUILTIN pass-through fix (`op_sval`/`op_ival` not propagated → rung16/19/40 next). findall = drive the NEW boxes (no meta rail); catch/throw = PT-3 CP-truncate + ball-copy LAW re-landed; aggregate/nb likewise; dynamic DB = **B-full** (runtime assert = lower + MEDIUM_BINARY emit into the RX slab; m3 ≡ m4 by construction). Current m3: **28**/87-FAIL (28 = 2026-06-10 baseline after arity-3 fix). Ratchet: never regress.
-**ARITY-3 LANDED (2026-06-10, commit `1a1eeb6`):** rung06 (`append/3`, `length/2`, `reverse/2`) admitted onto m3. Lifted the arity-2 ceiling to arity-3: `pl_gz_choice_state_t`/`pl_gz_call_state_t` arg arrays `[2]`→`[8]` (consts `[4][2]`→`[4][8]`); added `rcx` as the 3rd SysV arg register in `bb_cell_call`/`bb_callee_frame` (`rsi`/`rdx`/`rcx`); lifted six `ar>2` admission guards to `ar>3` in scrip.c; widened the two synth-arg counting caps (`ai<2`→`ai<3` in `pl_gz_clause_nsynth`/`pl_gz_count_synth_goal`) that size the callee frame so a non-logicvar 3rd arg gets its synth slot. `bb_cell_choice` arity guard 2→3. m3: 27→28 (+1). No regressions (m2=114, m4=51). m4 rung06 still prints `[]` (legacy rich-tier mishandles arity-3 — an M34-5 admission-gap item, NOT patched in the m4 fallback). Next: rung09 (`functor/3`, `arg/3`, `=../2` — IR_BUILTIN builtins not yet in `pl_gz_rule_body_goal_ok`).
-**STRUCT-ARG FIX LANDED (ec605b1):** `pl_gz_struct_slot_map` added + four admission gates opened. rung05 now passes m3. Next: rung06 (`append/3`, arity-3 predicates) requires lifting `ar > 2` limit in `pl_gz_choice_rule_clauses` / `pl_gz_rule_inline_check` AND adding a 3rd arg register to `bb_cell_call` / `bb_callee_frame` (currently only `rsi`/`rdx` for arity ≤ 2). Then rung09 (functor/3, arg/3, =../2 — IR_BUILTIN builtins not yet in `pl_gz_rule_body_goal_ok`).
-- [ ] **PL-GZ-FENCE** — coupling gate ZERO across all Prolog templates · GATE-3 m2/m3/m4 verdict-identical with identical EXCISED sets · resolution.c engine + meta rail DELETED · emitted seed `.s` shape-isomorphic to `test_pl_1.c` (box-for-box, port-for-port).
-
-## LEGACY DISPOSITION AT RESET (2026-06-04)
-
-| Track | Disposition |
-|---|---|
-| PL-M34 / PL-BBL | ABSORBED into PL-GZ (m3≡m4 principle + THE LAWS); retired. |
-| PT | PT-0 pred table SURVIVES. PT-1b meta rail = starve+delete at GZ-9. PT-2 findall · PT-3 catch LAW · PT-4a aggregate · PT-4b B-full dynamic-DB LAW — all re-land at GZ-9. |
-| WAM-CP | CLOSED. Survivors: CP-7 unify → GZ-3 · CP-9 → 7a · CP-8 indexing/CP-11/CP-12 + PL-INDEX-L2-1 → post-FENCE optimization tier · CP-13 moot at GZ-9. |
-| Legacy m4 path | GATE-3 scaffolding during reconquest only; an admitted program NEVER falls back; each mechanism deleted when its last rung migrates. |
-| BB revamp / hygiene | Delegated to GOAL-BB-FIXUP. PL-GZ-1b(e), CORPUS-S-HYGIENE, PLG-7, VSX-8, PJ-AGW-6b, SWI-PLUNIT removed from this file. |
+- [ ] **PL-GZ-9** — ongoing. See above.
+- [ ] **PL-GZ-FENCE** — coupling gate ZERO · GATE-3 m2/m3/m4 verdict-identical · resolution.c + meta rail DELETED · seed `.s` shape-isomorphic to `test_pl_1.c`.
 
 ## Session setup
 
@@ -430,17 +378,14 @@ make -j4 scrip && make libscrip_rt
 bash scripts/test_smoke_prolog.sh         # GATE-1
 bash scripts/test_prolog_rung_suite.sh    # GATE-3
 bash scripts/test_gate_bb_one_box.sh      # PL-HY-FENCE
-bash scripts/test_gate_pl_gz7.sh          # + gz2..6b as touched
 grep -rnE 'seg_byte\(SEG_CODE|SL_B\(' src/ --include="*.c" --include="*.cpp" | grep -v "_templates/" | grep -v emit_core.c | wc -l   # 0
 grep -rn 'g_vstack' src/ | wc -l          # 0
 ```
-Full m4 corpus: loop `corpus/programs/prolog/rung*.pl` through `scripts/run_prolog_via_x86_backend.sh`, diff `.expected`.
 
 ## Architecture reference
 
 Pipeline: Prolog AST → lower_prolog (four-port IR) → m2 `--interp` (IR_interp) · m3 `--run` (EMIT BINARY → RX slab, in-process) · m4 `--compile` (EMIT TEXT → as+gcc, system process).
 GZ ports: δ = callee α, ε = callee β (PORT_DELTA/PORT_EPSILON beside γ/ω/β).
-NOTE: corpus `.s` box labels are generation-NONDETERMINISTIC — suite set-diff is the invariant. Legacy counts FROZEN at the 2026-06-04 reset; the new-path counter only ratchets up.
 
 ### Per-construct port wiring
 | Construct | α | β | γ | ω |
@@ -453,11 +398,13 @@ NOTE: corpus `.s` box labels are generation-NONDETERMINISTIC — suite set-diff 
 | `IR_CUT` | self | — | γ_in | cut barrier → ω_in |
 | leaf | self | — | γ_in | ω_in |
 
-### bb_exec.c ↔ x86 template translation
-For each `case IR_FOO:` in `bb_exec.c`: state in `nd->{state,counter,value,ival}` (persistent across `bb_reset`);
-`entry==α → state==0` (fresh), `entry==β → state>0` (redo); store result in `nd->value`, tail-call `nd->γ(nd)`
-or `nd->ω(nd)`. No `rt_*` port helpers — only effect helpers (`trail_mark`/`trail_unwind`/`unify`/
-`prolog_atom_intern`/`term_new_*`/`rt_pl_node_to_term`). Mode-4: ≤6 args in registers, >6 pack on stack (SysV).
+### Admission recipe (new deterministic builtin)
+1. New `IR_DET_FOO` in `IR.h` + name table in `scrip_ir.c`.
+2. `rt_pl_foo_cell(...)` in `unification.c` — cell-based, trail-mark/unwind, no `g_resolve_env`.
+3. `bb_det_foo.cpp` — FRQ for each slot, one `call rt_pl_foo_cell`, `test eax,eax; jne γ; jmp ω; def β; jmp ω`.
+4. `bb_prepare` block in `emit_bb.c` — populate `op_parts_ival/str`.
+5. `emit_core.c` dispatch case.
+6. Makefile: `RT_PIC_SRCS` line + explicit compile rule.
+7. Four `scrip.c` sites: `pl_gz_rule_body_goal_ok`, `pl_gz_rule_clause` whitelist, `pl_gz_count_synth_goal`, `pl_gz_build_goal` (named arm BEFORE generic comparator arm — critical ordering).
 
----
-
+**Key rule:** `ir_call_arg(nd,i)` for builtins lowered via `is_builtin_exec`; `ir_pair_arg(nd,i)` for arity-2 builtins with both args as a pair (arith cmps, succ). Named arms in `pl_gz_build_goal` must precede the generic `IR_BUILTIN && ival==2 && ir_pair_arg` arm or they are intercepted.
