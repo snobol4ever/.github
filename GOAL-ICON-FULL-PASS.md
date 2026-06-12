@@ -1,44 +1,41 @@
-# GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 non-xfail PASS
+# GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 · m3/m4 parity
 
-**PIVOT 2026-06-06 (Lon):** REVAMP/HYGIENE delegated to GOAL-BB-FIXUP. This goal owns ONLY: lowerer correctness (`src/lower/lower_icon.c` — NL-promoted, sole Icon path), m2 interpreter semantics (`IR_interp.c`), and Icon runtime (`by_name_dispatch.c`, `aggregates.c`, `keywords.c`). Native m3/m4 follows once m2 is correct.
+**PIVOT 2026-06-12 (Lon):** Priority is M3/M4 PARITY. m3=39, m4=39 vs m2=200. 95 m3 FAILs are silent miscompiles (empty output, not excised). Fix `emit_bb.c` + BB templates so native output matches m2. Gate: m3 PASS must increase each step.
 
-**Status:** m2 200/247 · m3 29 · m4 32. Target 247/247 m2. XFAIL pool (36) out of scope. HEAD=88dd8b4.
-**Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 count must never decrease.
+**PIVOT 2026-06-06 (Lon):** REVAMP/HYGIENE in GOAL-BB-FIXUP. This goal owns: lowerer (`lower_icon.c`), m2 interpreter (`IR_interp.c`), Icon runtime (`by_name_dispatch.c`, `aggregates.c`, `keywords.c`), and now m3/m4 native codegen parity.
 
----
-
-## Failure taxonomy
-
-**A. LOWER UNHANDLED** (rc=134 `[lower2] UNHANDLED kind=N`) — add a case in `lower_icon.c`; consult JCON `irgen.icn` first. *(none open for current rung set.)*
-
-**B. M2 OUTPUT MISMATCH** — fix in `IR_interp.c` / `by_name_dispatch.c` / runtime:
-
-| Symptom | Rung |
-|---|---|
-| nested-generator β mis-wire (16 cases) | CLOSED (β-CHAIN-REST 2026-06-10) |
-| coerce `integer("3")`/`real(x)` all type combos | 36, 37 |
-| `type()` wrong name; `&lcase`/`&ucase`/`&pos` keywords | 37 |
-| scan-in-alt `s ? (e1\|e2)` resume | 37 |
-| str relop remaining (`ac=='ca'`) | 37 |
-| mutual recursion forward refs | 37 |
-| `sort(L)` / `sort(T,i)` unimplemented | 31 |
-| alt cross-arg partial | 13 |
+**Status:** m2 200/247 · m3 39/247 · m4 39/247 · XFAIL 36 (out of scope). HEAD=99e96e9.
+**Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 never decreases; m3/m4 trend up.
 
 ---
 
-## Open steps (m2 interpreter + lowerer only)
+## M3/M4 parity — root cause and open work
 
-- **FULL-11 next-in-every** — INVESTIGATED: `NEXT.γ=generator.α` was hypothesized but not the real bug. The primes test (`rung36_jcon_primes`) ALREADY PASSES at m2=198. Closed.
-- **FULL-19 real to-by** ✅ DONE 2026-06-12 (`3e08aaa`). `IR_TO_BY` `is_real` detection fixed for `sval="ar"` (ag+real with operand nodes). rung19 +2.
-- ✅ **FULL-18-resid generator-in-subscript-arg** — DONE 2026-06-12 (`88dd8b4`). `lower_call` now chains `[]`/`MAKELIST` when any arg is resumable; interp reads arg values directly from `IR_EXEC(operand).value`. rung16_subscript_sub_every +1.
-- **FULL-12 coerce()** — `integer(x)`/`real(x)` all type combos; consult `oarith.r`. Rungs 36, 37. +5.
-- **FULL-13-resid keywords** — rung37_keywords 3 residuals: `& &e` parse ambiguity, &error write-back, &dump/trace/random.
-- **FULL-14 scan-alt** — `IR_GEN_SCAN` resume re-enters scan across alt. Rung 37. +2.
+**Diagnosed this session (99e96e9):**
+- `flat_drive_call_intexpr` skipped `walk_bb_flat(a0)` when `dval==1.0` (single-arg write). Fixed: always walk when `g_descr_flat_chain`. COMMITTED.
+- `bb_binop_relop` did not store result `y` (right operand) to `op_off`. Fixed: copy `op_sb` tag+value to `op_off` after cmp passes. COMMITTED. Icon relop returns `y` per `ocomp.r`.
+- **Still failing:** `rung01_paper_lt` (`every write(2 < (1 to 4))`) outputs empty in m3/m4 even with both fixes. Asm is structurally correct (relop stores to slot 72/80, write reads 72/80, write's γ = TO.β retry). Root cause NOT yet found — likely in how `descr_flat_chain_build` calls `bb_build_flat(icn_root)` vs `descr_flat_chain_build(bbg->entry)` when `icn_ring_to_tree` returns NULL. Next step: instrument `rt_write_any_nl` or single-step the --run blob to find where control is lost.
+
+**M3 FAIL categories (95 total):**
+- Silent-empty output (no SMX, rc=0): generator-in-every + relop/arith chains. Core of the parity gap.
+- rc=124 (timeout): `rung01_paper_mult`, `rung01_paper_paper_expr`, `rung02_arith_gen_nested_add`, etc. — likely infinite loops in retry wiring.
+- rc=134 (abort): scan builtins (`find`, `find_gen`), `!` (LIST_BANG), `string_format`, `trim`, etc. — stub dispatch hits `x86_bomb`.
+- rc=139 (segfault): `rung33_case_*` — CASE box not wired.
+
+**Priority order:** (1) fix silent-empty for TO+relop+EVERY (the `rung01_paper_lt` class), then arith, then remove timeouts, then rc=134 stubs.
+
+---
+
+## Open m2 steps
+
+- **FULL-18-resid assign-gen β** — `every (x := (1|2|3|4)) > 2 & write(x)` empty. `lower_call` resets `cx->beta=ω`; assign-generator doesn't propagate self-resume β. Do not loosen `c9ec94c` gate. Rung 13. +1.
+- **FULL-12 coerce()** — `integer(x)`/`real(x)` all combos; consult `oarith.r`. Rungs 36,37. +5.
+- **FULL-13-resid keywords** — rung37: `& &e` parse ambiguity, &error write-back, &dump/trace/random. +3.
+- **FULL-14 scan-alt** — `IR_GEN_SCAN` resume across alt. Rung 37. +2.
 - **FULL-15 str relop** — remaining lexicographic cases in `by_name_dispatch.c`. +1.
-- **FULL-16 mutual recursion** — forward refs via `rt_call_named_proc`, verify no crash. +1.
-- **FULL-17 sort()** — `rt_list_sort`/`rt_table_sort` in `aggregates.c`; consult `fstranl.r`. Rung 31. +5.
-- [ ] **FULL-18-resid assign-gen β** — `every (x := (1|2|3|4)) > 2 & write(x)` still empty. `lower_call` resets `cx->beta = ω` unless `g_icn_postfix_resume` set; the assign-generator `x := alt` doesn't propagate self-resume β up through the chaining write call. Do not loosen the `c9ec94c` gate — it guards write-chaining. Rung 13.
-- **FULL-32 rung36/37 sweep** — triage residuals one by one; document genuine XFAILs.
+- **FULL-16 mutual recursion** — forward refs via `rt_call_named_proc`. +1.
+- **FULL-17 sort()** — `rt_list_sort`/`rt_table_sort` in `aggregates.c`. Rung 31. +5.
+- **FULL-32 rung36/37 sweep** — triage residuals; document XFAILs.
 
 ---
 
@@ -47,33 +44,34 @@
 ```bash
 cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
-bash scripts/build_scrip.sh
-make libscrip_rt
+bash scripts/build_scrip.sh && make libscrip_rt
 bash scripts/test_smoke_icon.sh        # m2 12/12 HARD
 bash scripts/test_smoke_prolog.sh      # m2 5/5 HARD
 bash scripts/test_gate_bb_one_box.sh
+# Extract refs if absent:
+unzip -q /mnt/user-data/uploads/2-icon-master.zip -d refs/
+unzip -q /mnt/user-data/uploads/3-jcon-master.zip -d refs/
 ```
-Extract the uploaded Icon/JCON zips into `refs/` if absent.
 
 ## Gate after every step
 
 ```bash
 bash scripts/build_scrip.sh && make libscrip_rt
-bash scripts/test_icon_rung_suite.sh   # m2 >= previous; m3/m4 PASS-or-EXCISED only
+bash scripts/test_icon_rung_suite.sh   # m2>=200 HARD; m3/m4 track up
 bash scripts/test_gate_bb_one_box.sh
 bash scripts/test_smoke_prolog.sh
 ```
 
-## Canonical source rule (RULES.md)
+## Canonical source rule
 
-Before ANY construct: grep canonical FIRST. Port topology → `refs/jcon-master/tran/irgen.icn` (`ir_a_<Construct>`). Runtime → `refs/icon-master/src/runtime/*.r` (`fstranl.r`, `oarith.r`, `oref.r`, `ocomp.r`). The m2 oracle (`IR_interp.c`) is a transcription; canonical wins.
+Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-master/src/runtime/*.r` (`ocomp.r`, `fstranl.r`, `oarith.r`, `oref.r`). m2 oracle is a transcription; canonical wins.
 
 ---
 
 ## Watermark
 
-**HEAD (SCRIP) = `3e08aaa`** — IR_TO_BY: fix is_real for sval='ar' with operand nodes; real to-by works. m2 **198** · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-TOBY-REAL-GENARG.md.
+**HEAD (SCRIP) = `99e96e9`** — M3/M4 parity pivot: flat_drive_call_intexpr always walks arg in descr-flat-chain; bb_binop_relop stores y to result slot. m2 **200** · m3 **39** · m4 **39**. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-M3M4-PARITY-PIVOT.md.
 
-**Key intel:** `--dump-bb` does NOT show `operand_aux` — two identical dumps can still differ; verify by output. NOT/SECTION/BANG push via `ir_operand_push` (HEAD reads `bb->operands[0]`), while ALT uses `bb_operand_aux_set` (HEAD interp reads `bb_operand_aux_get`).
+**Key intel:** `icn_ring_to_tree` returns NULL if chain has IR_BINOP or IR_LIT_I → falls to `descr_flat_chain_build(bbg->entry)`. `--dump-bb` does NOT show `operand_aux`. DESCR_t = {DTYPE_t(4)+slen(4) in low 8 bytes; int64/ptr in high 8 bytes} — passed as rdi:rsi pair.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
