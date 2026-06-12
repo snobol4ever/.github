@@ -1,99 +1,55 @@
-# HANDOFF 2026-06-12 · Sonnet 4.6 · SNOBOL4-BB inline-alt + unary-minus
+# HANDOFF 2026-06-12 · Sonnet 4.6 · SNOBOL4-BB duplicate-label fix landed
 
-**SCRIP HEAD:** `e0962eb`  **.github HEAD:** (this commit)
-
----
-
-## What landed this session (3 commits)
-
-### 1 — `4097d52` inline-alt m4: 050+051 PASS (pat-rung 16→18)
-
-**Root cause:** `flat_drive_capture` and `flat_drive_match` both silently emitted
-only the first arm of γ/ω-threaded inline PAT_ALT chains. The inline scan lowerer
-produces a linked chain `PAT_LIT('cat') →ω→ PAT_LIT('dog') →ω→ FAIL` (arms linked
-via ω ports, not stored in `operand_aux`). Both drivers fell back to
-`walk_bb_flat(ch, ...)` on just the entry node.
-
-**Fix:** New helper `gather_inline_alt_arms(start, arms, cap)` traverses ω-links
-while `is_pat_chain_elem` holds. Both `flat_drive_capture` and `flat_drive_match`
-detect `na2 >= 2` and drive each arm with cascading per-arm ω-labels and fresh
-per-arm β-labels (`alloca` per arm — prevents duplicate `smatch*_elemb` assembler
-error). `flat_drive_match` abort-on-real-sibling exempts detected inline alt chains.
-
-**Files:** `src/emitter/emit_bb.c`
+**SCRIP HEAD:** `4c65b17`
+**.github HEAD:** (this commit)
 
 ---
 
-### 2 — `1fb9e77` ARBNO inner alt: 054 PASS (pat-rung 18→19/19 FIRST FULL PASS)
+## What this session did
 
-**Root cause:** Same γ/ω-threaded inline alt bug, but inside ARBNO child bodies.
-`codegen_flat_body` called `walk_bb_flat(nd, ...)` after `ir_skip_alt_arms`, emitting
-only arm 'a' of `ARBNO('a' | 'b')`. The inner graph entry = `PAT_LIT('a')` whose
-γ → PAT_ALT (no operand_aux) — identical to the 050/051 root cause.
+### Fix landed: duplicate proto labels in 5 builder templates (commit `4c65b17`)
 
-**Fix:** New shared helper `walk_bb_flat_or_inline_alt(nd, lbl_γ, lbl_ω, lbl_β)`:
-detects γ/ω-threaded inline alt (γ→PAT_ALT, na=0) and drives all arms with the
-same cascading label logic. `codegen_flat_body` now calls this instead of
-`walk_bb_flat` directly.
+All five pattern builder templates (`bb_pattern_lit`, `bb_pattern_arb`, `bb_pattern_nullary`, `bb_pattern_unary_i`, `bb_pattern_unary_s`) had a `xx_bump()` counter function declared but never called. Each invocation of the same box kind within one compilation emitted the same local label (`.Lpb0_s`, `.Lpb0_desc`, etc.), causing the assembler to reject programs with multiple builders of the same kind (e.g. `P = ('a' | 'b' | 'c')`).
 
-**Files:** `src/emitter/emit_bb.c`
+**Fix:** Added `xx_bump()` call at the start of each exported template function (inside the `if (PLATFORM_X86)` block, restructured to a proper `{ }` body).
+
+**Gate met:** smoke 7/7/7 · pat-rung **19/19/19 no-SKIP** (was 18 PASS + 1 SKIP) · fence HARD.
 
 ---
 
-### 3 — `e0962eb` unary-minus assign m4: 028 crosscheck PASS
+## _wγ/_wω ARBNO link error — investigated, NOT fixed this session
 
-**Root cause:** `OUTPUT = -5` IR = `LIT_I(5) → UNOP(NEG,ival=TT_MNS=11) → ASSIGN("OUTPUT")`.
-Three separate gaps:
-- `IR_ASSIGN` dispatch in `walk_bb_flat` didn't route `ac0->op == IR_UNOP` to any driver
-  (fell to `flat_drive_assign` which expected `IR_VAR` as lhs → abort)
-- `flat_drive_gvar_assign_binop` had a hard `IR_BINOP`-only guard
-- `emit_core.c` `IR_ASSIGN` handler whitelist didn't include `IR_UNOP` (fell to unhandled fprintf)
+### What was learned
 
-**Fix:**
-1. `emit_bb.c` walk_bb_flat `IR_ASSIGN` dispatch: added `else if (ac0->op == IR_UNOP) flat_drive_gvar_assign_binop(...)`.
-2. `flat_drive_gvar_assign_binop`: relaxed guard to accept `IR_UNOP`; for `UNOP(NEG|POS, LIT_I)`, constant-fold at emit time — spoof `c0->op` to `IR_LIT_I` with computed value (negated if `ival==TT_MNS`), then `EMIT_PAIR_FILL`, then restore. This makes `bb_fill_alpha` read `IR_LIT_I` so `bb_gvar_assign` emits `rt_gvar_assign_int(dst, -5)`.
-3. `emit_core.c` IR_ASSIGN case: added `IR_UNOP` to the `bb_gvar_assign` whitelist.
+The `_wγ`/`_wω` undefined-reference link errors in Qize/XDump/omega beauty programs come from `bb_match_arbno` emitting `jmp Qize_c0_wγ`/`_wω` in child body epilogues, but the ARBNO match box (which defines those labels) never being reached during flat emission.
 
-**Scope:** Only `UNOP(NEG|POS, LIT_I)` constant-folded. `UNOP(NEG, VAR)` / `UNOP(NEG, BINOP)` fall through to `walk_bb_flat(c0, ...)` path — will hit `flat_drive_unop` → `bb_unop` returns empty (g_descr_flat_chain=0) → silent wrong output. That's a separate gap for a future rung.
+**Actual IR structure** (from `--dump-bb` of Qize): entry is `PAT_POS[9]`, followed by a γ-chain of `PAT_ASSIGN_COND` nodes, terminating at `PAT_CAT[2]` with `nkids=0`. The ARBNO node `[6]` is NOT in the γ-chain — it is a sub-operand of `ASSIGN_COND[5]`.
 
-**Files:** `src/emitter/emit_bb.c`, `src/emitter/emit_core.c`
+`flat_drive_match` calls `gather_lowered_cat_arms(POS[9], stop=NULL)`, which walks POS→ASSIGN_COND[5]→ASSIGN_COND[3]→PAT_CAT[2] and returns `catn=3`, `catnd=PAT_CAT[2]`. `flat_drive_cat_arms` is called, which walks `walk_bb_flat(ASSIGN_COND[5])` → `flat_drive_capture`.
 
----
+Inside `flat_drive_capture`, `ch = bb_match_kid(ASSIGN_COND[5], 0)` = `PAT_BREAK[8]`. The inner γ-chain is BREAK[8]→LIT[7]→ARBNO[6]→ASSIGN_COND[5] (= stop = pBB). `gather_lowered_cat_arms(BREAK, stop=ASSIGN_COND[5])` currently returns 0 because the terminal `c == stop` is an ASSIGN_COND, not an IR_PAT_CAT with nkids==0 (the only success condition in the current code).
 
-## Gates at HEAD `e0962eb`
+**Attempted fix:** Added `if (n >= 2 && stop && c == stop) { *cat_out = entry; return n; }` to `gather_lowered_cat_arms`. This correctly fires for the Qize case. However, `flat_drive_cat_arms` with `catnd=entry` (a PAT_BREAK node, not a real CAT) reaches `EMIT_PAIR_FILL(catnd, ...)` at the end, which emits the PAT_BREAK template's wiring — this does NOT define the `xcat_ω` label that `flat_drive_cat_arms` allocates internally, causing linker "undefined reference to xcat10_ω" errors.
 
-- smoke: **7/7/7** HARD
-- pat-rung: **M2=19/19 · M3=19/19 · M4=19/19** (FIRST FULL PASS across all modes)
-- fence: **HARD**
+**Root cause of the label gap:** `flat_drive_cat_arms` allocates `xcat_ω` etc. and expects `EMIT_PAIR_FILL(catnd, ...)` at the end to define them (via the IR_PAT_CAT template). When catnd is not a real CAT node, they remain undefined.
 
----
+### What next session must do
 
-## Open next
+The fix requires one of:
 
-**028 is done. 027 `OUTPUT = 2 ** 8` has an assembler error** (junk characters in
-emitted `.s` — `[` character in a position `as` doesn't expect). Separate bug in the
-POW/exponent BINOP emission path. Not investigated this session.
+**(A) Inline the cat-arm chaining in flat_drive_capture for the stop-terminated case.** When gather returns n>=2 arms with c==stop, emit the arms using the same left→right chaining logic as flat_drive_cat_arms but WITHOUT the trailing EMIT_PAIR_FILL. This avoids needing a real catnd. The logic is: walk arm[0] to mid_γ, define mid_γ, walk arm[1] to lbl_γ (for n=2); for n>2, chain through intermediate γ labels.
 
-**Next M4-CRASH targets** (from GOAL-SNOBOL4-BB.md M4 BUG LADDER):
-- M4-BUILTIN: 076/077 (`IDENT`/`DIFFER`) producing wrong output
-- M4-FENCE cluster: 061-066 fence-related failures
-- M4-CAPTURE-COND: conditional capture assigns at element-γ not overall-match-γ
-- M4-DATA: 091-096 array/table/DATA type failures
-- M4-DEFINE: 084/088/089 DEFINE+recursive failures
+**(B) Add a "no-fill" variant of flat_drive_cat_arms** that skips the trailing EMIT_PAIR_FILL and instead explicitly defines `xcat_ω → lbl_ω` and `lbl_β → left_β` inline.
 
-**FLOOR for next session corpus sample:** ~37/60 PASS in a 60-file crosscheck sample.
-Corpus runner too slow for full run in-session (262 files × gcc per file).
+Either approach must: (1) not disturb the stop=NULL code path in flat_drive_match, (2) pass all 19/19/19 pat-rung tests, (3) fix the Qize link error so beauty gate improves from 4→7+ PASS.
+
+**Probe to use:** compile `corpus/programs/snobol4/beauty_suite/Qize_driver.sno` — assemble, link. Should not produce `undefined reference to Qize_c0_wγ`.
 
 ---
 
-## Key findings to carry
+## Gates at session end
 
-- `P=LEN(3)` value-assign (the watermark's "D7-RB-3") was already closed by D7-RB-2b
-  — confirmed working in all modes. Not a live gap.
-- Inline alt chains in SNO use γ/ω port links (not `operand_aux`). The
-  `ir_node_is_alt_arm` function correctly excludes these from `ir_skip_alt_arms`.
-- The `gather_inline_alt_arms` helper + `walk_bb_flat_or_inline_alt` are the canonical
-  fix for any future place where a γ/ω inline alt chain needs to be walked.
-- `g_gvar_flat_chain=1` (SNO gvar chain mode) does NOT set `g_descr_flat_chain`;
-  `bb_unop` requires `g_descr_flat_chain=1` to emit code. General UNOP-rhs-of-assign
-  in gvar chain mode needs its own slot infrastructure — not built yet.
+- smoke: **7/7/7** HARD ✓
+- pat-rung: **19/19/19 no-SKIP** ✓
+- fence: **HARD** ✓
+- SCRIP: `4c65b17`
