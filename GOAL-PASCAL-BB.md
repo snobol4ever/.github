@@ -17,141 +17,207 @@ or in LOWER (different IR shape → its own BB) — never a template arm. COMPLE
 
 ---
 
-## ▶ CURRENT STATE
+## ▶ CURRENT STATE (Session 44, 2026-06-12)
 
-**Session 42 (2026-06-12): Deep-dive on pcom hang; no fix landed; gate 103/0 throughout. Nothing committed.**
+**GATE STATUS:**
+- M2 (--interp): **PASS=103 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
+- M3 (--run):    **PASS=34 FAIL=69 XFAIL=1** — was 24/79 at session start, +10 from relop fix
+- M4 (--compile): not yet measured (start here: `scrip --compile p.pas > p.s && gcc -no-pie p.s ...`)
 
-**NEW BLOCKER — WITH-FILE-LIST HANG (higher priority than blocker #3):**
-- Symptom: `program t(output); begin end.` AND `program t(output); begin write(1) end.` BOTH hang (exit=124 at 8s timeout). Only `program t; begin end.` exits 0.
-- Process state: `State: S (sleeping)` = blocking on I/O, NOT a CPU infinite loop. `cat /proc/PID/syscall` shows syscall 130 on linux/amd64. Check `cat /usr/include/x86_64-linux-gnu/asm/unistd_64.h | grep " 130$"` to confirm which syscall.
-- MOST LIKELY CAUSE: pcom's `nextch` is blocking on `read(ch)` (stdin) when stdin has no more data, because `eof(input)` incorrectly returns FALSE. Test immediately: `printf "program t(output);\nbegin end.\n\n\n" | timeout 8s scrip --interp pcom.pas` — if the extra blank lines fix the hang, eof/eoln detection is the cause.
-- What was ELIMINATED: searchid binary-tree walk, enterid/display chain, fextfilep chain loop, write(output,ch), __pas_eof getchar blocking, repeat-until-false+goto pattern, for-downto loop, arr_get(errlist[k].pos), pointer chain walk, standard write handler logic.
-- NEXT STEP (binary search): inject `writeln(output,'CP:A')` through `CP:H` checkpoints in pcom's block() body (pcom.pas ~3469-3563) to find last CP printed before hang. Key positions: A=before repeat-statement loop, B=after until-test, C=after `if sy=endsy then insymbol`, D-E=while-llp, F=before gen-calls, G=after gen-calls/before fextfilep-while, H=after fextfilep-while.
-- WARNING: do NOT re-attempt the nested TT_IDX fix in mk_assign — it was attempted and reverted (caused new hang in begin-end case; arr_set_pure idx=0 issue).
+**Git commits landed this session:**
+- SCRIP: `gvar relop fix: use PEERS aux operands; extend llit/rlit for IR_LIT_NUL` (pushed)
 
+---
 
-**Session 41 (2026-06-12): Three runtime bugs fixed; pb40 LANDED; gate 103/0. pcom blocker #3 root-caused.**
-Gate: **m2 103/0** (+pb40). Commit hashes: see git log (SCRIP + corpus pushed this session).
+## ▶ FIX 1 LANDED: gvar relop BOMB (+10 tests)
 
-**pcom blocker #3 — ROOT-CAUSED, FIX PENDING (start here next session):**
-- Symptom: `program t; begin writeln(42) end.` → pcom generates 3 position-0 errors at line 2 (any program without `(...)` file list errors). `program t(output); begin writeln(42) end.` compiles clean.
-- Errors are at chcnt=0: generated right after `endofline` resets chcnt but before first nextch on the new line. Points to pcom state set by the extra `insymbol` calls that process the file list being absent when there is no file list.
-- `kk` (initialized to 8 in `initscalars`), `id`, `eol`, or chcnt sequencing is the likely culprit. Next session: bisect pcom insymbol + block entry to isolate which state differs.
-- Smoke: `echo "program x; begin end." | scrip --interp pcom.pas` → listing only, no errors (passes).
+**Root cause (confirmed by IR analysis and trace):**
+`gvar_stmt_operand_refs` (emit_bb.c) stack-simulates the γ-spine to wire IR_BINOP operands. For
+the for-loop limit comparison (`lim_cmp`), it walks from the increment path (inc_assign → lim_var
+→ lim_cmp) and wires `stk[sp-2]=inc_assign` and `stk[sp-1]=lim_var` as children. The correct
+operands (lim_var=VAR(loop_var) and to_res=LIT_I(bound)) are in the PEERS aux
+(set by `bb_operand_aux_set` in lower_for). With wrong children, condition 7
+(`g_gvar_flat_chain && op_is_rel && bb_child0 && bb_child1 && simple`) fails because
+`bb_child0 = inc_assign` (IR_ASSIGN, not LIT_I/VAR/has-slot). Falls to `flat_drive_binop_tree`
+→ `IR_BINOP_RELOP` → `brr_ok()` requires `g_descr_flat_chain=1` (0 in gvar mode) → BOMB.
 
-**Fixed this session:**
-- **arr_get FAILed on element reads of bulk-assigned char arrays** (session-40, reference) (`src/runtime/by_name_dispatch.c` arr_get, ~line 1126).
-  Bulk assign `src := 'x.        '` stores a PLAIN string (no SOH); arr_get only walked
-  SOH-delimited segments, so `ch := src[i]` returned FAILDESCR for any i>=1, silently severing
-  continuation (straight-line: silent early exit; inside repeat/while ω-cycles: spin until the
-  IR_interp_once safety counter bails — i.e. an apparent hang). READ-path twin of the session-37
-  pas_norm_charseq relop fix. Fix: one guarded arm before the SOH walk — if no SOH present and
-  1 <= idx <= strlen, return INTVAL(ordinal of cur[idx-1]) (1-based packed read, matches
-  elem_to_descr's INT convention). idx==0 and OOB behavior unchanged; SOH arrays unchanged.
-- **New probe:** `corpus/programs/pascal/pb39.pas` (+.ref) — bulk-assign then element reads,
-  straight-line and in a repeat. Was silent-exit; now correct.
+**Fix applied** (emit_bb.c, condition 7 in `walk_bb_flat case IR_BINOP:`):
+Replaced strict `bb_child0 && bb_child1 && simple` condition with broader arm:
+```c
+} else if (g_gvar_flat_chain && op_is_rel) {
+    int _na = 0;
+    IR_t * const * _ax = g_emit_cfg ? bb_operand_aux_get(g_emit_cfg, nd, &_na) : (IR_t * const *)0;
+    IR_t *_c0 = (_na >= 2 && _ax[0]) ? _ax[0] : bb_child0(nd);
+    IR_t *_c1 = (_na >= 2 && _ax[1]) ? _ax[1] : bb_child1(nd);
+    if (_c0 && _c1 && ((_c0->op==IR_LIT_I||_c0->op==IR_LIT_NUL)||(_c0->op==IR_VAR&&IR_LIT(_c0).sval)||bb_slot_get(_c0)>=0)
+                   && ((_c1->op==IR_LIT_I||_c1->op==IR_LIT_NUL)||(_c1->op==IR_VAR&&IR_LIT(_c1).sval)||bb_slot_get(_c1)>=0)) {
+        // emit IR_BINOP_GVAR_RELOP using _c0/_c1
+    } else { flat_drive_binop_tree(nd, ...); }
+```
+Also `bb_binop_gvar_relop.cpp`: `gvr_llit/gvr_rlit` now include `IR_LIT_NUL` for nil-pointer relops.
 
-**pcom blocker #2 — ROOT-CAUSED, FIX PENDING (start here):**
-- Minimal reproducer: **`corpus/programs/pascal/pb40.pas`** (intentionally NO .ref → gate skips).
-  Structure: a case arm containing `if c then s else <repeat or while>;` followed by a for-loop.
-  Oracle prints `0`; SCRIP silently exits (small graph) / appears to hang (pcom-size graph).
-- Mechanism (verified by IR dump of the reproducer, `scrip --dump-bb`): the for-loop's exit edge
-  (limit-compare BINOP's ω) is wired to the PRECEDING if-statement's IR_IF marker node instead of
-  the next statement. The IR_IF handler (IR_interp.c ~2843), when reached, evaluates its condition
-  and returns bb->γ — which points at the for-INIT → cycle: for-init → limit-compare fails →
-  IR_IF → γ → for-init, forever. Runtime path irrelevant (then-branch taken also fails);
-  empty/non-empty for range irrelevant (any for-exit enters the cycle). This is the insymbol
-  rw-lookup spin: `for i := frw[k] to frw[k+1]-1` re-reads both bounds endlessly after the
-  letter-token case-arm's `if k >= kk then ... else repeat id[kk]:=' '...` — explains BOTH
-  original symptoms (hello.pas early exit + `program x; begin end.` hang).
-- Reproducer ladder kept in this note for re-derivation if needed: case+if/else-loop+for FAILS
-  (pb40); remove the case → passes; remove the else-loop → passes; replace for with plain stmt →
-  passes; while-in-else also fails; goto/label NOT required; chararr NOT required.
-- **NEXT:** fix the wiring in `src/lower/nl/lower_pascal_nl.c` (lower_if continuation/ω handling
-  when an else-branch contains a loop and a for-statement follows inside a case arm) — or make
-  IR_IF reached-via-ω fail through to its own ω instead of returning γ. Verify with pb40 (then
-  add pb40.ref = `0`), then `echo "program x; begin end." | scrip --interp pcom.pas` (expect the
-  ';' to echo and parsing to proceed), then hello.pas end-to-end, then full gate.
-- After blocker #2: pcom may surface further blockers; the per-char echo listing makes the
-  bisection loop fast (`stdbuf -o0`, watch where the echo stops; strace shows pure-CPU spin vs IO).
+---
 
-**Refactor request (Lon, session 40): dynamic arrays everywhere.**
-Replace fixed-cap arrays/stacks/queues (FRAME_SLOT_MAX=64 Scope.e, FRAME_STACK_MAX=256
-frame_stack, SNO_SAVE_MAX=4096, NAME_SAVE_MAX, rt_frames, etc.) with malloc/calloc/realloc/free
-dynamic growth — Lon explicitly wants realloc-style one-line insert/delete idioms. Notes from
-session 40: (1) wrap as xrealloc — realloc(p,0) is implementation-defined (C17) / UB (C23);
-map size 0 → free+NULL to keep the idiom portable. (2) GC HAZARD: arrays holding DESCR_t roots
-(frame_stack, g_sno_save, Scope) are statics that Boehm GC scans automatically; plain-malloc'd
-replacements are INVISIBLE to the collector → use GC_malloc/GC_realloc (GC_malloc_uncollectable)
-or GC_add_roots for descriptor-bearing arrays; plain realloc is fine for non-DESCR metadata.
-(3) Known silent-truncation sites to kill: lower_program.c scope build (~560, ~700, ~720),
-IR_interp.c dval==3.0 IR_CALL scope copy (~2426, no guard — truncates >64 silently),
-invocation.c nslots clamp, rt.c rt_frames.
+## ▶ FIX 2 — NEXT PRIORITY: gvar callarg non-terminal (est. +35 tests)
 
-**Fixed this session (Session 37 fix summary retained for reference):**
+**Root cause (confirmed by analysis of intparam.pas, charwrite.pas, writenl.pas):**
 
-**Fixed this session:**
-1. **Char-by-char `alpha` never matched a bulk `alpha` under `=`/`<>`** (`lower_program.c` `binop_apply`).
-   Concurrent commit `1c687d2` had already added the both-operands-string arm (slen-aware `memcmp` lexical
-   compare, CSET excluded) that fixed the old "two strings → `(long)lv.r` union garbage → everything EQUAL"
-   bug. But that `memcmp` compares RAW bytes, and the two `alpha` build methods diverge: a char-by-char
-   `alpha` (`id[k]:=ch`) is a SOH(0x01)-delimited string of integer ORDINALS with a leading "0" element-0
-   filler, while a bulk `alpha` (`id:='do      '`) is a plain packed string — so raw `memcmp` never matched
-   them (the "chararr elementwise stores" blocker 1c687d2 left noted/unfixed). FIX: added static helper
-   `pas_norm_charseq(DESCR_t)` that decodes the SOH-ordinal form to the logical char string (per segment:
-   all-digits→`chr(value&0xFF)` skipping value==0 filler, else literal bytes; no SOH→string as-is), and
-   applied it inside 1c687d2's string-relop block **only when a 0x01 is present** in an operand — so normal
-   (non-array) strings, incl. SNOBOL4/Icon, are byte-for-byte unchanged. pcom's reserved-word lookup
-   `rw[i]=id` (bulk `rw[]` table vs char-by-char `id`) now classifies correctly (blocker i gone).
-2. **For-loop with a complex `to` bound severed all continuation after the loop completed**
-   (`lower_pascal_nl.c` `lower_for`). EXPOSED once `=` worked (the old always-true compare fired the inner
-   `goto` on iteration 1 every time, so loop-completion paths never ran). The limit `BINOP` reads its
-   operands from the bounded `ag_ring` (no explicit aux), and `lower_for` RE-WALKED the `to` subgraph every
-   iteration. A complex `to` (e.g. `frw[k+1]-1` = an `arr_get` CALL + lit + SUB) pushed ~3 values/iter onto
-   the ring; the churn eventually corrupted the ring state the procedure RETURN relied on → after a
-   completed array-bound loop, ALL subsequent statements were silently dropped (no hang, exit 0). Bisected:
-   `D1` (param proc, LITERAL bound) works; `D2` (no-param proc, `frw[]` ARRAY bound) severs; source-level
-   cache (`hi:=frw[3]-1; for i:=… to hi`) works → confirms re-eval is the cause, NOT the parameter. FIX:
-   evaluate `to` ONCE on the init path; give `lim_cmp` explicit `bb_operand_aux_set` (aux[0]=`lim_var`,
-   aux[1]=`to_res`=`all[to_mark]`, the once-computed limit node) so the limit is read from the cached node
-   value rather than re-walked; loop-back goes increment→`lim_var`→`lim_cmp` (skips `to_entry`). Also
-   ISO-Pascal-correct (limit evaluated once at entry). Touches ALL for-loops → full gate re-run 100/0.
-   Regression probe: `alphacmp.pas` (exact pcom reserved-word mechanism: bulk `rw[]` table vs char-by-char
-   `id`, with empty-bucket + no-match calls). NOTE probes must use `(* *)`, NOT `{ }` (P4 rejects braces).
+`gvar_callarg_admit` (emit_bb.c line 1699) and `gvar_drive_call_arg_slots` (line 1707) only
+admit *terminal* arg entries: `icn_arg_entry_terminal(ae)` = true iff `ae->γ.node == NULL ||
+ae->γ.node->op == IR_SUCCEED`. Every complex argument is rejected:
 
-**REPRESENTATION fact (used by fix 1):** `var id: alpha` (=`packed array[1..8] of char`) init prologue
-builds a 9-slot SOH array (indices 0..8, all `"0"`). `id[k]:='d'` pokes `__pas_chrlit(100)` → the array
-stores the decimal ORDINAL "100" at raw slot k (slot 0 unused = "0" filler; element reads in write
-position get `__pas_chr`-decoded, so chararr1/2 still pass). Bulk `id:='do      '` OVERWRITES the prologue
-with a plain 8-char string. So the two build methods diverge; `pas_norm_charseq` reconciles them. (Whole-
-array `writeln(id)` of a char-by-char array still prints raw ordinals — separate write-path bug, no probe.)
+- `writeln(doubled(x))`: arg subgraph is `VAR(x)→CALL(doubled)→SUCCEED`. Entry=VAR(x),
+  not terminal (γ→CALL). Rejected → `nadmit=0` → gvar_drive returns early → marshal_call_arg
+  hits `else` path → `bb_varslot("x")` allocates FRESH (uninitialized) frame slot → writeln
+  receives garbage DESCR → EMPTY output.
 
-**Active lowering path reminder:** `nl_on(1)` defaults TRUE → Pascal uses the **NL lowering**
-(`src/lower/nl/lower_pascal_nl.c`: `lower_if`/`lower_while`/`lower_for`/`lower_repeat`/`lower_seq`). Edit
-the NL functions, not `lower.c`'s `v_if`/`v_repeat` (the `SCRIP_NL=0` path).
+- `write(' ')` or `write('B')`: char literal `' '`/`'B'` lowered as `__pas_chrlit(LIT_I(32))`.
+  Arg subgraph is `LIT_I(32)→CALL(__pas_chrlit)→SUCCEED`. Entry=LIT_I(32), not terminal. Same
+  path → rejected → EMPTY.
 
-**pcom.pas status — blocker (i) resolved; still incomplete downstream:**
-- blocker (i) GONE: classification correct, line-1 listing emits `     1        9 program hello;` with NO
-  spurious `**** ,` error. The array-bound-loop sever (the largest part of old blocker (ii)) is fixed.
-- STILL FAILS — two distinct input-dependent downstream symptoms past the header:
-  - `hello.pas` → emits line 1 correctly, then exits 0 EARLY (continuation lost after the program header,
-    before lines 2-4).
-  - minimal `program x; begin end.` → HANGS (timeout 30s, ~1 byte out).
-  Both are downstream of the two fixes, in paths beyond simple for-loops — likely the `programme()`→
-  `block()` transition, output flush, and/or ANOTHER construct (while/case/nested call) that re-evaluates a
-  complex expression and churns the `ag_ring` the same way the for-loop did. pcom's `output` buffers
-  independently of `stdbuf` so line-by-line visibility needs instrumentation.
+- `writeln(arr[i])`: `arr_get` call is non-terminal. Rejected → EMPTY.
 
-NEXT — Lon picks:
-**(a) PB-30** — next probe: write a program that exactly reproduces block()'s structure (setofsys param +
-`while sy in [procsy,funcsy] do` + `repeat body_stub(fsys+[casesy])` with nested call inside body_stub
-mirroring statement()'s call-dispatch path), fed with beginsy input, to see if `sy in statbegsys` with
-a setofsys-as-global causes ag_ring churn at scale. Also audit `lower_while` in lower_pascal_nl.c for
-the same re-walked-complex-cond pattern the for-loop fix addressed.
-**(b)** Any open bug (case no-match; __pbt/__pct clobber; --dump-ast segv on huge AST).
+**ALL ~35 EMPTY-output tests share this root cause.**
 
-**Gate harness note:** Use `/tmp/run_gate.sh` (checked against `.ref` files + `.in` for stdin probes):
+**The fix** (in `gvar_drive_call_arg_slots`, lines 1707-1736 of emit_bb.c):
+
+Replace the whole function with a version that:
+1. Accepts ALL non-null entries (remove `gvar_callarg_admit` filter)
+2. Tracks `res_last[i]` = last real node in γ chain per arg
+3. For TERMINAL entries: keep existing `walk_bb_flat(res[i], arg_done, lbl_ω, arg_β)` + `slots[i] = bb_slot_get(res[i])`
+4. For NON-TERMINAL entries: `flat_emit_arg_subchain(res[i], arg_done, lbl_ω)` + `slots[i] = bb_slot_get(res_last[i])`
+
+```c
+static void gvar_drive_call_arg_slots(IR_t *nd, bb_label_t *lbl_ω) {
+    g_emit.op_arg_slot_n = 0;
+    int nargs = (int)(nd ? IR_LIT(nd).ival : 0);
+    IR_graph_t **subs = nd ? (IR_graph_t **)(intptr_t) IR_EXEC(nd).counter : NULL;
+    if (nargs > OP_ARG_SLOT_MAX) return;
+    IR_t *res[OP_ARG_SLOT_MAX]; IR_t *res_last[OP_ARG_SLOT_MAX]; int nadmit = 0;
+    for (int i = 0; i < nargs; i++) {
+        IR_t *ae = (subs && subs[i]) ? subs[i]->entry : NULL;
+        { int guard = 0; while (ae && (ae->op == IR_SUCCEED || ae->op == IR_FAIL) && ae->γ.node && guard++ < 64) ae = ae->γ.node; }
+        if (ae) {
+            res[i] = ae; nadmit++;
+            IR_t *last = ae; int g2 = 0;
+            while (last->γ.node && last->γ.node->op != IR_SUCCEED && last->γ.node->op != IR_FAIL && g2++ < 512) last = last->γ.node;
+            res_last[i] = last;
+        } else { res[i] = NULL; res_last[i] = NULL; }
+    }
+    if (!nadmit) return;
+    if (g_flat_slot_count < 16) (void)bb_slot_claim(16 - g_flat_slot_count);
+    int slots[OP_ARG_SLOT_MAX];
+    for (int i = 0; i < nargs; i++) {
+        slots[i] = -1;
+        if (!res[i]) continue;
+        int id = g_flat_node_id++;
+        bb_label_t *arg_done = emit_label_alloc("xgvarg%d_done", id);
+        bb_label_t *arg_β    = emit_label_alloc("xgvarg%d_β",    id);
+        g_gvar_callarg_live = 1;
+        if (icn_arg_entry_terminal(res[i])) {
+            walk_bb_flat(res[i], arg_done, lbl_ω, arg_β);
+            slots[i] = bb_slot_get(res[i]);
+        } else {
+            flat_emit_arg_subchain(res[i], arg_done, lbl_ω);
+            slots[i] = bb_slot_get(res_last[i]);
+        }
+        g_gvar_callarg_live = 0;
+        emit_label_define_bb(arg_done);
+    }
+    for (int i = 0; i < nargs; i++) g_emit.op_arg_slot[i] = slots[i];
+    g_emit.op_arg_slot_n = nargs;
+}
+```
+
+**Why flat_emit_arg_subchain works in gvar mode:**
+- When it processes CALL(doubled) (dval=3), walk_bb_flat hits the dval=3 arm which calls
+  `gvar_drive_call_arg_slots` recursively for doubled's own args, then FILL → bb_call_gvar_userproc_str
+  which allocates `resoff = bb_slot_alloc16(CALL_doubled)` and stores the result.
+- After the chain walk, `bb_slot_get(CALL_doubled) = resoff` = the result slot.
+- Similarly for CALL(__pas_chrlit): it calls `rt_call_arr("__pas_chrlit", [ord], 1)` → returns
+  char DESCR → stored at resoff → `bb_slot_get(CALL_chrlit) = resoff`.
+- The `slots[i]` then holds the correct result slot → marshal_call_arg copies it to argbase → 
+  rt_call_arr("__pas_write/__pas_writeln", ...) → correct output.
+
+**No regression risk:** existing terminal-entry code path is unchanged. Non-terminal path only
+activates for entries that currently produce slots[i]=-1.
+
+**Files to edit:** ONLY `src/emitter/emit_bb.c` lines 1707-1736 (the gvar_drive_call_arg_slots function).
+Do NOT touch bb_call.cpp or marshal_call_arg — the existing machinery handles the rest.
+
+---
+
+## ▶ REMAINING 69 FAILURES — FULL CATEGORIZATION
+
+After Fix 2 lands, the picture should shift dramatically. The post-Fix-2 estimate:
+
+**Category A: EMPTY from non-terminal callarg (~35 tests) — FIXED BY FIX 2**
+alias, arr2d, arr2d2, arr2d3, arr2dtype, arr2dtype2, arr2dtype3, arrparam, arrrec1, arrrec2,
+char1, char3, charlit, chararr1, chararr2, chararr3, enumarr, enumsubarr, forward1, intparam,
+m4wexpr, markrel, matmul, nestfunc, ptr1, ptr2, ptr4, ptr5, ptr6, ptr8, read1, rec1, rec2, rec3,
+recparam, recparam2, recparam3, stdlib1, subarr, swap, varframe, varmix, varparam, varrec,
+vartrans, with1, with2, with3
+
+**Category B: writenl space (`write(' ')`)** — ALSO FIXED BY FIX 2 (char literal → __pas_chrlit chain)
+writenl.pas: currently "helloworld" instead of "hello world"
+
+**Category C: Boolean wrong values (~3 tests)**
+boolarg.pas: `0` vs `1` — function returning boolean stored wrong
+boolidx.pas: `1,1,1,1` vs `1,0,1,0` — boolean array indexing
+boolptr.pas: `0` vs `1` — boolean through pointer
+
+**Category D: char2 truncated**
+char2.pas: outputs `less\nequal\ngreater` but missing final `A\nB` (char comparison partial)
+
+**Category E: goto truncation (~3 tests)**
+goto1.pas: outputs `5` but missing `15` (second value lost after goto)
+goto2.pas: outputs `3\n16` but missing `1603`
+goto3.pas: outputs `11` but missing `15`
+Root cause: goto inside a loop body exits the graph traversal early
+
+**Category F: Nested frame wrong values (~5 tests)**
+nestvar.pas: `10` vs `11` — var param through nested frame not mutating correctly
+nestvar2.pas: `5` vs `10`, nestvar3.pas: `3` vs `7` — outer frame var read from inner scope wrong
+nestshadow.pas: `107` vs `7` — static link / shadowing wrong
+nestrec.pas: `1` vs `11` — var param through nested frames wrong
+
+**Category G: Set membership wrong (~4 tests)**
+set2, set5, set6, set7: `0` vs expected count — `in` operator returns 0
+
+**Category H: alphacmp char-array relop**
+alphacmp.pas: `0` vs `2` — `rw[i] = id` char-array comparison wrong in gvar mode
+
+**Category I: constreal crash**
+constreal.pas: `[IBB] FATAL flat_drive_assign: lhs (α) must be IR` — LHS node is nil
+
+**Category J: stdlib3 wrong**
+stdlib3.pas: last value `0` vs `1` — `odd(n)` function wrong
+
+**Category K: read2 wrong**
+read2.pas: `0` vs `42` — reading from stdin returns 0 in --run mode
+
+**Category L: char2 truncated (partial)**
+char2.pas: gets `less\nequal\ngreater` correctly but misses char-char write at end
+
+---
+
+## ▶ PRIORITY ORDER AFTER FIX 2
+
+1. **[Fix 2 — ~35+ tests] gvar_drive_call_arg_slots non-terminal** (see implementation above)
+2. **[~5 tests] Nested frame wrong values** — static link chain for nestvar/nestshadow/nestrec
+   Root cause: in gvar mode, outer frame variables not properly read from inner scope
+3. **[~4 tests] Set membership** — `in` operator (`__pas_in`) returns 0
+4. **[~3 tests] goto truncation** — graph traversal exits early on goto
+5. **[~3 tests] Boolean issues** — boolarg, boolidx, boolptr
+6. **[1 test] constreal crash** — flat_drive_assign lhs nil
+7. **[1 test] alphacmp** — char-array relop needs string comparison in gvar mode
+
+---
+
+## ▶ GATE SCRIPTS (recreate in /tmp on each session)
+
 ```bash
+# Mode 2 gate
 cat > /tmp/run_gate.sh << 'EOF'
 #!/bin/bash
 cd /home/claude/corpus/programs/pascal
@@ -170,9 +236,76 @@ done
 echo "PASS=$PASS FAIL=$FAIL XFAIL=$XFAIL"
 [[ -n "$FAILS" ]] && echo "FAILING:$FAILS"
 EOF
-chmod +x /tmp/run_gate.sh && bash /tmp/run_gate.sh
+chmod +x /tmp/run_gate.sh
+
+# Mode 3 gate
+cat > /tmp/run_gate_m3.sh << 'EOF'
+#!/bin/bash
+cd /home/claude/corpus/programs/pascal
+PASS=0; FAIL=0; XFAIL=0; FAILS=""
+for f in *.pas; do
+    case "$f" in pcom.pas|pint.pas|ppp.pas) continue ;; esac
+    base="${f%.pas}"
+    [[ "$f" == "recursion.pas" ]] && { XFAIL=$((XFAIL+1)); continue; }
+    [[ ! -f "${base}.ref" ]] && continue
+    inp=/dev/null; [[ -f "${base}.in" ]] && inp="${base}.in"
+    expected=$(cat "${base}.ref")
+    got=$(timeout 6s /home/claude/SCRIP/scrip --run "$f" < "$inp" 2>/dev/null)
+    if [[ "$expected" == "$got" ]]; then PASS=$((PASS+1))
+    else FAIL=$((FAIL+1)); FAILS="$FAILS $f"; fi
+done
+echo "PASS=$PASS FAIL=$FAIL XFAIL=$XFAIL"
+[[ -n "$FAILS" ]] && echo "FAILING:$FAILS"
+EOF
+chmod +x /tmp/run_gate_m3.sh
 ```
 
+---
+
+## ▶ KEY ARCHITECTURE FACTS (gvar mode = mode 3)
+
+- **gvar_flat_chain_build** (emit_bb.c ~3350): Pascal mode-3 path. Sets `g_gvar_flat_chain=1`,
+  `g_descr_flat_chain=0`. Procedures compiled with this and registered via `rt_proc_set_fn`.
+- **gvar_stmt_operand_refs** (emit_bb.c ~3222): pre-processing pass that stack-simulates the
+  γ-spine to wire operand children. IR_BINOP has arity 2 → consumes 2 stack items. Problem:
+  for-loop lim_cmp gets wrong children wired (inc_assign instead of to_res). FIX 1 addresses.
+- **gvar_drive_call_arg_slots** (emit_bb.c ~1707): pre-evaluates CALL argument subgraphs.
+  Currently only handles terminal entries. FIX 2 extends to non-terminal.
+- **gvar_callarg_admit** (emit_bb.c ~1699): AFTER FIX 2 IS APPLIED, this function is no longer
+  the gatekeeper. The new gvar_drive_call_arg_slots accepts all non-null entries directly.
+- **lower_for** (lower_pascal.c ~274): Creates `lim_cmp` BINOP with aux via `bb_operand_aux_set`.
+  Stack sim wires wrong children from inc_path. FIX 1 uses aux instead.
+- **lower_binop** (lower_pascal.c ~133): ALL relops use `bb_operand_aux_set` for aux operands.
+- **lower_call** (lower_pascal.c ~173): ALL function calls use dval=3.0.
+- **bb_call** dispatch (BB_templates/bb_call.cpp ~482):
+  - dval=3 + registered → bb_call_gvar_userproc_str → rt_call_named_proc(_sl)
+  - dval=3 + NOT registered → bb_call_byname_str → rt_call_arr
+- **marshal_call_arg** (bb_call.cpp ~234): dispatches by slot availability, then gvar arith/relop,
+  then IR_CALL, then IR_LIT_I/S/F/NUL, then `else: bb_varslot(name)` (NV global by name).
+  The `else` path allocates an UNINITIALIZED frame slot → wrong values.
+- **bb_slot_alloc16 vs bb_slot_alloc**: both allocate frame slots. `alloc16` = 16-byte DESCR slot.
+  The result slot of a CALL node is `bb_slot_alloc16(CALL_node)` inside the call template.
+  `bb_slot_get(node)` retrieves the allocated slot for a node (-1 if not allocated).
+- **IR_LIT_NUL**: nil pointer. `gvr_llit/gvr_rlit` in bb_binop_gvar_relop.cpp now include it
+  (treats as value 0 for `cmp rax, rcx`).
+
+---
+
+## Session Setup
+
+```bash
+bash /home/claude/SCRIP/scripts/install_system_packages.sh
+cd /home/claude/SCRIP && rm -f scrip && make -j4 scrip > /tmp/build_full.log 2>&1
+[ -x /home/claude/SCRIP/scrip ] || { grep -E "error:|fatal error" /tmp/build_full.log | head -5; exit 1; }
+make libscrip_rt
+for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
+    ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
+done
+bash /tmp/run_gate.sh    # must be 103/0
+bash /tmp/run_gate_m3.sh # baseline 34/69
+```
+
+---
 
 ## Mechanism inventory (how it works NOW)
 
@@ -262,25 +395,6 @@ THE RULE: modes 3/4 emit no byte outside a BB/SM/XA opcode via `bb_emit_x86`; `b
 Start every Pascal session by reading the reference grammar (`pascalp.l` tokens, `pascalp.y`
 productions) for the constructs in play.
 
-## Session Setup
-
-```bash
-bash /home/claude/SCRIP/scripts/install_system_packages.sh
-cd /home/claude/SCRIP && make -j4 scrip > /tmp/build_full.log 2>&1
-[ -x /home/claude/SCRIP/scrip ] || { grep -E "error:|fatal error" /tmp/build_full.log | head -5; exit 1; }
-make libscrip_rt
-for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
-    ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
-done
-( cd /home/claude/corpus/programs/pascal && apt-get update -qq && apt-get install -y fpc \
-  && fpc -Ci -Co -Cr -gl pcom.pas && fpc -Ci -Co -Cr -gl pint.pas )
-```
-
-Gate (no checked-in script): oracle `./pcom < p.pas && cp prr prd && ./pint < /dev/null`; m2
-`--interp`; m3 `--run`; m4 `--compile > p.s` then `gcc -no-pie p.s out/libscrip_rt.so
--Wl,-rpath,SCRIP/out`. Suite = all `*.pas` minus pcom/pint/ppp; `timeout 8s` + `< /dev/null` per
-RULES; recursion.pas = XFAIL.
-
 ## ⚠ Landmines (each has cost real time)
 
 1. `rm -f scrip` before `make scrip` — the target has no prerequisites; edits silently don't take.
@@ -293,109 +407,3 @@ RULES; recursion.pas = XFAIL.
    never against pre-rebase captures.
 6. Never assume per-box uid for TEXT internal labels on the Pascal gvar flat chain — the whole chain
    shares one `_.x86_uid`; key labels by `bb_node_id`.
-
-## WITH-FILE-LIST HANG — FIXED (session completion)
-
-**Root cause chain** (`program t(output); begin end.` hanging):
-1. `g_pas_ptrvars` table capped at `PAS_REC_MAX = 64`; pcom declares 127+ pointer variables
-2. Table overflows silently → `extfp` (local in `programme()`) NOT registered in `g_pas_ptrvars`
-3. `new(extfp)` lowering: `pas_ptrexpr_target(TT_VAR("extfp"))` = NULL → uses `__pas_alloc` (no-rec)
-4. `__pas_alloc` stores `INTVAL(0)` at `__heap_55` (not the 2-field record `"0\x01 0"`)
-5. `arr_get(INTVAL(0_as_string), 1)` → no-SOH fast path → `INTVAL(48)` (ord('0'))
-6. `fextfilep := 48` (not nil) → `while fextfilep <> nil` loops forever
-
-**Fix**: `PAS_REC_MAX 64 → 512` in `pascal.y`, regenerated `pascal.tab.c` via bison.
-**Side fix**: `pas_pend_add` now clears `g_pas_pend_ptrtarget` after storing per-field
-(prevents record types whose last field is pointer-typed from being mis-registered as pointer types).
-
-**Gate after fix**: PASS=103 FAIL=0 XFAIL=1 ✓
-
-## PIVOT — Session 43 (2026-06-12): GOAL IS NOW MODE 3 AND MODE 4 AT PAR WITH MODE 2
-
-**Priority change**: Stop digging into pcom interpreter internals (type field registration for
-`entstdnames`, `display[top].fname` etc.). The primary gate is m2 103/0 (already achieved).
-The new priority is: **mode 3 (--run) and mode 4 (--compile) must also pass 103/0**.
-
-**Current mode 3 baseline**: PASS=29 FAIL=74 XFAIL=1 (as of session 43)
-
-**Failure categories in mode 3** (measured this session):
-- 30 BOMB  — `bb_binop_relop: shape mismatch` — char-array equality/ordering relops.
-  Root cause: `bb_binop_relop` template uses `cmp rax,rcx` (integer); requires `op_sa>=0` and
-  `op_sb>=0` (values in fixed integer slots). Char arrays are STRVAL, not INTVAL, so slots are
-  -1 → `brr_ok()` fails → BOMB. Fix: in lower_pascal.c `lower_binop`, when either operand is
-  a char array / alpha, convert the relop to a call to `rt_jct_relop(lv, rv, op)` instead of
-  `IR_BINOP`. Or add a new IR_BINOP_RELOP_STR variant handled by bb_binop_gvar_relop.
-
-- 44 WRONG / empty output — arrays, records, with-statements, pointers.
-  Root cause: `ASSIGN a` following `CALL arr_set_pure` requires `op_a_slot >= 0` in
-  `bb_gvar_assign` template (slot promotion). If slot promotion is absent the template
-  generates nothing/bombs silently. Verified: `arr_set_pure` and `arr_get` ARE accessible
-  via `rt_call_arr` in --run mode (linked into scrip binary), but the result-storing path
-  needs the slot to be promoted. Likely fix: ensure CALL result slot promotion runs for all
-  Pascal by-name calls, OR route these through bb_gvar_assign_call template.
-
-**Work committed this session (already pushed)**:
-1. `PAS_REC_MAX 64→512` + `pas_pend_add` clears ptrtarget — fixed WITH-FILE-LIST hang.
-   Gate: 103/0 throughout.
-2. `pas_arrrec_add` stores field names; `pas_arrrec_field_index` for inline arrrec lookup;
-   grammar field-access fallback uses it. Fixes `display[top].fname` access.
-3. `lower_assign` new first case inside TT_IDX: TT_FNC(__pas_deref,p) base → emit
-   `__pas_field_set(p, field_idx, rhs)`. Fixes `with cp^ do field := val`.
-
-**Gate scripts** (both should be used going forward):
-```bash
-# Mode 2 gate (existing)
-bash /tmp/run_gate.sh   # PASS=103 FAIL=0 XFAIL=1
-
-# Mode 3 gate (new goal)
-cat > /tmp/run_gate_m3.sh << 'EOF'
-#!/bin/bash
-cd /home/claude/corpus/programs/pascal
-PASS=0; FAIL=0; XFAIL=0; FAILS=""
-for f in *.pas; do
-    case "$f" in pcom.pas|pint.pas|ppp.pas) continue ;; esac
-    base="${f%.pas}"
-    [[ "$f" == "recursion.pas" ]] && { XFAIL=$((XFAIL+1)); continue; }
-    [[ ! -f "${base}.ref" ]] && continue
-    inp=/dev/null; [[ -f "${base}.in" ]] && inp="${base}.in"
-    expected=$(cat "${base}.ref")
-    got=$(timeout 6s /home/claude/SCRIP/scrip --run "$f" < "$inp" 2>/dev/null)
-    if [[ "$expected" == "$got" ]]; then PASS=$((PASS+1))
-    else FAIL=$((FAIL+1)); FAILS="$FAILS $f"; fi
-done
-echo "PASS=$PASS FAIL=$FAIL XFAIL=$XFAIL"
-[[ -n "$FAILS" ]] && echo "FAILING:$FAILS"
-EOF
-chmod +x /tmp/run_gate_m3.sh && bash /tmp/run_gate_m3.sh
-```
-
-**Next session start here**:
-1. Fix the 30 BOMB (char-array relop). In lower_pascal.c lower_binop: detect when LHS or RHS is
-   a char-expr (pas_is_charexpr) or alpha-var/array, and instead of emitting IR_BINOP emit a
-   CALL to `rt_jct_relop`. Signature: `int rt_jct_relop(DESCR_t lhs, DESCR_t rhs, int op)`.
-   The op values are BINOP_EQ etc. from gen.h. Wrap in an IR_IF: if (rt_jct_relop) → γ else → ω.
-
-2. Fix the 44 WRONG (slot promotion for arr_set_pure). Look at `emit_core.c` to find where
-   slot promotion happens (the pass that sets `op_a_slot`). Check why IR_CALL result slot is -1
-   for `arr_set_pure` results. Alternatively: reroute Pascal `ASSIGN var ← CALL arr_set_pure`
-   through `bb_gvar_assign_call` template if it handles dynamic DESCR_t results.
-   
-   Simpler approach: in lower_pascal.c, when lowering `TT_ASSIGN(TT_IDX(a, idx), val)` with
-   `arr_set_pure`, do NOT emit a separate ASSIGN node — instead lower as:
-   `a := arr_set_pure(a, idx, val)` which is already the pattern, but verify the ASSIGN node
-   is wired correctly so slot promotion fires.
-
-3. Do NOT work on pcom interpreter internals (entstdnames symbol-table field misregistration).
-   That is deep in the pcom-specific variant-record type system and is lower priority than
-   getting modes 3/4 working for the full test suite.
-
-**Key source paths**:
-- `src/lower/lower_pascal.c` — Pascal lowering (lower_binop, lower_assign)
-- `src/emitter/BB_templates/bb_gvar_assign.cpp` — gvar assign template (IR_CALL case)
-- `src/emitter/BB_templates/bb_binop_relop.cpp` — integer relop template (BOMB target)
-- `src/runtime/by_name_dispatch.c` — Pascal runtime (rt_jct_relop line ~1880)
-- `src/emitter/emit_core.c` — slot promotion pass (IR_BINOP_RELOP at line ~485)
-
-**CORRECTION** (post-handoff measurement): True m3 baseline at session-43 close is
-PASS=24 FAIL=79 (not 29/74 as initially measured — 5 extra failures from concurrent
-bb_pattern_nullary commit that landed during rebase). No regressions from session-43 work.
