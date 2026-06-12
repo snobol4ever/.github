@@ -293,3 +293,105 @@ RULES; recursion.pas = XFAIL.
    never against pre-rebase captures.
 6. Never assume per-box uid for TEXT internal labels on the Pascal gvar flat chain — the whole chain
    shares one `_.x86_uid`; key labels by `bb_node_id`.
+
+## WITH-FILE-LIST HANG — FIXED (session completion)
+
+**Root cause chain** (`program t(output); begin end.` hanging):
+1. `g_pas_ptrvars` table capped at `PAS_REC_MAX = 64`; pcom declares 127+ pointer variables
+2. Table overflows silently → `extfp` (local in `programme()`) NOT registered in `g_pas_ptrvars`
+3. `new(extfp)` lowering: `pas_ptrexpr_target(TT_VAR("extfp"))` = NULL → uses `__pas_alloc` (no-rec)
+4. `__pas_alloc` stores `INTVAL(0)` at `__heap_55` (not the 2-field record `"0\x01 0"`)
+5. `arr_get(INTVAL(0_as_string), 1)` → no-SOH fast path → `INTVAL(48)` (ord('0'))
+6. `fextfilep := 48` (not nil) → `while fextfilep <> nil` loops forever
+
+**Fix**: `PAS_REC_MAX 64 → 512` in `pascal.y`, regenerated `pascal.tab.c` via bison.
+**Side fix**: `pas_pend_add` now clears `g_pas_pend_ptrtarget` after storing per-field
+(prevents record types whose last field is pointer-typed from being mis-registered as pointer types).
+
+**Gate after fix**: PASS=103 FAIL=0 XFAIL=1 ✓
+
+## PIVOT — Session 43 (2026-06-12): GOAL IS NOW MODE 3 AND MODE 4 AT PAR WITH MODE 2
+
+**Priority change**: Stop digging into pcom interpreter internals (type field registration for
+`entstdnames`, `display[top].fname` etc.). The primary gate is m2 103/0 (already achieved).
+The new priority is: **mode 3 (--run) and mode 4 (--compile) must also pass 103/0**.
+
+**Current mode 3 baseline**: PASS=29 FAIL=74 XFAIL=1 (as of session 43)
+
+**Failure categories in mode 3** (measured this session):
+- 30 BOMB  — `bb_binop_relop: shape mismatch` — char-array equality/ordering relops.
+  Root cause: `bb_binop_relop` template uses `cmp rax,rcx` (integer); requires `op_sa>=0` and
+  `op_sb>=0` (values in fixed integer slots). Char arrays are STRVAL, not INTVAL, so slots are
+  -1 → `brr_ok()` fails → BOMB. Fix: in lower_pascal.c `lower_binop`, when either operand is
+  a char array / alpha, convert the relop to a call to `rt_jct_relop(lv, rv, op)` instead of
+  `IR_BINOP`. Or add a new IR_BINOP_RELOP_STR variant handled by bb_binop_gvar_relop.
+
+- 44 WRONG / empty output — arrays, records, with-statements, pointers.
+  Root cause: `ASSIGN a` following `CALL arr_set_pure` requires `op_a_slot >= 0` in
+  `bb_gvar_assign` template (slot promotion). If slot promotion is absent the template
+  generates nothing/bombs silently. Verified: `arr_set_pure` and `arr_get` ARE accessible
+  via `rt_call_arr` in --run mode (linked into scrip binary), but the result-storing path
+  needs the slot to be promoted. Likely fix: ensure CALL result slot promotion runs for all
+  Pascal by-name calls, OR route these through bb_gvar_assign_call template.
+
+**Work committed this session (already pushed)**:
+1. `PAS_REC_MAX 64→512` + `pas_pend_add` clears ptrtarget — fixed WITH-FILE-LIST hang.
+   Gate: 103/0 throughout.
+2. `pas_arrrec_add` stores field names; `pas_arrrec_field_index` for inline arrrec lookup;
+   grammar field-access fallback uses it. Fixes `display[top].fname` access.
+3. `lower_assign` new first case inside TT_IDX: TT_FNC(__pas_deref,p) base → emit
+   `__pas_field_set(p, field_idx, rhs)`. Fixes `with cp^ do field := val`.
+
+**Gate scripts** (both should be used going forward):
+```bash
+# Mode 2 gate (existing)
+bash /tmp/run_gate.sh   # PASS=103 FAIL=0 XFAIL=1
+
+# Mode 3 gate (new goal)
+cat > /tmp/run_gate_m3.sh << 'EOF'
+#!/bin/bash
+cd /home/claude/corpus/programs/pascal
+PASS=0; FAIL=0; XFAIL=0; FAILS=""
+for f in *.pas; do
+    case "$f" in pcom.pas|pint.pas|ppp.pas) continue ;; esac
+    base="${f%.pas}"
+    [[ "$f" == "recursion.pas" ]] && { XFAIL=$((XFAIL+1)); continue; }
+    [[ ! -f "${base}.ref" ]] && continue
+    inp=/dev/null; [[ -f "${base}.in" ]] && inp="${base}.in"
+    expected=$(cat "${base}.ref")
+    got=$(timeout 6s /home/claude/SCRIP/scrip --run "$f" < "$inp" 2>/dev/null)
+    if [[ "$expected" == "$got" ]]; then PASS=$((PASS+1))
+    else FAIL=$((FAIL+1)); FAILS="$FAILS $f"; fi
+done
+echo "PASS=$PASS FAIL=$FAIL XFAIL=$XFAIL"
+[[ -n "$FAILS" ]] && echo "FAILING:$FAILS"
+EOF
+chmod +x /tmp/run_gate_m3.sh && bash /tmp/run_gate_m3.sh
+```
+
+**Next session start here**:
+1. Fix the 30 BOMB (char-array relop). In lower_pascal.c lower_binop: detect when LHS or RHS is
+   a char-expr (pas_is_charexpr) or alpha-var/array, and instead of emitting IR_BINOP emit a
+   CALL to `rt_jct_relop`. Signature: `int rt_jct_relop(DESCR_t lhs, DESCR_t rhs, int op)`.
+   The op values are BINOP_EQ etc. from gen.h. Wrap in an IR_IF: if (rt_jct_relop) → γ else → ω.
+
+2. Fix the 44 WRONG (slot promotion for arr_set_pure). Look at `emit_core.c` to find where
+   slot promotion happens (the pass that sets `op_a_slot`). Check why IR_CALL result slot is -1
+   for `arr_set_pure` results. Alternatively: reroute Pascal `ASSIGN var ← CALL arr_set_pure`
+   through `bb_gvar_assign_call` template if it handles dynamic DESCR_t results.
+   
+   Simpler approach: in lower_pascal.c, when lowering `TT_ASSIGN(TT_IDX(a, idx), val)` with
+   `arr_set_pure`, do NOT emit a separate ASSIGN node — instead lower as:
+   `a := arr_set_pure(a, idx, val)` which is already the pattern, but verify the ASSIGN node
+   is wired correctly so slot promotion fires.
+
+3. Do NOT work on pcom interpreter internals (entstdnames symbol-table field misregistration).
+   That is deep in the pcom-specific variant-record type system and is lower priority than
+   getting modes 3/4 working for the full test suite.
+
+**Key source paths**:
+- `src/lower/lower_pascal.c` — Pascal lowering (lower_binop, lower_assign)
+- `src/emitter/BB_templates/bb_gvar_assign.cpp` — gvar assign template (IR_CALL case)
+- `src/emitter/BB_templates/bb_binop_relop.cpp` — integer relop template (BOMB target)
+- `src/runtime/by_name_dispatch.c` — Pascal runtime (rt_jct_relop line ~1880)
+- `src/emitter/emit_core.c` — slot promotion pass (IR_BINOP_RELOP at line ~485)
