@@ -78,7 +78,7 @@ Before ANY construct: grep canonical FIRST. Port topology → `refs/jcon-master/
 
 ## Watermark
 
-**HEAD (SCRIP) = `2eaf3bf`** — TT_LIMIT/SWAP/LCONCAT/NULL/CASE. m2 **194** · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-11-SONNET46-ICON-FULL-PASS-LIMIT-SWAP-CASE.md.
+**HEAD (SCRIP) = `b1de2e3`** — lower_every no-body CONJ.γ→E fix. m2 **195** · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-LOWER-EVERY-WRITE-ALT.md.
 
 Session 2026-06-10 (Opus 4.8, FULL-14 ALTERNATION): `lower_alt` added to `lower_icon_nl.c` — `TT_ALTERNATE` was entirely unhandled (fell to `default`→IR_SUCCEED, so `write(1|2)` printed nothing). Mirrors oracle `wire_alt` (lower.c:124): arms lowered right-to-left, arm j's ω = arm j+1's entry (last → inherited ω), `arm_succ` = ALT node, arms deposited via `bb_operand_aux_set` (verified the HEAD interp `IR_ALT` at IR_interp.c:3021 reads `bb_operand_aux_get`, the OPPOSITE of the NOT/SECTION/BANG `ir_operand_push` convention — the flagged trap), β = node self-resume; route `case TT_ALTERNATE`. m2 178→184 (+6), m3 27→29, m4 30→32, zero regression; icon m2 12/12 HARD, prolog 5/5 HARD, one-box PASS. Proofs: `write(1|2)`→1, `every write(1|2|3)`→1,2,3, scan-in-alt `match("xyz")|0`→0. FULL-18: `rung13_alt_nested` (cross-product) now PASSES; residual `rung13_alt_filter` is assign-generator β-propagation — see FULL-18-resid step.
 
