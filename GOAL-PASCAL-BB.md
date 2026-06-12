@@ -395,3 +395,7 @@ chmod +x /tmp/run_gate_m3.sh && bash /tmp/run_gate_m3.sh
 - `src/emitter/BB_templates/bb_binop_relop.cpp` — integer relop template (BOMB target)
 - `src/runtime/by_name_dispatch.c` — Pascal runtime (rt_jct_relop line ~1880)
 - `src/emitter/emit_core.c` — slot promotion pass (IR_BINOP_RELOP at line ~485)
+
+**CORRECTION** (post-handoff measurement): True m3 baseline at session-43 close is
+PASS=24 FAIL=79 (not 29/74 as initially measured — 5 extra failures from concurrent
+bb_pattern_nullary commit that landed during rebase). No regressions from session-43 work.

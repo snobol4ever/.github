@@ -2,7 +2,10 @@
 
 ## State on handoff
 - **m2 gate**: PASS=103 FAIL=0 XFAIL=1 ✓ (stable throughout session)
-- **m3 gate baseline**: PASS=29 FAIL=74 XFAIL=1 (NEW GOAL: bring to 103/0)
+- **m3 gate baseline**: PASS=24 FAIL=79 XFAIL=1 (NEW GOAL: bring to 103/0)
+  NOTE: initial measurement of 29/74 was against an earlier binary; concurrent session
+  commits that landed in rebase (bb_pattern_nullary etc.) added 5 more failures.
+  The 24/79 baseline is accurate for HEAD as of this handoff.
 - **m4**: not yet measured systematically
 
 ## Commits this session (all pushed, rebased, green)
@@ -20,7 +23,7 @@
      emit __pas_field_set(p, field_idx, rhs) — fixes with cp^ do field := val
 
 ## M3 failure categories (as measured)
-- **30 BOMB** — bb_binop_relop: brr_ok() fails when operands aren't in integer slots
+- **30+ BOMB** — bb_binop_relop: brr_ok() fails when operands aren't in integer slots
   Triggered by char-array relops (rw[i] = id in alphacmp, any alpha comparison).
   The template does cmp rax,rcx which is integer-only.
 
