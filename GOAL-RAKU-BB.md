@@ -463,9 +463,11 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-12) — RK-LOWER-5g DONE: smoke 30/30, NFA oracle 5/5 PASS. SCRIP HEAD `0553e3e`.**
+**STATE (2026-06-12) — RK-LOWER-5g+5h DONE: smoke 31/31, NFA oracle 5/5 PASS. SCRIP HEAD `73dd016`.**
 
-- **Modes:** m2 **30/30** (HARD ✓). m3 **1 PASS / 0 FAIL / 29 EXCISED**, m4 **1 PASS / 0 FAIL / 29 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 7/7, NFA oracle **5/5 PASS**, `g_vstack`=0.
+- **Modes:** m2 **31/31** (HARD ✓). m3 **2 PASS / 0 FAIL / 29 EXCISED**, m4 **2 PASS / 0 FAIL / 29 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 7/7, NFA oracle **5/5 PASS**, `g_vstack`=0.
+
+- **RK-LOWER-5h ✅ 2026-06-12:** Toplevel Raku without `sub main()`. `lower_raku_stage2` now detects no `"main"` proc and synthesizes one from top-level non-decl statements — builds a fresh IR graph iterating `prog->c[i]` in reverse (skipping `TT_SUB_DECL`/`TT_CLASS_DECL`), registers it via `stage2_proc_grow` as `"main"`. All 147 corpus `.raku` files now pass `--interp` (were all aborting with `[SBB] FATAL`). New smoke case `toplevel_no_main`. SCRIP HEAD `73dd016`.
 
 - **RK-LOWER-5g ✅ 2026-06-12:** Relop-in-assignment stores Bool value. `my $a = (1 > 2)` now stores INTVAL(0); `my $b = (3 > 1)` stores INTVAL(1). Added `rk_is_relop()` helper in `lower_raku.c` (TT_LT/LE/GT/GE/EQ/NE/LEQ/LNE). In `lower_rv` TT_ASSIGN: when RHS is a relop, lower as `__rk_bool` (dval=2.0, arg-block) with γ→IR_LIT_I(1)→IR_ASSIGN and ω→IR_LIT_I(0)→IR_ASSIGN. The dval=2.0 ω-bail on FAIL naturally routes to lit0, producing INTVAL(0) for false comparisons; the builtin γ-path produces INTVAL(1) for true. All six relops (>, <, ==, !=, <=, >=) verified. New smoke case `bool_compare_store` (6 assertions). Canonical authority: rakudo `Int.rakumod` — numeric comparisons return `Bool:D` (nqp::hllbool). SCRIP HEAD `0553e3e`.
 
@@ -479,7 +481,7 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 - **THE BLOCKER (Icon-owned):** Nearly every Raku program lowers `IR_ASSIGN` through the descr/ζ-frame flat-chain. Icon template-revamp deleted `bb_assign.cpp`, leaving IR_ASSIGN unhandled → `bb_var` bombs (slot never allocated). Tracked as GOAL-ICON-BB GZ-7. **Raku m3/m4 recover automatically once Icon lands it.** Mode-2 fully healthy; all Raku NATIVE rungs wait behind this.
 
-- **Done (history):** RK-LOWER-0..5g, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3 (all detailed in git log).
+- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3 + GATHER, RK-HY-0..3, RK-NFA-1/2/3 (all detailed in git log).
 
 - **NEXT:** RK-EMIT-MAP/GREP (blocked on Icon GZ-7), RK-GRAM-3. The lockstep "three->four" FACT-RULE roster expansion still deferred. Note: `TT_WHILE` still uses `rk_cond_wrap` (dval=0.0) — consider migrating to arg-block if while-loop NFA battery issues arise.
 
