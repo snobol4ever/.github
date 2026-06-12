@@ -1,4 +1,4 @@
-**SESSION WATERMARK — 2026-06-12 · Sonnet 4.6 · _wγ/_wω root-cause FULLY DIAGNOSED (no fix landed; SCRIP still 4cb8a0a). NEXT = fix ARBNO emission gap in flat_drive_capture — see diagnosis below. GATES: smoke 7/7/7 HARD · pat-rung 19/19/19 no-SKIP · fence HARD.**
+**SESSION WATERMARK — 2026-06-12 · Sonnet 4.6 · bump() fix landed (4c65b17): pat-rung 19/19/19 no-SKIP. _wγ/_wω investigated further — root cause is flat_drive_capture gather returns 0 for BREAK→LIT→ARBNO→stop chain (stop=ASSIGN_COND not PAT_CAT); fix attempted but flat_drive_cat_arms xcat_ω label undefined when catnd is not a real CAT node; fix reverted. NEXT = fix flat_drive_capture to handle stop-terminated n>=2 arm chains without needing catnd=PAT_CAT (see handoff for two approaches). GATES: smoke 7/7/7 HARD · pat-rung 19/19/19 no-SKIP · fence HARD. SCRIP=4c65b17.**
 
 Diagnosis of `_wγ`/`_wω` undefined-reference link error (confirmed via asm inspection + diagnostic fprintf):
 
