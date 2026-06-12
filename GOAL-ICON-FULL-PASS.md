@@ -2,7 +2,7 @@
 
 **PIVOT 2026-06-06 (Lon):** REVAMP/HYGIENE delegated to GOAL-BB-FIXUP. This goal owns ONLY: lowerer correctness (`src/lower/lower_icon.c` — NL-promoted, sole Icon path), m2 interpreter semantics (`IR_interp.c`), and Icon runtime (`by_name_dispatch.c`, `aggregates.c`, `keywords.c`). Native m3/m4 follows once m2 is correct.
 
-**Status:** m2 198/247 · m3 29 · m4 32. Target 247/247 m2. XFAIL pool (36) out of scope.
+**Status:** m2 200/247 · m3 29 · m4 32. Target 247/247 m2. XFAIL pool (36) out of scope. HEAD=88dd8b4.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 count must never decrease.
 
 ---
@@ -30,7 +30,7 @@
 
 - **FULL-11 next-in-every** — INVESTIGATED: `NEXT.γ=generator.α` was hypothesized but not the real bug. The primes test (`rung36_jcon_primes`) ALREADY PASSES at m2=198. Closed.
 - **FULL-19 real to-by** ✅ DONE 2026-06-12 (`3e08aaa`). `IR_TO_BY` `is_real` detection fixed for `sval="ar"` (ag+real with operand nodes). rung19 +2.
-- [ ] **FULL-18-resid generator-in-user-proc-call-arg** — `every write(tag("a"|"b"|"c"))` outputs only `[a]`; `every write(s[1 to 3])` outputs only `a`. Root: `lower_call` in `lower_icon.c` line 82 sets `cx->beta = icn_call_allow_gen(name) ? call : ω` — user procs like `tag` return false from `icn_call_allow_gen`, so `cx->beta=ω`, and the ALT/TO arg generator is never wired into the flat graph (disappears from `--dump-bb`). Fix: detect generator in arg subtree and keep `cx->beta = call`. Affects rung16 (+1), rung32 (+1), many rung36/37. Do NOT loosen `g_icn_postfix_resume` gate blindly.
+- ✅ **FULL-18-resid generator-in-subscript-arg** — DONE 2026-06-12 (`88dd8b4`). `lower_call` now chains `[]`/`MAKELIST` when any arg is resumable; interp reads arg values directly from `IR_EXEC(operand).value`. rung16_subscript_sub_every +1.
 - **FULL-12 coerce()** — `integer(x)`/`real(x)` all type combos; consult `oarith.r`. Rungs 36, 37. +5.
 - **FULL-13-resid keywords** — rung37_keywords 3 residuals: `& &e` parse ambiguity, &error write-back, &dump/trace/random.
 - **FULL-14 scan-alt** — `IR_GEN_SCAN` resume re-enters scan across alt. Rung 37. +2.
