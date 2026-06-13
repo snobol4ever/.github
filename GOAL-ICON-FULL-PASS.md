@@ -62,6 +62,21 @@ Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-mast
 
 ## Watermark
 
+**HEAD (SCRIP) = `ae008c6`** — IR-IMMUTABLE "ACTUAL task" (execution-time IR-access audit) LANDED.
+The mode-3/4 runtime proc registry no longer holds an `IR_t *`: dropped `void *entry` from
+`rt_proc_t`, dropped the `entry` param from `rt_proc_register` (all 4 driver blocks now
+`rt_proc_register(name,pn,np)`), and DELETED the IR-walker hook `g_rt_gen_proc_builder` /
+`rt_proc_set_builder` (it installed `bb_build_flat`). Audit result: the active Icon/SNOBOL
+execution path was already IR-free (dispatch via `p->fn`, an emitted code ptr); the builder was
+never invoked — so this is enforcement-by-deletion (no live runtime IR-deref existed to NULL-bomb),
+the `bb_bin_t`-ABOLISHED philosophy. The sanctioned mode-3 emission read `bb_build_flat(icn_root)`
+is kept; the emitter is NOT bombed (that was the reverted e50b089). Remaining IR reads all
+sanctioned: mode-2 interp (`IR_interp.c`), emission (`emit_bb.c`), Prolog `sm_interp_run`
+(`resolution.c`). m2 interp 202 unchanged (HARD, explicit before/after diff empty); icon smoke
+12/12/12; prolog 5/5+5/5; `test_gate_icn_no_stack`=0; `test_gate_icn_one_reg_frame`=0; the 45
+`test_gate_bb_one_box` FAILs PRE-EXISTING (zero template files touched). 3 files, −26/+15. See
+HANDOFF-2026-06-13-SONNET-ICON-BB-IR-IMMUTABLE-REGISTRY-LANDED.md.
+
 **HEAD (SCRIP) = `8b9a58e`** — Reverted the e50b089 entry-bomb (CORRECTED understanding of IR-IMMUTABLE).
 The rule is about EXECUTION, not emission: mode 3/4 require ONE full read of the IR at EMISSION time to
 build the artifact (mode 3 → in-process image; mode 4 → `.s` source) — that read is required and correct.
