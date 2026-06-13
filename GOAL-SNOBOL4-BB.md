@@ -1,4 +1,4 @@
-**SESSION WATERMARK — 2026-06-13 · Sonnet 4.6 · SCRIP=f591d9d. This session: fixed M3-CONCAT-MULTIPART. `bb_gvar_assign_concat.cpp` rdi BINARY ptr (destination variable name) was wrong in BOTH arms: lit_s used `_.op_sval` (NULL for ASSIGN_CONCAT — never set by flat_drive_gvar_assign), multi-part used `_.bb_ls` (scratch label-name buffer, not the var name). Both → `IR_LIT(_.node).sval` (permanent IR dest-var-name ptr). TEXT arm byte-identical (reads `_.bb_ls` label); only the BINARY movabs immediate changed. GATES at f591d9d: smoke 7/7/7 HARD · pat-rung m2/m3/m4 19/19/19 no-SKIP · fence HARD. Corpus this container: M2=172 M3=152 (+8 from fix) M4=148 (counts container-sensitive — stash-baseline before treating as regression). 055 now green all three modes. Next: M4-SMOKE-REGRESS or M4-FENCE cluster per ladder priority.**
+**SESSION WATERMARK — 2026-06-13 · Sonnet 4.6 · SCRIP=eb98b8e. This session: fixed M3-CONCAT-MULTIPART. `bb_gvar_assign_concat.cpp` rdi BINARY ptr (destination variable name) was wrong in BOTH arms: lit_s used `_.op_sval` (NULL for ASSIGN_CONCAT — never set by flat_drive_gvar_assign), multi-part used `_.bb_ls` (scratch label-name buffer, not the var name). Both → `IR_LIT(_.node).sval` (permanent IR dest-var-name ptr). TEXT arm byte-identical (reads `_.bb_ls` label); only the BINARY movabs immediate changed. GATES at eb98b8e: smoke 7/7/7 HARD · pat-rung m2/m3/m4 19/19/19 no-SKIP · fence HARD. Corpus this container: M2=172 M3=152 (+8 from fix) M4=148 (counts container-sensitive — stash-baseline before treating as regression). 055 now green all three modes. Next: M4-SMOKE-REGRESS or M4-FENCE cluster per ladder priority.**
 
 ---
 
@@ -126,7 +126,7 @@ Every box value: **(RO)** `[rip+disp]` sealed data, or **(RW)** `[ζ+off]` per-s
 
 ## Session log
 
-**Watermark (D7 all rungs ✅; f591d9d; 2026-06-13 Sonnet 4.6).** smoke 7/7/7. pat-rung m2/m3/m4 19/19/19 no-SKIP. fence HARD. M3-CONCAT-MULTIPART fixed: bb_gvar_assign_concat rdi BINARY ptr → IR_LIT(_.node).sval in both lit_s arm (was _.op_sval, NULL) and multi-part arm (was _.bb_ls scratch buf). TEXT byte-identical. Corpus this container M3 144→152. Next: M4-SMOKE-REGRESS or M4-FENCE per ladder.
+**Watermark (D7 all rungs ✅; eb98b8e; 2026-06-13 Sonnet 4.6).** smoke 7/7/7. pat-rung m2/m3/m4 19/19/19 no-SKIP. fence HARD. M3-CONCAT-MULTIPART fixed: bb_gvar_assign_concat rdi BINARY ptr → IR_LIT(_.node).sval in both lit_s arm (was _.op_sval, NULL) and multi-part arm (was _.bb_ls scratch buf). TEXT byte-identical. Corpus this container M3 144→152. Next: M4-SMOKE-REGRESS or M4-FENCE per ladder.
 
 ## Session Setup
 
