@@ -10,31 +10,18 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
-## ▶ CURRENT STATE (Session 49, 2026-06-13)
+## ▶ CURRENT STATE (Session 50, 2026-06-13)
 
 **GATE STATUS:**
 - M2 (--interp): **PASS=103 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
-- M3 (--run):    **PASS=102 FAIL=1 XFAIL=1** (+5 this session, from 97)
-- M4 (--compile): same templates as M3; same failures expected
+- M3 (--run):    **PASS=103 FAIL=0 XFAIL=1** ✓ PARITY WITH M2 (+1 this session, from 102)
+- M4 (--compile): same templates as M3; alphacmp + 6 spot-checks verified PASS
 
-**Landed this session (SCRIP commits 4c22051, 76bfab3, 03c8240): 97→102 (+5)**
-- **varframe, arr2dtype, arr2dtype3** (4c22051): `g_pas_has_nesting` was declared but never set (the local `pas_has_nesting` in `lower_pascal_stage2` was computed AFTER the proc-lowering loop, so `lower_var`/`lower_assign_var` always read 0). Now `lower_pascal_stage2` pre-computes `g_pas_has_nesting` BEFORE the loop using `proc_decl_level(proc)` (decl_level not yet set at that point) and `byref_mask` (set pre-lower in polyglot.c). Both `use_frame` conditions gained `|| (g_pas_has_nesting && is_own && slot < cx->sc.nparams)`: when ANY proc in the program is nested (decl_level>1) or has a byref param, the whole program routes calls through `rt_call_named_proc_sl` which stores params in frame slots, so own value-params must be read from frames not gvars. `arrparam` is safe — its `sumvec` is decl_level=1/byref=0, so the flag stays 0 there (verified).
-- **boolidx** (76bfab3): `gvar_drive_call_arg_slots` (emit_bb.c) walked the relop diamond's γ chain to `res_last`=LIT_I(1) (the true arm) and pre-computed that arm's slot — but the false arm stores INTVAL(0) to a DIFFERENT slot, so the marshalled arg always read 1. Added a `relop_diamond` detection (scan γ chain for an integer relop whose ω is LIT_I(0) and res_last is LIT_I(1)) that SKIPS pre-computation, letting `marshal_call_arg`'s existing boolean-relop arm emit a single-slot INTVAL(0/1). Mirrors the existing arith-BINOP skip.
-- **forward1** (03c8240): the gvar emit loops in scrip.c (both BINARY `--run` ~line 2908 and TEXT `--compile` ~line 2613) register AND emit each proc in ONE pass, so a call to a not-yet-emitted proc saw `rt_proc_is_registered`==false and emitted `bb_call_byname_str`→`rt_call_arr`→"Undefined function". Added a forward-decl pre-registration pass before each emit loop that registers all non-main procs (entry+frame+byref) so forward references emit `rt_call_named_proc`. (The Icon/Raku `--run` path already splits register-all/emit-all; this brings the gvar path in line.)
-
----
-
-## ▶ REMAINING 1 FAILURE
-
-**alphacmp** — `array[1..8] of char` equality (`rw[i] = id`, both char arrays). M2 PASSES via `binop_apply` (lower_common.c lines 95-116): for a numeric relop (BINOP_EQ) where BOTH operands are strings at runtime (`IS_STR_fn`), it does a `memcmp` with `norm_charseq` SOH-normalization. M3 emits an INTEGER `IR_BINOP_GVAR_RELOP` (`cmp rax,rcx` on descriptor words via `rt_gvar_get_int`) — `bb_binop_gvar_relop.cpp` has NO string path. Result: M3 prints 0 0 0 (all unequal); expected 2 0 0.
-
-**ATTEMPTED + REVERTED this session** (parser-rewrite approach): added `pas_is_wholestr` + `pas_streq_or_bin` in pascal.y to rewrite EQOP/NEOP into `__pas_streq`/`__pas_strne` TT_FNC calls when an operand is a bare whole char-array VAR, plus `__pas_streq`/`__pas_strne` runtime builtins in by_name_dispatch.c delegating to `binop_apply(BINOP_EQ,...)`. Routing through a CALL was intended to deliver full DT_S descriptors (call-arg marshalling uses NV_GET, unlike the relop's rt_gvar_get_int). BUILD was clean, M2 stayed 103/0, but M3 still printed 0 0 0 AND `__pas_streq` appeared 0× in `--compile` output — so the rewrite did not take effect in the M3 emit path (the IR_CALL was not emitted as a by-name call, OR the EQOP rule rewrite did not fire for `rw[i] = id`; M2's correctness is independent since M2 was already correct via binop_apply on plain TT_EQ). Reverted both files to keep the gate green at 102/1.
-
-**Next investigation for alphacmp:**
-1. Confirm whether the parser rewrite actually fires for `rw[i] = id` — dump the AST/IR and check for a TT_FNC("__pas_streq",…) node. The EQOP rule is `expression EQOP simple_expression`; verify `$3` for a bare `id` is a TT_VAR (not wrapped) so `pas_is_wholestr` matches, and that `pas_is_chararr("id")` is true at that parse point.
-2. If the rewrite fires but M3 doesn't emit a call: trace how a 2-arg builtin IR_CALL (dval=3.0, unregistered name) with a TT_IDX (arr_get) first arg flows through walk_bb_flat IR_CALL dispatch (emit_bb.c ~2729-2755) and bb_call.cpp (~546-549). The `is_intexpr_shape` path or arg-marshalling may be diverting it.
-3. Alternative (template) approach: give `IR_BINOP_GVAR_RELOP` a string arm — when an operand is a runtime DT_S descriptor, call a runtime relop helper (e.g. wrap `binop_apply`). This matches M2 exactly but touches a language-blind template (RULES: dispatch on IR shape, no language guards) — higher risk; gate carefully.
-Priority: low (1 test). Do not regress the 102.
+**Landed this session (SCRIP commit PENDING): 102→103 (+1) — M3 NOW AT FULL PARITY WITH M2**
+- **alphacmp** — `array[1..8] of char` equality (`rw[i] = id`, both char arrays). Root cause was exactly the prior REMAINING analysis's option 3: `IR_BINOP_GVAR_RELOP` had ONLY an integer path. For `rw[i] = id`, the left arm read the `arr_get` descriptor's value-word (a string pointer) and the right went through `rt_gvar_get_int`, which collapses a DT_S to `strtoll(...)=0` → comparison was always `(char*)≠0` → always "not equal" → `0 0 0`. M2 is correct via `binop_apply` (lower_common.c 95-116: numeric relop + both DT_S → `memcmp` with `norm_charseq` SOH-normalization).
+  - **Fix (IR-shape dispatch, language-blind):** new `rt_relop_descr2(l_lo,l_hi,r_lo,r_hi,op)` in `runtime/rt/rt.c` (decl in rt.h) reconstructs both `DESCR_t`s from their two slot words and calls `binop_apply`, returning 1 if the relation holds. Type-polymorphic, so correct for BOTH int and string operands (DT_I → integer cmp, DT_S → norm+memcmp).
+  - New `op_relop_descr` field in `sm_emit_t` (emit_globals.h). In `emit_bb.c` `case IR_BINOP:` it is reset to 0 at entry; in the `op_is_rel` arm it is set to 1 ONLY when op∈{EQ,NE} AND ≥1 operand is IR_CALL AND both operands are IR_CALL or named-IR_VAR (LIT excluded → pure-int-literal compares stay on the fast path). Triggered → `bb_slot_alloc16` for op_off scratch.
+  - `bb_binop_gvar_relop.cpp` gains a descriptor arm gated on `op_relop_descr` (loads both descriptors — CALL operand from [op_sa]/[op_sa+8], VAR operand via `rt_gvar_get_descr` — calls `rt_relop_descr2`, `je ω` on zero). The integer path and the shape-mismatch bomb are preserved for every other shape. The two arms are mutually exclusive on the flag and `IF` short-circuits, so exactly one builds. Trigger shape: CALL-vs-VAR, VAR-vs-CALL, CALL-vs-CALL. Speaks ONLY `x86(...)` — zero raw bytes (lang-audit + strict-gate REMAINING both confirm bb_binop_gvar_relop is not a violator).
 
 
 
@@ -95,7 +82,7 @@ for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
 bash /tmp/run_gate.sh    # must be 103/0
-bash /tmp/run_gate_m3.sh # baseline 76/27
+bash /tmp/run_gate_m3.sh # must be 103/0 (parity reached session 50)
 ```
 
 ---
@@ -106,7 +93,7 @@ bash /tmp/run_gate_m3.sh # baseline 76/27
 - **Frame-as-BB:** `[fb+0]`=SL, `[fb+16+k*16]`=DESCR slot k. VAR params = cell addresses (IR_VAR_FRAME_REF/IR_ASSIGN_FRAME_REF). Migration: `decl_level>1 || byref_mask`; main stays NV.
 - **2D array indexing:** parser grammar rule `selector '[' expression_list ']'` for 2-element lists: creates flat index `BINOP_ADD(BINOP_MUL(i, ncols), j)` and `TT_IDX(a, flat_expr)` (2 children). Both operands of each BINOP point to the BINOP as their γ (non-linear chain). PEERS aux (`bb_operand_aux_set` in lower_binop) correctly records both operands — the ONLY place to get them. `walk_bb_flat case IR_BINOP:` wires PEERS aux → direct children when `bb_child0==NULL` using `g_emit_cfg` (saved/restored to the arg's subgraph before `flat_emit_arg_subchain`). `lc_arg_block` creates **isolated subgraphs** (separate `IR_graph_t*` from main); PEERS aux keyed to that subgraph, not main graph.
 - **Calls:** dval=2.0 → `bb_call_byname_str` → `rt_call_arr`; dval=3.0 registered → `bb_call_gvar_userproc_str` → `rt_call_named_proc(_sl)`. `gvar_drive_call_arg_slots`: pre-evaluates all non-null arg entries. Terminal: `walk_bb_flat + bb_slot_get`. Non-terminal ending in CALL: `flat_emit_arg_subchain + bb_slot_get(res_last)` with `g_emit_cfg` set to arg subgraph. Non-terminal ending in arith BINOP: SKIP (leave slots[i]=-1; `marshal_call_arg` inline-arith handles correctly). `marshal_call_arg` dispatch (gvar): (1) `op_arg_slot[i]≥0` → pre-computed DESCR slot; (2) gvar inline-arith (`fin!=lf && arith_binop`) → compute + wrap DT_I; (3) gvar relop; (4) `bb_slot_get(lf)≥0` → nested slot; (5) `marshal_single_call` for terminal CALL; (6) LIT_I/S/F/NUL; (7) `bb_varslot` (BAD fallback). **Known issue**: `marshal_single_call` (called from step 5 OR from inline-arith when operand is a CALL) calls `bb_slot_alloc16(subs[j]->entry)` for argbase without going through gvar_drive_call_arg_slots → fresh empty slots → zeros.
-- **Booleans:** INTVAL(1/0). `pas_cond` = `expr≠0`; and/or = TT_MUL/TT_ADD; not = `pas_flip_rel`. Relop→VAR: parser IF rewrite; other → `pas_bool` diamond.
+- **Booleans:** INTVAL(1/0). `pas_cond` = `expr≠0`; and/or = TT_MUL/TT_ADD; not = `pas_flip_rel`. Relop→VAR: parser IF rewrite; other → `pas_bool` diamond. **Polymorphic EQ/NE relop (char-array/string vs int):** when `IR_BINOP_GVAR_RELOP` has op∈{EQ,NE} and ≥1 IR_CALL operand (both operands IR_CALL or named-IR_VAR, LIT excluded), `emit_bb.c` sets `g_emit.op_relop_descr` and `bb_binop_gvar_relop.cpp`'s descriptor arm reconstructs both 16-byte DESCRs (CALL from slot [op_sa]/[op_sa+8], VAR via `rt_gvar_get_descr`) and calls `rt_relop_descr2`→`binop_apply` (matches M2's SOH-normalized string memcmp; DT_I falls through to integer cmp). All other relop shapes keep the integer fast path.
 - **goto/label:** pass-1 pre-registers IR_SUCCEED landings; intra-proc only.
 - **I/O:** `__pas_writeln/__pas_write` interleaved (value,width). Default int=10, real=20, char=-2.
 - **Char:** ordinals. charvar args wrapped `mk_chr_wrap → TT_FNC(__pas_chr, val)`.
