@@ -58,4 +58,4 @@ git config user.email "lcherryh@yahoo.com"
 
 ## C code style
 - **200-char line max. Zero blank lines.**
-- **EXACTLY ONE COMMENT EXISTS:** the 200-char-total `/*` + dashes + `*/` LINE-BREAK separator (`/*` + 196 dashes + `*/`) between every function/major block; `/*===*/` (equals, 200 chars total) between larger sections. Nothing else — no block/inline comments, no `//`, no prose. (Lon directive 2026-06-02; separators standardized to 200 total 2026-06-09 — the repo went 200 in the 2026-05-31 ground-zero purge; this line had drifted to 120.)
+- **EXACTLY ONE COMMENT:** 200-char `/*` + 196 dashes + `*/` between every function/major block; `/*===*/` (200 chars) between larger sections. No other comments — no `//`, no inline prose.
