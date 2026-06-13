@@ -1,68 +1,46 @@
-# HANDOFF — IR-IMMUTABLE in mode 3/4 (enforcement landed; physical purge pending)
+# HANDOFF — IR-IMMUTABLE rule (CORRECTED understanding)
 
-**Rule (long-standing, ~3 months):** In mode 3 (`--run`) and mode 4 (`--compile`) the IR graph must
-NEVER be touched, read, or looked at. No `nd->op`, no `IR_LIT(nd)`, no `nd->γ/ω.node`, no operand
-walking — nothing. The native code generator must not reach into the IR at all.
+## RETRACTION
+An earlier version of this doc (and SCRIP commit `e50b089`) misread the rule and bombed the mode-3/4
+emitter at its entry, disabling native codegen. **That was wrong and has been reverted (SCRIP `8b9a58e`).**
+Do NOT physically purge the `emit_bb.c` walkers — the emitter's read of the IR is required and correct.
 
-## What landed — SCRIP `e50b089`
-The native emitter (`src/emitter/emit_bb.c`: `walk_bb_flat`, `flat_drive_*`, `codegen_flat_*`, `bb_fill_*`,
-plus the descr/gvar flat-chain builders) is, by construction, an IR-reading code generator and violated
-the rule throughout (op-swap dispatch `nd->op = X; FILL; nd->op = _sk`, permanent operand rewrites, and
-hundreds of `nd->op ==` / `IR_LIT(nd)` reads). Rather than leave a half-gutted, non-compiling tree, the
-rule is **enforced at the mode boundary**: in `src/driver/scrip.c` both the mode-4 block (`if
-(mode_compile_x86) {`) and the mode-3 block (`} else if (mode_run) {`) now execute `(*(volatile char
-*)NULL);` as their FIRST statement — before `sm_preamble` and before any `s2->bbp` / IR access. So neither
-mode can reach any IR-reading code: `--run` and `--compile` SIGSEGV (rc=139) immediately.
+## The rule, correctly stated
+Mode 3 (`--run`) and mode 4 (`--compile`) each require **exactly ONE full read of the IR at EMISSION time**
+to build their artifact:
+- mode 3 → an in-process executable image (the sealed x86 blob that is then jumped into);
+- mode 4 → the `.s` assembly source (assembled + linked against `libscrip_rt.so`).
 
-**Gate state at e50b089:** m2 interp HARD gate **PASS=202** (unchanged — the oracle never runs the emit
-path). icon mode-2 smoke 12/12, prolog mode-2 smoke 5/5 (both HARD, green). Mode-3/4 smoke arms are 0 by
-design (bombed). The native-only gates (`test_gate_icn_no_stack`, `test_gate_icn_one_reg_frame`,
-`test_gate_bb_one_box`) are RED BY DESIGN — they exercise the now-bombed emitter.
+That emission-time read is fine. What the rule forbids is touching the IR **DURING EXECUTION** of the
+emitted artifact — i.e. while the mode-3 blob or the mode-4 binary is RUNNING:
+- no runtime helper (in `libscrip_rt`) may dereference an `IR_t *` at run time;
+- no `IR_t *` may be baked into / captured by the generated code and chased at run time.
 
-## REMAINING WORK — physical purge of the now-dead IR-walking code
-The entry bombs make the IR-reading backend unreachable; it is now DEAD CODE that must be physically
-removed from the files (per "ensure the code is physically removed from the file"). This is a large,
-multi-file deletion — do it on a fresh budget so it lands compiling + gated, not half-applied.
+So: read the whole IR once, emit a self-contained artifact, then run the artifact with the IR never
+consulted again. (For mode 4 this is automatic — the standalone binary doesn't even have the `IR_t` graph
+in its address space. For mode 3 the IR lives in the same process, so the discipline must be actively kept:
+the emitted blob and the runtime it calls must be IR-free at run time.)
 
-Order of removal (delete the body, stub each external call site with `(*(volatile char *)NULL);`):
-1. `src/driver/scrip.c` — physically delete the dead bodies BELOW the two bombs: the entire
-   `if (mode_compile_x86) { ... }` body (was lines ~2275–2539) and the entire `} else if (mode_run) { ... }`
-   body (was ~2615 to its closing brace), leaving only the bomb. Keep the mode-2 `--interp` block (~2551–2613)
-   and the `--monitor` / non-x86-target stubs intact.
-2. `src/emitter/emit_bb.c` (3618 lines, the bulk) — delete the IR-reading walkers and bomb their (now
-   external/cross-file) call sites: `walk_bb_flat` (2507), `codegen_flat_build` (3594, the public entry in
-   `emit_bb.h:19`), `codegen_flat_body` (3085), `codegen_flat_chain_body` (2979),
-   `codegen_gvar_flat_chain_body` (3434), `walk_bb_flat_or_inline_alt` (3061), and every `flat_drive_*` /
-   `bb_fill_*` helper. Remove the matching prototypes in `src/emitter/emit_bb.h` and the
-   `bb_build_flat_text` macro.
-3. `src/emitter/emit_core.c` — the `EMIT_PAIR_FILL` dispatch switch reads `nd->op` to pick a template;
-   delete it and the descr/gvar flat-chain builders (`descr_flat_chain_build_text`,
-   `descr_flat_chain_build_proc_text`, `gvar_flat_chain_build_text`, `descr_flat_chain_build_proc`).
-4. `src/emitter/BB_templates/` — these are already clean of IR MUTATION, but many READ the IR via `_.node`
-   / `ir_call_arg(_.node, …)` / `bb_child0`. If the rule is read strictly, the templates that dereference
-   `_.node` must also go (or the whole template layer, since with no walker nothing calls them).
-5. Test infra: retire/adjust `test_gate_icn_no_stack`, `test_gate_icn_one_reg_frame`,
-   `test_gate_bb_one_box`, and the mode-3/4 arms of `test_smoke_icon.sh` / `test_smoke_prolog.sh` /
-   `test_icon_rung_suite.sh` (lower `MODE3_MIN`/`MODE4_MIN` to 0 or remove the native arms) so the gate
-   reflects "native disabled." The m2 interp HARD gate stays the source of truth.
+## Current state — SCRIP `8b9a58e`
+Native emission restored and working. m2 interp HARD gate PASS=202; icon smoke 12/12 all three modes;
+prolog smoke 5/5 all modes. Icon rung tally at the pow-fold baseline: m2 202 / m3 76 / m4 82. The Icon pow
+`^` constant-fold (lowering only, `2831781`) is intact.
 
-## Exact IR-mutation/read inventory already gathered (emit_bb.c)
-Op-swap dispatch idiom `{ IR_e _sk = nd->op; nd->op = <specialized>; EMIT_PAIR_FILL(...); nd->op = _sk; }`:
-lines 1432, 1466, 1516, 2080, 2731, 2740, 2747, 2755, 2763, 2778, 2802, 2815; binop-gen op-swap 2841–2843;
-const-mutate-with-restore 2087–2092 (`c0->op` + `IR_LIT(c0).ival`); SNOBOL pattern op-swap 2283–2290,
-2311–2313, 2358–2360; `IR_LIT(pBB).ival=` writes 437, 477, 2153. Permanent (unrestored) operand rewrites:
-2714 (`nd->n_operands=0; ir_operand_push(nd,_ax[0]); ir_operand_push(nd,_ax[1])`), 3214, 3263–3264,
-3374–3375. The BB templates themselves had ZERO `->op =` / `ir_operand_push` mutation (verified by grep).
-Everything else in emit_bb.c is `nd->op ==` / `IR_LIT(nd).x` READS — all forbidden in mode 3/4 and all to
-be removed in the purge.
-
-## Rebuild contract (after the purge)
-If mode 3/4 are ever rebuilt, the native code generator must consume a SEPARATE, already-lowered structure
-(emitted once by the lowering pass) and must NOT dereference `IR_t` during emission. The lowering pass
-(`src/lower/lower_icon.c` etc., which BUILDS the IR — allowed) would also produce the emit-ready structure;
-the emitter walks only that. Until then, mode-2 (`--interp`) is the sole execution path.
+## The ACTUAL task (next session)
+Audit for IR access during EXECUTION, not emission:
+1. Grep `libscrip_rt` runtime sources for any function reachable from a running emitted program that takes
+   or dereferences an `IR_t *` / `IR_graph_t *` (e.g. helpers called via `x86("call", …)` from the
+   templates that are handed an IR node pointer rather than already-marshalled data). Those are the
+   violations — the emitted program would be reaching back into the IR at run time.
+2. For mode 3 specifically, check what the sealed image / `rt_proc_*` registry holds: if any entry stores an
+   `IR_t *` (vs. an emitted code pointer), and a runtime path chases it during execution, that violates the
+   rule.
+3. Where found: move the needed data into the emitted code / a run-time-owned structure at EMISSION time,
+   and delete the run-time IR deref (stub its call site with `(*(volatile char *)NULL);` if it must remain
+   as a tripwire). Emission-time IR reads in `emit_bb.c` are NOT targets.
+4. Gate unchanged: m2 interp never drops below 202 (HARD); native smokes/gates stay green; verify mode-3
+   and mode-4 still emit & run identically before/after.
 
 ## Note
-The Icon pow `^` constant-fold (SCRIP `2831781`, prior commit) lives entirely in lowering
-(`src/lower/lower_icon.c`) and is unaffected — it still yields the correct real in mode-2 (`2^10`→`1024.0`),
-and m2 stayed 202 across this change.
+The emitter being "by construction IR-reading" is fine — that IS the emission read. The mistake was
+conflating emission with execution. Keep them distinct.
