@@ -1,8 +1,8 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m2 198/247. Next: FULL-18-resid generator-in-user-proc-call-arg (`lower_call` cx->beta fix); FULL-12 coerce. See GOAL-ICON-FULL-PASS.md.
+## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m2 200/283 · m3 44 · m4 41. Next: fix rc=134 x86_bomb hits (missing BINARY arms); then silent-empty TO+relop+EVERY class. See GOAL-ICON-FULL-PASS.md.
 
-**x86() TEMPLATE-REVAMP is COMPLETE for Icon** (`0b7a166`). Keystone for every Icon value box: **operand-slot promotion** — the driver (`emit_bb.c`) resolves neighbor slots and deposits them as `g_emit.op_*` scalars (the `walk_bb_node` prologue auto-deposits `op_a_slot`/`op_a_node_kind` and clobbers `op_sval/op_ival/op_dval/op_counter` from the node); the box stays pBB-free and reads only `_`. Shared `x86_asm.h` is additive only; `git pull --rebase` before push.
+**x86() TEMPLATE-REVAMP is COMPLETE for Icon.** Driver deposits neighbor slots as `g_emit.op_*` scalars; boxes read only `_`. `x86_asm.h` is additive only; `git pull --rebase` before push.
 
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
@@ -269,21 +269,21 @@ Locked callee-saved layout the three concurrent BB sessions MUST share (canonica
 
 Third reset; the wrong premise both prior times was a value stack. The model: values live in flat per-box slots at emit-time offsets; a consumer reads its producers' slots directly (Proebsting `plus.value ← E1.value + E2.value`). Unbounded backtrack = a per-box arena indexed by depth, never push/pop. Inter-box transitions are direct `jmp` — no call/ret/dispatch loop/walker. `rsp` only as transient intra-node scratch, never to thread values between boxes.
 
-**References:** `SCRIP/refs/bb/Proebsting-Simple-Translation-of-Goal-Directed-Evaluation.pdf` (§4 four-port templates; Fig 1/2 = `5 > ((1 to 2) * (3 to 4))`) · `.github/test_icon.c` (that expression as flat goto-graph, the structural target) · `test_sno_1.c` (ARBNO per-box `_1[64]` arena) · `test_sno_2.c` (recursion as four-port fns, `_λ` landing pads) · `test_sno_3.c` (**the EVAL/CODE/`*P` deferred model — GZ-DEFER**) · `SCRIP/archive/backend/emit_emitters/emit_x64.c` (prior stackless emitter, faster than SPITBOL).
+**References:** `SCRIP/refs/bb/Proebsting-*.pdf` · `test_icon.c` (flat goto target) · `test_sno_1/2/3.c` · `archive/backend/emit_emitters/emit_x64.c` (prior stackless emitter).
 
 **GATE:** `grep -rnoE 'rt_(push|pop)_[a-z_]+' src/emitter/BB_templates/ src/emitter/emit_bb.c | grep -v _pl_ | wc -l` == 0; plus per-rung m2==m3 byte-identical, zero-SM, FACT 0, smokes hold.
 
 ### ⛔ ALWAYS TEST ALL THREE MODES (Icon GOAL policy — set 2026-05-31)
 
-Every test runs --interp/--run/--compile on the SAME source and reports all three. A rung is done only when m2 all-PASS (HARD, the oracle) AND m3+m4 each PASS or LOUDLY EXCISE — never a silent miscompile. HARNESS: `scripts/test_icon_rung_suite.sh [--rung R] [--mode all|interp|run|compile]`. The m3/m4 driver pre-checks `icn_graph_native_emittable(s2)`; a stubbed kind prints `[SMX] … EXCISED` to stderr and declines cleanly (exit 0) — the harness reads `[SMX]` as EXCISED, not FAIL. The list is `icn_kind_native_stub` in `scrip.c`; REMOVE a kind the moment its real MEDIUM_TEXT+MEDIUM_BINARY arm lands. ⚠️ LESSON (verified): only genuine single-purpose zero-template kinds may be blanket-declined; MUXED kinds (`IR_UNOP`, `IR_BINOP` carry several ops via `ival`) need PER-OPERATION declines or the real arm — blanket-declining a mux excises its working ops. m4 needs `make libscrip_rt` + gcc; harnesses degrade gracefully. m3≡m4 bar = same codegen path + instruction/behavioral parity (`test_crosscheck_icon.sh`), NOT byte-identical machine code — gas relaxes in-range jumps to rel8; compare disassembled instruction stream + behavior.
+Every test runs --interp/--run/--compile on the SAME source. Done = m2 all-PASS (HARD) AND m3+m4 PASS or LOUDLY EXCISE. HARNESS: `scripts/test_icon_rung_suite.sh [--rung R] [--mode all|interp|run|compile]`. Stubbed kind → `[SMX] EXCISED` (exit 0). `icn_kind_native_stub` in `scrip.c` — REMOVE a kind the moment its real arm lands. MUXED kinds (IR_UNOP, IR_BINOP) need per-operation declines, not blanket. m4 needs `make libscrip_rt` + gcc.
 
 ### Rung ladder (each gated: stackless, m2==m3, zero-SM, no-stack 0, no corpus regression)
 
-- GZ-0…GZ-SCAN **DONE** (HELLO→scan; landed: chain-entry sentinel/unary-minus/slot-concat · REG-RO int+string · `bb_to` · `bb_alt` · `bb_gen_scan`+`&kw` · LIT_I/S/F/NUL producers — git log).
+- GZ-0…GZ-SCAN **DONE** (HELLO→scan; all foundational boxes landed — git log).
 - [ ] **GZ-DEFER** — EVAL / CODE / `*P` deferred patterns via `test_sno_3.c` model.
 - [ ] **GZ-11+** — `not`/`size`/`nonnull` `bb_unop` · relop remainder · generator-operand binops (Fig-1 m3/m4) · `rt_call_builtin` · lists/tables/records/csets/sort — canonical JCON/Icon first.
 
-## ⛔ PER-BOX LOCAL STORAGE## ⛔ PER-BOX LOCAL STORAGE — ALL STATE LIVES INSIDE THE BOXES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
+## ⛔ PER-BOX LOCAL STORAGE — ALL STATE LIVES INSIDE THE BOXES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
 **ONLY local BB allocation variables are used; NOTHING is stored outside the boxes.** Every value a
 SNOBOL4 (or Icon / Prolog) BB graph computes or holds at run time lives in storage that belongs to a
@@ -319,9 +319,9 @@ TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes v
 
 ---
 
-## 🔴🔴 #0 PRIORITY — BB-HYGIENE LADDER (ICON) (Lon 2026-06-01)
+## 🔴🔴 BB-HYGIENE LADDER (ICON) — ALL DONE (HY-0…7g)
 
-Per the NO-DUPLICATED-LOGIC FACT RULE. HY-0…7g ALL DONE (de-cram · de-fuse · `!x` · marshal medium-collapse · N-arg slot carrier + frame[0..15] result-slot reservation · LIT_I/S/F/NUL producer adoption + float containment — git log). `bb_binop.cpp` split is the worked example.
+De-cram · de-fuse · `!x` · marshal medium-collapse · N-arg slot carrier · LIT_I/S/F/NUL adoption + float containment. `bb_binop.cpp` split is the worked example. Git log for details.
 
 ## Premise
 

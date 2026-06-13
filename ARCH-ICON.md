@@ -85,31 +85,6 @@ Reuse = the Σ/δ/Δ register walk + the cset test loop; the value contract and 
 
 ---
 
-  lower.c emits:   SM_PUSH_EXPR <tree_t*>  +  SM_BB_PUMP
-  sm_interp.c:     pops tree_t*, calls coro_eval() -> bb_node_t,
-                   then bb_broker(node, BB_PUMP, pump_print, NULL)
-  sm_codegen.c:    h_bb_pump mirrors sm_interp exactly
-
-This is CORRECT and COMPLETE. The SM layer is thin — one SM_BB_PUMP per
-Icon statement. BB does all the work. Do not change this.
-
----
-
-## Sub-expression level dispatch (BB templates — the work to do)
-
-Generator sub-expressions (1 to N, !E, A|B, every, E\N, E1!E2, |||) are
-currently implemented as:
-  (a) SM coroutine bytecode (SM_RESUME/SM_STORE_GLOCAL/SM_SUSPEND/SM_RETURN)
-      — this is WRONG. See GOAL-ICON-BB-COMPLETE (superseded).
-  (b) SM_BB_PUMP_AST fallthrough to coro_eval — works but dishonest.
-
-The correct implementation is a flat BB template function per construct:
-  emit_bb_icn_to, emit_bb_icn_iterate, emit_bb_icn_alt, emit_bb_icn_every,
-  emit_bb_icn_limit, emit_bb_icn_bang, emit_bb_icn_lconcat, emit_bb_icn_seq
-See GOAL-ICON-BB-NATIVE.md for the full plan and rungs.
-
----
-
 ## Box structure for Icon constructs (from .github/test_icon.c)
 
   construct_alpha:  initialize state; compute first value; goto gamma or omega
@@ -123,72 +98,24 @@ allocated fresh per alpha-entry. CODE is shared.
 
 ---
 
-## Existing semantic reference (BROKERED / legacy form)
+## Semantic reference (brokered / legacy form)
 
-coro_runtime.c contains C-function boxes for all Icon constructs:
-  coro_bb_to_by, coro_bb_every, coro_bb_limit, coro_bb_bang_binary,
-  coro_bb_seq_expr, icn_bb_assign_gen, icn_bb_identical_gen, etc.
-
-These are EMIT_BINARY_BROKERED form — fn(zeta, port) called by broker.
-They work correctly and are the SEMANTIC REFERENCE for each construct.
-They are NOT the architectural target (EMIT_BINARY_WIRED flat templates).
-Read them to understand semantics. Do not copy them as implementation.
+`coro_runtime.c` has C-function boxes (`coro_bb_to_by`, `coro_bb_every`, etc.) — EMIT_BINARY_BROKERED form. Correct semantics, wrong architecture. Read for semantics; do not copy as implementation.
 
 ---
 
 ## JCON reference
 
-`.github/jcon_irgen.icn` (mirror of `jcon-master/tran/irgen.icn`) —
-**43 `ir_a_*` procedures, one per Icon AST construct**. This is the
-canonical BB enumeration for Icon and the ground truth for what each
-construct does.
-ir_info(start, resume, failure, success) — the four-port record on every node.
-ir_a_ToBy, ir_a_Unop (closure=!E), ir_a_Alt, ir_a_Every, ir_a_Limitation,
-ir_a_Binop (closure=bang), ir_a_Mutual (seq), ir_a_Scan, ir_a_Not, etc.
-
-Each procedure emits ir_chunk records wiring start/resume/failure/success.
-This is the ground truth for what each Icon construct does.
+`refs/jcon-master/tran/irgen.icn` — 43 `ir_a_*` procedures, one per Icon AST construct. `ir_info(start, resume, failure, success)` = the four-port record. Ground truth for every construct's port topology.
 
 ---
 
 ## Co-expressions and TT_SUSPEND
 
-**Co-expression support is ENABLED (Lon decision 2026-05-15).**
-
-Co-expressions (`create E`, `@C`, `^C`) and user-proc suspend/resume (`TT_SUSPEND`) are
-legitimate Icon features that use ucontext-based coroutines in coro_runtime.c. These are
-NOT Byrd boxes — they are a separate suspension mechanism for user-defined generators.
-
-What remains banned: implementing Byrd box constructs (TT_TO, TT_ALTERNATE, etc.) as
-`DESCR_t foo(void *zeta, int entry)` C functions. Those must be BB_graph_t DCGs.
-Co-expressions and TT_SUSPEND use their own separate call path via icn_bb_suspend
-and the ucontext machinery — this path is correct and should be completed.
+**ENABLED.** `create E`, `@C`, `^C`, `TT_SUSPEND` use ucontext in `coro_runtime.c` — NOT Byrd boxes. Still banned: implementing Byrd constructs (TT_TO, TT_ALTERNATE, etc.) as `DESCR_t foo(void *zeta, int entry)` C functions.
 
 ---
 
-## Active goal
+## Note (2026-05-17)
 
-GOAL-HEADQUARTERS.md — Icon: BB emitters + lower_icn DCG. Succeeded
-GOAL-ICON-BB-NATIVE (closed `7efdf09a`). Current rung: closed
-2026-05-17j — IJ-DEL-ICN-AST + CLI-3M-10 docs trailer (see below).
-
-## Post-amputation note (2026-05-17, IJ-DEL-ICN-AST + CLI-3M-10)
-
-The Icon-specific `tree_t *` AST walker (`bb_eval_value` /
-`bb_exec_stmt` / `icn_bb_build` family in `src/runtime/interp/icn_*.c`)
-has been amputated. Files `icn_value.c`, `icn_stmt.c`, `icn_stmt.h`
-are deleted. Three file-local `static` `[DAI-BOMB]` stubs remain in
-`icn_runtime.c` to protect ~25 residual internal call sites inside
-surviving Icon zeta-fn bodies (`icn_lazy_box` plus others) —
-empirically unreachable, but link-resolvable. Outside `icn_runtime.c`,
-zero callers of the three amputated symbols remain in `src/`.
-
-Pre-CLI-3M-10, mode 1 (`--ast-run` / `----interp` flags) and mode 2
-(`--interp` flag) were at empirical full parity on the Icon rung
-ladder (both 194/265, byte-identical PASS/FAIL sets per DAI-3 and
-DAI-5c-trans). CLI-3M-10 (2026-05-17j) deleted the mode-1 flags.
-CLI-3M-9 (2026-05-18) completed the deletion: `interp_exec.c` deleted,
-`interp_eval()` deleted, `interp_eval.c` deleted — contents redistributed
-to `icn_runtime.c`, `interp_globals.c`, `interp_hooks.c`, `interp_data.c`.
-Mode 1 no longer exists in the codebase or binary. The Icon reference
-path is **`--interp` (mode 2)** at PASS=194 FAIL=36 XFAIL=35 TOTAL=265.
+Mode 1 (`--ast-run`) deleted; `icn_value.c`, `icn_stmt.c`, `icn_stmt.h` deleted. Three `[DAI-BOMB]` stubs remain in `icn_runtime.c` for unreachable call sites. Reference path is `--interp` (mode 2).
