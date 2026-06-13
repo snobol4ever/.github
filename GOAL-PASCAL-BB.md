@@ -10,44 +10,33 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
-## ▶ CURRENT STATE (Session 48, 2026-06-13)
+## ▶ CURRENT STATE (Session 49, 2026-06-13)
 
 **GATE STATUS:**
 - M2 (--interp): **PASS=103 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
-- M3 (--run):    **PASS=97 FAIL=6 XFAIL=1** (+6 this session, +63 from baseline 34)
+- M3 (--run):    **PASS=102 FAIL=1 XFAIL=1** (+5 this session, from 97)
 - M4 (--compile): same templates as M3; same failures expected
 
-**Landed this session (SCRIP commit cba8a04): nested-frame static-link hops (91→97, +6)**
-- `lower_pascal.c` `lower_var`/`lower_assign_var`: compute SL hop count (scope-chain depth from `cx->sc` to the declaring `found_sc`) and store in `IR_LIT(nd).dval` for IR_VAR_FRAME / IR_VAR_FRAME_REF / IR_ASSIGN_FRAME / IR_ASSIGN_FRAME_REF. Templates already consume `op_dval` via `FOR(0,(int)_.op_dval,…)` to walk the SL chain; dval was previously always 0 so every nested proc read/wrote its OWN frame.
-- `lower_pascal.c` `lower_pascal_stage2`: call `lower_pascal_enum(prog, NULL, 0)` at entry. In the M3/M4 (`sm_preamble`) path `lower_pascal()` is never called, so `g_pas_proc_list` + parent pointers were empty when `build_scope_chain` ran → nested procs saw no outer scope and emitted gvar NV_GET. (Procs are flattened to top level by the parser; `assign_parents` level-arithmetic is the source of truth for parent links — do NOT delete it.)
-- `emit_bb.c` `bb_prepare`: for IR_ASSIGN_FRAME/REF with VAR_FRAME (lk=5) or VAR_FRAME_REF (lk=6) RHS, propagate the RHS node's hop count + slot into `op_a_dval`/`op_a_ival_sg` so the assign templates address the correct outer frame.
-- **Fixed**: nestvar, nestvar2, nestvar3, nestfunc, nestrec, nestshadow.
+**Landed this session (SCRIP commits 4c22051, 76bfab3, 03c8240): 97→102 (+5)**
+- **varframe, arr2dtype, arr2dtype3** (4c22051): `g_pas_has_nesting` was declared but never set (the local `pas_has_nesting` in `lower_pascal_stage2` was computed AFTER the proc-lowering loop, so `lower_var`/`lower_assign_var` always read 0). Now `lower_pascal_stage2` pre-computes `g_pas_has_nesting` BEFORE the loop using `proc_decl_level(proc)` (decl_level not yet set at that point) and `byref_mask` (set pre-lower in polyglot.c). Both `use_frame` conditions gained `|| (g_pas_has_nesting && is_own && slot < cx->sc.nparams)`: when ANY proc in the program is nested (decl_level>1) or has a byref param, the whole program routes calls through `rt_call_named_proc_sl` which stores params in frame slots, so own value-params must be read from frames not gvars. `arrparam` is safe — its `sumvec` is decl_level=1/byref=0, so the flag stays 0 there (verified).
+- **boolidx** (76bfab3): `gvar_drive_call_arg_slots` (emit_bb.c) walked the relop diamond's γ chain to `res_last`=LIT_I(1) (the true arm) and pre-computed that arm's slot — but the false arm stores INTVAL(0) to a DIFFERENT slot, so the marshalled arg always read 1. Added a `relop_diamond` detection (scan γ chain for an integer relop whose ω is LIT_I(0) and res_last is LIT_I(1)) that SKIPS pre-computation, letting `marshal_call_arg`'s existing boolean-relop arm emit a single-slot INTVAL(0/1). Mirrors the existing arith-BINOP skip.
+- **forward1** (03c8240): the gvar emit loops in scrip.c (both BINARY `--run` ~line 2908 and TEXT `--compile` ~line 2613) register AND emit each proc in ONE pass, so a call to a not-yet-emitted proc saw `rt_proc_is_registered`==false and emitted `bb_call_byname_str`→`rt_call_arr`→"Undefined function". Added a forward-decl pre-registration pass before each emit loop that registers all non-main procs (entry+frame+byref) so forward references emit `rt_call_named_proc`. (The Icon/Raku `--run` path already splits register-all/emit-all; this brings the gvar path in line.)
 
 ---
 
-## ▶ REMAINING 6 FAILURES
+## ▶ REMAINING 1 FAILURE
 
-**varframe** — `outer(p:integer)` passes its value-param `p` to `bump(var n)`. `lower_var` returns `IR_VAR "p"` (gvar) for `p` because outer is decl_level=1 with `sc->outer==NULL`, `sc->byref==0`, `sc->has_children==0` → `use_frame` false. `marshal_varparam_addr`'s `IR_VAR` arm then calls `rt_gvar_cell("p")` (the global) instead of LEA-ing outer's frame slot. M3 prints junk (`7507740`) for the first writeln. Fix: outer must use a frame so `p` lives in a slot whose address can be passed by-ref. Narrow signal needed (prior session: `|| cx->sc.nparams > 0` regressed arrparam). Likely: detect that this proc passes one of its own value-params as a var-param argument and force `use_frame` for that proc's params only.
+**alphacmp** — `array[1..8] of char` equality (`rw[i] = id`, both char arrays). M2 PASSES via `binop_apply` (lower_common.c lines 95-116): for a numeric relop (BINOP_EQ) where BOTH operands are strings at runtime (`IS_STR_fn`), it does a `memcmp` with `norm_charseq` SOH-normalization. M3 emits an INTEGER `IR_BINOP_GVAR_RELOP` (`cmp rax,rcx` on descriptor words via `rt_gvar_get_int`) — `bb_binop_gvar_relop.cpp` has NO string path. Result: M3 prints 0 0 0 (all unequal); expected 2 0 0.
 
-**alphacmp** — `array[1..8] of char` equality (`rw[i] = id`). Char-array relop in gvar mode wrong (all 0). Needs a string/array compare path (memcmp-style via `rt_call_arr`) instead of scalar relop.
+**ATTEMPTED + REVERTED this session** (parser-rewrite approach): added `pas_is_wholestr` + `pas_streq_or_bin` in pascal.y to rewrite EQOP/NEOP into `__pas_streq`/`__pas_strne` TT_FNC calls when an operand is a bare whole char-array VAR, plus `__pas_streq`/`__pas_strne` runtime builtins in by_name_dispatch.c delegating to `binop_apply(BINOP_EQ,...)`. Routing through a CALL was intended to deliver full DT_S descriptors (call-arg marshalling uses NV_GET, unlike the relop's rt_gvar_get_int). BUILD was clean, M2 stayed 103/0, but M3 still printed 0 0 0 AND `__pas_streq` appeared 0× in `--compile` output — so the rewrite did not take effect in the M3 emit path (the IR_CALL was not emitted as a by-name call, OR the EQOP rule rewrite did not fire for `rw[i] = id`; M2's correctness is independent since M2 was already correct via binop_apply on plain TT_EQ). Reverted both files to keep the gate green at 102/1.
 
-**boolidx** — `a[0] := i > j` stores a relop result into an array slot via `arr_set_pure`. The boolean-relop marshal arm in `marshal_call_arg` isn't firing when the value flows through `arr_set_pure` (all four print 1). Needs the relop→INTVAL(0/1) arm reached for the value arg of `arr_set_pure`.
+**Next investigation for alphacmp:**
+1. Confirm whether the parser rewrite actually fires for `rw[i] = id` — dump the AST/IR and check for a TT_FNC("__pas_streq",…) node. The EQOP rule is `expression EQOP simple_expression`; verify `$3` for a bare `id` is a TT_VAR (not wrapped) so `pas_is_wholestr` matches, and that `pas_is_chararr("id")` is true at that parse point.
+2. If the rewrite fires but M3 doesn't emit a call: trace how a 2-arg builtin IR_CALL (dval=3.0, unregistered name) with a TT_IDX (arr_get) first arg flows through walk_bb_flat IR_CALL dispatch (emit_bb.c ~2729-2755) and bb_call.cpp (~546-549). The `is_intexpr_shape` path or arg-marshalling may be diverting it.
+3. Alternative (template) approach: give `IR_BINOP_GVAR_RELOP` a string arm — when an operand is a runtime DT_S descriptor, call a runtime relop helper (e.g. wrap `binop_apply`). This matches M2 exactly but touches a language-blind template (RULES: dispatch on IR shape, no language guards) — higher risk; gate carefully.
+Priority: low (1 test). Do not regress the 102.
 
-**arr2dtype, arr2dtype3** — 2D array indexing with flat-index expression where the index operands are themselves `arr_get` calls. The flat-index BINOP (`i*ncols + j`) inside an `arr_get` subgraph isn't handled by the inline-arith path when operands are CALLs. (These were reported fixed in S47 but regressed/were never green on clean build — both print 0.)
 
-**forward1** — forward-declared procedure (`forward` keyword). M3 prints nothing. The `DEFINE`/forward registration isn't wired so `second` is callable before its body; or the forward decl produces a duplicate/empty proc_table entry. Investigate proc_table dedup and whether `forward` body is lowered.
-
----
-
-## ▶ PRIORITY ORDER
-
-1. **varframe** — own value-param passed by-ref; narrow `use_frame` fix.
-2. **arr2dtype/arr2dtype3** — inline-arith path for CALL operands in flat 2D index.
-3. **boolidx** — relop-value arm for `arr_set_pure` value arg.
-4. **alphacmp** — char-array equality via runtime compare.
-5. **forward1** — forward-decl registration.
-
----
 
 ## ▶ GATE SCRIPTS (recreate in /tmp on each session)
 
