@@ -456,29 +456,29 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-12 SESSION 3) — m3/m4 NOW IN PARITY AT 6 PASS / 10 FAIL / 15 EXCISED. Gate BUG1+BUG2 fixed. x86_uid dup-label fixed (Icon m4 also improved 5→10). SCRIP HEAD `4ab26df`.**
+**STATE (2026-06-12 SESSION 4) — m3 14 PASS / 2 FAIL / 15 EXCISED; m4 6 PASS / 10 FAIL / 15 EXCISED. Group C gate+emit landed for m3; m4 has 8 PASS in m3 but FAIL in m4 (standalone binary silent-fail — rt init or fn-string-ptr issue). SCRIP HEAD `f8c39aa`.**
 
-- **Modes:** m2 **31/31** (HARD ✓). m3 **6 PASS / 10 FAIL / 15 EXCISED**, m4 **6 PASS / 10 FAIL / 15 EXCISED**. Peers: Icon m2 12/12 m3 10/12 m4 10/12, SNOBOL4 m2 7/7 m3 6/1 m4 6/1 (define pre-existing), NFA oracle **5/5 PASS**, `g_vstack`=0.
+- **Modes:** m2 **31/31** (HARD ✓). m3 **14 PASS / 2 FAIL / 15 EXCISED**, m4 **6 PASS / 10 FAIL / 15 EXCISED**. Peers: Icon m2 12/12 m3 10/12 m4 10/12, SNOBOL4 m2 7/7 m3 6/1 m4 6/1 (define pre-existing), NFA oracle **5/5 PASS**, `g_vstack`=0.
 
-- **FIXED THIS SESSION (commit `4ab26df`):**
-  1. **BUG 1 scrip.c `icn_graph_native_emittable_mode`:** blanket `dval==2.0` rejection → targeted `__rk_bool`/`__rk_try` only. Group C tests now attempt emit.
-  2. **BUG 2 scrip.c `icn_rhs_kind_ok`:** added `dval==2.0` acceptance for non-sub-graph calls.
-  3. **`bb_call_rk_bool.cpp` ONE-MEDIUM rewrite:** removed forbidden `MEDIUM_BINARY`/`MEDIUM_TEXT` split and `x86_frame_load64` calls; unified body using `FRQ(off)` + `x86("call",...,fptr)`.
-  4. **`lbl_β` double-colon bug** in `bb_call_proc_staged.cpp` (line 58) and `bb_call_write_slot.cpp` (lines 44, 75): `x86("label", std::string(_.lbl_β) + ":")` → `x86("label", std::string(_.lbl_β))`. This was producing `labelname::` in TEXT asm, causing `as` to reject the output → ALL m4 tests failed.
-  5. **`x86_uid` uninitialized bug** in `emit_core.c walk_bb_node`: added `g_emit.x86_uid = g_flat_node_id++;` before switch. `x86_begin()` was deleted in BB-FIXUP sweep but `x86_uid` was never assigned → all boxes shared uid=0 → `.Lx0_0` duplicate symbol in multi-proc asm → `as` rejection. Fixed for Raku arith/string_concat m4 AND Icon m4 (+5 passes).
+- **FIXED THIS SESSION (commit `f8c39aa`):**
+  1. **`rt_builtin_is_known`** — added 14 Raku-specific builtins: `__rk_arr`, `arr_get`, `arr_set_pure`, `arr_init`, `arr_last`, `array_sort`, `elems`, `push_pure`, `hash_get`, `hash_set_pure`, `hash_delete_pure`, `hash_exists`, `__rk_jct_{any,all,one,none}`, `obj_new`, `meth_call`. Previously these fell to `[IBB] FATAL bb_call` abort.
+  2. **`bb_call.cpp` dval==2.0 carve-out** — before the descr-chain `dval==2.0` bomb, added: `if (g_descr_flat_chain && _.op_dval == 2.0 && fn && fn[0] && rt_builtin_is_known(fn)) return bb_call_byname_str(pBB);` — Raku builtins with sub-graph args (`__rk_arr`, `__rk_jct_*`) now reach the correct template.
+  3. **`bb_call_byname_str` argbase aliasing fix** — changed `argbase = bb_slot_alloc16(subs[0]->entry)` to `argbase = bb_slot_claim((int)narg * 16)`. The old code allocated a slot tied to the sub-graph entry node, which could alias with `resoff`, causing `rt_call_arr` to be passed `rsi == &result_slot` (self-copy, wrong value, returned 0). `bb_slot_claim` gives a fresh unclaimed block.
+  4. **`bb_call_byname_str` BINARY arm** — converted 5 forbidden raw helpers to `x86()` forms: `x86_load_ro` → `x86("mov","rdi","[rip+__]",ptr,"??")`, `x86_frame_lea` → `x86("lea","rsi",FRQ(off))`, `x86_call_ro` → `x86("call",sym,fptr)`, `x86_frame_store64` → `x86("mov",FRQ(off),reg)`.
+  5. **`bb_call_fn_str` rewrite** — replaced broken slot-indexed copy loop with `marshal_call_arg(ir_call_arg(pBB,i), NULL, dst, _.node, i)` for each operand; TEXT arm uses `.section .rodata` fn-string directive (same as byname); declared `bb_slot_claim` and `marshal_call_arg` in extern/forward refs.
 
-- **10 FAILs (Group C — runtime crashes, m3 and m4 in parity):**
-  `list_construct_read`, `array_sort`, `array_elems`, `array_reverse`, `str_reverse`, `array_push_pop`, `hash_set_get`, `hash_sigil_delete`, `say_jct`, `say_list`.
-  All crash (abort) during `--run` / `--compile` emit. The gate now lets them through (dval==2.0 fix) but `bb_call_fn.cpp` is hitting an abort or bad emit path. Root cause: investigate with `--dump-bb` + stderr on one failing test.
+- **2 FAILs remaining (m3 only — `say_jct`, `say_list`):**
+  `say(@a)` and `say(any(...))` — `rt_write_any_nl` receives raw SOH-delimited array/junction DESCR, prints SOH-separated (`123`) instead of space-joined (`1 2 3`). m2 interp formats these correctly. Fix: `rt_write_any_nl` needs to detect array/junction DESCR (SOH-delimited string) and space-join for display.
+
+- **8 FAILs m4 only (m3 PASS, m4 FAIL: `list_construct_read`, `array_sort`, `array_elems`, `array_reverse`, `str_reverse`, `array_push_pop`, `hash_set_get`, `hash_sigil_delete`):**
+  Generated TEXT asm is correct (m4 compiles and links without error; binary exits 0 but produces no output). Root cause: the standalone binary's `rt_call_arr("__rk_arr", ...)` / `rt_call_arr("arr_get", ...)` silently fails (returns FAILDESCR or DT_UNDEF) — likely `g_script_exception` / runtime not initialized before first call, OR the fn-name string embedded via `.string` directive is not being resolved correctly when `rt_call_arr` dispatches by `strcmp`. Investigate: add `fprintf(stderr, ...)` probe inside `rt_call_arr` for `__rk_arr` dispatch branch, build `libscrip_rt`, run m4 binary.
 
 - **NEXT (ordered):**
-  1. Diagnose Group C crash: `./scrip --run corpus/.../raku/list_construct_read.raku 2>&1` — find abort message/location.
-  2. Fix bb_call_fn emit path for slot-based rt_call_arr (the template was rewritten last session but may have a wrong FRQ offset or missing x86() form).
-  3. Expect Group C (10 tests) FAIL→PASS. m3/m4 target: 16/0/15.
-  4. Group B `__rk_bool(dval=2.0)` inline-cmp (9 tests — still EXCISED).
-  5. Group A GATHER/MAP/GREP (5 tests — still EXCISED).
+  1. **m4 silent-fail diagnosis**: probe `rt_call_arr` in `by_name_dispatch.c` — add stderr trace for `__rk_arr` entry — rebuild `libscrip_rt`, run m4 binary, see if dispatch is reached and what it returns. Check if `DEFDAT_fn` / `dat_register` has been called before the binary starts executing `__rk_arr`.
+  2. **Fix `say_jct`/`say_list`** (2 m3 FAILs): `rt_write_any_nl` — detect SOH-delimited array/junction string, print space-joined. Expected: `1 2 3` for `@a=(1,2,3)`, `any(1, 2, 3)` for junction.
+  3. After m4 fixed: target m3/m4 = 16/0/15. Then Group B (`__rk_bool` inline-cmp, 9 EXCISED). Then Group A (GATHER/MAP/GREP, 5 EXCISED).
 
-- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm, gate BUG1+BUG2, ONE-MEDIUM rk_bool, lbl_β double-colon, x86_uid dup-label (git log).
+- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm, gate BUG1+BUG2, ONE-MEDIUM rk_bool, lbl_β double-colon, x86_uid dup-label, Group-C gate+emit m3 (git log).
 ---
 ---
 
