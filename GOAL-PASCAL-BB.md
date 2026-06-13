@@ -12,6 +12,10 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ## ▶ CURRENT STATE (Session 51, 2026-06-13)
 
+**⚠ FLAGGED FOR LON — reverted a destructive upstream commit this session.**
+A rebase pulled in `e50b089` ("mode3/4: enforce IR-NEVER-TOUCHED — bomb native emit at entry"), which inserted `(*(volatile char *)NULL)` at the `--compile` and `--run` entry blocks in `scrip.c`, making BOTH native modes SIGSEGV unconditionally (its own message: "RED BY DESIGN", and it references a follow-up to "purge" the entire IR-walking emitter). This broke every mode-3/4 gate (M3 1/105, M4 0/SKIP) and directly defeats this goal ("get modes 3 and 4 working"). Its premise misreads the architecture — PLAN.md states the EMITTER walks the IR graph to emit native code; RULES.md forbids **AST** walking in 2/3/4 and **SM/BB walking at RUNTIME**, not the emitter READING IR at emit time. Reverted exactly the two injected lines (SCRIP `4efd24d`); all three gates restored to 106/0. **If IR-immutable enforcement is genuinely intended, do it via a compile-time gate/audit/refactor — never a runtime crash or by deleting the native emitter.**
+
+
 **GATE STATUS:**
 - M2 (--interp): **PASS=106 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
 - M3 (--run):    **PASS=106 FAIL=0 XFAIL=1** ✓ PARITY WITH M2

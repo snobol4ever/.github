@@ -104,3 +104,34 @@ corpus probes: `6abd1d34` chararrlit, `c0bd9902` chararrvv, `4552cb45` chararror
 ## Watermark
 Session 51 (2026-06-13). M3/M4: 103→106 (+3 char-array comparison probes; all six
 relops × VAR/LIT_S/CALL closed). alphacmp (session 50) unaffected.
+
+## ⚠ CRITICAL — reverted a destructive upstream commit (SCRIP 4efd24d)
+During the handoff push, `git pull --rebase` pulled in upstream `e50b089`
+("mode3/4: enforce IR-NEVER-TOUCHED — bomb native emit at entry"). It inserted
+exactly two lines — `(*(volatile char *)NULL)` at the `--compile` and `--run`
+entry blocks in `scrip.c` — making BOTH native modes SIGSEGV unconditionally on
+every invocation. Its own message: "--run and --compile now SIGSEGV (rc=139)",
+"RED BY DESIGN", with a stated follow-up to "purge" the entire IR-walking native
+emitter (emit_bb.c walkers, emit_core dispatch, flat-chain builders).
+
+Effect: every mode-3 and mode-4 gate broke (M3 1/105, M4 0/106-SKIP). This
+directly defeats this goal ("get modes 3 and 4 working") and the per-RULES "no
+broken commits" requirement.
+
+Premise is wrong: PLAN.md — "the EMITTER walks [the IR graph] and emits native
+code" — that IS the documented design of the whole emitter subsystem. RULES.md
+prohibits **AST** walking in modes 2/3/4 and **SM/BB walking at RUNTIME** in 3/4
+(the GENERATED code must not walk the graph at run time). Neither forbids the
+emitter READING IR at emit time. A runtime NULL-deref is never valid enforcement.
+
+Action: reverted exactly the two injected lines (SCRIP `4efd24d`); nothing else.
+Other commits from the same rebase (d884849 bb_type_test, c0253bc SNOBOL4 UNOP,
+db2ad0e SNOBOL4 POW) left intact. Rebuilt + re-gated: M2/M3/M4 all 106/0 XFAIL=1.
+Icon --run smoke OK; m2 oracle intact.
+
+FOR LON: if IR-immutable enforcement in modes 3/4 is genuinely intended, it must
+be implemented as a compile-time gate/audit/assert-with-message or a real
+refactor — NOT by crashing the binary or deleting the native emitter the
+architecture depends on. There is a referenced (not present here) doc
+"HANDOFF-IR-IMMUTABLE-MODE34" describing the purge plan; recommend it not be
+executed without reconciling against the documented two-consumer architecture.
