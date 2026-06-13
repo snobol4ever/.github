@@ -1,5 +1,19 @@
 # GOAL-BB-FIXUP-Z-to-A.md — BB Template Sweep: Z → A (descending order)
 
+## ⛔⛔ READ THIS FIRST — HOW TO PICK THE NEXT FILE (the rule that keeps getting botched) ⛔⛔
+**Z→A means the cursor only EVER moves DOWN the alphabet — toward A, to names that sort EARLIER. It NEVER moves UP toward Z.** The single failure mode of this goal (seen repeatedly, incl. 2026-06-13) is "jump to the nearest-Z dirty file" / "do the easiest file first" — both move A→Z (BACKWARD) and are WRONG.
+**RESUME PROCEDURE — do exactly this on every cold start, before touching ANY file:**
+1. `cursor=$(grep -m1 '^# CURSOR:' .github/BB-REVAMP-TRACKER.md | awk '{print $NF}')`. The tracker `# CURSOR:` line is the ONE source of truth for position — if a watermark says "HELD on X" but the cursor line says Y, the **cursor line wins** (Y).
+2. If `$cursor` itself is non-CLEAN (`audit_bb_fixup_file.sh <cursor>` rc≠0) → **work `$cursor`**.
+3. Else the next file = the FIRST non-CLEAN file whose name sorts **STRICTLY BEFORE `$cursor`** (alphabetically earlier / toward A). Find it: take the dirty list from `audit_bb_fixup_rank.sh`, `sort -r` (descending), and pick the first entry whose `name < $cursor`. Advance the cursor to it IN the same commit as that file's fix.
+**FORBIDDEN — every one of these is A→Z = BACKWARD = the repeated mistake:**
+- ❌ Picking "the nearest-Z dirty file" / the TOP of the descending dirty list. ("bb_var_global is the FIRST stop, nearest Z" applies ONLY at a fresh lap-start — i.e. immediately after the cursor has WRAPPED to Z — NEVER mid-lap.)
+- ❌ Picking any file whose name sorts AFTER (nearer Z than) `$cursor`. Those are BEHIND the cursor.
+- ❌ Ordering by violation count / "cheapest-first" / "easiest-first" (that drifts to the small A-end files). Order is by FILE NAME ONLY, Z→A, from the cursor.
+**Dirty files BEHIND the cursor** (left dirty by tightened CONVERSIONS or by regressions from other goals) are NOT fixed mid-lap. They are re-swept when the cursor reaches the A-end (bb_aggregate_nb) and WRAPS to Z for the NEXT lap. Do NOT backtrack to them — finishing one early is harmless to the tree but is OUT OF ORDER and burns the budget in the wrong place.
+**The Direction-line example sequence below is ABBREVIATED** (it omits intermediate files like the bb_var_frame pair); the ALGORITHM above governs, never the example.
+**Sanity check before editing any file:** confirm `name(file_you_are_about_to_edit) < name(prev_cursor)` in A→Z sort. If it sorts AFTER the cursor, STOP — you are going backward.
+
 **Carved:** 2026-06-12 (Lon directive — split from GOAL-BB-FIXUP.md)
 **Direction:** Z→A — DESCENDING alphabetical order. bb_var_global is the FIRST stop (nearest Z). bb_aggregate_nb is the LAST stop (nearest A). Each session resumes from the `# CURSOR:` line at the bottom of this file and moves to the NEXT FILE ALPHABETICALLY EARLIER (i.e., the next file whose name sorts BEFORE the cursor in standard A→Z order). Example sequence: bb_var_global → bb_unop → bb_unify → bb_to → bb_succeed → … → bb_aggregate_nb → wrap to bb_var_global.
 **Scope expanded:** 2026-06-07 (Lon directive, 13th run) — ALL other BB hygiene/revamp goals abandoned; this goal is the SINGLE OWNER of every BB template problem.
@@ -59,6 +73,7 @@ N sessions generate; ONE session cleans. THIS is the ONE fixup session — **ATT
 - **C5** ONE commit (the whole file), `git pull --rebase`, push, cursor-advance tick IN the same commit.
 
 ## THE CURSOR
+**→ Before acting on the cursor, re-read the ⛔⛔ READ THIS FIRST banner at the top of this file. The next file is the next non-CLEAN file ALPHABETICALLY-EARLIER than the cursor (toward A) — NEVER the nearest-Z dirty file, NEVER the smallest/easiest file.**
 `.github/BB-REVAMP-TRACKER.md` header: `# CURSOR: bb_scan_bal.cpp` (live cursor lives in the tracker; this quote is the handoff watermark)
 
 **2026-06-12 cursor reset by Lon: Z→A ring restarted at Z (bb_var_global.cpp) to sweep with new BOTH-MEDIUM MANDATORY FACT RULE. All files re-eligible; MEDIUM_TEXT-only arms now absolute violations alongside raw bytes.**
