@@ -7,8 +7,8 @@ No language-specific logic in any BB/XA template: templates dispatch on IR shape
 
 ## ▶ STATE (2026-06-12 — PIVOT: m3/m4 PARITY PRIORITY)
 
-Watermark: SCRIP `27b9fe7` (battery green). **m3 91/115 · m4 44/115 (ratchet floor=44, HEAD-actual).** bb_choice: rt_cp_{trail_unwind,inc_cursor,get_cursor} helpers replace broken 32-bit field access; dup-β removed; β_nosol label added. emit_bb IR_GOAL: uses zc->callee as authoritative name over IR_LIT(nd).sval.
-Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 · m3 **91**/24-FAIL (floor=91) · m4 **44**/61-FAIL+10-EXCISED (floor=44).
+Watermark: SCRIP `3eb48b9` (battery green). **m3 91/115 · m4 70/115 (ratchet floor=70, HEAD-actual).** C-LABEL CLOSED (`3eb48b9`): IR_GOAL bb_prepare copied callee name verbatim into bb_ls_buf instead of routing it through `bb_intern_into` (which converts a name to its `.S<k>` strtab label — correct for bb_unify's RIP-string use, wrong for a call target; the `.`→`_` sanitize produced `.Lplpred__S1_2`). Compounding bug: `blbl_lea` in bb_resolve.cpp + one site in bb_aggregate_nb.cpp spelled the operand `"[rip+__]"` (no spaces) but the x86() classifier strcmp-matches `"[rip + __]"` (spaces) → fell through every dispatch arm → returned EMPTY → every compound-term-arg `lea` silently vanished, segfaulting rt_node_to_term(sval=0x1). Fixing both unblocked +26 (not the estimated +4) because the silent-lea corrupted compound-term construction for nearly every goal. bb_choice (prior `27b9fe7`): rt_cp_{trail_unwind,inc_cursor,get_cursor} helpers; dup-β removed; β_nosol label added.
+Gates: GATE-1 m2 5/5 HARD · m3 5/5 · m4 5/5. GATE-3 m2 **114**/115 · m3 **91**/24-FAIL (floor=91) · m4 **70**/35-FAIL+10-EXCISED (floor=70).
 
 ## ⛔ PIVOT — PRIORITY IS m3≡m4 PARITY (Lon, 2026-06-12)
 **Goal: get m3 and m4 to parity with m2. Corpus reconquest is SECONDARY until parity achieved.**
@@ -202,7 +202,7 @@ GUT (as new path re-admits each rung): resolution.c control engine · meta rail 
 
 Current m3: **63**/115. Ratchet: never regress. Full audit 2026-06-12 (Sonnet 4.6).
 
-**52 m3 failures, 44 m4 failures.** All m3 failures hit PL-GZ FENCE ("not admitted"). Groups:
+**52 m3 failures (floor=91 pass), 35 m4 failures (floor=70 pass after C-LABEL `3eb48b9`).** All m3 failures hit PL-GZ FENCE ("not admitted"). Groups:
 
 **GROUP A — new IR_DET_* builtins (deterministic, cell-based, admission recipe):**
 [x] **A5 — rung26 copy_term/concat_atom (+4 m3) LANDED db41e3a:** `IR_DET_COPY_TERM` + `IR_DET_ATOM_OP` for atomic_list_concat/concat_atom. All four scrip.c sites complete. copy_term dest accepts LOGICVAR/STRUCT/ATOM/LIT_I. m3: 80→84 (+4). m4: rung26 all 5/5 pass via GZ path (ATOM_* issue does not affect alc/copy_term). string_to_atom was A3.
@@ -216,13 +216,19 @@ Current m3: **63**/115. Ratchet: never regress. Full audit 2026-06-12 (Sonnet 4.
 - [ ] **B5 — rung30 DCG/phrase (+5 m3):** `phrase/2,3` already lowered to `IR_GOAL` by lower_prolog.c. The `pl_gz_rule_body_goal_ok` IR_GOAL arm should admit it if the underlying grammar predicate is admitted. Check: callee graph uses IR_CHOICE. Likely needs `pl_gz_choice_rule_clauses` check.
 
 **GROUP C — m4 parity bugs:**
-- [ ] **C-LABEL — rung05/rung06/rung28/rung30 m4 callee label bug:** `.Lplpred__S1_2` undefined at link. `_S1` is a DCG fresh-var name (`dcg_fresh_var()`) that ends up in `IR_LIT(nd).sval` for recursive user-predicate IR_GOAL calls. emit_bb fix (prefer `zc->callee`) did NOT eliminate it — the corruption originates before that path, in a separate emit route. DEBUG confirmed `sval="member"` and `zc->callee="member"` at bb_prepare time, yet asm still emits `_S1_2`. Root cause is upstream: IR_GOAL nodes in the clause bodies (visited via `codegen_clause_dispatch` → `flat_drive_choice` → `walk_bb_flat`) have their sval overwritten by something before `bb_prepare`. Next step: add a stderr print inside `codegen_graph_block`/`walk_bb_flat` case `IR_GOAL` to confirm which IR_GOAL node produces `_S1`. Then trace which IR graph the callee label `.Lplpred__S1_2` comes from — it must be built by a different IR_GOAL node than the one we instrumented.
+[x] **C-LABEL — CLOSED `3eb48b9` (+26 m4: 44→70).** The DCG-fresh-var theory was WRONG. `_S1` = the strtab label `.S1` for the atom `"member"`, dot-sanitized to `_` by `resolve_call_block_label` → `.Lplpred__S1_2`. Culprit: `bb_intern_into()` does not copy a name — it converts it to its `.S<k>` RIP-string label (the contract bb_unify relies on); IR_GOAL bb_prepare wrongly routed the callee name through it. Prior sessions instrumented the *inputs* ("member"/"member", both correct) and never saw the function transform its output. Fix: copy `_goal_nm` verbatim into bb_ls_buf. Compounding bug exposed once linking succeeded: `blbl_lea` (bb_resolve.cpp) + bb_aggregate_nb.cpp spelled `"[rip+__]"` (no spaces) vs the classifier's `"[rip + __]"` (spaces) → empty return → every compound-term-arg `lea` vanished → segfault. Fixed both. +26 not +4 because the silent-lea corrupted compound-term build for nearly every goal.
+- [ ] **C-FRAME — bare-predicate path omits the callee r12-frame prologue (NEW, root-caused 2026-06-13 Opus 4.8; blocks rung06 + any pred with recursion-then-arith).** A predicate like `cnt([_|T],N) :- cnt(T,N1), N is N1+1` fails m4 (m2/m3 give the right answer; IDENTICAL IR `GOAL sval="cnt"`, IDENTICAL emitter). Isolation: `cnt([],N)`→`0` ✓ base case; `cnt([a],N)`→nothing ✗ one recursion level. ROOT CAUSE: two predicate-emission paths exist — (1) the PL-GZ callee path (`pl_gz_callee_get*` → `IR_CALLEE_FRAME`) emits `push r12; mov r12, rdi` and uses the r12 cell-frame model end-to-end (works); (2) the BARE dispatch path (`codegen_clause_dispatch` → `codegen_callee_block` → `codegen_graph_block`) emits NO callee frame prologue AND routes the recursive `IR_GOAL` through the env-resolution engine (`resolve_bb_env_save_push`/`resolve_bb_bind_arg`/`g_resolve_env`, heap Terms). `cnt`/`length`/`member`-clause-2 land on path 2: the recursive call writes N1 into `g_resolve_env` (a Term) but the subsequent `N is N1+1` box reads N1 from `[r12 + cell_off]` — and r12 was NEVER set for `cnt`, so it still points at *main's* frame. PROOF: whole m4 asm has exactly ONE `push r12` (main's); `cnt` has zero. Two storage models (heap env vs r12 cell frame) never meet. m3 "passes" only because the slab's absolute-addressed execution makes the stale-r12 read land compatibly — FRAGILE/accidental, so the m3 ratchet is greener than the architecture earns here. This is the **PL-M34-5 PARITY SEAL** seam, mirror side. FIX (decision pending Lon): (A) give `codegen_graph_block` a callee r12-frame prologue/epilogue + make its recursive call use the cell model (smaller); or (B) route these predicates through `pl_gz_callee_get` so they never hit the bare path (fewer paths, aligns with "GDE inside the boxes", likely also fixes the m3 fragility). Both touch admission in scrip.c; consult how `pl_rich_body_root` already routes admitted predicates.
 
-**REMAINING m4 FAILURES (11, ratchet floor=87):**
-- rung05, rung06: C-LABEL bug above (+4 m4 when fixed)
+**TWO emitter findings worth a gate (noted 2026-06-13):**
+- `x86("call", <label>)` returns EMPTY in BINARY medium (`x86_asm.h` call dispatch only handles XK_PORT + XK_SYM, not a bare internal label) — a BOTH-MEDIUM gap. Harmless now (m4 is TEXT) but bites when m3 routes through bb_goal.
+- The x86() classifier's **silent-empty fallthrough** on an unclassifiable operand is what hid the `[rip+__]` bug for a whole session. A loud `x86_bomb` on unmatched operands would have caught it instantly. Candidate hardening.
+
+**REMAINING m4 FAILURES (35, ratchet floor=70):**
+- rung06 + recursion-then-arith preds: C-FRAME seam above
 - rung27 agg_max_min: also fails m3 (needs A6)
 - rung28 ×4: also fails m3 (needs B2 catch/throw)
 - rung30 ×4: also fails m3 (needs B5 DCG)
+- remainder: re-audit needed (the +26 jump shifted the failure set; the old 11-item list is stale)
 
 - [ ] **PL-GZ-9** — ongoing. See rungs above.
 - [ ] **PL-GZ-FENCE** — coupling gate ZERO · GATE-3 m2/m3/m4 verdict-identical · resolution.c + meta rail DELETED · seed `.s` shape-isomorphic to `test_pl_1.c`.
