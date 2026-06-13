@@ -2,37 +2,37 @@
 
 ## ⛔ ABSOLUTE RULES (violations = rejection)
 
-**DO NOT READ BB-REVAMP-TRACKER.md.** It is large, unrelated to B-ladder or mode-4 bug fixing, and eats context. Never open `.github/BB-REVAMP-TRACKER.md` in any SNOBOL4-BB session.
+**DO NOT READ BB-REVAMP-TRACKER.md.** Large, unrelated. Never open it.
 
-**DO NOT READ UNRELATED GOAL FILES.** When working GOAL-SNOBOL4-BB.md, do NOT open GOAL-BB-FIXUP.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-PASCAL-BB.md, or any other goal file. Read only the goal Lon names.
+**DO NOT READ UNRELATED GOAL FILES.** Read only the goal Lon names.
 
-**TEMPLATE-ONLY EMISSION (FACT RULE — corrected Lon 2026-06-06; canonical companion: ⛔ ONE MEDIUM, INVISIBLE in GOAL-SNOBOL4-BB.md/GOAL-ICON-BB.md/GOAL-PROLOG-BB.md/GOAL-RAKU-BB.md).** Every emitted x86 instruction — BINARY and TEXT — is produced ONLY inside the `x86(...)` encoder internals (`x86_asm.h`), where the two encodings of each instruction sit SIDE-BY-SIDE and the encoder switches medium internally. Templates (`src/emitter/BB_templates/`, `SM_templates/`, `XA_templates/`) speak ONLY `x86(...)`, are reached only via `emit_core.c` dispatch, and emit ZERO binary anywhere: not in the top-level `*_str` function, not in any helper it calls — a static helper inside the template file is INSIDE this fence; extracting bytes into a helper changes nothing. Inside a `bb_*.cpp` there is NO emission of BINARY anywhere. If an instruction has no `x86()` form, ADD the encoder + dispatch case to `x86_asm.h` (one place, byte-verified vs `as`) — NEVER hand-encode in a template; the missing encoder is the bug. The raw-byte producers `x86_Lrec`, `x86_Jrec`, `x86_Drec`, `x86_b1(`, `x86_b2(`, `x86_b3(`, `bytes(`, `u8(`, `u32le`, `u64le` are PRIVATE to `x86_asm.h`; sole legacy exception: `bomb_bytes` in `emit_str.cpp` (until its `x86()` conversion); `bb_emit_asm_result` is ABOLISHED (gate 0). FORBIDDEN outside templates and `emit_core.c`: `seg_byte(SEG_CODE`, `SL_B(`, `sl_emit_one`, `emit_standard_blob`, `bake_blob_call`. The former clause “duplicate the byte-producing code into each template file — that duplication is the point” (515aa7d6, 2026-05-28) is DEAD: it predates and contradicts the 2026-06-02 ONE-MEDIUM directive and is the opposite of the rule. COMPLETION TEST: (a) `grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|sl_emit_one|emit_standard_blob' src/` outside `*_templates/` and `emit_core.c` == 0; (b) `scripts/test_gate_template_medium_invisible.sh --strict` green (zero raw-byte producers and zero `IF(MEDIUM_BINARY,…)` instruction arms in any `*_templates/*.cpp`); (c) `bytes\(|u32le|u64le|u8\(` in `src/emitter/` outside `x86_asm.h` matches only `bomb_bytes`.
+**TEMPLATE-ONLY EMISSION.** Every x86 instruction — BINARY and TEXT — produced ONLY inside `x86(...)` encoder internals (`x86_asm.h`). Templates speak ONLY `x86(...)`, emit ZERO binary anywhere. If an instruction has no `x86()` form, ADD the encoder to `x86_asm.h` — never hand-encode in a template. Raw-byte producers (`x86_Lrec`, `x86_Jrec`, `x86_b1(`, `bytes(`, `u8(`, `u32le`, `u64le`) PRIVATE to `x86_asm.h`; sole legacy exception: `bomb_bytes` in `emit_str.cpp`. FORBIDDEN outside templates and `emit_core.c`: `seg_byte(SEG_CODE`, `SL_B(`, `sl_emit_one`, `emit_standard_blob`, `bake_blob_call`. Completion tests: (a) grep above == 0 outside templates/emit_core.c; (b) `scripts/test_gate_template_medium_invisible.sh --strict` green; (c) `bytes\(|u32le|u64le|u8\(` in `src/emitter/` outside `x86_asm.h` matches only `bomb_bytes`.
 
-**BOTH-MEDIUM MANDATORY (FACT RULE — Lon 2026-06-12).** Every function that outputs x86/x64 code MUST produce correct output for BOTH TEXT mode AND BINARY mode — TEXT-only emitters are ABSOLUTE VIOLATIONS. The `x86("ins1")`, `x86("ins2")`, `x86("ins3")`, `x86("Lins1")`, `x86("Lins2")` forms are DELETED from `x86_asm.h` (SCRIP 2c81233); they returned empty in BINARY and raw asm strings in TEXT — both behaviors violated the one-medium rule. Any function that gates its asm output on `MEDIUM_TEXT` or `MEDIUM_BINARY` (returning empty for one medium) is an absolute violation. The x86() funnel handles both modes internally in every dispatcher; if an instruction form lacks a BINARY encoder, ADD it to `x86_asm.h` — never work around the gap with TEXT-only code. COMPLETION TEST: `grep -rn '"ins[0-9]\+\"\|"Lins[0-9]\+\"' src/emitter/` == 0 (outside x86_asm.h itself, where the dispatch was already deleted).
+**BOTH-MEDIUM MANDATORY.** Every code-outputting function MUST produce correct output for BOTH TEXT and BINARY. `x86("ins1")`, `x86("ins2")`, `x86("ins3")`, `x86("Lins1")`, `x86("Lins2")` DELETED (2c81233). Any function gating output on `MEDIUM_TEXT` or `MEDIUM_BINARY` is an absolute violation. Completion: `grep -rn '"ins[0-9]\+\"\|"Lins[0-9]\+\"' src/emitter/` == 0.
 
-**NO MEDIUM_* IN TEMPLATES / ALL ASM THROUGH x86() (FACT RULE — Lon 2026-06-08).** A `bb_*.cpp` never tests, branches on, or mentions medium: ZERO `MEDIUM_*` tokens anywhere in a template, top level or helpers — the `IF(MEDIUM_TEXT, x86("label",…) + x86("comment",…))` head-wrapper idiom is ABOLISHED. `x86("label")` and `x86("comment")` are medium-complete INSIDE `x86_asm.h` (the encoder switches medium internally; the template never does). Likewise EVERY asm-producing free function outside the `x86()` dispatch (`x86_reg_disp32_load64`, `x86_frame_store64`, `x86_frame_lea`, `x86_ro_load_q`, `x86_ro_seal_str`, and class) is a BYPASS of the funnel: their emission moves INSIDE `x86()` as dispatch forms; templates speak ONLY `x86(...)`. ALL asm goes through `x86()`. COMPLETION TEST: (a) `grep -rn 'MEDIUM_' src/emitter/BB_templates/` == 0; (b) `grep -rnE 'x86_(frame|ro|reg)_[a-z0-9_]*\(' src/emitter/BB_templates/` == 0.
+**NO MEDIUM_* IN TEMPLATES.** Zero `MEDIUM_*` in any `bb_*.cpp`. `x86("label")` and `x86("comment")` are medium-complete in `x86_asm.h`. All asm-producing free functions (`x86_reg_disp32_load64`, `x86_frame_store64`, `x86_frame_lea`, `x86_ro_load_q`, `x86_ro_seal_str`, etc.) move INSIDE `x86()` dispatch. Completion: (a) `grep -rn 'MEDIUM_' src/emitter/BB_templates/` == 0; (b) `grep -rnE 'x86_(frame|ro|reg)_[a-z0-9_]*\(' src/emitter/BB_templates/` == 0.
 
-**ICON STACKLESS ONE-REGISTER FRAME (FACT RULE).** Every Icon BB graph — flat-wired AND brokered — is stackless: no `g_vstack`/`vstack`/`rt_push_*`/`rt_pop_*`/`r12`-as-TOS in any form. All per-box RW runtime storage (value, counter, state, cursor, backtrack arenas) lives in ONE per-sequence LOCAL frame, addressed register-relative `[reg + emit_time_offset]` through the BB-frame register (set once at sequence entry; distinct from broker `r10` and SM `r13`). Consumers read producers' slots by offset in the SAME frame (the ζ model of `test_sno_1/2/3.c`). FORBIDDEN: threading values via any stack; absolute `movabs … &pBB->value|counter|state` slot addressing (breaks mode-4 relocatability). COMPLETION TESTS: `scripts/test_gate_icn_no_stack.sh` == 0; `scripts/test_gate_icn_one_reg_frame.sh` == 0.
+**ICON STACKLESS ONE-REGISTER FRAME.** Every Icon BB graph stackless: no `g_vstack`/`vstack`/`rt_push_*`/`rt_pop_*`/`r12`-as-TOS. All per-box RW storage in ONE per-sequence LOCAL frame `[reg+off]`. Completion: `scripts/test_gate_icn_no_stack.sh` == 0; `scripts/test_gate_icn_one_reg_frame.sh` == 0.
 
-**ICON READ-ONLY LOCALS ARE IP-RELATIVE (FACT RULE).** Per-box compile-time constants (literal int/real/string/cset, fixed bounds, op codes) live SEALED adjacent to the box BLOB and are reached `[rip+disp]` (emit-time `disp`) — never stacked, never `movabs`-absolute. Only RW locals use the one-register frame `[reg+off]`. So every Icon value ref is exactly: (RO) `[rip+disp]` or (RW) `[reg+off]`.
+**ICON READ-ONLY LOCALS ARE IP-RELATIVE.** Per-box compile-time constants live sealed adjacent to blob, reached `[rip+disp]`. RW locals use `[reg+off]`.
 
 **NO C BYRD-BOX FUNCTIONS.** Zero `DESCR_t foo(void*, int entry)`. Only `icn_bb_dcg` exempt.
 
-**FOUR PORTS = FOUR GREEK NAMES ALWAYS.** `α` fresh-entry, `β` retry, `γ` success, `ω` failure. No English synonyms anywhere.
+**FOUR PORTS = FOUR GREEK NAMES ALWAYS.** `α` `β` `γ` `ω`. No English synonyms.
 
 **NO AST WALKING IN MODES 2/3/4.** No `->t`, `->c[]`, `->n`, `->v` in SM/emitter code.
 
-**NO SM/BB WALKING AT RUNTIME IN MODES 3/4.** No `bb_exec_once/resume/node` from the mode-3/4 run path. Exception: Prolog `--run` via `sm_interp_run` until bb_pl_*.cpp templates land.
+**NO SM/BB WALKING AT RUNTIME IN MODES 3/4.** Exception: Prolog `--run` via `sm_interp_run` until bb_pl_*.cpp templates land.
 
 **SCRIP FOLLOWS SPITBOL SEMANTICS** for SNOBOL4/Snocone. **SCRIP IS CASE-SENSITIVE.**
 
 **X86 ONLY FOR NOW.** IS_JVM/IS_JS/IS_NET/IS_WASM arms stub out.
 
-**ICON SM = ZERO OPCODES.** With `SCRIP_ICN_BB=1` an Icon program emits ZERO SM instructions; the driver detects Icon-BB and calls `bb_exec_once(main_bb_graph)` directly, bypassing `sm_interp_run`. Completion test: `SCRIP_ICN_BB=1 ./scrip --dump-sm prog.icn` prints `; SM_sequence_t  count=0`. See `GOAL-ICON-BB.md`.
+**ICON SM = ZERO OPCODES.** Completion: `SCRIP_ICN_BB=1 ./scrip --dump-sm prog.icn` → `count=0`.
 
-**PEERS RULE (HQ Invariant 17).** BB_t stays LEAN. Operand-value refs go in `BB_graph_t.operand_aux` via `bb_operand_aux_set/get`. DO NOT add fields to BB_t.
+**PEERS RULE.** BB_t stays LEAN. Operand-value refs go in `BB_graph_t.operand_aux` via `bb_operand_aux_set/get`. DO NOT add fields to BB_t.
 
-**CONSULT CANONICAL SOURCES (JCON + Icon) RULE.** For ANY new SM/BB or Icon feature work, the canonical sources are the authority — NOT memory, NOT the mode-2 oracle, NOT assumption. EVERY TIME a question arises about behavior, port topology, resume/backtrack wiring, or builtin semantics: grep/read the relevant canonical procedure FIRST. Authority: `refs/jcon-master/tran/irgen.icn` (the `ir_a_*` procedures define control-flow/ports; upstream **https://github.com/proebsting/jcon**) and `refs/icon-master/src/runtime/*.r` (`fstranl.r` find/upto/many/any/match/bal, `ocomp.r` relops, `fscan.r` scanning; upstream **https://github.com/gtownsend/icon**). Restore absent refs via `git clone <upstream> refs/<name>-master`. The m2 oracle (`bb_exec.c`) is a transcription, not truth; when in doubt the canonical source wins. You do not know until you check.
+**CONSULT CANONICAL SOURCES RULE.** For ANY new SM/BB or Icon feature: grep/read canonical procedures FIRST. Authority: `refs/jcon-master/tran/irgen.icn` and `refs/icon-master/src/runtime/*.r`. m2 oracle is a transcription, not truth.
 
 ## Commit identity
 ```bash
@@ -41,9 +41,9 @@ git config user.email "lcherryh@yahoo.com"
 ```
 
 ## Handoff sequence
-1. DELETE completed steps from the Goal file (git history preserves them; Lon directive 2026-06-06)
-2. Update watermark **in the Goal file only — the single source of truth**
-3. Do NOT edit the PLAN.md goals table on routine handoff; touch PLAN.md only on a `grand master reorg`
+1. DELETE completed steps from Goal file
+2. Update watermark in Goal file only
+3. Do NOT edit PLAN.md goals table on routine handoff
 4. `git add -A && git commit -m "<description>"` each touched repo
 5. `git pull --rebase && git push` — code repos first, `.github` last
 6. Confirm: `git log origin/main --oneline -1` shows your hash
@@ -52,10 +52,10 @@ git config user.email "lcherryh@yahoo.com"
 **SPITBOL x64:** `git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64`. Invoke: `/home/claude/x64/bin/sbl -b file.sno`.
 
 ## Testing
-- Run the goal's gate before every commit. No broken commits.
+- Run goal's gate before every commit. No broken commits.
 - `timeout 8s` unit/smoke; `timeout 30s` corpus runners.
-- Scripts in `SCRIP/scripts/`; paths from `$0`; `< /dev/null` on scrip calls.
+- Scripts in `SCRIP/scripts/`; `< /dev/null` on scrip calls.
 
 ## C code style
 - **200-char line max. Zero blank lines.**
-- **EXACTLY ONE COMMENT:** 200-char `/*` + 196 dashes + `*/` between every function/major block; `/*===*/` (200 chars) between larger sections. No other comments — no `//`, no inline prose.
+- **EXACTLY ONE COMMENT:** the 200-char `/*` + dashes + `*/` separator between every function/major block; `/*===*/` (equals, 200 total) between larger sections. Nothing else — no block/inline comments, no `//`, no prose.
