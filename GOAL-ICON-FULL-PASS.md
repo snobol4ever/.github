@@ -70,7 +70,7 @@ Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-mast
 
 ## Watermark
 
-**HEAD (SCRIP) = `99e96e9`** — M3/M4 parity pivot: flat_drive_call_intexpr always walks arg in descr-flat-chain; bb_binop_relop stores y to result slot. m2 **200** · m3 **39** · m4 **39**. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-M3M4-PARITY-PIVOT.md.
+**HEAD (SCRIP) = `7214e00`** — m4 double-colon label fix: x86("label",s) appends ":" — strip trailing ":" from _.lbl_β in bb_call_write_slot(×2)/bb_call_rk_bool/bb_call_proc_staged; m4 0→41. m2 **200** · m3 **44** · m4 **41**. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-M4-DOUBLE-COLON.md.
 
 **Key intel:** `icn_ring_to_tree` returns NULL if chain has IR_BINOP or IR_LIT_I → falls to `descr_flat_chain_build(bbg->entry)`. `--dump-bb` does NOT show `operand_aux`. DESCR_t = {DTYPE_t(4)+slen(4) in low 8 bytes; int64/ptr in high 8 bytes} — passed as rdi:rsi pair.
 

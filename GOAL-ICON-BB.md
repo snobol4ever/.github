@@ -403,7 +403,7 @@ Floor = System V AMD64; durables are callee-saved (canonical semantics = the X86
 
 ## Watermark
 
-**HEAD (SCRIP) = `3e08aaa`** — IR_TO_BY: fix is_real for sval='ar' (ag+real with operand nodes); real to-by works. m2 198 · m3 29 · m4 32. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-TOBY-REAL-GENARG.md.
+**HEAD (SCRIP) = `7214e00`** — m4 double-colon label fix; m4 0→41. m2 200 · m3 44 · m4 41. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-M4-DOUBLE-COLON.md.
 
 **Open bug (FULL-18-resid, 2026-06-12):** Generator in user-proc call arg disappears from BB graph. `lower_call` sets `cx->beta = ω` (not call) for non-gen-allowed procs, so ALT/TO arg to `tag("a"|"b"|"c")` is never wired into the flat graph. Fix: in `lower_icon.c` `lower_call` (line 82/94), detect when arg subtree contains a generator and set `cx->beta = call` so it stays in chain. Affected: rung16 `s[1 to 3]` (+1), rung32 `tag("a"|"b"|"c")` (+1), many rung36/37.
 
