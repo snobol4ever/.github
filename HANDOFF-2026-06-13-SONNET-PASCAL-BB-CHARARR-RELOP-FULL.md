@@ -135,3 +135,17 @@ refactor — NOT by crashing the binary or deleting the native emitter the
 architecture depends on. There is a referenced (not present here) doc
 "HANDOFF-IR-IMMUTABLE-MODE34" describing the purge plan; recommend it not be
 executed without reconciling against the documented two-consumer architecture.
+
+## Resolution of the e50b089 revert (independent convergence)
+While this session was working, ANOTHER session independently judged e50b089 to
+be wrong and pushed `8b9a58e` ("Revert mode3/4 entry bombs — emission read of IR
+is required & allowed") — same conclusion, same reasoning. On the handoff
+`git pull --rebase`, git recognized my revert (4efd24d) as an already-applied
+cherry-pick (identical patch) and skipped it. So the effective revert on
+`origin/main` is `8b9a58e`, not my local 4efd24d.
+
+Final `origin/main` = `76639bd` (a newer Prolog GZ commit on top, which also notes
+"eradicate runtime IR-walk in m3/m4" — i.e. fixing RUNTIME walks, consistent with
+the rule as actually written). Rebuilt on 76639bd and re-gated: Pascal M2/M3/M4
+all 106/0 XFAIL=1. The independent convergence confirms the e50b089 crash-injection
+was a genuine error, not a misread on my part.
