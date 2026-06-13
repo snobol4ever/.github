@@ -61,7 +61,7 @@ Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-mast
 
 ## Watermark
 
-**HEAD (SCRIP) = `7214e00`** — m4 double-colon fix: x86("label",s) appends ":"; strip trailing ":" from _.lbl_β in bb_call_write_slot(×2)/bb_call_rk_bool/bb_call_proc_staged; m4 0→41. m2 **200** · m3 **44** · m4 **41**. HEAD (.github) = HANDOFF-2026-06-12-SONNET46-ICON-FULL-PASS-M4-DOUBLE-COLON.md.
+**HEAD (SCRIP) = `d35075a`** — string relop m4 fix: binop_slot_kind routes SLT..SNE to IR_BINOP_RELOP; bb_binop_relop str arm via rt_jct_relop; m4 41219247. m2 200 · m3 44 · m4 47. HEAD (.github) = HANDOFF-2026-06-13-SONNET46-ICON-FULL-PASS-STRRELOP.md.
 
 **Key intel:** `icn_ring_to_tree` returns NULL if chain has IR_BINOP or IR_LIT_I → falls to `descr_flat_chain_build(bbg->entry)`. `--dump-bb` does NOT show `operand_aux`. DESCR_t = {DTYPE_t(4)+slen(4) in low 8 bytes; int64/ptr in high 8 bytes} — passed as rdi:rsi pair.
 
