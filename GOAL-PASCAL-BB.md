@@ -10,28 +10,30 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
-## ▶ CURRENT STATE (Session 45, 2026-06-12)
+## ▶ CURRENT STATE (Session 46, 2026-06-13)
 
 **GATE STATUS:**
 - M2 (--interp): **PASS=103 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
-- M3 (--run):    **PASS=76 FAIL=27 XFAIL=1** (+42 from baseline 34 at session start)
+- M3 (--run):    **PASS=78 FAIL=25 XFAIL=1** (+44 from baseline 34 at session start)
 - M4 (--compile): not yet measured
 
 **Landed this session:**
-- **Fix 2** (+27): `gvar_drive_call_arg_slots` extended to all non-null entries. `gvar_callarg_admit` removed. Terminal CALLs via `walk_bb_flat`; non-terminal CALL chains via `flat_emit_arg_subchain + bb_slot_get(res_last)`.
-- **BINOP aux-wire** (+15):
-  - `case IR_BINOP:` in `walk_bb_flat` gvar mode: wire PEERS aux → direct children when `bb_child0==NULL` (fixes 2D array index arithmetic `i*ncols+j` in arg subchains — parser flattens 2D indices to BINOPs stored in isolated arg-subgraph graphs, not main graph).
-  - `gvar_drive_call_arg_slots` non-terminal path: save/restore `g_emit_cfg` to the arg subgraph before `flat_emit_arg_subchain` so BINOP aux lookup uses correct graph.
-  - Skip pre-computation for non-terminal entries whose `res_last->op==IR_BINOP` arith: GVAR_ARITH stores 8-byte integer; marshal_call_arg op_arg_slot path loads 16-byte DESCR → tag corruption. Let marshal_call_arg handle inline instead.
-  - `marshal_call_arg` (bb_call.cpp): move gvar inline-arith/relop check BEFORE `bb_slot_get(lf)` to prevent spurious argbase slots (from `bb_slot_alloc16(subs[i]->entry)` in call templates) from intercepting BINOP arg chains.
+- **Regression fix** (52→76, +24): committed HEAD `fc307d9` did not reproduce its claimed 76/27 on a clean build. Two shape-based, language-blind fixes restore it:
+  - `bb_call.cpp` `marshal_call_arg`: moved `op_arg_slot[]` pre-computed-slot copy *before* `if(!lf) return` — subgraph-arg calls with NULL direct operands now marshal correctly (terminal 1D array reads/writes).
+  - `bb_call_fn.cpp` `bb_call_fn_str`: resolve args from `_.op_counter` subgraphs when present (mirrors `bb_call_byname_str`) — 2D flat-index BINOP now reaches `marshal_call_arg`'s inline-arith path. Falls back to `ir_call_arg` when no subgraphs; byte-identical for Icon/SNOBOL.
+- **Real-literal assignment** (76→78, +2: constreal, stdlib1):
+  - `emit_bb.c` walk_bb_flat IR_ASSIGN dispatch: add `IR_LIT_F` to op_a guard.
+  - `emit_core.c` walk_bb_node IR_ASSIGN op_a guard: add `IR_LIT_F`.
+  - `bb_gvar_assign.cpp`: new `IR_LIT_F` arm stores real as `{DT_R, double-bits}` DESCR via `rt_gvar_assign_descr(name, 7, bits)`; adds `_bits_f` local (union memcpy).
+  - `pascal.y`: `mk_neg()` folds `TT_FLIT` negation to a negative real literal (`-pi` → flit); regenerated `pascal.tab.c/h` via Pascal-only bison.
 
 ---
 
-## ▶ REMAINING 27 FAILURES
+## ▶ REMAINING 25 FAILURES
 
-**marshal_single_call not gvar-aware** — rec1, rec2, rec3, with1-3, swap, stdlib1, varframe, varmix, varparam, vartrans, alias, ptr2, forward1, matmul, nestfunc, arr2dtype, arr2dtype3:
+**marshal_single_call not gvar-aware** — rec1, rec2, rec3, with1-3, swap, varframe, varmix, varparam, vartrans, alias, ptr2, forward1, matmul, nestfunc, arr2dtype, arr2dtype3 (~16 tests):
 When `marshal_arith_rax` (inside inline-arith path) recurses into `marshal_single_call` for CALL operands (e.g. arr_get(p,0)), that function calls `bb_slot_alloc16(subs[j]->entry)` to set up argbase, creating a fresh ZERO slot for VAR("p"). Then the inner `marshal_call_arg(VAR("p"), ...)` hits `bb_slot_get(VAR("p"))=argbase>=0` → loads 0 → wrong. Root: `marshal_single_call` is not gvar-aware; it bypasses `gvar_drive_call_arg_slots` for its nested CALL's args.
-Fix: in `marshal_call_arg`, when `g_gvar_flat_chain && lf->op == IR_VAR && IR_LIT(lf).sval`, skip `bb_slot_get(lf)` if the slot was just allocated (detect via `bb_slot_alloc16_or_get` pattern) — OR add a gvar path inside `marshal_single_call` that calls `gvar_drive_call_arg_slots` for the sub-CALL's args.
+Fix: in `marshal_call_arg`, when `g_gvar_flat_chain && lf->op == IR_VAR && IR_LIT(lf).sval`, skip `bb_slot_get(lf)` if the slot was just allocated — OR add a gvar path inside `marshal_single_call` that calls `gvar_drive_call_arg_slots` for the sub-CALL's args. Requires NV_GET emission for nested gvar VAR args across both MEDIUM_TEXT and MEDIUM_BINARY with string-sealing.
 
 **Nested frame wrong values** (~5) — nestvar*, nestshadow, nestrec: outer frame var read from inner scope wrong; var param mutation through nested frame incorrect.
 
@@ -39,15 +41,13 @@ Fix: in `marshal_call_arg`, when `g_gvar_flat_chain && lf->op == IR_VAR && IR_LI
 
 **boolidx** — boolean array indexing wrong values.
 
-**constreal** — `[IBB] FATAL flat_drive_assign: lhs nil` crash.
-
 ---
 
 ## ▶ PRIORITY ORDER
 
-1. **marshal_single_call gvar fix** — fixes rec1, rec2, rec3, with1-3, swap, stdlib1, varparam, varmix, varframe, vartrans, alias, ptr2, forward1, matmul, nestfunc (~17 tests). See root cause above.
+1. **marshal_single_call gvar fix** — fixes rec1, rec2, rec3, with1-3, swap, varparam, varmix, varframe, vartrans, alias, ptr2, forward1, matmul, nestfunc, arr2dtype, arr2dtype3 (~16 tests). See root cause above.
 2. **Nested frame** — nestvar*, nestshadow, nestrec: static link chain wrong for outer-scope var access from inner procedures.
-3. **alphacmp, boolidx, constreal** — individual cases.
+3. **alphacmp, boolidx** — individual cases.
 
 ---
 
