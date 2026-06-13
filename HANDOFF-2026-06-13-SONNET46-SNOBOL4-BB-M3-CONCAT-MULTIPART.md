@@ -1,6 +1,6 @@
 # HANDOFF 2026-06-13 · Sonnet 4.6 · SNOBOL4-BB M3-CONCAT-MULTIPART
 
-**SCRIP HEAD:** f591d9d
+**SCRIP HEAD:** eb98b8e
 **.github HEAD:** (this commit)
 
 ---
@@ -50,7 +50,7 @@ allocation (same source `emit_bb.c:985` uses to set `bb_ls` for the TEXT label).
   change only touches the BINARY `movabs` immediate; TEXT reads the label arg, which did not change.
 - **055** now prints `ab cd ef` in M2, M3, and M4 (matches sbl oracle).
 
-## Gates at f591d9d
+## Gates at eb98b8e
 
 - smoke: **7/7/7 HARD** ✓
 - pat-rung: **m2 19/19 · m3 19/19 · m4 19/19 no-SKIP** ✓ (m3 was 18/19)
