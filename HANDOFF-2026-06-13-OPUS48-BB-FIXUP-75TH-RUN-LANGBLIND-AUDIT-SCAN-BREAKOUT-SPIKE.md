@@ -53,8 +53,19 @@ Commit **`5091102` "ICN-SCAN-2"** added the kinds as a dormant SANCTIONED-FALLBA
 4. **`emit_core.c`:** DELETE the now-dead `IR_CALL` scan dispatch `467-478`.
 5. **Verify:** C2 scan asm-identity (expect byte-identical) + C3 (Icon all-rungs m2 12/12 HARD + m3=m4 10/2 + sno/prolog/pat/structural).
 
-### ⛔ BLOCKER — resolve FIRST
-Driver prep gates on `IR_LIT(nd).dval == 3.0`, but **no Icon-side `dval=3.0` setter exists** (`grep -rnE 'dval *= *3' src/` → ONLY `lower_raku.c:269`, Raku). The Icon scan-builtin marshalling-state model is therefore **incomplete** — a lower-time `op` retag may desync from whatever sets `dval` (likely an emit-time/marshalling pass = the gen-resume coupling `5091102` flagged). **Empirically dump an Icon scan program's IR** (op/dval per scan-builtin node; no `--dump-ir` flag exists — add one or instrument `walk_bb_node`) to confirm the representation before retagging. If `dval` is emit-time-only, the prep must stop gating on `dval==3.0` and key on the kind instead (slightly larger).
+### ⛔ BLOCKER — RESOLVED this run (75th); refined recipe below
+**`dval=3.0` IS set at LOWER time** — `lower_icon.c:82` `lc_call_argblks(call, is_idx_or_list ? 2.0 : 3.0, nargs, …)` stamps `dval` AND builds the arg sub-blocks into `IR_EXEC.counter` in one shot. (Earlier grep missed it: `3.0` is a *call argument*, not a `dval = 3.0` assignment.) So a lower-time `op` retag does NOT desync the prep — `dval`+sub-blocks already exist when the node does, and the driver arms key on `dval==3.0`+`sval` (preserved by the retag), not `op`. The retag-at-`TT_SCAN` recipe is **`dval`-safe**.
+
+**NEW DISCOVERY — the real "resists cheap delegation": scan builtins have a DUAL representation** (`lower_icon.c:74-87` `lower_call`):
+- `dval=3.0` — sub-block path (args non-resumable; `subgraph && !is_idx_or_list`). Driver scan-prep arms (`emit_bb.c:2585-2680`) fire.
+- `dval=1.0` — flat-chain path (`chains=1`, triggered by `write`/`writes` OR **any resumable/generator arg**). A DIFFERENT prep; args lowered as a flat chain, not sub-blocks.
+- `dval=2.0` — `[]`/`MAKELIST` only.
+
+`emit_core.c:467-478` routes **both** `dval=3.0` and `dval=1.0` scan-in-scan builtins to the same `bb_scan_*()` templates (it checks `g_icn_scan_regs_live && sval`, NOT `dval`). So a clean breakout must choose:
+- **(i)** retag BOTH representations and give the `dval=1.0` flat-chain scan builtins their own driver handling (larger), then delete `467-478`; OR
+- **(ii)** retag ONLY `op==IR_CALL && dval==3.0 && sval∈{9}` in `bsg->all` (the common sub-block case), add `IR_SCAN_*` fall-through to the driver prep, and **leave `467-478` in place** for the `dval=1.0` resumable-arg scan builtins (a PARTIAL breakout — the language-keyed emit_core dispatch stays for the rarer case).
+
+Recommended: start with **(ii)** (scoped, lower-risk, behavior-neutral by the DEFINE-carve technique), measure, then decide whether (i) is worth it. Either way **scope the `bsg->all` retag to `dval==3.0`** — do NOT blindly retag all `sval∈{9}` (the `dval=1.0` ones need the flat-chain prep). Still verify mode-2 (`IR_interp.c` 292/2603/3854 + exec) + the HARD Icon gate.
 
 ### Recommended sequencing next session
 - **Commit 1 (INERT prep, safe):** add `IR_SCAN_*` fall-through cases to driver + mode-2 + op-switches WITHOUT the lowering retag and WITHOUT deleting `467-478`. Behavior-neutral by construction (nothing emits the kinds yet) ⇒ battery green trivially. This makes the kinds "ready to receive."
