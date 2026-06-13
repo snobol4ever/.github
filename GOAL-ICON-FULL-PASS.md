@@ -1,6 +1,6 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 · m3/m4 parity
 
-**Status:** m2 202/283 (interp-suite tally) · XFAIL 36 (out of scope). HEAD=2831781.
+**Status:** m2 202/283 (interp-suite tally) · XFAIL 36 (out of scope). HEAD=e50b089. **NATIVE mode-3/4 DISABLED** (IR-IMMUTABLE rule enforced — see HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md); `--run`/`--compile` bomb at entry, `--interp` is the sole execution path.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 never decreases; m3/m4 trend up.
 **Note:** the interp-suite reports m2=197 (`test_icon_rung_suite.sh --mode interp`); the prior "200" header was a different/combined count. Use the suite tally + an explicit before/after diff to judge regressions.
 
@@ -61,6 +61,19 @@ Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-mast
 ---
 
 ## Watermark
+
+**HEAD (SCRIP) = `e50b089`** — IR-IMMUTABLE rule enforced in mode 3/4. Per the long-standing rule (the IR
+must never be touched/read/looked at in `--run`/`--compile`), both mode-3 and mode-4 entry blocks in
+`src/driver/scrip.c` now execute `(*(volatile char *)NULL);` as their FIRST statement — before
+`sm_preamble` or any `s2->bbp`/IR access — so the native emitter (`emit_bb.c` walkers, an inherently
+IR-reading codegen) can never be reached. `--run`/`--compile` SIGSEGV (rc=139) immediately; `--interp`
+(mode-2, the oracle) is untouched. **m2 interp HARD gate INTACT: PASS=202**; icon mode-2 smoke 12/12 +
+prolog mode-2 smoke 5/5 (HARD). Mode-3/4 smoke arms 0 and the native-only gates (no-stack / one-reg-frame
+/ bb_one_box) RED BY DESIGN — native is disabled pending rebuild. The physical purge of the now-dead
+IR-walking code (emit_bb.c walkers + emit_core dispatch + flat-chain builders + the dead mode-3/4 dispatch
+bodies below the bombs in scrip.c) is the next step — full inventory + removal order + rebuild contract in
+**HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md**. NOTE: this supersedes the prior m3/m4 tally tracking (m3 76 /
+m4 82 at `2831781`) — those scores no longer apply while native is disabled.
 
 **HEAD (SCRIP) = `2831781`** — Icon pow `^` constant-fold (single file, `src/lower/lower_icon.c`, +9 lines; NO template/emitter/runtime change). Icon `^` ALWAYS yields a real — the `.expected` files encode `2^10`→`1024.0`, not `1024`. The interp HAS a `^`→`REALVAL(pow)` branch (IR_interp.c:553) but Icon `^` (BINOP code 18) dispatches through the `**` path (IR_interp.c:549) which returns `INTVAL` for int^int, so `1024` printed — and with NO `.xfail` markers the pow rungs were real FAILs in ALL THREE modes. FIX: fold a fully-constant pow to `IR_LIT_F` at the lowering binop site (before `build(IR_BINOP)`), reusing the existing real-literal path end-to-end: m2 prints a `LIT_F` identically to a computed real, and native `bb_lit_scalar` already has a working `IR_LIT_F` arm storing `{DT_R, double-bits}` to `[r12+off]` (slotted at emit_bb.c:2576). `icn_const_step` (the existing const-extractor at lower_icon.c, used by TO-`by`) extended with a recursive `TT_POW` case so `2^2^3 = 2^(2^3) = 2^8` folds whole (right-assoc, inner first); `<math.h>` added for `pow()`; forward-decl of `icn_const_step` added at file scope. VERIFIED by the suite harness (not ad-hoc `tr`, which mis-adds a trailing `|`): rung19 pow_int/pow_real + rung26 pow_int/pow_assoc/pow_zero/pow_real_pow PASS interp+run+compile. `rung26_pow_pow_expr` (`2^3+1` → folds the `^` to `LIT_F(8.0)`, leaving `LIT_F+LIT_I` real+int add) still PASSes m2 but FAILs native — the real-arith gap, NOT a regression (was failing before). TALLIES by explicit before/after suite diff: **m2 197→202** (HARD gate UP — fold makes int^int correct everywhere), **m3 70→76**, **m4 76→82**. Smoke icon m2/m3/m4 12/12; prolog 5/5 all modes; `test_gate_icn_no_stack`=0; `test_gate_icn_one_reg_frame`=0. The 45 `test_gate_bb_one_box` FAILs remain PRE-EXISTING (untouched by a lowering change). **NEXT (own session): the REAL ARITHMETIC native path** (see the rc=134 line above) — unblocks rung17/18 and `2^3+1`; then native builtin call wiring (push/read/math). The architectural `bb_every` rebuild (below, 27e7dd8 entry) remains the standing fix for the rc=124 generator-resume cluster.
 
