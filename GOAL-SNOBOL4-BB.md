@@ -1,4 +1,4 @@
-**SESSION WATERMARK — 2026-06-13 · Sonnet 4.6 · SCRIP=2f52ff4. This session: fixed three classes of M3/M4 regression. (1) 6× `x86("lea","rdi","[rip+label]")` in bb_call.cpp TEXT arms produced silent empty string → replaced with `x86("directive"," lea rdi, [rip + ...]")`. Fixed M4-DEFINE, user-proc calls, arith-operand gvar, varparam cell addr, staged-call, arr-call. (2) Duplicate `lbl_β` label in bb_call_proc_staged.cpp TEXT arm removed; same broken lea fixed. (3) bb_gvar_assign_concat.cpp lit_s BINARY arm used `(uint64_t)(uintptr_t)_.bb_rs` (ptr to scratch label-name buf) → replaced with `_.op_parts_str[0]` (permanent IR string ptr). GATES at 2f52ff4: smoke 7/7/7 HARD · pat-rung M4 19/19 no-SKIP · M3 pat-rung 18/19 (055 multi-part concat VAR still fails — see M3-CONCAT-MULTIPART below) · fence HARD. Next: fix M3 multi-part concat — bb_gvar_assign_concat lit_s arm uses `_.op_sval` (NULL for ASSIGN_CONCAT) as binary ptr for rdi; must use `IR_LIT(_.node).sval` instead.**
+**SESSION WATERMARK — 2026-06-13 · Sonnet 4.6 · SCRIP=f591d9d. This session: fixed M3-CONCAT-MULTIPART. `bb_gvar_assign_concat.cpp` rdi BINARY ptr (destination variable name) was wrong in BOTH arms: lit_s used `_.op_sval` (NULL for ASSIGN_CONCAT — never set by flat_drive_gvar_assign), multi-part used `_.bb_ls` (scratch label-name buffer, not the var name). Both → `IR_LIT(_.node).sval` (permanent IR dest-var-name ptr). TEXT arm byte-identical (reads `_.bb_ls` label); only the BINARY movabs immediate changed. GATES at f591d9d: smoke 7/7/7 HARD · pat-rung m2/m3/m4 19/19/19 no-SKIP · fence HARD. Corpus this container: M2=172 M3=152 (+8 from fix) M4=148 (counts container-sensitive — stash-baseline before treating as regression). 055 now green all three modes. Next: M4-SMOKE-REGRESS or M4-FENCE cluster per ladder priority.**
 
 ---
 
@@ -22,7 +22,6 @@ Master ladder: `SCRIP/SNOBOL4-5STAGE-OWNED-BUILD.md`. Arch: `.github/ARCH-SNOBOL
 
 Inventory: smoke m4 **7/7** · pat-rung m4 **19/19 no-SKIP** · broad m4 corpus **155/280** · beauty m4 **1/17**.
 
-- [ ] **M3-CONCAT-MULTIPART** — `OUTPUT = A ' ' B ' ' C` gives empty in M3, correct in M2/M4. Root: `bb_gvar_assign_concat` lit_s arm uses `_.op_sval` (NULL for ASSIGN_CONCAT) as binary ptr for `rdi`; must use `IR_LIT(_.node).sval`. Multi-part arm: verify `op_parts_str[i]` contains permanent IR ptrs for both LIT (tag=0) and VAR (tag=1) parts. Fix: change `(_.op_sval ? _.op_sval : "")` → `(IR_LIT(_.node).sval ? IR_LIT(_.node).sval : "")` in the rdi ptr arg. `rt_dcap_begin/end_ok/end_fail` wired in flat_drive_scan_native; `rt_cap_assign_cursor` records correctly. Root cause not yet identified. Probe: `DEFINE('Qize(S)part') :(e) Qize S ? ((BREAK('.') '.' ARBNO(NOTANY('.'))) . part) RPOS(0) :F(FRETURN) Qize=part :(RETURN) e OUTPUT=Qize('a.b.c')` — `--run` gives `b.c`, compiled gives empty.
 - [ ] **M4-SMOKE-REGRESS** — m3 concat + m4 define fail with `< /dev/null`. m4 define: upstream regression from 14ae014 (`bb_unify.cpp` duplicate label `.Lx2_0`). Bisect to confirm; fix define duplicate-label.
 - [ ] **M4-CRASH** — `scrip --compile` must never abort/segfault: 29 corpus SKIPs + 4 beauty emit-crashes.
 - [ ] **M4-FENCE** — ~10 corpus fails (061/062/064/066/100/101/103/108/110/112). FENCE matches null L→R, fails on retreat (SPITBOL p.204).
@@ -127,7 +126,7 @@ Every box value: **(RO)** `[rip+disp]` sealed data, or **(RW)** `[ζ+off]` per-s
 
 ## Session log
 
-**Watermark (D7 all rungs ✅; 2f52ff4; 2026-06-13 Sonnet 4.6).** smoke 7/7/7. pat-rung M4 19/19 no-SKIP. M3 pat-rung 18/19 (055 multi-part concat VAR). fence HARD. Three bug classes fixed this session: 6× lea-rdi TEXT silent-empty in bb_call.cpp; dup-lbl-β in bb_call_proc_staged; concat binary ptr using scratch buf instead of IR sval. M3-CONCAT-MULTIPART is next.
+**Watermark (D7 all rungs ✅; f591d9d; 2026-06-13 Sonnet 4.6).** smoke 7/7/7. pat-rung m2/m3/m4 19/19/19 no-SKIP. fence HARD. M3-CONCAT-MULTIPART fixed: bb_gvar_assign_concat rdi BINARY ptr → IR_LIT(_.node).sval in both lit_s arm (was _.op_sval, NULL) and multi-part arm (was _.bb_ls scratch buf). TEXT byte-identical. Corpus this container M3 144→152. Next: M4-SMOKE-REGRESS or M4-FENCE per ladder.
 
 ## Session Setup
 
