@@ -10,11 +10,11 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
-## ▶ CURRENT STATE (Session 46, 2026-06-13)
+## ▶ CURRENT STATE (Session 47, 2026-06-13)
 
 **GATE STATUS:**
 - M2 (--interp): **PASS=103 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
-- M3 (--run):    **PASS=78 FAIL=25 XFAIL=1** (+44 from baseline 34 at session start)
+- M3 (--run):    **PASS=91 FAIL=12 XFAIL=1** (+13 this session, +57 from baseline 34)
 - M4 (--compile): not yet measured
 
 **Landed this session:**
