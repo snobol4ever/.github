@@ -451,9 +451,13 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-13 SESSION 8 — LANDED, COMMITTED + PUSHED) — m3 25 PASS / 0 FAIL / 6 EXCISED; m4 25 PASS / 0 FAIL / 6 EXCISED. Groups B-c + B-b driven to PASS (bool_truthiness + 6 jct relops). Group C (class_method) investigated end-to-end and found to need a fix BEYOND its template (see below) — reverted to stay cleanly EXCISED. SCRIP HEAD `b9a2433`.**
+**STATE (2026-06-13 OPUS48 — LANDED + COMMITTED) — Raku m3 25 PASS / 0 FAIL / 6 EXCISED; m4 25 / 0 / 6 (no regression). Bug 1 (`ca031f6`) + user-sub-CALL Layers A+B (`b1d58ae`) landed. The shared `bb_return` Layer-B fix ALSO took ICON m3/m4 from 10/12 to 12/12. The old "Bug 2" framing is CORRECTED (see CORRECTION below). SCRIP HEAD `b1d58ae`. FULL DETAIL: `HANDOFF-2026-06-13-OPUS48-RAKU-BB-USER-SUB-CALLS-LANDED.md`.**
 
-- **Modes:** m2 **31/31** (HARD ✓). m3 **25 PASS / 0 FAIL / 6 EXCISED**, m4 **25 PASS / 0 FAIL / 6 EXCISED** — done-bar met (PASS-or-EXCISED, never silent FAIL). Peers INVARIANT: Icon m2 12/12 m3 10/12 m4 10/12, SNOBOL4 m2 7/7 m3 7/7 m4 7/7, NFA oracle **5/5 PASS**, `g_vstack`=0. The 6 EXCISED = Group A (5, deferred on GZ-7) + `class_method` (Group C).
+> **⚠ This Watermark's older SESSION-8 narrative below (NEXT items 0/1, the "Bug 2" framing) is PARTLY SUPERSEDED.** Old NEXT-0 ("whole-proc double-emission") = the LANDED Bug 1 `ca031f6`. Old NEXT-1 ("nested-BINOP Bug 2 via `sub g`") was WRONG — `sub g` assembles clean post-Bug-1; the double-emission is real but FIELD_GET-operand-specific (confirmed for `class_method`'s `scale`). The authoritative remaining-work list is in the handoff named above and the REMAINING block here. Treat the SESSION-8 prose below as history.
+
+**REMAINING (class_method, the only non-Group-A target) — probe-confirmed, probe reverted:** (1) GATE `icn_rhs_kind_ok` admit `IR_CALL dval==1.0` + `IR_FIELD_GET`; (2) FIELD_GET is `kind=123` UNHANDLED in `walk_bb_node` → add `case` + `bb_field_get.cpp` (calls `dat_field_get`); (3) DOUBLE-EMISSION CONFIRMED — dup labels `bb94832_α`/`xchain29_n12_β`/`xchain29_n17_β` from `($!x+$!y)*$factor` in `scale`; fix at `codegen_flat_chain_body` × `flat_drive_binop_tree`. Do 1+2+3 together.
+
+- **Modes:** m2 **31/31** (HARD ✓). m3 **25 PASS / 0 FAIL / 6 EXCISED**, m4 **25 PASS / 0 FAIL / 6 EXCISED** — done-bar met (PASS-or-EXCISED, never silent FAIL). Peers: **Icon m2/m3/m4 = 12/12/12** (improved from 10/12 by the shared `bb_return` Layer-B fix this session), SNOBOL4 m2 7/7 m3 7/7 m4 7/7, NFA oracle **5/5 PASS**, `g_vstack`=0. The 6 EXCISED = Group A (5, deferred on GZ-7) + `class_method` (Group C).
 
 - **LANDED SESSION 8 (commit `b9a2433`) — B-c + B-b native; `scrip.c` gate + `bb_call.cpp` emit only (no runtime change, reused existing rt fns):**
 
