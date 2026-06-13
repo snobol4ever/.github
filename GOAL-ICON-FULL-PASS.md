@@ -1,6 +1,6 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 · m3/m4 parity
 
-**Status:** m2 202/283 (interp-suite tally) · XFAIL 36 (out of scope). HEAD=e50b089. **NATIVE mode-3/4 DISABLED** (IR-IMMUTABLE rule enforced — see HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md); `--run`/`--compile` bomb at entry, `--interp` is the sole execution path.
+**Status:** m2 202/283 · m3 76 · m4 82 (interp-suite tally) · XFAIL 36 (out of scope). HEAD=8b9a58e. IR-IMMUTABLE rule = no IR access DURING EXECUTION of the emitted mode-3 image / mode-4 binary; the one EMISSION-time read of the IR is required & correct (the e50b089 entry-bomb misread was reverted). See HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 never decreases; m3/m4 trend up.
 **Note:** the interp-suite reports m2=197 (`test_icon_rung_suite.sh --mode interp`); the prior "200" header was a different/combined count. Use the suite tally + an explicit before/after diff to judge regressions.
 
@@ -61,6 +61,18 @@ Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-mast
 ---
 
 ## Watermark
+
+**HEAD (SCRIP) = `8b9a58e`** — Reverted the e50b089 entry-bomb (CORRECTED understanding of IR-IMMUTABLE).
+The rule is about EXECUTION, not emission: mode 3/4 require ONE full read of the IR at EMISSION time to
+build the artifact (mode 3 → in-process image; mode 4 → `.s` source) — that read is required and correct.
+The IR must only be untouched DURING EXECUTION of the emitted image/binary (no runtime helper deref'ing an
+`IR_t *`, no IR pointer chased by the running generated code). The earlier reading ("emitter must never read
+IR" → bomb the entry → disable native) was wrong and is reverted: native emission is restored and working
+(`--run`/`--compile` emit & run again, rung26 pow → 1024.0/27.0). m2 interp HARD gate PASS=202; icon smoke
+12/12 all three modes; prolog 5/5. Tally back at the pow-fold baseline m2 202 / m3 76 / m4 82. The ACTUAL
+task is an audit of EXECUTION-time IR access (runtime `IR_t *` derefs reachable from a running emitted
+program), NOT a teardown of the emitter — full corrected plan in HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md.
+Do NOT physically purge `emit_bb.c`; its IR read IS the sanctioned emission read.
 
 **HEAD (SCRIP) = `e50b089`** — IR-IMMUTABLE rule enforced in mode 3/4. Per the long-standing rule (the IR
 must never be touched/read/looked at in `--run`/`--compile`), both mode-3 and mode-4 entry blocks in
