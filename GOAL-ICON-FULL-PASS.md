@@ -1,19 +1,19 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 · m3/m4 parity
 
-**Status:** m2 200/283 · m3 44/283 · m4 41/283 · XFAIL 36 (out of scope). HEAD=7214e00.
+**Status:** m2 200/283 · m3 45/283 · m4 51/283 · XFAIL 36 (out of scope). HEAD=fb2daea.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 never decreases; m3/m4 trend up.
 
 ---
 
 ## M3/M4 gap — open work
 
-**Failure categories (m3, 105 FAIL):**
-- **rc=134 (~30):** x86_bomb hit — missing BINARY arm. Run `./scrip --run foo.icn 2>&1` to see which bomb. First target: `bb_to.cpp` BINARY arm for real-step TO (`rung01_paper_to_by`).
+**Failure categories (m3, ~104 FAIL):**
+- **rc=134 (~28):** x86_bomb hit — missing BINARY arm. Run `./scrip --run foo.icn 2>&1` to see which bomb. ✅ `bb_to.cpp` descending TO (negative `by`) DONE (5dc543f). Next bomb targets: grep remaining `rt_bomb` hits per rung; `bb_alt`/`bb_scan_*` arms.
 - **rc=124 (~12):** timeout — infinite retry loop. TO/EVERY retry wiring in BINARY path.
-- **rc=139 (4):** segfault — `rung33_case_*`. IR_CASE has no native template.
-- **~47 silent-empty:** control lost in BINARY path. `rung01_paper_lt` class (TO+relop+EVERY): `descr_flat_chain_build` path loses control somewhere; add `fprintf(stderr,"[DBG]")` to `rt_write_any_nl` or gdb the --run blob.
+- **rc=139 (4):** segfault — `rung33_case_*`. IR_CASE has no native template (no `flat_drive_case`/`bb_case`). Build one from JCON `ir_a_Case` (refs/jcon-master/tran/irgen.icn:232).
+- **silent-empty (reduced):** ✅ multi-statement loop-drop FIXED (fb2daea) — bounded EVERY exhaustion now routes to success continuation, not `main_ω`. `rung01_paper_lt`, `rung01_paper_to_by`, `rung07_control_to_by` now PASS m3/m4. Residual silent-empty cases: re-triage with `./scrip --run foo.icn` per still-failing rung.
 
-**m4 gap vs m3 (41 vs 44):** 3 additional m4 failures — likely TEXT-arm templates missing BINARY. Confirm with stderr probe.
+**m4 vs m3:** m4 51 / m3 45 (m4 ahead by 6 — extra TEXT-arm coverage). Confirm any m3-only fail with stderr probe.
 
 ---
 
@@ -61,8 +61,8 @@ Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-mast
 
 ## Watermark
 
-**HEAD (SCRIP) = `d35075a`** — string relop m4 fix: binop_slot_kind routes SLT..SNE to IR_BINOP_RELOP; bb_binop_relop str arm via rt_jct_relop; m4 41219247. m2 200 · m3 44 · m4 47. HEAD (.github) = HANDOFF-2026-06-13-SONNET46-ICON-FULL-PASS-STRRELOP.md.
+**HEAD (SCRIP) = `fb2daea`** — two Icon native-loop fixes. (1) `bb_to` descending TO: guard `by!=0`, loop-exit cmp picks `jg`/`jl` by sign of `by` (matches m2 `by>=0?counter>to:counter<to`); eliminated the rc=134 `bb_to` bomb. (2) flat-emit EVERY exhaustion: in `codegen_flat_chain_body` omega resolver (emit_bb.c ~2970), a generator whose `ω` resolved to its own EVERY was routed to `lbl_ω`=`main_ω` (proc failure) → every program died at its first loop's exhaustion; now routes to the EVERY node's α label (`lbls[omega_k]`) so the EVERY takes its γ to the next statement (or proc-success epilogue for a final/single `every`). m2 200 (HARD, graph untouched) · m3 44→45 · m4 50→51 · prolog 5/5. HEAD (.github) = HANDOFF-2026-06-13-OPUS48-ICON-FULL-PASS-TO-EVERY-CHAIN.md.
 
-**Key intel:** `icn_ring_to_tree` returns NULL if chain has IR_BINOP or IR_LIT_I → falls to `descr_flat_chain_build(bbg->entry)`. `--dump-bb` does NOT show `operand_aux`. DESCR_t = {DTYPE_t(4)+slen(4) in low 8 bytes; int64/ptr in high 8 bytes} — passed as rdi:rsi pair.
+**Key intel:** `icn_ring_to_tree` returns NULL if chain has IR_BINOP or IR_LIT_I → falls to `descr_flat_chain_build(bbg->entry)`. `--dump-bb` does NOT show `operand_aux`. DESCR_t = {DTYPE_t(4)+slen(4) in low 8 bytes; int64/ptr in high 8 bytes} — passed as rdi:rsi pair. Asm chain node indices (`xchainN_nK_*`) are CHAIN POSITIONS, not graph node ids. m2 walking the same graph correctly = graph is right, bug is in the flat emitter — a safe class to fix (cannot move the m2 HARD gate).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet

@@ -1,6 +1,6 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m2 200/283 · m3 44 · m4 41. Next: fix rc=134 x86_bomb hits (missing BINARY arms); then silent-empty TO+relop+EVERY class. See GOAL-ICON-FULL-PASS.md.
+## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m2 200/283 · m3 45 · m4 51. ✅ bb_to descending TO + EVERY-exhaustion chaining fixed (fb2daea). Next: rc=139 IR_CASE native template (rung33_case_*); rc=124 timeout cluster (TO/EVERY retry); residual rc=134 bombs. See GOAL-ICON-FULL-PASS.md.
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon.** Driver deposits neighbor slots as `g_emit.op_*` scalars; boxes read only `_`. `x86_asm.h` is additive only; `git pull --rebase` before push.
 
@@ -403,7 +403,7 @@ Floor = System V AMD64; durables are callee-saved (canonical semantics = the X86
 
 ## Watermark
 
-**HEAD (SCRIP) = `d35075a`** — string relop m4 fix; m4 0219247. m2 200 · m3 44 · m4 47. HEAD (.github) = HANDOFF-2026-06-13-SONNET46-ICON-FULL-PASS-STRRELOP.md.
+**HEAD (SCRIP) = `fb2daea`** — Icon native loops: `bb_to` descending TO (negative `by`, jg/jl by sign) + flat-emit EVERY exhaustion → success continuation (not `main_ω`). m2 200 (HARD) · m3 45 · m4 51 · prolog 5/5. HEAD (.github) = HANDOFF-2026-06-13-OPUS48-ICON-FULL-PASS-TO-EVERY-CHAIN.md.
 
 **Open bug (FULL-18-resid, 2026-06-12):** Generator in user-proc call arg disappears from BB graph. `lower_call` sets `cx->beta = ω` (not call) for non-gen-allowed procs, so ALT/TO arg to `tag("a"|"b"|"c")` is never wired into the flat graph. Fix: in `lower_icon.c` `lower_call` (line 82/94), detect when arg subtree contains a generator and set `cx->beta = call` so it stays in chain. Affected: rung16 `s[1 to 3]` (+1), rung32 `tag("a"|"b"|"c")` (+1), many rung36/37.
 
