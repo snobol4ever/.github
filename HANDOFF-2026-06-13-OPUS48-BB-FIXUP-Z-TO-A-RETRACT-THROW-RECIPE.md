@@ -38,3 +38,10 @@
 
 ## NOT MINE — pre-existing rebus regression
 `test_smoke_compile_hello_all_langs` rebus row FAIL-compile (5/6 vs baseline 6/0), entered b063b07→fc307d9 window per prior watermarks; untouched, needs owner (NOT this goal).
+
+## ⛔ DISCOVERED FUNCTIONAL BUG (4th-session addendum — rule 5: noted, NOT chased)
+Probe `:- initialization(main).\nmain :- catch(throw(my_err(1)), E, (write(caught(E)), nl)).\n`:
+- m2 (--interp): `caught(my_err(1))` ✓
+- m3 (--run, native BINARY): **EMPTY `[]`** ✗  (m2≠m3)
+- both fire the throw arm (`.s` greps rt_throw ×2).
+=> mode-3 COMPOUND throw/catch is broken at HEAD (independent of this sweep). This is WHY the BINARY arm (`rt_throw(node-ptr)`) and TEXT arm (`rt_throw_term(built-term)`) diverge — the BINARY legacy path doesn't deliver a catchable compound ball. CONSEQUENCE for the recipe: the both-medium unification (Step 0) is a FUNCTIONAL FIX, not a neutral cleanup, and its root cause may be in `rt_throw`/the catch machinery, NOT the template (rt_throw impl still not located: not in rt.h, not in `src/runtime/*/*.c` by the obvious grep). Owner = Prolog BB. Until fixed, bb_retract_throw's medium-unification cannot be verified m2=m3=m4. The byte-identical raw-bytes→x86() conversion of the THROW arm (`x86("sub","rsp",16L) + x86("movabs","rdi",<node-ptr-imm>) + x86("call","rt_throw",ptr) + x86("add","rsp",16L) + jmp/def/jmp`) is READY and behavior-neutral (keeps the bug exactly as-is), but the RETRACT arm's `jmp rel32=0`×2 placeholder needs the `g_sm_native_unsupported` consumer traced before conversion — so raw_bytes=0 is not cleanly reachable in isolation. Net: bb_retract_throw is BLOCKED on (a) the mode-3 compound-throw functional fix and (b) the bb_resolve resolver redesign (CV9/CV10); cursor HELD.
