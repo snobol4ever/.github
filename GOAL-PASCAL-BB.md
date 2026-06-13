@@ -10,44 +10,42 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
-## ▶ CURRENT STATE (Session 47, 2026-06-13)
+## ▶ CURRENT STATE (Session 48, 2026-06-13)
 
 **GATE STATUS:**
 - M2 (--interp): **PASS=103 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
-- M3 (--run):    **PASS=91 FAIL=12 XFAIL=1** (+13 this session, +57 from baseline 34)
-- M4 (--compile): not yet measured
+- M3 (--run):    **PASS=97 FAIL=6 XFAIL=1** (+6 this session, +63 from baseline 34)
+- M4 (--compile): same templates as M3; same failures expected
 
-**Landed this session:**
-- **Regression fix** (52→76, +24): committed HEAD `fc307d9` did not reproduce its claimed 76/27 on a clean build. Two shape-based, language-blind fixes restore it:
-  - `bb_call.cpp` `marshal_call_arg`: moved `op_arg_slot[]` pre-computed-slot copy *before* `if(!lf) return` — subgraph-arg calls with NULL direct operands now marshal correctly (terminal 1D array reads/writes).
-  - `bb_call_fn.cpp` `bb_call_fn_str`: resolve args from `_.op_counter` subgraphs when present (mirrors `bb_call_byname_str`) — 2D flat-index BINOP now reaches `marshal_call_arg`'s inline-arith path. Falls back to `ir_call_arg` when no subgraphs; byte-identical for Icon/SNOBOL.
-- **Real-literal assignment** (76→78, +2: constreal, stdlib1):
-  - `emit_bb.c` walk_bb_flat IR_ASSIGN dispatch: add `IR_LIT_F` to op_a guard.
-  - `emit_core.c` walk_bb_node IR_ASSIGN op_a guard: add `IR_LIT_F`.
-  - `bb_gvar_assign.cpp`: new `IR_LIT_F` arm stores real as `{DT_R, double-bits}` DESCR via `rt_gvar_assign_descr(name, 7, bits)`; adds `_bits_f` local (union memcpy).
-  - `pascal.y`: `mk_neg()` folds `TT_FLIT` negation to a negative real literal (`-pi` → flit); regenerated `pascal.tab.c/h` via Pascal-only bison.
+**Landed this session (SCRIP commit cba8a04): nested-frame static-link hops (91→97, +6)**
+- `lower_pascal.c` `lower_var`/`lower_assign_var`: compute SL hop count (scope-chain depth from `cx->sc` to the declaring `found_sc`) and store in `IR_LIT(nd).dval` for IR_VAR_FRAME / IR_VAR_FRAME_REF / IR_ASSIGN_FRAME / IR_ASSIGN_FRAME_REF. Templates already consume `op_dval` via `FOR(0,(int)_.op_dval,…)` to walk the SL chain; dval was previously always 0 so every nested proc read/wrote its OWN frame.
+- `lower_pascal.c` `lower_pascal_stage2`: call `lower_pascal_enum(prog, NULL, 0)` at entry. In the M3/M4 (`sm_preamble`) path `lower_pascal()` is never called, so `g_pas_proc_list` + parent pointers were empty when `build_scope_chain` ran → nested procs saw no outer scope and emitted gvar NV_GET. (Procs are flattened to top level by the parser; `assign_parents` level-arithmetic is the source of truth for parent links — do NOT delete it.)
+- `emit_bb.c` `bb_prepare`: for IR_ASSIGN_FRAME/REF with VAR_FRAME (lk=5) or VAR_FRAME_REF (lk=6) RHS, propagate the RHS node's hop count + slot into `op_a_dval`/`op_a_ival_sg` so the assign templates address the correct outer frame.
+- **Fixed**: nestvar, nestvar2, nestvar3, nestfunc, nestrec, nestshadow.
 
 ---
 
-## ▶ REMAINING 25 FAILURES
+## ▶ REMAINING 6 FAILURES
 
-**marshal_single_call not gvar-aware** — rec1, rec2, rec3, with1-3, swap, varframe, varmix, varparam, vartrans, alias, ptr2, forward1, matmul, nestfunc, arr2dtype, arr2dtype3 (~16 tests):
-When `marshal_arith_rax` (inside inline-arith path) recurses into `marshal_single_call` for CALL operands (e.g. arr_get(p,0)), that function calls `bb_slot_alloc16(subs[j]->entry)` to set up argbase, creating a fresh ZERO slot for VAR("p"). Then the inner `marshal_call_arg(VAR("p"), ...)` hits `bb_slot_get(VAR("p"))=argbase>=0` → loads 0 → wrong. Root: `marshal_single_call` is not gvar-aware; it bypasses `gvar_drive_call_arg_slots` for its nested CALL's args.
-Fix: in `marshal_call_arg`, when `g_gvar_flat_chain && lf->op == IR_VAR && IR_LIT(lf).sval`, skip `bb_slot_get(lf)` if the slot was just allocated — OR add a gvar path inside `marshal_single_call` that calls `gvar_drive_call_arg_slots` for the sub-CALL's args. Requires NV_GET emission for nested gvar VAR args across both MEDIUM_TEXT and MEDIUM_BINARY with string-sealing.
+**varframe** — `outer(p:integer)` passes its value-param `p` to `bump(var n)`. `lower_var` returns `IR_VAR "p"` (gvar) for `p` because outer is decl_level=1 with `sc->outer==NULL`, `sc->byref==0`, `sc->has_children==0` → `use_frame` false. `marshal_varparam_addr`'s `IR_VAR` arm then calls `rt_gvar_cell("p")` (the global) instead of LEA-ing outer's frame slot. M3 prints junk (`7507740`) for the first writeln. Fix: outer must use a frame so `p` lives in a slot whose address can be passed by-ref. Narrow signal needed (prior session: `|| cx->sc.nparams > 0` regressed arrparam). Likely: detect that this proc passes one of its own value-params as a var-param argument and force `use_frame` for that proc's params only.
 
-**Nested frame wrong values** (~5) — nestvar*, nestshadow, nestrec: outer frame var read from inner scope wrong; var param mutation through nested frame incorrect.
+**alphacmp** — `array[1..8] of char` equality (`rw[i] = id`). Char-array relop in gvar mode wrong (all 0). Needs a string/array compare path (memcmp-style via `rt_call_arr`) instead of scalar relop.
 
-**alphacmp** — char-array relop gvar mode wrong.
+**boolidx** — `a[0] := i > j` stores a relop result into an array slot via `arr_set_pure`. The boolean-relop marshal arm in `marshal_call_arg` isn't firing when the value flows through `arr_set_pure` (all four print 1). Needs the relop→INTVAL(0/1) arm reached for the value arg of `arr_set_pure`.
 
-**boolidx** — boolean array indexing wrong values.
+**arr2dtype, arr2dtype3** — 2D array indexing with flat-index expression where the index operands are themselves `arr_get` calls. The flat-index BINOP (`i*ncols + j`) inside an `arr_get` subgraph isn't handled by the inline-arith path when operands are CALLs. (These were reported fixed in S47 but regressed/were never green on clean build — both print 0.)
+
+**forward1** — forward-declared procedure (`forward` keyword). M3 prints nothing. The `DEFINE`/forward registration isn't wired so `second` is callable before its body; or the forward decl produces a duplicate/empty proc_table entry. Investigate proc_table dedup and whether `forward` body is lowered.
 
 ---
 
 ## ▶ PRIORITY ORDER
 
-1. **marshal_single_call gvar fix** — fixes rec1, rec2, rec3, with1-3, swap, varparam, varmix, varframe, vartrans, alias, ptr2, forward1, matmul, nestfunc, arr2dtype, arr2dtype3 (~16 tests). See root cause above.
-2. **Nested frame** — nestvar*, nestshadow, nestrec: static link chain wrong for outer-scope var access from inner procedures.
-3. **alphacmp, boolidx** — individual cases.
+1. **varframe** — own value-param passed by-ref; narrow `use_frame` fix.
+2. **arr2dtype/arr2dtype3** — inline-arith path for CALL operands in flat 2D index.
+3. **boolidx** — relop-value arm for `arr_set_pure` value arg.
+4. **alphacmp** — char-array equality via runtime compare.
+5. **forward1** — forward-decl registration.
 
 ---
 
