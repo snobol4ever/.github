@@ -456,29 +456,29 @@ byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog s
 
 ## Watermark
 
-**STATE (2026-06-12 SESSION 2) — GROUP C GATE DIAGNOSIS COMPLETE. bb_call_fn MEDIUM arm fixed. m3/m4 still 6/0/25 — gate not yet open. SCRIP HEAD `6cae820`.**
+**STATE (2026-06-12 SESSION 3) — m3/m4 NOW IN PARITY AT 6 PASS / 10 FAIL / 15 EXCISED. Gate BUG1+BUG2 fixed. x86_uid dup-label fixed (Icon m4 also improved 5→10). SCRIP HEAD `4ab26df`.**
 
-- **Modes:** m2 **31/31** (HARD ✓). m3 **6 PASS / 0 FAIL / 25 EXCISED**, m4 **6 PASS / 0 FAIL / 25 EXCISED**. Peers: Icon m2 12/12, SNOBOL4 7/7, NFA oracle **5/5 PASS**, `g_vstack`=0.
+- **Modes:** m2 **31/31** (HARD ✓). m3 **6 PASS / 10 FAIL / 15 EXCISED**, m4 **6 PASS / 10 FAIL / 15 EXCISED**. Peers: Icon m2 12/12 m3 10/12 m4 10/12, SNOBOL4 m2 7/7 m3 6/1 m4 6/1 (define pre-existing), NFA oracle **5/5 PASS**, `g_vstack`=0.
 
-- **bb_call_fn.cpp MEDIUM arm FIXED ✅ (`6cae820`):** MEDIUM_BINARY arm converted to pure `x86()` — forbidden `x86_load_ro`/`x86_frame_lea`/`x86_call_ro`/`x86_frame_store64` replaced with `x86("mov","rdi","[rip + __]",ptr,"??")` / `x86("lea","rsi",FRQ(argbase))` / `x86("call","rt_call_arr",fptr)` / `x86("mov",FRQ(off),"rax")`. Arg-copy loop unified (no if/MEDIUM split). ONE MEDIUM rule satisfied.
+- **FIXED THIS SESSION (commit `4ab26df`):**
+  1. **BUG 1 scrip.c `icn_graph_native_emittable_mode`:** blanket `dval==2.0` rejection → targeted `__rk_bool`/`__rk_try` only. Group C tests now attempt emit.
+  2. **BUG 2 scrip.c `icn_rhs_kind_ok`:** added `dval==2.0` acceptance for non-sub-graph calls.
+  3. **`bb_call_rk_bool.cpp` ONE-MEDIUM rewrite:** removed forbidden `MEDIUM_BINARY`/`MEDIUM_TEXT` split and `x86_frame_load64` calls; unified body using `FRQ(off)` + `x86("call",...,fptr)`.
+  4. **`lbl_β` double-colon bug** in `bb_call_proc_staged.cpp` (line 58) and `bb_call_write_slot.cpp` (lines 44, 75): `x86("label", std::string(_.lbl_β) + ":")` → `x86("label", std::string(_.lbl_β))`. This was producing `labelname::` in TEXT asm, causing `as` to reject the output → ALL m4 tests failed.
+  5. **`x86_uid` uninitialized bug** in `emit_core.c walk_bb_node`: added `g_emit.x86_uid = g_flat_node_id++;` before switch. `x86_begin()` was deleted in BB-FIXUP sweep but `x86_uid` was never assigned → all boxes shared uid=0 → `.Lx0_0` duplicate symbol in multi-proc asm → `as` rejection. Fixed for Raku arith/string_concat m4 AND Icon m4 (+5 passes).
 
-- **ROOT CAUSE DIAGNOSED — TWO GATE BUGS in `src/driver/scrip.c` block all Group C:**
-
-  **BUG 1 — `icn_graph_native_emittable_mode` (~line 258):** `if (nd->op == IR_CALL && IR_LIT(nd).dval == 2.0) return 0;` rejects ALL `dval==2.0` IR_CALL nodes. BUT every Raku builtin from `lower_rv` TT_FNC → `lower_rcall(...,visible=0)` → `lc_call_argblks(nd, 2.0, ...)` gets `dval=2.0`. So `sort`, `arr_get`, `elems`, `push`, `hash_set`, `meth_call`, `obj_new`, etc. are ALL gated out. **Fix:** only reject when `sval` is `"__rk_bool"` or `"__rk_try"` (the sub-graph-executing calls needing IR_interp intercept). Change to: `if (nd->op == IR_CALL && IR_LIT(nd).dval == 2.0 && IR_LIT(nd).sval && (!strcmp(IR_LIT(nd).sval,"__rk_bool")||!strcmp(IR_LIT(nd).sval,"__rk_try"))) return 0;`
-
-  **BUG 2 — `icn_rhs_kind_ok` (~line 207):** ASSIGN rhs check finds γ-parent (e.g. `__rk_arr` with `dval=2.0`) but `icn_rhs_kind_ok` only accepts `IR_CALL dval==0.0`. **Fix:** also accept `dval==2.0` for non-special svals. Add: `if (r->op == IR_CALL && IR_LIT(r).dval == 2.0 && !(IR_LIT(r).sval && (!strcmp(IR_LIT(r).sval,"__rk_bool")||!strcmp(IR_LIT(r).sval,"__rk_try")))) return 1;`
+- **10 FAILs (Group C — runtime crashes, m3 and m4 in parity):**
+  `list_construct_read`, `array_sort`, `array_elems`, `array_reverse`, `str_reverse`, `array_push_pop`, `hash_set_get`, `hash_sigil_delete`, `say_jct`, `say_list`.
+  All crash (abort) during `--run` / `--compile` emit. The gate now lets them through (dval==2.0 fix) but `bb_call_fn.cpp` is hitting an abort or bad emit path. Root cause: investigate with `--dump-bb` + stderr on one failing test.
 
 - **NEXT (ordered):**
-  1. Fix BUG 1 in `icn_graph_native_emittable_mode` (scrip.c ~line 258) — blanket dval==2.0 → targeted __rk_bool/__rk_try rejection.
-  2. Fix BUG 2 in `icn_rhs_kind_ok` (scrip.c ~line 207) — accept dval==2.0 for non-special calls.
-  3. Expect Group C (11 tests) EXCISED→PASS after both fixes. m3/m4 target: 17/0/14.
-  4. Group B `__rk_bool(dval=2.0)` inline-cmp (9 tests).
-  5. Group A GATHER/MAP/GREP (5 tests).
-  6. RK-GRAM-3.
+  1. Diagnose Group C crash: `./scrip --run corpus/.../raku/list_construct_read.raku 2>&1` — find abort message/location.
+  2. Fix bb_call_fn emit path for slot-based rt_call_arr (the template was rewritten last session but may have a wrong FRQ offset or missing x86() form).
+  3. Expect Group C (10 tests) FAIL→PASS. m3/m4 target: 16/0/15.
+  4. Group B `__rk_bool(dval=2.0)` inline-cmp (9 tests — still EXCISED).
+  5. Group A GATHER/MAP/GREP (5 tests — still EXCISED).
 
-- **NOTE:** 57 template files still contain `MEDIUM_TEXT`/`MEDIUM_BINARY` branches (115 violation lines). Open gate first, verify Group C passes, then sweep remaining violators. `bb_call_fn.cpp` is clean.
-
-- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm (git log).
+- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm, gate BUG1+BUG2, ONE-MEDIUM rk_bool, lbl_β double-colon, x86_uid dup-label (git log).
 ---
 ---
 
