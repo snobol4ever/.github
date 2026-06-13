@@ -53,6 +53,8 @@ N sessions generate; ONE session cleans. THIS is the ONE fixup session — **ATT
 - **C5** ONE commit (the whole file), `git pull --rebase`, push, cursor-advance tick IN the same commit.
 
 ## THE CURSOR
-`.github/BB-REVAMP-TRACKER.md` header: `# CURSOR: bb_var_global.cpp`
+`.github/BB-REVAMP-TRACKER.md` header: `# CURSOR: bb_scan_bal.cpp` (live cursor lives in the tracker; this quote is the handoff watermark)
 
 **2026-06-12 cursor reset by Lon: Z→A ring restarted at Z (bb_var_global.cpp) to sweep with new BOTH-MEDIUM MANDATORY FACT RULE. All files re-eligible; MEDIUM_TEXT-only arms now absolute violations alongside raw bytes.**
+
+**WATERMARK 2026-06-13 (Sonnet 4.6, lap 1, 2nd session):** ring swept bb_var_global → bb_scan_find (17 stops across 2 sessions). This session: scan family 7 stops — tab 2→1* · stmt 17→9 [S] ONE-IR-ONE-LOGIC lit/graph split · pos already-clean · move 1→0 · many 3→0 · match 3→0 · find 2→2* (over_col cleared). *=counter-scope-trio sanctioned. See HANDOFF-2026-06-13-SONNET46-BB-FIXUP-Z-TO-A-LAP1-SCAN-FAMILY.md. SCRIP @ b063b07.
