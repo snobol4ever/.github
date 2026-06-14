@@ -10,17 +10,24 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
-## ▶ CURRENT STATE (Session 52, 2026-06-13)
+## ▶ CURRENT STATE (Session 53, 2026-06-13)
 
-**M4 ABI fix now on origin/main as `e089608` (verified + converged this session); M4 72→106.**
-Goal was "get modes 3 and 4 working." M3 was already 106/0; M4 was **silently broken at 72/106** — the prior watermark's "M4 106/0" was measured without the assemble+link+run recipe, so the regression went unseen. This session independently diagnosed it, wrote the identical one-line fix, and on `git pull --rebase` the commit was dropped as "patch contents already upstream" — an independent session had landed the same fix in **`e089608`** ("SNOBOL4 DEFINE M3/M4: fix double-free of shared proc-view node array + M4 rt_proc_register ABI"). Root cause: the SNOBOL4-shared M4 proc-registration emitter (`src/driver/scrip.c`, the `sno_proc_startup` block, introduced by `2a146b2`) emitted a **4-register** call (`rdi`=name, `xor rsi,rsi`, `rdx`=pnames, `ecx`=nparams) for `rt_proc_register`, whose C signature takes **3 args** (`name, pnames, nparams` → `rdi/rsi/rdx`). So the runtime read `nparams` from `rdx`, which held the *address* of the pnames array (~`0x5555… → nparams=1431658509`). `rt_call_named_proc_sl` then sized its slot loop by `max(frame_nslots, nparams)` → multi-GB write → SIGSEGV (gdb: `rt.c:619`). Every VAR-param / nested-proc probe (swap, varparam, varframe, varmix, vartrans, nestvar*, recparam*, intparam, arrparam, …) crashed; flat probes survived. **Fix (one site):** emit the SysV 3-arg form — `lea rdi,[name]` / `lea rsi,[pnames]` / `mov edx,nparams`. M3 was unaffected (it registers via the C path at `scrip.c:2308`, already correct). Confirmed the fix also makes a SNOBOL4 `DEFINE('GREET(N)')` proc run correctly under M4; SNOBOL4 M4 broad gate steady at 152 PASS (remaining fails pre-existing pattern-match, unrelated). All three Pascal gates re-verified 106/0 against the rebased tree (`e089608`, which also carries the `ir_delete_all` IR-NEVER-TOUCHED tripwire commits) — they coexist cleanly with Pascal; M4 stable across repeated runs.
+**Landed this session (SCRIP emitter + corpus): all three Pascal gates 106→112 (+6). Native-mode `if`-without-else-in-proc fix.**
+Found a fundamental Pascal-semantics bug in M3/M4 while adding gate coverage for the ref-less `pb33`/`pb34`/`pb35` probes (they were invisible — gates skip ref-less files — and on first native run produced EMPTY output). A Pascal procedure must ALWAYS succeed, but an `if`-without-`else` whose condition is false fell through to the procedure's FAIL port (`proc_ω`, the "PROC FAIL EXIT" that writes FAILDESCR). That spurious failure propagated up the call chain and aborted the caller's entire statement sequence — so subsequent statements (incl. `writeln`) silently never ran. Minimal repro: `procedure p; begin if sy = 99 then sy := 1 end;` with `sy:=0; p; writeln(sy); writeln(42)` → M2 prints `0/42`, M3/M4 printed nothing. gdb traced `stmt fail=1 → body fail=1 → block fail=1`; the **IR was correct** (the relop's ω → `IR_SUCCEED` → proc success). **Root cause:** the `snoch` gvar flat-chain driver in `emit_bb.c` (`codegen_gvar_flat_chain_body`, ~line 3517). Its γ-resolution already routed a γ-target of `IR_SUCCEED` to the success label, but the **ω-resolution lacked the symmetric rule** — an ω-port resolving (via `gvar_chain_resolve_stmt`) to a terminal `IR_SUCCEED` defaulted to `lbl_ω` (fail). **Fix (one line):** `else if (w && w->op == IR_SUCCEED) node_ω = &lbl_γ;`. Language-blind (fires for any language whose ω-node is an `IR_SUCCEED`): verified Pascal 112/0 ×3, SNOBOL4 broad **M3 162→168 / M4 152→158 (+6/+6, same bug)**, Icon m4 rung 3/2 unchanged, Prolog m4 rung 0/4 unchanged (0/4 is a PRE-EXISTING baseline, confirmed by stashing the fix and rebuilding — not a regression). New gated probes `pb31 pb32 pb33 pb34 pb35 pb38` (refs added; all M2=M3=M4). Two other drivers (`xargsub` ~1846, `xchain` ~3061) have the same missing-symmetry shape but were NOT the Pascal locus and were left untouched (candidate follow-up if another language needs it).
 
-**GATE STATUS (against origin/main `e089608`):**
-- M2 (--interp): **PASS=106 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
-- M3 (--run):    **PASS=106 FAIL=0 XFAIL=1** ✓ PARITY WITH M2
-- M4 (--compile): **PASS=106 FAIL=0 SKIP=0 XFAIL=1** ✓ FULL PARITY — stable across repeated runs (proper gate: `scrip --compile` → `gcc -c` → link `out/libscrip_rt.so` (`-no-pie -lscrip_rt -lgc -lm -Wl,-rpath`) → run → cmp .ref)
+**GATE STATUS:**
+- M2 (--interp): **PASS=112 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
+- M3 (--run):    **PASS=112 FAIL=0 XFAIL=1** ✓ PARITY WITH M2
+- M4 (--compile): **PASS=112 FAIL=0 SKIP=0 XFAIL=1** ✓ FULL PARITY — stable across repeated runs (proper gate: `scrip --compile` → `gcc -c` → link `out/libscrip_rt.so` (`-no-pie -lscrip_rt -lgc -lm -Wl,-rpath`) → run → cmp .ref)
 
-**M4 GATE NOTE:** `--compile` emits GAS `.intel_syntax noprefix` text — assemble+link+run before comparing to .ref. Do NOT compare the raw asm text to .ref (false-fail), and do NOT trust a watermark "M4 N/0" that wasn't produced by an assemble+link+run gate — that is how the 72/106 regression hid. The `/tmp/run_gate_m4.sh` recreated each session uses the link-and-run recipe above.
+**M4 GATE NOTE:** `--compile` emits GAS `.intel_syntax noprefix` text — assemble+link+run before comparing to .ref. Do NOT compare the raw asm text to .ref (false-fail), and do NOT trust a watermark "M4 N/0" that wasn't produced by an assemble+link+run gate. The `/tmp/run_gate_m4.sh` recreated each session uses the link-and-run recipe above.
+
+**Still open (next-session candidates, in priority order):**
+1. **Enum `writeln`** — `pb36`/`pb37` print integer ordinals where the oracle prints the enum constant name (e.g. `blck`, `letter`). Needs a per-enum-type name table + parser tracking of enum-typed `writeln` args. Refs intentionally NOT created (would lock in wrong output).
+2. **`array[char] of T`** — `chartp: array[char] of chtp` (pcom uses it heavily); char index type on arrays.
+3. **CALL-vs-CALL ordering** relop (`rw[i] < rw[j]`) still on the integer fast path (carried from S51).
+
+**Prior session (52): M4 72→106 — `rt_proc_register` ABI fix (4-reg→3-arg SysV), landed upstream as `e089608` (this session's duplicate deduplicated by rebase).**
 
 
 
