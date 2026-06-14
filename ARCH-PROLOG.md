@@ -38,6 +38,36 @@ Key invariants, with the reference each was checked against (see
   gprolog's WAM CP frame (`wam_inst.h:96-104`). Mapped: `parent≡BB`, `trail_mark≡TRB`, `env≡EB`,
   `resume≡ALTB`, `saved_args≡AB`, `stamp` (monotonic, ≡ a stand-in for HB). DEFERRED: HB/CPB/BCIB/CSB.
 - **Cut**: `g_pl_cut_barrier` + `pl_cp_truncate` ≡ gprolog `Assign_B(BB(B))`. Aligned.
+
+## Byrd-Box model — the design (2026-06-13)
+
+The substrate facts above (`Term*`, trail, parent-linked CP ledger) are correct and survive; what
+changes is the CONTROL model layered on them. Per `DESIGN-PROLOG-BB-ALL.md` + GOAL-PROLOG-BB.md →
+**PL-BB** ladder, every construct compiles to four CODE CHUNKS α/β/γ/ω (Proebsting
+start/resume/succeed/fail), wired by `goto`/`call` between a node's own ports and its children's
+own ports. Three refinements over the WAM-mapping framing above:
+
+- **Callee resumability is a CLOSURE VALUE, not a port.** Entering a predicate is a `call` that
+  yields a closure `(value, Resume)`; re-driving it is `closure.Resume()` dispatched from the
+  caller's OWN β chunk. In SCRIP the closure IS the callee's `rt_enter` frame (its cell block +
+  trail/CP marks). There is no caller-side "callee-entry/resume port": the ports formerly emitted
+  as `δ`/`ε` (`X86P_DELTA/EPSILON`, ports 4/5) are ABOLISHED — one was a call-opcode target, the
+  other a value-resume, neither a code chunk. (JCON `ir_a_Call` + `vClosure.java`.)
+- **Determinacy is first-class (`bounded`).** A box that cannot offer a second solution emits NO β
+  chunk, allocates no choice point, retains no closure. β exists only for genuine generators
+  (multi-clause predicates, `retract`, member-style recursion, `between`, findall's inner goal).
+  Assigned at lower time (JCON F1: every `ir_a_*` guards resume with `/bounded`). Retires the
+  runtime "nearest resumable predecessor" heuristic.
+- **The boxes ARE the engine.** No central choice-point-STACK interpreter loop, no bytecode
+  fetch-decode-execute, no C control engine / `rt_meta_solve` meta-rail. Backtracking is the ω/β
+  wiring + the one shared trail + per-callee closures. `pl_choice` remains the CP-LEDGER RECORD
+  (the irreducible "which suspended alternative is live") but no longer an engine that DRIVES
+  control — the emitted four-port code does.
+
+Excision (SWI/GNU out of HEAD): see GOAL-PROLOG-BB.md → PL-BB excision table — WAM CP-stack engine
+loop, bytecode dispatch, C control engine/meta-rail, WAM register ABI, "always push a CP." The
+ladder PL-BB-0..6 sequences LOWER (per IR kind) + EMITTER (BB template per IR), test-first, gated
+against GATE-1 5/5/5 + the ratchet floor.
 - **catch/throw**: catcher tried on a scratch trail before commit (correct ISO discipline). Aligned.
 
 ## Known parity gaps vs gprolog/SWI (tracked as rungs in GOAL-PROLOG-BB.md → PL-ENGINE-PARITY)
