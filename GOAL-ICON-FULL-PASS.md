@@ -1,6 +1,6 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 · m3/m4 parity
 
-**Status:** m2 202/283 · m3 84 · m4 84 (interp-suite tally) · XFAIL 36 (out of scope). HEAD=a06554a. ✅ m3 brought to PARITY with m4 (76→82) by fixing the `x86_jcc_op` silent-`0x85` default (jz was encoded as jnz — inverted — in BINARY only; TEXT was correct). IR-IMMUTABLE rule = no IR access DURING EXECUTION of the emitted mode-3 image / mode-4 binary; the one EMISSION-time read of the IR is required & correct (the e50b089 entry-bomb misread was reverted). See HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md.
+**Status:** m2 202/283 · m3 87 · m4 87 (interp-suite tally) · XFAIL 36 (out of scope). HEAD=1b71e43. ✅ m3 brought to PARITY with m4 (76→82) by fixing the `x86_jcc_op` silent-`0x85` default (jz was encoded as jnz — inverted — in BINARY only; TEXT was correct). IR-IMMUTABLE rule = no IR access DURING EXECUTION of the emitted mode-3 image / mode-4 binary; the one EMISSION-time read of the IR is required & correct (the e50b089 entry-bomb misread was reverted). See HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 never decreases; m3/m4 trend up.
 **Note:** the interp-suite reports m2=197 (`test_icon_rung_suite.sh --mode interp`); the prior "200" header was a different/combined count. Use the suite tally + an explicit before/after diff to judge regressions.
 
@@ -92,13 +92,34 @@ before/after suite diff) · m3 82→84 · m4 82→84 · icon smoke 12/12/12 · p
 · FACT gate 0. 6 files (+8 / new bb_swap.cpp). Both operands read BEFORE either store (classic swap); the wasted
 operand-VAR reads from the producer chain are harmless (reads don't mutate). 5 files changed, +8, +1 new file.
 
-**NEXT (highest-leverage native, prioritized):** (1) **REAL ARITHMETIC native path** (rung17 mul, rung18 relops×2,
-rung26_pow_pow_expr — 4 progs). `descr_binop_opnd_slot` (emit_bb.c:1451) returns -1 for `IR_LIT_F`; the const-fold
-path (emit_bb.c:2759 `LIT_F op LIT_F`) and write-binop slot path both miss real operands. Slot LIT_F operands +
-add a real-arith template arm (SSE `addsd/mulsd/divsd` on boxed doubles, or DESCR-in/out `rt_*`). Failures:
-`write(2.0*3.5)` → `[GZ-3] FATAL bb_call_write_binop: slot miss`; `1.5>2.5` → `bb_binop_relop: shape mismatch`.
-(2) **`bb_every` four-port rebuild** — rc=124 generator-resume cluster (~12: rung01/02/03/14/19). (3) **list
-builtins** (rung22, incl. 2 rc=139 segfaults on get/pull).
+**Watermark — REAL-ARITH CONSTANT-FOLD + guarded LIT_F local-assign LANDED (SCRIP 1b71e43).** Two
+lowering-only edits (mirror the proven pow fold; `src/lower/lower_icon.c`): (1) `icn_const_step` now folds
+constant binary arith ADD/SUB/MUL/DIV/MOD (int-or-real, recursive — so `2^3+1` evaluates whole); (2) the
+`lower` fold trigger fires for ANY all-constant arith binop whose result is REAL → builds `IR_LIT_F` (pure-int
+constants stay on the existing native int path → no behavior change; relops/concat return 0 from icn_const_step
+→ never folded). Plus a small emitter/gate enablement: `emit_core.c:392` now gives `IR_LIT_F` operands a slot
+(`op_a_slot`; purely additive — every op_a_slot consumer bombs on <0, so LIT_F previously always bombed/excised),
+and `icn_local_assign_rhs_ok_g` (scrip.c) admits a `LIT_F` local-assign RHS ONLY when the graph has no binop
+(`!icn_graph_has_binop`). That guard is the key: rung26 `x:=2^3+1` folds to `x:=LIT_F(9.0)` with NO binop left
+→ admit & PASS; the real-VAR cases (`x:=1.5;write(x+y)`, `x:=3.0;if x=3.0`, `x:=3.0;write(x^2)`) all keep a
+runtime real binop/relop/pow with no native arm → re-decline → clean `[SMX]` EXCISE (NOT FAIL). RESULT: rung17
+`2.0*3.5`→7.0 and rung26 `2^3+1`→9.0 PASS all three modes; **m3/m4 84→87**, m2 **202** unchanged (HARD), FAIL
+59 (down from 63 pristine), ZERO EXCISE→FAIL regressions (verified by explicit FAIL-list diff vs pristine
+baseline). icon smoke 12/12/12 · prolog 5/5 · no-stack 0 · one-reg-frame 0 · FACT gate 0. DEBUG LESSON (logged):
+the FIRST attempt admitted LIT_F local-assign UNCONDITIONALLY in `icn_rhs_kind_ok`, which flipped the whole-graph
+gate decline→admit for the 3 real-VAR programs and exposed their non-existent real-binop boxes → 3 EXCISE→FAIL
+regressions; the `!has_binop` guard is what contains it. Always diff the FAIL list vs pristine, not just the
+PASS count — a net +PASS can hide EXCISE→FAIL.
+
+**NEXT — the genuine real-arithmetic RUNTIME path (still open, now isolated):** the 3 EXCISED real-VAR programs
+above + rung17_real_arith_real_add + rung18 real relops (real_gt/mixed/real_eq) + rung19_pow_toby real-var pow
+need a NATIVE real binop/relop arm. `rt_arith` (arithmetic.c) is INTEGER-ONLY (returns `long`); there is no
+DESCR-in/out real-arith helper. Cleanest per FACT rules (RT=value, BOX=ports): add an `rt_*` that takes two
+DESCR_t + an op code, does Icon numeric coercion (int/real/mixed, matching the m2 interp — NOT POWER_fn), returns
+a DESCR_t; then a real-arith template arm marshals the two operand slots → regs → `call` → stores the result
+DESCR to its own slot. This is a SHARED-dispatch change (SNOBOL4/Prolog also use the binop dispatch) → gate the
+full suite + an explicit FAIL-diff. Other high-leverage native targets unchanged: **`bb_every` four-port rebuild**
+(rc=124 cluster ~12: rung01/02/03/14/19) and **list builtins** (rung22, incl. 2 rc=139 segfaults get/pull).
 
 
 **HEAD (SCRIP) = `ae008c6`** — IR-IMMUTABLE "ACTUAL task" (execution-time IR-access audit) LANDED.
