@@ -137,3 +137,47 @@ bash scripts/test_gate_raku_nfa_oracle.sh   # 5/5
 | Commit | Repo | What |
 |---|---|---|
 | `f3b1837` | SCRIP | Raku grammar `.parse` end-to-end (all 3 modes) — RK-GRAM grammar-parse foundation |
+
+---
+
+## ADDENDUM — RK-GRAM-3 Match-object recon (investigated, REVERTED, not shipped)
+
+Same session, after the foundation landed, I probed whether named-capture access (`$<name>`) could ride
+the *current* inline-expansion path (no PUMP) by recording named NFA groups. **Two prototype edits, then
+REVERTED** — the tree is back at clean `f3b1837`. Findings (so the next session doesn't re-discover them):
+
+**What works / is cheap:**
+- The NFA already supports named captures: `Raku_match.group_name[][64]` + `raku_nfa_group_by_name`; pattern
+  syntax is `<name>(...)` (name in angles, then the group in parens). `raku_nfa_exec` copies group names INTO
+  the result struct (raku_re.c ~414), so a `Raku_match` is self-contained after exec (free the NFA freely).
+- `gram_expand` could wrap a capturing subrule `<name>` as `<name>(expansion)` and a non-capturing `<.name>`
+  as plain `(expansion)` — trivial (~3 lines; the `<...>` in the *input* body is a subrule call, in the
+  *output* pattern it's the NFA capture syntax — no collision).
+- `$<name>` (lexes to `VAR_NAMED_CAPTURE` → `re_named_capture`) reads the GLOBAL match state `g_raku_match` +
+  `g_raku_subject`. Having `grammar_parse_core` publish its match into those globals on success made
+  **single** named captures work in mode 2 (`G { token word {\w+}; rule TOP {<word>} }; $<word>` → "hello").
+- The prototype was proven NON-regressing (35/35 in all three modes) — recording names is inert on the
+  matched-string result.
+
+**Why it was NOT shippable (two pre-existing blockers, both bigger than the remaining budget, neither
+grammar-specific):**
+1. **`$<name>` is mode-2-only.** `re_named_capture` lowers to an `IR_CALL` dval=2.0 (arg-block descr-chain)
+   that the native emitter does not cover — mode 4 **ABORTS** ("BOMB — IR_CALL dval=2 descr-chain arm aborted
+   per LANGUAGE-BLIND rule") and mode 3 yields empty. Confirmed pre-existing: the same `$<name>` via plain
+   `~~` also fails in m4. Before any `$<name>`-based grammar test can be added, this access path must be made
+   **emittable OR cleanly EXCISED** in m3/m4 (today it aborts, which itself violates "PASS or EXCISED, never
+   abort"). This is really a `~~`/capture-subsystem rung, not a grammar one.
+2. **NFA capture greediness.** `<num>(\d+)\s*<word>(\w+)` on `"12abc"` returns num=`"1"`, word=`"2abc"`
+   (the NFA picks *a* valid split, not PCRE's greedy `"12"`/`"abc"`). Confirmed independent of grammars (plain
+   `~~` positional `$0/$1` misbehaves on the same input). Multi-capture grammars therefore give wrong spans in
+   m2 today. Touching NFA greediness is risky and owned by the NFA-oracle gate — out of scope here.
+
+**Conclusion / guidance for RK-GRAM-3.** The Match-object deliverable is genuinely coupled to (1) the
+`$<name>` access path's m3/m4 story and (2) NFA capture semantics. The two cheap pieces (named-group
+emission in `gram_expand`; publishing `g_raku_match`/`g_raku_subject` from `grammar_parse_core`) are correct
+and ready to re-apply the moment a cross-mode-testable consumer exists — but shipping them alone would be
+untested speculative code (against the discipline), so they were reverted. Recommended sequencing for the
+next session: FIRST make `$<name>` emittable-or-cleanly-excised in m3/m4 (unblocks a testable consumer), THEN
+re-apply the two cheap grammar edits with a single-capture smoke test, and treat NFA multi-capture greediness
+as its own tracked item. The PUMP-based cross-subrule backtracking (RK-GRAM-3 in its fullest sense) sits on
+top of all of that.
