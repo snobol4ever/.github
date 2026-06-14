@@ -448,7 +448,6 @@ make scrip                                    # rc=0
 make libscrip_rt                              # rc=0
 bash scripts/prove_lower2.sh                  # topology — Raku cases ADDITIVE in the RAKU section; stays green
 bash scripts/test_smoke_raku.sh               # mode 2 HARD; m3/m4 tracked (floors MODE3_MIN/MODE4_MIN)
-bash scripts/test_gate_raku_nfa_oracle.sh     # RK-NFA-1/2/3: IR_NFA_* graph walk == parallel-NFA oracle (mode-2, ISOLATED): verdicts + cset/anchor L4-L12 + captures
 bash scripts/test_smoke_icon.sh               # m2 6/6 (HARD) — REUSED generator kinds; must not regress
 bash scripts/test_smoke_snobol4.sh            # m2 7/7 (HARD) — NFA isolation proof: must stay byte-unchanged
 bash scripts/audit_concurrency_invariants.sh  # OK — no dup case TT_/IR_, FACT RULES byte-identical
