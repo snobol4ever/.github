@@ -10,24 +10,17 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
-## ▶ CURRENT STATE (Session 51, 2026-06-13)
+## ▶ CURRENT STATE (Session 52, 2026-06-13)
 
-**⚠ FLAGGED FOR LON — reverted a destructive upstream commit this session.**
-A rebase pulled in `e50b089` ("mode3/4: enforce IR-NEVER-TOUCHED — bomb native emit at entry"), which inserted `(*(volatile char *)NULL)` at the `--compile` and `--run` entry blocks in `scrip.c`, making BOTH native modes SIGSEGV unconditionally (its own message: "RED BY DESIGN", and it references a follow-up to "purge" the entire IR-walking emitter). This broke every mode-3/4 gate (M3 1/105, M4 0/SKIP) and directly defeats this goal ("get modes 3 and 4 working"). Its premise misreads the architecture — PLAN.md states the EMITTER walks the IR graph to emit native code; RULES.md forbids **AST** walking in 2/3/4 and **SM/BB walking at RUNTIME**, not the emitter READING IR at emit time. Reverted exactly the two injected lines; an independent session converged on the same fix and the effective revert on `origin/main` is **`8b9a58e`** ("Revert mode3/4 entry bombs — emission read of IR is required & allowed"); my duplicate revert was deduplicated by rebase. Final `origin/main` = `76639bd`; all three gates rebuilt + re-verified at 106/0. **If IR-immutable enforcement is genuinely intended, do it via a compile-time gate/audit/refactor — never a runtime crash or by deleting the native emitter.**
+**M4 ABI fix now on origin/main as `e089608` (verified + converged this session); M4 72→106.**
+Goal was "get modes 3 and 4 working." M3 was already 106/0; M4 was **silently broken at 72/106** — the prior watermark's "M4 106/0" was measured without the assemble+link+run recipe, so the regression went unseen. This session independently diagnosed it, wrote the identical one-line fix, and on `git pull --rebase` the commit was dropped as "patch contents already upstream" — an independent session had landed the same fix in **`e089608`** ("SNOBOL4 DEFINE M3/M4: fix double-free of shared proc-view node array + M4 rt_proc_register ABI"). Root cause: the SNOBOL4-shared M4 proc-registration emitter (`src/driver/scrip.c`, the `sno_proc_startup` block, introduced by `2a146b2`) emitted a **4-register** call (`rdi`=name, `xor rsi,rsi`, `rdx`=pnames, `ecx`=nparams) for `rt_proc_register`, whose C signature takes **3 args** (`name, pnames, nparams` → `rdi/rsi/rdx`). So the runtime read `nparams` from `rdx`, which held the *address* of the pnames array (~`0x5555… → nparams=1431658509`). `rt_call_named_proc_sl` then sized its slot loop by `max(frame_nslots, nparams)` → multi-GB write → SIGSEGV (gdb: `rt.c:619`). Every VAR-param / nested-proc probe (swap, varparam, varframe, varmix, vartrans, nestvar*, recparam*, intparam, arrparam, …) crashed; flat probes survived. **Fix (one site):** emit the SysV 3-arg form — `lea rdi,[name]` / `lea rsi,[pnames]` / `mov edx,nparams`. M3 was unaffected (it registers via the C path at `scrip.c:2308`, already correct). Confirmed the fix also makes a SNOBOL4 `DEFINE('GREET(N)')` proc run correctly under M4; SNOBOL4 M4 broad gate steady at 152 PASS (remaining fails pre-existing pattern-match, unrelated). All three Pascal gates re-verified 106/0 against the rebased tree (`e089608`, which also carries the `ir_delete_all` IR-NEVER-TOUCHED tripwire commits) — they coexist cleanly with Pascal; M4 stable across repeated runs.
 
-
-**GATE STATUS:**
+**GATE STATUS (against origin/main `e089608`):**
 - M2 (--interp): **PASS=106 FAIL=0 XFAIL=1** ✓ STABLE — must not regress
 - M3 (--run):    **PASS=106 FAIL=0 XFAIL=1** ✓ PARITY WITH M2
-- M4 (--compile): **PASS=106 FAIL=0 SKIP=0 XFAIL=1** ✓ FULL PARITY (proper gate: `scrip --compile` → `gcc -c` → link `out/libscrip_rt.so` (`-lscrip_rt -lgc -lm -Wl,-rpath`) → run → cmp .ref; recipe = `corpus`'s `compile_mode4()` in `scripts/test_mode4_broad_corpus_snobol4.sh`)
+- M4 (--compile): **PASS=106 FAIL=0 SKIP=0 XFAIL=1** ✓ FULL PARITY — stable across repeated runs (proper gate: `scrip --compile` → `gcc -c` → link `out/libscrip_rt.so` (`-no-pie -lscrip_rt -lgc -lm -Wl,-rpath`) → run → cmp .ref)
 
-**M4 GATE NOTE:** `--compile` emits GAS `.intel_syntax noprefix` text — assemble+link+run before comparing to .ref. Do NOT compare the raw asm text to .ref (false-fail). The `/tmp/run_gate_m4.sh` recreated each session uses the link-and-run recipe above.
-
-**Landed this session (SCRIP fe009d9, 151caa1, 2c7bd6d; corpus 6abd1d34, c0bd9902, 4552cb45): 103→106 (+3 probes) — FULL char-array comparison surface in M3/M4 (all six relops × VAR/LIT_S/CALL).**
-Session 50 closed only EQ/NE with ≥1 IR_CALL operand (alphacmp: `rw[i] = id`). This session generalized to the remaining char-array comparison shapes `pcom.pas` needs, all via the same type-polymorphic `rt_relop_descr2`→`binop_apply` descriptor arm (M2's SOH-normalized memcmp; DT_I falls through to integer cmp). The work is WIDENING DISPATCH GATES, not adding comparison logic.
-- **`id = 'writeln '`** (char-array VAR vs **string LITERAL**), EQ/NE — was bombing `bb_binop_relop: shape mismatch`. Pascal runs on `g_gvar_flat_chain`; `bb_binop_relop`'s arms are all `g_descr_flat_chain`-gated → bomb. The LIT_S operand had no slot, so the gvar-relop inner guard fell through to `flat_drive_binop_tree`→`bb_binop_relop`. **Fix:** `emit_bb.c` admits IR_LIT_S in the gvar-relop outer guard; descriptor arm in `bb_binop_gvar_relop.cpp` gains a LIT_S sub-arm that builds a DT_S descriptor inline (lo=`DT_S`/slen0, hi=`lea [rip+sealed]`; slen0 → `binop_apply` uses strlen). LIT_S content sealed via `bb_intern_into` (rodata), distinct from `strtab_label` var-name sealing. Probe `chararrlit` (=111).
-- **`a = b`** (char-array VAR vs VAR), EQ/NE — was SILENT WRONG (both whole-array DT_S collapse to 0 via `rt_gvar_get_int` on the integer fast path → `=` always true). No runtime type info at the gvar-relop dispatch, but the PARSER knows char-array identity. **Fix:** `pascal.y` `pas_rel`/`pas_is_strtyped` flag a relop node `v.ival=1` when both operands are string-typed (whole char-array VAR or string literal); `lower_pascal.c` `lower_binop` propagates the flag → `IR_LIT(op).dval=1.0` (dval was unused on IR_BINOP); `emit_bb.c` trigger reads dval==1.0 to force the descriptor arm. Probe `chararrvv` (=21).
-- **`a < b` / `a >= 'lit'`** (char-array ORDERING < <= > >=) — VAR-vs-VAR took the int fast path; VAR-vs-LIT_S bombed the EQ/NE-only descriptor arm. **Fix:** `pas_rel` covers all six relops (new `pas_rel_or_set` keeps set subset/superset for LE/GE, else flags string LE/GE); `emit_bb.c` trigger restructured — `op_relop_descr` fires when op∈[LT..NE] AND both operands CALL/named-VAR/LIT_S AND (string-hint dval==1.0 OR a LIT_S operand OR session-50's EQ/NE+CALL); `bb_binop_gvar_relop.cpp` D predicate widened EQ/NE→[LT..NE] (arm body is relop-agnostic — passes op to `rt_relop_descr2`). Integer VAR-vs-VAR / VAR-vs-LIT_I stay inline. Probe `chararrord` (=707).
+**M4 GATE NOTE:** `--compile` emits GAS `.intel_syntax noprefix` text — assemble+link+run before comparing to .ref. Do NOT compare the raw asm text to .ref (false-fail), and do NOT trust a watermark "M4 N/0" that wasn't produced by an assemble+link+run gate — that is how the 72/106 regression hid. The `/tmp/run_gate_m4.sh` recreated each session uses the link-and-run recipe above.
 
 
 
@@ -73,6 +66,33 @@ echo "PASS=$PASS FAIL=$FAIL XFAIL=$XFAIL"
 [[ -n "$FAILS" ]] && echo "FAILING:$FAILS"
 EOF
 chmod +x /tmp/run_gate_m3.sh
+
+cat > /tmp/run_gate_m4.sh << 'EOF'
+#!/bin/bash
+cd /home/claude/corpus/programs/pascal
+RT_DIR=/home/claude/SCRIP/out
+SCRIP=/home/claude/SCRIP/scrip
+PASS=0; FAIL=0; SKIP=0; XFAIL=0; FAILS=""
+for f in *.pas; do
+    case "$f" in pcom.pas|pint.pas|ppp.pas) continue ;; esac
+    base="${f%.pas}"
+    [[ "$f" == "recursion.pas" ]] && { XFAIL=$((XFAIL+1)); continue; }
+    [[ ! -f "${base}.ref" ]] && continue
+    inp=/dev/null; [[ -f "${base}.in" ]] && inp="${base}.in"
+    expected=$(cat "${base}.ref")
+    tmp=$(mktemp -d)
+    if ! "$SCRIP" --compile "$f" > "$tmp/p.s" 2>/dev/null; then SKIP=$((SKIP+1)); rm -rf "$tmp"; continue; fi
+    if ! gcc -c "$tmp/p.s" -o "$tmp/p.o" 2>/dev/null; then SKIP=$((SKIP+1)); rm -rf "$tmp"; continue; fi
+    if ! gcc -no-pie "$tmp/p.o" -L"$RT_DIR" -lscrip_rt -lgc -lm -Wl,-rpath,"$RT_DIR" -o "$tmp/p.bin" 2>/dev/null; then SKIP=$((SKIP+1)); rm -rf "$tmp"; continue; fi
+    got=$(timeout 6s "$tmp/p.bin" < "$inp" 2>/dev/null)
+    if [[ "$expected" == "$got" ]]; then PASS=$((PASS+1))
+    else FAIL=$((FAIL+1)); FAILS="$FAILS $f"; fi
+    rm -rf "$tmp"
+done
+echo "PASS=$PASS FAIL=$FAIL SKIP=$SKIP XFAIL=$XFAIL"
+[[ -n "$FAILS" ]] && echo "FAILING:$FAILS"
+EOF
+chmod +x /tmp/run_gate_m4.sh
 ```
 
 ---
@@ -87,8 +107,9 @@ make libscrip_rt
 for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
     ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
 done
-bash /tmp/run_gate.sh    # must be 103/0
-bash /tmp/run_gate_m3.sh # must be 103/0 (parity reached session 50)
+bash /tmp/run_gate.sh    # must be 106/0
+bash /tmp/run_gate_m3.sh # must be 106/0
+bash /tmp/run_gate_m4.sh # must be 106/0 (assemble+link+run; -no-pie). NEVER trust an M4 watermark not produced by this recipe.
 ```
 
 ---
