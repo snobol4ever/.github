@@ -5,9 +5,13 @@ Landed-rung history DELETED (git holds it). FACT-RULE bodies kept VERBATIM (md5-
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
-## ▶ STATE (2026-06-13 — m3≡m4 PARITY @ 91; BB-NATIVE findall/3 + aggregate_all(count) landed)
+## ▶ STATE (2026-06-13 — m3≡m4 PARITY @ 91; PLAN VERIFIED + PL-BB ladder reframed as a CORRECTION ladder)
 
-**ORIENTATION SESSION (Claude, no code change; SCRIP at `4a8ba14`, gates verified GATE-1 5/5/5, GATE-3 m2 114 / m3 91 / m4 91).** Combed GNU Prolog (`EnginePl/wam_archi.def`+`wam_inst.h`, `BipsPl/`) + SWI (`pl-*.c/h`) for the full GDE feature surface, re-read Proebsting (`bench/...pdf`) and JCON (`tran/irgen.icn` + `jcon/vClosure.java`), and reconciled against SCRIP. Three load-bearing conclusions for whoever picks this up:
+**ORIENTATION + PLAN-VERIFICATION SESSION (Claude, NO code change; SCRIP at `1b71e43` — tree advanced past the goal-file's `4e54908` watermark via an Icon-only commit; Prolog code + counts UNCHANGED, gates re-verified GATE-1 5/5/5, GATE-3 m2 114 / m3 91 / m4 91).** Re-ran the four design-establishing prompts against the ACTUAL primary sources (Proebsting PDF in full; JCON `tran/ir.icn`+`irgen.icn`+`jcon/vClosure.java`; gprolog-master; swipl-devel-master) and checked every load-bearing DESIGN-PROLOG-BB-ALL.md claim against the source line it cites. **The plan is sound and source-faithful** (record in this session's HANDOFF): four ports = Proebsting start/resume/fail/succeed verbatim; the complete IR vocabulary matches JCON `ir.icn`; `ir_a_Call`(360)=closure-as-value re-driven from caller's own resume, `ir_a_If`(577)=Proebsting `ifstmt` gate, `/bounded` gates every resume chunk; `vClosure`=retval+Resume; the ARBNO box (`bench/test_sno_1.c`) IS the value stack frozen into a pure-functional indexed frame; GNU has CLP(FD) but no tabling/attvar/engine/delimited-control, SWI has all four (tries+worklist+SCC / wakeup queue / shift-reset / engines) — 100% coverage = SWI frontier on our trail+closure spine + GNU in-core CLP(FD); the 10-item "structures NOT used" list survives.
+
+**KEY CORRECTION TO THE PLAN (this session): the starting state is NOT greenfield — many Prolog boxes are ALREADY BUILT WRONG, and the old PL-BB-0..6 ladder read like a fresh build.** Reframed PL-BB as a CORRECTION/MIGRATION ladder with an explicit `## ⛔ STARTING STATE IS NOT GREENFIELD` inventory: **WRONG-1** δ/ε are still live 5th/6th ports (4 emitters + spine: `emit_bb.c` 13, `emit_globals.h` 4, `x86_asm.h` 9); **WRONG-2** determinacy not first-class — every cell box unconditionally emits its `def β` (`grep bounded` == 0); **WRONG-3** `bb_cell_choice/cut/ite` already exist (the "new" rungs are REWORK); **WRONG-4** a parallel legacy set (`bb_goal/bb_choice/bb_catch/bb_findall/bb_retract_throw`) still LINKS so it's possible to "fix" the dead file by mistake. Added the MIGRATION RULE (one box one version, edit in place, green rungs are a hard floor, stub-then-delete legacy with linker-as-guide) and a new **PL-BB-DEMOLITION** track. Each rung now tags which WRONG it fixes.
+
+Three load-bearing conclusions retained from prior orientation for whoever picks this up:
 
 **(1) The model is confirmed identical across Proebsting / JCON / SCRIP.** Four chunks α/β/γ/ω; α/β synthesized (up), γ/ω inherited (down); threading is `goto`/indirect-`goto` ONLY (Proebsting §6: "nothing more powerful than conditional, direct, and indirect jumps"). JCON `irgen.icn` is a complete working realization: `ir_a_If` IS Proebsting's `ifstmt` gate (our `IR_CELL_ITE` op_sa 1/2/3); `ir_a_Call`+`ir_ResumeValue`+`vClosure{retval,Resume()}` IS the closure (our `bb_cell_call` `call δ`/`call ε`); `ir_conjunction` IS Proebsting `plus`. The IR vocabulary is just `Goto`/`IndirectGoto`/`Move`/`MoveLabel`/`Call`/`ResumeValue`/`Succeed`/`Fail` (+`Create`/`CoRet`/`CoFail` for co-expressions = full generators). SCRIP has transliterated ~70% of this for Prolog.
 
@@ -230,53 +234,94 @@ GUT (as new path re-admits each rung): resolution.c control engine · meta rail 
 
 - [x] **M34-5 — PARITY SEAL (this session, Opus 4.8): m3 ≡ m4 @ 83.** Achieved by eradicating m3's runtime IR-walking shortcuts (which "passed" only via shared address space). After eradication m3 and m4 pass the same count (83); the rich/heap-env path is gone. Going forward, both modes share one GZ codegen, so a rung passes/fails identically in m3 and m4 by construction — keep it that way.
 
-## 🔵 PL-BB — BYRD BOXES FOR ALL OF PROLOG (Proebsting-pure ladder, 2026-06-13)
+## 🔵 PL-BB — BYRD BOXES FOR ALL OF PROLOG (Proebsting-pure; design + method preamble, 2026-06-13)
 
 **Design:** companion `DESIGN-PROLOG-BB-ALL.md`. Model: four ports α/β/γ/ω as CODE CHUNKS; callee resumability is a CLOSURE VALUE (the callee frame), re-driven from the caller's OWN β — NEVER a 5th/6th port (`δ`/`ε` are ABOLISHED: one was a call-opcode target, the other a `closure.Resume()` value-op, neither a port); `bounded` (deterministic) ⇒ NO β chunk, no CP, no retained closure; the BOXES ARE THE ENGINE (no WAM CP-stack engine loop, no bytecode dispatch, no C control engine / meta-rail). Canon: Proebsting PDF (`SCRIP/bench/...pdf`) + JCON `tran/irgen.icn` (`ir_a_*`, `/bounded`, `vClosure`).
 
 **Method (every rung): TEST FIRST, small→wide, then LOWER + EMITTER.** Smallest test (smoke → one narrow rung → widen the suite), THEN the LOWER work (the IR kind in `lower_prolog.c`) + the EMITTER work (the BB template). Gate after each: **GATE-1 5/5/5 HARD (never drop)**, ratchet floor never regresses, m3≡m4 by construction (shared GZ codegen). "We have been here before" — PLR-J-*/PL-LOWER-REVAMP stalled on β-by-heuristic + no determinacy flag; THIS ladder fixes the root (PL-BB-0) FIRST.
 
-- [ ] **PL-BB-0 — DETERMINACY FOUNDATION (`bounded` flag).** The linchpin (JCON F1).
-  - TEST: `test_smoke_prolog.sh` 5/5/5 holds; `test_prolog_rung_suite.sh` floor 91 holds (pure refactor, zero behaviour change).
-  - LOWER (`lower_prolog.c`): add a `bounded` bit per goal node (det builtin / single-clause head / unify / `\+`/once/findall/`is`/cmp/type-test/IO ⇒ bounded). Bounded goals STOP synthesizing the β chunk.
-  - EMITTER: every `bb_cell_*`/`bb_det_*` consults `bounded` → omits its `def β; …` tail; a conjunction backtrack edge into a bounded child collapses to that child's ω (straight-line).
-  - GATE: smoke 5/5/5; floor 91; m3≡m4. (No new rung passes — the enabling refactor.)
+## ⛔ STARTING STATE IS NOT GREENFIELD — MANY PROLOG BOXES ARE ALREADY BUILT WRONG (inventory, 2026-06-13)
 
-- [ ] **PL-BB-1 — CLOSURE-RESUME CALL β + DELETE PORTS 4/5.** Retire δ/ε for real.
+**This ladder is a CORRECTION, not a build-up.** The boxes below already exist and pass rungs by
+mechanisms the DESIGN forbids; each rung must MIGRATE the wrong box, not author a new one beside it.
+Until a box is migrated it stays a LOUD `x86_bomb` is NOT acceptable here — these compile and PASS today,
+so the discipline is: change the box IN PLACE, keep its rungs green, never leave two versions.
+
+**WRONG-1 — δ/ε ARE STILL LIVE 5th/6th PORTS (the headline defect).** DESIGN §0 abolishes them;
+JCON proves a callee is entered by a `call` returning a closure and re-driven by `closure.Resume()` from
+the caller's OWN β. In-tree TODAY (measured this session): four templates still emit `call δ`/`call ε` —
+`bb_cell_call.cpp`, `bb_cell_findall.cpp`, `bb_query_frame.cpp`, `bb_callee_frame.cpp` — and `bb_cell_ite.cpp`
++ `x86_asm.h` carry the `PORT_DELTA/PORT_EPSILON` machinery. Spine references to delete: `emit_bb.c` 13,
+`emit_globals.h` 4, `x86_asm.h` 9. THIS is "done wrong" #1 and is exactly PL-BB-1's job.
+
+**WRONG-2 — DETERMINACY IS NOT FIRST-CLASS; EVERY BOX UNCONDITIONALLY EMITS ITS β TAIL.** DESIGN §0 law 1
+(+ JCON `/bounded` gating every `ir_chunk(p.ir.resume,…)`): a bounded goal emits NO β. In-tree TODAY: `grep
+bounded` over `bb_cell_*` + `lower_prolog.c` == 0; every `bb_cell_*` has a hard `def β` (unify has 6). So a
+deterministic call STILL retains a closure + CP it can never use. THIS is "done wrong" #2 and is PL-BB-0's job.
+PL-BB-0 must land BEFORE PL-BB-1 (the closure-β rewrite needs the flag to know which calls keep a β at all).
+
+**WRONG-3 — EXISTING CELL BOXES ARE NOT NEW WORK (`bb_cell_choice/cut/ite` already exist).** The ladder's
+"CLAUSE CHOICE", "CUT", "IF-THEN-ELSE" rungs are REWORK of live files, not greenfield. They currently thread
+through the δ/ε convention and/or lean on the rich path that the GZ-ONLY pivot deleted. Each must be re-pointed
+onto the closure-β + bounded model, with its already-green rungs held green across the change.
+
+**WRONG-4 — A PARALLEL LEGACY BOX SET STILL COMPILES (`bb_goal/bb_choice/bb_catch/bb_findall/bb_retract_throw`).**
+These are the pre-GZ control-coupled templates (8× `resolve_bb_env_*`, IR/heap-env convention). They are already
+UNREACHABLE (dispatch is GZ-only) but still LINK, so it is currently possible to "fix" a box by editing the wrong
+(dead) file. Demolition is tracked in the GZ-ONLY-PIVOT handoff NEXT list; each PL-BB rung that subsumes a legacy
+box must STUB-then-DELETE it (linker-as-guide) so only the migrated `bb_cell_*` survives — see PL-BB-DEMOLITION.
+
+**THE MIGRATION RULE (applies to every rung):** (a) one box, one version — edit in place, never fork; (b) the
+box's currently-green rungs are a HARD floor across its migration (a correction that drops a passing rung is a
+regression, not progress); (c) when a `bb_cell_*` subsumes a legacy `bb_*`, delete the legacy file in the SAME
+rung; (d) GATE-1 5/5/5 HARD throughout.
+
+## 🔵 PL-BB — BYRD-BOX CORRECTION LADDER (migrate the wrong boxes; Proebsting-pure)
+
+- [ ] **PL-BB-0 — DETERMINACY FOUNDATION (`bounded` flag). [fixes WRONG-2]** The linchpin (JCON `/bounded`).
+  - TEST: `test_smoke_prolog.sh` 5/5/5 holds; `test_prolog_rung_suite.sh` floor 91 holds (pure refactor, zero behaviour change — m3≡m4).
+  - LOWER (`lower_prolog.c`): add a `bounded` bit per goal node (det builtin / single-clause head / unify / `\+`/once/findall/`is`/cmp/type-test/IO ⇒ bounded). Bounded goals STOP synthesizing the β chunk.
+  - EMITTER: every `bb_cell_*`/`bb_det_*` consults `bounded` → omits its `def β; …` tail (today UNCONDITIONAL); a conjunction backtrack edge into a bounded child collapses to that child's ω (straight-line).
+  - GATE: smoke 5/5/5; floor 91; m3≡m4. (No new rung passes — the enabling refactor that also un-does WRONG-2.)
+
+- [ ] **PL-BB-1 — CLOSURE-RESUME CALL β + DELETE PORTS δ/ε. [fixes WRONG-1]** Retire the 5th/6th ports for real.
   - TEST: `recursion` smoke (holds) → rung06 lists (the C-FRAME headliner).
   - LOWER: mark each call site with callee determinacy; a NONdet call retains its closure (the `rt_enter` frame); a bounded call is a plain subroutine call, no β.
-  - EMITTER (`bb_cell_call`, `bb_cell_findall`, `bb_cell_ite`, `bb_query_frame`, `bb_callee_frame`): the call β does a CLOSURE-RESUME to the callee's OWN β (carried by the frame) via a generic label-target operand. DELETE `PORT_DELTA`/`PORT_EPSILON` (x86_asm.h), `X86P_DELTA/EPSILON` classifier cases, `lbl_δ/ε(+_p)` (emit_globals.h); ~12 `emit_bb.c` driver writes store the target label object in the generic slot. (Mechanism: branches already resolve via `bb_emit_patch_rel32(bb_label_t*)`; the `F`/`xa_bb_emit_pair_jmp` record is the existing port-free "branch to a label object by index" precedent.)
+  - EMITTER (MIGRATE the 4 δ/ε emitters in place — `bb_cell_call`, `bb_cell_findall`, `bb_cell_ite`, `bb_query_frame`, `bb_callee_frame`): the call β does a CLOSURE-RESUME to the callee's OWN β (carried by the frame) via a generic label-target operand. DELETE `PORT_DELTA`/`PORT_EPSILON` (x86_asm.h), `X86P_DELTA/EPSILON` classifier cases, `lbl_δ/ε(+_p)` (emit_globals.h); the ~13 `emit_bb.c` driver writes store the target label object in the generic slot. (Mechanism: branches already resolve via `bb_emit_patch_rel32(bb_label_t*)`; the `F`/`xa_bb_emit_pair_jmp` record is the existing port-free "branch to a label object by index" precedent.)
   - GATE: smoke 5/5/5; floor 91; four-port grep clean (`grep -rnP '\xCE\xB4|\xCE\xB5' src/emitter/BB_templates/` == 0; `PORT_DELTA|PORT_EPSILON` == 0).
 
-- [ ] **PL-BB-2 — CLAUSE CHOICE + CONJUNCTION BACKTRACKING.** The core generators.
-  - TEST: backtracking class in `test_prolog_rung_suite.sh` — start with a 2-clause predicate, widen to member-style recursion.
+- [ ] **PL-BB-2 — CLAUSE CHOICE + CONJUNCTION BACKTRACKING. [REWORK of live `bb_cell_choice`; fixes WRONG-3]** The core generators.
+  - TEST: backtracking class in `test_prolog_rung_suite.sh` — start with a 2-clause predicate, widen to member-style recursion. Already-green clause/backtrack rungs are the floor across the rewrite.
   - LOWER: `IR_CHOICE` (§1.4 wiring + frame gate `cur` for clause resume), `IR_GCONJ` (§1.3, thread `C.ω→B.β`).
-  - EMITTER: `bb_cell_choice` (clause iteration + CP-ledger entry + `unwind(mark)` on `.ω`), conjunction threading.
+  - EMITTER: re-point `bb_cell_choice` onto closure-β + bounded (clause iteration + CP-ledger entry + `unwind(mark)` on `.ω`); conjunction threading. NOT a new file.
   - GATE: floor up.
 
-- [ ] **PL-BB-3 — CUT + IF-THEN-ELSE.** Commit / gate.
-  - TEST: a cut rung + a `(C->T;E)` rung.
+- [ ] **PL-BB-3 — CUT + IF-THEN-ELSE. [REWORK of live `bb_cell_cut`/`bb_cell_ite`; fixes WRONG-3]** Commit / gate.
+  - TEST: a cut rung + a `(C->T;E)` rung; existing passing cut/ite rungs held green.
   - LOWER: `IR_CUT` (capture clause-entry barrier into a frame cell), `IR_CELL_ITE` (gate cell + soft-cut `commit(Cond CPs)` at `Cond.γ`).
-  - EMITTER: `bb_cell_cut` (`commit(barrier)` = pop CP ledger to barrier), `bb_cell_ite` (indirect `goto [gate]` on β).
+  - EMITTER: migrate `bb_cell_cut` (`commit(barrier)` = pop CP ledger to barrier) + `bb_cell_ite` (indirect `goto [gate]` on β; this box also sheds δ/ε in PL-BB-1) onto the corrected model.
   - GATE: floor up.
 
-- [ ] **PL-BB-4 — DET-BUILTIN FAMILY (one recipe).** Bulk of Prolog; mostly landed.
+- [ ] **PL-BB-4 — DET-BUILTIN FAMILY (one recipe). [mostly landed; bounded-audit per PL-BB-0]** Bulk of Prolog.
   - TEST: rung36 (arith edge), rung37 (term ops), rung39 (atom iso), rung38 (iso errors) — fill gaps.
-  - LOWER: `IR_DET_*` kinds (is / cmp / type-test / functor / arg / =.. / copy_term / atom-ops / IO / succ / sort).
-  - EMITTER: `bb_det_*` — the ONE bounded recipe (`α: load cells; r=rt_pl_<op>; test; jne γ; jmp ω`; no β).
+  - LOWER: `IR_DET_*` kinds (is / cmp / type-test / functor / arg / =.. / copy_term / atom-ops / IO / succ / sort). Add literal-LHS `is` (rung11 filter): evaluate RHS, unify/compare with the literal.
+  - EMITTER: `bb_det_*` — the ONE bounded recipe (`α: load cells; r=rt_pl_<op>; test; jne γ; jmp ω`; no β). Audit all 18 `bb_det_*` carry NO β once PL-BB-0 lands.
   - GATE: floor up.
 
-- [ ] **PL-BB-5 — META FAMILY (closure-driven).** findall is the template.
+- [ ] **PL-BB-5 — META FAMILY (closure-driven). [`bb_cell_findall` already landed but δ/ε-bound — migrated in PL-BB-1]** findall is the template.
   - TEST: findall rungs (landed) → rung27 aggregate sum/max/min → rung32 negation / once / forall.
-  - LOWER: extend `IR_CELL_FINDALL` (`agg_mode` 2/3/4); `\+`/once/forall as closure drives (§1.9).
-  - EMITTER: `bb_cell_findall` reduce-finishes (`rt_pl_agg_{sum,max,min}_finish`); negation box (drive closure for FIRST solution, flip verdict, unwind). findall conjunction-goal = emit the GCONJ body as a sub-graph callee (depends on PL-BB-2).
+  - LOWER: extend `IR_CELL_FINDALL` (`agg_mode` 2/3/4); `\+`/once/forall as closure drives (§1.9). findall conjunction-goal (rung11 arith) = emit the GCONJ body as a sub-graph callee (depends on PL-BB-2).
+  - EMITTER: `bb_cell_findall` reduce-finishes (`rt_pl_agg_{sum,max,min}_finish`); negation box (drive closure for FIRST solution, flip verdict, unwind). **aggregate sum/max/min is the cleanest single win — same box, +2/3/4 agg_mode + 3 reduce-finishes; rung27 ×2.**
   - GATE: floor up.
 
-- [ ] **PL-BB-6 — DYNAMIC DB + CATCH/THROW + DCG.** The tail.
+- [ ] **PL-BB-6 — DYNAMIC DB + CATCH/THROW + DCG. [NEW boxes + DELETE legacy `bb_retract_throw`/`bb_catch`; fixes WRONG-4]** The tail.
   - TEST: rung14 retract, rung15 abolish, rung28 catch/throw, rung30 DCG, rung31 bridge-catch.
-  - LOWER: `IR_DET_RETRACT`/`IR_DET_ABOLISH` (retract is NONDET — a DB-cursor generator WITH β); `IR_CATCH` (catch-frame push); DCG = pure lowering (rule → arity+2 clause threading the difference list; `phrase` → ordinary call).
-  - EMITTER: retract cursor generator (β re-drives the DB scan); catch-frame box (throw = non-local ω via runtime frame search); DCG needs NO new box.
+  - LOWER: `IR_DET_RETRACT`/`IR_DET_ABOLISH` (retract is NONDET — a DB-cursor generator WITH β; abolish bounded, no β); `IR_CATCH` (catch-frame push, currently REJECTED at `pl_gz_admit` + `pl_gz_rule_body_goal_ok`); DCG = pure lowering (already done in `lower_prolog.c`; the gate must admit `phrase` whose callee graph uses `IR_CHOICE` via `pl_gz_choice_rule_clauses`).
+  - EMITTER: NEW `bb_cell_retract` cursor generator (β re-drives the DB scan); NEW `bb_cell_catch` (throw = non-local ω via runtime frame search); DCG needs NO new box. DELETE legacy `bb_retract_throw.cpp` + `bb_catch.cpp` in this rung (linker-as-guide).
   - GATE: corpus full pass; resolution.c meta-rail + δ/ε fully dead → delete per PL-GZ GUT list.
+
+- [ ] **PL-BB-DEMOLITION — retire the parallel legacy box set. [fixes WRONG-4, runs alongside the rungs]** Each legacy `bb_*` is STUBBED then DELETED as the `bb_cell_*` that subsumes it lands: `bb_goal`/`bb_choice` (subsumed by `bb_cell_call`/`bb_cell_choice`, after PL-BB-1/2), `bb_findall` (subsumed by `bb_cell_findall`, after PL-BB-5), `bb_catch`/`bb_retract_throw` (subsumed by new boxes in PL-BB-6). Method: stub the legacy fn to a loud bomb, rebuild; an "undefined reference" means something still calls it (keep until its rung lands), silence means dead (delete the file + its dispatch + Makefile line). Then `resolution.c` control engine + `resolve_bb_env_*` collapse per the GZ-ONLY-PIVOT NEXT list. COMPLETION: only `bb_cell_*` + `bb_det_*` + frame boxes remain for Prolog; `grep resolve_bb_env_ src/` drops to the unification.c internals only.
+
 
 ## 🔴 PL-GZ-9 — corpus reconquest
 
