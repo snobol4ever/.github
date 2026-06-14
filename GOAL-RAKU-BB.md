@@ -12,15 +12,29 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ CURRENT PRIORITY — READ FIRST (2026-06-12 PIVOT): m3/m4 PARITY WITH m2
+## ▶ CURRENT PRIORITY — READ FIRST (2026-06-13): m3/m4 NOW 31/31 — GROUP A CLOSED
 
-**Pivoted by Lon 2026-06-12: drive m3/m4 to 31/31 matching m2 31/31. Stop case-by-case analysis; close the gap systematically.**
+**Pivoted by Lon 2026-06-12: drive m3/m4 to 31/31 matching m2 31/31. ACHIEVED 2026-06-13.**
 
-**STATUS (after session 10): m3/m4 = 26 PASS / 0 FAIL / 5 EXCISED. `class_method` (GROUP C) is now FULL m3+m4 PASS in the BUILT tree (session 9 landed the emit path; session 10 fixed the last m3 silent-exit — `meth_call` was routing to `rk_ir_call_proc` over freed IR). The only remaining EXCISED is GROUP A (5 tests), hard-blocked on Icon GZ-7.** See the Watermark (bottom) for the authoritative live state.
+**STATUS: m2 31/31, m3 31/31 PASS / 0 FAIL / 0 EXCISED, m4 31/31 PASS / 0 FAIL / 0 EXCISED.** GROUP A
+(gather_take / map_range / grep_range / map_over_gather / grep_over_gather) — DONE. The GATHER template had
+a latent indexed-load bug (`mov rsi,rdx` loaded the array BASE instead of `mov rsi,[rdx+rcx*8]` the element —
+the 4-arg `x86("mov","rsi","rdx","rcx")` silently drops the index; the `XK_MEMIDX8` string form
+`x86("mov","rsi","[rdx + rcx*8]")` is the fix). MAP/GREP got a new `bb_rk_mapgrep.cpp` that materializes the
+PURE source+body sub-graphs through the m2 interpreter at EMIT time (constant-folding of pure generators — NOT
+runtime IR walking; the emitter legitimately touches live IR before `ir_delete_all`), bakes the integer result
+sequence as RO data, and emits the same cursor-walk GATHER uses. Gate (`scrip.c`): `icn_rhs_kind_ok` +
+`icn_assign_safe_kind` admit IR_GATHER/IR_MAP/IR_GREP. Flat-chain wiring (`emit_bb.c`): `walk_bb_flat` FILL arm
+for MAP/GREP, chain-queue + `descr_chain_operand_refs` ω-follow, `ir_is_generator_kind`/`gen_bb_is_gen_arg`
+(so the loop body back-edge routes to β/resume, not α/restart), `descr_chain_arity`=0. SCRIP `63fec78`. Peers
+green: Icon 12/12/12, SNOBOL4 m4 7/7, NFA 5/5. **SCOPE NOTE:** materialization supports pure integer
+sequences (all 5 tests). A future map/grep with side-effecting blocks or non-integer/string output would need
+the real generator-PUMP (emit source+body as native blobs invoked per element) — that is RK-GRAM-3's machinery
+and a separate rung. See HANDOFF-2026-06-13-*-RAKU-BB-MAPGREP-31-31 for full detail.
 
-**GROUP C (class_method) — DONE (session 9).** Bug 2 (FIELD_GET arity in the postfix chain), obj_new N-ary operand marshalling, the FIELD_GET template, the gate (dval==1.0 + FIELD_GET), m4 class-registration at startup, and meth_call's m4 dispatch (via rt_call_proc_descr) all landed. Full detail in the Watermark.
-
-**GROUP A (5 tests) — GATHER/MAP/GREP IR nodes:** `gather_take`, `map_range`, `grep_range`, `map_over_gather`, `grep_over_gather`. Blocked on Icon GZ-7 (IR_ASSIGN ζ-slot store). DO NOT ATTEMPT.
+**NEXT: RK-GRAM-3 (THE SEAM) — subrule `<name>` backtracking via the generator PUMP.** This is now the lead
+Raku rung. Also available: the real (non-materialized) map/grep PUMP if a side-effecting/string-output test is
+ever added.
 
 ---
 
