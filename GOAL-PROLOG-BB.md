@@ -5,7 +5,13 @@ Landed-rung history DELETED (git holds it). FACT-RULE bodies kept VERBATIM (md5-
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
-## ▶ STATE (2026-06-13 — m3≡m4 PARITY @ 91; PLAN VERIFIED + PL-BB ladder reframed as a CORRECTION ladder)
+## ▶ STATE (2026-06-13 — m3≡m4 PARITY @ 91; NO-NEW-GLOBAL FACT RULE + gate landed; TRAIL→R13/R14/R15 RATIFIED)
+
+**THIS SESSION (Claude, SCRIP `9778f16`; .github docs) — governance + register convention, ZERO behaviour change.** Counts UNCHANGED: GATE-1 5/5/5 HARD, GATE-3 m2 114 / m3 91 / m4 91 (re-verified). Two deliverables, both grounded in measured in-tree state (25 distinct `g_*` enumerated over the Prolog-owned source set; R13/R14/R15 confirmed 0-use in every Prolog GZ template).
+- **(1) NEW FACT RULE "NO NEW GLOBAL FOR ANY 'NOT NEEDED' STRUCTURE — THE TRAIL IS THE ONLY SPINE"** (Prolog-only; specializes NO VALUE STACK). No `g_*` may implement anything on DESIGN §10's NOT-NEEDED list; runtime state lives ONLY in frame cells `[ζ=r12+off]` or the trail. **GATE `scripts/test_gate_pl_no_new_global.sh`** (SCRIP `9778f16`) carries the FROZEN allowlist — **8 SANCTIONED** (trail, clause DB `g_pl_pred_*`, nb store `g_rt_pl_nb*`, `g_stage2`, lower-time const tables) + **17 LEGACY-DOOMED** (resolution.c control-engine residue, each IS a §10 structure; closed list, ratchet `DOOMED_FLOOR` to 0 via PL-BB-DEMOLITION). Green at floor 17; proven to FAIL on an injected `g_resolve_choicepoint_stack`. Added to Session-setup runlist.
+- **(2) TRAIL REGISTER RATIFIED (Lon): R13/R14/R15 = trail `stack`/`top`/`capacity`** (base/cursor/end) — the same physical registers + base/cursor/end shape the string languages give the SUBJECT (Σ/δ/Δ), idle in Prolog. Landed as an **identical DUAL-ROLE block** in the X86-64 register-convention table of ALL THREE GOAL files (LOCKSTEP; verified same md5). **RBP RESERVED** (brokered-frame role dead under NO C BYRD-BOX; held for a future use TBD). **DEFERRED (own later rung):** emitter wiring (GZ preamble loads the trail regs; `rt_trail_mark`/`unwind`→register ops with callee-saved discipline) + cross-language BB-jump save/restore of the trio. **FLAGGED for Lon:** the convention block was ALREADY drifted across the three files pre-edit (SNOBOL4 terser / Icon richer / Prolog RETIREMENT line); only the new DUAL-ROLE addition was synced — a full block re-sync is a separate cleanup. See HANDOFF-2026-06-13-CLAUDE-PROLOG-BB-NO-NEW-GLOBAL-TRAIL-REGS.md.
+
+**PRIOR STATE (2026-06-13 — m3≡m4 PARITY @ 91; PLAN VERIFIED + PL-BB ladder reframed as a CORRECTION ladder)**
 
 **ORIENTATION + PLAN-VERIFICATION SESSION (Claude, NO code change; SCRIP at `1b71e43` — tree advanced past the goal-file's `4e54908` watermark via an Icon-only commit; Prolog code + counts UNCHANGED, gates re-verified GATE-1 5/5/5, GATE-3 m2 114 / m3 91 / m4 91).** Re-ran the four design-establishing prompts against the ACTUAL primary sources (Proebsting PDF in full; JCON `tran/ir.icn`+`irgen.icn`+`jcon/vClosure.java`; gprolog-master; swipl-devel-master) and checked every load-bearing DESIGN-PROLOG-BB-ALL.md claim against the source line it cites. **The plan is sound and source-faithful** (record in this session's HANDOFF): four ports = Proebsting start/resume/fail/succeed verbatim; the complete IR vocabulary matches JCON `ir.icn`; `ir_a_Call`(360)=closure-as-value re-driven from caller's own resume, `ir_a_If`(577)=Proebsting `ifstmt` gate, `/bounded` gates every resume chunk; `vClosure`=retval+Resume; the ARBNO box (`bench/test_sno_1.c`) IS the value stack frozen into a pure-functional indexed frame; GNU has CLP(FD) but no tabling/attvar/engine/delimited-control, SWI has all four (tries+worklist+SCC / wakeup queue / shift-reset / engines) — 100% coverage = SWI frontier on our trail+closure spine + GNU in-core CLP(FD); the 10-item "structures NOT used" list survives.
 
@@ -138,6 +144,38 @@ under a different name. FORBIDDEN to (re)introduce: a global/static array whose 
 
 **GUARD:** `scripts/test_gate_no_vstack.sh`. **COMPLETION TEST:** (a) `grep -rn 'g_vstack' src/` == 0; (b) no new global/static push/pop value arena; (c) gate `g_vstack` line reads 0; (d) FACT RULE body byte-identical across all five GOAL-*-BB files.
 
+## ⛔ NO NEW GLOBAL FOR ANY "NOT NEEDED" STRUCTURE — THE TRAIL IS THE ONLY SPINE (FACT RULE — PROLOG-ONLY, 2026-06-13, Lon directive)
+
+**This rule is Prolog-specific and lives ONLY in GOAL-PROLOG-BB.md** (its subject — the trail, unification, the DESIGN §10 list — is Prolog-only; it is NOT byte-identical-synced across the sibling GOAL files. The language-independent prohibition it specializes is the NO VALUE STACK rule above.)
+
+**THE LAW: no global variable may be ADDED or USED to implement ANYTHING on the DESIGN §10 "DATA STRUCTURES NOT USED" list.** The four-port + frame-cell model means run-time Prolog state lives in exactly two places — a box's own **frame cells** `[ζ=r12+off]` and the **TRAIL** — and NOTHING ELSE. Every structure on the §10 NOT-NEEDED list (choice-point stack #1, environment stack #2, argument/value stack #3, generator-frame stack #4, **trail-MARK snapshot stack #5**, bytecode dispatch #6, setjmp/longjmp exception-frame stack #7, meta-rail engine #8, WAM register bank #9, per-engine stack set #10) is FORBIDDEN to exist as a global. The mark is an **int in the box's frame cell** (already true in `bb_cell_choice`'s `mark_slot`), the CP "ledger" is **ω-wiring + a frame cursor cell**, the catcher is a **catch-frame cell** — never a `g_*`.
+
+**WHAT A NEW GLOBAL IS:** any new `g_*` (or file-static array/struct under any name) whose purpose is to push/pop/snapshot/iterate per-activation control or value state. If a rung "needs" one, the rung is wrong: the state belongs in a frame cell or the trail. THIS IS THE GUARANTEE Lon asked for — it is mechanically enforced, see the gate.
+
+**THE TRACKED `g_*` ALLOWLIST (the concrete pattern list).** The gate `scripts/test_gate_pl_no_new_global.sh` carries the FROZEN allowlist and splits every `g_*` in the Prolog-owned source set into two tiers:
+- **SANCTIONED (8 — legal forever):** `g_resolve_trail` (THE TRAIL — see BIG NOTE), `g_pl_pred_table`/`g_pl_pred_n` (clause DB — a heap, §10 "we need *a* clause store, not *that* one"), `g_rt_pl_nb`/`g_rt_pl_nb_n` (`nb_setval`/`nb_getval` store — a global mutable var IS the feature, by definition), `g_stage2` (the stage2 PROGRAM, compile/emit-time, freed before run by `ir_delete_all`), `g_pl_nl_arith`/`g_pl_nl_builtins` (const name tables read at LOWER time only). These are NOT runtime control/value stacks.
+- **LEGACY-DOOMED (17 today — RATCHET TO ZERO):** the resolution.c control-engine residue, each of which IS a §10 structure — `g_resolve_env` (E-stack #2), `g_resolve_bfr`+`g_resolve_cp_stamp` (CP-stack #1), `g_resolve_catch_top`/`g_resolve_catch_stack` (exception-frame stack #7), `g_resolve_mark_top`/`g_resolve_mark_stack` (trail-mark snapshot stack #5), `g_resolve_cut_flag`/`g_resolve_cut_barrier` (cut → frame gate, law 4), `g_resolve_bb_table`/`g_resolve_bb_count`+`g_meta_compat`/`g_meta_builtins` (meta-rail #8), `g_resolve_active`/`g_resolve_exception` (engine state), `g_resolve_nb_store`/`g_resolve_nb_count` (old nb store). All are UNREACHABLE from GZ dispatch but still LINK; PL-BB-DEMOLITION deletes them. **This list is CLOSED — nothing may be added to it; the floor only ever DROPS** (delete a doomed global → lower `DOOMED_FLOOR` by one; end state 0).
+
+**ENFORCEMENT:** `scripts/test_gate_pl_no_new_global.sh` — (1) any `g_*` not in either tier → FAIL (names it: "a new global was introduced"); (2) doomed count > floor → FAIL ("a doomed pattern re-expanded"). Verified: green at floor 17 today, and FAILS loudly when a stray `g_resolve_choicepoint_stack[256]` is injected. **COMPLETION TEST:** (a) gate green (NEW-GLOBAL check passes — zero off-allowlist `g_*`); (b) `DOOMED_FLOOR` strictly decreasing across the migration, terminating at 0 with resolution.c + the meta rail deleted; (c) the only surviving runtime spine is the trail (plus the heap stores + compile-time consts in SANCTIONED).
+
+## 📌📌📌 BIG NOTE — THE TRAIL IS THE ONE MAIN ATTRACTION; IT WANTS A REGISTER (decision pending Lon) 📌📌📌
+
+**Prolog's "main attraction" is the TRAIL, exactly as SNOBOL4/Icon's main attraction is the SUBJECT STRING.** DESIGN §10 names four survivors; only ONE — the trail — is a Prolog-specific runtime spine (the heap, the frame cells, and the C call stack are shared with every language). The trail is the single shared binding-undo log: a callee's bindings are undone by a caller's backtrack, so it MUST be shared across activations (DESIGN §3 law 3). It is **not** a control stack and **not** operand-passing — it is the one thing the four-port model genuinely keeps.
+
+**Its shape is already register-perfect.** `Trail { Term **stack; int top; int capacity; }` (`src/parser/prolog/prolog_runtime.h`). The "mark" is literally `top` — an integer. That is **base / cursor / end** — the IDENTICAL three-part shape the string languages carry in registers for the subject:
+
+| string-lang register | role | Prolog trail analogue |
+|---|---|---|
+| **R13 = Σ** | subject BASE ptr | trail `stack` (base of the `Term*` array) |
+| **R14 = δ** | CURSOR | trail `top` (the mark; "push" = ++, "unwind" = set back) |
+| **R15 = Δ** | LENGTH/END | trail `capacity` (the limit) |
+
+**MEASURED:** R13/R14/R15 are **completely idle in Prolog mode** — 0 references across every `bb_cell_*`/`bb_det_*`/`bb_query_frame`/`bb_callee_frame` template (Prolog has no subject string, so the whole subject trio is free). RBP is likewise untouched in the Prolog GZ templates.
+
+**RATIFIED (Lon, 2026-06-13): the trail lives in R13/R14/R15** — the very registers the string languages dedicate to their main attraction (the subject), idle in Prolog. `R13 = trail stack` (base), `R14 = trail top` (the mark/cursor), `R15 = trail capacity` (end) — base/cursor/end, the same shape as Σ/δ/Δ. This makes the parallel structural and self-documenting: *the trail is to Prolog what the subject string is to SNOBOL4/Icon, in the same three register slots*, and removes `g_resolve_trail` as a symbol load (pure register traffic; the `g_*` survives only as the init-time backing allocation, or is dropped entirely). The convention table in all three GOAL files now records this dual role (this edit). **RBP REMAINS RESERVED** (its brokered-frame role is dead under NO C BYRD-BOX; held for a future use TBD — Lon: "something lurking we have yet to see"). **DEFERRED (own later rung):** (a) the actual emitter wiring — GZ preamble loads the trail registers, `rt_trail_mark`/`rt_trail_unwind` become register ops with callee-saved discipline across `rt_*` calls; (b) the cross-language BB-jump save/restore of the trio (set on entering a Prolog box from a SNOBOL4/Icon box, restore on return).
+
+**⚠ LOCKSTEP CONVENTION CHANGE — DONE THIS EDIT.** Per the X86-64 REGISTER / SUBJECT-MODEL CONVENTION rule, "Changing any assignment is LOCKSTEP — update all three GOAL files in the SAME commit." The R13/R14/R15 trail role is now recorded as an identical DUAL-ROLE block in the convention table of GOAL-SNOBOL4-BB.md / GOAL-ICON-BB.md / GOAL-PROLOG-BB.md (byte-identical, verified same md5). NOTE (drift flagged for Lon): the surrounding convention block was already NOT byte-identical across the three files before this edit (SNOBOL4 terser, Icon richer with casing notes, Prolog with a RETIREMENT line) — a pre-existing divergence left untouched here; only the new DUAL-ROLE addition is synced. A full re-sync of the whole block is a separate cleanup. This edit changes the convention only; the emitter wiring + cross-lang switch are the DEFERRED items noted above.
+
 ## ⛔ SHARED-LOWERER ONE-FILE CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
 The AST→IR lowerer's SHARED SPINE is **ONE file** — `src/lower/lower.c`. **AMENDED (Lon 2026-06-04):** Prolog's goal-role family lives in `src/lower/lower_prolog.c` (`d6d93c6`; shared helpers in `lower_internal.h`); remaining languages stay co-located in `lower.c` until Lon splits them out.
@@ -191,6 +229,16 @@ The unified IR→x86 emitter is **ONE dispatch** — `src/emitter/emit_core.c`'s
 | **R10** | caller-saved | LOCAL | per-BLOB DATA-block ptr |
 | **rbx** | callee-saved | — | FREE / callee-saved scratch |
 | **rbp** | callee-saved | — | brokered function frame ptr / callee-saved scratch |
+
+**DUAL ROLE — R13/R14/R15 ALSO CARRY THE PROLOG TRAIL (RATIFIED Lon 2026-06-13).** Prolog has no subject string, so the subject trio Σ/δ/Δ is idle and instead carries the TRAIL — Prolog's one main attraction (its single shared binding-undo spine) — in the SAME base/cursor/end shape, casing preserved (UPPER = fixed, lower = moving):
+
+| Reg | subject (SNOBOL4/Icon) | Prolog TRAIL — `Trail{stack;top;capacity}` |
+|-----|------------------------|---------------------------------------------|
+| **R13 = Σ** (UPPER, fixed) | subject BASE ptr | trail `stack` — base of the `Term*` array |
+| **R14 = δ** (lower, moving) | CURSOR | trail `top` — the mark; "push" = ++, "unwind" = set back |
+| **R15 = Δ** (UPPER, fixed) | subject LENGTH/END | trail `capacity` — the fixed bound |
+
+The physical registers are SHARED — never live in two languages at once. A cross-language BB jump save/restores the trio (DEFERRED — its own later rung; not yet wired). The trail in registers replaces the `g_resolve_trail` symbol load with pure register traffic. **RBP stays RESERVED** (its brokered-frame role is dead under NO C BYRD-BOX; held for a future use TBD — Lon). This DUAL-ROLE addition is byte-identical across all three GOAL files; the subject rows above remain each file's own.
 
 **γ-success return packing:** `rax = σ ptr`, `rdx = δ int` (spec_t).
 
@@ -377,6 +425,7 @@ make -j4 scrip && make libscrip_rt
 bash scripts/test_smoke_prolog.sh         # GATE-1
 bash scripts/test_prolog_rung_suite.sh    # GATE-3
 bash scripts/test_gate_bb_one_box.sh      # PL-HY-FENCE
+bash scripts/test_gate_pl_no_new_global.sh  # NO-NEW-GLOBAL (allowlist + doomed-ratchet; floor 17→0)
 grep -rnE 'seg_byte\(SEG_CODE|SL_B\(' src/ --include="*.c" --include="*.cpp" | grep -v "_templates/" | grep -v emit_core.c | wc -l   # 0
 grep -rn 'g_vstack' src/ | wc -l          # 0
 ```
