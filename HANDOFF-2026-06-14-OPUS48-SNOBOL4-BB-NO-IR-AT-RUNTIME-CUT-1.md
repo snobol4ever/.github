@@ -61,3 +61,27 @@ emit `rt_scan_lit` with sealed strings, ZERO IR pointer. Non-literal falls throu
 
 ## Gates at handoff (normal build)
 smoke 7/7/7 HARD · pat-rung 19/19/19 no-SKIP · fence HARD · ICON 12/12/12 · corpus M2=182 M3=168 M4=158.
+
+## SHARPENED DIAGNOSIS (added after cut #1; investigated, not yet acted on)
+The runtime line ("no IR-derived graph at mode-3 run") is crossed in **exactly one place**: the
+non-literal `rt_scan` path (`bb_scan_stmt` BINARY fall-through after cut #1). Confirmed by inspection:
+- **`bb_call.cpp`** reads arg-block sub-graphs (`blks`/`cond`/`sg` via `IR_EXEC(nd).counter`, lines
+  ~200/490-534, and `marshal_call_arg`/`arith_operands` walking `sg`) — but these are **EMIT-TIME**
+  walks that bake string *values* (`x86_load_ro(..., IR_LIT(..).sval)`), NOT graph pointers. So
+  function-call arg-blocks are emit-time-only leakage (cleaned by the registry, cut #3) — they do
+  **not** cross the runtime line. Same status as the literal-scan sub-graphs before cut #1.
+- Net: **cut #2 (native non-literal scan) is the SOLE remaining runtime-line-crossing**; cut #3
+  (registry + bomb) mops up all the emit-time sub-graph leakage (scan non-literal + arg-blocks +
+  IR_SEQ/IR_GEN_SCAN). Do cut #2 first (it's the only thing that breaks under total deletion), then
+  cut #3 locks the invariant.
+
+### Cut #2 mechanics (where it stalls)
+`flat_drive_scan_native` (emit_bb.c:2190) is a REAL native match path (IR_PAT_MATCH → flat_drive_match
++ rt_dcap_begin/end capture; the pg walk is emit-time, sanctioned). It already works for M4 for
+non-literal + named-var subject + NO repl. It is gated to M4 (`MEDIUM_TEXT`) at emit_bb.c:2206 because
+the three `rt_dcap_begin`/`rt_dcap_end_ok`/`rt_dcap_end_fail` calls are emitted **`g_is_text`-only**
+(text/`@PLT`). To enable it for M3, emit those three stack-aligned calls in BINARY mode too — but
+binary mode calls runtime fns via **baked function pointers** (like the rt_scan template's fn-ptr
+immediate / `x86_call_ro`), not `@PLT`. That binary-call emission for dcap is the concrete next task;
+it was judged too risky to land at the tail of this session's budget. Once the no-repl/named-var case
+works in M3, widen to literal subject, replacement, and the remaining primitives, then DELETE rt_scan.
