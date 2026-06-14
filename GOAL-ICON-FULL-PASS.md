@@ -1,6 +1,6 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 · m3/m4 parity
 
-**Status:** m2 202/283 · m3 76 · m4 82 (interp-suite tally) · XFAIL 36 (out of scope). HEAD=8b9a58e. IR-IMMUTABLE rule = no IR access DURING EXECUTION of the emitted mode-3 image / mode-4 binary; the one EMISSION-time read of the IR is required & correct (the e50b089 entry-bomb misread was reverted). See HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md.
+**Status:** m2 202/283 · m3 82 · m4 82 (interp-suite tally) · XFAIL 36 (out of scope). HEAD=521ab64. ✅ m3 brought to PARITY with m4 (76→82) by fixing the `x86_jcc_op` silent-`0x85` default (jz was encoded as jnz — inverted — in BINARY only; TEXT was correct). IR-IMMUTABLE rule = no IR access DURING EXECUTION of the emitted mode-3 image / mode-4 binary; the one EMISSION-time read of the IR is required & correct (the e50b089 entry-bomb misread was reverted). See HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 never decreases; m3/m4 trend up.
 **Note:** the interp-suite reports m2=197 (`test_icon_rung_suite.sh --mode interp`); the prior "200" header was a different/combined count. Use the suite tally + an explicit before/after diff to judge regressions.
 
@@ -61,6 +61,38 @@ Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-mast
 ---
 
 ## Watermark
+
+**HEAD (SCRIP) = `521ab64`** — Icon m3 string-relops FIXED (m3 76→82, now at PARITY with m4). ROOT CAUSE
+was a BINARY-vs-TEXT divergence (ONE-MEDIUM-INVISIBLE violation), NOT relop logic: `x86_jcc_op`
+(`src/emitter/BB_templates/x86_asm.h`) had no `"jz"` (or `"js"`) case and fell through to `return 0x85`
+(JNZ). So in the in-process BINARY medium `x86("jz",…)` emitted **JNZ — the inverted condition** — while
+the TEXT medium emitted the literal `jz` mnemonic that GAS assembled correctly. The string-relop arm of
+`bb_binop_relop` (`test eax,eax; jz ω`) was the visible victim: rung12 seq/sge/slt/sne + rung37
+str_relop/strrelop_hello (6 programs) ran INVERTED in m3 only — m4 (linked) already produced the correct
+output, which is why m4 was 6 ahead. `js` (1 use, signed-jump) was the same latent bug (0x85 vs 0x88);
+`jnz` (5 uses) happened to be correct since the silent default WAS 0x85. FIX: completed the Jcc opcode
+table (`jz/jnz/js/jns/jb/jae/jbe/ja` + signed aliases `jnae/jnb/jna/jnbe/jnge/jnl/jng/jnle`) and made the
+default a LOUD `abort()` so any future missing condition code fails at emit time instead of mis-encoding.
+DIAGNOSIS METHOD (reusable): numeric relops (which use `cmp`+`jge/jne`, never `test`+`jz`) PASSED m3 →
+isolated the bug to `test eax,eax`/`jz`; then `as`+`gcc -no-pie -lscrip_rt` of the mode-4 `.s` proved m4
+correct while m3 inverted → BINARY-only encoder bug. Verified: m2 202 (HARD, unchanged) · m3 76→82 · m4 82
+unchanged; icon smoke 12/12/12 · prolog 5/5/5 · no-stack 0 · one-reg-frame 0 · bb_one_box 45 (pre-existing)
+· unified 36. One file, +13/−7. Pushed onto a fast-moving remote (rebased clean over concurrent
+Prolog/SNOBOL4/Raku landings). See HANDOFF-2026-06-13-SONNET-ICON-BB-JZ-ENCODER-FIX.md.
+
+**NEXT (fully scoped, NOT started): native `IR_SWAP` for `:=:`** (rung15_real_swap_swap_basic/str, 2 progs).
+m3 emits `; [walk_bb_node: kind=129 unhandled]` then silently skips the swap. Semantics (IR_interp.c:2353):
+both operands are `IR_VAR`; read left value `lv` + right value `rv`; write `rv`→left slot, `lv`→right slot;
+result = `rv` → γ; any non-IR_VAR operand or a FAIL read → ω. NATIVE RECIPE: reuse the `bb_assign_local`
+store idiom (`bb_assign_local.cpp`): `mov rax,FRQ(src); mov FRQ(dst),rax` (+8 for the DESCR high word),
+where `FRQ(off)`=`[r12+off]`. Need 3 frame offsets — left var slot, right var slot, self result slot — and a
+crossed load/store. STEPS: (1) new `bb_swap.cpp` template; (2) register it in the template dispatch
+(`emit_core.c`); (3) a flat-drive/walk arm in `emit_bb.c` that resolves both var slots (`bb_varslot_peek`)
++ a self slot (`bb_slot_alloc16`) into the `g_emit` scalars; (4) allow `IR_SWAP` in
+`icn_graph_native_emittable_mode` (scrip.c) ONLY when both operands are simple `IR_VAR` locals; (5) build +
+`test_icon_rung_suite.sh` + spot-check rung15. This was deferred because it is a multi-file change with
+slot-addressing debug risk that did not fit the remaining context budget — start it fresh.
+
 
 **HEAD (SCRIP) = `ae008c6`** — IR-IMMUTABLE "ACTUAL task" (execution-time IR-access audit) LANDED.
 The mode-3/4 runtime proc registry no longer holds an `IR_t *`: dropped `void *entry` from
