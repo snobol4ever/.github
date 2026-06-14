@@ -222,6 +222,54 @@ GUT (as new path re-admits each rung): resolution.c control engine · meta rail 
 
 - [x] **M34-5 — PARITY SEAL (this session, Opus 4.8): m3 ≡ m4 @ 83.** Achieved by eradicating m3's runtime IR-walking shortcuts (which "passed" only via shared address space). After eradication m3 and m4 pass the same count (83); the rich/heap-env path is gone. Going forward, both modes share one GZ codegen, so a rung passes/fails identically in m3 and m4 by construction — keep it that way.
 
+## 🔵 PL-BB — BYRD BOXES FOR ALL OF PROLOG (Proebsting-pure ladder, 2026-06-13)
+
+**Design:** companion `DESIGN-PROLOG-BB-ALL.md`. Model: four ports α/β/γ/ω as CODE CHUNKS; callee resumability is a CLOSURE VALUE (the callee frame), re-driven from the caller's OWN β — NEVER a 5th/6th port (`δ`/`ε` are ABOLISHED: one was a call-opcode target, the other a `closure.Resume()` value-op, neither a port); `bounded` (deterministic) ⇒ NO β chunk, no CP, no retained closure; the BOXES ARE THE ENGINE (no WAM CP-stack engine loop, no bytecode dispatch, no C control engine / meta-rail). Canon: Proebsting PDF (`SCRIP/bench/...pdf`) + JCON `tran/irgen.icn` (`ir_a_*`, `/bounded`, `vClosure`).
+
+**Method (every rung): TEST FIRST, small→wide, then LOWER + EMITTER.** Smallest test (smoke → one narrow rung → widen the suite), THEN the LOWER work (the IR kind in `lower_prolog.c`) + the EMITTER work (the BB template). Gate after each: **GATE-1 5/5/5 HARD (never drop)**, ratchet floor never regresses, m3≡m4 by construction (shared GZ codegen). "We have been here before" — PLR-J-*/PL-LOWER-REVAMP stalled on β-by-heuristic + no determinacy flag; THIS ladder fixes the root (PL-BB-0) FIRST.
+
+- [ ] **PL-BB-0 — DETERMINACY FOUNDATION (`bounded` flag).** The linchpin (JCON F1).
+  - TEST: `test_smoke_prolog.sh` 5/5/5 holds; `test_prolog_rung_suite.sh` floor 91 holds (pure refactor, zero behaviour change).
+  - LOWER (`lower_prolog.c`): add a `bounded` bit per goal node (det builtin / single-clause head / unify / `\+`/once/findall/`is`/cmp/type-test/IO ⇒ bounded). Bounded goals STOP synthesizing the β chunk.
+  - EMITTER: every `bb_cell_*`/`bb_det_*` consults `bounded` → omits its `def β; …` tail; a conjunction backtrack edge into a bounded child collapses to that child's ω (straight-line).
+  - GATE: smoke 5/5/5; floor 91; m3≡m4. (No new rung passes — the enabling refactor.)
+
+- [ ] **PL-BB-1 — CLOSURE-RESUME CALL β + DELETE PORTS 4/5.** Retire δ/ε for real.
+  - TEST: `recursion` smoke (holds) → rung06 lists (the C-FRAME headliner).
+  - LOWER: mark each call site with callee determinacy; a NONdet call retains its closure (the `rt_enter` frame); a bounded call is a plain subroutine call, no β.
+  - EMITTER (`bb_cell_call`, `bb_cell_findall`, `bb_cell_ite`, `bb_query_frame`, `bb_callee_frame`): the call β does a CLOSURE-RESUME to the callee's OWN β (carried by the frame) via a generic label-target operand. DELETE `PORT_DELTA`/`PORT_EPSILON` (x86_asm.h), `X86P_DELTA/EPSILON` classifier cases, `lbl_δ/ε(+_p)` (emit_globals.h); ~12 `emit_bb.c` driver writes store the target label object in the generic slot. (Mechanism: branches already resolve via `bb_emit_patch_rel32(bb_label_t*)`; the `F`/`xa_bb_emit_pair_jmp` record is the existing port-free "branch to a label object by index" precedent.)
+  - GATE: smoke 5/5/5; floor 91; four-port grep clean (`grep -rnP '\xCE\xB4|\xCE\xB5' src/emitter/BB_templates/` == 0; `PORT_DELTA|PORT_EPSILON` == 0).
+
+- [ ] **PL-BB-2 — CLAUSE CHOICE + CONJUNCTION BACKTRACKING.** The core generators.
+  - TEST: backtracking class in `test_prolog_rung_suite.sh` — start with a 2-clause predicate, widen to member-style recursion.
+  - LOWER: `IR_CHOICE` (§1.4 wiring + frame gate `cur` for clause resume), `IR_GCONJ` (§1.3, thread `C.ω→B.β`).
+  - EMITTER: `bb_cell_choice` (clause iteration + CP-ledger entry + `unwind(mark)` on `.ω`), conjunction threading.
+  - GATE: floor up.
+
+- [ ] **PL-BB-3 — CUT + IF-THEN-ELSE.** Commit / gate.
+  - TEST: a cut rung + a `(C->T;E)` rung.
+  - LOWER: `IR_CUT` (capture clause-entry barrier into a frame cell), `IR_CELL_ITE` (gate cell + soft-cut `commit(Cond CPs)` at `Cond.γ`).
+  - EMITTER: `bb_cell_cut` (`commit(barrier)` = pop CP ledger to barrier), `bb_cell_ite` (indirect `goto [gate]` on β).
+  - GATE: floor up.
+
+- [ ] **PL-BB-4 — DET-BUILTIN FAMILY (one recipe).** Bulk of Prolog; mostly landed.
+  - TEST: rung36 (arith edge), rung37 (term ops), rung39 (atom iso), rung38 (iso errors) — fill gaps.
+  - LOWER: `IR_DET_*` kinds (is / cmp / type-test / functor / arg / =.. / copy_term / atom-ops / IO / succ / sort).
+  - EMITTER: `bb_det_*` — the ONE bounded recipe (`α: load cells; r=rt_pl_<op>; test; jne γ; jmp ω`; no β).
+  - GATE: floor up.
+
+- [ ] **PL-BB-5 — META FAMILY (closure-driven).** findall is the template.
+  - TEST: findall rungs (landed) → rung27 aggregate sum/max/min → rung32 negation / once / forall.
+  - LOWER: extend `IR_CELL_FINDALL` (`agg_mode` 2/3/4); `\+`/once/forall as closure drives (§1.9).
+  - EMITTER: `bb_cell_findall` reduce-finishes (`rt_pl_agg_{sum,max,min}_finish`); negation box (drive closure for FIRST solution, flip verdict, unwind). findall conjunction-goal = emit the GCONJ body as a sub-graph callee (depends on PL-BB-2).
+  - GATE: floor up.
+
+- [ ] **PL-BB-6 — DYNAMIC DB + CATCH/THROW + DCG.** The tail.
+  - TEST: rung14 retract, rung15 abolish, rung28 catch/throw, rung30 DCG, rung31 bridge-catch.
+  - LOWER: `IR_DET_RETRACT`/`IR_DET_ABOLISH` (retract is NONDET — a DB-cursor generator WITH β); `IR_CATCH` (catch-frame push); DCG = pure lowering (rule → arity+2 clause threading the difference list; `phrase` → ordinary call).
+  - EMITTER: retract cursor generator (β re-drives the DB scan); catch-frame box (throw = non-local ω via runtime frame search); DCG needs NO new box.
+  - GATE: corpus full pass; resolution.c meta-rail + δ/ε fully dead → delete per PL-GZ GUT list.
+
 ## 🔴 PL-GZ-9 — corpus reconquest
 
 Current m3: **91**/115 (== m4 91). Ratchet: never regress (floors m3 91 / m4 91). Re-measured 2026-06-13 (Claude) post BB-native findall/aggregate-count.
