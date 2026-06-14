@@ -284,3 +284,82 @@ enabler of CP elision — and it is the discipline the old SWI/GNU engine mindse
 
 Throughout: four ports only; callee resumability is a closure value; no fifth/sixth port; the
 boxes are the engine.
+
+---
+
+## 9. STACKLESS — the value stack moved INTO the box (re-derivation, 2026-06-13)
+
+SNOBOL4 and Icon are **stackless**: goal-directed control is jumps between four ports, and the
+"external value stack" is placed INSIDE each Byrd Box as STATIC frame slots. **There is no control
+stack and no value stack.** The single hardware stack (the C call stack) is touched only for (a)
+calls into the C runtime `rt_*` helpers and (b) the predicate-call closure-resume `call δ`/`call ε`.
+
+**Verified in-tree (not asserted):** `grep g_vstack src/ = 0`; zero `rt_push`/`rt_pop` in any
+`bb_cell_*.cpp`; no choice-point-stack in the GZ runtime. State lives in `[r12+GZ_CELL_OFF(slot)]`.
+
+**The canonical proof — the ARBNO box** (`SCRIP/bench/test_sno_1.c`). ARBNO (`*P`, match a
+sub-pattern zero-or-more times) is the ONE construct that genuinely needs unbounded depth, because
+each repetition backtracks independently. The naive WAM/Icon answer is a runtime stack of generator
+frames (push per repetition, pop on backtrack). Here that stack is a **flat indexed frame array**:
+```c
+typedef struct _1 { str_t ARBNO; str_t alt; int alt_i; } _1_t;
+_1_t _1[64];  _1_t *ζ = &_1[0];          /* the "stack" = box-local indexed frame + cursor */
+ARBNO_α: ζ = &_1[ARBNO_i=0]; ...         /* depth 0                                        */
+ARBNO_β: ζ = &_1[++ARBNO_i]; ...         /* "push" = advance index → fresh row             */
+alt_ω:   ARBNO_i--; ζ = &_1[ARBNO_i]; goto alt_β;  /* "pop" = retreat index → resume row   */
+```
+Each depth gets its OWN row holding that repetition's value (`ARBNO`), alternative (`alt`), and
+resume cursor (`alt_i`). NOTHING is destructively saved-and-restored — backtracking just moves `ζ`
+back to a row that still holds its values intact. **That is the value stack turned inside-out and
+frozen into the box as a PURE-FUNCTIONAL indexed frame:** control stays the four ports threaded by
+`goto`; the only stack-like thing is an integer cursor (`ARBNO_i`) into a box-local array. The one
+construct that *looks* like it needs a stack proves it doesn't.
+
+### How each WAM/SWI "stack" dissolves
+
+| WAM/SWI baggage | what it actually was | stackless replacement |
+|---|---|---|
+| Choice-point **stack** (B-chain) | "what to try on failure" | **ω wiring** (compile-time: clause k.ω → clause k+1.α) + a frame **cursor cell** for runtime-chosen resume |
+| Environment **stack** (E-chain) | active-call locals + return | **C call** per activation; locals are **frame cells** |
+| Argument/operand **value stack** | pass a computed value to consumer | producer **writes its frame cell**, consumer **reads it** — static offsets, no push/pop |
+| Generator-frame **stack** (old Icon bytecode) | suspend/resume a generator | **α/β ports** + a **gate cell** (indirect goto) |
+| **Trail-mark** snapshot stack | saved unwind points | an **integer in the box's own frame cell** (`mark_slot`) |
+| Bytecode + fetch-decode-execute | the VM interpreter loop | **the boxes are the program** (direct/indirect jumps) |
+| `setjmp`/`longjmp` exception-frame **stack** | non-local unwind to catcher | **catch-frame cells** + non-local **ω** chain search |
+| meta-rail / "nearest resumable predecessor" | runtime backtrack-target search | the callee closure's **own β** via `call ε` |
+
+---
+
+## 10. DATA STRUCTURES NOT USED — the stacks the four-port model eliminates
+
+Every one is a control stack or value stack wrongly imported from WAM/SWI. None survives.
+
+| # | structure NOT used | what it was in WAM/SWI | why unnecessary |
+|---|---|---|---|
+| 1 | **Choice-point stack** (B-chain, parent-linked CP frames) | the backtracking control stack | failure target is the **ω port**, wired at compile time; runtime-chosen resume is a **frame cursor cell** |
+| 2 | **Environment stack** (E-chain, `localFrame` chain) | active-call locals + return | **C call** per activation; locals are **frame cells** |
+| 3 | **Argument/operand value stack** (A-reg save/restore; Forth-style operand stack; old SNOBOL4 value stack) | passing computed values between ops | producer **writes its cell**, consumer **reads it** — static slot offsets |
+| 4 | **Generator-frame stack** (old Icon bytecode's pushed/popped generator frames) | suspend/resume generators | **α/β ports** + **gate cell** |
+| 5 | **Trail-mark snapshot stack** | saved unwind points | an **integer in the box's frame cell** |
+| 6 | **Bytecode + fetch-decode-execute dispatch** | the VM interpreter loop | **the boxes are the program** |
+| 7 | **`setjmp`/`longjmp` exception-frame stack** (SWI `exception_frame` chain) | non-local unwind to catcher | **catch-frame cells** + non-local **ω** chain search |
+| 8 | **Meta-rail engine** (`rt_meta_solve`, "nearest resumable predecessor") | runtime backtrack-target search | the callee closure's **own β** via `call ε` |
+| 9 | **WAM register bank** (X/A regs, S-pointer structure-copy mode) | term build/match working store | terms built by `rt_*` into **frame cells**; args in SysV regs |
+| 10 | **Per-engine duplicated stack set** (for the deferred engines feature) | isolated execution contexts | replicate trail+heap+frames; **no shared control stack to duplicate** |
+
+**What survives is exactly four things** — and only one is Prolog-specific:
+- **Trail** — the ONE shared binding-undo log (a callee's bindings are undone by a caller's
+  backtrack, so it must be shared; DESIGN §3 law 3). Not a control stack, not operand-passing.
+  SNOBOL4/Icon lack it (no unification); Prolog adds exactly this one spine and nothing else.
+- **GC heap** — term storage (`Term*`). A heap, not a stack.
+- **Frame cells** `[r12+off]` — the value stack turned inside-out: a flat per-activation array
+  indexed by compile-time slots. No push/pop.
+- **C call stack** — subroutine calls into `rt_*` and the closure-resume only.
+
+**DEFERRED (optimizations, none a stack):** per-type first-arg hash index; birth-stamp/mark-bar
+(conditional trailing); gprolog's double-linked clause chains (we need *a* clause store, not *that*
+one). **FRONTIER (if built, heap structures with frame-cell handles, still not engine stacks):**
+answer trie / worklist / SCC graph (tabling); attvar chain + wakeup queue (coroutining); constraint
+store + propagation queue (CLP); continuation capture (delimited control — the one genuinely hard
+case, because recursion rides the C call stack, so it needs the `Create`/`CoRet`/`CoFail`
+co-expression substrate); per-engine state replication (engines).
