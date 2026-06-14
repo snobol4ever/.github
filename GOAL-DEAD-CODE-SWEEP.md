@@ -12,6 +12,12 @@
 - `src/runtime/builtins/gen_runtime.c` — `sm_yield_to_caller` stub excised → attic mirror
 - `src/runtime/rt/rt.c` — weak stubs `sm_opcode_name`, `_is_pat_fnc_name`, `_expr_is_pat` excised → attic mirror
 - `src/contracts/SM.h` — `sm_opcode_name` declaration removed → attic mirror
+- `src/contracts/ast_print.c` — `ir_set_print_width`, `ir_get_print_width` excised → `src/attic/contracts/ast_print.c`
+- `src/lower/ast_clone.c` + `ast_clone.h` — **whole file dead → `git mv` to attic**; `lower.h` `#include "ast_clone.h"` removed; Makefile entry removed
+- `src/emitter/emit_core.c` — 11 functions excised → `src/attic/emitter/emit_core.c`: `emit_mode_set`, `emitter_init_macro_def`, `ef_u32`, `ef_u64`, `ef_t3c`, `emit_call_label`, `emit_text_stno_banner`, `emit_text_rawf`, `bb_is_generator`, `bb_walk`, `bb_walk_rec`; plus associated `g_visited`/`g_vcount`/`IR_WALK_MAX` data
+- `src/emitter/emit_ir.h` — `bb_is_generator`, `bb_walk` declarations removed
+- `src/emitter/emit_core.h` — `emit_mode_set`, `emit_text_rawf`, `emit_text_stno_banner`, `emit_call_label` removed
+- `src/emitter/emit_form.h` + `emit.h` — `emitter_init_macro_def` removed
 
 **POLICY: JVM / .NET / JS / WASM backend helpers are KEPT** even when dead from the current x86-only build. Do not touch: `js_*`, `jvm_*`, `net_*`, `wasm_*` functions.
 
