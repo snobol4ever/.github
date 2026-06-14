@@ -1,38 +1,33 @@
 # HANDOFF — BB-FIXUP-A-to-Z 76th attended run (Opus 4.8)
 
-**Date:** 2026-06-13 · **Goal:** GOAL-BB-FIXUP-A-to-Z.md · **Cursor:** bb_call.cpp (UNCHANGED — cross-cutting heal, not a cursor stop)
-**SCRIP landed:** a58bd75 → rebased to **95bc33f** on push (absorbed concurrent a6f9d65, clean)
-**Lon attending:** "What % … Continue." ×N → "Continue." (delegated close → option 1 hand off)
+**Date:** 2026-06-13/14 · **Goal:** GOAL-BB-FIXUP-A-to-Z.md · **Cursor:** bb_call.cpp (UNCHANGED)
+**SCRIP net code from this run:** ZERO (a heal was landed then REVERTED as redundant — see below). SCRIP origin advanced to 9ce94ca (my revert) atop the canonical fix e089608 + concurrents.
+**Lon attending:** "What % … Continue." ×N (delegated close → hand off)
 
-## TL;DR
-ONE HEAL LANDED — fully fixes SNOBOL4 DEFINE m2=m3=m4 (7/7/7, HARD gate green). An apparent second bug ("W2", m4 proc-binop drop) was a **PHANTOM — a stale-object build artifact, not a real regression**. Corrected here; next session must NOT chase it. DEFINE family is DONE; cursor resumes at bb_call.cpp.
+## TL;DR — honest accounting
+The DEFINE double-free I was assigned (by 9baaf64) was **already fixed in parallel by another session's commit e089608** (cleaner, and it ALSO fixed a second, REAL m4 bug). My independently-developed heal was **redundant → reverted**. Net SCRIP change from this run: zero. **Value delivered: independent root-cause diagnosis, confirmation of e089608's fix on a clean build, and a genuine build-hygiene lesson.** DEFINE is GREEN (m2=m3=m4=7/7/7) via e089608. Cursor resumes at bb_call.cpp.
 
-## W1 — DEFINE single-ownership heal (LANDED, clean-build verified)
+## What actually happened (corrected — two prior versions of this handoff were wrong)
 
-`9baaf64` (concurrent, IR-IMMUTABLE session under Lon's "each language session heals its own breakage") wired `ir_delete_all` (→ `bb_program_free` → `IR_free`) to free the entire IR pool before m3 run / after m4 emit. Its message assigned the SNOBOL4 heal: *"DEFINE now aborts (free(): invalid pointer during ir_delete_all) … HEAL: SNOBOL4 session fixes DEFINE lowering single-ownership."*
+Session opened at HEAD 9baaf64 with SNOBOL4 `define` RED (m3 abort + m4 `<mode4-build-failed>`), per the ir_delete_all tripwire 9baaf64 wired. I diagnosed the double-free correctly: `lower_snobol4.c:1009` `*fg = *g` makes each DEFINE'd proc a VIEW graph aliasing the main graph's node array (`fg->all == g->all`), so once `ir_delete_all`→`bb_program_free`→`IR_free` frees the pool, the shared array is freed twice. I wrote a fix (an `aliased` flag on `IR_graph_t` + an `IR_free` guard + `fg->aliased=1` in lowering) and landed it (a58bd75 → rebased 95bc33f).
 
-**Root cause (precise):** `lower_snobol4.c:1009` `*fg = *g` carves each DEFINE'd proc as a **view graph** that aliases the main graph's node array — after the struct copy `fg->all == g->all`, `fg->n == g->n` (also lit/exec/operand_aux aliased), with only `fg->entry` repointed to the proc body. Harmless for codegen (proc nodes live in the main pool; `fg` is a view selecting a different entry). But `bb_program_free` assumes every pooled graph OWNS its `all`, so `IR_free(g)` then `IR_free(fg)` double-freed the shared array. Never exposed before because `--run`/`--compile` never freed the pool (at 1f9f595 `ir_delete_all` wasn't yet wired for SNOBOL4).
+**Then on the combined head I found commit e089608** (another session, landed 00:40 — BEFORE my push), which had already fixed BOTH bugs:
+1. **The double-free**, more cleanly: a two-pass owner/view classification in `bb_program_free` using the existing per-node `->own` back-pointer (a view's nodes have `->own !=` the view graph) — owners do full `IR_free`, views free their struct only. **No `IR.h` change, no lowering change.** My `aliased`-flag approach was strictly redundant with this (and added an `IR_graph_t` field, against the PEERS RULE).
+2. **A REAL m4 bug** (empty output, no crash): `sno_proc_startup` hand-wrote a 4-arg ABI for `rt_proc_register` (the function takes 3: name, pnames, nparams). The spurious `xor rsi,rsi` pushed `pnames` into `rdx` (read as nparams) and made `rsi=0` the pnames → proc registered with `pnames=NULL` → `rt_call_named_proc` bound no params → X unset in DOUBLE's body → empty. e089608 dropped the spurious arg.
 
-**Fix (free-time only, codegen-neutral by construction — leaves the aliased `all` intact for emission, changes only `IR_free`):**
-- `IR.h`: `int aliased;` appended to `IR_graph_t` (calloc-zeroed via `IR_alloc` → 0 for ALL owning graphs; only the proc view sets it).
-- `scrip_ir.c` `IR_free`: `if (!bbg->aliased) { free nodes; free all; }` — still `free(bbg)` (the view struct is its own calloc).
-- `lower_snobol4.c`: `fg->aliased = 1;` immediately after `*fg = *g;`.
-- Future-proof: if sidecar frees (lit/exec/operand_aux, reverted by 9baaf64 from f0c3e29) ever return, they go inside the same `!aliased` guard.
+**So I REVERTED my redundant heal (9ce94ca).** Clean-build verification with my heal gone and e089608 only: **define m2=m3=m4=42, SNOBOL4 7/7/7 (HARD green), Icon 12/12/12, Prolog 5/5/5.**
 
-**Result (CLEAN-BUILD verified on 95bc33f):** SNOBOL4 **m2=m3=m4 = 7/7/7** (HARD gate GREEN; both m3 and the m4 smoke went 6→7 — the abort had broken m3 exec AND the m4 smoke's rc-gated `&&` build-chain). Icon 12/12/12, Prolog 5/5/5 UNREGRESSED (only DEFINE does `*fg=*g`; all other graphs aliased=0 → IR_free unchanged). db2ad0e arith probes unregressed (2**8=256, (-2)**3=-8, 3.4**2=11.56). BB rank GRAND **1101 UNCHANGED** (no bb_*.cpp touched). Floor: 9baaf64's "SNOBOL4 m4 unchanged (HARD ok)" WAS wrong (m4 aborted rc=134 → `<mode4-build-failed>`); the heal RESTORES sno m4 7/7.
+## ⛔ Correction to the "W2 phantom" claim (earlier versions of this handoff)
+Earlier I reported a "W2 m4 proc-binop drop" and then called it a pure stale-build phantom. BOTH framings were inaccurate. The m4 empty output had TWO contributors: (a) **e089608's REAL rt_proc_register ABI bug** (params unbound), and (b) a **stale-build artifact** — after editing `IR.h`, an INCREMENTAL `make` left `emit_bb.o` stale and the define m4 `.s` was missing the binop block (199 vs 210 lines). I conflated these. (a) was real and is e089608's fix; (b) was build staleness. A `make clean` rebuild + e089608 gives the correct 42.
 
-## ⛔⛔ The "W2" phantom + BUILD-HYGIENE LESSON (read this)
-
-After the IR.h edit, an **incremental** `make -j4 scrip` did NOT rebuild `emit_bb.o` against the new header. That stale object made define **m4** emit an empty proc binop. I mis-diagnosed this for several steps as a real, separate concurrent regression — "proc-body m4 binop drop, traced to c0253bc/db2ad0e gvar-operand rework" — and even ground-truthed against a 1f9f595 worktree (which, built fresh, showed 42, reinforcing the false belief in a regression). A subsequent **`make clean` full rebuild produced define m4=42**, proving the binop was never dropped — it was build staleness.
-
-**RULE for next session (and a candidate task):** after ANY header edit (`IR.h`, `descr.h`, `ast.h`, `SM.h`, `stage2.h`, …), `make clean && make`. The Makefile's header-dependency tracking is INCOMPLETE; incremental builds across a header change are untrustworthy and will manufacture phantom bugs. A real fix to the dep rules is logged as an outstanding candidate.
-
-(The 95bc33f commit MESSAGE still carries a "KNOWN: define m4 still red" line written under the phantom. That line is VOID — m4 is green. Not force-amended; the goal watermark + this handoff are the authoritative record.)
+## ⛔⛔ BUILD-HYGIENE LESSON (the one durable takeaway — a real Makefile gap)
+After ANY header edit (`IR.h`, `descr.h`, `ast.h`, `SM.h`, `stage2.h`, …), **`make clean && make`**. The Makefile's header-dependency tracking is INCOMPLETE; incremental builds across a header change leave stale objects and WILL manufacture phantom bugs (this run lost real time to one). A proper fix to the dep rules is logged as an outstanding candidate task.
 
 ## State / outstanding
-- SCRIP @ **95bc33f** (W1 heal + concurrent a6f9d65). Cursor **STAYS bb_call.cpp**. SNOBOL4 7/7/7, Icon 12/12/12, Prolog 5/5/5; structural floors green; GRAND **1101**.
-- Outstanding verdicts (carried): m2 disj-backtrack (PROLOG-BB) · prove_lower VACUOUS ratify (IR-REDESIGN) · pK m4 silent-empty (PROLOG-BB/RAKU-BB) · brokered-catch m3/m4 silent (PROLOG-BB) · str-relop m3-empty (ICON-BB) · gvar-relop box ungated (ICON/lowering) · rank rp-patch ratify · rank cv9/cv10 desync · ceiling-ratify **1101** (was 1215) · LANGUAGE-BLIND audit category · **NEW: Makefile header-dep tracking gap (clean-build workaround in place; real dep-rule fix is a candidate task)**.
+- SCRIP @ **9ce94ca** (canonical DEFINE fix = e089608; my heal landed+reverted, net zero). Cursor **STAYS bb_call.cpp**. SNOBOL4 7/7/7, Icon 12/12/12, Prolog 5/5/5; GRAND 1101 (unaffected — no bb_*.cpp ever touched).
+- Outstanding verdicts (carried): m2 disj-backtrack (PROLOG-BB) · prove_lower VACUOUS ratify (IR-REDESIGN) · pK m4 silent-empty (PROLOG-BB/RAKU-BB) · brokered-catch m3/m4 silent (PROLOG-BB) · str-relop m3-empty (ICON-BB) · gvar-relop box ungated (ICON/lowering) · rank rp-patch ratify · rank cv9/cv10 desync · ceiling-ratify **1101** (was 1215) · LANGUAGE-BLIND audit category · **NEW: Makefile header-dep tracking gap (clean-build workaround; real dep-rule fix is a candidate task)**.
 - FIX-3 still open (bb_call dval==2/3 mass; Lon pins A+B from the 75th run unchanged).
+- **Process note for parallel sessions:** the DEFINE double-free was fixed twice in parallel (e089608 and my reverted heal) because both were in flight before either pushed. When a concurrent commit on the same symptom is detected at push/rebase time, diff it FIRST and defer to/dedup against it before landing a parallel fix.
 
 ## NEXT SESSION
-ENV setup (libgc-dev + libscrip_rt) → baseline GREEN (SNOBOL4 7/7/7 now) → resume cursor at bb_call.cpp: FIX-3-iii scan breakout per the 75th-run recipe + dval blocker, OR a fresh Lon pin. DEFINE family is complete. Cursor STAYS bb_call.cpp.
+ENV setup (libgc-dev + libscrip_rt) → **`make clean && make`** if any header was touched → baseline GREEN (SNOBOL4 7/7/7 now) → resume cursor at bb_call.cpp: FIX-3-iii scan breakout per the 75th-run recipe + dval blocker, OR a fresh Lon pin. DEFINE is complete (e089608). Cursor STAYS bb_call.cpp.
