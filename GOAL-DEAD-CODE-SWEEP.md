@@ -79,6 +79,16 @@ pascal/raku/rebus `.lex.c`; GC oracle 42→40 (`input`+`yyunput` gone from the d
 - Static-symbol deadness proof = compile + gate (statics don't link), not the closed-subgraph link test.
   Gates green non-decreasing; dead-code proof #3 (emitted-call ∩ dead-set) empty. Re-gated post-rebase onto
   concurrent `b4ef415`.
+- **Orphan follow-on (`1cc0c45`):** atticked `src/parser/raku/lex.raku.c` — a whole-file-dead, pre-rename,
+  pre-`--noline` flex DUPLICATE of the live `raku.lex.c` (Makefile compiles `raku.lex.c` only; the orphan is
+  not in the Makefile, not `#include`d, zero refs ⇒ never compiled ⇒ build-neutral). Had misled this very sweep
+  (listed as a cut target at `:1919`). NB `*_test.c`/`*_main.c` under `src/parser/*` are also Makefile-absent but
+  are likely intentional standalone harnesses — defer to a future sweep + Lon's call.
+- **⚠️ NEW FIXPOINT SURFACED (do-not-cut-yet):** re-oracling the landed tree (post-rebase onto `b4ef415` PL-GZ
+  DYNITER) shows **41 dead** (was 40 after the input/yyunput cut, measured pre-rebase). The +1 is `rt_call_proc`,
+  newly orphaned by `b4ef415`'s Prolog rewiring. LEFT UNCUT: it is in-flight Prolog work — verify the
+  self-contained closed-subgraph link test AND coordinate with the `b4ef415` author (a follow-up may re-wire it)
+  before any removal.
 
 **POLICY: JVM / .NET / JS / WASM backend helpers are KEPT** even when dead under X86-ONLY. The oracle
 flags 18 such (`js_*`/`jvm_*`/`net_*`/`wasm_*`); filter with `grep -vE '^(js_|jvm_|net_|wasm_)'`
