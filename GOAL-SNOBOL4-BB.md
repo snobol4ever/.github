@@ -1,4 +1,66 @@
 <!-- ════════════════════════════════════════════════════════════════════════════════════════════════ -->
+<!-- ⛔⛔⛔ SESSION-FIRST RUNG (Lon 2026-06-15). The session-start protocol opens THIS file for SNOBOL4-BB. -->
+<!-- This RUNG sits ABOVE the prior START-HERE block and the watermark stack on purpose: do its first      -->
+<!-- incomplete STEP before any other rung in this file. -->
+<!-- ════════════════════════════════════════════════════════════════════════════════════════════════ -->
+
+**SESSION WATERMARK — 2026-06-15 · Claude · `.github` ONLY (no SCRIP change committed). SESSION FINDING: the SNOBOL4 performance benchmarks are NOT working — they are 0/16, not the 16/16 the old runner prints. Built `scrip` + `libscrip_rt.so` clean from `a3447db`; a truthful re-run (hi-res wall timing + crash detection + self-reported `ms:` surfaced) gives OK=0 / CRASH=16. The old `scripts/test_bench_snobol4_modes.sh` "PASS=16" is an ARTIFACT: the benchmark dir has no `.ref` files, so its no-ref branch counts every run as PASS, and it suppresses stderr. Breakdown: 14/16 SIGABRT on `bb_gvar_assign_concat: no parts (not flattenable)` (the `gvar_seq_flatten` CALL/arith-part gap, emit_bb.c:2193 — the long-queued "triplet (b)"); 2/16 (`roman`,`mixed_workload`) SIGABRT on `bb_scan: TEXT(mode-4) non-literal pattern` (S1/cut-#2 scan gap); `TIME()` returns NULL in mode-4 (`OUTPUT="t=" T` after `T=TIME()` prints `t=`), so the ms column is blank even once the bombs clear. Also found (concat correctness, not a crash): `A=3;B=1;OUTPUT="d: " (A-B)` prints `d: 3` (want `d: 2`) — lit∘paren-arith drops the op; verify under PB-BENCH-1. SEPARATE FINDING (beauty): the `test_gate_em_beauty_subsystems_mode4.sh` gate is STALE post-DE-INTERP — its oracle line runs `scrip --interp`, but `--interp` was deleted this session, so it now diffs mode-4 vs EMPTY and prints a misleading 13/17. Real beauty status measured against the committed `.ref` files = 0/17 correct in BOTH modes; true mode-4≡mode-3 parity = 14/17 (divergers: `Gen_driver`,`case_driver` m4-empty/m3-nonempty, `match_driver` m4-nonempty/m3-empty). One-line gate fix: `--interp`→`--run`. Authored RUNG PB-BENCH (STEPS 0–5) below as the session-first task. NEXT: PB-BENCH-0 (truthful runner, no codegen) then PB-BENCH-1 (concat CALL/arith parts in LOWER).**
+
+---
+
+# ⛔⛔⛔ START HERE FIRST — RUNG PB-BENCH · ALL SNOBOL4 PERF BENCHMARKS GREEN
+
+**Mandate (Lon 2026-06-15):** Get ALL 16 SNOBOL4 performance benchmarks in `/home/claude/corpus/benchmarks/*.sno` to run to completion under mode-4 (`--compile`) AND report real timing AND match a reference. This RUNG is FIRST; do its first incomplete STEP before any other rung in this file.
+
+**GROUND TRUTH (measured this session, fresh `scrip`+`libscrip_rt` @ `a3447db`):** OK=0 / CRASH=16. Isolation probes (m4, reproducible from the corpus runner's `compile_mode4()`): `"x: " N`→`x: 5` OK · `(A-B)` alone→`2` OK · `LT(N,9) N`→BOMB · `"v: " LT(N,9)`→BOMB. So the bomb trigger is precisely a CALL (or arith) appearing as a concat part. `gvar_seq_flatten` (src/emitter/emit_bb.c:2193) handles ONLY `IR_LIT_S`/`IR_LIT_I`/`IR_VAR`/`IR_SEQ`; anything else → `return 0` → `op_parts_n=0` → bomb at `bb_gvar_assign_concat.cpp:36`.
+
+**GATE (this rung, HARD non-decreasing every STEP):** the truthful runner's OK count strictly grows; existing floors hold — smoke 7/7 · pat-rung M4 19/19 0-SKIP · fence TIER1=TIER2=0 · broad-corpus M4 ≥169. DONE = OK=16/16 with real `ms:` AND result lines == `.ref` for all 16.
+
+## STEPS — each = probe-first vs sbl · ONE commit · gates green
+
+- [ ] **PB-BENCH-0 — TRUTHFUL HARNESS (no codegen; do FIRST).** Replace `scripts/test_bench_snobol4_modes.sh` so a crash can never count as a pass: hi-res wall timing (`date +%s.%N`), CRASH classification (non-zero rc OR empty stdout OR `BOMB` on stderr), surface each program's self-reported `ms:` line, diff result lines (NOT the `ms:` line) vs `.ref` when present. Body in APPENDIX below — drop-in, self-contained per RULES (paths from `$0`). GATE: runner honestly prints OK=0 CRASH=16 today and exits non-zero.
+- [ ] **PB-BENCH-1 — CONCAT CALL/ARITH PARTS (unblocks 14/16).** In LOWER (`src/lower/lower_snobol4.c`), when building an `IR_SEQ` / `IR_ASSIGN_CONCAT`, pre-evaluate any operand that is NOT already a flatten leaf (`IR_LIT_S`/`IR_LIT_I`/`IR_VAR`) — i.e. CALL / ARITH / paren-expr — into a ζ temp (synthesized local → `IR_VAR_FRAME` slot) via the existing value chain, so every `gvar_seq_flatten` leaf stays a simple value and the existing `op_parts` machinery is reused unchanged. Do NOT emit calls or read IR inside the concat template (NO-IR-AT-RUNTIME · value-in-runtime · ONE-MEDIUM). Probes m3≡m4≡sbl: `N=5;N=LT(N,9) N;OUTPUT=N`→`5` · `"v: " LT(N,9)`→`v: ` · `"ms: " (3-1)`→`ms: 2`. Also fixes the `"d: " (A-B)`→`d: 2` correctness bug. GATE: floors hold; truthful runner OK→~14/16.
+- [ ] **PB-BENCH-2 — TIME() IN MODE-4 (unblocks the ms column).** `TIME()` returns NULL in mode-4 today; wire the builtin to return real elapsed centiseconds/ms (integer DESCR) via the keyword/builtin rail; reuse a runtime clock helper (ledger-stamp if a new `rt_*` symbol is needed). Probe: `T1=TIME(); ...; OUTPUT="ms: " (TIME()-T1)` prints a non-empty, monotone number. GATE: floors hold; benchmarks print real `ms:`.
+- [ ] **PB-BENCH-3 — MODE-4 NON-LITERAL SCAN (unblocks `roman`+`mixed_workload`).** Close `bb_scan: TEXT(mode-4) non-literal pattern` per the scan-shape table / SNOBOL4-5STAGE S1: route the named-var / non-literal-pattern / no-repl shape through `flat_drive_scan_native` in mode-4 BINARY too, not the `rt_scan` TEXT bomb. Probe: `roman`,`mixed_workload`,`string_pattern`,`pattern_bt` run to completion. GATE: floors hold; truthful runner OK→16/16 run-to-completion.
+- [ ] **PB-BENCH-4 — REFERENCE OUTPUTS + CORRECTNESS GATE.** Add `.ref` files (result line(s) only, NEVER the volatile `ms:` line) for all 16, derived from the sbl oracle. Runner gates result-line equality. "Working" upgrades from "runs" to "correct". GATE: OK=16/16 AND result==ref ×16.
+- [ ] **PB-BENCH-5 — SPEEDUP REPORT (the "10×" claim).** Clone the SPITBOL oracle (`git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64`; invoke `/home/claude/x64/bin/sbl -b`), run each benchmark under both sbl and scrip mode-4, report the ratio; wire into `bench/BENCHMARKS.md`. GATE: ratios for all 16; no OK/correctness regression.
+
+**APPENDIX — PB-BENCH-0 truthful runner (drop-in body, measured working this session):**
+```bash
+#!/usr/bin/env bash
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; ROOT="$(cd "$HERE/.." && pwd)"
+SCRIP="${SCRIP:-$ROOT/scrip}"; RT="${RT_DIR:-$ROOT/out}"
+B="${BENCH_DIR:-/home/claude/corpus/benchmarks}"; CAP=200000; T="${TIMEOUT:-30}"
+[ -x "$SCRIP" ] || { echo "SKIP scrip not built"; exit 0; }
+[ -f "$RT/libscrip_rt.so" ] || { echo "SKIP libscrip_rt.so not built"; exit 0; }
+[ -d "$B" ] || { echo "SKIP bench corpus missing"; exit 0; }
+W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT
+printf "%-22s %-9s %10s  %s\n" BENCH STATUS "wall(ms)" "self/ref"
+ok=0; crash=0; fail=0
+for sno in "$B"/*.sno; do
+  s=$(basename "${sno%.sno}"); ref="${sno%.sno}.ref"
+  "$SCRIP" --compile "$sno" > "$W/$s.s" 2>/dev/null
+  if [ ! -s "$W/$s.s" ] || ! gcc -no-pie "$W/$s.s" -L"$RT" -lscrip_rt -lgc -lm -Wl,-rpath,"$RT" -o "$W/$s.prog" 2>/dev/null; then
+    printf "%-22s %-9s %10s  %s\n" "$s" BUILD-ERR - -; crash=$((crash+1)); continue; fi
+  t0=$(date +%s.%N); ( cd "$W" && timeout "$T" ./$s.prog </dev/null >"$s.out" 2>"$s.err" ); rc=$?; t1=$(date +%s.%N)
+  wall=$(awk "BEGIN{printf \"%.1f\",($t1-$t0)*1000}"); head -c $CAP "$W/$s.out" >"$W/$s.cap"; mv "$W/$s.cap" "$W/$s.out"
+  note=$(grep -i 'ms:' "$W/$s.out" | head -1); [ -z "$note" ] && note="(no ms)"
+  if grep -q BOMB "$W/$s.err" 2>/dev/null; then st=CRASH; note=$(grep -o 'BOMB.*' "$W/$s.err"|head -1|cut -c1-46)
+  elif [ $rc -ne 0 ] || [ ! -s "$W/$s.out" ]; then st=CRASH
+  elif [ -f "$ref" ] && ! diff -q <(grep -vi 'ms:' "$W/$s.out") <(grep -vi 'ms:' "$ref") >/dev/null 2>&1; then st=FAIL; fail=$((fail+1))
+  else st=OK; ok=$((ok+1)); fi
+  [ "$st" = CRASH ] && crash=$((crash+1))
+  printf "%-22s %-9s %10s  %s\n" "$s" "$st" "$wall" "$note"
+done
+echo; echo "REAL RESULT: OK=$ok FAIL=$fail CRASH=$crash (of $((ok+fail+crash)))"
+[ "$crash" -eq 0 ] && [ "$fail" -eq 0 ]
+```
+
+<!-- ════════════════════════════════════════════════════════════════════════════════════════════════ -->
+<!-- ↓↓↓ PRIOR START-HERE BLOCK AND WATERMARK STACK FOLLOW (unchanged) ↓↓↓ -->
+<!-- ════════════════════════════════════════════════════════════════════════════════════════════════ -->
+
+<!-- ════════════════════════════════════════════════════════════════════════════════════════════════ -->
 <!-- ⛔⛔⛔ START HERE — ACTIVE RUNGS THIS SESSION (read BEFORE the watermarks). Lon 2026-06-15. ⛔⛔⛔ -->
 <!-- The session-start protocol opens THIS file when "SNOBOL4-BB" is named. The actionable RUNGs live -->
 <!-- at the TOP so they surface as the task — not buried under the watermark stack below them. Two     -->
