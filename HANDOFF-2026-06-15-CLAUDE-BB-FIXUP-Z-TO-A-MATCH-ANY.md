@@ -1,7 +1,7 @@
 # HANDOFF — GOAL-BB-FIXUP-Z-to-A, 20th session (Claude Opus 4.8)
-## bb_match_any 3→0 — CLEAN, LANDED + PUSHED. Cursor ADVANCED bb_match_arbno.cpp → bb_match_any.cpp.
+## bb_match_any 3→0 + bb_match_advance 2→0 — BOTH CLEAN, LANDED + PUSHED. Cursor ADVANCED bb_match_arbno.cpp → bb_match_advance.cpp. GOAL.md reduced 109K→18K.
 
-**SCRIP HEAD pushed: `da13bbb`** (bb_match_any), rebased onto `c26f89f` (concurrent Icon real-arith binops/relops).
+**SCRIP HEAD pushed: `b6e13b9`** (bb_match_advance), preceded by `da13bbb` (bb_match_any), rebased across ~4 concurrent commits (Icon real-arith, Raku OO, Pascal realloc-cap, SNOBOL4-BB indirect-assign).
 **.github:** this handoff + GOAL watermark (20th-session entry) + cursor advance in BB-REVAMP-TRACKER.md (`# CURSOR:` line only, via in-place sed — tracker not otherwise opened). PLAN.md goals table NOT edited.
 
 ---
@@ -20,6 +20,11 @@ Conversion (matches the proven-clean sibling `bb_match_break`/`bb_match_breakx`/
 - Inlined `sf` → `(uint64_t)(uintptr_t)(void *)(const char *(*)(const char *, int))strchr` into the `call`.
 - Folded the `test` dispatch into the return chain as a ternary on `strlen(_.op_sval ? _.op_sval : "") == 1` (the single-char arm reads `(_.op_sval ? _.op_sval : "")[0]`).
 - Net: 2 returns (PLATFORM guard + the one assembled return); longest line 120 ≤200; zero blank lines; comment `IR_MATCH_ANY` untouched (already terse, matches sibling house style).
+
+### bb_match_advance — `b6e13b9` — 2→0 (local_vars=1 `ka` + returns_plus=1)
+SNOBOL4 `IR_MATCH_ADVANCE` (the cursor-advance + kw_anchor abort-check box, fired by every pattern match). Two violations: the `uint64_t ka = …&kw_anchor` local, and 3 returns (PLATFORM guard + the `op_sa/op_off` `x86_bomb` guard + the main return).
+- Inlined `ka` → `(uint64_t)(uintptr_t)(const void *)&kw_anchor` into the `mov "rcx", "[rip + __]"` site.
+- **Folded the bomb guard into the return as a ternary** — `return (_.op_sa < 0 || _.op_off < 0) ? x86_bomb(…) : x86("comment", "IR_MATCH_ADVANCE") + …;` — dropping the standalone guard return (3→2 returns). `x86_bomb` returns `std::string` (x86_asm.h:540) so the ternary type-unifies. This is the same returns-collapse shape as bb_match_atp/arbno; the bomb branch is never taken on well-formed programs so it's behavior-neutral.
 
 **`emit_intern_str` RE-CONFIRMED DEAD at this HEAD:** `g_flat_intern_str` is `= NULL` (emit_bb.c:229); its only setter `lower_flat_set_intern_str` has a declaration + macro-alias in emit_bb.h but **ZERO call sites** outside `src/attic` → `g_flat_intern_str` stays NULL → `emit_intern_str()` always returns NULL with zero side effect → the original `if(!lbl)` branch was *always* taken → dropping the dead call and making `strtab_label` unconditional is exactly equivalent (the established lap-1 finding, re-verified).
 
