@@ -1,12 +1,12 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m3/m4 → 283/283 (full pass, parity)
 
-**Status:** m3 **132/283** · m4 **132/283** · FAIL 23 · XFAIL 36 · EXCISED 92. HEAD(SCRIP)=`c26f89f`.
+**Status:** m3 **138/283** · m4 **138/283** · FAIL 18 · XFAIL 36 · EXCISED 91. HEAD(SCRIP)=`5f54227`.
 mode-2 `--interp` is DELETED (GOAL-DE-INTERP); the suite still invokes it and reports phantom m2 FAIL across the board — **ignore m2, gate on m3/m4**. m3 and m4 FAIL sets are currently identical.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m3/m4 must not regress. A net +PASS can hide an EXCISE→FAIL: always do an explicit FAIL-name **and** EXCISED-name diff vs baseline in BOTH modes (capture single-mode VERBOSE output: `--mode run`/`--mode compile`, grep `^FAIL`/`^EXCISED`).
 
 ---
 
-## Open work — current 23 FAIL (m3==m4), by category
+## Open work — current 18 FAIL (m3==m4), by category
 
 - **rc=134 — missing native arm / unsupported call shape (`x86_bomb`).** Probe with `./scrip --run foo.icn 2>&1`.
   - `rung22_lists_push_put_size`, `rung22_lists_put_bang` — list builtins (push/put) not wired into the native call path.
@@ -17,14 +17,10 @@ mode-2 `--interp` is DELETED (GOAL-DE-INTERP); the suite still invokes it and re
   - `rung03_suspend_gen{,_compose,_filter}` — `suspend` (canonical `ir_a_Suspend`; `ir_Succeed`/resume into body).
   - `rung14_limit_limit_{large,to,zero}` — `limit` (`ir_a_Limitation`: counter decremented on resume, `>0` gate).
   - `rung19_pow_toby_real_toby_{neg,pos}` — **real TO/BY** (`bb_to` real-step arm); generator-retry track.
-- **rc=139 — segfault.**
-  - `rung22_lists_get`, `rung22_lists_pull` — list builtins (get/pull).
-  - `rung31_sort_sort_{already_sorted,every}` — `sort()` (`rt_list_sort`/`rt_table_sort` in `aggregates.c`).
 - **wrong-output.**
   - `rung13_alt_alt_cross_arg{,_sideeffect}` — multi-generator CALL args `write(1|2,3|4)` → `is_deep` ag-ring stale on carry; `lower_call` flat-chain arg wiring. Materially larger (own session). `write((1|2)||(3|4))` (one concat arg) is already correct — the bug is two generator args, not the resume path. `--dump-bb` shows both ALT ω's pointing at the FIRST ALT (carry-order suspect).
-  - `rung29_builtins_type_mixed` — `type(x)`/`image(x)` of a var → null/&null: builtin-call arg not marshalling the VAR value (arg DESCR uninitialised). `image(cset)` also returns &null (same arg-marshal class).
 
-**NEXT real-arith (binop path landed `c26f89f`):** native real-POW — route `BINOP_POW`→`bb_binop_arith`, add `BINOP_POW` to `binop_is_num_real`; `rt_num_arith` already computes `REALVAL(pow(ld,rd))`. Unblocks `rung19_pow_toby_pow_var` (today EXCISED). `real_relop_goal` (`every write(3.0<(2.5|3.5|4.5))`) stays EXCISED — gen-alt resume (`cross_arg` track).
+**Note:** `real_relop_goal` (`every write(3.0<(2.5|3.5|4.5))`) stays EXCISED — gen-alt resume (`cross_arg` track, rung13). Native real-POW (`x^2`, `rung19_pow_toby_pow_var`) landed `fe80ecf`; the local-VAR builtin-arg marshal class (`type`/`image`/`get`/`pull`/`sort`) landed `5f54227`.
 
 ---
 
@@ -69,6 +65,10 @@ Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-mast
 ---
 
 ## Watermark
+
+**HEAD (SCRIP) = `5f54227`** — Icon **local-VAR builtin-call arg marshalling** (m3/m4 133→138, +5 each). `bb_call_fn` pre-allocates a phantom 16-byte slot for EVERY arg (`bb_slot_alloc16(ai)`), which made `bb_slot_get(VAR)≥0` so `marshal_call_arg` (`bb_call.cpp`) took the producer-slot path and read that UNINITIALISED slot instead of the var's real frame slot → `args[0]` arrived as `DT_SNUL`. Fix (1 line + 1 extern): a bare LOCAL VAR arg (`IR_VAR`, sval, non-`&`, `!is_global`) now forces `ps=-1` so it falls through to the existing varslot fallback (`bb_varslot(name)`); globals (NV producer slot), literals, nested-calls all unchanged. Whole-CLASS bug — FAIL→PASS both modes: `rung29_builtins_type_mixed` (`type(x)`→`integer`, `image(x)`→`100`), `rung22_lists_get`, `rung22_lists_pull`, `rung31_sort_sort_already_sorted`, `rung31_sort_sort_every` — the last four were rc=139 SEGFAULTS (a garbage list/table pointer reached `get`/`pull`/`sort`). FAIL 23→18; m3/m4 FAIL parity. Cross-language safe (shared template): snobol4 7/7 m4, prolog 5/5 m3+m4. Verified by explicit FAIL-name AND EXCISED-name diffs both modes = zero new FAIL, zero EXCISE→FAIL. Rebased clean over concurrent Prolog landing `cedad93`, re-gated identical (138/138). See HANDOFF-2026-06-15-CLAUDE-ICON-BB-BUILTIN-VAR-ARG-MARSHAL.md.
+
+**HEAD (SCRIP) = `fe80ecf`** — Icon native **real-POW** (m3/m4 132→133). Routed `BINOP_POW`→`IR_BINOP_ARITH` (`binop_slot_kind`) and into the descr fast path (`walk_bb_flat`, `op_is_pow`); `binop_is_num_real` returns 1 for POW UNCONDITIONALLY (Icon `^` is always real; `rt_num_arith` already does `REALVAL(pow(ld,rd))`). **Intentionally REVERSES `c26f89f` Fix 1's `graph_has_pow` guard:** that guard kept POW-bearing LIT_F-assign EXCISED *because POW routed to generic `IR_BINOP` → garbage* — now POW emits via the real arm, so `local_assign_rhs_ok_g`'s LIT_F branch is `return 1` and `graph_has_pow` is deleted (the guard was a placeholder pending exactly this fix, NOT a permanent invariant). `rung19_pow_toby_pow_var` (`x:=3.0;write(x^2)`→`9.0`) EXCISED→PASS both modes; FAIL unchanged (23), EXCISED 92→91. icon 12/12 m3+m4 · prolog 5/5 · no-stack/one-reg-frame/FACT/g_vstack/bb_bin_t/medium-invisible 0. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-REAL-POW-LANDED.md.
 
 **HEAD (SCRIP) = `c26f89f`** — Icon native **real-arithmetic binops + relops** (m3/m4 127→132, +5 each). FAIL 25→23, EXCISED 95→92 (both modes). FAIL→PASS: `rung18_real_relop_mixed_relop`, `rung18_real_relop_real_gt`; EXCISED→PASS: `rung17_real_arith_real_add`, `rung18_real_relop_real_eq`, `rung18_real_relop_real_lt`; `rung19_pow_toby_pow_var` baseline→EXCISED (Fix 1, not a regression). Verified by explicit FAIL-name AND EXCISED-name diffs in both modes = zero new FAIL, zero EXCISE→FAIL. Landed the prior-session WIP patch (`git apply` clean over moved HEAD) + two fixes: **Fix 1** new `graph_has_pow()` in `scrip.c` (the WIP relaxed `local_assign_rhs_ok_g`'s LIT_F guard to `return 1`, admitting POW-bearing graphs that route to generic `IR_BINOP` not the real arm → garbage; restored `return !graph_has_pow(g)` so POW-bearing LIT_F-assign stays EXCISED). **Fix 2** skip re-walking an already-slotted child in `flat_drive_binop_tree` (`emit_bb.c`) — the root_node tree path re-walked LIT_F chain operands → duplicate `bb<id>_α`; now `if (bb_slot_get(child)>=0) emit_jmp_label(<child>_done,JMP_JMP)`, `descr_binop_set_slots` reuses the chain slot (verified `real_gt` `.s` has zero dup labels + assembles clean). Path is value=RT/ports=BOX: `rt_num_arith(DESCR,DESCR,op)` (int/real/mixed coercion, div0→FAILDESCR) + `rt_jct_relop` additive real branch + `op_num_real` flag + `descr_binop_set_slots` + real arms in `bb_binop_arith`/`bb_binop_relop` (pure `x86()`, 0 byte-producers, no `bb_bin_t`). icon smoke 12/12 m3+m4 · prolog 5/5 m3+m4 · no-stack 0 · one-reg-frame 0 · FACT 0 · g_vstack 0. Rebased clean TWICE over concurrent landings, re-gated identical each time. 7 files. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-REAL-ARITH-LANDED.md.
 
