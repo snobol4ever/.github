@@ -18,9 +18,16 @@
   (2026-06-15, Claude):** `rt.c rt_in_native_chunk` + its write-never static `g_native_chunk_depth`
   EXCISED `c602da9` (0 callers, not emitted → not in ROOTS_EMIT; input static permanently 0 → predicate
   was constant; mirrored to `src/attic/runtime/rt/rt.c`; gates green non-decreasing). **STILL OPEN (next
-  iteration):** unprefixed `input`/`yyunput` copies in pascal/raku/rebus lexers — flex accessors needing
-  HAND-CUT by brace-extent (the `util_dead_cutter.py` mis-parse hazard from batch 3 applies). Full method +
-  the closed-subgraph finding: `GOAL-DEAD-CODE-SWEEP.md`. RUNG + STEPS below.
+  iteration):** unprefixed `input`/`yyunput`/`unput` in pascal/raku/rebus lexers. **TRIAGE 2026-06-15
+  (Claude, read-only):** all three `.lex.c` are FLEX-GENERATED (from `pascal.l`/`raku.l`/`rebus.l`; regen via
+  `scripts/regenerate_parser_and_lexer_from_sources.sh`). The accessors are INTERDEPENDENT flex scaffolding,
+  NOT independently cuttable: `unput` is a macro→`yyunput` (line 457 all three) and `input()` is
+  self-recursive (`return input();`). ⇒ the CLEAN fix is almost certainly `%option noinput nounput` in the
+  three `.l` sources + regenerate (survives future regen) — NOT batch-3-style hand-cut of the generated
+  `.lex.c` (a regen would silently undo it). DECISION POINT for next session: confirm whether the build
+  regenerates `.lex.c` from `.l`; if yes → %option path; if the checked-in `.lex.c` is source-of-truth →
+  hand-cut the macro+`yyunput`+`input` defs TOGETHER (interdependent) by brace-extent, gate across
+  pascal+raku+rebus. Full method + the closed-subgraph finding: `GOAL-DEAD-CODE-SWEEP.md`. RUNG + STEPS below.
 - **DE-INTERP** — ✅ **DONE, ALL 8 STEPS LANDED.** Steps 4-8 this session (SCRIP `1d113eb` eval-rail
   rename `interp_eval*`→`eval_ast*` incl. the silent `-Wl,--wrap=` landmine in build_scrip_rs23_diag.sh ·
   `f60bb08` driver file family `interp_*`→`driver_*` atomic · `4c9b6bd` `pl_interp.h`→`pl_resolve.h` +
