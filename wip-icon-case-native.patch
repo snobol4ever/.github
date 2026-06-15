@@ -63,7 +63,7 @@ index da48997..ac0bf17 100644
              if (nd->op == IR_CALL && IR_LIT(nd).dval == 2.0 && IR_LIT(nd).sval && (!strcmp(IR_LIT(nd).sval,"__rk_bool")||!strcmp(IR_LIT(nd).sval,"__rk_try"))) { if (bool_cond_emittable(nd)||bool_truthy_emittable(nd)) {} else return 0; }
 diff --git a/src/emitter/BB_templates/bb_case_arm.cpp b/src/emitter/BB_templates/bb_case_arm.cpp
 new file mode 100644
-index 0000000..16e72f1
+index 0000000..370a256
 --- /dev/null
 +++ b/src/emitter/BB_templates/bb_case_arm.cpp
 @@ -0,0 +1,37 @@
@@ -81,11 +81,11 @@ index 0000000..16e72f1
 +std::string bb_case_arm() {
 +    if (!PLATFORM_X86) return std::string();
 +    if (_.op_ival == 1) {
-+        if (_.op_a_slot < 0 || _.op_off < 0) return x86_bomb("bb_case_arm(take): needs value slot (op_a_slot) + case slot (op_off)");
++        if (_.op_sb < 0 || _.op_off < 0) return x86_bomb("bb_case_arm(take): needs value slot (op_sb) + case slot (op_off)");
 +        return x86("comment", "IR_CASE_ARM take")
 +             + x86("label",   _.lbl_α)
-+             + x86("mov",     "rax", FRQ(_.op_a_slot))
-+             + x86("mov",     "rdx", FRQ(_.op_a_slot + 8))
++             + x86("mov",     "rax", FRQ(_.op_sb))
++             + x86("mov",     "rdx", FRQ(_.op_sb + 8))
 +             + x86("mov",     FRQ(_.op_off),     "rax")
 +             + x86("mov",     FRQ(_.op_off + 8), "rdx")
 +             + x86("jmp", "γ")
@@ -117,10 +117,10 @@ index 6895c3b..654ebc8 100644
  std::string bb_var_frame_ref();
  std::string bb_to();
 diff --git a/src/emitter/emit_bb.c b/src/emitter/emit_bb.c
-index 57ccd65..58c983c 100644
+index 57ccd65..bd6ff53 100644
 --- a/src/emitter/emit_bb.c
 +++ b/src/emitter/emit_bb.c
-@@ -1728,38 +1728,60 @@ static void flat_drive_case(IR_t *pBB, bb_label_t *lbl_γ, bb_label_t *lbl_ω, b
+@@ -1728,38 +1728,61 @@ static void flat_drive_case(IR_t *pBB, bb_label_t *lbl_γ, bb_label_t *lbl_ω, b
          emit_jmp_label(lbl_ω, JMP_JMP);
          return;
      }
@@ -136,13 +136,14 @@ index 57ccd65..58c983c 100644
 -    bb_label_t **val_entry = (bb_label_t **)alloca((size_t)(npair > 0 ? npair : 1) * sizeof(bb_label_t *));
 -    for (int i = 0; i < npair; i++) val_entry[i] = emit_label_alloc("xcase%d_val%d", id, i);
 -    walk_bb_flat(pBB->operands[0], sel_done, lbl_ω, sel_β);
-+    int case_slot = bb_slot_alloc16(pBB);
 +    walk_bb_flat(sel, sel_done, lbl_ω, sel_β);
      emit_label_define_bb(sel_done);
 -    for (int i = 0; i < npair; i++) {
 -        bb_label_t *key_done = emit_label_alloc("xcase%d_key%d_done", id, i);
 -        bb_label_t *key_β    = emit_label_alloc("xcase%d_key%d_β",    id, i);
 -        walk_bb_flat(chain[2*i], key_done, lbl_ω, key_β);
++    int sel_slot  = descr_binop_opnd_slot(sel);
++    int case_slot = bb_slot_alloc16(pBB);
 +    int narm = pBB->n_operands - 1;
 +    for (int ai = 0; ai < narm; ai++) {
 +        IR_t *arm = pBB->operands[ai + 1];
@@ -154,9 +155,9 @@ index 57ccd65..58c983c 100644
 +            bb_label_t *def_β    = emit_label_alloc("xcase%d_def_β",    id);
 +            walk_bb_flat(key, def_done, lbl_ω, def_β);
 +            emit_label_define_bb(def_done);
-+            g_emit.op_ival   = 1;
-+            g_emit.op_a_slot = bb_slot_get(key);
-+            g_emit.op_off    = case_slot;
++            IR_LIT(arm).ival = 1;
++            g_emit.op_sb  = descr_binop_opnd_slot(key);
++            g_emit.op_off = case_slot;
 +            EMIT_PAIR_RESET();
 +            EMIT_PAIR_DEF_JMP(lbl_β, lbl_ω);
 +            EMIT_PAIR_FILL(arm, lbl_γ, lbl_ω, lbl_β);
@@ -170,9 +171,9 @@ index 57ccd65..58c983c 100644
 +        bb_label_t *cmp_β    = emit_label_alloc("xcase%d_cmp%d_β",    id, ai);
 +        walk_bb_flat(key, key_done, lbl_ω, key_β);
          emit_label_define_bb(key_done);
-+        g_emit.op_ival = 0;
-+        g_emit.op_sa   = bb_slot_get(sel);
-+        g_emit.op_sb   = bb_slot_get(key);
++        IR_LIT(arm).ival = 0;
++        g_emit.op_sa   = sel_slot;
++        g_emit.op_sb   = descr_binop_opnd_slot(key);
          EMIT_PAIR_RESET();
 -        EMIT_PAIR_JMP(val_entry[i]);
 -    }
@@ -193,9 +194,9 @@ index 57ccd65..58c983c 100644
 +        bb_label_t *val_β    = emit_label_alloc("xcase%d_val%d_β",    id, ai);
 +        walk_bb_flat(val, val_done, lbl_ω, val_β);
 +        emit_label_define_bb(val_done);
-+        g_emit.op_ival   = 1;
-+        g_emit.op_a_slot = bb_slot_get(val);
-+        g_emit.op_off    = case_slot;
++        IR_LIT(arm).ival = 1;
++        g_emit.op_sb  = descr_binop_opnd_slot(val);
++        g_emit.op_off = case_slot;
 +        EMIT_PAIR_RESET();
 +        EMIT_PAIR_DEF_JMP(lbl_β, lbl_ω);
 +        EMIT_PAIR_FILL(arm, lbl_γ, lbl_ω, lbl_β);

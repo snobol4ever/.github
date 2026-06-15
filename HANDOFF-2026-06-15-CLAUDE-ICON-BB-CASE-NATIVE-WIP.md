@@ -94,3 +94,37 @@ Touches shared `rt.c`, so run the full battery and diff:
 
 ## Provenance
 Single Claude session, orientation + this WIP. Canonical sources consulted: `refs/jcon-master/tran/irgen.icn` (`ir_a_Case`), `refs/icon-master/src/runtime/{oarith,ocomp}.r` (=== coercion). Models for the template: `bb_section.cpp` (slot→reg→`call rt_*`→store), `bb_to.cpp` (internal `L(n)` labels), `flat_drive_section`/`flat_drive_swap` (driver walks + `EMIT_PAIR_FILL`).
+
+---
+
+## ADDENDUM (same session, continued) — root causes pinned, take+compare working, 3 issues left
+
+Patch refreshed (`wip-icon-case-native.patch`, ~257 lines). **Still WIP / not green; SCRIP trunk still `023fb43`, nothing committed.**
+
+### Root cause of the original "empty output" — FOUND and FIXED
+`emit_core.c` `walk_bb_node` **auto-derives two `g_emit` fields from the node at every dispatch**:
+- line 328: `g_emit.op_ival = IR_LIT(nd).ival;`
+- line 335: `g_emit.op_a_slot = bb_slot_get(op_a)` (op_a = node's first operand)
+
+So setting `g_emit.op_ival`/`g_emit.op_a_slot` in the driver before `EMIT_PAIR_FILL` is **useless** — both are clobbered the instant `walk_bb_node(arm)` runs. Fields that **survive** dispatch: `op_sa`, `op_sb`, `op_off` (not touched in the `IR_CASE_ARM` case).
+
+**Fix applied:** role tag is now carried in the **arm node's own `IR_LIT(arm).ival`** (set right before each FILL; line 328 then *copies* it into `op_ival` — so it arrives correctly). The take's value slot is carried in **`op_sb`** (survives) instead of `op_a_slot` (clobbered); case slot in `op_off`. Template `bb_case_arm` take-role now reads `op_sb`(value) → `op_off`(case).
+
+**Result:** `rung33_case_case_in_proc` (a `return case n of {...}` with a **var** selector) now emits **`one\ntwo\nmany`** — fully correct values, compare + take both working.
+
+### 3 remaining issues (all now well-localized)
+
+1. **Literal selector slot = 0 (breaks `case_str`/`case_int`/`case_arith`/`case_no_default`).** In the compiled asm the compare reads the selector from `[r12+0]` though the selector literal was stored elsewhere — `descr_binop_opnd_slot(sel)` returns 0 for a just-walked **literal** selector (works for a **var** selector, hence `in_proc` passes). Need the correct slot-capture for a literal selector after `walk_bb_flat(sel,...)`. Look at how other consumers capture a literal operand's slot post-walk (vs `descr_binop_opnd_slot`, which evidently 0s for these). Possibly the selector literal must be forced into a named slot (e.g. `bb_slot_alloc16_or_get(sel)` before/around the walk) rather than relying on `descr_binop_opnd_slot`.
+
+2. **`write(case…)` arg-read.** These four are `write(case … )` — the CASE is a **builtin call argument**. Confirm the write-arg path reads the CASE result via the slot registered by `bb_slot_register(pBB, case_slot)` / `descr_binop_opnd_slot(case_node)`. `case_in_proc` uses the `return` consumer (works), so the arg-marshalling read is the untested edge. Once (1) is fixed and arms actually match, verify the value reaches `write`.
+
+3. **Trailing extra empty line on `case_in_proc`** (`one|two|many|` — one extra blank). A spurious extra `write`/value of an empty case result, or the case fall-through path is also reaching `γ`/the consumer once. Check the per-arm `jmp γ` vs the final fall-through `jmp ω` wiring in `flat_drive_case` — likely the value path and the fall-through both reach the consumer, or the case-of node is consumed twice.
+
+### Current `flat_drive_case` shape (in the refreshed patch)
+- walk selector → `sel_done`; `sel_slot = descr_binop_opnd_slot(sel)` (← **bug for literals**, see #1); `case_slot = bb_slot_alloc16(pBB)`.
+- per normal arm: walk key; `IR_LIT(arm).ival=0`, `op_sa=sel_slot`, `op_sb=descr_binop_opnd_slot(key)`; FILL(arm, take, next_arm, cmp_β) → compare; at `take:` walk value; `IR_LIT(arm).ival=1`, `op_sb=descr_binop_opnd_slot(val)`, `op_off=case_slot`; FILL(arm, γ, ω, β) → take; `bb_slot_register(pBB, case_slot)`; `next_arm:`.
+- default arm: walk value(=key operand); take with `op_sb=descr_binop_opnd_slot(key)`; FILL → γ.
+- fall-through after all arms → `jmp ω`.
+
+### Gate status
+Not yet run (not green, so no commit). Same battery as the main doc applies (Icon run/compile FAIL-diff at baseline m3=m4=122/283; Prolog+SNOBOL smokes for the shared `rt.c`). The `bb_case_arm` dual-role template is the only new emission surface besides `flat_drive_case`.
