@@ -1,14 +1,14 @@
 # HANDOFF 2026-06-14 — Claude — PROLOG-BB: rung28 rethrow LANDED + mode-2 (`--interp`) DELETION discovered
 
-**Author:** Claude (Opus 4.8) · **Track:** GOAL-PROLOG-BB (PL-GZ) · **SCRIP:** `2c38d15`→`70b7bd9` · **.github:** docs
+**Author:** Claude (Opus 4.8) · **Track:** GOAL-PROLOG-BB (PL-GZ) · **SCRIP:** `2c38d15`→`023fb43` · **.github:** docs
 
 ## TL;DR
-- Landed **rung28 `rethrow`** — `catch/3` inside a CALLED predicate body. **GATE-3 m3 104→105, m4 104→105, byte-identical parity intact.** Commit `70b7bd9`, one file (`src/driver/scrip.c`).
+- Landed **rung28 `rethrow`** — `catch/3` inside a CALLED predicate body. **GATE-3 m3 104→105, m4 104→105, byte-identical parity intact.** Commit `023fb43`, one file (`src/driver/scrip.c`).
 - Discovered the working tree had advanced past this goal file's `81b63f1` watermark to HEAD `2c38d15`, and that **mode-2 (`--interp`) was physically DELETED in between** (`a2440f4`). The "m2 114/115 HARD gate" premise is now VOID; the gate scripts still drive `--interp` and report silent false FAILs.
 - Remaining 10 m3≡m4 fails (**retract ×5 + abolish ×5**) are UNCHANGED — still parked on Lon's two dynamic-rail forks. Nothing decided, no global added.
 - Wired the two design docs into the GOAL's MANDATORY-READ as **required reading** (Lon's request): `ARCH-PROLOG.md` (BB design) + `DESIGN-PROLOG-BB-ALL.md` (GDE inventory + merged build order + §10 globals/structures-NOT-used).
 
-## What landed — rung28 rethrow (`70b7bd9`)
+## What landed — rung28 rethrow (`023fb43`)
 Test: `corpus/programs/prolog/rung28_exceptions_rethrow.pl`
 ```prolog
 main  :- catch(inner, E, (write(outer), write(' '), write(E), nl)).
@@ -53,7 +53,7 @@ These need a runtime DYNAMIC-CLAUSE STORE that does not exist on the GZ path. Lo
 
 ## GOAL doc changes (this handoff)
 - Added **📖 REQUIRED DESIGN READING** to the MANDATORY-READ section: directs every session to read `ARCH-PROLOG.md` + `DESIGN-PROLOG-BB-ALL.md` before touching Prolog BB code (with a one-line map of what each provides, incl. §10 globals-NOT-used).
-- New top STATE block (m3≡m4 @ 105; rethrow landed; m2-deletion finding); prior block demoted to PRIOR STATE; rung28 bullet marked ✅ LANDED. Watermark → `70b7bd9`.
+- New top STATE block (m3≡m4 @ 105; rethrow landed; m2-deletion finding); prior block demoted to PRIOR STATE; rung28 bullet marked ✅ LANDED. Watermark → `023fb43`.
 
 ## NEXT (recommended)
 1. **Lon's call on the m2-deletion fallout:** re-baseline the gate scripts off `--interp` and re-audit catch-residue + doomed-floor (likely several `g_*` now droppable → ratchet 15↓). This is the highest-leverage cleanup and removes a permanently-red smoke gate.
