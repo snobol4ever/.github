@@ -178,3 +178,47 @@ append demangled non-backend mangled names. Categories:
 Oracle removable count → 0 (only the 18 backend-KEEP js_/jvm_/net_/wasm_ remain), with all gates
 green and all-language suites non-decreasing, **and every commit pushed to `origin/main` in both
 repos** (`git rev-list --count @{u}..HEAD` == 0). Then the sweep is DONE.
+
+---
+
+## SESSION HANDOFF (2026-06-15 · Claude) — batch 3 landed, 20 removable remain
+
+**Oracle now: 59 dead / 18 backend-KEEP / 20 removable** (down from 103/64 at session open). All three
+validation proofs held; GC-binary gate-parity confirmed (smoke M4 7/7, pat-rung M4 19/19 0-SKIP, fence
+TIER1=TIER2=0); pascal/raku/rebus emit byte-identical to base-env.
+
+### Landed this session (committed; PUSH-PENDING until confirmed — see ⛔ rule above)
+- **Batch 3 — SCRIP `8d12be3`**: 44 prefixed flex accessors → attic. `pascal_yy*` (13) from
+  `pascal.lex.c`, `raku_yy*` (13) from `raku.lex.c`, `rebus_yy*`+`rebus_yy_scan_*`/`yyfree`/
+  `yy_delete_buffer` (18) from `lex.rebus.c`. Method: each `#define yyX <prefix>_yyX` renames the symbol,
+  so cutting SOURCE-TEXT `yyX` from the ONE prefixed file removes the dead `<prefix>_yyX`. Drove
+  `util_dead_sweep.py apply` with `SWEEP_DEAD`=unprefixed-source-names, `SWEEP_FILES`=the one lexer.
+  Self-contained link test passed (zero unresolved). NB `lex.raku.o` exports NO `yyget_in` (lex.raku.c
+  suppresses the defs) → cut raku from `raku.lex.c` only.
+
+### ⛔ CRITICAL FINDING — the cutter MIS-PARSES snobol4.lex.c (do-not-re-derive)
+The remaining **14 unprefixed yy/input** (`yyget_*`/`yyset_*`/`input`/`yyunput`/`yy_scan_string`/
+`yy_init_globals`) are snobol4.lex.c ONLY — but `util_dead_cutter.py` (and thus `util_dead_sweep.py`)
+**cannot cut them safely**: snobol4.lex.c's dense flex prologue has `#define yyless(n) do {…} while(0)`
+and `#define unput(c) yyunput(...)` macros whose embedded `{…}` brace pairs derail `lex_items`'s
+top-level splitter → it cut a fragment at line ~190 producing `error: #endif without #if`. Reverted clean.
+**Method for the remaining 14:** hand-cut by brace-extent, NOT the cutter. A robust per-function
+brace-matcher (anchor on the def header `^(static\s+)?(int|void|char\s*\*|FILE\s*\*|YY_BUFFER_STATE)\s+
+<name>\s*\(` then brace-count to depth 0) located **11/14** cleanly; the 3 missing (`yyget_in`,
+`yyget_out`, `yyget_text`) have a header form the regex didn't match (widen the rettype alternation /
+check for split-line headers) before cutting. Then excise the 14 extents → attic mirror with provenance,
+rebuild (self-contained link test), gates, regenerate oracle.
+
+### THE REMAINING 20 (exact)
+1. **14 snobol4.lex.c yy/input** — hand-cut by brace-extent per the finding above (NOT the cutter).
+2. **5 multi-def ambiguities** — cut DEAD def, KEEP live, verify per-TU with `nm /tmp/si_objs/<obj>.o`:
+   `collect_procs` (lower_icon.c vs lower_pascal.c), `parse_expr` (icon_parse.c vs snobol4.tab.c),
+   `rt_in_native_chunk` (cut ONLY the `__attribute__((weak))` stub in stmt_exec.c; rt.c strong def LIVE),
+   `stmt_init` (interp_globals.c vs scrip.c), `stmt_subj` (lower_icon.c/lower_prolog.c/lower_raku.c).
+3. **1 straggler** `lower_flat_set_cap_fixup` — `grep -rn` first (macro-built name or unscanned TU).
+4. **4 bomb-family mangled** (`bomb_bytes`/`bomb_text`/`bomb_intern`/`u8` in emit_str.cpp) — DEFERRED for
+   FACT-RULE caution (Lon's call). Dead so removal is link-safe; the rule governs NEW byte-emission, not
+   retention of a dead copy.
+
+NB: `stmt_init`/`stmt_subj`/`collect_procs` multidefs live partly in `interp_*`/`lower_*` files that the
+**DE-INTERP** rung renames — sequence the two rungs so a multidef cut and a file rename don't collide.
