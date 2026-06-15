@@ -64,6 +64,8 @@ edge, not a semantic change → fix the edge, re-run.
 **Scope guard:** this rung does NOT change logic, does NOT delete the bomb tombstones' behavior (they
 keep failing loudly), and does NOT touch the four legitimate survivors. It is a pure de-misnaming.
 
+## STATUS (2026-06-15 · Claude) — Steps 1-3 LANDED (SCRIP `6e87566`, push-pending). `src/interp/` dir DELETED; box-state header → `src/emitter/box_state.h`; `rt_runtime.c` → `src/runtime/`; `-I$(SRC)/interp` dropped. interp footprint 58→47. Gates green zero-regress. Next: Step 4 (eval-rail rename — the `--wrap` landmine).
+
 ## STEPS (run in order; each step = build + full gates + commit; never a broken commit)
 
 Gates after EVERY step (HARD floors, non-decreasing): smoke M4 7/7 · pat-rung M4 19/19 0-SKIP ·
