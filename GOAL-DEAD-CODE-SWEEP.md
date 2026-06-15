@@ -63,6 +63,23 @@ all-language emit-identity vs pre-removal binary confirmed; gates green zero-reg
 - Makefile: 6 lines dropped (3 RT_PIC_SRCS entries + 3 recipe lines).
 - **NEW:** `scripts/util_gc_dead_oracle.sh` (the reproducible oracle).
 
+**Lexer fixpoint (2026-06-15, `e98ca10`) — unprefixed `input`/`yyunput`/`unput` excised from
+pascal/raku/rebus `.lex.c`; GC oracle 42→40 (`input`+`yyunput` gone from the dead set):**
+- DECISION POINT settled: the build does NOT regenerate `.lex.c` (no flex rule in the Makefile;
+  `build_scrip.sh` = `make scrip`), and a no-change flex regen DIFFERS from the committed `.lex.c` by
+  159 lines (re-adds batch-3-cut accessors) ⇒ the checked-in `.lex.c` is the build source-of-truth ⇒
+  HAND-CUT, NOT the `%option noinput nounput`+regen path (which would silently undo batch 3).
+- METHOD = cut by **PREPROCESSOR-GUARD extent** (`#ifndef YY_NO_INPUT`/`YY_NO_UNPUT … #endif`, depth-tracking
+  the nested `#ifdef __cplusplus`). Self-delimiting ⇒ sidesteps the brace-matching that mis-parsed do/while
+  macros in batch 4. Prefer this over brace-extent for any future generated-lexer cut.
+- `input` (flex EOF helper; dead — only self-recursive caller, no grammar action calls it) cut from all 3;
+  `yyunput` + `#define unput` macro cut from rebus; inert `unput` macro dropped from pascal/raku too.
+  `yyless` verified independent (edits buffer pointers directly, never references `unput`). Mirrored to
+  `src/attic/parser/{pascal,raku,rebus}/*.lex.c` with provenance.
+- Static-symbol deadness proof = compile + gate (statics don't link), not the closed-subgraph link test.
+  Gates green non-decreasing; dead-code proof #3 (emitted-call ∩ dead-set) empty. Re-gated post-rebase onto
+  concurrent `b4ef415`.
+
 **POLICY: JVM / .NET / JS / WASM backend helpers are KEPT** even when dead under X86-ONLY. The oracle
 flags 18 such (`js_*`/`jvm_*`/`net_*`/`wasm_*`); filter with `grep -vE '^(js_|jvm_|net_|wasm_)'`
 before excision. Do NOT remove them.
