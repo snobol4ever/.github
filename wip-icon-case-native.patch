@@ -1,0 +1,256 @@
+diff --git a/Makefile b/Makefile
+index 119033d..7a637a9 100644
+--- a/Makefile
++++ b/Makefile
+@@ -216,6 +216,7 @@ RT_PIC_SRCS := \
+     $(SRC)/emitter/BB_templates/bb_field_get.cpp \
+     $(SRC)/emitter/BB_templates/bb_section.cpp \
+     $(SRC)/emitter/BB_templates/bb_swap.cpp \
++    $(SRC)/emitter/BB_templates/bb_case_arm.cpp \
+     $(SRC)/emitter/XA_templates/xa_stubs.cpp \
+     $(SRC)/emitter/XA_templates/xa_macro_library.cpp \
+     $(SRC)/emitter/XA_templates/xa_bb_macro_library.cpp \
+@@ -461,6 +462,7 @@ scrip:
+ 	$(CXX) $(CXXRT) -c $(SRC)/emitter/BB_templates/bb_field_get.cpp -o $(OBJ)/bb_field_get.o
+ 	$(CXX) $(CXXRT) -c $(SRC)/emitter/BB_templates/bb_section.cpp -o $(OBJ)/bb_section.o
+ 	$(CXX) $(CXXRT) -c $(SRC)/emitter/BB_templates/bb_swap.cpp -o $(OBJ)/bb_swap.o
++	$(CXX) $(CXXRT) -c $(SRC)/emitter/BB_templates/bb_case_arm.cpp -o $(OBJ)/bb_case_arm.o
+ 	$(CXX) $(CRT)   -I$(SRC)/emitter/XA_templates -I$(SRC)/include -I$(SRC)/contracts -c $(SRC)/emitter/XA_templates/xa_stubs.cpp -o $(OBJ)/xa_stubs.o
+ 	$(CXX) $(CRT)   -I$(SRC)/emitter/XA_templates -I$(SRC)/include -I$(SRC)/contracts -I$(SRC)/emitter/SM_templates -c $(SRC)/emitter/XA_templates/xa_macro_library.cpp -o $(OBJ)/xa_macro_library.o
+ 	$(CXX) $(CRT)   -I$(SRC)/emitter/XA_templates -I$(SRC)/include -I$(SRC)/contracts -c $(SRC)/emitter/XA_templates/xa_bb_macro_library.cpp -o $(OBJ)/xa_bb_macro_library.o
+diff --git a/src/contracts/IR.h b/src/contracts/IR.h
+index 35a9304..8f86ce5 100644
+--- a/src/contracts/IR.h
++++ b/src/contracts/IR.h
+@@ -50,6 +50,7 @@ typedef enum {
+     IR_ALT,
+     IR_SIZE,
+     IR_CASE,
++    IR_CASE_ARM,
+     IR_LIMIT,
+     IR_SUSPEND,
+     IR_PROC,
+diff --git a/src/contracts/scrip_ir.c b/src/contracts/scrip_ir.c
+index 809dcc0..43bacad 100644
+--- a/src/contracts/scrip_ir.c
++++ b/src/contracts/scrip_ir.c
+@@ -42,6 +42,7 @@ static const char * kind_names[IR_OP_COUNT] = {
+     [IR_ALT] = "IR_ALT",
+     [IR_SIZE] = "IR_SIZE",
+     [IR_CASE] = "IR_CASE",
++    [IR_CASE_ARM] = "IR_CASE_ARM",
+     [IR_LIMIT] = "IR_LIMIT",
+     [IR_SUSPEND] = "IR_SUSPEND",
+     [IR_PROC] = "IR_PROC",
+diff --git a/src/driver/scrip.c b/src/driver/scrip.c
+index da48997..ac0bf17 100644
+--- a/src/driver/scrip.c
++++ b/src/driver/scrip.c
+@@ -278,7 +278,13 @@ static int graph_native_emittable_mode(stage2_t *s2, int for_run) {
+             IR_t *nd = g->all[ni];
+             if (!nd) continue;
+             if (nd->op == IR_CALL && IR_LIT(nd).dval == 2.0 && IR_LIT(nd).sval && strcmp(IR_LIT(nd).sval,"__rk_bool") && strcmp(IR_LIT(nd).sval,"__rk_try") && !rt_builtin_is_known(IR_LIT(nd).sval)) return 0;
+-            if (nd->op == IR_CASE) return 0;
++            if (nd->op == IR_CASE) {
++                if (nd->n_operands < 1 || !nd->operands[0]) return 0;
++                for (int aj = 1; aj < nd->n_operands; aj++) {
++                    IR_t *arm = nd->operands[aj];
++                    if (!arm || arm->op != IR_CASE_ARM || arm->n_operands < 1 || !arm->operands[0]) return 0;
++                }
++            }
+             if (nd->op == IR_INITIAL) return 0;
+             if (nd->op == IR_SWAP) { IR_t *lv = nd->n_operands > 0 ? nd->operands[0] : (IR_t *)0; IR_t *rv = nd->n_operands > 1 ? nd->operands[1] : (IR_t *)0; if (!lv || !rv || lv->op != IR_VAR || rv->op != IR_VAR || !IR_LIT(lv).sval || !IR_LIT(rv).sval) return 0; }
+             if (nd->op == IR_CALL && IR_LIT(nd).dval == 2.0 && IR_LIT(nd).sval && (!strcmp(IR_LIT(nd).sval,"__rk_bool")||!strcmp(IR_LIT(nd).sval,"__rk_try"))) { if (bool_cond_emittable(nd)||bool_truthy_emittable(nd)) {} else return 0; }
+diff --git a/src/emitter/BB_templates/bb_case_arm.cpp b/src/emitter/BB_templates/bb_case_arm.cpp
+new file mode 100644
+index 0000000..16e72f1
+--- /dev/null
++++ b/src/emitter/BB_templates/bb_case_arm.cpp
+@@ -0,0 +1,37 @@
++#include <string>
++#include <stdint.h>
++#include "emit_str.h"
++extern "C" {
++#include "bb_template_common.h"
++#include "emit.h"
++#include "descr.h"
++extern int rt_case_eq(const DESCR_t *sel, const DESCR_t *key);
++}
++#include "x86_asm.h"
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++std::string bb_case_arm() {
++    if (!PLATFORM_X86) return std::string();
++    if (_.op_ival == 1) {
++        if (_.op_a_slot < 0 || _.op_off < 0) return x86_bomb("bb_case_arm(take): needs value slot (op_a_slot) + case slot (op_off)");
++        return x86("comment", "IR_CASE_ARM take")
++             + x86("label",   _.lbl_α)
++             + x86("mov",     "rax", FRQ(_.op_a_slot))
++             + x86("mov",     "rdx", FRQ(_.op_a_slot + 8))
++             + x86("mov",     FRQ(_.op_off),     "rax")
++             + x86("mov",     FRQ(_.op_off + 8), "rdx")
++             + x86("jmp", "γ")
++             + x86("def", "β")
++             + x86("jmp", "ω");
++    }
++    if (_.op_sa < 0 || _.op_sb < 0) return x86_bomb("bb_case_arm: needs selector slot (op_sa) + key slot (op_sb)");
++    return x86("comment", "IR_CASE_ARM")
++         + x86("label",   _.lbl_α)
++         + x86("lea",     "rdi", FRQ(_.op_sa))
++         + x86("lea",     "rsi", FRQ(_.op_sb))
++         + x86("call",    "rt_case_eq", (uint64_t)(uintptr_t)(void *)rt_case_eq)
++         + x86("test",    "eax", "eax")
++         + x86("jz",      "ω")
++         + x86("jmp", "γ")
++         + x86("def", "β")
++         + x86("jmp", "ω");
++}
+diff --git a/src/emitter/BB_templates/bb_templates.h b/src/emitter/BB_templates/bb_templates.h
+index 6895c3b..654ebc8 100644
+--- a/src/emitter/BB_templates/bb_templates.h
++++ b/src/emitter/BB_templates/bb_templates.h
+@@ -78,6 +78,7 @@ std::string bb_assign_local();
+ std::string bb_field_get();
+ std::string bb_section();
+ std::string bb_swap();
++std::string bb_case_arm();
+ std::string bb_var_frame();
+ std::string bb_var_frame_ref();
+ std::string bb_to();
+diff --git a/src/emitter/emit_bb.c b/src/emitter/emit_bb.c
+index 57ccd65..58c983c 100644
+--- a/src/emitter/emit_bb.c
++++ b/src/emitter/emit_bb.c
+@@ -1728,38 +1728,60 @@ static void flat_drive_case(IR_t *pBB, bb_label_t *lbl_γ, bb_label_t *lbl_ω, b
+         emit_jmp_label(lbl_ω, JMP_JMP);
+         return;
+     }
+-    IR_t *chain[256];
+-    int nchain = 0;
+-    for (IR_t *c = pBB->operands[0]->γ.node; c && nchain < 256; c = c->γ.node) chain[nchain++] = c;
+-    int npair      = nchain / 2;
+-    int has_default = (nchain & 1) != 0;
+     int id = g_flat_node_id++;
++    IR_t *sel = pBB->operands[0];
+     bb_label_t *sel_done = emit_label_alloc("xcase%d_sel_done", id);
+     bb_label_t *sel_β    = emit_label_alloc("xcase%d_sel_β",    id);
+-    bb_label_t **val_entry = (bb_label_t **)alloca((size_t)(npair > 0 ? npair : 1) * sizeof(bb_label_t *));
+-    for (int i = 0; i < npair; i++) val_entry[i] = emit_label_alloc("xcase%d_val%d", id, i);
+-    walk_bb_flat(pBB->operands[0], sel_done, lbl_ω, sel_β);
++    int case_slot = bb_slot_alloc16(pBB);
++    walk_bb_flat(sel, sel_done, lbl_ω, sel_β);
+     emit_label_define_bb(sel_done);
+-    for (int i = 0; i < npair; i++) {
+-        bb_label_t *key_done = emit_label_alloc("xcase%d_key%d_done", id, i);
+-        bb_label_t *key_β    = emit_label_alloc("xcase%d_key%d_β",    id, i);
+-        walk_bb_flat(chain[2*i], key_done, lbl_ω, key_β);
++    int narm = pBB->n_operands - 1;
++    for (int ai = 0; ai < narm; ai++) {
++        IR_t *arm = pBB->operands[ai + 1];
++        IR_t *key = (arm && arm->n_operands > 0) ? arm->operands[0] : NULL;
++        IR_t *val = (arm && arm->n_operands > 1) ? arm->operands[1] : NULL;
++        if (!arm || !key) continue;
++        if (!val) {
++            bb_label_t *def_done = emit_label_alloc("xcase%d_def_done", id);
++            bb_label_t *def_β    = emit_label_alloc("xcase%d_def_β",    id);
++            walk_bb_flat(key, def_done, lbl_ω, def_β);
++            emit_label_define_bb(def_done);
++            g_emit.op_ival   = 1;
++            g_emit.op_a_slot = bb_slot_get(key);
++            g_emit.op_off    = case_slot;
++            EMIT_PAIR_RESET();
++            EMIT_PAIR_DEF_JMP(lbl_β, lbl_ω);
++            EMIT_PAIR_FILL(arm, lbl_γ, lbl_ω, lbl_β);
++            bb_slot_register(pBB, case_slot);
++            return;
++        }
++        bb_label_t *key_done = emit_label_alloc("xcase%d_key%d_done", id, ai);
++        bb_label_t *key_β    = emit_label_alloc("xcase%d_key%d_β",    id, ai);
++        bb_label_t *take     = emit_label_alloc("xcase%d_take%d",     id, ai);
++        bb_label_t *next_arm = emit_label_alloc("xcase%d_next%d",     id, ai);
++        bb_label_t *cmp_β    = emit_label_alloc("xcase%d_cmp%d_β",    id, ai);
++        walk_bb_flat(key, key_done, lbl_ω, key_β);
+         emit_label_define_bb(key_done);
++        g_emit.op_ival = 0;
++        g_emit.op_sa   = bb_slot_get(sel);
++        g_emit.op_sb   = bb_slot_get(key);
+         EMIT_PAIR_RESET();
+-        EMIT_PAIR_JMP(val_entry[i]);
+-    }
+-    if (has_default) {
+-        bb_label_t *def_β = emit_label_alloc("xcase%d_def_β", id);
+-        walk_bb_flat(chain[nchain-1], lbl_γ, lbl_ω, def_β);
+-    } else {
+-        emit_jmp_label(lbl_ω, JMP_JMP);
+-    }
+-    for (int i = 0; i < npair; i++) {
+-        bb_label_t *val_β = emit_label_alloc("xcase%d_val%d_β", id, i);
+-        emit_label_define_bb(val_entry[i]);
+-        walk_bb_flat(chain[2*i+1], lbl_γ, lbl_ω, val_β);
++        EMIT_PAIR_DEF_JMP(cmp_β, lbl_ω);
++        EMIT_PAIR_FILL(arm, take, next_arm, cmp_β);
++        emit_label_define_bb(take);
++        bb_label_t *val_done = emit_label_alloc("xcase%d_val%d_done", id, ai);
++        bb_label_t *val_β    = emit_label_alloc("xcase%d_val%d_β",    id, ai);
++        walk_bb_flat(val, val_done, lbl_ω, val_β);
++        emit_label_define_bb(val_done);
++        g_emit.op_ival   = 1;
++        g_emit.op_a_slot = bb_slot_get(val);
++        g_emit.op_off    = case_slot;
++        EMIT_PAIR_RESET();
++        EMIT_PAIR_DEF_JMP(lbl_β, lbl_ω);
++        EMIT_PAIR_FILL(arm, lbl_γ, lbl_ω, lbl_β);
++        bb_slot_register(pBB, case_slot);
++        emit_label_define_bb(next_arm);
+     }
+-    emit_label_define_bb(lbl_β);
+     emit_jmp_label(lbl_ω, JMP_JMP);
+ }
+ /*--------------------------------------------------------------------------------------------------------------------*/
+diff --git a/src/emitter/emit_core.c b/src/emitter/emit_core.c
+index 9975bb1..57ee999 100644
+--- a/src/emitter/emit_core.c
++++ b/src/emitter/emit_core.c
+@@ -416,6 +416,7 @@ int walk_bb_node(IR_t * nd, FILE * out) {
+     case IR_CALL_DEFINE:          bb_emit_x86(bb_call_define());        return 0;
+     case IR_FIELD_GET:            { extern int g_descr_flat_chain; if (g_descr_flat_chain) { g_emit.op_off = bb_slot_alloc16(nd); bb_emit_x86(bb_field_get()); return 0; } fprintf(out, "; [walk_bb_node: kind=%d unhandled]\n", (int)nd->op); return 1; }
+     case IR_SECTION:              { extern int g_descr_flat_chain; if (g_descr_flat_chain) { g_emit.op_off = bb_slot_alloc16(nd); bb_emit_x86(bb_section()); return 0; } fprintf(out, "; [walk_bb_node: kind=%d unhandled]\n", (int)nd->op); return 1; }
++    case IR_CASE_ARM:            { bb_emit_x86(bb_case_arm()); return 0; }
+     case IR_SWAP:                 bb_emit_x86(bb_swap());           return 0;
+     case IR_VAR_FRAME:            { bb_prepare(nd); bb_emit_x86(bb_var_frame()); return 0; }
+     case IR_ASSIGN_FRAME:         bb_prepare(nd); { bb_emit_x86(bb_assign_frame()); } return 0;
+diff --git a/src/lower/lower_icon.c b/src/lower/lower_icon.c
+index 098b1c8..61e48b6 100644
+--- a/src/lower/lower_icon.c
++++ b/src/lower/lower_icon.c
+@@ -194,11 +194,11 @@ static IR_t * lower(icx_t * cx, const tree_t * t, IR_t * γ, IR_t * ω, IR_t **
+         for (int i = 1; i < t->n; ) {
+             int remaining = t->n - i;
+             if (remaining == 1) {
+-                IR_t * dk = build(cx, IR_LIT_NUL, NULL, NULL); IR_t * dr = NULL; IR_t * de = lower(cx, t->c[i], γ, ω, &dr); ir_operand_push(dk, de); ir_operand_push(cas, dk); i++;
++                IR_t * dk = build(cx, IR_CASE_ARM, NULL, NULL); IR_t * dr = NULL; IR_t * de = lower(cx, t->c[i], γ, ω, &dr); ir_operand_push(dk, de); ir_operand_push(cas, dk); i++;
+             } else {
+                 IR_t * kn = NULL; IR_t * ke = lower(cx, t->c[i], NULL, NULL, &kn);
+                 IR_t * vn = NULL; IR_t * ve = lower(cx, t->c[i+1], γ, ω, &vn);
+-                IR_t * arm = build(cx, IR_LIT_NUL, NULL, NULL); ir_operand_push(arm, ke ? ke : kn); ir_operand_push(arm, ve ? ve : vn); ir_operand_push(cas, arm); i += 2;
++                IR_t * arm = build(cx, IR_CASE_ARM, NULL, NULL); ir_operand_push(arm, ke ? ke : kn); ir_operand_push(arm, ve ? ve : vn); ir_operand_push(cas, arm); i += 2;
+             }
+         }
+         *res = cas; return se; }
+diff --git a/src/runtime/rt/rt.c b/src/runtime/rt/rt.c
+index 46b187b..3eb2208 100644
+--- a/src/runtime/rt/rt.c
++++ b/src/runtime/rt/rt.c
+@@ -62,6 +62,13 @@ extern DESCR_t (*g_user_call_hook)(const char *, DESCR_t *, int);
+ static int     g_native_chunk_depth = 0;
+ int rt_in_native_chunk(void) { return g_native_chunk_depth > 0; }
+ /*--------------------------------------------------------------------------------------------------------------------*/
++int rt_case_eq(const DESCR_t *sel, const DESCR_t *key)
++{
++    if (!sel || !key) return 0;
++    if (sel->v == DT_I && key->v == DT_I) return sel->i == key->i;
++    { const char *ss = VARVAL_fn(*sel); const char *ks = VARVAL_fn(*key); if (ss && ks) return strcmp(ss, ks) == 0; return ss == ks; }
++}
++/*--------------------------------------------------------------------------------------------------------------------*/
+ #define EXPRESSION_REG_MAX 256
+ typedef struct { const char *name; void *fn; } ExpressionRegEntry;
+ static ExpressionRegEntry g_expression_reg[EXPRESSION_REG_MAX];
