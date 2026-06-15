@@ -86,3 +86,78 @@ deletion), value-stack residue (`rt_push_*`/`rt_pop_*`/`rt_vstack_*`), Prolog GZ
 `lower_raku` entries (superseded by unified lower dispatch; files are partial-dead). Each cluster:
 verify in `/tmp/dead_current.txt`, excise bodies→attic with provenance, run the 3 proofs + gates,
 regenerate oracle, commit.
+
+---
+
+## SESSION HANDOFF (2026-06-15) — batches 1+2 landed, 68 removable remain
+
+**Oracle now: 103 dead / 18 backend-KEEP / 68 removable.** Down from 580 at session start.
+Tools committed to the SCRIP repo: `scripts/util_dead_cutter.py`, `scripts/util_dead_sweep.py`.
+
+### Landed this session (committed in SCRIP repo)
+- **Batch 1 — `1308f79`**: 440 GC-proven-dead functions across 52 files → attic (interpreter-era
+  runtime corpse: rt_runtime.c 81, rt.c 67, pattern_match.c 44, resolution.c 32, core.c 30,
+  unification.c 29, emit_* ~30, …). 4 whole-file-dead TUs dropped from Makefile (tree.c, name_t.c,
+  bb_boxes.c, interp_ref.c). All-6-language suites NON-DECREASING vs a true base-env build;
+  proof-3 emitted-call ∩ dead = 0.
+- **Batch 2 — `8d6d528`**: 22 single-def dead parser helpers (snobol4.lex.c / snobol4.tab.c /
+  raku.tab.c / snocone_parse.tab.c). Gates green, all-lang hello matrix unchanged.
+
+### Reusable tooling (NOW IN REPO — persists)
+- `scripts/util_dead_cutter.py` — brace-aware C top-level splitter. `lex_items(src)` →
+  [('func',name,text)|('sep'|'pp'|'other',...)]. VALIDATED against `nm` across arithmetic/emit_bb/
+  rt_runtime/flex files. Cannot merge two functions (each body's braces balance independently) so it
+  never erroneously cuts a live function; over-extracted macro/keyword "names" are harmless (never in
+  the dead set). Header `static inline`s are invisible to it (correct — they live in headers).
+- `scripts/util_dead_sweep.py` — `apply <commit>`: cuts dead bodies → `src/attic/<mirror>` with
+  provenance, drops the preceding separator, rewrites the live file. Params via env `SWEEP_DEAD`
+  (dead-name list, one per line) + `SWEEP_FILES` (files to process). `map` prints the per-file cut map.
+- Oracle: `scripts/util_gc_dead_oracle.sh` → `/tmp/dead_current.txt`. Re-run after every batch.
+
+### THE REMAINING 68 — exact plan (do-not-re-derive)
+Build removable set: `grep -vE '^_Z' /tmp/dead_current.txt | grep -vE '^(js_|jvm_|net_|wasm_)'`, then
+append demangled non-backend mangled names. Categories:
+
+1. **44 prefix-renamed flex accessors** (`pascal_yy*`, `raku_yy*`, `rebus_yy*`). HAZARD: flex
+   `%option prefix` macro-renames so the SYMBOL is `pascal_yyget_in` but SOURCE TEXT is `yyget_in`;
+   the text-matching cutter will NOT find them by symbol. **Method:** per generated-lexer file, detect
+   its prefix (common prefix of its `*_yylex` symbol in `nm`, or the `#define yyget_in <P>_yyget_in`
+   lines), then for each dead symbol `<P>_yyX` cut SOURCE text `yyX` from that ONE file. Within a
+   single prefixed lexer the text→symbol map is 1:1. Files: pascal.lex.c (`pascal`), raku.lex.c +
+   lex.raku.c (`raku`), lex.rebus.c (`rebus`).
+2. **14 unprefixed yy/input** (`yyget_in/out/leng/lineno/text/debug`, `yyset_*`, `input`, `yyunput`,
+   `yy_scan_string`, `yy_init_globals`) = the UNPREFIXED symbols = **snobol4.lex.c ONLY** (snobol4's
+   lexer has no prefix). Same TEXT appears in the other 4 lexers but compiles to prefixed symbols
+   there — cut these **only from snobol4.lex.c** (set SWEEP_FILES to just that file), never globally.
+3. **5 real multi-def ambiguities** — cut the DEAD def, KEEP the live one; verify per-TU with
+   `nm /tmp/si_objs/<obj>.o`:
+   - `rt_in_native_chunk` — cut ONLY the `__attribute__((weak))` stub in stmt_exec.c; rt.c strong def
+     (`return g_native_chunk_depth>0`) is LIVE.
+   - `collect_procs` (lower_icon.c, lower_pascal.c), `parse_expr` (icon_parse.c, snobol4.tab.c),
+     `stmt_init` (interp_globals.c, scrip.c), `stmt_subj` (lower_icon.c, lower_prolog.c, lower_raku.c).
+4. **4 bomb family** (`bomb_bytes`, `bomb_intern`, `bomb_text`, `u8` in emit_str.cpp) — deferred for
+   FACT-RULE caution (`bomb_bytes` is the named "sole legacy exception"). They are dead so removal is
+   link-safe; the rule governs NEW byte-emission sites, not retention of a dead copy. Confirm w/ Lon.
+5. **1 straggler** `lower_flat_set_cap_fixup` — no verbatim source match (macro-built name or TU not
+   in srcfiles scan). `grep -rn` before cutting.
+
+### Validation protocol per batch (mandatory, all non-decreasing)
+1. apply → `make scrip` → `make libscrip_rt`.
+2. Floors: smoke M4 7/7 · pat-rung M4 19/19 0-SKIP · fence TIER1=TIER2=0.
+3. All-language: hello matrix (snobol4/snocone/icon/prolog/raku ROW-MATCH; **rebus drift is
+   PRE-EXISTING/identical-to-base — ignore**) + per-language suites (test_icon_rung_suite /
+   test_prolog_rung_suite / test_raku_ir_full_suite / test_snocone_hand_suite /
+   test_mode4_only_corpus_snobol4). Base-env parity dir was `/tmp/base_env/` (rebuild if gone:
+   stash → make scrip + libscrip_rt → copy → pop).
+4. proof-3 only if runtime (`rt_*`) names involved (the 5 multidef might): emit `--compile` over a
+   6-language corpus sample, scrape `call <sym>`, intersect dead — must be 0.
+5. Commit, re-run oracle (fixpoint; count shrinks monotonically toward the 18 backend-KEEP floor).
+
+### Known non-issues (do not chase)
+- mode-2 (`--interp`) 0/N everywhere — IR interpreter deleted in a prior session (dead column).
+- rebus mode-4 FATALs `[SBB] …main BB graph not found` at BASE too — pre-existing, not the sweep.
+- icon/prolog/raku/snocone suites show stable XFAIL/EXCISED/FAIL counts identical to base.
+
+### Completion criterion
+Oracle removable count → 0 (only the 18 backend-KEEP js_/jvm_/net_/wasm_ remain), with all gates
+green and all-language suites non-decreasing. Then the sweep is DONE.
