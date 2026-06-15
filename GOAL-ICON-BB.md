@@ -1,6 +1,6 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m2 200/283 · m3 45 · m4 51. ✅ bb_to descending TO + EVERY-exhaustion chaining fixed (fb2daea). Next: rc=139 IR_CASE native template (rung33_case_*); rc=124 timeout cluster (TO/EVERY retry); residual rc=134 bombs. See GOAL-ICON-FULL-PASS.md.
+## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m3 127 · m4 127 · FAIL 25. ✅ native IR_CASE case-of (rung33 5/5 m3+m4, +5) LANDED (176ecda). Next: rc=124 timeout cluster (rung14 limit, rung03 suspend, rung19 real to-by — TO/EVERY/generator retry); rc=134 real-arith relops (rung18) + list builtins (rung22 push/put/get/pull); residual rc=139 (rung31 sort). See GOAL-ICON-FULL-PASS.md.
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon.** Driver deposits neighbor slots as `g_emit.op_*` scalars; boxes read only `_`. `x86_asm.h` is additive only; `git pull --rebase` before push.
 
