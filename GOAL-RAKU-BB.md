@@ -36,9 +36,37 @@ flatten subrules → one NFA → `nfa_exec`) — a NON-recursive stopgap (`by_na
 4096-byte buffer; a self-recursive rule overflows/caps out = wrong). Flat grammars (the 4 grammar smoke tests)
 work; recursive grammars do not.
 
-**STATUS (2026-06-14, SCRIP local `d63c374`):** Raku m2 38/38 HARD; m3/m4 35 PASS / 3 EXCISED (the 3 = `~~`
-verdict+capture smokes, correctly excised — regex is m2-only by design now). Peers: Icon 12/12/12, SNOBOL4
-7/7/7. g_vstack=0, bb_bin_t=0, IR_NFA residual=0.
+**STATUS (2026-06-14, SCRIP origin/main `b63cc45`):** Raku m3/m4 31 PASS / 0 FAIL / 7 EXCISED (the 7 = 3 `~~`
+verdict+capture smokes + 4 map/grep — all correctly EXCISED, never abort). **Mode 2 / `--interp` is GONE** (the
+IR-graph interpreter was deleted, `a2440f4`); the smoke harness numbers above are the two NATIVE modes and m3 is
+now the primary correctness mode. Peers: Icon m3/m4 12/12, SNOBOL4 m4 7/7. g_vstack=0, bb_bin_t=0, IR_NFA=0.
+
+**LANDED 2026-06-14 (3 commits, `1c64469`/`2860563`/`b63cc45`):**
+1. **map/grep abort→EXCISE (the regression fix).** `a2440f4` (interp deletion) bomb-stubbed `bb_mapgrep_prepare`
+   (its `IR_interp_once` materialization body was deleted) but LEFT `graph_native_emittable_mode` ADMITTING
+   `IR_MAP`/`IR_GREP` — so a map/grep program reached the `[NO-IR-INTERP]` bomb and ABORTED, violating
+   PASS-or-EXCISED. FIX (matches the intent of the already-dead `kind_native_stub`): node-loop guard
+   `IR_MAP||IR_GREP → return 0`, and dropped them from `rhs_kind_ok` (kept `IR_GATHER`, which has a real
+   self-contained `bb_gather.cpp`). `gather_take` still PASSes; map_range/grep_range/map_over_gather/
+   grep_over_gather: abort → clean `[SMX]` EXCISE.
+2. **Smoke harnesses de-interp'd to 2-mode (raku + icon + snobol4).** All three still invoked the deleted
+   `--interp`; raku/icon GATED on `[ $F2 -eq 0 ]` → rc=1 despite clean m3/m4. Removed every `--interp`
+   invocation + m2 bookkeeping; gate on zero silent m3/m4 FAIL + floors (the shape snobol4 already used). Icon
+   gate STRENGTHENED from floors-only to m3/m4 zero-FAIL (m3 replaced m2's build-sanity role) — one-line revert
+   if the Icon owner wants it looser. Behavior-neutral for every compiler; all three gates now rc=0.
+
+**RAKUDO SOURCE CORRECTION (read `6_rakudo-main` this session — do-not-re-derive):** real Raku `gather`/`take`
+is **NOT materialized** — it is a first-class **continuation coroutine** (`Rakudo/Iterator.rakumod` `class
+Gather does SlippyIterator`): the block runs under `nqp::handle(&block(),'TAKE',…)`; each `take` decrements
+`$!wanted` and at 0 captures the continuation (`nqp::continuationcontrol(0,PROMPT,…)`) and SUSPENDS mid-block;
+`pull-one` sets `$!wanted=1` and `nqp::continuationreset`s to resume to the next `take`. `map`/`grep`
+(`Any-iterable-methods.rakumod`) are ALSO lazy — `Seq.new(<pull-one iterator over SELF.iterator>)`. So ALL
+THREE are lazy. SCRIP's `bb_gather.cpp` only emits the **degenerate literal-int-take** case (constant-folds each
+`take(N)` at compile time into a baked `.quad` cursor; `take($computed)` aborts) — passes the smoke but is far
+from real gather. **IMPLICATION for RK-EMIT-MAP/GREP + RK-GRAM-3:** the generator-PUMP the goal calls for
+("closure emitted as native, invoked per element, SUSPEND/EVERY driver") IS Rakudo's continuation model, and the
+four-port box resumption (γ advance / ω redo / β resume) is its native analog — the same suspend/resume-across-a-
+boundary substrate both rungs need.
 
 **NEXT: RK-GRAM-3 (THE SEAM) — recursive-descent grammar engine.** Build subrule `<name>` recursion +
 backtracking on the EXISTING four-port box-resumption substrate (the SNOBOL4 pattern boxes `bb_match_*`/
