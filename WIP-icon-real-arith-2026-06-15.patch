@@ -1,0 +1,231 @@
+diff --git a/src/driver/scrip.c b/src/driver/scrip.c
+index 6223c5c..5c76f62 100644
+--- a/src/driver/scrip.c
++++ b/src/driver/scrip.c
+@@ -205,7 +205,7 @@ static int graph_has_binop(const IR_graph_t *g);
+ static int local_assign_rhs_ok_g(const IR_graph_t *g, IR_t *nd) {
+     IR_t *rhs = (nd->n_operands > 0) ? nd->operands[0] : (IR_t *)0;
+     if (!rhs) for (int i = 0; i < g->n; i++) { IR_t *p = g->all[i]; if (p && p->γ.node == nd) { rhs = p; break; } }
+-    if (rhs && rhs->op == IR_LIT_F) return !graph_has_binop(g);
++    if (rhs && rhs->op == IR_LIT_F) return 1;
+     return rhs_kind_ok(rhs);
+ }
+ static int arith_operand_ok(IR_t *r) {
+diff --git a/src/emitter/BB_templates/bb_binop_arith.cpp b/src/emitter/BB_templates/bb_binop_arith.cpp
+index 7df296b..d58b08c 100644
+--- a/src/emitter/BB_templates/bb_binop_arith.cpp
++++ b/src/emitter/BB_templates/bb_binop_arith.cpp
+@@ -8,13 +8,31 @@ extern "C" {
+ #include "descr.h"
+ #include "../../runtime/builtins/gen.h"
+ extern int g_descr_flat_chain;
++DESCR_t rt_num_arith(DESCR_t a, DESCR_t b, int op);
+ }
+ #include "x86_asm.h"
+ /*--------------------------------------------------------------------------------------------------------------------*/
+ static inline long long bo() { return (long long)_.op_ival; }
+ /*--------------------------------------------------------------------------------------------------------------------*/
+ std::string bb_binop_arith() {
+-    return IF(PLATFORM_X86 && g_descr_flat_chain && _.op_off >= 0 && (bo() == BINOP_ADD || bo() == BINOP_SUB || bo() == BINOP_MUL || bo() == BINOP_DIV || bo() == BINOP_MOD),
++    if (!PLATFORM_X86) return std::string();
++    if (g_descr_flat_chain && _.op_num_real && _.op_off >= 0 && _.op_sa >= 0 && _.op_sb >= 0)
++        return x86("label", _.lbl_α)
++             + x86("comment", "IR_BINOP_ARITH_REAL")
++             + x86("mov", "rdi", FRQ(_.op_sa))
++             + x86("mov", "rsi", FRQ(_.op_sa + 8))
++             + x86("mov", "rdx", FRQ(_.op_sb))
++             + x86("mov", "rcx", FRQ(_.op_sb + 8))
++             + x86("mov", "r8d", (long)_.op_ival)
++             + x86("call", "rt_num_arith", (uint64_t)(uintptr_t)(void*)rt_num_arith)
++             + x86("cmp", "eax", (long)DT_FAIL)
++             + x86("je", "ω")
++             + x86("mov", FRQ(_.op_off), "rax")
++             + x86("mov", FRQ(_.op_off + 8), "rdx")
++             + x86("jmp", "γ")
++             + x86("def", "β")
++             + x86("jmp", "ω");
++    return IF(g_descr_flat_chain && _.op_off >= 0 && !_.op_num_real && (bo() == BINOP_ADD || bo() == BINOP_SUB || bo() == BINOP_MUL || bo() == BINOP_DIV || bo() == BINOP_MOD),
+            x86("label", _.lbl_α)
+          + x86("comment", "IR_BINOP_ARITH")
+          + x86("mov", "rax", FRQ(_.op_sa + 8))
+diff --git a/src/emitter/BB_templates/bb_binop_relop.cpp b/src/emitter/BB_templates/bb_binop_relop.cpp
+index 29b78a8..1632932 100644
+--- a/src/emitter/BB_templates/bb_binop_relop.cpp
++++ b/src/emitter/BB_templates/bb_binop_relop.cpp
+@@ -14,7 +14,7 @@ int rt_jct_relop(DESCR_t lhs, DESCR_t rhs, int op);
+ /*--------------------------------------------------------------------------------------------------------------------*/
+ std::string bb_binop_relop() {
+     if (PLATFORM_X86) {
+-        return (g_descr_flat_chain && _.op_off >= 0 && _.op_ival >= BINOP_LT && _.op_ival <= BINOP_NE && _.op_sa >= 0 && _.op_sb >= 0)
++        return (g_descr_flat_chain && !_.op_num_real && _.op_off >= 0 && _.op_ival >= BINOP_LT && _.op_ival <= BINOP_NE && _.op_sa >= 0 && _.op_sb >= 0)
+                  ? x86("label", _.lbl_α)
+                  + x86("comment", "IR_BINOP_RELOP")
+                  + x86("mov", "rax", FRQ(_.op_sa + 8))
+@@ -28,7 +28,8 @@ std::string bb_binop_relop() {
+                  + x86("jmp", "γ")
+                  + x86("def", "β")
+                  + x86("jmp", "ω")
+-             : (g_descr_flat_chain && _.op_off >= 0 && _.op_ival >= BINOP_SLT && _.op_ival <= BINOP_SNE && _.op_sa >= 0 && _.op_sb >= 0)
++             : (g_descr_flat_chain && _.op_off >= 0 && _.op_sa >= 0 && _.op_sb >= 0
++                && ((_.op_num_real && _.op_ival >= BINOP_LT && _.op_ival <= BINOP_NE) || (_.op_ival >= BINOP_SLT && _.op_ival <= BINOP_SNE)))
+                  ? x86("label", _.lbl_α)
+                  + x86("comment", "IR_BINOP_RELOP")
+                  + x86("mov", "rdi", FRQ(_.op_sa))
+diff --git a/src/emitter/emit_bb.c b/src/emitter/emit_bb.c
+index 9ce07fc..8ce3527 100644
+--- a/src/emitter/emit_bb.c
++++ b/src/emitter/emit_bb.c
+@@ -1436,6 +1436,50 @@ static int descr_binop_opnd_slot(IR_t *o) {
+     return (o && o->op != IR_LIT_F && o->op != IR_LIT_NUL) ? bb_slot_get(o) : -1;
+ }
+ /*--------------------------------------------------------------------------------------------------------------------*/
++static int binop_operand_real_static(IR_graph_t *g, IR_t *o, int depth);
++static int var_assigned_real_static(IR_graph_t *g, const char *name, int depth) {
++    if (!g || !g->all || !name || depth > 8) return 0;
++    for (int i = 0; i < g->n; i++) {
++        IR_t *m = g->all[i];
++        if (!m || m->op != IR_ASSIGN || !IR_LIT(m).sval || strcmp(IR_LIT(m).sval, name)) continue;
++        IR_t *rhs = (m->n_operands > 0) ? m->operands[0] : bb_child0(m);
++        if (rhs && binop_operand_real_static(g, rhs, depth + 1)) return 1;
++    }
++    return 0;
++}
++static int binop_operand_real_static(IR_graph_t *g, IR_t *o, int depth) {
++    if (!o || depth > 8) return 0;
++    if (o->op == IR_LIT_F) return 1;
++    if (o->op == IR_VAR && IR_LIT(o).sval) return var_assigned_real_static(g, IR_LIT(o).sval, depth);
++    if (o->op == IR_BINOP) {
++        IR_t *c0 = bb_child0(o), *c1 = bb_child1(o);
++        int na = 0; IR_t * const *aux = (g && !c0) ? bb_operand_aux_get(g, o, &na) : (IR_t * const *)0;
++        if (aux && na >= 2) { c0 = aux[0]; c1 = aux[1]; }
++        return binop_operand_real_static(g, c0, depth + 1) || binop_operand_real_static(g, c1, depth + 1);
++    }
++    if (o->op == IR_ALT) {
++        for (int k = 0; k < o->n_operands; k++) if (binop_operand_real_static(g, o->operands[k], depth + 1)) return 1;
++    }
++    return 0;
++}
++static int binop_is_num_real(IR_graph_t *g, IR_t *nd) {
++    if (!nd) return 0;
++    int64_t op = IR_LIT(nd).ival;
++    int is_num = (op == BINOP_ADD || op == BINOP_SUB || op == BINOP_MUL || op == BINOP_DIV || op == BINOP_MOD || (op >= BINOP_LT && op <= BINOP_NE));
++    if (!is_num) return 0;
++    return binop_operand_real_static(g, bb_child0(nd), 0) || binop_operand_real_static(g, bb_child1(nd), 0);
++}
++static void descr_binop_set_slots(IR_t *nd) {
++    g_emit.op_num_real = 0;
++    if (binop_is_num_real(g_emit_cfg, nd)) {
++        int sa = bb_slot_get(bb_child0(nd)), sb = bb_slot_get(bb_child1(nd));
++        if (sa >= 0 && sb >= 0) { g_emit.op_sa = sa; g_emit.op_sb = sb; g_emit.op_num_real = 1; g_emit.op_off = bb_slot_alloc16(nd); return; }
++    }
++    g_emit.op_sa = descr_binop_opnd_slot(bb_child0(nd));
++    g_emit.op_sb = descr_binop_opnd_slot(bb_child1(nd));
++    g_emit.op_off = (g_emit.op_sa >= 0 && g_emit.op_sb >= 0) ? bb_slot_alloc16(nd) : -1;
++}
++/*--------------------------------------------------------------------------------------------------------------------*/
+ static void flat_drive_binop_tree(IR_t *pBB, bb_label_t *lbl_γ, bb_label_t *lbl_ω, bb_label_t *lbl_β) {
+     if (!pBB || !bb_child0(pBB) || !bb_child1(pBB)) {
+         fprintf(stderr, "[IBB] FATAL flat_drive_binop_tree: missing α or β child\n");
+@@ -1472,10 +1516,7 @@ static void flat_drive_binop_tree(IR_t *pBB, bb_label_t *lbl_γ, bb_label_t *lbl
+     }
+     emit_label_define_bb(rhs_done);
+     if (g_descr_flat_chain) {
+-        g_emit.op_sa = descr_binop_opnd_slot(bb_child0(pBB));
+-        g_emit.op_sb = descr_binop_opnd_slot(bb_child1(pBB));
+-        if (g_emit.op_sa >= 0 && g_emit.op_sb >= 0) g_emit.op_off = bb_slot_alloc16(pBB);
+-        else g_emit.op_off = -1;
++        descr_binop_set_slots(pBB);
+     }
+     EMIT_PAIR_RESET();
+     EMIT_PAIR_DEF_JMP(lbl_β, lbl_ω);
+@@ -1526,9 +1567,7 @@ static void flat_drive_binop_gen_tree(IR_t *pBB, bb_label_t *lbl_γ, bb_label_t
+        After the box emit lbl_β → jmp rhs_β for the outer caller's retry. */
+     emit_label_define_bb(rhs_done);
+     if (g_descr_flat_chain) {
+-        g_emit.op_sa = descr_binop_opnd_slot(bb_child0(pBB));
+-        g_emit.op_sb = descr_binop_opnd_slot(bb_child1(pBB));
+-        g_emit.op_off = (g_emit.op_sa >= 0 && g_emit.op_sb >= 0) ? bb_slot_alloc16(pBB) : -1;
++        descr_binop_set_slots(pBB);
+     }
+     EMIT_PAIR_RESET();
+     { IR_e _sk = pBB->op; pBB->op = binop_slot_kind(pBB); EMIT_PAIR_FILL(pBB, lbl_γ, lbl_ω, rhs_β); pBB->op = _sk; }
+@@ -2865,6 +2904,7 @@ void walk_bb_flat(IR_t *nd, bb_label_t *lbl_γ, bb_label_t *lbl_ω, bb_label_t *
+     }
+     case IR_BINOP: {
+         g_emit.op_relop_descr = 0;
++        g_emit.op_num_real = 0;
+         if (g_gvar_flat_chain && nd && !bb_child0(nd) && g_emit_cfg) { int _na = 0; IR_t * const * _ax = bb_operand_aux_get(g_emit_cfg, nd, &_na); if (_na >= 2 && _ax[0] && _ax[1]) { nd->n_operands = 0; ir_operand_push(nd, _ax[0]); ir_operand_push(nd, _ax[1]); } }
+         int op_is_rel = nd && ((IR_LIT(nd).ival >= BINOP_LT && IR_LIT(nd).ival <= BINOP_NE) ||
+                                (IR_LIT(nd).ival >= BINOP_SLT && IR_LIT(nd).ival <= BINOP_SNE));
+@@ -2973,9 +3013,7 @@ void walk_bb_flat(IR_t *nd, bb_label_t *lbl_γ, bb_label_t *lbl_ω, bb_label_t *
+             if (needs_walk) {
+                 flat_drive_binop_tree(nd, lbl_γ, lbl_ω, lbl_β);
+             } else {
+-                g_emit.op_sa = descr_binop_opnd_slot(bb_child0(nd));
+-                g_emit.op_sb = descr_binop_opnd_slot(bb_child1(nd));
+-                if (g_emit.op_sa >= 0 && g_emit.op_sb >= 0) g_emit.op_off = bb_slot_alloc16(nd);
++                descr_binop_set_slots(nd);
+                 EMIT_PAIR_RESET();
+                 EMIT_PAIR_DEF_JMP(lbl_β, lbl_ω);
+                 { IR_e _sk = nd->op; nd->op = binop_slot_kind(nd); EMIT_PAIR_FILL(nd, lbl_γ, lbl_ω, lbl_β); nd->op = _sk; }
+diff --git a/src/emitter/emit_globals.h b/src/emitter/emit_globals.h
+index 3709c98..bf79ca3 100644
+--- a/src/emitter/emit_globals.h
++++ b/src/emitter/emit_globals.h
+@@ -40,6 +40,7 @@ typedef struct {
+     int                          op_off;
+     int                          op_bounded;
+     int                          op_relop_descr;
++    int                          op_num_real;
+     const char *                 op_call_sym;
+     void *                        op_call_fp;
+     int                          op_write_route;
+diff --git a/src/runtime/arithmetic.c b/src/runtime/arithmetic.c
+index 0e3629b..7ba2785 100644
+--- a/src/runtime/arithmetic.c
++++ b/src/runtime/arithmetic.c
+@@ -1,6 +1,7 @@
+ #include "core.h"
+ #include "sil_macros.h"
+ #include "rt/rt.h"
++#include "builtins/gen.h"
+ #include "builtins/resolution.h"
+ #include "../parser/prolog/prolog_atom.h"
+ #include <stdlib.h>
+@@ -160,3 +161,19 @@ long rt_arith(int lk, long li, const char *ls,
+     if (op[0] == '%' && op[1] == '\0') return rv ? lv % rv : 0;
+     return lv + rv;
+ }
++/*--------------------------------------------------------------------------------------------------------------------*/
++DESCR_t rt_num_arith(DESCR_t a, DESCR_t b, int op) {
++    int lf = IS_REAL_fn(a), rf = IS_REAL_fn(b);
++    int anyf = lf || rf;
++    double ld = to_real(a), rd = to_real(b);
++    int64_t li = to_int(a), ri = to_int(b);
++    switch (op) {
++        case BINOP_ADD: return anyf ? REALVAL(ld + rd) : INTVAL(li + ri);
++        case BINOP_SUB: return anyf ? REALVAL(ld - rd) : INTVAL(li - ri);
++        case BINOP_MUL: return anyf ? REALVAL(ld * rd) : INTVAL(li * ri);
++        case BINOP_DIV: if (anyf) return (rd == 0.0) ? FAILDESCR : REALVAL(ld / rd); if (ri == 0) return FAILDESCR; return (li % ri == 0) ? INTVAL(li / ri) : REALVAL((double)li / (double)ri);
++        case BINOP_MOD: if (anyf) return (rd == 0.0) ? FAILDESCR : REALVAL(fmod(ld, rd)); if (ri == 0) return FAILDESCR; return INTVAL(li % ri);
++        case BINOP_POW: return REALVAL(pow(ld, rd));
++        default: return anyf ? REALVAL(ld + rd) : INTVAL(li + ri);
++    }
++}
+diff --git a/src/runtime/by_name_dispatch.c b/src/runtime/by_name_dispatch.c
+index f710897..8d70a18 100644
+--- a/src/runtime/by_name_dispatch.c
++++ b/src/runtime/by_name_dispatch.c
+@@ -1239,6 +1239,12 @@ int rt_jct_relop(DESCR_t lhs, DESCR_t rhs, int op) {
+         int numeric = str_rel ? 0 : (IS_INT_fn(scalar) || IS_REAL_fn(scalar));
+         return junction_collapse(scalar, jct, tt_op, numeric) ? 1 : 0;
+     }
++    if (num_rel && (IS_REAL_fn(lhs) || IS_REAL_fn(rhs)) && (IS_INT_fn(lhs) || IS_REAL_fn(lhs)) && (IS_INT_fn(rhs) || IS_REAL_fn(rhs))) {
++        double a = to_real(lhs), b = to_real(rhs);
++        switch (op) { case BINOP_EQ: return a==b; case BINOP_NE: return a!=b; case BINOP_LT: return a<b;
++                      case BINOP_LE: return a<=b; case BINOP_GT: return a>b;  case BINOP_GE: return a>=b; }
++        return 0;
++    }
+     if (IS_INT_fn(lhs) && IS_INT_fn(rhs)) {
+         int64_t a = lhs.i, b = rhs.i;
+         switch (op) { case BINOP_EQ: return a==b; case BINOP_NE: return a!=b; case BINOP_LT: return a<b;
