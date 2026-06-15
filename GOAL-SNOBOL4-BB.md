@@ -9,19 +9,21 @@
 # ⛔ START HERE — ACTIVE RUNGS
 
 **LIVE STATE (2026-06-15):**
-- **DEAD-CODE SWEEP** — GC oracle authoritative: **59 dead / 18 backend-KEEP / 20 removable** (down from
-  103/64 at session open). **Batch 3 landed** (44 prefixed flex accessors → attic, `8d12be3` in SCRIP).
-  Remaining removable 20 = 14 snobol4.lex.c yy/input (cutter mis-parses the dense flex macro region —
-  hand-cut by brace-extent; 3 headers `yyget_in/out/text` still need matching) · 5 multi-def ambiguities
-  (`collect_procs`/`parse_expr`/`rt_in_native_chunk`/`stmt_init`/`stmt_subj` — cut DEAD def keep LIVE,
-  verify per-TU with `nm`) · `lower_flat_set_cap_fixup` straggler. 4 bomb-family mangled names DEFERRED
-  (Lon's call). Full method + 3-proof validation + tooling: `GOAL-DEAD-CODE-SWEEP.md`. RUNG + STEPS below.
-- **DE-INTERP** — interpreter is DELETED → the token `interp` is a lie in every live file/dir/symbol/
-  guard/Makefile target. **Steps 2-3 landed** (`6e87566` in SCRIP): box-state header
-  `IR_interp_state.h`→`src/emitter/box_state.h`; `rt_runtime.c`→`src/runtime/`; **`src/interp/` dir
-  deleted**; `-I$(SRC)/interp` dropped. interp footprint 58→47. Remaining Steps 4-8 (eval-rail rename,
-  driver `interp_*` family atomic, prolog `pl_interp.h`, Makefile/comment sweep). Full true-role map +
-  the 4 do-NOT-touch survivors: `GOAL-DE-INTERP.md`. RUNG + STEPS below.
+- **DEAD-CODE SWEEP** — GC oracle authoritative: **43 dead** (down from 59 at session open). **Batch 4
+  landed** (`5e483bf` in SCRIP): the documented-20 worklist is RESOLVED — **19 excised + 1
+  (`yy_init_globals`) PROVEN NON-removable** by the self-contained link test (CLOSED-SUBGRAPH: its callers
+  `yylex_init`/`yylex_destroy` are live, so isolated removal → `undefined reference`; proven empirically).
+  Cut: 5 multidefs (cut-dead-keep-live, nm-verified) · 1 straggler `lower_flat_set_cap_fixup` · 13
+  snobol4.lex.c flex accessors (HAND-CUT by brace-extent — cutter mis-parses the file). **FIXPOINT
+  SURFACED** (next iteration): `rt.c rt_in_native_chunk` now provably dead (0 callers, weak-stub removal
+  unmasked it — SAFE) · unprefixed `input`/`yyunput` copies in pascal/raku/rebus lexers. Full method +
+  the closed-subgraph finding: `GOAL-DEAD-CODE-SWEEP.md`. RUNG + STEPS below.
+- **DE-INTERP** — ✅ **DONE, ALL 8 STEPS LANDED.** Steps 4-8 this session (SCRIP `1d113eb` eval-rail
+  rename `interp_eval*`→`eval_ast*` incl. the silent `-Wl,--wrap=` landmine in build_scrip_rs23_diag.sh ·
+  `f60bb08` driver file family `interp_*`→`driver_*` atomic · `4c9b6bd` `pl_interp.h`→`pl_resolve.h` +
+  Makefile/comment sweep + completion). Completion grep returns ONLY the 4 legitimate survivors. No
+  `src/interp` dir, no `interp.h`/`pl_interp.h`, no `scrip-interp`. Behavior-neutral (SNOBOL `.s`
+  byte-identical). Goal CLOSED — full detail in `GOAL-DE-INTERP.md`.
 
 **GATE FLOORS (HARD, every batch non-decreasing):** smoke M4 7/7 · pat-rung M4 19/19 0-SKIP (M3 15/19) ·
 fence TIER1=TIER2=0 · all-language hello matrix row-match vs base-env (rebus drift pre-existing — ignore).
@@ -67,6 +69,10 @@ STEPS (each = build + full gates + commit; never a broken commit):
 ---
 
 <!-- ───────────── SESSION WATERMARKS (most recent first) ───────────── -->
+
+**SESSION WATERMARK — 2026-06-15 · Claude · SCRIP base 6e87566 + 4 commits this session (1d113eb · f60bb08 · 4c9b6bd · 5e483bf). TWO CROSS-CUTTING RUNGS DRIVEN: DE-INTERP fully CLOSED + DEAD-CODE batch 4. NO SNOBOL4-BB pattern-rung work this session (the START-HERE cross-cutting rungs were the named task). Gates green zero-regress every commit: smoke M4 7/7 · pat-rung M4 19/19 0-SKIP (M3 15) · fence TIER1=TIER2=0 · hello matrix 5-match/1-known-rebus-drift. SNOBOL hello `.s` byte-identical to base-env throughout (emit-neutral proof for both mechanical rungs). (1) DE-INTERP Steps 4-8 → DONE: eval-rail `interp_eval*`→`eval_ast*` (the silent `-Wl,--wrap=interp_eval` lived in `scripts/build_scrip_rs23_diag.sh:39`, NOT the Makefile — renamed lockstep w/ rs23_diag.c `__real`/`__wrap` + test_isolation guard array); driver file family `interp_*`→`driver_*` (8 files, atomic, 12 includers + Makefile repointed); `pl_interp.h`→`pl_resolve.h`; Makefile sweep (killed dead `scrip-interp`/`test-ir`/`run-ir` targets referencing a deleted flag + nonexistent script); completion grep = only the 4 legitimate survivors. Bonus: fixed `icn_main.c` user messages telling users to use the deleted `--interp` flag (→`--run`) + a stale `(interp_hooks)` filename in driver_hooks.c. (2) DEAD-CODE batch 4: the documented 20-removable RESOLVED — 19 excised to attic (5 multidefs cut-dead-keep-live nm-verified, 1 straggler, 13 snobol4.lex.c flex accessors hand-cut by brace-extent), + `yy_init_globals` PROVEN non-removable (closed-subgraph: live callers `yylex_init`/`yylex_destroy` → isolated cut gives `undefined reference`, proven by cut→link-fail→restore). Oracle 59→43 dead. FIXPOINT surfaced for next session: `rt.c rt_in_native_chunk` (0 callers now, SAFE) + other-lexer `input`/`yyunput`. Full detail: GOAL-DE-INTERP.md (CLOSED) + GOAL-DEAD-CODE-SWEEP.md (batch-4 handoff section).**
+
+
 
 **SESSION WATERMARK — 2026-06-15 · Claude · SCRIP base 2c38d15 + 2 commits this session (8d12be3 dead-code batch 3 · 6e87566 de-interp steps 2-3). HOUSEKEEPING: two cross-cutting rungs advanced + SURFACED to the top of this file (START HERE banner) so they are discoverable at session open (they were buried under the watermark stack — that is why dead-code/de-interp did not surface as the task). Gates green zero-regress all batches: smoke M4 7/7 · pat-rung M4 19/19 0-SKIP (M3 15) · fence TIER1=TIER2=0. (1) DEAD-CODE: GC oracle 103→59 dead, removable 64→20. Batch 3 = 44 prefixed flex accessors (pascal/raku/rebus lexers) → attic; method = cut SOURCE-TEXT yyX from the one `#define yyX <prefix>_yyX` file. ⛔ FINDING: `util_dead_cutter.py` MIS-PARSES snobol4.lex.c (the `yyless`/`unput` `do{}while(0)` macro braces derail the splitter → `#endif without #if`); the 14 remaining unprefixed yy/input must be HAND-CUT by brace-extent (a brace-matcher found 11/14; `yyget_in/out/text` need a wider header regex). Remaining 20 = 14 snobol4.lex.c + 5 multidef (cut DEAD def keep LIVE, `nm`-verify) + 1 straggler; 4 bomb-family DEFERRED (Lon). Full: `GOAL-DEAD-CODE-SWEEP.md`. (2) DE-INTERP (NEW goal this session, `GOAL-DE-INTERP.md` + PLAN.md): interpreter DELETED → `interp` is a misnomer in every live file/dir/symbol/guard/Makefile target. Steps 1-3 landed: `IR_interp_state.h`(=per-box exec state `bb_node_state_t`)→`src/emitter/box_state.h` (guard `SCRIP_BOX_STATE_H`, 11 includers); `rt_runtime.c`→`src/runtime/`; **`src/interp/` dir DELETED**; `-I$(SRC)/interp` dropped (3 sites). interp footprint 58→47. Remaining Steps 4-8: eval-rail rename `interp_eval*`→`eval_ast*` (⚠️ rs23_diag.c `--wrap` trio + Makefile `-Wl,--wrap=` move lockstep or the diag wrap SILENTLY no-ops); driver `interp_*` family→`driver_*` (atomic — cross-includes); prolog `pl_interp.h`→`pl_resolve.h`; Makefile/comment sweep. ⛔ The 4 do-NOT-touch survivors: `reinterpret_cast`, Raku `lower_interp_str`/interpolation, English "interprets", dead-symbol provenance strings — a naive `sed s/interp//` corrupts `reinterpret_cast`. Sequence DE-INTERP vs DEAD-CODE: `stmt_init`/`stmt_subj`/`collect_procs` multidefs live in files DE-INTERP renames — do not collide a cut with a rename.**
 
