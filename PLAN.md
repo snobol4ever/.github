@@ -46,8 +46,8 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
-| **DE-INTERP** ⬅ NEW (Lon 2026-06-15) | `GOAL-DE-INTERP.md` | Interpreter is DELETED → eradicate the `interp` misnomer from every live file/dir/symbol/guard/Makefile target; relocate survivors to their true-role files. RUNG + 8 STEPS + true-role map in goal file. Step 1 (baseline) open. |
-| **DEAD-CODE SWEEP** ⬅ NEW (Sonnet 2026-06-14) | `GOAL-DEAD-CODE-SWEEP.md` | GC oracle identified 601 dead functions; pass 1 done (10 symbols removed). ~585 remaining. See goal file for full list + attic policy. |
+| **DE-INTERP** ✅ DONE (Claude 2026-06-15) | `GOAL-DE-INTERP.md` | ✅ CLOSED — all 8 steps landed (SCRIP `1d113eb`/`f60bb08`/`4c9b6bd`). `interp` misnomer eradicated; completion grep = only the 4 legitimate survivors. No `src/interp` dir, no `interp.h`/`pl_interp.h`, no `scrip-interp`. Behavior-neutral. Goal file CLOSED. |
+| **DEAD-CODE SWEEP** ⬅ (Sonnet 2026-06-14) | `GOAL-DEAD-CODE-SWEEP.md` | Batch 4 landed (`5e483bf`): documented-20 RESOLVED (19 cut + 1 closed-subgraph non-removable). Oracle 59→43 dead. Fixpoint surfaced (rt_in_native_chunk + other-lexer input/yyunput). See goal file batch-4 handoff. |
 | **BB-FIXUP** ⬅ NEW (Lon 2026-06-04) | `GOAL-BB-FIXUP.md` | Attended round-robin hygiene sweep; cursor in `.github/BB-REVAMP-TRACKER.md`. See goal file. |
 | **SRC REORG** ⬅ #0 (Lon 2026-06-02) | `GOAL-SRC-REORG.md` | Re-partition `src/` by pipeline role. Open: GMR-8(b). See goal file. |
 | **RUNTIME RENAME** (Lon 2026-06-02) | `GOAL-RUNTIME-RENAME.md` | DE-NAME emitter/runtime. Open: LI-CORE (Lon decision). See goal file. |

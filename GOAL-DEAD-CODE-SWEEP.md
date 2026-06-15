@@ -222,3 +222,59 @@ rebuild (self-contained link test), gates, regenerate oracle.
 
 NB: `stmt_init`/`stmt_subj`/`collect_procs` multidefs live partly in `interp_*`/`lower_*` files that the
 **DE-INTERP** rung renames — sequence the two rungs so a multidef cut and a file rename don't collide.
+
+---
+
+## SESSION HANDOFF (2026-06-15 · Claude) — batch 4 landed, the documented-20 worklist RESOLVED
+
+**Oracle after batch 4: 43 dead** (down from 59). The documented "20 removable" is now RESOLVED: **19 excised
++ 1 (`yy_init_globals`) proven NON-removable** by the self-contained link test. DE-INTERP landed FIRST this
+session (so the `stmt_init`/`stmt_subj`/`collect_procs` multidef files were already renamed — no collision;
+the dead copy of `stmt_init` was cut from `driver_globals.c`, its post-rename name).
+
+### Landed this session (committed; PUSH-PENDING until confirmed — see ⛔ rule above)
+- **Batch 4 — SCRIP `5e483bf`**: 19 dead symbols → attic mirrors w/ provenance.
+  - **5 multidefs** (cut DEAD def, keep LIVE, call-site/`nm`-verified): `stmt_init` (driver_globals.c;
+    scrip.c:2141 live), `collect_procs` (lower_icon.c self-recursive-only; lower_pascal.c:536 live),
+    `parse_expr` (snobol4.tab.c +its fwd-decl; icon_parse.c live), `stmt_subj` (lower_prolog.c; icon/raku
+    live), `rt_in_native_chunk` weak stub (stmt_exec.c; rt.c strong def live).
+  - **1 straggler**: `lower_flat_set_cap_fixup` (+ emit_bb.h decl + stale `bb_flat_set_cap_fixup_cb` macro).
+  - **13 snobol4.lex.c flex accessors**, HAND-CUT by brace-extent per the cutter-mis-parse finding:
+    yyget_lineno/in/out/leng/text/debug + yyset_lineno/in/out/debug (one contiguous 97-line block 2471-2567),
+    `input`+`yyunput` (whole `#ifndef YY_NO_*` blocks; self-recursive/uncalled), `yy_scan_string` (0 callers).
+
+### ⛔ CRITICAL FINDING — `yy_init_globals` is a CLOSED-SUBGRAPH FALSE POSITIVE (do-not-re-derive)
+The 14th lex symbol `yy_init_globals` is in the GC dead list BUT **fails the self-contained link test** and
+must NOT be cut in isolation. Its callers `yylex_init` (snobol4.lex.c:2377) and `yylex_destroy` (:2404) are
+**NOT in the dead set** (live). The `--gc-sections` oracle strips the whole unreachable subtree together so
+the GC binary links, but the REAL build (no `--gc-sections`) gets `undefined reference to yy_init_globals`.
+PROVEN EMPIRICALLY this session: cut 2381-2412 → `make scrip` → `ld returned 1` → restored clean. To remove
+it, FIRST establish that `yylex_init`/`yylex_destroy` are themselves dead (they are flex-API entry points;
+if nothing calls them they'd join the dead set) and cut the whole closure atomically — OR leave it (it is
+ONE tiny flex init fn). This is the CLOSED-SUBGRAPH LAW biting exactly as documented.
+
+### FIXPOINT SURFACED — the next iteration (beyond the documented 20)
+Regenerating the oracle after batch 4 (59→43 dead) unmasked NEW dead symbols the prior pass could not isolate
+(the documented "removing dead code makes MORE code dead"):
+1. **`rt.c` `rt_in_native_chunk`** — now provably dead (ZERO callers anywhere; the weak stub in stmt_exec.c
+   was the only thing keeping the bare name ambiguous). SAFE to cut (no closed-subgraph risk; verify the
+   self-contained link still passes). It is the `rt.c:63` strong def `return g_native_chunk_depth>0` +
+   its `g_native_chunk_depth` static (rt.c:62) + the rt.h:127 decl.
+2. **unprefixed `input` / `yyunput` in OTHER lexers** — `input` static copies in pascal.lex.c:1779,
+   lex.rebus.c:1773, lex.raku.c:1919, raku.lex.c:2137; `yyunput` in lex.rebus.c:1726. Same flex-accessor
+   class as batch 4, different files. Apply the SAME hand-cut-by-brace-extent method per file, and the SAME
+   self-contained link test (some may be `input()`-self-recursive-only = safe; check each).
+   ⚠️ These are the UNPREFIXED names in the NON-snobol4 lexers — but note batch 3 already cut the *prefixed*
+   accessors there, so cut these ONLY where the symbol is the bare `input`/`yyunput` (lex.raku.c / lex.rebus.c
+   suppress prefix on some). nm-verify per .o before cutting.
+
+### Validation that held this session (all non-decreasing, zero-regress)
+SNOBOL hello `.s` byte-identical to baseline (emit-neutral). smoke M4 7/7 · pat-rung M4 19/19 0-SKIP (M3 15)
+· fence TIER1=TIER2=0 · hello matrix 5-match / 1-known-rebus-drift. Interim self-contained link tests passed
+at 6-cut and 19-cut checkpoints.
+
+### Remaining toward the 18-backend-KEEP floor
+After this session: 43 dead total = 18 backend-KEEP (js_/jvm_/net_/wasm_) + 21 mangled `_Z` (the 4 bomb-family
+DEFERRED per Lon + 17 backend) + the fixpoint set above (rt_in_native_chunk + other-lexer input/yyunput) +
+`yy_init_globals` (closed-subgraph, leave or remove-with-closure). Next session: cut the fixpoint set, re-run
+the 3 proofs + gates, regenerate oracle, push.
