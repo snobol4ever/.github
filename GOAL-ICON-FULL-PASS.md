@@ -1,5 +1,49 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m3/m4 → 283/283 (full pass, parity)
 
+## ▶▶ CURRENT PRIORITY — JCON/ICON PERFORMANCE BENCHMARKS (BENCH ladder) ◀◀
+
+**Goal:** get **ALL** the canonical JCON/ICON performance benchmarks running natively (m3 `--run` AND m4 `--compile`), with output matching the reference `.std`, within a timeout. This is the headline application milestone — the benchmarks are real, multi-procedure Icon programs, so making them green proves the whole Icon pipeline end-to-end (parse → lower → emit → run) and is what the SCRIP "ten times faster" pitch is measured on.
+
+**The suite (canonical).** The five standard Icon benchmarks (`refs/icon-master/tests/bench/` and `refs/jcon-master/bmark/`): **`concord`, `deal`, `ipxref`, `queens`, `rsg`**; plus JCON's long-runners **`tgrlink`, `benchmark`**; plus icon-master's microbench **`micro` / `micsum`**. **Oracle = the `.std` files** in `refs/icon-master/tests/bench/` (`concord.std`, `deal.std`, `ipxref.std`, `queens.std`, `rsg.std`). Timing (`&time`) is EXCLUDED from the output comparison (run with normal output, diff the program output only). Linked-IPL library sources (`options.icn`, `post.icn`, `shuffle.icn`, `random.icn`) live in the SAME dirs + `refs/icon-master/ipl/procs/`.
+
+**Why it's blocked today (probed 2026-06-15):** all five `link options, post` (deal also `link ... shuffle`); SCRIP's Icon parser ERRORS on `link` (`line N: expected 'procedure', 'record', or 'global' (got link)`), and some `every` statement forms fail to parse (shuffle.icn:22 `expected ; (got every)`). So step 0 is parse + library resolution; only then do the feature gaps bite. Canonical model for `link` is JCON `ir_a_Link`/`ir_Link` (`refs/jcon-master/tran/irgen.icn`).
+
+### BENCH rung ladder (each step gated: m3 output == `.std`, m4 output == `.std`, within timeout; no rung-suite regression)
+
+**Shared prerequisites (do first — every benchmark needs these):**
+- [ ] **BENCH-0 — `link` parses.** Icon parser accepts `link name {, name}` at top level → `a_Link`/`IR_*` (model: JCON `ir_a_Link`, irgen.icn ~L1376; SCRIP already has the `a_Link` AST shape used by other paths — wire the parser production). Completion: `./scrip --dump-ir refs/jcon-master/bmark/queens.icn` no longer errors on the `link` line.
+- [ ] **BENCH-1 — library resolution (the linker).** Resolve each linked name to a `.icn` on an IPL search path (default: the program's dir, then `refs/icon-master/ipl/procs/`), parse + lower its procedures into the same program so `options()`, `post`-family, `shuffle()`, `random` keywords are callable. Decide the search-path switch (env `IPATH`-style or a `--ipl` flag) and DOCUMENT it here. Completion: a 5-line program that does `link options` + calls `options(args,"n+")` runs in m3 and m4.
+- [ ] **BENCH-2 — benchmark keywords/stubs.** `&time` (return elapsed ms int — real or stubbed-monotonic, but must not error), plus any keyword the five use (`&features`, `&clock`, `&date`, `&host` as needed). Completion: `write(&time)` runs both modes.
+
+**Per-benchmark (ordered easiest → hardest by feature surface). Each: PARSE → m3 == `.std` → m4 == `.std`, timeout 30s:**
+- [ ] **BENCH-Q — `queens`** (generators + recursion `q(c)` + lists + `place()` test + `every write(...)`). Smallest; the canonical generator+recursion exemplar. (Feeds on the open rung-suite gaps: proc-recursion depth `rung02`, generator-in-proc-arg.)
+- [ ] **BENCH-D — `deal`** (lists + `shuffle`/`random` library + sort + `?` random-select). Needs BENCH-1 to pull in `shuffle.icn`/`random`.
+- [ ] **BENCH-C — `concord`** (tables + `sort()` + string scan `tab`/`upto`/`many` + file `read()` + `format`). First heavy text-processing program.
+- [ ] **BENCH-R — `rsg`** (tables + records `nonterm`/`charset` + lists + recursive descent + string ops + file read). Random-sentence generator.
+- [ ] **BENCH-I — `ipxref`** (heaviest: records `procrec` + tables + `sort()` + dense string scan `getword`/`tab`/`upto`/`many` + multi-file read). Do last of the five.
+- [ ] **BENCH-X — extras** (JCON `tgrlink`, `benchmark`; icon `micro`/`micsum`). Optional, after the five are green.
+
+**Feature dependencies — the open 18 FAIL are BENCH prerequisites.** The benchmarks exercise exactly the features still open below: `find`/`upto`/`many` scan (rung08), `sort()` (now landed `5f54227`), `suspend` generators (rung03), user-proc recursion depth (rung02), list `push`/`put` (rung22), multi-generator call args (rung13). Closing each of those directly unblocks one or more benchmarks — prefer fixing them in the benchmark's context so the gate is a real program, not just a rung micro-test.
+
+### BENCH gate (per step)
+```bash
+cd /home/claude/SCRIP && bash scripts/build_scrip.sh && make libscrip_rt
+B=refs/icon-master/tests/bench           # (or refs/jcon-master/bmark)
+# m3:
+timeout 30 ./scrip --run $B/queens.icn < /dev/null > /tmp/q_m3.out 2>&1
+diff /tmp/q_m3.out $B/queens.std         # must be empty (modulo excluded timing lines)
+# m4 (assemble standalone — m3 tolerates dup labels, m4 `as` does not):
+timeout 30 ./scrip --compile --target=x86 $B/queens.icn < /dev/null > /tmp/q.s 2>/dev/null
+as /tmp/q.s -o /tmp/q.o && gcc /tmp/q.o -o /tmp/q.bin -Lout -lscrip_rt -lgc -lm
+LD_LIBRARY_PATH=out timeout 30 /tmp/q.bin < /dev/null > /tmp/q_m4.out ; diff /tmp/q_m4.out $B/queens.std
+# regression floor — the 283-rung suite must not drop:
+bash scripts/test_icon_rung_suite.sh --mode run | tail -1   # PASS must not fall below 138
+bash scripts/test_icon_rung_suite.sh --mode compile | tail -1
+```
+**Suggested harness:** add `scripts/test_icon_bench.sh [--bench NAME] [--mode run|compile]` that drives the five (+extras) against their `.std`, mirroring `test_icon_rung_suite.sh`. **Completion of the whole priority:** all five standard benchmarks produce `.std`-identical output in BOTH m3 and m4 within timeout, with zero rung-suite regression.
+
+---
+
 **Status:** m3 **138/283** · m4 **138/283** · FAIL 18 · XFAIL 36 · EXCISED 91. HEAD(SCRIP)=`5f54227`.
 mode-2 `--interp` is DELETED (GOAL-DE-INTERP); the suite still invokes it and reports phantom m2 FAIL across the board — **ignore m2, gate on m3/m4**. m3 and m4 FAIL sets are currently identical.
 **Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m3/m4 must not regress. A net +PASS can hide an EXCISE→FAIL: always do an explicit FAIL-name **and** EXCISED-name diff vs baseline in BOTH modes (capture single-mode VERBOSE output: `--mode run`/`--mode compile`, grep `^FAIL`/`^EXCISED`).
