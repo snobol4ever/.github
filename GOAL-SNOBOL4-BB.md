@@ -9,14 +9,17 @@
 # ⛔ START HERE — ACTIVE RUNGS
 
 **LIVE STATE (2026-06-15):**
-- **DEAD-CODE SWEEP** — GC oracle authoritative: **43 dead** (down from 59 at session open). **Batch 4
-  landed** (`5e483bf` in SCRIP): the documented-20 worklist is RESOLVED — **19 excised + 1
+- **DEAD-CODE SWEEP** — GC oracle authoritative: **42 dead** (was 43; `rt_in_native_chunk` cluster landed
+  `c602da9`). **Batch 4** (`5e483bf`): documented-20 worklist RESOLVED — **19 excised + 1
   (`yy_init_globals`) PROVEN NON-removable** by the self-contained link test (CLOSED-SUBGRAPH: its callers
   `yylex_init`/`yylex_destroy` are live, so isolated removal → `undefined reference`; proven empirically).
   Cut: 5 multidefs (cut-dead-keep-live, nm-verified) · 1 straggler `lower_flat_set_cap_fixup` · 13
-  snobol4.lex.c flex accessors (HAND-CUT by brace-extent — cutter mis-parses the file). **FIXPOINT
-  SURFACED** (next iteration): `rt.c rt_in_native_chunk` now provably dead (0 callers, weak-stub removal
-  unmasked it — SAFE) · unprefixed `input`/`yyunput` copies in pascal/raku/rebus lexers. Full method +
+  snobol4.lex.c flex accessors (HAND-CUT by brace-extent — cutter mis-parses the file). **FIXPOINT iter
+  (2026-06-15, Claude):** `rt.c rt_in_native_chunk` + its write-never static `g_native_chunk_depth`
+  EXCISED `c602da9` (0 callers, not emitted → not in ROOTS_EMIT; input static permanently 0 → predicate
+  was constant; mirrored to `src/attic/runtime/rt/rt.c`; gates green non-decreasing). **STILL OPEN (next
+  iteration):** unprefixed `input`/`yyunput` copies in pascal/raku/rebus lexers — flex accessors needing
+  HAND-CUT by brace-extent (the `util_dead_cutter.py` mis-parse hazard from batch 3 applies). Full method +
   the closed-subgraph finding: `GOAL-DEAD-CODE-SWEEP.md`. RUNG + STEPS below.
 - **DE-INTERP** — ✅ **DONE, ALL 8 STEPS LANDED.** Steps 4-8 this session (SCRIP `1d113eb` eval-rail
   rename `interp_eval*`→`eval_ast*` incl. the silent `-Wl,--wrap=` landmine in build_scrip_rs23_diag.sh ·
