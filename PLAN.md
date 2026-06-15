@@ -46,6 +46,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
+| **DE-INTERP** ⬅ NEW (Lon 2026-06-15) | `GOAL-DE-INTERP.md` | Interpreter is DELETED → eradicate the `interp` misnomer from every live file/dir/symbol/guard/Makefile target; relocate survivors to their true-role files. RUNG + 8 STEPS + true-role map in goal file. Step 1 (baseline) open. |
 | **DEAD-CODE SWEEP** ⬅ NEW (Sonnet 2026-06-14) | `GOAL-DEAD-CODE-SWEEP.md` | GC oracle identified 601 dead functions; pass 1 done (10 symbols removed). ~585 remaining. See goal file for full list + attic policy. |
 | **BB-FIXUP** ⬅ NEW (Lon 2026-06-04) | `GOAL-BB-FIXUP.md` | Attended round-robin hygiene sweep; cursor in `.github/BB-REVAMP-TRACKER.md`. See goal file. |
 | **SRC REORG** ⬅ #0 (Lon 2026-06-02) | `GOAL-SRC-REORG.md` | Re-partition `src/` by pipeline role. Open: GMR-8(b). See goal file. |
