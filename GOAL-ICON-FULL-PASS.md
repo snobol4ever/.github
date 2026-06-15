@@ -1,35 +1,30 @@
-# GOAL-ICON-FULL-PASS.md — Icon: m2 247/247 · m3/m4 parity
+# GOAL-ICON-FULL-PASS.md — Icon: m3/m4 → 283/283 (full pass, parity)
 
-**Status:** m3 **132/283** · m4 **132/283** · FAIL 23 · XFAIL 36 · EXCISED 92. HEAD(SCRIP)=`c26f89f`. (NOTE: mode-2 `--interp` is DELETED per GOAL-DE-INTERP; the suite still invokes `--interp` and reports phantom m2 FAIL across the board — ignore it, gate on m3/m4. The old "m2 202" header was pre-deletion.) ✅ **native real-arithmetic binops + relops LANDED (m3/m4 127→132, +5 each)** — the WIP real-arith path (`rt_num_arith` DESCR-in/out value helper + `rt_jct_relop` real branch + `op_num_real` flag + `descr_binop_set_slots` + real arms in `bb_binop_arith`/`bb_binop_relop`) plus the two documented fixes: **Fix 1** `graph_has_pow` guard (POW-bearing LIT_F-assign graphs stay cleanly EXCISED — native real-POW is a separate item) and **Fix 2** skip re-walking an already-slotted child in `flat_drive_binop_tree` (the root_node tree path re-walked LIT_F chain operands → duplicate `bb<id>_α` → m3 tolerates/last-wins, m4 `as` rejects rc=1; now `jmp <child>_done`, slot reused). FAIL→PASS (both modes): `rung18_real_relop_mixed_relop`, `rung18_real_relop_real_gt`; EXCISED→PASS: `rung17_real_arith_real_add`, `rung18_real_relop_real_eq`, `rung18_real_relop_real_lt`; `rung19_pow_toby_pow_var` baseline→EXCISED (Fix 1, not a regression). Verified by explicit FAIL-name AND EXCISED-name diffs in both modes = zero new FAIL, zero EXCISE→FAIL; rebased clean twice over concurrent Raku/Prolog/SNOBOL4/BB-FIXUP landings (incl. shared `bb_call` builtin producer) and re-gated identical after each. `real_relop_goal` stays EXCISED (gen-alt track). RT is value-only (no ports); real arms pure `x86()` (medium-invisible, no `bb_bin_t`); no-stack 0; one-reg-frame 0; FACT 0; g_vstack 0; icon smoke 12/12 m3+m4; prolog 5/5 m3+m4; no added line >200 chars. 7 files. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-REAL-ARITH-LANDED.md.
-**Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m2 never decreases; m3/m4 trend up.
-
-> **✅ LANDED (`c26f89f`, 2026-06-15) — Icon native real-arithmetic binops + relops.** `rt_num_arith` (value-only DESCR-in/out) + `rt_jct_relop` real branch + `op_num_real` flag + `descr_binop_set_slots` + real arms in `bb_binop_arith`/`bb_binop_relop`, plus the two fixes (`graph_has_pow` gate guard; skip already-slotted child in `flat_drive_binop_tree`). m3/m4 127→132. **NEXT real-arith items (still open):** (a) **native real-POW** — `x:=3.0;write(x^2)` (`rung19_pow_toby_pow_var`, currently EXCISED): route `BINOP_POW` → `bb_binop_arith` and add `BINOP_POW` to `binop_is_num_real`; `rt_num_arith` already computes `REALVAL(pow(ld,rd))`. (b) **real TO/BY** — `rung19_pow_toby_real_toby_neg`/`_pos` (rc=124 m3 / rc=1 m4): the real-step generator (`bb_to` real arm) is the generator-retry track, separate from the binop path. (c) `real_relop_goal` = `every write(3.0<(2.5|3.5|4.5))` stays EXCISED — gen-alt resume (the `cross_arg` track), not this one.
-**Note:** the interp-suite reports m2=197 (`test_icon_rung_suite.sh --mode interp`); the prior "200" header was a different/combined count. Use the suite tally + an explicit before/after diff to judge regressions.
+**Status:** m3 **132/283** · m4 **132/283** · FAIL 23 · XFAIL 36 · EXCISED 92. HEAD(SCRIP)=`c26f89f`.
+mode-2 `--interp` is DELETED (GOAL-DE-INTERP); the suite still invokes it and reports phantom m2 FAIL across the board — **ignore m2, gate on m3/m4**. m3 and m4 FAIL sets are currently identical.
+**Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m3/m4 must not regress. A net +PASS can hide an EXCISE→FAIL: always do an explicit FAIL-name **and** EXCISED-name diff vs baseline in BOTH modes (capture single-mode VERBOSE output: `--mode run`/`--mode compile`, grep `^FAIL`/`^EXCISED`).
 
 ---
 
-## M3/M4 gap — open work
+## Open work — current 23 FAIL (m3==m4), by category
 
-**Failure categories (m3, ~104 FAIL):**
-- **rc=134 (~28):** x86_bomb hit — missing BINARY arm. Run `./scrip --run foo.icn 2>&1` to see which bomb. ✅ `bb_to.cpp` descending TO (negative `by`) DONE (5dc543f). ✅ **pow `^` DONE (2831781)** — `const^const` constant-folded to `IR_LIT_F` in `lower_icon.c` (Icon `^` always real; interp's int^int via `**` path was the bug). rung19 pow_int/pow_real + rung26 int/assoc/zero/real_pow PASS all modes; m2 197→202, m3 70→76, m4 76→82. **NEXT rc=134 target = REAL ARITHMETIC native path** — `write(2.0*3.5)` (rung17), real relops (rung18), and `2^3+1` (rung26_pow_pow_expr, now `LIT_F + LIT_I`) all still bomb/decline: `descr_binop_opnd_slot` (emit_bb.c:1420) returns -1 for `IR_LIT_F`, so real/mixed operands never get a slot and the arith template only does int `add/sub/imul/idiv`. Fix: slot LIT_F operands + a real-arith template arm (call a DESCR-in/out `rt_*` arith, or SSE `addsd/mulsd` on the boxed doubles). Then `bb_call: unsupported call shape fn='push'/'read'/'iand'` (lists rung22, read rung27, math rung37) — builtins not wired into the native call path.
-- **var reads (`bb_var` arm):** `libscrip_rt: BOMB — bb_var: unhandled arm` on global reads (rung21, rung25) — touches the OLD(frame-slot)/NEW(NV-dict) var-model switch (`g_icn_globals_nv`); riskier, consult GOAL-ICN-GLOBAL-NV.
-- **rc=124 / wrong-seq (was ~12): generator-resume in the flat chain — PARTLY DONE (3738eac).** ✅ Cross-product odometer (`(1 to 3)*(1 to 2)`→1,2,2,4,3,6) and relop/filter over a cross-product (`3<(...)`→4,6; `5>(...)`→3,4) FIXED in `descr_flat_chain_build` (emit_bb.c): the ω-resolver now routes an ω-edge into an EARLIER generator to its β (was fresh α — severed the carry); the EVERY-ω-block resumes the INNERMOST generator (last in chain order, was first). Native-only label binding; m2 unmoved. **STILL OPEN:** (a) ✅ `nested_to` — `(1 to 2) to (2 to 3)`→1,2,1,2,3,2,2,3 now PASSES all 3 modes (fixed by concurrent generator-resume landings; was native 1,2). (b) ✅ `bb_every` real four-port box LANDED (`52b9ce9`, this session) — α(exhaustion)→ω, β(resume)→ω, single β label, no duplicate, dead `EMIT_PAIR` wiring removed; the loop edges correctly live in the child subtree (flat stackless model), not the box. (c) `cross_arg` multi-generator CALL args (`write(1|2,3|4)`) — `is_deep` CALL ring protocol, materially larger, STILL OPEN.
-- **rc=139 (was 4):** ✅ segfault ELIMINATED (8b3eefb). ROOT CAUSE was NOT a missing template — `flat_drive_case` (emit_bb.c:1668) existed but read the OLD IR_CASE shape after IRD-3b (4699ab8) rewired the lowering to operand-wrappers (operands[0]=selector, operands[1..]=IR_LIT_NUL arm wrappers carrying [key,val] or [val]=default — the shape the interp reads). Emitter walked `operands[0]->γ.node` off the selector → garbage → segv. FIX: explicit IR_CASE reject in `icn_graph_native_emittable_mode` (scrip.c:267, the REAL gate; `icn_kind_native_stub` is dead/never-called) → case programs now [SMX] EXCISE cleanly. BUILDING BLOCK landed: `rt_case_eq(sel,key)` implemented (was dead abort-stub), interp === semantics. TODO for native CASE: rewrite `flat_drive_case` to the operand-wrapper shape + `bb_case_arm` template calling rt_case_eq; deposit matched value into the CASE node's own slot (write reads `bb_slot_get(ir_call_arg(node,0))`).
-- **silent-empty (reduced):** ✅ multi-statement loop-drop FIXED (fb2daea) — bounded EVERY exhaustion now routes to success continuation, not `main_ω`. `rung01_paper_lt`, `rung01_paper_to_by`, `rung07_control_to_by` now PASS m3/m4. Residual silent-empty cases: re-triage with `./scrip --run foo.icn` per still-failing rung.
+- **rc=134 — missing native arm / unsupported call shape (`x86_bomb`).** Probe with `./scrip --run foo.icn 2>&1`.
+  - `rung22_lists_push_put_size`, `rung22_lists_put_bang` — list builtins (push/put) not wired into the native call path.
+  - `rung08_strbuiltins_find`, `rung08_strbuiltins_find_gen` — `find` builtin.
+  - `rung30_builtins_misc_seq`, `rung32_strretval_strret_every`, `rung37_proc_lookup` — misc builtin/call shapes.
+  - `rung02_proc_fact` — user-proc recursion depth 4096 (m3 silent-empty / m4 depth).
+- **rc=124 — generator-resume / timeout.**
+  - `rung03_suspend_gen{,_compose,_filter}` — `suspend` (canonical `ir_a_Suspend`; `ir_Succeed`/resume into body).
+  - `rung14_limit_limit_{large,to,zero}` — `limit` (`ir_a_Limitation`: counter decremented on resume, `>0` gate).
+  - `rung19_pow_toby_real_toby_{neg,pos}` — **real TO/BY** (`bb_to` real-step arm); generator-retry track.
+- **rc=139 — segfault.**
+  - `rung22_lists_get`, `rung22_lists_pull` — list builtins (get/pull).
+  - `rung31_sort_sort_{already_sorted,every}` — `sort()` (`rt_list_sort`/`rt_table_sort` in `aggregates.c`).
+- **wrong-output.**
+  - `rung13_alt_alt_cross_arg{,_sideeffect}` — multi-generator CALL args `write(1|2,3|4)` → `is_deep` ag-ring stale on carry; `lower_call` flat-chain arg wiring. Materially larger (own session). `write((1|2)||(3|4))` (one concat arg) is already correct — the bug is two generator args, not the resume path. `--dump-bb` shows both ALT ω's pointing at the FIRST ALT (carry-order suspect).
+  - `rung29_builtins_type_mixed` — `type(x)`/`image(x)` of a var → null/&null: builtin-call arg not marshalling the VAR value (arg DESCR uninitialised). `image(cset)` also returns &null (same arg-marshal class).
 
-**m4 vs m3:** m4 51 / m3 45 (m4 ahead by 6 — extra TEXT-arm coverage). Confirm any m3-only fail with stderr probe.
-
----
-
-## Open m2 steps
-
-- **FULL-12 coerce()** — `integer(x)`/`real(x)`; consult `oarith.r`. Rungs 36,37. +5.
-- **FULL-13-resid keywords** — `& &e` parse ambiguity, &error write-back, &dump/trace/random. Rung 37. +3.
-- **FULL-14 scan-alt** — `IR_GEN_SCAN` resume across alt. Rung 37. +2.
-- **FULL-15 str relop** — remaining lexicographic cases in `by_name_dispatch.c`. +1.
-- **FULL-16 mutual recursion** — forward refs via `rt_call_named_proc`. +1.
-- **FULL-17 sort()** — `rt_list_sort`/`rt_table_sort` in `aggregates.c`. Rung 31. +5.
-- **FULL-32 rung36/37 sweep** — triage residuals; document XFAILs.
+**NEXT real-arith (binop path landed `c26f89f`):** native real-POW — route `BINOP_POW`→`bb_binop_arith`, add `BINOP_POW` to `binop_is_num_real`; `rt_num_arith` already computes `REALVAL(pow(ld,rd))`. Unblocks `rung19_pow_toby_pow_var` (today EXCISED). `real_relop_goal` (`every write(3.0<(2.5|3.5|4.5))`) stays EXCISED — gen-alt resume (`cross_arg` track).
 
 ---
 
@@ -39,8 +34,8 @@
 cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh && make libscrip_rt
-bash scripts/test_smoke_icon.sh        # m2 12/12 HARD
-bash scripts/test_smoke_prolog.sh      # m2 5/5 HARD
+bash scripts/test_smoke_icon.sh        # m3 12/12 · m4 12/12 HARD (m2 line is phantom — ignore)
+bash scripts/test_smoke_prolog.sh      # m3 5/5 · m4 5/5 HARD (m2 phantom)
 bash scripts/test_gate_bb_one_box.sh
 # Extract refs if absent:
 unzip -q /mnt/user-data/uploads/2-icon-master.zip -d refs/
@@ -51,157 +46,43 @@ unzip -q /mnt/user-data/uploads/3-jcon-master.zip -d refs/
 
 ```bash
 bash scripts/build_scrip.sh && make libscrip_rt
-bash scripts/test_icon_rung_suite.sh   # m2>=200 HARD; m3/m4 track up
+bash scripts/test_icon_rung_suite.sh   # m3/m4 must not regress (m2 phantom)
 bash scripts/test_gate_bb_one_box.sh
 bash scripts/test_smoke_prolog.sh
+bash scripts/test_gate_icn_no_stack.sh ; bash scripts/test_gate_icn_one_reg_frame.sh   # == 0
 ```
+The full three-mode suite ×283 can exceed an 8s/30s timeout under load — run one mode at a time (`--mode run`, then `--mode compile`) with an explicit `timeout`.
 
 ## Canonical source rule
 
-Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-master/src/runtime/*.r` (`ocomp.r`, `fstranl.r`, `oarith.r`, `oref.r`). m2 oracle is a transcription; canonical wins.
+Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-master/src/runtime/*.r` (`ocomp.r`, `fstranl.r`, `oarith.r`, `oref.r`). The (now-deleted) m2 oracle was a transcription; canonical wins.
+
+## Key intel (reusable)
+
+- `DESCR_t` = {DTYPE_t(4)+slen(4) low 8 bytes; int64/ptr high 8 bytes}; passed/returned as the **rdi:rsi** (args) / **rax:rdx** (return) pair — the 2nd eightbyte is INTEGER-class even when it holds a `double`.
+- `icn_ring_to_tree` returns NULL when the chain has IR_BINOP or IR_LIT_I → falls to `descr_flat_chain_build(bbg->entry)`. `--dump-bb` does NOT show `operand_aux`. Asm chain-node indices (`xchainN_nK_*`) are CHAIN POSITIONS, not graph node ids.
+- The REAL native gate is `icn_graph_native_emittable_mode` (scrip.c, permissive-by-default); `icn_kind_native_stub` is DEAD/never-called — do not edit it. To EXCISE a kind, reject it in the gate.
+- **m3 binary tolerates duplicate labels (last-wins); m4 `as` rejects them (rc=1).** Always assemble the m4 `.s` standalone (`./scrip --compile --target=x86 f.icn > f.s; as f.s -o f.o`) whenever a kind passes m3 but not m4.
+- Globals are NV-only (the `--icn-globals` switch + `g_icn_globals_nv` were removed, `b11d3a7`): global read/assign route through the shared NV dictionary in every mode; locals keep frame slots.
+- RT = value, BOX = ports (no-duplicated-logic law): a builtin/arith helper takes/returns `DESCR_t` with no α/β/γ/ω; the box marshals args, `call`s it, wires the four ports.
 
 ---
 
 ## Watermark
 
-**HEAD (SCRIP) = `c26f89f`** — Icon native **real-arithmetic binops + relops** in m3 AND m4. m3 **127→132** · m4 **127→132** (+5 each). FAIL 25→23, XFAIL 36, EXCISED 95→92 (both modes). FAIL→PASS: `rung18_real_relop_mixed_relop`, `rung18_real_relop_real_gt`; EXCISED→PASS: `rung17_real_arith_real_add`, `rung18_real_relop_real_eq`, `rung18_real_relop_real_lt`; `rung19_pow_toby_pow_var` baseline→EXCISED (Fix 1, not a regression). Verified by explicit FAIL-name AND EXCISED-name diffs in BOTH modes = zero new FAIL, zero EXCISE→FAIL. Landed the prior-session WIP patch (`git apply` clean over the moved HEAD) + the two documented fixes: **Fix 1** — new `graph_has_pow()` in `scrip.c`; the WIP had relaxed `local_assign_rhs_ok_g`'s LIT_F guard to `return 1`, admitting POW-bearing graphs (`x:=3.0;write(x^2)`) that route to generic `IR_BINOP` (kind 7) not the real arm → garbage; restored as `return !graph_has_pow(g)` so POW-bearing LIT_F-assign graphs stay cleanly EXCISED (real_add/gt/eq/lt/mixed carry no POW → still admitted). **Fix 2** — skip re-walking an already-slotted child in `flat_drive_binop_tree` (`emit_bb.c`): the root_node tree path re-walked LIT_F operands already emitted as chain nodes → duplicate `bb<id>_α` (m3 last-wins tolerant, m4 `as` rejects rc=1); now `if (bb_slot_get(child)>=0) emit_jmp_label(<child>_done,JMP_JMP)`, `descr_binop_set_slots` reuses the chain slot. Verified the `real_gt` `.s` has zero dup labels + assembles clean. The real path is value=RT/ports=BOX: `rt_num_arith(DESCR,DESCR,op)` (int/real/mixed coercion, div0→FAILDESCR, no ports) + `rt_jct_relop` additive real branch + `op_num_real` flag + `descr_binop_set_slots` + real arms in `bb_binop_arith`/`bb_binop_relop` (pure `x86()`, medium-invisible, 0 byte-producers, no `bb_bin_t`). icon smoke 12/12 m3+m4 · prolog 5/5 m3+m4 · no-stack 0 · one-reg-frame 0 · FACT 0 · g_vstack 0 · no added line >200. Rebased clean TWICE over concurrent Raku-OO / Prolog-retract / SNOBOL4-const-fold / BB-FIXUP-ZtoA / `bb_call`-IR_CALL_BUILTIN-producer landings, re-gated identical after each. `real_relop_goal` stays EXCISED (gen-alt track). DEBUG LESSON (reconfirmed): m3 binary tolerates duplicate labels (last-wins); m4 `as` rejects them — assemble the m4 `.s` standalone whenever a kind passes m3 but not m4. NEXT real-arith: native real-POW (route `BINOP_POW`→`bb_binop_arith`, add to `binop_is_num_real`; `rt_num_arith` already does `pow`); real TO/BY (`bb_to` real arm). 7 files. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-REAL-ARITH-LANDED.md.
+**HEAD (SCRIP) = `c26f89f`** — Icon native **real-arithmetic binops + relops** (m3/m4 127→132, +5 each). FAIL 25→23, EXCISED 95→92 (both modes). FAIL→PASS: `rung18_real_relop_mixed_relop`, `rung18_real_relop_real_gt`; EXCISED→PASS: `rung17_real_arith_real_add`, `rung18_real_relop_real_eq`, `rung18_real_relop_real_lt`; `rung19_pow_toby_pow_var` baseline→EXCISED (Fix 1, not a regression). Verified by explicit FAIL-name AND EXCISED-name diffs in both modes = zero new FAIL, zero EXCISE→FAIL. Landed the prior-session WIP patch (`git apply` clean over moved HEAD) + two fixes: **Fix 1** new `graph_has_pow()` in `scrip.c` (the WIP relaxed `local_assign_rhs_ok_g`'s LIT_F guard to `return 1`, admitting POW-bearing graphs that route to generic `IR_BINOP` not the real arm → garbage; restored `return !graph_has_pow(g)` so POW-bearing LIT_F-assign stays EXCISED). **Fix 2** skip re-walking an already-slotted child in `flat_drive_binop_tree` (`emit_bb.c`) — the root_node tree path re-walked LIT_F chain operands → duplicate `bb<id>_α`; now `if (bb_slot_get(child)>=0) emit_jmp_label(<child>_done,JMP_JMP)`, `descr_binop_set_slots` reuses the chain slot (verified `real_gt` `.s` has zero dup labels + assembles clean). Path is value=RT/ports=BOX: `rt_num_arith(DESCR,DESCR,op)` (int/real/mixed coercion, div0→FAILDESCR) + `rt_jct_relop` additive real branch + `op_num_real` flag + `descr_binop_set_slots` + real arms in `bb_binop_arith`/`bb_binop_relop` (pure `x86()`, 0 byte-producers, no `bb_bin_t`). icon smoke 12/12 m3+m4 · prolog 5/5 m3+m4 · no-stack 0 · one-reg-frame 0 · FACT 0 · g_vstack 0. Rebased clean TWICE over concurrent landings, re-gated identical each time. 7 files. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-REAL-ARITH-LANDED.md.
 
-**HEAD (SCRIP) = `176ecda`** — Icon native **IR_CASE (case-of)** in m3 AND m4: `rung33_case_*` **5/5 both modes** (was 0 PASS / 5 EXCISED). m3 **122→127** · m4 **122→127** (+5 each). FAIL **25 unchanged** (identical m3/m4; explicit FAIL-list diff = only the 5 rung33 flipped EXCISED→PASS, zero regressions), XFAIL 36, EXCISED 100→95. icon smoke 12/12 m3+m4 · prolog 5/5 m3+m4 · no-stack 0 · one-reg-frame 0 · FACT 0. Built on the prior WIP patch (applied `--3way`) + six coordinated fixes: (1) `descr_chain_arity` `IR_CASE→0` so a consumer CALL adopts the case result (SECTION/LIST_BANG class); (2) `lower_icon.c TT_CASE` pushes the operand RESULT node not the entry (mirrors selector `sr`) — fixes `1*10` storing `1`; (3) new `case_slot_binop_operands()` hydrates a binop arm-value's operands from `operand_aux` into `operands[]` then pre-walks them so the slot-reading arith template allocates its result slot in isolation; (4) `scrip.c rhs_kind_ok` admits `IR_CASE` as a local-assign RHS (`x:=case…`); (5) `bb_case_arm.cpp` drops redundant α-label (the arm node is filled twice → duplicate `bb<id>_α` broke m4 `as`); (6) `flat_drive_case` stops re-walking the selector (already the preceding chain node) and gives each take box a unique β (the shared CASE β is defined by the chain → duplicate `xchainN_nK_β` in m4). rt_case_eq re-landed from attic into libscrip_rt. DEBUG LESSON: m3 binary tolerates duplicate labels (last-wins); m4 `as` rejects them — always assemble the m4 `.s` when a kind passes m3 but not m4. 10 files. Rebased clean over concurrent `476af37` and re-gated. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-CASE-NATIVE-LANDED.md.
+**HEAD (SCRIP) = `176ecda`** — Icon native **IR_CASE (case-of)**: `rung33_case_*` 5/5 both modes (m3/m4 122→127). Six coordinated fixes: `descr_chain_arity IR_CASE→0` (consumer CALL adopts the result); `lower_icon.c TT_CASE` pushes the operand RESULT node; `case_slot_binop_operands()` hydrates arm-value operands from `operand_aux`; `scrip.c rhs_kind_ok` admits `IR_CASE` local-assign RHS; `bb_case_arm.cpp` drops a redundant α-label; `flat_drive_case` stops re-walking the selector and gives each take box a unique β (both were m4 dup-label `as` breakers). `rt_case_eq` re-landed from attic. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-CASE-NATIVE-LANDED.md.
 
-**HEAD (SCRIP) = `9354db7`** — Icon m3/m4 118->122 (+4) across two safe-class fixes (lowering/native-binding only; no shared-dispatch or runtime-helper change), each verified with an explicit full-suite FAIL-list diff = ONLY the intended rungs flipped, zero regressions. Rebased clean onto a moved remote (`6e87566` de-interp landing) and re-gated after rebase.
-
-(1) **local IR_VAR reader aliases its varslot (`24b4266`, +3).** `every total := total + (1 to n)` accumulated wrong (5 not 15): the descr flat-chain IR_VAR reader allocated a FRESH copy slot and copied varslot->copy ONCE, but that read is loop-hoisted while IR_ASSIGN keeps updating the real varslot, so BINOP always added to the ORIGINAL value. Per the PER-BOX LOCAL STORAGE FACT RULE a variable is ONE name-keyed frame slot shared by its ASSIGN writer and VAR readers; the private copy slot was the bug. FIX (emit_bb.c walk_bb_flat IR_VAR local branch): alias op_off to the varslot offset + bb_slot_register(nd, voff) so consumers read the LIVE slot. The bb_var template's resulting varslot->varslot self-copy is a harmless no-op (template untouched). FAIL->PASS: rung02_proc_locals, rung10_augop_break_repeat, rung11_bang_augconcat_bang_concat (all modes).
-
-(2) **cset literals canonicalized at lowering (`9354db7`, +1).** `"ac" == 'ca'` FAILed while `"ac" <<= 'ca'` PASSed on the same pair: TT_CSET and TT_QLIT both lowered to IR_LIT_S with the RAW sval (lower_icon.c:132), so the cset 'ca' became the literal string "ca" -- cset identity lost, not even sorted. `==` length-checks then lexcmp("ac","ca")!=Equal -> fail; `<<=` is pure lexcmp Less -> pass (per ocomp.r). A cset coerces to its SORTED member string. Since csets are plain strings throughout the native path (NO cset type -- TT_CSET and TT_QLIT share one IR_LIT_S), canonicalize at lowering: split the case + new static icn_cset_canon() sort+dedups the member bytes (also makes *cset and upto/any set-correct -- same character set). 'ca' -> "ac". FAIL->PASS: rung37_str_relop (all modes). NOTE: image(cset) still returns &null -- a SEPARATE arg-marshalling bug, not addressed.
-
-VERIFIED post-rebase: m3 122 / m4 122 / FAIL 25 / XFAIL 36 / EXCISED 100; icon smoke 12/12/12; prolog smoke 5/5/5; no-stack 0; FACT 0; lower_icon.c over-length lines unchanged at 8 (pre-existing, not mine). 2 files (emit_bb.c, lower_icon.c). See HANDOFF-2026-06-14-CLAUDE-ICON-BB-VARSLOT-CSET.md.
-
----
-
-### NEXT (precisely scoped -- the real-arith relop is genuinely its own session)
-
-**Real-arith relops (rung18 real_gt `1.5>2.5`, mixed `n<2.5`; rc=134 `bb_binop_relop: shape mismatch`).** FULLY TRACED this session: (a) `rt_jct_relop` (by_name_dispatch.c:1229) has NO real/mixed numeric branch -- it does junction, then int-int, then falls to STRING strcmp of the real IMAGES (not Icon-numeric). (b) The template's int-arm (`cmp rax,rcx` on FRQ(sa+8) int payloads) and the DESCR call-arm (rt_jct_relop) prepare operands INCOMPATIBLY: vars go through op_name1/op_name2+strtab in the int arm, but DESCR slots (FRQ(sa)/FRQ(sa+8)) in the call arm; and LIT_F operands get NO slot (so op_sa/op_sb<0 -> neither arm -> bomb). (c) real_gt/mixed are ADMITTED by the gate (then bomb) while real_eq/real_lt/real_relop_goal are DECLINED (clean excise) -- an inconsistent gate. FIX (4 coordinated pieces, one session): (1) extend rt_jct_relop with a real/mixed branch (either operand IS_REAL -> coerce both to double, compare; keep int-int fast path) per oarith.r/ocomp.r numeric coercion; (2) in the relop operand setup (emit_bb.c ~2895), for a numeric relop with a real/unslotted operand, slot BOTH operands as full 16-byte DESCRs (LIT_F -> {DT_R,bits}; LIT_I -> {DT_I,val}; VAR -> its varslot) and set a route flag; (3) add a template arm (or extend the SLT..SNE call-arm key) that routes BINOP_LT..NE through rt_jct_relop when the real route flag is set; (4) make the gate ADMIT real relops consistently (no more bomb-vs-excise split). This is a SHARED binop-dispatch area (SNOBOL4 also uses bb_binop_relop's descr arm) -> gate the FULL suite + an explicit FAIL-diff + prolog/snobol4 smokes. The SAME real-arith path also unblocks the real-VAR arith cases (`x:=1.5;write(x+y)`) the prior watermarks flagged.
-
-**Other contained-ish targets seen but not started:** rung29 `type(x)`/`image(x)` of a var -> null/&null (the builtin-call arg isn't marshalling the VAR value -- the arg DESCR is uninitialised; distinct from the slot fix landed here). Bigger clusters: generators/`suspend` (rung03), `limit` (rung14, rc=124), real to-by (rung19), lists push/put/get/pull (rung22, incl. 2 segfaults), sort (rung31, segfaults), user-proc recursion depth 4096 (rung02_proc_fact), multi-gen CALL args (rung13 cross_arg -- explicitly fresh-session per prior watermark).
-
-
-**HEAD (SCRIP) = `1fcd8c5`** — Icon m3/m4 87→104 (+17) across three by-name/lowering/wiring fixes, each FAIL-list-diff verified with zero regressions, m2 202 unchanged (HARD). (1) **Deterministic builtins** read/reads/iand/ior/ixor/ishift/icom/detab/entab added to `rt_builtin_is_known`'s allow-list — already implemented in `try_call_builtin_by_name` but excluded, so `bb_call` hit its FATAL instead of `bb_call_byname_str`→`rt_call_arr`; all non-generators (verified vs `builtin_is_generator`); read EOF→FAILDESCR(.v=99) which byname's `cmp eax,99`→ω detects. +5 (rung27 read/read_eof_fail, rung37 math/strfmt/string_format). (2) **Native subscript `s[i]`** — added `[]` to the allow-list → byname → `subscript_get` (full Icon semantics: neg index, out-of-range→FAILDESCR); generator-index `s[1 to 3]` works through the existing flat chain. **+ constant unary-minus fold**: `-1` was `IR_UNOP(neg,LIT_I 1)` never folded, so the subscript-arg marshaller read the inner positive literal (`s[-1]`→'h') and `write(-1)` was fully excised; extended the `lower()` unop branch to fold a constant TT_MNS/TT_PLS to `LIT_I(-n)`/`LIT_F(-x)` via the existing `icn_const_step` (mirrors the pow/real-arith folds); non-constant `-x` returns 0 from icn_const_step → untouched. +5 (rung16 sub_basic/literal/fail/neg/every). (3) **Global-VAR reads wired to NV** — emitter detected "global read" via `IR_EXEC(nd).state==1` which NOTHING sets at emit time (only the mode-2 interp writes `.state`, as a runtime flag), so `bb_var_global` was dead code and every cross-proc global read fell to `bb_var()` and bombed "unhandled arm"; the ASSIGN side already used `is_global(sval)`→`flat_drive_icn_global_assign`→`NV_SET_fn`, so writes hit NV but reads were never wired. Fix detects global reads via `is_global(sval)` at three sites (emit_core.c IR_VAR dispatch→`bb_var_global`; emit_bb.c IR_VAR slot setup — now also sets `op_sval`, omitted before so the arm could never have worked; scrip.c native-emittable gate); no `.state` overload → mode-2 untouched. Also decline `IR_INITIAL` (static-once, kind 132, no native arm) in the gate → clean `[SMX]` excise instead of abort. +7 (2 cross-proc-global FAIL→PASS, 5 previously-EXCISED global-read programs now PASS, 4 `initial`/static FAIL→clean-EXCISE). VERIFIED post-rebase: m2 202 (HARD) · m3 104 · m4 104 · FAIL 43 · icon smoke 12/12/12 · prolog 5/5/5 · no-stack 0 · one-reg-frame 0 · FACT 0. 4 files (by_name_dispatch.c, lower_icon.c, emit_core.c, emit_bb.c, scrip.c). See HANDOFF-2026-06-14-SONNET-ICON-BB-BUILTINS-SUBSCRIPT-GLOBALS.md.
-
-**`--icn-globals=` switch — REMOVED (Lon directive, 2026-06-14): NV all the way, no switch.** Following the answer below, Lon directed removing the switch entirely (SCRIP `b11d3a7`). The `--icn-globals=nv|slot` switch, the `g_icn_globals_nv` variable (def lower_icon.c, decl lower.h), and all six conditional sites are DELETED: global read/assign routing is now unconditionally NV (the shared dictionary) in every mode, and the dead slot-mode global-read decline line in the gate is gone. Locals keep frame slots in all modes (unchanged). Behavior-preserving (the variable was always 1 and the `slot` arm was a decline stub): m2 202 · m3 104 · m4 104 · FAIL 43 — identical before/after. **Historical context (the original question, now moot):** the switch had been kept with both `nv`/`slot` values parsing, default `nv`; mode-2 always used NV; mode-3/4 `nv` worked (reads wired this session) but `slot` was a clean-decline stub with no native frame-slot global emitter. Going NV-only deleted that dead alternative. If a slot-mode global model is ever wanted again, it would need a fresh frame-slot global read/write emitter (a global needs a stable per-PROGRAM slot, distinct from per-proc locals).
-
-
-**HEAD (SCRIP) = `521ab64`** — Icon m3 string-relops FIXED (m3 76→82, now at PARITY with m4). ROOT CAUSE
-was a BINARY-vs-TEXT divergence (ONE-MEDIUM-INVISIBLE violation), NOT relop logic: `x86_jcc_op`
-(`src/emitter/BB_templates/x86_asm.h`) had no `"jz"` (or `"js"`) case and fell through to `return 0x85`
-(JNZ). So in the in-process BINARY medium `x86("jz",…)` emitted **JNZ — the inverted condition** — while
-the TEXT medium emitted the literal `jz` mnemonic that GAS assembled correctly. The string-relop arm of
-`bb_binop_relop` (`test eax,eax; jz ω`) was the visible victim: rung12 seq/sge/slt/sne + rung37
-str_relop/strrelop_hello (6 programs) ran INVERTED in m3 only — m4 (linked) already produced the correct
-output, which is why m4 was 6 ahead. `js` (1 use, signed-jump) was the same latent bug (0x85 vs 0x88);
-`jnz` (5 uses) happened to be correct since the silent default WAS 0x85. FIX: completed the Jcc opcode
-table (`jz/jnz/js/jns/jb/jae/jbe/ja` + signed aliases `jnae/jnb/jna/jnbe/jnge/jnl/jng/jnle`) and made the
-default a LOUD `abort()` so any future missing condition code fails at emit time instead of mis-encoding.
-DIAGNOSIS METHOD (reusable): numeric relops (which use `cmp`+`jge/jne`, never `test`+`jz`) PASSED m3 →
-isolated the bug to `test eax,eax`/`jz`; then `as`+`gcc -no-pie -lscrip_rt` of the mode-4 `.s` proved m4
-correct while m3 inverted → BINARY-only encoder bug. Verified: m2 202 (HARD, unchanged) · m3 76→82 · m4 82
-unchanged; icon smoke 12/12/12 · prolog 5/5/5 · no-stack 0 · one-reg-frame 0 · bb_one_box 45 (pre-existing)
-· unified 36. One file, +13/−7. Pushed onto a fast-moving remote (rebased clean over concurrent
-Prolog/SNOBOL4/Raku landings). See HANDOFF-2026-06-13-SONNET-ICON-BB-JZ-ENCODER-FIX.md.
-
-**Watermark — IR_SWAP `:=:` LANDED.** Native `IR_SWAP` for `x:=:y` now emits & runs in m3/m4
-(rung15_real_swap_swap_basic + swap_str). New `bb_swap.cpp` four-port box: reads both var slots into
-`rax:rdx`/`rcx:rsi`, cross-stores (left←rv, right←lv), writes result `rv`→own slot, `jmp γ`/`def β`/`jmp ω`
-— pure `x86()` (template-pure; 0 byte-producers; not in the medium-invisible remaining list). `flat_drive_swap`
-(emit_bb.c) resolves `op_sa`/`op_sb` via `bb_varslot_peek` + `op_off` via `bb_slot_alloc16`; `walk_bb_node`
-(emit_core.c) dispatches `IR_SWAP→bb_swap()`; `icn_graph_native_emittable_mode` (scrip.c) admits IR_SWAP ONLY
-when both operands are `IR_VAR` with sval (non-VAR-operand swaps like `a[i]:=:a[j]` clean-`[SMX]` decline, never
-abort). Makefile: `bb_swap.cpp` in RT_PIC_SRCS + scrip: compile line. VERIFIED: m2 202 (HARD, unchanged, explicit
-before/after suite diff) · m3 82→84 · m4 82→84 · icon smoke 12/12/12 · prolog 5/5/5 · no-stack 0 · one-reg-frame 0
-· FACT gate 0. 6 files (+8 / new bb_swap.cpp). Both operands read BEFORE either store (classic swap); the wasted
-operand-VAR reads from the producer chain are harmless (reads don't mutate). 5 files changed, +8, +1 new file.
-
-**Watermark — REAL-ARITH CONSTANT-FOLD + guarded LIT_F local-assign LANDED (SCRIP 1b71e43).** Two
-lowering-only edits (mirror the proven pow fold; `src/lower/lower_icon.c`): (1) `icn_const_step` now folds
-constant binary arith ADD/SUB/MUL/DIV/MOD (int-or-real, recursive — so `2^3+1` evaluates whole); (2) the
-`lower` fold trigger fires for ANY all-constant arith binop whose result is REAL → builds `IR_LIT_F` (pure-int
-constants stay on the existing native int path → no behavior change; relops/concat return 0 from icn_const_step
-→ never folded). Plus a small emitter/gate enablement: `emit_core.c:392` now gives `IR_LIT_F` operands a slot
-(`op_a_slot`; purely additive — every op_a_slot consumer bombs on <0, so LIT_F previously always bombed/excised),
-and `icn_local_assign_rhs_ok_g` (scrip.c) admits a `LIT_F` local-assign RHS ONLY when the graph has no binop
-(`!icn_graph_has_binop`). That guard is the key: rung26 `x:=2^3+1` folds to `x:=LIT_F(9.0)` with NO binop left
-→ admit & PASS; the real-VAR cases (`x:=1.5;write(x+y)`, `x:=3.0;if x=3.0`, `x:=3.0;write(x^2)`) all keep a
-runtime real binop/relop/pow with no native arm → re-decline → clean `[SMX]` EXCISE (NOT FAIL). RESULT: rung17
-`2.0*3.5`→7.0 and rung26 `2^3+1`→9.0 PASS all three modes; **m3/m4 84→87**, m2 **202** unchanged (HARD), FAIL
-59 (down from 63 pristine), ZERO EXCISE→FAIL regressions (verified by explicit FAIL-list diff vs pristine
-baseline). icon smoke 12/12/12 · prolog 5/5 · no-stack 0 · one-reg-frame 0 · FACT gate 0. DEBUG LESSON (logged):
-the FIRST attempt admitted LIT_F local-assign UNCONDITIONALLY in `icn_rhs_kind_ok`, which flipped the whole-graph
-gate decline→admit for the 3 real-VAR programs and exposed their non-existent real-binop boxes → 3 EXCISE→FAIL
-regressions; the `!has_binop` guard is what contains it. Always diff the FAIL list vs pristine, not just the
-PASS count — a net +PASS can hide EXCISE→FAIL.
-
-**NEXT — the genuine real-arithmetic RUNTIME path (still open, now isolated):** the 3 EXCISED real-VAR programs
-above + rung17_real_arith_real_add + rung18 real relops (real_gt/mixed/real_eq) + rung19_pow_toby real-var pow
-need a NATIVE real binop/relop arm. `rt_arith` (arithmetic.c) is INTEGER-ONLY (returns `long`); there is no
-DESCR-in/out real-arith helper. Cleanest per FACT rules (RT=value, BOX=ports): add an `rt_*` that takes two
-DESCR_t + an op code, does Icon numeric coercion (int/real/mixed, matching the m2 interp — NOT POWER_fn), returns
-a DESCR_t; then a real-arith template arm marshals the two operand slots → regs → `call` → stores the result
-DESCR to its own slot. This is a SHARED-dispatch change (SNOBOL4/Prolog also use the binop dispatch) → gate the
-full suite + an explicit FAIL-diff. Other high-leverage native targets unchanged: **`bb_every` four-port rebuild**
-(rc=124 cluster ~12: rung01/02/03/14/19) and **list builtins** (rung22, incl. 2 rc=139 segfaults get/pull).
-
-
-**HEAD (SCRIP) = `ae008c6`** — IR-IMMUTABLE "ACTUAL task" (execution-time IR-access audit) LANDED.
-The mode-3/4 runtime proc registry no longer holds an `IR_t *`: dropped `void *entry` from
-`rt_proc_t`, dropped the `entry` param from `rt_proc_register` (all 4 driver blocks now
-`rt_proc_register(name,pn,np)`), and DELETED the IR-walker hook `g_rt_gen_proc_builder` /
-`rt_proc_set_builder` (it installed `bb_build_flat`). Audit result: the active Icon/SNOBOL
-execution path was already IR-free (dispatch via `p->fn`, an emitted code ptr); the builder was
-never invoked — so this is enforcement-by-deletion (no live runtime IR-deref existed to NULL-bomb),
-the `bb_bin_t`-ABOLISHED philosophy. The sanctioned mode-3 emission read `bb_build_flat(icn_root)`
-is kept; the emitter is NOT bombed (that was the reverted e50b089). Remaining IR reads all
-sanctioned: mode-2 interp (`IR_interp.c`), emission (`emit_bb.c`), Prolog `sm_interp_run`
-(`resolution.c`). m2 interp 202 unchanged (HARD, explicit before/after diff empty); icon smoke
-12/12/12; prolog 5/5+5/5; `test_gate_icn_no_stack`=0; `test_gate_icn_one_reg_frame`=0; the 45
-`test_gate_bb_one_box` FAILs PRE-EXISTING (zero template files touched). 3 files, −26/+15. See
-HANDOFF-2026-06-13-SONNET-ICON-BB-IR-IMMUTABLE-REGISTRY-LANDED.md.
-
-**HEAD (SCRIP) = `8b9a58e`** — Reverted the e50b089 entry-bomb (CORRECTED understanding of IR-IMMUTABLE).
-The rule is about EXECUTION, not emission: mode 3/4 require ONE full read of the IR at EMISSION time to
-build the artifact (mode 3 → in-process image; mode 4 → `.s` source) — that read is required and correct.
-The IR must only be untouched DURING EXECUTION of the emitted image/binary (no runtime helper deref'ing an
-`IR_t *`, no IR pointer chased by the running generated code). The earlier reading ("emitter must never read
-IR" → bomb the entry → disable native) was wrong and is reverted: native emission is restored and working
-(`--run`/`--compile` emit & run again, rung26 pow → 1024.0/27.0). m2 interp HARD gate PASS=202; icon smoke
-12/12 all three modes; prolog 5/5. Tally back at the pow-fold baseline m2 202 / m3 76 / m4 82. The ACTUAL
-task is an audit of EXECUTION-time IR access (runtime `IR_t *` derefs reachable from a running emitted
-program), NOT a teardown of the emitter — full corrected plan in HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md.
-Do NOT physically purge `emit_bb.c`; its IR read IS the sanctioned emission read.
-
-**HEAD (SCRIP) = `e50b089`** — IR-IMMUTABLE rule enforced in mode 3/4. Per the long-standing rule (the IR
-must never be touched/read/looked at in `--run`/`--compile`), both mode-3 and mode-4 entry blocks in
-`src/driver/scrip.c` now execute `(*(volatile char *)NULL);` as their FIRST statement — before
-`sm_preamble` or any `s2->bbp`/IR access — so the native emitter (`emit_bb.c` walkers, an inherently
-IR-reading codegen) can never be reached. `--run`/`--compile` SIGSEGV (rc=139) immediately; `--interp`
-(mode-2, the oracle) is untouched. **m2 interp HARD gate INTACT: PASS=202**; icon mode-2 smoke 12/12 +
-prolog mode-2 smoke 5/5 (HARD). Mode-3/4 smoke arms 0 and the native-only gates (no-stack / one-reg-frame
-/ bb_one_box) RED BY DESIGN — native is disabled pending rebuild. The physical purge of the now-dead
-IR-walking code (emit_bb.c walkers + emit_core dispatch + flat-chain builders + the dead mode-3/4 dispatch
-bodies below the bombs in scrip.c) is the next step — full inventory + removal order + rebuild contract in
-**HANDOFF-2026-06-13-IR-IMMUTABLE-MODE34.md**. NOTE: this supersedes the prior m3/m4 tally tracking (m3 76 /
-m4 82 at `2831781`) — those scores no longer apply while native is disabled.
-
-**HEAD (SCRIP) = `2831781`** — Icon pow `^` constant-fold (single file, `src/lower/lower_icon.c`, +9 lines; NO template/emitter/runtime change). Icon `^` ALWAYS yields a real — the `.expected` files encode `2^10`→`1024.0`, not `1024`. The interp HAS a `^`→`REALVAL(pow)` branch (IR_interp.c:553) but Icon `^` (BINOP code 18) dispatches through the `**` path (IR_interp.c:549) which returns `INTVAL` for int^int, so `1024` printed — and with NO `.xfail` markers the pow rungs were real FAILs in ALL THREE modes. FIX: fold a fully-constant pow to `IR_LIT_F` at the lowering binop site (before `build(IR_BINOP)`), reusing the existing real-literal path end-to-end: m2 prints a `LIT_F` identically to a computed real, and native `bb_lit_scalar` already has a working `IR_LIT_F` arm storing `{DT_R, double-bits}` to `[r12+off]` (slotted at emit_bb.c:2576). `icn_const_step` (the existing const-extractor at lower_icon.c, used by TO-`by`) extended with a recursive `TT_POW` case so `2^2^3 = 2^(2^3) = 2^8` folds whole (right-assoc, inner first); `<math.h>` added for `pow()`; forward-decl of `icn_const_step` added at file scope. VERIFIED by the suite harness (not ad-hoc `tr`, which mis-adds a trailing `|`): rung19 pow_int/pow_real + rung26 pow_int/pow_assoc/pow_zero/pow_real_pow PASS interp+run+compile. `rung26_pow_pow_expr` (`2^3+1` → folds the `^` to `LIT_F(8.0)`, leaving `LIT_F+LIT_I` real+int add) still PASSes m2 but FAILs native — the real-arith gap, NOT a regression (was failing before). TALLIES by explicit before/after suite diff: **m2 197→202** (HARD gate UP — fold makes int^int correct everywhere), **m3 70→76**, **m4 76→82**. Smoke icon m2/m3/m4 12/12; prolog 5/5 all modes; `test_gate_icn_no_stack`=0; `test_gate_icn_one_reg_frame`=0. The 45 `test_gate_bb_one_box` FAILs remain PRE-EXISTING (untouched by a lowering change). **NEXT (own session): the REAL ARITHMETIC native path** (see the rc=134 line above) — unblocks rung17/18 and `2^3+1`; then native builtin call wiring (push/read/math). The architectural `bb_every` rebuild (below, 27e7dd8 entry) remains the standing fix for the rc=124 generator-resume cluster.
-
-**HEAD (SCRIP) = `27e7dd8`** — (1) Deleted dead `if(((IR_t*)0))` block (81 lines) from `flat_drive_every` in `src/emitter/emit_bb.c` — literal `if(NULL)`, doubly dead (guard NULL + `IR_EVERY.ival` always 0); proven zero behavior change (m3 byte-identical before/after on rung01/07/09/16; smoke icon 12/12 ALL THREE MODES; prolog 5/5). (2) **FINDING (Lon, not fixed): `bb_every.cpp` is NOT a real EVERY box — it is worse than a no-op.** It emits only `<def β>; jmp ω` (no α, no γ), and the `def β` is a DUPLICATE of the `β:` label `flat_drive_every` already emits via `EMIT_PAIR_DEF_JMP` → redundant `β:`/`jmp ω` (confirmed in m4 asm: IR_EVERY `xchain0_n4_α:` falls through into a DOUBLED `xchain0_n4_β: jmp main_ω`). `every write(1 to N)` still works ONLY because the loop is carried by the TO generator box's self-resume back-edge + `flat_drive_every`'s flat chaining — the EVERY box is reached just once (exhaustion→ω). So the goal-directed EVERY drive/resume/exhaust logic lives in a DRIVER (`flat_drive_every`), not in the `bb_every()` TEMPLATE (against TEMPLATE-ONLY EMISSION), and the template is logic-empty. `bb_every()` IS called once via `EMIT_PAIR_FILL`→`emit_core.c` dispatch (a first "0 calls" probe was a STALE BINARY — force-rebuild the .cpp before trusting call-count probes). **NEXT STEP (own session): build a real four-port `bb_every` box mirroring canonical `ir_a_Every` (start→gen; expr.success→body; body.success/fail→expr.resume = the loop; expr.failure→ir.failure), move the topology out of `flat_drive_every`, kill the duplicate β stub; gate m2 HARD unmoved + m3/m4 loop rungs byte-checked.** See HANDOFF-2026-06-13-OPUS48-ICON-BB-EVERY-BOX-MISSING.md.
-
- `every`-conjunction with an embedded generator now resumes correctly. Two `src/lower/lower_icon.c` fixes (lowering only; NO template/emitter/runtime change): (1) `lower_every` `!BODY` loop-back — `loop_target` was `(gen_result->op==IR_CONJ)?E:…`, forcing a conjunction's success edge to the EVERY node, which (ival=0) returns γ and exits after ONE value; now `(gen_node && gen_node!=gen_result && gen_node!=ω && gen_node!=E) ? gen_node : E`, i.e. loop back to the embedded generator's resume — unifies the CONJ case with the already-correct `every f(gen)` CALL case (which is why `every write(1 to 5)` always worked: CALL.γ→TO). (2) relop BINOP — `op` was built with the outer `ω` as its fail port, so a false comparison (`1>2`) exited to the every fail instead of resuming its generative operand; added `if (IR_LIT(op).dval==1.0 && lβ && lβ!=ω && lβ!=op) ω_to(op, lβ)` (relops are codes 5–10, marked `dval=1.0`; `lβ`=left operand's resume). VERIFIED via a 4-layer ladder: `every write(1 to 5)`→1-5 (unchanged); `every (1 to 5)>2 & write("hit")`→hit×3 (was ×1); `every (x:=(1 to 5)) & write(x)`→1-5 (was just 1); `every (x:=(1 to 5))>2 & write(x)`→3,4,5 (was empty). `rung13_alt_alt_filter` FAIL→PASS. m2 196→197 by EXPLICIT before/after `--mode interp` diff = EXACTLY one line changed, ZERO regressions. Smoke icon m2 12/12 + prolog 5/5 HARD; `test_gate_icn_no_stack`=0; `test_gate_icn_one_reg_frame`=0; filter m3/m4 cleanly `[SMX] EXCISE` (sanctioned). The 45 `test_gate_bb_one_box` FAILs are PRE-EXISTING (identical on pristine 8b3eefb — emitter template entry-count gate, untouched by this lowering change). HEAD shown is post-rebase onto remote (a430139: PL nb_setval + RAKU user-sub landings came in concurrently; fix re-verified green after rebase).
-
-**OPEN — `cross_arg` multi-generator CALL args (NEXT, separate/deeper bug — NOT FULL-18):** `every write(1|2, ":", 3|4)` → `1:3, 334, 2:3, 334` (want `1:3,1:4,2:3,2:4`); `rung13_alt_alt_cross_arg` + `rung13_alt_alt_cross_arg_sideeffect` still FAIL. ISOLATED precisely: `write((1|2)||(3|4))` (concat, ONE arg) is CORRECT (13,14,23,24) — the conjunction/concat resume path is fine; `write(1|2, 3|4)` (TWO generator args) is BROKEN (13,**34**,23,**34**). Instrumented the CALL: it takes the **`is_deep=1` ag_ring-peek path with `has_gen_arg=0`** (the cross-product odometer block at IR_interp.c ~2576 is NEVER entered — multi-arg generators are lowered as flat chained producer boxes, so `ir_call_arg` sees them already-evaluated, not as generators). Resume is driven by flat back-edges (`CALL.γ → rightmost gen ALT`), but the ag_ring is not maintained across the literal-separated args on carry → the left arg's ring slot goes stale (the leading "3" in "334"). FIX LIVES IN: the `is_deep` CALL ring protocol and/or `lower_call`'s flat-chain arg wiring — a ring-protocol fix, materially larger than FULL-18, likely a fresh session. (Graphs: `--dump-bb` on `rung13_alt_alt_cross_arg` shows two ALT nodes whose `ω` both point at the FIRST ALT — the carry order is the suspect.)
-
- `flat_drive_case` (emit_bb.c:1668) was stale: it read the OLD IR_CASE shape, but IRD-3b (4699ab8/fbfd71c) had rewired the lowering to operand-wrappers (operands[0]=selector; operands[1..]=IR_LIT_NUL arm wrappers, [key,val] normal / [val] default — the shape the interp at IR_interp.c:4132 reads, which is why m2 passes all four rung33 cases). The emitter walked `operands[0]->γ.node` off the selector as a phantom key/val chain → garbage nodes → segv on int/str/arith (no_default happened to trip a gate and excise). FIX: added explicit `IR_CASE → return 0` to `icn_graph_native_emittable_mode` (scrip.c:267 — the REAL m3/m4 routing gate, permissive-by-default; `icn_kind_native_stub` is DEAD/never-called, do not edit it). Case programs now loudly `[SMX] EXCISE` (sanctioned interim state) instead of segfaulting. ALSO implemented `rt_case_eq(const DESCR_t*sel, const DESCR_t*key)` (rt.c:399) — was a dead abort-stub with a wrong single-DESCR sig; now int-by-value when both DT_I else VARVAL strcmp, matching the interp === — the first building block for a future native CASE. m2 200 (HARD, unchanged) · m3 45→65 · m4 51→71 (the +deltas vs the fb2daea watermark are cumulative incl. Pascal/IRD landings on the real HEAD; my change is segfault→excise, m2-neutral). prolog 5/5.
-
-**Next for native CASE (clearly scoped):** rewrite `flat_drive_case` to the operand-wrapper shape (mirror the interp loop): eval selector via walk_bb_flat → its slot; per arm eval key → slot, `call rt_case_eq` with `lea rdi,[r12+sel_off]; lea rsi,[r12+key_off]`, test rax, je arm-value; arm value evals then COPIES its 16-byte DESCR slot into the CASE node's own slot (`bb_slot_get(case_node)`) before jmp γ; trailing 1-operand wrapper = default → γ; no match no default → ω. The compare + copy must go through a `bb_case_arm` template reached via EMIT_PAIR_FILL (driver has no direct emit primitives; all bytes live in templates). Remove IR_CASE from the gate the moment the template lands.
-
-**Key intel:** `icn_ring_to_tree` returns NULL if chain has IR_BINOP or IR_LIT_I → falls to `descr_flat_chain_build(bbg->entry)`. `--dump-bb` does NOT show `operand_aux`. DESCR_t = {DTYPE_t(4)+slen(4) in low 8 bytes; int64/ptr in high 8 bytes} — passed as rdi:rsi pair. Asm chain node indices (`xchainN_nK_*`) are CHAIN POSITIONS, not graph node ids. m2 walking the same graph correctly = graph is right, bug is in the flat emitter — a safe class to fix (cannot move the m2 HARD gate).
+**Earlier landings (terse — full detail in git log + the named HANDOFF-* files):**
+`9354db7` local IR_VAR reader aliases its varslot (shared frame slot, not a private copy) + cset literals canonicalized (sorted/deduped) at lowering — m3/m4 118→122. ·
+`1fcd8c5` deterministic builtins (read/iand/…) added to `rt_builtin_is_known` allow-list + native subscript `s[i]` + constant unary-minus fold + global-VAR reads wired to NV — m3/m4 87→104. ·
+`521ab64` completed the Jcc opcode table in `x86_asm.h` (`jz` had fallen through to `0x85`=JNZ — a BINARY-only inverted-condition bug; default now `abort()`) — m3 string-relops 76→82, parity with m4. ·
+IR_SWAP `:=:` native (`bb_swap.cpp`, both VAR operands). ·
+`1b71e43` real-arith CONSTANT-fold (ADD/SUB/MUL/DIV/MOD/POW of all-constant operands → `IR_LIT_F`) + guarded LIT_F local-assign — m3/m4 84→87. ·
+`2831781` pow `^` constant-fold (`^` is always real in Icon) — m3 70→76, m4 76→82. ·
+`bb_every` rebuilt as a real four-port box (canonical `ir_a_Every` has no `ir.success`; loop edges live in the child subtree; α/β both → ω). ·
+`ae008c6` IR-IMMUTABLE execution-time audit: dropped `void *entry` from `rt_proc_t`, deleted the `g_rt_gen_proc_builder` hook (the active path was already IR-free; emission-time IR read is the ONE sanctioned read). ·
+generator-resume fixes in `descr_flat_chain_build` (cross-product odometer; ω routes into an earlier generator's β; EVERY-ω resumes the innermost gen) + `lower_every` conjunction/relop loop-back.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
