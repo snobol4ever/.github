@@ -91,10 +91,24 @@ regenerate oracle, commit.
 
 ## SESSION HANDOFF (2026-06-15) — batches 1+2 landed, 68 removable remain
 
+## ⛔ COMMITTED ≠ LANDED ≠ HANDED-OFF — `git push` OR IT NEVER HAPPENED
+The build container's git is EPHEMERAL — destroyed at session end. A local `git commit` is invisible
+to the next session, which clones `origin/main`. **Nothing is durable until `git push` succeeds.**
+Therefore:
+- NEVER report a batch "landed", gates "green for the record", or a hand-off "complete/done" until
+  push is CONFIRMED for **every repo touched** (here: SCRIP **and** `.github` — they push separately).
+- Confirm with: `git rev-list --count @{u}..HEAD` — must print `0` in each repo. Anything >0 means
+  unpushed = not done. (`git status` saying "nothing to commit, working tree clean" does NOT mean
+  pushed — it only means committed locally.)
+- `git config user.name/user.email` is per-repo in this container; set it in EACH repo before
+  committing (`.github` did not inherit it from SCRIP and silently failed a commit this session).
+- This was violated on 2026-06-15: a hand-off was declared while all commits were local-only; the work
+  would have been lost entirely had the push not been caught afterward. Push is step 0 of any hand-off.
+
 **Oracle now: 103 dead / 18 backend-KEEP / 68 removable.** Down from 580 at session start.
 Tools committed to the SCRIP repo: `scripts/util_dead_cutter.py`, `scripts/util_dead_sweep.py`.
 
-### Landed this session (committed in SCRIP repo)
+### Landed this session (committed AND pushed to origin/main — SCRIP `2a35216..2c38d15`)
 - **Batch 1 — `1308f79`**: 440 GC-proven-dead functions across 52 files → attic (interpreter-era
   runtime corpse: rt_runtime.c 81, rt.c 67, pattern_match.c 44, resolution.c 32, core.c 30,
   unification.c 29, emit_* ~30, …). 4 whole-file-dead TUs dropped from Makefile (tree.c, name_t.c,
@@ -151,7 +165,9 @@ append demangled non-backend mangled names. Categories:
    stash → make scrip + libscrip_rt → copy → pop).
 4. proof-3 only if runtime (`rt_*`) names involved (the 5 multidef might): emit `--compile` over a
    6-language corpus sample, scrape `call <sym>`, intersect dead — must be 0.
-5. Commit, re-run oracle (fixpoint; count shrinks monotonically toward the 18 backend-KEEP floor).
+5. Commit **AND `git push` (verify `git rev-list --count @{u}..HEAD` == 0 in every repo touched — see
+   the ⛔ rule at the top of this section)**, then re-run oracle (fixpoint; count shrinks monotonically
+   toward the 18 backend-KEEP floor). A batch is not "landed" until its push is confirmed.
 
 ### Known non-issues (do not chase)
 - mode-2 (`--interp`) 0/N everywhere — IR interpreter deleted in a prior session (dead column).
@@ -160,4 +176,5 @@ append demangled non-backend mangled names. Categories:
 
 ### Completion criterion
 Oracle removable count → 0 (only the 18 backend-KEEP js_/jvm_/net_/wasm_ remain), with all gates
-green and all-language suites non-decreasing. Then the sweep is DONE.
+green and all-language suites non-decreasing, **and every commit pushed to `origin/main` in both
+repos** (`git rev-list --count @{u}..HEAD` == 0). Then the sweep is DONE.
