@@ -1,5 +1,32 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
+## ★ CURRENT PRIORITY — READ FIRST, HANDLE FIRST (Lon, 2026-06-15): RAKU OOP IS THE LEAD
+
+**OOP is Raku's signature contribution to SCRIP (the other five languages are non-OO) and is now THE priority
+for Raku — ahead of RK-GRAM-3 and RK-EMIT-MAP/GREP.** Work the OO LADDER below top-to-bottom; take the first
+incomplete (`- [ ]`) rung. The grammar/regex and map/grep rungs (further down this file) are PARKED until the OO
+ladder advances on Lon's word.
+
+### OO LADDER (the Raku-distinctive paradigm — milestones A–G; anchored to Rakudo `Metamodel/{BUILDPLAN,C3MRO,MROBasedMethodDispatch,RoleToClassApplier}.nqp`, `Mu.rakumod`, `Attribute.rakumod`). Architecture note: OO is overwhelmingly RUNTIME (`obj_new`/`meth_call`/`dat_field_*` + the `DatType`/`DATINST_t` model). Most rungs land via runtime by-name dispatch (the Str-suite pattern); parser+lower changes only where new *syntax* must be recognized. **LEXER CONSTRAINT (verified 2026-06-15): flex 2.6.4 CANNOT regenerate `raku.lex.c` (fails on the pristine file at line 132 — committed lexer built with a different flex). So NO new lexer keywords — recognize new keywords at the PARSER level as `IDENT` checked in the rule action (how `is` is done). bison regen works fine.**
+- [x] **RK-OO-A1 — attribute mutation — LANDED both modes (2026-06-15, `952d528`).** Objects were write-once; now attributes mutate. Parser: twigil-field as lvalue (`$.x =`/`$!x =`) + void method-call statements (`$obj.m(args);`). Lower: `TT_FIELD`/`TT_TWIGIL_FIELD` LHS in `lower_rv` TT_ASSIGN → `IR_CALL "field_set"` with `[obj,name,val]` producer chain (was a silent `IR_SUCCEED` no-op). Runtime: `field_set` known-builtin + handler writing through `data_field_ptr` (write twin of `dat_field_get`). Also fixed pre-existing `raku.y`/`raku.tab.h` include drift (`../../ast/ast.h`→`ast.h`) so `bison -d` regenerates faithfully. Smokes: `attr_mutate`, `field_write_external`.
+- [~] **RK-OO-A2 — public-attribute AUTO-ACCESSOR — LANDED both modes (2026-06-15, this session). Privacy (`$!`) + `is rw` are LEXER-BLOCKED → deferred (see below).** A public attribute now answers `.x()` (with parens), not just `.x`. Runtime-only fix in `by_name_dispatch.c`'s `meth_call`: after `resolve_method_chain`, if the method takes no args and is NOT a real user proc (`meth_is_user_proc`, dual native-registry+proc_table check mirroring the chain walk), and the receiver has a field of that name (`data_field_ptr`), return the field value — exactly Rakudo `Attribute.compose`'s `has_accessor` codegen (`unless ...method_table` guard → user method of the same name WINS; verified `accessor_method_wins`→105). Resolves the `$p.x()`→`[GZ-10] 'Point__x' has no stackless slab` abort. Accessor resolves through inheritance too (`accessor_inherited`). No parser/lexer/template/IR change. Smokes: `accessor_paren`/`accessor_method_wins`/`accessor_inherited`. **DEFERRED (lexer-blocked):** the `$.`(public) vs `$!`(private) twigil distinction is ERASED at lex time — `raku.l:117-118` both do `strdup(yytext+2)` → identical `VAR_TWIGIL` bare-name token, and the registration spec (`Name(f1,f2)`) carries no per-field privacy bit. Enforcing privacy (`$!x` should be externally inaccessible — today `$s.hidden` wrongly reads a private field) and `is rw` (writable-container accessor) BOTH require carrying a public/private/rw flag from the declaration, which needs a lexer change to preserve the twigil — and flex 2.6.4 cannot regenerate `raku.lex.c` (LEXER CONSTRAINT above). Unblock path: a flex fix (or a hand-patch of the committed `raku.lex.c` to emit a twigil-tagged token) → then thread the flag into the spec and gate it in `meth_call`/`dat_field_get`.
+- [ ] **RK-OO-A3 — `@.`/`%.` array & hash attributes.** Initialize to empty List/Hash; `.push`/`.keys`.
+- [ ] **RK-OO-A4 — typed + default attributes (`has Int $.x`, `has $.x = 42`).** Default = closure run at construction if named arg absent (BUILDPLAN op 400).
+- [ ] **RK-OO-B1 — user `method new` overrides built-in.** Today `TT_NEW`→`obj_new` unconditionally; route `.new` through `meth_call` first.
+- [ ] **RK-OO-B2 — `bless` + BUILDPLAN** (op-list: 0 set-attr-from-named, 400 default-closure, 800 die-if-required). Default `new` = `self.bless(|%args)`.
+- [ ] **RK-OO-B3 — `BUILD`/`TWEAK` submethods** (submethod_table; don't inherit).
+- [ ] **RK-OO-B4 — required attrs (`is required`)** (BUILDPLAN op 800/1503).
+- [x] **RK-OO-C1/C2/C4 — single + multi-level inheritance — LANDED both modes (2026-06-15, `952d528`).** `class Child is Parent {…}` (parser: `KW_CLASS IDENT IDENT IDENT '{'` with action-time `is` check, parent name stored in `TT_CLASS_DECL` node `v.sval` — NOT a lexer keyword, see constraint above). C2 attr inheritance: `class_inherit(child,parent)` in `driver_data.c` flattens parent fields into child (parent-first, dup-checked → idempotent), `DatType` gains `char parent[64]`. C4 method inheritance: `resolve_method_chain()` in `by_name_dispatch.c` walks `self→parent→…` (via `dat_parent`) for the first `<C>__<m>` present in proc_table OR native registry; `meth_call` uses it. m4: `scrip.c` emits `class_inherit@PLT` calls after `record_register` so the standalone binary has parent links. Smokes: `inherit_attr`/`inherit_method`/`inherit_override`. **CAVEAT: multi-level (3+ class) programs can hit the PRE-EXISTING `x86_uid` dup-label emitter scaling bug in m4 (`bbNNNNN_α already defined`) — orthogonal to inheritance logic (m3 always works; m4 works for 2-class). That emitter bug is the real blocker for larger m4 OO programs.**
+- [ ] **RK-OO-C3 — C3 MRO** (`compute_mro` linearization). Needed for diamonds; single/linear chain works today via the simple parent walk.
+- [ ] **RK-OO-C5 — `callsame`/`nextsame`/`callwith`** (re-dispatch to next MRO candidate).
+- [ ] **RK-OO-C6 — multiple inheritance (`is A is B`)** (MRO merge; needs C3).
+- [ ] **RK-OO-D1..4 — Roles** (`role`/`does`; role-to-class flattening per `RoleToClassApplier`; required-method stubs + conflict detection; punning).
+- [ ] **RK-OO-E1..2 — Multi-dispatch** (`multi`/`proto`; arity then type-narrowness).
+- [ ] **RK-OO-F1..4 — Metaobject/introspection** (type objects + `:D`/`:U`/`.defined`; `.WHAT`/`.^name`; `.^methods`/`.^attributes`/`.^parents`; `.isa`/`.does`).
+- [ ] **RK-OO-G1..6 — Advanced** (`.Str`/`.gist`/`.raku` override; operator overload `multi sub infix:<>`; `handles` delegation; `but`/runtime mixin; `enum`/`subset`; `.=`).
+
+---
+
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 
 **No language-specific logic in any BB or XA C++ template.** All delineated operations are enveloped in
@@ -12,7 +39,12 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ CURRENT PRIORITY — READ FIRST (2026-06-14): NFA-BB DELETED — RAKU GOES TRADITIONAL RECURSIVE DESCENT
+## ▶ GRAMMAR/REGEX DIRECTION (2026-06-14) — PARKED BEHIND THE OO LADDER (see ★ top of file)
+
+> **PARKED 2026-06-15:** RK-GRAM-3 (the recursive-descent grammar engine) was the prior lead rung; it is now
+> PARKED behind the OO ladder per Lon. The direction below stays AUTHORITATIVE for when grammar work resumes —
+> do NOT re-derive it. Grammars register and `.parse` dispatches end-to-end in all three modes today (`f3b1837`);
+> recursive grammars are the remaining gap.
 
 **DIRECTION SET BY LON 2026-06-14: an NFA is the WRONG primary engine for a top-down recursive-descent
 language. The entire NFA-on-Byrd-boxes apparatus is DELETED (SCRIP `d63c374`).** Verified against the Rakudo/
@@ -36,11 +68,12 @@ flatten subrules → one NFA → `nfa_exec`) — a NON-recursive stopgap (`by_na
 4096-byte buffer; a self-recursive rule overflows/caps out = wrong). Flat grammars (the 4 grammar smoke tests)
 work; recursive grammars do not.
 
-**STATUS (2026-06-15, SCRIP origin/main `c82bc7e`):** Raku m3/m4 **69 PASS / 0 FAIL / 7 EXCISED** of 76 (the 7 = 3 `~~`
-verdict+capture smokes + 4 map/grep — all correctly EXCISED, never abort). Smoke grew 38→76 this session via the
-runtime-only Str/Cool/List method suite (30 methods; see Watermark). **Mode 2 / `--interp` is GONE** (the
-IR-graph interpreter was deleted, `a2440f4`); the smoke harness numbers above are the two NATIVE modes and m3 is
-now the primary correctness mode. Peers: Icon m3/m4 12/12, SNOBOL4 m4 7/7. g_vstack=0, bb_bin_t=0, IR_NFA=0.
+**STATUS (2026-06-15, SCRIP local — RK-OO-A2 accessor half; base `952d528`):** Raku m3/m4 **77 PASS / 0 FAIL / 7 EXCISED** of 84
+(the 7 = 3 `~~` verdict+capture smokes + 4 map/grep — all correctly EXCISED, never abort). Grew 81→84 this session
+via the RK-OO-A2 public-attribute auto-accessor (+3 smokes: `accessor_paren`/`accessor_method_wins`/`accessor_inherited`).
+Prior session (`952d528`) brought OO attr-mutation + inheritance (74/0/7/81) and the Str/Cool/List method suite.
+**Mode 2 / `--interp` is GONE** (the IR-graph interpreter was deleted, `a2440f4`); the numbers above are the two NATIVE
+modes and m3 is the primary correctness mode. Peers: Icon m3/m4 12/12, SNOBOL4 m4 7/7. g_vstack=0, bb_bin_t=0, IR_NFA=0.
 
 **LANDED 2026-06-14 (3 commits, `1c64469`/`2860563`/`b63cc45`):**
 1. **map/grep abort→EXCISE (the regression fix).** `a2440f4` (interp deletion) bomb-stubbed `bb_mapgrep_prepare`
@@ -469,25 +502,6 @@ Completed rungs (git history has full detail): RK-LOWER-0 (say/print ✅), RK-LO
 - [ ] **RK-GRAM-3 (THE SEAM) — recursive-descent grammar engine (LEAD RUNG, reframed 2026-06-14).** See CURRENT PRIORITY (top of file) for the full direction. Build subrule `<name>` recursion + backtracking on the EXISTING four-port box-resumption substrate — the SNOBOL4 pattern boxes `bb_match_*`/`bb_pattern_*` ARE a backtracking recursive-descent matcher (γ=matched/advance-cursor, ω=fail/redo; alternation=`IR_ALT`; subrule call = recursion into another box graph; the Σ/δ/Δ subject triad reserved for the regex slab is the cursor). REPLACES `gram_expand`'s flatten-to-NFA for recursive grammars (today's depth-16-capped stopgap handles only flat grammars) and builds a real Match tree, then `$<name>`/`$0` capture access. Grammar registration + `.parse` dispatch already landed (`f3b1837`); regex `~~` stays on the kept C matcher. Needs full budget + `ARCH-x86.md`/`ARCH-SCRIP.md` reads first.
 - [ ] **RK-GRAM-4..6 — LTM + proto dispatch; actions + Match tree; convergence/control/adverbs.** (UN-DEFERRED 2026-06-14. Sits on the RK-NFA-4 BB matcher + RK-GRAM-3 PUMP.)
 - [x] **RK-NFA-CONV — OBSOLETE 2026-06-14.** `IR_NFA_*` kinds are deleted; there is nothing left to converge with SNOBOL4 `IR_PAT_*`.
-
-### OO LADDER (the Raku-distinctive paradigm — milestones A–G; anchored to Rakudo `Metamodel/{BUILDPLAN,C3MRO,MROBasedMethodDispatch,RoleToClassApplier}.nqp`, `Mu.rakumod`, `Attribute.rakumod`). Architecture note: OO is overwhelmingly RUNTIME (`obj_new`/`meth_call`/`dat_field_*` + the `DatType`/`DATINST_t` model). Most rungs land via runtime by-name dispatch (the Str-suite pattern); parser+lower changes only where new *syntax* must be recognized. **LEXER CONSTRAINT (verified 2026-06-15): flex 2.6.4 CANNOT regenerate `raku.lex.c` (fails on the pristine file at line 132 — committed lexer built with a different flex). So NO new lexer keywords — recognize new keywords at the PARSER level as `IDENT` checked in the rule action (how `is` is done). bison regen works fine.**
-- [x] **RK-OO-A1 — attribute mutation — LANDED both modes (2026-06-15, this session, UNCOMMITTED→see handoff).** Objects were write-once; now attributes mutate. Parser: twigil-field as lvalue (`$.x =`/`$!x =`) + void method-call statements (`$obj.m(args);`). Lower: `TT_FIELD`/`TT_TWIGIL_FIELD` LHS in `lower_rv` TT_ASSIGN → `IR_CALL "field_set"` with `[obj,name,val]` producer chain (was a silent `IR_SUCCEED` no-op). Runtime: `field_set` known-builtin + handler writing through `data_field_ptr` (write twin of `dat_field_get`). Also fixed pre-existing `raku.y`/`raku.tab.h` include drift (`../../ast/ast.h`→`ast.h`) so `bison -d` regenerates faithfully. Smokes: `attr_mutate`, `field_write_external`.
-- [ ] **RK-OO-A2 — public/private (`$.`/`$!`) + auto-accessors + `is rw`.** Twigil currently discarded (both lex to one token); no accessor methods, no privacy. Carry public/private + rw flags into the registration spec; enforce in `meth_call`/`dat_field_get`.
-- [ ] **RK-OO-A3 — `@.`/`%.` array & hash attributes.** Initialize to empty List/Hash; `.push`/`.keys`.
-- [ ] **RK-OO-A4 — typed + default attributes (`has Int $.x`, `has $.x = 42`).** Default = closure run at construction if named arg absent (BUILDPLAN op 400).
-- [ ] **RK-OO-B1 — user `method new` overrides built-in.** Today `TT_NEW`→`obj_new` unconditionally; route `.new` through `meth_call` first.
-- [ ] **RK-OO-B2 — `bless` + BUILDPLAN** (op-list: 0 set-attr-from-named, 400 default-closure, 800 die-if-required). Default `new` = `self.bless(|%args)`.
-- [ ] **RK-OO-B3 — `BUILD`/`TWEAK` submethods** (submethod_table; don't inherit).
-- [ ] **RK-OO-B4 — required attrs (`is required`)** (BUILDPLAN op 800/1503).
-- [x] **RK-OO-C1/C2/C4 — single + multi-level inheritance — LANDED both modes (2026-06-15, this session, UNCOMMITTED→see handoff).** `class Child is Parent {…}` (parser: `KW_CLASS IDENT IDENT IDENT '{'` with action-time `is` check, parent name stored in `TT_CLASS_DECL` node `v.sval` — NOT a lexer keyword, see constraint above). C2 attr inheritance: `class_inherit(child,parent)` in `driver_data.c` flattens parent fields into child (parent-first, dup-checked → idempotent), `DatType` gains `char parent[64]`. C4 method inheritance: `resolve_method_chain()` in `by_name_dispatch.c` walks `self→parent→…` (via `dat_parent`) for the first `<C>__<m>` present in proc_table OR native registry; `meth_call` uses it. m4: `scrip.c` emits `class_inherit@PLT` calls after `record_register` so the standalone binary has parent links. Smokes: `inherit_attr`/`inherit_method`/`inherit_override`. **CAVEAT: multi-level (3+ class) programs can hit the PRE-EXISTING `x86_uid` dup-label emitter scaling bug in m4 (`bbNNNNN_α already defined`) — orthogonal to inheritance logic (m3 always works; m4 works for 2-class). That emitter bug is the real blocker for larger m4 OO programs.**
-- [ ] **RK-OO-C3 — C3 MRO** (`compute_mro` linearization). Needed for diamonds; single/linear chain works today via the simple parent walk.
-- [ ] **RK-OO-C5 — `callsame`/`nextsame`/`callwith`** (re-dispatch to next MRO candidate).
-- [ ] **RK-OO-C6 — multiple inheritance (`is A is B`)** (MRO merge; needs C3).
-- [ ] **RK-OO-D1..4 — Roles** (`role`/`does`; role-to-class flattening per `RoleToClassApplier`; required-method stubs + conflict detection; punning).
-- [ ] **RK-OO-E1..2 — Multi-dispatch** (`multi`/`proto`; arity then type-narrowness).
-- [ ] **RK-OO-F1..4 — Metaobject/introspection** (type objects + `:D`/`:U`/`.defined`; `.WHAT`/`.^name`; `.^methods`/`.^attributes`/`.^parents`; `.isa`/`.does`).
-- [ ] **RK-OO-G1..6 — Advanced** (`.Str`/`.gist`/`.raku` override; operator overload `multi sub infix:<>`; `handles` delegation; `but`/runtime mixin; `enum`/`subset`; `.=`).
-
 
 ---
 
