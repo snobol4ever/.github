@@ -1,8 +1,58 @@
 <!-- ════════════════════════════════════════════════════════════════════════════════════════════════ -->
-<!-- ⛔⛔⛔ SESSION-FIRST RUNG (Lon 2026-06-15). The session-start protocol opens THIS file for SNOBOL4-BB. -->
-<!-- This RUNG sits ABOVE the prior START-HERE block and the watermark stack on purpose: do its first      -->
-<!-- incomplete STEP before any other rung in this file. -->
+<!-- ⛔⛔⛔ SESSION-FIRST RUNG (Lon 2026-06-19 PIVOT). The session-start protocol opens THIS file for       -->
+<!-- SNOBOL4-BB. This PB-GREEN rung sits ABOVE OPSINGLE, the prior START-HERE blocks, and the watermark    -->
+<!-- stack on purpose: do its first incomplete STEP before any other rung in this file. OPSINGLE (below)   -->
+<!-- is NOT abandoned — PBG-PERF folds it in (single-channel operands[] is a prerequisite for the perf      -->
+<!-- rewrite), but correctness benchmarks come first.                                                       -->
 <!-- ════════════════════════════════════════════════════════════════════════════════════════════════ -->
+
+# ⛔⛔⛔ SESSION-FIRST RUNG — PB-GREEN · ALL 16 SNOBOL4 BENCHMARKS WORKING
+
+**Mandate (Lon 2026-06-19 PIVOT):** get every SNOBOL4 benchmark in `/home/claude/corpus/benchmarks/*.sno` WORKING — runs to completion in mode-4 (`--compile`) AND result line matches the sbl oracle. This RUNG is FIRST; do its first incomplete STEP before any other rung in this file.
+
+**GROUND TRUTH — MEASURED 2026-06-19 (Claude, fresh `scrip`+`libscrip_rt.so` @ HEAD `18ad52a`, oracle `/home/claude/x64/bin/sbl -b`). The prior watermark's "6 bomb / 3 timeout" framing is SUPERSEDED by this exact 16-way triage (each cell probed in isolation, not inferred):**
+
+| # | bench | M4 result | oracle | verdict | CAUSE BUCKET |
+|---|---|---|---|---|---|
+| 1 | arith_loop | `iterations: 1000000` | = | ✅ correct+fast | — |
+| 2 | op_dispatch | `122172` | = | ✅ correct+fast | — |
+| 3 | pattern_bt | `500000` | = | ✅ correct+fast | — |
+| 4 | string_concat | `100000` | = | ✅ correct+fast | — |
+| 5 | string_manip | `43` | = | ✅ correct+fast | — |
+| 6 | var_access | correct @1k (`6012`) | = | ✅ correct, ❌ 30s wall @10M | **PERF** |
+| 7 | func_call | correct @1k (`1000`) | = | ✅ correct, ❌ 30s wall @10M | **PERF** |
+| 8 | func_call_overhead | correct @1k (`1000`) | = | ✅ correct, ❌ 30s wall @10M | **PERF** |
+| 9 | eval_fixed | correct @100 (`11`) | = | ✅ correct, ❌ OOM-kill (rc137) @1M | **EVAL-CHURN** |
+| 10 | eval_dynamic | correct @100 (`200`) | = | ✅ correct, ❌ OOM-kill (rc137) @1M | **EVAL-CHURN** |
+| 11 | fibonacci | `4176069032329494496` | `832040` | ❌ WRONG (garbage int) | **REENTRANT-FRAME** |
+| 12 | table_access | `0` | `250500` | ❌ WRONG | **TABLE-M4** |
+| 13 | roman | BOMB | (roman numerals) | ❌ crash | **SCAN-NONLIT-M4** |
+| 14 | mixed_workload | BOMB | — | ❌ crash | **SCAN-NONLIT-M4** |
+| 15 | string_pattern | BOMB | — | ❌ crash | **SCAN-NONLIT-M4** |
+| 16 | indirect_dispatch | empty | **sbl ERRORS 022** | ⚠️ benchmark broken upstream | **ORACLE-ERROR** |
+
+**Isolation probes (recreate in `/tmp/tri`, oracle vs M4-assemble-link-run):**
+- REENTRANT-FRAME: non-recursive `X=F(3)+F(4)` (F(n)=n+10) → `27` ✅ BUT recursive `FIB(7)` → garbage `2946178535469456`. So arith-over-two-calls is fine; the bug is a function calling itself (or any fn) while its own frame is LIVE — the param `N` / return-name var is not saved across the nested call. `func_call`'s `INC` works only because INC is never re-entered.
+- TABLE-M4: `T=TABLE(16); T<3>=99; OUTPUT=T<3>` → empty (want `99`). Integer-subscript table write and/or read is a no-op in M4.
+- SCAN-NONLIT-M4: all three bomb `bb_scan: TEXT(mode-4) non-literal pattern` (the S1/S3 native-scan gap; see SNOBOL4-5STAGE ladder).
+- EVAL-CHURN: `EVAL('X + 1')` is correct each call; 1M calls OOM-kill → EVAL compiles fresh code per call and never frees it (or churns the arena). Need per-call teardown / cached compile.
+- ORACLE-ERROR: `R = $FN(X)` with `FN='ADD1'` → sbl itself raises ERROR 022 undefined-function. Benchmark is invalid as written; "working" = match the oracle's error behavior OR exclude from the correctness gate (decide at PBG-DONE).
+
+**GATE (this rung, HARD non-decreasing EVERY step):** the count of benchmarks whose M4 result-line == oracle result-line strictly grows; pre-existing floors hold — smoke M3/M4 7/7 · pat-rung M4 19/19 0-SKIP · fence TIER1=TIER2=0 · broad-corpus M4 ≥169. Baseline this rung opens at **5/16 correct**. DONE = 15/16 correct (`indirect_dispatch` resolved per its step) with real `ms:`.
+
+## STEPS — correctness first, ordered by tractability × unblock-count. Each = probe-first vs sbl · ONE commit · gates green.
+
+- [ ] **PBG-0 — HONEST GATE + .ref FILES (no codegen).** Generate `.ref` files (result line(s) ONLY, NEVER the volatile `ms:` line) for all 16 from the sbl oracle; for `indirect_dispatch` record the oracle's ERROR-022 disposition (a `.xfail` marker, not a result `.ref`). Confirm the truthful runner (`scripts/test_bench_snobol4_modes.sh`, landed `dc5dc31`) diffs result-lines vs `.ref` and reports `5/16 correct` today. GATE: runner honestly prints 5 correct and the 11 fail/crash split matches the triage table.
+- [ ] **PBG-1 — REENTRANT CALL FRAME → fibonacci green (+1).** A user function whose body calls a function (incl. itself) while its own activation is live must SAVE/RESTORE its formals + return-name var around the nested call (SPITBOL: each function activation has its own copy of arguments and the function-name return variable; recursion relies on this — Green §… DEFINE). Probe ladder m4≡sbl: `FIB(7)`→`13` · `FIB(15)`→`610` · full `FIB(30)`→`832040`. Do NOT special-case recursion — the fix is general activation save/restore. GATE: floors hold; fibonacci result == ref; the 3 already-green call benches (op_dispatch etc.) unregressed.
+- [ ] **PBG-2 — TABLE INT-KEY WRITE/READ in M4 → table_access green (+1).** `T<I> = v` (write) and `T<I>` in value position (read) for integer subscripts on a `TABLE(n)` (M4-DATA / S7 cluster). Probe m4≡sbl: `T=TABLE(16);T<3>=99;OUTPUT=T<3>`→`99` · fill+sum loop → `250500`. GATE: floors hold; table_access result == ref.
+- [ ] **PBG-3 — NON-LITERAL SCAN in M4 → roman + mixed_workload + string_pattern green (+3).** Close `bb_scan: TEXT(mode-4) non-literal pattern`: route named-var-subject / non-literal-pattern (BREAK/LEN/RPOS/SPAN/ALT/capture `.`) through the native scan chain in M4 BINARY rather than the `rt_scan` TEXT bomb. This is the SNOBOL4-5STAGE S1+S3 surface; do the smallest rung that clears these three programs' pattern shapes (BREAK(',') . WORD ; RPOS(1) LEN(1) . T ; the mixed_workload set). Probe each program to completion m4≡sbl. GATE: floors hold; all three result == ref.
+- [ ] **PBG-4 — EVAL PER-CALL TEARDOWN → eval_fixed + eval_dynamic complete @1M (+2).** EVAL of a string currently churns/leaks per call → OOM at 1M. Free (or cache+reuse) the per-call compiled artifact so 1M EVALs run in bounded memory. Probe: `eval_fixed` and `eval_dynamic` at full count run to completion, rc=0, result == ref. GATE: floors hold; both complete and correct.
+- [ ] **PBG-5 — PERF (folds OPSINGLE) → var_access + func_call + func_call_overhead in-gate (+3).** These are CORRECT; they only blow the wall clock from per-iteration by-name `NV_GET`/`rt_gvar_*` on the `N = LT(cond) N + 1` idiom (the ~45× gap noted since arith_loop). Prerequisite: single-channel `operands[]` (OPSINGLE below) so assigns/binops read operand boxes directly instead of re-resolving names. Target: each of the three finishes inside the 30s corpus-runner timeout with result == ref. GATE: floors hold; the three complete in-gate and correct; report the sbl ratio.
+- [ ] **PBG-6 — indirect_dispatch DISPOSITION + SPEEDUP REPORT.** Resolve `$FN(X)` per the oracle (either scrip also raises undefined-function → mark `.xfail` matched, or exclude with a one-line note in `bench/BENCHMARKS.md`). Then run all 16 under both sbl and scrip M4, wire ratios into `bench/BENCHMARKS.md` (the "10×" claim). GATE: 15/16 correct (or 16/16 incl. matched xfail); ratios recorded; no regression.
+
+---
+
+**SESSION WATERMARK — 2026-06-19 · Claude · `.github` ONLY (rung authored; no SCRIP change yet at write). Built `scrip`+`libscrip_rt.so` clean @ `18ad52a`; cloned sbl oracle. Ran truthful bench runner → REAL `OK=8 CRASH=8`, but a per-bench correctness diff vs sbl shows only **5/16 actually correct** (arith_loop, op_dispatch, pattern_bt, string_concat, string_manip): the runner's "OK" counts run-to-completion, not correctness, so fibonacci (garbage `4176…`) and table_access (`0`) pass it falsely. Authored RUNG PB-GREEN (above) with the full measured 16-way triage + ordered steps PBG-0..6. Key isolation finding (do-not-re-derive): recursion is the ONLY thing wrong with fibonacci — `F(3)+F(4)`=27 ✅ but `FIB(7)`=garbage, so it's a reentrant activation save/restore bug, not arith-over-calls. var_access/func_call/eval pairs are CORRECT at low N and fail ONLY on time/memory at full N (perf, not logic). indirect_dispatch ERRORS on sbl itself (ERROR 022) → broken benchmark. NEXT: PBG-0 (refs + honest gate) then PBG-1 (reentrant frame → fibonacci).**
 
 **SESSION WATERMARK — 2026-06-16 · Claude · SCRIP (PB-BENCH-1 concat box LANDED + TIME/DATE builtins + X-box additive) + `.github`. FIRST GREEN BENCHMARK: `arith_loop.sno` now runs to completion AND self-times in BOTH native modes (M3 `iterations: 1000000 ms: 2588` · M4 `... ms: 2356`); result matches oracles (sbl `1000000 ms:57` · csnobol4 `1000000 ms:144`). NOTE: correctness green, SPEED not met — ~45× slower than sbl (per-iteration `str_concat_d` + by-name `NV_GET`/`rt_gvar_*`); 10×-faster goal still open on this bench. WHAT LANDED (uncommitted at writing — commit this handoff): (1) **PB-BENCH-1 concat box.** New IR opcode `IR_BINOP_GVAR_CONCAT` (IR.h after IR_BINOP_CONCAT) + dispatch (emit_core.c) + Makefile (src-list + explicit rule). New template `src/emitter/BB_templates/bb_binop_gvar_concat.cpp`: gvar-chain concat calling `str_concat_d(DESCR,DESCR)` over two operand slots → 16-byte result slot. Driver `flat_drive_gvar_concat` (emit_bb.c ~2240) walks BOTH operands under `g_gvar_callarg_live` to slots, sets op_sa/op_sb/op_off + **passes operand node-kinds via bb_lk/bb_rk**; dispatch wired at the gvar `op_is_concat` branch in case IR_BINOP. **KEY (the user-corrected model fix):** EACH BOX result is a DESCR; an arith-binop operand of a concat (e.g. `T2 - T1`) stores an 8-byte raw int in the gvar arith box, so the template builds the DESCR per operand kind — bareint kinds (IR_BINOP/IR_LIT_I/IR_UNOP) load `[slot]` only and synthesize `{DT_I,val}`; descriptor kinds (VAR/CALL/LIT_S) load `[slot]:[slot+8]`. (2) `bb_gvar_assign.cpp` IR_BINOP arm: concat result (`op_a_ival_sg==BINOP_CONCAT`) read as 16-byte descr via `rt_gvar_assign_descr` (arith stays 8-byte `rt_gvar_assign_int`); includes gen.h for BINOP_CONCAT. (3) **TIME()/DATE() builtins** — were UNREGISTERED (returned null → blank `ms:`); added to `known[]` + dispatch in `script_try_call_builtin_by_name` (by_name_dispatch.c, +`#include <time.h>`); TIME = `clock()*1000/CLOCKS_PER_SEC` ms. (4) **X-BOX (additive, model-correct, NOT yet consumed):** `lower_snobol4.c` plain-IR_ASSIGN arm now emits the lvalue as its OWN box (`IR_VAR`/`IR_KEYWORD`) and `ir_operand_push`es `[xbox, valuebox]` so `x = 1 + 2` lowers to the correct 5 boxes (x,1,2,+,=) with IR_ASSIGN drawing TWO operands. `.sval` RETAINED so the ~77 emitter consumers reading the assign target by name are unbroken — the X box is purely additive this commit; migrating emit to read operand[0] is the next rung. GATES (HARD, non-decreasing, verified vs HEAD `6256c69` via stash): smoke M3/M4 **7/7** · pat-rung **M4 19/19 0-SKIP** (M3 15/19, M2 0/19 — both IDENTICAL to HEAD baseline, pre-existing) · fence TIER1=TIER2=**0**. NEXT (priority): (1) PERF — kill per-iteration by-name lookups on the `LT(cond) N` loop idiom (the 45× gap); (2) X-BOX emit migration — make every assign consumer draw operand[0] (the x box DESCR) instead of `.sval`, then the gvar by-name assign shortcut can retire; (3) remaining benches — 6 still bomb the arith-operand-of-concat or scan-gap families, 3 timeout (fibonacci errs at FIB(20)); (4) OPSINGLE (aux deletion) still pending below.**
 
