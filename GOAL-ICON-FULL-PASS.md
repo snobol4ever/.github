@@ -1,159 +1,118 @@
-# GOAL-ICON-FULL-PASS.md — Icon: m3/m4 → 283/283 (full pass, parity)
+# GOAL-ICON-FULL-PASS.md — Icon: m3/m4 → 283/283
 
-## ▶▶ CURRENT PRIORITY — JCON/ICON PERFORMANCE BENCHMARKS (BENCH ladder) ◀◀
+## ▶▶ CURRENT PRIORITY — JCON/ICON BENCHMARKS (BENCH ladder) ◀◀
 
-**Goal:** get **ALL** the canonical JCON/ICON performance benchmarks running natively (m3 `--run` AND m4 `--compile`), output matching an authoritative oracle, within a timeout. This is the headline application milestone — the benchmarks are real, multi-procedure Icon programs, so making them green proves the whole Icon pipeline end-to-end (parse → lower → emit → run) and is what the SCRIP "ten times faster" pitch is measured on.
+**Goal:** all canonical JCON/Icon benchmarks running natively (m3 `--run` AND m4 `--compile`), stdout == oracle, within timeout.  
+**Oracles:** `corpus/programs/icon/rung36_jcon_*.expected` (link-free; queens/concord/genqueen present; deal/ipxref/rsg still need oracle — see BENCH-ORACLE).  
+**Benchmark sources:** `corpus/benchmarks/icon/` (merged icon-master + jcon-master into single folder).
 
-**The suite.** Five standard Icon benchmarks: **`queens`, `concord`, `deal`, `rsg`, `ipxref`**; plus JCON long-runners **`tgrlink`, `benchmark`**; icon-master microbench **`micro`/`micsum`**. Sources in `refs/icon-master/tests/bench/` and `refs/jcon-master/bmark/`; both `link options, post` (deal also `link shuffle`).
+### BENCH rung ladder
 
-**⚠ ORACLE CORRECTION (verified 2026-06-19).** The earlier ladder named `refs/icon-master/tests/bench/*.std` as the oracle. **That is WRONG — those `.std` files are NOT program stdout.** `queens.std` is the icont *self-benchmark* dump: an `&features` banner ("Icon Interpreter Version 8.10…"), region/storage stats, GC collection counts, and `elapsed time` — and `Execute-icont` runs queens at `-n9`, not the default. None of it is reproducible or diffable. **The authoritative oracle is the corpus `rung36_jcon_*.expected` file** (real program stdout), which the corpus authors already transcribed LINK-FREE (inlined arg parsing, dropped `options()`/`Init__()`/`Term__()`). Present today in `/home/claude/corpus/programs/icon/`: **`rung36_jcon_queens` (live, has .expected), `rung36_jcon_concord` (xfail, has .expected), `rung36_jcon_genqueen` (live, has .expected)** — these are link-free, so BENCH-0/1 below are NOT on their critical path. **Canonical upstream sources for `deal`, `ipxref`, `rsg`, `tgrlink`, `geddump`, `micro`/`micsum`, `queens`, `concord` are now collected in `/home/claude/corpus/benchmarks/icon/` (icon-master) and `/home/claude/corpus/benchmarks/jcon/` (jcon-master)** with their `.dat` data files + an index (`benchmarks/README-ICON-JCON.md`). What is STILL missing for `deal`/`ipxref`/`rsg`/`tgrlink`/`micro` is a **link-free `.icn` variant + a trusted `.expected` oracle** in `programs/icon/` (the upstream originals use `link options, post`/`shuffle` and are nondeterministic for deal/rsg) → see BENCH-ORACLE.
-
-**Why m3 is blocked today — VERIFIED REDUCTIONS (2026-06-19), not the old guess.** `rung36_jcon_queens` (link-free, has oracle) currently `[SMX]` EXCISES in m3. Minimal repros, semicolons explicit (SCRIP's Icon parser does NOT auto-insert `;` at newline — every stmt needs a trailing `;`, exactly as the corpus benchmarks already have):
-- **List-element assignment** `L[i] := v;` → EXCISED (no native arm). queens: `solution[c] := r;`.
-- **Reversible assignment** `(x <- 2) & write(x);` → runs natively but emits NOTHING (the `<-` arm is missing/wrong; restore-on-fail not wired). queens: `rows[r] <- up[n+r-c] <- down[r+c-1] <- 1`. Canonical: JCON has no dedicated `<-`; it is `a_Binop` op `"<-"` → `ir_opfn("<-", …)` with the resume chunk doing the restore (irgen.icn `ir_a_Binop`).
-- **Chained relation with embedded generator** `every (0 = (r := 1 to 3)) do …;` → EXCISED (generator operand inside a relop; the `bb_binop_gen` Fig-1 track). queens leads with exactly this.
-- `!solution` element generation: WORKS in m3 (confirmed). `repl`/`||`/`list(n)` constructors: assume work, verify per-step.
-
-### BENCH rung ladder (each step gated: m3 stdout == corpus `.expected`, m4 stdout == corpus `.expected`, within timeout; no rung-suite regression below the floor)
-
-**BENCH-ORACLE — establish authoritative oracles (do FIRST; without it deal/ipxref/rsg cannot be gated).**
-- [ ] Adopt the corpus `rung36_jcon_*.expected` files as the oracle for `queens`, `concord`, `genqueen` (already present — no action beyond pointing the harness at them).
-- [ ] For the three MISSING benchmarks, produce a link-free `.icn` + a trusted `.expected`. `jcon` is NOT runnable here (java present but no `javac`/`jcont`, no prebuilt classes); icont (C) is not built. Two routes, pick per-benchmark and DOCUMENT the choice inline: **(a) build canonical `icont` from `refs/icon-master/src`** (authoritative for all five; heaviest — its own sub-task) and capture stdout; **(b) hand-author** a link-free variant + derive the oracle for the DETERMINISTIC ones. `ipxref` is deterministic (cross-reference of a fixed input). **`deal` and `rsg` use `&random`/`shuffle` → NONDETERMINISTIC**; they can only have a stable oracle if `&random` is SEED-PINNED to match the reference RNG, so they are LAST and may stay XFAIL until the RNG matches bit-for-bit. Completion: each targeted benchmark has `<name>.icn` (link-free) + `<name>.expected` in the corpus icon dir.
-
-**Shared prerequisites — ONLY needed for the refs/-only (non-link-free) sources; the corpus variants skip these.**
-- [ ] **BENCH-0 — `link` parses.** Icon parser accepts `link name {, name}` at top level → `a_Link` (model: JCON `ir_a_Link`, irgen.icn L662 → `ir_Link(coord, p.linkfileList)`). SCRIP already carries the `a_Link` AST shape; wire the parser production. Completion: `./scrip --dump-ir refs/jcon-master/bmark/queens.icn` no longer errors on the `link` line.
-- [ ] **BENCH-1 — library resolution (the linker).** Resolve each linked name to a `.icn` on an IPL search path (default: program dir, then `refs/icon-master/ipl/procs/`); parse + lower its procedures into the same program so `options()`, `post`, `shuffle()`, `random` are callable. Decide+DOCUMENT the search-path switch (`--ipl DIR` or `IPATH` env). Completion: a 5-line `link options` + `options(args,"n+")` program runs m3+m4.
-- [ ] **BENCH-2 — benchmark keywords.** `&time` (elapsed-ms int; real or monotonic stub — must not error), plus any of `&features`/`&clock`/`&date`/`&host` a benchmark touches. Completion: `write(&time);` runs both modes. (Note: `&time` output is EXCLUDED from the diff — strip/normalize timing lines in the harness.)
-
-**Feature steps — ordered by VERIFIED queens blockers (queens first: it is LIVE + has an oracle + its blockers are the smallest concrete set). Each: minimal repro PASS → benchmark m3 == `.expected` → benchmark m4 == `.expected`, timeout 30s.**
-- [ ] **BENCH-F1 — list-element assignment `L[i] := v`** (native arm). The `IR` is already correct: parser+lowerer emit `IR_IDX_SET [base, idx, rhs]`; the value helper **`int subscript_set(DESCR arr, DESCR idx, DESCR val)` already EXISTS** (`src/runtime/pattern_match.c`, 0=fail/1=success, mutates in place, covers DT_A arrays / DT_T tables / DT_DATA list-blobs+records). **SCAFFOLDING LANDED (2026-06-19, gated OFF):** `bb_idx_set.cpp` template (marshals 3 DESCR slots → rdi:rsi/rdx:rcx/r8:r9, `call subscript_set`, `cmp eax,0;je ω`, stores rhs to result slot, γ) + `flat_drive_idx_set` driver with operand-reuse dedup + `op_sc` slot field in emit_globals + emit_core dispatch + Makefile. FACT-clean (template-only, 0 raw-byte). **NOT YET FUNCTIONAL — gated to clean EXCISE in `graph_native_emittable_mode` (scrip.c) so it never aborts.** TWO REMAINING GAPS (both verified this session): (1) **LIT operands don't get a frame slot on the m3 `descr_flat_chain_build_proc` path** (a LIT rhs → `bb_slot_get`==-1 → `bb_idx_set` bomb; a VAR rhs slots fine) — m4 slots both, so the m3 LIT-materialization is the gap; (2) even VAR-rhs **global-list** programs run rc=0 but emit NO output → global-list element read/write value-flow needs tracing (verify `write(L[i])` get-path on a global list first, in isolation). To finish: fix (1)+(2), then flip the gate (remove the `IR_IDX_SET → return 0` line in scrip.c) and gate against a global-list repro (`global L; L:=list(3,0); L[2]:=9; write(L[2])` → `9`, m3+m4). Canonical store semantics: `refs/icon-master/src/runtime/oref.r`. Unblocks queens' `solution[c]:=r`.
-- [ ] **BENCH-F2 — reversible assignment `<-` (and `<->` swap)** — the queens keystone. `x <- v` assigns v to x AND on β (resume/backtrack) RESTORES x's prior value then fails; `a <-> b` likewise reversible-swaps. Model: JCON `ir_a_Binop` with op `"<-"` (irgen.icn L472) — the success chunk does the assign, the **resume chunk restores the saved cell and routes to failure**. This is a real four-port box with a per-box save slot `[ζ+off]` (NO value stack). Must compose with BENCH-F1 (queens does `rows[r] <- … <- … <- 1` on subscript lvalues). Repro: `/tmp/q2.icn`.
-- [ ] **BENCH-F3 — generator operand inside a relation / chained comparison** (`0 = (r := 1 to 3)`, and the full queens chain `0 = rows[…] = up[…] = down[…]`). The relop's operand is a generator; on relop failure β must re-pump the generator (the `bb_binop_gen` Fig-1 track flagged in GOAL-ICON-BB Watermark). Canonical: `ir_a_Binop` routes failure to the operand's `.resume`. Repro: `/tmp/q3.icn`. This is the gen-alt/`cross_arg` family — coordinate with rung13.
-- [ ] **BENCH-F4 — recursive proc + generator driver** (`every q(1)`, `q` calling `q(c+1)` under backtracking). Depends on user-proc recursion depth (rung02 `rung02_proc_fact`, m3 silent-empty / m4 depth-4096) being healthy. Gate: `rung36_jcon_queens` m3 stdout == `.expected`, then m4.
-- [ ] **BENCH-Q — `queens` GREEN.** With F1–F4 landed, `rung36_jcon_queens` m3 AND m4 == `rung36_jcon_queens.expected` within 30s. First headline benchmark closed.
-- [ ] **BENCH-C — `concord`** (tables + `sort()` (landed `5f54227`) + scan `tab`/`upto`/`many` + `read()` + `find`). Oracle: `rung36_jcon_concord.expected` (currently `.xfail` — clear the xfail when green). Needs the scan-generator family: `find`/`upto`/`many` as `function{*}` generators — the existing `bb_scan_find.cpp` only handles a LITERAL needle ≤32 (`find_admit`); a variable-needle `find` needs the by-name runtime arm. Canonical: `fstranl.r` `find`/`upto`/`many`.
-- [ ] **BENCH-D — `deal`** (lists + `shuffle`/`random` + sort + `?` random-select). BLOCKED on BENCH-ORACLE seed-pin + BENCH-1 (`shuffle.icn`). May stay XFAIL until RNG parity.
-- [ ] **BENCH-R — `rsg`** (tables + records + recursive descent + `&random`). BLOCKED on BENCH-ORACLE seed-pin. After concord.
-- [ ] **BENCH-I — `ipxref`** (heaviest: records + tables + `sort()` + dense scan `getword`/`tab`/`upto`/`many` + multi-file read). Deterministic → oracle via BENCH-ORACLE route (a) or (b). Do last of the five.
-- [ ] **BENCH-X — extras** (`tgrlink`, `benchmark`, `micro`/`micsum`). Optional, after the five.
+- [ ] **BENCH-ORACLE** — link-free `.icn` + `.expected` for deal/ipxref/rsg. deal+rsg nondeterministic (`&random`) → seed-pin or XFAIL. ipxref deterministic → build/capture or hand-author.
+- [ ] **BENCH-0** — `link name` parses → `a_Link` AST (parser production; `--dump-ir` no longer errors on `link` line).
+- [ ] **BENCH-1** — library resolution: resolve linked name to `.icn` on IPL search path; parse+lower into same program.
+- [ ] **BENCH-2** — `&time` keyword (elapsed-ms int; strip timing lines in diff harness).
+- [x] **BENCH-F1.5** — flat-chain UNOP-assign value-flow (`x := \expr`, `x := /expr`) — LANDED `a18778b`.
+- [x] **BENCH-F1** — `IR_IDX_SET` scaffolding landed `04197ed`, gated to clean EXCISE. Global path verified working (Opus probe). Gate off once F3 done (no benchmark is blocked solely on F1).
+- [x] **BENCH-F2** — `IR_RASGN` (`<-`) full scaffolding landed `a54ebef`, gated to clean EXCISE. **Remaining gap:** rhs-var slot collides with dest-var slot inside conjunction chain — `bb_varslot_peek(rhs)` returns dest's slot offset instead of rhs's. Fix: trace flat-chain varslot allocation for `(y<-x) & write(y)`. Repro: `x:=5; y:=1; (y<-x) & write(y)` → `5`.
+- [ ] **BENCH-F3** — generator operand inside relop / chained comparison (`0 = (r:=1 to 3)`, queens full chain). `bb_binop_gen` β re-pump. Coordinate with rung13 cross_arg.
+- [ ] **BENCH-F4** — recursive proc + generator driver (`every q(1)`, q calling q(c+1) under backtracking). Depends on rung02 recursion fix.
+- [ ] **BENCH-Q** — `rung36_jcon_queens` m3+m4 == `.expected`. First headline benchmark.
+- [ ] **BENCH-C** — `rung36_jcon_concord` (tables + sort + scan + read + find). Clear `.xfail`.
+- [ ] **BENCH-D/R** — deal/rsg (blocked on BENCH-ORACLE seed-pin).
+- [ ] **BENCH-I** — ipxref (heaviest; after concord).
+- [ ] **BENCH-X** — tgrlink/geddump/micro/micsum (optional extras).
 
 ### BENCH gate (per step)
 ```bash
-cd /home/claude/SCRIP && bash scripts/build_scrip.sh && make libscrip_rt
-C=/home/claude/corpus/programs/icon ; T=rung36_jcon_queens     # the LINK-FREE, oracle-bearing variant
-IN=/dev/null ; [ -f "$C/$T.stdin" ] && IN="$C/$T.stdin"
-# m3 (--run):
-timeout 30 ./scrip --run $C/$T.icn < "$IN" > /tmp/b_m3.out 2>/tmp/b_m3.err
-grep -q '\[SMX\]' /tmp/b_m3.err && echo "EXCISED (feature missing)" || diff /tmp/b_m3.out $C/$T.expected && echo "m3 ✅"
-# m4 (--compile; assemble STANDALONE — m3 tolerates dup labels, m4 `as` rejects them):
-timeout 30 ./scrip --compile --target=x86 $C/$T.icn < /dev/null > /tmp/b.s 2>/tmp/b.err
-as /tmp/b.s -o /tmp/b.o && gcc -no-pie /tmp/b.o -Lout -lscrip_rt -Wl,-rpath,out -lgc -lm -o /tmp/b.bin
-LD_LIBRARY_PATH=out timeout 30 /tmp/b.bin < "$IN" > /tmp/b_m4.out ; diff /tmp/b_m4.out $C/$T.expected && echo "m4 ✅"
-# regression floor — the rung suite must NOT drop below baseline (136/136) in either mode:
-bash scripts/test_icon_rung_suite.sh --mode run     | tail -1
+cd /home/claude/SCRIP && make && make libscrip_rt
+C=/home/claude/corpus/programs/icon; T=rung36_jcon_queens
+IN=/dev/null; [ -f "$C/$T.stdin" ] && IN="$C/$T.stdin"
+# m3: timeout 30 ./scrip --run $C/$T.icn < "$IN" > /tmp/b_m3.out 2>/tmp/b_m3.err
+# grep -q '\[SMX\]' /tmp/b_m3.err && echo EXCISED || diff /tmp/b_m3.out $C/$T.expected && echo "m3 ✅"
+# m4: ./scrip --compile --target=x86 $C/$T.icn > /tmp/b.s && as /tmp/b.s -o /tmp/b.o
+#     && gcc -no-pie /tmp/b.o -Lout -lscrip_rt -Wl,-rpath,out -lgc -lm -o /tmp/b.bin
+#     && LD_LIBRARY_PATH=out timeout 30 /tmp/b.bin < "$IN" > /tmp/b_m4.out
+#     && diff /tmp/b_m4.out $C/$T.expected && echo "m4 ✅"
+bash scripts/test_icon_rung_suite.sh --mode run     | tail -1   # must not regress
 bash scripts/test_icon_rung_suite.sh --mode compile | tail -1
 ```
-**Suggested harness:** `scripts/test_icon_bench.sh [--bench NAME] [--mode run|compile]` driving the corpus `rung36_jcon_*` benchmark set against their `.expected`, normalizing any `&time` line, mirroring `test_icon_rung_suite.sh`. **Completion of the whole priority:** all five standard benchmarks (queens, concord, deal, rsg, ipxref) produce `.expected`-identical output in BOTH m3 and m4 within timeout, zero rung-suite regression — deal/rsg conditional on RNG seed-parity (BENCH-ORACLE).
----
-
-**Status:** m3 **140/283** · m4 **140/283** · FAIL 18 · XFAIL 36 · EXCISED 89. HEAD(SCRIP)=`a18778b`.
-mode-2 `--interp` is DELETED (GOAL-DE-INTERP); the suite still invokes it and reports phantom m2 FAIL across the board — **ignore m2, gate on m3/m4**. m3 and m4 FAIL sets are currently identical.
-**Gate every step:** `bash scripts/test_icon_rung_suite.sh` — m3/m4 must not regress. A net +PASS can hide an EXCISE→FAIL: always do an explicit FAIL-name **and** EXCISED-name diff vs baseline in BOTH modes (capture single-mode VERBOSE output: `--mode run`/`--mode compile`, grep `^FAIL`/`^EXCISED`).
 
 ---
 
-## Open work — current 18 FAIL (m3==m4), by category
-
-- **rc=134 — missing native arm / unsupported call shape (`x86_bomb`).** Probe with `./scrip --run foo.icn 2>&1`.
-  - `rung22_lists_push_put_size`, `rung22_lists_put_bang` — list builtins (push/put) not wired into the native call path.
-  - `rung08_strbuiltins_find`, `rung08_strbuiltins_find_gen` — `find` builtin.
-  - `rung30_builtins_misc_seq`, `rung32_strretval_strret_every`, `rung37_proc_lookup` — misc builtin/call shapes.
-  - `rung02_proc_fact` — user-proc recursion depth 4096 (m3 silent-empty / m4 depth).
-- **rc=124 — generator-resume / timeout.**
-  - `rung03_suspend_gen{,_compose,_filter}` — `suspend` (canonical `ir_a_Suspend`; `ir_Succeed`/resume into body).
-  - `rung14_limit_limit_{large,to,zero}` — `limit` (`ir_a_Limitation`: counter decremented on resume, `>0` gate).
-  - `rung19_pow_toby_real_toby_{neg,pos}` — **real TO/BY** (`bb_to` real-step arm); generator-retry track.
-- **wrong-output.**
-  - `rung13_alt_alt_cross_arg{,_sideeffect}` — multi-generator CALL args `write(1|2,3|4)` → `is_deep` ag-ring stale on carry; `lower_call` flat-chain arg wiring. Materially larger (own session). `write((1|2)||(3|4))` (one concat arg) is already correct — the bug is two generator args, not the resume path. `--dump-bb` shows both ALT ω's pointing at the FIRST ALT (carry-order suspect).
-
-**Note:** `real_relop_goal` (`every write(3.0<(2.5|3.5|4.5))`) stays EXCISED — gen-alt resume (`cross_arg` track, rung13). Native real-POW (`x^2`, `rung19_pow_toby_pow_var`) landed `fe80ecf`; the local-VAR builtin-arg marshal class (`type`/`image`/`get`/`pull`/`sort`) landed `5f54227`.
+**Status:** m3/m4 **140/283** · FAIL 18 · XFAIL 36 · EXCISED 89 · HEAD(SCRIP)=`03a0158`.  
+m2 `--interp` is deleted (GOAL-DE-INTERP); suite reports phantom m2 FAILs — **ignore m2, gate on m3/m4 only**.  
+**Always diff FAIL names AND EXCISED names vs baseline in BOTH modes** — a net +PASS can mask an EXCISE→FAIL.
 
 ---
 
-## Session Setup
+## Open 18 FAILs (m3 == m4)
 
+| Group | Tests | Root cause |
+|-------|-------|-----------|
+| `bb_call` FATAL (rc=134) | `rung08_find{,_gen}`, `rung22_push_put_*`, `rung30_seq`, `rung32_strret_every`, `rung37_proc_lookup` | `builtin_is_generator()` excludes find/seq/push/put from `rt_builtin_is_known` → `CALL_ROUTE_FATAL`. Fix: extend classifier to route generators+mutators through `CALL_ROUTE_BYNAME`. |
+| Recursion overflow (rc=134) | `rung02_proc_fact` | `rt_call_proc_descr` hits 4096-frame limit. |
+| `suspend…do` generator (rc=124) | `rung03_suspend_gen{,_compose,_filter}` | IR_SUSPEND/EVERY interaction with flat chain incomplete. |
+| `limit \` (rc=124) | `rung14_limit_{large,to,zero}` | `flat_drive_limit` has no counter — unbounded generation. Canonical: `ir_a_Limitation` (irgen.icn:113). |
+| real TO/BY direction (rc=124) | `rung19_pow_toby_real_toby_{neg,pos}` | `bb_to` real-step negative-direction arm missing. |
+| cross-arg alternation (wrong output) | `rung13_alt_alt_cross_arg{,_sideeffect}` | `every write(1\|2,":",3\|4)` — multi-gen CALL args; `is_deep` ag-ring stale on carry. |
+
+---
+
+## BB / Byrd-Box discipline
+
+**ALL temporaries and local allocation storage in BB templates must use `DESCR_t` (16-byte frame slots).** No raw int/pointer spills to the frame — every slot is a full `DESCR_t` claimed with `bb_slot_claim(16)`, addressed as `FRQ(slot)` (low 8) + `FRQ(slot+8)` (high 8). This ensures DESCR_t-clean frame layout and will support cross-language BB interfacing. Exception: SNOBOL4 pattern-match BBs use sub-16 `x86_scratch_off` for internal counters — those are a separate discipline and not touched here.
+
+**`DESCR_t` layout:** `{DTYPE_t(4)+slen(4) | int64/ptr(8)}` — passed/returned as **rdi:rsi** (args) / **rax:rdx** (return). The high 8 bytes are INTEGER-class even when holding a `double`.
+
+---
+
+## Session setup
 ```bash
 cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
-bash scripts/build_scrip.sh && make libscrip_rt
-bash scripts/test_smoke_icon.sh        # m3 12/12 · m4 12/12 HARD (m2 line is phantom — ignore)
-bash scripts/test_smoke_prolog.sh      # m3 5/5 · m4 5/5 HARD (m2 phantom)
-bash scripts/test_gate_bb_one_box.sh
-# Extract refs if absent:
-unzip -q /mnt/user-data/uploads/2-icon-master.zip -d refs/
-unzip -q /mnt/user-data/uploads/3-jcon-master.zip -d refs/
+make && make libscrip_rt
+bash scripts/test_smoke_icon.sh      # m3 12/12 · m4 12/12 (m2 line phantom)
+bash scripts/test_smoke_prolog.sh    # m3 5/5 · m4 5/5
 ```
 
 ## Gate after every step
-
 ```bash
-bash scripts/build_scrip.sh && make libscrip_rt
-bash scripts/test_icon_rung_suite.sh   # m3/m4 must not regress (m2 phantom)
+make && make libscrip_rt
+bash scripts/test_icon_rung_suite.sh
 bash scripts/test_gate_bb_one_box.sh
 bash scripts/test_smoke_prolog.sh
-bash scripts/test_gate_icn_no_stack.sh ; bash scripts/test_gate_icn_one_reg_frame.sh   # == 0
+bash scripts/test_gate_icn_no_stack.sh; bash scripts/test_gate_icn_one_reg_frame.sh  # == 0
 ```
-The full three-mode suite ×283 can exceed an 8s/30s timeout under load — run one mode at a time (`--mode run`, then `--mode compile`) with an explicit `timeout`.
 
-## Canonical source rule
+## Canonical sources
+- Port topology: `corpus/programs/icon/jcon-ref/irgen.icn`
+- Runtime: `corpus/programs/icon/` (ocomp.r / fstranl.r / oarith.r / oref.r / oasgn.r / ovalue.r)
+- `<-` canonical: `oasgn.r` rasgn `operator{0,1+}`; irgen.icn:472 `ir_a_Binop` op `"<-"`, `ir_rval`→`&null` arg 1
+- `limit \`: irgen.icn:113 `ir_a_Limitation`
 
-Port topology → `refs/jcon-master/tran/irgen.icn`. Runtime → `refs/icon-master/src/runtime/*.r` (`ocomp.r`, `fstranl.r`, `oarith.r`, `oref.r`). The (now-deleted) m2 oracle was a transcription; canonical wins.
-
-## Key intel (reusable)
-
-- `DESCR_t` = {DTYPE_t(4)+slen(4) low 8 bytes; int64/ptr high 8 bytes}; passed/returned as the **rdi:rsi** (args) / **rax:rdx** (return) pair — the 2nd eightbyte is INTEGER-class even when it holds a `double`.
-- `icn_ring_to_tree` returns NULL when the chain has IR_BINOP or IR_LIT_I → falls to `descr_flat_chain_build(bbg->entry)`. `--dump-bb` does NOT show `operand_aux`. Asm chain-node indices (`xchainN_nK_*`) are CHAIN POSITIONS, not graph node ids.
-- The REAL native gate is `icn_graph_native_emittable_mode` (scrip.c, permissive-by-default); `icn_kind_native_stub` is DEAD/never-called — do not edit it. To EXCISE a kind, reject it in the gate.
-- **m3 binary tolerates duplicate labels (last-wins); m4 `as` rejects them (rc=1).** Always assemble the m4 `.s` standalone (`./scrip --compile --target=x86 f.icn > f.s; as f.s -o f.o`) whenever a kind passes m3 but not m4.
-- Globals are NV-only (the `--icn-globals` switch + `g_icn_globals_nv` were removed, `b11d3a7`): global read/assign route through the shared NV dictionary in every mode; locals keep frame slots.
-- RT = value, BOX = ports (no-duplicated-logic law): a builtin/arith helper takes/returns `DESCR_t` with no α/β/γ/ω; the box marshals args, `call`s it, wires the four ports.
+## Key intel
+- `icn_ring_to_tree` returns NULL when chain has IR_BINOP/IR_LIT_I → falls to `descr_flat_chain_build`.
+- `--dump-bb` does NOT show `operand_aux`. Chain-node indices (`xchainN_nK_*`) are CHAIN positions, not graph node ids.
+- Gate: `graph_native_emittable_mode` (scrip.c, permissive-by-default). To EXCISE a kind, reject it there.
+- m3 binary tolerates dup labels (last-wins); m4 `as` rejects them (rc=1). Always assemble `.s` standalone.
+- Globals route through NV dictionary (all modes). Locals keep frame slots.
+- RT = value (takes/returns DESCR_t, no ports). BOX = ports (marshals args, calls RT, wires α/β/γ/ω). No duplicated logic.
 
 ---
 
 ## Watermark
 
-**2026-06-22 (Claude) — Canonical Icon + JCON benchmark suites COLLECTED into corpus (`corpus/benchmarks/{icon,jcon}/`).** The upstream originals — `icon-master/tests/bench/*.icn` and `jcon-master/bmark/*.icn` — copied verbatim with their `.dat` data files, `.std` reference dumps (icon only; note these are icont self-benchmark dumps, NOT plain stdout), and upstream READMEs, plus an index `benchmarks/README-ICON-JCON.md` listing each file's role (benchmark vs link-dependency support: `options`/`post`/`shuffle`/`version`). The five standard benchmarks across both suites: `queens` · `concord` · `deal` · `rsg` · `ipxref` (+ JCON `tgrlink`/`geddump`, icon-master `micro`/`micsum`). These are the UNMODIFIED upstream sources (use `link`); the link-free, oracle-bearing variants for the native-execution gate remain `programs/icon/rung36_jcon_*` (present for queens/genqueen/concord; deal/ipxref/rsg/tgrlink/micro still need a link-free `.icn` + `.expected` per BENCH-ORACLE). Corpus-only infra; no emitter/suite change. Corpus HEAD `b48a8fca`.
+**2026-06-22 (Claude) — Corpus benchmarks/icon + benchmarks/jcon merged into single benchmarks/icon/ folder** (37bc1bc5, corpus). jcon-only files moved in (geddump/tgrlink/version); concord.dat jcon superset used; rsg.dat icon-master (1000-poem) retained. README-ICON-JCON.md updated.
 
+**2026-06-22 (Claude) — BENCH-F2 `<-` scaffolding landed, gated (a54ebef).** IR_RASGN + lower_icon case + bb_rasgn.cpp + flat_drive_rasgn + dispatch. Remaining gap: rhs-var slot collides with dest-var slot in conjunction — `bb_varslot_peek(rhs)` returns dest's offset. No regression: m3/m4 140/140, gates green.
 
-**2026-06-22 (Claude) — BENCH-F2 reversible-assign `<-` FULL SCAFFOLDING LANDED, gated to clean EXCISE (rhs-slot value-flow gap remains).** The queens/genqueen keystone. Full native pipeline wired in 9 touch-points: (1) new IR kind `IR_RASGN` (`IR.h`, after `IR_SWAP`); (2) name `scrip_ir.c`; (3) `lower_icon.c` `case TT_REVASSIGN` — mirrors `TT_SWAP` (two operands: lvalue var + rhs, entry = the box); (4) `bb_rasgn.cpp` four-port template — modeled on `bb_assign_local` + `bb_swap`'s β: **α** saves old x → `[ζ+op_sc]`, then x:=rhs (`[op_a_slot]`→`[op_sb]`), result→`[op_off]`, jmp γ; **β** restores x from save slot, jmp ω (FACT-clean, pure `x86()`, 0 raw-byte); (5) decl in `bb_templates.h`; (6) `emit_core.c` dispatch `case IR_RASGN`; (7) `flat_drive_rasgn` in `emit_bb.c` (modeled on `flat_drive_swap`) + dispatch case; (8) Makefile RT_PIC_SRCS + compile rule; (9) gate in `scrip.c graph_native_emittable_mode`. Canonical semantics verified: `oasgn.r` `rasgn operator{0,1+}` = GeneralAsgn(x,y); suspend x; GeneralAsgn(x,saved_x); fail. JCON `irgen.icn:472` `ir_a_Binop` op `"<-"`, `ir_rval`→`&null` for arg 1.
-**GATED to clean EXCISE** (`scrip.c`: `if (nd->op == IR_RASGN) return 0;`) — NOT yet functional. **The remaining gap (root-caused via `.s` offset dump):** for `(y <- x) & write(y)` with x's varslot=0, y's varslot=16, the rhs var `x` resolves to the WRONG frame slot — `op_a_slot` came back **16** (y's slot) not 0, so the box copied `[16]→[16]` (y into itself) → printed `1` not `5`. Both `bb_slot_get(rhs)` (IR_VAR node-alias) AND `bb_varslot_peek("x")` returned 16, so the collision is in the **per-chain varslot allocation inside the conjunction** — the rhs var is being allocated a slot that collides with the dest var's slot when `<-` sits as a conjunct, NOT in the template (template is correct). **NEXT:** trace how varslots are allocated for the conjunction's chain (`(y<-x) & write(y)`) — why does `x` (a var assigned in an earlier statement at slot 0) re-resolve to slot 16 in this chain? Likely the flat-chain builder re-allocates operand-var slots per sub-chain rather than reusing the proc-wide varslot. Once the rhs var reads its true varslot, flip the gate (remove the `IR_RASGN → return 0` line) and gate against `/tmp/rv_var.icn` (`x:=5; y:=1; (y<-x) & write(y)` → `5`, m3+m4). Then compose with subscript lvalues (`rows[r] <- … <- 1`, needs BENCH-F1's `IR_IDX_SET` store+restore) and LIT rhs (the `<- 1` literal — shared F1 LIT-slotting gap). **NO REGRESSION:** rung suite m3/m4 **140/140** (byte-identical FAIL list — 18 FAIL, 36 XFAIL, 89 EXCISED, unchanged), gates green (no-stack 0, one-reg-frame 0, FACT 0, g_vstack 0, bb_bin_t abolished, medium-invisible clean). icon 12/12 m3+m4, prolog 5/5 m3+m4. Corpus untouched (the bench-asm script's 2 "updated" files `left.s`/`nargs.s` are the known pointer-keyed NONDET artifacts — reverted, not this session's change).
+**2026-06-22 (Claude) — BENCH-F1.5 UNOP-assign value-flow (a18778b).** m3/m4 138→140. `x:=\expr`/`x:=/expr` now emit natively. Two-line fix: (1) `rhs_kind_ok` admits IR_UNOP; (2) `codegen_flat_chain_body` pre-registers all locally-assigned varslots before walk. Root cause: BFS ω-edge enqueue dequeued var-read before its producing assign; pre-registration decouples read-resolution from walk order.
 
+**2026-06-22 (Claude) — BENCH-F1 IR_IDX_SET scaffolding (04197ed), gated.** `subscript_set` rt helper exists; bb_idx_set template + flat_drive_idx_set + dispatch built. Gated to clean EXCISE. Global path verified working (gate-off probe). Local path excises on unrelated reason. Leave gate as-is until a benchmark is otherwise green and only idx_set remains.
 
-**2026-06-22 (Claude) — HQ: Icon benchmark `.s` artifact maintenance procedure established.** New `SCRIP/scripts/update_icon_bench_asm.sh` produces+maintains side-by-side x86 `.s` (current emitter `--compile --target=x86`, GAS) for the Icon benchmark corpus (`corpus/programs/icon/rung36_jcon_*.icn`), writing only on real content change. Canonicalizes address-derived labels (`bb<N>`/`.Lcall<N>` → stable sequence) + 3-sample determinism gate + assemble-check, so a git diff = real emitter output changes only. Wired into `RULES.md` handoff step 4 (run on Icon-emitter handoffs); documented in `PROC-ICON-BENCH-ASM.md`. Baseline @`a18778b`: 6 maintained (`center map misc right toby[ASMWARN] trim`), 2 NONDET (`left nargs` — emitter emission-order non-determinism, a follow-up to make node iteration id-keyed not pointer-keyed), 2 compile-abort (`iobig level`), 65 EXCISE (incl. headliners queens/concord/genqueen, auto-picked-up once F2 `<-`/F1 land). No emitter/suite change this entry — HQ/corpus infra only.
+**2026-06-19 (Claude) — BENCH ladder authored.** queens blockers verified: IR_IDX_SET (list-element assign) + IR_RASGN (`<-`) + generator-in-relop. Oracle correction: `*.std` files are NOT stdout — real oracle is `rung36_jcon_*.expected`.
 
-**2026-06-22 (Claude) — BENCH-F1.5 flat-chain UNOP-assign value-flow LANDED (`a18778b`, pushed).** m3/m4 **138→140** both modes, FAIL unchanged 18, EXCISED 91→89, zero EXCISE→FAIL (explicit FAIL-name + EXCISED-name diffs both modes). All 5 `rung34_null_test_*` PASS (the 2 targeted — `nonnull_succeeds`, `null_succeeds` — moved EXCISED→PASS). Two-line fix: (1) `rhs_kind_ok` (scrip.c) admits `IR_UNOP` (nonnull/null/size/neg/pos/not) + dedicated unop kinds as local-assign RHS; (2) `codegen_flat_chain_body` (emit_bb.c) pre-registers varslots for ALL locally-assigned vars BEFORE the per-node walk. **Root cause (verified by varslot register/peek probe):** the BFS emission walk enqueues binop/call **ω (failure) edges**; when a UNOP sits between a BINOP and its IR_ASSIGN, the binop's ω-edge (which targets the assign's **γ-successor var-read**) is dequeued *before* the assign, so `write(x)` peeked x's varslot before the assign registered it → `bb_var` BOMB. Pre-registering assigned locals (same pattern as param pre-registration at `descr_flat_chain_build_proc`) makes the read resolve regardless of walk order. Gates all green (no-stack/one-reg-frame/g_vstack/bb_bin_t/medium-invisible 0, icon 12/12, prolog 5/5). Base was `e0fc8e4` (already ahead of the handoff's `c8838f8`). **NEXT — two benchmark features fully scoped this session, both deferred (too large for one budget):**
-- **BENCH-F2 reversible assign `<-` (queens keystone).** Parser ✅ (`<-`→`TT_REVASSIGN (TT_VAR x)(expr)`, verified via `--dump-ast`). MISSING: (a) `case TT_REVASSIGN` lower arm in `lower_icon.c` (model on `case TT_SWAP` @L258 which builds `IR_SWAP`); (b) a new IR kind `IR_RASGN` (`IR_SWAP` @IR.h:159 is the sibling); (c) a `bb_rasgn.cpp` four-port template (model on `bb_swap.cpp`): **α** = save x's old DESCR to a per-box `[ζ+off]` slot, then `GeneralAsgn(x, v)`, jmp γ; **β** = restore x from the save slot, jmp ω (fail). Canonical `refs/icon-master/src/runtime/oasgn.r` rasgn `operator{0,1+}`: `GeneralAsgn(x,y); suspend x; GeneralAsgn(x, saved_x); fail`. JCON `irgen.icn:472` `ir_a_Binop` op `"<-"`, `ir_rval`→`&null` for arg 1 (lvalue not rval). (d) flat-drive (save-slot alloc), emit_core dispatch, Makefile `RT_PIC_SRCS`, `descr_chain_arity`, gate. **Must compose with subscript lvalues** — queens does `rows[r] <- up[…] <- down[…] <- 1` (chained `<-` on `L[i]` lvalues) — so after the plain-var case, the lvalue must generalize to an `IR_IDX_SET`-style store+restore. genqueen needs `<-` chained with `/` (`/rw[r] <- /dd[…] <- c`).
-- **`limit` `\` (rung14, 3 FAIL rc=124).** `flat_drive_limit` (emit_bb.c:1915) is **structurally incomplete** — pure port-wiring with NO counter and NO result slot. Symptom: `(1 to 10)\3` → blank lines + hang (infinite generation, value never reaches `write`). FIX needs a new **`bb_limit.cpp` template** (the counter compare/increment/gate BYTES must live in a template per TEMPLATE-ONLY EMISSION, NOT inline in `flat_drive_limit`) + (1) **value pass-through**: alias the LIMIT node's result slot to its generator's slot (`bb_slot_register(pBB, bb_slot_get(operands[0]))`) so the consumer reads the gen's current value; (2) **counter**: canonical `ir_a_Limitation` (jcon `irgen.icn:113`) — `t := #limit; c := 1; start expr`; expr.success → emit; resume → `if (t > c) { c++; resume expr } else fail`. **Edge case `\0`** (rung14_limit_limit_zero expects ZERO emissions then `done`) needs gating the FIRST emission too (`c <= t` before the initial expr.start, since t=0 must yield nothing). IR shape: `IR_LIMIT [gen, count, one]` (operands[2] is a spare LIT used as the `+1` temp). Baseline `every write(1 to 3)` value-flow WORKS (TO gen→write), so only the LIMIT pass-through+counter is missing.
+**Earlier landings (see git log):** local-VAR builtin-call arg marshal (5f54227, +5); real-POW (fe80ecf, +1); real-arith binops+relops (c26f89f, +5); IR_CASE native (176ecda, +5); IR_SWAP `:=:` native; bb_every four-port; local IR_VAR varslot alias (9354db7, +4); deterministic builtins + subscript s[i] + global-VAR reads (1fcd8c5, +17); Jcc opcode fix (521ab64, +6); real constant-fold; pow constant-fold.
 
-**2026-06-19 (Claude) — BENCH ladder authored + BENCH-F1 scaffolding (gated).** PIVOT to benchmarks: rewrote the CURRENT-PRIORITY block into the BENCH ladder (BENCH-ORACLE → BENCH-0/1/2 → BENCH-F1…F4 → BENCH-Q/C/D/R/I/X). Key corrections from verified probing: the `refs/icon-master/tests/bench/*.std` files are icont self-benchmark dumps (features+storage+timing, run -n9), NOT diff oracles — the real oracles are corpus `rung36_jcon_*.expected` (link-free; present for queens/concord/genqueen, MISSING for deal/ipxref/rsg; `jcon` unrunnable here: no javac/jcont). Verified queens m3 blockers: list-element-assign + reversible `<-` + generator-in-relop (all EXCISED/broken). BENCH-F1 (`IR_IDX_SET`) scaffolding landed @SCRIP `04197ed` but **gated OFF to clean EXCISE** — `subscript_set` rt helper already existed; built `bb_idx_set` template (FACT-clean), `flat_drive_idx_set` driver w/ operand dedup, `op_sc` slot, dispatch, Makefile. Two remaining gaps before flipping the gate: (1) LIT operands unslotted on the m3 flat-chain path (VAR rhs works), (2) global-list element value-flow yields no output. **Watermark correction:** the prior `138/283 FAIL 18` was STALE — clean HEAD (18ad52a) and the new combined HEAD (04197ed, after concurrent Prolog `cff870a` rebased in) both measure **m3/m4 136/283, FAIL 20, XFAIL 36, EXCISED 91** (verified via stash, both modes). No Icon regression from this session.
-
-**HEAD (SCRIP) = `5f54227`** — Icon **local-VAR builtin-call arg marshalling** (m3/m4 133→138, +5 each). `bb_call_fn` pre-allocates a phantom 16-byte slot for EVERY arg (`bb_slot_alloc16(ai)`), which made `bb_slot_get(VAR)≥0` so `marshal_call_arg` (`bb_call.cpp`) took the producer-slot path and read that UNINITIALISED slot instead of the var's real frame slot → `args[0]` arrived as `DT_SNUL`. Fix (1 line + 1 extern): a bare LOCAL VAR arg (`IR_VAR`, sval, non-`&`, `!is_global`) now forces `ps=-1` so it falls through to the existing varslot fallback (`bb_varslot(name)`); globals (NV producer slot), literals, nested-calls all unchanged. Whole-CLASS bug — FAIL→PASS both modes: `rung29_builtins_type_mixed` (`type(x)`→`integer`, `image(x)`→`100`), `rung22_lists_get`, `rung22_lists_pull`, `rung31_sort_sort_already_sorted`, `rung31_sort_sort_every` — the last four were rc=139 SEGFAULTS (a garbage list/table pointer reached `get`/`pull`/`sort`). FAIL 23→18; m3/m4 FAIL parity. Cross-language safe (shared template): snobol4 7/7 m4, prolog 5/5 m3+m4. Verified by explicit FAIL-name AND EXCISED-name diffs both modes = zero new FAIL, zero EXCISE→FAIL. Rebased clean over concurrent Prolog landing `cedad93`, re-gated identical (138/138). See HANDOFF-2026-06-15-CLAUDE-ICON-BB-BUILTIN-VAR-ARG-MARSHAL.md.
-
-**HEAD (SCRIP) = `fe80ecf`** — Icon native **real-POW** (m3/m4 132→133). Routed `BINOP_POW`→`IR_BINOP_ARITH` (`binop_slot_kind`) and into the descr fast path (`walk_bb_flat`, `op_is_pow`); `binop_is_num_real` returns 1 for POW UNCONDITIONALLY (Icon `^` is always real; `rt_num_arith` already does `REALVAL(pow(ld,rd))`). **Intentionally REVERSES `c26f89f` Fix 1's `graph_has_pow` guard:** that guard kept POW-bearing LIT_F-assign EXCISED *because POW routed to generic `IR_BINOP` → garbage* — now POW emits via the real arm, so `local_assign_rhs_ok_g`'s LIT_F branch is `return 1` and `graph_has_pow` is deleted (the guard was a placeholder pending exactly this fix, NOT a permanent invariant). `rung19_pow_toby_pow_var` (`x:=3.0;write(x^2)`→`9.0`) EXCISED→PASS both modes; FAIL unchanged (23), EXCISED 92→91. icon 12/12 m3+m4 · prolog 5/5 · no-stack/one-reg-frame/FACT/g_vstack/bb_bin_t/medium-invisible 0. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-REAL-POW-LANDED.md.
-
-**HEAD (SCRIP) = `c26f89f`** — Icon native **real-arithmetic binops + relops** (m3/m4 127→132, +5 each). FAIL 25→23, EXCISED 95→92 (both modes). FAIL→PASS: `rung18_real_relop_mixed_relop`, `rung18_real_relop_real_gt`; EXCISED→PASS: `rung17_real_arith_real_add`, `rung18_real_relop_real_eq`, `rung18_real_relop_real_lt`; `rung19_pow_toby_pow_var` baseline→EXCISED (Fix 1, not a regression). Verified by explicit FAIL-name AND EXCISED-name diffs in both modes = zero new FAIL, zero EXCISE→FAIL. Landed the prior-session WIP patch (`git apply` clean over moved HEAD) + two fixes: **Fix 1** new `graph_has_pow()` in `scrip.c` (the WIP relaxed `local_assign_rhs_ok_g`'s LIT_F guard to `return 1`, admitting POW-bearing graphs that route to generic `IR_BINOP` not the real arm → garbage; restored `return !graph_has_pow(g)` so POW-bearing LIT_F-assign stays EXCISED). **Fix 2** skip re-walking an already-slotted child in `flat_drive_binop_tree` (`emit_bb.c`) — the root_node tree path re-walked LIT_F chain operands → duplicate `bb<id>_α`; now `if (bb_slot_get(child)>=0) emit_jmp_label(<child>_done,JMP_JMP)`, `descr_binop_set_slots` reuses the chain slot (verified `real_gt` `.s` has zero dup labels + assembles clean). Path is value=RT/ports=BOX: `rt_num_arith(DESCR,DESCR,op)` (int/real/mixed coercion, div0→FAILDESCR) + `rt_jct_relop` additive real branch + `op_num_real` flag + `descr_binop_set_slots` + real arms in `bb_binop_arith`/`bb_binop_relop` (pure `x86()`, 0 byte-producers, no `bb_bin_t`). icon smoke 12/12 m3+m4 · prolog 5/5 m3+m4 · no-stack 0 · one-reg-frame 0 · FACT 0 · g_vstack 0. Rebased clean TWICE over concurrent landings, re-gated identical each time. 7 files. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-REAL-ARITH-LANDED.md.
-
-**HEAD (SCRIP) = `176ecda`** — Icon native **IR_CASE (case-of)**: `rung33_case_*` 5/5 both modes (m3/m4 122→127). Six coordinated fixes: `descr_chain_arity IR_CASE→0` (consumer CALL adopts the result); `lower_icon.c TT_CASE` pushes the operand RESULT node; `case_slot_binop_operands()` hydrates arm-value operands from `operand_aux`; `scrip.c rhs_kind_ok` admits `IR_CASE` local-assign RHS; `bb_case_arm.cpp` drops a redundant α-label; `flat_drive_case` stops re-walking the selector and gives each take box a unique β (both were m4 dup-label `as` breakers). `rt_case_eq` re-landed from attic. See HANDOFF-2026-06-15-CLAUDE-ICON-BB-CASE-NATIVE-LANDED.md.
-
-**Earlier landings (terse — full detail in git log + the named HANDOFF-* files):**
-`9354db7` local IR_VAR reader aliases its varslot (shared frame slot, not a private copy) + cset literals canonicalized (sorted/deduped) at lowering — m3/m4 118→122. ·
-`1fcd8c5` deterministic builtins (read/iand/…) added to `rt_builtin_is_known` allow-list + native subscript `s[i]` + constant unary-minus fold + global-VAR reads wired to NV — m3/m4 87→104. ·
-`521ab64` completed the Jcc opcode table in `x86_asm.h` (`jz` had fallen through to `0x85`=JNZ — a BINARY-only inverted-condition bug; default now `abort()`) — m3 string-relops 76→82, parity with m4. ·
-IR_SWAP `:=:` native (`bb_swap.cpp`, both VAR operands). ·
-`1b71e43` real-arith CONSTANT-fold (ADD/SUB/MUL/DIV/MOD/POW of all-constant operands → `IR_LIT_F`) + guarded LIT_F local-assign — m3/m4 84→87. ·
-`2831781` pow `^` constant-fold (`^` is always real in Icon) — m3 70→76, m4 76→82. ·
-`bb_every` rebuilt as a real four-port box (canonical `ir_a_Every` has no `ir.success`; loop edges live in the child subtree; α/β both → ω). ·
-`ae008c6` IR-IMMUTABLE execution-time audit: dropped `void *entry` from `rt_proc_t`, deleted the `g_rt_gen_proc_builder` hook (the active path was already IR-free; emission-time IR read is the ONE sanctioned read). ·
-generator-resume fixes in `descr_flat_chain_build` (cross-product odometer; ω routes into an earlier generator's β; EVERY-ω resumes the innermost gen) + `lower_every` conjunction/relop loop-back.
-
-**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
