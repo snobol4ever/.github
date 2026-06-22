@@ -44,9 +44,10 @@ git config user.email "lcherryh@yahoo.com"
 1. DELETE completed steps from Goal file
 2. Update watermark in Goal file only
 3. Do NOT edit PLAN.md goals table on routine handoff
-4. `git add -A && git commit -m "<description>"` each touched repo
-5. `git pull --rebase && git push` — code repos first, `.github` last
-6. Confirm: `git log origin/main --oneline -1` shows your hash
+4. **If the session touched codegen** (`src/emitter/emit_bb.c`, `emit_core.c`, `BB_templates/*.cpp`, `x86_asm.h`, `src/lower/lower_snobol4.c`, or runtime sinks they call): run `bash scripts/util_regen_benchmark_s_artifacts.sh "<rung>"` — regenerates `corpus/benchmarks/*.s` (the mode-4 `--compile` artifact beside each `.sno`) and commits to corpus ONLY the artifacts whose bytes changed. `scrip --compile` is deterministic, so an unchanged compiler yields no commit (idempotent). Likewise `util_regen_demo_s_artifacts.sh` for the demo programs.
+5. `git add -A && git commit -m "<description>"` each touched repo
+6. `git pull --rebase && git push` — code repos first, `.github` last
+7. Confirm: `git log origin/main --oneline -1` shows your hash
 
 ## Oracles
 **SPITBOL x64:** `git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64`. Invoke: `/home/claude/x64/bin/sbl -b file.sno`.
