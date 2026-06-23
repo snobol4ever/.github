@@ -1,5 +1,55 @@
 <!-- SESSION-FIRST RUNG — DTP-DIRECT-STITCH · TEMPLATE-EMITTED PATTERN BOXES, NO HEADS -->
 
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23g, end of session 7)
+
+**State (handoff 2026-06-23g, session 7 · Claude Sonnet 4.6):** SCRIP `d70b86d` (local, needs push with credentials), .github THIS commit.
+
+**WHAT LANDED THIS SESSION:**
+- `scan_pat_m3_native_safe`: `IR_PAT_DEFER` REMOVED from rejection list — `bb_match_defer` emits correct x86 via `x86()` and already handles `DT_S` defer inline. This unblocks roman.sno and any scan with a defer node in the pattern.
+- `flat_drive_scan_stmt`: native gate opened for named-var subject + empty-literal replacement (`is_empty_repl` path — `ival=1` AND `op_scan_replace_lit==""` AND no literal subject).
+- `flat_drive_scan_native`: `is_empty_repl` param added; at `dcap_ok`, emits `bb_scan_splice_empty` (splice-empty BB template) before `jmp lbl_gamma` when empty-repl.
+- `g_match_start_slot` global: set in `flat_drive_match` at `bb_slot_alloc16(pBB)`; read by splice emitter as `_.op_sa`.
+- `rt_scan_splice_empty(subj_name, m_start, m_end)`: in `rt_runtime.c`; pure C; GC_MALLOC new string dropping `[m_start..m_end)`, `NV_SET_fn`.
+- `bb_scan_splice_empty.cpp`: template-only `x86()` emission; `rdi=name`, `esi=FR(op_sa)` (match start), `edx=r14d` (match end); calls `rt_scan_splice_empty`; `gamma` exit.
+- **Gates: 6/6 PB-GREEN byte-identical** (arith_loop op_dispatch pattern_bt string_concat fibonacci table_access).
+
+**WHAT STILL NEEDS TO HAPPEN — in order:**
+
+1. **Push SCRIP `d70b86d`** (needs credentials — git push failed, no auth).
+
+2. **Verify roman.sno** — roman has NO stored patterns (`PAT =`); it uses `IR_PAT_DEFER "T"` inline inside a scan. With `IR_PAT_DEFER` now allowed through `scan_pat_m3_native_safe`, roman should compile. Gate: `probe.sh roman.sno` == oracle. Two scans: `N RPOS(1) LEN(1) . T =` (empty-repl + RPOS+LEN inline + capture) and `T BREAK(',') . T` (BREAK inline + capture, no repl). Both now route native.
+
+3. **IR_DTP_ASSIGN — the stored pattern builder.** This is the remaining crux for `string_pattern.sno` and `mixed_workload.sno`. Architecture (LOCKED — no raw x86, no PATDESC struct, all matching through BB boxes):
+
+   **What IR_DTP_ASSIGN must do:** at runtime (TEXT mode: startup call; BINARY mode: JIT), build the `IR_PAT_*` subgraph into a native blob via `bb_build_flat`, store result as `DT_P` in `NV[varname]`.
+
+   **For TEXT mode (`--compile`)**: the IR graph is gone at program startup. The builder template must emit a call to a shape-specific runtime function that reconstructs the `IR_PAT_*` subgraph using `IR_node_alloc` + `lc_γ_to`/`lc_ω_to` + `bb_build_flat`. No raw bytes; the blob is built entirely through the template machinery.
+
+   **The runtime builder function for `BREAK(s) . VAR lit` shape:**
+   ```c
+   void rt_dtp_build_break_cap_lit(const char *varname, const char *cset, const char *capvar, int is_imm, const char *lit) {
+       // allocate a scratch IR_graph_t + nodes
+       // build: LIT(lit) <- CAPTURE(capvar, BREAK(cset))
+       // call bb_build_flat(break_node)
+       // store bb_box_fn as DT_P in NV[varname]
+   }
+   ```
+   Then `bb_match_defer` for `DT_P` calls `fn(rt_frame(), 0)` directly — blob has r13/r14/r15 live on entry (caller-saved in SysV, so they survive the C call to load the `DT_P` value).
+
+   **LOWER_SNOBOL4.C BUG**: the SEQ builder (`PAT = BREAK(',') . WORD ','`) wires CAPTURE incorrectly. `sno_build_leaf_ir` for `TT_CAPT_COND_ASGN` returns `inner` (BREAK) and sets `γ_to(inner, cap)`. The SEQ builder then does `γ_to(pats[0]=BREAK, pats[1]=LIT)` which OVERWRITES `BREAK.γ → CAPTURE`. Fix: before `γ_to(pats[i], pats[i+1])`, save `tail = pats[i]->γ.node if pats[i]->γ.node->op == IR_PATTERN_CAPTURE else pats[i]`; wire `γ_to(tail, pats[i+1])` instead. Also fix CAT.operands[0] to be `tail` (CAPTURE), not `pats[i]` (BREAK), so `bb_slot_get(operands[0])` gets the CAPTURE node's slot.
+
+   **bb_match_defer for DT_P**: load `DT_P.p` (the `bb_box_fn`), call it as `fn(rt_frame(), 0)`. r13/r14/r15 are callee-saved in SysV — they survive the `NV_GET_fn` call that loads the DT_P value. The blob enters with r13=Σ, r14=cursor, r15=Σlen all live from the surrounding scan. On γ: blob returns eax=1, r14=new cursor. Template then does `mov r14d, eax`... wait — NO: the blob does NOT return the new cursor in eax. The blob's γ epilogue does `mov eax, 1; ret` (success flag), and r14 holds the new cursor in the register. Since r14 IS callee-saved, it must be saved/restored by the callee — but the blob is NOT a standard C callee, it's our custom calling convention. r14 will be TRASHED by the blob's γ epilogue `mov eax, 1; ret`. Need to save r14 before the blob call and restore from... no, r14 IS the output (new cursor). So: blob on γ returns with r14=new_cursor in the register (not via rax). The template after the call does `test eax, eax; js omega; [r14 is already updated]; jmp gamma`. This works because r14 is updated by the blob BEFORE it returns.
+
+   Actually — re-reading xa_flat epilogue: on γ (g_frame_active=0), blob does `sub rsp,8` preamble + boxes update r14 + epilogue does `mov eax,1; add rsp,8; ret`. r14 is updated by the pattern boxes BEFORE the epilogue. So after `call fn`, eax=1 and r14=new_cursor. The current `bb_match_defer` already reads eax and sets r14d from eax — but eax is 1 (success flag), NOT the new cursor. The cursor IS in r14. So the template should NOT do `mov r14d, eax` for the DT_P path — just `test eax; js omega; jmp gamma` with r14 already correct.
+
+4. **TR-4**: roman + mixed_workload + string_pattern green at G0. Gate: smoke M3/M4 7/7 · pat-rung 19/19 · fence T1=T2=0 · broad-corpus ≥170 · PB-GREEN 6/16 floor.
+
+**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `/home/claude/x64/bin/sbl -b`. Probe: `/tmp/probe.sh` (regenerate from goal file if lost).
+
+---
+
+<!-- OLD HANDOFF BELOW -->
+
 # ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23c, end of session 5)
 
 **State (handoff 2026-06-23d, session 6 · Claude Opus 4.8):** SCRIP `8449423` (pushed, clean), .github THIS commit. **TR-2 SUBSTRATE LANDED (SCRIP `8449423`); TR-3 defer DT_P branch tried+REVERTED (`2b0459e`, wrong head ABI — see HEAD ABI CORRECTED below):** `pat_pool_emit(code,n)` relocate primitive + restored `pat_pool_reset` (`src/runtime/rt/pat_pool.c`; decl in `src/include/dtp.h`). Pure additive runtime C — NO codegen touched; 6/6 PB-GREEN `.s` byte-identical; build + libscrip_rt green. TR-0/TR-1 still landed (`7d6a9c9`). Direction unchanged: **all patterns variant, built from scratch at RUNTIME in stage 2, NO constant folding.**
