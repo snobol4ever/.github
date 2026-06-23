@@ -40,7 +40,7 @@ bash scripts/test_icon_rung_suite.sh --mode compile | tail -1
 
 ---
 
-**Status:** m3/m4 **140/283** · FAIL 18 · XFAIL 36 · EXCISED 89 · HEAD(SCRIP)=`03a0158`.  
+**Status:** m3/m4 **144/283** · FAIL 14 · XFAIL 36 · EXCISED 89 · HEAD(SCRIP)=`e928643`.  
 m2 `--interp` is deleted (GOAL-DE-INTERP); suite reports phantom m2 FAILs — **ignore m2, gate on m3/m4 only**.  
 **Always diff FAIL names AND EXCISED names vs baseline in BOTH modes** — a net +PASS can mask an EXCISE→FAIL.
 
@@ -54,7 +54,7 @@ m2 `--interp` is deleted (GOAL-DE-INTERP); suite reports phantom m2 FAILs — **
 | Recursion overflow (rc=134) | `rung02_proc_fact` | `rt_call_proc_descr` hits 4096-frame limit. |
 | `suspend…do` generator (rc=124) | `rung03_suspend_gen{,_compose,_filter}` | IR_SUSPEND/EVERY interaction with flat chain incomplete. |
 | `limit \` (rc=124) | `rung14_limit_{large,to,zero}` | `flat_drive_limit` has no counter — unbounded generation. Canonical: `ir_a_Limitation` (irgen.icn:113). |
-| real TO/BY direction (rc=124) | `rung19_pow_toby_real_toby_{neg,pos}` | `bb_to` real-step negative-direction arm missing. |
+
 | cross-arg alternation (wrong output) | `rung13_alt_alt_cross_arg{,_sideeffect}` | `every write(1\|2,":",3\|4)` — multi-gen CALL args; `is_deep` ag-ring stale on carry. |
 
 ---
@@ -114,5 +114,7 @@ bash scripts/test_gate_icn_no_stack.sh; bash scripts/test_gate_icn_one_reg_frame
 **2026-06-19 (Claude) — BENCH ladder authored.** queens blockers verified: IR_IDX_SET (list-element assign) + IR_RASGN (`<-`) + generator-in-relop. Oracle correction: `*.std` files are NOT stdout — real oracle is `rung36_jcon_*.expected`.
 
 **Earlier landings (see git log):** local-VAR builtin-call arg marshal (5f54227, +5); real-POW (fe80ecf, +1); real-arith binops+relops (c26f89f, +5); IR_CASE native (176ecda, +5); IR_SWAP `:=:` native; bb_every four-port; local IR_VAR varslot alias (9354db7, +4); deterministic builtins + subscript s[i] + global-VAR reads (1fcd8c5, +17); Jcc opcode fix (521ab64, +6); real constant-fold; pow constant-fold.
+
+**2026-06-22 (Claude Sonnet 4.6) — Dead interp eradication + real TO/BY native (`e928643`).** gen.h stripped to BinopKind-only; 34 dead gen_bb_*(void*,int) externs deleted from emit_bb.c; gen_runtime.h/c + resolution.h dead bb_node_t decls removed. Real TO/BY: flat_drive_to sets op_num_real, claims 16B counter slot; bb_to.cpp real branch via rt_jct_relop/rt_num_arith (loop label L(10) avoids collision with RO seals L(0)/L(1)). IR_RASGN lvalue pre-registration fixed. Suite 142→144.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
