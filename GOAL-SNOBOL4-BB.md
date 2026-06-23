@@ -2,7 +2,7 @@
 
 # ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23m, session 13 · Claude Opus 4.8)
 
-**State:** SCRIP `f3f7cdb` (PUSHED), corpus `fac96e29` (unchanged), .github THIS commit (PUSHED). Clean. **Bench BOMB 3→0, GREEN=12, DIFF=4** (eval_dynamic/eval_fixed/indirect_dispatch pre-existing; roman wrong result).
+**State:** SCRIP `b3245a2` (PUSHED), corpus `351df26d` (PUSHED), .github THIS commit (PUSHED). Clean. **Bench BOMB 0, GREEN=12, DIFF=4** (eval_dynamic/eval_fixed/indirect_dispatch pre-existing; roman wrong result — concat double-walk fixed, local-var framing still pending).
 
 **What landed (session 13) — literal-subject native scan, 4 files +54/−5:**
 roman's scan 2 (`'0,1I,…,9IX,' T BREAK(',') . T`) declined native because `flat_drive_scan_stmt` gate keyed on a *named* subject only. Four-layer fix:
