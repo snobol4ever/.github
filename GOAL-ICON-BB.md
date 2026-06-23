@@ -1,6 +1,6 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-## ▶ CURRENT PRIORITY: GOAL-ICON-FULL-PASS — m3 127 · m4 127 · FAIL 25. ✅ native IR_CASE case-of (rung33 5/5 m3+m4, +5) LANDED (176ecda). Next: rc=124 timeout cluster (rung14 limit, rung03 suspend, rung19 real to-by — TO/EVERY/generator retry); rc=134 real-arith relops (rung18) + list builtins (rung22 push/put/get/pull); residual rc=139 (rung31 sort). See GOAL-ICON-FULL-PASS.md.
+## ▶ CURRENT PRIORITY: GET `corpus/benchmarks/icon/*.icn` WORKING (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). 9/13 now parse + compile to assembling `.s`; the 8 excising ones are ALL blocked on ONE thing — the `scan` box has no mode-3/4 native arm (land it → 8 benchmarks to clean `.s` at once). `link`/`invocable` parse (BENCH-0 landed); sources semicolonized (SEMICOLON-REQUIRED FACT RULE + PRISON below). 4 still parse-blocked on expression-grammar gaps (geddump/micro/options/rsg). See GOAL-ICON-FULL-PASS.md → RUNG #1 for the exact next steps.
 
 **x86() TEMPLATE-REVAMP is COMPLETE for Icon.** Driver deposits neighbor slots as `g_emit.op_*` scalars; boxes read only `_`. `x86_asm.h` is additive only; `git pull --rebase` before push.
 
@@ -351,6 +351,40 @@ Icon IS a Byrd-Box port-graph; every construct is a box; no SM, no value stack. 
 
 **ZERO SM opcodes for an Icon program.** Completion: `./scrip --dump-sm prog.icn` → `; SM_sequence_t  count=0` (and `grep -c '^   [0-9]'` → 0).
 
+## ⛔ ICON SEMICOLON-REQUIRED — NO NEWLINE PROCESSING, EVER (FACT RULE — Icon, Lon directive 2026-06-23)
+
+**SCRIP Icon REQUIRES an explicit `;` between bare statements. The Icon front-end does ABSOLUTELY NO
+newline processing — a newline is plain whitespace and NEVER becomes a statement separator.** The
+canonical `icont` "optional semicolon" mechanism (newline → `;` insertion when the previous token is an
+Ender and the next is a Beginner — `refs/icon-master/src/common/tokens.txt`, `src/h/lexdef.h`) is
+**FORBIDDEN in this codebase.** SCRIP is its own dialect: statements are `;`-terminated, full stop. A
+program with bare statements separated only by newlines is a PARSE ERROR, by design, and that is correct.
+
+**WHY THIS RULE EXISTS IN ITS PRISON FORM.** A session ADDED newline-to-`;` insertion to the Icon lexer
+(the Beginner/Ender table + newline-crossing `TK_SEMICOL` synthesis) — exactly the thing forbidden here —
+to make canonical newline-style benchmark sources parse. It was reverted byte-for-byte, but a plain rule
+("Icon requires semicolons") did not prevent it. The rule now has STRUCTURAL + BEHAVIORAL ENFORCEMENT so
+it cannot recur. Canonical newline-style sources are adapted by ADDING `;` to the SOURCE (a corpus matter),
+NEVER by teaching the compiler newline processing. KEEPING A BENCHMARK PARSING IS NOT A LICENSE to insert
+newline handling — when a benchmark and this rule conflict, the **rule wins**: the source gets semicolons.
+
+**FORBIDDEN inside `src/parser/icon/`:** any Beginner/Ender token classification used for separator
+insertion (`tok_is_beginner`/`tok_is_ender`/`Beginner`/`Ender` flags), any newline-crossing detection that
+synthesizes a separator (`prev_line` comparison driving a `TK_SEMICOL`), any one-token buffering whose
+purpose is to inject a separator (`have_pending` + synthetic `TK_SEMICOL`), and minting `TK_SEMICOL` from
+anything other than the literal `;` character. The lexer treats `'\n'` as whitespace (the `isspace` path in
+`skip_ws`) and emits `TK_SEMICOL` ONLY from `case ';'`.
+
+**ENFORCEMENT — THE PRISON (`scripts/test_gate_icn_semicolon_required.sh`), three independent locks, ALL
+must hold:** LOCK 1 (negative grep, comments stripped) — zero newline-insertion machinery in
+`src/parser/icon/*.c|*.h`. LOCK 2 (mint-site) — exactly ONE `make_tok(TK_SEMICOL,...)` site in
+`icon_lex.c` (the `';'` case). LOCK 3 (behavioral canary, identifier-name-independent) — a two-bare-
+statement program separated by a NEWLINE MUST be rejected with a parse error, and the same program with an
+explicit `;` MUST parse. Reintroducing insertion must defeat all three; LOCK 3 pins the actual behavior so
+a rename cannot evade it. **COMPLETION TEST:** (a) `scripts/test_gate_icn_semicolon_required.sh` exits 0;
+(b) it is in the Session-Setup gate list; (c) the newline canary parse-errors and the semicolon canary
+parses; (d) `src/parser/icon/icon_lex.c` mints `TK_SEMICOL` only from the literal `;`.
+
 ## ⛔ CONSULT CANONICAL SOURCES (JCON + Icon)
 
 Every port-topology / resume-wiring / builtin-semantics question: read canonical FIRST — `refs/jcon-master/tran/irgen.icn` and `refs/icon-master/src/runtime/*.r` (`fstranl.r`, `ocomp.r`, `fscan.r`). The m2 oracle is a transcription; canonical wins. See RULES.md. Extract uploaded zips into `refs/` at session start if absent.
@@ -382,6 +416,9 @@ bash scripts/test_gate_icn_no_stack.sh            # pinned ratchet (baseline low
 # storage is [reg+off] into ONE per-sequence local frame — NO absolute &pBB->slot immediates.
 bash scripts/test_gate_icn_one_reg_frame.sh       # pinned ratchet; target 0 as families migrate
 
+# SEMICOLON-REQUIRED PRISON (ICON SEMICOLON-REQUIRED FACT RULE): Icon requires ';'; NO newline processing.
+bash scripts/test_gate_icn_semicolon_required.sh  # 3 locks — HARD (exit 1 on any breach)
+
 # Smokes (must hold)
 bash scripts/test_smoke_icon.sh                # m2 PASS=12 (HARD)
 bash scripts/test_smoke_prolog.sh              # m2 PASS=5
@@ -412,6 +449,7 @@ bash scripts/test_smoke_icon.sh                # m2 12/12 · m3 10/12 · m4 10/1
 bash scripts/test_smoke_prolog.sh              # PASS=5
 bash scripts/test_smoke_unified_broker.sh      # PASS>=35
 bash scripts/test_gate_bb_one_box.sh           # PASS
+bash scripts/test_gate_icn_semicolon_required.sh  # PASS — Icon requires ';'; no newline processing (PRISON)
 ```
 
 ---
@@ -422,6 +460,8 @@ bash scripts/test_gate_bb_one_box.sh           # PASS
 Floor = System V AMD64; durables are callee-saved (canonical semantics = the X86-64 FACT table above; this is the per-language view). **Durable:** R12 ζ RW-frame base `[r12+off]` (all langs) · R13 Σ / R14 δ / R15 Δ (pattern langs; else free) · RBX NV/globals base · RBP RESERVED (claimed by omitting the frame-pointer prologue; never value flow). **Caller-saved = scratch/ABI only:** RAX(:RDX) γ result DESCR_t lo:hi · RDI inbound ζ → copied to R12 · RSI scratch (α/β selector RETIRED on the Icon flat path; Prolog brokered re-entry only) · RCX/RDX/R8-R11 rt_* args · RSP return addresses + transient intra-node scratch, NO value flow. Two locals kinds: RW → `[R12+off]`; RO → `[RIP+disp]`. SNOBOL4/Snocone/Rebus/Raku keep `g_vstack` only until BB-converted; Icon and Prolog have NONE.
 
 ## Watermark
+
+**2026-06-23 (Claude) — ICON SEMICOLON-REQUIRED FACT RULE + PRISON landed; benchmark sources semicolonized; `link` parsing + return-terminator fix.** New FACT RULE (above, near the GOAL RULE section) forbids any newline→`;` insertion in the Icon front-end; enforced by `scripts/test_gate_icn_semicolon_required.sh` (3 locks, behavioral canary is name-independent). Wired into Session-Setup + per-rung gate lists. Parser gained `link`/`invocable` (`TT_LINK`/`TT_INVOCABLE`) and a `return`-before-`}`/`end` terminator fix. Suite UNCHANGED 144/283 (this session is parser + corpus + gate only; no emitter/lowerer change). See GOAL-ICON-FULL-PASS.md watermark for the full benchmark accounting. HEAD(SCRIP) pending push.
 
 **HEAD (SCRIP) = `e928643`** — Icon native loops: `bb_to` descending TO (negative `by`, jg/jl by sign) + flat-emit EVERY exhaustion → success continuation (not `main_ω`). m2 200 (HARD) · m3 45 · m4 51 · prolog 5/5. HEAD (.github) = HANDOFF-2026-06-13-OPUS48-ICON-FULL-PASS-TO-EVERY-CHAIN.md.
 

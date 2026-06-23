@@ -1,5 +1,19 @@
 # GOAL-ICON-FULL-PASS.md — Icon: m3/m4 → 283/283
 
+## ▶▶▶ RUNG #1 — FIRST, ALWAYS: GET `corpus/benchmarks/icon/*.icn` PROGRAMS WORKING ◀◀◀
+
+**This is the TOP priority of this goal. Do it FIRST, before any other rung below.** (Lon directive 2026-06-23.)
+
+**State (2026-06-23):** **9/13 benchmarks parse AND compile to assembling `.s`** — concord deal ipxref micsum post queens shuffle tgrlink version. Sources are semicolonized (SCRIP Icon requires explicit `;`; NO newline processing — see the SEMICOLON-REQUIRED FACT RULE + PRISON gate). `link`/`invocable` now parse (BENCH-0 landed). `version` is SMX-clean (has `.s`).
+
+**THE ONE BLOCKER for the 8 compiling-but-excising benchmarks: the `scan` box has no mode-3/4 native arm.** Landing it flips concord deal ipxref micsum post queens shuffle tgrlink from SMX-excise to clean `.s` AT ONCE. Canonical: `refs/icon-master/src/runtime/fstranl.r` (`any bal find many match upto`) + `fscan.r` (`move pos tab`); ICN-SCAN ladder in GOAL-ICON-BB.md; register contract = SNOBOL4 Σ(R13)/δ(R14)/Δ(R15).
+
+**4 still parse-blocked on real expression-grammar gaps (NOT semicolons):** geddump (`return` in expr position), micro (`create` as expr), options (`if-then-else` as assignment RHS), rsg (parenthesized comma-expr `(=\"<\",tab(...))` in subscript).
+
+**Next concrete steps, in order:** (1) the `scan` box for modes 3/4 → 8 benchmarks to clean `.s`; (2) BENCH-1 link resolution (fold linked `.icn` into program — `icon_compile` has `filename`; libs options/post/shuffle are in `corpus/benchmarks/icon/`); (3) the 4 grammar gaps; (4) `.expected` oracles + headline `BENCH-Q`/`BENCH-C` diffs. Gate every step with `bash scripts/test_icon_rung_suite.sh` (no regress) + `bash scripts/test_gate_icn_semicolon_required.sh`.
+
+---
+
 ## ▶▶ CURRENT PRIORITY — JCON/ICON BENCHMARKS (BENCH ladder) ◀◀
 
 **Goal:** all canonical JCON/Icon benchmarks running natively (m3 `--run` AND m4 `--compile`), stdout == oracle, within timeout.  
@@ -10,7 +24,7 @@
 ### BENCH rung ladder
 
 - [ ] **BENCH-ORACLE** — link-free `.icn` + `.expected` for deal/ipxref/rsg. deal+rsg nondeterministic (`&random`) → seed-pin or XFAIL. ipxref deterministic → build/capture or hand-author.
-- [ ] **BENCH-0** — `link name` parses → `a_Link` AST (parser production; `--dump-ir` no longer errors on `link` line).
+- [x] **BENCH-0** — `link`/`invocable` parse → `TT_LINK`/`TT_INVOCABLE` AST (parser production landed this session). `--dump-ast` no longer errors on `link`/`invocable` lines. Resolution (fold linked `.icn` into program) is BENCH-1, still open.
 - [ ] **BENCH-1** — library resolution: resolve linked name to `.icn` on IPL search path; parse+lower into same program.
 - [ ] **BENCH-2** — `&time` keyword (elapsed-ms int; strip timing lines in diff harness).
 - [x] **BENCH-F1.5** — flat-chain UNOP-assign value-flow (`x := \expr`, `x := /expr`) — LANDED `a18778b`.
@@ -84,6 +98,7 @@ bash scripts/test_icon_rung_suite.sh
 bash scripts/test_gate_bb_one_box.sh
 bash scripts/test_smoke_prolog.sh
 bash scripts/test_gate_icn_no_stack.sh; bash scripts/test_gate_icn_one_reg_frame.sh  # == 0
+bash scripts/test_gate_icn_semicolon_required.sh  # Icon requires ';'; no newline processing (PRISON)
 ```
 
 ## Canonical sources
@@ -103,6 +118,14 @@ bash scripts/test_gate_icn_no_stack.sh; bash scripts/test_gate_icn_one_reg_frame
 ---
 
 ## Watermark
+
+**2026-06-23 (Claude) — Benchmark corpus unblocked: semicolonized sources + `link` parsing + return-terminator fix. 9/13 benchmarks now parse and compile to assembling `.s` (was 3).** Three pieces, all rule-compliant (compiler does ZERO newline processing):
+(1) **ICON SEMICOLON-REQUIRED FACT RULE + PRISON** authored — `scripts/test_gate_icn_semicolon_required.sh` (3 locks: no insertion machinery; `TK_SEMICOL` minted only from literal `;`; behavioral canary — newline-separated bare statements MUST parse-error, semicolon-separated MUST parse). Adversarially verified: a disguised insertion that evades both grep locks is still caught by the behavioral canary. FACT RULE in GOAL-ICON-BB.md; terse line in RULES.md; wired into Session-Setup + per-rung gate lists here and in GOAL-ICON-BB.md.
+(2) **`link`/`invocable` parsing (BENCH-0)** — `TT_LINK`/`TT_INVOCABLE` added to `src/contracts/ast.h`; top-level parse production in `src/parser/icon/icon_parse.c`. The 6 benchmarks that died at `link` now parse it.
+(3) **`return`-terminator parser gap** — bare/value `return` before `}`/`end` was rejected at both `return` parse sites; both now accept those terminators with optional `;`. (Genuine grammar fix, suite-neutral.)
+**Benchmark sources semicolonized** (corpus `benchmarks/icon/*.icn`, all 13) — verified byte-identical to prior HEAD MODULO the added `;` (no content altered). The disallowed semicolon-adding TOOL was NOT committed (months-old disallowance; semicolons are hand-added and checked in).
+**Status:** 9/13 parse-clean + compile to assembling `.s` (concord deal ipxref micsum post queens shuffle tgrlink version); `version` SMX-clean (has `.s`); the other 8 excise on ONE feature — **`scan`** (string-scanning box, no mode-3/4 native arm). 4 still parse-blocked on real expression-grammar gaps (NOT semicolons): geddump (return-in-expr), micro (`create` expr), options (`if` as assign RHS), rsg (paren comma-expr in subscript). **Rung suite UNCHANGED 144/283 — zero regression.** icon smoke 12/12 m3+m4, prolog 5/5, prison green. **KEY LEVER: the `scan` box for modes 3/4 flips 8 benchmarks from SMX-excise to clean `.s` at once.** HEAD(SCRIP) pending push.
+
 
 **2026-06-23 (Claude) — `.s` artifact maintenance repointed to the real benchmark corpus.** `update_icon_bench_asm.sh` defaulted to `programs/icon/` (the rung *test* suite) glob `rung36_jcon_*.icn` — WRONG. The benchmark sources are `corpus/benchmarks/icon/*.icn` (queens/concord/deal/ipxref/rsg/micro/micsum/version/…), which had ZERO `.s`. Fixed: script default → `benchmarks/icon`, glob `*.icn` (SCRIP `97e4d9d`); generated `.s` for the 3 that compile today — `micro micsum version` (corpus `a88c6ad8`); GOAL+PROC docs corrected (.github `22a81433`). The other 10 CERR/EXCISE pending native arms (F2 `<-`, F1 subscript-assign, link resolution) and auto-acquire a `.s` the moment they compile. NO codegen touched; suite unchanged 144/283; `CHECK=1` clean (zero drift).
 

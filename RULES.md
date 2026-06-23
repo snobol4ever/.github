@@ -30,6 +30,8 @@
 
 **ICON SM = ZERO OPCODES.** Completion: `SCRIP_ICN_BB=1 ./scrip --dump-sm prog.icn` → `count=0`.
 
+**ICON SEMICOLON-REQUIRED — NO NEWLINE PROCESSING.** SCRIP Icon REQUIRES `;` between bare statements; the Icon front-end does ZERO newline processing (a newline is whitespace, never a separator). The canonical `icont` Beginner/Ender newline→`;` insertion is FORBIDDEN in `src/parser/icon/`. Newline-style sources get `;` added to the SOURCE, never compiler newline handling. PRISON: `scripts/test_gate_icn_semicolon_required.sh` (3 locks — no insertion machinery; `TK_SEMICOL` minted only from literal `;`; behavioral canary: newline-separated bare statements parse-error, semicolon-separated parse). Full FACT RULE in `GOAL-ICON-BB.md`.
+
 **PEERS RULE.** BB_t stays LEAN. Operand-value refs go in `BB_graph_t.operand_aux` via `bb_operand_aux_set/get`. DO NOT add fields to BB_t.
 
 **CONSULT CANONICAL SOURCES RULE.** For ANY new SM/BB or Icon feature: grep/read canonical procedures FIRST. Authority: `refs/jcon-master/tran/irgen.icn` and `refs/icon-master/src/runtime/*.r`. m2 oracle is a transcription, not truth.
