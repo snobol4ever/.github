@@ -1,5 +1,56 @@
 <!-- SESSION-FIRST RUNG — DTP-DIRECT-STITCH · TEMPLATE-EMITTED PATTERN BOXES, NO HEADS -->
 
+# ⛔⛔⛔⛔ GROUND ZERO — 5TH RESTART (Lon, 2026-06-23c)
+
+**Lon's words this session:** "You are starting at ground zero for the 5th time." Four prior sessions read the BB-storage design, wrote increasingly elaborate handoff notes, seeded golden C (`test_sno_5`, then `test_sno_6`), and **ran out of context before landing a single line of working stored-pattern codegen.** The pattern keeps repeating: design → notes → reset. **THE ONLY ACCEPTABLE OUTPUT THIS RUNG IS LANDED CODE THAT MOVES A BENCH.** Stop re-deriving the mechanism. Stop adding golden seeds. Build the smallest thing that makes a real `.sno` capture, gate it, commit it, repeat.
+
+**Directive (Lon, 2026-06-23c):** "Get R12/zeta processing working for **tiny rungs** up until the `corpus/benchmarks/snobol4/*.sno` tests." → Build the stored-pattern path bottom-up on hand-written one-liners (the TR-ladder below), each gated, until the three BOMB benches (roman, mixed_workload, string_pattern) drive green at G0.
+
+## 🟢🔴 LIVE REALITY CHECK — verified vs sbl oracle THIS session (`dd17db1`, fresh build)
+
+Tri-probe (`scrip --compile | gcc | run` vs `sbl -b`), **column-1 `END` required** (indented END → oracle "No END statement found"):
+
+| rung | program | scrip result | oracle | disposition |
+|------|---------|-------------|--------|-------------|
+| i1 | INLINE `S ? LEN(2) . W` | `W=CD` | `W=CD` | ✅ inline capture WORKS |
+| i2 | INLINE `S ? BREAK(',') . W` | `W=alpha` | `W=alpha` | ✅ inline BREAK+capture WORKS |
+| **r1** | STORED `PAT=LEN(2); S ? PAT . W` | **BOMB** `bb_pattern_unary_i: DT_P builder pending` | `W=CD` | construction-time bomb |
+| **r2** | STORED `PAT=BREAK(',') . W; S ? PAT` | `W=` (silent miss) | `W=alpha` | **pattern value DROPPED at lower** |
+| r0 | `OUTPUT = (S ? 'C' 'D') 'lit'` | BOMB `bb_gvar_assign_concat: no parts` | `CDmatched-lit` | ORTHOGONAL (match-as-expr concat) |
+
+**ROOT CAUSE of r2 (the cleanest target), traced to the line:** `--dump-ir /tmp/r2.sno` shows node `IR_ASSIGN sval="PAT"` with **NO operand subgraph** — the RHS `BREAK(',') . W` was dropped entirely. In `src/lower/lower_snobol4.c`:
+- `sno_leaf_buildable` (L508) does NOT accept `TT_CAPT_COND_ASGN` (the `. W` wrapper) → `sno_seq_buildable` (L525) returns 0 for `BREAK(',') . W`.
+- So `lower_assign` (L586) skips the `IR_DTP_ASSIGN`+`IR_PATTERN_CAT` builder (L687–714, which ALREADY EXISTS and works for capture-free SEQs) and falls to L717–722 which **orphans** the pattern (allocs a bare `IR_ASSIGN_CONCAT`+`IR_SEQ` and returns NULL). PAT is never assigned → null → `IR_PAT_DEFER` matches nothing.
+
+**⇒ TR-LADDER (build order — each gated before next):**
+- **TR-0 ✅** — reality check above (DONE this session). Tri-probe + END-col-1 fact established. No code.
+- **TR-1** — extend `sno_leaf_buildable`/`sno_build_leaf_ir` to accept `TT_CAPT_COND_ASGN` (wrap the inner leaf's `IR_PATTERN_*` in the existing capture mechanism that inline `IR_PAT_ASSIGN_COND` uses — find how i2 lowers capture inline and reuse it). Target: `--dump-ir r2.sno` shows PAT assigned a real CAT(BREAK, CAPTURE(VAR W)) graph. NO r12 work yet.
+- **TR-2** — make `IR_PAT_DEFER` actually RUN the stored graph with capture landing. THIS is where the BB_SWITCH r12-broker enters (golden `seed/test_sno_6.c`): the deferred site allocs a pattern-ζ frame, jmps the stored body, capture writes land in the right plane. Target: r2 ⇒ `W=alpha` == oracle.
+- **TR-3** — r1 (stored `PAT=LEN(2)`): close `bb_pattern_unary_i` construction bomb (single-leaf stored pattern, no SEQ). Target: r1 green.
+- **TR-4** — point the now-working stored path at the real benches: roman, mixed_workload, string_pattern → green at G0. Gate: smoke M3/M4 7/7 · pat-rung 19/19 · fence T1=T2=0 · broad-corpus ≥170 · PB-GREEN 6/16 floor holds.
+
+**Build (confirmed working this session):** `apt-get install -y libgc-dev` → `make` (→ `scrip`) → `make libscrip_rt` (→ `out/libscrip_rt.so`). Oracle `git clone …/x64 /home/claude/x64`; `sbl -b`. Tri-probe script in `/tmp/probe.sh` (regenerate from this file if lost).
+
+## ⛔ DIRECTION LOCKED (Lon, 2026-06-23c) — ALL PATTERNS VARIANT · BUILD FROM SCRATCH IN STAGE 2 · NO CONSTANT FOLDING
+
+**Lon overruled the Path-B detour (see retraction below).** The pattern-building stage (STAGE 2 of the ARCH-SNOBOL4 5-phase statement model — `1 build subject · 2 BUILD PATTERN · 3 run · 4 build repl · 5 replace`) **builds the PATTERN from scratch AT RUNTIME, every execution.** Assume — knowingly incorrectly, as a correctness-first baseline — that **EVERY pattern is VARIANT and must be rebuilt from scratch.** NO invariance detection, NO compile-time sealing, NO build-once caching. Constant folding (build invariant patterns once) is a LATER optimization; when we get there it goes behind a **C-macro/variable toggle** (`#ifdef SNO_PAT_FOLD`, default OFF) so the variant baseline always remains the reference. **Do not write the fold path now.**
+
+**⛔ RETRACTED — PATH B (compile-time seal + reference) is DEAD.** A prior turn this session detected pattern invariance (`sno_pat_invariant`) and lowered invariant stored patterns to a SEALED `IR_PAT_*` matcher graph emitted once at compile time, referenced via the `DT_P` head. **That IS the forbidden constant folding** (stage-2 build is RUNTIME, not compile time). Fully reverted (`src/lower/lower_snobol4.c` back to byte-identical `dd17db1`). Do not reintroduce.
+
+**THE PATH = the `IR_PATTERN_*` RUNTIME BUILDER family** (literally the "PATTERN" nodes), NOT the `IR_PAT_*` matcher family. Distinction, now firm:
+- **`IR_PAT_*` (matcher).** Emitted INLINE at the scan site, runs the match directly (fused build+run). What `S ? BREAK(',') . W` inline lowers to; i1/i2 green. Fine for inline; NOT the stored-pattern vehicle.
+- **`IR_PATTERN_*` + `IR_DTP_ASSIGN` (RUNTIME BUILDER) — THE TARGET.** `PAT = BREAK(',') . W` must lower here. At RUNTIME, stage 2 executes builder boxes that CONSTRUCT the pattern object from scratch — per the DDS mandate, **template-emitted (`x86()`) boxes that relocate element-matcher code into the RWX `pat_pool` (`src/runtime/rt/pat_pool.c`) and stitch ports DIRECTLY (no `DTP_t` head)** — yielding a `bb_box_fn` graph head = the `DT_P` value stored in PAT. `IR_PAT_DEFER` loads `.p` (the head) and jmps in (Σ/δ/Δ live from the SCAN subject). The whole `IR_PATTERN_*` family currently dispatches to `bb_pattern_stub` BOMB (emit_core.c L364–386) — THAT is the ground-zero work to fill in.
+
+**RUNTIME PATTERN REPRESENTATION (confirmed this session):** `pat_pool` is an `mmap` RWX arena (`g_pat_pool_base/_cur/_end`, `PROT_EXEC`, ctor-initialized). A built pattern lives there as relocated+stitched box code; the `DT_P` descr's `.p` slot holds its head (`bb_box_fn`). This is the surviving half of `dtp.h` (head struct + protos deleted by DDS-0; pat-pool kept). The builder boxes write into `pat_pool_cur` and bump it.
+
+## TR-LADDER (CORRECTED — all-variant runtime build):
+- **TR-0 ✅** reality check (DONE — see table above).
+- **TR-1 ✅ (LANDED, SCRIP `7d6a9c9`)** — capture patterns routed to the BUILDER, not the orphan-drop. `sno_leaf_buildable` (L508) + `sno_build_leaf_ir` (L535) now accept `TT_CAPT_COND_ASGN`/`TT_CAPT_IMMED_ASGN` → emit `IR_PATTERN_CAPTURE` (sval=target name, ival=1 immediate `$` / 0 conditional `.`) wrapping the inner `IR_PATTERN_*`; bare-capture RHS routed to a single-leaf `IR_DTP_ASSIGN` builder. VERIFIED: `--dump-ir r2.sno` shows `IR_DTP_ASSIGN → IR_PATTERN_BREAK → IR_PATTERN_CAPTURE[W]`; **mixed_workload + string_pattern now reach the builder stub** (`bb_pattern_unary_s: DT_P builder pending`) instead of silent-miss. NO codegen drift (6 PB-GREEN `.s` byte-identical; i1/i2 inline still green). 21-line single-file diff.
+- **TR-2 (the core)** — implement the RUNTIME builder boxes as template-emitted (`x86()`) into `pat_pool`, smallest first: LIT, then BREAK, then CAPTURE, then CAT. Each box, at runtime: relocate its element-matcher code into `pat_pool_cur`, patch its γ/ω ports to the prior box, bump cursor; `IR_DTP_ASSIGN` writes the head as a `DT_P` to NV[PAT]. Gate after EACH box (build green; the box's tiny rung runs == oracle). REUSE the compile-time `flat_drive_match` port-patch model — do not invent a second stitch.
+- **TR-3** — `IR_PAT_DEFER` (`bb_match_defer.cpp`) routes `DT_P` values: load `.p` head, jmp in; keep the `DT_S` string path (`rt_defer_match`) for flattened-literal stored patterns. Gate: r2 ⇒ `W=alpha` == oracle.
+- **TR-4** — roman/mixed_workload/string_pattern green at G0. Full gate (smoke M3/M4 7/7 · pat-rung 19/19 · fence T1=T2=0 · broad-corpus ≥170 · PB-GREEN 6/16 floor).
+
+
 # ⛔⛔⛔ SESSION-FIRST RUNG — DTP-DIRECT-STITCH
 
 **Mandate (2026-06-22, Lon):** Runtime-constructed PATTERN datatype (`*P` deferred / `PAT = BREAK(',') . WORD ','` stored-pattern) must be built from **template-emitted BB boxes stitched DIRECTLY port-to-port**. Kill the hand-coded byte arrays AND kill the `DTP_t` head indirection.
