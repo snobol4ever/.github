@@ -11,6 +11,53 @@ No language-specific logic in any BB/XA template: templates dispatch on IR shape
 - **THE DYNITER RAIL (how a dynamic pred becomes a Byrd box).** Detection → suppression → dyniter callee → population → box → runtime. (1) **Marking** (`prolog_lower.c` `pld_mark_scan`, before the directive fold): dynamic iff target of `retract`/`retractall`/`abolish`, `:- dynamic(F/A)`, or **runtime** `assertz`/`asserta` (RULE body, gated `mark_assertz=(cl->head!=NULL)`); **directive `:- assertz` alone does NOT mark** (load-bearing — marking it regressed rung13). Marks in `g_stage2.pl_dyn_*` (extern `pl_dyn_is_marked`). (2) **Suppression** (`lower_prolog.c` `lower_pl_register_all_preds`): marked pred skips static lowering; `lower_pl_dyniter_graph` builds a 1-node `IR_CELL_DYNITER` graph (`pl_gz_dyniter_state_t{functor_atom,functor_name,arity,cursor_slot=arity,mark_slot=arity+1}`; **`functor_name` is the runtime-resolution key — the box seals it and passes `const char*`, NEVER the baked `functor_atom` id, which is invalid in the m4 separate-process atom table**). (3) **Inline declines** (`scrip.c`): `pl_gz_{fact,choice}_inline` return early for marked preds; `pl_gz_callee_get_dyniter` (nclauses=1, nlocals=2). (4) **Population** (`prolog_lower.c:771-787`): directive-`assertz` for marked preds captured (`pld_seed[]`) + PREPENDED to `main` as `IR_DET_ASSERTZ` goals. (5) **The box** (`bb_cell_dyniter.cpp`, NONDET four-port): α=`rt_trail_mark`+`rt_pl_dyn_iter_begin(NAME,arity)`+step; β=`rt_trail_unwind` THEN step (β unwind load-bearing). (6) **Runtime** (`unification.c`, Term-only, rides `g_pl_dyn_pred_table`): `rt_pl_dyn_assertz_cell`, `rt_pl_dyn_iter_begin(name,arity)`→`dyn_pred_find` cursor in frame cell, `rt_pl_dyn_iter_step`. (7) `IR_DET_ASSERTZ`+`bb_det_assertz.cpp`; `IR_DET_RETRACT`/`IR_DET_ABOLISH` operate on the populated store.
 - **⚠ FOLLOW-ON for whoever next baked-id-audits the Prolog GZ templates:** the dyniter was the one box baking a compile-time atom id into emitted code. If any future dynamic-DB box (a NONDET cursor-retract, a per-clause BB) needs the functor at runtime, it MUST seal the NAME string and intern/lookup by name — NEVER bake the id (m4 separate-process atom table). The `functor_atom` field survives in `pl_gz_dyniter_state_t` only to DERIVE `functor_name` at lower time (`prolog_atom_name(intern(name))`, the stable atom-table copy); the emitter reads `functor_name`, not `functor_atom`.
 
+## 🟢🟢🟢 PB-BENCH — THE STANDARD PROLOG PERFORMANCE SUITE IS THE TOP / FIRST RUNG (Lon, 2026-06-23) 🟢🟢🟢
+
+**This is the FIRST rung of this goal — do it before any other Prolog work.** The community-standard
+Prolog performance benchmark suite (the *van Roy / Aquarius / Warren* set, UC Berkeley UCB/CSD 89/50)
+is now checked in and is the **coverage frontier driver** for the whole PL-BB ladder. The rung suite
+(115/115) proved the *small* shapes; the bench suite is the *real-program* widening — each fenced
+benchmark names a concrete PL-BB rung to land, and each admitted one gets a side-by-side `.s` artifact.
+
+**WHERE IT LIVES**
+- `corpus/benchmarks/prolog/src/swi-vanroy/` — pristine upstream <https://github.com/SWI-Prolog/bench> (the canonical van-Roy home; 37 programs, `_programs_calibration.pl` iteration counts).
+- `corpus/benchmarks/prolog/src/gnu-examplespl/` — pristine gprolog `examples/ExamplesPl/` (the portable-`hook.pl` form; `_PROGS` = the canonical 17). Reference only; never gated.
+- `corpus/benchmarks/prolog/bench/` — the RUNNABLE SCRIP-dialect set: `<name>.pl` (run-once + `write` result, no timing) · `<name>.expected` (gprolog-oracle ground truth, chrome stripped) · `<name>.s` (mode-4 honest codegen, only when it assembles) · `<name>.s.FENCED` (one-line marker when `pl_gz_admit` still rejects the shape).
+- Runner: `SCRIP/scripts/test_bench_prolog_modes.sh` (m3 `--run`, m4 `--compile x86`, + gprolog ORACLE cross-check). Regen: `SCRIP/scripts/util_regen_prolog_bench_s_artifacts.sh "<rung>"`.
+- Full doc + provenance + bottleneck table: `corpus/benchmarks/prolog/README.md`.
+
+**THE INVARIANT (the gate this rung adds):** in `test_bench_prolog_modes.sh`, **`broken=0` ALWAYS** —
+a benchmark is either `green` (m3 PASS ∧ m4 PASS, byte-identical to its `.expected`) or `frontier`
+(fenced by `pl_gz_admit`, the honest "not yet"). `m3`/`m4` FAIL or `BUILD` is a REGRESSION. The
+`frontier` count only ever DROPS; each drop is a benchmark migrated from `.s.FENCED` to a real `.s`.
+
+**MEASURED BASELINE (2026-06-23, this checkin):** seeded with 4 benches.
+| bench | m3 | m4 | oracle | what it needs |
+|---|---|---|---|---|
+| `nreverse` | ✅ PASS | ✅ PASS | ok | (already green — proves the harness/oracle/artifact pipeline end-to-end) |
+| `tak` | ⛔ FENCE | ⛔ FENCE | ok | recursive `is/2` + multi-goal body in a 4-arg pred — `pl_gz_admit` rejects the GCONJ/clause shape → **PL-BB-2** (clause choice + conjunction backtracking) + **PL-BB-4** (det `is` coverage) |
+| `qsort` | ⛔ FENCE | ⛔ FENCE | ok | cut (`!`) in multi-clause `partition` + structure-building recursion → **PL-BB-2** + **PL-BB-3** (cut) |
+| `queens_8` | ⛔ FENCE | ⛔ FENCE | ok | nondeterministic `select/3` backtracking + cut → **PL-BB-2** + **PL-BB-3** |
+
+`pl_gz_admit` (`src/driver/scrip.c`) is the fence: it returns NULL on `IR_CHOICE`, `IR_CUT`, and the
+richer GCONJ/disj nestings — exactly the shapes PL-BB-2/3 build. So **PB-BENCH does not bypass the
+ladder; it AIMS it.** The minimal admitted recursive shape (2-clause + arith guard, no cut) already
+runs — confirmed — so the gap is precisely cut + general clause-choice, not "recursion".
+
+### PB-BENCH steps (each step = land its PL-BB dependency, then admit + artifact the bench)
+
+- [x] **PB-BENCH-0 — SUITE CHECKED IN + PIPELINE PROVEN.** Both upstreams under `src/` (pristine); 4 SCRIP-dialect benches in `bench/` with gprolog `.expected`; runner + regen scripts; README. `nreverse` green m3∧m4 byte-identical to oracle, `.s` assembles. `broken=0`. (corpus + SCRIP, this session.)
+- [ ] **PB-BENCH-1 — `tak` GREEN.** Land PL-BB-2 (clause choice / conjunction backtracking) + confirm PL-BB-4 `is/2`/`>`/`=<` coverage; widen `pl_gz_admit` to the tak GCONJ shape; regen → `tak.s` replaces `tak.s.FENCED`; runner shows `tak PASS PASS`. GATE-1 5/5/5 hard, rung suite floor 115 both modes, m3≡m4.
+- [ ] **PB-BENCH-2 — `qsort` + `queens_8` GREEN.** Land PL-BB-3 (cut as frame-local commit) on top of PL-BB-2; admit cut + multi-clause partition/`select`; regen both `.s`; runner shows both `PASS PASS`. Same gates.
+- [ ] **PB-BENCH-3 — WIDEN to the classic core.** Add `crypt deriv meta_qsort sendmore poly_10 zebra browse` (SCRIP-dialect + `.expected` + artifact each); land their dependencies (PL-BB-4 det-builtin gaps: arith, `functor/3`, `=../2`, atom ops; PL-BB-5 meta for `meta_qsort`). Each lands green or registers as honest `frontier`.
+- [ ] **PB-BENCH-4 — FULL SUITE + HANDOFF WIRING.** Remaining van-Roy programs (`boyer nand chat_parser reducer` + the arithmetic/indexing extensions). Add `util_regen_prolog_bench_s_artifacts.sh` to the RULES.md handoff codegen-regen list (beside the SNOBOL4 `.s` regen) so every codegen-touching Prolog session refreshes the bench `.s`. End state: every bench either green in both modes or a tracked `frontier`, with a side-by-side artifact for each admitted one.
+
+**METHOD (per RULES.md + the PL-BB method):** TEST FIRST (the bench is the test), small→wide, then LOWER
+(`pl_gz_admit` widening + the `IR_*` kind in `lower_prolog.c`) + EMITTER (the `bb_cell_*` template). The
+`.s` is the HONEST CURRENT output, NEVER a pinned golden, and `.s` byte-identity is NEVER a gate
+(it tracks design churn); the correctness gate is `<name>.expected`. **PROEBSTING IS THE CANON;**
+gprolog/SWI are observable-semantics oracles only — they generate `.expected`, never design.
+
 ## ⛔ PIVOT — PRIORITY IS m3≡m4 PARITY (Lon, 2026-06-12)
 **Goal: get m3 and m4 to parity with m2. Corpus reconquest is SECONDARY until parity achieved.**
 
