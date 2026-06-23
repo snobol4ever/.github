@@ -2,7 +2,9 @@
 
 # ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23i, session 9 · Claude Sonnet 4.6)
 
-**State:** SCRIP `da8dfb7` (PUSHED), corpus `1381b77b` (PUSHED), .github THIS commit.
+**State (SESSION 9 CLOSED — handoff 2026-06-23i · Claude Sonnet 4.6):** SCRIP `9330f32` (PUSHED), corpus `1381b77b` (PUSHED), .github THIS commit (PUSHED). Working tree clean, nothing stashed.
+
+**⚠️ DEMO-REGEN SCRIPT HAZARD (found session 9, NOT yet fixed):** `scripts/util_regen_demo_s_artifacts.sh` was NOT run this handoff on purpose. Unlike the benchmark + feature regen scripts (which skip a bombing/assembler-rejected program gracefully and leave its last-good `.s` untouched), the demo script does `> "$f.s"` (truncates FIRST) then `gcc -c ... || exit 1` — so a program whose `--compile` crashes/empties (e.g. `roman`, which still AS-FAILs on unimplemented stored-pattern shapes) would CLOBBER its committed `.s` to empty and then abort the run. This session's codegen change does not touch demo codegen paths (demos use no stored LEN patterns), so demo `.s` are not stale because of session 9. **NEXT SESSION housekeeping:** harmonize `util_regen_demo_s_artifacts.sh` with the graceful-skip pattern (emit to a temp file, `gcc -c` it, and only `mv` over the committed `.s` on assembler-accept; never truncate-then-fail), then run it.
 
 **WHAT LANDED THIS SESSION (`da8dfb7`):** **IR_PATTERN_LEN double-emit FIXED.** 8-line diff across 3 files: `emit_globals.h` (+`int pat_via_dtp`), `emit_core.c` (DTP_ASSIGN delegation sets/clears `pat_via_dtp` around the child walk), `bb_pattern_len.cpp` (standalone chain-entry visit → label+`jmp γ` passthrough; builder fires only under DTP delegation). Verified: exactly one `bb_build_len_blob` call carrying `rdi→"PAT"`, `esi=2`; empty string-table entry gone. **Codegen-neutral on PB-GREEN** (5/6 `.s` byte-identical to baseline; `pattern_bt.s` differed ONLY by pre-existing `01dd4d0` defer-branch staleness — now regen'd to corpus `1381b77b`).
 
