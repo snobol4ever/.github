@@ -1,6 +1,30 @@
 <!-- SESSION-FIRST RUNG — STORED-PATTERN BUILDER LADDER · TEMPLATE-EMITTED MATCHER BLOBS -->
 
-# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23j, session 10 · Claude Sonnet 4.6)
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23k, session 11 · Claude Sonnet 4.6)
+
+**State (SESSION 11 CLOSED):** SCRIP `1e962ed` (PUSHED), corpus `949a8c03` (unchanged — no `.s` drift), .github THIS commit (PUSHED). Working tree clean.
+
+**WHAT LANDED THIS SESSION — TR-CAPTURE (the in-pattern capture builder), 1 SCRIP commit `1e962ed`:**
+`PAT = BREAK(',') . W; S ? PAT` now prints `W=alpha` == oracle (was `W=`). Three-part fix, all on the stored-pattern builder path:
+1. **`lower_snobol4.c` (bare-capture RHS, ~L697):** pushed the `IR_PATTERN_CAPTURE` wrapper (`leaf->γ.node`) as the `IR_DTP_ASSIGN` operand **and** statement entry — was pushing the inner `IR_PATTERN_BREAK`, so the statement entry resolved to the bare BREAK and the CAPTURE/DTP nodes were bypassed. The capture node's own `operand[0]` is still the inner BREAK (so `op_a_sval`=cset reaches the template). One-line-ish change (`cap = leaf->γ.node` is an O(1) field read, NOT a new tree pass).
+2. **`emit_bb.c walk_bb_flat` (~L3263):** added `case IR_PATTERN_CAPTURE` (FILL like the other `IR_PATTERN_*` builders). It was falling to `default` (the fail-passthrough `def β; jmp ω`), so the chain-entry CAPTURE node emitted a skip instead of `bb_pattern_capture()`. Now the entry passthrough (`!pat_via_dtp` → `jmp γ`) routes correctly to the DTP-delegated builder box — mirrors the working r2a BREAK chain (n0 passthrough → n1 builder).
+3. **`bb_pat_build.cpp` + `bb_pattern_capture.cpp` (new) + wiring:** `bb_build_break_capture_blob(name, cset, capvar)` builds an `IR_MATCH_ASSIGN_COND` wrapping `IR_MATCH_BREAK` and `bb_build_flat`'s it (mirrors the LEN/BREAK builder discipline — allocate the MATCHER family, not the PATTERN/builder family). At blob-run time `flat_drive_capture` emits CAPTURE_SAVE (`mov FR(off),r14d`) → BREAK (advances r14) → `rt_cap_assign_cursor(W, saved=0, cur=5, 0)`; with the scan's `g_rt_dcap_active=1` the commit records into the dcap buffer and the scan's `rt_dcap_end_ok` flushes it to W. `bb_templates.h` decl + `emit_core.c` dispatch + Makefile (libscrip_rt list + scrip per-obj rule).
+
+**GATES (all green):** r2 ⇒ `W=alpha` == oracle (tri-probe). Regression: r1 (stored LEN), r2a (stored BREAK + inline capture), i2 (inline BREAK capture) all MATCH. **PB-GREEN 6/6 floor holds** (`arith_loop op_dispatch pattern_bt string_concat fibonacci table_access`, normalize `ms:`). All three `.s` regen scripts clean — **0 `.s` drift** (TR-CAPTURE is JIT-blob-only, like LEN/BREAK; the 3 BOMB benches mixed_workload/roman/string_pattern still AS-FAIL because they need CAT too — next rung).
+
+**⚠️ SINGLE-PASS AUDIT (Lon asked 2026-06-23k — REPORTED, NOT fixed; pre-existing, none from TR-CAPTURE):** strict "ONE pass of tree_t → IR, ONE pass of IR → BB" is **already violated** in two pre-existing places. Logged here for a future rung; TR-CAPTURE rides the existing machinery (the builder *depends* on `pre_build_children` building the inner blob):
+- **Leg 1 (tree_t→IR, `lower_snobol4.c`): check-then-build double-walk.** `sno_leaf_buildable`(5)/`sno_seq_buildable`(3)/`sno_seq_has_pat_leaf`(3) recursively descend the tree_t to return yes/no, THEN `sno_build_leaf_ir`/SEQ-builder descend the same subtree to build. Line 708 does TWO check-walks (`sno_seq_buildable && sno_seq_has_pat_leaf`) → up to 3 passes of one RHS tree_t.
+- **Leg 2 (IR→BB, `emit_bb.c`): (a) `pre_build_children`/`pre_build_children_text`** (top of `bb_build_flat` L4028 / `codegen_flat_build` L4045) is a full separate IR-graph descent to pre-build nested child blobs before `codegen_flat_body` walks the same graph; **(b) `gather_*_cat_arms`/`gather_inline_alt_arms`** (gather-then-emit) and the gvar-chain **BFS enumerate loop then emit `for` loop** (~L3883/L3901) are localized two-walks over the same node set.
+
+**▶ NEXT MOVE — TR-CAT: the in-pattern concatenation builder.** `PAT = BREAK(',') . W ','` (capture followed by a literal) lowers to `IR_PATTERN_CAT` over `[IR_PATTERN_CAPTURE[W]→IR_PATTERN_BREAK, IR_PATTERN_LIT[',']]` (confirm with `--dump-ir`). Needs a pat-pool *stitch* primitive: build each element matcher into the blob and chain γ/ω port-to-port (REUSE the `flat_drive_match`/`gather_lowered_cat_arms` port-patch model — do NOT invent a second stitch). The builder mirror: `bb_build_*_cat_blob` allocates an `IR_MATCH_CAT` (or sequential matcher chain) and `bb_build_flat`'s it; `flat_drive_cat_arms` already handles multi-arm chains in the inline path. THEN point at the 3 BOMB benches (string_pattern + mixed_workload need BREAK+CAPTURE+CAT; roman uses inline scans + empty-repl splice — orthogonal). Gate: `PAT=BREAK(',') . W ','; S ? PAT` ⇒ `W=alpha` == oracle, then string_pattern green at G0.
+
+**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `git clone …/x64 /home/claude/x64`; `sbl -b`. Tri-probe `/tmp/probe.sh` (regenerate if lost): `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p; ./p` vs `sbl -b`. Rungs: `/tmp/r2.sno` (`PAT = BREAK(',') . W` newline `S = 'alpha,beta'` newline `S ? PAT` newline `OUTPUT = 'W=' W` newline `END` col-1). Benches: `corpus/benchmarks/snobol4/*.sno`.
+
+---
+
+<!-- SESSION-FIRST RUNG — STORED-PATTERN BUILDER LADDER · TEMPLATE-EMITTED MATCHER BLOBS -->
+
+# ▶▶▶ (handoff 2026-06-23j, session 10 · Claude Sonnet 4.6)
 
 **State (SESSION 10 CLOSED):** SCRIP `98c66b7` (PUSHED), corpus `949a8c03` (PUSHED), .github THIS commit (PUSHED). Working tree clean, nothing stashed.
 
