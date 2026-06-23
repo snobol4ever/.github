@@ -5,11 +5,14 @@ Landed-rung history DELETED (git holds it). FACT-RULE bodies kept VERBATIM (md5-
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
-## ▶ STATE (2026-06-15 — m3≡m4 @ 115; PL-GZ retract_mixed (R1) LANDED; ALL dynamic reds closed; corpus 115/115)
+## ▶ STATE (2026-06-23 — bench suite 4/4 GREEN both modes; rung suite 115/115; m3≡m4)
 
-**THIS SESSION (Claude) — closed the LAST red `rung14_retract_retract_mixed` (R1). m3/m4 114→115 byte-identical (+1). The prior "integer-materialization" / "m4 store EMPTY after retract" theory is DISPROVEN.** R1 root cause: `bb_cell_dyniter` baked the COMPILE-TIME atom id into `rt_pl_dyn_iter_begin`, which did `prolog_atom_name(id)`. In m4 the program runs in a SEPARATE process with a fresh atom table, so the baked id ≠ the functor name at runtime → `NULL` → empty cursor → `fact(X)` enumerates nothing → empty output. m3 worked only because compile + run share one process/atom table. This is the m4 ATOM_* warning (this file's "MANDATORY READ" §) generalized to a baked FUNCTOR id; every other path (assertz/retract via `rt_node_to_term`) already interns by NAME. FIX: seal the functor NAME string adjacent to the blob (`x86_ro_seal_str`/`x86_ro_load_q`, the bb_lit_scalar/bb_call pattern), pass a `const char*` to `rt_pl_dyn_iter_begin`, which resolves via `dyn_pred_find(name,arity)` directly (no atom-id round-trip). Both integer-literal retract FENCES (`pl_gz_rule_body_goal_ok` + `pl_gz_build_goal`) DELETED — they only masked this. GATE-3 m3 **115** / m4 **115**, parity intact; GATE-1 m3/m4 5/5; NO-NEW-GLOBAL ratchet 15/15 (no new global, no new box, no new IR kind); cross-lang unaffected (change is `pl_gz_*`/`bb_cell_dyniter`/`rt_pl_dyn_iter_begin` Prolog-only; Icon m3/m4 12/12, SNOBOL4 m3/m4 7/7 spot-verified). **CORPUS RUNG SUITE IS NOW 115/115 IN BOTH MODES.** Full session writeup: HANDOFF-2026-06-15-CLAUDE-PROLOG-BB-RETRACT-MIXED-R1-DYNITER-BY-NAME.md.
-- **THE DYNITER RAIL (how a dynamic pred becomes a Byrd box).** Detection → suppression → dyniter callee → population → box → runtime. (1) **Marking** (`prolog_lower.c` `pld_mark_scan`, before the directive fold): dynamic iff target of `retract`/`retractall`/`abolish`, `:- dynamic(F/A)`, or **runtime** `assertz`/`asserta` (RULE body, gated `mark_assertz=(cl->head!=NULL)`); **directive `:- assertz` alone does NOT mark** (load-bearing — marking it regressed rung13). Marks in `g_stage2.pl_dyn_*` (extern `pl_dyn_is_marked`). (2) **Suppression** (`lower_prolog.c` `lower_pl_register_all_preds`): marked pred skips static lowering; `lower_pl_dyniter_graph` builds a 1-node `IR_CELL_DYNITER` graph (`pl_gz_dyniter_state_t{functor_atom,functor_name,arity,cursor_slot=arity,mark_slot=arity+1}`; **`functor_name` is the runtime-resolution key — the box seals it and passes `const char*`, NEVER the baked `functor_atom` id, which is invalid in the m4 separate-process atom table**). (3) **Inline declines** (`scrip.c`): `pl_gz_{fact,choice}_inline` return early for marked preds; `pl_gz_callee_get_dyniter` (nclauses=1, nlocals=2). (4) **Population** (`prolog_lower.c:771-787`): directive-`assertz` for marked preds captured (`pld_seed[]`) + PREPENDED to `main` as `IR_DET_ASSERTZ` goals. (5) **The box** (`bb_cell_dyniter.cpp`, NONDET four-port): α=`rt_trail_mark`+`rt_pl_dyn_iter_begin(NAME,arity)`+step; β=`rt_trail_unwind` THEN step (β unwind load-bearing). (6) **Runtime** (`unification.c`, Term-only, rides `g_pl_dyn_pred_table`): `rt_pl_dyn_assertz_cell`, `rt_pl_dyn_iter_begin(name,arity)`→`dyn_pred_find` cursor in frame cell, `rt_pl_dyn_iter_step`. (7) `IR_DET_ASSERTZ`+`bb_det_assertz.cpp`; `IR_DET_RETRACT`/`IR_DET_ABOLISH` operate on the populated store.
-- **⚠ FOLLOW-ON for whoever next baked-id-audits the Prolog GZ templates:** the dyniter was the one box baking a compile-time atom id into emitted code. If any future dynamic-DB box (a NONDET cursor-retract, a per-clause BB) needs the functor at runtime, it MUST seal the NAME string and intern/lookup by name — NEVER bake the id (m4 separate-process atom table). The `functor_atom` field survives in `pl_gz_dyniter_state_t` only to DERIVE `functor_name` at lower time (`prolog_atom_name(intern(name))`, the stable atom-table copy); the emitter reads `functor_name`, not `functor_atom`.
+**THIS SESSION (Claude) — PB-BENCH-1 + PB-BENCH-2 closed: `tak` `qsort` `queens_8` all GREEN m3∧m4, byte-identical to `.expected`; `.s` artifacts written; bench runner `green=4 frontier=0 broken=0`.** Two contained widenings (NOT the full PL-BB correction — those rungs stay open):
+- **Arity 3→4.** The GZ call ABI used 3 arg registers (`rsi/rdx/rcx`); a 4-arg pred (`tak/4`, `partition/4`) was fenced purely on `ar > 3`. Added the 4th SysV reg `r8`: six `> 3`/`<= 3` ceilings in `scrip.c`, the arg-reg tables + bounds in `bb_cell_call`/`bb_callee_frame`/`bb_cell_choice`, and `op_parts_ival[6]` (4th call arg) in `emit_bb.c`. Multi-clause recursion + cut already worked ≤3 (`fib/2`, rung07); this unblocked `tak` + `qsort` with no new machinery.
+- **Arith-expr comparison operands.** `X =\= Y + N` / `X > Y + N` were rejected — the cmp validator took only bare var/lit. Added `pl_gz_cmp_operand_ok` (mirrors the `is/2` RHS shapes), `pl_gz_cmp_nsynth` (one synth temp per arith operand, both nsynth counters), and rewrote the cmp emit arm to pre-evaluate each arith operand via a synthesized `IR_DET_IS` into a fresh slot. Unblocked `queens_8`.
+
+Gates after: GATE-1 5/5/5, GATE-3 115/115 both modes, no-new-global 15/15, no-vstack, one-box — all held.
+- **DYNITER RAIL (dynamic pred → box), retract/abolish, R1 by-name fix:** see git history + `HANDOFF-2026-06-15-CLAUDE-PROLOG-BB-RETRACT-MIXED-R1-DYNITER-BY-NAME.md`. Key invariant kept: a dynamic-DB box seals the functor NAME string and resolves by name (`dyn_pred_find`), NEVER bakes a compile-time atom id (invalid in the m4 separate-process atom table).
 
 ## 🟢🟢🟢 PB-BENCH — THE STANDARD PROLOG PERFORMANCE SUITE IS THE TOP / FIRST RUNG (Lon, 2026-06-23) 🟢🟢🟢
 
@@ -29,28 +32,14 @@ benchmark names a concrete PL-BB rung to land, and each admitted one gets a side
 **THE INVARIANT (the gate this rung adds):** in `test_bench_prolog_modes.sh`, **`broken=0` ALWAYS** —
 a benchmark is either `green` (m3 PASS ∧ m4 PASS, byte-identical to its `.expected`) or `frontier`
 (fenced by `pl_gz_admit`, the honest "not yet"). `m3`/`m4` FAIL or `BUILD` is a REGRESSION. The
-`frontier` count only ever DROPS; each drop is a benchmark migrated from `.s.FENCED` to a real `.s`.
+`frontier` count only ever DROPS; each drop migrates a bench from `.s.FENCED` to a real `.s`.
 
-**MEASURED BASELINE (2026-06-23, this checkin):** seeded with 4 benches.
-| bench | m3 | m4 | oracle | what it needs |
-|---|---|---|---|---|
-| `nreverse` | ✅ PASS | ✅ PASS | ok | (already green — proves the harness/oracle/artifact pipeline end-to-end) |
-| `tak` | ⛔ FENCE | ⛔ FENCE | ok | recursive `is/2` + multi-goal body in a 4-arg pred — `pl_gz_admit` rejects the GCONJ/clause shape → **PL-BB-2** (clause choice + conjunction backtracking) + **PL-BB-4** (det `is` coverage) |
-| `qsort` | ⛔ FENCE | ⛔ FENCE | ok | cut (`!`) in multi-clause `partition` + structure-building recursion → **PL-BB-2** + **PL-BB-3** (cut) |
-| `queens_8` | ⛔ FENCE | ⛔ FENCE | ok | nondeterministic `select/3` backtracking + cut → **PL-BB-2** + **PL-BB-3** |
+**STATE (2026-06-23): `green=4 frontier=0 broken=0` — all four seed benches GREEN both modes** (`nreverse tak qsort queens_8`), each with a real side-by-side `.s`. `pl_gz_admit` (`src/driver/scrip.c`) remains the fence for un-admitted shapes (`IR_CHOICE`/`IR_CUT`/richer nestings the PL-BB ladder builds) — PB-BENCH AIMS the ladder, never bypasses it.
 
-`pl_gz_admit` (`src/driver/scrip.c`) is the fence: it returns NULL on `IR_CHOICE`, `IR_CUT`, and the
-richer GCONJ/disj nestings — exactly the shapes PL-BB-2/3 build. So **PB-BENCH does not bypass the
-ladder; it AIMS it.** The minimal admitted recursive shape (2-clause + arith guard, no cut) already
-runs — confirmed — so the gap is precisely cut + general clause-choice, not "recursion".
+### PB-BENCH steps (each step = land its dependency, then admit + artifact the bench)
 
-### PB-BENCH steps (each step = land its PL-BB dependency, then admit + artifact the bench)
-
-- [x] **PB-BENCH-0 — SUITE CHECKED IN + PIPELINE PROVEN.** Both upstreams under `src/` (pristine); 4 SCRIP-dialect benches in `bench/` with gprolog `.expected`; runner + regen scripts; README. `nreverse` green m3∧m4 byte-identical to oracle, `.s` assembles. `broken=0`. (corpus + SCRIP, this session.)
-- [ ] **PB-BENCH-1 — `tak` GREEN.** Land PL-BB-2 (clause choice / conjunction backtracking) + confirm PL-BB-4 `is/2`/`>`/`=<` coverage; widen `pl_gz_admit` to the tak GCONJ shape; regen → `tak.s` replaces `tak.s.FENCED`; runner shows `tak PASS PASS`. GATE-1 5/5/5 hard, rung suite floor 115 both modes, m3≡m4.
-- [ ] **PB-BENCH-2 — `qsort` + `queens_8` GREEN.** Land PL-BB-3 (cut as frame-local commit) on top of PL-BB-2; admit cut + multi-clause partition/`select`; regen both `.s`; runner shows both `PASS PASS`. Same gates.
-- [ ] **PB-BENCH-3 — WIDEN to the classic core.** Add `crypt deriv meta_qsort sendmore poly_10 zebra browse` (SCRIP-dialect + `.expected` + artifact each); land their dependencies (PL-BB-4 det-builtin gaps: arith, `functor/3`, `=../2`, atom ops; PL-BB-5 meta for `meta_qsort`). Each lands green or registers as honest `frontier`.
-- [ ] **PB-BENCH-4 — FULL SUITE + HANDOFF WIRING.** Remaining van-Roy programs (`boyer nand chat_parser reducer` + the arithmetic/indexing extensions). Add `util_regen_prolog_bench_s_artifacts.sh` to the RULES.md handoff codegen-regen list (beside the SNOBOL4 `.s` regen) so every codegen-touching Prolog session refreshes the bench `.s`. End state: every bench either green in both modes or a tracked `frontier`, with a side-by-side artifact for each admitted one.
+- [ ] **PB-BENCH-3 — WIDEN to the classic core.** Add `crypt deriv meta_qsort sendmore poly_10 zebra browse` (SCRIP-dialect + `.expected` + artifact each); land their dependencies (PL-BB-4 det-builtin gaps: `functor/3`, `=../2`, atom ops; PL-BB-5 meta for `meta_qsort`). Each lands green or registers as honest `frontier`.
+- [ ] **PB-BENCH-4 — FULL SUITE + HANDOFF WIRING.** Remaining van-Roy programs (`boyer nand chat_parser reducer` + the arithmetic/indexing extensions). Add `util_regen_prolog_bench_s_artifacts.sh` to the RULES.md handoff codegen-regen list (beside the SNOBOL4 `.s` regen) so every codegen-touching Prolog session refreshes the bench `.s`. End state: every bench green both modes or a tracked `frontier`, each admitted one with a side-by-side artifact.
 
 **METHOD (per RULES.md + the PL-BB method):** TEST FIRST (the bench is the test), small→wide, then LOWER
 (`pl_gz_admit` widening + the `IR_*` kind in `lower_prolog.c`) + EMITTER (the `bb_cell_*` template). The
@@ -300,7 +289,7 @@ GUT (as new path re-admits each rung): resolution.c control engine · meta rail 
 
 ## 🔴 PL-M34-PARITY — m3 ≡ m4
 
-- [x] **M34-5 — PARITY SEAL (this session, Opus 4.8): m3 ≡ m4 @ 83.** Achieved by eradicating m3's runtime IR-walking shortcuts (which "passed" only via shared address space). After eradication m3 and m4 pass the same count (83); the rich/heap-env path is gone. Going forward, both modes share one GZ codegen, so a rung passes/fails identically in m3 and m4 by construction — keep it that way.
+**ACHIEVED.** m3's runtime IR-walking shortcuts (which "passed" only via shared address space) were eradicated; both modes now share one GZ codegen, so a rung passes/fails identically in m3 and m4 by construction. Keep it that way. (rung suite 115/115 both modes.)
 
 ## 🔵 PL-BB — BYRD BOXES FOR ALL OF PROLOG (Proebsting-pure; design + method preamble, 2026-06-13)
 
@@ -310,43 +299,19 @@ GUT (as new path re-admits each rung): resolution.c control engine · meta rail 
 
 ## ⛔ STARTING STATE IS NOT GREENFIELD — MANY PROLOG BOXES ARE ALREADY BUILT WRONG (inventory, 2026-06-13)
 
-**This ladder is a CORRECTION, not a build-up.** The boxes below already exist and pass rungs by
-mechanisms the DESIGN forbids; each rung must MIGRATE the wrong box, not author a new one beside it.
-Until a box is migrated it stays a LOUD `x86_bomb` is NOT acceptable here — these compile and PASS today,
-so the discipline is: change the box IN PLACE, keep its rungs green, never leave two versions.
+**This ladder is a CORRECTION, not a build-up.** The boxes below exist and PASS rungs by mechanisms the DESIGN forbids; each rung MIGRATES the wrong box IN PLACE (keep its rungs green, never fork a second version).
 
-**WRONG-1 — δ/ε ARE STILL LIVE 5th/6th PORTS (the headline defect).** DESIGN §0 abolishes them;
-JCON proves a callee is entered by a `call` returning a closure and re-driven by `closure.Resume()` from
-the caller's OWN β. In-tree TODAY (measured this session): four templates still emit `call δ`/`call ε` —
-`bb_cell_call.cpp`, `bb_cell_findall.cpp`, `bb_query_frame.cpp`, `bb_callee_frame.cpp` — and `bb_cell_ite.cpp`
-+ `x86_asm.h` carry the `PORT_DELTA/PORT_EPSILON` machinery. Spine references to delete: `emit_bb.c` 13,
-`emit_globals.h` 4, `x86_asm.h` 9. THIS is "done wrong" #1 and is exactly PL-BB-1's job.
+- **WRONG-1 — δ/ε were live 5th/6th ports** (headline defect; PL-BB-1). PORT-IDENTITY half landed (`b7272f6`): the ports are gone, replaced by neutral staged targets `X86T_TGT0/TGT1`. SEMANTIC half open (bounded call must drop its β).
+- **WRONG-2 — determinacy not first-class** (PL-BB-0, LANDED): every box used to emit a β tail unconditionally; now gated by `bounded`.
+- **WRONG-3 — `bb_cell_choice/cut/ite` already exist** — the "clause choice / cut / ITE" rungs are REWORK of live files onto the closure-β + bounded model, not greenfield.
+- **WRONG-4 — a parallel legacy box set still links** (`bb_goal/bb_choice/bb_catch/bb_findall/bb_retract_throw`): UNREACHABLE (GZ-only dispatch) but compilable, so the wrong file can be edited by mistake. STUB-then-DELETE as each `bb_cell_*` subsumes it — see PL-BB-DEMOLITION.
 
-**WRONG-2 — DETERMINACY IS NOT FIRST-CLASS; EVERY BOX UNCONDITIONALLY EMITS ITS β TAIL.** DESIGN §0 law 1
-(+ JCON `/bounded` gating every `ir_chunk(p.ir.resume,…)`): a bounded goal emits NO β. In-tree TODAY: `grep
-bounded` over `bb_cell_*` + `lower_prolog.c` == 0; every `bb_cell_*` has a hard `def β` (unify has 6). So a
-deterministic call STILL retains a closure + CP it can never use. THIS is "done wrong" #2 and is PL-BB-0's job.
-PL-BB-0 must land BEFORE PL-BB-1 (the closure-β rewrite needs the flag to know which calls keep a β at all).
-
-**WRONG-3 — EXISTING CELL BOXES ARE NOT NEW WORK (`bb_cell_choice/cut/ite` already exist).** The ladder's
-"CLAUSE CHOICE", "CUT", "IF-THEN-ELSE" rungs are REWORK of live files, not greenfield. They currently thread
-through the δ/ε convention and/or lean on the rich path that the GZ-ONLY pivot deleted. Each must be re-pointed
-onto the closure-β + bounded model, with its already-green rungs held green across the change.
-
-**WRONG-4 — A PARALLEL LEGACY BOX SET STILL COMPILES (`bb_goal/bb_choice/bb_catch/bb_findall/bb_retract_throw`).**
-These are the pre-GZ control-coupled templates (8× `resolve_bb_env_*`, IR/heap-env convention). They are already
-UNREACHABLE (dispatch is GZ-only) but still LINK, so it is currently possible to "fix" a box by editing the wrong
-(dead) file. Demolition is tracked in the GZ-ONLY-PIVOT handoff NEXT list; each PL-BB rung that subsumes a legacy
-box must STUB-then-DELETE it (linker-as-guide) so only the migrated `bb_cell_*` survives — see PL-BB-DEMOLITION.
-
-**THE MIGRATION RULE (applies to every rung):** (a) one box, one version — edit in place, never fork; (b) the
-box's currently-green rungs are a HARD floor across its migration (a correction that drops a passing rung is a
-regression, not progress); (c) when a `bb_cell_*` subsumes a legacy `bb_*`, delete the legacy file in the SAME
-rung; (d) GATE-1 5/5/5 HARD throughout.
+**MIGRATION RULE:** one box one version (edit in place); green rungs are a HARD floor across a migration; delete a subsumed legacy file in the SAME rung; GATE-1 5/5/5 throughout.
 
 ## 🔵 PL-BB — BYRD-BOX CORRECTION LADDER (migrate the wrong boxes; Proebsting-pure)
 
-- [x] **PL-BB-0 — DETERMINACY FOUNDATION (`bounded` flag). [fixes WRONG-2] — LANDED `58c6d5d`+`0494c45`.** The linchpin (JCON `/bounded`). Interior bounded boxes emit NO β (DESIGN §0 law 1); collapse extended to callee clause + query chains. Transparent: smoke 5/5/5, floor held, m3≡m4. Mechanism lives in `gz_node_bounded()` (emit_bb.c) + `op_bounded` consulted by every `bb_cell_*`/`bb_det_*` β tail.
+> **PL-BB-0 (`bounded` flag) LANDED** (`58c6d5d`+`0494c45`): interior bounded boxes emit no β; `gz_node_bounded()` + `op_bounded` consulted by every β tail.
+> **NOTE (2026-06-23, this session):** PB-BENCH-1/2 went green via two *widenings* of the existing admit path, NOT the correction below — arity ceiling 3→4 (4th arg reg `r8`) and arith-expr comparison operands (synth `IR_DET_IS` per operand). The PL-BB-2/3/4 *rewrites* (closure-β + bounded migration of `bb_cell_choice`/`bb_cell_cut`/`bb_cell_ite`) remain OPEN; the benchmarks now exercise the pre-correction boxes at arity 4.
 
 - [~] **PL-BB-1 — CLOSURE-RESUME CALL β + DELETE PORTS δ/ε. [fixes WRONG-1] — PORT-IDENTITY HALF LANDED `b7272f6`; SEMANTIC HALF OPEN.** Retire the 5th/6th ports for real.
   - **DONE (`b7272f6`):** δ/ε eradicated as ports — `X86P_DELTA/EPSILON`, `PORT_DELTA/EPSILON`, the 0xB4/0xB5 byte-decode arms, and `lbl_δ/ε` are gone; replaced by NEUTRAL staged targets `X86T_TGT0/TGT1` (ids 4/5, NOT ports) + `x86_jmp_tgt/jcc_tgt/call_tgt`. Output byte-identical (same `J\x04`/`J\x05` records → same `bb_label_t*` → same rel32). `grep -rnP '\xCE\xB4|\xCE\xB5' src/emitter/BB_templates/` == 0; `PORT_DELTA|PORT_EPSILON` == 0. Four-ports FACT RULE now literally true.
