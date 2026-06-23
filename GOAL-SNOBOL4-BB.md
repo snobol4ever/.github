@@ -1,6 +1,45 @@
 <!-- SESSION-FIRST RUNG — DTP-DIRECT-STITCH · TEMPLATE-EMITTED PATTERN BOXES, NO HEADS -->
 
-# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23g, end of session 7)
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23h, end of session 8)
+
+**State (handoff 2026-06-23h, session 8 · Claude Sonnet 4.6):** SCRIP `01dd4d0` (pushed), .github THIS commit.
+
+**WHAT LANDED THIS SESSION:**
+- `bb_pattern_len.cpp` — new template: emits `call bb_build_len_blob(name, I)` at runtime (stage-2 builder box)
+- `bb_pat_build.cpp` — new C++ shim: `bb_build_len_blob` calls `bb_pool_init()` + allocates scratch IR graph with `IR_PATTERN_LEN(ival=I)` + `bb_build_flat` + `rt_gvar_assign_pat` → stores blob as `DT_P`
+- `bb_match_defer.cpp` — DT_P branch: calls `rt_defer_get_pat_fn` to get `bb_box_fn`; push fn; call `rt_frame`; pop fn to rcx; `call rcx` (new call-reg form); `cmp eax,1; jne ω; jmp γ` (blob returns 1=success, 99=fail — NOT signed)
+- `x86_asm.h` — added `call reg` form: `if (a.kind == XK_REG) { int m = x86_rnum(a.txt); ... emit FF/D0+modrm }` for indirect call through register
+- `emit_core.c` — `IR_PATTERN_LEN` → `bb_emit_x86(bb_pattern_len())`; `IR_DTP_ASSIGN` → set `g_emit.bb_ls = IR_LIT(nd).sval` directly (NOT via `bb_intern_into` which returns the label name not the string), then `walk_bb_node(operands[0])`
+- `pattern_match.c` — `rt_defer_get_pat_fn(varname, ival_flag)` → returns `val.p` if `val.v == DT_P`, else NULL
+- `bb_templates.h` — added `std::string bb_pattern_len()` declaration
+- `Makefile` — wired `bb_pattern_len.cpp` and `bb_pat_build.cpp`
+
+**DESIGN CONFIRMATIONS THIS SESSION (Lon):**
+- G0/G1/G2 glob partitioning: use one shared ζ frame per glob = per maximal block of SNOBOL4 statements reachable from same label (initial block, labeled statement, DEFINE body, EVAL block). Don't over-partition. Pattern objects (`PAT = ...`) and their deferred use share one ζ per pattern object.
+- PB-GREEN gate = functional output matches oracle (not `.s` byte-identity). The 6 benches are: `arith_loop`, `op_dispatch`, `pattern_bt`, `string_concat`, `fibonacci`, `table_access`.
+- No `MEDIUM_TEXT`/`MEDIUM_BINARY` in templates. All emission through `x86(...)`.
+
+**OPEN BUG — NEXT SESSION FIRST MOVE:**
+
+`IR_PATTERN_LEN` child is emitted TWICE in the gvar flat chain:
+- Once correctly as DTP_ASSIGN's child delegation (bb_ls="PAT", correct)
+- Once wrongly as a standalone gvar chain node (bb_ls="", wrong)
+
+Root cause: `codegen_gvar_flat_chain_body` BFS visits IR_PATTERN_LEN (node 9) as a standalone chain node because it's linked in the IR graph (γ.node of PATTERN_LEN = DTP_ASSIGN), so BFS from DTP_ASSIGN's γ.node chain reaches it. The `gvar_chain_is_real` filter doesn't exclude `IR_PATTERN_*` nodes.
+
+**Fix:** In `codegen_gvar_flat_chain_body`'s BFS or in `gvar_chain_is_real`, exclude `IR_PATTERN_*` and `IR_DTP_ASSIGN` child nodes from being visited as standalone chain entries. Specifically: `gvar_chain_is_real` should return 0 for `IR_PATTERN_LEN`, `IR_PATTERN_BREAK`, `IR_PATTERN_CAPTURE`, `IR_PATTERN_CAT`, etc. — they are only emitted as delegates from their parent `IR_DTP_ASSIGN`, never standalone. OR: in `walk_bb_flat`'s `case IR_PATTERN_LEN:` (emit_bb.c:3251), check that `g_emit.bb_ls` is non-empty before emitting; if empty, skip (it's the orphaned standalone visit).
+
+After that one-line fix, `r1` (stored LEN rung) should gate: `PAT = LEN(2); S = 'CDab'; S ? PAT . W; OUTPUT = 'W=' W` → `W=CD` == oracle.
+
+Then r2 (BREAK builder):
+- `bb_build_break_blob(name, cset)` in `bb_pat_build.cpp` — same shape as `bb_build_len_blob` but node kind `IR_PATTERN_BREAK`, `IR_LIT(nd).sval = cset`
+- `bb_pattern_break.cpp` template — calls `bb_build_break_blob(name, cset)` where name=`_.bb_ls` and cset=`_.op_sval`
+- Wire `IR_PATTERN_BREAK` in emit_core.c
+- Gate: `PAT = BREAK(',') . W; S = 'alpha,beta'; S ? PAT; OUTPUT = 'W=' W` → `W=alpha` == oracle
+
+Then r2 with capture (`IR_PATTERN_CAPTURE`), then `IR_PATTERN_CAT`, then TR-4 benches.
+
+**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `/home/claude/x64/bin/sbl -b`. Tri-probe: `scrip --compile p.sno | gcc -no-pie -x assembler - -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p && ./p`.
 
 **State (handoff 2026-06-23g, session 7 · Claude Sonnet 4.6):** SCRIP `d70b86d` (local, needs push with credentials), .github THIS commit.
 
