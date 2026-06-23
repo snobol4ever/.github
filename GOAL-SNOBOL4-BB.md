@@ -1,602 +1,81 @@
-<!-- SESSION-FIRST RUNG — LITERAL-SUBJECT NATIVE SCAN · LAST BOMB REMOVED -->
+<!-- GOAL-SNOBOL4-BB · SCRIP native pattern-match ladder for modes 3/4 (--run/--compile) -->
 
 # ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23m, session 13 · Claude Opus 4.8)
 
-**State (SESSION 13 CLOSED):** SCRIP `f3f7cdb` (PUSHED — rebased onto `ec2d193` Prolog-GZ which also touched emit_bb.c, clean auto-merge, no conflict), corpus `fac96e29` (unchanged this session), .github THIS commit (PUSHED). Working tree clean, nothing stashed. **Bench BOMB 3 → 0** (roman was the last bomb; it no longer bombs).
+**State:** SCRIP `f3f7cdb` (PUSHED), corpus `fac96e29` (unchanged), .github THIS commit (PUSHED). Clean. **Bench BOMB 3→0, GREEN=12, DIFF=4** (eval_dynamic/eval_fixed/indirect_dispatch pre-existing; roman wrong result).
 
-**WHAT LANDED THIS SESSION — the LITERAL-SUBJECT native scan path, 1 SCRIP commit `f3f7cdb` (4 files, +54/−5):**
-The session-12 handoff PREDICTED roman needed the inline `RPOS+LEN` gate widened. REALITY differed. roman has two inline scans; **scan 1 (`N RPOS(1) LEN(1) . T =`, empty-repl) was ALREADY emitting natively & correctly** — the `9ea1251` splice fix covered it (verified isolation: `T=6 N=177` == oracle). The SOLE decliner was **scan 2 (`'0,1I,…,9IX,' T BREAK(',') . T`, no repl)**, and the blocker was its **LITERAL subject**, NOT the pattern shape: the `flat_drive_scan_stmt` gate keyed on a *named* subject (`IR_LIT(pBB).sval`), refusing literal subjects (carried in `op_scan_subj_lit`), falling to the `bb_scan_stmt` bomb. Four-layer fix:
-1. **`emit_bb.c` gate (`flat_drive_scan_stmt` ~L2465):** widened native-entry to accept literal subjects — `((IR_LIT(pBB).sval && IR_LIT(pBB).sval[0]) || g_emit.op_scan_subj_lit)`.
-2. **`emit_bb.c` `flat_drive_scan_native` (~L2406):** for a literal subject, attach the literal as an **`IR_LIT_S` operand** on the `IR_SUBJECT` node (named subject keeps its name in `subj->sval`). **WHY operand:** `walk_bb_node` (emit_core.c L332-333) UNCONDITIONALLY overwrites `g_emit.op_sval`/`op_a_sval` from the node each emission (`op_a_sval` from `operands[0]`), clobbering anything `flat_drive_subject` sets. Carrying the literal as `operand[0]` makes the preamble itself produce the right `op_a_sval`. (`flat_drive_subject` left minimal — only sets `op_sa`.)
-3. **`bb_subject.cpp` lit arm (`bb_subject_lit_arm`):** the arm already existed but had a latent bug (`lea [rip + ??]` — unresolved label) and used `mov` where `lea` was needed. Added `bb_subj_litlbl()` helper (intern + `strtab_label` fallback, mirroring `bb_subj_nlbl()`); rewrote to call new `rt_subject_load_lit` (mirroring the NV arm's aligned-call discipline) instead of inline writes.
-4. **`pattern_match.c` `rt_subject_load_lit(s, slot)`:** sets the ζ-slot AND the global `Σ`/`Σlen`. **THE KEY INSIGHT:** capture via `rt_cap_assign_cursor` (L516) computes `base = Σ + saved_delta` from the GLOBAL `Σ` — set as a side-effect ONLY by `rt_subject_load_nv` (L541). The literal arm never set global `Σ` → captures came back EMPTY. (Plus defensive `Σ`/`Σlen` save/restore around the callee `p->fn(fb,0)` in BOTH `rt_call_named_proc` and `…_sl` in `rt/rt.c` — mirrors the `runtime_eval.c` L150 save_Σ precedent; correct re-entrancy hygiene, NOT proven load-bearing, did NOT fix roman.)
+**What landed (session 13) — literal-subject native scan, 4 files +54/−5:**
+roman's scan 2 (`'0,1I,…,9IX,' T BREAK(',') . T`) declined native because `flat_drive_scan_stmt` gate keyed on a *named* subject only. Four-layer fix:
+1. `emit_bb.c` gate: accept `op_scan_subj_lit` in addition to `IR_LIT(pBB).sval`.
+2. `flat_drive_scan_native`: for a literal subject, attach an `IR_LIT_S` operand to the `IR_SUBJECT` node — `walk_bb_node` preamble (emit_core.c:332) unconditionally overwrites `op_a_sval` from `operands[0]`, so the literal must ride there.
+3. `bb_subject.cpp` lit arm: fixed latent label bug (`lea [rip+??]`), `mov→lea`, added `bb_subj_litlbl()` helper, route through new `rt_subject_load_lit`.
+4. `pattern_match.c` `rt_subject_load_lit`: sets ζ-slot AND global `Σ`/`Σlen` — `rt_cap_assign_cursor` reads `Σ` for capture base; the NV arm set it, the lit arm didn't.
+Plus: `Σ`/`Σlen` save/restore around `p->fn(fb,0)` in both `rt_call_named_proc` variants (rt.c) — mirrors runtime_eval.c precedent; correct but not proven load-bearing for roman.
 
-**GATES (all green):** literal-subject match+capture now correct — `/tmp/{a,c,d,s2,g,h,i}.sno` all == oracle (e.g. literal `'hello' LEN(2) . T` → `T=he`; scan2 lookup `T=6`→`VI`, `T=1`→`I`; scan1 `RPOS(1) LEN(1) . T =` → `T=6 N=177`). **ZERO regression:** PB-GREEN 6 green; `string_pattern`+`mixed_workload` (session-12 GREEN) still correct; 8 benches byte-identical `.s` vs committed. Full sweep **BOMB 3→0, GREEN=12, DIFF=4**. The 3 non-roman DIFFs (`eval_dynamic`, `eval_fixed`, `indirect_dispatch`) are PRE-EXISTING (my `.s` == committed `.s`; `indirect_dispatch` has `.xfail`), NOT regressions.
+**Verified:** literal-subject match+capture correct (oracle-match on `'hello' LEN(2) . T`, `T=6`→`VI`, `T=1`→`I`, scan1 `RPOS(1) LEN(1) . T =`→`T=6 N=177`). Zero regression: PB-GREEN 6 green, 8 benches byte-identical `.s`.
 
-**▶ NEXT MOVE — roman's RECURSIVE CONTROL-FLOW bug (SEPARATE from the literal-subject path, which is DONE).** Full roman no longer bombs but computes **`MCXI` (=1111) not `MDCCLXXVI` (=1776)**. Trace (`/tmp/rt.sno`, using `'176'`): per-level digit extraction + table lookup are EACH correct (6→VI, 7→VII, 1→I), but the recursion **RE-DESCENDS after the base case** — oracle does 3 calls (6,7,1) → `CLXXVI`; ours does extra spurious descents (6,7,1 then 1,7,1,1) → `CXI`. This is a recursive return-path / backtrack-re-entry bug (likely the `:S(RETURN)F(FRETURN)` branch on the final stmt, or empty-match-on-base-case `N=''` not failing cleanly so the unwind re-enters), NOT the literal-subject path. The `Σ` save/restore in rt.c did NOT fix it → the corruption is ELSEWHERE. **Reproduce with `/tmp/rt.sno` (instrumented roman with per-level OUTPUT).** After roman: the stored-pattern builder ladder from the session-12 handoff still stands (stored ALT `bb_pattern_alt`/053; stored RPOS/POS/TAB/RTAB `bb_pattern_unary_i`/word2; stored ANY/NOTANY/SPAN/BREAKX `bb_pattern_unary_s`; `bb_gvar_assign_concat: no parts`/wordcount).
-
-**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `git clone …/x64 /home/claude/x64`; `sbl -b`. Tri-probe `/tmp/probe.sh`: `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p.bin; ./p.bin` vs `sbl -b`. roman oracle = `MDCCLXXVI`. Minimal literal-subject repros (col-1 END): `/tmp/c.sno` (`'hello' LEN(2) . T :F(NO)` / `OUTPUT='T=' T :(DONE)` / `NO OUTPUT='no match'` / `DONE` / `END`), `/tmp/h.sno` (`T='6'` / `'0,1I,2II,3III,4IV,5V,6VI,7VII,8VIII,9IX,' T BREAK(',') . T :F(NO)` / `OUTPUT='T=' T :(DONE)` / `NO …` / `DONE` / `END`). Benches: `corpus/benchmarks/snobol4/*.sno`.
-
-**⚙ DESIGN NOTE (carried from session 12, REINFORCED this session) — the ambient-`g_emit` channel bit again.** The layer-2 clobber (`walk_bb_node` preamble overwriting `op_a_sval` from `operands[0]`, defeating `flat_drive_subject`'s explicit set) is the SAME stale-/ambient-`g_emit` class the session-12 DESIGN CANDIDATE flagged. The fix here SIDESTEPPED it (carry the value as an operand so the preamble produces it) rather than fighting it. The general cure (port-field reset / FILL-only emission / debug gen-counter assert) is still unbuilt and would have made this bug impossible to introduce — strong evidence for prioritizing that refactor rung.
-
----
-
-<!-- SESSION-FIRST RUNG — STORED-PATTERN BUILDER LADDER · TEMPLATE-EMITTED MATCHER BLOBS -->
-
-# ▶▶▶ (handoff 2026-06-23l, session 12 · Claude Opus 4.8)
-
-**State (SESSION 12 CLOSED):** SCRIP `415a0ca`→`5d6e7cd`→`9ea1251`→`4d547f6` (4 commits, LOCAL — need push w/ credentials), corpus `fac96e29` (bench `.s`, LOCAL — need push), .github THIS commit. Working tree clean, nothing stashed. **Bench green 6 → 8** (string_pattern + mixed_workload now GREEN).
-
-**WHAT LANDED THIS SESSION — TR-CAT + the empty-repl splice fix + a runtime-file relocation, 4 SCRIP commits:**
-1. **`415a0ca` — relocate `bb_pat_build.cpp` `src/emitter/` → `src/runtime/rt/`** (Lon flagged it: the file's location lied about its role). It is PURE program-runtime code — its `bb_build_*_blob` fns are never called at `--compile` time; the emitter only references them by name in emitted x86. They run only when the compiled program runs, where they stand up a scratch IR graph and `bb_build_flat`-JIT it into `pat_pool` (the arena in the adjacent `pat_pool.c`), then `rt_gvar_assign_pat` the `DT_P` head. Mirrors the `runtime_eval.c` precedent (runtime drives the compiler). Includes are `-I`-based so resolution is unchanged; only 2 Makefile path lines moved. Codegen-neutral (6/6 PB-GREEN byte-stable).
-2. **`5d6e7cd` — TR-CAT: stored in-pattern concatenation `PAT = BREAK(',') . W ','` ⇒ `W=alpha`.** Three-part, mirroring the LEN/BREAK/CAPTURE builder discipline:
-   - **`bb_pattern_cat.cpp` (new template):** chain-entry passthrough (`!pat_via_dtp` → `jmp γ`); under `IR_DTP_ASSIGN` delegation (`pat_via_dtp`) emits `call bb_build_break_cap_lit_blob(name,cset,capvar,lit)`.
-   - **`bb_pattern_lit.cpp` (new template):** passthrough for a LIT element reached as a gvar-chain entry inside a stored CAT (a bare `PAT='x'` is `IR_ASSIGN_LIT_S`, a string — never this builder — so a stored LIT is ALWAYS a CAT operand). `IR_PATTERN_LIT` was a pending bomb; now routes here.
-   - **`emit_core.c IR_PATTERN_CAT`:** extracts the `BREAK . VAR LIT` shape (scans `nd->own->all[]` for the `IR_PATTERN_CAPTURE` whose `operand[0]` == the CAT's BREAK operand → capvar), stages cset/capvar/lit into `_.op_sval`/`_.op_a_sval`/`_.op_name1`; unsupported shapes bomb honestly (`only BREAK . VAR LIT`).
-   - **`bb_build_break_cap_lit_blob` (in the relocated `bb_pat_build.cpp`):** builds the matcher graph the INLINE lowerer produces — `IR_MATCH_CAT kids=[ IR_MATCH_ASSIGN_COND[capvar]→IR_MATCH_BREAK(cset), IR_MATCH_LIT(lit) ]` — and `bb_build_flat`'s it. **KEY:** the CAT is made self-contained by populating its KIDS CHANNEL (`IR_EXEC(cat).counter = &bb_match_kids_state_t{kids,2}`) — `flat_drive_cat` reads `bb_match_nkids`/`bb_match_kid` (the kids channel, `box_state.h`), NOT `operands[]`. A bb_build_flat ENTRY CAT with `nkids==0` emits an EMPTY cat (the chain-gather at emit_bb.c:2526 only fires when a CAT is met DURING a chain walk, not as the flat entry) — so the kids channel is mandatory. `flat_drive_cat_arms` then sequences the two arms (capture commits the BREAK span = "alpha", LIT runs after), inter-arm backtrack wired by the driver via labels (no manual ω-threading). BREAK.γ→SUCCEED keeps `gather_lowered_cat_arms` from pulling LIT into the capture span.
-3. **`9ea1251` — empty-replacement scan path (`S PAT = ''`) duplicate-label FIX → string_pattern + mixed_workload GREEN.** `bb_scan_splice_empty` emitted `label/jmp-γ/def-β/jmp-ω` off the STALE `g_emit` labels left by `flat_drive_match`'s last FILL — so `def β` re-defined the match's `elem_β` (assembler `symbol smatchN_elemb already defined`) and `jmp γ` wrongly targeted `match_retry`. The bug reproduced with ANY stored DEFER pattern under `S PAT=''` (plain `BREAK . VAR` hit it too) — **orthogonal to / pre-existing before TR-CAT.** Fix: SPLICE_EMPTY is a pure straight-line action reached by fall-through from the scan's `dcap_ok` block — stripped its port scaffolding (no α label, no β, no ω); it now emits ONLY the `rt_scan_splice_empty` call. `flat_drive_scan_native` owns the trailing `emit_jmp_label(lbl_γ)` (the real scan-success exit), mirroring the non-empty-replacement branch.
-4. **`4d547f6` — feature `.s` regen** (UPD: cross/word2/wordcount/test_stack/053_pat_alt_commit). **corpus `fac96e29`** — bench `.s` regen (string_pattern.s now assembles; mixed_workload.s working CAT+splice codegen; roman.s new bomb stub). Both via the graceful-skip regen scripts; 6 PB-GREEN `.s` byte-identical (idempotent, no commit).
-
-**GATES (all green):** TR-CAT `r3` (`PAT=BREAK(',') . W ','; S ? PAT`) ⇒ `W=alpha`; replacement-form `r2repl` (`S PAT='' ` over stored `BREAK . VAR`) ⇒ `W=alpha`, `r3repl` (over stored `BREAK . VAR LIT`) ⇒ `R=alphabeta`; all == oracle. **string_pattern + mixed_workload GREEN** (full benches, normalize `ms:`). Regression: r1 (stored LEN), r2 (stored BREAK+capture), i3 (inline `BREAK . W ','`), cross (feature) all MATCH. **PB-GREEN 6/6 holds, 0 `.s` drift on the six.** **NO REGRESSIONS** verified against HEAD~1: 053 advanced past its old `bb_pattern_lit` bomb to `bb_pattern_alt` (forward); word2 unchanged (`bb_pattern_unary_i`); wordcount now assembles (was crashing).
-
-**▶ NEXT MOVE — roman, the last of the 3 BOMB benches (orthogonal to the stored-pattern builder family).** roman BOMBs on `bb_scan: TEXT(mode-4) non-literal pattern needs native PB-RB graph (pending)` — its two scans are INLINE (not stored `PAT=`): `N RPOS(1) LEN(1) . T =` (empty-repl + RPOS+LEN inline + capture) and `T BREAK(',') . T` (BREAK inline + capture, no repl). This is the `flat_drive_scan_stmt` native gate DECLINING the shape, NOT a builder gap — find the gate (emit_bb.c `flat_drive_scan_stmt` ~L2440) and widen it to route this inline RPOS+LEN+capture+empty-repl shape native (the splice path now works, so empty-repl is no longer the blocker). THEN the stored-pattern builder ladder continues for the feature tree: **stored ALT** (`bb_pattern_alt`, 053_pat_alt_commit — `PAT = X | Y`), **stored RPOS/POS/TAB/RTAB** (`bb_pattern_unary_i`, word2), **stored ANY/NOTANY/SPAN/BREAKX** (`bb_pattern_unary_s`), and the `bb_gvar_assign_concat: no parts` shape (wordcount + the r0 match-as-expr-concat case). Each: build the `IR_MATCH_*`-family blob in `bb_pat_build.cpp` (allocate the MATCHER node, never the `IR_PATTERN_*` builder node — the session-9/10 lesson), passthrough template for chain entry, gate vs oracle.
-
-**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `git clone …/x64 /home/claude/x64`; `sbl -b`. Tri-probe `/tmp/probe.sh`: `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p; ./p` vs `sbl -b`. Rungs (col-1 END): `/tmp/r3.sno` (`PAT = BREAK(',') . W ','` / `S = 'alpha,beta'` / `S ? PAT` / `OUTPUT = 'W=' W` / `END`), `/tmp/r3repl.sno` (`PAT = BREAK(',') . WORD ','` / `S='alpha,beta,'` / `RESULT=''` / `LOOP S PAT = '' :F(DONE)` / `RESULT = RESULT WORD :(LOOP)` / `DONE OUTPUT='R=' RESULT` / `END`). Benches: `corpus/benchmarks/snobol4/*.sno`. Regen scripts: `scripts/util_regen_{benchmark,feature,demo}_s_artifacts.sh "<rung>"`.
-
-**⚙ DESIGN CANDIDATE (Lon, 2026-06-23l) — kill the stale-`g_emit` bug CLASS (the `9ea1251` splice bug generalized).** That bug was a stale-label leak: `bb_scan_splice_empty` read `lbl_α/γ/β/ω` left by `flat_drive_match`'s last FILL because it emitted via raw `bb_emit_x86(tmpl())` instead of `FILL`. `g_emit` is a DELIBERATE ambient channel (the `walk_bb_node` preamble sets `op_sval/op_ival/op_a_sval/…` from the node; `FILL`/`EMIT_PAIR_FILL` set the four ports; `flat_drive_*` callers set `op_sa`/`op_off`/`op_sval` BEFORE invoking a template) — so a blanket "zero the whole struct per call" is too heavy and would wipe caller-set inputs. The SURGICAL fix that removes the class without the blast radius: (a) reset the PORT-LIKE fields (`lbl_α/γ/β/ω` + `_p`) to NULL at the top of every emission so an unset port FAULTS LOUDLY instead of leaking a stale label; and/or (b) make EVERY template emission go through `FILL`/`EMIT_PAIR_FILL` (never raw `bb_emit_x86` with ambient labels) — the splice was the lone violator; and/or (c) a debug-only generation-counter assert ("ports set THIS emission?") to catch future leaks at zero runtime cost. Cross-cutting emitter refactor → its own rung, gate PB-GREEN 6/6 + all pattern rungs after.
-
----
-
-<!-- SESSION-FIRST RUNG — STORED-PATTERN BUILDER LADDER · TEMPLATE-EMITTED MATCHER BLOBS -->
-
-# ▶▶▶ (handoff 2026-06-23k, session 11 · Claude Sonnet 4.6)
-
-**State (SESSION 11 CLOSED):** SCRIP `1e962ed` (PUSHED), corpus `949a8c03` (unchanged — no `.s` drift), .github THIS commit (PUSHED). Working tree clean.
-
-**WHAT LANDED THIS SESSION — TR-CAPTURE (the in-pattern capture builder), 1 SCRIP commit `1e962ed`:**
-`PAT = BREAK(',') . W; S ? PAT` now prints `W=alpha` == oracle (was `W=`). Three-part fix, all on the stored-pattern builder path:
-1. **`lower_snobol4.c` (bare-capture RHS, ~L697):** pushed the `IR_PATTERN_CAPTURE` wrapper (`leaf->γ.node`) as the `IR_DTP_ASSIGN` operand **and** statement entry — was pushing the inner `IR_PATTERN_BREAK`, so the statement entry resolved to the bare BREAK and the CAPTURE/DTP nodes were bypassed. The capture node's own `operand[0]` is still the inner BREAK (so `op_a_sval`=cset reaches the template). One-line-ish change (`cap = leaf->γ.node` is an O(1) field read, NOT a new tree pass).
-2. **`emit_bb.c walk_bb_flat` (~L3263):** added `case IR_PATTERN_CAPTURE` (FILL like the other `IR_PATTERN_*` builders). It was falling to `default` (the fail-passthrough `def β; jmp ω`), so the chain-entry CAPTURE node emitted a skip instead of `bb_pattern_capture()`. Now the entry passthrough (`!pat_via_dtp` → `jmp γ`) routes correctly to the DTP-delegated builder box — mirrors the working r2a BREAK chain (n0 passthrough → n1 builder).
-3. **`bb_pat_build.cpp` + `bb_pattern_capture.cpp` (new) + wiring:** `bb_build_break_capture_blob(name, cset, capvar)` builds an `IR_MATCH_ASSIGN_COND` wrapping `IR_MATCH_BREAK` and `bb_build_flat`'s it (mirrors the LEN/BREAK builder discipline — allocate the MATCHER family, not the PATTERN/builder family). At blob-run time `flat_drive_capture` emits CAPTURE_SAVE (`mov FR(off),r14d`) → BREAK (advances r14) → `rt_cap_assign_cursor(W, saved=0, cur=5, 0)`; with the scan's `g_rt_dcap_active=1` the commit records into the dcap buffer and the scan's `rt_dcap_end_ok` flushes it to W. `bb_templates.h` decl + `emit_core.c` dispatch + Makefile (libscrip_rt list + scrip per-obj rule).
-
-**GATES (all green):** r2 ⇒ `W=alpha` == oracle (tri-probe). Regression: r1 (stored LEN), r2a (stored BREAK + inline capture), i2 (inline BREAK capture) all MATCH. **PB-GREEN 6/6 floor holds** (`arith_loop op_dispatch pattern_bt string_concat fibonacci table_access`, normalize `ms:`). All three `.s` regen scripts clean — **0 `.s` drift** (TR-CAPTURE is JIT-blob-only, like LEN/BREAK; the 3 BOMB benches mixed_workload/roman/string_pattern still AS-FAIL because they need CAT too — next rung).
-
-**⚠️ SINGLE-PASS AUDIT (Lon asked 2026-06-23k — REPORTED, NOT fixed; pre-existing, none from TR-CAPTURE):** strict "ONE pass of tree_t → IR, ONE pass of IR → BB" is **already violated** in two pre-existing places. Logged here for a future rung; TR-CAPTURE rides the existing machinery (the builder *depends* on `pre_build_children` building the inner blob):
-- **Leg 1 (tree_t→IR, `lower_snobol4.c`): check-then-build double-walk.** `sno_leaf_buildable`(5)/`sno_seq_buildable`(3)/`sno_seq_has_pat_leaf`(3) recursively descend the tree_t to return yes/no, THEN `sno_build_leaf_ir`/SEQ-builder descend the same subtree to build. Line 708 does TWO check-walks (`sno_seq_buildable && sno_seq_has_pat_leaf`) → up to 3 passes of one RHS tree_t.
-- **Leg 2 (IR→BB, `emit_bb.c`): (a) `pre_build_children`/`pre_build_children_text`** (top of `bb_build_flat` L4028 / `codegen_flat_build` L4045) is a full separate IR-graph descent to pre-build nested child blobs before `codegen_flat_body` walks the same graph; **(b) `gather_*_cat_arms`/`gather_inline_alt_arms`** (gather-then-emit) and the gvar-chain **BFS enumerate loop then emit `for` loop** (~L3883/L3901) are localized two-walks over the same node set.
-
-**▶ NEXT MOVE — TR-CAT: the in-pattern concatenation builder.** `PAT = BREAK(',') . W ','` (capture followed by a literal) lowers to `IR_PATTERN_CAT` over `[IR_PATTERN_CAPTURE[W]→IR_PATTERN_BREAK, IR_PATTERN_LIT[',']]` (confirm with `--dump-ir`). Needs a pat-pool *stitch* primitive: build each element matcher into the blob and chain γ/ω port-to-port (REUSE the `flat_drive_match`/`gather_lowered_cat_arms` port-patch model — do NOT invent a second stitch). The builder mirror: `bb_build_*_cat_blob` allocates an `IR_MATCH_CAT` (or sequential matcher chain) and `bb_build_flat`'s it; `flat_drive_cat_arms` already handles multi-arm chains in the inline path. THEN point at the 3 BOMB benches (string_pattern + mixed_workload need BREAK+CAPTURE+CAT; roman uses inline scans + empty-repl splice — orthogonal). Gate: `PAT=BREAK(',') . W ','; S ? PAT` ⇒ `W=alpha` == oracle, then string_pattern green at G0.
-
-**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `git clone …/x64 /home/claude/x64`; `sbl -b`. Tri-probe `/tmp/probe.sh` (regenerate if lost): `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p; ./p` vs `sbl -b`. Rungs: `/tmp/r2.sno` (`PAT = BREAK(',') . W` newline `S = 'alpha,beta'` newline `S ? PAT` newline `OUTPUT = 'W=' W` newline `END` col-1). Benches: `corpus/benchmarks/snobol4/*.sno`.
-
----
-
-<!-- SESSION-FIRST RUNG — STORED-PATTERN BUILDER LADDER · TEMPLATE-EMITTED MATCHER BLOBS -->
-
-# ▶▶▶ (handoff 2026-06-23j, session 10 · Claude Sonnet 4.6)
-
-**State (SESSION 10 CLOSED):** SCRIP `98c66b7` (PUSHED), corpus `949a8c03` (PUSHED), .github THIS commit (PUSHED). Working tree clean, nothing stashed.
-
-**WHAT LANDED THIS SESSION — 4 SCRIP commits + 1 corpus artifact commit:**
-1. **`75f97e5` — r1 stored-LEN builder FIXED (the session-9 OPEN BUG below is RESOLVED).** `bb_build_len_blob` now allocates the MATCHER node `IR_MATCH_LEN`, not the builder `IR_PATTERN_LEN` (which recursed into a nested build call and never advanced r14, so the capture span was `[0..0)` → `W=`). One-line diff. The session-9 `op_ival` plumbing caveat is conclusively resolved — `walk_bb_node` (emit_core.c:328) sets `g_emit.op_ival = IR_LIT(nd).ival` before dispatch, proven empirically: `LEN(2)`⇒`W=CD`, `LEN(3)`⇒`W=CDE`, `LEN(0)`⇒`W=[]` (varying length rules out a constant). JIT-blob-only; no `.s` drift.
-2. **`2e5a5a3` — IR_PAT_* → IR_MATCH_* matcher-family rename (Lon directive).** The matcher family now mirrors the `bb_match_*` / `BB_MATCH_*` BB names. Enum + name-string table (`--dump-ir` now prints `IR_MATCH_*`, verified) + emitter + lowerers + tools + BB templates + pat_bb probes. `IR_PAT_MATCH{,_HEAD,_RETRY,_ADVANCE}` collapse to `IR_MATCH{,_HEAD,_RETRY,_ADVANCE}` (one prefix rule, no doubled `MATCH`). The **`IR_PATTERN_*` BUILDER family is deliberately UNTOUCHED** (separate family; `IR_PAT_` never matches inside `IR_PATTERN_`). Behavior-neutral. Dead `src/attic/` left as-is (not in Makefile).
-3. **`15bda9d` — r2 stored-BREAK builder.** New `bb_pattern_break.cpp` + `bb_build_break_blob` in `bb_pat_build.cpp`, mirroring the LEN discipline: the builder box (`IR_PATTERN_BREAK`) emits a C-call to `bb_build_break_blob(name, cset)`, which allocates the MATCHER node `IR_MATCH_BREAK` and `bb_build_flat`'s it. **FIRST stored box to exercise a ζ slot `[r12+off]`** — proves the frame mechanism end-to-end: `g_frame_active=1` makes `XA_FLAT_PROLOGUE` emit `push r12; mov r12, rdi`, the defer passes a fresh `rt_frame()` (32 KB static buf), per-activation slot storage lands correctly. `BREAK(',')`⇒`W=alpha`, `BREAK('X')`⇒`W=foo`, `BREAK(',;')`⇒`W=abc`.
-4. **`98c66b7` — `util_regen_demo_s_artifacts.sh` harmonized to graceful-skip** (emit-to-temp → `gcc -c` → `mv` only on assembler-accept; never truncate-then-fail) + scrip-path fix (`$ROOT/scrip`, was `$HERE/scrip`). **Clears the session-9 demo-clobber hazard.** Ran clean: roman/wordcount/claws5/treebank-array gracefully SKIP'd (assembler-rejected, committed `.s` untouched — roman.s intact, no clobber); `treebank-list.s` refreshed.
-   - **corpus `949a8c03`** — refresh long-stale `treebank-list.s` to honest current `--compile` output (4608+/1132−; stale because the demo regen was broken/never run, NOT a LEN/BREAK change; assembler-clean, functional parity not asserted).
-
-**GATES (all green this session):** stored-LEN family (r1/r1b/r1c), inline controls (i1/i2), stored-BREAK family (r2a/r2b/r2c), PB-GREEN 6/6 (`arith_loop op_dispatch pattern_bt string_concat fibonacci table_access`, normalize `ms:`). Benchmark + feature regen: 0 changed (`.s`-neutral — rename can't alter emitted x86; LEN/BREAK changes live in the JIT blob, not `.s`).
-
-**▶ NEXT MOVE — TR-CAPTURE: the IN-PATTERN capture builder.** The handoff's original r2 (`PAT = BREAK(',') . W; S ? PAT`, capture INSIDE the stored pattern) lowers to `IR_DTP_ASSIGN → IR_PATTERN_BREAK` wrapped in `IR_PATTERN_CAPTURE[W]` (confirmed: `--dump-ir`). **This is NOT a pure node-swap like LEN/BREAK** — the capture box needs (a) a save-slot recording the cursor at entry, and (b) a COMMIT on the success port that assigns `Σ[start..end)` to the capture var. Plan: build `bb_pattern_capture.cpp` + `bb_build_capture_blob` that builds the INNER matcher first and stitches the capture around it. Study how the INLINE capture lands its span — `IR_MATCH_ASSIGN_COND`/`bb_match_capture` (emit_core.c:387) uses the dcap buffer (`rt_dcap_*`) + a frame slot for match-start; the blob form must mirror that (save r14 at α into a ζ slot, run inner, on γ call the cursor-assign). Gate: `PAT=BREAK(',') . W; S ? PAT` ⇒ `W=alpha` == oracle. THEN TR-CAT (`PAT = BREAK(',') . W ','`), THEN point at the three BOMB benches (string_pattern + mixed_workload need BREAK+CAPTURE+CAT all three; roman uses inline scans + empty-repl splice — orthogonal to the builder family).
-
-**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `git clone …/x64 /home/claude/x64`; `sbl -b`. Tri-probe `/tmp/probe.sh` (regenerate if lost): `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p; ./p` vs `sbl -b`. Benches: `corpus/benchmarks/snobol4/*.sno`.
-
----
-
-<!-- SESSION-FIRST RUNG — DTP-DIRECT-STITCH · TEMPLATE-EMITTED PATTERN BOXES, NO HEADS -->
-
-# ▶▶▶ (session 9 — handoff 2026-06-23i · LEN bug below RESOLVED in session 10, see above)
-
-**State (SESSION 9 CLOSED — handoff 2026-06-23i · Claude Sonnet 4.6):** SCRIP `9330f32` (PUSHED), corpus `1381b77b` (PUSHED), .github THIS commit (PUSHED). Working tree clean, nothing stashed.
-
-**⚠️ DEMO-REGEN SCRIPT HAZARD (found session 9, NOT yet fixed):** `scripts/util_regen_demo_s_artifacts.sh` was NOT run this handoff on purpose. Unlike the benchmark + feature regen scripts (which skip a bombing/assembler-rejected program gracefully and leave its last-good `.s` untouched), the demo script does `> "$f.s"` (truncates FIRST) then `gcc -c ... || exit 1` — so a program whose `--compile` crashes/empties (e.g. `roman`, which still AS-FAILs on unimplemented stored-pattern shapes) would CLOBBER its committed `.s` to empty and then abort the run. This session's codegen change does not touch demo codegen paths (demos use no stored LEN patterns), so demo `.s` are not stale because of session 9. **NEXT SESSION housekeeping:** harmonize `util_regen_demo_s_artifacts.sh` with the graceful-skip pattern (emit to a temp file, `gcc -c` it, and only `mv` over the committed `.s` on assembler-accept; never truncate-then-fail), then run it.
-
-**WHAT LANDED THIS SESSION (`da8dfb7`):** **IR_PATTERN_LEN double-emit FIXED.** 8-line diff across 3 files: `emit_globals.h` (+`int pat_via_dtp`), `emit_core.c` (DTP_ASSIGN delegation sets/clears `pat_via_dtp` around the child walk), `bb_pattern_len.cpp` (standalone chain-entry visit → label+`jmp γ` passthrough; builder fires only under DTP delegation). Verified: exactly one `bb_build_len_blob` call carrying `rdi→"PAT"`, `esi=2`; empty string-table entry gone. **Codegen-neutral on PB-GREEN** (5/6 `.s` byte-identical to baseline; `pattern_bt.s` differed ONLY by pre-existing `01dd4d0` defer-branch staleness — now regen'd to corpus `1381b77b`).
-
-**ROOT CAUSE (corrected — the handoff-8 diagnosis was subtly wrong):** the LEN-with-ILIT lowering (`lower_snobol4.c:688-691`) deliberately returns the `IR_PATTERN_LEN` node as the statement chain ENTRY, with `pat.γ → IR_DTP_ASSIGN` and `dtp.operands[0] = pat`. So the gvar-chain BFS entry IS the pattern node, which links forward to DTP_ASSIGN. Handoff-8's two proposed fixes were BOTH wrong: (a) excluding `IR_PATTERN_*` from `gvar_chain_is_real` deletes the entry the chain links THROUGH (drops emission to ZERO — confirmed empirically); (b) the bare `bb_ls`-empty guard is fragile across statements (prior stmt can leave `bb_ls="PAT"`). The `pat_via_dtp` flag is the robust fix — it distinguishes "reached via DTP delegation" (emit builder) from "reached as standalone chain entry" (passthrough) independent of `bb_ls` state.
-
-**OPEN BUG — NEXT SESSION FIRST MOVE: the LEN blob contains a BUILDER, not a MATCHER (root cause CONFIRMED by code-read this session — NOT the ABI).**
-
-`PAT = LEN(2); S = 'CDab'; S ? PAT . W; OUTPUT = 'W=' W` now COMPILES + LINKS + RUNS (no crash) but prints `W=` instead of `W=CD`. Earlier this session I mis-attributed this to the defer C-call ABI (fresh ζ frame clobbering the ambient cursor). **That analysis was WRONG — the real cause is a node-dispatch confusion in `bb_build_len_blob`:**
-
-There are TWO distinct IR nodes + TWO distinct templates:
-- **`IR_PAT_LEN`** (inline matcher node) → `bb_match_len()` (emit_core.c:350; flat dispatch emit_bb.c:2855 → FILL → walk_bb_node). Body: `eax=r14d+I; cmp r15d; jg ω; **r14d+=I**; →γ`. **Advances the ambient cursor r14.** This is what a stored LEN pattern's blob MUST contain — and note it ALREADY operates purely on ambient r14/r15 exactly as Lon's HEAD-ABI directive requires; no ABI change needed.
-- **`IR_PATTERN_LEN`** (stored-pattern BUILDER node) → `bb_pattern_len()` (emit_core.c:370). Body: emits `call bb_build_len_blob` (constructs a blob; matches nothing).
-
-`bb_build_len_blob` (`src/emitter/bb_pat_build.cpp`) builds its blob via `bb_build_flat(nd)` where `nd = IR_node_alloc(g, IR_PATTERN_LEN)`. **`bb_build_flat` → `codegen_flat_body` → `walk_bb_flat`(IR_PATTERN_LEN) → emit_bb.c:3247 → FILL → walk_bb_node → emit_core.c:370 → `bb_pattern_len()` — the BUILDER again.** So the blob's body is a *nested builder call*, containing ZERO matcher logic — it never touches r14. That is why the cursor stays 0 and the capture span `[0..0)` is empty → `W=""`. (The defer path, the `rt_frame()` call, the C-callable shape — all RED HERRINGS for THIS bug; they run fine, they just run an empty blob.)
-
-**THE FIX (concrete, one node — confirm with Lon, it touches TR-2 builder design):** in `bb_build_len_blob`, allocate the MATCHER node, not the builder node:
-```c
-IR_t *nd = IR_node_alloc(g, IR_PAT_LEN);   /* was IR_PATTERN_LEN — the matcher, routes to bb_match_len */
+**▶ NEXT MOVE — roman's recursive control-flow bug.** Roman no longer bombs but prints `MCXI` not `MDCCLXXVI`. Trace (with per-level `OUTPUT`, using `'176'`): each digit extraction and table lookup is correct (6→VI, 7→VII, 1→I) but the recursion **re-descends after the base case** — oracle 3 calls (6,7,1)→`CLXXVI`; ours (6,7,1,1,7,1,1)→`CXI`. This is a return-path/backtrack-re-entry bug, not a capture bug. The `Σ` save/restore did NOT fix it → corruption is elsewhere. Reproduce with:
+```snobol4
+    &TRIM = 1
+    DEFINE('ROMAN(N)T')                   :(RE)
+ROMAN N RPOS(1) LEN(1) . T =              :F(RETURN)
+    OUTPUT = 'digit T=' T ' rest N=' N
+    '0,1I,2II,3III,4IV,5V,6VI,7VII,8VIII,9IX,' T BREAK(',') . T :F(FRETURN)
+    OUTPUT = '  roman T=' T
+    ROMAN = REPLACE(ROMAN(N), 'IVXLCDM', 'XLCDM**') T :S(RETURN)F(FRETURN)
+RE  R = ROMAN('176')
+    OUTPUT = 'RESULT=' R
+END
 ```
-Then `bb_build_flat` emits the real `bb_match_len` body (`r14d += I`) into the blob.
 
-**⚠️ PLUMBING CAVEAT (found this session — the swap is NOT one line alone):** `bb_match_len` reads the length from `g_emit.op_ival`. The `IR_PATTERN_LEN` flat-dispatch case (emit_bb.c:3247) SETS `g_emit.op_ival = IR_LIT(nd).ival` before FILL. But the `IR_PAT_LEN` flat-dispatch case (emit_bb.c:**2855** `case IR_PAT_LEN: FILL(...)`) does **NOT** set `op_ival` — the inline scan path populates it elsewhere (a `bb_prepare`/`bb_fill_alpha` step I did not fully pin this session; the inline `S ? LEN(2)` path is i1/i2-green so the setter EXISTS somewhere, but `bb_build_flat`→`codegen_flat_body`→`walk_bb_flat`(IR_PAT_LEN)@2855 may NOT pass through it). **If after the node swap `r1` still prints `W=`, suspect `op_ival==0` (LEN(0) matches null → empty span, looks identical to the current bug).** Confirm by: (a) check whether 2855 needs `g_emit.op_ival = IR_LIT(nd).ival;` added before FILL (mirroring 3247), OR (b) trace where the inline IR_PAT_LEN path sets op_ival and ensure the flat-build path hits it. The complete fix is: matcher node kind **+** op_ival reaches `bb_match_len` in the flat-build context. Verify the emitted blob with a one-shot byte dump (objdump the `bb_build_flat` buffer) showing `add r14d, 2` present — that is the definitive check that the blob now advances the cursor.
+**Design note (carried):** the `walk_bb_node` preamble clobbering `op_a_sval` is the same ambient-`g_emit` class the session-12 design candidate flagged. The fix sidestepped it (carry value as operand so preamble produces it). The general cure — port-field reset / FILL-only / debug gen-counter assert — is still unbuilt.
 
-Gate: `r1` ⇒ `W=CD` == oracle (tri-probe `/tmp/probe.sh`). Blast radius is TINY: this changes only the runtime-JIT'd blob body (built by libscrip_rt at the compiled program's runtime), NOT any `.s` artifact and NOT the 6 PB-GREEN benches (which never call `bb_build_len_blob`) — so no regen needed, rebuild `libscrip_rt` only and rerun the existing `/tmp/r1.bin` (it dlopens `out/libscrip_rt.so` via rpath).
-
-**GENERALIZE (the pattern for the whole IR_PATTERN_* builder family):** every `bb_build_*_blob` in `bb_pat_build.cpp` must allocate the corresponding **`IR_PAT_*` matcher** node (LEN→`IR_PAT_LEN`, BREAK→`IR_PAT_BREAK`/whatever the inline matcher node is, etc.), NOT the `IR_PATTERN_*` builder node, so `bb_build_flat` lays down the cursor-advancing matcher. Cross-check the `IR_PAT_*` vs `IR_PATTERN_*` node table in `src/contracts/IR.h` (the `IR_PAT_*` matcher family is the i1/i2-green inline set; the `IR_PATTERN_*` family is the stored-pattern builder set). This is the missing half of the TR-2 design: the builder NODE (`IR_PATTERN_LEN`, emitted in the gvar chain) calls `bb_build_len_blob`, which must in turn build a blob from the MATCHER node (`IR_PAT_LEN`).
-
-After `r1` gates, proceed to r2 (BREAK builder — same node-swap discipline), r2+CAPTURE, CAT, TR-4 benches (per the TR-LADDER below).
-
-**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `/home/claude/x64/bin/sbl -b`. Tri-probe at `/tmp/probe.sh` (regenerate from this block if lost): `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p; ./p`. PB-GREEN floor gate: the 6 benches `arith_loop op_dispatch pattern_bt string_concat fibonacci table_access` — functional match to oracle NORMALIZING the `ms:` timing line (they print `ms: N` which differs run-to-run). NOTE: `table_access` currently emits NO output (empty) — pre-existing, uses `TABLE(512)`, no patterns; NOT caused by pattern work. `mixed_workload`/`roman`/`string_pattern` AS-FAIL in regen (unimplemented BREAK/CAPTURE/CAT builders bomb into `.s`) — expected ground-zero.
-
-**▶ STANDING PRACTICE — `.s` ARTIFACTS ARE LIVING SNAPSHOTS, KEPT CURRENT AS YOU GO (Lon, 2026-06-23).** Every `.sno` has a side-by-side `.s` (the mode-4 `--compile` output): benches in `corpus/benchmarks/snobol4/`, FEATURE tests in SCRIP `test/snobol4/**`, demos in corpus `programs/snobol4/demo/`. After ANY codegen-touching change, refresh them — do NOT wait for handoff: `bash scripts/util_regen_benchmark_s_artifacts.sh "<rung>"`, `bash scripts/util_regen_feature_s_artifacts.sh "<rung>"` (NEW this session — covers the feature tree; commits to the SCRIP repo), `bash scripts/util_regen_demo_s_artifacts.sh "<rung>"`. The `.s` is the HONEST CURRENT output, **never a pinned golden** — a mid-design BB that still bombs an unimplemented shape emits a loud bomb stub INTO its `.s` (it still assembles) and is committed as-is; an assembler-rejected `.s` is left untouched + flagged (the regen run does NOT fail on it). `scrip --compile` is deterministic → unchanged compiler = no commit (idempotent). **NEVER force a `.s` to stay identical and NEVER gate on `.s` byte-identity** — that would fight the very design churn the snapshots exist to track. Byte-identity vs the prior baseline is only ever a diagnostic ("this change was codegen-neutral"), never a requirement. (Session 9: all 20 pattern-rung `.s` + ~60 other feature `.s` were stale from sessions of no maintenance; now current via the new script. 7 feature tests legitimately don't emit clean `.s` yet — ucase/lcase/wordcount/etc. unimplemented shapes — correctly left unpinned.)
+**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle: `git clone …/x64 /home/claude/x64; sbl -b`. Tri-probe: `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p.bin; ./p.bin` vs `sbl -b`. Benches: `corpus/benchmarks/snobol4/*.sno`.
 
 ---
 
-<!-- PRIOR HANDOFF (session 8) BELOW — superseded by the above; kept for the design confirmations -->
+# Open rungs (not yet started)
 
-# ▶▶▶ (session 8 handoff — double-emit now FIXED, see above)
+## OPSINGLE — delete operand_aux, one channel only
 
-**State (handoff 2026-06-23h, session 8 · Claude Sonnet 4.6):** SCRIP `01dd4d0` (pushed), .github THIS commit.
+**Mandate:** exactly ONE operand channel: `nd->operands[]`. Delete `operand_aux` (`bb_operand_aux_set`/`bb_operand_aux_get`).
 
-**WHAT LANDED THIS SESSION:**
-- `bb_pattern_len.cpp` — new template: emits `call bb_build_len_blob(name, I)` at runtime (stage-2 builder box)
-- `bb_pat_build.cpp` — new C++ shim: `bb_build_len_blob` calls `bb_pool_init()` + allocates scratch IR graph with `IR_PATTERN_LEN(ival=I)` + `bb_build_flat` + `rt_gvar_assign_pat` → stores blob as `DT_P`
-- `bb_match_defer.cpp` — DT_P branch: calls `rt_defer_get_pat_fn` to get `bb_box_fn`; push fn; call `rt_frame`; pop fn to rcx; `call rcx` (new call-reg form); `cmp eax,1; jne ω; jmp γ` (blob returns 1=success, 99=fail — NOT signed)
-- `x86_asm.h` — added `call reg` form: `if (a.kind == XK_REG) { int m = x86_rnum(a.txt); ... emit FF/D0+modrm }` for indirect call through register
-- `emit_core.c` — `IR_PATTERN_LEN` → `bb_emit_x86(bb_pattern_len())`; `IR_DTP_ASSIGN` → set `g_emit.bb_ls = IR_LIT(nd).sval` directly (NOT via `bb_intern_into` which returns the label name not the string), then `walk_bb_node(operands[0])`
-- `pattern_match.c` — `rt_defer_get_pat_fn(varname, ival_flag)` → returns `val.p` if `val.v == DT_P`, else NULL
-- `bb_templates.h` — added `std::string bb_pattern_len()` declaration
-- `Makefile` — wired `bb_pattern_len.cpp` and `bb_pat_build.cpp`
+Writers still aux-only (add `ir_operand_push`, keep aux until readers flipped): `lower_snobol4.c` CALL args, `lower_icon.c:134,137,315`, `lower_raku.c:210`, `lower_pascal.c:147,162,177,340`, `lower_prolog.c:140`.
 
-**DESIGN CONFIRMATIONS THIS SESSION (Lon):**
-- G0/G1/G2 glob partitioning: use one shared ζ frame per glob = per maximal block of SNOBOL4 statements reachable from same label (initial block, labeled statement, DEFINE body, EVAL block). Don't over-partition. Pattern objects (`PAT = ...`) and their deferred use share one ζ per pattern object.
-- PB-GREEN gate = functional output matches oracle (not `.s` byte-identity). The 6 benches are: `arith_loop`, `op_dispatch`, `pattern_bt`, `string_concat`, `fibonacci`, `table_access`.
-- No `MEDIUM_TEXT`/`MEDIUM_BINARY` in templates. All emission through `x86(...)`.
+Readers to flip (`bb_operand_aux_get` → `nd->operands[]`): `BB_templates/bb_call.cpp:98`; `emit_bb.c:350,411,438,846,1072,1492,1818,2489,2957(DELETE bridge shim),3035,3240,3335,3398,3458`; `driver/scrip.c:102,245,1931`; `contracts/scrip_ir.c:355`.
 
-**State (handoff 2026-06-23g, session 7 · Claude Sonnet 4.6):** SCRIP `d70b86d` (local, needs push with credentials), .github THIS commit.
+Delete last (all readers flipped + all language gates green): `bb_operand_aux_set`, `bb_operand_aux_get`, struct fields, all call sites.
 
-**WHAT LANDED THIS SESSION:**
-- `scan_pat_m3_native_safe`: `IR_PAT_DEFER` REMOVED from rejection list — `bb_match_defer` emits correct x86 via `x86()` and already handles `DT_S` defer inline. This unblocks roman.sno and any scan with a defer node in the pattern.
-- `flat_drive_scan_stmt`: native gate opened for named-var subject + empty-literal replacement (`is_empty_repl` path — `ival=1` AND `op_scan_replace_lit==""` AND no literal subject).
-- `flat_drive_scan_native`: `is_empty_repl` param added; at `dcap_ok`, emits `bb_scan_splice_empty` (splice-empty BB template) before `jmp lbl_gamma` when empty-repl.
-- `g_match_start_slot` global: set in `flat_drive_match` at `bb_slot_alloc16(pBB)`; read by splice emitter as `_.op_sa`.
-- `rt_scan_splice_empty(subj_name, m_start, m_end)`: in `rt_runtime.c`; pure C; GC_MALLOC new string dropping `[m_start..m_end)`, `NV_SET_fn`.
-- `bb_scan_splice_empty.cpp`: template-only `x86()` emission; `rdi=name`, `esi=FR(op_sa)` (match start), `edx=r14d` (match end); calls `rt_scan_splice_empty`; `gamma` exit.
-- **Gates: 6/6 PB-GREEN byte-identical** (arith_loop op_dispatch pattern_bt string_concat fibonacci table_access).
+**Gate:** `grep operand_aux src/` (excl attic) == 0 AND all language gates green.
 
-**WHAT STILL NEEDS TO HAPPEN — in order:**
+## REC-COV — community-recognized corpora
 
-1. **Push SCRIP `d70b86d`** (needs credentials — git push failed, no auth).
+**Mandate:** extend coverage into community corpora. PB-GREEN stays session-first.
 
-2. **Verify roman.sno** — roman has NO stored patterns (`PAT =`); it uses `IR_PAT_DEFER "T"` inline inside a scan. With `IR_PAT_DEFER` now allowed through `scan_pat_m3_native_safe`, roman should compile. Gate: `probe.sh roman.sno` == oracle. Two scans: `N RPOS(1) LEN(1) . T =` (empty-repl + RPOS+LEN inline + capture) and `T BREAK(',') . T` (BREAK inline + capture, no repl). Both now route native.
-
-3. **IR_DTP_ASSIGN — the stored pattern builder.** This is the remaining crux for `string_pattern.sno` and `mixed_workload.sno`. Architecture (LOCKED — no raw x86, no PATDESC struct, all matching through BB boxes):
-
-   **What IR_DTP_ASSIGN must do:** at runtime (TEXT mode: startup call; BINARY mode: JIT), build the `IR_PAT_*` subgraph into a native blob via `bb_build_flat`, store result as `DT_P` in `NV[varname]`.
-
-   **For TEXT mode (`--compile`)**: the IR graph is gone at program startup. The builder template must emit a call to a shape-specific runtime function that reconstructs the `IR_PAT_*` subgraph using `IR_node_alloc` + `lc_γ_to`/`lc_ω_to` + `bb_build_flat`. No raw bytes; the blob is built entirely through the template machinery.
-
-   **The runtime builder function for `BREAK(s) . VAR lit` shape:**
-   ```c
-   void rt_dtp_build_break_cap_lit(const char *varname, const char *cset, const char *capvar, int is_imm, const char *lit) {
-       // allocate a scratch IR_graph_t + nodes
-       // build: LIT(lit) <- CAPTURE(capvar, BREAK(cset))
-       // call bb_build_flat(break_node)
-       // store bb_box_fn as DT_P in NV[varname]
-   }
-   ```
-   Then `bb_match_defer` for `DT_P` calls `fn(rt_frame(), 0)` directly — blob has r13/r14/r15 live on entry (caller-saved in SysV, so they survive the C call to load the `DT_P` value).
-
-   **LOWER_SNOBOL4.C BUG**: the SEQ builder (`PAT = BREAK(',') . WORD ','`) wires CAPTURE incorrectly. `sno_build_leaf_ir` for `TT_CAPT_COND_ASGN` returns `inner` (BREAK) and sets `γ_to(inner, cap)`. The SEQ builder then does `γ_to(pats[0]=BREAK, pats[1]=LIT)` which OVERWRITES `BREAK.γ → CAPTURE`. Fix: before `γ_to(pats[i], pats[i+1])`, save `tail = pats[i]->γ.node if pats[i]->γ.node->op == IR_PATTERN_CAPTURE else pats[i]`; wire `γ_to(tail, pats[i+1])` instead. Also fix CAT.operands[0] to be `tail` (CAPTURE), not `pats[i]` (BREAK), so `bb_slot_get(operands[0])` gets the CAPTURE node's slot.
-
-   **bb_match_defer for DT_P**: load `DT_P.p` (the `bb_box_fn`), call it as `fn(rt_frame(), 0)`. r13/r14/r15 are callee-saved in SysV — they survive the `NV_GET_fn` call that loads the DT_P value. The blob enters with r13=Σ, r14=cursor, r15=Σlen all live from the surrounding scan. On γ: blob returns eax=1, r14=new cursor. Template then does `mov r14d, eax`... wait — NO: the blob does NOT return the new cursor in eax. The blob's γ epilogue does `mov eax, 1; ret` (success flag), and r14 holds the new cursor in the register. Since r14 IS callee-saved, it must be saved/restored by the callee — but the blob is NOT a standard C callee, it's our custom calling convention. r14 will be TRASHED by the blob's γ epilogue `mov eax, 1; ret`. Need to save r14 before the blob call and restore from... no, r14 IS the output (new cursor). So: blob on γ returns with r14=new_cursor in the register (not via rax). The template after the call does `test eax, eax; js omega; [r14 is already updated]; jmp gamma`. This works because r14 is updated by the blob BEFORE it returns.
-
-   Actually — re-reading xa_flat epilogue: on γ (g_frame_active=0), blob does `sub rsp,8` preamble + boxes update r14 + epilogue does `mov eax,1; add rsp,8; ret`. r14 is updated by the pattern boxes BEFORE the epilogue. So after `call fn`, eax=1 and r14=new_cursor. The current `bb_match_defer` already reads eax and sets r14d from eax — but eax is 1 (success flag), NOT the new cursor. The cursor IS in r14. So the template should NOT do `mov r14d, eax` for the DT_P path — just `test eax; js omega; jmp gamma` with r14 already correct.
-
-4. **TR-4**: roman + mixed_workload + string_pattern green at G0. Gate: smoke M3/M4 7/7 · pat-rung 19/19 · fence T1=T2=0 · broad-corpus ≥170 · PB-GREEN 6/16 floor.
-
-**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `/home/claude/x64/bin/sbl -b`. Probe: `/tmp/probe.sh` (regenerate from goal file if lost).
-
----
-
-<!-- OLD HANDOFF BELOW -->
-
-# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23c, end of session 5)
-
-**State (handoff 2026-06-23d, session 6 · Claude Opus 4.8):** SCRIP `8449423` (pushed, clean), .github THIS commit. **TR-2 SUBSTRATE LANDED (SCRIP `8449423`); TR-3 defer DT_P branch tried+REVERTED (`2b0459e`, wrong head ABI — see HEAD ABI CORRECTED below):** `pat_pool_emit(code,n)` relocate primitive + restored `pat_pool_reset` (`src/runtime/rt/pat_pool.c`; decl in `src/include/dtp.h`). Pure additive runtime C — NO codegen touched; 6/6 PB-GREEN `.s` byte-identical; build + libscrip_rt green. TR-0/TR-1 still landed (`7d6a9c9`). Direction unchanged: **all patterns variant, built from scratch at RUNTIME in stage 2, NO constant folding.**
-
-**⚡ ARCHITECTURE RESOLVED THIS SESSION — verified against live headers; this is the thing 5 sessions kept re-deriving. Do NOT re-read the design docs; build from this:**
-- **The pattern HEAD is a `bb_box_fn` = `DESCR_t (*)(void *zeta, int entry)`** (`src/include/bb_box.h:33`). `DT_P=3` (`descr.h`); the `DT_P` descr's **`.p` slot holds that fn-ptr**. A built stored pattern = a `bb_box_fn` blob living in `pat_pool`; `IR_DTP_ASSIGN` writes `DT_P{.v=DT_P,.p=head}` via `NV_SET_fn(name,descr)` (`core.h:124`).
-- **The BB_SWITCH "broker" of `seed/test_sno_6.c` IS the C-ABI + the frame-active preamble — there is NO separate broker box to emit.** zeta arrives in **rdi**; the box's `g_frame_active` preamble (`push r12; mov r12,rdi; lea r10,[rip+Δ]`, see `xa_flat.cpp`) sets r12; epilogue `pop r12; ret` restores it. The golden's push/set/pop-r12 is literally SysV-call + that preamble.
-- **`exec_stmt_blob(subj_name, subj_var, bb_box_fn root_fn, repl, has_repl)`** (`bb_box.h:67`) already RUNS a `bb_box_fn` head against a subject — this is the defer-side runner to reuse.
-- **memcpy-safety — the real rule (corrected 2026-06-23e): "no reference to anything OUTSIDE the copied unit," NOT "no rip-relative."** `pat_pool_emit` copies the blob by some delta D. A `[rip+disp]` reference to data **sealed adjacent and copied as part of the same contiguous unit** (code + appended RO data, all inside the `n` bytes) SURVIVES — instruction and target both shift by D, so `disp32` stays correct. This is the preferred shape and matches the ARCH-x86 "RO constants sealed adjacent, reached `[rip+disp]`" idiom. What breaks is any reference pointing OUTSIDE the copied unit: external `call memcmp`/`strchr` (rel32 to PLT) and the GOT — those need absolute (`mov rax,imm64; call rax`) or a post-copy fixup. So: bundle the literal/cset INTO the blob and use `[rip+disp]`; only external calls need absolute. **LEN needs NEITHER — `LEN(I)` matches any I chars: no literal data, no external call, only the integer I as an immediate that rides inside the instruction and survives the copy trivially.**
-- **EMISSION + LENGTH mechanism (found 2026-06-23e — the last open how):** the byte length L of an emitted blob = emit-position delta. Position is tracked by `bb_emit_pos` (BINARY) / `g_emit_pos` (TEXT), surfaced via `emitter_end()` (emit_core.c:157); bracket the matcher emission with two reads, `L = end − start`. Emit the matcher behind a label as a sealed standalone region (precedent: the `x86(".quad", LS(i), …)` sealed-data idiom in `bb_alt.cpp`/`bb_det_*.cpp`, and the `g_flat_data_*` adjacent-data section in emit_bb.c). The BUILDER is NOT relocated (it runs in-image), so it reaches the template normally: `lea rdi,[rip+matcher_label]; mov esi,L; call pat_pool_emit` → head in rax. Only the COPIED matcher must be self-contained. ⚠️ BOTH-MEDIUM rule applies: the matcher emission must be correct in BINARY and TEXT arms — that doubling is the bulk of the remaining LEN work, so budget a fresh session's headroom for it.
-
-**Your first move = the LEN crux — THREE edits (the earlier "defer landed" was REVERTED, wrong ABI). Target: `PAT = LEN(2); S ? PAT` runs == oracle.** GATE AFTER EACH (build green · 6/6 PB-GREEN byte-identical · the rung == `sbl -b`):
-- ⛔ **HEAD ABI CORRECTED (Lon, 2026-06-23f) — the head reaches a BB GLOB, so the SUBJECT IS NOT IN THE ABI.** `r13=Σ`, `r14=δ`, `r15=Δ` are **ambient**, established **ONCE by BB_SCAN**; every glob (incl. a deferred pattern glob) runs the SAME live subject. The head is `bb_box_fn(void *zeta /*r12 = per-activation ζ frame*/, int entry /*α=0 β=1*/)` — subject via the live registers, NEVER as args. **The prior `int head(subj,cur,len)` C-callable form is REVERTED (SCRIP `2b0459e`):** threading the subject as args implied a per-glob subject AND went through a C call that clobbers the ambient registers. The defer→head transition therefore must be reached from EMITTED code (where BB_SCAN's r13/r14/r15 are still live), NOT a C detour. `pat_pool_emit` substrate (`8449423`) stands — ABI-independent.
-1. **Emit a self-contained relocatable LEN matcher** = a sealed, labeled four-port x86 box (model on `bb_lit()`/`bb_match_len()`) reading AMBIENT `r13/r14/r15` — NO args. For `LEN(I)`: **α** — `eax=r14d+I; cmp eax,r15d; jg ω; r14d+=I; →γ`; **β** — `r14d-=I; →ω`. Fully position-independent (no data, no external call — matches any I chars; I baked as immediate). The four ports (α/β/γ/ω) become the glob's entry/resume/succeed/fail wiring — for a single leaf reached by the defer broker, γ/ω just signal back to the defer site. Emit behind a label (skip at builder-exec time with `jmp over` so the bytes are copy-source only). L via `emitter_end()` delta (`bb_emit_pos`/`g_emit_pos`) or a verified constant. BOTH-MEDIUM via `x86()`.
-2. **IR_PATTERN_LEN builder** — replace the `bb_pattern_unary_i` stub at `emit_core.c:370`: after the sealed matcher at label `M`, the builder (NOT relocated; in-image) emits `lea rdi,[rip+M]; mov esi,L; call pat_pool_emit` → head in rax. **IR_DTP_ASSIGN** (`emit_core.c:386`): `DESCR_t{.v=DT_P,.p=head}`, `NV_SET_fn("PAT",descr)`. So `PAT=LEN(2)` relocates a FRESH LEN matcher into pat_pool every execution (variant ✓) and stores DT_P.
-3. **DEFER → head in EMITTED `bb_match_defer`** (not C): currently it calls `rt_defer_match` (keep that for the `DT_S` flatten path). Add a runtime check on `PAT.v`: when `DT_P`, load `.p` (head), set `r12` = the pattern ζ frame (the broker — alloc/cache per `seed/test_sno_6.c`; for LEN the frame is empty so this can be minimal), then **jmp into head.α with r13/r14/r15 ambient-live**; head's γ advances `r14` and returns control to the defer site's γ, ω→ω. This is the test_sno_6 broker realized in the emitter (push/set/pop r12 around the jmp-in). Gate; `PAT=LEN(2);S?PAT` == oracle.
-Then, in order, GATING EACH: **BREAK** (`IR_PATTERN_BREAK` @ `emit_core.c:368` — first data-bearing box: seal the cset ADJACENT, reach `[rip+disp]`, `call strchr` absolute) → **CAPTURE** (`IR_PATTERN_CAPTURE` @ `:384`, makes r2 ⇒ `W=alpha`; capture writes the matched span via the existing `rt_dcap_*` sink — the same one the inline `. var` path uses) → **CAT** (`IR_PATTERN_CAT` @ `:382`, needs a pat_pool *stitch* primitive beside `pat_pool_emit` — patch one pool blob's γ/ω port to the next pool entry, REUSING the `flat_drive_match` port-patch shape, do not invent a second stitch). Then TR-4: roman/mixed_workload/string_pattern green at G0.
-
-**Why this session stopped here (not a burn — a banked advance):** prior 5 sessions died as design→notes→reset with ZERO commits. This session landed the relocate substrate (gate-passing, pushed at `8449423`) AND resolved the head/broker/memcpy architecture above. The remaining crux is intricate absolute-addressing asm best done with fresh headroom — it is now a precise 3-edit task, not an open design question.
-
-**Setup (5 min):** clone `.github`, `corpus`, `SCRIP`, `x64` (cred in first message). `cd SCRIP; apt-get install -y libgc-dev; make; make libscrip_rt`. Oracle = `/home/claude/x64/bin/sbl -b FILE`. Then recreate the tri-probe + tiny rungs:
-```bash
-cat > /tmp/probe.sh <<'SH'
-#!/bin/bash
-f="$1"; SBL=$(/home/claude/x64/bin/sbl -b "$f" 2>&1)
-ASM=$(cd /home/claude/SCRIP && ./scrip --compile "$f" </dev/null 2>/tmp/perr)
-[ -z "$ASM" ] && { echo "SCRIP COMPILE EMPTY/BOMB"; cat /tmp/perr; echo "--ORACLE--"; echo "$SBL"; exit 1; }
-echo "$ASM" | gcc -no-pie -x assembler - -L/home/claude/SCRIP/out -lscrip_rt -lgc -lm -Wl,-rpath,/home/claude/SCRIP/out -o /tmp/pp 2>/tmp/gerr || { echo "GCC LINK FAIL"; tail -5 /tmp/gerr; exit 1; }
-SC=$(/tmp/pp 2>&1); echo "--SCRIP--"; echo "$SC"; echo "--ORACLE--"; echo "$SBL"
-[ "$SC" = "$SBL" ] && echo "*** MATCH ***" || echo "*** DIFFER ***"
-SH
-chmod +x /tmp/probe.sh
-# tiny rungs (END MUST be column 1, else oracle says "No END statement found"):
-printf "        PAT = LEN(2)\n        S = 'CDab'\n        S ? PAT . W\n        OUTPUT = 'W=' W\nEND\n" > /tmp/r1.sno   # stored single-leaf
-printf "        PAT = BREAK(',') . W\n        S = 'alpha,beta'\n        S ? PAT\n        OUTPUT = 'W=' W\nEND\n" > /tmp/r2.sno  # stored capture → oracle W=alpha
-printf "        S = 'alpha,beta'\n        S ? BREAK(',') . W\n        OUTPUT = 'W=' W\nEND\n" > /tmp/i2.sno          # INLINE control (green)
-```
-Verify TR-1 landed: `cd /home/claude/SCRIP && ./scrip --dump-ir /tmp/r2.sno </dev/null 2>&1 | grep IR_PATTERN` shows `IR_PATTERN_BREAK` + `IR_PATTERN_CAPTURE[W]`. `/tmp/probe.sh /tmp/r2.sno` shows scrip BOMB `bb_pattern_unary_s: DT_P builder pending` (the stub TR-2 fills). Bench files: `/home/claude/corpus/benchmarks/snobol4/*.sno` — targets `mixed_workload`, `string_pattern` (both now reach the same builder stub), `roman` (bombs earlier on scan-replacement). Floor to protect: 6 PB-GREEN benches' `.s` must stay byte-identical (`arith_loop op_dispatch pattern_bt string_concat fibonacci table_access`).
-
----
-
-# ⛔⛔⛔⛔ GROUND ZERO — 5TH RESTART (Lon, 2026-06-23c)
-
-**Lon's words this session:** "You are starting at ground zero for the 5th time." Four prior sessions read the BB-storage design, wrote increasingly elaborate handoff notes, seeded golden C (`test_sno_5`, then `test_sno_6`), and **ran out of context before landing a single line of working stored-pattern codegen.** The pattern keeps repeating: design → notes → reset. **THE ONLY ACCEPTABLE OUTPUT THIS RUNG IS LANDED CODE THAT MOVES A BENCH.** Stop re-deriving the mechanism. Stop adding golden seeds. Build the smallest thing that makes a real `.sno` capture, gate it, commit it, repeat.
-
-
-**Directive (Lon, 2026-06-23c):** "Get R12/zeta processing working for **tiny rungs** up until the `corpus/benchmarks/snobol4/*.sno` tests." → Build the stored-pattern path bottom-up on hand-written one-liners (the TR-ladder below), each gated, until the three BOMB benches (roman, mixed_workload, string_pattern) drive green at G0.
-
-## 🟢🔴 LIVE REALITY CHECK — verified vs sbl oracle THIS session (`dd17db1`, fresh build)
-
-Tri-probe (`scrip --compile | gcc | run` vs `sbl -b`), **column-1 `END` required** (indented END → oracle "No END statement found"):
-
-| rung | program | scrip result | oracle | disposition |
-|------|---------|-------------|--------|-------------|
-| i1 | INLINE `S ? LEN(2) . W` | `W=CD` | `W=CD` | ✅ inline capture WORKS |
-| i2 | INLINE `S ? BREAK(',') . W` | `W=alpha` | `W=alpha` | ✅ inline BREAK+capture WORKS |
-| **r1** | STORED `PAT=LEN(2); S ? PAT . W` | **BOMB** `bb_pattern_unary_i: DT_P builder pending` | `W=CD` | construction-time bomb |
-| **r2** | STORED `PAT=BREAK(',') . W; S ? PAT` | `W=` (silent miss) | `W=alpha` | **pattern value DROPPED at lower** |
-| r0 | `OUTPUT = (S ? 'C' 'D') 'lit'` | BOMB `bb_gvar_assign_concat: no parts` | `CDmatched-lit` | ORTHOGONAL (match-as-expr concat) |
-
-**ROOT CAUSE of r2 (the cleanest target), traced to the line:** `--dump-ir /tmp/r2.sno` shows node `IR_ASSIGN sval="PAT"` with **NO operand subgraph** — the RHS `BREAK(',') . W` was dropped entirely. In `src/lower/lower_snobol4.c`:
-- `sno_leaf_buildable` (L508) does NOT accept `TT_CAPT_COND_ASGN` (the `. W` wrapper) → `sno_seq_buildable` (L525) returns 0 for `BREAK(',') . W`.
-- So `lower_assign` (L586) skips the `IR_DTP_ASSIGN`+`IR_PATTERN_CAT` builder (L687–714, which ALREADY EXISTS and works for capture-free SEQs) and falls to L717–722 which **orphans** the pattern (allocs a bare `IR_ASSIGN_CONCAT`+`IR_SEQ` and returns NULL). PAT is never assigned → null → `IR_PAT_DEFER` matches nothing.
-
-**⇒ TR-LADDER (build order — each gated before next):**
-- **TR-0 ✅** — reality check above (DONE this session). Tri-probe + END-col-1 fact established. No code.
-- **TR-1** — extend `sno_leaf_buildable`/`sno_build_leaf_ir` to accept `TT_CAPT_COND_ASGN` (wrap the inner leaf's `IR_PATTERN_*` in the existing capture mechanism that inline `IR_PAT_ASSIGN_COND` uses — find how i2 lowers capture inline and reuse it). Target: `--dump-ir r2.sno` shows PAT assigned a real CAT(BREAK, CAPTURE(VAR W)) graph. NO r12 work yet.
-- **TR-2** — make `IR_PAT_DEFER` actually RUN the stored graph with capture landing. THIS is where the BB_SWITCH r12-broker enters (golden `seed/test_sno_6.c`): the deferred site allocs a pattern-ζ frame, jmps the stored body, capture writes land in the right plane. Target: r2 ⇒ `W=alpha` == oracle.
-- **TR-3** — r1 (stored `PAT=LEN(2)`): close `bb_pattern_unary_i` construction bomb (single-leaf stored pattern, no SEQ). Target: r1 green.
-- **TR-4** — point the now-working stored path at the real benches: roman, mixed_workload, string_pattern → green at G0. Gate: smoke M3/M4 7/7 · pat-rung 19/19 · fence T1=T2=0 · broad-corpus ≥170 · PB-GREEN 6/16 floor holds.
-
-**Build (confirmed working this session):** `apt-get install -y libgc-dev` → `make` (→ `scrip`) → `make libscrip_rt` (→ `out/libscrip_rt.so`). Oracle `git clone …/x64 /home/claude/x64`; `sbl -b`. Tri-probe script in `/tmp/probe.sh` (regenerate from this file if lost).
-
-## ⛔ DIRECTION LOCKED (Lon, 2026-06-23c) — ALL PATTERNS VARIANT · BUILD FROM SCRATCH IN STAGE 2 · NO CONSTANT FOLDING
-
-**Lon overruled the Path-B detour (see retraction below).** The pattern-building stage (STAGE 2 of the ARCH-SNOBOL4 5-phase statement model — `1 build subject · 2 BUILD PATTERN · 3 run · 4 build repl · 5 replace`) **builds the PATTERN from scratch AT RUNTIME, every execution.** Assume — knowingly incorrectly, as a correctness-first baseline — that **EVERY pattern is VARIANT and must be rebuilt from scratch.** NO invariance detection, NO compile-time sealing, NO build-once caching. Constant folding (build invariant patterns once) is a LATER optimization; when we get there it goes behind a **C-macro/variable toggle** (`#ifdef SNO_PAT_FOLD`, default OFF) so the variant baseline always remains the reference. **Do not write the fold path now.**
-
-**⛔ RETRACTED — PATH B (compile-time seal + reference) is DEAD.** A prior turn this session detected pattern invariance (`sno_pat_invariant`) and lowered invariant stored patterns to a SEALED `IR_PAT_*` matcher graph emitted once at compile time, referenced via the `DT_P` head. **That IS the forbidden constant folding** (stage-2 build is RUNTIME, not compile time). Fully reverted (`src/lower/lower_snobol4.c` back to byte-identical `dd17db1`). Do not reintroduce.
-
-**THE PATH = the `IR_PATTERN_*` RUNTIME BUILDER family** (literally the "PATTERN" nodes), NOT the `IR_PAT_*` matcher family. Distinction, now firm:
-- **`IR_PAT_*` (matcher).** Emitted INLINE at the scan site, runs the match directly (fused build+run). What `S ? BREAK(',') . W` inline lowers to; i1/i2 green. Fine for inline; NOT the stored-pattern vehicle.
-- **`IR_PATTERN_*` + `IR_DTP_ASSIGN` (RUNTIME BUILDER) — THE TARGET.** `PAT = BREAK(',') . W` must lower here. At RUNTIME, stage 2 executes builder boxes that CONSTRUCT the pattern object from scratch — per the DDS mandate, **template-emitted (`x86()`) boxes that relocate element-matcher code into the RWX `pat_pool` (`src/runtime/rt/pat_pool.c`) and stitch ports DIRECTLY (no `DTP_t` head)** — yielding a `bb_box_fn` graph head = the `DT_P` value stored in PAT. `IR_PAT_DEFER` loads `.p` (the head) and jmps in (Σ/δ/Δ live from the SCAN subject). The whole `IR_PATTERN_*` family currently dispatches to `bb_pattern_stub` BOMB (emit_core.c L364–386) — THAT is the ground-zero work to fill in.
-
-**RUNTIME PATTERN REPRESENTATION (confirmed this session):** `pat_pool` is an `mmap` RWX arena (`g_pat_pool_base/_cur/_end`, `PROT_EXEC`, ctor-initialized). A built pattern lives there as relocated+stitched box code; the `DT_P` descr's `.p` slot holds its head (`bb_box_fn`). This is the surviving half of `dtp.h` (head struct + protos deleted by DDS-0; pat-pool kept). The builder boxes write into `pat_pool_cur` and bump it.
-
-## TR-LADDER (CORRECTED — all-variant runtime build):
-- **TR-0 ✅** reality check (DONE — see table above).
-- **TR-1 ✅ (LANDED, SCRIP `7d6a9c9`)** — capture patterns routed to the BUILDER, not the orphan-drop. `sno_leaf_buildable` (L508) + `sno_build_leaf_ir` (L535) now accept `TT_CAPT_COND_ASGN`/`TT_CAPT_IMMED_ASGN` → emit `IR_PATTERN_CAPTURE` (sval=target name, ival=1 immediate `$` / 0 conditional `.`) wrapping the inner `IR_PATTERN_*`; bare-capture RHS routed to a single-leaf `IR_DTP_ASSIGN` builder. VERIFIED: `--dump-ir r2.sno` shows `IR_DTP_ASSIGN → IR_PATTERN_BREAK → IR_PATTERN_CAPTURE[W]`; **mixed_workload + string_pattern now reach the builder stub** (`bb_pattern_unary_s: DT_P builder pending`) instead of silent-miss. NO codegen drift (6 PB-GREEN `.s` byte-identical; i1/i2 inline still green). 21-line single-file diff.
-- **TR-2 (the core)** — implement the RUNTIME builder boxes as template-emitted (`x86()`) into `pat_pool`, smallest first: LIT, then BREAK, then CAPTURE, then CAT. Each box, at runtime: relocate its element-matcher code into `pat_pool_cur`, patch its γ/ω ports to the prior box, bump cursor; `IR_DTP_ASSIGN` writes the head as a `DT_P` to NV[PAT]. Gate after EACH box (build green; the box's tiny rung runs == oracle). REUSE the compile-time `flat_drive_match` port-patch model — do not invent a second stitch.
-- **TR-3** — `IR_PAT_DEFER` (`bb_match_defer.cpp`) routes `DT_P` values: load `.p` head, jmp in; keep the `DT_S` string path (`rt_defer_match`) for flattened-literal stored patterns. Gate: r2 ⇒ `W=alpha` == oracle.
-- **TR-4** — roman/mixed_workload/string_pattern green at G0. Full gate (smoke M3/M4 7/7 · pat-rung 19/19 · fence T1=T2=0 · broad-corpus ≥170 · PB-GREEN 6/16 floor).
-
-
-# ⛔⛔⛔ SESSION-FIRST RUNG — DTP-DIRECT-STITCH
-
-**Mandate (2026-06-22, Lon):** Runtime-constructed PATTERN datatype (`*P` deferred / `PAT = BREAK(',') . WORD ','` stored-pattern) must be built from **template-emitted BB boxes stitched DIRECTLY port-to-port**. Kill the hand-coded byte arrays AND kill the `DTP_t` head indirection.
-
----
-## ⛔ REQUIRED DESIGN READING — BB LOCAL STORAGE (read BEFORE any DDS step)
-
-This rung is entirely about template-emitted Byrd boxes and where their per-box state lives. These ARE the design — read them first, not as background:
-- `ARCH-x86.md` §"Boxes are stackless" + §"Flat-BB ABI"
-- `ARCH-ICON.md` §"register contract" (the ζ-frame model — verbatim for SNOBOL4)
-- `REGISTER-LAYOUT.md` (register convention; SM-era top banner is SUPERSEDED)
-- `src/emitter/bb_regs.h` — SINGLE source of truth for register roles
-- `src/emitter/XA_templates/xa_flat.cpp` — how the glob preamble sets r12
-- **`SCRIP/seed/test_*.c` — THE FIVE HAND-WRITTEN GOLDEN BB GRAPHS. Read all five. They are a deliberate ζ-storage ladder; each rung holds α/β/γ/ω + Σ/Δ/Ω constant and varies ONLY how ζ-local storage is partitioned/allocated:**
-  - `test_icon.c` — `every write(5 > ((1 to 2)*(3 to 4)))`. ζ-storage = **none**; every local is a flat C int. Generators, no backtrack state, no frames. The degenerate floor.
-  - `test_sno_1.c` — `POS(0) ARBNO('Bird'|'Blue'|LEN(1)) $ OUTPUT RPOS(0)`. ONE flat `_1_t ζ[64]` depth-indexed array, single function. ARBNO ⇒ array-by-depth (storage **C**), but one frame type. (NOTE: the literal `[64]` is the TEACHING version — the end-state is a **realloc'd growable array**, Lon 2026-06-23.)
-  - `test_sno_2.c` — treebank grammar (`group`/`word`/`delim` mutually recursive). Per-nonterminal `*_t` structs, each with its own `_NN_a[64]` ARBNO sub-array, callee frames **stack-inline** (a C local in the caller's activation).
-  - `test_sno_3.c` — arith-expr grammar (`V I E X C`, deeply recursive `X`). Per-procedure structs holding `*_ζ` **POINTERS to callee frames**, lazily `calloc`'d via `enter()` and `memset`-reused on re-entry. THIS is the re-entrancy mechanism (ARCH-x86 "fresh DATA block per α-entry") made concrete — the model for recursive/stored patterns.
-  - `test_sno_4.c` — `'SUBJECT' ? 'J' a` w/ predicate. Same pointer-to-callee model boiled to the `ENTER` macro. Cleanest distillation (fragment; references an external `a()`).
-  - `test_sno_5.c` — **GLOB-HEAD-SETS-R12 GOLDEN (Lon mechanism, 2026-06-23).** Stored `*P` ( `PAT = 'C' 'D'` ) reused at TWO match sites: ONE code body, TWO distinct ζ instances. Each glob HEAD presents outside γ/ω + inside α/β; head's α AND β each set the SINGLE frame pointer R12 (α=fresh frame, β=RELOAD after inter-glob excursion clobbered it). Proves the TWO ζ PLANES (section + pattern) TIME-MULTIPLEX one register — NOT two. All boxes LIT (save-nothing). Compiles + runs; R12-trace makes the swap empirically visible. THIS IS THE DDS-1 EMITTER TARGET.
-
-**Register convention (bb_regs.h — LIVE, GROUND ZERO 3).** r12=ζ RW frame base `[r12+off]` · r13=Σ subject base · r14=δ cursor (0-based; `&pos=δ+1`) · r15=Δ subject length · r10=per-blob RO DATA (`lea r10,[rip+Δ]`→`[r10+N]`) · rbx=DESCR base · rbp=NV hash base. **r12 is NOT a value stack.** `FR(off)`=`dword ptr [r12+off]`, `FRQ(off)`=`qword ptr [r12+off]` (x86_asm.h).
-
-**The four ways BB-local storage is realized (and the one that is DEAD):**
-- **A. ζ frame `[r12+off]` — PRIMARY.** Bounded, statically-known per-box RW slots (cursor saves, counters, captured DESCRs). ONE consolidated frame per glob; slots from `bb_slot_alloc16`/`bb_slot_claim`. Static `jmp` wiring; a consumer reads its producer's slot directly.
-- **B. RO constants `[rip+disp]`.** Per-box compile-time constants (csets, match literals, LEN/POS counts) sealed adjacent to the blob; the `[r10+N]` flat-BB data block. Never written at match time. Idiom: `lea rdi,[rip+cset]; call strchr`.
-- **C. per-box `.bss` arena indexed by depth.** UNBOUNDED backtrack state (ARBNO, recursion). NEVER a global stack. Ref: `bench/test_sno_1.c` `_1[64]`/ζ array.
-- **D. (DEAD/SUPERSEDED).** SM value-stack on r12 (FORTH push/pop) + heap DATA-block tree walked by r10. SMX-4 deleted the SM engine. DO NOT reintroduce. The deleted `DTP_t`-head + `rt_dtp_run` proto path was a relapse into this — and is exactly why r12 was misused: a stored pattern's box needs `[r12+off]`, but `rt_dtp_run` repurposed r12 from its C prologue. The fix is A, never a head.
-
-**Who establishes r12 — CONFIRMED MECHANISM (Lon, 2026-06-23). GLOB-HEAD SETS R12 ON α AND β.** Each BB GLOB (a BLOCK of BBs reachable via branch — the G2 trace below) has a HEAD box that presents the **outside γ/ω** (where the glob's caller wired success/fail) and the **inside α/β** (entry + resume that drive the glob's internal chain). **The head's α AND β each set r12 as their FIRST instruction.** Both ports, not just α — because an inter-glob excursion clobbers r12 (glob B's head loaded B's frame; when control returns to glob A via A's β resume, A's r12 is gone, so A's β must reload A's frame). This is the ARCH-x86 "extra-BLOB jump → destination reloads its LOCAL" rule, extended from α-only to α+β. It is TEMPLATE-EMITTED inside the head box — NO external C threading of a frame via rdi, NO per-pattern `DTP_t` head. Concretely: STATIC glob → α/β do `lea r12,[rip+frame]` (frame addr is a compile-time constant). PER-ACTIVATION pattern frame (stored/`*P`) → α sets r12 to the freshly-allocated frame; β restores it. RECURSIVE/ARBNO depth-indexed frame (storage **C**, realloc arena) → β must restore the RIGHT depth's frame, so the depth index must live in stable storage (section-ζ or a head-readable slot) — this wrinkle bites at ARBNO, NOT at LIT (DDS-1 frame is stable).
-
----
-## ⛔ ζ-PARTITION DESIGN — TWO PLANES + GRANULARITY LADDER (Lon + Claude, 2026-06-23)
-
-**The problem (Lon's words):** r12/ζ for sections of main + per-DEFINE'd-function statement-sets is GOOD, keep it. BUT patterns are different — `*P` (a stored pattern) shares emitted CODE across match sites yet needs a DISTINCT ζ INSTANCE per activation (recursion, or the same stored pattern reused/looped). Confirmed against real IR: `string_pattern.sno` line 6 `PAT = BREAK(',') . WORD ','` lowers to `IR_ASSIGN_CONCAT "PAT" ← IR_SEQ` (the stage-2 pattern tree, built once, stored); line 12 `S PAT = ''` lowers to `IR_SCAN "S"` whose pattern operand is `IR_PAT_DEFER "PAT"` — runs the stored tree, re-entered every loop iter. The `','` LIT box inside that tree IS DDS-1.
-
-**TWO ζ PLANES (do not merge):**
-- **Section-ζ (r12, existing model — KEEP).** Per G2-trace / G3-function. Holds loop counters (live across branch-loop iters), the MATCH-head cursor-save, the subject DESCR slot. Runs once-through; established by the trace's glob head.
-- **Pattern-ζ (separate, NEW).** The stored pattern tree's box storage. Allocated PER MATCH-ACTIVATION at the `IR_PAT_DEFER`/`IR_SCAN` site, sized from the pattern object's recorded slot-count, **realloc-grown** for any ARBNO inside. Established by the pattern glob's head (α sets r12 = this frame). MUST be separate from section-ζ: section frame is live for the whole trace (counter spans iters) while the pattern frame must be FRESH per activation, else a recursive/reused pattern aliases its own state. (test_sno_3 `enter()` = this plane; test_sno_2 section storage = the other.)
-
-**GRANULARITY LADDER (fine → coarse) — what shares ONE ζ:**
-- **G0** — every BB its own ζ. Trivial, wasteful. The CORRECTNESS FLOOR (always available per-box).
-- **G1** — one ζ per FINALLY-BUILT PATTERN (the stage-2 product). All boxes in one pattern tree share a frame.
-- **G2** — one ζ per TRACE: a maximal in-order run of statements where the head is label-reachable (branch target) and the tail are unlabeled fall-throughs. Single-entry straight-line ⇒ live ranges fit one frame. (`string_pattern.sno` traces: T0{&TRIM,&STLIMIT,PAT=,T1=,ITER=} · T1{OUTER,S=,RESULT=} · T2{INNER scan,RESULT=concat} · T3{DONE,2×OUTPUT=}.)
-- **G3** — one ζ per FUNCTION BODY, grouping several G2 traces, delimited by the GIMPEL `*_END` scope marker (e.g. `STACK.sno`: `:(STACK_END)` branches OVER the body during the one-time top-down pass; `STACK_END` closes the scope — this is also the DEFINE-skip).
-
-**ARBNO-style BB backtrack stacks → REALLOC'd growable arrays (Lon: "total dynamic").** Not the fixed `[64]`. Storage **C** with no ceiling.
-
-**DEFINE single-exec constraint.** DEFINE runs ONCE (registers the fn); the body is entered SEPARATELY and re-entrantly. NEVER share a ζ across DEFINE-time and body-call-time; any glob live multiple times (recursion, stored pattern reused) allocates its ζ PER ACTIVATION, never statically baked.
-
-**DDS PLAN (how to try, Lon "let's try some"):** prove the mechanism at **G0** on the real `','` LIT in `string_pattern.sno` (LIT is the save-nothing corner: β does `Δ-=len`, `len` is a `[rip+disp]` RO const, NO ζ slot), validating match-site/glob-head r12-set + port-to-port stitch + the per-activation frame FIRST; THEN coarsen the same PAT tree to **G1** (whole tree, one frame) as a pure optimization on a green base. Gate at each step (smoke M3/M4 7/7; PB-GREEN 6/16 floor holds). REUSE `flat_drive_match`/`walk_bb_flat` — do NOT invent a second stitch.
-
-**SEQUENCING (Lon, 2026-06-23) — the campaign order:** (1) toy with `seed/` first, then prove against real `corpus/benchmarks/snobol4/*.sno`. (2) Start **PER-BB (G0)** and get ALL benchmarks WORKING at WORST performance first — correctness before speed. (3) THEN ratchet up with GLOBing strategies in order G1 (per finally-built pattern) → G2 (per trace) → G3 (per function / `*_END` scope), measuring each. (4) Accumulating MULTIPLE strategies in-code switched by C var/macro was considered but is "probably way too much" — DEFERRED unless a clean A/B need arises.
-
----
-
-**TWO ABSOLUTE REQUIREMENTS:**
-1. **TEMPLATE-ONLY x86.** Every pattern-box instruction emitted through the `x86(...)` path (`BB_templates/x86_asm.h`), exactly like all other codegen. ZERO hand-typed machine-code byte arrays. The `const uint8_t bb_*_proto[]` arrays in `src/runtime/pattern_match.c` (`bb_lit_proto`, `bb_len_proto`, `bb_pos_proto`, `bb_rpos_proto`, `bb_tab_proto`, `bb_rtab_proto`, `bb_fail_proto`, `bb_rem_proto`, `bb_succeed_proto`, `bb_fence_proto`, `bb_abort_proto`, `bb_any_proto`, `bb_notany_proto`, `bb_span_proto`, `bb_break_proto`, `bb_breakx_proto`, `bb_arb_proto`) — ALL DELETED.
-2. **DIRECT BB STITCH, NO HEADS.** A compound pattern stitches the BB fragments themselves by patching each box's own γ/ω port (success → next box entry; fail → prior box fail-path), the SAME Byrd-box port-patching the compile-time emitter uses. The `DTP_t {entry, out_γ, out_ω}` 32-byte head indirection (`dtp.h`) and the `rt_dtp_run` trampoline that jumps THROUGH it are DELETED. Boxes connect port-to-port directly.
-
-**SCOPE (one excision-plus-rebuild, gated slices — do NOT half-delete and leave link failures):**
-- `src/runtime/pattern_match.c` — delete all `bb_*_proto[]` + `bb_*_proto_desc`; rework/delete `rt_pattern_build`/`rt_pattern_stitch_cat`/`rt_pattern_stitch_alt`/`rt_dtp_run`; the DT_P `pat_*` BOMB stubs become the real template-driven builders.
-- `src/include/dtp.h` — delete `DTP_t` head struct + proto externs; redefine stitch contract around direct port-patch.
-- `src/runtime/rt/pat_pool.c` — pat-pool now holds template-emitted relocatable boxes, not memcpy'd byte protos.
-- `src/emitter/BB_templates/bb_pattern_lit.cpp`, `bb_pattern_nullary.cpp`, `bb_pattern_arb.cpp`, `bb_pattern_unary_s.cpp`, `bb_pattern_unary_i.cpp` — rewrite to EMIT boxes via `x86()` (currently they pass `&bb_*_proto`/`&bb_*_proto_desc` addresses to the runtime builder — that whole hand-off dies).
-- `src/driver/scrip.c` — references to the proto path.
-- `src/attic/IR_interp.c` + `src/attic/runtime/` — dead proto copies; delete.
-
-**GATE:** `grep -rn 'bb_.*_proto\b' src/ (excl attic-deleted) == 0` · `grep -rn 'DTP_t\|rt_dtp_run' src/ == 0` · `grep -rnE 'bytes\(|u32le|u64le|u8\(' src/runtime/pattern_match.c == 0` · smoke M3/M4 7/7 · pat-rung M4 19/19 0-SKIP · fence T1=T2=0 · broad-corpus M4 ≥170 · `roman`/`mixed_workload`/`string_pattern` benches drive green via the new direct-stitch path (these are exactly the stored-pattern `BREAK . CAPTURE` cases — see PBG-3 below).
-
-## STEPS
-
-- [x] **DDS-0** — survey + contract DONE. Excision landed+gated (SCRIP `dd0d0a2`): all 17 `bb_*_proto[]`+`*_proto_desc`, `rt_dtp_run`, `DTP_t`/`DTP_FRAG_t`/`DTP_PROTO_DESC`, the 8 raw-`.byte` templates, `rt_pattern_build`/`stitch_{cat,alt}`/`dtp_head_build`, `rt_defer_match` DT_P branch, dead `src/attic/IR_interp.c` — all deleted; dispatch → `bb_pattern_stub` bomb (`emit_core.c`); `dtp.h`→pat-pool-only; `DESCR_t.p`→`void*`. Gates: proto/`DTP_t`/`rt_dtp_run`-in-src=0, raw-bytes-in-pattern_match=0, build green, 6/6 PB-GREEN byte-identical .s. **Contract CONFIRMED (Lon 2026-06-23): glob-head sets r12 on α+β — see REQUIRED DESIGN READING + ζ-PARTITION DESIGN above. Golden DDS-1 target = `seed/test_sno_5.c`.** Ground-zero rebuild state reached; DT_P correctly BOMBs at emit.
-- [ ] **DDS-1** — **CORRECTED TARGET (2026-06-23b): the LIT box is already done (`bb_lit()`, template-only, dispatched at emit_core.c:341). The real DDS-1 work is the BB_SWITCH r12-broker around the `IR_PAT_DEFER` (stored-pattern) glob** — stored-pattern READ currently drops CAPTURE because the deferred shared body has no broker-established ζ frame (inline capture works; stored does not — verified vs sbl). Emit the four-port BB_SWITCH (Q1/Q2 locked; golden = `seed/test_sno_6.c`) wrapping the deferred glob; verify `PAT=BREAK(',') . WORD; S ? PAT` ⇒ `WORD=alpha` == oracle. Gate green (PB-GREEN 6/16 floor) before next box.
-- [ ] **DDS-2..N** — one box per slice (LEN, POS, RPOS, TAB, RTAB, ANY, NOTANY, SPAN, BREAK, BREAKX, ARB, REM, FAIL, SUCCEED, FENCE, ABORT, CAT, ALT), each: rewrite template to emit, delete its proto, gate green.
-- [ ] **DDS-FINAL** — delete `DTP_t` head + `rt_dtp_run` once no box needs the trampoline; delete attic copies; full gate; PBG-3 benches green via direct-stitch.
-
----
-
-**⚠️ HANDOFF — 2026-06-23(b) · Claude Opus 4.8 · BB_SWITCH MECHANISM LOCKED + GOLDEN SEEDED + DEFER ROOT-CAUSE ISOLATED. SCRIP `2ede32b`→THIS (seed/test_sno_6.c added; zero codegen change, 6/6 PB-GREEN byte-identical). `.github` GOAL updated.**
-
-**Session: R12 mechanism redirect realized → golden re-derived → live reality check corrects the stale map.**
-
-**⛔ R12/ζ MECHANISM — NOW LOCKED (Lon, 2026-06-23b). Supersedes BOTH "α+β head two-liner" AND the earlier "DESCR-α/ω" sketch.** No box ever sets r12. r12 is established ONCE at the glob BOUNDARY, externally, by one of three sites — none an α/β first-instruction:
-- **STATEMENT glob** (G2, not re-entrant): r12 = `lea r12,[rip+frame]` at the XA statement-entry (compile-time-constant frame addr).
-- **PATTERN glob** (G1, stored `*P`, re-entered per loop-iter/recursion): r12 set by a **BB_SWITCH broker** at the DEFER call-site.
-- **FUNCTION glob** (G3, recursive): same broker, fresh frame per activation (DEFERRED — pattern case is DDS-1).
-
-**BB_SWITCH = a full FOUR-PORT box that brokers r12 (decisions Q1+Q2 locked this session):**
-- **Q1 (shape):** TWO entry sub-boxes — `switch.α`: `push r12; <establish callee frame>; mov r12,frame; jmp callee.α` · `switch.β`: `push r12; mov r12,cached; jmp callee.β`. TWO exit sub-boxes — `callee.γ → resume.γ`: `pop r12; jmp caller.γ` · `callee.ω → resume.ω`: `pop r12; jmp caller.ω`. Exactly one entry + one exit fire per traversal ⇒ push/pop balance. SEPARATE γ/ω resumes (no discriminant slot). The switch PRESENTS AS A NORMAL BYRD BOX ⇒ stitches port-to-port via `flat_drive_match`/`walk_bb_flat` unchanged.
-- **Q2 (cache slot):** the per-activation pattern-frame ptr is cached in a slot of the CALLER (section) frame — `[r12_caller+cache_off]`, read/written BEFORE r12 is swapped to the callee frame. Re-entrant for free (recursion ⇒ distinct caller activation ⇒ distinct cache slot; a `.bss` slot would alias). α allocs+caches; β reads the cached ptr.
-- **C-stack save** (Q1 from prior turn): the push/pop of r12 IS the ARCH-x86 "call-style extra-BLOB jump" — source BLOB pushes before the outbound jmp, pops at resume. Nests for free on recursion.
-- **Pattern-flavor switch saves ONLY r12** (Q2 from prior turn): Σ/δ/Δ (r13/r14/r15) are NOT touched — the subject flows continuously through a pattern; **BB_SCAN owns r13/r14/r15.** (A FUNCTION-flavor switch would also save the subject trio — out of scope for DDS-1.)
-
-**GOLDEN: `seed/test_sno_6.c` (NEW — SUPERSEDES test_sno_5.c).** Stored `PAT='C' 'D'` reused at 2 sites: ONE code body, DISTINCT pattern-frame instance, ONE register r12 set at section-glob entry (static) + swapped by the BB_SWITCH broker, NO box's first instruction. Site 2 (`PAT 'Z'`) forces a backtrack RE-ENTRY into PAT.β through a SECOND switch that RESTORES the cached frame. Compiles+runs (`gcc -std=gnu11 seed/test_sno_6.c`); R12-trace prints the save/restore at every boundary; two-site semantics oracle-confirmed (`sbl`: site1 match=CD, site2 fail). **THIS IS THE DDS-1 EMITTER TARGET.** test_sno_5.c is retired (its "head sets r12" thesis is dead).
-
-**🟢🔴 LIVE REALITY CHECK — the stale map was WRONG about where the gap is. Verified vs sbl this session:**
-- **The LIT box is ALREADY DONE.** `IR_PAT_LIT` dispatches (`emit_core.c:341`) to `bb_lit()` — a clean template-only `x86()` box (memcmp vs `[rip+lit]` RO const, bounds-check, `Δ+=N`/β:`Δ-=N`). The DDS-0 excision already removed `bb_lit_proto`; the live box is the template. **DDS-1 does NOT need a new LIT template.**
-- **Stored LIT works end-to-end:** `PAT='C' 'D'; S ? PAT` → compiles, runs, == oracle ("matched stored"). So a stored pattern's READ form (`S ? PAT`) with LIT boxes ALREADY matches at G0.
-- **THE ACTUAL ROOT CAUSE common to roman+mixed_workload+string_pattern = the `IR_PAT_DEFER` execution path drops CAPTURE.** `S ? BREAK(',') . WORD` **inline** captures correctly (`WORD=alpha` == oracle). The SAME pattern **stored** (`PAT=BREAK(',') . WORD; S ? PAT`) lowers the SCAN operand to `IR_PAT_DEFER "PAT"` and captures NOTHING (`WORD=` vs oracle `alpha`) — silent, no bomb. This is the stored-pattern ζ problem the BB_SWITCH exists to fix: the deferred shared body needs a broker-established pattern frame so capture-writes land correctly; inline works only because it's emitted in-place with the section frame already live.
-- **The `S PAT = ''` BOMB is a SEPARATE, narrower issue:** `bb_scan: TEXT(mode-4) non-literal pattern needs native PB-RB graph` fires from the gate in `flat_drive_scan_stmt` (emit_bb.c ~2448) which declines native when the REPLACEMENT flag `IR_LIT(pBB).ival` is set. This is the empty-repl splice — **orthogonal to r12/ζ** (it's subject replacement, not frame allocation). Independent of DEFER-capture.
-
-**⇒ DDS-1 AND PBG-3 CONVERGE: the one root is "make `IR_PAT_DEFER` run the stored pattern's BB graph with a broker-established ζ frame."** Empty-repl is a separable add-on once DEFER matches+captures correctly.
-
-**ROOT CAUSE NAILED (2026-06-23b, traced to the line):** `IR_PAT_DEFER` → `bb_match_defer()` (emit_core.c:458) → calls C runtime `rt_defer_match(varname, ival_flag, cur_delta)` (pattern_match.c:578). That C function ONLY handles a stored value of type `DT_S`/`DT_SNUL` (plain string: `strncmp`, return new cursor). For an actual PATTERN object (`DT_P` — the `BREAK . WORD` tree) it falls through to `return -1` (fail). It has NO boxes, so it CANNOT run a pattern graph and CANNOT capture — the `'C' 'D'` stored-LIT case only "works" because the value flattened to a string. **The fix is the BB_SWITCH: replace the `rt_defer_match` call in `bb_match_defer` with a broker that (a) establishes the pattern frame in r12 (alloc+cache per Q2), (b) jmps into the stored pattern's ALREADY-EMITTED BB body (the inline `BREAK . WORD` boxes already exist + already capture correctly — verified), (c) pops r12 on γ/ω.** The deferred site just needs to REACH those boxes with a live frame; the boxes are not the problem. `rt_defer_match` (and the `rt_dtp_run` residue, if any) then die. NOTE: this requires the stored pattern's BB graph to be emitted/reachable from the DEFER site (the pattern object must carry its emitted box-graph entry, per ARCH-SNOBOL4 "descr `.p` = box-graph head") — confirm how the `DT_P` value reaches the deferred SCAN site and whether its graph is emitted once (shared) or needs emit-on-first-DEFER.
-
-**NEXT SESSION (DDS-1, fresh context — this is a vertical slice, needs headroom):**
-1. Find the `IR_PAT_DEFER` emit path (grep `IR_PAT_DEFER` in emit_bb.c/emit_core.c; it currently runs the stored graph but capture lands in the wrong frame). Confirm whether DEFER today even re-enters the stored pattern's BB body or no-ops.
-2. Emit a **BB_SWITCH** (four-port, per Q1/Q2 above, modeled byte-for-byte on `seed/test_sno_6.c`) wrapping the deferred pattern glob: switch.α allocs+caches the pattern frame in `[r12_section+cache_off]`, pushes r12, sets r12=frame, jmps the stored body's α; resume.γ/ω pop r12. REUSE the `flat_drive_match` stitch — the switch is just another box in the chain.
-3. Verify capture lands: `PAT=BREAK(',') . WORD; S ? PAT` ⇒ `WORD=alpha` == oracle. THEN the read-form benches; THEN add empty-repl splice (the `flat_drive_scan_stmt` gate widen + `rt_scan_splice_empty`) for `S PAT = ''` → string_pattern/roman/mixed_workload green (+3 at G0).
-4. Gate: smoke M3/M4 7/7 · pat-rung 19/19 · fence T1=T2=0 · broad-corpus ≥170 · PB-GREEN 6/16 floor. THEN coarsen G0→G1 (whole pattern tree shares one frame) as pure optimization on green.
-
-**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt` (→ out/libscrip_rt.so). Oracle `/home/claude/x64/bin/sbl -b`. Tri-probe: `scrip --compile p.sno | gcc -no-pie - -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p && ./p` vs `sbl -b`. Benches: `corpus/benchmarks/snobol4/*.sno`.
-
----
-
-**⚠️ HANDOFF — 2026-06-23(a) · Claude Opus 4.8 · SCRIP CLEAN at `2ede32b` (WIP STASHED, not built). `.github` ONLY.**
-
-**Session: orientation-correction → native-match reality check → empty-repl WIP → Lon R12 redirect.** No SCRIP commit (WIP doesn't build). No gates run. Stash: `DDS-empty-repl-WIP-2026-06-23-not-built` (pop or discard per Lon's new R12 direction below).
-
-**⛔ CORRECTED ARCHITECTURE FACTS (stale docs misled prior orientation — verified against live code this session):**
-- **There is NO mode 2, no SM interpreter, no SM engine.** The driver (`src/driver/scrip.c:2129`) parses exactly TWO execution flags: `--run` (DEFAULT — build flat-wired x86 BB blobs in a sealed slab, jump in) and `--compile` (emit standalone x86-64 asm to stdout, links `out/libscrip_rt.so`). NO `--interp`, NO `--sm-interp`. `sm_interp_run`/`sm_jit_run`/`SM_sequence_t` = ZERO live files; the surviving `sm_*` names (`sm_lower` in one error string, `sm_preamble`, a `bb_exec_stmt` substring in `rs23_diag.c`) are vestigial. **The mode-2/3/4 numbering in PLAN.md + ARCH-SCRIP.md is STALE — do not trust it; the SM-based three-mode table in ARCH-SCRIP.md is dead.** Pipeline = ONE frontend (CMPILE.c for SNOBOL4) → AST → LOWER → IR/BB graph → two sinks: `--run` (sealed slab in-proc) / `--compile` (asm text). REGISTER-LAYOUT.md's lower SM section is also dead; its top banner (bb_regs.h table) is the only live part.
-
-**🟢 MAJOR FINDING — "one r12 per BB" ALREADY WORKS for the entire non-literal MATCH space (verified vs sbl oracle this session):**
-- Build needs BOTH `make` AND `make libscrip_rt` (→ `out/libscrip_rt.so`); oracle = `/home/claude/x64/bin/sbl -b`. Benches live at `corpus/benchmarks/snobol4/*.sno` (NOT `SCRIP/corpus/...`).
-- The match-box machinery is LIVE and per-BB-framed: `IR_SCAN` (flat walker `emit_bb.c:3232`) → `flat_drive_scan_stmt` → `flat_drive_scan_native` (`emit_bb.c:2400`) → `flat_drive_match` (`emit_bb.c:2522`, builds `IR_PAT_MATCH_HEAD`/`RETRY`/`ADVANCE` + walks the pattern tree) → `bb_match_{head,retry,advance}.cpp` + dcap capture (`rt_dcap_*`). Each match uses ONE frame slot `FR(op_off)` on r12 (head start-cursor save), r13=Σ, r14=δ, r15=Δ. This IS G0.
-- **VERIFIED CORRECT end-to-end (compile→gcc→run == oracle):** `S LEN(3)` → "matched"; `S BREAK(',') . W` → "W=alpha". Pure-match LEN, BREAK, and conditional-CAPTURE (`. W`) all emit native and run byte-correct. The PBG-3 `sno_leaf_buildable`-orphan diagnosis was about the STORED (`PAT = …`) case only — INLINE capture lowers fine to `IR_PAT_ASSIGN_COND → IR_PAT_BREAK` and works.
-- **THE ONLY GAP blocking roman + mixed_workload + string_pattern = the REPLACEMENT form `S PAT =`.** The native gate in `flat_drive_scan_stmt` declined whenever `IR_LIT(pBB).ival` (is_repl) was set — even for an EMPTY replacement — and fell through to the `bb_scan_stmt` BOMB (`.S11` "non-literal pattern needs native PB-RB graph"). Probe confirmed: `S LEN(3) =` → trace `ival=1` → declined → BOMB; `S LEN(3)` (no `=`) → `ival=0` → native → runs. This is exactly the lost-stash `IR_SCAN_REPL_EMPTY` work.
-
-**WIP THIS SESSION (stashed `DDS-empty-repl-WIP-2026-06-23-not-built`, 3 files, does NOT build — missing header decl + Makefile entry):**
-- `pattern_match.c`: `rt_scan_splice_empty(subj_name, m_start, m_end)` — splices `Σ[0:m_start]+Σ[m_end:]`, assigns back (mirrors `rt_scan_lit` replace; reads globals `Σ`/`Σlen` set by `rt_subject_load_nv`). Plus `g_rt_mstart`/`rt_match_start` (unused — earlier draft).
-- `emit_bb.c`: `g_match_start_slot` global = head's start slot; `flat_drive_scan_native` gains `is_empty_repl` param + emits splice at `dcap_ok`; gate widened to enter native when repl is empty-literal (`is_empty_repl = ival && replace_lit && !replace_lit[0]`).
-- `bb_scan_splice_empty.cpp` (NEW, template-only `x86()`, modeled on `bb_match_capture`: `lea rdi=name; mov esi=FR(start_slot); mov edx=r14d; aligned call`). **To build it needs: decl in `bb_templates.h` (~line 37 by `bb_match_capture`) + add `.cpp` to Makefile obj list.** Unchecked risk: splice reads m_start from `FR(g_match_start_slot)` — valid only if the head slot survives to `dcap_ok` across the dcap wrapper; if wrong, record start into a runtime global from `bb_match_head`/`advance` instead.
-
-**⛔⛔ NEW LON DIRECTIVE — R12-SET MECHANISM REDIRECT (2026-06-23, supersedes "α AND β set r12"):** The two-line template (α/β first-instr sets r12) is a DEAD END — "we are stuck with two-line template code; we have no way to extend it out to BB GLOBS." Instead:
-- **For PATTERNS:** set r12 inside the **DT_P DESCR_t data that carries the `bb_box_fn`**, at the box-graph's **α (entry) AND ω (exit)** — NOT β. The pattern value (descr `.p` slot reborn as box-graph head, per ARCH-SNOBOL4) owns its r12-set at its own entry/exit ports.
-- **For externally-reachable BLOCKS of statement code:** same treatment — the block sets r12 at its reachable entry.
-- Net: r12-establishment moves from "every glob-head α+β two-liner" to "pattern DESCR_t entry/exit (α/ω) + statement-block entry." Re-derive the DDS-1 plan and `seed/test_sno_5.c` model under this α/ω-in-DESCR framing before resuming codegen.
-
-**NEXT SESSION:** Decide first whether to (a) finish the small empty-repl wire-up (header decl + Makefile + gate: `S LEN(3) =` repro, then string_pattern/roman/mixed_workload tri-probe, smoke 7/7, pat-rung 19/19, fence T1=T2=0, broad-corpus ≥170) to bank +3 benches at G0 NOW, OR (b) first refactor r12-establishment to the new DESCR-α/ω model and rebuild empty-repl on top. The empty-repl splice itself is orthogonal to the r12 mechanism (it's about subject replacement, not ζ allocation), so (a) can likely land independently and bank green before (b) reshapes the ζ plane.
-
----
-<!-- SESSION-FIRST RUNG — PBG-GREEN · ALL 16 SNOBOL4 BENCHMARKS WORKING -->
-
-# ⛔⛔⛔ SESSION-FIRST RUNG — PB-GREEN · ALL 16 SNOBOL4 BENCHMARKS WORKING
-
-**Mandate (2026-06-19 PIVOT):** get every benchmark in `corpus/benchmarks/snobol4/*.sno` WORKING in mode-4 (`--compile`) AND result line matches sbl oracle. Session-first rung.
-
-**TRUE BASELINE (2026-06-22 @ `e789f1e`, after PBG-2): 6/16 genuine green.** Green = {arith_loop, op_dispatch, pattern_bt, string_concat, fibonacci, table_access}. `string_manip` = PERF timeout; `indirect_dispatch` = XFAIL (sbl ERROR 022). DONE = 15 runnable green + 1 xfail with real `ms:`.
-
-| # | bench | verdict | CAUSE |
-|---|---|---|---|
-| 1 | arith_loop | ✅ | — |
-| 2 | op_dispatch | ✅ | — |
-| 3 | pattern_bt | ✅ | — |
-| 4 | string_concat | ✅ | — |
-| 5 | fibonacci | ✅ | — |
-| 6 | table_access | ✅ | — |
-| 7 | string_manip | ❌ timeout @5M | **PERF** |
-| 8 | var_access | ❌ timeout @10M | **PERF** |
-| 9 | func_call | ❌ timeout @10M | **PERF** |
-| 10 | func_call_overhead | ❌ timeout @10M | **PERF** |
-| 11 | eval_fixed | ❌ OOM @1M | **EVAL-CHURN** |
-| 12 | eval_dynamic | ❌ OOM @1M | **EVAL-CHURN** |
-| 13 | roman | ❌ BOMB | **SCAN-NONLIT-M4** |
-| 14 | mixed_workload | ❌ BOMB | **SCAN-NONLIT-M4** |
-| 15 | string_pattern | ❌ BOMB | **SCAN-NONLIT-M4** |
-| 16 | indirect_dispatch | ⚠️ XFAIL | **ORACLE-ERROR** |
-
-**GATE:** bench green count non-decreasing · smoke M3/M4 7/7 · pat-rung M4 19/19 0-SKIP · fence T1=T2=0 · broad-corpus M4 ≥170. DONE = 15/16 correct + 1 xfail with real `ms:`.
-
-**Bench runner:** `scripts/test_bench_snobol4_modes.sh`. Bench dir: `corpus/benchmarks/snobol4/`. Oracle: `/home/claude/x64/bin/sbl -b`. Tri-probe: `scrip --compile p.sno | gcc -no-pie - -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p && ./p` vs `sbl -b p.sno`.
-
-## STEPS
-
-- [x] **PBG-0** — `.ref` files verified byte-equal to oracle · honest runner · xfail marker.
-- [x] **PBG-1** — fibonacci GREEN (REENTRANT-FRAME: DESCR-pure `rt_num_arith` for CALL+CALL arith). SCRIP `cff870a`.
-- [x] **PBG-2** — table_access GREEN (IR_IDX/IR_IDX_SET wired; `T<3>=99;OUTPUT=T<3>`→99; D2 mixed arith `SUM+T<I>`). SCRIP `e789f1e`, corpus `e9130815`.
-- [ ] **PBG-3 — NON-LITERAL SCAN in M4 → roman + mixed_workload + string_pattern green (+3).**
-  Close `bb_scan: TEXT(mode-4) non-literal pattern`. Route named-var/literal subject + non-literal pattern + empty replacement through native scan chain in M4.
-
-  **⚡ DIAGNOSIS (2026-06-22, Sonnet 4.6 emergency handoff — WIP stashed as `PBG-3-WIP-2026-06-22-gates-not-green`):**
-  Three separate blockers found:
-
-  **(A) roman.sno** — TWO scans: (1) `N RPOS(1) LEN(1) . T =` (named-var + inline + empty repl) → new native route fires; (2) `'0,...' T BREAK(',') . T` (literal-subj + inline DEFER+BREAK+CAPTURE) → native route fires but returns empty result. Root cause of (2) not fully isolated — likely `flat_drive_scan_native` with literal-subj + inline capture failing silently.
-
-  **(B) mixed_workload + string_pattern** — `PAT = BREAK(',') . WORD ','` → `lower_assign` ORPHANS it: `sno_seq_buildable` returns 0 because `TT_CAPT_COND_ASGN` is not in `sno_leaf_buildable`. PAT is never set → DTP path gets null value → no-op match → WORD never set, S never modified. FIX: add `TT_CAPT_COND_ASGN` to `sno_leaf_buildable` (returns 1) AND implement `sno_build_leaf_ir` for the capture-wrapper case AND implement `bb_pattern_capture` proto blob (S3/B8 feature — `emit_core.c:385` is the stub). This is significant work.
-
-  **WIP CHANGES IN `git stash` (`PBG-3-WIP-2026-06-22-gates-not-green`):**
-  - `IR_SCAN_REPL_EMPTY` IR kind (IR.h + scrip_ir.c)
-  - `rt_scan_repl_empty(name, long start, long end)` runtime (pattern_match.c) — uses global Σ/Σlen; DESCR_t output; start=FRQ(match_st+8), end=r14
-  - `bb_scan_repl_empty.cpp` template — reads `FRQ(_.op_off+8)` (DESCR_t payload), `r14` (64-bit); no β def (replacement never backtracks)
-  - **DESCR_t enforcement:** `bb_match_head/retry/advance` — match-state slot now `{DT_I, cursor}` at `FRQ(op_off)/FRQ(op_off+8)` (was raw `FR(op_off)`)
-  - `bb_subject.cpp` lit arm — emits `.string` via `LS(0)` (was broken: `emit_intern_str` returned NULL for new strings → `??` label)
-  - `flat_drive_scan_native` extended: `has_repl_empty` param; literal-subj path (push `IR_LIT_S` operand onto subject node); post-match FILL for repl box
-  - `flat_drive_scan_stmt`: two new routes (empty-repl named-var; empty-repl literal-subj with defer-or-safe pattern)
-  - `bb_match_defer.cpp` + `rt_defer_match` + `rt_dtp_run` — r12 (ζ frame) threaded as `zeta` 4th arg so DTP code sees correct frame (was: C calling convention clobbered r12 before `jmp *%rax` in DTP code, breaking CAPTURE's `FR(slot)` writes)
-  - Makefile + bb_templates.h wired
-
-  **GATES NOT RUN — stash, do not push SCRIP.**
-
-  **NEXT SESSION (PBG-3 completion):**
-  1. Pop stash (`git stash pop`)
-  2. Debug roman blocker (A): add fprintf in rt_scan_repl_empty; trace what `'0,...' T BREAK(',') . T` emits and whether capture writes to right slots
-  3. Implement (B): `sno_leaf_buildable` + `sno_build_leaf_ir` for TT_CAPT_COND_ASGN; `bb_pattern_capture` proto blob (study `bb_pattern_unary_s.cpp` raw-byte approach; need a 4-byte save-slot in the blob header at offset 0; SAVE = `mov [rip+save_slot_off], r14d`; COMMIT = load save_slot + r14 + call `rt_cap_assign_cursor`)
-  4. Run smoke 7/7, pat-rung M4 19/19, fence T1=T2=0, broad-corpus ≥170
-  5. Commit one commit per subproblem fixed
-
-- [ ] **PBG-4 — EVAL PER-CALL TEARDOWN → eval_fixed + eval_dynamic complete @1M (+2).** OOM confirmed (rc137 <6s, not timeout). Entry: `_builtin_EVAL`; path `rt_eval_run`/`DT_E` chain. Cache same source string → reuse compiled chain (eval_fixed). Per-call teardown (eval_dynamic). `CONVE_fn` cache draft noted in 2026-06-21 snapshot.
-- [ ] **PBG-5 — PERF (folds OPSINGLE) → var_access + func_call + func_call_overhead + string_manip in-gate (+4).** Correct @low-N; blow wall on per-iteration by-name `NV_GET`/`rt_gvar_*`. Prerequisite: single-channel `operands[]` (OPSINGLE). Target: each finishes in 30s wall with result == ref.
-- [ ] **PBG-6 — indirect_dispatch DISPOSITION + SPEEDUP REPORT.** Resolve `$FN(X)` vs oracle ERROR 022. Wire ratios into `bench/BENCHMARKS.md`.
-
----
-
-# ⛔ NEXT-PRIORITY RUNG — REC-COV · COMMUNITY-RECOGNIZED CORPORA
-
-**Mandate (2026-06-22):** extend coverage into community-recognized corpora. **PB-GREEN stays session-first.**
-
-**Inventory (2026-06-22, unmeasured pass-rates — RC-0's job):**
+Inventory (pass-rates unmeasured — RC-0's job):
 - `corpus/programs/gimpel/` — 145 `.sno` (no `.ref`)
-- `corpus/programs/csnobol4-suite/` — 124 `.sno` WITH shipped `.ref` ← start here
+- `corpus/programs/csnobol4-suite/` — 124 `.sno` WITH `.ref` ← start here
 - `corpus/programs/snobol4/demo/` — 18 `.sno`
-- `test_mode4_only_corpus_snobol4.sh` covers crosscheck+demo+beauty only; gimpel+csnobol4-suite ungated.
 
-**GATE:** recognized-corpus oracle-match count non-decreasing; all PB-GREEN floors hold.
-
-## STEPS
-
-- [ ] **RC-0** — honest runner for all three corpora; oracle-gen refs for gimpel+demo; triage table mapping failures to PB-GREEN cause buckets; establish baseline counts (do not fabricate before RC-0 runs).
-- [ ] **RC-1** — csnobol4-suite green-drive (refs already present, no oracle-gen needed).
-- [ ] **RC-2** — gimpel green-drive.
-- [ ] **RC-3** — demo green-drive.
-- [ ] **RC-4** — promote RC counts to hard non-decreasing floors in gate set.
-- [ ] **RC-5** — re-ground "10×" claim on recognized programs; separate table in `bench/BENCHMARKS.md`.
+Steps: RC-0 honest runner + oracle-gen refs + triage table → RC-1 csnobol4-suite → RC-2 gimpel → RC-3 demo → RC-4 promote counts to hard floors → RC-5 re-ground "10×" claim.
 
 ---
 
-# ⛔⛔⛔ OPSINGLE · DELETE operand_aux, ONE channel (operands[])
+# Completed / superseded (summary only)
 
-**Mandate (2026-06-15):** exactly ONE place for operands: `nd->operands[]`. Delete `operand_aux` (`bb_operand_aux_set`/`bb_operand_aux_get`). Hard ordering: migrate all readers before deleting struct.
+Sessions 1–12 built the full SNOBOL4-BB ladder bottom-up:
+- **DDS-0** (session ~8): deleted all `bb_*_proto[]` byte arrays, `DTP_t` head, `rt_dtp_run`. Ground-zero rebuild.
+- **TR-1** (`7d6a9c9`): `sno_leaf_buildable` extended for `TT_CAPT_COND_ASGN`; capture patterns routed to builder, not orphaned.
+- **TR-LEN** (`75f97e5`): `bb_build_len_blob` allocates `IR_MATCH_LEN` (matcher), not `IR_PATTERN_LEN` (builder). `r1`→`W=CD`.
+- **Rename** (`2e5a5a3`): `IR_PAT_*` → `IR_MATCH_*` throughout.
+- **TR-BREAK** (`15bda9d`): `bb_pattern_break.cpp` + `bb_build_break_blob`. First ζ-slot box; proves frame mechanism end-to-end.
+- **TR-CAPTURE** (`1e962ed`): `bb_build_break_capture_blob`; `PAT=BREAK(',') . W`→`W=alpha`.
+- **TR-CAT** (`5d6e7cd`): `bb_build_break_cap_lit_blob`; `PAT=BREAK(',') . W ','`→`W=alpha`.
+- **splice fix** (`9ea1251`): `bb_scan_splice_empty` stripped of stale port scaffolding; string_pattern + mixed_workload GREEN.
+- **literal-subject scan** (`f3f7cdb`, session 13): gate + `IR_LIT_S` operand + `bb_subj_litlbl` + `rt_subject_load_lit`. Last bomb removed.
 
-**WRITERS still aux-only (must add `ir_operand_push`, keep aux until readers flipped):**
-- `lower_snobol4.c` — CALL args still in side-graphs (`sno_call_channels`)
-- `lower_icon.c:134,137,315`; `lower_raku.c:210`; `lower_pascal.c:147,162,177,340`; `lower_prolog.c:140`
-
-**READERS to flip (`bb_operand_aux_get` → `nd->operands[]`):**
-- `BB_templates/bb_call.cpp:98`
-- `emit_bb.c`: 350,411,438,846,1072,1492,1818,2489,**2957 (DELETE bridge shim)**,3035,3240,3335,3398,3458
-- `driver/scrip.c`: 102,245,1931
-- `contracts/scrip_ir.c:355`
-
-**DELETE LAST** (all readers flipped + all language gates green): `bb_operand_aux_set`, `bb_operand_aux_get`, struct fields, all `bb_operand_aux_set(...)` calls.
-
-**GATE:** grep `operand_aux` in src/ (excl attic) == 0 AND all language gates green.
-
----
-
-**⚠️ EMERGENCY HANDOFF — 2026-06-22 · Sonnet 4.6 · `.github` ONLY (no SCRIP commit; SCRIP WIP stashed). Context exhausted at ~92%. PBG-3 partial: see PBG-3 step above for full WIP summary and next-session plan. NO GATES RUN THIS SESSION. SCRIP at HEAD `e789f1e` (PBG-2 landed, unchanged). Stash: `PBG-3-WIP-2026-06-22-gates-not-green`. Pop stash at next session start and continue from the two blockers (roman debug + bb_pattern_capture).**
-
----
-
-**⚠️ HANDOFF — 2026-06-22 · Sonnet 4.6 · ORIENTATION SESSION ONLY (no code changes; stash confirmed absent).**
-
-**CONFIRMED:** SCRIP at `e789f1e` (PBG-2). Git stash `PBG-3-WIP-2026-06-22-gates-not-green` does NOT exist — prior session exhausted before stashing. All WIP is design notes only (in this goal file). Start PBG-3 from scratch on next session.
-
-**KEY FACTS FOR PBG-3 (from code read this session):**
-- `bb_match_head/retry/advance` operate on LOCAL FRAME `[r12+offset]`: `op_sa`=subject DESCR_t slot (16B: qword=ptr, dword+8=len→r15d); `op_off`=4B int start cursor. Head sets cursor=0, loads r13=subj ptr, r10→cursor+8 slot. Retry loads r14d=FR(op_off). Advance increments FR(op_off), checks vs r15d and `kw_anchor`.
-- `bb_scan_stmt` literal path calls `rt_scan_lit(subj_name,subj_lit,pat_lit,is_repl,repl_lit)`. Non-literal MEDIUM_TEXT path = x86_bomb (the blocker).
-- RT globals: `Σ`/`Σlen` (pattern_match.c), `kw_anchor` (keywords.c), `g_rt_dcap[]`/`g_rt_dcap_n`/`g_rt_dcap_active` (cond-assign capture buffer, pattern_match.c), `g_subject_slot` (emitter phase, emit_bb.c:160).
-- Blocker B: `sno_leaf_buildable` does not handle `TT_CAPT_COND_ASGN` → `PAT = BREAK(',') . WORD ','` orphaned by `lower_assign`.
-
----
-
-**⚠️ HANDOFF — 2026-06-22 · Sonnet 4.6 · `.github` ONLY (no SCRIP commit; SCRIP clean at `95e8b02`).**
-
-New SESSION-FIRST RUNG **DTP-DIRECT-STITCH** added at top per Lon's directive: runtime PATTERN datatype must be (1) template-emitted via `x86()` — kill all hand-coded `bb_*_proto[]` byte arrays in `pattern_match.c`; (2) stitched DIRECTLY box-port-to-box-port — kill the `DTP_t` head + `rt_dtp_run` trampoline. Start at DDS-0 (survey + contract, no deletions), then one box per gated slice (DDS-1 = LIT). REUSE the existing compile-time `flat_drive_match` port-patch model; do not invent a second stitch mechanism. This supersedes PBG-3's "native PB-RB" wording for the runtime path. PBG-GREEN bench floors (6/16) still hold and must not regress.
-
-NO GATES RUN THIS SESSION. NO CODE CHANGED. SCRIP HEAD `95e8b02`, untouched.
-
----
-
-**⚠️ HANDOFF — 2026-06-22 · Claude Opus 4.8 · DDS EXCISION LANDED + DESIGN DOCS WIRED. SCRIP `95e8b02`→`c01cce2`, .github→this commit, corpus refreshed.**
-
-**Session: education → excision → doc-fix.** Prior sessions (incl. my own orientation) misused **r12** and accepted a band-aid (threading r12 as a `zeta` arg into the hand-coded DTP blobs) because the BB-LOCAL-STORAGE design was never surfaced by PLAN.md/this goal. Lon: pivot to ground zero, read the design, delete the bad code, fix the docs.
-
-**DESIGN DOCS WIRED (so this never recurs):** PLAN.md session-start step 7 now mandates the BB-CODEGEN DESIGN SET (`ARCH-x86.md` stackless/flat-ABI · `ARCH-ICON.md` ζ-frame register contract · `REGISTER-LAYOUT.md` · `src/emitter/bb_regs.h` · `xa_flat.cpp`) for ANY BB/template/storage rung, with a self-enforcing "rung must link here" clause. This goal now CONTAINS the storage synthesis (top of rung): the 4 realizations **A** `[r12+off]` ζ frame (primary) · **B** `[rip+disp]` RO consts · **C** per-box `.bss` arena (unbounded) · **D** DEAD SM-stack/r10-tree, plus the register table and the match-site-owns-r12 stitch contract.
-
-**EXCISION LANDED & GATED (SCRIP `c01cce2`):** deleted all 17 `bb_*_proto[]`+`*_proto_desc`, the `rt_dtp_run` `__asm__` trampoline, `rt_pattern_build`/`rt_pattern_stitch_{cat,alt}`/`rt_dtp_head_build`, `rt_defer_match`'s DT_P branch, the 8 raw-`.byte` templates (`bb_pattern_{lit,alt,cat,unary_i,unary_s,nullary,arb}.cpp`, `bb_dtp_assign.cpp`), the `DTP_t`/`DTP_FRAG_t`/`DTP_PROTO_DESC` types (`dtp.h`→pat-pool-only; `DESCR_t.p`→`void*`), dead `src/attic/IR_interp.c`. Dispatch (`emit_core.c`) rerouted to the clean `bb_pattern_stub` bomb. **GATES GREEN:** proto-arrays-in-src=0 · `DTP_t`/`rt_dtp_run`-in-src=0 · raw-bytes-in-`pattern_match.c`=0 · build green (libscrip_rt.so + scrip) · **6/6 PB-GREEN benches byte-identical `.s` (ZERO codegen drift)** — excision touched only the dead DT_P path. DT_P construction now correctly BOMBs at emit (the ground-zero rebuild state).
-
-**NEXT SESSION (DDS-1):** (1) **Lon must confirm the MATCH-SITE-owns-r12 contract** recorded above before any codegen. (2) Then build the LIT box end-to-end via `x86()` into the pat-pool, stitch port-to-port to the compile-time `flat_drive_match` model (REUSE — do not invent a second stitch). Gate green before the next box. PB-GREEN 6/16 floor must not regress.
-
-**Latent bug noted (not fixed):** `scripts/util_regen_benchmark_s_artifacts.sh` stages `benchmarks/*.s` but the benches now live in `benchmarks/snobol4/` (post-`03a0158` reorg) — its add-glob is stale; this session staged the subdir manually.
-
----
-
-**⚠️ HANDOFF — 2026-06-23 · Claude Opus 4.8 · DESIGN SESSION — ζ-PARTITION CONFIRMED + DDS-1 GOLDEN SEEDED. SCRIP `dd0d0a2` (code unchanged) + new `seed/`; `.github` GOAL updated. No codegen touched → no gates needed (seed files are reference C, not in the build; benches not run).**
-
-**Session: orientation → ζ-partition design → glob-head-r12 mechanism → golden seed.** Lon CONFIRMED the r12-establishment mechanism that was the open DDS-1 blocker: each BB GLOB has a HEAD presenting **outside γ/ω + inside α/β**; the head's **α AND β each set r12** (α = fresh frame, β = RELOAD because an inter-glob excursion clobbered r12 — the ARCH-x86 extra-BLOB-jump rule extended from α-only to α+β). **TWO ζ PLANES** (section + pattern) **TIME-MULTIPLEX ONE register r12 — NOT two** (Lon asked explicitly; answered empirically). Full design now lives above in REQUIRED DESIGN READING + ζ-PARTITION DESIGN (two planes, granularity ladder G0→G3, realloc-for-ARBNO per "total dynamic", DEFINE single-exec constraint).
-
-**ARTIFACTS (committed to SCRIP `seed/`):** the 5 hand-written golden BB graphs `test_{icon,sno_1,sno_2,sno_3,sno_4}.c` (copied byte-identical from `bench/` per Lon "place files for future reference") + NEW `seed/test_sno_5.c` = the **GLOB-HEAD-SETS-R12 golden**: stored `*P` (`PAT='C' 'D'`) reused at 2 match sites = ONE code body / TWO ζ instances; head α+β set r12; all boxes LIT (save-nothing, DDS-1 scope). **Compiles + runs; R12-trace prints the swap** (`gcc -std=gnu11 seed/test_sno_5.c`). THIS IS THE DDS-1 EMITTER TARGET.
-
-**NEXT SESSION (DDS-1 step 1):** build `bb_pattern_lit.cpp` to EMIT a relocatable LIT box via `x86()` (β: `Δ-=len`; `len`=`[rip+disp]` RO const; NO ζ slot), glob head sets r12 on α/β per `seed/test_sno_5.c`; stitch port-to-port via `flat_drive_match`/`walk_bb_flat` (REUSE). Reproduce the `','` LIT inside `string_pattern.sno`'s stored `PAT = BREAK(',') . WORD ','` (`IR_ASSIGN_CONCAT PAT ← IR_SEQ`; SCAN pattern operand = `IR_PAT_DEFER PAT`). Gate: smoke M3/M4 7/7, PB-GREEN 6/16 floor. Then coarsen G0→G1. Per Lon's SEQUENCING: G0 across ALL benches first (worst perf, correct), THEN ratchet GLOBing G1→G2→G3.
-
-**Build note:** scrip needs `libgc-dev` (`apt-get install -y libgc-dev`) then `make`; builds clean at `dd0d0a2`. `--dump-ir` works pre-emit (used this session to confirm the `string_pattern.sno` lowering).
+Architecture constants (do not re-derive):
+- `walk_bb_node` preamble (emit_core.c:328–333) overwrites `op_sval`/`op_ival`/`op_a_sval`/etc. from node+operands every emission — never rely on ambient values set before `FILL`.
+- `rt_cap_assign_cursor` reads global `Σ` (set by `rt_subject_load_nv` and now `rt_subject_load_lit`).
+- `flat_drive_cat_arms` reads the kids channel (`IR_EXEC(cat).counter`), NOT `operands[]`; a CAT with `nkids==0` emits empty.
+- `bb_build_flat` entry CAT with nkids==0 emits empty — kids channel is mandatory.
