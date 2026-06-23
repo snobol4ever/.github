@@ -4,6 +4,28 @@
 
 **Mandate (2026-06-22, Lon):** Runtime-constructed PATTERN datatype (`*P` deferred / `PAT = BREAK(',') . WORD ','` stored-pattern) must be built from **template-emitted BB boxes stitched DIRECTLY port-to-port**. Kill the hand-coded byte arrays AND kill the `DTP_t` head indirection.
 
+---
+## ⛔ REQUIRED DESIGN READING — BB LOCAL STORAGE (read BEFORE any DDS step)
+
+This rung is entirely about template-emitted Byrd boxes and where their per-box state lives. These ARE the design — read them first, not as background:
+- `ARCH-x86.md` §"Boxes are stackless" + §"Flat-BB ABI"
+- `ARCH-ICON.md` §"register contract" (the ζ-frame model — verbatim for SNOBOL4)
+- `REGISTER-LAYOUT.md` (register convention; SM-era top banner is SUPERSEDED)
+- `src/emitter/bb_regs.h` — SINGLE source of truth for register roles
+- `src/emitter/XA_templates/xa_flat.cpp` — how the glob preamble sets r12
+
+**Register convention (bb_regs.h — LIVE, GROUND ZERO 3).** r12=ζ RW frame base `[r12+off]` · r13=Σ subject base · r14=δ cursor (0-based; `&pos=δ+1`) · r15=Δ subject length · r10=per-blob RO DATA (`lea r10,[rip+Δ]`→`[r10+N]`) · rbx=DESCR base · rbp=NV hash base. **r12 is NOT a value stack.** `FR(off)`=`dword ptr [r12+off]`, `FRQ(off)`=`qword ptr [r12+off]` (x86_asm.h).
+
+**The four ways BB-local storage is realized (and the one that is DEAD):**
+- **A. ζ frame `[r12+off]` — PRIMARY.** Bounded, statically-known per-box RW slots (cursor saves, counters, captured DESCRs). ONE consolidated frame per glob; slots from `bb_slot_alloc16`/`bb_slot_claim`. Static `jmp` wiring; a consumer reads its producer's slot directly.
+- **B. RO constants `[rip+disp]`.** Per-box compile-time constants (csets, match literals, LEN/POS counts) sealed adjacent to the blob; the `[r10+N]` flat-BB data block. Never written at match time. Idiom: `lea rdi,[rip+cset]; call strchr`.
+- **C. per-box `.bss` arena indexed by depth.** UNBOUNDED backtrack state (ARBNO, recursion). NEVER a global stack. Ref: `bench/test_sno_1.c` `_1[64]`/ζ array.
+- **D. (DEAD/SUPERSEDED).** SM value-stack on r12 (FORTH push/pop) + heap DATA-block tree walked by r10. SMX-4 deleted the SM engine. DO NOT reintroduce. The deleted `DTP_t`-head + `rt_dtp_run` proto path was a relapse into this — and is exactly why r12 was misused: a stored pattern's box needs `[r12+off]`, but `rt_dtp_run` repurposed r12 from its C prologue. The fix is A, never a head.
+
+**Who establishes r12 for a RUNTIME-CONSTRUCTED pattern (DDS stitch contract — best reading, ⟵ CONFIRM WITH LON before DDS-1 codegen).** Compile-time globs set r12 in the XA flat preamble (`push r12; mov r12, rdi` in PROC mode; caller passes the frame in rdi). A runtime-built pattern's slot layout is NOT known to the host glob at compile time, so the host cannot pre-allocate the pattern's slots. Therefore the **MATCH SITE owns the frame**: the host scan/MATCH machinery allocates a fresh ζ frame sized to the pattern (the pattern object records its frame-slot count), sets r12, enters the stitched box chain, and restores r12 on γ/ω — NO per-pattern head. The boxes assume r12 is valid, exactly like every compile-time box.
+
+---
+
 **TWO ABSOLUTE REQUIREMENTS:**
 1. **TEMPLATE-ONLY x86.** Every pattern-box instruction emitted through the `x86(...)` path (`BB_templates/x86_asm.h`), exactly like all other codegen. ZERO hand-typed machine-code byte arrays. The `const uint8_t bb_*_proto[]` arrays in `src/runtime/pattern_match.c` (`bb_lit_proto`, `bb_len_proto`, `bb_pos_proto`, `bb_rpos_proto`, `bb_tab_proto`, `bb_rtab_proto`, `bb_fail_proto`, `bb_rem_proto`, `bb_succeed_proto`, `bb_fence_proto`, `bb_abort_proto`, `bb_any_proto`, `bb_notany_proto`, `bb_span_proto`, `bb_break_proto`, `bb_breakx_proto`, `bb_arb_proto`) — ALL DELETED.
 2. **DIRECT BB STITCH, NO HEADS.** A compound pattern stitches the BB fragments themselves by patching each box's own γ/ω port (success → next box entry; fail → prior box fail-path), the SAME Byrd-box port-patching the compile-time emitter uses. The `DTP_t {entry, out_γ, out_ω}` 32-byte head indirection (`dtp.h`) and the `rt_dtp_run` trampoline that jumps THROUGH it are DELETED. Boxes connect port-to-port directly.
@@ -20,7 +42,7 @@
 
 ## STEPS
 
-- [ ] **DDS-0** — survey: enumerate every proto array, every `DTP_t`/`rt_dtp_run`/`rt_pattern_*` reference, every `bb_pattern_*.cpp` consumer. Establish the direct-port-patch stitch contract (what replaces `out_γ`/`out_ω` sites: the box's own jump-operand slot addresses). Map to the existing compile-time `flat_drive_match` port-patch model — REUSE that, do not invent a second mechanism. No deletions yet; design only.
+- [~] **DDS-0** — survey + contract. **EXCISION LANDED (working tree, uncommitted, on top of `95e8b02`)** per Lon's "delete the bad code first" directive (ahead of the original "no deletions yet" wording): deleted all 17 `bb_*_proto[]` arrays + `*_proto_desc`, the `rt_dtp_run` `__asm__` trampoline, `rt_pattern_build`/`rt_pattern_stitch_{cat,alt}`/`rt_dtp_head_build`, the `DT_P` branch of `rt_defer_match`, the 8 raw-`.byte` templates (`bb_pattern_{lit,alt,cat,unary_i,unary_s,nullary,arb}.cpp` + `bb_dtp_assign.cpp`), the `DTP_t`/`DTP_FRAG_t`/`DTP_PROTO_DESC` types (dtp.h now pat-pool-only; `DESCR_t.p`→`void*`), and the dead attic carrier `src/attic/IR_interp.c`. Dispatch in `emit_core.c` rerouted to the clean `bb_pattern_stub` bomb. **GATES:** proto-arrays in src/ = 0 · `DTP_t`/`rt_dtp_run` in src/ = 0 · raw bytes in pattern_match.c = 0 · build green (libscrip_rt.so + scrip) · **6/6 PB-GREEN benches preserved** (compile-time flat path untouched). Storage contract recorded in "REQUIRED DESIGN READING" above. **REMAINING before DDS-1:** (1) Lon confirms the MATCH-SITE-owns-r12 contract; (2) map the port-patch stitch to the compile-time `flat_drive_match` model (REUSE, do not invent a second mechanism). DT_P construction now correctly BOMBs at emit — the ground-zero state to rebuild from.
 - [ ] **DDS-1** — implement ONE box (LIT) end-to-end via template: `bb_pattern_lit.cpp` emits a relocatable box via `x86()`; runtime stitches it port-to-port; delete `bb_lit_proto`. Gate green before next box.
 - [ ] **DDS-2..N** — one box per slice (LEN, POS, RPOS, TAB, RTAB, ANY, NOTANY, SPAN, BREAK, BREAKX, ARB, REM, FAIL, SUCCEED, FENCE, ABORT, CAT, ALT), each: rewrite template to emit, delete its proto, gate green.
 - [ ] **DDS-FINAL** — delete `DTP_t` head + `rt_dtp_run` once no box needs the trampoline; delete attic copies; full gate; PBG-3 benches green via direct-stitch.

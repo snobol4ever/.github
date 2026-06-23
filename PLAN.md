@@ -29,7 +29,14 @@ Lon names a goal. You:
 4. Read `RULES.md` in full.
 5. **If PARSER-* or Snocone — read `SNOBOL4-SNOCONE-PRIMER.md` first.**
 6. **If touches language corpus — read `CORPUS-LOCATIONS.md`.**
-7. **If MODE3-EMIT or MODE4-EMIT — read `ARCH-x86.md` AND `ARCH-SCRIP.md` first.**
+7. **If MODE3-EMIT or MODE4-EMIT, or ANY Byrd-box codegen / template / BB-LOCAL-STORAGE work (every `GOAL-*-BB` rung qualifies) — read the BB-CODEGEN DESIGN SET first, NON-NEGOTIABLE:**
+   - `ARCH-x86.md` — §"Boxes are stackless" + §"Flat-BB ABI"
+   - `ARCH-ICON.md` — §"register contract" (the one-register ζ-frame model; verbatim for SNOBOL4 too)
+   - `REGISTER-LAYOUT.md` — full register convention + storage models (the SM-era top banner is SUPERSEDED; read it anyway to know what is dead)
+   - `src/emitter/bb_regs.h` — the SINGLE source of truth: **r12=ζ RW frame `[r12+off]`, r13=Σ subject, r14=δ cursor, r15=Δ length, r10=DATA, rbx=DESCR base, rbp=NV hash**. r12 is **NOT** a value stack.
+   - `src/emitter/XA_templates/xa_flat.cpp` — how the glob preamble actually establishes r12.
+   - `ARCH-SCRIP.md`.
+   A `GOAL-*-BB` rung ASSUMES you have read these. If a rung touches per-box state and does not link here, that rung is defective — fix the rung's pointer before coding.
 8. Open Goal file. Open that repo's REPO file.
 9. Run Goal file's `## Session Setup` scripts.
 10. Find first incomplete Step (`- [ ]`). Do it.
