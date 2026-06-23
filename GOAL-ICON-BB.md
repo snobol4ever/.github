@@ -423,7 +423,7 @@ Floor = System V AMD64; durables are callee-saved (canonical semantics = the X86
 
 ## Watermark
 
-**HEAD (SCRIP) = `fb2daea`** — Icon native loops: `bb_to` descending TO (negative `by`, jg/jl by sign) + flat-emit EVERY exhaustion → success continuation (not `main_ω`). m2 200 (HARD) · m3 45 · m4 51 · prolog 5/5. HEAD (.github) = HANDOFF-2026-06-13-OPUS48-ICON-FULL-PASS-TO-EVERY-CHAIN.md.
+**HEAD (SCRIP) = `e928643`** — Icon native loops: `bb_to` descending TO (negative `by`, jg/jl by sign) + flat-emit EVERY exhaustion → success continuation (not `main_ω`). m2 200 (HARD) · m3 45 · m4 51 · prolog 5/5. HEAD (.github) = HANDOFF-2026-06-13-OPUS48-ICON-FULL-PASS-TO-EVERY-CHAIN.md.
 
 **Open bug (FULL-18-resid, 2026-06-12):** Generator in user-proc call arg disappears from BB graph. `lower_call` sets `cx->beta = ω` (not call) for non-gen-allowed procs, so ALT/TO arg to `tag("a"|"b"|"c")` is never wired into the flat graph. Fix: in `lower_icon.c` `lower_call` (line 82/94), detect when arg subtree contains a generator and set `cx->beta = call` so it stays in chain. Affected: rung16 `s[1 to 3]` (+1), rung32 `tag("a"|"b"|"c")` (+1), many rung36/37.
 
