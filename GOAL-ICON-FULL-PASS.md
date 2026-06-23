@@ -104,6 +104,8 @@ bash scripts/test_gate_icn_no_stack.sh; bash scripts/test_gate_icn_one_reg_frame
 
 ## Watermark
 
+**2026-06-23 (Claude) — `.s` artifact maintenance repointed to the real benchmark corpus.** `update_icon_bench_asm.sh` defaulted to `programs/icon/` (the rung *test* suite) glob `rung36_jcon_*.icn` — WRONG. The benchmark sources are `corpus/benchmarks/icon/*.icn` (queens/concord/deal/ipxref/rsg/micro/micsum/version/…), which had ZERO `.s`. Fixed: script default → `benchmarks/icon`, glob `*.icn` (SCRIP `97e4d9d`); generated `.s` for the 3 that compile today — `micro micsum version` (corpus `a88c6ad8`); GOAL+PROC docs corrected (.github `22a81433`). The other 10 CERR/EXCISE pending native arms (F2 `<-`, F1 subscript-assign, link resolution) and auto-acquire a `.s` the moment they compile. NO codegen touched; suite unchanged 144/283; `CHECK=1` clean (zero drift).
+
 **2026-06-22 (Claude) — Corpus benchmarks/icon + benchmarks/jcon merged into single benchmarks/icon/ folder** (37bc1bc5, corpus). jcon-only files moved in (geddump/tgrlink/version); concord.dat jcon superset used; rsg.dat icon-master (1000-poem) retained. README-ICON-JCON.md updated.
 
 **2026-06-22 (Claude) — BENCH-F2 `<-` scaffolding landed, gated (a54ebef).** IR_RASGN + lower_icon case + bb_rasgn.cpp + flat_drive_rasgn + dispatch. Remaining gap: rhs-var slot collides with dest-var slot in conjunction — `bb_varslot_peek(rhs)` returns dest's offset. No regression: m3/m4 140/140, gates green.
