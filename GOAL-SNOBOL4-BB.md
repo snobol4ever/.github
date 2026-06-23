@@ -1,6 +1,27 @@
+<!-- SESSION-FIRST RUNG — STORED-PATTERN BUILDER LADDER · TEMPLATE-EMITTED MATCHER BLOBS -->
+
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23j, session 10 · Claude Sonnet 4.6)
+
+**State (SESSION 10 CLOSED):** SCRIP `98c66b7` (PUSHED), corpus `949a8c03` (PUSHED), .github THIS commit (PUSHED). Working tree clean, nothing stashed.
+
+**WHAT LANDED THIS SESSION — 4 SCRIP commits + 1 corpus artifact commit:**
+1. **`75f97e5` — r1 stored-LEN builder FIXED (the session-9 OPEN BUG below is RESOLVED).** `bb_build_len_blob` now allocates the MATCHER node `IR_MATCH_LEN`, not the builder `IR_PATTERN_LEN` (which recursed into a nested build call and never advanced r14, so the capture span was `[0..0)` → `W=`). One-line diff. The session-9 `op_ival` plumbing caveat is conclusively resolved — `walk_bb_node` (emit_core.c:328) sets `g_emit.op_ival = IR_LIT(nd).ival` before dispatch, proven empirically: `LEN(2)`⇒`W=CD`, `LEN(3)`⇒`W=CDE`, `LEN(0)`⇒`W=[]` (varying length rules out a constant). JIT-blob-only; no `.s` drift.
+2. **`2e5a5a3` — IR_PAT_* → IR_MATCH_* matcher-family rename (Lon directive).** The matcher family now mirrors the `bb_match_*` / `BB_MATCH_*` BB names. Enum + name-string table (`--dump-ir` now prints `IR_MATCH_*`, verified) + emitter + lowerers + tools + BB templates + pat_bb probes. `IR_PAT_MATCH{,_HEAD,_RETRY,_ADVANCE}` collapse to `IR_MATCH{,_HEAD,_RETRY,_ADVANCE}` (one prefix rule, no doubled `MATCH`). The **`IR_PATTERN_*` BUILDER family is deliberately UNTOUCHED** (separate family; `IR_PAT_` never matches inside `IR_PATTERN_`). Behavior-neutral. Dead `src/attic/` left as-is (not in Makefile).
+3. **`15bda9d` — r2 stored-BREAK builder.** New `bb_pattern_break.cpp` + `bb_build_break_blob` in `bb_pat_build.cpp`, mirroring the LEN discipline: the builder box (`IR_PATTERN_BREAK`) emits a C-call to `bb_build_break_blob(name, cset)`, which allocates the MATCHER node `IR_MATCH_BREAK` and `bb_build_flat`'s it. **FIRST stored box to exercise a ζ slot `[r12+off]`** — proves the frame mechanism end-to-end: `g_frame_active=1` makes `XA_FLAT_PROLOGUE` emit `push r12; mov r12, rdi`, the defer passes a fresh `rt_frame()` (32 KB static buf), per-activation slot storage lands correctly. `BREAK(',')`⇒`W=alpha`, `BREAK('X')`⇒`W=foo`, `BREAK(',;')`⇒`W=abc`.
+4. **`98c66b7` — `util_regen_demo_s_artifacts.sh` harmonized to graceful-skip** (emit-to-temp → `gcc -c` → `mv` only on assembler-accept; never truncate-then-fail) + scrip-path fix (`$ROOT/scrip`, was `$HERE/scrip`). **Clears the session-9 demo-clobber hazard.** Ran clean: roman/wordcount/claws5/treebank-array gracefully SKIP'd (assembler-rejected, committed `.s` untouched — roman.s intact, no clobber); `treebank-list.s` refreshed.
+   - **corpus `949a8c03`** — refresh long-stale `treebank-list.s` to honest current `--compile` output (4608+/1132−; stale because the demo regen was broken/never run, NOT a LEN/BREAK change; assembler-clean, functional parity not asserted).
+
+**GATES (all green this session):** stored-LEN family (r1/r1b/r1c), inline controls (i1/i2), stored-BREAK family (r2a/r2b/r2c), PB-GREEN 6/6 (`arith_loop op_dispatch pattern_bt string_concat fibonacci table_access`, normalize `ms:`). Benchmark + feature regen: 0 changed (`.s`-neutral — rename can't alter emitted x86; LEN/BREAK changes live in the JIT blob, not `.s`).
+
+**▶ NEXT MOVE — TR-CAPTURE: the IN-PATTERN capture builder.** The handoff's original r2 (`PAT = BREAK(',') . W; S ? PAT`, capture INSIDE the stored pattern) lowers to `IR_DTP_ASSIGN → IR_PATTERN_BREAK` wrapped in `IR_PATTERN_CAPTURE[W]` (confirmed: `--dump-ir`). **This is NOT a pure node-swap like LEN/BREAK** — the capture box needs (a) a save-slot recording the cursor at entry, and (b) a COMMIT on the success port that assigns `Σ[start..end)` to the capture var. Plan: build `bb_pattern_capture.cpp` + `bb_build_capture_blob` that builds the INNER matcher first and stitches the capture around it. Study how the INLINE capture lands its span — `IR_MATCH_ASSIGN_COND`/`bb_match_capture` (emit_core.c:387) uses the dcap buffer (`rt_dcap_*`) + a frame slot for match-start; the blob form must mirror that (save r14 at α into a ζ slot, run inner, on γ call the cursor-assign). Gate: `PAT=BREAK(',') . W; S ? PAT` ⇒ `W=alpha` == oracle. THEN TR-CAT (`PAT = BREAK(',') . W ','`), THEN point at the three BOMB benches (string_pattern + mixed_workload need BREAK+CAPTURE+CAT all three; roman uses inline scans + empty-repl splice — orthogonal to the builder family).
+
+**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `git clone …/x64 /home/claude/x64`; `sbl -b`. Tri-probe `/tmp/probe.sh` (regenerate if lost): `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p; ./p` vs `sbl -b`. Benches: `corpus/benchmarks/snobol4/*.sno`.
+
+---
+
 <!-- SESSION-FIRST RUNG — DTP-DIRECT-STITCH · TEMPLATE-EMITTED PATTERN BOXES, NO HEADS -->
 
-# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23i, session 9 · Claude Sonnet 4.6)
+# ▶▶▶ (session 9 — handoff 2026-06-23i · LEN bug below RESOLVED in session 10, see above)
 
 **State (SESSION 9 CLOSED — handoff 2026-06-23i · Claude Sonnet 4.6):** SCRIP `9330f32` (PUSHED), corpus `1381b77b` (PUSHED), .github THIS commit (PUSHED). Working tree clean, nothing stashed.
 
