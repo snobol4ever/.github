@@ -1,3 +1,31 @@
+<!-- SESSION-FIRST RUNG — DTP-DIRECT-STITCH · TEMPLATE-EMITTED PATTERN BOXES, NO HEADS -->
+
+# ⛔⛔⛔ SESSION-FIRST RUNG — DTP-DIRECT-STITCH
+
+**Mandate (2026-06-22, Lon):** Runtime-constructed PATTERN datatype (`*P` deferred / `PAT = BREAK(',') . WORD ','` stored-pattern) must be built from **template-emitted BB boxes stitched DIRECTLY port-to-port**. Kill the hand-coded byte arrays AND kill the `DTP_t` head indirection.
+
+**TWO ABSOLUTE REQUIREMENTS:**
+1. **TEMPLATE-ONLY x86.** Every pattern-box instruction emitted through the `x86(...)` path (`BB_templates/x86_asm.h`), exactly like all other codegen. ZERO hand-typed machine-code byte arrays. The `const uint8_t bb_*_proto[]` arrays in `src/runtime/pattern_match.c` (`bb_lit_proto`, `bb_len_proto`, `bb_pos_proto`, `bb_rpos_proto`, `bb_tab_proto`, `bb_rtab_proto`, `bb_fail_proto`, `bb_rem_proto`, `bb_succeed_proto`, `bb_fence_proto`, `bb_abort_proto`, `bb_any_proto`, `bb_notany_proto`, `bb_span_proto`, `bb_break_proto`, `bb_breakx_proto`, `bb_arb_proto`) — ALL DELETED.
+2. **DIRECT BB STITCH, NO HEADS.** A compound pattern stitches the BB fragments themselves by patching each box's own γ/ω port (success → next box entry; fail → prior box fail-path), the SAME Byrd-box port-patching the compile-time emitter uses. The `DTP_t {entry, out_γ, out_ω}` 32-byte head indirection (`dtp.h`) and the `rt_dtp_run` trampoline that jumps THROUGH it are DELETED. Boxes connect port-to-port directly.
+
+**SCOPE (one excision-plus-rebuild, gated slices — do NOT half-delete and leave link failures):**
+- `src/runtime/pattern_match.c` — delete all `bb_*_proto[]` + `bb_*_proto_desc`; rework/delete `rt_pattern_build`/`rt_pattern_stitch_cat`/`rt_pattern_stitch_alt`/`rt_dtp_run`; the DT_P `pat_*` BOMB stubs become the real template-driven builders.
+- `src/include/dtp.h` — delete `DTP_t` head struct + proto externs; redefine stitch contract around direct port-patch.
+- `src/runtime/rt/pat_pool.c` — pat-pool now holds template-emitted relocatable boxes, not memcpy'd byte protos.
+- `src/emitter/BB_templates/bb_pattern_lit.cpp`, `bb_pattern_nullary.cpp`, `bb_pattern_arb.cpp`, `bb_pattern_unary_s.cpp`, `bb_pattern_unary_i.cpp` — rewrite to EMIT boxes via `x86()` (currently they pass `&bb_*_proto`/`&bb_*_proto_desc` addresses to the runtime builder — that whole hand-off dies).
+- `src/driver/scrip.c` — references to the proto path.
+- `src/attic/IR_interp.c` + `src/attic/runtime/` — dead proto copies; delete.
+
+**GATE:** `grep -rn 'bb_.*_proto\b' src/ (excl attic-deleted) == 0` · `grep -rn 'DTP_t\|rt_dtp_run' src/ == 0` · `grep -rnE 'bytes\(|u32le|u64le|u8\(' src/runtime/pattern_match.c == 0` · smoke M3/M4 7/7 · pat-rung M4 19/19 0-SKIP · fence T1=T2=0 · broad-corpus M4 ≥170 · `roman`/`mixed_workload`/`string_pattern` benches drive green via the new direct-stitch path (these are exactly the stored-pattern `BREAK . CAPTURE` cases — see PBG-3 below).
+
+## STEPS
+
+- [ ] **DDS-0** — survey: enumerate every proto array, every `DTP_t`/`rt_dtp_run`/`rt_pattern_*` reference, every `bb_pattern_*.cpp` consumer. Establish the direct-port-patch stitch contract (what replaces `out_γ`/`out_ω` sites: the box's own jump-operand slot addresses). Map to the existing compile-time `flat_drive_match` port-patch model — REUSE that, do not invent a second mechanism. No deletions yet; design only.
+- [ ] **DDS-1** — implement ONE box (LIT) end-to-end via template: `bb_pattern_lit.cpp` emits a relocatable box via `x86()`; runtime stitches it port-to-port; delete `bb_lit_proto`. Gate green before next box.
+- [ ] **DDS-2..N** — one box per slice (LEN, POS, RPOS, TAB, RTAB, ANY, NOTANY, SPAN, BREAK, BREAKX, ARB, REM, FAIL, SUCCEED, FENCE, ABORT, CAT, ALT), each: rewrite template to emit, delete its proto, gate green.
+- [ ] **DDS-FINAL** — delete `DTP_t` head + `rt_dtp_run` once no box needs the trampoline; delete attic copies; full gate; PBG-3 benches green via direct-stitch.
+
+---
 <!-- SESSION-FIRST RUNG — PBG-GREEN · ALL 16 SNOBOL4 BENCHMARKS WORKING -->
 
 # ⛔⛔⛔ SESSION-FIRST RUNG — PB-GREEN · ALL 16 SNOBOL4 BENCHMARKS WORKING
@@ -126,3 +154,11 @@
 - `bb_scan_stmt` literal path calls `rt_scan_lit(subj_name,subj_lit,pat_lit,is_repl,repl_lit)`. Non-literal MEDIUM_TEXT path = x86_bomb (the blocker).
 - RT globals: `Σ`/`Σlen` (pattern_match.c), `kw_anchor` (keywords.c), `g_rt_dcap[]`/`g_rt_dcap_n`/`g_rt_dcap_active` (cond-assign capture buffer, pattern_match.c), `g_subject_slot` (emitter phase, emit_bb.c:160).
 - Blocker B: `sno_leaf_buildable` does not handle `TT_CAPT_COND_ASGN` → `PAT = BREAK(',') . WORD ','` orphaned by `lower_assign`.
+
+---
+
+**⚠️ HANDOFF — 2026-06-22 · Sonnet 4.6 · `.github` ONLY (no SCRIP commit; SCRIP clean at `95e8b02`).**
+
+New SESSION-FIRST RUNG **DTP-DIRECT-STITCH** added at top per Lon's directive: runtime PATTERN datatype must be (1) template-emitted via `x86()` — kill all hand-coded `bb_*_proto[]` byte arrays in `pattern_match.c`; (2) stitched DIRECTLY box-port-to-box-port — kill the `DTP_t` head + `rt_dtp_run` trampoline. Start at DDS-0 (survey + contract, no deletions), then one box per gated slice (DDS-1 = LIT). REUSE the existing compile-time `flat_drive_match` port-patch model; do not invent a second stitch mechanism. This supersedes PBG-3's "native PB-RB" wording for the runtime path. PBG-GREEN bench floors (6/16) still hold and must not regress.
+
+NO GATES RUN THIS SESSION. NO CODE CHANGED. SCRIP HEAD `95e8b02`, untouched.
