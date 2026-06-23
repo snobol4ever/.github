@@ -1,6 +1,32 @@
 <!-- SESSION-FIRST RUNG — DTP-DIRECT-STITCH · TEMPLATE-EMITTED PATTERN BOXES, NO HEADS -->
 
-# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23h, end of session 8)
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23i, session 9 · Claude Sonnet 4.6)
+
+**State:** SCRIP `da8dfb7` (PUSHED), corpus `1381b77b` (PUSHED), .github THIS commit.
+
+**WHAT LANDED THIS SESSION (`da8dfb7`):** **IR_PATTERN_LEN double-emit FIXED.** 8-line diff across 3 files: `emit_globals.h` (+`int pat_via_dtp`), `emit_core.c` (DTP_ASSIGN delegation sets/clears `pat_via_dtp` around the child walk), `bb_pattern_len.cpp` (standalone chain-entry visit → label+`jmp γ` passthrough; builder fires only under DTP delegation). Verified: exactly one `bb_build_len_blob` call carrying `rdi→"PAT"`, `esi=2`; empty string-table entry gone. **Codegen-neutral on PB-GREEN** (5/6 `.s` byte-identical to baseline; `pattern_bt.s` differed ONLY by pre-existing `01dd4d0` defer-branch staleness — now regen'd to corpus `1381b77b`).
+
+**ROOT CAUSE (corrected — the handoff-8 diagnosis was subtly wrong):** the LEN-with-ILIT lowering (`lower_snobol4.c:688-691`) deliberately returns the `IR_PATTERN_LEN` node as the statement chain ENTRY, with `pat.γ → IR_DTP_ASSIGN` and `dtp.operands[0] = pat`. So the gvar-chain BFS entry IS the pattern node, which links forward to DTP_ASSIGN. Handoff-8's two proposed fixes were BOTH wrong: (a) excluding `IR_PATTERN_*` from `gvar_chain_is_real` deletes the entry the chain links THROUGH (drops emission to ZERO — confirmed empirically); (b) the bare `bb_ls`-empty guard is fragile across statements (prior stmt can leave `bb_ls="PAT"`). The `pat_via_dtp` flag is the robust fix — it distinguishes "reached via DTP delegation" (emit builder) from "reached as standalone chain entry" (passthrough) independent of `bb_ls` state.
+
+**OPEN BUG — NEXT SESSION FIRST MOVE: the capture-cursor ABI (TR-3 runtime semantics).**
+
+`PAT = LEN(2); S = 'CDab'; S ? PAT . W; OUTPUT = 'W=' W` now COMPILES + LINKS + RUNS (no crash) but prints `W=` instead of `W=CD`. **Localized precisely this session** (read the emitted `.s` match region + `xa_flat.cpp` prologue/epilogue):
+
+The scan emits HEAD(cursor `[r12+56]=0`, `r13`=subj, `r15d`=len) → RETRY(`r14d=[r12+56]`) → CAPTURE_SAVE(`[r12+72]=r14d`=start) → DEFER → CAPTURE_COND(`esi=[r12+72]` start, `edx=r14d` end, `rt_cap_assign_cursor`). The DEFER (the landed `01dd4d0` branch) calls the LEN blob as `fn(rt_frame(), 0)` — i.e. **C-callable `bb_box_fn(zeta,entry)` form**. The blob's `xa_flat` prologue (`g_frame_active`) does `push r12; mov r12,rdi` → **establishes the blob's OWN ζ frame**; it advances `r14` against THAT frame; epilogue returns `eax=1`, `xor edx,edx`, `pop r12; ret`. **The caller's `r14d` (and `[r12+56]` cursor) is NEVER updated with the blob's final cursor.** So CAPTURE_COND reads `edx=r14d`=unchanged caller cursor (0), start=0 → captured span `[0..0)` = empty → `W=""`.
+
+**This is exactly the HEAD ABI CORRECTED directive (Lon, 2026-06-23f, see below):** the head reaches a BB GLOB, so `r13/r14/r15` are AMBIENT, established ONCE by BB_SCAN; the deferred pattern glob must run the SAME live subject and advance the SAME `r14`. The `fn(rt_frame(),0)` C-call form threads a fresh frame and breaks the ambient-`r14` contract. **The defer→blob transition must be reached from EMITTED code with `r13/r14/r15` ambient-live, NOT a C detour that establishes a new frame.** The `01dd4d0` defer branch is the wrong-ABI form (it was reverted as `2b0459e` then effectively reintroduced via `rt_frame`). 
+
+**FIX DIRECTION (for next session — confirm with Lon first):** `bb_match_defer`'s DT_P branch must NOT call the blob as a fresh-frame C function. Either (i) `jmp` into the blob's α with `r13/r14/r15` ambient and a SHARED `r12` (the scan's frame, or a pattern ζ plane that the blob writes `r14` back through), per the test_sno_6 broker model; OR (ii) if a C call is unavoidable for the head fetch, the blob must take the cursor in/out via the ambient registers (caller reloads `r14d` from the blob's result on γ). The blob's epilogue currently puts the success flag in `eax`, NOT the cursor — so option (ii) needs the cursor returned too, OR `r14` kept live across the call (it's caller-saved in SysV → trashed by the blob's frame use). Cleanest is (i): no C call, jmp-in with ambient regs + shared/written-back `r14`.
+
+After the cursor ABI is fixed and `r1` gates (`W=CD`), proceed to r2 (BREAK builder), r2+CAPTURE, CAT, TR-4 benches (per the TR-LADDER below).
+
+**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `/home/claude/x64/bin/sbl -b`. Tri-probe at `/tmp/probe.sh` (regenerate from this block if lost): `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p; ./p`. PB-GREEN floor gate: the 6 benches `arith_loop op_dispatch pattern_bt string_concat fibonacci table_access` — functional match to oracle NORMALIZING the `ms:` timing line (they print `ms: N` which differs run-to-run). NOTE: `table_access` currently emits NO output (empty) — pre-existing, uses `TABLE(512)`, no patterns; NOT caused by pattern work. `mixed_workload`/`roman`/`string_pattern` AS-FAIL in regen (unimplemented BREAK/CAPTURE/CAT builders bomb into `.s`) — expected ground-zero.
+
+---
+
+<!-- PRIOR HANDOFF (session 8) BELOW — superseded by the above; kept for the design confirmations -->
+
+# ▶▶▶ (session 8 handoff — double-emit now FIXED, see above)
 
 **State (handoff 2026-06-23h, session 8 · Claude Sonnet 4.6):** SCRIP `01dd4d0` (pushed), .github THIS commit.
 
@@ -18,28 +44,6 @@
 - G0/G1/G2 glob partitioning: use one shared ζ frame per glob = per maximal block of SNOBOL4 statements reachable from same label (initial block, labeled statement, DEFINE body, EVAL block). Don't over-partition. Pattern objects (`PAT = ...`) and their deferred use share one ζ per pattern object.
 - PB-GREEN gate = functional output matches oracle (not `.s` byte-identity). The 6 benches are: `arith_loop`, `op_dispatch`, `pattern_bt`, `string_concat`, `fibonacci`, `table_access`.
 - No `MEDIUM_TEXT`/`MEDIUM_BINARY` in templates. All emission through `x86(...)`.
-
-**OPEN BUG — NEXT SESSION FIRST MOVE:**
-
-`IR_PATTERN_LEN` child is emitted TWICE in the gvar flat chain:
-- Once correctly as DTP_ASSIGN's child delegation (bb_ls="PAT", correct)
-- Once wrongly as a standalone gvar chain node (bb_ls="", wrong)
-
-Root cause: `codegen_gvar_flat_chain_body` BFS visits IR_PATTERN_LEN (node 9) as a standalone chain node because it's linked in the IR graph (γ.node of PATTERN_LEN = DTP_ASSIGN), so BFS from DTP_ASSIGN's γ.node chain reaches it. The `gvar_chain_is_real` filter doesn't exclude `IR_PATTERN_*` nodes.
-
-**Fix:** In `codegen_gvar_flat_chain_body`'s BFS or in `gvar_chain_is_real`, exclude `IR_PATTERN_*` and `IR_DTP_ASSIGN` child nodes from being visited as standalone chain entries. Specifically: `gvar_chain_is_real` should return 0 for `IR_PATTERN_LEN`, `IR_PATTERN_BREAK`, `IR_PATTERN_CAPTURE`, `IR_PATTERN_CAT`, etc. — they are only emitted as delegates from their parent `IR_DTP_ASSIGN`, never standalone. OR: in `walk_bb_flat`'s `case IR_PATTERN_LEN:` (emit_bb.c:3251), check that `g_emit.bb_ls` is non-empty before emitting; if empty, skip (it's the orphaned standalone visit).
-
-After that one-line fix, `r1` (stored LEN rung) should gate: `PAT = LEN(2); S = 'CDab'; S ? PAT . W; OUTPUT = 'W=' W` → `W=CD` == oracle.
-
-Then r2 (BREAK builder):
-- `bb_build_break_blob(name, cset)` in `bb_pat_build.cpp` — same shape as `bb_build_len_blob` but node kind `IR_PATTERN_BREAK`, `IR_LIT(nd).sval = cset`
-- `bb_pattern_break.cpp` template — calls `bb_build_break_blob(name, cset)` where name=`_.bb_ls` and cset=`_.op_sval`
-- Wire `IR_PATTERN_BREAK` in emit_core.c
-- Gate: `PAT = BREAK(',') . W; S = 'alpha,beta'; S ? PAT; OUTPUT = 'W=' W` → `W=alpha` == oracle
-
-Then r2 with capture (`IR_PATTERN_CAPTURE`), then `IR_PATTERN_CAT`, then TR-4 benches.
-
-**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle `/home/claude/x64/bin/sbl -b`. Tri-probe: `scrip --compile p.sno | gcc -no-pie -x assembler - -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p && ./p`.
 
 **State (handoff 2026-06-23g, session 7 · Claude Sonnet 4.6):** SCRIP `d70b86d` (local, needs push with credentials), .github THIS commit.
 
