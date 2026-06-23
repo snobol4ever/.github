@@ -4,7 +4,8 @@
 
 **Goal:** all canonical JCON/Icon benchmarks running natively (m3 `--run` AND m4 `--compile`), stdout == oracle, within timeout.  
 **Oracles:** `corpus/programs/icon/rung36_jcon_*.expected` (link-free; queens/concord/genqueen present; deal/ipxref/rsg still need oracle — see BENCH-ORACLE).  
-**Benchmark sources:** `corpus/benchmarks/icon/` (merged icon-master + jcon-master into single folder).
+**Benchmark sources:** `corpus/benchmarks/icon/*.icn` (merged icon-master + jcon-master into single folder — queens, concord, deal, ipxref, rsg, micro, micsum, version, …). NOT `programs/icon/` (that is the rung *test* suite).  
+**Side-by-side `.s` artifacts:** every benchmark `.icn` in `corpus/benchmarks/icon/` that compiles cleanly carries a sibling `.s` (current GAS emitter output), committed next to its source as an emitter-regression snapshot. Maintained ONLY by `SCRIP/scripts/update_icon_bench_asm.sh` (default corpus `benchmarks/icon/`, glob `*.icn`); never hand-edited. Run it on every Icon-emitter handoff and commit the corpus delta alongside the SCRIP commit. Procedure: `.github/PROC-ICON-BENCH-ASM.md`. Baseline `dd0d0a2`: maintained=3 (`micro micsum version`); the rest CERR/EXCISED until their native arms land, then auto-acquire a `.s`.
 
 ### BENCH rung ladder
 
