@@ -184,3 +184,17 @@ This rung is entirely about template-emitted Byrd boxes and where their per-box 
 New SESSION-FIRST RUNG **DTP-DIRECT-STITCH** added at top per Lon's directive: runtime PATTERN datatype must be (1) template-emitted via `x86()` — kill all hand-coded `bb_*_proto[]` byte arrays in `pattern_match.c`; (2) stitched DIRECTLY box-port-to-box-port — kill the `DTP_t` head + `rt_dtp_run` trampoline. Start at DDS-0 (survey + contract, no deletions), then one box per gated slice (DDS-1 = LIT). REUSE the existing compile-time `flat_drive_match` port-patch model; do not invent a second stitch mechanism. This supersedes PBG-3's "native PB-RB" wording for the runtime path. PBG-GREEN bench floors (6/16) still hold and must not regress.
 
 NO GATES RUN THIS SESSION. NO CODE CHANGED. SCRIP HEAD `95e8b02`, untouched.
+
+---
+
+**⚠️ HANDOFF — 2026-06-22 · Claude Opus 4.8 · DDS EXCISION LANDED + DESIGN DOCS WIRED. SCRIP `95e8b02`→`c01cce2`, .github→this commit, corpus refreshed.**
+
+**Session: education → excision → doc-fix.** Prior sessions (incl. my own orientation) misused **r12** and accepted a band-aid (threading r12 as a `zeta` arg into the hand-coded DTP blobs) because the BB-LOCAL-STORAGE design was never surfaced by PLAN.md/this goal. Lon: pivot to ground zero, read the design, delete the bad code, fix the docs.
+
+**DESIGN DOCS WIRED (so this never recurs):** PLAN.md session-start step 7 now mandates the BB-CODEGEN DESIGN SET (`ARCH-x86.md` stackless/flat-ABI · `ARCH-ICON.md` ζ-frame register contract · `REGISTER-LAYOUT.md` · `src/emitter/bb_regs.h` · `xa_flat.cpp`) for ANY BB/template/storage rung, with a self-enforcing "rung must link here" clause. This goal now CONTAINS the storage synthesis (top of rung): the 4 realizations **A** `[r12+off]` ζ frame (primary) · **B** `[rip+disp]` RO consts · **C** per-box `.bss` arena (unbounded) · **D** DEAD SM-stack/r10-tree, plus the register table and the match-site-owns-r12 stitch contract.
+
+**EXCISION LANDED & GATED (SCRIP `c01cce2`):** deleted all 17 `bb_*_proto[]`+`*_proto_desc`, the `rt_dtp_run` `__asm__` trampoline, `rt_pattern_build`/`rt_pattern_stitch_{cat,alt}`/`rt_dtp_head_build`, `rt_defer_match`'s DT_P branch, the 8 raw-`.byte` templates (`bb_pattern_{lit,alt,cat,unary_i,unary_s,nullary,arb}.cpp`, `bb_dtp_assign.cpp`), the `DTP_t`/`DTP_FRAG_t`/`DTP_PROTO_DESC` types (`dtp.h`→pat-pool-only; `DESCR_t.p`→`void*`), dead `src/attic/IR_interp.c`. Dispatch (`emit_core.c`) rerouted to the clean `bb_pattern_stub` bomb. **GATES GREEN:** proto-arrays-in-src=0 · `DTP_t`/`rt_dtp_run`-in-src=0 · raw-bytes-in-`pattern_match.c`=0 · build green (libscrip_rt.so + scrip) · **6/6 PB-GREEN benches byte-identical `.s` (ZERO codegen drift)** — excision touched only the dead DT_P path. DT_P construction now correctly BOMBs at emit (the ground-zero rebuild state).
+
+**NEXT SESSION (DDS-1):** (1) **Lon must confirm the MATCH-SITE-owns-r12 contract** recorded above before any codegen. (2) Then build the LIT box end-to-end via `x86()` into the pat-pool, stitch port-to-port to the compile-time `flat_drive_match` model (REUSE — do not invent a second stitch). Gate green before the next box. PB-GREEN 6/16 floor must not regress.
+
+**Latent bug noted (not fixed):** `scripts/util_regen_benchmark_s_artifacts.sh` stages `benchmarks/*.s` but the benches now live in `benchmarks/snobol4/` (post-`03a0158` reorg) — its add-glob is stale; this session staged the subdir manually.
