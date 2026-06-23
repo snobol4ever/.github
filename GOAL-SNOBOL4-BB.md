@@ -78,6 +78,33 @@ This rung is entirely about template-emitted Byrd boxes and where their per-box 
 - [ ] **DDS-FINAL** — delete `DTP_t` head + `rt_dtp_run` once no box needs the trampoline; delete attic copies; full gate; PBG-3 benches green via direct-stitch.
 
 ---
+
+**⚠️ HANDOFF — 2026-06-23 · Claude Opus 4.8 · SCRIP CLEAN at `2ede32b` (WIP STASHED, not built). `.github` ONLY.**
+
+**Session: orientation-correction → native-match reality check → empty-repl WIP → Lon R12 redirect.** No SCRIP commit (WIP doesn't build). No gates run. Stash: `DDS-empty-repl-WIP-2026-06-23-not-built` (pop or discard per Lon's new R12 direction below).
+
+**⛔ CORRECTED ARCHITECTURE FACTS (stale docs misled prior orientation — verified against live code this session):**
+- **There is NO mode 2, no SM interpreter, no SM engine.** The driver (`src/driver/scrip.c:2129`) parses exactly TWO execution flags: `--run` (DEFAULT — build flat-wired x86 BB blobs in a sealed slab, jump in) and `--compile` (emit standalone x86-64 asm to stdout, links `out/libscrip_rt.so`). NO `--interp`, NO `--sm-interp`. `sm_interp_run`/`sm_jit_run`/`SM_sequence_t` = ZERO live files; the surviving `sm_*` names (`sm_lower` in one error string, `sm_preamble`, a `bb_exec_stmt` substring in `rs23_diag.c`) are vestigial. **The mode-2/3/4 numbering in PLAN.md + ARCH-SCRIP.md is STALE — do not trust it; the SM-based three-mode table in ARCH-SCRIP.md is dead.** Pipeline = ONE frontend (CMPILE.c for SNOBOL4) → AST → LOWER → IR/BB graph → two sinks: `--run` (sealed slab in-proc) / `--compile` (asm text). REGISTER-LAYOUT.md's lower SM section is also dead; its top banner (bb_regs.h table) is the only live part.
+
+**🟢 MAJOR FINDING — "one r12 per BB" ALREADY WORKS for the entire non-literal MATCH space (verified vs sbl oracle this session):**
+- Build needs BOTH `make` AND `make libscrip_rt` (→ `out/libscrip_rt.so`); oracle = `/home/claude/x64/bin/sbl -b`. Benches live at `corpus/benchmarks/snobol4/*.sno` (NOT `SCRIP/corpus/...`).
+- The match-box machinery is LIVE and per-BB-framed: `IR_SCAN` (flat walker `emit_bb.c:3232`) → `flat_drive_scan_stmt` → `flat_drive_scan_native` (`emit_bb.c:2400`) → `flat_drive_match` (`emit_bb.c:2522`, builds `IR_PAT_MATCH_HEAD`/`RETRY`/`ADVANCE` + walks the pattern tree) → `bb_match_{head,retry,advance}.cpp` + dcap capture (`rt_dcap_*`). Each match uses ONE frame slot `FR(op_off)` on r12 (head start-cursor save), r13=Σ, r14=δ, r15=Δ. This IS G0.
+- **VERIFIED CORRECT end-to-end (compile→gcc→run == oracle):** `S LEN(3)` → "matched"; `S BREAK(',') . W` → "W=alpha". Pure-match LEN, BREAK, and conditional-CAPTURE (`. W`) all emit native and run byte-correct. The PBG-3 `sno_leaf_buildable`-orphan diagnosis was about the STORED (`PAT = …`) case only — INLINE capture lowers fine to `IR_PAT_ASSIGN_COND → IR_PAT_BREAK` and works.
+- **THE ONLY GAP blocking roman + mixed_workload + string_pattern = the REPLACEMENT form `S PAT =`.** The native gate in `flat_drive_scan_stmt` declined whenever `IR_LIT(pBB).ival` (is_repl) was set — even for an EMPTY replacement — and fell through to the `bb_scan_stmt` BOMB (`.S11` "non-literal pattern needs native PB-RB graph"). Probe confirmed: `S LEN(3) =` → trace `ival=1` → declined → BOMB; `S LEN(3)` (no `=`) → `ival=0` → native → runs. This is exactly the lost-stash `IR_SCAN_REPL_EMPTY` work.
+
+**WIP THIS SESSION (stashed `DDS-empty-repl-WIP-2026-06-23-not-built`, 3 files, does NOT build — missing header decl + Makefile entry):**
+- `pattern_match.c`: `rt_scan_splice_empty(subj_name, m_start, m_end)` — splices `Σ[0:m_start]+Σ[m_end:]`, assigns back (mirrors `rt_scan_lit` replace; reads globals `Σ`/`Σlen` set by `rt_subject_load_nv`). Plus `g_rt_mstart`/`rt_match_start` (unused — earlier draft).
+- `emit_bb.c`: `g_match_start_slot` global = head's start slot; `flat_drive_scan_native` gains `is_empty_repl` param + emits splice at `dcap_ok`; gate widened to enter native when repl is empty-literal (`is_empty_repl = ival && replace_lit && !replace_lit[0]`).
+- `bb_scan_splice_empty.cpp` (NEW, template-only `x86()`, modeled on `bb_match_capture`: `lea rdi=name; mov esi=FR(start_slot); mov edx=r14d; aligned call`). **To build it needs: decl in `bb_templates.h` (~line 37 by `bb_match_capture`) + add `.cpp` to Makefile obj list.** Unchecked risk: splice reads m_start from `FR(g_match_start_slot)` — valid only if the head slot survives to `dcap_ok` across the dcap wrapper; if wrong, record start into a runtime global from `bb_match_head`/`advance` instead.
+
+**⛔⛔ NEW LON DIRECTIVE — R12-SET MECHANISM REDIRECT (2026-06-23, supersedes "α AND β set r12"):** The two-line template (α/β first-instr sets r12) is a DEAD END — "we are stuck with two-line template code; we have no way to extend it out to BB GLOBS." Instead:
+- **For PATTERNS:** set r12 inside the **DT_P DESCR_t data that carries the `bb_box_fn`**, at the box-graph's **α (entry) AND ω (exit)** — NOT β. The pattern value (descr `.p` slot reborn as box-graph head, per ARCH-SNOBOL4) owns its r12-set at its own entry/exit ports.
+- **For externally-reachable BLOCKS of statement code:** same treatment — the block sets r12 at its reachable entry.
+- Net: r12-establishment moves from "every glob-head α+β two-liner" to "pattern DESCR_t entry/exit (α/ω) + statement-block entry." Re-derive the DDS-1 plan and `seed/test_sno_5.c` model under this α/ω-in-DESCR framing before resuming codegen.
+
+**NEXT SESSION:** Decide first whether to (a) finish the small empty-repl wire-up (header decl + Makefile + gate: `S LEN(3) =` repro, then string_pattern/roman/mixed_workload tri-probe, smoke 7/7, pat-rung 19/19, fence T1=T2=0, broad-corpus ≥170) to bank +3 benches at G0 NOW, OR (b) first refactor r12-establishment to the new DESCR-α/ω model and rebuild empty-repl on top. The empty-repl splice itself is orthogonal to the r12 mechanism (it's about subject replacement, not ζ allocation), so (a) can likely land independently and bank green before (b) reshapes the ζ plane.
+
+---
 <!-- SESSION-FIRST RUNG — PBG-GREEN · ALL 16 SNOBOL4 BENCHMARKS WORKING -->
 
 # ⛔⛔⛔ SESSION-FIRST RUNG — PB-GREEN · ALL 16 SNOBOL4 BENCHMARKS WORKING
