@@ -1,8 +1,6 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
-## ▶ CURRENT PRIORITY: GET `corpus/benchmarks/icon/*.icn` WORKING (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). 9/13 now parse + compile to assembling `.s`; the 8 excising ones are ALL blocked on ONE thing — the `scan` box has no mode-3/4 native arm (land it → 8 benchmarks to clean `.s` at once). `link`/`invocable` parse (BENCH-0 landed); sources semicolonized (SEMICOLON-REQUIRED FACT RULE + PRISON below). 4 still parse-blocked on expression-grammar gaps (geddump/micro/options/rsg). See GOAL-ICON-FULL-PASS.md → RUNG #1 for the exact next steps.
-
-**x86() TEMPLATE-REVAMP is COMPLETE for Icon.** Driver deposits neighbor slots as `g_emit.op_*` scalars; boxes read only `_`. `x86_asm.h` is additive only; `git pull --rebase` before push.
+## ▶ CURRENT PRIORITY: GET `corpus/benchmarks/icon/*.icn` WORKING (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). 9/13 parse + compile to assembling `.s`. The 8 excising ones are ALL blocked on one shape: `tab(upto/many(&cset))` — tab wrapping a GENERATOR. When `tab`'s arg is resumable, the call lowers chained (`dval=1.0`) not as a subgraph-arg scan node (`dval=3.0`), so it never retags to IR_SCAN_TAB. Fix: chained-call-with-scan-producer driver in `emit_bb.c`. 4 still parse-blocked on grammar gaps (geddump/micro/options/rsg). See GOAL-ICON-FULL-PASS.md → RUNG #1.
 
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
@@ -66,7 +64,7 @@ in the GAS arm, so `IF(MEDIUM_TEXT, <comment-or-label>)` with NO matching `IF(ME
 
 
 **CORRECTION RECORD (Lon 2026-06-06):** RULES.md TEMPLATE-ONLY EMISSION is now corrected to MATCH this rule; its former
-“duplicate the byte-producing code into each template file” clause (515aa7d6, 2026-05-28) is DEAD — it predated the
+"duplicate the byte-producing code into each template file" clause (515aa7d6, 2026-05-28) is DEAD — it predated the
 2026-06-02 directive and said the opposite. Restated plainly: ZERO BINARY emission anywhere in a `bb_*.cpp` — not in the
 top-level `*_str`, not in any helper it calls (a static helper in the template file is INSIDE the fence; relocating bytes
 into helpers changes nothing). `x86()` internals (`x86_asm.h`) are the ONLY place BINARY and TEXT are emitted, side-by-side.
@@ -158,21 +156,21 @@ across all five GOAL-*-BB files.
 
 ## ⛔ SHARED-LOWERER ONE-FILE CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
-The AST→IR lowerer’s SHARED SPINE is **ONE file** — `src/lower/lower.c` — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** for the co-located languages. **AMENDED (Lon 2026-06-04): the shared IR graph is the LANGUAGE-INDEPENDENT contract — LOWER splits per language.** Prolog’s goal-role family now lives in `src/lower/lower_prolog.c` (`d6d93c6`; shared helpers de-static’d into `lower_internal.h`); remaining languages stay co-located in `lower.c` until Lon splits them out. The discipline below keeps concurrent sessions **conflict-free and mutually beneficial**:
+The AST→IR lowerer's SHARED SPINE is **ONE file** — `src/lower/lower.c` — with **ONE entry** (`lower2`, role-seeded via `lower2_{value,pattern,goal}_entry`) and **ONE big switch over the shared `tree_e`** for the co-located languages. **AMENDED (Lon 2026-06-04): the shared IR graph is the LANGUAGE-INDEPENDENT contract — LOWER splits per language.** Prolog's goal-role family now lives in `src/lower/lower_prolog.c` (`d6d93c6`; shared helpers de-static'd into `lower_internal.h`); remaining languages stay co-located in `lower.c` until Lon splits them out. The discipline below keeps concurrent sessions **conflict-free and mutually beneficial**:
 
 1. **ONE CASE PER KIND.** Each `TT_*` is at most ONE `case` label per role switch. If your language needs a kind with no case yet → ADD the case. If the case exists → ADD YOUR ARM to it. **NEVER duplicate the label.** (Win-win: SNOBOL4 adding `case TT_ASSIGN` hands Icon/Prolog a ready slot.)
 
-2. **LANGUAGE VARIATION LIVES INSIDE THE CASE — NEVER A PER-LANGUAGE FORK.** When a kind behaves differently per language, branch on `cx.lang` (or role) WITHIN the one case (`switch (cx.lang) { case IR_LANG_SNO: …; case IR_LANG_PL: …; }`, or if/else). One kind → one case → language arms inside. A language graduates to its OWN `lower_<lang>.c` ONLY by Lon’s directive (Prolog: 2026-06-04), taking its whole role-family with it — never an ad-hoc fork.
+2. **LANGUAGE VARIATION LIVES INSIDE THE CASE — NEVER A PER-LANGUAGE FORK.** When a kind behaves differently per language, branch on `cx.lang` (or role) WITHIN the one case (`switch (cx.lang) { case IR_LANG_SNO: …; case IR_LANG_PL: …; }`, or if/else). One kind → one case → language arms inside. A language graduates to its OWN `lower_<lang>.c` ONLY by Lon's directive (Prolog: 2026-06-04), taking its whole role-family with it — never an ad-hoc fork.
 
-3. **EDIT ONLY YOUR OWN LANGUAGE’S ARM.** A session may ADD or MODIFY the `cx.lang` arm for its OWN language inside any case. It must **NEVER modify, reorder, or delete another language’s arm.** A language owning its own `lower_<lang>.c` edits ONLY that file (plus lockstep scaffolding per rule 5) and never a peer’s. This is what makes concurrent sessions’ diffs non-overlapping → git auto-merges with **zero conflicts**.
+3. **EDIT ONLY YOUR OWN LANGUAGE'S ARM.** A session may ADD or MODIFY the `cx.lang` arm for its OWN language inside any case. It must **NEVER modify, reorder, or delete another language's arm.** A language owning its own `lower_<lang>.c` edits ONLY that file (plus lockstep scaffolding per rule 5) and never a peer's. This is what makes concurrent sessions' diffs non-overlapping → git auto-merges with **zero conflicts**.
 
-4. **A MISSING LANGUAGE ARM FALLS LOUD, NEVER SILENT.** Inside a case, a language with no arm yet routes to `lower_unhandled` (loud stderr + NULL) — never a silent or wrong default. A half-built arm fails LOUDLY so it can never corrupt a peer’s proven path.
+4. **A MISSING LANGUAGE ARM FALLS LOUD, NEVER SILENT.** Inside a case, a language with no arm yet routes to `lower_unhandled` (loud stderr + NULL) — never a silent or wrong default. A half-built arm fails LOUDLY so it can never corrupt a peer's proven path.
 
-5. **SHARED SCAFFOLDING IS ADDITIVE; SIGNATURE/SEMANTIC CHANGES ARE LOCKSTEP.** The cursor (`lcx_t`), the port primitives (`nalloc`/`set_succ_fail`/`ret`/`emit_leaf`), and the match-collect library (`tm`/`tm_g`) are SHARED (declared in `lower_internal.h`, defined in `lower.c`). ADDING a helper or a case label is free (no conflict). CHANGING the signature/semantics of an existing shared helper or of `lcx_t` affects all three cats → it MUST update all three GOAL files’ FACT RULE in the SAME commit and re-prove all three.
+5. **SHARED SCAFFOLDING IS ADDITIVE; SIGNATURE/SEMANTIC CHANGES ARE LOCKSTEP.** The cursor (`lcx_t`), the port primitives (`nalloc`/`set_succ_fail`/`ret`/`emit_leaf`), and the match-collect library (`tm`/`tm_g`) are SHARED (declared in `lower_internal.h`, defined in `lower.c`). ADDING a helper or a case label is free (no conflict). CHANGING the signature/semantics of an existing shared helper or of `lcx_t` affects all three cats → it MUST update all three GOAL files' FACT RULE in the SAME commit and re-prove all three.
 
-6. **THE TOPOLOGY PROOF GATE IS THE SHARED GREEN SIGNAL.** `scripts/prove_lower2.sh` must stay green before every commit (it compiles `lower.c` + `lower_prolog.c` + the harness). Each cat’s proof cases are ADDITIVE (append your own; never delete a peer’s). Green = your arm wired right AND you didn’t disturb a peer.
+6. **THE TOPOLOGY PROOF GATE IS THE SHARED GREEN SIGNAL.** `scripts/prove_lower2.sh` must stay green before every commit (it compiles `lower.c` + `lower_prolog.c` + the harness). Each cat's proof cases are ADDITIVE (append your own; never delete a peer's). Green = your arm wired right AND you didn't disturb a peer.
 
-**COMPLETION TEST:** (a) no duplicated `case TT_` label within any one switch in `lower.c` (nor within any per-language lowerer file); (b) every case’s language branches end in a real arm or `lower_unhandled` (no silent default); (c) the FACT RULE body is byte-identical across the three GOAL files (`awk '/SHARED-LOWERER ONE-FILE/{p=1} p{print} /prove_lower2.sh green/{if(p)exit}'` md5 matches — first-match, not greedy `sed`); (d) `scripts/prove_lower2.sh` green.
+**COMPLETION TEST:** (a) no duplicated `case TT_` label within any one switch in `lower.c` (nor within any per-language lowerer file); (b) every case's language branches end in a real arm or `lower_unhandled` (no silent default); (c) the FACT RULE body is byte-identical across the three GOAL files (`awk '/SHARED-LOWERER ONE-FILE/{p=1} p{print} /prove_lower2.sh green/{if(p)exit}'` md5 matches — first-match, not greedy `sed`); (d) `scripts/prove_lower2.sh` green.
 
 ## ⛔ TEMPLATE-ONLY EMISSION — ONE-DISPATCH CONCURRENCY (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
@@ -285,23 +283,20 @@ The physical registers are SHARED — never live in two languages at once. A cro
 **RETIREMENT (all three sessions must honor):** the old **`Ω`** (omega — mode-2 `refs/bb/test_*.c` oracle) and **`Σlen`** (mode-3/4 `bb_pat_*.cpp` templates) are ONE quantity under two names → **both fold into `Δ`**; always moved in lockstep. Rename sweep: `Δ(old cursor)→δ`, `Ω→Δ`, `Σlen→Δ`. Substring nesting is held on the C stack (`save_Σ`/`save_Σlen`), so ONE length register suffices. **Pre-flight gate before deleting a name:** grep that no path ever sets `Σlen ≠ Ω`. Changing any assignment in this table is LOCKSTEP — update all three GOAL files in the SAME commit (mirrors the SHARED-LOWERER / EMITTER FACT RULES).
 
 
-## ⛔⛔ GROUND ZERO 3 — STACKLESS REBUILD (Reset 2026-05-30) ⛔⛔
+## ⛔⛔ GROUND ZERO 3 — STACKLESS (Reset 2026-05-30) ⛔⛔
 
-Third reset; the wrong premise both prior times was a value stack. The model: values live in flat per-box slots at emit-time offsets; a consumer reads its producers' slots directly (Proebsting `plus.value ← E1.value + E2.value`). Unbounded backtrack = a per-box arena indexed by depth, never push/pop. Inter-box transitions are direct `jmp` — no call/ret/dispatch loop/walker. `rsp` only as transient intra-node scratch, never to thread values between boxes.
+Values live in flat per-box slots at emit-time offsets; consumer reads producer's slots directly. Unbounded backtrack = per-box arena indexed by depth, never push/pop. Inter-box transitions are `jmp rel32`. **References:** `test_icon.c` (flat goto target) · `test_sno_1/2/3.c`.
 
-**References:** `SCRIP/refs/bb/Proebsting-*.pdf` · `test_icon.c` (flat goto target) · `test_sno_1/2/3.c` · `archive/backend/emit_emitters/emit_x64.c` (prior stackless emitter).
+**GATE:** `grep -rnoE 'rt_(push|pop)_[a-z_]+' src/emitter/BB_templates/ src/emitter/emit_bb.c | grep -v _pl_ | wc -l` == 0.
 
-**GATE:** `grep -rnoE 'rt_(push|pop)_[a-z_]+' src/emitter/BB_templates/ src/emitter/emit_bb.c | grep -v _pl_ | wc -l` == 0; plus per-rung m2==m3 byte-identical, zero-SM, FACT 0, smokes hold.
+### ⛔ ALWAYS TEST BOTH NATIVE MODES (m2/--interp DELETED)
 
-### ⛔ ALWAYS TEST ALL THREE MODES (Icon GOAL policy — set 2026-05-31)
+Every test runs `--run`/`--compile` on the SAME source. Done = m3+m4 PASS or LOUDLY EXCISE. HARNESS: `scripts/test_icon_rung_suite.sh [--rung R] [--mode all|run|compile]`. Stubbed kind → `[SMX] EXCISED` (exit 0). m4 needs `make libscrip_rt` + gcc.
 
-Every test runs --interp/--run/--compile on the SAME source. Done = m2 all-PASS (HARD) AND m3+m4 PASS or LOUDLY EXCISE. HARNESS: `scripts/test_icon_rung_suite.sh [--rung R] [--mode all|interp|run|compile]`. Stubbed kind → `[SMX] EXCISED` (exit 0). `icn_kind_native_stub` in `scrip.c` — REMOVE a kind the moment its real arm lands. MUXED kinds (IR_UNOP, IR_BINOP) need per-operation declines, not blanket. m4 needs `make libscrip_rt` + gcc.
+### Rung ladder
 
-### Rung ladder (each gated: stackless, m2==m3, zero-SM, no-stack 0, no corpus regression)
-
-- GZ-0…GZ-SCAN **DONE** (HELLO→scan; all foundational boxes landed — git log).
-- [ ] **GZ-DEFER** — EVAL / CODE / `*P` deferred patterns via `test_sno_3.c` model.
-- [ ] **GZ-11+** — `not`/`size`/`nonnull` `bb_unop` · relop remainder · generator-operand binops (Fig-1 m3/m4) · `rt_call_builtin` · lists/tables/records/csets/sort — canonical JCON/Icon first.
+- [ ] **GZ-DEFER** — EVAL / CODE / `*P` deferred patterns.
+- [ ] **GZ-11+** — `not`/`size`/`nonnull` `bb_unop` · relop remainder · generator-operand binops (Fig-1) · `rt_call_builtin` · lists/tables/records/csets/sort.
 
 ## ⛔ PER-BOX LOCAL STORAGE — ALL STATE LIVES INSIDE THE BOXES (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md)
 
@@ -336,20 +331,15 @@ producer→consumer value (only true variable assignment); (d) every box-local r
 or `[ζ+off]` (RW) — no `movabs … &pBB->slot` absolute slot address; (e) mode-3 BINARY arm and mode-4
 TEXT arm of the SAME box do the SAME processing (the only diff is BINARY-bytes vs GAS-text).
 
-
 ---
-
-## 🔴🔴 BB-HYGIENE LADDER (ICON) — ALL DONE (HY-0…7g)
-
-De-cram · de-fuse · `!x` · marshal medium-collapse · N-arg slot carrier · LIT_I/S/F/NUL adoption + float containment. `bb_binop.cpp` split is the worked example. Git log for details.
 
 ## Premise
 
-Icon IS a Byrd-Box port-graph; every construct is a box; no SM, no value stack. Mode 2: `bb_exec_once(s2->sm.bb_table[main_bb_idx])` directly. Modes 3/4: `lea r10,[rip+Δ_root]; jmp .Lroot_α`; boxes in `bb_pool`/linked binary; transitions are `jmp rel32` — no call/ret/dispatch/broker/walker/push-pop. Target shape: `test_icon.c` (`_start/_resume/_succeed/_fail` flat goto, named slots, three-column LABEL/ACTION/GOTO).
+Icon IS a Byrd-Box port-graph; every construct is a box; no SM, no value stack. Modes 3/4: `lea r10,[rip+Δ_root]; jmp .Lroot_α`; boxes in `bb_pool`/linked binary; transitions are `jmp rel32` — no call/ret/dispatch/broker/walker/push-pop. Target shape: `test_icon.c` (flat goto, named slots, three-column LABEL/ACTION/GOTO).
 
 ## ⛔ GOAL RULE (Icon SM streams)
 
-**ZERO SM opcodes for an Icon program.** Completion: `./scrip --dump-sm prog.icn` → `; SM_sequence_t  count=0` (and `grep -c '^   [0-9]'` → 0).
+**ZERO SM opcodes for an Icon program.** Completion: `./scrip --dump-sm prog.icn` → `; SM_sequence_t  count=0`.
 
 ## ⛔ ICON SEMICOLON-REQUIRED — NO NEWLINE PROCESSING, EVER (FACT RULE — Icon, Lon directive 2026-06-23)
 
@@ -387,54 +377,36 @@ parses; (d) `src/parser/icon/icon_lex.c` mints `TK_SEMICOL` only from the litera
 
 ## ⛔ CONSULT CANONICAL SOURCES (JCON + Icon)
 
-Every port-topology / resume-wiring / builtin-semantics question: read canonical FIRST — `refs/jcon-master/tran/irgen.icn` and `refs/icon-master/src/runtime/*.r` (`fstranl.r`, `ocomp.r`, `fscan.r`). The m2 oracle is a transcription; canonical wins. See RULES.md. Extract uploaded zips into `refs/` at session start if absent.
+Every port-topology / resume-wiring / builtin-semantics question: read canonical FIRST — `refs/jcon-master/tran/irgen.icn` and `refs/icon-master/src/runtime/*.r` (`fstranl.r`, `ocomp.r`, `fscan.r`). The m2 oracle is a transcription; canonical wins. Extract uploaded zips into `refs/` at session start if absent.
 
 ## Per-rung gate
 
 ```bash
 bash scripts/build_scrip.sh
-./scrip --interp  /tmp/rung_NN.icn  > out_m2.txt
 ./scrip --run     /tmp/rung_NN.icn  > out_m3.txt
-diff out_m2.txt out_m3.txt    # must be empty (when m3 is live; if m3 declines [SMX] it is EXCISED, tracked)
+./scrip --compile /tmp/rung_NN.icn  > out_m4.s
 
-# THREE-MODE session-sync gate (the new "done" — interp HARD, run/compile PASS-or-EXCISED, never silent FAIL):
-bash scripts/test_icon_rung_suite.sh --rung rungNN   # all three modes, [SMX] => EXCISED
-make libscrip_rt                                       # mode-4 needs out/libscrip_rt.so
+bash scripts/test_icon_rung_suite.sh --rung rungNN
+make libscrip_rt
 
-./scrip --dump-bb /tmp/rung_NN.icn  # (SM excised; --dump-sm removed). ZERO-SM is structural now.
-
-# FACT gate
-grep -rnE 'seg_byte\(SEG_CODE|SL_B\(|sl_emit_one|emit_standard_blob|bake_blob_call' src/ \
-  | grep -v _templates/ | grep -v emit_core | wc -l   # == 0
-
-# NO-STACK gate (GROUND ZERO 3): Icon emission path contains ZERO value-stack push/pop.
-grep -rnoE 'rt_(push|pop)_[a-z_]+' src/emitter/BB_templates/ src/emitter/emit_bb.c \
-  | grep -v _pl_ | wc -l        # target 0 for every Icon box family as it is rebuilt
-bash scripts/test_gate_icn_no_stack.sh            # pinned ratchet (baseline lowers as families rebuild)
-
-# ONE-REGISTER FRAME gate (ICON STACKLESS ONE-REGISTER FRAME FACT RULE, RULES.md): all per-box
-# storage is [reg+off] into ONE per-sequence local frame — NO absolute &pBB->slot immediates.
-bash scripts/test_gate_icn_one_reg_frame.sh       # pinned ratchet; target 0 as families migrate
-
-# SEMICOLON-REQUIRED PRISON (ICON SEMICOLON-REQUIRED FACT RULE): Icon requires ';'; NO newline processing.
-bash scripts/test_gate_icn_semicolon_required.sh  # 3 locks — HARD (exit 1 on any breach)
-
-# Smokes (must hold)
-bash scripts/test_smoke_icon.sh                # m2 PASS=12 (HARD)
-bash scripts/test_smoke_prolog.sh              # m2 PASS=5
-bash scripts/test_smoke_unified_broker.sh      # PASS>=25
+bash scripts/test_gate_icn_no_stack.sh
+bash scripts/test_gate_icn_one_reg_frame.sh
+bash scripts/test_gate_icn_semicolon_required.sh
+bash scripts/test_smoke_icon.sh
+bash scripts/test_smoke_prolog.sh
+bash scripts/test_smoke_unified_broker.sh
 ```
 
 ---
 
 ## DO NOT
 
-- Touch SNOBOL4 / Snocone / Rebus / Raku / Prolog lower or BB families. **They keep their SM and their value stack (`g_vstack`). The stack removal is Icon-only.**
+- Touch SNOBOL4 / Snocone / Rebus / Raku / Prolog lower or BB families.
 - Use `SM_BB_INVOKE` for Icon programs going through `lower_icn_bb`.
-- Write `DESCR_t foo(void *zeta, int entry)` C Byrd box functions. See `GOAL-ICON-BB-NATIVE.md`.
+- Write `DESCR_t foo(void *zeta, int entry)` C Byrd box functions.
 - Add fields to `BB_t`.
 - Walk SM or BB at runtime in modes 3/4.
-- Reintroduce the value stack for Icon value flow in any form (SM vstack, `vstack`, `r12`-as-TOS, `rt_push_*`/`rt_pop_*`).
+- Reintroduce the value stack for Icon in any form.
 
 ---
 
@@ -444,34 +416,26 @@ bash scripts/test_smoke_unified_broker.sh      # PASS>=25
 cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
 bash scripts/build_scrip.sh
-make libscrip_rt                               # mode-4 needs out/libscrip_rt.so
-bash scripts/test_smoke_icon.sh                # m2 12/12 · m3 10/12 · m4 10/12
-bash scripts/test_smoke_prolog.sh              # PASS=5
-bash scripts/test_smoke_unified_broker.sh      # PASS>=35
-bash scripts/test_gate_bb_one_box.sh           # PASS
-bash scripts/test_gate_icn_semicolon_required.sh  # PASS — Icon requires ';'; no newline processing (PRISON)
+make libscrip_rt
+bash scripts/test_smoke_icon.sh                   # m3 12/12 · m4 12/12
+bash scripts/test_smoke_prolog.sh                 # PASS=5
+bash scripts/test_smoke_unified_broker.sh         # PASS>=35
+bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 ```
 
 ---
 
-
-## RATIFIED — UNIFIED REGISTER LAYOUT (2026-05-30, session 3)
-
-Floor = System V AMD64; durables are callee-saved (canonical semantics = the X86-64 FACT table above; this is the per-language view). **Durable:** R12 ζ RW-frame base `[r12+off]` (all langs) · R13 Σ / R14 δ / R15 Δ (pattern langs; else free) · RBX NV/globals base · RBP RESERVED (claimed by omitting the frame-pointer prologue; never value flow). **Caller-saved = scratch/ABI only:** RAX(:RDX) γ result DESCR_t lo:hi · RDI inbound ζ → copied to R12 · RSI scratch (α/β selector RETIRED on the Icon flat path; Prolog brokered re-entry only) · RCX/RDX/R8-R11 rt_* args · RSP return addresses + transient intra-node scratch, NO value flow. Two locals kinds: RW → `[R12+off]`; RO → `[RIP+disp]`. SNOBOL4/Snocone/Rebus/Raku keep `g_vstack` only until BB-converted; Icon and Prolog have NONE.
-
 ## Watermark
 
-**2026-06-23 (Claude) — Icon scan builtins accept cset-keyword args (&lcase/&ucase/&letters/&digits) in any/many/upto; m3+m4 verified.** SCRIP `66de67e`. The scan-builtin excision gate (`scan_subgraph_safe`/`scan_tab_arg_ok`, scrip.c) and emitter dispatch (`emit_bb.c` IR_SCAN_ANY/MANY/UPTO) required an `IR_LIT_S` literal string for the cset arg, so `any(&lcase)`-style keyword csets forced a clean EXCISE. Per `fstranl.r`, any/many/upto take a cset arg; a keyword cset is a compile-time constant. Three files: (1) `keywords.c/.h` — `kw_cset_const_str()` returns the canonical string for the printable csets (lcase/ucase/letters/digits) for compile-time use; &ascii/&cset excluded (leading-NUL representation) → still cleanly EXCISE. (2) `scrip.c` — `scan_fn_cset_arg()` accepts IR_LIT_S OR a known cset-keyword arg, wired into the gate for any/many/upto; match/find/bal keep IR_LIT_S (string args), split out from the cset trio. (3) `emit_bb.c` — `scan_cset_or_lit_arg()` extracts the literal string or the keyword-cset constant for ANY/MANY/UPTO; MATCH keeps IR_LIT_S. **Templates unchanged** (read only `op_name1`). Verified m3 AND m4: `any/many/upto(&lcase)` compile to native, assemble, link, run correct (any→2, many→6, upto→1); match→3, find→5, any('a')→2 unregressed. **Rung suite UNCHANGED 144/283** (no rung exercises bare cset-keyword scans yet). Gates green: icon smoke 12/12 m3+m4, prolog 5/5, no-stack 0, one-reg 0, semicolon prison. Bench `.s`: no drift (new=0 updated=0). **NEXT LEVER for the 8 blocked benchmarks: `tab(upto(&cset))` = tab-wrapping-a-GENERATOR.** Traced this session — when tab's arg is resumable, the call lowers as a CHAINED call (`dval=1.0`, threads the generator as a producer) NOT a subgraph-arg scan node (`dval=3.0`), so it never retags to IR_SCAN_TAB and the per-IR_SCAN_TAB-box path doesn't apply (lower_icon.c:89-95 `chains`/`subgraph` split). This is the actual blocker for concord/deal/ipxref/micsum/post/queens/shuffle/tgrlink (all use `tab(upto(...))`/`tab(many(...))`); it needs the chained-call-with-scan-producer driver, a larger piece than this gate widening. Bare `s ? upto(&cset)` (non-tab-wrapped) now works.
+**HEAD (SCRIP) = `66de67e`** — m3/m4 **144/283**. icon smoke 12/12 m3+m4 · prolog 5/5 · no-stack 0 · one-reg 0 · semicolon prison green.
 
+**2026-06-23 (Claude):** (1) Icon scan builtins `any/many/upto` now accept cset-keyword args (`&lcase/&ucase/&letters/&digits`) in addition to literal cset strings. `kw_cset_const_str()` in keywords.c provides the compile-time string; `scan_fn_cset_arg()` in scrip.c accepts it in the gate; `scan_cset_or_lit_arg()` in emit_bb.c extracts it for the dispatch. Templates unchanged. Verified m3+m4: `any/many/upto(&lcase)` → correct results. (2) ICON SEMICOLON-REQUIRED FACT RULE + PRISON (`test_gate_icn_semicolon_required.sh`, 3 locks). (3) `link`/`invocable` parsing (BENCH-0). (4) benchmark corpus semicolonized (all 13 `.icn`). (5) `update_icon_bench_asm.sh` repointed to `benchmarks/icon/`. 9/13 benchmarks parse + compile to assembling `.s`.
 
+**NEXT LEVER for the 8 SMX-blocked benchmarks:** `tab(upto/many(&cset))` — tab wrapping a generator. When tab's arg is `is_resumable`, the call lowers CHAINED (`dval=1.0`), never retags to IR_SCAN_TAB, and the per-IR_SCAN_TAB-box path doesn't fire. Needs the chained-call-with-scan-producer flat-chain driver in emit_bb.c. See HANDOFF-2026-06-23-CLAUDE-ICON-SCAN-CSET-KEYWORD.md.
 
-**2026-06-23 (Claude) — ICON SEMICOLON-REQUIRED FACT RULE + PRISON landed; benchmark sources semicolonized; `link` parsing + return-terminator fix.** New FACT RULE (above, near the GOAL RULE section) forbids any newline→`;` insertion in the Icon front-end; enforced by `scripts/test_gate_icn_semicolon_required.sh` (3 locks, behavioral canary is name-independent). Wired into Session-Setup + per-rung gate lists. Parser gained `link`/`invocable` (`TT_LINK`/`TT_INVOCABLE`) and a `return`-before-`}`/`end` terminator fix. Suite UNCHANGED 144/283 (this session is parser + corpus + gate only; no emitter/lowerer change). See GOAL-ICON-FULL-PASS.md watermark for the full benchmark accounting. HEAD(SCRIP) pending push.
+**Open bugs:** Generator in user-proc call arg disappears from BB graph — `lower_call` sets `cx->beta = ω` for non-gen-allowed procs (rung16 +1, rung32 +1). `write(&null)` m3 abort — `&null`→`bb_keyword`, unresolved forward ref.
 
-**HEAD (SCRIP) = `e928643`** — Icon native loops: `bb_to` descending TO (negative `by`, jg/jl by sign) + flat-emit EVERY exhaustion → success continuation (not `main_ω`). m2 200 (HARD) · m3 45 · m4 51 · prolog 5/5. HEAD (.github) = HANDOFF-2026-06-13-OPUS48-ICON-FULL-PASS-TO-EVERY-CHAIN.md.
-
-**Open bug (FULL-18-resid, 2026-06-12):** Generator in user-proc call arg disappears from BB graph. `lower_call` sets `cx->beta = ω` (not call) for non-gen-allowed procs, so ALT/TO arg to `tag("a"|"b"|"c")` is never wired into the flat graph. Fix: in `lower_icon.c` `lower_call` (line 82/94), detect when arg subtree contains a generator and set `cx->beta = call` so it stays in chain. Affected: rung16 `s[1 to 3]` (+1), rung32 `tag("a"|"b"|"c")` (+1), many rung36/37.
-
-**Standing flags:** (1) m2 scan builtins one-shot — generative would shift 195 baseline (Lon's call; PIN). (2) `rung36_jcon_scan1` rc=134 TT_CSET_DIFF unhandled. (3) rung02 userproc m4 depth-4096/m3 silent-empty. (4) ~150 corpus ABORT in `walk_bb_node` — systemic decline-gate pass wanted. (5) Open tiers: GZ-DEFER, `bb_binop_gen` Fig-1, native `!x`, `rt_call_builtin`. (6) `write(&null)` m3 abort — `&null`→IR_VAR"&null"→`bb_keyword`, unresolved forward ref.
+**Standing open items (14 FAILs):** bb_call FATAL cluster (rung08/22/30/32/37) · recursion overflow (rung02) · suspend gen (rung03) · limit counter (rung14, canonical: irgen.icn:113 `ir_a_Limitation`) · cross-arg alternation (rung13).
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
-**Architecture pointers:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c` · `.github/test_sno_1.c` · `.github/test_sno_3.c`
+**Architecture:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c`
