@@ -114,3 +114,15 @@
 ---
 
 **⚠️ EMERGENCY HANDOFF — 2026-06-22 · Sonnet 4.6 · `.github` ONLY (no SCRIP commit; SCRIP WIP stashed). Context exhausted at ~92%. PBG-3 partial: see PBG-3 step above for full WIP summary and next-session plan. NO GATES RUN THIS SESSION. SCRIP at HEAD `e789f1e` (PBG-2 landed, unchanged). Stash: `PBG-3-WIP-2026-06-22-gates-not-green`. Pop stash at next session start and continue from the two blockers (roman debug + bb_pattern_capture).**
+
+---
+
+**⚠️ HANDOFF — 2026-06-22 · Sonnet 4.6 · ORIENTATION SESSION ONLY (no code changes; stash confirmed absent).**
+
+**CONFIRMED:** SCRIP at `e789f1e` (PBG-2). Git stash `PBG-3-WIP-2026-06-22-gates-not-green` does NOT exist — prior session exhausted before stashing. All WIP is design notes only (in this goal file). Start PBG-3 from scratch on next session.
+
+**KEY FACTS FOR PBG-3 (from code read this session):**
+- `bb_match_head/retry/advance` operate on LOCAL FRAME `[r12+offset]`: `op_sa`=subject DESCR_t slot (16B: qword=ptr, dword+8=len→r15d); `op_off`=4B int start cursor. Head sets cursor=0, loads r13=subj ptr, r10→cursor+8 slot. Retry loads r14d=FR(op_off). Advance increments FR(op_off), checks vs r15d and `kw_anchor`.
+- `bb_scan_stmt` literal path calls `rt_scan_lit(subj_name,subj_lit,pat_lit,is_repl,repl_lit)`. Non-literal MEDIUM_TEXT path = x86_bomb (the blocker).
+- RT globals: `Σ`/`Σlen` (pattern_match.c), `kw_anchor` (keywords.c), `g_rt_dcap[]`/`g_rt_dcap_n`/`g_rt_dcap_active` (cond-assign capture buffer, pattern_match.c), `g_subject_slot` (emitter phase, emit_bb.c:160).
+- Blocker B: `sno_leaf_buildable` does not handle `TT_CAPT_COND_ASGN` → `PAT = BREAK(',') . WORD ','` orphaned by `lower_assign`.
