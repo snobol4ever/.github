@@ -73,13 +73,48 @@ This rung is entirely about template-emitted Byrd boxes and where their per-box 
 ## STEPS
 
 - [x] **DDS-0** — survey + contract DONE. Excision landed+gated (SCRIP `dd0d0a2`): all 17 `bb_*_proto[]`+`*_proto_desc`, `rt_dtp_run`, `DTP_t`/`DTP_FRAG_t`/`DTP_PROTO_DESC`, the 8 raw-`.byte` templates, `rt_pattern_build`/`stitch_{cat,alt}`/`dtp_head_build`, `rt_defer_match` DT_P branch, dead `src/attic/IR_interp.c` — all deleted; dispatch → `bb_pattern_stub` bomb (`emit_core.c`); `dtp.h`→pat-pool-only; `DESCR_t.p`→`void*`. Gates: proto/`DTP_t`/`rt_dtp_run`-in-src=0, raw-bytes-in-pattern_match=0, build green, 6/6 PB-GREEN byte-identical .s. **Contract CONFIRMED (Lon 2026-06-23): glob-head sets r12 on α+β — see REQUIRED DESIGN READING + ζ-PARTITION DESIGN above. Golden DDS-1 target = `seed/test_sno_5.c`.** Ground-zero rebuild state reached; DT_P correctly BOMBs at emit.
-- [ ] **DDS-1** — implement ONE box (LIT) end-to-end via template: `bb_pattern_lit.cpp` emits a relocatable box via `x86()`; runtime stitches it port-to-port; delete `bb_lit_proto`. Gate green before next box.
+- [ ] **DDS-1** — **CORRECTED TARGET (2026-06-23b): the LIT box is already done (`bb_lit()`, template-only, dispatched at emit_core.c:341). The real DDS-1 work is the BB_SWITCH r12-broker around the `IR_PAT_DEFER` (stored-pattern) glob** — stored-pattern READ currently drops CAPTURE because the deferred shared body has no broker-established ζ frame (inline capture works; stored does not — verified vs sbl). Emit the four-port BB_SWITCH (Q1/Q2 locked; golden = `seed/test_sno_6.c`) wrapping the deferred glob; verify `PAT=BREAK(',') . WORD; S ? PAT` ⇒ `WORD=alpha` == oracle. Gate green (PB-GREEN 6/16 floor) before next box.
 - [ ] **DDS-2..N** — one box per slice (LEN, POS, RPOS, TAB, RTAB, ANY, NOTANY, SPAN, BREAK, BREAKX, ARB, REM, FAIL, SUCCEED, FENCE, ABORT, CAT, ALT), each: rewrite template to emit, delete its proto, gate green.
 - [ ] **DDS-FINAL** — delete `DTP_t` head + `rt_dtp_run` once no box needs the trampoline; delete attic copies; full gate; PBG-3 benches green via direct-stitch.
 
 ---
 
-**⚠️ HANDOFF — 2026-06-23 · Claude Opus 4.8 · SCRIP CLEAN at `2ede32b` (WIP STASHED, not built). `.github` ONLY.**
+**⚠️ HANDOFF — 2026-06-23(b) · Claude Opus 4.8 · BB_SWITCH MECHANISM LOCKED + GOLDEN SEEDED + DEFER ROOT-CAUSE ISOLATED. SCRIP `2ede32b`→THIS (seed/test_sno_6.c added; zero codegen change, 6/6 PB-GREEN byte-identical). `.github` GOAL updated.**
+
+**Session: R12 mechanism redirect realized → golden re-derived → live reality check corrects the stale map.**
+
+**⛔ R12/ζ MECHANISM — NOW LOCKED (Lon, 2026-06-23b). Supersedes BOTH "α+β head two-liner" AND the earlier "DESCR-α/ω" sketch.** No box ever sets r12. r12 is established ONCE at the glob BOUNDARY, externally, by one of three sites — none an α/β first-instruction:
+- **STATEMENT glob** (G2, not re-entrant): r12 = `lea r12,[rip+frame]` at the XA statement-entry (compile-time-constant frame addr).
+- **PATTERN glob** (G1, stored `*P`, re-entered per loop-iter/recursion): r12 set by a **BB_SWITCH broker** at the DEFER call-site.
+- **FUNCTION glob** (G3, recursive): same broker, fresh frame per activation (DEFERRED — pattern case is DDS-1).
+
+**BB_SWITCH = a full FOUR-PORT box that brokers r12 (decisions Q1+Q2 locked this session):**
+- **Q1 (shape):** TWO entry sub-boxes — `switch.α`: `push r12; <establish callee frame>; mov r12,frame; jmp callee.α` · `switch.β`: `push r12; mov r12,cached; jmp callee.β`. TWO exit sub-boxes — `callee.γ → resume.γ`: `pop r12; jmp caller.γ` · `callee.ω → resume.ω`: `pop r12; jmp caller.ω`. Exactly one entry + one exit fire per traversal ⇒ push/pop balance. SEPARATE γ/ω resumes (no discriminant slot). The switch PRESENTS AS A NORMAL BYRD BOX ⇒ stitches port-to-port via `flat_drive_match`/`walk_bb_flat` unchanged.
+- **Q2 (cache slot):** the per-activation pattern-frame ptr is cached in a slot of the CALLER (section) frame — `[r12_caller+cache_off]`, read/written BEFORE r12 is swapped to the callee frame. Re-entrant for free (recursion ⇒ distinct caller activation ⇒ distinct cache slot; a `.bss` slot would alias). α allocs+caches; β reads the cached ptr.
+- **C-stack save** (Q1 from prior turn): the push/pop of r12 IS the ARCH-x86 "call-style extra-BLOB jump" — source BLOB pushes before the outbound jmp, pops at resume. Nests for free on recursion.
+- **Pattern-flavor switch saves ONLY r12** (Q2 from prior turn): Σ/δ/Δ (r13/r14/r15) are NOT touched — the subject flows continuously through a pattern; **BB_SCAN owns r13/r14/r15.** (A FUNCTION-flavor switch would also save the subject trio — out of scope for DDS-1.)
+
+**GOLDEN: `seed/test_sno_6.c` (NEW — SUPERSEDES test_sno_5.c).** Stored `PAT='C' 'D'` reused at 2 sites: ONE code body, DISTINCT pattern-frame instance, ONE register r12 set at section-glob entry (static) + swapped by the BB_SWITCH broker, NO box's first instruction. Site 2 (`PAT 'Z'`) forces a backtrack RE-ENTRY into PAT.β through a SECOND switch that RESTORES the cached frame. Compiles+runs (`gcc -std=gnu11 seed/test_sno_6.c`); R12-trace prints the save/restore at every boundary; two-site semantics oracle-confirmed (`sbl`: site1 match=CD, site2 fail). **THIS IS THE DDS-1 EMITTER TARGET.** test_sno_5.c is retired (its "head sets r12" thesis is dead).
+
+**🟢🔴 LIVE REALITY CHECK — the stale map was WRONG about where the gap is. Verified vs sbl this session:**
+- **The LIT box is ALREADY DONE.** `IR_PAT_LIT` dispatches (`emit_core.c:341`) to `bb_lit()` — a clean template-only `x86()` box (memcmp vs `[rip+lit]` RO const, bounds-check, `Δ+=N`/β:`Δ-=N`). The DDS-0 excision already removed `bb_lit_proto`; the live box is the template. **DDS-1 does NOT need a new LIT template.**
+- **Stored LIT works end-to-end:** `PAT='C' 'D'; S ? PAT` → compiles, runs, == oracle ("matched stored"). So a stored pattern's READ form (`S ? PAT`) with LIT boxes ALREADY matches at G0.
+- **THE ACTUAL ROOT CAUSE common to roman+mixed_workload+string_pattern = the `IR_PAT_DEFER` execution path drops CAPTURE.** `S ? BREAK(',') . WORD` **inline** captures correctly (`WORD=alpha` == oracle). The SAME pattern **stored** (`PAT=BREAK(',') . WORD; S ? PAT`) lowers the SCAN operand to `IR_PAT_DEFER "PAT"` and captures NOTHING (`WORD=` vs oracle `alpha`) — silent, no bomb. This is the stored-pattern ζ problem the BB_SWITCH exists to fix: the deferred shared body needs a broker-established pattern frame so capture-writes land correctly; inline works only because it's emitted in-place with the section frame already live.
+- **The `S PAT = ''` BOMB is a SEPARATE, narrower issue:** `bb_scan: TEXT(mode-4) non-literal pattern needs native PB-RB graph` fires from the gate in `flat_drive_scan_stmt` (emit_bb.c ~2448) which declines native when the REPLACEMENT flag `IR_LIT(pBB).ival` is set. This is the empty-repl splice — **orthogonal to r12/ζ** (it's subject replacement, not frame allocation). Independent of DEFER-capture.
+
+**⇒ DDS-1 AND PBG-3 CONVERGE: the one root is "make `IR_PAT_DEFER` run the stored pattern's BB graph with a broker-established ζ frame."** Empty-repl is a separable add-on once DEFER matches+captures correctly.
+
+**NEXT SESSION (DDS-1, fresh context — this is a vertical slice, needs headroom):**
+1. Find the `IR_PAT_DEFER` emit path (grep `IR_PAT_DEFER` in emit_bb.c/emit_core.c; it currently runs the stored graph but capture lands in the wrong frame). Confirm whether DEFER today even re-enters the stored pattern's BB body or no-ops.
+2. Emit a **BB_SWITCH** (four-port, per Q1/Q2 above, modeled byte-for-byte on `seed/test_sno_6.c`) wrapping the deferred pattern glob: switch.α allocs+caches the pattern frame in `[r12_section+cache_off]`, pushes r12, sets r12=frame, jmps the stored body's α; resume.γ/ω pop r12. REUSE the `flat_drive_match` stitch — the switch is just another box in the chain.
+3. Verify capture lands: `PAT=BREAK(',') . WORD; S ? PAT` ⇒ `WORD=alpha` == oracle. THEN the read-form benches; THEN add empty-repl splice (the `flat_drive_scan_stmt` gate widen + `rt_scan_splice_empty`) for `S PAT = ''` → string_pattern/roman/mixed_workload green (+3 at G0).
+4. Gate: smoke M3/M4 7/7 · pat-rung 19/19 · fence T1=T2=0 · broad-corpus ≥170 · PB-GREEN 6/16 floor. THEN coarsen G0→G1 (whole pattern tree shares one frame) as pure optimization on green.
+
+**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt` (→ out/libscrip_rt.so). Oracle `/home/claude/x64/bin/sbl -b`. Tri-probe: `scrip --compile p.sno | gcc -no-pie - -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p && ./p` vs `sbl -b`. Benches: `corpus/benchmarks/snobol4/*.sno`.
+
+---
+
+**⚠️ HANDOFF — 2026-06-23(a) · Claude Opus 4.8 · SCRIP CLEAN at `2ede32b` (WIP STASHED, not built). `.github` ONLY.**
 
 **Session: orientation-correction → native-match reality check → empty-repl WIP → Lon R12 redirect.** No SCRIP commit (WIP doesn't build). No gates run. Stash: `DDS-empty-repl-WIP-2026-06-23-not-built` (pop or discard per Lon's new R12 direction below).
 
