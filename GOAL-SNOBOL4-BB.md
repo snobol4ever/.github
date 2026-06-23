@@ -1,8 +1,36 @@
 <!-- SESSION-FIRST RUNG — DTP-DIRECT-STITCH · TEMPLATE-EMITTED PATTERN BOXES, NO HEADS -->
 
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23c, end of session 5)
+
+**State:** SCRIP `7d6a9c9`, .github `1af9fc88`, both pushed & clean. TR-0 + TR-1 LANDED this session (see TR-ladder below). Direction was CORRECTED mid-session — read "DIRECTION LOCKED" before touching anything: **all patterns variant, build from scratch at RUNTIME in stage 2, NO constant folding.**
+
+**Your first move = TR-2 (the core unsolved work).** The `IR_PATTERN_*` runtime-builder family is entirely `bb_pattern_stub` BOMBs (emit_core.c L364–386); DDS-0 deleted the realizations. Implement the builder boxes as template-emitted (`x86()`) code that, AT RUNTIME, relocates each element-matcher into the RWX `pat_pool` and stitches ports, yielding a `DT_P` head. Smallest box first, GATE AFTER EACH: **`IR_PATTERN_LIT` → `IR_PATTERN_BREAK` → `IR_PATTERN_CAPTURE` → `IR_PATTERN_CAT`**. Then TR-3 (`bb_match_defer` routes `DT_P` → load `.p` head, jmp in) makes `r2 ⇒ W=alpha`. Do NOT start by re-reading everything — the analysis is done; build the LIT box.
+
+**Setup (5 min):** clone `.github`, `corpus`, `SCRIP`, `x64` (cred in first message). `cd SCRIP; apt-get install -y libgc-dev; make; make libscrip_rt`. Oracle = `/home/claude/x64/bin/sbl -b FILE`. Then recreate the tri-probe + tiny rungs:
+```bash
+cat > /tmp/probe.sh <<'SH'
+#!/bin/bash
+f="$1"; SBL=$(/home/claude/x64/bin/sbl -b "$f" 2>&1)
+ASM=$(cd /home/claude/SCRIP && ./scrip --compile "$f" </dev/null 2>/tmp/perr)
+[ -z "$ASM" ] && { echo "SCRIP COMPILE EMPTY/BOMB"; cat /tmp/perr; echo "--ORACLE--"; echo "$SBL"; exit 1; }
+echo "$ASM" | gcc -no-pie -x assembler - -L/home/claude/SCRIP/out -lscrip_rt -lgc -lm -Wl,-rpath,/home/claude/SCRIP/out -o /tmp/pp 2>/tmp/gerr || { echo "GCC LINK FAIL"; tail -5 /tmp/gerr; exit 1; }
+SC=$(/tmp/pp 2>&1); echo "--SCRIP--"; echo "$SC"; echo "--ORACLE--"; echo "$SBL"
+[ "$SC" = "$SBL" ] && echo "*** MATCH ***" || echo "*** DIFFER ***"
+SH
+chmod +x /tmp/probe.sh
+# tiny rungs (END MUST be column 1, else oracle says "No END statement found"):
+printf "        PAT = LEN(2)\n        S = 'CDab'\n        S ? PAT . W\n        OUTPUT = 'W=' W\nEND\n" > /tmp/r1.sno   # stored single-leaf
+printf "        PAT = BREAK(',') . W\n        S = 'alpha,beta'\n        S ? PAT\n        OUTPUT = 'W=' W\nEND\n" > /tmp/r2.sno  # stored capture → oracle W=alpha
+printf "        S = 'alpha,beta'\n        S ? BREAK(',') . W\n        OUTPUT = 'W=' W\nEND\n" > /tmp/i2.sno          # INLINE control (green)
+```
+Verify TR-1 landed: `cd /home/claude/SCRIP && ./scrip --dump-ir /tmp/r2.sno </dev/null 2>&1 | grep IR_PATTERN` shows `IR_PATTERN_BREAK` + `IR_PATTERN_CAPTURE[W]`. `/tmp/probe.sh /tmp/r2.sno` shows scrip BOMB `bb_pattern_unary_s: DT_P builder pending` (the stub TR-2 fills). Bench files: `/home/claude/corpus/benchmarks/snobol4/*.sno` — targets `mixed_workload`, `string_pattern` (both now reach the same builder stub), `roman` (bombs earlier on scan-replacement). Floor to protect: 6 PB-GREEN benches' `.s` must stay byte-identical (`arith_loop op_dispatch pattern_bt string_concat fibonacci table_access`).
+
+---
+
 # ⛔⛔⛔⛔ GROUND ZERO — 5TH RESTART (Lon, 2026-06-23c)
 
 **Lon's words this session:** "You are starting at ground zero for the 5th time." Four prior sessions read the BB-storage design, wrote increasingly elaborate handoff notes, seeded golden C (`test_sno_5`, then `test_sno_6`), and **ran out of context before landing a single line of working stored-pattern codegen.** The pattern keeps repeating: design → notes → reset. **THE ONLY ACCEPTABLE OUTPUT THIS RUNG IS LANDED CODE THAT MOVES A BENCH.** Stop re-deriving the mechanism. Stop adding golden seeds. Build the smallest thing that makes a real `.sno` capture, gate it, commit it, repeat.
+
 
 **Directive (Lon, 2026-06-23c):** "Get R12/zeta processing working for **tiny rungs** up until the `corpus/benchmarks/snobol4/*.sno` tests." → Build the stored-pattern path bottom-up on hand-written one-liners (the TR-ladder below), each gated, until the three BOMB benches (roman, mixed_workload, string_pattern) drive green at G0.
 
