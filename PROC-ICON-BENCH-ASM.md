@@ -1,10 +1,14 @@
 # PROC-ICON-BENCH-ASM.md — maintaining side-by-side x86 `.s` artifacts for Icon benchmarks
 
-**What:** every Icon benchmark `.icn` in the corpus that compiles cleanly carries a
+**What:** every Icon benchmark `.icn` in `corpus/benchmarks/icon/` that compiles cleanly carries a
 sibling `.s` — the **current SCRIP emitter's** x86 output (`--compile --target=x86`,
 GAS `.intel_syntax`). These are committed next to the source so a diff of the corpus shows,
 over time, exactly how the emitted code for each benchmark changes as the Icon backend
 evolves. They are an emitter-regression snapshot, NOT hand-written.
+
+(NB: `corpus/programs/icon/` is the rung **test** suite, NOT the benchmark corpus; its legacy
+NASM `.s` siblings predate this procedure and are out of scope here. The benchmark sources —
+queens, concord, deal, ipxref, rsg, micro, micsum, version, … — live in `benchmarks/icon/`.)
 
 **Tool:** `SCRIP/scripts/update_icon_bench_asm.sh` (single source of truth; do not hand-edit
 the `.s` files).
@@ -13,7 +17,7 @@ the `.s` files).
 cd /home/claude/SCRIP && bash scripts/build_scrip.sh && make libscrip_rt
 bash scripts/update_icon_bench_asm.sh            # regenerate/refresh; writes only on real change
 CHECK=1 bash scripts/update_icon_bench_asm.sh    # dry-run; exit 1 if any artifact is stale
-bash scripts/update_icon_bench_asm.sh 'queens.icn'   # restrict to a glob (default rung36_jcon_*.icn)
+bash scripts/update_icon_bench_asm.sh 'queens.icn'   # restrict to a glob (default *.icn)
 ICON_CORPUS=/path/to/icon bash scripts/update_icon_bench_asm.sh   # override corpus dir
 ```
 
@@ -59,10 +63,12 @@ Reported-and-skipped (existing artifact, if any, left untouched):
   — the known "m3 tolerates dup labels, m4 `as` rejects" limitation, e.g. `toby`). The
   artifact is still written (faithful emitter snapshot) and annotated.
 
-## Baseline (2026-06-22, SCRIP `a18778b`, glob `rung36_jcon_*.icn`, 75 programs)
-maintained=6 (`center map misc right toby[ASMWARN] trim`) · nondet=2 (`left nargs`) ·
-compile-err=2 (`iobig level`) · excised=65. The legacy `.s` siblings predating this procedure
-were NASM-syntax dumps from a retired `icon_emit.c`; they are superseded by the current GAS
-output as each program becomes maintainable.
+## Baseline (2026-06-22, SCRIP `dd0d0a2`, corpus `benchmarks/icon/`, glob `*.icn`, 13 programs)
+maintained=3 (`micro micsum version`) · compile-err=8 (`concord deal ipxref options post queens
+rsg tgrlink` — native arms pending: F2 `<-`, F1 subscript-assign, link resolution) · excised=2
+(`geddump shuffle`). The headliners `queens`/`concord` auto-acquire a `.s` the first time they
+compile. (Superseded location note: the prior baseline pointed `update_icon_bench_asm.sh` at
+`programs/icon/` with glob `rung36_jcon_*.icn`; that was the rung test suite, not the benchmark
+corpus — corrected here to `benchmarks/icon/`, glob `*.icn`.)
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
