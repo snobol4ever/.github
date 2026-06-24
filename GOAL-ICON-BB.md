@@ -435,7 +435,7 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 
 ## Watermark
 
-**HEAD (SCRIP) = `6fea487`** — m3/m4 **151/283**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+**HEAD (SCRIP) = `a872f56`** — m3/m4 **153/283**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
 
 **2026-06-24 (Claude, session 6 — rung02 return-terminal fix / GVA-M3 goal authored):**
 - **rung02_proc_fact FIXED (`6fea487`):** `return` statement that was not the last statement in a procedure body fell through to the following statement instead of terminating the procedure. `lower_icon.c` `TT_RETURN`: built `IR_RETURN` with sequence-successor as γ → `return X; <stmt>` flowed into `<stmt>`. In `fact()`: n=0 base case fell through to `return n*fact(n-1)` = `0*fact(-1)`, recursing forever (depth guard abort rc=134). Fix: `IR_RETURN` γ → `cx->psucc` (procedure return SUCCEED node), matching canonical JCON `ir_a_Return` (`ir_Succeed(t,&null)`, terminal). Suite 150→151, zero regressions. Fixes ALL procedures with non-trailing `return`, not just factorial.
