@@ -295,6 +295,13 @@ Every test runs `--run`/`--compile` on the SAME source. Done = m3+m4 PASS or LOU
 
 ### Rung ladder
 
+- [ ] **ICN-STORAGE** — Icon variable-storage optimization. **GST-1/GST-2/GVA-1/GVA-2 LANDED (Claude 2026-06-24): Icon globals now use the `[rbx+k*16]` DATA-section array in mode-4, exactly the SNOBOL4 GVA model.** rung25 global counter: 4 NV calls → 0, all `[rbx+k*16]`; `inc()` mutates the global through rbx (proven rbx survives proc dispatch — callee-saved). Suite 147/283 unchanged both modes; SNOBOL4 GVA + smoke unaffected. Remaining: LVA-1 gate (lock locals to ζ), and mode-3 (in-process RX slab) globals stay on NV — same as SNOBOL4 (m3 has no `.bss` emit mechanism). Full analysis: `.github/ICON-AUDIT-2026-06-24.md` §C. This rung is the PREREQUISITE that unblocks `initial`/`static` (§D) — the `.bss __gva` arena IS the persistent-writable-static region they need; an extra cell per `initial` site/`static` var addressed `[rbx+k*16]`.
+  - [x] **GST-1 (Global Symbol Table)** — DONE (pre-existing): Icon true-globals already collected from `TT_GLOBAL` decls into `global_names[]`/`is_global()` (via `polyglot_init`, `lower_common.c:248`), correctly distinct from locals. `gva_collect_icon_globals()` (emit_bb.c) seeds the GVA set from that registry.
+  - [x] **GST-2** — DONE: Icon descr m4 `main:` emits `.bss __gva: .space n*16` + `.rodata __gva_names` + `gva_register → mov rbx, rax`; `g_gva_active=1` set BEFORE the proc-body loop (so proc bodies use rbx too) and cleared after. (scrip.c Icon m4 block.)
+  - [x] **GVA-1** — DONE: Icon global `IR_VAR` read → `[rbx+k*16]` in `bb_var_global` (new GVA arm, gated `g_gva_active && op_gva_k>=0`); `op_gva_k` set in the IR_VAR descr arm.
+  - [x] **GVA-2** — DONE: Icon global `IR_ASSIGN` write → `[rbx+k*16]` via `bb_gvar_assign_descr`'s existing GVA arm (now reached because `flat_drive_global_assign` sets `op_gva_k`). rung25 verified 0 NV / 8 rbx.
+  - [ ] **LVA-1 (Local Variable Array — verify/lock)** — Icon locals already `[r12+off]` (verified: `local`/default vars → `[r12+off]`, no NV). Add a gate proving NO Icon LOCAL emits `NV_GET_fn`/`NV_SET_fn`; lock the already-correct behavior.
+  - [ ] **GVA-M3 (optional)** — mode-3 in-process globals still on NV (no `.bss` mechanism for the RX slab; SNOBOL4 is identical). A writable runtime arena addressed via rbx could extend GVA to m3, but it is NOT required for correctness and is out of the current rung's scope.
 - [ ] **GZ-DEFER** — EVAL / CODE / `*P` deferred patterns.
 - [ ] **GZ-11+** — `not`/`size`/`nonnull` `bb_unop` · relop remainder · generator-operand binops (Fig-1) · `rt_call_builtin` · lists/tables/records/csets/sort.
 
