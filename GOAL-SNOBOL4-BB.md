@@ -1,36 +1,44 @@
 <!-- GOAL-SNOBOL4-BB · SCRIP native pattern-match ladder for modes 3/4 (--run/--compile) -->
 
-# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-24, session 14 · Claude Sonnet 4.6)
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-24, session 15)
 
-**State:** SCRIP `b3245a2` (PUSHED), corpus `351df26d` (PUSHED), .github THIS commit (PUSHED). Clean. **Bench BOMB 0, GREEN=12, DIFF=4** (eval_dynamic/eval_fixed/indirect_dispatch pre-existing; roman wrong result — concat double-walk fixed, local-var framing still pending).
+## ▶ PRIORITY RUNG (do FIRST): PERF-GVA — Global Variable Array
 
-**What landed (session 13) — literal-subject native scan, 4 files +54/−5:**
-roman's scan 2 (`'0,1I,…,9IX,' T BREAK(',') . T`) declined native because `flat_drive_scan_stmt` gate keyed on a *named* subject only. Four-layer fix:
-1. `emit_bb.c` gate: accept `op_scan_subj_lit` in addition to `IR_LIT(pBB).sval`.
-2. `flat_drive_scan_native`: for a literal subject, attach an `IR_LIT_S` operand to the `IR_SUBJECT` node — `walk_bb_node` preamble (emit_core.c:332) unconditionally overwrites `op_a_sval` from `operands[0]`, so the literal must ride there.
-3. `bb_subject.cpp` lit arm: fixed latent label bug (`lea [rip+??]`), `mov→lea`, added `bb_subj_litlbl()` helper, route through new `rt_subject_load_lit`.
-4. `pattern_match.c` `rt_subject_load_lit`: sets ζ-slot AND global `Σ`/`Σlen` — `rt_cap_assign_cursor` reads `Σ` for capture base; the NV arm set it, the lit arm didn't.
-Plus: `Σ`/`Σlen` save/restore around `p->fn(fb,0)` in both `rt_call_named_proc` variants (rt.c) — mirrors runtime_eval.c precedent; correct but not proven load-bearing for roman.
+**GVA-0 + GVA-1 + GVA-2 LANDED LOCAL — UNPUSHED, NOT YET COMMITTED — BLOCKED on push credential (per FACT RULE this is NOT "complete").** Built atop pristine `b3245a2`. **Proven:** zero regressions across all 262 crosscheck programs (stash/diff vs pristine baseline, +1 improvement `1012_func_locals`); bench **OK=14/16** (was 12), 0 FAIL, 2 pre-existing EVAL-path OOM crashes; **`var_access` rescued from >30s timeout → 15.9s**. Broad measured speedups: arith_loop 1630→654ms (**2.5×**), op_dispatch 1.76×, string_manip 1.68×, table_access 1.53×, func_call/func_call_overhead 1.44×, roman 1.34×, fibonacci 1.24×.
 
-**Verified:** literal-subject match+capture correct (oracle-match on `'hello' LEN(2) . T`, `T=6`→`VI`, `T=1`→`I`, scan1 `RPOS(1) LEN(1) . T =`→`T=6 N=177`). Zero regression: PB-GREEN 6 green, 8 benches byte-identical `.s`.
+**▶ IMMEDIATE NEXT MOVE: GVA-3** (fused integer arith + relop — see §GVA-3 below). In `arith_loop`'s hot loop two calls remain: `rt_gvar_get_int` (the `N = N + 1` read) and `rt_call_arr` (the `LT(N,1000000)` relop). GVA-3 turns both into inline `mov rax,[rbx+kN*16+8]` + `add`/`cmp`. Then GVA-4 (indirect `$X`), then OPSINGLE / REC-COV.
 
-**▶ NEXT MOVE — roman's recursive control-flow bug.** Roman no longer bombs but prints `MCXI` not `MDCCLXXVI`. Trace (with per-level `OUTPUT`, using `'176'`): each digit extraction and table lookup is correct (6→VI, 7→VII, 1→I) but the recursion **re-descends after the base case** — oracle 3 calls (6,7,1)→`CLXXVI`; ours (6,7,1,1,7,1,1)→`CXI`. This is a return-path/backtrack-re-entry bug, not a capture bug. The `Σ` save/restore did NOT fix it → corruption is elsewhere. Reproduce with:
+**Files touched for GVA-0/1/2 (ALL UNCOMMITTED):**
+- `runtime/core/core.c`: `NV_t` +`cell`/+`is_gva`; `NV_GET_fn`/`NV_SET_fn`/`NV_PTR_fn` forward through `cell` when `is_gva`; +`NV_bind_gva`. `core.h`: prototypes for `NV_bind_gva`, `gva_register`.
+- `runtime/rt/rt.c`: +`gva_register(names, cells, n)` (loops `NV_bind_gva`, returns base).
+- `emitter/emit_bb.c`: GVA name table + `gva_name_eligible` (excludes `&`-vars + keyword/IO set) + `gva_index_of` + `gva_collect_var` + `gva_collect_graph`; +`g_gva_active` flag.
+- `emitter/emit_core.c`: `walk_bb_node` preamble sets `op_gva_k = g_gva_active ? gva_index_of(sval) : -1`. `emit_globals.h`: +`op_gva_k` field.
+- `driver/scrip.c` (mode-4 preamble only): collect main-glob globals → emit `__gva` (`.bss`) + `__gva_names` (`.rodata`) + `gva_register@PLT` + `mov rbx,rax`; wrap the main-glob `gvar_flat_chain_build_text` in `g_gva_active`.
+- Templates: `bb_var.cpp` (read), `bb_gvar_assign_descr.cpp`/`bb_gvar_assign_call.cpp` + `bb_gvar_assign.cpp` binop arms (write) — GVA arm stores/loads via `RDQ("rbx", k*16)`; works both mediums (rbx=reg3, no SIB).
+
+**Design guards (proven by the green crosscheck):** (a) fast-path gated on `g_gva_active` (main-glob only) — procs read GVA globals via the slow `NV_GET_fn`, which forwards through the cell, so a proc-local accidentally lowered as `IR_VAR` can never alias a main-glob GVA slot (the roman-class trap). (b) keyword/IO names excluded from collection → never assigned a slot → `NV_SET_fn` keyword semantics (`&TRIM` etc.) preserved. (c) `rbx` is callee-saved, set once in `main:` before `flat_α`; the `concat_parts` scratch block still push/pops it. (d) **OPEN RISK:** direct GVA stores bypass `comm_var` (monitor/`&TRACE` notify) — crosscheck is green so harmless for the current corpus, but confirm before relying on tracing a hot global.
+
+**Also landed (turn 1, UNCOMMITTED) — roman/local-var fix:** `lower/lower_snobol4.c:1158` `nparams = np` → `np + nl`. SPITBOL requires *all* locals (not just formals) saved on entry / restored on return; the old value under-counted save-slots so recursive `T` was corrupted across frames. Fixes benchmark `roman` (`MDCCLXXVI`) and crosscheck `1012_func_locals`. (Crosscheck `100_roman_numeral` still red — separate pre-existing issue, likely the `**` POW cluster.)
+
+**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle: `git clone …/x64 /home/claude/x64; sbl -b`. Tri-probe: `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p.bin; ./p.bin` vs `sbl -b`. Bench/crosscheck gates: `scripts/test_bench_snobol4_modes.sh`, `scripts/test_crosscheck_snobol4.sh`.
+
+---
+
+## Prior context (session 13 — literal-subject native scan, now history)
+
+roman's scan 2 (`'0,1I,…,9IX,' T BREAK(',') . T`) declined native because `flat_drive_scan_stmt` gated on a *named* subject only. Four-layer fix landed: `emit_bb.c` gate accepts `op_scan_subj_lit`; `flat_drive_scan_native` attaches an `IR_LIT_S` operand to `IR_SUBJECT`; `bb_subject.cpp` lit arm fixed (`mov→lea`, `bb_subj_litlbl()`, `rt_subject_load_lit`); `pattern_match.c` `rt_subject_load_lit` sets ζ-slot AND `Σ`/`Σlen`. Roman's earlier `MCXI` (recursive re-descent) symptom was resolved by the turn-1 local-var fix above. Roman reproduction:
 ```snobol4
     &TRIM = 1
     DEFINE('ROMAN(N)T')                   :(RE)
 ROMAN N RPOS(1) LEN(1) . T =              :F(RETURN)
-    OUTPUT = 'digit T=' T ' rest N=' N
     '0,1I,2II,3III,4IV,5V,6VI,7VII,8VIII,9IX,' T BREAK(',') . T :F(FRETURN)
-    OUTPUT = '  roman T=' T
     ROMAN = REPLACE(ROMAN(N), 'IVXLCDM', 'XLCDM**') T :S(RETURN)F(FRETURN)
 RE  R = ROMAN('176')
     OUTPUT = 'RESULT=' R
 END
 ```
 
-**Design note (carried):** the `walk_bb_node` preamble clobbering `op_a_sval` is the same ambient-`g_emit` class the session-12 design candidate flagged. The fix sidestepped it (carry value as operand so preamble produces it). The general cure — port-field reset / FILL-only / debug gen-counter assert — is still unbuilt.
-
-**Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle: `git clone …/x64 /home/claude/x64; sbl -b`. Tri-probe: `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p.bin; ./p.bin` vs `sbl -b`. Benches: `corpus/benchmarks/snobol4/*.sno`.
+**Design note (carried):** the `walk_bb_node` preamble clobbering `op_a_sval` from `operands[0]` is the ambient-`g_emit` class flagged in session 12; the general cure (port-field reset / FILL-only / debug gen-counter assert) is still unbuilt.
 
 ---
 
@@ -56,7 +64,7 @@ END
 
 ---
 
-### GVA-0 — Infrastructure: GST_t forwarding flag + gva_register runtime
+### GVA-0 — Infrastructure: GST forwarding flag + gva_register runtime  ✅ DONE (local, unpushed)
 
 **GVA-0a — `GST_t` (rename from `NV_t`) gains `is_gva` + `cell`:**
 In `src/runtime/core/core.c` (binary; edit via patch or sed):
@@ -114,7 +122,7 @@ Also `push rbx` / `pop rbx` around any call that may clobber it per ABI — but 
 
 ---
 
-### GVA-1 — Direct load: IR_VAR global read → `[rbx + k*16]`
+### GVA-1 — Direct load: IR_VAR global read → `[rbx + k*16]`  ✅ DONE (local, unpushed)
 
 **Mandate:** In `bb_var.cpp` (and `bb_var_global.cpp` if separate), when `gva_index_of(_.op_sval) >= 0` (name has a GVA slot), replace `call NV_GET_fn` with inline load.
 
@@ -151,7 +159,7 @@ inline const char *GVAQ(int k, int hi) {
 
 ---
 
-### GVA-2 — Direct store: IR_ASSIGN global write → `[rbx + k*16]`
+### GVA-2 — Direct store: IR_ASSIGN global write → `[rbx + k*16]`  ✅ DONE (local, unpushed)
 
 **Mandate:** Replace `call rt_gvar_assign_int` / `call rt_gvar_assign_descr` / `call rt_gvar_assign_var` / `call rt_gvar_assign_lit_i` / `call rt_gvar_assign_lit_s` with inline stores when the destination name has a GVA slot.
 
@@ -178,7 +186,7 @@ Steps:
 
 ---
 
-### GVA-3 — Fused integer arithmetic: IR_BINOP_GVAR_ARITH fully inline
+### GVA-3 — Fused integer arithmetic: IR_BINOP_GVAR_ARITH fully inline  ◀ NEXT MOVE
 
 **Mandate:** `N = N + 1` where both operands and destination are GVA-backed integer vars emits zero calls. Detect in `bb_binop_gvar_arith.cpp` when `op_parts` names all have GVA slots.
 
