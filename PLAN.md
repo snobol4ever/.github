@@ -62,6 +62,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **RUNTIME REORG** (Lon 2026-06-02) | `GOAL-RUNTIME-REORG.md` | Each runtime FILE → CS subsystem. See goal file. |
 | **SCRIP RENAME** (Lon 2026-05-30) | `GOAL-SCRIP-RENAME.md` | 7-slice gated rename rung. See goal file. |
 | **Ground Zero (Icon-BB)** ⬅ #1 | `GOAL-ICON-BB.md` | Icon-only, 100% Byrd Boxes, stackless. See goal file for live state. |
+| **ICN-GVA-M3** | `GOAL-ICN-GVA-M3.md` | Extend Icon globals to `[rbx+k*16]` in mode-3 (in-process RX slab). 4 steps: M3-ARENA-1/2/3/4. Prereq: ICN-GVA (mode-4) DONE. |
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. |
