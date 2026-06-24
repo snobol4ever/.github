@@ -23,7 +23,7 @@ All languages × all backends green.
 ## ⛔ SESSION START — every session, no exceptions
 
 Lon names a goal. You:
-1. **Read `GOAL-ICON-BB.md` (the live ground-zero goal) before anything else.**
+1. **Read `GOAL-ICON-BB.md` (the live ground-zero goal — the generator/four-port model every BB language reuses) before anything else. ACTIVE LEAD GOAL (Lon 2026-06-24): Raku OOP — work `GOAL-RAKU-BB.md`'s OO LADDER (top of that file).**
 2. Clone `.github`: `git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github`
 3. Read `PLAN.md`. Find goal in table below.
 4. Read `RULES.md` in full.
@@ -53,6 +53,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
+| **Raku BB (OOP)** ⬅ #1 ACTIVE LEAD (Lon 2026-06-24) | `GOAL-RAKU-BB.md` | **Raku OOP is the active lead** — work the OO LADDER at the TOP of `GOAL-RAKU-BB.md` top-to-bottom (first `- [ ]` rung). Resumes the 2026-06-15 "RAKU OOP IS THE LEAD" declaration that this table still carried as ON HOLD. See goal file. |
 | **DE-INTERP** ✅ DONE (Claude 2026-06-15) | `GOAL-DE-INTERP.md` | ✅ CLOSED — all 8 steps landed (SCRIP `1d113eb`/`f60bb08`/`4c9b6bd`). `interp` misnomer eradicated; completion grep = only the 4 legitimate survivors. No `src/interp` dir, no `interp.h`/`pl_interp.h`, no `scrip-interp`. Behavior-neutral. Goal file CLOSED. |
 | **DEAD-CODE SWEEP** ⬅ (Sonnet 2026-06-14) | `GOAL-DEAD-CODE-SWEEP.md` | Batch 4 landed (`5e483bf`): documented-20 RESOLVED (19 cut + 1 closed-subgraph non-removable). Oracle 59→43 dead. Fixpoint surfaced (rt_in_native_chunk + other-lexer input/yyunput). See goal file batch-4 handoff. |
 | **BB-FIXUP** ⬅ NEW (Lon 2026-06-04) | `GOAL-BB-FIXUP.md` | Attended round-robin hygiene sweep; cursor in `.github/BB-REVAMP-TRACKER.md`. See goal file. |
@@ -64,7 +65,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | See goal file for live state. |
-| **Raku BB** | `GOAL-RAKU-BB.md` | ⏸ ON HOLD (2026-05-30); resume on Lon's word. See goal file. |
+| **Raku BB** (see #1 ACTIVE LEAD row at top of table) | `GOAL-RAKU-BB.md` | ▲ PROMOTED to lead (Lon 2026-06-24) — was "⏸ ON HOLD (2026-05-30)". See the lead row at the top of this table and the OO LADDER in the goal file. |
 | **Pascal BB** | `GOAL-PASCAL-BB.md` | 7th frontend (P4 subset); reference toolchain in `corpus/programs/pascal/`. See goal file. |
 | **CHUNKS** | `GOAL-CHUNKS.md` | CH-17g-irrun-execution. |
 | **PST Parent** | `GOAL-PARSER-PURE-SYNTAX-TREE.md` | Stage 2 PST-LR-0 bulk rename. |
