@@ -1,24 +1,16 @@
 <!-- GOAL-SNOBOL4-BB · SCRIP native pattern-match ladder for modes 3/4 (--run/--compile) -->
 
-# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-24, session 15)
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-24, session 16)
 
 ## ▶ PRIORITY RUNG (do FIRST): PERF-GVA — Global Variable Array
 
-**GVA-0 + GVA-1 + GVA-2 LANDED LOCAL — UNPUSHED, NOT YET COMMITTED — BLOCKED on push credential (per FACT RULE this is NOT "complete").** Built atop pristine `b3245a2`. **Proven:** zero regressions across all 262 crosscheck programs (stash/diff vs pristine baseline, +1 improvement `1012_func_locals`); bench **OK=14/16** (was 12), 0 FAIL, 2 pre-existing EVAL-path OOM crashes; **`var_access` rescued from >30s timeout → 15.9s**. Broad measured speedups: arith_loop 1630→654ms (**2.5×**), op_dispatch 1.76×, string_manip 1.68×, table_access 1.53×, func_call/func_call_overhead 1.44×, roman 1.34×, fibonacci 1.24×.
+**GVA-0/1/2 LANDED (SCRIP `ef7594d`). GVA-3a/3b + str_concat_d fix LANDED (SCRIP `9222a33`).**
 
-**▶ IMMEDIATE NEXT MOVE: GVA-3** (fused integer arith + relop — see §GVA-3 below). In `arith_loop`'s hot loop two calls remain: `rt_gvar_get_int` (the `N = N + 1` read) and `rt_call_arr` (the `LT(N,1000000)` relop). GVA-3 turns both into inline `mov rax,[rbx+kN*16+8]` + `add`/`cmp`. Then GVA-4 (indirect `$X`), then OPSINGLE / REC-COV.
+Session 16 (2026-06-24): arith_loop ~870ms → ~141ms (~6×). Hot loop now branch-only: LT(N,1000000) emits cmp+jcc (GVA-3b), N=N+1 emits mov [rbx+k*16+8]+add (GVA-3a). Zero crosscheck regressions (87 fails, byte-identical set to pristine). Bench OK=14/16, FAIL=0, 2 pre-existing EVAL OOM unchanged.
 
-**Files touched for GVA-0/1/2 (ALL UNCOMMITTED):**
-- `runtime/core/core.c`: `NV_t` +`cell`/+`is_gva`; `NV_GET_fn`/`NV_SET_fn`/`NV_PTR_fn` forward through `cell` when `is_gva`; +`NV_bind_gva`. `core.h`: prototypes for `NV_bind_gva`, `gva_register`.
-- `runtime/rt/rt.c`: +`gva_register(names, cells, n)` (loops `NV_bind_gva`, returns base).
-- `emitter/emit_bb.c`: GVA name table + `gva_name_eligible` (excludes `&`-vars + keyword/IO set) + `gva_index_of` + `gva_collect_var` + `gva_collect_graph`; +`g_gva_active` flag.
-- `emitter/emit_core.c`: `walk_bb_node` preamble sets `op_gva_k = g_gva_active ? gva_index_of(sval) : -1`. `emit_globals.h`: +`op_gva_k` field.
-- `driver/scrip.c` (mode-4 preamble only): collect main-glob globals → emit `__gva` (`.bss`) + `__gva_names` (`.rodata`) + `gva_register@PLT` + `mov rbx,rax`; wrap the main-glob `gvar_flat_chain_build_text` in `g_gva_active`.
-- Templates: `bb_var.cpp` (read), `bb_gvar_assign_descr.cpp`/`bb_gvar_assign_call.cpp` + `bb_gvar_assign.cpp` binop arms (write) — GVA arm stores/loads via `RDQ("rbx", k*16)`; works both mediums (rbx=reg3, no SIB).
+**str_concat_d correctness fix (SCRIP `9222a33`):** SPITBOL null-string-identity: `"" N` preserves N's type. Pristine returned STRING after `LT(N,5) N`; oracle expects INTEGER. GVA-3a removed the accidental `strtoll` mask that hid the bug. Fixed: `IS_NULL_fn` early-return in `str_concat_d`.
 
-**Design guards (proven by the green crosscheck):** (a) fast-path gated on `g_gva_active` (main-glob only) — procs read GVA globals via the slow `NV_GET_fn`, which forwards through the cell, so a proc-local accidentally lowered as `IR_VAR` can never alias a main-glob GVA slot (the roman-class trap). (b) keyword/IO names excluded from collection → never assigned a slot → `NV_SET_fn` keyword semantics (`&TRIM` etc.) preserved. (c) `rbx` is callee-saved, set once in `main:` before `flat_α`; the `concat_parts` scratch block still push/pops it. (d) **OPEN RISK:** direct GVA stores bypass `comm_var` (monitor/`&TRACE` notify) — crosscheck is green so harmless for the current corpus, but confirm before relying on tracing a hot global.
-
-**Also landed (turn 1, UNCOMMITTED) — roman/local-var fix:** `lower/lower_snobol4.c:1158` `nparams = np` → `np + nl`. SPITBOL requires *all* locals (not just formals) saved on entry / restored on return; the old value under-counted save-slots so recursive `T` was corrupted across frames. Fixes benchmark `roman` (`MDCCLXXVI`) and crosscheck `1012_func_locals`. (Crosscheck `100_roman_numeral` still red — separate pre-existing issue, likely the `**` POW cluster.)
+**▶ NEXT MOVE: GVA-4** (indirect `$X` fast path via rbp-based GST hash index). Alternatively OPSINGLE or REC-COV — Lon decides.
 
 **Build:** `apt-get install -y libgc-dev && make && make libscrip_rt`. Oracle: `git clone …/x64 /home/claude/x64; sbl -b`. Tri-probe: `scrip --compile p.sno > p.s; gcc -no-pie -x assembler p.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,$PWD/out -o p.bin; ./p.bin` vs `sbl -b`. Bench/crosscheck gates: `scripts/test_bench_snobol4_modes.sh`, `scripts/test_crosscheck_snobol4.sh`.
 
@@ -186,7 +178,7 @@ Steps:
 
 ---
 
-### GVA-3 — Fused integer arithmetic: IR_BINOP_GVAR_ARITH fully inline  ◀ NEXT MOVE
+### GVA-3 — Fused integer arithmetic + relop  ✅ DONE (session 16, SCRIP `9222a33`)
 
 **Mandate:** `N = N + 1` where both operands and destination are GVA-backed integer vars emits zero calls. Detect in `bb_binop_gvar_arith.cpp` when `op_parts` names all have GVA slots.
 
