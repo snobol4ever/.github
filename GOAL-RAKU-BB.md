@@ -1,28 +1,27 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
-## ★ CURRENT PRIORITY — READ FIRST, HANDLE FIRST (Lon, 2026-06-15): RAKU OOP IS THE LEAD
+## ★ CURRENT PRIORITY — READ FIRST (Lon, 2026-06-15): RAKU OOP IS THE LEAD
 
-**OOP is Raku's signature contribution to SCRIP (the other five languages are non-OO) and is now THE priority
-for Raku — ahead of RK-GRAM-3 and RK-EMIT-MAP/GREP.** Work the OO LADDER below top-to-bottom; take the first
-incomplete (`- [ ]`) rung. The grammar/regex and map/grep rungs (further down this file) are PARKED until the OO
-ladder advances on Lon's word.
+OOP is Raku's signature contribution (the other five languages are non-OO) and is THE priority ahead of RK-GRAM-3 and RK-EMIT-MAP/GREP. Work the OO LADDER below top-to-bottom; take the first incomplete (`- [ ]`) rung. Grammar/regex and map/grep rungs are PARKED until Lon says otherwise.
 
-### OO LADDER (the Raku-distinctive paradigm — milestones A–G; anchored to Rakudo `Metamodel/{BUILDPLAN,C3MRO,MROBasedMethodDispatch,RoleToClassApplier}.nqp`, `Mu.rakumod`, `Attribute.rakumod`). Architecture note: OO is overwhelmingly RUNTIME (`obj_new`/`meth_call`/`dat_field_*` + the `DatType`/`DATINST_t` model). Most rungs land via runtime by-name dispatch (the Str-suite pattern); parser+lower changes only where new *syntax* must be recognized. **LEXER CONSTRAINT (verified 2026-06-15): flex 2.6.4 CANNOT regenerate `raku.lex.c` (fails on the pristine file at line 132 — committed lexer built with a different flex). So NO new lexer keywords — recognize new keywords at the PARSER level as `IDENT` checked in the rule action (how `is` is done). bison regen works fine.**
-- [x] **RK-OO-A1 — attribute mutation — LANDED both modes (2026-06-15, `952d528`).** Objects were write-once; now attributes mutate. Parser: twigil-field as lvalue (`$.x =`/`$!x =`) + void method-call statements (`$obj.m(args);`). Lower: `TT_FIELD`/`TT_TWIGIL_FIELD` LHS in `lower_rv` TT_ASSIGN → `IR_CALL "field_set"` with `[obj,name,val]` producer chain (was a silent `IR_SUCCEED` no-op). Runtime: `field_set` known-builtin + handler writing through `data_field_ptr` (write twin of `dat_field_get`). Also fixed pre-existing `raku.y`/`raku.tab.h` include drift (`../../ast/ast.h`→`ast.h`) so `bison -d` regenerates faithfully. Smokes: `attr_mutate`, `field_write_external`.
-- [~] **RK-OO-A2 — public-attribute AUTO-ACCESSOR — LANDED both modes (2026-06-15, this session). Privacy (`$!`) + `is rw` are LEXER-BLOCKED → deferred (see below).** A public attribute now answers `.x()` (with parens), not just `.x`. Runtime-only fix in `by_name_dispatch.c`'s `meth_call`: after `resolve_method_chain`, if the method takes no args and is NOT a real user proc (`meth_is_user_proc`, dual native-registry+proc_table check mirroring the chain walk), and the receiver has a field of that name (`data_field_ptr`), return the field value — exactly Rakudo `Attribute.compose`'s `has_accessor` codegen (`unless ...method_table` guard → user method of the same name WINS; verified `accessor_method_wins`→105). Resolves the `$p.x()`→`[GZ-10] 'Point__x' has no stackless slab` abort. Accessor resolves through inheritance too (`accessor_inherited`). No parser/lexer/template/IR change. Smokes: `accessor_paren`/`accessor_method_wins`/`accessor_inherited`. **DEFERRED (lexer-blocked):** the `$.`(public) vs `$!`(private) twigil distinction is ERASED at lex time — `raku.l:117-118` both do `strdup(yytext+2)` → identical `VAR_TWIGIL` bare-name token, and the registration spec (`Name(f1,f2)`) carries no per-field privacy bit. Enforcing privacy (`$!x` should be externally inaccessible — today `$s.hidden` wrongly reads a private field) and `is rw` (writable-container accessor) BOTH require carrying a public/private/rw flag from the declaration, which needs a lexer change to preserve the twigil — and flex 2.6.4 cannot regenerate `raku.lex.c` (LEXER CONSTRAINT above). Unblock path: a flex fix (or a hand-patch of the committed `raku.lex.c` to emit a twigil-tagged token) → then thread the flag into the spec and gate it in `meth_call`/`dat_field_get`.
-- [!] **RK-OO-A3 — `@.`/`%.` array & hash attributes — LEXER-BLOCKED (probed 2026-06-15).** No `@.`/`%.` lexer rules exist; `has @.items` fails at lex (`unexpected char '@'`). Adding the rules needs `raku.lex.c` regen, which flex 2.6.4 cannot do (LEXER CONSTRAINT). Blocked until the lexer is unblocked (flex fix or hand-patch `raku.lex.c`).
-- [~] **RK-OO-A4 — typed + constant-default attributes — LANDED both modes (2026-06-15, this session). Closure/expression defaults deferred.** `has Int $.x` (typed; type currently IGNORED — parsed and discarded, no constraint enforced) and `has $.x = 42` (constant default) now parse and work. Default = the constant value used at construction iff the named arg is absent (Rakudo BUILDPLAN op 400, the constant-`build` case). Parser (bison-regen only, NO lexer change — `Int` arrives as `IDENT`): 6 new `class_body_list` rules — typed-no-default (`KW_HAS IDENT VAR_TWIGIL/VAR_SCALAR ';'`) lowers to a plain `TT_VAR` field (type dropped); any-default case lowers to a new `TT_HAS_DECL` node (`v.sval`=field name, `c[0]`=default expr). Runtime/driver (`driver_data.c`): `DatType` gains parallel `DESCR_t defaults[64]` + `char has_default[64]`; new `dat_set_field_default_{i,s,r}` setters; `dat_construct` applies the stored default when the incoming field arg is absent (`DT_SNUL`) — the SINGLE chokepoint, so both `obj_new` and `bless` get defaults free; `class_inherit` rewritten to carry the default/has_default metadata alongside fields (parent defaults inherit). Lower (`lower_raku.c`): after `record_register`, `rk_register_classes` calls the setters for each `TT_HAS_DECL` whose default is an `ILIT`/`QLIT`/`FLIT` literal. m4 (`scrip.c` `proc_startup`): emits a `dat_set_field_default_{i,s,r}@PLT` sequence parallel to `class_inherit` (class+field as `.byte` rodata, value as `mov rdx`/`.byte` string/`.quad`+`movsd`), so the standalone binary repopulates defaults — m3/m4 byte-faithful by construction. Smokes (all `[m3 PASS][m4 PASS]`): `attr_typed`, `attr_default_int`, `attr_default_str`, `attr_default_override`, `attr_typed_default`, `attr_default_inherited`. **DEFERRED:** (a) closure/expression defaults (`has $.x = computed()` / `has $.x = $!other + 1`) — only literal constants are captured today; a non-literal default is silently skipped (field stays the type default, no crash). Needs a per-field default *closure* threaded through the record system + run at construction (true op-400). (b) type CONSTRAINT enforcement (`has Int $.x` rejecting a Str) — the type is parsed but discarded; enforcing it needs the type carried into the spec + checked in `dat_construct`. (c) native-typed attrs (`int`/`num`/`str` primspec, BUILDPLAN ops 1/2/3) — SCRIP attrs are all opaque `DESCR_t`.
-- [x] **RK-OO-B1 — user `method new` overrides built-in `obj_new` — LANDED both modes (2026-06-15, `41a9393`).** `method new(...)`/`self.bless(k=>v)`/`T.new(positional)` parse (bison-regen only); class-name barewords → `IR_LIT_S` (`rk_is_class_name`); runtime `bless` construct + `obj_new`→user-`new` routing + type-object (class-name receiver) method dispatch. Smokes: `method_new_override`/`bless_named`/`type_object_method`. See HANDOFF-2026-06-15-...-OO-B1-METHOD-NEW.md.
-- [ ] **RK-OO-B2 — `bless` + BUILDPLAN** (op-list: 0 set-attr-from-named, 400 default-closure, 800 die-if-required). Default `new` = `self.bless(|%args)`. op-0 (set-attr-from-named) is DONE (B1 `bless` + the `obj_new` default path; A4 constant defaults ride `dat_construct`). **BLOCKED on native infra (diagnosed 2026-06-24): op-400 and op-800 both need behavior AT CONSTRUCTION that was mode-2-only — the `--interp` IR-graph walker was deleted 2026-06-15 — so NEITHER reaches native PASS-or-EXCISED today.** op-400 (closure/expression default, e.g. `has $.x = computed()`) must RUN a compiled default block at construction = native sub-block execution, the EXCISED frontier (same wall as map/grep, general gather, try/CATCH) → unblocked by RK-EMIT-MAP/GREP / the generator PUMP. op-800 (`is required`→die) enforcement IS a death whose native surfacing is missing: an uncaught `die` ABORTS (`[IBB] FATAL bb_call: unsupported call shape fn='die'` — `die` lowers dval=1.0, slipping past the dval==2.0 EXCISE gate into `bb_call`), and a caught one needs try/CATCH (EXCISES, verified via `rk_try_catch25`). **PREREQUISITE for op-800: a native `die` route** (set `g_script_exception` + halt subsequent statements / surface an uncaught death to stderr+exit) — also the unblocker for try/CATCH. SEQUENCE: die-route → op-800 ; sub-block-execution → op-400. The `is required` DATA-MODEL half (parser `is required`, `DatType.required`, `dat_construct` enforcement, lower registration, m4 emission) is landable independently and present-case verifiable; its absent-case surfacing waits on the die-route.
-- [ ] **RK-OO-B3 — `BUILD`/`TWEAK` submethods** (submethod_table; don't inherit).
-- [ ] **RK-OO-B4 — required attrs (`is required`)** (BUILDPLAN op 800/1503).
-- [x] **RK-OO-C1/C2/C4 — single + multi-level inheritance — LANDED both modes (2026-06-15, `952d528`).** `class Child is Parent {…}` (parser: `KW_CLASS IDENT IDENT IDENT '{'` with action-time `is` check, parent name stored in `TT_CLASS_DECL` node `v.sval` — NOT a lexer keyword, see constraint above). C2 attr inheritance: `class_inherit(child,parent)` in `driver_data.c` flattens parent fields into child (parent-first, dup-checked → idempotent), `DatType` gains `char parent[64]`. C4 method inheritance: `resolve_method_chain()` in `by_name_dispatch.c` walks `self→parent→…` (via `dat_parent`) for the first `<C>__<m>` present in proc_table OR native registry; `meth_call` uses it. m4: `scrip.c` emits `class_inherit@PLT` calls after `record_register` so the standalone binary has parent links. Smokes: `inherit_attr`/`inherit_method`/`inherit_override`. **CAVEAT: multi-level (3+ class) programs can hit the PRE-EXISTING `x86_uid` dup-label emitter scaling bug in m4 (`bbNNNNN_α already defined`) — orthogonal to inheritance logic (m3 always works; m4 works for 2-class). That emitter bug is the real blocker for larger m4 OO programs.**
-- [ ] **RK-OO-C3 — C3 MRO** (`compute_mro` linearization). Needed for diamonds; single/linear chain works today via the simple parent walk.
+### LEXER STATUS (updated 2026-06-24)
+The "flex can't regen" wall is RESOLVED. Root cause: column-0 `/*---*/` separators in the rules section were unrecognized by flex 2.6.4. Fix: indent them by one space in `raku.l`. Verified: flex now regens `raku.lex.c` with rc=0, and the new lexer is behavior-equivalent across all 102 smokes (97/0/7 both modes). `raku.lex.c` is now the flex-2.6.4 regen. **Bison regen is always fine. To regen lexer: `cd src/parser/raku && flex -o raku.lex.c raku.l` (rc=0, 31 conflicts unchanged).**
+
+### OO LADDER
+Anchored to Rakudo `Metamodel/{BUILDPLAN,C3MRO,MROBasedMethodDispatch,RoleToClassApplier}.nqp`, `Mu.rakumod`, `Attribute.rakumod`. OO is overwhelmingly RUNTIME (`obj_new`/`meth_call`/`dat_field_*` + the `DatType`/`DATINST_t` model). Parser+lower changes only where new syntax must be recognized.
+
+- [~] **RK-OO-A2 — public-attribute AUTO-ACCESSOR — accessor half LANDED (2026-06-15, `5370ad1`).** `.x()` routes to the field value via `meth_call` fallback (`meth_is_user_proc` guard; user method wins). **OPEN: privacy (`$!` inaccessible from outside) + `is rw`.** Needs lexer: carry the twigil (public `$.` vs private `$!`) into the spec and gate in `meth_call`/`dat_field_get`. Unblock path: `raku.l` new `VAR_TWIGIL_PUB`/`VAR_TWIGIL_PRIV` tokens (or a flag field) + bison regen. Smokes landed: `accessor_paren`/`accessor_method_wins`/`accessor_inherited`.
+- [!] **RK-OO-A3 — `@.`/`%.` array & hash attributes.** No `@.`/`%.` lexer rules; `has @.items` fails at lex. Add rules to `raku.l` → flex regen (now unblocked). Bison rules for typed-array-attr and `@!`/`%.` sigil in class body.
+- [~] **RK-OO-A4 — typed + constant-default attributes — LANDED (2026-06-15).** `has Int $.x` (type ignored) and `has $.x = 42` (constant default) work. DEFERRED: (a) closure/expression defaults (`has $.x = computed()`) — needs native sub-block execution; (b) type constraint enforcement; (c) native-primspec attrs.
+- [~] **RK-OO-B2 — BUILDPLAN.** op-0 DONE (B1 bless + obj_new default path). op-800 (`is required` death) LANDED (2026-06-24): `dat_construct` sets `g_script_exception` + `rt_script_die_surface` fires for absent required attrs; native `die` route wired (`g_script_try_depth` gate for future try/CATCH). Present + absent cases both PASS both modes. DEFERRED: op-400 (closure/expression defaults) — needs native sub-block execution (same wall as map/grep). Smokes: `attr_required_present`/`_typed_present`/`_inherited_present`/`_absent`/`_absent_inherited`/`die_uncaught_halts`.
+- [~] **RK-OO-B3 — TWEAK submethod — LANDED (2026-06-24).** `method TWEAK()` auto-fires at construction from `dat_construct` chokepoint via `rt_fire_buildplan_tweak`; parent→child order (BUILDALLPLAN); correctly non-inheriting. Smokes: `tweak_fires`/`tweak_derived_attr`/`tweak_inherited_order`. OPEN: `BUILD` submethod (`:$x` named params in signature are lexer-blocked — now unblocked; add `VAR_NAMED_PARAM` token to `raku.l` + bison rule for `method BUILD(:$x) {…}`).
+- [ ] **RK-OO-B4 — `is required` absent-case surfacing via try/CATCH** — present-case PASS, absent-case PASS (death surfaces via `rt_script_die_surface`). This rung is satisfied; `is required` is fully DONE. Close it.
+- [ ] **RK-OO-C3 — C3 MRO** (`compute_mro` linearization). Needed for diamond inheritance; linear chain works today.
 - [ ] **RK-OO-C5 — `callsame`/`nextsame`/`callwith`** (re-dispatch to next MRO candidate).
 - [ ] **RK-OO-C6 — multiple inheritance (`is A is B`)** (MRO merge; needs C3).
-- [ ] **RK-OO-D1..4 — Roles** (`role`/`does`; role-to-class flattening per `RoleToClassApplier`; required-method stubs + conflict detection; punning).
-- [ ] **RK-OO-E1..2 — Multi-dispatch** (`multi`/`proto`; arity then type-narrowness).
-- [ ] **RK-OO-F1..4 — Metaobject/introspection** (type objects + `:D`/`:U`/`.defined`; `.WHAT`/`.^name`; `.^methods`/`.^attributes`/`.^parents`; `.isa`/`.does`).
+- [ ] **RK-OO-D1..4 — Roles** (`role`/`does`; role-to-class flattening per `RoleToClassApplier`; required-method stubs + conflict detection; punning). Now lexer-unblocked.
+- [ ] **RK-OO-E1..2 — Multi-dispatch** (`multi`/`proto`; arity then type-narrowness). Now lexer-unblocked.
+- [~] **RK-OO-F — Metaobject/introspection.** `.^name` LANDED (2026-06-24): `^` token added to `raku.l`; `CARET` token in grammar; `meth_call` metamethod handler reads instance/type class name. Smokes: `meta_name_instance`/`meta_name_typeobj`. OPEN: `.WHAT` (same `^` path, returns type object string), `.^methods`/`.^attributes`/`.^parents` (enumerate proc_table/DatType), `.isa`/`.does` (type-test), `:D`/`:U` type constraints.
 - [ ] **RK-OO-G1..6 — Advanced** (`.Str`/`.gist`/`.raku` override; operator overload `multi sub infix:<>`; `handles` delegation; `but`/runtime mixin; `enum`/`subset`; `.=`).
 
 ---
@@ -39,76 +38,15 @@ never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md` (XA scann
 ladder: LB-* in `GOAL-PASCAL-BB.md`. COMPLETION TEST: the audit's Tier-1 grep over `BB_templates/` +
 `XA_templates/` returns 0 sites.
 
-## ▶ GRAMMAR/REGEX DIRECTION (2026-06-14) — PARKED BEHIND THE OO LADDER (see ★ top of file)
+## ▶ GRAMMAR/REGEX DIRECTION (2026-06-14) — PARKED BEHIND THE OO LADDER
 
-> **PARKED 2026-06-15:** RK-GRAM-3 (the recursive-descent grammar engine) was the prior lead rung; it is now
-> PARKED behind the OO ladder per Lon. The direction below stays AUTHORITATIVE for when grammar work resumes —
-> do NOT re-derive it. Grammars register and `.parse` dispatches end-to-end in all three modes today (`f3b1837`);
-> recursive grammars are the remaining gap.
+RK-GRAM-3 (recursive-descent grammar engine) is PARKED behind OO. Direction stays authoritative for when grammar work resumes. Grammars register and `.parse` dispatches end-to-end in all three modes today (`f3b1837`); recursive grammars are the remaining gap.
 
-**DIRECTION SET BY LON 2026-06-14: an NFA is the WRONG primary engine for a top-down recursive-descent
-language. The entire NFA-on-Byrd-boxes apparatus is DELETED (SCRIP `d63c374`).** Verified against the Rakudo/
-NQP internals: real Rakudo's matcher IS recursive descent (a backtracking cursor machine with a bstack); the
-NFA is only an LTM-dispatch oracle that prunes/orders alternation+proto candidates and does ZERO consuming or
-capturing. An engine is fully correct with no general NFA (the old PGE engine matched Raku regex with only
-literal-prefix dispatch). Subrule `<name>` recursion (Raku supports self-recursion) is at least context-free →
-provably beyond any finite automaton → needs a pushdown/recursion mechanism, i.e. recursive descent.
+**DIRECTION (Lon 2026-06-14):** NFA is the WRONG primary engine for top-down recursive-descent. The NFA-on-Byrd-boxes apparatus is DELETED (`d63c374`). Real Raku's matcher IS recursive descent (backtracking cursor machine). Subrule `<name>` recursion is provably beyond any finite automaton → needs recursive descent. The C NFA matcher `re.c` (`nfa_build`/`nfa_exec`) is KEPT for `~~ /regex/` only.
 
-**WHAT WAS DELETED (`d63c374`):** `IR_NFA_*` IR kinds (11 of them) from IR.h + scrip_ir.c name table;
-`nfa_to_bb`/`nfa_bb_exec`/`nfa_bb_graph_exec` + the file `src/parser/raku/nfa_bb.c` + re.h decls + Makefile
-entries; the `RK_NFA_BB` env dispatch (collapsed to the C matcher); the `IR_NFA_MATCH` interp case + bb_reset
-exemption; `test_gate_raku_nfa_oracle.sh`. `~~ /regex/` reverted to the plain `re_match` IR_CALL (dval=2) and
-now cleanly EXCISES in m3/m4 (gate guard mirrors the DVAL2_BOMB predicate: `dval==2 && !__rk_bool/__rk_try &&
-!rt_builtin_is_known`).
-
-**WHAT STAYS (Lon 2026-06-14): the C NFA matcher for RE.** `src/parser/raku/re.c` (`nfa_build`/`nfa_exec`/
-`Nfa`/`Match`) is KEPT as the regex engine for plain `~~ /regex/`. This is NOT "NFA-BB" — it is the runtime
-regex matcher, and it carries m2 regex+grammar today. Grammars currently match via `gram_expand` (inline-
-flatten subrules → one NFA → `nfa_exec`) — a NON-recursive stopgap (`by_name_dispatch.c`: hard depth-16 cap +
-4096-byte buffer; a self-recursive rule overflows/caps out = wrong). Flat grammars (the 4 grammar smoke tests)
-work; recursive grammars do not.
-
-**STATUS (2026-06-15, SCRIP `41a9393`):** Raku m3/m4 **80 PASS / 0 FAIL / 7 EXCISED** of 87
-(the 7 = 3 `~~` verdict+capture smokes + 4 map/grep — all correctly EXCISED, never abort). This session: RK-OO-A2
-accessor half (`5370ad1`, +3 smokes) then RK-OO-B1 user `method new`/`bless`/type-object dispatch (`41a9393`, +3).
-Prior session (`952d528`) brought OO attr-mutation + inheritance (74/0/7/81) and the Str/Cool/List method suite.
-**Mode 2 / `--interp` is GONE** (the IR-graph interpreter was deleted, `a2440f4`); the numbers above are the two NATIVE
-modes and m3 is the primary correctness mode. Peers: Icon m3/m4 12/12, SNOBOL4 m4 7/7. g_vstack=0, bb_bin_t=0, IR_NFA=0.
-
-**LANDED 2026-06-14 (3 commits, `1c64469`/`2860563`/`b63cc45`):**
-1. **map/grep abort→EXCISE (the regression fix).** `a2440f4` (interp deletion) bomb-stubbed `bb_mapgrep_prepare`
-   (its `IR_interp_once` materialization body was deleted) but LEFT `graph_native_emittable_mode` ADMITTING
-   `IR_MAP`/`IR_GREP` — so a map/grep program reached the `[NO-IR-INTERP]` bomb and ABORTED, violating
-   PASS-or-EXCISED. FIX (matches the intent of the already-dead `kind_native_stub`): node-loop guard
-   `IR_MAP||IR_GREP → return 0`, and dropped them from `rhs_kind_ok` (kept `IR_GATHER`, which has a real
-   self-contained `bb_gather.cpp`). `gather_take` still PASSes; map_range/grep_range/map_over_gather/
-   grep_over_gather: abort → clean `[SMX]` EXCISE.
-2. **Smoke harnesses de-interp'd to 2-mode (raku + icon + snobol4).** All three still invoked the deleted
-   `--interp`; raku/icon GATED on `[ $F2 -eq 0 ]` → rc=1 despite clean m3/m4. Removed every `--interp`
-   invocation + m2 bookkeeping; gate on zero silent m3/m4 FAIL + floors (the shape snobol4 already used). Icon
-   gate STRENGTHENED from floors-only to m3/m4 zero-FAIL (m3 replaced m2's build-sanity role) — one-line revert
-   if the Icon owner wants it looser. Behavior-neutral for every compiler; all three gates now rc=0.
-
-**RAKUDO SOURCE CORRECTION (read `6_rakudo-main` this session — do-not-re-derive):** real Raku `gather`/`take`
-is **NOT materialized** — it is a first-class **continuation coroutine** (`Rakudo/Iterator.rakumod` `class
-Gather does SlippyIterator`): the block runs under `nqp::handle(&block(),'TAKE',…)`; each `take` decrements
-`$!wanted` and at 0 captures the continuation (`nqp::continuationcontrol(0,PROMPT,…)`) and SUSPENDS mid-block;
-`pull-one` sets `$!wanted=1` and `nqp::continuationreset`s to resume to the next `take`. `map`/`grep`
-(`Any-iterable-methods.rakumod`) are ALSO lazy — `Seq.new(<pull-one iterator over SELF.iterator>)`. So ALL
-THREE are lazy. SCRIP's `bb_gather.cpp` only emits the **degenerate literal-int-take** case (constant-folds each
-`take(N)` at compile time into a baked `.quad` cursor; `take($computed)` aborts) — passes the smoke but is far
-from real gather. **IMPLICATION for RK-EMIT-MAP/GREP + RK-GRAM-3:** the generator-PUMP the goal calls for
-("closure emitted as native, invoked per element, SUSPEND/EVERY driver") IS Rakudo's continuation model, and the
-four-port box resumption (γ advance / ω redo / β resume) is its native analog — the same suspend/resume-across-a-
-boundary substrate both rungs need.
-
-**NEXT: RK-GRAM-3 (THE SEAM) — recursive-descent grammar engine.** Build subrule `<name>` recursion +
-backtracking on the EXISTING four-port box-resumption substrate (the SNOBOL4 pattern boxes `bb_match_*`/
-`bb_pattern_*` ARE a backtracking recursive-descent matcher — γ=matched/advance-cursor, ω=fail/redo; alternation
-= `IR_ALT`; subrule call = recursion into another box graph; the Σ/δ/Δ subject triad already reserved for the
-regex slab is the cursor). This REPLACES `gram_expand`'s flatten-to-NFA for recursive grammars and builds a real
-Match tree. Needs full budget + `ARCH-x86.md`/`ARCH-SCRIP.md` reads first. NOTE the obsoleted rungs below.
-
+- [ ] **RK-EMIT-MAP/GREP** — `bb_rk_map.cpp`/`bb_rk_grep.cpp` (`IR_MAP`/`IR_GREP`). m3/m4 EXCISED. Blocked on Icon GZ-7 (IR_ASSIGN ζ-slot store).
+- [ ] **RK-GRAM-3 (THE SEAM)** — recursive-descent grammar engine. Build subrule `<name>` recursion + backtracking on the EXISTING four-port box-resumption substrate (SNOBOL4 pattern boxes ARE a backtracking recursive-descent matcher — γ=advance, ω=fail/redo; alternation=`IR_ALT`; subrule call = recursion into another box graph). REPLACES `gram_expand`'s flatten-to-NFA (depth-16-capped stopgap). Needs full budget + `ARCH-x86.md`/`ARCH-SCRIP.md` reads first.
+- [ ] **RK-GRAM-4..6** — LTM + proto dispatch; actions + Match tree; convergence/control/adverbs. Sits on RK-GRAM-3.
 
 ---
 
@@ -164,14 +102,14 @@ hand-encode it inline in the template. The missing encoder is the bug; the mediu
 `IF(MEDIUM_MACRO_DEF, …)` carrying instruction bytes. Those record/byte primitives are PRIVATE to `x86_asm.h` (the
 encoders' implementation); a template only ever sees the `x86(...)` front-end + the markers (`L(n)`, `FR(off)`,
 `FRQ(off)`, `PORT_*`) and the LOUD `x86_bomb(msg)` stub. **ALLOWED carve-out — TEXT-ONLY ANNOTATIONS WITH NO BYTE
-FORM:** a box's leading `α:` label (`s_1asm(std::string(_.lbl_α)+":")`) and comments (`s_comment(...)`) exist only
+FORM:** a box's leading `α:` label (`s_1asm(std::string(_.lbl_α)+":"`) and comments (`s_comment(...)`) exist only
 in the GAS arm, so `IF(MEDIUM_TEXT, <comment-or-label>)` with NO matching `IF(MEDIUM_BINARY, <bytes>)` is fine; an
 `IF(MEDIUM_TEXT,<gas-instruction>) + IF(MEDIUM_BINARY,<bytes>)` PAIR is the violation. Non-x86 platform arms
 (JVM/JS/NET/WASM) are out of scope (X86 ONLY for now) and keep their `s_*asm` text.
 
 
 **CORRECTION RECORD (Lon 2026-06-06):** RULES.md TEMPLATE-ONLY EMISSION is now corrected to MATCH this rule; its former
-“duplicate the byte-producing code into each template file” clause (515aa7d6, 2026-05-28) is DEAD — it predated the
+"duplicate the byte-producing code into each template file" clause (515aa7d6, 2026-05-28) is DEAD — it predated the
 2026-06-02 directive and said the opposite. Restated plainly: ZERO BINARY emission anywhere in a `bb_*.cpp` — not in the
 top-level `*_str`, not in any helper it calls (a static helper in the template file is INSIDE the fence; relocating bytes
 into helpers changes nothing). `x86()` internals (`x86_asm.h`) are the ONLY place BINARY and TEXT are emitted, side-by-side.
@@ -258,11 +196,11 @@ or that adds a new value-stack array under any name, has violated this rule. **C
 (c) `scripts/test_gate_no_vstack.sh` `g_vstack` line reads 0; (d) the FACT RULE body is byte-identical
 across all five GOAL-*-BB files.
 
-## STATUS — Raku is the FOURTH concurrent BB session (peer to SNOBOL4/Icon/Prolog)
+## STATUS
 
-Raku is LIVE through `lower.c` (RK-LOWER-0..4 + 5a/5b done; mode-2 oracle healthy). Post-SMX-4: no Stack
-Machine engine; ONE unified `lower.c`; `IR_*` node taxonomy; BB run-path via `bb_exec_once`. The SM-era
-`BB_*`/`SM_*` content is preserved as SEMANTIC SPECS in **APPENDIX A** (numbers NOT reachable today; don't cite as live).
+Raku is LIVE through `lower.c` (RK-LOWER-0..5 done). Post-SMX-4: no Stack Machine engine; ONE unified `lower.c`; `IR_*` node taxonomy; BB run-path. Mode 2 (`--interp`) DELETED 2026-06-15. Two native modes only.
+
+**Current score (2026-06-24): Raku m3/m4 97 PASS / 0 FAIL / 7 EXCISED / 104.** 7 EXCISED = 4 map/grep + 3 `~~` regex, all correctly declined. Peers: Icon 12/12, SNOBOL4 7/7, Prolog m3/m4 5/5.
 
 ---
 
@@ -408,58 +346,30 @@ Locked callee-saved layout the three concurrent BB sessions MUST share (canonica
 
 ## ⛔ MANDATORY READ BEFORE EVERY SESSION
 
-**Pipeline (post-SMX-4 — the SM engine is GONE; this is the BB run-path all four languages share):**
+**Pipeline (post-SMX-4):**
 ```
 Raku source → raku.l / raku.y → tree_t* (TT_* AST)
     → src/lower/lower.c  lower2()  [cx.lang = IR_LANG_RKU, role VALUE]
-        → IR_t four-port graph (alpha/beta/gamma/omega; ports are POINTERS → goto-chains collapse)
-    → [mode 2] bb_exec.c: bb_exec_once(entry) / bb_exec_resume   (correctness ORACLE)
+        → IR_t four-port graph (alpha/beta/gamma/omega)
     → [mode 3] --run native runner → SM/BB/XA template BINARY arms → sealed RX → jump in
     → [mode 4] --compile --target=x86 → template TEXT arms → as → gcc -no-pie -lscrip_rt → run
 ```
+Mode 2 (`--interp`) DELETED 2026-06-15. Modes 3 and 4 are the only modes.
 
-- **Mode 2 (`--interp`):** `bb_exec_once` C oracle over the lowered `IR_t` graph. The reference.
-- **Mode 3 (`--run`):** native runner → `{BB,SM,XA}_templates/*.cpp` MEDIUM_BINARY arms. (For SNOBOL4
-  this AOT path is not yet rebuilt; for Raku it does not exist yet either — see the rungs.)
-- **Mode 4 (`--compile`):** template MEDIUM_TEXT arms → GAS → gcc link → run the binary.
-
-> **⛔ TESTING DIRECTIVE (mirrors the other three GOAL files, Lon 2026-05-31) — ALWAYS RUN ALL THREE
-> MODES.** Every time you test Raku, exercise mode 2 (`--interp`), mode 3 (`--run`), AND mode 4
-> (`--compile --target=x86` → `as` → `gcc -no-pie … -lscrip_rt` → run). Mode 2 is the **HARD gate**
-> (exit 0 requires mode-2 all-pass); modes 3 and 4 are **RUN + REPORTED on every invocation** (tracked
-> with `MODE3_MIN`/`MODE4_MIN` PASS floors, default 0) so the full native picture is always visible.
-> Never report a mode-2 number alone. Raise the floors as 3/4 come back so regressions in them also fail.
->
-> **⛔ COMPLETION BAR — adopted from GOAL-ICON-BB / GOAL-PROLOG-BB (2026-06-01).** A rung is **promoted only
-> when all three modes are accounted for together**: (1) mode-2 all-PASS (the oracle, HARD); (2) mode-3 PASS
-> **or** LOUDLY EXCISED; (3) mode-4 PASS **or** LOUDLY EXCISED — **never a silent FAIL or an abort.** An
-> unbuilt native family (no `bb_rk_*` template yet) is added to `icn_kind_native_stub` (`src/driver/scrip.c`)
-> so the `(is_icon || is_raku)` mode-3/4 pre-flight prints `[SMX] … EXCISED` and DECLINES — the gap stays
-> visible and tracked, not hidden behind a crash. `test_smoke_raku.sh` now reports three columns
-> (`PASS / FAIL / EXCISED`) per mode and its exit gate requires **zero silent m3/m4 FAIL** (every native mode
-> PASS-or-EXCISED) on top of the m2 hard gate. Driving an EXCISED family to PASS = writing its stackless
-> `bb_rk_*` template (the RK-EMIT work). The `[SMX]→EXCISED` mechanism is byte-identical to the Icon/Prolog twins.
+> **⛔ TESTING DIRECTIVE — ALWAYS RUN BOTH MODES.** Every time you test Raku, exercise mode 3 (`--run`) AND mode 4 (`--compile --target=x86` → `as` → `gcc -no-pie … -lscrip_rt` → run). Never report a mode-3 number alone. A rung is promoted only when both m3 and m4 are PASS or LOUDLY EXCISED — never a silent FAIL or abort.
 
 **Mandatory reads, in order, every Raku session:**
-1. `GOAL-ICON-BB.md` (the live ground-zero goal + the canonical four-port generator model Raku REUSES).
-2. `RULES.md` in full (No C Byrd boxes · TEMPLATE-PURITY · ONE x86 PRODUCER · stub LOUD via `bomb_bytes()`
-   · X86 ONLY · MODE PURITY — no silent cross-mode fallback / no silent eps substitution).
-3. This file. Find the first incomplete `- [ ]` rung in the ladder.
-4. `GOAL-RAKU-FRONTEND.md` (parser/lexer state) and `GOAL-PST-RAKU.md` (pure-syntax-tree track) if touching the frontend.
+1. `GOAL-ICON-BB.md` (live ground-zero goal + canonical four-port generator model Raku REUSES).
+2. `RULES.md` in full.
+3. This file. Find the first incomplete `- [ ]` rung in the OO LADDER.
+4. `GOAL-RAKU-FRONTEND.md` and `GOAL-PST-RAKU.md` if touching the frontend.
 5. If touching corpus → `CORPUS-LOCATIONS.md`. If MODE3/4-EMIT → `ARCH-x86.md` AND `ARCH-SCRIP.md`.
-
-**Absolute rules (RULES.md):** No C Byrd boxes. TEMPLATE-PURITY. ONE x86 PRODUCER. Stub LOUD via `bomb_bytes()`. X86 ONLY. MODE PURITY. No `rt_*`/`raku_*` port-logic helpers; conversion/effect helpers via `@PLT` (mode-4) or absolute `movabs+call` (mode-3) are fine.
 
 ---
 
-
 ## The insight (Raku is a Seq language → ONE four-port pull protocol)
 
-Per docs.raku.org: almost everything generative in Raku produces a **`Seq`**. `gather`/`take`, the
-`…` sequence operator, lazy ranges, `map`, `grep` — all "generate a Seq" on demand. ONE four-port
-pull protocol (yield-one-at-β, identical to Icon's generator `SUSPEND`/`EVERY` PUMP) suffices; every
-generative construct is a PRODUCER or CONSUMER of it. A 10-kind ladder collapses to ~3 rungs on the
-SHARED Icon generator kinds — Raku adds almost no new IR kinds, it REUSES Icon's.
+Almost everything generative in Raku produces a **`Seq`**. `gather`/`take`, the `…` sequence operator, lazy ranges, `map`, `grep` — all produce a Seq on demand. ONE four-port pull protocol (yield-one-at-β, identical to Icon's generator PUMP) suffices. A 10-kind ladder collapses to ~3 rungs on the SHARED Icon generator kinds — Raku adds almost no new IR kinds, it REUSES Icon's.
 
 ## Port semantics (identical to Icon generators — REUSE, do not reinvent)
 
@@ -470,39 +380,6 @@ SHARED Icon generator kinds — Raku adds almost no new IR kinds, it REUSES Icon
 | alpha | synthesized UP | fresh-pull entry (first `.pull-one`) |
 | beta | synthesized UP | resume entry (next `.pull-one` after a yield) |
 
-Driver = the Icon generator PUMP (`IR_EVERY` / the `IR_*` resumable family). NOT Prolog's once-driver.
-
-## Moves to BB (shared IR) vs stays eager
-
-**MOVES (goal-directed, REUSE shared Icon IR kinds — Raku adds `cx.lang==IR_LANG_RKU` arms INSIDE the existing cases):**
-
-| Raku construct | shared IR kind (Icon's) | rung |
-|---|---|---|
-| lazy range `$a..$b`, `$a,$b … $c` | `IR_TO` / `IR_TO_BY` | RK-LOWER-1 |
-| `gather { … take … }`, `…` operator | `IR_*` SUSPEND + PUMP (Icon generator) | RK-LOWER-2 (keystone) |
-| lazy `map` / `grep` | `IR_*` ITERATE consumer (eager-drain) | RK-LOWER-3 |
-| junctions `any`/`all`/`one`/`none`, infix bar/amp | `IR_ALT` + Bool-collapse | RK-LOWER-4 |
-
-**STAYS eager (lower to straight-line `IR_*`, no generator):** scalar builtins, `say`/`print`,
-arithmetic, hash/array element ops, class/method dispatch, `sort` (whole-list), `try`/`CATCH`.
-
-**REGEX / GRAMMAR (RK-NFA rungs):** regex backtracking onto an ISOLATED `IR_NFA_*` family (NOT
-SNOBOL4's pattern opcodes — isolation decision below). Grammar/LTM deferred to Phase 2.
-
----
-
-## Rung ladder (REVAMPED for the unified `lower.c` + BB run-path)
-
-Completed rungs (git history has full detail): RK-LOWER-0 (say/print ✅), RK-LOWER-1 (lazy range→IR_TO ✅), RK-LOWER-2 (gather/take→IR_GATHER ✅), RK-LOWER-3 (map/grep→IR_MAP/IR_GREP ✅), RK-LOWER-4 (junctions→__rk_jct_* ✅), RK-LOWER-5a (read-only value ops ✅), RK-LOWER-5b (mutating ops via pure-variant writeback ✅), RK-LOWER-5c (try/CATCH/die ✅ 2026-06-12 — TT_DIE→IR_CALL("die"); TT_TRY→IR_CALL("__rk_try", dval=2.0, na=1or2) with body/catch as sub-graphs in EXEC.counter; IR_interp intercepts "__rk_try", runs body, checks g_script_exception, runs/swallows catch. **ALSO FIXED:** `lower_raku_stage2` now populates `lower_sc` with param names after assigning bb_idx — mirroring `lower_icon_stage2` — so the dval==2.0 IR_CALL dispatch can bind args via NV_SET; previously lower_sc was always empty → all proc params read as NUL/0. `rk_try_catch25.expected` corrected: `might_die(0)` fires die before say, so the two bogus "0" lines removed.), RK-EMIT-1/2/3 (Raku rides Icon's native driver via is_raku flag ✅), RK-EMIT-GATHER (bb_rk_gather.cpp, x86() API ✅), RK-HY-0/1/2 (de-cram: bb_binop_jct_relop, bb_seq→3 files, bb_nfa→7 leaf files ✅), RK-HY-3 (bb_call_rk.cpp extracted ✅), RK-NFA-1 (IR_NFA_* graph builder + mode-2 walk ✅), RK-NFA-2 (csets/anchors/ordered-alt gate ✅), RK-NFA-3 (captures $0/$1/$<name> ✅).
-
-- [ ] **RK-EMIT-MAP/GREP** — `bb_rk_map.cpp`/`bb_rk_grep.cpp` (`IR_MAP`/`IR_GREP`). m2 PASS, m3/m4 EXCISED. Closure emitted as native + invoked per element. Blocked on Icon GZ-7 (IR_ASSIGN ζ-slot store).
-- [x] **RENAME-C / RENAME-SNO / icn_ / SNOBOL-interp-vars / RK-NFA-4a-SMOKE — DONE `f548d70` (2026-06-14).** See the LANGUAGE-PREFIX PURGE bullets in the watermark for the full mapping + the LI-FENCE STATUS (remaining reds are the Prolog GZ type-migration tail, owner-only).
-- [x] **RK-NFA-4 — OBSOLETE / DELETED 2026-06-14 (`d63c374`).** The native NFA-on-Byrd-boxes apparatus this rung was building (`IR_NFA_*`, `nfa_to_bb`, `bb_nfa_*`, `nfa_bt_ir_cap`, `RK_NFA_BB`, the oracle gate) is DELETED per Lon — an NFA is the wrong primary engine for a recursive-descent language. Superseded by the recursive-descent grammar engine (see CURRENT PRIORITY). Regex leaf matching stays on the C matcher `re.c` (Lon 2026-06-14).
-- [x] **RK-NFA-5 — OBSOLETE 2026-06-14.** This rung's "on the BB rebuild" premise referenced the now-deleted NFA-BB path. Greedy/longest-match + multi-capture correctness is a property of the kept C matcher `re.c` (for `~~`) or the future recursive-descent engine (for grammars) — not a BB-NFA rung. (The `12abc → "1"/"2abc"` greediness is a `re.c` issue if/when it matters.)
-- [ ] **RK-GRAM-3 (THE SEAM) — recursive-descent grammar engine (LEAD RUNG, reframed 2026-06-14).** See CURRENT PRIORITY (top of file) for the full direction. Build subrule `<name>` recursion + backtracking on the EXISTING four-port box-resumption substrate — the SNOBOL4 pattern boxes `bb_match_*`/`bb_pattern_*` ARE a backtracking recursive-descent matcher (γ=matched/advance-cursor, ω=fail/redo; alternation=`IR_ALT`; subrule call = recursion into another box graph; the Σ/δ/Δ subject triad reserved for the regex slab is the cursor). REPLACES `gram_expand`'s flatten-to-NFA for recursive grammars (today's depth-16-capped stopgap handles only flat grammars) and builds a real Match tree, then `$<name>`/`$0` capture access. Grammar registration + `.parse` dispatch already landed (`f3b1837`); regex `~~` stays on the kept C matcher. Needs full budget + `ARCH-x86.md`/`ARCH-SCRIP.md` reads first.
-- [ ] **RK-GRAM-4..6 — LTM + proto dispatch; actions + Match tree; convergence/control/adverbs.** (UN-DEFERRED 2026-06-14. Sits on the RK-NFA-4 BB matcher + RK-GRAM-3 PUMP.)
-- [x] **RK-NFA-CONV — OBSOLETE 2026-06-14.** `IR_NFA_*` kinds are deleted; there is nothing left to converge with SNOBOL4 `IR_PAT_*`.
-
 ---
 
 ## Session Setup
@@ -510,62 +387,47 @@ Completed rungs (git history has full detail): RK-LOWER-0 (say/print ✅), RK-LO
 ```bash
 cd /home/claude/SCRIP
 bash scripts/install_system_packages.sh
-bash scripts/build_scrip.sh            # or: make -j4 scrip   (rc=0; seed `scrip --interp` → hello)
-make libscrip_rt                       # rc=0
+rm -f scrip && make -j4 scrip   # rc=0
+make libscrip_rt                 # rc=0
 ```
 
-## Gates (run ALL THREE MODES per the TESTING DIRECTIVE; behavioral gates stay INVARIANT under byte-neutral change)
+## Gates
 
 ```bash
-make scrip                                    # rc=0
-make libscrip_rt                              # rc=0
-bash scripts/prove_lower2.sh                  # topology — Raku cases ADDITIVE in the RAKU section; stays green
-bash scripts/test_smoke_raku.sh               # mode 2 HARD; m3/m4 tracked (floors MODE3_MIN/MODE4_MIN)
-bash scripts/test_smoke_icon.sh               # m2 6/6 (HARD) — REUSED generator kinds; must not regress
-bash scripts/test_smoke_snobol4.sh            # m2 7/7 (HARD) — NFA isolation proof: must stay byte-unchanged
-bash scripts/audit_concurrency_invariants.sh  # OK — no dup case TT_/IR_, FACT RULES byte-identical
-bash scripts/util_template_purity_audit.sh    # no bytes outside templates (baseline)
+make scrip && make libscrip_rt
+bash scripts/test_smoke_raku.sh        # m3/m4: ZERO FAIL gate (floors MODE3_MIN/MODE4_MIN)
+bash scripts/test_smoke_icon.sh        # 12/12 HARD
+bash scripts/test_smoke_snobol4.sh     # 7/7 HARD
+bash scripts/audit_concurrency_invariants.sh
+bash scripts/util_template_purity_audit.sh
 ```
 
-**Isolation gate (every RK-NFA step):** `test_smoke_snobol4.sh` + the SNOBOL4 pattern-rung suite must stay
-byte-identical (no SNOBOL4 pattern template touched), FACT grep 0, Icon/Prolog smokes invariant.
+**KEY GOTCHA:** `scrip` STATICALLY links the runtime; `out/libscrip_rt.so` is mode-4 ONLY. After ANY runtime `.c` edit, rebuild BOTH (`rm -f scrip && make -j4 scrip && make libscrip_rt`). Parser edits: `cd src/parser/raku && bison -d raku.y -o raku.tab.c`. Lexer edits: `cd src/parser/raku && flex -o raku.lex.c raku.l` (NOW WORKS — lexer unblocked 2026-06-24).
 
 ---
 
 ## Architecture reference
 
-- Unified lowerer: `src/lower/lower.c` — `lower2()`, role-seeded `lower2_{value,pattern,goal}_entry`; Raku arms are `cx.lang==IR_LANG_RKU` branches INSIDE the shared `tree_e` cases.
-- Shared four-port builders: `wire_seq` (n-ary sequence-with-backtrack), `wire_alt` (n-ary fail-chain), `wire_det_builtin1` (role-agnostic deterministic builtin call — Raku `say`/`print` reuse this).
-- Semantic oracle (mode 2): `src/lower/bb_exec.c` — `bb_exec_once` / `bb_exec_resume` over `IR_t`.
-- Topology proof harness: `src/lower/prove_lower2.c` (+ `scripts/prove_lower2.sh`); `main()` is sectioned SNOBOL4 / ICON / PROLOG — ADD a RAKU section (BEGIN/END markers) so concurrent appends auto-merge.
+- Unified lowerer: `src/lower/lower.c` — `lower2()`, role-seeded; Raku arms are `cx.lang==IR_LANG_RKU` branches INSIDE the shared `tree_e` cases.
 - Emitter dispatch: `src/emitter/emit_core.c`; Raku templates: `src/emitter/BB_templates/bb_rk_*.cpp`.
-- Register source of truth: `src/emitter/bb_regs.h` (the BBREG_*/BBREGN_* names; the subject triad is used only in the NFA slab).
-- Raku frontend: `src/frontend/raku/raku.l`, `raku.y`; goal files `GOAL-RAKU-FRONTEND.md`, `GOAL-PST-RAKU.md`.
-- Isolated regex matcher (C reference / oracle): `src/frontend/raku/raku_nfa*.c` (`nfa_bt`), `raku_re.c`.
+- Register source of truth: `src/emitter/bb_regs.h`.
+- Raku frontend: `src/parser/raku/raku.l`, `raku.y`; goal files `GOAL-RAKU-FRONTEND.md`, `GOAL-PST-RAKU.md`.
 
 ---
 
 ## Watermark
 
-**RK-OO-A4 — typed + constant-default attributes — LANDED both native modes (2026-06-15, this session).** `has Int $.x` (type parsed+ignored) and `has $.x = 42` (constant default, Rakudo BUILDPLAN op-400 constant case) parse and work. `DatType` gains `defaults[64]`/`has_default[64]`; `dat_construct` applies a default when the field arg is absent (single chokepoint → `obj_new` + `bless` both covered); `class_inherit` carries defaults to children; lower sets literal defaults after `record_register`; m4 `proc_startup` emits a `dat_set_field_default_{i,s,r}@PLT` sequence parallel to `class_inherit` (m3/m4 byte-faithful). Parser bison-regen only (6 new `class_body_list` rules, conflicts steady at 31, NO lexer change — `Int`=`IDENT`; new `TT_HAS_DECL` AST node for the defaulted case). Raku m3/m4 **86 PASS / 0 FAIL / 7 EXCISED / 93** (was 80/0/7/87 — +6 smokes: `attr_typed`/`attr_default_int`/`attr_default_str`/`attr_default_override`/`attr_typed_default`/`attr_default_inherited`). Peers invariant: Icon 12/12, SNOBOL4 7/7. `g_vstack`=0, `bb_bin_t`=0, IR_NFA=0; no-lang-names fence + template purity show only the documented pre-existing baselines (my symbols 0 hits, 0 templates touched). DEFERRED: closure/expression defaults (non-literal → silently skipped), type-constraint enforcement, native-primspec attrs. See HANDOFF-2026-06-15-...-OO-A4-TYPED-DEFAULT-ATTRS.md.
+**2026-06-24 session (Claude Sonnet 4.6). Raku m3/m4 97 PASS / 0 FAIL / 7 EXCISED / 104. Peers: Icon 12/12, SNOBOL4 7/7, Prolog m3/m4 5/5.**
 
-**RK-OO-B1 — user `method new` + `bless` + type-object dispatch — LANDED both native modes (2026-06-15, SCRIP `41a9393`).** `method new(...)` parses (KW_NEW accepted as method name, bison-regen only — no lexer change); `self.bless(k => v)` parses (named-arg methcall rule); `T.new(positional)` parses. Class-name barewords now lower to `IR_LIT_S` (mirrors the grammar-name fix) so a class receiver isn't a free `IR_VAR` tripping the m3/m4 EXCISE gate (new `rk_is_class_name` registry in `lower_raku.c`). Runtime (`by_name_dispatch.c`): `bless` arm constructs from named args; `obj_new` routes `.new` to a user `<C>__new` if present (else built-in — regression-clean); a method call on a class-name string routes to the user method with the class name as `self`. Smokes: `method_new_override`/`bless_named`/`type_object_method`. Raku m3/m4 80 PASS / 0 FAIL / 7 EXCISED / 87. Peers invariant: Icon 12/12, SNOBOL4 7/7; g_vstack=0, bb_bin_t=0, IR_NFA=0.
+**RK-OO-B2 op-800 — native `die` route + required-attr absent-case LANDED both modes.** `die` added to `rt_builtin_is_known` → routes `CALL_ROUTE_FN` → `rt_call_arr` (was: emit-time abort). New `rt_script_die_surface(msg)` sets `g_script_exception`, flushes stdout, prints to stderr, `exit(1)` when `g_script_try_depth==0` (future try/CATCH gate). `dat_construct` wired to call `rt_script_die_surface` when a required attr is absent. Faithful to Rakudo `X::Attribute::Required` message + `nqp::exit(1)`. Smokes: `attr_required_absent`/`attr_required_absent_inherited`/`die_uncaught_halts`. (+3)
 
-**RK-OO-A2 (accessor half) — public-attribute auto-accessor `.x()` — LANDED both modes (2026-06-15, `5370ad1`).** Runtime-only `meth_call` fallback: if the method is no-arg and not a real user proc (`meth_is_user_proc`) and the receiver has a field of that name (`data_field_ptr`), return the field value (Rakudo `has_accessor` codegen; user method of the same name wins). Privacy (`$!`) + `is rw` are LEXER-BLOCKED (twigil erased at lex; flex can't regen) — deferred.
+**RK-OO-B3 TWEAK — LANDED both modes.** `rt_fire_buildplan_tweak` fires from `dat_construct` chokepoint; walks parent chain (least-derived first), fires each class's own `<C>__TWEAK` if present (non-inheriting). Smokes: `tweak_fires`/`tweak_derived_attr`/`tweak_inherited_order`. (+3)
 
-**STR/COOL/LIST METHOD SUITE — 30 methods, runtime-only (2026-06-15, `c82bc7e`).** One CS-neutral `rt_str_method` in `by_name_dispatch.c` reaching both `.meth` (`IR_FIELD_GET`→`dat_field_get`) and `.meth(args)` (`meth_call`). case/measure/Str→list/args/coercion/numeric/list methods; semantics per Rakudo `core.c/{Str,Cool,Int,List}`. See HANDOFF-2026-06-15-...-STR-COOL-METHOD-SUITE.md.
+**LEXER UNBLOCK — LANDED.** Root cause of "flex can't regen": column-0 `/*---*/` separators in the rules section are unrecognized by flex 2.6.4. Fix: indent them 1 space in `raku.l`. `raku.lex.c` is now the flex-2.6.4 regen (2916 lines vs. 2539 FLEX_BETA committed). Verified behavior-equivalent across all 102 smokes before adding new tokens. Unblocks: A2-privacy, A3 `@./%.`, B3-BUILD `:$x`, F `.^methods`/`.^attributes`, roles, multi-dispatch.
 
-**OO ATTR-MUTATION + INHERITANCE (2026-06-15, `952d528`).** RK-OO-A1 (attr mutation: twigil-lvalue + void methcall → `field_set`) and RK-OO-C1/C2/C4 (`class Child is Parent`: attr+method inheritance via `class_inherit`/`resolve_method_chain`). See HANDOFF-2026-06-15-...-OO-ATTR-MUTATION-AND-INHERITANCE.md. **CAVEAT:** 3+ class m4 programs can hit the pre-existing `x86_uid` dup-label emitter bug (m3 fine; m4 fine for 2-class).
+**RK-OO-F `.^name` — LANDED both modes.** `^` token added to `raku.l`; `CARET` token + 2 parser rules (IDENT/atom `.` CARET IDENT) in `raku.y` (bison-regen, 31 conflicts unchanged); `meth_call` metamethod handler reads instance/type class name from `DatType`. Smokes: `meta_name_instance`/`meta_name_typeobj`. (+2)
 
-**GRAMMAR `.parse` FOUNDATION (2026-06-14, `f3b1837`).** Grammars register + `.parse` dispatches end-to-end all modes via `gram_expand` inline-flatten → NFA (`grammar_parse_core`). NON-recursive stopgap (depth-16 cap): flat grammars only; recursive grammars need RK-GRAM-3 (PARKED). `.parse` returns matched STRING (truthy) / `NULVCL` (falsy).
-
-**NFA-BB DELETED — REGEX STAYS ON C MATCHER (2026-06-14, `d63c374`).** The NFA-on-Byrd-boxes apparatus (`IR_NFA_*`, `nfa_to_bb`, `nfa_bb.c`, `RK_NFA_BB`, oracle gate) is deleted; `~~ /regex/` rides the kept C matcher `re.c` (`nfa_build`/`nfa_exec`), cleanly EXCISES in m3/m4. Grammar engine direction = recursive descent (RK-GRAM-3), not NFA.
-
-**LANGUAGE-PREFIX PURGE (2026-06-14, `f548d70`).** Post-lower stages (`driver/interp/runtime/emitter/machine/contracts`) carry zero language prefix; `icn_`/`raku_`/`rk_` etc. allowed only in `src/parser/` + `src/lower/`. Enforced by `test_gate_no_lang_names.sh` LI-FENCE. Remaining reds (≈40 grouped lines) are ALL pre-existing Prolog GZ type-migration tail (`pl_gz_*_t`/`pl_catch_*`/`rt_pl_*`) + Pascal `pas_*` — **owner-only, do NOT touch from a Raku session**; plus 3 false-positives to add to the ALLOW list (`__rk_bool`/`CALL_ROUTE_RK_BOOL_*`, `IR_DET_SUCC_PLUS`, the `_pl` float-cast union local).
-
-**⚠ KEY GOTCHA (cost prior sessions real time):** `scrip` STATICALLY links the runtime; `out/libscrip_rt.so` is mode-4 ONLY. After ANY runtime `.c` edit, rebuild BOTH (`rm -f scrip && make -j4 scrip && make libscrip_rt`) and after any rebase, rebuild+re-gate before pushing — else m3 and m4 silently disagree. Parser edits: `cd src/parser/raku && bison -d raku.y -o raku.tab.c` (do NOT run flex — see LEXER CONSTRAINT).
-
-- **Done (history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm, ONE-MEDIUM rk_bool, lbl_β double-colon, x86_uid dup-label, Bug 1 proc-double-emit (`33f7202`), user-sub CALL Layers A+B (`f6bbabb`), B-c bool_truthiness + B-b jct relops (`b9a2433`), GROUP C class_method emit path (session 9), **GROUP C class_method m3 freed-IR fix (`738b950`, session 10)** (git log).
+**Done (full history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm, ONE-MEDIUM rk_bool, lbl_β double-colon, x86_uid dup-label, Bug 1 proc-double-emit, user-sub CALL Layers A+B, B-c bool_truthiness + B-b jct relops, GROUP C class_method emit path + m3 freed-IR fix, RK-OO-A1 attr-mutation, RK-OO-A2 accessor-half, RK-OO-A4 typed+default attrs, RK-OO-B1 user-method-new/bless, RK-OO-B2 op-800, RK-OO-B3 TWEAK, RK-OO-C1/C2/C4 inheritance, Str/Cool/List method suite (30 methods), grammar `.parse` foundation, NFA-BB deleted, language-prefix purge, lexer unblock, RK-OO-F `.^name`.
 
 ## ⛔ FACT RULE — "HANDOFF COMPLETE" REQUIRES A CONFIRMED PUSH (Lon directive, 2026-06-24)
 **The phrase "handoff complete" — or any terminal claim of doneness ("done", "all set", "wrapped up", "committed and clean" presented as the end state) — MUST NOT be spoken until `git push` has SUCCEEDED and `git log origin/main --oneline -1` (step 7) shows THIS SESSION'S hash on origin for EVERY touched repo.** A local commit is NOT a handoff; the bytes are on this disposable sandbox and vanish with it. "Pending push awaiting credential", "ready to push", or "the local commits are safe" is an **INCOMPLETE handoff and must be reported as INCOMPLETE — never dressed up as complete.** If a credential is missing or the push fails, the handoff is **BLOCKED**: state that plainly, say exactly what is needed, and STOP — do NOT declare completion. The push (step 6) and the `origin/main` hash confirmation (step 7) are the LAST and MANDATORY acts of every handoff; skipping either means the handoff did not happen, regardless of how green the local tree is. Verify HEAD == origin/HEAD per repo, or it is not done.
