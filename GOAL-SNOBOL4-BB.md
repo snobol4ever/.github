@@ -277,6 +277,38 @@ Steps: RC-0 honest runner + oracle-gen refs + triage table → RC-1 csnobol4-sui
 
 ---
 
+## BBGC — slide-compaction garbage collector for the BB code arena  ⬇ LOW PRIORITY / EXPLORATORY (Lon 2026-06-24)
+
+**Status: design-only spike. Do NOT start ahead of GVA-4 / OPSINGLE / REC-COV.** Picked up only when the `bb_pool` bump arena's lack of compaction becomes a real ceiling (the EVAL leak fix landed a LIFO watermark — `bb_pool_mark`/`bb_pool_release` — and a 2MB retention budget, which BOUNDS but does not COMPACT: cached/retained chains pin non-top regions, so pure-LIFO leaves holes a long-running EVAL/CODE-heavy program eventually exhausts).
+
+**Vision (Lon):** treat `bb_pool` as a GC heap of *code*. When it fills, mark live BB blobs, sweep the unreferenced, and **slide the survivors down to compact**, re-stitching ONLY the four ports (α β γ ω) and touching nothing else inside a blob body.
+
+**Why this is viable — relocatability taxonomy (grounded in `x86_asm.h` binary encoder + `bb_regs.h`, verified 2026-06-24).** Setting the 4 ports aside, here is everything baked into a sealed blob and its behavior under a slide:
+1. **Register-relative state** (`[r12+off]` ζ, `rbx` GVA, `rbp` GST, `r13/r14/r15` Σ/δ/Δ, `r10` DATA) — encodes NO code/data address → **zero fixup**. This register-centric ABI is the whole reason compaction is tractable.
+2. **RIP-relative to adjacent sealed RO** (`lea reg,[rip+disp32]` to interned name/lit bytes) — disp32 = target−rip_next → **invariant IFF the RO tail moves with its blob as one indivisible unit**. ⇒ relocation unit = blob + adjacent RO, never split.
+3. **Immediate data constants** (`movabs reg,<int|float-bits>`) — values, not addresses → **position-independent**.
+4. **Runtime-function calls** — binary encoder ALREADY emits `movabs rax,&fn ; call rax` (`x86_asm.h:196`, abs addr) NOT `call rel32`. The runtime never moves, so the absolute target is invariant under caller movement → **zero fixup**. (Ports, by contrast, are `0xE8 rel32` / `XK_PORT` — relative, the one thing that breaks.)
+5. **The four ports** — `call/jmp rel32` between boxes → break on move → **re-stitch (recompute rel32)**. Exactly the scoped work; nothing else in the body needs it.
+6. **⚠ THE REAL HAZARD — stored pointers to blob ENTRY points held OUTSIDE the pool.** A moving collector must fix these: (a) the EVAL cache (`runtime_eval.c` `g_eval_cache[].fn`); (b) DT_C/DT_E descriptors on the SNOBOL heap (`code()`/`CONVE_fn` stash `d.ptr=blob_addr` into first-class values a user var can hold — `:<C>` direct-goto, `CONVERT(s,'CODE')`, retained `*expr`); (c) the runtime label→code map; (d) **live return addresses on the native C stack** pointing INTO a blob if GC can fire while a BB frame is active (the precise-moving-GC-of-JIT-code problem).
+
+**Two design decisions that make "touch nothing else" literally true:**
+- **Entry-table handle indirection.** Hand out a stable handle (index into a per-pool entry-table the collector owns) instead of a raw blob-entry address; cache/descriptors/direct-gotos store the handle, the table holds the live address, relocation updates ONLY the table. Bounds category-6 fixups to one table.
+- **Compact only at a safepoint with no active BB frame** (between top-level statements / after an EVAL/CODE returns — easy to guarantee since those run synchronously to completion and the pool is touched only between statements). Eliminates category-6(d) entirely, avoiding return-address rewriting.
+
+### STEPS
+- [ ] **BBGC-0 — measure + baseline.** Add `bb_pool` occupancy/hole stats; build an EVAL/CODE-heavy stress program that pins retained chains AND keeps allocating (forces holes the 2MB-budget LIFO can't reclaim). Confirm the failure mode (NULL from `bb_alloc` while total live < pool) and document why LIFO watermark alone is insufficient. NO behavior change.
+- [ ] **BBGC-1 — root enumerator.** Enumerate all live BB entry-point references: `g_eval_cache`, DT_C/DT_E descriptors reachable from GST (BDW already roots the SNOBOL heap — walk code-typed cells), the runtime label→code map, direct-goto code values. Output a `(holder, entry_addr)` root list. Read-only; no relocation yet.
+- [ ] **BBGC-2 — entry-table handle indirection.** Replace raw entry addresses handed to cache/descriptors/direct-goto with handles into a collector-owned per-pool entry-table; the table holds the current address. Floor: EVAL/CODE crosscheck byte-identical (one extra deref on the slow path only).
+- [ ] **BBGC-3 — mark.** From roots, mark reachable blobs; follow inter-blob refs (ports + entry-table) transitively. Verify mark set ⊇ everything the stress program calls.
+- [ ] **BBGC-4 — safepoint discipline.** Define + assert the compact safepoint (no active BB frame on the C stack). Confirm EVAL/CODE return BEFORE any compaction trigger. (Closes category-6(d).)
+- [ ] **BBGC-5 — sweep + slide-compact.** Slide live blobs (blob + adjacent RO, one unit) down to remove holes; update the entry-table; re-stitch the 4 ports per moved box (recompute rel32). Add a verifier that asserts NO code-internal absolute pointer exists outside the covered categories (1/3/4 must need nothing). 
+- [ ] **BBGC-6 — trigger.** On `bb_alloc` overflow, run compaction (at a safepoint) and retry instead of returning NULL.
+- [ ] **BBGC-7 — gate.** EVAL-heavy stress (e.g. 1M distinct EVALs) runs with BOUNDED pool, output == SPITBOL oracle, compaction firing ≥N times; full `test_crosscheck_snobol4.sh` byte-identical (zero regressions); bench unaffected.
+
+**Prereq reads when picked up (per PLAN.md step 7 — this touches per-box state + relocation):** `ARCH-x86.md` §Boxes-are-stackless + §Flat-BB-ABI, `ARCH-ICON.md` §register-contract, `REGISTER-LAYOUT.md`, `src/emitter/bb_regs.h`, `src/emitter/XA_templates/xa_flat.cpp`, `src/machine/bb_pool.c` (the new `bb_pool_mark`/`bb_pool_release`).
+
+---
+
 # Completed / superseded (summary only)
 
 Sessions 1–12 built the full SNOBOL4-BB ladder bottom-up:
