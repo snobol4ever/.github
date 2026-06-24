@@ -435,7 +435,11 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 
 ## Watermark
 
-**HEAD (SCRIP) = `79448a3`** — m3/m4 **147/283**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+**HEAD (SCRIP) = `5e6e557`** — m3/m4 **150/283**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+
+**2026-06-24 (Claude, session 5 — bb_limit LANDED / GAS-comment fix):**
+- **`bb_limit` (rung14 ×3) DONE (`6556ad9`):** the `\` limit operator now emits natively in m3 (`--run`) and m4 (`--compile`). rung14 `limit_to`/`limit_large`/`limit_zero` PASS both modes; suite **147→150**, zero regressions. `limit_alt`/`limit_str` stay EXCISED — they hit the ALT-as-generator gap (gen-alt, the rung13 `alt_safe_kind` lever), NOT the limit. New `BB_templates/bb_limit.cpp` (`bb_limit` counter box + `bb_limit_init`), emit_core dispatch + `extern-C bb_emit_limit_init` wrapper. Design: check-before-yield (`c` from 0 ⇒ exactly `t` values, `0` for `\0`); generator stays ON-SPINE (resumable chain node, NOT re-walked); `codegen_flat_chain_body` hands the box its generator's chain-β via `g_limit_gen_beta` and emits the one-shot `c:=0` in a pre-pass (frame is not zeroed). **The chain-label puzzle was three bugs:** (1) `lower_icon.c` set `cx->beta` to the inner generator → consumer resumed the generator, bypassing the counter (now `cx->beta = nd`); (2) `descr_chain_arity` had no `IR_LIMIT` case → returned −1 → reset the operand-refs stack → the `write` CALL got no operand → wrong slot (now arity 0: pushes its result so the consumer wires to it, preserving lowerer operands `[gen, count, gen-entry]`); (3) count was clobbered by `walk_bb_node`, now carried in the LIMIT node's own literal.
+- **GAS-comment fix (`5e6e557`):** `walk_bb_node`'s 5 unhandled-node diagnostics emitted `;` (GAS statement separator) → switched to `#` (line comment). Diagnostic-only. (Flagged in the 2026-06-23 bench-diagnosis handoff.)
 
 **2026-06-24 (Claude, session 4 — ICN-SIZE / ICN-CALL-GEN-ARG / ICN-GVA / LVA-1 / audit):**
 - **ICN-SIZE (`e8cb66d`/`79448a3`):** `*L` on an Icon list always returned 3 (reading record `nfields`=3 instead of the live `frame_size` field). Fixed `rt_size_d`. rung22 EXCISED→PASS. Suite 145→146.
@@ -447,9 +451,8 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 - **`bb_limit` (rung14 ×3) attempted but reverted:** Counter box template + dispatch wired, but outer chain `xchain0_nN_α` labels unresolved when box added at LIMIT position (chain-label interaction with generator-in-spine). Needs fresh investigation of how `codegen_flat_chain_body` assigns node labels relative to a boxed generator node. Tree left clean at `79448a3`.
 
 **Next highest-value targets (by FAIL count + scoping):**
-1. **`bb_limit` (rung14 ×3)** — chain-label issue from this session needs root-cause study. Canonical: `ir_a_Limitation` (irgen.icn:113). Key insight needed: how `codegen_flat_chain_body` assigns `xchain0_nN_α` to a generator node that now has a real box.
-2. **`suspend` (rung03 ×3)** — `ir_Succeed(susp, t)` pattern; scan-swap interplay.
-3. **Cross-arg alternation (rung13 ×2)** — non-literal ALT arms; arm-scoped `alt_safe_kind`.
+1. **`suspend` (rung03 ×3)** — `ir_Succeed(susp, t)` pattern; scan-swap interplay. Now the top lever.
+2. **Cross-arg alternation (rung13 ×2)** — non-literal ALT arms; arm-scoped `alt_safe_kind`. **Also unblocks `limit_alt`/`limit_str` (rung14's 2 EXCISED): the ALT-as-generator path is what they wait on, so landing this takes rung14 to 5/5 for free.**
 4. **`rung30_builtins_misc_seq` (rc=134)**, **`rung37_proc_lookup` (rc=134)** — bb_call FATAL cluster.
 
 **2026-06-23 (Claude, session 3 — BENCHMARK DIAGNOSIS, ZERO CODE DELTA):** Mapped all 13 `corpus/benchmarks/icon/*.icn` against the native gate; tree left PRISTINE at `fa33cd6` (suite 145/283 unchanged, smoke 12/12, all gates green). Full writeup: **HANDOFF-2026-06-23-CLAUDE-ICON-BENCH-BLOCKER-MAP-AND-INITIAL-STORAGE-GAP.md**. Headlines: (1) **Corrected the benchmark map** — only `version` compiles to real `.s`; the other 12 EXCISE at the gate (0-byte `.s`) or parse-fail; committed `micro.s`/`micsum.s` are STALE; `tab` is NOT the blocker. (2) **Gate-instrumented the exact layered triggers** (`grej(nd,__LINE__)` under `SCRIP_GATE_DEBUG`, peel-by-loosening): the real top lever is **richer alternation** — the whole-graph `alt_safe_kind` taint (`scrip.c:330`, any `IR_ALT` forces EVERY node alt-safe) excises 6/8; arm-scoping it + relaxing `alt_arms_all_simple_lit` is the gate to everything. (3) **`IR_INITIAL` is NOT a gate lift** (corrects this file's old NEXT-LEVER #5) — proved by wiring it and watching it break: it needs a **persistent-writable-static facility that does not exist** (m3 RX slab is `PROT_READ|PROT_EXEC`, `bb_pool.c:42`; no `.bss`/`.data` emitter mechanism; `static` lowers to `IR_SUCCEED` no-op, `lower_icon.c:186`). The gate's defensive excise of `IR_INITIAL` is CORRECT and must stay. (4) **Corrected my own LAYER-2 finding empirically** — list-literal/call/subscript/concat RHS already COMPILE (`x:=[]`, `x:=[1,2,3]`, `x:=y[1]`, `every put(a,9)`); the narrow failing assign shapes are **chained-assign `a:=b:=c`, builtin-as-value `x:=write`, and the `list()` builtin**. **META-LESSON: test, don't trust the gate source** — twice the gate code implied a blocker that compilation disproved. (5) Small latent bug noted: `walk_bb_node`'s `; [...unhandled]` diagnostic uses `;` (GAS statement separator → breaks assembly); should be `#`.
@@ -464,7 +467,7 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 
 **Open bugs:** Generator in user-proc call arg disappears from BB graph — `lower_call` sets `cx->beta = ω` for non-gen-allowed procs (rung16 +1, rung32 +1). `write(&null)` m3 abort — `&null`→`bb_keyword`, unresolved forward ref.
 
-**Standing open items (14 FAILs):** bb_call FATAL cluster (rung08/22/30/32/37) · recursion overflow (rung02) · suspend gen (rung03) · limit counter (rung14, canonical: irgen.icn:113 `ir_a_Limitation`) · cross-arg alternation (rung13).
+**Standing open items (9 m3/m4 FAILs):** bb_call FATAL cluster (rung08/30/37) · recursion overflow (rung02) · suspend gen (rung03 ×3) · cross-arg alternation (rung13 ×2). *(rung14 limit counter — DONE, session 5.)*
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
 **Architecture:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c`
