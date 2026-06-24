@@ -69,7 +69,61 @@ activation persists independently.
   next chain element; it never re-invokes the proc at a resume point. The activation has already
   returned; `body_β` has nowhere to land. **This is the break.**
 
-## 4. ⛔ THE FACT-RULE COLLISION — needs Lon's ruling before code
+## ✅ RULING (Lon, 2026-06-24) — the `(void*,int entry)` selector is ALLOWED
+
+**Verbatim intent:** the `(void*, int entry)` prototype is fine **as long as the code it dispatches
+into is emitted x86, not C.** What is forbidden is a *C* Byrd Box — a C function carrying the α/β box
+logic / entry points. The proc slab is native x86, so using `entry` (rsi) to pick fresh-start vs
+resume — dispatched in the **emitted** prologue — is on the right side of the rule. `bb_suspend` is an
+emitted-x86 template, never a C box. **§4 below is the pre-ruling analysis, retained for context;
+§4A is the approved build.**
+
+## §4A — APPROVED LEAN BUILD (everything gated on generator-proc / IR_SUSPEND so the 151 floor is safe until it works)
+
+Reuses the existing `every` machinery: make the generator-proc **call box** itself the generator —
+α = start, β = resume — exactly like `bb_to` (α init / β advance). `flat_drive_every` already wires
+`body.success → body_β` and `body.failure → every.success`, so NO deep caller surgery.
+
+**Five pieces, each gated so non-generator procs are byte-unchanged (floor-safe):**
+
+1. **Runtime (`rt.c`) — persistent-frame generator dispatch.** `g_proc_arena` is depth-freed on
+   return; generators need the frame to survive across suspend. Add a small activation stack:
+   `rt_proc_call_gen(name,nargs)` — alloc a persistent frame (own arena, NOT depth-freed), stage args,
+   `p->fn(frame,0)`, push the activation, return `frame[0]`; `rt_proc_resume_gen()` — top activation,
+   `p->fn(frame,1)`, if `frame[0]` is FAILDESCR (type 99) pop+free and return fail, else return
+   `frame[0]`. Single-activation stack suffices for rung03 (incl. `_compose` — sequential, never two
+   live at once); a small stack also covers nesting.
+
+2. **Prologue entry-dispatch (`xa_flat.cpp`), gated on a `g_gen_proc_active` flag.** The frame-active
+   prologue (`push r12; mov r12,rdi; lea r10,[rip+Δ]`) gains, for generator procs only,
+   `cmp esi,0; je α_body; jmp β` (the idiom already used on the non-frame path at lines 80-82). esi≠0
+   ⇒ resume ⇒ jump to the chain β, which propagates to the active `bb_suspend` box's β. Non-generator
+   procs keep the exact current prologue → floor untouched.
+
+3. **`bb_suspend` template (emitted x86, new `BB_templates/bb_suspend.cpp`).** α (reached from
+   while-cond-true): copy the EXPR value slot → `frame[0]` (the proc result), then `ret` (the
+   frame-active epilogue's succeed path: `mov eax,1; pop r12; ret` — value already in frame[0]).
+   β (resume, reached via prologue jump on re-entry): jump to the DO-body entry, which runs `i:=i+1`
+   then `jmp γ` (loops back to the while test). r12 push/pop stays balanced: each entry (fresh or
+   resume) pushes r12 in the prologue; each suspend-`ret` pops it.
+
+4. **Lowering (`lower_icon.c` `TT_SUSPEND`).** Replace the stash-as-subgraphs form with INLINE
+   producer boxes so the chain-β propagation reaches them: lower EXPR (`i`) as a producer box (its
+   slot feeds bb_suspend), the DO-body (`i:=i+1`) as a box whose γ → the suspend's sequence-successor
+   (the while loop-back). Wire `bb_suspend`: α copies EXPR slot → result, γ = (returns via epilogue);
+   β → DO-body entry; DO-body.γ → loop-back. Register `IR_SUSPEND` in `ir_is_generator_kind` +
+   `gen_bb_is_gen_arg`.
+
+5. **Caller generator-call box (`bb_call` variant / route).** When the callee `rt_proc_is_registered`
+   AND is_generator: α = stage args + `rt_proc_call_gen` → value to slot; `cmp type,99: je ω; jmp γ`.
+   β = `rt_proc_resume_gen` → value to slot; `cmp type,99: je ω; jmp γ`. The existing `every` drive
+   does the rest.
+
+**Then:** remove the `IR_SUSPEND` gate rejection (admit it), re-test floor 151 + smoke 12/12 + the
+3 rung03 rungs → PASS. **Order of landing (each step floor-safe because the gate still rejects until
+the last step):** 1→2→3→4→5, build+`.s`-dump+run after each, flip gate last.
+
+## 4. (pre-ruling analysis — retained for context) THE FACT-RULE COLLISION
 
 `rt_call_proc_descr` (`src/runtime/rt/rt.c:268`) is the dispatch:
 
