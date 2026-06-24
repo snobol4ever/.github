@@ -1,6 +1,19 @@
 <!-- GOAL-SNOBOL4-BB · SCRIP native pattern-match ladder for modes 3/4 (--run/--compile) -->
 
-# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-24, session 17)
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-24, session 18)
+
+**FZ-0 LANDED (SCRIP `a48c831`).** `sno_pat_kind` (3-valued bottom-up classifier) + `sno_pat_islands` + `sno_island_walk` added to `src/lower/lower_snobol4.c` beside `sno_leaf_buildable`. Behavior-neutral: 16 bench `.s` byte-identical. `SCRIP_FZ_DEBUG=1` diagnostic in `lower_assign` for validation.
+
+**CLASSIFIER TAXONOMY (ground truth, validated):**
+- kind-1 (invariant): literal/nullary primitives, combinators (SEQ/ALT/ARBNO/`.`/`$`) over kind-1/2 only → FREEZE to sealed blob
+- kind-2 (operand-variant): primitive with non-literal arg (`LEN(N)`, `SPAN(cvar)`) OR `TT_DEFER` (`*anything`) → FREEZE code, late-read operand slot
+- kind-3 (structural-variant): bare pattern-var (`TT_VAR` in pattern position), `TT_INDIRECT` (`$NAME`→pat), `TT_FNC` (pattern-returning call) → STITCH only
+
+**KEY INSIGHT from session 18 (Lon):** every pattern expression stitches variant and invariant *parts* — the unit is a maximal invariant island (kind<3 subtree under a kind-3 parent, or the whole RHS). `sno_pat_islands` counts them. Validated probe: `SPAN('abc') VAR LEN(3)` → kind=3, islands=2 (two frozen islands stitched around the bare var). `ARBNO(*VAR)` → kind=2, islands=1 (the `*` freezes the body). `ARBNO(VAR)` → kind=3, islands=0 (structural splice). The `*` unary flips ARBNO between freeze and stitch — exactly the recursive-pattern idiom in the SPITBOL manual (Ch. 9).
+
+**CLASSIFIER NOTE — source tree, not IR:** FZ-0 classifier operates on `tree_t` (pre-lowering), not the lowered IR subtree as the goal file previously said. The build-vs-freeze fork is in `lower_assign` on the source tree, before any `IR_PATTERN_*`/`IR_MATCH_*` node exists. This is the correct home; IR-side classification would require first forcing all patterns through `IR_MATCH_*` lowering unconditionally — a non-neutral prerequisite change. Goal file corrected here.
+
+**▶ NEXT MOVE: FZ-1** — seal a fully-invariant stored pattern (any kind-1 island, any shape including ALT-of-literals) by calling `bb_build_flat` at compile time. Prereq reads listed below the STEPS header.
 
 ## ▶ PRIORITY RUNG (do FIRST): PERF-GVA — Global Variable Array
 
@@ -43,7 +56,6 @@ Precedence (manual): `.`/`$` > blank(SEQ) > `|`(ALT) — fixes the stitch-tree s
 **SEAM (verified):** stored pattern `PAT = <invariant>` lowers (`src/lower/lower_snobol4.c`) to `IR_PATTERN_CAT` + `pat_via_dtp`; `src/emitter/BB_templates/bb_pattern_cat.cpp` emits a C-call to the per-shape `bb_build_break_cap_lit_blob`. Per-shape fused builders don't scale (no `alt4_span_cap` builder ⇒ pattern_bt stub). **`IR_REF_INVARIANT` is ALREADY a reserved opcode (`src/contracts/IR.h:174`, "REFINV" in `prove_lower.c`) but UNWIRED in the emitter — it exists for exactly this.** The immediate matchers (`bb_match_*()` dispatched in `src/emitter/emit_core.c`) ARE the frozen boxes to reuse. **FZ = redirect the existing immediate-matcher emission into a standalone sealed blob under a label + store its head as a `DT_P` via `IR_REF_INVARIANT`, replacing the `pat_via_dtp` build-call.** Match site keeps its DEFER fetch (FZ-2/3); inlining the sealed head to skip per-match DEFER is the FZ-5 perf step.
 
 ### STEPS
-- [ ] **FZ-0 — invariance classifier (NO behavior change).** Add a pure pass over the lowered pattern subtree: invariant iff every leaf is a literal-operand primitive or `*E`, and every node an invariant combinator (no pattern-valued var / `$NAME` / pattern-returning call). Gate: bench still OK=15 (proves no behavior change).
 - [ ] **FZ-1 — seal a fully-invariant CONCATENATION stored pattern.** **KEY (verified in `bb_pat_build.cpp`): every per-shape runtime builder is just `bb_build_flat(matcher_graph)` deferred to runtime** — `bb_build_break_cap_lit_blob` builds `IR_MATCH_CAT[ IR_MATCH_ASSIGN_COND[capvar] → IR_MATCH_BREAK(cset), IR_MATCH_LIT(lit) ]` (+ `IR_SUCCEED`/`IR_FAIL`), sets `g_emit_cfg`/`g_frame_active`, calls `bb_build_flat(cat)`, stores via `rt_gvar_assign_pat`. So FZ-1 = build that SAME `IR_MATCH_*` matcher graph (the inline lowerer already produces this shape) and call `bb_build_flat` at COMPILE time (mode-4 → sealed TEXT blob under a label; mode-3 → sealed slab). No per-shape C builder, no four-port-from-scratch. Diff the sealed box bodies against the runtime-built bytes to confirm identity.
 - [ ] **FZ-2 — `IR_REF_INVARIANT` store + DEFER fetch.** `PAT = <invariant>` lowers to [sealed blob] + `IR_REF_INVARIANT` storing the sealed head as a `DT_P` into PAT's cell (drop `pat_via_dtp`). Gate: string_pattern mode-4 (`--compile`) AND mode-3 (`--run`, the DEFAULT) output == `string_pattern.ref`; `bb_build_break_cap_lit_blob` no longer called in `string_pattern.s`. **ORACLE = the `.ref` files (ex-SPITBOL); there is NO mode-2/`--interp` — default is mode-3 `--run`. mode-3 and mode-4 share templates, so they are NOT independent oracles for each other — `.ref` (or x64 `sbl -b`) is the only ground truth.** `string_pattern.ref` is result-sensitive (accumulated captures) ⇒ sufficient without x64.
 - [ ] **FZ-3 — ALT-of-literals freeze.** Seal `('aaa'|'bbb'|'ccc'|'ddd') SPAN('abcd').W` to one blob (4-way ALT + SPAN + capture). Gate: pattern_bt mode-3 AND mode-4 output == ref. **`pattern_bt.ref` is COUNT-ONLY (a null PAT null-matches → 500000 regardless), so it CANNOT validate the match — add a result-sensitive `W` output and regenerate the ref from x64 `sbl -b` (this step DOES need the x64 token) or a hand-computed expected `W`.**
