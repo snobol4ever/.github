@@ -300,7 +300,7 @@ Every test runs `--run`/`--compile` on the SAME source. Done = m3+m4 PASS or LOU
   - [x] **GST-2** — DONE: Icon descr m4 `main:` emits `.bss __gva: .space n*16` + `.rodata __gva_names` + `gva_register → mov rbx, rax`; `g_gva_active=1` set BEFORE the proc-body loop (so proc bodies use rbx too) and cleared after. (scrip.c Icon m4 block.)
   - [x] **GVA-1** — DONE: Icon global `IR_VAR` read → `[rbx+k*16]` in `bb_var_global` (new GVA arm, gated `g_gva_active && op_gva_k>=0`); `op_gva_k` set in the IR_VAR descr arm.
   - [x] **GVA-2** — DONE: Icon global `IR_ASSIGN` write → `[rbx+k*16]` via `bb_gvar_assign_descr`'s existing GVA arm (now reached because `flat_drive_global_assign` sets `op_gva_k`). rung25 verified 0 NV / 8 rbx.
-  - [ ] **LVA-1 (Local Variable Array — verify/lock)** — Icon locals already `[r12+off]` (verified: `local`/default vars → `[r12+off]`, no NV). Add a gate proving NO Icon LOCAL emits `NV_GET_fn`/`NV_SET_fn`; lock the already-correct behavior.
+  - [x] **LVA-1 (Local Variable Array — verify/lock)** — DONE: Icon locals confirmed `[r12+off]` (no NV). Gate `scripts/test_gate_icn_local_no_nv.sh` (3 locks): locals-only program → 0 `NV_GET`/`NV_SET` + uses `[r12+off]`; global program → uses `[rbx+k*16]` + `gva_register`. Locks the local/global storage split.
   - [ ] **GVA-M3 (optional)** — mode-3 in-process globals still on NV (no `.bss` mechanism for the RX slab; SNOBOL4 is identical). A writable runtime arena addressed via rbx could extend GVA to m3, but it is NOT required for correctness and is out of the current rung's scope.
 - [ ] **GZ-DEFER** — EVAL / CODE / `*P` deferred patterns.
 - [ ] **GZ-11+** — `not`/`size`/`nonnull` `bb_unop` · relop remainder · generator-operand binops (Fig-1) · `rt_call_builtin` · lists/tables/records/csets/sort.
@@ -399,6 +399,7 @@ make libscrip_rt
 bash scripts/test_gate_icn_no_stack.sh
 bash scripts/test_gate_icn_one_reg_frame.sh
 bash scripts/test_gate_icn_semicolon_required.sh
+bash scripts/test_gate_icn_local_no_nv.sh
 bash scripts/test_smoke_icon.sh
 bash scripts/test_smoke_prolog.sh
 bash scripts/test_smoke_unified_broker.sh
