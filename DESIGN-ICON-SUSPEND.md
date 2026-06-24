@@ -80,6 +80,25 @@ emitted-x86 template, never a C box. **§4 below is the pre-ruling analysis, ret
 
 ## §4A — APPROVED LEAN BUILD (everything gated on generator-proc / IR_SUSPEND so the 151 floor is safe until it works)
 
+**BUILD STATUS (2026-06-24):** Pieces **1, 3, 4 + chain wiring LANDED** (SCRIP `aa16969` runtime, `ecef926`
+template+lowering+wiring) — building clean, floor-safe (gate still rejects → suspend EXCISES, smoke 12/12).
+**REMAINS: piece 2 (prologue entry-dispatch), piece 5 (caller gen-call box), then flip the gate + debug.**
+The committed state is floor-green; resume directly at piece 2.
+- [x] **1. Runtime** `rt_proc_call_gen` / `rt_proc_resume_gen` (persistent `g_gen_arena` activation stack).
+- [ ] **2. Prologue entry-dispatch** — `xa_flat.cpp` frame-active TEXT (+BINARY) arm, for generator procs
+      only (gate on a new `g_gen_proc_active`, set in scrip.c's proc-emit loop from
+      `proc_table[pi].is_generator`): append `cmp esi,0` / `jne <flat_lbl_β>` after `lea r10,[rip+Δ]`
+      (esi≠0 ⇒ resume ⇒ jump chain β, which `ecef926` already routes to the suspend's resume β).
+- [x] **3. `bb_suspend`** template (`bb_suspend.cpp`, emit_core dispatch, header, Makefile).
+- [x] **4. Lowering** resume-spine (`TT_SUSPEND`: γ=psucc, operand[0]=expr value, operand[1]=do-body).
+- [x] **chain wiring** (BFS collects do-body; `g_suspend_dobody_beta`; `lbl_β`→suspend-resume routing).
+- [ ] **5. Caller gen-call box** — add `int rt_proc_is_generator(const char*)` (reads proc_table); in the
+      call-route resolver, when `rt_proc_is_registered && rt_proc_is_generator(fn)` pick a new route whose
+      box does α=`rt_proc_call_gen` (stage args, value→slot, `cmp type,99: je ω; jmp γ`),
+      β=`rt_proc_resume_gen` (value→slot, `cmp type,99: je ω; jmp γ`). Model on `bb_call_proc_staged`.
+- [ ] **flip gate** — delete `if (nd->op == IR_SUSPEND) return 0;` in scrip.c; build; rung03_suspend_gen
+      → expect `1\n2\n3\n4\n`; debug slot/label/ABI; verify floor 151 + smoke 12/12 + rung03 ×3 PASS.
+
 Reuses the existing `every` machinery: make the generator-proc **call box** itself the generator —
 α = start, β = resume — exactly like `bb_to` (α init / β advance). `flat_drive_every` already wires
 `body.success → body_β` and `body.failure → every.success`, so NO deep caller surgery.
