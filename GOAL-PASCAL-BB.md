@@ -10,26 +10,21 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
-## ▶ CURRENT STATE (Session 64, 2026-06-24)
+## ▶ CURRENT STATE (Session 65, 2026-06-24)
 
-**Gate unchanged: M3 127/0 XFAIL=1, M4 127/0 XFAIL=1.** No code landed this session — diagnostic investigation only. pcom processes `begin end.` correctly in both modes.
+**Gate: M3 123/4 XFAIL=0 NOREF=2.** (The prior "127/0" was a stale count; 127 = ref-bearing probe count, not passes. `realparam` false-passes on a whitespace-only `.ref` — fix the ref to `       3.0` and treat `realparam` as a genuine frontier-#2 crash.)
+
+**What landed this session (SCRIP `dcd040a`):** `bb_call.cpp` — broadened `arith_kind_ok` and `arith_opnd_a/b` to route any call-kind operand (`IR_CALL`/`ir_is_call_kind`) into a temp slot via `marshal_single_call`, instead of silently gating out and collapsing to the left operand. M3 116/11→123/4. SNOBOL4 171/84 baseline-diffed — identical fail set, zero regressions.
+
+**Closed since last session:** `const`-hang (commit `e706a9a`: `digit[]`/`strng[]` char-array backing in `insymbol` uninitialized).
 
 **NEXT FRONTIERS (priority order):**
 
-1. **pcom hangs (98% CPU, silent spin) on `const` decl — MODE-INDEPENDENT.**
-   Repro: `printf 'program t(output);\nconst n=3;\nbegin end.\n' | scrip --run pcom.pas` → rc=124 timeout; same in M4. `var`/`type`/`begin-end` complete normally.
-   **Diagnosis (Session 64):** NOT the `lcp^.values:=lvalu` nested-aggregate store (earlier theory). Capped-counter marker trace localizes the spin to `insymbol`'s `number:` case arm (pcom.pas l.425): the `repeat i:=i+1; if i<=digmax then digit[i]:=ch; nextch until chartp[ch]<>number` loop body runs up to but not including the `nextch` call — everything from `nextch` onward is dropped and the arm re-enters. `ch` stays `='3'` forever.
-   **Key facts:**
-   - `--dump-ir` on pcom: clean, zero warnings. Lowering is fine; defect is emitter-side.
-   - `insymbol` IR: n=611 nodes, nslots=7; `i`/`digit`/`k` are `IR_VAR_FRAME` slots.
-   - The *same* `number:` arm scans `3` correctly during statement parsing (`i:=3` lists fine). Identical emitted code, different runtime outcome → **call-chain-depth–dependent frame/state divergence**.
-   - `__pbt2`/`__pbt3` (the `(ch='.')or(ch='e')` materialized booleans inside insymbol) are **named globals reused across 13 procs** (`pas_mat` counter resets to 0 per-proc). `nextch` itself uses no `__pbt`.
-   - 8 standalone isolation probes (4-deep nesting, packed arrays, enum conditions, pcom-exact nextch, faithful case+repeat shape, callee boolean materialization, OR-relop loop conditions) all pass. Bug is emergent from pcom's scale/shape — same family as closed CH_MAX/slotmap/64-cap frontiers.
-   **Two leading suspects:** (A) `IR_VAR_FRAME` slot for `i` aliasing a parent frame at the shallower const-path call depth (`block→constdeclaration→constant→insymbol` vs deeper statement path); (B) shared-global `__pbt` clobbered by another proc on the const call stack between materialize and test. **Decisive next experiment:** instrument the emitter's frame-slot assignment for insymbol and watch whether `i`'s `[r12+off]` collides with a live parent slot specifically on the const path.
+1. **Scalar assign-RHS arith with call+literal operand — MODE-INDEPENDENT.** `x := a[1] + 100` → blank output (rc=0); `x := a[1] + a[2]` → 7 (correct — two-call case already works). Affects `arr2dtype`, `arr2dtype2`, `arrparam`, `recparam3`. **Diagnosis:** the call-arg path fix (`bb_call.cpp`) does NOT cover the `IR_BINOP_GVAR_ARITH` / `IR_BINOP_GVAR_ARITH_SLOT` assign-RHS path (`emit_bb.c:247-253` + `bb_assign_frame*.cpp`). The blank output (not a wrong number, not a bomb) is consistent with a DT_I tag mismatch on a literal operand in that path; the call operand (`arr_get`) is already emitted correctly in the two-call case. **Decisive experiment:** dump the M4 `.s` for `x := a[1] + 100` and confirm whether `arr_get` is emitted but the literal's DT_I tag is missing from the result descriptor.
 
-2. **`flat_drive_assign: missing α (lhs IR_VAR)` on long ASSIGN chains — MODE-INDEPENDENT.** Body of >~512 `g:=g+1` assigns aborts (rc=134). Call-chains of same length work. Far beyond pcom; deepest body-size limit.
+2. **`realparam.ref` gate-integrity fix.** The ref is whitespace-only (1 byte `\n`); correct value is `       3.0`. `realparam` aborts (rc=134 — frontier-#2 flat_drive_assign family) so it false-passes under string comparison and inflates the pass count by 1. Fix: update the ref and either mark it XFAIL or treat it as the genuine crash it is.
 
-3. **Remaining fixed caps (none affect pcom):** `emit_bb.c` arg-subchain `CH_MAX` (~l.1937, bounded by `OP_ARG_SLOT_MAX=16`) + descr-chain `CH_MAX` (~l.3218) + `FLAT_CHAIN_SET_MAX 512`. Frame arenas cannot be naive realloc (live `fb` pointers); `g_call_args[64]` low value.
+3. **pcom self-compilation (deeper, after floor is real).** `const n=3` no longer hangs; but `var x: integer;` raises spurious `error(103)` from `searchid` — pointer-BST symbol table corrupts at scale. `procedure` decl segfaults (rc=139 M3+M4). Endgame frontier.
 
 No mode-2 `--interp` (DE-INTERP done); only `--run` (M3) and `--compile` (M4).
 
