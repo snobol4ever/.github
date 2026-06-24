@@ -1,0 +1,152 @@
+# DESIGN-ICON-SUSPEND.md — Icon user-defined generators (`suspend`) in the BB model
+
+**Status:** DRAFT for Lon sign-off. **Blocks on a FACT-RULE ruling (see §4) before any code lands.**
+**Author:** Claude · **Date:** 2026-06-24 · **Goal:** GOAL-ICON-BB rung03 (`suspend` ×3, the named top lever)
+
+---
+
+## 0. The three failing rungs (all the same shape)
+
+```icon
+procedure upto(n)
+  local i; i := 1;
+  while i <= n do suspend i do i := i + 1;
+end
+procedure main()
+  every write(upto(4));
+end
+```
+
+- `rung03_suspend_gen`     — count up → **empty output** (yields nothing)
+- `rung03_suspend_gen_compose` — two sequential drives → **empty output**
+- `rung03_suspend_gen_filter`  — count down → **hang (rc=124)**
+
+A user-defined generator: `suspend EXPR do BODY` inside a loop, driven by `every write(...)`.
+
+---
+
+## 1. Root cause (verified by reading every layer)
+
+The **lowering exists but the native emitter has no driver** for it.
+
+- `lower_icon.c:190` (`TT_SUSPEND`) builds `IR_SUSPEND` stashing the EXPR subgraph in
+  `IR_EXEC(sn).counter` and the `do`-BODY subgraph in `IR_LIT(sn).ival`, `dval=1.0`. **But α/β/γ/ω
+  are the plain sequence successor/fail — no resume-spine wiring.** (Dump shows `IR_SUSPEND ival=<ptr>`,
+  γ→the while re-test, with no Succeed/resume edges.)
+- `IR_SUSPEND` is **absent** from `ir_is_generator_kind` and `gen_bb_is_gen_arg` (`emit_bb.c:2218/2227`).
+- There is **no `bb_suspend.cpp`** and **no `flat_drive_suspend`**.
+
+So the node falls through with no codegen: the generator yields nothing (empty) or loops forever (hang).
+It is green-field codegen, not a broken edge.
+
+## 2. Canonical target (JCON `ir_a_Suspend`, `refs/jcon-master/tran/irgen.icn:937`)
+
+```
+t   := ir_label(p, "suspend")        # resume label
+susp:= ir_tmp(...)                    # the yielded-value temp
+ir(p.expr → susp); ir(p.body)
+chunk(start,        [Goto(expr.start)])
+chunk(expr.success, [Succeed(susp, t)])   # <-- THE PRIMITIVE: yield susp to caller, resume at t
+chunk(t,            [Goto(body.start)])    # on resume: run the `do` body…
+chunk(body.success, [Goto(expr.resume)])   # …then resume expr for the next value
+chunk(body.failure, [Goto(expr.resume)])
+chunk(expr.failure, [Goto(failure)])       # expr exhausted → proc fails (generator done)
+```
+
+`Succeed(value, resumelabel)` = the activation **returns a value to its caller while preserving
+itself**, so the caller can **resume** it and control re-enters at `resumelabel`. This is the whole
+generator protocol; `_compose` (two independent activations) only works because each suspended
+activation persists independently.
+
+## 3. Caller side today (the consumer that must drive the resume)
+
+- `flat_drive_every` (`emit_bb.c:2729`) wires `body.success → body_β` (resume for next value),
+  `body.failure → every.success`. Correct, matches JCON `ir_a_Every`. So `every write(upto(4))`
+  resumes the body at `body_β`, which must reach `upto`'s **generator-resume**.
+- But `upto` routes as **`CALL_ROUTE_PROC_STAGED`** (`emit_bb.c:2881`; `dv∈{1.0,3.0}`,
+  `rt_proc_is_registered`). `bb_call_proc_staged.cpp` stages args (`rt_arg_stage`) and
+  `call rt_call_proc_descr(name,nargs)` — a **one-shot** dispatch. Its `def β` just re-jumps to the
+  next chain element; it never re-invokes the proc at a resume point. The activation has already
+  returned; `body_β` has nowhere to land. **This is the break.**
+
+## 4. ⛔ THE FACT-RULE COLLISION — needs Lon's ruling before code
+
+`rt_call_proc_descr` (`src/runtime/rt/rt.c:268`) is the dispatch:
+
+```c
+char *fb = (char*)&g_proc_arena[g_proc_depth * PROC_FRAME_QWORDS];  // depth-indexed frame
+g_proc_depth++;
+... stage args into fb ...
+(void)p->fn((void*)fb, 0);          // invoke proc native slab, entry=0 (α)
+DESCR_t result = *(DESCR_t*)(fb+0); // result from frame[0]
+g_proc_depth--;                     // <-- FRAME FREED on return
+return result;
+```
+
+and the proc-fn type (`src/include/bb_box.h:33`):
+
+```c
+typedef DESCR_t (*bb_box_fn)(void * zeta, int entry);   // (void*, int entry)
+```
+
+Two collisions with load-bearing rules:
+
+**(a) The resume entry is the forbidden signature.** Re-entering a suspended activation at its
+suspend point needs `p->fn(frame, resume_id)` with `entry != 0`. But `(void *ζ, int entry)` as an
+α/β selector is **exactly** what the **"NO C BYRD-BOX FUNCTIONS"** FACT RULE forbids
+(GOAL-ICON-BB.md): *"A box… NEVER takes an integer `entry` argument to select α vs β… The C
+signature `DESCR_t NAME(void *ζ, int entry)` … is FORBIDDEN… deleted three times… keeping the build
+green is not a license to preserve a forbidden box."* The proc-dispatch **already** uses this
+forbidden-shaped pointer at proc level (always `entry=0`); the `entry != 0` half is latent. A
+generator is precisely what lights it up.
+  - **Question for Lon:** Is the proc-activation entry `(frame, entry)` *grandfathered* (it is the
+    procedure-call boundary, entered by a real `call`, not a box entered by `jmp` — arguably outside
+    the box rule's scope)? If grandfathered, generator-resume via `entry=1` is the natural, minimal
+    mechanism. **If NOT** grandfathered, we need a resume mechanism that carries no `entry` int —
+    e.g. a saved resume **address** in the frame that the proc's prologue indirect-jumps to (the
+    proc is always entered at one label; it reads `frame.resume_ip` and `jmp`s there; fresh
+    activations have `resume_ip = α`). That keeps a single entry point and obeys the rule, at the
+    cost of a frame slot + an indirect jump. **I lean toward this address-in-frame form** because it
+    honors the rule's spirit (no `int entry` selector) and matches JCON's `Succeed(value, t)` where
+    `t` is an address.
+
+**(b) Frame lifetime breaks the depth-stack.** `g_proc_arena` is freed by `g_proc_depth--` on
+return. A suspended generator's frame **must survive** until the generator is exhausted (the caller
+stops resuming or the proc fails). So generator activations cannot use the depth-stack discipline
+unchanged.
+  - **Proposed:** a generator activation gets a frame that is **not** freed on suspend-return; it is
+    freed only when the proc reaches its terminal FAIL (`expr.failure → proc fail`) or the caller
+    abandons it. Simplest correct form: the caller (the `every`/proc-gen driver) owns the activation
+    handle and frees on exhaustion. For the non-recursive single-drive cases (rung03), a per-call
+    persistent frame slot suffices; `_compose` needs two, which the caller-owned model gives for free
+    since each `call` site has its own activation.
+
+## 5. Proposed implementation (pending §4 ruling) — smallest correct path
+
+Assuming the **address-in-frame** resume form (rule-safe) and **caller-owned activation**:
+
+1. **Lowering (`lower_icon.c`):** wire `IR_SUSPEND`'s ports per JCON §2 — `expr.success → Succeed`,
+   `Succeed.resume → body.start`, `body.success/failure → expr.resume`, `expr.failure → proc-fail`.
+   Register `IR_SUSPEND` in `ir_is_generator_kind` + `gen_bb_is_gen_arg`. (Low risk, no ABI change —
+   can land first behind the gate so it EXCISES loudly until the driver exists.)
+2. **`bb_suspend` box:** evaluate EXPR into the proc result slot (`frame[0]`), store the resume
+   address (`&t`) into a reserved frame slot, and **suspend-return** (write result, set a
+   "suspended/resumable" status distinct from succeed-and-done and from fail, `ret`). On resume the
+   proc prologue jumps to `frame.resume_ip`; `t` runs the `do` BODY then `jmp` back to the EXPR loop.
+3. **Proc prologue/`bb_callee_frame`:** add a single entry that reads `frame.resume_ip` (init = α for
+   fresh activations) and indirect-jumps. No second C entry point; one label, dispatched by the saved
+   address. This is the only delicate ABI touch and the part most needing the §4 ruling.
+4. **Caller (`bb_call_proc_staged` + `flat_drive_*`):** distinguish 3 dispatch outcomes — value+resumable
+   (γ, and `β` re-invokes the *same* activation/frame), value+done (γ, `β`→ω), fail (→ω). `rt_call_proc_descr`
+   grows a sibling `rt_resume_proc_descr(handle)` that re-enters without re-staging args and **without**
+   freeing the frame until exhaustion.
+5. **Gates:** must stay green — `test_gate_icn_no_stack` (the activation frame is the existing
+   `g_proc_arena`, not a value stack), `test_gate_icn_one_reg_frame`, smoke 12/12, and the floor 151
+   must not drop. New rung coverage: rung03 ×3 → PASS.
+
+## 6. Risk
+
+High — it is the proc-call boundary in a stackless ABI, the part the goal file calls "the trickiest,"
+and it sits directly on the most-guarded FACT RULE. The §4(a) ruling determines whether this is a
+small `entry=1` change or a from-scratch address-dispatch resume mechanism. **No code until that
+ruling** — implementing the wrong form is a rejection-worthy FACT-RULE violation, not a mergeable bug.
