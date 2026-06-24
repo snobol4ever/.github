@@ -1,6 +1,6 @@
 <!-- GOAL-SNOBOL4-BB · SCRIP native pattern-match ladder for modes 3/4 (--run/--compile) -->
 
-# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-23m, session 13 · Claude Opus 4.8)
+# ▶▶▶ NEXT SESSION — START HERE (handoff 2026-06-24, session 14 · Claude Sonnet 4.6)
 
 **State:** SCRIP `b3245a2` (PUSHED), corpus `351df26d` (PUSHED), .github THIS commit (PUSHED). Clean. **Bench BOMB 0, GREEN=12, DIFF=4** (eval_dynamic/eval_fixed/indirect_dispatch pre-existing; roman wrong result — concat double-walk fixed, local-var framing still pending).
 
@@ -35,6 +35,218 @@ END
 ---
 
 # Open rungs (not yet started)
+
+## PERF-GVA — Global Variable Array: eliminate GST hash lookup on hot path
+
+### Naming
+
+| Abbrev | Full name | What it is | Register | Access |
+|--------|-----------|------------|----------|--------|
+| **GST** | Global Symbol Table | Hash dictionary: name→DESCR_t. Runtime/dynamic. Currently called NV. | `rbp` (BBREG_HASH) | by name string |
+| **GVA** | Global Variable Array | Flat `DESCR_t[N]` for compile-time-known globals. Static `.data`. | `rbx` (BBREG_BASE) | by integer index k |
+| **LVA** | Local Variable Array | Per-call-frame `DESCR_t` slots for procedure locals/params. Already exists as ζ-frame. | `r12` (BBREG_ZETA) | by byte offset |
+
+**The problem:** every global variable read is `call NV_GET_fn@PLT` (hash walk + string compare). Every write is `call rt_gvar_assign_*@PLT`. For `arith_loop` at 1M iterations that is ~14 PLT+hash calls per iteration. SPITBOL bakes variable addresses into code at compile time — zero calls per access.
+
+**The fix:** at compile time, assign each program-global variable name an integer index k. Emit a flat `DESCR_t __gva[N]` array in the program's `.data` section. At preamble, call `gva_register(names, __gva, N)` which (a) populates `__gva[k]` = current GST value (null for new vars), (b) sets `GST_t.is_gva=1` and `GST_t.cell=&__gva[k]` so existing `NV_GET_fn`/`NV_SET_fn` paths transparently read/write through the GVA cell, (c) returns `__gva` base. Preamble stores that base in `rbx`. Templates then access `[rbx + k*16]` — two `mov` instructions, zero calls.
+
+**GC safety:** `__gva` lives in `.data` (static storage, not GC heap). `DESCR_t.s` string payloads are still GC-managed heap pointers written into the cell — BDW scans `.data` as a root, so strings in GVA cells are reachable and not collected. The cell address itself never moves.
+
+**GST forwarding invariant:** after `gva_register`, every GVA-backed variable in GST has `is_gva=1` and `cell→__gva[k]`. `NV_GET_fn` returns `*cell`; `NV_SET_fn` writes `*cell`. Dynamic paths (indirect refs `$X`, EVAL) that resolve to a GVA-backed name still work correctly at the cost of one extra pointer dereference — no correctness regression.
+
+---
+
+### GVA-0 — Infrastructure: GST_t forwarding flag + gva_register runtime
+
+**GVA-0a — `GST_t` (rename from `NV_t`) gains `is_gva` + `cell`:**
+In `src/runtime/core/core.c` (binary; edit via patch or sed):
+```c
+typedef struct _VarEntry {
+    char              *name;
+    DESCR_t            val;    /* live value when is_gva==0 */
+    DESCR_t           *cell;   /* points into __gva when is_gva==1 */
+    int                is_gva;
+    struct _VarEntry  *next;
+} GST_t;   /* was NV_t */
+```
+`NV_GET_fn`: `if (e->is_gva) return *e->cell;` before returning `e->val`.
+`NV_SET_fn`: `if (e->is_gva) { *e->cell = val; return val; }` before writing `e->val`.
+`NV_PTR_fn`: `if (e->is_gva) return e->cell;`
+**Rename `NV_t` → `GST_t` throughout `core.c`.** Public API names `NV_GET_fn`/`NV_SET_fn`/`NV_PTR_fn`/`NV_CLEAR_fn` keep their names for now (rename is a separate rung, not required for correctness).
+
+**GVA-0b — `gva_register` in `src/runtime/rt/rt.c` + `rt.h`:**
+```c
+/* Register N compile-time globals. Returns cells base (stored in rbx by preamble). */
+DESCR_t *gva_register(const char **names, DESCR_t *cells, int n);
+```
+Implementation: for k in 0..n-1: find-or-create GST entry for `names[k]`; copy existing `e->val` into `cells[k]`; set `e->is_gva=1`, `e->cell=&cells[k]`.
+**Exclude** names where `NV_PTR_fn` returns NULL (INPUT, OUTPUT, PUNCH, keyword `&`-prefix vars) — these stay GST-only, no GVA slot.
+
+**GVA-0c — emitter: GVA name collection in `emit_bb.c`:**
+New pass before any box emission: walk all IR nodes, collect distinct `op_sval` names for `IR_VAR`, `IR_ASSIGN`, `IR_BINOP_GVAR_ARITH`, `IR_BINOP_GVAR_ARITH_SLOT` that are non-keyword, non-`&`-prefix, non-INPUT/OUTPUT. Assign each a slot index k (stored in a new `int g_gva_slots[]` parallel to a `const char *g_gva_names[]` table, max 1024 entries). Store per-name GVA index in a lookup table `gva_index_of(name) → k` used by all templates.
+
+**GVA-0d — emitter: emit `__gva` array + preamble call in `xa_flat.cpp` / `xa_prologue.cpp`:**
+In TEXT mode, after `.section .data` banner:
+```asm
+  .align 16
+__gva:
+  .space N*16, 0
+__gva_names:
+  .quad .Lgvan0, .Lgvan1, ...   /* N name pointers */
+  .section .rodata
+.Lgvan0: .string "VARNAME0"
+...
+  .section .text
+```
+In preamble (before first user BB):
+```asm
+  lea rdi, [rip + __gva_names]
+  lea rsi, [rip + __gva]
+  mov edx, N
+  call gva_register@PLT
+  mov rbx, rax              /* rbx = __gva base for lifetime of program */
+```
+Also `push rbx` / `pop rbx` around any call that may clobber it per ABI — but since `rbx` is callee-saved in SysV ABI, callees preserve it automatically. No push/pop needed around `call` instructions in templates.
+
+**GVA-0e — update `bb_regs.h` comment block** to document `rbx=GVA base` and `rbp=GST hash base` with new names.
+
+**Gate GVA-0:** compile `arith_loop.sno` → verify `__gva` in `.s`; link and run → output identical to oracle; `gva_register` called once; `NV_GET_fn("N")` returns value through `e->cell`.
+
+---
+
+### GVA-1 — Direct load: IR_VAR global read → `[rbx + k*16]`
+
+**Mandate:** In `bb_var.cpp` (and `bb_var_global.cpp` if separate), when `gva_index_of(_.op_sval) >= 0` (name has a GVA slot), replace `call NV_GET_fn` with inline load.
+
+Add to `emit_globals.h` `sm_emit_t`:
+```c
+int op_gva_k;   /* GVA slot index for this node, -1 if GST-only */
+```
+Populated in `emit_bb.c` `walk_bb_node` preamble alongside existing `op_sval` fill.
+
+Add to `x86_asm.h`:
+```c
+inline const char *GVAQ(int k, int hi) {
+    static char b[8][40]; static int i; i=(i+1)&7;
+    snprintf(b[i],40,"qword ptr [rbx + %d]", k*16+hi);
+    return b[i];
+}
+```
+
+`bb_var.cpp` new first arm (checked before existing `g_gvar_flat_chain` arm):
+```cpp
+(_.op_gva_k >= 0) ?
+  x86("comment", "IR_VAR gva")
++ x86("label",   _.lbl_α)
++ x86("mov",     "rax", GVAQ(_.op_gva_k, 0))
++ x86("mov",     "rdx", GVAQ(_.op_gva_k, 8))
++ x86("mov",     FRQ(_.op_off),     "rax")
++ x86("mov",     FRQ(_.op_off + 8), "rdx")
++ x86("jmp",     "γ")
++ x86("def",     "β")
++ x86("jmp",     "ω") :
+```
+
+**Gate GVA-1:** `grep "call NV_GET_fn" arith_loop.s` == 0; full `test_crosscheck_snobol4.sh` oracle-identical.
+
+---
+
+### GVA-2 — Direct store: IR_ASSIGN global write → `[rbx + k*16]`
+
+**Mandate:** Replace `call rt_gvar_assign_int` / `call rt_gvar_assign_descr` / `call rt_gvar_assign_var` / `call rt_gvar_assign_lit_i` / `call rt_gvar_assign_lit_s` with inline stores when the destination name has a GVA slot.
+
+Integer literal store (`N = 5`), DT_I=6:
+```asm
+mov dword ptr [rbx + k*16],     6
+mov dword ptr [rbx + k*16 + 4], 0
+mov qword ptr [rbx + k*16 + 8], IMM
+```
+
+DESCR_t from frame slot (result already split lo=rax hi=rdx):
+```asm
+mov qword ptr [rbx + k*16],     rax
+mov qword ptr [rbx + k*16 + 8], rdx
+```
+
+Steps:
+- GVA-2a: `bb_gvar_assign.cpp` — integer and descr paths
+- GVA-2b: `bb_gvar_assign_lit_i.cpp`, `bb_gvar_assign_lit_s.cpp`
+- GVA-2c: `bb_gvar_assign_var.cpp` — var→var copy through GVA
+- GVA-2d: `bb_gvar_assign_call.cpp`, `bb_gvar_assign_concat.cpp`
+
+**Gate GVA-2:** `grep "call rt_gvar_assign" arith_loop.s` == 0; crosscheck suite green.
+
+---
+
+### GVA-3 — Fused integer arithmetic: IR_BINOP_GVAR_ARITH fully inline
+
+**Mandate:** `N = N + 1` where both operands and destination are GVA-backed integer vars emits zero calls. Detect in `bb_binop_gvar_arith.cpp` when `op_parts` names all have GVA slots.
+
+`N = N + 1` (add, immediate RHS):
+```asm
+mov rax, qword ptr [rbx + kN*16 + 8]   /* N.i */
+add rax, 1
+mov dword ptr [rbx + kN*16],     6      /* DT_I */
+mov dword ptr [rbx + kN*16 + 4], 0
+mov qword ptr [rbx + kN*16 + 8], rax
+```
+
+`LT(N, 1000000) N` (relop predicate, GVA int vs immediate):
+```asm
+mov rax, qword ptr [rbx + kN*16 + 8]
+cmp rax, 1000000
+jge β_port
+/* success fall-through: value = N.i already in rax */
+```
+
+Steps:
+- GVA-3a: `bb_binop_gvar_arith.cpp` fused path for GVA+GVA and GVA+IMM
+- GVA-3b: new `bb_gvar_relop.cpp` for `LT`/`GT`/`LE`/`GE`/`EQ`/`NE` on GVA int operands — emits `cmp` + conditional jump, replaces `call rt_call_arr@PLT`
+
+**Gate GVA-3:** `arith_loop.s` hot loop body (label `LOOP` to next label) contains zero `call` instructions; `fibonacci.s` same; timing run shows ≥5× improvement over baseline on `arith_loop`.
+
+---
+
+### GVA-4 — rbp GST hash path for runtime indirect refs (optimization, not correctness)
+
+**Mandate:** `$X` where X's runtime string value names a GVA-backed variable: use `rbp`-based hash index to skip full GST walk.
+
+New runtime helper `gva_lookup_by_name(const char *name) → int k` (returns -1 if not GVA-backed). Emitted in `.data` beside `__gva`:
+```asm
+__gst_idx:
+  .space GVA_HASH_SIZE*4, 0xff   /* uint32_t[GVA_HASH_SIZE], sentinel=0xffffffff */
+```
+Preamble fills `__gst_idx` with (hash(name) → k) entries after `gva_register`.
+
+Template for indirect read, fast path:
+```asm
+/* name string ptr in rdi */
+call gva_hash_probe@PLT     /* (rbp, rdi) → k or -1 */
+test eax, eax
+js   .gst_slow
+mov  rdx, qword ptr [rbx + rax*16 + 8]
+mov  eax, dword ptr [rbx + rax*16]
+jmp  γ
+.gst_slow:
+call NV_GET_fn@PLT
+```
+
+This is an optimization rung — correctness is guaranteed by GVA-0b's `is_gva` forwarding regardless of this rung. Do GVA-4 only after GVA-0 through GVA-3 are green and benchmarked.
+
+**Gate GVA-4:** indirect-ref crosscheck programs (`014_assign_indirect_dollar`, `015_assign_indirect_var`) oracle-identical; `arith_loop` timing unchanged (no indirect refs in that benchmark).
+
+---
+
+### Expected performance impact
+
+| Rung | Calls eliminated per `arith_loop` iteration | Estimated speedup |
+|------|---------------------------------------------|-------------------|
+| GVA-1 | 2 × `NV_GET_fn` | ~2× |
+| GVA-2 | 2 × `rt_gvar_assign_*` | +1.5× |
+| GVA-3 | `binop_apply` + both assign calls | closes to ~10× baseline |
+| GVA-4 | partial `NV_GET_fn` for indirect | marginal on arith |
+
+---
 
 ## OPSINGLE — delete operand_aux, one channel only
 
