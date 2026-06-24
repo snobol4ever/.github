@@ -15,13 +15,12 @@ Anchored to Rakudo `Metamodel/{BUILDPLAN,C3MRO,MROBasedMethodDispatch,RoleToClas
 - [~] **RK-OO-A4 — typed + constant-default attributes — LANDED (2026-06-15).** `has Int $.x` (type ignored) and `has $.x = 42` (constant default) work. DEFERRED: (a) closure/expression defaults (`has $.x = computed()`) — needs native sub-block execution; (b) type constraint enforcement; (c) native-primspec attrs.
 - [~] **RK-OO-B2 — BUILDPLAN.** op-0 DONE (B1 bless + obj_new default path). op-800 (`is required` death) LANDED (2026-06-24): `dat_construct` sets `g_script_exception` + `rt_script_die_surface` fires for absent required attrs; native `die` route wired (`g_script_try_depth` gate for future try/CATCH). Present + absent cases both PASS both modes. DEFERRED: op-400 (closure/expression defaults) — needs native sub-block execution (same wall as map/grep). Smokes: `attr_required_present`/`_typed_present`/`_inherited_present`/`_absent`/`_absent_inherited`/`die_uncaught_halts`.
 - [~] **RK-OO-B3 — TWEAK submethod — LANDED (2026-06-24).** `method TWEAK()` auto-fires at construction from `dat_construct` chokepoint via `rt_fire_buildplan_tweak`; parent→child order (BUILDALLPLAN); correctly non-inheriting. Smokes: `tweak_fires`/`tweak_derived_attr`/`tweak_inherited_order`. OPEN: `BUILD` submethod (`:$x` named params in signature are lexer-blocked — now unblocked; add `VAR_NAMED_PARAM` token to `raku.l` + bison rule for `method BUILD(:$x) {…}`).
-- [ ] **RK-OO-B4 — `is required` absent-case surfacing via try/CATCH** — present-case PASS, absent-case PASS (death surfaces via `rt_script_die_surface`). This rung is satisfied; `is required` is fully DONE. Close it.
 - [ ] **RK-OO-C3 — C3 MRO** (`compute_mro` linearization). Needed for diamond inheritance; linear chain works today.
 - [ ] **RK-OO-C5 — `callsame`/`nextsame`/`callwith`** (re-dispatch to next MRO candidate).
 - [ ] **RK-OO-C6 — multiple inheritance (`is A is B`)** (MRO merge; needs C3).
 - [ ] **RK-OO-D1..4 — Roles** (`role`/`does`; role-to-class flattening per `RoleToClassApplier`; required-method stubs + conflict detection; punning). Now lexer-unblocked.
 - [ ] **RK-OO-E1..2 — Multi-dispatch** (`multi`/`proto`; arity then type-narrowness). Now lexer-unblocked.
-- [~] **RK-OO-F — Metaobject/introspection.** `.^name` LANDED (2026-06-24): `^` token added to `raku.l`; `CARET` token in grammar; `meth_call` metamethod handler reads instance/type class name. Smokes: `meta_name_instance`/`meta_name_typeobj`. OPEN: `.WHAT` (same `^` path, returns type object string), `.^methods`/`.^attributes`/`.^parents` (enumerate proc_table/DatType), `.isa`/`.does` (type-test), `:D`/`:U` type constraints.
+- [~] **RK-OO-F — Metaobject/introspection.** `.^name` LANDED (2026-06-24): `^` token added to `raku.l`; `CARET` token in grammar; `meth_call` metamethod handler reads instance/type class name. Smokes: `meta_name_instance`/`meta_name_typeobj`. `.WHAT` LANDED (2026-06-24): returns the type object (modeled as the class-name string, consistent with `.^name`); instance form `$obj.WHAT` rides the field-read resolver (`dat_field_get`), the paren form (`$obj.WHAT()`, `Class.WHAT()`) rides `meth_call`; both modes, no per-class emission. Smokes: `what_instance`/`what_typeobj_paren`/`what_subclass`. (Bare `Class.WHAT` no-paren is the pre-existing bareword-method grammar limitation, not specific to WHAT.) OPEN: `.^methods`/`.^attributes`/`.^parents` (enumerate proc_table/DatType), `.isa`/`.does` (type-test), `:D`/`:U` type constraints.
 - [ ] **RK-OO-G1..6 — Advanced** (`.Str`/`.gist`/`.raku` override; operator overload `multi sub infix:<>`; `handles` delegation; `but`/runtime mixin; `enum`/`subset`; `.=`).
 
 ---
@@ -200,7 +199,7 @@ across all five GOAL-*-BB files.
 
 Raku is LIVE through `lower.c` (RK-LOWER-0..5 done). Post-SMX-4: no Stack Machine engine; ONE unified `lower.c`; `IR_*` node taxonomy; BB run-path. Mode 2 (`--interp`) DELETED 2026-06-15. Two native modes only.
 
-**Current score (2026-06-24): Raku m3/m4 100 PASS / 0 FAIL / 7 EXCISED / 107.** 7 EXCISED = 4 map/grep + 3 `~~` regex, all correctly declined. Peers: Icon 12/12, SNOBOL4 7/7, Prolog m3/m4 5/5.
+**Current score (2026-06-24): Raku m3/m4 103 PASS / 0 FAIL / 7 EXCISED / 110.** 7 EXCISED = 4 map/grep + 3 `~~` regex, all correctly declined. Peers: Icon 12/12, SNOBOL4 7/7, Prolog m3/m4 5/5.
 
 ---
 
@@ -417,7 +416,7 @@ bash scripts/util_template_purity_audit.sh
 
 ## Watermark
 
-**2026-06-24 session (Claude Sonnet 4.6). Raku m3/m4 100 PASS / 0 FAIL / 7 EXCISED / 107. Peers: Icon 12/12, SNOBOL4 7/7, Prolog m3/m4 5/5.**
+**2026-06-24 session (Claude Sonnet 4.6). Raku m3/m4 103 PASS / 0 FAIL / 7 EXCISED / 110. Peers: Icon 12/12, SNOBOL4 7/7, Prolog m3/m4 5/5.**
 
 **RK-OO-B2 op-800 — native `die` route + required-attr absent-case LANDED both modes.** `die` added to `rt_builtin_is_known` → routes `CALL_ROUTE_FN` → `rt_call_arr` (was: emit-time abort). New `rt_script_die_surface(msg)` sets `g_script_exception`, flushes stdout, prints to stderr, `exit(1)` when `g_script_try_depth==0` (future try/CATCH gate). `dat_construct` wired to call `rt_script_die_surface` when a required attr is absent. Faithful to Rakudo `X::Attribute::Required` message + `nqp::exit(1)`. Smokes: `attr_required_absent`/`attr_required_absent_inherited`/`die_uncaught_halts`. (+3)
 
@@ -427,7 +426,7 @@ bash scripts/util_template_purity_audit.sh
 
 **RK-OO-F `.^name` — LANDED both modes.** `^` token added to `raku.l`; `CARET` token + 2 parser rules (IDENT/atom `.` CARET IDENT) in `raku.y` (bison-regen, 31 conflicts unchanged); `meth_call` metamethod handler reads instance/type class name from `DatType`. Smokes: `meta_name_instance`/`meta_name_typeobj`. (+2)
 
-**Done (full history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm, ONE-MEDIUM rk_bool, lbl_β double-colon, x86_uid dup-label, Bug 1 proc-double-emit, user-sub CALL Layers A+B, B-c bool_truthiness + B-b jct relops, GROUP C class_method emit path + m3 freed-IR fix, RK-OO-A1 attr-mutation, RK-OO-A2 accessor-half, RK-OO-A4 typed+default attrs, RK-OO-B1 user-method-new/bless, RK-OO-B2 op-800, RK-OO-B3 TWEAK, RK-OO-C1/C2/C4 inheritance, Str/Cool/List method suite (30 methods), grammar `.parse` foundation, NFA-BB deleted, language-prefix purge, lexer unblock, RK-OO-F `.^name`, RK-OO-A2 `is rw` enforcement.
+**Done (full history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm, ONE-MEDIUM rk_bool, lbl_β double-colon, x86_uid dup-label, Bug 1 proc-double-emit, user-sub CALL Layers A+B, B-c bool_truthiness + B-b jct relops, GROUP C class_method emit path + m3 freed-IR fix, RK-OO-A1 attr-mutation, RK-OO-A2 accessor-half, RK-OO-A4 typed+default attrs, RK-OO-B1 user-method-new/bless, RK-OO-B2 op-800, RK-OO-B3 TWEAK, RK-OO-C1/C2/C4 inheritance, Str/Cool/List method suite (30 methods), grammar `.parse` foundation, NFA-BB deleted, language-prefix purge, lexer unblock, RK-OO-F `.^name`, RK-OO-A2 `is rw` enforcement, RK-OO-F `.WHAT`, RK-OO-B4 `is required` close-out.
 
 ## ⛔ FACT RULE — "HANDOFF COMPLETE" REQUIRES A CONFIRMED PUSH (Lon directive, 2026-06-24)
 **The phrase "handoff complete" — or any terminal claim of doneness ("done", "all set", "wrapped up", "committed and clean" presented as the end state) — MUST NOT be spoken until `git push` has SUCCEEDED and `git log origin/main --oneline -1` (step 7) shows THIS SESSION'S hash on origin for EVERY touched repo.** A local commit is NOT a handoff; the bytes are on this disposable sandbox and vanish with it. "Pending push awaiting credential", "ready to push", or "the local commits are safe" is an **INCOMPLETE handoff and must be reported as INCOMPLETE — never dressed up as complete.** If a credential is missing or the push fails, the handoff is **BLOCKED**: state that plainly, say exactly what is needed, and STOP — do NOT declare completion. The push (step 6) and the `origin/main` hash confirmation (step 7) are the LAST and MANDATORY acts of every handoff; skipping either means the handoff did not happen, regardless of how green the local tree is. Verify HEAD == origin/HEAD per repo, or it is not done.
