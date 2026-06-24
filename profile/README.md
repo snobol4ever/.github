@@ -111,16 +111,41 @@ Single source of truth for all `.sno`, `.inc`, and `.spt` files shared across al
 
 ## Performance
 
-These benchmark numbers compare the SCRIP ASM backend against PCRE2 JIT and Bison LALR(1). They are a starting point — the community is invited to verify them independently using `harness`. A full cross-engine benchmark grid (all seven implementations, all benchmark programs) will be published when M-GRID-BENCH fires. See [GRIDS.md](../GRIDS.md).
+These numbers compare the SCRIP mode-4 `--compile` native backend against the two
+SNOBOL reference oracles — SPITBOL x64 (official `spitbol/x64`) and CSNOBOL4 2.3.4
+(Phil Budne) — on the shared corpus benchmarks (`corpus/benchmarks/snobol4/*.sno`).
+Each figure is the program's own `TIME()` compute loop in milliseconds (process
+startup and compile time excluded), gcc `-O0`. The community is invited to verify
+them independently using `harness`. A full cross-engine grid (all seven
+implementations, all programs) will be published when M-GRID-BENCH fires. See
+[GRIDS.md](../GRIDS.md). Lower is faster.
 
-| Pattern | SCRIP ASM | PCRE2 JIT | Notes |
-|---------|:------------:|:---------:|-------|
-| `(a\|b)*abb` — normal | 33 ns | 77 ns | 2.3× faster |
-| `(a+)+b` len=28 — pathological | 0.7 ns | 25 ns | 33× — PCRE2 backtracks exponentially; SCRIP detects failure in the wiring |
+| Benchmark | SPITBOL | CSNOBOL4 | SCRIP native | vs SPITBOL | vs CSNOBOL4 |
+|-----------|--------:|---------:|-------------:|-----------:|------------:|
+| arith_loop | 24 | 131 | 1,604 | 68× slower | 12× slower |
+| fibonacci | 94 | 534 | 6,191 | 66× slower | 12× slower |
+| func_call | 424 | 2,440 | 32,371 | 76× slower | 13× slower |
+| func_call_overhead | 425 | 2,454 | 32,542 | 77× slower | 13× slower |
+| mixed_workload | 99 | 455 | 4,034 | 41× slower | 8.9× slower |
+| op_dispatch | 67 | 369 | 3,515 | 53× slower | 9.5× slower |
+| pattern_bt | 485 | 549 | 963 | **2.0× slower** | **1.8× slower** |
+| string_concat | 138 | 311 | 1,618 | 12× slower | 5.2× slower |
+| string_manip | 391 | 1,672 | 21,220 | 54× slower | 13× slower |
+| string_pattern | 380 | 1,822 | 8,047 | 21× slower | 4.4× slower |
+| table_access | 202 | 1,969 | 11,327 | 56× slower | 5.8× slower |
+| var_access | 702 | 3,529 | 44,766 | 64× slower | 13× slower |
 
-| Grammar | SCRIP ASM | Bison LALR(1) | Notes |
-|---------|:------------:|:-------------:|-------|
-| `{a^n b^n}` — context-free | 44 ns | 72 ns | 1.6× faster; and Bison cannot recognize `{a^n b^n c^n}` at all |
+*milliseconds (compute loop) · 12/16 benchmarks green; `roman` (recursion bug),
+`eval_fixed`/`eval_dynamic` (EVAL/CODE unimplemented), and `indirect_dispatch`
+(undefined-function call in the program — SPITBOL errors on it too) excluded.*
+
+These are honest current numbers, not the target. SCRIP native code today runs
+roughly **40–77× slower than SPITBOL** and **5–13× slower than CSNOBOL4** on
+whole-program workloads; the "ten times faster" goal is not yet met and is
+presently inverted against the SPITBOL oracle. The lone bright spot is
+`pattern_bt` (≈2× off SPITBOL), the one benchmark dominated by pattern-match
+backtracking — the Byrd-box path the native templates implement directly.
+Re-grounding this claim is tracked under the REC-COV / RC-5 rung.
 
 ---
 
