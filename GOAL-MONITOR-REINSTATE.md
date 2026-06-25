@@ -1,0 +1,36 @@
+<!-- GOAL-MONITOR-REINSTATE · IPC sync-step binary monitor, re-homed onto native modes 3/4 -->
+
+# GOAL-MONITOR-REINSTATE.md — reinstate the binary sync-step IPC monitor
+
+## ▶▶▶ NEXT SESSION — START HERE
+
+**Why this goal exists.** The binary sync-step IPC monitor (controller `scripts/monitor/monitor_sync_bin.py`, harness `scripts/test_monitor_3way_sync_step_auto.sh`, wire format `scripts/monitor/monitor_wire.h`) compares SCRIP against SPITBOL/CSNOBOL4 **event-by-event over a synchronous binary wire** and reports the FIRST divergence with a source-line table. It made bug-finding near-instant. It went dark when **mode-2 (`--interp`) was deleted**: the per-statement trace taps (`mon_emit_label_bin`, the VALUE/CALL/RETURN emitters) are called ONLY from `src/driver/driver_call.c` → `exec_stmt`, the dead mode-2 SM-interpreter path. Modes 3 (`--run`) / 4 (`--compile`) are native x86 and never call them per-statement, so SCRIP's wire stream leads straight to `END` while SPITBOL leads with `LABEL stno=1`.
+
+**GROUND TRUTH (session, verified by live run — NOT inferred):**
+- Framework WORKS: with the harness defaulting to `--run`, a 2-way `PARTICIPANTS="spl scr"` run connects both participants, steps the barrier, and prints a DIVERGE table. The controller, FIFO barrier, byte-compare, and first-divergence reporter are all intact.
+- SCRIP-side binary protocol is INTACT in `src/runtime/core/core.c`: `mon_send_bin`, streaming `MWK_NAME_DEF` intern, `MWK_VALUE/CALL/RETURN/LABEL/END`, the go-pipe barrier (`MONITOR_READY_PIPE`/`MONITOR_GO_PIPE`), and the LOAD-able `_b_MON_PUT_*` builtins. Verified: scrip emits 27 wire bytes when env vars are set.
+- SPITBOL `/home/claude/x64/bin/sbl` has the bridge compiled in (`MONITOR_READY_PIPE` present in the binary); x64 carries `monitor_ipc_spitbol.so` + `osint/monitor_ipc_runtime.c`.
+- The CURRENT divergence on any program is the instrumentation-granularity gap (SPITBOL `LABEL stno=1` vs SCRIP `END`), NOT a semantic bug. Fixing that gap = this goal.
+- `mon_emit_label_bin` is reachable ONLY from `driver_call.c:161` (mode-2). The IR does NOT carry a statement number (`lower_snobol4.c` drops `:stno`; the AST attr is read at `driver_call.c:153`). The IR node struct (`src/contracts/IR.h`) has `ival`/`dval`/`counter`/`state` per-opcode fields but no dedicated stno slot.
+
+**ACCEPTANCE (the whole goal):** `PARTICIPANTS="spl scr" SCRIP_RUN_FLAG=--run bash scripts/test_monitor_3way_sync_step_auto.sh /tmp/mdiv.sno` reports the FIRST divergence at the `$nm = vl` statement — SPITBOL `a`=`hello`(STRING) vs SCRIP `a`=``(NULL) — a SEMANTIC divergence, with matching LABEL/VALUE granularity up to that point. (`/tmp/mdiv.sno`: a DEFINE'd `setit(nm,vl)` whose body is `$nm = vl`, called as `setit("a","hello")`, then `OUTPUT = "a=" a`.)
+
+---
+
+## ▶ RUNG: MON-RE — re-home the sync-step taps onto modes 3/4
+
+Each step gated on `make scrip` rc=0 (never a broken commit) + the named behavioral check. The taps are `MONITOR_BIN`-guarded (read env once at startup into a global; zero emission + zero overhead when unset → crosscheck/bench unaffected). Template-only / four-Greek-port / both-medium per RULES.md. Regenerate benchmark/feature/demo `.s` only after MON-RE-3 (the first codegen-touching step) and confirm they are byte-identical with `MONITOR_BIN` unset (the guard makes the default path unchanged).
+
+### Steps
+- [x] **MON-RE-0 — harness default mode.** `scripts/test_monitor_3way_sync_step_auto.sh`: scrip participant defaulted `--interp` (deleted) → `--run`. DONE this session. (Still TODO sub-fix: the `${MONITOR_PM:+...}` `bin/sh` Bad-substitution — force `#!/usr/bin/env bash` invocation / guard the expansion.)
+- [ ] **MON-RE-1 — `g_monitor_bin` startup flag (runtime-only, behavior-neutral).** In `core.c`, read `MONITOR_BIN` (and the FIFO env) ONCE at program start into a global `int g_monitor_bin`; expose `extern int g_monitor_bin;` via a header the emitter runtime can call. Confirm: with the var unset, `g_monitor_bin==0` and no wire bytes; gate = `make scrip` + crosscheck byte-identical.
+- [ ] **MON-RE-2 — carry stno into IR.** `lower_snobol4.c`: stamp each statement's ENTRY IR node with its `:stno` (AST attr, same value mode-2 reads at `driver_call.c:153`). Pick a carrier that does not collide with the entry opcode's existing `ival`/`counter` use (add a dedicated `int32_t stno` to the IR node, or a parallel side-table keyed by node ptr per the PEERS rule — prefer the side-table to keep `IR_t` lean). Gate: `--dump-ir` (or equivalent) shows the stno on statement-entry nodes; behavior byte-identical.
+- [ ] **MON-RE-3 — LABEL tap in the native statement-entry box.** Emit, guarded by `g_monitor_bin`, a `call mon_emit_label_bin(stno)` at each statement-entry box in the native graph (the box the flattener emits first for each statement). The call goes through the existing runtime sink — template emits only the guarded `x86("call", …)`. Gate: `MONITOR_BIN=1 SCRIP_TRACE=1 … scrip --run /tmp/mdiv.sno` wire now leads with `LABEL stno=1`; the 2-way controller advances PAST step 1; `.s` with `MONITOR_BIN` unset byte-identical to pre-MON-RE.
+- [ ] **MON-RE-4 — VALUE tap on global store.** Guarded `mon_send_bin(MWK_VALUE,…)` (via the existing emitter / `_mon_put_helper`) after each global lvalue store in the native path, carrying the var name + its descriptor. Gate: wire shows `VALUE a=hello` after the store; 2-way controller reaches the `$nm = vl` statement.
+- [ ] **MON-RE-5 — CALL/RETURN taps on function boundaries.** Guarded CALL at user-fn entry, RETURN at NRETURN/RETURN/FRETURN, via the existing emitters. Gate: wire shows `CALL setit` / `RETURN setit`; granularity matches SPITBOL through the call.
+- [ ] **MON-RE-6 — ACCEPTANCE.** 2-way `spl scr` on `/tmp/mdiv.sno` reports the FIRST divergence at the `$nm = vl` statement (semantic, not protocol). Then run it on a beauty driver (`assign_driver.sno`) and confirm the controller pinpoints the indirect-assign var-RHS bug. Record the divergence line in this goal.
+- [ ] **MON-RE-7 — 3-way + CSNOBOL4.** Build CSNOBOL4 oracle with the STNO patch (`harness/oracles/csnobol4/BUILD.md`); run `PARTICIPANTS="csn spl scr"`. Gate: csn+spl agree through the program; scr's first divergence is the real bug.
+
+**Prereq reads (PLAN.md step 7 — touches codegen + per-statement emission):** `MONITOR-BINARY-DESIGN.md` (binary wire spec), `ARCH-SCRIP.md` §Execution modes + §Isolation invariants (no SM/BB walk at runtime — the taps are EMITTED calls, not graph walks, so they comply), `ARCH-x86.md` §Flat-BB-ABI, `src/emitter/bb_regs.h`, `src/runtime/core/core.c` (the `mon_send_bin` family + `MONITOR_READY_PIPE` block), `src/driver/driver_call.c:150-165` (the mode-2 reference tap), `scripts/monitor/monitor_wire.h` (record layout), `scripts/monitor/monitor_sync_bin.py` (the controller).
+
+**Companion tool (harness repo):** `harness/probe/probe.py` (`&STLIMIT`+`&DUMP=2` frame replay, bisect-divergence) is the OFFLINE alternative — it needs scrip mode-3/4 to honor `&STLIMIT` (count+abort) and `&DUMP=2` (var-table dump), NEITHER of which mode-3 currently does (verified). Lower priority than MON-RE because it requires more new native code than re-homing existing taps; tracked here for when MON-RE lands and a no-barrier replay is wanted.
