@@ -19,11 +19,11 @@ make scrip   # always rm -f scrip first
 ```
 
 ## scrip modes
+SCRIP has EXACTLY TWO modes (modes 1 and 2 are DELETED — see GOAL-MODE34-IDENTICAL.md). They must be 1:1 corresponding.
 | Flag | Mode |
 |------|------|
-| `scrip --interp f` | mode 2 — IR-graph interpreter |
-| `scrip --run f` | mode 3 — native x86 in-process |
-| `scrip --compile f` | mode 4 — standalone asm → gcc -no-pie + libscrip_rt.so |
+| `scrip --run f` | mode 3 — native x86 BINARY in-process |
+| `scrip --compile f` | mode 4 — standalone x86 TEXT asm → gcc -no-pie + libscrip_rt.so |
 
 ## Key source paths
 | Path | What |
@@ -32,7 +32,6 @@ make scrip   # always rm -f scrip first
 | `src/parser/` | 6 language front-ends |
 | `src/contracts/IR.h`, `descr.h`, `ast.h` | spine types |
 | `src/lower/lower.c` | AST→IR graph |
-| `src/interp/IR_interp.c` | mode-2 interpreter |
 | `src/emitter/emit_core.c` | IR→template dispatch |
 | `src/emitter/emit_bb.c` | BB driver: slot resolution, flat chains |
 | `src/emitter/{BB,XA}_templates/` | per-box x86 templates |
