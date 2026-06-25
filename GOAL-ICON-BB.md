@@ -435,7 +435,13 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 
 ## Watermark
 
-**HEAD (SCRIP) = `61bcc17`** — m3/m4 **189/289**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+**HEAD (SCRIP) = `187cb93`** — m3/m4 **197/289 PASS=197 FAIL=55 EXCISED=1**. icon smoke 12/12 m3+m4 · prolog 5/5 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+
+**2026-06-25 (Claude Sonnet 4.6 — gate removed; rebase + FAIL triage):**
+- Gate `graph_native_emittable_mode` permanently removed at `b520da2` (other session). PASS 190→197; EXCISED 52→1; FAIL 8→55 (47 newly exposed).
+- This session: rebased onto `187cb93` (PL-DESCR-2 on top of gate removal); confirmed clean; mapped all 55 FAILs by root cause.
+- **55 FAIL root-cause map:** (a) alt-as-call-arg silent-wrong (~10, IR_ALT not routed through walk_bb_flat in subgraph call args); (b) indirect call fn='?' BOMB (4, computed call target unimplemented); (c) flat_drive_rasgn non-VAR lvalue BOMB (3); (d) bb_var/bb_alt unhandled arm BOMB (~6); (e) augop ^:= real-not-int (1, BINOP pow result DT_R not DT_I for int inputs); (f) cset type wrong (2); (g) walk_bb_node IR_ASSIGN kind=5 unhandled (2); (h) bb_emit_end unresolved refs (2); (i) segfaults (4); (j) find-gen hang rc=124 (1, Tier B3 known); (k) tab/move/open/display BOMB (5).
+- **Next session priority:** (1) augop ^:= real->int coercion (1 rung); (2) cset type tagging (2 rungs); (3) alt-as-call-arg routing (~10 rungs); then RASGN lvalue generalization.
 
 **2026-06-24 (Claude, session 7 — benchmark harness unblocked: 3 crash classes killed + parse gaps closed):**
 - **Parse-error-recovery segfault KILLED:** `icon_driver.c` on `parser.had_error` now prints the error + emits `[SMX]` loud-decline banner and calls `exit(1)`. Unparseable programs bucket as EXCISED (front-end gap), never crash or vacuously pass on empty stdout. Matches canonical `icont` exit-on-error discipline.
