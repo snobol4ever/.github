@@ -435,7 +435,7 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 
 ## Watermark
 
-**HEAD (SCRIP) = `f1aac7b`** — m3/m4 **170/283**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+**HEAD (SCRIP) = `61bcc17`** — m3/m4 **189/289**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
 
 **2026-06-24 (Claude, session 7 — benchmark harness unblocked: 3 crash classes killed + parse gaps closed):**
 - **Parse-error-recovery segfault KILLED:** `icon_driver.c` on `parser.had_error` now prints the error + emits `[SMX]` loud-decline banner and calls `exit(1)`. Unparseable programs bucket as EXCISED (front-end gap), never crash or vacuously pass on empty stdout. Matches canonical `icont` exit-on-error discipline.
