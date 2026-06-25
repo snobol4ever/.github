@@ -407,6 +407,97 @@ m3/m4 **115**/115 (parity). Ratchet: never regress (floor 115 both modes). The r
 - [ ] **PL-GZ-9** — ongoing; the corpus-wide reconquest beyond the rung suite. See the rung ladder + STATE for live state.
 - [ ] **PL-GZ-FENCE** — coupling gate ZERO · GATE-3 m3/m4 verdict-identical · resolution.c + meta rail DELETED · seed `.s` shape-isomorphic to `test_pl_1.c`.
 
+## 🟢 PL-BENCH — GNU/SWI van Roy benchmark reconquest (Lon, 2026-06-25)
+
+The canonical Prolog speed benchmark is the **van Roy / SWI suite** in `corpus/benchmarks/prolog/src/swi-vanroy/` (35 programs). Wrap each as `main :- ( top -> write(ok) ; write(failed) ), nl.` (top/0 or top/1), strip `:- include('port/...')` + dialect `:-if/elif/else/endif` + `:-module`/`:-use_module`. PROVE each m3==m4==gprolog-oracle==`ok` before promoting into `bench/`. **18 already pass** (16 in `bench/` + `queens_clpfd` + `pingpong`). The 17 below are the frontier, ranked by reachability (max predicate arity + gating feature). Speed reality on the working 16 (compute-only, startup-subtracted): SCRIP-m4 is **3–4× SLOWER than gprolog's WAM** on `fib`/`tak`/`zebra` — the per-call `rt_*` boxed-Term tax. The "10×" milestone is a CODEGEN-QUALITY goal, separate from the COVERAGE goal below.
+
+### Measured blocker per program (2026-06-25, `--run` diagnosis)
+| program | maxarity | gating blocker(s) | rung |
+|---|---|---|---|
+| boyer | 3 | **59-clause choice** (`equal/2`, was capped 32 → cap REMOVED) + nested-compound heads + `functor/3` runtime build + `(;)`-with-cut | PL-BENCH-1, -2 |
+| poly_10 | 3 | admits but **SEGV** (broken) — same `g_resolve_env` overflow as large-choice | PL-BENCH-1 |
+| sieve | 3 | `assertz`/`retract` MID-LOOP (DYNITER exists; runtime-grow store) | PL-BENCH-4 |
+| perfect | 3 | `findall` + body recursion | PL-BENCH-3 |
+| det | 3 | `between/3` + `forall/2` (NOEMIT) | PL-BENCH-3 |
+| moded_path | 3 | `nonvar` guards + `(;)` + recursion (re-diagnose post-PL-BENCH-1) | PL-BENCH-1 |
+| eval | 2 | **`is` over a RUNTIME-BUILT expr term** (`V is Expr`) — needs runtime arith-term eval, NOT compile-time flatten | PL-BENCH-5 |
+| serialise | 4 | `atom_codes` list-build + recursion | PL-BENCH-3 |
+| browse | 6 | re-diagnose post-PL-BENCH-1 (var/nonvar already work isolated) | PL-BENCH-1 |
+| prover | 6 | 13 cuts + recursion; re-diagnose post-PL-BENCH-1 | PL-BENCH-1 |
+| flatten | 7 | arity-7 + `name`/`atom_codes`/`number_codes` + negation | PL-BENCH-6 |
+| unify | 9 | **arity-9** + 7 negations | PL-BENCH-6 |
+| reducer | 11 | **arity-11** + 122 clauses | PL-BENCH-6 |
+| simple_analyzer | 12 | **arity-12** + `keysort` + `ground` | PL-BENCH-6 |
+| fast_mu | 13 | **arity-11/13** (`rule/11`) + list-deconstruct heads | PL-BENCH-6 |
+| nand | 13 | **arity-13** + 14 negations + 24 disj + `asserta`/`retract` (NOEMIT) | PL-BENCH-4, -6 |
+| chat_parser | 14 | **arity-14** + 494 clauses + `name/2` | PL-BENCH-6 |
+
+### The rungs (each independently gated: floor 115/115 m3+m4 + bench-N green after each; `.s` byte-identical below the touched dimension proves behavior-neutral)
+
+- [ ] **PL-BENCH-1 — `g_resolve_env` overflow: the keystone. [fixes the large-choice/deep-recursion SEGV; unblocks boyer/poly_10/browse/prover/moded_path triage]**
+  - **ROOT CAUSE (diagnosed):** `g_resolve_env` (`runtime_init.c`, the logic-var slot store) is sized ONCE in `rt_pl_gz_init` to `main_nslots+64` and NEVER grown. A choice/recursion called directly from main whose slot indices exceed that bound writes `g_resolve_env[slot]=v` OUT OF BOUNDS → SEGV. The 32-clause cap was masking this (it fenced before overflow); cap removal (`scrip.c` ×2 + `bb_cell_choice.cpp`, landed 2026-06-25, floor-safe) exposed it. Proven: a 25-clause choice called from main's body SEGVs at HEAD; `query`'s 25-clause `pop/2` survives only because it is reached via the `density` CALLEE (separate frames).
+  - **TEST (first):** `main :- pick(z25,R), write(R), nl.` over 25–60 `pick/2` facts → must print, not SEGV. Add as a rung.
+  - **FIX (preferred, per DESIGN §9/§10 + THE DIRECTIVE):** make `g_resolve_env` GROW geometrically — a `rt_pl_env_ensure(slot)` that `GC_realloc`s ×2 when `slot >= cap` (cheap, contained, keeps the shadow store). **FIX (better, the real architecture):** logic vars live in frame cells `[r12+off]` only — retire `g_resolve_env` (it is LEGACY-DOOMED #2, the env-stack residue). The grow-fix unblocks the benchmarks now; the retire-fix is PL-BB-DEMOLITION. Do the grow-fix here, note the retire as the demolition follow-up.
+  - **GATE:** new SEGV-probe rung green m3+m4; floor 115/115; bench-16 unchanged (`.s` byte-identical — the grow path is dormant below the old cap).
+
+- [ ] **PL-BENCH-2 — large nested-compound-head choice (boyer's `equal/2`). [needs PL-BENCH-1]**
+  - boyer's 59 rewrite-rule facts have deeply-nested compound heads (`equal(and(P,Q), ...)`, `equal(append(append(X,Y),Z), ...)`). The choice path matches arg-0 constants via `bcch_clause_dead` but must structure-match nested compounds in heads.
+  - TEST: a 6-clause choice with `f(g(h(X)), Y)`-shaped heads; then boyer's reduced `equal` table.
+  - LOWER/EMITTER: extend head-structure matching in `pl_gz_choice_*` to depth >1 (currently arg-0 atom/int + `[H|T]`); `functor/3` runtime build already lands (`rt_pl_functor_cell`). Verify `( equal(Mid,Next), rewrite(Next,New) ; New=Mid ),!` (disj-with-cut-in-body) admits via the PL-BB-2 `pl_gz_disj_softcut_ite` rail.
+  - GATE: boyer m3==m4==oracle==`ok`; promote to `bench/`.
+
+- [ ] **PL-BENCH-3 — findall + between/forall + atom_codes list-build (perfect, det, serialise).**
+  - `findall/3` body recursion (perfect); `between/3` generator + `forall/2` (det) — `between` is a genuine 2-solution generator (α first, β next, ω when `Lo>Hi`); `forall(G,C)` = `\+ (G, \+ C)` closure-drive (PL-BB-5). `atom_codes`/`number_codes` already in `rt_pl_atom_op_cell`; wire the list-build callee path (serialise).
+  - GATE: each m3==m4==oracle; promote.
+
+- [ ] **PL-BENCH-4 — assert/retract MID-COMPUTATION (sieve, nand). [DYNITER rail exists; runtime-grow the clause store]**
+  - sieve `assertz`/`retract` inside the generate loop; `nand` `asserta`/`retract` + heavy negation/disj. The DYNITER rail (`g_pl_dyn_pred_table`, `IR_CELL_DYNITER`, `rt_pl_dyn_assertz/retract_cell`) handles dynamic preds resolved BY NAME — verify it admits assert/retract reached from a *loop body* (not just directive-seeded). `g_pl_dyn_pred_table` already geometric-reallocs (good). Per THE DIRECTIVE also convert `g_rt_pl_nb[256]` → realloc.
+  - GATE: sieve m3==m4==oracle; nand deferred to PL-BENCH-6 (arity-13).
+
+- [ ] **PL-BENCH-5 — `is` over a RUNTIME-BUILT expression term (eval). [genuinely hard — runtime arith eval]**
+  - `eval` builds `Expr = (((1+2)+3)+...)` via `add/2`, then `V is Expr`. The GZ arith path flattens at COMPILE time from IR shape — here the expression isn't known until runtime. Needs a runtime arith-term evaluator (`rt_pl_eval_term(Term*) -> Term*`) invoked when `is/2`'s RHS is a bound compound var, NOT a literal arith tree. Also top-level `repeat/1` self-recursive disj + failure-driven `( G, fail ; true )` loop. Largest design surface of the reachable set; schedule LAST among non-arity blockers.
+  - GATE: eval m3==m4==oracle.
+
+- [ ] **PL-BENCH-6 — ARITY > 8 (unify-9, flatten-7→ok, reducer-11, simple_analyzer-12, fast_mu-11/13, nand-13, chat_parser-14). [the wide-ABI rung]**
+  - The GZ call ABI is args 0–3 in regs (rsi/rdx/rcx/r8) + args 4–7 in callee frame cells (arity-8 landed). Everything ≥9 fences on the `ar > 8` gates. Extend to arbitrary arity: ALL args beyond 3 through frame cells (`[rdi+GZ_CELL_OFF(i)]`), no new registers; widen `pl_gz_call_state_t.args[8]`→dynamic, the `op_parts_ival[16]` arg-slot window (currently [3..10]) → dynamic, and every `ar > 8` admit gate → unbounded. Per THE DIRECTIVE the arg arrays become realloc/alloca-by-arity. Plus per-program tails: `keysort` (simple_analyzer), `name/2` (chat_parser, flatten), list-deconstruct heads (fast_mu).
+  - GATE: each program m3==m4==oracle as its arity is unblocked; promote incrementally.
+
+### Completion test (PL-BENCH)
+All 35 van Roy programs m3==m4==gprolog-oracle==`ok`, promoted into `bench/` with `.expected`; `test_bench_prolog_modes.sh` reports `green=35 frontier=0 broken=0`; floor 115/115 held throughout; no fixed-size BB-local OR runtime collection array gated by `> N` remains (THE DIRECTIVE folded in: `g_resolve_env` grows, `g_rt_pl_nb` grows, choice arrays alloca-by-NC).
+
+## 🚀 PL-DESCR — inline tagged cell: bring Prolog into SCRIP's storage architecture (Lon, 2026-06-25)
+
+**PL-DESCR-0 BASELINE MEASURED (2026-06-25, fib(20) m4 binary, gdb breakpoint hit-counts):** fib(20) does **324,190 GC_malloc** calls — **100% scalar, ZERO compound**: `term_new_var`=218,912 + `term_new_int`=83,383 + `term_new_atom`=0 + `term_new_compound`=0. Every one is eliminated by the inline cell (int → `{DT_I,0,ival}` inline; unbound var → `{DT_PLVAR,slot,self}` inline). This EMPIRICALLY CONFIRMS the conversion attacks the right bottleneck: the 3–4× gprolog gap is scalar heap-allocation + per-scalar `rt_*` call, not structure traffic. **DE-RISK PASSED — proceed with the campaign.** Target: collapse these 302K scalar allocs to ~0, fib compute 16.1ms → toward gprolog 4.4ms.
+
+**THE PERFORMANCE GOAL.** Today every Prolog value is a `Term*` (8-byte pointer in a `[r12+GZ_CELL_OFF(slot)]` cell, stride-8) pointing to a **24-byte heap `Term`** struct; every value op routes through an `rt_*` C call and `term_new_*` GC allocation (`bb_cell_unify`=8 calls, `bb_det_is`=4, `unification.c`=59 `term_new_*` sites). This is the ONLY language in SCRIP that boxes every scalar on the GC heap — it is the outlier, and the measured cause of the **3–4× compute gap vs gprolog** on fib/tak/zebra (fib compute 16.1ms vs gprolog 4.4ms; tak 55.7 vs 13.6; zebra 11.1 vs 4.3, startup-subtracted). SNOBOL4/Icon don't pay this: their value is an **inline 16-byte `DESCR_t`** at `[r12+off]` (LVA, stride-16) / `[rbx+k*16]` (GVA), read with `mov`s, no call, no heap for scalars (`bb_assign_local`=0 calls).
+
+**THE DESIGN (converged with Lon 2026-06-25).** Adopt SCRIP's **16-byte inline tagged cell** for Prolog — same `DESCR_t` shape, same r12/rbx registers, same LVA/GVA/GST access patterns — with Prolog-specific value SEMANTICS layered on (unification ≠ assignment; the cell can be unbound, bound, aliased, and trail-undone). The free `slen` field (unavoidable alignment padding between the 4-byte tag and 8-byte-aligned payload — removing it saves 0 bytes, proven by sizeof) is REPURPOSED as Prolog's discriminator. **NOT the 8-byte `descr8-macro-funnel` branch layout** — its RBP-relative 32-bit payload forces native-width ints to box, reintroducing the exact heap traffic we are removing; its `GET_*`/`SET_*` funnel is reusable, its target layout is not. **NOT a WAM engine** — the tagged cell is a DATA representation, orthogonal to the four-port control model (DESIGN's "no WAM" forbids the central-CP-stack ENGINE, not inline cells; gprolog couples them, SCRIP keeps four-port control + inline cells).
+
+**The Prolog cell encoding (16 bytes, `{ tag:4, disc:4, payload:8 }`):**
+- **Unbound var** `{ DT_PLVAR, slot, self }` — payload points to its own cell (WAM self-ref); `disc`=slot (replaces heap `Term.saved_slot`, now inline in the free field). deref follows ref-chains to the binding or the self-ref root.
+- **Int** `{ DT_I, 0, ival }` — inline, full 64-bit, NO heap, NO box. (The fib/tak win.)
+- **Atom** `{ DT_A, atom_id, atom_id }` — inline interned id.
+- **Float** `{ DT_R, 0, dbits }` — inline.
+- **Compound/list** `{ DT_PLREF, functor⊕arity, heap_ptr }` — only genuine structures hit the heap; `disc` packs functor-id+arity so `functor/3`, `arg/3` bounds, head-functor match, and **first-arg clause indexing** read the discriminator from the register word WITHOUT a heap deref.
+- **Trail entry** = `(cell_addr, old_16-byte-word)`; unwind = restore the word. (Cells are mutated in place; trail restores.)
+
+### The rungs (each floor-safe-gated 115/115 m3+m4; `.s` byte-identical proves neutrality where the path is dormant)
+
+- [ ] **PL-DESCR-0 — DE-RISK on fib FIRST (one throwaway experiment, do NOT skip).** Before touching 40 files: prototype ONLY the inline-int cell on fib's hot path (`is/2` + integer head-unify), measure (a) `term_new_*`/`GC_malloc` call count per fib(20) run and (b) wall-clock compute vs gprolog's 4.4ms. **Decision gate:** if fib compute drops from ~16ms toward ~4–6ms AND alloc count collapses, the campaign is justified — proceed. If it doesn't move, the bottleneck is call/choice overhead not allocation — STOP and re-plan. Baseline to beat is captured in the STATE block.
+
+- [ ] **PL-DESCR-1 — the tagged cell type + funnel.** Define the Prolog cell in `term.h`/a new `pl_cell.h`: the `{tag,disc,payload}` encoding above + `pl_deref`, `pl_bind(cell,word,trail)`, `pl_is_var/int/atom/compound`, `pl_functor/pl_arity` (read `disc`, no heap deref). Reuse the branch's `GET_*`/`SET_*` funnel idiom so the layout lives behind one header. Trail becomes `(addr, old_word)` pairs. TEST: cell round-trips + trail unwind in isolation.
+
+- [ ] **PL-DESCR-2 — LVA: inline cells, delete `g_resolve_env`.** Flip `GZ_CELL_OFF` from stride-8 (`Term*`) to stride-16 (inline cell); rewrite `rt_node_to_term`/`rt_unify_*`/`rt_pl_unify_cell_*` to read/write inline words, alloc heap ONLY for compounds. **`g_resolve_env` is DELETED** — the cell IS the value, no shadow array (retires LEGACY-DOOMED #2, folds in PL-BENCH-1's env-grow obligation, drops `DOOMED_FLOOR` 15→14). GATE: floor 115/115; bench-16 byte-checked.
+
+- [ ] **PL-DESCR-3 — GVA: route `nb_setval`/`nb_getval` through GST `[rbx+k*16]`.** Replace the `g_rt_pl_nb[256]` strcmp table with the existing `gva_register(names,cells,n)` + `[rbx+k*16]` facility SNOBOL4/Icon use (folds in THE DIRECTIVE's fixed-`[256]` fix; O(n) scan → O(1) indexed). m3 needs the heap-arena rbx-base trick from GOAL-ICN-GVA-M3 (M3-ARENA-1/2).
+
+- [ ] **PL-DESCR-4 — inline the hot template paths (WHERE THE SPEEDUP LANDS).** Mirror `bb_binop_gvar_arith`'s call-free `DT_I` fast path: `X is N-1` → `mov`/`sub` on inline words, `rt_*` call ONLY on structure/coercion fallback; `X > Y` / `X = const` head-unify → inline tag+payload compare. Re-measure fib/tak/zebra vs gprolog. **TARGET: close the 3–4× compute gap on the arithmetic benchmarks.**
+
+- [ ] **PL-DESCR-5 (stretch) — first-argument clause indexing.** Using the inline `disc` (functor⊕arity in the cell), jump straight to the matching clause instead of sequential try. Complementary to DESCR (the structure-heavy-benchmark lever: boyer/zebra/qsort). Separate from the WAM engine — pure compile-time dispatch on the cell discriminator.
+
+### Completion test (PL-DESCR)
+fib/tak/zebra compute-only within ~1.5× of gprolog (from 3–4×); zero `term_new_*` on the scalar hot path (grep proves heap alloc only in compound build); `g_resolve_env` deleted (`DOOMED_FLOOR` dropped); floor 115/115 held every rung; `nb_*` globals via `[rbx+k*16]`. Memory: per-scalar-value footprint 32B (8 ptr + 24 heap) → 16B inline (2× density + cache-line win, both real performance gains beyond instruction count).
+
 ## Session setup
 
 ```bash
