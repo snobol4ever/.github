@@ -435,7 +435,16 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 
 ## Watermark
 
-**HEAD (SCRIP) = `a872f56`** — m3/m4 **153/283**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+**HEAD (SCRIP) = `90d816f`** — m3/m4 **155/283**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+
+**2026-06-24 (Claude, session 7 — benchmark harness unblocked: 3 crash classes killed + parse gaps closed):**
+- **Parse-error-recovery segfault KILLED:** `icon_driver.c` on `parser.had_error` now prints the error + emits `[SMX]` loud-decline banner and calls `exit(1)`. Unparseable programs bucket as EXCISED (front-end gap), never crash or vacuously pass on empty stdout. Matches canonical `icont` exit-on-error discipline.
+- **`TT_AUGOP` ast_print union-aliasing crash KILLED:** Augmented-assignment nodes store the operator in `v.ival`; the printer was dereferencing the union-aliased `v.sval` as a string pointer. Excluded `TT_AUGOP` from the name-string branch (3 sites in `ast_print.c`).
+- **Positional-selection callee crash KILLED (`rsg`: `2(e1,e2,e3)`):** `lower_icon.c` read `c[0]->v.sval` as a call name even when the callee was a non-`TT_VAR` literal. Now reads name only when callee is `TT_VAR`; computed callees route to `?` sentinel and excise cleanly (3 sites: `TT_FNC` case, `icn_call_allow_gen`, `icn_arg_is_scan_fn`).
+- **Grammar gaps closed** in `icon_parse.c`: control keywords (`return`/`if`/`while`/`until`/`every`/`repeat`/`suspend`/`create`) now parse as operands (added to `parse_primary` re-dispatch); comma mutual-evaluation `(e1,…,en)`; empty parens `()`; omitted list elements `[,]`; `fail`/`suspend` terminating a block without `;`; `break` taking a value expression. Added `TT_CREATE` node (`ast.h`).
+- **Benchmark dispositions (13 `corpus/benchmarks/icon/*.icn`):** was 1 segfault + 4 parse-fail + 8 excise + 0 run; now **0 crashes, version compiles+runs (COMPILE), 11 parse→clean EXCISE, micro parse-declines at the `create`/coexpression boundary with [SMX]**. The harness can now run all 13 without the toolchain falling over. Suite 155/283 FAIL=5 unchanged; bench `.s` artifacts regenerated (version unchanged, 12 excised, 0 asm-errors).
+- **5 FAILs unchanged:** find-gen (rung08 rc=124), cross-arg-alt ×2 (rung13), builtins-seq (rung30 rc=139), proc-lookup (rung37 rc=134).
+- **Next targets (punch-list `ICON-BB-PUNCH-LIST-2026-06-24.md`):** Tier A gate widenings (record ctor registration A1+A2; local-assign unsupported RHS shapes) + Tier B `suspend` resume-spine (B1) — highest-yield per session.
 
 **2026-06-24 (Claude, session 6 — rung02 return-terminal fix / GVA-M3 goal authored):**
 - **rung02_proc_fact FIXED (`6fea487`):** `return` statement that was not the last statement in a procedure body fell through to the following statement instead of terminating the procedure. `lower_icon.c` `TT_RETURN`: built `IR_RETURN` with sequence-successor as γ → `return X; <stmt>` flowed into `<stmt>`. In `fact()`: n=0 base case fell through to `return n*fact(n-1)` = `0*fact(-1)`, recursing forever (depth guard abort rc=134). Fix: `IR_RETURN` γ → `cx->psucc` (procedure return SUCCEED node), matching canonical JCON `ir_a_Return` (`ir_Succeed(t,&null)`, terminal). Suite 150→151, zero regressions. Fixes ALL procedures with non-trailing `return`, not just factorial.
