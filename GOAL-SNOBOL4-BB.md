@@ -6,6 +6,82 @@
 
 **▶ NEXT MOVE (session 29): SAB — string self-append capacity (string_concat 10×, string_manip 17×), or the save/restore protocol to attack the remaining call-cluster cost, or BOPT branch optimizer — Lon decides.**
 
+**▶▶ LON PIVOT (session 29, 2026-06-25): DEMO-PAT is PRIORITY 1 (get claws5 + treebank running in mode-4 AND benchmarked — they are pattern-heavy, SCRIP's home field). NRG is PRIORITY 2 (statement-side register/type specialization). Both rungs below.**
+
+---
+
+## ▶ PRIORITY RUNG (session 29, PRIORITY 1): DEMO-PAT — claws5 + treebank mode-4 PASS + benchmarked
+
+**WHY (Lon):** claws5 and treebank are PATTERN-HEAVY. SPITBOL *interprets* patterns (graph-walk + backtrack history stack, manual Ch.18 "Pattern-match algorithm" — a pushdown stack remembers alternatives, cursor pops on fail). SCRIP *compiles* the backtracking into four-port native control flow (the γ/ω/β edges ARE baked jumps; no history stack at runtime). That is SCRIP's structural advantage — already visible (pattern_bt 0.77×, SCRIP beats SPITBOL). Landing these two demos + benchmarking them proves the home-field win on real corpus programs.
+
+**GROUND-TRUTH DIAGNOSIS (session 29, scrip built + RUN — NOT inferred; oracle NOT in scope, no x64 token, no csnobol4).** Both demos HANG in BOTH modes (mode-3 `--run` and mode-4 `--compile` share the pattern codegen; both exit 124 timeout, zero output). The OLD `GOAL-SNO-CLAWS5.md`/`GOAL-SNO-TREEBANK-*.md` "PASS" claims are STALE — they describe the now-DELETED `--interp` mode (modes 1/2, `src/driver/interp.c`, C Byrd boxes `bb_seq`/`bb_bal`); that interpreter is gone. Minimal repros (`/tmp/rep/t1`–`t9`, recreate from this list) localize the gaps:
+- **t4/t5/t7/t9 = MATCH OK, NO HANG:** stored ARBNO + alternation + POS/RPOS + variable csets (SPAN/NOTANY/BREAK/ANY of DIGITS/UCASE) + `' '` separator all match correctly on real claws lines. **The pattern STRUCTURE works. The match itself does NOT hang.**
+- **GAP-1 (ROOT CAUSE of the hang) — deferred-eval function calls as capture targets `(epsilon . *FN())` NEVER EXECUTE.** t6/t8/t9: the side-effect counter stays 0 — `*new_sent()`/`*add_tok()` silently no-op. Both demos build their ENTIRE data structure (`mem` table / parse stack) via these calls. They don't fire → data stays empty → the downstream pretty-printer (`pp_mem`'s `pm_cnt_loop`: `ns=ns+1; ssk[ns,1] :S(pm_cnt_loop)` over `SORT(empty)`) spins forever → THE HANG. Fix GAP-1 and the hang dissolves because the data populates.
+- **GAP-2 — captures (`.`) inside an ARBNO repeated body don't COMMIT.** t7: `wrd`/`tag` come back EMPTY after a matching ARBNO. Independent of GAP-1. (D3 commit-ring must truncate-to-mark on ARBNO β-reentry and flush at overall-match γ.)
+- **GAP-3 (related, lower priority — demos use STORED patterns so it doesn't block them) — inline non-literal pattern in SCAN context bombs:** t1/t2 → `BOMB bb_scan: mode-3 non-literal pattern needs native PB-RB graph (rt_scan deleted)`. Same family; fix opportunistically.
+- **treebank ADDITIONAL gaps (beyond claws5):** GAP-4 recursive deferred pattern eval `*group` (a pattern var referenced via `*` inside its own def — recursive descent); GAP-5 `BAL` in built patterns; GAP-6 EVAL-built patterns (`Push_list = EVAL('epsilon . *push_list(' vs ')')` — runtime-constructed pattern spliced into the match); GAP-7 user `DATA` types (`DATA('list(head,tail)')`, M4-DATA).
+
+**SEQUENCING:** claws5 FIRST (needs only GAP-1 + GAP-2). treebank SECOND (claws5 fixes + GAP-4..7). Each step gated on `test_crosscheck_snobol4.sh` byte-identical to HEAD (zero regressions) + the named repro/demo behavior.
+
+### Phase A — claws5 (GAP-1 + GAP-2)
+- [ ] **DP-0 — oracle + mode-4 demo harness + bench skeleton.** ✅ ORACLE IN HAND (session 29): `x64` SPITBOL cloned PUBLIC, no token (`git clone https://github.com/snobol4ever/x64`; `x64/bin/sbl -b` works for general programs — verified hello + arith). ⛔ BUT `sbl` does NOT run claws5/treebank: this `sbl` build rejects the `-P` memory flag they need AND `sbl -f` is broken on them (old goal note). **claws5/treebank oracle = CSNOBOL4** (`scripts/build_csnobol4_oracle.sh` — build it). Committed `claws5.ref` is the SHORT 95-line CSNOBOL4 scoped ref (sentences 1–4), NOT the full 5622-line version — regenerate full from CSNOBOL4 once it builds, or test against the 95-line ref with the matching input prefix. Still TODO: `scripts/run_demo_mode4.sh` (crosscheck recipe `--compile→gcc -c→gcc -lscrip_rt -lgc -lm→run`, already prototyped at `/tmp/m4run.sh`) + `scripts/test_3way_demo_snobol4.sh` skeleton. No codegen change.
+- [ ] **DP-1 — deferred-call-in-capture EXECUTION (the root-cause fix).** **EXACT DIAGNOSIS (session 29, AST-confirmed via `--dump-ast`): `(epsilon . *FN())` parses to `(TT_CAPT_COND_ASGN <pat> (TT_DEFER (TT_FNC FN)))` — the capture target `c[1]` is a `TT_DEFER` node, NOT a `TT_VAR`. BOTH lowering paths take the target as a STATIC string and DROP the deferred expr:**
+  - inline scan path — `lower_snobol4.c:308` (`case TT_CAPT_COND_ASGN`): `vn = c[1]->v.sval` → `IR_LIT(nd).sval = vn`.
+  - stored/freeze path (the one claws5 hits — `claws = …; src claws`) — `lower_snobol4.c:~576` (`sno_build_leaf_ir`, `IR_PATTERN_CAPTURE`): `IR_LIT(cap).sval = c[1]->v.sval`.
+  When `c[1]` is `TT_DEFER`, `->v.sval` is `""`, so FN is never lowered/evaluated → side effect lost (t6/t8/t9: counter stays 0). The runtime write `rt_cap_assign_cursor(varname,sδ,cδ,is_imm)` (`bb_match_capture.cpp`) only accepts a BAKED name — **so this is NOT a 1-liner.**
+  **FIX (both paths + runtime):** when `c[1]->t == TT_DEFER`, (a) lower its inner expr (`c[1]->c[0]`, the `TT_FNC`/expr) as a value-producing chain via the stamped EVAL/`run_code_chain`/`dyn-goto` rail; (b) at capture-commit (overall-match γ for `.`; submatch for `$`), RUN that chain (fires FN's side effects), take its return as the assignment NAME; (c) write the matched substring to that name. Add a runtime capture-write variant that accepts a computed name (or runs the deferred chain) — current `rt_cap_assign_cursor` is name-only. ⛔ needs **nv set** ledger STAMP (REQUESTED) for step (c). NOTE: in claws5/treebank the returned name is throwaway `dummy` (value=null) — the POINT is FN's side effect — so step (c) is harmless-but-required; the essential behavior is (a)+(b) EVALUATE the deferred target. Gate: t6/t8/t9 counters increment (`new_sent#`/`add_tok#` > 0); no crosscheck regression.
+- [ ] **DP-2 — capture-commit inside ARBNO.** `.` captures in the ARBNO repeated body commit on overall success (D3 ring: SAVE records {ring-mark, δ} per iteration; WRITE appends {nv-ref, sδ, eδ} at element-γ; β-retreat truncates to mark; CAPTURE_COMMIT flushes at match-γ). Gate: t7 returns non-empty `wrd`/`tag`; no regression.
+- [ ] **DP-3 — claws5 end-to-end.** mode-4 output byte-matches the DP-0 oracle ref on `claws5.input` (small), then full `CLAWS5inTASA.dat` (989 lines → 5622-line ref); NO hang (terminates < TIMEOUT). Regenerate `claws5.s` artifact (real codegen, no bomb stub). Gate: crosscheck byte-identical; claws5 diff=0.
+- [ ] **DP-4 — claws5 BENCHMARK (the home-field proof).** Run claws5 mode-4 vs SPITBOL (`sbl -b`) vs CSNOBOL4 via `test_3way_demo_snobol4.sh`; record wall-ms ratio in this goal. EXPECTATION: pattern-heavy → SCRIP competitive-or-faster (the four-port-compiles-the-backtracking thesis). Record the honest number whatever it is.
+
+### Phase B — treebank (claws5 fixes + GAP-4..7)
+- [ ] **DP-5 — user DATA types in mode-4 (M4-DATA).** `DATA('list(head,tail)')` constructor + field selectors `head(x)`/`tail(x)` + `list(a,b)`. Gate: a `list` round-trips; treebank's `stk = list(frame_id, stk)` / `head(stk)` / `tail(stk)` work.
+- [ ] **DP-6 — BAL in built patterns.** The B7 BAL sub-rung: balanced-paren scan (depth counter in per-box scratch, per-char ()-balance in α, regenerating). Gate: `('(' BAL ')') . item` extracts a balanced group; `spat` in treebank matches one s-expression.
+- [ ] **DP-7 — recursive deferred pattern eval `*group`.** A pattern variable referenced via `*` inside its own definition: deferred DT_P fetch + real β re-entry into the embedded sub-graph (B10 + S3 instance re-entry). ⛔ recursion guard (manual Ch.8: a pattern recursing without consuming subject overflows — match real `icont`/sbl semantics: progress before recursion). Gate: nested s-expression `((a b) c)` parses to correct depth.
+- [ ] **DP-8 — EVAL-built patterns.** `Push_list = EVAL('epsilon . *push_list(' vs ')')` — runtime CODE/EVAL produces a DT_P that is spliced into the enclosing pattern at match time. Reuses the stamped EVAL rail + DP-1 deferred-call-in-capture. Gate: `Push_list('tag')`/`Pop_list()`/`Push_item('wrd')` fire during the match; stack builds.
+- [ ] **DP-9 — treebank end-to-end + BENCHMARK.** mode-4 byte-matches oracle on `treebank.input` (regenerate ref against live oracle per DP-0); regenerate `treebank-array.s`; add to `test_3way_demo_snobol4.sh`; record wall-ms ratio. Gate: crosscheck byte-identical; treebank diff=0; bench number recorded.
+
+**Prereq reads (PLAN.md step 7 — touches per-box pattern state):** `SNOBOL4-5STAGE-OWNED-BUILD.md` (D3 capture-commit ring, B7 BAL, B8 capture-in-built, B9 ARBNO, B10 DEFER-IN-BUILD — DP-1/2/6/7/8 ARE those rungs, re-sequenced demo-first); ARCH-SNOBOL4.md §Native pattern; `src/emitter/bb_regs.h`; `src/runtime/rt/bb_pat_build.cpp`; `src/emitter/emit_core.c` matcher dispatch; the permission ledger in SNOBOL4-5STAGE (DP-1 needs **nv set** STAMPED — currently REQUESTED).
+
+---
+
+## ▶ PRIORITY RUNG (session 29, PRIORITY 2): NRG — Native Register Codegen ("beat the interpreter on statements")
+
+**THESIS (the reframing that makes "true compiler beats interpreter" tractable).** SPITBOL is NOT a fetch-decode-execute interpreter — for statements it is an **indirect-threaded-code VM** (manual history ch.: "compiling to an intermediate language of indirectly threaded code … a highly optimized run-time system then interprets the thread"). Threaded dispatch ≈ ONE indirect branch per op (`*next++`); no decode, no central loop; primitives are hand-tuned assembly. So SCRIP CANNOT win by "removing the dispatch loop" — threading already removed it. SCRIP currently LOSES on statements (15/16 benchmarks) because it replaced the cheap threaded NEXT (one indirect branch) with an EXPENSIVE PLT **call** per primitive (full System V convention) — *worse than threading*. NRG-A merely restores PARITY (inline → no call boundary). The ONLY way to BEAT threaded code is the one thing a threaded VM structurally cannot do: **specialize to the program** — keep a proven-typed value in a register and emit raw machine ops, with NO per-op tagged-descriptor load/store and NO per-op type re-check. (Patterns are the OTHER battleground and SCRIP already wins there — see DEMO-PAT; this rung is statements only.)
+
+**EVIDENCE (assembly-traced, session 29).** `arith_loop.s` one iteration of `N=N+1; N=LT(N,1e6) N`: `N` is loaded from `[rbx+16/24]` and its `DT_I` tag re-checked (`cmp edx,6`) **twice** (LT box `bb13` + arith box `bb14`), plus a dead store-then-reload of slot 80 and a slot-96 round-trip — ~25 instrs where a register-resident DT_I counter needs **3** (`cmp r14,1e6; jge done; add r14,1`). `func_call.s` INC body (`INC=N+1`): **three** PLT calls — `call NV_GET_fn` (fetch N, result DEAD/unused), `call rt_gvar_get_int` (fetch N AGAIN), `call rt_gvar_assign_int` (store) — to add 1. Plus `rt_call_proc_direct`'s ~15-op save/restore protocol per call. SPITBOL threads all of this with values in registers and locals at known offsets.
+
+**Each sub-rung independent; gate = `test_crosscheck_snobol4.sh` byte-identical (PASS=171 FAIL=84, fail SET unchanged, every stdout identical) + both-medium (mode-3==mode-4) + regenerate benchmark/feature/demo `.s` + A/B wall-ms on its target. Template-only / four-Greek-port / ledger-gated per RULES.** Order A → E → B → C → D (cheap CFG/dataflow cleanups first; they de-risk the register allocator by removing the redundancy that would confuse it; B is the lever that flips arith-class benchmarks; C/D kill the call cluster).
+
+### NRG-A — VN: local value-numbering / redundant-load elimination (do FIRST — cheapest, broad)
+- [ ] **VN-0** — within a straight-line (non-β-reentrant) box chain, value-number `[rbx+k*16]` loads + their `DT_I` tag-checks; a second identical load reuses the register. Kills arith_loop's 2nd N-load + 2nd tag-check, INC's dead `NV_GET_fn`.
+- [ ] **VN-1** — drop store-then-reload of the same frame slot (`mov [r12+s],rax; … mov rax,[r12+s]`) and dead `IR_VAR` boxes whose slot is never read.
+- [ ] **VN-gate** — byte-identical crosscheck; A/B arith_loop, op_dispatch, func_call.
+
+### NRG-B — REG: register residency + static type tracking (the DEEPEST win — the only thing threading can't do)
+- [ ] **REG-0** — liveness + "single-type-throughout" analysis: mark a scalar DT_I throughout a loop/body when assigned only by arithmetic, no EVAL/CODE/indirect-assign/I/O-assoc to it (reuse FZ invariance-proof + GVA DT_I guard).
+- [ ] **REG-1** — allocate the proven counter to a callee-saved reg across the loop; emit `add/cmp/jcc` directly; spill to `[rbx+k*16]` only at loop exit + escape edges (spill is already-stamped GVA territory — NO new ledger). Target: arith_loop inner loop → 3 instrs.
+- [ ] **REG-2** — extend to function-body locals proven DT_I (fibonacci `N`, INC `N`).
+- [ ] **REG-gate** — ⛔ register value re-materializable at every β/ω edge + fallback; verify vs `sbl -b` arith_loop/fibonacci/mixed_workload. A/B arith_loop, fibonacci.
+
+### NRG-C — INL: leaf-function inlining (eliminates the call protocol for tiny procs)
+- [ ] **INL-0** — inlinability analysis in lower (≤N stmts, non-recursive, statically resolved — DCR-2 `__proc[]` already proves the static-call set).
+- [ ] **INL-1** — splice callee four-port graph at the call site, param→arg substitution, return var → local temp. `R=INC(R)` → `R=R+1` inline.
+- [ ] **INL-gate** — byte-identical; recursion guard; A/B func_call, func_call_overhead.
+
+### NRG-D — PROTO: specialized call protocol (for non-inlinable/recursive calls)
+- [ ] **PROTO-0** — emit per-call-site block save/restore through the known param/return cells (cells resolved at preamble à la DCR-2); no per-call loop, no fastpath re-check. ⛔ needs **nv set** ledger STAMP (currently REQUESTED).
+- [ ] **PROTO-gate** — byte-identical; A/B fibonacci (recursive), roman.
+
+### NRG-E — BOPT: branch chaining (scaffolded `src/opt/branchopt.c` `bopt_chain` — UNWIRED; Makefile compiles but does not link it)
+- [ ] **BOPT-1** — wire `bopt_chain` as a LOWER→EMITTER pass + cycle guard (generator self-loops / `to.code` back-edges must not collapse). ⛔ honor the prior crash: γ-spine doubles as operand-recovery; rechain ONLY edges proven not to shorten an operand-recovery walk (gate on the deterministic chains VN proved safe).
+- [ ] **BOPT-2** — dead-BB drop + fall-through layout (common path takes no branch).
+- [ ] **BOPT-gate** — byte-identical; emitted-jump-count delta + A/B across all 16.
+
+**Prereq reads:** the uploaded Proebsting four-port paper (§4 templates, §5/Figs 1–2 optimization — **persist to repo `docs/`**); ARCH-x86.md §Flat-BB-ABI + §Boxes-are-stackless; `src/lower/lower_snobol4.c`; `src/emitter/emit_bb.c` (FILL/port machinery + flattener); `src/emitter/BB_templates/x86_asm.h`.
+
+---
+
 **RPF + TABLE-WALK-FIX LANDED (SCRIP `8ef7412`, session 27, 2026-06-25).** Two PERF-CALL wins; gate PASS=171 FAIL=84 SKIP=6 (zero regressions, fail set byte-identical to HEAD), both-medium clean, all results match .ref. Artifacts regenerated (benchmark/feature/demo .s).
 
 (1) **RPF — relop GVA-parity** (`bb_call.cpp`): `arith_opnd_a/b` gained a `gk_lb` param (default=-1, all existing callers unchanged → byte-identical output). `bb_call_relop_inline_str` passes `gk_lb=0/2` + calls `x86_begin()`. When the operand is a GVA global (k≥0): emits `mov rdx,[rbx+k*16]; cmp edx,DT_I; jne slow; mov reg,[rbx+k*16+8]`; falls through to existing `call rt_gvar_get_int` on miss. Same DT_I-guarded pattern as `bb_binop_gvar_arith.cpp`. Fibonacci GVA-guard count unchanged (frame param, correctly untouched). **A/B (best-of-3, mode-4 native, SCRIP-vs-SCRIP):** op_dispatch 248→19ms (13.1×), arith_loop 121→13ms (9.3×), var_access 1478→238ms (6.2×), func_call 5206→4157ms (1.25×), pattern_bt 328→264ms (1.24×), table_access 3244→2758ms (1.18×). Moderate wins where the relop is not dominant; zero effect where operand is a frame param.
