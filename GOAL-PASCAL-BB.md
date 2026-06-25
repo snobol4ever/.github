@@ -10,21 +10,21 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
-## ▶ CURRENT STATE (Session 65, 2026-06-24)
+## ▶ CURRENT STATE (Session 66, 2026-06-24)
 
-**Gate: M3 123/4 XFAIL=0 NOREF=2.** (The prior "127/0" was a stale count; 127 = ref-bearing probe count, not passes. `realparam` false-passes on a whitespace-only `.ref` — fix the ref to `       3.0` and treat `realparam` as a genuine frontier-#2 crash.)
+**Gate: M3 124/3 XFAIL=0 NOREF=2. M4 124/3 ASMFAIL=0.** (NOREF=2: `chararr_probe` has no `.ref`; `recursion` has no `.ref`. `realparam` false-passes — its `.ref` is 1 byte `\n`; correct value `       3.0`; probe crashes rc=134.)
 
-**What landed this session (SCRIP `dcd040a`):** `bb_call.cpp` — broadened `arith_kind_ok` and `arith_opnd_a/b` to route any call-kind operand (`IR_CALL`/`ir_is_call_kind`) into a temp slot via `marshal_single_call`, instead of silently gating out and collapsing to the left operand. M3 116/11→123/4. SNOBOL4 171/84 baseline-diffed — identical fail set, zero regressions.
+**What landed this session (SCRIP `cd4672a`):** `emit_bb.c` — fixed nested descriptor-arith representation mismatch. When a `IR_BINOP_GVAR_ARITH_SLOT` Arm-2 arith node has an operand that itself is a descriptor-producing nested arith BINOP (e.g. the `a.x*b.x` sub-product in `dot := a.x*b.x + a.y*b.y`), that operand's result lives in a 16-byte descriptor slot (tag@+0, value@+8 via `rt_num_arith`), but the Arm-2 read was using offset +0 (the tag field), yielding `6+6=12` instead of `3+8=11`. New `arith_emits_descr()` helper mirrors the dispatcher's Arm-1-vs-Arm-2 choice exactly: a BINOP emits a descriptor iff `bb_arith_is_dynamic` is true and *both* of its operands are call/idx-kind (or are themselves descriptor-emitting). When an Arm-2 operand satisfies this, its kind is normalized to `IR_CALL` so the existing `+8` value-read fires. Routing unchanged; bare-int chain (gvar/literal operands) untouched. Validated: SNOBOL feature `.s` 0/153 changed, SNOBOL bench OK=15/FAIL=0 identical, Prolog parity 115/0 identical, no Icon path hit, template byte-identity unchanged. M3/M4 123/4→124/3. `recparam3` CLOSED.
 
-**Closed since last session:** `const`-hang (commit `e706a9a`: `digit[]`/`strng[]` char-array backing in `insymbol` uninitialized).
+**Closed this session:** `recparam3` (`dot := a.x*b.x + a.y*b.y` — nested product sum over record fields).
 
 **NEXT FRONTIERS (priority order):**
 
-1. **Scalar assign-RHS arith with call+literal operand — MODE-INDEPENDENT.** `x := a[1] + 100` → blank output (rc=0); `x := a[1] + a[2]` → 7 (correct — two-call case already works). Affects `arr2dtype`, `arr2dtype2`, `arrparam`, `recparam3`. **Diagnosis:** the call-arg path fix (`bb_call.cpp`) does NOT cover the `IR_BINOP_GVAR_ARITH` / `IR_BINOP_GVAR_ARITH_SLOT` assign-RHS path (`emit_bb.c:247-253` + `bb_assign_frame*.cpp`). The blank output (not a wrong number, not a bomb) is consistent with a DT_I tag mismatch on a literal operand in that path; the call operand (`arr_get`) is already emitted correctly in the two-call case. **Decisive experiment:** dump the M4 `.s` for `x := a[1] + 100` and confirm whether `arr_get` is emitted but the literal's DT_I tag is missing from the result descriptor.
+1. **Flat assign-RHS arith: gvar + call operand (Arm-2 bare-int vs IR_ASSIGN descriptor consumer).** `s := s + a[j]` → blank/"TABLE"/segfault. Affects `arr2dtype`, `arr2dtype2`, `arrparam`. Root cause fully diagnosed: the `IR_BINOP_GVAR_ARITH_SLOT` Arm-2 writes a **bare int** to slot+0, but the consuming `IR_ASSIGN` (via `flat_drive_gvar_assign_binop`, `emit_bb.c:3327`) reads that slot as a full **tagged descriptor** (`+0`=tag→rbx+0, `+8`=value→rbx+8), so the tag field receives the numeric result and the value field is garbage. This differs from the nested-product case (which was an Arm-2 *read* offset bug, not an Arm-2 *write* representation bug). The `t := t + f + 2` case works because its terminal assign hardcodes `mov [rbx+0],6` (DT_I) — but the gvar-assign-binop path does not. Fix shape: make the gvar-assign-binop path apply the DT_I tag when the RHS BINOP took Arm-2 (bare int), OR make Arm-2 write a full descriptor. The latter is principled but touches Arm-2's shared representation; beware cross-language regression — the fix landed in this session's early attempt regressed `alphacmp/enum2/pb33/pb34/pb35` until the correct `arith_emits_descr` predicate was applied. The flat case needs an analogous "Arm-2 output is bare int, not descriptor" signal at the assign consumer.
 
-2. **`realparam.ref` gate-integrity fix.** The ref is whitespace-only (1 byte `\n`); correct value is `       3.0`. `realparam` aborts (rc=134 — frontier-#2 flat_drive_assign family) so it false-passes under string comparison and inflates the pass count by 1. Fix: update the ref and either mark it XFAIL or treat it as the genuine crash it is.
+2. **`realparam.ref` gate-integrity fix.** Ref is 1 byte `\n`; correct value `       3.0`. Probe crashes rc=134 (`flat_drive_assign` missing α, real-valued fn param). Fix: update ref and treat as genuine crash.
 
-3. **pcom self-compilation (deeper, after floor is real).** `const n=3` no longer hangs; but `var x: integer;` raises spurious `error(103)` from `searchid` — pointer-BST symbol table corrupts at scale. `procedure` decl segfaults (rc=139 M3+M4). Endgame frontier.
+3. **pcom self-compilation (deeper, after floor is real).** `var x: integer;` raises spurious `error(103)` from `searchid` — pointer-BST symbol table corrupts at scale. `procedure` decl segfaults rc=139 M3+M4.
 
 No mode-2 `--interp` (DE-INTERP done); only `--run` (M3) and `--compile` (M4).
 
