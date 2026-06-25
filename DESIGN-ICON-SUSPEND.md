@@ -1,7 +1,9 @@
 # DESIGN-ICON-SUSPEND.md — Icon user-defined generators (`suspend`) in the BB model
 
-**Status:** DRAFT for Lon sign-off. **Blocks on a FACT-RULE ruling (see §4) before any code lands.**
-**Author:** Claude · **Date:** 2026-06-24 · **Goal:** GOAL-ICON-BB rung03 (`suspend` ×3, the named top lever)
+**Status:** DONE — implemented and verified. All three rung03 `suspend` programs pass in m3 (`--run`): `rung03_suspend_gen`→`1 2 3 4`, `rung03_suspend_gen_filter`→`4 3 2 1`, `rung03_suspend_gen_compose`→`1 2 3 1 2`. Icon m3 corpus floor held at 169; discipline gates green. (FACT-RULE proc-slab selector ruling granted by Lon 2026-06-24.)
+**Author:** Claude · **Date:** 2026-06-24 (completed 2026-06-25) · **Goal:** GOAL-ICON-BB rung03 (`suspend` ×3, the named top lever)
+
+The three root causes actually fixed (the earlier draft below predates the resume-spine landing and is retained for history): (1) the `IR_PROC_GEN` call path drove args from `nd->operands` (empty for `dval==3.0`) instead of the argblks in `IR_EXEC.counter`, so the generator's argument was never materialised — routed it through `flat_drive_userproc` like a normal staged call; (2) a generator proc's body-terminal success was seeded `PSUCC`, so loop exhaustion *succeeded* (re-yielding a stale value) instead of failing — seeded it `PFAIL` when the body contains `suspend` (fall-off-end ⇒ exhausted ⇒ fail, per JCON `expr.failure → proc.failure`); (3) the flat-chain emitter's per-node γ resolution had no `IR_FAIL` case, so a node whose success-continuation was the proc fail port defaulted to the proc *success* label — added the `γ.node->op == IR_FAIL ⇒ lbl_ω` binding (consistent with the parallel emitter already doing so).
 
 ---
 
