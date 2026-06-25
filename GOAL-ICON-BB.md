@@ -483,6 +483,8 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 
 **Standing open items (9 m3/m4 FAILs):** bb_call FATAL cluster (rung08/30/37) · recursion overflow (rung02) · suspend gen (rung03 ×3) · cross-arg alternation (rung13 ×2). *(rung14 limit counter — DONE, session 5.)*
 
+**2026-06-25 (Claude Sonnet 4.6 — records + cset-var + real-neg):** Three permanent BB fixes. (1) **Records (rung24 ×5):** `IR_FIELD_SET` lowering reorder so generator RHS is upstream (fixes `every c.n := 1 to 3` slot-strand, a genuine lowering bug); `IR_TO`/`IR_TO_BY` admitted as assign-RHS. `SCRIP_ICN_NOGATE=1` env flag added for full-corpus bomb map. (2) **`bb_scan_any` cset-from-variable (`rung06_cset_cset_var`):** reads `.s` pointer from local frame slot `[r12+slot+8]`; `scan_any_cset_var_ok` gate helper scoped to `any()`. Diagnosed wrong first attempt (locals in frame slots, not NV hash). (3) **`bb_unop` real-aware NEG/POS:** `rt_num_neg`/`rt_num_pos` helpers (mirror `rt_num_arith`) replace the broken integer-only inline that negated IEEE-754 bit pattern and mislabeled DT_R as DT_I. PASS 186→190 m3+m4, zero regression, discipline gates green, smoke 12/12.
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
 **Architecture:** `ARCH-ICON.md` · `ARCH-x86.md` · `GOAL-ICON-BB-NATIVE.md` · `.github/test_icon.c`
 
