@@ -1,10 +1,36 @@
 <!-- GOAL-SNOBOL4-BB · SCRIP native pattern-match ladder for modes 3/4 (--run/--compile) -->
 
-# ▶▶▶ PRIORITY ZERO (session 29) — MON-RE: reinstate IPC sync-step binary monitor
+# ╔═══════════════════════════════════════════════════════════════════════════╗
+# ║  ▶▶▶▶▶  TOP PRIORITY — SEEN FIRST, DONE FIRST — MONITORED LADDER CLIMB  ◀◀◀◀◀  ║
+# ╚═══════════════════════════════════════════════════════════════════════════╝
+
+**THIS SECTION IS THE WHOLE JOB. Everything below it (DEMO-PAT, NRG, GVA, PERF-CALL, …) is a SOURCE OF FAILING PROGRAMS to feed THIS ladder — not a separate track.** The method is fixed by RULES.md → **MONITOR-FIRST BUG-FINDING**: every bug is FOUND with the 2-way IPC sync-step monitor, BRACKETED between the first divergent trace event and the previous (last-agreeing) event, pinned with a gdb spin/ignore-counter breakpoint at that bracket, and walked C-step-by-step until the LAND MINE (the instruction that writes the wrong value) is under the cursor. NO guessing, NO scattershot prints, NO reading code hoping to spot it — monitor → bracket → spin-break → land mine → fix → re-monitor. Documented prior art: `GOAL-MONITOR-REINSTATE.md`, `MONITOR-BINARY-DESIGN.md`, `GOAL-TWO-STEP-HUNT.md`, and the gdb-hit-count diagnoses in `GOAL-LANG-SNOBOL4.md` / `GOAL-CSN-FENCE-FIX.md` / `GOAL-PROLOG-BB.md` and `archive/ARCHIVE-LANG-SNOBOL4-HISTORY.md`.
+
+## THE LADDER (do strictly in this order)
+
+- **RUNG 0 — GET THE MONITOR LIT FOR MODES 3/4.** The monitor is currently DARK for native modes (the per-statement taps lived only in the deleted mode-2 path). Until it emits `LABEL/VALUE/CALL/RETURN` per statement from `--run`/`--compile`, no climb is possible. This is the **MON-RE rung immediately below** (MON-RE-1 … MON-RE-6). Reinstating it is the prerequisite to every subsequent rung and therefore comes FIRST. Acceptance: `PARTICIPANTS="spl scr" SCRIP_RUN_FLAG=--run bash scripts/test_monitor_3way_sync_step_auto.sh /tmp/mdiv.sno` reports the first divergence at the `$nm = vl` statement (a real semantic divergence), with matching LABEL/VALUE granularity up to that point.
+- **RUNG 1 — CLIMB THE CROSSCHECK FAIL SET (84 fails).** With the monitor lit, walk `test_crosscheck_snobol4.sh`'s FAIL set one program at a time: monitor each against `csn`/`spl` → first divergence → bracket → gdb spin-break → land mine → fix → the fail count drops by one and the divergence on the NEXT program is the next sub-rung. The fail set is the rung supply; the monitor turns each into a mechanical fix.
+- **RUNG 2 — CLIMB THE DEMO HANGS (claws5, treebank).** Same loop on the pattern-heavy demos (the DEMO-PAT material below): monitor localizes the hang to the first statement where SCRIP's wire diverges from the oracle (GAP-1's deferred-call-in-capture will surface as the trace event where the side-effect counter fails to advance), bracket it, walk to the land mine in the lower/emit/runtime path, fix. The GAP-1…GAP-7 diagnosis below is the MAP of expected land mines, not a substitute for the monitor finding them.
+- **RUNG 3+ — anything else that diverges** (NRG correctness regressions, new feature gaps) climbs the same ladder.
+
+**Build + monitor invocation (every session):**
+```bash
+apt-get install -y libgc-dev && cd /home/claude/SCRIP && make && make libscrip_rt
+git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64   # SPITBOL oracle (spl)
+bash scripts/build_csnobol4_oracle.sh                                  # CSNOBOL4 oracle (csn)
+# 2-way monitor (the bug finder):
+PARTICIPANTS="csn spl" bash scripts/test_monitor_2way_sync_step_bin.sh <file.sno>   # oracle-vs-oracle sanity
+PARTICIPANTS="spl scr" SCRIP_RUN_FLAG=--run bash scripts/test_monitor_3way_sync_step_auto.sh <file.sno>  # SCRIP under test
+# then gdb at the bracket with a spin counter:
+#   break <file>:<line>;  ignore <bp> <N-1>   (stop on the first DIVERGENT iteration)
+#   step / next / finish  until the land-mine instruction is under the cursor
+```
+
+---
 
 <!-- GOAL-MONITOR-REINSTATE · IPC sync-step binary monitor, re-homed onto native modes 3/4 -->
 
-# GOAL-MONITOR-REINSTATE.md — reinstate the binary sync-step IPC monitor
+# RUNG 0 DETAIL — GOAL-MONITOR-REINSTATE.md — reinstate the binary sync-step IPC monitor
 
 ## ▶▶▶ NEXT SESSION — START HERE
 
