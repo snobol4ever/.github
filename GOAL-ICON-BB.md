@@ -435,13 +435,19 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 
 ## Watermark
 
-**HEAD (SCRIP) = `187cb93`** — m3/m4 **197/289 PASS=197 FAIL=55 EXCISED=1**. icon smoke 12/12 m3+m4 · prolog 5/5 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+**HEAD (SCRIP) = `221ef58`** — m3/m4 **201/289 PASS=201 FAIL=51 EXCISED=1**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+
+**2026-06-26 (Claude Sonnet — every-do fall-through):**
+- `every EXPR do BODY` never fell through to the next statement (plain `every EXPR` did). Root cause: the flat-chain walk in `codegen_flat_chain_body` (BFS) followed γ always but ω only for call/binop/gather/map/grep — not for `IR_TO`/generators — so the `IR_EVERY` exit node (reachable only via the generator's ω) and the whole post-loop tail were dropped; the generator's exhaustion fell back to `main_ω`. `descr_chain_operand_refs` (the operand stack-machine) had the same ω-follow gap, so the successor's `write`→literal operand never attached and the call fell to a generic marshal reading an unset slot (empty output).
+- Fix (`src/emitter/emit_bb.c`, commit `221ef58`): both traversals now follow a generator's ω (its genuine exhaustion edge). Order-preserving two-phase — phase 1 is the original spine (byte-identical for every currently-passing program), phase 2 appends only previously-dropped generator-ω subtrees in spine order. rung35_block_body_nested_block + rung35_block_body_every_gen_block PASS. m3/m4 199→201, **zero regressions** both modes; icon/prolog/snobol4 smoke green; icn gates unchanged from baseline.
+- **Pre-existing artifact drift (NOT this change):** `benchmarks/icon/micsum.s` and `programs/snobol4/demo/treebank-array.s` are stale in `corpus` — the clean compiler regenerates them identically with this change stashed (micsum +~150 lines from this fix on top of ~1334 lines of prior-session drift; treebank-array 100% prior drift, 0 from this change). Intentionally NOT bundled into this focused Icon commit. Needs a dedicated artifact-refresh pass.
 
 **2026-06-25 (Claude Sonnet 4.6 — gate removed; rebase + FAIL triage):**
 - Gate `graph_native_emittable_mode` permanently removed at `b520da2` (other session). PASS 190→197; EXCISED 52→1; FAIL 8→55 (47 newly exposed).
 - This session: rebased onto `187cb93` (PL-DESCR-2 on top of gate removal); confirmed clean; mapped all 55 FAILs by root cause.
 - **55 FAIL root-cause map:** (a) alt-as-call-arg silent-wrong (~10, IR_ALT not routed through walk_bb_flat in subgraph call args); (b) indirect call fn='?' BOMB (4, computed call target unimplemented); (c) flat_drive_rasgn non-VAR lvalue BOMB (3); (d) bb_var/bb_alt unhandled arm BOMB (~6); (e) augop ^:= real-not-int (1, BINOP pow result DT_R not DT_I for int inputs); (f) cset type wrong (2); (g) walk_bb_node IR_ASSIGN kind=5 unhandled (2); (h) bb_emit_end unresolved refs (2); (i) segfaults (4); (j) find-gen hang rc=124 (1, Tier B3 known); (k) tab/move/open/display BOMB (5).
 - **Next session priority:** (1) augop ^:= real->int coercion (1 rung); (2) cset type tagging (2 rungs); (3) alt-as-call-arg routing (~10 rungs); then RASGN lvalue generalization.
+
 
 **2026-06-24 (Claude, session 7 — benchmark harness unblocked: 3 crash classes killed + parse gaps closed):**
 - **Parse-error-recovery segfault KILLED:** `icon_driver.c` on `parser.had_error` now prints the error + emits `[SMX]` loud-decline banner and calls `exit(1)`. Unparseable programs bucket as EXCISED (front-end gap), never crash or vacuously pass on empty stdout. Matches canonical `icont` exit-on-error discipline.
