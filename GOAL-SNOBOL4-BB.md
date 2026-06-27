@@ -742,6 +742,27 @@ m4 FAIL set still holds: pattern tests (052-152 `pat_*` — the DEMO-PAT/GEM sur
 
 ---
 
+## ▶ RUNG: INDIRECT-REF — `$` indirect reference as rvalue (210/211/212/213, diagnosed 2026-06-27 Claude, NOT started)
+
+**ROOT CAUSE (RUN+AST-confirmed, all 4 share it).** The `$` indirect-reference operator works only as an assignment TARGET (`lower_snobol4.c` ~1069 `$'lit'=v`≡`lit=v`, ~1073 `$V='lit'`, ~1079 `$V=W`). As an **rvalue it is completely unsupported**: (1) `lower_expr` and the call-arg lowerer `sno_arg_lower` (`lower_snobol4.c:104`, reached via `sno_arg_block`/`lc_arg_block`/`lc_call_argblks` at ~108/111) have **NO `TT_INDIRECT` arm**; (2) worse, the TT_FNC orphan trigger at **`lower_snobol4.c:1141`** marks ANY call with a `TT_INDIRECT` arg as `complex_arg` → the WHOLE call is orphaned (no γ/ω, `:S`/`:F` ignored, chains to nxt). So `DIFFER($'bal', bal) :F(e001)` never runs and falls straight to the FAIL line. (All four stop at their first `$`-rvalue assertion: 210/001, 211/002, 212/001, 213/001.)
+
+**AST SHAPES (from `--dump-ast`).** `$'bal'`=`(INDIRECT (QLIT "bal"))` · `$.bal`=`(INDIRECT (NAME (VAR bal)))` · `$.a<2>`=`(INDIRECT (NAME (IDX (VAR a)(ILIT 2))))` · `$X`=`(INDIRECT (VAR X))` · `$NM` (NM=.A, holds DT_N)=`(INDIRECT (VAR NM))`.
+
+**THE KEY SIMPLIFICATION — name-deref cancels at compile time.** `$(NAME(lvalue))` ≡ that lvalue (the `.` makes a name, `$` immediately derefs it back): so `$.bal`≡`bal`≡`IR_VAR('bal')` and `$.a<2>`≡`a<2>`≡`IR_IDX(a,2)`. And `$(QLIT s)`≡`IR_VAR(s)`. These are PURE COMPILE-TIME rewrites needing no runtime helper and **flip 210 + 211 + 212** (211/001 `$'qq'='x'` already passes via the assign-target path; 211/002 `$'_no_such_var_'` rvalue→`IR_VAR('_no_such_var_')`→null→`DIFFER(null)` fails→`:F` taken).
+
+**THE RUNTIME RESIDUE — `$VAR` (213 only).** `$(VAR x)` can NOT be resolved at compile time — x's *value* is the name (a string like `'A'`, OR a DT_N nameval as in `NM=.A`). Needs a runtime indirect-read helper: fetch x's value; if string→`NV_GET(string)`, if DT_N→follow the name to its cell. 213 also needs `$X = 99` as an **lvalue with a runtime (VAR) name** (the existing assign arms only handle `$'lit'`/`$V='lit'`/`$V=W` where the target name is literal or the value side is simple — `$X=99` where X holds the name needs the runtime-name assign path; check whether ~1079 already covers it). 213/005 NRETURN-of-`.var` is a separate concern (verify independently).
+
+**FIX PLAN (do compile-time trio first — clean, no runtime change):**
+1. **Add `TT_INDIRECT` arm to `sno_arg_lower` (~104) AND `lower_expr` (~131 switch):** `$(QLIT s)`→`IR_VAR(s)`; `$(NAME(VAR v))`→`IR_VAR(v)`; `$(NAME(IDX(VAR,key)))`→`IR_IDX(base,key)` (reuse the IR_IDX operand shape from the `case TT_IDX` arm ~144); `$(VAR x)`→leave for step 3 (runtime).
+2. **Narrow the orphan trigger `lower_snobol4.c:1141`:** only orphan when the indirect is the UNSUPPORTED shape — i.e. drop `a->t == TT_INDIRECT` from the blanket `complex_arg` set for the compile-time shapes (QLIT / NAME-wrapped), so a supported indirect arg flows through normal call lowering (which now marshals it via the step-1 `sno_arg_lower` arm). Gate carefully — this is the same orphan-narrowing pattern the TT_IDX call-arg work used (HANDOFF note "narrowed the TT_FNC orphan-punt"). Verify no regression in programs that currently rely on indirect-arg orphaning.
+3. **(213, separate sub-step) runtime `$VAR` rvalue + lvalue:** add the runtime indirect-read helper (string-name → NV_GET; DT_N → deref) and an IR rvalue box for `$(VAR x)`; confirm/extend the `$X=value` runtime-name assign arm. Likely its own session.
+
+**Gate:** per program `--run` AND `--compile` match `.ref`; crosscheck fail set ⊆ HEAD (esp. watch the orphan-narrowing for regressions); both-medium; `.s` regen (lowering changed). Compile-time trio (210/211/212) is the clean first landing; 213 is the runtime follow-on.
+
+**Prereq reads:** `lower_snobol4.c` ~104 (`sno_arg_lower`), ~131-158 (`lower_expr` switch + the `TT_IDX` arm to mirror), ~1069-1082 (the existing indirect-ASSIGN arms), ~1137-1145 (the TT_FNC orphan trigger). Runtime indirect helpers: grep `NV_GET_fn`/`IR_INDIRECT_ASSIGN_*`/DT_N handling in `rt.c`/`core.c`. SPITBOL Ch.7 "indirect reference".
+
+---
+
 ## ▶ RUNG: ARRAY-SEMANTICS — remaining array/table/DATA cluster (diagnosed 2026-06-27, NOT started)
 
 **SUPPLY + first-failing-assertion (RUN-confirmed):**
