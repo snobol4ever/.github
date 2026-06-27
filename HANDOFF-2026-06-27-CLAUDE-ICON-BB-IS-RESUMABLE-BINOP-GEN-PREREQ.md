@@ -99,3 +99,55 @@ one-liner.
 
 ## Authors
 Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
+
+---
+
+## ATTEMPTED FIX — TWO DEAD ENDS (tried this session, REVERTED; documented so they are not repeated)
+
+After landing the `is_resumable` prereq I attempted the full resume-spine fix on top. Both pieces
+REGRESSED and were reverted to the clean `8b4ab8c` checkpoint. The repros (`every (x:=(1|2|3|4|5))>2 &
+write(x)` → want `3 4 5`; `every ((1|2|3|4|5)>2) do write("y")` → want `y y y`) ALL went green with the
+combined change, but the suite fell 208→198 (run) / 195 (compile, m3≠m4 asymmetry = red flag), net −10.
+
+### Dead end 1 — lower a generator-wrapping binop as `IR_BINOP_GEN` (`lower_icon.c:138`)
+```c
+if ((t->n > 0 && is_resumable(t->c[0])) || (t->n > 1 && is_resumable(t->c[1]))) op->op = IR_BINOP_GEN;
+```
+This DID make the WITH-body form work (`every ((1|2|3|4|5)>2) do write("y")` → `y y y`) because the
+emitter's `IR_BINOP_GEN` dispatch routes to `flat_drive_binop_gen_tree` (emit_bb.c:1651), whose resume
+machinery is correct. BUT it is too broad: it also converts **arithmetic**-generator binops that the
+plain `IR_BINOP` path was already handling, and those now loop forever (rc=124) — the whole
+`rung02_arith_gen_*` family (nested_add, nested_filter, paper_mul, relfilter), `rung01_paper_*`,
+`rung36_jcon_primes`, `rung10_augop_break_repeat`, `rung02_proc_locals`. The `flat_drive_binop_gen_tree`
+RHS-fail→lhs_β / binop-β→rhs_β wiring does NOT terminate for these shapes.
+**Narrowing needed:** convert to `IR_BINOP_GEN` ONLY for relational ops (BINOP_LT..NE) with a generator
+operand — NOT arithmetic/concat — AND prove `flat_drive_binop_gen_tree` terminates for the relop-filter
+shape. Test the full `rung02_arith_gen_*` family after ANY change here; they are the canary.
+
+### Dead end 2 — report the generator's resume as the conjunction's β (`lower_icon.c` TT_SEQ, ~line 246)
+```c
+if (lr >= 0 && val[lr]) last_beta = val[lr];   /* lr = last resumable element index */
+```
+Intended to fix the `every EXPR` (no-do) `!BODY` path: `lower_every`'s `!BODY` branch collapses
+`loop_target` to E because the conjunction reports `cx->beta == E` (the rightmost element `write` is
+non-resumable so its β is the outer fail = E), so `gen_node == gen_result == CONJ` and the
+success-loop-back never drives the generator. Setting the conjunction's β to the last resumable
+element's value node DID make `every (G>2) & write(x)` (no do) → `3 4 5`. BUT it changes resume
+reporting for ALL conjunctions and created infinite-loop cycles in the same `rung01/rung02` families.
+**This is the harder half.** The `every EXPR` no-do form needs the canonical transform `every E` ≡
+`every E do &fail` (body always fails → body.failure drives the generator), reusing the WORKING
+WITH-body machinery — NOT an ad-hoc β override. The WITH-body path already produces correct loop-back
+(`write.γ → ALT` directly, verified in IR). Synthesize a fail-body for the no-do every and route it
+through the existing `BODY` branch, computing `loop_back` as the inner generator's resume (the part that
+is currently wrong for a compound/conjunction GEN — `gen_node` resolves to `gen_result` instead of the
+buried generator). `cx->last_gen` is only set for IR_TO/IR_TO_BY (lower_icon.c:393), so it does NOT
+locate the buried ALT/BINOP_GEN — that tracking would need extending, OR walk gen_result's operand chain
+to find the generator node.
+
+### Net lesson
+The emitter side (`flat_drive_binop_gen_tree`, `g_limit_gen_beta` pattern) is READY. The blocker is
+PURELY in `lower_icon.c`: (a) selecting EXACTLY the right binops for `IR_BINOP_GEN` (relops-with-gen
+only, proven-terminating), and (b) the `every EXPR` no-do loop-back for a compound generator expr. Both
+must be validated against the full `rung02_arith_gen_*` + `rung01_paper_*` canary set (11 programs that
+hang if you get it wrong), not just the target repros. The target repros going green is NECESSARY but
+HUGELY INSUFFICIENT — every attempt this session passed the repros and still regressed 10 programs.
