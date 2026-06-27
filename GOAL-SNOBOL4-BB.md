@@ -774,3 +774,26 @@ m4 FAIL set still holds: pattern tests (052-152 `pat_*` — the DEMO-PAT/GEM sur
 **Method:** static-first per program; the OOB-fail (1110) and ITEM (1114) are the two cleanest next stabs. Multi-dim/custom-bound (1112) and DATA-mutate (1115) are deeper. Gate per program: `--run` AND `--compile` match `.ref`; crosscheck fail set ⊆ HEAD; both-medium; `.s` regen if codegen changed.
 
 **Prereq reads:** `bb_idx_get.cpp` / `bb_idx_set.cpp` (the read/store templates), `flat_drive_idx_get`/`flat_drive_idx_set` (emit_bb.c ~1671/1695), `lower_snobol4.c` ~144/1002/1092/1171 (the four IDX lowering sites), `aggregates.c` `subscript_get`/`subscript_set` (runtime array/table), ARCH-x86.md §Flat-BB-ABI.
+
+---
+
+## SESSION ADDENDUM — 2026-06-27 (RUNG 1: INDIRECT-REF compile-time trio 210/211/212 CLOSED)
+
+**Crosscheck baseline entering this session (post prior session's local-unpushed landings now confirmed pushed):** `--run PASS=168 FAIL=93` · `--compile PASS=188 FAIL=67 SKIP=6` · `DIVERGE=22`.
+
+**NOTE — 310/311/312 concat stale note:** the goal addendum "310 concat — diagnosed, not yet fixed" was stale. 310/311/312 pass clean in both modes at session open. One less item in the rung-1 supply.
+
+### INDIRECT-REF compile-time trio — CLOSED ✅ (Sonnet 2026-06-27, SCRIP `63c666ba`)
+
+**Programs:** 210_indirect_ref (2 assertions), 211_indirect_assign (2 assertions), 212_indirect_array (1 assertion). All PASS both `--run` and `--compile` vs `.ref`. **Gate:** `--run` 168→**171**, `--compile` 188→**191** (+3 each); DIVERGE 22→**22** (list byte-identical); **zero regressions** (precise m4 set-diff: only 210/211/212 leave the fail set; DIVERGE list unchanged rules out any m3-only regression). `.s` artifacts regenerated (3 feature tests updated; benchmark/demo unchanged — no affected programs).
+
+**Root cause (both problems):**
+1. **Orphan trigger** (`lower_snobol4.c:1141`): `TT_INDIRECT` unconditionally set `complex_arg=1` → the whole containing DIFFER call was orphaned (no γ/ω, `:S`/`:F` ignored, fell through regardless of result). So `DIFFER($'bal', bal) :F(e001)` never ran and never jumped.
+2. **No rvalue arm for `TT_INDIRECT`** in `lower_expr`: `is_sno_unop` listed `TT_INDIRECT` so it would have routed to `IR_UNOP`, which has no indirect-semantics implementation; but the orphan trigger fired first so this was never reached.
+
+**Fix (pure lowering, one file, 22 lines, no template/runtime change):**
+- Added `sno_indirect_resolvable(a)` predicate: true for `$'lit'`, `$.var`, `$.arr<k>` (the three compile-time-cancellable shapes per SPITBOL Ch. 7 — *"alternate use of indirection and name operators cancel one another"*). False for `$VAR` (runtime, 213 — untouched).
+- Added `lower_expr` arm (before `is_sno_unop`): `$'lit'`→`IR_VAR(lit)`, `$.var`→`IR_VAR(var)`, `$.arr<k>`→recurse `lower_expr(g)` (emits `IR_IDX` via the existing `case TT_IDX` arm).
+- Narrowed orphan trigger: only `TT_OPSYN` and non-resolvable `TT_INDIRECT` orphan; resolvable shapes flow through `sno_call_channels` → `sno_arg_lower` → `lower_expr` → the new arm.
+
+**Next rung-1 supply (static-first each):** 213 (runtime `$VAR` rvalue — needs runtime indirect-read helper; goal file has full diagnosis); array cluster: 1112 (multi-dim/custom-bounds `ARRAY('-1:1,2')`), 1114 (ITEM as assignment target); func cluster: 1010/1011/1013/1014 (recursion, redefine, NRETURN, FRETURN).
