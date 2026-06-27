@@ -326,7 +326,7 @@ Locked callee-saved layout the three concurrent BB sessions MUST share (canonica
 | **R15** | callee-saved | **Δ** (UPPER) | subject LENGTH/END — the fixed bound |
 | (scratch) | — | **σ** (lower) | TRANSIENT current-char ptr `Σ+δ`, computed at deref, NOT durable |
 | **R12** | callee-saved | **ζ** (zeta) | BB-local RW FRAME base; every box-local is `[r12+off]` (RATIFIED 2026-05-30) |
-| **R10** | caller-saved | LOCAL | per-BLOB DATA-block ptr (`lea r10,[rip+Δ_data]`); constant inside a BLOB |
+| **R10** | caller-saved | (retired) | RW box-locals → `[r12+off]` (ζ frame); RO → `[rip+disp]`. r10 RETIRED (R10-OUT) |
 | **rbx** | callee-saved | — | FREE / callee-saved scratch (preserved across the box chain) |
 | **rbp** | callee-saved | — | DEFINE'd / brokered function frame ptr when active (`push rbp;mov rbp,rsp`); else callee-saved scratch |
 

@@ -305,7 +305,7 @@ The unified IR→x86 emitter is **ONE dispatch** — `src/emitter/emit_core.c`'s
 | **R15** | callee-saved | **Δ** | subject LENGTH/END |
 | (scratch) | — | **σ** | TRANSIENT current-char ptr `Σ+δ` |
 | **R12** | callee-saved | **ζ** | BB-local RW FRAME base; every box-local is `[r12+off]` |
-| **R10** | caller-saved | LOCAL | per-BLOB DATA-block ptr |
+| **R10** | caller-saved | (retired) | RW box-locals → `[r12+off]` (ζ frame); RO → `[rip+disp]`. r10 RETIRED (R10-OUT) |
 | **rbx** | callee-saved | — | FREE / callee-saved scratch |
 | **rbp** | callee-saved | — | brokered function frame ptr / callee-saved scratch |
 

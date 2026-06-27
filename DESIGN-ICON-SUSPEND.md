@@ -89,7 +89,7 @@ The committed state is floor-green; resume directly at piece 2.
 - [x] **1. Runtime** `rt_proc_call_gen` / `rt_proc_resume_gen` (persistent `g_gen_arena` activation stack).
 - [ ] **2. Prologue entry-dispatch** — `xa_flat.cpp` frame-active TEXT (+BINARY) arm, for generator procs
       only (gate on a new `g_gen_proc_active`, set in scrip.c's proc-emit loop from
-      `proc_table[pi].is_generator`): append `cmp esi,0` / `jne <flat_lbl_β>` after `lea r10,[rip+Δ]`
+      `proc_table[pi].is_generator`): append `cmp esi,0` / `jne <flat_lbl_β>` after `mov r12,rdi`
       (esi≠0 ⇒ resume ⇒ jump chain β, which `ecef926` already routes to the suspend's resume β).
 - [x] **3. `bb_suspend`** template (`bb_suspend.cpp`, emit_core dispatch, header, Makefile).
 - [x] **4. Lowering** resume-spine (`TT_SUSPEND`: γ=psucc, operand[0]=expr value, operand[1]=do-body).
@@ -116,7 +116,7 @@ Reuses the existing `every` machinery: make the generator-proc **call box** itse
    live at once); a small stack also covers nesting.
 
 2. **Prologue entry-dispatch (`xa_flat.cpp`), gated on a `g_gen_proc_active` flag.** The frame-active
-   prologue (`push r12; mov r12,rdi; lea r10,[rip+Δ]`) gains, for generator procs only,
+   prologue (`push r12; mov r12,rdi`) gains, for generator procs only,
    `cmp esi,0; je α_body; jmp β` (the idiom already used on the non-frame path at lines 80-82). esi≠0
    ⇒ resume ⇒ jump to the chain β, which propagates to the active `bb_suspend` box's β. Non-generator
    procs keep the exact current prologue → floor untouched.
