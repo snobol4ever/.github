@@ -199,7 +199,7 @@ across all five GOAL-*-BB files.
 
 Raku is LIVE through `lower.c` (RK-LOWER-0..5 done). Post-SMX-4: no Stack Machine engine; ONE unified `lower.c`; `IR_*` node taxonomy; BB run-path. Mode 2 (`--run`) DELETED 2026-06-15. Two native modes only.
 
-**Current score (2026-06-27): Raku m3/m4 155 PASS / 0 FAIL / 7 EXCISED / 162.** 7 EXCISED = 4 map/grep + 3 `~~` regex, all correctly declined. Peers: Icon 12/12, SNOBOL4 7/7, Prolog m3/m4 5/5.
+**Current score (2026-06-27): Raku m3/m4 209 PASS / 0 FAIL / 7 EXCISED / 216.** 7 EXCISED = 4 map/grep + 3 `~~` regex, all correctly declined. Peers: Icon 12/12, SNOBOL4 7/7, Prolog m3/m4 5/5.
 
 **Prior baseline note (2026-06-24): 134 PASS / 0 FAIL / 7 EXCISED / 141.**
 
@@ -417,6 +417,22 @@ bash scripts/util_template_purity_audit.sh
 ---
 
 ## Watermark
+
+**2026-06-27 session (Claude Opus 4.8). Raku m3/m4 209 PASS / 0 FAIL / 7 EXCISED / 216 (was 196). Peers: Icon 12/12, SNOBOL4 7/7. Three committable increments, both modes, zero regressions.**
+
+**RK-OO-F plain-type param enforcement — LANDED both modes (+4 smokes).** The previously-deferred F-tail: a non-`:D`/`:U` typed param (`Int $x`, `Str $s`, a user class) now runtime-checks its bound arg at proc entry and DIES faithfully ("Type check failed in binding to parameter ...") on a wrong type; subtype args (a `Dog` for an `Animal` param) are ACCEPTED via the MRO check. Runtime side (`rt_mc_accepts`) already handled plain types; the only gate was one line in `lower_raku.c`. New `rk_is_modeled_type` guard restricts enforcement to types the runtime models (numeric/string leaves + registered classes) so unmodeled barewords cannot false-die. Reuses `__param_check` (no new IR/template). Smokes: `param_plain_int_passes`/`param_plain_int_dies`/`param_plain_str_passes`/`param_plain_class_subtype`.
+
+**RK-GRAM literal strings in rules — LANDED both modes (+4 smokes).** `rule TOP { "hello" }` now matches its CONTENTS verbatim (quotes stripped) with regex-metacharacters treated as LITERAL (Raku: `"a.b"` matches a literal dot, not any-char). `gram_expand` previously copied the quote chars into the NFA pattern so `"hello"` tried to match the quotes too. Shared by both modes (runtime `gram_expand`); literal+subrule mixes work. Smokes: `grammar_literal`/`grammar_literal_nomatch`/`grammar_literal_subrule_mix`/`grammar_literal_metachar`.
+
+**RK-GRAM built-in character-class subrules — LANDED both modes (+5 smokes).** `<digit>`/`<alpha>`/`<alnum>`/`<upper>`/`<lower>`/`<space>`/`<ws>`/`<xdigit>` resolve to their regex class when a `<name>` isn't a user-defined subrule (user subrules still win — checked first). New `rk_grammar_builtin_class` in `by_name_dispatch.c`; quantifiers and inter-token whitespace compose. Smokes: `grammar_builtin_digit`/`grammar_builtin_alpha`/`grammar_builtin_upper_lower`/`grammar_builtin_space`/`grammar_builtin_nomatch`.
+
+**FRONTIER (RK-GRAM-3, unchanged — still the lead, still a fresh-session item):** recursive rules (`rule TOP { "a" <TOP> | "a" }`) still fail — the depth-16 flatten-to-NFA cannot recurse. This is the native recursive-descent box engine: SNOBOL4 box topology (seq/alt/subrule-recursion: γ=advance, ω=fail/redo) + Icon's Σ/δ/Δ scanning discipline for leaves, with the cursor δ pinned in callee-saved R14 so it stays ambient across subrule recursion. Per the goal mandate, start it in a fresh full-budget session with `ARCH-x86.md`/`ARCH-SCRIP.md` read first.
+
+**TOUCHED (this session):** `src/lower/lower_raku.c` (new `rk_is_modeled_type` + loosened param-check gate), `src/runtime/by_name_dispatch.c` (new `rk_grammar_builtin_class` + `gram_expand` literal-unquote/escape), `scripts/test_smoke_raku.sh` (+13 smokes). The `.s` artifact regen is IDEMPOTENT: all changes are new standalone functions or Raku-grammar/param-only edits, off every SNOBOL4/Icon emit path — peer `.s` output is byte-identical (Icon 12/12, SNOBOL4 7/7 verified green).
+
+---
+
+## Prior watermark
 
 **2026-06-27 session (Claude Sonnet 4.6). Raku m3/m4 176 PASS / 0 FAIL / 7 EXCISED / 183. Peers: Icon 12/12 (full rung suite 208/208 both modes), SNOBOL4 7/7, Prolog m3/m4 5/5.**
 
