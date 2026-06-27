@@ -1,0 +1,90 @@
+diff --git a/src/emitter/BB_templates/bb_cell_call.cpp b/src/emitter/BB_templates/bb_cell_call.cpp
+index 72c0616f..da9d2f4d 100644
+--- a/src/emitter/BB_templates/bb_cell_call.cpp
++++ b/src/emitter/BB_templates/bb_cell_call.cpp
+@@ -8,6 +8,9 @@ extern "C" {
+ }
+ #include "x86_asm.h"
+ extern "C" void * rt_enter(void **slot, int nslots);
++extern "C" void * rt_e_enter(int nslots);
++extern "C" int    rt_e_mark(void);
++extern "C" void   rt_e_reset(int off);
+ /*--------------------------------------------------------------------------------------------------------------------*/
+ static const char *bcc_areg(int i) { static const char * t[4] = { "rsi", "rdx", "rcx", "r8" }; return t[i]; }
+ static const char *bcc_rdiq(int off) { static char b[8][48]; static int i; i = (i + 1) & 7; snprintf(b[i], 48, "qword ptr [rdi + %d]", off); return b[i]; }
+@@ -21,19 +24,36 @@ std::string bb_cell_call() {
+                            + IF(bcc_sh() && bcc_ar(),
+                              x86("label", _.lbl_α)
+                            + x86("comment", "IR_CELL_CALL")
+-                           + x86("lea", "rdi", FR(GZ_CELL_OFF((int)_.op_parts_ival[0])))
++                           + IF(_.op_bounded,
++                             x86("call", "rt_e_mark", (uint64_t)(uintptr_t)(void *)rt_e_mark)
++                           + x86("mov", FR(GZ_CELL_OFF((int)_.op_parts_ival[0])), "eax")
++                           + x86("mov32", "edi", (long)_.op_parts_ival[2])
++                           + x86("call", "rt_e_enter", (uint64_t)(uintptr_t)(void *)rt_e_enter)
++                           + x86("mov", "rdi", "rax"))
++                           + IF(!_.op_bounded,
++                             x86("lea", "rdi", FR(GZ_CELL_OFF((int)_.op_parts_ival[0])))
+                            + x86("mov32", "esi", (long)_.op_parts_ival[2])
+                            + x86("call", "rt_enter", (uint64_t)(uintptr_t)(void *)rt_enter)
+-                           + x86("mov", "rdi", "rax")
++                           + x86("mov", "rdi", "rax"))
+                            + FOR(4, (int)_.op_parts_ival[1], [&](int i) { int src = GZ_CELL_OFF((int)_.gz_arg_slots[i]); int dst = GZ_CELL_OFF(i); return x86("mov", "r11", FRQ(src)) + x86("mov", bcc_rdiq(dst), "r11") + x86("mov", "r11", FRQ(src + 8)) + x86("mov", bcc_rdiq(dst + 8), "r11"); })
+                            + FOR(0, ((int)_.op_parts_ival[1] < 4 ? (int)_.op_parts_ival[1] : 4), [&](int i) { return x86("lea", bcc_areg(i), FR(GZ_CELL_OFF((int)_.gz_arg_slots[i]))); })
+                            + x86_call_tgt(X86T_TGT0)
+                            + x86("def", L(0))
+-                           + x86("test", "eax", "eax")
++                           + IF(_.op_bounded,
++                             x86("test", "eax", "eax")
++                           + x86("je", L(1))
++                           + x86("mov", "edi", FR(GZ_CELL_OFF((int)_.op_parts_ival[0])))
++                           + x86("call", "rt_e_reset", (uint64_t)(uintptr_t)(void *)rt_e_reset)
++                           + x86("jmp", "γ")
++                           + x86("def", L(1))
++                           + x86("mov", "edi", FR(GZ_CELL_OFF((int)_.op_parts_ival[0])))
++                           + x86("call", "rt_e_reset", (uint64_t)(uintptr_t)(void *)rt_e_reset)
++                           + x86("jmp", "ω"))
++                           + IF(!_.op_bounded,
++                             x86("test", "eax", "eax")
+                            + x86("jne", "γ")
+                            + x86("jmp", "ω")
+-                           + IF(!_.op_bounded,
+-                             x86("def", "β")
++                           + x86("def", "β")
+                            + x86("mov", "rdi", FRQ(GZ_CELL_OFF((int)_.op_parts_ival[0])))
+                            + x86_call_tgt(X86T_TGT1)
+                            + x86("jmp", L(0))));
+diff --git a/src/runtime/rt/rt.h b/src/runtime/rt/rt.h
+index 175aaf07..6434bd3e 100644
+--- a/src/runtime/rt/rt.h
++++ b/src/runtime/rt/rt.h
+@@ -110,6 +110,7 @@ void  rt_trail_mark_pop(void);
+ void *rt_e_bump(int nbytes);
+ int   rt_e_mark(void);
+ void  rt_e_reset(int off);
++void *rt_e_enter(int nslots);
+ void  rt_cp_save_caller_env(void *caller_env);
+ void  rt_choice_cut_enter(void *cp);
+ void  rt_choice_cut_exit(void *cp);
+diff --git a/src/runtime/unification.c b/src/runtime/unification.c
+index 22dba7e5..82ded281 100644
+--- a/src/runtime/unification.c
++++ b/src/runtime/unification.c
+@@ -205,6 +205,17 @@ void rt_e_reset(int off)
+     pl_env_reset(&g_pl_env_area, off);
+ }
+ /*--------------------------------------------------------------------------------------------------------------------*/
++/* PL-AREAS-3b — bounded-call frame entry: bump one callee frame off the E-area (same 8+16*nslots size as rt_enter) and
++ * return it. NO caller slot, NO if(!*slot) cache: a bounded call has its resume β elided (PL-BB-1), so the frame is never
++ * re-read and the cache (which only ever skipped the GC_malloc cost) is dead weight — and keeping it would dangle a stale
++ * pointer once the E-area is reset (the documented #1 corruption trap). The caller saves rt_e_mark before this bump and
++ * rt_e_resets after the bounded callee returns, reclaiming this frame (and everything it transitively bumped) in O(1). */
++void *rt_e_enter(int nslots)
++{
++    extern pl_area_t g_pl_env_area;
++    return pl_env_bump(&g_pl_env_area, 8 + 16 * (nslots > 0 ? nslots : 1));
++}
++/*--------------------------------------------------------------------------------------------------------------------*/
+ #define RT_MARK_STACK_MAX 32
+ static int g_resolve_mark_stack[RT_MARK_STACK_MAX];
+ static int g_resolve_mark_top = 0;
