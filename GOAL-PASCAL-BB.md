@@ -81,33 +81,70 @@ construction — non-`DT_A` callers hit unchanged code). After the array rungs l
   DT_A/DT_S strategy frozen in `.github/PAS-UNBOX-ANALYSIS-2026-06-27.md`. Findings: no gmp; scalar
   int already inline; array=SOH-text is the cost; reals truncated-to-int (correctness); `ARBLK_t`
   exists unused by Pascal.
-- [~] **PAS-UNBOX-1 — 1-D integer array as `DT_A` ARBLK (create + read + write, atomic slice).**
-  RUNTIME FOUNDATION LANDED 2026-06-27 (`by_name_dispatch.c`, additive/dormant): new `arr_make`
-  sink (allocates a `DT_A` `ARBLK`, `lo=0`/`hi=high`, `data[high+1]` zeroed `INTVAL(0)` — mirrors
-  `mk_array_fill`'s 0-based `high+1` sizing), plus `DT_A` fast branches in `arr_get`
+- [x] **PAS-UNBOX-1 — 1-D integer array as `DT_A` ARBLK (create + read + write, atomic slice). LANDED 2026-06-27 (Session 69, M3+M4 128/0).**
+  RUNTIME FOUNDATION (`by_name_dispatch.c`, prior session): `arr_make` sink (allocates a `DT_A` `ARBLK`,
+  `lo=0`/`hi=high`, `data[high+1]` zeroed `INTVAL(0)`), `DT_A` fast branches in `arr_get`
   (`*out = data[idx-lo]`, O(1)) and `arr_set_pure` (`data[idx-lo] = v` in place, **no `GC_malloc`,
-  no reserialize**); `arr_make` added to `rt_builtin_is_known`'s list. All three guarded on
-  `args[0].v == DT_A`; the `DT_S` string path is byte-identical. **Verified no regression:** M3
-  Pascal **128/0**; M4 array smoke (`iarr`) = 25; **Raku** (the direct co-user of `arr_get`/
-  `arr_set_pure`) array assignment byte-correct (10/99/30) — `DT_S` untouched; `arr_make` emitted
-  nowhere yet → `DT_A` branch dormant (no regression possible). **CURSOR — the activating step:**
-  the *creation-flip* in `mk_array_fill` (pascal.y:410) to emit `mk_fnc1("arr_make", ilit(high))`
-  instead of the SOH-`TT_QLIT` — **but it MUST be SELECTIVE** (see landmine below): `mk_array_fill`
-  feeds `g_pas_arrays` which ALSO holds records, char-arrays, 2-D, and array-of-records; a blanket
-  flip turns those into `DT_A` and breaks the `\x05`-nested-record-in-slot + string-comparison
-  mechanisms. Flip ONLY a pure-numeric 1-D array (ncols<0, not in `g_pas_chararrs`, not a recvar,
-  not arr-rec, not enum-array). Needs bison regen (landmine #2) + the full M3+M4 + four-language
-  gate. Gate (whole rung): M3 128/0, M4 128/0; emitted `a[i]:=v` shows no `GC_malloc`/reserialize.
-- [ ] **PAS-UNBOX-2 — 2-D arrays + array param passing as `DT_A`.** The flat 2-D index
-  (`BINOP_ADD(BINOP_MUL(i,ncols),j)` → `TT_IDX(a,flat)`, see Mechanism inventory) reads/writes the
-  `ARBLK` via `ndim`/`lo2`/`hi2`. Value-param array copy duplicates the `ARBLK` (`data` block copy);
-  var-param array is the cell address of the block. Probes: `arr2d*.pas`, `arrparam.pas`, `vparr.pas`.
-  Gate: full M3+M4 + four-language cross-check; the `arr2dtype`/`arr2dtype2`/`arrparam` Frontier-1
-  trio re-checked (record whether they close).
-- [ ] **PAS-UNBOX-3 — `packed array of char` as flat byte buffer.** Back a char-array with a flat
-  mutable byte buffer so `s[i]:=c` → `mov byte [base+i],cl` (O(1), no malloc-rebuild); whole-string
-  compare via `memcmp` rather than descriptor coercion. (Smallest for the current corpus; matters if
-  PAS-BENCH pursues Dhrystone.) Probes: `chararr*`, `stdlib*`. Gate: full M3+M4 + cross-lang.
+  no reserialize**); all three guarded on `args[0].v == DT_A`; `DT_S` string path byte-identical.
+  **ACTIVATING CREATION-FLIP (this session, Pascal-only):** `pascal.y` — added selectivity guard
+  `pas_array_is_pure_num(name)` (rejects char-array via `pas_is_chararr`, array-of-records via
+  `pas_arrrec_find>0`, enum-array via `pas_enumarr_get`, recvar via `g_pas_recvars` scan) and
+  `mk_array_init(name,high)` which emits `mk_fnc1("arr_make",ilit(high))` for a pure-numeric array
+  and falls back to SOH `mk_array_fill` otherwise. Wired BOTH fill sites: main-program globals
+  (`program:` rule) and proc locals (`mk_proc`). `lower_pascal.c` — one arm in `lower_call` routing
+  `arr_make` through the **dval=2.0 `rt_call_arr`** path (the route that reaches the builtin
+  dispatch; default TT_FNC is dval=3.0 user-proc-only). **Verified:** `pb31` (pure 1-D `array[0..15]
+  of integer`) flips → `arr_make` emitted, store path has **0 `GC_malloc`, 0 `sprintf`** (was full
+  reserialize/write); `arrrec1`/`chararr1`/`arr2d` stay SOH (`arr_make`=0). 100-elem read+write
+  stress round-trips. M3 128/0, M4 128/0 ASMFAIL=0. **Cross-language safe by construction:** only
+  `pascal.y`(+regen `pascal.tab.{c,h}`)+`lower_pascal.c` touched, ZERO shared emitter/runtime; no
+  `LANG_PASCAL` guard (BB-TEMPLATES-LANG-AUDIT unaffected — no template edits); SNOBOL smoke clean.
+- [x] **PAS-UNBOX-2 — 2-D arrays + array param passing as `DT_A` (REPRESENTATION HALF). LANDED 2026-06-27 (Session 69, M3+M4 128/0).**
+  A true 2-D numeric array is ALREADY flat-indexed at parse time (`flat = i*ncols+j` → `TT_IDX(a,flat)`,
+  grammar ~639), so a flat `DT_A` `ARBLK` of size `high+1=(rows+1)*(cols+1)` works identically to 1-D —
+  no `ndim`/`lo2`/`hi2` runtime path needed for the flat layout. **Edit (this session):** removed the
+  `ncols>=0` rejection from the flip guard (renamed `pas_array_is_pure_num_1d`→`pas_array_is_pure_num`),
+  so true-2-D-numeric flips while array-of-records (also `ncols>=0` but caught by `pas_arrrec_find`)
+  stays SOH. **Array params transparent:** value/var array params are passed as a WHOLE descriptor via
+  name-binding, so a `DT_A` array flows through unchanged. **Verified:** `arr2d`/`arr2d2`/`arr2d3`/
+  `matmul` (`c[i,j]:=c[i,j]+a[i,k]*b[k,j]`) all flip + correct; `arrrec1`/`arrrec2` stay SOH (arr_make=0);
+  **Frontier-1 trio `arr2dtype`/`arr2dtype2`/`arrparam` CLOSED in BOTH modes** (10/6/15). M3 128/0,
+  M4 128/0. Pascal-only file scope (zero shared) — no cross-lang risk.
+  - **TICKETED (separate rung, NOT done here) — value-param COPY semantics.** Pascal value-param arrays
+    must COPY (callee mutation invisible to caller). This is **broken on BOTH SOH and DT_A today** (a
+    PRE-EXISTING bug, not introduced by unboxing): `vpcopy.pas`/`vp2d.pas` (mutate a value-param array,
+    read caller) print the mutated value (999/777) under both representations because the param is
+    name-bound to the same descriptor. No corpus probe exercises it (all read-only params), so the gate
+    is green. The clean DT_A fix is a shallow `data`-block copy on value-param pass, but the bind happens
+    in shared `rt.c` `rt_name_save_push` (four-language blast radius, and the byref mask isn't consulted
+    there) — so it needs its own scoped rung with the full four-language gate + a lowering-side
+    copy-on-pass that threads byref. Do NOT bolt it onto the representation flip. Spin off as
+    **PAS-UNBOX-2b — value-param array copy-on-pass.**
+- [~] **PAS-UNBOX-3 — `packed array of char` as flat byte buffer. CHARACTERIZED 2026-06-27 (Session 69, no code change — design frozen, flip deferred to its own scoped session).**
+  **Goal:** back a char-array with a flat mutable byte buffer so `s[i]:=c` → `mov byte [base+i],cl`
+  (O(1), no malloc-rebuild); whole-string compare via `memcmp` rather than descriptor coercion.
+  **CHARACTERIZATION — this is a MULTI-PATH REWRITE, NOT a one-line guard flip (unlike -1/-2).** A
+  char-array's contract spans FOUR coupled paths, several in SHARED runtime:
+  1. **Element store** `s[i]:='h'` → `arr_set_pure` on a SOH string (the slow O(n)-reserialize target;
+     confirmed `chararr1.s` has 17 `arr_set_pure`). This is the only path a byte buffer trivially helps.
+  2. **Whole-array relop** `id='writeln '`, `a<b`, `a<'zzz '` (chararrlit/chararrord) → `pas_rel`
+     (pascal.y:314) sets `ival=1` via `pas_is_strtyped` → `rt_relop_descr2`/`strcmp`. **This works
+     ONLY because the char-array's SOH bytes ARE a contiguous char string** that `strcmp` reads
+     directly. A flat-byte-buffer `DT_A` of per-element char descriptors BREAKS this unless the relop
+     path is rewritten to `memcmp` the buffer. `rt_relop_descr2` is SHARED runtime (four-language).
+  3. **Char I/O** `write(s[i])` reads an element and char-prints it (the `__pas_chr`/`__pas_chrlit`
+     wrap, pascal.y:311-312).
+  4. **`array[char] of <T>`** (chararr3) is a CHAR-INDEXED array — a different beast (index is a char
+     ordinal, not 1..N); NOT in scope of a packed-char-buffer flip; keep on its current path.
+  **FROZEN DESIGN:** a `DT_PSTR`/flat-`char*`-buffer descriptor variant (NOT `DT_A` — `DT_A` elements
+  are full DESCRs, wrong for packed chars). Store = `mov byte [buf+i-lo],cl`; element read = `movzx`;
+  whole compare = `memcmp(buf_a, buf_b, len)`; I/O = print the buffer span. Must convert ALL FOUR
+  paths in lockstep + leave the SOH path byte-identical for non-char-array callers (landmine: never
+  half-convert — a byte-buffer store that the strcmp compare reads as a SOH string silently diverges).
+  **WHY DEFERRED:** touches shared `by_name_dispatch.c` + `rt_relop_descr2` (four-language blast
+  radius) and needs its own full four-language gate budget; "smallest for the current corpus" so
+  low urgency. Do it in a dedicated session, characterize-first done. Probes: `chararr*`, `stdlib*`.
+  Gate: full M3+M4 + cross-lang + template byte-identity.
 - [ ] **PAS-UNBOX-4 — real correctness (multi-part; correctness > speed).** Root located:
   `lower_pascal.c` tracks NO declared types, so a real *variable* read lowers to a bare `IR_VAR` with
   no real tag; the emit-time detector `binop_is_num_real` (`emit_bb.c:1377`) classifies integer-vs-real
