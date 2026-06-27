@@ -26,10 +26,10 @@ Three clean fixes this session, all verified, three files touched total:
 | template-medium-invisible `--strict` | 0 violations |
 | `git status` | only the 3 intended files modified, nothing stray |
 
-NOTE on the obsolete M2 gate: a concurrent **DE-INTERP** push (`6e87566`) deleted `--interp`
+NOTE on the obsolete M2 gate: a concurrent **DE-INTERP** push (`6e87566`) deleted `--run`
 (mode 2) from the driver. The GOAL-PASCAL-BB M2 gate scripts are now obsolete; **the Pascal gate
 is M3 / M4 only**. The Icon and Prolog *crosscheck scripts* (`test_crosscheck_icon.sh`,
-`test_crosscheck_prolog.sh`) still diff against `--interp` and therefore report spurious failures
+`test_crosscheck_prolog.sh`) still diff against `--run` and therefore report spurious failures
 — this is a stale-harness artifact of DE-INTERP, NOT a regression. Verify those two languages via
 direct `--run` output instead until the crosscheck scripts are de-interp'd.
 
@@ -152,7 +152,7 @@ cd SCRIP && make -j4 scrip && make libscrip_rt
 # cross-language (REQUIRED before committing shared emit_core.*/emit_bb.*/bb_*.cpp/headers):
 bash scripts/test_crosscheck_snobol4.sh      # expect 166/87 SKIP=8
 bash scripts/test_gate_template_medium_invisible.sh --strict   # expect 0 violations
-# Icon/Prolog: verify via direct --run (crosscheck scripts are stale on --interp)
+# Icon/Prolog: verify via direct --run (crosscheck scripts are stale on --run)
 ```
 
 ## Canary

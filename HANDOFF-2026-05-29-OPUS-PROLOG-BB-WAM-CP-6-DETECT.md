@@ -90,7 +90,7 @@ Every call shows `tail=1 det=0` — same reason, no cut to even rescue the base 
 |------|--------|
 | GATE-1 prolog smoke | 5/5 ✅ |
 | GATE-2 3-mode crosscheck | 132/0 (5 ORACLE_MISS) ✅ |
-| GATE-3 mode-2 (`--interp`) | 104/107 ✅ |
+| GATE-3 mode-2 (`--run`) | 104/107 ✅ |
 | GATE-4 mode-4 minimal | 4/4 ✅ |
 | GATE-SWI mode-2 | 57/57 (100%) ✅ |
 | GATE-SWI mode-3 | 57/57 (100%) ✅ |

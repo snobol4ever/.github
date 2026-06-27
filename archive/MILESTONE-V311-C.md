@@ -708,8 +708,8 @@ The Makefile gains a `sil` object group compiled alongside the existing runtime.
 | Boehm GC (already used) | Boehm GC (unchanged) | C1 |
 | `sil_macros.h` (already written) | extended by C0 types | C0 |
 
-The existing `--interp` tree-walk path remains as the reference oracle until
-V311-C14 is complete and passes PASS=178. Then `--interp` delegates to `INTERP_fn`.
+The existing `--run` tree-walk path remains as the reference oracle until
+V311-C14 is complete and passes PASS=178. Then `--run` delegates to `INTERP_fn`.
 
 ---
 

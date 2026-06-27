@@ -88,7 +88,7 @@ Touches shared `rt.c`, so run the full battery and diff:
 - `bash scripts/test_smoke_prolog.sh` (m3/m4 must hold 5/5) and the SNOBOL smoke — `rt.c` is shared across all languages.
 - Icon smoke `scripts/test_smoke_icon.sh` m3/m4 must hold 12/12.
 
-**Note on m2:** mode-2 (`--interp`) is **deleted** (commit `a2440f4`, GOAL-DE-INTERP). The smoke + rung scripts still *invoke* `--interp`, so they report phantom m2 FAIL across the board — ignore m2, gate on m3/m4. (Separately worth fixing the harnesses to stop calling the dead flag; that's DE-INTERP territory, not this goal. The GOAL-ICON-FULL-PASS.md watermark is also stale — shows HEAD `bcef3df`, actual `023fb43`.)
+**Note on m2:** mode-2 (`--run`) is **deleted** (commit `a2440f4`, GOAL-DE-INTERP). The smoke + rung scripts still *invoke* `--run`, so they report phantom m2 FAIL across the board — ignore m2, gate on m3/m4. (Separately worth fixing the harnesses to stop calling the dead flag; that's DE-INTERP territory, not this goal. The GOAL-ICON-FULL-PASS.md watermark is also stale — shows HEAD `bcef3df`, actual `023fb43`.)
 
 ---
 

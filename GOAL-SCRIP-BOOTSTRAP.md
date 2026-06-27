@@ -58,7 +58,7 @@ GOAL-LANG-* ladders feed parts; this Goal integrates them.
 
 ## Why this Goal exists
 
-The session-#61 win — `--interp`, `--interp`, `--run` all
+The session-#61 win — `--run`, `--run`, `--run` all
 byte-identical to SPITBOL on `beauty.sno < beauty.sno` — closed
 **Milestone 1**. SCRIP's SNOBOL4 frontend self-hosts a SNOBOL4
 program. But SCRIP itself is still C; the meta-circular loop is
@@ -131,7 +131,7 @@ After Milestone 2 lands on x86-64, Milestone 3 replaces "scrip
 - `node sno-interp.js` (JS) — at `src/driver/js/sno-interp.js` today, hand-written
 - `java -jar Interpreter` (JVM) — at `src/driver/jvm/` today, hand-written
 - `dotnet snobol4dotnet.dll` (.NET) — at `src/driver/net/` today, hand-written
-- `wa--interp scrip.wasm` (WASM) — at `src/driver/wasm/` today, stub
+- `wa--run scrip.wasm` (WASM) — at `src/driver/wasm/` today, stub
 
 Each of those four existing hand-written interpreters becomes the
 **bootstrap host** for its backend — Stage-1 on that platform.
@@ -220,9 +220,9 @@ layer's bottom row into a four-port matrix.
 
 | Mode | Where it lives today | What it is |
 |------|----------------------|------------|
-| **IR interp** (--interp) | `bb_boxes.c` body of `bb_len()` | The C function above, called from the tree-walk via `bb_box_fn` pointer |
+| **IR interp** (--run) | `bb_boxes.c` body of `bb_len()` | The C function above, called from the tree-walk via `bb_box_fn` pointer |
 | **SM in-mem** (--run) | `bb_build.c` `bb_len_emit_binary()` | Same logic, manually emitted as machine-code bytes into a buffer |
-| **SM interp** (--interp) | `sm_interp.c` SM_BB_LEN handler + `bb_len()` body | Reuses the IR body via the SM dispatch loop |
+| **SM interp** (--run) | `sm_interp.c` SM_BB_LEN handler + `bb_len()` body | Reuses the IR body via the SM dispatch loop |
 | **SM text-gen** (AOT, future) | not yet emitted | Same logic again, emitted as ahead-of-time source for non-x86 backends |
 
 The first three already exist.  The fourth is the deterministic
@@ -451,8 +451,8 @@ deliverable.  Today's three modes are all in-memory:
 
 | Mode | Output | Used by |
 |------|--------|---------|
-| IR-interp | tree-walk on `EXPR_t` | `--interp`; `bb_*` boxes called from `interp.c` |
-| SM-interp | dispatch loop on `SM_Instr[]` | `--interp`; `bb_*` boxes called from `sm_interp.c` |
+| IR-interp | tree-walk on `EXPR_t` | `--run`; `bb_*` boxes called from `interp.c` |
+| SM-interp | dispatch loop on `SM_Instr[]` | `--run`; `bb_*` boxes called from `sm_interp.c` |
 | SM in-mem JIT | x86 bytes via `bb_emit.c` EMIT_BINARY | `--run`; `bb_*_emit_binary` from `bb_build.c` |
 | **SM text codegen** | source text in target language | (NEW) — emits `.c` / `.js` / `.cs` / `.il` / `.j` / `.wat` ahead of time |
 
@@ -481,7 +481,7 @@ forms of the same template.
 
 The CB-7 ordering in the sub-rung list (above) leads with **CB-7a
 (template grammar)** and **CB-7e (text codegen, 4th mode)** as
-the unifying first deliverables — `--interp` /
+the unifying first deliverables — `--run` /
 `--run` modes (CB-7b/c/d) are then specialisations of the
 same template targeted at different in-memory execution
 substrates.  Specifically:
@@ -724,7 +724,7 @@ bash /home/claude/SCRIP/scripts/test_smoke_snobol4.sh        # PASS=7
 bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh # PASS=49
 # Plus: beauty self-host across all three modes byte-identical.
 BEAUTY=/home/claude/corpus/programs/snobol4/demo/beauty
-for mode in --interp --interp --run; do
+for mode in --run --run --run; do
     SNO_LIB=$BEAUTY /home/claude/SCRIP/scrip $mode \
         $BEAUTY/beauty.sno < $BEAUTY/beauty.sno \
         | md5sum  # must be abfd19a7a834484a96e824851caee159
@@ -782,7 +782,7 @@ ones if the partition allows parallel work):**
   of the SN-26 / SN-32 work landed). The tree-walk interpreter
   in SNOBOL4 itself. **Gate:** the SNOBOL4-language interp,
   compiled by Stage-1, runs `beauty.sno < beauty.sno` byte-identical
-  to today's `--interp` output.
+  to today's `--run` output.
 
 - [ ] **CB-5 — Runtime support: snobol4*.c, name_t.c → SNOBOL4.**
   `comm_var`, `comm_call`, `NV_SET_fn`, `NV_name_from_ptr`, the
@@ -1099,8 +1099,8 @@ assembly → assemble → link → execute) must be proven correct on
 SNOBOL4 before it can be trusted as the unification point for CB-7e
 and the entire backend grid. The ladder proves correctness by
 ascending through smoke, demos, beauty test suite, and finally
-beauty self-host — the same proof sequence used for --interp and
---interp before them.
+beauty self-host — the same proof sequence used for --run and
+--run before them.
 
 The dual-mode emitter infrastructure already exists in `bb_emit.c`
 (`EMIT_TEXT` / `EMIT_BINARY`) but `--text-run` is not yet wired
@@ -1111,8 +1111,8 @@ correct names are documented in ARCH-x86.md. Summary:
 
 | Old name | New name | What it actually does |
 |----------|----------|-----------------------|
-| `--interp` | `--ir-walk` | IR tree-walk, C interpreter |
-| `--interp` | `--sm-interp` | SM dispatch loop, C interpreter |
+| `--run` | `--ir-walk` | IR tree-walk, C interpreter |
+| `--run` | `--sm-interp` | SM dispatch loop, C interpreter |
 | `--run` | `--sm-native` | SM → x86 bytes → mmap → jump in |
 | `--compile` | `--compile --target=x64` | SM → NASM text → nasm → ld → exec |
 

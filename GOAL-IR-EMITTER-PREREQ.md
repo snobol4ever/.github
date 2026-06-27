@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -40,7 +40,7 @@ Three hard rules — no exceptions:
 
 **Shared tables (label_table, proc_table, g_pl_pred_table) are built from tree_t before lower runs and are legitimate shared state — they are not references into the tree structure itself.**
 
-**Done when:** tree_t freed after lower(); IR_block_t freed after dcg_table registration; SM_Instr has no cross-phase pointer fields; all three modes (--interp, --run, --compile) pass on beauty.sno.
+**Done when:** tree_t freed after lower(); IR_block_t freed after dcg_table registration; SM_Instr has no cross-phase pointer fields; all three modes (--run, --run, --compile) pass on beauty.sno.
 
 ---
 
@@ -90,19 +90,19 @@ source → parser → tree_t + shared tables (label_table, proc_table, g_pl_pred
 
 ### IEP-7 — Delete tree_t immediately after lower() returns (Rule 1 enforcement)
 
-- [ ] **IEP-7** — In `scrip_sm.c`, after `SM_Program *sm = lower(ast_prog)` succeeds, call `code_free(code)` and null `ast_prog`. In the `--dump-sm` path in `scrip.c` (calls `lower()` directly): same. Mode 1 (`--interp`) is exempt — tree_t IS the program there; no lower phase runs.
+- [ ] **IEP-7** — In `scrip_sm.c`, after `SM_Program *sm = lower(ast_prog)` succeeds, call `code_free(code)` and null `ast_prog`. In the `--dump-sm` path in `scrip.c` (calls `lower()` directly): same. Mode 1 (`--run`) is exempt — tree_t IS the program there; no lower phase runs.
 
   `code_free` exists in `ast_clone.c` but is currently never called. Wire it at both SM-path exit points.
 
   ⛔ **IEP-7 cannot run until GOAL-CHUNKS completes.** Every surviving `every_table` and `SM_PUSH_EXPR` site holds a `tree_t*` — freeing tree_t before CHUNKS finishes crashes immediately. That crash is the proof CHUNKS is done.
 
-  **Gate:** `scrip --interp beauty.sno` and `scrip --run beauty.sno` pass with tree_t freed after lower. Any dangling reference crashes immediately.
+  **Gate:** `scrip --run beauty.sno` and `scrip --run beauty.sno` pass with tree_t freed after lower. Any dangling reference crashes immediately.
 
 ### IEP-8 — sm_prog_free frees dcg_table entries (Rule 2 enforcement)
 
 - [ ] **IEP-8** — In `sm_prog_free()`: call `IR_free(dcg_table[i])` for each entry before freeing `dcg_table`. Ownership: `sm_prog_dcg_add` transfers ownership to `SM_Program`; lower must not free after registration. Modes 2/3 keep dcg_table alive for the interpreter lifetime; mode 4 emitter walks dcg_table then sm_prog_free cleans up.
 
-  **Gate:** valgrind on `scrip --interp beauty.sno` shows zero IR_block_t leaks.
+  **Gate:** valgrind on `scrip --run beauty.sno` shows zero IR_block_t leaks.
 
 ### IEP-9 — Final audit: all three rules verified by construction
 
@@ -110,7 +110,7 @@ source → parser → tree_t + shared tables (label_table, proc_table, g_pl_pred
   1. `grep "sm_emit_ptr" src/lower/lower.c` — zero hits.
   2. `grep "every_table" src/` — zero hits (CHUNKS done).
   3. `grep "SM_PUSH_EXPR" src/include/sm_prog.h` — zero hits (CHUNKS done).
-  4. `scrip --interp beauty.sno` and `scrip --run beauty.sno` pass.
+  4. `scrip --run beauty.sno` and `scrip --run beauty.sno` pass.
   5. `scrip --compile beauty.sno` byte-identical to pre-IEP-4 baseline.
 
 ---

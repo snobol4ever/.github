@@ -555,7 +555,7 @@ All other conditions identical (same machine, same 13 programs, same RUNS=3 medi
 - **Control group (no patterns): ≤6% noise** — confirming blobs add zero overhead to non-pattern execution. Exactly as predicted.
 - **vs SPITBOL:** pattern_bt gap closes from 11.1× (C BB) to **5.5×** — inline dispatch eliminates one layer of indirection. Remaining gap is the interp-loop overhead (phases 1/2/4/5), which SM-LOWER targets.
 - **Bottleneck identified:** `arith_loop` 17.4× and `op_dispatch` 29.0× behind SPITBOL with *zero* pattern work — pure interp-loop cost. SM dispatch (M-SCRIP-U3) directly addresses this.
-- **Next:** M-SCRIP-U3 (SM-LOWER) — compile IR → SM_Program; `--interp` path active; target PASS=178 via SM dispatch.
+- **Next:** M-SCRIP-U3 (SM-LOWER) — compile IR → SM_Program; `--run` path active; target PASS=178 via SM dispatch.
 
 ---
 

@@ -125,7 +125,7 @@ Target architecture:
 
 - [x] **U-10** — Replace `icn_broker` call sites in `scrip.c`/`icon_gen.c` with `bb_broker(..., BB_PUMP, ...)`.
   Remove `icn_broker` function entirely. DONE.
-  Gate: make scrip clean; Icon --interp PASS=48/59 (non-regressing). ✅
+  Gate: make scrip clean; Icon --run PASS=48/59 (non-regressing). ✅
 
 - [x] **U-11** — Replace `pl_exec_goal` call sites with `bb_broker(..., BB_ONCE, ...)`.
   Remove `pl_exec_goal` function entirely. DONE.
@@ -168,7 +168,7 @@ The steps below build toward that incrementally — always green, always runnabl
   All three entry points call `polyglot_init` — their individual init sequences removed.
   Gate: `make scrip` clean; smoke PASS=2.
 
-- [x] **U-15** — `--interp` per-statement dispatch by `st->lang`. DONE.
+- [x] **U-15** — `--run` per-statement dispatch by `st->lang`. DONE.
   In `execute_program`'s statement loop, replaced E_CHOICE/E_CLAUSE skip guard with:
     `LANG_SNO`: existing path (subject / pattern / replacement / goto).
     `LANG_ICN`: skip inline (E_FNC defs registered by polyglot_init); call icn_call_proc(main) post-loop.
@@ -191,8 +191,8 @@ The steps below build toward that incrementally — always green, always runnabl
   Fallback: one-shot box wrapping `icn_interp_eval` result.
   Gate: `make scrip` clean; smoke PASS; Icon rung01-11 59/59; regression non-regressing.
 
-- [x] **U-18** — Polyglot --interp: Icon section of wordcount.md now outputs 9/9. DONE.
-  Pivoted from --interp to --interp: static linkage of interp_eval/icn_interp_eval/
+- [x] **U-18** — Polyglot --run: Icon section of wordcount.md now outputs 9/9. DONE.
+  Pivoted from --run to --run: static linkage of interp_eval/icn_interp_eval/
   g_pl_active in scrip.c blocks extern access from sm_interp.c.
   Four fixes in icn_interp_eval (scrip.c):
     (a) E_VAR &-keyword handler: &letters/&pos/&ucase/&lcase/&digits/&null/&fail.
@@ -200,7 +200,7 @@ The steps below build toward that incrementally — always green, always runnabl
     (c) tab() fixed: propagates FAILDESCR from argument (allows while-loop exit).
     (d) E_SEQ_EXPR added: multi-statement brace blocks had no handler — now evaluates
         all children in order.
-  Gate: scrip --interp demo/scrip/demo2/wordcount.md → 9 (SNO) + 9 (Icon).
+  Gate: scrip --run demo/scrip/demo2/wordcount.md → 9 (SNO) + 9 (Icon).
   Prolog section silent (phrase/3, char_type/2 pre-existing gaps).
   smoke PASS=2; unified_broker PASS=12. SCRIP HEAD bb780157.
 
@@ -210,8 +210,8 @@ The steps below build toward that incrementally — always green, always runnabl
   (color facts via BB_ONCE fail-loop prints `PL: red/green/blue`). `.ref` generated.
   Root cause fixed: missing closing ``` fence in polyglot block caused prolog_compile to
   never run. Also fixed: post-loop Prolog main/0 dispatch in execute_program (U-19 analogue
-  of U-15 Icon post-loop). Gate: unified_broker PASS=13; smoke PASS=2. --interp pivot: gate
-  is --interp only per U-18 note (--interp polyglot blocked by static linkage).
+  of U-15 Icon post-loop). Gate: unified_broker PASS=13; smoke PASS=2. --run pivot: gate
+  is --run only per U-18 note (--run polyglot blocked by static linkage).
   Also: demo/scrip/*.md → *.scrip rename (git mv all 10); scripts/test_scrip_demos.sh added.
 
 - [x] **U-20** — Documentation. DONE.
@@ -240,11 +240,11 @@ execution modes under one model:
 └── ```Prolog   →  one_module.pl.o    (x86 asm → as → .o)
                      └── ld → one_module   (linked binary)
 
-Same module boundaries for --interp (in-memory interp) and emit paths.
+Same module boundaries for --run (in-memory interp) and emit paths.
 ScripModuleRegistry in-memory = the linker symbol table on disk.
 ```
 
-The three interpreter modes (--interp, --interp, --bb=wired) all load
+The three interpreter modes (--run, --run, --bb=wired) all load
 all modules into the same registry simultaneously — matching what the
 linker does when combining .o files. Cross-module calls work the same
 way in all modes: look up the symbol in the registry, dispatch.

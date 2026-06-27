@@ -5,7 +5,7 @@
 **Status:** ⬜
 
 ## Goal
-`scrip --interp beauty.sno beauty.sno` output matches SPITBOL x64 exactly.
+`scrip --run beauty.sno beauty.sno` output matches SPITBOL x64 exactly.
 
 ## Depends on
 MILESTONE-SN4X86-TILDE.md, MILESTONE-SN4X86-ALPHABET.md
@@ -13,7 +13,7 @@ MILESTONE-SN4X86-TILDE.md, MILESTONE-SN4X86-ALPHABET.md
 ## Run
 ```bash
 SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
-    ./scrip --interp \
+    ./scrip --run \
     /home/claude/corpus/programs/snobol4/demo/beauty.sno \
     /home/claude/corpus/programs/snobol4/demo/beauty.sno
 ```

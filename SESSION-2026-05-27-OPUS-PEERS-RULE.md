@@ -75,7 +75,7 @@ with no field-bloat needed.
 All HELD at session-start baseline:
 - `test_smoke_icon.sh` PASS=5/5
 - `test_smoke_prolog.sh` PASS=5/5
-- `test_icon_all_rungs.sh --interp` PASS=198 FAIL=34 XFAIL=36 TOTAL=268
+- `test_icon_all_rungs.sh --run` PASS=198 FAIL=34 XFAIL=36 TOTAL=268
 - `test_smoke_unified_broker.sh` PASS=24 FAIL=26
 - `test_per_kind_diff.sh` PASS=5 FAIL=16 STUB=33 NEW=0 GONE=1061
 - FACT RULE grep = 0

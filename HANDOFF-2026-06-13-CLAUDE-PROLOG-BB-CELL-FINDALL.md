@@ -52,4 +52,4 @@ Reuses the **same** IR_CELL_FINDALL box with `agg_mode=1` (op_parts_ival[10]); o
 The findall box is the template for ANY meta-goal-driving construct (aggregate, forall, \+, once over a generator): emit the goal as a callee box, drive it via δ/ε in a loop, do value work in `rt_*` helpers that touch only `Term*`. NEVER route a driven goal through `rt_meta_solve`/`meta_pred_solve` (old heap-env convention, IR-walking, GZ-incompatible). `gzu_build` (now extern in bb_cell_unify.cpp) is the shared term-constructor for templates.
 
 ## Discipline followed
-m2 (`--interp`) HARD gate held at 114 every commit (it is the oracle; never regressed even though this session's work is m3/m4). m3≡m4 parity preserved by construction (shared GZ codegen). All three commits green; cross-language smoke run before each commit touching shared files. No broken commits.
+m2 (`--run`) HARD gate held at 114 every commit (it is the oracle; never regressed even though this session's work is m3/m4). m3≡m4 parity preserved by construction (shared GZ codegen). All three commits green; cross-language smoke run before each commit touching shared files. No broken commits.

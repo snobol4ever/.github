@@ -79,13 +79,13 @@ suite can be written and run.
 - [ ] **S-1** — Prerequisite: GOAL-PROLOG-IR-RUN Phase 1C complete.
   Prolog E_CHOICE/E_CLAUSE/E_UNIFY/E_CUT handled in `interp_eval()`.
   Icon already done. SNOBOL4 already done.
-  Gate: `./scrip --interp hello.pl` and `./scrip --interp hello.icn` both pass
+  Gate: `./scrip --run hello.pl` and `./scrip --run hello.icn` both pass
   through the same `interp_eval()` switch.
 
 - [ ] **S-2** — Write `test/cross-lang/snobol4_calls_prolog.sc`:
   A Snocone driver that calls a Prolog predicate (member/2 or similar) directly.
   The Prolog predicate is defined in the same program (shared IR, same pred table).
-  Gate: `./scrip --interp test/cross-lang/snobol4_calls_prolog.sc` produces
+  Gate: `./scrip --run test/cross-lang/snobol4_calls_prolog.sc` produces
   correct output, verified against swipl oracle.
 
 - [ ] **S-3** — Write `test/cross-lang/prolog_calls_icon.pl`:

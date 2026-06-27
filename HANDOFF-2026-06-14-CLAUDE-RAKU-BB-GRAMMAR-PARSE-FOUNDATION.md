@@ -12,7 +12,7 @@ SNOBOL4 m4 7/7 (HARD ✓), NFA oracle 5/5. `g_vstack`=0, `bb_bin_t`=0. Smoke gre
 
 ## What landed — `f3b1837`
 
-Raku grammar `.parse` now runs end-to-end in mode 2 (`--interp`), mode 3 (`--run`), and mode 4 (`--compile`).
+Raku grammar `.parse` now runs end-to-end in mode 2 (`--run`), mode 3 (`--run`), and mode 4 (`--compile`).
 Subrule `<name>` references are inline-expanded into a single NFA pattern (the pre-existing `gram_expand`
 path); `.parse` returns the matched string (truthy) on a full anchored match, or `NULVCL` (falsy) on no-match.
 

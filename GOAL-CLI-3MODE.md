@@ -4,15 +4,15 @@
 
 ## End state
 
-Three execution modes, one orthogonal BB strategy axis (under `--interp` only):
+Three execution modes, one orthogonal BB strategy axis (under `--run` only):
 
 | Flag | Meaning | BB strategy |
 |------|---------|-------------|
-| `--interp` | SM emulator (interprets `SM_Program`) | `--bb=brokered` (default) or `--bb=wired` |
+| `--run` | SM emulator (interprets `SM_Program`) | `--bb=brokered` (default) or `--bb=wired` |
 | `--run` | SM/BB emit to memory, execute in-process (JIT) | wired only (forced) |
 | `--compile` | SM/BB emit asm → assemble+link → separate process | wired only (forced) |
 
-Mode 1 (AST-interp, `--ast-run`/`----interp`) and all deprecated aliases deleted. `interp_eval.c` / `interp_exec.c` / `interp_call.c` gone; live runtime moved to `icn_runtime.c`, `interp_globals.c`, `interp_hooks.c`, `interp_data.c`. One name per concept across the codebase.
+Mode 1 (AST-interp, `--ast-run`/`----run`) and all deprecated aliases deleted. `interp_eval.c` / `interp_exec.c` / `interp_call.c` gone; live runtime moved to `icn_runtime.c`, `interp_globals.c`, `interp_hooks.c`, `interp_data.c`. One name per concept across the codebase.
 
 ## Closed step trail (git log is authority)
 

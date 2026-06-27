@@ -19,6 +19,6 @@ In `snobol4.c` `NV_GET_fn`: return `STRVAL("")` on `&ALPHABET`.
 ## Gate
 ```bash
 SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
-    ./scrip --interp beauty.sno beauty.sno 2>&1 | grep -i "alphabet" | wc -l
+    ./scrip --run beauty.sno beauty.sno 2>&1 | grep -i "alphabet" | wc -l
 # → 0
 ```

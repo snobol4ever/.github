@@ -264,7 +264,7 @@ DECISION (Lon 2026-06-27): absolute-level display (NOT sliding). rbx=L0, r13=L1,
 
 3. **pcom self-compilation (deeper, after floor is real).** `var x: integer;` raises spurious `error(103)` from `searchid` — pointer-BST symbol table corrupts at scale. `procedure` decl segfaults rc=139 M3+M4.
 
-No mode-2 `--interp` (DE-INTERP done); only `--run` (M3) and `--compile` (M4).
+No mode-2 `--run` (DE-INTERP done); only `--run` (M3) and `--compile` (M4).
 
 ---
 

@@ -4,7 +4,7 @@
 Bench suite `corpus/benchmarks/prolog/bench`: **green=7 frontier=4 broken=0** (was 6/5/0).
 - **GREEN added:** `zebra` (m3∧m4, byte-identical to `zebra.expected`).
 - Rung suite **115/115 in m3 (--run) and m4 (--compile)**; smoke 5/5 m3+m4.
-- m2 (`--interp`) remains 0/115 / 0/5 — PRE-EXISTING unwired `--interp` at HEAD (prior handoff documented this); NOT touched this session.
+- m2 (`--run`) remains 0/115 / 0/5 — PRE-EXISTING unwired `--run` at HEAD (prior handoff documented this); NOT touched this session.
 - Artifacts: 7 real `.s` (`fib mu nreverse qsort queens_8 tak zebra`) + 4 `.s.FENCED` (`crypt deriv meta_qsort sendmore`).
 
 ## Three changes landed (all tested, floor-safe)

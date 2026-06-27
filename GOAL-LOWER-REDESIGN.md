@@ -102,7 +102,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -650,7 +650,7 @@ own `lang` field and the ir_exec handles all kinds uniformly.
 **LR-13** — Mode-3 JIT: emit x86 from IR_t nodes
 - bb_flat.c / emit_bb.c: walk IR_t instead of tree_t*
 - Each IR_kind_t maps to x86 emission
-- GATE: --run ≥ --interp PASS counts. Commit.
+- GATE: --run ≥ --run PASS counts. Commit.
 
 **LR-14** — Mode-4 JIT: stateful x86 from IR_t
 - GATE: mode-4 parity with mode-3. Commit.
@@ -720,7 +720,7 @@ LR-15: NO_AST_WALK_GUARD, g_sm_dispatch_active, g_ast_pump_active
   LR-10:     smoke_prolog + broker (Prolog additive)
   LR-11:     smoke_prolog + broker (Prolog clean break)
   LR-12:     smoke_snocone
-  LR-13:     --run >= --interp PASS counts
+  LR-13:     --run >= --run PASS counts
   LR-14:     mode-4 parity with mode-3
   LR-15:     all gates (cleanup — no behavior change)
   LR-16:     smoke_raku
@@ -896,14 +896,14 @@ DCG (IR_t)     — directed cyclic graph, language-neutral
   ├──▶ SM emitter     — walks acyclic subgraphs → SM array
   │         │            cyclic subgraphs → SM_EXEC_GEN(IR_t* subgraph)
   │         ▼
-  │       SM array → sm_interp (--interp)
+  │       SM array → sm_interp (--run)
   │                → JIT mode-3 x86 emission (--run)
   │                → JIT mode-4 stateful x86 (--mode4-run)
   │
   └──▶ BB emitter     — walks cyclic subgraphs → IR_t execution nodes
-            │            (for --interp: ir_exec drives the graph directly)
+            │            (for --run: ir_exec drives the graph directly)
             ▼
-          BB graph  → ir_exec (--interp)
+          BB graph  → ir_exec (--run)
                     → JIT x86 direct from DCG nodes
 ```
 

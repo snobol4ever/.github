@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -55,7 +55,7 @@ gates, setup, and gotchas.
 
 When SL-13d closes (parser_snobol4.sc driver populating Lower_collect with
 the parsed tree), the full pipeline
-`scrip --interp tree.sc + lower.sc + parser_snobol4.sc + sm_interp.sc + <prog>.sno`
+`scrip --run tree.sc + lower.sc + parser_snobol4.sc + sm_interp.sc + <prog>.sno`
 becomes self-hosting.  Until then, tests hand-build the AST that a real
 parser would emit, and we cross-check byte-identical against the native C
 pipeline running the same logical program.
@@ -74,10 +74,10 @@ pipeline running the same logical program.
 - Expression nodes inside slots: `TT_VAR`, `TT_QLIT`, `TT_ILIT`, `TT_FLIT`,
   `TT_FNC`, `TT_DEFER`, `TT_ADD`, `TT_SUB`, `TT_MUL`, `TT_DIV`, `TT_POW`,
   `TT_LT`, `TT_GT`, `TT_EQ`, `TT_SEQ`, `TT_ALT`, `TT_SCAN`, etc.
-- All five run modes of scrip can execute the lowered SM_Program: `--interp`
-  (tree-walk reference), `--interp` (C SM dispatch loop, default),
+- All five run modes of scrip can execute the lowered SM_Program: `--run`
+  (tree-walk reference), `--run` (C SM dispatch loop, default),
   `--run` (SM→x86 bytes), `--monitor` (in-process comparator).
-  Our `.sc` interpreter `sm_interp.sc` runs inside `--interp` of a scrip
+  Our `.sc` interpreter `sm_interp.sc` runs inside `--run` of a scrip
   invocation that concatenates `tree.sc + lower.sc + sm_interp.sc + <test>.sc`.
 
 ---
@@ -108,7 +108,7 @@ Working files:
 ```bash
 SCRIP=/home/claude/SCRIP/scrip
 SCRIP_DIR=/home/claude/corpus/SCRIP
-$SCRIP --interp \
+$SCRIP --run \
   $SCRIP_DIR/tree.sc $SCRIP_DIR/lower.sc $SCRIP_DIR/lower_driver.sc \
   $SCRIP_DIR/sm_interp.sc $SCRIP_DIR/<test>.sc
 ```
@@ -164,7 +164,7 @@ then `lower(g_program)` + `sm_interp_run()` runs at the bottom.
 | SL-11 | emit_thunk + lower_defer                  | TT_DEFER → SM_PUSH_EXPRESSION; thunks emit at end of program     | 2026-05-12 |
 | SL-12 | EVAL(*expr) in lower_fnc                  | `EVAL(*X)` lowers to SM_CALL_EXPRESSION                         | 2026-05-12 |
 | SL-13a | sc_split_subject_pattern fix              | `subject ? pat = repl` in cond context now properly splits      | 2026-05-12 |
-| SL-13b | pattern captures `. var` / `$ var` fix    | --interp TT_CAPT_COND_ASGN/IMMED_ASGN handle plain TT_VAR        | 2026-05-12 |
+| SL-13b | pattern captures `. var` / `$ var` fix    | --run TT_CAPT_COND_ASGN/IMMED_ASGN handle plain TT_VAR        | 2026-05-12 |
 | SL-13c | deferred `*Fn(args)` captures fix         | eval_code.c + bb_flat.c: TT_DEFER(TT_FNC) capture path           | 2026-05-12 |
 | SL-13c-tilde | `~` is pattern, not boolean negation | `lower.sc` forward-patch sites use `GE(...)` instead              | 2026-05-12 |
 
@@ -209,7 +209,7 @@ runs end-to-end without hang or Error after SL-13c.  But for input
 `X = 'hello' / END` it emits `; SM_Program count=1 / SM_HALT` — the
 parser-driver isn't feeding a populated tree into Lower_collect.
 
-Target output (matches `scrip --interp --dump-sm trivial.sno`):
+Target output (matches `scrip --run --dump-sm trivial.sno`):
 ```
 ; SM_Program  count=6
    0  SM_STNO              stmt=1 line=1
@@ -221,7 +221,7 @@ Target output (matches `scrip --interp --dump-sm trivial.sno`):
 ```
 
 - [ ] Wire parser_snobol4.sc's main loop to `Lower_collect(stmt)` per statement
-- [ ] Confirm SM dump byte-identical to C `--interp --dump-sm` for trivial.sno
+- [ ] Confirm SM dump byte-identical to C `--run --dump-sm` for trivial.sno
 - [ ] Extend to multi-statement programs from `programs/snobol4/smoke/`
 
 ### Phase 3 — Run the existing test suite through sm_interp.sc
@@ -352,7 +352,7 @@ SCRIP=/home/claude/SCRIP/scrip
 SCRIP_DIR=/home/claude/corpus/SCRIP
 
 # Gate 1: SL-9 / SI-5 baseline — smoke_lower + smoke_interp byte-identical
-$SCRIP --interp \
+$SCRIP --run \
   $SCRIP_DIR/tree.sc $SCRIP_DIR/lower.sc $SCRIP_DIR/lower_driver.sc \
   $SCRIP_DIR/sm_interp.sc $SCRIP_DIR/smoke_interp.sc \
   | diff - $SCRIP_DIR/smoke_interp.ref

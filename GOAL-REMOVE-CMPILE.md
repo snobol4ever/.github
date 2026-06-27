@@ -163,7 +163,7 @@ Lives in `snobol4.tab.c`. Declared in `scrip_cc.h`.
   - Remove `cmpile_lower()` bridge function (~40 lines)
   - Replace `--dump-parse` with `sno_parse_string` + IR printer, or remove flag
   - Remove `cmpile_init()`, `cmpile_add_include()` calls
-  Gate: `scrip --interp` works; beauty suite PASS≥14.
+  Gate: `scrip --run` works; beauty suite PASS≥14.
 
 - [x] **S-6** — Verify CMPILE fully removed:
   `make scrip` clean; `nm scrip | grep -i cmpile` empty;

@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -51,11 +51,11 @@ nargs)` runs proc bodies via SM dispatch on the chunk; same for
 Prolog clause execution; `polyglot.c` stores no IR pointers; the
 isolation gate forbids `EXPR_t *` in the gated runtime files'
 function signatures.  Standard CHUNKS gate set + full Icon corpus
-+ Prolog smoke (extended to `--interp` once consumer-side migrations
++ Prolog smoke (extended to `--run` once consumer-side migrations
 land).
 
 > **CH-17i-survey-mode3 LANDED 2026-05-09** — `docs/CHUNKS-step17i-survey-mode3.md`.
-> 177 Icon --interp PASS → 111 --interp diverge (all semantic; root cause: generator
+> 177 Icon --run PASS → 111 --run diverge (all semantic; root cause: generator
 > kinds inside proc bodies emit SM_PUSH_EXPR+SM_BB_PUMP, incompatible with SM dispatch).
 > Prolog: 4 PASS → 1 fail (initialization/2 bridge gap). Sub-rungs: CH-17i-every-suspend,
 > CH-17i-bang-concat, CH-17i-section, CH-17i-limit-random, CH-17i-prolog-initialization.
@@ -69,13 +69,13 @@ land).
 > body_fn NULL because `coro_bb_every` already runs the do-clause via `bb_exec_stmt`
 > (passing `pump_print` would double-print, verified empirically).  Pushes NULVCL to
 > balance proc-body's trailing `SM_VOID_POP` (legacy was net-stack-zero — root cause
-> of the 111 --interp divergences).  Files: `sm_prog.h/c` (+enum +name), `sm_interp.h/c`
+> of the 111 --run divergences).  Files: `sm_prog.h/c` (+enum +name), `sm_interp.h/c`
 > (+every_table API + handler), `sm_codegen.c` (+JIT mirror), `sm_lower.c` (carve case
 > out of legacy fallthrough).  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5,
 > 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, broad_unified_broker PASS=6,
-> scrip_all_modes PASS=2, Icon `--interp` PASS=177 FAIL=56 XFAIL=30 TOTAL=263.
-> New gain: `--interp` rung01–04 5/24 → 17/24 (+12). All six rung01_paper_*
-> byte-identical. rung02 6/8 (the 2 FAILs are pre-existing under `--interp` too).
+> scrip_all_modes PASS=2, Icon `--run` PASS=177 FAIL=56 XFAIL=30 TOTAL=263.
+> New gain: `--run` rung01–04 5/24 → 17/24 (+12). All six rung01_paper_*
+> byte-identical. rung02 6/8 (the 2 FAILs are pre-existing under `--run` too).
 > rung03/04 (7) still fail on AST_SUSPEND — that's the next sub-rung.  Documented in
 > `docs/CHUNKS-step17i-every-validation.md`.  SCRIP @ `8a85285e`.
 >
@@ -99,8 +99,8 @@ land).
 > (carve case out of legacy fallthrough), `coro_runtime.c` (+yield helper),
 > `sm_interp.c` (+handler), `sm_codegen.c` (+JIT mirror).  Gates byte-identical:
 > smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker
-> PASS=49, scrip_all_modes PASS=2, Icon `--interp` PASS=177 FAIL=56 XFAIL=30
-> TOTAL=263.  New gain: `--interp` rung01–04 17/24 → 20/24 (+3) — exactly
+> PASS=49, scrip_all_modes PASS=2, Icon `--run` PASS=177 FAIL=56 XFAIL=30
+> TOTAL=263.  New gain: `--run` rung01–04 17/24 → 20/24 (+3) — exactly
 > rung03_suspend_gen, rung03_suspend_gen_compose, rung03_suspend_gen_filter
 > flipping from FATAL to PASS.  `--run` rung01–04 same 17/24 → 20/24
 > (+3) via the `h_suspend_value` JIT mirror.  Remaining 4 FAILs in rung01–04
@@ -117,7 +117,7 @@ land).
 > 3 (AST_BANG_BINARY scalar), and 4 (AST_BANG_BINARY generative) are
 > all sequenced behind CH-17g-irrun-execution on the same basis: a
 > 706-program audit sweep across Icon (271) + Raku (186) + Snocone
-> (114) + Prolog (135) under `--interp` with `SCRIP_EXPRS_AUDIT=1`
+> (114) + Prolog (135) under `--run` with `SCRIP_EXPRS_AUDIT=1`
 > shows **zero** SM_PUSH_EXPR fires for any of these kinds today —
 > precisely because proc bodies are still tree-walked via
 > `coro_pump_proc_by_name` → `coro_eval`, an in-host-process AST
@@ -151,7 +151,7 @@ land).
 > **AUDIT 2026-05-10 (orientation session, no code written):**
 >
 > 1. **Reachability confirmed via empirical sweep.** Across the 271-program
->    Icon corpus under `--interp` with `SCRIP_EXPRS_AUDIT=1`: zero programs fire
+>    Icon corpus under `--run` with `SCRIP_EXPRS_AUDIT=1`: zero programs fire
 >    SM_PUSH_EXPR, six fire SM_PUSH_EXPRESSION (rung33_case_* + rung36_jcon_kwds,
 >    all expression-shaped — not legacy fallthrough).  But targeted probes on
 >    programs using `|||` (AST_LCONCAT) and `!` (AST_BANG_BINARY) show the
@@ -216,10 +216,10 @@ land).
 > 4. **Validation plan for the rung.**
 >      - Smoke ×6 byte-identical (7/7, 5/5, 5/5, 5/5, 5/5, 4/4)
 >      - Isolation gate PASS
->      - **Headline:** `rung15_real_swap_lconcat --interp` FAIL→PASS
->        byte-identical to `--interp` output ("hello world\n")
+>      - **Headline:** `rung15_real_swap_lconcat --run` FAIL→PASS
+>        byte-identical to `--run` output ("hello world\n")
 >      - `rung15_real_swap_lconcat --run` same (via JIT mirror)
->      - `--interp` rung01–04 byte-identical or +N (no regression)
+>      - `--run` rung01–04 byte-identical or +N (no regression)
 >      - Icon corpus 263 byte-identical to post-CH-17i-suspend baseline
 >        (177 PASS / 56 FAIL / 30 XFAIL)
 >      - unified_broker 49/0 unchanged
@@ -235,13 +235,13 @@ land).
 > 6. **SCOPE DISCOVERY (sess 2026-05-10, second pass):** the rung is wider
 >    than the unified-opcode model alone covers.  Two findings forced this:
 >
->    **(a) `--interp` and `--interp` do NOT share runtime today.**
->    CH-17g-irrun-execution is `- [ ]` (NOT landed).  Under `--interp`
+>    **(a) `--run` and `--run` do NOT share runtime today.**
+>    CH-17g-irrun-execution is `- [ ]` (NOT landed).  Under `--run`
 >    non-SNO programs still go through `polyglot_execute`'s legacy AST
->    walker.  Under `--interp` they go through SM dispatch.  This is why
->    rung15 PASSes under `--interp` (legacy walker handles AST_LCONCAT
+>    walker.  Under `--run` they go through SM dispatch.  This is why
+>    rung15 PASSes under `--run` (legacy walker handles AST_LCONCAT
 >    via `interp_eval.c:3827` — a clean value-context computation:
->    `interp_eval(c0) ++ interp_eval(c1)`) but FAILs under `--interp`
+>    `interp_eval(c0) ++ interp_eval(c1)`) but FAILs under `--run`
 >    (legacy fallthrough fires SM_PUSH_EXPR + SM_BB_PUMP, which is
 >    net-stack-zero — the proc-body trailing SM_VOID_POP underflows).
 >    The "modes 2 and 3 share the runtime" property is ASPIRATIONAL
@@ -254,7 +254,7 @@ land).
 >    handle it".  Today `lower_expr` for AST_LCONCAT has NO scalar path
 >    — it falls straight to the legacy fallthrough.  rung15
 >    (`s := "hello" ||| " world"`) is the trivial scalar case and has
->    been broken under `--interp` since these opcodes existed.
+>    been broken under `--run` since these opcodes existed.
 >
 >    AST_CAT (line 740) demonstrates the right shape for the scalar case:
 >    `lower_expr(c0); lower_expr(c1); SM_CONCAT;` — pure value-context.
@@ -273,8 +273,8 @@ land).
 >      - **Phase 1 — AST_LCONCAT scalar value path.**  ✅ LANDED 2026-05-10.
 >        Mirrors AST_CAT: `lower_expr(c_i); SM_CONCAT` between adjacent pairs.
 >        No new opcode.  Headline: `rung15_real_swap_lconcat` flips
->        `--interp` / `--run` FAIL→PASS byte-identical to `--interp`.
->        Icon `--interp` corpus: 100→101 PASS, +1 (zero regressions).
+>        `--run` / `--run` FAIL→PASS byte-identical to `--run`.
+>        Icon `--run` corpus: 100→101 PASS, +1 (zero regressions).
 >        Audit clean: zero SM_PUSH_EXPR fires post-rung anywhere on the
 >        Icon corpus.  Documented in
 >        `docs/CHUNKS-step17i-bang-concat-phase1-validation.md`.
@@ -284,7 +284,7 @@ land).
 >        unified `SM_BB_PUMP_AST` opcode + `g_ast_pump_table` registration
 >        (the option-B refactor described in (3) above).  **SEQUENCED
 >        2026-05-10** behind CH-17g-irrun-execution — 706-program audit
->        (Icon 271 + Raku 186 + Snocone 114 + Prolog 135) under `--interp`
+>        (Icon 271 + Raku 186 + Snocone 114 + Prolog 135) under `--run`
 >        reports zero SM_PUSH_EXPR fires today, but the kind is required
 >        for Mode 4 on Icon (emitted binary cannot tree-walk).
 >        Re-trigger when the canonical audit script
@@ -309,7 +309,7 @@ land).
 >    CH-17i-bang (phases 3+4).  Lon's call.
 >
 >    **Empirical anchor unchanged:** rung15_real_swap_lconcat flips
->    FAIL→PASS under `--interp` after Phase 1 alone (because rung15's
+>    FAIL→PASS under `--run` after Phase 1 alone (because rung15's
 >    children are scalar string literals — the generative path doesn't
 >    fire).  Phase 2 unblocks programs with `gen ||| gen` shapes;
 >    inventory needed once Phase 1 is in.
@@ -558,7 +558,7 @@ step small and gateable while honouring the original Step 17 spec.
   unchanged emission for stmt-level lowering and for true globals
   inside chunks.
 
-**Producer-side empirical proof:** `--dump-sm --interp
+**Producer-side empirical proof:** `--dump-sm --run
 test/icon/palindrome.icn` shows the chunk for `palindrome` (pc 1–52)
 now emits `SM_LOAD_FRAME` / `SM_STORE_FRAME` for `s`, `i`, `j` —
 was `SM_PUSH_VAR "s"` / `SM_STORE_VAR "i"` etc. in CH-17b'.
@@ -644,12 +644,12 @@ carrying it).  Each consumer site
 flipped; legacy `_box_*(EXPR_t *)` variants stay only for the
 duration of this rung's two-system swap.
 
-After this rung lands, **`--interp` Prolog should work end-to-end
+After this rung lands, **`--run` Prolog should work end-to-end
 for the first time** because the SM_BB_ONCE → coro_eval → bb_eval_value
 crash path is replaced with proper Prolog box dispatch on chunks.
 This unblocks Step 16.  Step 16 reactivates here.
 
-**Gates:** standard set + Prolog smoke extended to `--interp` +
+**Gates:** standard set + Prolog smoke extended to `--run` +
 representative Prolog corpus subset.
 
 ### CH-17f — Migrate Step 16 (Prolog clause kinds at sm_lower.c:1213)
@@ -662,8 +662,8 @@ the legacy `emit_push_expr + SM_BB_ONCE` path is deleted at the
 producer; the consumer reads entry_pcs via the helpers from
 CH-17e.
 
-**Gates:** as per Step 16 + the now-reachable Prolog `--interp`
-crosscheck against the SPITBOL oracle (well, against `--interp`,
+**Gates:** as per Step 16 + the now-reachable Prolog `--run`
+crosscheck against the SPITBOL oracle (well, against `--run`,
 since SPITBOL doesn't run Prolog).
 
 ### CH-17g — Drop EXPR_t *proc from IcnProcEntry; lift code_free gate
@@ -729,10 +729,10 @@ identity.
 (eight sites flipped), CH-17g-statics (storage re-keyed), CH-17h
 (remaining generator kinds migrated so chunk bodies no longer emit
 `SM_PUSH_EXPR + SM_BB_PUMP`), **CH-17g-runtime-bridge** (chunks
-dispatch builtins so `--interp` of any Icon hello-world produces
+dispatch builtins so `--run` of any Icon hello-world produces
 correct output instead of FATAL "Undefined function" — added as a
 precondition by CH-17g-final-SURVEY 2026-05-09), **CH-17g-irrun-lowers**
-(invoke `sm_lower` / `sm_resolve_proc_entry_pcs` from `--interp` path
+(invoke `sm_lower` / `sm_resolve_proc_entry_pcs` from `--run` path
 before `polyglot_execute` so `entry_pc >= 0` for every proc regardless
 of mode — added by the same survey).  When all five are met:
 
@@ -754,28 +754,28 @@ This is the GOAL-CHUNKS.md Step 17 closure point.
 `pl_runtime.c` contain zero `EXPR_t *` field accesses on
 proc_table / pred_table data.
 
-#### CH-17g-irrun-execution — collapse `--interp` non-SNO onto the SM dispatch path
+#### CH-17g-irrun-execution — collapse `--run` non-SNO onto the SM dispatch path
 
 **Carved sess 2026-05-09 from CH-17g-final-SURVEY-2 + Lon decision Option A.**
 
 **Why this rung exists.** CH-17g-irrun-lowers delivered observability
-(entry_pcs visible under `--interp`) but not execution: under
-`--interp` non-SNO the SM_Program is freed by `sm_resolve_irrun_entry_pcs`
+(entry_pcs visible under `--run`) but not execution: under
+`--run` non-SNO the SM_Program is freed by `sm_resolve_irrun_entry_pcs`
 immediately after entry_pcs are populated, dispatch guards
 (`g_current_sm_prog != NULL`) short-circuit the SM path, and execution
 runs through `coro_call(proc_table[pi].proc, ...)` — the legacy AST
 walker that CH-17g-final wants to delete.  Lon's principle: AST and SM
 both deleted between phases for separation/isolation.  The only path
-forward that satisfies that principle is to route `--interp` non-SNO
+forward that satisfies that principle is to route `--run` non-SNO
 through the same `sm_preamble` + `sm_run_with_recovery` pipeline as
-`--interp`.  This rung delivers that.
+`--run`.  This rung delivers that.
 
-**Done when:** under `--interp`, every Icon/Raku/Prolog program reaches
+**Done when:** under `--run`, every Icon/Raku/Prolog program reaches
 the SM interpreter dispatch loop (not `polyglot_execute`'s legacy AST
-walker), produces output byte-identical to its current `--interp`
+walker), produces output byte-identical to its current `--run`
 baseline, and the Icon corpus 186/47/30 + Prolog smoke gates are
 byte-identical to the pre-rung baseline.  The `g_irrun_lowers` flag and
-`sm_resolve_irrun_entry_pcs` helper are deleted.  SNOBOL4 `--interp`
+`sm_resolve_irrun_entry_pcs` helper are deleted.  SNOBOL4 `--run`
 path is unchanged (it has its own non-SM interpreter, `execute_program`,
 that is not the AST walker this goal retires).
 
@@ -783,17 +783,17 @@ that is not the AST walker this goal retires).
 
 - [ ] **Step 1 — baseline capture.**  Build clean.  Run smoke ×6,
   isolation gate, unified_broker, scrip_all_modes, Icon corpus
-  `--interp`.  Capture pre-rung output for the trivial probes:
-  `--interp /tmp/probe.icn` and `--interp /tmp/probe.icn` (a
+  `--run`.  Capture pre-rung output for the trivial probes:
+  `--run /tmp/probe.icn` and `--run /tmp/probe.icn` (a
   `procedure main() write("hello from icon") end` program).  Capture
   byte counts and md5s for at least three Icon corpus programs and
-  three Prolog corpus programs under `--interp`.  These are the
+  three Prolog corpus programs under `--run`.  These are the
   byte-identity targets for Step 4.
 
-- [ ] **Step 2 — route `--interp` non-SNO through `sm_preamble`.**
+- [ ] **Step 2 — route `--run` non-SNO through `sm_preamble`.**
   In `src/driver/scrip.c:557–565`, replace the current `else if
   (has_non_sno) { g_irrun_lowers = 1; polyglot_execute(prog);
-  g_irrun_lowers = 0; }` arm with a path that mirrors the `--interp`
+  g_irrun_lowers = 0; }` arm with a path that mirrors the `--run`
   arm above it: call `sm_preamble(prog)` to get the SM_Program with
   IR freed (the gate at `scrip_sm.c:128` lifts in CH-17g-final, but
   works fine here because `sm_preamble` already populates proc/pred
@@ -803,7 +803,7 @@ that is not the AST walker this goal retires).
 
 - [ ] **Step 3 — delete the superseded irrun-lowers infrastructure.**
   Once Step 2 is in place, the discard-after-resolve mechanism is
-  unreachable on the `--interp` non-SNO path.  Delete:
+  unreachable on the `--run` non-SNO path.  Delete:
     - `g_irrun_lowers` definition + `extern` in `polyglot.h/c`
     - `sm_resolve_irrun_entry_pcs` declaration in `scrip_sm.h` and
       definition in `scrip_sm.c` (the function that does
@@ -818,18 +818,18 @@ that is not the AST walker this goal retires).
   Eight dispatch-site guards on `g_current_sm_prog != NULL` (one in
   `proc_table_call`, one in `pl_chunk_fn`, two in `pl_runtime.c`,
   one in `interp_hooks.c`, two in `interp_eval.c`, one in
-  `polyglot.c`) are now sufficient on their own — under `--interp`,
+  `polyglot.c`) are now sufficient on their own — under `--run`,
   `g_current_sm_prog` is the live SM_Program (set by `sm_preamble`),
   so the guards take the SM path.  Leave them in place; they remain
   correct.
 
 - [ ] **Step 4 — verify byte-identity against the pre-rung baseline.**
   Build.  Run the smoke ×6, isolation, unified_broker,
-  scrip_all_modes, Icon corpus `--interp` (target 186/47/30), and
-  Prolog smoke gates.  Confirm `--interp /tmp/probe.icn` produces
+  scrip_all_modes, Icon corpus `--run` (target 186/47/30), and
+  Prolog smoke gates.  Confirm `--run /tmp/probe.icn` produces
   byte-identical output to the Step 1 capture.  Confirm the three
   Icon and three Prolog corpus programs from Step 1 produce
-  byte-identical output (md5 match) under `--interp`.  Investigate
+  byte-identical output (md5 match) under `--run`.  Investigate
   any divergence before proceeding — divergence means a non-SNO
   feature that the legacy `polyglot_execute` walker handled and the
   SM dispatch path does not.  Likely surfaces (from
@@ -839,7 +839,7 @@ that is not the AST walker this goal retires).
   Raku-specific dispatch.  Each surface becomes its own follow-on
   rung (bridge-5 et seq.) before this rung lands.
 
-- [ ] **Step 5 — confirm SNOBOL4 `--interp` unchanged.**  Run
+- [ ] **Step 5 — confirm SNOBOL4 `--run` unchanged.**  Run
   `bash scripts/test_smoke_snobol4.sh` and any SNOBOL4-specific
   baselines.  The SNOBOL4 path goes through `execute_program(prog)`
   via `else { execute_program(prog); }` (`scrip.c:565`) and is not
@@ -876,13 +876,13 @@ that is not the AST walker this goal retires).
   - isolation PASS
   - unified_broker PASS=49
   - scrip_all_modes PASS=2 (or current baseline if it has shifted)
-  - Icon corpus `--interp` PASS=186 FAIL=47 XFAIL=30 TOTAL=263
+  - Icon corpus `--run` PASS=186 FAIL=47 XFAIL=30 TOTAL=263
     (byte-identical, not just same pass count)
   - Prolog smoke PASS=5
-  - Specific gate: `--interp /tmp/probe.icn` byte-identical to
+  - Specific gate: `--run /tmp/probe.icn` byte-identical to
     pre-rung capture
   - Specific gate: at least three Icon and three Prolog corpus
-    programs byte-identical (md5 match) under `--interp` between
+    programs byte-identical (md5 match) under `--run` between
     pre-rung and post-rung
 
 **Rollback signal:** if any byte-identity check in Step 4 diverges
@@ -893,26 +893,26 @@ re-attempting.  The rung is small enough that a clean revert + try
 again is cheaper than partial landings.
 
 **After this rung lands:** CH-17g-final's preconditions are
-genuinely met (no `--interp` path reads `proc_table[i].proc` at
+genuinely met (no `--run` path reads `proc_table[i].proc` at
 runtime; the only remaining reader is `sm_lower.c:1757`, which is
 producer-side and runs while IR is alive in all modes).
 CH-17g-final closes Step 17.
 
 **SESSION 2026-05-10 — probe-and-revert findings (no rungs landed).**
 Lon directed an attempt at the rung; probe applied Step 2 (route
-non-SNO `--interp` through `sm_preamble + sm_run_with_recovery`),
+non-SNO `--run` through `sm_preamble + sm_run_with_recovery`),
 measured, reverted.  Working tree restored byte-clean against
 `f78d366c`.  Three concrete findings worth recording before next
 attempt:
 
 1. **Probe baselines.**  Pre-rung gates all green: smoke ×6 (7/7,
    5/5, 5/5, 5/5, 5/5, 4/4), isolation, unified_broker 49/0,
-   scrip_all_modes 2/0, Icon `--interp` PASS=177 FAIL=56 XFAIL=30,
+   scrip_all_modes 2/0, Icon `--run` PASS=177 FAIL=56 XFAIL=30,
    Prolog smoke 5/5.  Three-Icon and three-Prolog md5s captured.
    Step 1 baseline target captured cleanly.
 
 2. **Step 2 alone — 72-program Icon regression, not 0.**  Routing
-   `--interp` non-SNO through `sm_preamble + sm_run_with_recovery`
+   `--run` non-SNO through `sm_preamble + sm_run_with_recovery`
    drops Icon corpus from 177 PASS → 105 PASS (76 PASS→FAIL, 4
    FAIL→PASS, net −72).  The `/tmp/probe.icn` and three Icon
    `rung01_paper_*` programs ARE byte-identical (the rung's
@@ -944,7 +944,7 @@ attempt:
    `scan_try_call_builtin`) into `_usercall_hook` between the
    proc_table cross-call and the pl_pred_table cross-call.
    Patch was clean on baseline (Icon corpus stays 177 PASS;
-   `find()` works standalone under `--interp`) but only delivered
+   `find()` works standalone under `--run`) but only delivered
    +1 PASS under Step 2 (105 → 106), and introduced a flake on
    programs that previously worked.  Reverted.  The fix is small
    and locally correct, but does NOT unblock the regression alone
@@ -955,9 +955,9 @@ attempt:
 
 4. **Recommendation: re-sequence ahead of Step 2.**  CH-17g-final-
    SURVEY-2's Option A is correct in *principle* (AST and SM both
-   deleted between phases; route `--interp` through SM dispatch).
+   deleted between phases; route `--run` through SM dispatch).
    But Step 2 as written assumes the SM dispatch path covers the
-   Icon `--interp` PASS surface, and empirically it does not.
+   Icon `--run` PASS surface, and empirically it does not.
    The 76 regressed programs are not random — they bucket cleanly
    onto the sequenced sub-rungs already named in this Goal file:
    CH-17i-bang-concat phases 2/3/4 (bang-concat 4 + lconcat
@@ -1022,7 +1022,7 @@ existing goal for the frontends that haven't reached it yet.
 
 **The directive in one sentence.** Take the Icon and Prolog feature
 surface that SCRIP supports *today* — defined empirically by the
-programs that pass under `--interp` today (Icon corpus 186 PASS;
+programs that pass under `--run` today (Icon corpus 186 PASS;
 Prolog `test/prolog/*.pl` baseline) — and make that *same* surface
 run correctly through modes 2, 3, and 4 with each mode structurally
 isolated from any AST walk.  Not feature expansion; the same property
@@ -1034,17 +1034,17 @@ goal's existing definition; restated here for in-line reference):
   - **Mode 1** (compile-only).  Produces SM_Program.  No execution.
     AST freed after `sm_lower` returns.  Isolated by construction.
 
-  - **Mode 2** (`--interp`).  Runs the SM_Program — same as mode 3 —
-    after `sm_lower` returns and AST is freed.  The `--interp` /
-    `--interp` distinction is a driver-side flag that affects
+  - **Mode 2** (`--run`).  Runs the SM_Program — same as mode 3 —
+    after `sm_lower` returns and AST is freed.  The `--run` /
+    `--run` distinction is a driver-side flag that affects
     diagnostics and oracle behaviour, not a different runtime.
     CH-17g-irrun-execution makes this true for Icon and Prolog by
-    routing `--interp` non-SNO through `sm_preamble` +
-    `sm_run_with_recovery` exactly as `--interp` does.  SNOBOL4's
+    routing `--run` non-SNO through `sm_preamble` +
+    `sm_run_with_recovery` exactly as `--run` does.  SNOBOL4's
     `execute_program` path is its own non-SM interpreter; it is
     unchanged by this work.
 
-  - **Mode 3** (`--interp`).  Runs the SM_Program.  AST freed before
+  - **Mode 3** (`--run`).  Runs the SM_Program.  AST freed before
     execution begins.  No `interp_eval` / `interp_eval_pat` /
     `interp_eval_ref` / `call_user_function` / `polyglot_execute`
     reachable from any non-SNO runtime path.  proc_table and
@@ -1061,21 +1061,21 @@ goal's existing definition; restated here for in-line reference):
   1. **Modes 2 and 3 cover the supported surface** — and they cover
      it *together*, because under CH-17g-irrun-execution they share
      the SM dispatch runtime.  Every Icon program in the
-     `--interp` PASS subset today (186 of 263) runs correctly under
-     both modes byte-identical to its current `--interp` baseline.
-     Every Prolog program in `test/prolog/*.pl`'s `--interp` PASS
+     `--run` PASS subset today (186 of 263) runs correctly under
+     both modes byte-identical to its current `--run` baseline.
+     Every Prolog program in `test/prolog/*.pl`'s `--run` PASS
      subset runs correctly under both modes byte-identical.
-     Programs that currently FAIL/XFAIL under `--interp` stay there.
+     Programs that currently FAIL/XFAIL under `--run` stay there.
 
   2. **Mode 4 (`--compile`) covers the supported surface.**
-     The same Icon and Prolog `--interp` PASS subset runs through
+     The same Icon and Prolog `--run` PASS subset runs through
      `--compile` byte-identical.  This is the parent goal's
      M5 / Step 19 work for Icon+Prolog, brought forward as a
      deliverable of CH-17i because "all four modes" includes mode 4.
 
   3. **Mode 3 is structurally AST-free.** No `interp_eval` /
      `interp_eval_pat` / `interp_eval_ref` / `call_user_function` /
-     `polyglot_execute` reachable from any `--interp` runtime path.
+     `polyglot_execute` reachable from any `--run` runtime path.
      No `IR_t *` field accesses in the SM-mode runtime files
      (`coro_runtime.c`, `coro_value.c`, `coro_stmt.c`, `pl_runtime.c`,
      `sm_interp.c`, `sm_lower.c`, `bb_*` files).  Strengthened
@@ -1090,14 +1090,14 @@ goal's existing definition; restated here for in-line reference):
 
 **What this umbrella is NOT:**
 
-  - NOT adding Icon language features beyond what `--interp`
+  - NOT adding Icon language features beyond what `--run`
     handles today.  The 47 FAILs in Icon corpus stay FAIL.
   - NOT adding Prolog builtins SCRIP doesn't already support.
   - NOT widening the SM opcode set beyond what the current
     `sm_lower` already emits for Icon and Prolog.  If `sm_lower`
     emits `SM_ACOMP` and `sm_interp.c` has no handler, that's a
     completeness gap (in scope).  If `sm_lower` doesn't emit some
-    opcode at all and the `--interp` walker handled a feature via
+    opcode at all and the `--run` walker handled a feature via
     a code path that has no SM equivalent today, then either
     `sm_lower` grows to emit it (in scope, mechanical) or the
     feature is genuinely out of scope and the program in question
@@ -1106,15 +1106,15 @@ goal's existing definition; restated here for in-line reference):
 **Sequencing:**
 
   - **CH-17g-irrun-execution** lands first (already carved; routes
-    `--interp` non-SNO through `sm_preamble`).  After this, modes 2
+    `--run` non-SNO through `sm_preamble`).  After this, modes 2
     and 3 share the runtime, so the survey below covers both.
   - **CH-17i-survey-mode3** lands next — empirical audit of the
-    Icon+Prolog `--interp` PASS subset under SM dispatch, producing
+    Icon+Prolog `--run` PASS subset under SM dispatch, producing
     the prioritised gap list with one bucket per failure mode
     (missing builtin → name; missing opcode handler → opcode;
     producer gap → AST kind; semantic divergence → program).
   - **CH-17i-mode3-completeness** rungs land per bucket from the
-    survey, until the Icon and Prolog `--interp` PASS subsets pass
+    survey, until the Icon and Prolog `--run` PASS subsets pass
     byte-identical under SM dispatch.
   - **CH-17g-final** lands, deleting the legacy AST walker bodies
     that are now unreachable (`coro_call`'s scope build + body loop;
@@ -1123,19 +1123,19 @@ goal's existing definition; restated here for in-line reference):
   - **CH-17i-mode4-icon-prolog** lands the `--compile`
     coverage: extend `GOAL-MODE4-EMIT.md`'s rung set to cover the
     SM opcodes Icon and Prolog use; Icon and Prolog `--compile
-    --target=x86` PASS == `--interp` PASS exactly.
+    --target=x86` PASS == `--run` PASS exactly.
   - **CH-17i-final-isolation** locks the property in CI: strengthened
     isolation gate covers the full SM-mode runtime file set; mode 4
     link-graph check; coverage matrix doc records the four-mode ×
     {Icon, Prolog} matrix all-green.
 
-#### CH-17i-survey-mode3 — Icon+Prolog `--interp` gap audit against the supported surface
+#### CH-17i-survey-mode3 — Icon+Prolog `--run` gap audit against the supported surface
 
 **Scope.**  Define "supported surface" empirically: capture under
-`--interp` the PASS/FAIL/XFAIL set for the Icon corpus 263 and
+`--run` the PASS/FAIL/XFAIL set for the Icon corpus 263 and
 the Prolog `test/prolog/*.pl` set as the snapshot baseline.  Then,
 with CH-17g-irrun-execution landed, run the PASS subset under SM
-dispatch (`--interp` and `--interp` should produce identical output
+dispatch (`--run` and `--run` should produce identical output
 post-CH-17g-irrun-execution; either flag works for the survey).
 Capture every divergence: FATAL, wrong output, hang.
 
@@ -1149,7 +1149,7 @@ Capture every divergence: FATAL, wrong output, hang.
     in `sm_interp.c` mirroring the `interp_eval.c` arm for the
     corresponding kind."
   - **Producer gap** — `sm_lower` doesn't emit anything for some
-    AST kind that the `--interp` walker handled.  Bucket by kind.
+    AST kind that the `--run` walker handled.  Bucket by kind.
     Each maps to "add lowering rule in `sm_lower.c` for that kind."
   - **Semantic divergence** — output differs without FATAL.  Bucket
     by program.  Each requires individual diagnosis: AST walker and
@@ -1180,15 +1180,15 @@ byte-identical gates for its own corpus subset.  This sub-rung
 collection IS the work — it's not predictable in advance how many
 rungs there are; the survey produces the list.
 
-**Done when:** the Icon `--interp` PASS subset and Prolog `--interp`
+**Done when:** the Icon `--run` PASS subset and Prolog `--run`
 PASS subset run byte-identical under SM dispatch.  The Icon corpus
-gate gains a new line: `--interp PASS=N` where N matches the
-`--interp` PASS count exactly (post-CH-17g-irrun-execution the two
+gate gains a new line: `--run PASS=N` where N matches the
+`--run` PASS count exactly (post-CH-17g-irrun-execution the two
 flags share a runtime, so the counts must be exactly equal — any
 divergence is a regression).
 
 **Gates:** standard set + per-bucket corpus subset byte-identical
-+ terminal Icon `--interp` PASS count == `--interp` PASS count
++ terminal Icon `--run` PASS count == `--run` PASS count
 exactly + Prolog twin.
 
 #### CH-17i-mode4-icon-prolog — `--compile` covers the Icon+Prolog supported surface
@@ -1213,12 +1213,12 @@ duplicate it — it carves the Icon-and-Prolog-specific opcode work
 as named rungs that point INTO `GOAL-MODE4-EMIT.md` for execution
 detail.  When in doubt about file ownership, see `GOAL-MODE4-EMIT.md`.
 
-**Done when:** the Icon `--interp` PASS subset and Prolog `--interp`
+**Done when:** the Icon `--run` PASS subset and Prolog `--run`
 PASS subset run byte-identical under `--compile`.  Same
 exactness rule as mode 3: PASS count exactly equal across modes.
 
 **Gates:** standard set + Icon `--compile` PASS == Icon
-`--interp` PASS + Prolog twin + structural mode-4 isolation
+`--run` PASS + Prolog twin + structural mode-4 isolation
 (emitted artifact's link graph closes against `libscrip_rt.so`
 only).
 
@@ -1253,7 +1253,7 @@ terminal rung locks the structural property in CI:
   - **Documentation deliverable:** `docs/CHUNKS-step17i-coverage-matrix.md`
     records the coverage table:
 
-    |              | Mode 1 | Mode 2 (`--interp`) | Mode 3 (`--interp`) | Mode 4 (`--compile`) |
+    |              | Mode 1 | Mode 2 (`--run`) | Mode 3 (`--run`) | Mode 4 (`--compile`) |
     |--------------|:------:|:-------------------:|:-------------------:|:---------------------------:|
     | **Icon**     |   ✓    | PASS=186 (baseline) |  PASS=186 (==)      |       PASS=186 (==)         |
     | **Prolog**   |   ✓    | PASS=N (baseline)   |  PASS=N (==)        |       PASS=N (==)           |
@@ -1381,7 +1381,7 @@ ownership boundaries crossed for the merge gate.
 `scrip.c`, the `interp_private.h` declarations).  This is the largest
 single-file batch (`interp_eval.c` alone has 63 references).
 
-**Gates:** standard set + Icon corpus `--interp` 186/47/30 byte-identical.
+**Gates:** standard set + Icon corpus `--run` 186/47/30 byte-identical.
 
 #### CH-17-RENAME-d — Runtime-interp layer (`src/runtime/interp/`)
 
@@ -1487,21 +1487,21 @@ isolation, unified_broker=49).
 | CH-17b''| chunk E_VARs emit SM_LOAD_FRAME / SM_STORE_FRAME for params+locals; gates byte-identical (chunks still dead code) |
 | CH-17c  | Icon corpus 186/47/30 byte-identical                 |
 | CH-17d  | `SCRIP_PROC_ENTRY_PCS=1` shows non-(-1) for PL       |
-| CH-17e  | Prolog smoke extended to `--interp`                  |
-| CH-17f  | Prolog `--interp` crosscheck vs `--interp`           |
+| CH-17e  | Prolog smoke extended to `--run`                  |
+| CH-17f  | Prolog `--run` crosscheck vs `--run`           |
 | CH-17g-call-sites | Icon corpus 186/47/30 byte-identical (8 sites flipped) |
 | CH-17g-statics | static-var storage no longer keyed on EXPR_t* |
-| CH-17g-final-SURVEY | finding: legacy `coro_call` body is live in `--interp`; CH-17g-final preconditions amended |
+| CH-17g-final-SURVEY | finding: legacy `coro_call` body is live in `--run`; CH-17g-final preconditions amended |
 | CH-17g-runtime-bridge-DESIGN | architectural plan: extract `icn_try_call_builtin_by_name`; wire into `SM_CALL_FN` after `INVOKE_fn` |
 | CH-17g-runtime-bridge-1 | refactor: `icn_call_builtin` split into name-based helper + EXPR_t tail; corpus byte-identical |
-| CH-17g-runtime-bridge-2 | `--interp` of trivial Icon proc produces output identical to `--interp` |
+| CH-17g-runtime-bridge-2 | `--run` of trivial Icon proc produces output identical to `--run` |
 | CH-17g-runtime-bridge-3 | Raku/SCAN bridges (only if corpus crosscheck reveals need) |
-| CH-17g-irrun-lowers | `--interp` invokes `sm_lower` / `sm_resolve_proc_entry_pcs`; entry_pc resolves regardless of mode |
+| CH-17g-irrun-lowers | `--run` invokes `sm_lower` / `sm_resolve_proc_entry_pcs`; entry_pc resolves regardless of mode |
 | CH-17g-final | structural: no EXPR_t* in proc_table / pred_table    |
 | CH-17h  | Icon corpus per-kind crosscheck                      |
 | CH-17i-survey-mode3 | survey doc + prioritised gap list per bucket (`docs/CHUNKS-step17i-survey-mode3.md`) |
-| CH-17i-mode3-completeness | terminal: Icon `--interp` PASS == `--interp` PASS exactly; Prolog twin |
-| CH-17i-mode4-icon-prolog | Icon and Prolog `--compile` PASS == `--interp` PASS exactly |
+| CH-17i-mode3-completeness | terminal: Icon `--run` PASS == `--run` PASS exactly; Prolog twin |
+| CH-17i-mode4-icon-prolog | Icon and Prolog `--compile` PASS == `--run` PASS exactly |
 | CH-17i-final-isolation | mode 3 AST-free call graph + mode 4 host-free link graph + zero `IR_t *` accesses in SM-mode files + coverage matrix doc all-green for Icon × {2,3,4} and Prolog × {2,3,4} |
 
 ---
@@ -1592,7 +1592,7 @@ consult the scope under `g_chunk_body_lowering`; in-scope names
 emit SM_LOAD_FRAME / SM_STORE_FRAME, out-of-scope names fall
 through to SM_PUSH_VAR / SM_STORE_VAR (unchanged at stmt-level).
 
-Empirical proof: `--dump-sm --interp test/icon/palindrome.icn`
+Empirical proof: `--dump-sm --run test/icon/palindrome.icn`
 shows the palindrome chunk now emits SM_LOAD_FRAME / SM_STORE_FRAME
 for `s`, `i`, `j` (was SM_PUSH_VAR / SM_STORE_VAR in CH-17b').
 
@@ -1635,7 +1635,7 @@ flipped; `proc_trampoline` and `gather_trampoline` dispatch via
 E_FNC lowering in `sm_lower.c` fixed for Icon-style nodes (`e->sval == NULL`,
 name in `children[0]->sval`): now emits `SM_CALL(fn, real_nargs)` — fixes
 the empty-name / stack-shape bug in proc-body chunks.  Empirical proof:
-`SCRIP_PROC_ENTRY_PCS=1 --interp palindrome.icn` shows palindrome@1 /
+`SCRIP_PROC_ENTRY_PCS=1 --run palindrome.icn` shows palindrome@1 /
 main@54; `proc_trampoline` dispatches via `sm_call_proc` for both.
 Static-variable persistence deferred to CH-17g (keyed on `EXPR_t*`).
 `coro_drive_fnc` left for CH-17g cleanup.  Gates byte-identical to
@@ -1657,29 +1657,29 @@ Gates byte-identical: smoke ×5 PASS, isolation PASS, unified_broker PASS=49,
 Budne PASS=61, Icon corpus PASS=186 FAIL=47 XFAIL=30 TOTAL=263.
 Documented in `docs/CHUNKS-step17d-validation.md`.
 Files: `src/runtime/x86/sm_lower.c`.  Next rung: **CH-17e** (flip Prolog
-consumers: pl_box_choice_pc and friends; --interp Prolog end-to-end).
-**CH-17e LANDED sess #84, 2026-05-07** — consumer-side flip. `pl_box_choice_pc(int entry_pc, Term **caller_args, int arity)` added to `pl_broker.h/c` (one-shot box calling `sm_call_chunk(entry_pc)`). `pl_pred_entry_lookup(const char*)` added to `pl_runtime.h/c`. Five consumer sites flipped: `interp_eval.c` E_FNC Prolog dispatch + E_CHOICE case; `pl_runtime.c` msort/predsort + general user-pred dispatch; `interp_hooks.c` polyglot hook; `polyglot.c` main/0 entry (sm_call_chunk when epc>=0). All sites: entry_pc>=0 → chunk path, else legacy IR fallback. Chunks skeleton-only (SM_RETURN from CH-17d); sm_call_chunk returns FAILDESCR (correct 'no solution'). No crash. Gates byte-identical: smoke x5 PASS, isolation PASS, unified_broker PASS=49, Budne PASS=61, Icon PASS=186/47/30 TOTAL=263. SCRIP HEAD `7cfa0a96`. Next rung: **CH-17f** (fill E_CHOICE/E_CLAUSE bodies in sm_lower.c; --interp Prolog produces correct output).
+consumers: pl_box_choice_pc and friends; --run Prolog end-to-end).
+**CH-17e LANDED sess #84, 2026-05-07** — consumer-side flip. `pl_box_choice_pc(int entry_pc, Term **caller_args, int arity)` added to `pl_broker.h/c` (one-shot box calling `sm_call_chunk(entry_pc)`). `pl_pred_entry_lookup(const char*)` added to `pl_runtime.h/c`. Five consumer sites flipped: `interp_eval.c` E_FNC Prolog dispatch + E_CHOICE case; `pl_runtime.c` msort/predsort + general user-pred dispatch; `interp_hooks.c` polyglot hook; `polyglot.c` main/0 entry (sm_call_chunk when epc>=0). All sites: entry_pc>=0 → chunk path, else legacy IR fallback. Chunks skeleton-only (SM_RETURN from CH-17d); sm_call_chunk returns FAILDESCR (correct 'no solution'). No crash. Gates byte-identical: smoke x5 PASS, isolation PASS, unified_broker PASS=49, Budne PASS=61, Icon PASS=186/47/30 TOTAL=263. SCRIP HEAD `7cfa0a96`. Next rung: **CH-17f** (fill E_CHOICE/E_CLAUSE bodies in sm_lower.c; --run Prolog produces correct output).
 
-**CH-17f LANDED sess #85, 2026-05-07** — new `SM_BB_ONCE_PROC` opcode (`a[0].s = "name/arity"`, `a[1].i = arity`) replaces the legacy `lower_expr(E_CHOICE) + SM_BB_ONCE` path that pushed raw `EXPR_t*` to the SM value stack and called `coro_eval(E_CHOICE)` at runtime → FATAL "unhandled kind 59". `lower_stmt` LANG_PL branch emits `SM_BB_ONCE_PROC key, arity` directly from `s->subject->sval`; `lower_expr` E_CHOICE case same. Non-E_CHOICE directive subjects fall through to legacy path. Runtime: `pl_pred_table_lookup_global(key)` → `pl_box_choice(IR, g_pl_env, arity)` → `bb_broker(BB_ONCE)` — fully correct Prolog execution via the existing IR broker. No EXPR_t* pushed or walked at the SM statement-dispatch layer. Predicate chunk bodies remain skeleton-only (CH-17d SM_RETURN); chunk body fill deferred to follow-on rung. `--interp` Prolog programs now produce correct output: hello.pl → "Hello, World!", roman.pl → correct. Gates: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, Budne PASS=61, unified_broker PASS=49, Icon corpus 186/47/30 TOTAL=263 (byte-identical). Documented in `docs/CHUNKS-step17f-validation.md`. Files: `sm_prog.h`, `sm_prog.c`, `sm_interp.c`, `sm_codegen.c`, `sm_lower.c`. SCRIP @ `a2c6c089`. Next rung: **CH-17g** (drop `EXPR_t *proc` from `IcnProcEntry`; lift `code_free` gate).
+**CH-17f LANDED sess #85, 2026-05-07** — new `SM_BB_ONCE_PROC` opcode (`a[0].s = "name/arity"`, `a[1].i = arity`) replaces the legacy `lower_expr(E_CHOICE) + SM_BB_ONCE` path that pushed raw `EXPR_t*` to the SM value stack and called `coro_eval(E_CHOICE)` at runtime → FATAL "unhandled kind 59". `lower_stmt` LANG_PL branch emits `SM_BB_ONCE_PROC key, arity` directly from `s->subject->sval`; `lower_expr` E_CHOICE case same. Non-E_CHOICE directive subjects fall through to legacy path. Runtime: `pl_pred_table_lookup_global(key)` → `pl_box_choice(IR, g_pl_env, arity)` → `bb_broker(BB_ONCE)` — fully correct Prolog execution via the existing IR broker. No EXPR_t* pushed or walked at the SM statement-dispatch layer. Predicate chunk bodies remain skeleton-only (CH-17d SM_RETURN); chunk body fill deferred to follow-on rung. `--run` Prolog programs now produce correct output: hello.pl → "Hello, World!", roman.pl → correct. Gates: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, Budne PASS=61, unified_broker PASS=49, Icon corpus 186/47/30 TOTAL=263 (byte-identical). Documented in `docs/CHUNKS-step17f-validation.md`. Files: `sm_prog.h`, `sm_prog.c`, `sm_interp.c`, `sm_codegen.c`, `sm_lower.c`. SCRIP @ `a2c6c089`. Next rung: **CH-17g** (drop `EXPR_t *proc` from `IcnProcEntry`; lift `code_free` gate).
 
 **CH-17g-call-sites LANDED sess 2026-05-09** — first of three carved sub-rungs (CH-17g-call-sites / CH-17g-statics / CH-17g-final).  CH-17g as written assumed CH-17c had flipped every `proc_table[i].proc` consumer, but empirically CH-17c flipped only the trampoline layer (`proc_trampoline`, `gather_trampoline`).  Eight `coro_call(proc_table[i].proc, args, nargs)` consumer call sites still read `.proc` directly: `coro_value.c` (E_FNC user-proc dispatch), `raku_builtins.c` (Raku method-call dispatch), `interp_eval.c` ×3 (user-proc value-context, fallback, U-22 cross-language), `interp_hooks.c` (SNO→Icon usercall), `interp_exec.c` ×3 (top-level main dispatch), `polyglot.c` (single-language Icon main).  This rung adds `proc_table_call(int pi, DESCR_t *args, int nargs)` to `coro_runtime.{c,h}` — `entry_pc >= 0 ? sm_call_proc : coro_call` — and flips the eight call sites to use it.  Trampoline-layer staging at `coro_runtime.c:1125, 1213, 1503` left as-is (CH-17c's flip already lives inside the trampolines).  `coro_drive_fnc` (`coro_runtime.c:1721`) intentionally NOT flipped — IR walker by design, M4-cleanup territory (CH-17h).  `sm_lower.c:1742` is producer-side, stays.  Pure routing reorganisation; no behavioural change because every flipped site still reaches the same two paths (chunk via `sm_call_proc` when `entry_pc >= 0`, IR via `coro_call` otherwise).  Gates byte-identical to baseline: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, csnobol4 Budne PASS=50 (this session's pre-flip baseline; differs from CH-17f's recorded PASS=61, environmental — investigation deferred), Icon corpus PASS=186 FAIL=47 XFAIL=30 TOTAL=263, scrip_all_modes PASS=2 FAIL=0.  Documented in `docs/CHUNKS-step17g-call-sites-validation.md`.  Files: `src/runtime/interp/coro_runtime.h` + `coro_runtime.c` (helper); `coro_value.c`, `raku_builtins.c`, `interp_eval.c`, `interp_hooks.c`, `interp_exec.c`, `polyglot.c` (call-site flips).  Next rung: **CH-17g-statics** (re-key static-variable storage off EXPR_t*).
-**CH-17g-statics LANDED sess 2026-05-09** — `static_ent_t` struct in `coro_runtime.c` re-keyed: `EXPR_t *proc` field replaced by `int entry_pc` + `const char *proc_name`.  New file-static helper `static_proc_entry_pc(name)` walks `proc_table[]` and returns the resolved entry_pc (or -1 if not yet lowered).  New `static_entry_matches(...)` predicate: primary key `(entry_pc, var_name)` when both sides have `entry_pc >= 0`; fallback to `(proc_name, var_name)` for the legacy coro_call path where entry_pc is still -1.  Icon proc names are interned (unique per source proc), so name-string identity under `strcmp` provides the same scoping guarantee that EXPR_t* pointer identity did.  `static_get` / `static_set` signatures unchanged (still take `EXPR_t *proc` — compatible with coro_call); internally extract `proc->sval` + resolve entry_pc.  No external callers of static_get/static_set exist outside coro_runtime.c.  On set-update: if a slot was stored with entry_pc==-1 and entry_pc has since been resolved, the slot is upgraded in place.  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2, Icon --interp PASS=186 FAIL=47 XFAIL=30 TOTAL=263, rung36_jcon_statics PASS.  Documented in `docs/CHUNKS-step17g-statics-validation.md`.  Files: `src/runtime/interp/coro_runtime.c`.  Next rung: **CH-17g-final** (drop `EXPR_t *proc` from `IcnProcEntry`; lift `code_free` gate — precondition: CH-17h must land first to migrate remaining generator kinds so coro_call legacy body can be deleted).
+**CH-17g-statics LANDED sess 2026-05-09** — `static_ent_t` struct in `coro_runtime.c` re-keyed: `EXPR_t *proc` field replaced by `int entry_pc` + `const char *proc_name`.  New file-static helper `static_proc_entry_pc(name)` walks `proc_table[]` and returns the resolved entry_pc (or -1 if not yet lowered).  New `static_entry_matches(...)` predicate: primary key `(entry_pc, var_name)` when both sides have `entry_pc >= 0`; fallback to `(proc_name, var_name)` for the legacy coro_call path where entry_pc is still -1.  Icon proc names are interned (unique per source proc), so name-string identity under `strcmp` provides the same scoping guarantee that EXPR_t* pointer identity did.  `static_get` / `static_set` signatures unchanged (still take `EXPR_t *proc` — compatible with coro_call); internally extract `proc->sval` + resolve entry_pc.  No external callers of static_get/static_set exist outside coro_runtime.c.  On set-update: if a slot was stored with entry_pc==-1 and entry_pc has since been resolved, the slot is upgraded in place.  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2, Icon --run PASS=186 FAIL=47 XFAIL=30 TOTAL=263, rung36_jcon_statics PASS.  Documented in `docs/CHUNKS-step17g-statics-validation.md`.  Files: `src/runtime/interp/coro_runtime.c`.  Next rung: **CH-17g-final** (drop `EXPR_t *proc` from `IcnProcEntry`; lift `code_free` gate — precondition: CH-17h must land first to migrate remaining generator kinds so coro_call legacy body can be deleted).
 
-**CH-17g-final-SURVEY LANDED sess 2026-05-09** — `docs/CHUNKS-step17g-final-survey.md` documents that **CH-17h-SURVEY's "land CH-17g-final first" recommendation is empirically wrong**.  The legacy `coro_call` body is the live, hot, only consumer of Icon/Raku user-proc dispatch in `--interp` mode — the same mode that the Icon corpus baseline gate (186/47/30) runs every program through.  Probe instrumentation (reverted before commit) showed that for `procedure main() write("hello") end` under `--interp`, `proc_table_call` is reached with `entry_pc=-1`, the `if (entry_pc >= 0)` chunk-dispatch branch is skipped, and the fallback `coro_call(proc_table[pi].proc, args, nargs)` produces the program's output.  Root cause: `sm_resolve_proc_entry_pcs` (CH-17a's resolver) is invoked from `sm_preamble`, which `--interp` does not call (`scrip.c:557–561` dispatches to `polyglot_execute` directly for non-SNO `--interp`, never reaching `sm_lower`).  Therefore every `proc_table[i].entry_pc` stays at `-1` in `--interp` mode and the legacy body is the only path.  CH-17h-SURVEY's audit of `sm_lower.c:1303` was correct as a lowering-site finding; its inferred runtime-side claim was not, because the lowering-site dead arm and the runtime-side `coro_call` body are different code paths.  Recommendation in the survey doc: split CH-17g-final's preconditions into two new rungs (**CH-17g-runtime-bridge** — chunks dispatch builtins so `--interp` of trivial Icon programs produces output instead of FATAL "Undefined function"; and **CH-17g-irrun-lowers** — invoke `sm_lower`/`sm_resolve_proc_entry_pcs` from `--interp` before `polyglot_execute` so `entry_pc >= 0` for every proc regardless of mode).  Once both land, CH-17g-final's deletions become safe.  Alternative: merge CH-17h, CH-17g-runtime-bridge, and CH-17g-irrun-lowers into CH-17g-final as a single coupled rung.  Gates re-confirmed byte-identical post-revert: smoke ×6 PASS, isolation PASS, unified_broker PASS=49.  Files (all reverted): `src/runtime/interp/coro_runtime.c` (probe).  Awaits Lon decision on sequencing.
+**CH-17g-final-SURVEY LANDED sess 2026-05-09** — `docs/CHUNKS-step17g-final-survey.md` documents that **CH-17h-SURVEY's "land CH-17g-final first" recommendation is empirically wrong**.  The legacy `coro_call` body is the live, hot, only consumer of Icon/Raku user-proc dispatch in `--run` mode — the same mode that the Icon corpus baseline gate (186/47/30) runs every program through.  Probe instrumentation (reverted before commit) showed that for `procedure main() write("hello") end` under `--run`, `proc_table_call` is reached with `entry_pc=-1`, the `if (entry_pc >= 0)` chunk-dispatch branch is skipped, and the fallback `coro_call(proc_table[pi].proc, args, nargs)` produces the program's output.  Root cause: `sm_resolve_proc_entry_pcs` (CH-17a's resolver) is invoked from `sm_preamble`, which `--run` does not call (`scrip.c:557–561` dispatches to `polyglot_execute` directly for non-SNO `--run`, never reaching `sm_lower`).  Therefore every `proc_table[i].entry_pc` stays at `-1` in `--run` mode and the legacy body is the only path.  CH-17h-SURVEY's audit of `sm_lower.c:1303` was correct as a lowering-site finding; its inferred runtime-side claim was not, because the lowering-site dead arm and the runtime-side `coro_call` body are different code paths.  Recommendation in the survey doc: split CH-17g-final's preconditions into two new rungs (**CH-17g-runtime-bridge** — chunks dispatch builtins so `--run` of trivial Icon programs produces output instead of FATAL "Undefined function"; and **CH-17g-irrun-lowers** — invoke `sm_lower`/`sm_resolve_proc_entry_pcs` from `--run` before `polyglot_execute` so `entry_pc >= 0` for every proc regardless of mode).  Once both land, CH-17g-final's deletions become safe.  Alternative: merge CH-17h, CH-17g-runtime-bridge, and CH-17g-irrun-lowers into CH-17g-final as a single coupled rung.  Gates re-confirmed byte-identical post-revert: smoke ×6 PASS, isolation PASS, unified_broker PASS=49.  Files (all reverted): `src/runtime/interp/coro_runtime.c` (probe).  Awaits Lon decision on sequencing.
 
-**CH-17g-runtime-bridge-DESIGN LANDED sess 2026-05-09** — `docs/CHUNKS-step17g-runtime-bridge-design.md` records the architectural investigation behind the bridge rung.  Empirical mechanism of the FATAL: `--interp --dump-sm` shows the chunk emits `SM_PUSH_LIT_S "hello..." / SM_CALL_FN s="write" nargs=1 / SM_POP / SM_RETURN` — clean lowering, no IR leakage.  Dispatch fails because `SM_CALL_FN`'s handler in `sm_interp.c:931–1212` walks: special pseudo-calls → DATA dispatch → SM-native user fn (`sm_label_pc_lookup`) → `INVOKE_fn`/`APPLY_fn` (SNOBOL4 builtin registry).  Icon's `write` lives in `interp_eval.c:309` inside `icn_call_builtin(EXPR_t *call, DESCR_t *args, int nargs)`, which is on the legacy IR-walker path and never registered through `register_fn`.  `APPLY_fn` returns FAIL → chunk surfaces "Error 5: Undefined function or operation."  Two solutions weighed: (A) extract a name-based helper `icn_try_call_builtin_by_name(fn, args, nargs, &out)` covering ~30 EXPR_t-free Icon builtins (write, writes, integer, string, real, char, type, copy, list, table, read, repl, upto, find, any, many, tab, move, match, …) and wire it into `SM_CALL_FN` after `INVOKE_fn`'s FAIL; (B) register Icon builtins in the SNOBOL4 fn table.  Recommendation: A (B causes cross-language pollution — `write` would resolve in SNOBOL4-only programs).  Implementation split into three sub-rungs: **CH-17g-runtime-bridge-1** (refactor: extract `icn_try_call_builtin_by_name`; gate=corpus byte-identical, pure refactor); **CH-17g-runtime-bridge-2** (wire into `SM_CALL_FN`; gate=`--interp` of trivial Icon proc produces output identical to `--interp`); **CH-17g-runtime-bridge-3** (Raku/SCAN bridges if needed).  Files: `src/driver/interp_eval.{c,h}`, `src/runtime/x86/sm_interp.c`.  No new opcodes, no IR fields, no `sm_lower.c` changes.  Once the bridge lands, CH-17g-irrun-lowers can invoke `sm_lower` from `--interp` with chunk dispatch gated behind a runtime flag (off by default to preserve existing behavior; on for end-to-end migration).  Each line-1303 generator kind (E_EVERY, E_SUSPEND, …) becomes its own per-kind migration: a chunk-side producer (lower into pure SM) + a chunk-side consumer (new SM opcode mirroring CH-17f's `SM_BB_ONCE_PROC`).  Gates this session: smoke ×6 PASS, isolation PASS, unified_broker PASS=49 (no source touched).
+**CH-17g-runtime-bridge-DESIGN LANDED sess 2026-05-09** — `docs/CHUNKS-step17g-runtime-bridge-design.md` records the architectural investigation behind the bridge rung.  Empirical mechanism of the FATAL: `--run --dump-sm` shows the chunk emits `SM_PUSH_LIT_S "hello..." / SM_CALL_FN s="write" nargs=1 / SM_POP / SM_RETURN` — clean lowering, no IR leakage.  Dispatch fails because `SM_CALL_FN`'s handler in `sm_interp.c:931–1212` walks: special pseudo-calls → DATA dispatch → SM-native user fn (`sm_label_pc_lookup`) → `INVOKE_fn`/`APPLY_fn` (SNOBOL4 builtin registry).  Icon's `write` lives in `interp_eval.c:309` inside `icn_call_builtin(EXPR_t *call, DESCR_t *args, int nargs)`, which is on the legacy IR-walker path and never registered through `register_fn`.  `APPLY_fn` returns FAIL → chunk surfaces "Error 5: Undefined function or operation."  Two solutions weighed: (A) extract a name-based helper `icn_try_call_builtin_by_name(fn, args, nargs, &out)` covering ~30 EXPR_t-free Icon builtins (write, writes, integer, string, real, char, type, copy, list, table, read, repl, upto, find, any, many, tab, move, match, …) and wire it into `SM_CALL_FN` after `INVOKE_fn`'s FAIL; (B) register Icon builtins in the SNOBOL4 fn table.  Recommendation: A (B causes cross-language pollution — `write` would resolve in SNOBOL4-only programs).  Implementation split into three sub-rungs: **CH-17g-runtime-bridge-1** (refactor: extract `icn_try_call_builtin_by_name`; gate=corpus byte-identical, pure refactor); **CH-17g-runtime-bridge-2** (wire into `SM_CALL_FN`; gate=`--run` of trivial Icon proc produces output identical to `--run`); **CH-17g-runtime-bridge-3** (Raku/SCAN bridges if needed).  Files: `src/driver/interp_eval.{c,h}`, `src/runtime/x86/sm_interp.c`.  No new opcodes, no IR fields, no `sm_lower.c` changes.  Once the bridge lands, CH-17g-irrun-lowers can invoke `sm_lower` from `--run` with chunk dispatch gated behind a runtime flag (off by default to preserve existing behavior; on for end-to-end migration).  Each line-1303 generator kind (E_EVERY, E_SUSPEND, …) becomes its own per-kind migration: a chunk-side producer (lower into pure SM) + a chunk-side consumer (new SM opcode mirroring CH-17f's `SM_BB_ONCE_PROC`).  Gates this session: smoke ×6 PASS, isolation PASS, unified_broker PASS=49 (no source touched).
 
-**CH-17g-runtime-bridge-1 LANDED sess 2026-05-09** — pure refactor as scoped.  Added `int icn_try_call_builtin_by_name(const char *fn, DESCR_t *args, int nargs, DESCR_t *out)` to `src/driver/interp_eval.c` covering `write` and `writes` — verbatim copies of the same logic that lived inline in `icn_call_builtin`.  Reorganised `icn_call_builtin` to delegate to the new helper after the Raku/SCAN dispatch but before the user-proc / clone-or-fallback paths.  Declaration added to `src/driver/interp_private.h` next to the existing `icn_call_builtin` decl.  Behaviour identical to baseline: `icn_call_builtin` still takes `EXPR_t *call` and dispatches the same set of builtins it always did; dispatch order inside it is unchanged (Raku → SCAN → write/writes via helper → user proc → clone-or-fallback); every existing caller (`coro_bb_fnc`, BB adapters in `coro_value.c` and `coro_runtime.c`) sees identical results.  Helper's branches are exact copies of the inlined code they replace; future drift prevented by `icn_call_builtin` calling the helper directly.  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2, Icon corpus `--interp` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  `--interp /tmp/probe.icn` still FATALs (helper defined but not yet wired into `SM_CALL_FN`; that's CH-17g-runtime-bridge-2).  Documented in `docs/CHUNKS-step17g-runtime-bridge-1-validation.md`.  Files: `src/driver/interp_eval.c` (+79 −26), `src/driver/interp_private.h` (+5 −0), `docs/CHUNKS-step17g-runtime-bridge-1-validation.md` (new).
+**CH-17g-runtime-bridge-1 LANDED sess 2026-05-09** — pure refactor as scoped.  Added `int icn_try_call_builtin_by_name(const char *fn, DESCR_t *args, int nargs, DESCR_t *out)` to `src/driver/interp_eval.c` covering `write` and `writes` — verbatim copies of the same logic that lived inline in `icn_call_builtin`.  Reorganised `icn_call_builtin` to delegate to the new helper after the Raku/SCAN dispatch but before the user-proc / clone-or-fallback paths.  Declaration added to `src/driver/interp_private.h` next to the existing `icn_call_builtin` decl.  Behaviour identical to baseline: `icn_call_builtin` still takes `EXPR_t *call` and dispatches the same set of builtins it always did; dispatch order inside it is unchanged (Raku → SCAN → write/writes via helper → user proc → clone-or-fallback); every existing caller (`coro_bb_fnc`, BB adapters in `coro_value.c` and `coro_runtime.c`) sees identical results.  Helper's branches are exact copies of the inlined code they replace; future drift prevented by `icn_call_builtin` calling the helper directly.  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2, Icon corpus `--run` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  `--run /tmp/probe.icn` still FATALs (helper defined but not yet wired into `SM_CALL_FN`; that's CH-17g-runtime-bridge-2).  Documented in `docs/CHUNKS-step17g-runtime-bridge-1-validation.md`.  Files: `src/driver/interp_eval.c` (+79 −26), `src/driver/interp_private.h` (+5 −0), `docs/CHUNKS-step17g-runtime-bridge-1-validation.md` (new).
 
-**CH-17g-runtime-bridge-2 LANDED sess 2026-05-09** — `icn_try_call_builtin_by_name` wired into `SM_CALL_FN`.  `./scrip --interp /tmp/probe.icn` now produces `hello from icon proc`, byte-identical to `--interp`.  Multi-call Icon programs (write + writes + numeric arg) also byte-identical.  Important placement subtlety discovered by probe: bridge-DESIGN proposed placing the helper call *after* `INVOKE_fn` returned FAIL, but `APPLY_fn` raises a SNOBOL4 runtime error via `sno_err` and **`longjmp`s out** through `g_sno_err_jmp` when a name is not in any registry — control never returns to the post-INVOKE_fn fallback.  Corrected placement: helper tried *first*, falls through to `INVOKE_fn` only when helper returns 0 (unknown name).  Safety: helper recognises only a fixed list (`write`, `writes` today); for any other name it returns 0 and `INVOKE_fn` runs unchanged.  No SNOBOL4 builtin is shadowed: SNOBOL4 has no `write`/`writes` builtin, helper's recognition list restricted to Icon-unique names.  If a future Icon builtin name overlaps with a SNOBOL4 builtin (none today), order would need to flip back with a `setjmp` wrapper around `INVOKE_fn`.  Single file change: `src/runtime/x86/sm_interp.c` (+24 −1).  Local `extern` decl of the helper inline at the call site (consistent with sm_interp.c's existing style for cross-module externs).  No new opcodes, no IR fields, no `sm_lower.c` changes.  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2, Icon corpus `--interp` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  New gate (Icon `--interp` of trivial program byte-identical to `--interp`): PASS — explicit success criterion from bridge plan met.  What still doesn't work: `--interp` of programs using Icon builtins not yet in helper (read, integer, string, type, copy, list, table, …) still FATAL.  Coverage extends one builtin at a time.  Documented in `docs/CHUNKS-step17g-runtime-bridge-2-validation.md`.
-**CH-17g-runtime-bridge-3 LANDED sess 2026-05-09** — extended `icn_try_call_builtin_by_name` from 2 names (`write`, `writes`) to 10, adding eight pure value-transform Icon builtins: `integer`, `real`, `string`, `numeric`, `char`, `ord`, `type`, `image` (0 or 1 arg).  Each new branch is a verbatim port of the equivalent in-eval branch in `interp_eval.c`'s E_FNC switch with two mechanical changes: `interp_eval(e->children[i])` → `args[i-1]` (already pre-evaluated by the SM_CALL_FN handler before invoking the helper), and `return X;` → `*out = X; return 1;` to honour the helper's 1=handled / 0=fall-through contract.  In-eval branches retained — pure additive, legacy `--interp` IR-walker path unchanged.  Selection rationale: each of the eight is EXPR_t-free, single-pass arg evaluation, no write-back through `e->children[i]` lvalue identity, no `&pos`/`&subject` mutation, frame-independent.  Builtins explicitly deferred: `read`/`tab`/`move`/`find`/`upto`/`match`/`any`/`many` (scan-context state), `repl`/`left`/`right`/`center`/`reverse`/`map`/`trim`/`copy`/`list`/`table` (multi-arg with default-handling — queue for follow-on), `push`/`pop`/`pull`/`get`/`put` (write back through children[1] lvalue identity — need EXPR_t-aware path or per-kind chunk migration under CH-17h).  Gates byte-identical to baseline: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49 FAIL=0, scrip_all_modes PASS=2 FAIL=0, Icon corpus `--interp` PASS=186 FAIL=47 XFAIL=30 TOTAL=263, csnobol4 Budne PASS=50 FAIL=100 SKIP=8 (matches CH-17g-call-sites baseline; environmental variance vs CH-17f's recorded 61).  New gate (trivial Icon proc using all 8 new builtins, `--interp` byte-identical to `--interp`): PASS — 11 calls covering all eight names.  `test/icon/generators.icn` now byte-identical between modes (previously diverged on `--interp`); `test/icon/meander.icn` and `test/icon/queens.icn` still diverge under `--interp` because they use unbridged builtins (`read`, `tab`, `find`, `move`, `repl`, `list`).  Single file change: `src/driver/interp_eval.c` (+162 −1).  No new opcodes, no IR fields, no `sm_lower.c` changes, no `sm_interp.c` changes (bridge-2's wire-up at SM_CALL_FN already routes every name through the helper).  Documented in `docs/CHUNKS-step17g-runtime-bridge-3-validation.md`.  SCRIP @ `57a90476`.
+**CH-17g-runtime-bridge-2 LANDED sess 2026-05-09** — `icn_try_call_builtin_by_name` wired into `SM_CALL_FN`.  `./scrip --run /tmp/probe.icn` now produces `hello from icon proc`, byte-identical to `--run`.  Multi-call Icon programs (write + writes + numeric arg) also byte-identical.  Important placement subtlety discovered by probe: bridge-DESIGN proposed placing the helper call *after* `INVOKE_fn` returned FAIL, but `APPLY_fn` raises a SNOBOL4 runtime error via `sno_err` and **`longjmp`s out** through `g_sno_err_jmp` when a name is not in any registry — control never returns to the post-INVOKE_fn fallback.  Corrected placement: helper tried *first*, falls through to `INVOKE_fn` only when helper returns 0 (unknown name).  Safety: helper recognises only a fixed list (`write`, `writes` today); for any other name it returns 0 and `INVOKE_fn` runs unchanged.  No SNOBOL4 builtin is shadowed: SNOBOL4 has no `write`/`writes` builtin, helper's recognition list restricted to Icon-unique names.  If a future Icon builtin name overlaps with a SNOBOL4 builtin (none today), order would need to flip back with a `setjmp` wrapper around `INVOKE_fn`.  Single file change: `src/runtime/x86/sm_interp.c` (+24 −1).  Local `extern` decl of the helper inline at the call site (consistent with sm_interp.c's existing style for cross-module externs).  No new opcodes, no IR fields, no `sm_lower.c` changes.  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2, Icon corpus `--run` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  New gate (Icon `--run` of trivial program byte-identical to `--run`): PASS — explicit success criterion from bridge plan met.  What still doesn't work: `--run` of programs using Icon builtins not yet in helper (read, integer, string, type, copy, list, table, …) still FATAL.  Coverage extends one builtin at a time.  Documented in `docs/CHUNKS-step17g-runtime-bridge-2-validation.md`.
+**CH-17g-runtime-bridge-3 LANDED sess 2026-05-09** — extended `icn_try_call_builtin_by_name` from 2 names (`write`, `writes`) to 10, adding eight pure value-transform Icon builtins: `integer`, `real`, `string`, `numeric`, `char`, `ord`, `type`, `image` (0 or 1 arg).  Each new branch is a verbatim port of the equivalent in-eval branch in `interp_eval.c`'s E_FNC switch with two mechanical changes: `interp_eval(e->children[i])` → `args[i-1]` (already pre-evaluated by the SM_CALL_FN handler before invoking the helper), and `return X;` → `*out = X; return 1;` to honour the helper's 1=handled / 0=fall-through contract.  In-eval branches retained — pure additive, legacy `--run` IR-walker path unchanged.  Selection rationale: each of the eight is EXPR_t-free, single-pass arg evaluation, no write-back through `e->children[i]` lvalue identity, no `&pos`/`&subject` mutation, frame-independent.  Builtins explicitly deferred: `read`/`tab`/`move`/`find`/`upto`/`match`/`any`/`many` (scan-context state), `repl`/`left`/`right`/`center`/`reverse`/`map`/`trim`/`copy`/`list`/`table` (multi-arg with default-handling — queue for follow-on), `push`/`pop`/`pull`/`get`/`put` (write back through children[1] lvalue identity — need EXPR_t-aware path or per-kind chunk migration under CH-17h).  Gates byte-identical to baseline: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49 FAIL=0, scrip_all_modes PASS=2 FAIL=0, Icon corpus `--run` PASS=186 FAIL=47 XFAIL=30 TOTAL=263, csnobol4 Budne PASS=50 FAIL=100 SKIP=8 (matches CH-17g-call-sites baseline; environmental variance vs CH-17f's recorded 61).  New gate (trivial Icon proc using all 8 new builtins, `--run` byte-identical to `--run`): PASS — 11 calls covering all eight names.  `test/icon/generators.icn` now byte-identical between modes (previously diverged on `--run`); `test/icon/meander.icn` and `test/icon/queens.icn` still diverge under `--run` because they use unbridged builtins (`read`, `tab`, `find`, `move`, `repl`, `list`).  Single file change: `src/driver/interp_eval.c` (+162 −1).  No new opcodes, no IR fields, no `sm_lower.c` changes, no `sm_interp.c` changes (bridge-2's wire-up at SM_CALL_FN already routes every name through the helper).  Documented in `docs/CHUNKS-step17g-runtime-bridge-3-validation.md`.  SCRIP @ `57a90476`.
 
-**CH-17g-runtime-bridge-4 LANDED sess 2026-05-09** — extended `icn_try_call_builtin_by_name` from 10 names (post-bridge-3) to 27 by adding 17 more EXPR_t-free Icon builtins: multi-arg pure transforms (`repl`, `reverse`, `map`, `trim`, `left`, `right`, `center`), math (`abs`, `max`, `min`, `sqrt`), containers (`copy`, `list`, `table`), I/O (`read`, `reads`), process control (`stop`).  Each branch verbatim-ported from in-eval E_FNC switch with `interp_eval(e->children[i])` → `args[i-1]`; in-eval branches retained; pure additive.  Subtleties handled inline: `trim`'s `g_lang` read (safe — `polyglot_execute` sets `g_lang=1` before any Icon proc in either mode); `max`/`min` loop bounds (0-indexed `args[]` vs 1-indexed `children[]`); `stop()`'s ignore-args-exit(0) behavior matched verbatim (Icon-spec gap pre-existing).  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49 FAIL=0, scrip_all_modes PASS=2 FAIL=0, Icon corpus `--interp` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  New gates: 14-call multi-arg probe under `--interp` byte-identical to `--interp`; `read()` under `--interp` byte-identical (pipe stdin).  Surfaces (not regressions): `test/icon/queens.icn` now reaches further; FATALs on `SM_ACOMP` opcode (separate `sm_interp` gap, not bridge); `test/icon/meander.icn` reaches further, FATALs on `tab()` (scan-context family — bridge-5).  Single file change: `src/driver/interp_eval.c` (+261 −1).  No new opcodes, no IR fields, no `sm_lower.c` or `sm_interp.c` changes.  Documented in `docs/CHUNKS-step17g-runtime-bridge-4-validation.md`.  SCRIP @ `5e526155`.  Cumulative bridge coverage: 27 names (write, writes, integer, real, string, numeric, char, ord, type, image{0,1}, repl, reverse, map, trim, left, right, center, abs, max, min, sqrt, copy, list, table, read, reads, stop).  Next rung options: (a) **bridge-5 scan-context** (`tab`/`move`/`find`/`upto`/`match`/`any`/`many` — needs `&pos`/`&subject` care, may interact with existing `scan_try_call_builtin`); (b) **CH-17g-irrun-lowers** (`--interp` invokes `sm_lower` so entry_pc resolves regardless of mode); (c) **SM_ACOMP opcode handler** in `sm_interp.c` (surfaced by queens.icn — small fix unblocks array-composition under chunks).
+**CH-17g-runtime-bridge-4 LANDED sess 2026-05-09** — extended `icn_try_call_builtin_by_name` from 10 names (post-bridge-3) to 27 by adding 17 more EXPR_t-free Icon builtins: multi-arg pure transforms (`repl`, `reverse`, `map`, `trim`, `left`, `right`, `center`), math (`abs`, `max`, `min`, `sqrt`), containers (`copy`, `list`, `table`), I/O (`read`, `reads`), process control (`stop`).  Each branch verbatim-ported from in-eval E_FNC switch with `interp_eval(e->children[i])` → `args[i-1]`; in-eval branches retained; pure additive.  Subtleties handled inline: `trim`'s `g_lang` read (safe — `polyglot_execute` sets `g_lang=1` before any Icon proc in either mode); `max`/`min` loop bounds (0-indexed `args[]` vs 1-indexed `children[]`); `stop()`'s ignore-args-exit(0) behavior matched verbatim (Icon-spec gap pre-existing).  Gates byte-identical: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49 FAIL=0, scrip_all_modes PASS=2 FAIL=0, Icon corpus `--run` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  New gates: 14-call multi-arg probe under `--run` byte-identical to `--run`; `read()` under `--run` byte-identical (pipe stdin).  Surfaces (not regressions): `test/icon/queens.icn` now reaches further; FATALs on `SM_ACOMP` opcode (separate `sm_interp` gap, not bridge); `test/icon/meander.icn` reaches further, FATALs on `tab()` (scan-context family — bridge-5).  Single file change: `src/driver/interp_eval.c` (+261 −1).  No new opcodes, no IR fields, no `sm_lower.c` or `sm_interp.c` changes.  Documented in `docs/CHUNKS-step17g-runtime-bridge-4-validation.md`.  SCRIP @ `5e526155`.  Cumulative bridge coverage: 27 names (write, writes, integer, real, string, numeric, char, ord, type, image{0,1}, repl, reverse, map, trim, left, right, center, abs, max, min, sqrt, copy, list, table, read, reads, stop).  Next rung options: (a) **bridge-5 scan-context** (`tab`/`move`/`find`/`upto`/`match`/`any`/`many` — needs `&pos`/`&subject` care, may interact with existing `scan_try_call_builtin`); (b) **CH-17g-irrun-lowers** (`--run` invokes `sm_lower` so entry_pc resolves regardless of mode); (c) **SM_ACOMP opcode handler** in `sm_interp.c` (surfaced by queens.icn — small fix unblocks array-composition under chunks).
 
-**CH-17g-runtime-bridge-acomp LANDED sess 2026-05-09** — closes the SM_ACOMP runtime gap surfaced by `queens.icn` after bridge-4 widened Icon builtin reach.  Two coupled changes — neither sufficient alone.  (1) Lowering bug at `sm_lower.c:859`: all six numeric comparison EKinds (E_EQ/E_NE/E_LT/E_LE/E_GT/E_GE) collapsed onto a single argument-less `SM_ACOMP` opcode; comparator unrecoverable at runtime.  Emit changed to `sm_emit_i(p, SM_ACOMP, (int64_t)e->kind)` so `a[0].i` carries the operator EKind.  (2) Missing `case SM_ACOMP:` in `sm_interp.c`'s switch — fell through to `default` FATAL "unhandled opcode 82".  Handler added: pops `r`/`l`, coerces SNUL→0 (matches SM_ADD convention), reads via `to_real`-shape promotion, dispatches on the EKind argument, and applies Icon-style relop semantics — on success push the RIGHT operand and set `last_ok=1` (so `every write(2 < (1 to 4))` yields `3, 4`); on failure push FAILDESCR and clear `last_ok`.  `SM_JUMP_F` already tests `last_ok` (sm_interp.c:276) so dispatch wires up automatically.  Mirrors the `NUMREL` macro at `interp_eval.c:3162–3171` line for line.  Default arm in the switch is a safety net for any pre-bridge-acomp SM_Program (unreachable on freshly lowered code).  `sm_prog.c:222` extended to print the operator EKind under `--dump-sm` (`SM_ACOMP i=67` for E_EQ, `i=63` for E_LT).  Stale `sm_codegen.c:1177` comment refreshed: SM_ACOMP/SM_LCOMP were lumped together as "stubbed by design because Icon bypasses sm_lower" — that rationale dissolved in CH-17b' (sess #78); SM_ACOMP entry removed, SM_LCOMP entry narrowed and noted as a follow-on rung (SM_LCOMP has the same shape bug for E_LLT/E_LLE/E_LGT/E_LGE/E_LEQ/E_LNE collapse, deferred to bridge-lcomp).  JIT codegen for SM_ACOMP remains `h_unimpl` (M5 territory; named-FATAL pattern).  Probe verified: `if i = 0 then write("eq"); if i < 1 then write("lt")` under `--interp` produces `eq\nlt\n`, byte-identical to `--interp` modulo the pre-existing if-then trailing-value leak (a separate, reproducible-without-SM_ACOMP issue, not introduced by this rung).  `queens.icn --interp` no longer FATALs on opcode 82 — runs to `0 solutions total.` (a different correctness surface; queens.icn under `--interp` ALSO produces wrong output, "Error 3 Erroneous array or table reference" — pre-existing).  Gates byte-identical to baseline: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 4/4, 5/5), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2 (NET emit SKIP — no ilasm/mono), Icon corpus `--interp` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  Documented in `docs/CHUNKS-step17g-runtime-bridge-acomp-validation.md`.  Files: `src/runtime/x86/sm_lower.c` (1-line behavioural), `src/runtime/x86/sm_interp.c` (+39 SM_ACOMP handler), `src/runtime/x86/sm_prog.c` (1-line print case), `src/runtime/x86/sm_codegen.c` (comment refresh, no behavioural change).  Next rung options unchanged from bridge-4's list, minus (c): (a) **bridge-5 scan-context** (`tab`/`move`/`find`/`upto`/`match`/`any`/`many`); (b) **CH-17g-irrun-lowers** (`--interp` invokes `sm_lower` so `entry_pc` resolves regardless of mode); (d) **bridge-lcomp** (sibling of acomp for SM_LCOMP — string relops have the same shape bug; surfaces will arrive when corpus reaches one under `--interp`).
+**CH-17g-runtime-bridge-acomp LANDED sess 2026-05-09** — closes the SM_ACOMP runtime gap surfaced by `queens.icn` after bridge-4 widened Icon builtin reach.  Two coupled changes — neither sufficient alone.  (1) Lowering bug at `sm_lower.c:859`: all six numeric comparison EKinds (E_EQ/E_NE/E_LT/E_LE/E_GT/E_GE) collapsed onto a single argument-less `SM_ACOMP` opcode; comparator unrecoverable at runtime.  Emit changed to `sm_emit_i(p, SM_ACOMP, (int64_t)e->kind)` so `a[0].i` carries the operator EKind.  (2) Missing `case SM_ACOMP:` in `sm_interp.c`'s switch — fell through to `default` FATAL "unhandled opcode 82".  Handler added: pops `r`/`l`, coerces SNUL→0 (matches SM_ADD convention), reads via `to_real`-shape promotion, dispatches on the EKind argument, and applies Icon-style relop semantics — on success push the RIGHT operand and set `last_ok=1` (so `every write(2 < (1 to 4))` yields `3, 4`); on failure push FAILDESCR and clear `last_ok`.  `SM_JUMP_F` already tests `last_ok` (sm_interp.c:276) so dispatch wires up automatically.  Mirrors the `NUMREL` macro at `interp_eval.c:3162–3171` line for line.  Default arm in the switch is a safety net for any pre-bridge-acomp SM_Program (unreachable on freshly lowered code).  `sm_prog.c:222` extended to print the operator EKind under `--dump-sm` (`SM_ACOMP i=67` for E_EQ, `i=63` for E_LT).  Stale `sm_codegen.c:1177` comment refreshed: SM_ACOMP/SM_LCOMP were lumped together as "stubbed by design because Icon bypasses sm_lower" — that rationale dissolved in CH-17b' (sess #78); SM_ACOMP entry removed, SM_LCOMP entry narrowed and noted as a follow-on rung (SM_LCOMP has the same shape bug for E_LLT/E_LLE/E_LGT/E_LGE/E_LEQ/E_LNE collapse, deferred to bridge-lcomp).  JIT codegen for SM_ACOMP remains `h_unimpl` (M5 territory; named-FATAL pattern).  Probe verified: `if i = 0 then write("eq"); if i < 1 then write("lt")` under `--run` produces `eq\nlt\n`, byte-identical to `--run` modulo the pre-existing if-then trailing-value leak (a separate, reproducible-without-SM_ACOMP issue, not introduced by this rung).  `queens.icn --run` no longer FATALs on opcode 82 — runs to `0 solutions total.` (a different correctness surface; queens.icn under `--run` ALSO produces wrong output, "Error 3 Erroneous array or table reference" — pre-existing).  Gates byte-identical to baseline: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 4/4, 5/5), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2 (NET emit SKIP — no ilasm/mono), Icon corpus `--run` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  Documented in `docs/CHUNKS-step17g-runtime-bridge-acomp-validation.md`.  Files: `src/runtime/x86/sm_lower.c` (1-line behavioural), `src/runtime/x86/sm_interp.c` (+39 SM_ACOMP handler), `src/runtime/x86/sm_prog.c` (1-line print case), `src/runtime/x86/sm_codegen.c` (comment refresh, no behavioural change).  Next rung options unchanged from bridge-4's list, minus (c): (a) **bridge-5 scan-context** (`tab`/`move`/`find`/`upto`/`match`/`any`/`many`); (b) **CH-17g-irrun-lowers** (`--run` invokes `sm_lower` so `entry_pc` resolves regardless of mode); (d) **bridge-lcomp** (sibling of acomp for SM_LCOMP — string relops have the same shape bug; surfaces will arrive when corpus reaches one under `--run`).
 
-**CH-17g-runtime-bridge-lcomp LANDED sess 2026-05-09** — sibling of bridge-acomp; closes the asymmetry that doc explicitly flagged as a follow-on rung.  Mirrors bridge-acomp for the string/lexicographic relops: same shape bug, same fix pattern.  (1) Lowering at `sm_lower.c:872` had collapsed all six string comparison EKinds (E_LLT/E_LLE/E_LGT/E_LGE/E_LEQ/E_LNE) onto a single argument-less `SM_LCOMP`; emit changed to `sm_emit_i(p, SM_LCOMP, (int64_t)e->kind)`.  (2) `case SM_LCOMP:` added to `sm_interp.c` switch: pops `r`/`l`, runs `strcmp(VARVAL_fn(l), VARVAL_fn(r))`, dispatches on EKind, applies Icon-style relop semantics — on success push the RIGHT operand and set `last_ok=1`; on failure push FAILDESCR and clear `last_ok`.  Mirrors the STRREL macro at `interp_eval.c:3184–3194` line for line.  Default arm in the switch is a safety net for any pre-bridge-lcomp SM_Program (unreachable on freshly lowered code).  No change to `sm_prog.c` (SM_LCOMP was already in the `i=` print case, predating bridge-acomp).  `sm_codegen.c` comment further refreshed: SM_LCOMP entry removed from the "stubbed by design" list and folded into the bridge-acomp/lcomp closing note (JIT codegen still `h_unimpl` for both — M5 territory).  No corpus surface today (no Icon program in `test/icon` reaches a string relop under `--interp`); landed preventatively for symmetry with bridge-acomp — half-fixed pair would leave `sm_codegen.c` telling an inconsistent story to the next reader.  Probe verified: `s := "abc"; if s == "abc" then write("seq"); if s << "abd" then write("slt"); if s >> "abb" then write("sgt")` under `--interp` produces `seq\nslt\nsgt\n`, byte-identical to `--interp` modulo the pre-existing trailing-value-after-if-then leak documented in bridge-acomp (same artifact, not introduced by this rung).  Gates byte-identical to baseline: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 4/4, 5/5), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2, Icon corpus `--interp` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  Documented in `docs/CHUNKS-step17g-runtime-bridge-lcomp-validation.md`.  Files: `src/runtime/x86/sm_lower.c` (1-line behavioural), `src/runtime/x86/sm_interp.c` (+47 SM_LCOMP handler), `src/runtime/x86/sm_codegen.c` (comment refresh).  Next rung options: (a) **bridge-5 scan-context** (`tab`/`move`/`find`/`upto`/`match`/`any`/`many` — needs `&pos`/`&subject` care, may interact with existing `scan_try_call_builtin`); (b) **CH-17g-irrun-lowers** (`--interp` invokes `sm_lower` so `entry_pc` resolves regardless of mode — a structural change to `scrip.c:557–561` non-SNO `--interp` dispatch; awaiting Lon decision per CH-17g-final-SURVEY's recommendation to split CH-17g-final's preconditions into runtime-bridge and irrun-lowers rungs).
+**CH-17g-runtime-bridge-lcomp LANDED sess 2026-05-09** — sibling of bridge-acomp; closes the asymmetry that doc explicitly flagged as a follow-on rung.  Mirrors bridge-acomp for the string/lexicographic relops: same shape bug, same fix pattern.  (1) Lowering at `sm_lower.c:872` had collapsed all six string comparison EKinds (E_LLT/E_LLE/E_LGT/E_LGE/E_LEQ/E_LNE) onto a single argument-less `SM_LCOMP`; emit changed to `sm_emit_i(p, SM_LCOMP, (int64_t)e->kind)`.  (2) `case SM_LCOMP:` added to `sm_interp.c` switch: pops `r`/`l`, runs `strcmp(VARVAL_fn(l), VARVAL_fn(r))`, dispatches on EKind, applies Icon-style relop semantics — on success push the RIGHT operand and set `last_ok=1`; on failure push FAILDESCR and clear `last_ok`.  Mirrors the STRREL macro at `interp_eval.c:3184–3194` line for line.  Default arm in the switch is a safety net for any pre-bridge-lcomp SM_Program (unreachable on freshly lowered code).  No change to `sm_prog.c` (SM_LCOMP was already in the `i=` print case, predating bridge-acomp).  `sm_codegen.c` comment further refreshed: SM_LCOMP entry removed from the "stubbed by design" list and folded into the bridge-acomp/lcomp closing note (JIT codegen still `h_unimpl` for both — M5 territory).  No corpus surface today (no Icon program in `test/icon` reaches a string relop under `--run`); landed preventatively for symmetry with bridge-acomp — half-fixed pair would leave `sm_codegen.c` telling an inconsistent story to the next reader.  Probe verified: `s := "abc"; if s == "abc" then write("seq"); if s << "abd" then write("slt"); if s >> "abb" then write("sgt")` under `--run` produces `seq\nslt\nsgt\n`, byte-identical to `--run` modulo the pre-existing trailing-value-after-if-then leak documented in bridge-acomp (same artifact, not introduced by this rung).  Gates byte-identical to baseline: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 4/4, 5/5), isolation PASS, unified_broker PASS=49, scrip_all_modes PASS=2, Icon corpus `--run` PASS=186 FAIL=47 XFAIL=30 TOTAL=263.  Documented in `docs/CHUNKS-step17g-runtime-bridge-lcomp-validation.md`.  Files: `src/runtime/x86/sm_lower.c` (1-line behavioural), `src/runtime/x86/sm_interp.c` (+47 SM_LCOMP handler), `src/runtime/x86/sm_codegen.c` (comment refresh).  Next rung options: (a) **bridge-5 scan-context** (`tab`/`move`/`find`/`upto`/`match`/`any`/`many` — needs `&pos`/`&subject` care, may interact with existing `scan_try_call_builtin`); (b) **CH-17g-irrun-lowers** (`--run` invokes `sm_lower` so `entry_pc` resolves regardless of mode — a structural change to `scrip.c:557–561` non-SNO `--run` dispatch; awaiting Lon decision per CH-17g-final-SURVEY's recommendation to split CH-17g-final's preconditions into runtime-bridge and irrun-lowers rungs).
 
-**CH-17g-irrun-lowers LANDED sess 2026-05-09** — `g_irrun_lowers` flag (polyglot.h/c, default 0); `sm_resolve_irrun_entry_pcs(prog)` (scrip_sm.h/c) runs sm_lower→resolve→free without keeping SM live; `polyglot_execute` calls it after `polyglot_init` when flag set; `scrip.c` sets/clears flag around non-SNO `--interp` dispatch. Guard at every SM-dispatch site (`g_current_sm_prog != NULL`): `proc_table_call` (coro_runtime.c), `pl_chunk_fn` (pl_broker.c), two sites pl_runtime.c, interp_hooks.c, two sites interp_eval.c, polyglot.c main/0. Entry_pcs resolve under `--interp`; execution falls through to legacy path (correct — SM freed). Gates: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49. Specific gate: `SCRIP_PROC_ENTRY_PCS=1 --interp hello.icn` → `main entry_pc=1`; `SCRIP_PROC_ENTRY_PCS=1 --interp hello.pl` → `main/0 entry_pc=1`. Docs: `docs/CHUNKS-step17g-irrun-lowers-validation.md`. SCRIP @ `5d6de5f7`. **Next rung: CH-17g-final** (drop `AST_t *proc` from IcnProcEntry; lift code_free gate — both preconditions now met).
+**CH-17g-irrun-lowers LANDED sess 2026-05-09** — `g_irrun_lowers` flag (polyglot.h/c, default 0); `sm_resolve_irrun_entry_pcs(prog)` (scrip_sm.h/c) runs sm_lower→resolve→free without keeping SM live; `polyglot_execute` calls it after `polyglot_init` when flag set; `scrip.c` sets/clears flag around non-SNO `--run` dispatch. Guard at every SM-dispatch site (`g_current_sm_prog != NULL`): `proc_table_call` (coro_runtime.c), `pl_chunk_fn` (pl_broker.c), two sites pl_runtime.c, interp_hooks.c, two sites interp_eval.c, polyglot.c main/0. Entry_pcs resolve under `--run`; execution falls through to legacy path (correct — SM freed). Gates: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), isolation PASS, unified_broker PASS=49. Specific gate: `SCRIP_PROC_ENTRY_PCS=1 --run hello.icn` → `main entry_pc=1`; `SCRIP_PROC_ENTRY_PCS=1 --run hello.pl` → `main/0 entry_pc=1`. Docs: `docs/CHUNKS-step17g-irrun-lowers-validation.md`. SCRIP @ `5d6de5f7`. **Next rung: CH-17g-final** (drop `AST_t *proc` from IcnProcEntry; lift code_free gate — both preconditions now met).
 
-**CH-17g-final-SURVEY-2 LANDED sess 2026-05-09** — `docs/CHUNKS-step17g-final-survey-2.md` documents that the asserted "both CH-17g-final preconditions met" claim at the bottom of `CHUNKS-step17g-irrun-lowers-validation.md` is incorrect.  Empirical probe (`proc_table[proc_count].proc = NULL` in `polyglot.c:178`, reverted before commit) shows three live consumers of the field, two load-bearing.  (i) `sm_lower.c:1757` reads `.proc` producer-side at lowering time; with proc=NULL the SM_Program for `procedure main() write("hello") end` truncates to `SM_BB_PUMP_PROC + SM_HALT` (2 instrs) and `--interp` produces empty output, rc=0.  (ii) `coro_runtime.c:603` `proc_table_call` falls back to `coro_call(proc_table[pi].proc, ...)` when `g_current_sm_prog == NULL`, which is exactly the state under `--interp` because `sm_resolve_irrun_entry_pcs` discards SM_Program with `sm_prog_free` immediately after populating entry_pcs.  Probe `--interp` SIGSEGVs on `coro_call`'s scope-build dereferencing NULL.  (iii) Lines 1179, 1267, 1557, 1775 (trampoline staging + `coro_drive_fnc`) all stage `.proc` for the legacy fallback.  CH-17g-irrun-lowers correctly delivered the *observability* piece — `entry_pc >= 0` resolves under `--interp` and is visible under `SCRIP_PROC_ENTRY_PCS=1` — but did not deliver the *execution* piece.  Three options for sequencing forward: A) `--interp` non-SNO becomes alias for `--interp` (drops a user-facing mode contract); B) `sm_resolve_irrun_entry_pcs` retains SM_Program (sets `g_current_sm_prog = sm`) so dispatch guards take the SM path under `--interp` too (smallest code change; risk: `--interp`'s known gaps become `--interp`'s gaps); C) amend GOAL-CHUNKS Step 17's "IR freed unconditionally for all six frontends" criterion to "conditional on execution mode" (smallest code change but largest spec change).  Producer-side `sm_lower.c:1757` cleanup is independent of A/B/C.  **Lon decision sess 2026-05-09: Option A** — AST and SM both deleted between phases (separation/isolation).  Carved **CH-17g-irrun-execution** as the rung that delivers it: `scrip.c` non-SNO `--interp` routes through the same `sm_preamble` + `sm_run_with_recovery` path as `--interp`; drop `g_irrun_lowers` flag and `sm_resolve_irrun_entry_pcs` helper (superseded); SNOBOL4 `--interp` path unchanged.  After CH-17g-irrun-execution lands, CH-17g-final closes Step 17.  Gates re-confirmed post-revert: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), build clean, both `--interp` and `--interp` of `/tmp/probe.icn` produce `hello from icon` byte-identical.
+**CH-17g-final-SURVEY-2 LANDED sess 2026-05-09** — `docs/CHUNKS-step17g-final-survey-2.md` documents that the asserted "both CH-17g-final preconditions met" claim at the bottom of `CHUNKS-step17g-irrun-lowers-validation.md` is incorrect.  Empirical probe (`proc_table[proc_count].proc = NULL` in `polyglot.c:178`, reverted before commit) shows three live consumers of the field, two load-bearing.  (i) `sm_lower.c:1757` reads `.proc` producer-side at lowering time; with proc=NULL the SM_Program for `procedure main() write("hello") end` truncates to `SM_BB_PUMP_PROC + SM_HALT` (2 instrs) and `--run` produces empty output, rc=0.  (ii) `coro_runtime.c:603` `proc_table_call` falls back to `coro_call(proc_table[pi].proc, ...)` when `g_current_sm_prog == NULL`, which is exactly the state under `--run` because `sm_resolve_irrun_entry_pcs` discards SM_Program with `sm_prog_free` immediately after populating entry_pcs.  Probe `--run` SIGSEGVs on `coro_call`'s scope-build dereferencing NULL.  (iii) Lines 1179, 1267, 1557, 1775 (trampoline staging + `coro_drive_fnc`) all stage `.proc` for the legacy fallback.  CH-17g-irrun-lowers correctly delivered the *observability* piece — `entry_pc >= 0` resolves under `--run` and is visible under `SCRIP_PROC_ENTRY_PCS=1` — but did not deliver the *execution* piece.  Three options for sequencing forward: A) `--run` non-SNO becomes alias for `--run` (drops a user-facing mode contract); B) `sm_resolve_irrun_entry_pcs` retains SM_Program (sets `g_current_sm_prog = sm`) so dispatch guards take the SM path under `--run` too (smallest code change; risk: `--run`'s known gaps become `--run`'s gaps); C) amend GOAL-CHUNKS Step 17's "IR freed unconditionally for all six frontends" criterion to "conditional on execution mode" (smallest code change but largest spec change).  Producer-side `sm_lower.c:1757` cleanup is independent of A/B/C.  **Lon decision sess 2026-05-09: Option A** — AST and SM both deleted between phases (separation/isolation).  Carved **CH-17g-irrun-execution** as the rung that delivers it: `scrip.c` non-SNO `--run` routes through the same `sm_preamble` + `sm_run_with_recovery` path as `--run`; drop `g_irrun_lowers` flag and `sm_resolve_irrun_entry_pcs` helper (superseded); SNOBOL4 `--run` path unchanged.  After CH-17g-irrun-execution lands, CH-17g-final closes Step 17.  Gates re-confirmed post-revert: smoke ×6 PASS (7/7, 5/5, 5/5, 5/5, 5/5, 4/4), build clean, both `--run` and `--run` of `/tmp/probe.icn` produce `hello from icon` byte-identical.

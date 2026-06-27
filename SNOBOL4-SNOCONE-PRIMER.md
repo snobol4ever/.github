@@ -905,7 +905,7 @@ Each `parser-fixtures/*.sc` is parsed two ways and compared
 byte-for-byte (whitespace-normalized):
 
 1. The reference: `scrip --dump-ast fixture.sc` (existing C frontend).
-2. The candidate: `parser_snocone.sc` running through `--interp` with
+2. The candidate: `parser_snocone.sc` running through `--run` with
    the shared library blob.
 
 A fixture passes iff both produce the same IR tree. PASS=46 FAIL=0
@@ -917,7 +917,7 @@ beauty.sc parses. Always run beauty.sc separately before claiming
 SCRIP=/home/claude/SCRIP/scrip
 SRC=/home/claude/corpus/SCRIP
 cat /home/claude/corpus/programs/snocone/demo/beauty/beauty.sc | \
-  timeout 30 $SCRIP --interp $SRC/global.sc $SRC/tree.sc $SRC/stack.sc \
+  timeout 30 $SCRIP --run $SRC/global.sc $SRC/tree.sc $SRC/stack.sc \
     $SRC/counter.sc $SRC/semantic.sc $SRC/ShiftReduce.sc $SRC/qize.sc \
     $SRC/gen.sc $SRC/tdump.sc $SRC/assign.sc $SRC/parser_snocone.sc 2>&1
 ```

@@ -47,7 +47,7 @@ rung18_succ_*.pl (and a whole block of rungs) have **NO `:- initialization(main)
 — they just define `main :- ...` + a trailing `main.` fact, and their `.expected` files show
 real output. But scrip does NOT auto-run main/0 for a directive-less file (verified:
 `main :- write(hello), nl.` with no directive → empty output). The rung harness
-(`scripts/test_prolog_rung_suite.sh`) just calls `scrip --interp file.pl` with no goal
+(`scripts/test_prolog_rung_suite.sh`) just calls `scrip --run file.pl` with no goal
 injection. So these rungs can never pass until scrip auto-runs main/0.
 
 **RULES.md forbids patching corpus to work around runtime bugs**, so the sanctioned fix is in

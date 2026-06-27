@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -40,7 +40,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** SCRIP
-**Done when:** Rebus programs pass under all three modes (--interp, --interp,
+**Done when:** Rebus programs pass under all three modes (--run, --run,
 --run). Core language features (functions, pattern match, generators,
 records) work. A test suite of 20+ programs passes.
 
@@ -72,9 +72,9 @@ bash /home/claude/SCRIP/scripts/test_crosscheck_rebus.sh       # 3-mode divergen
 
 ```
 .reb → rebus_compile() → CODE_t* [LANG_REB]   (FI-1 wired)
-    --interp  → execute_program() → polyglot_execute() → execute_program()
+    --run  → execute_program() → polyglot_execute() → execute_program()
                 (Rebus lowers to SNO-style label/goto chains — FI-1B)
-    --interp  → sm_lower() LANG_SNO path (Rebus shares LANG_SNO lowering)
+    --run  → sm_lower() LANG_SNO path (Rebus shares LANG_SNO lowering)
     --run → sm_codegen() same path
 
 Pattern match: expr ? pat → BB_SCAN (same as SNOBOL4)
@@ -103,7 +103,7 @@ pattern primitives. Key constructs:
 
 ## Rung ladder — all modes, x86
 
-Current baseline: PASS=4 --interp (output, arith, var, concat).
+Current baseline: PASS=4 --run (output, arith, var, concat).
 Rebus frontend wired (FI-1) but many language features not lowered.
 
 ### Phase 1 — IR-run: core language features
@@ -113,7 +113,7 @@ Rebus frontend wired (FI-1) but many language features not lowered.
 - [ ] **RB-2** — Control flow: `if/then/else`, `while/do`.
   Verify snocone_lower.c control flow fixes (SC-3/SC-4) reach Rebus via
   shared interp_eval E_IF/E_WHILE. Write `test/rebus/test_control.reb`.
-  Gate: PASS under --interp.
+  Gate: PASS under --run.
 
 - [ ] **RB-3** — Functions: `function f(args) ... return val ... end`.
   Verify function def + call works. Write `test/rebus/test_func.reb`.
@@ -122,7 +122,7 @@ Rebus frontend wired (FI-1) but many language features not lowered.
 - [ ] **RB-4** — Pattern match: `expr ? pattern`.
   Wire `expr ? pat` in rebus_lower.c → STMT_t subject+pattern → BB_SCAN.
   Write `test/rebus/test_pattern.reb` (ARB, SPAN, BREAK, literal).
-  Gate: PASS under --interp.
+  Gate: PASS under --run.
 
 - [ ] **RB-5** — Pattern replace: `expr ? pat <- repl`.
   Wire replace field in STMT_t. Gate: replace test PASS.
@@ -130,22 +130,22 @@ Rebus frontend wired (FI-1) but many language features not lowered.
 - [ ] **RB-6** — Alternation generator: `expr | expr`.
   E_ALT_GEN → icn_bb_alt_gen (write in icon_gen.c — shared with Icon IC-18).
   Write `test/rebus/test_altgen.reb`.
-  Gate: PASS under --interp.
+  Gate: PASS under --run.
 
 - [ ] **RB-7** — Records: `record R(f1,f2)` / `R(v1,v2)` / `r.f1`.
   E_RECORD + E_FIELD in rebus_lower.c. Wire to E_RECORD/E_FIELD in interp_eval.
   Write `test/rebus/test_record.reb`.
-  Gate: PASS under --interp.
+  Gate: PASS under --run.
 
 - [ ] **RB-8** — String builtins: `size(s)`, `type(x)`, `image(x)`.
   Map to existing SNOBOL4 builtins SIZE, DATATYPE, IMAGE.
   Write `test/rebus/test_builtins.reb`.
-  Gate: PASS under --interp.
+  Gate: PASS under --run.
 
 - [ ] **RB-9** — `fail` / `stop` / `exit` / `next`.
   fail → FAILDESCR; stop/exit → terminate; next → E_LOOP_NEXT.
   Write `test/rebus/test_flow.reb`.
-  Gate: PASS under --interp.
+  Gate: PASS under --run.
 
 - [ ] **RB-10** — Write `scripts/test_rebus_ir_suite.sh`.
   Runs RB-2 through RB-9 tests. Gate: all PASS.
@@ -154,15 +154,15 @@ Rebus frontend wired (FI-1) but many language features not lowered.
   Write 20 .reb programs in `test/rebus/` covering all features.
   Include: fibonacci, palindrome, wordcount, pattern demos, record demos.
   .ref files: derive from equivalent SNOBOL4 or Icon programs under SPITBOL/Unicon.
-  Gate: all 20 PASS under --interp.
+  Gate: all 20 PASS under --run.
 
 ### Phase 2 — SM-run (x86)
 
-- [ ] **RB-12** — RB-1 through RB-9 tests under --interp.
+- [ ] **RB-12** — RB-1 through RB-9 tests under --run.
   Rebus lowers to LANG_SNO path in sm_lower.c.
   Gate: all PASS.
 
-- [ ] **RB-13** — Full 20-program corpus under --interp.
+- [ ] **RB-13** — Full 20-program corpus under --run.
   Gate: PASS=20.
 
 ### Phase 3 — JIT-run (x86 in-memory)
@@ -199,7 +199,7 @@ Rebus frontend wired (FI-1) but many language features not lowered.
 
 ## Current state (2026-04-14, SCRIP HEAD 43dc03da)
 
-RB-1 done: PASS=4 (output, arith, var, concat) --interp.
+RB-1 done: PASS=4 (output, arith, var, concat) --run.
 RB-2 next: control flow verification.
 RB-6 (alternation generator) coordinates with GOAL-LANG-ICON IC-18 (icn_bb_alt_gen).
 
@@ -239,7 +239,7 @@ DIVERGE at stmt N [label: LABEL, line LL]
 4. Re-run `--monitor` to confirm divergence is gone.
 5. Run `test_smoke_unified_broker.sh` — must stay PASS=31 FAIL=0.
 
-**Note:** `--monitor` is incompatible with `--interp`/`--run`
+**Note:** `--monitor` is incompatible with `--run`/`--run`
 (it drives all three internally). ICN frame locals (IM-10) and Prolog trail
 variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 

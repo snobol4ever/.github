@@ -17,7 +17,7 @@ Two distinct node families (do not confuse — this cost time):
 ## ROOT CAUSE (verified empirically, not assumed)
 
 - Production: builder nodes had NO m2 arm (fell to default → m2 empty) and binary templates were `ins*`-only (emit nothing → m3 corrupt DT_P → segfault once the consumer ran it). m4 worked because TEXT `ins*` emit.
-- Consumption: `IR_PAT_DEFER` (`IR_interp.c`) — its `DT_P` branch was a hard `abort()` (`[B0] BOMB IR_PAT_DEFER…`), NOT an `rt_dtp_run` call. Both m2 (`--interp`) and m3 (`--run`, whose native scan box calls back into IR_interp for the pattern sub-graph) funnel through this arm.
+- Consumption: `IR_PAT_DEFER` (`IR_interp.c`) — its `DT_P` branch was a hard `abort()` (`[B0] BOMB IR_PAT_DEFER…`), NOT an `rt_dtp_run` call. Both m2 (`--run`) and m3 (`--run`, whose native scan box calls back into IR_interp for the pattern sub-graph) funnel through this arm.
 - The pat pool is `__attribute__((constructor))` + mmap RWX (`pat_pool.c`), so building/executing DT_P blobs in m2 is safe.
 
 ## THE FIX (7 files, +146/−159 — templates SHRANK)
@@ -52,7 +52,7 @@ bash scripts/test_gate_sno_pat_reg.sh                                # fence Tie
 
 053 verify (all three → `b`):
 ```
-./scrip --interp test/snobol4/patterns/053_pat_alt_commit.sno < /dev/null     # b
+./scrip --run test/snobol4/patterns/053_pat_alt_commit.sno < /dev/null     # b
 ./scrip --run    test/snobol4/patterns/053_pat_alt_commit.sno < /dev/null     # b
 ./scrip --compile … | gcc -no-pie - -L out -lscrip_rt -o /tmp/053 && LD_LIBRARY_PATH=out /tmp/053   # b
 ```

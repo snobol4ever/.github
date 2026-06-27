@@ -188,7 +188,7 @@ because scrip's runtime is C-internal — no LOAD ABI dance.
 - scrip mon_send rewrite:                          1.0 h
 - 2-way validation on hello + multi probes:        0.5 h
 - 2-way validation on full beauty self-host:       1.0 h
-- Wire scrip --interp as 3rd participant:          1.0 h
+- Wire scrip --run as 3rd participant:          1.0 h
                                                    ----
                                                    8.5 h  (one full session)
 
@@ -198,9 +198,9 @@ After the binary protocol lands:
   - Smoke=7, Broker=49 unchanged
   - 2-way (CSNOBOL4 + SPITBOL) on full beauty self-host: 0 divergences,
     all events to END
-  - 3-way (... + scrip --interp): first divergence is the actual beauty
+  - 3-way (... + scrip --run): first divergence is the actual beauty
     self-host bug (currently SN-26c-parseerr-h sub-h2)
-  - Same with --interp and --run as the third slot
+  - Same with --run and --run as the third slot
 
 ## Dependencies on prior work
 

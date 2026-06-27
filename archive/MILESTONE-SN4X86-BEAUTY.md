@@ -2,12 +2,12 @@
 
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Date:** 2026-04-08
-**Goal:** `scrip --interp beauty.sno beauty.sno` runs to completion without errors.
+**Goal:** `scrip --run beauty.sno beauty.sno` runs to completion without errors.
 
 Run command:
 ```bash
 SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
-    ./scrip --interp \
+    ./scrip --run \
     /home/claude/corpus/programs/snobol4/demo/beauty.sno \
     /home/claude/corpus/programs/snobol4/demo/beauty.sno
 ```
@@ -52,7 +52,7 @@ Labels can contain `~` — e.g. `pp_~`. Check LBLTB / label-scan loop to confirm
 
 ### Gate
 ```bash
-SNO_LIB=.../inc ./scrip --interp beauty.sno beauty.sno 2>&1 | grep "ELEMNT: illegal" | wc -l
+SNO_LIB=.../inc ./scrip --run beauty.sno beauty.sno 2>&1 | grep "ELEMNT: illegal" | wc -l
 # → 0
 ```
 
@@ -87,7 +87,7 @@ if (strcasecmp(name, "ALPHABET") == 0) return STRVAL("");  /* stub */
 
 ### Gate
 ```bash
-SNO_LIB=.../inc ./scrip --interp beauty.sno beauty.sno 2>&1 | grep "ALPHABET" | wc -l
+SNO_LIB=.../inc ./scrip --run beauty.sno beauty.sno 2>&1 | grep "ALPHABET" | wc -l
 # → 0
 ```
 
@@ -106,7 +106,7 @@ any other gaps exposed once tilde and &ALPHABET are fixed.
 ### Run and triage loop
 ```bash
 SNO_LIB=/home/claude/corpus/programs/snobol4/demo/inc \
-    ./scrip --interp \
+    ./scrip --run \
     /home/claude/corpus/programs/snobol4/demo/beauty.sno \
     /home/claude/corpus/programs/snobol4/demo/beauty.sno \
     2>&1 | head -60
@@ -125,7 +125,7 @@ Diff scrip output vs SPITBOL output — exact match is the gate.
 
 ### Gate
 ```
-scrip --interp beauty.sno beauty.sno  output  ==  /home/claude/x64/bin/sbl beauty.sno beauty.sno  output
+scrip --run beauty.sno beauty.sno  output  ==  /home/claude/x64/bin/sbl beauty.sno beauty.sno  output
 ```
 No `** Error` lines. No `ELEMNT` warnings. Exit 0.
 

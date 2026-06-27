@@ -4,7 +4,7 @@
 SCRIP `9baaf64` · .github `(this commit)` (both build green).
 
 ## What & why
-Lon: "Extend `ir_delete_all` to all languages. Each session will be responsible for healing from the modification." The IR is now physically freed on EVERY language's mode-3 (`--run`, after the slab is built, before it executes) and mode-4 (`--compile`, after the `.S` is emitted, before return). This converts IR-NEVER-TOUCHED from a per-Prolog guarantee into a whole-compiler structural one: any path that reads IR during execution now faults (m3) or is caught as a post-emit re-read (m4). **mode-2 (`--interp`) is deliberately NOT wired** — the IR-graph interpreter legitimately walks IR during execution; that is its entire job.
+Lon: "Extend `ir_delete_all` to all languages. Each session will be responsible for healing from the modification." The IR is now physically freed on EVERY language's mode-3 (`--run`, after the slab is built, before it executes) and mode-4 (`--compile`, after the `.S` is emitted, before return). This converts IR-NEVER-TOUCHED from a per-Prolog guarantee into a whole-compiler structural one: any path that reads IR during execution now faults (m3) or is caught as a post-emit re-read (m4). **mode-2 (`--run`) is deliberately NOT wired** — the IR-graph interpreter legitimately walks IR during execution; that is its entire job.
 
 ## Sites wired (`src/driver/scrip.c`, +4; Prolog already had its 2 at `f0c3e29`)
 - **m4 Icon/Raku** — after `descr_flat_chain_build_text`/`codegen_flat_build` + `xa_emit_strtab_rodata` + `fflush`, before `return rc`.

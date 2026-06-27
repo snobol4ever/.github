@@ -1,7 +1,7 @@
 # GOAL-DE-INTERP.md — Eradicate the "interp" misnomer (the interpreter is GONE)
 
 **Mandate (Lon 2026-06-15):** The IR-graph interpreter was DELETED (`IR_interp_node`/`IR_interp_once`/
-`_resume`/`_pump` excised to `src/attic/IR_interp.c`; mode-2 `--interp` removed from the driver). Nothing
+`_resume`/`_pump` excised to `src/attic/IR_interp.c`; mode-2 `--run` removed from the driver). Nothing
 on any run path walks an IR/AST graph to interpret it. **Therefore the token `interp` is now a LIE
 wherever it survives in a live file name, directory name, function name, variable name, header guard, or
 Makefile target.** Rename every such token to what the code REALLY is, and MOVE the surviving code into
@@ -49,7 +49,7 @@ orphaned NAMES):
 | `interp_eval` / `interp_eval_pat` / `interp_eval_ref` (fns) | the deleted AST-walk evaluator's entry points; now BOMB stubs on the EVAL/pattern-eval rail | rename `eval_ast` / `eval_ast_pat` / `eval_ast_ref` (they are AST eval, currently dead-bombed pending the DT_P/EVAL-emit rung) **OR** delete if the EVAL-emit rung (GOAL-SNOBOL4-BB EVAL section) lands first and removes the last caller |
 | `__real_interp_eval` / `__wrap_interp_eval` (rs23_diag.c) | linker `--wrap` shim around the above | rename in lockstep with the wrapped symbol; update `-Wl,--wrap=` in Makefile |
 | `src/parser/prolog/pl_interp.h` (guard `PL_INTERP_H`) | the Prolog RESOLVE/runtime interface (trail, resolve_env, pred table) — the deleted resolution interpreter's header, now the Prolog runtime API | → `src/parser/prolog/pl_resolve.h` (or `prolog_resolve.h`), guard `PL_RESOLVE_H` |
-| Makefile `-I$(SRC)/interp`, `scrip-interp` phony, `--interp`/`run-ir`/`test-ir` comments | dead include dir + dead target + stale doc | drop the include once dir is gone; delete `scrip-interp`; delete the `--interp` comment block |
+| Makefile `-I$(SRC)/interp`, `scrip-interp` phony, `--run`/`run-ir`/`test-ir` comments | dead include dir + dead target + stale doc | drop the include once dir is gone; delete `scrip-interp`; delete the `--run` comment block |
 | `lower_common.c` comment "IR_interp goto landing" | stale comment referencing deleted interpreter | reword to "stage2 goto landing" |
 
 ## RUNG — DE-INTERP
@@ -64,7 +64,7 @@ edge, not a semantic change → fix the edge, re-run.
 **Scope guard:** this rung does NOT change logic, does NOT delete the bomb tombstones' behavior (they
 keep failing loudly), and does NOT touch the four legitimate survivors. It is a pure de-misnaming.
 
-## STATUS (2026-06-15 · Claude) — ✅ **DE-INTERP DONE — ALL 8 STEPS LANDED.** Steps 1-3 (`6e87566`) + Steps 4-8 this session (SCRIP `1d113eb` eval-rail rename · `f60bb08` driver file family · `4c9b6bd` pl_resolve + Makefile/comment sweep + completion). Completion grep returns ONLY the four legitimate survivors (reinterpret_cast / Raku interpolation / English "interprets" prose / [NO-IR-INTERP] tombstone strings). No `src/interp` dir, no `interp.h`/`interp_private.h`/`pl_interp.h`, no `-I$(SRC)/interp`, no `scrip-interp` target. Behavior-neutral: SNOBOL hello `.s` byte-identical at every step; rt symbol delta exactly interp_eval/_pat OUT, eval_ast/_pat IN. Gates green zero-regress throughout: smoke M4 7/7, pat-rung M4 19/19 0-SKIP (M3 15), fence T1=T2=0, hello matrix 5-match/1-known-rebus-drift. **The `--wrap` landmine was real and handled**: `-Wl,--wrap=interp_eval` lived in `scripts/build_scrip_rs23_diag.sh:39` (NOT the main Makefile) — renamed in lockstep with the rs23_diag.c `__real`/`__wrap` pair + the isolation-guard array in test_isolation_ir_sm.sh. **Bonus fixes**: two actively-wrong user messages in `icn_main.c` told users to use the deleted `--interp` flag (→ `--run`); a stale `(interp_hooks)` file-name in a `driver_hooks.c` FATAL string. This goal is CLOSED.
+## STATUS (2026-06-15 · Claude) — ✅ **DE-INTERP DONE — ALL 8 STEPS LANDED.** Steps 1-3 (`6e87566`) + Steps 4-8 this session (SCRIP `1d113eb` eval-rail rename · `f60bb08` driver file family · `4c9b6bd` pl_resolve + Makefile/comment sweep + completion). Completion grep returns ONLY the four legitimate survivors (reinterpret_cast / Raku interpolation / English "interprets" prose / [NO-IR-INTERP] tombstone strings). No `src/interp` dir, no `interp.h`/`interp_private.h`/`pl_interp.h`, no `-I$(SRC)/interp`, no `scrip-interp` target. Behavior-neutral: SNOBOL hello `.s` byte-identical at every step; rt symbol delta exactly interp_eval/_pat OUT, eval_ast/_pat IN. Gates green zero-regress throughout: smoke M4 7/7, pat-rung M4 19/19 0-SKIP (M3 15), fence T1=T2=0, hello matrix 5-match/1-known-rebus-drift. **The `--wrap` landmine was real and handled**: `-Wl,--wrap=interp_eval` lived in `scripts/build_scrip_rs23_diag.sh:39` (NOT the main Makefile) — renamed in lockstep with the rs23_diag.c `__real`/`__wrap` pair + the isolation-guard array in test_isolation_ir_sm.sh. **Bonus fixes**: two actively-wrong user messages in `icn_main.c` told users to use the deleted `--run` flag (→ `--run`); a stale `(interp_hooks)` file-name in a `driver_hooks.c` FATAL string. This goal is CLOSED.
 
 ## STEPS (run in order; each step = build + full gates + commit; never a broken commit)
 
@@ -112,7 +112,7 @@ A rename batch that drops a gate has a broken include/symbol edge — restore an
    guard `PL_INTERP_H`→`PL_RESOLVE_H`; update includes. Build + gates + commit.
 
 7. **MAKEFILE + COMMENT SWEEP.** Delete the `scrip-interp` phony + any orphaned recipe; delete the dead
-   `--interp`/`run-ir`/`test-ir`/`make test (--interp …)` comment block at the Makefile head; reword the
+   `--run`/`run-ir`/`test-ir`/`make test (--run …)` comment block at the Makefile head; reword the
    `lower_common.c` "IR_interp goto landing" comment to "stage2 goto landing"; reword any remaining
    bomb-string `IR_interp_pump`/`IR_interp` mentions to past tense if desired (optional). Build + gates +
    commit.

@@ -1,4 +1,4 @@
-# GOAL-PROLOG-IR-RUN — Get Prolog Working in scrip --interp
+# GOAL-PROLOG-IR-RUN — Get Prolog Working in scrip --run
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║  ⛔ NO AST WALKING IN MODES 2/3/4 — see RULES.md § "NO AST WALKING IN MODES 2, 3, OR 4"         ║
@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -40,7 +40,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** SCRIP
-**Done when:** `.pl` files run correctly via `scrip --interp file.pl`, passing
+**Done when:** `.pl` files run correctly via `scrip --run file.pl`, passing
 the existing Prolog corpus rung tests.
 
 ---
@@ -78,7 +78,7 @@ Claude presents each test result and asks: **T or F?**
   Gate: `make scrip` clean with prolog objects included.
 
 - [x] **S-2** — Write `prolog_driver.c` + wire `.pl` in `scrip.c`.
-  Gate: `./scrip --interp hello.pl` reaches --interp (Error 5, not parse error).
+  Gate: `./scrip --run hello.pl` reaches --run (Error 5, not parse error).
 
 - [x] **S-3** — Allocate `PlInterp` state in `scrip.c` for Prolog programs:
   `Trail`, global atom table pointer, predicate lookup table (functor/arity → `E_CHOICE*`).
@@ -91,7 +91,7 @@ Claude presents each test result and asks: **T or F?**
   Gate: `write('Hello, World!')` argument converts to correct atom Term.
 
 - [x] **S-5** — Implement `pl_call_builtin()`: handle `write/1`, `nl/0`, `fail/0`, `true/0`.
-  Gate: `./scrip --interp test/prolog/hello.pl` prints `Hello, World!`.
+  Gate: `./scrip --run test/prolog/hello.pl` prints `Hello, World!`.
 
 - [x] **S-6** — Implement `pl_exec_body()`: execute a sequence of body goals
   (children of `E_CLAUSE` after the head args) left to right.
@@ -129,7 +129,7 @@ Claude presents each test result and asks: **T or F?**
 
 **⛔ DO THIS BEFORE the S-10x builtin ladder. This is the architectural foundation.**
 
-**Architectural correction.** SCRIP has one IR and one `--interp` interpreter:
+**Architectural correction.** SCRIP has one IR and one `--run` interpreter:
 `execute_program()` in `scrip.c`. The six Prolog IR nodes (`E_CHOICE`, `E_CLAUSE`,
 `E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`) are already canonical in
 `ir.h` alongside SNOBOL4 and Icon nodes. The separate `pl_execute_program()` /
@@ -156,7 +156,7 @@ libraries — only the top-level dispatch loop and clause/choice execution move 
   definition), register it in the predicate table. When stmt subject is `E_CLAUSE`
   (a bare clause at top level), execute it directly. Entry point: call `main/0`
   after all stmts are registered, using the shared CP-stack dispatcher.
-  Gate: `./scrip --interp hello.pl` prints `Hello, World!`.
+  Gate: `./scrip --run hello.pl` prints `Hello, World!`.
 
 - [x] **S-1B-4** — Add `E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`, `E_TRAIL_UNWIND`,
   `E_FNC` (Prolog builtins) to `interp_eval()` in `scrip.c`.
@@ -340,7 +340,7 @@ static int          g_pl_active   = 0;      /* 1 when executing Prolog */
 
 ## Phase 2 — Stack Machine and x86 Byrd Box execution
 
-Once `--interp` (tree-walk interpreter) is passing corpus tests, Prolog should
+Once `--run` (tree-walk interpreter) is passing corpus tests, Prolog should
 graduate to the same execution pipeline as SNOBOL4: SM lowering → SM interpreter
 → JIT x86 Byrd boxes. The Proebsting technique that `prolog_emit.c` already
 implements in C output maps directly to the SM instruction set.
@@ -349,7 +349,7 @@ implements in C output maps directly to the SM instruction set.
   Add cases for `E_CLAUSE`, `E_CHOICE`, `E_UNIFY`, `E_CUT`, `E_TRAIL_MARK`,
   `E_TRAIL_UNWIND` in `sm_lower()`. Each Byrd box port (α/β/γ/ω) maps to
   SM instructions exactly as SNOBOL4 patterns do.
-  Gate: `./scrip --interp hello.pl` produces `Hello, World!`.
+  Gate: `./scrip --run hello.pl` produces `Hello, World!`.
 
 - [ ] **S-15** — Wire Prolog IR through `sm_codegen.c` (x86 JIT):
   Add x86 emission for the Prolog SM opcodes. The Byrd box wiring (α→β→γ→ω)
@@ -357,7 +357,7 @@ implements in C output maps directly to the SM instruction set.
   Gate: `./scrip --run hello.pl` produces `Hello, World!`.
 
 - [ ] **S-16** — Run full Prolog corpus on `--run`. Fix failures.
-  Gate: PASS count matches `--interp` baseline.
+  Gate: PASS count matches `--run` baseline.
 
 - [ ] **S-17** — Update PLAN.md ☑ done (Phase 2).
 

@@ -36,7 +36,7 @@ END
 This lowers via `lower_snobol4.c:545` (≥2 quoted-literal alternatives → `IR_PATTERN_LIT` leaves chained by `IR_PATTERN_ALT`) and **fires 3 `IR_PATTERN_ALT` boxes** in m4 (one per chain join: `a|b`, `(a|b)|c`, `xx|yy`).
 
 Captured mine, `git stash`, rebuilt baseline `89e8dd0`, captured, diffed:
-- m2 (`--interp`): **byte-identical**
+- m2 (`--run`): **byte-identical**
 - m3 (`--run`, native in-process): **byte-identical**
 - m4 (`--compile`): asm **raw byte-identical** — zero diffs, no BB-label normalization even needed
 

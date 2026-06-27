@@ -43,7 +43,7 @@ Results (both branches covered):
 - **m4 (`--compile`):** `039` .s **RAW BYTE-IDENTICAL** (sha256 `e0c0b47…`); `any_both` .s **RAW BYTE-IDENTICAL** (sha256 `dae9200…`). No BB-label renumber needed — pure inlining left emission order + sizes unchanged, exactly as the sibling break/breakx/notany conversions.
 - Baseline m4 binaries assemble + link (`gcc -no-pie … -lscrip_rt`) + run: `039`→`e`, `any_both`→`\ne\ntail`, matching m3.
 
-**NOTE — m2 not available at this HEAD:** there is no `--interp` flag in the current driver (modes are `--run`=mode-3 default and `--compile`=mode-4; `--target=ARCH` implies compile). m2 (IR-graph interpreter) is not exposed via a flag here, and per the 18th/19th handoffs mode-2 doesn't use BB templates anyway — the live coverage for SNOBOL4 pattern boxes is m3 + m4, both proven byte-identical.
+**NOTE — m2 not available at this HEAD:** there is no `--run` flag in the current driver (modes are `--run`=mode-3 default and `--compile`=mode-4; `--target=ARCH` implies compile). m2 (IR-graph interpreter) is not exposed via a flag here, and per the 18th/19th handoffs mode-2 doesn't use BB templates anyway — the live coverage for SNOBOL4 pattern boxes is m3 + m4, both proven byte-identical.
 
 ---
 
@@ -81,7 +81,7 @@ Idioms by shape (all proven this lap):
 2. `bash scripts/install_system_packages.sh`; `rm -f scrip && make -j4 scrip`; `make libscrip_rt` (lands at `out/libscrip_rt.so`). Builds are slow — keep `make -j4 scrip` and `make libscrip_rt` in SEPARATE steps. **Set `LD_LIBRARY_PATH=/home/claude/SCRIP/out` for `--run` / linked m4 binaries.**
 3. `cursor=$(grep -m1 '^# CURSOR:' .github/BB-REVAMP-TRACKER.md | awk '{print $NF}')` → expect `bb_match_any.cpp`. Do NOT open the tracker otherwise (sed it in place for the advance).
 4. `bash scripts/audit_bb_fixup_rank.sh` → dirty set via `grep 'TOTAL=[1-9]'`; per-file `bash scripts/audit_bb_fixup_file.sh src/emitter/BB_templates/<file>` (authoritative; includes cv9/cv10).
-5. **Efficient A/B:** the freshly-built current binary IS the baseline for the next file — capture its m3/m4 BEFORE editing (saves one slow rebuild). m2 (`--interp`) is NOT available at this HEAD — use m3 (`--run`) + m4 (`--compile`). For DORMANT boxes use a throwaway lowering-retag vehicle and REVERT it. If you rebase and the diff touches emit_bb.c/emit_core.c/x86_asm.h/lower_*, RE-A/B on the rebased tree (re-emit + diff vs pre-rebase captures).
+5. **Efficient A/B:** the freshly-built current binary IS the baseline for the next file — capture its m3/m4 BEFORE editing (saves one slow rebuild). m2 (`--run`) is NOT available at this HEAD — use m3 (`--run`) + m4 (`--compile`). For DORMANT boxes use a throwaway lowering-retag vehicle and REVERT it. If you rebase and the diff touches emit_bb.c/emit_core.c/x86_asm.h/lower_*, RE-A/B on the rebased tree (re-emit + diff vs pre-rebase captures).
 6. Gate battery; commit each file; `git pull --rebase && git push` (SCRIP first, .github last); watermark + cursor advance + this-style handoff doc.
 
 **Gate scripts (verified names this session):** `scripts/test_gate_sno_pat_reg.sh --strict` · `scripts/test_snobol4_pat_rung_suite.sh` (grep `PASS-M4`) · `scripts/test_gate_no_bb_bin_t.sh` · `scripts/test_gate_no_handencoded_bytes.sh` · `scripts/test_gate_no_vstack.sh` · `scripts/test_crosscheck_icon.sh` (HARD modes 2+3; currently pre-existing FAIL=4).

@@ -27,7 +27,7 @@ Started at `edba4d9` (already past the 13th's `7a911f2`). The remote advanced **
 **(4) bb_pattern_arb 5→0** (lv4 rp1) — dropped `pal()`, inlined the 4 locals (`p_addr/d_addr/fn/proto_data`); **single kind, no string operand** (`r8d=r9d=0L` like nullary), blob chain inlined directly — same idiom as lit but simpler (no `llbuf`/label handling). 7 raws verbatim. Firing program — `P=ARB` bare-var assign per `lower_snobol4.c:659` — fires 2 `IR_PATTERN_ARB` boxes.
 
 ### Proof — direct A/B byte-identity (strongest standard) for all four
-Each file vs its own `git stash` baseline (the prior committed tree): m2 (`--interp`) byte-identical, m3 (`--run`, native in-process) byte-identical, m4 (`--compile`) asm **byte-identical with zero raw diffs** — no BB-label renumber was even needed on any of the four, because pure inlining left the emission order and object sizes unchanged. C2 by construction *and* by direct byte-identity.
+Each file vs its own `git stash` baseline (the prior committed tree): m2 (`--run`) byte-identical, m3 (`--run`, native in-process) byte-identical, m4 (`--compile`) asm **byte-identical with zero raw diffs** — no BB-label renumber was even needed on any of the four, because pure inlining left the emission order and object sizes unchanged. C2 by construction *and* by direct byte-identity.
 
 ### Gates (green vs baseline, applied to all four + the combined rebased tree)
 audit 0 CLEAN ×4 · `sno_pat_reg` TIER1+2 HARD 0/0 · SNOBOL4 pattern rung suite 038–057 **19/19 across all three modes** · prolog xcheck 4/0 (3-mode agree) · icon xcheck 4/0 HARD + m4 4/4 · `no_bb_bin_t` 0 · `no_handencoded_bytes` 0 · `no_vstack` 3 floor.

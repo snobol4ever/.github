@@ -28,7 +28,7 @@ Get all six `parser_*.sc` programs producing AST trees matching the C `--dump-as
 2. **No language-specific helpers.** `icon_helpers.sc` and `raku_helpers.sc` must be eliminated — logic folds into the grammar or migrates to C-side `lower.c` / `rebus_lower.c` / `icon_lower.c` / `raku_lower.c`.
 3. `pop`, `foldop`, `nDec`, `reduce_opsyn`, `reduce_prim`, `reduce_call`, `nPushName` may NOT be called from `parser_*.sc`.
 4. **No `*Var` deferred references** where Var is itself a Snocone function (triggers `bb_deferred_var` rebuild path).
-5. Transpiler output is **portable SNOBOL4**. Must run on SCRIP (`--interp`, `--run`), SPITBOL x64 (`/home/claude/x64/bin/sbl -bf`).
+5. Transpiler output is **portable SNOBOL4**. Must run on SCRIP (`--run`, `--run`), SPITBOL x64 (`/home/claude/x64/bin/sbl -bf`).
 
 ---
 
@@ -44,7 +44,7 @@ parser_<lang>.sc
        ▼
 parser_<lang>_transpiled.sno
        │
-       ├──► SCRIP --interp/--run        ──► IPC trace ──┐
+       ├──► SCRIP --run/--run        ──► IPC trace ──┐
        └──► SPITBOL (sbl -bf)           ──► IPC trace ──┤
                                                         ▼
                                       2-way sync-step monitor
@@ -279,7 +279,7 @@ OPSYN slots: `& @ # % ~` binary; `! % / # = \|` unary.
 
 ## Session 2026-05-18 (Claude Sonnet 4.6) — SCT-parser-sc-no-crash
 
-**Goal achieved:** All six `parser_*.sc` run under `scrip --interp` without crash, abort, or segfault.
+**Goal achieved:** All six `parser_*.sc` run under `scrip --run` without crash, abort, or segfault.
 
 **Fixes landed (SCRIP `db89a804`):**
 - `stmt_exec.c` — `bb_deferred_var`: `child_state` now stores `val.p` as cache key; prevents re-JIT on every ARBNO retry
@@ -307,9 +307,9 @@ OPSYN slots: `& @ # % ~` binary; `! % / # = \|` unary.
 
 **Hang check:** Zero hangs. All six exit rc=0 within timeout.
 
-**Tree output check:** None of the six produce tree output under `scrip --interp` directly — all return "Parse Error" or empty. This is **pre-existing** (confirmed by testing before our commit). The `scrip --interp` + `parser_*.sc` path has never produced tree output in this session; the SPITBOL transpile path (PASS=29 for snocone) remains the working oracle path.
+**Tree output check:** None of the six produce tree output under `scrip --run` directly — all return "Parse Error" or empty. This is **pre-existing** (confirmed by testing before our commit). The `scrip --run` + `parser_*.sc` path has never produced tree output in this session; the SPITBOL transpile path (PASS=29 for snocone) remains the working oracle path.
 
-**Next session goal:** Diagnose why `scrip --interp` + `parser_snocone.sc` produces "Parse Error" on `x = 1 + 2;` — a fixture that passes cleanly under SPITBOL. Likely cause: BB pattern matching behaves differently from SPITBOL for some construct in the snocone grammar (ARBNO, FENCE, deferred-var interactions). Start with snocone since it has the fixture baseline (PASS=29 under SPITBOL).
+**Next session goal:** Diagnose why `scrip --run` + `parser_snocone.sc` produces "Parse Error" on `x = 1 + 2;` — a fixture that passes cleanly under SPITBOL. Likely cause: BB pattern matching behaves differently from SPITBOL for some construct in the snocone grammar (ARBNO, FENCE, deferred-var interactions). Start with snocone since it has the fixture baseline (PASS=29 under SPITBOL).
 
 ## Session 2026-05-21b (Claude Sonnet 4.6) — SCT-parser-sn4-nInc-fence ⚠ EMERGENCY HANDOFF
 
@@ -385,11 +385,11 @@ runtime behaviour change. 24 Parse Errors are a separate issue (pattern fixtures
 
 | Mode | Result |
 |------|--------|
-| `scrip --interp` | Infinite "Error 5 Undefined function or operation" at stmt 14 (Shift/nPush not resolved by interpreter). Times out. |
+| `scrip --run` | Infinite "Error 5 Undefined function or operation" at stmt 14 (Shift/nPush not resolved by interpreter). Times out. |
 | `scrip --run` | Same Error 5 loop, 54k stderr lines, timeout. |
 | `scrip --dump-sno` → SPITBOL `-bf` | **Working path.** Transpiles, runs to completion. |
 
-Both `--interp` and `--run` remain broken for tree-building parsers (pre-existing per session 2026-05-18 notes). Only transpile path is viable.
+Both `--run` and `--run` remain broken for tree-building parsers (pre-existing per session 2026-05-18 notes). Only transpile path is viable.
 
 **lower_sno.c fixes landed (SCRIP, this session):**
 - **TT_FOR**: was rejecting current PST 4-child shape (init, cond, step, body), emitting `?TT_FOR?` placeholders. Fixed to accept both PST 4-child (synthesize labels, emit init then Ltop/cond/body/Lcont/step/Ltop/Lend) AND legacy 5+ form (Lcont/Lend pre-allocated QLITs). Eliminates 14 placeholders in beauty.sc transpile.
@@ -484,7 +484,7 @@ Counter discipline now holds for all four Stmt shapes (bare-expr / subj+= / subj
 subj+? +pat+=). Verified by xTrace=5 walk on a 2-stmt fixture.
 
 **Gates:** test_smoke_snobol4.sh PASS=7/0; test_crosscheck_snobol4.sh PASS=5 FAIL=1
-(beauty_omega — pre-existing baseline, unchanged). scrip --interp on parser_snobol4.sc
+(beauty_omega — pre-existing baseline, unchanged). scrip --run on parser_snobol4.sc
 still returns "Parse Error" with rc=0 (pre-existing, not a regression).
 
 **Remaining 24 PARSE errors** are a structurally distinct issue: implicit pattern-match

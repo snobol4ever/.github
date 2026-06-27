@@ -15,7 +15,7 @@ for sprint numbering only — they do not define separate session types.
 
 **scrip-interp and scrip-cc are retired as separate concepts.**
 There is now ONE executable: `scrip`, with two modes:
-- `scrip --interp source.sno` — Mode I: interpretive (existing tree-walk, correctness reference)
+- `scrip --run source.sno` — Mode I: interpretive (existing tree-walk, correctness reference)
 - `scrip --gen   source.sno` — Mode G: in-memory generative (x86 bytes → mmap slab → jump in)
 - `scrip          source.sno` — Mode G by default
 
@@ -24,7 +24,7 @@ No .s file emission. No nasm subprocess. No ld subprocess. No disk round-trips.
 `bb_pool.c` segment 3 (Byrd box pool) unchanged. Segments 0–2, 4 are new mmap slabs.
 
 **Read `SCRIP-UNIFIED.md` for full design.** Development sequence: U0 → U1 → U2 → U3 → U4 → U5.
-Two-way MONITOR: `scrip --interp` vs SPITBOL (existing); `scrip --interp` vs `scrip --gen` (new JIT axis).
+Two-way MONITOR: `scrip --run` vs SPITBOL (existing); `scrip --run` vs `scrip --gen` (new JIT axis).
 
 **HARNESS:** change `INTERP=scrip-interp` → `INTERP=scrip` after M-SCRIP-U0.
 **Binary target in Makefile:** rename `scrip-interp` → `scrip`.
@@ -266,7 +266,7 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
 # M-SCRIP-U0:
 #   cp src/driver/scrip-interp.c src/driver/scrip.c
-#   Add --interp / --gen argv parsing near top of main() in scrip.c
+#   Add --run / --gen argv parsing near top of main() in scrip.c
 #   --gen: set flag, currently falls through to same interp path (stub)
 #   Edit Makefile: s/scrip-interp/scrip/g in target name and output binary
 #   make scrip
@@ -277,7 +277,7 @@ CORPUS=/home/claude/corpus bash test/run_interp_broad.sh   # confirm PASS=178
 
 | Sprint | HEAD | Next milestone |
 |--------|------|----------------|
-| SCRIP-TRACE | SCRIP `f23ef24c` · corpus `3fd44d0` · PASS=193/203 · beauty suite 14/19 | **MILESTONE-SN4X86-SCRIP-TRACE** — Wire TRACE/STOPTR/DUMP/SETEXIT + sync-step 2-way monitor into scrip --interp. All infrastructure exists in snobol4.c (trace_set, comm_var, monitor_fd/ack_fd, kw_stcount/stlimit). Gap is scrip.c: (T-0) add set_and_trace() at every NV_SET site; (T-1) replace manual stcount/stlimit with comm_stno(); (T-2) CALL/RETURN hooks in call_user_function(); (T-3) write run_monitor_2way.sh; (T-4) run monitor on 5 failing drivers. Gate: all 5 EXIT 0 → beauty 19/19 → B-3. See MILESTONE-SN4X86-SCRIP-TRACE.md. |
+| SCRIP-TRACE | SCRIP `f23ef24c` · corpus `3fd44d0` · PASS=193/203 · beauty suite 14/19 | **MILESTONE-SN4X86-SCRIP-TRACE** — Wire TRACE/STOPTR/DUMP/SETEXIT + sync-step 2-way monitor into scrip --run. All infrastructure exists in snobol4.c (trace_set, comm_var, monitor_fd/ack_fd, kw_stcount/stlimit). Gap is scrip.c: (T-0) add set_and_trace() at every NV_SET site; (T-1) replace manual stcount/stlimit with comm_stno(); (T-2) CALL/RETURN hooks in call_user_function(); (T-3) write run_monitor_2way.sh; (T-4) run monitor on 5 failing drivers. Gate: all 5 EXIT 0 → beauty 19/19 → B-3. See MILESTONE-SN4X86-SCRIP-TRACE.md. |
 | BEAUTY-PREREQS | SCRIP `bea4045f` · corpus `3fd44d0` · PASS=172/203 · beauty suite 10/19 | **MILESTONE-SN4X86-BEAUTY-PREREQS** — BP-0: ✅ wired (bea4045f). BP-1: `.field(x)` returns NAMEPTR not NAMEVAL — `E_NAME/E_FNC` child must call `data_field_ptr()` → fixes stack/counter/ShiftReduce/semantic/TDump. BP-2: null DT_E upstream — add fprintf at `!frozen` guard, trace source, return NULVCL → fixes Gen infinite output. BP-3: empty-string prefix Qize/XDump (follows BP-2). BP-4: omega DATATYPE PATTERN vs STRING. Gate: beauty suite 19/19 → B-3. |
 | RT-119 | SCRIP `5880085` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B COMPLETE ✅ 85.5% binary** — all B milestones done. Next: P2E embedded match `(A ? PAT = REPL)` or RUNTIME gap per RT-124 row below |
 | RT-120 | SCRIP `ac19c92` · corpus `3fd44d0` · PASS=178/203 | **M-DYN-B-SPITBOL ← CURRENT** — SPITBOL vs scrip-interp pattern storage bytes. Build x64 oracle, run SIZE() probe, measure ζ structs, tabulate. See BB-GEN-X86-BIN.md §SPITBOL Comparison Design. |

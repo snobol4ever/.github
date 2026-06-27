@@ -72,7 +72,7 @@ empty-body behavior.
    source-listing `write` (in `endofline`/main read loop); that `write` isn't reaching
    stdout in M3. All 122 gated probes pass M3, so it's a pcom-SCALE construct, not a
    primitive. pcom is NOT gated; needs a fresh context budget. Repro:
-   `scrip --run pcom.pas < tiny.pas` vs `--interp`.
+   `scrip --run pcom.pas < tiny.pas` vs `--run`.
 2. **Pre-existing latent Icon empty-proc bug (a GOAL-ICON-BB matter).** In a
    CONDITIONAL context `if noop() then write("succeeded") else write("failed")`:
    M2 prints "succeeded", M3 prints NOTHING (drops the whole conditional), and per

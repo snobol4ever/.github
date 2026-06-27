@@ -68,7 +68,7 @@ Style matches sibling parsers (`parser_snocone.sc`, `parser_rebus.sc`).
   `shift(body_pat, K)` for subject-text cases.
 
 - [ ] **PRF-14-5 — Smoke test.** ⚠ MIRROR-GAP-PRF-14-5: blocked in this
-  container by the pre-existing `&ALPHABET` segfault in `scrip --interp`
+  container by the pre-existing `&ALPHABET` segfault in `scrip --run`
   (same blocker as PST-SC-SC-5 — `global.sc` line 3
   `&ALPHABET ? (POS(0) LEN(1) . nul);` crashes SM interp at
   SCRIP `e1c8a4ac` / EC-3f). Per the parent goal's strict rule —
@@ -192,7 +192,7 @@ exact tree action attached. All audit greps pass.
 **What next session must do:**
 
 Either:
-(a) Debug the `&ALPHABET` segfault in `scrip --interp` to unblock
+(a) Debug the `&ALPHABET` segfault in `scrip --run` to unblock
     BOTH PRF-14-5 and PST-SC-SC-5 smoke tests (cross-frontend fix);
 (b) Move to Stage 2 — PST-LR-0 bulk rename `SM_*` → `IR_SM_*`,
     `IR_*` → `IR_BB_*` per the parent goal; or

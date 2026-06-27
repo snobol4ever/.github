@@ -51,9 +51,9 @@ source file
     ▼  CODE_t* = linked list of STMT_t, each holding one EXPR_t tree in ir/ir.h EKind
  ir/ir.h  — one EXPR_t struct, one EKind enum, ALL languages, ALL backends
     │
-    ├──▶  --interp:   interp_eval()  tree-walk in driver/interp.c   [correctness ref]
+    ├──▶  --run:   interp_eval()  tree-walk in driver/interp.c   [correctness ref]
     │
-    ├──▶  --interp:   sm_lower()  → SM_Program  → sm_interp_run()   [x86 default]
+    ├──▶  --run:   sm_lower()  → SM_Program  → sm_interp_run()   [x86 default]
     │
     └──▶  --run:  sm_lower()  → SM_Program  → sm_codegen()  → sm_jit_run()   [x86 JIT]
 ```
@@ -74,7 +74,7 @@ Do NOT change this.
 5. EXPR_T_DEFINED guard + scrip_cc.h EXPR_t duplicate — ir.h must be the single truth
 6. LANG_REBUS missing — only 5 LANG_* constants; Rebus is invisible to the whole system
 7. polyglot_init initialises ALL runtimes for every program — lazy init is correct
-8. SM layer missing 32 EKinds — --interp is SNOBOL4-only today; should cover all 6 languages
+8. SM layer missing 32 EKinds — --run is SNOBOL4-only today; should cover all 6 languages
 9. No per-frontend smoke scripts — every session runs the full 31-test suite
 
 ---
@@ -118,7 +118,7 @@ Do NOT change this.
   In `polyglot_init()`: add LANG_REB to init block (shares icn_proc_table path for now).
   In `parse_scrip_polyglot()` tag parser: add `"Rebus"` → `LANG_REB`.
   Gate: `make scrip` clean; smoke_unified_broker PASS=31 FAIL=0;
-  at least one `.reb` file runs under `--interp` without crashing.
+  at least one `.reb` file runs under `--run` without crashing.
 
 ---
 
@@ -219,10 +219,10 @@ src/runtime/interp/
 
 - [x] **FI-10** — Extend SM lower to cover Icon, Prolog, Raku, Rebus EKinds.
   Currently sm_lower.c handles 73 of 105 EKinds. Missing 32 are all non-SNOBOL4 kinds.
-  After this step --interp works for all six languages.
+  After this step --run works for all six languages.
   Implement per language in sub-steps, guided by the icn_runtime.h / pl_runtime.h
   interfaces established in Phase 3.
-  Gate: smoke_unified_broker PASS=31 FAIL=0; each frontend smoke passes under --interp.
+  Gate: smoke_unified_broker PASS=31 FAIL=0; each frontend smoke passes under --run.
 
 - [x] **FI-11** — Document parallel session protocol in RULES.md.
   Add section: "Parallel frontend sessions".
@@ -309,7 +309,7 @@ bash /home/claude/SCRIP/scripts/build_csnobol4_oracle.sh
 ## Current state (updated 2026-04-14, SCRIP HEAD 43dc03da)
 
 FI-0A through FI-11 done. ALL steps complete.
-Smoke: PASS=31 FAIL=0. Raku --interp: PASS=12 FAIL=0.
+Smoke: PASS=31 FAIL=0. Raku --run: PASS=12 FAIL=0.
 scrip.c: 478 lines — main() + arg parse + frontend dispatch only.
 interp.c: 2768 lines. polyglot.c: 301 lines. interp.h + polyglot.h: public interfaces.
 FI-8: polyglot_init language-selective (lang_mask). FI-9: 6 per-frontend smoke scripts.

@@ -2788,7 +2788,7 @@ bash scripts/test_full_rebus.sh
 ```
 
 New script: for each of `syntax_exercise.reb`, `word_count.reb`,
-`binary_trees.reb`, pipe through `parser_rebus.sc` via `--interp` and verify:
+`binary_trees.reb`, pipe through `parser_rebus.sc` via `--run` and verify:
 - Exit 0 (no crash / timeout)
 - Output is non-empty (at least one tree node)
 - Output does NOT contain "Parse Error"

@@ -37,7 +37,7 @@ The ONLY external callers of the deleted code were:
 ### 3 · New FACT RULE — byte-identical across all five GOAL-*-BB files
 **"NO AST AND NO IR DURING MODE-3/MODE-4 EXECUTION"** added before the NO VALUE STACK rule in GOAL-SNOBOL4-BB / GOAL-ICON-BB / GOAL-PROLOG-BB / GOAL-RAKU-BB / GOAL-SNOCONE-IR-BB. Body md5 `f624eb8e23b69518ebba4cf62074b3d8` (verified identical in all five). Substance:
 - During EXECUTION of a mode-3/4 program, nothing reads or writes the AST (`tree_t`) or IR (`IR_t`/`IR_graph_t`). The compiler reads IR ONCE before execution to emit the m3 image / m4 `.S`; the produced binary runs with zero reference to either tree.
-- Subsumes IR-NEVER-TOUCHED, extends to the AST. An AST walker that does not EMIT IR may not exist on any run path — not even mode 2. (`IR_interp_once` is the sole sanctioned IR walker, `--interp`-only.)
+- Subsumes IR-NEVER-TOUCHED, extends to the AST. An AST walker that does not EMIT IR may not exist on any run path — not even mode 2. (`IR_interp_once` is the sole sanctioned IR walker, `--run`-only.)
 - **THE ONE EXCEPTION — `EVAL()` and `CODE()`** (SNOBOL4 dynamic-compilation builtins, `CONVE_fn`→`EXPVAL_fn` / `g_eval_str_hook`/`g_eval_pat_hook`). Compiling a string to executable form at runtime is intrinsic to their meaning, so the prohibition does NOT apply inside `EVAL`/`CODE` (and only there).
 - FORBIDDEN on the run path: any `rt_*`/template-called fn taking `IR_t*`/`IR_graph_t*`/`tree_t*`, walking `->operands`/`->c[]`/`->t`/`->op`, reading `IR_LIT`/`IR_EXEC`, dispatching on `IR_e`/`tree_e`, or baking a live node address into emitted code. Unconverted box = LOUD `x86_bomb`, never a silent read.
 

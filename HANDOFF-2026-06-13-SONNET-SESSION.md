@@ -43,7 +43,7 @@
    IR-IMMUTABLE handoff.
 
 ## Discipline (binding)
-m2 (`--interp`) is the HARD oracle — never let `--mode interp` PASS drop below 202; verify with an explicit
+m2 (`--run`) is the HARD oracle — never let `--mode interp` PASS drop below 202; verify with an explicit
 before/after `bash scripts/test_icon_rung_suite.sh --mode interp` diff. ALWAYS gate all three modes; a
 native shape with no template should LOUDLY `[SMX]` decline (→ EXCISED, sanctioned) — NOT abort. Filter
 triage output (rung37 has an infinite-loop case that floods stdout). Build: `bash scripts/build_scrip.sh &&

@@ -11,7 +11,7 @@ by giving runtime dynamic predicates a clause store and a dispatcher, built on t
 - Working tree: ONE uncommitted change — `src/runtime/unification.c` (the store slice below).
   Left uncommitted **by design** (adds symbols nothing calls yet); it should land as ONE gate-moving
   rung together with the dispatcher (piece 3), not as a dead-symbol commit. Exact diff embedded below.
-- Harness note: `--mode all` still drives the deleted m2 (`--interp`) arm and reports false FAILs.
+- Harness note: `--mode all` still drives the deleted m2 (`--run`) arm and reports false FAILs.
   Use `--mode run` and `--mode compile` separately.
 
 ## DESIGN — RATIFIED BY LON THIS SESSION
@@ -178,5 +178,5 @@ int            rt_pl_retract   (int functor, long arity, void *request_cell); //
 
 ## OPEN ITEMS FOR LON (flagged, not acted on)
 
-- Re-baseline the gate scripts off the deleted `--interp`/m2 arm (false FAILs in `--mode all`).
+- Re-baseline the gate scripts off the deleted `--run`/m2 arm (false FAILs in `--mode all`).
 - With m2 gone, several of the 15 doomed globals may now be genuinely dead → floor possibly droppable.

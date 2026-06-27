@@ -207,7 +207,7 @@ fprintf(stderr, "[DBG-thread] e->t=%d cfg->lang=%d\n", (int)e->t, (int)cfg->lang
 fprintf(stderr, "[DBG-node] e->t=%d cfg->lang=%d\n", (int)e->t, (int)cfg->lang);
 ```
 
-Run `./scrip --dump-sm --interp test/raku/rk_gather.raku 2>&1 | grep DBG`.
+Run `./scrip --dump-sm --run test/raku/rk_gather.raku 2>&1 | grep DBG`.
 If `[DBG-thread]` fires with `e->t=131` (TT_SUSPEND? — actually wait, 131 is
 TT_SUB_DECL, TT_SUSPEND is in the high TT_* range) and `[DBG-node]` never
 fires with TT_SUSPEND, the gap is in `lower_icn_expr_threaded_b`'s pre-call
@@ -295,7 +295,7 @@ Expected gates:
 - FACT RULE grep: 0
 
 If rk_gather still fails:
-1. Check `./scrip --dump-sm --interp` shows `SM_BB_SWITCH RK_GEN` at line 11
+1. Check `./scrip --dump-sm --run` shows `SM_BB_SWITCH RK_GEN` at line 11
    instead of `SM_CALL_FN __gather_0`.
 2. Check the assembly emission with `./scrip --dump-asm` or equivalent —
    look for `.Lseq<id>_α`, the three `.Lseq<id>_s<k>_α` labels, and the

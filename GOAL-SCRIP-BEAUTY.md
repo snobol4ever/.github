@@ -26,12 +26,12 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** SCRIP
-**Done when:** all 19 beauty drivers pass `scrip --interp`
+**Done when:** all 19 beauty drivers pass `scrip --run`
 
 ## Baseline
 
 - SCRIP HEAD: `f23ef24c`
-- `scrip --interp` PASS=193/203
+- `scrip --run` PASS=193/203
 - Beauty suite: **14/19** passing
 
 ## Current state (session 2026-04-13, session 5)
@@ -93,7 +93,7 @@ PASS=0; FAIL=0
 for sno in "$BEAUTY"/beauty_*_driver.sno; do
     name=$(basename "$sno" .sno); ref="$BEAUTY/${name}.ref"
     [ ! -f "$ref" ] && continue
-    got=$(SNO_LIB="$INC" timeout 10 ./scrip --interp "$sno" 2>/dev/null)
+    got=$(SNO_LIB="$INC" timeout 10 ./scrip --run "$sno" 2>/dev/null)
     [ "$got" = "$(cat $ref)" ] && { echo "PASS $name"; PASS=$((PASS+1)); } \
                                || { echo "FAIL $name"; FAIL=$((FAIL+1)); }
 done; echo "--- PASS=$PASS FAIL=$FAIL"
@@ -107,7 +107,7 @@ done; echo "--- PASS=$PASS FAIL=$FAIL"
 
 - [x] **S-3** — Add CALL/RETURN hooks in `call_user_function()`. Gate: CALL/RETURN events appear in pipe. *(already done before session)*
 
-- [x] **S-4** — Write `test/monitor/run_monitor_2way.sh` (SPITBOL x64 vs scrip --interp, 2-party). Gate: `[2way] beauty_trace_driver → EXIT 0`. *(bootsbl built, monitor runs)*
+- [x] **S-4** — Write `test/monitor/run_monitor_2way.sh` (SPITBOL x64 vs scrip --run, 2-party). Gate: `[2way] beauty_trace_driver → EXIT 0`. *(bootsbl built, monitor runs)*
 
 - [x] **S-5** — Run 2-way monitor on all 5 failing drivers; capture first diverging event for each. *(done — Gen: FENCE error 248; omega: TRACE error 198; TDump: step ordering; XDump: CALL ordering)*
 

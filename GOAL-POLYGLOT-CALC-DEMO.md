@@ -113,7 +113,7 @@ Future: add division, parenthesised subexpressions (recursive), variables.
   yields `term() || " + " || term()` and `term() || " - " || term()`.
   Top-level: `every generate(n)` calls `expr()` and suspends each result,
   stopping after `n` expressions.
-  Gate: Icon section standalone (`scrip --interp` with a `main` that drives
+  Gate: Icon section standalone (`scrip --run` with a `main` that drives
   `generate(5)` and writes each) produces 5 deterministic expression strings.
 
 ### Phase 2 — Snocone parser/evaluator
@@ -131,7 +131,7 @@ Future: add division, parenthesised subexpressions (recursive), variables.
   `parse_and_eval` per expression. Requires U-22 (SNO→ICN cross-call) to be
   working. If U-22 is not yet complete, use a SNOBOL4 bridge section instead:
   SNO drives the Icon generator via BB_PUMP and calls Snocone parse_and_eval.
-  Gate: `scrip --interp calc_demo.scrip` produces deterministic output
+  Gate: `scrip --run calc_demo.scrip` produces deterministic output
   (seed = 42, n = 5 expressions).
 
 ### Phase 4 — Ref file and test integration

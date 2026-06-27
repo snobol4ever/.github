@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -56,15 +56,15 @@ run Snocone, giving multiple bootstrap paths for `scrip.sc`.
 SNOBOL4 and Snocone reach it via M1+M2; Icon and Prolog reach it
 via M4 + CH-17 + CH-17i — the work that finishes the same property
 for the frontends that lag).  For each of the four modes — mode 1
-(compile-only), mode 2 (`--interp`), mode 3 (`--interp`), mode 4
+(compile-only), mode 2 (`--run`), mode 3 (`--run`), mode 4
 (`--compile`) — and for each of the six frontends — SNOBOL4,
 Snocone, Icon, Raku, Prolog, Rebus — the *currently-supported*
-program surface (defined empirically by the `--interp` PASS set
+program surface (defined empirically by the `--run` PASS set
 today) runs to completion through a runtime path that is
 structurally isolated from any AST walk: AST is freed
 unconditionally after `sm_lower` returns, in every mode.  Mode 2
-runs the SM_Program the same way mode 3 does (the `--interp` /
-`--interp` distinction is preserved as a *driver-side* choice for
+runs the SM_Program the same way mode 3 does (the `--run` /
+`--run` distinction is preserved as a *driver-side* choice for
 oracle/diff convenience, not as two different runtimes), with the
 exception of SNOBOL4's `execute_program` path which is its own
 non-SM interpreter and is not the AST walker this goal retires.
@@ -82,7 +82,7 @@ corpus coverage for the remaining frontends (SNOBOL4 and Snocone
 are M2; Raku and Rebus are M5; Icon and Prolog are
 CH-17i-mode4-icon-prolog) lands as their respective milestones
 complete.  This umbrella is *not* feature expansion: programs that
-currently FAIL or XFAIL under `--interp` stay in those buckets.
+currently FAIL or XFAIL under `--run` stay in those buckets.
 
 ---
 
@@ -251,7 +251,7 @@ isolation gate PASS
 csnobol4 Budne PASS≥34
 Icon corpus 263 (no PASS regression vs baseline 186/47/30)
 unified_broker PASS≥48
-scrip_all_modes PASS in --interp, --interp, --run
+scrip_all_modes PASS in --run, --run, --run
 ```
 
 After step 14 specifically (and all later steps): grep
@@ -267,7 +267,7 @@ The goal's individual steps below are grouped under these
 milestones:
 
   - **M1** — Steps 1–7: SNOBOL4 + Snocone fully isolated through
-    modes 2 (--interp) and 3 (--run).  No EXPR_t reachable from
+    modes 2 (--run) and 3 (--run).  No EXPR_t reachable from
     any SM-mode runtime path during pure-SNO/Snocone execution.
     First shippable milestone.
   - **M2** — Step 8: Mode 4 x86 emitter for SNOBOL4 + Snocone
@@ -284,8 +284,8 @@ milestones:
   - **M4.5** — Step 18.5 (CH-17i umbrella in `GOAL-CHUNKS-STEP17.md`):
     Icon and Prolog reach the four-mode-isolation property the same
     way SNOBOL4 and Snocone reached it via M1+M2.  Take the Icon
-    and Prolog `--interp` PASS surface today and make that *same*
-    surface run byte-identical under `--interp` and
+    and Prolog `--run` PASS surface today and make that *same*
+    surface run byte-identical under `--run` and
     `--compile`.  Sub-rungs: survey-mode3 (gap audit),
     mode3-completeness (one rung per bucket), mode4-icon-prolog
     (`--compile` coverage), final-isolation (extends M1's
@@ -381,7 +381,7 @@ milestones:
   true — it remains aspirational until the deferred work lands.
 
 - [x] **Step 7 — M1 milestone close.**  Run the full gate set in
-  all three modes (`--interp`, `--interp`, `--run`) on a
+  all three modes (`--run`, `--run`, `--run`) on a
   curated subset: smoke_snobol4, smoke_snocone, csnobol4 Budne
   full, Snocone corpus.  Document that SNOBOL4 + Snocone are
   end-to-end isolated through modes 2/3.  Update PLAN.md step
@@ -496,7 +496,7 @@ Order them however convenient based on platform availability.
   audit (`docs/CHUNKS-step15-survey.md`).  Across 46 `test/`
   programs + 317 cross-corpus programs (200 Icon, 47 snocone,
   39 Raku, 21 scrip, 6 SNOBOL4, 4 Prolog) = **363 audited
-  programs** under `--interp` with `SCRIP_CHUNKS_AUDIT=1`: zero
+  programs** under `--run` with `SCRIP_CHUNKS_AUDIT=1`: zero
   fire `SM_PUSH_EXPR`.  The remaining-kinds dispatcher arm at
   sm_lower.c:1192–1204 is dead code on real corpora today.
   Cause (per CH-15a closed note): Icon proc bodies are walked by
@@ -524,20 +524,20 @@ Order them however convenient based on platform availability.
   statement on real programs (unlike CH-15-SURVEY's dead Icon
   arm), and (B) the consumer (`SM_BB_ONCE` → `coro_eval` →
   `bb_eval_value`) FATALs on every Prolog kind today —
-  every program in `test/prolog/*.pl` aborts under `--interp`
+  every program in `test/prolog/*.pl` aborts under `--run`
   with "kind 59 unhandled" (where 59 = E_CHOICE in the runtime
   enum, NOT E_DEFER as ir.h's SIL-reference comments would
   suggest).  Prolog smoke gate hides this because it only
-  exercises `--interp`.  Migration without consumer-side fix
+  exercises `--run`.  Migration without consumer-side fix
   is no-op-or-worse; consumer fix needs the chunk-shaped
   Prolog runtime entry points that Step 17's `entry_pc`
   infrastructure unblocks.  Also documents a second
   SM_BB_ONCE producer at sm_lower.c:1402 (statement-level
   wrapper) that emits stacked SM_BB_ONCE on Prolog clauses —
-  pre-existing bug in `--interp` Prolog, Step 16-adjacent.
+  pre-existing bug in `--run` Prolog, Step 16-adjacent.
   **Recommendation: defer Step 16 until Step 17 lands**, then
   migrate with full Prolog corpus validation under an extended
-  smoke gate that includes `--interp`.  Next inline:
+  smoke gate that includes `--run`.  Next inline:
   **Step 17** (proc/pred table → entry_pcs — architectural
   unblock for both Step 15 remaining kinds and Step 16).
 
@@ -612,7 +612,7 @@ Order them however convenient based on platform availability.
   Icon and Prolog (the frontends that lag because the proc/pred-table
   side channel and the AST-driven BB engine kept them un-isolated).
   Take the Icon and Prolog feature surface SCRIP supports today —
-  defined empirically by the programs that pass under `--interp`
+  defined empirically by the programs that pass under `--run`
   today (Icon corpus 186 PASS / 47 FAIL / 30 XFAIL = 263; Prolog
   `test/prolog/*.pl` baseline) — and make that *same* surface run
   byte-identical through modes 2, 3, 4.  Programs in the FAIL/XFAIL
@@ -621,7 +621,7 @@ Order them however convenient based on platform availability.
 
   **Sub-rungs (defined in `GOAL-CHUNKS-STEP17.md`):**
     - **CH-17i-survey-mode3** — empirical audit of the Icon+Prolog
-      `--interp` PASS subset under SM dispatch (post-CH-17g-irrun-execution
+      `--run` PASS subset under SM dispatch (post-CH-17g-irrun-execution
       modes 2 and 3 share the runtime); produces a prioritised,
       countable gap list bucketed by failure mode (missing builtin /
       missing opcode handler / producer gap / semantic divergence).
@@ -629,11 +629,11 @@ Order them however convenient based on platform availability.
     - **CH-17i-mode3-completeness** — one sub-rung per bucket from
       the survey, named `CH-17i-mode3-{builtin,opcode,lower,semantic}-NAME`.
       Each lands byte-identical for its corpus subset.  Terminal
-      gate: Icon `--interp` PASS == Icon `--interp` PASS exactly,
+      gate: Icon `--run` PASS == Icon `--run` PASS exactly,
       same for Prolog.
     - **CH-17i-mode4-icon-prolog** — extend `GOAL-MODE4-EMIT.md`'s
       rung set to handle the SM opcodes Icon and Prolog use; Icon
-      and Prolog `--compile` PASS == `--interp` PASS exactly.
+      and Prolog `--compile` PASS == `--run` PASS exactly.
     - **CH-17i-final-isolation** — strengthened isolation gate
       extends to cover the full SM-mode runtime file set
       (`coro_runtime.c`, `coro_value.c`, `coro_stmt.c`, `pl_runtime.c`,
@@ -645,7 +645,7 @@ Order them however convenient based on platform availability.
 
   **Done when:** Icon and Prolog each have an all-green
   coverage matrix across modes 2, 3, 4 (PASS count exactly equal
-  to the `--interp` baseline in each mode); the strengthened
+  to the `--run` baseline in each mode); the strengthened
   isolation gate covers the SM-mode runtime file set; the
   coverage matrix doc lands.
 
@@ -726,8 +726,8 @@ against 0 — mirrors `coro_bb_to_by` semantics (`step>0: cur>hi → ω;
 step<0: cur<hi → ω`).
 
 Empirical proof: a Raku range expression `say 1..3` audits as
-`SM_PUSH_CHUNK=1, SM_PUSH_EXPR=0` under `--interp` with `SCRIP_CHUNKS_AUDIT=1`;
-the chunk yields 1, 2, 3 in both `--interp` and `--run`.  Icon
+`SM_PUSH_CHUNK=1, SM_PUSH_EXPR=0` under `--run` with `SCRIP_CHUNKS_AUDIT=1`;
+the chunk yields 1, 2, 3 in both `--run` and `--run`.  Icon
 `every i := 1 to 5 do …` does NOT audit a chunk emission — that path
 runs through `coro_pump_proc_by_name(\"main\", …)` → `coro_eval(main_body)`,
 pure IR walking inside the proc body.  Once Step 17 lowers Icon proc
@@ -795,7 +795,7 @@ emits the dispatch opcode.  The runtime helper (in both `sm_interp.c` and
 the matching body chunk, leaves result on the stack.
 
 Wrapper-level synthesis is now EXPR_t-free for the Raku CASE path —
-empirically: `SCRIP_CHUNKS_AUDIT=1 ./scrip --interp test/raku/rk_given.raku`
+empirically: `SCRIP_CHUNKS_AUDIT=1 ./scrip --run test/raku/rk_given.raku`
 reports `SM_PUSH_CHUNK=20 SM_PUSH_EXPR=0 out_of_range=0` (20 = 2 CASEs ×
 (1 topic + 4 arms × 2 chunks-per-arm + 1 default)).
 
@@ -807,9 +807,9 @@ future Icon E_CASE.  Cleaning the IR walk inside `coro_value.c:947` is
 M4-cleanup territory (mirrors how CH-12 deferred the `coro_call` proc_table
 walk to Step 17).
 
-Pre/post execution on `rk_given.raku`: `--interp` and `--run` previously
+Pre/post execution on `rk_given.raku`: `--run` and `--run` previously
 stack-underflowed and aborted; post-CH-13 they reach the dispatch and run
-the default branch.  Full Raku --interp/--run remains broken at the
+the default branch.  Full Raku --run/--run remains broken at the
 surrounding `say`/sub-call infrastructure level, consistent with the
 Raku full-suite baseline (29/0/0 across IR/SM/JIT) — fixing that is not
 CH-13's scope.
@@ -849,7 +849,7 @@ clauses).
 
 Audit-counter sweep with `SCRIP_CHUNKS_AUDIT=1` across all Icon test
 programs in `test/icon/*.icn` (skipping `meander.icn` which hangs on
-baseline pre-existing) under both `--interp` and `--run`: every
+baseline pre-existing) under both `--run` and `--run`: every
 program reports `SM_PUSH_CHUNK=0  SM_PUSH_EXPR=0  out_of_range=0`.
 Empirical proof that the wrapper-level synthesis is now genuinely
 EXPR_t-free for the Icon path.
@@ -876,8 +876,8 @@ SCRIP @ `1b42498f`. Session #63, 2026-05-05.
 documented in `docs/CHUNKS-M1-close.md`. Findings:
 - Producer-side migration complete: smoke ×6 PASS, isolation gate (with new
   structural rule) PASS, Budne PASS=36, Step 5 audit clean.
-- HONEST: `test_smoke_snobol4_jit.sh` shows 38-program gap between `--interp`
-  (139 PASS) and `--interp` / `--run` (101 PASS each). Verified
+- HONEST: `test_smoke_snobol4_jit.sh` shows 38-program gap between `--run`
+  (139 PASS) and `--run` / `--run` (101 PASS each). Verified
   pre-existing: same gap at pre-Step-4 commit c6862096. CHUNKS Steps 2–6 are
   net-flat on this gate — independent of CHUNKS scope.
 - HONEST: Snocone all-modes 28/14 — same pre-existing pattern.

@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -77,8 +77,8 @@ inside SM."
 
 ## Architecture reminders
 
-- **Four modes.**  Mode 1 = `--interp` (IR tree-walk via `interp_eval`).
-  Modes 2/3 = `--interp` / `--run` (SM_Program via `sm_interp_run` /
+- **Four modes.**  Mode 1 = `--run` (IR tree-walk via `interp_eval`).
+  Modes 2/3 = `--run` / `--run` (SM_Program via `sm_interp_run` /
   `sm_jit_run`).  Mode 4 = `--compile` (asm/link/exec).
 - **Isolation gate.**  `scripts/test_isolation_ir_sm.sh` greps SM-mode
   runtime files for IR-only symbol calls.  Currently in scope:
@@ -517,7 +517,7 @@ have native handlers as of RS-23.
   smoke {snobol4 7/7, icon 5/5, prolog 5/5, raku 5/5, snocone 5/5,
   rebus 4/4} = 31/31, unified_broker 49/0, Icon corpus 186/47/30
   (no delta), isolation gate PASS, smoke_icon in
-  `--interp`/`--run` = 5/5/5 = 15/15.  Zero hardening
+  `--run`/`--run` = 5/5/5 = 15/15.  Zero hardening
   guards fire.
 
 - [x] **RS-24b — LANDED (session 2026-05-05 cont., conservative variant) @ `296ef139`:**
@@ -651,7 +651,7 @@ real-vs-string mismatch.  Forcing string coercion via `fval = '' v(x)` resolves
 the IDENT issue.
 
 The positional predicate failure (`RPOS`, `LEN`) is a separate issue: in the
-`--interp` context with an active outer pattern subject (`Src`), positional
+`--run` context with an active outer pattern subject (`Src`), positional
 anchors inside a function resolve against `Src` rather than the local variable
 being matched.
 
@@ -664,7 +664,7 @@ if (DIFFER(pre) IDENT(SIZE(pre) + 1, SIZE(fval))) fval = pre;  // strip trailing
 This avoids both RPOS/LEN and IDENT type mismatch entirely.
 
 - [ ] **RS-27a** — Confirm repro: run the minimal script above with
-  `scrip --interp`, verify `NO_MATCH` (bad) vs `MATCHED` (good).
+  `scrip --run`, verify `NO_MATCH` (bad) vs `MATCHED` (good).
 - [ ] **RS-27b** — Identify root cause in `sm_interp.c` / `interp_eval.c`:
   trace how pattern cursor / subject are set up when entering a dot-star
   function call; find where `LEN(k)` resolves its anchor.

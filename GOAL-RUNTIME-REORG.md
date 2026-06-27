@@ -168,7 +168,7 @@ ANY gate delta = a real bug ⇒ revert that slice and diagnose. NEVER leave the 
   `_rt_IDENT`/`_rt_DIFFER` half of the `rt_init` blocker (below). It is a **DELETE = behavioral** (if the inferior copy
   currently wins the registration race) — a Lon call, NOT a move-only slice. (A values.c move WAS prototyped this session
   + gated byte-identical, then REVERTED: relocating one half of a dup just entrenches it.)
-- **`IDENT`/`DIFFER` mode-2 dispatch anomaly (pre-existing — NOT caused by any reorg work).** A 4-case `--interp` probe
+- **`IDENT`/`DIFFER` mode-2 dispatch anomaly (pre-existing — NOT caused by any reorg work).** A 4-case `--run` probe
   (`IDENT("a","a")`, `IDENT("a","b")`, `DIFFER("a","b")`, `DIFFER("x","x")`) shows the two should-SUCCEED cases FAILING.
   NEITHER body explains it (both return success for `("a","a")`), so the fault is upstream in mode-2 builtin dispatch;
   reproduced on the clean tree after the revert. Worth a separate diagnosis; out of move-only scope.

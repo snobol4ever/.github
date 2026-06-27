@@ -83,7 +83,7 @@ for f in *.pas; do
     if [ "$base" = "recursion" ]; then XFAIL=$((XFAIL+1)); continue; fi
     ref="${base}.ref"
     if [ ! -f "$ref" ]; then echo "NOREF $base"; FAIL=$((FAIL+1)); continue; fi
-    got=$(timeout 8s "$SCRIP" --interp "$f" < /dev/null 2>/dev/null)
+    got=$(timeout 8s "$SCRIP" --run "$f" < /dev/null 2>/dev/null)
     exp=$(cat "$ref")
     if [ "$got" = "$exp" ]; then
         PASS=$((PASS+1))

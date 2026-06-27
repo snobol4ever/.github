@@ -52,7 +52,7 @@ The BB-DRIVER, bb_*.c boxes, and bb_pool are correct and reusable as-is.
 
 ## Corpus Status
 
-With the tree-walking `scrip --interp` (wrong architecture, but same runtime):
+With the tree-walking `scrip --run` (wrong architecture, but same runtime):
 - Broad corpus: **177p/1f** (DYN-81, 2026-04-04)
 
 This number proves the BB-DRIVER and boxes are correct.

@@ -1,10 +1,10 @@
-# HANDOFF 2026-06-14 — Claude — PROLOG-BB: rung28 rethrow LANDED + mode-2 (`--interp`) DELETION discovered
+# HANDOFF 2026-06-14 — Claude — PROLOG-BB: rung28 rethrow LANDED + mode-2 (`--run`) DELETION discovered
 
 **Author:** Claude (Opus 4.8) · **Track:** GOAL-PROLOG-BB (PL-GZ) · **SCRIP:** `2c38d15`→`023fb43` · **.github:** docs
 
 ## TL;DR
 - Landed **rung28 `rethrow`** — `catch/3` inside a CALLED predicate body. **GATE-3 m3 104→105, m4 104→105, byte-identical parity intact.** Commit `023fb43`, one file (`src/driver/scrip.c`).
-- Discovered the working tree had advanced past this goal file's `81b63f1` watermark to HEAD `2c38d15`, and that **mode-2 (`--interp`) was physically DELETED in between** (`a2440f4`). The "m2 114/115 HARD gate" premise is now VOID; the gate scripts still drive `--interp` and report silent false FAILs.
+- Discovered the working tree had advanced past this goal file's `81b63f1` watermark to HEAD `2c38d15`, and that **mode-2 (`--run`) was physically DELETED in between** (`a2440f4`). The "m2 114/115 HARD gate" premise is now VOID; the gate scripts still drive `--run` and report silent false FAILs.
 - Remaining 10 m3≡m4 fails (**retract ×5 + abolish ×5**) are UNCHANGED — still parked on Lon's two dynamic-rail forks. Nothing decided, no global added.
 - Wired the two design docs into the GOAL's MANDATORY-READ as **required reading** (Lon's request): `ARCH-PROLOG.md` (BB design) + `DESIGN-PROLOG-BB-ALL.md` (GDE inventory + merged build order + §10 globals/structures-NOT-used).
 
@@ -26,14 +26,14 @@ Expected `outer mine`: `inner`'s catcher `other` does NOT unify with ball `mine`
 
 No new global (NO-NEW-GLOBAL ratchet 15/15 unchanged), no new box, no new IR kind, no value stack. The catch mark lives in a frame cell `[ζ+off]`; propagation rides the pre-existing single-slot `g_pl_throw_ball` register (a one-Term* pending-exception slot, used already by the 4 passing catch cases — not a value stack).
 
-## The big finding — mode-2 (`--interp`) is DELETED at HEAD
-`git log -S '"--interp"'` shows **`a2440f4` "DELETE the IR-graph interpreter — only BBs run, no interpreter accessible"** removed the `--interp` CLI arm. It is an ancestor of HEAD `2c38d15` and NEWER than this goal file's `81b63f1` watermark. `94c94f4` then trimmed the CLI to `--run/--compile/--target/--dump-ast/--dump-ir/--transpile/--bench`. `./scrip --interp X` now errors `cannot open '--interp'`.
+## The big finding — mode-2 (`--run`) is DELETED at HEAD
+`git log -S '"--run"'` shows **`a2440f4` "DELETE the IR-graph interpreter — only BBs run, no interpreter accessible"** removed the `--run` CLI arm. It is an ancestor of HEAD `2c38d15` and NEWER than this goal file's `81b63f1` watermark. `94c94f4` then trimmed the CLI to `--run/--compile/--target/--dump-ast/--dump-ir/--transpile/--bench`. `./scrip --run X` now errors `cannot open '--run'`.
 
 This is the recurring STALE-MAP pattern, now compounded: the goal file claimed HEAD `81b63f1` with "GATE-3 m2 114", but the real tip is `2c38d15` with m2 gone. Consequences (each UNHANDLED — flagged for Lon, not acted on without his word):
-- **Gate scripts still drive `--interp`** (`test_smoke_prolog.sh`; `test_prolog_rung_suite.sh:51`). m2 now reports 0/5 + 0/115 = SILENT FALSE FAIL (not a regression). The smoke gate's "exit 0 iff mode-2 all-PASS" condition means it now ALWAYS exits non-zero.
+- **Gate scripts still drive `--run`** (`test_smoke_prolog.sh`; `test_prolog_rung_suite.sh:51`). m2 now reports 0/5 + 0/115 = SILENT FALSE FAIL (not a regression). The smoke gate's "exit 0 iff mode-2 all-PASS" condition means it now ALWAYS exits non-zero.
 - The **"m2 HARD gate"** language throughout this goal file + handoffs is void.
 - The **catch-residue demolition gate** ("don't delete `g_resolve_catch_*`/`rt_catch_native` — m2 rung28 routes through them") and the **NO-NEW-GLOBAL doomed-floor 15** rationale ("each doomed `g_*` still reached by m2") are now STALE — several doomed globals may be genuinely dead and droppable.
-- The goal file's MANDATORY-READ + Architecture-reference sections still describe m2 `--interp` as the reference oracle.
+- The goal file's MANDATORY-READ + Architecture-reference sections still describe m2 `--run` as the reference oracle.
 
 **LIVE TRUTH: only m3 `--run` (BINARY→RX slab) and m4 `--compile --target=x86` (TEXT→as+gcc) exist; m3 105 ≡ m4 105.**
 
@@ -56,6 +56,6 @@ These need a runtime DYNAMIC-CLAUSE STORE that does not exist on the GZ path. Lo
 - New top STATE block (m3≡m4 @ 105; rethrow landed; m2-deletion finding); prior block demoted to PRIOR STATE; rung28 bullet marked ✅ LANDED. Watermark → `023fb43`.
 
 ## NEXT (recommended)
-1. **Lon's call on the m2-deletion fallout:** re-baseline the gate scripts off `--interp` and re-audit catch-residue + doomed-floor (likely several `g_*` now droppable → ratchet 15↓). This is the highest-leverage cleanup and removes a permanently-red smoke gate.
+1. **Lon's call on the m2-deletion fallout:** re-baseline the gate scripts off `--run` and re-audit catch-residue + doomed-floor (likely several `g_*` now droppable → ratchet 15↓). This is the highest-leverage cleanup and removes a permanently-red smoke gate.
 2. **The dynamic-BB-building rail** (foundational — unblocks retract ×5 + abolish_then_reassert + the SNOBOL4 B-ladder), pending Lon's fork answers.
 3. The 4 non-reassert abolish cases — do them ON the new table, not a throwaway gate.

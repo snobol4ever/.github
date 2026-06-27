@@ -197,7 +197,7 @@ append demangled non-backend mangled names. Categories:
    toward the 18 backend-KEEP floor). A batch is not "landed" until its push is confirmed.
 
 ### Known non-issues (do not chase)
-- mode-2 (`--interp`) 0/N everywhere — IR interpreter deleted in a prior session (dead column).
+- mode-2 (`--run`) 0/N everywhere — IR interpreter deleted in a prior session (dead column).
 - rebus mode-4 FATALs `[SBB] …main BB graph not found` at BASE too — pre-existing, not the sweep.
 - icon/prolog/raku/snocone suites show stable XFAIL/EXCISED/FAIL counts identical to base.
 

@@ -61,7 +61,7 @@ The goal text below is preserved as-is for the resumption session.
 # (original goal — on hold) beauty.sc Self-Beautifies via scrip
 
 **Repo:** SCRIP
-**Done when:** `./scrip --interp test/beauty-sc/beauty/beauty.sc < input.sno`
+**Done when:** `./scrip --run test/beauty-sc/beauty/beauty.sc < input.sno`
 produces output byte-for-byte identical to SPITBOL running `beauty.sno` on
 the same input. Gate script reports PASS.
 
@@ -92,7 +92,7 @@ scrip handles mixed-extension multi-file linkage natively. Pass subsystem
 `.sno` files as libraries, `beauty.sc` as main program:
 
 ```bash
-./scrip --interp \
+./scrip --run \
     corpus/programs/snobol4/beauty_suite/global.sno \
     ... \
     corpus/programs/snobol4/beauty_suite/trace.sno \
@@ -419,7 +419,7 @@ reorg executes (CL-1..CL-8), `demo/beautify/` becomes
 ```bash
 bash scripts/test_snocone_beauty_self_host.sh                      # default summary
 bash scripts/test_snocone_beauty_self_host.sh --diff --quiet       # vs SPITBOL oracle
-bash scripts/test_snocone_beauty_self_host.sh --mode --interp      # also --run
+bash scripts/test_snocone_beauty_self_host.sh --mode --run      # also --run
 bash scripts/test_snocone_beauty_self_host.sh --input <file>       # custom input
 ```
 
@@ -1238,7 +1238,7 @@ if (Src ? (POS(0) *Parse *Space RPOS(0))) {
 OUTPUT = 'AFTER parse, g_pass=' g_pass ' g_persistent=' g_persistent;
 ```
 
-`echo START | ./scrip --interp [16 lib .sc files] beauty_count.sc`:
+`echo START | ./scrip --run [16 lib .sc files] beauty_count.sc`:
 
 ```
 BEFORE parse, g_pass=1 g_persistent=INIT MARK
@@ -1993,7 +1993,7 @@ continuation lines (lines starting with `+`) of the multi-line pattern
 statements `snoFunction`, `snoSpecialNm`, and the big `snoExpr`/`snoXList`
 reduction; then truncates at line 89 of its 646-line target.
 
-**Three modes (`--interp`, `--interp`, `--run`) all produce the same
+**Three modes (`--run`, `--run`, `--run`) all produce the same
 89/0/3/0 fingerprint** — the bug is in the IR/parser layer, not the
 backend dispatch.
 

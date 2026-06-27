@@ -38,7 +38,7 @@ cd /home/claude/SCRIP
 BEAUTY=/home/claude/corpus/programs/snobol4/beauty_suite
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_DRIVER_driver.sno 2>/dev/null \
     > /tmp/spitbol.out
-SNO_LIB=$BEAUTY timeout 10 ./scrip --interp $BEAUTY/beauty_DRIVER_driver.sno 2>/dev/null \
+SNO_LIB=$BEAUTY timeout 10 ./scrip --run $BEAUTY/beauty_DRIVER_driver.sno 2>/dev/null \
     > /tmp/scrip.out
 diff /tmp/spitbol.out /tmp/scrip.out
 ```
@@ -62,7 +62,7 @@ python3 test/beauty_subexpr_gen.py \
     --source SUBSYS.sno --driver DRIVER.sno \
     --line N --stlimit SL \
     --out corpus/.../subexpr/ --verbose
-./scrip --interp corpus/.../subexpr/TEST.sno
+./scrip --run corpus/.../subexpr/TEST.sno
 # FAIL K → SNBtK is the broken node
 ```
 
@@ -135,7 +135,7 @@ OR: add a global hook `g_eval_str_hook` that scrip.c sets to point to
 
 - [ ] **S-5** — Apply dance to beauty self-host:
   ```bash
-  SNO_LIB=$INC ./scrip --interp beauty_driver.sno
+  SNO_LIB=$INC ./scrip --run beauty_driver.sno
   ```
   Monitor vs SPITBOL. Find first divergence. Fix.
 

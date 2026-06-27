@@ -73,7 +73,7 @@ EXCISE→FAIL.** EXCISE is sanctioned (m2 is the oracle); a non-`[SMX]` FAIL is 
    (emit_bb.c:3012) but the lowering shape differs.
 
 ## Discipline (binding)
-m2 (`--interp`) is the HARD oracle — never let `--mode interp` PASS drop below 202; verify with an explicit
+m2 (`--run`) is the HARD oracle — never let `--mode interp` PASS drop below 202; verify with an explicit
 before/after `bash scripts/test_icon_rung_suite.sh --mode interp` diff. ALWAYS gate all three modes; a native
 shape with no template must LOUDLY `[SMX]` decline (→ EXCISED, sanctioned) — NOT abort or silently FAIL. After
 EVERY emitter/gate change, diff the FAIL list vs pristine (not just the PASS count). Templates are

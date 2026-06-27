@@ -2,7 +2,7 @@
 
 **Goal:** GOAL-ICON-FULL-PASS — Icon `--run`/`--compile` up to full native coverage.
 **Result:** m3/m4 **118 → 122 (+4)**, FAIL 29 → 25, zero regressions. m2 no longer exists
-(the `--interp` IR-graph interpreter was deleted in `a2440f4`; gates are native `--run`/`--compile` only).
+(the `--run` IR-graph interpreter was deleted in `a2440f4`; gates are native `--run`/`--compile` only).
 **HEAD (SCRIP) = `9354db7`** (2 commits, rebased clean onto `6e87566`). HEAD (.github) = this file.
 
 Both fixes are the SAFE class: lowering / native-binding only, no shared-dispatch or runtime-helper

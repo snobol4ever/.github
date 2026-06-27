@@ -43,7 +43,7 @@ Fires **2 `IR_MATCH_DEFER` boxes** (`call rt_defer_match@PLT` ×2); program outp
 ### Proof — direct A/B byte-identity (strongest standard)
 Baseline = the pre-edit file via `git show HEAD~1:…` on the rebased combined tree. Across all three modes with the firing program above:
 - **m4** (`--compile`): RAW byte-identical, identical sha256 (`76798db…` at the pre-rebase HEAD; re-confirmed byte-identical again on the combined tree post-rebase). No BB-label normalization needed — pure inlining left emission order + object sizes unchanged. Linked binary (`gcc -no-pie … -L out -lscrip_rt`, `LD_LIBRARY_PATH=out`) runs `12345/ab`, matching the m2 oracle.
-- **m2** (`--interp`) / **m3** (`--run`, native in-proc): identical output `12345/ab`.
+- **m2** (`--run`) / **m3** (`--run`, native in-proc): identical output `12345/ab`.
 
 ### HEAD drift this session (one rebase, clean)
 Started at `81b63f1` (16th-session push). During handoff the remote advanced once: `81b63f1 → 2fa5086` ("IR_CALL split rung 5 — GVAR_USERPROC producer, live+inert"; `git show --stat` confirms it touched **no** bb_match file). My commit rebased cleanly to `3ed602b`; the combined tree was rebuilt, the file re-audited CLEAN, the A/B re-certified byte-identical, and the full gate battery re-run green before the push.

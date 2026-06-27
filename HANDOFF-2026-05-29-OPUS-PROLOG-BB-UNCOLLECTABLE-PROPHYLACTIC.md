@@ -61,9 +61,9 @@ but they are not part of the hazard class. Left alone.
 |------|--------|-------|
 | GATE-1 (smoke prolog) | 5/5 | |
 | GATE-2 (3-mode crosscheck) | 132/0 | 5 ORACLE_MISS (frontend gap, unchanged) |
-| GATE-3 mode-2 (`--interp`) | 104/107 | |
+| GATE-3 mode-2 (`--run`) | 104/107 | |
 | GATE-4 (mode-4 minimal) | 4/4 | |
-| GATE-SWI mode-2 (`--interp`) | 57/57 (100%) | |
+| GATE-SWI mode-2 (`--run`) | 57/57 (100%) | |
 | GATE-SWI mode-3 (`--run`) | 57/57 (100%) | |
 | FACT RULE | 0 violations | |
 | smoke icon | 5/5 | |
