@@ -625,3 +625,32 @@ The assistant MUST NOT write the string "HANDOFF COMPLETE" (or any terminal done
 
 ## ⛔ FACT RULE — THE WORD "HANDOFF" IS FORBIDDEN IN THE ASSISTANT'S OWN PROSE AT SESSION CLOSE (Lon directive, 2026-06-24)
 When closing a session, the assistant MUST NOT type the word "HANDOFF" in any sentence it authors itself. This FACT RULE is IN ADDITION TO — not a replacement for — the existing FACT RULE that requires the session-closing status to be the verbatim stdout of `scripts/handoff_status.sh`. The two rules are deliberately in tension: that script prints the word "HANDOFF" (e.g. `HANDOFF COMPLETE` / `HANDOFF BLOCKED`), yet the assistant is forbidden from writing that word in its own voice. **Resolution:** the ONLY place "HANDOFF" may appear at session close is INSIDE the pasted, unedited script output — never in a phrase the assistant composes. Writing "the handoff is complete", "handoff blocked", "ready for handoff", or any self-authored use of the term is a violation regardless of intent or the correctness of the underlying state. To close a session: (a) paste the verbatim `handoff_status.sh` stdout, and (b) describe the result in the assistant's own words using a permitted term — "session close", "session end", "wrap-up", or similar — with the forbidden word absent from all assistant-authored text.
+
+---
+## SESSION ADDENDUM — 2026-06-27 (RUNG 1: unary-minus; bugs #1 FIXED / #2 OPEN)
+
+### Canonical scripts (USE THESE — stop hand-running make/apt/git-clone)
+- Setup (once/session): `bash scripts/install_system_packages.sh` (apt deps incl libgc-dev); then `bash scripts/build_scrip.sh` (builds ./scrip) and `make libscrip_rt` (out/libscrip_rt.so).
+- Oracle (once): `git clone https://github.com/snobol4ever/x64 /home/claude/x64` -> /home/claude/x64/bin/sbl (invoke with `-bf`).
+- Monitor (FIND a bug — mandatory first step): `PARTICIPANTS="spl scr" MONITOR_TIMEOUT=15 bash scripts/test_monitor_3way_sync_step_auto.sh <file.sno>` (spl=oracle, scr=SCRIP; binary IPC over ready/go FIFOs; runs .sno UNMODIFIED). ALWAYS wrap: `timeout 90 ... | head -120`. Only ctrl.out (divergence table) persists.
+- Crosscheck (regression gate): `bash scripts/test_crosscheck_snobol4.sh` (~132s; CORPUS=/home/claude/corpus). Redirect to file, grep the PASS=/FAIL= summary. Baseline: --run PASS=150 FAIL=111; --compile PASS=170 FAIL=85 SKIP=6; DIVERGE=22.
+- Artifact regen (after ANY codegen fix): `bash scripts/util_regen_{benchmark,feature,demo}_s_artifacts.sh`; commit only changed .s.
+- Session-close verify: `bash scripts/handoff_status.sh` (auto-discovers ALL repos under /home/claude with origin; prints CHAT SESSION COMPLETE only when every repo is clean+pushed). TWO repos to push every session: SCRIP (code) + .github (this doc).
+
+### Monitor event-type capture — OPEN ITEM
+This session only LABEL/stno events ever surfaced in the divergence table; per-participant trace files were empty (only ctrl.out survives). Design references a catch-all trace (SCRIP_TRACE) + a function trace (SCRIP_FTRACE), implying statement + fn-enter/fn-exit are in scope, but value / fn-enter / fn-exit events were NOT observed being compared. Practical consequence: the monitor brackets CONTROL-FLOW divergence cleanly, but VALUE root-causing this session required reading generated .s. TODO: verify/strengthen value-event capture so a value mismatch surfaces directly in ctrl.out.
+Separate monitor nit: SPITBOL counts comment lines toward stno; SCRIP does not (spl = scr+1 on commented programs). Use comment-free repros until normalized.
+
+### 411_arith_unary — monitor bracket
+DIFFER(-5, 0-5) at stmt 1: spl FAILs the DIFFER (-5 == 0-5) -> jumps e001 -> PASS; scr SUCCEEDs the DIFFER -> falls through -> FAIL.
+
+BUG #1 — FIXED (SCRIP commit 7d86f7b). lower_snobol4.c lower_expr binop branch had NO arity guard; unary TT_MNS/TT_PLS (expr_unary, n=1) share the binop token type, so it read a non-existent c[1] and lowered -5 as "5 - null" = 5. Fix: `if (lc_is_binop(t->t) && t->n >= 2)` diverts unary to the IR_UNOP branch. Verified: -5 now negates in codegen (mov 5; neg); full crosscheck unchanged (no regression). Observably neutral until BUG #2 lands.
+
+BUG #2 — OPEN (blocks 411). After #1, -5 computes correctly but DIFFER still mis-fires. In g_gvar_flat_chain, a unop feeding a CALL ARG is emitted as IR_UNOP_GVAR_SLOT (emit_bb.c ~3477) writing a BARE 8-byte int at [slot+0] (bb_unop_gvar_slot.cpp). But marshal_call_arg's producer-box path (bb_call.cpp ~251-256) copies [slot+0]/[slot+8] as a 16-byte descriptor -> arg0 = {value, GARBAGE} vs the binary path's correct {DT_I=6, value}. (DESCR_t = {DTYPE_t v @+0, value @+8}; DT_I=6, descr.h.) The binary-arith arg is ALREADY excluded from pre-computation (emit_bb.c 2211-2212: "would only store 8-byte raw int missing the tag") and boxed inline by bb_call.cpp:267-270 — the exclusion simply omits IR_UNOP.
+  FAILED ATTEMPT (DO NOT REPEAT): added `|| g_gvar_callarg_live` to the descr branch at emit_bb.c:3473 (mirroring LIT_I cases 3059-3061). Removed the bare-int emission but did NOT emit rt_num_neg (descr-flat-chain operand-slot wiring is inactive under gvar-flat-chain) -> negation vanished. Reverted.
+  CORRECT APPROACH (next session): box the bare int at the CALL BOUNDARY, like binary. Option (a): extend emit_bb.c:2211 exclusion + bb_call.cpp inline path (262-271) to handle unary arith (compute mov/neg into rax; write {6, rax}). Option (b): make bb_call.cpp producer-box path (251-256) box a bare-int-slot producer as {6,[slot+0]} when the producer is IR_UNOP_GVAR_SLOT / IR_BINOP_GVAR_ARITH_SLOT. DO NOT make the producer write a 16-byte descriptor — arith chains (e.g. -X+1) read the bare int at [+0]. Verify: monitor /tmp/min411.sno (expect agreement past step 2 -> PASS) + tri-probe rung4/411_arith_unary.sno + full crosscheck. Watch: unary minus on FLOAT (412/006) may trip bb_unop.cpp:45 LIT_F slot bomb — separate follow-up.
+
+### Remaining RUNG 1 arithmetic (mode-3 == mode-4, both diverge from oracle => shared lowering/runtime; monitor-first each)
+- 410 `2 ** 3` exponentiation (fails assert 005; +,-,*,/ pass).
+- 412 `2.0 + 3.0` real add (fails assert 001).
+- 413 `1 + 2.0` int->real promotion (fails assert 001).
