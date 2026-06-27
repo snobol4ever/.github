@@ -734,3 +734,27 @@ m4 FAIL set still holds: pattern tests (052-152 `pat_*` — the DEMO-PAT/GEM sur
 - [ ] **ED-4 — wire branchopt (the pass that already lives in src/opt but is UNLINKED-into-the-pipeline).** Separate from ED-1..3 (those are moves; this is activation). `bopt_chain` is compiled but never CALLED. Insert it as a LOWER→EMITTER pass per the OPT rung's BOPT-1, WITH the cycle guard already in `bopt_resolve` (guard<4096). ⚠ This DOES change codegen (fewer jumps) → it is NOT byte-neutral: gate = crosscheck *result* byte-identical (PASS/FAIL counts AND every stdout) + regenerate `.s`. Lower priority than the moves; do ED-1..3 first (they de-risk by shrinking the file the BOPT wiring lands in). [This step overlaps OPT/BOPT-1 — when done, mark both.]
 
 **Prereq reads:** `src/contracts/IR.h` (the only dep the moved fns have), `src/opt/branchopt.{c,h}` (the existing src/opt shape to mirror), Makefile lines ~546 (branchopt compile) + ~564 (the `*.o` wildcard link). NO BB-CODEGEN-DESIGN-SET read needed for ED-1..3 (they touch no per-box state, emit no bytes); ED-4 touches port edges so read ARCH-x86.md §Flat-BB-ABI first.
+
+---
+
+## ▶ RUNG: IDX-SET-SLOTS — array/table store `A<k> = v` operand-slot ABI mismatch (diagnosed 2026-06-27, static-first)
+
+**SUPPLY:** 091_array_create_access, 092_array_loop_fill, 093_table_create_access (the `A<k> = v` store half of the array/table fail cluster). 094/095 are DATA, separate.
+
+**GROUND TRUTH (RUN + probe-confirmed, NOT inferred).** `A<k> = v` (TT_IDX subject) bombs at runtime in BOTH modes: `libscrip_rt: BOMB — bb_idx_set: needs base/key/value operand slots ([ζ+off] producers)`. The READ half (`OUTPUT = A<k>`, TT_IDX RHS) WORKS. Two distinct defects, one fixed:
+
+1. **base-slot half — FIXED (SCRIP 642b5f3e).** `flat_drive_idx_set` (emit_bb.c ~1712) set `op_sb`(key)/`op_sc`(value) but never `op_a_slot`(base); the template `bb_idx_set.cpp:12` guards on all three ≥0. Added `g_emit.op_a_slot = bb_slot_get(base_box);`. Probe confirms base_slot now 80. Regression-free (crosscheck byte-identical). **But this alone does NOT make the store work** — defect 2 still bombs.
+
+2. **literal-key half — OPEN (the real design seam).** Probe on `A<1> = S`: `base_slot=80 key_slot=-1 val_slot=64`. The KEY is `IR_LIT_I` (literal int), and a literal box does NOT claim a ζ-frame slot (`bb_slot_get` returns -1), so the `op_sb>=0` guard fails → bomb. **ROOT CAUSE = the store and read templates were designed with INCONSISTENT operand ABIs:**
+   - READ (`flat_drive_idx_get` ~1690 + its template) uses a **name+immediate** ABI: passes `op_name1`=base var NAME (string), `bb_lk`/`bb_li`=key opcode+immediate value, resolves the array by name and the key as an immediate. Handles `IR_LIT_I` key natively. WORKS.
+   - STORE (`flat_drive_idx_set` ~1712 + `bb_idx_set.cpp`) uses a **three-slot-producer** ABI: expects base/key/value ALL pre-materialized into `[ζ+off]` slots. A literal-int key has no slot → breaks.
+
+**THE FIX (next session — choose one, both are template-coordinated both-medium work, NOT a one-liner):**
+- **Option A (recommended — mirror the working read side):** rewrite `bb_idx_set.cpp` + `flat_drive_idx_set` to the SAME name+immediate ABI the read path uses — base by `op_name1`, key via `bb_lk`/`bb_li` (immediate when `IR_LIT_I`, slot/NV when `IR_VAR`), value materialized into one slot (`op_sc`). Symmetry with the read side is the win; least new surface.
+- **Option B:** keep the three-slot ABI but make `flat_drive_idx_set` MATERIALIZE a literal key/value into claimed slots first (`bb_slot_claim(16)` + emit a store of the immediate into `[ζ+off]` before the IDX_SET box), so all three operands really are slots. More instructions, but localizes the change to the driver (template untouched beyond the base-slot fix).
+
+**ALSO (parser/lower, smaller, do alongside):** the lowering at `lower_snobol4.c:1092` (`T<k> = v` int/var-value arm) accepts `repl->t == TT_ILIT || TT_VAR` but NOT `TT_QLIT` — so `A<1> = 'first'` (string-literal value) is dropped to a no-op (orphan ASSIGN) BEFORE reaching IR_IDX_SET. Extend that arm (and/or the arith arm at 1080) to accept `TT_QLIT` string-literal values (build an `IR_LIT_S` val_box). Verify against 091's `.ref` (first/third/fifth). This is gated behind the template fix above (no point routing QLIT to a bombing template).
+
+**Gate (whole rung):** 091/092/093 `--run` AND `--compile` match their `.ref`; crosscheck fail set ⊆ HEAD (zero regressions); both-medium; `.s` regenerated for any benchmark that uses array/table store.
+
+**Prereq reads:** `src/emitter/BB_templates/bb_idx_set.cpp` (the store template), `flat_drive_idx_get`/`flat_drive_idx_set` (emit_bb.c ~1690/1712 — the read vs store ABI contrast), `lower_snobol4.c` ~1080-1100 (the store-lowering arms + the TT_QLIT gap), `src/emitter/bb_regs.h` (ζ-frame). This touches per-box state → read ARCH-x86.md §Flat-BB-ABI first.
