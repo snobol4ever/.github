@@ -151,6 +151,36 @@ Each step gated on `make scrip` rc=0 (never a broken commit) + the named behavio
 - [ ] **BOPT-gate** — byte-identical; emitted-jump-count delta + A/B across all 16.
 
 **Prereq reads:** the uploaded Proebsting four-port paper (§4 templates, §5/Figs 1–2 optimization — **persist to repo `docs/`**); ARCH-x86.md §Flat-BB-ABI + §Boxes-are-stackless; `src/lower/lower_snobol4.c`; `src/emitter/emit_bb.c` (FILL/port machinery + flattener); `src/emitter/BB_templates/x86_asm.h`.
+---
+
+## ▶ RUNG: SCAN-CLASS — specialize the cset-matching scanners (fold → table → unroll)
+
+**GROUND TRUTH (session, emitter-verified — NOT inferred).** The literal-vs-variable dispatch and RIP-relative constant-folding ALREADY EXIST for these primitives:
+- `lower_snobol4.c:522` routes SPAN/ANY/NOTANY/BREAK/BREAKX/LEN/POS/RPOS/TAB/RTAB down a LITERAL arm (arg ∈ {QLIT,ILIT,CSET}) vs a VARIABLE arm.
+- POS/RPOS literal integers are ALREADY folded to immediates: `bb_match_pos.cpp:17` `cmp r14d,<imm>`; RPOS `sub ecx,<imm>; cmp r14d,ecx`; `bb_scan_pos.cpp:15` `cmp64 r14,<imm>`.
+- ANY/SPAN/BREAK literal csets are ALREADY sealed RIP-relative: `bb_scan_any/many/upto` literal arms emit `ROQ(0)` + `.string`. They still `strchr` the sealed string per subject char — the inner-loop cost SCAN-TABLE/SCAN-UNROLL attack.
+- NSPAN does NOT exist in `src/` (no token/IR/template) — a NEW primitive, not a folding task.
+
+So constant-folding-into-RIP is largely DONE. Remaining: (1) a coverage AUDIT; (2) the inner-loop algorithm (table/unroll), PARKED below per Lon (2026-06-27).
+
+### SCAN-FOLD — audit + close constant-folding coverage (the only ACTIVE scan-class rung)
+- [ ] **SCAN-FOLD-0 — coverage audit (no code change).** For ANY/NOTANY/SPAN/BREAK/BREAKX (× `bb_scan_*` inline AND `bb_match_*` stored/native families) and POS/RPOS/LEN/TAB/RTAB: confirm the literal arm seals its constant RIP-relative (cset via ROQ/.string) or immediate (integer via `cmp imm`), with NO frame load / NO runtime arg-eval on the literal path. Deliverable: table {primitive × family → folded? Y/N/site}.
+- [ ] **SCAN-FOLD-1 — close any unfolded literal arm.** Any primitive the audit marks N (literal arg still frame-loaded) → seal RIP-relative/immediate like its siblings. Gate: crosscheck byte-identical; both-medium; regenerate only the closed primitive's `.s`.
+- [ ] **SCAN-FOLD-2 — NSPAN (decision, not auto).** NSPAN (nullable span, ≥0) is unimplemented; adding it is a NEW primitive (parser token + lower + `bb_*nspan`, ≥0 loop-exit vs SPAN's ≥1), its own rung — NOT a folding step. PARK until Lon requests.
+
+### SCAN-TABLE — baked character-class classifier (PARKED — Lon: "for later")
+Replace the per-char `strchr(cset,ch)` (PLT call + O(cset-len) scan) in `bb_scan_any/many/upto/bal` (+ `bb_match_*` cset loops) with a baked classifier reached RIP-relative — the real inner-loop win.
+- [ ] **SCAN-TABLE-0 — pick form.** 256-byte 0/1 table (`movzx eax,[r13+rcx]; cmp byte [rip+tbl+rax],0`) vs 32-byte bitmap (`bt`). Lean: 256-byte table for streamers (single indexed load). ⛔ char UNSIGNED (movzx 0–255) — bytes ≥128 (&ALPHABET) misclassify otherwise.
+- [ ] **SCAN-TABLE-1 — literal cset → bake table into RO data, sealed adjacent, RIP-relative.** Build the 256-entry table at emit time from the literal cset; emit in the sealed RO region; rewrite the literal arm's inner loop to the indexed test. Add the x86 form to x86_asm.h (both-medium). Gate: crosscheck byte-identical; A/B SPAN/BREAK on string_pattern/pattern_bt; `.s` regenerated.
+- [ ] **SCAN-TABLE-2 — runtime cset → built-once table (SPITBOL parity; bulk of the win).** Represent a cset VALUE as a 256-entry table built once when its string materializes, memoized on the descriptor; the variable arm's loop uses it. Covers `BREAK(WORD) SPAN(WORD)` (wordcount/claws5/treebank). ⛔ rebuild on cset reassignment. Gate: crosscheck byte-identical; A/B wordcount.
+
+### SCAN-UNROLL — inline-compare / unrolled small literal csets (PARKED — Lon: "for later")
+Tiny literal csets (≤~10 chars): skip the table, emit direct `cmp al,cN; je` chains (`SPAN(' ')`/`BREAK(',')`/`ANY('+-')` → one compare). Faster than the table load for the common short-cset case.
+- [ ] **SCAN-UNROLL-0 — threshold + dispatch.** Choose N (≤10); literal cset len ≤N → unrolled-compare arm, else → SCAN-TABLE arm, else (variable) → table/strchr. 1-char fast path first (highest frequency).
+- [ ] **SCAN-UNROLL-1 — emit unrolled compares per the primitive's loop semantics** (ANY = OR-of-compares→match; NOTANY = none-match→match; SPAN/BREAK = loop-exit condition). Both-medium. Gate: crosscheck byte-identical; A/B on a single-char-cset-heavy program.
+
+**Sequencing (Lon).** SCAN-FOLD (audit) is small — folding is already in place. SCAN-TABLE-2 (runtime-cset table) holds the bulk of the inner-loop win; SCAN-TABLE-1 + SCAN-UNROLL cover the literal cases. All gated A/B (the win is MEASURED, not assumed); template-only / four-Greek-port / both-medium; `.s` regenerated per touched primitive.
+
 
 ---
 
@@ -565,7 +595,7 @@ Steps: RC-0 honest runner + oracle-gen refs + triage table → RC-1 gimpel → R
 **Vision (Lon):** treat `bb_pool` as a GC heap of *code*. When it fills, mark live BB blobs, sweep the unreferenced, and **slide the survivors down to compact**, re-stitching ONLY the four ports (α β γ ω) and touching nothing else inside a blob body.
 
 **Why this is viable — relocatability taxonomy (grounded in `x86_asm.h` binary encoder + `bb_regs.h`, verified 2026-06-24).** Setting the 4 ports aside, here is everything baked into a sealed blob and its behavior under a slide:
-1. **Register-relative state** (`[r12+off]` ζ, `rbx` GVA, `rbp` GST, `r13/r14/r15` Σ/δ/Δ, `r10` DATA) — encodes NO code/data address → **zero fixup**. This register-centric ABI is the whole reason compaction is tractable.
+1. **Register-relative state** (`[r12+off]` ζ, `rbx` GVA, `rbp` GST, `r13/r14/r15` Σ/δ/Δ) — encodes NO code/data address → **zero fixup**. This register-centric ABI is the whole reason compaction is tractable.
 2. **RIP-relative to adjacent sealed RO** (`lea reg,[rip+disp32]` to interned name/lit bytes) — disp32 = target−rip_next → **invariant IFF the RO tail moves with its blob as one indivisible unit**. ⇒ relocation unit = blob + adjacent RO, never split.
 3. **Immediate data constants** (`movabs reg,<int|float-bits>`) — values, not addresses → **position-independent**.
 4. **Runtime-function calls** — binary encoder ALREADY emits `movabs rax,&fn ; call rax` (`x86_asm.h:196`, abs addr) NOT `call rel32`. The runtime never moves, so the absolute target is invariant under caller movement → **zero fixup**. (Ports, by contrast, are `0xE8 rel32` / `XK_PORT` — relative, the one thing that breaks.)

@@ -87,22 +87,22 @@ prologue is the first thing to delete.
 ### Flat-BB ABI
 
 ```
-Buffer layout (glob = N concatenated boxes' code + 1 consolidated data block):
+Buffer layout (glob = N concatenated boxes' code + 1 sealed read-only region):
   [0 .. CODE_END)   x86 code — position-independent via rel8/rel32 jumps
-  [CODE_END .. end) DATA — consolidated locals for every box in the glob,
-                    addressed as [r10+N] from the glob entry preamble
-                    onward (see ME-2 / ME-4-pre register convention)
+  [CODE_END .. end) RO DATA — per-box compile-time constants (cset literals,
+                    baked ptrs), sealed adjacent and reached RIP-relative as
+                    [rip + disp]. RW box-locals live in the ζ frame [r12+off].
 
 Entry convention:
   Control enters at the glob's first instruction (the α port of the
   first box).  No `esi` port test; the glob's structure is static.
-  `r10` is loaded once by the glob preamble as `lea r10, [rip + Δ_data]`.
+  The glob preamble establishes the ζ frame (`mov r12, rdi`) — there is NO `lea r10`.
 
 Data access pattern (inside the glob body):
-  4D 8B 42 dd       mov rax, [r10+N]   ; load 8-byte baked ptr (Σ_addr, Δ_addr...)
-  8B 00             mov eax, [rax]     ; deref to int (Δ, Ω, n...)
-  48 8B 00          mov rax, [rax]     ; deref to ptr (Σ)
-  45 89 42 dd       mov [r10+N], eax   ; write int back to local slot
+  mov rax, qword ptr [r12+off]   ; load an 8-byte RW box-local (ζ frame)
+  mov [r12+off], eax             ; write an int back to an RW box-local
+  lea rdi, [rip + lbl]           ; address a sealed RO constant (cset literal)
+  ; r10 is RETIRED — no data-block register; see R10-OUT in GOAL-SNOBOL4-BB.md
 ```
 
 ### Intra-BLOB vs extra-BLOB jumps
@@ -113,31 +113,31 @@ hand at emit time, so the distinction is a compile-time property of the
 generated `jmp` instruction, not a runtime check.
 
 **Intra-BLOB jump** — target address is within `[blob_start, blob_end)`.
-The BLOB's LOCAL register (`r10`) is unchanged across the jump; no save,
+The ζ frame (`r12`, callee-saved) and RIP base are unchanged across the jump; no save,
 no restore.  Plain `jmp rel32 target`.  This is the common case — every
 α→β/γ/ω port transition inside a glob is intra-BLOB.
 
 **Extra-BLOB jump** — target address is outside `[blob_start, blob_end)`.
-The destination BLOB's α-preamble will load its own LOCAL via
-`lea r10, [rip + Δ_data]`, overwriting the source BLOB's r10.
+The destination BLOB's α-preamble establishes its own ζ frame; the RIP base
+is shared. `r12` is callee-saved (SysV) and survives the transition.
 
   * **Tail extra-jump** (γ/ω port exits the glob, control never returns
-    to here) — emit nothing about LOCAL.  The source BLOB's r10 is dead
-    after this jump; the destination's α-preamble will load its own.
+    to here) — nothing about box-locals to carry: RW state is off the
+    surviving `r12`, RO off RIP.
     Plain `jmp rel32 target`.  This is the common case for extra-BLOB.
 
   * **Call-style extra-jump** (rare in flat-BB land; can arise for a
-    capture-function callback that re-enters the broker) — the source
-    BLOB needs its LOCAL preserved across the outbound call because
-    control will resume at a point inside the source BLOB.  Source BLOB
-    emits `push r10` before the outbound jump and `pop r10` at the
-    resume point.  Push/pop are the source BLOB's responsibility, not
-    the destination's.
+    capture-function callback that re-enters the broker, with control
+    resuming inside the source BLOB afterward) — needs NO special save:
+    the source BLOB's RW state lives in the ζ frame (`r12`, callee-saved
+    by SysV, so it survives the call) and its RO constants are RIP-relative.
+    (Historically a consolidated DATA block rode `r10` and this case did
+    `push r10`/`pop r10`; r10 is retired — see R10-OUT in GOAL-SNOBOL4-BB.md.)
 
 The invariant the emitter must hold: **never jump into the middle of a
 BLOB from outside.**  Every cross-BLOB entry lands on the α-preamble.
 The preamble is the contract that the destination BLOB's LOCAL is loaded
-before any `[r10+N]` reference fires.
+before any `[r12+off]` reference fires.
 
 ### Dispatched-BB ABI (legacy, preserved for `--bb-brokered`)
 
@@ -268,7 +268,7 @@ proc; C label → NASM local label (`.name`); goto → `jmp`; return →
 ```c
 typedef enum {
     EMIT_TEXT             = 0,
-    EMIT_BINARY_WIRED     = 1,   /* flat/live: one blob, jmp-threaded, r10=&Δ */
+    EMIT_BINARY_WIRED     = 1,   /* flat/live: one blob, jmp-threaded, ζ=[r12] */
     EMIT_BINARY_BROKERED  = 2,   /* brokered: per-box blob, C ABI, rdi=ζ      */
     EMIT_MACRO_DEF        = 3    /* sm_macros.s .macro body regen             */
 } bb_emit_mode_t;
@@ -279,8 +279,8 @@ extern bb_emit_mode_t bb_emit_mode;
 - **EMIT_BINARY_WIRED** (flat/live mode): writes raw x86-64 bytes into one
   contiguous `bb_pool` buffer for the entire pattern tree. Boxes `jmp` directly
   to each other's α/β/γ/ω labels within the blob. Broker calls the blob **once**
-  at α entry (`esi=0`); backtracking is internal `jmp`. Preamble loads
-  `r10=&Δ` (RIP-relative); `rdi=ζ` is ignored (`ζ=NULL`). Jump in, jump out.
+  at α entry (`esi=0`); backtracking is internal `jmp`. Preamble establishes
+  the ζ frame (`mov r12, rdi`); RW→`[r12+off]`, RO→`[rip+disp]`. Jump in, jump out.
 - **EMIT_BINARY_BROKERED** (brokered mode): writes raw x86-64 bytes into
   `bb_pool`, one blob per box. Each blob has a full C ABI entry: `rdi=ζ` heap
   struct (local state), `esi=port` (`cmp esi,0; je α; jmp β`), `ret` to

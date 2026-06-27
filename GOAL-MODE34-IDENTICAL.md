@@ -89,7 +89,7 @@ The 191 IDENTICAL prove the shared-template design works where both arms exist; 
 4. **No regression.** Crosscheck fail-SET stays byte-identical to pristine HEAD across the whole rung (currently PASS=171 FAIL=84 SKIP=6).
 
 ## Prereq reads (BB-CODEGEN design set — NON-NEGOTIABLE for any step touching emission)
-`ARCH-x86.md` §"Boxes are stackless" + §"Flat-BB ABI"; `ARCH-ICON.md` §"register contract"; `REGISTER-LAYOUT.md`; `src/emitter/bb_regs.h` (r12=ζ, r13=Σ, r14=δ, r15=Δ, r10=DATA, rbx=GVA base, rbp=GST hash); `src/emitter/XA_templates/xa_flat.cpp` (glob preamble); `ARCH-SCRIP.md`. Plus, for the driver work: `src/driver/scrip.c` mode_compile_x86 + mode_run blocks side by side.
+`ARCH-x86.md` §"Boxes are stackless" + §"Flat-BB ABI"; `ARCH-ICON.md` §"register contract"; `REGISTER-LAYOUT.md`; `src/emitter/bb_regs.h` (r12=ζ, r13=Σ, r14=δ, r15=Δ, rbx=GVA base, rbp=GST hash); `src/emitter/XA_templates/xa_flat.cpp` (glob preamble); `ARCH-SCRIP.md`. Plus, for the driver work: `src/driver/scrip.c` mode_compile_x86 + mode_run blocks side by side.
 
 ## Build / probe
 `apt-get install -y libgc-dev && make -j4 scrip && make libscrip_rt`. Tri-probe a program in BOTH modes:

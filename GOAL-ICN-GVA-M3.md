@@ -64,7 +64,7 @@ The simplest correct form: emit a small `mmap`'d or stack-allocated trampoline t
 preserved across all box transitions.
 
 **Option B — add a `g_gva_rbx_base` global read at the start of the m3 slab preamble:**
-The RX slab's existing preamble (`lea r10,[rip+Δ]; jmp .Lroot_α` shape, `XA_templates/xa_flat.cpp`)
+The RX slab's existing preamble (`mov r12,rdi; jmp .Lroot_α` shape, `XA_templates/xa_flat.cpp`)
 could be extended to load `rbx` from a known global:
 ```asm
 mov rbx, qword ptr [rip + g_gva_rbx_base]
@@ -96,7 +96,7 @@ After the above:
   header if used across files.
 
 - [ ] **M3-ARENA-2** — In `xa_flat.cpp` (or the m3 preamble emitter), after the existing
-  `lea r10,[rip+Δ]` preamble, add (gated on `g_gva_active`):
+  `mov r12,rdi` preamble, add (gated on `g_gva_active`):
   `x86("mov", "rbx", G_GVA_RBX_BASE)` or the `[rip+g_gva_rbx_base]` load form.
   Verify via `objdump`/strace that rbx holds the arena address at first box entry.
 

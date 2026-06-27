@@ -60,7 +60,7 @@ because the dispatched code is emitted x86, not a C box). Pieces 1/3/4 + chain w
 
 - [ ] **R2-S1** — Piece 2: prologue entry-dispatch in `xa_flat.cpp` frame-active arm, gated on a new
       `g_gen_proc_active` (set in scrip.c proc-emit loop from `proc_table[pi].is_generator`):
-      append `cmp esi,0 / jne <flat_lbl_β>` after `lea r10,[rip+Δ]`. esi≠0 ⇒ resume ⇒ jump the
+      append `cmp esi,0 / jne <flat_lbl_β>` after `mov r12,rdi`. esi≠0 ⇒ resume ⇒ jump the
       chain β (already routed to the suspend resume β by `ecef926`). Non-generator procs byte-unchanged.
 - [ ] **R2-S2** — Piece 5: caller gen-call box. Add `int rt_proc_is_generator(const char*)` (reads
       `proc_table`); in `bb_call_route_classify`, when `rt_proc_is_registered && rt_proc_is_generator(fn)`

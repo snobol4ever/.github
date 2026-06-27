@@ -1,5 +1,7 @@
 # REGISTER-LAYOUT.md — SCRIP mode-3 x86-64 register convention
 
+> ⛔ **RETIREMENT NOTICE (r10 / BBREG_DATA is OUT).** The consolidated **per-BLOB DATA-block pointer in `r10`** described throughout this document is **RETIRED**. The live flat boxes address **RW box-locals at `[r12+off]`** (the ζ frame, established by the glob preamble `push r12; mov r12, rdi`) and **RO box-constants at `[rip+disp]`** (sealed adjacent, RIP-relative). There is no data-block register and no `lea r10,[rip+Δ]` preamble. Everything below that loads `r10`, addresses `[r10+N]`, or `push`/`pop`s `r10` for a DATA block is **superseded history retained for reference only** — see **R10-OUT** in `GOAL-SNOBOL4-BB.md` for the eliminating ladder. (This is in addition to the earlier SM-era supersession already noted: r12 is the ζ RW frame, NOT an SM value-stack TOS.)
+
 ⛔⛔ **SUPERSEDED FOR BB-NATIVE EMISSION (2026-05-31, Lon-ratified).** The
 register roles below describe the **SMX-4-era SM-blob** convention (r12 =
 SM value-stack TOS; r13/r14/r15 = free). SMX-4 deleted the SM engine, so
