@@ -50,6 +50,112 @@ No language enums/guards in `src/emitter/BB_templates/` or `XA_templates/`; disp
 
 ---
 
+## ▶ PAS-UNBOX: unbox Pascal aggregates + fix/inline reals (2026-06-27) — THE "ten times faster" array win, NEW TOP-PRIORITY OPTIMIZATION RUNG
+
+**Goal:** Replace the SOH-delimited decimal-text aggregate representation (a Pascal `array` is
+stored as a C string of `\x01`-separated decimal-ASCII elements: O(idx) scan per read +
+`GC_malloc`+O(n) reserialize per write) with a flat typed `ARBLK_t` block (`runtime/core/core.h:70`
+— native `DESCR_t *data` + `lo/hi` bounds), reached by an O(1) indexed load/store. Then fix reals
+(currently TRUNCATED TO INT — a correctness bug) and optionally inline real arith in SSE.
+Full asm-grounded characterization + evidence: **`.github/PAS-UNBOX-ANALYSIS-2026-06-27.md`**.
+
+**Why (asm-verified — and it CONTRADICTS the committed `corpus/BENCHMARKS-PASCAL.md` root cause):**
+no `-lgmp` is linked (`Makefile:36` = `-lgc -lm`); scalar integer arithmetic is ALREADY inline
+(`bb_binop_arith.cpp`: register `add`/`imul`/`cqo;idiv`, `DT_I` tag, no call, no allocation). The
+5,000–38,000× array-kernel slowdown is the aggregate-as-text representation: `a[i]`→`IR_CALL arr_get`,
+`a[i]:=v`→`IR_CALL arr_set_pure` (both via `rt_call_arr@PLT`) into `by_name_dispatch.c` (`:802`/`:1416`),
+the write doing `GC_malloc(slen*5+…)` + a full `sprintf` reserialize **per element store** (iarr.s:211–232).
+
+**Strategy — DT_A/DT_S coexistence (language-blind, gate-safe — NON-NEGOTIABLE):** the SOH-string
+aggregate substrate is SHARED across languages (Raku/SNOBOL lists use `split`/`join`/`elems`/`words`
+in the SAME `by_name_dispatch.c`). DO NOT replace it. Make a Pascal array a `DT_A` `ARBLK` descriptor;
+add a `DT_A` branch to each aggregate sink that does the O(1) indexed load/store; leave the `DT_S`
+string branch BYTE-IDENTICAL for the other languages. Dispatch on `args[0].v == DT_A`, NEVER on
+`LANG_PASCAL` (so it passes `BB-TEMPLATES-LANG-AUDIT.md` and keeps the four-language gate green by
+construction — non-`DT_A` callers hit unchanged code). After the array rungs land, correct the
+`BENCHMARKS-PASCAL.md` "Interpretation" section with measured before/after.
+
+### Steps (top-to-bottom; first `- [ ]` is the cursor)
+
+- [x] **PAS-UNBOX-0 — CHARACTERIZE (DONE 2026-06-27, no code change).** Asm proof + evidence +
+  DT_A/DT_S strategy frozen in `.github/PAS-UNBOX-ANALYSIS-2026-06-27.md`. Findings: no gmp; scalar
+  int already inline; array=SOH-text is the cost; reals truncated-to-int (correctness); `ARBLK_t`
+  exists unused by Pascal.
+- [~] **PAS-UNBOX-1 — 1-D integer array as `DT_A` ARBLK (create + read + write, atomic slice).**
+  RUNTIME FOUNDATION LANDED 2026-06-27 (`by_name_dispatch.c`, additive/dormant): new `arr_make`
+  sink (allocates a `DT_A` `ARBLK`, `lo=0`/`hi=high`, `data[high+1]` zeroed `INTVAL(0)` — mirrors
+  `mk_array_fill`'s 0-based `high+1` sizing), plus `DT_A` fast branches in `arr_get`
+  (`*out = data[idx-lo]`, O(1)) and `arr_set_pure` (`data[idx-lo] = v` in place, **no `GC_malloc`,
+  no reserialize**); `arr_make` added to `rt_builtin_is_known`'s list. All three guarded on
+  `args[0].v == DT_A`; the `DT_S` string path is byte-identical. **Verified no regression:** M3
+  Pascal **128/0**; M4 array smoke (`iarr`) = 25; **Raku** (the direct co-user of `arr_get`/
+  `arr_set_pure`) array assignment byte-correct (10/99/30) — `DT_S` untouched; `arr_make` emitted
+  nowhere yet → `DT_A` branch dormant (no regression possible). **CURSOR — the activating step:**
+  the *creation-flip* in `mk_array_fill` (pascal.y:410) to emit `mk_fnc1("arr_make", ilit(high))`
+  instead of the SOH-`TT_QLIT` — **but it MUST be SELECTIVE** (see landmine below): `mk_array_fill`
+  feeds `g_pas_arrays` which ALSO holds records, char-arrays, 2-D, and array-of-records; a blanket
+  flip turns those into `DT_A` and breaks the `\x05`-nested-record-in-slot + string-comparison
+  mechanisms. Flip ONLY a pure-numeric 1-D array (ncols<0, not in `g_pas_chararrs`, not a recvar,
+  not arr-rec, not enum-array). Needs bison regen (landmine #2) + the full M3+M4 + four-language
+  gate. Gate (whole rung): M3 128/0, M4 128/0; emitted `a[i]:=v` shows no `GC_malloc`/reserialize.
+- [ ] **PAS-UNBOX-2 — 2-D arrays + array param passing as `DT_A`.** The flat 2-D index
+  (`BINOP_ADD(BINOP_MUL(i,ncols),j)` → `TT_IDX(a,flat)`, see Mechanism inventory) reads/writes the
+  `ARBLK` via `ndim`/`lo2`/`hi2`. Value-param array copy duplicates the `ARBLK` (`data` block copy);
+  var-param array is the cell address of the block. Probes: `arr2d*.pas`, `arrparam.pas`, `vparr.pas`.
+  Gate: full M3+M4 + four-language cross-check; the `arr2dtype`/`arr2dtype2`/`arrparam` Frontier-1
+  trio re-checked (record whether they close).
+- [ ] **PAS-UNBOX-3 — `packed array of char` as flat byte buffer.** Back a char-array with a flat
+  mutable byte buffer so `s[i]:=c` → `mov byte [base+i],cl` (O(1), no malloc-rebuild); whole-string
+  compare via `memcmp` rather than descriptor coercion. (Smallest for the current corpus; matters if
+  PAS-BENCH pursues Dhrystone.) Probes: `chararr*`, `stdlib*`. Gate: full M3+M4 + cross-lang.
+- [ ] **PAS-UNBOX-4 — real correctness (multi-part; correctness > speed).** Root located:
+  `lower_pascal.c` tracks NO declared types, so a real *variable* read lowers to a bare `IR_VAR` with
+  no real tag; the emit-time detector `binop_is_num_real` (`emit_bb.c:1377`) classifies integer-vs-real
+  *statically* from operand shape, so `z := x*y+x` on real variables is mis-run through `imul` and
+  `x := 1.5` truncates (a real *literal* alone is fine: `TT_FLIT`→`IR_LIT_F`). Fix spans: (a) propagate
+  declared real type in `lower_pascal.c`, tag real variable reads; (b) all assign arms (frame + gvar)
+  store `DT_R` for a real RHS uniformly; (c) `binop_operand_real_static` sees real-typed variables;
+  (d) real arrays use a native `double` `ARBLK` element. Gate: real probes correct both modes;
+  `realparam.ref` fixed from the 1-byte stub to `       3.0`; full M3+M4.
+- [ ] **PAS-UNBOX-5 — inline-SSE real arith arm (speed).** `movsd`/`addsd`/`mulsd`/`divsd` on the
+  descriptor value-halves (value half = exactly 8 bytes = one IEEE double), eliminating the
+  `rt_num_arith` call on the real path. Net-new template dispatched on a real-type IR flag,
+  language-blind (no `LANG_PASCAL` guard); reusable by Icon. Gate: full M3+M4 + cross-lang + template
+  byte-identity; real probes still correct.
+- [ ] **PAS-UNBOX-6 — retire by-name read fallback for Pascal globals (≡ PAS-GVA-3).** Asm shows
+  global scalar reads still `call rt_gvar_get_int@PLT` on the hot path (iarr.s:224–227) despite the
+  arena. With arena writes complete, route reads purely to `[rbx+k*16]` and remove the now-dead tag-guard
+  fallback for Pascal globals (do NOT disturb SNOBOL's legitimate NV use). Gate: asm grep — Pascal global
+  access emits zero `rt_gvar_*`/`NV_GET`; full M3+M4. (Coordinate with PAS-GVA-3/PAS-VAR-4.)
+- [ ] **PAS-UNBOX-7 — re-bench + correct the doc.** Re-run PAS-BENCH array kernels; expect the
+  5,000–38,000× cluster to collapse toward fpc once the per-write `GC_malloc`+reserialize is gone.
+  Rewrite the `corpus/BENCHMARKS-PASCAL.md` "Interpretation" section (the boxed/gmp claim is false)
+  with measured before/after numbers. Gate: report committed; numbers reproducible.
+
+### PAS-UNBOX landmines
+- **CREATION-FLIP MUST BE SELECTIVE (the trap that breaks records/strings):** `mk_array_fill`
+  (pascal.y:410) is called for EVERY entry in `g_pas_arrays`, which mixes pure numeric arrays
+  with **records** (`pas_recvar_add` + `pas_array_add(name, nf-1)`), **char-arrays**
+  (`pas_chararr_add`), **2-D arrays** (`pas_array_add2d`, flattened `high=(rows+1)*ncols-1`), and
+  **array-of-records**. Flipping `mk_array_fill` blanket → `arr_make` turns records and char-arrays
+  into `DT_A` and breaks the `\x05`-nested-record-in-SOH-slot and string-comparison (`rt_relop_descr2`)
+  mechanisms. The flip MUST cross-reference the companion registries and fire ONLY for a
+  pure-numeric 1-D array (`ncols<0` ∧ not char-array ∧ not recvar ∧ not arr-rec ∧ not enum-array).
+  Record/char/2-D paths keep the SOH-string. Validate with `iarr` (flips) AND a record probe +
+  a char-array probe + a 2-D probe (all must STAY on SOH and stay green).
+- **Migrate the array atomically per dimension/type but additively in the sinks:** create+read+write
+  must all speak `DT_A` in one rung (else `arr_set_pure` on a `DT_A` that `arr_get` reads as `DT_S`
+  diverges), but each sink edit is a *guarded `DT_A` branch* leaving `DT_S` untouched. Never leave the
+  corpus half-converted between gate runs.
+- **`by_name_dispatch.c` is shared runtime:** after ANY edit run `make libscrip_rt` and ALL FOUR
+  language gates + template byte-identity before landing (landmines #4, #6).
+- **`ARBLK_t` is the language-blind vehicle:** any `LANG_PASCAL` guard fails `BB-TEMPLATES-LANG-AUDIT.md`.
+  Dispatch on `DT_A` vs `DT_S` representation / IR shape only.
+- **Reals are a known-fragile area** (`realparam` crashes rc=134); PAS-UNBOX-4 has a wider blast radius —
+  do it after the array rungs, with its own full gate.
+
+---
+
 ## ▶ PAS-GVA: Pascal globals via `[rbx+k*16]` arena (Lon directive, 2026-06-27) — PAS-GVA-0/1/2 landed; 1b/3/4/5 remain
 
 **Goal:** Make ALL Pascal variable access optimal by routing the program's top-level `var`s through the **slotted global arena** `[rbx+k*16]` (rbx = DESCR base, program-lifetime BSS), exactly as **Icon** and **SNOBOL4** do — retiring the NV by-name hash (`rt_gvar_get_int` / `rt_gvar_assign_int` / `rt_gvar_assign_descr` / `NV_GET_fn`, rbp-hash) for Pascal program globals. Direct memory replaces per-access hash lookup ("ten times faster"), and producer/consumer share ONE 16-byte descriptor representation (no `int`-vs-`descr` sink split).
