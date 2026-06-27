@@ -147,6 +147,40 @@ presently inverted against the SPITBOL oracle. The lone bright spot is
 backtracking — the Byrd-box path the native templates implement directly.
 Re-grounding this claim is tracked under the REC-COV / RC-5 rung.
 
+### Prolog — SCRIP vs GNU Prolog vs SWI-Prolog
+
+The Prolog frontend is measured against the two mainstream native engines — **GNU Prolog
+1.4.5** (gprolog, a mature WAM-to-native compiler) and **SWI-Prolog 9.0.4** — on the
+community-standard van Roy / Aquarius performance suite
+(`corpus/benchmarks/prolog/bench/`, UCB/CSD 89/50). All 22 programs reach **four-way
+correctness consensus**: GNU, SWI, SCRIP mode-3 (`--run`, in-process x86), and SCRIP
+mode-4 (`--compile` → native binary) all produce byte-identical output. Timing is
+per-iteration compute (each core looped *N* times so compile amortizes out; SCRIP m4 is
+the mode-4 native binary, gcc `-O0`). Lower is faster; ratio is SCRIP-m4 vs gprolog.
+
+| Benchmark | GNU | SWI | SCRIP m4 | m4 vs GNU |
+|-----------|----:|----:|---------:|----------:|
+| cal | 0.072 | 0.071 | 0.034 | **0.48× (faster)** |
+| sendmore | 4.288 | 10.297 | 4.286 | **1.00×** |
+| crypt | 0.541 | 0.778 | 1.256 | 2.32× |
+| tak | 12.03 | 21.16 | 41.73 | 3.47× |
+| fib | 3.596 | 4.408 | 12.79 | 3.56× |
+| queensn | 158.3 | 183.5 | 792.0 | 5.00× |
+| zebra | 2.305 | 2.304 | 13.65 | 5.92× |
+| qsort | 0.076 | 0.153 | 0.515 | 6.74× |
+| meta_qsort | 0.750 | 0.521 | 9.017 | 12.03× |
+
+*per-iteration compute, milliseconds · 9 of the 22 shown, spanning the range · full table
+in the [SCRIP README](https://github.com/snobol4ever/SCRIP#prolog-benchmark--scrip-vs-gnu-prolog-vs-swi-prolog).*
+
+**Geomean SCRIP-m4 vs gprolog = 3.28×** (median 3.56×), all 22 programs. The gap tracks
+heap traffic: search- and atom-bound programs are at parity or faster, arithmetic-bound
+ones near 2×, and list/structure-heavy ones plus the meta-interpreter are the worst (the
+boxed-`Term*` compound-allocation tax). The inline-cell campaign (PL-DESCR) has moved
+scalars off the heap; compounds and first-argument indexing are the remaining levers.
+Honest current numbers against a mature native WAM — not yet the target, but the four-port
+boxed Prolog is competitive with SWI on a fair fraction and within ~3.3× of gprolog.
+
 ---
 
 ## Correctness
