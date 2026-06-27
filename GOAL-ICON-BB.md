@@ -435,7 +435,7 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 
 ## Watermark
 
-**HEAD (SCRIP) = `12f0656`** — m3/m4 **201/289 PASS=201 FAIL=51 EXCISED=1**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
+**HEAD (SCRIP) = `61f8836`** — m3/m4 **206/289 PASS=206 FAIL=46 EXCISED=1**. icon smoke 12/12 m3+m4 · prolog 5/5 · snobol4 7/7 · no-stack 0 · one-reg 0 · semicolon prison green · LVA gate PASS.
 
 **2026-06-26 (Claude Sonnet — every-do fall-through):**
 - `every EXPR do BODY` never fell through to the next statement (plain `every EXPR` did). Root cause: the flat-chain walk in `codegen_flat_chain_body` (BFS) followed γ always but ω only for call/binop/gather/map/grep — not for `IR_TO`/generators — so the `IR_EVERY` exit node (reachable only via the generator's ω) and the whole post-loop tail were dropped; the generator's exhaustion fell back to `main_ω`. `descr_chain_operand_refs` (the operand stack-machine) had the same ω-follow gap, so the successor's `write`→literal operand never attached and the call fell to a generic marshal reading an unset slot (empty output).
