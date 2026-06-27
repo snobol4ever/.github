@@ -115,11 +115,26 @@ The arena (globals) + ζ frame (locals) split is only complete when the THREE-TI
 
 ---
 
-## ▶ CURRENT STATE (Session 66, 2026-06-24)
+## ▶ CURRENT STATE (Session 67, 2026-06-27)
 
-**Gate: M3 124/3 XFAIL=0 NOREF=2. M4 124/3 ASMFAIL=0.** (NOREF=2: `chararr_probe` has no `.ref`; `recursion` has no `.ref`. `realparam` false-passes — its `.ref` is 1 byte `\n`; correct value `       3.0`; probe crashes rc=134.)
+**Gate: M3 127/0 XFAIL=0 NOREF=2. M4 127/0 ASMFAIL=0.** (NOREF=2: `chararr_probe` has no `.ref`; `recursion` has no `.ref`. `realparam` false-passes — its `.ref` is 1 byte `\n`; correct value `       3.0`; probe crashes rc=134.)
 
-**What landed this session (SCRIP `cd4672a`):** `emit_bb.c` — fixed nested descriptor-arith representation mismatch. When a `IR_BINOP_GVAR_ARITH_SLOT` Arm-2 arith node has an operand that itself is a descriptor-producing nested arith BINOP (e.g. the `a.x*b.x` sub-product in `dot := a.x*b.x + a.y*b.y`), that operand's result lives in a 16-byte descriptor slot (tag@+0, value@+8 via `rt_num_arith`), but the Arm-2 read was using offset +0 (the tag field), yielding `6+6=12` instead of `3+8=11`. New `arith_emits_descr()` helper mirrors the dispatcher's Arm-1-vs-Arm-2 choice exactly: a BINOP emits a descriptor iff `bb_arith_is_dynamic` is true and *both* of its operands are call/idx-kind (or are themselves descriptor-emitting). When an Arm-2 operand satisfies this, its kind is normalized to `IR_CALL` so the existing `+8` value-read fires. Routing unchanged; bare-int chain (gvar/literal operands) untouched. Validated: SNOBOL feature `.s` 0/153 changed, SNOBOL bench OK=15/FAIL=0 identical, Prolog parity 115/0 identical, no Icon path hit, template byte-identity unchanged. M3/M4 123/4→124/3. `recparam3` CLOSED.
+**What landed this session (Session 67, SCRIP `56b55773`):**
+
+PAS-GVA-2: Pascal M3 `--run` global arena setup (`scrip.c`, `is_pascal`-gated). Globals move from NV by-name hash to `[rbx+k*16]` in-process arena — M3 now byte-identical in storage model to M4. Proven regression-neutral by stash+rebuild (SNOBOL M3 155/106 identical). Commits: `cc1d1ef7`.
+
+PAS-DISPLAY promoted to TOP/ACTIVE rung (Lon directive). PAS-DISPLAY-0 characterized (walk quantified, op_dval=relative-hops finding, absolute-level mapping frozen). PAS-DISPLAY-1: display save/set/restore at proc entry/exit (`xa_flat.cpp`, shared spine). A Pascal proc at lexical level L∈{1,2,3} pushes/loads r13/r14/r15 on entry and restores on exit. CRITICAL: the extra push broke 16-byte SysV stack alignment → SIGSEGV on nested probes that call runtime with the push live; fixed with `sub rsp,8`/`add rsp,8` padding. Gated on `g_emit_frame_caller_dl`∈{1,2,3} (no language enum; SNOBOL/Icon/Prolog procs have decl_level=0, never trigger it, their r13/r14/r15 stay Σ/δ/Δ). PAS-DISPLAY-2: Tier-2 reads via display (`bb_var_frame.cpp`). Computes `target=current_level−hops`; when target∈{1,2,3} and hops≥1, replaces `lea r12;FOR hops{mov rax,[rax+0]}` with single `mov rax,r13|r14|r15`. Deep proof: `deep3.pas` l3 reading a (hops=2)→`mov rax,r13`, b (hops=1)→`mov rax,r14` — 2-hop dependent chain → 1 load. Commits: `5160be41`, `56b55773`.
+
+DECISION (Lon 2026-06-27): absolute-level display (NOT sliding). rbx=L0, r13=L1, r14=L2, r15=L3, r12=current; level≥4 keeps chain-walk as fallback.
+
+**NEXT FRONTIERS (priority order):**
+
+1. **PAS-DISPLAY-3 — Tier-2 WRITE + byref via display.** Symmetric substitution in `bb_assign_frame.cpp`, `bb_assign_frame_ref.cpp`, `bb_var_frame_ref.cpp`. Byref-of-global must still hit `rbx` arena (not a display slot). Gate: full M3+M4; nest*/nestpv*/varparam green; cross-lang.
+2. **PAS-DISPLAY-4 — Deep-nest fallback + walk retirement.** Confirm FOR-loop walk emitted ONLY for target≥4; asm audit clean.
+3. **PAS-DISPLAY-5 — Bench the win.** Add uplevel-in-loop benchmark; record speedup vs pre-rung chain-walk baseline in `corpus/BENCHMARKS-PASCAL.md`.
+4. **PAS-GVA-3 — Retire NV by-name for Pascal globals.** Remove now-dead read-path tag-guard fallback (`rt_gvar_get_int`) for Pascal globals.
+
+**What landed in previous session (SCRIP `cd4672a`):** `emit_bb.c` — fixed nested descriptor-arith representation mismatch. When a `IR_BINOP_GVAR_ARITH_SLOT` Arm-2 arith node has an operand that itself is a descriptor-producing nested arith BINOP (e.g. the `a.x*b.x` sub-product in `dot := a.x*b.x + a.y*b.y`), that operand's result lives in a 16-byte descriptor slot (tag@+0, value@+8 via `rt_num_arith`), but the Arm-2 read was using offset +0 (the tag field), yielding `6+6=12` instead of `3+8=11`. New `arith_emits_descr()` helper mirrors the dispatcher's Arm-1-vs-Arm-2 choice exactly: a BINOP emits a descriptor iff `bb_arith_is_dynamic` is true and *both* of its operands are call/idx-kind (or are themselves descriptor-emitting). When an Arm-2 operand satisfies this, its kind is normalized to `IR_CALL` so the existing `+8` value-read fires. Routing unchanged; bare-int chain (gvar/literal operands) untouched. Validated: SNOBOL feature `.s` 0/153 changed, SNOBOL bench OK=15/FAIL=0 identical, Prolog parity 115/0 identical, no Icon path hit, template byte-identity unchanged. M3/M4 123/4→124/3. `recparam3` CLOSED.
 
 **Closed this session:** `recparam3` (`dot := a.x*b.x + a.y*b.y` — nested product sum over record fields).
 
