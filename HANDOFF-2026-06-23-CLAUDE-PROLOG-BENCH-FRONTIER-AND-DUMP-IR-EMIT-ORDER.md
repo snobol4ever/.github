@@ -26,4 +26,4 @@ Prolog bench suite widened `green=4→6 / frontier=0→5 / broken=0` (added GREE
 - `deriv` (PL-BB-2/3 CHOICE+structure-build), `meta_qsort` (PL-BB-5 meta) per the ladder.
 - Add `poly_10` (needs `:-op` parser support) + `browse` (faithful star-match transcription) to the bench dir once their prereqs land.
 - **`--dump-ir` for Prolog GZ**: current dump shows the original lowered IR in emit-order linearization; the GZ post-admit synthesized query-frame chain (`pl_gz_build`) is a separate structure not yet mirrored — a clean follow-on if GZ-chain order is wanted.
-- **Stale-claim flag (unrelated to this session):** `--interp` (mode-2) is unwired at HEAD (`"--interp"` appears nowhere in `src/`); GATE-1 smoke shows m2 0/5 while m3/m4 are 5/5. The goal STATE's historical "GATE-1 5/5/5" looks stale on the m2 component.
+- **Stale-claim flag (unrelated to this session):** `--run` (mode-2) is unwired at HEAD (`"--run"` appears nowhere in `src/`); GATE-1 smoke shows m2 0/5 while m3/m4 are 5/5. The goal STATE's historical "GATE-1 5/5/5" looks stale on the m2 component.

@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -41,7 +41,7 @@
 
 **Repo:** SCRIP
 **Done when:** Raku rung ladder reaches rung-30 under all three modes
-(--interp, --interp, --run). gather/take maps cleanly to BB_PUMP.
+(--run, --run, --run). gather/take maps cleanly to BB_PUMP.
 Hash support, typed variables, and for-loop iteration complete.
 
 **Cross-pollination:** Raku shares icn_proc_table and icn_call_proc with Icon.
@@ -61,7 +61,7 @@ bash /home/claude/SCRIP/scripts/build_scrip.sh
 Gate after setup — run all four, all must pass:
 ```bash
 bash /home/claude/SCRIP/scripts/test_smoke_raku.sh              # PASS=5  (hello/arith/var/while/concat)
-bash /home/claude/SCRIP/scripts/test_raku_ir_rungs.sh           # PASS=29 (all rk_* fixtures, --interp)
+bash /home/claude/SCRIP/scripts/test_raku_ir_rungs.sh           # PASS=29 (all rk_* fixtures, --run)
 bash /home/claude/SCRIP/scripts/test_raku_ir_full_suite.sh      # PASS=29 per mode, all 3 modes
 bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh    # PASS=48 FAIL=0
 ```
@@ -87,9 +87,9 @@ Rules:
 
 ```
 .raku → raku_compile() → CODE_t* [LANG_RAKU]  (no AST layer — FI-3 done)
-    --interp  → execute_program() → interp_eval() with ICN_CUR frame stack
+    --run  → execute_program() → interp_eval() with ICN_CUR frame stack
                 (Raku shares icn_proc_table + icn_call_proc with Icon)
-    --interp  → sm_lower() → SM_BB_PUMP per stmt → bb_broker(BB_PUMP)
+    --run  → sm_lower() → SM_BB_PUMP per stmt → bb_broker(BB_PUMP)
     --run → sm_lower() → SM_BB_PUMP → sm_codegen() → sm_jit_run()
 
 gather/take → E_SUSPEND box (icn_bb_suspend in icon_gen.c — shared with Icon)
@@ -100,12 +100,12 @@ for @arr -> $x → E_EVERY + E_BANG (icn_bb_every + icn_bb_bang — to be writte
 
 ## Rung ladder — all modes, x86
 
-Current baseline: PASS=12 FAIL=0 --interp (rk_hello through rk_vars).
+Current baseline: PASS=12 FAIL=0 --run (rk_hello through rk_vars).
 RK-16 is next per PLAN.md.
 
 ### Phase 1 — IR-run rung ladder
 
-- [x] **RK-1 through RK-15** — PASS=12 --interp. (done)
+- [x] **RK-1 through RK-15** — PASS=12 --run. (done)
 
 - [x] **RK-16** — `for @arr -> $x` real array iteration.
   E_ITERATE extended in icn_drive (icn_runtime.c): detects loop variable name
@@ -113,7 +113,7 @@ RK-16 is next per PLAN.md.
   array string, binds each element to the frame slot via icn_scope_get.
   E_EVERY fixed in interp.c: sets body_root before calling icn_drive for
   non-E_TO generators. raku.tab.c regenerated from raku.y.
-  Gate: rk_for_array PASS under --interp. PASS=13 total.
+  Gate: rk_for_array PASS under --run. PASS=13 total.
 
 - [x] **RK-17** — Hash `%h<key>` and `%h{$k}` full support.
   Added KW_EXISTS/KW_DELETE tokens + lexer rules. VAR_HASH as standalone expr.
@@ -124,7 +124,7 @@ RK-16 is next per PLAN.md.
   **Root cause:** icn_drive() hand-rolls E_TO/E_TO_BY/E_ITERATE inline in C,
   bypassing the bb_broker/BB_PUMP Byrd box machinery that already exists in
   icon_gen.c. All generators must flow through bb_broker(BB_PUMP) to support
-  --interp, --run, and goal-directed backtracking.
+  --run, --run, and goal-directed backtracking.
   Sub-steps:
   - [x] RK-18a: icn_drive E_TO  → bb_broker(icn_bb_to, BB_PUMP, body_cb, &ctx)
   - [x] RK-18b: icn_drive E_TO_BY → bb_broker(icn_bb_to_by, BB_PUMP, body_cb, &ctx)
@@ -186,11 +186,11 @@ RK-16 is next per PLAN.md.
 
 ### Phase 2 — SM-run (BB_PUMP, x86)
 
-- [x] **RK-28** — rk_hello through rk_vars under --interp.
+- [x] **RK-28** — rk_hello through rk_vars under --run.
   Gate: PASS=22 FAIL=0. ✅ (covered by test_raku_ir_full_suite.sh)
 
-- [x] **RK-29** — RK-16 through RK-24 under --interp.
-  Gate: all rungs passing under --interp also pass under --interp. ✅
+- [x] **RK-29** — RK-16 through RK-24 under --run.
+  Gate: all rungs passing under --run also pass under --run. ✅
 
 ### Phase 3 — JIT-run (x86 in-memory)
 
@@ -198,7 +198,7 @@ RK-16 is next per PLAN.md.
   Gate: PASS=22 FAIL=0. ✅ (covered by test_raku_ir_full_suite.sh)
 
 - [x] **RK-31** — RK-16 through RK-24 under --run.
-  Gate: all diffs vs --interp empty. ✅
+  Gate: all diffs vs --run empty. ✅
 
 ### Phase 4 — BB-native RE engine (NFA simulation)
 
@@ -553,7 +553,7 @@ DIVERGE at stmt N [label: LABEL, line LL]
 4. Re-run `--monitor` to confirm divergence is gone.
 5. Run `test_smoke_unified_broker.sh` — must stay PASS=31 FAIL=0.
 
-**Note:** `--monitor` is incompatible with `--interp`/`--run`
+**Note:** `--monitor` is incompatible with `--run`/`--run`
 (it drives all three internally). ICN frame locals (IM-10) and Prolog trail
 variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 

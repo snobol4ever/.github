@@ -27,7 +27,7 @@ the condition). **Canonical proof — swipl `src/pl-comp.c` lines 2312–2326:**
 condition's choicepoints are pruned after its first success.
 
 Test `a(1). a(2). a(3). f(X) :- ( a(X), X >= 2 -> true ; X = 0 ).` driven by `( f(R), write(R), nl, fail ; true )`:
-- **m2 (`--interp`):** prints `2`, `3`, `0`  ← **WRONG** (re-satisfies the condition's `a(X)` and even runs Else)
+- **m2 (`--run`):** prints `2`, `3`, `0`  ← **WRONG** (re-satisfies the condition's `a(X)` and even runs Else)
 - **m4 (`--compile`):** prints `2`            ← **CORRECT** per ISO/swipl/gprolog
 
 This is precisely the case RULES.md "CONSULT CANONICAL SOURCES" warns about: *the mode-2 oracle is a
@@ -75,7 +75,7 @@ cd /home/claude/SCRIP && make -j4 scrip && make libscrip_rt
 bash scripts/test_prolog_rung_suite.sh       # m2 111/111, m3 111/111, m4 75/0/36
 # reproduce the ITE-commit divergence:
 printf ':- initialization(main).\na(1). a(2). a(3).\nf(X) :- ( a(X), X >= 2 -> true ; X = 0 ).\nmain :- ( f(R), write(R), nl, fail ; true ).\n' > /tmp/ite.pl
-./scrip --interp /tmp/ite.pl </dev/null            # WRONG: 2 3 0
+./scrip --run /tmp/ite.pl </dev/null            # WRONG: 2 3 0
 bash scripts/run_prolog_via_x86_backend.sh /tmp/ite.pl </dev/null | tail -3   # CORRECT: 2
 # canonical proof: refs/swipl-devel-master/src/pl-comp.c lines ~2312-2326 ("Cut locally in the condition")
 git -C /home/claude/corpus checkout -- programs/prolog/*.s   # suite regenerates .s; re-clean

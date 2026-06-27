@@ -1581,7 +1581,7 @@ CORPUS=/home/claude/corpus bash SCRIP/csnobol4/dyn89_sweep.sh 2>/dev/null | grep
 cd /home/claude/SCRIP
 ./scrip --dump-parse corpus/crosscheck/rung10/1012_func_locals.sno | grep "stmt 1[012]"
 # Must show: stmt 10 = a='aa', stmt 11 = b='bb', stmt 12 = d='dd'
-./scrip --interp corpus/crosscheck/rung10/1012_func_locals.sno   # → PASS
+./scrip --run corpus/crosscheck/rung10/1012_func_locals.sno   # → PASS
 CORPUS=/home/claude/corpus bash test/run_interp_broad.sh 2>/dev/null | grep "^PASS"
 # PASS=179 (was 178)
 ```
@@ -2775,9 +2775,9 @@ correctness/performance reference.
 
 | Before | After | Disposition |
 |--------|-------|-------------|
-| `scrip-interp` (pre-built, 647KB) | removed | replaced by `scrip --interp` |
-| `scrip-interp-dbg` (pre-built) | removed | replaced by `scrip --interp` + debug flags |
-| `scrip-interp-s` (pre-built) | removed | replaced by `scrip --interp` stripped |
+| `scrip-interp` (pre-built, 647KB) | removed | replaced by `scrip --run` |
+| `scrip-interp-dbg` (pre-built) | removed | replaced by `scrip --run` + debug flags |
+| `scrip-interp-s` (pre-built) | removed | replaced by `scrip --run` stripped |
 | `scrip-cc` (Makefile target) | removed | replaced by `scrip --run` / `--compile` |
 | *(none)* | **`scrip`** | new unified binary |
 | *(future)* | `scrip-jvm` | JVM interpreter (separate milestone) |
@@ -2788,7 +2788,7 @@ correctness/performance reference.
 ## Execution Modes (from SCRIP-UNIFIED.md RT-128 addendum)
 
 ```
-scrip --interp      Mode I:  C tree-walk over IR. Correctness reference.
+scrip --run      Mode I:  C tree-walk over IR. Correctness reference.
 scrip --hybrid      Mode GS2: SM dispatch (phases 1/2/4/5) + BB-DRIVER (phase 3). [default]
 scrip --gen         alias for --hybrid
 scrip --stackless   Mode GS1: 100% stackless x86 blob chain, no SM dispatch overhead.
@@ -2801,10 +2801,10 @@ scrip --stackless   Mode GS1: 100% stackless x86 blob chain, no SM dispatch over
 ### U0 — Remove pre-built binaries and rename driver ✅ partial
 - [x] Remove `sno4parse` pre-built binary (done 2026-04-07, commit `7186f29c`)
 - [ ] Remove `scrip-interp`, `scrip-interp-dbg`, `scrip-interp-s` pre-built binaries
-- [ ] Rename `src/driver/scrip.c` entry point to unify `--interp` / `--gen` flags
+- [ ] Rename `src/driver/scrip.c` entry point to unify `--run` / `--gen` flags
 - [ ] Root `Makefile`: rename target `scrip-interp` → `scrip`; remove `scrip-cc` target
 - [ ] `src/Makefile`: change `BIN = ../scrip-cc` → `BIN = ../scrip`
-- **Gate:** `make` produces `scrip`; `scrip --interp corpus/001.sno` passes
+- **Gate:** `make` produces `scrip`; `scrip --run corpus/001.sno` passes
 
 ### U1 — Harness switchover
 - [ ] Update all test scripts in `test/` that reference `scrip-interp` or `scrip-cc` → `scrip`
@@ -2831,7 +2831,7 @@ scrip --stackless   Mode GS1: 100% stackless x86 blob chain, no SM dispatch over
 ### U4 — Pattern integration (--hybrid default)
 - [ ] Wire SM_PAT_* → BB-GRAPH build; SM_EXEC_STMT → BB-DRIVER call
 - [ ] `scrip --hybrid` executes SM_Program via SM dispatch + BB-DRIVER for phase 3
-- **Gate:** PASS=178 via `scrip --hybrid`; diff of `--interp` vs `--hybrid` trace is empty
+- **Gate:** PASS=178 via `scrip --hybrid`; diff of `--run` vs `--hybrid` trace is empty
 
 ### U5 — Stackless path (--stackless)
 - [ ] Inline blob chain: each SM instruction → self-contained x86 blob, direct jmp wiring
@@ -2844,7 +2844,7 @@ scrip --stackless   Mode GS1: 100% stackless x86 blob chain, no SM dispatch over
 
 ```sh
 # Smoke — all three modes must agree
-scrip --interp   corpus/001.sno
+scrip --run   corpus/001.sno
 scrip --hybrid   corpus/001.sno
 scrip --stackless corpus/001.sno
 
@@ -2852,12 +2852,12 @@ scrip --stackless corpus/001.sno
 ./test/run_invariants.sh
 
 # Mode diff (must be empty after U4)
-SNO_TRACE=1 scrip --interp  /tmp/x.sno 2>/tmp/interp.trace
+SNO_TRACE=1 scrip --run  /tmp/x.sno 2>/tmp/interp.trace
 SNO_TRACE=1 scrip --hybrid  /tmp/x.sno 2>/tmp/hybrid.trace
 diff /tmp/interp.trace /tmp/hybrid.trace
 
 # vs oracle
-SNO_TRACE=1 scrip --interp /tmp/x.sno 2>/tmp/interp.trace
+SNO_TRACE=1 scrip --run /tmp/x.sno 2>/tmp/interp.trace
 SNO_TRACE=1 /home/claude/x64/bin/spitbol /tmp/x.sno 2>/tmp/spitbol.trace
 diff /tmp/interp.trace /tmp/spitbol.trace | head -30
 ```
@@ -2903,8 +2903,8 @@ code. Dead code is archived. Gaps are milestoned.
 
 | Switch | Status | Notes |
 |--------|--------|-------|
-| `--interp` | ✅ **WIRED** | `execute_program()` in scrip.c — full, PASS=178 |
-| `--interp` | ✅ **WIRED** | `sm_lower()` + `sm_interp_run()` — full, PASS=178 |
+| `--run` | ✅ **WIRED** | `execute_program()` in scrip.c — full, PASS=178 |
+| `--run` | ✅ **WIRED** | `sm_lower()` + `sm_interp_run()` — full, PASS=178 |
 | `--run` | ✅ **WIRED** | `sm_codegen()` + `sm_jit_run()` — threaded-call JIT, PASS=178 |
 | `--compile` | ⬜ **STUB** | flag parsed, `(void)` suppressed — no codegen |
 

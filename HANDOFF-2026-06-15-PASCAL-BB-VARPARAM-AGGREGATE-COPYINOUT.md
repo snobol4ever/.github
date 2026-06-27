@@ -112,7 +112,7 @@ but not M4 — a mode-specific early-I/O divergence, echoing the Session-59 note
 `write` didn't reach stdout in one mode. This is independent of the var-param fix. Suggested next:
 build a minimal `write`-in-a-proc / listing-shaped probe that PASSES M4, then diff the emitted asm
 for the first `__pas_write` path between it and pcom to find what M4 drops (M3 demonstrably executes
-it). NOTE: there is **no mode-2 `--interp` flag** anymore (the DE-INTERP goal removed the misnomer);
+it). NOTE: there is **no mode-2 `--run` flag** anymore (the DE-INTERP goal removed the misnomer);
 only `--run` (M3) and `--compile` (M4) exist — the GOAL file's "Mode-2 interp" row is stale.
 
 ## Build / gate quickrefs

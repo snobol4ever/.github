@@ -11,7 +11,7 @@ Cleared: raw_bytes 6→0, medium_any 2→0, local_vars 1→0, multi_x86 →0, re
 
 ## ⛔ PREMISE CORRECTION (the prior recipe + two prior watermarks were stale)
 Prior entries said "THE FIX fixes the m3 compound-throw bug (m3=empty)." **False at HEAD.** Re-probed `catch(throw(my_err(1)),E,(write(caught(E)),nl))`:
-- **m2** `--interp`: `caught(my_err(1))` ✓
+- **m2** `--run`: `caught(my_err(1))` ✓
 - **m3** `--run`: **PBB FATAL admission-abort** — "program not admitted by pl_gz_admit/pl_flat_body_root — no native blob covers it (GZ admission layer)". Not "empty"; the catch/throw program isn't admitted to native at all. This is the **admission tier** = genuinely separate subsystem (rule-5 exclusion), NOT this template.
 - **m4** `--compile`→as+gcc: compiles+links, then **runtime BOMB** "lea: unsealed [rip + label] — use sealed [rip + __] (ptr,label)". From shared term-build/catch machinery (`my_err(1)` is IR_STRUCT → `emit_build_compound_term` / `bb_catch`), **not** bb_retract_throw's scalar arm.
 
@@ -41,6 +41,6 @@ git config --global user.name "LCherryholmes"; git config --global user.email "l
 git clone https://<TOKEN>@github.com/snobol4ever/SCRIP   # + .github
 bash SCRIP/scripts/install_system_packages.sh
 cd SCRIP && rm -f scrip && make -j4 scrip && make libscrip_rt   # libscrip_rt.so at out/
-# probe: ./scrip --interp f / --run f / --compile --target=x86 f (link: gcc -no-pie f.s -L$(pwd)/out -lscrip_rt ; LD_LIBRARY_PATH=$(pwd)/out)
+# probe: ./scrip --run f / --run f / --compile --target=x86 f (link: gcc -no-pie f.s -L$(pwd)/out -lscrip_rt ; LD_LIBRARY_PATH=$(pwd)/out)
 ```
 Reminder: RULES.md absolute — do NOT read BB-REVAMP-TRACKER.md or unrelated goal files. Cursor handoff lives in this goal file's watermark, not the tracker.

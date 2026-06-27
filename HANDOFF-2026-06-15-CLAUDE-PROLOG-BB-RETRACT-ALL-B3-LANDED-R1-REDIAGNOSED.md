@@ -103,6 +103,6 @@ populate the dynamic store by DIFFERENT mechanisms, and after the SAME retract t
   `bash scripts/run_prolog_via_x86_backend.sh /tmp/tret.pl` (gives empty). Revert the fences when done.
 
 ## OPEN ITEMS FOR LON (flagged, unchanged from prior sessions)
-- Harness `--mode all` still drives the deleted m2 `--interp` arm → false FAILs; use `--mode run` /
+- Harness `--mode all` still drives the deleted m2 `--run` arm → false FAILs; use `--mode run` /
   `--mode compile` separately. GATE-1 smoke + the m2 lines in the rung suite are false-FAIL (not a regression).
 - With m2 gone, several of the 15 doomed globals may now be genuinely dead → floor possibly droppable.

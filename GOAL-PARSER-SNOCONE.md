@@ -343,11 +343,11 @@ Not violations (canonical guide explicitly permits or prefers):
   PATVAL coercion in `snobol4_argval.c:104`), which routes DT_E through
   `EVAL_fn` to thaw the EXPR_t and coerces the result to DT_P.  Build green;
   parser gate PASS=21 FAIL=0 unchanged (no regression on currently-exercised
-  paths since gate uses `--interp`, not `--interp`).
+  paths since gate uses `--run`, not `--run`).
 
   ### IR-side fix STILL PENDING
 
-  The parser gate (`test_parser_snocone.sh`) runs with `--interp`, so the
+  The parser gate (`test_parser_snocone.sh`) runs with `--run`, so the
   binding regression repros under the IR tree-walk path too — the SM fix
   alone does not unblock Step 3e.  Companion fix needed:
 
@@ -624,7 +624,7 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       `&FULLSCAN = 1;` is missing — every other stmt is byte-identical to the
       oracle.  Adding 10 prefix stmts (`pp1 = 1; ... pp10 = 10;`) to beauty.sc
       reproduces it: only `pp1` is dropped, `pp2`..`pp10` plus all of beauty
-      come through correctly.  Across `--interp`, `--interp`, `--run`:
+      come through correctly.  Across `--run`, `--run`, `--run`:
       identical symptom.
 
       **Diagnosis (this session):** the bug is in `parser_snocone.sc`, NOT the
@@ -834,7 +834,7 @@ program). (2) Add missing Expr tiers. (3) Fix stmt_body trailing-ws issue. (4) R
       ```
 
 - [x] **Step SC-6c:** `tree_equal` against existing frontend returns true. Both trees
-      execute identically under `--interp`.  **DONE session 8 (2026-05-06): beauty.sc
+      execute identically under `--run`.  **DONE session 8 (2026-05-06): beauty.sc
       produces 1148/1148 stmts, byte-identical to oracle after normalization.
       corpus @ 7a17ff0. Gate PASS=50 FAIL=0.**
 - **Sibling LANG rung:** SC-final / `GOAL-SNOCONE-IN-SNOCONE` SS-N.
@@ -1059,7 +1059,7 @@ Key experiments this session:
    → Conclusion: the parse tree's children list is short by 1; the first
      pushed STMT (oldest, bottom-of-stack) is being left on the tree stack
      after `Reduce(E_Parse, nTop())` pops `nTop()` items.
-3. Across `--interp`, `--interp`, `--run`: identical symptom — rules
+3. Across `--run`, `--run`, `--run`: identical symptom — rules
    out backend-specific issues.
 4. With 5000 simple stmts: works perfectly, all 5000 parsed, first present.
    Bug requires SPECIFIC complex content (function definitions + if-cascades
@@ -1296,7 +1296,7 @@ thaw the frozen EXPR_t through `EVAL_fn` and coerce to DT_P.  Mirrors
 the IR-side `case E_VAR` DT_E thaw at `eval_pat.c:82-99`.  Build green;
 parser gate PASS=21 FAIL=0 unchanged.
 
-IR-side companion fix STILL PENDING — the gate uses `--interp`, so the
+IR-side companion fix STILL PENDING — the gate uses `--run`, so the
 binding regression also reproduces under the IR tree-walk path. Companion
 fix is an analogous `case E_INDIRECT:` branch in `eval_pat.c::interp_eval_pat`
 (insertion point and code skeleton recorded in the Step 3d-bug entry above).

@@ -120,6 +120,6 @@ This mirrors the BFS fix already applied at ~line 3505 for the chain-wiring pass
 - Do not claim victory until all three rung03 programs are green AND regression confirms
   no loss below PASS=169
 - Do not commit directly to main without verifying rung03 green — use a WIP commit message
-- Do not run `--interp` (mode-2 is gone); use `--run` (m3) and `--compile ... | as...` (m4)
-- The `.expected` files in corpus are the oracle, not `--interp` output
+- Do not run `--run` (mode-2 is gone); use `--run` (m3) and `--compile ... | as...` (m4)
+- The `.expected` files in corpus are the oracle, not `--run` output
 

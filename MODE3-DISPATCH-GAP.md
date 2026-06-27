@@ -24,7 +24,7 @@ interpreter for Raku today. Probe reverted before commit.
 
 | Engine | Mechanism | rk_class26 | Total |
 |---|---|---|---|
-| `--interp` (true mode-2) | `sm_interp_run` | PASS | 23/33 |
+| `--run` (true mode-2) | `sm_interp_run` | PASS | 23/33 |
 | `--run` (called "mode-3" today) | `sm_interp_run` ← interpreter | PASS | 23/33 |
 | `--run SCRIP_M3_NATIVE=1` (real mode-3) | `sm_run_native` flat-wired x86 | CRASH (segv after 2nd say) | **11/33, 20 crashes** |
 | `--compile` (mode-4) | x86 binary, libscrip_rt | PASS | 26/33 |

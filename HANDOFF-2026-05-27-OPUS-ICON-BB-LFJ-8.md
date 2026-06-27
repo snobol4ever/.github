@@ -41,7 +41,7 @@ Followed the LFJ-2..LFJ-7 methodology exactly:
        every write(1 | 2 | 3)
     end
     ```
-    `./scrip --interp` output: `[new Every]` printed twice (once per every form), then `1\n2\n3\n4\n5\n1\n2\n3\n`. Matches expected.
+    `./scrip --run` output: `[new Every]` printed twice (once per every form), then `1\n2\n3\n4\n5\n1\n2\n3\n`. Matches expected.
 12. Removed probe + #include <stdio.h>, rebuilt, reran gates. All green.
 
 ---

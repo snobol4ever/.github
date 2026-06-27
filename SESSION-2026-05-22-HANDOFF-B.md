@@ -24,7 +24,7 @@
 
 | Item | Status |
 |------|--------|
-| `corpus/programs/icon/rung01_paper_to_by.icn` + `.expected` | ✅ committed `3e223db` — step-up (1 to 10 by 3), step-down (10 to 1 by -3), single-value (2 to 2 by 1). All pass under `--interp`. |
+| `corpus/programs/icon/rung01_paper_to_by.icn` + `.expected` | ✅ committed `3e223db` — step-up (1 to 10 by 3), step-down (10 to 1 by -3), single-value (2 to 2 by 1). All pass under `--run`. |
 | `src/emitter/BB_templates/bb_icn_to_by.c` | ✅ committed `cf9284f5` — stub with IS_X86/JVM/JS/NET/WASM arms per RULES.md |
 | `src/emitter/BB_templates/bb_templates.h` | ✅ committed — `void bb_icn_to_by(BB_t * pBB)` declared |
 | `emit_core.c` — pull `BB_ICN_TO_BY` out of stub fallthrough | ⏳ **PENDING** |

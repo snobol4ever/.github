@@ -44,7 +44,7 @@ acceptable; a surviving `(ζ, int entry)` box is not.
 
 ## ⛔ NO AST AND NO IR DURING MODE-3/MODE-4 EXECUTION (FACT RULE — byte-identical in GOAL-SNOBOL4-BB.md, GOAL-ICON-BB.md, GOAL-PROLOG-BB.md, GOAL-RAKU-BB.md, GOAL-SNOCONE-IR-BB.md)
 
-**During the EXECUTION of a mode-3 (`--run`) or mode-4 (`--compile`) program, NOTHING reads or writes the AST (`tree_t`) or the IR (`IR_t`/`IR_graph_t`).** (Lon directive, 2026-06-13.) The compiler reads the IR exactly ONCE — before execution — to emit the mode-3 RX-slab image or the mode-4 `.S` source; thereafter the produced machine code runs with ZERO reference to either tree. A box's runtime values live INSIDE the box (RO `[rip+disp]`, RW `[ζ=r12+off]`); a runtime helper (`rt_*`) operates only on `Term*`/`DESCR_t` values, never on `IR_t*` or `tree_t*`. This subsumes the IR-NEVER-TOUCHED rule and extends it to the AST: an AST walker that does not EMIT IR is worthless — it may not exist on any run path, not even for mode 2. (The mode-2 `--interp` IR-graph interpreter `IR_interp_once` is the ONLY sanctioned IR walker, and it is reachable ONLY via `--interp`, never from a mode-3/4 produced binary.)
+**During the EXECUTION of a mode-3 (`--run`) or mode-4 (`--compile`) program, NOTHING reads or writes the AST (`tree_t`) or the IR (`IR_t`/`IR_graph_t`).** (Lon directive, 2026-06-13.) The compiler reads the IR exactly ONCE — before execution — to emit the mode-3 RX-slab image or the mode-4 `.S` source; thereafter the produced machine code runs with ZERO reference to either tree. A box's runtime values live INSIDE the box (RO `[rip+disp]`, RW `[ζ=r12+off]`); a runtime helper (`rt_*`) operates only on `Term*`/`DESCR_t` values, never on `IR_t*` or `tree_t*`. This subsumes the IR-NEVER-TOUCHED rule and extends it to the AST: an AST walker that does not EMIT IR is worthless — it may not exist on any run path, not even for mode 2. (The mode-2 `--run` IR-graph interpreter `IR_interp_once` is the ONLY sanctioned IR walker, and it is reachable ONLY via `--run`, never from a mode-3/4 produced binary.)
 
 **THE ONE EXCEPTION — `EVAL()` and `CODE()`.** SNOBOL4's `EVAL` and `CODE` are dynamic-compilation builtins: by definition they compile a string into executable form AT RUNTIME (`CONVE_fn`→`EXPVAL_fn`, the `g_eval_str_hook`/`g_eval_pat_hook` rail). Reading/building an IR (or equivalent) at runtime is intrinsic to their meaning, so the prohibition does NOT apply INSIDE `EVAL()`/`CODE()` (and only there). No other construct, builtin, or runtime helper may read or write AST/IR during mode-3/4 execution.
 
@@ -111,7 +111,7 @@ across all five GOAL-*-BB files.
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** SCRIP
-**Done when:** All 14 Snocone beauty-sc subsystems PASS under `scrip --interp`,
+**Done when:** All 14 Snocone beauty-sc subsystems PASS under `scrip --run`,
 including pattern match (`subject ? pattern`) wired through `bb_broker(BB_SCAN)`.
 
 ---
@@ -119,7 +119,7 @@ including pattern match (`subject ? pattern`) wired through `bb_broker(BB_SCAN)`
 ## Motivation
 
 Snocone compiles to the shared IR (EXPR_t / STMT_t) via `snocone_compile()`.
-The `--interp` path calls `execute_program(prog)` — the SNOBOL4 interpreter — which
+The `--run` path calls `execute_program(prog)` — the SNOBOL4 interpreter — which
 handles the IR nodes Snocone's lower emits (E_ADD, E_CAT, E_FNC, E_VAR, etc.).
 That works for scalar / arithmetic / string programs. Two gaps remain:
 
@@ -229,7 +229,7 @@ we just need snocone_lower to emit the right STMT_t nodes.
 
 - [ ] **SC-6** — Lower conditional capture `.` and immediate capture `$` in pattern context.
   `E_CAPT_COND_ASGN` and `E_CAPT_IMMED_ASGN` already exist in the IR.
-  Verify `stmt_exec` interprets them correctly under `--interp`.
+  Verify `stmt_exec` interprets them correctly under `--run`.
   Gate: `bash test/beauty-sc/run_beauty_sc_subsystem.sh strings` PASS.
 
 ---
@@ -244,7 +244,7 @@ we just need snocone_lower to emit the right STMT_t nodes.
 
 - [ ] **SC-9** — Full gate: all 14 beauty-sc subsystems PASS.
   Gate: `bash test/beauty-sc/run_beauty_sc_subsystem.sh arith assign strings match roman stack trace counter fence global semantic ReadWrite ShiftReduce tree` → 14/14 PASS.
-  Also: `make scrip` clean; SNOBOL4 regression PASS=156 non-regressing; Icon --interp PASS=48/59 non-regressing.
+  Also: `make scrip` clean; SNOBOL4 regression PASS=156 non-regressing; Icon --run PASS=48/59 non-regressing.
 
 ---
 
@@ -252,7 +252,7 @@ we just need snocone_lower to emit the right STMT_t nodes.
 
 - Every step leaves `make scrip` clean (zero errors, zero warnings).
 - SNOBOL4 regression baseline PASS=156 must not drop.
-- Icon --interp baseline PASS=48/59 must not drop.
+- Icon --run baseline PASS=48/59 must not drop.
 - Do not modify `execute_program` / `stmt_exec` for Snocone-specific cases —
   Snocone IR must work through the existing shared interpreter unchanged.
 - Synthetic label names use prefix `_sc_` to avoid collision with user labels.
@@ -279,7 +279,7 @@ call APPLY_fn unconditionally (remove/bypass FNCEX_fn gate at line ~1766 scrip.c
 
 **Next session: fix FNCEX_fn gate.** Search for `FNCEX_fn(e->sval)` in scrip.c,
 remove the guard so APPLY_fn is always called when no body label found.
-Gate: `./scrip --interp /tmp/test_struct2.sc` → outputs 3 and 4.
+Gate: `./scrip --run /tmp/test_struct2.sc` → outputs 3 and 4.
 Then: beauty-sc stack/trace/counter/arith improving from 3/14 baseline.
 
 ---

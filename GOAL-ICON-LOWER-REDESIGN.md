@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -40,7 +40,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** SCRIP + .github
-**Prereq:** GOAL-HEADQUARTERS (--interp target met), GOAL-ICON-BB-NATIVE ✅
+**Prereq:** GOAL-HEADQUARTERS (--run target met), GOAL-ICON-BB-NATIVE ✅
 
 ---
 
@@ -51,7 +51,7 @@ Today's Icon pipeline is architecturally wrong:
 ```
 AST → lower.c → SM array of SM_BB_EVAL(ast_ptr) tokens
                         │
-                        ▼ (at --interp time, on every call)
+                        ▼ (at --run time, on every call)
                    bb_eval_value(tree_t*) — re-walks raw AST
                    icn_bb_build(tree_t*)  — builds BB closures at runtime
 ```
@@ -88,7 +88,7 @@ generator phase     — wires the four control ports (NEW PASS)
 codegen
   ├─▶ SNOBOL4: SM array (unchanged)
   └─▶ Icon:    ICN_CFG (no SM array)
-        ├─▶ --interp: graph-walk executor
+        ├─▶ --run: graph-walk executor
         ├─▶ --run (mode-3):  x86 emission from ICN_CFG nodes
         └─▶ mode-4:              stateful x86 from ICN_CFG
 ```
@@ -226,7 +226,7 @@ Bottom-up pass after lower produces the node tree. Wires four ports per node:
   Graph-walk executor: follows port_start, port_resume, port_succ, port_fail.
   Returns DESCR_t. Replaces `bb_eval_value(tree_t*)` call site in SM_BB_EVAL handler.
 - SM_BB_EVAL handler: if wired icn_ir_node_t exists, use icn_ir_exec; else fall back.
-- GATE-3 --interp must not regress. Commit.
+- GATE-3 --run must not regress. Commit.
 
 ### IL-4 — delete SM_BB_EVAL, every_table, ICN_BB_EVAL macro for Icon
 
@@ -251,7 +251,7 @@ Bottom-up pass after lower produces the node tree. Wires four ports per node:
 - `emit_bb.c` / `bb_flat.c`: instead of walking `tree_t*` via bb_boxes,
   walk `icn_ir_node_t*` nodes directly.
 - Each ICN_IR kind maps to an x86 emission function.
-- GATE: `--run` ≥ `--interp` PASS counts. Commit.
+- GATE: `--run` ≥ `--run` PASS counts. Commit.
 
 ---
 
@@ -282,7 +282,7 @@ by generator exhaustion (resume → port_fail when done).
   IL-0..3: additive — GATE-1..4 unchanged throughout
   IL-4:    GATE-1..4 must pass (clean break — SM_BB_EVAL deleted)
   IL-5:    GATE-1..4 must pass (AST walker deleted)
-  IL-6:    --run >= --interp PASS counts
+  IL-6:    --run >= --run PASS counts
 
 ---
 

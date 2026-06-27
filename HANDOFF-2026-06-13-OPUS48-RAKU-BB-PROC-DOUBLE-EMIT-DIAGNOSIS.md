@@ -55,7 +55,7 @@ graphs, each getting a valid `bb_idx`. The m4 emit loop (`scrip.c:2422`) then em
 `if (idx < 0 …) continue;` no longer fires, because both now have `bb_idx >= 0`).
 
 ### Why m2 (31/31) tolerates this but m3/m4 break
-Mode-2 (`--interp`) also runs `sm_preamble → lower_stage2 → polyglot_init + lower_raku_stage2`, so it ALSO
+Mode-2 (`--run`) also runs `sm_preamble → lower_stage2 → polyglot_init + lower_raku_stage2`, so it ALSO
 double-registers. But m2 executes by walking the IR graph and dispatching proc calls BY NAME
 (`rt_proc_register` / `rt_call_proc_descr`); both "f" entries lower to functionally identical graphs, so
 calling "f" resolves correctly regardless of the duplicate. There are no emitted LABELS in m2 to collide.

@@ -19,10 +19,10 @@ That pipeline has 4 disk round-trips and 3 process invocations before the progra
 **The new model:** one executable, two execution modes, zero disk round-trips for code.
 
 ```
-scrip [--interp]   source.sno      ← Mode I: IR tree-walk (correctness reference)
-scrip [--interp]   source.sno      ← Mode II: SM dispatch loop  [DEFAULT]
+scrip [--run]   source.sno      ← Mode I: IR tree-walk (correctness reference)
+scrip [--run]   source.sno      ← Mode II: SM dispatch loop  [DEFAULT]
 scrip [--run]  source.sno      ← Mode III: x86 bytes → mmap slab → jump in
-scrip              source.sno      ← defaults to --interp
+scrip              source.sno      ← defaults to --run
 ```
 
 Mode I and Mode G are **the same program**. Same frontend, same IR, same runtime.
@@ -148,7 +148,7 @@ SM instruction kind.
 - `src/driver/scrip.c` unified driver with new switch set
 - `src/Makefile`: `BIN = ../scrip`
 - Pre-built binaries removed: `scrip-interp`, `scrip-interp-dbg`, `scrip-interp-s`
-- Default mode: `--interp` (SM dispatch loop, was `--interp`)
+- Default mode: `--run` (SM dispatch loop, was `--run`)
 - Gate: PASS=178 with `scrip` binary; harness `INTERP=scrip` works
 
 ### Phase U1 — Segment allocator (M-SCRIP-U1)
@@ -178,7 +178,7 @@ SM instruction kind.
 ### Phase U5 — M-DYN-BENCH-X86 (M-SCRIP-U5)
 - Run 13-program benchmark suite in all modes
 - Fill M-DYN-BENCH-X86 results table
-- Gate: ≥10× speedup on control benchmarks vs `--interp`; pattern ≥5×
+- Gate: ≥10× speedup on control benchmarks vs `--run`; pattern ≥5×
 
 ---
 
@@ -186,17 +186,17 @@ SM instruction kind.
 
 ```bash
 # Mode I (IR tree-walk) vs SPITBOL oracle:
-SNO_TRACE=1 scrip --interp  /tmp/x.sno 2>/tmp/ir.trace
+SNO_TRACE=1 scrip --run  /tmp/x.sno 2>/tmp/ir.trace
 SNO_TRACE=1 /home/claude/x64/bin/spitbol /tmp/x.sno 2>/tmp/spitbol.trace
 diff /tmp/ir.trace /tmp/spitbol.trace | head -30
 
 # SM dispatch vs IR tree-walk (isolate SM bugs from semantic bugs):
-SNO_TRACE=1 scrip --interp  /tmp/x.sno 2>/tmp/ir.trace
-SNO_TRACE=1 scrip --interp  /tmp/x.sno 2>/tmp/sm.trace
+SNO_TRACE=1 scrip --run  /tmp/x.sno 2>/tmp/ir.trace
+SNO_TRACE=1 scrip --run  /tmp/x.sno 2>/tmp/sm.trace
 diff /tmp/ir.trace /tmp/sm.trace | head -30
 
 # JIT vs SM dispatch (isolate codegen bugs):
-SNO_TRACE=1 scrip --interp  /tmp/x.sno 2>/tmp/sm.trace
+SNO_TRACE=1 scrip --run  /tmp/x.sno 2>/tmp/sm.trace
 SNO_TRACE=1 scrip --run /tmp/x.sno 2>/tmp/jit.trace
 diff /tmp/sm.trace /tmp/jit.trace | head -30
 ```
@@ -242,10 +242,10 @@ diff /tmp/sm.trace /tmp/jit.trace | head -30
 
 SCRIP runs in **four modes** (two implemented, two stub):
 
-### Mode I — IR tree-walk (`--interp`)
+### Mode I — IR tree-walk (`--run`)
 C tree-walk over IR. Correctness reference. Baseline for all benchmarks.
 
-### Mode II — SM dispatch (`--interp`) ← DEFAULT
+### Mode II — SM dispatch (`--run`) ← DEFAULT
 Pure FORTH-style SM dispatch over SM_Program.
 Flat DESCR_t value stack. No frames. No activation records.
 fetch → execute → pc++. C stack only at SM_CALL and SM_EXEC_STMT boundary.
@@ -265,8 +265,8 @@ Run 13-program M-DYN-BENCH suite + SPITBOL:
 
 | Column | Mode |
 |---|---|
-| scrip `--interp` | IR tree-walk baseline |
-| scrip `--interp` | SM dispatch (current default) |
+| scrip `--run` | IR tree-walk baseline |
+| scrip `--run` | SM dispatch (current default) |
 | scrip `--run --bb=brokered` | JIT + broker pattern |
 | scrip `--run --bb=wired` | JIT + inline blobs |
 | SPITBOL | oracle |

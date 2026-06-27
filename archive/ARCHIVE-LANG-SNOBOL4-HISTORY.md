@@ -19,8 +19,8 @@ just makes the detail retrievable without digging through commits.
 # GOAL-LANG-SNOBOL4.md — SNOBOL4 Frontend Ladder
 
 **Repo:** SCRIP
-**Done when:** beauty.sno self-hosts cleanly under all three modes (--interp,
---interp, --run). Full corpus PASS count matches SPITBOL oracle.
+**Done when:** beauty.sno self-hosts cleanly under all three modes (--run,
+--run, --run). Full corpus PASS count matches SPITBOL oracle.
 
 **Cross-pollination:** Every bug fix in interp.c, sm_lower.c, or bb_boxes.c
 immediately benefits Icon, Prolog, Raku, Snocone, Rebus sessions.
@@ -49,8 +49,8 @@ bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=49
 
 ```
 .sno -> sno_parse() -> Program* [LANG_SNO]
-    --interp  -> execute_program() -> interp_eval()   tree-walk
-    --interp  -> sm_lower() -> SM_Program -> sm_interp_run()
+    --run  -> execute_program() -> interp_eval()   tree-walk
+    --run  -> sm_lower() -> SM_Program -> sm_interp_run()
     --run -> sm_lower() -> SM_Program -> sm_codegen() -> sm_jit_run()
 ```
 
@@ -76,7 +76,7 @@ SNO_LIB=$BEAUTY /home/claude/SCRIP/scrip-monitor --monitor \
 
 # Step 2 -- only if Step 1 shows problem: SPITBOL diff
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol.out 2>/dev/null
-SNO_LIB=$BEAUTY timeout 30 /home/claude/SCRIP/scrip --interp $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
+SNO_LIB=$BEAUTY timeout 30 /home/claude/SCRIP/scrip --run $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
 diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 # Step 3 -- only if Step 1 shows problem: OUTPUT probe -> fix -> rebuild -> repeat
@@ -99,8 +99,8 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   push/pop API, one `bb_cap` box for `.` / `$` / `NRETURN` / `*fn()`. Landed
   across SN-21a..e. SCRIP @ `8964586e`.
 
-- [x] **SN-17** — Porter stemmer gap closed (2026-04-19). `--interp` and
-  `--interp` both 100.00% / 23531 on porter.sno. Landed via SN-17a (new
+- [x] **SN-17** — Porter stemmer gap closed (2026-04-19). `--run` and
+  `--run` both 100.00% / 23531 on porter.sno. Landed via SN-17a (new
   `SM_PAT_USERCALL` opcode, `f2cf3494`) + SN-17d (FAIL propagation in
   `bb_usercall`, `9d9d2dd3`). SN-17b, SN-17c deferred — not required.
 
@@ -133,7 +133,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 - [x] **SN-6** — Full corpus: PASS=225/225 in all three modes (2026-04-20).
   Closed via a one-word gate-script fix at
   `test_interp_broad_corpus_and_beauty.sh:67`. SN-6a (new `SM_PAT_REFNAME`
-  opcode for `--interp` self-recursive patterns) landed with it.
+  opcode for `--run` self-recursive patterns) landed with it.
 
 - [x] **SN-22** — NAM API reduction: push + pop only, one stack per match,
   no marks, no rollback (2026-04-19). Landed via SN-22a..d:
@@ -153,7 +153,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   collapse fixed the underlying EVAL-within-match corruption).  Full
   diagnostics in commit log.
 
-- [x] **SN-6c** — Recursive pattern NAM corruption closed for `--interp`
+- [x] **SN-6c** — Recursive pattern NAM corruption closed for `--run`
   via SN-23d-follow-up (`has_pending` reset at top of CAP_α). SCRIP @
   `d61a580e`. Root cause: `cache_get_fresh` memcpys dirty template ζ into
   every "fresh" cap_t. Defensive fix at the site; underlying cache flaw
@@ -199,7 +199,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   SCRIP @ `f8b06dc6`. Wired `SM_BB_PUMP` and `SM_BB_ONCE` (Icon/Raku
   generators + Prolog backtracking); other audit opcodes classified as
   stale / cross-mode / never-emitted. `test/raku_gather.scrip` byte-
-  identical under `--interp` and `--run`.
+  identical under `--run` and `--run`.
 
 - [x] **SN-9c** — JIT parity gate: three-mode sweep codified
   (`test_smoke_snobol4_jit.sh`), 207/207/207 on crosscheck (2026-04-19).
@@ -549,7 +549,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
      - `snobol4 -b beauty.sno < beauty.sno`: emits 7 lines (header),
        halts at line 770 with *Error 8 — Variable not present where
        required*.
-     - `scrip --interp beauty.sno < beauty.sno` (with `SNO_LIB=
+     - `scrip --run beauty.sno < beauty.sno` (with `SNO_LIB=
        /home/claude/corpus/programs/snobol4/beauty`): emits 10 lines
        including beauty's own `Parse Error` via `mainErr1`.
      Different errors in different places — each implementation has
@@ -597,12 +597,12 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
      IR vs JIT (1 var(s) differ):
        UTF_Array   IR=ARRAY('797163616:32490')  JIT=ARRAY('124,2')
      ```
-     `--interp` holds a corrupted `UTF_Array` dim string
+     `--run` holds a corrupted `UTF_Array` dim string
      (`'797163616:32490'` — looks like a descriptor or pointer value
      stringified into the ARRAY dimension argument), while SM and
      JIT agree on the sensible `'124,2'`.  Feels like a DT_E /
      descriptor-aliasing bug of the class SN-6b addressed — lives
-     in the `--interp` path between the preceding `ARRAY('1:4')`
+     in the `--run` path between the preceding `ARRAY('1:4')`
      (line 151) and the first read of `UTF_Array` at line 169.
      **Not fixed this session.**  Good starting point once SN-25
      unblocks the oracle.
@@ -708,7 +708,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
       `reduce`/`Reduce`, `pop`/`Pop`, `visit`/`Visit`).  Expected
       — beauty.sno requires case-sensitive labels.
 
-    - **scrip `--interp`** on `beauty.sno < beauty.sno`: produces
+    - **scrip `--run`** on `beauty.sno < beauty.sno`: produces
       **0 stdout lines**; stderr floods with cascading `Error 1`
       (GE first argument is not numeric) starting at stmt 1063,
       1069, 1071, 1083, 1085, 1097, 1098, 1224, ....  All three
@@ -763,7 +763,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
     | SPITBOL | `-bf` (case-sensitive) | `No END statement found in source file(s).`  SN-25 bug — `gnv10` lowercase keyword table in `bootstrap/sbl.asm`. |
     | CSNOBOL4 | `-b` (fold) | Same class of failure as SPITBOL `-b` — duplicate labels. |
     | CSNOBOL4 | `-bf` | 32 stdout lines (comment header echoes correctly), then SEGV at `beauty.sno:616 stmt 1074` (`snoLine = INPUT` in `main02`).  Deterministic regardless of `-P 500k -S 100k -d 4m` or `-P 2m -S 500k -d 10m` or bare. |
-    | scrip `--interp` | | 0 stdout lines; stderr cascading `Error 1 — GE first argument is not numeric` from stmt 1063 onward. |
+    | scrip `--run` | | 0 stdout lines; stderr cascading `Error 1 — GE first argument is not numeric` from stmt 1063 onward. |
 
     **Implication for SN-26c's current plan:** the goal-file's stated
     protocol — "use CSNOBOL4 as oracle via 4-way `scrip-monitor`, walk
@@ -1389,7 +1389,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
   - [ ] **SN-28f** -- Performance gate.  Measure Porter, claws5,
     beauty self-host under both modes.  If 32-bit mode is not at
-    least 10% faster on `--interp` or `--run`, investigate: the
+    least 10% faster on `--run` or `--run`, investigate: the
     retrofit is worth doing only if the cache savings materialize.
 
   - [ ] **SN-28g** -- Documentation.  Update `RULES.md` with the
@@ -1412,7 +1412,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
   **Risk:** MEDIUM-HIGH.  The retrofit touches every file that
   handles values.  Gate discipline (byte-identical outputs through
   SN-28a..d) is the only defense against silent corruption.  If any
-  rung breaks Porter or beauty `--interp`, abandon the rung and
+  rung breaks Porter or beauty `--run`, abandon the rung and
   restore prior HEAD.
 
 ---
@@ -1423,7 +1423,7 @@ diff /tmp/spitbol.out /tmp/scrip.out | head -40
 |------|------|
 | src/frontend/snobol4/snobol4.y | Bison grammar |
 | src/frontend/snobol4/snobol4.l | Flex lexer |
-| src/driver/interp.c | --interp tree-walk |
+| src/driver/interp.c | --run tree-walk |
 | src/runtime/x86/sm_lower.c | IR -> SM |
 | src/runtime/x86/sm_interp.c | SM interpreter |
 | src/runtime/x86/sm_codegen.c | x86 JIT |

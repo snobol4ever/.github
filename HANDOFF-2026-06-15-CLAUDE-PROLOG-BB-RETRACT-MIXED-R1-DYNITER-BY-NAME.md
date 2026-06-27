@@ -5,7 +5,7 @@ Cloned on HEAD `c26f89f` (Icon real-arith tip; Prolog code was unchanged from `f
 
 ## RESULT
 - GATE-3 m3 **115/115** / m4 **115/115** — the rung suite is now FULLY GREEN in both modes, parity intact.
-- GATE-1 m3/m4 5/5 (m2 false-FAILs as documented — deleted `--interp` arm).
+- GATE-1 m3/m4 5/5 (m2 false-FAILs as documented — deleted `--run` arm).
 - NO-NEW-GLOBAL ratchet **15/15** (no new global, no new box, no new IR kind).
 - template-medium-invisible `--strict`: 0 violations (I touched a template).
 - Cross-lang unaffected: Icon m3/m4 12/12, SNOBOL4 m3/m4 7/7 (change is Prolog-only).
@@ -80,7 +80,7 @@ current green-bar; unchanged by this change.)
   runtime MUST seal the NAME and look up by name — never bake the id (m4 separate-process atom table).
   A quick grep for `functor_atom`/baked-id `mov edi,<id>; call rt_pl_*` over `bb_cell_*`/`bb_det_*` would
   confirm none remain.
-- Harness `--mode all` still drives the deleted m2 `--interp` arm → false FAILs; use `--mode run` /
+- Harness `--mode all` still drives the deleted m2 `--run` arm → false FAILs; use `--mode run` /
   `--mode compile` separately. (Unchanged open item for Lon.)
 - With m2 gone, several of the 15 doomed globals may now be genuinely dead → floor possibly droppable
   (unchanged open item).

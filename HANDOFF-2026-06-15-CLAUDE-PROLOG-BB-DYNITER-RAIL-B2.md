@@ -116,5 +116,5 @@ only the `retract` goal inside clause-1's body is unadmitted. Expected: +1 both 
   refs/gprolog_db/dynam_supp.c, which we deliberately do NOT port under Fork 1).
 - `--dump-ast` segfaults on ALL Prolog programs on clean HEAD too (pre-existing, unrelated). Use
   `--dump-ir`.
-- Harness `--mode all` still drives the deleted m2 `--interp` arm → false FAILs; use `--mode run` /
+- Harness `--mode all` still drives the deleted m2 `--run` arm → false FAILs; use `--mode run` /
   `--mode compile` separately. (Open item for Lon: re-baseline the gate scripts off m2.)

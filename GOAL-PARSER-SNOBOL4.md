@@ -50,7 +50,7 @@ bash /home/claude/SCRIP/scripts/test_parser_snobol4.sh   # must be PASS=89 FAIL=
 Parser invocation:
 ```bash
 SCRIP=/home/claude/SCRIP/scrip; RT=/home/claude/corpus/SCRIP
-$SCRIP --interp $RT/global.sc $RT/tree.sc $RT/stack.sc $RT/counter.sc \
+$SCRIP --run $RT/global.sc $RT/tree.sc $RT/stack.sc $RT/counter.sc \
   $RT/ShiftReduce.sc $RT/semantic.sc $RT/qize.sc $RT/gen.sc \
   $RT/tdump.sc $RT/assign.sc $RT/parser_snobol4.sc < input.sno
 ```
@@ -60,7 +60,7 @@ $SCRIP --interp $RT/global.sc $RT/tree.sc $RT/stack.sc $RT/counter.sc \
 ## Architecture
 
 ```
-scrip --interp [blob] parser_snobol4.sc < input.sno   →  TDump tree lines
+scrip --run [blob] parser_snobol4.sc < input.sno   →  TDump tree lines
 scrip --dump-parse input.sno                           →  oracle tree lines
 ```
 

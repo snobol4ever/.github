@@ -57,7 +57,7 @@ promote Icon's per-call context (`icn_env`, `icn_env_n`, `icn_returning`,
 
 Additional gaps closed by this goal:
 - `SM_BB_PUMP` / `SM_BB_ONCE` are stubs in `sm_interp.c` — no Icon or Prolog
-  execution via `--interp`.
+  execution via `--run`.
 - `sm_lower.c` is language-blind — ignores `st->lang`, never emits
   `SM_BB_PUMP`/`SM_BB_ONCE`.
 - Three separate top-level entry points (`execute_program`,
@@ -187,19 +187,19 @@ parse_scrip_polyglot()
     `LANG_ICN` stmts with generator subjects → emit `SM_BB_PUMP`.
     `LANG_PL` stmts (E_CHOICE/E_CLAUSE) → emit `SM_BB_ONCE`.
     `LANG_SNO` stmts → existing `SM_EXEC_STMT` path (unchanged).
-  Gate: `make scrip` clean; `--interp` on a single-lang SNO file still passes.
+  Gate: `make scrip` clean; `--run` on a single-lang SNO file still passes.
 
 - [ ] **OE-10** — Implement `SM_BB_PUMP` handler in `sm_interp.c`.
   Pop `bb_node_t*` from SM stack; call `bb_broker(root, BB_PUMP, body_fn, arg)`.
   `body_fn` prints or pushes result per Icon semantics.
-  Gate: `make scrip` clean; at least one Icon `--interp` test produces correct output.
+  Gate: `make scrip` clean; at least one Icon `--run` test produces correct output.
 
 - [ ] **OE-11** — Implement `SM_BB_ONCE` handler in `sm_interp.c`.
   Pop `bb_node_t*`; call `bb_broker(root, BB_ONCE, NULL, NULL)`.
-  Gate: `make scrip` clean; at least one Prolog `--interp` test produces correct output.
+  Gate: `make scrip` clean; at least one Prolog `--run` test produces correct output.
 
 - [x] **OE-12** — Gate: `test/smoke_unified_broker.sh` PASS=13+ FAIL=0;
-  regression non-regressing; add `--interp` polyglot smoke test.
+  regression non-regressing; add `--run` polyglot smoke test.
   Update PLAN.md ☑ done.
 
 ---
@@ -360,8 +360,8 @@ icn_eval_gen(), bb_broker(BB_PUMP, pump_print). SM_BB_ONCE: same pattern,
 BB_ONCE, sets last_ok from tick count. pump_print prints each value to stdout.
 sm_lower LANG_ICN path fixed to emit SM_PUSH_EXPR(s->subject) not lower_expr.
 
-**OE-12 DONE**: --interp polyglot smoke test added to test_smoke_unified_broker.sh.
-test_shared_nv.scrip with --interp produces all 6 lines. PASS=31 FAIL=0.
+**OE-12 DONE**: --run polyglot smoke test added to test_smoke_unified_broker.sh.
+test_shared_nv.scrip with --run produces all 6 lines. PASS=31 FAIL=0.
 
 **GOAL COMPLETE**: icn_execute_program_unified eliminated. All five language
 frontends evaluate via single interp_eval() switch. SM_BB_PUMP/ONCE have real

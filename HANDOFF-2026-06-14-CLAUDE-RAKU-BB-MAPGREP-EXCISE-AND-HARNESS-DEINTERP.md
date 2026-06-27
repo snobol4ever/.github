@@ -6,7 +6,7 @@
 commits: PL-GZ rung28 rethrow + Icon m3/m4 +1/+3). Rebased cleanly; pushed. SCRIP origin/main now `b63cc45`.**
 
 **Gates at close — ALL THREE smoke gates rc=0:** Raku m3/m4 31 PASS / 0 FAIL / 7 EXCISED; Icon m3/m4 12/12;
-SNOBOL4 m4 7/7. Invariants: g_vstack=0, bb_bin_t=0, IR_NFA=0. (Mode 2 / `--interp` no longer exists.)
+SNOBOL4 m4 7/7. Invariants: g_vstack=0, bb_bin_t=0, IR_NFA=0. (Mode 2 / `--run` no longer exists.)
 
 ---
 
@@ -20,7 +20,7 @@ But that commit LEFT `graph_native_emittable_mode` (`src/driver/scrip.c`) ADMITT
 abort." (The already-dead `kind_native_stub` had carried the correct `IR_MAP||IR_GREP` excise intent before the
 dead-code sweep removed it; it had been unreachable, so removing it was behavior-neutral — it was NOT the cause.)
 
-Separately, `a2440f4` + the CLI trim `94c94f4` deleted `--interp`, but the three per-language smoke harnesses
+Separately, `a2440f4` + the CLI trim `94c94f4` deleted `--run`, but the three per-language smoke harnesses
 still INVOKED it. `test_smoke_raku.sh` and `test_smoke_icon.sh` GATED on `[ $F2 -eq 0 ]` → with m2 structurally
 all-FAIL they returned **rc=1** despite clean m3/m4. `test_smoke_snobol4.sh` already gated on m4-only (rc=0) so
 its m2 invocation was cosmetic noise.
@@ -38,18 +38,18 @@ its m2 invocation was cosmetic noise.
   `gather_take` still PASSes natively. Raku m3/m4 31 PASS / 0 FAIL / 7 EXCISED (was 31 / **4 FAIL** / 3 EXCISED).
 
 ### 2. `2860563` — Raku smoke → 2-mode gate (`scripts/test_smoke_raku.sh`)
-Removed the `--interp` invocation + all m2 bookkeeping (P2/F2, the `[%s]` field); gate on zero silent m3/m4
+Removed the `--run` invocation + all m2 bookkeeping (P2/F2, the `[%s]` field); gate on zero silent m3/m4
 FAIL + the MODE3/4_MIN floors. Also fixed a doubly-stale comment ("lowers to NFA-as-BB; m2 oracle" → regex
 rides the C matcher, m3/m4 EXCISE). Gate now rc=0.
 
 ### 3. `b63cc45` — Icon + SNOBOL4 smoke de-interp (`scripts/test_smoke_icon.sh`, `scripts/test_smoke_snobol4.sh`)
-Same residue: removed every `--interp` invocation + m2 bookkeeping.
+Same residue: removed every `--run` invocation + m2 bookkeeping.
 - Icon: gate was `[ $F2 -eq 0 ] && floors` → **rc=1**. Now `m3 AND m4 zero-FAIL + floors` → rc=0. ⚠️ This
   STRENGTHENS the Icon gate (floors-only → zero-FAIL); m3 replaced m2's build-sanity role. One-line revert if
   the Icon owner wants it looser. Behavior-neutral for the Icon compiler (no Icon source touched; m3/m4 12/12).
 - SNOBOL4: dropped the `run_m2` fn + its `run_all` call + P2/F2 + the m2 summary line (gate already m4-only).
 
-All three harnesses are now free of any live `--interp`; remaining `interp` mentions are explanatory comments.
+All three harnesses are now free of any live `--run`; remaining `interp` mentions are explanatory comments.
 
 ---
 
@@ -99,7 +99,7 @@ rm -f scrip && make -j4 scrip && make libscrip_rt
 bash scripts/test_smoke_raku.sh      # rc=0 : m3/m4 31 PASS / 0 FAIL / 7 EXCISED
 bash scripts/test_smoke_icon.sh      # rc=0 : m3/m4 12/12
 bash scripts/test_smoke_snobol4.sh   # rc=0 : m4 7/7
-# (--interp is GONE; the harnesses are 2-mode. test_gate_raku_nfa_oracle.sh is also gone — NFA-BB was deleted.)
+# (--run is GONE; the harnesses are 2-mode. test_gate_raku_nfa_oracle.sh is also gone — NFA-BB was deleted.)
 ```
 
 ## ORDER OF WORK for next session
@@ -115,6 +115,6 @@ bash scripts/test_smoke_snobol4.sh   # rc=0 : m4 7/7
 | Commit | Repo | What |
 |---|---|---|
 | `1c64469` | SCRIP | Raku m3/m4: map/grep EXCISE not abort — restore gate clause lost when interp deleted (a2440f4) |
-| `2860563` | SCRIP | Raku smoke: de-interp the harness to a 2-mode gate; drop deleted --interp; fix stale NFA-BB comment |
-| `b63cc45` | SCRIP | Icon+SNOBOL4 smoke: de-interp the harnesses (drop deleted --interp) |
+| `2860563` | SCRIP | Raku smoke: de-interp the harness to a 2-mode gate; drop deleted --run; fix stale NFA-BB comment |
+| `b63cc45` | SCRIP | Icon+SNOBOL4 smoke: de-interp the harnesses (drop deleted --run) |
 | (this doc + GOAL-RAKU-BB watermark) | .github | handoff |

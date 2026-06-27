@@ -36,7 +36,7 @@ Firing programs (SNOBOL4 space-form `SUBJ PAT . CAP`, the form that engages nati
 - **breakx:** `bx_simple` (`BREAKX(",") . V`), `bx_extend` (`BREAKX(",") "xyz"` forces backtrack-extend), `bx_both`.
 
 Results (initial baseline = git-stash of each file; **re-certified at handoff** against the rebased tree, see below):
-- **m2 (`--interp`): identical** base==mine (empty for these programs — see note).
+- **m2 (`--run`): identical** base==mine (empty for these programs — see note).
 - **m3 (`--run`, native in-process): identical** base==mine (capture: world/123/foo; breakx: abc).
 - **m4 (`--compile`): RAW BYTE-IDENTICAL** for all 6 programs — zero diffs, **no BB-label normalization needed** (pure inlining left emission order + object sizes unchanged, exactly as defer/notany). m4 binaries assemble (`as --64`) + link (`gcc -no-pie … libscrip_rt.so -lgc -lm -lstdc++`) + run, matching m3.
 

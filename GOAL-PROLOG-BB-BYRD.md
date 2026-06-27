@@ -13,7 +13,7 @@ ONE MEDIUM, INVISIBLE + TEMPLATE-ONLY EMISSION (corrected): canonical text in GO
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -167,7 +167,7 @@ typedef struct { bb_box_fn fn; void *zeta; } Pl_GoalBox;
 - [x] **S-BB-7** — Wire `pl_execute_program_unified()` to use new boxes for
   `main/0`: call `pl_box_choice(main_choice_node)` → `pl_exec_goal()`.
   Remove the `interp_eval(main_choice)` call from the top-level entry.
-  Gate: `./scrip --interp test/prolog/hello.pl` prints `Hello, World!`.
+  Gate: `./scrip --run test/prolog/hello.pl` prints `Hello, World!`.
   rung01 PASS.
 
 - [x] **S-BB-8** — Replace the body loop inside `interp_eval` E_CHOICE with

@@ -147,7 +147,7 @@ No other files touched.
 |---|---|---|
 | Smoke Prolog | 5/5 | — |
 | G2 crosscheck | 132/0 (5 ORACLE_MISS) | — |
-| G3 mode-2 (`--interp`) rung_suite | 104/107 | — |
+| G3 mode-2 (`--run`) rung_suite | 104/107 | — |
 | GATE-SWI plunit | 53/57 (92%) | — |
 | BB-honest | 128/0 | — |
 | FACT | 0 violations | — |

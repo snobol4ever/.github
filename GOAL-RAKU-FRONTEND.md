@@ -27,7 +27,7 @@
 
 **Repo:** SCRIP
 **Done when:** A `.raku` fenced block in a `.scrip` file compiles to IR and
-runs under `--interp`. `gather`/`take` maps to BB_PUMP. A smoke test passes.
+runs under `--run`. `gather`/`take` maps to BB_PUMP. A smoke test passes.
 
 ---
 
@@ -103,7 +103,7 @@ regexes, type system, `use` module imports.
 - [x] **RK-4** — `src/frontend/raku/raku_driver.c` + `raku_driver.h`.
   `raku_compile(src, filename) → CODE_t*`.
   Sets `st->lang = LANG_RAKU` on each STMT_t.
-  Gate: `scrip --interp file.raku` runs a hello-world snippet.
+  Gate: `scrip --run file.raku` runs a hello-world snippet.
 
 ### Phase 3 — Integration
 
@@ -199,7 +199,7 @@ via sequential `gather` tries).
 - Rung 3: Arithmetic + `my $x = expr; say $x;`
 - Rung 4: String concat `~`, single-quoted strings.
 - Rung 5: Range `..` + `for` loop, direct eval.
-- Rung 6: Lower to IR (raku_lower.c) — hello world via --interp.
+- Rung 6: Lower to IR (raku_lower.c) — hello world via --run.
 - Rung 7: `gather`/`take` → BB_PUMP, `for 1..5` via generator.
 - Rung 8: Full driver, `.raku` extension, LANG_RAKU=3, smoke test.
 - Rung 9: Combinator parser demo (do last).
@@ -226,7 +226,7 @@ Our hand-written corpus covers the Tiny-Raku subset only.
 
 - [x] **RK-10** — `scripts/test_raku_ir_rungs.sh` — self-contained harness
   mirroring `test_icon_all_rungs.sh`. Runs all `test/raku/*.raku` against
-  `scrip --interp`, compares to `.expected`. SKIP-safe if binary/dir missing.
+  `scrip --run`, compares to `.expected`. SKIP-safe if binary/dir missing.
   Integrated into `test_smoke_unified_broker.sh`.
   Gate: PASS=7 FAIL=0; smoke total PASS=24 FAIL=0.
 
@@ -320,7 +320,7 @@ All new corpus files go in `test/raku/`. All new harness entries in `test_raku_i
 
 ### Sprint 11 — `for`-over-gather (standalone BB_PUMP)
 
-- [ ] **RK-22** — Wire `for GATHER -> $v { }` in standalone `--interp`.
+- [ ] **RK-22** — Wire `for GATHER -> $v { }` in standalone `--run`.
   Currently E_EVERY over E_ITERATE(gather-body) is not driven in standalone mode.
   Fix: in `icn_interp_eval` E_EVERY handler, detect E_ITERATE child whose body
   contains E_SUSPEND nodes; drive via setjmp/longjmp coroutine or collect-then-iterate.
@@ -384,9 +384,9 @@ RK-3 (raku_lower.c): 28/28 PASS. HEAD 77ef905d
   - raku_lower_file: subs first, top-level stmts in synthetic "main" E_FNC
     with icon_lower layout (ival=nparams=0, children[0]=name-node)
 
-RK-4 (raku_compile, --interp): DONE. HEAD e43b8dcc
+RK-4 (raku_compile, --run): DONE. HEAD e43b8dcc
   - raku_compile(src,filename)→CODE_t* added to raku_driver.c/h
-  - scrip.c: .raku files now use raku_compile() → full --interp path
+  - scrip.c: .raku files now use raku_compile() → full --run path
   - LANG_RAKU shares icn_proc_table with LANG_ICN (same E_FNC shape)
   - polyglot_init, execute loop, post-loop dispatch all handle LANG_RAKU
   - Gates: hello world, arithmetic, concat, for 1..5 -> $i, if, while
@@ -433,7 +433,7 @@ Combinator parser demo: test/raku/rk_combinator.raku
 PEG ordered-choice parser for digit (op digit)* — parses "3+4*2".
 p_digit/p_addop/p_mulop/p_op combinators with ordered-choice via if/else (|| PEG semantics).
 gather { take tok } block structurally present as BB_PUMP-ready generator.
-In standalone --interp, emit() (say) produces token stream directly.
+In standalone --run, emit() (say) produces token stream directly.
 In polyglot broker context, take() would suspend and yield to E_EVERY consumer.
 Gate: PASS=8 FAIL=0 (raku harness); smoke PASS=26 FAIL=0.
 HEAD: 2e0d5d46 (SCRIP)

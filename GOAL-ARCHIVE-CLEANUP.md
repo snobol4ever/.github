@@ -196,7 +196,7 @@ git pull --rebase origin main && git push
 Extracted into: `ARCH-x86.md` (scrip modes table)
 
 ```bash
-grep -n "^## Modes\|^| --interp\|^| --gen\|scrip.*mode\|three modes" archive/SCRIP-UNIFIED.md | head -10
+grep -n "^## Modes\|^| --run\|^| --gen\|scrip.*mode\|three modes" archive/SCRIP-UNIFIED.md | head -10
 ```
 
 Delete the scrip modes table → in ARCH-x86.md

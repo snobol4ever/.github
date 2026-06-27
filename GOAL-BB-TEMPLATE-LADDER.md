@@ -342,7 +342,7 @@ If you find yourself writing a new `rt_*` function to make a PL-T template work,
 ```
 SCRIP: HEAD (ICN-T-3 + RULE: no template code in emit_core.c)
 Gate: PASS=516 FAIL=0 STUB=599
-Icon --interp: PASS=195 FAIL=36 XFAIL=35
+Icon --run: PASS=195 FAIL=36 XFAIL=35
 Prolog smoke: PASS=5 FAIL=0
 PL-T-1 ✅ bb_builtin.cpp (BB_BUILTIN write/nl/halt)
 PL-T-2 ✅ bb_pl_var.cpp + bb_atom.cpp + bb_unify.cpp
@@ -361,7 +361,7 @@ NEXT: ICN-T-6 — bb_gen_alt.cpp (BB_GEN_ALT inline x86)
 
 **Root insight (Lon, session 2026-05-25):** BB and SM graph structures must be completely deleted
 BEFORE execution in Mode 3 (--run) and Mode 4 (--compile). They have no access to the tree at
-runtime. Mode 3/4 x86 blobs are self-contained. Mode 2 (--interp) walks sm->instrs at runtime
+runtime. Mode 3/4 x86 blobs are self-contained. Mode 2 (--run) walks sm->instrs at runtime
 so it must NOT free them.
 
 **What stage2_free_bb_only does:** frees only BB_graph_t objects. Leaves sm->instrs alive so

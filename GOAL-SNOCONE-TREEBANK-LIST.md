@@ -26,9 +26,9 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** SCRIP + corpus
-**Done when:** `scrip --interp treebank-list.sc < treebank4.input` produces
+**Done when:** `scrip --run treebank-list.sc < treebank4.input` produces
 output matching `treebank-list.ref` exactly (diff zero), all three modes
-(--interp, --interp, --run).
+(--run, --run, --run).
 
 **Oracle:** `csnobol4 -bf treebank-list.sno < treebank4.input` matches
 `treebank-list.ref`. treebank-list.sno is the reference implementation.
@@ -76,8 +76,8 @@ corpus/programs/snobol4/demo/VBGinTASA.dat       — full treebank corpus (1977 
 
 ```
 treebank-list.sc → snocone_compile() → CODE_t* [LANG_SNO]
-    --interp  → execute_program() → interp_eval()
-    --interp  → sm_lower() → SM_Program → sm_interp_run()
+    --run  → execute_program() → interp_eval()
+    --run  → sm_lower() → SM_Program → sm_interp_run()
     --run → sm_lower() → SM_Program → sm_codegen() → sm_jit_run()
 
 Key pattern construct (double-function trick in Snocone):
@@ -167,15 +167,15 @@ internal `spec_t` values with `descr_from_spec()` at each return point.
   Remove temporary fprintf traces added during diagnosis (stmt_exec.c lines
   with "bb_callcap CC_α" and snobol4_nmd.c NAM_push_callcap trace).
   Gate: `(word . tag) && (epsilon . *push_list())` probe PASS.
-  Gate: `scrip --interp treebank-list.sc < treebank.input | diff - treebank-list.ref` → empty.
+  Gate: `scrip --run treebank-list.sc < treebank.input | diff - treebank-list.ref` → empty.
   Gate: `test_smoke_snocone.sh` PASS=5.
   Coordinate with GOAL-SNOCONE-CLAWS5 — same fix applies there.
 
-- [ ] **TB-3** — treebank-list.sc PASS --interp and --run.
+- [ ] **TB-3** — treebank-list.sc PASS --run and --run.
   Gate: zero diff both modes.
 
 - [ ] **TB-4** — Full corpus smoke: treebank-list.sc on VBGinTASA.dat.
-  `scrip --interp treebank-list.sc < VBGinTASA.dat` — no crash, sane output.
+  `scrip --run treebank-list.sc < VBGinTASA.dat` — no crash, sane output.
   (No ref for full corpus — just verify no errors.)
 
 ---

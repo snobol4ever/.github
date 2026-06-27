@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -40,8 +40,8 @@
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 **Repo:** SCRIP
-**Done when:** beauty.sno self-hosts cleanly under all three modes (--interp,
---interp, --run). Full corpus PASS count matches SPITBOL oracle.
+**Done when:** beauty.sno self-hosts cleanly under all three modes (--run,
+--run, --run). Full corpus PASS count matches SPITBOL oracle.
 
 **Sharpened end-state target (session #55, 2026-04-28):** the 2-way
 sync-step harness on `beauty.sno < beauty.sno` runs to clean
@@ -93,8 +93,8 @@ bash /home/claude/SCRIP/scripts/test_smoke_unified_broker.sh   # PASS=49
 
 ```
 .sno -> sno_parse() -> CODE_t* [LANG_SNO]
-    --interp  -> execute_program() -> interp_eval()   tree-walk
-    --interp  -> sm_lower() -> SM_Program -> sm_interp_run()
+    --run  -> execute_program() -> interp_eval()   tree-walk
+    --run  -> sm_lower() -> SM_Program -> sm_interp_run()
     --run -> sm_lower() -> SM_Program -> sm_codegen() -> sm_jit_run()
 ```
 
@@ -123,7 +123,7 @@ SNO_LIB=$BEAUTY /home/claude/SCRIP/scrip-monitor --monitor --no-csn \
 
 # Step 2 -- only if Step 1 shows problem: SPITBOL diff
 SNO_LIB=$BEAUTY /home/claude/x64/bin/sbl -b $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/spitbol.out 2>/dev/null
-SNO_LIB=$BEAUTY timeout 30 /home/claude/SCRIP/scrip --interp $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
+SNO_LIB=$BEAUTY timeout 30 /home/claude/SCRIP/scrip --run $BEAUTY/beauty_${DRIVER}_driver.sno > /tmp/scrip.out 2>/dev/null
 diff /tmp/spitbol.out /tmp/scrip.out | head -40
 
 # Step 3 -- only if Step 1 shows problem: OUTPUT probe -> fix -> rebuild -> repeat
@@ -248,7 +248,7 @@ eight steps.  The regression baseline is the SN-7 gate
       behind the segfaults — they share the same gate but not the
       same root cause as SN-33b.  Categories observed:
       - **ir-only** (4 drivers): Qize, XDump, case, omega — IR-only
-        bugs.  case_driver under --interp reproduces a stack overflow
+        bugs.  case_driver under --run reproduces a stack overflow
         in `_usercall_hook → call_user_function → interp_eval →
         APPLY_fn → _usercall_hook → ...` cycle when calling a function
         whose name and parameter share an identifier (`upr(upr)`).
@@ -326,7 +326,7 @@ SN-30a..e and SN-30g landed; x64 @ `cc68516` accepts UPPERCASE keywords under `-
 
 ### SN-REPLACE-EQ — tighten SCRIP's REPLACE to SPITBOL's equal-length semantics (opened 2026-05-17)
 **Discovered:** by SCT-2 in GOAL-PARSER-SC-TRANSPILE. `parser_rebus.sc`, `parser_icon.sc`, `parser_raku.sc` all transpiled to SNOBOL4 calling `REPLACE(t, "'", "")` (via `corpus/SCRIP/semantic.sc`'s `qtag`). SPITBOL hit ERROR 171 at every site: SPITBOL's `REPLACE(s, X, Y)` is a character-mapping translation requiring `SIZE(X) == SIZE(Y)`. SCRIP's `REPLACE` today accepts unequal-length 2nd/3rd args and behaves as substring substitution.
-**Done-when:** `scrip --interp` and `scrip --interp` reject `REPLACE(t, "'", "")` with the same ERROR 171 SPITBOL emits. The character-mapping semantics applies: SCRIP's REPLACE becomes a translation operation, not a substring-substitution operation. Add a regression test under `corpus/programs/snobol4/spitbol-conformance/replace_eq.sno` that round-trips through SPITBOL and SCRIP and confirms identical error behavior.
+**Done-when:** `scrip --run` and `scrip --run` reject `REPLACE(t, "'", "")` with the same ERROR 171 SPITBOL emits. The character-mapping semantics applies: SCRIP's REPLACE becomes a translation operation, not a substring-substitution operation. Add a regression test under `corpus/programs/snobol4/spitbol-conformance/replace_eq.sno` that round-trips through SPITBOL and SCRIP and confirms identical error behavior.
 **Workaround landed (SCT-2):** `corpus/SCRIP/semantic.sc` now uses equal-length `REPLACE(t, "'", 'x')`. That keeps the parser corpus portable today; SN-REPLACE-EQ closes the divergence at the runtime level.
 **Rationale:** per RULES.md ABSOLUTE RULE "SCRIP's SNOBOL4 and Snocone semantics follow SPITBOL" — listed in the rule's "Known OPEN divergences" subsection.
 **Risk:** LOW. The substring-substitution capability isn't lost — a separate function name (e.g. `STRREPLACE` or pattern-strip via `BREAK`+assign) can serve users who need substring removal. The change is "rename existing behavior, restore strict SPITBOL behavior to REPLACE". Audit corpus for current REPLACE callers first to scope the rename.
@@ -396,10 +396,10 @@ Self-host output md5 byte-identical to SPITBOL
   SPL: `sysml exp 0` declared in `sbl.min`; `mov wa,kvstn / jsr
   sysml` fire-points in `stmgo` and `stgo3`; `int.asm` syscall id
   42. scrip: `mon_emit_label_bin()` helper called from
-  `interp.c:execute_program` (--interp), `sm_interp.c SM_STNO`
-  (--interp), `sm_codegen.c h_stno` (--run). Gate
+  `interp.c:execute_program` (--run), `sm_interp.c SM_STNO`
+  (--run), `sm_codegen.c h_stno` (--run). Gate
   `test_smoke_sn26_label_flow.sh` PASS=5 (csn=3 LABELs, sbl=4,
-  scrip --interp=3, --interp=4, --run=4 — SPL counts END as a
+  scrip --run=3, --run=4, --run=4 — SPL counts END as a
   stmt). All existing bridge smokes updated for new record
   ordering and PASS. Smoke=7, Broker=49 preserved. SN-30
   beauty md5 `408fc788ca2ef425fc1f87e26d45a7a5` preserved.
@@ -517,7 +517,7 @@ Self-host output md5 byte-identical to SPITBOL
   self-host.
 
   **Also fixed:** Pre-existing `test_smoke_sn26_label_flow.sh`
-  FAIL=2 from -k: --interp/--run expected 4 LABELs but got 5 after
+  FAIL=2 from -k: --run/--run expected 4 LABELs but got 5 after
   blank-line fix. Updated to expect 5 (1 blank + 3 stmts + END).
   Fixed `UnboundLocalError` in `monitor_sync_bin.py` (redundant
   local `from collections import deque` shadowed top-level import).
@@ -571,7 +571,7 @@ Self-host output md5 byte-identical to SPITBOL
   **Sequencing note:** -l is independent of -k. -l unblocks deeper
   semantic comparison on aggregate-store paths.
 
-- [x] **SN-26-bridge-coverage-j — scrip --interp linear-stno bug
+- [x] **SN-26-bridge-coverage-j — scrip --run linear-stno bug
   in execute_program.  CLOSED session #46 (2026-04-27).**
 
   **Real root cause (revised):** the prior hypothesis about beauty's
@@ -631,7 +631,7 @@ Self-host output md5 byte-identical to SPITBOL
 
   **Note — sm_interp.c / sm_codegen.c carry the same bug pattern**
   (`g_sm_stno` counter in `SM_STNO` opcode).  The 2-way harness uses
-  `--interp`, so the SM/JIT paths don't gate the immediate harness
+  `--run`, so the SM/JIT paths don't gate the immediate harness
   goal.  Tracked as latent follow-up: extend `SM_STNO` to take an
   operand (the source stno, lowered from `s->stno`) so SM-run and
   JIT-run get the same fix.
@@ -1283,8 +1283,8 @@ Self-host output md5 byte-identical to SPITBOL
      `if (strcmp(fname, "nTop") == 0) { __builtin_trap(); }` at
      entry.
   2. `make scrip` from SCRIP root.
-  3. `gdb -batch -ex 'set environment SNO_LIB=...' -ex 'run --interp
-     beauty.sno < /dev/null' -ex 'bt 60' --args ./scrip --interp
+  3. `gdb -batch -ex 'set environment SNO_LIB=...' -ex 'run --run
+     beauty.sno < /dev/null' -ex 'bt 60' --args ./scrip --run
      beauty.sno`.
   4. Read frames bottom-up: each `interp_eval(e=...)` line tells you
      the EXPR_t kind being evaluated; `interp_eval_pat → interp_eval`
@@ -1382,7 +1382,7 @@ Self-host output md5 byte-identical to SPITBOL
           OUTPUT = "x=" x
   END
   ```
-  Run under `SCRIP_FTRACE=1 scrip --interp` and `SCRIP_FTRACE=1
+  Run under `SCRIP_FTRACE=1 scrip --run` and `SCRIP_FTRACE=1
   sbl -bf` and compare the `****` traces.  If scrip's trace shows
   `nTop()` and SPITBOL's doesn't, the bug is at scrip's argument
   or EVAL handling.  If both show `nTop()`, the divergence is
@@ -1543,14 +1543,14 @@ landed in the IR-run path only.  `sm_interp.c SM_STNO` and
 `sm_codegen.c h_stno` still use a `g_sm_stno` linear counter.
 Extend `SM_STNO` to take an operand (the source stno) so SM-run
 and JIT-run report the same `&STNO` semantics.  Not gating the
-2-way harness (`--interp` only).  Tracked as latent until a Goal
+2-way harness (`--run` only).  Tracked as latent until a Goal
 explicitly needs SM/JIT &STNO correctness on backward gotos.
 
 ---
 
 ## Active rung — SN-26c-parseerr (opened session #2)
 
-**Done-when:** `scrip --interp beauty.sno < beauty.sno` exits 0
+**Done-when:** `scrip --run beauty.sno < beauty.sno` exits 0
 with byte-identical output to oracle (md5
 `408fc788ca2ef425fc1f87e26d45a7a5`).
 
@@ -1579,7 +1579,7 @@ the trace" — until -h, there is no trustable divergence point.
 |------|------|
 | src/frontend/snobol4/snobol4.y | Bison grammar |
 | src/frontend/snobol4/snobol4.l | Flex lexer |
-| src/driver/interp.c | --interp tree-walk |
+| src/driver/interp.c | --run tree-walk |
 | src/runtime/x86/sm_lower.c | IR -> SM |
 | src/runtime/x86/sm_interp.c | SM interpreter |
 | src/runtime/x86/sm_codegen.c | x86 JIT |
@@ -1624,14 +1624,14 @@ the trace" — until -h, there is no trustable divergence point.
 - SCRIP @ session #61 HEAD (SN-32c CLOSED: `sm_codegen.c` `h_store_var`
   receives the same two-bug fix that landed in `sm_interp.c` in session
   #60; `--run beauty.sno < beauty.sno` byte-identical to SPITBOL,
-  matching --interp from session #57 and --interp from session #60)
+  matching --run from session #57 and --run from session #60)
 - corpus @ unchanged
 - x64 @ unchanged
 - csnobol4 @ `1d225f8` (managed by GOAL-CSN-FENCE-FIX from now on)
 - active step → **SN-32 done.**  Goal Done-when achieved on all three
   modes:
-  - `--interp`  : 646 lines, md5 `abfd19a7a834484a96e824851caee159` ✅
-  - `--interp`  : 646 lines, md5 `abfd19a7a834484a96e824851caee159` ✅
+  - `--run`  : 646 lines, md5 `abfd19a7a834484a96e824851caee159` ✅
+  - `--run`  : 646 lines, md5 `abfd19a7a834484a96e824851caee159` ✅
   - `--run` : 646 lines, md5 `abfd19a7a834484a96e824851caee159` ✅
   Future work on this goal can pivot to SN-29f (canonical .ref capture),
   SN-30f (regression sweep under new sbl), -r (SPITBOL block-type
@@ -1641,7 +1641,7 @@ the trace" — until -h, there is no trustable divergence point.
 **Session #58 (2026-04-28) — SN-32 opened: SM/JIT beauty self-host status.**
 
 Per the goal's stated Done-when ("beauty.sno self-hosts cleanly under
-all three modes (--interp, --interp, --run)"), session #58
+all three modes (--run, --run, --run)"), session #58
 verified the IR-run achievement from session #57 and characterised
 the gap remaining for SM-run and JIT-run.
 
@@ -1649,8 +1649,8 @@ the gap remaining for SM-run and JIT-run.
 
 | Mode        | Lines | md5                                | Result |
 |-------------|------:|------------------------------------|--------|
-| `--interp`  | 646   | `abfd19a7a834484a96e824851caee159` | ✅ byte-identical to SPITBOL |
-| `--interp`  | 27    | `b6873a89707f671133fae5e07b40942c` | ❌ bails to `Internal Error` |
+| `--run`  | 646   | `abfd19a7a834484a96e824851caee159` | ✅ byte-identical to SPITBOL |
+| `--run`  | 27    | `b6873a89707f671133fae5e07b40942c` | ❌ bails to `Internal Error` |
 | `--run` | 27    | `b6873a89707f671133fae5e07b40942c` | ❌ same — shares sm_lower with SM |
 
 SM and JIT produce byte-identical output, consistent with both
@@ -1716,7 +1716,7 @@ sub-rungs to a fresh ladder for SM/JIT.  Suggested first steps:
 1. **Reduce the bail to a minimal probe.**  Take beauty's stack.inc
    `Push(x)/Pop(var)/link(next,value)` plus a small driver pattern
    `pat = nPush() ARBNO(LEN(1)) ('X' & 1) nPop()` — run under
-   `--interp` and `--interp`; compare `Pop()` results.  Probe the
+   `--run` and `--run`; compare `Pop()` results.  Probe the
    smallest case where SM diverges from IR on deferred-fn-during-
    pattern-build → effect-on-NV.
 
@@ -1739,8 +1739,8 @@ sub-rungs to a fresh ladder for SM/JIT.  Suggested first steps:
    `scrip-monitor` and `monitor_sync_bin.py` over the wire defined in
    `monitor_wire.h`.  The SN-26 sub-rung chain reached step 1,277,812
    on `beauty.sno < beauty.sno` driving the **scrip side with
-   `--interp`**.  The SN-32 work is to make the **same harness** pass
-   on the same input driving the scrip side with `--interp` and
+   `--run`**.  The SN-32 work is to make the **same harness** pass
+   on the same input driving the scrip side with `--run` and
    `--run` — by walking the last-agree / first-disagree pair the
    way RULES.md "Sync-step monitor — read the divergence point"
    prescribes, exactly as SN-26 -e..-y did for the IR path.
@@ -1766,10 +1766,10 @@ sub-rungs to a fresh ladder for SM/JIT.  Suggested first steps:
 
 ## Active rung — SN-32-sm-jit-beauty (opened session #58)
 
-**Done-when:** `scrip --interp beauty.sno < beauty.sno` and
+**Done-when:** `scrip --run beauty.sno < beauty.sno` and
 `scrip --run beauty.sno < beauty.sno` both produce 646 lines
 of output md5 `abfd19a7a834484a96e824851caee159` — byte-identical
-to the SPITBOL oracle and to scrip's `--interp` from session #57.
+to the SPITBOL oracle and to scrip's `--run` from session #57.
 
 **Status (session #61, 2026-04-28):** SN-32c CLOSED, SN-32d CLOSED.
 **Goal Done-when achieved.**  The same two `SM_STORE_VAR` bugs fixed in
@@ -1780,7 +1780,7 @@ to the SPITBOL oracle and to scrip's `--interp` from session #57.
 (mirrors IR `E_ASSIGN:2844` which always returns `val`).
 `scrip --run beauty.sno < beauty.sno` now produces 646-line output
 md5 `abfd19a7a834484a96e824851caee159` — byte-identical to SPITBOL
-oracle, to scrip --interp, and to scrip --interp.  All three modes
+oracle, to scrip --run, and to scrip --run.  All three modes
 agree byte-for-byte.
 
 The 2-way IPC harness on `beauty.sno < beauty.sno` (SPITBOL ⇄ scrip
@@ -1789,12 +1789,12 @@ The 2-way IPC harness on `beauty.sno < beauty.sno` (SPITBOL ⇄ scrip
 ordering as session #57's IR-run termination, not a semantic
 divergence).  Smoke=7, Broker=49.
 
-**Status (session #60):** SN-32b CLOSED, SN-32d CLOSED for `--interp`.
+**Status (session #60):** SN-32b CLOSED, SN-32d CLOSED for `--run`.
 Two `SM_STORE_VAR` bugs fixed in `sm_interp.c`:
 (1) stack-underrun when RHS is FAIL (push FAILDESCR to stay balanced);
 (2) pushing NV_SET_fn's unreliable return instead of the original `val`
 (mirrors IR `E_ASSIGN:2844` which always returns `val`).
-`scrip --interp beauty.sno < beauty.sno` now produces 646-line output
+`scrip --run beauty.sno < beauty.sno` now produces 646-line output
 md5 `abfd19a7a834484a96e824851caee159` — byte-identical to SPITBOL oracle.
 `--run` still diverges (md5 `b6873a89707f671133fae5e07b40942c`);
 `sm_codegen.c` has its own paths to audit under SN-32c.
@@ -1802,7 +1802,7 @@ Smoke=7, Broker=49.
 
 **Status (session #58):** SN-32a partially landed — IPC harness
 wire-up + SM_STNO source-stno operand + blank-stmt skip + IDX_SET
-`<lval>` fire-point.  Both `--interp` and `--run` IPC harness
+`<lval>` fire-point.  Both `--run` and `--run` IPC harness
 on `beauty.sno < /dev/null` pass cleanly: **all 1561 steps agree,
 both reach END (exit 0)**.  Direct-stdout self-host
 `beauty.sno < beauty.sno` still bails at `mainErr2 Internal Error`
@@ -1816,11 +1816,11 @@ pattern build) — to be addressed under SN-32b.
 **Architecture reminder.**
 ```
 .sno -> sno_parse() -> CODE_t* [LANG_SNO]
-    --interp  -> execute_program() -> interp_eval()        ← session #57 byte-identical
-    --interp  -> sm_lower() -> SM_Program -> sm_interp_run() ← SN-32 ladder
+    --run  -> execute_program() -> interp_eval()        ← session #57 byte-identical
+    --run  -> sm_lower() -> SM_Program -> sm_interp_run() ← SN-32 ladder
     --run -> sm_lower() -> SM_Program -> sm_codegen() -> sm_jit_run()
                                                              ↑ shares sm_lower output
-                                                               with --interp
+                                                               with --run
 ```
 SM and JIT bail identically because `sm_codegen` emits x86 from
 the same SM_Program produced by `sm_lower`.  Fixing SM's
@@ -1864,7 +1864,7 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
   - New scripts `test_monitor_2way_spitbol_vs_sm.sh` and
     `test_monitor_2way_spitbol_vs_jit.sh`; the underlying
     `test_monitor_3way_sync_step_auto.sh` now honours
-    `SCRIP_RUN_FLAG` (default `--interp`).
+    `SCRIP_RUN_FLAG` (default `--run`).
   - Plain-var stores already fire `comm_var` via the shared
     `NV_SET_fn` chokepoint — no SM/JIT change needed there.
   - CALL/RETURN during user-function execution already fire via
@@ -1873,16 +1873,16 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
     `call_user_function` → `comm_call`/`comm_return`.  No
     SM-specific plumbing needed.
   - **Verified**: `beauty.sno < /dev/null` IPC harness 1561 steps
-    clean END under `--interp` and `--run`; tiny smoke
+    clean END under `--run` and `--run`; tiny smoke
     probes (`p_def`, `p_loop`, `p_idx`, `p_upr`) all clean.
   - **Remaining work** (to close `-a`): if any deferred fire-point
     surfaces during SN-32b — e.g. NM_PTR/NM_CALL stores during
     pattern capture — mirror them on the SM lowering side.
 - [x] **SN-32b-beauty-ipc** — *CLOSED session #60 (2026-04-28).*
-  Two bugs in `sm_interp.c` `SM_STORE_VAR` fixed; `--interp beauty.sno
+  Two bugs in `sm_interp.c` `SM_STORE_VAR` fixed; `--run beauty.sno
   < beauty.sno` now produces 646-line output md5
   `abfd19a7a834484a96e824851caee159` — byte-identical to SPITBOL oracle
-  and to `--interp`.
+  and to `--run`.
 
   **Sub-rung-1 (session #59)** — bare `*fn(args)` all-E_VAR fast path
   discarding args — already recorded above.
@@ -1921,10 +1921,10 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
   directly — matching the IR exactly.
 
   **Verification (session #60):**
-  - `scrip --interp beauty.sno < beauty.sno` → 646 lines,
+  - `scrip --run beauty.sno < beauty.sno` → 646 lines,
     md5 `abfd19a7a834484a96e824851caee159` ✓ byte-identical to SPITBOL.
   - IPC harness `beauty.sno < /dev/null` still reaches MWK_END at step
-    1561 under `--interp` (no regression).
+    1561 under `--run` (no regression).
   - Smoke=7, Broker=49.
 
   **Files touched (session #60):**
@@ -1935,7 +1935,7 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
 - [x] **SN-32c-beauty-jit** — *CLOSED session #61 (2026-04-28).*
   `--run beauty.sno < beauty.sno` now produces 646-line output md5
   `abfd19a7a834484a96e824851caee159` — byte-identical to SPITBOL,
-  to scrip --interp, and to scrip --interp.
+  to scrip --run, and to scrip --run.
 
   **Root cause:** `sm_codegen.c` `h_store_var` carried the same two
   `SM_STORE_VAR` bugs that session #60 fixed in `sm_interp.c`.  SM and
@@ -1977,7 +1977,7 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
     in session #57 for IR-run, not a runtime semantic divergence.
   - 2-way IPC harness on `beauty.sno < /dev/null`: still reaches MWK_END
     at step 1561 under `--run` (no regression).
-  - All three modes (`--interp`, `--interp`, `--run`) now produce
+  - All three modes (`--run`, `--run`, `--run`) now produce
     byte-identical output to SPITBOL on the beauty self-host.
   - Smoke=7, Broker=49.
 
@@ -1992,12 +1992,12 @@ codegen-only sites (sm_codegen.c h_stno, etc.).
   share `sm_lower` lowering output but each has its own opcode handler
   layer; bug fixes do not propagate automatically.
 
-- [x] **SN-32d** — `--interp` md5 byte-identical confirmed session #60;
+- [x] **SN-32d** — `--run` md5 byte-identical confirmed session #60;
   `--run` md5 byte-identical confirmed session #61.  Both backend
   parity gates closed.
 
 **Gate:** Smoke=7, Broker=49 after every commit.  Plus
-`--interp` and `--run` md5 must approach
+`--run` and `--run` md5 must approach
 `abfd19a7a834484a96e824851caee159` as sub-rungs land.
 
 **Cross-pollination (from PLAN.md):** SM/JIT fixes share lowering
@@ -2012,7 +2012,7 @@ Sharpened end-state target ACHIEVED.**
 
 The GOAL-LANG-SNOBOL4.md sharpened end-state target — "Self-host
 output md5 must match SPITBOL's `abfd19a7a834484a96e824851caee159`
-byte-for-byte" — is now achieved.  scrip --interp on
+byte-for-byte" — is now achieved.  scrip --run on
 `beauty.sno < beauty.sno` produces 646 lines of output that md5 to
 `abfd19a7a834484a96e824851caee159`, byte-identical with SPITBOL
 oracle's output.
@@ -2509,7 +2509,7 @@ involves either the `icase = icase (...)` self-concat shape, the
      PATTERN` matching between spl and scr.
    - **-s** (closed this session): RETURN display fix (above).
    - **-t** (open, active): find eager nTop caller. Trap in `comm_call`
-     when `fname=="nTop"`, run `scrip --interp beauty.sno < /dev/null`
+     when `fname=="nTop"`, run `scrip --run beauty.sno < /dev/null`
      under gdb. Backtrace shows exact C path causing eager nTop evaluation
      inside `reduce = EVAL("epsilon . *Reduce(" t ", " n ")")` at stno=589.
 
@@ -2518,7 +2518,7 @@ involves either the `icase = icase (...)` self-concat shape, the
 **Next session resume:**
 - Implement -t diagnostic: add `if (strcmp(fname,"nTop")==0) __builtin_trap();`
   in `comm_call` (interp.c or snobol4.c — wherever comm_call is defined),
-  rebuild scrip, run under gdb `--interp beauty.sno < /dev/null`.
+  rebuild scrip, run under gdb `--run beauty.sno < /dev/null`.
 - Do NOT commit the trap. Read the backtrace, identify the call site, fix
   the eager-evaluation bug, revert the trap, commit the fix.
 - After -t lands, run the 2-way harness — expect to advance past step 1257.
@@ -2918,7 +2918,7 @@ Empty-statement path also updated to use `s->stno` (preserves
 session #44 -k semantics: blank lines bump &STNO not &STCOUNT).
 Same bug pattern still present in `sm_interp.c SM_STNO` /
 `sm_codegen.c h_stno` (`g_sm_stno` counter); deferred as latent
-follow-up since the harness uses --interp only.
+follow-up since the harness uses --run only.
 
 **Files touched (session #46):**
 - `src/frontend/snobol4/scrip_cc.h` (added `STMT_t.stno` field)
@@ -3014,7 +3014,7 @@ wrong in a different way.
 **Beauty self-host status (session #43, post corpus `7041a14`):**
 - SPITBOL x64 `-bf`: **CLEAN** — 646 lines, md5
   `abfd19a7a834484a96e824851caee159`
-- scrip `--interp`: clean run, 523 lines, md5
+- scrip `--run`: clean run, 523 lines, md5
   `195f9320d836948a0f21b63a4fc68b08` — drops LHS var+`=` on
   assignment statements. See SN-26-bridge-coverage-j.
 

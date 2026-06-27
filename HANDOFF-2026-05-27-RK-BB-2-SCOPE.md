@@ -16,7 +16,7 @@ Smoke:            5/0    ✅ matches watermark
 ## Demo of the current failure (mode-2 AND mode-4 both fail rk_gather)
 
 ```
-$ ./scrip --interp test/raku/rk_gather.raku
+$ ./scrip --run test/raku/rk_gather.raku
 sm_lower: unhandled AST kinds: TT_EVERY
 done
 $ bash scripts/run_raku_via_x86_backend.sh test/raku/rk_gather.raku

@@ -18,7 +18,7 @@ SN4-SC-1..5 (mechanical replacements: 12 × `reduce_prim`, 2 × `reduce_call`, 4
 
 ## Open
 
-- ⚠ **MIRROR-GAP-SN4-SC-6** — smoke run blocked by `--interp` Snocone runtime regression (EC-3*), `smoke_snocone` 2/3 FAIL. Unrelated to parser edits; debug in EC-3 session.
+- ⚠ **MIRROR-GAP-SN4-SC-6** — smoke run blocked by `--run` Snocone runtime regression (EC-3*), `smoke_snocone` 2/3 FAIL. Unrelated to parser edits; debug in EC-3 session.
 
 ## State
 

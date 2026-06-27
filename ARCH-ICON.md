@@ -118,4 +118,4 @@ allocated fresh per alpha-entry. CODE is shared.
 
 ## Note (2026-05-17)
 
-Mode 1 (`--ast-run`) deleted; `icn_value.c`, `icn_stmt.c`, `icn_stmt.h` deleted. Three `[DAI-BOMB]` stubs remain in `icn_runtime.c` for unreachable call sites. Reference path is `--interp` (mode 2).
+Mode 1 (`--ast-run`) deleted; `icn_value.c`, `icn_stmt.c`, `icn_stmt.h` deleted. Three `[DAI-BOMB]` stubs remain in `icn_runtime.c` for unreachable call sites. Reference path is `--run` (mode 2).

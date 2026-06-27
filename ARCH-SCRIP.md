@@ -10,7 +10,7 @@ Mode 1 (AST interpreter) is **deleted**. Three execution modes remain:
 
 | # | Mode | Flag | Purpose | Pipeline |
 |---|------|------|---------|----------|
-| 2 | SM gen / interp | `--interp` (default) | program in SM/BB form, dispatched in C | IR → `sm_lower` → `sm_interp_run` |
+| 2 | SM gen / interp | `--run` (default) | program in SM/BB form, dispatched in C | IR → `sm_lower` → `sm_interp_run` |
 | 3 | SM gen / exec | `--run` | speed without asm/link/process overhead | IR → `sm_lower` → `sm_codegen` → `sm_jit_run` |
 | 4 | SM gen / asm / link / exec | `--compile` | full native binary path | IR → `sm_lower` → asm-emit → link → exec |
 
@@ -43,7 +43,7 @@ by program counter (`g_jit_prog->instrs[STATE->pc]` opcode-dispatch loop / per-o
 nor (b) traverse a `BB_t` graph in C (`bb_exec_once` / `bb_exec_resume` / `bb_exec_node` / `bb_broker`).
 Mode 4's emitter walks SM/BB **at emit time** (required and permitted) then frees the graph
 (`stage2_free_bb_after_emit`); the standalone binary holds no graph. The C SM/BB walkers
-(`sm_interp_run`, `bb_exec_*`) belong to **mode 2 (`--interp`) ONLY**. The SB-LINEAR endpoint is
+(`sm_interp_run`, `bb_exec_*`) belong to **mode 2 (`--run`) ONLY**. The SB-LINEAR endpoint is
 `sm_emit_linear` → `sm_run_linear` (enter native blob); the legacy `sm_jit_run` trampoline is itself an
 SM-walking loop and is a migration target, not the end state. The single documented temporary exception
 is Prolog `--run` → `sm_interp_run` (AGW-1c), to be removed once `bb_pl_*.cpp` templates land. Runtime
@@ -87,4 +87,4 @@ stub sites in modes 3/4 print `[NO-SM-BB] <opcode>` and set `last_ok=0`.
 Two helpers in `src/driver/scrip_sm.{c,h}`:
 
 - `sm_preamble(prog) -> SM_sequence_t *` — `label_table_build` + `prescan_defines` + `g_sno_err_active = 1` + `sm_lower` + `g_current_sm_prog = sm` + `code_free` + `label_table_clear_stmts`. Returns NULL on failure.
-- `sm_run_with_recovery(sm, runner)` — initialises `SM_State`, drives a `setjmp(g_sno_err_jmp)` loop calling `runner(sm, &st)` until normal halt or fatal error. Used by both `--interp` and `--run`.
+- `sm_run_with_recovery(sm, runner)` — initialises `SM_State`, drives a `setjmp(g_sno_err_jmp)` loop calling `runner(sm, &st)` until normal halt or fatal error. Used by both `--run` and `--run`.

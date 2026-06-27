@@ -368,7 +368,7 @@ REMAINING BLOCKER: variable-stored patterns via SM_PAT_REFNAME / XDSAR.
   PATND_t.kind and IR_t.t are both first-field ints, but enum values do NOT align:
     XDSAR=21 maps to IR_REPEAT=21 → default:→fail in emit_flat_ir().
   ALL PATND kinds fall to default→fail. Pattern matching via bb_deferred_var
-  is entirely broken in --interp mode for variable-stored patterns.
+  is entirely broken in --run mode for variable-stored patterns.
 
 ACTUAL FIX TARGET (clarified this session):
   bb_deferred_var() in stmt_exec.c already correctly:

@@ -31,7 +31,7 @@ and GOAL-SNO-TREEBANK-LIST. All three sessions share main — pull --rebase befo
 Fixes to shared files (interp.c, bb_boxes.c, stmt_exec.c) benefit all sessions immediately.
 
 **Done when:** `demo_claws5` passes in `test_interp_broad_corpus_and_beauty.sh`;
-output matches `corpus/programs/snobol4/demo/claws5.ref` under `--interp`.
+output matches `corpus/programs/snobol4/demo/claws5.ref` under `--run`.
 
 ---
 
@@ -64,7 +64,7 @@ Oracle: CSNOBOL4 -bf -P 500k  (double-function trick; SPITBOL -f is broken)
 Run to test:
 ```bash
 DEMO=/home/claude/corpus/programs/snobol4/demo
-timeout 30 /home/claude/SCRIP/scrip --interp $DEMO/claws5.sno \
+timeout 30 /home/claude/SCRIP/scrip --run $DEMO/claws5.sno \
     < $DEMO/CLAWS5inTASA.dat 2>/dev/null | diff - $DEMO/claws5.ref
 ```
 
@@ -78,7 +78,7 @@ timeout 30 /home/claude/SCRIP/scrip --interp $DEMO/claws5.sno \
 
 **claws5.ref note:** extended from 95 lines (scoped to sentences 1-4) to the
 full 5622-line authoritative CSNOBOL4 `-bf -P 500k` output. SCRIP
-`--interp` and `--interp` are byte-identical to the oracle across the full
+`--run` and `--run` are byte-identical to the oracle across the full
 989-line input.
 
 **demo_claws5 now PASS** in `test_interp_broad_corpus_and_beauty.sh`
@@ -112,7 +112,7 @@ full 5622-line authoritative CSNOBOL4 `-bf -P 500k` output. SCRIP
     * 143-line input: was SEGV 617 trunc → now exit 0, 837 lines
     * full 989-line input: was SEGV 0 lines → now exit 0, 5622 lines
     * smoke PASS=7, broker PASS=49, broad corpus+beauty PASS=218/228 (unchanged)
-    * Both `--interp` and default SM-mode benefit (shared box code).
+    * Both `--run` and default SM-mode benefit (shared box code).
 
 - [x] **C5-4 DONE** — subscript_set (snobol4_pattern.c) now preserves key
   descriptor for DT_T, routing through `table_set_descr(tbl, k, idx, val)`
@@ -121,8 +121,8 @@ full 5622-line authoritative CSNOBOL4 `-bf -P 500k` output. SCRIP
 
   **Diagnosis differed from prior C5-4 plan.** Previous plan targeted
   `_aset_impl` in `snobol4_runtime_shim.h`, but instrumentation proved
-  `_aset_impl` is off the path for statement-level T<k>=v: both --interp
-  and --interp flow through `subscript_set()` in `snobol4_pattern.c:481`.
+  `_aset_impl` is off the path for statement-level T<k>=v: both --run
+  and --run flow through `subscript_set()` in `snobol4_pattern.c:481`.
   `_aset_impl` already calls `table_set_descr` correctly but is dead code
   for this path. The one-line fix was at `snobol4_pattern.c:489` (plus
   explanatory comment).
@@ -134,9 +134,9 @@ full 5622-line authoritative CSNOBOL4 `-bf -P 500k` output. SCRIP
   Verified:
     * Minimal repro T<1>='a';T<10>='b';T<2>='c';S=SORT(T):
       DATATYPE(S<i,1>) = INTEGER (was STRING); sort order 1,2,10 (was 1,10,2);
-      byte-match vs CSNOBOL4 -bf in both --interp and --interp.
+      byte-match vs CSNOBOL4 -bf in both --run and --run.
     * claws5 full 989-line CLAWS5inTASA.dat:
-      --interp == --interp == CSNOBOL4 oracle (5622 lines, diff = 0).
+      --run == --run == CSNOBOL4 oracle (5622 lines, diff = 0).
     * `claws5.ref` extended from 95 lines (sentences 1-4) to authoritative
       5622-line CSNOBOL4 `-bf -P 500k` output.
     * smoke PASS=7, broker PASS=49 (unchanged).

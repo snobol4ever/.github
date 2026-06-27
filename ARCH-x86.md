@@ -168,7 +168,7 @@ One binary. `scrip-interp` and `scrip-cc` names are retired. Harness passes `INT
 scrip [mode] [bb] [--target=T] [options] source.sno [-- program-args...]
 
 Execution modes (default: --sm-interp):
-  --interp        interpret via AST tree-walk (correctness reference)
+  --run        interpret via AST tree-walk (correctness reference)
   --sm-interp      interpret SM_Program via dispatch loop  [DEFAULT]
   --sm-native      SM_Program -> x86 bytes -> mmap slab -> jump in
                    (implies --target=x64; no emit to disk)
@@ -188,10 +188,10 @@ Target (for --compile; default: x64):
   --target=c       emit C        -> cc -> exec
 
 Legacy aliases (deprecated, map to new names):
-  --interp    -> --interp
+  --run    -> --run
   --dump-ast        -> --dump-ast
   --dump-ast-bison  -> --dump-ast-bison
-  --interp    -> --sm-interp
+  --run    -> --sm-interp
   --run   -> --sm-native
   --compile  -> --compile --target=x64
   --bb=brokered -> --bb-brokered
@@ -215,12 +215,12 @@ and does not use the `--target` flag.
 
 |                | x64 | js | wasm | jvm | msil | c |
 |----------------|:---:|:--:|:----:|:---:|:----:|:-:|
-| `--interp`    | ✓   | —  | —    | —   | —    | — |
+| `--run`    | ✓   | —  | —    | —   | —    | — |
 | `--sm-interp`  | ✓   | —  | —    | —   | —    | — |
 | `--sm-native`  | ✓   | —  | —    | —   | —    | — |
 | `--compile`    | ✓   | ✓  | ✓    | ✓   | ✓    | ✓ |
 
-`--interp` and `--sm-interp` always run in the C host process;
+`--run` and `--sm-interp` always run in the C host process;
 target is irrelevant. `--compile` is the universal text-codegen path —
 the same SM_Program walks to a target-language emitter, the emitter
 writes source text, and the target's toolchain assembles/compiles/runs it.

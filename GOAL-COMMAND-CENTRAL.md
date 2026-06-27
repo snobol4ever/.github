@@ -45,16 +45,16 @@ under both widths. Width-parity is the proof the macro-funnel actually made the 
   `src/emitter/emit_str.cpp:313` is a **LIVE reader** — it branches on `g_descr_layout` and reads
   `DESCR_OFF_V/SLEN/PAYLOAD` + `DESCR_STRIDE` to emit the packed-8 store vs the 16-byte quartet.
   The C `DESCR_t` stays 16 bytes (`sizeof==16`). **Therefore parity is a COMPILED-MODE question
-  (`--run` / `--compile`), NOT `--interp`:** `src/runtime/` has ZERO references to `g_descr_layout`,
+  (`--run` / `--compile`), NOT `--run`:** `src/runtime/` has ZERO references to `g_descr_layout`,
   so mode-2 is width-blind and the same binary under both flags — testing it proves nothing about width.
 - **The ONE missing prerequisite is the CLI flag.** `emit_globals.c:4` defines
   `g_descr_layout = DESCR_LAYOUT_16` and its own comment says "CLI flag flips to DESCR_LAYOUT_8",
   but **no flag is wired in `src/driver/scrip.c`** (argv loop at ~line 77). That is DW-1.
 - **Harness caveat (DW-0, carried from the old rung):** `test_interp_broad_corpus_and_beauty.sh`
   invokes `$INTERP "$sno"` with NO mode flag → falls into the excised native path. Force the mode
-  (`INTERP="$PWD/scrip --interp"` for the mode-2 leg). For the WIDTH legs the harness must drive a
+  (`INTERP="$PWD/scrip --run"` for the mode-2 leg). For the WIDTH legs the harness must drive a
   COMPILED mode + the layout flag.
-- **Branch baseline (16-byte, broad corpus, forced `--interp`):** PASS=25 / FAIL=255 of 280. This
+- **Branch baseline (16-byte, broad corpus, forced `--run`):** PASS=25 / FAIL=255 of 280. This
   branch's SNOBOL4 interp is far behind `main` (it predates LOWER2-EXEC / SBL-EXEC-2). A meaningful
   parity baseline likely needs the funnel rebased onto that recovery first — DW-2 must record the
   honest absolute counts; the RUNG's pass condition is **width-PARITY (8==16 failure sets)**, not an
@@ -66,7 +66,7 @@ under both widths. Width-parity is the proof the macro-funnel actually made the 
   and `--descr16` (→16-byte/64-bit, default) to the argv loop in `src/driver/scrip.c`, each setting
   the C-linkage extern `g_descr_layout` (defined in `emit_globals.c`, compiled with `$(CC)` so no
   name-mangling). Builds green; both flags fire and print a `[descr] layout = …` line; seed
-  `--interp` prints `hello` under both.
+  `--run` prints `hello` under both.
 
 > **⛔⛔ DW-BLOCKER (found at DW-1 verification, 2026-05-31) — READ THIS BEFORE DW-2.**
 > **SNOBOL4 has NO compiled path on this branch, so it cannot be tested at either width yet.**
@@ -75,7 +75,7 @@ under both widths. Width-parity is the proof the macro-funnel actually made the 
 >   path calls it.
 > - `scrip --run`/`--compile` for SNOBOL4 → **`[SMX] FATAL: Stack Machine excised … This language
 >   has not yet crossed onto Byrd Boxes. Aborting (by design).`** SNOBOL4's compiled mode was removed
->   with the SM and not yet rebuilt on Byrd Boxes. `--interp` (the only working SNOBOL4 mode) is
+>   with the SM and not yet rebuilt on Byrd Boxes. `--run` (the only working SNOBOL4 mode) is
 >   width-BLIND (`src/runtime/` reads `g_descr_layout` zero times) → identical binary under both flags.
 > - **CONSEQUENCE:** the SNOBOL4 width-parity suites (DW-2..DW-7 as written) are BLOCKED until
 >   SNOBOL4 crosses onto Byrd Boxes (the `SNOBOL4 → BB directed graph` track in `GOAL-ICON-BB.md` /
@@ -90,7 +90,7 @@ under both widths. Width-parity is the proof the macro-funnel actually made the 
   pass/fail for the COMPILED SNOBOL4 surface: `test_mode4_broad_corpus_snobol4.sh`,
   `test_crosscheck_snobol4.sh` (+ `util_crosscheck_3mode.sh`), `test_regression_full_corpus.sh`,
   `test_snobol4_pat_rung_suite.sh`, `test_smoke_snobol4_run.sh`, plus the mode-2 leg
-  `test_interp_broad_corpus_and_beauty.sh` (forced `--interp`) and `test_smoke_snobol4.sh`.
+  `test_interp_broad_corpus_and_beauty.sh` (forced `--run`) and `test_smoke_snobol4.sh`.
   Benchmarks: `test_bench_snobol4_modes.sh` (+ `build_benchmarks.sh`). Beauty/demo:
   `test_smoke_self_beautify.sh`, `util_run_beauty_oracle.sh`, `test_gate_sn7_beauty_self_host.sh`.
 - [ ] **DW-3 — 8-byte (32-bit) FULL run.** Re-run the IDENTICAL suite set from DW-2 with `--descr8`
@@ -238,14 +238,14 @@ under both widths. Width-parity is the proof the macro-funnel actually made the 
 > - **By design it's an x86-EMITTER mode, not a C-struct recompile.** Per descr.h's own comment,
 >   `DESCR_LAYOUT_8` selects emitted-x86 stride/offsets (RBP-based 32-bit payload); the C `DESCR_t`
 >   stays 16 bytes (`sizeof(DESCR_t)==16` measured). Therefore width-parity is a **mode-4 (compiled
->   x86)** question — mode-2 `--interp` never consults the layout. CC's DW-2/DW-3 "build `scrip` at
+>   x86)** question — mode-2 `--run` never consults the layout. CC's DW-2/DW-3 "build `scrip` at
 >   each width via `-DDESCR_WIDTH`" framing does NOT match what was built (no struct-packing switch).
-> - **This branch's SNOBOL4 interp is far behind `main`.** Broad corpus, forced `--interp`:
+> - **This branch's SNOBOL4 interp is far behind `main`.** Broad corpus, forced `--run`:
 >   funnel **PASS=25 / FAIL=255** of 280 vs `main` **PASS=128 / FAIL=152**. The branch diverged
 >   from base `d592f40` before main's SNOBOL4 recovery (LOWER2-EXEC, SBL-EXEC-2) and never received
 >   it — so even a working toggle would measure parity against a broadly-broken interpreter.
 >   Rebasing the funnel onto main's recovery is likely a precondition for a meaningful DW baseline.
-> - Build is green; ground-zero seed `scrip --interp` → `hello` ✅.
+> - Build is green; ground-zero seed `scrip --run` → `hello` ✅.
 
 **Why first:** the `descr8-macro-funnel` track funnels every raw DESCR field access through the
 macro layer (`INTVAL`/`REALVAL`/`MK_DATA`/`SET_SLEN`/`GET_SLEN`/`IS_CSET`/name-discriminator
@@ -256,18 +256,18 @@ funnel/width work proceeds.
 
 **Harness caveat (must fix as DW-0):** `scripts/test_interp_broad_corpus_and_beauty.sh` invokes
 `$INTERP "$sno"` with NO mode flag, so it falls into the excised mode-3 native SM path and aborts
-by design for non-Icon languages. Force `--interp` (set `INTERP="$PWD/scrip --interp"`) or patch
+by design for non-Icon languages. Force `--run` (set `INTERP="$PWD/scrip --run"`) or patch
 the harness, otherwise the absolute pass counts are meaningless (only the cross-branch delta is).
 
-**Known baseline (descr8-macro-funnel vs main, broad corpus + beauty, `--interp` forced):** net
+**Known baseline (descr8-macro-funnel vs main, broad corpus + beauty, `--run` forced):** net
 2 regressions (`062_capture_replacement`, `063_capture_null_replace`) / 2 fixes
 (`089_define_in_pattern`, `090_define_entry_label`). The two capture regressions are the prime
 suspects for DESCR-width sensitivity (step-3 touched `MK_DATA` + name-discriminator reads) and
 must be resolved before either width is declared green.
 
-- [ ] **DW-0** Fix the suite harness so every SNOBOL4 suite runs in a live mode (`--interp`), not the excised mode-3 default. Re-establish a real pass-count baseline on `main` and on `descr8-macro-funnel`.
+- [ ] **DW-0** Fix the suite harness so every SNOBOL4 suite runs in a live mode (`--run`), not the excised mode-3 default. Re-establish a real pass-count baseline on `main` and on `descr8-macro-funnel`.
 - [ ] **DW-1** Define the two DESCR layouts behind one compile-time switch (e.g. `-DDESCR_WIDTH=8` / `-DDESCR_WIDTH=16` selecting the `descr.h` struct packing). Confirm a clean build of `scrip` under each.
-- [ ] **DW-2** **8-byte:** build `scrip` with the 8-byte layout; run the FULL SNOBOL4 suite set — broad corpus + beauty drivers + demos (`test_interp_broad_corpus_and_beauty.sh`, `--interp`), smoke (`test_smoke_snobol4.sh`), 3-mode crosscheck (`test_crosscheck_snobol4.sh`), mode-4 broad (`test_mode4_broad_corpus_snobol4.sh`), and the full-corpus regression (`test_regression_full_corpus.sh`). Record per-suite pass/fail.
+- [ ] **DW-2** **8-byte:** build `scrip` with the 8-byte layout; run the FULL SNOBOL4 suite set — broad corpus + beauty drivers + demos (`test_interp_broad_corpus_and_beauty.sh`, `--run`), smoke (`test_smoke_snobol4.sh`), 3-mode crosscheck (`test_crosscheck_snobol4.sh`), mode-4 broad (`test_mode4_broad_corpus_snobol4.sh`), and the full-corpus regression (`test_regression_full_corpus.sh`). Record per-suite pass/fail.
 - [ ] **DW-3** **16-byte:** rebuild `scrip` with the 16-byte layout; run the identical suite set from DW-2. Record per-suite pass/fail.
 - [ ] **DW-4** **Width-parity diff:** for every suite, the 8-byte and 16-byte failure sets must be IDENTICAL. Any test that passes at one width and fails at the other is a width-sensitivity bug and blocks the rung.
 - [ ] **DW-5** Resolve the `062`/`063` capture regressions; re-run DW-2..DW-4 until both widths are green on all suites (subject to the known/unrelated baseline failures, which must match `main`).
@@ -406,6 +406,6 @@ AST --(lower)--> SM_sequence_t  [SM_BB_XXX bridge opcodes]
                  BB_graph_t*    [pre-built per bridge op]
 ```
 
-Mode 2 (`--interp`) = reference. Mode 4 (`--compile`) emits wired x86 via SM/BB/XA templates.
+Mode 2 (`--run`) = reference. Mode 4 (`--compile`) emits wired x86 via SM/BB/XA templates.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6

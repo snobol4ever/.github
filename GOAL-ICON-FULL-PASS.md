@@ -56,7 +56,7 @@ bash scripts/test_icon_rung_suite.sh --mode compile | tail -1
 ---
 
 **Status:** m3/m4 **144/283** · FAIL 14 · XFAIL 36 · EXCISED 89 · HEAD(SCRIP)=`e928643`.  
-m2 `--interp` is deleted (GOAL-DE-INTERP); suite reports phantom m2 FAILs — **ignore m2, gate on m3/m4 only**.  
+m2 `--run` is deleted (GOAL-DE-INTERP); suite reports phantom m2 FAILs — **ignore m2, gate on m3/m4 only**.  
 **Always diff FAIL names AND EXCISED names vs baseline in BOTH modes** — a net +PASS can mask an EXCISE→FAIL.
 
 ---

@@ -46,7 +46,7 @@ grep -rn "emit_term_from_node_bin" src/ --include=*.{c,cpp,h} → 0
 ```
 
 ## The standing invariant (audited green this session)
-**No IR access during m3 or m4 *execution*.** The ONLY remaining IR-graph walk in the runtime library is `bb_reset` + `IR_interp_once` inside `interp_exec_builtin` (resolution.c:876–877) — and that IS the mode-2 interpreter, reachable only via `--interp`. Proven: no GZ template (`bb_cell_*`), no `emit_bb.c`, no `emit_core.c`, and no GZ-emitted m3/m4 binary calls `interp_exec_builtin` / `IR_interp_once` / `resolve_invoke_var_goal` / `resolve_arith_eval` / `resolve_node_to_term` (grep == 0). Emit reads IR once to produce the image/`.S`; the produced binary never touches IR.
+**No IR access during m3 or m4 *execution*.** The ONLY remaining IR-graph walk in the runtime library is `bb_reset` + `IR_interp_once` inside `interp_exec_builtin` (resolution.c:876–877) — and that IS the mode-2 interpreter, reachable only via `--run`. Proven: no GZ template (`bb_cell_*`), no `emit_bb.c`, no `emit_core.c`, and no GZ-emitted m3/m4 binary calls `interp_exec_builtin` / `IR_interp_once` / `resolve_invoke_var_goal` / `resolve_arith_eval` / `resolve_node_to_term` (grep == 0). Emit reads IR once to produce the image/`.S`; the produced binary never touches IR.
 
 ## Reference: globals by phase (for next session)
 **m3 RUNTIME (RX-slab execution):** `g_resolve_trail`, `g_resolve_env`, `g_resolve_bfr`, `g_resolve_cut_flag`, `g_resolve_cut_barrier`, `g_resolve_cp_stamp` (all resolution.c); `g_resolve_mark_stack`/`_top`, `g_rt_pl_nb`/`_n`, `g_meta_compat` (unification.c); `ATOM_DOT`/`NIL`/`TRUE`/`FAIL`/`CUT` (prolog_atom.c).

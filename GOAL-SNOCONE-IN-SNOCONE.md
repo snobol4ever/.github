@@ -48,7 +48,7 @@ bash /home/claude/SCRIP/scripts/build_scrip.sh
 
 Gate after setup:
 ```bash
-scrip --interp /home/claude/corpus/programs/snocone/corpus/sc1_literals.sc
+scrip --run /home/claude/corpus/programs/snocone/corpus/sc1_literals.sc
 # → hello / world / 42
 ```
 
@@ -60,7 +60,7 @@ to the files named in this goal file.
 
 ## Architecture
 
-**Stage 0 host:** `scrip --interp snocone.sc` — C Snocone frontend + C IR interpreter runs the bootstrap compiler.
+**Stage 0 host:** `scrip --run snocone.sc` — C Snocone frontend + C IR interpreter runs the bootstrap compiler.
 **Stage 1 compiler:** `snocone.sc` itself, driven by Stage 0.
 **Self-host proof:** Stage 1 compiles `snocone.sc` → same output as Stage 0. Empty diff.
 
@@ -225,7 +225,7 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
   function val_to_str(x) { ... coerce Val to string for OUTPUT ... }
   ```
   Gate: inline test prints 5 lines matching `value.ref`.
-  Run: `scrip --interp value.sc | diff - value.ref`.
+  Run: `scrip --run value.sc | diff - value.ref`.
 
 - [ ] **SS-3** ⏸ ON HOLD — `ir.sc`: Node struct + S-expr printer.
   ```
@@ -291,8 +291,8 @@ kinds Snocone actually emits (audited: ~20 of the 90 EKind values).
 
 - [ ] **SS-15** ⏸ ON HOLD — Self-host gate.
   ```bash
-  SNO_LIB=. scrip --interp snocone.sc < snocone.sc > /tmp/stage1.out
-  SNO_LIB=. scrip --interp snocone.sc < /tmp/stage1.out > /tmp/stage2.out
+  SNO_LIB=. scrip --run snocone.sc < snocone.sc > /tmp/stage1.out
+  SNO_LIB=. scrip --run snocone.sc < /tmp/stage1.out > /tmp/stage2.out
   diff /tmp/stage1.out /tmp/stage2.out   # → empty
   ```
 

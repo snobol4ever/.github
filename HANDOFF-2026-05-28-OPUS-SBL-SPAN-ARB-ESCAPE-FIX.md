@@ -95,7 +95,7 @@ $ SCRIP_M3_NATIVE=1 ./scrip --run test/snobol4/patterns/041_pat_span.sno
 - `063_pat_fence_fn_optional`, `064_pat_fence_fn_capture`, `065_pat_fence_fn_decimal`, `066_pat_fence_fn_nested` — FENCE templates internally use SPAN for cursor scanning; same multiplier effect as the POS-PATCH-OFFSET → 8 FENCE wins from yesterday
 - `test_string`, `wordcount` — SPAN-based driver programs
 
-**Newly passing default-mode broad corpus (4 net):** mostly the same SPAN-based programs that route through `bb_build_brokered` → BINARY arm even under `--interp` (as predecessor noted).
+**Newly passing default-mode broad corpus (4 net):** mostly the same SPAN-based programs that route through `bb_build_brokered` → BINARY arm even under `--run` (as predecessor noted).
 
 **Gates after fix (all hold):**
 - G1: 13/13 default + 13/13 native

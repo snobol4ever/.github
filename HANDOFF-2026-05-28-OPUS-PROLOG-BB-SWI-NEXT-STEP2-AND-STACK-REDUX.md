@@ -172,7 +172,7 @@ EOF
 # Full test_string.pl still crashes — that's the bb=0x3 bug.
 PLUNIT=/home/claude/corpus/programs/prolog/plunit.pl; WRAP=/tmp/swi_wrap.pl
 printf 'main :- run_tests.\n:- initialization(main).\n' > $WRAP
-timeout 30 ./scrip --interp $PLUNIT \
+timeout 30 ./scrip --run $PLUNIT \
     /home/claude/corpus/programs/prolog/swi_tests/test_string.pl $WRAP
 # Expect: 8 tests print, then "Segmentation fault"
 ```
@@ -181,7 +181,7 @@ For gdb session:
 ```bash
 ulimit -c unlimited
 timeout 30 gdb --batch \
-  -ex "run --interp $PLUNIT \
+  -ex "run --run $PLUNIT \
         /home/claude/corpus/programs/prolog/swi_tests/test_string.pl $WRAP" \
   -ex "frame 1" -ex "p *zc" -ex "p ai" \
   -ex "x/8gx zc->args" -ex "bt" \

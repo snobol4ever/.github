@@ -208,7 +208,7 @@ authors a mode-2 BB_SUSPEND executor (or a unified pump in sm_bb_switch),
 the gate can be lifted and Icon's `suspend` can move onto BB too. Not
 this goal.
 
-Symptom today: `./scrip --interp test/raku/rk_gather.raku` reports
+Symptom today: `./scrip --run test/raku/rk_gather.raku` reports
 `sm_interp: stack underflow`. Mode-4 path is unaffected because the
 emit-time `bb_suspend.cpp` template handles BB_SUSPEND.
 

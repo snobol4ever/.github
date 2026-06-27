@@ -31,7 +31,7 @@ and GOAL-SNO-CLAWS5. All three sessions share main — pull --rebase before ever
 Fixes to shared files (interp.c, bb_boxes.c, stmt_exec.c) benefit all sessions immediately.
 
 **Done when:** `demo_treebank-array` passes in `test_interp_broad_corpus_and_beauty.sh`;
-output matches `corpus/programs/snobol4/demo/treebank-array.ref` under `--interp`.
+output matches `corpus/programs/snobol4/demo/treebank-array.ref` under `--run`.
 
 ---
 
@@ -64,7 +64,7 @@ Oracle: CSNOBOL4 -bf -P 200k  (double-function trick; SPITBOL -f is broken)
 Run to test:
 ```bash
 DEMO=/home/claude/corpus/programs/snobol4/demo
-timeout 30 /home/claude/SCRIP/scrip --interp $DEMO/treebank-array.sno \
+timeout 30 /home/claude/SCRIP/scrip --run $DEMO/treebank-array.sno \
     < $DEMO/VBGinTASA.dat 2>/dev/null | diff - $DEMO/treebank-array.ref
 ```
 
@@ -125,7 +125,7 @@ function, so children are never appended.
 
 ## Current state (2026-04-17, SCRIP HEAD 25ab6fe7 — TA-2 DONE)
 
-GOAL COMPLETE. treebank-array --interp diff=0 vs treebank-array.ref.
+GOAL COMPLETE. treebank-array --run diff=0 vs treebank-array.ref.
 
 Two fixes landed:
 1. bb_usercall (stmt_exec.c): deferred *fn() via NAM_push_callcap (Bug #1d).

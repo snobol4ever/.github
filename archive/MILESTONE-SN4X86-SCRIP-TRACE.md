@@ -1,9 +1,9 @@
-# MILESTONE-SN4X86-SCRIP-TRACE — TRACE/STOPTR/DUMP/SETEXIT + Monitor in scrip --interp
+# MILESTONE-SN4X86-SCRIP-TRACE — TRACE/STOPTR/DUMP/SETEXIT + Monitor in scrip --run
 
 **Authors:** Lon Jones Cherryholmes · Claude Sonnet 4.6
 **Date:** 2026-04-10
 **Goal:** Wire TRACE/STOPTR/DUMP/SETEXIT and the sync-step two-way monitor into
-`scrip --interp` so the beauty suite can be driven by `monitor_sync.py` with
+`scrip --run` so the beauty suite can be driven by `monitor_sync.py` with
 SPITBOL x64 as oracle. Gates MILESTONE-SN4X86-BEAUTY-PREREQS (19/19) and B-3.
 
 ---
@@ -62,7 +62,7 @@ non-trace lines (they don't match the `KIND RS ...` wire format).
 ## Baseline
 
 - SCRIP HEAD: `f23ef24c`
-- `--interp` PASS=193/203 · beauty suite 14/19
+- `--run` PASS=193/203 · beauty suite 14/19
 - Monitor: 0/5 failing drivers wired (this milestone wires all 5)
 
 ## Gate

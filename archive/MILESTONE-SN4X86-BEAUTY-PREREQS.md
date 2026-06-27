@@ -16,7 +16,7 @@ for sno in "$BEAUTY"/beauty_*_driver.sno; do
     name=$(basename "$sno" .sno)
     ref="$BEAUTY/${name}.ref"
     [ ! -f "$ref" ] && continue
-    got=$(SNO_LIB="$INC" timeout 10 ./scrip --interp "$sno" 2>/dev/null)
+    got=$(SNO_LIB="$INC" timeout 10 ./scrip --run "$sno" 2>/dev/null)
     [ "$got" = "$(cat $ref)" ] && { echo "PASS $name"; PASS=$((PASS+1)); } \
                                 || { echo "FAIL $name"; FAIL=$((FAIL+1)); }
 done
@@ -27,18 +27,18 @@ echo "--- PASS=$PASS FAIL=$FAIL"
 
 ---
 
-## BP-0 — &STLIMIT / &STCOUNT wired in --interp loop
+## BP-0 — &STLIMIT / &STCOUNT wired in --run loop
 
 **Status:** ✅ COMPLETE (bea4045f) — execute_program + call_user_function hardcoded limits removed; sno_err_is_terminal break wired
 **Priority:** FIRST — needed for all debugging of infinite loops
 
 `kw_stlimit` and `kw_stcount` are declared in `snobol4.h` and exist in `snobol4.c`
-but are **never checked in the top-level --interp statement loop** in `scrip.c`.
+but are **never checked in the top-level --run statement loop** in `scrip.c`.
 The inner `call_user_function` loop has a hardcoded `step_limit = 5000000` but
 the top-level loop has no guard at all.
 
 ### Fix
-In `scrip.c`, the top-level `--interp` statement dispatch loop (around line 107
+In `scrip.c`, the top-level `--run` statement dispatch loop (around line 107
 and the main run loop):
 
 ```c
@@ -65,7 +65,7 @@ cat > /tmp/stlimit_test.sno << 'EOF'
 loop    :(loop)
 END
 EOF
-./scrip --interp /tmp/stlimit_test.sno 2>&1 | grep "Termination"
+./scrip --run /tmp/stlimit_test.sno 2>&1 | grep "Termination"
 # → ** Termination by statement limit (5)
 ```
 

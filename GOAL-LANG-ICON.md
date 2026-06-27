@@ -10,7 +10,7 @@
 ║  Do NOT restore the AST-walking call.  Do NOT route through proc_table_call or any              ║
 ║  other back-door that hands a tree_t* to mode-2/3/4 code.                                       ║
 ║                                                                                                  ║
-║  Mode 1 (`--interp` standalone AST interp) is unchanged and remains the reference path.        ║
+║  Mode 1 (`--run` standalone AST interp) is unchanged and remains the reference path.        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 
@@ -41,7 +41,7 @@
 
 **Repo:** SCRIP
 **Done when:** Icon standard library procedures pass under all three modes
-(--interp, --interp, --run). Rung ladder reaches rung-36. Icon generator
+(--run, --run, --run). Rung ladder reaches rung-36. Icon generator
 boxes (E_TO, E_EVERY, E_SUSPEND, E_BANG, E_ALT_GEN) work under SM+BB.
 
 **Cross-pollination:** icn_runtime.c, icon_gen.c improvements benefit
@@ -81,8 +81,8 @@ bash /home/claude/SCRIP/scripts/test_icon_ir_rung_36.sh        # JCON suite (xfa
 
 ```
 .icn → icon_parse() → CODE_t* [LANG_ICN]   (no AST layer — FI-2 done)
-    --interp  → execute_program() → interp_eval() with ICN_CUR frame stack
-    --interp  → sm_lower() → SM_BB_PUMP per stmt → bb_broker(BB_PUMP)
+    --run  → execute_program() → interp_eval() with ICN_CUR frame stack
+    --run  → sm_lower() → SM_BB_PUMP per stmt → bb_broker(BB_PUMP)
     --run → sm_lower() → SM_BB_PUMP → sm_codegen() → sm_jit_run()
 
 Generator boxes in icon_gen.c:
@@ -97,12 +97,12 @@ Generator boxes in icon_gen.c:
 
 ## Rung ladder — all modes, x86
 
-Current baseline: rung01–11 59/59 PASS under --interp (GOAL-ICN-BROKER done).
+Current baseline: rung01–11 59/59 PASS under --run (GOAL-ICN-BROKER done).
 Rung 12–36 are the ladder for this goal.
 
 ### Phase 1 — IR-run rung ladder (rung 12–36)
 
-- [x] **IC-1** — rung01–11: 59/59 PASS --interp. (done, GOAL-ICN-BROKER)
+- [x] **IC-1** — rung01–11: 59/59 PASS --run. (done, GOAL-ICN-BROKER)
 
 - [x] **IC-2b** — Complete ALL goal-directed-evaluation ops as BB boxes in `icon_gen.c`
   and wire into `icn_eval_gen()`. No rung work until every GDE op has a box.
@@ -164,7 +164,7 @@ Rung 12–36 are the ladder for this goal.
   re-calls icn_call_proc with the substituted scalar via icn_call_builtin's
   user-proc dispatch each tick. Non-suspending procs run-to-completion per
   tick; existing suspend coroutine path preserved for procs without gen args.
-  Gate scripts (all rewritten for --interp, self-contained, xfail-aware):
+  Gate scripts (all rewritten for --run, self-contained, xfail-aware):
     `bash scripts/test_icon_ir_rung_30.sh`  — abs/max/min/sqrt/seq builtins
     `bash scripts/test_icon_ir_rung_31.sh`  — sort(L) / sortf(L,n)
     `bash scripts/test_icon_ir_rung_32.sh`  — string-return-value in every
@@ -301,7 +301,7 @@ Rung 12–36 are the ladder for this goal.
 
   Gate: `bash scripts/test_icon_ir_rung_36.sh` — current PASS=5/40/30/75.
   Goal: reduce FAIL toward 0; XFAIL is acceptable but should ideally
-  shrink too. Note: test_icon_ir_rung_36.sh rewritten for --interp by
+  shrink too. Note: test_icon_ir_rung_36.sh rewritten for --run by
   session #16 (was JVM-era jasmin script).
 
   Session #17 final state (clean rebuild, all gates clean):
@@ -480,26 +480,26 @@ Install the standard Icon ilib procedures as .icn files and wire them:
   Gate: files present, scrip parses them without error.
 
 - [ ] **IC-13** — `strings.icn`: `center/left/right`, `trim`, `map`, `repl`, `reverse`.
-  Write test file `test/icon/test_strings_lib.icn`. Run under --interp.
+  Write test file `test/icon/test_strings_lib.icn`. Run under --run.
   Gate: all 6 procs produce correct output vs Icon reference.
 
 - [ ] **IC-14** — `lists.icn`: `lsort`, `lreverse`, `lmap`, `lfind`.
   Write test file `test/icon/test_lists_lib.icn`.
-  Gate: PASS under --interp.
+  Gate: PASS under --run.
 
 - [ ] **IC-15** — `tables.icn`: `keylist`, `vallist`, `tmerge`.
   Write test file `test/icon/test_tables_lib.icn`.
-  Gate: PASS under --interp.
+  Gate: PASS under --run.
 
 ### Phase 3 — SM-run (BB_PUMP over generators, x86)
 
-- [ ] **IC-16** — rung01–11 under --interp.
+- [ ] **IC-16** — rung01–11 under --run.
   Each stmt routes via SM_BB_PUMP → icn_eval_gen → bb_broker.
   Gate: 59/59 PASS.
 
-- [ ] **IC-17** — rung12–20 under --interp.
+- [ ] **IC-17** — rung12–20 under --run.
   Fix any sm_lower.c or bb_broker gaps revealed.
-  Gate: all passing rungs under --interp also pass under --interp.
+  Gate: all passing rungs under --run also pass under --run.
 
 - [ ] **IC-18** — E_EVERY, E_ALT_GEN, E_BANG, E_LIMIT box implementations.
   Write missing BB boxes in icon_gen.c:
@@ -507,7 +507,7 @@ Install the standard Icon ilib procedures as .icn files and wire them:
     `icn_bb_alt_gen`  — alternation: try first gen then second
     `icn_bb_bang`     — `!list` — iterate list elements
     `icn_bb_limit`    — `gen \ n` — limit to n ticks
-  Gate: every/bang/limit tests pass under --interp and --interp.
+  Gate: every/bang/limit tests pass under --run and --run.
 
 ### Phase 4 — JIT-run (x86 in-memory code gen)
 
@@ -515,7 +515,7 @@ Install the standard Icon ilib procedures as .icn files and wire them:
   Gate: 59/59 PASS.
 
 - [ ] **IC-20** — rung12–20 under --run.
-  Gate: all diffs vs --interp empty.
+  Gate: all diffs vs --run empty.
 
 ---
 
@@ -639,7 +639,7 @@ DIVERGE at stmt N [label: LABEL, line LL]
 4. Re-run `--monitor` to confirm divergence is gone.
 5. Run `test_smoke_unified_broker.sh` — must stay PASS=31 FAIL=0.
 
-**Note:** `--monitor` is incompatible with `--interp`/`--run`
+**Note:** `--monitor` is incompatible with `--run`/`--run`
 (it drives all three internally). ICN frame locals (IM-10) and Prolog trail
 variables (IM-11) are not yet in the snapshot — coming in future IM steps.
 
@@ -963,7 +963,7 @@ rung19 pow(1), rung28 trim_map(1), rung29 image(1).
 IC-6 DONE: rung01-29 PASS=156/156 confirmed with corpus. Broker PASS=45 FAIL=0. Smoke PASS=5.
 Crosscheck PASS=4. All suspected IC-6 failures were already fixed from session 13.
 
-Scripts rewritten/extended this session (all in SCRIP/scripts/, self-contained, --interp):
+Scripts rewritten/extended this session (all in SCRIP/scripts/, self-contained, --run):
   test_icon_ir_rung_30.sh  — abs/max/min/sqrt/seq   (was JVM/jasmin stub)
   test_icon_ir_rung_31.sh  — sort/sortf              (was JVM/jasmin stub)
   test_icon_ir_rung_32.sh  — string retval every     (was JVM/jasmin stub)

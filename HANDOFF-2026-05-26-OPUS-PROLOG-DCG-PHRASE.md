@@ -16,7 +16,7 @@ Previously `phrase/N` hit a `pl_bb_lookup` miss and failed (`no`). Now the live 
 → rung30_dcg_basic_terminals, rung30_dcg_nonterminals PASS (were FAIL).
 
 ### `f43aff1d` — `write/1` of compound terms bound via a variable (`src/lower/bb_exec.c`)
-Two coordinated gaps in the live `--interp` BB path:
+Two coordinated gaps in the live `--run` BB path:
 1. `BB_PL_VAR` value resolution converted only INT/FLOAT/ATOM to a DESCR; a bound
    `TERM_COMPOUND` fell through to `NULVCL`. Added an arm emitting
    `(DESCR_t){.v=DT_DATA,.ptr=t}` (mirrors `BB_PL_STRUCT`).
