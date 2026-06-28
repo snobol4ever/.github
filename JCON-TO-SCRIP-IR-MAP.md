@@ -233,3 +233,22 @@ and the base shift disagree. NEXT RUNG: re-introduce emit_bb.c in two isolated p
 in the 4 `walk_bb_flat` literal cases, (B) the base shift — testing each alone on the descr path to pin the
 culprit; verify `entry->own` identity and walked-vs-counted literal parity; land literals reading LOWER slots
 at 213; only then extend the converted-producer frontier and compensate the remaining builder bases.
+
+2026-06-28 (cont. 2) — DEAD END proven with data: reserved-LOW-region + base-shift is UNVIABLE. Isolating
+runs (Icon `--run`, baseline 213): base-shift ALONE (descr builders `16 → 16+jcon_value_region`, NO literal
+read) = **201 (−12)**; + `IR_LIT_I` reading its reserved slot = **183 (−18 more)**; + `S/F/NUL` = **173 (−10
+more)**. The −12 from the bare base shift is decisive: the flat emitter has ABSOLUTE-offset dependencies
+(some `[r12+off]` / frame-size / `g_subject_slot` convention assumes specific absolute slots), so reserving a
+low region and pushing every other slot up is NOT behavior-neutral. Corollary on `S/F/NUL`: their baseline
+uses `bb_slot_alloc16` (FRESH slot per walk), which a single stable reserved slot collapses — they need
+distinct materialization slots. Conclusion: literals cannot be incrementally converted via a reserved low
+region; the mechanism conflicts with the emitter's fixed-offset assumptions and cannot be patched in pieces.
+REVERTED to **d68c695b** (213, clean). The LOWER `ir_jcon_slot_assign` pass stays as inert substrate, reusable.
+REVISED NEXT RUNG — pursue option (a) directly (LOWER assigns ALL slots; emit cursor RETIRED wholesale, which
+REPLACES the allocator with no shift, so absolute-offset deps move into the LOWER slotmap rather than being
+broken by a shift). Prerequisite recon for a fresh full-budget session: enumerate the emitter's absolute-offset
+assumptions — grep hardcoded `r12+`/`[r12` constant offsets, frame-size computations, `g_subject_slot` and the
+slot-0/slot-16 reservations, and the per-builder base conventions (`descr_flat_chain` base 16; `gvar_flat_chain`
+`16+(nslots-1)*16`; `pl_gz` base 16) — then have LOWER produce a complete per-graph slotmap (value + var +
+scratch + subject) that reproduces those fixed offsets, and switch every `bb_slot_get/alloc*`/`bb_varslot` read
+to `nd->lhs`/the slotmap in one coordinated flip per builder. This is the structural break the campaign assumes.
