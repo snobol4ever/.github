@@ -18,6 +18,26 @@ to the new path, let the old rot.
   (LOWER assigns ALL slots to `nd->lhs`; emitter reads slots, never mutates IR; call carries explicit
   operand tmps). Then Lon spins up the other-language sessions.
 
+### LOCKED TECHNIQUE (2026-06-28, proven on `write("hello world")`, SCRIP `486eb1a3`)
+The from-scratch path is **not** a template rewrite — TEMPLATES STAY (gate-clean `bc_gen_ir_*` analogs;
+fixes/consolidation only). **LOWER + the EMITTER DRIVER are the from-scratch surfaces.** The driver's job
+per node, proven composable on hello world:
+  1. **LOWER wires `operands[]` explicitly** (JCON `ir_Call` shape) — `lower_call` now pushes every chained
+     arg as an operand tmp (`9dd48524`), not just idx/list. `--dump-ir` shows `IR_CALL [3]`.
+  2. **Emitter reads `nd->lhs` for the result slot** — `IR_LIT_S` sources `op_off` from the LOWER-assigned
+     `nd->lhs` (=16), no emit-time `bb_slot_alloc16` (`b4f75d98`). Literal lands at `[r12+16]`; the `write`
+     consumer reads the same slot. The base-shift catastrophe (prior −40) was suite-coexistence only.
+  3. **Reconstruction demoted to a gap-filler** — `descr_chain_operand_refs` now TRUSTS LOWER operands
+     (skips the `n_operands=0` clobber when `n_operands>=ar`) (`486eb1a3`). The new driver does steps 1–2
+     universally and DELETES the gap-filler entirely.
+Verified green: mode-3 (`SCRIP_ICN_BB=1 --run`) + mode-4 (`--compile --target=x86` → as+gcc+link → run).
+Setup: `apt-get install -y libgc-dev`; `make scrip && make libscrip_rt`; link recipe in
+`scripts/cmp3_snobol4.sh` (`gcc -no-pie -x assembler X.s -Lout -lscrip_rt -lgc -lm -Wl,-rpath,out`).
+NEXT: stand up the from-scratch driver `emit_jcon` over the JCON instruction set for the hello-world spine
+{StrLit, Var/Deref, Call, Succeed, Fail, EnterInit} reading `operands[]`+`lhs`; route Icon to it; delete the
+`flat_drive_*` / reconstruction / `bb_slot_alloc16` legacy for that path. Extend `ir_jcon_slot_assign` from
+literals-only to ALL producers.
+
 ## ⛔ FACT RULE — THE EMITTER NEVER MUTATES AN IR NODE
 
 **The IR is the language-independent CONTRACT and it is READ-ONLY at emit time.** The emitter
