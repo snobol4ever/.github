@@ -127,8 +127,9 @@ INDEPENDENT CS-generic axes, none a language branch:
       (language-blind, writes ONLY `nd->lhs`, recurses leaf-SEQ sub-graphs) wired into `--dump-ir`; `bb_print`
       shows `lhs=`. VERIFIED: `x:=a+b;write(x)` → IR_BINOP `lhs=32` operands `[6 7]` = IR_VAR `a`(lhs=48)/
       `b`(lhs=64); IR_ASSIGN/IR_SUCCEED/IR_FAIL carry no lhs. Gate 42 / Icon 213 unchanged (pass runs in
-      dump path only; emit still uses its own slotmap). REMAINING (B1): wire `ir_tmp_slot_assign` into the
-      EMIT path + flip the emitter to read `nd->lhs` instead of `bb_slot_alloc16`/`bb_slot_get` — that is
+      dump path only; emit still uses its own slotmap). **LOCKED** by `scripts/test_gate_ir_tmp_slots.sh`
+      (structural: producers carry `lhs=`, side-effecting/control do not — pins the contract, not offsets).
+      REMAINING (B1): wire `ir_tmp_slot_assign` into the EMIT path + flip the emitter to read `nd->lhs` instead of `bb_slot_alloc16`/`bb_slot_get` — that is
       behavior-changing, gate-and-suite-gated, and is the next rung (Cluster 1). Predicate currently covers
       the common value-producers (lits/var/binop/unop/call+kinds/proc_gen); extend as clusters land.
 

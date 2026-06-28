@@ -121,6 +121,19 @@ Two LOWER-time passes, run after the per-language IR graph is built, before emit
 After these, the emitter reads `off(nd) = nd->lhs` directly. `bb_slot_alloc16`/`bb_slot_get` at emit time
 are RETIRED for the JCON path. This is what makes the emitter read-only (the gate → 0).
 
+**⚠ B1 COLLISION CAVEAT (must solve when flipping emit to read `lhs`).** Emit today allocates TWO kinds of
+slot from the same `g_flat_slot_count` cursor starting near 0: (1) value-node result slots (what the pass
+covers) and (2) SCRATCH/state slots (capture, ARBNO arena, generator state) via `bb_slot_alloc16(construct)`
+/ `bb_slot_claim(bytes)`. The pass numbers value slots densely from 0, so a naive "emit reads `nd->lhs` for
+value nodes while still allocating scratch the old way" COLLIDES the frame. B1 must either (a) move ALL slot
+allocation (incl. scratch) into LOWER (the faithful JCON end-state — JCON's tmp table includes scratch tmps),
+or (b) reserve value slots in `[0..nslots*16)` and start emit scratch at `graph->nslots*16`. Option (a) is
+the target. The pass currently covers value-producers only and recurses leaf-SEQ; scan sub-graph + scratch
+coverage is part of B1.
+
+STATUS 2026-06-27: passes 1+2 fused as `ir_tmp_slot_assign` (off = id*16; value-producers only; runs in the
+`--dump-ir` path; emit untouched). Locked by `scripts/test_gate_ir_tmp_slots.sh`.
+
 ---
 
 ## BUILD ORDER (one IR at a time; assemble when enough land)
