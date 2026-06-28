@@ -1,5 +1,23 @@
 # GOAL-IR-IMMUTABLE-EMIT.md — The emitter READS IR. It NEVER mutates it. (Ground Zero #5)
 
+## ⛔⛔ STANDING DIRECTIVE (Lon, 2026-06-28) — WHOLESALE JCON-IN-SCRIP, ICON-ONLY, HELLO-WORLD GATE
+**This supersedes every "DO NOT REGRESS" below and in all handoffs.** We are doing a COMPLETE wholesale
+rewrite of the Icon LOWER + EMITTER drivers + templates to mirror JCON (`refs/jcon-master/tran/`), because
+JCON has it CORRECT. Same IR as JCON's `ir.icn` EXCEPT we keep our fine-grained `IR_BINOP`/`IR_UNOP` split
+instead of one `ir_OpFunction`. Four JCON labels → TWO x86 instruction labels (α/β) + TWO `IR_ref_t` edge
+pointers (γ/ω); CHUNKS-vs-DRIVERS/TEMPLATES is the only shape difference. Build NEW beside old, route Icon
+to the new path, let the old rot.
+- **DEFER P1 and P2** (the dual-walker collapse + N-builder unification in JCON-TO-SCRIP-IR-MAP.md). They do
+  not help. Go straight to the JCON spine.
+- **EVERYTHING BREAKS.** ALL non-Icon languages are CANCELLED until Icon lands (they are already broken: no
+  IR_TMP, slots never tied to boxes). They will be REBUILT later with many new/different boxes.
+- **NO full regression. NO artifact regen.** The big suites take too long. `beauty.sno` is NO LONGER a
+  do-not-regress. Even Icon regressions do not matter for now.
+- **THE ONLY PROGRAM THAT MUST WORK IS `write("hello world")`.** That is the entire gate this session.
+  Drive the wholesale conversion until hello world compiles + runs through the new JCON-faithful spine
+  (LOWER assigns ALL slots to `nd->lhs`; emitter reads slots, never mutates IR; call carries explicit
+  operand tmps). Then Lon spins up the other-language sessions.
+
 ## ⛔ FACT RULE — THE EMITTER NEVER MUTATES AN IR NODE
 
 **The IR is the language-independent CONTRACT and it is READ-ONLY at emit time.** The emitter
