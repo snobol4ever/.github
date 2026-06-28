@@ -222,6 +222,34 @@ lower-wholesale-slots, then re-attempt the value-slot consume.
 ---
 
 ## Watermark (prior)
+**SESSION 2026-06-28 (Opus 4.8, Lon directing) — baseline restored green + 1 Track-B rung landed.**
+Inherited tree was suite-RED (Icon 187) from the half-landed B1 emit-side value band (`18bb0eda`).
+Two results this session, both committed (local; PUSH PENDING):
+1. **Reverted B1 emit overlay → green** (`f23ff36f`). Restored `emit_bb.c` to its pre-band parent
+   (`3566cf37`, == `4fb8e24e`'s clean IR_BINOP_GEN deletion), removing ONLY the band; KEPT the B0 keystone
+   substrate (`IR_t.lhs`+`nvalue_slots` field, `ir_tmp_slot_assign_flat`, driver wiring) — pass is
+   inert-but-landed again (the green B0 state). Diagnosis CONFIRMED: B1 broke because it overlaid a reserved
+   `[0,nvalue*16)` value band on the SAME walk-order cursor feeding scratch/varslots, across 3 emit entries
+   with 2 frame-base conventions (0/16). Partial conversion has producer↔consumer slot-matching seams — which
+   is WHY piecemeal fails and the path forward is moving ALL slot allocation into LOWER (handoff Option B),
+   built as a fresh parallel path, not a band overlay on the fat driver.
+2. **B6/F4 rung: capture box stops mutating IR** (`84b3d995`). `flat_drive_capture` wrote a phase immediate
+   onto the input node (`IR_LIT(pBB).ival = 0/1/2`) to drive two emissions of the same MATCH_ASSIGN node;
+   now the phase rides in a new `op_phase` emit-state field and `bb_match_capture` reads it. Gate **42→40**
+   (B field-writes 11→9). PROVEN neutral: capgood.sno AND beauty.sno mode-4 `.s` byte-identical BASE-vs-NEW.
+**Gate now HARD=40** (A=31 op-writes unchanged + B=9 field-writes). Icon 213/40/36 unchanged; SNOBOL4 mode-3
+smoke 7/7. **KEY REFRAMING for the parallel-path work:** the BB *templates are already clean* — `bb_binop_arith`
+reads operand slots (`op_sa`/`op_sb`) + writes result slot (`op_off`), never reads `nd->lhs`, never mutates IR.
+The disease is concentrated in the 4000-line `emit_bb.c` driver (`walk_bb_flat` switch + `flat_drive_*` zoo +
+`bb_slot_alloc16` emit-time reconstruction + the `->op` swaps). The conversion is mostly a DRIVER change feeding
+the existing templates from LOWER-assigned `lhs` instead of emit-time reconstruction. **NEXT:** the open PIVOT
+stands — build the parallel driver that sets `op_off`/`op_sa`/`op_sb` from `nd->lhs`/`operand->lhs` for the WHOLE
+graph (all slots from LOWER, no `bb_slot_alloc16`), gated, old path default; drive the literal+binop spine to a
+runnable `write(1+2)→3` first. Remaining F4 field-writes (9): mostly input-node mangles (capture L455-pair done;
+gz_query L715, limit L1797, case L1732/50/62, scan L2298-2303, gvar-swap L2244/48) needing per-site LOWER moves.
+
+---
+
 **JCON-IN-SCRIP WHOLESALE CONVERSION — 2026-06-27 (Lon directing).** New campaign on top of the
 A/B/C tracks: mirror JCON's `gen_bc.icn` (one `bc_gen_ir_<X>` per instruction) as one `bb_<x>` template
 per instruction, x86 instead of JVM bytecode. The full correspondence — slot mechanic (JCON tmp = JVM
