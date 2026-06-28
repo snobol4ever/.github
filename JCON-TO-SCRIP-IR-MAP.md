@@ -74,7 +74,7 @@ obeys invariant 1 — reads `lhs`, no emit-time alloc); `C-track` = a Track-C ad
 | JCON instruction | `gen_bc.icn` | produces value? | SCRIP target | status |
 |---|---|---|---|---|
 | `ir_IntLit`      | 351 | yes (lhs) | `bb_int_lit`   | EXISTS (`IR_LIT_I`) — move slot to lower |
-| `ir_RealLit`     | 366 | yes (lhs) | `bb_real_lit`  | EXISTS (`IR_LIT_F`) |
+| `ir_RealLit`     | 366 | yes (lhs) | `bb_real_lit`  | EXISTS (`IR_LIT_F`) — ✅ JCON-driver converted (`e44e2359`, reads `nd->lhs`) |
 | `ir_StrLit`      | 381 | yes (lhs) | `bb_str_lit`   | EXISTS (`IR_LIT_S`) |
 | `ir_CsetLit`     | 395 | yes (lhs) | `bb_cset_lit`  | C-track (C2) |
 | `ir_Tmp`         | 155/159 | — | (slot read/write) | slot-only (the keystone substrate) |
@@ -105,6 +105,12 @@ obeys invariant 1 — reads `lhs`, no emit-time alloc); `C-track` = a Track-C ad
 
 **Structural (not instructions — handled by the chunk walker / program builder, not a template):**
 `ir_Function`, `ir_Record`, `ir_Global`, `ir_Invocable`, `ir_Link`, `ir_chunk`, `ir_coordinate`.
+
+**SCRIP-specific scalar keyword note:** SCRIP has a separate `IR_KEYWORD` node for SCALAR keyword-literals
+(`&ucase`, `&digits`, `&letters`) — distinct from `ir_Key`/`IR_KEY_GEN` (the GENERATOR keyword form like
+`&fail`/`&pos`). `IR_KEYWORD` is ✅ JCON-driver converted (`be7d8c8f`): emit reads `nd->lhs`, and it was added
+to LOWER `jcon_converted_producer` so the slot comes from LOWER. `IR_KEY_GEN` (the generator form) is still
+on the fallback path.
 
 ---
 

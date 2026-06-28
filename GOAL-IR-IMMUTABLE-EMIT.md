@@ -11,12 +11,21 @@ to the new path, let the old rot.
   not help. Go straight to the JCON spine.
 - **EVERYTHING BREAKS.** ALL non-Icon languages are CANCELLED until Icon lands (they are already broken: no
   IR_TMP, slots never tied to boxes). They will be REBUILT later with many new/different boxes.
-- **NO full regression. NO artifact regen.** The big suites take too long. `beauty.sno` is NO LONGER a
-  do-not-regress. Even Icon regressions do not matter for now.
-- **THE ONLY PROGRAM THAT MUST WORK IS `write("hello world")`.** That is the entire gate this session.
-  Drive the wholesale conversion until hello world compiles + runs through the new JCON-faithful spine
-  (LOWER assigns ALL slots to `nd->lhs`; emitter reads slots, never mutates IR; call carries explicit
-  operand tmps). Then Lon spins up the other-language sessions.
+- **⛔⛔ THE `.s` BYTE-IDENTICAL RULE IS DELETED — PERMANENTLY, NOT "FOR NOW" (Lon, repeated 4×; honored 2026-06-28).**
+  There is NO requirement, anywhere, that any `.s` stay byte-identical — not `beauty.sno`, not `capgood.sno`,
+  not any benchmark/feature/demo artifact, not across modes, not vs any prior commit. The `.s` is the HONEST
+  CURRENT compiler output and **it WILL change drastically** as GROUND ZERO #5 rewrites LOWER + the EMITTER
+  DRIVER from scratch. Byte-identity of `.s` is NOT a gate, NOT a completion test, NOT a regression signal,
+  and must NEVER be wired into one. Any rung or handoff that cites `.s` byte-identity as a requirement is
+  defective — strike it. (`.s` regen scripts still exist to TRACK current output; they are not pass/fail.)
+- **NO full regression. NO artifact regen.** The big suites take too long. **Icon regression does not matter
+  AT ALL — let it go to ZERO and GROW back up.** We have `write("hello world")` and `1 + 1`; we GROW from there.
+- **THE ONLY PROGRAMS THAT MUST WORK ARE `write("hello world")` AND `write(1 + 1)`.** That is the entire gate.
+  Drive the wholesale conversion until both compile + run through the NEW JCON-faithful spine: a NEW LOWER that
+  assigns ALL slots to `nd->lhs`, and a NEW EMITTER DRIVER that reads slots / sets `g_emit` / invokes the proper
+  BB and NEVER mutates IR. The ONLY guarantee required: the proper BB is invoked and every variable lives in the
+  ONE place (`g_emit`) set correctly. This NEW driver becomes THE emitter driver for ALL languages, and the NEW
+  LOWER technique becomes the technique for ALL language LOWER functions. Then Lon spins up the other languages.
 
 ### LOCKED TECHNIQUE (2026-06-28, proven on `write("hello world")`, SCRIP `486eb1a3`)
 The from-scratch path is **not** a template rewrite — TEMPLATES STAY (gate-clean `bc_gen_ir_*` analogs;
@@ -192,7 +201,7 @@ INDEPENDENT CS-generic axes, none a language branch:
       opcode-picking calls in `emit_bb.c`; zero `IR_CALL` op writes in the emitter.
 
 - [ ] **B5 — F3 → MATCH STEPS IN LOWER (was IRM-5).** `lower_snobol4.c` builds `IR_MATCH_HEAD`/`_RETRY`/`_ADVANCE`;
-      delete the 3 emit-time retags (L2523/2528/2551). **Done:** emitter has 0 match-op writes; beauty.sno byte-identical.
+      delete the 3 emit-time retags (L2523/2528/2551). **Done:** emitter has 0 match-op writes.
 
 - [ ] **B6 — F4 → `IR_LIT` WRITE TRIAGE (was IRM-6).** Classify the 11 `IR_LIT(...)`/`IR_EXEC(...)` field writes:
       input-node mangle → move to lower; fresh scratch-node init → marked builder or have lower produce it. **Done:**
@@ -233,6 +242,125 @@ INDEPENDENT CS-generic axes, none a language branch:
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
+**NEW UNIFIED SLOT PASS LANDED + `.s` BYTE-IDENTITY RULE DELETED + DRIVER-FOR-ALL-LANGUAGES DECLARED — 2026-06-28 (Sonnet 4.6, Lon directing the GROUND ZERO #5 wholesale rewrite).**
+Local HEAD `SCRIP@c1e282c7` (4 commits past `0e677f4c`; **`.github` doc edits uncommitted; ALL PUSH PENDING —
+credential needed, handoff INCOMPLETE until pushed**). This session FREED the path from the old code per Lon's
+directive: stopped tying to `.s` byte-identity, collapsed the competing slot passes, declared the universal driver.
+
+**⛔ RULE DELETED (Lon, 4th request — honored).** The `.s`-byte-identical requirement is GONE permanently (see
+the STANDING DIRECTIVE bullet at the top of this file). It is NOT a gate, completion test, or regression signal,
+anywhere. The `.s` WILL change drastically as LOWER + the EMITTER DRIVER are rewritten. Struck from the directive
+bullet and the B5 completion test. (RULES.md step-4 was already correct — `.s` scripts "NEVER enforce sameness".)
+
+**⛔ ARCHITECTURE DECISION (Lon): `emit_jcon_node` IS THE EMITTER DRIVER FOR ALL LANGUAGES; `ir_drive_slot_assign`
+IS THE LOWER SLOT TECHNIQUE FOR ALL LANGUAGES.** The ONLY guarantee required of the driver: the proper BB is
+invoked and every variable lives in the ONE place (`g_emit`) set correctly. It reads `nd->lhs` + operands, never
+mutates IR, has ZERO chain-flag dependencies. Icon regression may go to ZERO and grow back — gate is `write("hello
+world")` + `write(1 + 1)` only.
+
+**LANDED THIS SESSION (4 SCRIP commits):**
+1. `e44e2359` — `IR_LIT_F` + `IR_LIT_NUL` → clean dispatch (`jcon_value_slot` reads `nd->lhs`).
+2. `be7d8c8f` — `IR_KEYWORD` → clean dispatch + added to LOWER producer set (scalar keyword `&ucase`/`&digits`).
+3. `c1e282c7` — **NEW UNIFIED SLOT PASS.** Collapsed the TWO competing passes (`ir_tmp_slot_assign_flat` numbering
+   value-producers from 0 + `ir_jcon_slot_assign` renumbering only literals from 16 — the disagreement that made
+   every prior attempt wobble) into ONE `ir_drive_slot_assign` (in `scrip_ir.c`): slots EVERY `ir_node_produces_value`
+   node EXCEPT `IR_VAR` (lvalue-ref, by-name via varslot) on one base from 16, recurses leaf-SEQ, sets
+   `nvalue_slots`+`jcon_value_region`. Wired at BOTH Icon `--compile` + `--run` sites in `scrip.c` (replacing both
+   old calls). Single source of truth for `nd->lhs`.
+
+**VERIFIED GREEN (the gate + more):**
+- `write("hello world")` → `hello world` — mode-3 AND full mode-4 cycle (`as+gcc+link+run`).
+- `write(1 + 1)` → `2` — mode-3 AND full mode-4 cycle.
+- `a:=10;b:=20;c:=a+b;write(c);write(a*b)` → `30`/`200` both modes (varslot region + value region coexist cleanly).
+- Spine survivors (regression-to-zero is authorized but these held): `write(2+3*4)=14`, `write(-7)`, `write(3.14)`,
+  reals, `&ucase`/`&digits`.
+- Both gate programs use ONLY converted ops (LIT_S/LIT_I/BINOP/CALL/SUCCEED/FAIL) — the `default: walk_bb_flat`
+  fallback NEVER fires for them, and within those arms `jcon_value_slot` reads `nd->lhs` so `bb_slot_alloc16` is
+  never hit either. The spine is genuinely driven by the NEW path.
+
+**Gate: HARD=38 (A=29 op-writes + B=9 field-writes). Unchanged all session.**
+
+**ANSWER TO LON'S QUESTION — is IR_TMP used for every slot-producing BB?** NO, on two counts: (1) `IR_TMP`-the-node
+is vestigial — only an enum value + name-table string; ZERO `IR_TMP` nodes are ever constructed. The realization of
+JCON's `ir_Tmp` is the FIELD `nd->lhs` on the producing node (cleaner: one node per value, slot lives on it). (2)
+Before this session, `nd->lhs` came from TWO disagreeing passes; NOW `ir_drive_slot_assign` is the single pass that
+slots every value-producer. So as of `c1e282c7` the `nd->lhs` slot mechanism IS uniformly assigned by one LOWER
+pass — but the EMITTER still only READS it in the converted spine arms (lits/keyword/binop/unop/call/var/assign-local);
+the chain-flag-gated ops (global assign, IF, SEQ) still fall back. Extending the driver's read to those is the next work.
+
+**NEXT (grow the driver from the gate):**
+1. Drive `emit_jcon_node` to read operand slots from `operands[]->lhs` directly (single source) rather than
+   `descr_binop_opnd_slot`/`bb_slot_get` (slotmap) — purely cosmetic now that the unified pass feeds both, but it
+   makes the read independent of emit-order.
+2. Grow the converted op set toward the chain-flag-gated ops by FIRST unifying `g_descr_flat_chain` vs
+   `g_gvar_flat_chain` (the P2 consolidation) so global `IR_ASSIGN`/`IR_IF`/`IR_SEQ` can read the unified slotmap.
+3. Retire `walk_bb_flat` fallback op-by-op as each converts; retire `jcon_value_slot`'s `bb_slot_alloc16` fallback.
+4. When a second language is ready, route it through `emit_jcon_node` + `ir_drive_slot_assign` (the universal driver
+   + universal LOWER technique) — proving the all-language claim.
+5. Gate strict-0 (B7) — the op-writes/field-writes fall as `walk_bb_flat` paths are retired.
+
+---
+
+## Watermark (prior)
+**JCON-DRIVER +2 CLEAN LITERAL/KEYWORD RUNGS + CHAIN-CONTEXT WALL PINNED — 2026-06-28 (Sonnet 4.6).**
+Local HEAD `SCRIP@be7d8c8f` (2 commits past `0e677f4c`; **PUSH PENDING — credential needed, handoff INCOMPLETE
+until pushed**). Climbed two clean rungs off the beachhead, then probed the GVAR-assign frontier and REVERTED
+before commit (stash/pristine discipline held). Gate **HARD=38 unchanged** across both landed rungs.
+
+**LANDED RUNG 1 (`e44e2359`) — `IR_LIT_F` + `IR_LIT_NUL`.** Same one-liner pattern as `IR_LIT_I/S`:
+`g_emit.op_off = jcon_value_slot(nd); FILL(...)`. `write(3.14)`/`write(2.0+1.5)=3.5` correct mode-3 +
+full-cycle (`as+gcc+link`). Structurally identical to old (31=31 insns; offsets renumbered to LOWER
+`16+k*16` scheme — NOT byte-identical, correct by design). Gate 38, hello world green.
+
+**LANDED RUNG 2 (`be7d8c8f`) — `IR_KEYWORD`.** Two coordinated halves: (a) emit arm
+`g_emit.op_sval = IR_LIT(nd).sval; g_emit.op_off = jcon_value_slot(nd); FILL(...)`; (b) added `IR_KEYWORD`
+to LOWER `jcon_converted_producer` (`scrip_ir.c`) so it gets a real `lhs` slot. `write(&ucase)`/`write(&digits)`
+preserved mode-3 + full-cycle; 33=33 insns, pure offset renumber (`[r12+0/8]`→`[r12+32/40]`). Gate 38.
+(NOTE: `&letters` prints empty — PRE-EXISTING, not introduced here; `&ucase`/`&digits` fine.)
+
+**FRONTIER PINNED — THE CHAIN-CONTEXT WALL (the reason the remaining ops are NOT one-liners):**
+Attempted to route simple global `IR_ASSIGN` (literal/var/call RHS) through `emit_jcon_node` →
+`flat_drive_gvar_assign`. **REGRESSED (run went empty) → REVERTED, tree clean at `be7d8c8f`.** Root cause,
+now fully diagnosed and decisive for the next session:
+- The real `walk_bb_flat` global `IR_ASSIGN` dispatch (L3164–3174) is **gated on `g_descr_flat_chain` vs
+  `g_gvar_flat_chain`** and selects between **TWO different drivers** — `flat_drive_global_assign` (descr
+  chain, emits `# IR_ASSIGN_DESCR gva` → store to `[rbx]` arena) and `flat_drive_gvar_assign` (gvar chain).
+  Picking one without replicating the chain-flag dispatch silently took the LOCAL store path
+  (`# IR_ASSIGN local` → `[r12]`), so the global write never hit the arena.
+- **`IR_IF` (L3137) and `IR_SEQ` (L3149) are ALSO chain-gated** on the same two flags.
+- **KEY STRUCTURAL FACT (preserve this property):** `emit_jcon_node` itself is **100% chain-flag-free**
+  (grep `g_descr_flat_chain|g_gvar_flat_chain` in its body = 0). All chain entanglement lives ONLY in the
+  `walk_bb_flat` paths it delegates to. So the clean-convertible ops are EXACTLY the chain-independent ones
+  (lits, keyword, local+global `IR_VAR` rval, binop, unop, call, succeed, fail — all DONE); the remaining
+  fallbacks (`IR_ASSIGN`-global, `IR_IF`, `IR_SEQ`, the gvar-binop F1 cluster) are blocked behind the
+  `g_descr_flat_chain`/`g_gvar_flat_chain` split. **This is precisely the P1/P2 consolidation the prior
+  watermark called for: the N chain conventions must be unified into ONE base discipline BEFORE these ops
+  convert cleanly.** Converting them piecemeal against the live chain flags is what regressed this session
+  and the band-overlay sessions before it.
+
+**Converted arms in `emit_jcon_node` (as of `be7d8c8f`):**
+`IR_LIT_S` · `IR_LIT_I` · `IR_LIT_F` · `IR_LIT_NUL` · `IR_KEYWORD` · `IR_VAR` (local lvalue-ref via varslot;
+global via `op_gva_k`/`gva_index_of`; `&`-keyword) · `IR_BINOP` (operand tmps, `op_binop_kind` dispatch, no
+`->op` swap) · `IR_UNOP`/NEG/POS/NONNULL/NULL_TEST/SIZE/NOT · `IR_ASSIGN` (LOCAL store; global→fallback) ·
+`IR_CALL` · `IR_SUCCEED` · `IR_FAIL`. **All chain-flag-free.**
+
+**Gate: HARD=38 (A=29 op-writes + B=9 field-writes). Unchanged.** No full regression (authorized). No artifact
+regen. hello world + lits/reals/keyword/var/arith/IO spine verified mode-3 + full-cycle every landed rung.
+
+**NEXT RUNGS (next session, in order):**
+1. **P2 FIRST — unify the chain conventions.** Before any of `IR_ASSIGN`-global / `IR_IF` / `IR_SEQ` can
+   convert, collapse `g_descr_flat_chain` vs `g_gvar_flat_chain` (and the `flat_drive_global_assign` vs
+   `flat_drive_gvar_assign` driver pair) into ONE base discipline with an explicit per-graph slot layout.
+   This is the documented prerequisite — do NOT attempt the global ops against the live two-flag split.
+2. THEN global `IR_ASSIGN` (literal/var/call RHS) → clean dispatch reading the unified slotmap.
+3. THEN `IR_IF` / `IR_SEQ` control flow against the unified base.
+4. THEN the gvar-binop F1 cluster (the 11 `->op` swaps, biggest gate drop) via `op_gvar_route` field.
+5. Extend `ir_jcon_slot_assign` to ALL producers (value+var+scratch) → emit cursor retires wholesale.
+6. Gate strict-0 (B7).
+
+---
+
+## Watermark (prior)
 **JCON-DRIVER BEACHHEAD + 5 SPINE RUNGS — 2026-06-28 (Sonnet 4.6).**
 Pushed `SCRIP@0e677f4c`. Strategy shift: STOP overlaying a band on the walk-order cursor. Instead build
 `emit_jcon_node` — a from-scratch dispatch (the `bc_gen` analog) inserted beside `walk_bb_flat` as the
