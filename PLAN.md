@@ -53,6 +53,7 @@ git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
 
 | Goal | File | Step |
 |------|------|------|
+| **IR REDUCE / NO-MANGLE** ⬅ GROUND ZERO #5 (Lon 2026-06-27) | `GOAL-IR-IMMUTABLE-EMIT.md` | Emitter READS IR, never mutates it (45 mangle sites in emit_bb.c → 0) + collapse 224 IR opcodes toward the canonical JCON-33 reduced set, ONE BB per instruction. IRM-0 gate + `operand_aux` deletion (node `operands[]` is single source of truth) landed. **All 5 language BB sessions build on this clean spine — do FIRST.** |
 | **Raku BB (OOP)** | `GOAL-RAKU-BB.md` | OO LADDER at the TOP of `GOAL-RAKU-BB.md`, top-to-bottom (first `- [ ]` rung). See goal file. |
 | **DE-INTERP** ✅ DONE (Claude 2026-06-15) | `GOAL-DE-INTERP.md` | ✅ CLOSED — all 8 steps landed (SCRIP `1d113eb`/`f60bb08`/`4c9b6bd`). `interp` misnomer eradicated; completion grep = only the 4 legitimate survivors. No `src/interp` dir, no `interp.h`/`pl_interp.h`, no `scrip-interp`. Behavior-neutral. Goal file CLOSED. |
 | **DEAD-CODE SWEEP** ⬅ (Sonnet 2026-06-14) | `GOAL-DEAD-CODE-SWEEP.md` | Batch 4 landed (`5e483bf`): documented-20 RESOLVED (19 cut + 1 closed-subgraph non-removable). Oracle 59→43 dead. Fixpoint surfaced (rt_in_native_chunk + other-lexer input/yyunput). See goal file batch-4 handoff. |
