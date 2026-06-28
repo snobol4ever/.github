@@ -197,7 +197,31 @@ with ω-wiring (or a `subtag` bit if a stored marker is truly needed — but try
 two sub-graphs onto operands[]/flat edges. Verify the generator flag is even READ-to-effect first (it may be
 vestigial like `state`/`stno` were — confirm before assuming a behavior change).
 
-### LANDED (2026-06-28, Sonnet 4.6) — fields whacked + enforcement built + first Icon rung
+### LANDED (2026-06-28, Sonnet 4.6 cont'd) — GROUND ZERO #5 RUNG #1: universal driver + counter DELETED + regression reinstated
+- **⛔ NEW UNIVERSAL EMITTER DRIVER `emit_drive.c`/.h.** `emit_drive_node` is now THE per-node dispatch for
+  ALL languages (replaces the `emit_jcon_node`/`walk_bb_flat` branch in `codegen_flat_chain_body`). It reads the
+  LOWER-assigned value slot (`nd->tmp`) and operand slots, sets `g_emit`, and invokes the proper Byrd Box via
+  `walk_bb_node` — and NEVER mutates IR. No fallback to the old walker: an unowned op prints the `[SMX]` banner +
+  sets `bb_emit_overflow` → the proc build declines cleanly. De-static'd 7 helpers (bb_child0/1, binop_slot_kind,
+  bb_call_write_route, descr_binop_opnd_slot, binop_is_num_real, bb_fill_alpha) + added bb_flat_cursor_reserve so
+  LOWER tmp slots size the r12 frame. `emit_drive.c` is in the emit-no-mutation gate scan and contributes **0**.
+- **⛔ `counter` DELETED from IR_t (+ vestigial IR_exec_t typedef gone).** No `IR_t` field points to an
+  `IR_graph_t` anymore — not `counter`, and the `ival`→`IR_graph_t*` smuggle (GEN_SCAN `bsg`, raku arg-block `bg`)
+  is gone too, so the `{sval,ival,dval}` union holds ONLY scalars. ~80 smuggle sites converted: dead readers stubbed
+  (their rebuild-me constructs `[SMX]`-decline on the new driver), writer RHS preserved via `(void)(...)`. IR_t is
+  now `{op, γ, ω, operands[], n_operands, tmp, value-union}`; children reached ONLY through operands[]. Remaining
+  union state-pointer smuggles (bb_conj_state_t* etc. for Prolog/SNOBOL4 runtime) are NOT IR_graph_t → later rung.
+- **FIELD-DISCIPLINE GATE 190 → 119** (P2 read-smuggle **50 → 0** — nothing is read as an `IR_graph_t*`; P1
+  write-smuggle 57 → 36). TARGET ratcheted 192 → 119 to lock it.
+- **FULL ICON REGRESSION REINSTATED** (`test_icon_rung_suite.sh`, mode-3 `--run`): **PASS=43  EXCISED=96
+  FAIL=114  XFAIL=36** (vs old fused walk_bb_flat path PASS=195 — the deliberate Ground Zero reset onto the clean
+  driver; 43 ≫ the sanctioned "TWO"). EXCISED = unowned op clean-declines; FAIL = owned op the immature driver
+  mis-wires (e.g. user-proc-call segfault, rung02_proc_fact rc=139) = the growth/cleanup target. **NEXT: grow
+  emit_drive_node op ownership (EXCISED→PASS) and drive FAIL→0; then delete the dead emit_bb.c walk_bb_flat /
+  flat_drive_* zoo (emit-mutation gate 38→down).** emit-mutation gate unchanged at HARD=38 (all in the now-dead,
+  bypassed emit_bb.c paths). **PUSH PENDING — credential needed; handoff INCOMPLETE until pushed.**
+
+
 - **⛔ THE UNION LANDED + PASS=2 (Lon command decision).** `IR_t`'s value payload is now ONE anonymous union
   `union { const char * sval; int64_t ival; double dval; }`. **`write("hello world")` → `hello world` and
   `write(1 + 2)` → `3` both green mode-3 AND full mode-4 cycle.** Enabled by making the CALL node hold ONLY
