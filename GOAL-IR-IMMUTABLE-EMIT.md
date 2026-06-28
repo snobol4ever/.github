@@ -122,10 +122,15 @@ INDEPENDENT CS-generic axes, none a language branch:
       tmp-allocation pass (each value-producing node gets an `lhs` tmp; operands reference tmps) + a LOWER-time
       slot-assignment pass (tmp → `[r12+off]`). **Done:** `--dump-ir` shows tmps on nodes; a global+global add
       carries `lhs=tmpK`, operands=`tmpI,tmpJ`.
-      **SUBSTRATE LANDED 2026-06-27 (additive, inert):** `IR_TMP` enum slot + `IR_t.lhs` result-slot field
-      (init -1 = unassigned) + `kind_names[IR_TMP]`. Nothing reads `lhs` yet → gate 42 / Icon 213 unchanged.
-      REMAINING: the two LOWER passes (tmp-assign + slot-assign) — see `JCON-TO-SCRIP-IR-MAP.md` § "THE LOWER
-      TMP-SLOT PASS". This is the next rung (Cluster 1).
+      **SUBSTRATE + PASS (DUMP SIDE) LANDED 2026-06-27 (additive, inert):** `IR_TMP` enum + `IR_t.lhs`
+      result-slot field (init -1) + `kind_names[IR_TMP]`; `ir_node_produces_value()` + `ir_tmp_slot_assign()`
+      (language-blind, writes ONLY `nd->lhs`, recurses leaf-SEQ sub-graphs) wired into `--dump-ir`; `bb_print`
+      shows `lhs=`. VERIFIED: `x:=a+b;write(x)` → IR_BINOP `lhs=32` operands `[6 7]` = IR_VAR `a`(lhs=48)/
+      `b`(lhs=64); IR_ASSIGN/IR_SUCCEED/IR_FAIL carry no lhs. Gate 42 / Icon 213 unchanged (pass runs in
+      dump path only; emit still uses its own slotmap). REMAINING (B1): wire `ir_tmp_slot_assign` into the
+      EMIT path + flip the emitter to read `nd->lhs` instead of `bb_slot_alloc16`/`bb_slot_get` — that is
+      behavior-changing, gate-and-suite-gated, and is the next rung (Cluster 1). Predicate currently covers
+      the common value-producers (lits/var/binop/unop/call+kinds/proc_gen); extend as clusters land.
 
 - [ ] **B1 — EMITTER READS TMP SLOTS (was IRM-2).** `bb_binop_arith/_relop/_concat/_assign/_unop` read
       `off(node.lhs)` and `off(operand_tmp)`; never call `bb_slot_alloc16` at emit, never read `->ival`/`->t`
