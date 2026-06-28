@@ -197,6 +197,25 @@ with ω-wiring (or a `subtag` bit if a stored marker is truly needed — but try
 two sub-graphs onto operands[]/flat edges. Verify the generator flag is even READ-to-effect first (it may be
 vestigial like `state`/`stno` were — confirm before assuming a behavior change).
 
+### LANDED (2026-06-28, Sonnet 4.6 cont'd) — GROUND ZERO #5 RUNG #2: IR_RETURN owned + zero-arg user procs END-TO-END
+- **IR_RETURN owned by the universal driver** (`0c6bbf94`). `emit_drive_node` gained `case IR_RETURN:
+  DRIVE_FILL(...)` → routes to the already-correct `walk_bb_node` descr-chain handler (reads `operands[0]`
+  value slot + `op_dval`, emits `bb_return`). `DRIVE_FILL` ≡ old `FILL` byte-for-byte. JCON model: `return E`
+  = eval E then `Succeed(t, /*no resume*/)` (irgen.icn:867; there is no `bc_gen_ir_Return`).
+- **D1-CALL step 1** (`4a308ca2`): Icon non-idx/list calls now take the flat-operand chaining path, not the
+  dead subgraph path. `lc_call_argblks`'s only live effect was `IR_LIT(call).dval=tag`, which (union with
+  `sval`) clobbered the call name → `resolve_call_kinds_descr` deref'd the double bits `0x4008…`=3.0 as a
+  pointer → SEGV. Flat operands = JCON model; names survive.
+- **D1-CALL step 2** (`ec3bd5b3`): `bb_call_route_classify` routes a registered user proc → PROC_STAGED
+  WITHOUT the `dval` gate (the flat call no longer carries `dval=3.0`). One relaxed condition; same
+  `rt_proc_is_registered` query; generator-proc/builtin cases unaffected.
+- **RESULT: zero-arg user-defined procedures work END-TO-END, both modes.** `write(f())` with `f` returning
+  a literal/string/expression (`return 3+4*2` → `11`) — mode-3 `--run` AND mode-4 text. **Proves the
+  IR_RETURN conversion end-to-end** (RETURN was un-exerciseable until a proc became callable).
+- **NEXT RUNG: calls WITH args (op=200 arg-handling) + B4 de-`dval` of the call stack.** Fully diagnosed in
+  HANDOFF-2026-06-28-SONNET46-JCON-RETURN-AND-CALL-FLAT.md. Heartbeat green throughout; no green program
+  regressed (builtin/arg calls were already broken by the same union collision).
+
 ### LANDED (2026-06-28, Sonnet 4.6 cont'd) — GROUND ZERO #5 RUNG #1: universal driver + counter DELETED + regression reinstated
 - **⛔ NEW UNIVERSAL EMITTER DRIVER `emit_drive.c`/.h.** `emit_drive_node` is now THE per-node dispatch for
   ALL languages (replaces the `emit_jcon_node`/`walk_bb_flat` branch in `codegen_flat_chain_body`). It reads the
