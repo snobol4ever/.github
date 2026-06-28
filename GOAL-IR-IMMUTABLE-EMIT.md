@@ -21,11 +21,20 @@ to the new path, let the old rot.
 - **NO full regression. NO artifact regen.** The big suites take too long. **Icon regression does not matter
   AT ALL — let it go to ZERO and GROW back up.** We have `write("hello world")` and `1 + 1`; we GROW from there.
 - **THE ONLY PROGRAMS THAT MUST WORK ARE `write("hello world")` AND `write(1 + 1)`.** That is the entire gate.
-  Drive the wholesale conversion until both compile + run through the NEW JCON-faithful spine: a NEW LOWER that
-  assigns ALL slots to `nd->lhs`, and a NEW EMITTER DRIVER that reads slots / sets `g_emit` / invokes the proper
-  BB and NEVER mutates IR. The ONLY guarantee required: the proper BB is invoked and every variable lives in the
-  ONE place (`g_emit`) set correctly. This NEW driver becomes THE emitter driver for ALL languages, and the NEW
-  LOWER technique becomes the technique for ALL language LOWER functions. Then Lon spins up the other languages.
+  Drive the wholesale conversion until both compile + run through the NEW spine: each language keeps its OWN LOWER
+  (there are SIX lowers — SNOBOL4, Snocone, Rebus, Icon, Prolog, Pascal — NOT one), and they all use the SAME
+  TECHNIQUE: a LOWER-time pass assigns ALL slots to the producing node's `tmp` field (three-address-code temporary
+  allocation). There is ONE language-INDEPENDENT EMITTER DRIVER handling generic CS constructs: it reads `nd->tmp`
+  + operands, sets `g_emit`, invokes the proper BB, and NEVER mutates IR. The ONLY guarantee required: the proper BB
+  is invoked and every variable lives in the ONE place (`g_emit`) set correctly. Icon regression may go to ZERO and
+  grow back. Then Lon spins up the other languages onto the same ONE driver.
+- **IR_t.`tmp` (NOT `lhs`) IS THE TEMPORARY SLOT; there is NO `IR_TMP` opcode.** JCON's `ir.icn` records name the
+  result-temp field `lhs` and point it at an `ir_Tmp` NODE. SCRIP realizes the temp as a plain `int` FIELD on the
+  producing node (cleaner: one node per value, slot lives on it) — so the `IR_TMP` opcode was DEAD (zero nodes ever
+  constructed) and is REMOVED (`19cbedd5`); the field, mis-named `lhs` (there is no `=` for `write(1+1)`), is RENAMED
+  `tmp`. NOT every IR fills it — only value-producers (`ir_node_produces_value`: lits/var/binop/unop/call/proc_gen).
+  Control/effect ops (GOTO/IF/SUCCEED/FAIL/ASSIGN-effect) produce no value and carry no `tmp`. The `own`/`idx` fields
+  STAY — load-bearing (`IR_LIT(nd)`≡`nd->own->lit[nd->idx]`, `IR_EXEC(nd)`≡`nd->own->exec[nd->idx]`, sidecar pattern).
 
 ### LOCKED TECHNIQUE (2026-06-28, proven on `write("hello world")`, SCRIP `486eb1a3`)
 The from-scratch path is **not** a template rewrite — TEMPLATES STAY (gate-clean `bc_gen_ir_*` analogs;
@@ -252,41 +261,44 @@ the STANDING DIRECTIVE bullet at the top of this file). It is NOT a gate, comple
 anywhere. The `.s` WILL change drastically as LOWER + the EMITTER DRIVER are rewritten. Struck from the directive
 bullet and the B5 completion test. (RULES.md step-4 was already correct — `.s` scripts "NEVER enforce sameness".)
 
-**⛔ ARCHITECTURE DECISION (Lon): `emit_jcon_node` IS THE EMITTER DRIVER FOR ALL LANGUAGES; `ir_drive_slot_assign`
-IS THE LOWER SLOT TECHNIQUE FOR ALL LANGUAGES.** The ONLY guarantee required of the driver: the proper BB is
-invoked and every variable lives in the ONE place (`g_emit`) set correctly. It reads `nd->lhs` + operands, never
-mutates IR, has ZERO chain-flag dependencies. Icon regression may go to ZERO and grow back — gate is `write("hello
-world")` + `write(1 + 1)` only.
+**⛔ ARCHITECTURE DECISION (Lon, corrected): there are SIX LOWERS (one per language), each calling the SAME slot
+TECHNIQUE; there is ONE language-INDEPENDENT EMITTER DRIVER (`emit_jcon_node`) handling generic CS constructs.**
+The slot technique = a LOWER-time pass assigning every value-producer's `tmp` field (`ir_drive_slot_assign` is the
+shared utility today; each of the six lowers invokes it). The ONE driver's only guarantee: the proper BB is invoked
+and every variable lives in the ONE place (`g_emit`) set correctly. It reads `nd->tmp` + operands, never mutates IR,
+ZERO chain-flag dependencies. Icon regression may go to ZERO and grow back — gate is `write("hello world")` +
+`write(1 + 1)` only.
 
-**LANDED THIS SESSION (4 SCRIP commits):**
-1. `e44e2359` — `IR_LIT_F` + `IR_LIT_NUL` → clean dispatch (`jcon_value_slot` reads `nd->lhs`).
+**⛔ IR_TMP OPCODE REMOVED + `lhs` FIELD RENAMED `tmp` (`19cbedd5`).** The `IR_TMP` enum value was DEAD (zero nodes
+ever constructed — JCON uses `ir_Tmp` as a NODE; SCRIP realizes the temp as a plain `int` FIELD on the producer).
+Removed enum value + name-table entry → `IR_OP_COUNT` −1. The field, mis-copied from JCON's `ir.icn` record-field
+name `lhs` (a misnomer — there is no `=` for `write(1+1)`; it is a three-address-code TEMPORARY slot), is RENAMED
+`tmp`. `--dump-ir` now prints `tmp=`. `own`/`idx` KEPT — load-bearing sidecar (`IR_LIT`/`IR_EXEC` index through them).
+
+**LANDED THIS SESSION (5 SCRIP commits):**
+1. `e44e2359` — `IR_LIT_F` + `IR_LIT_NUL` → clean dispatch (`jcon_value_slot` reads `nd->tmp`).
 2. `be7d8c8f` — `IR_KEYWORD` → clean dispatch + added to LOWER producer set (scalar keyword `&ucase`/`&digits`).
 3. `c1e282c7` — **NEW UNIFIED SLOT PASS.** Collapsed the TWO competing passes (`ir_tmp_slot_assign_flat` numbering
    value-producers from 0 + `ir_jcon_slot_assign` renumbering only literals from 16 — the disagreement that made
    every prior attempt wobble) into ONE `ir_drive_slot_assign` (in `scrip_ir.c`): slots EVERY `ir_node_produces_value`
-   node EXCEPT `IR_VAR` (lvalue-ref, by-name via varslot) on one base from 16, recurses leaf-SEQ, sets
-   `nvalue_slots`+`jcon_value_region`. Wired at BOTH Icon `--compile` + `--run` sites in `scrip.c` (replacing both
-   old calls). Single source of truth for `nd->lhs`.
+   node EXCEPT `IR_VAR` (lvalue-ref, by-name via varslot) on one base from 16, recurses leaf-SEQ. Single source of truth.
+4. `19cbedd5` — **IR cleanup:** remove dead `IR_TMP` opcode, rename `lhs`→`tmp` field (see above).
 
 **VERIFIED GREEN (the gate + more):**
 - `write("hello world")` → `hello world` — mode-3 AND full mode-4 cycle (`as+gcc+link+run`).
 - `write(1 + 1)` → `2` — mode-3 AND full mode-4 cycle.
 - `a:=10;b:=20;c:=a+b;write(c);write(a*b)` → `30`/`200` both modes (varslot region + value region coexist cleanly).
-- Spine survivors (regression-to-zero is authorized but these held): `write(2+3*4)=14`, `write(-7)`, `write(3.14)`,
-  reals, `&ucase`/`&digits`.
-- Both gate programs use ONLY converted ops (LIT_S/LIT_I/BINOP/CALL/SUCCEED/FAIL) — the `default: walk_bb_flat`
-  fallback NEVER fires for them, and within those arms `jcon_value_slot` reads `nd->lhs` so `bb_slot_alloc16` is
-  never hit either. The spine is genuinely driven by the NEW path.
+- Spine survivors (regression-to-zero authorized but these held): `write(2+3*4)=14`, `write(-7)`, reals, `&ucase`.
+- Both gate programs use ONLY converted ops (LIT_S/LIT_I/BINOP/CALL/SUCCEED/FAIL) — `default: walk_bb_flat` NEVER
+  fires for them; within those arms `jcon_value_slot` reads `nd->tmp` so `bb_slot_alloc16` is never hit. NEW path genuinely drives the spine.
 
 **Gate: HARD=38 (A=29 op-writes + B=9 field-writes). Unchanged all session.**
 
-**ANSWER TO LON'S QUESTION — is IR_TMP used for every slot-producing BB?** NO, on two counts: (1) `IR_TMP`-the-node
-is vestigial — only an enum value + name-table string; ZERO `IR_TMP` nodes are ever constructed. The realization of
-JCON's `ir_Tmp` is the FIELD `nd->lhs` on the producing node (cleaner: one node per value, slot lives on it). (2)
-Before this session, `nd->lhs` came from TWO disagreeing passes; NOW `ir_drive_slot_assign` is the single pass that
-slots every value-producer. So as of `c1e282c7` the `nd->lhs` slot mechanism IS uniformly assigned by one LOWER
-pass — but the EMITTER still only READS it in the converted spine arms (lits/keyword/binop/unop/call/var/assign-local);
-the chain-flag-gated ops (global assign, IF, SEQ) still fall back. Extending the driver's read to those is the next work.
+**ANSWER — does every IR produce a result / use the temp field?** NO. Only value-producers (`ir_node_produces_value`:
+lits/var/binop/unop/call-kinds/proc_gen) carry a `tmp`. Control/effect ops (GOTO/IF/SUCCEED/FAIL, and ASSIGN whose
+effect is the store) produce no value and fill no `tmp`. As of `c1e282c7`+`19cbedd5` the `tmp` slot is assigned by
+ONE LOWER pass (single source); the EMITTER reads it in the converted spine arms only — the chain-flag-gated ops
+(global assign, IF, SEQ) still fall back to `walk_bb_flat`. Extending the driver's read to those is the next work.
 
 **NEXT (grow the driver from the gate):**
 1. Drive `emit_jcon_node` to read operand slots from `operands[]->lhs` directly (single source) rather than
