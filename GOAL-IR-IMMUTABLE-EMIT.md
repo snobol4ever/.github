@@ -122,6 +122,10 @@ INDEPENDENT CS-generic axes, none a language branch:
       tmp-allocation pass (each value-producing node gets an `lhs` tmp; operands reference tmps) + a LOWER-time
       slot-assignment pass (tmp → `[r12+off]`). **Done:** `--dump-ir` shows tmps on nodes; a global+global add
       carries `lhs=tmpK`, operands=`tmpI,tmpJ`.
+      **SUBSTRATE LANDED 2026-06-27 (additive, inert):** `IR_TMP` enum slot + `IR_t.lhs` result-slot field
+      (init -1 = unassigned) + `kind_names[IR_TMP]`. Nothing reads `lhs` yet → gate 42 / Icon 213 unchanged.
+      REMAINING: the two LOWER passes (tmp-assign + slot-assign) — see `JCON-TO-SCRIP-IR-MAP.md` § "THE LOWER
+      TMP-SLOT PASS". This is the next rung (Cluster 1).
 
 - [ ] **B1 — EMITTER READS TMP SLOTS (was IRM-2).** `bb_binop_arith/_relop/_concat/_assign/_unop` read
       `off(node.lhs)` and `off(operand_tmp)`; never call `bb_slot_alloc16` at emit, never read `->ival`/`->t`
@@ -185,6 +189,21 @@ INDEPENDENT CS-generic axes, none a language branch:
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
+**JCON-IN-SCRIP WHOLESALE CONVERSION — 2026-06-27 (Lon directing).** New campaign on top of the
+A/B/C tracks: mirror JCON's `gen_bc.icn` (one `bc_gen_ir_<X>` per instruction) as one `bb_<x>` template
+per instruction, x86 instead of JVM bytecode. The full correspondence — slot mechanic (JCON tmp = JVM
+local ≡ SCRIP `lhs` = `[r12+off]`), four-label→α/β-internal + γ/ω-edge reconciliation, the one deliberate
+`ir_OpFunction`→`bb_binop`/`bb_unop` arity split — is written in **`.github/JCON-TO-SCRIP-IR-MAP.md`**
+(per-instruction table + build order). LOWER is ALSO being redone (the construct opcodes IR_EVERY/IR_TO_BY/
+IR_WHILE are anti-JCON; JCON decomposes constructs into the primitive chunk stream at lower time). Build the
+new path BESIDE the old fused path; flip Icon cluster by cluster; gate strict-0 + Icon suite are the recovery
+target. **Foundation landed this session (additive, inert):** `IR_TMP` enum + `IR_t.lhs` field. Gate
+HARD=42 (A=31 op-writes + B=11 field-writes), Icon 213/40/36 — both unchanged. **NEXT:** Cluster 1 — LOWER
+tmp-slot pass + `bb_int_lit`/`bb_assign` first mirrors.
+
+---
+
+## Watermark (prior)
 **Re-planned Ground Zero #5 — 2026-06-27 (Lon directing).** Ladder restructured into THREE tracks:
 A (DELETE dead IRs, dynamic audit), B (COLLAPSE — IR_TMP keystone B0 front-runs, absorbs IRM-1..7),
 C (ADD the 8 missing canonical IRs). KEYSTONE + DIVISION RULE added above. Gate baseline unchanged:
