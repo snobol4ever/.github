@@ -158,6 +158,95 @@ INDEPENDENT CS-generic axes, none a language branch:
 
 ---
 
+## ⛔ TRACK D — COLLAPSE IR_t (the STRUCT, not the opcodes) — JCON FIELD DISCIPLINE (Lon, 2026-06-28)
+
+**Goal: `IR_t`'s value payload becomes a 3-way C union `{ const char* sval; int64_t ival; double dval; }`
+and `counter` is DELETED.** JCON's discipline (`ir.icn`): each record field holds ONE kind of thing —
+`IntLit.val` is always an int, `StrLit.val` always a string, `Call.argList` always a LIST of children;
+subtypes are DISTINCT RECORDS (= distinct `op` values). SCRIP collapsed JCON's ~30 records into one
+`IR_t` selected by `op`, and in doing so introduced two overloads JCON never has:
+  - **`dval`-as-discriminant-tag** — `dval ∈ {1.0,2.0,3.0,5.0}` selects a subtype on SEQ/CALL/SCAN/SUSPEND/
+    BINOP, riding co-resident with real payload. JCON-clean = move the tag to the `op` enum (or a tiny
+    `subtag`), leaving `dval` = real literal ONLY.
+  - **`ival`/`counter`-as-smuggled-`IR_graph_t*`** — child sub-graphs cast through an int64 via `(intptr_t)`.
+    JCON-clean = children live in `operands[]` (its `argList`/`valueList`), reached as nodes, never smuggled.
+
+These two overloads are the ONLY reason `{sval,ival,dval}` can't union today: CALL holds `sval`(name)+`ival`
+(argc)+`dval`(tag) at once; SEQ holds `dval`(tag)+`ival`(child). Remove the overloads → each node uses
+exactly ONE of the three → union is valid (−16 bytes/node) and `counter` deletes.
+
+**THE SEQUENCING (Lon, 2026-06-28): FIX ICON PROPER → WHACK THE FIELDS → BREAK ALL OTHER LANGUAGES.**
+Icon is fixed to the discipline FIRST so it SURVIVES the whack; the whack (delete `counter`, union the
+values) then STRUCTURALLY breaks every other lower (they still smuggle / tag) — which is the FORCING
+FUNCTION: the rebuilt SNOBOL4/Snocone/Rebus/Prolog/Pascal lowers have NO field left to abuse, so they MUST
+adopt operands[]-children + op-subtypes. There is no avenue to violate.
+
+### KEY FINDING (2026-06-28, Sonnet 4.6) — ICON CORE IS ALREADY CLEAN
+`--dump-ir` on `a:=10;b:=20;write(a+b)` and on `if/while` programs shows the disciplined FLAT model already:
+statements chain via `γ` edges, operands sit in `[operands]` (`IR_BINOP [4 5]`, `IR_ASSIGN [9]`, `IR_CALL [3]`),
+payloads are clean (`ival`=int literal, `sval`=name, binop kind in `ival`). **ZERO `IR_SEQ` sub-graphs, ZERO
+pointer-smuggling, ZERO dval-tags on the ordinary Icon path.** The smuggling/tagging is confined to a few
+LEGACY GENERATOR constructs + the other languages.
+
+**Icon's COMPLETE holdout list (only 9 lower sites, `lower_icon.c`):** all are the **`dval=1.0`
+"generator/resumable" flag** on four node types — CALL (L106), BINOP (L142/146), SUSPEND (L210), GEN_SCAN
+(L270) — plus GEN_SCAN's sub-graph smuggling (L273 write, 131/132 read; the `s ? expr` scan operator).
+**NOTE:** the `dval=1.0` generator flag is itself a violation of this file's own DIVISION RULE
+("resumability = ω-WIRING ONLY, zero stored flag"). Fixing Icon proper = (a) replace the `dval=1.0` flag
+with ω-wiring (or a `subtag` bit if a stored marker is truly needed — but try ω first), (b) move GEN_SCAN's
+two sub-graphs onto operands[]/flat edges. Verify the generator flag is even READ-to-effect first (it may be
+vestigial like `state`/`stno` were — confirm before assuming a behavior change).
+
+### LANDED (2026-06-28, Sonnet 4.6) — fields whacked + enforcement built + first Icon rung
+- **⛔ THE UNION LANDED + PASS=2 (Lon command decision).** `IR_t`'s value payload is now ONE anonymous union
+  `union { const char * sval; int64_t ival; double dval; }`. **`write("hello world")` → `hello world` and
+  `write(1 + 2)` → `3` both green mode-3 AND full mode-4 cycle.** Enabled by making the CALL node hold ONLY
+  `sval`(name): arity now reads `n_operands` (preamble `op_ival` branch on `ir_norm_call_kind==IR_CALL`;
+  `descr_chain_arity` IR_CALL case → `n->n_operands`), and the `ival=nargs` (L93) + inline `dval=1.0` (L106)
+  co-use writes were dropped. The struct collapse is DONE; per Lon the language LOWER sessions rewire their own
+  from GROUND ZERO #5, so PASS=2 is the entire gate for this work. **Bonus survivors (single-member constructs,
+  not required):** variables, arithmetic, if/while, relops, and `every`/`to` generators all still run. Constructs
+  that genuinely co-use the value fields (scan `s?e`, nested-scope VAR hop-count, suspend, complex-call subgraphs)
+  are now corrupted-by-design — they rebuild on the flat operands+edge model.
+- **`counter` KEPT (separate field).** Deleting it cleanly needs its ~60 children-smuggle sites moved to
+  `operands[]` first (would break the build, incl. Icon, if removed now). The discipline gate enforces NO NEW
+  smuggling; `counter` comes off in the children→operands[] rung. Folding it into the union was unsafe (the
+  `op_counter` preamble would alias and a call template casts it to `IR_graph_t**` → crash).
+- **`state` DELETED.** Dead: never written (calloc'd 0), emitter reads vacuous; folded 5 reads. Exposed
+  `flat_drive_while` as already-dead (its gate `while_cond_emittable` can never return true) — sweep candidate, left.
+- **`stno` → `ival`, then DELETED.** SUCCEED-only (SNOBOL4 stmt numbers); 5 sites moved; smoke green; dump `stno=N ival=N`.
+- **ENFORCEMENT GATE built:** `scripts/test_gate_ir_field_discipline.sh` — P1 write-smuggle + P2 read-smuggle +
+  P3 dval-tag over all live src; ratchet `IR_FIELD_DISCIPLINE_TARGET` (now 192; live debt 190) fails on growth.
+  Wire into every BB GOAL Session-Setup. **The remaining 190 are smuggling in NOW-BROKEN rebuild-me code** — the
+  GZ#5 language rebuilds eliminate them (children→operands[], subtypes→op). Ratchet toward 0 as each language lands.
+- **D1-BINOP DONE.** `lower_icon.c` BINOP cached the relop predicate in `dval=1.0` (redundant = `ival in 5..10`,
+  never read at emit). Removed the cache; L146 reads the predicate inline. Relops verified green.
+
+### REFINED FINDING — `dval` HAS THREE MEANINGS (not just "the generator flag")
+Quantified 2026-06-28: discriminant **TAG** `{1.0,2.0,3.0,5.0}` = **68 reads** (SEQ-pair/CALL/SUSPEND/GEN_SCAN/
+RETURN); **`(int)dval` HOP-COUNT** for nested-scope VAR access = **6 reads** (`bb_call.cpp` — co-resident with
+`sval` name on VAR nodes, a SECOND union blocker independent of the tag); real-literal `dval` (LIT_F) = legit.
+ALL non-real-literal `dval` uses must move off for the union. **Per-construct method (proven on BINOP): grep the
+EMIT readers for that op FIRST — if `dval` is never read at emit for it, the flag is lower-scratch and converts
+cheaply (inline the predicate / drop the cache); if read at emit, move to ω-wiring or a `subtag` bit.**
+
+### TRACK D RUNGS (remaining — Icon settle FIRST, then whack)
+- [x] **D1-BINOP** — relop-predicate cache off `dval`. DONE (gate 192).
+- [ ] **D1-CALL** — `lower_icon.c:106` sets `dval=1.0` on the SIMPLE (non-subgraph) call. Verify emit-readership
+      (staged template `bb_call_proc_staged.cpp:33` reads `dval==1.0` but on the SUBGRAPH path — confirm the simple
+      call's flag is/ isn't read at emit, as done for BINOP). Convert per method above.
+- [ ] **D1-SUSPEND** — `lower_icon.c:210` `dval=1.0` on SUSPEND. Verify emit-readership; convert.
+- [ ] **D1-VAR-HOPS** — the 6 `(int)dval` hop-count reads in `bb_call.cpp` (VAR nested-scope). Move hop count off
+      `dval` (it co-resides with `sval` name). Candidate home: a `subtag`/small int, or `ival` if VAR doesn't use it.
+- [ ] **D2 — GEN_SCAN → operands[]/flat.** Scan operator (`s ? expr`): `dval=1.0` + counter/ival sub-graph smuggling
+      (lower L270/273, read L131/132, emit L2068/2069). Convert off `counter`/`ival`. After D1-* + D2, `lower_icon.c` debt = 0.
+- [ ] **D3 — WHACK: delete `counter`, union `{sval,ival,dval}`.** Breaks all other-language lowers + shared emit
+      smuggling readers (compile errors) — stub/delete those construct handlers (constructs become rebuild-me).
+      Icon stays green (gate-set). `IR_t` −16 bytes.
+- [ ] **D4 — Gate to 0.** Ratchet `IR_FIELD_DISCIPLINE_TARGET` to 0; lock in every BB GOAL Session-Setup.
+
+---
+
 ## TRACK A — DELETE (shrink the 222 IR opcodes)
 
 - [ ] **A0 — DEAD-IR AUDIT (DYNAMIC, NOT GREP).** Static grep is UNRELIABLE (proven 2026-06-27: `IR_MATCH_HEAD`
@@ -251,10 +340,21 @@ INDEPENDENT CS-generic axes, none a language branch:
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
-**NEW UNIFIED SLOT PASS LANDED + `.s` BYTE-IDENTITY RULE DELETED + DRIVER-FOR-ALL-LANGUAGES DECLARED — 2026-06-28 (Sonnet 4.6, Lon directing the GROUND ZERO #5 wholesale rewrite).**
-Local HEAD `SCRIP@c1e282c7` (4 commits past `0e677f4c`; **`.github` doc edits uncommitted; ALL PUSH PENDING —
-credential needed, handoff INCOMPLETE until pushed**). This session FREED the path from the old code per Lon's
-directive: stopped tying to `.s` byte-identity, collapsed the competing slot passes, declared the universal driver.
+**IR_t VALUE PAYLOAD COLLAPSED TO ONE UNION + `state`/`stno` WHACKED + FIELD-DISCIPLINE GATE BUILT + PASS=2 GREEN
+— 2026-06-28 (Sonnet 4.6, Lon command decision).** This session collapsed `IR_t` per JCON field discipline.
+`state` DELETED (dead), `stno` folded into `ival` then DELETED (SUCCEED-only), and the three value payload fields
+became ONE anonymous union `union { const char * sval; int64_t ival; double dval; }`. The CALL co-use (name+argc+
+dval-flag) was resolved by sourcing arity from `n_operands`, so a CALL holds only `sval`. **GATE = PASS=2:
+`write("hello world")` → `hello world` and `write(1 + 2)` → `3`, both mode-3 AND full mode-4 cycle.** Per Lon the
+language LOWER sessions rewire from GROUND ZERO #5, so PASS=2 is the entire completion test for the collapse;
+co-use constructs (scan, nested VAR hops, suspend, complex-call subgraphs) are corrupted-by-design and rebuild on
+the flat operands+edge model. Bonus survivors (not required): vars, arith, if/while, relops, every/to generators.
+`counter` kept SEPARATE (its ~60 child-smuggle sites move to `operands[]` in a later rung; folding/deleting now
+breaks the build). ENFORCEMENT GATE `scripts/test_gate_ir_field_discipline.sh` built (ratchet, live debt 190 — all
+in now-broken rebuild-me code; lower toward 0 as languages land). See TRACK D for the full landed list + remaining rungs.
+IR-mutation gate unchanged at HARD=38. **PUSH PENDING — credential needed; handoff INCOMPLETE until pushed.**
+
+**PRIOR watermark below (unified slot pass / `.s` byte-identity rule deletion) retained for history.**
 
 **⛔ RULE DELETED (Lon, 4th request — honored).** The `.s`-byte-identical requirement is GONE permanently (see
 the STANDING DIRECTIVE bullet at the top of this file). It is NOT a gate, completion test, or regression signal,
