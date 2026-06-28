@@ -75,53 +75,106 @@ instruction. Do this BEFORE the per-language sessions spin up — a clean reduce
 
 
 
-- [ ] **IRM-0 — GATE.** Write `scripts/test_gate_emit_no_ir_mutation.sh` (the three greps above; baseline
-      prints 34, target 0). Add to every BB GOAL's Session-Setup list. **Done:** gate exists, prints the
-      live count, exits nonzero while >0.
+## ⛔ KEYSTONE (Lon, 2026-06-27) — IR_TMP MAKES THE EMITTER READ-ONLY
 
-- [ ] **IRM-1 — PRODUCER-BOX UNIVERSALITY (the enabler).** Every operation operand (binop L/R, unop arg,
-      assign RHS) is lowered as its OWN producer box that writes a slot, in EVERY frontend's lower —
-      uniformly, the way Icon already does via `operand_aux`. Change `lower_snobol4.c` (and any other lang
-      that wires operands as direct `c[]` children) to wire binop/unop/assign operands as producer boxes.
-      **Done:** for a global+global / global+lit / call-result-operand program in each language, the operands
-      emit as standalone producer boxes (each writes a slot); no consumer reads a child's value inline.
+**The disease and the cure are the same fact.** Today slots are allocated at EMIT time (`bb_slot_alloc16`
+inside `walk_bb_flat`) and producer→consumer is RECONSTRUCTED at emit time (the `op_a_slot`/`op_sb`/`op_sc`
+forwarding dance). That reconstruction IS why the emitter mutates IR. JCON's `ir_Tmp` is the answer: every
+value-producing node has an `lhs` tmp; operands reference tmps; a LOWER-time pass assigns tmp→`[r12+off]`.
+Then the emitter reads `operand = tmp N → off(N)` — pure read. IR_TMP is language-blind; SNOBOL4, Prolog,
+Pascal all inherit it. **B0 (IR_TMP) front-runs the IRM ladder — IRM-2/IRM-3 are tractable only once tmps
+carry slots from lower. The original IRM-1..7 ladder stalled because it tried emitter-read-only WITHOUT the
+tmp keystone.** The IRM rungs below are ABSORBED into Track B.
 
-- [ ] **IRM-2 — ONE SOURCE-AGNOSTIC CONSUMER PER OPERATION.** Confirm/extend `bb_binop_arith`,
-      `bb_binop_relop`, `bb_binop_concat`, `bb_assign`, `bb_unop` to read operand SLOTS only (op as an
-      immediate). The opcode axis is OPERATION (arith/relop/concat), never operand-source. **Done:** each
-      reads `bb_slot_get` on its operands; none reads `pBB->α->ival`/`->t==IR_LIT_*`/a global name inline.
+## ⛔ DIVISION RULE (Lon, 2026-06-27) — NO THREE LANGUAGE-VERSIONS OF BINOP/UNOP IN THE EMITTER
 
-- [ ] **IRM-3 — DELETE F1 (operand-source fusion).** Remove the 14 swap sites in `emit_bb.c`
-      (`flat_drive_binop_tree` + the L2267/2288/2599 arms). Delete the `IR_BINOP_GVAR_ARITH`,
-      `_GVAR_ARITH_SLOT`, `_GVAR_RELOP`, `_GVAR_CONCAT`, `IR_UNOP_GVAR_SLOT`, and operand-source
-      `IR_ASSIGN_*` opcodes + their dispatch cases + their `bb_*_gvar_*` template files. **Done:** those
-      opcodes/templates gone; `grep -c GVAR_ARITH src/emitter` == 0; binop/assign/unop go through the
-      general slot consumers in all languages; suites green or per-rung red.
+"Generator (Icon) vs coercive (SNOBOL4) vs plain" is NOT three operators. It is the OPERATION plus two
+INDEPENDENT CS-generic axes, none a language branch:
+  - **Operation** (ADD/LT/CONCAT…) → immediate on ONE `IR_BINOP` node (JCON: operation is DATA, not opcode identity).
+  - **Resumability** (Icon "generator") → **ω-WIRING ONLY**. Operands are tmps written by producer boxes;
+    BINOP reads the current tmp and on resume jmps wherever ω points. Lower wires `ω→right.resume→left.resume→fail`
+    for the Cartesian case. The BINOP template is OBLIVIOUS to whether operands generate. **ZERO template cost.**
+    This is why `flat_drive_binop_gen_tree` (the dead Cartesian driver) stays deleted — the ω-chain subsumes it.
+  - **Coercion** (SNOBOL4/Icon vs Pascal) → **operand REPRESENTATION**. Boxed-descriptor → coercing sink
+    `rt_num_arith` (Icon and SNOBOL4 SHARE it); unboxed → raw `add` (Pascal, via PAS-UNBOX). Template reads a
+    repr flag. If Icon/SNOBOL4 coercion ever diverges in detail, the escape hatch is a COERCION-POLICY immediate
+    on the node, switched inside the runtime sink — never a language `#ifdef` in the emitter.
 
-- [ ] **IRM-4 — F2 → COMPILE-TIME CALL RESOLUTION (no runtime queries).** Move the 7 `IR_CALL` retags out
-      of the emitter into a COMPILE-TIME resolution pass (in lower or a dedicated post-lower pass) that uses
-      the program's own proc table (built from parsed procs) + a STATIC builtin/generator name table — NOT
-      `rt_proc_is_*`/`rt_builtin_is_*`. Lower emits the FINAL call opcode (`IR_CALL_PROC_STAGED` /
-      `IR_PROC_GEN` / `IR_CALL_BUILTIN` / `IR_CALL_GVAR_USERPROC` / indirect). Emitter dispatches, reads only.
-      **Done:** zero `rt_*` calls in `emit_bb.c` used to pick an opcode; zero `IR_CALL` op writes in the emitter.
+---
 
-- [ ] **IRM-5 — F3 → MATCH STEPS IN LOWER (SNOBOL4).** `lower_snobol4.c` emits `IR_MATCH_HEAD`/`_RETRY`/
-      `_ADVANCE` as distinct nodes; delete the 3 emit-time retags (L2523/2528/2551). **Done:** SNOBOL4 pattern
-      programs build these nodes in lower; emitter has 0 match-op writes; SNOBOL4 oracle (beauty.sno) byte-identical.
+## TRACK A — DELETE (shrink the 222 IR opcodes)
 
-- [ ] **IRM-6 — F4 → `IR_LIT` WRITE TRIAGE.** Classify the 10 `IR_LIT(...)` field writes: (a) writes to a
-      REAL input node → move the value-setting to lower; (b) initialization of a FRESH scratch node the
-      emitter created → replace with a marked fresh-node builder OR eliminate by having lower produce that
-      node. **Done:** zero `IR_LIT(...).x =` on an input node in the emitter.
+- [ ] **A0 — DEAD-IR AUDIT (DYNAMIC, NOT GREP).** Static grep is UNRELIABLE (proven 2026-06-27: `IR_MATCH_HEAD`
+      is emit-retag-produced at L2523 yet a producer-grep flagged it dead; `emit_bb.c` greps as one binary blob;
+      lowerers build via helpers/macros not literal `build(…IR_X…)`). Instrument every lowerer's node-constructor
+      AND the emitter's dispatch to log op-kind on first produce/dispatch; run the WHOLE corpus (6 langs, both
+      modes). Extend `src/tools/emit_per_kind_audit.c`. **Done:** reproducible `IR-LIVE-SET.txt` (produced∪dispatched)
+      + complement `IR-DEAD-SET.txt`.
 
-- [ ] **IRM-7 — GATE STRICT + LOCK.** `test_gate_emit_no_ir_mutation.sh` reads 0 and is flipped to a HARD
-      `--strict` zero-check in every BB GOAL's Session-Setup. **Done:** gate 0; all language suites back to
-      their pre-reset numbers (or better); FACT RULE body copied byte-identical into the four BB GOAL files.
+- [ ] **A1 — DELETE proven-dead opcodes** + enum slots + name-table entries + unreachable consumer arms + dead
+      template files. Confirmed-suspect (NOT yet proven dead): `IR_GEN_BINOP`, `IR_BINOP_GEN`,
+      `flat_drive_binop_gen_tree`, attic-only kinds. **Done:** `IR_OP_COUNT` drops by the dead count; build green;
+      all suites green.
 
-- [ ] **IRM-8 — (STRETCH) ONE WALKER.** Collapse the three chain-body walkers
-      (`codegen_flat_chain_body`, `codegen_gvar_flat_chain_body`, Prolog's `pl_gz_build_chain_from`/
-      `pl_gz_chain_det`/`pl_gz_nsynth_chain`) toward ONE language-blind graph walker. This is the
-      "we are WAY past LANGUAGE in the emitter" goal and is a full reorg; sequence after IRM-7.
+## TRACK B — COLLAPSE (absorbs IRM-1..7; IR_TMP first)
+
+- [ ] **B0 — IR_TMP KEYSTONE.** Add `IR_TMP` (JCON `ir_Tmp` — a named value-slot node). Add a LOWER-time
+      tmp-allocation pass (each value-producing node gets an `lhs` tmp; operands reference tmps) + a LOWER-time
+      slot-assignment pass (tmp → `[r12+off]`). **Done:** `--dump-ir` shows tmps on nodes; a global+global add
+      carries `lhs=tmpK`, operands=`tmpI,tmpJ`.
+
+- [ ] **B1 — EMITTER READS TMP SLOTS (was IRM-2).** `bb_binop_arith/_relop/_concat/_assign/_unop` read
+      `off(node.lhs)` and `off(operand_tmp)`; never call `bb_slot_alloc16` at emit, never read `->ival`/`->t`
+      inline. **Done:** each reads slot offsets only.
+
+- [ ] **B2 — FOLD operation+source variants into the bare op (was IRM-3).** `IR_BINOP` carries operation as
+      immediate + a representation flag (boxed→`rt_num_arith` / unboxed→raw) + a coercion-policy immediate if
+      needed. Delete `IR_BINOP_GVAR_ARITH/_ARITH_SLOT/_RELOP/_CONCAT`, `IR_UNOP_GVAR_SLOT`, `IR_BINOP_ARITH/_RELOP/_CONCAT`,
+      operand-source `IR_ASSIGN_{LIT_I,LIT_S,VAR,CALL,CONCAT,DESCR}`, + their swap-sites + `bb_*_gvar_*` template files.
+      **Done:** `grep -c GVAR_ARITH src/emitter`==0; one template per operation, repr-dispatched.
+
+- [x] **B3 — RESUMABILITY IS ω-WIRING — CONFIRMED (2026-06-27).** Live four-port chain enumerates both
+      `(1 to 3)+10` → `11 12 13` AND Cartesian `(1 to 3)+(1 to 2)` → `2 3 3 4 4 5` (exact Icon order, right
+      operand inner) WITHOUT `flat_drive_binop_gen_tree` (that driver is reachable ONLY from the dead `IR_BINOP_GEN`
+      arm, which has no producer). Capability proven NOT stranded → the GEN-binop machinery is deletion-authorized
+      (folds into A1). DIVISION RULE validated empirically: resumability = ω-wiring, zero template cost.
+
+- [ ] **B4 — F2 → COMPILE-TIME CALL RESOLUTION (was IRM-4).** Lower emits the FINAL call opcode from the program's
+      own proc table + a STATIC builtin/generator table — NOT `rt_proc_is_*`/`rt_builtin_is_*`. **Done:** zero `rt_*`
+      opcode-picking calls in `emit_bb.c`; zero `IR_CALL` op writes in the emitter.
+
+- [ ] **B5 — F3 → MATCH STEPS IN LOWER (was IRM-5).** `lower_snobol4.c` builds `IR_MATCH_HEAD`/`_RETRY`/`_ADVANCE`;
+      delete the 3 emit-time retags (L2523/2528/2551). **Done:** emitter has 0 match-op writes; beauty.sno byte-identical.
+
+- [ ] **B6 — F4 → `IR_LIT` WRITE TRIAGE (was IRM-6).** Classify the 11 `IR_LIT(...)`/`IR_EXEC(...)` field writes:
+      input-node mangle → move to lower; fresh scratch-node init → marked builder or have lower produce it. **Done:**
+      zero `IR_LIT(...).x =` on an input node in the emitter.
+
+- [ ] **B7 — GATE STRICT 0 + LOCK (was IRM-7).** `test_gate_emit_no_ir_mutation.sh` reads 0 under `--strict` in
+      every BB GOAL's Session-Setup; FACT RULE body byte-identical across the four BB GOAL files; all suites at/above
+      pre-reset numbers.
+
+- [ ] **B8 — (STRETCH) ONE WALKER (was IRM-8).** Collapse `codegen_flat_chain_body`, `codegen_gvar_flat_chain_body`,
+      and Prolog's `pl_gz_*` chain builders toward ONE language-blind graph walker. Sequence after B7.
+
+## TRACK C — ADD (the 8 missing canonical IRs; JCON-mimicry)
+
+- [ ] **C1 — IR_CREATE / IR_CORET / IR_COFAIL (co-expressions).** The one genuine feature gap (`create e`, `@C`,
+      `^C`). STEPS: (a) `IR_CREATE` + coexp-block lowering in `lower_icon.c`; (b) runtime coexp object + stack;
+      (c) `IR_CORET`/`IR_COFAIL`; (d) templates `bb_create/bb_coret/bb_cofail`; (e) test
+      `c:=create(1 to 3); write(@c); write(@c)`.
+
+- [ ] **C2 — IR_CSET_LIT.** First-class cset literal. STEPS: (a) verify a cset literal compiles today at all
+      (empirical); (b) add node only if the gap is real; (c) `bb_cset_lit` template (sealed bitmap, RIP-relative).
+
+- [ ] **C3 — IR_MAKE_LIST (judgment call).** `list(n,x)` works today as builtin `IR_CALL`; add a node only if
+      `[a,b,c]` literal lists need uniform construction. STEPS: decide keep-as-builtin vs node; if node, `bb_make_list`.
+
+- [ ] **C4 — IR_UNREACHABLE.** Dead-code/safety marker after non-returning tails. STEPS: lower emits after `IR_FAIL`
+      tails; `bb_unreachable` template (emits `ud2`/bomb).
+
+- [ ] **C5 — IR_LINK / IR_INVOCABLE (likely WONTFIX).** Program-linking directives; likely N/A for SCRIP's
+      single-unit model. STEPS: confirm N/A and mark WONTFIX, or stub if `invocable` keyword support is wanted.
 
 ---
 
@@ -132,8 +185,11 @@ instruction. Do this BEFORE the per-language sessions spin up — a clean reduce
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
-**Reset Ground Zero #5 — 2026-06-27.** Gate-measured baseline: 45 hard IR-mutation sites in `emit_bb.c`
-(34 op-writes + 11 field-writes), 0 elsewhere in `src/emitter/`; 19 informational runtime-query refs (IRM-4).
-IRM-0 gate `scripts/test_gate_emit_no_ir_mutation.sh` LANDED (prints the live count, exits nonzero while >0).
-Suites at reset: Icon 212/40, SNOBOL4 m4 7/7, Prolog 5/5, Raku 192, Pascal smoke 25.
-All development ON HOLD until IRM-7 (gate strict 0). Breaking individual languages mid-ladder is AUTHORIZED.
+**Re-planned Ground Zero #5 — 2026-06-27 (Lon directing).** Ladder restructured into THREE tracks:
+A (DELETE dead IRs, dynamic audit), B (COLLAPSE — IR_TMP keystone B0 front-runs, absorbs IRM-1..7),
+C (ADD the 8 missing canonical IRs). KEYSTONE + DIVISION RULE added above. Gate baseline unchanged:
+HARD=45 (34 op-writes + 11 field-writes) in `emit_bb.c`, 0 elsewhere; C=19 runtime-query refs.
+Suites at reset: Icon 213/40 (XFAIL 36), SNOBOL4 m4 7/7, Prolog 5/5, Raku 192, Pascal smoke 25.
+**NEXT (in progress):** B3 empirical probe — does the live ω-chain enumerate `(1 to 3)+(1 to 2)`? — run
+FIRST (tells us if B3 is "confirm" or "rebuild"), alongside A0 dynamic dead-IR audit. Breaking individual
+languages mid-ladder is AUTHORIZED. Gate strict-0 (B7) is the recovery target.
