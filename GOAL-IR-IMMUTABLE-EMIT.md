@@ -233,6 +233,38 @@ INDEPENDENT CS-generic axes, none a language branch:
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
+**JCON-DRIVER BEACHHEAD + 5 SPINE RUNGS — 2026-06-28 (Sonnet 4.6).**
+Pushed `SCRIP@0e677f4c`. Strategy shift: STOP overlaying a band on the walk-order cursor. Instead build
+`emit_jcon_node` — a from-scratch dispatch (the `bc_gen` analog) inserted beside `walk_bb_flat` as the
+Icon chunk-walker's primary dispatch, with `walk_bb_flat` demoted to `default:` fallback that shrinks as
+each op converts. `SCRIP_ICN_JCON=0` keeps old path as live A/B oracle.
+
+**KEY TECHNIQUE (`jcon_value_slot`):** a converted producer reads `nd->lhs` (LOWER-assigned slot) AND
+reserves it in the cursor (`if nd->lhs+16 > g_flat_slot_count: g_flat_slot_count = nd->lhs+16`) before
+registering. This kills the collision wall that sank every prior attempt: without the reserve, the next
+fallback `bb_slot_alloc16` would reuse the same offset. Storage rungs byte-identical to old path;
+arithmetic structurally identical (same instruction count, offsets renumbered to LOWER scheme). Correct.
+
+**Converted arms in `emit_jcon_node` (as of 0e677f4c):**
+`IR_LIT_S` · `IR_LIT_I` · `IR_VAR` (lvalue-ref via varslot, not a value-tmp) · `IR_BINOP` (reads operand
+tmps, `op_binop_kind` dispatch — no `->op` swap, F1 disease avoided) · `IR_UNOP`/NEG/POS/NONNULL/
+NULL_TEST/SIZE/NOT · `IR_ASSIGN` (local store, global→fallback) · `IR_CALL` · `IR_SUCCEED` · `IR_FAIL`.
+
+**Gate: HARD=38 (A=29 op-writes + B=9 field-writes). Unchanged across all 5 rungs.**
+No full regression run (authorized). No artifact regen. hello world + expression/storage/IO spine verified
+correct mode-3/4/full-cycle (`as+gcc+link+run`) every rung.
+
+**NEXT RUNGS (next session climbs from here in order):**
+1. `IR_LIT_F` / `IR_LIT_NUL` — trivial, same pattern as LIT_I.
+2. `IR_KEYWORD` — descr arm sets `op_sval` + `jcon_value_slot`.
+3. Global-var `IR_VAR` + `IR_ASSIGN` — currently fallback; needs `op_gva_k` + gva-index path.
+4. `IR_GOTO` / `IR_IF` / `IR_CONJ` — control flow.
+5. Extend `ir_jcon_slot_assign` to ALL producers (value+var+scratch) → emit cursor retires wholesale.
+6. Gate strict-0 (B7): after option-(a) lands, sweep remaining op-writes + field-writes to 0.
+
+---
+
+## Watermark (prior)
 **B1 ATTEMPT — VALUE-TMP BAND LANDED, SUITE-RED MID-MIGRATION — 2026-06-28 (Sonnet 4.6, Lon: "let it break").**
 Pushed `SCRIP@18bb0eda`. First emit-CONSUMING step of the ir_Tmp model: `ir_tmp_slot_assign_flat` (in
 `scrip_ir.c`, run over all Icon graphs in `scrip.c` before emit) gives every value-producer EXCEPT `IR_VAR`
