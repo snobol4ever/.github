@@ -215,3 +215,21 @@ NEXT RUNG (Cluster 1, executable from the inventory above, in order):
 5. Update the PER-INSTRUCTION TABLE STATUS column and this watermark each template. Commit per RULES.md.
    Push only when Lon provides the credential, then `bash scripts/handoff_status.sh` must print HANDOFF
    COMPLETE (a handoff is not done until push succeeds).
+
+2026-06-28 (cont.) — Cluster-1 step 1 partially landed; emit-side bug localized. Recovered uncommitted
+lost-session work. LOWER `ir_jcon_slot_assign` (literal reserved-region slotting `[16,16+k*16)` via
+`jcon_converted_producer` = lit kinds only; sets `g->jcon_value_region`) committed SCRIP **d68c695b** —
+additive, inert, Icon `--run` **213** (baseline preserved). The emit-side change that makes literals READ
+the reserved slot (`jcon_lit_slot` + cursor-base shift to `16+jcon_value_region` in
+`descr_flat_chain_build_proc`/`_text` at emit_bb.c ~3736/3754) **regressed −40 (213→173)** and is REVERTED.
+Bisection: LOWER pass alone = 213 ⇒ the literal `lhs` overwrite is read by nothing (truly inert); the entire
+regression is inside emit_bb.c. Gating `jcon_lit_slot` on `g_descr_flat_chain` did NOT restore 213 ⇒ root
+cause is NOT merely the other uncompensated builder bases (gvar 3986/4014 use `nslots`; 4066/4082=`16`;
+3704/3720/4099=`0`). Strongest remaining suspects: (i) the base shift reads `entry->own->jcon_value_region`
+but literal `lhs` is numbered per-graph — mismatch if a literal is emitted in a different proc's frame
+(inlining/cross-graph), or `entry->own` ≠ the graph the pass ran on; (ii) `jcon_value_region` counts ALL
+literals in `g->all`, but the descr path only slots literals it WALKS — if counts differ the reserved region
+and the base shift disagree. NEXT RUNG: re-introduce emit_bb.c in two isolated pieces — (A) `jcon_lit_slot`
+in the 4 `walk_bb_flat` literal cases, (B) the base shift — testing each alone on the descr path to pin the
+culprit; verify `entry->own` identity and walked-vs-counted literal parity; land literals reading LOWER slots
+at 213; only then extend the converted-producer frontier and compensate the remaining builder bases.
