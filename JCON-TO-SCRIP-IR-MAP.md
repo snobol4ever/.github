@@ -252,3 +252,30 @@ slot-0/slot-16 reservations, and the per-builder base conventions (`descr_flat_c
 `16+(nslots-1)*16`; `pl_gz` base 16) — then have LOWER produce a complete per-graph slotmap (value + var +
 scratch + subject) that reproduces those fixed offsets, and switch every `bb_slot_get/alloc*`/`bb_varslot` read
 to `nd->lhs`/the slotmap in one coordinated flip per builder. This is the structural break the campaign assumes.
+
+2026-06-28 (cont. 3) — RUNG REORDER (Lon's call, ACCEPTED): consolidate emit_bb.c BEFORE option (a). Rationale
+cross-checked against GOAL-ICON-BB §"NO DUPLICATED LOGIC — WRITE EACH PIECE OF LOGIC ONCE" (line ~193: "2,427
+lines because of duplication … the line count collapses on its own") and this session's evidence (naive
+incremental literal conversion fails on (i) absolute-offset deps — base-shift ALONE = −12 — and (ii) N
+proc-builders with N base conventions). emit_bb.c redundancy is TWO kinds, only the first is genuinely
+preliminary:
+  • DUAL-WALKER / runtime-logic duplication (TEXT/BINARY walkers; ~18 builtin families calling BOTH) → one
+    `rt_*` call each. Behavior-preserving, shrinks the surface option (a) must touch. GENUINE PRE-STEP.
+  • OPERAND-READ FUSION → producer boxes. GOAL-ICON-BB itself says this "is first a LOWERER change"; it IS
+    option (a) (operands = tmps with LOWER-assigned slots). NOT preliminary — it is the conversion.
+
+NEW NEXT-RUNG ORDER (move into GOAL-IR-IMMUTABLE-EMIT.md as the active rung; each STEP stays Icon `--run` 213
+and is committed separately):
+  STEP P1 — collapse the dual TEXT/BINARY walkers and the ~18 builtin families that call both into single
+    `rt_*` calls (GOAL-ICON-BB §NO-DUPLICATED-LOGIC ~205-217). Measure the line-count drop; behavior-preserving.
+  STEP P2 — unify the N flat proc-builders (`descr_flat_chain` base 16; `gvar_flat_chain` 16+(nslots-1)*16;
+    `pl_gz` base 16; + `_text` variants) into ONE builder / ONE base discipline, and lift every absolute-offset
+    assumption (the ones that broke base-shift-alone this session: hardcoded `[r12+off]`, frame-size calcs,
+    `g_subject_slot`, slot-0/16 reservations) into ONE explicit per-graph slot-layout. Behavior-preserving.
+  THEN option (a) — against the consolidated, uniform surface: LOWER produces a COMPLETE per-graph slotmap
+    (value+var+scratch+subject) reproducing the now-explicit fixed offsets, and every
+    `bb_slot_get/alloc*`/`bb_varslot` read flips to the slotmap in ONE coordinated move (not N). The substrate
+    (`ir_jcon_slot_assign`, `jcon_value_region`, committed d68c695b) is reused/extended.
+Why this de-risks: P1 shrinks the file; P2 removes the N-conventions and makes the absolute offsets explicit —
+so option (a) becomes a single flip against one builder with one published slot-layout, instead of fighting N
+hidden base conventions mid-conversion (which is exactly what regressed this session).
