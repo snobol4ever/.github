@@ -132,18 +132,52 @@ the target. The pass currently covers value-producers only and recurses leaf-SEQ
 coverage is part of B1.
 
 STATUS 2026-06-27: passes 1+2 fused as `ir_tmp_slot_assign` (off = id*16; value-producers only; runs in the
-`--dump-ir` path; emit untouched). Locked by `scripts/test_gate_ir_tmp_slots.sh`.
+`--dump-ir` path; emit untouched). Locked by `scripts/test_gate_ir_tmp_slots.sh`. A flat Icon variant
+`ir_tmp_slot_assign_flat` (off = id*16 over value-producers excluding `IR_VAR`; sets `g->nvalue_slots`) is
+wired at the Icon bb-table call sites in `scrip.c` (~2767, ~3370) — still inert (nothing reads `lhs`).
+
+FINDING 2026-06-28 (resolves option (a) vs (b) — it is (a), and not by preference): emit-time scratch uses
+`bb_slot_claim(bytes)`, which is **keyless** — it bumps `g_flat_slot_count` and returns an offset with no
+node to hang it on, interleaved in emit-walk order inside `bb_call`/`bb_gather`/`bb_match_*`/`bb_mapgrep`. So
+the value-node cursor at any keyed `bb_slot_alloc16(nd)` depends on how many keyless claims ran before it in
+the DFS walk (`bb_emit_order_visit`: γ, ω, operands). Consequence: the live frame layout is emit-walk-order
+dependent, and `nd->lhs` computed in LOWER over `g->all` order does NOT equal emit's cursor even for value
+producers. Option (b) (value slots `[0..nslots*16)`, scratch after) cannot keep the suite green because the
+value numbering itself diverges. The faithful path is option (a): **every temporary — value, scratch, var —
+becomes a LOWER-assigned slot in `nd->lhs`; keyless emit scratch is abolished** (JCON has no emit-time
+allocation; its tmp table already includes scratch tmps). This forces a frame renumber, so the break is
+structural, exactly as the campaign assumes — not an incidental regression to be tiptoed around.
 
 ---
 
 ## BUILD ORDER (one IR at a time; assemble when enough land)
 
-Strategy: build the JCON-mirrored Icon path **NEW, beside the old fused path**, flip Icon over cluster by
-cluster (gate strict-0 + Icon suite are the recovery target; breaking mid-ladder is authorized).
+Strategy: build the JCON-mirrored Icon path **NEW, beside the old fused path** (`emit_jcon`), and keep the old
+path as a live oracle until the new path fully subsumes Icon, then delete it. Routing is per-proc, but note no
+real Icon proc is pure-early-cluster (every program calls `write` → needs `Call`+ports, cluster 6/2), so the
+**per-rung check is per-template `.s` equivalence on a crafted program** (the ea09c10c ethos: `--compile
+--target=x86`, BASE-vs-NEW diff == 0 for code exercising exactly that template). The **Icon suite is the FINAL
+gate**, applied at the whole-path flip — not a per-rung signal. Gate strict-0 + Icon green are the recovery
+target; breaking mid-ladder is authorized.
 
 - **Cluster 1 — slot spine, zero ports:** `IntLit/StrLit/RealLit → Tmp(slot) → Move/Assign/Deref → Goto`.
   Proves tmp-slots end to end with no four-port complexity. First runnable target builds toward
   `x := 2; write(x)` (note: that also needs `Call` + `Succeed`/`Fail` + `EnterInit` — cluster 2 deps).
+  Exact current→new correspondence (reconnoitred 2026-06-28):
+  - **Lit:** today `IR_LIT_I/S/F/NUL → bb_lit_scalar()` (already unified across kinds via `g_emit` fields).
+    New `bb_jcon_lit` is the same x86 but takes its result slot from `nd->lhs`, not `bb_slot_alloc16_or_get`.
+  - **Assign → collapse:** today a sprawl — `IR_ASSIGN`, `IR_ASSIGN_LIT_S/I`, `IR_ASSIGN_VAR/CONCAT/CALL/DESCR`,
+    `IR_INDIRECT_ASSIGN_LIT_S/VAR`, `IR_ASSIGN_FRAME/_REF` → `bb_gvar_assign*` / `bb_assign_frame*` /
+    `bb_assign_local`. JCON has ONE `ir_Move`. Collapse to a single `bb_jcon_move(dst_tmp, src_tmp)`; the
+    source-kind specializations vanish because the source is ALWAYS already a tmp (its producer wrote its slot).
+  - **Move/Deref → introduce:** no `IR_MOVE`/`IR_DEREF` opcodes exist; today they are implicit in the assign
+    family + `bb_prepare`. LOWER must emit them explicitly (JCON does). `bb_jcon_deref` = load through a var
+    cell into a result tmp; store side handled by `bb_jcon_move`.
+  - **Goto:** today structural (γ/ω fallthrough/jump in the walk driver, no node). JCON `ir_Goto` is explicit;
+    `bb_jcon_goto` emits the unconditional jump from the γ edge.
+  - **Slot accessor:** `bb_slot_get/alloc16(nd)` → `bb_jcon_slot(nd){ return nd->lhs; }` (pure read, no mutate).
+  - LOWER work: extend `ir_tmp_slot_assign_flat` → `ir_jcon_slot_assign` covering ALL temporaries on one base
+    (value + the introduced move/deref tmps + the var region currently served by `bb_varslot(name)`).
 - **Cluster 2 — ports:** `Succeed/Fail/ResumeValue`, `EnterInit`, `Label/TmpLabel`. Closes the minimal
   runnable program.
 - **Cluster 3 — operators:** `OpFunction` → split `bb_binop`/`bb_unop`; `operator` immediate.
@@ -155,6 +189,29 @@ cluster (gate strict-0 + Icon suite are the recovery target; breaking mid-ladder
 
 ## Watermark
 Created 2026-06-27 (Lon directing the JCON-in-SCRIP wholesale conversion; Icon first, other languages
-to follow as separate sessions). Foundation landed this session: `IR_TMP` enum slot + `IR_t.lhs`
-result-slot field (additive, inert — nothing reads `lhs` yet; gate + suites unchanged). Next rung:
-Cluster 1 — the LOWER tmp-slot pass + `bb_int_lit`/`bb_assign` as the first faithful mirrors.
+to follow as separate sessions). Foundation landed 2026-06-27: `IR_TMP` enum slot + `IR_t.lhs`
+result-slot field (additive, inert).
+
+2026-06-28 — Cluster-1 reconnaissance complete; architecture locked. Mapped the SCRIP side to be rewritten
+against the JCON Rosetta: LOWER (`lower_icon.c`, 546 lines, already γ/ω/res chunk-threaded ≈ `irgen.icn`
+shape), the tmp-slot passes (`scrip_ir.c` 338/345) + their Icon call sites (`scrip.c` 2767/3370), the emit
+driver + slot accessors (`emit_core.c:342 walk_bb_node`; `emit_bb.c:55-83 bb_slot_alloc16/_or_get/get`,
+keyless `bb_slot_claim`, name-keyed `bb_varslot`), and the Cluster-1 dispatch (`emit_core.c:420-470`). Key
+result: the keyless-scratch finding (see FINDING 2026-06-28 above) proves the frame renumber is structural →
+option (a) only; and per-rung verification is per-template `.s` equivalence, suite is the final gate. Exact
+Cluster-1 current→new inventory recorded in BUILD ORDER above. No code changed this rung (doc/spec only;
+Icon suite remains green at 213; gate HARD unchanged at 38).
+
+NEXT RUNG (Cluster 1, executable from the inventory above, in order):
+1. LOWER: write `ir_jcon_slot_assign(g)` assigning `nd->lhs` for ALL temporaries on one base — value
+   producers + the introduced `IR_MOVE`/`IR_DEREF` result tmps + the var region (port `bb_varslot`'s
+   name→off map into LOWER). Keep `ir_tmp_slot_assign_flat` until the new path subsumes it.
+2. LOWER: have `lower_icon.c` emit explicit `IR_MOVE`/`IR_DEREF`/`IR_GOTO` for the spine instead of the
+   implicit assign-family forms (add the opcodes to `IR.h` if absent).
+3. EMITTER: new `emit_jcon` unit — `bb_jcon_slot(nd){return nd->lhs;}`, then `bb_jcon_lit`, `bb_jcon_move`
+   (collapsing the assign sprawl), `bb_jcon_deref`, `bb_jcon_goto`, each reading slots via `bb_jcon_slot`.
+4. VERIFY each template: `./scrip --compile --target=x86` on a crafted spine program; diff BASE-vs-NEW `.s`
+   == 0. Do NOT run full regression; do NOT regen artifacts.
+5. Update the PER-INSTRUCTION TABLE STATUS column and this watermark each template. Commit per RULES.md.
+   Push only when Lon provides the credential, then `bash scripts/handoff_status.sh` must print HANDOFF
+   COMPLETE (a handoff is not done until push succeeds).
