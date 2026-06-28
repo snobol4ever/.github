@@ -222,31 +222,56 @@ lower-wholesale-slots, then re-attempt the value-slot consume.
 ---
 
 ## Watermark (prior)
-**SESSION 2026-06-28 (Opus 4.8, Lon directing) — baseline restored green + 1 Track-B rung landed.**
-Inherited tree was suite-RED (Icon 187) from the half-landed B1 emit-side value band (`18bb0eda`).
-Two results this session, both committed (local; PUSH PENDING):
-1. **Reverted B1 emit overlay → green** (`f23ff36f`). Restored `emit_bb.c` to its pre-band parent
-   (`3566cf37`, == `4fb8e24e`'s clean IR_BINOP_GEN deletion), removing ONLY the band; KEPT the B0 keystone
-   substrate (`IR_t.lhs`+`nvalue_slots` field, `ir_tmp_slot_assign_flat`, driver wiring) — pass is
-   inert-but-landed again (the green B0 state). Diagnosis CONFIRMED: B1 broke because it overlaid a reserved
-   `[0,nvalue*16)` value band on the SAME walk-order cursor feeding scratch/varslots, across 3 emit entries
-   with 2 frame-base conventions (0/16). Partial conversion has producer↔consumer slot-matching seams — which
-   is WHY piecemeal fails and the path forward is moving ALL slot allocation into LOWER (handoff Option B),
-   built as a fresh parallel path, not a band overlay on the fat driver.
-2. **B6/F4 rung: capture box stops mutating IR** (`84b3d995`). `flat_drive_capture` wrote a phase immediate
-   onto the input node (`IR_LIT(pBB).ival = 0/1/2`) to drive two emissions of the same MATCH_ASSIGN node;
-   now the phase rides in a new `op_phase` emit-state field and `bb_match_capture` reads it. Gate **42→40**
-   (B field-writes 11→9). PROVEN neutral: capgood.sno AND beauty.sno mode-4 `.s` byte-identical BASE-vs-NEW.
-**Gate now HARD=40** (A=31 op-writes unchanged + B=9 field-writes). Icon 213/40/36 unchanged; SNOBOL4 mode-3
-smoke 7/7. **KEY REFRAMING for the parallel-path work:** the BB *templates are already clean* — `bb_binop_arith`
-reads operand slots (`op_sa`/`op_sb`) + writes result slot (`op_off`), never reads `nd->lhs`, never mutates IR.
-The disease is concentrated in the 4000-line `emit_bb.c` driver (`walk_bb_flat` switch + `flat_drive_*` zoo +
-`bb_slot_alloc16` emit-time reconstruction + the `->op` swaps). The conversion is mostly a DRIVER change feeding
-the existing templates from LOWER-assigned `lhs` instead of emit-time reconstruction. **NEXT:** the open PIVOT
-stands — build the parallel driver that sets `op_off`/`op_sa`/`op_sb` from `nd->lhs`/`operand->lhs` for the WHOLE
-graph (all slots from LOWER, no `bb_slot_alloc16`), gated, old path default; drive the literal+binop spine to a
-runnable `write(1+2)→3` first. Remaining F4 field-writes (9): mostly input-node mangles (capture L455-pair done;
-gz_query L715, limit L1797, case L1732/50/62, scan L2298-2303, gvar-swap L2244/48) needing per-site LOWER moves.
+**SESSION 2026-06-28 (Opus 4.8, Lon directing) — baseline restored green + 3 verified rungs.**
+Lon's standing order this session: COMPLETE Icon LOWER+emitter rewrite, breakage of other languages
+AUTHORIZED (they will be rebuilt later with new boxes), Icon-only checks (no full regression / no
+artifact regen — too slow), drive Icon to 100% via wholesale JCON conversion. Inherited tree was
+suite-RED (Icon 187) from the half-landed B1 value band (`18bb0eda`). Results (all committed local;
+PUSH PENDING — 4 SCRIP commits + this watermark):
+1. **Reverted B1 emit band → green** (`f23ff36f`). emit_bb.c back to pre-band parent; B0 keystone
+   substrate KEPT (`IR_t.lhs`+`nvalue_slots`, `ir_tmp_slot_assign_flat`, driver wiring). Diagnosis
+   confirmed: band overlaid a reserved value region on the walk-order cursor across 3 entries / 2
+   frame bases (0/16) → broke 26 Icon tests. Partial slot-conversion has producer↔consumer seams →
+   the path is ALL slots from LOWER, fresh parallel driver, NOT a band overlay on the fat driver.
+2. **Capture box stops mutating IR** (`84b3d995`). Phase rides in new `op_phase` field, not
+   `IR_LIT(pBB).ival`. Gate 42→40 (field-writes 11→9). .s byte-identical (capgood.sno + beauty.sno).
+3. **Binop dispatch stops swapping ->op** (`ea09c10c`). Kind rides in new `op_binop_kind` field;
+   new `walk_bb_node case IR_BINOP` dispatches to relop/concat/arith. Gate 40→38. .s byte-identical
+   (add/sub/mul/relop/concat); mode-3 prints 3/7/20/9/foobar.
+**Gate now HARD=38** (A op-writes=29 + B field-writes=9). Icon 213; SNOBOL4 mode-3 smoke 7/7.
+
+**THE MECHANICAL PATTERN (reusable recipe — every ->op swap converts this way):**
+The emitter specializes a generic op into a variant by mutating the node — `_sk = nd->op;
+nd->op = VARIANT; EMIT_PAIR_FILL(...); nd->op = _sk;` — so `walk_bb_node`'s switch routes to the
+variant template. Convert WITHOUT touching `nd->op` (keeps all `== GENERIC` checks working, zero
+blast radius):
+  (a) add a dedicated `sm_emit_t` field carrying the routing decision (op_phase/op_binop_kind/…);
+      it survives EMIT_PAIR_FILL because `bb_fill_alpha`+`walk_bb_node` never touch new fields, and
+      is consumed synchronously by the immediately-following FILL (safe under nesting, like op_off);
+  (b) at the swap site, set the field instead of mutating ->op;
+  (c) add a generic `case GENERIC:` in walk_bb_node (emit_core.c) that dispatches on the field to the
+      variant template(s); KEEP the existing variant cases (other swap sites may still reach them);
+  (d) VERIFY: `--compile --target=x86` .s diff BASE-vs-NEW must be 0 for a program exercising it.
+This is faithful JCON (decision rides in emit-state / lowered shape; emitter reads, never writes IR).
+
+**REMAINING ->op SWAP SITES (emit_bb.c, line nums approx; apply the pattern):**
+- GVAR-arith cluster (Icon global-var arith) — ENTANGLED variant: 2215 (GVAR_CONCAT), 2236 + 3013/
+  3022/3031/3040/3049 (GVAR_ARITH), 3068/3087 (GVAR_ARITH_SLOT), 3113 (GVAR_RELOP), 3126
+  (binop_slot_kind), 3254 (UNOP_GVAR_SLOT). Base node is IR_ASSIGN (gvar store w/ binop rhs) swapped
+  to a binop-gvar op → needs an `op_gvar_route` field + a redirect inside walk_bb_node's existing
+  IR_ASSIGN handling (more invasive than the clean binop case; verify on `global g; g:=5;
+  write(g+1)` style). ~11 op-writes — the biggest Icon cluster.
+- Match retags (SNOBOL4 — deprioritized, Icon-first): 2471/2476/2499 (MATCH_HEAD/RETRY/ADVANCE),
+  2547 (ASSIGN_DESCR). Clean single-target swaps.
+- PERMANENT call retags (no restore): 3674-3689 set nd->op = IR_PROC_GEN/CALL_PROC_STAGED/
+  CALL_BUILTIN/CALL_GVAR_USERPROC from rt_proc/builtin queries; 3259 (PROC_GEN→userproc), and the
+  2243/2248 c0 IR_LIT_I save/restore. These are a pre-emit classification pass that mutates nodes —
+  faithful fix is a LOWER/resolve pass writing kinds into lowered shape, OR an emit-state side-table.
+**Remaining 9 F4 field-writes:** gz_query 715, capture-pair DONE, case 1732/50/62, limit 1797, gvar
+2244/48, scan 2298-2303 — mostly input-node mangles needing per-site LOWER moves.
+
+**NEXT:** apply the pattern to the GVAR cluster (op_gvar_route) for the biggest Icon gate drop, then
+the call retags. The clean binop case (ea09c10c) is the worked template to copy.
 
 ---
 
