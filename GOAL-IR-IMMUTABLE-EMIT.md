@@ -232,10 +232,10 @@ vestigial like `state`/`stno` were — confirm before assuming a behavior change
   not required):** variables, arithmetic, if/while, relops, and `every`/`to` generators all still run. Constructs
   that genuinely co-use the value fields (scan `s?e`, nested-scope VAR hop-count, suspend, complex-call subgraphs)
   are now corrupted-by-design — they rebuild on the flat operands+edge model.
-- **`counter` KEPT (separate field).** Deleting it cleanly needs its ~60 children-smuggle sites moved to
-  `operands[]` first (would break the build, incl. Icon, if removed now). The discipline gate enforces NO NEW
-  smuggling; `counter` comes off in the children→operands[] rung. Folding it into the union was unsafe (the
-  `op_counter` preamble would alias and a call template casts it to `IR_graph_t**` → crash).
+- **`counter` DELETED (2026-06-28 RUNG #1).** Field gone + vestigial `IR_exec_t` typedef gone; ~80 smuggle
+  sites converted (dead readers stubbed — their rebuild-me constructs `[SMX]`-decline on the new driver; writer
+  RHS preserved via `(void)(...)`). The `ival`→`IR_graph_t*` smuggle was killed too, so NO `IR_t` field points to
+  an `IR_graph_t`. See the top LANDED watermark.
 - **`state` DELETED.** Dead: never written (calloc'd 0), emitter reads vacuous; folded 5 reads. Exposed
   `flat_drive_while` as already-dead (its gate `while_cond_emittable` can never return true) — sweep candidate, left.
 - **`stno` → `ival`, then DELETED.** SUCCEED-only (SNOBOL4 stmt numbers); 5 sites moved; smoke green; dump `stno=N ival=N`.
@@ -264,10 +264,12 @@ cheaply (inline the predicate / drop the cache); if read at emit, move to ω-wir
       `dval` (it co-resides with `sval` name). Candidate home: a `subtag`/small int, or `ival` if VAR doesn't use it.
 - [ ] **D2 — GEN_SCAN → operands[]/flat.** Scan operator (`s ? expr`): `dval=1.0` + counter/ival sub-graph smuggling
       (lower L270/273, read L131/132, emit L2068/2069). Convert off `counter`/`ival`. After D1-* + D2, `lower_icon.c` debt = 0.
-- [ ] **D3 — WHACK: delete `counter`, union `{sval,ival,dval}`.** Breaks all other-language lowers + shared emit
-      smuggling readers (compile errors) — stub/delete those construct handlers (constructs become rebuild-me).
-      Icon stays green (gate-set). `IR_t` −16 bytes.
-- [ ] **D4 — Gate to 0.** Ratchet `IR_FIELD_DISCIPLINE_TARGET` to 0; lock in every BB GOAL Session-Setup.
+- [x] **D3 — WHACK: delete `counter`** (DONE 2026-06-28 RUNG #1). Union `{sval,ival,dval}` already landed
+      earlier; `counter` field + `IR_exec_t` typedef removed; the `ival`→`IR_graph_t*` smuggle killed too. ~80
+      reader/writer sites converted (dead readers stubbed; constructs `[SMX]`-decline on the new driver). NO `IR_t`
+      field points to an `IR_graph_t`. Field-discipline gate 190→119 (P2 read-smuggle 50→0).
+- [ ] **D4 — Gate to 0.** Ratchet `IR_FIELD_DISCIPLINE_TARGET` toward 0 (now **119** after D3; remaining = P1
+      non-graph runtime-state smuggles in lower_snobol4/raku + P3 dval-tags); lock in every BB GOAL Session-Setup.
 
 ---
 
