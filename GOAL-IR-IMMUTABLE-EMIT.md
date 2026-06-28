@@ -195,6 +195,33 @@ INDEPENDENT CS-generic axes, none a language branch:
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
+**B1 ATTEMPT — VALUE-TMP BAND LANDED, SUITE-RED MID-MIGRATION — 2026-06-28 (Sonnet 4.6, Lon: "let it break").**
+Pushed `SCRIP@18bb0eda`. First emit-CONSUMING step of the ir_Tmp model: `ir_tmp_slot_assign_flat` (in
+`scrip_ir.c`, run over all Icon graphs in `scrip.c` before emit) gives every value-producer EXCEPT `IR_VAR`
+a lower-assigned slot `lhs=K*16` and sets a dedicated `IR_graph_t.nvalue_slots`; the 5 emit entries reserve
+`[base, base+nvalue_slots*16)` and start scratch/varslots after it; `bb_slot_alloc16` returns `band_base+lhs`.
+
+**REUSABLE SUB-PARTS (keep across any future strategy):** (1) slot↔materialised invariant — `bb_slot_get`
+stays slotmap-only, `bb_slot_alloc16` returns the band offset AND pushes it to the slotmap, so every
+`bb_slot_get(x)<0`-gated walk still fires (making `bb_slot_get` lhs-aware breaks them — confirmed). (2)
+`IR_VAR` is an lvalue ref (JCON `ir_Var`), storage by-name via `bb_varslot`, NOT a value-tmp — excluded
+(a per-node band slot for it breaks `a:=5;write(a)`). (3) dedicated `nvalue_slots`; never overload `nslots`
+(Prolog/Pascal own it).
+
+**THE WALL (why suite 212→186, −26):** the 3 emit entries carry 2 frame-base conventions (0 / 16) and
+allocate value+var+scratch from ONE walk-order cursor; a reserved band overlaid on that perturbs frame
+layout for ~26 varied tests (jcon structs, coerce, file_io, scan, mutual recursion). **PIVOT:** do NOT keep
+overlaying a band — either land B8 single-walker FIRST (unify the frame bases) or move ALL slot allocation
+(value+var+scratch) wholesale into LOWER so emit reads a complete slotmap. Separately, the `a[i]:=x+y` bomb
+(binop-as-idx-value has no persistent result slot) is its own consumption bug: the binop computes correctly
+to `op_off` in `write()`/`x:=…` contexts but idx_set yields a constant 6 when routed — NOT root-caused.
+Gates unchanged: emit-mutation HARD=42, ir_Tmp keystone PASS. `.s` fixtures deliberately NOT regenerated
+(would mask the regression); regen on suite recovery. **NEXT:** pick B8-frame-unification-first vs
+lower-wholesale-slots, then re-attempt the value-slot consume.
+
+---
+
+## Watermark (prior)
 **JCON-IN-SCRIP WHOLESALE CONVERSION — 2026-06-27 (Lon directing).** New campaign on top of the
 A/B/C tracks: mirror JCON's `gen_bc.icn` (one `bc_gen_ir_<X>` per instruction) as one `bb_<x>` template
 per instruction, x86 instead of JVM bytecode. The full correspondence — slot mechanic (JCON tmp = JVM
