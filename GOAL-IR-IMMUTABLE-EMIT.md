@@ -416,6 +416,51 @@ cheaply (inline the predicate / drop the cache); if read at emit, move to ω-wir
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
+**R1 LANDED (Icon severed from legacy fat driver) + MODE-4 TEXT PATH RESTORED + BOTH MODES GREEN ON THE
+162-PROGRAM PASS SET — 2026-06-29 (Sonnet 4.6, Lon directing).** Two rungs, both Icon-smoke-and-sweep verified.
+
+**Measurement first (this session opened by grounding the "87" claim):** the Icon corpus has grown — **162**
+programs now pass `SCRIP_ICN_BB=1 --run` (multiline-safe comparison; "87" was the official rung-suite snapshot
+at an earlier commit). `--dump-ir` over all 162 shows **16 distinct LOWER-produced ops** (`IR_LIT_{S,I,F}`,
+`IR_VAR`, `IR_KEYWORD`, `IR_BINOP`, `IR_NOT`, `IR_ASSIGN`, `IR_CALL`, `IR_TO`, `IR_EVERY`, `IR_CONJ`, `IR_IF`,
+`IR_SUCCEED`, `IR_FAIL`, `IR_RETURN`); the emit-time call resolver fans `IR_CALL`→`IR_CALL_BUILTIN`/
+`IR_CALL_PROC_STAGED`/`IR_PROC_GEN`, so **19 ops are actually dispatched** out of **222** in `IR.h`. The
+enum-amputation target is therefore 19 (runnable floor; literal-16 won't link — the 3 call variants are
+emit-produced) up to the ~37 keep-set (template/cross-TU bare-ref pins). **The amputation is GATED:** deleting
+to 19 currently breaks **159 enum members across the live build** — 115 in `emit_bb.c` (SNOBOL pattern +
+Prolog `gz_*`/`pl_gz_*` clusters), 70 in `scrip.c` (`pl_gz_*`), 40 in `opt/ir_query.c`, 36 in `lower_icon.c`
+(Icon lower still emitting unowned ops). Confirms the prior handoff: **remove the non-Icon emitter code FIRST
+(R2/R3), then the enum delete falls out as a ~36-site Icon-only edit.** Measurement scripts on sandbox.
+
+**R1 — Icon dispatch flipped off the legacy `bb_build_flat` path (committed `4d31aff0`).** `ring_to_tree` (the
+stack-reconstruction reconstructor) bailed to NULL for any chain containing a literal or binop (every real
+program), so all 162 already flowed through `descr_flat_chain_build` → `emit_drive`; the `root_node!=NULL`
+branch only reached the GROUND-ZERO abort stubs `bb_build_flat`/`codegen_flat_build`. Proved dead empirically
+(instrumented branch, rebuilt, ran 162 → **0 hits**), then made the flip explicit on BOTH the mode-3 (`--run`)
+and mode-4 (`--compile`) dispatches and deleted the dead `ring_to_tree` + sole helper `node_arity` (43 lines).
+This severs Icon from `walk_bb_flat`/`bb_build_flat`/`codegen_flat_build` — the R2 prerequisite.
+
+**MODE-4 TEXT RESTORED (0 → 161/162).** Lon's directive: both modes must work on the pass set. Mode-4 was at
+**0/162** — the GROUND-ZERO reduction `a7958465` had DELETED the entire text-emit path to abort stubs (the
+"mode-4 green" claim predated it, at `6058d6f8`). Restoration was SMALL because **the text path reuses the
+mode-3 driver**: `descr_flat_chain_build_text` calls the same `codegen_flat_chain_body` → `emit_drive` loop,
+medium-agnostic. Un-stubbed five thin wrappers to their original bodies (`g_bb_alpha_seq_reset`,
+`descr_flat_chain_build_text`, `descr_flat_chain_build_proc_text`, `data_buf_reset`,
+`data_buf_flush_pending_label`) + re-added the deleted helper `data_buf_appendf`. No new driver logic; the
+SNOBOL-only `pre_build_children_text` stays stubbed (Icon never reaches it). The `.so` link gap (4 undefined
+non-Icon symbols `prolog_lower`/`rebus_compile`/`bb_gather_prepare`/`bb_mapgrep_prepare`, from the Icon-only
+Makefile trim) is closed by a NEW `src/lower/rt_noicon_stubs.c` added to **RT_PIC_SRCS ONLY** — NOT the `scrip`
+binary recipe, which compiles the real TUs (a first attempt to stub them in the shared `lower_noicon_stubs.c`
+multiply-defined and was reverted). The sole mode-4 holdout is `parser/cset_lit.icn` (`x:='aeiou'`) — a
+PRE-EXISTING cset-literal segfault that hits `--dump-ir`/`--compile` even on the R1-only tree (confirmed not
+introduced here); it passes mode-3 `--run`.
+
+**Verified:** mode-3 `--run` 162/162 (0 regression); mode-4 compile→as→ld→run 161/162; both gate programs full
+mode-4 cycle (`hello world`, `3`); mutation gate unchanged **HARD=4**. **NEXT: R2 — remove the now-dead
+SNOBOL/Prolog clusters from `emit_bb.c` + `scrip.c` (the 115+70 break-refs), then R3/R4/R5 enum amputation.**
+
+
+## Watermark (prior)
 **IR_t VALUE PAYLOAD COLLAPSED TO ONE UNION + `state`/`stno` WHACKED + FIELD-DISCIPLINE GATE BUILT + PASS=2 GREEN
 — 2026-06-28 (Sonnet 4.6, Lon command decision).** This session collapsed `IR_t` per JCON field discipline.
 `state` DELETED (dead), `stno` folded into `ival` then DELETED (SUCCEED-only), and the three value payload fields
