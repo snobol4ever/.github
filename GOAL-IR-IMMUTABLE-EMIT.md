@@ -56,29 +56,32 @@ NEXT: stand up the from-scratch driver `emit_jcon` over the JCON instruction set
 `flat_drive_*` / reconstruction / `bb_slot_alloc16` legacy for that path. Extend `ir_jcon_slot_assign` from
 literals-only to ALL producers.
 
-## ⛔ ENTRY POINT — WHICH DRIVER IS LIVE (READ FIRST; corrected 2026-06-29 Sonnet 4.6)
-**The live Icon per-node emit driver is `emit_drive_node` in `src/emitter/emit_drive.c`.** It is called
-once per chain node by `codegen_flat_chain_body` (`emit_bb.c`, the per-node loop ~line 3465:
-`emit_drive_node(nodes[i], node_γ, node_ω, betas[i])`), AFTER that loop computes each node's γ/ω/β
-labels (the four-port→two-edge reconciliation). A `grep` for the call site is FOOLED by the Greek chars
-in `emit_bb.c` (grep prints "binary file matches" and hides the line) — use `grep -a` or you will wrongly
-conclude `emit_drive_node` is dead and waste a session re-deriving the routing (this happened 2026-06-29).
-- **`emit_jcon_node` (`emit_bb.c` ~3320) is the DEAD predecessor** — compiled, NEVER called (the chain
-  was switched to `emit_drive_node`). It still carries a `default: walk_bb_flat` fallback; `emit_drive_node`
-  does NOT. Cleanup candidate (delete `emit_jcon_node` + `emit_jcon_enabled`/`SCRIP_ICN_JCON` once confirmed).
-- **`emit_drive_node`'s `default:` is `drive_unowned` → HARD ABORT (`FATAL emit_drive: op=N has no template`), NOT a fallback and NOT a soft decline.**
+## ⛔ ENTRY POINT — WHICH DRIVER IS LIVE (READ FIRST; fn renamed 2026-06-29 Sonnet 4.6)
+**The ONE and ONLY per-node emit driver — for ALL languages — is `emit_drive` in `src/emitter/emit_drive.c`.**
+(Function renamed 2026-06-29 from `emit_drive_node`. File stays `emit_drive.c`: the driver is LANGUAGE- AND
+BACKEND-NEUTRAL — it reads `nd->op` + `nd`'s fields, sets `g_emit`, and dispatches to whatever Byrd-Box
+templates are wired; nothing in the DRIVER itself is Icon-specific or x86-specific. The x86 lives in the
+templates it dispatches to, not in the driver — so it is NOT named `emit_x86.c`.) It is called once per chain
+node by `codegen_flat_chain_body` (`emit_bb.c`, the per-node loop ~line 1552:
+`emit_drive(nodes[i], node_γ, node_ω, betas[i])`), AFTER that loop computes each node's γ/ω/β labels (the
+four-port→two-edge reconciliation). A `grep` for the call site is FOOLED by the Greek chars in `emit_bb.c`
+(grep prints "binary file matches" and hides the line) — use `grep -a` or you will wrongly conclude
+`emit_drive` is dead and waste a session re-deriving the routing (this happened 2026-06-29).
+- **The old fat driver was DELETED WHOLESALE (`f8e88daf`); the dead `emit_jcon_node` predecessor is GONE.**
+  `emit_drive` is the sole driver; there is no parallel path and no `SCRIP_ICN_JCON` toggle anymore.
+- **`emit_drive`'s `default:` is `drive_unowned` → HARD ABORT (`FATAL emit_drive: op=N has no template`), NOT a fallback and NOT a soft decline.**
   Every IR op the switch does not own ABORTS LOUDLY at the point of confrontation — there is no [SMX] print, no
   "ABORT", no ignorable message. An unimplemented op is a bug to FIX (implement the op), never a feature to defer.
   So any IR op the switch does not own FATALs (`bb_build_flat returned NULL`). To grow the driver you ADD a
-  `case IR_X` to `emit_drive_node`; the universe of owned ops IS the switch. `walk_bb_flat` (`emit_bb.c`) is
-  the OLD fat driver — still used for nested sub-walks (alt arms, every-body, swap, rasgn) but being retired.
+  `case IR_X` to `emit_drive`; the universe of owned ops IS the switch. `walk_bb_flat` (`emit_bb.c`) is
+  the OLD fat driver residue — still used for nested sub-walks (alt arms, every-body, swap, rasgn) but being retired.
 - **`DRIVE_FILL(nd,…)` dispatches through `walk_bb_node` (`emit_core.c`) on `nd->op`** to the `bb_*()`
-  template. So a new op that emits via a template needs BOTH: a `case IR_X` in `emit_drive_node` (sets
+  template. So a new op that emits via a template needs BOTH: a `case IR_X` in `emit_drive` (sets
   `g_emit`/pair-table) AND a matching `case IR_X: bb_emit_x86(bb_x()); return 0;` in `walk_bb_node`.
   (E.g. IR_CONJ needed adding to `walk_bb_node` — it had `IR_GCONJ` (Prolog) but not `IR_CONJ` (Icon).)
 - **IR_IF needs NO driver case** — `lower_if` produces pure edge-threading (condition/then/else wired by
   γ/ω); the IR_IF node never reaches the driver (faithful to JCON `ir_a_If`, which emits only `ir_Goto`).
-- **OWNED by `emit_drive_node` as of 2026-06-29:** IR_LIT_{S,I,F,NUL}, IR_KEYWORD, IR_VAR, IR_BINOP,
+- **OWNED by `emit_drive` as of 2026-06-29:** IR_LIT_{S,I,F,NUL}, IR_KEYWORD, IR_VAR, IR_BINOP,
   IR_UNOP/NEG/POS/NONNULL/NULL_TEST/SIZE/NOT, IR_ASSIGN (local), IR_CALL{,_BUILTIN,_PROC_STAGED,_USERPROC,
   _BYNAME,_GVAR_USERPROC}, IR_CONJ, IR_SUCCEED, IR_FAIL, IR_RETURN. **NOT YET IMPLEMENTED — these ABORT (fix them, do not defer):** IR_EVERY(18)+
   IR_TO(103)/IR_TO_BY(17) [one atomic generator unit — resume port = β], IR_ALT(22), IR_SUSPEND(28),
