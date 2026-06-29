@@ -661,6 +661,18 @@ lower-wholesale-slots, then re-attempt the value-slot consume.
 ---
 
 ## Watermark (prior)
+**SESSION 2026-06-29 (Sonnet 4.6, Lon directing) — IR form-split: 6 new operator opcodes + relop migration.**
+Added `IR_BINOP_RELOP`, `IR_BINOP_GENERIC`, `IR_UNOP_TEST`, `IR_UNOP_GENERIC`, `IR_SECTION`, `IR_SUBSCRIPT`
+to `IR_e` (enum 37→43 members + `IR_OP_COUNT`). Each earns its opcode by having a distinct emitted BB
+control-flow form (value vs failable/branch-to-ω vs resumable/closure vs lvalue-capable). `IR_SECTION`
+naming confirmed from Icon canonical sources (`Op_Sect`, grammar `section`, JCON `a_Sectionop`) — not
+"slice" (Python-only term). Migrated Icon relops: `lower_icon.c` now builds `IR_BINOP_RELOP` for codes
+`BINOP_LT..NE`/`BINOP_SLT..SNE`; arith+concat stay `IR_BINOP`. `walk_bb_node` routes `IR_BINOP_RELOP`
+directly to `bb_binop_relop()` (no sub-switch). 150/150 Icon programs byte-identical output (parent vs HEAD).
+Mode-4 relop full cycle green. Mutation gate unchanged HARD=4. SCRIP `8f346962` pushed.
+NEXT: `IR_UNOP_TEST` migration (same pattern: `/` `\` are `TT_NULL`/`TT_NONNULL` in lower_icon.c);
+then `IR_BINOP_GENERIC` wiring; then `IR_SECTION`/`IR_SUBSCRIPT` (need real lower arms, currently IR_FAIL-stubbed).
+
 **SESSION 2026-06-28 (Opus 4.8, Lon directing) — baseline restored green + 3 verified rungs.**
 Lon's standing order this session: COMPLETE Icon LOWER+emitter rewrite, breakage of other languages
 AUTHORIZED (they will be rebuilt later with new boxes), Icon-only checks (no full regression / no
