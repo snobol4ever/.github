@@ -70,15 +70,18 @@ IR_LIT_NUL IR_UNOP IR_NEG IR_POS IR_SIZE IR_NONNULL IR_NULL_TEST IR_TO_BY IR_WHI
 IR_REPEAT IR_REPALT IR_LIMIT IR_SUSPEND IR_PROC IR_INTERROGATE IR_CALLEE_FRAME IR_UPTO
 IR_ITERATE IR_GEN_ALT IR_TO_NESTED IR_BREAK IR_NEXT IR_CSET_COMPL IR_CSET_UNION IR_CSET_DIFF
 IR_CSET_INTER IR_GEN_SCAN IR_IDX IR_SECTION IR_LIST_BANG IR_RECORD_DEF IR_FIELD_GET IR_FIELD_SET
-IR_IDX_SET IR_KEY_GEN IR_SWAP IR_RASGN IR_SEQ_EXPR IR_INITIAL IR_LCONCAT IR_FIND_GEN IR_SEQ_GEN
-IR_GATHER IR_BINOP_RELOP IR_BINOP_ARITH IR_BINOP_GVAR_ARITH IR_BINOP_GVAR_RELOP
-IR_BINOP_GVAR_ARITH_SLOT IR_UNOP_GVAR_SLOT IR_BINOP_CONCAT IR_BINOP_GVAR_CONCAT IR_SCAN_ANY
-IR_SCAN_MANY IR_SCAN_MATCH IR_SCAN_UPTO IR_SCAN_FIND IR_SCAN_BAL IR_SCAN_TAB IR_SCAN_MOVE
-IR_SCAN_POS IR_VAR_FRAME IR_ASSIGN_FRAME IR_VAR_FRAME_REF IR_ASSIGN_FRAME_REF IR_CALL_DEFINE
-IR_GOTO_DYN IR_ALT(NOTE: keep — was incorrectly in delete-set in mid-session analysis)
+IR_ASSIGN_FRAME  IR_ASSIGN_FRAME_REF  IR_BINOP_ARITH  IR_BINOP_CONCAT
+IR_BINOP_GVAR_ARITH  IR_BINOP_GVAR_ARITH_SLOT  IR_BINOP_GVAR_CONCAT  IR_BINOP_GVAR_RELOP
+IR_BINOP_RELOP  IR_BREAK  IR_CALLEE_FRAME  IR_CALL_DEFINE  IR_CASE  IR_CASE_ARM
+IR_CSET_COMPL  IR_CSET_DIFF  IR_CSET_INTER  IR_CSET_UNION  IR_FIELD_GET  IR_FIELD_SET
+IR_FIND_GEN  IR_GATHER  IR_GEN_ALT  IR_GEN_SCAN  IR_GOTO_DYN  IR_IDX  IR_IDX_SET
+IR_INITIAL  IR_INTERROGATE  IR_ITERATE  IR_KEY_GEN  IR_LCONCAT  IR_LIMIT  IR_LIST_BANG
+IR_NEXT  IR_PROC  IR_RASGN  IR_RECORD_DEF  IR_REPALT  IR_REPEAT  IR_SCAN_ANY  IR_SCAN_BAL
+IR_SCAN_FIND  IR_SCAN_MANY  IR_SCAN_MATCH  IR_SCAN_MOVE  IR_SCAN_POS  IR_SCAN_TAB
+IR_SCAN_UPTO  IR_SECTION  IR_SEQ_EXPR  IR_SEQ_GEN  IR_SUSPEND  IR_SWAP  IR_TO_BY
+IR_TO_NESTED  IR_UNOP_GVAR_SLOT  IR_UNTIL  IR_UPTO  IR_VAR_FRAME  IR_VAR_FRAME_REF  IR_WHILE
 
-NOTE on IR_LIT_NUL: in the keep-27 driver switch but NOT in the 181-green produce-set; include
-in keep if the driver owns it (zero cost to keep), delete if closing to strict-green-only.
+(62 members — the exact complement of the 32-keep in the current 94-member enum.)
 
 ---
 
@@ -92,36 +95,15 @@ SCRIP tree is at clean HEAD d0046704. No damage.
 
 ## Next session entry point
 
-Execute the 69-delete amputation using the keep-set above:
-1. Edit IR.h enum to the 25-keep + IR_OP_COUNT
-2. Edit scrip_ir.c (designated-init tables) in lockstep
-3. `make scrip` — capture the full compiler break list
-4. Chase each break site: delete dead case-labels / dead lower arms /
-   dead template switch arms in emit_bb.c, lower_icon.c, emit_core.c,
-   ir_query.c, scrip.c
-5. Build green, run suite, verify PASS >= 181
-6. Commit + push
-
-Key notes for the next session executor:
-- IR_ALT: lower-produced (green set), structural branch in codegen_flat_chain_body → KEEP
-- IR_IF: lower-produced (green set) → KEEP (not in driver switch, edge-threaded by design)
-- IR_GOTO: structural (chain builder loop termination) → KEEP
-- IR_SEQ: structural (chain builder seq-pair detection) → KEEP
-- IR_LIT_NUL: in driver switch but not produced by green set — judgment call; recommend KEEP
-  (zero cost, avoids a silent regression if any program uses &null literal path)
-- The strict-27 driver-switch list: IR_LIT_S IR_LIT_I IR_LIT_F IR_LIT_NUL IR_KEYWORD IR_VAR
-  IR_BINOP IR_UNOP IR_NEG IR_POS IR_NONNULL IR_NULL_TEST IR_SIZE IR_NOT IR_ASSIGN IR_CALL
-  IR_CALL_BUILTIN IR_CALL_PROC_STAGED IR_CALL_USERPROC IR_CALL_BYNAME IR_CALL_GVAR_USERPROC
-  IR_TO IR_EVERY IR_CONJ IR_SUCCEED IR_FAIL IR_RETURN
-
-IMPORTANT: IR_UNOP/IR_NEG/IR_POS/IR_SIZE/IR_NONNULL/IR_NULL_TEST are in the driver switch
-but NOT in the green produce-set. They ARE in the keep-set (driver owns them) but deleting
-them would only regress programs that currently FAIL (drive_unowned aborts). Safe to delete
-per the "let it go to zero and grow back" mandate, but confirm against the full corpus first.
-
-Recommended: keep ALL driver-switch members (strict-27) PLUS the structural/emit-fan members
-(IR_GOTO, IR_SEQ, IR_IF, IR_ALT, IR_PROC_GEN). That gives a 32-member keep-set which
-is cleanly conservative, zero regression risk, and still cuts 62 of the 69 targets.
+Execute the 62-delete amputation:
+1. Edit IR.h enum: delete the 62 members listed above, keep the 32 listed above + IR_OP_COUNT
+2. Edit scrip_ir.c designated-init tables in lockstep (same 62 line-deletes)
+3. `make scrip 2>&1 | grep error:` — capture every compiler break site
+4. Chase each break: delete dead case-labels / dead lower arms in emit_bb.c,
+   lower_icon.c, emit_core.c, ir_query.c, scrip.c
+5. Build green; run `SCRIP_ICN_BB=1 bash scripts/test_icon_rung_suite.sh`
+6. Verify PASS >= 86 (rung suite) and corpus green >= 181
+7. Commit + push
 
 ---
 
