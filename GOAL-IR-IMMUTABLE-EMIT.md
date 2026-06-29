@@ -416,6 +416,10 @@ cheaply (inline the predicate / drop the cache); if read at emit, move to ω-wir
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
+**ENUM AMPUTATION LANDED — 119 IR_e members deleted (Prolog IR_CELL_*/IR_DET_*/GOAL/UNIFY/etc., SNOBOL4 IR_MATCH_*/IR_PATTERN_*/ASSIGN_LIT_*/etc., Raku IR_MAP/GREP/RANDOM, Pascal IR_PROG/DTP_ASSIGN/REF_INVARIANT, dead IR_DO_WHILE/EXEC/SCAN/AUGOP/SUBJECT) — 2026-06-29 (Sonnet 4.6, Lon directing). Cascade: bb_prepare collapsed (386 lines → 7-line field-reset), pl_gz_*/pl_findall_* subsystem deleted from scrip.c (51 functions, 2049 lines), ~74 Prolog/SNOBOL4 BB templates + 5 dead TUs removed from Makefile build. scrip_ir.c entries removed in lockstep. ir_query.c rewritten to just ir_is_generator_kind (Icon only). Gate: HARD=4 (unchanged). Suite: PASS=86/289 all modes, zero regression. NEXT: pull remaining dead templates from Makefile, fix IR_OP_COUNT, B4 (move call-kind classification to LOWER for gate=0).**
+
+**Prior watermark below.**
+
 **R1 LANDED (Icon severed from legacy fat driver) + MODE-4 TEXT PATH RESTORED + BOTH MODES GREEN ON THE
 162-PROGRAM PASS SET — 2026-06-29 (Sonnet 4.6, Lon directing).** Two rungs, both Icon-smoke-and-sweep verified.
 
