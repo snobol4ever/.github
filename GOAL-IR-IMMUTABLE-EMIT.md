@@ -56,6 +56,34 @@ NEXT: stand up the from-scratch driver `emit_jcon` over the JCON instruction set
 `flat_drive_*` / reconstruction / `bb_slot_alloc16` legacy for that path. Extend `ir_jcon_slot_assign` from
 literals-only to ALL producers.
 
+## ⛔ ENTRY POINT — WHICH DRIVER IS LIVE (READ FIRST; corrected 2026-06-29 Sonnet 4.6)
+**The live Icon per-node emit driver is `emit_drive_node` in `src/emitter/emit_drive.c`.** It is called
+once per chain node by `codegen_flat_chain_body` (`emit_bb.c`, the per-node loop ~line 3465:
+`emit_drive_node(nodes[i], node_γ, node_ω, betas[i])`), AFTER that loop computes each node's γ/ω/β
+labels (the four-port→two-edge reconciliation). A `grep` for the call site is FOOLED by the Greek chars
+in `emit_bb.c` (grep prints "binary file matches" and hides the line) — use `grep -a` or you will wrongly
+conclude `emit_drive_node` is dead and waste a session re-deriving the routing (this happened 2026-06-29).
+- **`emit_jcon_node` (`emit_bb.c` ~3320) is the DEAD predecessor** — compiled, NEVER called (the chain
+  was switched to `emit_drive_node`). It still carries a `default: walk_bb_flat` fallback; `emit_drive_node`
+  does NOT. Cleanup candidate (delete `emit_jcon_node` + `emit_jcon_enabled`/`SCRIP_ICN_JCON` once confirmed).
+- **`emit_drive_node`'s `default:` is `drive_unowned` → HARD ABORT (`FATAL emit_drive: op=N has no template`), NOT a fallback and NOT a soft decline.**
+  Every IR op the switch does not own ABORTS LOUDLY at the point of confrontation — there is no [SMX] print, no
+  "ABORT", no ignorable message. An unimplemented op is a bug to FIX (implement the op), never a feature to defer.
+  So any IR op the switch does not own FATALs (`bb_build_flat returned NULL`). To grow the driver you ADD a
+  `case IR_X` to `emit_drive_node`; the universe of owned ops IS the switch. `walk_bb_flat` (`emit_bb.c`) is
+  the OLD fat driver — still used for nested sub-walks (alt arms, every-body, swap, rasgn) but being retired.
+- **`DRIVE_FILL(nd,…)` dispatches through `walk_bb_node` (`emit_core.c`) on `nd->op`** to the `bb_*()`
+  template. So a new op that emits via a template needs BOTH: a `case IR_X` in `emit_drive_node` (sets
+  `g_emit`/pair-table) AND a matching `case IR_X: bb_emit_x86(bb_x()); return 0;` in `walk_bb_node`.
+  (E.g. IR_CONJ needed adding to `walk_bb_node` — it had `IR_GCONJ` (Prolog) but not `IR_CONJ` (Icon).)
+- **IR_IF needs NO driver case** — `lower_if` produces pure edge-threading (condition/then/else wired by
+  γ/ω); the IR_IF node never reaches the driver (faithful to JCON `ir_a_If`, which emits only `ir_Goto`).
+- **OWNED by `emit_drive_node` as of 2026-06-29:** IR_LIT_{S,I,F,NUL}, IR_KEYWORD, IR_VAR, IR_BINOP,
+  IR_UNOP/NEG/POS/NONNULL/NULL_TEST/SIZE/NOT, IR_ASSIGN (local), IR_CALL{,_BUILTIN,_PROC_STAGED,_USERPROC,
+  _BYNAME,_GVAR_USERPROC}, IR_CONJ, IR_SUCCEED, IR_FAIL, IR_RETURN. **NOT YET IMPLEMENTED — these ABORT (fix them, do not defer):** IR_EVERY(18)+
+  IR_TO(103)/IR_TO_BY(17) [one atomic generator unit — resume port = β], IR_ALT(22), IR_SUSPEND(28),
+  IR_LIMIT, IR_SCAN/GEN_SCAN, GVAR-arith assign family, IR_IDX/IDX_SET, IR_FIELD_*, IR_CASE, …
+
 ## ⛔ FACT RULE — THE EMITTER NEVER MUTATES AN IR NODE
 
 **The IR is the language-independent CONTRACT and it is READ-ONLY at emit time.** The emitter
@@ -227,16 +255,16 @@ vestigial like `state`/`stno` were — confirm before assuming a behavior change
 - **⛔ `counter` DELETED from IR_t (+ vestigial IR_exec_t typedef gone).** No `IR_t` field points to an
   `IR_graph_t` anymore — not `counter`, and the `ival`→`IR_graph_t*` smuggle (GEN_SCAN `bsg`, raku arg-block `bg`)
   is gone too, so the `{sval,ival,dval}` union holds ONLY scalars. ~80 smuggle sites converted: dead readers stubbed
-  (their rebuild-me constructs `[SMX]`-decline on the new driver), writer RHS preserved via `(void)(...)`. IR_t is
+  (their rebuild-me constructs abort on the new driver), writer RHS preserved via `(void)(...)`. IR_t is
   now `{op, γ, ω, operands[], n_operands, tmp, value-union}`; children reached ONLY through operands[]. Remaining
   union state-pointer smuggles (bb_conj_state_t* etc. for Prolog/SNOBOL4 runtime) are NOT IR_graph_t → later rung.
 - **FIELD-DISCIPLINE GATE 190 → 119** (P2 read-smuggle **50 → 0** — nothing is read as an `IR_graph_t*`; P1
   write-smuggle 57 → 36). TARGET ratcheted 192 → 119 to lock it.
-- **FULL ICON REGRESSION REINSTATED** (`test_icon_rung_suite.sh`, mode-3 `--run`): **PASS=43  EXCISED=96
+- **FULL ICON REGRESSION REINSTATED** (`test_icon_rung_suite.sh`, mode-3 `--run`): **PASS=43  DECLINED=96 (stale; mechanism REMOVED)
   FAIL=114  XFAIL=36** (vs old fused walk_bb_flat path PASS=195 — the deliberate Ground Zero reset onto the clean
-  driver; 43 ≫ the sanctioned "TWO"). EXCISED = unowned op clean-declines; FAIL = owned op the immature driver
+  driver; 43 ≫ the sanctioned "TWO"). the now-REMOVED soft-decline of unowned ops (they ABORT now); FAIL = owned op the immature driver
   mis-wires (e.g. user-proc-call segfault, rung02_proc_fact rc=139) = the growth/cleanup target. **NEXT: grow
-  emit_drive_node op ownership (EXCISED→PASS) and drive FAIL→0; then delete the dead emit_bb.c walk_bb_flat /
+  emit_drive_node op ownership (implement-the-op→PASS) and drive FAIL→0; then delete the dead emit_bb.c walk_bb_flat /
   flat_drive_* zoo (emit-mutation gate 38→down).** emit-mutation gate unchanged at HARD=38 (all in the now-dead,
   bypassed emit_bb.c paths). **PUSH PENDING — credential needed; handoff INCOMPLETE until pushed.**
 
@@ -252,7 +280,7 @@ vestigial like `state`/`stno` were — confirm before assuming a behavior change
   that genuinely co-use the value fields (scan `s?e`, nested-scope VAR hop-count, suspend, complex-call subgraphs)
   are now corrupted-by-design — they rebuild on the flat operands+edge model.
 - **`counter` DELETED (2026-06-28 RUNG #1).** Field gone + vestigial `IR_exec_t` typedef gone; ~80 smuggle
-  sites converted (dead readers stubbed — their rebuild-me constructs `[SMX]`-decline on the new driver; writer
+  sites converted (dead readers stubbed — their rebuild-me constructs abort on the new driver; writer
   RHS preserved via `(void)(...)`). The `ival`→`IR_graph_t*` smuggle was killed too, so NO `IR_t` field points to
   an `IR_graph_t`. See the top LANDED watermark.
 - **`state` DELETED.** Dead: never written (calloc'd 0), emitter reads vacuous; folded 5 reads. Exposed
@@ -285,7 +313,7 @@ cheaply (inline the predicate / drop the cache); if read at emit, move to ω-wir
       (lower L270/273, read L131/132, emit L2068/2069). Convert off `counter`/`ival`. After D1-* + D2, `lower_icon.c` debt = 0.
 - [x] **D3 — WHACK: delete `counter`** (DONE 2026-06-28 RUNG #1). Union `{sval,ival,dval}` already landed
       earlier; `counter` field + `IR_exec_t` typedef removed; the `ival`→`IR_graph_t*` smuggle killed too. ~80
-      reader/writer sites converted (dead readers stubbed; constructs `[SMX]`-decline on the new driver). NO `IR_t`
+      reader/writer sites converted (dead readers stubbed; constructs abort on the new driver). NO `IR_t`
       field points to an `IR_graph_t`. Field-discipline gate 190→119 (P2 read-smuggle 50→0).
 - [ ] **D4 — Gate to 0.** Ratchet `IR_FIELD_DISCIPLINE_TARGET` toward 0 (now **119** after D3; remaining = P1
       non-graph runtime-state smuggles in lower_snobol4/raku + P3 dval-tags); lock in every BB GOAL Session-Setup.
