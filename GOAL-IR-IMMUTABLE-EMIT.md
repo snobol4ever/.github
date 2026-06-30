@@ -145,19 +145,24 @@ struct field — it's carried in `icx_t` (`cx->loop_exit`, `cx->loop_next`, `cx-
 JCON's `ir_tmploc`/`ir_MoveLabel`/`ir_IndirectGoto` (unbounded-resume "label variable") usually maps to
 **plain β-wiring** — wire ω at the right node and delete the indirection.
 
-**⚙ IR_ref_t CARRIES A NODE, NOT AN α/β BIT — THE BFS PICKS α-vs-β (verified `emit.cpp:978,984`).** An
-`IR_ref_t` (`{IR_t* node; …}`) on `nd->γ`/`nd->ω` points only at a TARGET NODE. The α-vs-β selection is made
-ONCE, downstream, by the chain-BFS, by exactly this test for each edge:
-`label = (consumer_index > target_index && ir_is_generator_kind(target)) ? target.β : target.α`.
-In English: an edge resolves to the target's **β (resume)** iff the node holding the edge sits LATER in chain
-order than the target AND the target is a generator kind; otherwise it resolves to the target's **α (fresh
-entry)**. So "point at α vs β as the situation needs" is achieved NOT by storing a flag in the ref but by
-(1) which node you point `γ`/`ω` at, and (2) whether that node is `ir_is_generator_kind` + sits earlier. A
-forward edge to a non-generator, or to any node later in the chain, is α; a backward edge to an earlier
-generator is β. This is the whole DIVISION RULE in two lines of resolver. **LIMITATION you will hit:** this
-expresses only STATIC resume targets; a DATA-dependent resume target (resume whichever-of-N last fired — the
-unbounded-alt case) needs JCON's label variable, NOT a wider generator-kind set (see the `TT_ALTERNATE`
-PUNCH LIST entry).
+**⚙ IR_ref_t CARRIES ITS OWN α/β PORT IN `.sz` — LOWER STAMPS IT, EMITTER READS IT (LANDED 2026-06-30, `bb70a841`).**
+`IR_ref_t` = `{IR_t* node; char sz[4];}`. The `sz` field is the **α/β discriminant of the edge**, written by
+LOWER at construction and read by the emitter — NOT recomputed downstream. The rule LOWER applies: an edge whose
+TARGET is `ir_is_generator_kind` is a RESUME edge → stamp `"β"` (`lc_γ_to_β`/`lc_ω_to_β`); every other edge →
+`"α"` (`lc_γ_to`/`lc_ω_to`). The Icon `γ_to`/`ω_to`/`build` wrappers (`lower_icon.c`) do this automatically by
+checking `ir_is_generator_kind(target)`. The emitter (`emit.cpp` chain-BFS) reads the stamp:
+`node_γ = (γ.sz=="β") ? betas[k] : lbls[k]` (UTF-8 `β` = `CE B2`). **PROVEN equivalent to the old positional
+`i > k && ir_is_generator_kind` guess:** with the positional fallback DELETED (pure-stamp routing), icon smoke
+stays 11/12 and the full corpus stays 82/289 — zero divergence. The fallback is RETAINED for now only to protect
+un-stamped edges during the ongoing GZ#5 rollout; the end state deletes it. **WHY THIS MATTERS (Lon, 2026-06-30):**
+the graph must be CORRECT AT CONSTRUCTION — an edge has to say whether it means "enter fresh (α)" or "resume (β)"
+or no optimization pass can even know what an edge *means*. Recomputing α/β positionally in the emitter made the
+graph incomplete; stamping it on the ref makes the graph self-describing, which is the precondition for sound
+optimization. **The remaining un-stamped resume sites** (SEQ/CONJ backtrack chaining `ω_to(val[i],val[lr])`,
+`cx->loop_next` loop-backs, `lβ`/`mβ` operand resumes) currently rely on the positional fallback; stamping them
+explicitly (so the fallback can be deleted) is the follow-up rung. **NOTE — this does NOT solve unbounded-alt:**
+a generator NODE's resume is a single static target the stamp can name; the unbounded-alt resume is DATA-dependent
+(whichever arm last fired) and still needs the label variable (see `TT_ALTERNATE` PUNCH LIST).
 
 ### lhs ⇄ tmp
 JCON's `lhs`→`ir_Tmp` node ⇄ SCRIP's `int IR_t.tmp` FIELD on the producing node (one node = one value = one
@@ -354,6 +359,25 @@ remains, per the corrected punch-list entry above. (2) `TT_IDX`/`MAKELIST` segv.
 (4) `TT_TO_BY` 3-arg generator.
 
 ## Watermark
+**2026-06-30 (Claude Sonnet 4.6) — α/β PORT MOVED ONTO THE IR EDGE (`IR_ref_t.sz`); graph now self-describing
+for resume-vs-fresh. SCRIP `bb70a841`.** Lon's directive: get the pointer correct AT CONSTRUCTION — do not
+recompute α/β downstream in the emitter, because an IR graph whose edges don't say what they mean cannot be
+optimized. Implemented: `lc_γ_to_β`/`lc_ω_to_β` setters stamp `"β"` on resume edges; the Icon `γ_to`/`ω_to`/
+`build` wrappers stamp β automatically whenever the edge target is `ir_is_generator_kind`, α otherwise; the
+emitter chain-BFS now READS `nd->γ.sz`/`nd->ω.sz` to pick `betas[k]` vs `lbls[k]`, with the old positional
+`i>k && generator-kind` guess kept ONLY as a fallback for not-yet-stamped edges. **PROVEN:** a probe that
+DELETED the positional fallback entirely (pure-stamp routing) produced identical icon smoke 11/12 (both modes)
+AND identical full-corpus 82/289 — so LOWER's stamps already carry the complete α/β truth for every currently-
+exercised path; the fallback never fires differently. Behavior-neutral: mutation gate HARD=4, no-stack 0,
+one-reg 0, corpus 82/289 unchanged. Also landed this session (`443cdec5`): purged the dead
+`ir_skip_alt_arms`/`ir_node_is_alt_arm` plumbing from the live chain-BFS. **`IR_ALT` is NOT a node and never
+will be — `ir.icn` has no `ir_Alt` record (re-verified: zero matches); alternation is pure Goto threading +
+a label variable. The 4 parked non-Icon `lower_*.c` files still naming `IR_ALT` (among other dead pre-GZ#5
+enum names) are OUT OF SCOPE by the ICON-ONLY HARD RULE at the top of this file — do not touch them.**
+SCRIP commits `443cdec5`+`bb70a841` are LOCAL, push BLOCKED pending credential. **NEXT: stamp the remaining
+resume sites explicitly (SEQ/CONJ backtrack, `cx->loop_next`, operand `lβ`/`mβ`) so the positional fallback
+can be DELETED; then unbounded-`TT_ALTERNATE` via the label variable (its own rung, per PUNCH LIST).**
+
 **2026-06-30 (Claude Sonnet 4.6) — alt-arm plumbing PURGED from live emit.cpp; ICON-ONLY rule added; IR_ref_t
 α/β resolution + alt label-variable requirement documented.** Removed the dead `ir_node_is_alt_arm` (always
 `return 0`) and `ir_skip_alt_arms` (identity) helpers and ALL ~13 BFS call sites in `src/emitter/emit.cpp`
