@@ -841,6 +841,19 @@ LVA-1 LOCK 3 drift; (3) unbounded-`TT_ALTERNATE` via the label variable (own run
 
 **NEXT (in order):** (1) `IR_SUSPEND` generator iteration bug — gdb the upto slab with `entry=1`, the `bb_suspend` template + proc prologue asm are correct per inspection, bug is in how the while-loop re-arms after the do-body runs; (2) `TT_ALTERNATE` resumability (label-variable infra, unchanged from prior watermark); (3) remaining `IR_FAIL`-stubbed set: `TT_SECTION`/`_PLUS`/`_MINUS`, `TT_SCAN`, `TT_CASE`, `TT_LIMIT` (pre-existing `bb_scan_*.cpp` templates for the scan builtins — `bb_scan_upto`, `bb_scan_any`, `bb_scan_many`, `bb_scan_find`, `bb_scan_match`, `bb_scan_tab`, `bb_scan_move` all exist, need wiring).
 
+**2026-06-30 (Claude Sonnet 4.6) — IR_SUSPEND binary-mode fix: resume-slot machinery now works in JIT (mode-3) and compile (mode-4). SCRIP `90dc36b7` pushed.** Smoke 12/12 both modes, mutation gate HARD=4 unchanged.
+
+**Root cause of IR_SUSPEND infinite-loop:** The resume-slot machinery (frame-slot init, per-suspend β-pointer store, `proc_gen_β` indirect-goto trampoline) was **text-mode only** — all three paths used `emit_text_n`/`snprintf` strings that are silently dropped in binary JIT mode. In binary mode the gen proc had `jne → instant-succeed` on every resume (entry=1 → `jmp 0x8d: mov eax,1; ret`), reading stale DESCR from frame[0] (the last-stored integer, always 2 in a 1/2/3 generator). Diagnosis path: strace showed 100K `write(1,"\n",1)` calls; gdb backtrace identified `try_call_builtin_by_name(fn="write")` as the caller from JIT code; disassembly of the gen proc slab confirmed `jne → 0x8d` with no resume-slot stores; `0x55776c` = `rt_proc_resume_gen` confirmed the resume call was correct but the slab didn't implement the indirect-goto.
+
+**Three fixes (emit.cpp + bb_suspend.cpp):**
+- `emit.cpp` resume-slot init (was `if (g_is_text)`): added `else` binary branch: `ef_b3(0x48,0x8D,0x05)` + `bb_emit_patch_rel32(betas[first_suspend])` + `ef_b4(0x49,0x89,0x84,0x24)` + `bb_emit_u32(slot)` — `lea rax,[rip+β0]; mov [r12+slot],rax`.
+- `emit.cpp` `proc_gen_β` trampoline (was `emit_text_n`): added `else` binary branch: `ef_b4(0x49,0xFF,0xA4,0x24)` + `bb_emit_u32(slot)` — `jmp qword ptr [r12+slot]`.
+- `bb_suspend.cpp` per-suspend β-store (was raw `snprintf` string appended to binary buffer — parsed as garbage tags): gated on `!MEDIUM_BINARY`; BINARY path uses `x86_Lrec(48 8D 05)` + `x86_Jrec(X86T_TGT1)` + `x86_Lrec(49 89 84 24 <slot_u32>)` so `bb_emit_x86` patches `_.lbl_t1_p` (this suspend's own β) via the J-record mechanism.
+
+**Verified:** `every x := gen() do write(x)` with `gen()` suspending 1, 2, 3 now prints `1\n2\n3` correctly in both modes. The indirect-goto resume chain works: each suspend's α stores its own β into the resume slot before yielding; `proc_gen_β` does `jmp [r12+slot]`; on resume the right β fires and advances to the next suspend or exhausts.
+
+**NEXT (in order):** (1) `suspend EXPR do BODY` (lbl_t0 ≠ NULL path) — test with an actual do-body; (2) `TT_ALTERNATE` resumability (label-variable infra); (3) remaining `IR_FAIL`-stubbed set: `TT_SECTION`/`_PLUS`/`_MINUS`, `TT_SCAN`, `TT_CASE`, `TT_LIMIT`.
+
 **2026-06-30 (Claude Sonnet 4.6) — alt-arm plumbing PURGED from live emit.cpp; ICON-ONLY rule added; IR_ref_t
 α/β resolution + alt label-variable requirement documented.** Removed the dead `ir_node_is_alt_arm` (always
 `return 0`) and `ir_skip_alt_arms` (identity) helpers and ALL ~13 BFS call sites in `src/emitter/emit.cpp`
