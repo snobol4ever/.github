@@ -1,5 +1,22 @@
 # ARCH-x86.md — x86 Backend
 
+⛔⛔ **STALE — FILE LAYOUT AND CLI CLAIMS BELOW DO NOT MATCH THE CURRENT REPO (flagged 2026-06-30, Claude
+Sonnet 4.6, against SCRIP HEAD `8e296381`/`08b68cf3`).** Verified empirically, not asserted: `find . -iname
+BB_templates -o -iname XA_templates -o -iname emit_core.c -o -iname emit_bb.c` returns nothing anywhere
+under `src/`; `bb_pool.c`/`bb_emit.c` as described below do not exist either. `scrip.c`'s argv parser
+recognizes exactly two execution-mode flags, `--run` and `--compile` — not the `--sm-interp`/`--sm-native`/
+`--bb-brokered`/`--bb-flat`/`--target=`-driven six-way matrix this file's "scrip unified executable" section
+describes. **Current reality:** `src/emitter/emit.cpp` + `emit.h` is the one consolidated driver (its own
+top-of-file comment: "bb_regs.h + emit_defs.h were dead and dropped"); templates are flat `src/templates/
+*.cpp` (161 files, no `BB_templates`/`XA_templates`/`SM_templates` subdirectories); register encoding lives
+in `src/templates/x86_asm.h`. **The CONCEPTS this file describes — boxes are stackless, four ports (α/β/γ/ω),
+fresh DATA block per α-entry instead of a stack frame, intra-/extra-BLOB jump distinction — remain the live
+design intent and are NOT what's wrong here; only the concrete file names, directory structure, and CLI flag
+list below are dead.** For the current, independently-re-verified file layout and register contract, read
+`GOAL-IR-IMMUTABLE-EMIT.md`'s "ORIENTATION SYNOPSIS" section instead of trusting the prose below. This
+banner is a correction, not a rewrite — the sections below are left as historical/conceptual reference; do
+not treat any concrete path or CLI flag in them as live without checking the actual tree first.
+
 Backend: x86 (native binary). Emitter: unified `emit_core.c` (`IS_X86` arms) + `emit_sm.c` / `emit_bb.c` (binary SM/BB) + `SM_templates/` + `BB_templates/`.
 Human name: x86. File/folder name: x64 (historical). (The former silo `emit_x64.c` was folded into the unified emitter in the EC series — see ARCH-EMITTER.md.)
 
