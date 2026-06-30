@@ -416,7 +416,100 @@ cheaply (inline the predicate / drop the cache); if read at emit, move to ω-wir
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
-**CLEANUP PASS — dead TUs removed, emit.cpp reformatted to house style, templates flattened, IR_e alphabetized, IR_OP_COUNT residue purged — 2026-06-29 (Sonnet 4.6, Lon directing).** SCRIP `a4f51066`→`f54777b6` (6 commits). Behavior-preserving hygiene that de-risks R2/R4; NO goal rung closed. Per the standing directive, NO `.s` artifact regen (and every change was PROVEN `.s` byte-identical on hello/generators/fact anyway). Suite **PASS=62/XFAIL=36** and mutation gate **HARD=4** unchanged at every step. (1) `5b6d21db` removed 6 dead emitter TUs (4 hibernating backend driver stubs `emit_{wasm,js,jvm,net}_drive.c` + orphan `sm_codegen_x64_emit.c` + Prolog `emit_term_build.cpp`; 0 build refs). (2) `3f46d8ca` emit.cpp → house style: un-fused 14 separator-glued + 2 decl-glued functions, removed 5 blank lines + 3 stacked-separator runs, wrapped all 28 >200-CHAR lines, stripped 16 always-false IR_OP_COUNT wintexpr disjuncts. (3) `44831d09` flattened `src/emitter/{BB,XA}_templates/` → `src/templates/` (155 .cpp + 6 .h, no collisions); fixed depth-dependent relative includes (`../../runtime`→`../runtime`, `../BB_templates/x86_asm.h`→`x86_asm.h`, `../emit_bb.h`→`../emitter/emit_bb.h`); repointed emit.cpp + Makefile (source list + per-file rules + `-I`) + 19 gate/util scripts; 82 template objects rebuild clean from the new path. (4) `a0b2d18e` alphabetized `IR_e` in IR.h (`IR_OP_COUNT` kept last as array sentinel) — reorder-safety proven (designated initializers, explicit `==`, no numeric op comparisons, `IR_node_alloc` sets op); x86 doesn't encode enum values ⇒ `.s` byte-identical. (5) `f54777b6` purged ALL IR_OP_COUNT dead residue from emit.cpp (44 lines, 1255→1211): `op == IR_OP_COUNT` is always-false (0 assignments), `!= IR_OP_COUNT` always-true; cut `bb_fill_alpha`'s 5 dead label blocks, 9 disjuncts, 2 conjuncts, 12 single-line dead ifs, 2 multi-line dead blocks, 1 varslot dead-if; live generator ω/stack-chain logic (uses `ir_is_generator_kind`) kept intact. **R2 teed up:** 10 abort stubs (walk_bb_flat/bb_build_flat/codegen_flat_build/gz_emit_catch/resolve_choice_clause_label/gva_collect_graph/4×gvar_flat_chain_build*) confirmed ZERO live callers across 157 TUs — trivial delete + emit_bb.h decl cleanup next. **NEXT after R2:** R4 grow `emit_drive` for IR_IF/IR_EVERY/IR_TO_BY per JCON `ir_a_If`/`ir_a_Every`/`ir_a_ToBy` (every/to still IR_FAIL-stubbed → produce nothing); then B4 gate-strict-0. See HANDOFF-2026-06-29-SONNET46-CLEANUP-EMIT-TEMPLATES-ENUM.md.
+**HEADER-MERGE LANDED + IR_LIT_* RENAME + IR_SEQ DELETED — 2026-06-30 (Sonnet 4.6, Lon directing).** SCRIP
+`f54777b6`→`dd082890`→`a0e86b41` (2 commits). Suite **PASS=62/XFAIL=36** and mutation gate **HARD=4/C=14**
+unchanged at every step; both gate programs (`hello world`, `write(1+1)`) green mode-3 AND mode-4 throughout.
+Per the standing directive, NO `.s` artifact regen run this session (deliberate, not an oversight — the
+directive states regen scripts track output, they are not pass/fail gates, and the big suites are too slow
+to be worth it for behavior-preserving changes).
+1. **`dd082890` — emitter header consolidation, 15 → 2 (`emit.h` + `sil_macros.h`).** This was prior-session
+   work exported as an unpushed-commit zip (parent `f54777b6`, the SCRIP tip at session start) and reapplied
+   via `git apply` against a verified-matching parent; see the commit body for the full header-merge detail.
+   Confirms independently: **`bb_regs.h` had 0 repo references before this merge** — the register contract
+   PLAN.md calls "the SINGLE source of truth" is hard-coded as bare `"r12"`/`"r13"` strings in templates, not
+   read through `bb_regs.h` macros. PLAN.md's session-start step 7 (which still names `src/emitter/bb_regs.h`)
+   is now stale — the file doesn't exist; `emit.h` is the merged target. Flagging here rather than editing
+   PLAN.md per RULES.md ("do NOT edit PLAN.md goals table on routine handoff" — this is the same spirit for
+   the session-start checklist, which isn't the goals table but is still PLAN.md content best left to Lon's
+   call). Also clarifies a doc/reality gap from earlier this session: `emit_bb.c`/`emit_core.c`/`emit_drive.c`
+   named throughout this goal file's body and in REPO-SCRIP.md/PLAN.md's BB-CODEGEN reading list **no longer
+   exist as separate files** — `a4f51066` (2026-06-29, already on origin before this session) consolidated all
+   three into the single `src/emitter/emit.cpp` (1211 lines). The goal-file prose pre-dates that consolidation
+   throughout; treat every standalone mention of `emit_bb.c`/`emit_core.c` as "the corresponding region of
+   `emit.cpp`," confirmed via `git log --follow`/commit-message archaeology, not asserted from absence alone.
+2. **`a0e86b41` — two independent cleanups, gate-verified together.** (a) Renamed `IR_LIT_I/_F/_S` →
+   `IR_LIT_INTEGER/_REAL/_STRING` and `IR_CSET_LIT` → `IR_LIT_CHARSET` (whole-word match, 34 files spanning
+   all six `lower_*.c`, `emit.cpp`, runtime, templates, tools, driver, test probes; `IR_e` re-alphabetized
+   per the `a0b2d18e` convention). (b) Deleted the dead `IR_SEQ` opcode: every live-build site read it through
+   a `nd->op != IR_SEQ || IR_LIT(nd).dval != 1.0` discriminant-tag guard (the exact pattern this file's TRACK D
+   names as the violation to eliminate) feeding into recursion/return paths gated on **permanently-null**
+   `IR_graph_t * L/R/sl/sr = (IR_graph_t *)0` locals — meaning every `IR_SEQ` branch in `scrip_ir.c`
+   (`ir_tmp_slot_assign`, `ir_drive_slot_assign`, `bb_print`'s dump label) and `bb_call.cpp` (the concat-arg
+   inline-flatten fast path + its sole helper `carg_seq_flatten`) was structurally unreachable-to-success —
+   confirmed by direct read of each site, not inferred from JCON-absence. `lower_snobol4.c` is the only
+   non-degenerate `IR_SEQ` producer (real γ/ω-wired nodes with `dval=1.0`) but does not compile against the
+   current `IR.h` at all (confirmed via standalone `gcc -c`: dozens of pre-existing undeclared-`IR_*` errors,
+   e.g. `IR_LIT_NUL`/`IR_IDX`/`IR_CALL_DEFINE`) and is not in the Makefile — wholesale stale since before the
+   IR_e amputation series, out of scope per the standing directive (non-Icon cancelled until Icon lands).
+   `lower_raku.c` is in the identical state for the identical reason (also referenced `IR_FIELD_GET`/
+   `IR_FIELD_SET`, real enum members before the amputation collapsed them to bare `IR_FIELD`; not restored —
+   the file as a whole needs a from-scratch rebuild against the current enum, not a two-name patch).
+3. **`IR_NOT` and `IR_CONJ` — investigated this session, NOT changed. Read before touching either.**
+   - **`IR_NOT` is a live BUG, confirmed by direct testing, not merely an architectural-purity issue.**
+     `write(not (1 = 2))` — `not` on a genuinely-failing sub-expression, wrapped as a call argument — produces
+     **zero output and exit 0**, when correct Icon semantics (confirmed against JCON's `ir_a_Not`, which is
+     pure `ir_Goto` threading: `success→failure`, `failure→write-null+success`, no dedicated operator node)
+     demand either an empty-line print-then-continue (current-failure path succeeds) or a clean skip-and-
+     continue (current-failure path itself fails) — neither happens; the calling statement chain never
+     resumes (`"after-not"` style markers placed after the `write(not …)` line never print). Isolated against
+     a clean baseline: `write(1 = 2)` alone (no `not`) correctly prints nothing AND correctly continues to the
+     next statement, so the break is specific to `IR_NOT`'s wiring, not a general failure-propagation gap.
+     SEPARATELY, `--dump-ir` segfaults on the same program after only 2 of 9 nodes print — a second symptom of
+     the same malformed graph, not a separate bug. **This needs RULES.md's MONITOR-FIRST protocol (2-way
+     sync-step monitor against SPITBOL/CSNOBOL4, bracket the divergence, gdb hit-count break) before any fix
+     attempt** — it was surfaced while investigating whether `IR_NOT` could fold to `IR_UNOP_TEST` (the wrong
+     target, see below), not hunted deliberately, so the bracket/divergence work has not started.
+   - **`IR_UNOP_TEST` is NOT the right target for `IR_NOT`** — this was the working hypothesis going into the
+     session and it's wrong. Checked: `IR_UNOP_TEST` is currently fully inert (named, counted as a value-
+     producer in `ir_node_produces_value`, zero producers, zero driver/template wiring). Icon's actual `/x`/
+     `\x` null-test operators (the genuine intended use for an `IR_UNOP_TEST`-shaped slot) are ALREADY correctly
+     wired end-to-end today via a different mechanism: `lower_icon.c`'s `TT_NULL` case builds a generic
+     `IR_UNOP` tagged `ival=TT_NULL`, and `bb_unop.cpp`'s existing `unop_op` dispatch (`UO_NULL_TEST`,
+     `UO_NONNULL`) already has full, live x86 codegen for both cases keyed off exactly that tag. So there is
+     no live gap to fill at `IR_UNOP_TEST` — it is closer to `IR_BINOP_GENERIC`/`IR_UNOP_GENERIC` (reserved-
+     but-superseded scaffolding) than to a missing wire. Do not retag `TT_NULL` onto `IR_UNOP_TEST` without
+     first confirming the `ival`-tag mechanism it would replace is itself something Track D wants gone (it
+     IS the discriminant-tag pattern Track D targets in spirit, but unlike `IR_SEQ`'s dead branches, this one
+     is LIVE and WORKING — folding it is a real Track-D-style migration with a working baseline to preserve
+     via before/after `.s` diff, not a dead-code deletion). Separately: `TT_NONNULL` (`\x`) has NO dispatch
+     case in `lower_icon.c`'s main switch at all (only appears in an arity-counting helper) — a genuine
+     missing-construct gap, distinct from the `IR_NOT`/`IR_UNOP_TEST` question, not investigated further this
+     session (new feature work, not in scope for a rename/cleanup pass).
+   - **`IR_CONJ` confirmed foldable to pure `IR_GOTO`/edge-threading, matching the existing `IR_IF`/`IR_EVERY`
+     precedent** (`ae70cb2b`, this file's IR-PARITY watermark: "no JCON `ir_If`/`ir_Every` records exist...
+     Goto/Succeed/Key threading only, no dedicated opcode"). Verified by reading JCON's `ir_a_Compound`
+     directly (`irgen.icn:1231`): Icon's compound/sequencing expression (`e1; e2; e3` semantics — NOT
+     short-circuit `&`; each sub-expression's success AND failure both thread to the next sub-expression's
+     `start`, only the LAST sub-expression's success/failure reach the compound's own success/failure) is
+     built with nothing but `ir_chunk`+`ir_Goto` wiring across sub-expression `.start`/`.success`/`.failure`
+     labels — zero dedicated conjunction node, zero `ir_OpFunction` involvement. SCRIP's `IR_CONJ` reifies
+     this as a real opcode with real `emit_drive` driver logic (`DRIVE_PAIR_JMP(lbl_γ)` etc., not a stub) and
+     three live lower-side producers (`lower_icon.c`, `lower_pascal.c`, `lower_raku.c` — note `lower_raku.c`'s
+     `IR_CONJ` sites are NOT proof of live-Raku status; the file is non-building for unrelated reasons listed
+     above, this is just the one opcode name among its many broken references that happens to still exist in
+     `IR.h`). **NOT folded this session** — unlike `IR_SEQ`, `IR_CONJ`'s current implementation is NOT known
+     to be broken (not tested as rigorously as `IR_NOT` was; the `not`-investigation detour consumed the
+     session's remaining budget for this kind of probing), so there is a working baseline to risk regressing,
+     and the fold touches real driver edge-wiring logic across three lowers rather than deleting unreachable
+     branches. Treat as its own rung: convert `lower_icon.c`'s/`lower_pascal.c`'s `IR_CONJ` construction sites
+     to direct success/failure→next-start `IR_GOTO` wiring per `ir_a_Compound`'s exact shape, verify `.s`
+     byte-identical on a multi-statement Icon program exercising it (e.g. `write(1); write(2); write(3)` or
+     whatever currently lowers through `lower_conj`/equivalent — locate the call site first), THEN delete the
+     opcode + driver case + `bb_conj` template once zero producers remain.
+**NEXT:** either (a) MONITOR-FIRST diagnosis of the `IR_NOT` bug per RULES.md (bracket the divergence against
+SPITBOL on a minimal `not`-exercising program, gdb hit-count break at the bracketed site), or (b) the
+`IR_CONJ`→edge-threading fold per the recipe above, run independently with its own before/after `.s` check.
+Both are scoped and ready to pick up; neither was started beyond the investigation already on record above.
 
 **Prior watermark below.**
 
