@@ -1,5 +1,23 @@
 # GOAL-IR-IMMUTABLE-EMIT.md — The emitter READS IR. It NEVER mutates it. (Ground Zero #5)
 
+## ⛔⛔ HARD RULE — ICON ONLY. IGNORE EVERY `lower_*.c` WHERE `* != icon` (Lon, 2026-06-30)
+**This goal touches `src/lower/lower_icon.c` and Icon-reachable code ONLY. Do NOT read, open, grep into,
+reason about, "clean up," or edit `lower_snobol4.c`, `lower_raku.c`, `lower_prolog.c`, `lower_common.c`'s
+per-language arms, or ANY non-Icon frontend/lowerer. They are PARKED — already broken pending their own
+GZ#5 rebuilds (not started), by directive — and they reference a wholesale-dead pre-GZ#5 IR vocabulary
+(`IR_SEQ`, `IR_PATTERN_*`, `IR_DTP_ASSIGN`, `IR_ALT`, … — none in the current `IR_e`). They are NOT in the
+Makefile build. Their stale enum references are INERT and are NOT this goal's concern; "fixing" or even
+auditing them is wasted effort and a scope violation.**
+- **The ONLY files in scope:** `src/lower/lower_icon.c`, `src/emitter/emit.cpp` (+ `emit.h`, Icon-reachable
+  templates `src/templates/bb_*.cpp`), `src/contracts/IR.h`/`scrip_ir.c`, `src/opt/ir_query.c`, the Makefile
+  template list, and the Icon corpus/smoke. Nothing else.
+- **If a dead enum member (e.g. `IR_ALT`) lingers in a parked non-Icon file, LEAVE IT.** It compiles nowhere,
+  ships nowhere, and singling it out is theater. Purge such names ONLY from LIVE, build-included, Icon-reachable
+  code (e.g. the `emit.cpp` chain-BFS) — which is done.
+- **When in doubt whether a file is in scope:** if its name is not `lower_icon.c` and it is not reached when
+  compiling an Icon program through `emit.cpp`, it is OUT. Move on.
+
+
 ## ⛔⛔ STANDING DIRECTIVE (Lon, 2026-06-28) — WHOLESALE JCON-IN-SCRIP, ICON-ONLY
 We are doing a complete wholesale rewrite of the Icon LOWER + EMITTER to mirror JCON
 (`refs/jcon-master/tran/`) construct-by-construct, because JCON has it CORRECT. Same IR as JCON's `ir.icn`
@@ -126,6 +144,20 @@ You never "set start/resume"; you set OTHER nodes' γ/ω to point here, and the 
 struct field — it's carried in `icx_t` (`cx->loop_exit`, `cx->loop_next`, `cx->beta`) during lowering.
 JCON's `ir_tmploc`/`ir_MoveLabel`/`ir_IndirectGoto` (unbounded-resume "label variable") usually maps to
 **plain β-wiring** — wire ω at the right node and delete the indirection.
+
+**⚙ IR_ref_t CARRIES A NODE, NOT AN α/β BIT — THE BFS PICKS α-vs-β (verified `emit.cpp:978,984`).** An
+`IR_ref_t` (`{IR_t* node; …}`) on `nd->γ`/`nd->ω` points only at a TARGET NODE. The α-vs-β selection is made
+ONCE, downstream, by the chain-BFS, by exactly this test for each edge:
+`label = (consumer_index > target_index && ir_is_generator_kind(target)) ? target.β : target.α`.
+In English: an edge resolves to the target's **β (resume)** iff the node holding the edge sits LATER in chain
+order than the target AND the target is a generator kind; otherwise it resolves to the target's **α (fresh
+entry)**. So "point at α vs β as the situation needs" is achieved NOT by storing a flag in the ref but by
+(1) which node you point `γ`/`ω` at, and (2) whether that node is `ir_is_generator_kind` + sits earlier. A
+forward edge to a non-generator, or to any node later in the chain, is α; a backward edge to an earlier
+generator is β. This is the whole DIVISION RULE in two lines of resolver. **LIMITATION you will hit:** this
+expresses only STATIC resume targets; a DATA-dependent resume target (resume whichever-of-N last fired — the
+unbounded-alt case) needs JCON's label variable, NOT a wider generator-kind set (see the `TT_ALTERNATE`
+PUNCH LIST entry).
 
 ### lhs ⇄ tmp
 JCON's `lhs`→`ir_Tmp` node ⇄ SCRIP's `int IR_t.tmp` FIELD on the producing node (one node = one value = one
@@ -286,16 +318,29 @@ Icon-reachable rows listed.
   arm-succeeds-wins is right Icon semantics for a non-generator context — `write` asks for one value); icon
   smoke 11/12 both modes unchanged; 289-program corpus suite IDENTICAL pass/fail set (82/289, stash/rebuild/
   diff) — zero regressions despite the six-file span; mutation gate HARD=4 unchanged.
-  **REMAINING GAP, precisely scoped now (was a flat ABORT before; now a real, narrower bug):** `every write(1|2|3)`
-  prints only `1`, not `1 2 3` — the backtrack/resume side isn't wired. No arm's success edge ever loops back to
-  try the NEXT arm on a later pull; each arm's γ goes straight to the alt's own γ with no resume mechanism at
-  all, so the alt behaves as "first success wins, permanently" rather than as a generator `every` can re-pull.
-  Needs the DIVISION RULE treatment: make the alt resumable via ω-wiring (an exhausted arm's consumer-backtrack
-  edge should route to the NEXT arm, not exit) — likely `cx->beta` needs to track "the currently-active arm,"
-  set per-arm during the lowering loop, the same shape `TT_TO`/`bb_to.cpp` already prove for `1 to 3`. Not yet
-  attempted. **⚠ Mind the BFS skip note is now MOOT** — the `ir_skip_alt_arms` apparatus existed to route around
-  a now-deleted node kind; the resumability redesign should NOT resurrect any IR_ALT-shaped detour, the arms
-  now sit in the ordinary chain like any other sequence of nodes.
+  **REMAINING GAP — UNBOUNDED (resumable) alternation, e.g. `every write(1|2|3)` prints `1` not `1 2 3`.**
+  The BOUNDED case is done and correct (`write(1|2)` → `1`; a bounded consumer wants one value, first-arm-wins,
+  no resume — exactly JCON's `else`/bounded arm of `ir_a_Alt` where each arm success is a plain `ir_Goto` to
+  `ir.success`). The unbounded case needs JCON's UNBOUNDED arm, which is a **label variable** —
+  `ir_MoveLabel(t, eList[i].resume)` on each arm's success, then `ir_IndirectGoto(t)` at the alt's resume
+  (`irgen.icn:183-190`, verified). **WHY A STATIC EDGE CANNOT DO THIS (proven against the live BFS, do not retry
+  the `cx->beta` hypothesis — it is WRONG):** the chain-BFS resolves a consumer's ONE backtrack ref to a target's
+  β ONLY via `i > k && ir_is_generator_kind(target)` (`emit.cpp:978,984`). That picks ONE static target. But a
+  resumed alt must re-enter *whichever arm last succeeded* — arm 0 on the 2nd pull, arm 1 on the 3rd, … — which
+  is DATA-dependent, not statically known. No widening of `ir_is_generator_kind` and no `cx->beta` arm-tracking
+  can express "resume the dynamically-last-fired arm" with a single static edge; that is precisely the gap the
+  label variable fills. (Literal arm's `.resume` = its failure = next-arm-start, so `t` effectively holds
+  "next arm to try after the one that just produced": enter→arm0; arm0 succeeds→`t:=&arm1`,goto consumer;
+  consumer backtracks→`goto *t`→arm1; …; last arm succeeds→`t:=&alt.ω`; backtrack→exhausted.)
+  **REQUIRED INFRASTRUCTURE (none exists yet; this is why it's DEFERRED, not a quick patch):** (a) a frame slot
+  for `t`; (b) an `IR_INDIRECT_GOTO` template (`jmp qword ptr [r12+slot]` — the enum member EXISTS, unused, no
+  template); (c) a MoveLabel mechanism that emits `lea rax,[rip+<chain-label-of-another-node>]; mov [r12+slot],rax`
+  — which needs the emitter to resolve the chain α-label of an ARBITRARY referenced node (templates today only
+  see the BFS-provided γ/ω/β of the CURRENT node; addressing a *sibling* node's label is new). **NO `IR_ALT`
+  NODE — alternation is pure Goto threading + this label variable, exactly as JCON. `lower_alt` stays the
+  edge-threading shape; the label variable is added as explicit nodes (`IR_INDIRECT_GOTO` + a move-label node),
+  not a generator node.** This is a multi-piece feature (label-address-of-sibling is the hard part); size it as
+  its own rung, do not bolt it on.
 - `TT_FIELD`, `TT_SECTION`/`_PLUS`/`_MINUS` (`s[i:j]`) → IR_FAIL-stubbed.
 - `TT_SCAN` (`s ? expr`), `TT_CASE`, `TT_SUSPEND`, `TT_CREATE` (co-expr — already ucontext-based in
   `coro_runtime.c`, not Byrd-box; needs wiring to `emit_drive`, not new design), `TT_LIMIT` — not wired into
@@ -309,6 +354,24 @@ remains, per the corrected punch-list entry above. (2) `TT_IDX`/`MAKELIST` segv.
 (4) `TT_TO_BY` 3-arg generator.
 
 ## Watermark
+**2026-06-30 (Claude Sonnet 4.6) — alt-arm plumbing PURGED from live emit.cpp; ICON-ONLY rule added; IR_ref_t
+α/β resolution + alt label-variable requirement documented.** Removed the dead `ir_node_is_alt_arm` (always
+`return 0`) and `ir_skip_alt_arms` (identity) helpers and ALL ~13 BFS call sites in `src/emitter/emit.cpp`
+(forward decls, both definitions, every `ir_skip_alt_arms(X)→X` inline, every `if(ir_node_is_alt_arm(c))continue`
+deleted) — the leftover plumbing the prior watermark called "MOOT" but left wired. Behavior-preserving (identity/
+false inlined): `make scrip`+`libscrip_rt` clean, icon smoke 11/12 both modes unchanged, mutation gate HARD=4
+unchanged. **The 10 stray `IR_ALT` references that remained are now 0 in live code; the rest live ONLY in parked,
+build-excluded non-Icon files (`lower_snobol4.c` ×5, `lower_raku.c`, `prove_lower.c`, `emit_per_kind_audit.c`)
+which reference a wholesale-dead pre-GZ#5 IR vocabulary (IR_SEQ/IR_PATTERN_*/IR_DTP_ASSIGN/IR_ALT, none in the
+enum) and are OUT OF SCOPE by the new ICON-ONLY HARD RULE at the top of this file — left untouched deliberately.**
+Corrected two pieces of wrong/stale doc: (1) the `TT_ALTERNATE` punch-list hypothesis ("`cx->beta` tracks active
+arm") is WRONG and replaced with the proven label-variable requirement (a static edge cannot express dynamic
+resume-target; `emit.cpp:978,984` is the proof); (2) the prior watermark's "LOCAL, NOT YET PUSHED" was stale
+(`bfd8b744` is on origin). SCRIP commit for the emit.cpp purge is LOCAL, push BLOCKED pending credential (see
+session close). **NEXT: unbounded `TT_ALTERNATE` is DEFERRED (needs the label-variable infra: frame slot +
+`IR_INDIRECT_GOTO` template + sibling-label-address MoveLabel — sized as its own rung, per the PUNCH LIST). The
+nearer clean wins are (1) global `TT_ASSIGN`, (2) `TT_TO_BY` 3-arg, (3) `TT_IDX`/`MAKELIST` segv.**
+
 **2026-06-30 (Claude Sonnet 4.6) — `IR_ALT` DELETED repo-wide; `TT_ALTERNATE` base case landed.** Lon flagged
 that `IR_ALT` is not a valid IR code (confirmed: no `ir_Alt` enumerator in `ir.icn`) and that the prior turn's
 hand-off summary describing it as "reverted" was misleading — the unbuilt driver-case attempt was reverted, but
@@ -317,8 +380,9 @@ actual confusion being pointed at. Removed it everywhere it could be reached fro
 −72 net lines) and rewrote `lower_alt` to the JCON-faithful pure-edge-threading shape instead of leaving a hole
 — see the corrected PUNCH LIST entry above for the full file-by-file account. Icon smoke 11/12 both modes
 unchanged; 289-program corpus suite identical pass/fail set (82/289, stash/rebuild/diff); mutation gate HARD=4
-unchanged. `write(1|2)` now correctly prints `1` instead of aborting. SCRIP HEAD: this session's commit is
-LOCAL, NOT YET PUSHED as of this watermark (see push status at session close). **NEXT: `TT_ALTERNATE`
+unchanged. `write(1|2)` now correctly prints `1` instead of aborting. SCRIP HEAD `bfd8b744` is PUSHED and on
+`origin/main` (verified `git rev-parse HEAD == origin/main`, working tree clean — the earlier "LOCAL, NOT YET
+PUSHED" note in this watermark was stale and is corrected here). **NEXT: `TT_ALTERNATE`
 resumability (the generator/backtrack side), per the PUNCH LIST.**
 
 **2026-06-30 (Claude Sonnet 4.6) — `TT_REPEAT`+break+next landed; `TT_ALTERNATE` attempted+reverted; baseline
