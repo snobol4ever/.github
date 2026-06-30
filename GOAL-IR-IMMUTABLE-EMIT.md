@@ -15,6 +15,66 @@ JCON spine, one TT at a time, per the CONVERSION PLAYBOOK below.
 - **`IR_t.tmp` IS the temporary slot** (not `lhs`; no `IR_TMP` opcode — see CONVERSION PLAYBOOK). Only
   value-producers carry one (`ir_node_produces_value`); control/effect ops don't.
 
+## ⛔⛔ ORIENTATION SYNOPSIS — read this instead of the six docs PLAN.md's session-start sends you to
+**Everything load-bearing from `ARCH-ICON.md`, `ARCH-x86.md`, `REGISTER-LAYOUT.md`, `ARCH-SCRIP.md`,
+`REPO-SCRIP.md`, and `CORPUS-LOCATIONS.md`, distilled in one place by someone who already read all six this
+session — so the next session doesn't have to.** Skip those six for routine work on this goal; open one only
+if a specific question genuinely isn't answered here.
+
+**The four-port model (Byrd box).** Every construct = α(start, fresh entry) β(resume, ask for next value)
+γ(success, value ready) ω(fail, exhausted). A relop is a 0-or-1-result generator, not a boolean (canonical
+Icon `cmplte`: `return y` / `fail`). γ/ω are `IR_t` edges; α/β are positions the chain-BFS discovers from
+edges pointing AT a node (see CONVERSION PLAYBOOK above for the full isomorphism). Resumability is ω-wiring
+only — see DIVISION RULE below; never a stored flag.
+
+**Stackless boxes.** No value stack, no `r12`-as-TOS, no `rt_push/pop`. RW state lives in the ONE per-glob ζ
+frame `[r12+off]` (established once by the glob preamble, `mov r12, rdi`). RO compile-time constants (cset
+literals, baked pointers) sealed adjacent, reached `[rip+disp]`. Recursion/re-entry = a fresh per-α-entry
+DATA linkage, never a stack push — CODE is shared and reusable, DATA is per-invocation. Never jump into the
+middle of a blob from outside; every cross-blob entry lands on the α-preamble.
+
+**Register contract — LIVE table (ignore the SM-era/r10 history in REGISTER-LAYOUT.md; the doc says itself
+it's superseded, twice over, and `bb_regs.h` — its other source of truth — is deleted):**
+
+| Reg | Role |
+|---|---|
+| r12 | ζ — BB-local RW frame `[r12+off]`. **NOT** a value stack. |
+| r13 | Σ — subject base pointer |
+| r14 | δ — cursor (0-based; `&pos = δ+1`) |
+| r15 | Δ — subject length/end |
+| rbx | DESCR base pointer (dual-width 8/16-byte) |
+| rbp | NV/variable-name hash table base (reserved; GET/SET still plain C calls) |
+| r10 | **RETIRED** — no data-block register; `bb_regs.h` (which defined this contract) no longer exists |
+
+*(One stray passage in ARCH-ICON.md's old ICN-SCAN section calls rbx "NV hash base" instead — that
+disagrees with REGISTER-LAYOUT.md's own GOAL-FACT-RULE table and the PLAN.md banner, which agree with each
+other and with this table; treat this table as authoritative.)*
+
+**Flat-BB ABI.** A glob = N concatenated boxes' code + one sealed RO region at the end. Entry = jump to the
+glob's first byte (no `esi` port-test — that's the legacy dispatched/`--bb-brokered` form only). Both
+intra- and extra-blob transitions are plain `jmp rel32` (`r12` is callee-saved, survives either way). Two
+block kinds: BB (`bb_*.cpp`, does WORK) vs XA (`xa_*.cpp`, wraps/stitches — prologue/epilogue/data-section/
+entry-dispatch; builds no operands).
+
+**Execution modes — current reality (REPO-SCRIP.md; `ARCH-SCRIP.md` is stale here, still describing a
+since-deleted mode 2).** Exactly two: `scrip --run f` = mode 3, native x86 BINARY in-process. `scrip
+--compile f` = mode 4, x86 TEXT asm → `gcc -no-pie` + `libscrip_rt.so`. Both must produce identical results;
+that's the whole isolation invariant — no mode-3/4 code path walks the AST or interprets SM/BB at runtime,
+the emitter walks the graph only at EMIT TIME then frees it.
+
+**Build/run.** `cd /home/claude/SCRIP && make scrip && make libscrip_rt`. Oracle: SPITBOL x64 at
+`/home/claude/x64/bin/sbl -b file.sno` (clone `snobol4ever/x64` if absent).
+
+**Corpus.** Icon programs: `/home/claude/corpus/programs/icon/rung<NN>_*.icn` (263, each with a sibling
+`.expected`) — **not** `/home/claude/SCRIP/test/icon/` (only 8 smoke files). Full suite:
+`bash scripts/test_icon_all_rungs.sh`. Fast smoke (12 programs, both modes): `bash scripts/test_smoke_icon.sh`.
+
+**Concurrency discipline (GOAL-ICON-BB.md, condensed).** One dispatch case per IR kind; one template file
+per box; edit only your own language's arms/boxes, never a peer's; a kind with no case ABORTS loud, never
+silently declines. Patch-offset bookkeeping is abolished — `bb_bin_t`/hand-counted byte offsets don't exist;
+patch metadata travels in-band as tagged records inside a template's returned string, walked once by
+`bb_emit_x86`.
+
 ## ⛔ FACT RULE — THE EMITTER NEVER MUTATES AN IR NODE
 The emitter (`src/emitter/**`) dispatches on `nd->op` and reads `nd`'s fields. It does **NOT** write
 `nd->op`, does **NOT** write `IR_LIT(nd).*`/`IR_EXEC(nd).*` on an input node, does **NOT** synthesize IR
