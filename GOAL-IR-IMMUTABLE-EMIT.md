@@ -17,6 +17,36 @@ auditing them is wasted effort and a scope violation.**
 - **When in doubt whether a file is in scope:** if its name is not `lower_icon.c` and it is not reached when
   compiling an Icon program through `emit.cpp`, it is OUT. Move on.
 
+## ⛔⛔ HARD RULE — ICON-ONLY TEST EXECUTION. DO NOT RUN ANY NON-ICON LANGUAGE TEST (Lon, 2026-06-30)
+**This goal does not run, invoke, or depend on the result of any non-Icon test, smoke, or gate script —
+not as a setup step, not as a sanity check, not as a "while I'm at it." This is stricter than the scope
+rule above: that rule says don't *edit* another language's lowerer; this rule says don't *execute*
+another language's test at all, even read-only, even one that already exists and already passes/fails.**
+- **FORBIDDEN, every session, no exceptions while this rule stands:** `scripts/test_smoke_prolog.sh`,
+  `scripts/test_smoke_snobol4*.sh`, `scripts/test_smoke_raku*.sh`, `scripts/test_smoke_unified_broker.sh`
+  (it dispatches across languages), any `scripts/test_*` script whose name contains `prolog`, `snobol4`,
+  `raku`, `rebus`, `snocone`, or `pascal`, and any other-language entry in a doc's "Session Setup"/"Per-rung
+  gate" block (e.g. `GOAL-ICON-BB.md`'s Session Setup currently lists `test_smoke_prolog.sh` —
+  **that line does not apply to this goal**, ignore it there too).
+- **WHY:** those frontends are PARKED (see the rule above) — running their smokes produces a FAIL signal
+  that means nothing for this goal (it's pre-existing, expected, and was true before this session and will
+  stay true until each language gets its own GZ#5 rebuild), yet a FAIL in a terminal is the kind of thing
+  that invites "should I look into that" — it is noise this goal does not pay for. **A 0/5 Prolog smoke run
+  during an Icon session is not a finding, it's wasted wall-clock; don't generate it.**
+- **PERMITTED — these are not "running a non-Icon test," they're shared build steps:** `make scrip` /
+  `make libscrip_rt` (the build compiles all frontends because the Makefile is shared; building is not
+  testing), cloning the SPITBOL `x64` oracle (referenced below for completeness, not invoked unless a
+  future Icon-specific rung needs cross-checking against it), and any script whose name is `test_*icon*`
+  or `test_gate_icn_*` or `test_smoke_icon.sh` — these ARE this goal's signal and stay mandatory.
+- **THE ONLY GREEN SIGNALS THIS GOAL READS:** `bash scripts/test_smoke_icon.sh` (12 programs, both modes),
+  `bash scripts/test_icon_all_rungs.sh` (the 289-program corpus), the four `test_gate_icn_*.sh` discipline
+  gates, and `bash scripts/test_gate_emit_no_ir_mutation.sh` (language-agnostic by construction — it greps
+  `src/emitter/` for op-writes, not a per-language behavior test). Nothing else is consulted to decide
+  whether a change in this goal is good or bad.
+- **COMPLETION TEST:** a session working this goal invokes zero non-Icon test/smoke scripts in its tool-call
+  history; if one was run anyway (e.g. inherited from a stale doc's Session Setup block), its output is not
+  cited as evidence for or against this goal's state.
+
 
 ## ⛔⛔ STANDING DIRECTIVE (Lon, 2026-06-28) — WHOLESALE JCON-IN-SCRIP, ICON-ONLY
 We are doing a complete wholesale rewrite of the Icon LOWER + EMITTER to mirror JCON
@@ -32,7 +62,8 @@ JCON spine, one TT at a time, per the CONVERSION PLAYBOOK below.
   both modes) is RETIRED (Lon, 2026-06-30) — it tested almost nothing and was never a script, only this line.
   The honest per-rung signal is `bash scripts/test_smoke_icon.sh` (12 programs, both modes) plus the corpus
   stash/rebuild/FAIL-set diff for the rung you touched; each TT is its own honest pass/fail — land it,
-  document it precisely, move on.
+  document it precisely, move on. **Icon-only, full stop — see the ICON-ONLY TEST EXECUTION hard rule at the
+  top of this file; do not run a non-Icon smoke to "double-check" anything.**
 - **`IR_t.tmp` IS the temporary slot** (not `lhs`; no `IR_TMP` opcode — see CONVERSION PLAYBOOK). Only
   value-producers carry one (`ir_node_produces_value`); control/effect ops don't.
 
