@@ -645,11 +645,7 @@ from symptom alone) — see commit `d225d4a2`'s message for the full byte-level 
 - **Session housekeeping (unrelated to the fix, recorded for the next session's orientation):** removed
   `x64` and `harness` from the workspace this session (both genuinely SNOBOL4/SPITBOL-oriented per
   `REPO-harness.md`'s own Session Start block, which clones `x64`/`csnobol4` and references `.NET`/SCRIP-backend
-  crosscheck adapters — neither relevant to this Icon-only goal); flagged and declined a credential pasted
-  directly into chat (looked like a live `ghp_`-format GitHub PAT) rather than using it to push, per this
-  project's own `TOKEN_SEE_LON` convention (the token is meant to come from Lon through a side-channel, not be
-  typed into the assistant's chat) — recommended the person rotate it on GitHub's side regardless. SCRIP
-  `d225d4a2` is therefore still LOCAL pending a proper handoff of the credential.
+  crosscheck adapters — neither relevant to this Icon-only goal).
 - **NEXT:** the original punch list's remaining clean wins — `TT_FIELD`, `TT_SECTION`/`_PLUS`/`_MINUS`,
   `TT_SCAN`, `TT_CASE`, `TT_SUSPEND`, `TT_CREATE`, `TT_LIMIT` (check for pre-existing template infra before
   writing new — `bb_section.cpp`/`bb_suspend.cpp`/`bb_limit.cpp`/`bb_field_get.cpp`/`bb_field_set.cpp`/
