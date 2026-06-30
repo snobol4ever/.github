@@ -294,22 +294,50 @@ Icon-reachable rows listed.
   (`write(if c then a else b)`) still wrong: then/else write distinct slots, consumer reads only then's —
   **fix is JCON's own pattern**, a single shared `target` tmp passed to BOTH branches (`ir_a_If` passes the
   same `target` var to both `ir(thenexpr,...)` and `ir(elseexpr,...)`); SCRIP currently doesn't.
-- **`TT_EVERY` — keystone case PARTIAL, claim was OVERSTATED (corrected 2026-06-30).** `every x:=GEN do BODY`
-  (assign-wrapped generator + a body that just reads the loop var, e.g. `write(x)`) was claimed "landed/verified
-  correct both modes" on the strength of `every x:=1 to 3 do write(x)` → `1 2 3`. **That spot-check was misleading:
-  it only looks correct because `from=1`.** Verified on baseline `2e7cd455`: `every x:=3 to 7 do write(x)` → `1 2 3 4 5 6 7`
-  (wants `3 4 5 6 7`) and `every x:=5 to 5 do write(x)` → `1 2 3 4 5` (wants `5`). The consumed loop value IGNORES `from`
-  and reports a counter `1..to`. So the keystone is NOT fully landed — it shares the same pre-existing `from`-ignoring
-  read bug documented under `TT_TO_BY` below (the bug is in the generator-value read / slot wiring, surfaced by the
-  consumer, not in `every`'s control flow). Was previously a dead `IR_FAIL` stub. **Other gaps, isolated + reproduced,
-  NOT fixed:**
+- **`TT_EVERY` — keystone case PARTIAL, claim was OVERSTATED (corrected 2026-06-30, RE-VERIFIED AND CORRECTED
+  AGAIN 2026-06-30, Claude Sonnet 4.6 — the symptom has CHANGED SHAPE since the cited baseline, do not trust
+  the `2e7cd455`-era description below without re-testing).** `every x:=GEN do BODY` (assign-wrapped generator
+  + a body that just reads the loop var, e.g. `write(x)`) was claimed "landed/verified correct both modes" on
+  the strength of `every x:=1 to 3 do write(x)` → `1 2 3`. That spot-check was misleading at the time it was
+  written (baseline `2e7cd455`): `every x:=3 to 7 do write(x)` → `1 2 3 4 5 6 7` (wants `3 4 5 6 7`), the
+  "consumed loop value ignores `from`, reports a counter `1..to`" framing below. **That framing no longer
+  matches current HEAD (`8e296381`, this session) — re-tested fresh, not assumed:**
+  - `every x:=1 to 3 do write(x)` (from=1) → prints `1` ONLY, then **terminates** (exit 0) — does NOT continue
+    to `2 3` and does NOT report a `1..to` counter. Different symptom than documented.
+  - `every x:=5 to 5 do write(x)` (degenerate, from==to) → correctly prints `5`. This ONE repro from the old
+    description now passes — do not re-break it chasing the other two.
+  - `every x:=7 to 9 do write(x)` (from≠1, from<to) → **HANGS** (`timeout 3` kills it after printing `7`
+    several million times) — this is new information, not in any prior watermark; the old "reports counter
+    1..to" framing would have terminated, this does not.
+  - **Postfix, no-assignment shape `every write(1 to 3)` → correctly `1 2 3`, terminates cleanly, unaffected**
+    (this is the smoke-test `every` fixture, which is exactly why smoke stays 12/12 despite the above — the
+    smoke suite does not exercise the assign-wrapped shape at all, so its green result says nothing about
+    this bug).
+  - **Conclusion: this is a REGRESSION, not a never-worked construct — bisected this session (three worktree
+    builds, see the corrected `TT_TO_BY` entry below for the full bisection).** `every x:=A to B do write(x)`
+    worked correctly at SCRIP `f879cc78` and `baa3a592`; broke starting at `feab99c7` (the GVA-FLAT landing)
+    and is still broken at current HEAD (`8e296381`) — `024abd2f`'s "fix the `feab99c7` regression" commit
+    fixed a DIFFERENT collision (procedure-parameter slots) and never re-tested this repro. **This narrows the
+    search space a lot: the bug is somewhere in `feab99c7`'s diff** (the GVA-FLAT driver split + the IR_VAR
+    tmp-slot-gap fix it also bundled — that commit's own message admits both pieces, see its full text via
+    `git show feab99c7`), not in `TT_TO`/`TT_EVERY`'s own lowering, which hadn't been touched since `f879cc78`.
+    Next session: MONITOR-FIRST/gdb on `every x:=7 to 9 do write(x)` (the hanging case — more mechanical to
+    bracket than the truncating one), and diff against `feab99c7`'s changed files specifically rather than
+    searching `lower_icon.c`/`emit.cpp` broadly — the regression is provably inside that one commit's surface.
+  - Other gaps, isolated + reproduced in prior sessions, status NOT re-verified this pass (do not assume still
+    accurate, same caution as above):
   - body containing its own value-producer (`every x:=1 to 3 do write(x*2)`) yields only the first
-    iteration (`2`, not `2 4 6`). `--dump-ir` shows the expected shape (`IR_BINOP` between assign and call,
-    `ω→IR_TO`) — root cause not yet bracketed; needs MONITOR-FIRST, not guessing.
-  - postfix/chained-call-wrapped generator with no assignment (`every write(1 to 3)` — **this is the
-    existing Icon-smoke `"every"` fixture**) also yields only the first value. `lower_call`'s chained-arg
-    path only reports `cx->beta` as resumable when a `g_postfix_resume` flag is set, which it isn't here.
-  - Icon smoke: 11/12 both modes (`every` postfix shape still FAILs; `repeat_break` landed since this was written).
+    iteration (`2`, not `2 4 6`) as of the last time this was checked — **NOT re-verified this session, status
+    unknown at current HEAD; re-test before trusting, per the caution above.** `--dump-ir` shows the expected
+    shape (`IR_BINOP` between assign and call, `ω→IR_TO`) — root cause not yet bracketed; needs MONITOR-FIRST.
+  - ~~postfix/chained-call-wrapped generator with no assignment also yields only the first value~~ **STALE,
+    CONTRADICTED ABOVE** — re-verified this session: `every write(1 to 3)` correctly yields `1 2 3`. This line
+    described the state before the "postfix `every(gen)` fixed" watermark entry further down landed; it was
+    never deleted when that fix shipped. Left struck-through rather than removed so the next reader sees the
+    fix is real and doesn't re-doubt it.
+  - ~~Icon smoke: 11/12 both modes~~ **STALE** — smoke is 12/12 both modes as of this session (confirmed
+    fresh run); see the corrected sub-bullets above for what 12/12 does and doesn't cover (it does NOT
+    exercise the assign-wrapped `every x:=GEN do BODY` shape at all).
 
 - **`TT_REPEAT` + `TT_LOOP_BREAK` + `TT_LOOP_NEXT` — LANDED 2026-06-30 (Claude Sonnet 4.6).** `repeat{…}`,
   `break`, and `next` all verified both modes (mode-3 == mode-4): `repeat{write("x");break}` → `x done`;
@@ -322,13 +350,28 @@ Icon-reachable rows listed.
   body ran once then exited; `break` had the identical disease (it was an `IR_FAIL` whose loop-exit edge was
   thrown away). Fix: route the loop-back and the break/next jumps through a **real chain node** (`IR_CONJ`,
   whose driver is pure jump-to-γ and whose edges the BFS *follows*), never a sentinel terminator.
-- **`TT_TO_BY` (3-arg `to ... by ...`) — LANDED 2026-06-30 (Claude Sonnet 4.6), SCRIP `f879cc78`.** `by` is
-  `operands[2]`, a producer node (constant step → `IR_LIT_INTEGER`, variable step → `IR_VAR`, same path); the
-  runtime-step arm in `bb_to.cpp` reads it from `[op_sc+8]` and does a runtime `cmp by,0` sign branch per
-  `omisc.r` `toby`. The blocking from-ignoring bug it waited on is FIXED (it was the α/β operand-edge mis-stamp,
-  not a runtime-value bug — see watermark). Verified +/−/degenerate/variable steps, both modes identical. The
-  two documented DEAD ENDS (params[] node-scalar; widening `ir_node_produces_value` for `IR_TO`) remain dead —
-  neither was used; `by`-in-operands is the correct home, no new `IR_t` field.
+- **`TT_TO_BY` (3-arg `to ... by ...`) — LANDED 2026-06-30 at SCRIP `f879cc78` (Claude Sonnet 4.6), then
+  REGRESSED at `feab99c7` (same day, GVA-FLAT landing), REGRESSION STILL PRESENT at current HEAD (`8e296381`)
+  — bisected this session, do not re-trust "LANDED" without re-testing `every x:=A to B [by C] do write(x)`
+  specifically.** `by` is `operands[2]`, a producer node (constant step → `IR_LIT_INTEGER`, variable step →
+  `IR_VAR`, same path); the runtime-step arm in `bb_to.cpp` reads it from `[op_sc+8]` and does a runtime
+  `cmp by,0` sign branch per `omisc.r` `toby`. At `f879cc78` this was genuinely verified correct (`every
+  x:=7 to 9 do write(x)` → `7 8 9`, confirmed by re-building that exact commit in a worktree this session).
+  **Bisected the regression precisely, three worktree builds, each re-tested with the same repro:** still
+  correct at `baa3a592` (the segfault-fix commit immediately before GVA-FLAT) → **broken starting at
+  `feab99c7`** (`every x:=7 to 9 do write(x)` now hangs, printing `7` forever) → **still broken at `024abd2f`**
+  (the commit that explicitly claims to fix "the `feab99c7` regression" — it does fix the param/value-slot
+  collision repros it names, `rung02_proc_add_proc`/`rung10_augop_break_repeat`, but those are both
+  PROCEDURE-PARAMETER collisions; the `to`-generator hang has no procedure parameters in its repro at all, so
+  it's a DIFFERENT bug that happens to share the same introduction commit, and `024abd2f`'s own commit
+  message never mentions the `to`-generator case — it was not re-tested before being folded into the "fixed"
+  narrative). **Current status: BROKEN, not bracketed past "introduced in `feab99c7`," root cause not yet
+  found.** See the corrected `TT_EVERY` entry above for the full current-HEAD symptom matrix (from=1 truncates
+  to one value and terminates; from≠1 hangs; from==to degenerate case is fine) — `TT_TO_BY`'s `by`-stepped hang
+  (`every x:=1 to 9 by 3 do write(x)`, confirmed this session) is the SAME bug, not a separate one; fixing the
+  plain `to` case should be attempted first and the `by` case re-tested after, not designed for independently.
+  The two previously documented DEAD ENDS (params[] node-scalar; widening `ir_node_produces_value` for
+  `IR_TO`) remain dead and irrelevant to this regression — neither is implicated by the bisection above.
 
 
 **🔴 GAP — unowned/crash:**
@@ -389,12 +432,21 @@ Icon-reachable rows listed.
   `coro_runtime.c`, not Byrd-box; needs wiring to `emit_drive`, not new design), `TT_LIMIT` — not wired into
   the new driver. (`TT_CASE`: per JCON `ir_a_Case`, decomposes to a chain of `===` relop nodes — shape 1,
   mostly LOWER work, no new template.)
-- Global `TT_ASSIGN` (`global g; g:=5`) → aborts on the global arm.
+- ~~Global `TT_ASSIGN` (`global g; g:=5`) → aborts on the global arm.~~ **CLOSED** — see the STATUS section
+  below the PUNCH LIST; was already landed before this watermark caught up to it (SCRIP `feab99c7`).
 
-**NEXT (in order):** (1) `TT_ALTERNATE` resumability — the base case (first-arm-succeeds, no `IR_ALT` node)
-is landed; only the generator/backtrack side (`every write(1|2|3)` should yield `1 2 3`, currently yields `1`)
-remains, per the corrected punch-list entry above. (2) `TT_IDX`/`MAKELIST` segv. (3) global `TT_ASSIGN`.
-(4) `TT_TO_BY` 3-arg generator.
+**NEXT (in order):** (1) **`every x:=GEN do BODY` assign-wrapped-generator regression** — bisected this
+session to SCRIP `feab99c7` (the GVA-FLAT landing commit); worked at `f879cc78`/`baa3a592`, broken from
+`feab99c7` onward through current HEAD. `every x:=7 to 9 do write(x)` hangs; `every x:=1 to 3 do write(x)`
+truncates after one value; `TT_TO_BY`'s `by`-stepped variant exhibits the identical hang — all one bug, fix
+the plain-`to` case first. MONITOR-FIRST/gdb the hanging case; diff against `feab99c7` specifically (driver
+split + IR_VAR tmp-slot-gap fix) rather than searching broadly — the bisection already narrows the surface.
+(2) `TT_ALTERNATE` resumability — the base case (first-arm-succeeds, no `IR_ALT` node) is landed; only the
+generator/backtrack side (`every write(1|2|3)` should yield `1 2 3`, currently yields `1`) remains, per the
+corrected punch-list entry above. (3) `TT_FIELD`/`TT_SCAN`/`TT_CASE`/`TT_SUSPEND`/`TT_LIMIT`/`TT_SECTION*` —
+the `IR_FAIL`-stubbed set, one at a time per the MECHANICAL JCON→SCRIP CONVERSION TECHNIQUE below. **`TT_IDX`/
+`MAKELIST` segv and global `TT_ASSIGN` are CLOSED — do not re-pick them up; see the STATUS section below the
+PUNCH LIST for what landed and where.**
 
 ## ⛔⛔ MECHANICAL JCON→SCRIP CONVERSION TECHNIQUE (Claude Sonnet 4.6, 2026-06-30) — read before starting any new TT
 **This is the by-eye/by-hand recipe used this session, written up so the next session (Icon or, later, any
@@ -503,48 +555,85 @@ session, verified against fresh repro + gdb, not assumed:**
    to project code; a fresh-container gap, not a regression. `gdb` also needed installing for the RULES.md
    MONITOR-FIRST methodology to be usable at all (`gva_index_of` crash bracket above used it).
 
-## ⛔ NEXT (concrete, designed, NOT yet coded) — global TT_ASSIGN write-side, the GVA-FLAT rung
-**Design is complete; this is the literal next edit for the next session (or continuation of this one).**
-- **(a) DRIVER** (`src/emitter/emit.cpp`, `emit_drive`'s `IR_ASSIGN` arm, ~line 878-881): currently
-  `if (!vn || is_global(vn)) { drive_unowned(nd); break; }`. Split the `is_global(vn)` sub-case out: when
-  `vn && is_global(vn)`, set `g_emit.op_sb = -1` (no local frame slot — distinguishes from the local arm),
-  `g_emit.op_gva_k = g_gva_active ? gva_index_of(vn) : -1`, `g_emit.op_sval = vn`, `g_emit.op_off =
-  drive_value_slot(nd)` (assign nodes still want SOME slot for re-walk idempotency, mirroring the local arm),
-  `DRIVE_FILL(nd, lbl_γ, lbl_ω, lbl_β)`. Only `!vn` (truly anonymous — shouldn't happen for `TT_ASSIGN` but
-  keep as the genuine "unowned" case) still calls `drive_unowned`.
-- **(b) TEMPLATE SELECTOR** (`src/emitter/emit.cpp`, `walk_bb_node`'s `IR_ASSIGN` case, ~line 771-779): add a
-  third arm — `if (g_descr_flat_chain && IR_LIT(nd).sval && is_global(IR_LIT(nd).sval)) { bb_emit_x86(bb_assign_global()); return 0; }`
-  — checked BEFORE the existing `g_descr_flat_chain && IR_LIT(nd).sval` local-arm catch-all (line 777), since
-  that catch-all is unconditional on the name and would otherwise shadow the global case.
-- **(c) NEW TEMPLATE** `src/templates/bb_assign_global.cpp` (new file; add to Makefile template list +
-  `scripts/util_*` artifact-regen if touched per RULES.md handoff step 4) — mirror `bb_var_global.cpp`'s
-  dual-path shape exactly, inverted (write instead of read): fast path `g_gva_active && op_gva_k>=0` does
-  `mov rax,[FRQ(op_a_slot)]; mov rdx,[FRQ(op_a_slot+8)]; mov [RDQ("rbx",gva_k*16)],rax; mov
-  [RDQ("rbx",gva_k*16+8)],rdx; jmp γ; def β; jmp ω` (β is a no-op resume — assignment isn't a generator, mirror
-  `bb_assign_local.cpp`'s own β/ω shape exactly, don't invent one); fallback path (`op_gva_k<0`) calls
-  `NV_SET_fn(const char*, DESCR_t)` (already declared in `bb_gvar_assign_descr.cpp` — reuse the extern
-  declaration) with the slot's two qwords packed into a `DESCR_t` the way `bb_gvar_assign_descr.cpp`'s own
-  fallback already does it (read that file's `rt_gvar_assign_descr` call for the exact calling-convention
-  precedent — same idea, different fn name, confirm the ABI matches before assuming `NV_SET_fn`'s param order).
-  Bomb (`x86_bomb`) on any unhandled `op_a_node_kind`/missing-slot combination, per house style — never
-  silently mis-emit.
-- **(d) VERIFY:** the `gtest.icn` repro in this watermark (`global g; procedure main(); g:=5; write(g); end`)
-  should print `5`, both modes identical. Re-run full smoke (expect 12/12 unchanged) + full corpus (expect
-  91/289 baseline + this fix's deltas, no regressions — diff against `/tmp/baseline_pass.txt`/
-  `baseline_fail.txt` from this session, or re-capture fresh if unavailable) + all four discipline gates
-  (mutation HARD=4, no-stack 0, one-reg 0, semicolon PASS) before considering this rung closed.
-- **NOT in scope for this rung:** global `TT_AUGOP`/`TT_REVASSIGN` (augmented/reverse assignment to a global —
-  same address-resolution principle applies per the `oasgn.r` reading above, but verify the AUGOP/REVASSIGN
-  LOWER arms even reach a global-named `IR_ASSIGN`-shaped node before assuming this fix covers them for free);
-  `TT_IDX`/`TT_MAKELIST` segv (separate, already-isolated finding this session: SCRIP routes both through the
-  generic `lower_call` path, but JCON's `ir_a_ListConstructor` — read this session, `irgen.icn:1313-1354` — is
-  its OWN sentinel-threaded resumable shape via `ir_make_sentinel`, structurally distinct from a plain call;
-  this mismatch is the leading hypothesis for the segfault and should be the first thing checked next, before
-  assuming the bug is elsewhere); unbounded `TT_ALTERNATE` (unchanged, still needs the label-variable infra
-  per the existing PUNCH LIST entry — `ir_a_Alt`/`ir_a_RepAlt` read in full this session at
-  `irgen.icn:167-229`, confirms the prior session's analysis was accurate, nothing to correct there).
+## ⛔ STATUS — GVA-FLAT (global `TT_ASSIGN` write-side) and `TT_IDX`/`MAKELIST` segv are BOTH CLOSED
+**Both items this section used to describe as open are done. Recorded here, not deleted outright, because
+the discrepancy between this file's prose and the actual repo state was itself a real cost this session paid
+to discover — worth one paragraph so it isn't paid again.**
+
+**GVA-FLAT was landed BEFORE this session started**, in SCRIP commits `feab99c7` (the write-side template +
+driver split, exactly as this section's old design specified — `bb_assign_global.cpp` mirrors
+`bb_var_global.cpp`'s dual-path shape, GVA-fast `[rbx+gva_k*16]` / `NV_SET_fn` fallback, β as a no-op resume),
+`024abd2f` (a same-day regression fix — a param/value-slot collision in `ir_drive_slot_assign`, gdb-bracketed,
+see that commit's own message), and `1ee81ff7` (unrelated cleanup, `g_descr_flat_chain` flag removal). All
+three were already pushed and on `origin/main`, working tree clean, when this session cloned the repo — this
+file's watermark simply hadn't been updated to say so. **Verified this session, independently:** the exact
+`gtest.icn` repro this section specified (`global g; procedure main(); g:=5; write(g); end`) prints `5`, both
+modes identical; `test_gate_icn_local_no_nv.sh` LOCK 3 (which a prior watermark entry under CORRECTIONS above
+documented as FAILING) now PASSES (`global uses the GVA array, 4 refs`). **Lesson for next session: this
+file's prose is not the ground truth for what's landed — `git log` and a fresh gate/smoke run are. Re-derive
+before trusting a "NOT yet coded" claim, the same caution the CORRECTIONS section already demands for "X
+aborts" claims.**
+
+**`TT_IDX`/`MAKELIST` segv — FIXED this session, SCRIP `8e296381`.** The leading hypothesis this section
+recorded (JCON's `ir_a_ListConstructor` being a structurally distinct sentinel-threaded shape vs. SCRIP's
+generic call path) was directionally right but the actual bug was sharper: `lower_call`'s `is_idx_or_list`
+branch called `lc_call_argblks`, which clobbers the call node's name (`IR_LIT(call).sval`) via a union write
+to `.dval` one line after the name was set, AND discards the per-argument sub-graph array it builds without
+ever attaching it to the node — every downstream reader of that array reads a hardcoded null behind a guard
+that can never be true. Confirmed via gdb (RULES.md MONITOR-FIRST) and against `irgen.icn:1313-1354`/`:384`
+directly: `ir_a_ListConstructor`'s element chain is the SAME shape as `ir_a_Call`'s ordinary argument chain
+(`L := [p.fn] ||| p.args.exprList`) — both thread already-lowered sub-expressions with sentinel bookends, no
+detached sub-graph anywhere. Fix: deleted the broken special case; `TT_IDX`/`TT_MAKELIST` now fall through to
+the SAME chained-arg loop every ordinary call already uses correctly — no new opcode, no new template, no
+runtime change (confirmed `by_name_dispatch.c`'s `"[]"`/`"MAKELIST"` entries already expect a flat marshaled
+arg array, which is exactly what the chained loop produces). `write(x[1])` on `x:=[1,2,3]` → `1`, both modes;
+multi-index and empty-list also verified. Full corpus PASS 99→109 (+10), zero regressions (rigorous
+before/after diff). Full detail in the commit message. **`lc_call_argblks` itself is untouched** — still used
+by the parked `lower_snobol4.c`/`lower_raku.c`/`lower_pascal.c`, out of scope per the ICON-ONLY hard rule; if
+those languages hit the same union-clobber bug on their own resumption, that is their own session's find, not
+inherited from this fix.
+
+**NOT in scope, still genuinely open (carried forward unchanged from the prior framing):** global
+`TT_AUGOP`/`TT_REVASSIGN` (same address-resolution principle as GVA-FLAT per the `oasgn.r` reading, but verify
+the AUGOP/REVASSIGN LOWER arms actually reach a global-named `IR_ASSIGN`-shaped node before assuming GVA-FLAT
+covers them for free — not checked either session); unbounded `TT_ALTERNATE` (still needs the label-variable
+infra per the existing PUNCH LIST entry — `ir_a_Alt`/`ir_a_RepAlt` read in full a prior session at
+`irgen.icn:167-229`, nothing to correct there).
 
 ## Watermark
+**2026-06-30 (Claude Sonnet 4.6, continuation session) — ICON-ONLY TEST EXECUTION hard rule added (Lon
+directive); GVA-FLAT/TT_IDX watermark staleness reconciled against real repo state; TT_IDX/MAKELIST segv
+FIXED; `every`/`TT_TO` assign-wrapped-generator regression DISCOVERED+BISECTED (not fixed). SCRIP `8e296381`,
+`.github` `bbb68169` (push status TBD — see session close).** Session opened on a fresh clone at SCRIP HEAD
+`1ee81ff7` — three commits (`feab99c7`/`024abd2f`/`1ee81ff7`) ahead of what this file's previous watermark
+entry (below) described as "local, push blocked." Confirmed all three were genuinely already pushed
+(`git status` clean, `HEAD == origin/main`, no credential needed to discover this — only a push would have
+needed one). Re-derived ground truth rather than trusting the stale prose, per this file's own STATUS section
+methodology: ran a fresh 289-program corpus (`PASS=99` at `1ee81ff7`, captured to
+`/tmp/baseline_2026-06-30_1ee81ff7.txt`), re-verified the GVA-FLAT `gtest.icn` repro (prints `5`, both modes
+— the design this file described as "NOT yet coded" was actually done), confirmed `TT_IDX`/`MAKELIST` still
+genuinely segfaults as documented. **Fixed `TT_IDX`/`MAKELIST`** (SCRIP `8e296381`, full root-cause + fix
+detail in the commit message and the STATUS section above) — `lower_call`'s `is_idx_or_list` branch called
+`lc_call_argblks`, which clobbers the call node's name via a union write and discards a sub-graph array that
+was never attached to the node; deleted the branch, falls through to the proven chained-arg loop instead,
+matching `ir_a_ListConstructor`'s actual JCON shape (same chain-of-already-lowered-elements pattern as
+`ir_a_Call`). Corpus PASS 99→109 (+10), zero regressions (rigorous diff). **While verifying the doc's
+`TT_TO_BY`/`TT_EVERY` claims before trusting them for the NEXT-list, found those claims are ALSO stale, but
+in a different and more interesting way — not "never finished," but a genuine REGRESSION:** `every x:=A to B
+do write(x)` worked correctly at `f879cc78` (verified by rebuilding that exact commit in a worktree this
+session — `every x:=7 to 9 do write(x)` → `7 8 9`) and still worked at `baa3a592`, then broke starting at
+`feab99c7` (now hangs/truncates) and is STILL BROKEN at current HEAD — `024abd2f`'s "fix the `feab99c7`
+regression" commit fixed a different bug (procedure-parameter slot collision) and never re-tested this repro,
+so the regression slipped through undetected across two more commits. Bisected via three additional worktree
+builds (`baa3a592` clean, `feab99c7` broken, `024abd2f` still broken), narrowing the search surface to
+`feab99c7`'s diff specifically. **NOT fixed this session** — flagging precisely (with the bisection, so the
+next session doesn't have to re-derive it) was judged higher-value than rushing a fix for a regression with
+two independently-confirmed introduction commits already eliminated as the cause. Icon smoke 12/12 both modes
+throughout (unaffected — the smoke fixture doesn't exercise the assign-wrapped `every` shape, which is itself
+now documented precisely so the green smoke result isn't misread as covering this). All four discipline gates
+green, mutation gate HARD=4 unchanged. **NEXT:** MONITOR-FIRST/gdb `every x:=7 to 9 do write(x)` (the hanging
+repro), diffing against `feab99c7` specifically rather than searching broadly.
+
 **2026-06-30 (Claude Sonnet 4.6) — universal op_sval/gva_index_of segfault FIXED (upstream of global-assign);
 fresh 91/289 corpus baseline captured at f879cc78; JCON→SCRIP conversion technique + corrections written up
 above. SCRIP `baa3a592` (LOCAL — push BLOCKED pending credential; see session close).** Read JCON canonical
