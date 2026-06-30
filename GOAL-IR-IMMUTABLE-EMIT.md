@@ -603,7 +603,7 @@ infra per the existing PUNCH LIST entry — `ir_a_Alt`/`ir_a_RepAlt` read in ful
 ## Watermark
 **2026-06-30 (Claude Sonnet 4.6, continuation session) — every/`TT_TO_BY` slot-collision regression (DISCOVERED+
 BISECTED but NOT fixed by the watermark entry directly below this one) is now FIXED + VERIFIED. SCRIP `d225d4a2`
-(LOCAL — push BLOCKED pending credential, see session close), `.github` `<this commit>`.** Picked up exactly
+(LOCAL — push BLOCKED pending credential, see session close), `.github` `d66a7365`.** Picked up exactly
 where the entry below left off: `every x:=A to B do write(x)` with `A≠1, A<B` hangs forever printing the seed
 value (`from=7,to=9` → `7,7,7,...`); `A==1` truncates to printing `1` only; `A==B` (degenerate) is fine. Root
 cause, precisely: `ir_drive_slot_assign` (LOWER, `scrip_ir.c`) and the emitter's `bb_slot_alloc16_or_get`/
