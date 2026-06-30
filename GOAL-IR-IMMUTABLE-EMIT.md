@@ -291,36 +291,13 @@ Icon-reachable rows listed.
   body ran once then exited; `break` had the identical disease (it was an `IR_FAIL` whose loop-exit edge was
   thrown away). Fix: route the loop-back and the break/next jumps through a **real chain node** (`IR_CONJ`,
   whose driver is pure jump-to-γ and whose edges the BFS *follows*), never a sentinel terminator.
-- `TT_TO_BY` (3-arg `to ... by ...`) — IR_FAIL-stubbed; `TT_TO` (2-arg) works. **CORRECT TECHNIQUE (do this, nothing else):
-  `by` is operand[2] — a normal producer node, exactly like `from`(op[0]) and `to`(op[1]).** Canonical `ir_a_ToBy`
-  (`irgen.icn:1168`) evaluates `byexpr` as a full sub-expression (`ir_value(p.byexpr)` + `ir(p.byexpr,...)`) and hands
-  all three values to the `ir_operator("...",3,...)` step — SCRIP mirrors that with a third operand. A constant `by`
-  lowers to an `IR_LIT_INTEGER` producer in its own tmp slot; a variable `by` to an `IR_VAR` producer — SAME code path,
-  so this covers the variable-step case for free. (a) LOWER `lower_to`: drop the `varby`/`icn_const_step` special-case;
-  always `lower(cx,t->c[2],to,mβ,&br); ir_operand_push(to,br)` for TO_BY. (b) DRIVER `emit_drive IR_TO`: add
-  `op_sc = (n_operands>2)? bb_slot_get(operands[2]) : -1` (−1 ⇒ step 1). (c) TEMPLATE `bb_to.cpp`: step is now a RUNTIME
-  value, not a compile-time immediate — the resume arm must `add [cur], rby` (load `by` from `[op_sc+8]`) instead of
-  `inc`/`add $imm`, and the loop-exit comparison sign (`jg` vs `jl`) becomes a RUNTIME branch (`cmp rby,0` once at `α`),
-  since canonical to-by is sign-agnostic at compile time. The node stays `IR_TO` with `"ag"`/`"ar"` in its single union.
-  **DEAD END — DO NOT REPEAT (2026-06-30): storing the step as a scalar ON the IR node is WRONG.** An attempt added an
-  `IR_t.params[]` union array to hold the step (because the single `union{sval;ival;dval;}` was already the `"ag"`/`"ar"`
-  discriminator, so `IR_LIT(to).ival=step` stomped it — that aliasing is what segfaulted). The params array was reverted:
-  `by` belongs in `operands`, not a node-stored scalar. Operands are IR_t pointers (producers); they are the right and
-  only home for `by`. No new `IR_t` field is needed.
-  **⛔ BLOCKED ON A PRE-EXISTING BUG (MONITOR-FIRST rung — must land FIRST):** every `to`/`to-by` generator's CONSUMED
-  value ignores `from`. On the UNTOUCHED 2-arg baseline (`2e7cd455`): `every x:=7 to 9 do write(x)` → `1 2 3 4 5 6 7`
-  (wants `7 8 9`); `every x:=3 to 7 do write(x)` → `1..7`; `if x:=7 to 9 then write(x)` → `1`; `every write(7 to 9)` →
-  `1`. The generator's stride/length are right; the value read back is the counter/step, not `from`. BRACKET (refined
-  after asm inspection): the emitted asm IS slot-plumbed correctly — `bb_to`'s `α` reads the from-operand's value at
-  `[from_tmp+8]` and inits `current:=from`, and the consumer reads `IR_TO`'s result slot. The fault is in the RUNTIME
-  VALUE, not slot addressing: `every x:=A to B do write(x)` prints a COUNTER `1,2,…,B` (ignores `A`, runs to the upper
-  bound). So either the from value loaded at runtime is wrong, or the `to`-loop overwrites `current` with a counter.
-  Hunt with gdb on the emitted `IR_TO` box: breakpoint at its `α` label, inspect what is written to `[current]` on the
-  first pass and each resume vs. what `write` reads (per RULES; Icon has no 2-way monitor). RULED OUT (tested): adding
-  `IR_TO` to `ir_node_produces_value` shifts slot layout but does NOT change the counter behavior, and is wrong anyway
-  (the int generator uses `[off+16]` as current scratch beyond the 16B tmp `ir_tmp_slot_assign` grants) — do not re-try.
-  SECOND pre-existing bug found alongside: `--dump-ir` SEGFAULTS on `to-by`/`seq` shapes (the `IR_FAIL`-stub generator),
-  so the dumper can't be used to inspect them until fixed.
+- **`TT_TO_BY` (3-arg `to ... by ...`) — LANDED 2026-06-30 (Claude Sonnet 4.6), SCRIP `f879cc78`.** `by` is
+  `operands[2]`, a producer node (constant step → `IR_LIT_INTEGER`, variable step → `IR_VAR`, same path); the
+  runtime-step arm in `bb_to.cpp` reads it from `[op_sc+8]` and does a runtime `cmp by,0` sign branch per
+  `omisc.r` `toby`. The blocking from-ignoring bug it waited on is FIXED (it was the α/β operand-edge mis-stamp,
+  not a runtime-value bug — see watermark). Verified +/−/degenerate/variable steps, both modes identical. The
+  two documented DEAD ENDS (params[] node-scalar; widening `ir_node_produces_value` for `IR_TO`) remain dead —
+  neither was used; `by`-in-operands is the correct home, no new `IR_t` field.
 
 
 **🔴 GAP — unowned/crash:**
@@ -389,6 +366,48 @@ remains, per the corrected punch-list entry above. (2) `TT_IDX`/`MAKELIST` segv.
 (4) `TT_TO_BY` 3-arg generator.
 
 ## Watermark
+**2026-06-30 (Claude Sonnet 4.6) — TO from-ignoring bug ROOT-CAUSED + FIXED; TO BY landed (operand[2]
+runtime step); postfix `every(gen)` loop-back fixed. SCRIP `f879cc78`, corpus `d77fb618` (LOCAL — push
+BLOCKED pending credential; see session close).** The from-ignoring `to`-generator bug (every prior watermark
+bracketed it to "the runtime value" and prescribed gdb) was NOT a runtime-value bug — it was a CONTROL-FLOW
+bug, found by gdb on the emitted box exactly as RULES prescribes: a breakpoint at the IR_TO α
+(`bb3_α`/`xchain0_n2_α`) NEVER FIRED because the `to`-operand's forward feed edge into IR_TO was being
+α/β-stamped as **β** by `build()`/`γ_to` (which stamp any edge whose TARGET is `ir_is_generator_kind` as a
+resume edge). So control entered the generator at its β (resume = `inc current; loop`) on the FIRST and only
+forward pass, **skipping the `current := from` seed entirely** — `current` started at frame garbage/0, got
+`inc`'d to 1, and counted 1..to. The asm was "slot-plumbed correctly" (prior watermark was right about that)
+but the box entered at the wrong PORT. **Fix (`lower_to`, `lower_icon.c`): re-stamp the operand-feed edge
+to α with `lc_γ_to` after lowering** — mirroring JCON `ir_a_ToBy` where `toexpr.success → byexpr.start` (a
+start/α edge, never a resume). The generic "target-is-generator ⇒ β" heuristic is correct for a downstream
+CONSUMER's backtrack edge but wrong for the forward OPERAND-FEED edge that constructs/seeds the generator;
+they must be distinguished, and LOWER is where that knowledge lives.
+- **TO BY landed** (was an `IR_FAIL` stub) via the goal file's prescribed by-as-operand[2] technique, all three
+  files: LOWER builds `IR_TO` and pushes `by` as `operands[2]` (a producer node — NOT a node scalar; the
+  scalar-on-node aliasing was the documented dead end), chaining from→to→by→generator with α-restamps on the
+  forward edges; DRIVER (`emit_drive IR_TO`) reads `operands[2]` into `op_sc` (−1 ⇒ plain `to`, step 1);
+  TEMPLATE (`bb_to.cpp`) gains a runtime-step integer arm — loads `by` from `[op_sc+8]`, does a RUNTIME
+  `cmp by,0` sign branch (canonical `omisc.r` `toby`: `by>0` ascending, exit when `current>to`; `by<0`
+  descending, exit when `current<to`), and advances `current += by` on resume. **Variable step works for free**
+  (`k:=2; every x:=1 to 9 by k` → `1 3 5 7 9`) because `by` is just another producer operand. Verified +/−/
+  degenerate steps, both modes identical.
+- **postfix `every(gen)` fixed** (`every write(1 to 10 by 3)`, the empty-`every`-body shape — also the Icon
+  smoke `every` fixture): the empty body was lowered to an `IR_SUCCEED` sentinel whose loop-back edge the
+  chain-BFS DISCARDS (an edge pointing at `IR_SUCCEED` resolves to the proc γ-exit, `emit.cpp:1001-1002`), so
+  the call's success jumped to `main_γ` and terminated after ONE value. Fix (`lower_every`): for empty `B`,
+  route the loop-back through a REAL `IR_CONJ` node (γ=ω=gen_beta) — the same real-node-not-sentinel idiom the
+  LOOP-BACK PLAYBOOK section already documents for repeat/break/next — so the BFS follows the edge back to the
+  generator resume. JCON `ir_a_Every` defaults an empty body to `a_Key("fail")` whose success+failure both go
+  to `expr.resume`; this is the stackless realization.
+- **PROVEN (per-program harness, pristine-baseline build vs this build, identical harness):** Icon smoke
+  **11/12 → 12/12 both modes** (first time fully green); corpus **+9 FAIL→PASS, ZERO PASS→FAIL** —
+  `rung01_paper_to5`/`paper_to_by`/`paper_lt`, `rung07_control_to_by`, `rung02_arith_gen_range`,
+  `rung16_seqexpr_gen_basic`/`subscript_sub_every`, `rung34_null_test_nonnull_in_every`,
+  `rung10_augop_break_repeat`. Mode-3==mode-4 verified on every case. Discipline gates green (no-stack 0,
+  one-reg 0, semicolon-prison PASS); mutation gate **HARD=4 unchanged** (emitter `IR_TO` edit is reads-only;
+  gate doesn't scan LOWER). `.s` regenerated (`corpus/benchmarks/icon/version.s`). **NEXT:** the original punch
+  list's remaining clean wins — `TT_IDX`/`MAKELIST` segv, global `TT_ASSIGN`, and the value-context `if`
+  shared-target tmp — plus unbounded `TT_ALTERNATE` (still needs the label-variable infra, unchanged).
+
 **2026-06-30 (Claude Sonnet 4.6) — legacy slot-alloc fallback BOMBED for genuine value-producer gaps; TT_TO_BY
 attempted+reverted twice (params array, then `ir_node_produces_value` widening — BOTH WRONG, see below); pre-existing
 `from`-ignoring `to`-generator bug found, bracketed, NOT fixed. SCRIP `<pending — see commit below>`.**
