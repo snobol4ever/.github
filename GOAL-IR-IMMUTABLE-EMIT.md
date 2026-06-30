@@ -10,8 +10,11 @@ JCON spine, one TT at a time, per the CONVERSION PLAYBOOK below.
   will keep changing drastically. Never wire it into a gate.
 - **No full regression required per rung.** Icon regression may go to zero and grow back; breaking other
   languages mid-ladder is authorized (they are already broken pending their own GZ#5 rebuild — not started).
-- **The gate that matters: `write("hello world")` and `write(1+1)` must keep working, both modes, every commit.**
-  Beyond that, each TT is its own honest pass/fail — land it, document it precisely, move on.
+- **No micro "baseline gate."** The old two-snippet sanity gate (`write("hello world")` + `write(1+1)`,
+  both modes) is RETIRED (Lon, 2026-06-30) — it tested almost nothing and was never a script, only this line.
+  The honest per-rung signal is `bash scripts/test_smoke_icon.sh` (12 programs, both modes) plus the corpus
+  stash/rebuild/FAIL-set diff for the rung you touched; each TT is its own honest pass/fail — land it,
+  document it precisely, move on.
 - **`IR_t.tmp` IS the temporary slot** (not `lhs`; no `IR_TMP` opcode — see CONVERSION PLAYBOOK). Only
   value-producers carry one (`ir_node_produces_value`); control/effect ops don't.
 
@@ -145,6 +148,41 @@ first, falls back to legacy slot-alloc only for unconverted nodes. A consumer re
 4. **Control/effect** (`ir_Succeed`/`ir_Fail`/`ir_Assign`) → `IR_SUCCEED`/`IR_FAIL`/`IR_ASSIGN`, no tmp.
    JCON's `ir_Move` (copy closure result into target) is usually absorbed — the producer writes its own tmp.
 
+### THE LOOP-BACK & UNCONDITIONAL-JUMP IDIOM (loops, break, next, goto — Claude Sonnet 4.6, 2026-06-30)
+**THE TRAP (cost an entire prior session a "diagnosed, not fixed" entry):** an `IR_FAIL` or `IR_SUCCEED` node is
+NOT a general "jump-to-my-γ-target" node — it is a CHAIN TERMINATOR. The chain-BFS (`codegen_flat_chain_body`,
+`emit.cpp`) does two things that discard a sentinel's edges: (i) it *threads through / skips* `IR_SUCCEED` and
+`IR_FAIL` nodes (they're never added to `nodes[]`, lines ~950/955/970), and (ii) when ANOTHER node's γ (or ω)
+points AT a sentinel, it resolves that edge to the **chain's** `lbl_γ`/`lbl_ω` exit (lines ~1001-1002:
+`γ.node->op == IR_FAIL → node_γ = &lbl_ω`; `== IR_SUCCEED → &lbl_γ`). So a sentinel's *own* γ-target (e.g. the
+post-loop continuation you wired into a `break`) is **silently thrown away** — control goes to the enclosing
+chain's exit, not your target. This is why `repeat`-via-`IR_FAIL`-loopback ran the body once then left, and why
+`break`-as-`IR_FAIL` skipped its post-loop code.
+
+**THE FIX — to jump unconditionally to an arbitrary real target T (and have T's subgraph emitted), use an
+`IR_CONJ` node with γ=ω=T, never a sentinel.** `IR_CONJ`'s driver (`emit.cpp` ~line 910) is pure
+`DRIVE_PAIR_JMP(lbl_γ)` + `DRIVE_PAIR_DEF_JMP(lbl_β,lbl_ω)` — i.e. "jump to my γ-target," nothing else — and
+`IR_CONJ` IS a real chain node, so (a) it is added to `nodes[]`, (b) the BFS *follows* its γ edge (queuing T and
+everything reachable from T), and (c) an edge pointing at the `IR_CONJ` resolves to the `IR_CONJ`'s own α label —
+a real `jmp`, forward or backward. `IR_CONJ` carries no value and needs no tmp; pushing its jump-target as
+operand[0] (as `lower_repeat` does) keeps slot-registration uniform with the value-producing CONJ used for `;`.
+
+**APPLYING IT — the loop family (JCON `ir_a_Repeat`/`ir_a_While`/`ir_a_Until`, decoded to 2-edge form):**
+- `while C do B`: sentinel `W=IR_FAIL` with `ω→γ_post`; `C.success→B.start`, `C.failure→W`(=exit),
+  `B.success→C.start`, `B.failure→C.start`. (Works because a `while` *does* exit via C's failure — the
+  `IR_FAIL` exit semantics align. **Do not "fix" `while`'s `IR_FAIL` — it is the genuine loop exit.**)
+- `until C do B`: mirror — `C.success→W`(=exit), `C.failure→B.start`, body loops to `C.start`.
+- `repeat B`: **no condition, no failure exit.** Header `H=IR_CONJ`, `γ=ω→B.start`; body lowered with
+  `γ=ω→H` (both body success AND body failure loop back); construct entry = `H`; `cx->beta=γ_post`. The loop
+  leaves ONLY via `break`/`return`/`fail`. (JCON: `expr.success→ir.start`, `expr.failure→ir.start`,
+  `ir.start→expr.start`; the `ir.start` Goto collapses into `H`.)
+- `break` (JCON `ir_a_Break`: `expr.success→curloop.success`, `expr.failure→curloop.failure`): jump to
+  `cx->loop_exit` (the loop construct's γ = its post-loop continuation) via `IR_CONJ`, γ=ω=`loop_exit`.
+- `next` (JCON `ir_a_Next`: `Goto curloop.nextlabel`): jump to `cx->loop_next` (the loop header) via `IR_CONJ`.
+  For `repeat`, `cx->loop_next = H`; for `while`/`until`, set it to the condition entry so `next` re-tests.
+- **`cx->loop_exit`/`cx->loop_next` save/restore is MANDATORY** around the body lower (nested loops) — already
+  done by all three; copy the pattern.
+
 ### THE 3-FILE EDIT RECIPE (shapes 2 & 3; shape 1 is LOWER-only)
 - **(a) LOWER** (`src/lower/lower_icon.c`): build the node (`build(cx,IR_X,γ,ω)`); recurse sub-exprs
   capturing `*res` + `cx->beta`; wire γ/ω per the JCON chunk list (`γ_to`/`ω_to`); push operands
@@ -203,22 +241,47 @@ Icon-reachable rows listed.
   - Icon smoke: 10/12 both modes, unchanged count (`every` still FAILs — it's the postfix shape above, not
     the keystone shape; `repeat_break` is a separate pre-existing gap, see below — untouched).
 
-**🔴 GAP — resume-gap family (TT_EVERY's keystone now works; these don't yet):**
-- `TT_REPEAT`+`TT_BREAK`/`TT_LOOP_NEXT` — `repeat{…}` runs the body ONCE then exits. Root cause (diagnosed,
-  not fixed): `lower_repeat` loops back through an `IR_FAIL` placeholder, which always takes ω, so
-  body→placeholder→ω exits instead of re-entering. JCON `ir_a_Repeat` loops body.success/failure straight to
-  `ir.start` with NO fail node — `while`/`until` happen to work because their `IR_FAIL`-exit semantics align;
-  `repeat` (no failure exit) doesn't. Needs loop-back redesign, not a patch — same class of fix as `TT_EVERY`'s
-  keystone (route to the real continuation, not a synthetic dead-end node).
+- **`TT_REPEAT` + `TT_LOOP_BREAK` + `TT_LOOP_NEXT` — LANDED 2026-06-30 (Claude Sonnet 4.6).** `repeat{…}`,
+  `break`, and `next` all verified both modes (mode-3 == mode-4): `repeat{write("x");break}` → `x done`;
+  counter-to-3 + break → `1 2 3 done`; the `repeat_break` smoke fixture → `0 1 2`. Icon smoke 10/12 → **11/12**
+  both modes (only `every` postfix-shape remains). Corpus 82/289 unchanged, identical FAIL set (stash/rebuild
+  diff). Mutation gate HARD=4 unchanged (LOWER-only change, gate doesn't scan it). LOWER-only, one file
+  (`lower_icon.c`, 7 lines). **TECHNIQUE — see "LOOP-BACK & UNCONDITIONAL-JUMP IDIOM" below.** Root cause was
+  exactly as diagnosed: the old `lower_repeat` looped back through an `IR_FAIL` placeholder whose γ-target the
+  BFS *discards* (an edge pointing AT an `IR_FAIL` resolves to the chain ω-exit per `emit.cpp:1002`), so the
+  body ran once then exited; `break` had the identical disease (it was an `IR_FAIL` whose loop-exit edge was
+  thrown away). Fix: route the loop-back and the break/next jumps through a **real chain node** (`IR_CONJ`,
+  whose driver is pure jump-to-γ and whose edges the BFS *follows*), never a sentinel terminator.
 - `TT_TO_BY` (3-arg `to ... by ...`) — IR_FAIL-stubbed; `TT_TO` (2-arg) works. Per JCON `ir_a_ToBy`: the `by`
   step is the 3rd operand of one `ir_operator("...",3,...)` — extend `bb_to`/`lower_to`'s `varby` path, which
   already builds the operands but emits no generator.
 
 **🔴 GAP — unowned/crash:**
-- `TT_ALTERNATE` (`a | b`) → `IR_ALT` unowned in `emit_drive` → **ABORT** (verified). Per JCON `ir_a_Alt`:
-  pure Goto threading, bounded case. **⚠ Not a clean `bb_conj` mirror** — the chain-BFS deliberately *skips*
-  alt arms (`ir_skip_alt_arms`/`ir_node_is_alt_arm`), so arms emit via a separate inline-alt cascade, not the
-  main loop. `lower_alt` already builds the operand-cascade wiring.
+- `TT_ALTERNATE` (`a | b`) → `IR_ALT` unowned in `emit_drive` → **ABORT** (verified). **CONFIRMED 2026-06-30
+  (Claude Sonnet 4.6) against `refs/jcon-master/tran/ir.icn` directly: there is NO `ir_Alt` record/enumerator.**
+  `ir_a_Alt` (`irgen.icn`) emits ONLY `ir_Goto`/`ir_IndirectGoto`/`ir_MoveLabel` chunks — alternation is PURE
+  Goto threading among the arms (shape 1, same as `TT_IF`), not a value-producing node kind at all. JCON wires
+  `e[i].success → ir.success` and `e[i].failure → e[i+1].start` directly; there is no intermediate "alt box."
+  **`IR_ALT` as an `IR_e` enum member is therefore a SCRIP-side bookkeeping artifact** (somewhere for the 2-edge
+  γ/ω model to land each arm's success, since SCRIP can't splice an edge directly into "whatever γ the ALT's
+  caller passed in" the way JCON's pure-Goto form can) — not wrong on its face, but it means there is no JCON
+  reference for what an `IR_ALT` *runtime box* should do, because JCON has none.
+  **DEAD END, attempted + reverted this session:** wired `IR_ALT → bb_alt()` (a pre-existing, never-dispatched
+  template that cascades through a frame-slot arm-counter, literal arms only, ≤32 arms) via a new
+  `case IR_ALT` in `emit_drive` populating `op_parts_*`. Never built/tested; reverted unbuilt after re-reading
+  `ir.icn` confirmed the premise (a literal-arm runtime cascade) has no JCON basis to validate it against —
+  building machine behavior with no canonical source to check it against is exactly what RULES.md's "CONSULT
+  CANONICAL SOURCES" rule exists to prevent, so it was pulled rather than landed half-verified. The
+  `bb_alt.cpp` template itself is untouched (still present, still undispatched, still unverified either way).
+  **REAL NEXT STEP, not yet attempted:** redesign as shape-1 pure edge-threading, JCON-faithful — `lower_alt`
+  should wire each arm's success directly to the ALT's OWN passed-in γ (no IR_ALT node at all, mirroring
+  `lower_if`'s `then_entry`/`else_entry` pattern) and each arm's failure to the next arm's start (already
+  correct in the existing `lower_alt`). If a 2-edge node is still needed as a landing point for "this arm
+  succeeded," it should do NOTHING but forward γ (a pure-thread shape, like the zero-template limit case
+  `IR_CONJ`/`bb_conj` the playbook already names for `ir_conjunction`) — not own runtime cascade behavior.
+  **⚠ Mind the BFS skip** — the chain-BFS deliberately *skips* alt arms (`ir_skip_alt_arms`/
+  `ir_node_is_alt_arm`), so arms must emit via a separate inline cascade, not the main loop, however the
+  redesign lands. `lower_alt` already builds the operand-cascade wiring (arm[i].ω→arm[i+1].start) correctly.
 - `TT_IDX`/`TT_MAKELIST`/`TT_VLIST` (`L:=[…]; L[i]`) → SEGV. Per JCON `ir_MakeList`+`ir_a_Sectionop`.
 - `TT_FIELD`, `TT_SECTION`/`_PLUS`/`_MINUS` (`s[i:j]`) → IR_FAIL-stubbed.
 - `TT_SCAN` (`s ? expr`), `TT_CASE`, `TT_SUSPEND`, `TT_CREATE` (co-expr — already ucontext-based in
@@ -227,10 +290,25 @@ Icon-reachable rows listed.
   mostly LOWER work, no new template.)
 - Global `TT_ASSIGN` (`global g; g:=5`) → aborts on the global arm.
 
-**NEXT (in order):** (1) `TT_REPEAT` loop-back redesign (same root-cause class just fixed for EVERY).
-(2) `TT_ALTERNATE` (mind the BFS skip). (3) `TT_IDX`/`MAKELIST` segv. (4) global `TT_ASSIGN`.
+**NEXT (in order):** (1) `TT_ALTERNATE` redesign — shape-1 pure edge-threading per the corrected punch-list
+entry above, NOT the `bb_alt()`/`op_parts_*` cascade (tried, reverted, no JCON basis). (2) `TT_IDX`/`MAKELIST`
+segv. (3) global `TT_ASSIGN`. (4) `TT_TO_BY` 3-arg generator.
 
 ## Watermark
+**2026-06-30 (Claude Sonnet 4.6) — `TT_REPEAT`+break+next landed; `TT_ALTERNATE` attempted+reverted; baseline
+gate retired.** `TT_REPEAT`/`TT_LOOP_BREAK`/`TT_LOOP_NEXT` landed and verified (see PUNCH LIST entry + new
+CONVERSION PLAYBOOK "LOOP-BACK & UNCONDITIONAL-JUMP IDIOM" section) — icon smoke **10/12 → 11/12** both modes,
+zero regressions (289-program corpus suite stash/rebuild/diff: identical FAIL set), mutation gate HARD=4
+unchanged. `TT_ALTERNATE`: wired `IR_ALT → bb_alt()` via a new `emit_drive` case, then reverted UNBUILT after
+confirming directly against `refs/jcon-master/tran/ir.icn` that no `ir_Alt` enumerator/record exists — JCON's
+`ir_a_Alt` is pure Goto threading with no node of its own, so the literal-arm-counter-cascade premise had no
+canonical source to verify against (see corrected punch-list entry for the real next approach). The retired
+"two-snippet baseline gate" directive (`write("hello world")`+`write(1+1)`, every commit) is REMOVED from the
+STANDING DIRECTIVE — it was never a script (confirmed: no `scripts/*.sh` referenced it), only this file's prose;
+the real per-rung signal is `scripts/test_smoke_icon.sh` + the corpus diff, both already in use above. SCRIP
+`74281db6` (this session's `lower_icon.c` diff is LOCAL, NOT YET PUSHED — see push status below). Icon smoke
+11/12 both modes. **NEXT: `TT_ALTERNATE` shape-1 redesign, per the PUNCH LIST.**
+
 **2026-06-30 (Claude Sonnet 4.6) — CONVERSION PLAYBOOK written + `TT_EVERY` keystone landed.** This file
 pruned to current+actionable content only (old TRACK A/B/C ladder, the driver-construction LOCKED-TECHNIQUE/
 ENTRY-POINT sections, and seven stacked prior watermarks removed — all superseded by the STANDING DIRECTIVE's
