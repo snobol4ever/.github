@@ -257,32 +257,45 @@ Icon-reachable rows listed.
   already builds the operands but emits no generator.
 
 **🔴 GAP — unowned/crash:**
-- `TT_ALTERNATE` (`a | b`) → `IR_ALT` unowned in `emit_drive` → **ABORT** (verified). **CONFIRMED 2026-06-30
-  (Claude Sonnet 4.6) against `refs/jcon-master/tran/ir.icn` directly: there is NO `ir_Alt` record/enumerator.**
+- `TT_ALTERNATE` (`a | b`) — **`IR_ALT` DELETED 2026-06-30 (Claude Sonnet 4.6); it was not a valid IR code.**
+  Confirmed against `refs/jcon-master/tran/ir.icn` directly: no `ir_Alt` record/enumerator exists there.
   `ir_a_Alt` (`irgen.icn`) emits ONLY `ir_Goto`/`ir_IndirectGoto`/`ir_MoveLabel` chunks — alternation is PURE
-  Goto threading among the arms (shape 1, same as `TT_IF`), not a value-producing node kind at all. JCON wires
-  `e[i].success → ir.success` and `e[i].failure → e[i+1].start` directly; there is no intermediate "alt box."
-  **`IR_ALT` as an `IR_e` enum member is therefore a SCRIP-side bookkeeping artifact** (somewhere for the 2-edge
-  γ/ω model to land each arm's success, since SCRIP can't splice an edge directly into "whatever γ the ALT's
-  caller passed in" the way JCON's pure-Goto form can) — not wrong on its face, but it means there is no JCON
-  reference for what an `IR_ALT` *runtime box* should do, because JCON has none.
-  **DEAD END, attempted + reverted this session:** wired `IR_ALT → bb_alt()` (a pre-existing, never-dispatched
-  template that cascades through a frame-slot arm-counter, literal arms only, ≤32 arms) via a new
-  `case IR_ALT` in `emit_drive` populating `op_parts_*`. Never built/tested; reverted unbuilt after re-reading
-  `ir.icn` confirmed the premise (a literal-arm runtime cascade) has no JCON basis to validate it against —
-  building machine behavior with no canonical source to check it against is exactly what RULES.md's "CONSULT
-  CANONICAL SOURCES" rule exists to prevent, so it was pulled rather than landed half-verified. The
-  `bb_alt.cpp` template itself is untouched (still present, still undispatched, still unverified either way).
-  **REAL NEXT STEP, not yet attempted:** redesign as shape-1 pure edge-threading, JCON-faithful — `lower_alt`
-  should wire each arm's success directly to the ALT's OWN passed-in γ (no IR_ALT node at all, mirroring
-  `lower_if`'s `then_entry`/`else_entry` pattern) and each arm's failure to the next arm's start (already
-  correct in the existing `lower_alt`). If a 2-edge node is still needed as a landing point for "this arm
-  succeeded," it should do NOTHING but forward γ (a pure-thread shape, like the zero-template limit case
-  `IR_CONJ`/`bb_conj` the playbook already names for `ir_conjunction`) — not own runtime cascade behavior.
-  **⚠ Mind the BFS skip** — the chain-BFS deliberately *skips* alt arms (`ir_skip_alt_arms`/
-  `ir_node_is_alt_arm`), so arms must emit via a separate inline cascade, not the main loop, however the
-  redesign lands. `lower_alt` already builds the operand-cascade wiring (arm[i].ω→arm[i+1].start) correctly.
-- `TT_IDX`/`TT_MAKELIST`/`TT_VLIST` (`L:=[…]; L[i]`) → SEGV. Per JCON `ir_MakeList`+`ir_a_Sectionop`.
+  Goto threading among the arms (shape 1, same as `TT_IF`), never a node of its own. An `IR_ALT` node, and
+  the unverified literal-arm `bb_alt()` runtime cascade an earlier pass in this same session built to consume
+  it, had no canonical source to validate either against — both are now gone, not just unwired.
+  **WHAT CHANGED (one session, six files, net −72 lines: 85 deleted / 13 added, zero regressions):**
+  `IR_ALT` removed from the `IR_e` enum (`IR.h`) and its name-table entry (`scrip_ir.c`); `lower_alt`
+  (`lower_icon.c`) rewritten to pure edge-threading — each arm lowered with γ pointing DIRECTLY at the alt's
+  own caller-supplied γ (`e[i].success → ir.success`, JCON-literal) and ω at the next arm's start
+  (`e[i].failure → e[i+1].start`, unchanged from before), no intermediate node built at all, mirroring
+  `lower_if`'s already-landed `then_entry`/`else_entry` shape; the dead pre-emission gate this enabled
+  (`alt_arms_all_simple_lit`/`alt_safe_kind`/`graph_has_alt` + their call site, `scrip.c` — could never fire
+  once no graph can contain an `IR_ALT` node) deleted; the `IR_ALT` arm-walk in `binop_operand_real_static`
+  (`emit.cpp`) deleted (dead, same reason); the `wintexpr` `IR_ALT` disjunct (`emit.cpp`, `bb_call_write_route`)
+  deleted (a0->op can never be IR_ALT); `descr_chain_arity`'s `case IR_ALT` (`emit.cpp`) deleted (compile-error
+  otherwise); `ir_is_generator_kind`'s `case IR_ALT` (`ir_query.c`, the LIVE, Makefile-built copy — load-bearing
+  for the whole DIVISION RULE) deleted; the never-dispatched `bb_alt.cpp` template deleted outright + its
+  Makefile line removed. `ir_node_is_alt_arm` (`emit.cpp`) collapsed to an unconditional `return 0` (still
+  called from 13 BFS sites — `ir_skip_alt_arms` and the chain-walk — left AS PLUMBING rather than torn out of
+  the BFS itself; touching 13 load-bearing call sites in one pass to chase a rename that's already a correctness-
+  preserving no-op was judged the wrong risk/reward this session — a real follow-up, not a blocker). **Four
+  files intentionally NOT touched** — `lower_snobol4.c`, `lower_raku.c`, `prove_lower.c`, `emit_per_kind_audit.c`
+  — confirmed (compiler-checked, not assumed) to already fail to build for unrelated reasons (missing headers/
+  stale pre-GZ#5 opcode names) and absent from the Makefile; their `IR_ALT` mentions are inert either way.
+  **VERIFIED:** `scrip`+`libscrip_rt` build clean; `write(1|2)` no longer aborts, correctly prints `1` (first-
+  arm-succeeds-wins is right Icon semantics for a non-generator context — `write` asks for one value); icon
+  smoke 11/12 both modes unchanged; 289-program corpus suite IDENTICAL pass/fail set (82/289, stash/rebuild/
+  diff) — zero regressions despite the six-file span; mutation gate HARD=4 unchanged.
+  **REMAINING GAP, precisely scoped now (was a flat ABORT before; now a real, narrower bug):** `every write(1|2|3)`
+  prints only `1`, not `1 2 3` — the backtrack/resume side isn't wired. No arm's success edge ever loops back to
+  try the NEXT arm on a later pull; each arm's γ goes straight to the alt's own γ with no resume mechanism at
+  all, so the alt behaves as "first success wins, permanently" rather than as a generator `every` can re-pull.
+  Needs the DIVISION RULE treatment: make the alt resumable via ω-wiring (an exhausted arm's consumer-backtrack
+  edge should route to the NEXT arm, not exit) — likely `cx->beta` needs to track "the currently-active arm,"
+  set per-arm during the lowering loop, the same shape `TT_TO`/`bb_to.cpp` already prove for `1 to 3`. Not yet
+  attempted. **⚠ Mind the BFS skip note is now MOOT** — the `ir_skip_alt_arms` apparatus existed to route around
+  a now-deleted node kind; the resumability redesign should NOT resurrect any IR_ALT-shaped detour, the arms
+  now sit in the ordinary chain like any other sequence of nodes.
 - `TT_FIELD`, `TT_SECTION`/`_PLUS`/`_MINUS` (`s[i:j]`) → IR_FAIL-stubbed.
 - `TT_SCAN` (`s ? expr`), `TT_CASE`, `TT_SUSPEND`, `TT_CREATE` (co-expr — already ucontext-based in
   `coro_runtime.c`, not Byrd-box; needs wiring to `emit_drive`, not new design), `TT_LIMIT` — not wired into
@@ -290,11 +303,24 @@ Icon-reachable rows listed.
   mostly LOWER work, no new template.)
 - Global `TT_ASSIGN` (`global g; g:=5`) → aborts on the global arm.
 
-**NEXT (in order):** (1) `TT_ALTERNATE` redesign — shape-1 pure edge-threading per the corrected punch-list
-entry above, NOT the `bb_alt()`/`op_parts_*` cascade (tried, reverted, no JCON basis). (2) `TT_IDX`/`MAKELIST`
-segv. (3) global `TT_ASSIGN`. (4) `TT_TO_BY` 3-arg generator.
+**NEXT (in order):** (1) `TT_ALTERNATE` resumability — the base case (first-arm-succeeds, no `IR_ALT` node)
+is landed; only the generator/backtrack side (`every write(1|2|3)` should yield `1 2 3`, currently yields `1`)
+remains, per the corrected punch-list entry above. (2) `TT_IDX`/`MAKELIST` segv. (3) global `TT_ASSIGN`.
+(4) `TT_TO_BY` 3-arg generator.
 
 ## Watermark
+**2026-06-30 (Claude Sonnet 4.6) — `IR_ALT` DELETED repo-wide; `TT_ALTERNATE` base case landed.** Lon flagged
+that `IR_ALT` is not a valid IR code (confirmed: no `ir_Alt` enumerator in `ir.icn`) and that the prior turn's
+hand-off summary describing it as "reverted" was misleading — the unbuilt driver-case attempt was reverted, but
+`IR_ALT` itself (the enum member, and every site referencing it) was still live in the tree, which is the
+actual confusion being pointed at. Removed it everywhere it could be reached from the Makefile build (6 files,
+−72 net lines) and rewrote `lower_alt` to the JCON-faithful pure-edge-threading shape instead of leaving a hole
+— see the corrected PUNCH LIST entry above for the full file-by-file account. Icon smoke 11/12 both modes
+unchanged; 289-program corpus suite identical pass/fail set (82/289, stash/rebuild/diff); mutation gate HARD=4
+unchanged. `write(1|2)` now correctly prints `1` instead of aborting. SCRIP HEAD: this session's commit is
+LOCAL, NOT YET PUSHED as of this watermark (see push status at session close). **NEXT: `TT_ALTERNATE`
+resumability (the generator/backtrack side), per the PUNCH LIST.**
+
 **2026-06-30 (Claude Sonnet 4.6) — `TT_REPEAT`+break+next landed; `TT_ALTERNATE` attempted+reverted; baseline
 gate retired.** `TT_REPEAT`/`TT_LOOP_BREAK`/`TT_LOOP_NEXT` landed and verified (see PUNCH LIST entry + new
 CONVERSION PLAYBOOK "LOOP-BACK & UNCONDITIONAL-JUMP IDIOM" section) — icon smoke **10/12 → 11/12** both modes,
