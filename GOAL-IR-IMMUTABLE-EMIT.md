@@ -359,24 +359,28 @@ remains, per the corrected punch-list entry above. (2) `TT_IDX`/`MAKELIST` segv.
 (4) `TT_TO_BY` 3-arg generator.
 
 ## Watermark
-**2026-06-30 (Claude Sonnet 4.6) — α/β PORT MOVED ONTO THE IR EDGE (`IR_ref_t.sz`); graph now self-describing
-for resume-vs-fresh. SCRIP `bb70a841`.** Lon's directive: get the pointer correct AT CONSTRUCTION — do not
-recompute α/β downstream in the emitter, because an IR graph whose edges don't say what they mean cannot be
-optimized. Implemented: `lc_γ_to_β`/`lc_ω_to_β` setters stamp `"β"` on resume edges; the Icon `γ_to`/`ω_to`/
-`build` wrappers stamp β automatically whenever the edge target is `ir_is_generator_kind`, α otherwise; the
-emitter chain-BFS now READS `nd->γ.sz`/`nd->ω.sz` to pick `betas[k]` vs `lbls[k]`, with the old positional
-`i>k && generator-kind` guess kept ONLY as a fallback for not-yet-stamped edges. **PROVEN:** a probe that
-DELETED the positional fallback entirely (pure-stamp routing) produced identical icon smoke 11/12 (both modes)
-AND identical full-corpus 82/289 — so LOWER's stamps already carry the complete α/β truth for every currently-
-exercised path; the fallback never fires differently. Behavior-neutral: mutation gate HARD=4, no-stack 0,
-one-reg 0, corpus 82/289 unchanged. Also landed this session (`443cdec5`): purged the dead
-`ir_skip_alt_arms`/`ir_node_is_alt_arm` plumbing from the live chain-BFS. **`IR_ALT` is NOT a node and never
-will be — `ir.icn` has no `ir_Alt` record (re-verified: zero matches); alternation is pure Goto threading +
-a label variable. The 4 parked non-Icon `lower_*.c` files still naming `IR_ALT` (among other dead pre-GZ#5
-enum names) are OUT OF SCOPE by the ICON-ONLY HARD RULE at the top of this file — do not touch them.**
-SCRIP commits `443cdec5`+`bb70a841` are LOCAL, push BLOCKED pending credential. **NEXT: stamp the remaining
-resume sites explicitly (SEQ/CONJ backtrack, `cx->loop_next`, operand `lβ`/`mβ`) so the positional fallback
-can be DELETED; then unbounded-`TT_ALTERNATE` via the label variable (its own rung, per PUNCH LIST).**
+**2026-06-30 (Claude Sonnet 4.6) — positional α/β fallback DELETED entirely; routing is pure-stamp, no
+reconstruction, no safety net. SCRIP `2e7cd455`.** Following `bb70a841` (which added the `IR_ref_t.sz` stamp
+but kept the old `i>k && generator-kind` guess as a fallback "for safety"), Lon directive: remove the net —
+an un-stamped edge should ABORT or visibly misroute, not silently guess, so a gap is found and fixed instead
+of hidden. Deleted BOTH positional mechanisms: the main γ/ω resolution guess AND the secondary BINOP-omega-
+routing patch (the `i > omega_k && nodes[omega_k]->op==IR_BINOP` correction). The chain-BFS now does exactly
+ONE thing per edge: read `nd->γ.sz`/`nd->ω.sz`, route to `betas[k]` if `"β"`, else `lbls[k]`. **PROVEN
+(not assumed):** full Icon corpus PASS=82/289 — byte-identical to the fallback-retained and original
+baselines; icon smoke 11/12 both modes unchanged; mutation gate HARD=4 unchanged; no-stack/one-reg gates 0.
+Zero divergence means LOWER's stamps already covered every edge the corpus exercises — the fallback was dead
+weight, never a real safety net. **FOUND, NOT FIXED (pre-existing, unrelated to this change — confirmed by
+testing at the PRIOR commit `bb70a841`, where it already fails the same way, worse — segfault):**
+`scripts/test_gate_icn_local_no_nv.sh` LOCK 3 fails — an Icon program with a global var does not route through
+the GVA `[rbx+k*16]` array in mode-4 (`rbx refs=0`), contradicting the GOAL-ICON-BB.md GVA-2 "DONE" claim;
+this is the global-storage rung's drift, not an α/β-stamping regression, and is left for its own session.
+SCRIP commits `443cdec5`+`bb70a841`+`2e7cd455` — push status confirmed by `handoff_status.sh` at session
+close, not asserted here. **NEXT:**
+(1) stamp the remaining resume sites that may be relying on the now-deleted fallback in PATHS NOT YET COVERED
+BY THE 82-PASS CORPUS (the 171 FAILs/36 XFAILs were never proven stamp-correct — only verified NOT TO REGRESS;
+if a future rung's program hits an un-stamped resume edge it will misroute/abort LOUDLY now, which is correct
+per directive — fix the stamp at that LOWER site when found, do not re-add a fallback); (2) re-investigate the
+LVA-1 LOCK 3 drift; (3) unbounded-`TT_ALTERNATE` via the label variable (own rung, per PUNCH LIST).
 
 **2026-06-30 (Claude Sonnet 4.6) — alt-arm plumbing PURGED from live emit.cpp; ICON-ONLY rule added; IR_ref_t
 α/β resolution + alt label-variable requirement documented.** Removed the dead `ir_node_is_alt_arm` (always
