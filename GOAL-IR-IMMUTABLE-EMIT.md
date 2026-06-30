@@ -416,6 +416,35 @@ cheaply (inline the predicate / drop the cache); if read at emit, move to ω-wir
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
 ## Watermark
+**ir_Key→IR_KEYWORD CONVERTED + --dump-ir FIXED; ir_Every ATTEMPTED+REVERTED — 2026-06-29 (Sonnet 4.8, Lon directing).**
+SCRIP `65651f7a`→`c8ab2ad7` (2 commits, PUSHED to origin/main). Methodology established per Lon: "IR" = JCON IR
+record (`ir.icn`), each mapped to its SCRIP `IR_e` counterpart, converted wholesale from `irgen.icn` (4-port→γ/ω
+edge wiring) + `gen_bc.icn` (emission) into `lower_icon.c` + `emit_drive` + `bb_*.cpp`. Gate programs green mode-3+4
+throughout; mutation gate HARD=4 unchanged (both changes lower-only / dump-only). No artifact regen (per standing
+directive: Icon-only behavior change, big suites too slow, .s not a gate).
+1. **`65651f7a` — ir_Key→IR_KEYWORD (JCON `ir_a_Key`, irgen.icn:1262).** New `lc_key()` in lower_icon.c: `&line`→
+   IR_LIT_INTEGER, `&file`→IR_LIT_STRING (JCON's "line"/"file" emit ir_IntLit/ir_StrLit, NOT a runtime ir_Key fetch);
+   all other keywords→IR_KEYWORD runtime path (unchanged). FIXES live bug: &line/&file previously hit rt_keyword_read
+   →empty output+segfault. CAVEAT: tree_t has NO source coordinate (no JCON p.coord), so VALUES are placeholders
+   (&line=0, &file=""); STRUCTURE is faithful. Generator-keyword resume (&features via ir_ResumeValue) = only
+   un-converted ir_a_Key slice, deferred (rare).
+2. **`c8ab2ad7` — --dump-ir segfault fixed.** bb_print tail loop cast operand IR_t*→IR_graph_t* and recursed (read
+   n/all/entry from a node's bytes) → SEGV on EVERY program (rc=139 even on write("x")). Dead pre-flat residue;
+   removed + NULL guard. --dump-ir now rc=0; now a working verify tool.
+3. **ir_Every (JCON `ir_a_Every`, irgen.icn:309) — ATTEMPTED, REVERTED, NOT LANDED.** Exact JCON threading (NO
+   IR_EVERY opcode — pure Goto: E.success→B.start, E.failure→exit, B.success/failure→E.resume). CORRECT on canonical
+   `every i:=1 to N do write(i)` → 1|2|3. BUT non-trivial bodies (write(i*2), write("x"||i)) HANG/mis-iterate: body
+   tail success edge resolves to the IR_ASSIGN wrapper, not the inner IR_TO generator resume port → loops re-running
+   the assign with the same value. Localized via --dump-ir. Reverted vs shipping an infinite loop. FIX: assignment-
+   lowering must forward generator resume as cx->beta, OR a bounded-body primitive (JCON "always bounded" has no
+   SCRIP lower equivalent).
+**Icon smoke 6/12 both modes** (pass: write_str/write_int/arith/string_op/while/proc_zeroarg; fail: if_expr/every/
+until/repeat_break/proc_recursion/bare_if — all control-flow generators sharing the same resume gap ir_Every
+surfaced). **NEXT: the generator-resume-through-assignment fix unblocks every/while-gen/until/repeat at once — do it
+before more ir_a_* conversions.** Then continue the JCON-IR checklist (ir_Goto/ir_Succeed/ir_Fail/ir_Call verify-
+faithful; ir_Alt/ir_ToBy/ir_Field/ir_Deref/ir_OpFunction convert). JCON IR-record→SCRIP map + checklist in handoff.
+
+## Watermark (prior)
 **HEADER-MERGE LANDED + IR_LIT_* RENAME + IR_SEQ DELETED — 2026-06-30 (Sonnet 4.6, Lon directing).** SCRIP
 `f54777b6`→`dd082890`→`a0e86b41` (2 commits). Suite **PASS=62/XFAIL=36** and mutation gate **HARD=4/C=14**
 unchanged at every step; both gate programs (`hello world`, `write(1+1)`) green mode-3 AND mode-4 throughout.
