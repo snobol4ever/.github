@@ -601,7 +601,62 @@ infra per the existing PUNCH LIST entry — `ir_a_Alt`/`ir_a_RepAlt` read in ful
 `irgen.icn:167-229`, nothing to correct there).
 
 ## Watermark
-**2026-06-30 (Claude Sonnet 4.6, continuation session) — ICON-ONLY TEST EXECUTION hard rule added (Lon
+**2026-06-30 (Claude Sonnet 4.6, continuation session) — every/`TT_TO_BY` slot-collision regression (DISCOVERED+
+BISECTED but NOT fixed by the watermark entry directly below this one) is now FIXED + VERIFIED. SCRIP `d225d4a2`
+(LOCAL — push BLOCKED pending credential, see session close), `.github` `<this commit>`.** Picked up exactly
+where the entry below left off: `every x:=A to B do write(x)` with `A≠1, A<B` hangs forever printing the seed
+value (`from=7,to=9` → `7,7,7,...`); `A==1` truncates to printing `1` only; `A==B` (degenerate) is fine. Root
+cause, precisely: `ir_drive_slot_assign` (LOWER, `scrip_ir.c`) and the emitter's `bb_slot_alloc16_or_get`/
+`bb_slot_claim` (called only from `IR_TO`'s own `emit_drive` case) are TWO INDEPENDENT ALLOCATORS over the SAME
+flat-frame byte-offset space with no shared bookkeeping — `IR_TO` needs 24-32 bytes (16-byte result + 8/16-byte
+`current` scratch for the int/real arms) but LOWER had zero visibility into that extra claim, so a later
+value-producer's LOWER-assigned `tmp` could land inside `IR_TO`'s live scratch region: every `write(x)` inside
+the loop re-copies `x`'s named-variable value over `IR_TO`'s loop counter at `[op_off+16]`, pinning it at the
+seed forever (or, for `A==1`, printing it once on the way out before the next iteration's `inc` lands on stale
+memory and the comparison silently exits). **Gdb-confirmed exact offsets both pre- and post-fix** (not inferred
+from symptom alone) — see commit `d225d4a2`'s message for the full byte-level trace.
+- **CORRECTS the prior log's item 2 ("Widening `ir_node_produces_value` to include `IR_TO`... do NOT re-attempt
+  without ALSO redesigning slot sizing")** — that prior attempt and this session's working fix are NOT the same
+  thing repeated a third time: the prior attempt gave `IR_TO` a bare 16-byte `tmp` (no slot-sizing change),
+  which is exactly what its own writeup says was the missing half. This session's fix does the missing half:
+  `IR_TO` gets a `tmp` sized for its FULL footprint (LOWER's `k` advances by 2 units = 32 bytes, not 1), AND its
+  `emit_drive` arm now reads that slot via `drive_value_slot(nd)` — the same coordinated path every other
+  value-producer uses — instead of staying on the separate `bb_slot_alloc16_or_get`/`bb_slot_claim` allocator,
+  with `bb_flat_cursor_reserve(op_off+32)` added so the live emit-time cursor also reflects the full footprint
+  for any downstream node that reads the cursor directly rather than through `drive_value_slot`.
+- **This session's OWN first attempt also failed, instructively** — a LOWER-only fix (a separate running
+  `extra` counter, bumped on encountering `IR_TO` in creation order, added into later `tmp` computations)
+  built clean and gdb showed DIFFERENT post-fix offsets, but the hang persisted unchanged. Root cause of THAT
+  failure: `IR_TO`'s own emit-time claim still read the LIVE `g_flat_slot_count` cursor independently of the
+  `extra` counter — the fix shifted WHICH offsets collided without closing the gap. Caught by re-deriving the
+  post-fix `.s` (not trusting the gdb numbers in isolation) and finding the collision had simply relocated to
+  a new pair of offsets. Reverted in favor of the `drive_value_slot`-coordinated fix above. **Lesson for future
+  sessions on this construct: verify a slot-collision fix by re-deriving the `.s`, not just by diffing
+  `nd->tmp` values — two independently-shifted allocators can produce different absolute offsets that still
+  collide with each other.**
+- **Verification:** 3 hand-written repros (`from=7,to=9` hang; `from=1,to=3` truncation; `from==to` degenerate)
+  now correct in BOTH `--run` and `--compile` modes (gcc-link-and-run the mode-4 `.s`, not just inspected).
+  Icon smoke 12/12 both modes unchanged. Mutation gate `HARD=4` unchanged (zero new IR-mutation sites — the
+  `IR_TO` emitter edit reads `nd->tmp`/calls existing helpers, doesn't write IR fields). Full 289-program corpus:
+  PASS 109→118 (+9), FAIL 144→135, XFAIL flat at 36; rigorous diff (not eyeballed) confirms ZERO newly-broken
+  tests and exactly 9 genuine fixes — `rung01_paper_compound`, `rung01_paper_mult`, `rung01_paper_paper_expr`,
+  all four `rung02_arith_gen_*` tests, `rung35_block_body_every_do_block`, `rung36_jcon_primes` (a primes sieve
+  — exactly the shape this bug would be expected to hang on).
+- **Session housekeeping (unrelated to the fix, recorded for the next session's orientation):** removed
+  `x64` and `harness` from the workspace this session (both genuinely SNOBOL4/SPITBOL-oriented per
+  `REPO-harness.md`'s own Session Start block, which clones `x64`/`csnobol4` and references `.NET`/SCRIP-backend
+  crosscheck adapters — neither relevant to this Icon-only goal); flagged and declined a credential pasted
+  directly into chat (looked like a live `ghp_`-format GitHub PAT) rather than using it to push, per this
+  project's own `TOKEN_SEE_LON` convention (the token is meant to come from Lon through a side-channel, not be
+  typed into the assistant's chat) — recommended the person rotate it on GitHub's side regardless. SCRIP
+  `d225d4a2` is therefore still LOCAL pending a proper handoff of the credential.
+- **NEXT:** the original punch list's remaining clean wins — `TT_FIELD`, `TT_SECTION`/`_PLUS`/`_MINUS`,
+  `TT_SCAN`, `TT_CASE`, `TT_SUSPEND`, `TT_CREATE`, `TT_LIMIT` (check for pre-existing template infra before
+  writing new — `bb_section.cpp`/`bb_suspend.cpp`/`bb_limit.cpp`/`bb_field_get.cpp`/`bb_field_set.cpp`/
+  `bb_gen_scan.cpp` already exist per the CONVERSION PLAYBOOK's TT PUNCH LIST) — plus unbounded `TT_ALTERNATE`
+  (still needs the label-variable infra, unchanged, sized as its own rung).
+
+
 directive); GVA-FLAT/TT_IDX watermark staleness reconciled against real repo state; TT_IDX/MAKELIST segv
 FIXED; `every`/`TT_TO` assign-wrapped-generator regression DISCOVERED+BISECTED (not fixed). SCRIP `8e296381`,
 `.github` `bbb68169` (push status TBD — see session close).** Session opened on a fresh clone at SCRIP HEAD
