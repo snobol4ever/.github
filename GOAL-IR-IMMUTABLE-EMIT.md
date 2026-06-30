@@ -365,7 +365,182 @@ is landed; only the generator/backtrack side (`every write(1|2|3)` should yield 
 remains, per the corrected punch-list entry above. (2) `TT_IDX`/`MAKELIST` segv. (3) global `TT_ASSIGN`.
 (4) `TT_TO_BY` 3-arg generator.
 
+## ⛔⛔ MECHANICAL JCON→SCRIP CONVERSION TECHNIQUE (Claude Sonnet 4.6, 2026-06-30) — read before starting any new TT
+**This is the by-eye/by-hand recipe used this session, written up so the next session (Icon or, later, any
+other language doing the same JCON-mirroring exercise) doesn't have to re-derive it.** It is a refinement of
+the CONVERSION PLAYBOOK above with the actual workflow steps that playbook assumes but doesn't spell out.
+
+### Step 0 — find the JCON procedure, read it as a literal wiring diagram
+`refs/jcon-master/tran/irgen.icn` has one `ir_a_X` procedure per AST node kind (`grep '^procedure ir_a_'`
+gives the full list — 47 of them, one-to-one with JCON's `a_X` AST records). Each is a `suspend
+ir_chunk(LABEL, [INSN, INSN, ...])` sequence. Read it as exactly what it says: a chunk named `p.ir.start` (or
+`.resume`/`.success`/`.failure`) containing a list of instructions ending in a `ir_Goto`/`ir_IndirectGoto` to
+another chunk's label. **Draw the graph on paper or in your head before writing any C** — nodes = chunks,
+edges = the Goto targets. This graph IS the lowering; everything downstream is mechanical translation of it.
+
+### Step 1 — classify by the FOUR CONVERSION SHAPES (already in the playbook above)
+Count how many `ir_opfn`/`ir_Call`/value-instructions appear outside pure `ir_Goto` threading. Zero ⇒ shape 1
+(pure edge-threading, LOWER-only, no opcode/template). One ⇒ shape 2 or 4 depending on whether a value is
+produced (`lhs`/`target` set) or not. A success-chunk that loops back to a `.start`/`.resume` ⇒ shape 3
+(resumable generator) — **check this FIRST**, because shape-3 constructs disguise themselves as shape 1 if you
+only look at instruction count; the tell is a `Goto` whose target is upstream of the current chunk in the
+threading order (a back-edge), not just any `Goto`.
+
+### Step 2 — find the `bounded`/`unbounded` fork, if any
+Many `ir_a_X` procedures branch on `/bounded` (Icon: `if bounded is null then ... else ...`). **This single
+flag is the entire difference between "this construct needs a label variable" and "this construct doesn't."**
+`ir_a_Alt`/`ir_a_RepAlt`/`ir_a_ListConstructor` all do this — the unbounded arm allocates `t := ir_tmploc(...)`
+and emits `ir_MoveLabel`/`ir_IndirectGoto`; the bounded arm never does. **Do not implement both arms in one
+pass.** Land the bounded arm first (it is always simpler and is what 90% of real call-sites exercise — `write(x)`,
+`if`, a plain consumer), prove it, commit it, THEN come back for the unbounded/label-variable arm as its own
+rung. This is exactly why `TT_ALTERNATE`'s bounded case (`write(1|2)`) is done and its unbounded case
+(`every write(1|2|3)`) is correctly deferred — don't fuse them.
+
+### Step 3 — runtime semantics: which `.r` file, and what to actually extract
+`refs/icon-master/src/runtime/*.r` is C, not Icon — it's the OPERATIONAL ground truth for what a value
+operation actually computes (overflow rules, type coercion order, fail conditions), which JCON's `irgen.icn`
+deliberately doesn't encode (JCON just emits a generic `ir_opfn`/`ir_Call` and defers semantics to its own
+runtime, exactly as SCRIP's templates defer to `rt_*` helpers — **never reimplement value semantics inline in
+a template; call/mirror the existing `rt_*` helper, or if none exists, the `.r` file tells you what that
+helper needs to do**). The useful extraction from a `.r` file is almost never the whole function — it's the
+ONE structural fact that disambiguates an implementation choice: this session's two uses were (a) `oasgn.r`'s
+`GeneralAsgn` `default:` arm showing assignment is type-uniform once the destination's *address* is resolved
+(`Asgn(x,y)` = `*VarLoc(dest)+Offset(dest) = src`, no type-casing at the store), which told us the global-vs-
+local distinction must live in ADDRESS RESOLUTION (a template/driver concern), not in assignment semantics
+(never needs its own per-kind logic); (b) `rmacros.h`'s `VarLoc`/`Offset` macros confirming a Icon "variable"
+descriptor is self-locating regardless of storage class, which is the running theory for why SCRIP's existing
+`bb_var_global.cpp`/`bb_gvar_assign*.cpp` family (12 templates, pre-existing, NOT new) already has the right
+shape — it just isn't reachable from the new flat-chain driver yet (see GVA-FLAT rung below). Match the genre
+of fact you need (control-flow shape vs. value semantics vs. storage-class resolution) to the genre of source
+(`irgen.icn` vs `gen_bc.icn` vs `*.r`) — don't read all three cover-to-cover for every TT; **read the chunk
+list first, and reach for the `.r` file only when a *specific* implementation choice is actually ambiguous.**
+
+### Step 4 — BEFORE writing LOWER code, grep the CURRENT SCRIP state for the TT
+`grep -n "case TT_X:" src/lower/lower_icon.c` and `grep -n "case IR_X" src/emitter/emit.cpp` (note: TWO
+`emit.cpp` switches exist — `walk_bb_node`'s TEMPLATE SELECTOR switch and `emit_drive`'s DRIVER switch; a TT
+can be live in one and stubbed/missing in the other, which is exactly what the global-assign bug turned out to
+be). **Do not assume the punch list's prose is the ground truth for what's broken — it can be stale, and was
+this session** (see CORRECTIONS below). Always re-derive from a fresh `gdb` repro + the actual switch
+statements before designing a fix. The RULES.md MONITOR-FIRST methodology (bracket via a real crash/gdb
+trace, not by reading code and guessing) is not optional even for "obviously" missing cases — this session's
+global-assign investigation found a SECOND, upstream, more severe bug (a universal segfault, not the
+documented "abort") purely because the repro was run before the fix was designed, not after.
+
+### Step 5 — the 3-FILE EDIT RECIPE (already in the playbook above) applies; ADD: check for PRE-EXISTING
+**infrastructure under a different driver mode before writing a new template from scratch.** This session
+found `bb_gvar_assign.cpp` (legacy `!g_descr_flat_chain` driver, fully built, untested-but-presumably-working)
+and `bb_var_global.cpp` (the flat-chain-NATIVE read-side counterpart, already correctly shaped). The
+write-side flat-chain-native template does NOT exist and should be a fresh file MIRRORING `bb_var_global.cpp`'s
+shape (dual-path: `[rbx+gva_k*16]` fast path when slot-allocated, `NV_SET_fn(name, DESCR_t)` runtime-call
+fallback otherwise) rather than either (a) trying to reuse `bb_gvar_assign.cpp` as-is (wrong shape — it expects
+raw `op_a_node_kind` node-shape introspection, the OLD driver's idiom; the flat-chain driver instead
+pre-resolves every operand to a `tmp`-backed slot via `IR_t.tmp`/`drive_value_slot`, so the new template should
+consume `op_a_slot`, not re-derive the producer's shape) or (b) writing global-assign from a blank page (most of
+the addressing logic — `RDQ("rbx", k*16)` vs `FRQ(slot)`, the `g_gva_active`/`op_gva_k` gating — already exists
+correctly in sibling templates and should be copied, not reinvented).
+
+## ⛔⛔ CORRECTIONS TO PRIOR-SESSION CLAIMS IN THIS FILE (Claude Sonnet 4.6, 2026-06-30)
+**Per Lon's standing instruction to correct any information in any MD file found to be wrong, found this
+session, verified against fresh repro + gdb, not assumed:**
+
+1. **"Global `TT_ASSIGN` aborts on the global arm" (prior watermark / GAP section) is TRUE but INCOMPLETE —
+   there is a SECOND, MORE SEVERE, UPSTREAM bug that fires FIRST.** Before `emit_drive`'s `IR_ASSIGN` arm ever
+   reaches its own `is_global(vn)` check (which correctly, deliberately calls `drive_unowned()`→`abort()` — that
+   part of the prior description was accurate), `walk_bb_node`'s per-node preamble (lines ~745-748, run for
+   EVERY node dispatched, not just `IR_ASSIGN`) unconditionally dereferences `IR_LIT(nd).sval` through
+   `gva_index_of()`/`proc_slot_of()` whenever ANY global is active in the program (`g_gva_active`/
+   `g_proc_direct_active`), regardless of `nd->op`. For `IR_LIT_INTEGER`/`IR_LIT_REAL` nodes, that union slot
+   legitimately holds `.ival`/`.dval`, not a pointer — reinterpreting it as `const char*` and `strcmp`-ing
+   against it is undefined behavior that reliably **segfaults** (confirmed via gdb: `gva_index_of(name=0x5)`,
+   where `0x5` is the literal integer `5`'s bit pattern). **Practical impact: ANY Icon program with a global
+   declared anywhere, that also contains an integer or real literal anywhere in its reachable chain (i.e.
+   nearly every real program), crashes before reaching the documented abort.** FIXED this session (SCRIP
+   `baa3a592`) — see Watermark below. The fix is upstream-of and a precondition for actually wiring global
+   assign; without it, no amount of `IR_ASSIGN`-arm work would even be reachable for testing.
+2. **The watermark's "corpus 82/289" figure does not match a fresh run of `bash scripts/test_icon_all_rungs.sh`
+   at the SAME commit (`f879cc78`) this session, which gives 91/289** (`PASS=91 FAIL=162 XFAIL=36 TOTAL=289`,
+   captured to `/tmp/baseline_pass.txt`/`/tmp/baseline_fail.txt` this session, not yet committed anywhere durable
+   — re-capture if this file moves). Did not chase down why (likely a counting-convention difference between this
+   script's absolute total and whatever "stash/rebuild/diff" delta-counting prior sessions used, since every
+   individual rung-level claim in the watermark — e.g. the +9 FAIL→PASS list — looks self-consistent and
+   plausible on its own). **Not asserting the prior figure was wrong, only that it doesn't reproduce from a
+   plain script run, so it should not be trusted as the diffing baseline without re-deriving it.** Treat 91/289
+   at `f879cc78` (this session, freshly captured, reproducible by re-running the script) as the baseline for any
+   future regression diff until someone reconciles the discrepancy.
+3. **Build note, not a doc error but worth recording:** this session's sandbox needed `apt-get install -y
+   libgc-dev` (Boehm GC dev headers) before `make scrip` would link — `gc/gc.h` not found otherwise. Unrelated
+   to project code; a fresh-container gap, not a regression. `gdb` also needed installing for the RULES.md
+   MONITOR-FIRST methodology to be usable at all (`gva_index_of` crash bracket above used it).
+
+## ⛔ NEXT (concrete, designed, NOT yet coded) — global TT_ASSIGN write-side, the GVA-FLAT rung
+**Design is complete; this is the literal next edit for the next session (or continuation of this one).**
+- **(a) DRIVER** (`src/emitter/emit.cpp`, `emit_drive`'s `IR_ASSIGN` arm, ~line 878-881): currently
+  `if (!vn || is_global(vn)) { drive_unowned(nd); break; }`. Split the `is_global(vn)` sub-case out: when
+  `vn && is_global(vn)`, set `g_emit.op_sb = -1` (no local frame slot — distinguishes from the local arm),
+  `g_emit.op_gva_k = g_gva_active ? gva_index_of(vn) : -1`, `g_emit.op_sval = vn`, `g_emit.op_off =
+  drive_value_slot(nd)` (assign nodes still want SOME slot for re-walk idempotency, mirroring the local arm),
+  `DRIVE_FILL(nd, lbl_γ, lbl_ω, lbl_β)`. Only `!vn` (truly anonymous — shouldn't happen for `TT_ASSIGN` but
+  keep as the genuine "unowned" case) still calls `drive_unowned`.
+- **(b) TEMPLATE SELECTOR** (`src/emitter/emit.cpp`, `walk_bb_node`'s `IR_ASSIGN` case, ~line 771-779): add a
+  third arm — `if (g_descr_flat_chain && IR_LIT(nd).sval && is_global(IR_LIT(nd).sval)) { bb_emit_x86(bb_assign_global()); return 0; }`
+  — checked BEFORE the existing `g_descr_flat_chain && IR_LIT(nd).sval` local-arm catch-all (line 777), since
+  that catch-all is unconditional on the name and would otherwise shadow the global case.
+- **(c) NEW TEMPLATE** `src/templates/bb_assign_global.cpp` (new file; add to Makefile template list +
+  `scripts/util_*` artifact-regen if touched per RULES.md handoff step 4) — mirror `bb_var_global.cpp`'s
+  dual-path shape exactly, inverted (write instead of read): fast path `g_gva_active && op_gva_k>=0` does
+  `mov rax,[FRQ(op_a_slot)]; mov rdx,[FRQ(op_a_slot+8)]; mov [RDQ("rbx",gva_k*16)],rax; mov
+  [RDQ("rbx",gva_k*16+8)],rdx; jmp γ; def β; jmp ω` (β is a no-op resume — assignment isn't a generator, mirror
+  `bb_assign_local.cpp`'s own β/ω shape exactly, don't invent one); fallback path (`op_gva_k<0`) calls
+  `NV_SET_fn(const char*, DESCR_t)` (already declared in `bb_gvar_assign_descr.cpp` — reuse the extern
+  declaration) with the slot's two qwords packed into a `DESCR_t` the way `bb_gvar_assign_descr.cpp`'s own
+  fallback already does it (read that file's `rt_gvar_assign_descr` call for the exact calling-convention
+  precedent — same idea, different fn name, confirm the ABI matches before assuming `NV_SET_fn`'s param order).
+  Bomb (`x86_bomb`) on any unhandled `op_a_node_kind`/missing-slot combination, per house style — never
+  silently mis-emit.
+- **(d) VERIFY:** the `gtest.icn` repro in this watermark (`global g; procedure main(); g:=5; write(g); end`)
+  should print `5`, both modes identical. Re-run full smoke (expect 12/12 unchanged) + full corpus (expect
+  91/289 baseline + this fix's deltas, no regressions — diff against `/tmp/baseline_pass.txt`/
+  `baseline_fail.txt` from this session, or re-capture fresh if unavailable) + all four discipline gates
+  (mutation HARD=4, no-stack 0, one-reg 0, semicolon PASS) before considering this rung closed.
+- **NOT in scope for this rung:** global `TT_AUGOP`/`TT_REVASSIGN` (augmented/reverse assignment to a global —
+  same address-resolution principle applies per the `oasgn.r` reading above, but verify the AUGOP/REVASSIGN
+  LOWER arms even reach a global-named `IR_ASSIGN`-shaped node before assuming this fix covers them for free);
+  `TT_IDX`/`TT_MAKELIST` segv (separate, already-isolated finding this session: SCRIP routes both through the
+  generic `lower_call` path, but JCON's `ir_a_ListConstructor` — read this session, `irgen.icn:1313-1354` — is
+  its OWN sentinel-threaded resumable shape via `ir_make_sentinel`, structurally distinct from a plain call;
+  this mismatch is the leading hypothesis for the segfault and should be the first thing checked next, before
+  assuming the bug is elsewhere); unbounded `TT_ALTERNATE` (unchanged, still needs the label-variable infra
+  per the existing PUNCH LIST entry — `ir_a_Alt`/`ir_a_RepAlt` read in full this session at
+  `irgen.icn:167-229`, confirms the prior session's analysis was accurate, nothing to correct there).
+
 ## Watermark
+**2026-06-30 (Claude Sonnet 4.6) — universal op_sval/gva_index_of segfault FIXED (upstream of global-assign);
+fresh 91/289 corpus baseline captured at f879cc78; JCON→SCRIP conversion technique + corrections written up
+above. SCRIP `baa3a592` (LOCAL — push BLOCKED pending credential; see session close).** Read JCON canonical
+source directly for the live frontier constructs (`ir_a_Alt`/`ir_a_RepAlt` for unbounded alternation,
+`ir_a_ListConstructor` for MAKELIST, `ir_a_Sectionop` for TT_SECTION, `ir_a_Global`/`ir_a_Ident` for the
+global/local var-reference model, `ir.icn` confirming no `ir_Alt` record exists — corroborating the prior
+session's `IR_ALT` deletion) and the C runtime (`oasgn.r`'s `GeneralAsgn`, `rmacros.h`'s `VarLoc`/`Offset`,
+`fstruct.r`'s `list()`) to ground every open punch-list item against authoritative source rather than prose.
+Set up `refs/icon-master`+`refs/jcon-master` from the user's uploaded canonical-source zips (matches the exact
+paths RULES.md/this file already cite). Investigated global `TT_ASSIGN` (the punch list's documented gap):
+reproduced with gdb per RULES.md MONITOR-FIRST, found the actual bug is upstream and more severe than
+documented (segfault, not abort — see CORRECTIONS above), fixed the upstream segfault, designed (but did not
+yet code) the full write-side wiring to the pre-existing `bb_gvar_assign*`/`bb_var_global` template family.
+**PROVEN:** icon smoke 12/12 both modes unchanged (byte-identical to pre-session baseline); mutation gate
+HARD=4 unchanged (fix is reads-only on IR, scoped to existing `g_emit` preamble); fresh corpus baseline
+captured (91/289 at unchanged commit, available at `/tmp/baseline_pass.txt`/`baseline_fail.txt` this session —
+re-capture if stale). **NEXT:** code the GVA-FLAT rung exactly as designed above (driver split + new
+`bb_assign_global.cpp` template, mirroring `bb_var_global.cpp`'s shape); then `TT_IDX`/`MAKELIST` segv (leading
+hypothesis: generic-call-path vs. JCON's sentinel-threaded list-constructor shape mismatch, per
+`ir_a_ListConstructor` reading above); then continue down the `IR_FAIL`-stubbed set
+(`TT_FIELD`/`TT_SCAN`/`TT_CASE`/`TT_SUSPEND`/`TT_LIMIT`/`TT_SECTION*`/`TT_SWAP`/`TT_LCONCAT`/`TT_REPALT`) one
+at a time per the MECHANICAL JCON→SCRIP CONVERSION TECHNIQUE above, landing each construct's bounded/simple
+case before its generator/unbounded case where the two are separable. Unbounded `TT_ALTERNATE` remains
+correctly deferred pending the label-variable infrastructure (frame slot + `IR_INDIRECT_GOTO` template +
+sibling-label-address resolution), unchanged from prior analysis, now independently corroborated against
+`ir_a_Alt`/`ir_a_RepAlt` source directly.
+
 **2026-06-30 (Claude Sonnet 4.6) — TO from-ignoring bug ROOT-CAUSED + FIXED; TO BY landed (operand[2]
 runtime step); postfix `every(gen)` loop-back fixed. SCRIP `f879cc78`, corpus `d77fb618` (LOCAL — push
 BLOCKED pending credential; see session close).** The from-ignoring `to`-generator bug (every prior watermark
