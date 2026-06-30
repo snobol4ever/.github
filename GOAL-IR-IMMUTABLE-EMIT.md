@@ -415,8 +415,41 @@ cheaply (inline the predicate / drop the cache); if read at emit, move to ω-wir
 - Encode operand-source in an IR opcode — operand-source lives on the OPERAND node (a producer box).
 - Add a per-language function to the emitter/templates — language lives in parser + lower ONLY.
 
-## Watermark
-**ir_Key→IR_KEYWORD CONVERTED + --dump-ir FIXED; ir_Every ATTEMPTED+REVERTED — 2026-06-29 (Sonnet 4.8, Lon directing).**
+## ⛔ TT_* COVERAGE PUNCH LIST (Icon ladder — Lon 2026-06-29, crawl UP this instead of the ir_* ladder)
+The practical ladder is the AST construct (TT_*), not the JCON ir_* record. Coverage measured by `SCRIP_ICN_BB=1
+--run` this session (the TT_* enum in ast.h is shared across all 6 langs; only Icon-reachable rows listed). Climb the
+GAPs top-down; the resume-gap cluster is ONE fix.
+
+**✅ COVERED (run correct, mode-3 verified):**
+- `TT_ILIT`/`TT_FLIT`/`TT_QLIT`/`TT_CSET` — literals → IR_LIT_{INTEGER,REAL,STRING,CHARSET}
+- `TT_VAR` (local + global rval) → IR_VAR ; `TT_KEYWORD` → IR_KEYWORD (incl &line/&file→literal, THIS SESSION)
+- `TT_ADD/SUB/MUL/DIV/MOD/POW` + `TT_CAT`/`TT_LCONCAT` + relops (`TT_LT/LE/GT/GE/EQ/NE` + string LLT…LNE) → IR_BINOP/_RELOP
+- `TT_MNS`/`TT_PLS`/`TT_SIZE`/`TT_NONNULL`/`TT_NULL`(unary) → IR_UNOP ; `TT_ASSIGN` (LOCAL only)
+- `TT_WHILE` (non-generator cond) ; `TT_FNC` (builtin + zero-arg user proc) ; `TT_PROC_DECL` ; `TT_RETURN`
+
+**🔴 GAP — RESUME-GAP CLUSTER (all one root cause; FIX FIRST, unblocks 4 constructs at once):**
+Root cause (localized via --dump-ir this session): a generator's consumer routes its resume edge to the wrong node
+(e.g. body tail → IR_ASSIGN wrapper instead of the inner IR_TO generator's resume port → loop/empty). FIX:
+assignment-lowering must forward the generator's resume as `cx->beta`, OR add a bounded-body primitive (JCON
+"always bounded"). Then:
+- `TT_EVERY` — `ir_a_Every` threading written+reverted; canonical `every i:=1 to N do write(i)`=1|2|3 OK, non-trivial bodies hang.
+- `TT_IF` / (bare if) — `lower_if` stubbed to IR_FAIL (`if 1<2 then…` → empty). Convert per JCON `ir_a_If`.
+- `TT_UNTIL` — `lower_until` stub (empty). `TT_REPEAT`+`TT_BREAK`/`TT_LOOP_NEXT` — partial.
+- `TT_TO`/`TT_TO_BY` as bare/driven generator — yields only first value outside a wired consumer; `by` variant IR_FAIL-stubbed.
+
+**🔴 GAP — UNOWNED/CRASH (distinct fixes):**
+- `TT_ALTERNATE` (`a | b`) → builds IR_ALT(op=0) which is UNOWNED in emit_drive → **ABORT**. Per JCON `ir_a_Alt`:
+  pure Goto threading (alt.start→e1.start; ei.success→alt.success; ei.failure→e(i+1).start; needs IR_INDIRECT_GOTO
+  for bounded resume). lower_alt already builds the operand wiring; needs emit_drive case + bb_alt (mirror bb_conj).
+- `TT_IDX`/`TT_MAKELIST`/`TT_VLIST` (`L:=[…]; L[i]`) → **SEGV**. Per JCON `ir_MakeList` + `ir_a_Sectionop`/subscript.
+- `TT_FIELD` → IR_FAIL stub ; `TT_SECTION`/`TT_SECTION_PLUS/MINUS` (`s[i:j]`) → IR_TERNOP, lower stubbed.
+- `TT_SCAN` (`s ? expr`) ; `TT_CASE` ; `TT_SUSPEND` ; `TT_CREATE` (co-expr) ; `TT_LIMIT` — not Icon-wired.
+- Global `TT_ASSIGN` (`global g; g:=5`) → emit_drive IR_ASSIGN aborts on global (chain-flag split, P2 prereq).
+
+**NEXT (in order):** (1) resume-gap cluster fix → re-land every + convert if/until/repeat ; (2) TT_ALTERNATE
+(bb_alt, clean, mirrors bb_conj) ; (3) TT_IDX/MAKELIST segv ; (4) global TT_ASSIGN (needs chain-flag P2 unify).
+
+
 SCRIP `65651f7a`→`c8ab2ad7` (2 commits, PUSHED to origin/main). Methodology established per Lon: "IR" = JCON IR
 record (`ir.icn`), each mapped to its SCRIP `IR_e` counterpart, converted wholesale from `irgen.icn` (4-port→γ/ω
 edge wiring) + `gen_bc.icn` (emission) into `lower_icon.c` + `emit_drive` + `bb_*.cpp`. Gate programs green mode-3+4
