@@ -263,20 +263,22 @@ Icon-reachable rows listed.
   (`write(if c then a else b)`) still wrong: then/else write distinct slots, consumer reads only then's —
   **fix is JCON's own pattern**, a single shared `target` tmp passed to BOTH branches (`ir_a_If` passes the
   same `target` var to both `ir(thenexpr,...)` and `ir(elseexpr,...)`); SCRIP currently doesn't.
-- **`TT_EVERY` — keystone case landed 2026-06-30 (`74281db6`).** `every x:=GEN do BODY` (assign-wrapped
-  generator + a body that just reads the loop var, e.g. `write(x)`) verified correct both modes:
-  `every x:=1 to 3 do write(x)` → `1 2 3`. Was previously a dead `IR_FAIL` stub (always empty output, for
-  every shape, unconditionally) — **NOT** the "1 2 3 OK, only non-trivial bodies hang" state a stale entry
-  here used to claim; that was a reverted attempt, never live. **Two narrower gaps remain, both isolated +
-  reproduced, NOT fixed:**
+- **`TT_EVERY` — keystone case PARTIAL, claim was OVERSTATED (corrected 2026-06-30).** `every x:=GEN do BODY`
+  (assign-wrapped generator + a body that just reads the loop var, e.g. `write(x)`) was claimed "landed/verified
+  correct both modes" on the strength of `every x:=1 to 3 do write(x)` → `1 2 3`. **That spot-check was misleading:
+  it only looks correct because `from=1`.** Verified on baseline `2e7cd455`: `every x:=3 to 7 do write(x)` → `1 2 3 4 5 6 7`
+  (wants `3 4 5 6 7`) and `every x:=5 to 5 do write(x)` → `1 2 3 4 5` (wants `5`). The consumed loop value IGNORES `from`
+  and reports a counter `1..to`. So the keystone is NOT fully landed — it shares the same pre-existing `from`-ignoring
+  read bug documented under `TT_TO_BY` below (the bug is in the generator-value read / slot wiring, surfaced by the
+  consumer, not in `every`'s control flow). Was previously a dead `IR_FAIL` stub. **Other gaps, isolated + reproduced,
+  NOT fixed:**
   - body containing its own value-producer (`every x:=1 to 3 do write(x*2)`) yields only the first
     iteration (`2`, not `2 4 6`). `--dump-ir` shows the expected shape (`IR_BINOP` between assign and call,
     `ω→IR_TO`) — root cause not yet bracketed; needs MONITOR-FIRST, not guessing.
   - postfix/chained-call-wrapped generator with no assignment (`every write(1 to 3)` — **this is the
     existing Icon-smoke `"every"` fixture**) also yields only the first value. `lower_call`'s chained-arg
     path only reports `cx->beta` as resumable when a `g_postfix_resume` flag is set, which it isn't here.
-  - Icon smoke: 10/12 both modes, unchanged count (`every` still FAILs — it's the postfix shape above, not
-    the keystone shape; `repeat_break` is a separate pre-existing gap, see below — untouched).
+  - Icon smoke: 11/12 both modes (`every` postfix shape still FAILs; `repeat_break` landed since this was written).
 
 - **`TT_REPEAT` + `TT_LOOP_BREAK` + `TT_LOOP_NEXT` — LANDED 2026-06-30 (Claude Sonnet 4.6).** `repeat{…}`,
   `break`, and `next` all verified both modes (mode-3 == mode-4): `repeat{write("x");break}` → `x done`;
@@ -289,9 +291,37 @@ Icon-reachable rows listed.
   body ran once then exited; `break` had the identical disease (it was an `IR_FAIL` whose loop-exit edge was
   thrown away). Fix: route the loop-back and the break/next jumps through a **real chain node** (`IR_CONJ`,
   whose driver is pure jump-to-γ and whose edges the BFS *follows*), never a sentinel terminator.
-- `TT_TO_BY` (3-arg `to ... by ...`) — IR_FAIL-stubbed; `TT_TO` (2-arg) works. Per JCON `ir_a_ToBy`: the `by`
-  step is the 3rd operand of one `ir_operator("...",3,...)` — extend `bb_to`/`lower_to`'s `varby` path, which
-  already builds the operands but emits no generator.
+- `TT_TO_BY` (3-arg `to ... by ...`) — IR_FAIL-stubbed; `TT_TO` (2-arg) works. **CORRECT TECHNIQUE (do this, nothing else):
+  `by` is operand[2] — a normal producer node, exactly like `from`(op[0]) and `to`(op[1]).** Canonical `ir_a_ToBy`
+  (`irgen.icn:1168`) evaluates `byexpr` as a full sub-expression (`ir_value(p.byexpr)` + `ir(p.byexpr,...)`) and hands
+  all three values to the `ir_operator("...",3,...)` step — SCRIP mirrors that with a third operand. A constant `by`
+  lowers to an `IR_LIT_INTEGER` producer in its own tmp slot; a variable `by` to an `IR_VAR` producer — SAME code path,
+  so this covers the variable-step case for free. (a) LOWER `lower_to`: drop the `varby`/`icn_const_step` special-case;
+  always `lower(cx,t->c[2],to,mβ,&br); ir_operand_push(to,br)` for TO_BY. (b) DRIVER `emit_drive IR_TO`: add
+  `op_sc = (n_operands>2)? bb_slot_get(operands[2]) : -1` (−1 ⇒ step 1). (c) TEMPLATE `bb_to.cpp`: step is now a RUNTIME
+  value, not a compile-time immediate — the resume arm must `add [cur], rby` (load `by` from `[op_sc+8]`) instead of
+  `inc`/`add $imm`, and the loop-exit comparison sign (`jg` vs `jl`) becomes a RUNTIME branch (`cmp rby,0` once at `α`),
+  since canonical to-by is sign-agnostic at compile time. The node stays `IR_TO` with `"ag"`/`"ar"` in its single union.
+  **DEAD END — DO NOT REPEAT (2026-06-30): storing the step as a scalar ON the IR node is WRONG.** An attempt added an
+  `IR_t.params[]` union array to hold the step (because the single `union{sval;ival;dval;}` was already the `"ag"`/`"ar"`
+  discriminator, so `IR_LIT(to).ival=step` stomped it — that aliasing is what segfaulted). The params array was reverted:
+  `by` belongs in `operands`, not a node-stored scalar. Operands are IR_t pointers (producers); they are the right and
+  only home for `by`. No new `IR_t` field is needed.
+  **⛔ BLOCKED ON A PRE-EXISTING BUG (MONITOR-FIRST rung — must land FIRST):** every `to`/`to-by` generator's CONSUMED
+  value ignores `from`. On the UNTOUCHED 2-arg baseline (`2e7cd455`): `every x:=7 to 9 do write(x)` → `1 2 3 4 5 6 7`
+  (wants `7 8 9`); `every x:=3 to 7 do write(x)` → `1..7`; `if x:=7 to 9 then write(x)` → `1`; `every write(7 to 9)` →
+  `1`. The generator's stride/length are right; the value read back is the counter/step, not `from`. BRACKET (refined
+  after asm inspection): the emitted asm IS slot-plumbed correctly — `bb_to`'s `α` reads the from-operand's value at
+  `[from_tmp+8]` and inits `current:=from`, and the consumer reads `IR_TO`'s result slot. The fault is in the RUNTIME
+  VALUE, not slot addressing: `every x:=A to B do write(x)` prints a COUNTER `1,2,…,B` (ignores `A`, runs to the upper
+  bound). So either the from value loaded at runtime is wrong, or the `to`-loop overwrites `current` with a counter.
+  Hunt with gdb on the emitted `IR_TO` box: breakpoint at its `α` label, inspect what is written to `[current]` on the
+  first pass and each resume vs. what `write` reads (per RULES; Icon has no 2-way monitor). RULED OUT (tested): adding
+  `IR_TO` to `ir_node_produces_value` shifts slot layout but does NOT change the counter behavior, and is wrong anyway
+  (the int generator uses `[off+16]` as current scratch beyond the 16B tmp `ir_tmp_slot_assign` grants) — do not re-try.
+  SECOND pre-existing bug found alongside: `--dump-ir` SEGFAULTS on `to-by`/`seq` shapes (the `IR_FAIL`-stub generator),
+  so the dumper can't be used to inspect them until fixed.
+
 
 **🔴 GAP — unowned/crash:**
 - `TT_ALTERNATE` (`a | b`) — **`IR_ALT` DELETED 2026-06-30 (Claude Sonnet 4.6); it was not a valid IR code.**
@@ -359,7 +389,57 @@ remains, per the corrected punch-list entry above. (2) `TT_IDX`/`MAKELIST` segv.
 (4) `TT_TO_BY` 3-arg generator.
 
 ## Watermark
-**2026-06-30 (Claude Sonnet 4.6) — positional α/β fallback DELETED entirely; routing is pure-stamp, no
+**2026-06-30 (Claude Sonnet 4.6) — legacy slot-alloc fallback BOMBED for genuine value-producer gaps; TT_TO_BY
+attempted+reverted twice (params array, then `ir_node_produces_value` widening — BOTH WRONG, see below); pre-existing
+`from`-ignoring `to`-generator bug found, bracketed, NOT fixed. SCRIP `<pending — see commit below>`.**
+- **`drive_value_slot`'s legacy `bb_slot_alloc16` fallback is now SCOPED, not blindly removed.** Lon directive: "remove
+  the fallback, make it a bomb." First attempt bombed unconditionally — broke smoke 11/12→6/12 (`bare_if`, a trivial
+  `if`/`write` program with no generator anywhere, hit it too: `IR_ASSIGN`'s own driver arm legitimately calls
+  `drive_value_slot` for a staging slot even though `IR_ASSIGN` is correctly NOT in `ir_node_produces_value` — that's
+  by design, not a gap). **Corrected: the bomb fires ONLY when `ir_node_produces_value(nd->op)` is true** (the registry
+  itself says this node should own a `tmp`) **and no `tmp` was found** — that combination is unambiguously a LOWER bug
+  (a value-producer the registry claims is covered but isn't). Nodes the registry doesn't claim (assign-staging, etc.)
+  still legacy-alloc exactly as before — unchanged, not a regression target. Verified: smoke 11/12 both modes restored
+  (byte-identical to baseline), full corpus 82/289 byte-identical FAIL/PASS set (rigorous diff, not eyeballed), all
+  four icn gates green (no-stack 0, one-reg 0, semicolon-prison PASS, mutation HARD=4 unchanged).
+- **IMPORTANT — this bomb does NOT cover `IR_TO`** (and will not fire for it), because `IR_TO` is NOT in
+  `ir_node_produces_value` (see below) — it still silently legacy-allocs via `bb_slot_alloc16_or_get` in its OWN
+  `emit_drive` case (a different, intentional call, for re-walk idempotency — do not confuse the two). The from-ignoring
+  bug (next item) is therefore UNAFFECTED by this change, proven by direct re-test.
+- **TT_TO_BY — TWO WRONG ATTEMPTS, BOTH REVERTED, DO NOT REPEAT EITHER:**
+  1. *Params array on the IR node.* Added `IR_t.params[]` (a union array) to carry the constant `by` step, because the
+     single `union{sval;ival;dval;}` was already spent on the `"ag"`/`"ar"` int-vs-real discriminator (`IR_LIT(to).ival
+     = step` aliased the discriminator pointer → wild step → segfault). **Lon corrected this directly: `by` is a THIRD
+     OPERAND, full stop — nothing is ever stored as a scalar value ON an IR node for this.** `params[]` was removed
+     entirely (`IR.h`/`scrip_ir.c`/`emit.h` reverted). The correct technique (by-as-operand[2]) is below and STILL
+     UNIMPLEMENTED — it's blocked on the bug in item 3.
+  2. *Widening `ir_node_produces_value` to include `IR_TO`.* Tried giving the generator its own `tmp` like every other
+     producer. Built clean, smoke unchanged, but did NOT fix the from-ignoring bug (just shifted slot layout) — REVERTED.
+     Also WRONG in principle even if it had "worked": `ir_tmp_slot_assign` grants a flat 16 bytes per producer, but the
+     integer generator's `bb_to.cpp` arm uses `[off+16]` as current-value scratch BEYOND that 16 bytes — a 16-byte tmp
+     here would alias the NEXT node's slot. `IR_TO` needs >16B and must keep using `bb_slot_alloc16_or_get` (its own
+     `emit_drive IR_TO` case already does this correctly) — it should NOT be added to `ir_node_produces_value` without
+     ALSO redesigning slot sizing, which is out of scope for a tmp-discipline cleanup. Do not re-attempt without that.
+  3. **⛔ BLOCKING BUG (confirmed, bracketed to the RUNTIME VALUE, not slot wiring) — must be fixed FIRST:** on the
+     UNTOUCHED baseline, `every x:=A to B do write(x)` prints a COUNTER `1,2,…,B`, ignoring `A` entirely. Repro:
+     `every x:=7 to 9 do write(x)` → `1 2 3 4 5 6 7 8 9` (wants `7 8 9`); `every x:=5 to 5 do write(x)` → `1 2 3 4 5`
+     (wants `5`); `if x:=7 to 9 then write(x)` → `1` (wants `7`); `every write(7 to 9)` → `1`. The WATERMARK ENTRY
+     BELOW THIS ONE ("`TT_EVERY` keystone landed") is THEREFORE CORRECTED (see its own entry, edited in place) — it
+     was only ever spot-checked at `from=1`, where the counter and the true sequence coincide and the bug is invisible.
+     Asm inspection (mode-4 `.s` for `7 to 9`) shows the SLOTS are wired correctly — `bb_to`'s `α` reads the from-
+     operand's value at `[from_tmp+8]` and stores it as `current`; the fault is downstream of that, in what VALUE ends
+     up there or what overwrites it across resumes. **NEXT: gdb on the emitted `IR_TO` box — breakpoint at its own `α`
+     chain-label, inspect `[current]` written on first pass and after each `β` resume, compare against what `write`
+     reads. Icon has no 2-way monitor (that's SNOBOL4-specific); this is the RULES.md gdb-breakpoint-hit-count
+     methodology applied directly to the emitted box.** Once fixed, `TT_TO_BY`'s by-as-operand[2] technique (LOWER:
+     drop the `varby` special-case, always `ir_operand_push(to, lower(t->c[2]))`; DRIVER: `op_sc = bb_slot_get(operands[2])`;
+     TEMPLATE: runtime `add [cur], [op_sc+8]` + a runtime `cmp by,0` sign branch replacing the compile-time `jg`/`jl`
+     choice) is a short, mechanical, verifiable follow-on — do not implement it before this bug is green, its output
+     cannot be trusted.
+  - **SECOND pre-existing bug found alongside, undiagnosed:** `--dump-ir` SEGFAULTS on `to-by`/`seq` shapes (the
+    `IR_FAIL`-stub generator nodes) — the dumper can't be used to inspect these constructs until it's fixed separately.
+
+
 reconstruction, no safety net. SCRIP `2e7cd455`.** Following `bb70a841` (which added the `IR_ref_t.sz` stamp
 but kept the old `i>k && generator-kind` guess as a fallback "for safety"), Lon directive: remove the net —
 an un-stamped edge should ABORT or visibly misroute, not silently guess, so a gap is found and fixed instead
