@@ -964,3 +964,77 @@ ENTRY-POINT sections, and seven stacked prior watermarks removed — all superse
 "go straight to the JCON spine" pivot and by the universal driver now being long-since landed and stable;
 full prior text recoverable via `git log -p` on this file). SCRIP `74281db6`. Mutation gate HARD=4 unchanged.
 Icon smoke 10/12 both modes unchanged. **NEXT: `TT_REPEAT` loop-back, per the PUNCH LIST.**
+
+**2026-06-30 (Claude Sonnet 4.6) — JCON→SCRIP MASTER TABLE added; TT_SECTION/LCONCAT/SWAP/REPALT/LIMIT/CASE/ITERATE/SCAN wired; corpus 129→144 (+15), no regressions. SCRIP `d04ac8f5` PUSHED (pending credential).**
+
+⛔ **ORIENTATION NOTE (Lon, 2026-06-30) — USE ir_a_* AS THE PRIMARY INDEX, NOT TT_* OR IR_*:**
+The score-keeping grid for the JCON→SCRIP conversion must be organized by **JCON `ir_a_*` procedure names** (from `refs/jcon-master/tran/irgen.icn`), not by SCRIP's TT_* AST tokens or IR_* opcodes. Reason: `irgen.icn` is the canonical source of truth for what every Icon construct does. SCRIP's TT_* names are the parser's vocabulary (close to JCON's AST record names, but not identical — e.g. TT_FIELD is what the SCRIP parser emits, `ir_a_Field` is what JCON irgen handles). IR_* names are SCRIP's invention and have no JCON counterpart. The table below now uses ir_a_* as the primary key, with TT_* and IR_* cross-referenced. **When reading any ir_a_* procedure in irgen.icn before coding: (1) note the 4 port names (ir.start/ir.resume/ir.success/ir.failure); (2) draw the chunk graph on paper — nodes=chunks, edges=Goto targets; (3) classify by the FOUR SHAPES; (4) check for bounded/unbounded fork. Then translate mechanically.**
+
+## ⛔⛔ JCON→SCRIP MASTER CONVERSION TABLE (Claude Sonnet 4.6, 2026-06-30)
+**Primary index: JCON `ir_a_*` procedure in `refs/jcon-master/tran/irgen.icn`. Secondary: SCRIP TT_* and IR_*. Shape column: 1=pure-edge-threading (LOWER only), 2=value-op (LOWER+DRIVER+TEMPLATE), 3=generator (LOWER+DRIVER+TEMPLATE, is_generator_kind), 4=label-variable (needs IR_INDIRECT_GOTO+MoveLabel infra — DEFERRED). Status: ✅=DONE, 🔶=PARTIAL, ❌=NOT_STARTED, ⛔=DEFERRED.**
+
+| JCON `ir_a_*` | SCRIP TT_* | SCRIP IR_* | Shape | Status | Notes |
+|---|---|---|---|---|---|
+| `ir_a_Intlit` | TT_ILIT | IR_LIT_INTEGER | 2 | ✅ | |
+| `ir_a_Reallit` | TT_FLIT | IR_LIT_REAL | 2 | ✅ | |
+| `ir_a_Stringlit` | TT_QLIT | IR_LIT_STRING | 2 | ✅ | |
+| `ir_a_Csetlit` | TT_CSET | IR_LIT_STRING (ival=1) | 2 | ✅ | cset tag via ival |
+| `ir_a_Ident` | TT_VAR | IR_VAR | 2 | ✅ | local+global arms |
+| `ir_a_Global` | TT_VAR (global) | IR_VAR / IR_ASSIGN | 2 | ✅ | GVA-FLAT |
+| `ir_a_Key` (`&null` etc.) | TT_KEYWORD / TT_NULL | IR_KEYWORD / IR_FAIL | 2 | ✅ | |
+| `ir_a_Binop` | TT_ADD/SUB/MUL/DIV/MOD/POW… | IR_BINOP / IR_BINOP_RELOP | 2 | ✅ | relops, arith, concat |
+| `ir_a_Unop` | TT_MNS/PLS/SIZE/NONNULL/RANDOM… | IR_UNOP | 2 | ✅ | |
+| `ir_a_Not` | TT_NOT | IR_NOT | 2 | ✅ | inverts success/failure |
+| `ir_a_Field` (read) | TT_FIELD | IR_FIELD | 2 | ✅ | `p.x` read |
+| `ir_a_Field` (write) | TT_ASSIGN lhs=TT_FIELD | IR_FIELD_SET | 2 | ✅ | `p.x := v` |
+| `ir_a_Sectionop` | TT_SECTION/PLUS/MINUS | IR_TERNOP | 2 | ✅ | `s[i:j]`, `s[i+:n]`, `s[i-:n]`; SCRIP `d04ac8f5` |
+| `ir_a_ToBy` | TT_TO / TT_TO_BY | IR_TO | 3 | ✅ | generator; `by` as operand[2] |
+| `ir_a_ListConstructor` | TT_MAKELIST/VLIST/IDX | IR_CALL("MAKELIST") / IR_CALL("[]") | 2 | ✅ | sentinel-threaded chain; `8e296381` |
+| `ir_a_Call` | TT_FNC | IR_CALL / IR_CALL_BUILTIN / IR_CALL_USERPROC / IR_PROC_GEN | 2/3 | ✅ | full route classification |
+| `ir_a_Arglist` | — | — | — | ✅ | handled inside ir_a_Call |
+| `ir_a_Compound` | TT_SEQ / TT_SEQ_EXPR | IR_CONJ | 1 | ✅ | sequential body |
+| `ir_a_Mutual` | TT_SEQ_EXPR | IR_CONJ | 1 | ✅ | A,B → last value |
+| `ir_a_NoOp` | TT_STMT (empty) | IR_SUCCEED | 1 | ✅ | |
+| `ir_a_Ident (assign)` | TT_ASSIGN | IR_ASSIGN | 2 | ✅ | local + global arms |
+| `ir_a_Binop (:=:)` | TT_REVASSIGN / TT_SWAP | IR_SWAP | 2 | ✅ | SCRIP `d04ac8f5` |
+| `ir_a_Binop (\|\|\|)` | TT_LCONCAT | IR_BINOP(BINOP_CONCAT) | 2 | ✅ | routes bb_binop_concat_slot; `d04ac8f5` |
+| `ir_a_If` | TT_IF | edge-threading only | 1 | ✅ | then/else arms; no dedicated node |
+| `ir_a_Repeat` | TT_REPEAT | IR_CONJ loop-back | 1 | ✅ | LOOP-BACK idiom |
+| `ir_a_While` | TT_WHILE | IR_CONJ sentinel | 1 | ✅ | condition-fails=exit |
+| `ir_a_Until` | TT_UNTIL | IR_CONJ sentinel | 1 | ✅ | condition-succeeds=exit |
+| `ir_a_Every` | TT_EVERY | lower_every | 1/3 | ✅ | gen-β loop-back |
+| `ir_a_Next` | TT_LOOP_NEXT | IR_CONJ (loop_next) | 1 | ✅ | |
+| `ir_a_Break` | TT_LOOP_BREAK | IR_CONJ (loop_exit) | 1 | ✅ | |
+| `ir_a_Return` | TT_RETURN | IR_RETURN | 2 | ✅ | |
+| `ir_a_Fail` | TT_PROC_FAIL | IR_FAIL | 1 | ✅ | |
+| `ir_a_Suspend` | TT_SUSPEND | IR_SUSPEND | 3 | ✅ | resume-slot machinery; `90dc36b7` |
+| `ir_a_ProcDecl` | TT_PROC_DECL | — | — | ✅ | graph per proc; lower_proc_body |
+| `ir_a_ProcBody` | TT_PROC_BODY | — | — | ✅ | top-level statement chain |
+| `ir_a_ProcCode` | TT_PROC | — | — | ✅ | init+body wrapper |
+| `ir_a_Initial` | TT_INITIAL | IR_FAIL (stub) | 1 | 🔶 | minimal; full IR_ENTER_INIT pending |
+| `ir_a_Alt` | TT_ALTERNATE | edge-threading (bounded arm done) | 1/4 | 🔶 | BOUNDED: ✅ (`write(1\|2)`→`1`). UNBOUNDED (`every write(1\|2\|3)`): ⛔ DEFERRED — needs IR_INDIRECT_GOTO + MoveLabel + sibling-label-address. Sized as own rung. |
+| `ir_a_RepAlt` | TT_REPALT | IR_REPALT | 3 | ✅ | `\|e`; flat_drive_repalt; `d04ac8f5`. NOTE: bounded arm only (JCON `if /bounded` arm) — unbounded resumability via MoveLabel/IndirectGoto is same infra gap as ir_a_Alt. |
+| `ir_a_Limitation` | TT_LIMIT | IR_LIMIT | 3 | ✅ | `e \ n`; bb_limit; `d04ac8f5` |
+| `ir_a_Case` | TT_CASE | IR_CALL_BUILTIN("IDENTICAL") chain + IR_ASSIGN("__case_result") + IR_VAR | 1+2 | ✅ | BOUNDED context; JCON ir_a_Case structure: subject eval → IDENTICAL chain per clause → body → __case_result var → γ. SCRIP `d04ac8f5`. Unbounded context (MoveLabel arm in JCON) deferred. |
+| `ir_a_ToBy (iterate !e)` | TT_ITERATE | IR_ITERATE | 3 | ✅ | `!list`; bb_iterate(rt_list_bang_at); `d04ac8f5` |
+| `ir_a_Scan` | TT_SCAN | IR_SCAN_ENTER → body → IR_SCAN | 1+2 | 🔶 | `s ? body`; enter/leave rt_scan_enter/rt_scan_leave wired. Scan builtin functions (upto/any/tab/move etc.) use r13/r14/r15 directly. End-to-end corpus test needed. |
+| `ir_a_Create` | TT_CREATE | IR_CREATE | 2 | ❌ | co-expression; ucontext-based in coro_runtime.c; needs IR_CREATE dispatch |
+| `ir_a_CoexpList` | — | — | — | ❌ | stops with "don't know how to do coexplist" in JCON itself |
+| `ir_a_Invocable` | TT_INVOCABLE | — | — | ❌ | meta-declaration |
+| `ir_a_Link` | TT_LINK | — | — | ❌ | link declaration |
+| `ir_a_Record` | TT_RECORD | — | — | ❌ | record type declaration |
+
+**CORRECTIONS to prior punch-list text (confirmed this session):**
+- `TT_FIELD`, `TT_SECTION/PLUS/MINUS` — prior watermark said "IR_FAIL-stubbed". CORRECTED: both are now DONE as of `d04ac8f5`. FIELD was already done earlier (`44c0da0f`); SECTION done this session.
+- `TT_SCAN`, `TT_CASE`, `TT_LIMIT` — prior watermark said "not wired into new driver". CORRECTED: all three now wired as of `d04ac8f5`. TT_SCAN is partial (wired but corpus coverage needed).
+- The old punch-list line "TT_CASE: per JCON ir_a_Case, decomposes to a chain of === relop nodes — shape 1, mostly LOWER work, no new template" is PARTIALLY WRONG: the === test is NOT `IR_BINOP_RELOP` (BINOP_SEQ is string ==, not strict identity ===). Strict identity === is `IDENTICAL`, a 2-arg builtin routed as `IR_CALL_BUILTIN("IDENTICAL")` via `rt_call_arr`. The shape is 1 (mostly LOWER) but requires a synthetic `__case_result` local variable to converge multiple arm values into a single slot the outer consumer can read.
+
+**NEW TECHNIQUE: __case_result synthetic local for case-expression value convergence.**
+When multiple IR chain arms (one per case clause) each produce a value and all must converge to a single output slot readable by an outer consumer (e.g. `write(case x of {...})`): allocate a synthetic `__case_result` IR_VAR node as `*res`; each arm lowers its body with `γ=NULL` (not the outer γ), then routes through `IR_ASSIGN("__case_result", body_val)` with `γ_to(asn, cvar)` where `cvar` is the shared IR_VAR. `cvar` then has `γ=outer-γ`. The `bb_assign_local` template writes the body value to `bb_varslot("__case_result")` (frame slot allocated by the first use), and `bb_var` copies that slot to `cvar->tmp` (the IR_VAR's own tmp slot allocated by `ir_node_produces_value`). The outer consumer reads `cvar->tmp`. This is the SCRIP realization of JCON's `target` parameter threading — without a formal target parameter, a synthetic local provides the same single-slot convergence.
+
+**NEXT (in order):**
+1. `TT_SCAN` end-to-end corpus test — verify `s ? tab(3)` / `s ? upto('aeiou', s)` etc. work with the new SCAN_ENTER/SCAN leave wiring. Expect to find bugs in how the scan body's scan functions (upto/any/tab/move) interact with the saved/restored r13/r14/r15.
+2. `TT_ALTERNATE` resumability (unbounded `every write(1|2|3)`) — own rung; needs IR_INDIRECT_GOTO template + MoveLabel mechanism (sibling-node label resolution). See punch-list entry for exact infrastructure required. Do NOT attempt without that infra.
+3. `TT_CREATE` (co-expressions) — IR_CREATE dispatch to coro_runtime.c; moderate complexity, not blocked.
+4. `TT_INITIAL` — IR_ENTER_INIT; low priority, rarely exercised in corpus.
+5. `every x:=GEN do BODY` assign-wrapped-generator regression (pre-existing from `feab99c7`) — MONITOR-FIRST/gdb `every x:=7 to 9 do write(x)`.
