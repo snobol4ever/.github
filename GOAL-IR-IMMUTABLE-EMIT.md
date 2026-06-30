@@ -288,8 +288,8 @@ Icon-reachable rows listed.
 
 **✅ COVERED:**
 - Literals (`TT_ILIT/FLIT/QLIT/CSET`), `TT_VAR`, `TT_KEYWORD` (incl. `&line`/`&file`)
-- Arithmetic/relop/concat binops, unary `TT_MNS/PLS/SIZE/NONNULL/NULL`
-- `TT_ASSIGN` (local var only), `TT_WHILE`/`TT_UNTIL`, `TT_FNC` (builtin + zero-arg user proc), `TT_RETURN`
+- Arithmetic/relop/concat binops, unary `TT_MNS/PLS/SIZE/NONNULL/NULL` (**CORRECTED 2026-06-30:** `TT_NONNULL`/`TT_NULL`/`TT_SIZE`/`TT_MNS`/`TT_PLS` were previously broken — `ir_operand_push` was missing from the `is_unop_tt` lowering path, so `op_sa=-1` and `bb_unop` emitted nothing. Fixed in SCRIP `2d2b1ec8`.)
+- `TT_ASSIGN` (local var only), `TT_WHILE`/`TT_UNTIL` (**CORRECTED 2026-06-30:** both used `IR_FAIL` as the loop-exit sentinel; BFS skips `IR_FAIL` nodes so the loop-back target was discarded — loops ran once then exited. Fixed: sentinel changed to `IR_CONJ` in `lower_while`/`lower_until`, same fix as `lower_repeat`. SCRIP `2d2b1ec8`.), `TT_FNC` (builtin + zero-arg user proc), `TT_RETURN`
 - `TT_IF` (statement form — JCON `ir_a_If` edge-threading, zero opcode/template). Value-context `if`
   (`write(if c then a else b)`) still wrong: then/else write distinct slots, consumer reads only then's —
   **fix is JCON's own pattern**, a single shared `target` tmp passed to BOTH branches (`ir_a_If` passes the
@@ -601,6 +601,65 @@ infra per the existing PUNCH LIST entry — `ir_a_Alt`/`ir_a_RepAlt` read in ful
 `irgen.icn:167-229`, nothing to correct there).
 
 ## Watermark
+**2026-06-30 (Claude Sonnet 4.6) — IR_UNOP missing operand + lower_while/lower_until sentinel IR_FAIL→IR_CONJ
+fixed; PLAN.md six-doc BB-CODEGEN read restored as mandatory. SCRIP `2d2b1ec8` (LOCAL — push BLOCKED pending
+credential). `.github` `cafc3013` (LOCAL — push BLOCKED pending credential).** Corpus 122/289 → 129/289 (+7
+PASS, zero regressions). Smoke 12/12 both modes. Mutation gate HARD=4 unchanged. Icon-only discipline gates
+unchanged (prove_lower failures pre-existing, not regressions).
+
+**THREE BUGS FIXED (all lower_icon.c, LOWER-only — zero emitter/template changes):**
+
+1. **IR_UNOP missing `ir_operand_push`** — the `is_unop_tt` path built `IR_UNOP` and called
+   `lower(cx, t->c[0], op, ω, &orr)` but never called `ir_operand_push(op, orr)`. Same defect in
+   `TT_NULL`'s `IR_UNOP` arm. `bb_child0(nd)` in `emit_drive` returned NULL → `op_sa=-1` → `bb_unop()`
+   emitted nothing. Fix: add `ir_operand_push(op, orr)` at both sites (one line each).
+   Fixes: `TT_NONNULL` (`\expr`), `TT_NULL` (`/expr`), `TT_SIZE` (`*expr`), `TT_MNS`, `TT_PLS`.
+   Verified: `rung34_null_test_nonnull_fails/null_fails/null_succeeds` all pass both modes.
+
+2. **`lower_while` sentinel = `IR_FAIL`** — built `W = IR_FAIL(γ,ω)` as the loop-exit sentinel;
+   the BFS skips `IR_FAIL` nodes (`if (c->op == IR_FAIL) continue`) so the loop-back target in
+   W's operand was never enqueued. Fix: `W = IR_CONJ`, `γ_to(W,γ); ω_to(W,γ)` — same as
+   `lower_repeat`'s fix (LOOP-BACK & UNCONDITIONAL-JUMP IDIOM, already documented above).
+
+3. **`lower_until` sentinel = `IR_FAIL`** — identical disease; `U = IR_FAIL` discarded its
+   loop-back operand. Fix: `U = IR_CONJ`, `γ_to(U,γ); ω_to(U,γ)`.
+   Fixes 2+3: `rung09_loops_repeat_break` (until with side-effect in cond), `rung09_loops_until_while`,
+   `rung09_loops_until_gen`. Mode-3 == mode-4 verified on all three.
+
+**PLAN.md step 7 restored (`.github` `cafc3013`):** Commit `3f55a997` had added "skip this whole list and
+read ORIENTATION SYNOPSIS instead" as the last bullet of step 7's BB-CODEGEN DESIGN SET. Lon's directive
+(2026-06-30): the six original docs must be read — the SYNOPSIS is additive, not a replacement. Changed to
+"also read the ORIENTATION SYNOPSIS — it supplements the six docs; read six first, then SYNOPSIS; do NOT
+substitute." The "see ORIENTATION SYNOPSIS for authoritative description" bypass from the ARCH-SCRIP.md
+annotation was also removed. All path corrections from `3f55a997` preserved.
+
+**TT_ITERATE (`!`) — IN PROGRESS, NOT LANDED (next session's first task):**
+- `bb_iterate.cpp` exists and is complete (`rt_list_bang_at(obj, idx)` loop with α/β/γ/ω).
+- `bb_iterate` added to `RT_PIC_SRCS` in Makefile this session (one line; not yet committed separately —
+  included in the `2d2b1ec8` working tree but NOT yet staged/committed; `git status` will show it dirty).
+- Still needed: (a) add `IR_ITERATE` to `IR_e` enum in `IR.h`; (b) add to `ir_is_generator_kind` and
+  `ir_node_produces_value` in `ir_query.c`; (c) wire `TT_ITERATE` → `IR_ITERATE` in `lower_icon.c`
+  (replace the current stub `IR_FAIL` build with `build(cx, IR_ITERATE, γ, ω)` + `ir_operand_push(nd, orr)`
+  + set `cx->beta = nd`); (d) add `emit_drive` case (op_sa=object slot, op_sb=index counter slot fresh-
+  allocated, op_off=output slot via `drive_value_slot`); (e) add `walk_bb_node` dispatch → `bb_iterate(nd)`.
+  Template expects `op_sa` (object), `op_sb` (idx counter at `[r12+op_sb]`, inits to 0 at α, increments
+  at β), `op_off` (output DESCR_t at `[r12+op_off]`). `op_sb` needs its own fresh frame slot (not a
+  value-producer slot — it's scratch storage for the counter, like `IR_TO`'s `[op_off+16]`).
+- AFTER landing `IR_ITERATE`: the 16 rung13_alt_* failures (unbounded alternation) are the next
+  high-yield cluster; then rung05/rung06/rung08 scan/cset families (pre-existing `bb_scan_*.cpp` templates
+  need wiring via `lower_scan`).
+
+**NEXT (in order):**
+1. **`TT_ITERATE` (`!x`)** — land it per the IN-PROGRESS notes above. Verify `every write(!s)` → `a b c`
+   and `every write(![1,2,3])` → `1 2 3`. Commit `Makefile` + `IR.h` + `ir_query.c` + `lower_icon.c` +
+   `emit.cpp` together as one atomic "IR_ITERATE landed" commit.
+2. **`TT_ALTERNATE` resumability** — unbounded `every write(1|2|3)` (label-variable infra:
+   `IR_INDIRECT_GOTO` template + sibling-label MoveLabel mechanism). Sized as its own rung per punch list.
+3. **Scan family** (`TT_SCAN`, `bb_scan_stmt.cpp` + the scan-builtin templates) — pre-existing templates,
+   needs `lower_scan` wiring.
+4. **`TT_CASE`** — current lowering uses `IR_FAIL` nodes as arm-carriers (BFS skips them); needs
+   JCON-faithful rewrite as a chain of `===` relop comparisons (shape 1, pure edge-threading, no node).
+
 **2026-06-30 (Claude Sonnet 4.6, continuation session) — every/`TT_TO_BY` slot-collision regression (DISCOVERED+
 BISECTED but NOT fixed by the watermark entry directly below this one) is now FIXED + VERIFIED. SCRIP `d225d4a2`
 (LOCAL — push BLOCKED pending credential, see session close), `.github` `d66a7365`.** Picked up exactly
