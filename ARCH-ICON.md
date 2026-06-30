@@ -71,6 +71,23 @@ RBX=NV globals hash base (rides through untouched). RO constants (cset char-stri
 `[rip+disp]`; the membership test is the `bb_pat_any.cpp` idiom (`lea rdi,[rip+cset]; call strchr`). Result
 DESCRs go to the box's own 16-byte frame slot (the `bb_to`/`bb_alt` model); consumers read the producer's slot.
 
+⛔ **CORRECTED 2026-06-30 (Claude Sonnet 4.6) — the "RBX=NV globals hash base" claim two lines above is
+WRONG, verified against actual current code, not assumed.** `grep -n '"rbx"' src/templates/*.cpp` shows
+12+ call sites (`bb_assign_global.cpp`, `bb_gvar_assign.cpp`, `bb_call.cpp`, `bb_binop_gvar_arith.cpp`,
+`bb_det_nb_getval.cpp`/`bb_det_nb_setval.cpp`) all using the SAME pattern: `RDQ("rbx", op_gva_k * 16)` — a
+**flat array indexed by a global-variable SLOT NUMBER (`gva_k`), stride 16 bytes (one DESCR_t per slot)**,
+not a hash table keyed by name. This matches `REGISTER-LAYOUT.md`'s framing (rbx = DESCR base pointer,
+dual-width 8/16-byte DESCR) far better than this file's own "NV hash base" description — REGISTER-LAYOUT.md
+was right, this file was wrong, not the disagreement-acknowledgment this file used to carry ("one stray
+passage... disagrees... treat REGISTER-LAYOUT.md's table as authoritative" — that passage was correct and
+has now been resolved by deleting the wrong claim rather than just flagging it). **Separately: `rbp` (cited
+nowhere in this paragraph but relevant to "NV hash" questions) has ZERO hits as `"rbp"` in any current
+template** — `NV_GET_fn`/`NV_SET_fn` (the actual name-keyed global lookup, confirmed live) are reached as
+plain C calls, not through a register-pinned hash-table base, consistent with this file's OWN later
+"Variable model" section ("GET/SET are C calls for now; inlining is a future optimization"). So: RBX = GVA
+slot-array base (verified), RBP = currently unused for this purpose (verified absent), NOT "RBX = NV hash
+base" as this paragraph originally claimed.
+
 **Two semantic families (fstranl.r function signatures — do not blur):**
 - **Position-returners, δ untouched:** `any`/`match`/`many` are `function{0,1}` (one result or fail);
   `upto`/`find`/`bal` are `function{*}` GENERATORS (suspend each position; β re-pumps via the generator-β

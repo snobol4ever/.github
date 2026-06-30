@@ -7,10 +7,18 @@ register roles below describe the **SMX-4-era SM-blob** convention (r12 =
 SM value-stack TOS; r13/r14/r15 = free). SMX-4 deleted the SM engine, so
 that value-stack and SM-state no longer exist. The **live** convention for
 the ground-zero BB-native x86 emission is the GOAL-*-BB FACT RULE
-"X86-64 REGISTER / SUBJECT-MODEL CONVENTION", now encoded in code as the
-single source `src/emitter/bb_regs.h`:
+"X86-64 REGISTER / SUBJECT-MODEL CONVENTION". ⛔ **CORRECTED 2026-06-30
+(Claude Sonnet 4.6): this section originally pointed to `src/emitter/
+bb_regs.h` as "the single source" — that file DOES NOT EXIST (confirmed:
+no `bb_regs.h` anywhere under `src/`; `emit.h`'s own header comment says
+"bb_regs.h + emit_defs.h were dead and dropped"). The roles in the table
+below are independently re-verified CORRECT against the actual current
+source, `src/templates/x86_asm.h`** (the `FR`/`FRQ` frame helpers,
+`x86_r12_modrm`, and the bare `"r12"`/`"r13"`/`"r14"`/`"r15"` string
+literals each template's `x86(...)` calls pass) — only the file pointer
+was wrong, not the convention itself:
 
-| Reg | Live role (bb_regs.h / GOAL FACT RULE) |
+| Reg | Live role (verified against `src/templates/x86_asm.h`, NOT `bb_regs.h` — that file is gone) |
 |-----|-----------------------------------------|
 | **r13** | Σ — subject BASE ptr |
 | **r14** | δ — CURSOR |
@@ -28,16 +36,20 @@ call signature in mode 3 obeys this.  Changes require an explicit goal
 rung and Lon sign-off.
 
 **Sources of truth referenced in this doc:**
-- `archive/backend/bb_boxes.s` — proven 25-box library, 106/106 oracle.
+- `archive/backend/bb_boxes.s` — proven 25-box library, 106/106 oracle. (Verified 2026-06-30: still present at this path.)
 - `/home/claude/x64/int.h`, `int.asm`, `sbl.min` — SPITBOL x64
   MINIMAL register map and save/restore discipline.
 - `/home/claude/csnobol4/v311.sil`, `snobol4.c`, `res.h`,
   `include/macros.h` — CSNOBOL4 cstack discipline and PDLPTR pattern
   history list.
-- `src/runtime/x86/bb_flat.c` — live flat-glob emitter; the `r10`
-  convention this doc locks already ships there.
+- `src/runtime/x86/bb_flat.c` — **DOES NOT EXIST** (corrected 2026-06-30, Claude Sonnet 4.6: confirmed
+  by `find`, neither `bb_flat.c` nor a `src/runtime/x86/` directory exist anywhere in the current tree).
+  The live flat-glob register convention this doc locks (`"r12"`/`"r13"`/`"r14"`/`"r15"` literals, the
+  `FR`/`FRQ` frame helpers) actually ships in `src/templates/x86_asm.h`, included per-template by the
+  current `src/templates/*.cpp` family — not in any `src/runtime/x86/` file.
 - `ARCH-x86.md` — defines the flat-BB ABI, the stackless-box discipline,
-  and the intra-/extra-BLOB jump rules this doc operates against.
+  and the intra-/extra-BLOB jump rules this doc operates against. **`ARCH-x86.md` is itself flagged
+  stale on file-layout claims as of 2026-06-30 — see its own correction banner.**
 
 ---
 
@@ -395,9 +407,11 @@ Cannot be changed without breaking interop with libscrip_rt.so.
 
 ### rbx, r13, r14, r15 — ~~held free~~ (SUPERSEDED: r13/r14/r15 = Σ/δ/Δ; only rbx free)
 
-**SMX-4 update:** r13/r14/r15 now carry the subject model (Σ/δ/Δ) per
-bb_regs.h; the "held free" reasoning below applied only to the SM-blob
-era. rbx remains genuinely free callee-saved scratch.
+**SMX-4 update:** r13/r14/r15 now carry the subject model (Σ/δ/Δ) — see
+the corrected live-banner table near the top of this file (`src/templates/
+x86_asm.h`, NOT `bb_regs.h`, which does not exist); the "held free"
+reasoning below applied only to the SM-blob era. rbx remains genuinely
+free callee-saved scratch.
 
 No current need; reserving them now would either lock in a design
 without evidence or waste them.  Mode-3 inline blobs use the SysV

@@ -186,6 +186,18 @@ casing. See `test/cross_lang.scrip` for a working end-to-end demonstration.
 
 ## Unified Emitter Model (EC series, 2026-05-19)
 
+⛔⛔ **STALE FILE MAP (flagged 2026-06-30, Claude Sonnet 4.6).** This whole section describes the EC-series
+architecture (`emit_core.c`/`emit_core.h`/`emit_sm.c`/`emit_bb.c`/`BB_templates/`/`SM_templates/`,
+`SM_op_t`, `sm_dispatch.c`). **None of these files exist in the current tree** — verified by `find`/`grep`
+against SCRIP HEAD `8e296381`+. The EC-series architecture was itself superseded by a further
+consolidation: everything folded into `src/emitter/emit.cpp` + `emit.h` (one driver, `emit_drive` + the
+template-selector dispatch), with templates flattened to `src/templates/*.cpp` (161 files, no subdirs).
+`emit.h`'s own top-of-file comment documents the merge explicitly: "Merges former emit_core/emit_bb/emit/
+emit_form/emit_globals/emit_drive/emit_templates/emit_io/emit_str/emit_str_builders/x86_opcodes/box_state
+into ONE." The CONCEPTS below ("no per-target silo files", "one template function per opcode/kind") are
+still the live design intent; only the concrete file names in the "File map" table just below are dead —
+see the corrected table.
+
 All code-generation backends share a single set of per-instruction template
 functions in `emit_core.c`. There are no per-target silo files.
 
@@ -243,16 +255,26 @@ logic exists outside these files or `BB_templates/*.c`. Steps:
 One template function per opcode (or per group where shapes are identical).
 Zero per-target silo files. Zero helper wrappers outside the template.
 
-### File map (post-EC series)
+### File map — CORRECTED 2026-06-30 (Claude Sonnet 4.6), was "post-EC series", now post-consolidation
 
 | File | Role |
 |------|------|
-| `src/emitter/emit_core.c` | All template functions; `emit_program`; WASM state |
-| `src/emitter/emit_core.h` | Mode enum + macros; public API |
-| `src/emitter/emit_sm.c` | x86 binary SM dispatch (EMIT_BINARY_WIRED) |
-| `src/emitter/emit_bb.c` | x86 binary BB node emission |
-| `src/emitter/BB_templates/` | One `.c` per BB box kind (JVM/JS/NET arms inline) |
-| `src/emitter/SM_templates/` | Grouped SM instruction families (push/arith/control/…) |
+| `src/emitter/emit.cpp` | The one driver: `emit_drive` + the template-selector dispatch (folds the former `emit_core.c`/`emit_bb.c`/`emit_drive.c`) |
+| `src/emitter/emit.h` | Consolidated header: mode enum, macros, public API (folds the former `emit_core.h`/`bb_regs.h`/`emit_defs.h` — the latter two confirmed dead by this file's own top comment) |
+| `src/emitter/emit_io.c` | I/O helpers (survives unmerged) |
+| `src/emitter/emit_str.cpp` | String-builder helpers (survives unmerged) |
+| `src/emitter/sil_macros.h` | Runtime header (survives unmerged, by design — not an emitter file) |
+| `src/templates/*.cpp` | Flat directory, 161 files, one (or a few) per BB/XA box kind — replaces both `BB_templates/` and `XA_templates/`, no subdirectories |
+| `src/templates/x86_asm.h` | Register/encoding primitives (`FR`/`FRQ`, `x86_r12_modrm`, the `"r12"`-etc. string literals) — replaces the never-built `bb_regs.h` as the actual register-contract source of truth |
+
+**DOES NOT EXIST (do not search for these):** `emit_core.c`, `emit_core.h`, `emit_sm.c`, `emit_bb.c`,
+`emit_drive.c`, `BB_templates/`, `XA_templates/`, `SM_templates/`, `sm_dispatch.c`, `bb_regs.h`,
+`emit_defs.h`. The "Mode enum"/"Entry point"/"Adding a new backend"/"Adding a new SM opcode" subsections
+above this table describe that dead architecture's mechanics and are retained as historical/conceptual
+reference only — the underlying principles (one template per kind, no per-target silos, dispatch-on-mode
+macros) carried forward into the consolidated `emit.cpp`, but none of the concrete file/function names in
+those subsections currently exist; re-derive the equivalent from `emit.h`/`emit.cpp` directly rather than
+trusting a specific name above this table.
 
 Deleted in EC series: `emit_jvm.c`, `emit_js.c`, `emit_net.c`, `emit_ir.c`,
 `emit_ir_targets.c`, `emit_wasm.c`, `emit_ir.h` (shim), `IR_emit_vtable_t`.
