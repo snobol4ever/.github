@@ -425,7 +425,8 @@ GAPs top-down; the resume-gap cluster is ONE fix.
 - `TT_VAR` (local + global rval) → IR_VAR ; `TT_KEYWORD` → IR_KEYWORD (incl &line/&file→literal, THIS SESSION)
 - `TT_ADD/SUB/MUL/DIV/MOD/POW` + `TT_CAT`/`TT_LCONCAT` + relops (`TT_LT/LE/GT/GE/EQ/NE` + string LLT…LNE) → IR_BINOP/_RELOP
 - `TT_MNS`/`TT_PLS`/`TT_SIZE`/`TT_NONNULL`/`TT_NULL`(unary) → IR_UNOP ; `TT_ASSIGN` (LOCAL only)
-- `TT_WHILE` (non-generator cond) ; `TT_FNC` (builtin + zero-arg user proc) ; `TT_PROC_DECL` ; `TT_RETURN`
+- `TT_WHILE`/`TT_UNTIL` (non-generator cond) ; `TT_FNC` (builtin + zero-arg user proc) ; `TT_PROC_DECL` ; `TT_RETURN`
+- `TT_IF`/(bare if), statement/unbounded form (`if C then X [else Y]`, value discarded) — JCON `ir_a_If` edge-threading, no opcode/template/driver-case (SCRIP `59dafbc0`, 2026-06-30 Sonnet 4.6). `proc_recursion` (`if n<=1 then return 1 else …`) green via this. **Value-context `if` (`write(if c then a else b)`) NOT yet correct** — then/else write distinct result slots, consumer reads only then's; needs a shared result slot or IR_MOVE join (JCON unifies via one `target` tmp). Deferred.
 
 **🔴 GAP — RESUME-GAP CLUSTER (all one root cause; FIX FIRST, unblocks 4 constructs at once):**
 Root cause (localized via --dump-ir this session): a generator's consumer routes its resume edge to the wrong node
@@ -433,8 +434,8 @@ Root cause (localized via --dump-ir this session): a generator's consumer routes
 assignment-lowering must forward the generator's resume as `cx->beta`, OR add a bounded-body primitive (JCON
 "always bounded"). Then:
 - `TT_EVERY` — `ir_a_Every` threading written+reverted; canonical `every i:=1 to N do write(i)`=1|2|3 OK, non-trivial bodies hang.
-- `TT_IF` / (bare if) — `lower_if` stubbed to IR_FAIL (`if 1<2 then…` → empty). Convert per JCON `ir_a_If`.
-- `TT_UNTIL` — `lower_until` stub (empty). `TT_REPEAT`+`TT_BREAK`/`TT_LOOP_NEXT` — partial.
+- ~~`TT_IF`~~ DONE 2026-06-30 (statement form; see COVERED). Value-context unification still open.
+- `TT_UNTIL` — DONE 2026-06-30 (`until i<=0 do …` → 5 4 3 2 1, both modes). Was never an `until`-lowering bug: it was gated on the `IR_BINOP_RELOP` ω-reachability gap (relop failure-branch never discovered by the flat-chain BFS), fixed in `59dafbc0`. `TT_REPEAT`+`TT_BREAK`/`TT_LOOP_NEXT` — partial: `repeat{…}` runs the body ONCE then exits. ROOT CAUSE (diagnosed 2026-06-30, NOT yet fixed): `lower_repeat` uses an `IR_FAIL` node `R` as the loop-back target (`R.γ→body`, `R.ω→ω`); because `R` is IR_FAIL it always takes ω, so body.success→R→ω exits instead of re-entering the body. JCON `ir_a_Repeat` loops body.success/failure→ir.start→body.start with NO fail node. Fix needs the loop-back to route to the body entry without an IR_FAIL placeholder (same placeholder-strands-BFS class as the if absent-else fix) — `while`/`until` happen to work because their IR_FAIL exit semantics align; `repeat` (no failure exit) does not. This is loop-back redesign, not a patch.
 - `TT_TO`/`TT_TO_BY` as bare/driven generator — yields only first value outside a wired consumer; `by` variant IR_FAIL-stubbed.
 
 **🔴 GAP — UNOWNED/CRASH (distinct fixes):**
@@ -702,7 +703,33 @@ ONE LOWER pass (single source); the EMITTER reads it in the converted spine arms
 ---
 
 ## Watermark (prior)
-**JCON-DRIVER +2 CLEAN LITERAL/KEYWORD RUNGS + CHAIN-CONTEXT WALL PINNED — 2026-06-28 (Sonnet 4.6).**
+**TT_IF CONVERTED (JCON `ir_a_If`) + IR_BINOP_RELOP ω-REACHABILITY — 2026-06-30 (Sonnet 4.6, Lon directing).**
+SCRIP local HEAD `59dafbc0` (1 commit past `c8ab2ad7`; **PUSH PENDING — credential needed, handoff INCOMPLETE
+until pushed**). First TT converted by the mechanical JCON→SCRIP methodology this campaign asks for: take the
+four-port wiring from `irgen.icn` (`ir_a_If`, unbounded form = pure `ir_Goto` threading, NO dedicated opcode)
+and realize it as SCRIP edge-threading in `lower_icon.c` — `cond.γ→then_entry`, `cond.ω→else_entry`,
+`then/else.γ→if.γ`, `then/else.ω→if.ω`, absent-else routes `cond.ω` straight to the if's ω node (JCON
+`a_Key("fail")→Goto failure`; an `IR_FAIL` placeholder is WRONG here — the flat-chain BFS skips IR_FAIL nodes
+and does not follow their edges, stranding the fall-through). NO template, NO `emit_drive` case (faithful to
+JCON, which has no `ir_If` record — the goal body's "IR_IF needs NO driver case" is correct).
+**Paired emitter fix (the actual unlock):** `codegen_flat_chain_body`'s BFS (two sites in `emit.cpp`) followed
+the ω-target of `IR_BINOP` but NOT `IR_BINOP_RELOP` — a gap left by the 2026-06-29 IR-FORM-SPLIT (`8f346962`)
+that minted `IR_BINOP_RELOP` as its own opcode. So every relop's FAILURE branch (the whole job of an if/while/
+until condition) was undiscovered and emitted nothing. Additive reachability (surfaces real ω targets, removes
+no edge). **RESULT: Icon rung suite PASS 61→80 (+19), byte-identical mode-3 (`--run`) and mode-4 (`--compile`);
+icon smoke 6/12→10/12 both modes** — `if_expr`/`bare_if` (direct), plus `until` and `proc_recursion` which were
+gated on the same relop-ω gap, not on if-lowering. Verified through the full mode-4 cycle (`--compile`→as→gcc
+`-no-pie`→`libscrip_rt`→run): `fact(5)`=120, `until` 5..1, if/else→correct branch. Both gate programs green both
+modes. **Mutation gate unchanged HARD=4.** no-stack/one-reg/semicolon gates green; `local-no-nv` LOCK 3 (global
+`TT_ASSIGN` GVA) was ALREADY FAIL on baseline (known punch-list GAP, confirmed via stash-rebuild — not introduced).
+No artifact regen (standing directive: `.s` not a gate). **NEXT (in order):** (1) value-context `if` unification
+(shared result slot / IR_MOVE join — JCON's one-`target`-tmp trick); (2) `repeat` loop-back redesign (the
+IR_FAIL-placeholder-as-loop-target bug, root-caused above — `repeat{…}` runs body once then exits); (3) `every`
+resume-gap (the documented two-attempt minefield: body tail success must forward the generator's resume as
+`cx->beta`, OR a bounded-body primitive). The relop-ω-reachability fix is general infrastructure the loop/every
+work now builds on.
+
+
 Local HEAD `SCRIP@be7d8c8f` (2 commits past `0e677f4c`; **PUSH PENDING — credential needed, handoff INCOMPLETE
 until pushed**). Climbed two clean rungs off the beachhead, then probed the GVAR-assign frontier and REVERTED
 before commit (stash/pristine discipline held). Gate **HARD=38 unchanged** across both landed rungs.
