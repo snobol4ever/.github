@@ -1244,7 +1244,7 @@ independently in between. No jump-in-one-frame trick can express this — it's w
 design exists at all, and why this rung genuinely cannot reuse the existing generator machinery even as a
 starting sketch.
 
-## ⛔⛔ CO-EXPRESSION RUNG PLAN (Claude Sonnet 4.6, continuation session, 2026-07-01) — RUNG 1 of N LANDED, RUNG 2+ PLANNED, not yet started
+## ⛔⛔ CO-EXPRESSION RUNG PLAN (Claude Sonnet 4.6, continuation session, 2026-07-01) — RUNG 1-4 of 5 LANDED (see the two "Session close" sections and the CORRECTION block below this plan for the up-to-date status of each rung; RUNG 5 remains undesigned)
 
 **Discipline for this multi-rung feature:** each rung below lands fully (build clean + smoke 12/12 both modes +
 all 4 gates unchanged + corpus count unchanged-or-improved, never regressed) and is its OWN commit before the
@@ -1302,21 +1302,29 @@ assume the path without checking, per this goal's own repeated lesson). Two piec
   is not re-litigating the same question, it's a different question with a different risk profile — but the
   call is still Lon's to make, not a precondition being imposed.)
 
-**RUNG 3 — `bb_create.cpp` template (`IR_CREATE`'s `walk_bb_node`+`emit_drive` wiring).** NOT YET STARTED.
-Depends on RUNG 2's struct layout being settled. Allocates the per-coexpression struct + registers the entry
-point; per `co_init`'s semantics, does NOT invoke `coswitch_scrip` at `create`-time — the body genuinely does
-not run until the first `@`/resume. `IR_CREATE` itself always succeeds (per RUNG 1's LOWER wiring) — this
-template's α is unconditional success, no generator port-plumbing (`γ`/`ω` both just "proceed", matching the
-JCON wiring's `p.ir.start → ... → p.ir.success` with no failure path from `create` itself).
+**RUNG 3 — `bb_create.cpp` template (`IR_CREATE`'s `walk_bb_node`+`emit_drive` wiring).** ✅ LANDED IN FULL
+(TEXT **and** BINARY), SCRIP commit `<pending>` — see "Session close (RUNG 3 binary + RUNG 4), 2026-07-01"
+below. The prior same-day session landed TEXT mode only and mis-diagnosed why BINARY mode and live testing
+were blocked; that diagnosis is corrected in the CORRECTION block immediately following its close section.
+Allocates the per-coexpression struct + registers the entry point; per `co_init`'s semantics, does NOT
+invoke `scrip_coswitch` at `create`-time — the body genuinely does not run until the first `@`/resume.
+`IR_CREATE` itself always succeeds (per RUNG 1's LOWER wiring) — this template's α is unconditional success,
+no generator port-plumbing (`γ`/`ω` both just "proceed", matching the JCON wiring's `p.ir.start → ... →
+p.ir.success` with no failure path from `create` itself).
 
-**RUNG 4 — `bb_coret.cpp` + `bb_cofail.cpp` templates (`IR_CORET`/`IR_COFAIL`).** NOT YET STARTED. Depends on
-RUNG 2+3. `bb_coret`: store the produced value where the resumer's `@`-expression can read it, call
-`coswitch_scrip` back to the resumer, mark this coexpression's OWN saved-state as "resume from the instruction
-after this coret on the NEXT `@`" (this is the JCON `p.expr.ir.resume` linkage from Step 0 — needs its own
-chain-label resolution, likely similar in spirit to how `IR_SUSPEND`'s per-suspend β-store already works per
-this goal's much earlier watermark entry on `IR_SUSPEND`'s binary-mode fix — re-read that entry's exact
-mechanism before designing this from scratch, it may be a closer precedent than anything else landed so far).
-`bb_cofail`: mark the coexpression permanently dead, `coswitch_scrip` back to the resumer signaling failure.
+**RUNG 4 — `bb_coret.cpp` + `bb_cofail.cpp` templates (`IR_CORET`/`IR_COFAIL`).** ✅ LANDED, SCRIP commit
+`<pending>` — see Session close below. `bb_coret`: loads the produced value's 16-byte DESCR into {rdi,rsi}
+and calls `scrip_coret` (`rt_coexpr.c`), which stores it into the coexpression's `xmit` slot and switches
+back to `scrip_co_current->activator`. `bb_cofail`: marks the coexpression permanently dead (`->dead = 1`)
+and switches back the same way. **Correction to this entry's own original expectation:** the pthread+
+semaphore switch model (RUNG 2) means resume does NOT need `IR_SUSPEND`'s per-suspend β-store precedent —
+`scrip_coswitch`'s caller simply blocks in `sem_wait` and later RETURNS from that same call when resumed, so
+there is no separate resume-label jump to encode in the template; `resume_addr`/`p.expr.ir.resume` is stored
+in `scrip_coctx_t` for RUNG 5's own bookkeeping but is not consumed by RUNG 4 itself. **Both templates are
+emit-complete and confirmed correctly emitted (their calls appear in real, compiled `.s` output — see Session
+close) but functionally UNEXERCISED at runtime**, because the body they belong to is only ever entered via
+`@`/resume (RUNG 5), which remains undesigned — see that entry below, now with concrete located-mechanism
+detail rather than a bare "not yet scoped".
 
 **RUNG 5 — `@`/resume-side wiring (the OTHER half of this feature, not yet even scoped).** Everything above is
 the `create`/producer side. Actually RESUMING a coexpression (`@coexpr` in Icon source) is a SEPARATE AST
@@ -1326,6 +1334,30 @@ co-expressions usable end-to-end — they do not; `@` is undesigned.** Locating 
 (likely `ir_a_Activate` or similar — not confirmed, grep `refs/jcon-master/tran/irgen.icn` for the record name
 the Icon grammar's `@` token maps to before assuming a name) is the first task of whichever session picks this
 rung up.
+
+**PARTIAL HEAD START (this session, 2026-07-01, cheap canonical-source lookup — not a design, just located
+the mechanism so RUNG 5 doesn't start from zero):** `@` is **NOT** its own `ir_a_*`/`ir_*` record — there is
+no `ir_a_Activate`. JCON desugars unary `@x` into the BINARY operator form `&null @ x`
+(`refs/jcon-master/tran/irgen.icn:516`: `t := a_Binop("@", a_Key("null", p.coord), p.operand, ir_coord(p.coord))`)
+and dispatches it through the SAME generic operator machinery every other binop uses (`ir_binary`,
+`irgen.icn:430-445`), lowering to a generic `ir_opfn(coord, target, ir_operator("@", 2, rval), args, resume)`
+call node — the only `@`-specific special-case in that shared path is argument order: `args := [rv, lv]`
+instead of the usual `[lv, rv]` (irgen.icn:433-434). The JVM-backend runtime-interface table confirms the
+method name: `refs/jcon-master/tran/interfacegen.icn:105`: `[2, "@", "Activate", "jcon.vDescriptor"]`.
+**Independent confirmation `@` is genuinely unimplemented, found by accident this session:** compiling the
+`micro.icn` benchmark (`corpus/benchmarks/icon/micro.icn`) fails at the SCRIP **parser** stage — not lowering,
+not the emitter — with `expected expression (got @)`. Checked whether this is a lexer gap or a grammar gap:
+`src/parser/icon/icon_lex.c:482` already tokenizes `@` as `TK_AT` (the lexer is done); the gap is entirely in
+`icon_parse.c`'s expression grammar, which has no production consuming `TK_AT` as a prefix operator. So RUNG
+5's actual first task is narrower than "locate the AST construct" implied — it's specifically: (a) add a
+`TK_AT`-prefixed unary production to `icon_parse.c`'s expression grammar (or desugar it to a binop AST node
+at parse time, mirroring JCON's own desugaring above — a design choice, not yet made), (b) lower it to
+SCRIP IR (no `IR_ACTIVATE` opcode exists yet — would need reserving one, or reusing the generic call-with-
+operator-name-"@" shape JCON itself uses), (c) write the `bb_*` template(s) that call `scrip_coswitch`
+into the target coexpression's `scrip_coctx_t` (first switch: `first=0`, wakes the trampoline; subsequent
+switches: `first=1` per `scrip_coswitch`'s existing contract in `rt_coexpr.c`) and read the result back out
+of its `xmit`/`dead` fields into the `@`-expression's own value/failure port. None of (a)/(b)/(c) attempted
+this session — this paragraph is a located starting point, not a plan.
 
 ## Session close (Claude Sonnet 4.6, continuation session, 2026-07-01)
 RUNG 1 (`TT_CREATE` LOWER) and RUNG 2 (pthread+semaphore switch primitive, `rt_coexpr.c`) both **LANDED +
@@ -1430,3 +1462,167 @@ linkage `IR_CORET.resumeLabel`, JCON's `p.expr.ir.resume`, whose closest SCRIP p
 per-suspend β-store — re-read that before designing), or (iii) fix `emit_intern_str` for the Icon-reset
 compile path so ANY of RUNG 3-4 can be tested live end-to-end (arguably should come FIRST — it gates all
 create/coret observation). RUNG 5 (`@`/resume, the consumer side) remains undesigned per the RUNG PLAN above.
+
+## ⛔⛔ CORRECTION (Claude Opus 4.8, 2026-07-01, continuation session) — the RUNG-3 close section immediately
+above got its OWN root-cause diagnosis WRONG on two related points; both are corrected here, verified by gdb
+backtrace (a compile-time abort, so gdb is the right tool per RULES.md — this was not a MONITOR-FIRST case).
+
+**LIMITATION 1's claim was WRONG.** It said every `create` program hits an "unrelated upstream `emit_intern_str`
+... stub" **before reaching `bb_create`**. A gdb backtrace on `create (1 to 3); write(42)` shows the opposite:
+frame #2 is `bb_create` itself, at its OWN `if (!_.op_sval_lbl) return x86_bomb(...)` guard (line 48 of that
+session's file) — `bb_create` runs, its NULL-label guard correctly fires, and `x86_bomb` merely happens to
+route its message through the (also-broken) `emit_intern_str` stub on the way out. `emit_intern_str` was never
+an upstream gate; it was standing in the exit path of a bomb `bb_create` was already, correctly, throwing.
+
+**The REAL root cause (not previously found):** `codegen_flat_chain_body`'s BFS discovery pass — the function
+that decides which IR nodes get a label and get emitted at all — follows `γ` edges always, `ω` edges for
+binop/call/generator-kind nodes, and, until this session, nothing at all for `IR_CREATE.operand[0]`.
+RUNG 1's own lowering (`lower_icon.c` TT_CREATE) sets `create.operand[0] = b_entry`
+as a plain DATA reference — never wired onto any `γ`/`ω`/`β` spine edge, because per JCON's own
+`ir_a_Create` (`p.expr` is entered via a SEPARATE `suspend ir(p.expr, ...)` call, not through `p.ir`'s own
+chunk chain) the body genuinely lives on its own disconnected sub-graph. Consequently the body island —
+its α-entry through to `IR_CORET`/`IR_COFAIL` — was **never discovered, never labeled, and never emitted, in
+either medium**, in ANY prior session's build. `op_sval_lbl` being NULL was a correct symptom of a real gap;
+the gap was just one level upstream of where it was diagnosed. Fixed by adding one line to BOTH of
+`codegen_flat_chain_body`'s two BFS loops (`emit.cpp`): `if (c->op == IR_CREATE && c->n_operands > 0 &&
+c->operands[0] && qt < CH_MAX) queue[qt++] = c->operands[0];` — the same shape as the existing
+`IR_SUSPEND.operand[1]` enqueue immediately above it in both loops.
+
+LIMITATION 2's technical description of the label-name→`bb_label_t*` gap was CORRECT and is the fix this
+session actually applied (see the Session close below) — only LIMITATION 1's "unrelated upstream gate" framing
+needed correcting; everything LIMITATION 2 said about `x86_label_for` only resolving port ids, and the
+candidate fix of threading body-entry as a t0/t1 port "exactly like `IR_LIMIT`", was accurate and is exactly
+what landed.
+
+## Session close (Claude Opus 4.8, RUNG 3 binary + RUNG 4, 2026-07-01, continuation session)
+**RUNG 3 now LANDED IN FULL (TEXT + BINARY) and RUNG 4 (`bb_coret.cpp`/`bb_cofail.cpp`) LANDED.** SCRIP commit
+`<pending>`, `.github` commit `<pending>` — see PUSH STATUS below; not yet pushed at the time this paragraph
+was written (push is the last act of the handoff sequence, per RULES.md).
+
+**What actually blocked live `create` testing (see CORRECTION above) and how it was closed, in causal order:**
+1. **The body sub-chain was never discovered by the BFS** (the real root cause; see CORRECTION). Fixed by the
+   one-line `operand[0]` enqueue in both BFS loops, described above. This alone makes `op_sval_lbl` resolve to
+   a REAL label for the first time in this feature's history.
+2. **LIMITATION 2, the label-name→`bb_label_t*` binary-mode bridge, closed as Lon explicitly directed: an
+   XA_* template.** New file `src/templates/xa_coexpr_entry.cpp`, function `xa_coexpr_body_lea(const char *
+   dst)`. Mechanism: the body-entry node's `bb_label_t*` (not just its name string) is now ALSO captured
+   during BFS resolution into a new global `g_create_body_entry` (parallel to the existing `g_limit_gen_beta`
+   — the working precedent LIMITATION 2 itself named) and threaded into the `t0` port
+   (`g_emit.lbl_t0_p`/`g_emit.lbl_t0`) in `emit_drive`'s `IR_CREATE` case, exactly as `IR_LIMIT` threads its
+   generator-β. A new encoder, `x86_lea_tgt(dst, t)`, added to `x86_asm.h` (TEMPLATE-ONLY EMISSION: all new
+   encoding logic lives there, not in the template) emits `lea dst,[rip+t0]` uniformly — TEXT: the mnemonic
+   +name; BINARY: `x86_Lrec(48 8D /r) + x86_Jrec(t0)`, the identical `x86_Lrec(opcode)+x86_Jrec(port)` shape
+   `x86_jmp_tgt`/`x86_call_tgt` already use for their own t0/t1 targets. Verified the disp32 patch formula in
+   `bb_emit_patch_rel32` (`disp = lbl->offset - (bb_emit_pos + 4)`) is the exact RIP-relative formula a LEA's
+   disp32 needs — valid verbatim, not a new formula. `bb_create.cpp` now calls `xa_coexpr_body_lea("rax")`
+   unconditionally (both mediums, zero `MEDIUM_*` branches in the template itself — the medium branch lives
+   entirely inside `x86_lea_tgt`, per TEMPLATE-ONLY EMISSION / NO MEDIUM_* IN TEMPLATES). `bb_create`'s guard
+   changed from checking `op_sval_lbl` to checking `lbl_t0` (what the LEA now actually consumes).
+3. **A second, smaller binary-mode gap found and fixed while verifying (1)+(2) end-to-end:** `bb_create`'s
+   call to `scrip_coexpr_create` was `x86("call","scrip_coexpr_create@PLT")` — no function-pointer argument,
+   TEXT-only by the existing `x86()` dispatch rule (a bare symbol with no pointer only resolves in
+   `!MEDIUM_BINARY`). Fixed to `x86("call","scrip_coexpr_create",(uint64_t)(uintptr_t)(void*)
+   scrip_coexpr_create)`, the same `x86_call_ro`-backed idiom every other cross-medium runtime call in this
+   codebase already uses (e.g. `bb_to.cpp`'s `rt_jct_relop`/`rt_num_arith` calls).
+4. **`emit_intern_str` (the stub LIMITATION 1 misidentified as the gate) fixed on its own merits** — not
+   because it was ever the real blocker, but because it's a genuine landmine (`abort()` on every call) sitting
+   in a contract every caller already handles the NULL branch of (`bb_lit.cpp`, `x86_bomb`, `bb_subject.cpp`,
+   etc. all do `lbl = emit_intern_str(s); if (!lbl) { strtab_label(...); lbl = b; }` — the existing
+   `strtab_label`/`strtab_intern` machinery, unrelated to this stub, already implements the real behavior).
+   Changed to `const char *emit_intern_str(const char *s) { (void)s; return NULL; }` — behavior-neutral by
+   construction, since every caller's NULL-fallback path already existed and already worked.
+
+**Runtime additions (`rt_coexpr.h`/`rt_coexpr.c`):** `scrip_coctx_t` gained four RUNG-4 fields —
+`activator` (who to switch back to), `resume_addr` (informational; see RUNG-4 plan-entry correction on why
+the pthread model doesn't need to consume this itself), `dead` (permanent-exhaustion flag), `xmit[2]` (the
+16-byte transmitted DESCR). New `scrip_co_current` global (JCON's `k_current`, one layer above the switch
+primitive — set by `scrip_co_trampoline` immediately before it calls `entry_fn`). New `scrip_coret(uint64_t
+d0, uint64_t d1, void *resume_addr)` and `scrip_cofail(void)`: both fail loud (`scrip_co_uerror`, not silent
+UB) if called with `scrip_co_current == NULL` or a NULL `activator` — the correct-but-unexercised-until-RUNG-5
+state this whole rung is in, guarded rather than assumed safe.
+
+**New templates:** `src/templates/bb_coret.cpp` (`IR_CORET`) — loads the produced value's DESCR into
+{rdi,rsi}, calls `scrip_coret`, `jmp γ` (a placeholder post-yield continuation; genuinely unreachable until
+RUNG 5, flagged in-file rather than silently baked in as if it were the real resume loop). `bb_cofail.cpp`
+(`IR_COFAIL`) — calls `scrip_cofail`, `jmp ω` (unreachable; `scrip_cofail` never returns). Both are clean
+`x86()`-only, zero `MEDIUM_*` branches, zero hand-encoded bytes — unlike `bb_suspend.cpp`'s grandfathered
+`MEDIUM_BINARY`-branching style, which was read as a precedent but NOT copied, since it's exactly the pattern
+NO MEDIUM_* IN TEMPLATES forbids for new code.
+
+**emit.cpp wiring:** `g_create_body_entry` global (declared + reset per-node alongside `g_limit_gen_beta`);
+`operand[0]` BFS enqueue in both discovery loops; capture into `g_create_body_entry` in the existing
+`IR_CREATE` resolution block (alongside the pre-existing `op_sval_lbl` string capture, kept for now — unused
+by the template post-fix but harmless); `t0` threading in `emit_drive`'s `IR_CREATE` case;
+`walk_bb_node`/`emit_drive` dispatch cases for `IR_CORET` (resolves `operand[0]`'s DESCR slot into `op_sa`)
+and `IR_COFAIL` (no operands).
+
+**Makefile:** three new files added to both the SRCS list (`libscrip_rt.so` build) and the explicit per-file
+`$(CXX) $(CXXRT) -c ...` recipe list (`scrip` binary build) — `bb_coret.cpp`, `bb_cofail.cpp`,
+`xa_coexpr_entry.cpp` — matching the two-edit pattern the RUNG-3 close above already documented as
+"learned the hard way via a link error."
+
+**PRIMARY VERIFICATION — `create (1 to 3); write(42)` in BOTH mediums:**
+```
+--run:      42   (exit 0)
+--compile:  42   (exit 0, after gcc -no-pie + libscrip_rt.so link)
+```
+Confirmed the body chain is genuinely emitted (not just a non-crashing no-op): the `--compile` `.s` output
+contains `lea rax, [rip + xchain0_n2_α]` (a REAL, DEFINED body-entry label — `xchain0_n2_α:` appears later in
+the same file) followed by `call scrip_coexpr_create@PLT`, and further down the SAME file, `IR_CORET yield` /
+`call scrip_coret@PLT` and `IR_COFAIL exhausted` / `call scrip_cofail@PLT` — the body's own success/failure
+targets, correctly emitted from the newly-discovered island. `create (1 to 3); write("made a coexpr")` (the
+string-literal variant LIMITATION 1 originally blamed) also passes both mediums, confirming `emit_intern_str`
+was never the real gate for either program shape.
+
+**Regression verification (every check re-run on the FINAL restored working state, not just once mid-session):**
+- Build clean: `make scrip` + `make libscrip_rt` both exit 0.
+- Icon smoke: **12/12 BOTH modes**, unchanged.
+- Mutation gate: **HARD TOTAL = 4**, unchanged (documented pre-existing baseline; zero new mutation sites
+  added by this session's edits).
+- `test_gate_template_medium_invisible.sh --strict`: 36 medium-branch sites found, **all** attributed to the
+  pre-existing `bb_suspend.cpp(2)` + `xa_flat.cpp(34)` WIP baseline; grep-confirmed **zero** `MEDIUM_*`
+  occurrences in code (as opposed to comments) in any of this session's new/modified template files.
+- `test_gate_icn_no_stack.sh`, `test_gate_icn_one_reg_frame.sh`, `test_gate_icn_semicolon_required.sh`: all
+  OK/PASS, unchanged.
+- 289-corpus (`test_icon_all_rungs.sh`): **PASS=162**, exactly the documented baseline, unchanged.
+
+**A regression scare that turned out NOT to be one — investigated to ground truth, not assumed:** running
+`scripts/update_icon_bench_asm.sh` (mandatory per RULES.md step 4, Icon emitter touched) showed
+`compile-err=12` out of the 13-file Icon benchmark corpus (`corpus/benchmarks/icon/*.icn`). Rather than
+attribute this to this session's changes, isolated it properly: `git stash`'d every edit (plus moved the 3 new
+untracked template files aside) to rebuild `scrip` at the EXACT pre-session commit (`fc398153`), ran all 13
+benchmark files against that baseline, then restored every edit (`git stash pop`) and re-ran the identical 13
+files. **Exit codes were identical for all 13 files in both states** (12 fail, 1 — `version.icn` — passes,
+matching this session's own `unchanged=1 compile-err=12` report exactly). A byte-level `diff` of every
+stdout/.s/stderr pair went further and found 4 files (`concord`, `geddump`, `micsum`, `rsg`) where the
+FAILURE MESSAGE changed even though the FAILURE OUTCOME (compile-time abort) did not: at baseline, all 4
+aborted at the SAME generic `emit_intern_str not implemented` stub; post-fix, each now reaches its OWN
+distinct, genuinely-unimplemented downstream gap (`bb_call: unsupported call shape fn='Init__'` for
+`concord`; `IR op=17`/`op=33`/`op=53` "has no template in the universal driver" for `geddump`/`rsg`/`micsum`
+respectively — compiler-verified via a standalone enum-print, per this goal's own established discipline, that
+none of those three ordinals are `IR_CREATE`(13)/`IR_CORET`(12)/`IR_COFAIL`(10); they are unrelated,
+pre-existing gaps in other IR opcodes entirely out of this session's scope). This is the DIRECT, PREDICTABLE
+consequence of fixing `emit_intern_str` (item 4 above): the old generic abort was MASKING each program's real,
+distinct blocker behind one shared, uninformative message; removing it let each program fail for its own
+actual reason instead — a diagnostic improvement, not a behavioral regression, and confirmed via `git status`
+that zero tracked `.s` artifacts in the `corpus` repo were altered (`update_icon_bench_asm.sh` reported
+`updated=0` in both runs — nothing was ever eligible to commit either way, since none of these 13 files ever
+produced a clean `.s`, before or after). No attempt was made to fix `Init__`/op=17/op=33/op=53 — genuinely
+unrelated, out-of-scope gaps; flagging their existence here is the honest thing to do, fixing them is not
+this session's task per Lon's own scoping ("Finish IR_CREATE and the rest").
+
+**THE HONEST SUCCESS BOUNDARY (restated, since RUNG 3+4 landing does NOT mean co-expressions work
+end-to-end):** `create EXPR` now correctly succeeds immediately, its body is genuinely discovered/labeled/
+emitted in both mediums with a correct entry-point capture, and the body's own success/failure targets
+(`IR_CORET`/`IR_COFAIL`) are emit-complete in both mediums. **The body still never RUNS** — nothing in RUNG
+1-4 ever calls `scrip_coswitch`; `scrip_coexpr_create` only allocates+wires the struct. Actually resuming a
+coexpression is `@coexpr`, entirely unimplemented (RUNG 5) — confirmed independently this session by
+`micro.icn`'s benchmark hitting a SCRIP **parser** error on `@` (`icon_lex.c` already tokenizes it as `TK_AT`;
+`icon_parse.c`'s expression grammar has no production consuming it — see the RUNG 5 plan-entry addendum above
+for the located JCON-side desugaring mechanism, `&null @ x` binop dispatch, that whoever picks up RUNG 5 can
+start from instead of a blank slate).
+
+**PUSH STATUS:** local commits pending at the time this paragraph was written — this is an INCOMPLETE handoff
+until `git push` succeeds and `scripts/handoff_status.sh` prints `HANDOFF COMPLETE`, per RULES.md's own FACT
+RULE on this point. Not dressed up as done; see the human-facing turn this session ends on for the actual
+computed result.
