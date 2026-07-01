@@ -1680,3 +1680,104 @@ tree-tag (`icon_parse.c`) → IR opcode mapping. Findings, each grep/build-verif
   the four `test_gate_icn_*.sh` gates, `test_gate_emit_no_ir_mutation.sh` — this session's two changes
   don't touch emitter-mutation surface or non-`=`-operator corpus behavior, but that's an assertion, not a
   measured gate result; next session should run them before extending this work.
+
+## ⛔⛔ CORRECTION (Claude Sonnet 5, continuation session, 2026-07-01) — the locked 8-opcode `_GEN` grid above is WRONG; `ir_is_generator_kind`/chain-BFS already proves it unneeded
+The unary-op-audit session's locked design (immediately above) proposed `IR_UNOP`/`IR_UNOP_REL`/`IR_BINOP`/`IR_BINOP_REL`
+each ×`_GEN`, reasoning that an operand which can itself backtrack needs a distinct opcode carrying its own
+β/ω resume wiring. This contradicts the **DIVISION RULE** already locked in this same file on 2026-06-27:
+resumability is discovered by the chain-BFS walking a consumer's *operands* for `ir_is_generator_kind`, and
+routes retry edges straight to the actual upstream generator's β — **proven** for both `(1 to 3)+10` and the
+Cartesian `(1 to 3)+(1 to 2)` on plain `IR_BINOP`, zero dedicated generator-tree walker. Re-verified this
+session: `ir_is_generator_kind` (`src/opt/ir_query.c`) is a closed set (`IR_TO/PROC_GEN/REPALT/LIMIT/ITERATE/
+SCAN_UPTO/FIND/MANY/BAL`) that never needed `IR_BINOP`/`IR_UNOP` in it; the chain-BFS sites (`emit.cpp` ~689,
+1255-1268, 1482-1493) are opcode-agnostic on the consumer side; `emit_drive`'s `IR_BINOP`/`IR_UNOP` blocks
+carry zero generator-specific branching; and — the clinching check — `IR_TO` itself (an actual generator)
+drives through the *identical* `DRIVE_FILL`/`DRIVE_PAIR_DEF_JMP` shape as `IR_BINOP`/`IR_UNOP`. There is no
+"generator wiring pattern" distinct from "plain wiring pattern" to fork an opcode on. **The `_GEN` axis is
+deleted from the design.** Two axes collapse to one (can-fail), giving four opcodes, not eight.
+
+## Session close — IR_UNOP/IR_UNOP_TEST/IR_BINOP/IR_BINOP_TEST landed; IR_NOT deleted; IR_TERNOP→IR_SECTION rename + IR_SUBSCRIPT removal; prove_lower retired (Claude Sonnet 5, continuation session, 2026-07-01)
+
+**1. `IR_TERNOP` renamed to `IR_SECTION`** (behavior-neutral). `s[i:j]`/`s[i+:n]`/`s[i-:n]` unchanged (`ival`
+0/1/2); `+:`/`-:` still bomb with the pre-existing "pending" message, byte-identical. 8 sites across
+`IR.h`/`scrip_ir.c`/`lower_icon.c`/`emit.cpp`/`bb_section.cpp`.
+
+**2. `IR_SUBSCRIPT` deleted** — was a dead placeholder (enum + name-table only, zero construction/dispatch
+sites, same status `IR_GOTO` had before its own deletion). Single-index `s[i]` was never on this opcode; it
+lowers via `TT_IDX` → `lower_call("[]")` → the generic `[]`-operator call path (`rt_call_arr`), confirmed live
+and unaffected — JCON has no `a_Subscript` either (`ir_a_Sectionop` is the only 3-arg operator; single index
+goes through the same general binary-operator path SCRIP already uses).
+
+**3. Four-opcode can-fail x arity grid landed, `_GEN` axis correctly dropped per the correction above:**
+- `IR_BINOP_RELOP` renamed to `IR_BINOP_TEST` (was already a clean plain-vs-test split via which opcode
+  `is_relop` builds -- pure rename, 11 sites across `IR.h`/`scrip_ir.c`/`lower_icon.c`/`emit.cpp` (x5,
+  including two previously-missed chain-queue sites and the `descr_chain_arity`/`bb_call_write_route`
+  helpers)/`bb_binop_relop.cpp`).
+- New `IR_UNOP_TEST` -- reuses the exact name deleted as dead scaffolding two sessions ago (verified clean
+  via grep before reuse). Classification (canonical-verified: `refs/icon-master/src/runtime/ovalue.r`
+  documents `\x` as "test x for nonnull value") is by actual codegen, not guessed: `TT_NONNULL` (`\`) and
+  `TT_NULL` (`/`) are the only two unary ops whose `bb_unop.cpp` arms have a real value-dependent `je`/`jne
+  omega` (both had a prior generic upstream-failure check too, that one doesn't count -- every unop already
+  had it). `TT_MNS`/`TT_PLS`/`TT_SIZE` never fail -> stay `IR_UNOP`. `TT_RANDOM` (`?`) and the dead
+  `TT_INTERROGATE` are UNCHANGED -- both were already unresolved (silent no-op, same bug class as `=s`/`~e`
+  from two sessions ago) and deliberately left that way; NOT reclassified this rung, out of scope.
+  `bb_unop_resolve`'s inner switch merges `IR_UNOP`/`IR_UNOP_TEST` into one table (each sub-tag only ever
+  paired with the correct outer opcode by construction, so no ambiguity).
+
+**4. `IR_NOT` deleted entirely -- zero opcode, not a rename.** `refs/jcon-master/tran/irgen.icn`'s `ir_a_Not`
+(read this session) builds no operator node at all: pure `ir_Goto` success/failure port-swap around the child
+plus one generic `ir_Key(target,"null",&null)` call on the swapped success arm -- same generic keyword-write
+used everywhere, not NOT-specific. SCRIP's `IR_NOT` was already structurally almost there (only ever reached
+via the child's failure edge) but forced a full operator node through `bb_unop`'s dedicated NOT arm, whose
+entire codegen hardcoded the null-DESCR bit pattern and never touched the operand. `lower_not` now builds a
+plain `IR_VAR` node with `sval="&null"` (the same live keyword-read mechanism already used elsewhere, e.g.
+the parser's elided-call-arg fill-in) instead of `IR_NOT`, wired identically (child.success->my.omega,
+child.failure->the &null node). Ripple sites found and fixed by full sweep, not assumed clean: `emit.cpp`
+dispatch/emit_drive/`descr_chain_arity` and `bb_call_write_route`'s `wintexpr` classifier (the `IR_NOT`
+disjunct was redundant with the already-present `IR_VAR` check -- `write(not(x))` stays correctly classified
+for free); `bb_unop.cpp` (dedicated NOT enum member + both switch cases + codegen branch removed, the
+operand-slot guard relaxed to unconditional since every remaining unop kind now genuinely needs it); and --
+the one genuinely nontrivial fix -- `scrip.c`'s `rhs_kind_ok` (a pre-emission "known-good assignment-RHS-shape"
+gate), which had `IR_NOT` as an accept case. Blindly deleting that would have silently regressed
+`y := not(x)` from accepted to rejected, because the existing `IR_VAR` accept case explicitly *excludes*
+keywords (most keywords are dynamic runtime state). Fixed with a narrow, precise accept --
+`op==IR_VAR && sval=="&null"` -- mirroring exactly the safe-known-fixed-value guarantee `IR_NOT` used to
+provide, not a blanket keyword exception.
+
+**5. `prove_lower.c` deleted per Lon's direction ("we moved past the proving we were doing back then").**
+Not isolated dead scaffolding -- `prove_lower.sh` (compiled the file as a standalone topology-proof harness
+for the pre-GZ#5 unified lowerer) was a HARD sub-gate inside `test_gate_icn_var.sh` and `test_gate_icn_scan.sh`.
+Retired properly, not left dangling: removed the `gate_hard "prove_lower"` line from both gates (+ their
+summary-comment mentions), removed the dead `run prove_lower` line from `bake_ird3_baseline.sh` (non-Icon
+multi-language baseline tool, out of goal scope regardless), deleted `prove_lower.sh` itself. **Left alone,
+flagged not fixed:** `audit_concurrency_invariants.sh` uses the string `'prove_lower.sh green'` as a
+doc-consistency text-block anchor (checking a "LOWER FACT RULE" block stays byte-identical across HQ docs),
+not an executable dependency -- not one of this goal's sanctioned gates, and properly fixing it means locating
+and editing the actual anchor text wherever it lives in `.github`, out of scope this session.
+
+**FOUND, NOT FIXED -- pre-existing bug, confirmed via bisection against the untouched original tree (present
+before any edit this session):** `\`/`/` (the two `IR_UNOP_TEST` ops) used as a *failing*
+`if...then...else` condition does not route to the else branch -- execution silently drops out of the
+enclosing procedure instead of continuing. Isolated specifically to these two unary test ops: relops
+(`IR_BINOP_TEST`) correctly route failure to else (verified: `if (5=6) then write("BAD") else write("ok")`
+prints `ok` correctly). Not touched -- the codegen for the two unary test ops is byte-identical to before
+this session's rename (bisection-verified), so this is a control-flow/chain-wiring issue upstream of
+`bb_unop.cpp`, not a codegen bug in the templates themselves. Worth its own rung.
+
+**VERIFICATION (all commands rerunnable):**
+```
+grep -rn "IR_TERNOP\|IR_SUBSCRIPT\|IR_BINOP_RELOP\|prove_lower" src/ scripts/   # only audit_concurrency_invariants.sh's doc-anchor left
+make scrip && make libscrip_rt                                                 # clean
+bash scripts/test_smoke_icon.sh                                                # 12/12 both modes
+bash scripts/test_icon_all_rungs.sh                                            # PASS=162 FAIL=91 XFAIL=36/289 -- bisected BYTE-IDENTICAL to original tree (zero regression)
+bash scripts/update_icon_bench_asm.sh                                          # total=13 updated=0 unchanged=1 compile-err=12 -- matches documented baseline exactly
+bash scripts/test_gate_emit_no_ir_mutation.sh                                  # HARD=4, unchanged (pre-existing, not regressed)
+bash scripts/test_gate_icn_no_stack.sh && bash scripts/test_gate_icn_one_reg_frame.sh && bash scripts/test_gate_icn_semicolon_required.sh   # all green
+bash scripts/test_gate_icn_var.sh && bash scripts/test_gate_icn_scan.sh        # prove_lower sub-gate now clean (removed); overall gate still FAILs on a corpus-bucket floor check (N=0, /home/claude/corpus/programs/icon path) -- bisected pre-existing/environmental on the original tree too; probe breakdown (PASS=15 FAIL=4, all four "LOUD DECLINED by design") also matches the pre-session baseline exactly
+```
+Manual smoke (not corpus-committed): unary minus/plus/size, nonnull-test, null-test, not() as if-condition
+and as assignment RHS (both success and failure forms), relops, plain binop/concat -- all byte-identical
+between `--run` and an assembled `--compile` binary.
+
+**PUSH STATUS:** commits pending at the time this entry was written -- see the human-facing turn this session
+ends on, and `scripts/handoff_status.sh`'s verbatim stdout, for the actual computed result. Not claimed here.
