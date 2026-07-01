@@ -601,7 +601,28 @@ infra per the existing PUNCH LIST entry — `ir_a_Alt`/`ir_a_RepAlt` read in ful
 `irgen.icn:167-229`, nothing to correct there).
 
 ## Watermark
-**2026-06-30 (Claude Sonnet 4.6) — IR_SCAN slot-linkage FIXED; IR_ENTER_INIT / TT_INITIAL LANDED. SCRIP `699bc0e2` (LOCAL — push BLOCKED pending credential). `.github` (LOCAL — push BLOCKED pending credential).** Corpus 146/289 unchanged (zero regressions), smoke 12/12 both modes, mutation gate HARD=4 unchanged.
+**2026-06-30 (Claude Sonnet 4.6) — IR_NOT fixed; TT_CSET union-clobber fixed (IR_LIT_CHARSET); TT_ITERATE α-entry fixed; IR_ITERATE slot k+=2; TT_RECORD/TT_INVOCABLE/TT_LINK landed. SCRIP `963484a5` PUSHED (pending credential). `.github` (LOCAL — push BLOCKED pending credential).** Corpus 146→159 (+13, zero regressions), smoke 12/12 both modes, mutation gate HARD=4 unchanged.
+
+**WHAT LANDED (SCRIP `963484a5`, 4 files, 54 insertions / 5 deletions):**
+
+1. **IR_NOT added to `ir_node_produces_value`** (`scrip_ir.c`). JCON `ir_a_Not` produces `&null` on success (expr.failure → write null → p.success). IR_NOT was absent from produces_value → `drive_value_slot` returned -1 → `op_off=-1` → `bb_unop` UO_NOT emitted nothing. Adding IR_NOT to produces_value gives it a proper 16-byte result slot. `write(not(1=2))` now outputs `` (the &null value); `if not(1=2) then write("ok")` prints `ok`. `ir_a_Not` entry in MASTER TABLE was already ✅ but the slot registration was missing — now truly complete.
+
+2. **TT_CSET union-clobber → IR_LIT_CHARSET** (`lower_icon.c` + `emit.cpp` + `scrip_ir.c` + `bb_lit_scalar.cpp`). Root cause: `IR_LIT(nd).sval` and `.ival` share a union. Prior code set `.sval = icn_cset_canon(...)` then `.ival = 1` (cset flag), silently overwriting the string pointer with integer 1 → `op_name1 = 0x1` → SIGSEGV in `bb_scan_any` at `x86(".string", 0x1)`. Fix: use the existing `IR_LIT_CHARSET` opcode; only `.sval` set; `emit_drive` sets `op_ival=1` for `bb_lit_scalar`'s `FR(_.op_off+4) = -1` (IS_CSET_fn sentinel) path. Added `IR_LIT_CHARSET` to: `walk_bb_node` (routes to `bb_lit_scalar`), `emit_drive` (with op_ival=1), `ir_node_produces_value`. New IR_LIT_CHARSET case in `bb_lit_scalar.cpp` emits DT_S + slen=0xFFFFFFFF (-1). **VERIFIED:** `rung06_cset_any_basic` (no crash, prints 2), `rung06_cset_many_basic` (prints 2), `rung06_cset_upto_basic` (tested inline; corpus runner still shows FAIL due to `every(scan)` nesting issue, not cset). Corpus +2.
+
+3. **TT_ITERATE forward-feed α-stamp** (`lower_icon.c`). `γ_to(orr, nd)` auto-stamps β when target is `ir_is_generator_kind` → `!s` and `!list` always entered IR_ITERATE at the **resume port** (β), which increments the counter before the first use — yielding s[1..n] instead of s[0..n-1] (skipping first element). Fix: `lc_γ_to(orr, nd)` (unconditional α). Same fix class as `lower_to`'s from-ignoring regression. **VERIFIED:** `!s` now yields all chars; `!list` yields all elements; `rung15_iterate_string` PASS; `rung11_bang_*` PASS (2 tests). Corpus +8.
+
+4. **IR_ITERATE slot size k+=2** (`scrip_ir.c` `ir_drive_slot_assign`). IR_ITERATE needs 24 bytes: 16-byte result DESCR + 8-byte int64 counter at `[+16]`. With only k+=1 (16 bytes), the next value-producer's slot could land inside ITERATE's counter region (same collision class as IR_TO regression at feab99c7). Added `if (nd->op == IR_ITERATE) { nd->tmp = base + k*16; k += 2; continue; }` before the general case. k+=2 = 32 bytes safe oversize, same pattern as IR_TO/IR_SCAN_ENTER.
+
+5. **TT_RECORD / ir_a_Invocable / ir_a_Link** (`lower_icon.c`). All three are pure meta-declarations. `TT_RECORD`: builds spec string `"name(f1,f2,...)"` and calls `record_register(spec)` at lower time → IR_SUCCEED. `TT_INVOCABLE`/`TT_LINK`: fall through to → IR_SUCCEED (no IR node, no side effect needed in lowering). MASTER TABLE: `ir_a_Record` ✅, `ir_a_Invocable` ✅, `ir_a_Link` ✅. **VERIFIED:** `record point(x,y); ... p:=point(3,4); write(p.x); write(p.y)` → `3\n4`. `rung36_jcon_record` and similar: corpus +3.
+
+**CORRECTIONS to prior claims found this session:**
+- `ir_a_Not` entry in MASTER TABLE was marked ✅ but was incomplete: IR_NOT was absent from `ir_node_produces_value`, so the result slot was never allocated and the write-null-to-output codepath silently emitted nothing. The ✅ should have been 🔶 until this session's fix.
+- The `TT_CSET` comment in `lower_icon.c` at the prior watermark saying it used `IR_LIT_STRING+ival=1` was documenting the bug that caused crashes. Now replaced with IR_LIT_CHARSET.
+- `TT_RECORD_DECL` (used by Rebus lower) is NOT the Icon record AST token. Icon uses `TT_RECORD` (from `icon_parse.c:749: ast_node_new(TT_RECORD)`) with `e->v.sval=name` and children as field TT_VAR nodes.
+
+**PUSH STATUS: SCRIP `963484a5` LOCAL — credential needed to push. `.github` LOCAL — credential needed.**
+
+
 
 **WHAT LANDED (6 files, 100 insertions / 13 deletions):**
 
@@ -1062,9 +1083,9 @@ The score-keeping grid for the JCON→SCRIP conversion must be organized by **JC
 | `ir_a_Scan` | TT_SCAN | IR_SCAN_ENTER → body → IR_SCAN | 1+2 | ✅ | `s ? body`; enter/leave wired. Scan builtins (tab/move/upto/any/many/find/match/pos/bal) have specialized IR opcodes+templates. Leave-node save-area slot linkage FIXED `699bc0e2`: enter node passed as operand[0] on both leave nodes so emit_drive reads enter->tmp (replaces the IR_LIT(nd).ival approach that required the offset at lower time, before slot assignment). IR_SCAN_ENTER gets k+=2 in ir_drive_slot_assign. rung05 scan tests all pass. |
 | `ir_a_Create` | TT_CREATE | IR_CREATE | 2 | ❌ | co-expression; ucontext-based in coro_runtime.c; needs IR_CREATE dispatch |
 | `ir_a_CoexpList` | — | — | — | ❌ | stops with "don't know how to do coexplist" in JCON itself |
-| `ir_a_Invocable` | TT_INVOCABLE | — | — | ❌ | meta-declaration |
-| `ir_a_Link` | TT_LINK | — | — | ❌ | link declaration |
-| `ir_a_Record` | TT_RECORD | — | — | ❌ | record type declaration |
+| `ir_a_Invocable` | TT_INVOCABLE | — | — | ✅ | pure meta-annotation → IR_SUCCEED (no IR node); SCRIP `963484a5` |
+| `ir_a_Link` | TT_LINK | — | — | ✅ | link declaration → IR_SUCCEED (no IR node); SCRIP `963484a5` |
+| `ir_a_Record` | TT_RECORD | — | — | ✅ | pure declaration → record_register(spec) at lower time + IR_SUCCEED. AST: e->v.sval=name, children=field TT_VAR nodes. Builds "name(f1,f2,...)" spec string. SCRIP `963484a5` |
 
 **CORRECTIONS to prior punch-list text (confirmed this session):**
 - `TT_FIELD`, `TT_SECTION/PLUS/MINUS` — prior watermark said "IR_FAIL-stubbed". CORRECTED: both are now DONE as of `d04ac8f5`. FIELD was already done earlier (`44c0da0f`); SECTION done this session.
@@ -1075,7 +1096,6 @@ The score-keeping grid for the JCON→SCRIP conversion must be organized by **JC
 When multiple IR chain arms (one per case clause) each produce a value and all must converge to a single output slot readable by an outer consumer (e.g. `write(case x of {...})`): allocate a synthetic `__case_result` IR_VAR node as `*res`; each arm lowers its body with `γ=NULL` (not the outer γ), then routes through `IR_ASSIGN("__case_result", body_val)` with `γ_to(asn, cvar)` where `cvar` is the shared IR_VAR. `cvar` then has `γ=outer-γ`. The `bb_assign_local` template writes the body value to `bb_varslot("__case_result")` (frame slot allocated by the first use), and `bb_var` copies that slot to `cvar->tmp` (the IR_VAR's own tmp slot allocated by `ir_node_produces_value`). The outer consumer reads `cvar->tmp`. This is the SCRIP realization of JCON's `target` parameter threading — without a formal target parameter, a synthetic local provides the same single-slot convergence.
 
 **NEXT (in order):**
-1. `TT_ALTERNATE` resumability (unbounded `every write(1|2|3)`) — own rung; needs IR_INDIRECT_GOTO template + MoveLabel mechanism (sibling-node label resolution). See punch-list entry for exact infrastructure required. Do NOT attempt without that infra.
-2. `TT_CREATE` (co-expressions) — IR_CREATE dispatch; JCON ir_a_Create: IR_CREATE node + IR_CORET/IR_COFAIL wiring inside the co-expression body. See ir.icn: ir_Create(lhs, coexpLabel), ir_CoRet(value, resumeLabel), ir_CoFail(). coro_runtime.c in src/driver/ already has ucontext scaffolding. Needs: IR_CREATE/IR_CORET/IR_COFAIL in IR_e, templates bb_create.cpp/bb_coret.cpp/bb_cofail.cpp, lower_icon.c TT_CREATE wiring per JCON ir_a_Create.
-3. `TT_RECORD` / `ir_a_Record` — record type declaration. JCON ir_a_Record: returns ir_Record(coord, name, fields[]) — a pure declaration, no IR nodes. SCRIP: call record_register(spec) at emit time; the by_name_dispatch.c constructor call path already handles rt_construct_build. Needs: TT_RECORD_DECL case in lower_icon.c (no IR node, side-effect only — register the type at lower time).
-4. `every x:=GEN do BODY` assign-wrapped-generator regression (pre-existing from `feab99c7`) — MONITOR-FIRST/gdb `every x:=7 to 9 do write(x)`. Bisected to `feab99c7` (GVA-FLAT landing); see watermark entries from 2026-06-30.
+1. **`every GEN do BODY` / augop-in-every regression** — MONITOR-FIRST per RULES.md. `every sum +:= (1 to 5)` outputs `0` (not 15). AST: `TT_EVERY(TT_AUGOP(sum, 1_to_5))` — no separate body. TT_AUGOP desugars inside lower() to `TT_ASSIGN(sum, TT_ADD(sum, 1_to_5))` which recurses and creates a second IR_TO inside the body; lower_every's gen_beta from the outer generator chain never gets correctly wired to the inner desugared IR_TO's entry. MONITOR-FIRST/gdb on `every sum +:= (1 to 3)` to bracket. Also affected: `every x:=A to B do write(x)` (feab99c7 regression, bisected, same family).
+2. `TT_ALTERNATE` resumability (unbounded `every write(1|2|3)`) — own rung; needs IR_INDIRECT_GOTO template + MoveLabel mechanism (sibling-node label resolution). See punch-list entry for exact infrastructure required. Do NOT attempt without that infra.
+3. `TT_CREATE` (co-expressions) — IR_CREATE dispatch; JCON ir_a_Create: IR_CREATE node + IR_CORET/IR_COFAIL wiring inside the co-expression body. coro_runtime.c in src/driver/ already has ucontext scaffolding. Needs: IR_CREATE/IR_CORET/IR_COFAIL in IR_e, templates bb_create.cpp/bb_coret.cpp/bb_cofail.cpp, lower_icon.c TT_CREATE wiring per JCON ir_a_Create.
