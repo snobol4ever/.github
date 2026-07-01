@@ -1142,3 +1142,189 @@ Mapped onto SCRIP's architecture (which has no equivalent of JCON's write-throug
 
 ## Session close (Claude, continuation session, 2026-07-01)
 Item (i) every-augop/loop-carried-local-var-read: **FIXED + VERIFIED** (SCRIP `1af92dd0`). Items (ii) unbounded-Alt and (iii) co-expressions: **re-scoped, both larger than this file previously documented** (see the two corrections above) — neither attempted this session, deliberately, per the file's own established rhythm (land one rung fully before starting the next). `update_icon_bench_asm.sh` run: `total=13 new=0 updated=0 unchanged=1 compile-err=12` on the separate 13-program benchmark corpus (`corpus/benchmarks/icon/`, distinct from the 289-program rung suite) — the 12 compile-errors are pre-existing (unrelated unimplemented shapes in more complex real programs), not a regression from this fix; nothing to commit. The three SNOBOL4-specific regen scripts (`util_regen_benchmark/feature/demo_s_artifacts.sh`) were deliberately NOT run — they'd execute the parked SNOBOL4 pipeline, which this goal's HARD RULE forbids even as a routine handoff step ("any other-language entry in a doc's... block... does not apply to this goal, ignore it there too"). Final state this session: 289-rung corpus 159→162, smoke 12/12 both modes, mutation gate HARD=4 — unchanged since the fix landed above, no further drift. **Next session: pick ONE of (ii) unbounded Alt (recommended — contained, compiler-only, the bounded-context-threading design is the real first step) or (iii) co-expressions (largest — genuine runtime work, no scaffolding exists despite this file's prior claim otherwise).**
+
+## ⛔⛔ CORRECTION (Claude Sonnet 4.6, continuation session, 2026-07-01) — `.github`/`SCRIP`/`corpus`/`x64` do NOT need a TOKEN to clone; only `git push` does
+**Every prior watermark entry in this file (and PLAN.md/RULES.md/REPO-SCRIP.md/REPO-corpus.md) describing these
+four repos' clone command with a `TOKEN@`/`TOKEN_SEE_LON@` credential embedded in the URL was WRONG for the
+clone step — verified this session by direct clone test on all four, not assumed from the doc pattern:**
+```bash
+git clone https://github.com/snobol4ever/.github.git   # works, no credential
+git clone https://github.com/snobol4ever/SCRIP.git     # works, no credential
+git clone https://github.com/snobol4ever/corpus.git    # works, no credential
+git clone https://github.com/snobol4ever/x64.git       # works, no credential
+```
+All four are genuinely public repos. **`git push` on any of them still genuinely fails with no credential**
+(`fatal: could not read Username for 'https://github.com'` — confirmed via `git push --dry-run`) — that half
+of every prior "credential needed" watermark entry was correct and remains correct; only the CLONE half was
+wrong. The four doc files above are now corrected in place (each edit notes it was verified by direct test,
+not just asserted) — `.github` commit `2342d025`. **Six repos' TOKEN references were deliberately left
+untouched** — `csnobol4`, `harness`, `snobol4csharp`, `snobol4dotnet`, `snobol4jvm`, `snobol4python` — because
+those were not tested this session; do not assume they're also public by pattern-matching from the four that
+were confirmed, verify each independently before touching its doc. **Practical impact of this correction: a
+session opening this goal no longer needs to wait for a credential before cloning/building/orienting — only
+the final `git push` at genuine session close does.** Also confirmed and left alone on inspection (not removed
+despite an initial impulse to): REPO-SCRIP.md's "never install bison/flex" line is substantively correct
+(every frontend's `.tab.c`/`.lex.c`/`_parse.c` is git-tracked next to its `.y`/`.l` source, Makefile has zero
+bison/flex invocation, so hand-running the generator would silently clobber committed/tested output with
+unverified output) — reworded in place to state the actual hazard (running the generator against these
+specific grammars, not merely having the tool installed) rather than deleted.
+
+## ⛔⛔ CO-EXPRESSION RESEARCH FINDINGS (Claude Sonnet 4.6, continuation session, 2026-07-01) — Step 0 + Step 3 of the MECHANICAL CONVERSION TECHNIQUE, done in full before any C written
+
+**Step 0 — `ir_a_Create` wiring diagram, read directly against `refs/jcon-master/tran/irgen.icn:1035-1058`:**
+- `p.ir.start`: `ir_Create(target, p.expr.ir.start)` then `Goto p.ir.success` — **`create EXPR` succeeds
+  IMMEDIATELY**, returning a co-expression VALUE; `p.expr` is NOT entered here, only its entry LABEL is
+  captured. This is the load-bearing fact easiest to get wrong under time pressure: `create` is NOT itself a
+  generator over `p.expr`'s values — it's an ordinary, non-generative, single-value-producing expression whose
+  "value" happens to be a handle that can later be resumed via `@`.
+- `p.ir.resume` (bounded only): `Goto p.ir.failure` — asking `create`'s OWN result for a second value (as
+  opposed to `@`-ing the coexpression it produced) always fails; `create` is bounded/non-resumable itself.
+- `p.expr.ir.success`: `ir_CoRet(t, p.expr.ir.resume)` — the body, when IT succeeds, yields a value back to
+  whoever last resumed this coexpression and remembers where to continue on the NEXT resume.
+- `p.expr.ir.failure`: `ir_CoFail()` — the body is exhausted; the coexpression is now permanently dead; future
+  `@`-resumes fail forever.
+- `ir_Create`/`ir_CoRet`/`ir_CoFail` are real record types in `refs/jcon-master/tran/ir.icn:40-42` (not
+  something JCON invents ad hoc) — confirms these map directly onto SCRIP's already-reserved `IR_CREATE`/
+  `IR_CORET`/`IR_COFAIL` `IR_e` members with no naming mismatch to resolve.
+
+**Step 2 — bounded/unbounded fork:** trivial here, NOT the hard part (unlike `ir_a_Alt`). `create` is always
+bounded from the outside; the complexity is entirely inside the body's own resumption, which is a runtime
+mechanism (a second execution context), not a LOWER-time label-variable problem like unbounded `ir_a_Alt`.
+
+**Step 3 — runtime semantics, traced end to end through THREE layers of JCON/Icon canonical source, not
+assumed from any one of them:**
+1. `refs/jcon-master/tran/gen_bc.icn` `bc_gen_ir_Create`/`bc_gen_ir_CoRet`/`bc_gen_ir_CoFail` (JVM bytecode
+   emission level): `create` builds a `vClosure` object (entry point + captured local-variable array, i.e.
+   `create` captures MORE than just an entry label — the enclosing procedure's live locals travel with it;
+   **this was NOT flagged in this file's prior punch-list entry for `ir_a_Create` and is new, load-bearing
+   scope information**). `ir_CoRet`'s `bc_transfer_to` for the plain-label case is a bare `goto` — meaning the
+   REAL suspend/resume magic is NOT in anything `gen_bc.icn` emits; it's inside `.coret()`'s own Java runtime
+   implementation, outside `tran/` entirely and not read this session (out of scope — SCRIP targets native
+   code, not JVM, so the JVM runtime's internals are not the relevant analog; see layer 3 below instead).
+2. `refs/icon-master/src/runtime/rcoexpr.r` (`co_init`/`co_chng`, the Icon C-runtime high-level protocol):
+   `co_init` lays out a fresh INTERPRETER stack frame (Icon's own VM registers — `es_pfp`/`es_argp`/`es_ipc`/
+   `es_sp`/`es_tend`/`es_gfp`/`es_efp`/`es_ilevel`) for the new coexpression WITHOUT running any of it yet —
+   directly confirms JCON's "succeeds immediately, doesn't enter the body" semantics from Step 0, independently,
+   from a completely different implementation. `co_chng` is the actual switch: save all those interpreter
+   registers into the OLD coexpr struct, load them from the NEW one, call `coswitch(ccp->cstate, ncp->cstate,
+   first)`. **CRITICAL: this file's own comment (line 26) says "There is no longer C state in this region;
+   pthreads makes another stack" — a direct textual signal, independently confirmed by layer 3, that this
+   reference implementation has moved OFF whatever it used to do (hand-rolled/ucontext) and ONTO pthreads.**
+3. `refs/icon-master/src/common/rswitch.c` (`coswitch`, the actual mechanism — READ IN FULL, not skimmed):
+   **CORRECTS this file's own prior punch-list guess ("needs `ucontext.h` or hand-rolled stack-switching") —
+   the real reference implementation is neither.** It is **one real POSIX thread per live coexpression**,
+   paired with a **semaphore per switch direction** (`sem_post(new->semp)` to wake the target, `sem_wait
+   (old->semp)` to block the switcher — exactly one thread ever runs at a time, kernel-scheduled mutual
+   exclusion, not userspace stack-pointer juggling). `cstate[2]` (two words) is NOT a `ucontext_t` — it's a
+   thread handle + a lazily-`pthread_create`d context struct pointer. The new thread is created LAZILY, on the
+   FIRST `coswitch` that targets it (`first==0` branch) — matches `co_init`'s "lay out interpreter state, don't
+   run anything yet" semantics precisely: the interpreter-level refresh block is prepared eagerly at `create`
+   time, but the OS-level thread that will actually execute it doesn't exist until the first resume.
+
+**WHY THIS MATTERS FOR SCRIP'S PORT (the actual design implication, not just a historical note):** `co_chng`'s
+save-list (`pfp`/`argp`/`tend`/`efp`/`gfp`/`ipc`/`sp`/`ilevel`) is a list of ICON INTERPRETER VIRTUAL REGISTERS
+— SCRIP has no interpreter loop at runtime (the entire point of GZ#5: "nothing reads or writes the AST/IR at
+runtime," `GOAL-ICON-BB.md` line 113). **That save-list is NOT directly portable.** What DOES port directly is
+the STRATEGY (pthread + semaphore-pair switching) — it doesn't care what payload it's switching, only that
+something gets saved into a struct before blocking and restored before waking. SCRIP's own payload is real x86
+callee-saved register state (`rbx`/`rbp`/`r12`-`r15`/`rsp`) per the register contract (`x86_asm.h`, re-verified
+this session directly, not from memory: `r12`=ζ frame, `r13`=Σ, `r14`=δ, `r15`=Δ, `rbx`=DESCR base, `rbp`=NV
+hash) — critically **`r12` (the per-glob ζ RW frame pointer) is the single most important register to get right
+in the save/restore path**, since every box's local state lives there; getting `r12` wrong would silently
+corrupt an unrelated glob's frame rather than crash cleanly, which is exactly the "silent, not loud" risk this
+rung's own design discussion (see RUNG 2 below) exists to guard against.
+
+**One more structural fact worth flagging precisely, because it's what makes this rung categorically different
+from every prior `TT_*` landed under this goal:** `bb_to.cpp` (the reference "generator" template, read in
+full this session) resumes purely via an in-frame label + `jmp` — the entire DIVISION RULE ("resumability is
+ω-wiring, not a stored flag") holds because a generator's resume point is always reachable by a plain jump
+WITHIN THE SAME FLAT CHAIN. A co-expression's resume point can be an ARBITRARY point in an ARBITRARY, unrelated
+call chain, reached long after `create` returned, while the ORIGINAL creating context needs to keep running
+independently in between. No jump-in-one-frame trick can express this — it's why the pthread-per-coexpression
+design exists at all, and why this rung genuinely cannot reuse the existing generator machinery even as a
+starting sketch.
+
+## ⛔⛔ CO-EXPRESSION RUNG PLAN (Claude Sonnet 4.6, continuation session, 2026-07-01) — RUNG 1 of N LANDED, RUNG 2+ PLANNED, not yet started
+
+**Discipline for this multi-rung feature:** each rung below lands fully (build clean + smoke 12/12 both modes +
+all 4 gates unchanged + corpus count unchanged-or-improved, never regressed) and is its OWN commit before the
+next rung starts — per this file's own established rhythm and Lon's explicit steer this session ("comfortable
+incremental steps"). Do NOT attempt to collapse rungs 2-5 into one diff; the register-save stub (rung 2) in
+particular is the highest-risk single piece in this entire feature (see risk note under RUNG 2) and deserves
+isolated verification before the templates that depend on it are written on top of it.
+
+**RUNG 1 — LOWER only: `TT_CREATE` → `IR_CREATE`/`IR_CORET`/`IR_COFAIL` — ✅ LANDED, SCRIP `8f09f43e`.**
+Two-node shape mirroring `TT_SCAN`'s enter/leave (see that case in `lower_icon.c` for the precedent this rung's
+code follows): `IR_CREATE` sits on the outer γ/ω and succeeds unconditionally+immediately; `IR_CORET`/
+`IR_COFAIL` are the BODY's own success/failure targets (NOT the outer construct's γ/ω — this is the detail
+easiest to get backwards, since every OTHER construct lowered under this goal so far routes the body's
+success/failure at least partly through the outer γ/ω). `IR_CREATE.operand[0]` = the body's entry node (the
+future coswitch target). Verified: build clean; icon smoke 12/12 both modes unchanged; all 4 gates unchanged
+(mutation gate HARD=4 pre-existing); 289-corpus PASS=162 unchanged (behavior-neutral — `TT_CREATE` had no
+lowering case at all before this rung, so nothing regresses). Confirmed reaching the emitter correctly via
+compiler-verified enum value: `op=13 == IR_CREATE` (checked via a tiny standalone `.c` printing the enum
+values directly — do NOT hand-count enum positions from a `grep -n` line-number, verified this session that
+doing so gives a WRONG answer here; ask the compiler). Aborts with `FATAL emit_drive: IR op=13 has no template
+in the universal driver` — the correct, loud, precise failure at the dispatch boundary, not a crash or silent
+wrong behavior. **This rung makes `create` correctly LOWER; it does not make `create` executable.**
+
+**RUNG 2 — new runtime file: the x86 register-save switch primitive.** NOT YET STARTED. Design (from the Step
+3 findings above): `src/runtime/rt/rt_coexpr.c` (path chosen to match the existing `RT_PIC_SRCS`/`rt/`
+Makefile convention — reconfirm the exact directory the Makefile expects before creating the file; do not
+assume the path without checking, per this goal's own repeated lesson). Two pieces:
+  (a) `coswitch_scrip(void *oldctx, void *newctx, int first)` — pthread+semaphore strategy ported faithfully
+      from `rswitch.c`'s `coswitch` (same `sem_post(new)`/`sem_wait(old)` mutual-exclusion shape, same lazy
+      `pthread_create`-on-first-switch), but the per-switch PAYLOAD is SCRIP's own register set, not Icon's
+      interpreter registers — concretely `rbx`/`rbp`/`r12`/`r13`/`r14`/`r15`/`rsp`/return-address, the callee-
+      saved x86-64 registers plus whatever SCRIP's calling convention additionally needs preserved (confirm
+      against `x86_asm.h`'s calling-convention comments/existing call-template register-clobber lists before
+      finalizing the exact save-list — do not guess it from the register-CONTRACT table alone, that table says
+      what each register MEANS, not which of them a `call` already preserves for free vs. which this switch
+      must additionally save).
+  (b) A per-coexpression struct (mirroring `struct b_coexpr` in `rstructs.h`, adapted) holding: the saved
+      register block, the pthread handle + semaphore pair, an entry-point pointer (the glob address `IR_CREATE.
+      operand[0]`'s chain-label resolves to), and a "done"/exhausted flag (SCRIP's own — JCON's is implicit in
+      thread liveness via `alive`, worth deciding explicitly whether SCRIP mirrors that flag or the `alive`
+      pattern; a design decision, not yet made, flag it for the person doing this rung to decide rather than
+      silently picking one).
+  **RISK NOTE (why this is its own isolated rung, not folded into rung 3):** if the register-save list is
+  subtly wrong — one register missed, or `r12` in particular saved/restored out of order relative to when a
+  template reads it — the likely failure is NOT a clean crash; it's SILENT CORRUPTION of an unrelated glob's
+  frame state, surfacing later as an unrelated-looking wrong-output bug far from its actual cause. This is a
+  materially worse failure mode than every other rung landed under this goal so far, which have uniformly
+  failed LOUD (aborts, segfaults with a clean gdb-visible cause) per the codebase's own stated design
+  philosophy. **Recommend proving this piece in isolation before RUNG 3 depends on it** — a minimal standalone
+  test (two coswitch_scrip calls handing a counter back and forth, asserting the counter value survives the
+  round trip and that `r12`/`rbx` are byte-identical before and after) costs little and catches exactly the
+  class of bug this rung is most likely to produce. (Lon declined this suggestion once already this session in
+  favor of going straight into the full lowering — that was the right call for RUNG 1, which was LOWER-only
+  and low-risk; re-raising it specifically for RUNG 2, which is categorically higher-risk for the reason above,
+  is not re-litigating the same question, it's a different question with a different risk profile — but the
+  call is still Lon's to make, not a precondition being imposed.)
+
+**RUNG 3 — `bb_create.cpp` template (`IR_CREATE`'s `walk_bb_node`+`emit_drive` wiring).** NOT YET STARTED.
+Depends on RUNG 2's struct layout being settled. Allocates the per-coexpression struct + registers the entry
+point; per `co_init`'s semantics, does NOT invoke `coswitch_scrip` at `create`-time — the body genuinely does
+not run until the first `@`/resume. `IR_CREATE` itself always succeeds (per RUNG 1's LOWER wiring) — this
+template's α is unconditional success, no generator port-plumbing (`γ`/`ω` both just "proceed", matching the
+JCON wiring's `p.ir.start → ... → p.ir.success` with no failure path from `create` itself).
+
+**RUNG 4 — `bb_coret.cpp` + `bb_cofail.cpp` templates (`IR_CORET`/`IR_COFAIL`).** NOT YET STARTED. Depends on
+RUNG 2+3. `bb_coret`: store the produced value where the resumer's `@`-expression can read it, call
+`coswitch_scrip` back to the resumer, mark this coexpression's OWN saved-state as "resume from the instruction
+after this coret on the NEXT `@`" (this is the JCON `p.expr.ir.resume` linkage from Step 0 — needs its own
+chain-label resolution, likely similar in spirit to how `IR_SUSPEND`'s per-suspend β-store already works per
+this goal's much earlier watermark entry on `IR_SUSPEND`'s binary-mode fix — re-read that entry's exact
+mechanism before designing this from scratch, it may be a closer precedent than anything else landed so far).
+`bb_cofail`: mark the coexpression permanently dead, `coswitch_scrip` back to the resumer signaling failure.
+
+**RUNG 5 — `@`/resume-side wiring (the OTHER half of this feature, not yet even scoped).** Everything above is
+the `create`/producer side. Actually RESUMING a coexpression (`@coexpr` in Icon source) is a SEPARATE AST
+construct this rung plan has not yet located in the parser/grammar, not yet read against its own `ir_a_*` JCON
+procedure, and not yet sized. **Flagging explicitly so a future session doesn't assume RUNG 1-4 alone make
+co-expressions usable end-to-end — they do not; `@` is undesigned.** Locating and reading `ir_a_*` for `@`
+(likely `ir_a_Activate` or similar — not confirmed, grep `refs/jcon-master/tran/irgen.icn` for the record name
+the Icon grammar's `@` token maps to before assuming a name) is the first task of whichever session picks this
+rung up.
+
+
