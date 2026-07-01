@@ -2,7 +2,8 @@
 
 **What:** Test corpus for all frontends. `.sno`, `.icn`, `.pl`, `.sc` test programs
 plus `.ref` expected output files. Used by all repos.
-**Clone:** `git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus.git /home/claude/corpus`
+**Clone:** `git clone https://github.com/snobol4ever/corpus.git /home/claude/corpus` (public, no token —
+verified by direct clone test, 2026-07-01)
 **Path:** `/home/claude/corpus`
 
 ---
@@ -10,9 +11,11 @@ plus `.ref` expected output files. Used by all repos.
 ## Session Start
 
 ```bash
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/corpus /home/claude/corpus
-git clone https://TOKEN_SEE_LON@github.com/snobol4ever/SCRIP /home/claude/SCRIP
+git clone https://github.com/snobol4ever/corpus /home/claude/corpus
+git clone https://github.com/snobol4ever/SCRIP /home/claude/SCRIP
 ```
+(Both public, no token needed — verified by direct clone test, 2026-07-01. `git push` on either still
+needs a credential; that's a separate, genuine requirement, not stale — see RULES.md's push/handoff steps.)
 
 **Build:** none — corpus is data only.
 ```bash
