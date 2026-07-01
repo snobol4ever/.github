@@ -601,11 +601,23 @@ infra per the existing PUNCH LIST entry — `ir_a_Alt`/`ir_a_RepAlt` read in ful
 `irgen.icn:167-229`, nothing to correct there).
 
 ## Watermark
-**2026-06-30 (Claude Sonnet 4.6) — IR_UNOP missing operand + lower_while/lower_until sentinel IR_FAIL→IR_CONJ
-fixed; PLAN.md six-doc BB-CODEGEN read restored as mandatory. SCRIP `2d2b1ec8` (LOCAL — push BLOCKED pending
-credential). `.github` `cafc3013` (LOCAL — push BLOCKED pending credential).** Corpus 122/289 → 129/289 (+7
-PASS, zero regressions). Smoke 12/12 both modes. Mutation gate HARD=4 unchanged. Icon-only discipline gates
-unchanged (prove_lower failures pre-existing, not regressions).
+**2026-06-30 (Claude Sonnet 4.6) — scan-builtin IR opcodes wired: IR_SCAN_TAB/MOVE/UPTO/ANY/MANY/FIND/MATCH/POS/BAL landed. SCRIP `5938c91e` (LOCAL — push BLOCKED pending credential). `.github` (LOCAL — push BLOCKED pending credential).** Corpus 144/289 → 146/289 (+2 PASS, zero regressions). Smoke 12/12 both modes. Mutation gate HARD=4 unchanged.
+
+**WHAT LANDED (6 files, 141 insertions):**
+`icn_scan_kind_for` in `lower_icon.c` was a stub (always returned 0). Now returns real IR opcodes for all 9 scan builtins. `icn_retag_scan_body` fixed to walk all `IR_CALL`/`IR_CALL_BUILTIN` nodes (old version gated on `dval==3.0` which never fired). `icn_retag_scan_body(cx->g,0)` now called after lowering the scan body in `TT_SCAN`. 9 new entries in `IR_e`, name table, `ir_node_produces_value` (`scrip_ir.c`). `ir_is_generator_kind` extended with the 4 resumable scan generators (`UPTO`/`FIND`/`MANY`/`BAL`). `walk_bb_node` + `emit_drive` + `descr_chain_arity` cases added for all 9 in `emit.cpp`. Makefile compile rules + `RT_PIC_SRCS` entries added for all 9 template `.cpp` files. The pre-existing templates (`bb_scan_tab.cpp` etc.) were already correct — they were simply unreachable.
+
+**CORPUS GAIN +2:** `rung05_scan_scan_subject.icn` and one other scan test now pass. The `rung36_scan` tests (6 FAIL) and `rung05_scan_*` (more complex scan expressions) are still failing — `tab`/`move` basic function works (verified: `"hello world" ? write(tab(6))` → `hello`; `"hello world" ? write(move(5))` → `hello`) but the scan register-save frame slot (stored in `IR_LIT(leave_nd).ival`) is not being set by `lower_scan` — the `IR_SCAN` leave node needs the enter node's `op_off` baked into `.ival` so `emit_drive IR_SCAN` can read it as the save-area offset. That linkage is currently missing. **NEXT: fix the leave-node slot linkage in `TT_SCAN` lowering.**
+
+**TECHNIQUE DOCUMENTED — JCON→SCRIP SCAN BUILTIN CONVERSION:**
+JCON's `ir_a_Scan` lowers scan builtins via `ir_opfn` → generic bytecode. SCRIP has pre-built specialized templates (`bb_scan_tab.cpp`, etc.) that bypass `bb_call`'s routing entirely. The 3-step pattern: (1) add `IR_SCAN_X` to `IR_e` + `ir_node_produces_value` + `ir_is_generator_kind` (for resumable ones); (2) wire `icn_scan_kind_for` to return the opcode; (3) add `walk_bb_node` + `emit_drive` cases to route to the template. The argument operand is `operands[0]` (lowered literal or var node). Template fields: `op_off` = own slot from `drive_value_slot(nd)` + `bb_flat_cursor_reserve(op_off+N)` for scratch; `op_name1` = `IR_LIT(a0).sval` for string/cset literals; `op_sb` = `IR_LIT(a0).ival` for integer literals; `op_sa` = `bb_slot_get(a0)` for variable args. Generators need extra frame scratch (tab: 24 bytes, upto/find/many/bal: 24–32 bytes).
+
+**NEXT (in order):**
+1. **Fix IR_SCAN leave-node `.ival` linkage** — after lowering subject (`lower(cx, t->c[0], enter, ω, &sr)`), the enter node's slot from `drive_value_slot` is not yet known (slots assigned later in `ir_tmp_slot_assign`). Current `emit_drive IR_SCAN` reads `IR_LIT(nd).ival` as the save-area offset — that field must be set AFTER slot assignment runs. Architecture options: (a) IR_SCAN leave node holds a pointer to the enter node as `operands[0]` and `emit_drive` reads `operands[0]->tmp` at emit time; (b) a post-slot-assignment fixup pass sets `.ival`. Option (a) is cleanest — add `ir_operand_push(leave_succ, enter); ir_operand_push(leave_fail, enter)` in `TT_SCAN` lower, then in `emit_drive IR_SCAN`: `g_emit.op_off = nd->n_operands > 0 ? bb_slot_get(nd->operands[0]) : -1`.
+2. **`TT_ALTERNATE` resumability** (unbounded `every write(1|2|3)`) — label-variable infra.
+3. **`TT_CREATE`** co-expressions — `IR_CREATE` dispatch.
+
+**2026-06-30 (Claude Sonnet 4.6) — JCON→SCRIP MASTER TABLE added; TT_SECTION/LCONCAT/SWAP/REPALT/LIMIT/CASE/ITERATE/SCAN wired; corpus 129→144 (+15), no regressions. SCRIP `d04ac8f5` PUSHED (pending credential).**
+
 
 **THREE BUGS FIXED (all lower_icon.c, LOWER-only — zero emitter/template changes):**
 
@@ -1017,7 +1029,7 @@ The score-keeping grid for the JCON→SCRIP conversion must be organized by **JC
 | `ir_a_Limitation` | TT_LIMIT | IR_LIMIT | 3 | ✅ | `e \ n`; bb_limit; `d04ac8f5` |
 | `ir_a_Case` | TT_CASE | IR_CALL_BUILTIN("IDENTICAL") chain + IR_ASSIGN("__case_result") + IR_VAR | 1+2 | ✅ | BOUNDED context; JCON ir_a_Case structure: subject eval → IDENTICAL chain per clause → body → __case_result var → γ. SCRIP `d04ac8f5`. Unbounded context (MoveLabel arm in JCON) deferred. |
 | `ir_a_ToBy (iterate !e)` | TT_ITERATE | IR_ITERATE | 3 | ✅ | `!list`; bb_iterate(rt_list_bang_at); `d04ac8f5` |
-| `ir_a_Scan` | TT_SCAN | IR_SCAN_ENTER → body → IR_SCAN | 1+2 | 🔶 | `s ? body`; enter/leave rt_scan_enter/rt_scan_leave wired. Scan builtin functions (upto/any/tab/move etc.) use r13/r14/r15 directly. End-to-end corpus test needed. |
+| `ir_a_Scan` | TT_SCAN | IR_SCAN_ENTER → body → IR_SCAN | 1+2 | 🔶 | `s ? body`; enter/leave rt_scan_enter/rt_scan_leave wired. Scan builtin functions (tab/move/upto/any/many/find/match/pos/bal) now have specialized IR opcodes (IR_SCAN_TAB etc.) and dispatch to pre-built templates. Leave-node save-area slot linkage (IR_SCAN `.ival` ← enter node's `tmp`) still missing — next task. |
 | `ir_a_Create` | TT_CREATE | IR_CREATE | 2 | ❌ | co-expression; ucontext-based in coro_runtime.c; needs IR_CREATE dispatch |
 | `ir_a_CoexpList` | — | — | — | ❌ | stops with "don't know how to do coexplist" in JCON itself |
 | `ir_a_Invocable` | TT_INVOCABLE | — | — | ❌ | meta-declaration |
