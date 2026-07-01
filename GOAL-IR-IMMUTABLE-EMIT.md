@@ -601,6 +601,36 @@ infra per the existing PUNCH LIST entry — `ir_a_Alt`/`ir_a_RepAlt` read in ful
 `irgen.icn:167-229`, nothing to correct there).
 
 ## Watermark
+**2026-06-30 (Claude Sonnet 4.6) — IR_SCAN slot-linkage FIXED; IR_ENTER_INIT / TT_INITIAL LANDED. SCRIP `699bc0e2` (LOCAL — push BLOCKED pending credential). `.github` (LOCAL — push BLOCKED pending credential).** Corpus 146/289 unchanged (zero regressions), smoke 12/12 both modes, mutation gate HARD=4 unchanged.
+
+**WHAT LANDED (6 files, 100 insertions / 13 deletions):**
+
+IR_SCAN slot-linkage fix — the open bug from the prior session's NEXT list item 1:
+- `scrip_ir.c` `ir_drive_slot_assign`: IR_SCAN_ENTER now gets `k+=2` (32 bytes, covers 24-byte save area) — same pattern as IR_TO. Slot in `nd->tmp`.
+- `lower_icon.c` TT_SCAN: `ir_operand_push(leave_succ, enter)` and `ir_operand_push(leave_fail, enter)` added so the leave nodes carry a pointer to the enter node. The emit_drive can then read `enter->tmp` at emit time.
+- `emit.cpp` IR_SCAN_ENTER: reads `nd->tmp` via `drive_value_slot(nd)` (no longer from `op_a_slot`).
+- `emit.cpp` IR_SCAN (leave): `op_off = operands[0]->tmp` (the enter node), replacing the old `IR_LIT(nd).ival` approach that required knowing the slot at lower time — an ordering impossibility. Architecture option (a) from the prior NEXT list was exactly right.
+- VERIFIED: rung05_scan_* (5 programs) all PASS both modes. Zero corpus regressions.
+
+IR_ENTER_INIT / TT_INITIAL (JCON ir_a_Initial + ir_EnterInit):
+- New `src/templates/bb_enter_init.cpp`: done-flag gate. α: `cmp qword [r12+op_off+8], 0; jne ω; mov qword [r12+op_off+8], 1; jmp γ`. β→ω (no resume). γ=body entry (first call), ω=skip path (subsequent calls and both body-exit paths).
+- `scrip_ir.c`: IR_ENTER_INIT gets `k+=1` in `ir_drive_slot_assign` (16 bytes).
+- `lower_icon.c` TT_INITIAL: IR_FAIL stub replaced. Per JCON `ir_a_Initial`: body.success AND body.failure both→outer γ (initial blocks always succeed from caller's POV). `ini.γ→body_entry`, `ini.ω→outer_γ`.
+- `emit.cpp`: `walk_bb_node` case (→`bb_enter_init()`) + `emit_drive` case (`op_off=nd->tmp`, `bb_flat_cursor_reserve(op_off+16)`).
+- `bb_templates.h`: `std::string bb_enter_init()` declaration.
+- Makefile: compile rule + `RT_PIC_SRCS` entry.
+- NOTE: TT_INITIAL is rare in the rung1-36 corpus (no programs exercise it directly), so corpus count is unchanged — correctness is structural, not corpus-measurable at this point.
+
+**MASTER TABLE: ir_a_Initial → ✅ DONE; ir_a_Scan → ✅ DONE (slot-linkage fixed).**
+
+**NEXT (in order):**
+1. `TT_ALTERNATE` resumability — IR_INDIRECT_GOTO + MoveLabel infra (own rung).
+2. `TT_CREATE` / `IR_CREATE` / `IR_CORET` / `IR_COFAIL` — co-expressions.
+3. `TT_RECORD` — record type declaration registration.
+4. `every x:=GEN do BODY` regression — gdb/MONITOR-FIRST `every x:=7 to 9 do write(x)`.
+
+**PUSH STATUS: SCRIP `699bc0e2` LOCAL — credential needed to push. `.github` LOCAL — credential needed.**
+
 **2026-06-30 (Claude Sonnet 4.6) — scan-builtin IR opcodes wired: IR_SCAN_TAB/MOVE/UPTO/ANY/MANY/FIND/MATCH/POS/BAL landed. SCRIP `5938c91e` (LOCAL — push BLOCKED pending credential). `.github` (LOCAL — push BLOCKED pending credential).** Corpus 144/289 → 146/289 (+2 PASS, zero regressions). Smoke 12/12 both modes. Mutation gate HARD=4 unchanged.
 
 **WHAT LANDED (6 files, 141 insertions):**
@@ -1023,13 +1053,13 @@ The score-keeping grid for the JCON→SCRIP conversion must be organized by **JC
 | `ir_a_ProcDecl` | TT_PROC_DECL | — | — | ✅ | graph per proc; lower_proc_body |
 | `ir_a_ProcBody` | TT_PROC_BODY | — | — | ✅ | top-level statement chain |
 | `ir_a_ProcCode` | TT_PROC | — | — | ✅ | init+body wrapper |
-| `ir_a_Initial` | TT_INITIAL | IR_FAIL (stub) | 1 | 🔶 | minimal; full IR_ENTER_INIT pending |
+| `ir_a_Initial` | TT_INITIAL | IR_ENTER_INIT | 1 | ✅ | JCON ir_EnterInit: done-flag gate at [r12+op_off+8]; first call sets flag+enters body, subsequent calls skip to ω; body.success+body.failure both→outer γ. bb_enter_init.cpp. SCRIP `699bc0e2`. |
 | `ir_a_Alt` | TT_ALTERNATE | edge-threading (bounded arm done) | 1/4 | 🔶 | BOUNDED: ✅ (`write(1\|2)`→`1`). UNBOUNDED (`every write(1\|2\|3)`): ⛔ DEFERRED — needs IR_INDIRECT_GOTO + MoveLabel + sibling-label-address. Sized as own rung. |
 | `ir_a_RepAlt` | TT_REPALT | IR_REPALT | 3 | ✅ | `\|e`; flat_drive_repalt; `d04ac8f5`. NOTE: bounded arm only (JCON `if /bounded` arm) — unbounded resumability via MoveLabel/IndirectGoto is same infra gap as ir_a_Alt. |
 | `ir_a_Limitation` | TT_LIMIT | IR_LIMIT | 3 | ✅ | `e \ n`; bb_limit; `d04ac8f5` |
 | `ir_a_Case` | TT_CASE | IR_CALL_BUILTIN("IDENTICAL") chain + IR_ASSIGN("__case_result") + IR_VAR | 1+2 | ✅ | BOUNDED context; JCON ir_a_Case structure: subject eval → IDENTICAL chain per clause → body → __case_result var → γ. SCRIP `d04ac8f5`. Unbounded context (MoveLabel arm in JCON) deferred. |
 | `ir_a_ToBy (iterate !e)` | TT_ITERATE | IR_ITERATE | 3 | ✅ | `!list`; bb_iterate(rt_list_bang_at); `d04ac8f5` |
-| `ir_a_Scan` | TT_SCAN | IR_SCAN_ENTER → body → IR_SCAN | 1+2 | 🔶 | `s ? body`; enter/leave rt_scan_enter/rt_scan_leave wired. Scan builtin functions (tab/move/upto/any/many/find/match/pos/bal) now have specialized IR opcodes (IR_SCAN_TAB etc.) and dispatch to pre-built templates. Leave-node save-area slot linkage (IR_SCAN `.ival` ← enter node's `tmp`) still missing — next task. |
+| `ir_a_Scan` | TT_SCAN | IR_SCAN_ENTER → body → IR_SCAN | 1+2 | ✅ | `s ? body`; enter/leave wired. Scan builtins (tab/move/upto/any/many/find/match/pos/bal) have specialized IR opcodes+templates. Leave-node save-area slot linkage FIXED `699bc0e2`: enter node passed as operand[0] on both leave nodes so emit_drive reads enter->tmp (replaces the IR_LIT(nd).ival approach that required the offset at lower time, before slot assignment). IR_SCAN_ENTER gets k+=2 in ir_drive_slot_assign. rung05 scan tests all pass. |
 | `ir_a_Create` | TT_CREATE | IR_CREATE | 2 | ❌ | co-expression; ucontext-based in coro_runtime.c; needs IR_CREATE dispatch |
 | `ir_a_CoexpList` | — | — | — | ❌ | stops with "don't know how to do coexplist" in JCON itself |
 | `ir_a_Invocable` | TT_INVOCABLE | — | — | ❌ | meta-declaration |
@@ -1045,8 +1075,7 @@ The score-keeping grid for the JCON→SCRIP conversion must be organized by **JC
 When multiple IR chain arms (one per case clause) each produce a value and all must converge to a single output slot readable by an outer consumer (e.g. `write(case x of {...})`): allocate a synthetic `__case_result` IR_VAR node as `*res`; each arm lowers its body with `γ=NULL` (not the outer γ), then routes through `IR_ASSIGN("__case_result", body_val)` with `γ_to(asn, cvar)` where `cvar` is the shared IR_VAR. `cvar` then has `γ=outer-γ`. The `bb_assign_local` template writes the body value to `bb_varslot("__case_result")` (frame slot allocated by the first use), and `bb_var` copies that slot to `cvar->tmp` (the IR_VAR's own tmp slot allocated by `ir_node_produces_value`). The outer consumer reads `cvar->tmp`. This is the SCRIP realization of JCON's `target` parameter threading — without a formal target parameter, a synthetic local provides the same single-slot convergence.
 
 **NEXT (in order):**
-1. `TT_SCAN` end-to-end corpus test — verify `s ? tab(3)` / `s ? upto('aeiou', s)` etc. work with the new SCAN_ENTER/SCAN leave wiring. Expect to find bugs in how the scan body's scan functions (upto/any/tab/move) interact with the saved/restored r13/r14/r15.
-2. `TT_ALTERNATE` resumability (unbounded `every write(1|2|3)`) — own rung; needs IR_INDIRECT_GOTO template + MoveLabel mechanism (sibling-node label resolution). See punch-list entry for exact infrastructure required. Do NOT attempt without that infra.
-3. `TT_CREATE` (co-expressions) — IR_CREATE dispatch to coro_runtime.c; moderate complexity, not blocked.
-4. `TT_INITIAL` — IR_ENTER_INIT; low priority, rarely exercised in corpus.
-5. `every x:=GEN do BODY` assign-wrapped-generator regression (pre-existing from `feab99c7`) — MONITOR-FIRST/gdb `every x:=7 to 9 do write(x)`.
+1. `TT_ALTERNATE` resumability (unbounded `every write(1|2|3)`) — own rung; needs IR_INDIRECT_GOTO template + MoveLabel mechanism (sibling-node label resolution). See punch-list entry for exact infrastructure required. Do NOT attempt without that infra.
+2. `TT_CREATE` (co-expressions) — IR_CREATE dispatch; JCON ir_a_Create: IR_CREATE node + IR_CORET/IR_COFAIL wiring inside the co-expression body. See ir.icn: ir_Create(lhs, coexpLabel), ir_CoRet(value, resumeLabel), ir_CoFail(). coro_runtime.c in src/driver/ already has ucontext scaffolding. Needs: IR_CREATE/IR_CORET/IR_COFAIL in IR_e, templates bb_create.cpp/bb_coret.cpp/bb_cofail.cpp, lower_icon.c TT_CREATE wiring per JCON ir_a_Create.
+3. `TT_RECORD` / `ir_a_Record` — record type declaration. JCON ir_a_Record: returns ir_Record(coord, name, fields[]) — a pure declaration, no IR nodes. SCRIP: call record_register(spec) at emit time; the by_name_dispatch.c constructor call path already handles rt_construct_build. Needs: TT_RECORD_DECL case in lower_icon.c (no IR node, side-effect only — register the type at lower time).
+4. `every x:=GEN do BODY` assign-wrapped-generator regression (pre-existing from `feab99c7`) — MONITOR-FIRST/gdb `every x:=7 to 9 do write(x)`. Bisected to `feab99c7` (GVA-FLAT landing); see watermark entries from 2026-06-30.
