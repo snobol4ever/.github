@@ -1345,3 +1345,88 @@ still needs to decide (per-coexpression struct layout for the frame/entry-point 
 be written against it.**
 
 
+## Session close (Claude Sonnet 4.6, RUNG 3, 2026-07-01)
+**RUNG 3 (`bb_create.cpp` — the IR_CREATE template) LANDED in TEXT/`--compile` mode; BINARY/`--run` mode
+is a DELIBERATE, correctly-diagnosed loud bomb, not a guess.** SCRIP commit `<pending>`, `.github` commit
+`<pending>` — see PUSH STATUS below (this session did NOT push; blocked on credential — reported as such,
+not dressed up as complete per RULES.md line 53).
+
+**The 7 touch points (build clean, both `scrip` + `libscrip_rt.so`, zero errors):**
+1. `src/contracts/scrip_ir.c` — `IR_CREATE` added to `ir_node_produces_value()` so it gets a 16-byte
+   `nd->tmp` slot (holds the heap `scrip_coctx_t*`). Compiler-confirmed via standalone `.c`: `IR_CREATE`=1,
+   `IR_CORET`=0, `IR_COFAIL`=0 (CORET/COFAIL deliberately excluded — body-internal targets, not general
+   value-producers).
+2. `src/emitter/emit.cpp` `codegen_flat_chain_body` — BFS pre-pass block resolves `IR_CREATE.operand[0]`
+   (the body-entry node) to its α-label STRING via the same `nodes[]`-index linear scan `IR_REPALT` uses
+   for `e_entry`, stored into `g_emit.op_sval_lbl` (was declared, previously unused anywhere). This is the
+   load-bearing insight: no existing mechanism maps an arbitrary `IR_t*` to its own label from a different
+   node's driver case; the label arrays are local to `codegen_flat_chain_body`, resolvable only there, and
+   only because that function is two-phase (full discovery + label alloc BEFORE any node is driven).
+3. `src/emitter/emit.cpp` `emit_drive` — `case IR_CREATE`: `op_off = drive_value_slot(nd)`, unconditional
+   success (create has no failure path — mirrors JCON ir_a_Create's bare `Goto p.ir.success`).
+4. `src/emitter/emit.cpp` `walk_bb_node` — `case IR_CREATE: bb_emit_x86(bb_create());`.
+5. `src/templates/bb_templates.h` — `std::string bb_create();` declaration.
+6. `src/templates/bb_create.cpp` — NEW. α=unconditional success; captures body-entry addr via
+   `lea rax,[rip+op_sval_lbl]` (TEXT mode), stores the six contract registers into a scratch frame region
+   `[r12+op_off2+k*8]`, calls `scrip_coexpr_create(body_addr, &regs[6])`, stores the returned coctx* into
+   `[r12+op_off]`, jmp γ. **BINARY mode returns `x86_bomb` by construction** — see LIMITATION 2.
+7. `Makefile` — TWO edits (learned the hard way via a link error): the SRCS-style var list AND the
+   explicit per-file `$(CXX) -c … bb_create.cpp` recipe line (line ~272, beside bb_to.cpp). The link step
+   globs `$(OBJ)/*.o`, so once compiled it links automatically.
+   Plus: `src/runtime/rt/rt_coexpr.c` gained `scrip_coexpr_create` (allocs+wires the coctx, does NOT call
+   `scrip_coswitch` — create ≠ first-resume) and `scrip_coexpr_trampoline_entry` (restores all six contract
+   registers from a heap package, then `jmp` into the body; guarded by `_Static_assert` offsetof checks so
+   a struct-field reorder is a COMPILE error, not silent register corruption). New shared header
+   `src/runtime/rt/rt_coexpr.h` gives `scrip_coctx_t` ONE definition across both TUs (was a private
+   `typedef` inside the `.c` before) — kills the hand-duplicated-struct ABI-drift risk.
+
+**Verification (per this goal's own signals):**
+- Build clean: `make scrip` + `make libscrip_rt` both exit 0, zero errors in any file.
+- Icon smoke: **12/12 BOTH modes** (mode-4's first run showed 0/12 — that was purely a missing
+  `libscrip_rt.so`, a separate build step, NOT a RUNG 3 regression; building it → 12/12).
+- 289-corpus: **PASS=162, exactly the documented baseline** — behavior-neutral (nothing in the corpus
+  exercises `create` yet, and no existing codegen path was touched).
+- Discipline gates: mutation gate `HARD=4` (documented pre-existing baseline, unchanged); scan/var gates'
+  "FAIL" is the documented pre-existing Prolog-lane WIP, Icon-lane templates reported clean.
+- Icon bench-asm regen: `total=0 updated=0 compile-err=0` (no existing Icon `.s` changed — consistent
+  with behavior-neutrality).
+
+**THREE HONEST LIMITATIONS (do not let a future session mistake this for fully end-to-end):**
+1. **`bb_create` was NOT observed emitting dynamically.** EVERY `create` program hits a PRE-EXISTING,
+   unrelated `emit_intern_str not implemented (Icon-only reset)` ground-zero stub (fired by literals/names
+   in an early pass UPSTREAM of chain-body codegen, in BOTH modes) before reaching `bb_create`. Confirmed
+   NOT RUNG 3's fault: plain `write(42)` without `create` compiles clean; `create a` / `create x` / `create
+   (1 to 3)` all bomb in `emit_intern_str`, never reaching `bb_create`. Proof of `bb_create` is therefore
+   STATIC (symbol present + linked via `nm`; dispatch call site in `emit.cpp`; slot-assignment
+   compiler-confirmed), not a live run. **A future session wanting live proof must first fix/stub
+   `emit_intern_str` for the Icon-reset compile path — that gap gates ALL create testing, and is its own
+   pre-existing item, not part of RUNG 3.**
+2. **BINARY mode (`--run`) is a deliberate loud bomb.** `bb_create` implements TEXT/`--compile` only.
+   Binary needs a bridge from `op_sval_lbl` (a label NAME string) to a `bb_label_t*` the patch mechanism
+   (`bb_emit_patch_rel32`, which IS template-reachable via `emit.h` + `x86_asm.h`'s 'J' tag) can consume.
+   `x86_label_for` — the only bridge from a template's tagged-bytecode to a `bb_label_t*` — resolves ONLY
+   port ids (α/β/γ/ω/t0/t1) + template-internal labels, with NO path from an external label NAME.
+   **CANDIDATE FIX (next rung): thread body-entry as a t0/t1-style port exactly like `IR_LIMIT` threads its
+   generator-β via `lbl_t0_p`/`g_limit_gen_beta`** — likely the cleanest path; `IR_LIMIT`'s `emit_drive`
+   arm + `codegen_flat_chain_body` `g_limit_gen_beta` intercept is the working precedent to copy.
+3. **The trampoline restores ALL SIX contract registers conservatively** (r12/r13/r14/r15/rbx/rbp), not a
+   proven-minimal set — because no live scan-inside-`create` test could be produced (see LIMITATION 1) to
+   confirm which registers a `create` body actually depends on. Over-restoring is safe; a future session
+   with `emit_intern_str` fixed could measure the minimal set if desired. `xa_flat.cpp`'s prologue shows
+   r12 (from `mov r12,rdi` at glob entry) and r13-r15 (via `g_emit_frame_caller_dl`) are per-call, not
+   process-global — so restoring them is at minimum plausibly necessary, not obviously wasteful.
+
+**Two self-corrections worth recording (both fixed, but they happened):** (a) initially floated compiling
+the create-body as its OWN glob — WRONG, `create EXPR` introduces no new scope and Icon closures capture the
+enclosing procedure's locals, so a fresh-frame glob would resolve shared locals to wrong/nonexistent slots;
+caught during the operand[0]/slot-allocation dig. (b) While writing `bb_create.cpp`'s binary branch, started
+encoding a GUESSED byte sequence before catching it and converting to the honest `x86_bomb` above — the
+`bb_emit_patch_rel32`-is-inaccessible reason in an intermediate comment was ALSO wrong (it IS accessible; the
+real blocker is the label-name→`bb_label_t*` gap in LIMITATION 2) and was corrected.
+
+**NEXT SESSION:** either (i) the LIMITATION-2 binary-mode bridge (thread body-entry as a t0/t1 port), or
+(ii) RUNG 4 (`bb_coret.cpp`/`bb_cofail.cpp` — the body's yield/exhaust side; note these need the resume-
+linkage `IR_CORET.resumeLabel`, JCON's `p.expr.ir.resume`, whose closest SCRIP precedent is `IR_SUSPEND`'s
+per-suspend β-store — re-read that before designing), or (iii) fix `emit_intern_str` for the Icon-reset
+compile path so ANY of RUNG 3-4 can be tested live end-to-end (arguably should come FIRST — it gates all
+create/coret observation). RUNG 5 (`@`/resume, the consumer side) remains undesigned per the RUNG PLAN above.
