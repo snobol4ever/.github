@@ -24,7 +24,8 @@ All languages × all backends green.
 
 Lon names a goal. You:
 1. **Read `GOAL-ICON-BB.md` (the live ground-zero goal — the generator/four-port model every BB language reuses) before anything else.**
-2. Clone `.github`: `git clone https://TOKEN@github.com/snobol4ever/.github.git /home/claude/.github`
+2. Clone `.github`: `git clone https://github.com/snobol4ever/.github.git /home/claude/.github` (public,
+   no token needed — verified by direct clone test, 2026-07-01; `git push` still needs a credential)
 3. Read `PLAN.md`. Find goal in table below.
 4. Read `RULES.md` in full.
 5. **If PARSER-* or Snocone — read `SNOBOL4-SNOCONE-PRIMER.md` first.**
@@ -45,9 +46,10 @@ Lon names a goal. You:
 
 ### Clone SPITBOL oracle
 ```bash
-git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64
+git clone https://github.com/snobol4ever/x64 /home/claude/x64
 /home/claude/x64/bin/sbl -b file.sno
 ```
+(Public, no token needed — verified by direct clone test, 2026-07-01.)
 
 ---
 

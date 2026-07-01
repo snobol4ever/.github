@@ -73,7 +73,8 @@ The assistant MUST NOT write the string "HANDOFF COMPLETE" (or any terminal done
 7. **Run `bash scripts/handoff_status.sh` and paste its verbatim output. The handoff is done IFF that script — not you — prints `HANDOFF COMPLETE` (exit 0). If it prints `HANDOFF BLOCKED`, fix the listed repo(s) and re-run.** (Replaces the old "eyeball `git log origin/main`" step; the script checks every touched repo's tree-clean + HEAD-on-origin in one place.)
 
 ## Oracles
-**SPITBOL x64:** `git clone https://TOKEN@github.com/snobol4ever/x64 /home/claude/x64`. Invoke: `/home/claude/x64/bin/sbl -b file.sno`.
+**SPITBOL x64:** `git clone https://github.com/snobol4ever/x64 /home/claude/x64` (public, no token needed —
+verified by direct clone test, 2026-07-01). Invoke: `/home/claude/x64/bin/sbl -b file.sno`.
 
 ## Testing
 - Run goal's gate before every commit. No broken commits.
