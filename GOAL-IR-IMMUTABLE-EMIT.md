@@ -1626,3 +1626,57 @@ start from instead of a blank slate).
 until `git push` succeeds and `scripts/handoff_status.sh` prints `HANDOFF COMPLETE`, per RULES.md's own FACT
 RULE on this point. Not dressed up as done; see the human-facing turn this session ends on for the actual
 computed result.
+
+## Unary-operator audit + TT_MATCH_UNARY landed (Claude Sonnet 5, continuation session, 2026-07-01)
+Not a rung-ladder session — Lon drove an interactive audit of every Icon unary operator's symbol → parser
+tree-tag (`icon_parse.c`) → IR opcode mapping. Findings, each grep/build-verified rather than recalled:
+- **`IR_UNOP_GENERIC`, `IR_BINOP_GENERIC`, `IR_UNOP_TEST` were dead** — zero construction sites, zero
+  dispatch cases, present only in `scrip_ir.c`'s name-table + `ir_node_produces_value`. Deleted from
+  `IR.h`/`scrip_ir.c`. `ir_node_produces_value`'s line is still >200 chars (pre-existing, only shortened
+  here, not newly introduced — left as-is, out of scope to reformat as a drive-by).
+- **`TT_MATCH_UNARY` (`=s`) was an unimplemented stub** — `bb_unop.cpp`'s `bb_unop_resolve` had no case for
+  it, so it silently no-op'd via `UO_UNHANDLED`. **Fix: desugar `=s` → `tab(match(s))` in the parser**
+  (`icon_parse.c`, mirrors the existing `~==`-family `not(...)` desugar already there), reusing the live
+  `IR_SCAN_MATCH`/`IR_SCAN_TAB` opcodes — no new opcode needed. Verified against **canonical source**
+  (`refs/icon-master/src/runtime/omisc.r:84`, the exact authority this goal's own CONSULT CANONICAL SOURCES
+  rule names): `"=x - tab(match(x)). Reverses effects if resumed."` — word-for-word the transformation
+  implemented. Removed the now-dead `TT_MATCH_UNARY` from `is_unop_tt` in `lower_icon.c` (parser no longer
+  emits it). Build clean, `=s` proven byte-identical to hand-written `tab(match(...))` on both a positive
+  and negative match (`/tmp/eq2.icn`-style smoke, not corpus-committed).
+  **Open flag, not fixed:** canonical Icon implements `=x` as ONE primitive (`tabmat`, `operator{*}`)
+  specifically for that "reverses effects if resumed" contract; SCRIP's composed `tab`+`match` gets this
+  for free ONLY if `IR_SCAN_TAB` itself correctly undoes `&pos` on backtrack — and `IR_SCAN_TAB` is
+  currently **absent** from `ir_is_generator_kind` (`src/opt/ir_query.c`), unlike `IR_SCAN_UPTO/FIND/
+  MANY/BAL` which are present. Not introduced by this change (the desugar is provably identical to
+  hand-written `tab(match(x))`, same downstream IR, same pre-existing `bb_scan_tab` "unhandled" bomb on a
+  non-literal `n` — verified, not assumed) — but it's a real, pre-existing question about the whole
+  scan-family's resume contract, orthogonal to this session, worth its own rung.
+- **`TT_CSET_COMPL` (`~e`, cset complement) is an unimplemented stub found but NOT fixed this session** —
+  no case in `is_unop_tt`, no case in `lower_icon.c`'s switch; falls through to the `default:` arm →
+  `IR_SUCCEED`, a silent no-op. Flagging so it doesn't join `TT_MATCH_UNARY`'s fate of going unlisted; no
+  prior watermark or punch-list entry named it.
+- **Coexpression unary operators `.e` (deref), `@e` (activate), `^e` (refresh) are entirely absent from
+  `parse_unary`** — no tokens consumed for them (`^` exists only as binary `TT_POW`). Consistent with
+  coexpressions being unimplemented (RUNG 5, per the co-expression research entry above), not a regression.
+- **Design locked, NOT implemented — for whoever picks up the next Icon unary/binary rung:** replace the
+  `IR_UNOP`/`IR_BINOP` catch-alls (kept as tokens, redefined to mean "default non-failing, non-generator
+  shape") with an 8-opcode grid — `IR_UNOP`, `IR_UNOP_REL` (`\`/`/`, they ARE comparisons — against
+  `&null`), `IR_BINOP`, `IR_BINOP_REL` (renames live `IR_BINOP_RELOP`), each ×`_GEN` for the Icon case
+  where the operand can itself generate (SNOBOL4/etc. never do — no `β`, `ω`→FAILURE only; Icon does — `β`
+  present, `ω`→consumer's backtrack edge, exactly `ir_is_generator_kind`'s existing gate). Plus, replacing
+  `IR_TERNOP` (currently a generic 0/1/2-`ival`-variant carrier for `s[i:j]`/`s[i+:n]`/`s[i-:n]`) with three
+  specific opcodes: `IR_SECTION`/`IR_SECTION_PLUS`/`IR_SECTION_MINUS`. Plus standalone `IR_UNOP_RANDOM`
+  (`?`). Explicitly checked against the **STANDING DIRECTIVE** above (JCON uses ONE generic `ir_OpFunction`
+  for all ops; SCRIP deliberately keeps fine-grained `IR_BINOP`/`IR_UNOP` instead) — this design is more
+  fine-grained still, which is the stated direction, not a deviation from it. **Not started**: needs this
+  goal's own ORIENTATION SYNOPSIS + `GOAL-ICON-BB.md`'s four-port contract read first for the exact `_GEN`
+  β/ω wiring, which this session didn't reach (design-only turn). Full reasoning trail in
+  `HANDOFF-2026-07-01-SONNET5-UNARY-OP-AUDIT.md`.
+- **`refs/jcon-master` and `refs/icon-master` now exist this sandbox** (symlinked from Lon's uploaded
+  `2-icon-master.zip`/`3-jcon-master.zip` per this file's own CONSULT CANONICAL SOURCES setup recipe) —
+  gitignored, not persisted; next session re-derives from the same zips or a fresh clone.
+- Verification run: `make scrip` clean; `=s` smoke (match + non-match, both correct); mutation-free per
+  `grep -rn IR_UNOP_GENERIC\|IR_BINOP_GENERIC\|IR_UNOP_TEST src/` == empty. **NOT run:** the 289-corpus,
+  the four `test_gate_icn_*.sh` gates, `test_gate_emit_no_ir_mutation.sh` — this session's two changes
+  don't touch emitter-mutation surface or non-`=`-operator corpus behavior, but that's an assertion, not a
+  measured gate result; next session should run them before extending this work.
