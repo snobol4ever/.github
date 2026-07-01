@@ -1327,4 +1327,21 @@ co-expressions usable end-to-end — they do not; `@` is undesigned.** Locating 
 the Icon grammar's `@` token maps to before assuming a name) is the first task of whichever session picks this
 rung up.
 
+## Session close (Claude Sonnet 4.6, continuation session, 2026-07-01)
+RUNG 1 (`TT_CREATE` LOWER) and RUNG 2 (pthread+semaphore switch primitive, `rt_coexpr.c`) both **LANDED +
+VERIFIED** this session — see the two dated sections above for full detail. SCRIP commits `8f09f43e` (RUNG 1)
+and `48250980` (RUNG 2), both LOCAL, not yet pushed (session's push-credential situation: cloning all four
+repos needs no credential per the TOKEN correction above; `git push` genuinely does and was deliberately
+deferred to session end per Lon's own steer this session). `.github` commits `2342d025` (TOKEN doc fixes) and
+`b982638f` (this goal file's research + plan write-up), also LOCAL. Icon smoke 12/12 both modes throughout;
+all 4 discipline gates unchanged (mutation gate HARD=4 pre-existing); 289-corpus PASS=162 unchanged across
+both rungs (expected — neither rung is reachable from a real Icon program yet; RUNG 3 is what wires
+`scrip_coswitch` into actually-generated code). **Next session: RUNG 3 (`bb_create.cpp` — the template that
+calls `scrip_coswitch` from generated x86, bridging IR_CREATE's operand[0] entry-point to the primitive's
+`entry_fn`/`entry_arg` contract; read `x86_asm.h`'s glob-entry preamble convention before assuming how a
+generated glob is actually invoked as a function pointer, do not guess it from the register-contract table
+alone) — see the RUNG 2/RUNG 3 boundary note in the CO-EXPRESSION RUNG PLAN section above for what RUNG 3
+still needs to decide (per-coexpression struct layout for the frame/entry-point pairing) before templates can
+be written against it.**
+
 
