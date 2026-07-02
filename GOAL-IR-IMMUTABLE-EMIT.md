@@ -154,8 +154,13 @@ done very differently; Icon shall be the JCON-faithful one. All BBs done = Icon 
   rung13_table_subscript_assign, rung23_table_table_{basic,default,member},
   rung35_table_str_str_{default_int_key,table_read}; ZERO new fails) · bench-asm 13/0/0/1/12 updated=0.
   **REMAINING (sub-rungs):** (r1) `tvsubs` string trapped-vars (`s[i]` as lvalue — rt_assign_var's loud BOMB
-  marks the spot); (r2) `arr[i] <- v` subscript-revassign (IR_REV_ASSIGN with a variable operand; still the
-  documented IR_FAIL placeholder at TT_REVASSIGN's arm); ~~(r3) `x[i,j]` COMMA FORM parser gap~~ **LANDED (SCRIP
+  marks the spot); ~~(r2) `arr[i] <- v` subscript-revassign~~ **LANDED (SCRIP `fba88eae`, 2026-07-02):**
+  `IR_REV_ASSIGN_VAR` — the through-variable sibling of IR_REV_ASSIGN, IR_ASSIGN_VAR's operand order
+  ([0]=variable via lower_idx_var, [1]=value), classify-by-name per the JCON-ALIGNMENT directive;
+  bb_rev_assign_var.cpp = canonical rasgn on the phase-1 rails (rt_deref deref-save at off+16 / k+=2 grant,
+  rt_assign_var write + β-restore — table traps re-insert the saved value, canonical tvtbl; probe 80 pins the
+  absent-key fork oracle-confirmed). bb_rasgn.cpp's dormant pre-doctrine op_ival==1 subscript_get/set arm
+  deleted. TT_REVASSIGN's IR_FAIL subscript placeholder retired; ~~(r3) `x[i,j]` COMMA FORM parser gap~~ **LANDED (SCRIP
   `df46db00`, 2026-07-02):** one-arm parser change (plain-subscript else only; sections untouched), extra indices
   append as TT_IDX children, the dormant lower_idx_var chain took them first try — probe 79 oracle-pinned
   (read / write-through / mixed table→list), corpus FAIL set byte-identical; ~~(r4) `*t` table-size gap~~ **STALE
@@ -455,7 +460,9 @@ the addressing logic — `RDQ("rbx", k*16)` vs `FRQ(slot)`, the `g_gva_active`/`
 correctly in sibling templates and should be copied, not reinvented).
 
 ## Watermark
-**2026-07-02 (continuation session, Claude Fable 5) — SCRIP `2ae6155d`: r10 PREAMBLE RESIDUE DELETED (standing target reconciled) — both mediums' flat preamble loaded &Δ into RETIRED r10 with zero readers (text lea ×2, binary raw-byte movabs ×2 in the legacy xa_flat; hand-counted out_site patch offsets decremented in step — smoke m3 = the byte-surgery acid test). Δ the C global stays live; only the dead courier died. Preamble now = GOAL-ICON-BB premise shape exactly. Audit 79/79 · smoke 12/12×2 · 4 gates PASS · HARD=4 · corpus 205/48/36 FAIL set byte-identical · bench version.s honest-churned (corpus `48fb69bb`). Session running total (4 rungs): clobber audit (2 live fixes) · IDX-UNIFY r4 stale-struck + strong probe 78 · r3 comma form landed (probe 79) · r10 residue. Next rung: Lon's call (IR_MOVE verdict; IDX-UNIFY r1 tvsubs / r2 subscript-revassign).**
+**2026-07-02 (session, Claude Fable 5) — SCRIP `fba88eae`: IDX-UNIFY r2 LANDED — subscript-revassign `x[i] <- v` via `IR_REV_ASSIGN_VAR` (through-variable sibling of IR_REV_ASSIGN; IR_ASSIGN_VAR operand order; canonical rasgn on the phase-1 rt_deref/rt_assign_var rails; bb_rasgn.cpp's dormant pre-doctrine subscript arm deleted). Probe 80 oracle-pinned 4-way incl. the absent-key restore fork (key stays PRESENT at default, `*u`=1). One in-session splice bug (emit_drive insertion ate `case IR_GOTO:`, loop family op=20 FATAL) found by the audit and fixed with full re-verify. Audit 79→**80/80 both modes** · smoke 12/12×2 · 4 gates PASS · mutation HARD=4 baseline · corpus 205/48/36 FAIL set byte-identical (stash comm empty) · bench-asm 13/0/1/12 updated=0. Next rung: Lon's call (IR_MOVE verdict; IDX-UNIFY r1 tvsubs).**
+
+Prior: **2026-07-02 (continuation session, Claude Fable 5) — SCRIP `2ae6155d`: r10 PREAMBLE RESIDUE DELETED (standing target reconciled) — both mediums' flat preamble loaded &Δ into RETIRED r10 with zero readers (text lea ×2, binary raw-byte movabs ×2 in the legacy xa_flat; hand-counted out_site patch offsets decremented in step — smoke m3 = the byte-surgery acid test). Δ the C global stays live; only the dead courier died. Preamble now = GOAL-ICON-BB premise shape exactly. Audit 79/79 · smoke 12/12×2 · 4 gates PASS · HARD=4 · corpus 205/48/36 FAIL set byte-identical · bench version.s honest-churned (corpus `48fb69bb`). Session running total (4 rungs): clobber audit (2 live fixes) · IDX-UNIFY r4 stale-struck + strong probe 78 · r3 comma form landed (probe 79) · r10 residue. Next rung: Lon's call (IR_MOVE verdict; IDX-UNIFY r1 tvsubs / r2 subscript-revassign).**
 
 Prior: **2026-07-02 (continuation session, Claude Fable 5) — SCRIP `df46db00`: IDX-UNIFY r3 + r4 CLOSED — r3 `x[i,j]` comma form LANDED (`df46db00`: one-arm parser change, dormant lower_idx_var chain took it first try, probe 79 read/write-through/mixed-table→list oracle-pinned) · r4 `*t` table-size STRUCK STALE (`ed10358e`: re-derived fresh, `*t`/`*L`/`*"s"` all correct both modes; payload cashed as probe 78, the STRONG fork discriminator — pure read never inserts, pinned at full strength). Audit 79/79 both modes · smoke 12/12×2 · 4 gates PASS · mutation HARD=4 baseline · corpus 205/48/36 FAIL set byte-identical across both rungs · bench-asm 13/0/1/12 updated=0. IDX-UNIFY remainder: r1 tvsubs · r2 subscript-revassign. Next rung: Lon's call (IR_MOVE verdict open).**
 
