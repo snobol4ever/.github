@@ -32,9 +32,9 @@ SCRIP has EXACTLY TWO modes (modes 1 and 2 are DELETED — see GOAL-MODE34-IDENT
 | `src/parser/` | 6 language front-ends |
 | `src/contracts/IR.h`, `descr.h`, `ast.h` | spine types |
 | `src/lower/lower.c` | AST→IR graph |
-| `src/emitter/emit_core.c` | IR→template dispatch |
-| `src/emitter/emit_bb.c` | BB driver: slot resolution, flat chains |
-| `src/emitter/{BB,XA}_templates/` | per-box x86 templates |
+| `src/emitter/emit.cpp` + `emit.h` | the ONE emit driver (dispatch + chain-BFS + drive) |
+| `src/templates/*.cpp` + `x86_asm.h` | per-box templates (flat, no subdirs) + the only x86 encoders |
+| `src/optimizer/` | LOWER→OPTIMIZER→EMITTER, `SCRIP_OPT`-gated OFF |
 | `src/runtime/` | rt/, core/, builtins/ |
 
 ## Oracle
