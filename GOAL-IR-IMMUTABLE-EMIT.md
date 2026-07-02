@@ -260,9 +260,9 @@ paths; ignore any doc still citing the old ones (this file now does, throughout)
 
 **✅ COVERED (audit-verified OK):** literals I/R/S/CSET · ident/global/invocable · `initial` (once-per-DEPTH caveat below) · binop arith/divmod/relop/concat · unop −/+/*x/\x//x (IR_UNOP + IR_UNOP_TEST) · `not` (via `&null` IR_VAR; IR_NOT deleted) · assign/augop/swap · **if** — statement AND value-context, then+else (value convergence via the ig shared cell, JCON `ir_a_If` :583-610, landed 2026-07-01) · while/until/repeat/break/next · every (postfix, assign, assign+body, noassign-after) · to / to-by · alternation bounded + unbounded (label variable) · repalt · limit · compound · call (builtin/arglist/params/recurse/mutual) · proc fail/suspend/return · list-ctor / `|||` lconcat · record field · section `s[i:j]` + string subscript · scan (move/tab-upto/many/match/cset-arg) · create / `@` activate / exhaust · seq-expr · `&line` / `&pos`-in-scan · case + case-default.
 
-**🔴 OPEN — the audit ladder (2):**
+**🔴 OPEN — the audit ladder (1):**
 - `22_revassign` — `TT_REVASSIGN` (`x <- v`) lowering is a bare IR_FAIL placeholder (dump-verified, orphan operands): a MISSING conversion, own rung. Canonical: JCON reversible-assign machinery + `oasgn.r`.
-- `54_section_plus` — `s[i+:n]` / `s[i-:n]` arms honestly bomb in `bb_section` (plain `s[i:j]` passes).
+- ~~`54_section_plus`~~ **LANDED (SCRIP `c0e74d52`, 2026-07-01):** `s[i+:n]`/`s[i-:n]` desugared in LOWER per canonical icont (tcode.c:591-600 — dup i; eval n; plus/minus; sect): synthetic IR_BINOP(ADD/SUB) as operand[2], IR_SECTION always plain; driver operands moved to `drive_value_slot` (tmp doctrine); `subscript_get2` reversed positions now SWAP per canonical sect (oref.r:509-513) — also fixes plain reversed `s[4:2]`, previously empty. Audit 65/66.
 
 **🟡 OPEN — beyond the probe set:**
 - corpus rung03 suspend shapes (gen/compose) still FAIL — probe-level `suspend` passes; the richer generator-body shapes don't.
@@ -354,7 +354,7 @@ the addressing logic — `RDQ("rbx", k*16)` vs `FRQ(slot)`, the `g_gva_active`/`
 correctly in sibling templates and should be copied, not reinvented).
 
 ## Watermark
-**2026-07-01 — SCRIP `6a509382` (local, push pending): `25_if_value_else` LANDED (LOWER-only: `lower_if` → JCON `ir_a_If` via the ig/MoveLabel machinery).** Audit **64/66 both modes** (open: 22_revassign, 54_section_plus) · corpus 190/63/36 of 289 — FAIL set byte-identical pre/post the if-value change (per-program `comm` diff) · smoke 12/12×2 · no_stack 0 · one_reg 0 · semicolon prison green · local_no_nv PASS · mutation gate **HARD=4** (pre-existing baseline) · icont/iconx oracle built from the icon-master upload · bench-asm baseline 13/0/1/12.
+**2026-07-01 — SCRIP `c0e74d52` (local, push pending): `54_section_plus` LANDED (canonical icont desugar in LOWER + driver tmp-doctrine + `subscript_get2` canonical swap).** Audit **65/66 both modes** (open: 22_revassign only) · corpus 190/63/36 of 289 — per-program FAIL set byte-identical pre/post (stash/rebuild/`comm` diff) · smoke 12/12×2 · no_stack 0 · one_reg 0 · semicolon prison green · mutation gate **HARD=4** (pre-existing baseline) · icont/iconx oracle built fresh from the icon-master upload · bench-asm baseline 13/0/1/12.
 
 ### Landed history (compressed 2026-07-01 per RULES.md "DELETE completed steps" — full narratives in `git log` + `.github/HANDOFF-2026-0*.md`)
 - **Foundations (06-30):** CONVERSION PLAYBOOK + `TT_EVERY` keystone · IR_ref_t α/β edge-stamp (`bb70a841`) · ICON-ONLY hard rules · `IR_ALT` deleted repo-wide (alternation = pure threading) · repeat/break/next via the IR_CONJ loop-back idiom · unop operand-push fix (`2d2b1ec8`) · universal `op_sval`/`gva_index_of` segfault fixed (`baa3a592`) · GVA-FLAT global assign (`feab99c7`) + slot-collision fixes (`024abd2f`, `d225d4a2`) · the every/TO/TO_BY regression cycle — fixed at HEAD, oracle-confirmed · scan-builtin opcodes TAB/MOVE/UPTO/ANY/MANY/FIND/MATCH/POS/BAL · IR_FIELD_SET / IR_PROC_GEN / IR_SUSPEND incl. binary-mode resume slots (`44c0da…`) · TT_IDX/MAKELIST union-clobber fixed (`8e296381`).
