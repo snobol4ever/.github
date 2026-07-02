@@ -16,7 +16,7 @@ All paths are absolute, rooted at the standard checkout layout
 
 | Language | Corpus root | Typical filename pattern | Count |
 |----------|-------------|--------------------------|-------|
-| Icon     | `/home/claude/corpus/programs/icon/`     | `rung<NN>_<topic>_<variant>.icn`   | 263 |
+| Icon     | `/home/claude/corpus/programs/icon/`     | `rung<NN>_<topic>_<variant>.icn` | 263 rung files (suite TOTAL=289 incl. subdirs) |
 | SNOBOL4  | `/home/claude/corpus/programs/snobol4/`  | varies (see snobol4corpus subdir)  | many |
 | Snocone  | `/home/claude/corpus/programs/snocone/`  | varies                             | many |
 | Prolog   | `/home/claude/corpus/programs/prolog/`   | varies                             | — |
@@ -44,19 +44,13 @@ JCON (.j) and SPITBOL (.s) artifacts, not source.  Source is `.icn`.
 
 ## Runners
 
-**Icon corpus (`--run`):**
+**Icon corpus:**
 ```bash
 bash /home/claude/SCRIP/scripts/test_icon_all_rungs.sh
-# Defaults: SCRIP=/home/claude/SCRIP/scrip
-#           CORPUS=/home/claude/corpus/programs/icon
-# Reports: PASS=N FAIL=N XFAIL=N TOTAL=263
-# As of 2026-05-09: 177 / 56 / 30
+# Defaults: SCRIP=/home/claude/SCRIP/scrip  CORPUS=/home/claude/corpus/programs/icon
+# Reports: PASS=N FAIL=N XFAIL=N TOTAL=289   (2026-07-01: 190/63/36)
+# Per-construct, oracle-anchored: bash SCRIP/scripts/audit_jcon_wholesale.sh (66 probes)
 ```
-
-The runner is **hardcoded to `--run`** (line 58 / 60 of the
-script).  There is no `--run` flag.  To run the corpus in
-mode 3 today, copy or wrap the runner — see "Per-mode runner"
-below.
 
 **Per-rung subset:**
 ```bash
@@ -82,43 +76,8 @@ paths — read from `$CORPUS` with this file's default.
 
 ---
 
-## What "modes work" means — the cheat-detection rules
-
-(Borrowed from the framing in `GOAL-CHUNKS.md` and made explicit
-here so corpus runners and goal probes apply it consistently.)
-
-A program "works in mode 3" iff:
-1. `./scrip --run <prog>` exits 0
-2. Output is byte-identical to `--run` (the oracle)
-3. **No AST walker is reached during SM dispatch.**  Specifically:
-   - `coro_eval` not called from `sm_interp_run`'s call graph
-   - `interp_eval` / `interp_eval_pat` / `interp_eval_ref` /
-     `call_user_function` / `execute_program` not reachable from
-     the SM dispatch loop
-   - `SM_PUSH_EXPR` (the legacy AST-pointer-on-stack opcode) not
-     fired by any SM_Program produced by `sm_lower`
-   - `proc_table[i].proc` (raw `AST_t*` field) not dereferenced
-     during call dispatch — `proc_table[i].entry_pc` is the
-     correct field
-
-(1) and (2) are necessary; (3) is what distinguishes "mode 3
-honest" from "mode 3 with mode 2 fallback under the hood."  The
-isolation gate (`scripts/test_isolation_ir_sm.sh`) and the
-SCRIP_EXPRS_AUDIT counter together witness (3).
-
-A program "works in mode 2 honestly" iff `--run` walks the
-AST tree without secretly delegating to SM dispatch.  Less
-contested than mode 3 today, but worth naming so goal files
-don't accidentally ship a "mode 2 = mode 3 in disguise" cheat
-in the other direction.
-
-A program "works in mode 4" iff its emitted standalone binary
-runs to completion linking only against `libscrip_rt.so` —
-no AST walker can possibly be reached because the emitted
-artifact is a separate process.  This is the structural property
-that makes mode 4 the closure witness for the whole stack.
-
----
+## What "modes work" means (2026-07-01)
+Modes 1/2 are DELETED. "Works" = `--run` (mode 3) and `--compile` (mode 4) both exit 0 with output matching the sibling `.expected`/oracle, byte-identical to each other; no AST/IR is walked at runtime (emit-time only — GOAL-IR-IMMUTABLE-EMIT.md, GOAL-MODE34-IDENTICAL.md). The former SM-era cheat-detection symbol list was deleted (all symbols dead).
 
 ## When to update this file
 

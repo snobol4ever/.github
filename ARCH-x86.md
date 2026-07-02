@@ -1,24 +1,6 @@
 # ARCH-x86.md — x86 Backend
 
-⛔⛔ **STALE — FILE LAYOUT AND CLI CLAIMS BELOW DO NOT MATCH THE CURRENT REPO (flagged 2026-06-30, Claude
-Sonnet 4.6, against SCRIP HEAD `8e296381`/`08b68cf3`).** Verified empirically, not asserted: `find . -iname
-BB_templates -o -iname XA_templates -o -iname emit_core.c -o -iname emit_bb.c` returns nothing anywhere
-under `src/`; `bb_pool.c`/`bb_emit.c` as described below do not exist either. `scrip.c`'s argv parser
-recognizes exactly two execution-mode flags, `--run` and `--compile` — not the `--sm-interp`/`--sm-native`/
-`--bb-brokered`/`--bb-flat`/`--target=`-driven six-way matrix this file's "scrip unified executable" section
-describes. **Current reality:** `src/emitter/emit.cpp` + `emit.h` is the one consolidated driver (its own
-top-of-file comment: "bb_regs.h + emit_defs.h were dead and dropped"); templates are flat `src/templates/
-*.cpp` (161 files, no `BB_templates`/`XA_templates`/`SM_templates` subdirectories); register encoding lives
-in `src/templates/x86_asm.h`. **The CONCEPTS this file describes — boxes are stackless, four ports (α/β/γ/ω),
-fresh DATA block per α-entry instead of a stack frame, intra-/extra-BLOB jump distinction — remain the live
-design intent and are NOT what's wrong here; only the concrete file names, directory structure, and CLI flag
-list below are dead.** For the current, independently-re-verified file layout and register contract, read
-`GOAL-IR-IMMUTABLE-EMIT.md`'s "ORIENTATION SYNOPSIS" section instead of trusting the prose below. This
-banner is a correction, not a rewrite — the sections below are left as historical/conceptual reference; do
-not treat any concrete path or CLI flag in them as live without checking the actual tree first.
-
-Backend: x86 (native binary). Emitter: unified `emit_core.c` (`IS_X86` arms) + `emit_sm.c` / `emit_bb.c` (binary SM/BB) + `SM_templates/` + `BB_templates/`.
-Human name: x86. File/folder name: x64 (historical). (The former silo `emit_x64.c` was folded into the unified emitter in the EC series — see ARCH-EMITTER.md.)
+⛔ **Pruned 2026-07-01.** The stale file-layout/CLI body (six-target matrix, `--sm-*`/`--bb-*` flags, `emit_core.c`/`emit_bb.c`/`BB_templates/`/`bb_pool` paths, dispatched-BB ABI, four-mode emitter enum, SM_Program section) is DELETED — none of it exists; recover from git. **Current layout:** `src/emitter/emit.cpp`+`emit.h` (the one driver) · flat `src/templates/*.cpp` + `x86_asm.h` (encoders) · two modes only, `--run`/`--compile` (REPO-SCRIP.md). The CONCEPTS below — stackless boxes, four ports, fresh DATA per α-entry, intra/extra-BLOB jumps, three-column form — remain the live design intent.
 
 ## Byrd Box model
 
@@ -93,14 +75,6 @@ register — the glob's structure encodes which port each box is being
 entered at, statically.  Flat BBs are the design point this architecture
 optimizes for.
 
-**Dispatched BBs (legacy C-function form, `bb_boxes.c`).**  Each box is a
-C function `bb_<name>(ζ *zeta, int port)` reachable by C `call`/`ret`.
-Here `esi` carries the port discriminator because the broker calls boxes
-generically.  This form predates flat BBs and is preserved for the broker-
-driven path (`--bb-brokered`) and for boxes that have not yet been ported
-to flat form.  When porting a box from dispatched to flat, the `esi`-test
-prologue is the first thing to delete.
-
 ### Flat-BB ABI
 
 ```
@@ -156,104 +130,6 @@ BLOB from outside.**  Every cross-BLOB entry lands on the α-preamble.
 The preamble is the contract that the destination BLOB's LOCAL is loaded
 before any `[r12+off]` reference fires.
 
-### Dispatched-BB ABI (legacy, preserved for `--bb-brokered`)
-
-```
-Entry convention (per dispatched box, called by the broker):
-  rdi = buffer base (fn ptr IS the buffer start — same address)
-  esi = 0 (α) or 1 (β)         ; port discriminator
-  r10, r11 = scratch (caller-saved — no push/pop needed)
-
-Prologue (10 bytes, shared by all stateful dispatched boxes):
-  49 89 FA          mov r10, rdi        ; r10 = blob base
-  83 FE 00          cmp esi, 0
-  74 dd             je  α
-  EB dd             jmp β
-```
-
-FAIL is the degenerate case — entry/rdi both ignored, no prologue, 5 bytes total.
-
-**Pool:**
-- `bb_pool.c` — `bb_alloc/bb_seal(mprotect RW→RX)/bb_free`
-- `bb_emit.c` — byte/label/patch primitives
-
-## scrip unified executable
-
-One binary. `scrip-interp` and `scrip-cc` names are retired. Harness passes `INTERP=scrip`.
-
-```
-scrip [mode] [bb] [--target=T] [options] source.sno [-- program-args...]
-
-Execution modes (default: --sm-interp):
-  --run        interpret via AST tree-walk (correctness reference)
-  --sm-interp      interpret SM_Program via dispatch loop  [DEFAULT]
-  --sm-native      SM_Program -> x86 bytes -> mmap slab -> jump in
-                   (implies --target=x64; no emit to disk)
-  --compile        SM_Program -> emit target-language text -> toolchain -> run
-                   (target selects output language; see --target below)
-
-Byrd Box pattern mode (default: --bb-brokered):
-  --bb-brokered    pattern matching via bb_broker() driver
-  --bb-flat        flat inlined blob in exec memory (no broker call overhead)
-
-Target (for --compile; default: x64):
-  --target=x64     emit NASM .s  -> nasm -> ld -> exec
-  --target=js      emit JS       -> node -> exec
-  --target=wasm    emit WAT      -> wat2wasm -> node -> exec
-  --target=jvm     emit Jasmin   -> jasmin.jar -> java -> exec
-  --target=msil    emit MSIL .il -> ilasm -> dotnet -> exec
-  --target=c       emit C        -> cc -> exec
-
-Legacy aliases (deprecated, map to new names):
-  --run    -> --run
-  --dump-ast        -> --dump-ast
-  --dump-ast-bison  -> --dump-ast-bison
-  --run    -> --sm-interp
-  --run   -> --sm-native
-  --compile  -> --compile --target=x64
-  --bb=brokered -> --bb-brokered
-  --bb=wired   -> --bb-flat
-
-Diagnostic options:
-  --dump-ast       print AST after frontend
-  --dump-sm        print SM_Program after lowering
-  --dump-bb        print BB-GRAPH for each statement
-  --trace          MONITOR trace output (diff vs SPITBOL)
-  --bench          print wall-clock time after execution
-  --dump-parse     dump CMPILE parse tree
-  --dump-ast-bison dump AST via old Bison/Flex parser
-```
-
-### Mode × Target matrix
-
-The four engine modes and six targets are largely orthogonal.
-`--sm-native` is the exception — it always emits x86 bytes in-process
-and does not use the `--target` flag.
-
-|                | x64 | js | wasm | jvm | msil | c |
-|----------------|:---:|:--:|:----:|:---:|:----:|:-:|
-| `--run`    | ✓   | —  | —    | —   | —    | — |
-| `--sm-interp`  | ✓   | —  | —    | —   | —    | — |
-| `--sm-native`  | ✓   | —  | —    | —   | —    | — |
-| `--compile`    | ✓   | ✓  | ✓    | ✓   | ✓    | ✓ |
-
-`--run` and `--sm-interp` always run in the C host process;
-target is irrelevant. `--compile` is the universal text-codegen path —
-the same SM_Program walks to a target-language emitter, the emitter
-writes source text, and the target's toolchain assembles/compiles/runs it.
-
-## Binary box coverage (current)
-
-XCHR / XEPS / XSPNC / XANYC / XNNYC / XBRKC / XPOSI / XRPSI / XTB / XRTB / XLNTH /
-XNME / XFNME / XSTAR / XOR / XFARB / XBRKX — 85.5% corpus coverage.
-C-path fallback: XATP(12) XCALLCAP(5) XARBN(5) XDSAR(1) XFAIL(1).
-
-## Stack machine (SM_Program)
-
-SM-LOWER compiles IR → flat array of SM_t instructions.
-INTERP dispatches instructions. EMITTER walks same SM_Program → native code.
-One instruction set. No divergence between interpreter and emitter.
-
 ## Three-column box layout
 
 Every box (whether emitted as text `.s` or directly as bytes into
@@ -278,36 +154,7 @@ proc, with internal port wiring expressed as `jmp`. C function → NASM
 proc; C label → NASM local label (`.name`); goto → `jmp`; return →
 `ret` (or `jmp` to caller's γ/ω); α/β entry → `cmp esi, 0; je .alpha`.
 
-## Four-mode emitter (TEXT / BINARY_WIRED / BINARY_BROKERED / MACRO_DEF)
-
-`bb_emit.c` operates in four modes via a global switch:
-
-```c
-typedef enum {
-    EMIT_TEXT             = 0,
-    EMIT_BINARY_WIRED     = 1,   /* flat/live: one blob, jmp-threaded, ζ=[r12] */
-    EMIT_BINARY_BROKERED  = 2,   /* brokered: per-box blob, C ABI, rdi=ζ      */
-    EMIT_MACRO_DEF        = 3    /* sm_macros.s .macro body regen             */
-} bb_emit_mode_t;
-extern bb_emit_mode_t bb_emit_mode;
-```
-
-- **EMIT_TEXT**: writes GAS `.s` text → file → GAS → ELF → link.
-- **EMIT_BINARY_WIRED** (flat/live mode): writes raw x86-64 bytes into one
-  contiguous `bb_pool` buffer for the entire pattern tree. Boxes `jmp` directly
-  to each other's α/β/γ/ω labels within the blob. Broker calls the blob **once**
-  at α entry (`esi=0`); backtracking is internal `jmp`. Preamble establishes
-  the ζ frame (`mov r12, rdi`); RW→`[r12+off]`, RO→`[rip+disp]`. Jump in, jump out.
-- **EMIT_BINARY_BROKERED** (brokered mode): writes raw x86-64 bytes into
-  `bb_pool`, one blob per box. Each blob has a full C ABI entry: `rdi=ζ` heap
-  struct (local state), `esi=port` (`cmp esi,0; je α; jmp β`), `ret` to
-  return to broker. Broker calls `fn(ζ,0)` for α and `fn(ζ,1)` for β as
-  separate C calls. (EM-BB-PURGE-1: replaces the pre-compiled C box functions
-  in `bb_boxes.c` with template-generated blobs.)
-- **EMIT_MACRO_DEF**: emits `.macro NAME ... .endm` body for `sm_macros.s` regen.
-
-Same template C function generates all four modes. Same call sites. The switch
-is global state.
+## Cache coherence
 
 **Cache coherence:** after writing x86 bytes into a buffer and before
 jumping into it, the I-cache must be flushed.  We use the `mprotect`

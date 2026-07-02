@@ -53,7 +53,7 @@ Icon variable *references* resolve through one of two backends. **Both are kept 
 
 **Why keep both (the directive's intent):** (1) **Performance measurement** — we want the head-to-head cost of frame-slot globals (OLD) vs NV-dictionary globals (NEW): a `[r12+off]` load/store vs a hash lookup + chain walk. The switch lets the SAME corpus run both ways for a clean A/B. (2) **Independent-Icon compilation** — when Icon is compiled standalone (not in a polyglot mix that needs cross-language sharing), the OLD frame-slot model may stay available as a faster, self-contained option; the NEW shared-dictionary model is for the cross-language case. The end state is therefore BOTH backends retained, switch-selected, not OLD-deleted-for-NEW.
 
-**Mode-2 note:** the interpreter already lives in the NEW world for globals regardless of the switch — `scope_patch` (name_binding.c) marks declared globals slotless (`ival=-1`), so the interp's `scope_get` misses and falls through to `NV_GET_fn`/`NV_SET_fn` (IR_interp.c:1749-1787). The OLD/NEW switch is therefore a mode-3/4 (native codegen) distinction; mode-2 is the oracle for both and uses the hash today. (This routing predates the GN ladder.)
+(Mode-2 interpreter note deleted 2026-07-01 — mode 2 no longer exists.)
 
 ---
 
@@ -71,22 +71,7 @@ RBX=NV globals hash base (rides through untouched). RO constants (cset char-stri
 `[rip+disp]`; the membership test is the `bb_pat_any.cpp` idiom (`lea rdi,[rip+cset]; call strchr`). Result
 DESCRs go to the box's own 16-byte frame slot (the `bb_to`/`bb_alt` model); consumers read the producer's slot.
 
-⛔ **CORRECTED 2026-06-30 (Claude Sonnet 4.6) — the "RBX=NV globals hash base" claim two lines above is
-WRONG, verified against actual current code, not assumed.** `grep -n '"rbx"' src/templates/*.cpp` shows
-12+ call sites (`bb_assign_global.cpp`, `bb_gvar_assign.cpp`, `bb_call.cpp`, `bb_binop_gvar_arith.cpp`,
-`bb_det_nb_getval.cpp`/`bb_det_nb_setval.cpp`) all using the SAME pattern: `RDQ("rbx", op_gva_k * 16)` — a
-**flat array indexed by a global-variable SLOT NUMBER (`gva_k`), stride 16 bytes (one DESCR_t per slot)**,
-not a hash table keyed by name. This matches `REGISTER-LAYOUT.md`'s framing (rbx = DESCR base pointer,
-dual-width 8/16-byte DESCR) far better than this file's own "NV hash base" description — REGISTER-LAYOUT.md
-was right, this file was wrong, not the disagreement-acknowledgment this file used to carry ("one stray
-passage... disagrees... treat REGISTER-LAYOUT.md's table as authoritative" — that passage was correct and
-has now been resolved by deleting the wrong claim rather than just flagging it). **Separately: `rbp` (cited
-nowhere in this paragraph but relevant to "NV hash" questions) has ZERO hits as `"rbp"` in any current
-template** — `NV_GET_fn`/`NV_SET_fn` (the actual name-keyed global lookup, confirmed live) are reached as
-plain C calls, not through a register-pinned hash-table base, consistent with this file's OWN later
-"Variable model" section ("GET/SET are C calls for now; inlining is a future optimization"). So: RBX = GVA
-slot-array base (verified), RBP = currently unused for this purpose (verified absent), NOT "RBX = NV hash
-base" as this paragraph originally claimed.
+⛔ **CORRECTED 2026-06-30 (verified vs live templates, narrative pruned 2026-07-01):** RBX = the **GVA slot-array base** — globals at `[rbx+gva_k*16]`, 16-byte DESCR stride (`RDQ("rbx", op_gva_k*16)` across 12+ template sites) — NOT an NV hash base. RBP: zero template hits; `NV_GET_fn`/`NV_SET_fn` remain plain C calls.
 
 **Two semantic families (fstranl.r function signatures — do not blur):**
 - **Position-returners, δ untouched:** `any`/`match`/`many` are `function{0,1}` (one result or fail);
@@ -115,12 +100,6 @@ allocated fresh per alpha-entry. CODE is shared.
 
 ---
 
-## Semantic reference (brokered / legacy form)
-
-`coro_runtime.c` has C-function boxes (`coro_bb_to_by`, `coro_bb_every`, etc.) — EMIT_BINARY_BROKERED form. Correct semantics, wrong architecture. Read for semantics; do not copy as implementation.
-
----
-
 ## JCON reference
 
 `refs/jcon-master/tran/irgen.icn` — 43 `ir_a_*` procedures, one per Icon AST construct. `ir_info(start, resume, failure, success)` = the four-port record. Ground truth for every construct's port topology.
@@ -129,10 +108,7 @@ allocated fresh per alpha-entry. CODE is shared.
 
 ## Co-expressions and TT_SUSPEND
 
-**ENABLED.** `create E`, `@C`, `^C`, `TT_SUSPEND` use ucontext in `coro_runtime.c` — NOT Byrd boxes. Still banned: implementing Byrd constructs (TT_TO, TT_ALTERNATE, etc.) as `DESCR_t foo(void *zeta, int entry)` C functions.
+**LANDED 2026-07-01 (GOAL-IR-IMMUTABLE-EMIT RUNGs 1-5):** `create`/`@`/coret/cofail via the pthread+semaphore model in `src/runtime/rt/rt_coexpr.c` + `bb_create/bb_activate/bb_coret/bb_cofail` templates, end-to-end both modes. (The former ucontext `coro_runtime.c` framing is superseded.) Still banned: implementing Byrd constructs as `DESCR_t foo(void *zeta, int entry)` C functions.
 
 ---
 
-## Note (2026-05-17)
-
-Mode 1 (`--ast-run`) deleted; `icn_value.c`, `icn_stmt.c`, `icn_stmt.h` deleted. Three `[DAI-BOMB]` stubs remain in `icn_runtime.c` for unreachable call sites. Reference path is `--run` (mode 2).
