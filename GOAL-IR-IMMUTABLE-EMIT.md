@@ -132,49 +132,33 @@ done very differently; Icon shall be the JCON-faithful one. All BBs done = Icon 
   DESCR at tmp, contiguous argv scratch at tmp+16); `bb_make_list.cpp` marshals slots → ONE `rt_make_list`
   call (extracted from the by-name arm, which now delegates — write-once); >16-element literal falls LOUD.
   Probe 50 OK 4-way; audit 68/68; corpus FAIL set byte-identical; empty `[]` + inline `[5,6,7][3]` hand-checked m3==m4.
-- [ ] **IDX-UNIFY:** route `TT_IDX` → `IR_SUBSCRIPT` (2-operand base+index form beside the 3-operand section
-  form), lvalue+rvalue; retire `lower_call("[]")`. Unblocks the `arr[i] <- v` punch item (subscript-lvalue
-  revassign). Probe 63 + 53/54 must hold.
-  **SURVEY (2026-07-02, pre-implementation — verified against canonical + live tree):** (a) canonical `subsc`
-  is `operator{0,1} [] subsc(underef x -> dx, y)` (oref.r:581, `use_trap` machinery) — takes x UNDEREFERENCED,
-  yields a trapped VARIABLE, fails on out-of-range; (b) JCON's rval partner is `ir_Deref(lhs value)`
-  (gen_bc.icn:124) — tmp-holding-variable → tmp-holding-value, exactly the KEEP-reserved `IR_DEREF`'s job;
-  (c) **BIGGER THAN SPEC'D: `x[i] := v` is TODAY an `IR_FAIL` placeholder** (lower_icon.c TT_ASSIGN's TT_IDX
-  arm builds `IR_FAIL` and pushes operands onto it — the chain-BFS threads it to ω, so subscript-ASSIGNMENT
-  silently fails); IDX-UNIFY replaces that placeholder, not just the `<-` shape; (d) today's rvalue route is
-  `lower_call("[]")` → by-name `subscript_get(l,r)` — a value COPY, no variable semantics; (e) discriminate
-  the two IR_SUBSCRIPT arms by n_operands (2 vs 3; section variants already ride op_ival). PHASING
-  RECOMMENDATION: structure (list/table) cell-pointer variable first + IR_DEREF for rval consumers + the
-  assign-through write path; STRING subscript keeps the value path this rung (probe 63 protected; canonical
-  `tvsubs` string trapped-vars = its own later rung).
-  **RECON 2 (2026-07-02, this session — fresh derive, extends the survey; NO code written, fork below is Lon's call):**
-  (f) **JCON DERIVED:** irgen.icn has NO `ir_a_Subscript` — `x[i]` is `a_Binop("[]")` → `ir_a_Binop` → ONE
-  `ir_opfn(ir_operator("[]", 2, rval))`; **the rval/lval MODE rides ON THE OPERATOR** (irgen.icn:494-499,
-  `ir_rval` per-argument hints), and `ir_Deref` is CONSTRUCTED at only two live sites in all of irgen
-  (scan oldpos/oldsubject restore, :80/:82) — general deref is operator-mode, not an instruction. So the
-  variable-producing IR_SUBSCRIPT + explicit IR_DEREF plan is the classification-BY-NAME translation of JCON's
-  mode flag (sanctioned by the JCON-ALIGNMENT exception clause), not a literal JCON copy — worth knowing before
-  anyone greps JCON for a Subscript record that isn't there.
-  (g) **CURRENT-CODE PINS (Step-4 fresh):** rvalue = lower_icon.c:181 `lower_call("[]")` →
-  by_name_dispatch.c:3265 → `subscript_get` (pattern_match.c:133 — VALUE COPY: DT_A `array_get` / DT_T value or
-  default / DT_I→DT_S coerce / DT_S char / DT_DATA); assign placeholder = lower_icon.c:187 (IR_FAIL);
-  revassign placeholder = lower_icon.c:536 (IR_FAIL ival=1). No variable/cell DTYPE exists (DT_PLVAR/DT_PLREF
-  are Prolog's; descr.h:6-21).
-  (h) **THE FORK — TABLE SEMANTICS (bigger than the survey; blocks phase 1; Lon decides):** a bare cell-pointer
-  DT_V is sound for DT_A lists (`&elems[i-1]`, fail out-of-range) but has NO answer for `t[k]` with absent `k`.
-  Canonical is `tvtbl` laziness (use_trap): DEREF of absent yields default WITHOUT inserting; ASSIGN inserts.
-  Candidates: **(i) PURE CELL POINTER** — DT_V = `DESCR_t*`; DT_T arm inserts-if-absent to mint the cell —
-  RATIFIED DIVERGENCE: a pure READ of an absent key inserts it (observable via `*t`; rung13_tables exposure);
-  strings/scalars return a plain VALUE descriptor and IR_DEREF is identity on non-DT_V, keeping probe 63 on the
-  unified node path. **(ii) MINI-TRAPPED VAR** — DT_V payload → small heap `{cell; tbl; key; trapped}`; deref
-  reads the default-preloaded cell, assign-through performs the insert — canonical table semantics for one extra
-  runtime struct that IR_DEREF + assign-through must both know. Sub-question either way: the write carrier —
-  extend IR_ASSIGN with an operand-carried-variable arm beside today's sval-name arm, or mint a named opcode
-  (classification principle leans named); TT_REVASSIGN's subscript arm then rides IR_REV_ASSIGN with a variable
-  operand (the operand-order contract in the lower_icon.c:536-547 comment applies verbatim).
-  (i) **PROBES DEFINING DONE (icont-oracle-pinned, add with the implementation):** list rvalue `x[i]` · list
-  `x[i] := v` · nested `x[i][j]` · table `t[k] := v` then read · **table read-of-absent-key then `*t` (the fork
-  discriminator)** · `arr[i] <- v` revassign · string `s[i]` (probe 63 must hold unchanged).
+- [x] **IDX-UNIFY phase 1 — LANDED (SCRIP `264c3994`, 2026-07-02):** `x[i]` is a real LVALUE. `TT_IDX` →
+  2-operand variable-producing `IR_SUBSCRIPT` (operands[0]=base, [1]=index; discriminated from the 3-operand
+  section by n_operands) + `IR_DEREF` rval partner (identity on non-DT_V) + **`IR_ASSIGN_VAR`** write-through
+  (operands[0]=variable, [1]=value; result=value; name CONFIRMED against Lon's criterion 2026-07-02 — it assigns
+  through an operand-carried variable; IR_ASSIGN keeps the by-NAME arm). `lower_call("[]")` retired for Icon.
+  **Option (ii) mini-trapped var** (Lon: "Continue" on the recommendation; option (i)'s read-inserts divergence
+  rejected on canonical-wins): `DT_V=15` + `VCELL_t{cellp,tbl,key,key_d}` (descr.h); tables get the LAZY
+  `{tbl,key}` trap — rt_deref does a FRESH lookup mirroring subscript_get verbatim (incl. the `dflt.v!=0`
+  quirk), rt_assign_var inserts via `table_set_descr`; a pure READ NEVER inserts (canonical tvtbl). **DISCOVERY:
+  Icon `[...]` lists are DT_DATA gen_type=="list" blocks NOT DT_A** — cell = `&frame_elems[i-1]`, negative-index
+  wrap, canonical parity with subscript_get (DT_A arm kept for arrays). Strings/records pass through as VALUES
+  (probe 63 held; `s[i]:=v` BOMBs loudly citing tvsubs). Probes 72-76 oracle-pinned (audit 71→76).
+  **TWO WIRING BUGS found by the corpus diff, fixed, documented in code:** (1) `cx->beta=ω` clobber killed
+  generator-index resumption (`every write(s[1 to 3])`, rung16_subscript_sub_every) — beta now inherited from
+  the last-lowered operand (lower_call postfix parity); (2) the emission walks (`codegen_flat_chain_body` +
+  `descr_chain_operand_refs`) followed ω only for BINOP/CALL/generator kinds — SUBSCRIPT/DEREF/ASSIGN_VAR
+  failure blocks were never EMITTED (`if s[5] then/else` printed nothing, rung16_subscript_sub_fail; latent for
+  3-operand sections in test position too) — ω-follow added at all 4 walk sites. Evidence: audit 76/76 both
+  modes · smoke 12/12×2 · 4 gates PASS · mutation HARD=4 · corpus 194/59/36 → **200/53/36** (six FAIL→PASS:
+  rung13_table_subscript_assign, rung23_table_table_{basic,default,member},
+  rung35_table_str_str_{default_int_key,table_read}; ZERO new fails) · bench-asm 13/0/0/1/12 updated=0.
+  **REMAINING (sub-rungs):** (r1) `tvsubs` string trapped-vars (`s[i]` as lvalue — rt_assign_var's loud BOMB
+  marks the spot); (r2) `arr[i] <- v` subscript-revassign (IR_REV_ASSIGN with a variable operand; still the
+  documented IR_FAIL placeholder at TT_REVASSIGN's arm); (r3) `x[i,j]` COMMA FORM is a PARSER gap ("subscript:
+  expected ] (got ,)") — lower_idx_var's multi-index desugar chain is READY and dormant; (r4) the STRONG
+  fork-discriminator probe (table read-of-absent then `*t`) is blocked on `*t`-on-tables silently failing
+  (table-size gap, its own item) — probe 75 carries the weak default-then-insert form.
 - ~~CONJ-RENAME~~ **RE-NAMED (Lon directive 2026-07-02, later same day: `IR_SEQ_EXPR` → `IR_CONJUNCTION`, SCRIP `46c1923a`):**
   the join node carries the name of the operator that motivated it. FOR THE RECORD, so no future session burns an
   hour on this again: **`case TT_CONJ: case TT_SEQ_EXPR:` is ONE shared case body (lower_icon.c:298) and BOTH arms
@@ -202,7 +186,7 @@ done very differently; Icon shall be the JCON-faithful one. All BBs done = Icon 
   | ~~`IR_EXEC`~~ | **DELETED (`7138de96`)** — was a payload MACRO (IR.h:109), not an enum member (census miscount corrected) | none | — |
   | ~~`IR_UNREACHABLE`~~ | **DELETED (`7138de96`)** | ir_Unreachable | role served by `x86_bomb` — divergence ratified |
   | ~~`IR_SCAN_SWAP`~~ | **DELETED (`7138de96`)** | ir_ScanSwap | save/restore lives inside IR_SCAN_ENTER — divergence ratified |
-  | `IR_DEREF` | 0 | ir_Deref (gen_bc:125) | **KEEP-reserved (Lon Q&A 2026-07-02):** IR_VAR fuses read+deref (value copy) and lvalues are dedicated WRITE opcodes today — but IDX-UNIFY makes IR_SUBSCRIPT variable-producing, and its rval consumers then need the explicit deref, JCON-style (gen_bc:125). IR_DEREF is the IDX-UNIFY partner. |
+  | `IR_DEREF` | live | ir_Deref (gen_bc:125) | **IMPLEMENTED (IDX-UNIFY phase 1, SCRIP `264c3994`):** variable → value, identity on non-DT_V (bb_deref.cpp / rt_deref). Reservation spent exactly as planned. |
   | `IR_MOVE` | 1 (copy_prop.c, unexercised pass) | ir_Move (gen_bc:220) | absorbed by the tmp doctrine DELIBERATELY (producers write own slot; zero construction sites) — delete = ratify the divergence; implement = feed copy_prop |
   | ~~`IR_RESUME_VALUE`~~ | **DELETED (`ed0ac777`, Lon directive 2026-07-02)** — reservation spent: TO-SPLIT (`7dd2baf7`) landed ToBy resume as durable ζ-frame arithmetic (counter at tmp+16, β = plain add), so JCON's resume-value INSTRUCTION dissolves into SCRIP's frame LAYOUT | ir_ResumeValue (gen_bc:551) | — |
   | `IR_MAKE_LIST` | 0 | ir_MakeList (irgen:1346) | **IMPLEMENT** — already this ladder's rung above |
@@ -467,7 +451,9 @@ the addressing logic — `RDQ("rbx", k*16)` vs `FRQ(slot)`, the `g_gva_active`/`
 correctly in sibling templates and should be copied, not reinvented).
 
 ## Watermark
-**2026-07-02 (session, Claude Fable 5) — SCRIP `46c1923a`: IR_SEQ_EXPR → IR_CONJUNCTION rename LANDED (Lon directive; see the re-named CONJ-RENAME entry above for the shared-case-body record). Byte-identical by 291-program emit manifest; audit 71/71 both modes · smoke 12/12×2 · no_stack 0 · one_reg 0 · semicolon prison green · local_no_nv PASS · mutation HARD=4 baseline · bench-asm 13/0/1/12 updated=0 · corpus fresh post-rename run PASS=194 FAIL=59 XFAIL=36 /289 (identical to pre-rename watermark counts, as the manifest proof requires). Next implementation rung: IDX-UNIFY (survey + RECON 2 recorded above; table-semantics fork awaits Lon).**
+**2026-07-02 (session, Claude Fable 5) — SCRIP `264c3994`: IDX-UNIFY PHASE 1 LANDED — x[i] is a real LVALUE (option ii mini-trapped-var; IR_ASSIGN_VAR name confirmed against Lon's criterion). Audit 76/76 both modes · smoke 12/12×2 · 4 gates PASS · mutation HARD=4 baseline · corpus 194/59/36 → 200/53/36 (six FAIL→PASS, ZERO new fails) · bench-asm updated=0. Two wiring bugs found-and-fixed via the corpus diff (cx->beta clobber; emission-walk ω-follow holes — latent for sections too). Remaining sub-rungs in the IDX-UNIFY entry: tvsubs · subscript-revassign · x[i,j] parser · *t table-size gap. Next rung: Lon's call.**
+
+Prior: **2026-07-02 (session, Claude Fable 5) — SCRIP `46c1923a`: IR_SEQ_EXPR → IR_CONJUNCTION rename LANDED (Lon directive; see the re-named CONJ-RENAME entry above for the shared-case-body record). Byte-identical by 291-program emit manifest; audit 71/71 both modes · smoke 12/12×2 · no_stack 0 · one_reg 0 · semicolon prison green · local_no_nv PASS · mutation HARD=4 baseline · bench-asm 13/0/1/12 updated=0 · corpus fresh post-rename run PASS=194 FAIL=59 XFAIL=36 /289 (identical to pre-rename watermark counts, as the manifest proof requires). Next implementation rung: IDX-UNIFY (survey + RECON 2 recorded above; table-semantics fork awaits Lon).**
 
 Prior: **2026-07-02 (continuation session, Claude Fable 5) — SCRIP `87ab07c4`: CONJ-RENAME rung CLOSED, four commits — CONJ-0 probes `7ed39fcb` (genuine-`&` oracle-pinned, audit 68→71) · IR_GOTO split `980d7946` (six junction sites, operand pushes dropped) · IR_CONJ→IR_SEQ_EXPR `633dc295` (value-forwarding join; conjunction = edge wiring, not a node) · TT_CONJ `87ab07c4` (Icon `&` gets its own AST kind; shared TT_SEQ left to peers). Every rung: audit 71/71 both modes · smoke 12/12×2 · corpus 194/59/36 FAIL set byte-identical (comm) · no_stack 0 · one_reg 0 · semicolon prison green · local_no_nv PASS · mutation HARD=4 baseline · bench-asm 13/0/1/12 updated=0. ICON-ONLY scope prose corrected in this file (lower_raku/lower_pascal ARE built). Next implementation rung: IDX-UNIFY (survey already recorded above).**
 
