@@ -98,6 +98,42 @@ silently declines. Patch-offset bookkeeping is abolished — `bb_bin_t`/hand-cou
 patch metadata travels in-band as tagged records inside a template's returned string, walked once by
 `bb_emit_x86`.
 
+## ⛔⛔ IR-LAYOUT JCON-ALIGNMENT DIRECTIVE (Lon, 2026-07-02) — make Icon's IR match JCON's layout
+**Principle (Lon verbatim-in-spirit):** match JCON's IR record set as closely as possible. THE ONE EXCEPTION is
+`ir_Goto`/labels — SCRIP BBs carry the four ports INSIDE the box template, so instead of varying code output
+with labels, SCRIP has varying `IR_*` opcodes that CLASSIFY each form BY NAME, one template each. SNOBOL4 was
+done very differently; Icon shall be the JCON-faithful one. All BBs done = Icon at 100%.
+
+**LANDED (`65f8c32e`):** `IR_FIELD`→`IR_FIELD_GET` · `IR_ENTER_INIT`→`IR_INITIAL` (mechanical, FAIL set byte-identical).
+
+**DERIVED ANSWERS (fresh from refs/jcon-master/tran, 2026-07-02):**
+- **while/until:** JCON emits PURE `ir_Goto` chunk wiring — `ir_Conj` does not exist ANYWHERE in JCON (0 hits
+  in ir.icn/irgen.icn/gen_bc.icn). SCRIP's `IR_CONJ` is our MATERIALIZED Goto: the chain-BFS discards a
+  sentinel's edges, so where JCON writes a bare Goto chunk, SCRIP needs a real node to carry the jump
+  (while's exit sentinel W, repeat's header H, break/next). Same wiring, one SCRIP-ism justified by the
+  ports-in-the-box exception.
+- **to / to-by:** JCON has NO `ir_To` at all — `ir_a_ToBy` defaults `/p.byexpr := a_Intlit(1)` and always emits
+  ONE `ir_opfn(operator("...",3))`. JCON collapses because its product is a generic opfn dispatch; per the
+  classification principle SCRIP splits BY NAME instead.
+- **subscript:** canonical subscript yields a VARIABLE (`oref.r` subsc/trapped vars) — lvalue AND rvalue
+  through one node is CORRECT. Current `TT_IDX → lower_call("[]")` is the misfit.
+
+**RUNG LADDER (Lon directives, in order):**
+- [ ] **TO-SPLIT:** `IR_TO` (2 operands) + new `IR_TO_BY` (3 operands). Mirror IR_TO everywhere: enum+name
+  table, `ir_is_generator_kind`, slot-assign k+=2 grant, `lower_to` picks by TT arity, driver case stages by
+  from operand[2] (IR_TO keeps implicit 1), `bb_to_by.cpp` twin template + Makefile line. Probes 34/35 must hold.
+- [ ] **IR_MAKE_LIST:** JCON HAS `ir_MakeList` (irgen.icn:1346 from ir_a_ListConstructor; consumer
+  gen_bc.icn:582) ⇒ IMPLEMENT, do not delete: lower `TT_MAKELIST`/`TT_VLIST` → `IR_MAKE_LIST` (N operands)
+  replacing `lower_call("MAKELIST")`; driver marshals operand slots; `bb_make_list.cpp` calls the existing
+  MAKELIST `rt_*` entry (value work stays in runtime). Probe 50 must hold.
+- [ ] **IDX-UNIFY:** route `TT_IDX` → `IR_SUBSCRIPT` (2-operand base+index form beside the 3-operand section
+  form), lvalue+rvalue; retire `lower_call("[]")`. Unblocks the `arr[i] <- v` punch item (subscript-lvalue
+  revassign). Probe 63 + 53/54 must hold.
+- [ ] **RESERVED-SET RECONCILE:** the 7 zero-construction-site enum members (`IR_DEREF IR_MOVE
+  IR_RESUME_VALUE IR_UNREACHABLE IR_SCAN_SWAP IR_MAKE_LIST IR_EXEC`) each get a verdict per this principle —
+  implement (has a JCON record + Icon reach), or delete (no JCON record / no path). IR_MAKE_LIST's verdict is
+  above; the other six need the same JCON-citation treatment, one line each, next session.
+
 ## ⛔ FACT RULE — THE EMITTER NEVER MUTATES AN IR NODE
 The emitter (`src/emitter/**`) dispatches on `nd->op` and reads `nd`'s fields. It does **NOT** write
 `nd->op`, does **NOT** write `IR_LIT(nd).*`/`IR_EXEC(nd).*` on an input node, does **NOT** synthesize IR
@@ -355,7 +391,7 @@ the addressing logic — `RDQ("rbx", k*16)` vs `FRQ(slot)`, the `g_gva_active`/`
 correctly in sibling templates and should be copied, not reinvented).
 
 ## Watermark
-**2026-07-02 — SCRIP `b3d41c74` (local, push pending): loop-family PRODUCE-edge α-restamps LANDED (EXPORTABLE RULE sites 5-7; probe 68 — audit **68/68 both modes**). Prior rung `ca31f6e2`: failing unary-test-op else-routing (BFS ω-following UNOP pair; probe 67). Prior rung same session `a0b3f410`: proc-local varslot/tmp SLOT COLLISION fixed (universal — every proc with `local` had its first locals aliasing the first value-producer tmps; relop return-y writes clobbered them). Corpus 190→194/59/36 of 289** — stash/rebuild `comm` diff = exactly +4 FAIL→PASS (rung03_suspend_{gen,gen_compose,gen_filter}, rung36_jcon_statics), ZERO PASS→FAIL · audit 66→**67/67 both modes** (probe 67 added) · smoke 12/12×2 · no_stack 0 · one_reg 0 · semicolon prison green · local_no_nv PASS · mutation gate **HARD=4** (pre-existing baseline) · icont/iconx oracle live · bench-asm baseline 13/0/1/12. Prior rungs same day: `a3de01d2` (`22_revassign`, AUDIT LADDER COMPLETE + operand_aux API deleted + IR_REV_ASSIGN/IR_SUBSCRIPT renames), `c0e74d52` (`54_section_plus`).
+**2026-07-02 — SCRIP `65f8c32e` (local, push pending): IR_FIELD_GET + IR_INITIAL renames (JCON-alignment directive opened — see its section). Prior `b3d41c74`: loop-family PRODUCE-edge α-restamps LANDED (EXPORTABLE RULE sites 5-7; probe 68 — audit **68/68 both modes**). Prior rung `ca31f6e2`: failing unary-test-op else-routing (BFS ω-following UNOP pair; probe 67). Prior rung same session `a0b3f410`: proc-local varslot/tmp SLOT COLLISION fixed (universal — every proc with `local` had its first locals aliasing the first value-producer tmps; relop return-y writes clobbered them). Corpus 190→194/59/36 of 289** — stash/rebuild `comm` diff = exactly +4 FAIL→PASS (rung03_suspend_{gen,gen_compose,gen_filter}, rung36_jcon_statics), ZERO PASS→FAIL · audit 66→**67/67 both modes** (probe 67 added) · smoke 12/12×2 · no_stack 0 · one_reg 0 · semicolon prison green · local_no_nv PASS · mutation gate **HARD=4** (pre-existing baseline) · icont/iconx oracle live · bench-asm baseline 13/0/1/12. Prior rungs same day: `a3de01d2` (`22_revassign`, AUDIT LADDER COMPLETE + operand_aux API deleted + IR_REV_ASSIGN/IR_SUBSCRIPT renames), `c0e74d52` (`54_section_plus`).
 
 ### Landed history (compressed 2026-07-01 per RULES.md "DELETE completed steps" — full narratives in `git log` + `.github/HANDOFF-2026-0*.md`)
 - **Foundations (06-30):** CONVERSION PLAYBOOK + `TT_EVERY` keystone · IR_ref_t α/β edge-stamp (`bb70a841`) · ICON-ONLY hard rules · `IR_ALT` deleted repo-wide (alternation = pure threading) · repeat/break/next via the IR_CONJ loop-back idiom · unop operand-push fix (`2d2b1ec8`) · universal `op_sval`/`gva_index_of` segfault fixed (`baa3a592`) · GVA-FLAT global assign (`feab99c7`) + slot-collision fixes (`024abd2f`, `d225d4a2`) · the every/TO/TO_BY regression cycle — fixed at HEAD, oracle-confirmed · scan-builtin opcodes TAB/MOVE/UPTO/ANY/MANY/FIND/MATCH/POS/BAL · IR_FIELD_SET / IR_PROC_GEN / IR_SUSPEND incl. binary-mode resume slots (`44c0da…`) · TT_IDX/MAKELIST union-clobber fixed (`8e296381`).
