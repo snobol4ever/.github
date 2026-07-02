@@ -243,18 +243,27 @@ degenerates to a read of `nd->tmp`.
   past `jcon_value_region`) — full eradication interns names into `ir_drive_slot_assign`; own rung, biggest.
 
 **LADDER:**
-- [ ] **TE-0 GATE** — `scripts/test_gate_emit_no_slot_alloc.sh`: count `bb_slot_alloc16(`/`bb_slot_claim(`
-  call sites (comments stripped) in emit.cpp + Icon-reachable templates; informational baseline now
-  (15+14 repo-wide), `--strict` zero at TE-FENCE over the Icon set.
-- [ ] **TE-1 CALL-FAMILY GRANT** — `ir_drive_slot_assign`: every `ir_is_call_kind` + IR_CALL gets
-  `k += 1 + n_args (+1 relnd scratch where used)` (the MAKE_LIST precedent); `bb_call*.cpp` compute
-  argv base = `tmp+16` instead of per-arg `bb_slot_alloc16`. The big slice — most Icon-reachable sites.
-- [ ] **TE-2 EMIT.CPP RESIDUE** — the remaining direct claims in emit.cpp drive cases → LOWER grants.
-- [ ] **TE-3 KILL THE TAIL** — `drive_value_slot` non-producer tail → abort; delete `bb_slot_alloc16` /
-  `bb_slot_claim` / `bb_flat_cursor_reserve` from the Icon-reachable path; frame size = LOWER's total only.
-- [ ] **TE-4 VARSLOT ABSORPTION** — locals interned into `ir_drive_slot_assign` (own session).
-- [ ] **TE-FENCE** — gate `--strict` zero (Icon set); dead assigners deleted; audit + smoke + corpus
-  FAIL-set byte-identical.
+- [x] ~~TE-0/TE-1/TE-2/TE-3~~ **LANDED IN ONE SWEEP (SCRIP `d671e68f`, 2026-07-02, Lon widened scope to ALL
+  LANGUAGES same day — "gut out the bad snippet and leave a huge gouge"):** the four allocator symbols
+  (`bb_slot_alloc16` / `_or_get` / `bb_slot_claim` / `bb_flat_cursor_reserve`) are DELETED — definitions,
+  externs, all 21 drive-case reserve calls, template decls; live references = 0, compiler-enforced;
+  gate `scripts/test_gate_emit_no_slot_alloc.sh` (gcc comment-strip; KEEPERS `bb_slot_get`/`bb_slot_register`
+  — the node→offset memo, not an allocator) guards resurrection. NEW GRANTS in `ir_drive_slot_assign`
+  (the ONLY slot source): call family (IR_CALL + `ir_is_call_kind`) `k += 1 + n_operands`, argv at tmp+16
+  (the MAKE_LIST shape — every bb_call*/marshal alloc site became a tmp-read with a loud `x86_bomb` guard;
+  `marshal_single_call`'s NULL-deref avbase gutted); IR_DEREF/IR_ASSIGN_VAR/IR_KEYWORD `k+=1` (the three
+  non-producer slot-takers, named EMPIRICALLY by first gouging the allocators to aborts and reading which
+  ops screamed — the cheap discovery loop, reuse it); IR_CREATE `k+=4` (16B DESCR + 48B regs[6] scratch,
+  replacing bb_create's hand-reserve). Parked-language residue: `bb_gather_prepare` gouged loud (Raku GZ#5
+  grants it later); bb_match_* held only dead extern decls. **CORPUS WIN: rung08_strbuiltins_find
+  FAIL→PASS — a latent call-slot collision this eradication existed to kill.** 205→206/47/36, zero new
+  fails, FAIL set byte-identical across the whole sweep. Both drive_value_slot aborts now state the
+  doctrine (grant in LOWER, never patch the emitter).
+- [ ] **TE-4 VARSLOT ABSORPTION** — locals interned into `ir_drive_slot_assign` (own session). ALSO in
+  this bucket, found during the sweep: the gen-proc SUSPEND-RESUME-SLOT block (emit.cpp ~1450s) computes
+  a frame slot at emit time from the cursor — same disease, gen-proc-frame coupled, flip it with varslots.
+- [ ] **TE-FENCE** — after TE-4: `g_flat_slot_count` itself deleted (LOWER's totals are the frame);
+  audit + smoke + corpus FAIL-set byte-identical.
 
 ## ⛔ FACT RULE — THE EMITTER NEVER MUTATES AN IR NODE
 The emitter (`src/emitter/**`) dispatches on `nd->op` and reads `nd`'s fields. It does **NOT** write
@@ -530,7 +539,9 @@ Original directive (2026-07-02) — hoist numeric coercion into its own BB; arit
 - [ ] **CVA-FENCE** — grep-gate: no template reaches rt_num_arith for a two-numeric case; rt_cnv_num is the only string→numeric parser; audit + corpus green with the CVA-0 probes as the new floor.
 
 ## Watermark
-**2026-07-02 (session, Claude Fable 5) — SCRIP `c76ce21d`: IDX-UNIFY r1 tvsubs LANDED — IDX-UNIFY sub-rung ladder COMPLETE (r1-r4 all closed). `s[i]` is a string lvalue: `IR_VAR_REF` classify-by-name variable-reference producer (DT_V over the variable's cell, GVA/local lea arms, `bb_var_ref.cpp` + `rt_var_ref_cell`); DT_V flows through subscript chains (`rt_subscript_var` derefs DT_V bases internally per canonical subsc — between-level IR_DEREFs retired, `t[k][i]:=v` lvalue-correct via lazy ssvar); `VCELL_t`+`{sv,pos,len}`; rt_deref/rt_assign_var tvsubs arms per cnv.r:482/oasgn.r:345 (recursive write-back collapses canonical's type_case; trap-len update = revassign β-restore correctness). One wiring bug (nested TT_IDX base lost the variable through the rvalue DEREF wrapper) caught by probe 83, fixed by self-recursion. Fresh-sandbox baseline re-derived FIRST and matched the prior close exactly (icont 9.5.25a rebuilt from upload, refs/ symlinked, audit 81/81). Post-rung: audit 81→**84/84 both modes** (probes 82/83/84 oracle-pinned) · smoke 12/12×2 · 4 gates PASS · mutation HARD=4 baseline · corpus 205/48/36 FAIL set byte-identical (comm empty) · bench-asm 13/0/0/1/12 updated=0. **TMP-ERADICATE rung OPENED (Lon directive) with executed survey + TE-0..TE-FENCE ladder** — see its section; key findings: eradication half-landed (`ir_drive_slot_assign` + the drive_value_slot abort), survivors = 15 alloc16 + 14 claim sites (Icon-reachable core = the bb_call* argv family, TE-1), `ir_tmp_slot_assign{,_flat}` are DEAD, varslot cursor = the third counter (TE-4). Open board: TE-1 call-family grant · computed-cset scan operands · pointer-hole fix architecture (Lon).**
+**2026-07-02 (same session, Claude Fable 5) — SCRIP `d671e68f`: TMP-ERADICATE TE-1/2/3 LANDED IN ONE SWEEP (Lon directive, scope widened to ALL LANGUAGES) — emit-time temporary allocation is ERADICATED: the four allocator symbols deleted repo-wide (defs/externs/21 reserve calls/decls), live refs 0 compiler-enforced, new gate `test_gate_emit_no_slot_alloc.sh` PASS 0. Grants added (call family 1+n_operands argv-at-tmp+16 · DEREF/ASSIGN_VAR/KEYWORD ·  CREATE k+=4); discovery method = gouge-the-allocator-and-read-the-abort (cheap, reusable). CORPUS WIN: rung08_strbuiltins_find FAIL→PASS (latent call-slot collision) — 206/47/36, zero new fails, FAIL set byte-identical across the sweep. Audit 84/84 both modes · smoke 12/12×2 · TE gate PASS · 4 gates PASS · mutation HARD=4 baseline · bench-asm honest-churn updated=1 (version.s call-slot layout). Remaining: TE-4 varslot cursor (+ gen-proc suspend-resume-slot, same bucket) · TE-FENCE. Open board: TE-4 · computed-cset scan operands · pointer-hole architecture (Lon).**
+
+Prior: **2026-07-02 (session, Claude Fable 5) — SCRIP `c76ce21d`: IDX-UNIFY r1 tvsubs LANDED — IDX-UNIFY sub-rung ladder COMPLETE (r1-r4 all closed). `s[i]` is a string lvalue: `IR_VAR_REF` classify-by-name variable-reference producer (DT_V over the variable's cell, GVA/local lea arms, `bb_var_ref.cpp` + `rt_var_ref_cell`); DT_V flows through subscript chains (`rt_subscript_var` derefs DT_V bases internally per canonical subsc — between-level IR_DEREFs retired, `t[k][i]:=v` lvalue-correct via lazy ssvar); `VCELL_t`+`{sv,pos,len}`; rt_deref/rt_assign_var tvsubs arms per cnv.r:482/oasgn.r:345 (recursive write-back collapses canonical's type_case; trap-len update = revassign β-restore correctness). One wiring bug (nested TT_IDX base lost the variable through the rvalue DEREF wrapper) caught by probe 83, fixed by self-recursion. Fresh-sandbox baseline re-derived FIRST and matched the prior close exactly (icont 9.5.25a rebuilt from upload, refs/ symlinked, audit 81/81). Post-rung: audit 81→**84/84 both modes** (probes 82/83/84 oracle-pinned) · smoke 12/12×2 · 4 gates PASS · mutation HARD=4 baseline · corpus 205/48/36 FAIL set byte-identical (comm empty) · bench-asm 13/0/0/1/12 updated=0. **TMP-ERADICATE rung OPENED (Lon directive) with executed survey + TE-0..TE-FENCE ladder** — see its section; key findings: eradication half-landed (`ir_drive_slot_assign` + the drive_value_slot abort), survivors = 15 alloc16 + 14 claim sites (Icon-reachable core = the bb_call* argv family, TE-1), `ir_tmp_slot_assign{,_flat}` are DEAD, varslot cursor = the third counter (TE-4). Open board: TE-1 call-family grant · computed-cset scan operands · pointer-hole fix architecture (Lon).**
 
 Prior: **2026-07-02 (new session, Claude Fable 5) — SCRIP `c34d4125`: IR_MOVE DELETED (Lon verdict) — RESERVED-SET RECONCILE CLOSED, all rows resolved. Tmp-doctrine absorption RATIFIED vs JCON ir_Move (gen_bc:220); only client copy_prop.c/.h (unexercised, zero live material) deleted wholesale with it (Makefile source-list + object rule, optimizer.c cp_run/stats arm); residual grep IR_MOVE|cp_run|copy_prop = 0, IR_MOVE_LABEL untouched (word-bounded census, exactly 3 sites). Fresh-sandbox baseline re-derived FIRST (icont 9.5.25a oracle rebuilt from upload, refs/ symlinked per RULES.md recipe, x64 cloned) and matched the prior close exactly before cutting. Audit 81/81 both modes · smoke 12/12×2 · 4 gates PASS · mutation HARD=4 baseline · corpus 205/48/36 FAIL set byte-identical (comm empty vs pre-rung capture) · bench-asm 13/0/1/12 updated=0. Open board: IDX-UNIFY r1 tvsubs · computed-cset scan operands · pointer-hole fix architecture (Lon).**
 
