@@ -135,6 +135,18 @@ done very differently; Icon shall be the JCON-faithful one. All BBs done = Icon 
 - [ ] **IDX-UNIFY:** route `TT_IDX` → `IR_SUBSCRIPT` (2-operand base+index form beside the 3-operand section
   form), lvalue+rvalue; retire `lower_call("[]")`. Unblocks the `arr[i] <- v` punch item (subscript-lvalue
   revassign). Probe 63 + 53/54 must hold.
+  **SURVEY (2026-07-02, pre-implementation — verified against canonical + live tree):** (a) canonical `subsc`
+  is `operator{0,1} [] subsc(underef x -> dx, y)` (oref.r:581, `use_trap` machinery) — takes x UNDEREFERENCED,
+  yields a trapped VARIABLE, fails on out-of-range; (b) JCON's rval partner is `ir_Deref(lhs value)`
+  (gen_bc.icn:124) — tmp-holding-variable → tmp-holding-value, exactly the KEEP-reserved `IR_DEREF`'s job;
+  (c) **BIGGER THAN SPEC'D: `x[i] := v` is TODAY an `IR_FAIL` placeholder** (lower_icon.c TT_ASSIGN's TT_IDX
+  arm builds `IR_FAIL` and pushes operands onto it — the chain-BFS threads it to ω, so subscript-ASSIGNMENT
+  silently fails); IDX-UNIFY replaces that placeholder, not just the `<-` shape; (d) today's rvalue route is
+  `lower_call("[]")` → by-name `subscript_get(l,r)` — a value COPY, no variable semantics; (e) discriminate
+  the two IR_SUBSCRIPT arms by n_operands (2 vs 3; section variants already ride op_ival). PHASING
+  RECOMMENDATION: structure (list/table) cell-pointer variable first + IR_DEREF for rval consumers + the
+  assign-through write path; STRING subscript keeps the value path this rung (probe 63 protected; canonical
+  `tvsubs` string trapped-vars = its own later rung).
 - [ ] **RESERVED-SET RECONCILE — census DONE (2026-07-02, whole-src grep excluding decl/name-table), Lon decides delete-vs-implement per enum:**
   | enum | live refs | JCON record | verdict input |
   |---|---|---|---|
