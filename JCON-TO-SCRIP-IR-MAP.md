@@ -3,7 +3,7 @@
 **Attached to:** `GOAL-IR-IMMUTABLE-EMIT.md` (Ground Zero #5).
 **Purpose:** a durable, per-instruction translation table so the JCON→SCRIP conversion is mechanical
 and survivable across sessions. The last campaign re-flubbed because the correspondence lived only in
-a model's head; this doc makes it ground truth. STATUS column SUPERSEDED (2026-07-01): `SCRIP/scripts/audit_jcon_wholesale.sh` (66 probes, icont-oracle 4-way) is the per-construct ground truth. Naming: JCON's `lhs` was realized as **`IR_t.tmp`** (no `IR_TMP` opcode) — read `lhs` below as `tmp`; see GOAL-IR-IMMUTABLE-EMIT.md STANDING DIRECTIVE.
+a model's head; this doc makes it ground truth. STATUS column SUPERSEDED (2026-07-01): `SCRIP/scripts/audit_jcon_wholesale.sh` (68 probes as of 2026-07-02, icont-oracle 4-way) is the per-construct ground truth — 68/68 both modes; the ir_a_* ladder is COMPLETE (43/43, `a3de01d2`). Naming: JCON's `lhs` was realized as **`IR_t.tmp`** (no `IR_TMP` opcode) — read `lhs` below as `tmp`; see GOAL-IR-IMMUTABLE-EMIT.md STANDING DIRECTIVE.
 
 ---
 
@@ -76,7 +76,7 @@ obeys invariant 1 — reads `lhs`, no emit-time alloc); `C-track` = a Track-C ad
 | `ir_IntLit`      | 351 | yes (lhs) | `bb_int_lit`   | EXISTS (`IR_LIT_I`) — move slot to lower |
 | `ir_RealLit`     | 366 | yes (lhs) | `bb_real_lit`  | EXISTS (`IR_LIT_F`) — ✅ JCON-driver converted (`e44e2359`, reads `nd->lhs`) |
 | `ir_StrLit`      | 381 | yes (lhs) | `bb_str_lit`   | EXISTS (`IR_LIT_S`) |
-| `ir_CsetLit`     | 395 | yes (lhs) | `bb_cset_lit`  | C-track (C2) |
+| `ir_CsetLit`     | 395 | yes (lhs) | (csetlit)      | ✅ LANDED (wholesale audit 07-01, probe 04) |
 | `ir_Tmp`         | 155/159 | — | (slot read/write) | slot-only (the keystone substrate) |
 | `ir_Move`        | 220 | yes (lhs) | `bb_move`      | NEW (currently emit-time forwarding) |
 | `ir_Deref`       | 125 | yes (lhs) | `bb_deref`     | NEW |
@@ -87,20 +87,20 @@ obeys invariant 1 — reads `lhs`, no emit-time alloc); `C-track` = a Track-C ad
 | `ir_OpFunction`  | 609 | yes (lhs) | `bb_binop` / `bb_unop` | EXISTS — SPLIT by arity; op = immediate |
 | `ir_operator`    | 705 | — | (operation immediate) | fold into binop/unop |
 | `ir_Call`        | 664 | yes (lhs) | `bb_call`      | EXISTS (`IR_CALL`) — kill emit-time `rt_*` routing (B4) |
-| `ir_MakeList`    | 582 | yes (lhs) | `bb_make_list` | C-track (C3) — today a builtin call |
+| `ir_MakeList`    | 582 | yes (lhs) | (MAKELIST via rt) | ✅ LANDED (list-ctor probe 50; ||| probe 51) |
 | `ir_ResumeValue` | 551 | yes (lhs) | `bb_resume_value` | NEW |
-| `ir_Goto`        | 291 | no | `bb_goto` / γ-wiring | EXISTS (`IR_GOTO`) |
-| `ir_IndirectGoto`| 298 | no | `bb_indirect_goto` | EXISTS (`IR_GOTO_DYN`) |
+| `ir_Goto`        | 291 | no | (pure γ/ω-wiring) | ✅ realized as edges; IR_GOTO opcode DELETED 07-01 |
+| `ir_IndirectGoto`| 298 | no | `bb_indirect_goto` | ✅ LANDED (`dc45d9e2`, IR_INDIRECT_GOTO) |
 | `ir_Label`       | 175 | — | (chunk label placement) | slot-only |
 | `ir_TmpLabel`    | 165/169 | — | (label slot read/write) | slot-only |
-| `ir_MoveLabel`   | 241 | no | `bb_move_label` | NEW |
+| `ir_MoveLabel`   | 241 | no | `bb_move_label` | ✅ LANDED (`dc45d9e2`, IR_MOVE_LABEL) |
 | `ir_Succeed`     | 445 | no | `bb_succeed` (γ + resume stash) | EXISTS (`IR_SUCCEED`) |
 | `ir_Fail`        | 492 | no | `bb_fail` (ω)   | EXISTS (`IR_FAIL`) |
-| `ir_EnterInit`   | 801 | no | `bb_enter_init` (proc entry) | NEW (currently in proc preamble) |
-| `ir_ScanSwap`    | 254 | no | `bb_scan_swap`  | NEW (scan env save/restore) |
-| `ir_Create`      | 717 | yes (lhs) | `bb_create`   | C-track (C1) |
-| `ir_CoRet`       | 752 | no | `bb_coret`      | C-track (C1) |
-| `ir_CoFail`      | 777 | no | `bb_cofail`     | C-track (C1) |
+| `ir_EnterInit`   | 801 | no | `bb_enter_init` | ✅ LANDED (initial, probe 06; once-per-DEPTH caveat open) |
+| `ir_ScanSwap`    | 254 | no | `bb_gen_scan` env save/restore | ✅ LANDED (scan suite, probes 55-58/65) |
+| `ir_Create`      | 717 | yes (lhs) | `bb_create`   | ✅ LANDED (07-01 RUNGs 1-5, pthread model, probe 59) |
+| `ir_CoRet`       | 752 | no | `bb_coret`      | ✅ LANDED (07-01, probe 59/60) |
+| `ir_CoFail`      | 777 | no | `bb_cofail`     | ✅ LANDED (07-01, probe 60) |
 | `ir_Unreachable` | 524 | no | `bb_unreachable` (ud2/bomb) | C-track (C4) |
 
 **Structural (not instructions — handled by the chunk walker / program builder, not a template):**
