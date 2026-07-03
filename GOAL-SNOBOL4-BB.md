@@ -1,3 +1,37 @@
+<!-- ════════════ GZ#5 REBUILD (2026-07-03) — THIS SECTION SUPERSEDES THE PRE-GZ5 LADDER BELOW ════════════ -->
+
+# GOAL — SNOBOL4 on the shared BB spine (GZ#5 rebuild)
+AUTHORS: Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude   OPENED: 2026-07-03
+
+DOCTRINE: SNOBOL4 rides the SAME pipeline as Icon — sno_parse_ast → lower_sno_stage2 (src/lower/lower_snobol4.c) → shared optimizer → ir_drive_slot_assign → the ONE language-blind emitter → mode-3 (--run) / mode-4 (--compile). SCRIP FOLLOWS SPITBOL SEMANTICS; the oracle is /home/claude/x64/bin/sbl -b. Every statement lowers on the 5-STAGE MODEL: (1) build subject — can fail; (2) build pattern — can fail; (3) perform pattern; (4) build replacement — can fail; (5) perform (substring) replacement — rarely fails. Stages 2/3/5-pattern are LOUD LOWER-TIME FATALS until the IR_MATCH_* family exists ("soon" per Lon 2026-07-03).
+
+## RUNG 1 — statement core (LANDED 2026-07-03)
+WATERMARK: probes p1/t2/t5/p2/p4 = 5/5 PASS in m3 AND m4, byte-exact vs the SPITBOL oracle (hello; unconditional goto; unset-var and empty-string arith; the classic uninitialized LT counting loop; the ladder: SIZE TRIM DUPL REPLACE REMDR IDENT DIFFER LGT, $-indirection read AND write, unary minus, S/F gotos, INPUT association). Icon smoke stayed 12/12 ×2 (HARD gate).
+WHAT LOWERS: NAME = expr and $expr = expr (5-stage skeleton, pattern stages fatal); eval-only statements; :S/:F/unconditional GOTOs — per-statement anchor + S/F junction IR_GOTOs, pass-1 anchors feeding the shared bb_label registry; END; literals ILIT/FLIT/QLIT/NUL; concat (TT_SEQ → BINOP code 11); + - * / **; unary ±; TT_FNC → IR_CALL byname; $e rvalue = SNO$NAME call → IR_DEREF (NAMEVAL DT_N slen==0 → NV_GET_fn, so INPUT association is free); OUTPUT/TERMINAL/keyword associations via NV_SET_fn.
+ZERO NEW IRs. The one pre-authorized IR (GSM/NV vs GLA) proved UNNECESSARY: every sno variable is global_register()'d and GVA never activates for sno, so IR_VAR/IR_ASSIGN land on the existing NV_GET_fn/NV_SET_fn arms of bb_var_global/bb_assign_global. The Icon-proven IR vocabulary carried the whole subset.
+RUNTIME ADDITIONS (language-blind, src/runtime/by_name_dispatch.c): uppercase arms IDENT DIFFER TRIM DUPL REPLACE REMDR + SNO$NAME (NAMEVAL mint; fails on null name); all added to known[] — the ONE list bb_call_route_classify checks. _SNOCOERCE macro: SPITBOL null-string→INTEGER-0 for the numeric predicates (EQ NE LT LE GT GE) and DUPL/REMDR.
+SHARED FIXES LANDED WITH THIS RUNG (all-language wins): (1) rt_num_arith (src/runtime/arithmetic.c) normalizes empty DT_S/DT_SNUL operands → INTVAL(0) — was pointer-arithmetic UB; (2) bb_binop_arith raw-int arm now TYPE-DISPATCHES — non-DT_I operand or rt_binop_overload miss routes to a rt_num_arith slow arm (labels L2/L3) instead of raw payload adds (UB for EVERY language); DT_I fast path byte-identical; (3) bb_label_landing() implemented in lower_common.c (was declared in lower.h, defined nowhere).
+DRIVER: is_sno_bb (pure-.sno programs) joins the modern spine beside is_icon/is_raku at all six gates (dump-ir slot-assign; both mode arms; optimizer + slot-assign loops). g_gva_active stays 0 for sno — NV arms by construction.
+KNOWN SUBSET WALLS (loud lower-time fatals, by design): pattern statements (:pat attr or TT_SCAN subject); DEFINE; EVAL/CODE (the lower_snobol4() runtime-eval entry aborts); indirect/computed gotos :($X); assignment subjects other than NAME / $expr.
+
+## RUNG 2 — DEFINE (NEXT; Lon: "DEFINE can be done")
+STEPS: (1) at lower time parse the DEFINE("F(A,B)L1,L2") literal: fname, formals, locals, entry label (defaults to fname); (2) statement-graph call/return protocol: calls to F enter the label anchor with a recursion-safe return-linkage stack; RETURN/FRETURN/NRETURN become registered labels whose junctions pop the linkage — FRETURN signals ω, NRETURN returns by-name; (3) NV save/restore = SNOBOL4 dynamic scoping: on call push NV cells of formals+locals+fname, bind args by value; on RETURN the result is NV(fname), then restore — runtime helpers rt_sno_call_save/restore are name-list ops, language-blind; (4) probe: recursive factorial vs oracle, m3+m4; runtime (non-literal) DEFINE stays fatal until EVAL exists.
+
+## RUNG 3 — builtin ladder
+Sweep the SPITBOL builtin surface vs oracle, one probe file per family, m3+m4 diffed: CONVERT, DATATYPE, REVERSE/LPAD/RPAD, ARRAY/TABLE/ITEM/PROTOTYPE, DATE/TIME parity, &keyword read/write matrix, arithmetic edges (real division, ** precedence).
+
+## RUNG 4 — IR_MATCH_* wake (NEEDS LON'S IR_e PERMISSION — enum is LOCKED)
+Hibernating template stock already on the menu: bb_match_{abort,advance,alt,any,arb,arbno,atp,break,breakx,capture,cat,defer,fence,head,len,notany,pos,rem,retry,rtab,span,span_var,tab} + bb_pattern_{break,capture,cat,len,lit,stub} + bb_scan_stmt + bb_subject + bb_scan_splice_empty. PROPOSAL: introduce the IR_MATCH_* opcode family 1:1 with these boxes; stage-2 lowers pattern BUILD to a pattern-graph value; stage-3 PERFORM = scan-enter driving match boxes with the cursor in the Σ/δ/Δ discipline; stage-5 replacement splice via the splice box. Byrd four-port α/β/γ/ω throughout; the emitter stays language-blind — one dispatch case per new IR KIND, never per language. The pre-GZ5 ladder below is the ARCHIVE of how these boxes once ran; mine it, do not resurrect it wholesale.
+
+## FAIL MAP (hard-won; do not relearn)
+- polyglot_lang_mask(icon program) carries a stray LANG_SNO bit → any REAL lower_sno_stage2 must exact-mask guard (landed: returns 0 unless mask is exactly sno). This is why the old no-op stub was silently "safe". Root-cause the mask computation someday.
+- Goto fields are TT_GOTO_S/TT_GOTO_F/TT_GOTO_U NODES (child[0] = TT_QLIT label, or an expr for indirect), NOT ":go*" string attrs — the ast printer's ":goS L" rendering is a convenience lie.
+- NV_GET miss returns NULVCL (DT_SNUL, s=NULL). Anything arithmetic must take the typed slow arm; never trust raw payload reads.
+- mode-4 tests MUST rebuild out/libscrip_rt.so after runtime edits — a stale .so silently runs old semantics.
+- scripts/test_gate_bb_one_box.sh fails on bb_binop_gvar_arith_slot.cpp and bb_binop_concat_slot.cpp (0 extern "C" bb_* entries) — PRE-EXISTING before this session, untouched by it.
+
+<!-- ════════════ PRE-GZ5 ARCHIVE BELOW (SM-era pattern ladder; superseded 2026-07-03) ════════════ -->
+
 <!-- GOAL-SNOBOL4-BB · SCRIP native pattern-match ladder for modes 3/4 (--run/--compile) -->
 
 # ╔═══════════════════════════════════════════════════════════════════════════╗
