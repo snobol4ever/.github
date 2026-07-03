@@ -689,3 +689,14 @@ Prior: **2026-07-02 SESSION CLOSE — SCRIP `ed0ac777`: four commits this sessio
 
 
 **Status + remaining ladder: single source = the Watermark and the PUNCH LIST above; ground truth = the harness itself.**
+
+
+## RUNG — LANG-GLOBAL ERADICATION (declared 2026-07-03 by Lon; NOT STARTED)
+DOCTRINE (FACT, mirrored in RULES.md): language-specific code is for PARSER and LOWER — they KNOW their language implicitly, so there is no reason for ANY global that says which language is being processed. EMITTER and TEMPLATES are past language and into PLATFORM: they may condition ONLY on the IR graph (op kinds, operands, payloads, edge stamps) and platform state. Sorry Charlie — no LANG for you in the later stages of SCRIP.
+PREVENTION IS BY VISIBILITY, NOT DISCIPLINE: language flags exist only as function-locals or file-statics inside driver/parser/lower translation units — nothing extern-linkable. Then the emitter and templates simply DO NOT HAVE THE ABILITY to know. Removed = prevented forever.
+STEPS:
+1. INVENTORY: grep -rn "is_icon\|is_raku\|is_pascal\|is_prolog\|is_sno\|g_lang\|LANG_\|IR_LANG_" src/emitter src/templates. Classify every hit: LANGUAGE-IDENTITY (banned) vs MECHANISM/GRAPH state (allowed: g_gva_active = "a GVA arena exists", g_frame_active, g_gen_proc_active = "current graph is a generator", is_global(name) = name-binding query). Audit any mechanism flag that secretly proxies language identity.
+2. EXCISE: replace each banned read with an IR-content or platform predicate, or move the decision into LOWER and stamp it on the graph/node payload.
+3. PREVENT: delete the globals or demote them to static/function-local. is_icon is ALREADY a main() local in src/driver/scrip.c — that is the pattern to enforce everywhere. g_lang (set in sm_preamble): find every reader, excise, delete the global.
+4. GATE: scripts/test_gate_emit_no_lang.sh — grep src/emitter + src/templates for the banned identifier list, exit 1 on any hit; wire it beside the smoke gates. PREVENTED forever — the variable will NOT exist.
+WATERMARK 2026-07-03 (SNOBOL4 GZ#5 rung 1 landed this session): a SECOND language now runs end-to-end on the shared emitter with ZERO language-conditionals added to emitter or templates — sno rides the NV arms of bb_var_global/bb_assign_global via is_global() + gva-inactive, m3+m4 oracle-exact, Icon smoke 12/12 ×2 throughout. The blind-emitter doctrine is proven in practice. Details: GOAL-SNOBOL4-BB.md.

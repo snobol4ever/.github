@@ -81,3 +81,6 @@ verified by direct clone test, 2026-07-01). Invoke: `/home/claude/x64/bin/sbl -b
 ## C code style
 - **200-char line max. Zero blank lines.**
 - **EXACTLY ONE COMMENT:** the 200-char `/*` + dashes + `*/` separator between every function/major block; `/*===*/` (equals, 200 total) between larger sections. Nothing else — no block/inline comments, no `//`, no prose.
+
+
+FACT RULE — NO LANGUAGE-IDENTITY GLOBALS PAST LOWER (2026-07-03, Lon): No global variable that names or identifies the language being processed (is_icon, is_raku, g_lang, any is_<language>/lang-flag) may EXIST where the EMITTER or TEMPLATES could reach it. Language is implicit in PARSER and LOWER — they know what they are; nothing downstream may know or be ABLE to know. EMITTER/TEMPLATES condition only on the IR graph and platform; their dispatch is one case per IR KIND, never per language. Enforcement is by visibility (function-local or file-static inside driver/parser/lower translation units; never extern) plus the grep gate scripts/test_gate_emit_no_lang.sh. See GOAL-IR-IMMUTABLE-EMIT.md → RUNG LANG-GLOBAL ERADICATION.
