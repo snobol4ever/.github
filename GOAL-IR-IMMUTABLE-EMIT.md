@@ -211,6 +211,45 @@ parked file INTO the live tree.
 - **Tools:** `src/tools/tmatch_proto.c` (matcher prototype harness).
 - [ ] **SN4-PAT-DEFER** — `*EXPR` unevaluated + callback: `IR_MATCH_DEFER`/`IR_MATCH_CALLOUT` (needs the matcher
   to re-enter emitted code). The genuine hard edge; do last. EVAL/CODE stay out (runtime compilation).
+## ⛔⛔ SCO-CF — SNOCONE CONTROL FLOW, DIRECT-LOWER PORT (Lon, 2026-07-04 session pivot; worked THIS session)
+**THE RUNG NAME IS `SCO-CF`.** Snocone (.sc) + Rebus (.reb) ride the SNOBOL4 lower TODAY (driver scrip.c:531
+`lower_entry_fn seg_fn = lower_sno_stage2` is the DEFAULT — no snocone/rebus case). The working control-flow
+lower did NOT die in the GZ#5 gutting (`92903c94` removed patterns, already parked) — it died at `662f249a`
+(2026-06-11, "old machinery DELETED — Lon ruling"): the v_* four-attribute walkers + lower_sno.c's explicit
+TT→v_* dispatch. lower_snobol4.c's own Snocone arms were oracle-shape STUBS from birth (identical stub bodies
+at initial import and in the gz5-parked 1402). **RECOVERED 2026-07-04** from `2f17bf4f` (SNO-ISO-1 — the
+commit whose instrumented census ran sco 191 + rebus through this exact dispatch: IF×118 WHILE×12 ALT×10) to
+three parked files, NOT in Makefile:
+- `src/lower/lower.sco-parked-2f17bf4f.c` (683 ln — v_if/v_while/v_until/v_repeat/v_not/v_loop_break/
+  v_loop_next/v_conj/v_alt/wire_if/wire_alt/wire_seq)
+- `src/lower/lower_sno.sco-parked-2f17bf4f.c` (1095 ln — explicit TT→v_* dispatch, every arm)
+- `src/lower/lower_internal.sco-parked-2f17bf4f.h` (89 ln)
+**PORT RECIPE:** semantic reference = parked v_*; structural template = live lower_snobol4.c idioms
+(lc_build/lc_γ_to edge-stamps, sJ/fJ statement GOTOs) — NOT a drop-in (mode-2-era: pre-sidecar-flattening,
+IR_t* γ/ω, old IR_LIT_I names). tree_to_sno.c (661 ln) is ALIVE in the Makefile — the oracle bridge for .sc
+is hand/mechanical transpile → `sbl`; corpus `.ref` files are the recorded oracle.
+- [x] **SCO-CF-0 PARK** — recovered trio committed (this session). Build untouched (not in Makefile).
+- [x] **SCO-CF-1 ROUTE+SHAPE** — pinned this session: (a) .sc routes snocone_compile → lower_sno_stage2
+  (default fall-through, scrip.c:512-531); (b) **the Snocone PARSER already desugars relops** — `x > 5`
+  arrives as `TT_FNC GT(x,5)`, the existing sx_call_named path — ZERO relop TT arms needed, the whole
+  TT_EQ..TT_LLE family is free; (c) IF branches arrive as `TT_PROGRAM(TT_STMT(:subj …))` wrappers;
+  (d) today's wall on `corpus/programs/snocone/corpus/sc4_control.sc` = sx_lower default fatal "tree kind
+  47" = TT_ASSIGN-as-subject (Snocone emits TT_ASSIGN NODES; the SNOBOL4 walker only knows :eq-field
+  assignment) with TT_IF immediately behind it.
+- [ ] **SCO-CF-2 ASSIGN+IF** — sx_lower gains `case TT_ASSIGN` (TT_VAR lhs subset; mirrors the walker's
+  :eq arm: IR_ASSIGN sval=name, operand=rhs value, entry=rhs entry) + `case TT_IF` (cond γ→then-entry,
+  ω→else-entry-or-γ [no-else = cond-fail falls through to statement success, SPITBOL shape]; branches via
+  new `sco_branch` helper walking TT_PROGRAM's TT_STMT :subj list back-to-front, inner fail = fall to next
+  inner stmt [SPITBOL default-continue]). GATE: sc4_control.sc == .ref, m3==m4; SNOBOL4 corpus FAIL set +
+  icon smoke 12/12×2 unchanged.
+- [ ] **SCO-CF-3 WHILE/UNTIL + LOOP_BREAK/LOOP_NEXT** — v_while/v_until port (cond-γ-loops-body vs
+  cond-ω-loops); scx_t grows loop_exit/loop_next (icx_t precedent).
+- [ ] **SCO-CF-4 NOT/INTERROGATE/NONNULL** — success-polarity unaries (parked lower.c:90 arm + v_not).
+- [ ] **SCO-CF-5 DO_WHILE/FOR/CASE/REPEAT** — census-zero kinds; FIRST check parser desugar (the relop
+  precedent says check before porting); tree_to_sno.c:428/467 has the goto-form semantics if arms needed.
+- [ ] **SCO-CF-6 REBUS-WALLS** — .reb probe pinned; loud-fatal arms for never-implemented Rebus-only TTs
+  (UNLESS/SWAP/ITERATE/RECORD_DECL/…) — "at least existed" parity → explicit walls (`:257` precedent).
+
 ## ✅ SCOPE UPDATE (Lon, 2026-07-04) — ICON-ONLY IS LIFTED; SNOBOL4 IS BACK IN SCOPE
 **The two former "ICON ONLY" hard rules (file-scope + test-execution, both Lon 2026-06-30) are RETIRED.**
 Their premise is now false: `lower_snobol4.c` was rebuilt onto the live post-GZ#5 spine — it compiles clean
