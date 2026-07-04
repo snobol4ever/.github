@@ -65,8 +65,115 @@ and the design is recoverable from git.
   grew the op. NOTE for SN4-PAT-3..N: single-element capture equates pattern-start with attempt-start; multi-
   element CAT needs the phase-0 SAVE arm + its own saved-δ slot. `= REPL` splice still bombs (deferred, wall text
   updated at the old `:257` site).
-- [ ] **SN4-PAT-3..N** — one matcher per rung in tracker order: LIT, ANY/NOTANY, SPAN, BREAK/BREAKX, TAB/RTAB,
-  POS/RPOS, REM, ARB, then the combinators CAT/ALT, then ASSIGN_IMM/_COND (`$`/`.`), then ARBNO/BAL/FENCE/ABORT.
+- [x] **SN4-PAT-3a LIT** — LANDED 2026-07-04 (this session). `bb_match_lit.cpp` written fresh (never existed;
+  `IR_MATCH_LIT` had no template — do not confuse with the orphaned pre-family `bb_lit.cpp`, unwired, park-
+  candidate). memcmp-based, β rewinds δ by n (adopted from `bb_lit.cpp`'s pattern — needed once CAT chains
+  backtrack through a matched LIT). Oracle-pinned: anchored/floating/absent/capture, empty lit, overlong,
+  tail-boundary, capture-untouched-on-fail — m3==m4==oracle all paths.
+- [x] **SN4-PAT-3b ANY/NOTANY** — LANDED 2026-07-04. Templates pre-existed on disk, unwired; wiring exposed a
+  live bug on first-ever execution: the single-char fast path emitted `x86("cmp","sil",imm)` — the `x86()`
+  dispatch has no 8-bit-register case, so it silently returned empty (no bomb) rather than failing loud,
+  leaving the branch testing stale flags from the bounds check. Fixed: `sil`→`esi` (movzx already zero-
+  extends). **Any other unwired template calling `x86()` with an unencodable form has the same latent bug —
+  the dispatch declining silently instead of bombing is an emitter-wide footgun, not scoped to this rung.**
+  Literal-charset-arg subset only (the parked file's `dval=1.0` var-arg tag is the DIVISION-RULE flag pattern,
+  not carried over).
+- [x] **SN4-PAT-3c SPAN** — LANDED 2026-07-04. **Real finding:** `_.x86_scratch_off` (read by `bb_match_span`/
+  `_arb`/`_arbno`/`_break`/`_breakx`) is declared in `sm_emit_t` and read by five templates but was **written
+  nowhere in the codebase** — permanently 0 via static zero-init, a live TMP-ERADICATE violation (any value
+  legitimately at frame slot 0 gets silently clobbered) that was invisible only because nothing reading it had
+  ever been dispatched. Fixed at LOWER: granted `IR_MATCH_SPAN` a slot in `ir_drive_slot_assign`
+  (`nd->tmp = base+k*16; k+=1;`, mirrors the `IR_MATCH_HEAD` grant one line above it), then
+  `g_emit.x86_scratch_off = drive_value_slot(nd)` in the DRIVE dispatch — zero emitter-side allocation, per
+  rule. Verified the grant does real work (not just satisfies the FATAL-if-ungranted check) with a slot-
+  collision probe: two globals alive across the SPAN scratch write, sum checked post-match against oracle.
+  **⚠ CARRY FORWARD — BREAK/BREAKX (next in tracker order) read this SAME unwritten field. Grant it in
+  `ir_drive_slot_assign` (same one-line pattern) BEFORE wiring their dispatch cases, or this exact landmine
+  reappears.** ARB/ARBNO inherit the identical defect when their turn comes later in the ladder.
+- [x] **SN4-PAT-3d BREAK/BREAKX** — LANDED 2026-07-04. Applied the SPAN lesson up front instead of rediscovering
+  it: both templates read the same never-written `_.x86_scratch_off` (BREAKX uses both `+0`/`+4`, same as SPAN
+  — one 16B slot covers it), so both got the `ir_drive_slot_assign` grant (`k+=1` each, same pattern) BEFORE
+  their dispatch cases went live — first build was clean, no FATAL. Literal-charset-only subset (matches
+  ANY/NOTANY/SPAN precedent). Oracle-pinned: BREAK head/absent/empty/zero-length-at-cursor, BREAKX head/zero-
+  length-retry/absent, all m3==m4==oracle. **Two-matcher collision probe** (BREAK + BREAKX both live in one
+  graph, two globals alive across both scratch writes, non-colliding sum) confirms independent per-node slots
+  — the grant generalizes correctly when multiple scratch-using matchers coexist, not just one at a time.
+  **⚠ CARRY FORWARD — ARB (later in tracker order) reads this SAME field. Grant it before wiring.**
+- [x] **SN4-PAT-3e TAB/RTAB** — LANDED 2026-07-04. Separate opcodes (`IR_MATCH_TAB`/`IR_MATCH_RTAB`), int-literal
+  arg baked directly into `IR_LIT(nd).ival` at LOWER (no operand node, no `ir_operand_push` — same as LEN;
+  confirmed neither is in `ir_node_produces_value()`, so no `nd->tmp` grant applies or is needed; emitter reads
+  the constant via the generic `op_ival` preamble and bakes it as an x86 immediate, never a memory load). No
+  scratch slot required (unlike SPAN/BREAK/BREAKX). **Bug caught before it hit the corpus:** `bb_match_tab.cpp`
+  enforced the forward-only constraint (`current_cursor > n → fail`) but had **no upper-bound check against
+  `r15d` (Δ)** at all — `TAB(99)` on a 10-char subject incorrectly matched, jumping the cursor to 99 (past the
+  subject end). Found by direct comparison against `bb_match_len.cpp` (the correct sibling doing an analogous
+  bounds check via addition) rather than the full monitor harness — justified here because the divergence was
+  already bracketed to one un-composed statement in a template authored this same session, not inherited logic;
+  fix verified empirically against oracle both pre/post, including fencepost cases (`n==Δ` succeeds, `n==Δ+1`
+  fails, `n==0` succeeds) since bounds-check fixes are exactly where off-by-one errors hide. Fix: added
+  `cmp r15d, n; jl ω` before the existing forward check. **`bb_match_rtab.cpp` was NOT touched** — its overlong
+  case (`RTAB(99)` on a 10-char subject) already failed correctly, but by accident: `Δ-n` underflows to a
+  negative signed value when `n > Δ`, and any non-negative cursor position compares "greater than" a negative
+  target under signed `jg`, so it fails for an incidental reason rather than an explicit check. Left alone
+  since it isn't broken and isn't this rung's scope — flagged here in case a future rung's fencepost probe
+  finds a case where the accident doesn't hold (e.g. `n` chosen so `Δ-n` wraps positive again at extreme
+  magnitudes — not exercised, not ruled out).
+- [x] **SN4-PAT-3f TAB/RTAB TWO-MODE RETROFIT** — LANDED 2026-07-04 (Lon-directed proof-of-concept). **The gap:**
+  every SN4-PAT-3 matcher (LEN through RTAB) gated the AST shape at LOWER time (`t->c[0]->t == TT_ILIT`) and
+  `sno_fatal`'d on anything else — meaning none could accept a variable/computed argument, which is arguably
+  the *more* common real-world SNOBOL4 shape (`TAB(I)` far more common than `TAB(3)`). **The correct precedent,
+  already live in this codebase:** `IR_SCAN_TAB`/`_MOVE`/`_POS` (Icon) do zero shape-checking at LOWER — the
+  argument is lowered as an ordinary expression (in fact `IR_SCAN_TAB` isn't even a dedicated lowering arm; it's
+  a generic `IR_CALL` whose opcode gets *retagged* post-hoc by `icn_retag_scan_body` purely from the builtin
+  name) — and the EMITTER's DRIVE case is the ONLY place that folds: `a0->op == IR_LIT_INTEGER` → bake immediate
+  (`op_sb`); else → read the operand's already-registered runtime slot via `bb_slot_get` (`op_sa`, sign as the
+  discriminant). **Retrofit applied to TAB/RTAB, mirroring this exactly:**
+  - `sno_pat_node`'s signature changed from `(IR_graph_t * g, ...)` to `(scx_t * cx, ...)` (deriving `g = cx->g`
+    locally) — needed so pattern arms can reach `sx_lower`, the general recursive expression lowerer. Both call
+    sites (the one recursive self-call, the one external call from `sno_lower_match`) updated. **This signature
+    is now available to every future pattern arm that needs a general argument — the plumbing cost was paid
+    once.**
+  - `TT_TAB`/`TT_RTAB` LOWER arm: dropped the `TT_ILIT` gate entirely (matching the retag precedent's zero-
+    special-casing) — now unconditionally `sx_lower`s the argument, wires it via `ir_operand_push`, returns the
+    argument's own entry chain (not the TAB node) since the argument must execute first.
+  - `sno_pat_supported`: TAB/RTAB relaxed from `t->c[0]->t==TT_ILIT` to "any argument present" — shape no
+    longer LOWER's concern.
+  - Emitter DRIVE case: rewritten to inspect `nd->operands[0]`, branch on `a0->op == IR_LIT_INTEGER` exactly
+    like `IR_SCAN_TAB`, using `op_sa`/`op_sb` (replacing the old generic `op_ival` read, which is meaningless
+    once the constant may live on a *different* node than `nd`).
+  - Both templates: replaced the direct `(long)(int)_.op_ival` immediate with
+    `IF(_.op_sa>=0, mov rax,FRQ(op_sa+8)) / IF(_.op_sa<0, mov rax,(long)op_sb)`, then unchanged bounds-check
+    logic against `eax` instead of a baked constant.
+  **Proof, not just passing tests:** dumped the actual `.s` output — `TAB(3)` emits `mov rax, 3` (immediate,
+  zero memory access, byte-for-byte the old fast path); `TAB(N)` emits `mov rax, qword ptr [r12+104]` (genuine
+  runtime load). Same opcode, same template, provably different code shape depending on what the argument
+  turned out to be — not merely "tests pass," the mechanism is visibly correct. Oracle-verified: literal (all
+  prior pins re-confirmed unchanged), bare variable (`TAB(N)`/`RTAB(R)`, including runtime-value overlong-
+  bounds cases), and a genuine computed expression (`TAB(N+1)`, an `IR_BINOP` operand — proves "any expression,"
+  not just "also accepts a variable"). Full corpus regression clean (m3/m4 counts and FAIL set unchanged —
+  no existing corpus program yet exercises variable-argument TAB/RTAB, so this is net-new capability, not a
+  fix to a previously-failing case).
+  **⚠ DECISION PENDING (Lon) — retrofit the remaining 7 (LEN, LIT, ANY, NOTANY, SPAN, BREAK, BREAKX)?** LEN is
+  the same int-arg shape as TAB (should be a quick mirror). LIT/ANY/NOTANY/SPAN/BREAK/BREAKX are all
+  string/charset-arg shape — a DIFFERENT retrofit (fold check becomes `a0->op==IR_LIT_STRING`, general path
+  reads a string descriptor's pointer+length instead of one int) — and SPAN/BREAK/BREAKX additionally still
+  carry the scratch-slot grant from SN4-PAT-3c/3d, which needs to keep working alongside the new operand-based
+  charset. Not yet started; the plumbing (`sno_pat_node`'s `cx` signature) is in place for whoever picks this
+  up.
+- [x] **SN4-PAT-3g POS/RPOS/REM/ARB** — LANDED 2026-07-04. POS/RPOS = one opcode (`IR_MATCH_POS`) + `"r"` sval
+  marker per parked design (existing-IRs-only constraint), built TWO-MODE FROM BIRTH (TAB recipe: operand +
+  emitter fold; `RPOS(N)` variable-arg oracle-proven). REM/ARB take scratch grants; REM gained α-save/β-restore
+  (its consumption Δ−entry isn't recomputable, unlike LIT's fixed n); ARB added to `ir_is_generator_kind`
+  (its β IS extend-and-retry) and its β exhaust path fixed to restore entry cursor (box invariant). **Parser
+  fact learned:** bare `REM`/`ARB` (no parens) arrive as `TT_VAR "REM"` — the parked TT_VAR name-dispatch arm
+  is load-bearing; restored for REM/ARB only (FENCE/ABORT/BAL names fatal until their rungs). **Ops note:** a
+  vanished-on-rebuild fatal traced to a suspected stale link — `make ... | tail -1` hides whether the edited
+  TU actually recompiled; force `rm` the .o when in doubt. All 13 session pins re-verified byte-identical;
+  corpus unchanged (138/137) — single-element POS/REM/ARB are rare in corpus; the unlock arrives with CAT.
+- [ ] **SN4-PAT-3h CAT/ALT** — the combinators; the parked `TT_SEQ` arm (4 allocation-order branches, oracle-
+  shape-tuned ω-backtrack wiring) + `TT_ALT` (flat-list right-to-left build) port from `lower_pat_node`
+  197-452; templates `bb_match_cat.cpp`/`bb_match_alt.cpp` on disk. Capture needs the phase-0 SAVE arm
+  (SN4-PAT-2 note). Then ASSIGN_IMM (`$`), then FENCE/ABORT/BAL/ARBNO/DEFER.
 - [ ] **SN4-PAT-FOLD** — re-seat freeze+blob: `sno_freeze_pat_graph_entry` + the stored-pattern driver are IN
   the RECOVERED parent lower file (directive below); the blob-SEAL side (`xa_pattern_blobs.cpp`) is already
   LIVE in the Makefile; `bb_pat_build.cpp` parked; `src/include/dtp.h` (DTP_PROTO_DESC / DTP_FRAG_t,
@@ -554,6 +661,8 @@ OLD SCOREBOARD (2026-07-03 pre-keyword-gen): oracle 10/10 · m3 **2/10** · m4 *
 - [ ] **ICNBENCH-FENCE** — `bash scripts/test_icon_bench_corpus.sh` reports 10/10 on both m3 and m4 (or documents a principled, permanent exclusion per program) before this rung closes.
 
 ## Watermark
+
+**⌚ 2026-07-04 (Claude Fable 5) — SN4-PAT-3a..3g: ELEVEN matchers landed in one session; corpus m3 117→138, m4 116→137, FAIL set {082,099,213} stable throughout.** LIT (template written fresh — none ever existed; orphaned pre-family `bb_lit.cpp` found wired-but-uncalled, park-candidate awaiting Lon), ANY/NOTANY (first-ever execution exposed the silent-empty `x86("cmp","sil",...)` encoder decline — 8-bit regs unknown to the classifier, dispatch returns empty instead of bombing: EMITTER-WIDE FOOTGUN, every unwired template is suspect), SPAN (found `_.x86_scratch_off` read by 5 templates, written NOWHERE — fixed via LOWER grant per TMP-ERADICATE; collision-probed), BREAK/BREAKX (grant applied up front), TAB/RTAB (TAB missing Δ bounds check — caught pre-corpus, fencepost-pinned; RTAB overlong passes by signed-underflow ACCIDENT, flagged not touched), **TAB/RTAB TWO-MODE RETROFIT (Lon-directed proof-of-concept: LOWER stops shape-gating, arg lowered generically as operand; emitter DRIVE folds `IR_LIT_INTEGER`→immediate else slot-read, mirroring `IR_SCAN_TAB`; proven by .s inspection `mov rax,3` vs `mov rax,qword ptr [r12+104]`; `sno_pat_node` now takes `scx_t*` — plumbing paid once)**, POS/RPOS/REM/ARB (two-mode from birth; parser fact: bare `REM`/`ARB` arrive as `TT_VAR`, name-dispatch arm restored; ARB now generator-kind, β-exhaust cursor-restore fixed; REM α-save/β-restore added). Gates 3/3 PASS, icon smoke 12/12×2, feature .s regenerated (11 files). NEXT: **SN4-PAT-3h CAT/ALT** (parked `TT_SEQ` 4-branch arm, the delicate one). PENDING LON: retrofit remaining 7 matchers to two-mode? park `bb_lit.cpp`? **⚠ LOST-WORK NOTICE: the 2026-07-04 Opus ICNBENCH watermark below documents SCRIP `93f906ff` + corpus `710deb15` as local/unpushed — that sandbox is gone; those 4 fixes (binop-keyword restamp, `$define`, statics-GVA, `!` apply) exist ONLY as the spec in that watermark text. Do not delete it; it is the recovery recipe.**
 **2026-07-04 (this session, Claude Opus 4.8) — IR_KEYWORD SPLIT LANDED (working-tree, UNPUSHED — needs credential + SNOBOL4 `.s` regen before commit).** `IR_KEYWORD` → `IR_KEYWORD_ICON` + `IR_KEYWORD_SNOBOL4` (enum +1, AUTHORIZED carve-out to the NO-NEW-IR freeze — see the freeze line's carve-out note). lower_icon mints ICON, lower_snobol4 mints SNOBOL4; emit.cpp dispatches by opcode to `bb_keyword_icon` (verbatim ex-`bb_keyword`, `rt_keyword_read`) vs new `bb_keyword_snobol4.cpp` (single-value read, no scan-reg/generator arms, new `rt_keyword_read_snobol4`). CORRECTNESS GAIN (safe-by-accident → correct-by-construction): `IR_KEYWORD_ICON` stays in `ir_is_generator_kind` + slot `k+=2` (Icon `&features`/`&regions` resumable); `IR_KEYWORD_SNOBOL4` OUT of generator-kind + `k+=1` (no meaningless resume counter). Touch-set: IR.h enum · scrip_ir.c (name table + jcon_converted_producer + slot-grant split + print) · ir_query.c generator-kind → ICON · emit.cpp (op_sval list, template dispatch split, IR_VAR-`&` fallback→icon, drive case both, chain_arity both) · scrip.c 3 scan-classifiers (both) · both lowers · bb_templates.h decl · keywords.{h,c} (+rt_keyword_read_snobol4) · Makefile (rename+add) · emit_per_kind_audit tool. VERIFIED: build ×2 · Icon smoke 12/12 ×2 · SNOBOL4 smoke 4/3 ×2 (both byte-identical to baseline) · no-lang + mutation gates PASS · 0 bare-`IR_KEYWORD` residue · functional `write(&features)`→IR_KEYWORD_ICON→`UNIX`, `OUTPUT=SIZE(&ALPHABET)`→IR_KEYWORD_SNOBOL4→`256`. FOLLOW-ON (not this rung): physically partition the `kw_read` table so the two keyword sets are distinct DATA (closes the folded-collision for true polyglot programs; the opcode split is the prerequisite that unblocks it). HANDOFF: SNOBOL4 keyword `.s` codegen changed (`rt_keyword_read`→`rt_keyword_read_snobol4`) — run the `util_regen_*_s_artifacts.sh` set before commit per RULES.md step 4; Icon `.s` unchanged (byte-identical template). The broader LANG_*/`:lang` enum eradication (Increment 3) remains staged. **ALSO THIS SESSION — INIT-ALL LANDED (working-tree):** `polyglot_init`'s two per-language init blocks (Icon/Raku/Pascal frame+scan; Prolog atom/trail/resolve) made UNCONDITIONAL (Lon "init all languages simultaneously" — the mask no longer gates initialization; the enabler for the enum removal, since init stops needing to know the language). Verified green (Icon 12/12 ×2, SNOBOL4 4/3 ×2; the Prolog probe returns the parked-backend GZ#5 stub, not a regression). **REMAINING = the ATOMIC Increment-3 rung, now fully specified (Lon command decision 2026-07-04):** (1) ONE switch on the file extension in the driver → direct `lower_X_stage2` call (NO sentinel arg, per this file's doctrine), retiring `lower_stage2`'s mask-dispatch + `polyglot_lang_mask`; (2) relocate `polyglot_init`'s `:lang`-driven module/proc/record/global registration (polyglot.c ~64-155) INTO each lowerer, which registers knowing its own language (zero `:lang` reads) — single-language gates (Icon procs, SNOBOL labels) must stay exact; (3) delete `LANG_*` enum, the `:lang` attr (icon/raku/pascal parsers + the `stmt_ast.c` `STMT_t.lang`→`:lang` conversion), `STMT_t.lang`, the write-only `ScripModule.lang`, the `lower_snobol4.c:127` guard, the `lower_prolog.c:578` filter, and de-`LANG_*` `parse_scrip_polyglot`'s fence dispatch (tag string → parser directly). Gate: Icon 12/12 ×2 + SNOBOL4 4/3 ×2. **DOCTRINE REFINEMENT (Lon 2026-07-04):** language-SPECIFIC code lives in exactly THREE homes — PARSER, LOWER, and language-specific TEMPLATES (the `IR_KEYWORD_*` pattern); everything else (emitter driver, IR spine, runtime, shared templates) stays language-blind.
  **CONCURRENT-SESSION RECONCILIATION (2026-07-04, this hand-off):** this session's IR_KEYWORD split landed on origin the same day as a separate concurrent session's `IR_KEYWORD_ASSIGN` (KEYWORD-LVALUE `&pos := v`, entry immediately below) — both based on the same parent commit (`8f2a946`), pushed within the same window, discovered via a rejected non-fast-forward push. Reconciled by hand (not an automatic merge): every overlap was additive-adjacent, not a design collision — `IR_KEYWORD_ASSIGN` is a genuinely new sibling opcode (Icon-only lvalue WRITE) independent of the READ-side ICON/SNOBOL4 split. Merged IR.h/emit.cpp/scrip_ir.c/bb_templates.h/Makefile hunks by hand keeping both changes; lower_icon.c and .github's other hunks auto-merged clean (different regions of the file). Re-verified post-merge: build ×2, Icon smoke 12/12 ×2, SNOBOL4 smoke 4/3 ×2, no-lang + mutation gates PASS. `IR_KEYWORD_ASSIGN` is currently Icon-only (minted only from lower_icon.c) so it does not yet need an ICON/SNOBOL4 split itself — flagged as a likely future follow-on once SNOBOL4's RL-8 (`&TRIM =`/`&ANCHOR =`) lands.
 
