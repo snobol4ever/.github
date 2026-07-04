@@ -253,11 +253,22 @@ is hand/mechanical transpile → `sbl`; corpus `.ref` files are the recorded ora
   FAIL=3 DIVERGE=0, FAIL set {082_keyword_stcount, 099_keyword_rw, 213_indirect_name} byte-identical to
   the 2835cce4 pre-session watermark. Remaining snocone walls: sc5/sc7/sc9/sc10 (WHILE + procedures →
   CF-3+), sc6 (FOR → CF-5).
-- [ ] **SCO-CF-3 WHILE/UNTIL + LOOP_BREAK/LOOP_NEXT** — v_while/v_until port (cond-γ-loops-body vs
-  cond-ω-loops); scx_t grows loop_exit/loop_next (icx_t precedent).
+- [x] **SCO-CF-3 WHILE/UNTIL + LOOP_BREAK/LOOP_NEXT** — LANDED 2026-07-04 (`a4883ba3`). One arm for
+  TT_WHILE/TT_UNTIL: cond lowered with the EXIT edge pre-wired (while: ω=γ; until: γ=γ) and the BODY edge
+  patched post-build via lc_γ_to/lc_ω_to on the cond value node (LOWER-side patch; emitter untouched);
+  body = sco_branch with γ=cond-entry (loop-back); scx_t grew loop_exit/loop_next with save/restore
+  (nested-safe). BREAK/NEXT → IR_GOTO to ctx target; labeled + outside-loop = loud fatal. Oracle-pinned
+  vs sbl: sc5 ==.ref m3+m4; break/continue probe m3+m4; **UNTIL proven via .reb probe** m3+m4 (rebus
+  `function main()` wrapper rode through existing machinery unmodified). **LEXER FACT (footgun):** snocone
+  next-statement spelling is `continue` — `next` silently lexes as a plain IDENT→IR_VAR. Regressions: icon
+  12/12×2; sno corpus DIVERGE=0, FAIL set {082,099,213} unchanged; snocone corpus **5/10 → 7/10**, and
+  **sc6_for passed WITHOUT a TT_FOR arm — the snocone parser desugars FOR to while-form** (relop-desugar
+  precedent confirmed; CF-5's FOR scope is dead). Remaining walls sc7/sc9/sc10 are ALL procedure-shaped:
+  snocone `function` lexes T_DEFINE → a TT_DEFINE statement shape ≠ SNOBOL4's literal-DEFINE subset —
+  needs its own rung (SCO-PROC) after CF-4/CF-6.
 - [ ] **SCO-CF-4 NOT/INTERROGATE/NONNULL** — success-polarity unaries (parked lower.c:90 arm + v_not).
-- [ ] **SCO-CF-5 DO_WHILE/FOR/CASE/REPEAT** — census-zero kinds; FIRST check parser desugar (the relop
-  precedent says check before porting); tree_to_sno.c:428/467 has the goto-form semantics if arms needed.
+- [ ] **SCO-CF-5 DO_WHILE/CASE** — census-zero kinds (FOR struck 2026-07-04: parser-desugared, see CF-3);
+  check parser desugar FIRST; tree_to_sno.c:428 has DO_WHILE goto-form semantics if an arm is needed.
 - [ ] **SCO-CF-6 REBUS-WALLS** — .reb probe pinned; loud-fatal arms for never-implemented Rebus-only TTs
   (UNLESS/SWAP/ITERATE/RECORD_DECL/…) — "at least existed" parity → explicit walls (`:257` precedent).
 
