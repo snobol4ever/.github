@@ -440,3 +440,44 @@ See RULES.md — the computed-status FACT RULE (`scripts/handoff_status.sh` verb
 Verified pre-rebase (e58c6463 on d30545d7): bench 6/10 m3+m4 HONEST (real args; start-of-session 6/10 was degenerate empty-args), corpus 215/38/36 (was 210/43/36; +5, zero broken at every step), audit 94/94, smoke 12/12×2.
 LANDED: ARGS (m3 `scrip files… -- args`, m4 main builds args from own argc/argv, rt_args_list_from) · bb_scan_pos canonical cvpos rewrite · ω-follow +TAB/MOVE/POS/MATCH/ANY in all 4 groups (kills documented tab(oob) non-confinement) · arity-aware scan retag (find(c,s2) stays IR_CALL) · SCAN sweep: uniform drive contract + var arms MOVE/UPTO/FIND/MATCH/BAL, ANY normalized, MOVE silent-default-1 killed · **SCAN SCRATCH GRANT** (scrip_ir.c k+=2 for tab/move/upto/find/match/bal — boxes were writing +16/+24 into the NEXT node's slot; latent corruption under literal arms, fatal under var (memcmp rdi=len repro)) · STMT- and ARG-boundary α-force (generator-kind entries swallowed fail/success edges; fixed keyword-in-list-after-fail + keyword-mid-arglist) · &random := (kywdint) · &time → integer ms · table sort(T,1..4) fsort.r · corpus: rsg:170 + deal:62 missing-`;` merges fixed (the `X := e` ⏎ `&random := e2` conjunction trap).
 OPEN BOARD (leverage order): ICNBENCH-8 integer-apply `write := 1` suppression — concord NOW RUNS rc=0 but 1288L vs 30L; same gap flattens deal 31L / ipxref 28L / queens 25L · rsg Error-1: `&time - lasttime` non-numeric under BY-NAME Time__ (initial-under-dispatch suspect; gdb bracket ready) · tgrlink: `put(x,y)` nargs=2 falls through list-guard (arg0 not a list — inspect) · geddump: TT_BANG_BINARY lowering (unchanged) · micro TIMEOUT (args now forwarded; genuine perf or loop — diagnose fresh) · generator-β-resume architecture: uptoE/findE 2nd values + move-backtrack-else missing, lit==var==m3==m4 consistent (rung37_scan_alt family) — gates full scan fidelity.
+
+## ⌚ WATERMARK 2026-07-04 (SCRIP 13fc659a) — ICNBENCH-8 CLOSED: write/writes reassignment fixed
+**ICNBENCH-8 above ("integer-apply `write := 1` suppression") is CLOSED.** Root cause was NOT integer-apply
+(that already worked — `write(9(1,2,...))` correctly selected arg 9) but that CALLS to `write(...)`/`writes(...)`
+never consulted the current value of the global `write`/`writes` variable — the fast path
+(`bb_call_write_route`) and `try_call_builtin_by_name` both unconditionally hardcoded real I/O regardless of
+`write := 1` (the classic `post.icn` `Init__`/`Term__` suppress/restore idiom used by 6 of the 10 corpus
+benchmarks). Two-layer fix, verified against a freshly-built `icon-master` `iconx` oracle (`Configure
+name=linux && make Icont` — NOT JCON, per this session's instruction):
+1. **Dispatch-side**: `bb_call_write_route` (emit.cpp) returns 0 whenever a new whole-program static scan
+   (`icn_scan_write_reassignable`, lower_icon.c) finds an `IR_ASSIGN`/`IR_REV_ASSIGN` targeting `write`/`writes`
+   anywhere. `try_call_builtin_by_name` (by_name_dispatch.c) checks `NV_GET_fn(fn)`; if not the self-referencing
+   `DT_E` builtin marker, dispatches generically via `rt_call_value` instead of hardcoding I/O. The self-
+   reference check is what lets `write := Save__` (restore) resume real output without infinite-recursing.
+2. **Storage-side (the harder half)**: `write`/`writes` are builtin names, never `global`-declared, so
+   `is_global("write")` was FALSE — `write := 1` silently compiled as a LOCAL FRAME SLOT assign
+   (`bb_assign_local`), never reaching `NV_SET_fn`, and a same-procedure `Save__ := write` (before reassignment
+   runs) read an uninitialized local slot instead of the builtin. Fixed by promoting `IR_VAR`/`IR_ASSIGN` of the
+   literal names `write`/`writes` to the global path. **NARROWED TO EXACTLY `write`/`writes` after a same-
+   session regression**: promoting ANY `rt_builtin_is_known` name first corrupted `options.icn`'s internal
+   `move`/`find`/`any`/`tab` scan calls and segfaulted 6/9 linked benchmarks — bisected against an
+   `options(args,"l+w+")` repro until isolated.
+**Verified zero regression**: icon smoke 12/12 m3+m4, semicolon prison green, `test_icon_all_rungs.sh`
+PASS=213 FAIL=40 XFAIL=36/289 BOTH before and after (git-stash-verified — rung-suite-neutral, no rung exercises
+this idiom). `update_icon_bench_asm.sh`: 0 new/0 updated/4 unchanged/9 compile-err (pre-existing baseline, needs
+link-dep args the script doesn't pass standalone; corpus untouched this session).
+**Benchmark corpus impact**: all 9 non-`micro` benchmarks (concord/deal/geddump/ipxref/micsum/queens/rsg/
+tgrlink/version) now run to rc=0 in BOTH m3+m4 — was segfaulting on 6/9 before this fix. `micro` legitimately
+runs ~14s on the real oracle too (long-running by design) — excluded, not investigated further.
+**CORRECTION to how these benchmarks are graded**: raw stdout is NOT a diffable oracle vs Icon —
+`corpus/benchmarks/README-ICON-JCON.md` says so explicitly (`Init__`/`Term__` prints an interpreter self-ID
+banner that legitimately differs; SCRIP reports "Jcon Version 2.2" not "Icon Version 9.5.25a" by original
+design, unrelated to this fix). The real oracles are `corpus/programs/icon/rung36_jcon_*.expected`.
+**NEW FINDING (not fixed) — queens algorithmic gap, confirmed against `rung36_jcon_queens.expected`**: `every
+q(1)` prints 1 line vs oracle's 61 (zero solutions shown). Root construct: `every 0 = rows[r:=1 to n] =
+up[...] = down[...] & rows[r]<-up[...]<-down[...]<-1 do {...; q(c+1)}` — generator-inside-chained-relop
+(`BENCH-F3`) + recursive-generator-under-`every`-backtracking (`BENCH-F4`) + `<-` inside conjunction. Both
+already open in `GOAL-ICON-FULL-PASS.md`'s BENCH ladder; this session adds a precise oracle-verified repro
+confirming they are queens' ENTIRE remaining gap (banner/suppression noise now fully separated out and closed).
+**NEXT SESSION: start here** — BENCH-F3 (chained-relop generator, `bb_binop_gen` β re-pump) is likely
+prerequisite for BENCH-F4, since `every`'s iteration source IS the chained relop.
