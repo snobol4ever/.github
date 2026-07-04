@@ -236,12 +236,23 @@ is hand/mechanical transpile → `sbl`; corpus `.ref` files are the recorded ora
   (d) today's wall on `corpus/programs/snocone/corpus/sc4_control.sc` = sx_lower default fatal "tree kind
   47" = TT_ASSIGN-as-subject (Snocone emits TT_ASSIGN NODES; the SNOBOL4 walker only knows :eq-field
   assignment) with TT_IF immediately behind it.
-- [ ] **SCO-CF-2 ASSIGN+IF** — sx_lower gains `case TT_ASSIGN` (TT_VAR lhs subset; mirrors the walker's
-  :eq arm: IR_ASSIGN sval=name, operand=rhs value, entry=rhs entry) + `case TT_IF` (cond γ→then-entry,
-  ω→else-entry-or-γ [no-else = cond-fail falls through to statement success, SPITBOL shape]; branches via
-  new `sco_branch` helper walking TT_PROGRAM's TT_STMT :subj list back-to-front, inner fail = fall to next
-  inner stmt [SPITBOL default-continue]). GATE: sc4_control.sc == .ref, m3==m4; SNOBOL4 corpus FAIL set +
-  icon smoke 12/12×2 unchanged.
+- [x] **SCO-CF-2 ASSIGN+IF** — LANDED 2026-07-04. sx_lower gained `case TT_ASSIGN` (TT_VAR lhs subset;
+  mirrors the walker's :eq arm: IR_ASSIGN sval=name, operand=rhs value, entry=rhs entry) + `case TT_IF`
+  (cond γ→then-entry, ω→else-entry-or-γ [no-else = cond-fail falls through to statement success, SPITBOL
+  shape]; branches via new `sco_branch` helper walking TT_PROGRAM's TT_STMT :subj list back-to-front, inner
+  fail = fall to next inner stmt [SPITBOL default-continue]; inner-stmt gotos out of subset, unguarded).
+  **ROOT-CAUSE FIX riding along (driver):** first .sc drive died at TMP-ERADICATE FATAL (IR_LIT_INTEGER
+  tmp=-1) — NOT a lowering bug: scrip.c gates `ir_drive_slot_assign` on `is_icon || is_sno_bb`, and
+  `saw_sno` matched only `.sno` — **Snocone/Rebus never received drive-slot grants at all** (any .sc value
+  node would fatal). Fix: `.sc`/`.reb` join `saw_sno` (scrip.c:430) — they ride lower_sno_stage2, so they
+  are sno-BB graphs; driver-side language conditioning is the legal zone per the LANG FACT RULE. gdb
+  breakpoint at emit.cpp:822 bracketed it (compile-time abort — monitor N/A); SCRIP_OPT=0 A/B exonerated
+  the optimizer. GATES GREEN: sc4_control.sc == .ref m3 AND m4 (byte-identical, both fail-paths + no-else
+  exercised); snocone corpus **0/10 → 5/10** (sc1 literals/sc2 assign/sc3 arith/sc4 control/sc8 strings —
+  the four non-IF passes were the same TT_ASSIGN wall); icon smoke 12/12×2; SNOBOL4 corpus m4 PASS=137
+  FAIL=3 DIVERGE=0, FAIL set {082_keyword_stcount, 099_keyword_rw, 213_indirect_name} byte-identical to
+  the 2835cce4 pre-session watermark. Remaining snocone walls: sc5/sc7/sc9/sc10 (WHILE + procedures →
+  CF-3+), sc6 (FOR → CF-5).
 - [ ] **SCO-CF-3 WHILE/UNTIL + LOOP_BREAK/LOOP_NEXT** — v_while/v_until port (cond-γ-loops-body vs
   cond-ω-loops); scx_t grows loop_exit/loop_next (icx_t precedent).
 - [ ] **SCO-CF-4 NOT/INTERROGATE/NONNULL** — success-polarity unaries (parked lower.c:90 arm + v_not).
