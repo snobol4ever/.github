@@ -1,28 +1,113 @@
 # GOAL-IR-IMMUTABLE-EMIT.md — The emitter READS IR. It NEVER mutates it. (Ground Zero #5)
 
-## ⛔⛔ HARD RULE — ICON ONLY. IGNORE EVERY `lower_*.c` WHERE `* != icon` (Lon, 2026-06-30)
-**This goal touches `src/lower/lower_icon.c` and Icon-reachable code ONLY. Do NOT read, open, grep into,
-reason about, "clean up," or edit `lower_snobol4.c`, `lower_raku.c`, `lower_prolog.c`, `lower_common.c`'s
-per-language arms, or ANY non-Icon frontend/lowerer. They are PARKED — already broken pending their own
-GZ#5 rebuilds (not started), by directive — and they reference a wholesale-dead pre-GZ#5 IR vocabulary
-(`IR_SEQ`, `IR_PATTERN_*`, `IR_DTP_ASSIGN`, `IR_ALT`, … — none in the current `IR_e`). They are NOT in the
-Makefile build **[CORRECTED 2026-07-02: `lower_raku.c` + `lower_pascal.c` ARE compiled (Makefile lines 404-405) — a repo-wide mechanical rename/delete MUST include them or the build breaks (the IR_ALT precedent); rename-only, still zero auditing/fixing of their logic]**. Their stale enum references are INERT and are NOT this goal's concern; "fixing" or even
-auditing them is wasted effort and a scope violation.**
-- **The ONLY files in scope:** `src/lower/lower_icon.c`, `src/emitter/emit.cpp` (+ `emit.h`, Icon-reachable
-  templates `src/templates/bb_*.cpp`), `src/contracts/IR.h`/`scrip_ir.c`, `src/opt/ir_query.c`, the Makefile
-  template list, and the Icon corpus/smoke. Nothing else.
-- **If a dead enum member (e.g. `IR_ALT`) lingers in a parked non-Icon file, LEAVE IT.** It compiles nowhere,
-  ships nowhere, and singling it out is theater. Purge such names ONLY from LIVE, build-included, Icon-reachable
-  code (e.g. the `emit.cpp` chain-BFS) — which is done.
-- **When in doubt whether a file is in scope:** if its name is not `lower_icon.c` and it is not reached when
-  compiling an Icon program through `emit.cpp`, it is OUT. Move on.
+## ⛔⛔ #1 PRIORITY — SN4-PAT — SNOBOL4 PATTERN MATCHING, RECONSTRUCT THE AMPUTATED IR FAMILY (Lon, 2026-07-04; elevated to top-of-ladder same day — this rung is read and worked FIRST, before every section below, including the JCON-IN-SCRIP directive and all Icon rungs)
+**THE RUNG NAME IS `SN4-PAT`.** The non-pattern SNOBOL4 subset is already complete on the live spine (literals,
+vars, keywords, `.NAME`, arith+concat, unary, `$`, subscript/`DEREF`, calls, gotos/labels, every assignment LHS
+form, DEFINE/DATA/OPSYN). **The wall is pattern matching** (`lower_snobol4.c:257` — any `:pat` field or `TT_SCAN`
+subject `sno_fatal`s). Pattern matching genuinely needs new opcodes — the existing Icon SCAN family is anchored
+control-flow, not SNOBOL's first-class floating-needle-over-a-DT_P-pattern model — so this is NOT an
+"existing-IRs" job. **It IS a RECONSTRUCTION**: the full pattern IR family existed and was amputated wholesale,
+and the design is recoverable from git.
 
-## ⛔⛔ HARD RULE — ICON-ONLY TEST EXECUTION. DO NOT RUN ANY NON-ICON LANGUAGE TEST (Lon, 2026-06-30)
-**Do not run, invoke, or cite any non-Icon test/smoke/gate — not as setup, not as a sanity check.** Stricter than the scope rule above: don't *execute* another language's test at all. Those frontends are PARKED; their FAILs are pre-existing noise this goal does not pay for.
-- **FORBIDDEN:** `test_smoke_prolog.sh`, `test_smoke_snobol4*.sh`, `test_smoke_raku*.sh`, `test_smoke_unified_broker.sh` (cross-language), any `scripts/test_*` whose name contains `prolog`/`snobol4`/`raku`/`rebus`/`snocone`/`pascal`, and any other-language line inherited from another doc's Session Setup (GOAL-ICON-BB.md's `test_smoke_prolog.sh` line does not apply to this goal).
-- **PERMITTED (shared build steps, not tests):** `make scrip` / `make libscrip_rt`, cloning the SPITBOL `x64` oracle, and anything named `test_*icon*` / `test_gate_icn_*` / `test_smoke_icon.sh`.
-- **THE ONLY GREEN SIGNALS THIS GOAL READS:** `scripts/test_smoke_icon.sh` (12 programs ×2 modes) · `scripts/test_icon_all_rungs.sh` (289-program corpus) · the four `test_gate_icn_*.sh` discipline gates · `scripts/test_gate_emit_no_ir_mutation.sh` · `scripts/audit_jcon_wholesale.sh` (66 probes, icont-oracle 4-way — the per-rung instrument).
-- **COMPLETION TEST:** zero non-Icon test invocations in the session's tool-call history; if one ran anyway, its output is not cited as evidence.
+**PROVENANCE (all in `git log`):**
+- `8de0fb46` GZ#5 ENUM-AMPUTATION — removed 119 non-Icon members incl. the 53-opcode pattern family (design
+  survives at parent `41b53078`).
+- `2e5a5a3e` — matcher family was `IR_PAT_*`, renamed `IR_MATCH_*` to mirror `bb_match_*`.
+- `18133720` FZ-3 — pattern CONSTANT FOLDING: an all-constant (VARIANT-free) subpattern → sealed
+  `IR_REF_INVARIANT` RO blob, built once not per-match. **This is the "IR_INVARIANT" Lon means.**
+- `547de08d` / BB-REVAMP-TRACKER — the 21 `bb_match_*` templates (abort/advance/any/arb/arbno/atp/break/
+  breakx/capture/defer/fence/head/len/notany/pos/rem/retry/rtab/span/span_var/tab).
+
+**THE MODEL (SPITBOL, two families + one ref — re-added to `IR_e` this session, build stays green):**
+- `IR_MATCH_*` (28) = MATCHERS: the inline needle. `lower_pat_node` (recover from `41b53078:lower_snobol4.c`,
+  ~200 lines) compiles a pattern tree into one node per element, wired by γ(success)/ω(failure); `IR_MATCH_ALT`
+  = backtrack tree, `IR_MATCH_CAT` = concatenation thread, `IR_MATCH_ASSIGN_IMM/_COND` = `$`/`.`. Used for
+  direct `SUBJECT PAT [= REPL]`.
+- `IR_PATTERN_*` = STITCH boxes ONLY. The per-element builders (LIT/ANY/SPAN/LEN/…) are the ABANDONED pre-D7
+  era — do NOT resurrect them. The real design (D7 PIVOT `d7ba0fd9` → `52fce031` `rt_pattern_build` +
+  `rt_pattern_stitch_cat`/`_alt`; B3 STITCH-ALT `7a12aedd`; B6 STITCH-CAT `409f62a9`/`a59f38b8`; FZ-3
+  `18133720` + FZ-4 `6141434` folding): every VARIANT-free subpattern is constant-folded into a sealed
+  `IR_REF_INVARIANT` blob; only VARIANT parts are stitched at the reference site via `IR_PATTERN_CAT`/`_ALT`
+  stitch boxes; `IR_PATTERN_CAPTURE` is passthrough (FZ-4); `IR_PATTERN_DEFER` = `*EXPR`; `IR_DTP_ASSIGN` =
+  stored-pattern `.`/`$` (DTP frag, `src/include/dtp.h`). **[HISTORY CORRECTED 2026-07-04, case-fixed grep:
+  `rt_pattern_stitch_*`/`rt_pattern_build` were superseded PRE-parent by the freeze+blob design — do NOT
+  resurrect them; the parent snapshot is the final authoritative form, and `sno_freeze_pat_graph_entry` lives
+  in the parent's `lower_snobol4.c`, RECOVERED to disk — see FOLD + the PARK-NEVER-DELETE directive below.]**
+- `IR_REF_INVARIANT` (1) = the folded-constant sealed blob that VARIANT stitching references.
+
+**LADDER (incremental, keep build green each rung; land one matcher end-to-end at a time):**
+- [x] **SN4-PAT-0 ENUM** — re-add the family to `IR_e` before `IR_OP_COUNT` (additive; `-w` build so no
+  exhaustiveness break; inert until lowered). LANDED 2026-07-04, `make scrip` green. **[CORRECTED same day
+  (Lon): the initial re-add faithfully copied the parent snapshot's 24 per-element `IR_PATTERN_*` builders —
+  but those were the ABANDONED pre-D7 era (a grep-alternation bug hid the stitch history). Dropped to the
+  stitch-era five: `IR_PATTERN_CAT`/`_ALT` (stitch boxes), `_CAPTURE` (passthrough), `_DEFER`, + re-added
+  `IR_DTP_ASSIGN`. Family is now 34 members (28 `IR_MATCH_*` + `IR_REF_INVARIANT` + 5). Rebuilt green.]**
+- [x] **SN4-PAT-1 TEMPLATE-REVIVE (LEN first)** — LANDED 2026-07-04, build green. `bb_match_len.cpp` back in the
+  Makefile (source list + compile rule); it compiles against today's headers with **ZERO drift** (BB-FIXUP
+  `547de08d` had kept it current — no `IR_node_alloc`/`bb_build_flat` reconciliation needed after all).
+  `bb_match_len()` declared in `bb_templates.h`; `case IR_MATCH_LEN` added to `emit.cpp` dispatch (beside
+  `IR_TO`, line ~724). Inert until SN4-PAT-2 emits the node, so Icon + existing SNOBOL4 subset unchanged.
+  NOTE for SN4-PAT-2: the template reads `_.op_ival` (the LEN count) and emits the anchored δ+n≤Δ advance with
+  γ/ω ports — it assumes it sits inside a floating harness, so SN4-PAT-2 must also supply the retry-at-each-
+  start-position loop (that's what `IR_MATCH_HEAD`/`IR_MATCH_RETRY`/`IR_MATCH_ADVANCE` are for) unless the
+  program is `&ANCHOR`-mode.
+- [ ] **SN4-PAT-2 LOWER-LEN** — port the `lower_pat_node` LEN arm + the statement-level match driver
+  (`SUBJECT LEN(n)` and `= REPL` splice) into `lower_snobol4.c`, replacing the `:257` `sno_fatal` for the
+  single-`LEN` case. Prove `L 'abcXY' ; L LEN(3) . X` (or similar) m3==m4==SPITBOL oracle.
+- [ ] **SN4-PAT-3..N** — one matcher per rung in tracker order: LIT, ANY/NOTANY, SPAN, BREAK/BREAKX, TAB/RTAB,
+  POS/RPOS, REM, ARB, then the combinators CAT/ALT, then ASSIGN_IMM/_COND (`$`/`.`), then ARBNO/BAL/FENCE/ABORT.
+- [ ] **SN4-PAT-FOLD** — re-seat freeze+blob: `sno_freeze_pat_graph_entry` + the stored-pattern driver are IN
+  the RECOVERED parent lower file (directive below); the blob-SEAL side (`xa_pattern_blobs.cpp`) is already
+  LIVE in the Makefile; `bb_pat_build.cpp` parked; `src/include/dtp.h` (DTP_PROTO_DESC / DTP_FRAG_t,
+  first-class β) on disk. `rt_pattern_stitch_*`/`rt_pattern_build` were superseded pre-parent — do NOT
+  resurrect; port the freeze path, not the stitch path.
+
+**⛔⛔ STANDING DIRECTIVE (Lon, restated 2026-07-04) — PARK, NEVER DELETE, parked-language code.**
+Park out of the Makefile (the `8f3e4b23` "kept intact on disk" precedent); deletion of parked code is a
+directive violation even inside a "reset" commit. **The violation on record:** GZ#5 followed the rule for the
+118 templates but DELETED the SNOBOL4 pattern lower wholesale — the parent's `lower_snobol4.c` (1402 lines:
+`lower_pat_node`, `sno_freeze_pat_graph_entry`, the match-statement driver, the generator-kind classifier)
+was replaced by the 451-line non-pattern rebuild with no on-disk copy kept. **RECOVERED this session** to
+`src/lower/lower_snobol4.gz5-parked-41b53078.c` (parked, NOT in the Makefile; build unaffected, verified
+green). Emit-side needed no recovery: at the parent, matchers had no per-op dispatch caller (generic
+`bb_build_flat` blob path only) — today's arms are written fresh in `emit.cpp`, one line per kind
+(SN4-PAT-1's `IR_MATCH_LEN` is the precedent). **Any dead-code sweep (incl. GOAL-DEAD-CODE-SWEEP) must
+exempt `*.gz5-parked-*` files and everything in the WIRING INVENTORY above.** SN4-PAT-2..N port FROM the
+parked file INTO the live tree.
+
+**WIRING INVENTORY (src scan 2026-07-04 — what exists on disk for re-wiring):**
+- **Parser (live):** `src/parser/snobol4/` (`snobol4.l`/`.y` + generated) — full grammar incl. pattern syntax.
+- **Lower:** `lower_snobol4.c`/`.h` (live, non-pattern subset complete; `:257` is the wall), `tree_to_sno.c`.
+- **Runtime (live in build):** `pattern_match.c` (cset_resolve, `pat_*` atoms, `rt_cap_assign_cursor`,
+  `rt_at_cursor`, `rt_defer_match`, `rt_assign_var`; `pat_cat`/`pat_alt` are B0 BOMBs — superseded by stitch),
+  `pat_pool.c`, `by_name_dispatch.c`, `xa_pattern_blobs.cpp`, `src/include/dtp.h`.
+- **Runtime (parked, not in Makefile):** `bb_pat_build.cpp` (mints `IR_MATCH_*` blob-builders; exempt per
+  GOAL-SNOBOL4-BB session-31 note).
+- **Templates on disk (kept intact by `8f3e4b23`, API-current per BB-FIXUP):** 23 `bb_match_*` (abort advance
+  alt any arb arbno atp break breakx capture cat defer fence head len notany pos rem retry rtab span span_var
+  tab — `len` re-wired SN4-PAT-1), 5 `bb_pattern_*` (break capture cat len lit — cat/capture are post-FZ-4
+  passthroughs; `lit`/`len`/`break` are abandoned-era, audit before wiring) + `bb_pattern_stub.cpp`,
+  `bb_keyword_snobol4.cpp`, `bb_scan_match.cpp`.
+- **Dormant backends (X86-ONLY era):** JVM/`SnoPat.java`, .NET/`SnoRt_patterns.il`, JS/`sno_engine.js`,
+  WASM/`sno_runtime.wat` — reference semantics only, not wiring targets.
+- **Tools:** `src/tools/tmatch_proto.c` (matcher prototype harness).
+- [ ] **SN4-PAT-DEFER** — `*EXPR` unevaluated + callback: `IR_MATCH_DEFER`/`IR_MATCH_CALLOUT` (needs the matcher
+  to re-enter emitted code). The genuine hard edge; do last. EVAL/CODE stay out (runtime compilation).
+## ✅ SCOPE UPDATE (Lon, 2026-07-04) — ICON-ONLY IS LIFTED; SNOBOL4 IS BACK IN SCOPE
+**The two former "ICON ONLY" hard rules (file-scope + test-execution, both Lon 2026-06-30) are RETIRED.**
+Their premise is now false: `lower_snobol4.c` was rebuilt onto the live post-GZ#5 spine — it compiles clean
+(EXIT 0, warnings only) and references only live opcodes. The old warning that non-Icon lowers hold a
+"wholesale-dead pre-GZ#5 IR vocabulary (`IR_SEQ`, `IR_PATTERN_*`, `IR_DTP_ASSIGN`, `IR_ALT`)" no longer
+applies to SNOBOL4 (verified: grep = 0 in `lower_snobol4.c`).
+- **In scope now:** everything Icon had, PLUS `src/lower/lower_snobol4.c`, the SNOBOL4-reachable templates
+  (`src/templates/bb_match_*.cpp`, `bb_pattern_*.cpp`, `bb_pat_build.cpp`), `src/runtime/pattern_match.c`,
+  `src/runtime/rt/pat_pool.c`, and the SNOBOL4 corpus/smoke. Icon work is unaffected and stays green.
+- **Testing:** the SNOBOL4 smoke/corpus and the SPITBOL `x64` oracle (`/home/claude/x64/bin/sbl -b f.sno`)
+  are now permitted and expected signals. Keep Icon green as a regression floor (additive-only changes to
+  shared files — the enum re-add below is the model).
+- **Raku/Prolog/Pascal remain PARKED** pending their own GZ#5 rebuilds — untouched, but no longer "forbidden
+  to look at." Leave their inert enum refs alone.
+
 ## ⛔⛔ STANDING DIRECTIVE (Lon, 2026-06-28) — WHOLESALE JCON-IN-SCRIP, ICON-ONLY
 We are doing a complete wholesale rewrite of the Icon LOWER + EMITTER to mirror JCON
 (`refs/jcon-master/tran/`) construct-by-construct, because JCON has it CORRECT. Same IR as JCON's `ir.icn`
