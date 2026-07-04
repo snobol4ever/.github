@@ -504,3 +504,41 @@ already open in `GOAL-ICON-FULL-PASS.md`'s BENCH ladder; this session adds a pre
 confirming they are queens' ENTIRE remaining gap (banner/suppression noise now fully separated out and closed).
 **NEXT SESSION: start here** — BENCH-F3 (chained-relop generator, `bb_binop_gen` β re-pump) is likely
 prerequisite for BENCH-F4, since `every`'s iteration source IS the chained relop.
+
+## ⌚ WATERMARK 2026-07-04 (later same day, SCRIP e0702d7) — real-output benchmark grading + 3 fixes landed
+**Methodology fix first:** graded the 9 non-`micro` benchmarks with `OUTPUT=1` (defeats `post.icn`'s
+Init__/Term__ suppression, isolating the real computed output between the `*** Benchmarking with output ***`
+marker and `elapsed time =`), diffed against a freshly-built `iconx` 9.5.25a AND `jcon` 2.2 (from the uploaded
+masters) — JCON matched Icon byte-for-byte on every benchmark, validating the harness. This is a materially
+stronger bar than rc=0.
+**LANDED — concord and queens now byte-identical to the oracle in BOTH modes (m3+m4); deal byte-identical in
+m3 (m4 has a residual cset-section compiled-path divergence, unfixed):**
+1. `string(cset)` builtin (`by_name_dispatch.c`) only returned the raw cset descriptor; now materializes a
+   real sorted string per `oref.r` — root cause of deal's `every !x :=: ?x` shuffle over `string(&letters)`
+   producing garbage (SCRIP saw `type=cset` where oracle sees `type=string`).
+2. Fresh proc-activation frames (`rt_call_proc_descr`/`rt_proc_call_gen`, `rt.c`) now null-fill the whole
+   frame per α-entry, not just slot 0 — an unset local must read `&null` on a later call (concord's
+   `/number | (number ~== lineno)` guard depended on this; without it a stale value from a prior activation
+   leaked through).
+3. String-section negative-index math (`subscript_get2`, `pattern_match.c`) — `pos=0 → slen+1`, `pos=-n →
+   slen-n+1`, honoring `descr.slen` instead of always `strlen` — fixed concord's `line[1:-2]` trailing-comma
+   bug; guarded the cset-sentinel-slen (0xFFFFFFFF) case so deal's blanker/denom csets don't misread as length
+   4294967295.
+4. Generator-β wasn't threaded through rvalue-section operands in `lower_icon.c` (a/b/c all discarded to ω) —
+   fixed so `deck[(0 to 3)*handsize+1 +: handsize]` (deal's per-hand slice) correctly re-pumps all 4 hands
+   instead of only the first.
+5. GVA global slab (`scrip.c`) was `calloc`, invisible to the Boehm collector — live DESCRs (pointers to
+   GC-managed strings) stored there could be collected out from under the program; switched to
+   `GC_MALLOC_UNCOLLECTABLE`. Found via gdb backtrace on a deterministic SIGSEGV repro (concord, input lines
+   1-53) per RULES.md monitor-first/gdb-hit-count practice — landed in `FIELD_GET_fn`/`rt_size_d` reached from
+   `Regions__`/`Term__`, i.e. exactly the GVA-backed globals `post.icn` shares across procedures.
+**VERIFIED zero regression:** icon smoke 12/12 m3+m4; full rung corpus 213/40/36 (byte-identical to pre-session
+baseline); `update_icon_bench_asm.sh` 0 new/0 updated/4 unchanged/9 CERR (unchanged from documented baseline).
+**STILL OPEN on the benchmark corpus (unchanged from before this session, now more precisely diagnosed):**
+deal m4 cset-section mode-4-only divergence (unsorted suit `quvxyz` — m3 correct, so a compiled-path-only
+emit bug, not shared runtime) · ipxref `bb_assign_global: unhandled (needs descr flat-chain + rhs slot + own
+slot)` BOMB (same flat-chain family as the already-documented concord/deal gap, but on a global not yet
+covered) · geddump rc=0/0-output (record-decl parse gap, unchanged) · micsum/rsg emit banner-only (their
+main loops produce nothing, unchanged) · tgrlink stops at first 2-arg `put()` (list-guard gap, unchanged).
+**NEXT SESSION:** ipxref's BOMB is the cheapest next win — same family as fixes 1-4 above, likely another
+missing rhs-slot/own-slot grant in `bb_assign_global`'s LOWER-side wiring for a specific global shape.
