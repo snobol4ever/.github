@@ -218,7 +218,28 @@ and the design is recoverable from git.
   **053 alt_commit still fails** — it is `P = ('a'|'b'|'c'); X P`, a STORED-pattern reference (`X P`), i.e.
   DEFER/stored-pattern territory (a later rung), NOT pure ALT. NOT YET regenerated: the ALT `.s` feature
   artifacts (handoff step 4 owes another `util_regen_feature_s_artifacts.sh` run — codegen changed again).
-  **NEXT: ASSIGN_IMM (`$`), then FENCE/ABORT/BAL/ARBNO, then DEFER (last).**
+- [x] **SN4-PAT-3i FENCE** — LANDED 2026-07-05 (Claude Sonnet 5). Bare `FENCE` and the `FENCE(P)`
+  atomic-group form now lower in the single-HEAD model. FINDING THAT SHAPED IT: every deterministic
+  matcher fails straight to `head` (the retry-at-next-anchor box; ω=`fJ`) — there is no left-to-right
+  backtrack chain among deterministic elements — so FENCE cannot be a `β→ω` box (a later element's
+  failure never reaches it). FENCE is instead node-free (the landed-CAT precedent, zero new IR/template/
+  Makefile touch) and works as a **fail-retarget**: in a pattern sequence, a fence SEALS — every element
+  to its right fails to the statement-level `cx->pat_fail` (=`fJ`, new `scx_t` field) instead of `head`,
+  cutting off both anchor-retry and left-generator resume, exactly the manual's semantics (forward = null
+  match, no effect; backtrack into it = whole match fails). `FENCE(P)` additionally lowers `P` with the
+  pre-seal fail (so `P` retries normally on forward-fail) — the seal only blocks re-entry after `P`
+  succeeds. `lower_snobol4.c` only (+59/-15): `sno_is_fence`/`sno_seq_has_fence` helpers; `TT_FENCE` +
+  `TT_VAR "FENCE"` leaf arms; `TT_SEQ` flattens the left-assoc spine and retargets per-element fail past
+  the first fence (fence-free sequences keep the untouched 2-way CAT path byte-for-byte); `sno_pat_supported`
+  child-aware for `FENCE(P)`. VERIFIED vs SPITBOL x64 oracle: 058/059/060/067/069/100-104/107 all m3==oracle
+  (one bug caught+fixed pre-measurement: standalone `FENCE(P)` was matching null and dropping `P`). Crosscheck
+  both modes 154→168 (+14), DIVERGE=0, mode-4 FAIL back to the 3 parked (082/099/213); non-pattern FAIL set
+  byte-identical to baseline (zero regressions); patterns 15→29; Icon smoke 12/12×2. Artifact regen
+  (feature/benchmark/demo) = 0 changed — fence tests live in the crosscheck corpus, compiled on-the-fly,
+  no committed `.s`. Remaining pattern fails are ARBNO, `*VAR` deferred-eval, and pattern-as-value/via-var
+  (105/106 need the last one) — FENCE was never scoped to cover them.
+  **NEXT: ARBNO, then ABORT/BAL, then ASSIGN_IMM (`$`)/DEFER — pattern-as-value (STITCH) is the other
+  large lever whenever Lon wants that path instead.**
 - [ ] **SN4-PAT-FOLD** — re-seat freeze+blob: `sno_freeze_pat_graph_entry` + the stored-pattern driver are IN
   the RECOVERED parent lower file (directive below); the blob-SEAL side (`xa_pattern_blobs.cpp`) is already
   LIVE in the Makefile; `bb_pat_build.cpp` parked; `src/include/dtp.h` (DTP_PROTO_DESC / DTP_FRAG_t,
