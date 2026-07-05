@@ -47,6 +47,70 @@ how deferred (*PATTERN) bodies got blocks. (3) Diff against today's flat `ir_dri
 the bring-forward design: block-granular ζ on the live spine (unblocks ARBNO + DEFER + honest function
 frames). (5) Optionally run the paused self-host + md5 gate to certify the rebuilt milestone.
 
+### ZB-EXTRACT — LANDED 2026-07-05 (chat session, Fable) — the recovered chunk model + bring-forward ladder
+
+**Corrections to the pivot block above:** (a) **one4all cloned PUBLICLY this session** (`git clone
+https://github.com/snobol4ever/one4all.git`, no credential, 2026-07-05) — Lon: verify the repo's visibility is
+intended before relying on "private". (b) The era macro file is `archive/backend/snobol4_asm.mac` (2,177 lines),
+NOT under `artifacts/asm/`. (c) `artifacts/asm/beauty_prog.s` is byte-identical at `52251653` and `4757bbcd`
+(git diff empty), was last REGENERATED 2026-03-29 (`bab5b6f4`) — the 4/28 milestone ran against a late-March
+artifact — and left the tree 2026-05-21 (`1544362a`). Session copies: `/home/claude/beauty_prog_0428.s`,
+`/home/claude/snobol4_asm_0428.mac`.
+
+**F1 — two-tier storage.** rbp (10,036 uses) = SM statement frame for expression temporaries; r12 (3,937) = the
+MOVING ζ block base for BB/pattern/function activation state; plus 2,389 static `.bss` qwords for
+single-activation per-site state (68× `scan_start_N`, 19× `dol_entry_N`, 26× `spn_expr_N`, 16× `brk_expr_N`,
+`fn_*` arg/save t·p pairs, `P_*_ret_γ/ω` continuation cells).
+
+**F2 — activation = template-clone.** Each block family: a `.data` init image `box_<X>_data_template` (`dq 0`
+rows whose comment column carries the field map — 1,094 annotated slots = the chunk-allocation table, in the
+artifact itself) + `box_<X>_data_size`. Function-call α: `rdi=[box_X_data_size]; call blk_alloc;
+memcpy(new,template,size); r12=new` (see `fn_upr` site). Deferred `*PATTERN` bodies took the CHEAP tier:
+`lea r12,[rel box_ExprN_data_template]` (34 sites) — ran IN the static template, no clone: a single-activation
+bet, the same bet the flat model later lost.
+
+**F3 — nesting discipline.** 332× `push r12 … mov r12, rax` (machine-stack save of caller ζ), or named cells
+(`nref516_r12`) for deferred refs; returns via STORED CONTINUATIONS `P_X_ret_γ/ω` (code addresses), return
+thunks restore r12 then `jmp`.
+
+**F4 — intra-block ABI.** Hot descriptor at `[r12+16]/[r12+24]` (t·p; 140 loads / 66 stores); per-box fields
+upward (ARBNO's at `+280/+288`).
+
+**F5 — ARBNO mechanics** (`snobol4_asm.mac:2040-2077`): depth counter IN the current ζ (`r12+280`);
+per-iteration state = ONE qword cursor snapshot on a per-instance STATIC stack `arbN_stack resq 64`; α1 rejects
+the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops and restores. **Depth hard-capped at
+64 by the static array.** The cap + the static ret_γ/ω and nref cells are exactly today's casualty list
+(ARBNO wall, queens solution-4 clobber, SCAN-SCRATCH overruns).
+
+**BRING-FORWARD DECISIONS (Lon, chat session 2026-07-05):**
+- Per-activation ζ blocks from a BUMP ζ-STACK in the RX slab: alloc = add, release = restore; a `.prev` link
+  field replaces the push-r12 machine-stack discipline (stackless preserved). Heap promotion (`blk_alloc`)
+  DEFERRED to suspendable scopes (Icon suspend dependency).
+- NO `.bss` in emitted programs. mode-4 prints NASM `struc/endstruc` OVERLAY headers — zero storage, pure
+  layout documentation; BOTH modes address `[rZ+disp]` only (displacement-identical bytes, MODE34-IDENTICAL),
+  retiring the `emit_bb_zeta_rdi(ptr,sym)` fork. rZ default = r12 (continuity; final call per `x86_asm.h`
+  roster).
+- Pattern GLOBs: immutable compiled shape `[rip+disp]` per RULES (READ-ONLY LOCALS ARE IP-RELATIVE); ALL
+  mutable match cells — including ret_γ/ω continuations and ARBNO iteration stacks — live in the INVOKER's
+  activation layout.
+- Layouts computed PRE-EMIT into a PARALLEL table keyed by node id (PEERS RULE: zero new BB_t/IR_t fields);
+  replaces `ir_drive_slot_assign`'s single program-lifetime cursor (`scrip_ir.c:206`) with a scope-tree
+  builder: program → DEFINE body → label-group (labeled stmt + trailing unlabeled stmts) → re-entrant box.
+  Groups laid DISJOINT; lifetime-unioning deferred until real liveness info exists.
+
+**Ladder:**
+- [x] **ZB-1 EXTRACT** — this entry.
+- [ ] **ZB-2 SCOPE-LAYOUT PASS** — build the parallel layout table over the scope tree; `--dump-zeta`
+  inspector; re-base `x86_scratch_off` consumers on it. Study set: `artifacts/asm/fixtures/arbno_*.s` (156-line
+  `arbno_alt.s` first), `archive/backend/bb_boxes.s`, the 1,094-row chunk table in beauty_prog_0428.s.
+- [ ] **ZB-3 ACTIVATION ζ** — α-entry alloc from the ζ-stack / exit release; rZ repoint + `.prev`;
+  `g_proc_arena`/`bb_callee_frame.cpp` fold in; template-init only where a field's init image is nonzero.
+- [ ] **ZB-4 MODE34 + GATES** — struc-overlay emission; new no-`.bss` gate; `test_gate_emit_no_ir_mutation.sh`
+  stays green; acceptance = arbno fixtures + queens solution-4 + the SCAN-SCRATCH family.
+- [ ] **ZB-5 UNPAUSE SN4-PAT ARBNO** on ζ-blocks — iteration stack carved from the ζ allocator, cap removed.
+- [ ] **ZB-6 (opt) MILESTONE CERTIFY** — one4all@`4757bbcd` self-host run, md5
+  `abfd19a7a834484a96e824851caee159`.
+
 **Session hygiene (this commit):** the ORIENTATION SYNOPSIS section is DELETED per Lon directive 2026-07-05 —
 sessions read the directed ARCH docs in full instead. Dangling refs pending Lon's call: PLAN.md:34
 (session-start step 7 still points at the deleted synopsis), ARCH-SCRIP.md:3 (same), this file's stale
