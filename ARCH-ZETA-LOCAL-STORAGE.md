@@ -545,6 +545,34 @@ forcing early collections always costs time — pacing matters.
 **Properties:** allocation stays PURE BUMP between collections; zero fragmentation; allocation ORDER
 preserved (age-ordered heap); no free lists; cost linear in live+heap.
 
+**MANUAL PINS (extracted 2026-07-05, fourth session, from the uploaded SPITBOL v3.7 manual — the pins the
+ladder header mandates; page refs = the manual's printed pages via its own index):**
+1. **Tag-free discrimination is the SIL cost we DROP (ch.5 p.53 + ch.13 `-m`):** the SIL/SPITBOL collector
+   tells small integers from addresses BY MAGNITUDE — hence the `&MAXLNGTH` object-size cap (default 4MB,
+   `-m` bound) AND the constraint max-object-size < workspace start address (memory below it is wasted).
+   SCRIP's DESCR tags (§6b) make both costs vanish: no size cap, no address floor. GC-5 note: `&MAXLNGTH`
+   survives as a compat keyword only, never a real limit.
+2. **`COLLECT(i)` contract (p.216) — the GC-7 oracle:** forces a regeneration; `i` = MINIMUM words to free
+   (Catspaw word = 4 bytes); **FAILS** if that minimum can't be met; on success returns the free-word count —
+   which is explicitly NOT max-available, because SPITBOL grows from the OS when full. "Forcing garbage
+   collections before they are necessary will always increase execution time" — the pacing warning, verbatim-
+   in-spirit. Return-value divergence is BLESSED by the manual itself ("values returned will be different
+   because of different internal representations") — SCRIP returning its own honest unit is canonical, the
+   082-family crosscheck refs pin OUR unit.
+3. **Relocatable-words discipline (pp.320–321) — the GC-2 contract:** per-block-TYPE knowledge of which
+   words are relocatable; a relocatable word points at the FIRST WORD of another heap block (head pointers,
+   NOT interior — SCRIP's σ interior-string pointer is exactly the exception D10's pin exists for); adjust
+   is automatic at regeneration; "all words within a block must be properly filled in" before it goes live
+   (the adjuster reads every mapped word — `ZC_INIT_ZERO` is our mechanical discharge of that rule); XNBLK
+   external blocks are ALL-non-relocatable by definition — the direct precedent for our RAW kind and for the
+   conservative-never-relocate treatment of register-snapshot cells (§6b coexpr finding).
+4. **`&STLIMIT`/`&STCOUNT` (keywords ch. + p.65):** `&STLIMIT` default = 2,147,483,647; exceeding it = Error
+   244; `&STCOUNT` increments as each statement BEGINS — **except when `&STLIMIT` is negative (unlimited
+   mode), where `&STCOUNT` is NOT incremented** (a carve-out any honest 082 fix must honor). Design
+   convergence worth naming: statement = GLOB (Lon, ZB-3), so the GLOB α-prologue is the ONE natural hook
+   for statement counting — the ζ activation and the `&STCOUNT`/`&STLIMIT`/GC-pacing hooks all land at the
+   same grain, one inc beside the frame alloc.
+
 ### 6b. Why SCRIP can do this PRECISELY (better than SIL could)
 
 * **Tags exist.** `DESCR_t {v, slen, union}` discriminates pointer from integer by TYPE, not by address
