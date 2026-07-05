@@ -662,11 +662,28 @@ and the design is recoverable from git.
   'ABQABC': oracle `[ABQA]`, SCRIP `[QA]` (HEAD gave `[]` — this rung improved it; the residual is the det-tail
   chain). Own rung: SN4-PAT-BETA-CHAIN — β pass-through on deterministic matchers or a leftward β-surface scan
   in TT_SEQ.
-- [ ] **SN4-PAT-FOLD** — re-seat freeze+blob: `sno_freeze_pat_graph_entry` + the stored-pattern driver are IN
-  the RECOVERED parent lower file (directive below); the blob-SEAL side (`xa_pattern_blobs.cpp`) is already
-  LIVE in the Makefile; `bb_pat_build.cpp` parked; `src/include/dtp.h` (DTP_PROTO_DESC / DTP_FRAG_t,
-  first-class β) on disk. `rt_pattern_stitch_*`/`rt_pattern_build` were superseded pre-parent — do NOT
-  resurrect; port the freeze path, not the stitch path.
+- [~] **SN4-PAT-FOLD** — STRING TIER LANDED 2026-07-05 (chat session, Opus 4.8, SCRIP `1d205f46` code + `25c170ee` .s); BLOB TIER remains.
+  **WHAT LANDED (string-valued stored patterns):** a bare variable in pattern position (`subject pat`) now lowers to
+  `IR_MATCH_DEFER` instead of bombing at the wall. KEY SEMANTIC FINDING (oracle-pinned): `'foo' 'bar'` is STRING
+  CONCATENATION → the string `"foobar"` (`DATATYPE`=STRING), NOT a pattern — only `|`/true-pattern-ops build a
+  PATTERN value. So `pat='foo' 'bar'; subject pat` needs NO blob: `rt_defer_match`'s DT_S path matches the stored
+  string literally. Six sites: `sno_pat_supported` accepts bare TT_VAR; `sno_pat_node` TT_VAR→`IR_MATCH_DEFER`
+  (op_sval=name, op_ival=0); emit.cpp op_sval-list + template-dispatch(`bb_match_defer`) + DRIVE_FILL populate-case
+  + both ω-queue range checks (DEFER is enum-outside LIT..ASSIGN_SAVE → folded explicitly); Makefile gained
+  `bb_match_defer.cpp` (was libscrip_rt-only → mode-3 link error). **MEASURED: crosscheck m3 187→189, m4 187→189,
+  DIVERGE=0** (W02_seq_basic + W02_seq_nested newly PASS oracle-exact; ZERO regression). GC-stressed (SCRIP_GC_STRESS=1)
+  BYTE-IDENTICAL (189/87); both emit gates green; Icon crosscheck 4/0 (DEFER is SNOBOL4-only, Icon codegen untouched).
+  Pattern-VALUED stored vars (W03 alternation, DT_P) now COMPILE and clean-FAIL (bomb→fail; `rt_defer_get_pat_fn`
+  returns NULL) — the honest degrade until the blob tier.
+  **BLOB TIER REMAINS (the real seal-blob rung):** `IR_REF_INVARIANT` is in the enum but has NO emit arm (grep
+  emit.cpp = 0); `xa_pattern_blobs()` is a shell gated on `xa_pat_blob_invariant_n`; the parked freeze functions
+  (`sno_freeze_pat_ir`/`_graph_entry`, parent `lower_snobol4.gz5-parked-41b53078.c:689-738`) are INCOMPLETE —
+  `sno_freeze_kids_attach` builds the CAT/ALT kids array then `(void)(zk)` DISCARDS it, so a verbatim port drops
+  children. So the blob tier is a RECONSTRUCTION not a port: (1) build the `IR_REF_INVARIANT` emit arm that seals a
+  constant pattern subgraph into an invocable blob + registers it; (2) `TT_ASSIGN` hook: pattern-valued RHS → seal +
+  store a DT_P handle (the value `rt_defer_get_pat_fn` fetches: `val.v==DT_P && val.p`); (3) the match already invokes
+  it via `bb_match_defer`'s DT_P branch (`call rt_frame; call the fn`). Oracle-pin W03 outward. `bb_pat_build.cpp`
+  parked; `src/include/dtp.h` on disk; `rt_pattern_stitch_*`/`rt_pattern_build` SUPERSEDED — do NOT resurrect.
 
 **⛔⛔ STANDING DIRECTIVE (Lon, restated 2026-07-04) — PARK, NEVER DELETE, parked-language code.**
 Park out of the Makefile (the `8f3e4b23` "kept intact on disk" precedent); deletion of parked code is a
