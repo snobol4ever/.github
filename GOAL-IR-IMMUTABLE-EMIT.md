@@ -170,10 +170,39 @@ and the design is recoverable from git.
   vanished-on-rebuild fatal traced to a suspected stale link — `make ... | tail -1` hides whether the edited
   TU actually recompiled; force `rm` the .o when in doubt. All 13 session pins re-verified byte-identical;
   corpus unchanged (138/137) — single-element POS/REM/ARB are rare in corpus; the unlock arrives with CAT.
-- [ ] **SN4-PAT-3h CAT/ALT** — the combinators; the parked `TT_SEQ` arm (4 allocation-order branches, oracle-
-  shape-tuned ω-backtrack wiring) + `TT_ALT` (flat-list right-to-left build) port from `lower_pat_node`
-  197-452; templates `bb_match_cat.cpp`/`bb_match_alt.cpp` on disk. Capture needs the phase-0 SAVE arm
-  (SN4-PAT-2 note). Then ASSIGN_IMM (`$`), then FENCE/ABORT/BAL/ARBNO/DEFER.
+- [x] **SN4-PAT-3h CAT + phase-0 capture SAVE** — LANDED 2026-07-04 (this session). **CAT is NODE-FREE in the
+  live single-HEAD design** — the parked `IR_MATCH_CAT` was a subgraph SUCCEED-sink; here pattern success
+  threads straight to `sJ`, so concatenation is pure edge-threading with no node and no template (`bb_match_cat.cpp`
+  stays UNWIRED — do not add it). `case TT_SEQ` in `sno_pat_node`: lower right-first `(succ,fail)`, then left with
+  `succ = right-entry`; return left-entry. Deterministic elements' ω already point at `fail` (=head=retry-position,
+  correct SNOBOL4 — SPAN/BREAK/LEN never back off); the ONLY resumable leaf today is ARB (generator-kind), so if the
+  left tail `ir_is_generator_kind`, re-point right's tail-ω at it via `sno_ω_to` (β-aware) — the rc/lc tail nodes are
+  recovered by the parked `g->all[before]` first-allocated-is-rightmost-leaf trick. `sno_pat_supported` relaxed to
+  admit `TT_SEQ` recursively.
+  **phase-0 capture SAVE (the SN4-PAT-2 multi-element note, now resolved):** a capture spans `[inner-start, current)`,
+  NOT `[attempt-start, current)` — so `TAB(3) LEN(2) . V` on `abcdef` must yield `de`, not `abcde`. Added additive enum
+  `IR_MATCH_ASSIGN_SAVE` (right after `_COND`): a phase-0 node placed at the capture's OPEN that does `mov FR(off),r14d`
+  into its OWN δ-slot; the phase-1 COND reads that slot (`operands[1] = save`, so `op_off = drive_value_slot(save)`).
+  Wiring per rung: enum (`IR.h`) · δ-slot grant in `ir_drive_slot_assign` (`k+=1`, HEAD one-liner precedent, `scrip_ir.c`) ·
+  DRIVE case `op_off=own slot, op_phase=0` + dispatch case → `bb_match_capture()` + op_sval whitelist add (all `emit.cpp`) ·
+  the template's phase-0 arm was MISSING `jmp γ` (never exercised pre-session) — added (`bb_match_capture.cpp`) · LOWER
+  `TT_CAPT_COND_ASGN` rewritten to emit SAVE→inner→COND and return the SAVE as the capture entry. Single-element captures
+  still pass (SAVE just records the attempt-start = old behavior).
+  **RESULTS (oracle=`sbl -b`, m3=`--run`, m4=`--compile`+gcc; all m3==m4==oracle):** crosscheck patterns 8→13
+  (044 pos, 045 rpos, 046 tab, 047 rtab, 048 rem, 049 arb, 055 concat_seq now green — the deterministic-concat +
+  multi-capture set); capture rung 2→4 (060 multiple, 061 in_arbno); mode-3 ladder total 86→93; ZERO regressions on the
+  8 already-green rungs (hello/output/assign/concat/arith_new/control_new/functions/data). NOT YET regenerated: the
+  `.s` artifacts (handoff step 4 — capture codegen changed, so `util_regen_{benchmark,feature,demo}_s_artifacts.sh` owe a
+  commit) — a follow-up must run them.
+- [ ] **SN4-PAT-3h ALT** — the other half of 3h. `TT_ALT` flat-list right-to-left build from parked `lower_pat_node`
+  296-332 (chain of `IR_MATCH_ALT` nodes, each γ=continuation ω=next-alternative). **NOT node-free** — an ALT is a
+  local backtrack point that must SAVE the cursor on α and RESTORE it before trying the next alternative when a
+  downstream continuation fails. `bb_match_alt.cpp` = bare `x86_pair_loop()` (branch only, NO cursor logic) — so ALT
+  needs: Makefile wiring + `emit.cpp` dispatch/DRIVE cases + a cursor-save scratch slot (SPAN/BREAK `x86_scratch_off`
+  precedent) + template surgery for the restore + generator-kind registration, then oracle-tuning the multi-alt γ/ω
+  chain against `sbl`. Gated tests: 050 alt_two, 051 alt_three, 053 alt_commit (+ many FENCE/ARBNO tests build on it).
+  Do this with the 2-way MONITOR (RULES.md) — backtracking divergences are exactly what it brackets. Then ASSIGN_IMM
+  (`$`), then FENCE/ABORT/BAL/ARBNO/DEFER.
 - [ ] **SN4-PAT-FOLD** — re-seat freeze+blob: `sno_freeze_pat_graph_entry` + the stored-pattern driver are IN
   the RECOVERED parent lower file (directive below); the blob-SEAL side (`xa_pattern_blobs.cpp`) is already
   LIVE in the Makefile; `bb_pat_build.cpp` parked; `src/include/dtp.h` (DTP_PROTO_DESC / DTP_FRAG_t,
