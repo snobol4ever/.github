@@ -25,7 +25,7 @@ way bought and what it cost.
 | **zS** | The bump ζ-stack top-of-stack cell (new, ZB-3). |
 | **ZLS — Zeta Local Storage** | (Lon, 2026-07-05.) The per-activation ζ region itself. **ZLS is internal and completely TYPED data** — heterogeneous compiler-known struct layouts (ints, cursors, code-address continuations, DESCR t·p pairs, pointers) — NOT a homogeneous run of DESCR slots. Deliberately DIFFERENT from the GST/GVA concept, which IS a uniform 16-byte-DESCR-per-variable table. |
 | **COLLECTION** | (Lon, 2026-07-05 — supersedes the "ZLA / array" naming retracted the same day; do not call it an array.) The growable per-iteration storage OWNED by a re-entrant box (ARBNO et al.), reached by POINTER from the owner's ZLS fields; element = the body-subgraph's TYPED layout. Replaces every `resq 64` / `[64]` cap in history. |
-| **zl[]** | The parallel layout table (node-id → scope_id, offset, kind), built by `zl_build()` post-optimizer. PEERS-clean: zero new `IR_t` fields. |
+| **zl[]** | The parallel layout table (node-id → scope_id, offset, kind), built by `zls_build()` post-optimizer. PEERS-clean: zero new `IR_t` fields. Implemented 2026-07-05: `SCRIP/src/contracts/zeta_storage.{h,c}`, API prefix `zls_*` (Lon: ZLS naming — GST/GVA global-side ↔ ZLS local-side; no LVA concept). |
 | **t·p** | The 16-byte DESCR_t slot unit (`{DTYPE_t v; uint32_t slen; union{s,i,r,p,arr,tbl,u}}`, `src/contracts/descr.h`). All ζ offsets are multiples of 16. |
 | **IR_t.tmp** | The LOWER-granted frame offset on a node (`src/contracts/IR.h:156`). Today: one flat namespace. Tomorrow: a read of zl[]. |
 | **ψ (psi)** | The moving element pointer into a COLLECTION (seed-2 idiom: `ψ13 = &ζ->_13_a[i]`). Distinct from the enclosing frame's ζ. |
@@ -239,7 +239,7 @@ per-class lifetime. The emitter contract stays: read `(scope_id, off)` from zl[]
 
 ## 4. The Layout Classes
 
-Built by `zl_build(g)` post-optimizer / pre-emit over the scope tree
+Built by `zls_build(g)` (zeta_storage.c) post-optimizer / pre-emit over the scope tree
 **program → DEFINE/procedure body → label-group (labeled stmt + trailing unlabeled) → re-entrant box**.
 Groups laid DISJOINT v1 (lifetime-unioning deferred until real liveness info exists). PEERS RULE: the
 table is parallel, keyed by node id; zero new BB_t/IR_t fields.
@@ -276,6 +276,15 @@ typed map, not a per-16B-slot bit, because ZLS fields are heterogeneous. It is U
 until the GC ladder — but ZB-2 touches every grant site exactly once, so the map is built NOW (§6: the
 field maps ARE the collector's stack maps; retrofitting later means re-walking every grant). The mode-4
 struc overlays print straight from these maps.
+
+**ZB-2 v1 MECHANISM NOTE (landed 2026-07-05, second session):** group boundaries come from
+**LOWER-recorded marks** (`zls_group_mark(g, label)` at the top of each labeled statement's lowering,
+lower_snobol4 first), NOT from label-registry landings — landings are pre-created GOTO anchors clustered
+at low `all[]` indices, so index-based grouping misattributes; the statement boundary is knowledge only
+LOWER has at the moment it has it, which is also the doctrinally correct owner (LOWER owns the layout).
+`zls_build` consumes the marks post-optimizer. An `audit` bit per field flags kinds provisional pending
+template verification (GC-1 burns these to zero before any collector reads the maps). Live in
+`SCRIP/src/contracts/zeta_storage.{h,c}`; `--dump-zeta` prints the table.
 
 ---
 
