@@ -602,3 +602,45 @@ working `bb_assign_local`/`bb_assign_global` call site for the exact missing gra
 zero-output (fresh bisection, same statement-bisection technique that found the keyword bug this session); (4)
 tgrlink set-membership (see `01e8c4ac` commit message for the specific trace). **Re-run `/home/claude/grade_bench.sh`
 after each fix — it is the honest bar now, not the old rc=0-and-nonempty check.**
+
+## ⌚ WATERMARK 2026-07-04 (later same day, SCRIP `ae8000f0`) — rung ladder re-derived fresh (fresh run said 213/40/36, not the 214/39/36 this file claimed at the same HEAD f0a7697a — trust the run); real `to ... by ...` ranges landed, +2
+
+**Re-derivation note:** this file's own watermark above claims 214/39/36 at HEAD `f0a7697a`. A fresh
+`test_icon_rung_suite.sh` run at that exact HEAD (both modes) measured **213/40/36**, with `rung37_keywords`
+FAILing (rc=134, `bb_keyword_assign` BOMB on `&pos:=:`-family swap — an unimplemented feature, not a regression of
+the keyword-in-if fix). Filed per this file's own re-derive-don't-trust-prose rule; not chased further this session.
+
+**LANDED — real-bounded `to ... by ...` (SCRIP `ae8000f0`).** `every write(1.0 to 2.0 by 0.5)` printed the raw
+IEEE-754 bit pattern of `1.0` as an integer and stopped after one value instead of yielding `1.0 1.5 2.0`. Three-layer
+root cause, all in the by-arm only: (1) `lower_icon.c`'s `lower_to()` unconditionally stamped every to/to-by node
+`sval="ag"` (int marker) — the `"ar"` real-marker convention already used by plain `to` was never applied to
+`to-by`; (2) `emit.cpp`'s `IR_TO_BY` driver arm hardcoded `op_num_real=0` regardless of what LOWER set; (3)
+`bb_to_by.cpp` had no real branch at all — compared/incremented the operands' raw double bit-patterns as int64 and
+hardcoded the output DTYPE to `DT_I`. Fix: LOWER stamps `"ar"` when any of from/to/by lowers to `IR_LIT_REAL`
+(scoped inside the existing `by` conditional, non-by `to` untouched); driver honors it (mirrors the pre-existing
+`IR_TO` arm exactly); template gained a real branch using the same `rt_jct_relop`/`rt_num_arith` runtime calls the
+real `IR_TO` branch already uses, step-direction chosen from the step operand's IEEE sign bit (no new slot — reuses
+the existing 32B `IR_TO_BY` grant), output tagged `DT_R`. **Cross-language check performed, not assumed:**
+`IR_TO_BY` is Icon-exclusive in practice — grepped every `lower_*.c`; only `lower_icon.c` ever constructs it,
+`lower_raku.c` only ever builds plain `IR_TO` (`sval="ag"`, never `"ar"`, never `_BY`). All three
+`util_regen_{benchmark,feature,demo}_s_artifacts.sh` (SNOBOL4/Raku-reachable corpus) confirm **zero byte-drift**.
+**Verified:** rung19 3/5→**5/5 both modes** (ascending AND descending step). Full rung ladder **213/40/36 →
+215/38/36, m3 AND m4 identically**; fail-set diff = exactly `{rung19_real_toby_pos, rung19_real_toby_neg}` removed,
+**nothing newly broken**, m3≡m4 fail-set invariant holds. icon smoke 12/12×2. `test_gate_icn_no_stack.sh` /
+`_one_reg_frame.sh` / `_semicolon_required.sh` all green.
+**Two pre-existing conditions flagged, NOT fixed here, confirmed via stash-to-pristine-HEAD retest (not assumed):**
+(a) Prolog smoke is 0/5 on **all three modes including m2** at pristine `f0a7697a` — reproduces identically with my
+3 files stashed out, so unrelated to this change; needs its own session. (b) `update_icon_bench_asm.sh` against
+`corpus/benchmarks/icon/*.icn` shows 9/13 CERR, concord+queens included, all on `[IBB] FATAL bb_call: unsupported
+call shape fn='Init__'` (rc=134) — also reproduces byte-for-byte on pristine HEAD with my changes stashed out. This
+contradicts the same-HEAD watermark's claim of concord/queens "byte-identical to oracle" both modes — that claim
+was evidently made under a different harness/invocation than a bare `scrip --compile` on the corpus file directly
+(possibly requiring `link` resolution or a support harness not present in this container). Not chased further; next
+session should reconcile via a fresh `grade_bench.sh`-equivalent run before trusting either number.
+**Not touched this session:** the benchmark ladder (RUNG #1) itself, Family A (`match`/`tab`/`move` full-argument-form
+`bb_call` FATALs — routing fork resolved by inspection: full-arg matchers are ordinary single-value builtins, not
+scan-context boxes, so they belong in `known[]`/`CALL_ROUTE_FN`, not `bb_scan_*`; not implemented), the `initial`
+static-local persistence bug (needs NV-store-backed storage instead of frame slots, not a template fix), or the
+BYNAME generator-resume gap (`find`/`seq`/`upto`/etc. all yield exactly one value then exhaust — the `β` port in
+`bb_call_byname_str` is a bare `jmp ω`, no re-pump loop exists; confirmed by direct code read, not inferred from
+symptoms — this is unbuilt machinery, not a bug, and is the single largest remaining lever into both ladders).
