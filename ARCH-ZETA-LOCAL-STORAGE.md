@@ -290,6 +290,28 @@ LOWER has at the moment it has it, which is also the doctrinally correct owner (
 template verification (GC-1 burns these to zero before any collector reads the maps). Live in
 `SCRIP/src/contracts/zeta_storage.{h,c}`; `--dump-zeta` prints the table.
 
+**AUDIT BURNDOWN — COMPLETE 2026-07-05 (fourth session same day; every shipped grant template-verified,
+audit=0 repo-wide; `.s` byte-identity stash-proven — kinds/granularity metadata only, zero layout change).**
+The standing rule from here: any NEW grant lands `audit=1` until its template is read. Verdicts that
+CHANGED something (full evidence in the templates cited):
+* **REV_ASSIGN(_VAR) `+16` was the real catch — RAW→DESCR.** `bb_rev_assign{,_var}.cpp` save the variable's
+  OLD VALUE as a full t·p pair into `op_sc = off+16` and restore it on β — LIVE across the suspension window
+  (γ-exit…β-resume), exactly where a collection can run. Marked RAW, a precise collector skips a live heap
+  ref → premature collection. This one field is the burndown's justification.
+* **SCAN_ENTER's map was MISLABELED (both fields, one non-audit):** the node is not in
+  `ir_node_produces_value` and its ENTER arm never touches its own slot; IR_SCAN (the leave) aims its
+  `op_off` at the ENTER's slot as a 24-byte `rt_scan_leave` out-area: `+0`=σ (heap-interior, TRANSIENT —
+  written and reloaded into r13 with zero rt-calls between → dead at every v1 safe point, RAW honest),
+  `+8`=δ, `+16`=Δ, `+24` unused. The old "+0 scan.value DESCR" would have made GC-1 trace a raw pointer as
+  a t·p pair.
+* **CREATE cells = pure marshaling:** `scrip_coexpr_create` COPIES regs[0..5] into its malloc'd pkg before
+  returning → the six ζ cells (r12,r13,r14,r15,rbx,rbp) are dead at call-return, RAW, now per-field named.
+  The HANDLE low qword is a raw malloc'd `ctx*` (never trace/relocate; also not a tagged DESCR — a coexpr-rung
+  matter, noted there). The snapshot's GC exposure moved WITH the copy into pkg — see the §6b root additions.
+* **Everything else = verified pads/ints, split to honest 8B granularity:** INITIAL once-flag lives at `+8`
+  (low half unused); ITERATE `+16` = 8B index (α=0, β inc), `+24` pad; REPALT `+16` = 8B yielded flag;
+  LIMIT/`SCAN_TAB`/`SCAN_MOVE`/gate/resume `+24`/`+8` pads confirmed untouched by their templates.
+
 ---
 
 ## 5. The BUMP Allocator — Design Space, All Options On The Table
@@ -544,7 +566,19 @@ preserved (age-ordered heap); no free lists; cost linear in live+heap.
   · live ζ region via zls kind maps · COLLECTION owner quads (via the same maps) + the grown-collection lists ·
   heap-promoted ζ blocks (coexpr/suspend — each carries its scope's kind map id in its header) ·
   `g_proc_arena` live depth (until it folds into ZL-FN, ZB-3) · `g_call_args` marshaling window ·
-  machine registers at a SAFE-POINT ONLY (see 6d).
+  machine registers at a SAFE-POINT ONLY (see 6d) ·
+  **[ADDED 2026-07-05, GC-1-prep audit burndown — two roots the original enumeration missed, found by
+  reading the templates+runtime rather than the design:] (i) the C-side static `scan_stack[SCAN_STACK_MAX]`
+  (gen_runtime.c) — nested-scan save of the OUTER `{sigma, delta, Delta}`; each `sigma` is a heap-interior
+  string pointer held live across the ENTIRE inner scan (arbitrary code, arbitrary allocation) — a root, or
+  covered by D10's pin generalized to the whole save stack. (ii) coexpr `ctx`/`pkg` structs
+  (rt_coexpr.c) — plain `malloc`, INVISIBLE to libgc today AND absent from this root set: `pkg` holds the
+  creator's captured register snapshot (r12=rZ, r13=σ possibly heap-interior, rbx, rbp) for the coexpr's whole
+  lifetime. LATENT BUG (v1, pre-existing): a string reachable ONLY via a suspended coexpr's captured σ can be
+  collected under libgc today (masked in practice because the creator's frame usually also holds the ref).
+  Fix home = the coexpr rungs (O3/promotion): allocate ctx/pkg GC-visibly or register them as conservative
+  roots — snapshot cells are conservative by nature (a captured r13 outside any scan is garbage; a precise
+  trace+fix over them is UNSOUND — treat as conservative-scan-only, never relocate-through).**
 * **What never moves:** sealed RO blobs (`[rip+disp]` — outside the heap by construction); the ζ-stack;
   the GVA arena; code.
 
