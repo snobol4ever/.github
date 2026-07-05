@@ -121,8 +121,19 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
 - `archive/backend/blk_alloc.c` (58 lines): era allocator = **mmap PER CALL** — header verbatim: "CODE is
   shared (read-execute); DATA is per-invocation (read-write)". Correctness-first, one syscall per activation;
   the bump ζ-stack keeps the private-DATA principle, deletes the syscall.
-- Era layout-builder lives at `archive/backend/emit_emitters/emit_x64.c` (NOT `archive/backend/emit_x64.c`) —
-  deliberately NOT read this session (context economy); FIRST study item of ZB-2.
+- Era generator READ (Lon: "the C code that generates S" = this file): `archive/backend/emit_emitters/
+  emit_x64.c` @4757bbcd, 9,759 lines. Self-description: "All pattern variables live flat in .bss as QWORD
+  (resq 1) slots"; "ARBNO — flat .bss cursor stack, zero-advance guard". Static layout was DELEGATED TO THE
+  ASSEMBLER by name (`A("%-24s resq 1\n", vars[i])`, line 579) — no offset assigner for statics ever existed;
+  offsets lived only inside `box_%s_data_template` blocks, resolved through `var_register()`/`bref()`
+  (`emit_arbno` registers `dep`/`cur_before` via bref → the artifact's `r12+280/+288`); clone-tier memcpy at
+  3253, cheap-tier `lea r12,[rel template]` at 2156/2167. `emit_arbno` (932): the 64-slot stack sat in an
+  ad-hoc 512-entry static decl list ("stk: emit as resq 64 — we track this separately", 965). ZB-2 reading
+  remainder: the bref/offset-cursor internals.
+- Current seeds (`SCRIP/seed/test_sno_1..6.c`): NO `realloc` anywhere; ARBNO only in seeds 1/2.
+  `test_sno_2.c` declares per-instance TYPED frame arrays (`_13_t _13_a[64];` line 154, `_23_t _23_a[64];`
+  line 254) — the element-array precedent. Seeds 5/6 are malloc-era models (`<malloc.h>`). The REALLOC array
+  is NEW design (Lon directive, this session), grafting growth onto the seed-2 shape.
 - Seed `.github/test_sno_1.c` (ARBNO region) = the distilled model: `ζ = &_1[ARBNO_i=0]` at α,
   `ζ = &_1[++ARBNO_i]` going deeper, fail path `ARBNO_i--; ζ = &_1[ARBNO_i]; goto alt_β`. **The per-iteration
   frame carries the ENTIRE body-subgraph's box fields** (`ζ->alt`, `ζ->alt_i`, `ζ->ARBNO`) — body re-entrancy
@@ -144,8 +155,22 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
    blk=bump(sz); blk.prev=rZ; rZ=blk`. Scope exit (final-γ or ω): `zS=mark; rZ=prev`. rZ = r12 (continuity
    with `xa_flat.cpp` and the 4/28 artifact). Init = zero-fill v1 (`rep stosq` — faithful: era templates were
    all `dq 0`); init-images only if a nonzero-init field ever appears.
-3. **Iteration:** ARBNO-class boxes bump a ZL-ITER frame per α1-push, restore per β-pop — same stack; the
-   `resq 64` cap and the mmap both die.
+3. **Iteration (REVISED — Lon directive 2026-07-05): REALLOC ARRAYS INSIDE THE ARBNO BOX.** Supersedes the
+   ZL-ITER-as-stack-frame framing in §1: ZL-ITER is the ELEMENT layout (the body-subgraph's fields — the
+   seed-2 `_N_t`); elements live CONTIGUOUS in a realloc-grown array OWNED by the box. The box's own zeta
+   fields (in the ENCLOSING activation layout): `{iter_ptr, iter_cap, iter_i, prev_rZ}` — the seed's
+   `ARBNO_i` plus its array, made growable. Ports: α `i=0; lazy-ensure cap; rZ=&ptr[0]`; child_ok/α1
+   (progressed) `i++; if(i==cap) ptr=rt_zarr_grow(ptr,&cap,fsz); rZ=ptr+i*fsz`; β `if(i==0)→ω-final;
+   i--; rZ=ptr+i*fsz; →child_β`; final exits restore `rZ=prev_rZ`. The element IS the body's activation
+   base — body boxes keep uniform `[rZ+disp]`. **RELOAD LAW:** realloc MOVES; an rZ into an iter array is
+   NEVER cached across a push — recomputed from `(ptr,i)` at every owning-box port (grow happens ONLY at
+   push, so the body sees a stable base within any single child pass). Corollary: NO pointer into an iter
+   element may ESCAPE the body; cross-box refs go via the enclosing zeta or `(ptr,i)`. Nesting: an outer
+   element CONTAINS the inner box's `{ptr,cap,i,prev}` quad — recursion-safe by construction. Backing v1 =
+   heap `realloc` (seed-5/6 house style); free at owner ω-final, plus a per-activation grown-array list
+   walked at scope release for the γ-exited-live case (mark/release stays O(1)+ε). Perf rung later:
+   ζ-stack-backed grow-in-place-when-top. The `resq 64` cap and the mmap both die; §4's LIFO invariant is
+   untouched — arrays are box-owned, orthogonal to ζ-stack ordering.
 4. **THE LIFO INVARIANT (soundness):** Byrd traversal under mark/release is LIFO — failure fully unwinds
    rightward frames before any left-β re-entry; success releases wholesale at the scope mark; a γ-exit MAY
    leave frames live (they die at the enclosing mark). Suspendables (Icon suspend / coexpr) BREAK LIFO ⇒
