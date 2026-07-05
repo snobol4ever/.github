@@ -633,10 +633,32 @@ Option (i) is cleaner and one store per scan-enter. δ/Δ are integers. rZ point
 
 ### 6e. The SN4-GC ladder (built AFTER ZB-4/ZB-5; designed-for NOW via the kind column)
 
-- [ ] **GC-0 HEADERS** — block-header discipline `{type, size, mark}` behind the existing allocation
-      entry points on a scrip-owned bump heap; libgc still resident (coexistence: scrip heap for new
-      families, libgc for compiler-side allocations).
-- [ ] **GC-1 MARK** — trace from the §6b root set; `--dump-heap` inspector (the --dump-zeta sibling).
+- [x] **GC-0 HEADERS — LANDED 2026-07-05 (Fable, Lon-directed session: "ZLS via GC just like in SIL").**
+      `src/runtime/rt/gc_heap.{h,c}`: scrip-owned bump heap (mmap NORESERVE, ZC_HEAP_MB=512, loud bomb on
+      exhaustion naming the knob — Stage-α discipline, no collector yet). ONE 16B header per block = the SIL
+      title DESCR reborn: `{fwd(8) ↔ title.a.i forward-address home for GC-2; size(4) ↔ title.v, TOTAL bytes
+      16-aligned for the linear walk; type(2) = DTYPE_t VERBATIM for value blocks (DT_S=1 first) or HB_ZCOL/
+      HB_ZPROM above the range; flags(2) with HBF_TTL always set ↔ the SIL TTL marker, HBF_MARK reserved}`.
+      `rt_gcheap_verify()` linear title walk (asserts TTL+alignment+bounds, counts blocks) runs in the
+      `SCRIP_ZETA_TELEM` exit report `[ZHP]` — the runtime-side seed of GC-1's `--dump-heap`. Payloads
+      zero-initialized (manual pin 3 discharged the ZC_INIT_ZERO way). **Coexistence contract stated in the
+      module header:** scrip blocks aren't libgc objects (never freed by it); libgc ignores non-heap pointers;
+      the migrated family is ATOMIC so a scrip block can never be a libgc object's sole liveness holder —
+      pointer-bearing families must NOT migrate before their GC-5 row. **PROOF (Lon-chosen scope): the DT_S
+      strings row of GC-5 wired through NOW** — `rt_str_alloc(n)` is THE entry point (n chars + NUL), switch
+      inside the function: `ZC_HEAP_STRINGS` (zeta_choices.h, default SCRIP; `-DZC_HEAP_STRINGS=0` = the
+      intact libgc-atomic fallback, proven by a one-object rebuild giving identical output). 24 explicit-length
+      producer sites migrated across pattern_match.c (14: captures, dcap, subject int/real→str, replace/
+      substr/rand paths), gen_runtime.c (rt_substr), core/coerce.c (descr_to_str int+real), string_ops.c
+      (concat), string_builtins.c (DUPL/binary-REPLACE/UTF8-SUBSTR/TRIM/LPAD/RPAD/REVERSE/CHAR), arithmetic.c
+      (cset complement). Churn probe (50-concat loop + every builtin + capture) == oracle in BOTH modes with
+      `[ZHP] blocks=57(alloc'd)=57(walked) verify=OK`; full crosscheck byte-identical to baseline (m3 172/89,
+      m4 172/3/86, DIVERGE=0) with the whole corpus on the heap; icon 12/12×2; emit gates + sno_pat_reg rc=0.
+      **Strings-row TAIL for GC-5:** 9 `GC_strdup` copy sites (string_builtins width<=slen shortcuts etc.) —
+      mechanical `rt_str_dup` migration when the row completes. NOT migrated by design: DESCR arrays
+      (string_ops.c:27), VCELLs, keys arrays, the capture stack u32[] (family A), all Prolog Term machinery.
+- [ ] **GC-1 MARK** — trace from the §6b root set; `--dump-heap` inspector (the --dump-zeta sibling;
+      runtime seed = rt_gcheap_verify, GC-0).
 - [ ] **GC-2 ADJUST** — per-type relocatable maps (DESCR-derived + zls typed field maps + COLLECTION element maps);
       linear new-address computation.
 - [ ] **GC-3 SLIDE** — the compaction memmove; free pointer reset; post-slide verify pass under a flag
@@ -644,7 +666,8 @@ Option (i) is cleaner and one store per scan-enter. δ/Δ are integers. rZ point
 - [ ] **GC-4 COLLECTIONS-ONTO-HEAP** — COLLECTION v2: realloc/free replaced by GC blocks; owner-quad
       fixup proven by a forced-collect-inside-ARBNO probe.
 - [ ] **GC-5 VALUE-WORLD MIGRATION** — strings/ARBLK/TBBLK/DATINST/VCELL onto the heap, family by
-      family, oracle-pinned each.
+      family, oracle-pinned each. **(Strings row LANDED 2026-07-05 with GC-0 — Lon-directed proof family;
+      tail = 9 GC_strdup copy sites via a mechanical rt_str_dup. ARBLK/TBBLK/DATINST/VCELL remain.)**
 - [ ] **GC-6 RETIRE-LIBGC (SNOBOL4 path)** — per-path; Icon coexpr transport may keep libgc longer.
 - [ ] **GC-7 PACING** — allocation-threshold trigger, &STLIMIT semantics, `COLLECT(i)` builtin wired to
       a real regeneration (crosscheck 082-family finally honest); bench vs libgc.
