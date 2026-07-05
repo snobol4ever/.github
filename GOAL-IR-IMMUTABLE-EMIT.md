@@ -194,15 +194,31 @@ and the design is recoverable from git.
   8 already-green rungs (hello/output/assign/concat/arith_new/control_new/functions/data). NOT YET regenerated: the
   `.s` artifacts (handoff step 4 — capture codegen changed, so `util_regen_{benchmark,feature,demo}_s_artifacts.sh` owe a
   commit) — a follow-up must run them.
-- [ ] **SN4-PAT-3h ALT** — the other half of 3h. `TT_ALT` flat-list right-to-left build from parked `lower_pat_node`
-  296-332 (chain of `IR_MATCH_ALT` nodes, each γ=continuation ω=next-alternative). **NOT node-free** — an ALT is a
-  local backtrack point that must SAVE the cursor on α and RESTORE it before trying the next alternative when a
-  downstream continuation fails. `bb_match_alt.cpp` = bare `x86_pair_loop()` (branch only, NO cursor logic) — so ALT
-  needs: Makefile wiring + `emit.cpp` dispatch/DRIVE cases + a cursor-save scratch slot (SPAN/BREAK `x86_scratch_off`
-  precedent) + template surgery for the restore + generator-kind registration, then oracle-tuning the multi-alt γ/ω
-  chain against `sbl`. Gated tests: 050 alt_two, 051 alt_three, 053 alt_commit (+ many FENCE/ARBNO tests build on it).
-  Do this with the 2-way MONITOR (RULES.md) — backtracking divergences are exactly what it brackets. Then ASSIGN_IMM
-  (`$`), then FENCE/ABORT/BAL/ARBNO/DEFER.
+- [x] **SN4-PAT-3h ALT** — LANDED 2026-07-04 (this session). Phased `IR_MATCH_ALTERNATE` (mirrors the capture
+  phases): phase-0 SAVE records the ALT-entry cursor into a scratch slot (grant in `ir_drive_slot_assign`,
+  `k+=1`); phase-1 RESTORE reloads it before each subsequent alternative so a failed cursor-advancing
+  alternative can't leave the next one mid-input. Alternatives chain via ω: `alt[i].fail → RESTORE_{i+1} →
+  alt[i+1]`, last → outer fail, each `alt.succ → succ`. `sno_pat_node` `case TT_ALT`: flatten the left-assoc
+  spine L-to-R, build `save = IR_MATCH_ALTERNATE` (n_operands==0 ⇒ phase 0), loop i=na-1..1 lowering alt i and
+  minting a RESTORE (n_operands==1, operand=save ⇒ phase 1, `op_off = drive_value_slot(save)`), then alt 0 with
+  `fail = RESTORE_1`; `lc_γ_to(save, e0)`; return save. Template `bb_match_alt.cpp` rewritten (was bare
+  `x86_pair_loop`) as the two-phase `mov FR(off),r14d`/`mov r14d,FR(off)` + `jmp γ`, wired in the Makefile;
+  DRIVE + dispatch in `emit.cpp`; gate relaxed for `TT_ALT`.
+  **EMITTER FINDING (carry forward — bit ALT, will bite FENCE/ARBNO too):** the flat chain-BFS worklist
+  (`emit.cpp` ~1350–1392, TWO passes) enqueued every node's γ but followed ω ONLY for BINOP/CALL/SUBSCRIPT/
+  generator-kind — so an **ω-only backtrack target** (the ALT RESTORE, reached only via a preceding
+  alternative's ω) was never discovered, never emitted, and its ω silently defaulted to `main_ω` (whole graph
+  collapsed to one alternative). Root fix: **the match family's ω is a genuine control edge** (next alternative /
+  fail handler), so both BFS passes now follow ω for `op ∈ [IR_MATCH_LIT, IR_MATCH_ASSIGN_SAVE]`. Behavior-neutral
+  for every prior test (their ω targets — HEAD, next element — were already discovered; the enqueue dedups), only
+  `.s` node-numbering shifts (never a gate). Any future SN4-PAT node that is reached ONLY via ω (FENCE seal-back,
+  ARBNO retry) is now discoverable for free.
+  **RESULTS (m3==m4==oracle):** crosscheck patterns 13→15 (050 alt_two, 051 alt_three), mode-3 ladder 93→95, ZERO
+  regressions (8 green rungs full; capture/strings/keywords unchanged; m4 spot-checked on the green rungs).
+  **053 alt_commit still fails** — it is `P = ('a'|'b'|'c'); X P`, a STORED-pattern reference (`X P`), i.e.
+  DEFER/stored-pattern territory (a later rung), NOT pure ALT. NOT YET regenerated: the ALT `.s` feature
+  artifacts (handoff step 4 owes another `util_regen_feature_s_artifacts.sh` run — codegen changed again).
+  **NEXT: ASSIGN_IMM (`$`), then FENCE/ABORT/BAL/ARBNO, then DEFER (last).**
 - [ ] **SN4-PAT-FOLD** — re-seat freeze+blob: `sno_freeze_pat_graph_entry` + the stored-pattern driver are IN
   the RECOVERED parent lower file (directive below); the blob-SEAL side (`xa_pattern_blobs.cpp`) is already
   LIVE in the Makefile; `bb_pat_build.cpp` parked; `src/include/dtp.h` (DTP_PROTO_DESC / DTP_FRAG_t,
