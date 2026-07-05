@@ -115,6 +115,97 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
 - [ ] **ZB-6 (opt) MILESTONE CERTIFY** — one4all@`4757bbcd` self-host run, md5
   `abfd19a7a834484a96e824851caee159`.
 
+### ZB-ACT — EMITTED-CODE-SIDE ACTIVATION ζ (Lon PIVOT, 2026-07-05): DELINEATE ζ FOR PROCEDURES + CO-EXPRESSIONS; CHEAT FIRST WITH PER-BB SELF-ALLOCATION
+
+**THE GAP THIS LADDER CLOSES (verified in code this session, not prose).** ZB-3 folded all four frame
+sources onto the ONE bump ζ-stack (`rt_zls_alloc`/`rt_zls_release`, `zeta_alloc.c`) — but ONLY on the
+RUNTIME side (`rt.c`): the proc-call trampoline, the generator-activation path, the nest-cursor paths,
+and `rt_frame()`. **EMITTED CODE STILL NEVER ALLOCATES.** `xa_flat.cpp:84` sets `r12` ONCE
+(`push r12; mov r12, rdi`) and every box addresses `[r12+off]` where the offset was granted STATICALLY,
+whole-program, by `ir_drive_slot_assign`→`zls_build`→`nd->tmp` (one flat namespace per graph). A box that
+is RE-ENTERED (ARBNO iteration, a generator resumed N times, backtracking that re-runs a subgraph) reuses
+its ONE static slot ⇒ cumulative state clobbers. The documented casualties (ARBNO wall, queens
+solution-4 frame clobber, SCAN-SCRATCH next-node overrun, micsum real-typed-local collision) are all this
+one root: **no per-activation / per-instance fresh ζ in emitted code.** Procedures happen to work TODAY
+only because the runtime trampoline repoints r12 to a fresh block before the callee's emitted code runs —
+but that is a runtime accident, not an emitted-code discipline, and it does NOT cover re-entrant boxes,
+co-expression planes, or Icon suspend.
+
+**THE CHOICE SPACE (Lon: "You got many choices, not just [per-BB]").** Two orthogonal axes; the ladder
+picks a cheap-and-correct starting point on each and refines:
+
+- **GRANULARITY — what gets ONE fresh allocation:**
+  1. **Per-BB / per-instance (§5i O-HEAP model, THE CHEAT).** Every re-entrant box allocates its own
+     instance block at α, releases at scope exit. Maximum allocation traffic; ZERO lifetime analysis;
+     trivially correct re-entrancy. Lon's "cheat" — ship correctness first, optimize granularity later.
+  2. **Per-GLOB** — one alloc per statement / labeled-sequence (the ZB-3 remainder plan; volume ∝
+     statements executed). The coalesced middle ground.
+  3. **Per-PROCEDURE (ZL-FN, §7a)** — one block per proc activation (args at `16*(i+1)` + locals + resume
+     cell + ret-γ/ω header cells); the honest frame boundary. Partly live via the runtime trampoline —
+     this ladder formalizes it on the emitted side.
+  4. **Per-CO-EXPRESSION (ZL-COEXPR, §7b)** — captured activations that OUTLIVE their creator ⇒ break
+     LIFO ⇒ heap-lifetime from creation.
+- **BACKING (`ZC_ALLOC` axis, already live in `zeta_choices.h`):** `BUMP_INFINITE` (never release —
+  removes reuse from the suspect list, the pure-correctness bring-up mode) · `BUMP_LIFO` (current default,
+  mark/release, §5c) · `MALLOC` (ASan/valgrind diagnostic) · `GC` (§5i/§6 end-state, mark+slide, LIFO
+  requirement disappears). The allocator is ALREADY built; this ladder is about WHO CALLS IT and WHERE
+  (emitted α/β ports) and AT WHAT GRAIN — not about building allocation.
+
+**THE MODE-INVARIANCE GATE governs every rung:** an activation-grain or backing change may alter bytes and
+speed but NEVER behavior — the crosscheck FAIL set and icon rung fail-set stay byte-identical across
+m3/m4; inter-mode divergence brackets a lifetime bug exactly as the monitor brackets a semantic one.
+
+- [ ] **ZB-ACT-0 — THE CHEAT: PER-BB SELF-ALLOCATION AT α (BUMP_INFINITE first).** Pick the smallest
+  re-entrant construct that clobbers under the flat model (candidate: the SCAN-SCRATCH family, or a
+  minimal ARBNO — whichever gives the cleanest oracle-pinned repro). At that box's α port, emit the
+  self-alloc prologue: `mark=zS; blk=rt_zls_alloc(sz); blk.prev=rZ; rZ=blk` (via the §5h self-load hook's
+  central x86() site so it's ZERO per-template edits and BOTH-MEDIUM for free); at the scope's final-γ and
+  ω, emit `zS=mark; rZ=blk.prev`. Run under `ZC_ALLOC=BUMP_INFINITE` FIRST (never releases → any surviving
+  bug is layout/wiring, never lifetime — isolates the wiring from the reclamation). Acceptance: the chosen
+  repro matches the freshly-built `iconx` oracle in BOTH modes; smoke 12/12×2; crosscheck fail-set
+  byte-identical; the three ζ gates green. **This rung is deliberately WASTEFUL and deliberately CORRECT —
+  it is the base every later coalescing rung is measured against.**
+  **WIRING RECON (2026-07-05, verified — the cheat is WIRING, not building; all sites confirmed present):**
+  (1) α-entry central site = `emit.cpp:1462` `emit_zeta_selfload()` — fires at every box's label-define,
+  BOTH mediums, zero per-template edits (the §5h hook, ASSERT mode already landing `test r12,r12;jnz;ud2`
+  at `emit.cpp:1350` — extend this fn with a new `alloc` mode). (2) Allocator already built:
+  `rt_zls_alloc(long)`/`rt_zls_release(void*)` (`zeta_alloc.h`), all ZC_ALLOC axes live. (3) The backing
+  axis: `ZC_ALLOC_BUMP_INFINITE=0` / `_LIFO=1` / `_MALLOC=2` / `_GC=3` (`zeta_choices.h`, default LIFO);
+  the selfload mode enum has room — add `ZC_SELFLOAD_ALLOC` beside `_OFF/_PLANE_CELL/_ASSERT/_STATIC`.
+  (4) Scope-exit sites: the `lbl_β` define + final-γ path in the main emission loop (`emit.cpp` ~1461
+  loop; `emit_label_define_bb(&lbl_β)` after it). The r12 prologue that the cheat REPLACES per-scope is
+  `xa_flat.cpp:84` (`push r12; mov r12, rdi` — the ONE static set). Open sub-question for the rung: the
+  producer→consumer slot-read contract (consumer reads `[r12+producer_off]`) requires the producer's
+  instance to be the SAME block the consumer addresses — so the cheat's first correct form is per-SCOPE
+  (a re-entrant box's whole body-subgraph shares one fresh block, seed-1 `ζ=&_1[i]` model), NOT literally
+  per-individual-box; "per-BB" names the GRAIN of the alloc DECISION (one alloc per re-entrant activation),
+  the body boxes still share that activation's block. This is why ZB-ACT-2's procedure coalescing is the
+  natural next step, not a separate mechanism.
+- [ ] **ZB-ACT-1 — FLIP TO BUMP_LIFO, PROVE RECLAMATION.** Same wiring, `ZC_ALLOC=BUMP_LIFO` (mark/release
+  per §5c). The LIFO invariant (§5c) must hold: failure fully unwinds rightward frames before any left-β
+  re-entry. Acceptance: byte-identical behavior to ZB-ACT-0 under INFINITE (the mode-invariance gate
+  proves reclamation introduced no lifetime bug); telemetry (`SCRIP_ZETA_TELEM`) shows allocs==releases+1
+  at exit (the +1 = main frame).
+- [ ] **ZB-ACT-2 — PROCEDURE GRAIN ON THE EMITTED SIDE (ZL-FN, §7a).** Move the proc-activation ζ from a
+  runtime-trampoline accident to an emitted-code discipline: the callee's α self-allocs its ZL-FN block
+  (params `16*(i+1)` + locals + resume + ret-γ/ω cells), release at return. Coalesce the per-BB blocks of
+  a straight-line procedure body INTO the one ZL-FN block (the boxes address into it — this is where the
+  cheat's waste is first paid back). Icon `f(N)` recursion + mutual recursion must run both modes.
+  Acceptance: proc_recursion smoke + a deep-recursion repro (`f(6000)`) both modes; rung suite fail-set
+  byte-identical.
+- [ ] **ZB-ACT-3 — CO-EXPRESSION GRAIN (ZL-COEXPR, §7b; D8 = O3 hybrid).** A `create e` captured
+  activation heap-PROMOTES its ζ block (family A, GC-visible) from birth — it breaks LIFO, so it is NEVER
+  a bump-lifetime block. Keep the O1 pthread transport (`rt_coexpr.c`, LANDED) but adopt the ZL-COEXPR
+  plane: each coexpr body's boxes address rZ = its own promoted block; per-coexpr zS sub-arena. `^e`
+  refresh = the clone-tier memcpy (snapshot→live) — §5e's deferred clone machinery earns its return here.
+  Acceptance: a create/`@`/coret/cofail repro with per-coexpr local isolation (two coexprs, same body,
+  independent locals) matches oracle both modes; the existing coexpr smoke stays green.
+- [ ] **ZB-ACT-4 — OPTIONAL COALESCE TO GLOB GRAIN.** If ZB-ACT-2's per-procedure coalescing plus the
+  per-BB cheat leaves measurable allocation churn in straight-line non-proc code, coalesce per-BB → per-GLOB
+  (one α-alloc/exit-release per statement / labeled sequence, the ZB-3 remainder). This is a PERF rung, not
+  a correctness rung — gated purely by telemetry + the mode-invariance gate; skip if the churn is
+  negligible under BUMP_LIFO.
+
 #### ZB-ALLOC — THE ζ ALLOCATION PLAN (2026-07-05, from the 4/28 .s + era C sources; refines ZB-2/ZB-3)
 
 **⌚ ZB-5 WATERMARK 2026-07-05 (Claude Opus 4.8 — SN4-PAT ARBNO deterministic-body v1 LANDED on ζ).**
