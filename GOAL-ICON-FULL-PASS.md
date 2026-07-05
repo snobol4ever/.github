@@ -32,7 +32,7 @@
 - [x] **BENCH-F2** — `IR_RASGN` (`<-`) full scaffolding landed `a54ebef`, gated to clean EXCISE. **Remaining gap:** rhs-var slot collides with dest-var slot inside conjunction chain — `bb_varslot_peek(rhs)` returns dest's slot offset instead of rhs's. Fix: trace flat-chain varslot allocation for `(y<-x) & write(y)`. Repro: `x:=5; y:=1; (y<-x) & write(y)` → `5`.
 - [ ] **BENCH-F3** — generator operand inside relop / chained comparison (`0 = (r:=1 to 3)`, queens full chain). `bb_binop_gen` β re-pump. Coordinate with rung13 cross_arg.
 - [ ] **BENCH-F4** — recursive proc + generator driver (`every q(1)`, q calling q(c+1) under backtracking). Depends on rung02 recursion fix.
-- [ ] **BENCH-Q** — `rung36_jcon_queens` m3+m4 == `.expected`. First headline benchmark.
+- [x] **BENCH-Q** — `rung36_jcon_queens` m3+m4 == `.expected`. First headline benchmark. **Reconfirmed 2026-07-04 (SCRIP `f0a7697a`): byte-identical both modes.** (This rung file predates this session's `GOAL-ICON-FULL-PASS.md` watermark staleness — see `GOAL-ICON-BB.md`'s live watermark for current benchmark-corpus state; this file's own status line/table above is STALE, re-derive from a fresh suite run before trusting any other row here.)
 - [ ] **BENCH-C** — `rung36_jcon_concord` (tables + sort + scan + read + find). Clear `.xfail`.
 - [ ] **BENCH-D/R** — deal/rsg (blocked on BENCH-ORACLE seed-pin).
 - [ ] **BENCH-I** — ipxref (heaviest; after concord).

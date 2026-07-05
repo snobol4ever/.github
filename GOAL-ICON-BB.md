@@ -542,3 +542,63 @@ covered) · geddump rc=0/0-output (record-decl parse gap, unchanged) · micsum/r
 main loops produce nothing, unchanged) · tgrlink stops at first 2-arg `put()` (list-guard gap, unchanged).
 **NEXT SESSION:** ipxref's BOMB is the cheapest next win — same family as fixes 1-4 above, likely another
 missing rhs-slot/own-slot grant in `bb_assign_global`'s LOWER-side wiring for a specific global shape.
+
+## ⌚ WATERMARK 2026-07-04 (later same day, SCRIP `f0a7697a`, corpus `1a1ff4b3`) — 10/10 benchmark push: keyword-in-if-then bug found+fixed (1 landed), fresh byte-diff grading harness built, 4/9 confirmed byte-identical
+**Methodology first — a fresh, stronger grading harness (`/home/claude/grade_bench.sh`, not committed — lives in
+the container workspace, rebuild if needed).** Prior benchmark scripts (`test_icon_bench_corpus.sh`) only checked
+`rc=0` + non-empty stdout, which passes on the `post.icn` suppressed-output banner alone (26L) even when the
+computed answer is wrong. The new harness builds a fresh `iconx` oracle from `icon-master` source, runs both with
+`OUTPUT=1` (defeats `Init__`/`Term__` suppression), extracts the real computed span (`*** Benchmarking with output
+***` .. `elapsed time =`) for the 5 post-harness benchmarks (concord/deal/ipxref/queens/rsg), strips only the
+legitimately-differing `&version` self-ID line for the 4 standalone ones (geddump/micsum/tgrlink/version), and
+byte-diffs against the oracle in both m3 and m4. This is the real bar — a program can satisfy the old script and
+still fail this one (ipxref did: 26L "pass" under the old script, actually a near-empty broken cross-reference).
+
+**LANDED — `IR_KEYWORD_ICON_GEN` split (SCRIP `f0a7697a`).** Found via minimal-repro bisection while chasing
+micsum's zero-output failure (see MONITOR-FIRST-adjacent method: bisect a working vs. broken program down to a
+single differing token, since the 2-way IPC monitor targets SNOBOL4 SPITBOL divergence, not Icon-vs-Icon).
+**Bug:** any single-valued keyword (`&input`, `&output`, `&null`, `&time`, ...) used as a **call argument reached
+through a conditional** (`if C then foo(&input)`) caused the call to be silently skipped — reproducible back to
+`if *args=0 then dofile(&input,"stdin")` (the exact `micsum.icn`/many-benchmark idiom, since `dofile(&input,
+"stdin")` guarded by `if *args=0` is the standard Icon "read stdin when no file args given" pattern used all over
+the benchmark and IPL corpus). **Root cause:** `ir_is_generator_kind(IR_KEYWORD_ICON)` returned true
+UNCONDITIONALLY (landed `bffd5c6c` to make `write(&features)` — a real generator — work), so `γ_to`/`ω_to` in
+`lower_icon.c` wired ANY predecessor's success edge to the keyword box's **β** (its fail/next-value resume label)
+instead of **α** (entry) — correct for the 4 keywords that actually generate multiple values, wrong for the far
+more common single-valued keywords, whose β immediately does `jmp ω` (exit) since they have no resume state.
+**Fix:** new opcode `IR_KEYWORD_ICON_GEN` carries exactly the 4 generator keyword names
+(`&features`/`&regions`/`&storage`/`&collections`, unchanged seed-GOTO/β-resume wiring); `IR_KEYWORD_ICON` keeps
+the other ~20 keyword names and is now correctly NOT a generator kind. Precedent: same split pattern as the
+existing `IR_KEYWORD_ICON`/`IR_KEYWORD_SNOBOL4` split (`bffd5c6c`). Touched 5 files (`IR.h` new opcode;
+`lower_icon.c` `lc_key` routes by keyword name; `ir_query.c` classifier; `emit.cpp` 3 dispatch/arity sites;
+`scrip_ir.c` name table + `jcon_converted_producer` + slot-alloc `k+=2` + IR-dump payload) — template
+(`bb_keyword_icon.cpp`) untouched, since both opcodes share it via the dispatch `case`. **Verified:** icon smoke
+12/12 m3+m4; full rung suite **213/40/36 → 214/39/36 (+1 PASS, zero regression, gates green)**; adversarial
+regression check on `&features` itself (the reason the bad classification existed) — still generates its 6 lines
+correctly with no infinite loop, confirmed by direct probe before AND after. `rung36_jcon_queens` (`BENCH-Q` in
+`GOAL-ICON-FULL-PASS.md`) reconfirmed byte-identical to `.expected` both modes (was already passing; unaffected).
+**Icon-only change: SNOBOL4 `.s` artifact regen (`util_regen_*_artifacts.sh` ×3) confirmed ZERO byte-drift**, as
+expected since `IR_KEYWORD_ICON`/`_GEN` are Icon-lowerer-only opcodes.
+
+**Fresh benchmark corpus state (`corpus/benchmarks/icon/*.icn`, byte-diffed against a from-source iconx oracle,
+`micro` excluded as a legitimate 14.7s long-runner) — 4/9 byte-identical, 1 materially advanced, 4 open:**
+| Benchmark | m3 | m4 | State |
+|---|---|---|---|
+| concord | ✅ | ✅ | byte-identical (already passing pre-session) |
+| deal | ✅ | ✅ | byte-identical both modes now (m4 cset divergence noted in the 07-04-earlier watermark is CLOSED as of current HEAD) |
+| queens | ✅ | ✅ | byte-identical (already passing pre-session) |
+| version | ✅ | ✅ | byte-identical (`&version` intentionally reports "Jcon 2.2" vs oracle's "Icon 9.5.25a" — by original design, not a bug) |
+| **micsum** | ❌→closer | ❌→closer | **THIS SESSION:** was totally blank (dofile never entered — the keyword-in-if bug above, since `micsum.icn`'s `main` is literally `if *args=0 then dofile(&input,"stdin")`); now emits its real data line. One column (`rmserr`, the RMS-over-`nothing`-values stat) still wrong: **new bug found, NOT fixed** — a `local` variable that becomes real-typed via a later `t := 0.0` in the SAME procedure corrupts an EARLIER `every t +:= !list ^ 2` generator-accumulation loop (integer-typed at the time) down to only its last iteration's value instead of the full sum. Minimal repro (2 statements after the buggy line, needs no I/O): `t:=0; every t+:=!a^2; write(t); t:=0.0;` — `write(t)` prints only `(!a)[last]^2`, not `Σ!a^2`, SOLELY because a later real-reset of the same local exists in-procedure. IR dump confirms the two variants (with/without trailing `t:=0.0`) are graph-IDENTICAL for the first `every` — this is a **slot-allocation/emission bug**, not a lowering bug. Repro files were in `/tmp` (container-ephemeral, not committed) — reproduce fresh next session, shouldn't take long given this description. |
+| ipxref | ❌ | ❌ | Runs to completion (rc=0) but the cross-reference table logic produces near-empty output — NOT the banner-masking false-pass the old grading script reported. Likely the documented `bb_assign_global: unhandled (needs descr flat-chain + rhs slot + own slot)` BOMB family still gates part of the real logic; needs a fresh monitor/bisect session, not yet started this session. |
+| geddump | ❌ | ❌ | `bb_assign_local: needs descr flat-chain + rhs slot + varslot + own slot` BOMB (same family as ipxref's `bb_assign_global` BOMB — a LOWER-side rhs-slot grant is missing for a specific `IR_ASSIGN` shape in both templates). Landing the shared root cause is a likely two-for-one with ipxref. Not started this session beyond locating the exact BOMB site (`src/templates/bb_assign_local.cpp` line 10 / `bb_assign_global.cpp` line 13). |
+| tgrlink | ❌ | ❌ | Set-membership bug per prior commit `01e8c4ac` ("document set-membership bug found in tgrlink trace") — not touched this session. |
+| rsg | ❌ | ❌ | Zero output. Not diagnosed this session — needs fresh bisection (same technique as micsum: isolate statement-by-statement against the oracle). |
+
+**NEXT SESSION, in leverage order:** (1) the micsum real-typed-local slot-collision bug — small, well-bounded,
+repro description above is enough to reconstruct in under 5 minutes; (2) the shared `bb_assign_local`/
+`bb_assign_global` flat-chain BOMB — likely fixes geddump AND unblocks the rest of ipxref's logic in one LOWER-side
+change (grep both templates' BOMB guards, find what `IR_ASSIGN` shape lacks an rhs-slot grant, compare against a
+working `bb_assign_local`/`bb_assign_global` call site for the exact missing grant call in `lower_icon.c`); (3) rsg
+zero-output (fresh bisection, same statement-bisection technique that found the keyword bug this session); (4)
+tgrlink set-membership (see `01e8c4ac` commit message for the specific trace). **Re-run `/home/claude/grade_bench.sh`
+after each fix — it is the honest bar now, not the old rc=0-and-nonempty check.**
