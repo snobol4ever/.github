@@ -697,7 +697,7 @@ from telemetry.
 |---|---|---|---|---|
 | D1 | rZ register | r12 / r15-promote | **r12** (continuity, ratified, callee-saved) | per ZB-ALLOC; confirm |
 | D2 | zS home | slab cell / register / .bss | **slab `[rbx+ZS_OFF]`** | per ZB-ALLOC; confirm |
-| D3 | Arena Stage-α size | 256 MiB RW / 1 GiB reserve+commit | **HUGE per Lon; exact number after a container check** | OPEN (ZB-3 container check done: mmap MAP_NORESERVE reserve + GC_add_roots in 8MB high-water chunks — GC scan cost ∝ usage not reserve; 1024 MB holds; frames MUST be GC-visible, they hold DESCR refs) |
+| D3 | Arena Stage-α size | 256 MiB RW / 1 GiB reserve+commit | **HUGE per Lon; exact number after a container check** | **RULED 2026-07-05 (Lon): 1024 MB — "we'll see when it breaks"** (container check: mmap MAP_NORESERVE reserve + GC_add_roots in 8MB high-water chunks — scan cost ∝ usage not reserve; frames MUST be GC-visible, they hold DESCR refs; telemetry stays ON to catch the break) |
 | D4 | zls[] kind column now | now / retrofit | **NOW** (one byte; it's the GC stack map; ZB-2 touches every grant once) | OPEN |
 | D5 | ZL-GROUP granularity v1 | disjoint label-groups / liveness-unioned | **disjoint** (unioning deferred) | per ZB-ALLOC; confirm |
 | D6 | Init v1 | zero-fill / clone | **zero-fill** (4/28 evidence: all dq 0); clone machinery kept in design for ^e + future nonzero images | per ZB-ALLOC; confirm |
@@ -707,9 +707,9 @@ from telemetry.
 | D10 | Scan-subject pinning at safe points | pin-cell at scan-enter / pinned string sub-arena | **pin-cell** (one store per scan-enter) | OPEN |
 | D11 | ZB-6 milestone-certify timing | before ARBNO unpause / after | **before ZB-5** — the 4/28 run is the fidelity pin for the chunk semantics being brought forward | OPEN |
 | D12 | Continuations home | ZL-FN header cells (evicted from statics) | forced by no-.bss; **header cells** | confirm |
-| D13 | α/β R12 self-load hook (§5h) | build now toggleable / defer | **BUILD NOW, OFF by default** — two central x86() sites, zero per-template edits, the standing A/B lever; source option (a) plane-cell when experimenting | OPEN (Lon named it QUICK — recommend rule YES) |
+| D13 | α/β R12 self-load hook (§5h) | build now toggleable / defer | **BUILD NOW, OFF by default** — two central x86() sites, zero per-template edits, the standing A/B lever; source option (a) plane-cell when experimenting | **RULED 2026-07-05 (Lon): BUILD — sequenced AFTER D15** (order: D15 flip first, then this hook; OFF by default, ASSERT mode on the shelf for ZB-5 ARBNO bring-up) |
 | D14 | ZLS itself onto the GC heap (§5i O-HEAP/GC-bump-slide) | end-state unification / keep hybrid | keep **hybrid v1**; REVISIT AFTER GC-3 proves slide — the model was never the problem, the allocator was | OPEN (deliberately deferred fork) |
-| D15 | ZC_* defaults (§5j, `zeta_choices.h`) | as authored / adjust | **as authored**: INFINITE+MALLOC-collections+SELFLOAD-OFF+ZERO+FILL+TELEM+BOMB+1024MB+GATE; flip ZC_ALLOC→LIFO at ZB-3 close | OPEN (confirm defaults; ZB-3: LIFO full-corpus byte-identity PROVEN — flip-ready) |
+| D15 | ZC_* defaults (§5j, `zeta_choices.h`) | as authored / adjust | **as authored**: INFINITE+MALLOC-collections+SELFLOAD-OFF+ZERO+FILL+TELEM+BOMB+1024MB+GATE; flip ZC_ALLOC→LIFO at ZB-3 close | **RULED 2026-07-05 (Lon): defaults CONFIRMED; flip ZC_ALLOC→BUMP_LIFO — EXECUTE FIRST, before D13's hook** (LIFO full-corpus byte-identity already proven at ZB-3 — flip is one line in zeta_choices.h; re-run smoke+crosscheck on landing) |
 
 ---
 
