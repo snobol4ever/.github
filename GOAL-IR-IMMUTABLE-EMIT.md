@@ -1,5 +1,59 @@
 # GOAL-IR-IMMUTABLE-EMIT.md — The emitter READS IR. It NEVER mutates it. (Ground Zero #5)
 
+## ⛔⛔ PIVOT — ZETA-BLOCKS (Lon, 2026-07-05) — READ FIRST; gates the SN4-PAT ARBNO rung below
+**Directive (Lon verbatim-in-spirit):** BB locals must be allocated in BLOCKS — sets of locals per feature
+activation (*PATTERN deferred bodies, FUNCTION BODIES, re-entrant matchers). Granularity is tricky; the answer
+is recovered from the old one4all SM+BB hybrid (SM ran statements, BBs ran patterns), which had this working
+100% at the beauty self-host milestone.
+
+**FINDING — the current model (verified in code this session):** ALL BB local storage = ONE flat
+per-graph-activation frame; r12 is a FIXED base set once (`xa_flat.cpp:84` `push r12; mov r12, rdi`);
+`ir_drive_slot_assign` (`scrip_ir.c:206`) is a single bump cursor granting each node one static `base+k*16`
+offset for the life of the program; ZERO per-α-entry fresh-DATA machinery exists anywhere (grep = 0). Sole
+fresh-frame granularity = whole-proc calls (`g_proc_arena`, rt.c:352, PROC_FRAME_DEPTH×PROC_FRAME_QWORDS;
+`bb_callee_frame.cpp` repoints r12). This contradicts ARCH-x86 ("fresh DATA block on every α-port entry"),
+ARCH-ICON ("zeta struct allocated fresh per α-entry"; "ARBNO... per-box arena indexed by depth"), and
+`.github/test_sno_1.c` (`ζ = &_1[ARBNO_i]` — ζ is a MOVING activation pointer). Known casualties of the flat
+model: the ARBNO wall, the queens solution-4 frame clobber (cumulative backtracking), the SCAN-SCRATCH
+next-node-slot overrun family.
+
+**RECOVERED — one4all (predecessor repo, PRIVATE — ask Lon for a credential to clone):**
+- SCRIP root `713c581b` (2026-05-31) = "fresh start from one4all working tree"; one4all's 4,155-commit history
+  was NOT carried over, and one4all is absent from the org roster.
+- **THE MILESTONE: one4all `4757bbcd` (2026-04-28) "SN-32b/SN-32d: SM_STORE_VAR two bugs fixed — --sm-run
+  beauty self-host byte-identical"** (+ same-day sibling `52251653` SN-32c JIT mirror). Lon recalls Session
+  **#47**; PLAN.md says #57 — unadjudicated; the pin is by date+message, unaffected.
+- Era corpus: `ae9ea8d8` (2026-04-27); source at `programs/snobol4/demo/beauty.sno`; NOTE `demo/inc/` does NOT
+  exist at that commit — resolve the SNO_LIB dir next session (candidates: `programs/include/`, or a corpus
+  commit a few days later).
+- The milestone compiler BUILDS CLEAN at `4757bbcd` (`apt-get install -y libgc-dev; rm -f scrip; make -j4
+  scrip` → rc=0). Era run modes: `--ir-run` / `--sm-run` / `--jit-run` (see that tree's
+  `scripts/test_gate_sn7_beauty_self_host.sh`). Self-host command: `.github/archive/MILESTONE-SN4X86-SELFHOST.md`.
+  **NOT RUN this session (Lon paused it)** — success pin = output md5 `abfd19a7a834484a96e824851caee159`.
+
+**THE .S PAYLOAD (the layout to bring forward):**
+- `one4all@4757bbcd:artifacts/asm/beauty_prog.s` — **70,840 lines**, NASM three-column. Register census:
+  **rbp 10,036 · r12 3,937 · r14 205 · r10/r11/r13/r15 ≈ 40–50**. Subject model lives in `.bss`
+  (`cursor`/`subject_data`/`subject_len_val`) — pre-R12/R13/R14/R15 register residency. **The chunk STRUCTURE
+  is the asset; the registers were later optimization** (Lon). beauty_prog.s never existed in SCRIP history.
+- Already in CURRENT SCRIP HEAD: `artifacts/asm/fixtures/{arbno_alt,arbno_match,arbno_empty,alt_fail,
+  alt_first,alt_second,anbn,any_vowel,...}.s` (arbno_alt.s = 156 lines — ideal compact study) and
+  `archive/backend/bb_boxes.s` (the 25-box 106/106 library).
+
+**NEXT SESSION, in order:** (1) clone one4all with Lon's credential; worktree `4757bbcd`; corpus worktree
+`ae9ea8d8`. (2) EXTRACT the chunk-allocation table from beauty_prog.s + the fixtures: how blocks were carved
+per statement / per pattern / per DEFINE'd function body / per ARBNO activation; rbp-frame vs r12-block roles;
+how deferred (*PATTERN) bodies got blocks. (3) Diff against today's flat `ir_drive_slot_assign`. (4) Produce
+the bring-forward design: block-granular ζ on the live spine (unblocks ARBNO + DEFER + honest function
+frames). (5) Optionally run the paused self-host + md5 gate to certify the rebuilt milestone.
+
+**Session hygiene (this commit):** the ORIENTATION SYNOPSIS section is DELETED per Lon directive 2026-07-05 —
+sessions read the directed ARCH docs in full instead. Dangling refs pending Lon's call: PLAN.md:34
+(session-start step 7 still points at the deleted synopsis), ARCH-SCRIP.md:3 (same), this file's stale
+"Original ORIENTATION SYNOPSIS below is UNCHANGED" sentence (~line 705), and ARCH-SCRIP.md's stale "optimizer
+OFF by default" (RULES 2026-07-03: ON). The SN4-PAT ARBNO rung is PAUSED pre-implementation by this pivot;
+its frontier notes stand in the ladder below.
+
 ## ⛔⛔ #1 PRIORITY — SN4-PAT — SNOBOL4 PATTERN MATCHING, RECONSTRUCT THE AMPUTATED IR FAMILY (Lon, 2026-07-04; elevated to top-of-ladder same day — this rung is read and worked FIRST, before every section below, including the JCON-IN-SCRIP directive and all Icon rungs)
 **THE RUNG NAME IS `SN4-PAT`.** The non-pattern SNOBOL4 subset is already complete on the live spine (literals,
 vars, keywords, `.NAME`, arith+concat, unary, `$`, subscript/`DEREF`, calls, gotos/labels, every assignment LHS
@@ -371,62 +425,6 @@ JCON spine, one TT at a time, per the CONVERSION PLAYBOOK below.
   top of this file; do not run a non-Icon smoke to "double-check" anything.**
 - **`IR_t.tmp` IS the temporary slot** (not `lhs`; no `IR_TMP` opcode — see CONVERSION PLAYBOOK). Only
   value-producers carry one (`ir_node_produces_value`); control/effect ops don't.
-
-## ⛔⛔ ORIENTATION SYNOPSIS — read this instead of the six docs PLAN.md's session-start sends you to
-**Everything load-bearing from `ARCH-ICON.md`, `ARCH-x86.md`, `REGISTER-LAYOUT.md`, `ARCH-SCRIP.md`,
-`REPO-SCRIP.md`, and `CORPUS-LOCATIONS.md`, distilled in one place by someone who already read all six this
-session — so the next session doesn't have to.** Skip those six for routine work on this goal; open one only
-if a specific question genuinely isn't answered here.
-
-**The four-port model (Byrd box).** Every construct = α(start, fresh entry) β(resume, ask for next value)
-γ(success, value ready) ω(fail, exhausted). A relop is a 0-or-1-result generator, not a boolean (canonical
-Icon `cmplte`: `return y` / `fail`). γ/ω are `IR_t` edges; α/β are positions the chain-BFS discovers from
-edges pointing AT a node (see CONVERSION PLAYBOOK above for the full isomorphism). Resumability is ω-wiring
-only — see DIVISION RULE below; never a stored flag.
-
-**Stackless boxes.** No value stack, no `r12`-as-TOS, no `rt_push/pop`. RW state lives in the ONE per-glob ζ
-frame `[r12+off]` (established once by the glob preamble, `mov r12, rdi`). RO compile-time constants (cset
-literals, baked pointers) sealed adjacent, reached `[rip+disp]`. Recursion/re-entry = a fresh per-α-entry
-DATA linkage, never a stack push — CODE is shared and reusable, DATA is per-invocation. Never jump into the
-middle of a blob from outside; every cross-blob entry lands on the α-preamble.
-
-**Register contract — LIVE table (ignore the SM-era/r10 history in REGISTER-LAYOUT.md; the doc says itself
-it's superseded, twice over, and `bb_regs.h` — its other source of truth — is deleted):**
-
-| Reg | Role |
-|---|---|
-| r12 | ζ — BB-local RW frame `[r12+off]`. **NOT** a value stack. |
-| r13 | Σ — subject base pointer |
-| r14 | δ — cursor (0-based; `&pos = δ+1`) |
-| r15 | Δ — subject length/end |
-| rbx | GVA slot-array base — globals at `[rbx+gva_k*16]`, 16-byte DESCR stride (verified vs live templates 2026-06-30) |
-| rbp | NV/variable-name hash table base (reserved; GET/SET still plain C calls) |
-| r10 | **RETIRED** — no data-block register; `bb_regs.h` (which defined this contract) no longer exists |
-
-**Flat-BB ABI.** A glob = N concatenated boxes' code + one sealed RO region at the end. Entry = jump to the
-glob's first byte (no `esi` port-test — that's the legacy dispatched/`--bb-brokered` form only). Both
-intra- and extra-blob transitions are plain `jmp rel32` (`r12` is callee-saved, survives either way). Two
-block kinds: BB (`bb_*.cpp`, does WORK) vs XA (`xa_*.cpp`, wraps/stitches — prologue/epilogue/data-section/
-entry-dispatch; builds no operands).
-
-**Execution modes — current reality (REPO-SCRIP.md; `ARCH-SCRIP.md` is stale here, still describing a
-since-deleted mode 2).** Exactly two: `scrip --run f` = mode 3, native x86 BINARY in-process. `scrip
---compile f` = mode 4, x86 TEXT asm → `gcc -no-pie` + `libscrip_rt.so`. Both must produce identical results;
-that's the whole isolation invariant — no mode-3/4 code path walks the AST or interprets SM/BB at runtime,
-the emitter walks the graph only at EMIT TIME then frees it.
-
-**Build/run.** `cd /home/claude/SCRIP && make scrip && make libscrip_rt`. Oracle: SPITBOL x64 at
-`/home/claude/x64/bin/sbl -b file.sno` (clone `snobol4ever/x64` if absent). **Fresh sandbox:** `apt-get install -y libgc-dev gdb` first; the audit oracle = icont/iconx built from the icon-master upload (`make Configure name=linux && make`, never X-Configure), auto-probed via `SCRIP/refs/` symlinks (RULES.md CONSULT CANONICAL SOURCES recipe).
-
-**Corpus.** Icon programs: `/home/claude/corpus/programs/icon/rung<NN>_*.icn` (263, each with a sibling
-`.expected`) — **not** `/home/claude/SCRIP/test/icon/` (only 8 smoke files). Full suite:
-`bash scripts/test_icon_all_rungs.sh`. Fast smoke (12 programs, both modes): `bash scripts/test_smoke_icon.sh`.
-
-**Concurrency discipline (GOAL-ICON-BB.md, condensed).** One dispatch case per IR kind; one template file
-per box; edit only your own language's arms/boxes, never a peer's; a kind with no case ABORTS loud, never
-silently declines. Patch-offset bookkeeping is abolished — `bb_bin_t`/hand-counted byte offsets don't exist;
-patch metadata travels in-band as tagged records inside a template's returned string, walked once by
-`bb_emit_x86`.
 
 ## ⛔⛔ IR-LAYOUT JCON-ALIGNMENT DIRECTIVE (Lon, 2026-07-02) — make Icon's IR match JCON's layout
 **Principle (Lon verbatim-in-spirit):** match JCON's IR record set as closely as possible. THE ONE EXCEPTION is
