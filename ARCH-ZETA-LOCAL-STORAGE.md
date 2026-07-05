@@ -644,7 +644,10 @@ Option (i) is cleaner and one store per scan-enter. δ/Δ are integers. rZ point
       zero-initialized (manual pin 3 discharged the ZC_INIT_ZERO way). **Coexistence contract stated in the
       module header:** scrip blocks aren't libgc objects (never freed by it); libgc ignores non-heap pointers;
       the migrated family is ATOMIC so a scrip block can never be a libgc object's sole liveness holder —
-      pointer-bearing families must NOT migrate before their GC-5 row. **PROOF (Lon-chosen scope): the DT_S
+      pointer-bearing families must NOT migrate before their GC-5 row. **Lon ruling (2026-07-05, post-landing):
+      the libgc coexistence is TRANSITIONAL, not a design stance — the `ZC_HEAP_STRINGS` switch stays for
+      testing while ours matures ("we can have both for a while"); retirement (GC-6) is the destination.**
+      **PROOF (Lon-chosen scope): the DT_S
       strings row of GC-5 wired through NOW** — `rt_str_alloc(n)` is THE entry point (n chars + NUL), switch
       inside the function: `ZC_HEAP_STRINGS` (zeta_choices.h, default SCRIP; `-DZC_HEAP_STRINGS=0` = the
       intact libgc-atomic fallback, proven by a one-object rebuild giving identical output). 24 explicit-length
