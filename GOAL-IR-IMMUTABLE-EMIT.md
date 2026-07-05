@@ -111,6 +111,53 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
 - [ ] **ZB-6 (opt) MILESTONE CERTIFY** — one4all@`4757bbcd` self-host run, md5
   `abfd19a7a834484a96e824851caee159`.
 
+#### ZB-ALLOC — THE ζ ALLOCATION PLAN (2026-07-05, from the 4/28 .s + era C sources; refines ZB-2/ZB-3)
+
+**Evidence addendum (C side):**
+- `artifacts/c/beauty_prog.c` @4757bbcd (17,648 lines): ZERO structs, ZERO ζ — the era C backend flattened to
+  C locals + runtime `pat_*` heap constructors (`pat_cat(pat_user_call(...))`). **The chunk model was an
+  ASM-backend invention.** (Pivot's PRIVATE flag: CLOSED — Lon confirmed in-session the repo is public
+  intentionally, for session convenience.)
+- `archive/backend/blk_alloc.c` (58 lines): era allocator = **mmap PER CALL** — header verbatim: "CODE is
+  shared (read-execute); DATA is per-invocation (read-write)". Correctness-first, one syscall per activation;
+  the bump ζ-stack keeps the private-DATA principle, deletes the syscall.
+- Era layout-builder lives at `archive/backend/emit_emitters/emit_x64.c` (NOT `archive/backend/emit_x64.c`) —
+  deliberately NOT read this session (context economy); FIRST study item of ZB-2.
+- Seed `.github/test_sno_1.c` (ARBNO region) = the distilled model: `ζ = &_1[ARBNO_i=0]` at α,
+  `ζ = &_1[++ARBNO_i]` going deeper, fail path `ARBNO_i--; ζ = &_1[ARBNO_i]; goto alt_β`. **The per-iteration
+  frame carries the ENTIRE body-subgraph's box fields** (`ζ->alt`, `ζ->alt_i`, `ζ->ARBNO`) — body re-entrancy
+  is free because the frame IS the body's layout; the box's own depth/accumulator live in the ENCLOSING frame
+  (matches asm `r12+280`). On the live 100%-BB spine (no SM), this generalizes to ALL code, not just patterns.
+
+**THE PLAN — one allocator, four layout classes, one invariant:**
+1. **Layout classes** in the parallel `zl[]` table (node-id keyed, PEERS-clean), sized by `zl_build()`
+   post-optimizer / pre-emit:
+   **ZL-GROUP** — label-group (labeled stmt + trailing unlabeled): every non-re-entrant box instance's fields
+   (absorbs the dead SM tier's expression temporaries). **ZL-FN** — DEFINE-body aggregate: `{prev, mark}`
+   header + arg/local t·p pairs + its ZL-GROUPs concatenated + ret_γ/ω continuation cells (evicted from
+   statics). **ZL-PAT** — per match-activation mutable pattern state; GLOB shape sealed `[rip+disp]` per
+   RULES; dynamic pattern VALUES read their shape via pointer, mutable part still ZL-PAT in the invoker.
+   **ZL-ITER** — re-entrant-box iteration frame: `{prev}` + the box's BODY-subgraph layout (the seed's `_1[]`
+   element) — uncapped, covers dynamic BBs (runtime-sized frames are fine: bump takes any size).
+2. **Allocator: ONE bump ζ-stack in the RX slab.** `zS` in a fixed slab cell `[rbx+ZS_OFF]` (zero registers
+   burned; r15 promotion only if the `x86_asm.h` roster and a bench say so). α-entry: `mark=zS;
+   blk=bump(sz); blk.prev=rZ; rZ=blk`. Scope exit (final-γ or ω): `zS=mark; rZ=prev`. rZ = r12 (continuity
+   with `xa_flat.cpp` and the 4/28 artifact). Init = zero-fill v1 (`rep stosq` — faithful: era templates were
+   all `dq 0`); init-images only if a nonzero-init field ever appears.
+3. **Iteration:** ARBNO-class boxes bump a ZL-ITER frame per α1-push, restore per β-pop — same stack; the
+   `resq 64` cap and the mmap both die.
+4. **THE LIFO INVARIANT (soundness):** Byrd traversal under mark/release is LIFO — failure fully unwinds
+   rightward frames before any left-β re-entry; success releases wholesale at the scope mark; a γ-exit MAY
+   leave frames live (they die at the enclosing mark). Suspendables (Icon suspend / coexpr) BREAK LIFO ⇒
+   their scope's block heap-promotes at creation (the already-deferred promotion rung); GATE until then: no
+   suspendable box inside a bump-lifetime scope.
+5. **Emitter contract:** reads `(scope_id, off)` from `zl[]` ONLY; `[rZ+disp]` in BOTH modes (byte-identical,
+   MODE34); mode-4 additionally prints `struc/endstruc` overlay headers (`ZG_/ZF_/ZP_/ZI_` prefixes) —
+   documentation, zero storage, NO `.bss`, NO bare `resq`.
+
+Rung mapping: ZB-2 = `zl_build()` + `--dump-zeta` (+ read `emit_emitters/emit_x64.c` first); ZB-3 = allocator +
+port prologues (§2–§3); ZB-4 = the gates as listed; ZB-5 rides §3.
+
 **Session hygiene (this commit):** the ORIENTATION SYNOPSIS section is DELETED per Lon directive 2026-07-05 —
 sessions read the directed ARCH docs in full instead. Dangling refs pending Lon's call: PLAN.md:34
 (session-start step 7 still points at the deleted synopsis), ARCH-SCRIP.md:3 (same), this file's stale
