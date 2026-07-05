@@ -25,16 +25,16 @@ way bought and what it cost.
 | **zS** | The bump ζ-stack top-of-stack cell (new, ZB-3). |
 | **ZLS — Zeta Local Storage** | (Lon, 2026-07-05.) The per-activation ζ region itself. **ZLS is internal and completely TYPED data** — heterogeneous compiler-known struct layouts (ints, cursors, code-address continuations, DESCR t·p pairs, pointers) — NOT a homogeneous run of DESCR slots. Deliberately DIFFERENT from the GST/GVA concept, which IS a uniform 16-byte-DESCR-per-variable table. |
 | **COLLECTION** | (Lon, 2026-07-05 — supersedes the "ZLA / array" naming retracted the same day; do not call it an array.) The growable per-iteration storage OWNED by a re-entrant box (ARBNO et al.), reached by POINTER from the owner's ZLS fields; element = the body-subgraph's TYPED layout. Replaces every `resq 64` / `[64]` cap in history. |
-| **zl[]** | The parallel layout table (node-id → scope_id, offset, kind), built by `zls_build()` post-optimizer. PEERS-clean: zero new `IR_t` fields. Implemented 2026-07-05: `SCRIP/src/contracts/zeta_storage.{h,c}`, API prefix `zls_*` (Lon: ZLS naming — GST/GVA global-side ↔ ZLS local-side; no LVA concept). |
+| **zls[]** | The parallel layout table (node-id → scope_id, offset, kind), built by `zls_build()` post-optimizer. PEERS-clean: zero new `IR_t` fields. Implemented 2026-07-05: `SCRIP/src/contracts/zeta_storage.{h,c}`, API prefix `zls_*` (Lon: ZLS naming — GST/GVA global-side ↔ ZLS local-side; no LVA concept). |
 | **t·p** | The 16-byte DESCR_t slot unit (`{DTYPE_t v; uint32_t slen; union{s,i,r,p,arr,tbl,u}}`, `src/contracts/descr.h`). All ζ offsets are multiples of 16. |
-| **IR_t.tmp** | The LOWER-granted frame offset on a node (`src/contracts/IR.h:156`). Today: one flat namespace. Tomorrow: a read of zl[]. |
+| **IR_t.tmp** | The LOWER-granted frame offset on a node (`src/contracts/IR.h:156`). Today: one flat namespace. Tomorrow: a read of zls[]. |
 | **ψ (psi)** | The moving element pointer into a COLLECTION (seed-2 idiom: `ψ13 = &ζ->_13_a[i]`). Distinct from the enclosing frame's ζ. |
 | **λ (lambda)** | The landing port: post-child-call emptiness test routing to γ/ω (seed-2/3/4 idiom). |
 | **Clone tier / cheap tier** | 4/28-era activation modes: memcpy a `.data` init template into a fresh block vs `lea r12,[rel template]` (run IN the static template — the single-activation bet). |
 
 **⛔ THE TYPED PRINCIPLE (Lon, 2026-07-05).** ZLS is not a value store; it is the compiler's OWN
 per-activation struct. Its fields have individual types and sizes known at zl-build time. Consequences:
-(1) the zl[] map is a per-FIELD typed map, not a per-slot DESCR/non-DESCR bit (§4); (2) GC scanning of
+(1) the zls[] map is a per-FIELD typed map, not a per-slot DESCR/non-DESCR bit (§4); (2) GC scanning of
 live ZLS uses those typed maps and skips code-address and raw fields precisely (§6); (3) the mode-4
 `struc/endstruc` overlays are literally these type declarations printed; (4) never reason about ζ by
 analogy to GVA/GST — the resemblance (both `[reg+off]`) is addressing only, not shape.
@@ -210,7 +210,7 @@ Bring the 4/28 chunk STRUCTURE forward onto the live spine, minus its costs: bum
 slab (alloc = add, release = restore-to-mark), `.prev` link replaces push-r12 (stackless preserved),
 NO `.bss` in emitted programs (mode-4 prints NASM `struc/endstruc` OVERLAY headers — pure layout
 documentation, zero storage; both modes address `[rZ+disp]`, MODE34-identical), layouts computed
-PRE-EMIT into the parallel `zl[]` table, **COLLECTIONS** (realloc-grown per-iteration storage owned by
+PRE-EMIT into the parallel `zls[]` table, **COLLECTIONS** (realloc-grown per-iteration storage owned by
 re-entrant boxes, pointed to from ZLS; cap removed), heap promotion deferred to suspendable scopes. This document is M6's design record; §4–§8 below ARE the
 design.
 
@@ -232,7 +232,7 @@ persistent statics/initial flags (**NOT ζ at all** → GVA arena, already the l
 co-expression frames (→ **ZL-COEXPR**, §7).
 
 **The delineation requirement (Lon):** partition tmp's flat namespace into `(scope_id, off)` with
-per-class lifetime. The emitter contract stays: read `(scope_id, off)` from zl[] ONLY, emit
+per-class lifetime. The emitter contract stays: read `(scope_id, off)` from zls[] ONLY, emit
 `[rZ+disp]`, both modes byte-identical.
 
 ---
@@ -245,7 +245,11 @@ Groups laid DISJOINT v1 (lifetime-unioning deferred until real liveness info exi
 table is parallel, keyed by node id; zero new BB_t/IR_t fields.
 
 * **ZL-GROUP** — label-group frame: every non-re-entrant box instance's fields — temporaries, one-shot
-  scratch, resumable generator slots, call marshaling. Absorbs the dead SM tier's expression
+  scratch, resumable generator slots, call marshaling. **THE GLOB IS THE ALLOCATION GRAIN (Lon,
+  2026-07-05 third session): ONE α-entry alloc / ONE exit release per GLOB activation covering every box
+  inside — never per-BB. Each SNOBOL4 statement is a GLOB; each labeled sequence of statements is a GLOB.
+  Allocation volume ∝ statements executed — this is also what makes ZC_ALLOC_MALLOC a usable per-glob-lifetime
+  ASan instrument (see the §5j MALLOC ceiling empirics).** Absorbs the dead SM tier's expression
   temporaries (4/28's rbp tier folds into r12's world; ONE register, per M3).
 * **ZL-FN** — DEFINE/procedure-body aggregate: `{prev, mark}` header + arg/local t·p pairs + its
   ZL-GROUPs concatenated + **ret_γ/ω continuation cells (EVICTED from statics — the no-.bss rule forces
@@ -268,7 +272,7 @@ table is parallel, keyed by node id; zero new BB_t/IR_t fields.
 **Mode-4 overlay prefixes:** `ZG_` `ZF_` `ZP_` `ZI_` `ZC_` — struc/endstruc documentation headers,
 zero storage.
 
-**zl[] entry (proposed, per the TYPED PRINCIPLE):** node side `{ int scope_id; int off; }` PLUS a
+**zls[] entry (proposed, per the TYPED PRINCIPLE):** node side `{ int scope_id; int off; }` PLUS a
 per-scope FIELD MAP: `{ int off; int size; uint8_t kind; }[]` with **kind ∈ {DESCR (t·p pair), PTR_GC
 (collection/promoted-block pointer — the collector follows AND fixes it), PTR_CODE (ret-γ/ω
 continuation — skipped, never relocated), RAW (int/cursor/counter — skipped)}**. This is a per-FIELD
@@ -453,18 +457,18 @@ history above.
 
 **Why this is legal at zero design cost:** each BB is a pure-functional entity with respect to storage —
 a box reads `[rZ+off]`, full stop. The axes below change WHERE those bytes come from and WHEN they are
-reclaimed, never what a template does. Switching an axis touches the allocator/zl units only; the ~161
+reclaimed, never what a template does. Switching an axis touches the allocator/zls units only; the ~161
 templates are untouched by construction.
 
 **The header:** `SCRIP/src/contracts/zeta_choices.h` (authored 2026-07-05; additive — included by the
-allocator + zl units only, nothing else in the tree references it yet). Every axis is `#ifndef`-guarded,
+allocator + zls units only, nothing else in the tree references it yet). Every axis is `#ifndef`-guarded,
 so `make CFLAGS+='-DZC_ALLOC=ZC_ALLOC_BUMP_LIFO'` swaps a mode with zero edits. One value per axis;
 statically-illegal combinations are `#error`s in the header; combinations only checkable at run time
 bomb LOUD.
 
 | Axis | Modes | Default (experimental era) | Rationale from history |
 |---|---|---|---|
-| **ZC_ALLOC** — activation allocator | `BUMP_INFINITE` / `BUMP_LIFO` / `MALLOC` / `GC` | **BUMP_INFINITE** | INFINITE = monotone bump, NEVER releases, arena HUGE: removes REUSE from the suspect list entirely — any bug under INFINITE is layout/wiring, never lifetime. The testing mode Lon named. `BUMP_LIFO` = the v1 design (§5c) — flip the default at ZB-3 close. `MALLOC` = every scope block is a real heap object ⇒ ASan/valgrind catch overruns and use-after-release for free (M1's model resurrected as a DIAGNOSTIC — its churn is now the feature). `GC` = §5i end-state; `#error` stub until GC-3. |
+| **ZC_ALLOC** — activation allocator | `BUMP_INFINITE` / `BUMP_LIFO` / `MALLOC` / `GC` | **BUMP_INFINITE** | INFINITE = monotone bump, NEVER releases, arena HUGE: removes REUSE from the suspect list entirely — any bug under INFINITE is layout/wiring, never lifetime. The testing mode Lon named. `BUMP_LIFO` = the v1 design (§5c) — flip the default at ZB-3 close. `MALLOC` = every scope block is a real heap object ⇒ ASan/valgrind catch overruns and use-after-release for free (M1's model resurrected as a DIAGNOSTIC — its churn is now the feature; ZB-3 empirics: per-block GC_add_roots caps concurrent live activations at libgc MAX_ROOT_SETS — f(2000) passes, f(6000) bombs 'Too many root sets'; GLOB-grain activation is the designed fix — volume ∝ statements). `GC` = §5i end-state; `#error` stub until GC-3. |
 | **ZC_COLLECTION** — COLLECTION backing | `MALLOC` / `ARENA` / `GC` | **MALLOC** (D7 ruled) | realloc house style; `ARENA` = grow-in-place-when-top (`#error` under `ZC_ALLOC_MALLOC` — needs a bump arena); `GC` = v2 (GC-4). |
 | **ZC_SELFLOAD** — §5h hook | `OFF` / `PLANE_CELL` / `ASSERT` / `STATIC` | **OFF** | Hook code is compiled ALWAYS (two central `x86()` sites); this macro sets the built-in default and env `SCRIP_ZETA_SELFLOAD` overrides per RUN — that is the QUICK lever. `ASSERT` = the compare-and-bomb wiring checker. |
 | **ZC_INIT** — fresh-frame init | `ZERO` / `NONE` / `CLONE` | **ZERO** | 4/28-faithful (all templates were `dq 0`). `NONE` + poison exposes missing-init assumptions. `CLONE` reserved for `^e` refresh / future nonzero images (§5e). |
@@ -525,7 +529,7 @@ preserved (age-ordered heap); no free lists; cost linear in live+heap.
   range — DT_S/.s, DT_A/.arr, DT_T/.tbl, DT_DATA/.u, DT_P, DT_N (slen-discriminated
   NAMETRAP/NAMEPTR/NAMEVAL), DT_E vs DT_I/.i, DT_R/.r. The &MAXLNGTH-style small-int-vs-address hack is
   unnecessary. Per-block relocatable maps derive from the block type + the DESCR layout.
-* **The zl[] typed field maps ARE the stack maps.** The live ζ region `[current-mark chain … zS]` is
+* **The zls[] typed field maps ARE the stack maps.** The live ζ region `[current-mark chain … zS]` is
   precisely scannable: for each live frame, its scope's field map says which fields are DESCR (trace
   the payload), PTR_GC (trace AND fix), PTR_CODE (skip — continuations never relocate), RAW (skip).
   ZLS frames themselves DO NOT MOVE in the v1 hybrid (the ζ-stack is not the heap); only heap blocks
@@ -537,7 +541,7 @@ preserved (age-ordered heap); no free lists; cost linear in live+heap.
   GC existed. With §5h option (a) enabled, the plane CELL is one more PTR_GC word the collector fixes,
   and every consumer self-heals on next entry.
 * **Root set enumeration:** GVA slab `[rbx+k*16]` (all DESCR slots) · NV dictionary buckets (name→cell)
-  · live ζ region via zl kind maps · COLLECTION owner quads (via the same maps) + the grown-collection lists ·
+  · live ζ region via zls kind maps · COLLECTION owner quads (via the same maps) + the grown-collection lists ·
   heap-promoted ζ blocks (coexpr/suspend — each carries its scope's kind map id in its header) ·
   `g_proc_arena` live depth (until it folds into ZL-FN, ZB-3) · `g_call_args` marshaling window ·
   machine registers at a SAFE-POINT ONLY (see 6d).
@@ -571,7 +575,7 @@ Option (i) is cleaner and one store per scan-enter. δ/Δ are integers. rZ point
       entry points on a scrip-owned bump heap; libgc still resident (coexistence: scrip heap for new
       families, libgc for compiler-side allocations).
 - [ ] **GC-1 MARK** — trace from the §6b root set; `--dump-heap` inspector (the --dump-zeta sibling).
-- [ ] **GC-2 ADJUST** — per-type relocatable maps (DESCR-derived + zl typed field maps + COLLECTION element maps);
+- [ ] **GC-2 ADJUST** — per-type relocatable maps (DESCR-derived + zls typed field maps + COLLECTION element maps);
       linear new-address computation.
 - [ ] **GC-3 SLIDE** — the compaction memmove; free pointer reset; post-slide verify pass under a flag
       (every root's target has a valid header).
@@ -631,8 +635,8 @@ from telemetry.
 |---|---|---|---|---|
 | D1 | rZ register | r12 / r15-promote | **r12** (continuity, ratified, callee-saved) | per ZB-ALLOC; confirm |
 | D2 | zS home | slab cell / register / .bss | **slab `[rbx+ZS_OFF]`** | per ZB-ALLOC; confirm |
-| D3 | Arena Stage-α size | 256 MiB RW / 1 GiB reserve+commit | **HUGE per Lon; exact number after a container check** | OPEN |
-| D4 | zl[] kind column now | now / retrofit | **NOW** (one byte; it's the GC stack map; ZB-2 touches every grant once) | OPEN |
+| D3 | Arena Stage-α size | 256 MiB RW / 1 GiB reserve+commit | **HUGE per Lon; exact number after a container check** | OPEN (ZB-3 container check done: mmap MAP_NORESERVE reserve + GC_add_roots in 8MB high-water chunks — GC scan cost ∝ usage not reserve; 1024 MB holds; frames MUST be GC-visible, they hold DESCR refs) |
+| D4 | zls[] kind column now | now / retrofit | **NOW** (one byte; it's the GC stack map; ZB-2 touches every grant once) | OPEN |
 | D5 | ZL-GROUP granularity v1 | disjoint label-groups / liveness-unioned | **disjoint** (unioning deferred) | per ZB-ALLOC; confirm |
 | D6 | Init v1 | zero-fill / clone | **zero-fill** (4/28 evidence: all dq 0); clone machinery kept in design for ^e + future nonzero images | per ZB-ALLOC; confirm |
 | D7 | COLLECTION backing v1 | heap realloc / ζ-stack frames | **heap realloc** (Lon directive); v2 = GC blocks | RULED (collections; "ZLA/array" naming retracted same day) |
@@ -643,7 +647,7 @@ from telemetry.
 | D12 | Continuations home | ZL-FN header cells (evicted from statics) | forced by no-.bss; **header cells** | confirm |
 | D13 | α/β R12 self-load hook (§5h) | build now toggleable / defer | **BUILD NOW, OFF by default** — two central x86() sites, zero per-template edits, the standing A/B lever; source option (a) plane-cell when experimenting | OPEN (Lon named it QUICK — recommend rule YES) |
 | D14 | ZLS itself onto the GC heap (§5i O-HEAP/GC-bump-slide) | end-state unification / keep hybrid | keep **hybrid v1**; REVISIT AFTER GC-3 proves slide — the model was never the problem, the allocator was | OPEN (deliberately deferred fork) |
-| D15 | ZC_* defaults (§5j, `zeta_choices.h`) | as authored / adjust | **as authored**: INFINITE+MALLOC-collections+SELFLOAD-OFF+ZERO+FILL+TELEM+BOMB+1024MB+GATE; flip ZC_ALLOC→LIFO at ZB-3 close | OPEN (confirm defaults) |
+| D15 | ZC_* defaults (§5j, `zeta_choices.h`) | as authored / adjust | **as authored**: INFINITE+MALLOC-collections+SELFLOAD-OFF+ZERO+FILL+TELEM+BOMB+1024MB+GATE; flip ZC_ALLOC→LIFO at ZB-3 close | OPEN (confirm defaults; ZB-3: LIFO full-corpus byte-identity PROVEN — flip-ready) |
 
 ---
 
@@ -653,14 +657,14 @@ from telemetry.
   Every reference stays (RO) `[rip+disp]` or (RW) `[rZ+off]`.
 * **STACKLESS / ONE-REGISTER FRAME** — preserved; `.prev` replaces push-r12; rZ MOVES (that was always
   the 4/28 truth; M5's fixed-r12 was the deviation).
-* **TMP-ERADICATE** — `zl_build()` is its COMPLETION, not reversal: LOWER (via the post-optimizer pass)
-  owns the ENTIRE layout; `drive_value_slot` degenerates to a zl read; the emitter allocates nothing.
-* **PEERS RULE** — zl[] is a parallel table; zero new IR_t/BB_t fields.
-* **THE EMITTER NEVER MUTATES IR** — zl is read-only to the emitter; `test_gate_emit_no_ir_mutation.sh`
+* **TMP-ERADICATE** — `zls_build()` is its COMPLETION, not reversal: LOWER (via the post-optimizer pass)
+  owns the ENTIRE layout; `drive_value_slot` degenerates to a zls read; the emitter allocates nothing.
+* **PEERS RULE** — zls[] is a parallel table; zero new IR_t/BB_t fields.
+* **THE EMITTER NEVER MUTATES IR** — zls is read-only to the emitter; `test_gate_emit_no_ir_mutation.sh`
   stays hard-zero.
 * **NO .bss / MODE34** — struc/endstruc overlays (`ZG_/ZF_/ZP_/ZI_/ZC_`), displacement-identical bytes
   both modes; new no-.bss gate at ZB-4.
-* **LANG FACT RULES** — layout DECISIONS per language live in each LOWER; zl[], the allocator, the COLLECTION
+* **LANG FACT RULES** — layout DECISIONS per language live in each LOWER; zls[], the allocator, the COLLECTION
   runtime, and the GC are language-blind.
 * **DIVISION RULE** — resumability stays ω-wiring; a COLLECTION owner's β is Byrd resume, not a stored flag.
 * **ARCH-x86 / ARCH-ICON corrections** — their "fresh DATA per α-entry" / "per-box arena indexed by
