@@ -514,18 +514,41 @@ and the design is recoverable from git.
   extends. **PROVEN pre-existing at clean HEAD:** `ARB . V 'B'` on `'AAAB'` returns `[]` not `[AAA]` with ZERO
   of my changes applied. Gated for now: `sno_contains_arbno` makes a capture whose span contains ARBNO
   UNSUPPORTED (052_pat_arbno → SKIP, honest capability boundary; ARB-capture left exactly as baseline, untouched).
-- [ ] **SN4-PAT-CAPTURE-STACK (Lon directive 2026-07-05, next rung) — un-gate capture-over-generator.** THE
-  DESIGN (Lon, verbatim-in-spirit): implement capture with a **simple stack** — **forward movement (α) does a
-  `++` (push a capture frame), backtracking (β) does a `--` (pop)**; capture items are **automatically added and
-  removed via the α/β code in the box** (the same shape ARBNO's own iteration uses, and the natural home for
-  §5f's COLLECTION when it lands). This replaces the current single-δ-slot SAVE/COND (which measures `[save,cur)`
-  from ONE saved cursor and cannot survive a generator re-entry between the capture-open and the capture-close).
-  With a stack, each generator iteration pushes/pops its own capture frame under α/β, so the COND at the yield
-  reads the top-of-stack span and the β-resume chain is preserved through the capture. Fixes BOTH 052_pat_arbno
-  (ARBNO-capture) AND the pre-existing ARB-capture defect in one rung; then drop the `sno_contains_arbno` gate.
-  Oracle-pin the capture corpus (052, 061_capture_in_arbno, the W07 captures, 073/074 star-var captures) before
-  landing. Likely touches `bb_match_capture.cpp` (SAVE/COND templates), `emit.cpp` capture DRIVE, the zls grant
-  for the capture slot (→ a small stack region or ζ-backed frame), and possibly ARB/ARBNO α/β to push/pop.
+- [x] **SN4-PAT-CAPTURE-STACK (Lon directive 2026-07-05) — LANDED 2026-07-05 (Fable). Capture-over-generator
+  un-gated: frames on a per-box STACK, `++` on α / `--` on β, exactly as directed.** SAVE's 16B zls slot is now
+  `{+0 buf: GC_MALLOC_ATOMIC u32[] ([0]=cap, frames from [1]) — ZK_PTR_GC, so dead buffers collect free; +8 gen;
+  +12 sp}`; `rt_cap_push/pop/top` in `pattern_match.c`; `rt_match_enter` bumps a per-match generation and a
+  stale-gen slot lazily resets sp=0 — that kills the γ-exit-live success-leak per match AND validates
+  ZC_INIT_ZERO-fresh ζ frames (v2 COLLECTION moves this reset into the iteration machinery when it lands).
+  LOWER rewiring: COND stays first-allocated (TT_SEQ tail trick finds it); SAVE minted BEFORE the inner so the
+  inner lowers with fail=SAVE — every inner exhaust pops before failing leftward (β-aware, so a left generator
+  still resumes); COND.ω = the backtrack-IN edge → inner-tail's β when the inner is a generator, else SAVE.β;
+  `IR_MATCH_ASSIGN_COND`+`_SAVE` added to `ir_is_generator_kind` so all re-points land β-wards. **NEW HELPER
+  `sno_resume_ω_to`** (both TT_SEQ re-point sites): a capture-COND's ω is its inward resume edge — clobbering it
+  severs the capture's own chain; re-points chain through `operands[1]` (SAVE's ω) instead. Proven by
+  `(ARB . V) (ARB . W) 'Z'` on 'AABZ' → `[][AAB]` == oracle (without it, W's generator is skipped). Gate
+  `sno_contains_arbno` DELETED (single user). **Oracle-proven fixes:** `ARB . V 'B'`/'AAAB' `[]`→`[AAA]`;
+  mid-pattern variant `fail`→`[AAA]`; 052_pat_arbno SKIP→PASS both modes; capture-inside-ARBNO-body
+  `ARBNO('a' . V)` → `[a]`; nested `(LEN(1).A LEN(2).B).C` → `a/bc/abc`. **Corpus:** m3 172 pass (was 171;
+  FAIL 90→89 = exactly 052), m4 172 pass / 3 FAIL {082,099,213} / 86 skip, DIVERGE=0; a controlled HEAD-vs-rung
+  compile-skip diff proves the m4 delta == {052} exactly, nothing regressed in — the prior watermark's m4
+  168/90 was stale by 3 environmental skips (FAIL sets byte-identical + the m3 delta rules out runtime flips ⇒
+  HEAD-today m4 = 171/3/87). Icon smoke 12/12×2; emit gates ×3 + sno_pat_reg PASS; feature `.s` regen
+  auto-committed (18 capture-bearing pattern tests — helper-push α, real β pop labels, inner-fail→SAVE.β all
+  visible). `1017_arg_local` --compile SIGABRT is pre-existing (in both skip sets). **Accepted v1 limit:** when
+  a seq re-point chains through a capture, the pop on that path is elided (SAVE.α re-pushes on resume; bounded
+  per match by the gen-reset; top-reads stay correct).
+  **FINDING A — EAGER-ASSIGN (pre-existing, pinned):** the dcap deferred-capture protocol
+  (`rt_dcap_begin/end_ok/end_fail`, pattern_match.c) is ORPHANED — declared at emit.cpp:395, never called — so
+  `.` assigns at subpattern-success; a FAILING match still mutates the target (probe: `V='old'; 'ZQ' ? 'Z' . V
+  'NOPE'` → oracle `V=old`, SCRIP `V=Z`). No crosscheck test distinguishes (064 tests no capture despite the
+  name). Own rung: wire dcap begin/end at the match entry + success/fail exits.
+  **FINDING B — SEQ-CHAIN-THROUGH-DETS (pre-existing, improved here, residual pinned):** a deterministic
+  element between the fail point and a left generator blocks the resume — the le_tail trick sees only the
+  rightmost leaf, so in `(ARB . V) 'B' 'C'` a 'C' failure retries the anchor instead of extending ARB. Probe
+  'ABQABC': oracle `[ABQA]`, SCRIP `[QA]` (HEAD gave `[]` — this rung improved it; the residual is the det-tail
+  chain). Own rung: SN4-PAT-BETA-CHAIN — β pass-through on deterministic matchers or a leftward β-surface scan
+  in TT_SEQ.
 - [ ] **SN4-PAT-FOLD** — re-seat freeze+blob: `sno_freeze_pat_graph_entry` + the stored-pattern driver are IN
   the RECOVERED parent lower file (directive below); the blob-SEAL side (`xa_pattern_blobs.cpp`) is already
   LIVE in the Makefile; `bb_pat_build.cpp` parked; `src/include/dtp.h` (DTP_PROTO_DESC / DTP_FRAG_t,
