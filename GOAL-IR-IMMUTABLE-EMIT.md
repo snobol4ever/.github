@@ -107,9 +107,7 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
 
 **Ladder:**
 - [x] **ZB-1 EXTRACT** — this entry.
-- [ ] **ZB-2 SCOPE-LAYOUT PASS** — build the parallel layout table over the scope tree; `--dump-zeta`
-  inspector; re-base `x86_scratch_off` consumers on it. Study set: `artifacts/asm/fixtures/arbno_*.s` (156-line
-  `arbno_alt.s` first), `archive/backend/bb_boxes.s`, the 1,094-row chunk table in beauty_prog_0428.s.
+- [~] **ZB-2 SCOPE-LAYOUT PASS — LANDED v1 2026-07-05 (second session same day, Fable; see watermark below).** `src/contracts/zeta_storage.{h,c}` = the ONE grant table (moved out of `ir_drive_slot_assign`, which is now a thin mirror: `nd->tmp`/vslots/resume/region all COPY from zl); typed per-FIELD maps `{off,size,kind∈DESCR/RAW/PTR_GC/PTR_CODE, audit}` with what-strings (the 4/28 1,094-row annotated chunk table reborn as `--dump-zeta` output); scope tree = FN root per graph + **ZL-GROUP via LOWER-recorded `zls_group_mark(g,label)`** (lower_snobol4 statement loop — NOT registry landings: landings are pre-created GOTO anchors clustered at low indices, index-grouping misattributes; LOWER knows the boundary, LOWER marks it — the doctrinally correct owner); `--dump-zeta` driver flag (runs the optimizer first, unlike `--dump-ir`, so it shows the layout that COMPILES); emitter re-based: `drive_value_slot` consults `zls_off(nd)` with a HARD parity abort where zl is authoritative (legacy `ir_tmp_slot_assign`/jcon graphs pass through untouched). `zeta_choices.h` now has its first includer (zl.c prints the compiled axes in the dump header). REMAINDER for ZB-2 completion: (a) Icon-side group marks (procs are separate graphs so FN-level is honest v1; statement-level groups when Icon wants them); (b) full `nd->tmp` retirement (the mirror stays until every reader migrates to zl reads — IR-REDESIGN's tmp-drop rides this); (c) burn down the `(audit)` provisional kinds (GC-1's first task).
 - [ ] **ZB-3 ACTIVATION ζ** — α-entry alloc from the ζ-stack / exit release; rZ repoint + `.prev`;
   `g_proc_arena`/`bb_callee_frame.cpp` fold in; template-init only where a field's init image is nonzero.
 - [ ] **ZB-4 MODE34 + GATES** — struc-overlay emission; new no-`.bss` gate; `test_gate_emit_no_ir_mutation.sh`
@@ -119,6 +117,15 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
   `abfd19a7a834484a96e824851caee159`.
 
 #### ZB-ALLOC — THE ζ ALLOCATION PLAN (2026-07-05, from the 4/28 .s + era C sources; refines ZB-2/ZB-3)
+
+**⌚ ZB-2 WATERMARK 2026-07-05 (second session same day, Claude Fable 5 — VERIFY + ZB-2 v1 LANDED).**
+**(1) ARCH-ZETA-LOCAL-STORAGE.md FULLY RE-VERIFIED against sources per Lon directive — every checked claim EXACT:** `ir_drive_slot_assign`@scrip_ir.c:206 single-cursor + per-op grant table · xa_flat.cpp `push r12; mov r12,rdi` · `g_proc_arena`@rt.c:348 GC_MALLOC depth×qwords · IR_t.tmp@IR.h:156 · emit.cpp:980/984/996 scratch setters · zeta_choices.h all 9 axes + #error guards, included-by-nothing (now: zl.c) · seeds 1–6 no-realloc, seed-2 `_13_t _13_a[64]`@154 `_23_t _23_a[64]`@254 · arbno_alt.s 156 lines `arb3_stack resq 64`@:24 · one4all@4757bbcd re-cloned: beauty_prog.s 70,840 lines, census rbp 10,036 / r12 3,937 / r14 205 EXACT, fn_upr clone site @~8437 verbatim (incl. `P_upr_ret_γ` static continuation write), blk_alloc.c 58 lines header-verbatim, snobol4_asm.mac:2040 ARBNO macros, emit_x64.c 9,759 lines :579/:932/:965 quotes verbatim, **chunk table = exactly 1,094 annotated `dq 0` rows across 131 `box_*_data_template` families** (grep-precise) · BB-GEN-X86-BIN.md arbno ~1556B grid · ARCH-ICON per-α/depth-arena lines. Addendum: `x86_scratch_off` READER templates also include dormant bb_match_{arbno,fence,span_var} (only 5 of the 8 are in the Makefile; setters remain the 3 emit.cpp sites).
+**(2) BASELINE RE-DERIVED at session HEAD (the 115/261 watermark below is stale):** crosscheck **mode-3 168/261 (93 FAIL), mode-4 168 PASS / 3 FAIL / 90 SKIP, DIVERGE=0** (m4 FAILs = the known 082/099/213). Icon smoke 12/12 ×2 (container needed `make libscrip_rt` — the smoke's mode-4 arm silently 0/12s without `out/libscrip_rt.so`; build it in session setup).
+**(3) ZB-2 v1 LANDED** (ladder entry above has the full design record): zeta_storage.{h,c} single grant table + typed field maps + LOWER-marked groups + `--dump-zeta` + emitter parity instrument + tmp-as-mirror. **PROVEN INVARIANT:** crosscheck EXACTLY equals the re-derived baseline (same counts, same FAIL set, DIVERGE=0); Icon smoke 12/12 ×2; gates no_ir_mutation/no_lang/no_slot_alloc GREEN; **.s byte-identity vs stashed HEAD build on every checked program.**
+**(4) REGEN SCRIPTS RUN (RULES step 4) — ZERO ARTIFACTS CHANGED across benchmark/feature/demo/icon suites: the mechanical invariance proof.** CORRECTION to an in-session hypothesis: manual byte-diffs first suggested stale committed .s (indirect_dispatch, rung36_jcon_{args,arith,augment,scan}) — the regen runs revealed those programs ABORT under `--compile` (EMIT-FAIL/CERR; my manual diffs compared committed full .s vs partial-crash output). Artifacts correctly untouched per the honest-current-output rule. HEAD==ZB-2 stash-verified on every diffing case regardless, so the invariance conclusion stands on both instruments.
+**(5) Housekeeping:** kind_names[] gained the full IR_MATCH family (dump/print readability); `bb_label_registry_count/get` enumeration API added (lower_common.c — zl no longer uses it after the marks pivot, kept for future consumers); **`seed/beauty_prog_0428.s` committed to SCRIP (Lon directive: the 4/28 milestone artifact now lives IN the repo — the M2 carry-the-design-forward lesson, applied).**
+**NEXT = ZB-3 ACTIVATION ζ** (allocator + port prologues per §2–§3 of the plan below; the ZC_ALLOC axes are live-includable now).
+
 
 **Evidence addendum (C side):**
 - `artifacts/c/beauty_prog.c` @4757bbcd (17,648 lines): ZERO structs, ZERO ζ — the era C backend flattened to
@@ -148,7 +155,7 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
   (matches asm `r12+280`). On the live 100%-BB spine (no SM), this generalizes to ALL code, not just patterns.
 
 **THE PLAN — one allocator, four layout classes, one invariant:**
-1. **Layout classes** in the parallel `zl[]` table (node-id keyed, PEERS-clean), sized by `zl_build()`
+1. **Layout classes** in the parallel `zl[]` table (node-id keyed, PEERS-clean), sized by `zls_build()`
    post-optimizer / pre-emit:
    **ZL-GROUP** — label-group (labeled stmt + trailing unlabeled): every non-re-entrant box instance's fields
    (absorbs the dead SM tier's expression temporaries). **ZL-FN** — DEFINE-body aggregate: `{prev, mark}`
@@ -187,7 +194,7 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
    MODE34); mode-4 additionally prints `struc/endstruc` overlay headers (`ZG_/ZF_/ZP_/ZI_` prefixes) —
    documentation, zero storage, NO `.bss`, NO bare `resq`.
 
-Rung mapping: ZB-2 = `zl_build()` + `--dump-zeta` (+ read `emit_emitters/emit_x64.c` first); ZB-3 = allocator +
+Rung mapping: ZB-2 = `zls_build()` + `--dump-zeta` (+ read `emit_emitters/emit_x64.c` first); ZB-3 = allocator +
 port prologues (§2–§3); ZB-4 = the gates as listed; ZB-5 rides §3.
 
 **Session hygiene (this commit):** the ORIENTATION SYNOPSIS section is DELETED per Lon directive 2026-07-05 —
