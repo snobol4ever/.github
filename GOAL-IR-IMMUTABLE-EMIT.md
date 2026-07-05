@@ -117,6 +117,30 @@ the empty match (`cur_before==cursor → ω`) then pushes and `dep++`; β pops a
 
 #### ZB-ALLOC — THE ζ ALLOCATION PLAN (2026-07-05, from the 4/28 .s + era C sources; refines ZB-2/ZB-3)
 
+**⌚ ZB-5 WATERMARK 2026-07-05 (Claude Opus 4.8 — SN4-PAT ARBNO deterministic-body v1 LANDED on ζ).**
+**(1) ARBNO SHIPS, deterministic body, NO COLLECTION/stack** — the finding: deterministic-iteration backtrack
+cannot produce a new alternative, so first-extension-failure == total exhaust; three 4B cursors in one 16B ZK_RAW
+zls slot suffice. Three phases (G generator / K ok / F exhaust) share `IR_MATCH_ARBNO`, phase in `IR_LIT.ival` →
+`op_phase` at drive; G.ω repurposed as body-entry; F's `def β` alias lands body-fail edges. Full design + file
+list in the `SN4-PAT-ARBNO` ladder entry above.
+**(2) ORACLE-PINNED vs SPITBOL x64** on the full semantic surface (extension / zero-occ / shortest-first /
+null-body no-loop / multi-element & SPAN & LEN(2) bodies / unanchored head-retry / cursor-restore ABABAC / two
+forced-FAIL cases) — m3==m4==oracle on every one.
+**(3) MODE-INVARIANCE + NO-REGRESSION PROVEN:** crosscheck both modes **168→171** (+3), **DIVERGE=0**, m4 FAIL
+back to the 3 parked {082,099,213}; signal-abort set **26==26 vs clean HEAD** (zero new crashes, measured by
+stash round-trip); 3 emit gates PASS; icon smoke 12/12×2.
+**(4) v2 CLEANLY GATED:** generator bodies (ALT/ARB/ARBNO/FENCE inside) refused by `sno_pat_deterministic`
+(054 SKIPs) — they need the §5f per-iteration COLLECTION (re-choosing a finished iteration; counterexample on
+record).
+**(5) FINDING — capture-over-generator is PRE-EXISTING-broken (ARB shares it):** a `.`-capture wrapping a
+generator severs the β-resume chain (COND sends the right neighbour's fail to `head`, never the generator β).
+Proven at clean HEAD: `ARB . V 'B'` → `[]` not `[AAA]`. Gated via `sno_contains_arbno` (052 → SKIP).
+**(6) LON DIRECTIVE — NEXT RUNG = SN4-PAT-CAPTURE-STACK:** capture as a simple stack, `++` on α / `--` on β,
+frames auto add/remove via box α/β code (same shape as ARBNO iteration / the future COLLECTION). Un-gates BOTH
+052 and the pre-existing ARB-capture defect. Ladder entry above has the plan + the corpus to oracle-pin.
+**D-ROWS:** none re-ruled this session. D13 β-define-site remainder still open (α-hook landed prior). ZB-4
+(struc overlays + no-.bss gate) untouched. **NEXT = Lon rules SN4-PAT-CAPTURE-STACK vs ZB-4 vs ABORT/BAL.**
+
 **⌚ ZB-3 WATERMARK 2026-07-05 (third session same day, Claude Fable 5 — ACTIVATION ζ RUNTIME SIDE LANDED).**
 **(1) THE ζ-STACK EXISTS:** `src/runtime/rt/zeta_alloc.{h,c}` — ONE bump ζ-stack, `zeta_choices.h`'s first runtime consumer, every axis live: mmap `ZC_ARENA_MB` MAP_NORESERVE reserve; **GC-visibility solved by `GC_add_roots` in 8MB chunks up to high-water — scan cost ∝ usage not reserve (the D3 container check; frames hold DESCR refs, invisible arenas = premature collection)**; ZC_INIT_ZERO / 0xAA-fresh-under-NONE / 0xDD-on-release poison; overflow bomb prints high-water; telemetry stderr-only under env `SCRIP_ZETA_TELEM` (oracle-stdout-safe). Header = 16B `{prev,size}` BELOW the returned fb — ⚑ deviation from ARCH §5c `{prev,mark}`: mark==base is derivable, size is required for MALLOC-mode exact `GC_remove_roots` (Lon rules if mark must also live). `.prev` chain live via `g_zls_cur` — bookkeeping-true today, load-bearing at the GC root walk.
 **(2) ALL FOUR FRAME SOURCES FOLDED, runtime-only — the discovery: `bb_call_proc_staged` marshals via `rt_arg_stage`+trampolines and main frames via `rt_frame@PLT`, so EMITTED CODE NEVER COMPUTES FRAME ADDRESSES:** `rt_call_proc_descr` depth-grid DELETED (4096 cap gone; **frame_bytes now honored, max with 4KB floor — fixes the latent >4KB-frame overrun into the neighbor grid slot**); `g_gen_arena` DELETED (gen activations = ζ blocks; `g_gen_act[]` stays as the resume registry; release at exhaust-ω only — suspended frames live, §5c γ-exit-live rule); the THREE nest-cursor paths (`rt_call_named_proc`/`rt_call_proc_direct`/`rt_call_named_proc_sl`) — 64MB nest arena DELETED (**behavior note: graceful FAILDESCR exhaustion → ζ bomb; at 1GB nothing legitimate reaches it**); `rt_frame()` static 64KB → memoized ζ block. `bb_callee_frame.cpp` = Prolog trail machinery, NOT the Icon proc frame — untouched, correctly.
@@ -210,7 +234,7 @@ port prologues (§2–§3); ZB-4 = the gates as listed; ZB-5 rides §3.
 sessions read the directed ARCH docs in full instead. Dangling refs pending Lon's call: PLAN.md:34
 (session-start step 7 still points at the deleted synopsis), ARCH-SCRIP.md:3 (same), this file's stale
 "Original ORIENTATION SYNOPSIS below is UNCHANGED" sentence (~line 705), and ARCH-SCRIP.md's stale "optimizer
-OFF by default" (RULES 2026-07-03: ON). The SN4-PAT ARBNO rung is PAUSED pre-implementation by this pivot;
+OFF by default" (RULES 2026-07-03: ON). The SN4-PAT ARBNO rung LANDED this session (ZB-5 deterministic-body v1 — watermark below);
 its frontier notes stand in the ladder below.
 
 ## ⛔⛔ #1 PRIORITY — SN4-PAT — SNOBOL4 PATTERN MATCHING, RECONSTRUCT THE AMPUTATED IR FAMILY (Lon, 2026-07-04; elevated to top-of-ladder same day — this rung is read and worked FIRST, before every section below, including the JCON-IN-SCRIP directive and all Icon rungs)
@@ -451,8 +475,57 @@ and the design is recoverable from git.
   (feature/benchmark/demo) = 0 changed — fence tests live in the crosscheck corpus, compiled on-the-fly,
   no committed `.s`. Remaining pattern fails are ARBNO, `*VAR` deferred-eval, and pattern-as-value/via-var
   (105/106 need the last one) — FENCE was never scoped to cover them.
-  **NEXT: ARBNO, then ABORT/BAL, then ASSIGN_IMM (`$`)/DEFER — pattern-as-value (STITCH) is the other
+  **NEXT: ABORT/BAL, then ASSIGN_IMM (`$`)/DEFER — pattern-as-value (STITCH) is the other
   large lever whenever Lon wants that path instead.**
+- [x] **SN4-PAT-ARBNO (ZB-5 deterministic-body v1)** — LANDED 2026-07-05. `ARBNO(P)` for a DETERMINISTIC body
+  P lowers in the single-HEAD model with **NO per-iteration COLLECTION and NO stack** — the key finding:
+  backtracking through deterministic iterations cannot yield a new alternative, so the first extension-failure
+  IS total exhaustion; only three 4-byte cursors are needed (entry δ / last-yield δ / cur_before), packed in
+  ONE 16B `ZK_RAW` zls slot. **Three phases share `IR_MATCH_ARBNO`, discriminated by `IR_LIT(nd).ival` staged
+  into `g_emit.op_phase` at drive time** (the ALT-precedent proof that op_phase survives the walk; op_ival would
+  be DRIVE_FILL-clobbered): **G** (phase 0, generator-kind, 0 operands, FIRST-allocated so TT_SEQ's tail rule
+  finds the β surface) — α saves entry+yield=δ, `jmp γ` (the null yield, SPITBOL shortest-first); β restores
+  δ=yield (right neighbour may have consumed cursor before failing), records cur_before, `jmp ω` — **G.ω is
+  REPURPOSED as the body-entry edge** via `lc_ω_to(G, body_entry)`, the construct's real fail exit lives on F.
+  **K** (phase 1, operand[0]=G) — body-success landing: `δ==cur_before → jmp ω(=F)` (the 4/28 zero-advance
+  guard), else yield=δ, `jmp γ` (yield one more). **F** (phase 2, operand[0]=G) — exhaust: δ=entry,
+  `jmp ω`(outer fail); its template `def β` ALIAS lands both body-fail edges (bodies stamp fail β-wards via
+  `sno_ω_to` + `IR_MATCH_ARBNO` is now generator-kind). **Files:** `ir_query.c` (ARBNO → generator-kind);
+  `zeta_storage.c` (grant row: phase-0 node only, `n_operands==0` guard, one 16B ZK_RAW — **audit=0 justified:
+  template `bb_match_arbno.cpp` authored AND reads the field the same commit, the landed audit-0 rule**);
+  `lower_snobol4.c` (`sno_pat_deterministic` recursive gate rejecting ALT/ARB/ARBNO/FENCE bodies;
+  `sno_contains_arbno` capture gate; `TT_ARBNO` arm building G/F/K; `sno_pat_supported` ARBNO + capture arms);
+  `bb_match_arbno.cpp` (REWRITTEN in place — the dormant `bb_child_lbl`-era template had the P5 cursor-restore
+  bug; new three-phase body); `emit.cpp` (dispatch arm + DRIVE staging own-slot-via-operand[0]); `Makefile`
+  (both the `RT_PIC_SRCS` list and the `scrip:` compile rule). **VERIFIED vs SPITBOL x64 oracle** (probe set
+  `/tmp/arbno_probe.sno` + no-capture `Q1..Q11`): extension, zero-occ, shortest-first, null-body no-loop,
+  multi-element body (ANY ANY), SPAN body, LEN(2) body, unanchored head-retry, **cursor-restore (`ABABAC` POS(0)
+  ARBNO('AB') 'AC' RPOS(0)** — the β-must-restore case), and BOTH forced-FAIL cases (`AAX`, odd-length under
+  RPOS) — **m3==m4==oracle on all**. Crosscheck both modes **168→171** (+3), **DIVERGE=0**, m4 FAIL back to the
+  3 parked {082,099,213}, signal-abort set 26==26 vs HEAD (zero new crashes); the 3 emit gates PASS; icon smoke
+  12/12×2. Artifact regen (feature/benchmark/demo) run at handoff — ARBNO tests compile on-the-fly in the
+  crosscheck corpus, no committed `.s`. **v2 (generator body: ALT/ARB/ARBNO/FENCE inside) is cleanly GATED** —
+  `sno_pat_deterministic` refuses it (054_pat_arbno_alt SKIPs), because a completed iteration would need
+  re-choosing → the per-iteration COLLECTION (§5f). Counterexample on record: `'AAAB' POS(0) ARBNO('AAA'|'AA')
+  'AB' RPOS(0)` requires re-choosing a finished iteration.
+  **FINDING — CAPTURE-OVER-GENERATOR IS PRE-EXISTING-BROKEN (ARB shares it):** `ARBNO(P) . V X` (a `.`-capture
+  whose span wraps a generator) mis-compiles — the phase-1 COND between the generator and its right neighbour X
+  severs the β-resume chain (X's fail reaches `head`/retry, NEVER the generator's β), so the generator never
+  extends. **PROVEN pre-existing at clean HEAD:** `ARB . V 'B'` on `'AAAB'` returns `[]` not `[AAA]` with ZERO
+  of my changes applied. Gated for now: `sno_contains_arbno` makes a capture whose span contains ARBNO
+  UNSUPPORTED (052_pat_arbno → SKIP, honest capability boundary; ARB-capture left exactly as baseline, untouched).
+- [ ] **SN4-PAT-CAPTURE-STACK (Lon directive 2026-07-05, next rung) — un-gate capture-over-generator.** THE
+  DESIGN (Lon, verbatim-in-spirit): implement capture with a **simple stack** — **forward movement (α) does a
+  `++` (push a capture frame), backtracking (β) does a `--` (pop)**; capture items are **automatically added and
+  removed via the α/β code in the box** (the same shape ARBNO's own iteration uses, and the natural home for
+  §5f's COLLECTION when it lands). This replaces the current single-δ-slot SAVE/COND (which measures `[save,cur)`
+  from ONE saved cursor and cannot survive a generator re-entry between the capture-open and the capture-close).
+  With a stack, each generator iteration pushes/pops its own capture frame under α/β, so the COND at the yield
+  reads the top-of-stack span and the β-resume chain is preserved through the capture. Fixes BOTH 052_pat_arbno
+  (ARBNO-capture) AND the pre-existing ARB-capture defect in one rung; then drop the `sno_contains_arbno` gate.
+  Oracle-pin the capture corpus (052, 061_capture_in_arbno, the W07 captures, 073/074 star-var captures) before
+  landing. Likely touches `bb_match_capture.cpp` (SAVE/COND templates), `emit.cpp` capture DRIVE, the zls grant
+  for the capture slot (→ a small stack region or ζ-backed frame), and possibly ARB/ARBNO α/β to push/pop.
 - [ ] **SN4-PAT-FOLD** — re-seat freeze+blob: `sno_freeze_pat_graph_entry` + the stored-pattern driver are IN
   the RECOVERED parent lower file (directive below); the blob-SEAL side (`xa_pattern_blobs.cpp`) is already
   LIVE in the Makefile; `bb_pat_build.cpp` parked; `src/include/dtp.h` (DTP_PROTO_DESC / DTP_FRAG_t,
