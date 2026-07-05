@@ -631,6 +631,20 @@ writes), or (ii) treat subject strings as non-moving for v1 (allocate them in a 
 Option (i) is cleaner and one store per scan-enter. δ/Δ are integers. rZ points at the ζ-stack
 (non-heap) or a promoted block (a root). This is a DESIGN DECISION ROW in §8.
 
+**[RESOLVED v1, 2026-07-05 GC-1/2/3 session — with the WHY from the true oracle:] `silly/arena.c
+GC_fn` (v311.sil GC line 1367) shows SIL's allocation-site trigger is safe by INVARIANT, not
+mechanism — the descriptor stack IS an arena block whose title.v gets refreshed to current used
+length at GC entry (`SETSIZ STKPTR`, arena.c:391-395), so every live value is in enumerable arena
+storage at every ALLOC; the interpreter never holds arena refs in machine state across it. SCRIP's C
+helpers violate exactly this (concat's src locals), and the conservative patch for it (C-stack scan)
+ratchets the slide (§6e GC-1/2/3 note). v1 resolution: allocation-site collect survives only as the
+exhaustion fallback (conservative, rare); the working trigger is DEFERRED-PENDING consumed at the
+runtime gateway seams with in-flight DESCRs shielded as precise roots — restoring total enumerability
+at the moments that matter. Option (i) realized as pin-the-block (`gen_gc_roots` pins scan_subj's
+block; outer subjects restore through scan_stack and adjust precisely). The end-state remains ZB-4
+map emission + the GLOB α-prologue statement hook (GC-7), which retire both the ζ validated-adjust
+heuristic and the exhaustion-flavor conservatism.**
+
 ### 6e. The SN4-GC ladder (built AFTER ZB-4/ZB-5; designed-for NOW via the kind column)
 
 - [x] **GC-0 HEADERS — LANDED 2026-07-05 (Fable, Lon-directed session: "ZLS via GC just like in SIL").**
@@ -660,12 +674,26 @@ Option (i) is cleaner and one store per scan-enter. δ/Δ are integers. rZ point
       **Strings-row TAIL for GC-5:** 9 `GC_strdup` copy sites (string_builtins width<=slen shortcuts etc.) —
       mechanical `rt_str_dup` migration when the row completes. NOT migrated by design: DESCR arrays
       (string_ops.c:27), VCELLs, keys arrays, the capture stack u32[] (family A), all Prolog Term machinery.
-- [ ] **GC-1 MARK** — trace from the §6b root set; `--dump-heap` inspector (the --dump-zeta sibling;
-      runtime seed = rt_gcheap_verify, GC-0).
-- [ ] **GC-2 ADJUST** — per-type relocatable maps (DESCR-derived + zls typed field maps + COLLECTION element maps);
-      linear new-address computation.
-- [ ] **GC-3 SLIDE** — the compaction memmove; free pointer reset; post-slide verify pass under a flag
-      (every root's target has a valid header).
+- [x] **GC-1 MARK + GC-2 ADJUST + GC-3 SLIDE — LANDED 2026-07-05 (Fable, Lon-directed "mark, slide and adjust"; CSNOBOL4 cross-audit same session).** The SIL 3-stage storage
+      regeneration lives in `gc_heap.c` (`rt_gc_collect` + `gc_collect_ex`), v1 scope = the resident DT_S strings family. **TWO ROOT LAYERS:** PRECISE (marked AND adjusted; dedup/cycle
+      hash makes every cell adjust EXACTLY once) = NV buckets incl. bound GVA cells (`core_gc_roots`) · `_var_reg` · `g_call_args` window (`rt_gc_root_args`) · drive_val + gen frames +
+      scan_stack σ/subj (`gen_gc_roots` — restored FROM MEMORY at leave, hence adjustable) · full aggregate tracing through libgc-owned ARBLK/TBBLK/DATINST/VCELL/NAMEPTR (aggregates
+      don't move; the DESCR cells inside them adjust) · **the live ζ chain in VALIDATED-ADJUST mode** (`gc_zeta_frame`: DESCR-shaped pairs `v==DT_S` + head-exact + slen-plausible adjust
+      as descriptors, bare in-arena qwords (σ saves) adjust as raws — under a strings-only heap any in-arena qword in a live frame IS a string ref; the residual integer-collision risk is
+      SIL's magnitude-discrimination heritage reborn (manual pin 1 parallel), retired when ZB-4 emits the zls maps into binaries). CONSERVATIVE (marked and PINNED `HBF_PIN`, fwd=self,
+      never moved) = C stack + setjmp register spill, **EXHAUSTION FLAVOR ONLY**. **THE TWO FLAVORS (the session's central finding):** collecting inside `rt_gcheap_alloc` conservatively
+      pins the topmost blocks (the triggering helper's own locals) and with bump-from-top allocation ANY top pin makes all reclaimed space below unusable — the ratchet: 2,710 collections,
+      773KB monotone, reclaimed 0. Gateway collects are therefore FULLY PRECISE (SIL-pure, pinned 0): `SCRIP_GC_STRESS`/pending sets `g_gc_pending`, consumed at the runtime seams the .s
+      call-surface audit found — `rt_call_arr` (every call-shaped op) · `rt_assign_var` (pattern/indirect assign) · `rt_gvar_assign_{str,descr,var,int}` · `rt_arg_stage` · `rt_scan_enter`
+      · `rt_zls_alloc` — each SHIELDING its in-flight DESCRs as extra precise roots (`rt_gc_point`/`rt_gc_point_arr`, adjusted not pinned). Exhaustion inside the allocator keeps the full
+      conservative scan (sound; residual ratchet risk documented — corpus never nears 512MB). SLIDE: dest cursor; pins are barriers; sub-pin gaps get `HB_FILL` dead-filler titles so the
+      linear walk verifies (fillers compact next cycle); the contiguous live prefix gets fwd==self ⇒ no memmove ⇒ SIL's MVSGPT frontier behavior emerges from the pin condition (convergent,
+      confirmed against `silly/arena.c` GCLAD/GCLAM); adjust skips fwd==self (GCLAP `>= mvsgpt` analog). Coexprs: any created coexpr ⇒ collection DECLINES with an honest stderr note
+      (§6b finding ii; `g_scrip_coexpr_live`; fix home = coexpr rungs). `[ZGC]` telemetry under `SCRIP_ZETA_TELEM`. **EVIDENCE:** churn probe (60 keeps + table + 4000-iter DUPL churn)
+      == oracle in BOTH modes plain AND `SCRIP_GC_STRESS=3` — 2,707 regenerations, heap PLATEAU 2.4KB (was 773KB monotone), reclaimed>0 every cycle, pinned 0 fill 0; pattern/capture
+      probe == oracle plain + STRESS=2 (751 collections, σ pin + captures allocating mid-scan); **full crosscheck plain = exact baseline** m3 172/89 · m4 172/3 {082,099,213}/86 ·
+      DIVERGE=0; **crosscheck under STRESS=25 = IDENTICAL counts AND fail-sets** (the MODE-INVARIANCE gate applied to collection — behavior-invisible, 36s vs 35s); icon hard gate 4/4 +
+      all_rungs == pristine-HEAD (stash-proven); emit gates ×3 + sno_pat_reg rc=0.
 - [ ] **GC-4 COLLECTIONS-ONTO-HEAP** — COLLECTION v2: realloc/free replaced by GC blocks; owner-quad
       fixup proven by a forced-collect-inside-ARBNO probe.
 - [ ] **GC-5 VALUE-WORLD MIGRATION** — strings/ARBLK/TBBLK/DATINST/VCELL onto the heap, family by
@@ -730,7 +758,7 @@ from telemetry.
 | D7 | COLLECTION backing v1 | heap realloc / ζ-stack frames | **heap realloc** (Lon directive); v2 = GC blocks | RULED (collections; "ZLA/array" naming retracted same day) |
 | D8 | Coexpr substrate | O1 / O2 / **O3 hybrid** | **O3**: keep pthread transport, adopt ZL-COEXPR planes now | OPEN |
 | D9 | GC scope | replace libgc everywhere / **per-path coexist→retire** | coexist (GC-0..5), retire SNOBOL4 path first (GC-6) | OPEN |
-| D10 | Scan-subject pinning at safe points | pin-cell at scan-enter / pinned string sub-arena | **pin-cell** (one store per scan-enter) | OPEN |
+| D10 | Scan-subject pinning at safe points | pin-cell at scan-enter / pinned string sub-arena | **pin-cell** (one store per scan-enter) — v1 implemented as pin-the-block (`gen_gc_roots` pins scan_subj's block; register r13 unrewritable so the BLOCK stays put; outer subjects adjust via scan_stack) | OPEN |
 | D11 | ZB-6 milestone-certify timing | before ARBNO unpause / after | **before ZB-5** — the 4/28 run is the fidelity pin for the chunk semantics being brought forward | OPEN |
 | D12 | Continuations home | ZL-FN header cells (evicted from statics) | forced by no-.bss; **header cells** | confirm |
 | D13 | α/β R12 self-load hook (§5h) | build now toggleable / defer | **BUILD NOW, OFF by default** — two central x86() sites, zero per-template edits, the standing A/B lever; source option (a) plane-cell when experimenting | **RULED 2026-07-05 (Lon): BUILD — sequenced AFTER D15** (order: D15 flip first, then this hook; OFF by default, ASSERT mode on the shelf for ZB-5 ARBNO bring-up) **— α-site LANDED 2026-07-05 fifth session (SCRIP `261cbbcb`): env-flippable at emit time, ASSERT full-corpus mode-invariance proven; β-define site = remainder; record in GOAL watermark** |
