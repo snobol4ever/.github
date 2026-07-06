@@ -617,10 +617,9 @@ and the design is recoverable from git.
   RPOS) — **m3==m4==oracle on all**. Crosscheck both modes **168→171** (+3), **DIVERGE=0**, m4 FAIL back to the
   3 parked {082,099,213}, signal-abort set 26==26 vs HEAD (zero new crashes); the 3 emit gates PASS; icon smoke
   12/12×2. Artifact regen (feature/benchmark/demo) run at handoff — ARBNO tests compile on-the-fly in the
-  crosscheck corpus, no committed `.s`. **v2 (generator body: ALT/ARB/ARBNO/FENCE inside) is cleanly GATED** —
-  `sno_pat_deterministic` refuses it (054_pat_arbno_alt SKIPs), because a completed iteration would need
-  re-choosing → the per-iteration COLLECTION (§5f). Counterexample on record: `'AAAB' POS(0) ARBNO('AAA'|'AA')
-  'AB' RPOS(0)` requires re-choosing a finished iteration.
+  crosscheck corpus, no committed `.s`. **v2 (generator body) LANDED 2026-07-05 — see
+  SN4-PAT-ARBNO-2 below (per-iteration COLLECTION + the ALT-RESUME prerequisite); the counterexample
+  `'AAAB' POS(0) ARBNO('AAA'|'AA') 'AB' RPOS(0)` now == oracle both modes.
   **FINDING — CAPTURE-OVER-GENERATOR IS PRE-EXISTING-BROKEN (ARB shares it):** `ARBNO(P) . V X` (a `.`-capture
   whose span wraps a generator) mis-compiles — the phase-1 COND between the generator and its right neighbour X
   severs the β-resume chain (X's fail reaches `head`/retry, NEVER the generator's β), so the generator never
@@ -684,6 +683,60 @@ and the design is recoverable from git.
   store a DT_P handle (the value `rt_defer_get_pat_fn` fetches: `val.v==DT_P && val.p`); (3) the match already invokes
   it via `bb_match_defer`'s DT_P branch (`call rt_frame; call the fn`). Oracle-pin W03 outward. `bb_pat_build.cpp`
   parked; `src/include/dtp.h` on disk; `rt_pattern_stitch_*`/`rt_pattern_build` SUPERSEDED — do NOT resurrect.
+- [x] **SN4-PAT-ARBNO-2 (ZB-5 v2: generator bodies via per-iteration COLLECTION) — LANDED 2026-07-05 (Claude Fable 5).**
+  `ARBNO(P|Q)` and friends re-choose FINISHED iterations; 054_pat_arbno_alt FAIL→PASS both modes; the on-record
+  counterexample `'AAAB' POS(0) ARBNO('AAA'|'AA') 'AB' RPOS(0)` == oracle both modes (iteration 1 re-chosen
+  'AAA'→'AA' after iteration 2 exhausts).  **LOAD-BEARING DISCOVERY — ALT WAS NEVER RESUMABLE:** `IR_MATCH_ALTERNATE`
+  was absent from `ir_is_generator_kind` and its template had NO β arm — once an alternative succeeded there was no
+  path to the next, so `('a'|'ab') 'c'` on 'abc' FAILED vs oracle at clean HEAD (collections alone could not have
+  fixed 054).  **ALT-RESUME (the prerequisite piece, landed first and independently probed):** slot repartitioned
+  `{+0 cursor save (4B RAW), +8 resume continuation (8B ZK_PTR_CODE)}`; TT_ALT rewired to UNIFORM JOIN boxes —
+  alternative i's success lands J_{i+1}.α (MARK: `lea rax,[rip+L0]` = its OWN reload arm, store to [slot+8], jmp
+  ω=outer-succ) and its failure lands J_{i+1}.β/L0 (reload cursor, jmp γ=alternative i+1; β-wards free via
+  sno_ω_to once ALTERNATE is generator-kind); the trailing T=J_n is the SAME box with γ=outer-fail (resume exhaust
+  restores the entry cursor then fails leftward, β-aware); SAVE.β = `jmp qword [slot+8]` — the resume-in REPLAYS
+  exactly where forward-failure of the succeeded alternative would have gone, so deterministic pass-through costs
+  nothing and [slot+8] is always written before any possible resume.  NEW ENCODER (template-only rule honored):
+  `x86_lea_rip_id` — `lea r64,[rip+L(n)]`, REX.W 8D /5 + the SAME J-record rel32 fixup as jmp/jcc (rel32 is the
+  instruction's last 4 bytes in both).  Oracle-probed 6/6 both modes incl. 3-way deep dispatch, capture-over-
+  resumed-ALT (V='ab'), unanchored+exhaust-restore.  **ARBNO v2 (roles 3/4/5 ADDITIVE beside v1's 0/1/2 — v1
+  byte-untouched):** owner quad 32B `{entry,yield,i,cap | ptr ZK_PTR_GC | pad}`; element = 16B header
+  `{prev_rZ, cur_before}` + the body subgraph's CONTIGUOUS slot window; G.β pushes a ZEROED element
+  (`rt_zcol_push`, pattern_match.c, dual-built) and REPOINTS rZ=elem+16-min_off so body boxes' [r12+off] become
+  per-iteration (header readable at [r12+min_off-16/-8]); K reads header, restores rZ, i++/yield (zero-advance
+  way → F.α = resume THIS element's body β for its next way — oracle-pinned BOTH null-alternative orders); F.β
+  (body-fail) restores rZ, i==0→exhaust else i--, resume element i via F.γ stamped β-wards at the body's
+  first-allocated (rightmost) leaf.  RELOAD LAW held: elem recomputed from (ptr,i) at every owner port.  Geometry:
+  G brackets the body with operands[0/1]=first/last body node BY ALLOCATION (optimizer audit: branch_chain only,
+  no reorder/compact ⇒ index window exact, grants contiguous); zls_build post-pass computes {min_off,span} per
+  owner → `zls_arbno_geom()` → DRIVE stages op_sa/op_sb.  SAFETY AUDIT that shaped the scope: every SNOBOL4 var
+  is `global_register`'d ⇒ IR_VAR → bb_var_global (NV/GVA, r12-free) ⇒ NO vslot reads under repointed rZ.
+  `rt_zcol_push` = realloc ×2-growth + the zeta_alloc GC_add_roots trick (capture-buf GC ptrs INSIDE elements stay
+  collector-visible; roots move with the block; fresh-index memset = the fresh-iteration rule, POP never zeroes);
+  ptr/cap PERSIST across anchor retries/statement re-executions (2001-iteration loop torture == oracle both modes,
+  no growth).  **NAMING RULING (Lon 2026-07-05): "phase" is a MISNOMER — `op_phase`/template arms are a box-ROLE
+  discriminator; concept stands (capture/ALT/ARBNO all use it), rename is a future housekeeping rung.**
+  **GATES (sno_pat_v2_ok + sno_pat_v2_tail_gen, honest v3 boundary):** body's RIGHTMOST leaf must be ALT/ARB/
+  capture (a deterministic tail exposes no β — chaining THROUGH it is the Finding-B pass-through rung, e.g.
+  `ARBNO(ARB 'X')` refused); nested ARBNO refused (element prev_rZ into a realloc-MOVABLE outer collection = the
+  RELOAD-LAW escape); FENCE-in-body refused (seal jumps to fJ with rZ still repointed); generator INSIDE an
+  alternative refused (the ALT mark records the NEXT alternative — an inner generator's remaining ways would be
+  skipped on resume; same residual applies to plain nested ALT outside ARBNO, strictly-better-than-HEAD but
+  documented).  **KNOWN v1 LIFETIME RESIDUAL:** MALLOC-arm collections leak at FRAME DEATH (proc returns) — reuse
+  within a frame prevents loop growth; retire via the §5f per-activation release list or GC-4; D7 (ZC_COL_MALLOC)
+  honored but Lon may want to re-rule toward GC given elements now hold GC pointers.  **EVIDENCE:** ALT probes 6/6
+  + ARBNO probes 10/10 (counterexample, deep re-choose 'AAAAAB', both zero-advance orders, capture-over-v2
+  W='abab', two-ALT body, total-exhaust) m3==m4==oracle; full crosscheck m3 189→190, m4 189→190 / FAIL(m4) five
+  BYTE-IDENTICAL to HEAD {082,099,213,057,W02} / SKIP 82→81, DIVERGE=0 — stash-verified full-corpus fail-set diff
+  == exactly {054} both modes (NOTE: the ZB-5-era "3 parked m4 fails" baseline was stale — 057/W02 were already
+  m4-FAIL at actual HEAD `1d205f46`); GC_STRESS=1 green on all probe sets; icon smoke 12/12×2; gates
+  no_ir_mutation/no_lang/no_slot_alloc/byte_identity/no_handencoded/sno_pat_reg/ir_field_discipline ALL PASS;
+  benchmark regen EMIT-FAILs (eval_dynamic etc.) stash-proven pre-existing, artifacts 0-changed all three regens.
+  FILES: x86_asm.h (+encoder, +lea dispatch arm), ir_query.c (+ALTERNATE), bb_match_alternate.cpp (rewritten),
+  bb_match_arbno.cpp (+roles 3/4/5), lower_snobol4.c (TT_ALT rewire, TT_ARBNO v2 branch, v2 gates, supported
+  relax), zeta_storage.{c,h} (ALTERNATE fields, ARBNO ival-keyed rows, geometry post-pass + export),
+  emit.cpp (ARBNO DRIVE + extern), pattern_match.c (+rt_zcol_push).  NEXT: Finding-B det-tail pass-through
+  (un-gates `ARBNO(P det-tail)`), nested-ARBNO (needs stable element addressing or GC-4), or the FOLD blob tier.
 
 **⛔⛔ STANDING DIRECTIVE (Lon, restated 2026-07-04) — PARK, NEVER DELETE, parked-language code.**
 Park out of the Makefile (the `8f3e4b23` "kept intact on disk" precedent); deletion of parked code is a
@@ -1171,6 +1224,8 @@ OLD SCOREBOARD (2026-07-03 pre-keyword-gen): oracle 10/10 · m3 **2/10** · m4 *
 - [ ] **ICNBENCH-FENCE** — `bash scripts/test_icon_bench_corpus.sh` reports 10/10 on both m3 and m4 (or documents a principled, permanent exclusion per program) before this rung closes.
 
 ## Watermark
+
+**⌚ 2026-07-05 (ARBNO-v2 session, Claude Fable 5 — SN4-PAT-ARBNO-2 LANDED: generator bodies via per-iteration COLLECTION (ARCH §5f first live use) + the ALT-RESUME prerequisite; full landing record in the SN4-PAT-ARBNO-2 ladder entry above).** THE LOAD-BEARING DISCOVERY: ALT was never resumable (no β arm, absent from generator-kind) — `('a'|'ab') 'c'` failed vs oracle at clean HEAD; fixed via uniform JOIN boxes whose α MARKS its own reload arm's address (`lea r64,[rip+L(n)]`, NEW ENCODER, same J-record rel32 fixup as jmp) into the SAVE slot's ZK_PTR_CODE cell, SAVE.β = `jmp qword [slot+8]` replaying the forward-fail path. ARBNO v2 = ADDITIVE roles 3/4/5 (Lon ruling: "phase" is a MISNOMER for the box-ROLE discriminator; concept stands, rename later): 32B owner quad, elements = 16B header {prev_rZ, cur_before} + the body's contiguous slot window, rZ REPOINTED per iteration, geometry via operand-bracketed allocation window → zls_build post-pass → `zls_arbno_geom`; `rt_zcol_push` realloc+GC-roots (elements hold capture-buf GC ptrs), fresh-index zeroing, ptr/cap persist per frame (loop-torture 2001× == oracle). Honest v3 gates: det-tail bodies (Finding-B pass-through), nested ARBNO (RELOAD-LAW escape via movable prev_rZ), FENCE-in-body (seal bypasses rZ restore), generator-in-alternative (mark skips inner ways). MALLOC frame-death leak documented; D7 may want re-ruling → GC. **MEASURED: crosscheck m3 189→190, m4 189→190, DIVERGE=0, stash-verified full fail-set diff == exactly {054} both modes** (baseline correction: 057/W02 were already m4-FAIL at HEAD `1d205f46`, the "3 parked" note was stale); probes 6/6 ALT + 10/10 ARBNO m3==m4==oracle; GC_STRESS green; icon 12/12×2; 7 gates PASS; regen ×3 = 0 changed (benchmark EMIT-FAILs stash-proven pre-existing). NEXT: Finding-B pass-through un-gates det-tail bodies; nested ARBNO wants GC-4.
 
 **⌚ 2026-07-05 (GC session, Claude Fable 5 — GC-1 MARK + GC-2 ADJUST + GC-3 SLIDE LANDED: the SIL 3-stage storage regeneration, live on the GC-0 heap; CSNOBOL4 consulted as the true oracle per Lon; SCRIP `a032c237`).** Full landing record in ARCH-ZETA-LOCAL-STORAGE §6e (the three rows now [x]); §6d resolved-v1; D10 annotated (pin-the-block). THE SHAPE: two root layers — PRECISE (NV+GVA via `core_gc_roots`, `_var_reg`, `g_call_args`, gen frames + scan_stack via `gen_gc_roots`, full aggregate tracing ARBLK/TBBLK/DATINST/VCELL/NAMEPTR with a dedup/cycle hash making every cell adjust EXACTLY once, ζ chain in validated-adjust mode) and CONSERVATIVE-PIN (C stack + setjmp regs, EXHAUSTION FLAVOR ONLY). **THE CENTRAL FINDING (the session's three-strike hunt):** allocation-site collection conservative-pins the triggering helper's own topmost blocks and with bump-from-top ANY top pin voids all reclaim below — 2,710 collections / 773KB monotone / reclaimed 0; ζ-alloc deferral then STARVED (straight-line code never activates); the emitted `.s` call-surface audit found the real per-statement seams — `rt_call_arr` · `rt_assign_var` · `rt_gvar_assign_*` · `rt_arg_stage` · `rt_scan_enter` · `rt_zls_alloc` — each consuming `g_gc_pending` with its in-flight DESCRs SHIELDED as extra precise roots (`rt_gc_point{,_arr}`); gateway collects are FULLY PRECISE (pinned 0, SIL-pure) and the heap PLATEAUS. CSNOBOL4/`silly/arena.c` cross-audit: SIL's alloc-site trigger is safe by INVARIANT (descriptor stack IS an arena block, `SETSIZ STKPTR` — total enumerability), our gateway+shield design restores that invariant where it matters; MVSGPT frontier behavior emerges convergently from our fwd==self pin condition (GCLAD/GCLAP/GCLAM correspondence recorded); ζ validated-adjust's integer-collision residual = manual-pin-1 heritage, retired by ZB-4 map emission. Coexpr guard: any created coexpr ⇒ collection declines honestly (§6b finding ii). Levers: `SCRIP_GC_STRESS=N`, `[ZGC]` telemetry, `rt_gc_collect()` exported for GC-7's COLLECT(). **EVIDENCE:** churn probe == oracle BOTH modes plain + STRESS=3 (2,707 regenerations, plateau 2.4KB vs 773KB pre-fix, reclaimed>0 every cycle); pattern/capture probe == oracle plain + STRESS=2 (751 collections through live scans); **crosscheck plain = EXACT baseline** m3 172/89 · m4 172/3 {082,099,213}/86 · DIVERGE=0; **crosscheck STRESS=25 = IDENTICAL counts AND fail-sets, 36s vs 35s** (MODE-INVARIANCE applied to collection); icon hard gate 4/4 + all_rungs == pristine-HEAD stash-proven (218/35/36 pre-existing, Icon BB-compile mid-rebuild); emit gates ×3 + sno_pat_reg rc=0. Emitter untouched ⇒ regen N/A. FILES: gc_heap.{h,c} (collector ~150 lines: gc_hins hash, gc_blk_of bsearch, visitors, gc_zeta_frame, gc_collect_ex two-flavor, HB_FILL/HBF_PIN), zeta_alloc.c (chain accessors + pending hook), core.c/gen_runtime.c/rt.c (root enumerators + gateway hooks), by_name_dispatch.c/pattern_match.c (gateway hooks), rt_coexpr.c (live counter). NEXT: GC-4 COLLECTIONS-ONTO-HEAP (forced-collect-inside-ARBNO probe) or GC-5 remaining families; GC-7 = the GLOB α-prologue statement hook home (pacing + &STLIMIT + COLLECT(i)). OPEN FOR LON: D10 formal ruling; exhaustion-flavor residual documented.
 
