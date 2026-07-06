@@ -719,3 +719,31 @@ symptoms — this is unbuilt machinery, not a bug, and is the single largest rem
 **NEXT SESSION, in leverage order:** (1) the pre-existing leverage order above (rung08 oracle-verify, generator-resume architecture, `bb_assign_local`/`global` flat-chain BOMB, `:=:`/`<->` swap template, `rung37_scan_alt` varslot BOMB, `next`+`!L`) is UNCHANGED by this session except that the SCAN-leave fix may newly unblock parts of `rung36_jcon_scan`/`scan1`/`scan2` beyond what the rung-suite numbers show (these three were BOMBing before the fix at the emit stage; verify their actual correctness against oracle now that they run, not just that they no longer crash); (2) `rung37_neg_pos` needs `IR_SWAP`'s keyword-lvalue arm (`&pos :=: x` / `&pos <-> x` — `bb_keyword_assign` only implements `&pos`/`&random` as a plain assign target today, not as a `:=:`/`<->` operand; this is the `IR op=55`/`rung37_keywords` item already on the leverage list, now traced one level deeper: `lower_lvalue_var` has no arm for a bare keyword node, so `&pos :=: x` falls through to the non-keyword `IR_SWAP` box which needs BOTH sides in variable slots); (3) Lon should rule on the ZB-ACT ladder (pick the first re-entrant construct for ZB-ACT-0, or redirect) before a session starts implementing it — the ladder is unattempted design, not a committed plan.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 5
+
+## ⌚ WATERMARK 2026-07-05 (Claude Sonnet 4.6 · SCRIP `2ebdbbc0` · corpus `55444c4d`) — 223/30/36 → 225/28/36; β-tag propagation fix (next-inside-every) + type()/args() for builtins
+
+**Session scope:** orientation (fresh clone, refs/ setup from uploaded icon-master/jcon-master zips, baseline 223/30/36) → three fixes landed, zero regressions.
+
+**LANDED 1 — emit.cpp: β-tag propagation through IR_GOTO chains (the `next`-inside-`every` bug).** Root cause: the emit loop folds through `IR_GOTO` chains when resolving γ/ω port targets, but discarded β-tags carried by intermediate GOTOs. `TT_LOOP_NEXT` builds `IR_GOTO→IR_TO` with β-tag on the GOTO's own γ edge (via `build()` auto-tag: target IS generator → `lc_γ_to_β`). But a caller node (e.g. `write`) connected to that GOTO via α-tag (GOTO is not a generator kind) caused the fold `CALL→GOTO→IR_TO` to see only the caller's original α-tag, resolving to IR_TO's α label (reset, `cur = lo`) instead of β (advance, `cur++`). Result: `every { write(i); next; }` and `every i := 1 to N do { if cond then next; ... }` looped indefinitely at the first value instead of advancing. **Fix (one statement per loop, 4 lines total):** during the γ-fold loop and ω-fold loop, OR in each intermediate GOTO's own edge β-tag so the final destination correctly selects `betas[k]` over `lbls[k]`. Proof: `every { write(i); next; }` now yields 1 2 3; `if i=2 then next` correctly skips 2; primes sieve now generates 2 3 5 7... correctly. **Verified:** rung suite 223/30/36 → 225/28/36 all three modes identically; fail-set diff = `{rung35_block_body_every_gen_block, rung36_jcon_primes}` removed, zero newly broken; icon smoke 12/12×2; all four gates green. The same bug applied to ω-fold (symmetric fix included); micro.s drifted 4 lines (call-site label renaming from the emit-loop change → corpus `55444c4d` updated).
+
+**LANDED 2 — by_name_dispatch.c: `type()` returns `"function"` for builtins, `"procedure"` for user procs.** All `DT_E` values (user and builtin) use `slen=0xFFFFFFFEu` via `rt_proc_value()`, so the sole distinction is a name lookup: if found in `g_stage2.proc_table` or `g_rt_gen_procs` → `"procedure"`, else → `"function"`. Consistent with Icon fmisc.r `type()` checking the `Bproc` flag. **Fixes:** `type(write)`, `type(sqrt)`, `type(push)` → `"function"`; `type(main)`, `type(tdump)` → `"procedure"`. Does not yet advance any failing test to PASS on its own (other gaps in mathfunc and table block the test), but is correct and prerequisite.
+
+**LANDED 3 — by_name_dispatch.c: `args()` builtin nparams table.** `args(push)` and `args(put)` returned -1 (rt_proc_nparams miss → fallback) instead of -2 (2 required params per Icon fstruct.r `function{1} push(x, vals[n])`). Added a static canonical lookup table covering 35+ builtins from Icon fstruct.r/fstranl.r/fscan.r/fmisc.r `function{n}` signatures, consulted when `rt_proc_nparams` returns -1. Fixes the first two lines of `rung36_jcon_lists` (-1→-2 for push/put). Does not yet carry `lists` to PASS (further list-op gaps downstream block it), but correct and prerequisite.
+
+**CURRENT 28-FAIL OPEN BOARD (leverage order for next session):**
+
+Highest impact / cleanest diagnosis:
+1. **`rung36_jcon_mathfunc`** — `image(sqrt)` returns `"procedure sqrt"` not `"function sqrt"`. Our `image()` for `DT_E` builtins formats as `"procedure NAME"` — same fix as `type()` needed in the `image()` arm of `try_call_builtin_by_name`.
+2. **`rung36_jcon_lists`** — -2/-2 now correct, but `wraparound failed` vs `[4] 3 4 5 6` on u/v cases — list `put`/`get` wraparound edge case.
+3. **`rung36_jcon_substring`** — segfaults (`rc=139`). Minimal repro needed; likely negative-index section op.
+4. **`rung36_jcon_table`** — `key(T)` or `member(T,x)` semantics wrong on an empty table (all probe keys match when they shouldn't). Check `key()` in by_name_dispatch.c against fstruct.r.
+5. **`rung36_jcon_lexcmp`** — first 3 lines match; diff starts later. Needs full diff run.
+6. **scan cluster (scan/scan1/scan2/endetab/scan_alt)** — scan-context generator resume and byname scan dispatch; the retag-before-during-lower design described in the prior watermark's revert record.
+7. **`rung37_neg_pos`** — `bb_swap` bombs when operand is `IR_KEYWORD_ICON` (no frame slot); needs keyword-aware swap arm in the lower or template.
+8. **`rung36_jcon_kwds`** + **`rung37_keywords`** — `bb_keyword_assign` BOMB for `&subject` assignment; needs implementation.
+9. **`rung37_proc_lookup`** — `(!plist)()` indirect invocation on a generated callee.
+10. **Crashes (rc=139)**: `rung36_jcon_args`, `rung36_jcon_endetab` — segfault; needs minimal repro bisection.
+
+Prolog smoke 0/5 = documented pre-existing, unrelated to this session.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
