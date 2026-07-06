@@ -776,8 +776,32 @@ parked file INTO the live tree.
 - **Dormant backends (X86-ONLY era):** JVM/`SnoPat.java`, .NET/`SnoRt_patterns.il`, JS/`sno_engine.js`,
   WASM/`sno_runtime.wat` — reference semantics only, not wiring targets.
 - **Tools:** `src/tools/tmatch_proto.c` (matcher prototype harness).
-- [ ] **SN4-PAT-DEFER** — `*EXPR` unevaluated + callback: `IR_MATCH_DEFER`/`IR_MATCH_CALLOUT` (needs the matcher
-  to re-enter emitted code). The genuine hard edge; do last. EVAL/CODE stay out (runtime compilation).
+- [x] **SN4-PAT-EXPR (EXPRESSION datatype + `*EXPR` + EVAL + pattern auto-eval) — LANDED 2026-07-06 (Claude Fable 5).**
+  `A = *(X Y Z)` / `EVAL(A)` / `S ? *P` / bare stored-expression-in-pattern all m3==m4==oracle. **DESIGN:** each `*expr`
+  carves an anonymous zero-arg dyn-scope proc graph (`EXPR$N`, DEFINE precedent: sJ/fJ→SUCCEED/FAIL, IR_ASSIGN to own
+  result_name; live-bound collector loop after the defs loop handles nested `*`), registered via the EXISTING generic
+  proc_table→rt_proc_set_fn pipeline both modes — zero new emit machinery; value = `IR_CALL "SNO$MKEXPR"(name-lit)` →
+  new **DT_X=15** DESCR (DATATYPE→EXPRESSION); **EVAL** by-name arm: DT_X → `rt_call_named_proc` (FAILDESCR
+  propagates failure — `*LT(1,0)` eval-fail oracle-pinned), numerics pass through, **EVAL(<string>) stays a loud
+  runtime-compilation wall** (140 moved SKIP→honest FAIL). Pattern context: `rt_defer_match` fetches → DT_X
+  auto-invokes → DT_I/DT_R results coerce to string → literal match; inline `*(expr)` in pattern carves too, flagged
+  by a `*` NAME PREFIX (printable, GAS-safe, illegal as SNOBOL identifier). `FAIL` reserved-primitive arm added
+  (057 DIVERGE→0). **LOAD-BEARING FINDING 1 — IR_lit is an ANONYMOUS UNION (sval/ival/dval overlap): the FOLD arm's
+  `sval=nm; ival=0;` ZEROED sval, so IR_MATCH_DEFER matched EMPTY since FOLD landed; its green tests were
+  wrong-success coincidences (W02_seq_fail_propagate + 056 empty-capture were this).** Never write two IR_lit members
+  on one node. **FINDING 2 — the match-family C-call idiom `push rbx; mov rbx,rsp; and rsp,-16` POISONS the GVA base:
+  any callee that re-enters emitted GVA-reading code (blob invocation!) segfaults on `[rbx+k*16]`.** bb_match_defer
+  switched to rbp (zero template hits repo-wide); **CARRY FORWARD: bb_match_{capture,arbno,alternate,...}/bb_subject
+  share the rbx dance — inert only while their callees never re-enter emitted code; sweep before Rung-B DT_P blobs.**
+  Plus a stale-rdi/esi reload in the L0 arm (caller-saved args were dead after the rt_defer_get_pat_fn call).
+  **MEASURED: crosscheck m3 190→195, m4 190→195, DIVERGE=0; m4 FAIL {082,099,213,057,W02}→{082,140,213}
+  (099/W02/056/057 cured); icon smoke 12/12×2; no-lang + no-IR-mutation gates PASS. `.s` regen owed at handoff
+  (defer-template codegen changed).** Files: descr.h (+DT_X), lower_snobol4.c (collector, TT_DEFER value+pattern
+  arms, EVAL wall lifted, expr-graph builder), by_name_dispatch.c (EVAL/SNO$MKEXPR/DATATYPE-uppercase+EXPRESSION),
+  pattern_match.c (defer invoke/coerce/FAIL), bb_match_defer.cpp (rbp + reload).
+- [ ] **SN4-PAT-DEFER-CALLOUT** — the remaining half: stored true-PATTERN values (`P = 'a'|'b'` → sealed match-fragment
+  blob, DT_P, resumable β protocol; the bb_match_defer DT_P branch is the invocation scaffold — after the rbx sweep
+  above). W03/053/068/105-152 fence-via-var + recursive-grammar cluster gates on this.
 ## ⛔⛔ SCO-CF — SNOCONE CONTROL FLOW, DIRECT-LOWER PORT (Lon, 2026-07-04 session pivot; worked THIS session)
 **THE RUNG NAME IS `SCO-CF`.** Snocone (.sc) + Rebus (.reb) ride the SNOBOL4 lower TODAY (driver scrip.c:531
 `lower_entry_fn seg_fn = lower_sno_stage2` is the DEFAULT — no snocone/rebus case). The working control-flow
