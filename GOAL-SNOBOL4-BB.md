@@ -1,3 +1,527 @@
+<!-- ════════════ SNOBOL4 TEST-SUITE LADDER CRAWL — live head (2026-07-06) ════════════ -->
+
+# GOAL — SNOBOL4 on the shared BB spine
+AUTHORS: Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude   OPENED: 2026-07-03 · SN4-PAT + RE-LIGHT folded in 2026-07-06
+
+## ▶▶ CURRENT STATE — READY TO CRAWL THE TEST SUITE (2026-07-06)
+
+**WHAT MOVED HERE (Lon directive, 2026-07-06):** the full `SN4-PAT` pattern-reconstruction ladder (SN4-PAT-0 … SN4-PAT-DEFER-CALLOUT) and the SNOBOL4 subset RE-LIGHT ladder (RL-0 … RL-9), lifted out of `GOAL-IR-IMMUTABLE-EMIT.md` (Ground Zero #5). That file keeps the language-blind spine (emitter-reads-IR rules, TMP-ERADICATE, the ζ/ZLS storage design, the Icon rungs); THIS file is now the sole home of SNOBOL4 feature work and the test-suite climb. **The ζ infrastructure SNOBOL4 rides (the bump ζ-stack, per-iteration COLLECTIONS, `rt_zcol_push`, GC-6) still lives in the GZ#5 file — reference it, do not copy it.** The GZ#5 chronological watermark journal (SN4-PAT sessions included, interleaved with Icon/ζ/GC) also stays there as the whole-project log; the per-rung LANDED records that matter for SNOBOL4 travel with the ladders below.
+
+**CROSSCHECK WATERMARK (SCRIP `45519655`, committed; RE-DERIVE at session start — never trust this line):** `bash scripts/test_crosscheck_snobol4.sh` mode-3 **230/261**, mode-4 **230** PASS, **DIVERGE=0**. The uncommitted `.github/WIP-sn4pat-defer-freshframe-2026-07-06.patch` reaches m3 241 / m4 239 but with **DIVERGE=2 (word2, word4)** — a real inter-mode lifetime divergence to bracket with the monitor BEFORE landing.
+
+**DOCTRINE:** SNOBOL4 rides the SAME pipeline as Icon — sno_parse_ast → lower_sno_stage2 (`src/lower/lower_snobol4.c`) → shared optimizer → ir_drive_slot_assign → the ONE language-blind emitter → mode-3 (`--run`) / mode-4 (`--compile`). SCRIP FOLLOWS SPITBOL SEMANTICS; oracle = `/home/claude/x64/bin/sbl -b`. Every statement lowers on the 5-STAGE MODEL: (1) build subject; (2) build pattern; (3) perform pattern; (4) build replacement; (5) perform replacement. Pattern stages are now LIVE (the SN4-PAT family below), no longer lower-time fatals.
+
+**THE METHOD (Lon directive, lightened 2026-06-27 now the monitor is proven): STATIC-FIRST → ONE STAB → THEN MONITOR.** Per failing program: (1) read its `.ref`, run `--run`/`--compile`, read the divergent output, reason from the generated `.s` + the IR + the BB templates straight to the land mine; (2) ONE targeted fix, rebuild; (3) VERIFY both modes vs `.ref` (ground truth — no live oracle needed). If the stab fails or the bug resists static reasoning, ESCALATE to the 2-way IPC sync-step monitor: bracket first-divergence ↔ last-agreeing event, pin a gdb spin/ignore-counter breakpoint at that bracket, single-step to the land mine (the instruction that writes the wrong value), fix, re-verify. The monitor is the heavy instrument reserved for hard bugs — NOT built or run until a stab has failed. Regression gate = the `.ref`-based crosscheck.
+
+**NEXT BRACKETS (in order — from SN4-PAT-DEFER-CALLOUT's handoff):**
+1. **FRESH-FRAME WIP** — bracket the word2/word4 m3-vs-m4 **DIVERGE=2** (`.github/WIP-sn4pat-defer-freshframe-2026-07-06.patch`: `rt_frame`→`rt_zls_alloc(64K)`/`rt_zls_release` per blob invocation, LIFO both continuations) BEFORE landing; it un-gates the recursive-grammar cluster (115/120/126/131/138/139, all PASS m3 under the patch).
+2. **DT_P through user functions** (063-066 fence_fn cluster) — a DEFINE'd function returning `FENCE(...)`; DT_P must survive the call/return path and defer must accept call-result patterns.
+3. **β-resume ACROSS the blob boundary** (074/W07 cursor cluster) — outer backtrack re-entering a returned blob's internal generator; the resumable-β protocol proper (β-dispatch prologue exists; needs per-invocation state survival — gates on bracket 1).
+4. **Remaining non-pattern stragglers** — 1011/1013/1015/1017, 082/213, test_case/stack/string + word/cross (include-library, partly gated on bracket 1).
+
+**FINDINGS PARKED (do not fake — own rungs):** FINDING-A EAGER-ASSIGN (`.` assigns at subpattern-success; a failing match still mutates the target — the `rt_dcap_*` deferred-capture protocol is orphaned, never called — wire it at match entry/success/fail); FINDING-B SEQ-CHAIN-THROUGH-DETS (a deterministic element between the fail point and a left generator blocks resume — the le_tail trick sees only the rightmost leaf; the SN4-PAT-BETA-CHAIN rung); FOLD BLOB TIER (`IR_REF_INVARIANT` folded-constant sealed blobs — string tier landed, blob tier remains).
+
+<!-- ════════════ SN4-PAT LADDER — moved verbatim from GOAL-IR-IMMUTABLE-EMIT.md, 2026-07-06 ════════════ -->
+
+## ⛔ SN4-PAT — SNOBOL4 PATTERN MATCHING, RECONSTRUCT THE AMPUTATED IR FAMILY (Lon, 2026-07-04; was #1 priority in GOAL-IR-IMMUTABLE-EMIT.md, relocated here 2026-07-06 — this is now the SNOBOL4 feature spine and the top of the test-suite crawl)
+**THE RUNG NAME IS `SN4-PAT`.** The non-pattern SNOBOL4 subset is already complete on the live spine (literals,
+vars, keywords, `.NAME`, arith+concat, unary, `$`, subscript/`DEREF`, calls, gotos/labels, every assignment LHS
+form, DEFINE/DATA/OPSYN). **The wall is pattern matching** (`lower_snobol4.c:257` — any `:pat` field or `TT_SCAN`
+subject `sno_fatal`s). Pattern matching genuinely needs new opcodes — the existing Icon SCAN family is anchored
+control-flow, not SNOBOL's first-class floating-needle-over-a-DT_P-pattern model — so this is NOT an
+"existing-IRs" job. **It IS a RECONSTRUCTION**: the full pattern IR family existed and was amputated wholesale,
+and the design is recoverable from git.
+
+**PROVENANCE (all in `git log`):**
+- `8de0fb46` GZ#5 ENUM-AMPUTATION — removed 119 non-Icon members incl. the 53-opcode pattern family (design
+  survives at parent `41b53078`).
+- `2e5a5a3e` — matcher family was `IR_PAT_*`, renamed `IR_MATCH_*` to mirror `bb_match_*`.
+- `18133720` FZ-3 — pattern CONSTANT FOLDING: an all-constant (VARIANT-free) subpattern → sealed
+  `IR_REF_INVARIANT` RO blob, built once not per-match. **This is the "IR_INVARIANT" Lon means.**
+- `547de08d` / BB-REVAMP-TRACKER — the 21 `bb_match_*` templates (abort/advance/any/arb/arbno/atp/break/
+  breakx/capture/defer/fence/head/len/notany/pos/rem/retry/rtab/span/span_var/tab).
+
+**THE MODEL (SPITBOL, two families + one ref — re-added to `IR_e` this session, build stays green):**
+- `IR_MATCH_*` (28) = MATCHERS: the inline needle. `lower_pat_node` (recover from `41b53078:lower_snobol4.c`,
+  ~200 lines) compiles a pattern tree into one node per element, wired by γ(success)/ω(failure); `IR_MATCH_ALT`
+  = backtrack tree, `IR_MATCH_CAT` = concatenation thread, `IR_MATCH_ASSIGN_IMM/_COND` = `$`/`.`. Used for
+  direct `SUBJECT PAT [= REPL]`.
+- `IR_PATTERN_*` = STITCH boxes ONLY. The per-element builders (LIT/ANY/SPAN/LEN/…) are the ABANDONED pre-D7
+  era — do NOT resurrect them. The real design (D7 PIVOT `d7ba0fd9` → `52fce031` `rt_pattern_build` +
+  `rt_pattern_stitch_cat`/`_alt`; B3 STITCH-ALT `7a12aedd`; B6 STITCH-CAT `409f62a9`/`a59f38b8`; FZ-3
+  `18133720` + FZ-4 `6141434` folding): every VARIANT-free subpattern is constant-folded into a sealed
+  `IR_REF_INVARIANT` blob; only VARIANT parts are stitched at the reference site via `IR_PATTERN_CAT`/`_ALT`
+  stitch boxes; `IR_PATTERN_CAPTURE` is passthrough (FZ-4); `IR_PATTERN_DEFER` = `*EXPR`; `IR_DTP_ASSIGN` =
+  stored-pattern `.`/`$` (DTP frag, `src/include/dtp.h`). **[HISTORY CORRECTED 2026-07-04, case-fixed grep:
+  `rt_pattern_stitch_*`/`rt_pattern_build` were superseded PRE-parent by the freeze+blob design — do NOT
+  resurrect them; the parent snapshot is the final authoritative form, and `sno_freeze_pat_graph_entry` lives
+  in the parent's `lower_snobol4.c`, RECOVERED to disk — see FOLD + the PARK-NEVER-DELETE directive below.]**
+- `IR_REF_INVARIANT` (1) = the folded-constant sealed blob that VARIANT stitching references.
+
+**LADDER (incremental, keep build green each rung; land one matcher end-to-end at a time):**
+- [x] **SN4-PAT-0 ENUM** — re-add the family to `IR_e` before `IR_OP_COUNT` (additive; `-w` build so no
+  exhaustiveness break; inert until lowered). LANDED 2026-07-04, `make scrip` green. **[CORRECTED same day
+  (Lon): the initial re-add faithfully copied the parent snapshot's 24 per-element `IR_PATTERN_*` builders —
+  but those were the ABANDONED pre-D7 era (a grep-alternation bug hid the stitch history). Dropped to the
+  stitch-era five: `IR_PATTERN_CAT`/`_ALT` (stitch boxes), `_CAPTURE` (passthrough), `_DEFER`, + re-added
+  `IR_DTP_ASSIGN`. Family is now 34 members (28 `IR_MATCH_*` + `IR_REF_INVARIANT` + 5). Rebuilt green.]**
+- [x] **SN4-PAT-1 TEMPLATE-REVIVE (LEN first)** — LANDED 2026-07-04, build green. `bb_match_len.cpp` back in the
+  Makefile (source list + compile rule); it compiles against today's headers with **ZERO drift** (BB-FIXUP
+  `547de08d` had kept it current — no `IR_node_alloc`/`bb_build_flat` reconciliation needed after all).
+  `bb_match_len()` declared in `bb_templates.h`; `case IR_MATCH_LEN` added to `emit.cpp` dispatch (beside
+  `IR_TO`, line ~724). Inert until SN4-PAT-2 emits the node, so Icon + existing SNOBOL4 subset unchanged.
+  NOTE for SN4-PAT-2: the template reads `_.op_ival` (the LEN count) and emits the anchored δ+n≤Δ advance with
+  γ/ω ports — it assumes it sits inside a floating harness, so SN4-PAT-2 must also supply the retry-at-each-
+  start-position loop (that's what `IR_MATCH_HEAD`/`IR_MATCH_RETRY`/`IR_MATCH_ADVANCE` are for) unless the
+  program is `&ANCHOR`-mode.
+- [x] **SN4-PAT-2 LOWER-LEN** — LANDED 2026-07-04 (this session). `L LEN(3) . X` → `abc` m3==m4==oracle; bare
+  `L LEN(3) :S/F` matched/nomatch both paths both modes; conditional-capture semantics oracle-pinned (X untouched
+  on failure); corpus m3 115→117, m4 FAIL set byte-identical to pre-session baseline (stash-verified). DESIGN
+  (Lon directive, this session): the 3-box HEAD/RETRY/ADVANCE harness was REPLACED mid-rung by ONE generator box —
+  `IR_MATCH_HEAD` is generator-kind (`ir_query.c`), α = `rt_match_enter` (stateless DESCR→{ptr,len} mirroring
+  `rt_scan_enter`, sets Σ/Σlen for capture) + start=0 + r14d=start + jmp γ; β = start+=1, bounds vs Δ, `g_anchor`
+  gate, loop — the unanchored retry IS the Byrd resume, `bb_to.cpp` shape. Pattern-fail edges β-stamp via local
+  `sno_ω_to` (lower_icon.c precedent); `fJ` chain-reachability comes free from the stock generator-kind ω rule
+  (the 3-box BFS special-case was reverted). `bb_match_retry.cpp`/`bb_match_advance.cpp` restored to pre-session
+  bytes, unwired, DEAD under this design. Capture = `IR_MATCH_ASSIGN_COND` → `bb_match_capture` phase-1 COND arm
+  (op_off = head's start slot, operands=[pat-entry, harness-box]); op_sval whitelist in `walk_bb_node` preamble
+  grew the op. NOTE for SN4-PAT-3..N: single-element capture equates pattern-start with attempt-start; multi-
+  element CAT needs the phase-0 SAVE arm + its own saved-δ slot. `= REPL` splice still bombs (deferred, wall text
+  updated at the old `:257` site).
+- [x] **SN4-PAT-3a LIT** — LANDED 2026-07-04 (this session). `bb_match_lit.cpp` written fresh (never existed;
+  `IR_MATCH_LIT` had no template — do not confuse with the orphaned pre-family `bb_lit.cpp`, unwired, park-
+  candidate). memcmp-based, β rewinds δ by n (adopted from `bb_lit.cpp`'s pattern — needed once CAT chains
+  backtrack through a matched LIT). Oracle-pinned: anchored/floating/absent/capture, empty lit, overlong,
+  tail-boundary, capture-untouched-on-fail — m3==m4==oracle all paths.
+- [x] **SN4-PAT-3b ANY/NOTANY** — LANDED 2026-07-04. Templates pre-existed on disk, unwired; wiring exposed a
+  live bug on first-ever execution: the single-char fast path emitted `x86("cmp","sil",imm)` — the `x86()`
+  dispatch has no 8-bit-register case, so it silently returned empty (no bomb) rather than failing loud,
+  leaving the branch testing stale flags from the bounds check. Fixed: `sil`→`esi` (movzx already zero-
+  extends). **Any other unwired template calling `x86()` with an unencodable form has the same latent bug —
+  the dispatch declining silently instead of bombing is an emitter-wide footgun, not scoped to this rung.**
+  Literal-charset-arg subset only (the parked file's `dval=1.0` var-arg tag is the DIVISION-RULE flag pattern,
+  not carried over).
+- [x] **SN4-PAT-3c SPAN** — LANDED 2026-07-04. **Real finding:** `_.x86_scratch_off` (read by `bb_match_span`/
+  `_arb`/`_arbno`/`_break`/`_breakx`) is declared in `sm_emit_t` and read by five templates but was **written
+  nowhere in the codebase** — permanently 0 via static zero-init, a live TMP-ERADICATE violation (any value
+  legitimately at frame slot 0 gets silently clobbered) that was invisible only because nothing reading it had
+  ever been dispatched. Fixed at LOWER: granted `IR_MATCH_SPAN` a slot in `ir_drive_slot_assign`
+  (`nd->tmp = base+k*16; k+=1;`, mirrors the `IR_MATCH_HEAD` grant one line above it), then
+  `g_emit.x86_scratch_off = drive_value_slot(nd)` in the DRIVE dispatch — zero emitter-side allocation, per
+  rule. Verified the grant does real work (not just satisfies the FATAL-if-ungranted check) with a slot-
+  collision probe: two globals alive across the SPAN scratch write, sum checked post-match against oracle.
+  **⚠ CARRY FORWARD — BREAK/BREAKX (next in tracker order) read this SAME unwritten field. Grant it in
+  `ir_drive_slot_assign` (same one-line pattern) BEFORE wiring their dispatch cases, or this exact landmine
+  reappears.** ARB/ARBNO inherit the identical defect when their turn comes later in the ladder.
+- [x] **SN4-PAT-3d BREAK/BREAKX** — LANDED 2026-07-04. Applied the SPAN lesson up front instead of rediscovering
+  it: both templates read the same never-written `_.x86_scratch_off` (BREAKX uses both `+0`/`+4`, same as SPAN
+  — one 16B slot covers it), so both got the `ir_drive_slot_assign` grant (`k+=1` each, same pattern) BEFORE
+  their dispatch cases went live — first build was clean, no FATAL. Literal-charset-only subset (matches
+  ANY/NOTANY/SPAN precedent). Oracle-pinned: BREAK head/absent/empty/zero-length-at-cursor, BREAKX head/zero-
+  length-retry/absent, all m3==m4==oracle. **Two-matcher collision probe** (BREAK + BREAKX both live in one
+  graph, two globals alive across both scratch writes, non-colliding sum) confirms independent per-node slots
+  — the grant generalizes correctly when multiple scratch-using matchers coexist, not just one at a time.
+  **⚠ CARRY FORWARD — ARB (later in tracker order) reads this SAME field. Grant it before wiring.**
+- [x] **SN4-PAT-3e TAB/RTAB** — LANDED 2026-07-04. Separate opcodes (`IR_MATCH_TAB`/`IR_MATCH_RTAB`), int-literal
+  arg baked directly into `IR_LIT(nd).ival` at LOWER (no operand node, no `ir_operand_push` — same as LEN;
+  confirmed neither is in `ir_node_produces_value()`, so no `nd->tmp` grant applies or is needed; emitter reads
+  the constant via the generic `op_ival` preamble and bakes it as an x86 immediate, never a memory load). No
+  scratch slot required (unlike SPAN/BREAK/BREAKX). **Bug caught before it hit the corpus:** `bb_match_tab.cpp`
+  enforced the forward-only constraint (`current_cursor > n → fail`) but had **no upper-bound check against
+  `r15d` (Δ)** at all — `TAB(99)` on a 10-char subject incorrectly matched, jumping the cursor to 99 (past the
+  subject end). Found by direct comparison against `bb_match_len.cpp` (the correct sibling doing an analogous
+  bounds check via addition) rather than the full monitor harness — justified here because the divergence was
+  already bracketed to one un-composed statement in a template authored this same session, not inherited logic;
+  fix verified empirically against oracle both pre/post, including fencepost cases (`n==Δ` succeeds, `n==Δ+1`
+  fails, `n==0` succeeds) since bounds-check fixes are exactly where off-by-one errors hide. Fix: added
+  `cmp r15d, n; jl ω` before the existing forward check. **`bb_match_rtab.cpp` was NOT touched** — its overlong
+  case (`RTAB(99)` on a 10-char subject) already failed correctly, but by accident: `Δ-n` underflows to a
+  negative signed value when `n > Δ`, and any non-negative cursor position compares "greater than" a negative
+  target under signed `jg`, so it fails for an incidental reason rather than an explicit check. Left alone
+  since it isn't broken and isn't this rung's scope — flagged here in case a future rung's fencepost probe
+  finds a case where the accident doesn't hold (e.g. `n` chosen so `Δ-n` wraps positive again at extreme
+  magnitudes — not exercised, not ruled out).
+- [x] **SN4-PAT-3f TAB/RTAB TWO-MODE RETROFIT** — LANDED 2026-07-04 (Lon-directed proof-of-concept). **The gap:**
+  every SN4-PAT-3 matcher (LEN through RTAB) gated the AST shape at LOWER time (`t->c[0]->t == TT_ILIT`) and
+  `sno_fatal`'d on anything else — meaning none could accept a variable/computed argument, which is arguably
+  the *more* common real-world SNOBOL4 shape (`TAB(I)` far more common than `TAB(3)`). **The correct precedent,
+  already live in this codebase:** `IR_SCAN_TAB`/`_MOVE`/`_POS` (Icon) do zero shape-checking at LOWER — the
+  argument is lowered as an ordinary expression (in fact `IR_SCAN_TAB` isn't even a dedicated lowering arm; it's
+  a generic `IR_CALL` whose opcode gets *retagged* post-hoc by `icn_retag_scan_body` purely from the builtin
+  name) — and the EMITTER's DRIVE case is the ONLY place that folds: `a0->op == IR_LIT_INTEGER` → bake immediate
+  (`op_sb`); else → read the operand's already-registered runtime slot via `bb_slot_get` (`op_sa`, sign as the
+  discriminant). **Retrofit applied to TAB/RTAB, mirroring this exactly:**
+  - `sno_pat_node`'s signature changed from `(IR_graph_t * g, ...)` to `(scx_t * cx, ...)` (deriving `g = cx->g`
+    locally) — needed so pattern arms can reach `sx_lower`, the general recursive expression lowerer. Both call
+    sites (the one recursive self-call, the one external call from `sno_lower_match`) updated. **This signature
+    is now available to every future pattern arm that needs a general argument — the plumbing cost was paid
+    once.**
+  - `TT_TAB`/`TT_RTAB` LOWER arm: dropped the `TT_ILIT` gate entirely (matching the retag precedent's zero-
+    special-casing) — now unconditionally `sx_lower`s the argument, wires it via `ir_operand_push`, returns the
+    argument's own entry chain (not the TAB node) since the argument must execute first.
+  - `sno_pat_supported`: TAB/RTAB relaxed from `t->c[0]->t==TT_ILIT` to "any argument present" — shape no
+    longer LOWER's concern.
+  - Emitter DRIVE case: rewritten to inspect `nd->operands[0]`, branch on `a0->op == IR_LIT_INTEGER` exactly
+    like `IR_SCAN_TAB`, using `op_sa`/`op_sb` (replacing the old generic `op_ival` read, which is meaningless
+    once the constant may live on a *different* node than `nd`).
+  - Both templates: replaced the direct `(long)(int)_.op_ival` immediate with
+    `IF(_.op_sa>=0, mov rax,FRQ(op_sa+8)) / IF(_.op_sa<0, mov rax,(long)op_sb)`, then unchanged bounds-check
+    logic against `eax` instead of a baked constant.
+  **Proof, not just passing tests:** dumped the actual `.s` output — `TAB(3)` emits `mov rax, 3` (immediate,
+  zero memory access, byte-for-byte the old fast path); `TAB(N)` emits `mov rax, qword ptr [r12+104]` (genuine
+  runtime load). Same opcode, same template, provably different code shape depending on what the argument
+  turned out to be — not merely "tests pass," the mechanism is visibly correct. Oracle-verified: literal (all
+  prior pins re-confirmed unchanged), bare variable (`TAB(N)`/`RTAB(R)`, including runtime-value overlong-
+  bounds cases), and a genuine computed expression (`TAB(N+1)`, an `IR_BINOP` operand — proves "any expression,"
+  not just "also accepts a variable"). Full corpus regression clean (m3/m4 counts and FAIL set unchanged —
+  no existing corpus program yet exercises variable-argument TAB/RTAB, so this is net-new capability, not a
+  fix to a previously-failing case).
+  **⚠ DECISION PENDING (Lon) — retrofit the remaining 7 (LEN, LIT, ANY, NOTANY, SPAN, BREAK, BREAKX)?** LEN is
+  the same int-arg shape as TAB (should be a quick mirror). LIT/ANY/NOTANY/SPAN/BREAK/BREAKX are all
+  string/charset-arg shape — a DIFFERENT retrofit (fold check becomes `a0->op==IR_LIT_STRING`, general path
+  reads a string descriptor's pointer+length instead of one int) — and SPAN/BREAK/BREAKX additionally still
+  carry the scratch-slot grant from SN4-PAT-3c/3d, which needs to keep working alongside the new operand-based
+  charset. Not yet started; the plumbing (`sno_pat_node`'s `cx` signature) is in place for whoever picks this
+  up.
+- [x] **SN4-PAT-3g POS/RPOS/REM/ARB** — LANDED 2026-07-04. POS/RPOS = one opcode (`IR_MATCH_POS`) + `"r"` sval
+  marker per parked design (existing-IRs-only constraint), built TWO-MODE FROM BIRTH (TAB recipe: operand +
+  emitter fold; `RPOS(N)` variable-arg oracle-proven). REM/ARB take scratch grants; REM gained α-save/β-restore
+  (its consumption Δ−entry isn't recomputable, unlike LIT's fixed n); ARB added to `ir_is_generator_kind`
+  (its β IS extend-and-retry) and its β exhaust path fixed to restore entry cursor (box invariant). **Parser
+  fact learned:** bare `REM`/`ARB` (no parens) arrive as `TT_VAR "REM"` — the parked TT_VAR name-dispatch arm
+  is load-bearing; restored for REM/ARB only (FENCE/ABORT/BAL names fatal until their rungs). **Ops note:** a
+  vanished-on-rebuild fatal traced to a suspected stale link — `make ... | tail -1` hides whether the edited
+  TU actually recompiled; force `rm` the .o when in doubt. All 13 session pins re-verified byte-identical;
+  corpus unchanged (138/137) — single-element POS/REM/ARB are rare in corpus; the unlock arrives with CAT.
+- [x] **SN4-PAT-3h CAT + phase-0 capture SAVE** — LANDED 2026-07-04 (this session). **CAT is NODE-FREE in the
+  live single-HEAD design** — the parked `IR_MATCH_CAT` was a subgraph SUCCEED-sink; here pattern success
+  threads straight to `sJ`, so concatenation is pure edge-threading with no node and no template (`bb_match_cat.cpp`
+  stays UNWIRED — do not add it). `case TT_SEQ` in `sno_pat_node`: lower right-first `(succ,fail)`, then left with
+  `succ = right-entry`; return left-entry. Deterministic elements' ω already point at `fail` (=head=retry-position,
+  correct SNOBOL4 — SPAN/BREAK/LEN never back off); the ONLY resumable leaf today is ARB (generator-kind), so if the
+  left tail `ir_is_generator_kind`, re-point right's tail-ω at it via `sno_ω_to` (β-aware) — the rc/lc tail nodes are
+  recovered by the parked `g->all[before]` first-allocated-is-rightmost-leaf trick. `sno_pat_supported` relaxed to
+  admit `TT_SEQ` recursively.
+  **phase-0 capture SAVE (the SN4-PAT-2 multi-element note, now resolved):** a capture spans `[inner-start, current)`,
+  NOT `[attempt-start, current)` — so `TAB(3) LEN(2) . V` on `abcdef` must yield `de`, not `abcde`. Added additive enum
+  `IR_MATCH_ASSIGN_SAVE` (right after `_COND`): a phase-0 node placed at the capture's OPEN that does `mov FR(off),r14d`
+  into its OWN δ-slot; the phase-1 COND reads that slot (`operands[1] = save`, so `op_off = drive_value_slot(save)`).
+  Wiring per rung: enum (`IR.h`) · δ-slot grant in `ir_drive_slot_assign` (`k+=1`, HEAD one-liner precedent, `scrip_ir.c`) ·
+  DRIVE case `op_off=own slot, op_phase=0` + dispatch case → `bb_match_capture()` + op_sval whitelist add (all `emit.cpp`) ·
+  the template's phase-0 arm was MISSING `jmp γ` (never exercised pre-session) — added (`bb_match_capture.cpp`) · LOWER
+  `TT_CAPT_COND_ASGN` rewritten to emit SAVE→inner→COND and return the SAVE as the capture entry. Single-element captures
+  still pass (SAVE just records the attempt-start = old behavior).
+  **RESULTS (oracle=`sbl -b`, m3=`--run`, m4=`--compile`+gcc; all m3==m4==oracle):** crosscheck patterns 8→13
+  (044 pos, 045 rpos, 046 tab, 047 rtab, 048 rem, 049 arb, 055 concat_seq now green — the deterministic-concat +
+  multi-capture set); capture rung 2→4 (060 multiple, 061 in_arbno); mode-3 ladder total 86→93; ZERO regressions on the
+  8 already-green rungs (hello/output/assign/concat/arith_new/control_new/functions/data). NOT YET regenerated: the
+  `.s` artifacts (handoff step 4 — capture codegen changed, so `util_regen_{benchmark,feature,demo}_s_artifacts.sh` owe a
+  commit) — a follow-up must run them.
+- [x] **SN4-PAT-3h ALT** — LANDED 2026-07-04 (this session). Phased `IR_MATCH_ALTERNATE` (mirrors the capture
+  phases): phase-0 SAVE records the ALT-entry cursor into a scratch slot (grant in `ir_drive_slot_assign`,
+  `k+=1`); phase-1 RESTORE reloads it before each subsequent alternative so a failed cursor-advancing
+  alternative can't leave the next one mid-input. Alternatives chain via ω: `alt[i].fail → RESTORE_{i+1} →
+  alt[i+1]`, last → outer fail, each `alt.succ → succ`. `sno_pat_node` `case TT_ALT`: flatten the left-assoc
+  spine L-to-R, build `save = IR_MATCH_ALTERNATE` (n_operands==0 ⇒ phase 0), loop i=na-1..1 lowering alt i and
+  minting a RESTORE (n_operands==1, operand=save ⇒ phase 1, `op_off = drive_value_slot(save)`), then alt 0 with
+  `fail = RESTORE_1`; `lc_γ_to(save, e0)`; return save. Template `bb_match_alt.cpp` rewritten (was bare
+  `x86_pair_loop`) as the two-phase `mov FR(off),r14d`/`mov r14d,FR(off)` + `jmp γ`, wired in the Makefile;
+  DRIVE + dispatch in `emit.cpp`; gate relaxed for `TT_ALT`.
+  **EMITTER FINDING (carry forward — bit ALT, will bite FENCE/ARBNO too):** the flat chain-BFS worklist
+  (`emit.cpp` ~1350–1392, TWO passes) enqueued every node's γ but followed ω ONLY for BINOP/CALL/SUBSCRIPT/
+  generator-kind — so an **ω-only backtrack target** (the ALT RESTORE, reached only via a preceding
+  alternative's ω) was never discovered, never emitted, and its ω silently defaulted to `main_ω` (whole graph
+  collapsed to one alternative). Root fix: **the match family's ω is a genuine control edge** (next alternative /
+  fail handler), so both BFS passes now follow ω for `op ∈ [IR_MATCH_LIT, IR_MATCH_ASSIGN_SAVE]`. Behavior-neutral
+  for every prior test (their ω targets — HEAD, next element — were already discovered; the enqueue dedups), only
+  `.s` node-numbering shifts (never a gate). Any future SN4-PAT node that is reached ONLY via ω (FENCE seal-back,
+  ARBNO retry) is now discoverable for free.
+  **RESULTS (m3==m4==oracle):** crosscheck patterns 13→15 (050 alt_two, 051 alt_three), mode-3 ladder 93→95, ZERO
+  regressions (8 green rungs full; capture/strings/keywords unchanged; m4 spot-checked on the green rungs).
+  **053 alt_commit still fails** — it is `P = ('a'|'b'|'c'); X P`, a STORED-pattern reference (`X P`), i.e.
+  DEFER/stored-pattern territory (a later rung), NOT pure ALT. NOT YET regenerated: the ALT `.s` feature
+  artifacts (handoff step 4 owes another `util_regen_feature_s_artifacts.sh` run — codegen changed again).
+- [x] **SN4-PAT-3i FENCE** — LANDED 2026-07-05 (Claude Sonnet 5). Bare `FENCE` and the `FENCE(P)`
+  atomic-group form now lower in the single-HEAD model. FINDING THAT SHAPED IT: every deterministic
+  matcher fails straight to `head` (the retry-at-next-anchor box; ω=`fJ`) — there is no left-to-right
+  backtrack chain among deterministic elements — so FENCE cannot be a `β→ω` box (a later element's
+  failure never reaches it). FENCE is instead node-free (the landed-CAT precedent, zero new IR/template/
+  Makefile touch) and works as a **fail-retarget**: in a pattern sequence, a fence SEALS — every element
+  to its right fails to the statement-level `cx->pat_fail` (=`fJ`, new `scx_t` field) instead of `head`,
+  cutting off both anchor-retry and left-generator resume, exactly the manual's semantics (forward = null
+  match, no effect; backtrack into it = whole match fails). `FENCE(P)` additionally lowers `P` with the
+  pre-seal fail (so `P` retries normally on forward-fail) — the seal only blocks re-entry after `P`
+  succeeds. `lower_snobol4.c` only (+59/-15): `sno_is_fence`/`sno_seq_has_fence` helpers; `TT_FENCE` +
+  `TT_VAR "FENCE"` leaf arms; `TT_SEQ` flattens the left-assoc spine and retargets per-element fail past
+  the first fence (fence-free sequences keep the untouched 2-way CAT path byte-for-byte); `sno_pat_supported`
+  child-aware for `FENCE(P)`. VERIFIED vs SPITBOL x64 oracle: 058/059/060/067/069/100-104/107 all m3==oracle
+  (one bug caught+fixed pre-measurement: standalone `FENCE(P)` was matching null and dropping `P`). Crosscheck
+  both modes 154→168 (+14), DIVERGE=0, mode-4 FAIL back to the 3 parked (082/099/213); non-pattern FAIL set
+  byte-identical to baseline (zero regressions); patterns 15→29; Icon smoke 12/12×2. Artifact regen
+  (feature/benchmark/demo) = 0 changed — fence tests live in the crosscheck corpus, compiled on-the-fly,
+  no committed `.s`. Remaining pattern fails are ARBNO, `*VAR` deferred-eval, and pattern-as-value/via-var
+  (105/106 need the last one) — FENCE was never scoped to cover them.
+  **NEXT: ABORT/BAL, then ASSIGN_IMM (`$`)/DEFER — pattern-as-value (STITCH) is the other
+  large lever whenever Lon wants that path instead.**
+- [x] **SN4-PAT-ARBNO (ZB-5 deterministic-body v1)** — LANDED 2026-07-05. `ARBNO(P)` for a DETERMINISTIC body
+  P lowers in the single-HEAD model with **NO per-iteration COLLECTION and NO stack** — the key finding:
+  backtracking through deterministic iterations cannot yield a new alternative, so the first extension-failure
+  IS total exhaustion; only three 4-byte cursors are needed (entry δ / last-yield δ / cur_before), packed in
+  ONE 16B `ZK_RAW` zls slot. **Three phases share `IR_MATCH_ARBNO`, discriminated by `IR_LIT(nd).ival` staged
+  into `g_emit.op_phase` at drive time** (the ALT-precedent proof that op_phase survives the walk; op_ival would
+  be DRIVE_FILL-clobbered): **G** (phase 0, generator-kind, 0 operands, FIRST-allocated so TT_SEQ's tail rule
+  finds the β surface) — α saves entry+yield=δ, `jmp γ` (the null yield, SPITBOL shortest-first); β restores
+  δ=yield (right neighbour may have consumed cursor before failing), records cur_before, `jmp ω` — **G.ω is
+  REPURPOSED as the body-entry edge** via `lc_ω_to(G, body_entry)`, the construct's real fail exit lives on F.
+  **K** (phase 1, operand[0]=G) — body-success landing: `δ==cur_before → jmp ω(=F)` (the 4/28 zero-advance
+  guard), else yield=δ, `jmp γ` (yield one more). **F** (phase 2, operand[0]=G) — exhaust: δ=entry,
+  `jmp ω`(outer fail); its template `def β` ALIAS lands both body-fail edges (bodies stamp fail β-wards via
+  `sno_ω_to` + `IR_MATCH_ARBNO` is now generator-kind). **Files:** `ir_query.c` (ARBNO → generator-kind);
+  `zeta_storage.c` (grant row: phase-0 node only, `n_operands==0` guard, one 16B ZK_RAW — **audit=0 justified:
+  template `bb_match_arbno.cpp` authored AND reads the field the same commit, the landed audit-0 rule**);
+  `lower_snobol4.c` (`sno_pat_deterministic` recursive gate rejecting ALT/ARB/ARBNO/FENCE bodies;
+  `sno_contains_arbno` capture gate; `TT_ARBNO` arm building G/F/K; `sno_pat_supported` ARBNO + capture arms);
+  `bb_match_arbno.cpp` (REWRITTEN in place — the dormant `bb_child_lbl`-era template had the P5 cursor-restore
+  bug; new three-phase body); `emit.cpp` (dispatch arm + DRIVE staging own-slot-via-operand[0]); `Makefile`
+  (both the `RT_PIC_SRCS` list and the `scrip:` compile rule). **VERIFIED vs SPITBOL x64 oracle** (probe set
+  `/tmp/arbno_probe.sno` + no-capture `Q1..Q11`): extension, zero-occ, shortest-first, null-body no-loop,
+  multi-element body (ANY ANY), SPAN body, LEN(2) body, unanchored head-retry, **cursor-restore (`ABABAC` POS(0)
+  ARBNO('AB') 'AC' RPOS(0)** — the β-must-restore case), and BOTH forced-FAIL cases (`AAX`, odd-length under
+  RPOS) — **m3==m4==oracle on all**. Crosscheck both modes **168→171** (+3), **DIVERGE=0**, m4 FAIL back to the
+  3 parked {082,099,213}, signal-abort set 26==26 vs HEAD (zero new crashes); the 3 emit gates PASS; icon smoke
+  12/12×2. Artifact regen (feature/benchmark/demo) run at handoff — ARBNO tests compile on-the-fly in the
+  crosscheck corpus, no committed `.s`. **v2 (generator body) LANDED 2026-07-05 — see
+  SN4-PAT-ARBNO-2 below (per-iteration COLLECTION + the ALT-RESUME prerequisite); the counterexample
+  `'AAAB' POS(0) ARBNO('AAA'|'AA') 'AB' RPOS(0)` now == oracle both modes.
+  **FINDING — CAPTURE-OVER-GENERATOR IS PRE-EXISTING-BROKEN (ARB shares it):** `ARBNO(P) . V X` (a `.`-capture
+  whose span wraps a generator) mis-compiles — the phase-1 COND between the generator and its right neighbour X
+  severs the β-resume chain (X's fail reaches `head`/retry, NEVER the generator's β), so the generator never
+  extends. **PROVEN pre-existing at clean HEAD:** `ARB . V 'B'` on `'AAAB'` returns `[]` not `[AAA]` with ZERO
+  of my changes applied. Gated for now: `sno_contains_arbno` makes a capture whose span contains ARBNO
+  UNSUPPORTED (052_pat_arbno → SKIP, honest capability boundary; ARB-capture left exactly as baseline, untouched).
+- [x] **SN4-PAT-CAPTURE-STACK (Lon directive 2026-07-05) — LANDED 2026-07-05 (Fable). Capture-over-generator
+  un-gated: frames on a per-box STACK, `++` on α / `--` on β, exactly as directed.** SAVE's 16B zls slot is now
+  `{+0 buf: GC_MALLOC_ATOMIC u32[] ([0]=cap, frames from [1]) — ZK_PTR_GC, so dead buffers collect free; +8 gen;
+  +12 sp}`; `rt_cap_push/pop/top` in `pattern_match.c`; `rt_match_enter` bumps a per-match generation and a
+  stale-gen slot lazily resets sp=0 — that kills the γ-exit-live success-leak per match AND validates
+  ZC_INIT_ZERO-fresh ζ frames (v2 COLLECTION moves this reset into the iteration machinery when it lands).
+  LOWER rewiring: COND stays first-allocated (TT_SEQ tail trick finds it); SAVE minted BEFORE the inner so the
+  inner lowers with fail=SAVE — every inner exhaust pops before failing leftward (β-aware, so a left generator
+  still resumes); COND.ω = the backtrack-IN edge → inner-tail's β when the inner is a generator, else SAVE.β;
+  `IR_MATCH_ASSIGN_COND`+`_SAVE` added to `ir_is_generator_kind` so all re-points land β-wards. **NEW HELPER
+  `sno_resume_ω_to`** (both TT_SEQ re-point sites): a capture-COND's ω is its inward resume edge — clobbering it
+  severs the capture's own chain; re-points chain through `operands[1]` (SAVE's ω) instead. Proven by
+  `(ARB . V) (ARB . W) 'Z'` on 'AABZ' → `[][AAB]` == oracle (without it, W's generator is skipped). Gate
+  `sno_contains_arbno` DELETED (single user). **Oracle-proven fixes:** `ARB . V 'B'`/'AAAB' `[]`→`[AAA]`;
+  mid-pattern variant `fail`→`[AAA]`; 052_pat_arbno SKIP→PASS both modes; capture-inside-ARBNO-body
+  `ARBNO('a' . V)` → `[a]`; nested `(LEN(1).A LEN(2).B).C` → `a/bc/abc`. **Corpus:** m3 172 pass (was 171;
+  FAIL 90→89 = exactly 052), m4 172 pass / 3 FAIL {082,099,213} / 86 skip, DIVERGE=0; a controlled HEAD-vs-rung
+  compile-skip diff proves the m4 delta == {052} exactly, nothing regressed in — the prior watermark's m4
+  168/90 was stale by 3 environmental skips (FAIL sets byte-identical + the m3 delta rules out runtime flips ⇒
+  HEAD-today m4 = 171/3/87). Icon smoke 12/12×2; emit gates ×3 + sno_pat_reg PASS; feature `.s` regen
+  auto-committed (18 capture-bearing pattern tests — helper-push α, real β pop labels, inner-fail→SAVE.β all
+  visible). `1017_arg_local` --compile SIGABRT is pre-existing (in both skip sets). **Accepted v1 limit:** when
+  a seq re-point chains through a capture, the pop on that path is elided (SAVE.α re-pushes on resume; bounded
+  per match by the gen-reset; top-reads stay correct).
+  **FINDING A — EAGER-ASSIGN (pre-existing, pinned):** the dcap deferred-capture protocol
+  (`rt_dcap_begin/end_ok/end_fail`, pattern_match.c) is ORPHANED — declared at emit.cpp:395, never called — so
+  `.` assigns at subpattern-success; a FAILING match still mutates the target (probe: `V='old'; 'ZQ' ? 'Z' . V
+  'NOPE'` → oracle `V=old`, SCRIP `V=Z`). No crosscheck test distinguishes (064 tests no capture despite the
+  name). Own rung: wire dcap begin/end at the match entry + success/fail exits.
+  **FINDING B — SEQ-CHAIN-THROUGH-DETS (pre-existing, improved here, residual pinned):** a deterministic
+  element between the fail point and a left generator blocks the resume — the le_tail trick sees only the
+  rightmost leaf, so in `(ARB . V) 'B' 'C'` a 'C' failure retries the anchor instead of extending ARB. Probe
+  'ABQABC': oracle `[ABQA]`, SCRIP `[QA]` (HEAD gave `[]` — this rung improved it; the residual is the det-tail
+  chain). Own rung: SN4-PAT-BETA-CHAIN — β pass-through on deterministic matchers or a leftward β-surface scan
+  in TT_SEQ.
+- [~] **SN4-PAT-FOLD** — STRING TIER LANDED 2026-07-05 (chat session, Opus 4.8, SCRIP `1d205f46` code + `25c170ee` .s); BLOB TIER remains.
+  **WHAT LANDED (string-valued stored patterns):** a bare variable in pattern position (`subject pat`) now lowers to
+  `IR_MATCH_DEFER` instead of bombing at the wall. KEY SEMANTIC FINDING (oracle-pinned): `'foo' 'bar'` is STRING
+  CONCATENATION → the string `"foobar"` (`DATATYPE`=STRING), NOT a pattern — only `|`/true-pattern-ops build a
+  PATTERN value. So `pat='foo' 'bar'; subject pat` needs NO blob: `rt_defer_match`'s DT_S path matches the stored
+  string literally. Six sites: `sno_pat_supported` accepts bare TT_VAR; `sno_pat_node` TT_VAR→`IR_MATCH_DEFER`
+  (op_sval=name, op_ival=0); emit.cpp op_sval-list + template-dispatch(`bb_match_defer`) + DRIVE_FILL populate-case
+  + both ω-queue range checks (DEFER is enum-outside LIT..ASSIGN_SAVE → folded explicitly); Makefile gained
+  `bb_match_defer.cpp` (was libscrip_rt-only → mode-3 link error). **MEASURED: crosscheck m3 187→189, m4 187→189,
+  DIVERGE=0** (W02_seq_basic + W02_seq_nested newly PASS oracle-exact; ZERO regression). GC-stressed (SCRIP_GC_STRESS=1)
+  BYTE-IDENTICAL (189/87); both emit gates green; Icon crosscheck 4/0 (DEFER is SNOBOL4-only, Icon codegen untouched).
+  Pattern-VALUED stored vars (W03 alternation, DT_P) now COMPILE and clean-FAIL (bomb→fail; `rt_defer_get_pat_fn`
+  returns NULL) — the honest degrade until the blob tier.
+  **BLOB TIER REMAINS (the real seal-blob rung):** `IR_REF_INVARIANT` is in the enum but has NO emit arm (grep
+  emit.cpp = 0); `xa_pattern_blobs()` is a shell gated on `xa_pat_blob_invariant_n`; the parked freeze functions
+  (`sno_freeze_pat_ir`/`_graph_entry`, parent `lower_snobol4.gz5-parked-41b53078.c:689-738`) are INCOMPLETE —
+  `sno_freeze_kids_attach` builds the CAT/ALT kids array then `(void)(zk)` DISCARDS it, so a verbatim port drops
+  children. So the blob tier is a RECONSTRUCTION not a port: (1) build the `IR_REF_INVARIANT` emit arm that seals a
+  constant pattern subgraph into an invocable blob + registers it; (2) `TT_ASSIGN` hook: pattern-valued RHS → seal +
+  store a DT_P handle (the value `rt_defer_get_pat_fn` fetches: `val.v==DT_P && val.p`); (3) the match already invokes
+  it via `bb_match_defer`'s DT_P branch (`call rt_frame; call the fn`). Oracle-pin W03 outward. `bb_pat_build.cpp`
+  parked; `src/include/dtp.h` on disk; `rt_pattern_stitch_*`/`rt_pattern_build` SUPERSEDED — do NOT resurrect.
+- [x] **SN4-PAT-ARBNO-2 (ZB-5 v2: generator bodies via per-iteration COLLECTION) — LANDED 2026-07-05 (Claude Fable 5).**
+  `ARBNO(P|Q)` and friends re-choose FINISHED iterations; 054_pat_arbno_alt FAIL→PASS both modes; the on-record
+  counterexample `'AAAB' POS(0) ARBNO('AAA'|'AA') 'AB' RPOS(0)` == oracle both modes (iteration 1 re-chosen
+  'AAA'→'AA' after iteration 2 exhausts).  **LOAD-BEARING DISCOVERY — ALT WAS NEVER RESUMABLE:** `IR_MATCH_ALTERNATE`
+  was absent from `ir_is_generator_kind` and its template had NO β arm — once an alternative succeeded there was no
+  path to the next, so `('a'|'ab') 'c'` on 'abc' FAILED vs oracle at clean HEAD (collections alone could not have
+  fixed 054).  **ALT-RESUME (the prerequisite piece, landed first and independently probed):** slot repartitioned
+  `{+0 cursor save (4B RAW), +8 resume continuation (8B ZK_PTR_CODE)}`; TT_ALT rewired to UNIFORM JOIN boxes —
+  alternative i's success lands J_{i+1}.α (MARK: `lea rax,[rip+L0]` = its OWN reload arm, store to [slot+8], jmp
+  ω=outer-succ) and its failure lands J_{i+1}.β/L0 (reload cursor, jmp γ=alternative i+1; β-wards free via
+  sno_ω_to once ALTERNATE is generator-kind); the trailing T=J_n is the SAME box with γ=outer-fail (resume exhaust
+  restores the entry cursor then fails leftward, β-aware); SAVE.β = `jmp qword [slot+8]` — the resume-in REPLAYS
+  exactly where forward-failure of the succeeded alternative would have gone, so deterministic pass-through costs
+  nothing and [slot+8] is always written before any possible resume.  NEW ENCODER (template-only rule honored):
+  `x86_lea_rip_id` — `lea r64,[rip+L(n)]`, REX.W 8D /5 + the SAME J-record rel32 fixup as jmp/jcc (rel32 is the
+  instruction's last 4 bytes in both).  Oracle-probed 6/6 both modes incl. 3-way deep dispatch, capture-over-
+  resumed-ALT (V='ab'), unanchored+exhaust-restore.  **ARBNO v2 (roles 3/4/5 ADDITIVE beside v1's 0/1/2 — v1
+  byte-untouched):** owner quad 32B `{entry,yield,i,cap | ptr ZK_PTR_GC | pad}`; element = 16B header
+  `{prev_rZ, cur_before}` + the body subgraph's CONTIGUOUS slot window; G.β pushes a ZEROED element
+  (`rt_zcol_push`, pattern_match.c, dual-built) and REPOINTS rZ=elem+16-min_off so body boxes' [r12+off] become
+  per-iteration (header readable at [r12+min_off-16/-8]); K reads header, restores rZ, i++/yield (zero-advance
+  way → F.α = resume THIS element's body β for its next way — oracle-pinned BOTH null-alternative orders); F.β
+  (body-fail) restores rZ, i==0→exhaust else i--, resume element i via F.γ stamped β-wards at the body's
+  first-allocated (rightmost) leaf.  RELOAD LAW held: elem recomputed from (ptr,i) at every owner port.  Geometry:
+  G brackets the body with operands[0/1]=first/last body node BY ALLOCATION (optimizer audit: branch_chain only,
+  no reorder/compact ⇒ index window exact, grants contiguous); zls_build post-pass computes {min_off,span} per
+  owner → `zls_arbno_geom()` → DRIVE stages op_sa/op_sb.  SAFETY AUDIT that shaped the scope: every SNOBOL4 var
+  is `global_register`'d ⇒ IR_VAR → bb_var_global (NV/GVA, r12-free) ⇒ NO vslot reads under repointed rZ.
+  `rt_zcol_push` = realloc ×2-growth + the zeta_alloc GC_add_roots trick (capture-buf GC ptrs INSIDE elements stay
+  collector-visible; roots move with the block; fresh-index memset = the fresh-iteration rule, POP never zeroes);
+  ptr/cap PERSIST across anchor retries/statement re-executions (2001-iteration loop torture == oracle both modes,
+  no growth).  **NAMING RULING (Lon 2026-07-05): "phase" is a MISNOMER — `op_phase`/template arms are a box-ROLE
+  discriminator; concept stands (capture/ALT/ARBNO all use it), rename is a future housekeeping rung.**
+  **GATES (sno_pat_v2_ok + sno_pat_v2_tail_gen, honest v3 boundary):** body's RIGHTMOST leaf must be ALT/ARB/
+  capture (a deterministic tail exposes no β — chaining THROUGH it is the Finding-B pass-through rung, e.g.
+  `ARBNO(ARB 'X')` refused); nested ARBNO refused (element prev_rZ into a realloc-MOVABLE outer collection = the
+  RELOAD-LAW escape); FENCE-in-body refused (seal jumps to fJ with rZ still repointed); generator INSIDE an
+  alternative refused (the ALT mark records the NEXT alternative — an inner generator's remaining ways would be
+  skipped on resume; same residual applies to plain nested ALT outside ARBNO, strictly-better-than-HEAD but
+  documented).  **KNOWN v1 LIFETIME RESIDUAL:** MALLOC-arm collections leak at FRAME DEATH (proc returns) — reuse
+  within a frame prevents loop growth; retire via the §5f per-activation release list or GC-4; D7 (ZC_COL_MALLOC)
+  honored but Lon may want to re-rule toward GC given elements now hold GC pointers.  **EVIDENCE:** ALT probes 6/6
+  + ARBNO probes 10/10 (counterexample, deep re-choose 'AAAAAB', both zero-advance orders, capture-over-v2
+  W='abab', two-ALT body, total-exhaust) m3==m4==oracle; full crosscheck m3 189→190, m4 189→190 / FAIL(m4) five
+  BYTE-IDENTICAL to HEAD {082,099,213,057,W02} / SKIP 82→81, DIVERGE=0 — stash-verified full-corpus fail-set diff
+  == exactly {054} both modes (NOTE: the ZB-5-era "3 parked m4 fails" baseline was stale — 057/W02 were already
+  m4-FAIL at actual HEAD `1d205f46`); GC_STRESS=1 green on all probe sets; icon smoke 12/12×2; gates
+  no_ir_mutation/no_lang/no_slot_alloc/byte_identity/no_handencoded/sno_pat_reg/ir_field_discipline ALL PASS;
+  benchmark regen EMIT-FAILs (eval_dynamic etc.) stash-proven pre-existing, corpus-side (benchmark+demo)
+  artifacts 0-changed; feature `.s` (SCRIP-side, `test/snobol4/**/*.s`) DID change for ALT/ARBNO-bearing
+  tests — correctly, codegen changed there — committed separately by the regen script (an earlier draft of
+  this entry wrongly said "0 changed" across the board).  **POST-PUSH REBASE:** origin/main had moved past
+  this session's `1d205f46` baseline (a concurrent session landed `7c818c9d` IR_t.tmp ERADICATE + `974c0031`
+  Prolog GZ#6) by the time of handoff; `git pull --rebase` hit one real conflict in `emit.cpp` (both sessions
+  added an extern near `drive_value_slot` — resolved by dropping this session's now-redundant `zls_off`
+  extern and keeping the new `zls_arbno_geom` one), all other files auto-merged clean. Full crosscheck +
+  Icon smoke + all 7 gates RE-RUN post-rebase: byte-identical to the pre-rebase numbers above — the merge
+  changed nothing behaviorally. SCRIP `dba13602`.
+  FILES: x86_asm.h (+encoder, +lea dispatch arm), ir_query.c (+ALTERNATE), bb_match_alternate.cpp (rewritten),
+  bb_match_arbno.cpp (+roles 3/4/5), lower_snobol4.c (TT_ALT rewire, TT_ARBNO v2 branch, v2 gates, supported
+  relax), zeta_storage.{c,h} (ALTERNATE fields, ARBNO ival-keyed rows, geometry post-pass + export),
+  emit.cpp (ARBNO DRIVE + extern), pattern_match.c (+rt_zcol_push).  NEXT: Finding-B det-tail pass-through
+  (un-gates `ARBNO(P det-tail)`), nested-ARBNO (needs stable element addressing or GC-4), or the FOLD blob tier.
+
+**⛔⛔ STANDING DIRECTIVE (Lon, restated 2026-07-04) — PARK, NEVER DELETE, parked-language code.**
+Park out of the Makefile (the `8f3e4b23` "kept intact on disk" precedent); deletion of parked code is a
+directive violation even inside a "reset" commit. **The violation on record:** GZ#5 followed the rule for the
+118 templates but DELETED the SNOBOL4 pattern lower wholesale — the parent's `lower_snobol4.c` (1402 lines:
+`lower_pat_node`, `sno_freeze_pat_graph_entry`, the match-statement driver, the generator-kind classifier)
+was replaced by the 451-line non-pattern rebuild with no on-disk copy kept. **RECOVERED this session** to
+`src/lower/lower_snobol4.gz5-parked-41b53078.c` (parked, NOT in the Makefile; build unaffected, verified
+green). Emit-side needed no recovery: at the parent, matchers had no per-op dispatch caller (generic
+`bb_build_flat` blob path only) — today's arms are written fresh in `emit.cpp`, one line per kind
+(SN4-PAT-1's `IR_MATCH_LEN` is the precedent). **Any dead-code sweep (incl. GOAL-DEAD-CODE-SWEEP) must
+exempt `*.gz5-parked-*` files and everything in the WIRING INVENTORY above.** SN4-PAT-2..N port FROM the
+parked file INTO the live tree.
+
+**WIRING INVENTORY (src scan 2026-07-04 — what exists on disk for re-wiring):**
+- **Parser (live):** `src/parser/snobol4/` (`snobol4.l`/`.y` + generated) — full grammar incl. pattern syntax.
+- **Lower:** `lower_snobol4.c`/`.h` (live, non-pattern subset complete; `:257` is the wall), `tree_to_sno.c`.
+- **Runtime (live in build):** `pattern_match.c` (cset_resolve, `pat_*` atoms, `rt_cap_assign_cursor`,
+  `rt_at_cursor`, `rt_defer_match`, `rt_assign_var`; `pat_cat`/`pat_alt` are B0 BOMBs — superseded by stitch),
+  `pat_pool.c`, `by_name_dispatch.c`, `xa_pattern_blobs.cpp`, `src/include/dtp.h`.
+- **Runtime (parked, not in Makefile):** `bb_pat_build.cpp` (mints `IR_MATCH_*` blob-builders; exempt per
+  GOAL-SNOBOL4-BB session-31 note).
+- **Templates on disk (kept intact by `8f3e4b23`, API-current per BB-FIXUP):** 23 `bb_match_*` (abort advance
+  alt any arb arbno atp break breakx capture cat defer fence head len notany pos rem retry rtab span span_var
+  tab — `len` re-wired SN4-PAT-1), 5 `bb_pattern_*` (break capture cat len lit — cat/capture are post-FZ-4
+  passthroughs; `lit`/`len`/`break` are abandoned-era, audit before wiring) + `bb_pattern_stub.cpp`,
+  `bb_keyword_snobol4.cpp`, `bb_scan_match.cpp`.
+- **Dormant backends (X86-ONLY era):** JVM/`SnoPat.java`, .NET/`SnoRt_patterns.il`, JS/`sno_engine.js`,
+  WASM/`sno_runtime.wat` — reference semantics only, not wiring targets.
+- **Tools:** `src/tools/tmatch_proto.c` (matcher prototype harness).
+- [x] **SN4-PAT-EXPR (EXPRESSION datatype + `*EXPR` + EVAL + pattern auto-eval) — LANDED 2026-07-06 (Claude Fable 5).**
+  `A = *(X Y Z)` / `EVAL(A)` / `S ? *P` / bare stored-expression-in-pattern all m3==m4==oracle. **DESIGN:** each `*expr`
+  carves an anonymous zero-arg dyn-scope proc graph (`EXPR$N`, DEFINE precedent: sJ/fJ→SUCCEED/FAIL, IR_ASSIGN to own
+  result_name; live-bound collector loop after the defs loop handles nested `*`), registered via the EXISTING generic
+  proc_table→rt_proc_set_fn pipeline both modes — zero new emit machinery; value = `IR_CALL "SNO$MKEXPR"(name-lit)` →
+  new **DT_X=15** DESCR (DATATYPE→EXPRESSION); **EVAL** by-name arm: DT_X → `rt_call_named_proc` (FAILDESCR
+  propagates failure — `*LT(1,0)` eval-fail oracle-pinned), numerics pass through, **EVAL(<string>) stays a loud
+  runtime-compilation wall** (140 moved SKIP→honest FAIL). Pattern context: `rt_defer_match` fetches → DT_X
+  auto-invokes → DT_I/DT_R results coerce to string → literal match; inline `*(expr)` in pattern carves too, flagged
+  by a `*` NAME PREFIX (printable, GAS-safe, illegal as SNOBOL identifier). `FAIL` reserved-primitive arm added
+  (057 DIVERGE→0). **LOAD-BEARING FINDING 1 — IR_lit is an ANONYMOUS UNION (sval/ival/dval overlap): the FOLD arm's
+  `sval=nm; ival=0;` ZEROED sval, so IR_MATCH_DEFER matched EMPTY since FOLD landed; its green tests were
+  wrong-success coincidences (W02_seq_fail_propagate + 056 empty-capture were this).** Never write two IR_lit members
+  on one node. **FINDING 2 — the match-family C-call idiom `push rbx; mov rbx,rsp; and rsp,-16` POISONS the GVA base:
+  any callee that re-enters emitted GVA-reading code (blob invocation!) segfaults on `[rbx+k*16]`.** bb_match_defer
+  switched to rbp (zero template hits repo-wide); **CARRY FORWARD: bb_match_{capture,arbno,alternate,...}/bb_subject
+  share the rbx dance — inert only while their callees never re-enter emitted code; sweep before Rung-B DT_P blobs.**
+  Plus a stale-rdi/esi reload in the L0 arm (caller-saved args were dead after the rt_defer_get_pat_fn call).
+  **MEASURED: crosscheck m3 190→195, m4 190→195, DIVERGE=0; m4 FAIL {082,099,213,057,W02}→{082,140,213}
+  (099/W02/056/057 cured); icon smoke 12/12×2; no-lang + no-IR-mutation gates PASS. `.s` regen owed at handoff
+  (defer-template codegen changed).** Files: descr.h (+DT_X), lower_snobol4.c (collector, TT_DEFER value+pattern
+  arms, EVAL wall lifted, expr-graph builder), by_name_dispatch.c (EVAL/SNO$MKEXPR/DATATYPE-uppercase+EXPRESSION),
+  pattern_match.c (defer invoke/coerce/FAIL), bb_match_defer.cpp (rbp + reload).
+- [~] **SN4-PAT-DEFER-CALLOUT — v1 LANDED 2026-07-06 (Claude Fable 5, SCRIP `6e701b9c` + rbx-sweep `6983b386`). Crosscheck m3 195→230, m4 195→230, DIVERGE=0.** Stored true-PATTERN values are AOT-compiled `bb_box_fn` blobs; **DT_P.p = the compiled code address** (Lon: "DT_P builds a bb_box_fn. We are code."). THE DESIGN (the FZ resurrection on the live spine — zero runtime pattern construction, zero new emit machinery): a pattern-valued RHS (`pat='a'|'b'`, `cmd=FENCE(...)`, `W=SPAN(&LCASE)`) carves its own graph via the LIVE `sno_pat_node` (ONE matcher compiler, inline+stored) with SUCCEED/FAIL terminals and NO head (blob = anchored fragment; the CALLER's head retries), registered as proc `PAT$N` through the EXPR$N pipeline — both modes compile+register it for free. **The invocation ABI matched by construction:** the `g_frame_active` epilogue already returns eax=1/99 at γ/ω, `bb_match_defer` already checks `cmp eax,1`, and Σ/δ/Δ (r13/r14/r15) ride the C call — the subgraph's own β-rewind restores δ on blob failure. Assignment lowers to `IR_CALL "SNO$MKPAT"(name)` → DT_P from `rt_proc_get_fn` (one-time code-address fetch at statement position, MKEXPR precedent). Match site was already live. Files: rt.c (+rt_proc_get_fn), by_name_dispatch.c (SNO$MKPAT), lower_snobol4.c (g_sno_pats registry, sno_is_pattern_rhs, sno_pat_collect, assignment hook, post-loop blob builder, **sno_cset_fold** compile-time &LCASE/&UCASE folding in ANY/NOTANY/SPAN/BREAK/BREAKX + gate). Oracle-pinned: W03 bare-ALT-var, 108/068 FENCE-via-*var incl. SEAL semantics (one-shot blob boundary = FENCE semantics naturally — why the fence cluster fell wholesale), 105, 071 two-derefs-with-captures. m4 FAIL 3→19 is PROGRESSION (SKIP 78→27; every new m4 fail also fails m3 identically, DIVERGE=0). PREREQ LANDED same session: **rbx-poison sweep** (`6983b386`) — bb_match_{capture,arbno}+bb_subject alignment scratch rbx→rbp, byte-identical proven. Gates: icon 12/12×2, polyglot 2/2×2, no_ir_mutation+no_lang PASS; artifact regen run (corpus `c83d1b5a` + SCRIP feature .s ×25).
+  **NEXT-SESSION BRACKETS (in order):** (1) **FRESH-FRAME WIP, DIVERGE BRACKETED** — `.github/WIP-sn4pat-defer-freshframe-2026-07-06.patch` (40 lines, bb_match_defer: rt_frame→rt_zls_alloc(64K)/rt_zls_release per invocation, LIFO both continuations). MEASURED m3 241/m4 239 (+11/+9; recursive-grammar cluster 115/120/126/131/138/139 all PASS m3) **but DIVERGE=2 (word2, word4): fresh frames cured them in m3, NOT m4** — a real inter-mode lifetime divergence, monitor/bracket it before landing (the shared-static-rt_frame v1 is what's committed; nested `*var` blobs clobber its slots, which is exactly what the patch fixes). (2) **DT_P through user functions** (063-066 fence_fn cluster): a DEFINE'd function returning FENCE(...) — DT_P must survive the call/return path + defer must accept call-result patterns. (3) **β-resume ACROSS the blob boundary** (074/W07 cursor cluster): outer backtrack cannot re-enter a returned blob's internal generator — the resumable-β protocol proper (entry=1 β-dispatch exists in the prologue; needs per-invocation state survival, gates on (1)). (4) remaining non-pattern stragglers: 1011/1013/1015/1017, 082/213, test_case/stack/string + word/cross (include-library, partly gated on (1)).
+
+<!-- ════════════ SNOBOL4 RE-LIGHT LADDER — moved verbatim from GOAL-IR-IMMUTABLE-EMIT.md, 2026-07-06 ════════════ -->
+
+## SNOBOL4 RE-LIGHT LADDER — SNOBOL4 on the post-GZ#5 spine (RELOCATED here from GOAL-SNOBOL4-BB.md, Lon directive 2026-07-04)
+
+**RELOCATION NOTE (2026-07-04).** This is the SNOBOL4-subset re-light ladder (RL-0…RL-9). It was moved here from GOAL-SNOBOL4-BB.md because that file is titled *"SNOBOL4 on the shared BB spine (GZ#5 rebuild)"* — it IS Ground Zero #5 work, and THIS file is the GZ#5 home. The move consolidates the live SNOBOL4 climb with the rest of GZ#5 rather than cross-referencing it.
+- **SCOPE FLAG for Lon (NOT silently resolved):** the ICON-ONLY HARD RULE at the top of this file is Icon-climb-scoped — it constrains which `lower_*.c` and which tests the *Icon* rungs may touch. It does not, by itself, govern this relocated SNOBOL4 ladder, so the two now coexist. If you want one unified scope, reconcile that hard rule (e.g. re-title it "Icon-climb scope" or add an explicit SNOBOL4-climb carve-out). Flagged here rather than changed on my own initiative.
+- GOAL-SNOBOL4-BB.md **retains** all SNOBOL4-specific detail (monitor RUNG-0/1/2, DEMO-PAT, NRG, PERF-GVA, fail maps); ONLY the RL ladder moved. A breadcrumb there points back here.
+- The ladder assumes GOAL-SNOBOL4-BB.md's **"ONE EMITTER FOR ALL LANGUAGES"** FACT RULE (Lon, 2026-07-03; mirrored in RULES.md) — referenced below as "the ONE-EMITTER FACT RULE".
+- PLAN.md's SNOBOL4-BB row still points at GOAL-SNOBOL4-BB.md (left as-is per RULES.md "do not edit PLAN.md goals table on routine handoff"); update it to point here if/when you want.
+
+### THE RE-LIGHT LADDER — SNOBOL4 on the post-GZ#5 spine (Lon pivot 2026-07-03, session 31)
+**Ground truth (session 31, live-run — NOT inferred):** crosscheck `--run PASS=5 FAIL=256`, `--compile SKIP=261` (every compile aborts in the gvar_* GROUND-ZERO stubs; the 5 "passes" are vacuous — aborted runs with empty stdout matching empty/whitespace refs; TRUE BASELINE = 0). The RUNG-1 fail-set numbers below (PASS 159/179, FAIL 76, DIVERGE 22) are PRE-RESET and STALE — do not chase them. `lower_snobol4.c` compiles but is GUTTED: node kinds mass-replaced with the `IR_OP_COUNT` sentinel (`--dump-ir` shows them as `IR_UNKNOWN`); REM/ARB/FENCE/ABORT/BAL, TT_NUL, seq/def-call minting — all placeholders.
+**Constraint (Lon directives 2026-07-03): NO NEW IR — `IR_e` is FROZEN AGAINST ADDITIONS for this entire first climb; deleting UNUSED ops is DIRECTED, not forbidden.** **[CARVE-OUT 2026-07-04, Lon-authorized: the `IR_KEYWORD` → `IR_KEYWORD_ICON`/`IR_KEYWORD_SNOBOL4` split IS permitted against this freeze (enum +1). Rationale: as the emitter loses its language global (LANG-eradication), a single name-dispatched keyword BB over one case-fold `kw_read` table cannot distinguish `&LCASE`(SNOBOL4) from `&lcase`(Icon) — the two keyword SETS are different and the distinction must live in the opcode. This is the classify-by-name doctrine, not a rung that "needs" a new op by accident. Do NOT re-merge these to "restore" the freeze.]** The never-minted sweep landed same day: full 63-op audit (mint-count per op across lower/parser/driver/runtime/optimizer/machine) found EXACTLY THREE never-minted ops — `IR_CALL_BYNAME`, `IR_CALL_USERPROC`, `IR_CALL_GVAR_USERPROC` — all three DELETED (enum members, scrip_ir.c name rows + case-list, emit.cpp case-lists, proc_collect.c case-list, bb_call.cpp staged-predicate) → **enum now 60 ops + sentinel; the GVAR name left the IR enum by deletion, no rename needed** (by-name call routing lives at emit time in `bb_call_route_classify`'s `CALL_ROUTE_*` over `IR_CALL`, where it belongs). Kind numbers shifted −3 past the CALL block — symbolic names are the anchor (RL-1's recorded "op=29" is pre-shift). Deletion gates: build ×2 green, Icon smoke 12/12 ×2, Icon corpus 209/44/36 exact, crosscheck counts unchanged, kind-residue grep = 0 repo-wide. The vocabulary that implements all of Icon is the vocabulary; it covers a large portion of SNOBOL4. The known delta is addressing (GST(NV)+GVA vs GVA-only, per the ONE-EMITTER FACT RULE), not opcodes. If a rung appears to need a new opcode, the rung is wrong — find the existing-vocabulary lowering or park the program and note it here.
+**Method:** STATIC-FIRST → ONE STAB → THEN MONITOR (unchanged). Rung supply = `test_crosscheck_snobol4.sh` (261 programs, category dirs under `corpus/crosscheck/`). Every rung gated on: both modes, `.ref` byte-match, DIVERGE=0, zero regression of previously-green categories.
+**SESSION 31 CLOSE (2026-07-03) — ▶ NEXT SESSION START AT RL-2.** Landed: emit_chain consolidation (the ONE-EMITTER FACT RULE), RL-0/RL-1, unused-IR sweep (enum 60). RL-2 opening moves in order: (1) `scrip.c:609` — route SNOBOL4 through `ir_drive_slot_assign` (TMP-ERADICATE grants) instead of legacy `ir_tmp_slot_assign`; (2) mode-4 SNOBOL4 branch: replace the `gva_collect_graph` stub call with zero-collect (GST(NV)-first — n_gva=0, names ride NV) or a real collector — Lon's call; (3) re-lower assignment+OUTPUT in `lower_snobol4.c` onto `IR_ASSIGN`/NV (DT_N NAMEVAL association prints), replacing the IR_OP_COUNT placeholders. Gate: `hello/`, `output/`, `assign/` green both modes, zero Icon regression (209/44/36 anchor).
+### Steps
+- [x] **RL-0 — baseline recorded.**
+- [x] **RL-1 — driver reroute onto the one emitter.** `scrip.c:609/612` now routes SNOBOL4 through `ir_drive_slot_assign` (was legacy `ir_tmp_slot_assign`). Dormant-arm template files are KEPT (may be reused later) — future re-light happens by LOWERING onto live kinds, never by resurrecting per-language emitter paths.
+- [x] **RL-2 — re-lower assignment + OUTPUT.** `hello/` 4/4, `assign/` 8/8, `output/` 7/8 (the one fail, `&ALPHABET` keyword read, belongs to RL-8).
+- [ ] **RL-3 — concat + arith.** Value concat, `IR_BINOP`/`IR_UNOP`/`IR_BINOP_TEST`/`IR_UNOP_TEST`, `IR_LIT_*`. Gate: `concat/`, `arith/`, `arith_new/` green.
+- [~] **RL-4 — statement control flow.** END-GOTO LANDED (2026-07-04, this session, `src/lower/lower_snobol4.c` +1 line, local/unpushed): `:(END)`/`:S(END)`/`:F(END)` now resolve — `END` (SNOBOL4's reserved terminator, so no user label can collide) is registered as a label pointing at the program-exit `IR_SUCCEED` node (`bb_label_registry_add(lp_strdup("END"), exitnd)` after the label-registry loop). Was: `sno_resolve_label("END")` failed because END is the `:end` terminal, never registered. **MEASURED +24 both modes** (crosscheck mode-3 41→65, mode-4 40→64, DIVERGE=0; Icon smoke 12/12 ×2 unchanged) — END-goto is a pervasive exit idiom, so it was the SOLE remaining blocker for ~24 otherwise-in-subset programs. REMAINING for RL-4: the `:S()/:F()` forms that branch on a **pattern-match** result (`X 'lit' :S(L)F(L)`, e.g. control_new 033/034/035) — those need the IR_MATCH_* family and are really RL-5. Non-pattern control flow is now green.
+- [ ] **RL-5 — primitive patterns onto the SCAN family.** Candidate mapping (verify per-rung vs SPITBOL semantics, manual Ch. 4/6): literal→`IR_SCAN_MATCH`, ANY/NOTANY→`IR_SCAN_ANY`, SPAN/BREAK→`IR_SCAN_MANY`/`IR_SCAN_UPTO`, LEN→`IR_SCAN_MOVE`, POS/RPOS→`IR_SCAN_POS`, TAB/RTAB→`IR_SCAN_TAB`, BAL→`IR_SCAN_BAL`, find-forms→`IR_SCAN_FIND`, all inside `IR_SCAN_ENTER`/`IR_SCAN`. Gate: `patterns/` subset without alternation/capture.
+- [ ] **RL-6 — alternation, backtrack, capture.** Four-port ω-wiring (`IR_REPALT`, β re-entry), `.`/`$` capture. Gate: remaining `patterns/`, `capture/`.
+- [ ] **RL-7 — DEFINE + user functions.** `IR_CALL_BYNAME`/`IR_CALL_USERPROC`/`IR_RETURN` (+FRETURN/NRETURN semantics on ω/γ). Gate: `functions/` green.
+- [ ] **RL-8 — indirection, aggregates, keywords.** `$X` (NV by computed name), ARRAY/TABLE via `IR_SUBSCRIPT`/`IR_MAKE_LIST`/`IR_FIELD_*`, `&`-keywords via `IR_KEYWORD`. Gate: `data/`, `keywords/`, `strings/`, `library/`.
+- [ ] **RL-9 — full-suite green + stale-section purge.** Crosscheck FAIL=0 both modes, DIVERGE=0; then (Lon approval) delete the superseded pre-reset sections below.
+
+### SNOBOL4 RE-LIGHT — WATERMARK 2026-07-04 (re-derived baseline + END-goto landing; Claude Opus 4.8)
+**Re-derived HEAD `0831f2a5` baseline (the session-31 "TRUE BASELINE=0" is long stale — much landed via SNOBOL4-GZ#5-rung-1).** Full `test_crosscheck_snobol4.sh` at HEAD: **mode-3 41/261, mode-4 40/261 (SKIP 221 = `--compile` aborts on the same feature gaps; mode-4 tracks mode-3, DIVERGE=0)**. Per-category mode-3 (the rung supply, biggest first): patterns 1/92 · strings 4/17 · keywords 0/12 · rung9 0/10 · rung10 0/9 · functions 0/8 · rung8/rung11/capture 0/7 · data 0/6 · rung4/rungW05/rungW07 0/5 · control_new 3/7 · arith 0/2 · output 7/8 · GREEN: hello 4/4, concat 6/6, assign 8/8, arith_new 8/8.
+**Landed 2026-07-04 (END-goto, on origin `a1a3b404`):** END-goto (RL-4 slice) → mode-3 65/261, mode-4 64/261. One line in `lower_snobol4.c`; zero new IR; zero emitter touch.
+**Landed 2026-07-04 (STRING-BUILTIN REGISTRATION, this session — blocker-map item 4):** `SUBSTR`/`REVERSE`/`LPAD`/`RPAD`/`INTEGER` were bombing `bb_call: unsupported call shape` purely because they were absent from `rt_builtin_is_known`'s `known[]` (so `bb_call_route_classify` fell to CALL_ROUTE_FATAL). All five already had runtime impls (`SUBSTR_fn`/`REVERS_fn`/`lpad_fn`/`rpad_fn` in `string_builtins.c`); the emitter's CALL_ROUTE_FN path (`bb_call_fn_str`) is fully generic (marshals args, calls `rt_call_arr(name, args, nargs)` — passes the name as a runtime string, stays language-blind). FIX = two pure additions, no new IR, runtime-only: (1) five names → `known[]`; (2) five dispatch arms in `try_call_builtin_by_name` calling the existing `*_fn` (INTEGER is a SPITBOL predicate → NULVCL success / FAILDESCR fail, mirroring IDENT/DIFFER; 2-arg LPAD/RPAD/SUBSTR defaults handled). **MEASURED: crosscheck mode-3 65→76, mode-4 64→75, DIVERGE=0** (strings 4→9, rung8 3→6, rung9 7→8 by category sweep — the builtins are cross-category; every other category byte-identical, zero regression). Both modes verified oracle-exact on all five; Icon smoke 12/12 ×2 held (emitter/templates untouched, so mutation + no-lang gates unaffected). **HANDOFF: codegen output changed for SNOBOL4 programs calling these (they now emit `call rt_call_arr` instead of aborting), so run the `util_regen_*_s_artifacts.sh` set before commit per RULES.md step 4.**
+**Landed 2026-07-04 (KEYWORD-READ + DATATYPE, this session — blocker-map item 2 partial):** `lower_snobol4.c` bombed `tree kind 6` (= `TT_KEYWORD`) on every keyword read. FIX = three localized changes, no new IR, no emitter/template touch: (1) `case TT_KEYWORD` in `sx_lower` → `IR_KEYWORD` (mirrors Icon's `lc_key`; the emitter's `bb_keyword` generic tail already calls `rt_keyword_read`); (2) `rt_keyword_read` now case-folds the keyword id before `kw_read` — SNOBOL4 keyword tokens are UPPERCASE `&`-stripped (`(TT_KEYWORD ALPHABET)` per `--dump-ast`) while `kw_read`'s keys are all lowercase (Icon-style); folding unifies both frontends, Icon unaffected; (3) `&alphabet` aliased to the 256-char `&cset` in `kw_read` (SPITBOL's name for the full set). Also registered `DATATYPE` = the existing lowercase `type` builtin (identical lowercase output; one `known[]` entry + widened the `type` arm condition). **MEASURED: crosscheck mode-3 76→83, mode-4 75→82, DIVERGE=0** (keywords 6→8, output 7→8, rung8 6→7, rung9 8→9, strings 9→11; every other category byte-identical, zero regression). 097_keyword_alphabet (`SIZE(&ALPHABET/&UCASE/&LCASE)`=256/26/26) + 081_builtin_datatype both modes oracle-exact; Icon smoke 12/12 ×2 held. **ONE mode-4 FAIL (082_keyword_stcount): NOT a regression** — it advanced from compile-abort (SKIP) to compiling-but-wrong; it uses `&STNO`, which has no runtime statement-counter (kw_read → FAILDESCR → NV null), so it fails both modes identically (hence DIVERGE=0). Was already failing mode-3 before this change. A real `&STNO`/`&STCOUNT` counter is a future rung.
+**Blocker map ahead (existing-IR, ranked by leverage):** (1) **PATTERNS = RL-5/6, 91 programs** — the mega-lever and the whole point of SNOBOL4; `lower_snobol4.c` currently bombs any `:pat`/TT_SCAN subject LOUD (`sno_fatal` at the `if (pat || subj==TT_SCAN)` guard, line ~157). Maps onto the EXISTING Icon SCAN family (IR_SCAN_MATCH/ANY/MANY/UPTO/MOVE/POS/TAB/BAL/FIND) per the RL-5 candidate table — no new IR. This is the next real rung; it is large (multi-session). (2) **Keyword read/assign** (`&ALPHABET` read, `&TRIM =`/`&ANCHOR =` assign) — blocks output/006, arith's fileinfo+triplet (both die on `&TRIM = 1`), keywords 0/12; note `&ANCHOR` also changes pattern semantics so it couples to RL-5. (3) **DEFINE + call/return** (RL-7) — functions 0/8, expr_eval. (4) string builtins SUBSTR/REVERSE/LPAD/RPAD (SPITBOL extensions — `bb_call: unsupported call shape`; check runtime actually implements them before registering by-name).
+
+**Landed 2026-07-04 (DEFINE + AGGREGATES + KEYWORD-ASSIGN + INCLUDES, this session — blocker-map items 2/3 + user-fn ladder, on SCRIP `9146f606`):** mode-3 **115/261**, mode-4 **114/116 non-skip** (DIVERGE=0; the two m4-only fails are pre-existing 082_keyword_stcount &STNO and 213_indirect_name NRETURN-read). Icon smoke 12/12 ×2 held; polyglot/emit gates untouched-green. Landed in four rungs over EXISTING IR only (enum still frozen at 62 ops; zero new opcodes):
+- **DEFINE (user functions, functions 8/8 + rung10 1010/1012/1014/1018):** dynamic scoping is a per-proc behavioral property `dyn_scope` (is_generator precedent) + a `result_name` plumb for alt-entry/alias result cells. Function bodies carve as SEPARATE IR graphs over the full statement list (entry = anchor of the entry-label stmt); RETURN→graph `IR_SUCCEED`, FRETURN→`IR_FAIL`, NRETURN aliased to RETURN. Runtime path already existed (`rt_call_named_proc`, rt.c): added `result_name` to `rt_proc_t`+`ProcEntry`, `rt_proc_set_result_name`, both dyn call paths use `rname=result_name?:name` for the save-push + result read; resolve_cells binds rcell to rname. `DEFINE` entry arg accepts `.label` (TT_NAME) as well as `'label'` (TT_QLIT). scrip.c registers result_name after all three set_generator sites (mode-3 driver loop + mode-4 startup asm `.Lstartup_prn%d` + `rt_proc_set_result_name@PLT`). **Shadowed-name idiom** `DEFINE('max(max,x)')` (parameter name == function name): the result-cell save-push is SKIPPED when a param already shadows rname, so the param's binding is what the body reads/writes and what the caller receives — fixes the whole math.sno family.
+- **AGGREGATES/RECORDS/INDIRECTION (data 6/6, rung11 7/7, rung2 210/211/212, rung9 910):** `by_name_dispatch.c` known[] += ARRAY TABLE ITEM PROTOTYPE CONVERT DATA APPLY OPSYN VALUE SNO$KWSET; arms after SNO$NAME. ARRAY via `sno_array_from_proto` (recursive nested 1-D ARBLKs, `'lo:hi'`/`'n'` comma-split dims, init arg, proto stashed in new `ARBLK_t.proto`). ITEM = chained `rt_subscript_var`+`rt_deref`. CONVERT INTEGER/REAL/STRING. DATA guarded `dat_register`. APPLY (DT_N name→registered proc via g_call_args+rt_call_proc_descr, else recursive builtin). VALUE (DT_N deref / NV_GET by name). **EARLY instance-field guard at dispatcher head** (nargs==1 && DT_DATA && fn is a field of the instance's own DATBLK → dat_field_get) beats Icon `real()`/`type()` cast-shadowing — keyed on `args[0].u->type` (DATBLK_t), NOT the DatType registry (that cast was the segfault). `lower_snobol4.c`: TT_IDX rvalue arm (chained IR_SUBSCRIPT + final IR_DEREF), `sx_subscript_lv` helper (+fwd decl), assignment-subject arms for TT_IDX / `ITEM(...)=` / record-field `f(obj)=` (IR_FIELD_VAR + IR_ASSIGN_VAR), TT_NAME generalized to subscript-lv NAMETRAP (no deref), TT_INDIRECT special-cases a TT_NAME inner (direct IR_DEREF, no SNO$NAME wrap → `$.a<2>`). `sno_prescan_expr` recursive walker in the pre-scan loop: DATA literal → `dat_register`; OPSYN(alias,old) → old∈defs ? clone the def with `result_name`=orig fname : `rt_builtin_synonym_add`. DATATYPE returns the instance's own type name for DT_DATA when no gen_type tag.
+- **KEYWORD-ASSIGN (arith/fileinfo, arith/triplet, keywords 098/099):** `&KW = v` subject (TT_KEYWORD) lowers to `IR_CALL "SNO$KWSET"(kwname-literal, v)` — SNO$NAME precedent, zero new IR. keywords.c gained writeable storage (`g_anchor`/`g_trim`/`g_maxlngth` + existing error/trace/dump/random) with read arms for anchor/trim/maxlngth/fullscan/stlimit, and `rt_keyword_write_snobol4` (lowercases, coerces to long, routes to the global or falls back NV_SET). (&ANCHOR/&TRIM are STORED and round-trip; their pattern/I-O *semantics* land with IR_MATCH_*.)
+- **INCLUDES (library test_case/math/stack/string — math+stack now PASS; case+string park on the pattern wall as expected):** driver include seeding was resolving the source dir from the *relative* argv path so the ancestor-`/lib` walk missed — fixed to `realpath()` the input first, split `SNO_LIB` on `:` (multi-root), and `strdup` the dir strings (they were stack-buffer pointers handed to the lexer's `inc_dirs[]`, a latent lifetime bug).
+- **EMITTER (touched — regression-gated, artifacts regenerated):** the flat spine's per-node γ/ω target resolution now CHASES through `IR_GOTO` runs (the label-registry landing for RETURN/etc. is a GOTO node, so a raw pointer-match missed it and the fail/return edge fell to the proc-ω fail exit — this is why a conditional `f = PRED(...) val :(RETURN)` that failed the predicate returned FAILDESCR instead of the prior value), and an unresolved ω whose target is `IR_SUCCEED` now maps to the success port. Proven pure: Icon `.s` bench artifacts + smoke unchanged in shape, IR-mutation + no-lang gates still HARD-zero.
+
+PARKED (existing-IR, with reasons — do NOT fake): 1011 runtime redefinition (static last-wins can't do mid-program re-DEFINE of a live binding); 1013+213 NRETURN by-name lvalue/read; 1015 operator-OPSYN (TT_OPSYN kind 23 needs parser operator machinery); 1016 EVAL (TT_DEFER kind 8 — impossible under the frozen enum per directive); 1017 ARG/LOCAL (would pass ONLY by uppercasing param names — SPITBOL case-fold vs SCRIP case-sensitivity, declined); 082 &STNO statement counter; END-inside-function terminating the whole program (currently returns).
+
+**NEXT LEVER = PATTERNS (RL-5/6, ~91 programs + capture 7 + rungW* 26 + strings cross/word1-4/wordcount + control_new-3):** the one-shot IR_MATCH_* family. Dormant `bb_match_*.cpp` templates exist on disk (NOT in the Makefile). This is the mega-lever gating the largest single block of the corpus and the honest end of the existing-IR ladder.
+
+<!-- ════════════ ORIGINAL GOAL-SNOBOL4-BB CONTENT BELOW (GZ#5 REBUILD + PRE-GZ5 ARCHIVE) ════════════ -->
+
 <!-- ════════════ GZ#5 REBUILD (2026-07-03) — THIS SECTION SUPERSEDES THE PRE-GZ5 LADDER BELOW ════════════ -->
 
 # GOAL — SNOBOL4 on the shared BB spine (GZ#5 rebuild)
@@ -20,7 +544,8 @@ STEPS: (1) at lower time parse the DEFINE("F(A,B)L1,L2") literal: fname, formals
 ## RUNG 3 — builtin ladder
 Sweep the SPITBOL builtin surface vs oracle, one probe file per family, m3+m4 diffed: CONVERT, DATATYPE, REVERSE/LPAD/RPAD, ARRAY/TABLE/ITEM/PROTOTYPE, DATE/TIME parity, &keyword read/write matrix, arithmetic edges (real division, ** precedence).
 
-## RUNG 4 — IR_MATCH_* wake (NEEDS LON'S IR_e PERMISSION — enum is LOCKED)
+## RUNG 4 — IR_MATCH_* wake — ✅ SUPERSEDED / DONE (see the SN4-PAT ladder above)
+**RECONCILED 2026-07-06:** this rung's PROPOSAL ("introduce the IR_MATCH_* opcode family 1:1 with the hibernating templates") is exactly what the relocated **SN4-PAT ladder above** executed and landed (SN4-PAT-0 re-added the family to `IR_e` with Lon's permission; SN4-PAT-1…DEFER-CALLOUT wired LEN/LIT/ANY/NOTANY/SPAN/BREAK/BREAKX/TAB/RTAB/POS/RPOS/REM/ARB/CAT/ALT/FENCE/ARBNO/capture/DEFER end-to-end, both modes, oracle-pinned). The original proposal text is retained below as the historical plan the ladder carried out; do NOT treat it as open work.
 Hibernating template stock already on the menu: bb_match_{abort,advance,alt,any,arb,arbno,atp,break,breakx,capture,cat,defer,fence,head,len,notany,pos,rem,retry,rtab,span,span_var,tab} + bb_pattern_{break,capture,cat,len,lit,stub} + bb_scan_stmt + bb_subject + bb_scan_splice_empty. PROPOSAL: introduce the IR_MATCH_* opcode family 1:1 with these boxes; stage-2 lowers pattern BUILD to a pattern-graph value; stage-3 PERFORM = scan-enter driving match boxes with the cursor in the Σ/δ/Δ discipline; stage-5 replacement splice via the splice box. Byrd four-port α/β/γ/ω throughout; the emitter stays language-blind — one dispatch case per new IR KIND, never per language. The pre-GZ5 ladder below is the ARCHIVE of how these boxes once ran; mine it, do not resurrect it wholesale.
 
 ## FAIL MAP (hard-won; do not relearn)
