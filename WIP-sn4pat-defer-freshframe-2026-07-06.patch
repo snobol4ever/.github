@@ -1,0 +1,40 @@
+diff --git a/src/templates/bb_match_defer.cpp b/src/templates/bb_match_defer.cpp
+index b380aca0..15b12d4b 100644
+--- a/src/templates/bb_match_defer.cpp
++++ b/src/templates/bb_match_defer.cpp
+@@ -6,7 +6,8 @@ extern "C" {
+ }
+ extern "C" int   rt_defer_match    (const char *varname, int ival_flag, int cur_delta);
+ extern "C" void *rt_defer_get_pat_fn(const char *varname, int ival_flag);
+-extern "C" void *rt_frame          (void);
++extern "C" void *rt_zls_alloc      (long bytes);
++extern "C" void  rt_zls_release    (void *fb);
+ #include "x86_asm.h"
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ std::string bb_match_defer() {
+@@ -35,13 +36,24 @@ std::string bb_match_defer() {
+          + x86("push", "rbp")
+          + x86("mov",  "rbp", "rsp")
+          + x86("and",  "rsp", -16L)
+-         + x86("call", "rt_frame", (uint64_t)(uintptr_t)(void *)(void *(*)())rt_frame)
++         + x86("mov",  "rdi", (long)65536)
++         + x86("call", "rt_zls_alloc", (uint64_t)(uintptr_t)(void *)(void *(*)(long))rt_zls_alloc)
+          + x86("mov",  "rsp", "rbp")
+          + x86("pop",  "rbp")
+          + x86("pop",  "rcx")
++         + x86("push", "rax")
+          + x86("mov",  "rdi", "rax")
+          + x86("xor",  "esi", "esi")
+          + x86("call", "rcx")
++         + x86("pop",  "rdi")
++         + x86("push", "rax")
++         + x86("push", "rbp")
++         + x86("mov",  "rbp", "rsp")
++         + x86("and",  "rsp", -16L)
++         + x86("call", "rt_zls_release", (uint64_t)(uintptr_t)(void *)(void (*)(void *))rt_zls_release)
++         + x86("mov",  "rsp", "rbp")
++         + x86("pop",  "rbp")
++         + x86("pop",  "rax")
+          + x86("cmp",  "eax", (long)1)
+          + x86("jne",  "ω")
+          + x86("jmp",  "γ")
