@@ -840,4 +840,29 @@ Prolog smoke 0/5 = documented pre-existing, unrelated to this session.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
 
+## ⌚ WATERMARK 2026-07-06 (Claude Sonnet 4.6 · SCRIP `07af09e1` · corpus unchanged) — 229/24/36 held; three runtime/lower fixes landed; push BLOCKED (credential needed)
+
+**Session scope:** orientation from fresh clone (ICON+JCON zips provided) + three targeted fixes from the rung ladder. No rung suite run this session (prior session confirmed 229/24/36; re-running the full suite is PROHIBITED — rung36_jcon_coerce produces ~241MB single-line output that floods context).
+
+**CONSTRAINT ESTABLISHED THIS SESSION — NO FULL SUITE RUN:** `test_icon_all_rungs.sh` is BANNED from being run unwrapped. `rung36_jcon_coerce` generates ~241MB on a single line (a `to...by` loop that never terminates within timeout). Always run per-file with `timeout 8 ./scrip --run <file> 2>&1 | head -c 4000`.
+
+**LANDED 1 — RUNG-1: keyword-aware `:=:` swap (lower_icon.c TT_SWAP, SCRIP `f8c90452`).** When either `:=:` operand is a `&`-prefixed keyword, the old path called `bb_varslot_peek("&pos")` → -1 → `drive_unowned` → FATAL op=60. Fix: intercept in TT_SWAP, emit sequential read-old/write-new via `IR_KEYWORD_ICON`+`IR_KEYWORD_ASSIGN` (keyword side) and `IR_VAR`+`IR_ASSIGN` (plain side). Write order per canonical `oasgn.r`: lhs := rhs_old first, then rhs := lhs_old. kw-LHS: keyword write first (OOB → both unchanged). kw-RHS: plain write first, then keyword write (OOB → plain updated, kw not). `rung37_neg_pos` first 5/8 lines now byte-identical. Remaining 3 (`<->` reversible-swap + `&subject` mutation) are TT_REVASSIGN + keyword — separate rung.
+
+**LANDED 2 — RUNG-2: `&error`/`&trace`/`&dump` keyword assignment (SCRIP `0bfe7656`).** Added `rt_keyword_error_set`/`rt_keyword_trace_set`/`rt_keyword_dump_set` in `gen_runtime.c` (same pattern as `rt_keyword_random_set`) and three emit-time-dispatch arms in `bb_keyword_assign.cpp`. Removes the BOMB on `&error := 747`. `rung36_jcon_kwds` and `rung37_keywords` remain failing — pre-existing keyword-READ issues (`&ascii`/`&lcase`/`&cset` printing as raw strings, `&allocated`/`&input`/`&errout` wrong) are a separate keyword-read rung.
+
+**LANDED 3 — RUNG-3: `proc()` builtin two-bug fix (by_name_dispatch.c, SCRIP `07af09e1`).** Bug 1: name-not-found returned `STRVAL(pname)` instead of `FAILDESCR`, breaking `if not (proc("noexist",1))`. Bug 2: known builtins returned `FAILDESCR` instead of `DT_E` with `slen=0xFFFFFFFEu` sentinel, breaking `image(proc("write",1))`. `rung37_proc_lookup` now produces 2/6 expected lines. Remaining 4 (`p0`/`p1`/`p0`/`p11`) need `every write((!plist)())` β-chain backtracking through a call into a nested generator — BENCH-F3, architectural gap.
+
+**FAIL SET (24 open, unchanged from prior session):** `rung36_jcon_{args,coerce,endetab,fncs1,genqueen,htprep,kwds,mffsol,mindfa,parse,prepro,recogn,scan,scan1,scan2,string,string1,substring,table,var}` + `rung37_{keywords,neg_pos,proc_lookup,scan_alt}`. `rung36_jcon_coerce` is the runaway — NEVER run unwrapped. `rung37_neg_pos` 5/8 correct (still FAIL). `rung37_proc_lookup` 2/6 correct (still FAIL).
+
+**NEXT SESSION PRIORITY (leverage, contained-first):**
+1. `rung36_jcon_table` — `key()`/`member()` matching empty slots; check `by_name_dispatch.c` against `fstruct.r`.
+2. `rung36_jcon_substring` — wrong output (not crash); negative-index section semantics.
+3. `rung37_neg_pos` remainder — `<->` reversible-swap + `&subject` mutation (TT_REVASSIGN + keyword).
+4. Triage `rung36_jcon_{args,endetab}` — suspected rc=139, not freshly verified this session.
+5. BENCH-F3 — generator-in-call-arg backtrack; read GOAL-ICON-FULL-PASS.md first.
+6. RESUME-THROUGH-SCAN — highest leverage (4 tests), highest risk; fresh budget only.
+
+**HANDOFF STATUS: SCRIP committed locally (`07af09e1`) + corpus unchanged + .github watermark pending commit. PUSH BLOCKED — credential needed.**
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
 
