@@ -210,6 +210,20 @@ m3/m4; inter-mode divergence brackets a lifetime bug exactly as the monitor brac
   the ASSERT canary still clean across SNOBOL4 crosscheck 276×2 + icon 12/12×2 + prolog 5/5×3 + polyglot 2/2×2; the
   `ZC_PORT_*` axis live with PLAIN default and #error'd illegal combos. **This rung ships NO behavior change — it is the
   experimentation SCAFFOLD ZB-ACT-0 (and every later ζ experiment) builds on.**
+  **▶ LANDED SO FAR (2026-07-06, chat session, Claude Sonnet 5, SCRIP `a62a96b1`) — steps 3+4 PARTIAL, the axis + mode
+  unification:** `ZC_PORT` axis added to `zeta_choices.h` (`PLAIN=0`/`INSTRUMENTED=1`/`ALLOC=2`, default PLAIN, env
+  `SCRIP_ZETA_PORT`). Both D13 hooks — the α hook (`emit.cpp` `emit_zeta_selfload`) and the β hook (`x86_asm.h`
+  `x86_pair_loop`→`x86_zeta_selfload_beta`) — now read ONE shared `x86_port_mode()` instead of their two separate
+  `SCRIP_ZETA_SELFLOAD` readers; the two redundant readers deleted; old `SCRIP_ZETA_SELFLOAD` severed. So α and β
+  instrumentation is now ONE formal port-mode family (step 4's axis + step 3's fold, for α/β). VERIFIED: PLAIN
+  byte-identical to baseline (m3 252/276, m4 251/9/16, DIVERGE=1); INSTRUMENTED clean across all suites; POSITIVE
+  CONTROL (genprobe.sno 0 vs 12 canaries; icon generators.icn 123) proves the axis genuinely drives both hooks;
+  both emit gates PASS. **STILL OPEN (the rung's remainder):** (a) γ and ω are NOT yet routed through a per-port
+  primitive with a formal flavor slot — they still emit bare via `x86_jmp`/`x86_deflabel` (step 1's port-DEFINE/GOTO
+  generalization for all four is unfinished); (b) the 149 template-internal `x86("def", port)` sites are untouched
+  (correctly — instrumenting those is NOT the same as the chain-driver α/β entries, would over-instrument); (c) the
+  `ALLOC` flavor is declared in the axis but unwired (that IS ZB-ACT-0). Next: generalize `x86_jmp`/`x86_deflabel`
+  into the four-port DEFINE/GOTO primitive with a per-port flavor slot so γ/ω have the same formal home α/β now have.
 
 - [ ] **⭐ ZB-ACT-0 — THE CHEAT: PER-BB SELF-ALLOCATION AT α (Lon 2026-07-06 "EUREKA times ten"; BUILDS ON ZB-PORTS).**
   **THE STAKES (why this is the whole ballgame, Lon 2026-07-06):** if a Byrd Box allocates and frees its OWN
