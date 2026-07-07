@@ -1,6 +1,14 @@
 # GOAL-IR-IMMUTABLE-EMIT.md — The emitter READS IR. It NEVER mutates it. (Ground Zero #5)
 
 ## ⛔⛔ PIVOT — ZETA-BLOCKS (Lon, 2026-07-05) — READ FIRST; gates the SN4-PAT ARBNO rung below
+
+**▶▶ CURRENT PRIORITY (Lon, 2026-07-06, "EUREKA times ten"): ZB-ACT-0 — per-BB self-allocation at α/ω.**
+The single highest-leverage rung: if a Byrd Box allocs its own ζ at α and frees at ω, **recursion +
+backtracking + EVAL + CODE all fall out for free** (all are re-entrancy; per-activation ζ is the solution).
+Corrected port model + the ω-is-not-one-site finding + the MALLOC+ASan-first method + the DT_B-flag
+BB-specific-GC insight are all in the ⭐ZB-ACT-0 rung below (§ZB-ACT). Start there. The one4all-archaeology
+"NEXT SESSION" block further down is a SEPARATE track (needs the private-repo credential) — ZB-ACT-0 does
+NOT depend on it; the wiring sites are all in the current tree.
 **[2026-07-05 later same day — OFFICIAL ζ DESIGN DOC: `.github/ARCH-ZETA-LOCAL-STORAGE.md` is now the
 document of record for ζ storage (this section remains the pivot record + rung gates; on storage design
 the ARCH doc WINS). NAMING RETRACTED same day (Lon): do NOT say "ZLA" or "array" — the terms are **ZLS**
@@ -155,32 +163,75 @@ picks a cheap-and-correct starting point on each and refines:
 speed but NEVER behavior — the crosscheck FAIL set and icon rung fail-set stay byte-identical across
 m3/m4; inter-mode divergence brackets a lifetime bug exactly as the monitor brackets a semantic one.
 
-- [ ] **ZB-ACT-0 — THE CHEAT: PER-BB SELF-ALLOCATION AT α (BUMP_INFINITE first).** Pick the smallest
-  re-entrant construct that clobbers under the flat model (candidate: the SCAN-SCRATCH family, or a
-  minimal ARBNO — whichever gives the cleanest oracle-pinned repro). At that box's α port, emit the
-  self-alloc prologue: `mark=zS; blk=rt_zls_alloc(sz); blk.prev=rZ; rZ=blk` (via the §5h self-load hook's
-  central x86() site so it's ZERO per-template edits and BOTH-MEDIUM for free); at the scope's final-γ and
-  ω, emit `zS=mark; rZ=blk.prev`. Run under `ZC_ALLOC=BUMP_INFINITE` FIRST (never releases → any surviving
-  bug is layout/wiring, never lifetime — isolates the wiring from the reclamation). Acceptance: the chosen
-  repro matches the freshly-built `iconx` oracle in BOTH modes; smoke 12/12×2; crosscheck fail-set
-  byte-identical; the three ζ gates green. **This rung is deliberately WASTEFUL and deliberately CORRECT —
-  it is the base every later coalescing rung is measured against.**
-  **WIRING RECON (2026-07-05, verified — the cheat is WIRING, not building; all sites confirmed present):**
-  (1) α-entry central site = `emit.cpp:1462` `emit_zeta_selfload()` — fires at every box's label-define,
-  BOTH mediums, zero per-template edits (the §5h hook, ASSERT mode already landing `test r12,r12;jnz;ud2`
-  at `emit.cpp:1350` — extend this fn with a new `alloc` mode). (2) Allocator already built:
-  `rt_zls_alloc(long)`/`rt_zls_release(void*)` (`zeta_alloc.h`), all ZC_ALLOC axes live. (3) The backing
-  axis: `ZC_ALLOC_BUMP_INFINITE=0` / `_LIFO=1` / `_MALLOC=2` / `_GC=3` (`zeta_choices.h`, default LIFO);
-  the selfload mode enum has room — add `ZC_SELFLOAD_ALLOC` beside `_OFF/_PLANE_CELL/_ASSERT/_STATIC`.
-  (4) Scope-exit sites: the `lbl_β` define + final-γ path in the main emission loop (`emit.cpp` ~1461
-  loop; `emit_label_define_bb(&lbl_β)` after it). The r12 prologue that the cheat REPLACES per-scope is
-  `xa_flat.cpp:84` (`push r12; mov r12, rdi` — the ONE static set). Open sub-question for the rung: the
-  producer→consumer slot-read contract (consumer reads `[r12+producer_off]`) requires the producer's
-  instance to be the SAME block the consumer addresses — so the cheat's first correct form is per-SCOPE
-  (a re-entrant box's whole body-subgraph shares one fresh block, seed-1 `ζ=&_1[i]` model), NOT literally
-  per-individual-box; "per-BB" names the GRAIN of the alloc DECISION (one alloc per re-entrant activation),
-  the body boxes still share that activation's block. This is why ZB-ACT-2's procedure coalescing is the
-  natural next step, not a separate mechanism.
+- [ ] **⭐ ZB-ACT-0 — THE CHEAT: PER-BB SELF-ALLOCATION AT α (CURRENT PRIORITY, Lon 2026-07-06 "EUREKA times ten").**
+  **THE STAKES (why this is the whole ballgame, Lon 2026-07-06):** if a Byrd Box allocates and frees its OWN
+  activation storage at its OWN ports, then **full recursion, backtracking, EVAL, and CODE all fall out for free** —
+  they are all just re-entrancy, and re-entrancy is exactly what per-activation ζ solves. The flat model's entire
+  casualty list (ARBNO wall, queens frame clobber, SCAN-SCRATCH overrun, micsum collision) is the ONE root: no
+  per-activation fresh ζ in emitted code. Crack this and the root is gone.
+  **THE CORRECTED PORT MODEL (worked out with Lon 2026-07-06, supersedes the recon's "final-γ and ω" line below —
+  that line was WRONG on two counts, both verified in code this session):**
+  * **α = ALLOC + LOAD + SAVE.** `blk = rt_zls_alloc(sz); [blk-hdr].prev = r12; r12 = blk`. (The allocator ALREADY
+    maintains this prev-chain internally via `g_zls_cur` — see `zeta_alloc.c:61` — so the emitted SAVE is belt-and-
+    suspenders / for the register discipline; the runtime chain is authoritative for the pop.)
+  * **β = RELOAD only.** `r12 = <this activation's block>`. **β is an ENTRY (resume), NOT an exit — it must NOT free.**
+    A generator that succeeded via γ is resumed via β to yield its NEXT value, reading the SAME still-live block α
+    allocated. Walked the α→γ→β→γ→…→ω sequence explicitly: the block stays alive across every γ/β round-trip and
+    comes down ONLY at ω. Freeing at β tears down live resume state. (The recon below implies β is a release site via
+    the `lbl_β` mention — that is the WRONG read; β reloads, ω frees.)
+  * **γ = NOTHING.** Callee-alloc means a success-exit owns no cleanup — and critically a γ-success may be RESUMED
+    (via β) later, so freeing here would free a block about to be re-entered. (The recon's "final-γ … free" is WRONG:
+    there is no "final" γ knowable at emit time; any γ can be followed by a β.)
+  * **ω = FREE (DEC).** `rt_zls_release(blk)` → r12 restored from `.prev`. This is the true death of the activation.
+  **⚠ THE ω-IS-NOT-A-SINGLE-SITE FINDING (verified this session, the load-bearing correction to "zero per-template
+  edits"):** α and β got zero-edit central hooks because every node has EXACTLY ONE α-define and one β-define — a
+  STRUCTURAL property. **ω does NOT have this property.** `bb_match_arbno.cpp` emits SIX `jmp ω` sites and only ONE
+  (the F-phase exhaust) is the true "activation is dead forever" exit — the other five are INTERNAL control flow
+  reusing the ω port name (G's ω = body-entry edge; K's ω = zero-advance redirect to F; etc.). Hooking `port==OMEGA`
+  universally in `x86_jmp()` (`x86_asm.h:238`, the confirmed central jmp dispatch) would fire a FREE on those internal
+  jumps → under BUMP_LIFO, `rt_zls_release` (`zeta_alloc.c:74`) just snaps `g_zls_top=base` WITHOUT checking it is the
+  topmost frame → **silent free of live memory, exactly the corruption this rung exists to prevent.** So: the FREE must
+  land at the construct's GENUINE exhaustion point (for ARBNO, the F-phase ω specifically), which is construct-aware
+  wiring — smaller than all ~161 templates, but NOT zero. α/β stay central-hook (structural); ω is per-construct-exit.
+  **THE METHOD — PROVE UNDER MALLOC+ASan FIRST (Lon directive 2026-07-06, the correctness-before-perf sequence):**
+  1. Pick ONE construct — **ARBNO** (the documented casualty; find its true F-phase ω first so FREE lands on the real
+     exit, not one of the five decoys). 2. Wire α=alloc+load+save (central §5h hook, new `ZC_SELFLOAD_ALLOC` mode),
+     β=reload (same hook), ω=free (at ARBNO's F-exit, construct-aware). 3. **Build `-DZC_ALLOC=ZC_ALLOC_MALLOC` + ASan
+     and run the repro** — malloc-mode does a REAL malloc per α / REAL free per ω, so a wrong-ω free is caught INSTANTLY
+     and LOUDLY as use-after-free/mismatched-free with a stack trace, instead of BUMP_LIFO silently corrupting three
+     statements downstream. malloc-mode is the PROVING GROUND precisely because it converts the subtle stack-discipline
+     bug into a located crash. 4. Only once ASan-clean, flip to `ZC_ALLOC=BUMP_LIFO` and confirm byte-identical behavior
+     (the mode-invariance gate). 5. Run under `BUMP_INFINITE` too as the pure-wiring isolation (never releases → any
+     surviving bug is layout, never lifetime).
+  **THE BB-SPECIFIC-GC EUREKA (Lon 2026-07-06 — the deeper prize, its own future rung, NOT ZB-ACT-0 scope):** a Byrd
+  Box is PURE-FUNCTIONAL with exactly one entry-family and one exit-family ⇒ **block liveness is a STRUCTURAL fact of
+  control position, not a heap-reachability question.** The ω port IS the death — you never TRACE to discover a ζ-block
+  is dead. So a `DT_B` block-area DESCR could carry an allocation-state FLAG set at α / cleared at ω, and the
+  "collector" becomes an ASSERTION that the stack discipline held, not a mark-and-sweep. This is a GC SPECIFIC TO THE
+  BYRD BOX TECHNIQUE, structurally simpler than the SIL mark-slide (§6) because the BB structure pre-answers the
+  liveness question. **Prove the alloc/free wiring first (this rung, via GC/malloc); the DT_B-flag BB-GC is what it
+  earns its way toward** — possibly REPLACING the general GC for pure-ζ-block storage entirely (the D14 fork, now with
+  a concrete mechanism). Interleaving non-ζ allocation is what would break the pure-stack property; keep ζ blocks
+  uninterleaved and this stays simple.
+  **THE ONE-INSTRUCTION-BUMP END STATE (Lon's stated aspiration, honest status):** α-alloc → `inc`/`add`, ω-free →
+  `dec`/`sub` — a bare bump. NOT achievable at step 1: `rt_zls_alloc` currently also zero-inits, advances a hiwater
+  mark, AND registers GC roots (`zeta_alloc.c:51-54`). Strip those (no GC-visible pointers in the block, or roots
+  handled structurally) and the bare bump is reachable. Real end-state, not the starting point.
+  **Acceptance (this rung):** the ARBNO repro matches freshly-built oracle BOTH modes; ASan-clean under MALLOC;
+  byte-identical BUMP_LIFO vs INFINITE (mode-invariance); smoke 12/12×2; crosscheck fail-set byte-identical; three ζ
+  gates green. **Deliberately WASTEFUL, deliberately CORRECT — the base every later coalescing rung is measured against.**
+  **WIRING RECON (2026-07-05 — sites still valid; the PORT SEMANTICS above CORRECT this note's γ/ω/β reads):**
+  (1) α-entry central site = `emit.cpp` `emit_zeta_selfload()` (post-D13 the fn also has a β-define twin in
+  `x86_pair_loop()`, `x86_asm.h`) — fires at every box's label-define, BOTH mediums (the §5h hook; ASSERT mode landed
+  `test r12,r12;jnz;ud2` — extend with a new `ALLOC` mode). (2) Allocator built: `rt_zls_alloc(long)`/
+  `rt_zls_release(void*)` (`zeta_alloc.h`), all ZC_ALLOC axes live; internal prev-chain via `g_zls_cur`. (3) Backing
+  axis: `ZC_ALLOC_BUMP_INFINITE=0`/`_LIFO=1`/`_MALLOC=2`/`_GC=3` (`zeta_choices.h`, default LIFO); **add
+  `ZC_SELFLOAD_ALLOC` beside `_OFF/_PLANE_CELL/_ASSERT/_STATIC` — NOT YET ADDED, this rung adds it.** (4) The r12
+  prologue the cheat REPLACES per-scope is `xa_flat.cpp:84` (`push r12; mov r12, rdi` — the ONE static set). Open
+  sub-question: the producer→consumer slot-read contract (`[r12+producer_off]`) requires producer + consumer to share
+  ONE block ⇒ the cheat's first correct form is per-SCOPE (a re-entrant box's whole body-subgraph shares one fresh
+  block, seed-1 `ζ=&_1[i]`), NOT literally per-individual-box; "per-BB" names the GRAIN of the alloc DECISION (one
+  alloc per re-entrant activation). This is why ZB-ACT-2's procedure coalescing is the natural next step.
 - [ ] **ZB-ACT-1 — FLIP TO BUMP_LIFO, PROVE RECLAMATION.** Same wiring, `ZC_ALLOC=BUMP_LIFO` (mark/release
   per §5c). The LIFO invariant (§5c) must hold: failure fully unwinds rightward frames before any left-β
   re-entry. Acceptance: byte-identical behavior to ZB-ACT-0 under INFINITE (the mode-invariance gate
@@ -809,6 +860,8 @@ OLD SCOREBOARD (2026-07-03 pre-keyword-gen): oracle 10/10 · m3 **2/10** · m4 *
 - [ ] **ICNBENCH-FENCE** — `bash scripts/test_icon_bench_corpus.sh` reports 10/10 on both m3 and m4 (or documents a principled, permanent exclusion per program) before this rung closes.
 
 ## Watermark
+
+**⌚ 2026-07-06 (chat session, Claude Sonnet 5 — ZB-ACT-0 SET AS CURRENT PRIORITY + port model CORRECTED; doc-only, no code landed this entry).** Lon's "EUREKA times ten": per-BB self-allocation is the single highest-leverage rung because recursion + backtracking + EVAL + CODE all fall out of it (all re-entrancy; per-activation ζ is the fix). Updated the ⭐ZB-ACT-0 rung (§ZB-ACT) + added a CURRENT-PRIORITY banner atop the PIVOT section. THREE CORRECTIONS to the rung, all verified in live code this session (not prose): (1) **Port model fixed** — the recon's "free at final-γ and ω" was WRONG on two counts: γ frees NOTHING (a γ-success can be resumed via β → freeing there kills a block about to be re-entered; there is no emit-time-knowable "final" γ), and β is a RESUME ENTRY that RELOADS r12, never frees (walked α→γ→β→…→ω: the block stays live across every γ/β round-trip, dies only at ω). Correct model: **α=alloc+load+save, β=reload, γ=nothing, ω=free.** (2) **ω is NOT a zero-edit central hook** — α/β got central hooks because each node has exactly one α-define / one β-define (structural); but `bb_match_arbno.cpp` emits SIX `jmp ω` and only the F-phase one is true exhaustion (the other five are internal control flow reusing the port name). Hooking `port==OMEGA` in `x86_jmp()` universally would fire FREE on internal jumps → under BUMP_LIFO `rt_zls_release` snaps `g_zls_top` WITHOUT a topmost-check → silent free of live memory. So ω-free is construct-aware wiring (ARBNO's F-exit), not a port hook. (3) **Method = MALLOC+ASan FIRST** — `ZC_ALLOC_MALLOC` (live now) does real malloc/free per α/ω, so a wrong-ω free is caught instantly+loudly by ASan with a trace, vs BUMP_LIFO corrupting silently downstream; prove ASan-clean, THEN flip to BUMP_LIFO and confirm byte-identical (mode-invariance). Also captured Lon's BB-SPECIFIC-GC insight as a future rung (a BB is pure-functional ⇒ liveness is structural, the ω port IS the death ⇒ a DT_B alloc-state flag + assertion replaces mark-sweep for pure-ζ storage; the D14 fork with a concrete mechanism) and the one-instruction-bump end-state (honest status: blocked today by `rt_zls_alloc`'s zero-init + hiwater + GC-root work). BUMP_LIFO confirmed already the default (`zeta_choices.h:9`, since D15). `ZC_SELFLOAD_ALLOC` mode NOT yet added — the rung adds it. Files touched: `GOAL-IR-IMMUTABLE-EMIT.md` (this file). NEXT: implement ZB-ACT-0 — find ARBNO's true F-phase ω, wire α/β/ω, prove under MALLOC+ASan.
 
 **[2026-07-06 — SNOBOL4 LADDERS RELOCATED, journal kept whole.** The SN4-PAT pattern-reconstruction ladder and the SNOBOL4 subset RE-LIGHT ladder (each carrying its full per-rung LANDED record) moved to `GOAL-SNOBOL4-BB.md`, now SNOBOL4's test-suite-crawl home. The chronological watermarks BELOW stay HERE as the whole-project time-ordered journal — SNOBOL4 session entries (SN4-PAT-ARBNO-2, SN4-PAT-3a..3g, SN4-PAT-2, …) included, since they interleave with Icon/ζ/GC sessions from the same days. For the LIVE SNOBOL4 state, read that file's CURRENT-STATE head, not these summaries.]**
 **⌚ 2026-07-05 (ARBNO-v2 session, Claude Fable 5 — SN4-PAT-ARBNO-2 LANDED: generator bodies via per-iteration COLLECTION (ARCH §5f first live use) + the ALT-RESUME prerequisite; full landing record in the SN4-PAT-ARBNO-2 ladder entry above).** THE LOAD-BEARING DISCOVERY: ALT was never resumable (no β arm, absent from generator-kind) — `('a'|'ab') 'c'` failed vs oracle at clean HEAD; fixed via uniform JOIN boxes whose α MARKS its own reload arm's address (`lea r64,[rip+L(n)]`, NEW ENCODER, same J-record rel32 fixup as jmp) into the SAVE slot's ZK_PTR_CODE cell, SAVE.β = `jmp qword [slot+8]` replaying the forward-fail path. ARBNO v2 = ADDITIVE roles 3/4/5 (Lon ruling: "phase" is a MISNOMER for the box-ROLE discriminator; concept stands, rename later): 32B owner quad, elements = 16B header {prev_rZ, cur_before} + the body's contiguous slot window, rZ REPOINTED per iteration, geometry via operand-bracketed allocation window → zls_build post-pass → `zls_arbno_geom`; `rt_zcol_push` realloc+GC-roots (elements hold capture-buf GC ptrs), fresh-index zeroing, ptr/cap persist per frame (loop-torture 2001× == oracle). Honest v3 gates: det-tail bodies (Finding-B pass-through), nested ARBNO (RELOAD-LAW escape via movable prev_rZ), FENCE-in-body (seal bypasses rZ restore), generator-in-alternative (mark skips inner ways). MALLOC frame-death leak documented; D7 may want re-ruling → GC. **MEASURED: crosscheck m3 189→190, m4 189→190, DIVERGE=0, stash-verified full fail-set diff == exactly {054} both modes** (baseline correction: 057/W02 were already m4-FAIL at HEAD `1d205f46`, the "3 parked" note was stale); probes 6/6 ALT + 10/10 ARBNO m3==m4==oracle; GC_STRESS green; icon 12/12×2; 7 gates PASS; regen benchmark+demo (corpus) = 0 changed; feature .s (SCRIP-side, `test/snobol4/**/*.s`) DID change for ALT/ARBNO-bearing tests — correctly, since their codegen changed — committed separately by the regen script (this session's initial watermark wrongly said "0 changed" across the board; corrected here). Benchmark EMIT-FAILs stash-proven pre-existing. NEXT: Finding-B pass-through un-gates det-tail bodies; nested ARBNO wants GC-4.
