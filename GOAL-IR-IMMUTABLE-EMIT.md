@@ -2,13 +2,16 @@
 
 ## ⛔⛔ PIVOT — ZETA-BLOCKS (Lon, 2026-07-05) — READ FIRST; gates the SN4-PAT ARBNO rung below
 
-**▶▶ CURRENT PRIORITY (Lon, 2026-07-06, "EUREKA times ten"): ZB-ACT-0 — per-BB self-allocation at α/ω.**
-The single highest-leverage rung: if a Byrd Box allocs its own ζ at α and frees at ω, **recursion +
-backtracking + EVAL + CODE all fall out for free** (all are re-entrancy; per-activation ζ is the solution).
-Corrected port model + the ω-is-not-one-site finding + the MALLOC+ASan-first method + the DT_B-flag
-BB-specific-GC insight are all in the ⭐ZB-ACT-0 rung below (§ZB-ACT). Start there. The one4all-archaeology
-"NEXT SESSION" block further down is a SEPARATE track (needs the private-repo credential) — ZB-ACT-0 does
-NOT depend on it; the wiring sites are all in the current tree.
+**▶▶ CURRENT PRIORITY (Lon, 2026-07-06, "EUREKA times ten"): per-BB self-allocation — but FIRST its scaffold.**
+The single highest-leverage goal: if a Byrd Box allocs its own ζ at α and frees at ω, **recursion + backtracking
++ EVAL + CODE all fall out for free** (all are re-entrancy; per-activation ζ is the solution). **SEQUENCE (Lon
+directive 2026-07-06): do ⭐⭐ZB-PORTS FIRST** — formalize all four ports (α β γ ω) as overloadable `x86()`-routed
+primitives (plain / instrumented / alloc flavors, mode-switched, zero per-template edits) — **THEN ⭐ZB-ACT-0**
+(the alloc/free wiring, which becomes the `alloc` flavor of the formalized ports). Both rungs are in §ZB-ACT
+below. The corrected port model, the free-delineation finding (free is CALLER-side per the 4/28 milestone, on
+both γ/ω return edges — one4all now public + cloned + verified), the MALLOC+ASan-first method, and the
+DT_B-flag BB-specific-GC insight are all recorded there. The one4all-archaeology "NEXT SESSION" block further
+down is a SEPARATE track — ZB-PORTS/ZB-ACT-0 wiring sites are all in the current tree.
 **[2026-07-05 later same day — OFFICIAL ζ DESIGN DOC: `.github/ARCH-ZETA-LOCAL-STORAGE.md` is now the
 document of record for ζ storage (this section remains the pivot record + rung gates; on storage design
 the ARCH doc WINS). NAMING RETRACTED same day (Lon): do NOT say "ZLA" or "array" — the terms are **ZLS**
@@ -166,7 +169,49 @@ picks a cheap-and-correct starting point on each and refines:
 speed but NEVER behavior — the crosscheck FAIL set and icon rung fail-set stay byte-identical across
 m3/m4; inter-mode divergence brackets a lifetime bug exactly as the monitor brackets a semantic one.
 
-- [ ] **⭐ ZB-ACT-0 — THE CHEAT: PER-BB SELF-ALLOCATION AT α (CURRENT PRIORITY, Lon 2026-07-06 "EUREKA times ten").**
+- [ ] **⭐⭐ ZB-PORTS — FORMALIZE ALL FOUR PORTS AS OVERLOADABLE `x86()` PRIMITIVES (Lon directive 2026-07-06; PREREQUISITE to ZB-ACT-0 — do this FIRST).**
+  **THE DIRECTIVE (Lon, verbatim-in-spirit):** all four ports — α β γ ω — must be FORMALLY DEFINED in the template
+  layer, each as a single `x86()`-routed primitive whose behavior can be OVERLOADED by mode: a plain flavor (straight
+  gotos + labels, today's behavior), an instrumented flavor (the ASSERT canary), an alloc/free-bearing flavor (ZB-ACT),
+  and as many more as experiments need — ALL encapsulated inside (or wrapped around) `x86()`. Formalizing BB port
+  emission this way is what gives the freedom to experiment: flip a mode, get a different port discipline, ZERO
+  per-template edits.
+  **WHY THIS COMES FIRST (and reframes the six-decoy-ω finding):** the funnel ALREADY physically exists but is "dumb" —
+  `x86_deflabel(port)` (`x86_asm.h:243`, the ONE port-label-define site) and `x86_jmp(port)` (`x86_asm.h:238`, the ONE
+  port-goto site), both routed through the central `"def"`/`"jmp"` mnemonic dispatch (lines 648/653), both BOTH-MEDIUM.
+  But they only emit bare `label:` / `jmp label`. The α hook (`emit_zeta_selfload`, emit.cpp) and the β hook (in
+  `x86_pair_loop`, x86_asm.h — landed this session for D13) are bolted on OUTSIDE this funnel, in TWO DIFFERENT places —
+  the exact inconsistency this rung removes. Once every port define/goto routes THROUGH one overloadable per-port
+  primitive, the "which ω is the true exit vs. a decoy" problem (six `jmp ω` in `bb_match_arbno.cpp`, only F-phase real)
+  becomes a PROPERTY THE PRIMITIVE CARRIES — the emitter can distinguish a construct-exit ω from an internal-control ω
+  at the formalized site, instead of it being a scattered accident. The caller-side free finding (from the 4/28
+  milestone, above) folds in cleanly too: the caller's post-call continuation is itself a formalizable emission point.
+  **STEPS:**
+  1. **Define the four-port primitive surface.** One entry-primitive and one exit-primitive per port, all routed
+     through `x86()`: port-DEFINE (α/β/γ/ω label define — generalize `x86_deflabel`) and port-GOTO (jmp-to-port —
+     generalize `x86_jmp`). Each takes the port id; each consults a per-port MODE to select its flavor. The mode
+     source mirrors the landed selfload pattern: a compile-time default in `zeta_choices.h` + an env override read
+     once and cached (`SCRIP_ZETA_*`), so flipping a flavor is one env var, no rebuild.
+  2. **Plain flavor = today's exact bytes.** The default mode emits precisely what `x86_deflabel`/`x86_jmp` emit now —
+     bare label / bare jmp. ACCEPTANCE for this step alone: full crosscheck + icon/prolog/polyglot smoke BYTE-IDENTICAL
+     to pre-rung (the formalization is behavior-neutral at default; this is the mode-invariance gate applied to the
+     refactor itself). This step is a pure plumbing refactor and must show zero diff.
+  3. **Fold the two existing hooks into the formalized surface.** The α `emit_zeta_selfload` and the β
+     `x86_pair_loop` ASSERT canary become the `instrumented` flavor of the α-define and β-define primitives —
+     delete the bolted-on sites, prove the ASSERT canary still never fires across the full suite (as it did when
+     each landed). Now α and β are handled by the SAME mechanism, not two.
+  4. **Add the port MODE axis to `zeta_choices.h`.** A `ZC_PORT_*` axis (or extend `ZC_SELFLOAD`) enumerating the
+     flavors: `PLAIN` / `INSTRUMENTED` / `ALLOC` (the last is ZB-ACT's, stubbed here, wired there). `#error` illegal
+     combos. Default `PLAIN`.
+  5. **Leave γ and ω formalized-but-plain.** They get their primitive + the plain flavor now; the ALLOC flavor's
+     free-on-γ/ω (caller-side per the milestone) is ZB-ACT-0's job, but the SITE it hooks now exists and is uniform.
+  **ACCEPTANCE (whole rung):** all four ports emit through the formalized `x86()`-routed primitives; default mode
+  byte-identical to today (crosscheck + all smokes); the two existing hooks refolded into the instrumented flavor with
+  the ASSERT canary still clean across SNOBOL4 crosscheck 276×2 + icon 12/12×2 + prolog 5/5×3 + polyglot 2/2×2; the
+  `ZC_PORT_*` axis live with PLAIN default and #error'd illegal combos. **This rung ships NO behavior change — it is the
+  experimentation SCAFFOLD ZB-ACT-0 (and every later ζ experiment) builds on.**
+
+- [ ] **⭐ ZB-ACT-0 — THE CHEAT: PER-BB SELF-ALLOCATION AT α (Lon 2026-07-06 "EUREKA times ten"; BUILDS ON ZB-PORTS).**
   **THE STAKES (why this is the whole ballgame, Lon 2026-07-06):** if a Byrd Box allocates and frees its OWN
   activation storage at its OWN ports, then **full recursion, backtracking, EVAL, and CODE all fall out for free** —
   they are all just re-entrancy, and re-entrancy is exactly what per-activation ζ solves. The flat model's entire
@@ -890,6 +935,8 @@ OLD SCOREBOARD (2026-07-03 pre-keyword-gen): oracle 10/10 · m3 **2/10** · m4 *
 - [ ] **ICNBENCH-FENCE** — `bash scripts/test_icon_bench_corpus.sh` reports 10/10 on both m3 and m4 (or documents a principled, permanent exclusion per program) before this rung closes.
 
 ## Watermark
+
+**⌚ 2026-07-06 (chat session cont., Claude Sonnet 5 — ZB-PORTS added as PREREQUISITE to ZB-ACT-0; one4all cloned + verified; free-delineation extracted from the 4/28 milestone; doc-only).** Lon directive: formalize all four ports (α β γ ω) as overloadable `x86()`-routed primitives BEFORE the alloc/free wiring — plain / instrumented / alloc flavors, mode-switched, zero per-template edits; "formalizing BB port emission gives freedom to experiment." Added the ⭐⭐ZB-PORTS rung ahead of ⭐ZB-ACT-0 in §ZB-ACT, updated the priority banner + PLAN.md. GROUND TRUTH verified in code: the funnel already physically exists (`x86_deflabel(port)` x86_asm.h:243 = the one port-label site; `x86_jmp(port)` :238 = the one port-goto site; both through the central "def"/"jmp" dispatch, both BOTH-MEDIUM) but is "dumb" (bare label/jmp); the α hook (`emit_zeta_selfload`) and β hook (`x86_pair_loop`, D13 this session) are bolted on OUTSIDE it in two different places — ZB-PORTS routes all four ports through one overloadable per-port primitive and refolds those two hooks into its `instrumented` flavor. KEY REFRAME: once ω routes through the formalized primitive, the six-decoy-ω problem (bb_match_arbno.cpp: 6 `jmp ω`, only F-phase real) becomes a property the primitive carries, not a scattered accident. ALSO THIS SESSION: cloned now-public one4all (`a0bb9be4` HEAD, milestone `4757bbcd` + beauty_prog.s present, full 4155-history present — corrected the doc's "history not carried" claim); extracted the FREE-DELINEATION from beauty_prog.s (`ucall50`/`ucall51`): `blk_free` is CALLER-side at the post-call return continuation, TWO edges (ret_g + ret_o), NOT in the callee's ports — dissolves the γ-resume trap structurally (free reached only when control returns past the call site, after the callee's internal γ↔β loop finishes; a resume is a fresh caller-side alloc+jmp). Answers Lon's "statement level? pattern match final level?": statement-grain for proc/ucall, match-statement-grain for pattern ζ — the call/return boundary IS the delineation. Files: `GOAL-IR-IMMUTABLE-EMIT.md`, `PLAN.md`. Commits (local): `234663bc` (priority+port-model), `192c1139` (free-delineation), this entry follows. NEXT: implement ZB-PORTS step 1-2 (formalize the four port primitives, prove default byte-identical), THEN ZB-ACT-0.
 
 **⌚ 2026-07-06 (chat session, Claude Sonnet 5 — ZB-ACT-0 SET AS CURRENT PRIORITY + port model CORRECTED; doc-only, no code landed this entry).** Lon's "EUREKA times ten": per-BB self-allocation is the single highest-leverage rung because recursion + backtracking + EVAL + CODE all fall out of it (all re-entrancy; per-activation ζ is the fix). Updated the ⭐ZB-ACT-0 rung (§ZB-ACT) + added a CURRENT-PRIORITY banner atop the PIVOT section. THREE CORRECTIONS to the rung, all verified in live code this session (not prose): (1) **Port model fixed** — the recon's "free at final-γ and ω" was WRONG on two counts: γ frees NOTHING (a γ-success can be resumed via β → freeing there kills a block about to be re-entered; there is no emit-time-knowable "final" γ), and β is a RESUME ENTRY that RELOADS r12, never frees (walked α→γ→β→…→ω: the block stays live across every γ/β round-trip, dies only at ω). Correct model: **α=alloc+load+save, β=reload, γ=nothing, ω=free.** (2) **ω is NOT a zero-edit central hook** — α/β got central hooks because each node has exactly one α-define / one β-define (structural); but `bb_match_arbno.cpp` emits SIX `jmp ω` and only the F-phase one is true exhaustion (the other five are internal control flow reusing the port name). Hooking `port==OMEGA` in `x86_jmp()` universally would fire FREE on internal jumps → under BUMP_LIFO `rt_zls_release` snaps `g_zls_top` WITHOUT a topmost-check → silent free of live memory. So ω-free is construct-aware wiring (ARBNO's F-exit), not a port hook. (3) **Method = MALLOC+ASan FIRST** — `ZC_ALLOC_MALLOC` (live now) does real malloc/free per α/ω, so a wrong-ω free is caught instantly+loudly by ASan with a trace, vs BUMP_LIFO corrupting silently downstream; prove ASan-clean, THEN flip to BUMP_LIFO and confirm byte-identical (mode-invariance). Also captured Lon's BB-SPECIFIC-GC insight as a future rung (a BB is pure-functional ⇒ liveness is structural, the ω port IS the death ⇒ a DT_B alloc-state flag + assertion replaces mark-sweep for pure-ζ storage; the D14 fork with a concrete mechanism) and the one-instruction-bump end-state (honest status: blocked today by `rt_zls_alloc`'s zero-init + hiwater + GC-root work). BUMP_LIFO confirmed already the default (`zeta_choices.h:9`, since D15). `ZC_SELFLOAD_ALLOC` mode NOT yet added — the rung adds it. Files touched: `GOAL-IR-IMMUTABLE-EMIT.md` (this file). NEXT: implement ZB-ACT-0 — find ARBNO's true F-phase ω, wire α/β/ω, prove under MALLOC+ASan.
 
