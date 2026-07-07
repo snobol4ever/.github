@@ -1,7 +1,207 @@
+<!-- ════════════ TOP PRIORITY RUNG (Lon, 2026-07-06 session cont.) ════════════ -->
+
+## ⭐⭐⭐ TOP PRIORITY RUNG: BB-OWNED-ζ — per-BB self-allocating memory, THE BB-SPECIFIC GC (Lon pivot, this session)
+
+**THE IDEA (Lon, verbatim-in-spirit):** a new kind of GC, distinct from the SIL mark/slide/adjust family (§6 in
+`GOAL-IR-IMMUTABLE-EMIT.md`), marked by BB entry/exit instead of heap-reachability tracing. **α does the ALLOC + SET
+R12 + saves it for β to load. β LOADS that saved R12 (no alloc). γ has nothing special. The jump to ω out of a
+construct's TRUE exit is a FREE.** Start with `ZC_ALLOC_INFINITE` (a bump arena that never frees) to prove the
+wiring is correct before anything reclaims. Three steps: (1) per-BB self-alloc under INFINITE (correctness only,
+nothing freed yet); (2) flip the backing to something that actually slides/adjusts the already-marked blocks (real
+reclamation); (3) an optimizer pass finds CHAINS of these BBs with a single α-entry / single ω-exit and coalesces
+them onto ONE shared R12, so the per-BB grain is the CORRECTNESS baseline and the chain-coalesce is the SPEED
+optimization layered on top, not a redesign. **This is the ⭐ZB-ACT-0 / ZB-ACT-1 / ZB-ACT-2 ladder already sitting
+in `GOAL-IR-IMMUTABLE-EMIT.md` (§ZB-ACT, Lon's "EUREKA times ten," 2026-07-06) — same idea, independently arrived
+at twice same-day, now merged into ONE rung, with ARBNO as the first construct because it's the documented casualty
+(re-entrant iteration clobbering its one static slot) and because its `bb_match_arbno.cpp` template already exists
+to test against.**
+
+**⚠ THE PART OF THIS IDEA ALREADY TRIED AND FOUND WRONG, SAME-DAY, VERIFIED IN LIVE CODE (do not re-derive this the
+hard way — read it once here):** "ω = free, uniformly, for every jump to the ω port" is NOT structurally sound.
+α and β get a clean zero-edit central hook because every node has EXACTLY ONE α-define and ONE β-define — that's a
+structural property of the port model. **ω does NOT have this property in every template.** Verified by direct
+read of `src/templates/bb_match_arbno.cpp` this session: it emits SIX literal `jmp "ω"` sites across its six roles
+(v1: G/K/F: roles 0/1/2; v2 per-iteration-COLLECTION body: G/K/F: roles 3/4/5), and only TWO of the six (role 2's
+line 70, role 5's line 133) are the construct's genuine "this activation is dead forever" exit. The other four
+(role 0 line 54, role 1 line 64, role 3 line 95, role 4 line 111) reuse the literal ω port name for internal
+control flow — role 0/3's ω actually means "enter the body" (a forward/success-shaped jump wearing the ω name);
+role 1/4's ω means "refuse this zero-advance extension, hand off to the exhaust role" (which IS role 2/5's true
+exit, reached via alias). Hooking `port==OMEGA` universally at the central jump-dispatch site (`x86_jmp`,
+`x86_asm.h:238`) would fire a FREE on the four internal jumps too. Under a bump/LIFO backing, `rt_zls_release`
+(`zeta_alloc.c:74`) snaps the bump pointer back WITHOUT checking it's actually the topmost live frame — so a wrong
+free here is **silent corruption three statements downstream**, not a crash at the bad instruction. That's the
+trap: the bug doesn't announce itself where it happens.
+
+**THE REWIRE QUESTION Lon asked THIS SESSION, ANSWERED (read `bb_match_arbno.cpp` first, don't assume):** *can the
+ω's be made unique instead of construct-aware-hunting the true one?* **Answer: looks mechanically cheap FOR THIS
+TEMPLATE, not yet proven for the other 20.** The six sites fall into a legible repeating two-per-role-family
+pattern (generator role's ω = "enter body", body-success role's ω = "refuse, defer to exhaust", exhaust role's ω =
+true death) — nothing about the CONTROL FLOW needs to change, only which string names the jump/label pair at each
+site. Renaming role 0/3's exit to e.g. `ω_arbno_enter_body`, role 1/4's to `ω_arbno_refuse`, and reserving bare `ω`
+for role 2/5 looks like a pure find-and-relabel inside one template — the jump TARGETS don't move. **The catch:**
+this is one template out of the 21-member `bb_match_*` family (`abort/advance/any/arb/arbno/atp/break/breakx/
+capture/defer/fence/head/len/notany/pos/rem/retry/rtab/span/span_var/tab`); if unique-naming turns out to fight
+some OTHER template's structure (a generator role whose "enter body" jump can't cleanly get a distinct label, or a
+template where the true exit ISN'T reachable via a clean alias the way role 2 aliases role 1's refusal here), the
+convention has to be decided once and applied uniformly, not re-invented per template. This is worth discovering
+by actually building ARBNO's slice first, not by auditing all 21 up front — **the rewire is STEP 1 to actually
+attempt, not a fallback**; construct-aware ω-hunting per the ORIGINAL corrected model (below) is the fallback if
+renaming fights a given template.
+
+**THE METHOD — MALLOC+ASan BEFORE BUMP, either way this resolves (Lon directive, corrected model, already in
+`GOAL-IR-IMMUTABLE-EMIT.md` §ZB-ACT):** whichever way the ω question resolves for a given template, prove the
+wiring under `-DZC_ALLOC=ZC_ALLOC_MALLOC` + ASan FIRST — a real malloc per α, a real free per the chosen ω site(s),
+so a wrong free is caught INSTANTLY and LOUDLY as a stack-traced use-after-free/mismatched-free, not a silent
+bump-pointer snap. Only once ASan-clean, flip to `ZC_ALLOC_BUMP_LIFO` (or start at `ZC_ALLOC_BUMP_INFINITE` per
+Lon's ask — pure-wiring isolation, nothing ever frees, so any surviving bug is layout, never lifetime) and confirm
+BYTE-IDENTICAL behavior across backings — the MODE-INVARIANCE GATE: an allocator/grain change may alter bytes and
+speed, NEVER behavior; the crosscheck fail-set must stay byte-identical m3/m4/backing-to-backing.
+
+**STEPS (three, per Lon — matches ZB-ACT-0/1/2 exactly):**
+1. **STEP 1 — per-BB self-alloc, correctness only, `ZC_ALLOC_INFINITE` backing.** Instrument ARBNO's α/β/ω per the
+   port model above (α=alloc+set+save R12, β=load-only, γ=untouched). Try the unique-ω-naming rewire first; fall
+   back to construct-aware true-ω wiring (role 2 v1 / role 5 v2 specifically) if renaming fights the template.
+   Nothing frees yet — INFINITE never releases. Acceptance: ARBNO repro matches oracle both modes; the OLD
+   clobber-on-re-entry bug (documented casualty — re-entrant iteration reusing its one static whole-program slot)
+   is GONE; crosscheck fail-set byte-identical to pre-rung (this is additive, default-off until wired live).
+2. **STEP 2 — real reclamation.** Flip backing to something that actually slides/adjusts the marked-dead blocks
+   (BUMP_LIFO first, per the existing ZC_ALLOC axis — mark/release, LIFO discipline; the eventual BB-specific
+   slide/adjust GC is the longer-term target per the BB-SPECIFIC-GC EUREKA below). Prove under MALLOC+ASan first
+   per THE METHOD above, THEN flip to the real backing and confirm byte-identical to STEP 1's INFINITE run
+   (mode-invariance gate — proves reclamation introduced no lifetime bug, doesn't just look fast).
+3. **STEP 3 — chain-coalesce optimization.** An optimizer pass finds chains of these self-allocating BBs with a
+   single α-entry / single ω-exit (no internal branch back out) and coalesces them onto ONE shared R12 — the BB
+   "owns" its memory individually as the correctness baseline; the chain-share is a LATER optimization on top, not
+   a prerequisite. This is exactly ZB-ACT-2's "procedure grain on the emitted side" generalized to any coalescible
+   chain, not just procedure boundaries.
+
+**THE BB-SPECIFIC-GC EUREKA this rung is actually chasing (why Lon called it top priority):** a Byrd Box is
+pure-functional with exactly one entry-family and one exit-family ⇒ block liveness is a STRUCTURAL fact of control
+position, not a heap-reachability question a tracer has to discover. The ω port (the TRUE one) IS the death — you
+never trace to find out a ζ-block is dead, you just reached the instruction that means it's dead. So the "collector"
+degenerates to an ASSERTION that the stack discipline held (a flag set at α, cleared at true-ω), not a mark-and-
+sweep — structurally simpler than the SIL mark/slide/adjust family precisely because the BB structure pre-answers
+the liveness question that general GC has to compute. **If alloc is one bump on entry and free is a flag/pointer-
+snap on exit, and R12 can be shared across a coalesced chain as the final optimization — yes, this looks like a
+genuinely speedy design, PROVIDED the true-ω question is answered correctly per construct (or the unique-naming
+rewire pans out).** That "provided" is exactly what STEP 1 proves before anything else in this rung is trusted.
+
+**Prereq reads before touching code:** `GOAL-IR-IMMUTABLE-EMIT.md` §ZB-ACT in full (the ⭐⭐ZB-PORTS /
+⭐ZB-ACT-0 / ZB-ACT-1 / ZB-ACT-2 rungs — ZB-PORTS may already be landed or in-flight this session per that file's
+watermark journal, check its own top-of-section CURRENT-PRIORITY banner before assuming step order), plus
+`ARCH-ZETA-LOCAL-STORAGE.md` (the ζ design doc of record) and `src/contracts/zeta_choices.h` (the `ZC_ALLOC` /
+`ZC_SELFLOAD` axes — already built, this rung is about who calls them and where, not building allocation).
+**Do NOT duplicate the ζ history into this file** — this rung is the SNOBOL4/ARBNO-facing entry point and pointer;
+the full design, the choice-space (granularity × backing), and the six-model ζ history stay in the GZ#5 file per
+the existing PLAN.md split.
+
+### SESSION LOG — first STEP-1 slice attempted, real progress + one real structural gap found (same session)
+
+**What actually got built and is sitting in the tree right now, all gated behind `ZC_SELFLOAD_ALLOC` (=4, new
+enum value, added this session to `zeta_choices.h`) and fully inert by default — confirmed byte-identical
+252/276·251/9/16·DIVERGE=1 crosscheck vs. pre-rung baseline with the mode off:**
+- `emit.h`: new `int op_omega_is_death` field on the shared emit context.
+- `emit.cpp`: `op_omega_is_death` computed ONCE, correctly, per node, at the exact point the flattening loop
+  (`codegen_flat_chain_body`) already resolves `omega_resolved`/`otgt` for that node's ω-edge — true iff the edge
+  falls all the way through to the chain's own outer `lbl_ω` and isn't a disguised `IR_SUCCEED` fallthrough. This
+  field is SOUND and reusable — it is NOT currently read by anything (see below) but costs nothing left in place.
+- `x86_asm.h`: `x86_selfload_mode()` (env-override reader, mirrors `x86_port_mode()`'s `SCRIP_ZETA_PORT` pattern —
+  new var `SCRIP_ZETA_SELFLOAD`) and `x86_zeta_free_call()` (alignment-safe `call rt_zls_release(r12)`, forward-
+  declared before `x86_jmp` / defined after `x86()` because `x86()` itself calls `x86_jmp` — ordering constraint,
+  now documented in-file). **`x86_zeta_free_call()` is currently UNUSED** — see the r12-vs-carrier finding below.
+- `zeta_alloc.c`/`.h`: two new accessors, `rt_zls_arbno_step1_store(void*)` / `rt_zls_arbno_step1_load(void)`,
+  backed by ONE static pointer (`g_zls_arbno_step1_carrier`). Explicitly scoped in the source comment as
+  sequential-reentry-only, not nested/concurrent — see below, this limit is now CONFIRMED hit in practice, not
+  just theorized.
+- `bb_match_arbno.cpp`: role 0's α now calls `rt_zls_alloc(4096)` then `rt_zls_arbno_step1_store` (gated); role
+  2's true exit now calls `rt_zls_arbno_step1_load` then frees it (gated). r12 is deliberately NEVER repointed by
+  either call — confirmed necessary (see below).
+
+**Two real, verified findings from actually building this, both worth carrying forward precisely:**
+
+1. **The "six jmp ω sites" from the earlier same-session framing were NOT six competing guesses about one
+   ambiguous exit.** Traced through `lower_snobol4.c`'s `sno_ω_to`/`lc_ω_to_β`: the wiring layer ALREADY decides,
+   per-edge, at IR-construction time (not emit time), whether an ω-edge lands at a target's α (clean handoff) or
+   its β (an aliased re-entry — e.g. role 0's ω aliases into role 2's β BECAUSE role 2 reads role 0's OWN shared
+   zls slot one instruction before role 2's true exit). The Proebsting paper's port-as-attribute framing
+   initially suggested "these should have unique local labels" (a labeling fix) — traced further, that was ALSO
+   not quite it: the construction is already correct, it just needed reading `op_omega_is_death` (computed from
+   the SAME `omega_resolved`/`otgt` values `emit.cpp` already has) rather than guessing from `op_phase`
+   (overloaded across ≥3 unrelated IR node kinds — verified, NOT a safe discriminator alone). `op_omega_is_death`
+   IS the right, precise, per-node signal. **Confirmed exactly right for role 2/5 specifically** (verified via
+   `sno_ω_to(F, fail)` landing outside the local chain, on the pattern's own fail continuation).
+
+2. **r12 cannot be repointed by a per-construct self-alloc without breaking every sibling box.** `FR(off)` is
+   LITERALLY `[r12+off]` (`x86_asm.h`) — r12 is ONE register for the WHOLE emitted function, shared by every box
+   in it, not scoped to one construct's activation. `x86_zeta_free_call()`'s original design (free "r12 itself")
+   assumed r12 WAS the allocated block — wrong; STEP 1 as actually built carries the pointer via the runtime-side
+   single carrier instead, r12 untouched. **This confirms, concretely, the design doc's own "open sub-question"
+   (§ZB-ACT-0, "the cheat's first correct form is per-SCOPE... NOT literally per-individual-box") is correct** —
+   this session hit the exact wall that sub-question predicted, from the implementation side, independently.
+
+**THE GAP — bigger than expected, found via PRECISE per-call tracing (a temporary `SCRIP_ARBNO_STEP1_TRACE=1`
+env-gated fprintf pair in `rt_zls_arbno_step1_store/load`, NOT the generic `[ZLS]` telemetry counters, which
+mix in unrelated pre-existing `zls` consumers — `bb_match_defer.cpp` also calls `rt_zls_alloc`/`release` and an
+early reading of the shared counters this session WRONGLY attributed their movement to this rung's own code;
+correct that mistake if it resurfaces in a later session's memory of this log):**
+
+**A successful ARBNO match — one that never needs to backtrack to its own role-2 exhaustion — currently LEAKS its
+allocated block.** Traced why: role 0's γ (null-yield) and role 1's γ (extend-succeeded) BOTH target `succ`
+(`lower_snobol4.c` line ~628/630) — the REST OF THE PATTERN, not anything in ARBNO's own role family. There is no
+γ-side death point local to ARBNO at all. The actual "this activation can never be resumed again" moment on the
+SUCCESS side is `sJ` — a plain `IR_GOTO`, built ONCE PER STATEMENT (`lower_snobol4.c` line ~888,
+`sno_lower_match`'s caller), representing the WHOLE PATTERN-MATCH STATEMENT's own final, irreversible success.
+Confirmed via trace: a 2-line test where line 1 succeeds cleanly and line 2 backtracks to true exhaustion showed
+STORE/STORE/LOAD — line 1's block never freed, line 2's correctly freed. Output matched the oracle both lines;
+this is a resource leak, not a correctness bug, but it is real and it is not a small addendum to STEP 1 — it's a
+DIFFERENT SHAPE of problem: `sJ` is shared across the ENTIRE pattern tree for one statement, potentially several
+ARBNOs (nested or sequential) deep, so "free the one thing in the single global carrier" cannot generalize to it —
+a single scalar carrier cannot represent N simultaneously-live, independently-freeable activations, which is
+exactly what a compound pattern with more than one still-live generator requires. **NEXT SESSION SHOULD START
+HERE, not by re-deriving the above:** the real fix needs a per-match-statement carrier shaped like a stack/list
+(pushed at each generator role's own alloc, drained at `sJ`), and — importantly — must NOT double-free anything
+whose OWN construct already reached its own true-ω first (a compound pattern where one alternative's ARBNO
+exhausts internally while a DIFFERENT alternative is what ultimately succeeds). This needs real design thought,
+not a quick patch; do not attempt a second single-carrier variant as a shortcut, that is the same mistake at a
+different scope. Marking `sJ` as special requires a flag set at CONSTRUCTION time in `sno_lower_match`
+(mirroring how `op_omega_is_death` was correctly solved by reading construction-time knowledge rather than
+inferring from a generic node-kind check) — `IR_GOTO`'s generic node kind alone does NOT distinguish a
+pattern-statement's `sJ` from any other ordinary goto in the program; hooking `IR_GOTO` broadly would be wildly
+overbroad (every statement in every language this spine supports emits `IR_GOTO`s for ordinary sequencing).
+
+**CONFIRMED THIS SESSION (Lon's closing question, checked against the actual construction rather than assumed):**
+`sJ` really is created EXACTLY ONCE per statement (`lower_snobol4.c` line ~888) and threaded as a single fixed
+value through the ENTIRE recursive descent — `sno_lower_match` → `sno_pat_node`'s recursion (every `succ` at
+every level of the pattern tree, arbitrarily nested, eventually bottoms out at this same node; verified by
+tracing role 0/role 1's γ targets up through the recursion, not merely asserted). So Lon's simplification is
+EXACTLY right and does not need hedging: **the fix is one loop, at one shared point (`sJ`), over "every generator-
+kind box that got a fresh alloc during this statement" — not a per-construct or per-nesting-level search.** This
+also resolves the double-free worry cleanly, for free: role 2's own true-exit (`sno_ω_to(F, fail)`) routes to
+`fJ` — the statement's FAILURE join, a structurally different node from `sJ`. An ARBNO that already died via its
+own ω never reaches `sJ` at all, so the success-side sweep only ever sees activations still pending precisely
+because they took the success branch — no overlap, no guard needed against double-freeing something role-2
+already freed. **The shape of the actual fix, precisely:** a per-STATEMENT (not per-node, not global) carrier —
+a small fixed-size array or a stack, pushed once per generator-role alloc (role 0's α, and whatever the
+analogous entry point is for any other self-allocating construct once this generalizes past ARBNO), reset at the
+START of each statement's lowering (so it can't leak across statements the way the current single global
+carrier structurally cannot help but do), and drained — walked, each entry freed via the existing
+`rt_zls_release` — at `sJ`'s own emission point specifically, which needs the same construction-time flagging
+`op_omega_is_death` already demonstrates the right pattern for (a flag set where `sJ` is BUILT in
+`sno_lower_match`, not inferred later from `IR_GOTO`'s generic kind). **The generalization Lon is pointing at —
+"at the end of each statement AND at the end of each pattern match AND at the end of an EVAL" — is the same
+mechanism at three altitudes: `sJ` already covers "end of statement" and "end of pattern match" (they are THE
+SAME NODE for a plain match statement, confirmed above); EVAL will need its own analogous outermost join once it
+lands, but EVAL is currently a hard FATAL in this subset (`lower_snobol4.c` line ~1178, "EVAL and CODE are not
+remotely possible yet") — there is no existing join to point at for it today, so that third altitude is
+future-verified, not yet checkable, and should not be assumed identical to the other two without re-deriving it
+against EVAL's actual lowering once EVAL is landed.**
+
+---
+
 <!-- ════════════ SNOBOL4 TEST-SUITE LADDER CRAWL — live head (2026-07-06) ════════════ -->
 
 # GOAL — SNOBOL4 on the shared BB spine
-AUTHORS: Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude   OPENED: 2026-07-03 · SN4-PAT + RE-LIGHT folded in 2026-07-06
+AUTHORS: Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude   OPENED: 2026-07-03 · SN4-PAT + RE-LIGHT folded in 2026-07-06 · BB-OWNED-ζ set TOP PRIORITY 2026-07-06
 
 ## ▶▶ CURRENT STATE — READY TO CRAWL THE TEST SUITE (2026-07-06)
 
