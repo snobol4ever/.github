@@ -224,6 +224,19 @@ m3/m4; inter-mode divergence brackets a lifetime bug exactly as the monitor brac
   (correctly — instrumenting those is NOT the same as the chain-driver α/β entries, would over-instrument); (c) the
   `ALLOC` flavor is declared in the axis but unwired (that IS ZB-ACT-0). Next: generalize `x86_jmp`/`x86_deflabel`
   into the four-port DEFINE/GOTO primitive with a per-port flavor slot so γ/ω have the same formal home α/β now have.
+  **▶ UPDATE (2026-07-06, same session, SCRIP `a6a2a056`) — γ/ω INSTRUMENTATION NOW LANDED, closing (a) for the
+  INSTRUMENTED flavor:** added shared `x86_port_canary()` (one canary emitter for all four ports; `x86_port_mode()`
+  moved above first use), wired as a pre-jump assertion INSIDE `x86_jmp` — so it fires at every jmp-to-port, i.e. the
+  γ/ω EXIT paths — and deduped the β hook to call the same shared helper (deleted redundant `x86_zeta_selfload_beta`).
+  The R12-valid canary now covers all four ports uniformly: α/β ENTRIES (label-define, unchanged) + γ/ω EXITS (jump,
+  new). This is a STRONGER invariant for ZB-ACT-0: it proves R12 survives the EXIT paths, exactly what free-on-exit
+  must not corrupt. PLAIN still byte-identical (m3 252/276, m4 251/9/16, DIVERGE=1); INSTRUMENTED canary 12→34 on
+  genprobe.sno (γ/ω now covered, proven not a no-op); INSTRUMENTED crosscheck clean + icon 12/12×2 + prolog 5/5×3 +
+  polyglot 2/2×2; both emit gates PASS. `x86_jmp(ω)` fires on ARBNO's 5 decoy ω-jumps too — CORRECT for an R12
+  ASSERTION (safe at every ω); the decoy distinction matters only for FREE placement (ZB-ACT-0), not for this canary.
+  **What (a) still lacks:** a formal per-port FLAVOR SLOT beyond INSTRUMENTED (i.e. the ALLOC/PLANE_CELL flavors need
+  a dispatch point in `x86_jmp`/`x86_deflabel`, not just the canary special-case) — but the INSTRUMENTED flavor now
+  demonstrably reaches all four ports, which was the concrete goal. (b) and (c) unchanged.
 
 - [ ] **⭐ ZB-ACT-0 — THE CHEAT: PER-BB SELF-ALLOCATION AT α (Lon 2026-07-06 "EUREKA times ten"; BUILDS ON ZB-PORTS).**
   **THE STAKES (why this is the whole ballgame, Lon 2026-07-06):** if a Byrd Box allocates and frees its OWN
