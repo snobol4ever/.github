@@ -32,9 +32,12 @@ ARCH-ICON ("zeta struct allocated fresh per α-entry"; "ARBNO... per-box arena i
 model: the ARBNO wall, the queens solution-4 frame clobber (cumulative backtracking), the SCAN-SCRATCH
 next-node-slot overrun family.
 
-**RECOVERED — one4all (predecessor repo, PRIVATE — ask Lon for a credential to clone):**
-- SCRIP root `713c581b` (2026-05-31) = "fresh start from one4all working tree"; one4all's 4,155-commit history
-  was NOT carried over, and one4all is absent from the org roster.
+**RECOVERED — one4all (predecessor repo, NOW PUBLIC — Lon made it public 2026-07-06; clone
+`https://github.com/snobol4ever/one4all`, no credential needed):**
+- one4all HEAD = `a0bb9be4` (2026-05-31). SCRIP root `713c581b` (2026-05-31) = "fresh start from one4all
+  working tree". **[CORRECTED 2026-07-06, verified in the now-cloned repo: the 4,155-commit history IS
+  present in one4all (`git rev-list --count HEAD` = 4155) — the earlier "history was NOT carried over"
+  note was about SCRIP's tree, not one4all's, which retains it in full.]**
 - **THE MILESTONE: one4all `4757bbcd` (2026-04-28) "SN-32b/SN-32d: SM_STORE_VAR two bugs fixed — --sm-run
   beauty self-host byte-identical"** (+ same-day sibling `52251653` SN-32c JIT mirror). Lon recalls Session
   **#47**; PLAN.md says #57 — unadjudicated; the pin is by date+message, unaffected.
@@ -183,6 +186,33 @@ m3/m4; inter-mode divergence brackets a lifetime bug exactly as the monitor brac
     (via β) later, so freeing here would free a block about to be re-entered. (The recon's "final-γ … free" is WRONG:
     there is no "final" γ knowable at emit time; any γ can be followed by a β.)
   * **ω = FREE (DEC).** `rt_zls_release(blk)` → r12 restored from `.prev`. This is the true death of the activation.
+  **⚠⚠ FREE-DELINEATION — CORRECTED 2026-07-06 FROM THE 4/28 MILESTONE `.s` (now that one4all is public; supersedes
+  the "ω = free at the callee's port" reading two bullets up — that was CONCEPTUALLY right about WHEN the activation
+  dies but WRONG about WHERE the `blk_free` instruction lives).** Extracted the actual working self-host convention from
+  `one4all@4757bbcd:artifacts/asm/beauty_prog.s` (the `ucall50`/`ucall51`/… sites, verified consistent): **the
+  `blk_free` is NOT inside the callee's α/β/γ/ω logic at all — it is at the CALLER's post-call RETURN CONTINUATION, and
+  there are TWO of them, one per exit edge.** The convention, verbatim from the milestone:
+  - Caller, before the call: `blk_alloc` → `memcpy` data template → `mov r12, rax` (load) → stash TWO return addresses
+    into the block's continuation cells (`[P_x_ret_γ]=ucallN_ret_g`, `[P_x_ret_ω]=ucallN_ret_o`) → `jmp P_x_α`.
+  - `ucallN_ret_g` (success continuation): pop the saved continuations, pop the block ptr, **`call blk_free`**, THEN
+    consume the returned value into the caller's own frame.
+  - `ucallN_ret_o` (fail continuation): the SAME `blk_free`, then load FAILDESCR.
+  **WHY THIS DISSOLVES THE γ-RESUME TRAP:** the free is reached only when control RETURNS PAST the call site — which
+  happens exactly once, after the callee has genuinely finished. The callee's internal γ↔β resume loop (yield, caller
+  consumes, β re-enters the SAME live block, yield again…) runs ENTIRELY BEFORE control ever reaches `ucallN_ret_g`. A
+  "resume" is the caller doing another `alloc + jmp _α` — a FRESH activation, never a re-entry into a freed block. So
+  "free on final success" is delineated STRUCTURALLY by the **call/return boundary**, not by any flag or heuristic:
+  free at the caller's resumption-of-control after a callee sub-graph, on BOTH the γ and ω return edges, NEVER inside
+  the callee's own port logic. This is Lon's "delineation" question answered: **statement-level** for procedure/ucall
+  activations (each SNOBOL4 statement is a GLOB ⇒ statement-grain free), and **match-statement-level** for pattern ζ
+  (ARBNO iteration COLLECTIONs etc. free when the WHOLE match statement completes — consumed-success or fail — the
+  pattern's internal element backtracking all preceding that final exit). The continuation cells themselves
+  (`P_x_ret_γ`/`P_x_ret_ω`, saved/restored across the call) are the ret-γ/ω header cells §7a/ZL-FN already specifies —
+  the milestone confirms they live in the activation block, EVICTED from statics exactly as the no-.bss rule requires.
+  **IMPLICATION FOR THE HOOK PLAN:** the free site is CALLER-side-per-call, which is a cleaner central site than
+  "the callee's true-ω" — it sidesteps the six-decoy-ω problem entirely (the caller's post-call point is unambiguous,
+  one per call site). Revisit the ω-is-not-a-single-site finding through this lens when implementing: the alloc/load
+  and the free may BOTH be caller-side (the 4/28 model), making β-reload the only callee-side port hook needed.
   **⚠ THE ω-IS-NOT-A-SINGLE-SITE FINDING (verified this session, the load-bearing correction to "zero per-template
   edits"):** α and β got zero-edit central hooks because every node has EXACTLY ONE α-define and one β-define — a
   STRUCTURAL property. **ω does NOT have this property.** `bb_match_arbno.cpp` emits SIX `jmp ω` sites and only ONE
