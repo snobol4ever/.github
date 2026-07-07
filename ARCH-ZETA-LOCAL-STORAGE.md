@@ -696,9 +696,21 @@ heuristic and the exhaustion-flavor conservatism.**
       all_rungs == pristine-HEAD (stash-proven); emit gates ×3 + sno_pat_reg rc=0.
 - [ ] **GC-4 COLLECTIONS-ONTO-HEAP** — COLLECTION v2: realloc/free replaced by GC blocks; owner-quad
       fixup proven by a forced-collect-inside-ARBNO probe.
-- [ ] **GC-5 VALUE-WORLD MIGRATION** — strings/ARBLK/TBBLK/DATINST/VCELL onto the heap, family by
+- [~] **GC-5 VALUE-WORLD MIGRATION** — strings/ARBLK/TBBLK/DATINST/VCELL onto the heap, family by
       family, oracle-pinned each. **(Strings row LANDED 2026-07-05 with GC-0 — Lon-directed proof family;
       tail = 9 GC_strdup copy sites via a mechanical rt_str_dup. ARBLK/TBBLK/DATINST/VCELL remain.)**
+      **Strings-row TAIL — LANDED 2026-07-06 (Claude Sonnet 5): `rt_str_dup(const char*)` added beside
+      `rt_str_alloc` in `gc_heap.{h,c}` (thin wrapper: strlen + rt_str_alloc + memcpy, so both heap paths
+      stay in sync automatically, zero switch-logic duplication). Migrated 6 value-world DESCR-copy sites:
+      `string_builtins.c` DUPL/SUBSTR empty-string shortcuts + LPAD/RPAD width<=slen shortcuts (4),
+      `arithmetic.c` cset-complement base-string copy (1), `pattern_match.c` int-to-string conversion
+      result (1). **Deliberately NOT migrated:** `pattern_match.c:709,836` (`vc->key = GC_strdup(...)`) —
+      VCELL internal hash-bucket keys, not DESCR_t value-world payloads; out of this row's family-B scope
+      per §6/§6b, not audited against the root enumeration. **VERIFIED both ZC_HEAP_STRINGS switch
+      positions** (scrip heap default + `ZCFLAGS='-DZC_HEAP_STRINGS=0'` libgc-atomic fallback, real
+      Makefile rebuild): crosscheck IDENTICAL both ways (m3 252/276, m4 251/9/16, DIVERGE=1, same FAIL
+      sets). Also identical under `SCRIP_GC_STRESS=25` and Icon smoke 12/12×2. ARBLK/TBBLK/DATINST/VCELL
+      still remain — this closes only the strings-row tail, not GC-5 as a whole.**
 - [ ] **GC-6 RETIRE-LIBGC (SNOBOL4 path)** — per-path; Icon coexpr transport may keep libgc longer.
 - [ ] **GC-7 PACING** — allocation-threshold trigger, &STLIMIT semantics, `COLLECT(i)` builtin wired to
       a real regeneration (crosscheck 082-family finally honest); bench vs libgc.
