@@ -496,12 +496,10 @@ frames auto add/remove via box α/β code (same shape as ARBNO iteration / the f
 Rung mapping: ZB-2 = `zls_build()` + `--dump-zeta` (+ read `emit_emitters/emit_x64.c` first); ZB-3 = allocator +
 port prologues (§2–§3); ZB-4 = the gates as listed; ZB-5 rides §3.
 
-**Session hygiene (this commit):** the ORIENTATION SYNOPSIS section is DELETED per Lon directive 2026-07-05 —
-sessions read the directed ARCH docs in full instead. Dangling refs pending Lon's call: PLAN.md:34
-(session-start step 7 still points at the deleted synopsis), ARCH-SCRIP.md:3 (same), this file's stale
-"Original ORIENTATION SYNOPSIS below is UNCHANGED" sentence (~line 705), and ARCH-SCRIP.md's stale "optimizer
-OFF by default" (RULES 2026-07-03: ON). The SN4-PAT ARBNO rung LANDED this session (ZB-5 deterministic-body v1 — watermark below);
-its frontier notes stand in the ladder below.
+**Session hygiene — RESOLVED 2026-07-08 (Claude Sonnet 5, Lon directive):** all four dangling refs this note
+tracked (PLAN.md:34, ARCH-SCRIP.md:3, this file's own stale synopsis-pointer sentence, ARCH-SCRIP.md's stale
+optimizer-default line) are fixed. The SN4-PAT ARBNO rung LANDED this session (ZB-5 deterministic-body v1 —
+watermark below); its frontier notes stand in the ladder below.
 
 
 ## SN4-PAT + SNOBOL4 RE-LIGHT — RELOCATED to GOAL-SNOBOL4-BB.md (Lon directive, 2026-07-06)
@@ -931,8 +929,6 @@ OLD SCOREBOARD (2026-07-03 pre-keyword-gen): oracle 10/10 · m3 **2/10** · m4 *
 - **geddump, micro**: unchanged (`IR op=19`, `collect`) — neither depends on link/getenv/open/where, so no movement expected and none seen. Consistent.
 
 **Also found — CORRECTED after reading RULES.md (not read earlier this session; should have been):** what looked like a parser gap (bare newline-separated statements past the first fail to parse) is `RULES.md`'s own **"ICON SEMICOLON-REQUIRED — NO NEWLINE PROCESSING"** absolute rule, deliberately gated by `scripts/test_gate_icn_semicolon_required.sh` — SCRIP's Icon front-end is INTENTIONALLY newline-blind; `icont`'s Beginner/Ender newline→`;` insertion is explicitly FORBIDDEN in `src/parser/icon/`. Not a bug, not a rung. Retracting the ICNBENCH-PARSER-SEMICOLON line below — real corpus files are unaffected (period-authentic semicolon style throughout), which is exactly why this never surfaced against them, only against this session's own hand-written probes.
-
-**Original ORIENTATION SYNOPSIS below is UNCHANGED and still accurate for the method/tooling; only the diagnosis above is corrected.**
 
 **Supersedes** `HANDOFF-2026-06-23-CLAUDE-ICON-BENCH-BLOCKER-MAP-AND-INITIAL-STORAGE-GAP.md` — its `IR_ALT`/assign-RHS-gate/`IR_INITIAL` analysis is STALE; none of today's failures trip those gates, the frontier moved past them (LVALUE-COLLAPSE and the rest of the intervening Watermark). **Refines** the 84208eba Watermark BENCHMARK MAP two paragraphs below — three of its five buckets moved:
 - `deal` no longer dies at Init__/link — it gets past linking and dies on the **`shuffle`** call specifically (own bucket).
