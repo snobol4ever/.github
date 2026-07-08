@@ -14,8 +14,7 @@ verified by direct clone test, 2026-07-01)
 git clone https://github.com/snobol4ever/corpus /home/claude/corpus
 git clone https://github.com/snobol4ever/SCRIP /home/claude/SCRIP
 ```
-(Both public, no token needed — verified by direct clone test, 2026-07-01. `git push` on either still
-needs a credential; that's a separate, genuine requirement, not stale — see RULES.md's push/handoff steps.)
+(Both public, no token needed. `git push` on either still needs a credential — see RULES.md's push/handoff steps.)
 
 **Build:** none — corpus is data only.
 ```bash
