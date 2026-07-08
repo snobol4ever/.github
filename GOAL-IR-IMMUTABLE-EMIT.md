@@ -169,7 +169,7 @@ picks a cheap-and-correct starting point on each and refines:
 speed but NEVER behavior — the crosscheck FAIL set and icon rung fail-set stay byte-identical across
 m3/m4; inter-mode divergence brackets a lifetime bug exactly as the monitor brackets a semantic one.
 
-- [ ] **⭐⭐ ZB-PORTS — FORMALIZE ALL FOUR PORTS AS OVERLOADABLE `x86()` PRIMITIVES (Lon directive 2026-07-06; PREREQUISITE to ZB-ACT-0 — do this FIRST).**
+- [x] **⭐⭐ ZB-PORTS — FORMALIZE ALL FOUR PORTS AS OVERLOADABLE `x86()` PRIMITIVES (Lon directive 2026-07-06; PREREQUISITE to ZB-ACT-0 — do this FIRST).**
   **THE DIRECTIVE (Lon, verbatim-in-spirit):** all four ports — α β γ ω — must be FORMALLY DEFINED in the template
   layer, each as a single `x86()`-routed primitive whose behavior can be OVERLOADED by mode: a plain flavor (straight
   gotos + labels, today's behavior), an instrumented flavor (the ASSERT canary), an alloc/free-bearing flavor (ZB-ACT),
@@ -237,8 +237,20 @@ m3/m4; inter-mode divergence brackets a lifetime bug exactly as the monitor brac
   **What (a) still lacks:** a formal per-port FLAVOR SLOT beyond INSTRUMENTED (i.e. the ALLOC/PLANE_CELL flavors need
   a dispatch point in `x86_jmp`/`x86_deflabel`, not just the canary special-case) — but the INSTRUMENTED flavor now
   demonstrably reaches all four ports, which was the concrete goal. (b) and (c) unchanged.
+  **▶▶ COMPLETE (2026-07-08 cont.-5, Claude, SCRIP `9d315e1a` — full record in GOAL-SNOBOL4-BB.md SESSION STATE cont.-5):**
+  (a) is CLOSED and exceeded — the FOUR PORT FUNCTIONS `x86_alpha()/x86_beta()/x86_gamma()/x86_omega()` (+ conditional
+  mnemonic overloads for jcc-to-port, variable/function mnemonics included) are step 1's per-port primitives, the ONLY
+  template-facing port surface, wrapping the int-level `x86_deflabel/x86_jmp/x86_jcc(X86P_*)` internals so every flavor
+  slot (x86_port_hook: PLAIN / INSTRUMENTED canary / ALLOC = the ZLS2 grant protocol / selfload carrier / ω-trace) is
+  inherited at all four ports. (b) is CLOSED the other way: the ~955 template-internal port sites were one-time swept
+  ONTO the primitives (Lon pivot: "the TEMPLATES are NOT MODIFIED except for this initial setup"), and the string-port
+  operand form now ABORTS at emit time in x86_parse (the bb_bin_t enforcement-by-deletion pattern) with gate
+  `test_gate_port_functions.sh` (operand-shape census, comments stripped, reads 0). (c) the ALLOC flavor is WIRED —
+  that is ZB-ACT-0 below, landed as the ZLS2 protocol at the hook. Acceptance re-proven at completion: plain default
+  byte-identical (watermark m3 252/24, m4 251/9/16, DIVERGE=1 + SNOBOL4 .s artifact regen ZERO diffs), Icon 12/12×2,
+  Prolog 5/5×3, canary clean, ZC_PORT axis live.
 
-- [ ] **⭐ ZB-ACT-0 — THE CHEAT: PER-BB SELF-ALLOCATION AT α (Lon 2026-07-06 "EUREKA times ten"; BUILDS ON ZB-PORTS).**
+- [x] **⭐ ZB-ACT-0 — THE CHEAT: PER-BB SELF-ALLOCATION AT α (Lon 2026-07-06 "EUREKA times ten"; BUILDS ON ZB-PORTS).**
   **THE STAKES (why this is the whole ballgame, Lon 2026-07-06):** if a Byrd Box allocates and frees its OWN
   activation storage at its OWN ports, then **full recursion, backtracking, EVAL, and CODE all fall out for free** —
   they are all just re-entrancy, and re-entrancy is exactly what per-activation ζ solves. The flat model's entire
@@ -334,11 +346,31 @@ m3/m4; inter-mode divergence brackets a lifetime bug exactly as the monitor brac
   ONE block ⇒ the cheat's first correct form is per-SCOPE (a re-entrant box's whole body-subgraph shares one fresh
   block, seed-1 `ζ=&_1[i]`), NOT literally per-individual-box; "per-BB" names the GRAIN of the alloc DECISION (one
   alloc per re-entrant activation). This is why ZB-ACT-2's procedure coalescing is the natural next step.
-- [ ] **ZB-ACT-1 — FLIP TO BUMP_LIFO, PROVE RECLAMATION.** Same wiring, `ZC_ALLOC=BUMP_LIFO` (mark/release
+  **▶▶ COMPLETE for the pattern-construct grain (2026-07-08 cont.-5b, Claude; wiring landed cont.-3/4 as the ZLS2
+  port-hook protocol, proof battery run cont.-5b):** α=BUMP / β=RESTORE / ω=RELEASE ride the formalized ports, keyed on
+  per-node `zls2_geom` grants — the grant IS the six-decoy-ω answer (RELEASE awarded only to roles whose ω-jumps are
+  STATICALLY all activation-death: ARB's single exhaust, ARBNO role 2), and the statement-scope mark/release backstop
+  closes the success-path leak. **METHOD STEPS 3/4/5 EXECUTED THIS SESSION (the Lon-directed correctness-before-perf
+  sequence):** `-DZC_ALLOC=ZC_ALLOC_MALLOC` full crosscheck = EXACT watermark (real malloc per α, real free per ω,
+  corpus-wide); MALLOC+**ASan m4 probes ALL CLEAN** (selfload-carrier forced-exhaust, ARBNO plain, PORT=2, hello — zero
+  UAF/double-free/mismatched-free; LSan silent, the live=1 main frame is globally rooted via g_zls_cur, reachable-by-
+  design not leaked); `BUMP_INFINITE` and `BUMP_LIFO` crosscheck **fail-lists byte-identical** (diff of full FAIL
+  lists, not counts); telemetry `SCRIP_ZETA_TELEM` reads **allocs=5 releases=4 live=1** on the forced-exhaust probe —
+  allocs==releases+1 with the +1 = main frame, the acceptance line observed literally, identical under MALLOC and LIFO.
+  Gates: 8 green incl. `test_gate_port_functions.sh`; `test_gate_runtime_isolation.sh` FAILs on 8 PRE-EXISTING
+  Prolog/Raku parser-header includes (rt_runtime.c/unification.c/by_name_dispatch.c/resolution.c — files untouched by
+  any of this work; standing firewall debt, not this rung's). **Default stays PLAIN pending Lon's ZC_PORT ruling** —
+  bench evidence now attached at GOAL-SNOBOL4-BB.md → BB-OWNED NEXT. Procedure/ucall grain (caller-side free per the
+  4/28 milestone) remains ZB-ACT-2's, deliberately.
+- [x] **ZB-ACT-1 — FLIP TO BUMP_LIFO, PROVE RECLAMATION.** Same wiring, `ZC_ALLOC=BUMP_LIFO` (mark/release
   per §5c). The LIFO invariant (§5c) must hold: failure fully unwinds rightward frames before any left-β
   re-entry. Acceptance: byte-identical behavior to ZB-ACT-0 under INFINITE (the mode-invariance gate
   proves reclamation introduced no lifetime bug); telemetry (`SCRIP_ZETA_TELEM`) shows allocs==releases+1
   at exit (the +1 = main frame).
+  **▶▶ COMPLETE (2026-07-08 cont.-5b):** BUMP_LIFO has been the shipping default throughout; this session proved it
+  against BOTH other backings — INFINITE vs LIFO crosscheck fail-lists byte-identical (the acceptance's mode-invariance
+  gate, full-list diff) and MALLOC watermark-exact + ASan-clean; telemetry allocs==releases+1 observed exactly
+  (5/4/live=1 on the forced-exhaust probe, identical figures under MALLOC and LIFO). Reclamation is proven, not assumed.
 - [ ] **ZB-ACT-2 — PROCEDURE GRAIN ON THE EMITTED SIDE (ZL-FN, §7a).** Move the proc-activation ζ from a
   runtime-trampoline accident to an emitted-code discipline: the callee's α self-allocs its ZL-FN block
   (params `16*(i+1)` + locals + resume + ret-γ/ω cells), release at return. Coalesce the per-BB blocks of
