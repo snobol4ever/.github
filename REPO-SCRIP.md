@@ -38,8 +38,7 @@ SCRIP has EXACTLY TWO modes (modes 1 and 2 are DELETED — see GOAL-MODE34-IDENT
 | `src/runtime/` | rt/, core/, builtins/ |
 
 ## Oracle
-**SPITBOL x64:** `git clone https://github.com/snobol4ever/x64 /home/claude/x64` (public repo, no token needed —
-verified by direct clone test, 2026-07-01; corrects a stale TOKEN placeholder that never applied here)
+**SPITBOL x64:** `git clone https://github.com/snobol4ever/x64 /home/claude/x64` (public, no token — verified 2026-07-01)
 Invoke: `/home/claude/x64/bin/sbl -b file.sno`
 
 ## Tools by backend
@@ -50,9 +49,8 @@ Invoke: `/home/claude/x64/bin/sbl -b file.sno`
 | .NET | `mono-complete` |
 | WASM | `wabt` |
 
-Never RUN bison or flex against the committed `.y`/`.l` grammar sources (they exist alongside every
-frontend's `.tab.c`/`.lex.c`/`_parse.c`, e.g. `src/parser/snobol4/snobol4.y` next to `snobol4.tab.c`) —
-the generated `.c` output IS the committed, tested artifact and there is no Makefile rule regenerating it,
-so running the generator by hand silently overwrites known-good output with unverified output. (Installing
-the tools themselves is harmless; RUNNING them against these grammars is the actual hazard — verified
-2026-07-01: files are git-tracked not gitignored, Makefile has zero bison/flex invocation.)
+Never RUN bison/flex against the committed `.y`/`.l` grammar sources (alongside every frontend's generated
+`.tab.c`/`.lex.c`/`_parse.c`, e.g. `src/parser/snobol4/snobol4.y` next to `snobol4.tab.c`) — the generated `.c`
+is the committed, tested artifact with no Makefile rule regenerating it, so running the generator by hand
+silently overwrites known-good output with unverified output. Installing the tools is harmless; running them
+against these grammars is the hazard (verified 2026-07-01: files are git-tracked, Makefile has zero invocation).
