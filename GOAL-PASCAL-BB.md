@@ -1,5 +1,9 @@
 # GOAL-PASCAL-BB.md — Pascal, 100% Byrd Boxes
 
+## ⛔ WATERMARK — PASCAL-RESTORE (2026-07-09, SCRIP ab714e81): M3 gate 113 PASS / 15 FAIL / 23 NOREF (was 30/98 post-gut); M4 spot-green incl. user procs + nesting
+Pascal now rides the post-GZ#5 reduced IR + ZLS. `lower_pascal.c` fully converted to the Icon `(cx,t,γ,ω,res)` convention: call args threaded IN control flow, consumers `ir_operand_push` their producers. The IR_VAR_FRAME/IR_ASSIGN_FRAME family (and the display machinery below, PAS-DISPLAY-1..5) is RETIRED — locals are ZLS vslots (`zls_build` auto-names from IR_VAR/IR_ASSIGN svals; params via graph `nparams/pnames` set in stage2), globals ride the GVA rbx-arena. IF/WHILE/FOR/REPEAT are pure port rewiring on IR_BINOP_TEST (no IR_IF/IR_WHILE nodes exist). BYREF = IR_VAR_REF (caller) + IR_DEREF/IR_ASSIGN_VAR (callee). UPLEVEL = capture promotion to mangled globals `__up_<proc>_<var>` with a proc-prologue copy (KNOWN LIMIT: recursive enclosing procs share the cell; recursion.pas XFAIL). ⚠ IR_t payload is a UNION {sval,ival,dval} — dval routing is DEAD for calls (writing it clobbers the callee name); the parser string-relop dval hint is dropped (clobbered the BINOP_TEST code); char-array relop semantics is an OPEN item. ⚠ IR_SUCCEED/IR_FAIL are INVISIBLE to the chain emitter — label landings and empty bodies must be IR_GOTO boxes.
+REMAINING 15: read1-4 (read() builtin needs out-param write-back), recparam1-3 (record byref), alphacmp/chararrlit/chararrord (+2 chararr variants: string relop semantics under BINOP_TEST), boolarg/boolidx (bool-as-arg materialization), nestrec, arrparam, arr2dtype2. Everything below this watermark describing frame slots/static links/display registers is HISTORICAL (pre-gut architecture).
+
 ## ⛔ FACT RULES POINTER
 ONE MEDIUM, INVISIBLE + TEMPLATE-ONLY EMISSION: canonical text in GOAL-SNOBOL4-BB.md / GOAL-ICON-BB.md / RULES.md. ZERO BINARY in any `bb_*.cpp`; `x86()` internals are the ONLY binary+text emitter.
 
