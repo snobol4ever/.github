@@ -845,6 +845,32 @@ Prolog smoke 0/5 = documented pre-existing, unrelated to this session.
 
 ---
 
+## ⌚ WATERMARK 2026-07-09 (Claude Sonnet · SCRIP `241bb093` · corpus `7b250363`) — BENCH-C (concord) GREEN both modes, xfail cleared; deal body==oracle; set()/keying rebuilt canonical; benchmark blockers bracketed to ONE gap (proc-generator-as-argument)
+
+**Session scope:** benchmark-first per this file's banner. Fresh iconx **9.5.25a oracle built from `refs-src/icon-master`** (`make Configure name=linux && make`; libs via `icont -c options post shuffle` then link) — real per-benchmark oracles now exist for tgrlink(3239L)/geddump(12568L)/ipxref(122L)/rsg(5031L)/deal(48L). The `.std` files remain harness-banner junk, never stdout oracles.
+
+**Benchmark harness fact (rediscovered, worth keeping):** `post.icn`'s `Init__` does `write := writes := 1` (integer invocation suppresses ALL body output); `Term__` restores. A benchmark run with NO env prints ONLY banner+stats — that is CORRECT. Diff bodies with `OUTPUT=1` between the `*** Benchmarking with output ***` line and ` elapsed time = `. SCRIP honors builtin-value reassignment + integer invocation here (verified).
+
+**LANDED 1 — sets/tables canonical (SCRIP `241bb093`).** `set()` passed a NULL key to `table_set_descr`, which early-returns → EVERY initial member silently dropped → concord's `*words[word]=0` stayed true forever → every per-word set empty → all line-number lists blank. Plus FIVE independent hand-rolled key-derivation copies that disagreed (subscript_get `%g` vs subscript_set `%.15g`+dot: real-keyed reads ALWAYS missed; `VARVAL_fn` keys every list as the literal string "list" = the 2026-07-04 handoff's structure-membership false-match). All seven sites → ONE `tbl_key_str` (aggregates.c): strings raw; `\001`-tagged n/i/r/p otherwise; **structures key by pointer = Icon identity semantics**; int 5 ≠ string "5" (canonical). `is_set` flag on TBBLK_t; `sort(set)` → sorted member list (fsort.r); `type(set)`→"set"; `insert` 1-arg legal (omitted args &null, fstruct.r — was Error 5 + segv); `member` returns x (fstruct.r); delete's duplicated inline hash → new `table_delete`.
+
+**LANDED 2 — zeta MALLOC arm → GC heap (`GC_MALLOC`/`GC_FREE`).** `rt_proc_call_gen_h` retains succeeded generator frames for β-resume; bounded call sites never resume-to-exhaustion nor release, so each frame held one libgc root set → geddump's 12k+ `gedval` calls hit the hard **"Too many root sets" abort**. GC-heap frames: zero root sets; leaked frames collect when their referencing slot dies. **The real reclamation is the ZB-ACT alloc/free ladder (GOAL-IR-IMMUTABLE-EMIT) — not attempted here.**
+
+**VERIFIED:** concord rung **byte-identical m3 AND m4** (own .stdin) — `.xfail` cleared (corpus `7b250363`), BENCH-C done. queens rung ✓ re-confirmed. deal benchmark body byte==oracle. rung36_jcon_table now RUNS TO COMPLETION, every tdump size/value correct; sole residual is `x === key(T)` (below). SNOBOL4 crosscheck **stash-round-trip: FAIL name-sets byte-identical** to unmodified HEAD (fresh honest baseline: m3 263/17, m4 262/6, DIVERGE=1 `1017_arg_local` — the old "230/46" watermark figure is stale, suite grew). Smokes icon 12/12+12/12, prolog 5/5+5/5, snobol4 7/0, snocone 5/0, rebus 4/0. Gates: no_stack 0, one_reg_frame 0, semicolon prison PASS, local_no_nv PASS, no_bb_bin_t 0.
+
+**THE ONE REMAINING BENCHMARK GAP — proc-generator as argument never pumps (BENCH-F3 family).** Minimal repro: `procedure g(); suspend 1; suspend 2; end` then `every l := a[g()] do write(l)` → NOTHING (mid/done markers print). Bracketed as tgrlink's exact blocker (probes: 46× dumpcode P0 entries, ZERO `while k := get(l)` P1 pulls — `sort(alist[aseq()],3)` never yields because `aseq()` in the subscript never pumps). rsg (body 0/5000 lines) and ipxref (6/91) are the same shape. Related: `x === key(T)` empty→THEN, exhaust-on-β→neither branch (relop ω-wiring, p_key probe archived in this watermark's session). **This one rung flips tgrlink+rsg+ipxref (+ rung37_proc_lookup, rung02, suspend cluster).**
+
+**geddump post-fix:** abort gone; 192 lines then segv, content diverges at line 2 (record-detail association — own isolate-reduce cycle, independent of F3).
+
+**Parked with reasons:** micsum — the CANONICAL oracle itself dies (Error 103, `right(&null,7)`) on empty stdin; the corpus lacks its input definition → BENCH-ORACLE matter, not a SCRIP bug. micro — correct structure, wall-clock self-calibrating, perf-only (unchanged from 2026-07-04 handoff).
+
+**Benchmark scoreboard (body vs fresh oracle):** queens ✅ concord ✅ deal ✅ version ✅(trivial) · tgrlink/rsg/ipxref ⛔F3 · geddump ⛔content+segv · micsum/micro parked.
+
+**NEXT (leverage order):** (1) **F3 — generator-argument pump-through-call**: read `refs/jcon-master/tran/irgen.icn` invocation/`ir_a_Suspend` port topology first; coordinate with rung13 cross_arg; highest single-rung payoff on the board. (2) geddump content divergence at output line 2 (isolate-reduce; oracle now exists to bracket). (3) `x === key(T)` relop ω (same family as 1, may fall out of it).
+
+**HANDOFF STATUS: SCRIP `241bb093` + corpus `7b250363` PUSHED to origin (hashes final post-rebase; SCRIP landed beneath a parallel Pascal session's `6d86723a`).**
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
+
 ## ⌚ WATERMARK 2026-07-06 (later same day, Claude Sonnet · SCRIP `04595cd1` · corpus `1391f9a7`) — lists LANDED (Icon 227→229/24/36); GZ-7 chain-queue silent-truncation bug found + fixed along the way
 
 **Session scope:** implemented the prior watermark's ready-to-implement three-change plan for `rung36_jcon_lists` verbatim (wraparound sections). After that fix alone, the test STILL failed — a second, previously-undocumented, pre-existing bug was surfacing: after the wraparound section, the final `every !x/!y/!z +:= N` + `limage` round produced zero output (clean exit, no crash, no stderr). Root-caused and fixed. Net: **two independent fixes, one test flip, zero regressions.**

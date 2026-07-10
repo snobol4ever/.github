@@ -33,7 +33,7 @@
 - [ ] **BENCH-F3** — generator operand inside relop / chained comparison (`0 = (r:=1 to 3)`, queens full chain). `bb_binop_gen` β re-pump. Coordinate with rung13 cross_arg.
 - [ ] **BENCH-F4** — recursive proc + generator driver (`every q(1)`, q calling q(c+1) under backtracking). Depends on rung02 recursion fix.
 - [x] **BENCH-Q** — `rung36_jcon_queens` m3+m4 == `.expected`. First headline benchmark. **Reconfirmed 2026-07-04 (SCRIP `f0a7697a`): byte-identical both modes.** (This rung file predates this session's `GOAL-ICON-FULL-PASS.md` watermark staleness — see `GOAL-ICON-BB.md`'s live watermark for current benchmark-corpus state; this file's own status line/table above is STALE, re-derive from a fresh suite run before trusting any other row here.)
-- [ ] **BENCH-C** — `rung36_jcon_concord` (tables + sort + scan + read + find). Clear `.xfail`.
+- [x] **BENCH-C** — `rung36_jcon_concord` (tables + sort + scan + read + find). **DONE 2026-07-09 s13 (SCRIP `241bb093`): byte-identical m3+m4 on its own .stdin; `.xfail` cleared (corpus `7b250363`). Root causes were set()/keying — see GOAL-ICON-BB.md 2026-07-09 watermark.**
 - [ ] **BENCH-D/R** — deal/rsg (blocked on BENCH-ORACLE seed-pin).
 - [ ] **BENCH-I** — ipxref (heaviest; after concord).
 - [ ] **BENCH-X** — tgrlink/geddump/micro/micsum (optional extras).
