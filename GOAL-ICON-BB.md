@@ -2,6 +2,29 @@
 
 ## ▶ CURRENT PRIORITY: `corpus/benchmarks/icon/*.icn` (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). Per-benchmark blocker map: GOAL-ICON-FULL-PASS.md + HANDOFF-2026-06-23-CLAUDE-ICON-BENCH-BLOCKER-MAP-AND-INITIAL-STORAGE-GAP.md. The multiply-self-corrected in-banner analyses were deleted 2026-07-01 (git has them) — re-derive from a fresh gate/suite run, never from prose.
 
+## ⌚ WATERMARK 2026-07-10 (Claude Sonnet 4.6 · SCRIP `74a06b0f` · corpus `b28b7fef`) — 238/16/35; ladder +4 from session start (234→238); PUSH COMPLETE
+
+**Session scope:** fresh clone (ICON+JCON zips → refs symlinks), full orientation; 5 commits landed.
+
+**LANDED 1 — `1aebb140` substring GREEN (canonical cvpos fail semantics).** `subscript_get2`/`rt_section_var`/`subscript_get2_ext` all replaced clamp-and-return with out-of-range→FAILDESCR per `rcomp.r cvpos`. `bb_section` plain arm gets `DT_FAIL→ω`. `lower_lvalue_var` section arm recurses into nested-section/idx bases. `lower_idx_var` β leftward-cascade (prevβ threading, binop idiom). REVASSIGN generalized to all lvalue shapes. `rung36_jcon_substring` byte-identical.
+
+**LANDED 2 — `39b90c92` `===`/`~===` + subscript-resume cluster.** `BINOP_EQV`/`BINOP_NEQV` added to enum, `lc_binop_code`/`lc_is_binop`/classifiers in lower_icon+emit+driver+template patched; `rt_jct_relop` gains canonical `equiv` arm (EqlDesc/string-chars/scalar/cset-content, no coercion). Rvalue `TT_IDX`: `IR_DEREF` ω→idxβ. `lower_idx_var` prevβ threading. `string1` + `table` GREEN.
+
+**LANDED 3 — `b44fa9fb` call-position generators (BENCH-F3 core) + fall-off-end FAIL.** `IR_CALL_VALUE` gets `IR_PROC_GEN` handle-slot shape in `zeta_storage.c`. New `rt_call_value_gen_h`/`rt_call_value_resume_h` seam. Real β (resume-else-omega). `lower_proc_body` `succ=PFAIL` always (fall-off-end fails, canonical). `lower_call` ω threads leftward to rightmost arg-generator. `IR_CALL_VALUE` added to generator-kind registry. `string1`, `substring`, `table`, `proc_lookup` GREEN; ladder 234→238/16/35.
+
+**LANDED 4 — `b660fbb5` `proc(op,arity)` operator strings + `rt_call_arr` operator dispatch.** `proc()` accepts operator names at correct arity (fmisc.r/strprc). `rt_call_arr` prepass handles unary (-/+/*/\\/?), binary arith/relops/EQV/concat/cset-ops, `[]` subscript. `image()` extra-arg tolerant. `args` rc139→0. `rung37_coerce` GREEN.
+
+**LANDED 5 — `1b01bc67` unary operator + coerce37.** `rt_size_d` wrong-sig fixed; unary `*` routes through builtin passthrough. `rung37_coerce` confirmed GREEN, zero regressions.
+
+**FAIL SET (16 open):** `rung36_jcon_{args,coerce,endetab,fncs1,genqueen,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,var}`. `args` 189/450 diff lines remain (apply `!` tail blocked on flat-drive gen+makelist arg-chain). `genqueen` regressed from fall-off-end FAIL change (solvequeen falls off end — need explicit `fail` or return). `recogn` needs stdin supplied. `endetab`/`fncs1` rc=139 (crash). `coerce` runaway timeout. `prepro` parse error (`$include`). `var`/`string`/`scan*` various runtime walls.
+
+**NEXT (leverage order):** (1) `genqueen` — `solvequeen` explicit `fail;` at bottom (1-line fix, +1 test). (2) `args` apply-tail — `(!plist) ! alist` flat-drive gen-chain through `__apply__`. (3) `recogn` — needs stdin; examine with stdin supplied. (4) `var` — `variable()/name()/display()` builtins. (5) `scan*/string` — IR_SUSPEND-in-scan + generator-in-call-arg chains.
+
+**PUSH STATUS: SCRIP `74a06b0f` on origin/main · corpus `b28b7fef` on origin/main · .github watermark pending.**
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
+
+
 ## ⌚ WATERMARK 2026-07-10 (Claude Opus 4.8 · SCRIP `29ce53fc` · corpus unchanged) — 234/20/35; `<->` reversible-swap + `&level` landed; PUSH PENDING (credential)
 
 **Session scope:** fresh clone (ICON+JCON zips → refs symlinks), full ladder ground-truth (232/22/35, matching HEAD `bbda66f5` — the written 229/24/36 watermark below was already stale relative to five landed commits). Two contained fixes from the prior board's NEXT list.
