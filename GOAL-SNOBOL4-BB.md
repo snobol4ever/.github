@@ -6,6 +6,35 @@ A new encoder is NOT exempt from that doc's R2/R7/R9/R10 for being new: ONE `x86
 
 ---
 
+## ⚠ SESSION STATE (Claude, 2026-07-10, s13 — 1011 DEFINE-IN-EXPRESSION LANDED + OFFICIAL-ORACLE PIVOT: untainted SPITBOL + CSNOBOL4 built, certified, benchmarked) — SCRIP `2f920212`(1011) + this doc + `scripts/build_official_oracles.sh` + `scripts/util_bench_snobol4_engines.sh`, ALL LOCAL, PUSH PENDING CREDENTIAL; **NEW WATERMARK m3 266/14, m4 265/5/10, DIVERGE=1(1017)** (1011 green both modes; fail lists byte-identical to s12 minus 1011); icon 12/12×2, prolog 5/5×3; benchmark suite **16/16 OK at TIMEOUT=120** (s12's 15/16 was the runner's own 30s timeout on eval_dynamic — full run ~93s, ref-correct).
+
+**LANDED s13-a — 1011 DEFINE in expression position (`2f920212`):** `sno_prescan_expr` gains a DEFINE arm beside DATA/OPSYN — a literal-prototype `DEFINE('f(args)'[,'entry'])` in a statement-subject expression hoist-registers identically to the statement path (last-define-wins, the standing compile-time deviation), notes cconst names, and records the fname in a per-compile predef registry; `sx_lower`'s TT_FNC DEFINE fatal narrows to fold a REGISTERED call to the null-string literal (manual p219 — DEFINE returns null, never fails) while UNregistered positions (pattern/replacement fields, deferred exprs, EVAL/CODE fragments) stay loud fatals; the fragment guard now walks the whole statement tree and zeroes the registry. Statement-level probe proved arg-name==fname + entry-label redefine already oracle-correct — the expression gate was the only land mine.
+
+**LANDED s13-b — OFFICIAL ORACLES (Lon: "ours is tainted" — CONFIRMED):** built + certified from upstream GitHub into `/home/claude/official/`; full procedure encoded in `scripts/build_official_oracles.sh` (READ ITS HEADER — it records the abandoned sbl-bootstrap path that generates SILENTLY WRONG tables). **TAINT RECORD:** (1) fork `snobol4ever/x64` sbl md5 `79cab92f…` ≠ official release `172b206b…`; the fork carries the deliberate `systm.c` patch documented in `build_spitbol_oracle.sh` (TIME() → CPU-time integer **ms** on CLOCK_PROCESS_CPUTIME_ID) whereas OFFICIAL `spitbol/x64` TIME() diffs are **nanosecond-scale** (its µs docstring is stale; ÷1e6 for ms — wall-calibrated); by WALL the fork is genuinely ~1.5–2.4× slower on most benches (fibonacci 199 vs 96ms, func_call 1020 vs 421, var_access 1569 vs 654). (2) fork `snobol4ever/csnobol4` = 2.3.3 base + FENCE(P)+STNO patches INCLUDING `v311.sil`, and carries a real engine defect — unanchored ANY skips alternate cursor positions (`test/any.sno` fails; invisible to `build_csnobol4_oracle.sh`, which builds `xsnobol4` directly and SKIPS the regression gate). Fork oracles stay for the monitor workflow (it depends on the patched TIME()); benchmarks and semantics arbitration use the officials. **CSNOBOL4 provenance chain:** official repo has no releases + git tree lacks generated tables + snobol4.org egress-blocked → two-stage bootstrap: fork kit (generated finals committed; `.2` staging + timestamp dance) → stage-0 `xsnobol4` (&ANCHOR=1 generators dodge its ANY bug) → official tree `make SNO="…/xsnobol4 -b"` (the `-b` is load-bearing: genc's stdout IS `snobol4.c2`) → official **144/144 regression green** incl. its own `any.sno` → **FIXED-POINT CERTIFIED**: the stage-1 binary regenerates all 11 generated files byte-identically (modulo generated-on/$Id headers) — stage-0 provably left no fingerprint.
+
+**BENCHMARKS s13 (16/16 OK on every engine; self-ms, same .sno + .ref; ÷ratios vs official SPITBOL; SCRIP = m4, `-O0 -g` runtime build):**
+| bench | SCRIP m4 | off-SPITBOL 4.0f | off-CSNOBOL4 2.3.4d | fork-sbl (CPU-ms) | SCRIP÷off-sbl |
+|---|---:|---:|---:|---:|---:|
+| arith_loop | 605 | 23.1 | 134.3 | 47 | 26× |
+| eval_dynamic | 92665 | 376.6 | 1281.5 | 437 | 246× |
+| eval_fixed | 2169 | 260.0 | 720.8 | 272 | 8.3× |
+| fibonacci | 2129 | 90.6 | 539.0 | 193 | 23× |
+| func_call | 7575 | 410.4 | 2452.0 | 1002 | 18× |
+| func_call_overhead | 7570 | 414.5 | 2469.7 | 991 | 18× |
+| mixed_workload | 3890 | 98.6 | 474.6 | 182 | 39× |
+| op_dispatch | 1253 | 67.2 | 380.0 | 129 | 19× |
+| pattern_bt | 22405 | 507.9 | 570.6 | 518 | 44× |
+| roman | 3304 | 121.8 | 1065.6 | 168 | 27× |
+| string_concat | 867 | 156.1 | 321.0 | 142 | 5.6× |
+| string_manip | 11187 | 375.9 | 1718.4 | 691 | 30× |
+| string_pattern | 27255 | 388.9 | 1869.0 | 717 | 70× |
+| table_access | 4400 | 192.9 | 2639.8 | 361 | 23× |
+| var_access | 6079 | 643.3 | 3733.8 | 1551 | 9.4× |
+
+**⚠ CORRECTION — the standing "pattern_bt 0.77×, SCRIP beats SPITBOL" claim DOES NOT REPRODUCE** (44× behind official, ~43× by wall behind the fork; same source, same counts, ref-correct output). Either a real regression since that measurement or a different build config then; the `-O0` runtime is a plausible-but-UNPROVEN factor. Older cross-engine numbers in `corpus/BENCHMARKS.md` (SPITBOL 480 / CSNOBOL4 580 on pattern_bt) are consistent with TODAY'S officials (508/571) — the stale claim is the SCRIP side. **Rerun protocol:** `scripts/build_official_oracles.sh` once, then `scripts/util_bench_snobol4_engines.sh <label> <timeout> <divisor> <cmd…>` (divisors: official sbl 1000000, fork sbl 1, csnobol4 1) and `scripts/test_bench_snobol4_modes.sh` with `TIMEOUT=120` for SCRIP.
+
+---
+
 ## ⚠ SESSION STATE (Claude, 2026-07-09, s12 — NRETURN LANDED + BENCHMARKS 15/16 + indirect_dispatch CORPUS FIX) — SCRIP `1076fd8d`(NRETURN) + `eb9279bb`(feature .s), corpus `fdefe421`(APPLY fix + minted .ref) + `eaef9330`/`ffbe72d0`/`72d663c2`(bench .s) + `44c33f18`(demo .s), REBASED onto the parallel 2026-07-09 upstream line (Raku-restore + Icon fixes + BB-FIXUP cluster, base `eb4bb6ff`; the feature-.s regen commit conflicted in-rebase, was SKIPPED per the honest-artifact design, and regenerated fresh on the merged tree) and PUSHED to origin this handoff; gate RE-PROVEN watermark-identical on the merged tree; **NEW WATERMARK m3 265/15, m4 264/5/11, DIVERGE=1(1017)** (+2/+2: 1013 m4 SKIP→PASS, 213 m3+m4 →PASS); fail lists byte-identical to s11 minus the two fixes; oracle (sbl) passes both refs 3/3 and 5/5.
 
 **LANDED s12-a — benchmark suite 15/16 OK, 0 FAIL:** eval_dynamic double-confirmed timeout-only (full run ms:97691, output == ref; EVR unchanged). indirect_dispatch was NEVER oracle-valid — sbl rejects `R = $FN(X)` with ERROR 022 (unary `$` binds the CALL result, manual p212: indirect call is APPLY); SCRIP already agreed with the oracle. Source fixed to `APPLY(FN, X)`, .ref minted (`6`), green both modes.
