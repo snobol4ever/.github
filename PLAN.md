@@ -23,20 +23,19 @@ All languages × all backends green.
 ## ⛔ SESSION START — every session, no exceptions
 
 Lon names a goal. You:
-1. **Read `GOAL-ICON-BB.md` (the live ground-zero goal — the generator/four-port model every BB language reuses) before anything else.**
-2. Clone `.github`: `git clone https://github.com/snobol4ever/.github.git /home/claude/.github` (public,
+1. Clone `.github`: `git clone https://github.com/snobol4ever/.github.git /home/claude/.github` (public,
    no token needed — verified by direct clone test, 2026-07-01; `git push` still needs a credential)
-3. Read `PLAN.md`. Find goal in table below.
-4. Read `RULES.md` in full.
-5. **If PARSER-* or Snocone — read `SNOBOL4-SNOCONE-PRIMER.md` first.**
-6. **If touches language corpus — read `CORPUS-LOCATIONS.md`.**
-7. **If MODE3-EMIT or MODE4-EMIT, or ANY Byrd-box codegen / template / BB-LOCAL-STORAGE work (every `GOAL-*-BB` rung qualifies) — read the BB-CODEGEN DESIGN SET first, NON-NEGOTIABLE:**
+2. Read `PLAN.md`. Find goal in table below.
+3. Read `RULES.md` in full.
+4. **If PARSER-* or Snocone — read `SNOBOL4-SNOCONE-PRIMER.md` first.**
+5. **If touches language corpus — read `CORPUS-LOCATIONS.md`.**
+6. **If MODE3-EMIT or MODE4-EMIT, or ANY Byrd-box codegen / template / BB-LOCAL-STORAGE work (every `GOAL-*-BB` rung qualifies) — read the BB-CODEGEN DESIGN SET first, NON-NEGOTIABLE:**
    - **Read `ARCH-ICON.md`** (register source of truth = `src/templates/x86_asm.h`; layout = `src/emitter/emit.cpp` + flat `src/templates/`). The former six-doc set (ARCH-x86 / ARCH-SCRIP / REGISTER-LAYOUT) was pruned to live content 2026-07-01; the ORIENTATION SYNOPSIS in `GOAL-IR-IMMUTABLE-EMIT.md` that once distilled it was itself deleted 2026-07-05 (Lon directive) — read the ARCH docs directly, there is no synopsis to chase.
    - **Read `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` before writing or editing ANY `x86_asm.h` encoder or ANY `xa_*`/`bb_*` template code — NON-NEGOTIABLE, not just for boxes already mid-conversion.** Its R2/R7/R9/R10 and the "ONE MEDIUM, INVISIBLE" FACT RULE govern every new encoder too: one `x86(...)` concatenation, medium switched invisibly inside the encoder, consumed via `bb_emit_x86`'s in-band `L`/`J`/`D`/`E`/`F` record walk — never a hand-written `IF(MEDIUM_TEXT,...)+IF(MEDIUM_BINARY,...)` pair duplicating one instruction twice (see that doc's own named "forbidden shape"). Added 2026-07-07 after this exact mistake was made twice in one SNOBOL4-BB session before being caught.
    A `GOAL-*-BB` rung ASSUMES you have read these. If a rung touches per-box state and does not link here, that rung is defective — fix the rung's pointer before coding.
-8. Open Goal file. Open that repo's REPO file.
-9. Run Goal file's `## Session Setup` scripts.
-10. Find first incomplete Step (`- [ ]`). Do it.
+7. Open Goal file. Open that repo's REPO file.
+8. Run Goal file's `## Session Setup` scripts.
+9. Find first incomplete Step (`- [ ]`). Do it.
 
 ### Clone SPITBOL oracle
 ```bash
