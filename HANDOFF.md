@@ -1,114 +1,96 @@
-# HANDOFF — 11th run (Claude Sonnet 4.6, 2026-06-07)
+# Session Handoff — 2026-07-10
+
+## Context window at handoff: ~80%
+
+---
+
+## What was accomplished this session
+
+### Commits (newest first)
+
+**48e7d7d3** `ICN: member(t,k) returns value not key; GC visitor handles list frame_elems raw array`
+- `by_name_dispatch.c`: `member(t,k)` was returning `kd` (the lookup key); Icon semantics return the stored **value**. Fixed to `table_get(tbl, ks)`. Recovers `rung13_table_member`.
+- `gc_heap.c`: `rt_gc_visit_descr` DT_DATA branch crashed on list records that smuggle a raw `DESCR_t*` as `frame_elems` (`.u->type = 0x64` garbage → SIGSEGV). Fixed by detecting `frame_elems` layout by field name and walking elements directly. Fixes geddump crash on GC cycle.
+
+**241c5867** `BENCH-F3: bare string-relop with generator operand re-pumps on compare-fail`
+- `lower_icon.c`: relop ω→right-β re-pump wire guarded `ival 5..10` (numeric relops BINOP_LT..NE only). String relops `BINOP_SLT..SNE` (12..17) never got the edge → `"x" == !L` / `"x" == (a|b|c)` only tried first alternative. Guard is now the `is_relop` predicate (both families, canonical: `irgen.icn ir_binary` funcs-set opfn failLabel = right.ir.resume).
+- Verified: 5 repros HIT m3+m4; exhaustion still MISSes; all gates green; rung FAIL-set byte-identical pre/post (fix was ladder-neutral, no new regressions).
+
+---
 
 ## Repo state
-- Branch: `main`, HEAD SCRIP: `4f2ae74`, corpus: `794a8c58`
-- Build: CLEAN (`make scrip` → `Built: scrip`)
-- Gate: **m2 86/0 XFAIL=1** (recursion.pas known XFAIL)
-- Session open:  76/1 (read2 fail, 76 pass)
-- Session close: 86/0 (+10 pass, +5 probes committed)
 
-## What landed this session
+| Binary | Built | Clean |
+|--------|-------|-------|
+| `SCRIP/scrip` | ✓ 2026-07-10 | ✓ |
+| `SCRIP/out/libscrip_rt.so` | ✓ 2026-07-10 | ✓ |
 
-### Fix: `read2` EOF char (pre-existing bug)
-`__pas_read_c` in `by_name_dispatch.c`: EOF returns `chr(26)` not `chr(0)` — pint semantics.
-Gate: 76/1 → 77/0.
+| Suite | Result |
+|-------|--------|
+| Icon smoke m3+m4 | 12/12 both modes |
+| Prolog smoke m3+m4 | 5/5 both modes |
+| SNOBOL4 smoke | 7/7 |
+| All 6 icon/emit gates | GREEN |
+| Icon rung ladder | 229 PASS / 24 FAIL / 35 XFAIL (rung13 recovered) |
 
-### PB-24: 2D comma-syntax arrays — LANDED
-`pascal.y` changes:
-- `g_pas_arrays` struct gains `long long ncols` field (−1 = 1D). New `pas_array_add2d(name, high, ncols)` and `pas_array_ncols(name)` lookup.
-- New `g_pas_pend_arr_ncols` global tracks pending column count.
-- New grammar arm: `ARRAYSY LBRACK simple_type COMMA simple_type RBRACK OFSY type` — flat high = `(row_high+1)*(col_high+1)-1`; stores `ncols = col_high+1`.
-- `var_decl`: dispatches `pas_array_add2d` when `g_pas_pend_arr_ncols >= 0`.
-- `type_decl`: passes `ndim2=1, ncols` to `pas_arrtype_add` for named 2D types.
-- `selector LBRACK expression_list RBRACK`: when `count==2` and var has known ncols, **desugars `a[i,j]` → `TT_IDX(a, i*ncols+j)` at parse time** — zero changes to `lower_pascal.c`.
-- Probes: `arr2d`, `arr2d2`, `arr2d3`, `matmul` (all oracle-verified).
+Installed: `gdb` (apt-get, session-local).
 
-### PB-27: record value params — LANDED
-`pascal.y` changes:
-- New `pas_recvar_add_from_type(vname, typename)` — registers recvar directly from named record type without going through pend.
-- `id_list COLON IDENT` value param rule extended: if IDENT is a known record type → `pas_recvar_add_from_type` + `pas_array_add(name, nf-1)` so `q.x` resolves to `TT_IDX(q,0)` at parse time (not `TT_FIELD` → UNHANDLED).
-- Also handles array-typed value params: if IDENT is known 1D/2D array type → `pas_array_add`/`pas_array_add2d` so `a[i]`/`a[i,j]` desugar correctly inside callee.
-- Probes: `recparam`, `recparam2`, `recparam3`, `forward1`, `markrel` (all oracle-verified).
+---
 
-## Open bug: 2D named-type array VALUE PARAM (partially investigated)
+## Clones in place
 
-**Symptom:** A procedure receiving a `type mat2 = array[0..1,0..1]` value param, where the procedure ALSO has local variables declared, produces wrong output.
-
-**Reproduced:**
-```pascal
-type mat2 = array[0..1, 0..1] of integer;
-var m: mat2;
-procedure show(a: mat2);   { ← value param of named 2D type }
-var i: integer;            { ← any local triggers the bug }
-begin writeln(a[0,0]) end;
-begin m[0,0]:=11; m[0,1]:=22; show(m) end.
 ```
-Oracle: `11`. m2 output: `22` (index off by +1).
-
-**Without locals** (no `var` in show): works correctly. `debug3.pas` passes.
-
-**Root cause narrowed to:** The interaction between `g_pas_arrays` containing the formal param `'a'` (added in `PB-27` param rule) and the frame Scope slot ordering when locals are present. Hypotheses:
-1. The program-level `mk_array_fill` init loop emits `a := mk_array_fill(3)` for the formal param (wrong — it's not a global). This runs BEFORE `show(m)` in main. BUT for flat (non-nested) procs, IR_VAR 'a' checks FRAME first, so NV['a'] shouldn't matter if FRAME is correct.
-2. The Scope slot ordering when locals co-exist with params shifts the frame lookup. Specifically: `e[0]='a'` (param), `e[1]='i'` (local) — but `g_pas_arrays` may register 'a' in a way that makes `arr_get` receive the wrong argument.
-3. The `pas_array_ncols('a')` lookup inside show's body returns the right ncols=2 (confirmed for the no-locals case). When a local is declared, something shifts.
-
-**Investigation approach for next session:**
-- Check whether `g_pas_arrays` needs to distinguish **formal params** from **globals** so the program init loop skips them. The cleanest fix: a `is_param` flag, or simply: don't add formal params to `g_pas_arrays` — instead maintain a SEPARATE `g_pas_param_arrays` table that the selector rule also checks.
-- Alternatively: verify the frame env[slot] binding is actually receiving m's value not NV['a']. Add a single-char writeln probe to confirm what the frame contains.
-
-**The 2D named array param with NO locals works** — only fails when locals are present. That's the exact boundary for the next session to dig into.
-
-## Next session setup
-```bash
-bash /home/claude/SCRIP/scripts/install_system_packages.sh
-cd /home/claude/SCRIP && rm -f scrip && make -j4 scrip
-make libscrip_rt
-for r in /home/claude/SCRIP /home/claude/corpus /home/claude/.github; do
-    ( cd "$r" && git config user.name "LCherryholmes" && git config user.email "lcherryh@yahoo.com" )
-done
-( cd /home/claude/corpus/programs/pascal && fpc -Ci -Co -Cr -gl pcom.pas && fpc -Ci -Co -Cr -gl pint.pas )
+/home/claude/.github/          ← snobol4ever/.github (PLAN.md, GOAL-ICON-BB.md etc.)
+/home/claude/SCRIP/            ← snobol4ever/SCRIP
+/home/claude/corpus/           ← snobol4ever/corpus
+/home/claude/icon-master/      ← gtownsend/icon (built: bin/icont + bin/iconx)
+/home/claude/SCRIP/refs/icon-master → /home/claude/icon-master
+/home/claude/SCRIP/refs/jcon-master/tran/irgen.icn → corpus copy
 ```
 
-Gate (run every session before any commit):
-```bash
-cat > /tmp/pascal_gate.sh << 'GATE'
-#!/bin/bash
-PASDIR=/home/claude/corpus/programs/pascal
-SCRIP=/home/claude/SCRIP/scrip
-cd "$PASDIR"
-PASS=0; FAIL=0; XFAIL=0; FAILS=""
-for f in *.pas; do
-    base="${f%.pas}"
-    case "$base" in pcom|pint|ppp) continue ;; esac
-    if [ "$base" = "recursion" ]; then XFAIL=$((XFAIL+1)); continue; fi
-    ref="${base}.ref"
-    if [ ! -f "$ref" ]; then echo "NOREF $base"; FAIL=$((FAIL+1)); continue; fi
-    got=$(timeout 8s "$SCRIP" --run "$f" < /dev/null 2>/dev/null)
-    exp=$(cat "$ref")
-    if [ "$got" = "$exp" ]; then
-        PASS=$((PASS+1))
-    else
-        FAIL=$((FAIL+1))
-        FAILS="$FAILS FAIL:$base"
-    fi
-done
-echo "m2 PASS=$PASS FAIL=$FAIL XFAIL=$XFAIL"
-for x in $FAILS; do echo "  $x"; done
-GATE
-bash /tmp/pascal_gate.sh   # must be PASS=86 FAIL=0 XFAIL=1
+---
+
+## Open FAIL list (24 remaining after this session)
+
+```
+rung36_jcon_args       rung36_jcon_coerce    rung36_jcon_endetab
+rung36_jcon_fncs1      rung36_jcon_genqueen  rung36_jcon_htprep
+rung36_jcon_kwds       rung36_jcon_mffsol    rung36_jcon_mindfa
+rung36_jcon_parse      rung36_jcon_prepro    rung36_jcon_recogn
+rung36_jcon_scan       rung36_jcon_scan1     rung36_jcon_scan2
+rung36_jcon_string     rung36_jcon_string1   rung36_jcon_substring
+rung36_jcon_table      rung36_jcon_var
+rung37_keywords        rung37_neg_pos        rung37_proc_lookup
+rung37_scan_alt
 ```
 
-**Probe generation (if .ref files missing):**
-```bash
-( cd /home/claude/corpus/programs/pascal && for f in *.pas; do
-    base="${f%.pas}"
-    case "$base" in pcom|pint|ppp|recursion) continue ;; esac
-    ./pcom < "$f" > /dev/null 2>&1 && cp prr prd && printf '%s' "$(timeout 8s ./pint < /dev/null 2>/dev/null)" > "${base}.ref"
-  done )
-```
+### Diagnosed this session (not yet fixed)
 
-## Landmines (see GOAL-PASCAL-BB.md for full list)
-- `rm -f scrip` before `make scrip` (no prerequisites; edits silently don't take)
-- Pascal regen ONLY: `cd src/parser/pascal && bison -d -o pascal.tab.c pascal.y` (never full regen script)
-- `touch` templates before `make scrip` after any template edit
-- `fpc` needs `apt-get update` first
+**rung37_scan_alt** — `("ab"|"cd"|"ef") ? move(1)` only fires body for first subject. EVERY alternation in scan position: external β should advance to next subject after body exhaustion; currently the alternation collapses after first. Root: `bb_gen_scan` β-wire does not thread back to alternation's next-subject edge.
+
+**rung37_neg_pos** — rc=134 (SIGABRT); negative/pos scan position semantics; also `subj_mut` lvalue swap of `&pos` ↔ local incorrect.
+
+**rung36_jcon_*** (20 tests) — bulk rung36 failures span: scan, string ops, table ops, coercion, args, keyword semantics. Likely shared root causes; investigate `rung36_jcon_scan` first as it's a simpler single-feature test.
+
+**rung37_keywords** — `&fail`, `&null`, `&subject`, `&pos` keyword semantics under various contexts.
+
+**rung37_proc_lookup** — procedure-value lookup / first-class procedure semantics.
+
+### geddump (benchmark, not a rung test)
+
+Crash fixed (GC SEGV). Now **times out** >120s. Suspected root: scan_stmt loop over large GEDCOM file is O(n²) — string concatenation re-allocation pattern common in Icon programs that build large strings incrementally. Need to profile; likely `str_concat` or `every … || …` pattern.
+
+---
+
+## Next session recommended entry
+
+1. Read `PLAN.md` + `RULES.md` + `GOAL-ICON-BB.md` (mandatory per session-start sequence).
+2. Run `bash scripts/test_smoke_icon.sh` + `bash scripts/test_smoke_prolog.sh` to confirm clean baseline.
+3. Attack **rung37_scan_alt** — alternation-in-scan-position β threading. Read `src/templates/bb_gen_scan.cpp` + `src/templates/bb_match_alternate.cpp` + canonical `irgen.icn ir_a_Binop` / `ir_a_Scan` before touching.
+4. Then **rung36_jcon_scan** to open the bulk rung36 block.
+5. **Do not touch geddump timeout** until scan_alt is clean — they may share a scan-position performance root.
+
+---
+
+## Session authors
+LCherryholmes · Claude Sonnet 4.6
