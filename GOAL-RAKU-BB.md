@@ -4,6 +4,8 @@
 
 Per Lon (2026-06-27) the grammar/regex work is **UN-PARKED** and is now the lead. The OO ladder is essentially complete (every rung `[x]`/`[~]`; the cheap wins are exhausted, remaining items are deferred tails with named costs). **RK-GRAM-3** — the recursive-descent grammar engine seam — is the first rung; mind its standing requirement (in the GRAMMAR/REGEX DIRECTION section below): it needs a **FULL context budget** and the `ARCH-x86.md`/`ARCH-SCRIP.md` reads done **first**, so it should open a fresh session rather than tail onto a spent one. RK-EMIT-MAP/GREP is SUPERSEDED (2026-07-10 — map/grep landed in the lowerer, no boxes needed); RK-GRAM-4..6 sit on RK-GRAM-3. (Superseded prior banner: "RAKU OOP IS THE LEAD," Lon 2026-06-15 — the OO lead delivered its ladder.)
 
+**2026-07-10 (Lon, this session): RAKU-100 LADDER ADDED** — the full-language coverage arc (roast-6.c as the completeness oracle; Phases 0/A–H) now lives in this file: §"RAKU-100 LADDER" directly below the GRAMMAR/REGEX DIRECTION section. RK-GRAM-3 remains the standing implementation lead and is Phase C of that arc; the Phase-0 scoreboard/oracle rungs are deliberately session-tail-sized and may land in any session without displacing the lead. Tier exclusions in that section are PROPOSED — Lon ratifies before the scoreboard's denominator is frozen.
+
 ### LEXER STATUS (updated 2026-06-24)
 The "flex can't regen" wall is RESOLVED. Root cause: column-0 `/*---*/` separators in the rules section were unrecognized by flex 2.6.4. Fix: indent them by one space in `raku.l`. Verified: flex now regens `raku.lex.c` with rc=0, and the new lexer is behavior-equivalent across all 102 smokes (97/0/7 both modes). `raku.lex.c` is now the flex-2.6.4 regen. **Bison regen is always fine. To regen lexer: `cd src/parser/raku && flex -o raku.lex.c raku.l` (rc=0, 31 conflicts unchanged).**
 
@@ -55,6 +57,78 @@ RK-GRAM-3 (recursive-descent grammar engine) is **UN-PARKED and is the lead** (L
 - [ ] **RK-GRAM-4 — captures + Match tree.** Reify `(from,pos)` snapshots and named/positional captures into a `Match` object; `$m<name>` / `$m[i]` access (parser gap noted: `$var<word>` Match-subscript not yet parsed). Sits on 3e.
 - [ ] **RK-GRAM-5 — LTM + proto/`multi` token dispatch.** Longest-token-match alternation ordering; proto-token candidate dispatch. Sits on 3d/3e.
 - [ ] **RK-GRAM-6 — actions + adverbs + control.** `make`/action-class invocation, `:i`/`:s`/`:ratchet` adverbs, `<?>`/`<!>` assertions. Sits on 4/5.
+
+---
+
+## ▶ RAKU-100 LADDER — ENTIRE-LANGUAGE COVERAGE ARC (Lon directive 2026-07-10 · authored Claude Fable 5)
+
+**COMPLETION DEFINITION (computed, never prose — the `handoff_status.sh` law applied to coverage):** 100% of IN-TIER roast 6.c test files PASS **UNMODIFIED** under BOTH m3 `--run` AND m4 `--compile`. The oracle is **roast**, the official Raku specification ("any compiler that passes the tests is deemed to implement that version"); the manifest is `refs/rakudo-main/t/spectest.data.6.c` (**1,154 files**, counted 2026-07-10 from the uploaded rakudo-main tree). Roast's own fudge/skip/todo mechanism maps 1:1 onto our XFAIL/EXCISE discipline — a fudged file is an XFAIL, never a silent pass. Coverage claims come ONLY from `scripts/raku_roast_scoreboard.sh` stdout committed to `RAKU-COVERAGE.md`; the feature-weighted hand estimate of 2026-07-10 (~14% of full surface: 230 inline + 47 file smokes, deep S12-OO spike ~50%, thin elsewhere) is SUPERSEDED by the scoreboard's first committed run and must not be re-quoted after it.
+
+**TIER TABLE (PROPOSED — Lon ratifies before the scoreboard denominator is frozen; stamp date here when ratified):**
+| Tier | Sections | Files | Meaning |
+|------|----------|-------|---------|
+| EXCLUDED | S01 Perl-5 interop (11) · S15 Unicode/NFG (69; byte-string stance) · S26 Pod (19) · S22 (1) · precompilation · NativeCall | ~100 | not part of "100%" |
+| TIER-C (Lon decision: thin or excluded) | S17 concurrency (65; thin start/await over the pthread coexpr substrate is plausible later) · S24 (3) | ~68 | decide at Phase H |
+| IN-TIER | everything else (S02/S03/S04/S05/S06/S07/S09/S10/S11/S12/S13/S14/S16/S19/S28/S29/S32 + integration) | **~985** | the 100% target |
+
+**STANDING LAWS for every rung below:** both-modes-green (m3+m4) + the named GATE; representation migrations keep the old path as fallback behind a gate so the suite never regresses (the RK-GRAM flatten discipline); canonical semantics come from `refs/rakudo-main/src/core.c/*.rakumod` FIRST, prose second (CONSULT CANONICAL SOURCES rule); all FACT RULES in this file (language-blind templates, no value stack, ζ-frame storage, `x86()`-only encoders) bind unchanged.
+
+### PHASE 0 — INSTRUMENT FIRST (session-tail-sized; may land in any session)
+- [ ] **RK-100-0a — roast + rakudo oracle.** Clone `Raku/roast` at the 6.c tag beside `refs/rakudo-main`; obtain a PREBUILT rakudo binary as the `.expected`-minting oracle (the fresh-iconx pattern — do NOT build the uploaded tree, it needs nqp+MoarVM). GATE: `raku --version` rc=0; in-tier manifest file count computed by script and committed.
+- [ ] **RK-100-0b — scoreboard.** `scripts/raku_roast_scoreboard.sh`: run every in-tier roast file under scrip m3+m4, classify PASS / FAIL / PARSE-FAIL per Synopsis, write the table to `RAKU-COVERAGE.md`. GATE: baseline table committed (near-0% expected until 0c — that IS the honest baseline).
+- [ ] **RK-100-0c — Test protocol.** Runtime `plan`/`ok`/`is`/`isnt`/`nok`/`skip`/`todo`/`done-testing` emitting TAP (roast is unrunnable without it). GATE: a 10-file S02 starter set passes UNMODIFIED, both modes.
+
+### PHASE A — THE THREE WALLS (each unblocks a dozen DEFERRED tails already named in the OO ladder above)
+- [ ] **RK-BLK — blocks/closures native.** Canonical: `Block.rakumod`/`Code.rakumod`.
+  - [ ] **RK-BLK-a** — Block value DESCR (proc + ζ-env ptr); `my $b = { ... };` `$b()` invoke. GATE: store/invoke smoke both modes.
+  - [ ] **RK-BLK-b** — pointy `-> $x { }` params; `.()`; implicit `$_` single-arg block.
+  - [ ] **RK-BLK-c** — lexical capture (outer read, then outer write-through) via ZLS2 activation chains — **COORDINATE with the ZB-ACT ladder in `GOAL-IR-IMMUTABLE-EMIT.md`; NEVER fork a parallel activation mechanism.**
+  - [ ] **RK-BLK-d** — cash the blocked tails, one step + smokes each: value-position `my @a = map {...}, @xs` · `sort` with comparator block · closure attr defaults (`has $.x = computed()`) · BUILDPLAN op-400 · `where` constraints.
+- [ ] **RK-VAL — numeric tower.** Canonical: `Rat.rakumod`, `Int.rakumod`, `Num.rakumod`, `Numeric.rakumod`.
+  - [ ] **RK-VAL-a** — Num floats end-to-end (literals, arith, Raku-faithful stringification).
+  - [ ] **RK-VAL-b** — **Rat**: decimal literals ARE Rat, normalized arith, `.nude`/`.numerator`/`.denominator`, Rat↔Num contagion, faithful `.gist`/`.Str` (`0.1` prints `0.1`). THE distinctive Raku numeric; roast assumes it everywhere.
+  - [ ] **RK-VAL-c** — big Int (arbitrary precision; gmp-vs-own-limbs is a Lon runtime-dependency decision). GATE: `say 2**100`, factorial 25, both modes.
+  - [ ] **RK-VAL-d** — radix literals `0x/0o/0b/:16<…>`; allomorph (`IntStr`) tails.
+- [ ] **RK-AGG — real aggregates** (retire the `\x01` string encoding). Substrate to reuse: the Icon lists machinery landed 2026-07-06 (`04595cd1`).
+  - [ ] **RK-AGG-a** — descriptor Array behind the EXISTING runtime entry points (`.push/.pop/.shift/.unshift/.splice/.elems`), `\x01` kept as fallback behind a per-shape gate. GATE: all current array smokes green BOTH paths.
+  - [ ] **RK-AGG-b** — nesting (`[[1,2],[3]]`), `@a[i]` lvalue, slices `@a[1,3]`, `*-1` Whatever index.
+  - [ ] **RK-AGG-c** — descriptor Hash, `%h{k}` lvalue, slices, `.keys/.values/.kv/.pairs`, `:exists`/`:delete` adverbs, autovivification.
+  - [ ] **RK-AGG-d** — Pair; List-vs-Array mutability split; Seq basics; `.list`/`.Array` coercions.
+  - [ ] **RK-AGG-e** — **RETIRE `\x01`**. GATE: grep for the separator constant in runtime == zero live sites (compat shims only); full smoke suite green.
+
+### PHASE B — STATEMENT/OPERATOR BREADTH (S03/S04)
+- [ ] **RK-CTRL** — `loop`/`repeat`, `last`/`next`/`redo` (+labels), statement modifiers (`EXPR if/unless/for/while COND`), `do` blocks, ternary `?? !!`, `with`/`orwith`/`without`, `once`.
+- [ ] **RK-OPS** — chained comparisons · `//`/`andthen`/`orelse` · string relops `lt le gt ge eq ne` + `cmp`/`leg`/`<=>` · `x`/`xx` · Range-as-value object · `...` sequence op; POST-AGG: `Z` zip · `X` cross · `[op]` reduce · `>>op<<` hyper · `R`/`!`/`=` meta.
+- [ ] **RK-SMART** — the `~~` smartmatch dispatch table (type/regex/range/junction/list arms) + `given`/`when` riding it.
+- [ ] **RK-JUNC2** — TRUE junction autothreading through calls and operators (first VERIFY how the current jct_* smokes pass, then generalize; no special-case residue).
+- [ ] **RK-BUG-SWEEP** — monitor-first per RULES.md: (1) `if ($x < $y)` variable-operand relop misthread (pre-existing, named in the G2 note above); (2) callwith/call-arg binop marshaling (`abs($x+10)`); (3) `$var<word>` Match-subscript parse gap.
+
+### PHASE C — GRAMMAR/REGEX = **the RK-GRAM-3a..g → 4 → 5 → 6 ladder in the GRAMMAR/REGEX DIRECTION section ABOVE** (single home — NOT duplicated here), then:
+- [ ] **RK-RX-OPS** — `s///`, `.subst`/`.match`/`.comb`/`.split` with regex, `tr///`, `:g`/`:i`/`:x` adverbs, `$/` `$0` `$<name>` variables.
+
+### PHASE D — SIGNATURES (S06)
+- [ ] **RK-SIG** — named args at call sites (`:name(v)`, `name => v`) · optional `$x?` · defaults `$x = e` (post-BLK for non-const) · slurpy `*@`/`*%` · `|` capture pass-through · `-->` return-type check · destructuring sub-signatures · `where` (post-BLK).
+- [ ] **RK-FN2** — anonymous `sub`, WhateverCode (`* + 1`), `&foo` sigil, explicit `proto sub {*}`.
+
+### PHASE E — OO TAILS (collection order for the DEFERRED items whose single home stays each OO rung's own note above): enum/subset (G5) → `but` runtime mixin (G4) → prefix/postfix overload call-site seams → parametric roles `R[::T]` → role-does-role → `FALLBACK` → `AT-KEY`/`AT-POS` container protocols.
+
+### PHASE F — EXCEPTIONS + PHASERS (S04)
+- [ ] **RK-EXC2** — typed `X::` hierarchy as real objects, `when X::Foo` inside CATCH, `Failure`/`fail` soft exceptions, `$!` variable. (try/CATCH base LANDED — 13 smokes.)
+- [ ] **RK-PHASE** — `ENTER`/`LEAVE`/`KEEP`/`UNDO`, `FIRST`/`NEXT`/`LAST`, `state` vars, `BEGIN` (const-fold tier)/`END`.
+
+### PHASE G — S32 LIBRARY SWEEP (191 files)
+- [ ] **RK-LIB-STR / RK-LIB-LIST / RK-LIB-NUM / RK-LIB-HASH** — batch rungs, ~10 methods per step, **ORDERED BY SCOREBOARD YIELD** (the instrument names which missing methods unlock the most roast files — never guess the order). `sprintf`/`.fmt` is its own step.
+
+### PHASE H — SYSTEM
+- [ ] **RK-IO2** — `IO::Path`, `open`/`close`/`get`/`lines`/`slurp`/`spurt`/`dir`, file tests (the fileio38/stdio39 smokes are the seed).
+- [ ] **RK-MAIN** — `MAIN` + auto-usage (S19, 6 files).
+- [ ] **RK-MOD** — single-file `unit module/class`, `use` of a sibling file, `EXPORT` (tier-B minimum: multi-file programs work).
+- [ ] **RK-CONC** — TIER-C, Lon decision: thin `start`/`await`/`Promise` over the pthread coexpr substrate, or EXCLUDED.
+
+### META-RUNG — RK-ROAST-CLIMB (standing)
+Every phase-close re-runs the scoreboard and commits the `RAKU-COVERAGE.md` delta. The ladder is DONE when the scoreboard — not prose — prints 100% of in-tier files PASS unmodified, both modes.
+
+**MAGNITUDE (honest, so nobody is surprised):** the S12 OO spike cost ~15 sessions for ~50 files of surface; in-tier is ~985 files ⇒ this is a **60–100-session arc**. Phase A is the highest-leverage 10 — the three walls gate more roast files than everything else combined.
 
 ---
 
@@ -557,6 +631,15 @@ bash scripts/util_template_purity_audit.sh
 **RK-OO-C5 `callsame`/`nextsame`/`callwith` — LANDED both modes.** Re-dispatch ledger `g_redisp` (a dispatch-state stack, not a value stack) captures invocant/mname/MRO/found\_idx per `meth_call`; `resolve_method_chain` gains found-index out-param; shared `invoke_method_proc` helper de-duplicates dispatch tail; chaining works (`B>callsame>C>callsame>A`). Registered as known builtins → `CALL_ROUTE_FN` (out of `[SMX]`) both modes. Pre-existing general call-arg limitation noted: `callwith($n + 1)` marshals the bare slot (reproduces with `abs($x+10)` on clean HEAD); bind to var first. +5 smokes.
 
 **RK-OO-C6 multiple inheritance + real `c3_merge` — LANDED both modes.** Grammar: `is_clauses` non-terminal collects N parents into `\x01`-delimited `sval`; bison regen rc=0, 31 conflicts unchanged. `DatType` gains `parents[8][64]/nparents`; `class_inherit_multi` merges all ancestors' fields + computes true C3 via `c3_merge`; `class_inherit` delegates (1-parent path behavior-identical). Two bugs caught and fixed: (a) `c3_merge` pointer aliasing — `cand = lists[i][0]` aliased storage being compacted, fixed by snapshotting before mutation; (b) mode-4 emitter was emitting single `class_inherit@PLT` using `dat_parent` (first parent only), rewritten to rodata pointer-table → `class_inherit_multi@PLT`. Diamond `D is B is C` (both deriving `A`) linearizes to `[D,B,C,A]` — verified by method resolution (picks B), `callsame` walking full C3 order (`B>C>A` including MI sibling), and attribute merge. +4 smokes.
+
+## ⌚ WATERMARK 2026-07-10 (Claude Fable 5 · SCRIP `e4436348` untouched · corpus `7d30ddd0` untouched · .github edited) — RAKU-100 LADDER AUTHORED: full-language coverage arc landed in THIS file (planning session, zero code)
+
+- **What landed:** the `## ▶ RAKU-100 LADDER` section (74 lines) after the GRAMMAR/REGEX DIRECTION section + a dated pointer paragraph in the CURRENT PRIORITY banner. Completion definition = 100% of IN-TIER roast 6.c files PASS UNMODIFIED m3+m4, scoreboard-computed never prose-claimed. Phases: 0 instrument (roast+rakudo oracle, `raku_roast_scoreboard.sh`→`RAKU-COVERAGE.md`, Test/TAP protocol) → A three walls (RK-BLK closures / RK-VAL Rat+bigint tower / RK-AGG descriptor aggregates retiring `\x01`) → B statements/operators + RK-BUG-SWEEP → C = the existing RK-GRAM ladder (single home, not duplicated) + RK-RX-OPS → D signatures → E OO tails → F exceptions/phasers → G S32 sweep scoreboard-yield-ordered → H system → RK-ROAST-CLIMB meta-rung.
+- **Scope numbers (measured this session):** roast 6.c manifest = 1,154 files (`refs/rakudo-main/t/spectest.data.6.c`); proposed in-tier ≈ 985; current smoke inventory = 230 inline (`test_smoke_raku.sh`) + 47 file (`test/raku/`); feature-weighted coverage estimate ≈ 14% (deep S12-OO spike ~50%, thin breadth) — estimate is SUPERSEDED by the scoreboard's first committed run, do not re-quote after it.
+- **OPEN for Lon:** (1) ratify/adjust the tier table (freezes the scoreboard denominator); (2) RK-VAL-c bigint dependency decision (gmp vs own limbs); (3) TIER-C concurrency thin-vs-excluded (Phase H).
+- **Session-local, does NOT survive the sandbox:** the uploaded `6_rakudo-main.zip` is extracted at `/home/claude/work/rakudo-main` and symlinked `SCRIP/refs/rakudo-main` (refs/ is gitignored per the CONSULT CANONICAL SOURCES rule) — every future Raku session must re-extract the upload or clone rakudo before `refs/rakudo-main/...` paths resolve.
+- **Stale-doc observations (reported, not fixed):** RK-GRAM-3's standing requirement names `src/emitter/bb_regs.h` — file does not exist in the current tree (register truth = `src/templates/x86_asm.h` per ARCH-ICON.md); GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md's Raku divvy-up row (`bb_rk_gather`/`bb_nfa`) is stale — neither file exists (NFA-BB deleted `d63c374`; map/grep landed in the lowerer 2026-07-10).
+- **NEXT:** Phase-0 rungs (0a/0b/0c) are session-tail-sized and may land any session; RK-GRAM-3 remains the standing lead and wants a FRESH full-budget session with the ARCH reads done first.
 
 **Done (full history):** RK-LOWER-0..5h, RK-NFA-ORACLE-FIX, RK-EMIT-1/2/3+GATHER, RK-HY-0..3, RK-NFA-1/2/3, RK-M34-1, while_loop fix, bb_call_fn MEDIUM arm, ONE-MEDIUM rk_bool, lbl_β double-colon, x86_uid dup-label, Bug 1 proc-double-emit, user-sub CALL Layers A+B, B-c bool_truthiness + B-b jct relops, GROUP C class_method emit path + m3 freed-IR fix, RK-OO-A1 attr-mutation, RK-OO-A2 accessor-half, RK-OO-A4 typed+default attrs, RK-OO-B1 user-method-new/bless, RK-OO-B2 op-800, RK-OO-B3 TWEAK, RK-OO-C1/C2/C4 inheritance, Str/Cool/List method suite (30 methods), grammar `.parse` foundation, NFA-BB deleted, language-prefix purge, lexer unblock, RK-OO-F `.^name`, RK-OO-A2 `is rw` enforcement, RK-OO-F `.WHAT`, RK-OO-B4 `is required` close-out, RK-OO-A3 array/hash attributes, RK-OO-C3 C3 MRO infrastructure, RK-OO-C5 callsame/nextsame/callwith, RK-OO-C6 multiple inheritance + c3_merge.
 
