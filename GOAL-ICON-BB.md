@@ -2,6 +2,29 @@
 
 ## ▶ CURRENT PRIORITY: `corpus/benchmarks/icon/*.icn` (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). Per-benchmark blocker map: GOAL-ICON-FULL-PASS.md + HANDOFF-2026-06-23-CLAUDE-ICON-BENCH-BLOCKER-MAP-AND-INITIAL-STORAGE-GAP.md. The multiply-self-corrected in-banner analyses were deleted 2026-07-01 (git has them) — re-derive from a fresh gate/suite run, never from prose.
 
+## ⌚ WATERMARK 2026-07-10 (Claude Opus 4.8 · SCRIP `29ce53fc` · corpus unchanged) — 234/20/35; `<->` reversible-swap + `&level` landed; PUSH PENDING (credential)
+
+**Session scope:** fresh clone (ICON+JCON zips → refs symlinks), full ladder ground-truth (232/22/35, matching HEAD `bbda66f5` — the written 229/24/36 watermark below was already stale relative to five landed commits). Two contained fixes from the prior board's NEXT list.
+
+**BUILD NOTE:** fresh container needs `apt-get install -y libgc-dev gdb` before `make scrip`/`make libscrip_rt` (Boehm GC header + debugger). Corpus lives at `/home/claude/work/corpus`; pass `--corpus /home/claude/work/corpus/programs/icon` to `test_icon_all_rungs.sh` and `ICON_CORPUS=/home/claude/work/corpus/benchmarks/icon` to `update_icon_bench_asm.sh`.
+
+**LANDED 1 — `&level` (SCRIP `29ce53fc`).** `keywords.c` read `frame_depth`, which the native BB call path bypasses entirely (always 0). New `rt_k_level` (init 1 = main, canonical `k_level++` per invoke, invoke.r) bracketed around ALL native proc-entry funnels in `rt/rt.c`: the three `p->fn(fb,0)` sites (`rt_call_named_proc`/`_proc_direct`/`_proc_descr`) plus `rt_proc_call_gen_h` (both alpha and resume `fn(fb,*)`) and `rt_proc_resume_frame_h`. `keywords.c` `&level` now reads `rt_k_level`. Empirically verified 1/2/3 on nested main→p→q. `rung37_keywords` GREEN.
+
+**LANDED 2 — `<->` reversible swap `IR_REV_SWAP` (SCRIP `29ce53fc`).** Was falling to `lower_icon.c` `default: IR_SUCCEED` (silent no-op). New generator BB modeled on `bb_rev_assign` + `bb_keyword_assign` marshal, canonical `oasgn.r rswap`:
+- **Template `bb_rev_swap.cpp`:** α saves both olds to frame `[off+16]`/`[off+32]` and forward-swaps via ONE `rt_rev_swap_fwd` call in canonical order (lhs:=rhs_old first → fail routes ω with rhs untouched; then rhs:=lhs_old → fail routes ω with lhs committed); β restores lhs-first (fail skips rhs) then rhs via `rt_rev_swap_undo`, always ω. Both marshals through one `rsw_marshal` helper carrying operand kind (0=plain var `[ζ+off]` ptr, 1=`&pos` with in-scan r14/r15 spilled to `[off+48]`/`[off+56]` and read back). Other keywords LOUD-bomb their own rung via `rsw_kind`/`rsw_get`/`rsw_set`.
+- **Lower `TT_REVSWAP`:** one `IR_REV_SWAP` box; lhs name in `IR_LIT(nd).sval`, rhs name rides a dangling `IR_LIT_STRING` carrier (`operands[0]`, control-unreachable, data-only). Complex operands fall to a loud `IR_FAIL`.
+- **Plumbing:** enum `IR_REV_SWAP` after `IR_REV_ASSIGN_VAR`; `scrip_ir.c` op-name + effectful-kind list; `zeta_storage.c` 4-slot width (value + 2 saves + δ/Δ spill); `ir_query.c` generator-kind (so `every`/loops wire the β edge — the bug that made `every &pos <-> x` silently exit until added); `emit.cpp` dispatch + drive arm (varslots peeked, loud TE-4 on ungranted) + `op_sval` promotion allow-list; proto in `bb_templates.h`; explicit Makefile compile rule + source-list entry. `rung37_neg_pos` GREEN (all 8 lines incl. reversible-swap-β and &subject-mutation-OOB cases).
+
+**VERIFIED (fresh):** Icon ladder **232→234/20/35**, fail-set diff = exactly `{rung37_keywords, rung37_neg_pos}` removed, zero regressions (full `comm` diff, not just count). Icon smoke 12/12 both modes; icon crosscheck 4/0 modes 2+3; SNOBOL4 all-modes 2/0 + compile smoke + hello-all-langs green (k_level bracket behavior-neutral); prolog smoke 5/5, rebus 4/4. Gates green: `icn_no_stack`, `icn_one_reg_frame`, `icn_semicolon_required`, `no_bb_bin_t`, `emit_no_lang`, `emit_no_ir_mutation`. `update_icon_bench_asm.sh` regen clean (no `.s` byte delta — no benchmark uses `<->` or `&level`; the 7 compile-errs are the pre-existing tgrlink/rsg/geddump cluster).
+
+**FAIL SET (20 open):** `rung36_jcon_{args,coerce,endetab,fncs1,genqueen,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,string1,substring,table,var}`. `rung36_jcon_coerce` still the runaway — NEVER run unwrapped (per-file `timeout 8 … | head -c 4000`). Note: prior watermark's "NEXT" leverage items (RESUME-THROUGH-SCAN, rightmost-generator, &subject) all LANDED in the five commits between the written watermark and this session's HEAD.
+
+**NEXT (leverage, contained-first):** (1) `rung36_jcon_table` — `key()`/`member()` empty-slot matching vs `fstruct.r`. (2) `rung36_jcon_substring` — negative-index section semantics (wrong output, not crash). (3) `rung36_jcon_kwds` — `image(&lcase)` keyword-name printing (keyword-READ family). (4) triage the rc=139 cluster (`args`/`endetab`/`fncs1`/`substring`/`table`) via minimal-repro bisection. (5) BENCH-F3 generator-in-call-arg backtrack (`proc_lookup` remainder). (6) RESUME-THROUGH-SCAN follow-ons now that the base landed.
+
+**HANDOFF STATUS: SCRIP committed locally (`29ce53fc`) + corpus unchanged + .github watermark pending commit. PUSH BLOCKED — credential needed.**
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Opus 4.8
+
 ## ⛔ FACT RULE — LANGUAGE-BLIND BB/XA TEMPLATES (Lon, 2026-06-03)
 No language-specific logic in any BB/XA template: templates dispatch on IR shape + representation flags only. FORBIDDEN inside `src/emitter/{BB,XA}_templates/`: `IR_LANG_*`/`LANG_*`/`is_<lang>` guards, language-named template fns/files/dispatch arms, hardcoded language-builtin names. Per-language behavior lives in the runtime (by-name dispatch) or in LOWER (different IR shape → its own BB) — never in a template arm. Inventory: `SCRIP/BB-TEMPLATES-LANG-AUDIT.md`; fix ladder LB-* in GOAL-PASCAL-BB.md. COMPLETION TEST: the audit's Tier-1 grep over both template dirs == 0.
 
