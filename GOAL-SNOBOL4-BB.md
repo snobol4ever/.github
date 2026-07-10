@@ -2,7 +2,7 @@
 AUTHORS: Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude   OPENED: 2026-07-03 · SN4-PAT + RE-LIGHT folded in 2026-07-06 · BB-OWNED-ζ set TOP PRIORITY 2026-07-06 · MAJOR REDUCTION 2026-07-08 (Claude Sonnet 5) — completed rungs deleted per RULES.md handoff step 1; verbatim history in git log and old handoffs under `.github/archive/` if ever needed.
 
 ## ⛔ STANDING POINTER — read `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` BEFORE writing/editing ANY `x86_asm.h` encoder or `xa_*`/`bb_*` template
-A new encoder is NOT exempt from that doc's R2/R7/R9/R10 for being new: ONE `x86(...)` concatenation, consumed via `bb_emit_x86`, never a hand-written `IF(MEDIUM_TEXT,...)+IF(MEDIUM_BINARY,...)` pair (the "forbidden shape"). Mirrored in `PLAN.md`'s BB-CODEGEN DESIGN SET (session-start step 7).
+A new encoder is NOT exempt from that doc's R2/R7/R9/R10 for being new: ONE `x86(...)` concatenation, consumed via `bb_emit_x86`, never a hand-written `IF(MEDIUM_TEXT,...)+IF(MEDIUM_BINARY,...)` pair (the "forbidden shape"). Mirrored in `PLAN.md`'s BB-CODEGEN DESIGN SET (session-start step 6).
 
 ---
 
