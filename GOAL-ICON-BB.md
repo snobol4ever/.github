@@ -2,6 +2,24 @@
 
 ## ▶ CURRENT PRIORITY: `corpus/benchmarks/icon/*.icn` (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). Per-benchmark blocker map: GOAL-ICON-FULL-PASS.md + HANDOFF-2026-06-23-CLAUDE-ICON-BENCH-BLOCKER-MAP-AND-INITIAL-STORAGE-GAP.md. The multiply-self-corrected in-banner analyses were deleted 2026-07-01 (git has them) — re-derive from a fresh gate/suite run, never from prose.
 
+## ⌚ WATERMARK 2026-07-11 (Claude Sonnet 4.6 · SCRIP `01101969` · corpus `e3d5d7bb`) — 239/15/35; genqueen GREEN; two lower_icon.c fixes; PUSH COMPLETE
+
+**Session scope:** fresh clone (ICON+JCON zips → refs symlinks); build scrip + libscrip_rt; ground-truth suite run (confirmed 238/16/35); diagnosed and fixed two bugs in `lower_icon.c`; suite 239/15/35, zero regressions.
+
+**LANDED 1 — `01101969` ICN-NULL-LV-REVASSIGN: `<-` reversible-assign with `/x` or `\x` (null-test) lhs routed to dead `IR_FAIL` stub.** `TT_REVASSIGN` dispatch (lower_icon.c:665) listed lvalue-producing lhs types (TT_IDX, TT_ITERATE, TT_SECTION*, TT_FIELD, TT_RANDOM) but omitted TT_NULL/TT_NONNULL. `lower_lvalue_var` already handled them (lines 200-206, `IR_NULLTEST_VAR`); fix = add TT_NULL+TT_NONNULL to the dispatch. One-line change. Verified: `/x <- 9`, `/rw[1] <- 7`, chained `/a <- /b <- 5` all correct m3+m4.
+
+**LANDED 2 — `01101969` ICN-SUSPEND-REPUMP: `suspend E` inside `every`/`while` loop produced only one value for non-self-repumping E.** `TT_SUSPEND` lowered its expression with fail-cont = `cx->pfail ? cx->pfail : ω` (line 421). `cx->pfail` = proc-level dead `IR_FAIL` (set once at proc entry, never updated by `lower_every`). So when `<-`'s β restores-and-fails-to-ω, the ω hit the dead `IR_FAIL` instead of the every's `gen_beta` re-pump. IR dump confirmed: `IR_REV_ASSIGN` and `IR_TO` have identical port topology, but `IR_TO` self-repumps via β (never needs ω); `<-` depends on ω routing. Fix: pass `ω` directly to the expression lower (canonical: exhausted expression = suspend exhausted = flow to omega, which every wires to gen_beta). One-line change. Verified: `every r:=1 to 3 do suspend (x<-r)` yields 3 values; genqueen byte-identical.
+
+**VERIFIED:** Suite 238/16/35 → 239/15/35. genqueen removed from fail set, zero regressions (full comm-diff). Gates: icn_no_stack, icn_one_reg_frame, icn_semicolon_required, emit_no_lang all green. Icon crosscheck 4/0. SNOBOL4 pre-existing fails identical to pristine (lower_icon.c structurally unreachable by other languages). m4 genqueen --compile rc=139 = pre-existing crash cluster, not caused by this change (pristine-verified).
+
+**FAIL SET (15 open):** `rung36_jcon_{args,coerce,endetab,fncs1,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,var}`. `endetab`/`fncs1`/`coerce` — rc=139/timeout pre-existing. `prepro` parse error (`$include`). `recogn` — backtracking-logic bug (runs but wrong answers). `scan`/`scan1`/`scan2`/`string` — scan generator + scan-in-call-arg chains. `args` — apply-tail. `var`/`kwds` — `variable()`/`name()`/`image(&lcase)` builtins.
+
+**NEXT (leverage order):** (1) `recogn` — full backtracking search, now that `<-` repump is fixed, re-audit; the grammar-search uses suspend+fail backtracking heavily. (2) `scan`/`scan1`/`scan2` — IR_SUSPEND-in-scan + scan generator cluster. (3) `var` — `variable()`/`name()`/`display()` builtins. (4) `kwds` — `image(&lcase)` keyword-name printing. (5) `htprep`/`mffsol`/`mindfa` — may benefit from the repump fix; re-triage.
+
+**INFRA:** refs/ symlinks (icon-master/jcon-master) are container-ephemeral; re-derive from uploaded zips each session. iconx build from zip fails on X11 (libXpm absent); strip Graphics define + XLIBS from config/linux/Makedefs, rebuild runtime only. Use JCON .expected files as oracle (canonical). Corpus at /home/claude/corpus (default runner path). libgc-dev required for build.
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
+
 ## ⌚ WATERMARK 2026-07-10 (Claude Sonnet 4.6 · SCRIP `d05b2028` · corpus `b634f6bd`) — 238/16/35 held; EMERGENCY HANDOFF: benchmark tri-comparison + README; lower_icon.c fix REVERTED (regressive); PUSH COMPLETE
 
 **Session scope:** fresh clone (ICON+JCON zips → refs symlinks); orientation; built iconx and JCON from uploaded zips; ran full 7-benchmark tri-comparison (iconx vs JCON vs SCRIP m3/m4), wrote README section. Bisected concord m3 regression to `7a817649`; derived root cause; attempted fix regressed ladder 238→223; reverted. WIP patch container-ephemeral.
