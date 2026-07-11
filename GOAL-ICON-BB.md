@@ -2,6 +2,26 @@
 
 ## ▶ CURRENT PRIORITY: `corpus/benchmarks/icon/*.icn` (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). Per-benchmark blocker map: GOAL-ICON-FULL-PASS.md + HANDOFF-2026-06-23-CLAUDE-ICON-BENCH-BLOCKER-MAP-AND-INITIAL-STORAGE-GAP.md. The multiply-self-corrected in-banner analyses were deleted 2026-07-01 (git has them) — re-derive from a fresh gate/suite run, never from prose.
 
+## ⌚ WATERMARK 2026-07-10 (Claude Fable 5 · SCRIP `6e40ac92` · corpus `30266dcb`) — 238/16/35 held; COERCION ARCHITECTURE session ICN-1..4; jcon_arith 127→119; PUSH PENDING (credential)
+
+**Session scope (Lon-directed):** bring Icon to SNOBOL4's operand-edge coercion discipline — the IR_COERCE_* family, specialized coerce BBs, constant folding into BBs with literals. Fresh clone, ICON+JCON zips → refs symlinks. 4 SCRIP commits, 4 corpus commits.
+
+**LANDED 1 — `a7730e0c` ICN-1/2: IR_COERCE_REAL spine + lit-int immediate fold.** REAL completes the family (directed cnv:C_double per oarith.r/fstranl.r; spine only — enum/classifier/dispatch/prepare/chain-lists/template/rt_coerce_real_d — no emitters route to it yet). BINOP prepare promotes IR_LIT_INTEGER operands (int32-bounded) to `_.op_imm_a/b`; the folded side skips its DT_DATA/DT_I checks + slot load → `mov reg,imm`; int fast path 14→9 instructions on var-OP-lit. Slow paths still read slots (the lit box still runs) so overload/real fallbacks are unchanged. Artifact regen: SNOBOL4 bench −231/+33, features −392/+56, icon bench −293/+95 (queens: 7 instructions collapse to `mov rax,2`).
+
+**LANDED 2 — `2040e586` ICN-3: first Icon lowerer coerce site (unary ±).** IR_COERCE_NUMERIC self-paired on the operand edge; emit prepare accepts 1-operand NUMERIC by self-pairing, scoped to NUMERIC only (CMP_TEST keeps loud bail). Dynamic-dispatch twins fixed at the sink where no compile-time edge exists: rt_num_neg/rt_num_pos gain the real-string sniff (`proc("-",1)` path); abs() builtin was reading `.i` of string DESCRs — union-garbage pointers in output — now coerces via rt_coerce_num2_d self-paired per fconv.r exact-int-else-real; rt_parse_num_d accepts DT_CSET as string source (SNOBOL4 never produces DT_CSET). `-"2."`→-2.0, `+"3.5"`→3.5, `abs(" 3.4")`→3.4. Resume-through-coerce verified (`every write(-(1 to 3))` both modes).
+
+**LANDED 3 — `6e40ac92` ICN-4: arith operand edges (main binop site).** IR_COERCE_NUMERIC pairs for ADD..MOD/POW only (never relops/concat/cset ops), chained b.γ→ca.α→ca.γ→cb.α→cb.γ→op.α so both slots are live for the joint decision; compile-time numeric constants (icn_const_step) skip their box, preserving the ICN-2 fold. ⛔ **REGRESSION CAUGHT+FIXED SAME SESSION — record the rule:** first cut sent the ladder 238→235; the coerce prepare read var operands via `bb_slot_get` (the producer BOX slot — a stale snapshot across β resumes: `every total := total + (1 to n)` gave 5 not 15) while plain binops read the LIVE varslot via `emit_binop_opnd_slot`'s IR_VAR case. Both COERCE prepares now resolve through `emit_binop_opnd_slot`. **FACT worth keeping: any operand-edge box must resolve operand locations by the same rules its consumer would have — box slots are snapshots; vars are live.** bb_coerce_numeric gained an inline I/R passthrough (~5 instructions, no call; INT self with REAL other still calls — joint rule honored). PAYOFF: `" 5 "/" 2 "`→2 and `'40'/'7'` 0.6→0 — coercion makes the inline idiv reachable for string/cset operands, dissolving the Prolog real-promotion baked into rt_num_arith WITHOUT touching the shared sink.
+
+**VERIFIED throughout:** Icon ladder 238/16/35 fail-set byte-identical after every rung; SNOBOL4 corpus fail-set identical three ways (diff, stash-round-trip, byte-idempotent regen); smokes icon 12/12×2 sno 7/7×2; gates no_stack/one_reg_frame/emit_no_lang/no_ir_mutation/no_bb_bin_t/semicolon all 0 (medium_invisible at documented pre-existing xa_flat(30) baseline); m3==m4 on every new test.
+
+**FAIL SET (16, unchanged):** same as prior watermark below.
+
+**NEXT (leverage order):** (1) relop coerced-operand return (`6.2>=4`→`4.0` per ocomp.r arith_case — several jcon_arith rows). (2) Same splice pattern on the augmented-assign binop site (~lower_icon.c:372) and section arith sites (187/503). (3) Design Q for Lon: cset — own IR_COERCE_CSET, or ride STRING with a flag (runerr 104 is cset-specific)? (4) Perf A/B on bench hot loops (coerce passthrough cost vs pre-rung). (5) Prior board's list (genqueen `fail;`, args apply-tail, recogn stdin, var builtins, scan cluster) still stands.
+
+**PUSH STATUS: SCRIP `6e40ac92` (4 commits) + corpus `30266dcb` (4 commits) local; .github watermark this commit — PUSH PENDING (credential needed).**
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
+
 ## ⌚ WATERMARK 2026-07-10 (Claude Sonnet 4.6 · SCRIP `74a06b0f` · corpus `b28b7fef`) — 238/16/35; ladder +4 from session start (234→238); PUSH COMPLETE
 
 **Session scope:** fresh clone (ICON+JCON zips → refs symlinks), full orientation; 5 commits landed.
