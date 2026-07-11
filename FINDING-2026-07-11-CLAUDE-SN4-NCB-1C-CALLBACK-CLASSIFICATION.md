@@ -319,6 +319,25 @@ Two things surfaced that are **not** SNOBOL4's, recorded so they are not re-disc
    ⚠ It cannot be fully discharged until (1) is fixed — the crashing files have no `.s` to regenerate.
    **This is why F8's sweep had to be run against the COMPILER, not the artifacts: the artifacts lie.**
 
+### (F13) ⛔ THE `.s` ARTIFACT MAINTENANCE IS BROKEN AT SCALE, AND THERE IS A RULES-vs-SCRIPT SCOPE MISMATCH
+Measured with `CHECK=1` (dry-run) this session:
+- `corpus/benchmarks/icon` (the script's **DEFAULT** dir): 13 total → **5 out of date**, 7 compile-err.
+  **REGENERATED + COMMITTED this session** (corpus `e3d5d7bb`): deal/ipxref/micsum/queens/rsg. Verified meaningful —
+  trampoline refs drop (queens 24→11, rsg 45→24) and the NCB-1b window appears (26 / 42 refs). **The residual
+  trampolines are exactly the generator + by-name residue owned by NCB-2 / NCB-1c** — an independent confirmation
+  of this classification from the emitted code.
+- `corpus/programs/icon` (where the stale files F12 found actually live): **299 total → 269 UPDATED + 5 NEW = 274
+  out of date (90%)**, 25 compile-err. **NOT regenerated — 274 files is a large unilateral corpus commit from a
+  session that changed zero compiler code. LON'S CALL.**
+
+**ROOT CAUSE (the process bug, not a one-off):** `RULES.md` step 4 names the script's target as
+*"corpus/programs/icon/rung36_jcon_*.s"*, but `update_icon_bench_asm.sh`'s **default `CORPUS` is
+`/home/claude/benchmarks/icon`** — a *different directory*. Anyone following RULES literally runs the script with no
+argument and refreshes the **wrong tree**, which is almost certainly how `programs/icon` rotted to 90% drift while
+`benchmarks/icon` stayed within 5. **Fix the pointer, or the artifacts will silently re-rot.** Proposed for Lon:
+either (a) point RULES step 4 at `benchmarks/icon` and give `programs/icon` its own regen step, or (b) change the
+script's default. **Do not do both blind.**
+
 ### LANDING ORDER FOR B1–B4 + D1, REDRAWN (supersedes §6 step 2 — no code moved this session)
 1. **Design the capability-threaded verdict** (`xfer` out-param; NULL = C-consumer, non-NULL = box-reachable), with
    the **NCB-2 GENERATOR transfer case in the enum from day one** (§2's warning still stands — B6 rides the same
