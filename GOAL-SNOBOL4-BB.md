@@ -6,7 +6,13 @@ A new encoder is NOT exempt from that doc's R2/R7/R9/R10 for being new: ONE `x86
 
 ---
 
-## ⚠ SESSION STATE (Claude, 2026-07-10, s19 — test_stack LANDED; s18 PUSHED) — SCRIP `0affec9e`(TT_NAME field-ref + rt_nret_fix)+`15cc2449`(feature .s regen), corpus no change, .github this commit — PUSHED; **NEW WATERMARK m3 278/7, m4 277/6, DIVERGE=1(1017)** (test_stack m3+m4 PASS; fail lists m3: expr_eval 124 140 141 143 145 147; m4: 124 140 143 145 147 1017)
+## ⚠ SESSION STATE (Claude, 2026-07-10, s20 — 147 LANDED + DATATYPE DT_P FIXED; β-RESUME RUNG SPEC-COMPLETE) — SCRIP `cde0c38b`(DATATYPE DT_P)+`cefb4421`(sno_is_pattern_rhs defer fix), corpus no change, .github `6075157f`(FINDING β-resume) — PUSHED; **NEW WATERMARK m3 279/6, m4 278/5, DIVERGE=1(1017)** (147 green both modes; fail lists m3: expr_eval 124 140 141 143 145; m4: 124 140 143 145 1017)
+
+**LANDED s20-a — 147 (`cefb4421`): sno_is_pattern_rhs SEQ/CAT now recognises TT_DEFER child as pattern-RHS.** Root: `OUTER = (*INNER ' ' *INNER)` degraded to DT_S (gdb: one space). Fix: TT_DEFER child under SEQ/CAT → return 1; bare `X = *V` stays EXPRESSION (oracle pin). SUPERSEDES old FINDING's three blob-re-entrancy suspects — root was pre-admission classification.
+
+**LANDED s20-b — DATATYPE (`cde0c38b`): DT_P arm → "PATTERN".** Was falling through to "string". Oracle-confirmed. Zero regressions.
+
+**s20 NEXT — β-RESUME RUNG (143+145), fully spec'd in `FINDING-2026-07-10-CLAUDE-SN4-BLOB-BETA-RESUME.md`.** Q1/Q2 answered: no callee esi dispatch exists; `is_generator` is caller-routing-only (dead end formally recorded). Caller diff ready: claim FR(16), stash fn+frame at γ, load+call(esi=1) at β, release+ω on exhaust (`bb_match_defer.cpp`, existing x86() vocab). Blob side: PAT$ graphs need explicit resumable-callable marker (NOT raw SUCCEED structure — EVAL shares it, esi audit owed) + `test esi,esi; jnz .Ltail_β` prologue via L(n). `IR_MATCH_DEFER` joins `ir_is_generator_kind` in same commit. `sno_pat_deterministic(TT_DEFER)` stays 1 this rung. READ THE FINDING before implementing.
 
 **LANDED s19-a — test_stack (`0affec9e`): TT_NAME over DATA field ref + rt_nret_fix.** Two root causes for the s16 OPEN (i) FATAL: (1) `lower_snobol4.c` TT_NAME arm lacked a TT_FNC branch — `.sval(stk)` (name-operator over a DATA field accessor call) hit the sno_fatal. Fix: after the existing TT_IDX branch, intercept TT_FNC with a single arg where `rt_dat_field_of_any(fname)` confirms it is a known field name; build `IR_FIELD_VAR` with the object value as operand (same shape as the assignment-subject arm in the statement loop). (2) `rt_nret_fix` decoded DT_N via open-coded `slen==0`/`slen==1` branches, missing `slen==2` (NAMETRAP from `rt_field_var`). Fix: replace the two branches with a call to `rt_deref`, which handles all three DT_N forms uniformly. Both modes byte-identical to oracle. Feature .s regen: 38 files (layout change only, semantics unchanged).
 
