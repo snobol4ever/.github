@@ -126,3 +126,6 @@ BLOB emitted ONCE at compile time (the wiring frozen to direct jumps, no ε-node
 pattern-valued var) keep runtime build+stitch. Rule: const subtree ⇒ freeze to a sealed BLOB;
 references-runtime ⇒ keep instance-wired/built. This mirrors SPITBOL: constant patterns build once;
 variable patterns rebuild/defer per match. See GOAL-SNOBOL4-BB.md rung PB-RB for the step ladder.
+
+## Storage & call convention (pointer, 2026-07-11)
+ζ storage design of record: `ARCH-ZETA-LOCAL-STORAGE.md` §7 (two MM flavors, regions, register end-state). Call convention: the ONE-ENTRY / NO-C→BB rule — mode 3 has exactly one C→BB transfer (driver MAIN); C runtime helpers are strict leaves; mode 4 entry is `main` (= the emitted graph). Live rung ladder + violation ledger: `GOAL-SNOBOL4-BB.md` Phase 1 (NCB).
