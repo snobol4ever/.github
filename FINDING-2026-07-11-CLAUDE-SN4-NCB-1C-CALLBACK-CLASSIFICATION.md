@@ -245,3 +245,88 @@ cause was found). Cost of learning it: one full crosscheck. **Any template splic
 that also releases zeta must order them: release first, save second.** Generalization for NCB-2/ZB-OWN: an rsp
 reset and a C-stack save are the same resource — never interleave them; the encoder pair does not and cannot
 know what a sibling helper did to rsp.
+
+---
+
+## 11. ⛔⛔ s26 RE-VERIFICATION OF §2/§5 BEFORE CODING B1–B4 — FIVE FINDINGS, ALL MEASURED, THREE INVALIDATE THE PLAN
+
+Base: SCRIP `8d3d4dc0` (M3 landed). Baseline RE-PROVEN this session: gate **7 groups / 13 sites**; crosscheck
+**m3 285/7, m4 284/7/1, DIVERGE=1 (1017_arg_local)**, failing set identical. The rung's own standing rule —
+*classify first, move nothing until every site has a verdict* — is what caught these. Same shape as F6/F7:
+**the plan's expectation, not the code, was the defective part.**
+
+### (F8) `bb_call.cpp:209` IS A V1 CALLER THE CLASSIFICATION OMITTED — §5's "LAST FOUR CALLERS" IS WRONG
+`marshal_single_call`'s `isreg` arm takes the **address** of `rt_call_named_proc` (`fptr = (void*)fp`). §5's
+"NCB-1b already took its template callers" is false — NCB-1b only touched `bb_call_proc_staged.cpp`.
+**Measured:** a 592-file sweep (`corpus/programs/icon/*.icn` + `crosscheck/*/*.sno` + `programs/snobol4/*.sno`)
+compiled with today's `scrip --compile` emits **ZERO** `call rt_call_named_proc` — the arm is **DEAD across the
+entire corpus**. But *dead is not absent*: the address-taken reference keeps V1's body (and its transfer at
+rt.c:861) alive, so **V1's group cannot go until this reference goes too** — and that is a DELETE ⇒ **Lon's call
+under PARK-NEVER-DELETE**, not takeable unilaterally.
+
+### (F9) ⛔ V1 CANNOT DIE IN NCB-1c AT ALL — THE "7 → 6" HONEST GATE IN §5 IS ITSELF AN OVERCLAIM
+§5 says M1/M2/M3/D1 are V1's last four callers ⇒ 7 → 6. But **§10 of this very document already contradicts it**,
+listing `by_name_dispatch.c:4707` (B5, EVAL DT_X) as a surviving V1 caller **owned by NCB-3**. Add F8's
+`bb_call.cpp:209`. Live V1 caller set today, greppable:
+> `by_name_dispatch.c:4707` (B5 → **NCB-3**) · `driver_hooks.c:72,73` (D1) · `bb_call.cpp:209` (dead arm, address-taken)
+
+⇒ **V1 dies only after NCB-3 lands AND D1 lands AND the `bb_call` reference is removed.**
+**HONEST GATE FOR NCB-1c: 7 → 7. NO GROUP DIES.** The rung's payoff is *convention conversion* (the by-name path
+becomes C → BB → BB), **not a ledger number**. Grade it on the emitted `.s`, not on the gate count — exactly the
+correction F7 forced on NCB-1b. Anyone quoting "7 → 6" from §5 is quoting a superseded line.
+
+### (F10) ⛔⛔ §2's "CHEAPEST FAMILY — THE C SIDE IS ALREADY TAIL-SHAPED" IS FALSE. THE DISPATCHER HAS **TWO CALLER CLASSES.**
+B1–B4 are tail-shaped *within their own function* — but that is the wrong frame of reference. The question is
+whether the **caller chain reaches an emitted box**. It does for one class and provably not for the other:
+
+- **CLASS A — BOX-REACHABLE (hoistable).** `emitted box → rt_call_arr (by_name_dispatch.c:2896) → try_call_builtin_by_name → rt_call_proc_descr → BB`.
+  `rt_call_arr` **is** tail-position on the dispatcher (`:2935 if (try_call_builtin_by_name(...)) return out;`), and
+  it is the **single template-facing entry** — and the most-emitted call in the tree: **4989 `call rt_call_arr@PLT`
+  sites** across the committed corpus `.s`. This path can carry a `NEEDS_TRANSFER` verdict up to the box.
+- **CLASS B — C-INTERNAL CONSUMERS (NOT hoistable).** These call `script_try_call_builtin_by_name` /
+  `try_call_builtin_by_name` **directly, bypassing `rt_call_arr`**, and **immediately consume the returned DESCR to
+  pick their own C branch**: `by_name_dispatch.c:2640/:2650/:2662/:2667` (predicate helpers — `if (!…(&o) || o.v == DT_FAIL) return 0;`),
+  `:2157` (recursive `meth_call`), `:2952`, `:3618` (`image`), `arithmetic.c:53` (`__multi_call`).
+  **A caller that needs the VALUE to decide its own control flow cannot accept a deferred transfer** — it would have
+  to suspend mid-computation, which *is* the C-call-convention wall this whole rung exists to retire.
+
+⇒ **§2's "ONE protocol change buys all four" is wrong.** The verdict cannot be a blanket contract change; it must be
+threaded as a **CALLER CAPABILITY** — an optional `xfer` out-param: **NULL** = "you are a C consumer, perform the
+call now, as today"; **non-NULL** (passed only by `rt_call_arr`) = "hand me `NEEDS_TRANSFER{name,nargs}` and I will
+do it in the box." One dispatcher, two disciplines, selected by the caller's *ability to defer*.
+⇒ **Corollary: V4's transfer (rt.c:532) stays lit for a SECOND, INDEPENDENT reason** — the Class-B consumers — on top
+of §5's Raku R1–R4 reason. **V4 is now double-pinned.** NCB-2's advertised "4 → 1" recedes further.
+
+### (F11) BLAST RADIUS IS NOT SMALL, AND TWO LANDED RULES ALREADY BIND IT
+The Class-A hoist edits `bb_call.cpp`'s `rt_call_arr` arm — **4989 emission sites**, i.e. nearly every program's `.s`
+changes. That arm is also pre-revamp **forbidden shape** (`*_bin_arm`/`*_txt_arm`). And both s25/M3 hazards apply
+directly: **§9** (an emitted transfer does not preserve r13/r14/r15 — `rt_call_arr` can be reached with a matcher
+cursor live ⇒ **must** use `x86_xfer_enter/leave`) and **§10** (open the xfer window **after** any zeta release, never
+before). This is not the "cheapest family in the rung"; on current evidence it is the **most expensive**.
+
+### (F12) ✅ THE NCB WORK IS CLEARED OF AN ICON REGRESSION — but two Icon debts are now named and owned
+Two things surfaced that are **not** SNOBOL4's, recorded so they are not re-discovered:
+1. **13 Icon files CRASH `scrip --compile`** (12× SEGV, 1× ABRT) — all generator/suspend shapes
+   (`rung36_jcon_{collate,btrees,every,level,recogn,scan2,genqueen,cxprimes,var}`, `rung03_suspend_gen*`, `generators`).
+   **BISECT-PROVEN PRE-EXISTING:** built a worktree at **NCB-1b (`4e84e986`)** — **identical exit codes (139/134)**.
+   **NOT caused by NCB-1b/M1/M2/M3.** Owner: `GOAL-ICON-BB.md`. Neither the SNOBOL4 crosscheck nor the icon 12/12
+   smoke sees them — another §9-class coverage hole.
+2. **The committed Icon `.s` artifacts are STALE.** They still show `call rt_call_named_proc` / `rt_call_proc_descr`
+   (`rung13_alt_alt_cross_arg_sideeffect.s`, `rung36_jcon_{mindfa,sorting,lgint,collate}.s`), but today's compiler
+   emits the **NCB-1b window** (`rt_proc_call_open → rt_frame_prep → call rax → rt_proc_call_epilogue`) — **Icon's
+   deterministic calls were converted by NCB-1b and nobody regenerated the artifacts.** RULES step 4's Icon clause
+   (`update_icon_bench_asm.sh`) was missed by NCB-1b/M1/M2/M3, which touched shared Icon-reachable templates.
+   ⚠ It cannot be fully discharged until (1) is fixed — the crashing files have no `.s` to regenerate.
+   **This is why F8's sweep had to be run against the COMPILER, not the artifacts: the artifacts lie.**
+
+### LANDING ORDER FOR B1–B4 + D1, REDRAWN (supersedes §6 step 2 — no code moved this session)
+1. **Design the capability-threaded verdict** (`xfer` out-param; NULL = C-consumer, non-NULL = box-reachable), with
+   the **NCB-2 GENERATOR transfer case in the enum from day one** (§2's warning still stands — B6 rides the same
+   dispatcher).
+2. **Class-B consumers keep the C call.** Ledger them as **(b) SANCTION — pending NCB-2/ZB-OWN**, with the reason
+   *"C caller consumes the value to select its own branch; deferral requires suspending a C frame."*
+3. **`rt_call_arr` returns the verdict**; convert `bb_call.cpp`'s `rt_call_arr` arm out of the forbidden shape and
+   splice the NCB-1b window — **`x86_xfer_enter/leave` mandatory, opened AFTER any zeta release.**
+4. **D1 rides it** (§4 unchanged — same channel, and its "call; if FAIL, call the alias" is M1's 2-round open-loop).
+5. Gate: crosscheck **watermark-identical** (m3 285/7, m4 284/7/1, DIVERGE=1) + sno/icon/prolog smokes ×2, and
+   **`.s` regen including `update_icon_bench_asm.sh`** (F12). **Expect the ledger to read 7. Do not claim 6.**
