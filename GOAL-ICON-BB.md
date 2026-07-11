@@ -2,6 +2,18 @@
 
 ## ▶ CURRENT PRIORITY: `corpus/benchmarks/icon/*.icn` (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). Per-benchmark blocker map: GOAL-ICON-FULL-PASS.md + HANDOFF-2026-06-23-CLAUDE-ICON-BENCH-BLOCKER-MAP-AND-INITIAL-STORAGE-GAP.md. The multiply-self-corrected in-banner analyses were deleted 2026-07-01 (git has them) — re-derive from a fresh gate/suite run, never from prose.
 
+## ⌚ WATERMARK 2026-07-11 (Claude Sonnet 4.6 · SCRIP `138b6b9d` · corpus `e3d5d7bb`) — 239/15/35 held; ICN-SCAN-CALL-SYNC landed; recogn 6→2 diff lines; PUSH COMPLETE
+
+**Session scope:** fresh clone (ICON+JCON zips → refs symlinks); build scrip + libscrip_rt; oriented from GOAL-ICON-BB.md + ARCH-ICON.md + JCON/ICON canonical sources; diagnosed and fixed scan-state call-boundary sync bug; recogn improved 6→2 diff lines; no regressions.
+
+**LANDED — `138b6b9d` ICN-SCAN-CALL-SYNC: publish r14 to scan_pos before calls, reload after.** Root cause (from JCON `irgen.icn` ir_a_Scan + ICON `interp.r`): Icon `&pos`/`&subject` are program-level globals, transparent across calls — a callee's `tab`/`match` advance IS the caller's. SCRIP caches the scan env in r13/r14/r15 within a live scan sequence; the three call trampolines (`rt_call_value_gen_h`, `rt_proc_call_gen_h`, `rt_proc_resume_frame_h`) don't carry those registers into the callee, which reads/writes the C globals `scan_subj`/`scan_pos` — silently diverging. Fix: `rt_scan_sync_out` (r14→scan_pos before call) and `rt_scan_sync_in` (scan_pos→r14 after return) added to `gen_runtime.c/h`; `x86_scan_sync_out`/`x86_scan_sync_in_rr` medium-invisible combinators in `x86_asm.h`, emit-gated on `g_scan_regs_live`; all three call boxes (`bb_call_value`, `bb_call_proc_staged` det+gen arms) bracketed. Follows `x86_xfer_enter/leave` + `bb_keyword_icon` precedent; no hand-encoded bytes, no MEDIUM_* branching. **Verified:** `recogn` 6 wrong lines → 2; queens + genqueen byte-identical; smoke 12/12 m3+m4; icn_no_stack/one_reg_frame/semicolon_required/emit_no_lang green.
+
+**RESIDUAL (separate bug, next session): concat backtrack cursor-restore when `tab`/`move` is the left operand and right fails.** Minimal repro: `"ab" ? ((="a" || ="q") | ="a")` → `rej` (should be `acc`). Root: `ir_is_generator_kind` omits `IR_SCAN_TAB`/`IR_SCAN_MOVE`, so the concat's `right.ω → left.β` edge never reaches `tab`'s restoring β. Canonical: `ir_a_Binop` (irgen.icn:501) `right.ir.failure → left.ir.resume`. Two-part fix needed: (1) expose `cx->beta = call` for cursor-movers in `lower_call` (lower_icon.c:130) AND (2) add `IR_SCAN_TAB`/`IR_SCAN_MOVE` to `ir_is_generator_kind` (ir_query.c) so emit.cpp:873 routes the edge to the restoring β-label rather than α. Both must land together — either alone loops or silently fails. Historically fragile; attempt with fresh budget only.
+
+**FAIL SET (15 open, unchanged):** `rung36_jcon_{args,coerce,endetab,fncs1,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,var}`.
+
+**NEXT (leverage order):** (1) concat backtrack restore (above — contains the repro + exact canonical ref). (2) `recogn` remaining line (depends on (1)). (3) `scan`/`scan1`/`scan2` — scan generator cluster (separate root cause). (4) `var`/`kwds` — builtins.
+
 ## ⌚ WATERMARK 2026-07-11 (Claude Sonnet 4.6 · SCRIP `01101969` · corpus `e3d5d7bb`) — 239/15/35; genqueen GREEN; two lower_icon.c fixes; PUSH COMPLETE
 
 **Session scope:** fresh clone (ICON+JCON zips → refs symlinks); build scrip + libscrip_rt; ground-truth suite run (confirmed 238/16/35); diagnosed and fixed two bugs in `lower_icon.c`; suite 239/15/35, zero regressions.
