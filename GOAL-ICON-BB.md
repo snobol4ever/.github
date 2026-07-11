@@ -2,7 +2,28 @@
 
 ## ▶ CURRENT PRIORITY: `corpus/benchmarks/icon/*.icn` (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). Per-benchmark blocker map: GOAL-ICON-FULL-PASS.md + HANDOFF-2026-06-23-CLAUDE-ICON-BENCH-BLOCKER-MAP-AND-INITIAL-STORAGE-GAP.md. The multiply-self-corrected in-banner analyses were deleted 2026-07-01 (git has them) — re-derive from a fresh gate/suite run, never from prose.
 
-## ⌚ WATERMARK 2026-07-10 (Claude Fable 5 · SCRIP `6e40ac92` · corpus `30266dcb`) — 238/16/35 held; COERCION ARCHITECTURE session ICN-1..4; jcon_arith 127→119; PUSH PENDING (credential)
+## ⌚ WATERMARK 2026-07-10 (Claude Sonnet 4.6 · SCRIP `d05b2028` · corpus `b634f6bd`) — 238/16/35 held; EMERGENCY HANDOFF: benchmark tri-comparison + README; lower_icon.c fix REVERTED (regressive); PUSH COMPLETE
+
+**Session scope:** fresh clone (ICON+JCON zips → refs symlinks); orientation; built iconx and JCON from uploaded zips; ran full 7-benchmark tri-comparison (iconx vs JCON vs SCRIP m3/m4), wrote README section. Bisected concord m3 regression to `7a817649`; derived root cause; attempted fix regressed ladder 238→223; reverted. WIP patch container-ephemeral.
+
+**BENCHMARK RESULTS (2026-07-10, SCRIP `c1d15a1a` = pre-README commit):**
+- m4 correctness: **4/7 byte-identical** (deal, ipxref, queens, rsg); 3/7 CERR (concord, tgrlink, geddump).
+- m3 correctness: 3/7 identical (ipxref, queens, rsg); 4/7 diverge.
+- JCON certified oracle byte-for-byte on all 7.
+- Timing (m4 where correct): geomean **2.9× slower than iconx**, **2.4× faster than JCON** net of JVM floor.
+
+**OPEN FINDINGS (leverage order):**
+1. **concord m3 REGRESSION** — first bad commit `7a817649`. Root: `lower_call` never rewires the call node's fail edge to the rightmost generator arg's resume (canonical `ir_a_Call` `L[-1].ir.resume`). Fix shape: `ω_to(call, aω)` after arg loop. Regression cause: `is_resumable` guard on `aω` update is too coarse — misfires on non-generator idents that still advance `cx->beta`. **NEXT: use the same `chains`-style predicate already in `lower_call` rather than `is_resumable`.** Repro: `every sink(gen())` with fall-off-end callee prints once only at HEAD; all 4 at `f42c5953`. concord m4 also segfaults (same window `f42c5953..c1d15a1a`, 113 commits).
+2. **deal m3 MODE34-IDENTICAL violation** — pre-existing; m4 identical. Card lost ~hand 511 (`T8` vs `QT8`).
+3. **m4 CERR trio** (concord/tgrlink/geddump) — compiler segfault rc=139.
+4. **tgrlink m3** — 2 big-int lines then silent exit.
+5. **geddump m3** — 1,332 good lines then ERR spam.
+
+**INFRA NOTE:** refs/ symlinks, iconx at work/icon-src/icon-master/bin, jcon at work/jcon-src/jcon-master/bin, bench harness — ALL container-ephemeral; re-derive from uploaded zips.
+
+**README.md updated** Icon benchmark section (SCRIP `d05b2028`).
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
 
 **Session scope (Lon-directed):** bring Icon to SNOBOL4's operand-edge coercion discipline — the IR_COERCE_* family, specialized coerce BBs, constant folding into BBs with literals. Fresh clone, ICON+JCON zips → refs symlinks. 4 SCRIP commits, 4 corpus commits.
 
