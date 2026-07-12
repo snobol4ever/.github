@@ -828,3 +828,66 @@ functions chapter; `COLLECT(i)`.
 **7d. Register end-state (supersedes, for the end-state only, the ratified R12-frame reading of the GZ3 contract; as-built default remains ZC_FRAME_R12 until NCB lands).** **There is NO static BB local storage pointed at by r12 in the end-state — r12 is FREE (Lon s22). ALL control-flow ζ goes through the C stack**: rsp is the cursor (per-BB or per-region ENTER bumps, matched LIFO sub/add only — see 7e); rbp is also free (zero live template uses; callee-saved across C leaves) and is the CANDIDATE REGION-ζ BASE for the region model, where each region's boxes address `[ζ_reg + local_off]` and the entrance repoints ζ_reg. **The two RESTOREs must never be conflated (Lon s21):** cursor-ARITHMETIC restore at β is RETIRED (the ω landing on a β already put the shared cursor right); **REGISTER-restore of ζ_reg at β is REQUIRED** in the region model (`mov ζ, PARENT_FRQ(region_slot)`, the ARB/ARBNO save-slot pattern) because a β arriving from another region has ζ_reg aimed at the wrong frame.
 
 **7e. THE NEVER-HOIST COMPOSITION RULE (proven live, ZB-OWN-0):** dynamic (runtime-count) allocations and static (emit-time) positioning share one cursor only if static positioning is FLOOR-ONLY — store iff strictly below; the dynamic RELEASE restores the ceiling. An unconditional absolute store hoists over live dynamic activation blocks and the next C call smashes them (25 tests red on first cut). Corollary: rsp becomes safely positionable exactly when no C frame can interleave above BB frames — i.e., after 7c.
+
+---
+
+## 10. The FORTH-CELL Stack Design (Lon eureka, 2026-07-11, s28 post-handoff design session — the conversation to RESUME next session)
+
+**Provenance:** born directly from the s28 `ZC_FRAME_RSP` ablation (GOAL-SNOBOL4-BB.md s28: mode-3 174/118 with r12 freed, zero code changes; blockers G1/G2/G3). Lon, verbatim-in-spirit: *"Let's have some fun designing an ultimate push, pop, and slide stack arena. We have full control of everything hanging off a moving RSP and index from it much like FORTH does."*
+
+### 10a. THE LOCKED-IN CORE (Lon ruling 2026-07-11 — LOCKED)
+1. **ALL ζ data lands on the process stack**, hanging off a moving rsp, direct-indexed v1.
+2. **Each BB = one variable-length CELL** holding ALL that box's ζ locals.
+3. **The box's ONE result is ALWAYS at cell-relative offset ZERO.**
+4. **The compiler generates every operand offset statically** — it knows the order and size of each cell (`zls_build` computes exactly this today).
+5. rbp/rsp coordination DEFERRED (Lon: "right now, I see working with direct indexing") — see Sd.
+6. Every cell size a multiple of 16 (t·p already is) ⇒ **rsp invariantly 16-aligned at every port**.
+
+### 10b. Why this is the RATIFIED direction, not a new one
+§9 already confessed it: *"rZ MOVES (that was always the 4/28 truth; M5's fixed-r12 was the deviation)."* M2's chunk model WAS this design on malloc'd chunks with `.prev` chains. Delete the chain; hardware push/pop IS the allocator. The s28 blockers die **BY CONSTRUCTION, not by workaround**: **G1** — 16-multiple cells make the align dance DELETED, not fixed; **G2** — the xfer r13/r14/r15 saves become three slots in the box's OWN cell, zero rsp motion; **G3** — the six-`jmp ω` problem becomes VISIBLE per-path pop constants (auditable arithmetic instead of hidden frees).
+
+### 10c. The ONE bend in the FORTH analogy (SUSPEND ≠ POP)
+FORTH pops operands at consume time. Byrd boxes CANNOT: `plus.resume → E2.resume` needs E2's cell live, state intact, after consumption. **Operands SUSPEND.** Lifetime law: **α = push (`sub rsp,K`) · cell live through ALL γ/β cycling · ω = pop (`add rsp,K`)** — LIFO holds because ω order reverses α order along every control path. **The port invariant: control standing at any port of box X ⇒ rsp at X's frontier.** Consequence: depth to an operand = the operand's **SUBTREE FOOTPRINT AT YIELD** (its cell + all still-suspended descendants), not one cell — still compile-time for static trees. This resolves Lon's "first (or maybe last depending on direction)" question: **parent-α-first push order ⇒ each subtree's ROOT cell sits at the HIGH end of its region.** The `plus(E1,E2)` picture at E2's yield:
+
+```
+rsp → [E2 descendants…][E2 cell: result@0]   ← fp(E2)
+      [E1 descendants…][E1 cell: result@0]   ← fp(E1)
+      [plus cell: result@0]                   ← szPlus
+      [ancestors…]
+E2.value = [rsp + fp(E2) − 16]
+E1.value = [rsp + fp(E2) + fp(E1) − 16]
+plus.value = [rsp + fp(E2) + fp(E1)]          — all compile-time constants
+```
+
+### 10d. The FORTH resonance (alternation)
+Alternation makes footprint path-dependent: `(A|B)` at yield is fp(A) or fp(B) deep. Fix: **pad each arm to max(fp(arms))** — which is LITERALLY ANS FORTH's own control-flow law: both arms of an IF must have identical stack effect. FORTH already legislated the alternation problem.
+
+### 10e. UNWIND — the SINGLE dynamic escape hatch
+Only three things cannot be constant-depth: ARBNO teardown (n live iterations), bare FENCE's cut, and the statement/C-driver return. All three are ONE primitive, one saved qword:
+```
+UNWIND:  mov rsp, [anchor]
+         jmp  target
+```
+
+### 10f. FENCE — VERIFIED FROM THE MANUAL this session (seemed tricky; is two instructions)
+⚠ Discovery: `1-spitbol-manual-v3_7.pdf` is actually a TEXT file (header bytes `MACRO`) — pdftotext/pypdf choke on it; **grep it directly**.
+- **Bare FENCE** (manual ln 4644): matches null forward; scanner backing INTO it ⇒ **the whole match FAILS** (and no other-anchor retries if it is the first component, ln 4656). β = `mov rsp,[scan_anchor]; jmp scan.fail`.
+- **FENCE(P)** (ln 4716): P's INTERNAL alternatives invisible on backup, but backup **continues LEFT of it normally**. β = pop exactly fp(P) (`add rsp,K` if P static; restore own-cell anchor if P contains ARBNO), then `jmp left.resume`.
+The semantic asymmetry (cut-the-MATCH vs cut-P's-INTERIOR) = which anchor you restore. Nothing else.
+
+### 10g. Decision rows Sa–Sf (OPEN — Lon rules each; recommendations recorded)
+| # | Decision | Recommendation | Status |
+|---|---|---|---|
+| Sa | Operand-reach convention | **footprint constants** (zero copies; zls_build already knows sizes); copy-out-to-parent-slot kept as fallback for dynamic-footprint operands | OPEN |
+| Sb | Alternation arms | **pad to max** (the FORTH stack-effect law); unwind-anchor is the alternative if padding cost measures ugly | OPEN |
+| Sc | Anchor slot | **lock a fixed cell offset** for the saved-rsp qword in scan-driver / FENCE(P) / ARBNO cells | OPEN |
+| Sd | rbp role | **defer** (Lon ruling); natural candidate = STATEMENT BASE: `rsp==rbp` at every statement boundary is a FREE hard assert; trivializes error unwind + mode-3 C-return | OPEN |
+| Se | Stack budget | process ulimit ~8MiB vs the HUGE 1024MB ruling (D3) — `setrlimit` at start, or run the BB spine on an mmap'd stack; telemetry + loud bomb per standing style | OPEN |
+| Sf | GC | precise linear scan `[rsp, stmt_base)` via the zls TYPED kind maps — live set exactly delimited; BETTER than the arena story | OPEN |
+
+### 10h. WHAT RESUMES NEXT SESSION (Lon: "we'll spark up the entire conversation")
+1. **ARBNO's cell shape — LON HAS A SOLUTION IN MIND AND SPEAKS FIRST.** His sketch on record: since the stack grows down, rsp points at a LENGTH field to jump over the variable per-iteration section to reach the fixed quads. Alternatives on the table: anchor-restore; keeping the heap COLLECTION (§5f). NOT yet discussed.
+2. Rule Sa–Sf.
+3. Reconcile with **ZB-OWN-1a** (GOAL-SNOBOL4-BB.md s28): **§10 SUPERSEDES its "make rsp a stable base" framing** — rsp is not stabilized, it is DISCIPLINED (the port invariant, 10c). G1/G2 fixes become DELETIONS, not patches.
+4. Statement temporaries: statement = outermost region; rsp returns to statement base at every statement boundary (the Sd assert point).
+5. Escapers stay off-spine (heap ZH). For SNOBOL4 the escape set is NEAR-EMPTY (no suspend, no coexpr); the EVAL/CODE chain is the exception. Icon's suspend/coexpr keep §7's ZL-FN/ZL-COEXPR promotion story unchanged.
