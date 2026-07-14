@@ -1,13 +1,13 @@
 # FINDING 2026-07-14 s60 — EVAL/CODE onto RSP (ζ-on-rsp's last work) + CAS-1 (the GC's first root island)
 
 AUTHORS: Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
-GOAL: GOAL-SNOBOL4-BB.md — RUNG ZS (ZS-3b) and RUNG GC-U (CAS-1). Base: SCRIP `cb193af5`+s59 → `0a089ada` → `704dae8f`.
+GOAL: GOAL-SNOBOL4-BB.md — RUNG ZS (ZS-3b) and RUNG GC-U (CAS-1). Base: SCRIP `cb193af5`+s59 → `9e714ed7` → `a15b82ad`.
 LON DIRECTIVES THIS SESSION: "EVAL and CODE are already working, just switch them over to RSP" · "implement a
 unified GC which handles MARK/ADJUST/SLIDE … the GVA will be its own mmap section … SNOBOL4 will have a
 CONDITIONAL ASSIGN stack in separate mmap … scan the live ZETA blocks, the GVA, and all other SPECIAL mmap
 structs, for references and do the MARK."
 
-## 1. ZS-3b — EVAL/CODE-RSP (`0a089ada`). The s59 ruling ("EVAL/CODE = the DEFER shape") executed.
+## 1. ZS-3b — EVAL/CODE-RSP (`9e714ed7`). The s59 ruling ("EVAL/CODE = the DEFER shape") executed.
 `rt_eval_run` — the 64KB-donation call shim — is **DELETED, grep = 0 tree-wide**. Replaced by `rt_chain_enter`:
 RESOLVE (cache / compile / label-registry lookup — a C call is fine, it is not the transfer) → WIRE outside-γ→rcx
 and outside-ω→rdx to ONE shared landing → `jmp rax`. The chain is a NEW ACTIVATION that self-allocates on rsp
@@ -44,7 +44,7 @@ prolog 5/0, raku 234/20 (documented pre-existing). **C→BB ledger V6 (the EVAL/
 ⚠ Pre-existing and NOT mine (verified by stashing to the s59 baseline and re-running): `EVAL("SPAN('012345')")` used
 as a pattern → `SNO$MKPAT: compiled pattern blob 'PAT$0' not registered`. That is the SZ-5 `[B-RE]` opaque-DT_P class.
 
-## 2. CAS-1 (`704dae8f`) — and the finding that HALVES the rung
+## 2. CAS-1 (`a15b82ad`) — and the finding that HALVES the rung
 ⭐ **`g_dcap` — THE conditional-assign stack — IS ALREADY ITS OWN BASE-PINNED ISLAND** (`RT_DCAP_ISLAND_BYTES` 4MB via
 `rt_slab_region`, live cursor = register rbp in emitted code, built on the `rt_gva_island` precedent, ARCH-ZETA §12).
 AND its 24B entry is **deliberately POINTER-FREE** — varname is sealed RO strtab, saved_delta is resolved against the
