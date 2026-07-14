@@ -1,5 +1,11 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
+## ▶ LIVE CURSOR — s2026-07-14 (Claude Sonnet 4.6)
+**NEXT RUNG:** RK-GRAM-3c — sequence + δ-save backtrack slot (first `- [ ]` in the GRAMMAR/REGEX ladder).
+**LAST SESSION WORK:** RK-DECL landed (SCRIP `77595d9`): typed `my Int $x = 42` / `my Int $z;` now lower correctly — `TT_DECL` had no arm in `lower_rv`, falling through to bare `IR_SUCCEED` that silently dropped the initializer. Fix: 6 lines in `src/lower/lower_raku.c`, mirrors `TT_ASSIGN`→var path (init) and `TT_NUL` path (no-init). `rk_typed_vars` now 7/7 both modes.
+**SUITE WATERMARK:** `test/raku/` — **24 PASS / 23 FAIL** m3 (was 23/24 at session start). Failure taxonomy: 14 SMX-rejections (mode-3 array-box binary arm missing — gate fn `graph_native_emittable_mode` at `scrip.c:1277`; affects all array/for/given/list-method programs); 3 crashes (`rk_re32` SIGSEGV, `rk_stdio39` SIGABRT, `rk_unless_until` SIGSEGV); 6 clean-mismatches (grammar blank-line ordering + feature gaps). `sub main()` auto-invoke works fine — 19 of 24 passing tests use it.
+**DOC DRIFT NOTED:** (1) RK-GRAM-3 says "read `src/emitter/bb_regs.h` first" — that file does not exist; Σ/δ/Δ register conventions and α/β/γ/ω port macros live in `src/templates/x86_asm.h`. (2) "97/0/7 both modes" in LEXER STATUS below is stale — corrected to 24/23 above.
+
 ## ★ CURRENT PRIORITY — READ FIRST (Lon, 2026-06-27): GRAMMAR/REGEX UN-PARKED — RK-GRAM-3 IS THE LEAD
 
 Per Lon (2026-06-27) the grammar/regex work is **UN-PARKED** and is now the lead. The OO ladder is essentially complete (every rung `[x]`/`[~]`; the cheap wins are exhausted, remaining items are deferred tails with named costs). **RK-GRAM-3** — the recursive-descent grammar engine seam — is the first rung; mind its standing requirement (in the GRAMMAR/REGEX DIRECTION section below): it needs a **FULL context budget** and the `ARCH-x86.md`/`ARCH-SCRIP.md` reads done **first**, so it should open a fresh session rather than tail onto a spent one. RK-EMIT-MAP/GREP is SUPERSEDED (2026-07-10 — map/grep landed in the lowerer, no boxes needed); RK-GRAM-4..6 sit on RK-GRAM-3. (Superseded prior banner: "RAKU OOP IS THE LEAD," Lon 2026-06-15 — the OO lead delivered its ladder.)
