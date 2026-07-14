@@ -587,6 +587,20 @@ bash scripts/test_gate_icn_semicolon_required.sh  # PASS (PRISON)
 ## Session-close / push protocol
 See RULES.md — the computed-status FACT RULE (`scripts/handoff_status.sh` verbatim stdout is the ONLY sanctioned completion claim) and the companion rule forbidding the word "HANDOFF" in assistant-authored prose at close. The two rule bodies formerly duplicated here were deleted 2026-07-01; RULES.md is the single home.
 
+## ⌚ WATERMARK 2026-07-13 (Claude Sonnet 4.6 · SCRIP `ed95a693` · corpus unchanged) — ICON-BB-SCAN-NARY: mode-3/mode-4 movsxd divergence fixed + item-1 per-arm value-slot concat landed
+
+**Scope:** GOAL-ICON-BB.md scan-nary box correctness. No rung flipped (IR_SCAN_SEQUENCE dormant in all corpus programs); scanner correctness is now correct for all arm configurations.
+
+**BUG 1 — MODE34-IDENTICAL violation (x86_asm.h, `movsxd` frame-source encoder):**
+The sequence box's `x86("movsxd","rsi",FR(op_off+16))` emitted register-register form in binary (`movsxd rsi,eax` — reading `seq_i`=2 instead of `saved_δ`=0) while text correctly emitted the memory form. Root: `x86_movsxd()` only built the reg/reg ModRM; dispatch passed `.txt` without checking operand kinds, so `x86_rnum("[r12+160]")→0` (eax). Mode-3 computed `rt_substr(hello,2,2)=""` for multi-char arms; mode-4 gave "hell". Single-char arms coincidentally correct (`seq_i==0==saved_δ`). Fix: added `x86_movsxd_frame(dst64,off)` (REX.W+0x63+x86_r12_modrm, mirrors x86_frame_lea), dispatches `XK_REG×XK_FR32`; FATAL guard on any other pair. Blast radius: exactly 2 sites (bb_scan_sequence:29, bb_scan_alternate:26); sibling audit confirmed clean.
+
+**BUG 2 — item 1, wrong value for non-contiguous/backward arms (bb_scan_sequence.cpp):**
+γ sliced the subject span `[saved_δ,r14)` via `rt_substr`. Correct only for contiguous forward arms (`"he"||"ll"→"hell"` coincides with `subject[0:4]`). Backward arms wrong: `tab(4)||tab(2)` on "hello" gave "h" (span [0:1]) but Icon requires "helel" (arm-0 "hel", arm-1 backward "el"). Fix: `scanseq_concat_chain()` concatenates each arm's own value DESCR at `FRQ(zls_off(operand[2j+1]))` via `str_concat_d`; mirrors `bb_binop_concat_slot` register discipline. `zls_off` gives the exact offset each arm wrote (ZLS grants run before emission). `_.node` is the IR_SCAN_SEQUENCE node (set at `walk_bb_node` top), so no drive-site change needed. Note: `saved_δ` store at `FR(op_off+16)` is now write-only/vestigial; left for offset stability per `bb_scan_alternate`'s +20-pad convention.
+
+**VERIFIED:** `tab(3)||tab(5)=hell`, `tab(4)||tab(2)=helel` (backward, the item-1 fix), `move(2)||move(2)=abcd`, 3-arm `tab(2)||tab(4)||tab(6)=abcde` — all correct, all m3==m4. `test_icon_all_rungs.sh` 239/15/35, fail set byte-identical. `test_icon_rung_suite.sh` 238/16/35 interp+run, 234/20/35 compile. Icon smoke 14/14 both modes (+2 new guards: `scan_seq_concat`, `scan_seq_concat_backward`). SNOBOL4 7/7, Prolog 5/5, Snocone 5/5 neutral. All gates green. `.s` artifact regens: updated=0 (box dormant in all corpus programs). IR_SCAN_ALTERNATE: movsxd site fixed by construction but box remains unreachable (no frontend constructor emits `IR_SCAN_ALTERNATE`; scan alternation lowers to generator disjunction).
+
+**NEXT SESSION, in leverage order (inherits s16 board):** (1) RESUME-THROUGH-SCAN family — scan/scan1/scan2/endetab hit `IR_SCAN_ENTER` + `IR_SUSPEND`-in-scan wall (generator-in-scan); (2) `htprep`+`prepro` — parser error (`;` inside function-call context); (3) `bb_assign_local`/`bb_assign_global` flat-chain BOMB (geddump/ipxref, `TE-4`, unchanged); (4) `:=:`/`<->` swap (IR op=55, rung37); (5) proc-generator-as-argument `BENCH-F3` (tgrlink/rsg/ipxref blocker).
+
 ## ⌚ WATERMARK 2026-07-10 s16 (Claude Fable 5 · SCRIP 6 commits local, push pending credential · corpus unchanged) — DUAL ZETA IS THE DEFAULT (spine=C-stack, generators/coexprs=ZH sliding heap) + RESUME-THROUGH-SCAN LANDED: ladder 230→232/22/35, scan_alt + parse GREEN byte-identical
 
 **Lon directive (this session): "Use the dual ZETA storage, stack for main spine and heap for co-expressions and generator procedures. Get Icon working 100%."**
