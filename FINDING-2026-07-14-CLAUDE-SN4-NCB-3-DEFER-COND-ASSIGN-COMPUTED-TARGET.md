@@ -116,3 +116,58 @@ A correct fix spans, at minimum:
 - Baseline reproduced EXACTLY at `c22ae61c`: m3 `PASS=303 FAIL=3` (`expr_eval 140 141`), m4 `PASS=302 FAIL=3 SKIP=1` (`expr_eval 140 1017_arg_local`), DIVERGE=1 (`1017_arg_local`). Smoke 7/7 both modes.
 - gdb scripts + outputs, `SCRIP_DCAP_TRACE`/`SCRIP_M3_GVA_TRACE` traces, and monitor runs are in the session transcript.
 - Manual sections read: EVAL (p.130–132, ref p.221), CODE (p.132–133, ref p.215), NRETURN (p.133), deferred `*` (p.85–86).
+
+---
+
+## ✅ RESOLVED — s56 (2026-07-14, Claude). SCRIP `9f24d954`. Test 140 green in BOTH modes.
+
+This finding's mechanism was right and its fix surface was right. The *root* was one layer deeper than
+"the EVAL compile emits the sub-chain but never registers it", and the correction is worth recording
+because it explains why a register-only patch would have looked correct and still failed:
+
+**The thunk proc was never BUILT, so there was nothing to register.** `lower_snobol4()` — the entry
+`eval_build_chain` calls — is a one-line wrapper for `sno_lower_fragment_at()`. The `EXPR$N` thunk
+GRAPHS are built by a loop that lives exclusively in `lower_sno_stage2()`, the whole-program entry. A
+runtime EVAL therefore ran `sno_expr_collect` (minting the NAME `EXPR$0`, recording the pend as
+`*EXPR$0`) and then built no graph, filed no `ProcEntry`, and emitted nothing. `rt_proc_call_open`
+returning 0 was not a registration bug; it was a truthful answer about a proc that did not exist.
+
+**What landed:**
+1. `sno_expr_thunks_build(mark)` — the thunk-graph loop, lifted out of `lower_sno_stage2` (which now
+   calls it with mark 0; whole-program behaviour is bit-identical) and made callable from a mark, so
+   the fragment path can build exactly the thunks IT minted.
+2. `eval_thunks_emit_from(pc0)` (runtime_eval.c) — the driver's own walk, over just the procs the
+   fragment added: `rt_proc_register` → set generator/variadic/dyn_scope/result_name →
+   `ir_drive_slot_assign` → `emit_chain(…, "proc_flat")` → `rt_proc_set_fn`. The slot pass is NOT
+   optional: without it the emitted thunk aborts with *"frame-active graph with no zeta_mark slot"*.
+3. **Name salting.** `lower_sno_stage2` resets `g_sno_nexpr = 0` per compile, so every runtime EVAL
+   re-minted `EXPR$0`. Fragment compiles now salt (`EXPR$0F1`, `EXPR$1F2`, …); the main program keeps
+   plain `EXPR$N`, so its artifacts are byte-identical. In mode 4 this matters more than in mode 3:
+   main's `EXPR$0` is registered at startup by the emitted binary, and the first runtime EVAL would
+   otherwise overwrite that registration.
+4. **The NAME survives.** `rt_dcap_pump` re-arms `rt_g_want_name` after opening an `EXPR$` thunk, so
+   the NRETURN'd `DT_N` is not deref'd to a string by `rt_nret_fix` at the thunk's tail call (this
+   finding's SECOND failure mode). `rt_dcap_step` additionally honours a string-valued target by name
+   indirection (manual p.85 / p.192). The silent `!fb continue` now warns.
+
+**Latent heap bug found en route (independent of EVAL, hit by any virgin `stage2_t`):**
+`stage2_proc_grow` / `stage2_label_grow` doubled a zero cap — `s2->proc_cap *= 2` with cap 0 stays 0 —
+so the first grow `realloc`'d to ZERO bytes and then `memset` a whole `ProcEntry` past the end. The
+whole-program path never arrives with a virgin table, so this had slept forever; the mode-4 runtime
+`.so` DOES (its `g_stage2` is untouched until an EVAL compiles something), which is precisely why 140
+passed mode 3 and SIGSEGV'd mode 4 for one build. Seeded to 16, matching `bb_program_add` — which had
+the guard all along. gdb: `__memset_evex_unaligned_erms` ← `stage2_proc_grow` ← `sno_expr_thunks_build`
+← `eval_build_chain("LEN(1) . *inner(c2)")`, i.e. the SECOND EVAL, as the cap-0 arithmetic predicts.
+
+**MONITOR-DARK verdict upheld.** No monitor work was possible for this class; gdb-direct was used as
+this finding sanctioned. A MON-RE trace-vocab align remains the true MONITOR-FIRST prerequisite.
+
+**Still open, and explicitly NOT this class** (so the next session does not re-chase them through EVAL):
+141 bombs in the LOWERER (`tree kind 25` in ARBNO-body position) at COMPILE time in both modes, and
+expr_eval hits the `[B-RE]` opaque-DT_P refusal. Both are pattern-composition-over-a-runtime-pattern
+problems (SZ-4 / SZ-5), not deferred-thunk problems.
+
+**Known hazards documented, NOT fixed:** (1) an over-budget `bb_pool_release` in the eval cache can free
+emitted thunk code while the proc registry still points at it; (2) a deferred call whose ARGUMENTS
+contain another user-proc call will mis-consume the re-armed `want_name` flag; (3) `code()` does not
+salt, so a CODE fragment carrying `*expr` can still collide with main's `EXPR$N`.
