@@ -1,6 +1,25 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
-## ▶ LIVE CURSOR — s2026-07-15 (updated: RAKU-100 Phase 0 instrumented, Claude Opus 4.8)
+## ▶ LIVE CURSOR — s2026-07-15b (RK-BLK-a step 1 LANDED: block-as-value store + invoke, both modes, Claude Opus 4.8)
+
+**⚠ THREE TRACKS.** (1) **RAKU-100 coverage arc** — the track with a live number; (2) GRAMMAR (RK-GRAM-3d) standing implementation lead; (3) ζ (RK-ZETA-1) blocked cross-language. Pick the track the session's goal names.
+
+**[RAKU-100 TRACK] NEXT RUNG: RK-BLK-a step 2+ (pointy blocks `-> $x {}`, `.()`, implicit `$_`) then RK-BLK-b/c/d.** This session landed the FIRST slice of RK-BLK-a — **bare block as a first-class VALUE, stored and invoked, no lexical capture yet.** Both modes green, zero peer regression.
+
+**WHAT LANDED (RK-BLK-a step 1):**
+- **Grammar (SCRIP):** `atom : block` (a `{ … }` in expression position is now a value) + `atom : KW_SUB block` (anonymous `sub { … }`) + `call_expr : VAR_SCALAR '(' … ')'` (scalar-invoke `$b()` / `$b(args)`). New AST kinds `TT_ANON_BLOCK`/`TT_INVOKE`; new value kind `DT_BLK` (descr.h). bison 33→58 shift/reduce conflicts (+25, all shift-resolved — proven benign by the identical fail-set); **`raku.l` UNTOUCHED (no new tokens), `raku.lex.c` NOT regenerated** (kept the committed `#line`-bearing artifact); `raku.tab.h` unchanged.
+- **Mechanism (no new box, no template, FACT-RULE-clean):** each anonymous block is HOISTED in the lowerer (`rk_hoist_anon_blocks` in `lower_raku.c`, runs first in `lower_raku_stage2`) into a synthesized 0-ary `TT_SUB_DECL` named `__blk_N` appended to the program — so the EXISTING sub-registration (`rk_discover_procs`) + both-mode body lowering compile it for free. The block VALUE is `__blk_ref("__blk_N")` → a `DT_BLK` descriptor carrying the proc name; `$b()` lowers to `__blk_invoke($b, args…)` which reads the name and dispatches via the proven runtime proc registry (`rt_call_proc_descr`, populated in BOTH modes by `rt_proc_register`) — the same both-mode path RK-OO multi-dispatch uses. Both builtins are a closed known-list addition in `by_name_dispatch.c` (`rt_builtin_is_known` → `CALL_ROUTE_FN`); no `is_raku`, no template touch. DOUBLE-FREE PITFALL CAUGHT: the hoist copies body child POINTERS into the sub, so it DETACHES them from the block node (`body->n=0; blk->n=0`) to avoid a shared-subtree double-free at AST teardown (the crash before the detach was `malloc_consolidate(): invalid chunk size`).
+- **GATE (met, both modes):** `my $b = { say 42 }; $b()` prints 42; `my $b = { return 7 }; say $b()` prints 7; anon `sub { … }` store+invoke; block-return-value in arithmetic; two distinct blocks; block that calls a named sub. 7 new smokes in `test_smoke_raku.sh` (`blk_store_invoke`/`blk_invoke_twice`/`blk_return_value`/`blk_two_distinct`/`blk_calls_sub`/`blk_anon_sub_store`/`blk_anon_sub_return`), all m3+m4 PASS.
+
+**SUITE WATERMARK:** Raku smoke **241 PASS / 20 FAIL** both modes (was 234/20; +7 block smokes). **Fail-set BYTE-IDENTICAL to the 234/20 baseline (`diff` empty, zero divergence).** Icon 14/14 both modes; SNOBOL4 7/7 both modes; `test_gate_emit_no_lang.sh` OK. Peer codegen unchanged (only-additive runtime arms peers never call; proven by identical peer smokes) — no `.s`-artifact regen needed (Raku has no maintained `.s` artifact set; the regen scripts target SNOBOL4/Icon corpora, which are byte-identical here).
+
+**SCOREBOARD (honest, unchanged):** `RAKU-COVERAGE.md` still **1/986 = 0.1% (m3)**, PARSE-FAIL still 940. RK-BLK-a step 1 did NOT flip a whole roast file (FAIL still 0), because the scoreboard is a WHOLE-FILE metric and roast files use MANY block forms still unparsed — the measured first-blockers remaining are: **top-level bare block AS A STATEMENT** (`{ … }` on its own — needs `stmt : block`, NOT just `atom : block`), **pointy blocks** `-> $x { }` (needs signature binding = RK-BLK-b), **block-args** `.map({ … })`, and **immediate-invoke** `sub {…}()` (needs postfix-call-on-expression, not just `VAR_SCALAR '('`). These are the next increments; each must stay both-modes-green with an identical peer fail-set. The coverage number will not move until several align + the Test fns (0c) line up in a small file.
+
+**TOUCHED THIS SESSION:** SCRIP — `src/contracts/descr.h` (+DT_BLK), `src/contracts/ast.h` (+TT_ANON_BLOCK/TT_INVOKE), `src/parser/raku/raku.y` (+regen `raku.tab.c`), `src/lower/lower_raku.c` (hoist + 2 lower arms), `src/runtime/by_name_dispatch.c` (+2 builtins), `scripts/test_smoke_raku.sh` (+7 smokes), `RAKU-COVERAGE.md` (regenerated). `.github` — this cursor.
+
+---
+
+## ▶ PRIOR CURSOR — s2026-07-15 (RAKU-100 Phase 0 instrumented, Claude Opus 4.8)
 
 **⚠ THREE TRACKS.** (1) **RAKU-100 coverage arc** — Phase 0 is now INSTRUMENTED and is the track with a live number; (2) GRAMMAR (RK-GRAM-3d) remains the standing implementation lead; (3) ζ (RK-ZETA-1) is blocked cross-language. Pick the track the session's goal names.
 
@@ -127,7 +146,7 @@ RK-GRAM-3 (recursive-descent grammar engine) is **UN-PARKED and is the lead** (L
 
 ### PHASE A — THE THREE WALLS (each unblocks a dozen DEFERRED tails already named in the OO ladder above)
 - [ ] **RK-BLK — blocks/closures native.** Canonical: `Block.rakumod`/`Code.rakumod`.
-  - [ ] **RK-BLK-a** — Block value DESCR (proc + ζ-env ptr); `my $b = { ... };` `$b()` invoke. GATE: store/invoke smoke both modes.
+  - [~] **RK-BLK-a** — Block value DESCR (proc + ζ-env ptr); `my $b = { ... };` `$b()` invoke. GATE: store/invoke smoke both modes. **STEP 1 LANDED both modes (s2026-07-15b, Opus 4.8):** `DT_BLK` descriptor carries the hoisted proc name; store + `$b()` invoke work via the runtime proc registry (`__blk_ref`/`__blk_invoke`, no new box/template); anon `sub {…}` too. GATE met (7 smokes, m3+m4, fail-set identical to baseline). REMAINING for full RK-BLK-a: the descriptor has NO ζ-env pointer yet (no lexical capture — that is explicitly RK-BLK-c), and `sub{…}()` immediate-invoke / block-args / top-level statement-blocks / pointy-params are the next increments.
   - [ ] **RK-BLK-b** — pointy `-> $x { }` params; `.()`; implicit `$_` single-arg block.
   - [ ] **RK-BLK-c** — lexical capture (outer read, then outer write-through) via ZLS2 activation chains — **COORDINATE with the ZB-ACT ladder in `GOAL-IR-IMMUTABLE-EMIT.md`; NEVER fork a parallel activation mechanism.**
   - [ ] **RK-BLK-d** — cash the blocked tails, one step + smokes each: value-position `my @a = map {...}, @xs` · `sort` with comparator block · closure attr defaults (`has $.x = computed()`) · BUILDPLAN op-400 · `where` constraints.
