@@ -9,8 +9,22 @@ uploaded `swipl-devel-master` + `gprolog-master` archives, not prose.
 ## ⬅ LIVE CURSOR (2026-07-15, s58c)
 **Baseline MEASURED this session (not asserted):** scrip + libscrip_rt build rc=0; Prolog rung suite **138/138 ×3**
 (interp≡run≡compile). SWI archive `tests/` = **231 `.pl` files** across 22 dirs; `tests/core/` = **57 files**.
-gprolog admits **38 / 312** exports (PL-ISO tracker). **NEXT RUNG: SWI-0 (harness) → SWI-1 (core ISO extraction).**
-Nothing landed yet — this file is the plan + the honest scope split. `refs/` symlinked from the uploaded zips.
+gprolog admits **38 / 312** exports (PL-ISO tracker). `refs/` symlinked from the uploaded zips.
+
+**SWI-1 STEP 1.1 LANDED (Claude Sonnet, s58d continuation) — SCRIP local HEAD `b17431f8` (NOT pushed; no credential).**
+Extracted `tests/core/test_unify.pl` (3 blocks, 12 tests → 5 in-scope probes, 7 correctly SKIPed:
+cyclic/rational-tree, `unifiable/3` SWI-ext, `garbage_collect`/`trim_stacks` helpers). Harness went
+**3 PASS/2 FAIL → 5 PASS/0 FAIL**. The 2 failures were both `can_compare` = a MISSING ISO builtin `?=/2`
+(registered as a 700-xfx operator in prolog_parse.c but no runtime impl). Added `rt_pl_can_compare_cell`
+(unification.c) = SWI `can_compare` semantics on the cell model (mark trail, `pl_unify`, succeed iff
+non-unifiable OR unify-with-zero-new-bindings, always unwind); wired via `rt_pl_det_builtin_target`
+(`?=`/2 → `$can_compare`), a `$can_compare` handler in `script_try_call_builtin_by_name`, and the
+builtin-name recognizer; lowering auto-routes through the det-target arm. 6-case m3≡m4 direct test green
+(incl. `?=(f(X),f(X))`→ok same-var-no-bind, `?=(f(X),f(Y))`→fail would-bind). The 4 remaining ORACLE_MISS
+on test_unify are gprolog tool gaps (no `?=/2`, no `f()` arity-0), NOT SCRIP bugs. Full board held (see commit msg).
+**NEXT RUNG: SWI-1 step 1.2 `test_term.pl`** — drives PL-ISO-11 `term_variables/2` ⭐ + `subsumes_term/2` ⭐
+(both currently MISSING, ISO core, highest-value gap), `?=/2` (now done), `functor/3` edges, numbervars/variant.
+⚠ BLOCKED-ON-PUSH: `b17431f8` is a LOCAL commit only — needs a credential to reach origin; not a real close until pushed.
 
 ---
 
@@ -108,8 +122,8 @@ it makes every subsequent SWI test mechanical.
 Extract + drive the in-scope `tests/core/` files, easiest-first. Each sub-step: extract, run, triage into
 {already-green / one-builtin-gap / genuine-bug}, fix the one-builtin-gaps via the PL-ISO admission recipe
 (GOAL-PROLOG-BB.md §"Admission recipe"), MONITOR-FIRST any bug, land, move on.
-- [ ] **Step 1.1 — `test_unify.pl`** (3 blocks: unify/occurs_check/`?=`). Occurs-check ties to PL-ISO-11
-      `acyclic_term`. Establishes the whole loop.
+- [x] **Step 1.1 — `test_unify.pl`** (3 blocks: unify/occurs_check/`?=`). DONE (s58d, local `b17431f8`): 5/0,
+      added ISO `?=/2` (`$can_compare`). Occurs-check ties to PL-ISO-11 `acyclic_term`. Established the whole loop.
 - [ ] **Step 1.2 — `test_term.pl`** (5 blocks: numbervars/variant/compound/`?=`/functor). Drives
       PL-ISO-11 `term_variables/2` ⭐, `subsumes_term/2` ⭐, `?=/2`, `functor/3` edges. Highest-value ISO gap.
 - [ ] **Step 1.3 — `test_arith.pl`** (26 blocks — the big one, but pure `is/2` + comparisons). Mostly
