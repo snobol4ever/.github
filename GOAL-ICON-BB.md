@@ -1,8 +1,8 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
 ## ▶ LIVE CURSOR (updated every handoff — RULES.md STALE-ORIENTATION rule)
-- **HEAD rung:** ZB-ICN-FC — FORTH RSP ζ spine for Icon scan boxes. **R12→RSP migration ON HOLD per Lon directive (this session). Three constructs already landed (`IR_SCAN_TAB`, `IR_SCAN_MOVE`, `IR_SCAN_MATCH`). FRONTIER-DISPLACEMENT WALL still stands for counter-advancing generators. The real path is `ZC_FRAME_RSP` (residuals 3–5) — scope from Lon before starting.**
-- **RESUME-THROUGH-SCAN (open rung — still open, unchanged):** `every write("98765" ? upto(&digits))` → `1` then stops ❌. The corrected 6-site fix design + narrowing guard spec is in the WATERMARK 2026-07-14 s3 block below — still accurate. Do NOT re-derive; start mechanical implementation when this rung is next targeted.
+- **HEAD rung:** ICN-RESUME-THROUGH-SCAN — **LANDED `483a6215`**. `every write("98765" ? upto(&digits))` → `1 2 3 4 5` ✅ m3+m4. Hang-regression (`every write("abcde" ? while move(2))`) terminates ✅. Ladder 239/15/35 unchanged (scan cluster did NOT flip — resume-through-scan necessary but not sufficient; those hit the IR_SUSPEND-in-scan wall next).
+- **NEXT RUNG:** scan cluster (`scan`/`scan1`/`scan2`/`endetab`) — hit the `IR_SUSPEND`-in-scan wall. Diagnose with `--dump-ir` on a failing scan probe; root cause is separate from the resume fix just landed. Do NOT re-derive the resume fix — it is committed and green.
 - **LAST SESSION:** 2026-07-14 (Claude Sonnet 4.6) — Lon pivot: R12→RSP ON HOLD; ran three-way Icon benchmark comparison (SCRIP vs canonical iconx vs JCON). Found and fixed two bugs: (1) duplicate procedure emission collapsing all multi-file m4 builds (0/7 benchmarks linked — `icn_resolve_links` now inlines link deps but CLI-arg workaround still passed them again; dedup guard in `icon_register_program` fixed it, 3 lines); (2) `bb_suspend` SIGSEGV at emit time (`lbl_t1_p` set, `lbl_t1` name left NULL; `x86_lea_tgt(TGT1)` read NULL → `strlen(NULL)` → crash; 1-line fix). **m4: 0/7 → 4/7 byte-identical (deal/ipxref/queens/rsg). Compiler segfaults on concord/tgrlink/geddump eliminated.** Ladder 239/15/35 unchanged; smoke 14/14 m3+m4; all four Icon gates green. README benchmark table updated.
 - **WATERMARK:** SCRIP `2d1abbb3` · corpus `2ced25f1` · Icon ladder **239 PASS / 15 FAIL / 35 XFAIL** · smoke **14/14** m3+m4 · gates all green · Fail set: `rung36_jcon_{args,coerce,endetab,fncs1,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,var}` · **PUSH COMPLETE**
 - **BENCH STATUS (fresh run this session — trust this over GOAL-ICON-FULL-PASS.md which is stale):**
@@ -20,6 +20,20 @@
 - **VALIDATION PROTOCOL (next session):** (a) `every write("98765" ? upto(&digits))` → `1 2 3 4 5` m3+m4; (b) `every write("abcde" ? while move(2))` terminates cleanly; (c) ladder ≥239 byte-identical fail set; (d) smoke 14/14 both modes; (e) four Icon gates green.
 
 ## ▶ CURRENT PRIORITY: `corpus/benchmarks/icon/*.icn` (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). Re-derive from a fresh gate/suite run, never from prose. Fresh bench numbers are in LIVE CURSOR above — use those, not GOAL-ICON-FULL-PASS.md (stale).
+
+## ⌚ WATERMARK 2026-07-14 s5 (Claude Sonnet 4.6 · SCRIP `483a6215` · corpus `2ced25f1`) — ICN-RESUME-THROUGH-SCAN landed; 239/15/35 held; PUSH COMPLETE
+
+**Session scope:** orientation + full session-setup baseline (239/15/35, 14/14 smoke, 5 gates green); cloned refs/ from public upstreams (proebsting/jcon + gtownsend/icon — no zip upload needed); implemented and committed ICN-RESUME-THROUGH-SCAN 6-site fix.
+
+**LANDED — `483a6215` ICN-RESUME-THROUGH-SCAN.** `every write("98765" ? upto(&digits))` → `1 2 3 4 5` m3+m4 (was `1` then stop). Hang-regression `every write("abcde" ? while move(2))` terminates cleanly m3+m4 (the narrowing guard: `ir_is_generator_kind(operands[1])` applied at both lowering and emit; bounded bodies keep the proven subject-resume chain). Six sites: (1) `ir_query.c`: IR_SCAN → generator-kind. (2) `lower_icon.c`: α-forcing IR_GOTO trampolines for body→leave edges + cx->beta = leave_succ for generator bodies. (3/4) `gen_runtime.h/c`: parallel `scan_saved[]` save-stack; `rt_scan_leave` saves inner env before popping; new `rt_scan_reenter` re-pushes outer and restores inner. (5) `emit.cpp`: `g_scan_body_beta` channel (mirrors `g_limit_gen_beta`); consumed post-DRIVE_FILL at walk_bb_node dispatch with both `lbl_t0` and `lbl_t0_p` set. (6) `bb_gen_scan.cpp`: leave β arm: `rt_scan_reenter` + `rt_scan_sync_in` + `x86_jmp_tgt(TGT0)`.
+
+**VERIFIED:** target `1 2 3 4 5` m3+m4; hang terminates m3+m4; explicit-subject unchanged; ladder 239/15/35 fail-set byte-identical; smoke 14/14 m3+m4; SNOBOL4 7/7, Snocone 5/5, Prolog 5/5 neutral; all 5 Icon gates green.
+
+**NOT FIXED:** scan cluster (`scan`/`scan1`/`scan2`/`endetab`) did not flip — resume-through-scan was necessary but not sufficient. Next session: diagnose the `IR_SUSPEND`-in-scan wall for those four.
+
+**NOTE for next session:** `refs/` no longer needs zip uploads. Clone directly: `git clone --depth 1 https://github.com/proebsting/jcon.git /home/claude/jcon-master && git clone --depth 1 https://github.com/gtownsend/icon.git /home/claude/icon-master` then symlink into SCRIP/refs/. Both public, verified correct (jcon-master: 1559 lines irgen.icn matching LOWER-REWRITE-FROM-JCON.md count; icon-master: fstranl.r/fscan.r/ocomp.r all present).
+
+**Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
 
 ## ⌚ WATERMARK 2026-07-14 s4 (Claude Sonnet 4.6 · SCRIP `2d1abbb3` · corpus `2ced25f1`) — bench run + two bug fixes; m4 0/7→4/7; README updated; PUSH COMPLETE
 
