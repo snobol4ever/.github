@@ -1,6 +1,31 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
-## ▶ LIVE CURSOR — s2026-07-15d (RAKU-100 FOUR PARSER RUNGS: uninit @/% decl + quote-words + pair-list hash init + say/print listop, both modes, Claude Opus 4.8)
+## ▶ LIVE CURSOR — s2026-07-15e (RSP-DEFAULT PROC-ABI REGRESSION DIAGNOSED — no code landed, Claude Sonnet 4.6)
+
+**⚠ THREE TRACKS.** (1) **RAKU-100 coverage arc** — BLOCKED by RSP regression (see below); (2) GRAMMAR (RK-GRAM-3d) standing implementation lead; (3) ζ (RK-ZETA-1) blocked cross-language. Pick the track the session's goal names.
+
+**[THIS SESSION] ORIENTATION + REGRESSION DIAGNOSIS — NO CODE LANDED.** Repos cloned (all public), SCRIP built, baseline measured. Found a critical silent regression introduced by commit `f7de3863` ("R12-ERAD s65: ZC_FRAME_RSP complete — RSP is now the default").
+
+**THE REGRESSION:** Under the committed default (`ZC_FRAME_RSP`), the Raku proc-call argument/return ABI is broken. Sub/method *bodies* execute, but arguments arrive empty and `return <value>` propagates nothing to the caller. Result: Raku smoke **209 PASS / 74 FAIL** (not the 264/19 the prior cursor claims). The prior cursor's 264/19 was accurate — it was measured under R12. s65 advanced RSP from *loud segfault* to *silent wrong answers* and made it the committed default.
+
+**PROOF (both cases verified this session):**
+- Committed default (RSP): `sub five(){return 5} say(five())` → *(empty)*; `sub f($x){say($x)} f("hi")` → *(empty)*
+- `-DZC_FRAME=ZC_FRAME_R12` rebuild: both produce correct output; Raku smoke → **264/19**, SNOBOL4 → **7/7**, Icon → **14/14**
+
+**ROOT CAUSE:** `src/contracts/zeta_choices.h` line 140: `#define ZC_FRAME ZC_FRAME_RSP` (set by s65). The RK-ZETA cursor (s2026-07-14) already documented that RSP framing isn't ready — freeing r12 "requires retiring the C-call entry trampoline… genuinely unsolved, cross-language." s65 overrode that finding.
+
+**NEXT SESSION DECISION NEEDED (Lon):** Three options:
+1. **Revert default to R12** (one line in `zeta_choices.h`) — restores all three languages immediately; RSP stays via `-DZC_FRAME=ZC_FRAME_RSP` as experimental. **Recommended** — matches goal file's own "RSP not ready" finding; unblocks the coverage climb.
+2. **Keep RSP as default; treat proc-ABI as the real next rung** — the cross-language trampoline/activation-offset work the goal file calls unsolved; needs a dedicated full-budget session.
+3. **Climb frame-independent parser rungs under R12 test-build** — valid if Lon confirms, but committed tree stays broken pending (1) or (2).
+
+**NEXT RUNG (RAKU-100), once regression resolved, data-ordered by ripple/cleanliness:** (a) **ternary `?? !!`** (81 files; needs `OP_TERNARY1`/`OP_TERNARY2` tokens + grammar + TT_COND lowering). (b) **`x` string-repeat / `xx` list-repeat operators** (36 files; new infix). (c) **`my sub`/`my constant`/`my regex` lexical declarators** (prefix KW_MY on existing decl productions — mechanical). (d) `{…};` bare-block-with-trailing-semicolon edge (carried from s15c).
+
+**SUITE WATERMARK (under R12 build, = true baseline):** Raku smoke **264 PASS / 19 FAIL** both modes. Same 19 pre-existing OO/multi-dispatch tails. Icon 14/14 both modes; SNOBOL4 7/7 both modes. Under committed RSP default: 209/74 — 55 extra failures all in proc-call arg/return paths.
+
+**LOCAL COMMITS THIS SESSION:** none (SCRIP tree clean). GROUND TRUTH on push state = `scripts/handoff_status.sh` run LIVE.
+
+**TOUCHED THIS SESSION:** `.github` — this cursor only.
 
 **⚠ THREE TRACKS.** (1) **RAKU-100 coverage arc** — the track with a live number; four parser rungs landed this session; (2) GRAMMAR (RK-GRAM-3d) standing implementation lead; (3) ζ (RK-ZETA-1) blocked cross-language. Pick the track the session's goal names.
 
