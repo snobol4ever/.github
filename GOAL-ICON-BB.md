@@ -1,10 +1,14 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
 ## ▶ LIVE CURSOR (updated every handoff — RULES.md STALE-ORIENTATION rule)
-- **HEAD rung:** ZERO-FAILURE MANDATE (Lon 2026-07-15) — drive the Icon corpus to **289/0/0** (every FAIL fixed + every `.xfail` deleted). Two ladders below: **FAIL-ZERO** (15 open) and **XFAIL-ZERO** (35). Re-derive counts from a fresh `test_icon_all_rungs.sh --corpus <path>` run, never from prose.
-- **GROUND TRUTH (fresh, SCRIP `e18b038a`):** **239 PASS / 15 FAIL / 35 XFAIL.** FZ-A1 landed this session (bracket-operand abort; see FAIL-ZERO Cluster A). Fail set: `rung36_jcon_{args,coerce,endetab,fncs1,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,var}`.
-- **NEXT RUNG:** FAIL-ZERO Cluster B (FZ-B1 `var` — nameless IR_ASSIGN for `!x`/`?x`/`s[i:j]` targets, fix `lower_icon.c` TT_ASSIGN) or Cluster E wrong-output pack (MONITOR-FIRST per divergence; `kwds`/`scan1` moved here after their crash layer lifted). Both contained.
-- **NOTE:** ICN-RESUME-THROUGH-SCAN is LANDED (`483a6215`) — do not re-derive it. `refs/` clones from public upstreams (proebsting/jcon + gtownsend/icon); no zip needed.
+- **HEAD rung:** ZERO-FAILURE MANDATE — 239/15/35. SCRIP `50249fd5`. FAIL-ZERO (15) + XFAIL-ZERO (35) ladders below. Re-derive counts fresh, never from prose.
+- **GROUND TRUTH (SCRIP `50249fd5`, verified this session):** **239 PASS / 15 FAIL / 35 XFAIL.** Fail set unchanged: `rung36_jcon_{args,coerce,endetab,fncs1,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,var}`.
+- **CLUSTER DIAGNOSES CORRECTED this session (measured, not assumed):**
+  - **FZ-B1 `var`**: blocked on pointer-hole architecture (Lon). `variable("local") := v` needs runtime name→frame-slot resolution. Do NOT build without Lon's design decision.
+  - **FZ-B2 `scan`**: TE-4 bomb CLEARED (`50249fd5` — control-in-value fix). New blocker: bare `pos()`/`tab()`/`move()` outside `s ? …` read uninitialized Σ/δ/Δ → SEGV. Fix: bare scan call must load Σ/δ/Δ from `scan_subj`/`scan_pos` before dispatching (`icn_retag_scan_body` + a load-bare-scan-env helper).
+  - **FZ-D1/D2 `htprep`/`prepro`**: Icon preprocessor (`$define`/`$include`/`$ifdef`) — unbuilt feature, not a parser tweak.
+  - **FZ-E cluster (`coerce`/`args`/`recogn`/`mffsol`/`mindfa`/`string`/`kwds`/`scan1`)**: generator argument to procedure (`every binop(!"…", i, r, c, s)`) — control-in-value fix was inert; needs generator-arg suppression in `lower_call`.
+- **NOTE:** `refs/` symlinks from uploaded zips at session start (icon-master + jcon-master). ICN-RESUME-THROUGH-SCAN LANDED `483a6215`.
 
 ## ▶▶ ZERO-FAILURE MANDATE (Lon directive, 2026-07-15): "We have no expected failures." END STATE = 289/0/0 — every FAIL fixed AND every `.xfail` marker DELETED (source fixed or SCRIP fixed). The two ladders below are the whole job. Re-derive counts from a fresh `test_icon_all_rungs.sh --corpus <path>` run, never from prose (this session already caught the cursor claiming 239/15 when ground truth was 238/16 — the `rung13` regression).
 
@@ -58,6 +62,10 @@ END STATE: zero `.xfail` files in `corpus/programs/icon/`. Per test: (1) remove 
 - [ ] **XZ-E-STRUCT** — `btrees`, `sets`, `sorting`, `struct`, `sieve`, `collate` — list/set/table/sort builtins.
 - [ ] **XZ-E-GEN** — `every`, `gener`, `evalx`, `nargs` — generator/argument semantics.
 - [ ] **XZ-E-IO** — `io`, `iobig`, `image`, `errors`, `errkwds`, `others`, `recent`, `misc`, `case`, `diffwrds`, `prefix`, `large`, `fncs`, `geddump` — classify individually; io + image + error-keyword families.
+
+## ⌚ WATERMARK 2026-07-15 s2 (Claude Sonnet 4.6 · SCRIP `50249fd5` · corpus unchanged) — control-in-value fix landed; cluster diagnoses corrected; 239/15/35 maintained
+
+**Scope:** Full session-setup baseline confirmed (239/15/35 byte-identical to cursor). Investigated all 15 FAILs; corrected cluster descriptions — every cursor claim was measured against a minimal repro, not trusted from prose. **LANDED `50249fd5` — control-in-value fix:** `while`/`until`/`repeat`/`every` were setting `*res` to a control `IR_GOTO` and routing loop-exit to γ (success). Icon semantics: these produce no value and fail as expressions. Fixed all four in `lower_icon.c`: route exit to ω, `*res = NULL`. Safe for statement context (succ==fail in `lower_proc_body`). `image(while write(move(1)))` now correctly reaches `| "none"`. `scan` advanced past its TE-4 bomb. **Verified:** 239/15/35 zero-regression, all 4 Icon gates PASS, smoke 14/14 m3+m4, Prolog 5/5, m4 compiles. **Diagnoses:** FZ-B1 `var` blocked on pointer-hole arch (Lon). FZ-B2 `scan` new blocker: bare scan functions outside `s ? …` read uninit Σ/δ/Δ. FZ-D1/D2 `htprep`/`prepro`: Icon preprocessor (unbuilt). FZ-E cluster: generator-argument-to-procedure, distinct second root cause. **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
 
 ## ⌚ WATERMARK 2026-07-15 (Claude Opus 4.8 · SCRIP `e18b038a` · corpus unchanged) — ZERO-FAILURE MANDATE opened; FZ-A1 landed (238→239/15/35); goal file pruned
 
