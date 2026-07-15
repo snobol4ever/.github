@@ -413,3 +413,21 @@ WATCH-ITEM: C-stack depth — deep ARBNO/recursion sized for a 512MB arena may n
 3. Then full crosscheck under RSP and flip `zeta_choices.h` line 140 default.
 
 **DESIGN RULING (Lon, this session, record verbatim):** ALL BBs use RSP as frame base. Generator procedures and co-expressions get their own mmap stack — RSP is swapped to it on entry/resume. ARBNO is not special: alpha and beta both do a zeta `sub rsp,K` allocation; LIFO unwind is the release. No heap in BB equation whatsoever. R12 becomes free. ZB-ACT template port-hooks (the "overloadable alloc flavor" scaffold) are SUPERSEDED by this design — do not resume that ladder. Context-switch broker (mmap stack swap) is the long-lived machinery; it is SNOBOL4-irrelevant (SNOBOL4 has no generator procs or coexprs — all determinate, all main spine).
+
+<!-- LIVE CURSOR s68 END -->
+<!-- s68 HANDOFF STATE (emergency, ~92% ctx):
+     SCRIP pushed: 04407a45 — r11+g_zwin_view+g_zwin_stmt protocol in tree, WIP DARK (zr arms still r12).
+     BASELINE watermark: m3 303/4 · m4 293/13/1 · DIVERGE=10  (clean r12 build, per session start)
+     WITH r11 arms active: DIVERGE=14 — 4 regressions all in ARBNO window class.
+     ROOT CAUSE LOCATED s68: x86_rsp_modrm REX pun (r12/rsp low3==4 pun broke for r11 low3==3) — FIXED in push.
+     REMAINING MINE: ARBNO landing reloads get stale view after C-call clobber in nested/multi-iter cases.
+       - g_zwin_stmt approach abandoned (over-engineered); reverted to header-prev FRQ restores at PAIR(2)/PAIR(3).
+       - DIVERGE still 14 after that revert — second mine not yet isolated.
+       - Next hunter: flip zr arms to r11 (one-liner in x86_asm.h lines ~312-313), run crosscheck,
+         diff FAIL list vs baseline, pick smallest new failure, gdb disassemble the landing sequence.
+       - Tripwire: if >3 sessions can't close DIVERGE to ≤10, gate r11 path behind ZC_R11_WINDOW contract
+         defaulting OFF, merge that, delete the dead code, declare R12-EXIT-1 blocked on carry-the-tail.
+     x86_rsp_modrm: solid — RSP-family encoders now use explicit SIB(0x24) independent of zr_num().
+     g_zwin_stmt / x86_zws_*: in tree but unused — safe to delete if r11 approach abandoned.
+     NEXT: R12-EXIT-1 mine hunt (see above). Then R12-EXIT-2 (DEFER), R12-EXIT-3 (flat_pat island).
+-->
