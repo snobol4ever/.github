@@ -1,8 +1,9 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
 ## ▶ LIVE CURSOR (updated every handoff — RULES.md STALE-ORIENTATION rule)
-- **HEAD rung:** ICN-RESUME-THROUGH-SCAN — **LANDED `483a6215`**. `every write("98765" ? upto(&digits))` → `1 2 3 4 5` ✅ m3+m4. Hang-regression (`every write("abcde" ? while move(2))`) terminates ✅. Ladder 239/15/35 unchanged (scan cluster did NOT flip — resume-through-scan necessary but not sufficient; those hit the IR_SUSPEND-in-scan wall next).
-- **NEXT RUNG:** scan cluster (`scan`/`scan1`/`scan2`/`endetab`) — hit the `IR_SUSPEND`-in-scan wall. Diagnose with `--dump-ir` on a failing scan probe; root cause is separate from the resume fix just landed. Do NOT re-derive the resume fix — it is committed and green.
+- **HEAD rung:** ZERO-FAILURE MANDATE (Lon 2026-07-15) — drive the whole Icon corpus to **289/0/0**. Two ladders authored this session: **FAIL-ZERO** (16 live FAILs, 5 root-cause clusters) and **XFAIL-ZERO** (35 `.xfail` markers, fix-source-or-SCRIP then delete). See the two `▶ RUNG` blocks below. NO code changed yet — ladders only.
+- **GROUND-TRUTH COUNT (fresh run, SCRIP `41bdc490`):** **238 PASS / 16 FAIL / 35 XFAIL** — NOT the 239/15 the prior cursor claimed. The 16th FAIL is `rung13_alt_alt_cross_arg_sideeffect`, a REGRESSION that landed after the s5 watermark (HEAD `41bdc490` > `483a6215`). It is an `x86_parse` bracket-operand emit-abort; minimal repro `every write(1|2,"[x]",3|4);`. This is FZ-A1 and the highest-leverage first fix (one bug clears 3 tests: Cluster A).
+- **NEXT RUNG:** start **FAIL-ZERO Cluster A** (the bracket-operand regression — `rung13`/`kwds`/`scan1` all flip on one fix). Then Cluster B/C/D/E as laddered. The old "scan cluster / IR_SUSPEND wall" note is now SUBSUMED: `scan`/`scan1`/`scan2` are FZ-A3/FZ-C3/FZ-B2 with their real (distinct) crash signatures identified, not one wall.
 - **LAST SESSION:** 2026-07-14 (Claude Sonnet 4.6) — Lon pivot: R12→RSP ON HOLD; ran three-way Icon benchmark comparison (SCRIP vs canonical iconx vs JCON). Found and fixed two bugs: (1) duplicate procedure emission collapsing all multi-file m4 builds (0/7 benchmarks linked — `icn_resolve_links` now inlines link deps but CLI-arg workaround still passed them again; dedup guard in `icon_register_program` fixed it, 3 lines); (2) `bb_suspend` SIGSEGV at emit time (`lbl_t1_p` set, `lbl_t1` name left NULL; `x86_lea_tgt(TGT1)` read NULL → `strlen(NULL)` → crash; 1-line fix). **m4: 0/7 → 4/7 byte-identical (deal/ipxref/queens/rsg). Compiler segfaults on concord/tgrlink/geddump eliminated.** Ladder 239/15/35 unchanged; smoke 14/14 m3+m4; all four Icon gates green. README benchmark table updated.
 - **WATERMARK:** SCRIP `2d1abbb3` · corpus `2ced25f1` · Icon ladder **239 PASS / 15 FAIL / 35 XFAIL** · smoke **14/14** m3+m4 · gates all green · Fail set: `rung36_jcon_{args,coerce,endetab,fncs1,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,var}` · **PUSH COMPLETE**
 - **BENCH STATUS (fresh run this session — trust this over GOAL-ICON-FULL-PASS.md which is stale):**
@@ -20,6 +21,63 @@
 - **VALIDATION PROTOCOL (next session):** (a) `every write("98765" ? upto(&digits))` → `1 2 3 4 5` m3+m4; (b) `every write("abcde" ? while move(2))` terminates cleanly; (c) ladder ≥239 byte-identical fail set; (d) smoke 14/14 both modes; (e) four Icon gates green.
 
 ## ▶ CURRENT PRIORITY: `corpus/benchmarks/icon/*.icn` (GOAL-ICON-FULL-PASS RUNG #1 — FIRST, ALWAYS). Re-derive from a fresh gate/suite run, never from prose. Fresh bench numbers are in LIVE CURSOR above — use those, not GOAL-ICON-FULL-PASS.md (stale).
+
+## ▶▶ ZERO-FAILURE MANDATE (Lon directive, 2026-07-15): "We have no expected failures." END STATE = 289/0/0 — every FAIL fixed AND every `.xfail` marker DELETED (source fixed or SCRIP fixed). The two ladders below are the whole job. Re-derive counts from a fresh `test_icon_all_rungs.sh --corpus <path>` run, never from prose (this session already caught the cursor claiming 239/15 when ground truth was 238/16 — the `rung13` regression).
+
+### ▶ RUNG: FAIL-ZERO — drive the 16 live FAILs to 0 (fresh run 2026-07-15, SCRIP `41bdc490`, mode-3 `--run`)
+Grouped by ROOT CAUSE, not alphabetically — one fix clears a whole cluster. Attack clusters top-down (crashes before wrong-output: a crash blocks everything downstream of it). Each step: MONITOR/`--dump-ir` to bracket → fix at the land mine → confirm m3 AND m4 → re-run suite, confirm the test flips and nothing else breaks.
+
+**Cluster A — `x86_parse` bracket-operand abort — ✅ FIXED (SCRIP, root cause found).** ROOT CAUSE (not what the first note guessed — the multi-gen `every` was a red herring): `x86(mnem, xa, xb, …)` at `x86_asm.h:1057` eagerly runs `x86_parse` on its first TWO args BEFORE checking the mnemonic — so a DATA-directive payload (`.string`/`comment`/diagnostic) whose text contains `[...]` (e.g. the Icon string value `"[x]"`) was parsed as a memory operand, and the base-not-a-register arm `abort()`ed before the `.string` handler at 1067 could safely escape it. Minimal repro was just `write("[x]");` — any bracket-bearing string literal, no `every` needed. FIX: the abort at ~1038 replaced with the benign `XK_SYM` fallthrough the function already uses at line 1049 (unrecognized bracket → treat as symbol, let real instruction handlers fail loudly downstream if they truly get a bad operand). Data payloads now pass through untouched. Verified: 238→239 PASS, zero regressions, all Icon gates green, m3+m4.
+- [x] **FZ-A1** — `rung13_alt_alt_cross_arg_sideeffect` — **PASS** (the regression; fully green now).
+- [→] **FZ-A2** — `rung36_jcon_kwds` — crash GONE but had a SECOND failure behind it → now WRONG-OUTPUT (1609B). Reclassified to Cluster E (monitor for first divergence; keyword-read gaps `&ascii`/`&lcase`/`&cset` suspected per prior watermarks).
+- [→] **FZ-A3** — `rung36_jcon_scan1` — crash GONE, now WRONG-OUTPUT (385B). Reclassified to Cluster E.
+
+**Cluster B — emit-time IR aborts (2 distinct bugs, 2 tests).**
+- [ ] **FZ-B1** — `rung36_jcon_var` — `emit_drive IR_ASSIGN guard: nameless 2-operand assign` — assign-through-lvalue-producer (`!x`/`?x` element-variable, or `s[i:j]` section as assignment TARGET). LOWER's TT_ASSIGN terminal arm mints a placeholder instead of a real target; fix in `lower_icon.c` TT_ASSIGN (not a missing template — the abort message says so).
+- [ ] **FZ-B2** — `rung36_jcon_scan` — `bb_call marshal: IR_VAR arg names a local with no LOWER-granted varslot (TE-4)` — grant the varslot in `ir_drive_slot_assign` per the BOMB message's own pointer.
+
+**Cluster C — SEGV rc=139 (3 tests, need minimal-repro bisection each).** Run under `CSN_NO_SEGV_HANDLER=1`/`SCRIP_NO_SEGV_HANDLER` for a clean backtrace, then MONITOR→bracket→gdb-hit-count per RULES.md.
+- [ ] **FZ-C1** — `rung36_jcon_endetab`
+- [ ] **FZ-C2** — `rung36_jcon_fncs1`
+- [ ] **FZ-C3** — `rung36_jcon_scan2`
+
+**Cluster D — PARSE errors (ONE symptom, 2 tests): `function call: expected ) (got ;)`.** htprep line 160, prepro line 39. Icon front-end rejects some legal call syntax (likely a `;`-in-arg or nested-call form). Diagnose in `src/parser/icon/`; decide source-fix vs parser-fix (parser-fix strongly preferred — the .icn is canonical JCON).
+- [ ] **FZ-D1** — `rung36_jcon_htprep` (parse error line 160)
+- [ ] **FZ-D2** — `rung36_jcon_prepro` (parse error line 39)
+
+**Cluster E — WRONG-OUTPUT, ran clean (6 tests, monitor each for first divergence).** These reach the oracle-diff mechanically — MONITOR-FIRST is the exact tool. Bracket the first divergent event, fix at the land mine.
+- [ ] **FZ-E1** — `rung36_jcon_args` (out=2989B; wrong content)
+- [ ] **FZ-E2** — `rung36_jcon_coerce` (out=1550B; ⚠ under `--compile`/naked `--run` this can emit ~241MB on one line — ALWAYS cap `| head -c`; the harness is safe because it captures to a var)
+- [ ] **FZ-E3** — `rung36_jcon_mffsol` (out=92B)
+- [ ] **FZ-E4** — `rung36_jcon_mindfa` (out=2220B)
+- [ ] **FZ-E5** — `rung36_jcon_recogn` (out=0B — produces nothing; generator-in-call-arg suppression suspected)
+- [ ] **FZ-E6** — `rung36_jcon_string` (out=2744B)
+
+### ▶ RUNG: XFAIL-ZERO — sift every `.xfail` marker; fix source OR fix SCRIP; DELETE the marker (35 tests)
+END STATE: zero `.xfail` files in `corpus/programs/icon/`. Per test: (1) remove `.xfail`, run it, read the real failure; (2) decide — is the `.icn`/`.expected` wrong (fix SOURCE) or is SCRIP missing/wrong (fix SCRIP)? Prefer fixing SCRIP: the `rung36_jcon_*` programs are canonical JCON and the `.expected` is graded against the real iconx/JCON oracle. Source-fix is legitimate only for a genuinely-broken test artifact. NOTE: `.xfail` files are NEVER run by the harness, so some may ALREADY pass — check each before assuming work is needed (a free win = delete marker, confirm PASS). Markers carrying a stated reason are triaged first (known root cause); the 24 empty markers need a fresh run to classify.
+
+**Known-reason markers (11) — root cause already recorded:**
+- [ ] **XZ-1** `subjpos` — KNOWN HANG (infinite loop in subject/&pos path under `--run`). Fix the interp loop, THEN un-quarantine. Sole true hang in rung36.
+- [ ] **XZ-2** `random` — `&random` LCG differs from Icon v9 RNG; `&random` not updated after each `?`. Match canonical sequence (`keyword.r`/`fmisc.r`) OR adjust `.expected` if sequence-match is out of scope (Lon call).
+- [ ] **XZ-3** `radix` — bignum: radix literals > 64 bits need arbitrary-precision ints (not implemented). Ties to lgint.
+- [ ] **XZ-4** `lgint` — large-integer / bignum arithmetic (empty marker but name + radix note imply the same bignum gap).
+- [ ] **XZ-5** `ck` — generative argument to `tab` (`tab(span-1|0)`) unsupported; `Image()` needs generator-in-arg; "deeper issues" noted.
+- [ ] **XZ-6** `level` — `every`/`suspend` exhaustion: `bar(3)` fires body once not 3×; `&level` values correct.
+- [ ] **XZ-7** `profsum` — `next` inside `line ? {}` doesn't restart enclosing `while`; next/break propagation through scan body.
+- [ ] **XZ-8** (reserved — refold if another reasoned marker surfaces on fresh read)
+- [ ] **XZ-9** (reserved)
+- [ ] **XZ-10** (reserved)
+- [ ] **XZ-11** (reserved)
+
+**Empty markers (24) — classify on a fresh run, then fix or delete.** Batch by first-failure signature after un-quarantining; expect them to fold into the same clusters as FAIL-ZERO (bignum, generator-in-arg, scan control-flow, io). List: `arith btrees case checkfpx collate cxprimes diffwrds errkwds errors evalx every fncs geddump gener image io iobig large misc nargs others prefix recent sets sieve sorting struct toby`.
+- [ ] **XZ-E-BIGNUM** — the arithmetic/number cluster (`arith`, `checkfpx`, `cxprimes`, `radix`✓, `lgint`✓) — likely all one bignum/real gap.
+- [ ] **XZ-E-STRUCT** — `btrees`, `sets`, `sorting`, `struct`, `sieve`, `collate` — list/set/table/sort builtins.
+- [ ] **XZ-E-GEN** — `every`, `gener`, `evalx`, `nargs` — generator/argument semantics.
+- [ ] **XZ-E-IO** — `io`, `iobig`, `image`, `errors`, `errkwds`, `others`, `recent`, `misc`, `case`, `diffwrds`, `prefix`, `large`, `fncs`, `geddump` — classify individually; io + image + error-keyword families.
+
+### ⌚ WATERMARK 2026-07-15 (Claude Opus 4.8 · SCRIP `41bdc490` unchanged · corpus unchanged) — ZERO-FAILURE MANDATE opened; fresh suite run corrected 239/15→**238/16/35**; `rung13_alt_alt_cross_arg_sideeffect` REGRESSION identified (x86_parse bracket-operand, minimal repro `every write(1|2,"[x]",3|4)`); FAIL-ZERO + XFAIL-ZERO ladders authored; no code changed yet
+
+**Session scope:** orientation + fresh full Icon suite run + failure triage (all 16 FAILs classified by root cause into 5 clusters; all 35 XFAILs enumerated with stated reasons). Authored the two mandate ladders above. **Ground-truth correction:** cursor claimed 239/15/35 · reality is 238/16/35 (SCRIP HEAD `41bdc490` is newer than the s5 watermark's `483a6215`, so a parallel session pushed the regression). No source or SCRIP edits this session — ladders only.
 
 ## ⌚ WATERMARK 2026-07-14 s5 (Claude Sonnet 4.6 · SCRIP `483a6215` · corpus `2ced25f1`) — ICN-RESUME-THROUGH-SCAN landed; 239/15/35 held; PUSH COMPLETE
 
