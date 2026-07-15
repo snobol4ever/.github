@@ -1,6 +1,24 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
-## ▶ LIVE CURSOR — s2026-07-15b (RK-BLK-a step 1 LANDED: block-as-value store + invoke, both modes, Claude Opus 4.8)
+## ▶ LIVE CURSOR — s2026-07-15c (RK-BLK-a step 2 LANDED: bare block as executing statement + top-level pointy-block crash fixed, Claude Opus 4.8)
+
+**⚠ THREE TRACKS.** (1) **RAKU-100 coverage arc** — the track with a live number, and it MOVED this session; (2) GRAMMAR (RK-GRAM-3d) standing implementation lead; (3) ζ (RK-ZETA-1) blocked cross-language. Pick the track the session's goal names.
+
+**[RAKU-100 TRACK] COVERAGE MOVED FOR THE FIRST TIME: PASS 1→2, PARSE-FAIL 940→936 (roast b2cbe8a, mode 3).** Two rungs landed:
+- **Crash fix:** the synthesized top-level "main" context (`lower_raku_stage2`, `if(!has_main)` path) built its `rcx_t` with `.try_catch` UNINITIALIZED → stack garbage `2` (the γ port constant) read as a truthy catch-continuation and dereferenced. A pointy block (`-> $v`) at program-mainline reaches `lower_rblock` which reads that field → segfault BOTH modes. Fix: `tcx.try_catch = NULL;` (restores the invariant every other rcx_t site holds; cf. `lower_raku_proc` line ~600). Flipped the `for_range_pointy_toplevel` smoke.
+- **`stmt : block` (RK-BLK-a step 2):** a `{…}` in STATEMENT position now executes its body inline (produces `TT_SEQ`, lowered by the existing statement path — no new lowering). Block-as-VALUE (step 1, `atom:block`) preserved: the new reduce/reduce on `block .` resolves stmt(51)-over-atom(213) = Raku's statement-vs-term rule (statement-position=execute, term-position=value). `bison -d -o raku.tab.c raku.y` reproduced the committed artifact BYTE-FOR-BYTE before the change (REPO-SCRIP.md regen hazard neutralized); 58 s/r unchanged, +1 benign r/r; `raku.tab.h`/`raku.l` UNTOUCHED.
+
+**NEXT RUNG (RAKU-100):** (a) the `{…};` form (bare block + TRAILING SEMICOLON) still takes the value path and is discarded — bison's shift preference routes it through `expr ';'` (atom:block); the no-semicolon form is fixed, this edge is NOT (not a regression, just not yet fixed). (b) INVESTIGATE the 3 roast files that moved PARSE-FAIL→CRASH/TIMEOUT this session (2→5) — they parse deeper now and hit the next unimplemented construct; NO previously-passing file regressed (PASS went up, FAIL stayed 0). Then RK-BLK-b (pointy-block signature binding beyond `for`), `.map({…})` block-args, immediate-invoke `sub {…}()`.
+
+**SUITE WATERMARK:** Raku smoke **247 PASS / 19 FAIL** both modes (was 241/20 at session start; +6 = 1 crash-fix flip + 5 new bare-block smokes). Icon 14/14 both modes; SNOBOL4 7/7 both modes; `test_gate_emit_no_lang.sh` OK. No `.s`-artifact regen needed (Raku has no maintained `.s` set).
+
+**LOCAL COMMITS THIS SESSION (SCRIP):** `0c3170cd` (crash fix), `c021e731` (stmt:block), `c75ac4cd` (coverage regen). GROUND TRUTH on push state = `scripts/handoff_status.sh` run LIVE — never trust a push claim written here.
+
+**TOUCHED THIS SESSION:** SCRIP — `src/lower/lower_raku.c` (try_catch init), `src/parser/raku/raku.y` (+`stmt:block`, +regen `raku.tab.c`), `scripts/test_smoke_raku.sh` (+5 smokes), `RAKU-COVERAGE.md` (regenerated). `.github` — this cursor.
+
+---
+
+## ▶ PRIOR CURSOR — s2026-07-15b (RK-BLK-a step 1 LANDED: block-as-value store + invoke, both modes, Claude Opus 4.8)
 
 **⚠ THREE TRACKS.** (1) **RAKU-100 coverage arc** — the track with a live number; (2) GRAMMAR (RK-GRAM-3d) standing implementation lead; (3) ζ (RK-ZETA-1) blocked cross-language. Pick the track the session's goal names.
 
