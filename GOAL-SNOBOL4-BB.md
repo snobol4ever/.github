@@ -381,3 +381,22 @@ WATCH-ITEM: C-stack depth — deep ARBNO/recursion sized for a 512MB arena may n
 - [ ] **ZB-ITER — ARBNO iteration-frame chain on rsp** (ruling 4; lifts the ZB-FC-3b ARBNO fence). Full spec at the PHASE 3 ENTRY ZB-ITER section above.
 - [ ] **ZB-OWN-1a — MAKE rsp A STABLE BASE (Phase 3 prereq).** In order: (a) G1 — `x86_align_enter/leave` become no-ops under `ZC_FRAME_RSP` + prove the 16-align invariant (every ζ alloc a multiple of 16; audit every push/sub-rsp producer); (b) G2 — `x86_xfer_enter/leave` spill r13/r14/r15 to a 3-slot ζ grant under RSP (grant in LOWER); (c) re-run the ablation, let the number redraw the rung. Gate: default R12 build BYTE-IDENTICAL (all three constant-fold under `ZC_FRAME != ZC_FRAME_RSP`) + the RSP crosscheck number moves off 174/118, reported honestly. ⚠ Don't chase mode-4 under RSP first (5/286, a different contract — the graph IS `main`, entered from crt); mode-3 is where the signal is.
 - [ ] **ZLS-LEAK (new s40; SNOBOL4-adjacent but PROLOG-owned — route with Lon; = GC-U-1, PARKED s60b per C5).** 63,609 generator ζ frames on `tak.pl` (250MB), 21,891 on `fib.pl` (86MB), ZERO released, all pinned on the chain; tak peak RSS 633MB. Cause: no release on generator exhaust/cut/determinate-exit — only on immediate failure. A real leak independent of any collector, and it decides GC-W-1's root-set fork (unlink at exhaust ⇒ "on the chain" ≡ "live"). Instruments committed: `SCRIP_ZLS_LIFO_PROBE`, `SCRIP_ZLS_PIN_PROBE`.
+
+## ⚠ SESSION STATE (s64, 2026-07-15, Claude — **R12-ERAD WIP: ZC_FRAME_RSP FORTH self-alloc arms landed, 4/7 smokes green, pattern/goto_s/define still failing**) — SCRIP `b404fb95`; .github this commit; corpus untouched.
+
+**LIVE CURSOR UPDATE:** NEXT RUNG remains PROC-SRBB (on hold per Lon). Active WIP: R12 eradication via ZC_FRAME_RSP.
+
+**WHAT LANDED (SCRIP `b404fb95`):**
+- `xa_flat.cpp`: RSP FORTH self-alloc arm in TEXT + BINARY prologue/epilogue for `g_frame_active` blobs. K=65544 (65536+8 phase pad — entry rsp is 8 mod 16, base lands 0 mod 16). `add rsp,65544` at both γ and ω exits. FAILDESCR at `[rsp+0]` on ω. Mode-4 wrapper carves nothing under RSP; mode-3 driver alloca skipped under RSP.
+- `x86_asm.h`: `x86_zeta_mark_call` and `x86_zeta_release_to_call` both return empty string under `ZC_FRAME_RSP` (no heap in BB equation).
+- `scrip.c`: Both mode-4 main wrapper sites and both mode-3 alloca sites gated on `ZC_FRAME != ZC_FRAME_RSP`.
+- `bb_match_head.cpp`: Arena `rt_zls_mark` call gated away under RSP. HEAD ω path WIP — needs bare `mov rsp, [rsp+16]` but offset calculation not yet resolved (pattern smoke returning `abc` instead of `aXc`).
+
+**WATERMARK UNDER RSP BUILD:** smoke 4/7 (output/concat/arith/arith_sm pass; pattern/goto_s/define fail). Default R12 build untouched — crosscheck baseline preserved at m3 305/2, m4 304/2/1, DIVERGE=1.
+
+**NEXT SESSION ENTRY POINT (R12-ERAD):**
+1. `bb_match_head.cpp` ω path: the `sub rsp,32` pushes a 32B FORTH cell. At `.Lx5_1` rsp points INTO the cell. The rsp-mark (pre-push value) is at `[rsp+16]`. But FRQ offsets above the cell are now shifted by 32. Diagnose: dump the pattern asm (`scrip --compile /tmp/pat.sno`) and trace the `[rsp+16]` vs `[rsp+offset]` confusion at `.Lx5_1`. The bare `mov rsp, [rsp+16]` is correct in isolation — the question is whether FRQ(_.op_off+16) is being computed relative to the right base after the `sub rsp,32`.
+2. After pattern green: `goto_s` (conditional goto — likely alignment issue in the align dance around C calls inside the main blob) and `define` (PROC frame path).
+3. Then full crosscheck under RSP and flip `zeta_choices.h` line 140 default.
+
+**DESIGN RULING (Lon, this session, record verbatim):** ALL BBs use RSP as frame base. Generator procedures and co-expressions get their own mmap stack — RSP is swapped to it on entry/resume. ARBNO is not special: alpha and beta both do a zeta `sub rsp,K` allocation; LIFO unwind is the release. No heap in BB equation whatsoever. R12 becomes free. ZB-ACT template port-hooks (the "overloadable alloc flavor" scaffold) are SUPERSEDED by this design — do not resume that ladder. Context-switch broker (mmap stack swap) is the long-lived machinery; it is SNOBOL4-irrelevant (SNOBOL4 has no generator procs or coexprs — all determinate, all main spine).
