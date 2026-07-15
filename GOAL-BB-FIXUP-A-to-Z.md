@@ -1,8 +1,26 @@
 # GOAL-BB-FIXUP-A-to-Z.md — BB Template Sweep: A → Z (ascending order)
 
 ## ⛔ LIVE CURSOR (read THIS first; updated every handoff — RULES.md s47 FACT RULE (b))
-**CURSOR: `bb_coerce_integer.cpp`** (TOTAL=1) · LAST DONE: `bb_cmp_test.cpp` 3→0 (2026-07-15 run #5)
-**RING (regenerated 2026-07-15 from the live tree — the prior list was STALE):** 150 files / 53 dirty / 97 clean / GRAND 860.
+**CURSOR (within the carve-out): `bb_call.cpp`** (TOTAL=227, the FIX-3 monster; ascending start of the 10-file carve) · pre-carve ring cursor `bb_coerce_integer.cpp` (TOTAL=1) PARKED behind the carve · LAST DONE: `bb_cmp_test.cpp` 3→0 (2026-07-15 run #5)
+**RING (re-scanned 2026-07-15 16:40 vs HEAD b404fb95 — supersedes the run #5 morning list):** 150 files / 52 dirty / 98 clean / GRAND 875. Drift since run #5 (860): the concurrent R12-ERAD/ZC_FRAME session grew `xa_flat` 215→250 (+35, FORTH arms) and `bb_lit_scalar` went clean. RE-REGENERATE at every session open (`audit_bb_fixup_rank.sh`); never trust a recorded count without re-running it.
+
+## ⛔⛔ CARVE-OUT — 10 BIGGEST VIOLATORS, OWNED BY THIS A→Z SESSION (Lon directive, 2026-07-15 run #6)
+Lon: "Scan the bb_*.cpp and xa_*.cpp and determine the 10 biggest violators. We will carve out these 10 to work on. The other session will climb down from Z to A and will just need to know which 10 you picked." Fresh `audit_bb_fixup_rank.sh` @ 16:40 — the 10, by descending TOTAL:
+```
+xa_flat 250 · bb_call 227 · bb_call_proc_staged 81 · bb_call_write_slot 32 · bb_gather 19
+bb_match_bal 18 · bb_match_alternate 17 · bb_mapgrep 16 · bb_call_fn 16 · bb_scan_sequence 14
+```
+WORK ORDER = ASCENDING within the set (A→Z), so `xa_*` lands LAST by pure sort: bb_call → bb_call_fn → bb_call_proc_staged → bb_call_write_slot → bb_gather → bb_mapgrep → bb_match_alternate → bb_match_bal → bb_scan_sequence → **xa_flat (last)**. The mirror carve note is recorded at the top of GOAL-BB-FIXUP-Z-to-A.md + a pointer line in BB-REVAMP-TRACKER.md so the Z→A session skips these 10.
+⚠ **xa_flat HAZARD — SURFACED FOR LON'S LIVE VETO (not yet actioned):** `xa_flat` is #1 (250, up from 215) BECAUSE the concurrent R12-ERAD/ZC_FRAME session is mid-WIP inside it — HEAD b404fb95 landed ZC_FRAME_RSP FORTH arms there ~14:28 with commit note "pattern smoke still failing", default R12 build byte-identical baseline preserved. A fixup pass onto a file another session is actively editing is a direct collision (one-file-per-commit, straight to main, no branches). Working the set ASCENDING already defers `xa_flat` to LAST, so the other 9 proceed collision-free while this settles. RECOMMENDATION: before reaching `xa_flat`, either confirm R12-ERAD has parked it, or swap it for the #11 file `bb_call_bool` (13). Proceeding on the literal 10 pending Lon's word.
+⛔ **PHANTOM EXCLUDED:** `bb_call.marshal-single-call-parked-e49b25db.cpp` (TOTAL=11, rank #12 — just below the cut) is NOT one of the 10. It is a parked backup with a commit hash in its filename, in NO Makefile / NO bb_templates.h, building NO object, so no gate can verify a fix (run #5 Law-5 (a)) — it can never be meaningfully "fixed". It contributes 11 fake violations to GRAND; retire (delete) on Lon's word for a free −11.
+
+### RUN #6 PROGRESS (2026-07-15, Claude Sonnet, attended) — 1 LANDED + FULL CLASSIFICATION OF THE 10
+Baseline greened from cold (bin_t 0 · vstack 1 rt.h floor · smoke m3/m4 7/7 HARD · pat M2/M3/M4 19 PASS + the 2 inherited zb FAILs · sno_pat_reg TIER1+2 0/0 HARD · GRAND 875). Then triaged all 10 by reading each:
+- **LANDED CLEAN:** `bb_match_bal` 18→0 (SCRIP `7c4ce611`, LOCAL — push pending credential). Pure C-comment purge (xc 18→0); function body was already CV4-clean; emitted asm byte-identical BY CONSTRUCTION (comments are lexer-discarded). GRAND 875→857 (−18 exact, no other file moved). **This was the ONLY pure-mechanical file in the set.**
+- **STRUCTURAL — FIX-3 / CV10 graph-access (reserved for focused split rungs, NOT rapid banks):** `bb_call` 227 (5+ call flavors crammed + marshal_call_arg + pervasive graph walk) · `bb_call_proc_staged` 81 (3 graph hits) · `bb_call_write_slot` 32 (8 graph hits + the purity fprintf site) · `bb_call_fn` 16 (marshals via ir_call_arg/subs[i]->entry — rank UNDERCOUNTS its CV10 debt) · `bb_gather` 19 (2 graph hits) · `bb_scan_sequence` 14 (reads `_.node->operands[k]` to compute arm-value slots — needs those `zls_off(nd->operands[…])` moved into bb_prepare).
+- **MECHANICAL-LOOKING BUT COMPLICATED (proof-by-construction only, NOT A/B — do NOT rush):** `bb_match_alternate` 17 (no graph access, but its `afc`/FORTH-flavor path is OFF in the default build → that half is unexercised, provable only by construction — the classic latent-bug trap; also needs 3 loop-helpers → FOR() combinators) · `bb_mapgrep` 16 (pending/ABORTING box — prepare `abort()`s; 6 `s_mg_*` file-statics are a prep channel that must move to `_.op_*`; top-level `IF(MEDIUM_TEXT,…)` rodata needs the CV7 `.quad` decomposition).
+- **HAZARD-DEFERRED:** `xa_flat` 250 (active R12-ERAD WIP — do not touch until parked).
+**RECOMMENDED NEXT (structural, but the SAFEST — it FIRES in the default build so it is A/B-provable, unlike the two proof-by-construction files): `bb_scan_sequence` CV10 rung** — move the `zls_off(_.node->operands[k])` arm-value-slot computation into emit_bb.c's IR_SCAN_SEQUENCE `bb_prepare` block (deliver via a new `_.op_*` collection), then the mechanical cleanup (comment purge, one-x86-per-line, local removal). Prove byte-identity via A/B on a concatenated-scan probe (pat suite exercises IR_SCAN_SEQ_NARY). The FIX-3 family (`bb_call` et al.) is the multi-session split campaign; `bb_match_alternate`/`bb_mapgrep` need construction-proof care.
 **⛔ XA DETOUR REVERSED (Lon directive, 2026-07-15 run #5, verbatim: "Get back the BB's. We'll do the XA's later."):** the 2026-07-11 run-#4 XA-PRIORITY detour is SUSPENDED. XA files stay IN the ring (glob stays widened) but are NOT jumped to. **No detour mechanics are needed and none should be re-added: `xa_*` sorts AFTER every `bb_*`, so pure A→Z ordering defers all 7 remaining XA files to the TAIL of the lap automatically.** The run-#4 detour was itself the deviation from ascending order.
 **⛔ WHY THE OLD CURSOR WAS DEAD:** it read `xa_prologue.cpp` with bb-resume `bb_cell_unify.cpp` — but `bb_cell_unify.cpp` NO LONGER EXISTS (deleted by SCRIP `34212c23`, a 45-file Prolog dead-template purge). **32 template files were DELETED and 6+ ADDED since the run-#4 census.** Any cursor is only as good as the tree it names: REGENERATE THE RING (`audit_bb_fixup_rank.sh`, sort ascending) AT EVERY SESSION OPEN and re-seat the cursor on the next dirty file that ACTUALLY EXISTS — never trust a recorded filename without an `ls`.
 
@@ -215,17 +233,18 @@ C1 build green. C2 byte-identity A/B git-stash: **.s BYTE-IDENTICAL ×3** (080_b
 (c) **pat suite carries 2 INHERITED FAILs** — `zb_act_arbno_in_define`, `zb_arena_collection_grow`. PROVEN unrelated to this rung: both emit **ZERO** IR_CMP_TEST boxes (the changed template never fires in either) and both fail IDENTICALLY in M2/M3/M4 (mode-2 does not go through x86 templates at all). Pre-existing; not this goal's.
 (d) `bb_call.cpp` remains the ring-topper at **227** (the FIX-3 monster).
 
-## REGENERATED WORK QUEUE — 2026-07-15, ASCENDING (53 dirty; this IS the traversal order)
-Sweep top-to-bottom. XA (7, at the tail by pure sort order) is deferred per the Lon directive above.
+## REGENERATED WORK QUEUE — 2026-07-15 16:40, ASCENDING (52 dirty; GRAND 875; this IS the traversal order)
+Full current traversal list, re-scanned vs HEAD b404fb95. The 10 marked ⬅CARVE are OWNED by this session per the CARVE-OUT block above — work them ASCENDING first. Non-carve dirty files stay in the ring for later laps.
 ```
-bb_binop_gvar_arith 8 · bb_binop_gvar_arith_slot 11 · bb_call 227 · bb_call.marshal-…-parked 11 (PHANTOM, see (a))
-bb_call_bool 13 · bb_call_fn 16 · bb_call_proc_staged 76 · bb_call_value 5 · bb_call_write_slot 32 · bb_callee_frame 4
-bb_case_arm 3 · [bb_cmp_test DONE run#5] · bb_coerce_integer 1 ⬅ CURSOR · bb_coerce_numeric 1 · bb_coerce_real 1
-bb_coerce_string 1 · bb_conjunction 2 · bb_coret 1 · bb_create 5 · bb_deref 1 · bb_enter_init 1 · bb_field_get 4
-bb_gather 19 · bb_goto 1 · bb_goto_dyn 3 · bb_key_gen 3 · bb_keyword_assign 9 · bb_keyword_icon 9
-bb_keyword_snobol4 2 · bb_limit 3 · bb_lit 3 · bb_lit_scalar 16 · bb_mapgrep 16 · bb_match_alternate 17
-bb_match_arbno 2 · bb_match_bal 18 · bb_match_capture 11 · bb_match_defer 9 · bb_match_head 6 · bb_match_release 14
-bb_match_sequence 6 · bb_pattern_break 1 · bb_pattern_len 1 · bb_scan_alternate 5 · bb_scan_sequence 14
-bb_scan_stmt 8 · bb_var_ref 1 · — XA TAIL (deferred) — xa_coexpr_entry 1 · xa_epilogue 4 · xa_flat 215
+bb_binop_gvar_arith 8 · bb_binop_gvar_arith_slot 11 · bb_call 227 ⬅CARVE · bb_call.marshal-…-parked 11 (PHANTOM — unfixable, see carve note)
+bb_call_bool 13 · bb_call_fn 16 ⬅CARVE · bb_call_proc_staged 81 ⬅CARVE · bb_call_value 5 · bb_call_write_slot 32 ⬅CARVE · bb_callee_frame 4
+bb_case_arm 3 · bb_coerce_integer 1 · bb_coerce_numeric 1 · bb_coerce_real 1 · bb_coerce_string 1
+bb_conjunction 2 · bb_coret 1 · bb_create 5 · bb_deref 1 · bb_enter_init 1 · bb_field_get 4
+bb_gather 19 ⬅CARVE · bb_goto 1 · bb_goto_dyn 3 · bb_key_gen 3 · bb_keyword_assign 9 · bb_keyword_icon 9
+bb_keyword_snobol4 2 · bb_limit 3 · bb_lit 3 · bb_mapgrep 16 ⬅CARVE · bb_match_alternate 17 ⬅CARVE
+bb_match_arbno 2 · bb_match_bal 18 ⬅CARVE · bb_match_capture 7 · bb_match_defer 5 · bb_match_head 9 · bb_match_release 10
+bb_match_sequence 6 · bb_pattern_break 1 · bb_pattern_len 1 · bb_scan_alternate 5 · bb_scan_sequence 14 ⬅CARVE
+bb_scan_stmt 8 · bb_var_ref 1 · — XA (tail by sort) — xa_coexpr_entry 1 · xa_epilogue 4 · xa_flat 250 ⬅CARVE
 xa_js_label_register 3 · xa_prologue 6 · xa_strtab_rodata 8 · xa_wasm_main 2
 ```
+Drift vs the run #5 morning list: `bb_lit_scalar` 16→CLEAN (dropped out); `bb_call_proc_staged` 76→81; `bb_match_capture` 11→7; `bb_match_defer` 9→5; `bb_match_head` 6→9; `bb_match_release` 14→10; `xa_flat` 215→250 (R12-ERAD). Ring reconciles: 150 on disk == 150 in rank table; 52 dirty + 98 clean.

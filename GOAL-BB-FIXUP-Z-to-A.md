@@ -1,5 +1,12 @@
 # GOAL-BB-FIXUP-Z-to-A.md — BB Template Sweep: Z → A (descending)
 
+## ⛔⛔ CARVED OUT BY THE A→Z SESSION — DO NOT TOUCH THESE 10 (Lon directive, 2026-07-15 run #6)
+The A→Z session took the 10 biggest violators (fresh `audit_bb_fixup_rank.sh` @ 16:40, HEAD b404fb95: 150/52/98/GRAND 875) as its carve-out. They are OWNED there. On your descent AND on wrap, **SKIP them** — the RESUME-PROCEDURE step-3 pick below must NOT land on any of these (add them to the `awk` exclusion). The 10:
+```
+bb_call · bb_call_fn · bb_call_proc_staged · bb_call_write_slot · bb_gather · bb_mapgrep · bb_match_alternate · bb_match_bal · bb_scan_sequence · xa_flat
+```
+5 of these sort BEFORE the current Z→A cursor (`bb_lit_scalar`) and are thus AHEAD of your descent — **bb_call, bb_call_fn, bb_call_proc_staged, bb_call_write_slot, bb_gather** — skip each when the descent reaches it. The other 5 (bb_mapgrep, bb_match_alternate, bb_match_bal, bb_scan_sequence, xa_flat) sort after `bb_lit_scalar` (already behind you) — they matter only on wrap. (`xa_flat` is excluded by your step-3 regex `bb_[a-z0-9_]+\.cpp` anyway, but it is doubly hands-off: it is ALSO under active R12-ERAD/ZC_FRAME WIP.) This carve is Lon's; it lifts on Lon's word. Mirror record: GOAL-BB-FIXUP-A-to-Z.md top + a pointer in BB-REVAMP-TRACKER.md.
+
 ## ⛔⛔ READ FIRST — PICK THE NEXT FILE (the rule that keeps getting botched)
 **Z→A: the cursor only ever moves DOWN the alphabet — toward A, to names that sort EARLIER. NEVER up toward Z.** The one repeated failure is "jump to the nearest-Z dirty file" / "do the easiest file first" — both are A→Z = BACKWARD = WRONG.
 
