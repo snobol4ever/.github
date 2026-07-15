@@ -1,14 +1,12 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
 ## ▶ LIVE CURSOR (updated every handoff — RULES.md STALE-ORIENTATION rule)
-- **HEAD rung:** ZERO-FAILURE MANDATE — 239/15/35. SCRIP `50249fd5`. FAIL-ZERO (15) + XFAIL-ZERO (35) ladders below. Re-derive counts fresh, never from prose.
-- **GROUND TRUTH (SCRIP `50249fd5`, verified this session):** **239 PASS / 15 FAIL / 35 XFAIL.** Fail set unchanged: `rung36_jcon_{args,coerce,endetab,fncs1,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,var}`.
-- **CLUSTER DIAGNOSES CORRECTED this session (measured, not assumed):**
-  - **FZ-B1 `var`**: blocked on pointer-hole architecture (Lon). `variable("local") := v` needs runtime name→frame-slot resolution. Do NOT build without Lon's design decision.
-  - **FZ-B2 `scan`**: TE-4 bomb CLEARED (`50249fd5` — control-in-value fix). New blocker: bare `pos()`/`tab()`/`move()` outside `s ? …` read uninitialized Σ/δ/Δ → SEGV. Fix: bare scan call must load Σ/δ/Δ from `scan_subj`/`scan_pos` before dispatching (`icn_retag_scan_body` + a load-bare-scan-env helper).
-  - **FZ-D1/D2 `htprep`/`prepro`**: Icon preprocessor (`$define`/`$include`/`$ifdef`) — unbuilt feature, not a parser tweak.
-  - **FZ-E cluster (`coerce`/`args`/`recogn`/`mffsol`/`mindfa`/`string`/`kwds`/`scan1`)**: generator argument to procedure (`every binop(!"…", i, r, c, s)`) — control-in-value fix was inert; needs generator-arg suppression in `lower_call`.
-- **NOTE:** `refs/` symlinks from uploaded zips at session start (icon-master + jcon-master). ICN-RESUME-THROUGH-SCAN LANDED `483a6215`.
+- **HEAD rung:** ZERO-FAILURE MANDATE — **242/15/32** (corpus `78915257`). SCRIP `b404fb95`. FAIL-ZERO (15) + XFAIL-ZERO (32) ladders below. Re-derive counts fresh, never from prose.
+- **GROUND TRUTH (SCRIP `b404fb95`, corpus `78915257`, verified this session):** **242 PASS / 15 FAIL / 32 XFAIL / 289 TOTAL.** Fail set UNCHANGED (15): `rung36_jcon_{args,coerce,endetab,fncs1,htprep,kwds,mffsol,mindfa,prepro,recogn,scan,scan1,scan2,string,var}`.
+- **XFAIL-ZERO progress this session:** 3 stale markers deleted (corpus commit `78915257`): `level` (every/suspend exhaustion was fixed upstream), `random` (LCG now matches), `subjpos` (was KNOWN HANG — now runs in 28ms, byte-identical). All three verified m3+m4 stable across repeated runs before deletion.
+- **FZ-B1 `var` DIAGNOSIS CORRECTED this session:** NOT a pointer-hole (DT_N / NAMETRAP already exists — slen=0 NV-dict, slen=1 direct cell ptr, slen=2 VCELL; rt_deref + IS_NAMETRAP_fn wired). Actual gaps: (1) lower_lvalue_var in lower_icon.c has no case for variable(...) as lvalue target → TT_ASSIGN mints nameless placeholder → emitter abort; (2) rt_icon_variable(name) needs a per-proc runtime name→frame-offset table for locals (one narrow reflection-scoped table; globals → NV dict slen=0; keywords → closed setter table). NEXT: Lon call on name-table form (sealed RO blob vs startup-built).
+- **FZ-E SCAN FAMILY root cause (recogn/scan/scan1/scan2/string) CORRECTED this session:** NOT generator-in-call-arg. Minimal repro: "eb" ? { (="a") | (="e" || ="b") } returns &null, should return "eb". Root cause: emitter wires SCAN_MATCH fail-edge to arm-B beta label (resume, mid-flight) instead of alpha label (fresh start). In asm: SCAN_MATCH "a" omega -> xchain0_n5_beta (element-index=2) not xchain0_n5_alpha (index=0, save delta). Land mine in emit.cpp ~L887-904 / IR_SCAN_SEQUENCE case L1101 — the fail-edge alpha/beta classifier. recogn 4th input "eb" (t()‖="b" path) is this bug, not generator-in-arg.
+- **NOTE:** refs/ symlinks from uploaded zips at session start (icon-master + jcon-master). ICN-RESUME-THROUGH-SCAN LANDED 483a6215.
 
 ## ▶▶ ZERO-FAILURE MANDATE (Lon directive, 2026-07-15): "We have no expected failures." END STATE = 289/0/0 — every FAIL fixed AND every `.xfail` marker DELETED (source fixed or SCRIP fixed). The two ladders below are the whole job. Re-derive counts from a fresh `test_icon_all_rungs.sh --corpus <path>` run, never from prose (this session already caught the cursor claiming 239/15 when ground truth was 238/16 — the `rung13` regression).
 
@@ -45,12 +43,12 @@ Grouped by ROOT CAUSE, not alphabetically — one fix clears a whole cluster. At
 END STATE: zero `.xfail` files in `corpus/programs/icon/`. Per test: (1) remove `.xfail`, run it, read the real failure; (2) decide — is the `.icn`/`.expected` wrong (fix SOURCE) or is SCRIP missing/wrong (fix SCRIP)? Prefer fixing SCRIP: the `rung36_jcon_*` programs are canonical JCON and the `.expected` is graded against the real iconx/JCON oracle. Source-fix is legitimate only for a genuinely-broken test artifact. NOTE: `.xfail` files are NEVER run by the harness, so some may ALREADY pass — check each before assuming work is needed (a free win = delete marker, confirm PASS). Markers carrying a stated reason are triaged first (known root cause); the 24 empty markers need a fresh run to classify.
 
 **Known-reason markers (11) — root cause already recorded:**
-- [ ] **XZ-1** `subjpos` — KNOWN HANG (infinite loop in subject/&pos path under `--run`). Fix the interp loop, THEN un-quarantine. Sole true hang in rung36.
-- [ ] **XZ-2** `random` — `&random` LCG differs from Icon v9 RNG; `&random` not updated after each `?`. Match canonical sequence (`keyword.r`/`fmisc.r`) OR adjust `.expected` if sequence-match is out of scope (Lon call).
+- [x] **XZ-1** `subjpos` — DONE (s4): was KNOWN HANG; now runs 28ms, byte-identical m3+m4. Marker deleted corpus `78915257`.
+- [x] **XZ-2** `random` — DONE (s4): now passes m3+m4 byte-identical. Marker deleted corpus `78915257`.
 - [ ] **XZ-3** `radix` — bignum: radix literals > 64 bits need arbitrary-precision ints (not implemented). Ties to lgint.
 - [ ] **XZ-4** `lgint` — large-integer / bignum arithmetic (empty marker but name + radix note imply the same bignum gap).
 - [ ] **XZ-5** `ck` — generative argument to `tab` (`tab(span-1|0)`) unsupported; `Image()` needs generator-in-arg; "deeper issues" noted.
-- [ ] **XZ-6** `level` — `every`/`suspend` exhaustion: `bar(3)` fires body once not 3×; `&level` values correct.
+- [x] **XZ-6** `level` — DONE (s4): passes m3+m4 byte-identical (upstream fix landed). Marker deleted corpus `78915257`.
 - [ ] **XZ-7** `profsum` — `next` inside `line ? {}` doesn't restart enclosing `while`; next/break propagation through scan body.
 - [ ] **XZ-8** (reserved — refold if another reasoned marker surfaces on fresh read)
 - [ ] **XZ-9** (reserved)
@@ -62,6 +60,10 @@ END STATE: zero `.xfail` files in `corpus/programs/icon/`. Per test: (1) remove 
 - [ ] **XZ-E-STRUCT** — `btrees`, `sets`, `sorting`, `struct`, `sieve`, `collate` — list/set/table/sort builtins.
 - [ ] **XZ-E-GEN** — `every`, `gener`, `evalx`, `nargs` — generator/argument semantics.
 - [ ] **XZ-E-IO** — `io`, `iobig`, `image`, `errors`, `errkwds`, `others`, `recent`, `misc`, `case`, `diffwrds`, `prefix`, `large`, `fncs`, `geddump` — classify individually; io + image + error-keyword families.
+
+## ⌚ WATERMARK 2026-07-15 s4 (Claude Sonnet 4.6 · SCRIP `b404fb95` · corpus `78915257`) — 3 xfail markers deleted; FZ-B1 and FZ-E root causes corrected
+
+**Scope:** ZERO-FAILURE MANDATE session. **XFAIL-ZERO: 35→32** — deleted stale markers for `level`/`random`/`subjpos` (all now pass m3+m4 byte-identical, confirmed stable). FAIL count held at 15 (no regressions). **FZ-B1 `var` diagnosis corrected:** DT_N/NAMETRAP already exists; real gaps are (a) no lvalue-of-variable() lowering case in lower_icon.c and (b) per-proc runtime name→frame-offset table for locals needed by rt_icon_variable(). Full diagnosis in LIVE CURSOR. **FZ-E scan-family root cause found:** disjunction fail-edge wired to arm-B β instead of α in emit.cpp IR_SCAN_SEQUENCE case (~L887-904, L1101); minimal repro isolated. recogn/scan/scan1/scan2/string share this root cause — NOT generator-in-call-arg as previously noted. All Icon gates green (smoke 14/14 m3+m4, semicolon prison, no_stack, one_reg). **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet 4.6
 
 ## ⌚ WATERMARK 2026-07-15 s3 (Claude Sonnet 4.6 · SCRIP `b24c63c7` · corpus unchanged) — orientation only; 239/15/35 independently verified; refs/ symlinks established from uploaded zips
 
