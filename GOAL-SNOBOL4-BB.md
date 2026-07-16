@@ -414,20 +414,23 @@ WATCH-ITEM: C-stack depth — deep ARBNO/recursion sized for a 512MB arena may n
 
 **DESIGN RULING (Lon, this session, record verbatim):** ALL BBs use RSP as frame base. Generator procedures and co-expressions get their own mmap stack — RSP is swapped to it on entry/resume. ARBNO is not special: alpha and beta both do a zeta `sub rsp,K` allocation; LIFO unwind is the release. No heap in BB equation whatsoever. R12 becomes free. ZB-ACT template port-hooks (the "overloadable alloc flavor" scaffold) are SUPERSEDED by this design — do not resume that ladder. Context-switch broker (mmap stack swap) is the long-lived machinery; it is SNOBOL4-irrelevant (SNOBOL4 has no generator procs or coexprs — all determinate, all main spine).
 
-<!-- LIVE CURSOR s68 END -->
-<!-- s68 HANDOFF STATE (emergency, ~92% ctx):
+<!-- LIVE CURSOR s69 END -->
+
+## ⚠ SESSION STATE (s69, 2026-07-15, Claude, attended — **R12-EXIT-1 OPENED AND HALF-LANDED: carry-the-tail ARBNO elements live on rsp, gates green at baseline**) — SCRIP `f6d9bf3a`+`6fc20b2e`; .github this commit; corpus untouched.
+
+**SLICE 0 (`f6d9bf3a`):** the s68 r11/g_zwin protocol DELETED per its own tripwire (decls, 4 inline fns, call-encoder appends, all template call sites, the two pattern_match.c globals). **DISCOVERY OF RECORD: bb_match_arbno's PAIR(2)/PAIR(3) `lea zr, RSP(24-op_sa)` view-recompute lines were SILENTLY DROPPED for their whole life** — the lea dispatch had no XK_RSP arm and returned empty — masked because r12 is callee-saved (the view survives C calls with zero maintenance). They were also DEPTH-WRONG if ever emitted (at σ, rsp = elem − fp(body suspended), not elem). Deleted both; added the lea silent-drop abort guard (the add-handler precedent). This is very likely the s68 "second mine": r11 is caller-saved, so the missing recompute mattered the moment zr ≠ r12. Gate: 224/224 non-anchored byte-identical, anchored diffs = pure r11-instruction removal, crosscheck == baseline.
+
+**SLICE 1 (`6fc20b2e`) — THE ELEMENT SCHEME, design of record:** element = [0,span) body window · [span,span+rspan) right-spine window · 16B header {entry-cursor@+0, yield-cursor@+4, elem0-flag@+8} · 16B bracket copy {patstk-mark@+16, rsp-mark@+24}; op_sb = align16(span+rspan+32). **UNIFORM-DEPTH INVARIANT: α pushes op_sb + fp_body (phantom body pad) so EVERY yield sits at rsp = elem − fp_body** (S10c keeps body cells suspended at γ); β pushes op_sb copying the bracket forward from the current element; σ does the null-progress check against header ECUR; φ (body cells popped, rsp = elem) tests the elem0 flag — pop is `add rsp, op_sb`, landing EXACTLY the previous element's yield frontier where its body-β expects rsp (LIFO + known size ⇒ arithmetic, never indirection); exhaust restores the entry cursor and pops op_sb+fp_body to flat depth. RELEASE reads the bracket off the TOP element at [rsp + fp_right + fp_body + span + rspan + 16 + k] then one mov unwinds elements + suspended cells + HEAD's cell together; its two REPLACE flat writes moved post-unwind (moot v1 — REPLACE declines). Registrar fct in zeta_storage.c: LOWER registers structural candidates, the zls LAYOUT pass finalizes (windows need zls offsets that only exist there) and registers fcl element-region leaf disps — body d = prefix+own−bmn (routinely NEGATIVE; fcl relaxed, unregistered sentinel now INT_MIN), right d = fp_body+prefix+own+span−rmn, left d = 32+prefix+own flat verbatim. **The spine SEQ MUST be fc_seq-registered** (static wiring): an ungranted seq_i is a FLAT slot read at every seam = dynamic depth once elements exist — the exact class this rung deletes. HEAD self-pushes as before (dispatch window condition now fc_head_fp≥0 OR fc_tail_head).
+
+**⚠ FENCE AUDIT ANSWERED (the rung's own question, measured):** FENCE NEVER DECLINES — it is node-free (an edge-seal). The "fence class" corpus tests decline because their patterns are STORED IN VARIABLES: TT_VAR in pattern position lowers to IR_MATCH_DEFER (lower_snobol4.c:964-967). The fence-arm of fc_anchor_register does not exist; the arm is DEFER, which is **R12-EXIT-2's territory**. True remaining r12 census after this session: 79/308 emitters = ~50 DEFER/stored-pattern (R12-EXIT-2) + 23 declined-ARBNO (the v1 residues below) + flat_pat islands (R12-EXIT-3; overlapping).
+
+**v1 ADMISSION (each decline degrades to the anchored window verbatim) + THE LIFT ORDER:** exactly ONE spine ARBNO · no REPLACE · cx->npre==0 (runtime-arg pre-chains put operand slots at flat depth) · no ALTERNATE anywhere · no fence-sealed body (operands[3]==R re-aims PAIR(1) at the fail-glue whose depth contract my σ/φ don't meet) · no capture allocated left of the ARBNO. Measured conversions: 6 programs, r12 emitters 84→79. Named lifts, in value order: **(L1) ALT-in-body** — the common idiom `ARBNO('a'|'b')`; needs fp_body += 16+fpmax per granted ALT + arm-extent skip in the finalize walks (the fc_walk_range ALT arm verbatim), decline was enforced at fc_tail_walk BEFORE the fc_geom catch (granted ALTs pass fc_geom — the 163 regression, caught and fixed in-session). **(L2) fence-sealed bodies** — the 151 regression class; φ must become enterable at the fail-glue's depth or PAIR(1) aliasing needs a tail-specific resolve. **(L3) multi-ARBNO** (bracket chains forward — compositional, derivation in session notes). **(L4) npre operand copy-forward.** Both in-session regressions were both-modes (semantic, not divergence) and are back on the anchored path.
+
+**NEXT SESSION ENTRY (R12-EXIT-1 completion):** (1) L1 the ALT-in-body lift — biggest single win, all machinery exists; (2) L2 fence-seal; (3) re-census, expect ~29/29 ARBNO conversions; (4) then R12-EXIT-2 (DEFER windows — remember the s67 bracketed NULL-wire mine intersects; monitor-first). Gates for every slice: clean build, byte-identity on non-converted corpus, crosscheck ≥ m3 303/4 · m4 293/13/1 · DIVERGE ≤ 10, smokes sno 7/7×2 icon 10/4×2 prolog 3/2×2.
+
+<!-- s68 HANDOFF STATE (superseded by s69 above; kept one session for the mine-hunt record):
      SCRIP pushed: 04407a45 — r11+g_zwin_view+g_zwin_stmt protocol in tree, WIP DARK (zr arms still r12).
-     BASELINE watermark: m3 303/4 · m4 293/13/1 · DIVERGE=10  (clean r12 build, per session start)
-     WITH r11 arms active: DIVERGE=14 — 4 regressions all in ARBNO window class.
-     ROOT CAUSE LOCATED s68: x86_rsp_modrm REX pun (r12/rsp low3==4 pun broke for r11 low3==3) — FIXED in push.
-     REMAINING MINE: ARBNO landing reloads get stale view after C-call clobber in nested/multi-iter cases.
-       - g_zwin_stmt approach abandoned (over-engineered); reverted to header-prev FRQ restores at PAIR(2)/PAIR(3).
-       - DIVERGE still 14 after that revert — second mine not yet isolated.
-       - Next hunter: flip zr arms to r11 (one-liner in x86_asm.h lines ~312-313), run crosscheck,
-         diff FAIL list vs baseline, pick smallest new failure, gdb disassemble the landing sequence.
-       - Tripwire: if >3 sessions can't close DIVERGE to ≤10, gate r11 path behind ZC_R11_WINDOW contract
-         defaulting OFF, merge that, delete the dead code, declare R12-EXIT-1 blocked on carry-the-tail.
-     x86_rsp_modrm: solid — RSP-family encoders now use explicit SIB(0x24) independent of zr_num().
-     g_zwin_stmt / x86_zws_*: in tree but unused — safe to delete if r11 approach abandoned.
-     NEXT: R12-EXIT-1 mine hunt (see above). Then R12-EXIT-2 (DEFER), R12-EXIT-3 (flat_pat island).
+     ROOT CAUSE LOCATED s68: x86_rsp_modrm REX pun — FIXED in push; x86_rsp_modrm: solid.
+     REMAINING MINE was never isolated in s68; s69's lea silent-drop discovery is the prime suspect and the r11 path is now deleted.
 -->
+
