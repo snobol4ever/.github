@@ -1,0 +1,72 @@
+diff --git a/src/templates/bb_match_head.cpp b/src/templates/bb_match_head.cpp
+index f3bd7fd7..0f1861e3 100644
+--- a/src/templates/bb_match_head.cpp
++++ b/src/templates/bb_match_head.cpp
+@@ -37,7 +37,7 @@ std::string bb_match_head() {
+           * window, and BOTH statement exits restore rbp from +40 (the s61 both-edges lesson).  The saved-rbp
+           * chain is the LIFO activation linkage of the s73 six-register map. */
+          + (_.flat_pat ? x86("mov", FRQ(_.op_off + 40), "rbp") : x86("mov", rspq40((int)_.op_off + 40), "rbp"))
+-         + IF(ZC_FRAME == ZC_FRAME_RSP && _.op_anchor_head, x86("mov", "rbp", "rsp"))
++         /* REG-7 U3: the op_anchor_head window materialization (mov rbp,rsp) is DELETED — rbp already equals the flat base at every head via the activation seeds (U1 outer graph, U2 non-pat blobs, s79 pat blobs). */
+          /* R12-ERAD s65 (ZC_FRAME_RSP): FLAT-FIRST ordering — subject load, rt_match_enter, and the rbp/dcap mirror saves all run at rsp = frame base (D=0), THEN the 32B cell pushes and only
+           * window-relative writes follow.  Under R12 the original order is byte-verbatim (rsp motion is invisible to r12-based refs).  The RSP cell field +16 = pre-push rsp = the frame base; the
+           * old arena-mark slot +8 reincarnates as the PATTERN SIDE-STACK mark (S10e statement bracket for suspended activations).  Pat blobs (flat_pat, r12-island) take the R12 arm. */
+diff --git a/src/templates/x86_asm.h b/src/templates/x86_asm.h
+index 77c1f8dc..3fe65bf2 100644
+--- a/src/templates/x86_asm.h
++++ b/src/templates/x86_asm.h
+@@ -314,8 +314,10 @@ inline int x86_selfload_mode() {
+  * choice unchanged. */
+ inline const char * x86_zr()         { return ZC_FRAME == ZC_FRAME_RSP ? (_.flat_pat ? "rbp" : (_.op_anchored || _.op_anchor_head) ? "rbp" : "rsp") : ZC_FRAME == ZC_FRAME_RBP ? "rbp" : "r12"; }   /* REG-5 s79 (= R12-EXIT-3): PAT$ suspending blobs are rbp-framed — the caller's rbp rides the EXISTING header chain (save at [rsp+24] in the α, restore from [zr-8] on BOTH exit edges, record[+8] re-pin at the %s_res landing).  ⚠ op_anchor_head INSIDE a flat_pat graph would share rbp with the blob base = UNSUPPORTED; measured EMPTY across 155 feature + 33 corpus .s (s79); REG-7 deletes the window machinery.  REG-3: anchored statements rbp-viewed, outer rbp at flat+40 */
+ inline int          x86_zr_num()     { return ZC_FRAME == ZC_FRAME_RSP ? (_.flat_pat ? 5 : (_.op_anchored || _.op_anchor_head) ? 5 : 4) : ZC_FRAME == ZC_FRAME_RBP ? 5 : 12; }
+-inline const char * x86_fr32_prefix() { return ZC_FRAME == ZC_FRAME_RSP ? (_.flat_pat ? "dword ptr [rbp + " : _.op_anchored ? "dword ptr [rbp + " : "dword ptr [rsp + ") : ZC_FRAME == ZC_FRAME_RBP ? "dword ptr [rbp + " : "dword ptr [r12 + "; }
+-inline const char * x86_fr64_prefix() { return ZC_FRAME == ZC_FRAME_RSP ? (_.flat_pat ? "qword ptr [rbp + " : _.op_anchored ? "qword ptr [rbp + " : "qword ptr [rsp + ") : ZC_FRAME == ZC_FRAME_RBP ? "qword ptr [rbp + " : "qword ptr [r12 + "; }
++inline const char * x86_fb()         { return ZC_FRAME == ZC_FRAME_RSP ? "rbp" : ZC_FRAME == ZC_FRAME_RBP ? "rbp" : "r12"; }   /* REG-7 U3 FRAME BASE — the frame-slot role SPLIT OFF zr (zr keeps the cursor/anchor role until the U5 seal): under RSP the base is UNCONDITIONALLY rbp, seeded at every activation boundary (U1 outer graph, U2 non-pat blobs, s79 pat blobs), so frame refs need no depth compensation.  Consumers kept in lockstep: fr32/fr64 prefixes, x86_r12_modrm, x86_frame_rex, x86_frame_text_mem. */
++inline int          x86_fb_num()     { return ZC_FRAME == ZC_FRAME_RSP ? 5 : ZC_FRAME == ZC_FRAME_RBP ? 5 : 12; }
++inline const char * x86_fr32_prefix() { return ZC_FRAME == ZC_FRAME_RSP ? "dword ptr [rbp + " : ZC_FRAME == ZC_FRAME_RBP ? "dword ptr [rbp + " : "dword ptr [r12 + "; }   /* REG-7 U3: unconditional rbp under RSP — the flat_pat/op_anchored branches collapsed; rbp is the frame base at every activation (U1/U2/s79 seeds) */
++inline const char * x86_fr64_prefix() { return ZC_FRAME == ZC_FRAME_RSP ? "qword ptr [rbp + " : ZC_FRAME == ZC_FRAME_RBP ? "qword ptr [rbp + " : "qword ptr [r12 + "; }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ /* ZETA SUBSYSTEM accessor — runtime-selectable BY DESIGN (Lon 2026-07-09, contrast the ZC_FRAME build
+  * constant above); see zeta_choices.h ZC_ZETA block for the rung map.  RUNG-1 seams read THIS, never getenv,
+@@ -685,7 +687,7 @@ inline std::string x86_r12_modrm(int regfield, int off) {
+      * (low3=101): no SIB, and mod=00 is UNAVAILABLE ([rbp] with mod=00 encodes disp32/RIP-relative), so
+      * off==0 must take the disp8 form — one extra byte vs r12, matching exactly what `as` emits for
+      * [rbp + 0] (the R10 BINARY-agrees-with-TEXT law). */
+-    std::string s; int rf = regfield & 7; int b = x86_zr_num() & 7; int sib = (b == 4);
++    std::string s; int rf = regfield & 7; int b = x86_fb_num() & 7; int sib = (b == 4);   /* REG-7 U3: base = x86_fb_num() (frame base), no longer zr — lockstep with the fr prefixes */
+     int mod = (off == 0 && b != 5) ? 0 : (off >= -128 && off <= 127) ? 1 : 2;
+     s += (char)((mod << 6) | (rf << 3) | (sib ? 4 : b));
+     if (sib) s += (char)0x24;
+@@ -699,12 +701,12 @@ inline std::string x86_r12_modrm(int regfield, int off) {
+  * frame register itself.  Under r12 the B bit is always set, so every call site's byte is identical to the
+  * old hard-coded 0x49/0x41 forms; under rbp B drops and low-regfield 32-bit ops emit no REX at all. */
+ inline std::string x86_frame_rex(int w, int regfield) {
+-    uint8_t rex = 0x40; if (w) rex |= 0x08; if (regfield >= 8) rex |= 0x04; if (x86_zr_num() >= 8) rex |= 0x01;
++    uint8_t rex = 0x40; if (w) rex |= 0x08; if (regfield >= 8) rex |= 0x04; if (x86_fb_num() >= 8) rex |= 0x01;
+     std::string s; if (rex != 0x40) s += (char)rex;
+     return s;
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+-inline std::string x86_frame_text_mem(int off) { return std::string("[") + x86_zr() + " + " + std::to_string(off) + "]"; }
++inline std::string x86_frame_text_mem(int off) { return std::string("[") + x86_fb() + " + " + std::to_string(off) + "]"; }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ inline std::string x86_frame_lea(const char * reg, int off) {
+     int g = x86_rnum(reg);
+@@ -769,7 +771,7 @@ inline std::string x86_frame_sub_from_reg(const char * reg, int off) {
+     return std::string(" sub ") + reg + ", dword ptr " + x86_frame_text_mem(off) + "\n";
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+-inline const char * FR(int off) { static char b[8][40]; static int i; i = (i + 1) & 7; if (x86_fc_hit(off)) snprintf(b[i], 40, "dword ptr [rsp + %d]", off - _.op_fc_base); else snprintf(b[i], 40, "%s%d]", x86_fr32_prefix(), off + (ZC_FRAME == ZC_FRAME_RSP && !_.flat_pat && !_.op_anchored ? (int)_.op_flat_disp : 0)); return b[i]; }   /* R12-ERAD s65: rsp-frame flat refs sit op_flat_disp above rsp while cells are pushed; the compensated NUMBER rides the string, so the binary twin (x86_parse XK_FR32 atoi) follows for free; pat blobs and anchored windows are r12-immune (no disp) */
++inline const char * FR(int off) { static char b[8][40]; static int i; i = (i + 1) & 7; if (x86_fc_hit(off)) snprintf(b[i], 40, "dword ptr [rsp + %d]", off - _.op_fc_base); else snprintf(b[i], 40, "%s%d]", x86_fr32_prefix(), off); return b[i]; }   /* REG-7 U3: op_flat_disp compensation DELETED — rbp is depth-immune (seeded U1/U2/s79); the fc_hit granted-window rebase stays rsp BY DESIGN (element LIFO arithmetic, R12-EXIT-1) */
+ inline const char * PAIR(int idx) { static char b[8][16]; static int i; i = (i + 1) & 7; snprintf(b[i], 16, "P%d", idx); return b[i]; }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+ inline std::string x86_frame_load64(const char * reg, int off) {
+@@ -794,7 +796,7 @@ inline std::string x86_frame_mov_imm64(int off, long imm) {
+     return std::string(" mov qword ptr ") + x86_frame_text_mem(off) + ", " + std::to_string(imm) + "\n";
+ }
+ /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+-inline const char * FRQ(int off) { static char b[8][40]; static int i; i = (i + 1) & 7; if (x86_fc_hit(off)) snprintf(b[i], 40, "qword ptr [rsp + %d]", off - _.op_fc_base); else snprintf(b[i], 40, "%s%d]", x86_fr64_prefix(), off + (ZC_FRAME == ZC_FRAME_RSP && !_.flat_pat && !_.op_anchored ? (int)_.op_flat_disp : 0)); return b[i]; }   /* R12-ERAD s65: same compensation as FR — one number, both mediums; anchored windows r12-immune */
++inline const char * FRQ(int off) { static char b[8][40]; static int i; i = (i + 1) & 7; if (x86_fc_hit(off)) snprintf(b[i], 40, "qword ptr [rsp + %d]", off - _.op_fc_base); else snprintf(b[i], 40, "%s%d]", x86_fr64_prefix(), off); return b[i]; }   /* REG-7 U3: same as FR — compensation deleted, fc_hit stays rsp */
+ inline const char * ROQ(int n)   { static char b[8][40]; static int i; i = (i + 1) & 7; snprintf(b[i], 40, "qword ptr [rip + %d]", n); return b[i]; }
+ inline const char * RDQ(const char * base, int off) { static char b[8][40]; static int i; i = (i + 1) & 7; snprintf(b[i], 40, "qword ptr [%s + %d]", base, off); return b[i]; }
+ inline const char * ABSQ(unsigned long va) { static char b[8][40]; static int i; i = (i + 1) & 7; snprintf(b[i], 40, "qword ptr [%lu]", va); return b[i]; }   /* REG-1: pinned-island absolute (SIB no-base, va < 0x7FFFFFFF, identical bytes both mediums) */
