@@ -1,0 +1,114 @@
+diff --git a/src/runtime/rt/gc_heap.c b/src/runtime/rt/gc_heap.c
+index e2575821..288f6c2e 100644
+--- a/src/runtime/rt/gc_heap.c
++++ b/src/runtime/rt/gc_heap.c
+@@ -4,6 +4,7 @@
+ #include <sys/mman.h>
+ #include "zeta_choices.h"
+ #include "rt_slab.h"
++#include "rt_arena.h"
+ #include "gc_heap.h"
+ #include "descr.h"
+ /* GC-0 (ARCH-ZETA-LOCAL-STORAGE §6e) — scrip-owned bump heap, SIL title-word headers, libgc COEXISTENCE.
+@@ -113,6 +114,29 @@ char *rt_str_dup(const char *s)
+     if (b) memcpy(b, s, (size_t)n);
+     return b;
+ }
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++/* GC-U-6 slice 1 (s84): THE WORKSPACE lives IN the collected span — rt_ws_* re-pointed from the rt_arena.c slab chain onto rt_gcheap_alloc(HB_WS): ONE reserved-VA span, ONE cursor (g_hp_top),
++ * uniform rt_hblk_t titles, gc_collect_ex the one collector over everything. HB_WS blocks are IMMORTAL + IMMOVABLE v1 (clients hold raw C pointers in statics — the GC-U-5 sweep's registries and
++ * caches): the collector pins them at reset (MARK|PIN, fwd=self, slide barriers; sub-pin gaps become HB_FILL fill-window fodder as usual). Motion/reclaim arrives with root registration at GC-U-7.
++ * The grow-only realloc's old-size decode now reads the rt_hblk_t (payload = size - 16) instead of the retired (size<<8|flavor) arena title word. */
++void *rt_ws_alloc(size_t n)
++{
++    return rt_gcheap_alloc((uint16_t)HB_WS, (uint64_t)(n ? n : 1));
++}
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++void *rt_ws_realloc(void *p, size_t n)
++{
++    if (!p) return rt_ws_alloc(n);
++    { rt_hblk_t *h = (rt_hblk_t *)p - 1; size_t old = (size_t)h->size - sizeof(rt_hblk_t);
++      if (n <= old) return p;
++      { void *q = rt_ws_alloc(n); memcpy(q, p, old); return q; } }
++}
++/*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
++char *rt_ws_strdup(const char *s)
++{
++    if (!s) return (char *)0;
++    { size_t n = strlen(s); char *q = (char *)rt_ws_alloc(n + 1); memcpy(q, s, n + 1); return q; }
++}
+ /*====================================================================================================================================================================================================*/
+ /* GC-1 MARK + GC-2 ADJUST + GC-3 SLIDE (ARCH-ZETA-LOCAL-STORAGE §6a/§6b/§6e) — the SIL 3-stage storage regeneration, v1 scope = the DT_S strings family (the only resident family after GC-0).
+  * TWO ROOT LAYERS. PRECISE (tag-driven, §6b: DESCR_t.v discriminates — marked AND adjusted): NV buckets incl. bound GVA cells (core_gc_roots), _var_reg cells, g_call_args window (rt_gc_root_args),
+@@ -280,7 +304,7 @@ static long gc_collect_ex(int cons_stack)
+     g_hp_win = (char *)0; g_hp_wend = (char *)0;
+     g_gc_nblk = 0; { char *p = g_hp_arena; while (p < g_hp_top) { g_gc_nblk++; p += ((rt_hblk_t *)p)->size; } }
+     g_gc_idx = (rt_hblk_t **)malloc((size_t)g_gc_nblk * sizeof(*g_gc_idx)); if (!g_gc_idx && g_gc_nblk) abort();
+-    { char *p = g_hp_arena; long i = 0; while (p < g_hp_top) { rt_hblk_t *h = (rt_hblk_t *)p; h->flags &= (uint16_t)~(HBF_MARK | HBF_PIN); h->fwd = 0; g_gc_idx[i++] = h; p += h->size; } }
++    { char *p = g_hp_arena; long i = 0; while (p < g_hp_top) { rt_hblk_t *h = (rt_hblk_t *)p; h->flags &= (uint16_t)~(HBF_MARK | HBF_PIN); if (h->type == HB_WS) h->flags |= (uint16_t)(HBF_MARK | HBF_PIN); h->fwd = 0; g_gc_idx[i++] = h; p += h->size; } }
+     g_gc_hn = 0; if (g_gc_hs) memset(g_gc_hs, 0, (size_t)g_gc_hcap * sizeof(void *));
+     g_gc_ncell = 0; g_gc_nraw = 0; g_gc_interior = 0;
+     if (cons_stack) { setjmp(jb); gc_cons_scan((const char *)&jb, (const char *)&jb + sizeof jb); { char *lo = &anchor, *hi = gc_stack_top(); if (lo < hi) gc_cons_scan((const char *)lo, (const char *)hi); } }
+diff --git a/src/runtime/rt/gc_heap.h b/src/runtime/rt/gc_heap.h
+index c288b204..302d4e03 100644
+--- a/src/runtime/rt/gc_heap.h
++++ b/src/runtime/rt/gc_heap.h
+@@ -16,6 +16,7 @@
+ #define HB_ZCOL  200
+ #define HB_ZPROM 201
+ #define HB_FILL  202
++#define HB_WS    203
+ #define HBF_TTL  0x0001
+ #define HBF_MARK 0x0002
+ #define HBF_PIN  0x0004
+diff --git a/src/runtime/rt/rt_arena.c b/src/runtime/rt/rt_arena.c
+index 9113f21b..c281d2db 100644
+--- a/src/runtime/rt/rt_arena.c
++++ b/src/runtime/rt/rt_arena.c
+@@ -88,32 +88,7 @@ void rt_arena_zblock_put(rt_arena_t *a, void *blk) {
+     a->reuse = b;
+ }
+ 
+-/* --- THE WORKSPACE (RUNG TR-3, s37 three-region): the ONE Region-2 instance families flip onto; grow-only A_PROG until GC-W-2 collects it --- */
+-static rt_arena_t g_ws;
+-static int g_ws_up = 0;
+-
+-void *rt_ws_alloc(size_t n) {
+-    if (!g_ws_up) { rt_arena_init(&g_ws, A_PROG); g_ws_up = 1; }
+-    return rt_arena_alloc(&g_ws, n);
+-}
+-
+-/* --- grow-only realloc: the D6 title word (size<<8|flavor at p-16) IS the old size; no free until GC-W-2 --- */
+-void *rt_ws_realloc(void *p, size_t n) {
+-    if (!p) return rt_ws_alloc(n);
+-    size_t old = (size_t)(*(uint64_t *)((uint8_t *)p - 16) >> 8);
+-    if (n <= old) return p;
+-    void *q = rt_ws_alloc(n);
+-    memcpy(q, p, old);
+-    return q;
+-}
+-
+-char *rt_ws_strdup(const char *s) {
+-    if (!s) return (char *)0;
+-    size_t n = strlen(s);
+-    char *q = (char *)rt_ws_alloc(n + 1);
+-    memcpy(q, s, n + 1);
+-    return q;
+-}
++/* --- THE WORKSPACE (TR-3 → GC-U-6 s84): rt_ws_* moved to gc_heap.c — HB_WS-titled blocks inside the ONE collected span (pinned-immortal v1); the g_ws slab chain is retired. --- */
+ 
+ /* PL-WS RECLAIMABLE COMPOUND ARENA (GC-W-2): base-pinned ISLAND, g_dcap/CAS class (pattern_match rt_cas/rt_dcap). Reserved once via rt_slab_region; never moved/freed; cursor-bumped. */
+ /* ABORT FIX (PL-WS-2 step 1): the old slab-drawing A_TRANS arena rooted EVERY slab, so a deep search overflowed libgc MAX_ROOT_SETS; this island is ONE 16MB-class slab = ONE root, constant. */
+diff --git a/src/runtime/rt/rt_arena.h b/src/runtime/rt/rt_arena.h
+index 1303d517..38c9c43b 100644
+--- a/src/runtime/rt/rt_arena.h
++++ b/src/runtime/rt/rt_arena.h
+@@ -47,7 +47,7 @@ void         rt_arena_destroy(rt_arena_t *a);                  /* all slabs -> p
+ /* A_COEXPR reusable ζ blocks (Lon s36): fixed-size, recycled on death. */
+ void        *rt_arena_zblock_get(rt_arena_t *a, size_t block_sz);
+ void         rt_arena_zblock_put(rt_arena_t *a, void *blk);
+-/* THE WORKSPACE (TR-3): the one Region-2 instance; grow-only until GC-W-2. */
++/* THE WORKSPACE (TR-3 → GC-U-6 s84): rt_ws_* live in gc_heap.c — HB_WS-titled blocks in the ONE collected span; pinned-immortal v1, collector = gc_collect_ex. */
+ void        *rt_ws_alloc(size_t n);
+ void        *rt_ws_realloc(void *p, size_t n);   /* grow-only; old size read from the title word */
+ char        *rt_ws_strdup(const char *s);
