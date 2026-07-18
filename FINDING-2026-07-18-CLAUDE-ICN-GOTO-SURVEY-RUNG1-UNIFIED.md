@@ -71,3 +71,13 @@ Recommendation: (2) is the lower-risk first slice (pure subtraction in one stage
 - B-family (break/next, loop glue, conj jn[i], body-less every) unchanged: forward-ref/router roles, not promotion absorbers.
 
 **Cursor suggestion:** next rung = the continuation-channel design (Lon pick), with the naked-removal probe as the standard site-population instrument.
+
+---
+
+## ADDENDUM 2 (same session): sites 8+6 eradicated (SCRIP `53c39665`) + DEAD-GOTO REAP closes the hygiene goal (SCRIP `71133e8b`)
+
+**Sites 8+6:** body-less every GOTO deleted (`b_entry = gen_beta`; the tail `γ_to(eval, b_entry)` applies the identical promotion the GOTO's build() did) and the generator-keyword seed GOTO deleted (naked return per the pilot's returned-entry protocol; `every write(&features)` pumps 6 values BOTH modes).
+
+**DEAD-GOTO REAP (`src/optimizer/dead_goto.c`, `dg_run`, wired to fixpoint after the optimizer rounds):** the structural insight — `bc_run` already BYPASSES continuation-channel and B-family tramps (rewrites edges past passthroughs), but nothing REAPED the orphaned nodes, and `dp_run`'s ref-set only counts operands, not γ/ω edges. `dg_run` builds the full ref-set (γ/ω edges + operands + `g->entry`/`g->body_root`) and NULLs unreferenced IR_GOTO slots (established all[] convention — every consumer guards NULL; verified by sweep). Monitor-stamped GOTOs exempt (same `bc_stamped` condition bc respects). **This closes the rung's stated hygiene goal ("4–7 junk nodes/graph") for the tramp families that CANNOT be protocol-eradicated cheaply — they are reaped post-bypass instead of never created.** Probe: mid-proc alternation statement → `branch_chain=3 dead_goto=1`, output correct; 37 nodes reaped across the rung1*/rung2* corpus slice alone. The continuation-channel protocol design (tagged-ref γ/ω) remains available as future PURITY work but is no longer required for hygiene.
+
+**Proof (strongest net this session):** Icon 246/14/32 FAIL-set identical; smoke 14/14 ×2; SN4 smoke 7/7 ×2 **+ FULL SN4 crosscheck AT THE RECORDED WATERMARK** (m3 305/2, m4 304/2/1, DIVERGE=1 `1017_arg_local` — byte-for-byte the cursor's reference state); Prolog 5/5 ×2; Raku 288/288 ×2.
