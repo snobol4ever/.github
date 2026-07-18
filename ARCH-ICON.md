@@ -65,13 +65,27 @@ Icon variable *references* resolve through one of two backends. **Both are kept 
 `?:=` (scan-assign) and `=s` (sugar, `tab(match(s))`, a lowerer rewrite — no box). Rung ladder with ONE STEP
 PER BOX: **GOAL-ICON-BB.md → "ICN-SCAN LADDER"** (ICN-SCAN-0 … ICN-SCAN-FENCE).
 
-**Register contract — the SNOBOL4 layout verbatim (ratified X86-64 FACT table):** R12=ζ per-sequence RW frame
-(`[r12+off]`) · R13=Σ subject base ptr · R14=δ cursor (0-based; `&pos = δ+1`) · R15=Δ subject length ·
-RBX=NV globals hash base (rides through untouched). RO constants (cset char-strings, match strings) sealed
-`[rip+disp]`; the membership test is the `bb_pat_any.cpp` idiom (`lea rdi,[rip+cset]; call strchr`). Result
-DESCRs go to the box's own 16-byte frame slot (the `bb_to`/`bb_alt` model); consumers read the producer's slot.
+**Register contract (CORRECTED 2026-07-18, verified vs live `x86_asm.h` + `zeta_choices.h` — the prior
+2026-06-30 table said R12=ζ and RBX=GVA base; BOTH are superseded):** ζ frame selection is the `ZC_FRAME`
+BUILD CONSTANT (`src/contracts/zeta_choices.h`), **default `ZC_FRAME_RSP` since s65 R12-ERAD**. Under it:
+`x86_zr()` = **RSP** (control-flow-lifetime ζ rides the machine stack — FORTH port cells + carve
+discipline, shared with the C call stack) and `x86_fb()` = **RBP** (the ζ value-slot frame base, seeded at
+every activation boundary; all `FR`/`FRQ` spellings resolve `[rbp+off]`, no depth compensation — REG-7 U3,
+sealed U5 s87). **R12 is FREE** (residuals: the six-register coexpr save in `bb_create.cpp` covers it
+regardless; the `ZC_FRAME_R12` accessor arm survives as compile-time-selectable history only). Subject
+registers unchanged: **R13=Σ subject base · R14=δ cursor (0-based; `&pos = δ+1`) · R15=Δ subject length**
+(live in `bb_gen_scan.cpp`'s scan-env swap). RO constants sealed `[rip+disp]`; the membership test is the
+`bb_pat_any.cpp` idiom. Result DESCRs go to the box's own 16-byte frame slot; consumers read the
+producer's slot.
 
-⛔ **CORRECTED 2026-06-30 (verified vs live templates, narrative pruned 2026-07-01):** RBX = the **GVA slot-array base** — globals at `[rbx+gva_k*16]`, 16-byte DESCR stride (`RDQ("rbx", op_gva_k*16)` across 12+ template sites) — NOT an NV hash base. RBP: zero template hits; `NV_GET_fn`/`NV_SET_fn` remain plain C calls.
+⛔ **RBX (CORRECTED 2026-07-18, supersedes the 2026-06-30 note):** the GVA-base role is RETIRED — globals
+now address ABSOLUTE, `bb_assign_global`'s `ABSQ(RT_GVA_VA + gva_k*16)`, no register base. **RBX is
+reserved as the WS/GC bump-frontier TOP**: the `ZC_PORT_HEAP` α-carve emits `mov rax,rbx; add rbx,K;
+cmp rbx,[RT_WS_LIMIT]; ja <refill>` (x86_asm.h ~1620, HZ-1). The build default is `ZC_PORT_FORTH`
+(grants spend as `sub rsp,K`), so the rbx allocator is the HEAP arm's ratified contract, dormant under
+FORTH — plus three named inert rbx-dance holdouts (`bb_gvar_assign_concat`, `bb_pattern_break/len`,
+`bb_ref_invariant`). RBP is the ζ frame base under the RSP default (see the corrected contract above);
+`NV_GET_fn`/`NV_SET_fn` remain plain C calls.
 
 **Two semantic families (fstranl.r function signatures — do not blur):**
 - **Position-returners, δ untouched:** `any`/`match`/`many` are `function{0,1}` (one result or fail);
