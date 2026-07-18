@@ -23,6 +23,7 @@ All paths are absolute, rooted at the standard checkout layout
 | Raku     | `/home/claude/corpus/programs/raku/`     | varies                             | — |
 | Rebus    | `/home/claude/corpus/programs/rebus/`    | varies                             | — |
 | Pascal   | `/home/claude/corpus/programs/pascal/`   | reference compiler (pcom.pas/pint.pas) + `.pas` probes; no suite yet | ref |
+| Icon TIMING benchmarks | `/home/claude/corpus/benchmarks/icon/` | 10 link-heavy programs + support + `.dat`; NOT byte-diffable (timing scaffold output) — full map, reference-impl build recipes, and runner traps: `GOAL-ICON-BB.md` §ICON BENCHMARK MAP | 10 |
 
 **Each `.icn` (or `.sno`, etc.) program has a sibling `.expected`
 file** with the canonical SPITBOL/oracle output.  The corpus runner
@@ -50,6 +51,13 @@ bash /home/claude/SCRIP/scripts/test_icon_all_rungs.sh
 # Defaults: SCRIP=/home/claude/SCRIP/scrip  CORPUS=/home/claude/corpus/programs/icon
 # Reports: PASS=N FAIL=N XFAIL=N TOTAL=289   (2026-07-01: 190/63/36)
 # Per-construct, oracle-anchored: bash SCRIP/scripts/audit_jcon_wholesale.sh (66 probes)
+```
+
+**Icon timing benchmarks (iconx oracle + SCRIP m3/m4):**
+```bash
+SKIP_BUILD=1 bash /home/claude/SCRIP/scripts/test_icon_bench_corpus.sh
+# First run without SKIP_BUILD=1 (auto-builds icon-master at /home/claude/icon-master).
+# Full map + Arizona/JCON build recipes + invocation traps: GOAL-ICON-BB.md §ICON BENCHMARK MAP
 ```
 
 **Per-rung subset:**
