@@ -27,3 +27,28 @@ Headline shape: SCRIP's restored engine is ~50–300× slower per-iteration than
 
 ## 5. NEXT
 PL-SPEED-1 (O(1) call path) is the first unchecked rung; PL-SPEED-3 (DET/NONDET split) is the architecture rung that also owns (b). The once-fence bug (a) needs a rung + monitor hunt before any coverage work leans on once-semantics.
+
+## 6. ADDENDUM (same session, Lon ask): REPLICATION OF THE 2026-06-27 "3.28×" TABLE — memory VERIFIED, engine A/B MEASURED, method bias FOUND
+Lon: "Scan back… README.md had Prolog numbers… SCRIP was almost on par… find the check-in… replicate… what did we do before different than now."
+
+**The commit: SCRIP `7ec7305a` (Sat Jun 27 2026), "Add Prolog benchmark section: 22-program van Roy suite, 4-way consensus, geomean 3.28x vs gprolog"** — cal 0.48× (FASTER than GNU), sendmore 1.00×. Lon's memory of the table is CORRECT. It predates the 2026-07-05 GROUND ZERO #5 Prolog deletion: it measured the OLD pl_gz engine.
+
+**Replication (this host, worktree `7ec7305a`, built clean — needed `libgc-dev`: the old runtime is Boehm-GC'd):** the old engine predates `between/3` (s56), so its cells use the recursion-loop wrapper (safe there: Boehm GC reclaims across iterations — measured qsort ×1000 completes; GC_INITIAL_HEAP_SIZE pre-sizing does NOT help, 1295→1723 ms). Full old-engine sweep (auto-ranged, m3≈m4 as always):
+
+| set | geomean |
+|---|---|
+| OLD m4 vs GNU (det benches, both at asymptotic N) | **≈16×** |
+| NEW m4 vs GNU (same rail, 2026-07-18 table) | **199×** |
+| NEW vs OLD (det benches, same-work shapes) | **≈12×** |
+
+Old beat GNU outright on crypt (0.996 vs 1.171 ms/iter). Enumeration benches (ham/queens/queens_8, partially crypt/sendmore/zebra) excluded from cross-shape ratios: recursion loop = one solution/iter, fail loop = full enumeration/iter.
+
+**Why the June table said 3.28× when the same binary measures ≈16× today — ratios are host-independent, so it is METHOD, and the tell is exact:** June's cal GNU cell = 0.072 ms/iter; the asymptotic truth is 0.0010; gprolog's per-run consult cost (~50–70 ms) divided by a ~1000-iteration loop = 0.07. **The June harness (never committed — the PL-SPEED-0 gap) under-amortized gprolog's consult on tiny benches, inflating GNU per-iteration up to ~70× and flattering SCRIP's ratio ~5×.** The auto-ranged rail (N→65536 for GNU) removes that bias.
+
+**WHAT WAS DIFFERENT (the big question) — verified by grep in the old tree, not recalled:**
+1. **NO per-call C trampoline.** `rt_proc_call_gen_h` has ZERO hits at `7ec7305a`; predicate calls were direct emitted transfers under the dedicated pl_gz Prolog codegen (live `pl_gz_*` in old scrip.c; 32 Prolog arms in old emit_bb.c). The current engine interposes a C frame + name→proc strcmp lookup on EVERY call — simultaneously the dominant per-call cost AND the C-stack-depth SIGSEGV class. → PL-SPEED-1 + PL-SPEED-7.
+2. **Dedicated Prolog activation shape** vs today's generic staged path (per-activation ZLS malloc + whole-frame memset). → PL-SPEED-2 + PL-SPEED-3.
+3. **Boehm-GC'd cells** (libgc): iteration garbage was collected — the ham/queensn WS-leak storm class could not exist. Current WS arenas leak streams 2+3. → PL-WS-2 / PL-SPEED-3/4.
+4. PL-DESCR-2 inline scalar cells were live in the old engine (part of its baseline speed).
+
+**Net: the restoration (correct-first, by design) gave back ~12× of engine speed; the PL-SPEED ladder is precisely the list of what the old engine had. The old engine at honest method was ≈16× GNU — "almost on par" was ~5× method flattery on top of a genuinely strong engine.**
