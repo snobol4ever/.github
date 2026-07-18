@@ -54,3 +54,20 @@ Recommendation: (2) is the lower-risk first slice (pure subtraction in one stage
 ## Session artifacts
 - SCRIP `607974bb` (local) — the rung-1 unification, 1 file, +15/−15.
 - Baselines: `/tmp/rungs_baseline.log`, `/tmp/fail_baseline.txt` (14 names), `/tmp/rungs_after.log` — FAIL sets diff-identical.
+
+---
+
+## ADDENDUM (same session): mechanism (1) CHOSEN by Lon, pilot LANDED — dj trampoline ERADICATED (SCRIP `3af9d43a`)
+
+**Mechanism landed:** `lc_γ_to_α`/`lc_ω_to_α` force writers (lower_common.c + lower.h), edge tag `"α!"` (CE B1 21 + NUL, fits `sz[4]` in one memcpy). **Emitter honor came free:** emit.cpp 1732–1738/1801 positive-match only β/σ/φ (first two bytes) — everything else defaults α, and `"α!"` starts CE B1. `bc_chase` preserves the tag on unchased edges (it only rewrites sz when folding THROUGH a passthrough).
+
+**Pilot (site 1):** `icn_dj_α_entry` now returns dj NAKED; the GOTO trampoline is deleted. The **naked-return probe** (temporarily return dj, run the full harness, read the new FAILs) found the shield population empirically: exactly THREE tests broke (`rung35_block_body_every_gen_block`, `rung36_jcon_primes`, `rung36_jcon_table`) and all traced to ONE promoting wiring — `lower_every`'s `γ_to/ω_to(mark, b_entry)`: the bounded do-body ENTERS FRESH each lap (interp.r Op_Mark, bounded ≡ fresh evaluation), but a naked generator-kind body entry (if/alternation as first body stmt) got β-stamped → entered exhausted → statement-continue (break/next dead). Converted to `lc_γ_to_α/lc_ω_to_α`. Instructive contrast IN THE SAME FUNCTION: `unmk → gen_beta` is a genuine RESUME — its promotion stays. That contrast IS the α-entry protocol.
+
+**Proof:** Icon 246/14/32 FAIL-set byte-identical to baseline; smoke 14/14 ×2; m4 (asm→gcc→run) PASS on all six pilot-critical programs (the 3 probe-breakers + the 3 s95/slice-3 lock programs); 4 gates green; SN4 7/7 ×2, Prolog 5/5, Raku 288/288.
+
+**STRUCTURAL FINDING for the remaining rungs — TWO CHANNELS, not one:**
+- **RETURNED-ENTRY channel** (site 1): conversion is CHEAP — the probe names the few unshielded promoting sites; convert them force-α; delete the tramp. ✅ done.
+- **CONTINUATION channel** (sites 2 STMT-BOUNDARY, 4 scan-leave, 6 seed, 7a SENT): these tramps shield the γ/ω PARAMS passed down into child lowering — promotion happens inside EVERY construct lowerer's `build()`/`γ_to` against its continuation targets. Removing these tramps is not a few call-site edits; it is the continuation-channel protocol (e.g. γ/ω passed as tagged refs through `lower()`, or promotion keyed on `target == cx->beta`). OWN DESIGN DECISION — do not attempt as a mechanical slice.
+- B-family (break/next, loop glue, conj jn[i], body-less every) unchanged: forward-ref/router roles, not promotion absorbers.
+
+**Cursor suggestion:** next rung = the continuation-channel design (Lon pick), with the naked-removal probe as the standard site-population instrument.
