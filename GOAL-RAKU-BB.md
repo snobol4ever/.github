@@ -1,5 +1,29 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
+## ▶ LIVE CURSOR — s2026-07-19e (RAKU-100: general list model — list-value atom + for-over-list/array/comma-list — Claude Sonnet 4.6)
+
+**[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+
+Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed the general list model in three clean rungs. PURE grammar + lowerer + one runtime builtin fix: no template changes, peers provably untouched.
+
+**(1) `(1,2,3)` AS A FIRST-CLASS LIST-VALUE ATOM.** `my $x = (1,2,3)`, `my $x = ()`, `(42,)` all work in both modes. Added grammar productions for `()`, `(e,)`, and `(e, e, …)` in `atom`, reusing the existing `__rk_arr` `\x01`-encoded array representation. Conflict count 62→68 s/r (+6 from paren-disambiguation contexts, all resolve correctly — all regressions pass); r/r unchanged at 3. Runtime fix: `__rk_arr` guard relaxed from `nargs >= 1` to `nargs >= 0`; zero-arg fast-path returns empty string (the canonical empty-array representation).
+
+**(2) `for`-OVER-LIST/ARRAY NATIVE LOWERING — `[SMX]` STUB RETIRED FOR THIS SHAPE.** `for @a -> $v`, `for (1,2,3) -> $x`, `for <a b c>`, both `-> $v` pointy and `$_` topic forms. Previous behaviour: parsed but hit `[SMX] --run: mode-3 native emitter does not yet cover this program (Raku map/grep)`. Fix: new arm in `lower_raku.c`'s `TT_EVERY` handler — when iterate source is a general value (not range/map/grep/gather), synthesize the AST for `for 0..(elems(list)-1) -> __foridx { my $v = list[__foridx]; body }` and lower it through the proven `TT_FOR_RANGE` path. **THE KEY DESIGN LESSON (hard-won):** hand-building the `IR_TO` generator graph fails with a subtle β-resume back-edge bug that the terse `--dump-ir` doesn't render; AST synthesis and delegation to the existing, battle-tested lowering path is the correct approach — it reproduces the exact wiring that the parser+lowerer already gets right. TT_EVERY guard relaxed to default `vname="_"` when the iterate node carries no named var (unblocks topic form). Special-case: `TT_VAR` source skips the materialize temp, iterating the array variable name directly.
+
+**(3) `for`-OVER-BARE-COMMA-LIST.** `for 1,2,3 -> $x { }` / `for "x","y","z" { }` (no parens). New grammar productions `KW_FOR expr ',' arg_list OP_ARROW VAR_SCALAR block` and `KW_FOR expr ',' arg_list block` in `for_stmt`, both building `__rk_arr` from the comma-separated items and routing through the same iterate arm. Canonical Raku: `for <EXPR>` where EXPR is a statement-level comma-list. Zero new conflicts.
+
+**DISCIPLINE:** bison 3.8.2 reproduced committed `raku.tab.c/.h` BYTE-FOR-BYTE before editing (toolchain match proven). Final conflict count 68 s/r + 3 r/r. Both modes exercised for every construct. Lang-blind gate GREEN. Codegen regen scripts: no changed `.s` artifacts (Raku-lowerer changes don't affect SNOBOL4 demo/benchmark codegen). All peer suites provably untouched.
+
+**SUITE WATERMARK: Raku 355/0 both modes** (341 baseline + 14 new smokes: list_value_to_scalar, list_value_empty, list_value_single_trailing, for_parenlist_pointy, for_parenlist_topic, for_parenlist_strings, for_array_pointy, for_array_topic, for_array_sum, for_emptylist_noiter, for_commalist_pointy, for_commalist_topic, for_commalist_strings, for_wordlist_pointy). Icon 14/14, SNOBOL4 7/7 both modes.
+
+**NEXT RUNG (RAKU-100, data-ordered from histogram):** (a) **deeper `for` source forms** — `for (map{…}, @array)` (list with embedded transform), `for a=>1, b=>2` (pair-list iteration), `for 1,2 { }` bare 2-item already works (use the commalist productions just landed). (b) **the pre-existing 3-level nested repeated-callee miscompute** (`inc(dbl(inc(4)))`→11, correctness not coverage). (c) **block-taking Test fns** (`throws-like`, `lives-ok`, `dies-ok` — 58 first-blocker files; needs block-arg + `EVAL` support). (d) the **`is`/`ok` Test assertion cluster** (~145 files — blocked by complex first-argument expressions: `(1,2,(3,4)).tree`, `~@array`, junctions, etc. — needs deeper list model). (e) `...` sequence operator (313 files, lazy generation — deeper).
+
+**NEXT RUNG (ζ track):** RK-ZETA-2 (escapee heap path) still gated on RK-BLK-c capture rung (PHASE A).
+
+**TOUCHED THIS SESSION:** SCRIP — `src/parser/raku/raku.y` (+list-value atom ×3, +comma-list for-source ×2, +regen `raku.tab.c`), `src/lower/lower_raku.c` (+list-iteration arm via AST synthesis, +`leaf_sval2` helper, relaxed TT_EVERY guard for topic form), `src/runtime/by_name_dispatch.c` (zero-arg `__rk_arr`), `scripts/test_smoke_raku.sh` (+14 smokes), `RAKU-COVERAGE.md` (stale — needs regen with roast wired; roast now at `refs/roast`). `.github` — this cursor.
+
+---
+
 ## ▶ LIVE CURSOR — s2026-07-19d (RAKU-100: METHOD implicit-return + no-paren method signatures + no-paren method call — Claude Opus 4.8)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).** Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed the s2026-07-19c cursor's own #1 NEXT RUNG — **method implicit-return done right** (the reverted `sub_body`-reuse attempt, now solved cleanly) — plus the two adjacent method gaps it exposed. PURE grammar (`raku.y` + regen `raku.tab.c`): no lexer (no new tokens, `raku.tab.h` UNTOUCHED), no lowerer, no runtime, no template. Peers provably untouched (Icon 14/14, SNOBOL4 7/7, lang-blind gate GREEN).
