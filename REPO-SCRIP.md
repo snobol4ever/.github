@@ -49,8 +49,7 @@ Invoke: `/home/claude/x64/bin/sbl -b file.sno`
 | .NET | `mono-complete` |
 | WASM | `wabt` |
 
-Never RUN bison/flex against the committed `.y`/`.l` grammar sources (alongside every frontend's generated
-`.tab.c`/`.lex.c`/`_parse.c`, e.g. `src/parser/snobol4/snobol4.y` next to `snobol4.tab.c`) — the generated `.c`
-is the committed, tested artifact with no Makefile rule regenerating it, so running the generator by hand
-silently overwrites known-good output with unverified output. Installing the tools is harmless; running them
-against these grammars is the hazard (verified 2026-07-01: files are git-tracked, Makefile has zero invocation).
+Regenerating a grammar is fine: `bison -d raku.y -o raku.tab.c` / `flex -o raku.lex.c raku.l` (rc=0). The
+generated `.c` is the committed artifact and there is no Makefile rule regenerating it, so the working
+discipline is: regen, confirm the tool reproduces the committed `.tab.c`/`.tab.h`/`.lex.c` byte-for-byte
+BEFORE your edit (proves the toolchain matches), then make your grammar change and regen again.
