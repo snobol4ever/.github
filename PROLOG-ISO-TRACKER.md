@@ -9,12 +9,12 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | metric | count |
 |--------|-------|
 | gprolog public exports (total) | 312 |
-| DONE (SCRIP admits) | 41 (13%) |
-| RUNG-ASSIGNED | 271 |
+| DONE (SCRIP admits) | 43 (13%) |
+| RUNG-ASSIGNED | 269 |
 | **UNASSIGNED** | **0** |
 | core scope | 237 |
 | gprolog-ext scope | 75 |
-| **core still open** | **197** |
+| **core still open** | **195** |
 
 ## Per-file coverage
 
@@ -23,11 +23,11 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `stream.pl` | core | 0 | 43 | 43 |
 | `os_interf.pl` | gprolog-ext | 0 | 35 | 35 |
 | `const_io.pl` | core | 0 | 30 | 30 |
-| `char_io.pl` | core | 0 | 28 | 28 |
+| `char_io.pl` | core | 1 | 28 | 27 |
 | `src_rdr.pl` | core | 0 | 22 | 22 |
 | `read.pl` | core | 2 | 17 | 15 |
 | `atom.pl` | core | 8 | 15 | 7 |
-| `dec10io.pl` | core | 0 | 12 | 12 |
+| `dec10io.pl` | core | 1 | 12 | 11 |
 | `write.pl` | core | 6 | 12 | 6 |
 | `debugger.pl` | gprolog-ext | 0 | 11 | 11 |
 | `term_inl.pl` | core | 4 | 11 | 7 |
@@ -56,7 +56,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 
 *(none)*
 
-## RUNG-ASSIGNED — owned, not yet landed  (271)
+## RUNG-ASSIGNED — owned, not yet landed  (269)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -90,7 +90,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `peek_code/2` | `char_io.pl` | core | PL-ISO-7b |
 | `put_byte/1` | `char_io.pl` | core | PL-ISO-7b |
 | `put_byte/2` | `char_io.pl` | core | PL-ISO-7b |
-| `put_char/1` | `char_io.pl` | core | PL-ISO-7b |
 | `put_char/2` | `char_io.pl` | core | PL-ISO-7b |
 | `put_code/1` | `char_io.pl` | core | PL-ISO-7b |
 | `put_code/2` | `char_io.pl` | core | PL-ISO-7b |
@@ -153,7 +152,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `seeing/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `seen/0` | `dec10io.pl` | core | PL-ISO-7b |
 | `skip/1` | `dec10io.pl` | core | PL-ISO-7b |
-| `tab/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `tell/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `telling/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `told/0` | `dec10io.pl` | core | PL-ISO-7b |
@@ -332,7 +330,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `write_term/3` | `write.pl` | core | PL-ISO-9 |
 | `writeq/2` | `write.pl` | core | PL-ISO-9 |
 
-## DONE — admitted by SCRIP  (41)
+## DONE — admitted by SCRIP  (43)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -351,9 +349,11 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `number_chars/2` | `atom.pl` | core |  |
 | `number_codes/2` | `atom.pl` | core |  |
 | `sub_atom/5` | `atom.pl` | core |  |
+| `put_char/1` | `char_io.pl` | core |  |
 | `between/3` | `control.pl` | core |  |
 | `for/3` | `control.pl` | core |  |
 | `halt/1` | `control.pl` | core |  |
+| `tab/1` | `dec10io.pl` | core |  |
 | `format/2` | `format.pl` | core |  |
 | `current_op/3` | `oper.pl` | core |  |
 | `op/3` | `oper.pl` | core |  |
