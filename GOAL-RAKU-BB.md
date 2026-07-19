@@ -1,6 +1,34 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
-## ▶ LIVE CURSOR — s2026-07-19b (RAKU-100: `my sub` + `constant`/`my constant` + parenthesized listop `say(1,2,3)` LANDED — Claude Opus 4.8)
+## ▶ LIVE CURSOR — s2026-07-19c (RAKU-100: no-paren sub sigs + implicit final-expr return + empty stmt + bare `multi` — Claude Opus 4.8)
+
+**[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).** Session goal GOAL-RAKU-BB: RAKU-100 coverage arc, **data-driven rung selection** — rebuilt the first-blocker histogram over all 945 in-tier roast files (sub-decl variants = 91 files, the top tractable parser wall), then landed the foundational sub-declaration constructs it named. Two SCRIP commits: `84744d57`, `8c9d4aee`.
+
+**(1) NO-PAREN SUB SIGNATURE `sub foo { … }`.** Only `sub foo() { … }` (explicit empty parens) parsed before. Canonical Rakudo `Grammar.nqp` `routine-def`: the signature is `[ '(' <signature> ')' ]?` — **optional**. Added no-paren variants for `sub` / `my sub` / `multi sub` (and bare `multi`, see 4).
+
+**(2) IMPLICIT FINAL-EXPRESSION RETURN.** A block's value is its last statement's value (Raku semantics), so `sub sq($n) { $n * $n }` returns `$n*$n` with no explicit `return`. New `sub_body` nonterminal: `'{' stmt_list '}'` OR `'{' stmt_list expr '}'` — the trailing bare expr is wrapped as `TT_RETURN`, reusing the proven `IR_RETURN` machinery (NO lowerer return-path changes). ALL standalone sub/multi productions route through `sub_body`.
+
+**(3) EMPTY STATEMENT `;`.** So `sub t {…};` (semicolon after a block-bodied sub) and stray `;;` parse. New `stmt : ';'` → empty `TT_SEQ_EXPR`. **PITFALL FIXED:** an empty seq must be a TRUE no-op — it was initially SWALLOWING the following statement because an empty-seq node broke the port chain. Fix: skip empty `TT_SEQ`/`TT_SEQ_EXPR`/`TT_PROGRAM` (n==0) in BOTH `lower_rblock` AND the top-level `has_main` synthesis loop (`lower_raku.c`), mirroring the existing `TT_STMT`/`TT_CATCH` skips. (The top-level loop is a SEPARATE path from `lower_rblock` — both needed the skip; that's why the first fix looked like it didn't take.)
+
+**(4) BARE `multi NAME(…)` (without `sub`).** Canonical Raku: `multi NAME` ≡ `multi sub NAME`. Three productions (typed / untyped / no-param), all via `sub_body`. 2-candidate `Int`-vs-`Str` dispatch verified.
+
+**DISCIPLINE:** bison reproduced the committed `.tab.c`/`.tab.h` BYTE-FOR-BYTE before editing (toolchain match proven). Conflicts: 62 s/r UNCHANGED across all rungs; r/r 1→3 (+2, from the trailing-expr `sub_body` form and the empty-stmt form — benign, bison default resolves correctly, proven by the identical peer fail-sets). `raku.tab.h` and `raku.l`/`raku.lex.c` UNTOUCHED (no new tokens — pure grammar + lowerer). Both modes exercised for every construct.
+
+**⚠ METHOD IMPLICIT-RETURN ATTEMPTED + REVERTED (do not redo naively).** Routing METHOD bodies (in `class_body_list`) through `sub_body` BROKE class-body parsing — the method's trailing-`}` collides with the enclosing `class '{' class_body_list '}'` boundary, and bison's default conflict resolution mishandles it (every method parse-errored, even `return`-explicit ones). Methods stay on `block`. A clean method implicit-return needs a class-body-aware body nonterminal (or a GLR/precedence fix) — DEFERRED, its own rung.
+
+**⚠ ORTHOGONAL PRE-EXISTING GAPS (NOT introduced this session, filed for future rungs):** (a) **bareword no-paren call** — `say t` (call a 0-ary sub without `()`) trips the map/grep native `[SMX]` stub regardless of sub form; `say t()` works. Pre-dates this session. (b) **class-with-only-a-method** — `class C { method m {…} }; my $o = C.new; $o.m()` parse-errors, while attribute-bearing classes (the smoke `Point`/`Dog` classes) work — some class-body/method-call interaction, pre-existing. (c) The **3-level nested repeated-callee** miscompute from s2026-07-19b (`inc(dbl(inc(4)))`→11) still open.
+
+**SUITE WATERMARK: Raku 331/0 both modes** (318 baseline + 10 sub-form + 3 bare-multi smokes). Icon 14/14, SNOBOL4 7/7 both modes (Raku-only change; lang-blind gate GREEN — peers provably untouched). **Roast scoreboard: PASS 2→3, PARSE-FAIL 936→935** (one whole-file flip; the bulk of the gain is PARSE-DEPTH across hundreds of files that now parse their sub decls and hit the NEXT construct — expected per this file's MAGNITUDE note that whole-file flips lag construct coverage).
+
+**NEXT RUNG (RAKU-100, data-ordered):** (a) **method implicit-return** done right (class-body-aware `sub_body`, see the reverted-attempt caveat above) — high ripple (37 method-decl files). (b) the **general list model** — `(1,2,3)` as a first-class `Seq`/`List` VALUE (unblocks bare `for (1,2,3)`, general `xx` flattening, much of S03; `=>` pair-in-datastructure is 59 files). (c) **block-taking Test fns** — `lives-ok {…}`, `dies-ok {…}`, `throws-like`, `subtest … {…}` (52 test-fn files; needs block-arg support). (d) the bareword-no-paren-call `[SMX]` stub (correctness/coverage — 0-ary calls without parens are everywhere in roast). (e) `...` sequence operator (313 files, semantically deeper — lazy generation).
+
+**NEXT RUNG (ζ track):** RK-ZETA-2 (escapee heap path) still gated on RK-BLK-c capture rung (PHASE A).
+
+**TOUCHED THIS SESSION:** SCRIP — `src/parser/raku/raku.y` (+no-paren sub/my-sub/multi-sub, +`sub_body` nonterminal, +empty-`stmt`, +bare-`multi` ×3, +regen `raku.tab.c`), `src/lower/lower_raku.c` (empty-seq skip in `lower_rblock` + `has_main` loop), `scripts/test_smoke_raku.sh` (+13 smokes), `RAKU-COVERAGE.md` (regen). `.github` — `REPO-SCRIP.md` (removed the stale "never run bison/flex" prohibition per Lon directive, replaced with the regen+byte-verify discipline recent sessions actually follow), this cursor.
+
+---
+
+## ▶ PRIOR CURSOR — s2026-07-19b (RAKU-100: `my sub` + `constant`/`my constant` + parenthesized listop `say(1,2,3)` LANDED — Claude Opus 4.8)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a): never write push status into a doc).** Session goal GOAL-RAKU-BB: RAKU-100 coverage arc — three clean parser rungs, the declarator-trio's tractable two plus the highest-ripple list-in-listop context. PURE grammar/lexer (no runtime `.c`, no codegen, no lowerer): `libscrip_rt` untouched, peers provably unaffected.
 
