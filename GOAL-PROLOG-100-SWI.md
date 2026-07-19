@@ -6,7 +6,31 @@ uploaded `swipl-devel-master` + `gprolog-master` archives, not prose.
 
 ---
 
-## ⬅ LIVE CURSOR (2026-07-15, s58c)
+## ⬅ LIVE CURSOR (2026-07-19, Claude Opus 4.8 — coverage session, parallel to the perf session)
+**IN FLIGHT (NOT committed — no credential yet):** SWI-1 Step 1.2 `test_term.pl` gaps, on top of s58d's
+`b17431f8`. `term_variables/2` + `/3` LANDED and oracle-exact in mode-3 (dedup on deref'd cell identity;
+`/3` tail; variable IDENTITY preserved — binding a list element mutates the source term). Two bugs found+fixed
+en route (bracketed, not guessed): (1) dedup on reconstructed `Term*` failed because `pl_cell_to_term` mints a
+fresh `Term` per var occurrence → rewrote the walk to be CELL-NATIVE (dedup on `pl_deref` cell address);
+(2) SIGSEGV in `VARVAL_fn` core.c:1843 (gdb-bracketed) because the `[]` terminator was built with `pl_make_atom`
+= tag `DT_A` which in this DESCR system means SNOBOL4 ARRAY, not Prolog atom — Prolog atoms travel as `DT_S`
+string cells (per `pl_term_to_cell_word_m`); fixed the nil. `subsumes_term/2`: WIRED, truth table 5/6 — s2
+`subsumes_term(f(a,b),f(X,Y))` returns yes, should be NO (ground general must not subsume var-specific);
+bound-of-specific detection needs an empirical debug (NEXT). LIGHT ADMISSION PATH used (no new IR opcode/
+template — 4 edits: `rt_pl_term_variables_cell`+`rt_pl_subsumes_cell` in unification.c, name recognizer +
+handlers + det-target table in by_name_dispatch.c; lowering auto-routes via `rt_pl_det_builtin_target`).
+**NEXT:** (1) debug subsumes s2 empirically; (2) verify BOTH builtins in mode-4 (`--compile`); (3) full board
+×3 + smokes + no-new-global floor; (4) regen PROLOG-ISO-TRACKER.md (DONE 38→40); (5) continue test_term.pl
+(functor edges, numbervars/variant). refs/ symlinked from uploaded gprolog/swipl zips; oracles gprolog 1.4.5 +
+swipl 9.0.4 via apt (needed `apt-get update` first — stale index 404s).
+
+**⬆ SCOPE WIDENED THIS SESSION (Lon 2026-07-19): LADDER C — PL-DIALECT added below** (GNU ∪ SWI superset with
+a `--pl-dialect` flavor switch; divergence table MEASURED against both oracles). PL-DIA-0 (flag store) is the
+prerequisite AND resolves the parked streams/flags mutable-state question. Highest-value early rungs:
+PL-DIA-1 (double_quotes) + PL-DIA-2 (strings). This is now the strategic spine of the coverage track.
+
+---
+
 **Baseline MEASURED this session (not asserted):** scrip + libscrip_rt build rc=0; Prolog rung suite **138/138 ×3**
 (interp≡run≡compile). SWI archive `tests/` = **231 `.pl` files** across 22 dirs; `tests/core/` = **57 files**.
 gprolog admits **38 / 312** exports (PL-ISO tracker). `refs/` symlinked from the uploaded zips.
@@ -30,25 +54,36 @@ on test_unify are gprolog tool gaps (no `?=/2`, no `f()` arity-0), NOT SCRIP bug
 
 ## 🎯 THE HONEST TARGET (scope, stated up front so "100%" means something)
 
-"100%" is THREE finite mountains, NOT "every SWI test green" (that would silently promise SWI's own
-out-of-scope extensions, which PL-100 explicitly defers). The achievable, worth-chasing 100%:
+**⬆ SCOPE WIDENED (Lon directive, 2026-07-19): SCRIP is to be a FASTER, FULLY-COMPATIBLE alternative to
+BOTH GNU Prolog AND SWI-Prolog — a SUPERSET of both where they coincide, with a DIALECT FLAVOR SWITCH
+where they diverge.** The former "SWI extensions are a separate post-PL-100 conversation" deferral is
+LIFTED: modules, tabling, CLP, attributed vars, dicts, coroutining, the SWI string type, and unbounded
+integers are now IN SCOPE, gated behind the dialect switch (LADDER C — PL-DIALECT). "100%" is now FOUR
+mountains:
 
-| Target | Definition | Measured today | Gate |
+| Target | Definition | Measured 2026-07-19 | Gate |
 |---|---|---|---|
 | **T1 — ISO Part 1 core** | every ISO-standard builtin + directive | ~70% (PL-ISO tracker) | tracker `UNASSIGNED=0` for ISO rows |
-| **T2 — GNU Prolog surface** | gprolog's 312 real exports minus gprolog-only ext (sockets/linedit/debugger) | 38/312 = 12% | tracker DONE == (312 − `scope=gprolog-ext`) |
-| **T3 — SWI test suite, IN-SCOPE subset** | `tests/core` + `tests/library` + `tests/db` + `tests/charset` + `tests/rational` files that exercise ISO+shared features | 0 running (plunit ≠ SCRIP) | each extracted probe m3≡m4≡gprolog |
+| **T2 — GNU Prolog surface** | gprolog's 312 real exports minus gprolog-only ext (sockets/linedit/debugger) | 40/312 (term_variables+subsumes s99+1) | tracker DONE == (312 − `scope=gprolog-ext`) under `--pl-dialect=gnu` == gprolog 1.4.5 |
+| **T3 — SWI test suite, IN-SCOPE subset** | `tests/core`+`library`+`db`+`charset`+`rational` exercising ISO+shared | 0 running (plunit ≠ SCRIP) | each extracted probe m3≡m4≡ its oracle |
+| **T4 — SWI surface + extensions** ⬅ NEW | SWI string type, bignums, modules, tabling, dicts, attvars, CLP, coroutining | ~0% (LADDER C) | under `--pl-dialect=swi` == swipl 9.0.4 on the in-scope surface |
 
-### ⛔ EXPLICITLY OUT OF SCOPE (SWI extensions — a SEPARATE post-PL-100 conversation with Lon)
-These SWI `tests/` dirs and `core/` files test features PL-100 defers (modules, tabling, CLP, attributed
-vars, dicts, engines, coroutining, delimited continuations, threads, mmap-save, foreign):
-`attvar/ clp/ engines/ tabling/ transaction/ thread/ thread_wait/ save/ foreign/ xsb/ unprotected/ GC/`
-and core files `test_dict test_qq test_continuation test_coroutining test_tabling test_det_decl
-test_attvar test_read_attvar test_varprops test_meta_predicate test_undo test_prolog_listen test_gc
-test_lco test_body_index test_moved_ubody test_hash test_fastrw test_signals test_time test_locale
-test_env test_qcall test_inflimit test_resource_error test_unicode test_random`.
-A SWI-ext test that is trivially reducible to ISO semantics MAY be pulled in opportunistically, but the
-*target* does not include them and no rung fails for lacking them.
+**THE SUPERSET PRINCIPLE:** most of ISO is shared verbatim; the GNU↔SWI divergences are a BOUNDED,
+ENUMERABLE set (measured 2026-07-19 against both installed oracles — see LADDER C's divergence table).
+The default dialect (`--pl-dialect=superset`, or the flag `dialect=superset`) ACCEPTS the union and prefers
+the more capable behavior; `gnu`/`swi`/`iso` narrow it to bit-exact parity with that oracle. Every
+divergence is resolved at PARSE or LOWER time into the shared AST — the flag store (PL-ISO-12 / PL-DIA-0)
+is the single mechanism, and NOTHING dialect-related reaches the emitter (FACT RULE: language-blind
+templates holds — a dialect is a parser/lower parameter, exactly like the `.pl` first-dispatch string).
+
+### DIALECT-GATED (was "out of scope"; now LADDER C rungs, flavor-switched)
+These SWI features are IMPLEMENTED under `swi`/`superset` and correctly ABSENT under `gnu`/`iso`:
+modules, tabling, CLP(FD), attributed vars, dicts, coroutining (`freeze`/`dif`/`when`), delimited
+continuations, the string type, unbounded integers, rationals. STILL out of scope (host-VM internals, not
+language semantics — a later conversation): `thread/ thread_wait/ save/ foreign/ GC/ unprotected/ signals/`
+and their core files (`test_gc test_signals test_time test_locale test_env test_resource_error`). A test
+needing threads/foreign/save is `.xfail scope=host-vm`; everything else has a LADDER C home.
+
 
 ---
 
@@ -189,7 +224,113 @@ Beyond SWI's own tests: the canonical ISO conformance suite (Prolog ISO/IEC 1321
 
 ---
 
-## 🔗 DEPENDENCY MAP (why the order is the order)
+## 🪜 LADDER C — PL-DIALECT: GNU ∪ SWI as a superset, flavor-switched where they diverge (Lon 2026-07-19)
+
+**MEASURED DIVERGENCE TABLE (2026-07-19, both oracles installed via apt — gprolog 1.4.5, swipl 9.0.4):**
+
+| axis | `--pl-dialect=gnu` (== gprolog) | `--pl-dialect=swi` (== swipl) | resolved at | rung |
+|---|---|---|---|---|
+| `double_quotes` default | `codes` → `[97,98,99]` | `string` → string obj | PARSE | PL-DIA-1 |
+| `bounded` / integers | `true`, 64-bit wrap | `false`, unbounded bignum | LOWER+arith | PL-DIA-3 |
+| string as a type | absent (`existence_error string/1`) | present | PARSE+runtime | PL-DIA-2 |
+| `unknown` | `error` | `error` (COINCIDE — no switch) | — | PL-DIA-9 |
+| `occurs_check` | unset (`false`) | `false` | flag | PL-DIA-9 |
+| rationals (`1r3`) | absent | present | PARSE+arith | PL-DIA-4 |
+| modules (`M:G`, `:- module`) | minimal | full | PARSE+LOWER | PL-DIA-5 |
+| tabling (`:- table`) | absent | SLG | LOWER+engine | PL-DIA-6 |
+| dicts (`_{k:v}`) | absent | present | PARSE+runtime | PL-DIA-7 |
+| attvars (`freeze/dif/when`) | absent | present | runtime | PL-DIA-8 |
+
+**Design premise (why this fits the architecture, not fights it):** a Prolog *dialect* is a sub-parameter
+of the Prolog frontend, consumed ONLY in `src/parser/prolog/` and `src/lower/lower_prolog.c`, resolved into
+the shared AST/IR before the emitter ever runs. This is identical in kind to the `.pl` first-dispatch
+string and the double_quotes flag — the FACT RULE (no language identity past LOWER) is UNVIOLATED because
+the dialect never reaches emitter/templates. The flag store (PL-DIA-0) is the ONE mechanism; setting the
+dialect sets a bundle of flags; individual `set_prolog_flag/2` calls override within a dialect.
+
+Each rung's shape: (a) implement BOTH behaviors, (b) flag-gate the selection, (c) DUAL-ORACLE verify —
+gnu-behavior == gprolog AND swi-behavior == swipl, m3≡m4 for each. Superset dialect = accept the union.
+
+- [ ] **PL-DIA-0 — FLAG STORE + DIALECT SELECTOR ⭐ (prerequisite for the whole ladder; also closes the
+      parked PL-ISO-7b/12 "mutable state" design question — this IS the sanctioned per-process store).**
+      Implement `current_prolog_flag/2` + `set_prolog_flag/2` (PL-ISO-12 core rows) over a real flag table;
+      add `--pl-dialect=gnu|swi|iso|superset` CLI (default `superset`) + `:- set_prolog_flag(dialect, D)`;
+      a dialect sets a FLAG BUNDLE (double_quotes, bounded, string-type-on, unknown, occurs_check, …). The
+      table is the sanctioned mutable global (Lon sign-off REQUESTED IN WRITING here per the no-new-global
+      floor — this rung is where that decision lands). MODE34: mode-4 binaries bake the active flag bundle
+      at startup (same shape as the op/3 bake, scrip.c). **Completion: flag round-trip ×3; each dialect's
+      default bundle == that oracle's `current_prolog_flag` for {double_quotes,bounded,unknown}; rung55_flags ×3.**
+- [ ] **PL-DIA-1 — double_quotes (THE most visible divergence, highest test-unblock value).** Parser
+      consults `double_quotes` ∈ {codes, chars, atom, string}; rewrite quoted-string literals at read time.
+      gnu/iso default codes, swi default string. `back_quotes` (swi codes) too. **Completion: `"abc"` under
+      each flag value == the respective oracle; rung56_dquotes ×3; unblocks every SWI test using `"..."`.**
+- [ ] **PL-DIA-2 — SWI STRING TYPE.** First-class string (model on DT_S with a distinct string-vs-atom
+      marker so `string/1` ≠ `atom/1`); `string_concat/3 string_chars/2 string_codes/2 string_to_atom/2
+      atom_string/2 number_string/2 sub_string/5 split_string/4 string_length/2 text_concat/3 term_string/2
+      read_string/5 string_code/3`. Present under swi/superset; under gnu these `existence_error` exactly as
+      gprolog. Ties the many `$aop_*` string ops already half-present in by_name_dispatch.c. **Completion:
+      SWI `tests/core/test_string.pl` in-scope probes == swipl; gnu dialect errors match gprolog; rung57_string ×3.**
+- [ ] **PL-DIA-3 — UNBOUNDED INTEGERS (bignums).** Arithmetic engine grows an arbitrary-precision integer
+      path (GMP is already a build dep — `libgmp-dev` in install_system_packages.sh); flag `bounded` selects
+      64-bit-wrap (gnu) vs bignum (swi/superset); `max_integer`/`min_integer` flags present only when bounded.
+      Touches `arithmetic.c` + the DESCR int representation (a tagged bignum-pointer flavor). **Completion:
+      `X is 2^100` = exact 1267650600228229401496703205376 under swi/superset == swipl; gnu matches gprolog's
+      bounded result; the van Roy bignum-sensitive rows unaffected; rung58_bignum ×3.**
+- [ ] **PL-DIA-4 — RATIONALS + EXTENDED FLOAT.** `1r3` syntax + rational arith (`rational/1 rationalize/1
+      numerator/denominator`); `nan`/`inf`, `float_overflow`/`float_zero_div`/`float_undefined` flags. swi/
+      superset only. **Completion: SWI `tests/rational/` in-scope == swipl; rung59_rational ×3.**
+- [ ] **PL-DIA-5 — MODULE SYSTEM (sub-ladder).** `:- module/2`, `use_module/1,2`, `M:Goal` qualification,
+      `library(...)` autoload, `:- use_module(library(L))`. Parse-time qualification + a module-aware proc
+      table (predicate key gains a module component; unqualified calls resolve in the current module then
+      user/system). gnu = its minimal system, iso = none (bare), swi = full. LARGE — expect PL-DIA-5a
+      (parse+qualify), 5b (proc-table keying), 5c (autoload of the shipped libraries), 5d (meta_predicate
+      module transparency). **Completion: `tests/core` module probes == swipl under swi; qualified calls
+      resolve ×3; rung60_modules ×N.**
+- [ ] **PL-DIA-6 — TABLING (sub-ladder).** `:- table p/n`, SLG resolution (memo table + answer subsumption +
+      completion detection); the classic left-recursion-terminates + path/2 transitive-closure cases. swi/
+      superset only. LARGE — 6a (directive + call-shape recognition), 6b (answer/subgoal tables + variant
+      check), 6c (fixpoint/completion), 6d (well-founded negation, if pursued). **Completion: SWI
+      `tests/tabling/` in-scope core cases == swipl under swi; rung61_tabling ×N.**
+- [ ] **PL-DIA-7 — DICTS.** `_{k:v}` read syntax, `Dict.Key` functional notation, `get_dict/3 put_dict/4
+      dict_pairs/3 dict_create/3`. Parser + a dict runtime term. swi/superset only. **Completion:
+      `tests/core/test_dict.pl` in-scope == swipl; rung62_dict ×3.**
+- [ ] **PL-DIA-8 — ATTRIBUTED VARS + COROUTINING.** `put_attr/3 get_attr/3 del_attr/2`, attr_unify_hook
+      protocol, `freeze/2 dif/2 when/2`; the CLP(FD) foundation. swi/superset only. Touches the trail/bind
+      core (attr vars fire hooks on binding). LARGE — 8a (attr storage on var cells + hook dispatch on bind),
+      8b (freeze/dif/when over it), 8c (CLP(FD) `#= #< in ins label`). **Completion: `tests/attvar/` in-scope
+      + `tests/clp/` basic == swipl under swi; rung63_attvar ×N.**
+- [ ] **PL-DIA-9 — FLAG + DIRECTIVE PARITY SWEEP.** Full flag set both dialects ({unknown occurs_check
+      char_conversion double_quotes back_quotes bounded max_integer min_integer dialect gc last_call_optimisation
+      …}) with each dialect's defaults verified vs its oracle; directives `:- dynamic/discontiguous/multifile/
+      initialization(_,_)/ensure_loaded/set_prolog_flag` parity. **Completion: rung64_flags_dir ×3 == both oracles
+      per dialect; no-new-global floor held or the flag store sanctioned (PL-DIA-0).**
+- [ ] **PL-DIA-10 — LIBRARY PARITY (lists/apply/aggregate/assoc/pairs/ordsets/…).** Ship the shared library
+      preds (mostly pure Prolog — consult-and-run); flavor-gate where GNU and SWI differ in a pred's presence
+      or behavior. Overlaps SWI-2; the dialect switch decides which library surface is visible. **Completion:
+      in-scope `tests/library/` probes green ×3 under BOTH dialects against their oracle.**
+- [ ] **PL-DIA-11 — I/O + FORMAT + READ/WRITE DIVERGENCES.** format directive UNION (`~p ~q ~e ~f ~g ~r ~c
+      ~s ~t ~| ~+ ~d ~D ~* ~a ~w`), write_term option UNION (quoted ignore_ops numbervars max_depth portray
+      spacing fullstop), read_term option union, stream aliases. Depends on PL-ISO-7b (streams) + PL-DIA-0
+      (flags). Flavor-gate where they differ. **Completion: `test_write test_read test_format` in-scope ==
+      both oracles per dialect ×3.**
+- [ ] **PL-DIA-12 — EXCEPTION / ERROR-TERM PARITY.** ISO error terms are shared; SWI adds a context arg.
+      Ensure each dialect's thrown error terms match its oracle exactly (gnu: `error(E, Context)` gprolog
+      shape; swi: `error(E, SwiContext)`). Ties the s56 static-unknown-pred silent-fail fix. **Completion:
+      error-term probes == both oracles per dialect ×3.**
+- [ ] **PL-DIA-FENCE — the dual-compatibility milestone.** Curated dual conformance corpus:
+      `--pl-dialect=gnu` run == gprolog on the full GNU surface (T2) ∧ `--pl-dialect=swi` run == swipl on the
+      in-scope SWI surface (T4) ∧ `superset` accepts the union ∧ every divergence flag-documented in the table
+      above ∧ per-iteration performance ≤ BOTH oracles on the shared benchmark set (this is the hand-off seam
+      to the PERFORMANCE session — LADDER B / the RSP-FINISH work). SWI host-VM internals
+      (threads/foreign/save/GC) remain the only deferred set.
+
+**LADDER C DEPENDENCY NOTES:** PL-DIA-0 (flags) blocks the whole ladder — do it FIRST, and it doubles as the
+PL-ISO-12 flag rows + the answer to the streams/flags mutable-state question. PL-DIA-1 (double_quotes) and
+PL-DIA-2 (strings) are the highest test-unblock value (the most SWI tests fail purely on `"..."` meaning a
+string) — do them right after PL-DIA-0. PL-DIA-5/6/8 (modules/tabling/attvars) are the LARGE sub-ladders and
+come after the syntax-level divergences are closed, so they land against a near-complete shared surface.
+
+
 - SWI-0 blocks everything (no harness → no test runs).
 - SWI-1 Step 1.5/1.6 are where the TWO known correctness bugs die (PL-ISO-14 var-goal GEN + s56
   static-unknown-pred silent-fail) — these make every *other* coverage gap LOUD instead of a wrong answer,
