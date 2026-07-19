@@ -1,5 +1,29 @@
 # GOAL-SNOCONE-IR-BB.md — Snocone IR Interpreter + BB Broker
 
+## LIVE CURSOR (2026-07-19, Claude Sonnet 4.6, SCRIP f0f21b5d)
+
+**Beauty suite: 11/20 PASS** (was 0/20 at session start; was 8/14 April 2026 on the now-deleted mode-2 path).
+
+**NOTE:** This file's Steps section (Phase 1/2/3 SC-1…SC-9) is archaeology — it describes the
+deleted mode-2 IR-graph interpreter path.  Snocone now runs entirely on the native Byrd-Box path
+(mode-3 --run / mode-4 --compile), sharing `lower_snobol4.c` with SNOBOL4.  The canonical
+current state is in `FINDING-2026-07-19-CLAUDE-SNOCONE-BEAUTY-0-TO-11-OF-20.md`.
+
+**Next rung:** `sno_pat_node` in `src/lower/lower_snobol4.c` — add `case TT_FNC:` (and
+general value-expr) to materialize the expression into a synthetic temp, then route to
+`IR_MATCH_DEFER` on that temp name.  This unblocks Gen, Qize, TDump, case, fence, semantic,
+trace (7 subsystems, all bottlenecked on kind=45 TT_FNC in pattern position).
+After that: TT_CAPT_CURSOR (omega), then monitor-first for roman (runtime divergence).
+
+**Gate command:**
+```bash
+bash scripts/test_smoke_snobol4.sh   # must stay 7/7
+bash scripts/test_smoke_snocone.sh   # must stay 5/5
+bash scripts/test_beauty_snocone_subsystems.sh Gen Qize ReadWrite ShiftReduce TDump XDump arith assign case counter fence global match omega roman semantic stack strings trace tree
+```
+
+---
+
 ## ⛔ FACT RULES POINTER (Lon 2026-06-06)
 ONE MEDIUM, INVISIBLE + TEMPLATE-ONLY EMISSION (corrected): canonical text in GOAL-SNOBOL4-BB.md / GOAL-ICON-BB.md / GOAL-PROLOG-BB.md / GOAL-RAKU-BB.md and RULES.md. ZERO BINARY emission anywhere in a `bb_*.cpp` (top level or helpers); `x86()` internals are the ONLY emitter of BINARY and TEXT.
 
