@@ -1,5 +1,27 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
+## ▶ LIVE CURSOR — s2026-07-20 (RAKU-100: optional trailing `;` before `}` + paren-less if/while/unless/until conditions — two syntax rungs — Claude Opus 4.8)
+
+**[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+
+Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed **two adjacent pure-grammar syntax rungs** that between them make idiomatic Raku control-flow parse. PURE grammar (`raku.y` + regen `raku.tab.c`): no lexer (no new tokens, `raku.tab.h` UNTOUCHED), no lowerer, no runtime, no template.
+
+**RUNG 1 — OPTIONAL TRAILING `;` BEFORE `}` (the block-terminator rung).** Every SCRIP Raku `stmt` ended in a hard `';'`, so `for 1..3 -> $v { say $v }` (no `;` before `}`) was a PARSE ERROR — as were `{ $x = $x+$v }`, `{ foo() }`, and every `for`/`if`/`while`/`else` body written the natural way. Highest-leverage: almost no real/roast code writes `;` right before `}`. VERIFIED vs RAKUDO `src/Raku/Grammar.nqp`: `statementlist` = `statement <.eat-terminator>`*, and `eat-terminator` (Grammar.nqp:1410) accepts a real `;` **OR bumping into `)]}` OR end-of-text** — terminator genuinely optional before a closing brace. EDIT: trailing-no-semi final-statement variants on `block` (`'{' stmt_list expr '}'` appending the trailing bare expr as a plain final *statement*, NO `TT_RETURN` wrap; plus `KW_SAY`/`KW_PRINT` trailing forms for the two dominant statement-only heads) and the same `KW_SAY`/`KW_PRINT` forms on `sub_body`/`method_body` (their bare-`expr` trailing form already existed, `TT_RETURN`-wrapped — left intact, so implicit-final-expression sub return still works).
+
+**RUNG 2 — PAREN-LESS `if`/`while`/`unless`/`until` CONDITIONS.** SCRIP forced `if ( … )`; canonical Raku makes the parens OPTIONAL (`if $x > 3 { }`). Safe because `{` never begins an expression in this grammar (`closure`=`'{' expr '}'` is ONLY a `map`/`grep`/`sort` argument, never a standalone atom), so after reducing the condition `expr`, seeing `{` unambiguously starts the `block`. EDIT: added `KW_IF expr block` (+`KW_ELSE block`/`KW_ELSE if_stmt` chain), `KW_WHILE expr block`, `KW_UNLESS expr block` (+else), `KW_UNTIL expr block`. **Dangling-else verified CORRECT** (`if $a==1 { if $b==1 {…} else {…} }` binds the `else` to the INNER if — the bison shift resolution is semantically right; smoke `noparen_dangling_else`).
+
+**DISCIPLINE:** bison 3.8.2 reproduced committed `raku.tab.c/.h` BYTE-FOR-BYTE before editing (toolchain match proven); regen is byte-stable to the same path. **Conflicts: 68→72 s/r (+4), 3 r/r UNCHANGED.** The +4 s/r are the benign dangling-else shifts on the with-else forms + the paren/paren-less decision points, ALL resolving correctly (behaviorally proven). `raku.tab.h` untouched (no new tokens). Both modes exercised for every construct.
+
+**SUITE WATERMARK: Raku m3 375/0, m4 359/16 both modes** (355/339+16 baseline + 12 block-terminator smokes + 8 paren-less smokes = 20 new, all `[m3 PASS] [m4 PASS]`). **The 16 m4 FAILs are the PRE-EXISTING `grammar_*`/`gram_native_*`/`gram_seq_*` native-box fails (RK-GRAM-3b/3c m4-fragility), byte-identical to baseline — diff-proven, no new fail, no swap.** Icon 14/14, SNOBOL4 7/7 both modes. Lang-blind gate GREEN. Concurrency audit's 6 violations are pre-existing cross-goal doc-anchor drift (Prolog/SNOBOL4 goal files, untouched — identical on pristine tree, stash-proven). Template purity: the 4 pre-existing `bb_call`/`bb_call_write_slot` stubs only (no template touched).
+
+**NEXT RUNG (RAKU-100, this session's tails + histogram):** (a) **trailing bare statement-only forms still uncovered** — `$var.meth()` as a trailing no-semi statement (`for … { $o.show() }`) still parse-errors: it's a `VAR_SCALAR '.' IDENT '(' ')' ';'` *statement*, not reachable as `expr`; the long tail of stmt-only heads (method-call-on-scalar, `$x++`, array/hash element set) each want a trailing form, OR factor `;` out of `stmt` entirely (heavier — measure conflict blast radius first). (b) list-model tails from s2026-07-19e: pair-list iteration `for a=>1, b=>2`, `.kv` multi-var iteration `for %h.kv -> $k,$v`. (c) the pre-existing 3-level nested repeated-callee miscompute (`inc(dbl(inc(4)))`→11 — correctness, not coverage). (d) block-taking Test fns (`lives-ok`/`throws-like` — needs block-arg + EVAL). (e) `...` sequence operator (313 files, deeper).
+
+**NEXT RUNG (ζ track):** RK-ZETA-2 (escapee heap path) still gated on RK-BLK-c capture rung (PHASE A).
+
+**TOUCHED THIS SESSION:** SCRIP — `src/parser/raku/raku.y` (RUNG 1: trailing-no-semi on `block` ×3, `sub_body` ×2, `method_body` ×2; RUNG 2: paren-less `if` ×3, `while` ×1, `unless` ×2, `until` ×1; +regen `raku.tab.c`), `scripts/test_smoke_raku.sh` (+20 smokes). `.github` — this cursor.
+
+---
+
 ## ▶ LIVE CURSOR — s2026-07-19e (RAKU-100: general list model — list-value atom + for-over-list/array/comma-list — Claude Sonnet 4.6)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
