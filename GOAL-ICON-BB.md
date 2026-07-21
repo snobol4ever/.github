@@ -1,5 +1,20 @@
 # GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
 
+## ⛔ FACT RULE — O0-DEV: FEATURE BUILDS ARE `-O0`; `-O1`/`-O2` ARE PERF-ONLY (Lon directive, 2026-07-21 s119)
+
+**While developing, debugging, or iterating on any FEATURE, EVERY build is `-O0`. `-O1` and `-O2` are FORBIDDEN during feature work and are reserved EXCLUSIVELY for perf/benchmark/release measurement.** The runtime `libscrip_rt.so` at `-O2` takes MINUTES (heavy template TUs), which is intolerable in a compile→test→fix loop and burned real session time repeatedly. `scrip` itself already builds `-O0` (Makefile `CBASE`/`CXXRT`); the offender was the runtime `.so`, whose `RT_OPT` default was `-O2`.
+
+**THE MECHANICAL ANCHOR (why this is a FACT RULE, not a convention):** the Makefile default is now `RT_OPT ?= -O0 …` (SCRIP `Makefile` lines ~33 + ~281), so a bare `make libscrip_rt` / `make scrip` / `build_scrip.sh` is `-O0` by DEFAULT — the fast path is the path you get for free. `-O2` is now EXPLICIT opt-in, used ONLY for measurement:
+```
+make RT_OPT="-O2 -g -fno-strict-aliasing -fwrapv -fno-omit-frame-pointer" libscrip_rt   # perf/bench ONLY
+PERF=1 bash scripts/jcon_selfhost_build.sh                                               # perf .so via the selfhost builder
+```
+Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_build.sh PERF=1`; the official-oracle trees build their own way), so the default flip does NOT silently corrupt any perf number — a perf run that forgets `-O2` is a mis-measurement the operator owns, not a default that lies.
+
+**COMPLETION TEST:** (a) `grep -nE 'RT_OPT *[?:]?= *-O0' Makefile` matches (default is `-O0`) and no un-opted `RT_OPT ?= -O2` remains; (b) session-setup / feature-dev build scripts (`build_scrip.sh`, smoke/crosscheck runners) invoke `make` with NO `RT_OPT` override (so they inherit `-O0`); (c) any `-O2` in a script is either a monitor/oracle-side helper (separate lib) or gated behind an explicit perf flag (`PERF=1`); (d) this FACT RULE body is byte-identical across the six GOAL-*-BB files (md5-locked, per the Prolog file's sibling-verbatim note).
+
+**LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
+
 ## ▶ LIVE CURSOR (updated every handoff — RULES.md STALE-ORIENTATION rule)
 - **✅✅✅ ICN-CASE-ALT-BODY (2026-07-21, Claude Opus 4.8) — SCRIP `(uncommitted→see commit)`. Icon 241/20/32 (zero regression). SELF-HOST BASE CASE RE-PROVEN at HEAD+fix with PRISTINE jtran source: `hello, world` end-to-end SCRIP-jtran→jlink→JVM = oracle.** After rebuilding jtran at `3c96859c`, even `hello` aborted `Run-time error 500 / record(ir_Label)` at `gen_bc.icn:84` (`bc_conditional_transfer_to` `"ir_Label"` arm `put(s,j_goto_w(\bc_ir2bc_labels[p])) | runerr(500,p)`). Root: **an alternation used as a `case` arm BODY entered at β (resume) not α (fresh)** — `case 1 of {1:{write("A")|write("B")}}` printed `B` only. Arm-body counterpart of the 2026-07-19 CASE-ALT-CLOSE selector fix. FIX (one line, `lower_icon.c` TT_CASE): `if (is_resumable(t->c[bi])) lc_γ_to_α(idc, be);` — α-force the matched arm-body entry edge (default `build` wiring β-stamps it). Mirrors selector side (:516/:528) and `lower_every` (:1111). Verified: smoke 14/14 m3+m4, gate 241/20/32, hello self-hosts pristine. **NOTE:** committed locally only — push needs GitHub credentials absent from this container.
 

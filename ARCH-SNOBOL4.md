@@ -65,7 +65,7 @@ monitor_ack_fd          // from MONITOR_GO_PIPE env var
 Added 2026-05-31 (Lon "Eureka"); CORRECTED 2026-06-01 (Lon): the built pattern is a graph of EMITTED
 BYRD-BOXES (`bb_box_fn`) driven by `bb_broker.c`, NOT a `PATND_t` and NOT a `tree_t`. See
 GOAL-SNOBOL4-BB.md "CORRECTED PATTERN ARCHITECTURE" for the full statement + decided forks.
-Mode 2 (interp) is OUT OF SCOPE here; this section governs ONLY mode 3 (`--run`, BINARY arm → RX pool) and
+Modes 1 (AST interp) and 2 (IR interp) are DELETED (long gone — see PLAN.md Architecture + GOAL-MODE34-IDENTICAL.md); this section governs the only two modes that exist: mode 3 (`--run`, BINARY arm → RX pool) and
 mode 4 (`--compile`, TEXT arm → `as`/`gcc`). Both are pure LOWER + EMITTER, no interpreter. RULES recap: the ONLY emitted thing that does work is
 a **BB code block** (a byrd box) reached via `emit_core.c` dispatch; **XA blocks** only wrap/stitch
 (file header/footer, flat prologue/epilogue, data/rodata, entry dispatch, pattern-blob framing). So in
@@ -110,10 +110,9 @@ A SNOBOL4 match statement `SUBJ ? PAT [= REPL]` processes in five phases, EACH e
 Phase 2 (build) and phase 3 (run) are GENUINELY SEPARATE steps, matching SNOBOL4 first-class patterns:
 the pattern object is constructed (REF_INVARIANT / BB_PAT_BUILD / STITCH boxes — or, for a fully-invariant
 pattern, just sealed at compile time and referenced), then matched (BB_MATCH drives the box-graph via the
-broker). The current mode-2 `IR_SCAN` super-node + hidden `IR_alloc` sub-graph is the WRONG layer
-(re-derives topology at exec — the `sno_ring_to_tree` anti-pattern relocated into the lowerer) and is NOT
-the modes-3/4 design; it stays intact (mode-2 must not regress) until the native chain retires it
-(GOAL-SNOBOL4-BB PB-RB-CONV).
+broker). (Historical note: the old mode-2 `IR_SCAN` super-node + hidden `IR_alloc` sub-graph re-derived
+topology at exec — the `sno_ring_to_tree` anti-pattern relocated into the lowerer — and was the WRONG layer.
+Mode 2 is DELETED, so that path is gone; the native build/run chain above is the only design.)
 
 ### OPTIMIZATION — ALL-INVARIANT BLOB FREEZE (second step, after correctness)
 Invariance is a COMPILE-TIME property of the pattern subtree: a pattern all of whose components are
