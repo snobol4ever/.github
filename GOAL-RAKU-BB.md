@@ -1,6 +1,30 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
-## ▶ LIVE CURSOR — s2026-07-20 (RAKU-100: optional trailing `;` before `}` + paren-less if/while/unless/until conditions — two syntax rungs — Claude Opus 4.8)
+## ▶ LIVE CURSOR — s2026-07-21 (RAKU-100: trailing stmt-only forms before `}` + postfix statement modifiers + elsif — three pure-grammar rungs — Claude Opus 4.8)
+
+**[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+
+Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed **three adjacent pure-grammar rungs**. PURE grammar (`raku.y` + regen `raku.tab.c`): NO lexer (`raku.tab.h` semantically untouched — only a `#line` bump from a 6-line helper; NO new tokens), no lowerer, no runtime, no template. Peers provably untouched (only `raku.y` changed): Icon 14/14, SNOBOL4 7/7 both modes.
+
+**RUNG (a) — TRAILING STATEMENT-ONLY FORMS BEFORE `}`.** Continuation of s2026-07-20's trailing-bare-*expr* rung: that covered exprs + `say`/`print`, but stmt-only heads that aren't exprs still parse-errored (`for @a { $o.show() }`). Added 7 trailing-no-semi productions to `block` for method-call (args/no-args), field-assign (`$o.x=v`), twigil-assign (`$!x=v`), array-element set (`@a[i]=v`), hash-element set (`%h{k}=v`), and `take`. Each builds the identical AST as its `;`-terminated `stmt` counterpart; NOT `TT_RETURN`-wrapped (statements, not implicit-return values). VERIFIED vs RAKUDO `Grammar.nqp`: `statementlist`=`<statement> <.eat-terminator>`*, eat-terminator accepts `;` OR bump-into-`)]}` OR EOF — terminator optional before `}` for EVERY statement, not just exprs. Conflicts 72→74 s/r.
+
+**RUNG (b) — POSTFIX STATEMENT MODIFIERS.** `EXPR if/unless COND`, `EXPR while/until COND`, `EXPR for LIST` ($_ topic), + `say`/`print`-head variants. Among the most idiomatic + roast-common Raku forms, previously ENTIRELY absent. Pure grammar reusing TT_IF / TT_UNLESS / TT_WHILE / TT_UNTIL / TT_EVERY+TT_ITERATE AST + lowering (new one-line `seq1()` helper wraps the modified statement as a single-stmt seq body). VERIFIED vs RAKUDO `statement-mod-cond:sym<if|unless>` + `statement-mod-loop:sym<for|while|until>`. **Conflicts: r/r 3→8 (+5).** Examined via `-Wcounterexamples`: the +5 are the PRE-EXISTING bare-`block`-as-statement vs `block`-as-expression-`atom` ambiguity, now surfaced on the modifier-token lookaheads; they resolve CORRECTLY (bison prefers `stmt: block`), proven behaviorally — all smokes green + hash-literal / `map {} LIST` / `grep {} LIST` / `if`-block all still parse. Accepted the benign conflicts rather than risk a deeper block/atom refactor (same call prior sessions made on benign conflict growth). Subset scope: `when`/`with`/`without`/`given` cond/loop modifiers NOT done (need topic/definedness machinery — deferred tail); modifier head is `expr` or `say`/`print` only (a method-call statement head like `$o.go() for …` still wants its own form, same stmt-only-head shape as rung (a)).
+
+**RUNG (c) — `elsif` KEYWORD.** `KW_ELSIF` was ALREADY lexed (`raku.l:60`) but UNUSED in the grammar, so `elsif` parse-errored while `else if` chains worked. Wired `KW_ELSIF` into `if_stmt` via a new `elsif_tail` nonterminal (paren + paren-less, chainable, optional trailing `else`), building nested `TT_IF` identical to the `else if` desugaring. NO lexer/token change (token already existed; `%type <node> elsif_tail` added). Conflicts 74→75 s/r (+1, benign dangling-else-style shift). Dangling-else/else-binding proven across mid-chain / fall-to-else / no-else / 3-way-chain / parenthesized, both modes.
+
+**SUITE WATERMARK: Raku m3 394/0, m4 378/16 both modes** (375/359 baseline + 19 smokes: 6 trailing-form + 8 postfix-modifier + 5 elsif; m3 375→394 = +19 ✓, m4 359→378 = +19 ✓). **The 16 m4 FAILs are the PRE-EXISTING `grammar_*`/`gram_native_*`/`gram_seq_*` native-box fails (RK-GRAM-3b/3c m4-fragility), byte-identical to baseline — diff-proven, no new fail, no swap.**
+
+**DISCIPLINE:** bison 3.8.2 reproduced committed `raku.tab.c`/`.tab.h` BYTE-FOR-BYTE before editing (toolchain match proven). Both modes exercised for every construct. Final conflicts: **75 s/r, 8 r/r** (from 72/3 baseline: +3 s/r trailing+elsif, +5 r/r block/atom-on-modifier, all resolving correctly, behaviorally proven).
+
+**NEXT RUNG (RAKU-100, this session's tails):** (a) stmt-only-head modifier bodies — `$o.go() for 1..3` (method-call head + modifier, same stmt-only-head shape). (b) `with`/`without` conditional modifiers + `given` loop-modifier (need `$_`-topicalize + definedness). (c) chained comparison `1 < $x < 10` (grammar + `&&` desugar). (d) compound assignment `+=`/`-=`/… (needs lexer tokens + `$x=$x OP y` desugar). (e) the pre-existing 3-level nested repeated-callee miscompute (`inc(dbl(inc(4)))`→11 — correctness, not coverage). (f) hash method-calls `.kv`/`.keys`/`.values` + two-var `-> $k,$v` binding (heavier: grammar + lowerer AST-synth + runtime helper — the s2026-07-19e list-model tail).
+
+**NEXT RUNG (ζ track):** RK-ZETA-2 (escapee heap path) still gated on RK-BLK-c capture rung (PHASE A).
+
+**TOUCHED THIS SESSION:** SCRIP — `src/parser/raku/raku.y` (rung a: trailing-no-semi ×7 on `block`; rung b: `seq1()` helper + postfix modifiers ×11; rung c: `elsif_tail` nonterminal ×6 + `%type` decl; +regen `raku.tab.c`/`.tab.h`), `scripts/test_smoke_raku.sh` (+19 smokes). `.github` — this cursor.
+
+---
+
+## ▶ PRIOR CURSOR — s2026-07-20 (RAKU-100: optional trailing `;` before `}` + paren-less if/while/unless/until conditions — two syntax rungs — Claude Opus 4.8)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
