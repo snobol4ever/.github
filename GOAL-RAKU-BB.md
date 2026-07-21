@@ -1,5 +1,29 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
+## ▶ LIVE CURSOR — s2026-07-21b (RAKU-100: trailing stmt-only block forms + postfix statement modifiers + compound assign +=/-=/*=/÷= + ++/-- + defined-or // — Claude Sonnet 4.6)
+
+**[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+
+Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed **three rungs** across grammar + runtime. Starting watermark: m3 375/0, m4 359/16 (from baseline). Final: **m3 406/0, m4 390/16** (+31 smokes, all `[m3 PASS] [m4 PASS]`).
+
+**RUNG (a) — TRAILING STATEMENT-ONLY FORMS BEFORE `}`.** Added 7 trailing-no-semi productions to `block` for method-call (args/no-args), field-assign (`$o.x=v`), twigil-assign (`$!x=v`), array-element set (`@a[i]=v`), hash-element set (`%h{k}=v`), and `take`. So `for @a { $o.show() }` now parses. Semantics VERIFIED vs RAKUDO `Grammar.nqp`: `eat-terminator` accepts `;` OR bump-into-`)]}` OR EOF — terminator genuinely optional before `}` for EVERY statement. s/r 72→74 (+2 benign). 6 smokes.
+
+**RUNG (b) — POSTFIX STATEMENT MODIFIERS.** `EXPR if/unless COND`, `EXPR while/until COND`, `EXPR for LIST` ($_ topic), + `say`/`print`-head variants. Previously ENTIRELY absent from SCRIP Raku. Pure grammar reusing existing TT_IF/TT_UNLESS/TT_WHILE/TT_UNTIL/TT_EVERY+TT_ITERATE + new `seq1()` one-line helper. VERIFIED vs RAKUDO `statement-mod-cond:sym<if|unless>` + `statement-mod-loop:sym<for|while|until>`. Conflict note: r/r 3→8 (+5, the pre-existing block-as-stmt vs block-as-atom ambiguity surfaced by modifier-token lookaheads; resolves correctly, all smokes proven). 8 smokes.
+
+**RUNG (c) — COMPOUND ASSIGN `+=`/`-=`/`*=`/`/=`/`~=`, `++`/`--`, AND `//` DEFINED-OR.** New lexer tokens `OP_ADD_EQ` `OP_SUB_EQ` `OP_MUL_EQ` `OP_DIV_EQ` `OP_CAT_EQ` `OP_INC` `OP_DEC` `OP_DOR` (added before single-char counterparts in `raku.l` so longer patterns win; `raku.lex.c` regenned). Grammar: compound assigns + `$x++`/`--$x` as `stmt` alternatives desugaring to `TT_ASSIGN($x, TT_ADD/SUB/…($x,e))`; `//` as new `dor_expr` precedence layer between `jct_expr` and `range_expr`, desugaring to `__rk_dor(a,b)`. Runtime: two-line `__rk_dor(a,b)` + one-line `__rk_defined(x)` added to `by_name_dispatch.c`; `libscrip_rt.so` rebuilt. Semantics: `0 // "x"` → `0` (zero IS defined), undef → fallback. s/r 74→76 (+2 benign). 12 smokes.
+
+**DISCIPLINE:** bison 3.8.2 + flex 2.6.4 reproduced committed `raku.tab.c`/`.tab.h`/`raku.lex.c` BYTE-FOR-BYTE before editing (toolchain match proven). Both modes exercised for every construct throughout. M4 fail set byte-identical to baseline at every checkpoint (diff-proven, no swap). Peers: Icon 14/14, SNOBOL4 7/7, both modes.
+
+**FINAL CONFLICT COUNT: 76 s/r, 8 r/r** (from 72/3 baseline: +4 s/r all benign, +5 r/r the block/atom-on-modifier pre-existing ambiguity, all resolving correctly).
+
+**NEXT RUNG (RAKU-100):** (a) stmt-only-head modifier: `$o.go() for 1..3` (method-call head before modifier — same gap as trailing-block rungs). (b) `with`/`without`/`given` modifiers (need $_ topicalize). (c) hash method-calls `.kv`/`.keys`/`.values` + two-var `-> $k,$v` binding (grammar + lowerer AST-synth + runtime — heavier). (d) pre-existing 3-level nested-callee miscompute `inc(dbl(inc(4)))`→11 (correctness bug, needs monitor). (e) `...` sequence operator (313 roast files).
+
+**NEXT RUNG (ζ track):** RK-ZETA-2 (escapee heap path) gated on RK-BLK-c capture rung (PHASE A).
+
+**TOUCHED THIS SESSION:** SCRIP — `src/parser/raku/raku.y` (+regen `raku.tab.c`/`.tab.h`), `src/parser/raku/raku.l` (+regen `raku.lex.c`), `src/runtime/by_name_dispatch.c`, `scripts/test_smoke_raku.sh` (+31 smokes). `.github` — this cursor.
+
+---
+
 ## ▶ LIVE CURSOR — s2026-07-21 (RAKU-100: trailing stmt-only forms before `}` + postfix statement modifiers + elsif — three pure-grammar rungs — Claude Opus 4.8)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
