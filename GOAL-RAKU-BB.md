@@ -1,6 +1,33 @@
 # GOAL-RAKU-BB.md — Raku goal-directed onto the shared four-port IR (the fourth musketeer)
 
-## ▶ LIVE CURSOR — s2026-07-21b (RAKU-100: trailing stmt-only block forms + postfix statement modifiers + compound assign +=/-=/*=/÷= + ++/-- + defined-or // — Claude Sonnet 4.6)
+## ▶ LIVE CURSOR — s2026-07-21c (RAKU-100: trailing explicit `return` + method-call chaining + scalar-method-call modifier head — three pure-grammar rungs — Claude Opus 4.8)
+
+**[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+
+Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed **three pure-grammar rungs** (`raku.y` + regen `raku.tab.c` only; NO lexer — `raku.lex.c` reproduced byte-for-byte AND unchanged post-edit; no lowerer/runtime/template). Starting watermark: m3 406/0, m4 390/16. Final: **m3 416/0, m4 400/16** (+10 smokes each, all `[m3 PASS] [m4 PASS]`). The 16 m4 FAILs are the pre-existing `gram_native_*`/`gram_seq_*`/`grammar_*` native-box set, byte-identical to baseline at every checkpoint (diff-proven, no swap).
+
+**RUNG (a) — TRAILING EXPLICIT `return` BEFORE `}`.** `return EXPR` / bare `return` as the trailing (no-semi) final form in `sub_body`, `method_body`, `block`. `KW_RETURN` was already lexed and `return EXPR;` (with `;`) already worked — the gap was purely the trailing-no-semi final position (same shape as s2026-07-21b's trailing-form rung, which omitted `return`). Builds identical `TT_RETURN` to the implicit final-expr path. VERIFIED vs RAKUDO `eat-terminator` (optional before `}`). Zero new conflicts.
+
+**RUNG (b) — METHOD-CALL CHAINING ON A CALL RESULT.** `C.new.go()`, `$o.f().g()` parse-errored (method-call invocant had to be a bare `atom`). Added left-recursive `call_expr '.' IDENT ['(' [arg_list] ')']` forms, matching RAKUDO's uniform postfix `dotty` (invocant is any term). +2 s/r (benign — bison shifts = correct left-assoc chaining), r/r unchanged. Both modes proven (m4 `C.new.go()` → 42).
+
+**RUNG (c) — SCALAR-METHOD-CALL AS STATEMENT-MODIFIER HEAD.** `$o.go() for 1..2` / `$o.n(9) if 1` parse-errored (the dedicated `VAR_SCALAR '.' IDENT '(' … ')' ';'` statement productions shadowed the expr-reduction; a scalar method call does NOT reduce to `expr` in statement position — empirically proven, removing the stmt forms broke the bare case too). Fix: factored a `scalar_methcall` nonterminal (AST-building logic written ONCE — honors NO-DUP-LOGIC rule) used for both `scalar_methcall ';'` and `scalar_methcall {if|unless|while|until|for} expr ';'`. Zero net new conflicts.
+
+**FINAL CONFLICTS: 78 s/r, 8 r/r** (from 76/8 baseline: +2 s/r chaining, all resolving correctly, behaviorally proven).
+
+**DISCIPLINE:** bison 3.8.2 + flex 2.6.4 reproduced committed `raku.tab.c`/`.tab.h`/`raku.lex.c` BYTE-FOR-BYTE before editing. Pure-grammar: `raku.lex.c` re-flexed post-edit = byte-identical to committed (no token change). Peers untouched (only `raku.y` changed): Icon 14/14, SNOBOL4 7/7, both modes. Codegen NOT touched (parser only) → no `.s` artifact regen applies (regen scripts are snobol4/icon-specific).
+
+**FOUR PRE-EXISTING GAPS FOUND, SCOPED OUT (NOT regressions — verified against committed grammar with changes stashed):**
+1. **Method names that are operator/keyword tokens** — `method x()` (→ `OP_REP_X`), `method is()` (→ `TESTOP`) parse-error; `method g()` works. Needs a lexer start-condition (method-name position) or grammar productions accepting the operator tokens as method names. LEXER work — deserves a fresh session.
+2. **Early `return` from a nested block followed by more statements** — `{ if $x { return 1 }; return 2 }` returns blank (not 2), in BOTH modes (not a divergence). Control-flow/unwind bug — monitor-first.
+3/4. (subsumed diagnostics of the above.)
+
+**NEXT RUNG (RAKU-100):** (a) the method-name-is-operator-token lexer rung (gap 1 above — fresh session). (b) `with`/`without`/`given` modifiers (need `$_`-topicalize + definedness). (c) the early-return-from-nested-block control-flow bug (gap 2 — monitor). (d) `...` sequence operator (313 roast files). (e) chained comparison `1 < $x < 10`.
+
+**TOUCHED THIS SESSION:** SCRIP — `src/parser/raku/raku.y` (rung a: trailing `return` ×3 bodies; rung b: `call_expr '.' IDENT` chaining ×3; rung c: `scalar_methcall` nonterminal + 5 modifier forms + `%type`; +regen `raku.tab.c`), `scripts/test_smoke_raku.sh` (+10 smokes). `.github` — this cursor.
+
+---
+
+## ▶ PRIOR CURSOR — s2026-07-21b (RAKU-100: trailing stmt-only block forms + postfix statement modifiers + compound assign +=/-=/*=/÷= + ++/-- + defined-or // — Claude Sonnet 4.6)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
@@ -837,7 +864,7 @@ bash scripts/util_template_purity_audit.sh
 
 ## Watermark
 
-**LIVE CURSOR — RAKU-100: METHOD implicit-return (done right — dedicated `method_body` nonterminal, the reverted `sub_body`-reuse attempt solved) + no-paren method signatures + no-paren method call LANDED (s2026-07-19d, Claude Opus 4.8). Suite: Raku 341/0 both modes. NEXT: the general list model (`(1,2,3)` as a first-class Seq/List value), then block-taking Test fns (`lives-ok {…}`/`subtest {…}`), then the bareword-no-paren-call `[SMX]` stub.**
+**s2026-07-21c (Claude Opus 4.8) — RAKU-100: trailing explicit `return` + method-call chaining (`C.new.go()`, `$o.f().g()`) + scalar-method-call modifier head (`$o.go() for 1..2`) LANDED. Three pure-grammar rungs (`raku.y` + regen `raku.tab.c`; lexer byte-identical). Suite: Raku m3 416/0, m4 400/16 both modes (16 m4 = pre-existing native-box set, no swap). Conflicts 78/8 (+2 s/r benign). Peers Icon 14/14, SNOBOL4 7/7. See LIVE CURSOR at top for the four pre-existing gaps found + scoped out (method-name-is-operator-token lexer gap is the recommended next rung, fresh session). PRIOR: s2026-07-21b compound-assign/postfix-modifiers/defined-or (Sonnet 4.6).**
 
 **2026-07-14 (Claude Sonnet 4.6 · SCRIP this commit · corpus untouched · .github edited). RK-GRAM-3c COMPLETE — multi-leaf grammar sequence via native chained leaf boxes.** Pure lowerer change (`src/lower/lower_raku.c`): added `rk_gram_seq_leaves()` (parses rule body into leaf list: literals + builtin char-classes incl. `<.name>`; non-leaf body → 0 → NFA fallback); chained-graph build tail-first (each leaf `γ` → next, tail `γ` → NULL → success exit); removed dead `rk_gram_pure_literal`/`rk_gram_pure_charclass`. No new box template, no emitter change — existing graph-walk driver already resolves `nd->γ.node` to successor α label. Native proof: emitted `.s` two chained `IR_GCC` boxes, zero `nfa_build` on `.parse` path. +8 sequence smokes (`scripts/test_smoke_raku.sh`). RESULTS: Raku 234/20 both modes (was 226/20; +8 new sequence smokes all PASS, same 20 pre-existing OO/multi-dispatch failures); Icon 14/14; SNOBOL4 7/7; language-blindness gate OK. TOUCHED: `src/lower/lower_raku.c`; `scripts/test_smoke_raku.sh` (+8 smokes).
 
