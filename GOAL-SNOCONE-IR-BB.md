@@ -1,5 +1,36 @@
 # GOAL-SNOCONE-IR-BB.md — Snocone IR Interpreter + BB Broker
 
+## LIVE CURSOR (2026-07-21, Claude Sonnet 4.6, transpile-fix session — do-while/augop/switch --transpile stubs closed, SCRIP @ 71175cd2)
+
+**This session: no beauty-suite rung changes. Transpile backend fixed.**
+Three `--transpile` control-flow stubs (`'?TT_n?'` placeholders) replaced with correct
+SPITBOL emission in `src/lower/tree_to_sno.c` (+73/−4):
+- **do-while (TT_DO_WHILE 97):** n>=4 guard relaxed to n>=2; Lcont/Lend synthesized when absent.
+- **augop (TT_AUGOP 89):** new `emit_expr` case; `lhs OP= rhs → (lhs = (lhs OP rhs))`.
+- **switch (TT_CASE 100):** chain-backend — sanitized temp (SPITBOL rejects `_`-leading idents),
+  IDENT dispatch, implicit break, continue-passthrough to enclosing loop.
+All three verified byte-identical `--run` vs SPITBOL oracle. Gates: smoke 5/5, snobol4 m3 7/7,
+beauty subsystems 9/9. SCRIP commit `71175cd2`.
+
+**Coverage climb (this session, empirical, all constructs exercised against oracle):**
+Key corrections discovered: `LEQ`=lexically EQUAL (not less-or-equal); comparison predicates
+return null string on success; `@var` cursor-capture is UNARY (binary `@` is an OPSYN slot,
+unparseable and undefined per SPITBOL ERROR 029). SPITBOL identifiers cannot start with `_`.
+Full findings log: `/home/claude/ladder/FINDINGS.md` (this sandbox only, not committed).
+
+**Open gaps (ranked, for next session):**
+1. [SPEC] OPSYN-slot binary ops `~ & @ # %` tokens are defined but have no grammar productions
+   in `snocone_parse.y` — parse error on any use-site. SPITBOL parses them, errors at runtime
+   only if un-OPSYN'd. Breaks ARCH-SNOCONE superset guarantee and the `semantic.sc` idiom.
+2. [BACKEND] `--transpile` mis-parenthesizes `subj ? pat = repl` inside an `if`/`while`
+   condition → SPITBOL ERROR 212 "value used where name is required" + segfault. Bare form fine.
+3. [DOC/IMPL] ARCH-SNOCONE documents `function f(a) local1, local2 {` locals-after-`)` syntax;
+   no grammar production exists (parse error). Only folded-into-params form `f(a,local1)` works.
+
+**Beauty suite: 17/20 PASS** (unchanged this session — was 15→17 in previous SC-BEAUTY-2 session).
+Remaining 3 failures root-caused (unchanged): trace (DATATYPE of unset var), TDump (heap blowup
+in TLump), omega (@ cursor-capture in expression position, tree kind 44 hits sx_lower FATAL).
+
 ## LIVE CURSOR (2026-07-21, Claude Sonnet 4.6, SC-BEAUTY-2 session — roman + Qize LANDED, corpus @ 3c3dc729)
 
 **Beauty suite: 17/20 PASS** (was 15/20 measured at session start on SCRIP HEAD fd46e64a).
