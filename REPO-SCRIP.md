@@ -44,7 +44,7 @@ Invoke: `/home/claude/x64/bin/sbl -b file.sno`
 ## Tools by backend
 | Backend | Tools |
 |---------|-------|
-| x86 | `nasm`, `libgc-dev` |
+| x86 | `nasm` (Boehm/`libgc-dev` REMOVED at GC-U-4, s67 — no longer a dependency) |
 | JVM | `default-jdk`, `jasmin.jar` |
 | .NET | `mono-complete` |
 | WASM | `wabt` |
