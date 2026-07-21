@@ -15,6 +15,25 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 **LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
 
+## LIVE CURSOR (2026-07-21, Claude Sonnet 4.6, GOAL-SNOCONE-BB ladder session — 6 lowering fixes, beauty 17→19/20, SCRIP @ 2be85ff2)
+
+**Beauty suite: 19/20 PASS** (was 17/20). TDump and omega both flipped to PASS this session.
+Only `trace` remains (pre-existing `DATATYPE(unset var)` runtime-model divergence, unrelated to lowering).
+Gates: snocone smoke 5/5, snobol4 mode-3 7/7, mode-4 7/7. SCRIP @ `2be85ff2` (+45/−15 in `src/lower/lower_snobol4.c`).
+
+**Six fixes landed (all oracle-confirmed, zero regressions):**
+1. **D12 while-match-cond** — `while/do-while/for` conditions routed through `IR_GOTO` gate so `TT_SCAN` (match) conditions reach the loop body. Backbone tokenizer `while (s ? BREAK(',') . tok ',' = '')` now oracle-correct.
+2. **D6 goto/label** — added `TT_GOTO_U/S/F` to `sx_lower` (was FATAL "tree kind 127").
+3. **Indirect capture targets** — `PAT . $'$B'` / `$'@S'` etc. Added `sno_capt_name()` accepting `TT_INDIRECT(TT_QLIT)`; wired into both capture-lowering sites + `sno_pat_supported` gates.
+4. **Match-and-replace via `TT_SEQ` lhs** — `junk ch = ;` synthesizes a `TT_SCAN` → `sno_lower_match`.
+5. **D11 deferred pattern-primitive args** — `BREAK(*expr)` / `LEN(*n)` now lower (unwrap `TT_DEFER` in `sno_pre_req` + widened gates). Correct for pre-statement-valued args; mid-match-capture-dependent args are a further rung.
+
+**Parser chain: ENTIRE library now lowers clean (every FATAL gone).** Remaining runtime blocker:
+
+**NEXT RUNG — pattern-value / SNO$MKPAT (two measured root causes):**
+1. **Segment-boundary reset.** `sm_preamble` lowers each `.sc` file as a separate segment; `lower_sno_stage2` resets `g_sno_npat=0` each call → PAT$n counter restarts → name collisions → "SNO$MKPAT: compiled pattern blob 'PAT$N' not registered" ×65 + segfault. **Fix:** don't reset `g_sno_npat` on non-first segments, OR lower the merged `ast_prog` once.
+2. **Indirect pattern-var targets** (`$'  ' = White`). Parser defines patterns under indirect names (`subj->t == TT_INDIRECT`), bypassing the MKPAT-collection path (guarded `subj->t == TT_VAR`). Extend same as indirect-capture fix #3. Then MONITOR-FIRST the residual value-materialize segfault.
+
 ## LIVE CURSOR (2026-07-21, Claude Sonnet 4.6, transpile-fix session — do-while/augop/switch --transpile stubs closed, SCRIP @ 71175cd2)
 
 **This session: no beauty-suite rung changes. Transpile backend fixed.**
