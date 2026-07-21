@@ -15,7 +15,29 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 **LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
 
-## ▶ LIVE CURSOR — s2026-07-21c (RAKU-100: trailing explicit `return` + method-call chaining + scalar-method-call modifier head — three pure-grammar rungs — Claude Opus 4.8)
+## ▶ LIVE CURSOR — s2026-07-21d (RAKU-100: with/without mods + chained-cmp + given mod + ..^/^N fix — four pure-grammar rungs — Claude Sonnet 4.6)
+
+**[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+
+Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed **four pure-grammar rungs** (`raku.y` + lexer for with/without; +regen; no lowerer/runtime/template). Starting watermark: m3 416/0, m4 400/16. Final: **m3 442/0, m4 426/16** (+26 smokes each, all `[m3 PASS] [m4 PASS]`). The 16 m4 FAILs are the pre-existing `gram_native_*`/`gram_seq_*`/`grammar_*` native-box set, byte-identical to baseline at every checkpoint (diff-proven, no swap). Peers: Icon 14/14, SNOBOL4 7/7. Lang-blind gate GREEN. All generated files reproduced byte-for-byte (bison 3.8.2 + flex 2.6.4).
+
+**RUNG (a) — `with`/`without` STATEMENT MODIFIERS.** `EXPR with $x` / `EXPR without $x` — topicalize `$_` to `$x`, gate on definedness. Desugared at grammar level via `rk_with_mod`: `{ $_ = EXPR; if/unless __rk_defined($_) { STMT } }` — reuses `__rk_defined` (landed s2026-07-21b for `//`) + proven `TT_ASSIGN`/`TT_IF`/`TT_UNLESS`. VERIFIED vs Rakudo `statement-mod-cond:sym<with/without>`. 2 new lexer keywords (`KW_WITH`/`KW_WITHOUT`). Productions: expr-head, scalar_methcall-head, say-head. Logic written once in `rk_with_mod` helper (NO-DUP-LOGIC). Key edge case verified: `0 with $x` fires (zero IS defined). Zero new conflicts (78 s/r, 8 r/r). +8 smokes.
+
+**RUNG (b) — CHAINED COMPARISON `1 < $x < 10`.** Rakudo: chain-associative comparisons. Desugared via `rk_chain_cmp`: changed six relational productions to accept `cmp_expr` on the left, build `TT_SEQ(left, TT_op(clone(mid), right))`. `rk_chain_last_operand` recurses through `TT_SEQ` to extract true last operand for 3+ way chains (bug caught mid-rung: first version broke `1<2<9<4`). `rk_tree_clone` deep-copies the middle operand. Scoped out: `while COND1 && COND2` already infinite-loops at baseline (separate pre-existing bug). Zero new conflicts. +9 smokes.
+
+**RUNG (c) — `given` STATEMENT MODIFIER.** `EXPR given $x` — unconditional `$_` topicalize. Rakudo: `statement-mod-loop:sym<given>`. `rk_given_mod` helper: `{ $_ = EXPR; STMT }`. No new lexer token. One new r/r (8→9) from `KW_GIVEN` in two contexts — stash-verified `given`/`when` block was already DECLINED `[SMX]` at baseline, benign. +4 smokes.
+
+**RUNG (d) — EXCLUSIVE RANGE (`..^`) BUG FIX + PREFIX UPTO (`^N`).** Found latent bug: `0 ..^ 5` included the endpoint (built identical `TT_TO` as `..`; exclusive flag in `TT_FOR_RANGE` child[4] silently unread in `lower_raku.c`). Fixed with grammar-level `end-1` desugar (`rk_range_ex`/`rk_dec`): `A ..^ B` → `A .. (B-1)`, constant-folded for literal endpoints. Added prefix `^N` upto (wired `CARET` in `unary_expr`): `^N` = `0 ..^ N`. +1 s/r (benign). +5 smokes.
+
+**FINAL CONFLICTS: 79 s/r, 9 r/r** (from 78/8 baseline: +1 s/r prefix `^`, +1 r/r `given` modifier — both behaviorally proven).
+
+**NEXT RUNG (RAKU-100):** (a) method-name-is-operator-token lexer rung — `method x()` / `method is()` parse-error (needs lexer start-condition; LEXER work). (b) early-`return`-from-nested-block control-flow bug (monitor-first). (c) `while COND1 && COND2` infinite-loops — `TT_SEQ` in while condition not evaluated as boolean (monitor-first). (d) `...` sequence operator (313 roast files). (e) `with`/`without`/`given` in trailing-no-semi block position.
+
+**TOUCHED THIS SESSION:** SCRIP — `src/parser/raku/raku.l` (+2 keywords), `src/parser/raku/raku.y` (helpers `rk_with_mod`/`rk_given_mod`/`rk_tree_clone`/`rk_chain_last_operand`/`rk_chain_cmp`/`rk_range_ex`/`rk_dec` + productions; +regen `.tab.c`/`.tab.h`/`.lex.c`), `scripts/test_smoke_raku.sh` (+26 smokes). `.github` — this cursor. SCRIP commit: `7e44fb6`.
+
+---
+
+## ▶ PRIOR CURSOR — s2026-07-21c (RAKU-100: trailing explicit `return` + method-call chaining + scalar-method-call modifier head — three pure-grammar rungs — Claude Opus 4.8)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
