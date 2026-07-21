@@ -1,19 +1,32 @@
 # GOAL-SNOCONE-IR-BB.md — Snocone IR Interpreter + BB Broker
 
-## LIVE CURSOR (2026-07-19, Claude Sonnet 4.6, SCRIP f0f21b5d)
+## LIVE CURSOR (2026-07-21, Claude, SCRIP working tree — TT_FNC-in-pattern rung LANDED, PUSH PENDING via handoff_status.sh)
 
-**Beauty suite: 11/20 PASS** (was 0/20 at session start; was 8/14 April 2026 on the now-deleted mode-2 path).
+**Beauty suite: 16/20 PASS** (was 11/20 at session start; 0/20 → 11/20 was the 2026-07-19 session).
+The `case TT_FNC:` rung LANDED this session flipped 5 (Gen, TDump, case, fence, semantic) — all
+verified byte-identical to their `.ref`. Substantively 17/20: Qize also passes now but its `.ref`
+is a stale `SKIP: blocked by SB-6.E.7-H rollback bug` placeholder that needs regenerating (an
+oracle refresh, not a code change — do NOT regen without confirming the 5 real PASS lines are correct).
 
 **NOTE:** This file's Steps section (Phase 1/2/3 SC-1…SC-9) is archaeology — it describes the
 deleted mode-2 IR-graph interpreter path.  Snocone now runs entirely on the native Byrd-Box path
-(mode-3 --run / mode-4 --compile), sharing `lower_snobol4.c` with SNOBOL4.  The canonical
-current state is in `FINDING-2026-07-19-CLAUDE-SNOCONE-BEAUTY-0-TO-11-OF-20.md`.
+(mode-3 --run / mode-4 --compile), sharing `lower_snobol4.c` with SNOBOL4.
 
-**Next rung:** `sno_pat_node` in `src/lower/lower_snobol4.c` — add `case TT_FNC:` (and
-general value-expr) to materialize the expression into a synthetic temp, then route to
-`IR_MATCH_DEFER` on that temp name.  This unblocks Gen, Qize, TDump, case, fence, semantic,
-trace (7 subsystems, all bottlenecked on kind=45 TT_FNC in pattern position).
-After that: TT_CAPT_CURSOR (omega), then monitor-first for roman (runtime divergence).
+**Root-cause correction (this session):** the 2026-07-19 FINDING blamed only value-calls like
+`upr(x)`. The gap was broader — bare `LEN(1)`/`SPAN(cs)` also FATAL'd, because the Snocone frontend
+(unlike SNOBOL4's `pat_prim_kind`, snobol4.y:37/195, run at parse time) emits EVERY pattern primitive
+as a generic `TT_FNC`. The landed `sno_pat_node` `case TT_FNC:` handles both: primitive-name →
+synthesize the matching `TT_*` node + recurse; else value-call → materialize into `PATTMP$P<n>` temp
+via `sx_lower`+`IR_ASSIGN`, then `IR_MATCH_DEFER`. Also added `TT_FNC` to `sno_pat_supported`.
+
+**Next rungs (remaining 4, in order):**
+1. **trace** — advanced PAST its old FATAL; now tests 4-7 (`T8Trace`/`NRETURN`) produce wrong runtime
+   output (no FATAL). Runtime divergence → MONITOR-FIRST per RULES.md.
+2. **roman** — untouched runtime divergence → MONITOR-FIRST.
+3. **omega** — `@` cursor-capture in EXPRESSION position hits `sx_lower`'s default FATAL (kind 44,
+   line ~583). NOT the pattern-path `TT_CAPT_CURSOR` (that case exists, line 1110). This is a design
+   rung: how the match cursor threads into expression evaluation outside a `subj ? pat`.
+4. **Qize `.ref`** regeneration (see NOTE above).
 
 **Gate command:**
 ```bash
