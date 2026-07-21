@@ -9,12 +9,12 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | metric | count |
 |--------|-------|
 | gprolog public exports (total) | 312 |
-| DONE (SCRIP admits) | 43 (13%) |
-| RUNG-ASSIGNED | 269 |
+| DONE (SCRIP admits) | 45 (14%) |
+| RUNG-ASSIGNED | 267 |
 | **UNASSIGNED** | **0** |
 | core scope | 237 |
 | gprolog-ext scope | 75 |
-| **core still open** | **195** |
+| **core still open** | **193** |
 
 ## Per-file coverage
 
@@ -34,7 +34,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `sockets.pl` | gprolog-ext | 0 | 8 | 8 |
 | `assert.pl` | core | 6 | 6 | 0 |
 | `file.pl` | gprolog-ext | 0 | 6 | 6 |
-| `flag.pl` | core | 0 | 6 | 6 |
+| `flag.pl` | core | 2 | 6 | 4 |
 | `sort.pl` | core | 3 | 6 | 3 |
 | `stat.pl` | gprolog-ext | 0 | 6 | 6 |
 | `pretty.pl` | core | 1 | 5 | 4 |
@@ -56,7 +56,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 
 *(none)*
 
-## RUNG-ASSIGNED — owned, not yet landed  (269)
+## RUNG-ASSIGNED — owned, not yet landed  (267)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -165,9 +165,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `argument_counter/1` | `flag.pl` | core | PL-ISO-12 |
 | `argument_list/1` | `flag.pl` | core | PL-ISO-12 |
 | `argument_value/2` | `flag.pl` | core | PL-ISO-12 |
-| `current_prolog_flag/2` | `flag.pl` | core | PL-ISO-12 |
 | `environ/2` | `flag.pl` | core | PL-ISO-12 |
-| `set_prolog_flag/2` | `flag.pl` | core | PL-ISO-12 |
 | `format/3` | `format.pl` | core | PL-ISO-9 |
 | `add_linedit_completion/1` | `le_interf.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `find_linedit_completion/2` | `le_interf.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
@@ -330,7 +328,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `write_term/3` | `write.pl` | core | PL-ISO-9 |
 | `writeq/2` | `write.pl` | core | PL-ISO-9 |
 
-## DONE — admitted by SCRIP  (43)
+## DONE — admitted by SCRIP  (45)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -354,6 +352,8 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `for/3` | `control.pl` | core |  |
 | `halt/1` | `control.pl` | core |  |
 | `tab/1` | `dec10io.pl` | core |  |
+| `current_prolog_flag/2` | `flag.pl` | core |  |
+| `set_prolog_flag/2` | `flag.pl` | core |  |
 | `format/2` | `format.pl` | core |  |
 | `current_op/3` | `oper.pl` | core |  |
 | `op/3` | `oper.pl` | core |  |
