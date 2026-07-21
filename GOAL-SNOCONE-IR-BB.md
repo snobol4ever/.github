@@ -1,12 +1,20 @@
 # GOAL-SNOCONE-IR-BB.md — Snocone IR Interpreter + BB Broker
 
-## LIVE CURSOR (2026-07-21, Claude, SCRIP working tree — TT_FNC-in-pattern rung LANDED, PUSH PENDING via handoff_status.sh)
+## LIVE CURSOR (2026-07-21, Claude Sonnet 4.6, SC-BEAUTY-2 session — roman + Qize LANDED, corpus @ 3c3dc729)
 
-**Beauty suite: 16/20 PASS** (was 11/20 at session start; 0/20 → 11/20 was the 2026-07-19 session).
-The `case TT_FNC:` rung LANDED this session flipped 5 (Gen, TDump, case, fence, semantic) — all
-verified byte-identical to their `.ref`. Substantively 17/20: Qize also passes now but its `.ref`
-is a stale `SKIP: blocked by SB-6.E.7-H rollback bug` placeholder that needs regenerating (an
-oracle refresh, not a code change — do NOT regen without confirming the 5 real PASS lines are correct).
+**Beauty suite: 17/20 PASS** (was 15/20 measured at session start on SCRIP HEAD fd46e64a).
+Two rungs landed this session, both oracle-confirmed (SCRIP mode-3 + SPITBOL transpiled):
+
+- **roman** — `INTEGER(SUBSTR(s,i,1))` → `CONVERT(SUBSTR(s,i,1),'INTEGER')`. `INTEGER` is a
+  pure predicate (returns null string on success); `CONVERT` is the actual converter. All 10
+  tests flip PASS. Existing `.ref` unchanged.
+- **Qize** — stale `SKIP: blocked by SB-6.E.7-H rollback bug` ref regenerated from
+  oracle-confirmed output (5 PASS lines, byte-identical to SPITBOL). Gate now PASS.
+
+**Verified baselines this session (measured, not prose):**
+- Snocone smoke: 5/5 ✓
+- SNOBOL4 smoke mode-3: 7/7 ✓  mode-4: 0/7 (libscrip_rt.so packaging gap — not a code regression)
+- Beauty 15→17/20 with no regressions; 3 remaining failures fully root-caused (see below)
 
 **NOTE:** This file's Steps section (Phase 1/2/3 SC-1…SC-9) is archaeology — it describes the
 deleted mode-2 IR-graph interpreter path.  Snocone now runs entirely on the native Byrd-Box path
@@ -19,14 +27,23 @@ as a generic `TT_FNC`. The landed `sno_pat_node` `case TT_FNC:` handles both: pr
 synthesize the matching `TT_*` node + recurse; else value-call → materialize into `PATTMP$P<n>` temp
 via `sx_lower`+`IR_ASSIGN`, then `IR_MATCH_DEFER`. Also added `TT_FNC` to `sno_pat_supported`.
 
-**Next rungs (remaining 4, in order):**
-1. **trace** — advanced PAST its old FATAL; now tests 4-7 (`T8Trace`/`NRETURN`) produce wrong runtime
-   output (no FATAL). Runtime divergence → MONITOR-FIRST per RULES.md.
-2. **roman** — untouched runtime divergence → MONITOR-FIRST.
-3. **omega** — `@` cursor-capture in EXPRESSION position hits `sx_lower`'s default FATAL (kind 44,
-   line ~583). NOT the pattern-path `TT_CAPT_CURSOR` (that case exists, line 1110). This is a design
-   rung: how the match cursor threads into expression evaluation outside a `subj ? pat`.
-4. **Qize `.ref`** regeneration (see NOTE above).
+**Next rungs (remaining 3, root-caused, in order):**
+1. **trace** — tests 4-7 (`T8Trace` nreturn-dummy paths) FAIL. Root cause: `DATATYPE(DT_SNUL)`
+   returns `"NULL"` in SCRIP but `"STRING"` in SPITBOL (unset/never-assigned variable has no null
+   string type in SNOBOL4; it IS the null string). Fix direction: LOWER supplies the per-language
+   unbound-slot default before it reaches the runtime — SNOBOL4/Snocone LOWER yields `DT_S ''`,
+   Icon LOWER yields `DT_SNUL` (`&null`). Runtime `bn_type_datatype` stays language-blind (FACT
+   RULE). Tests 1-3 and 8-9 PASS on SCRIP; SPITBOL passes 4-7 on the transpiled oracle (confirmed).
+   Bonus finding: `--transpile` has TABLE-subscript fidelity gap (tests 2-3 fail on transpiled
+   oracle but SCRIP mode-3 is correct — separate issue, does not affect this gate).
+2. **TDump** — tests 1-5 PASS; test 6 (`TLump` on internal node) exhausts heap (512 MB, 863
+   blocks), crash. Not a heap-size config: `ZC_HEAP_MB=2048` also crashes. SPITBOL oracle passes
+   all 6 (confirmed). Runaway in `TLump`'s `while … TLump = TLump ' ' TLump(c(x)[i], …)` node
+   path — string/recursion blowup, not a null-field representation bug (isolated probe shows struct
+   field read-back is correct). Needs runtime debugging; use MONITOR-FIRST methodology.
+3. **omega** — `@` cursor-capture in EXPRESSION position (tree kind 44) hits `sx_lower` default
+   FATAL (~line 583). NOT the pattern-path `TT_CAPT_CURSOR` (exists, line 1110). Design rung:
+   thread match cursor into expression evaluation outside `subj ? pat`.
 
 **Gate command:**
 ```bash
