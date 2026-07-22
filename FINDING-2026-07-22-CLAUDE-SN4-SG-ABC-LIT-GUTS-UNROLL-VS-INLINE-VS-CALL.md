@@ -58,3 +58,30 @@ C: `mov edi,r14d; lea rsi,[rip+.S3]; mov edx,36; call rt_sg_scan_nonmember@PLT`.
 ## GATES (final tree, default flavor)
 
 sno smokes 7/7×2 · crosscheck m3 302/8 m4 302/6 DIVERGE=0 (fail set byte-identical to s127 watermark: 140/141 + 1020/1021 + 214/215/216) · `--compile` .s byte-identical to HEAD on the pair · regen scripts (benchmark/feature/demo): **zero changed artifacts**.
+
+## ADDENDUM (same session, Lon follow-up): A∞ UNLIMITED CHAIN + TIME() SLURP/MATCH SPLIT + WALL
+
+**Lon's question answered plainly: the s125-machinery "UNROLL" flavor did NOT unroll cset membership without limit** — 100% of *sites* took the literal machinery, but inside it `ZC_CSET_CHAIN_MAX=3` routed >3-char csets to the 256B table (subject step unrolled ×4). The unlimited-chain variant is a build flag away: **A∞ = `-DZC_CSET_CHAIN_MAX=256`** (zero code changes; every literal cset a full compare chain, claws5's 36-char cset = 36 inline compares per subject char-step ×4 unroll).
+
+**Instrumentation:** TIME() split (manual p.242: ms since execution start, Unix = CPU compute time; SCRIP `bn_time` = `clock()` — same semantics, apples-to-apples). Wrappers `/tmp/bench/{claws5,treebank}-match-t.sno`: t0→slurp→t1→K-loop match→t2, print slurp/match ms. In-program CPU numbers are immune to the container's wall-clock contention (observed 2–3× wall swings between quiet and loaded windows; the in-program splits cross-validate the earlier slope method within ~10% on every cell).
+
+**GRID (medians of 5 interleaved reps; per-match = match/K; SCRIP `-O0`; now in SCRIP README.md § SNOBOL4 Benchmark):**
+
+| program | engine | slurp | match | per-match | wall |
+|---|---|--:|--:|--:|--:|
+| claws5 (K=200) | A m3 / m4 | 14/14 | 40/39 | 0.200/0.195 | 69/65 |
+| claws5 | A∞ m3 / m4 | 14/14 | 65/64 | 0.325/0.320 | 96/89 |
+| claws5 | B m3 / m4 | 14/14 | 143/141 | 0.715/0.705 | 172/171 |
+| claws5 | C m3 / m4 | 14/14 | 149/144 | 0.745/0.720 | 180/174 |
+| claws5 | sbl | 13 | 45 | 0.225 | 68 |
+| treebank (K=50) | A m3 / m4 | 79/78 | 95/84 | 1.900/1.680 | 213/204 |
+| treebank | A∞ m3 / m4 | 76/77 | 88/96 | 1.760/1.920 | 209/213 |
+| treebank | B m3 / m4 | 78/76 | 109/95 | 2.180/1.900 | 227/211 |
+| treebank | C m3 / m4 | 77/76 | 102/103 | 2.040/2.060 | 223/218 |
+| treebank | sbl | 31 | 39 | 0.780 | 85 |
+
+**Readings (extends the main finding):**
+1. **The chains-beat-strchr report CONFIRMED and SUPERSEDED.** A∞ (0.32) beats B/C (0.71–0.75) — a full inline chain beats even the R13/R15-aware per-char INLINE loop and lean CALL leaf, so it certainly beat old strchr-per-char. **But the 256B table (0.195–0.200) beats the 36-compare chain by 60%** — one load per subject char vs O(cset) compares. The relationship changed exactly as suspected: our INLINE/CALL leapfrogged strchr, and the table leapfrogs the chain at long csets. Chain-≤3-then-table stands as the right ladder (s127's A/B already showed 1–3-char chains beat the table's lea+load setup).
+2. **SCRIP wins claws5 at the PROCESS level too**: wall 65 vs sbl 68 ms — compile-and-run parity with optimized SPITBOL at `-O0` runtime, per-match 13% faster.
+3. **treebank slurp is a real lead**: SCRIP 76–79 ms vs sbl 31 for 100 KB of `src = src line CHAR(10)`; claws5's CHAR-free slurp is at parity (14 vs 13). The delta is the per-line `CHAR(10)` builtin dispatch in concat position — s127's fold covers cset/pattern-arg position only. Folding CHAR(k) literals in general expression position would cut treebank slurp ~2.5×.
+4. treebank match flavors span only 1.68–2.18 (order jitters m3 vs m4) — re-confirms the 2.2–2.6× sbl gap lives in `*group`/ARBNO backtracking machinery, not cset guts.
