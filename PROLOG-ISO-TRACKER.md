@@ -9,12 +9,12 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | metric | count |
 |--------|-------|
 | gprolog public exports (total) | 312 |
-| DONE (SCRIP admits) | 118 (37%) |
-| RUNG-ASSIGNED | 194 |
+| DONE (SCRIP admits) | 122 (39%) |
+| RUNG-ASSIGNED | 190 |
 | **UNASSIGNED** | **0** |
 | core scope | 237 |
 | gprolog-ext scope | 75 |
-| **core still open** | **120** |
+| **core still open** | **116** |
 
 ## Per-file coverage
 
@@ -27,7 +27,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `src_rdr.pl` | core | 0 | 22 | 22 |
 | `read.pl` | core | 2 | 17 | 15 |
 | `atom.pl` | core | 10 | 15 | 5 |
-| `dec10io.pl` | core | 1 | 12 | 11 |
+| `dec10io.pl` | core | 5 | 12 | 7 |
 | `write.pl` | core | 12 | 12 | 0 |
 | `debugger.pl` | gprolog-ext | 0 | 11 | 11 |
 | `term_inl.pl` | core | 5 | 11 | 6 |
@@ -56,7 +56,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 
 *(none)*
 
-## RUNG-ASSIGNED — owned, not yet landed  (194)
+## RUNG-ASSIGNED — owned, not yet landed  (190)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -94,13 +94,9 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `trace/0` | `debugger.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `wam_debug/0` | `debugger.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `append/1` | `dec10io.pl` | core | PL-ISO-7b |
-| `get/1` | `dec10io.pl` | core | PL-ISO-7b |
-| `get0/1` | `dec10io.pl` | core | PL-ISO-7b |
-| `put/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `see/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `seeing/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `seen/0` | `dec10io.pl` | core | PL-ISO-7b |
-| `skip/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `tell/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `telling/1` | `dec10io.pl` | core | PL-ISO-7b |
 | `told/0` | `dec10io.pl` | core | PL-ISO-7b |
@@ -255,7 +251,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `term_hash/4` | `term_inl.pl` | core | PL-ISO-11 |
 | `term_ref/2` | `term_inl.pl` | core | PL-ISO-11 |
 
-## DONE — admitted by SCRIP  (118)
+## DONE — admitted by SCRIP  (122)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -329,6 +325,10 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `between/3` | `control.pl` | core |  |
 | `for/3` | `control.pl` | core |  |
 | `halt/1` | `control.pl` | core |  |
+| `get/1` | `dec10io.pl` | core |  |
+| `get0/1` | `dec10io.pl` | core |  |
+| `put/1` | `dec10io.pl` | core |  |
+| `skip/1` | `dec10io.pl` | core |  |
 | `tab/1` | `dec10io.pl` | core |  |
 | `current_prolog_flag/2` | `flag.pl` | core |  |
 | `set_prolog_flag/2` | `flag.pl` | core |  |
