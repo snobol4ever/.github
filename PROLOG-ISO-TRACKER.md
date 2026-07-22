@@ -9,12 +9,12 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | metric | count |
 |--------|-------|
 | gprolog public exports (total) | 312 |
-| DONE (SCRIP admits) | 97 (31%) |
-| RUNG-ASSIGNED | 215 |
+| DONE (SCRIP admits) | 98 (31%) |
+| RUNG-ASSIGNED | 214 |
 | **UNASSIGNED** | **0** |
 | core scope | 237 |
 | gprolog-ext scope | 75 |
-| **core still open** | **141** |
+| **core still open** | **140** |
 
 ## Per-file coverage
 
@@ -30,7 +30,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `dec10io.pl` | core | 1 | 12 | 11 |
 | `write.pl` | core | 10 | 12 | 2 |
 | `debugger.pl` | gprolog-ext | 0 | 11 | 11 |
-| `term_inl.pl` | core | 4 | 11 | 7 |
+| `term_inl.pl` | core | 5 | 11 | 6 |
 | `sockets.pl` | gprolog-ext | 0 | 8 | 8 |
 | `assert.pl` | core | 6 | 6 | 0 |
 | `file.pl` | gprolog-ext | 0 | 6 | 6 |
@@ -56,7 +56,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 
 *(none)*
 
-## RUNG-ASSIGNED — owned, not yet landed  (215)
+## RUNG-ASSIGNED — owned, not yet landed  (214)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -266,7 +266,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `set_stream_type/2` | `stream.pl` | core | PL-ISO-7b |
 | `stream_line_column/3` | `stream.pl` | core | PL-ISO-7b |
 | `stream_position/2` | `stream.pl` | core | PL-ISO-7b |
-| `acyclic_term/1` | `term_inl.pl` | core | PL-ISO-11 |
 | `nb_setarg/3` | `term_inl.pl` | core | PL-ISO-11 |
 | `setarg/3` | `term_inl.pl` | core | PL-ISO-11 |
 | `setarg/4` | `term_inl.pl` | core | PL-ISO-11 |
@@ -276,7 +275,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `display/1` | `write.pl` | core | PL-ISO-9 |
 | `display/2` | `write.pl` | core | PL-ISO-9 |
 
-## DONE — admitted by SCRIP  (97)
+## DONE — admitted by SCRIP  (98)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -363,6 +362,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `set_output/1` | `stream.pl` | core |  |
 | `stream_property/2` | `stream.pl` | core |  |
 | `setup_call_cleanup/3` | `t.pl` | gprolog-ext |  |
+| `acyclic_term/1` | `term_inl.pl` | core |  |
 | `copy_term/2` | `term_inl.pl` | core |  |
 | `subsumes_term/2` | `term_inl.pl` | core |  |
 | `term_variables/2` | `term_inl.pl` | core |  |
