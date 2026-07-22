@@ -85,3 +85,18 @@ sno smokes 7/7×2 · crosscheck m3 302/8 m4 302/6 DIVERGE=0 (fail set byte-ident
 2. **SCRIP wins claws5 at the PROCESS level too**: wall 65 vs sbl 68 ms — compile-and-run parity with optimized SPITBOL at `-O0` runtime, per-match 13% faster.
 3. **treebank slurp is a real lead**: SCRIP 76–79 ms vs sbl 31 for 100 KB of `src = src line CHAR(10)`; claws5's CHAR-free slurp is at parity (14 vs 13). The delta is the per-line `CHAR(10)` builtin dispatch in concat position — s127's fold covers cset/pattern-arg position only. Folding CHAR(k) literals in general expression position would cut treebank slurp ~2.5×.
 4. treebank match flavors span only 1.68–2.18 (order jitters m3 vs m4) — re-confirms the 2.2–2.6× sbl gap lives in `*group`/ARBNO backtracking machinery, not cset guts.
+
+## ADDENDUM 2 (same session): VARIANT R — RANGE CHAINS (Lon's 4th variant)
+
+**Design (Lon):** each literal cset coalesces into maximal contiguous byte RANGES at emit; membership = a chain of range tests. Landed as `ZC_LIT_GUTS_RANGE` (=3): same unrolled subject-step body as UNROLL, membership swapped — single-byte run `cmp esi,b; je HIT` (2 inst), multi-byte run the unsigned-sub trick `mov eax,esi; sub eax,lo; cmp eax,hi−lo; jbe HIT` (4 inst; eax verified dead at every use site in span/break/any/notany). `SPAN('0123456789' &UCASE)` = 2 range tests instead of a 36-compare chain or a 256B table load. `jbe` already wired for internal labels (x86_jcc_op + XK_ILBL dispatch — zero encoder additions). Default byte-identity re-gated (.s diff), smokes 7/7×2, crosscheck 302/8 · 302/6 DIVERGE=0, regen scripts no-op.
+
+**GRID rows (medians of 5 interleaved reps, same harness; sbl control identical across windows at 0.780/0.230 — cross-window comparability held):**
+
+| program | engine | slurp | match | per-match | wall |
+|---|---|--:|--:|--:|--:|
+| claws5 | R m3 / m4 | 13/13 | 45/44 | 0.225/0.220 | 73/69 |
+| treebank | R m3 / m4 | 75/74 | 75/78 | 1.500/1.560 | 193/191 |
+
+**THE LADDER (claws5-class csets, ≥4 chars): table 0.195 > RANGE 0.220 (≈ SPITBOL 0.230) > full chain 0.320 > INLINE 0.705 ≈ CALL 0.720.** Ranges beat the full chain by 45% and tie optimized SPITBOL — Lon's construction is real — but the L1-hot 256B table's single load-compare-branch still edges 1–2 range tests' extra branch each by ~15%. On treebank, R = 1.50–1.56, a hair under A (within noise) — guts-insensitivity re-confirmed a third time. **Default stays chain-≤3-then-table**; R retained in the scaffold (a future refinement: range-count-aware selection — 1-range csets like SPAN(&DIGITS) at 4 inst/char with zero memory traffic may win on cache-cold or SMT-contended workloads the L1-hot microbench can't see).
+
+**TRT note (Lon's question):** x86 has no TRT; XLAT translates without testing. The table probe `movzx esi,[r13+rcx]; cmpb [rdi+rsi],0; jcc` IS a 2-instruction software TRT step. The true modern TRT is **SSE4.2 PCMPISTRI "ranges" mode** — 16 subject bytes per instruction against up to 8 range pairs — the natural next rung for SPAN/BREAK-guts (SPD-1-adjacent; candidate variant 5).
