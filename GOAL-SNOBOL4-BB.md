@@ -1,5 +1,11 @@
 # GOAL — SNOBOL4 on the shared BB spine
 
+## ⛔⛔ O2-DIRECTED-ONLY — TIGHTENS O0-DEV BELOW (Lon directive, 2026-07-22 s126)
+
+**`-O2` (and `-O1`) may not be used for ANYTHING — not even perf/benchmark measurement — unless Lon explicitly directs it in the current session.** This SUPERSEDES the "reserved EXCLUSIVELY for perf" carve-out in the O0-DEV FACT RULE below (that body is md5-locked across the six GOAL-*-BB files and is left untouched; THIS block is the SNOBOL4-side tightening — see RULES.md for the repo-wide rule). WHY: the `-O2` runtime `.so` build takes minutes, which collides with the assistant's per-tool-call time limits; the only workaround (detached `setsid` background build + polling) was tried s126 and is FRAGILE — a detached job died mid-clone and left a poisoned half-tree that a later "idempotent" script tripped over (`build_official_oracles.sh`'s `[ -d .git ]` guard skipped re-cloning an empty worktree). CONSEQUENCE FOR BENCHMARKS: SCRIP perf numbers are `-O0`-runtime numbers unless a session log shows Lon directing `-O2`; label every reported number with its RT_OPT level so slower-than-oracle results are not misread (the officials build optimized). If a directed `-O2` build happens: detached + polled, with an explicit tree-state check before AND after (the s126 poisoned-clone lesson).
+
+---
+
 ## ⛔ FACT RULE — O0-DEV: FEATURE BUILDS ARE `-O0`; `-O1`/`-O2` ARE PERF-ONLY (Lon directive, 2026-07-21 s119)
 
 **While developing, debugging, or iterating on any FEATURE, EVERY build is `-O0`. `-O1` and `-O2` are FORBIDDEN during feature work and are reserved EXCLUSIVELY for perf/benchmark/release measurement.** The runtime `libscrip_rt.so` at `-O2` takes MINUTES (heavy template TUs), which is intolerable in a compile→test→fix loop and burned real session time repeatedly. `scrip` itself already builds `-O0` (Makefile `CBASE`/`CXXRT`); the offender was the runtime `.so`, whose `RT_OPT` default was `-O2`.
