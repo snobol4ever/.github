@@ -1,0 +1,97 @@
+# FINDING 2026-07-23 (Claude) — SN4: beauty self-host — the O(n²) zls flood and the shared-graph re-emission wall are ONE coupled problem
+
+**Goal:** GOAL-SNOBOL4-BB. **Session directive:** "Get beauty test suite then beauty self host. Continue."
+
+## TL;DR
+- **Beauty test suite (SN-7 gate):** 48/51 PASS, only `omega_driver` failing (all 3 mode-slots) — matches the standing watermark. NOTE: `test_gate_sn7_beauty_self_host.sh`'s mode loop is literally `for mode in --run --run --run` — it runs mode-3 THREE times, not m3+m4. Latent gate bug, not a regression.
+- **Beauty self-host oracle baseline (canonical, via `util_run_beauty_oracle.sh`):** 622 lines, md5 `9cddff2534472b822438801d8db58a99`. Reproduced exactly.
+- **Self-host is blocked, and the FINDING-2026-07-22 "mark table overflow (8192)" is STALE:** since that finding, `ZLS_MAX_MARKS` was raised 8192→65536 (SCRIP `zeta_storage.c:17`, "grow instead of share"). On the current tree beauty self-host now dies at **`entry table overflow (65536)`**; bump entry+mark caps and it dies UNDER that at **`scope table overflow (4096)`**. THREE fixed-size zls tables (marks/entries/scopes) blow in cascade. Growing tables is a losing game — root cause is O(n²).
+- **Root cause (confirmed):** the DEFINE loop's entry-in-main branch (`lower_snobol4.c:~2137`, the common labelled-range-in-main idiom) calls `sno_build_graph(st, nst, eidx, ...)` — which builds a FULL main-sized graph AND marks every main label — once PER such DEFINE. beauty: ~39 entry-in-main DEFINEs (of 53) × ~163 labels ⇒ the mark/entry/scope cascade. (The mark table is per (graph,label); entries are per IR-node-per-graph in slot-assign; scopes are per graph — ALL scale with `n_DEFINEs × main_size` because each DEFINE clones a full-main-sized graph.)
+
+## WHAT WAS TRIED THIS SESSION — share-the-graph (the FINDING-2026-07-22 prescription), and WHY IT IS NOT COMPLETE ALONE
+Implemented the pure-LOWER share-the-graph fix in `lower_snobol4.c`:
+- Snapshot main's label→anchor pairs right after main's build (line ~2082), BEFORE any DEFINE-body `sno_build_graph` calls `bb_label_registry_reset()` (the registry `g_bb_labels` in `lower_common.c` is a single GLOBAL, reset per build — so a naive `bb_label_landing(entry)` inside the DEFINE loop resolves against the LAST-built body graph, not main; the snapshot fixes this ordering hole the FINDING did not mention).
+- Entry-in-main DEFINE branch: resolve `fentry` from the snapshot; share main's graph (`bb_idx = proc_table[main].bb_idx`) + set `proc_entry_node = fentry`; skip `bb_program_add`. Body DEFINEs (`def_body[di]`) UNCHANGED — they are their own graphs.
+
+**RESULT: the O(n²) zls cascade VANISHES** (no overflow — lowering completes, emission begins). Strictly further than pristine. BUT a deeper, PRE-EXISTING wall is exposed:
+
+### THE SHARED-GRAPH RE-EMISSION WALL (the real blocker; pre-existing, latent)
+- **mode-4 `--compile beauty.sno` → 18.7 MILLION-line `.s`, assembler rejects it: `.Lbynamefn183 already defined` (×many).**
+- **mode-3 `--run` → `emit_chain returned NULL — BB template(s) lack MEDIUM_BINARY arm`** (same collision, different symptom — buffer overflow / bad seal).
+- **MECHANISM:** the per-proc emission loops (`scrip.c:1177` m4, `:1379`/`:1458` m3) call `emit_chain(proc_entry_node, "proc_<name>")` on EVERY proc, skipping only `"main"`. A shared-graph proc's `proc_entry_node` points INTO main's graph, so `emit_chain` **re-emits main's whole suffix** for each of the ~39 DEFINE + ~163 LBL__ procs. `bb_node_id` (`emit.cpp:293`) keys node ids on NODE IDENTITY (mode-3: `(uintptr_t)nd % 100000`; mode-4: a per-compile dense counter whose `g_nid_key` map is NOT reset between procs). Re-emitting a shared node therefore mints the SAME `bb<nid>_α` / `.Lbynamefn<nid>` (`bb_call.cpp:290`) → duplicate symbol + 18.7M-line bloat. The node-id scheme PROVES the architecture intends each node emitted exactly once.
+- **This wall is PRE-EXISTING, not introduced by the LOWER change:** LBL__ pseudo-procs ALREADY share main's graph + proc_entry_node (landed 2026-07-22) and would collide identically — beauty simply never reached emission before (always overflowed in lowering). So the shared-graph EMISSION path was never exercised end-to-end until this session. Had the "grow the tables" approach been pushed far enough (bump entry+scope caps too), it would have hit this SAME wall at emission. The mark/entry/scope overflow was the FIRST wall; the re-emission collision is the SECOND.
+
+### REGRESSION PROOF — the two halves are COUPLED; the LOWER change CANNOT land alone
+Minimal repro `eim.sno` (classic entry-in-main recursive factorial):
+```
+        DEFINE('FACT(N)')          :(MAIN)
+FACT    FACT = LT(N,2) 1          :S(RETURN)
+        FACT = N * FACT(N - 1)     :(RETURN)
+MAIN    OUTPUT = 'fact(5)=' FACT(5)
+        OUTPUT = 'fact(8)=' FACT(8)
+END
+```
+- **Pristine tree:** `fact(5)=120 / fact(8)=40320` ✅ (per-DEFINE graphs emit correctly; they only fail to SCALE).
+- **With share-the-graph LOWER change:** **SEGFAULT** in mode-3.
+⇒ The per-DEFINE-graph approach is CORRECT and working today for entry-in-main DEFINEs; it is only non-scalable. Share-the-graph fixes scaling but breaks emission. **The working-tree LOWER change was therefore REVERTED — committing it would regress every currently-compiling entry-in-main-DEFINE program.** Tree is pristine at handoff.
+
+## ⭐⭐ FINAL DIRECTION (Lon, this session, verbatim intent: "SNOBOL4 has single statements. That is ALL." / "DEFINE is a single statement.")
+The framing below (share-the-graph, small-per-DEFINE-graph, per-DEFINE anything) is ALL wrong-headed. SNOBOL4 is a flat sequence of statements; each statement is ONE Byrd Box, lowered ONCE; control flows statement→statement by goto/fall-through. **DEFINE is just one statement** — a BB that, when executed at runtime, makes a name callable at its entry label. There is no "main graph vs function graph," no function body to carve or re-lower. The stupidity is entirely in the DEFINE loop RE-LOWERING the whole statement list once per DEFINE (`lower_snobol4.c:~2137`, `sno_build_graph(st, nst, eidx, ...)`), which invented a per-function graph SNOBOL4 does not have. That invented re-lowering IS the O(n²) AND the zls table overflow.
+
+**THE CORRECT SHAPE (what to build):**
+- The statement sequence is lowered ONCE (it already is — `g = sno_build_graph(st,nst,0,...)` at 2073). Every labelled statement, including the ones that form a DEFINEd function's body, is already a BB in that ONE graph, already emitted as part of the program.
+- An entry-in-main DEFINE therefore needs NO graph and NO re-emission. It is a proc-table entry whose entry point is the label's existing anchor in the one graph (`proc_entry_node = bb_label_landing(entry)`; snapshot main's label→anchor BEFORE any body-DEFINE build resets the GLOBAL `g_bb_labels` registry — `lower_common.c:18`).
+- Calls and RETURN already work dynamically via the activation record: `rt_proc_call_open`→`rt_proc_call_prologue` (rt.c:965, pushes call context), `rt_proc_call_epilogue_ret` (rt.c:1158, unwinds the activation, hands DESCR back to caller). RETURN/`exitnd` is NOT graph-specific at runtime — verified. (This is why per-DEFINE graphs are NOT needed for RETURN correctness — earlier session note claiming otherwise is SUPERSEDED.)
+
+**THE ONE REMAINING WIRE (proven by experiment — where the next pass starts):**
+The lowering change (entry-in-main DEFINE → proc-table entry sharing the one graph's bb_idx + `proc_entry_node`, no `sno_build_graph`) BUILDS clean and KILLS the overflow. The break is purely on the EMIT side: the driver's per-proc loops (`scrip.c:1177` m4 / `:1458` m3) call `emit_chain(proc_entry_node,...)` for EVERY non-main proc. `emit_chain`'s node-dedup array (`codegen_flat_chain_body`, `static IR_t *nodes[CH_MAX]; int n=0`) is reset PER CALL, so a shared-entry proc RE-WALKS and RE-EMITS the program suffix, re-minting node-id-keyed labels (`bb<nid>_α`, `.Lbynamefn<nid>` `bb_call.cpp:290`) → duplicate symbols / 18.7M-line `.s` (m4), NULL emit → SEGV (m3). **Skipping `emit_chain` for a shared-entry proc is necessary but not sufficient** (tested: then `p->fn` is unset and the by-name call jumps to null → SEGV).
+⇒ **THE FIX:** a shared-entry proc must NOT re-emit; its callable entry must resolve to the label's ALREADY-EMITTED address in the one program emission — the SAME runtime label mechanism a goto uses: **`rt_goto_transfer(name)`** (`bb_goto_dyn.cpp:25`) already resolves a program label name → its emitted address at runtime (mode-3 gotos into the body use it). So: register the DEFINE's callable entry against the program-label address (make the by-name call for a shared-entry proc reach the entry via the goto/label-transfer path, or record the label's emitted address at main-emit time and `rt_proc_set_fn` it), instead of emitting a separate proc body. LBL__ pseudo-procs are the existing precedent for "shared entry reached by `rt_goto_transfer` arm 4" — they ALSO currently go through `emit_chain` in these loops and would collide identically; beauty is simply the first CODE+DEFINE program to reach emission, so this latent hole was never hit. Fix LBL__ and entry-in-main DEFINE together with the one mechanism.
+This is BB-CODEGEN/emit-driver + a runtime call/label wire — read the design set if any `bb_*`/`xa_*`/`x86_asm.h` edit is needed, and go MONITOR-FIRST on the SEGV (`eim.sno` is the 6-line repro; then beauty). It is landable and small once the label-address-for-call wire is in.
+
+**THE TWO REAL REQUIREMENTS (traced this session — a shared-entry DEFINE needs BOTH; the plain shared graph gives NEITHER):**
+1. **A callable entry.** The caller's emitted code takes `fbytes` from `rt_proc_call_prologue` (rt.c:965 — dyn path: resolves cells, `rt_name_save_push` of the formals = dyn scope, pushes the pcall record, bumps k-level; returns the frame size) and jumps to `p->fn`. So the proc needs an emitted α entry (`sub rsp,fbytes` + enter body); a bare label address is NOT a valid `p->fn`.
+2. **RETURN routed to the proc epilogue, not the program exit.** `lower_snobol4.c` wires `RETURN→exitnd(γ)` / `FRETURN→failnd(ω)` (rt.c:992 comment), and the epilogue reads the result from the NAME DICTIONARY (`NV_GET_fn(c.rname)`, rt.c:1003) — dyn-scope, so the *value* is name-based and correct under sharing. BUT the *control* landing exitnd, in the ONE program graph, is the PROGRAM's exit — so a shared FACT hitting `:S(RETURN)` jumps to program-end, not back to the caller. This is a SEMANTIC break independent of re-emission, and is the OTHER reason the per-DEFINE graph exists today (its own exitnd → epilogue).
+
+⇒ **THE FIX = DECOUPLE the two things the per-DEFINE graph currently BUNDLES.** Today it gives (correct RETURN + own α) together WITH (wasteful full re-lower of all `nst` statements). Keep the first, drop the second: mint a TINY per-DEFINE ENTRY-STUB graph — NOT the program. Concrete shape:
+- Stub graph = one `IR_GOTO_DEFERRED` node (emit.cpp:880 → `bb_goto_dyn()` → **`rt_goto_transfer(name)`**, the RUNTIME by-name label transfer that already works ACROSS emissions — it is how CODE fragments jump back into the body) targeting the DEFINE's entry LABEL NAME, plus the stub's OWN `exitnd`/`failnd` so RETURN/FRETURN land on the epilogue. `proc_entry_node`/bb_idx point at this stub, not the program graph.
+- The stub emits as a normal proc (its own α with the dyn prologue; `emit_chain` on the 1-node stub is cheap and collision-free — it emits only the stub's own nodes), so requirement 1 is met. Its `IR_GOTO_DEFERRED` α runtime-transfers into the body's already-emitted entry label, so the body is emitted ONCE (as part of the program), meeting the no-re-emission goal. Its own exitnd meets requirement 2.
+- Verify the program-emission registers each labelled statement's address in the `rt_goto_transfer` map (mode-3 gotos into the body already rely on this, so it should hold) and that a `IR_GOTO_DEFERRED` from a proc-context stub resolves a MAIN-program label (LBL__/CODE precedent).
+- LBL__ pseudo-procs get the SAME stub treatment (they too currently re-emit via `emit_chain(proc_entry_node)` in the driver loops and would collide; beauty is the first CODE+DEFINE program to reach emission and expose it). One mechanism fixes both.
+
+This is O(1) per DEFINE (a 1-node stub), killing the O(n²) at the root while preserving call/RETURN correctness. It is a bounded lower+emit change; go MONITOR-FIRST on any SEGV (`eim.sno` 6-line repro → beauty). The DEFINE-loop lowering edit (share bb_idx / snapshot / no `sno_build_graph`) is the FRONT half and applies on top; the stub is the missing back half.
+
+## (SUPERSEDED framing kept below only as a record of dead ends) — share-the-graph vs small-graph
+After the regression above I probed deeper. TWO independent findings redirect the fix AWAY from share-the-graph:
+
+**(1) SHARE-THE-GRAPH BREAKS `RETURN` SEMANTICS FOR CALLED FUNCTIONS (the real killer, beyond re-emission).** `sno_build_graph` registers `"RETURN"→exitnd` / `"FRETURN"→failnd` where exitnd is THAT GRAPH's IR_SUCCEED (line 1737-1740). A per-DEFINE graph gets its OWN exitnd, which the proc-emission path wraps as `rt_proc_call_epilogue` (return DESCR to caller). If a DEFINE SHARES main's graph, its `:S(RETURN)` resolves to MAIN's exitnd = PROGRAM END, not "return to caller" — so a called+returning DEFINE ends the program (or corrupts the stack) instead of returning its value. This is almost certainly what segfaulted `eim.sno`. LBL__ procs are immune ONLY because they are `rt_goto_transfer` GOTO targets (no caller, no return) — a goto into main's body continuing main's flow is correct; a CALL is not. ⇒ per-DEFINE graphs exist for a CORRECTNESS reason (own exitnd), not merely frame sizing. The `zeta_storage.c:17` comment's "SIGBUS at scale" was the wrong reason but the right conclusion: **keep per-DEFINE graphs.**
+
+**(2) THE O(n²) IS COMPILE-TIME, NOT JUST MEMORY — but the baseline is CORRECT.** Bumping ALL zls caps generously (ENTRIES→1<<21, SCOPES→1<<16, GRAPHS→1<<16, MARKS→1<<21, FIELDS→1<<22; builds+links fine, BSS grows) makes the overflow VANISH and produces a `.s` with ZERO duplicate symbols (1.26M lines of legit per-DEFINE bodies, NOT the 18.7M re-emission explosion) — proving per-DEFINE graphs compile beauty CORRECTLY. BUT `--compile` alone does not finish in 180s (rc=124 timeout): beauty is ~208 labelled statements × 78 DEFINEs, and each entry-in-main DEFINE lowers + slot-assigns the FULL ~208-stmt main graph ⇒ ~O(78 × full) work = minutes. So "grow the tables" unblocks correctness but leaves an intolerable compile time. The fixed-cap overflow was never the disease; the full-main-sized-graph-per-DEFINE is.
+
+**⇒ THE RIGHT FIX: SMALL-PER-DEFINE-GRAPHS.** Each entry-in-main DEFINE should build a graph of ONLY ITS BODY statements (entry label → its RETURN, plus whatever it actually reaches), with its OWN exitnd. This gives: correct RETURN (own exitnd), own body emission (no re-emission collision), small graph (no table pressure, O(n·body) not O(n·main) compile). Body-range extraction is the work: the labelled-range idiom has no explicit end marker, so identify the reachable body from the entry (or, common-case, the contiguous run entry→first RETURN with no fall-through past it). Out-of-body gotos to shared main labels must resolve via the runtime label mechanism (`rt_goto_transfer`) rather than intra-graph — VERIFY the emitter falls back to runtime transfer for a label absent from the current graph (today the full-graph approach makes every such label intra-graph, so this path may be untested). If reachability is too hairy for the general case, gate small-graphs to the common contiguous-body shape and fall back to the full graph (current behavior) for DEFINEs whose body gotos escape their range — correctness preserved, speed won where it is safe.
+
+## THE (SUPERSEDED) EMITTER ROUTE — kept only to record it was ruled out
+The share-the-graph "don't re-emit, reach main's emitted body" emitter rung below was the plan BEFORE finding (1). It is SUPERSEDED — do not pursue it; it cannot fix the RETURN-semantics break. Retained for the mechanism notes only.
+
+### (superseded) emitter route
+Shared-graph procs (LBL__ AND entry-in-main DEFINE) must reach main's ALREADY-EMITTED body without re-emitting. DEFINE calls resolve by NAME at runtime (`rt_proc_call_open` → `rt_proc_find(name)` → `p->fn`), and `p->fn` is registered from the emitted `proc_<name>_α` label (`scrip.c:1011` `lea rsi,[rip+proc_<name>_α]; call rt_proc_register`). Two candidate shapes:
+1. **Main-emission-time label attachment:** during main's single `emit_chain`, ALSO export an α label at each shared proc's entry node; register `p->fn` to THAT in-main label instead of a separately-emitted `proc_<name>_α`. No re-emission, no trampoline, but needs `emit_chain`/`emit_drive` to attach extra entry labels at specified nodes.
+2. **Prologue-aware entry trampoline:** emit a TINY `proc_<name>_α:` (dyn-scope prologue that `emit_jmp_entry_for_proc` arms — self-alloc activation + `rt_jmp_frame_lexprep` + arg bind) then `jmp bb<entry-nid>_α` (main's emitted entry label). A few instructions, not a body. The prologue is the hard part to hand-emit correctly; likely needs emitter cooperation, so **read `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` first** if any `bb_*`/`xa_*`/`x86_asm.h` edit is required, and hunt any divergence MONITOR-FIRST (`eim.sno` is the smallest repro; then beauty).
+
+Either shape is real emitter work with a monitor-verified debug loop — scoped for its own session with the design-set open. The LOWER snapshot+share edit is the correct FRONT half and should be re-applied on top of the emitter fix (not before it).
+
+## ACCEPTANCE GATES (unchanged)
+- `scrip --run beauty.sno < beauty.sno` (SNO_LIB=. from the include dir) byte-identical to oracle: 622 lines, md5 `9cddff2534472b822438801d8db58a99`.
+- `eim.sno` mode-3 AND mode-4 = `fact(5)=120 / fact(8)=40320` (the coupled-regression guard).
+- crosscheck m3/m4 ≥ watermark 307/0 DIVERGE=0; smokes sno 7/7×2; `.s` artifact regen per handoff step 4.
+
+## KEY PATH MAP
+- `src/lower/lower_snobol4.c:2073-2082` main build; `:2100-2118` LBL__ shared-graph loop (already shares — same latent wall); `:2123-2153` the DEFINE loop (`:2137` = the entry-in-main flood site).
+- `src/lower/lower_common.c:15-30` the GLOBAL `g_bb_labels` registry (reset per `sno_build_graph`) — the ordering hazard the snapshot solves.
+- `src/contracts/zeta_storage.c:12,17` `ZLS_MAX_ENTRIES`/`ZLS_MAX_MARKS` (both 65536 now); `:37` scope table; `:69`/`:40` the overflow aborts. `:1740`-site `zls_group_mark` (one per label per graph).
+- `src/driver/scrip.c:1177` (m4) / `:1379`,`:1458` (m3) per-proc `emit_chain(proc_entry_node,...)` — the re-emission sites; `:1011`/`:1203` proc entry-address registration.
+- `src/emitter/emit.cpp:293` `bb_node_id` (identity-keyed → collision on re-emit); `:554-557` `bb<nid>_α` label mint. `src/templates/bb_call.cpp:290` `.Lbynamefn<nid>`.
+- `src/runtime/rt/rt.c` `rt_proc_call_open` → `rt_proc_find` → `p->fn` (by-name runtime dispatch to the emitted entry).
+
+## BUILD / TREE STATE AT HANDOFF
+- Tree PRISTINE (share-the-graph edit reverted); `scrip` rebuilt rc=0, beauty suite 48/51 (omega only), `eim.sno` correct. `libscrip_rt.so` at `out/` from session build (`-O0`).
+- No commits this session (correctly — the only code change was a proven regression). This FINDING + a LIVE CURSOR update are the deliverables.
