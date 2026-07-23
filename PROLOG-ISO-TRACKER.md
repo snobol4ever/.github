@@ -9,12 +9,12 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | metric | count |
 |--------|-------|
 | gprolog public exports (total) | 312 |
-| DONE (SCRIP admits) | 122 (39%) |
-| RUNG-ASSIGNED | 190 |
+| DONE (SCRIP admits) | 123 (39%) |
+| RUNG-ASSIGNED | 189 |
 | **UNASSIGNED** | **0** |
 | core scope | 237 |
 | gprolog-ext scope | 75 |
-| **core still open** | **116** |
+| **core still open** | **115** |
 
 ## Per-file coverage
 
@@ -26,7 +26,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `char_io.pl` | core | 23 | 28 | 5 |
 | `src_rdr.pl` | core | 0 | 22 | 22 |
 | `read.pl` | core | 2 | 17 | 15 |
-| `atom.pl` | core | 10 | 15 | 5 |
+| `atom.pl` | core | 11 | 15 | 4 |
 | `dec10io.pl` | core | 5 | 12 | 7 |
 | `write.pl` | core | 12 | 12 | 0 |
 | `debugger.pl` | gprolog-ext | 0 | 11 | 11 |
@@ -56,7 +56,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 
 *(none)*
 
-## RUNG-ASSIGNED — owned, not yet landed  (190)
+## RUNG-ASSIGNED — owned, not yet landed  (189)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -66,7 +66,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `current_atom/1` | `atom.pl` | core | PL-ISO-4 |
 | `new_atom/1` | `atom.pl` | core | PL-ISO-4 |
 | `new_atom/2` | `atom.pl` | core | PL-ISO-4 |
-| `number_atom/2` | `atom.pl` | core | PL-ISO-4 |
 | `call_det/2` | `call.pl` | core | PL-ISO-12 |
 | `call_nth/2` | `call.pl` | core | PL-ISO-12 |
 | `countall/2` | `call.pl` | core | PL-ISO-12 |
@@ -251,7 +250,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `term_hash/4` | `term_inl.pl` | core | PL-ISO-11 |
 | `term_ref/2` | `term_inl.pl` | core | PL-ISO-11 |
 
-## DONE — admitted by SCRIP  (122)
+## DONE — admitted by SCRIP  (123)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -269,6 +268,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `char_code/2` | `atom.pl` | core |  |
 | `lower_upper/2` | `atom.pl` | core |  |
 | `name/2` | `atom.pl` | core |  |
+| `number_atom/2` | `atom.pl` | core |  |
 | `number_chars/2` | `atom.pl` | core |  |
 | `number_codes/2` | `atom.pl` | core |  |
 | `sub_atom/5` | `atom.pl` | core |  |
