@@ -9,23 +9,23 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | metric | count |
 |--------|-------|
 | gprolog public exports (total) | 312 |
-| DONE (SCRIP admits) | 123 (39%) |
-| RUNG-ASSIGNED | 189 |
+| DONE (SCRIP admits) | 128 (41%) |
+| RUNG-ASSIGNED | 184 |
 | **UNASSIGNED** | **0** |
 | core scope | 237 |
 | gprolog-ext scope | 75 |
-| **core still open** | **115** |
+| **core still open** | **110** |
 
 ## Per-file coverage
 
 | file | scope | done | total | open |
 |------|-------|------|-------|------|
-| `stream.pl` | core | 12 | 43 | 31 |
+| `stream.pl` | core | 14 | 43 | 29 |
 | `os_interf.pl` | gprolog-ext | 0 | 35 | 35 |
 | `const_io.pl` | core | 27 | 30 | 3 |
-| `char_io.pl` | core | 23 | 28 | 5 |
+| `char_io.pl` | core | 24 | 28 | 4 |
 | `src_rdr.pl` | core | 0 | 22 | 22 |
-| `read.pl` | core | 2 | 17 | 15 |
+| `read.pl` | core | 4 | 17 | 13 |
 | `atom.pl` | core | 11 | 15 | 4 |
 | `dec10io.pl` | core | 5 | 12 | 7 |
 | `write.pl` | core | 12 | 12 | 0 |
@@ -56,7 +56,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 
 *(none)*
 
-## RUNG-ASSIGNED — owned, not yet landed  (189)
+## RUNG-ASSIGNED — owned, not yet landed  (184)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -73,7 +73,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `get_key/2` | `char_io.pl` | core | PL-ISO-7b |
 | `get_key_no_echo/1` | `char_io.pl` | core | PL-ISO-7b |
 | `get_key_no_echo/2` | `char_io.pl` | core | PL-ISO-7b |
-| `put_char/2` | `char_io.pl` | core | PL-ISO-7b |
 | `read_token_from_atom/2` | `const_io.pl` | core | PL-ISO-7b |
 | `read_token_from_chars/2` | `const_io.pl` | core | PL-ISO-7b |
 | `read_token_from_codes/2` | `const_io.pl` | core | PL-ISO-7b |
@@ -161,7 +160,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `char_conversion/2` | `read.pl` | core | PL-ISO-7a |
 | `current_char_conversion/2` | `read.pl` | core | PL-ISO-7a |
 | `last_read_start_line_column/2` | `read.pl` | core | PL-ISO-7a |
-| `read/2` | `read.pl` | core | PL-ISO-7a |
 | `read_atom/1` | `read.pl` | core | PL-ISO-7a |
 | `read_atom/2` | `read.pl` | core | PL-ISO-7a |
 | `read_integer/1` | `read.pl` | core | PL-ISO-7a |
@@ -170,7 +168,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `read_line_to_codes/2` | `read.pl` | core | PL-ISO-7a |
 | `read_number/1` | `read.pl` | core | PL-ISO-7a |
 | `read_number/2` | `read.pl` | core | PL-ISO-7a |
-| `read_term/3` | `read.pl` | core | PL-ISO-7a |
 | `read_token/1` | `read.pl` | core | PL-ISO-7a |
 | `read_token/2` | `read.pl` | core | PL-ISO-7a |
 | `hostname_address/2` | `sockets.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
@@ -214,8 +211,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `user_time/1` | `stat.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `add_stream_alias/2` | `stream.pl` | core | PL-ISO-7b |
 | `add_stream_mirror/2` | `stream.pl` | core | PL-ISO-7b |
-| `at_end_of_stream/0` | `stream.pl` | core | PL-ISO-7b |
-| `at_end_of_stream/1` | `stream.pl` | core | PL-ISO-7b |
 | `character_count/2` | `stream.pl` | core | PL-ISO-7b |
 | `close_input_atom_stream/1` | `stream.pl` | core | PL-ISO-7b |
 | `close_input_chars_stream/1` | `stream.pl` | core | PL-ISO-7b |
@@ -250,7 +245,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `term_hash/4` | `term_inl.pl` | core | PL-ISO-11 |
 | `term_ref/2` | `term_inl.pl` | core | PL-ISO-11 |
 
-## DONE — admitted by SCRIP  (123)
+## DONE — admitted by SCRIP  (128)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -287,6 +282,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `put_byte/1` | `char_io.pl` | core |  |
 | `put_byte/2` | `char_io.pl` | core |  |
 | `put_char/1` | `char_io.pl` | core |  |
+| `put_char/2` | `char_io.pl` | core |  |
 | `put_code/1` | `char_io.pl` | core |  |
 | `put_code/2` | `char_io.pl` | core |  |
 | `unget_byte/1` | `char_io.pl` | core |  |
@@ -343,10 +339,14 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `print/1` | `print.pl` | core |  |
 | `print/2` | `print.pl` | core |  |
 | `read/1` | `read.pl` | core |  |
+| `read/2` | `read.pl` | core |  |
 | `read_term/2` | `read.pl` | core |  |
+| `read_term/3` | `read.pl` | core |  |
 | `keysort/2` | `sort.pl` | core |  |
 | `msort/2` | `sort.pl` | core |  |
 | `sort/2` | `sort.pl` | core |  |
+| `at_end_of_stream/0` | `stream.pl` | core |  |
+| `at_end_of_stream/1` | `stream.pl` | core |  |
 | `close/1` | `stream.pl` | core |  |
 | `close/2` | `stream.pl` | core |  |
 | `current_input/1` | `stream.pl` | core |  |
