@@ -112,3 +112,29 @@ scrip crashes; no `$retractall` runtime handler exists — needs a new handler +
 its own rung). Deeper fix worth its own rung: make the fallthrough arm emit a clean
 unknown/wrong-arity predicate error (fail or `existence_error`) instead of `IR_OP_COUNT`, so a
 missing arm degrades gracefully instead of aborting the whole program.
+
+## UPDATE — `retractall/1` explored, NOT shipped (root cause is a deeper `retract/1` bug)
+
+Attempted `retractall/1` via the same reuse trick: `retractall(H)` ≡ `( retract(H), fail ; true )`.
+This is EXACTLY gprolog's own definition (`assert.pl:92-96`: `retractall(H) :- '$retract'(H,_), fail.`
+`retractall(_).`), and SCRIP's `retract/1` fails cleanly (does not throw) on empty/nonexistent
+predicates, and the parser already dyn-marks `retractall(H)`'s predicate — so structurally the arm
+is correct. It compiled and handled the single-clause and nonexistent cases right.
+
+**But it diverged on multi-clause removal:** `retractall(col(_))` over `{red,green}` left `[green]`
+where both oracles give `[]`. **Root cause is NOT retractall — it is a pre-existing `retract/1`
+backtracking defect**, reproduced in isolation with zero retractall involvement:
+`( retract(d(X)), write(X), fail ; true )` over `d(1),d(2),d(3)` prints only `1` and leaves
+`[2,3]`; swipl prints `1 2 3` and leaves `[]`. **SCRIP's `retract/1` retracts only the FIRST match
+under backtracking and does not re-drive to later clauses.** The existing rung14 retract corpus
+passes only because it sidesteps this with EXPLICIT RECURSION (`retract(H), retract_loop.`
+`retract_loop.`) — each call is a FRESH retract that re-scans from the start — never the
+`(retract, fail ; true)` backtracking form.
+
+**Decision: reverted the retractall arm** (net-zero diff; the two-fix commit stands). Shipping a
+knowingly oracle-divergent `retractall` violates the byte-exact bar. Correct fix is one of: (i)
+MONITOR-hunt and fix `retract/1`'s generator so backtracking re-drives to subsequent clauses (then
+the gprolog-shaped reuse arm becomes correct for free), or (ii) lower `retractall(H)` to a
+registered synthetic recursive helper `$retractall(H) :- retract(H), $retractall(H). $retractall(_).`
+(fresh-retract recursion, the working idiom) via the `pl_ensure_gen_builtin_pred` mechanism. Option
+(i) is better — it fixes the underlying bug that also affects any user `(retract, fail ; true)` loop.
