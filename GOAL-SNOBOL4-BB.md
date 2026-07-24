@@ -611,3 +611,20 @@ WATCH-ITEM: C-stack depth — deep ARBNO/recursion sized for a 512MB arena may n
 - [ ] **ZB-OWN-1a — MAKE rsp A STABLE BASE (Phase 3 prereq).** In order: (a) G1 — `x86_align_enter/leave` become no-ops under `ZC_FRAME_RSP` + prove the 16-align invariant (every ζ alloc a multiple of 16; audit every push/sub-rsp producer); (b) G2 — `x86_xfer_enter/leave` spill r13/r14/r15 to a 3-slot ζ grant under RSP (grant in LOWER); (c) re-run the ablation, let the number redraw the rung. Gate: default R12 build BYTE-IDENTICAL (all three constant-fold under `ZC_FRAME != ZC_FRAME_RSP`) + the RSP crosscheck number moves off 174/118, reported honestly. ⚠ Don't chase mode-4 under RSP first (5/286, a different contract — the graph IS `main`, entered from crt); mode-3 is where the signal is.
 - [ ] **ZLS-LEAK (new s40; SNOBOL4-adjacent but PROLOG-owned — route with Lon; = GC-U-1, PARKED s60b per C5).** 63,609 generator ζ frames on `tak.pl` (250MB), 21,891 on `fib.pl` (86MB), ZERO released, all pinned on the chain; tak peak RSS 633MB. Cause: no release on generator exhaust/cut/determinate-exit — only on immediate failure. A real leak independent of any collector, and it decides GC-W-1's root-set fork (unlink at exhaust ⇒ "on the chain" ≡ "live"). Instruments committed: `SCRIP_ZLS_LIFO_PROBE`, `SCRIP_ZLS_PIN_PROBE`.
 
+
+### s145 (2026-07-24, Claude) — calculator-1/-2-match demo pair landed · bench harness extended to 5 match demos · mkrep indent-bug fixed
+
+**DELIVERABLES (all pushed to origin):**
+- `corpus/programs/snobol4/demo/calculator-1-match.sno` — right-recursive grammar (`*F/*T/*X` deferred variables), whole-file ONE-BIG-MATCH, `ARBNO(X eol)` anchored `POS(0)..RPOS(0)`. Literal-only cset primitives (`ANY('abcdefghijklmnopqrstuvwxyz')`, `SPAN('0123456789')`) so every cset test folds to the tuned UNROLL→256B-table→fast-asm path; proven: 0 `rt_sg_member`/`rt_sg_scan` calls in the compiled `.s`.
+- `corpus/programs/snobol4/demo/calculator-2-match.sno` — ARBNO-iterative grammar (fullscan-safe; same language, different engine stress profile). Same literal-cset discipline.
+- Both `.ref` files (`matched bytes=32512`). Identity verified: sbl = scrip m3 = scrip m4 on `calculator.input`.
+- `expression-match.{sno,ref}` + `expression.input` removed (s143 batch; superseded by calculator pair).
+- `SCRIP/scripts/bench_sno_match4.sh` extended to bench all **5** match demos (`claws5-match treebank-match json-match calculator-1-match calculator-2-match`); fixed latent mkrep indent bug (`ind[9:]` fused `benchloop` label onto `src` for 8-space-indented files).
+
+**HONEST BASELINE (m4 `-O0` runtime vs optimized SPITBOL, rep10, NOT a valid A/B — single run, host-load-variable, recorded for reference only):** json 0.92 · claws5 1.20 · treebank ~1.45 · calc-2 ~2.2 · calc-1 ~2.05. README §414–453 (and prior FINDING) confirm: cset guts are NOT the bottleneck (UNROLL/256B-table/fast-asm-call is the verified winner; no further cset-guts tuning warranted). Gap is in ARBNO/deferred-recursion activation machinery.
+
+**GATES:** crosscheck m3 309/1 · m4 304/4 · DIVERGE=3 (all pre-existing, watermark-exact). sno smokes 7/7×2. `zeta_choices.h` fully reverted (0 diff vs origin). **RT_OPT=-O0.**
+
+**SCRIP HEAD:** `a0b9aa41` == origin/main. corpus HEAD: `7af7146d` == origin/main.
+
+**⭐⭐⭐ NEXT TARGET (PERF track — 2–3× SPITBOL goal):** ARBNO β-fill elision + patchable-γ/ω external linkage for `*PATTERN` recursion — the ARBNO activation machinery is where the gap actually lives (README §453; SPD-1 inline elementary tests are already tuned; BC-EMIT-ACC jmp-chain fold is the other lever). Read `ARCH-ICON.md` + `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` before any template edits. Monitor-first on any crosscheck divergence.
