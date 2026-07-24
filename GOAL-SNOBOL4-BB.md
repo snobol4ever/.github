@@ -1,5 +1,25 @@
 
-### s142 (2026-07-24, Claude) — LBL__ O(n²) ZLS OVERFLOW KILLED · beauty monitor: ZLS cleared, FLAT_BUF_MAX next
+### s143 (2026-07-24, Claude) — BLOCKER B SOLVED: it was NOT FLAT_BUF_MAX; it was a proc_entry_node DRIVER OMISSION (1-line fix) · beauty now on Blocker C
+
+**FULL WRITEUP:** `FINDING-2026-07-24-CLAUDE-SN4-BEAUTY-BLOCKER-B-IS-PROC-ENTRY-NODE-DRIVER-OMISSION-NOT-FLAT-BUF-MAX.md`.
+
+**⛔ CORRECTION to s142's Blocker B (below): the "FLAT_BUF_MAX exceeded" headline was WRONG.** beauty's main graph is ~217 KB, not >1 MB — the overflow guard (emit.cpp:2326, the ONLY path that prints the FLAT_BUF_MAX line) never fires. The generic `emit_chain returned NULL` fatal came from the OTHER, SILENT NULL path (`bb_alloc` fail, emit.cpp:2320). Instrumented + proved: beauty's 314 `LBL__` procs ALL share main's `bb_idx=0`, and the mode-3 driver proc-emit loop **`scrip.c:1358` was passing `s2->bbp.table[idx]->entry` (main's TRUE entry), NOT `proc_entry_node`** — so it re-emitted + re-sealed main's WHOLE ~217 KB graph 314 times. Pool (16 MB) exhausts at ~73 procs (`pool_used`=15,847,424), then every later `emit_chain` returns NULL. s142's own suggested "bb_idx-seen guard + rt_proc_set_fn at anchor offset" was the heavy alternative; the ACTUAL fix is 1 line.
+
+**THE FIX (landed, `src/driver/scrip.c:1358`, 1 line):** `emit_chain(s2->bbp.table[idx]->entry, …)` → `emit_chain(bb_proc_entry(&s2->proc_table[_pi]), …)`. Root cause: s142 set `proc_entry_node` on LBL__ procs and updated TWO of the THREE driver loops (1177 m4 ✓, 1458 m3 ✓) but MISSED this third one (1358, the path beauty takes). `bb_proc_entry` (gen_runtime.h:50) returns `proc_entry_node` if set else `g->entry` — so ordinary DEFINE procs (proc_entry_node==NULL) still emit from their own entry (raw `.proc_entry_node` would pass NULL → early-return NULL → unregistered proc; the accessor's fallback is why it's safer than the sibling idiom). Non-CODE programs are byte-inert.
+
+**RESULT — beauty advanced past Blocker B onto Blocker C:**
+- 2-way monitor (`PARTICIPANTS="spl scr"`): divergence moved **step 1 → step 2** (RULES monitor criterion met — moved PAST old site).
+- Direct `--run`: rc=0, ~8 s (was 28 s → SIGABRT). Lands on **79 distinct `SNO$MKPAT: PAT$NN not registered` starting at PAT$30** = Blocker C exactly as forecast.
+
+**⭐ BONUS — the fix RESTORES the cursor's own claimed crosscheck watermark.** Pristine HEAD `21cfe7aa` MEASURES **m3 302/8** (matches line 11 below; the 307/3 quoted elsewhere in-cursor was stale). The fix → **m3 307/3**, fixing 5 CODE/indirect-goto programs: `1020_code_label_transfer`, `1021_code_direct_goto`, `214/215/216_indirect_goto*`. Pristine `->entry` re-emission produced WRONG mode-3 results for all five.
+
+**GATES (fixed binary, -O0):** sno smokes 7/7×2 · crosscheck **m3 307/3** (was 302/8) · m4 302/6 · DIVERGE=3. beauty suite 48/51 ✅.
+**⚠ DIVERGE=3 (`214/215/216`) is NOT a regression** — it is mode-3-now-CORRECT vs mode-4-STILL-WRONG (m4 already read proc_entry_node yet fails these = separate pre-existing m4 indirect_goto/`.Lbynamefn<nid>` defect, now merely EXPOSED). **NEXT RUNGS:** (1) Blocker C = runtime PAT$30+ registration (deep runtime, monitor-first on step-2 divergence); (2) m4 indirect_goto → 307/3 to close DIVERGE.
+**SCRIP HEAD:** `21cfe7aa` + 1-line fix, **local commit PENDING — NOT pushed, awaiting credential. Handoff INCOMPLETE/BLOCKED on push per RULES.** Codegen touched → `.s` regen (RULES step 4) due at commit. **RT_OPT=-O0.**
+
+---
+
+### s142 (2026-07-24, Claude) — LBL__ O(n²) ZLS OVERFLOW KILLED · beauty monitor: ZLS cleared, FLAT_BUF_MAX next [⛔ "FLAT_BUF_MAX" superseded by s143 above — real Blocker B was pool exhaustion from a driver omission, FIXED s143]
 
 **BEAUTY TEST SUITE: 48/51 ✅** (watermark-exact; 3 omega_driver pre-existing).
 
@@ -97,7 +117,14 @@ Full 3-way results: **`SCRIP/README.md` § "SNOBOL4 Benchmark"** (all 16 byte-id
 
 | | |
 |---|---|
-**s140 LIVE CURSOR UPDATE:**
+**s143 LIVE CURSOR UPDATE (BEAUTY-SELFHOST track — newest):**
+
+- **LAST SESSION (s143):** Blocker B SOLVED — it was NOT FLAT_BUF_MAX (beauty graph ~217 KB); it was 314× main-graph re-emission → 16 MB pool exhaustion, caused by the mode-3 driver loop `scrip.c:1358` passing `->entry` instead of `proc_entry_node` (s142 updated loops 1177/1458 but missed 1358). **FIX LANDED (1 line): `emit_chain(bb_proc_entry(&s2->proc_table[_pi]), …)`.** Beauty now compiles+runs (rc=0, ~8 s) and the 2-way monitor divergence moved step 1 → step 2. Bonus: crosscheck m3 302/8 → **307/3** (fixes `1020/1021_code*`, `214/215/216_indirect_goto*`), restoring the watermark the cursor already claimed. Full writeup: `FINDING-2026-07-24-CLAUDE-SN4-BEAUTY-BLOCKER-B-IS-PROC-ENTRY-NODE-DRIVER-OMISSION-NOT-FLAT-BUF-MAX.md`.
+- **⭐⭐⭐ NEXT TARGET = BLOCKER C: runtime PAT$30+ pattern-blob registration.** Beauty statically compiles PAT$0–PAT$29 and asks for **PAT$30+ at runtime** (79 distinct `SNO$MKPAT: compiled pattern blob 'PAT$NN' not registered`, by_name_dispatch.c:6548) → `Parse Error`. These are patterns beauty builds DYNAMICALLY via its CODE/pattern logic while parsing input; the `code()` → `eval_thunks_emit_from` fragment path mints them but does not register under the referenced names (`rt_proc_get_fn` miss). Deep RUNTIME rung, independent of emission. **Monitor-first on the step-2 divergence** (`PARTICIPANTS="spl scr" STDIN_SRC=beauty.sno INC=<beautydir> MONITOR_TIMEOUT=90 bash scripts/test_monitor_2way_spitbol_vs_run.sh beauty.sno`; beauty at `corpus/programs/snobol4/demo/beauty/beauty.sno`, self-formatting = stdin is itself).
+- **SECONDARY RUNG: close DIVERGE=3.** `214/215/216_indirect_goto*` now pass m3 but FAIL m4 (DIVERGE). m4 already reads proc_entry_node (loop 1177) so this is a SEPARATE pre-existing m4 defect — likely the `.Lbynamefn<nid>` duplicate-symbol collision the 2026-07-23 finding described (m3's `(uintptr_t)nd%100000` node-identity keying tolerates re-emission; the assembler does not). Get m4 to 307/3.
+- **STATE:** SCRIP HEAD `21cfe7aa` + 1-line fix, **local commit PENDING, NOT pushed (credential). Handoff INCOMPLETE/BLOCKED on push per RULES.** Codegen touched (driver emit) → `.s` regen (RULES step 4) due at commit. beauty suite 48/51 ✅. Blocker A (ZLS) ✅ · Blocker B (pool/re-emission) ✅ THIS session · Blocker C = live head. RT_OPT=-O0.
+
+
 
 *(NOTE: two independent s140 sessions ran on different tracks — the PERF/benchmark track below, and the BEAUTY-SELFHOST track under it. Both are live; both retained.)*
 
