@@ -56,6 +56,13 @@ Full 3-way results: **`SCRIP/README.md` § "SNOBOL4 Benchmark"** (all 16 byte-id
 
 | | |
 |---|---|
+**s138 LIVE CURSOR UPDATE:**
+
+| | |
+|---|---|
+| **NEXT RUNG** | **SPD-2 SEAM-TRAFFIC DIET (+ SPD-7/BP-9 chain-collapse) — the measured next lever.** Post-s137-seal + S4a attribution (SPD-0a script — it EXISTS at HEAD, the SPD-0 checkbox is stale): json rep10 m4 = 404M Ir, **97.7% in emitted match code, whole C runtime ≈2%** (defer_close 0.32 · var_hash 0.32 · memset 0.27 · defer_open 0.14). ≈40M Ir/match = the s135 2.1× SPITBOL ratio — library cost is DEAD; the gap is emitted instruction SHAPE (δ FR round-trips at every seam, port glue, jmp chains) vs SPITBOL's 4-inst threading. ⚠ SPD-1's "variable arms still call strchr" clause is STALE: IR_MATCH_SPAN_VAR has NO producer (dead kind, template unminted); variable cset args already resolve at blob-compile into the LITERAL table/range/chain path (BLOBBOX-verified on the trio); live strchr = Icon bb_scan_any/many only. S4b/S4c PARKED with reasons (FINDING s138 §5: fc frame-shadow is load-bearing under non-FORTH ports, ~176B; ARBNO/HEAD ~112B). OWED at handoff: the three .s regen scripts + push (this session = LOCAL COMMITS ONLY, credential not yet supplied). |
+| **LAST SESSION** | s138 (2026-07-24, Claude) — **SLOT-ELIDE S4a LANDED (SCRIP `7e716f02`).** Front 16B result quad of the locals-shifted match family proven runtime-dead by construction (only census/--dump read zls_result_off; all runtime accessors take the +16 path) → `loff` field decouples locals base, +16 law deleted, DEAD whitelisted nodes {SPAN BREAK BREAKX TAB RTAB REM BAL ALT SEQ FENCE1 DEFER VALUE} get locals AT the entry offset, no front quad, zero template edits, LIVE nodes byte-identical; HEAD/ARBNO/ARB/SAVE/SCAN_*/INITIAL excluded with named reasons. Same SCRIP_SLOT_ELIDE=0 kill-switch. GATES (this container, -O0): smokes 7/7×2 · crosscheck m3 307/3 · m4 307/3 · DIVERGE=0 fail-names identical to pristine baseline (NOTE: pristine m4 here = 307/3; s137's container-specific 4-test EVAL m4 defect does not reproduce) · trio byte-OK ×2 modes. MEASURED (rep10, m3, interleaved ×7 medians vs pristine binary): json 51→48ms · treebank 41→**33ms (−20%)** · claws5 flat · floor <4k both (saturated). Manual pinned: plain pattern-fn args freeze at CONSTRUCTION, only `*X` re-fetches (ln 4852-4859). FINDING-2026-07-24-CLAUDE-SN4-SLOT-ELIDE-S4A-AND-POST-ELIDE-ATTRIBUTION.md written. RT_OPT=-O0 throughout. |
+
 **s137 LIVE CURSOR UPDATE:**
 
 | | |
