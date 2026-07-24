@@ -1,4 +1,24 @@
 
+### s144 (2026-07-24, Claude) — BLOCKER C SOLVED: runtime CODE/EVAL fragments now emit+register PAT$N pattern procs · crosscheck improved 307/3→309/1 (m3), 302/6→304/4 (m4)
+
+**ROOT CAUSE (proven by targeted trace, not guessed).** `sno_lower_fragment_at` calls `sno_pat_collect` during fragment lowering, which mints PAT$30+ into `g_sno_pats[]` (continuing past the main-program count of 30), but unlike `lower_sno_stage2` **never turned those entries into emitted+registered proc_table blobs**. At match time: `SNO$MKPAT("PAT$30")` → `rt_proc_get_fn` → NULL → 79 "not registered" errors (43 distinct PAT names, PAT$30–PAT$72; some referenced multiple times). Confirmed by `SNO_TRACE_PAT` instrumentation: 30 mint calls with `in_fragment=0` (main path, registered fine) vs 43 with `in_fragment=1` (fragment path, never registered). Trace removed before fix.
+
+**CORRECTION to s143 cursor "79 distinct":** it's 79 error *lines* / 43 distinct PAT names (PAT$62/63/64 referenced 8× each). Recorded here for accuracy.
+
+**THE FIX (SCRIP `880f2729`, 2 files):**
+- `src/lower/lower_snobol4.c`: factored the main-path inline PAT-proc-build loop out of `lower_sno_stage2` into `sno_pat_thunks_build(int p0)` + `sno_pat_count()` getter. Main path now calls `sno_pat_thunks_build(0)` — behavior-identical. Both new symbols declared at call sites via `extern`; no header needed, no global namespace pollution. `$` is not a SNOBOL4 identifier character (emit.cpp:2276) so PAT$N names are proc-registry keys, never SNOBOL4 variable names.
+- `src/runtime/runtime_eval.c`: in `code()` — capture `pat0 = sno_pat_count()` and `proc0 = g_stage2.proc_count` before lowering loop; after all fragment bodies emit, if new patterns were minted: `sno_pat_thunks_build(pat0)` (builds proc_table entries) then `eval_thunks_emit_from(proc0)` (emits+registers). Same hook added to `eval()` arm (latent version of same gap).
+
+**RESULTS:**
+- Beauty self-host PAT not-registered errors: **79 → 0**. stderr clean. rc=0, ~6s. beauty still prints `Parse Error` (Blocker D — see NEXT TARGET below).
+- Crosscheck **IMPROVED with zero regressions** (verified by stashing fix + rebuilding pristine for true baseline): m3 307/3 → **309/1**, m4 302/6 → **304/4**. Fix incidentally repairs `140_pat_eval_double_fn_trick` + `141_pat_eval_double_fn_arbno` (both the PAT-EVAL corpus class). DIVERGE=3 (`214/215/216_indirect_goto*`) unchanged pre-existing m4 defect. `test_case` m3 fail pre-existing in pristine.
+- Note: SPITBOL oracle *also* fails on `beauty.sno < beauty.sno` (rc=139 SIGSEGV, "duplicate label" syntax error) — self-formatting is not a clean byte-identity target for either engine. Blocker D diagnosis requires a 2-way monitor run (monitor-first per RULES).
+
+**GATES (-O0):** sno smokes 7/7×2 · crosscheck m3 309/1 m4 304/4 DIVERGE=3 · beauty suite 48/51 ✅.
+**SCRIP HEAD:** `880f2729` == origin/main. **RT_OPT=-O0.**
+
+---
+
 ### s143 (2026-07-24, Claude) — BLOCKER B SOLVED: it was NOT FLAT_BUF_MAX; it was a proc_entry_node DRIVER OMISSION (1-line fix) · beauty now on Blocker C
 
 **FULL WRITEUP:** `FINDING-2026-07-24-CLAUDE-SN4-BEAUTY-BLOCKER-B-IS-PROC-ENTRY-NODE-DRIVER-OMISSION-NOT-FLAT-BUF-MAX.md`.
@@ -133,12 +153,12 @@ Full 3-way results: **`SCRIP/README.md` § "SNOBOL4 Benchmark"** (all 16 byte-id
 
 | | |
 |---|---|
-**s143 LIVE CURSOR UPDATE (BEAUTY-SELFHOST track — newest):**
+**s144 LIVE CURSOR UPDATE (BEAUTY-SELFHOST track — newest):**
 
-- **LAST SESSION (s143):** Blocker B SOLVED — it was NOT FLAT_BUF_MAX (beauty graph ~217 KB); it was 314× main-graph re-emission → 16 MB pool exhaustion, caused by the mode-3 driver loop `scrip.c:1358` passing `->entry` instead of `proc_entry_node` (s142 updated loops 1177/1458 but missed 1358). **FIX LANDED (1 line): `emit_chain(bb_proc_entry(&s2->proc_table[_pi]), …)`.** Beauty now compiles+runs (rc=0, ~8 s) and the 2-way monitor divergence moved step 1 → step 2. Bonus: crosscheck m3 302/8 → **307/3** (fixes `1020/1021_code*`, `214/215/216_indirect_goto*`), restoring the watermark the cursor already claimed. Full writeup: `FINDING-2026-07-24-CLAUDE-SN4-BEAUTY-BLOCKER-B-IS-PROC-ENTRY-NODE-DRIVER-OMISSION-NOT-FLAT-BUF-MAX.md`.
-- **⭐⭐⭐ NEXT TARGET = BLOCKER C: runtime PAT$30+ pattern-blob registration.** Beauty statically compiles PAT$0–PAT$29 and asks for **PAT$30+ at runtime** (79 distinct `SNO$MKPAT: compiled pattern blob 'PAT$NN' not registered`, by_name_dispatch.c:6548) → `Parse Error`. These are patterns beauty builds DYNAMICALLY via its CODE/pattern logic while parsing input; the `code()` → `eval_thunks_emit_from` fragment path mints them but does not register under the referenced names (`rt_proc_get_fn` miss). Deep RUNTIME rung, independent of emission. **Monitor-first on the step-2 divergence** (`PARTICIPANTS="spl scr" STDIN_SRC=beauty.sno INC=<beautydir> MONITOR_TIMEOUT=90 bash scripts/test_monitor_2way_spitbol_vs_run.sh beauty.sno`; beauty at `corpus/programs/snobol4/demo/beauty/beauty.sno`, self-formatting = stdin is itself).
-- **SECONDARY RUNG: close DIVERGE=3.** `214/215/216_indirect_goto*` now pass m3 but FAIL m4 (DIVERGE). m4 already reads proc_entry_node (loop 1177) so this is a SEPARATE pre-existing m4 defect — likely the `.Lbynamefn<nid>` duplicate-symbol collision the 2026-07-23 finding described (m3's `(uintptr_t)nd%100000` node-identity keying tolerates re-emission; the assembler does not). Get m4 to 307/3.
-- **STATE:** SCRIP HEAD `21cfe7aa` + 1-line fix, **local commit PENDING, NOT pushed (credential). Handoff INCOMPLETE/BLOCKED on push per RULES.** Codegen touched (driver emit) → `.s` regen (RULES step 4) due at commit. beauty suite 48/51 ✅. Blocker A (ZLS) ✅ · Blocker B (pool/re-emission) ✅ THIS session · Blocker C = live head. RT_OPT=-O0.
+- **LAST SESSION (s144):** Blocker C SOLVED — runtime CODE/EVAL fragments now emit+register PAT$N pattern procs. Root cause: `sno_lower_fragment_at` called `sno_pat_collect` (minting PAT$30–72 into `g_sno_pats[]`) but never built proc_table entries or called `rt_proc_set_fn` — so `SNO$MKPAT("PAT$30")` → NULL → 79 not-registered errors. Fix: factored main-path PAT-proc-build loop into `sno_pat_thunks_build(p0)` + `sno_pat_count()` getter; CODE path captures watermarks before/after lowering and calls both. Zero namespace pollution (inline `extern`, no headers). Incidentally fixed `140_pat_eval_double_fn_trick` + `141_pat_eval_double_fn_arbno` in both modes. SCRIP `880f2729` == origin/main.
+- **⭐⭐⭐ NEXT TARGET = BLOCKER D: beauty still prints `Parse Error` after ~10 output lines.** PAT registration is clean (0 errors). But beauty.sno < beauty.sno → `Parse Error` in both SCRIP AND SPITBOL (oracle rc=139 SIGSEGV, "duplicate label" syntax error from semantic.inc:16). Self-formatting of beauty.sno may not be a clean byte-identity target. **MONITOR-FIRST:** `PARTICIPANTS="spl scr" STDIN_SRC=beauty.sno MONITOR_TIMEOUT=90 bash scripts/test_monitor_2way_spitbol_vs_run.sh corpus/programs/snobol4/demo/beauty/beauty.sno` to find where SCRIP now diverges from SPITBOL. The first divergence will tell us whether Blocker D is a real SCRIP bug or an oracle-alignment issue.
+- **SECONDARY RUNG: close DIVERGE=3.** `214/215/216_indirect_goto*` pass m3 but FAIL m4. Pre-existing m4 defect (`.Lbynamefn<nid>` duplicate-symbol collision). Get m4 to 309/1 to match m3.
+- **STATE:** SCRIP HEAD `880f2729` == origin/main. beauty suite 48/51 ✅. Crosscheck m3 309/1 · m4 304/4 · DIVERGE=3. Blocker A (ZLS) ✅ · Blocker B (pool/re-emission) ✅ s143 · Blocker C (PAT registration) ✅ THIS session · Blocker D = live head. RT_OPT=-O0.
 
 
 
