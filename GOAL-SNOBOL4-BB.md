@@ -42,7 +42,7 @@
 ### s142 (2026-07-24, Claude) — LBL__ O(n²) ZLS OVERFLOW KILLED · beauty monitor: ZLS cleared, FLAT_BUF_MAX next [⛔ "FLAT_BUF_MAX" superseded by s143 above — real Blocker B was pool exhaustion from a driver omission, FIXED s143]
 ### s143-PERF (2026-07-24, Claude) — 4TH BENCH: expression-eval + CAP-NOFILL (−10% wall) + histogram tool formalized
 
-**LIVE CURSOR (PERF track): BC-EMIT-ACC aimed at xchain — s143 wall-weighted profile (callgrind --cache-sim --branch-sim, cycle proxy Ir+10*L1m+100*LLm+15*Bcm) on expression-eval m4: xchain family = 62.6% of blob cycles with 8.86M branch mispredicts per 3 passes; PAT$ γ/ω backtrack edges next (~11%).  The BP-9/BC-EMIT-ACC fold (retarget jmp→[add rsp,N]*→jmp chains at emit-driver label resolution, Σop_sb accumulate, port/computed-goto barriers) is the committed rung and now the top wall move.**
+**LIVE CURSOR (PERF track): BC-EMIT-ACC aimed at xchain — s143 wall-weighted profile (callgrind --cache-sim --branch-sim, cycle proxy Ir+10*L1m+100*LLm+15*Bcm) on calculator-1 m4 (renamed from expression-eval, s144): xchain family = 62.6% of blob cycles with 8.86M branch mispredicts per 3 passes; PAT$ γ/ω backtrack edges next (~11%).  The BP-9/BC-EMIT-ACC fold (retarget jmp→[add rsp,N]*→jmp chains at emit-driver label resolution, Σop_sb accumulate, port/computed-goto barriers) is the committed rung and now the top wall move.**
 
 **4TH BENCHMARK (Lon directive): `expression-eval`** — faithful SNOBOL4 rendition of Lon's snobol4python calculator (V/I/E/X/C single-char pattern names, UNfactored alternatives = massive per-char re-entry into deferred *X; conditional actions via `. *PSH()`/`. *ADD()` NRETURN-by-name, the expr_eval.sno idiom).  Corpus: `programs/snobol4/demo/expression-eval.{sno,input,ref}` (input: deterministic generator, single-digit ints + capped '*' per line — 64-bit overflow avoidance; '/' excluded: Python // floors vs SPITBOL truncate).  Validated 7/7/9 on Lon's three test strings BOTH engines; 2208-line per-line output md5-identical sbl↔scrip m3; bench totals identical m3/m4/sbl.  ⚠ TWO LANDMINES for corpus authors: (1) official sbl FOLDS IDENTIFIER CASE — bare `x = 1` clobbers pattern `X` (silent Boo!); vars live in a TABLE keyed by letter (also more faithful to Python globals()[N]).  (2) `expression-match.{sno,input,ref}` also added (match-only sibling, factored grammar — the UNfactored book form is EXPONENTIAL under exhaustive matching, manual pp.122-124, and the top-level chain must be bounded or sbl stack-overflows at ~5k *E frames).
 
@@ -55,7 +55,6 @@
 **⭐ TARGETS (Lon, s143): 2–3× SPITBOL on pattern matching, 4–6× on functional code.**  Current board: json 0.74 · claws5 0.94 · treebank ~1.24 · expression ~1.88 — the histogram is the map home.
 
 ### s142 (2026-07-24, Claude) — LBL__ O(n²) ZLS OVERFLOW KILLED · beauty monitor: ZLS cleared, FLAT_BUF_MAX next
->>>>>>> eeed10f4 (s143 handoff: expression-eval 4th bench + CAP-NOFILL landed + LIVE CURSOR -> BC-EMIT-ACC aimed at xchain (62.6% cycles, 8.9M Bcm))
 
 **BEAUTY TEST SUITE: 48/51 ✅** (watermark-exact; 3 omega_driver pre-existing).
 
