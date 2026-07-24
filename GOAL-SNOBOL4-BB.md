@@ -1,3 +1,23 @@
+
+### s141 (2026-07-24, this container) — ARBNO-NOFILL landed · trio corrections · DEFER named at 31%
+**Landed (SCRIP 4cd2ecfd):** chain-β per-element window zero-fill ELIDED (was 58% treebank Ir, s140 bbprof → now 10.7%).  Poison-lane proof across all 311 crosscheck programs: the ONLY implicit-zero
+citizens are body ASSIGN_SAVE cap BUF quads (rt_cap `empty==zero BY DESIGN`; gen/sp self-heal via g_cap_gen) — staged per-node via new `zls_arbno_zq` (the ZK_PTR_GC FIELD = grant+16 under
+zls_locals_shifted, NOT the zx grant base — gdb-proven at rt_cap_push), zeroed targeted (1 quad/capture/element; trio bodies have zero captures → zero stores); >8-capture sentinel keeps eager blanket;
+`SCRIP_ARBNO_NOFILL=0` kill-switch; `SCRIP_ZLS_POISON=1` compile-time lane.  GATES: plain AND poison xchk m3 307/3 · m4 307/3 · DIVERGE=0 (exact pristine watermark), smokes 7/7×2.
+**Two build landmines (both cost hours):** (1) `g_emit`/sm_emit_t is APPEND-ONLY ABI — mid-struct field insertion broke m4 runtime-EVAL (`FATAL xa_flat: jmp-entry K_total=0`; baked offsets somewhere
+downstream); append at struct END only.  (2) incremental builds after emit.h edits can STALE-MIX TUs (incomplete header deps) — the append fix "still failed" until a clean rebuild; BUILD CLEAN after any
+emit.h layout change before trusting a red gate.
+**Trio corrections (Lon directives; corpus f11e7116):** treebank-match.sno `*delim`→`delim` (only self-recursive `*group` stays deferred; sbl-verified byte-identical output; BOTH engines gain: sbl 87→72,
+scrip 107→98).  Bench harness idiom = &LCASE/&UCASE tape (`reps = &LCASE &UCASE ...` / `reps LEN(1) =` loop control), NOT arithmetic LT counters.  Official Macro SPITBOL (spitbol/x64) takes plain
+`sbl -b prog.sno` — the corpus headers' `-CASE 0` prepend BREAKS it ("No END statement found"); headers need updating for the official oracle.
+**BENCH (tape-rep ×7 medians, RT_OPT=-O0, official sbl):** claws5 22/27 = 0.81 · json 146/175 = 0.83 (was 0.88) · treebank 98/72 = 1.36.  Treebank 2×2 (plain vs deferred delim × both engines) proves the
+gap STRUCTURAL (ratio ~1.35 both ways) — s140's plain-VAR 3.3× chase pathology does NOT reproduce at this HEAD.
+**PROFILE (bbprof+MAP, 84 samples, 100% attributed, tape×8):** IR_MATCH_DEFER family 31% (top site 19%, heavy via-C) · SEQUENCE 20% · BREAK 14% · SPAN 11% (inlined literal compares — via-C is glue
+attribution) · ARBNO 10.7%.  Defer fast arm verified already-lean: GVA loads + DT_P + h->fn memoized cell (dtp_fn_of writes h->fn — one call ever); treebank uses the GVA arm at ALL sites (0
+rt_defer_get_pat_fn refs in .s).  The 31% is the ACTIVATION MACHINERY: per-encounter wire setup (2 lea + jmp) + PAT$ blob prologue (sub + 13 stores incl. ONE PROVEN DEAD STORE: suffix zero at rgn-8
+immediately overwritten by anchor-enter's `mov [rsp+rgn-8], rsp` — free 1-store cut, both xa_flat twins, unlanded) + epilogue + γ records.
+**NEXT RUNG (unchanged, now data-backed):** patchable-γ/ω external linkage for `*PATTERN` — collapse defer-α→blob-α composition (the s140-measured ~24ms treebank prize; DEFER=31% confirms).  Behind it:
+the rgn-8 dead-store cut, rt_defer_open/close diet for the L0 arm (json), and a bbprof sample-rate knob (84 samples at tape×8 is rank-grade, not %-grade).
 # GOAL — SNOBOL4 on the shared BB spine
 
 ## ⛔⛔ O2-DIRECTED-ONLY — TIGHTENS O0-DEV BELOW (Lon directive, 2026-07-22 s126)
