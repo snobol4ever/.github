@@ -36,7 +36,7 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 ## ▶ LIVE CURSOR (updated every handoff — RULES.md STALE-ORIENTATION rule)
 
-**WATERMARK: SCRIP `see below` · suite PASS=249 FAIL=12 XFAIL=32 / 293 · tgrlink 188ms (1.20× vs pre-session 212ms; 0.80× vs iconx 150ms) · RT_OPT=-O0.**
+**WATERMARK: SCRIP `54b047cc` · suite PASS=249 FAIL=12 XFAIL=32 / 293 · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness 6/9 byte-identical, timing geomean m4 0.62× / m3 0.50×, tgrlink Ir 1.303G vs iconx 1.339G (SCRIP 1.027× FEWER instructions).**
 
 - **s164 (2026-07-25, Opus 4.5) — BENCH-HONESTY: oracle-diffed the whole Icon bench corpus; README grid replaced; `rsg` short-circuit named. SCRIP `54b047cc`. No codegen touched.**
   **Correctness 6/9 byte-identical to `iconx` 9.5.25a** (concord 1,345L · deal 17,000L · ipxref 1,208L · queens 16,653L · tgrlink 3,239L · micsum) — established with a NEW `OUTPUT=1` pass (`scripts/honest_icon_correctness.sh`), because the stock timing run has `post.icn`'s `write := 1` suppression active and **stdout therefore cannot validate a timing run at all**. `version` divergence is benign (`&version`). Live defects: `geddump`, `rsg`.
@@ -47,6 +47,15 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 - **s163 (2026-07-25, Sonnet 4.6) — HP-1 + HP-2: hugepage arena + virgin-zero elision. tgrlink 212→177ms (1.20×), queens 67→51ms, concord 95→62ms. Zero regression.**
   **KEY FINDING:** SCRIP already beats iconx on Ir (1.307G vs 1.339G) and branch mispredicts (11.3M vs 25.8M). The gap is 25× LL cache misses and 25× page faults — virgin bump-alloc through 61MB of cold memory vs iconx's 8.3MB warm heap. Instruction rungs cannot close this gap. Full findings: `FINDING-2026-07-25-CLAUDE-ICN-MEM-1-HUGEPAGE-VIRGIN-ZERO-ELIDE-AND-GC-ABORT-DIAGNOSIS.md`.
   **GC ABORT FINDING:** GC fires on tgrlink at ≤16MB and aborts (not wrong output). Basic GC correctness is demonstrated (800MB churn, all struct types down to 4–8MB). Root cause NOT yet determined: over-retention vs legitimately large live set. See FINDING for separation protocol.
+
+### ▶ NEXT RUNG — SCAN-ARM VALUE SLOT IN NARY-DISJUNCTION (s164 root cause; fixes rsg + likely all of FZ-E)
+
+**Deterministic 2-line repro, no big program needed:**
+`procedure f(s); if s ? (="'") then return "THEN" else return "ELSE"; end` → iconx `ELSE`, SCRIP fails the whole procedure.
+
+**START IN THE EMITTER.** The IR is structurally CORRECT (dumped s164: the else arm exists, `leave_fail` routes back to the DISJUNCTION). The defect is EXECUTION of nary-DISJUNCTION **arm value-slot delivery** when the arm's tail is an `IR_SCAN` — the `op_parts`/CV10 channel plus the `na_s`/`na_f` success/fail glue in `emit.cpp`. Decisive evidence: `(s ? (="'")) | "ALT-ELSE"` returns **null**, i.e. the arm neither fails cleanly nor yields the alternative — it delivers an EMPTY VALUE SLOT.
+**⛔ DO NOT re-try the `lower_icon.c` TT_SCAN subject-β `ir_is_generator_kind` guard — tried s164, zero behaviour change, reverted.** Seven other hypotheses also falsified; all listed in `FINDING-2026-07-25-CLAUDE-ICN-SCAN-COND-ELSE-EDGE-IS-THE-RSG-ROOT-CAUSE.md`. Read it BEFORE coding.
+Re-test after the fix: `rsg` bench, `rung36_jcon_scan`/`scan1`/`scan2`, `recogn`, and the FZ-E cluster.
 
 ### ▶ NEXT RUNG — GC LIVE-SET MEASUREMENT (prerequisite for warm-nursery path)
 
