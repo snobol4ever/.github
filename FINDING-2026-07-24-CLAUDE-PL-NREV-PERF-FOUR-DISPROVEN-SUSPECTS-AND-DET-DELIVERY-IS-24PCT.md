@@ -4,9 +4,22 @@
 
 Continuing the s140 perf push on `nrev` (the worst van-Roy cell). s140's cursor named "(A) attack the
 cons-cell allocation constant" as the highest-payoff NEXT item. **This session DISPROVES that hypothesis by
-direct measurement**, disproves three other allocation-side suspects, and — the biggest result —
-**shows most of the reported deficit was an `-O0` MEASUREMENT ARTIFACT**:
+direct measurement**, disproves three other allocation-side suspects, LANDS the Prolog SLOT-ELIDE Lon directed,
+and — the biggest result — **shows most of the reported deficit was an `-O0` MEASUREMENT ARTIFACT**:
 
+- **LANDED (SCRIP, gated green): SLOT-ELIDE for Prolog builtin-goal result quads.** Lon directive: "only BBs
+  whose result is USED get an allocation." `IR_CALL_BUILTIN_PROLOG` added to the ZLS S4a elide whitelist
+  (`zls_s4_ok`) — a builtin called as a GOAL (its success/fail flows through the γ/ω ports, its result DESCR is
+  dead) no longer gets a 16B result quad; its argv locals are preserved (S4a shifts them to the entry offset).
+  26 dead builtin-result quads identified in nrev's graphs; frames shrank (nrev app-class −48B, fib recursion
+  −240B/15 slots). Gated: **Prolog rung 164/164 × 3 modes + smoke 5/5 × 2; Icon 14/14 × 2; all-langs matrix 6/6
+  no drift** (zeta_storage.c is shared — SNOBOL4/Icon unaffected because the op is Prolog-only). **HONEST perf:
+  ~1% on nrev/fib** — because **Prolog is NOT store-bound the way SNOBOL4 pattern-matching is** (their SLOT-ELIDE
+  got treebank −20% precisely because the match phase is 63% stores; frame-zeroing, which this eliminates, was
+  never Prolog's bottleneck — see the disproven cons-zeroing suspect below). It is the correct architecture and
+  the right thing to have, and it will help frame-heavy / builtin-goal-heavy Prolog more than nrev; it is simply
+  not where nrev's time goes. Follow-ons `IR_CALL_PROC_STAGED` (5 dead) and `IR_DISJUNCTION` (5 dead) are further
+  candidates, untested (each has entangled resume/self-state — validate individually).
 - **The runtime at `-O1` (the sanctioned perf-comparison level) is 47% faster than `-O0` on nrev**
   (mode-4: 1.367 s → 0.727 s). Every prior session's headline deficit was measured with an `-O0` runtime and
   is roughly DOUBLE the real `-O1` gap. At `-O1`, nrev is ~8× gprolog, not ~15×.
@@ -23,9 +36,9 @@ Roadmap from the `-O0` baseline to the achievable stack: 1.367 s (`-O0`) → 0.7
 → 0.526 s (`-O1` + DET-delivery) = **2.6× total, ~15× → ~5.8× gprolog.** The residual ~5.8× is the
 boxed-cell-vs-WAM structural gap (register residency / deferred HB).
 
-**Tree state at close: UNCHANGED from origin.** All exploratory edits reverted; rung suite 164/164 × 3 modes
-green; `out/` is gitignored so the `-O1` `.so` build is not a tree change. The deliverable of this session is
-this measurement + the mode-3 `-O0`-cap finding + the roadmap, not a code change.
+**Tree state at close: SCRIP has the 1-line SLOT-ELIDE change; corpus has 22 regenerated Prolog bench `.s`
+(frames shrank); `.github` has this finding + cursor.** Rung suite 164/164 × 3 modes green; `out/` is gitignored
+so the `-O1` `.so` build is not a tree change.
 
 **ALL PERF NUMBERS ARE LABELED WITH THEIR `-Ox` LEVEL** per the 2026-07-24 FACT RULE. The `-O0`→`-O1` runtime
 switch used the mandatory `rm -f out/rt_pic/*.o out/libscrip_rt.so` first (timestamp trap); the `-O1` `.so`
@@ -221,3 +234,92 @@ shared list-unify emission path.
 
 gprolog 1.4.5 / nasm / gdb installed via `apt-get update` then `apt-get install --no-install-recommends` (a plain
 install hit a 404 on an unrelated `libpoppler-glib8t64` recommend; `--no-install-recommends` sidesteps it).
+
+---
+
+## THE ARCHITECTURAL VERDICT (Lon, s141 late): the -O1 win means the SPLIT IS WRONG — Prolog is CALL-THREADED and needs PL-SINK
+
+Lon's ruling on seeing the -O1 result: "if most of the speed improvement is in optimizing the C runtime, we did
+it WRONG — 90% of Prolog runtime should be inside the emitted code, not the RT." He is right, and the -O1
+experiment is precisely the audit that proves it. **Measured leaf split (mode-4 nrev, gdb 44 samples, runtime
+at `-O1`): ~86% of leaf time in the C runtime (31/44 named rt/plw/dop/pl leaves + 7 libc memset/memcpy on
+runtime paths), ~14% in emitted BB code.** SNOBOL4's SPD-0a audit after its sink program: **97.7% emitted,
+runtime ≈2%.** Prolog is the exact inverse. Corroboration: a 47% TOTAL speedup from -O1 on ONLY the C runtime
+back-computes to a 70–94% runtime cycle share at -O0; and SLOT-ELIDE moved SNOBOL4 −20% but Prolog ~1% — same
+signature (SN4's cost was in emitted stores; Prolog's is in C calls).
+
+WHAT IS in BBs vs NOT: the GDE **control** skeleton IS 100% emitted BBs — the four Byrd ports, CP arm/resume,
+conjunction/disjunction, cut, clause try/retry chains (the .s shows it: `proc_app$2F3_α` arms its CP, γ routes
+redo). What is NOT in BBs is the entire **data plane** — and in Prolog, unification IS the evaluation:
+`plw_cell_deref`/`_slow` (by_name_dispatch.c:85), `plw_unify_cells`/`plw_unify_vals`, `dop_unify_lst` (:1391 —
+the whole READ/WRITE-mode list head-unify as one C leaf), `plw_bind`+trail (`rt_pl_dop_trail_mark`,
+`pl_trail_unwind`), cons alloc (`rt_plj_alloc`→`rt_gcheap_carve`), int arith (`is`/compare dop leaves),
+`dop_ix_g` (:1419, a ~5-instruction tag test done as a C call), frame init (`rt_jmp_frame_lexprep2`, rt.c:1404),
+arg marshal (`rt_arg_stage` — visible in the samples: pure call-threading tax). Each emitted BB body is
+"stage argv into frame slots → `call dop_*` → test → route": SUBROUTINE-THREADED code. by_name_dispatch.c
+(6784 lines) became the de facto Prolog instruction set.
+
+WHY it happened (honest root cause): bring-up sequencing. C leaves were the fastest route to rung-ladder
+correctness — one implementation serves modes 3+4, debuggable, oracle-diffable — and the template revamp
+effort went into port/flavor wiring, so "leaf = C call" stayed the default cell body. SNOBOL4 had the same
+shape early and only reached 97.7%-emitted through its explicit sink program (s106 literal/table/range/chain
+emission, s137 seal). Prolog never got its equivalent phase, and nobody ran the SPD-0a Ir-attribution KPI on
+Prolog until now.
+
+**THE FIX = PL-SINK (the SN4-proven playbook), priority by measured frequency; C leaves stay as slow-path
+fallback + differential oracle; gate each rung on 164×3 + gprolog oracle; KPI = emitted-Ir share ≥90% (SPD-0a):**
+1. **Deref chase emitted** — the 2–3 instruction tag-test/follow loop, on every operand touch (highest frequency).
+2. **unify_lst fast paths emitted** — READ mode (bound cons: tag cmp + two kid bind/unify) and WRITE mode
+   (inline bump-alloc + stores + bind + trail-push); `plw_unify_cells` remains the rare structural fallback.
+3. **bind + trail-push emitted** — store + CP-watermark cmp + append.
+4. **cons carve emitted** — inline bump-pointer (limit cmp / add / header store), C only on slow path/GC;
+   kills the 2.475M call+marshal round-trips.
+5. **int/int arith fast path emitted** for `is`/compares — untag, op, retag; C fallback for overflow/float/type.
+Plus: `dop_ix_g` becomes an emitted tag compare. DET-delivery (lever 2) COMPOSES: it removes redundant CP/trail
+work, sinking removes per-op call overhead — together they are the road to WAM-class emitted code. The mode-3
+`-O1`-runtime build variant is downgraded to a legitimate INTERIM measure only: at the target split (runtime
+≈2–10%), -Ox on the runtime barely matters — exactly as on SNOBOL4 today.
+
+---
+
+## PL-SINK PLAN (s141 close, Lon-approved direction): rung ladder + BB inventory
+
+TARGET: emitted-Ir ≥90% (SPD-0a KPI); stretch ≈97% on det/list-heavy code. Residual C = the irreducible class
+(GC, deep-structural-unify fallback, bignum/float, I/O, intern) — the SAME class that is SN4's 2%.
+
+SHARED EMITTED FRAGMENTS (x86_asm.h helpers, used by every BB below):
+- `x86_pl_deref` — the 2–5 instr tag-test/follow chase (replaces plw_cell_deref calls)
+- `x86_pl_trail_push` — CP-watermark cmp + append (~5 instr)
+- `x86_pl_carve` — bump-pointer with limit cmp; slow path calls C; inline gc-flag check replaces rt_gc_point calls
+
+NEW/EXTENDED BB TEMPLATES (~8; the first 5 cover the nrev class):
+1. `bb_pl_ix_guard` — emitted tag switch (replaces dop_ix_g). PURE TEST, no binds/trail → SAFEST FIRST.
+2. `bb_pl_unify_const` — atom/int/[] head args: deref + cmp | bind + trail (head VAR args ride the bind fragment).
+3. `bb_pl_unify_lst` — READ mode (tag cmp + 2 kid bind/unify) and WRITE mode (carve + stores + bind + trail);
+   deep-structure kids → plw_unify_cells C fallback (kept as oracle).
+4. `bb_pl_cons` — '.'/2 build inline (replaces plw_mkc_kids + alloc call round-trip ×2.475M on nrev).
+5. α-prologue change (not a new BB): emitted arg staging + exact-slot zeroing — kills rt_arg_stage +
+   rt_jmp_frame_lexprep2 (both visible in the leaf samples). SLOT-ELIDE already shrank what must be zeroed.
+6. `bb_pl_unify_stc` — general f/n structure (tier 2).
+7. `bb_pl_arith_int` + `bb_pl_cmp_int` — is/compare int fast paths, γ-fused branch; float/bignum/expr → C.
+8. `bb_pl_type_test` — var/nonvar/atom/integer/atomic as one parameterized tag-test template.
+
+RUNG LADDER (each rung: 164×3 green + gprolog oracle diff + per-rung kill-switch, SCRIP_PL_SINK bitmask;
+READ THE BB-CODEGEN DESIGN SET FIRST — rule):
+SINK-0 KPI harness (SPD-0a analog over the Prolog bench) + per-bench baseline splits.
+SINK-1 deref fragment + ix_guard (pure-test, zero risk of wrong answers).
+SINK-2 unify_const. SINK-3 unify_lst READ (the clause-try hot path).
+SINK-4 cons + unify_lst WRITE — ⚠ the delicate one: HB/safepoint discipline; heap must stay parseable at
+safepoints; carve slow path re-enters C.
+SINK-5 bind+trail fragment everywhere — ⚠ a missed trail entry = SILENT WRONG ANSWERS on backtrack; gate
+with trail-count differential vs the C path.
+SINK-6 arith/cmp. SINK-7 α-prologue arg-stage + zeroing.
+Then DET-delivery (lever 2) COMPOSES on top; then RSP-F-4 register residency for the last stretch.
+
+EXPECTED: per-op cost drops from ~30–50 cycles (marshal + call + C prologue + ret + test) to the 2–20 instr
+work itself. With DET-delivery, a credible landing is 2–4× gprolog on the van-Roy set (from ~8× at -O1 today);
+parity needs the 16B-DESCR-vs-8B-WAM-word and register-residency work. CAN WE HIT 2–3% RUNTIME LIKE SN4:
+YES, on the same terms SN4 did — after SINK-1..7 the remaining C is the irreducible class; note alloc-heavy
+runs add a REAL GC share (gc_collect_ex in the x300000 samples is genuine collection work, stays in C, and is
+where the -O1 interim build variant keeps paying). Estimated effort: 6–10 gated sessions (SN4's sink program
+spanned s106→s137).
