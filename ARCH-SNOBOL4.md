@@ -128,3 +128,9 @@ variable patterns rebuild/defer per match. See GOAL-SNOBOL4-BB.md rung PB-RB for
 
 ## Storage & call convention (pointer, 2026-07-11)
 ζ storage design of record: `ARCH-ZETA-LOCAL-STORAGE.md` §7 (two MM flavors, regions, register end-state). Call convention: the ONE-ENTRY / NO-C→BB rule — mode 3 has exactly one C→BB transfer (driver MAIN); C runtime helpers are strict leaves; mode 4 entry is `main` (= the emitted graph). Live rung ladder + violation ledger: `GOAL-SNOBOL4-BB.md` Phase 1 (NCB).
+
+---
+
+## ARBNO iteration frames — ERADICATION GOAL (Lon ruling, 2026-07-24 s146)
+
+The rsp linked-frame chain for ARBNO iterations (FORTH-flavor linkage headers, chain walk on unwind) is TO BE ELIMINATED — not settled architecture. Desired end state: FAST, IMMEDIATE γ processing — an iteration's success transitions with zero per-iteration linkage ceremony. Obstacle on record: a DEFER inside the body makes per-iteration extent runtime-variable (which PAT$ blob arrives at a `*VAR` site is decided at match time; retained suspensions interleave their carves between iteration frames, so even inter-frame DISTANCE varies) — uniform count×size arithmetic fails in general. This is an obstacle to SOLVE, not an accepted end state ("I want it gone for the record. That does not mean I get my wish." — keep hunting). Candidates: two-tier static-body verdict (SEQ-STATIC precedent — bodies with no dynamic construct get pure arithmetic; degrade never die) · per-blob registered frame geometry · patchable-γ/ω external linkage to cut the activation ceremony meanwhile. Until a solution lands, the chain is tolerated, not endorsed.
