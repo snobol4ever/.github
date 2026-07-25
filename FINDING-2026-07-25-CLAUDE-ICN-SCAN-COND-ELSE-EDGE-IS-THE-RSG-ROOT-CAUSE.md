@@ -108,3 +108,40 @@ stopped at `define`, and `generate` was never reached. **Both engines then produ
 sentences, which looks exactly like the bug under investigation.** In a goal-directed language,
 probe code must preserve success/failure semantics (`return \r`, not `return r`), or it
 manufactures the very symptom being chased.
+
+## ADDENDUM (same session, after the IR dump) — IT IS NOT MERELY A MISROUTED FAIL EDGE
+
+The IR for the repro is structurally CORRECT, which rules out the obvious reading:
+
+```
+1   γ=2@ ω=2@  DISJUNCTION  [3,15@,16,15@,.,.]     <- the if: arm0 entry=3 (scan path), arm1 entry=16 (else)
+3   γ=4  ω=1   VAR "s"
+4   γ=5  ω=1   SCAN_ENTER [3]
+6   γ=7  ω=13@ SCAN_MATCH [5]
+7   γ=8@ ω=13@ SCAN_TAB [6]
+13@ γ=14 ω=14  GOTO                                 <- fail trampoline (alpha-forced, correct)
+14  γ=1  ω=1   SCAN [4]                             <- leave_fail: restore env, then -> node 1 (DISJUNCTION beta)
+16  γ=17@ ω=2@ LIT_INTEGER 2                        <- the else arm IS present and wired
+```
+
+The else arm exists, and `leave_fail` does route back to the DISJUNCTION. So the defect is in
+EXECUTION of that wiring, not its construction.
+
+**The decisive behavioural evidence — two DIFFERENT wrong behaviours from one failing scan:**
+
+| Program | iconx | SCRIP |
+|---|---|---|
+| `return (s ? (="'")) \| "ALT-ELSE"` | `ALT-ELSE` | **returns null/empty** — NOT a failure, and NOT the alternative's value |
+| `if s ? (="'") then return "THEN" else return "ELSE"` | `ELSE` | **procedure fails** |
+| `every 1 to 1 do { if s ? (="'") then return "THEN" }; return "AFTER"` | `AFTER` | (masked by the failure above) |
+
+The alternation case is the informative one: the arm does not fail cleanly — it **delivers an
+empty value slot**. That is the signature of DISJUNCTION **arm VALUE-SLOT** delivery for a
+scan-containing arm (the `op_parts` / CV10 channel in `emit.cpp`, and the `na_s`/`na_f`
+success/fail glue labels), not of a mis-stamped α/β edge in LOWER.
+
+**THEREFORE: START IN THE EMITTER, NOT IN `lower_icon.c`.** Specifically the nary-DISJUNCTION
+glue that reads an arm's value slot and its fail-glue label when that arm's tail is an `IR_SCAN`
+(`leave_fail`, which is itself a GENERATOR-kind node with a value slot it never fills on the
+fail path). The LOWER-side guard hypothesis is already falsified above; do not spend a second
+budget there.
