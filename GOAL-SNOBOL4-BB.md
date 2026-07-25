@@ -1,4 +1,64 @@
 
+## ⛔ LIVE CURSOR (updated s147 handoff, 2026-07-24) — NEXT RUNG: **HEAT-0F** (FENCE-directed whack, Lon Eureka at handoff — the zero-risk subset of HEAT-0; do FIRST). Ladder below. Watermark: crosscheck m3 309/1 · m4 304/4 · DIVERGE=3 (`214/215/216_indirect_goto*`, pre-existing m4). RT_OPT=-O0 ALWAYS (s147: -O2 measured ±3–10% on sinks, RETIRED; templates NEVER -O2 — Lon ruling; forward plan = hand-written x86 ASM runtime).
+
+### s147 (2026-07-24, Claude) — MEASUREMENT RAIL LANDED · FIVE-DEMO HEATMAP · SN4-HEAT LADDER MINTED (for Opus)
+
+**RAIL (new, `SCRIP/scripts/bench_sno_rail.sh`):** TIME()-self-timed compute loop (startup/link/blob-compile excluded EXACTLY), N auto-ranged ×4 per engine until window ≥800ms (Van Roy adequacy), 5 interleaved rounds, medians, per-iter µs, identity gate. **ALL prior fixed-N wall grids RETRACTED as noise** (windows 3–80ms swung treebank 1.42↔3.90; calc-1, the only ≥2s window, held 1.96–2.11 throughout — the internal proof). **RAIL TRUTH (RT_OPT=-O0):** claws5 **0.72** · json **0.71** (both BEAT sbl 1.4× — claws5's all-day "slower" verdict was startup contamination, INVERTED) · calc-1 2.11 · treebank 2.73 · calc-2 3.54. README demo section rewritten to rail numbers + variance postmortem + -O2 retirement.
+
+**HEATMAP (per BB family, % of wall; claws5/json callgrind cyc-proxy · other three PC-sampled `profile_pcsample.sh` w/ SCRIP_BLOB_MAP):**
+| family | claws5 | json | treebank | calc-1 | calc-2 |
+|---|---:|---:|---:|---:|---:|
+| xchain (SEQ/ALT glue) | 99.4 | 68.5 | 28.3 | 81.7 | 14.3 |
+| PAT$ blob | 0 | 27.6 | 71.7 | 18.3 | 56.0 |
+| slab-spliced (UNNAMED) | 0 | 0 | 0 | 0 | 29.7 |
+| rt:* | 0.5 | 3.3 | 0 | 0 | 0 |
+
+Port-level (DEFER demos): treebank = **PAT$_α 61%** (activation ceremony) + xchain α/β 25%. calc-1 = **xchain_af 47%** (SEQ fail-glue) + α/β 35%. calc-2 = PAT$_α 38% + **spliced-slab 30%** (samples at 0x1555_5xxx mmap RX — runtime STITCH/BB_PAT_BUILD instances, NOT in BLOBMAP) + γ 13%. Fast demos are ~pure xchain ⇒ xchain per se isn't the villain; DEFER-crossing ceremony is. **⚠ TOOLING DEFECT filed:** `profile_box_histogram.sh`'s callgrind joiner dumps ~99% into `rt:<hex-of-main>` on DEFER-heavy programs (anon-ob/calls-inclusive handling) — use the PC-sampler there until fixed.
+
+---
+## ⭐ SN4-HEAT LADDER (mint s147, priority-ordered; each rung self-contained for a cold Opus session)
+
+**MANDATORY READS FIRST (non-negotiable):** `.github/RULES.md` in full · BB-CODEGEN DESIGN SET (`ARCH-ICON.md` + `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` — PLAN.md step 6 applies, every rung here touches templates/emit) · `ARCH-SNOBOL4.md` (§ARBNO ruling) · `ARCH-PROFILE-BOX-HISTOGRAM.md` (two measurement LAWS). **Proof instrument for any ratio claim = `scripts/bench_sno_rail.sh` (per demo, SO_A only unless directed). Micro A/B = same-moment interleaved medians only. Gates before every commit: sno smokes 7/7×2 · crosscheck ≥ watermark (m3 309/1 · m4 304/4 · DIVERGE=3 pre-existing) BOTH plain and `SCRIP_ZLS_POISON=1` where state is skipped · beauty suite 48/51. Codegen change ⇒ run all three `.s` regen scripts (RULES handoff step 4). Every landed mechanism gets an env kill-switch. `g_emit` fields append at struct END (s141 ABI law).**
+
+### HEAT-0F — FENCE-DIRECTED WHACK (Lon EUREKA, s147 handoff; do BEFORE HEAT-0 — zero classifier risk)
+**Why:** `FENCE1(P)` (SPITBOL one-arg FENCE: no backtrack INTO P after it matches) is **source-licensed whack** — the semantics GUARANTEE no retry into the fenced interior, so its γ-records are discardable with NO classifier and NO canary risk. The FENCE1 **watermark quad** (already granted — see zls_grant_locals) is the rsp restore point: popping rsp to it at FENCE1-γ releases every interior suspension carve = the **RSP-valence COLD-STORAGE fix** (deep carves stay resident and cold; each FENCE is a release opportunity). beauty.sno uses FENCE1 at almost every operator-precedence level — the working idiom. This rung also DERISKS HEAT-0: same whack mechanism (resurrect via `git log -S SCRIP_DEFER_WHACK`), fence-gated instead of classifier-gated.
+- [ ] H0F-a **Corpus: five `*-match-fence.sno` variants** beside the plain five. Study beauty.sno's FENCE1-per-precedence-level idiom first; the calculators' F/T/X levels are the direct analogue (fence each level's committed choice); claws5/treebank/json: fence the per-token/per-element committed alternations. **Identity law:** each variant must produce byte-identical output to its plain twin under `sbl -b` on the real input (FENCE prunes only retries these grammars never need) — if output differs, the fencing is WRONG, fix the variant not the engine. Generate `.ref`s from sbl.
+- [ ] H0F-b **Emitter: FENCE1-γ whack + watermark rsp release** — at FENCE1 γ: discard interior γ-records (whack mechanism from the s142 diff) and restore rsp to the watermark quad. Kill-switch `SCRIP_FENCE_WHACK=0` (off ⇒ byte-identical `.s`, md5-prove). BOTH xa_flat twins, both mediums (TEMPLATE-ONLY EMISSION + BOTH-MEDIUM rules).
+- [ ] H0F-c Gates (canaries {expr_eval,124,143,145} included — they must be UNAFFECTED, no FENCE in them) · rail A/B **plain-vs-fence variants** (this measures BOTH the fence win and forecasts HEAT-0's classifier value) · heatmap re-run on the fence variants · FINDING · `.s` regen ×3 · cursor.
+
+### HEAT-0 — TWO-CLASS γ-RECORD WHACK (the algorithmic fix; moves all three slow demos)
+**Why/ceiling:** s142 measured wholesale whack: treebank 1.37→**0.88 wall**, all three beat sbl (−30% wall for −8.5% Ir — return-predictor/store-buffer ceremony is the disease). Retracted only because 4 crosscheck programs broke: **{expr_eval, 124, 143, 145} = regex-quantifier class** where retry-into-committed-`*P` is load-bearing. That failure set IS the classifier spec. Est P≈60–65%, prize = treebank to ~0.9–1.2 (measured bound), large cuts calc-1/-2.
+- [ ] H0a **Resurrect the s142 diff from git history** — `git log --all -S SCRIP_DEFER_WHACK --oneline` (implemented then cleanly reverted; mechanism = both `xa_flat.cpp` twins + the defer template). The whack MECHANISM is done work; only the CLASSIFIER is new.
+- [ ] H0b **Classifier (emit-time, conservative-to-RECORD):** RECORD-class = any γ-producer re-enterable after success with live alternatives — ARBNO/ARB bodies, alternation with untried arms, quantifier-class DEFER sites (the canary programs' shapes). WHACK-class = everything else (one-shot SPAN/BREAK/LEN/LIT, committed SEQ interiors). Tag per-site during flat drive (precedent: ASSIGN_SAVE's `fc_geom`-key discrimination, s146). When uncertain ⇒ RECORD.
+- [ ] H0c Wire tag → per-site whack/record emission in the resurrected twins. Kill-switch `SCRIP_WHACK2=0` (0 ⇒ all-RECORD, byte-identical to pristine — prove with md5 on trio `.s`).
+- [ ] H0d **Canary-first:** run {expr_eval, 124, 143, 145} before full crosscheck. Then full gates both modes, plain + POISON.
+- [ ] H0e Rail all five demos (SO_A -O0) + re-run heatmap (PC-sampler on DEFER demos). FINDING doc with before/after table.
+- [ ] H0f `.s` regen ×3 · LIVE CURSOR move · handoff per RULES.
+
+### HEAT-1 — SEQ as/af GLUE CONSUMER-RETARGET FOLD (calc-1's 47%; most mechanical)
+**Why:** s146 census: calc-1 47 pure-jmp trampolines (MATCH_SEQUENCE as/af/β = 27); s146 NULL RESULT proved producer-side elision is the wrong lever — **retarget CONSUMERS**; as/af stub targets are known at mint in `flat_drive_match_alt`. Est P≈85%, calc-1 1.5–1.8× alone; composes with HEAT-0.
+- [ ] H1a Census at current HEAD: `SCRIP_OMEGA_DIAG` chain-order attribution on calc-1 m4 (s146 method) — confirm stub set.
+- [ ] H1b Fold: at mint, when an as/af stub body is a single `jmp T`, retarget every consumer to `T`; iterate to fixpoint; port/pair-driver labels are barriers (BC-CENSUS law, s142). Kill-switch `SCRIP_SEQ_FOLD=0`.
+- [ ] H1c Mirror in `scripts/analyze_jump_redundancy.py --gate` so regressions are greppable.
+- [ ] H1d Gates · rail calc-1 + all five · histogram re-run · FINDING · `.s` regen · cursor.
+
+### HEAT-2 — PAT$ α-CEREMONY KILL, treebank (61% α; the ARBNO/DEFER eradication front)
+**Why:** Lon standing ruling (s146, mirrored ARCH-SNOBOL4 §ARBNO): per-iteration/per-activation linkage ceremony is to be ELIMINATED; obstacle = DEFER makes extent runtime-variable — an obstacle to SOLVE. Hot offsets on record: `proc_PAT$1_α+0x21/+0x3c` etc (/tmp/heat pcs — regenerate, ephemeral). Est P≈50%, treebank 1.8–2.5×.
+- [ ] H2a Read `proc_PAT$1_α` body in treebank `.s`; itemize every quad of ceremony (carve, wire saves, seeds) with its consumer. (Post-CAP-NOFILL these should be near-pure stores — attribute each.)
+- [ ] H2b Land the cheapest third of the candidates first: **patchable-γ/ω linkage** (s146 rung 4, "the 2.7× `*group` wiring prize") — external linkage cells patched once, not re-wired per activation.
+- [ ] H2c **Two-tier static-body verdict** (SEQ-STATIC precedent): bodies containing NO dynamic construct get pure count×size arithmetic frames (degrade-never-die); DEFER-bearing bodies keep the chain until H2d.
+- [ ] H2d Design ruling for the general case: per-blob REGISTERED frame geometry (each PAT$ blob publishes its frame size at freeze; activation reads it — makes extent a lookup, not a chain walk). Write the design as a FINDING for Lon's ruling BEFORE implementing.
+- [ ] H2e Gates · rail treebank + five · histogram · FINDING · `.s` regen · cursor.
+
+### HEAT-3 — SPLICED-SLAB: NAME IT, THEN CUT IT (calc-2's unnamed 30%)
+**Why:** 30% of calc-2 executes in runtime-spliced instance cells invisible to BLOBMAP. Cannot be priced until named. Est P≈50% for a cut; naming itself is ~certain and also fixes the profiler gap.
+- [ ] H3a Extend `SCRIP_BLOB_MAP=1` to emit a `SPLICEMAP addr len head-name` line per STITCH/BB_PAT_BUILD instance (alloc sites in `src/runtime/rt/bb_pat_build.cpp` + stitch twins); teach `profile_pcsample.sh` joiner to consume it.
+- [ ] H3b Re-heatmap calc-2 → the 30% resolves into named heads. Decide the cut FROM DATA: likely per-match splice memoization (cache instance graph keyed by blob-head set for the match's lifetime — deferred `*X` re-fetch semantics REQUIRE per-match scope, never cross-match; manual §deferred-eval is the law).
+- [ ] H3c Implement behind `SCRIP_SPLICE_MEMO=0` · canaries {expr_eval,124,143,145} again (splice-heavy class) · gates · rail · FINDING · cursor.
+
+**ORDER LAW:** HEAT-0 → HEAT-1 are fixed. Re-run the heatmap after each; HEAT-2 ↔ HEAT-3 may swap on the new map — the histogram is the map (s143 law). 2–3× target = composition, no single rung suffices (Amdahl on the table above).
+---
+
 ### s146 (2026-07-24, Claude) — ARBNO-CHAIN ERADICATION RULING RECORDED · *delim defers FIXED (4 files, edit-neutral proven) · trampoline stub census + fc-blanket null result
 
 **⛔ RULING FOR THE RECORD (Lon, s146): ARBNO chain processing is to be ELIMINATED. Lon did NOT rule it stays (a session summary misstated this). Standing goal: FAST, IMMEDIATE ARBNO γ processing — no per-iteration linkage ceremony. The DEFER obstacle is real (which PAT$ blob arrives at a `*VAR` site is runtime; retained suspensions interleave their carves, so even inter-frame distance is runtime-variable) but it is an OBSTACLE TO SOLVE, not an accepted end state — "that does not mean I get my wish"; keep hunting. Candidates on the board: two-tier static-body arithmetic (SEQ-STATIC-style verdict, degrade never die) · per-blob registered frame geometry · patchable-γ/ω linkage as ceremony reduction meanwhile. Mirrored in ARCH-SNOBOL4.md §ARBNO.**
