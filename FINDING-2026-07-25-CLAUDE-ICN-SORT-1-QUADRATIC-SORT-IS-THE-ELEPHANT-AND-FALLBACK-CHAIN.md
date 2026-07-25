@@ -1,6 +1,6 @@
 # FINDING — ICN SORT-1/SORT-2: the elephant was an O(n²) sort, not dispatch (2026-07-25, s161, Claude Opus 4.5)
 
-**SCRIP commits:** `2d191182` (SORT-1), `9a82c7e2` (SORT-2). Both LOCAL ONLY — push BLOCKED, no credential this session.
+**SCRIP commits:** `2d191182` (SORT-1), `9a82c7e2` (SORT-2), `4fac8a1d` (SORT-3). ALL LOCAL ONLY — push BLOCKED, no credential this session.
 **Suite:** PASS=249 FAIL=12 XFAIL=32 after each commit (watermark, zero regression).
 **Build:** `RT_OPT=-O0` throughout (O0-DEV FACT RULE). Every number below is `-O0`.
 
@@ -8,8 +8,15 @@
 
 ## Headline
 
-`tgrlink` Ir **2,242,064,012 → 1,543,486,439 = −31.2%, 1.453×**. Wall 350ms → 251ms (1.39×).
-Honest geomean vs `iconx` **0.573× → 0.666×**. Output byte-identical to the oracle at every step.
+`tgrlink` Ir **2,242,064,012 → 1,496,224,971 = −33.3%, 1.498×**. Wall 350ms → 216ms (1.62×).
+tgrlink ratio vs `iconx` **0.58× → 0.72×**. Output byte-identical to the oracle at every step.
+
+| rung | Ir | step | cumulative |
+|---|---|---|---|
+| baseline (s160 `2de78b10`) | 2,242,064,012 | — | — |
+| SORT-1 merge sort + alloc-free comparator | 1,673,345,390 | −25.4% | 1.340× |
+| SORT-2 hoist `where`/`seek` | 1,543,486,439 | −7.8% | 1.453× |
+| SORT-3 dtax-by-bid + one `strlen` | 1,496,224,971 | −3.1% | **1.498×** |
 
 ---
 
@@ -145,3 +152,36 @@ this ladder is worth 3× — `iconx` is a bytecode interpreter (`switch((int)las
 still paying a by-name runtime call for work `iconx` does inline. The two structural rungs above (compile-time
 builtin IDs, compile-time field numbers) are the ones that change the shape of the cost, and both are
 compiler-side, not runtime-side.
+
+---
+
+## SORT-3 — dtax keyed by builtin-id (`4fac8a1d`)
+
+The preamble walked the same name **three times** per dispatch: `bid_of`'s hash loop, the dtax cache's own hash
+loop, and a second `strlen` for the SNOBOL4-uppercase switch. But `bid_of` has **already reduced the name to a
+unique integer** for the 176 known builtins, so re-hashing those characters to key dtax is redundant.
+
+Added `g_dtax_bid[1025]` beside `g_dtax[256]`: when `_bid > 0` and the name fits (`len < 14`), index the bid
+table directly — no walk, no hash. Unknown names (`_bid == 0`) keep the string-hash path untouched, so the two
+tables never need to agree and a given name always takes the same deterministic branch. Generation checking is
+retained on both paths, so invalidation semantics are unchanged. `strlen(fn)` hoisted to `_fnlen` and reused.
+
+**−3.1%.** Cross-language check performed because this dispatcher is **shared** and dtax caches DATA
+constructors and OPSYN synonyms, which the Icon suite never exercises: SNOBOL4 corpus, 159 `.sno`-with-`.ref`
+programs, **PASS=45 FAIL=114 both with and without the change** — established by reverting, rebuilding and
+re-running, not assumed. Neutral. (Those 114 are pre-existing, largely CSNOBOL4 extensions.)
+
+## ⛔ NEGATIVE RESULT — first-char guards on field scans, REVERTED, do not retry
+
+Added ASCII-fold first-char guards ahead of `strcasecmp` in `FIELD_GET_fn`/`FIELD_SET_fn` and a plain first-char
+guard ahead of `strcmp` in `data_field_ptr` — the 250M / 16.2% by-name-field block. **Measured 1.4% WORSE
+(+20,954,775 Ir).** Reverted; revert confirmed byte-identical Ir.
+
+**GENERAL LESSON, and it now has three data points behind it (s159 `-O2` 1.15×, s160 jump table 2.4%, this):
+at `-O0`, adding a per-iteration TEST to avoid a short libc call is a LOSING trade.** The guard's own
+instructions are real (nothing is optimized away), lookups usually hit early so there is little to reject, and
+libc's AVX2 compare is already ~42 Ir on these short names. **Only removing work outright pays** — a complexity
+class (SORT-1), a chain walk (SORT-2), a redundant hash (SORT-3). Micro-guarding does not.
+
+**This is why the by-name field block must be fixed STRUCTURALLY or not at all:** compile-time field numbers
+(emit an int, index directly) or the `rt_list_view` constant-slot idiom at the 44 remaining sites. Not a guard.
