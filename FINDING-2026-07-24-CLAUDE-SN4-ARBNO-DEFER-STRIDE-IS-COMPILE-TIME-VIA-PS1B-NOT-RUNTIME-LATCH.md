@@ -37,3 +37,19 @@ The tail arm OWNS its element frame (ARBNO carves `op_sb`, body leaves write `[r
 ## What landed vs. what's designed (said plainly, not oversold)
 - **LANDED + gate-verified this session:** PS-1b (the enabler — `zstatic`/`zsz` real on the live path, both modes, watermark-exact) + canary 179 (byte-identical baseline). These are the prerequisites; they are done and tested.
 - **DESIGNED, not landed:** the tail-arm compile-time-stride mechanism above. It is a hot-path template rung gated on DB-1 (bind-license) and DB-2b (frontier coordination); per RULES it must be monitor-proven, not rushed. This finding makes it mechanical — the stride is a constant the emitter can now read, not a value to be discovered at runtime.
+
+---
+
+## s152 RESULTS ADDENDUM (2026-07-25, Claude) — slice 1 landed; the frame simplified further in implementation
+
+**What the .s ground truth changed:** the finding's `op_sb = align16(24+frame_bytes)` was still not the whole ζ size. Measured blob anatomy (t1.s): entry carve `align16(32+fb)`; interior FORTH port cells STAY carved on the hit path (SPAN's 16); γ pushes a 16B `{res-addr, saved-rbp}` record at the frontier; β `jmp [rsp+0]` self-pops it; ω `lea rsp,[rbp+K]` restores the entry frontier sweeping every interior carve. So **SUSP = align16(32+fb) + fp_total + 16**, and — the larger simplification — for a pure-defer body the outer arm needs NO stride arithmetic at all: β carves only a 16B cursor header, φ pops 16 and lands on the previous record, the blob does the rest. SUSP is consumed at exactly ONE point: σ's entry-cursor read `[rsp+SUSP]` (the flat yield quad is clobbered by the first yield, so the baseline must be per-element — the chain arm stores it per-element for the same reason).
+
+**Strengthening of record:** `zstatic` (no DEFER/VALUE) does NOT license a footprint constant — an interior ARBNO retains a variable count of element carves across γ-suspension. The stride/SUSP license is `uniform = zstatic ∧ no-interior-ARBNO ∧ region-known` (`g_last_flat_uniform`).
+
+**Order hazard (the finding's DB-1 dependency) closed without the barrier for the landed class:** prologue-dominance (`sno_name_prologue_bound`) — the seal==2 single write must sit in the unconditional entry corridor, making the slow-path frontier shape unreachable. The DB-1 barrier remains the residue for non-prologue names.
+
+**Proof set:** 181 six-stressor canary oracle-identical both mediums with the arm firing (σ offset 160 = 128+16+16 hand-verified against the emitted blob); 070+180 fire inside the armed watermark; watermark OFF and ON identical (312/1 · 307/4 · DIVERGE=3, same sets); 10 demos ON==OFF==SBL; three `.s` regen scripts → zero drift at default; 179 declines byte-identically.
+
+**A FACT-RULE catch worth recording:** an early "179 byte-identical" diff compared two EMPTY files (bad relative path, both compiles silently produced nothing, `diff -q` passed). Re-established on real 33 KB outputs. Lesson: byte-identity evidence must include a nonzero-size check.
+
+**Honest scope:** slice 1 admits pure-defer bodies only; every demo ARBNO embeds the referenced pattern's tree (defer inside a windowed subtree) and declines — the rail is unmoved. The lever path is the defer-as-known-footprint-LEAF fold into the R12-EXIT tail (fp contribution = SUSP), then the record-peek cursor (`[rsp+8]→[rbp+56]`) to drop the uniformity gate and admit recursion.
