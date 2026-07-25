@@ -36,7 +36,13 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 ## ▶ LIVE CURSOR (updated every handoff — RULES.md STALE-ORIENTATION rule)
 
-**WATERMARK: SCRIP `54b047cc` · suite PASS=249 FAIL=12 XFAIL=32 / 293 · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness 6/9 byte-identical, timing geomean m4 0.62× / m3 0.50×, tgrlink Ir 1.303G vs iconx 1.339G (SCRIP 1.027× FEWER instructions).**
+**WATERMARK: SCRIP `fbce47dc` · suite PASS=249 FAIL=12 XFAIL=32 / 293 (NOT re-derived s165 — `test_icon_all_rungs.sh` was not run; carried forward from s162, treat as stale) · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness 6/8 byte-identical, geddump + rsg DIVERGE.**
+
+- **s165 (2026-07-25) — BENCH-HONESTY-2 + `geddump` ROOT-CAUSED. SCRIP `fbce47dc`. No codegen touched.**
+  **THE CORRECTNESS HARNESS WAS GRADING `geddump` — a KNOWN LIVE DEFECT — AS A PASS.** `honest_icon_correctness.sh`'s `window()` extracts between post.icn's marker and the elapsed-time line; `geddump`/`micsum`/`tgrlink` DO NOT LINK post.icn, so the window came back EMPTY on both engines and `cmp` of two empty files printed IDENTICAL. Fixed: fall back to whole file when the marker is absent, and grade two empty windows `NO-OUTPUT`. Mirror defect fixed in `honest_icon_bench.sh`, which claimed a correctness verdict from a run whose output post.icn SUPPRESSES — a **false red on concord/deal/ipxref/queens, all four byte-identical to the oracle**; it now prints `n/a` and defers. ⚠ **This is s164's own lesson recurring one layer down — an EMPTY COMPARISON MUST NEVER BE A PASS. Worth auditing the Prolog/SNOBOL4 runners for the same shape.**
+  **`geddump` ROOT CAUSE = A FAILING `not` DELIVERS SUCCESS.** Divergence is 1,077 lines present ONLY in SCRIP, ZERO missing — a strict superset, i.e. over-emission. Its line-54 guard `(p.r === gedref(fam,"HUSB")) | (not gedref(fam,"HUSB"))` must FAIL for the wife; instead the arm succeeds and every child prints twice.
+  **⭐ `not` IS A ONE-LINE REPRO OF THE s164 SCAN/`else` DEFECT — USE IT INSTEAD OF THE SCAN ONE:** `procedure main(); if not (1 = 1) then write("THEN") else write("ELSE"); end` → iconx `ELSE`, SCRIP m3 AND m4 print **nothing**. No scan env, no subject, no procedure.
+  **CANDIDATE UNIFIED ROOT CAUSE (INFERRED FROM IR DUMPS, NOT YET CONFIRMED IN `emit.cpp`):** both `not` and scan express arm-failure as a transition INTO the DISJUNCTION node itself (its β edge) — `not` repro node 5 γ=1, s164 scan dump node 14 γ=1 — and that node's own γ/ω are both FAIL. Plain failing comparisons do NOT take that path and work correctly. So the emitter appears to treat arm-failure re-entry at the DISJUNCTION as arm-list EXHAUSTION instead of advancing to the next arm. **LOWER is faithful to canonical `ir_a_Not` (verified against `refs/jcon-master/tran/irgen.icn` L142-159) — do not go back to `lower_icon.c`.** Full detail incl. the discriminating table: `FINDING-2026-07-25-CLAUDE-ICN-NOT-IS-A-ONE-LINE-REPRO-OF-THE-SCAN-ELSE-DEFECT-AND-GEDDUMP-ROOT-CAUSE.md`.
 
 - **s164 (2026-07-25, Opus 4.5) — BENCH-HONESTY: oracle-diffed the whole Icon bench corpus; README grid replaced; `rsg` short-circuit named. SCRIP `54b047cc`. No codegen touched.**
   **Correctness 6/9 byte-identical to `iconx` 9.5.25a** (concord 1,345L · deal 17,000L · ipxref 1,208L · queens 16,653L · tgrlink 3,239L · micsum) — established with a NEW `OUTPUT=1` pass (`scripts/honest_icon_correctness.sh`), because the stock timing run has `post.icn`'s `write := 1` suppression active and **stdout therefore cannot validate a timing run at all**. `version` divergence is benign (`&version`). Live defects: `geddump`, `rsg`.
@@ -50,8 +56,13 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 ### ▶ NEXT RUNG — SCAN-ARM VALUE SLOT IN NARY-DISJUNCTION (s164 root cause; fixes rsg + likely all of FZ-E)
 
-**Deterministic 2-line repro, no big program needed:**
+**⭐ SUPERSEDED BY A ONE-LINE REPRO (s165) — START HERE:**
+`procedure main(); if not (1 = 1) then write("THEN") else write("ELSE"); end` → iconx `ELSE`, SCRIP m3 AND m4 print **nothing**. No scan environment, no subject, no procedure — same symptom as the scan case with every scan variable removed. **This is also `geddump`'s root cause** (its line-54 guard is `A | (not B)`), so the rung now closes TWO of the two remaining bench defects, not one.
+
+**Prior 2-line scan repro (still valid, use as the second test after the `not` one passes):**
 `procedure f(s); if s ? (="'") then return "THEN" else return "ELSE"; end` → iconx `ELSE`, SCRIP fails the whole procedure.
+
+**CANDIDATE UNIFIED ROOT CAUSE (s165, inferred from both IR dumps — CONFIRM IN `emit.cpp` FIRST):** both constructs route arm-failure INTO the DISJUNCTION node itself (`not` repro node 5 γ=1; s164 scan dump node 14 γ=1), and that node's own γ/ω are both FAIL — so the emitter looks to be treating arm-failure re-entry as arm-list EXHAUSTION rather than advancing to the next arm. Canonical `ir_a_Alt` (`irgen.icn` L196-198) requires arm *i* failure → arm *i+1* START, with ONLY the last arm's failure going to the disjunction's failure.
 
 **START IN THE EMITTER.** The IR is structurally CORRECT (dumped s164: the else arm exists, `leave_fail` routes back to the DISJUNCTION). The defect is EXECUTION of nary-DISJUNCTION **arm value-slot delivery** when the arm's tail is an `IR_SCAN` — the `op_parts`/CV10 channel plus the `na_s`/`na_f` success/fail glue in `emit.cpp`. Decisive evidence: `(s ? (="'")) | "ALT-ELSE"` returns **null**, i.e. the arm neither fails cleanly nor yields the alternative — it delivers an EMPTY VALUE SLOT.
 **⛔ DO NOT re-try the `lower_icon.c` TT_SCAN subject-β `ir_is_generator_kind` guard — tried s164, zero behaviour change, reverted.** Seven other hypotheses also falsified; all listed in `FINDING-2026-07-25-CLAUDE-ICN-SCAN-COND-ELSE-EDGE-IS-THE-RSG-ROOT-CAUSE.md`. Read it BEFORE coding.
