@@ -131,12 +131,44 @@ address into `sink_carve48`.
 
 ---
 
-## 7. ⚠ NOT DONE / OPEN
+## 7. MEASUREMENT — ISOLATED SYMBOL A/B (`rtx_str_bench.c`), **RT_OPT=-O0 BOTH ARMS**
 
-- **NO SPEED CLAIM.** Rail not run; RT_OPT=`-O0`. The s163 measurement lesson stands: this
-  1-core container's sub-800ms windows swing 1.4-3.9×, so a rail number here would be noise. RTX-3
-  is where real speed evidence was predicted to arrive (ARCH §6) — it needs a quiet measurement,
-  and per the O2-DIRECTED-ONLY rule any `-O2` comparison build needs a Lon directive.
+A whole-program rail is unreadable here and was not attempted as evidence: s163 measured this
+container's sub-800ms windows swinging 1.4-3.9×, and the concat-heaviest corpus benchmark
+(`string_concat.sno`) completes in ~20ms, an order of magnitude below anything resolvable. A
+SINGLE SYMBOL can be measured, because the iteration count is ours to choose. Each case runs in
+its OWN PROCESS (heap fill cannot accumulate across cases — the first attempt without this showed
+gate-ON times climbing 111→318→752 ns as the heap filled while gate-OFF stayed flat, which is the
+confound, not a result), 40000 iterations × 9 reps, MINIMUM reported (on a shared 1-core box the
+minimum is the least-contaminated estimator; noise only adds).
+
+| case | asm ON | C OFF | ratio |
+|---|---|---|---|
+| tiny 3+3 | **10.64** | 76.51 | **7.2×** |
+| small 8+8 | **13.74** | 84.04 | **6.1×** |
+| token 12+7 | **12.81** | 81.74 | **6.4×** |
+| mid 24+24 | **19.80** | 84.79 | **4.3×** |
+| big 64+64 | **33.77** | 100.30 | **3.0×** |
+
+Reproduced on a confirmation pass (tiny 10.64/79.37, big 38.17/102.34). Short operands — the
+common SNOBOL4 shape, tokens and single characters — gain most, which is the expected shape: the
+eliminated cost is ~10 fixed call overheads, so it dominates when the copy itself is small.
+
+⛔ **THE CAVEAT THAT MUST TRAVEL WITH THESE NUMBERS, PER O2-DIRECTED-ONLY: BOTH ARMS ARE `-O0`.**
+That is the SHIPPED configuration, so "the runtime as it ships got 6× faster at this symbol" is a
+fair statement. **It is NOT "hand-written asm beats optimized C by 6×", and it must never be quoted
+that way.** A large and unmeasured share of the gap is `-O0` refusing to inline the `static inline`
+descriptor helpers (`IS_FAIL_fn`, `IS_NULL_fn`, `descr_slen`, `IS_STR_fn`), so the C arm pays real
+call overhead for predicates that `-O2` would fold to a compare. **The asm-vs-optimized-C question
+is OPEN and cannot be answered without a directed `-O2` runtime build** (RULES: O2-DIRECTED-ONLY —
+needs a Lon directive in-session, and per s126 must run detached+polled with tree/artifact state
+checks before and after).
+
+**NO PROGRAM-LEVEL CLAIM IS MADE.** The symbol is 6× faster; what fraction of any real program is
+this symbol has not been measured here, and `str_concat_d`'s 152 static sites rank the CALL
+BOUNDARY, not dynamic weight (ARCH §5 caveat (a)). A program-level number needs a workload that
+runs long enough to resolve — the claws5/json family from the s161 anatomy, not this benchmark.
+
 - **MILESTONE-1 BEAUTY ORACLE md5 (`abfd19a7...`) STILL NOT REPRODUCED** — and now with a reason,
   which is more than RTX-2 could say. The x64 oracle IS cloned this session, but
   `sbl -b beauty.sno` from the demo directory dies with `ERROR 217 duplicate label` at line 568 and
@@ -150,3 +182,25 @@ address into `sink_carve48`.
   a FOURTH copy of the carve fast path (`rtx_alloc.S` + `sink_carve48` already must agree). If
   measurement nominates that call, slice 2 inlines it via a shared macro with a byte-identity proof
   on `rtx_alloc.o`.
+
+## 8. ⚠ STILL OPEN
+
+- **MILESTONE-1 BEAUTY ORACLE md5 (`abfd19a7...`) NOT REPRODUCED** — now with a diagnosis, which is
+  more than RTX-2 could offer. x64 IS cloned this session, but `sbl -b beauty.sno` from the demo
+  directory dies `ERROR 217 duplicate label` at line 568 then segfaults, and `beauty.sno` reads its
+  subject from **stdin** (`< /dev/null` ⇒ exit 0, zero output; `< beauty.sno` ⇒ 278 bytes of real
+  beautifier output). **The canonical invocation is recorded NOWHERE** — not Session Setup, not
+  RULES, not PLAN; only the md5 survives. A milestone whose reproduction command is unwritten cannot
+  be re-proven by any later session, and this one is the project's Milestone 1. Recommend the
+  invocation be written into the goal file's Session Setup block next time someone knows it.
+  SCRIP-side ON==OFF identity WAS proven (`1c75f97d...`); the ORACLE comparison was not.
+- **`-O2` COMPARISON UNANSWERED** — see §7. This is the single most useful next measurement for the
+  whole RTX programme, because it tells us how much of every future rung's win is real asm advantage
+  versus `-O0` overhead we could have deleted with a compiler flag. It needs a Lon directive.
+- `str_repeat_d` + SIZE/TRIM/DUPL/REPLACE builtins not ported (same family, far fewer sites).
+- The carve is reached by `call rt_str_alloc` rather than inlined, deliberately: inlining mints a
+  FOURTH copy of the carve fast path (`rtx_alloc.S` + `sink_carve48` already must agree). Given §7's
+  numbers the remaining call is now a visible fraction of the fast path, so slice 2 (shared macro +
+  byte-identity proof on `rtx_alloc.o`) is worth costing.
+- Session numbering collided: a parallel Icon session also used **s164** (`1bed74b4`). Harmless here
+  (different goal files, clean rebase) but the numbering is not collision-free across parallel chats.
