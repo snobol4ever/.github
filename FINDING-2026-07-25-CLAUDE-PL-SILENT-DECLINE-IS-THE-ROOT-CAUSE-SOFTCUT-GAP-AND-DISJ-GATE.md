@@ -24,9 +24,29 @@ Why this is a defect and not a policy choice — three facts that contradict eac
 1. `src/runtime/unification.c:1425` declares the ISO default: `{ "unknown", 1, "error", 0, 0 }`.
 2. The ISO throw machinery EXISTS and is wired: `rt_call_proc_descr` (`src/runtime/rt/rt.c:608`)
    does `rt_pl_iso_throw_existence_key(name)` and prints `[GZ-10] ... has no stackless slab`.
-3. Neither fires, because the failure happens **before emission** — the call never reaches
-   `rt_call_proc_descr`. The lower-time whitelist (`pl_gz_rule_body_goal_ok` /
-   `pl_gz_rule_clause` in `scrip.c`) declines the clause first, and the decline is mute.
+3. Neither fires on the EMITTED path.
+
+**CORRECTED MECHANISM (pinned to one line).** The decline is NOT at lower time — it is the
+emitted call site's open leaf, `src/runtime/rt/rt.c:1331`:
+```c
+long rt_proc_call_open(const char *name, int nargs)
+{
+    rt_proc_t *p = name ? rt_proc_find(name) : (rt_proc_t *)0;
+    if (!p || !p->fn) return 0;      /* <-- missing procedure => 0 */
+```
+The emitted site does `test rax,rax; je L(1)`, so `0` lands in the **ω/FAIL arm**, entirely
+indistinguishable from an honest logical failure.
+
+`rt_call_proc_descr` (`rt.c:608`) tests the **same** `!p || !p->fn` condition and instead throws
+`existence_error` after printing `[GZ-10] ... has no stackless slab`. So the tree contains TWO
+paths over one predicate with OPPOSITE semantics — the C reference path throws, the emitted path
+silently fails — and m3/m4 run the emitted one. That is why `unknown=error` is never honoured.
+
+Note the distinction being conflated: routing a **guard/dyn_scope mismatch** into the fail arm is
+correct and is documented as deliberate (see the `rt_proc_call_open_det` comment, `rt.c:1342`).
+Routing **"this procedure does not exist"** into that same arm is not — these are different
+conditions sharing one return value. A fix likely needs to distinguish them (e.g. a sentinel
+distinct from 0, or an existence check before the open leaf).
 
 `resolve_throw_existence_error_procedure` (`src/parser/prolog/pl_resolve.h:12`) is **declared and
 never called anywhere in `src/`** — dead.
@@ -189,3 +209,10 @@ Pre-existing at pristine HEAD before any edit in this session. Out of Prolog sco
 `IR_UNIFY` etc.; of these only `IR_CUT` (and `IR_ITERATE`) appear in `src/contracts/IR.h`. Either
 the table is aspirational or the opcodes were renamed — it should not be trusted as a map of the
 current tree until reconciled.
+
+Same file's **"Admission recipe (new deterministic builtin)" step 7** names "Four `scrip.c` sites:
+`pl_gz_rule_body_goal_ok`, `pl_gz_rule_clause`, `pl_gz_count_synth_goal`, `pl_gz_build_goal`".
+**None of these four exists anywhere in `src/`** (`grep -rn` → 0 hits each). The `pl_gz_*` family
+does survive (`pl_gz_init`, `pl_gz_choice_state_t`, `pl_gz_ite_state_t`, `pl_gz_callees_push`, …),
+so the recipe's step 7 is stale and will send the next session hunting for functions that were
+removed. Reconcile before following that recipe.
