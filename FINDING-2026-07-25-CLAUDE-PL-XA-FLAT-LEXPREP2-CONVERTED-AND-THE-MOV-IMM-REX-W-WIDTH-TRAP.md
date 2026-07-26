@@ -128,3 +128,28 @@ The `mov32` fix of §3 lands in **FRAME_RSP, which SNOBOL4 hits 152 times**, so 
 - `rep_stosb`, `add reg,imm`, `xor reg,reg`, `mov32 reg,imm`, `mov rdi,rsp`: all already available.
 
 ⚠ **ONE MORE R10 SUSPECT, NOT YET CONFIRMED — the `reg_disp32` family always emits disp32.** `xaf_zero_q_rsp_bin` deliberately picks **disp8 when `off <= 127`** ("as-matching disp8/disp32", its own comment), but the `x86_reg_disp32_*` encoders write `u32le(disp)` unconditionally. If the TEXT twin is ` mov qword ptr [rsp + 24], 0`, `as` encodes disp8 and the BINARY would be 3 bytes longer — the **same size-divergence shape as §3's `mov`/`mov32` trap, in a different family.** This is size-only (no semantic hazard, unlike a negative immediate), and it is **not verified** — the family may be paired with a TEXT arm that forces disp32. **CHECK IT BEFORE CONVERTING NOFILL**, because that arm emits one such store per capture slot and per suffix qword, so any divergence is multiplied across the busiest arm in the tree.
+
+---
+
+## 11. ⛔⛔ BLOCKER FOUND IN NOFILL'S PATH — THERE IS **NO QWORD-IMMEDIATE RSP STORE ENCODER**, AND `qword ptr` SILENTLY NARROWS TO A 4-BYTE STORE
+
+Chasing §10's disp32 suspect turned up something worse and it sits **directly in the next rung's path**. Dispatch (`x86_asm.h:1243-1246`):
+
+```
+XK_RSP64 && XK_REG  -> x86_rsp_store64        REX.W 89 ... = 8-byte store   CORRECT
+XK_RSP64 && XK_IMM  -> x86_rsp_store32_imm    C7 ...       = 4-BYTE STORE   ⛔ WRONG WIDTH
+XK_RSP32 && XK_IMM  -> x86_rsp_store32_imm    C7 ...       = 4-byte store   correct for dword
+```
+
+`XK_RSP64` is parsed from the literal `"qword ptr [rsp + N]"` (`:1124`). **So `x86("mov", "qword ptr [rsp + N]", (long)0)` writes FOUR bytes** — the encoder has no REX.W and its TEXT arm even spells ` mov dword ptr [rsp + N], imm`. `x86_rsp_store64` is register-source only; **no qword-imm rsp store exists in the table at all.**
+
+**WHY THIS IS A CORRECTNESS BLOCKER FOR `NOFILL`, NOT A COSMETIC ONE:** that arm's whole job is zeroing qwords — `xaf_zero_q_rsp_bin` emits `48 C7 44 24 <off> <imm32>` (REX.W, imm32 **sign-extended to 64 bits**, 8 bytes written) at every capture slot and every suffix qword. A naive conversion to `x86("mov","qword ptr [rsp + off]",(long)0)` would zero only the **low half** of each slot and leave the high half holding whatever the stack last had. In the busiest arm in the tree (2354 SNOBOL4 hits), on PAT$ pattern frames, that is nondeterministic garbage in the exact slots SPD-NOFILL already skips filling.
+
+⚠ **AND IT IS INVISIBLE TO EVERY CHECK THIS RUNG USES.** The encoder does not bomb (contract §5: *"assume vanish, eyeball the `.s`"*) — and worse, **TEXT and BINARY would AGREE with each other**, both emitting a dword store, so even a cross-medium byte comparison passes. The only signal is that the emitted width disagrees with what the template author wrote. This is the third member of the family with s143's `cmp reg,[mem]` (emitted nothing) and §3's `mov`-imm (silently widened to REX.W): **the encoder table is not merely inconsistent about bombing — it is inconsistent about WIDTH, in both directions, silently.**
+
+**VERIFIED CLEAN — this session's landed code does NOT hit it:** `xaf_jmp_hdr_x86`'s four stores are all **register-source** (`XK_RSP64 + XK_REG` -> `x86_rsp_store64`, genuine REX.W qword), and every immediate this session emits goes into a **register** via `mov32`, never into memory. Grep confirms **no template in the tree currently uses the `qword ptr [rsp + N]` + immediate shape**, so nobody has stepped on it yet.
+
+**REQUIRED BEFORE `NOFILL` IS CONVERTED (R7 — add the encoder, never hand-encode):**
+1. Add `x86_rsp_store64_imm(off, imm)` — `REX.W C7 /0 <modrm via x86_rsp_modrm> <imm32>`, TEXT ` mov qword ptr [rsp + off], imm`; route `XK_RSP64 && XK_IMM` to it and leave `XK_RSP32` on the dword encoder.
+2. Consider making the current mis-route **bomb** rather than narrow, so the next width mismatch is loud.
+3. `x86_rsp_modrm` already selects mod=0/1/2 by displacement, so the rsp family **is** `as`-matching on disp width — **§10's disp32 suspect does NOT apply to the rsp path.** It remains open only for the non-rsp `XK_REGDISP` family (`x86_reg_disp32_*`, unconditional `u32le` disp), which NOFILL does not use. **NOFILL is de-risked on displacement, blocked on width.**
