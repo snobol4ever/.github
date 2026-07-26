@@ -24,9 +24,10 @@ Label naming convention: `len_omega`, `len_gamma` (lowercase suffix).
 α reads ζ at entry; γ/ω discard the box reference at return.  JVM's
 GC reclaims ζ — no manual save/restore needed.
 
-## Three-column form on JVM
+## Four-column form on JVM
 
-The α/β methods preserve the canonical three-column shape, with port
+The α/β methods preserve the canonical four-column shape (OPERATOR and
+OPERANDS fuse into single bytecode expressions), with port
 exits compiled to `goto` or `areturn`/`aconst_null + areturn`:
 
 ```

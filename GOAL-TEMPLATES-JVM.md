@@ -36,6 +36,6 @@ producing output matching the x86/oracle reference.
 ## Backend-specific notes (detail in ARCH-JVM.md)
 
 - One class per box; α/β public methods; γ/ω = return value (`Spec` or null sentinel); ζ in instance fields, GC-reclaimed.
-- Three-column form preserved; port exits compile to `goto` / `areturn` / `aconst_null + areturn`.
+- Four-column form preserved; port exits compile to `goto` / `areturn` / `aconst_null + areturn`.
 - Tools: `javac`, `java`, bundled `src/backend/jasmin.jar`. Boxes assemble to `bb/*.class`, packaged into `boxes.jar`.
 - Per RULES.md: zero C Byrd boxes; no AST walking in modes 2/3/4; byte production only inside templates.

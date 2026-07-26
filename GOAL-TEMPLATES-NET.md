@@ -39,6 +39,6 @@ producing output matching the x86/oracle reference.
 ## Backend-specific notes (detail in ARCH-NET.md)
 
 - One class per box implementing `IByrdBox` with `Alpha(MatchState)` / `Beta(MatchState)`; `Spec` value type with `Of(start,len)` / `Fail`; ζ in instance fields, CLR GC-reclaimed.
-- Label naming `LEN_A_FAIL` (UPPERCASE_PORT); three-column form preserved structurally.
+- Label naming `LEN_A_FAIL` (UPPERCASE_PORT); four-column form preserved structurally.
 - Build: `dotnet-sdk-10.0`, always `-p:EnableWindowsTargeting=true`. `scrip.csproj` references `boxes.dll` directly (NOT `bb_boxes.csproj`).
 - Per RULES.md: zero C Byrd boxes; no AST walking in modes 2/3/4; byte production only inside templates.

@@ -58,11 +58,11 @@ WASM cannot do EVAL / CODE natively — no `new Function()` equivalent.
 Either bootstrap a sub-compiler in WASM (large) or fall back to a JS
 host for those ops (small).
 
-## Three-column form on WASM
+## Four-column form on WASM
 
-Three-column structure compiles to:
+Four-column structure compiles to:
 - LABEL: implicit at function entry (single function per port)
-- ACTION: s-expression body
+- OPERATOR + OPERANDS: fused into the s-expression body
 - GOTO: `return` (γ — value), `return (i32.const -1)` (ω), no
   in-function `goto` (WASM has no goto; structured control flow only,
   via `if/else/block/br`).

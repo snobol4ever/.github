@@ -2,7 +2,7 @@
 
 **Repo:** SCRIP + .github
 **Prereq:** EC-UNI-PER-KIND-DIFF baseline frozen at SCRIP `ddd08f01` or later (PASS≥401, FAIL=0, STUB=658).
-**Why:** templates currently call `bb3c_format`/`emit_text_jmp`/`emit_label_define` per line. The 3-column GAS alignment is human readability — once the baseline `.raw` files capture the canonical output, the alignment machinery is dead weight. Convert each template arm to one `emit_textf(LITERAL, vars...)` of the captured text with `%s`/`%d` for variable parts. Then delete the formatting layer and the legacy `emit_bb_x*` helpers. Net: −2500 to −3500 LOC.
+**Why:** template output currently funnels through `x86_4col`/`ef_text_jmp`/`emit_label_define_bb` per line. The 4-column GAS alignment is human readability — once the baseline `.raw` files capture the canonical output, the alignment machinery is dead weight. Convert each template arm to one `emit_textf(LITERAL, vars...)` of the captured text with `%s`/`%d` for variable parts. Then delete the formatting layer and the legacy `emit_bb_x*` helpers. Net: −2500 to −3500 LOC.
 
 ## Invariants
 

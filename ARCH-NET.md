@@ -78,9 +78,9 @@ a value type with `Of(int start, int len)` and `Fail` static.
 **Label naming:** `LEN_A_FAIL` style (UPPERCASE_PORT format).  Port
 exits use `br` / `bgt` / `ldsfld` against the static `Spec.Fail`.
 
-**Three-column form** is preserved structurally: ldarg/ldfld
-sequences in column 2 expand the ACTION; `bgt` / `ret` in column 3
-carry the GOTO.
+**Four-column form** is preserved structurally: ldarg/ldfld
+sequences carry the OPERATOR and OPERANDS columns; `bgt` / `ret`
+carry the GOTO column.
 
 **Per-instance state ζ** lives in instance fields; α reads them at
 entry, γ/ω discards the instance at return.  CLR's GC reclaims ζ.
