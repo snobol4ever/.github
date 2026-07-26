@@ -1,5 +1,27 @@
 **WATERMARK: SCRIP `6c740055` · suite PASS=249 FAIL=12 XFAIL=32 / 293 (re-derived s165 from `test_icon_all_rungs.sh` — zero regression across the `not` fix) · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness **7/8 byte-identical**, `rsg` the SOLE remaining defect.**
 
+## ▶ LIVE CURSOR (s166, 2026-07-25)
+
+**NEXT RUNG:** fix the emitter's nary-DISJUNCTION arm selection — see
+`FINDING-2026-07-25-CLAUDE-ICN-RSG-IS-CASE-ARM-DISJUNCTION-SELECTING-LAST-ARM.md`.
+**WATERMARK:** SCRIP `6c740055` · suite 249/12/32 · bench correctness 7/8, `rsg` sole defect.
+**LAST SESSION:** s166 — benchmarks rebuilt from scratch and re-verified; `rsg` ROOT-CAUSED to a 12-line
+minimal repro. No code changed.
+
+⛔ **s164/s165's `rsg` pointers (`defnon`, `syms` `nsym=0`, "grammar table never populates") are STALE and
+MEASURED FALSE — s165b's fix cascaded further than credited. Do NOT re-chase them; the grammar table is
+correct inside the running program.** The real defect: **a disjunction leading a MULTI-statement `case` arm
+selects its LAST arm instead of its first.** Repro (`corpus/programs/icon/repro/rsg_case_arm_disjunction.icn`):
+`case type(x) of { ... "string": { pending := [1,2] | [9]; n +:= 0 } }` → iconx `int=1 int=2 iters=3`,
+SCRIP m3+m4 `int=9 iters=2`. Three necessary ingredients, each measured by removal: (1) `case` — the same
+body under `if` is CORRECT; (2) the arm's FIRST expression is an assignment whose RHS is a disjunction —
+a plain assign is CORRECT; (3) at least one MORE expression follows in the arm — the assign alone is
+CORRECT. `break` is NOT involved. IR evidence: the ONLY wiring difference is the dj's **ω edge** (case glue
+`24@` when the arm ends there vs the trailing statement's own slot `29` when one follows). **START IN THE
+EMITTER** (`emit.cpp` L1100/L1101/L1112 + `bb_disjunction()`), NOT `lower_icon.c`. Fixing it closes the last
+bench defect (8/8) and plausibly part of FZ-E.
+
+
 - **s165 (2026-07-25) — BENCH-HONESTY-2 + `geddump` ROOT-CAUSED. SCRIP `fbce47dc`. No codegen touched.**
   **THE CORRECTNESS HARNESS WAS GRADING `geddump` — a KNOWN LIVE DEFECT — AS A PASS.** `honest_icon_correctness.sh`'s `window()` extracts between post.icn's marker and the elapsed-time line; `geddump`/`micsum`/`tgrlink` DO NOT LINK post.icn, so the window came back EMPTY on both engines and `cmp` of two empty files printed IDENTICAL. Fixed: fall back to whole file when the marker is absent, and grade two empty windows `NO-OUTPUT`. Mirror defect fixed in `honest_icon_bench.sh`, which claimed a correctness verdict from a run whose output post.icn SUPPRESSES — a **false red on concord/deal/ipxref/queens, all four byte-identical to the oracle**; it now prints `n/a` and defers. ⚠ **This is s164's own lesson recurring one layer down — an EMPTY COMPARISON MUST NEVER BE A PASS. Worth auditing the Prolog/SNOBOL4 runners for the same shape.**
   **`geddump` ROOT CAUSE = A FAILING `not` DELIVERS SUCCESS.** Divergence is 1,077 lines present ONLY in SCRIP, ZERO missing — a strict superset, i.e. over-emission. Its line-54 guard `(p.r === gedref(fam,"HUSB")) | (not gedref(fam,"HUSB"))` must FAIL for the wife; instead the arm succeeds and every child prints twice.
@@ -30,7 +52,7 @@
   **KEY FINDING:** SCRIP already beats iconx on Ir (1.307G vs 1.339G) and branch mispredicts (11.3M vs 25.8M). The gap is 25× LL cache misses and 25× page faults — virgin bump-alloc through 61MB of cold memory vs iconx's 8.3MB warm heap. Instruction rungs cannot close this gap. Full findings: `FINDING-2026-07-25-CLAUDE-ICN-MEM-1-HUGEPAGE-VIRGIN-ZERO-ELIDE-AND-GC-ABORT-DIAGNOSIS.md`.
   **GC ABORT FINDING:** GC fires on tgrlink at ≤16MB and aborts (not wrong output). Basic GC correctness is demonstrated (800MB churn, all struct types down to 4–8MB). Root cause NOT yet determined: over-retention vs legitimately large live set. See FINDING for separation protocol.
 
-### ▶ NEXT RUNG — SCAN-ARM VALUE SLOT IN NARY-DISJUNCTION (s164 root cause; fixes rsg + likely all of FZ-E)
+### ▶ SUPERSEDED RUNG — SCAN-ARM VALUE SLOT IN NARY-DISJUNCTION (s164 diagnosis; kept for its falsified list)
 
 **⭐ SUPERSEDED BY A ONE-LINE REPRO (s165) — START HERE:**
 `procedure main(); if not (1 = 1) then write("THEN") else write("ELSE"); end` → iconx `ELSE`, SCRIP m3 AND m4 print **nothing**. No scan environment, no subject, no procedure — same symptom as the scan case with every scan variable removed. **This is also `geddump`'s root cause** (its line-54 guard is `A | (not B)`), so the rung now closes TWO of the two remaining bench defects, not one.
