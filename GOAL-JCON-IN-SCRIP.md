@@ -176,11 +176,23 @@ Group F — co-expressions & scan:
 
 ## ▶ LIVE CURSOR — NEXT SESSION START HERE
 
-**⌚ 2026-07-26 (Claude Opus 5 · SCRIP HEAD `20aa255f`, NO CODE CHANGED · corpus repros added · .github finding added) — SELF-HOST GATE REACHED AND BLOCKED BY ONE 6-LINE DEFECT. TWO PRIOR DIAGNOSES CORRECTED.**
+**⌚ 2026-07-26 (Claude Sonnet 4.6 · SCRIP `9027445c` · corpus unchanged · .github this finding) — BOTH FACES OF THE `=s` β DEFECT CLOSED. SUITE 249/12/32. SELF-HOST GATE NOW UNBLOCKED — VERIFY NEXT SESSION.**
 
-**NEXT RUNG:** fix `=s`/`tab(match(s))` β — it must **restore δ and FAIL**, not re-succeed. Full mechanism,
-discriminating table, gdb evidence and re-test gate:
-`FINDING-2026-07-26-CLAUDE-ICN-SCAN-MATCH-BETA-RESUCCEEDS-INFINITE-BETA-LOOP-BLOCKS-JCON-SELFHOST.md`.
+**NEXT RUNG:** rebuild SCRIP-jtran (17 modules, workdir `/home/claude/jt`, corpus sources in
+`corpus/programs/icon/jcon-compiler/`) and run:
+```
+COEXPSIZE=1000000 SCRIP-jtran preproc irgen.icn : yylex : parse : ast2ir : bc_File -O -class:... -dir:...
+```
+expecting **114 class files** matching oracle-jtran's output (byte-compare as DATA — no Java, no JVM, per s121 ABSOLUTE).
+Full build recipe: `corpus/programs/icon/jcon-compiler/README.md` + prior session notes (semicolonize sources,
+merge 17 modules, `SCRIP_BETA_ELIDE_OFF=1` workaround still applies unless confirmed fixed).
+**WHAT WAS FIXED:** `=s`/`tab(match(s))` β edge was downgraded to α by `γ_to`/`ω_to` because
+`IR_SCAN_TAB` is deliberately NOT in `ir_is_generator_kind`. Conjunction backtrack (face 1, `43c5837b`) and
+reversible-assign chain (face 2, `9027445c`) both fixed by guarding on the SOURCE TREE (not `tgt->op`, which
+is still `IR_CALL` at lowering time). Full mechanism + correction of prior finding's misdiagnosis:
+`FINDING-2026-07-26-CLAUDE-ICN-CURSOR-BACKTRACK-BETA-EDGE-DOWNGRADED-TO-ALPHA-FACE-1-CLOSED.md`.
+**KNOWN REMAINING GAP:** TT_IDX/TT_SECTION rev-assign branch (`lower_icon.c` ~line 831, the `b5` path) has
+the identical `if (rbeta)` hole — `t[i] <- ="."` still loses δ restore. Not fixed this session.
 
 ```icon
 procedure main(); local s; s := ".abc";
