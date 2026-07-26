@@ -104,17 +104,28 @@ recommends` avoided it cleanly.
   Three ISO error shapes (`domain_error` bad option, `type_error(list,_)` non-list options,
   `domain_error(var_binding_option, from(bad))`) — **byte-identical** (mod the `_G0` context cosmetic).
 
-## (7) KNOWN GAP SURFACED, NOT FIXED THIS RUNG — THE WRITER HAS NO `$VAR`/`$VARNAME` HOOK
+## (7) CORRECTION TO (7) ABOVE — THE GREP WAS INCOMPLETE; `$VAR` ALREADY WORKED, ONLY `$VARNAME` WAS MISSING; FIXED THIS SESSION
 
-`grep -rn "VAR\|VARNAME" src/runtime/*.c` restricted to writer logic: zero hits. `write/1` on a
-numbervars'd or bind_variables'd term prints the raw `'$VAR'(N)` compound instead of a letter (`A`,
-`B`, ...) the way gprolog's `write/1`/`print/1` do — only `write_canonical` (which deliberately never
-special-cases anything) was used for verification in this FINDING for exactly that reason. This is
-PRE-EXISTING (the already-DONE `numbervars/1,3` has carried the identical gap silently since it
-landed) and is out of scope for PL-ISO-9's admission test (the tracker checks predicate existence +
-correct C-level behavior, not writer integration) — but it is precisely a `write_term/2` numbervars-
-option item, i.e. the next natural slice of this same rung's still-open prose half. Flagged in the
-goal file cursor; not fixed here to keep this rung's diff to the variable-naming family only.
+§6/(7) above claimed the writer had "zero `$VAR`/`$VARNAME` recognition" based on a grep restricted to
+`src/runtime/*.c`. That was WRONG — the real term-writer engine lives in
+`src/parser/prolog/prolog_builtin.c` (`pl_write`, `pl_writeq_term`, `pl_wt`), a file the first grep
+never reached. Re-checked there: **`$VAR` was ALREADY correctly handled in all three writer
+functions** (`numbervars/1,3` and `bind_variables(...,[numbervars])` were printing letters correctly
+all along — verified live, `foo(A,B,A)` byte-identical to gprolog before any edit this session).
+**Only `$VARNAME` was missing**, in exactly `pl_write` and `pl_writeq_term` (the `write/1` and
+`writeq/1` backends) — added a mirror of the existing `$VAR` arm in both, printing the bound atom's
+text unconditionally (verified against gprolog: `writeq` prints the name RAW, unquoted, even for a
+name containing a space — `writeq(foo('weird name'))`-style atom-quoting rules do NOT apply to a
+`$VARNAME` payload). **Deliberately did NOT touch `pl_wt`** (the `write_term/2` backend): live-checked
+against gprolog 1.4.5 and confirmed `write_term/2`'s `numbervars(true/false)` option only ever
+special-cases `$VAR`, never `$VARNAME`, in the real gprolog implementation (no `variable_names` option
+exists in gprolog 1.4.5's `write_term/2` at all — that is a SWI-ism) — SCRIP's `pl_wt` already printed
+the raw `$VARNAME(...)` compound under both `numbervars(true)` and `numbervars(false)`, matching
+gprolog exactly, so no change was needed there. **RULE FOR NEXT SESSION: when a `grep -rn` across
+"the runtime" comes back empty, check whether the search path actually covers every file in the
+pipeline stage being searched — `src/runtime/` and `src/parser/prolog/` are DIFFERENT directories and
+this file's own writer logic lives in the latter.** Re-gated after the fix: rung 164/164×3, smoke
+5/5/5, `no_new_global`/`no_value_stack` PASS, ratchet unmoved — all unchanged from §7 above.
 
 ## GATES (all green, `-O0`, no `-O2` directive this session)
 
@@ -130,10 +141,13 @@ goal file cursor; not fixed here to keep this rung's diff to the variable-naming
 SCRIP `src/runtime/unification.c` (5 new functions: `rt_pl_get_print_stream_cell`,
 `pl_distinct_vars_walk`, `pl_atom_text`, `pl_is_nil`, `pl_nil_cell`, `rt_pl_name_singleton_vars_cell`,
 `rt_pl_name_query_vars_cell`, `pl_namevars_letters`, `rt_pl_bind_variables_cell`) + `by_name_dispatch.c`
-(4 dispatch arms, 4 det-builtin table rows, 1 `pl_builtin_is_known` line). corpus: none touched.
-.github: this FINDING + `PROLOG-ISO-TRACKER.md` regenerated + `GOAL-PROLOG-BB.md` PL-ISO-9 line
-corrected to `[~]` with the tracker-vs-prose split spelled out.
+(4 dispatch arms, 4 det-builtin table rows, 1 `pl_builtin_is_known` line) + `src/parser/prolog/
+prolog_builtin.c` (`$VARNAME` arm added to `pl_write` and `pl_writeq_term`, mirroring the existing
+`$VAR` arm; `pl_wt`/`write_term` deliberately left untouched — verified gprolog itself never
+special-cases `$VARNAME` there). corpus: none touched. .github: this FINDING + `PROLOG-ISO-
+TRACKER.md` regenerated + `GOAL-PROLOG-BB.md` PL-ISO-9 line corrected to `[~]` with the tracker-vs-
+prose split spelled out.
 
 BANKED (carried, none resolved this session): NO-LCO deep-recursion segfault + cumulative exhaustion;
-nested-`\+` binding leak; retractall/1 gaps; compiled-path silent-fail on undefined predicates; the
-writer's missing `$VAR`/`$VARNAME` hook (new banked item, §7 above).
+nested-`\+` binding leak; retractall/1 gaps; compiled-path silent-fail on undefined predicates. (The
+writer `$VAR`/`$VARNAME` item from §6/(7) is RESOLVED this session, not banked — see (7) above.)
