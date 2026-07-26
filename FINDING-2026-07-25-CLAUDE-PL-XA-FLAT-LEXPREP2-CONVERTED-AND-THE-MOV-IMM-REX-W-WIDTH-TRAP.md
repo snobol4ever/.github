@@ -118,3 +118,13 @@ The `mov32` fix of §3 lands in **FRAME_RSP, which SNOBOL4 hits 152 times**, so 
 3. **LON RULING (new, §3):** fix the ~24 cross-language `mov`->`mov32` sites, or leave them to their owning goals?
 4. Epilogue conversion needs the external-DEFINE path (tag `E`) at three `out_def = true` + `flat_fail_p` sites — and per s149 §1, `E`/`F` are **already decoded** at `x86_asm.h:1867-1868`; verify before designing.
 5. REGAIN-1 slice C (the spine, ~36%) remains the big untouched rung.
+
+---
+
+## 10. ENCODER RECON FOR THE `NOFILL` RUNG (done here so the next session does not re-derive it)
+
+- **mem64 <- imm32 store: EXISTS** (`x86_asm.h:~940`, the `reg_disp32` family) — BINARY `REX.W C7 /0 <disp32> <imm32>`, TEXT ` mov qword ptr [base + disp], imm`. Covers `xaf_slot0_seed_bin` and `xaf_zero_q_rsp_bin`.
+- **`mov al, imm8`: DOES NOT EXIST.** Needed ONLY by the poison lane (`xaf_poison()`, `SCRIP_ZLS_POISON=1`, default OFF). Per R7 the sanctioned route is to **add the encoder + a dispatch case**, never hand-encode in the template. Alternatively convert the live lanes first and leave the poison lane on the raw splicer via the existing sentinel — the arms flip independently by design.
+- `rep_stosb`, `add reg,imm`, `xor reg,reg`, `mov32 reg,imm`, `mov rdi,rsp`: all already available.
+
+⚠ **ONE MORE R10 SUSPECT, NOT YET CONFIRMED — the `reg_disp32` family always emits disp32.** `xaf_zero_q_rsp_bin` deliberately picks **disp8 when `off <= 127`** ("as-matching disp8/disp32", its own comment), but the `x86_reg_disp32_*` encoders write `u32le(disp)` unconditionally. If the TEXT twin is ` mov qword ptr [rsp + 24], 0`, `as` encodes disp8 and the BINARY would be 3 bytes longer — the **same size-divergence shape as §3's `mov`/`mov32` trap, in a different family.** This is size-only (no semantic hazard, unlike a negative immediate), and it is **not verified** — the family may be paired with a TEXT arm that forces disp32. **CHECK IT BEFORE CONVERTING NOFILL**, because that arm emits one such store per capture slot and per suffix qword, so any divergence is multiplied across the busiest arm in the tree.
