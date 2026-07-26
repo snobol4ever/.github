@@ -130,11 +130,16 @@ BLOB from outside.**  Every cross-BLOB entry lands on the α-preamble.
 The preamble is the contract that the destination BLOB's LOCAL is loaded
 before any `[r12+off]` reference fires.
 
-## Three-column box layout
+## Four-column box layout
 
 Every box (whether emitted as text `.s` or directly as bytes into
-`bb_pool`) follows the canonical three-column LABEL/ACTION/GOTO form.
-NASM column convention: col 0 / col 20 / col 60.
+`bb_pool`) follows the canonical four-column LABEL/OPERATOR/OPERANDS/GOTO
+form.  (The condensed LABEL/ACTION/GOTO notation fuses OPERATOR+OPERANDS
+into one ACTION expression; the three-column format proper was the Stack
+Machine's, long gone.)  GAS text convention (`x86_4col`, sized by the
+2026-07-26 sweep of all 587 live artifacts): label col 0 · operator
+col 24 · operands col 41 · GOTO col 88.  The SM-era NASM convention
+below (col 0 / 20 / 60) is kept as the historical condensed rendering.
 
 ```
 proc BIRD
@@ -147,7 +152,7 @@ endp
 ```
 
 Multi-line port bodies keep column position; the last line of a port
-body carries the `jmp` in column 3.
+body carries the `jmp` in the GOTO column (column 4).
 
 **Globbing:** named patterns concatenate sub-box labels into one
 proc, with internal port wiring expressed as `jmp`. C function → NASM

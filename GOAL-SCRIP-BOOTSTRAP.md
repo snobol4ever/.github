@@ -256,7 +256,9 @@ than every prior Goal combined.
 
 The bootstrap design treats Byrd boxes specifically — and the SM
 opcode handlers more generally — as **templates**, not as code.
-The canonical form is the three-column LABEL/ACTION/GOTO table
+The canonical form is the four-column LABEL/OPERATOR/OPERANDS/GOTO
+table (rendered condensed as LABEL/ACTION/GOTO where the medium fuses
+OPERATOR+OPERANDS into one ACTION expression)
 already present in the bb_box.h header comments.  A small
 generator walks that table and emits, for each (mode, backend)
 cell, the equivalent code in the target representation.
@@ -290,7 +292,7 @@ sharpens:
 
 | Sub-rung | Deliverable |
 |----------|-------------|
-| **CB-7a — Template grammar.** | Define the `.tmpl` syntax — three-column LABEL/ACTION/GOTO with typed fields (cursor ops, char-class ops, sentinel returns).  Express all 27 today's boxes as templates.  Use BB-GEN-LANG.md's Three-Column Law as the design reference; CODE-shared / DATA-per-invocation invariant from EMITTER-X86.md is structural. |
+| **CB-7a — Template grammar.** | Define the `.tmpl` syntax — four-column LABEL/OPERATOR/OPERANDS/GOTO with typed fields (cursor ops, char-class ops, sentinel returns).  Express all 27 today's boxes as templates.  Use BB-GEN-LANG.md's Three-Column Law as the design reference; CODE-shared / DATA-per-invocation invariant from EMITTER-X86.md is structural. |
 | **CB-7e — Text codegen (4th mode) — the unifying step.** | Generator: template → emitted source text in target languages.  Round-trip lock-in: emitted `bb_boxes.c` byte-identical to today's hand-written file in `runtime/x86/`.  Then extend by surface syntax to emit `.s`, `.cs`, `.il`, `.j`, `.java`, `.js`, `.wat` — reproducing the prior `runtime/boxes/` per-language output but generated, not hand-written.  This rung is the gate that makes all five backends reachable; CB-7b/c/d/f below are specialisations of its output. |
 | **CB-7b — In-memory IR-interp specialisation.** | Generated bb body (CB-7e for C) called directly from `interp.c` tree-walk.  No semantic change; the generator's C×IR output IS today's `bb_boxes.c`. |
 | **CB-7c — In-memory SM-interp specialisation.** | Same templated bodies, wired into SM_BB_* dispatch in `sm_interp.c`.  Replaces hand-written SM_BB_* handlers. |
@@ -376,10 +378,12 @@ The collateral cost was visible:
 - Adding a new box meant 8 new file edits.  Adding a new backend
   meant 27 new file ports.
 
-### What it left behind (the canonical 3-column form)
+### What it left behind (the canonical form, condensed rendering)
 
 Despite the maintenance burden, the work proved out the canonical
-**three-column LABEL/ACTION/GOTO form**:
+**four-column LABEL/OPERATOR/OPERANDS/GOTO form** (condensed below as
+LABEL/ACTION/GOTO — the C medium fuses OPERATOR+OPERANDS into one
+ACTION expression):
 
 ```
     LABEL:          ACTION                          GOTO
@@ -389,7 +393,8 @@ Despite the maintenance burden, the work proved out the canonical
     BIRD_β:         Δ -= 4;                         goto BIRD_ω;
 ```
 
-The Three-Column Law (per-backend column conventions):
+The Four-Column Law (per-backend column conventions; a condensed
+ACTION column ≡ OPERATOR+OPERANDS fused):
 
 | Backend | Col 1 (LABEL) | Col 2 (ACTION) | Col 3 (GOTO) |
 |---------|--------------|----------------|--------------|
@@ -402,7 +407,9 @@ The Three-Column Law (per-backend column conventions):
 | .js      | object methods `α()` / `β()`; returns sentinel for ω | | |
 | .wat     | `bb_len_a` / `bb_len_b` exports; `i32.const -1` for ω | | |
 
-Every backend renders the same three-column logical structure;
+Every backend renders the same four-column logical structure
+(condensed to LABEL/ACTION/GOTO where the medium fuses
+OPERATOR+OPERANDS);
 only the surface syntax differs.  This is precisely what makes
 template-based generation tractable: the template encodes the
 LABEL/ACTION/GOTO triples in a backend-neutral form, the
@@ -522,7 +529,8 @@ stack discipline, not the box, owns lifetime.
   (`.alpha`, `.beta`, `.gamma`, `.omega`) within the enclosing
   proc.  Globbing rule: named patterns concatenate sub-box labels
   into one proc, with internal port wiring expressed as `jmp`.
-- Three-column layout: col 0 / col 20 / col 60.  ACTION column
+- Four-column layout (NASM-era condensed rendering: col 0 / col 20 /
+  col 60).  ACTION column
   expands a macro-like operation (e.g. `LIT_CHECK "Bird", 4`);
   GOTO column carries a semicolon comment OR a live `jmp`.  Last
   line of a port body carries the `jmp` in column 3.
@@ -1133,7 +1141,8 @@ CB-0 works with the new names throughout.
   `--compile --target=x64` into `src/driver/scrip.c`: set
   `bb_emit_mode = EMIT_TEXT`, run SM lowering, write the NASM `.s`
   to stdout (or a named file). Inspect the output by eye — verify
-  the LABEL/ACTION/GOTO three-column structure is present, that
+  the four-column LABEL/OPERATOR/OPERANDS/GOTO structure is present
+  (condensed in that era's output as LABEL/ACTION/GOTO), that
   the Byrd boxes roman.sno exercises (LIT, BREAK, RPOS, LEN,
   REPLACE pattern) appear correctly formed, and that the `.s` is
   well-structured enough to hand to `nasm`.
@@ -1202,8 +1211,9 @@ unification design (see "Historical record: `runtime/boxes/`" above):
 
 1. **CB-2** (boot-host adapter contract) — defines the C ↔ SCRIP-language ABI.
 2. **CB-7a** (BB template grammar) — express today's 27 boxes as
-   templates.  Use BB-GEN-LANG.md's Three-Column Law as the design
-   reference.  Settling the grammar early prevents re-shaping after
+   templates.  Use the Four-Column Law as the design reference
+   (BB-GEN-LANG.md, archived, records the condensed three-column
+   rendering).  Settling the grammar early prevents re-shaping after
    pilots.
 3. **CB-7e** (text codegen, `--compile`) — generator emits the
    C cell (`bb_boxes.c`) round-trip byte-identical to today's

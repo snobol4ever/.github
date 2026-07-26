@@ -108,7 +108,8 @@ Reuse = the Σ/δ/Δ register walk + the cset test loop; the value contract and 
   construct_gamma:  value ready — wire to caller's success label
   construct_omega:  exhausted — wire to caller's fail label
 
-Three-column form: LABEL / ACTION / GOTO. Exactly as in test_icon.c.
+Four-column form: LABEL / OPERATOR / OPERANDS / GOTO — in test_icon.c's C
+rendering the OPERATOR and OPERANDS fuse into one ACTION expression.
 State (cur, lo, hi, index, etc.) lives in the DATA block (zeta struct),
 allocated fresh per alpha-entry. CODE is shared.
 

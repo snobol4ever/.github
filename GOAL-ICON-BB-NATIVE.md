@@ -57,7 +57,8 @@ structure/taxonomy, invariants, the permanent what-NOT-to-do record).
 2. `ARCH-SCRIP.md` full file — mode 1/2/3/4 definitions.
 3. `GOAL-MODE4-EMIT.md` §"THE LAW OF TEMPLATE FUNCTIONS".
 4. `ARCH-ICON.md` — Icon four-port model, what exists, what is missing.
-5. `.github/test_icon.c` — the canonical three-column alpha/beta/gamma/omega form.
+5. `.github/test_icon.c` — the canonical four-column alpha/beta/gamma/omega form
+   (OPERATOR+OPERANDS fused as C ACTION expressions).
 6. `.github/jcon_irgen.icn` — JCON `irgen.icn` reference (43 `ir_a_*` procedures,
    one per Icon AST construct). The canonical BB enumeration for Icon. The
    IB ladder migrates 8 of these 43 to native template form; the remaining
@@ -113,7 +114,7 @@ per-box law, replacing the ad-hoc SM coroutine / SM_BB_PUMP_AST paths.
 
 ---
 
-## Box structure (three-column form, from test_icon.c)
+## Box structure (four-column form, from test_icon.c)
 
 Every Icon construct maps to four labeled sections in the x86 blob:
 
