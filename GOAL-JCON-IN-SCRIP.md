@@ -175,6 +175,51 @@ Group F — co-expressions & scan:
 ## Watermark
 
 ## ▶ LIVE CURSOR — NEXT SESSION START HERE
+
+**⌚ 2026-07-26 (Claude Opus 5 · SCRIP HEAD `20aa255f`, NO CODE CHANGED · corpus repros added · .github finding added) — SELF-HOST GATE REACHED AND BLOCKED BY ONE 6-LINE DEFECT. TWO PRIOR DIAGNOSES CORRECTED.**
+
+**NEXT RUNG:** fix `=s`/`tab(match(s))` β — it must **restore δ and FAIL**, not re-succeed. Full mechanism,
+discriminating table, gdb evidence and re-test gate:
+`FINDING-2026-07-26-CLAUDE-ICN-SCAN-MATCH-BETA-RESUCCEEDS-INFINITE-BETA-LOOP-BLOCKS-JCON-SELFHOST.md`.
+
+```icon
+procedure main(); local s; s := ".abc";
+   s ? { if ="." & ="9" then write("Y") else write("N") }; write("done"); end
+```
+iconx `N done` · SCRIP m3 AND m4 **SEGV rc=139** (~3.04M stack frames; `rt_substr(".abc",1,1)` re-called at
+the SAME position forever). Trigger is exact: **first conjunct SUCCEEDS, second FAILS, backtrack enters the
+first matcher's β, which re-runs the match and succeeds again.** If the first conjunct FAILS instead, correct.
+With `<-` reversible assignment in front it does not crash but silently skips the δ restore (`pos=2` vs
+iconx `pos=1`) — **one family, two faces; fix must close both.** Plausibly the same root as `GOAL-ICON-BB.md`'s
+open FZ-E scan cluster (verify, don't assume).
+
+**WHY IT MATTERS HERE:** this is the ONLY thing between us and the self-host gate. It kills
+`SCRIP-jtran ... irgen.icn` at `lexer.icn:135` (the `.123`-as-real case) → `invalid character: "c"` — the char
+AFTER the dot, because `&pos` was never restored, so `do_ops()` never gets to return `lex_DOT`.
+
+⛔ **STALE — DO NOT CHASE: "the only remaining `hw.icn` divergence is JVM constant-pool ordering, sc=973 vs
+or=983."** MEASURED FALSE at this HEAD: both are **995 bytes**, first differing byte **826**, 57 bytes, all in
+826–950 — the constant pool is BYTE-IDENTICAL. Real divergence = `astore` slot order (oracle 19,17,18 · SCRIP
+18,19,17) from `gen_bc.icn:1495 bc_initialize_tmps` walking `key(bc_tmp_table)`.
+
+⚠ **SECOND, SEPARATE DEFECT — TABLE `key()` ORDER.** `iconx @-*$!+%/` vs `SCRIP %$!-/+*@` (15-line repro,
+both deterministic). Canonical: `rmisc.r:175` hash = Σ(char×37^k) over first ≤10 chars + length;
+`rstruct.r:263` walks slots in index order, chains sorted ascending by hashnum. Makes SCRIP's regenerated
+`do_ops.icn` differ (611 lines both, 401 differing). **NOT the cause of the line-29 failure** (the `.` arms
+are identical in content, only repositioned) and NOT currently blocking — but it is **semantically
+load-bearing**, because `optimize_tree` merges chains so sibling keys can be prefixes of each other and
+`dotree` emits first-match-wins `if =KEY` tests. Do not dismiss it as cosmetic. `interface.icn` regenerates
+byte-identical (415 lines).
+
+**ORACLE OPERATING NOTE:** oracle-jtran SIGSEGVs (`error 302`) on `irgen.icn` unless run with `jcont`'s env —
+the critical var is **`COEXPSIZE=1000000`** (pipeline stages are co-expressions, `jtran_main.icn:55`).
+`jcont` also **unsets** `MSTKSIZE` — setting it does not help. With correct env: oracle irgen.icn → 114 classes.
+
+**BUILD STATE (all from scratch this session):** `icont`/`iconx` 9.5.25a · oracle `jtran`+`jlink` ·
+`scrip`+`libscrip_rt.so` -O0 · **SCRIP-jtran 17 modules, 0 bombs, linked 5,123,216 B** (`/home/claude/jt`).
+`hw.icn` end-to-end: `l$hw_semi.class` + `links` byte-identical. No Java installed, JVM never run (s121);
+build script step [7/7] skipped deliberately.
+
 **⌚ 2026-07-23 (Claude Opus 4.8 · SCRIP HEAD `cf31d9d1` · corpus unchanged · .github `07bdf260`) — TWO FIXES LANDED; SCRIP-jtran frontend BYTE-IDENTICAL to oracle-jtran through preproc:yylex:parse:ast2ir + u_gen_File .u1/.u2; NEXT = JVM constant-pool ordering in bc_File.**
 
 **WHAT LANDED (SCRIP `55c67cc2` + `cf31d9d1`):**
