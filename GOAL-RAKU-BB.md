@@ -15,7 +15,29 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 **LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
 
-## ▶ LIVE CURSOR — s2026-07-26 (RAKU-100: `/` yields a rational value + Raku real formatting — TWO rungs — Claude Opus 5)
+## ▶ LIVE CURSOR — s2026-07-26b (RAKU-100: named arguments at sub call sites — ONE rung + one pre-existing lexer defect — Claude Opus 5)
+
+**[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+
+**NEXT RUNG:** **slurpy `*@r`** — design recon is DONE and written up in `FINDING-2026-07-26b-CLAUDE-RK-NAMED-ARGS-AND-M4-PNAME-REPLAY-GAP.md` Part 6; read it before starting, it will save the whole investigation. Two pieces already exist and must NOT be rebuilt: (1) `rt_frame_bind_args` (`rt.c:585`) ALREADY has a variadic arm wired end-to-end for Icon (`p->is_variadic`, both modes); (2) `__rk_arr`'s fold already splits every arg on SOH while concatenating, which IS canonical `from-slurpy-flat`. The ONE real decision is REPRESENTATION — the existing arm builds a `DT_DATA` list (`rt_make_list`) but Raku `@a` is a SOH-joined string, so `.elems`/subscripts would break; needs a second flavor named by WHAT differs (`REST_LIST` vs `REST_FLAT_AGG`), **never** `is_raku_variadic` (shared-helper FACT RULE). Canonical: empty array when no args remain, NOT `Any`. Alternative rungs if a short session: named args to USER METHODS (Part 5 — cost named, needs a `meth_call` seam after MRO resolution), or the still-open peer `x/0` SIGFPE.
+**WATERMARK:** m3 **676/0**, m4 **676/0**. Peers: Icon 14/14, SNOBOL4 7/7, Prolog 5/5/5, Rebus 4/4. Conflicts **93 s/r / 9 r/r** (zero delta this session).
+**LAST SESSION:** s2026-07-26b, one commit `7e6848d`.
+
+Starting watermark m3 665/0, m4 665/0 — verified LIVE (full suite run before the first edit), matching the prior cursor's claim exactly. Final **m3 676/0, m4 676/0** (+11 smokes, all `[m3 PASS] [m4 PASS]`). Toolchain provenance confirmed before editing (bison 3.8.2 + flex 2.6.4). All builds `-O0`. Lang-blind gate green. Zero emitter/template files in the diff (which is also the proof that the purity/concurrency baselines are untouched). No `.s` artifact regen owed — see the scoping note below.
+
+**RUNG — NAMED ARGUMENTS AT SUB CALL SITES (`7e6848d`, +11).** ⚠ **The gap was NOT where the prior cursor said.** Measured first: `sub f(:$n)` — the SIGNATURE — ALREADY parsed (`:$n` lexes to a plain `VAR_SCALAR`); `C.new(a=>1)` and `my %h=(a=>1)` already worked. The actual gap was only the CALL SITE `f(n => 7)`. Canonical: `Parameter.rakumod:152` (named params OPTIONAL unless mandatory) + `BOOTSTRAP.nqp handle_optional` (absent `$`-sigil named binds **`Any`**, not a Failure) — honored and smoke-locked via `.defined`. Uniform envelope `__rk_named_call(name, npos, pos…, key/value pairs…)` so positional/named MIXING falls out free; runtime fold resolves keys against `rt_proc_pname()` and dispatches via the proven `invoke_method_proc` path, unmatched slots staying `NULVCL`. **ZERO conflict delta.** No new IR opcode, no BB template, no x86 encoder.
+
+**⚠⚠ THE REAL DISCOVERY — MODE-4 NEVER REPLAYED PARAMETER *NAMES* (read this before adding any `rt_proc_*` consumer).** The rung passed m3 instantly and failed m4 as a **silent wrong answer** (`Hello ` with an empty value — no crash, no `[SMX]`, no link error). Cause: `scrip.c`'s startup emitter for the `is_icon||is_raku||is_sno_bb||is_prolog` branch replays proc metadata through a per-fact ALLOWLIST of setters (`rt_proc_set_fn`/`_nparams`/`_frame_bytes`/`_jmpentry`/`_dyn_scope`/`_result_name`…) and had **no setter for the parameter-name list** outside the `dyn_scope` sub-path — so `p->pnames` is NULL in a standalone binary and `rt_proc_pname` returns NULL for every k. It stayed invisible because nothing previously READ param names on the m4 path (multi-dispatch filters by arity+type; BUILD has its own `dat_set_build_key@PLT` replay). **GENERALIZABLE: the m4 startup replay is an allowlist, not a snapshot of the proc record — m3 passing tells you NOTHING about whether a fact was replayed.** Fixed with `rt_proc_set_pname` + per-param emission, **scoped to `is_raku`** so peer `.s` stays byte-identical (verified 0 emissions for SNOBOL4, >0 for Raku ⇒ **no artifact regen owed**); driver-side scoping is legal under the language-sentinel FACT RULE (first dispatch; the site already branches on `is_icon`).
+
+**⚠ TWO HAZARDS HIT AND FIXED (both reproduced).** (a) **Label collision broke a PEER BUILD:** the first cut emitted `.Lstartup_pp%d_%d`, which the pre-existing `dyn_scope` path already emits ⇒ duplicate symbol, SNOBOL4 m4 `define` went 7/0→6/1 (`d.s:139: symbol already defined`). Fix: distinct `.Lstartup_qp` prefix + emit only when `!dyn_scope`. **Grep a shared startup emitter for your label shape before adding one — the namespace is flat across four languages.** (b) **rodata write avoided:** the `dyn_scope` path points `p->pnames` at a BAKED RODATA table, so a naive setter would write read-only memory; added `pnames_owned` so the setter refuses to write an array it did not allocate. **Generalizes to every `rt_proc_set_*`.**
+
+**PRE-EXISTING DEFECT FIXED AS A BONUS — `x`/`xx` could never be a key ANYWHERE.** `f(y=>9, x=>4)` failed while `f(x=>4, y=>9)` worked — an ORDERING-dependent parse failure, the tell for a lexer cause. `raku.l:117` gave the `x` repetition operator ownership of any whitespace-preceded bare `x`. **FALSIFIED AS PRE-EXISTING WITHOUT A STASH REBUILD** by testing the untouched `.new()` and hash-literal paths that share the lexer — both failed identically on the same build (technique worth reusing). One higher-priority rule `[ \t]+("xx"|"x")/[ \t]*"=>"` → `IDENT` fixes it; repetition operator unregressed (both pinned smokes green + 2 new locks). Same class as the `[*]` metaop vs `@a[*]` collision.
+
+**DEFERRED, COST NAMED (not faked):** named args to USER METHODS — `$c.m(v=>7)` marshals key/value as flat positionals, so `method m(:$v)` binds `$v` to the string `"v"`. Not a one-liner: **the call site does not know the invocant's class**, so the fix belongs in `meth_call` AFTER `resolve_method_chain` yields the concrete `Class__m` (where `rt_proc_pname` then works, m4 included post-fix), plus a marker distinguishing named pairs from positional strings. A smoke was written, seen to FAIL, and **REMOVED rather than left silently passing.** `.new()` unaffected.
+
+**TOUCHED THIS SESSION:** SCRIP — `src/parser/raku/raku.y`, `raku.l`, regen `.tab.c`/`.tab.h`/`.lex.c`, `src/runtime/by_name_dispatch.c`, `src/runtime/rt/rt.c`, `src/driver/scrip.c`, `scripts/test_smoke_raku.sh` (+11 smokes). `.github` — this cursor + `FINDING-2026-07-26b-CLAUDE-RK-NAMED-ARGS-AND-M4-PNAME-REPLAY-GAP.md`.
+
+## ▶ PRIOR CURSOR — s2026-07-26 (RAKU-100: `/` yields a rational value + Raku real formatting — TWO rungs — Claude Opus 5)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
@@ -266,7 +288,7 @@ Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed **three rungs** across 
 
 ---
 
-## ▶ LIVE CURSOR — s2026-07-21 (RAKU-100: trailing stmt-only forms before `}` + postfix statement modifiers + elsif — three pure-grammar rungs — Claude Opus 4.8)
+## ▶ PRIOR CURSOR — s2026-07-21 (RAKU-100: trailing stmt-only forms before `}` + postfix statement modifiers + elsif — three pure-grammar rungs — Claude Opus 4.8)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
@@ -312,7 +334,7 @@ Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed **two adjacent pure-gra
 
 ---
 
-## ▶ LIVE CURSOR — s2026-07-19e (RAKU-100: general list model — list-value atom + for-over-list/array/comma-list — Claude Sonnet 4.6)
+## ▶ PRIOR CURSOR — s2026-07-19e (RAKU-100: general list model — list-value atom + for-over-list/array/comma-list — Claude Sonnet 4.6)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
@@ -336,7 +358,7 @@ Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed the general list model 
 
 ---
 
-## ▶ LIVE CURSOR — s2026-07-19d (RAKU-100: METHOD implicit-return + no-paren method signatures + no-paren method call — Claude Opus 4.8)
+## ▶ PRIOR CURSOR — s2026-07-19d (RAKU-100: METHOD implicit-return + no-paren method signatures + no-paren method call — Claude Opus 4.8)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).** Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed the s2026-07-19c cursor's own #1 NEXT RUNG — **method implicit-return done right** (the reverted `sub_body`-reuse attempt, now solved cleanly) — plus the two adjacent method gaps it exposed. PURE grammar (`raku.y` + regen `raku.tab.c`): no lexer (no new tokens, `raku.tab.h` UNTOUCHED), no lowerer, no runtime, no template. Peers provably untouched (Icon 14/14, SNOBOL4 7/7, lang-blind gate GREEN).
 
