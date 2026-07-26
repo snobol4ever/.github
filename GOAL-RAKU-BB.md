@@ -15,7 +15,29 @@ Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_bu
 
 **LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
 
-## ▶ LIVE CURSOR — s2026-07-23c (RAKU-100: value-position range materialization + array range-slice — Claude Opus 4.8)
+## ▶ LIVE CURSOR — s2026-07-25 (RAKU-100: subscript tails + list assignment — four rungs — Claude Opus 5)
+
+**[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
+
+**NEXT RUNG:** see the list at the end of `FINDING-2026-07-25-CLAUDE-RK-SUBSCRIPT-TAILS-AND-LIST-ASSIGN.md` — recommended (b) `arr_get` out-of-range → Nil (the `__rk_arr_at` shape; unblocks past-the-end reads and kills a silent-unwind class), or (a) `@a[*]` lexer disambiguation.
+**WATERMARK:** m3 **633/0**, m4 **633/0**. Peers: Icon 14/14, SNOBOL4 7/7. Conflicts **92 s/r / 9 r/r**.
+**LAST SESSION:** s2026-07-25, four commits `38182ea0`, `64b2573a`, `fa6171cb`, `9e873067`.
+
+Session goal GOAL-RAKU-BB: RAKU-100 coverage arc. Landed **four rungs** (three pure-grammar, one grammar+runtime). Starting watermark m3 601/0, m4 601/0 — verified LIVE against the suite, and corroborated against `git log` (HEAD `c9fb7d18` == the prior cursor's claim). Final **m3 633/0, m4 633/0** (+32 smokes, all `[m3 PASS] [m4 PASS]`). Peers unchanged throughout. Lang-blind gate GREEN. Concurrency/purity audits at their pre-existing baseline, proven not-mine via `git diff --stat HEAD` (zero emitter/template files in the diff). Toolchain provenance established before the first edit: bison reproduced the committed `raku.tab.c` byte-for-byte. `raku.lex.c` untouched all session. All builds `-O0` per the O0-DEV FACT RULE.
+
+**RUNG 1 — `@a[*-N]` WHATEVER-STAR END-RELATIVE SUBSCRIPT (`38182ea0`, +10).** Canonical `WhateverCode.rakumod:17` → `POSITIONS` calls the WhateverCode with `list.elems`; `array_slice.rakumod:145` then `AT-POS`. So `*` in subscript position simply IS `.elems` — which makes this a PURE GRAMMAR rung reusing the proven `.elems` `TT_METHCALL` node: **zero runtime code, zero new AST kinds, zero IR opcodes, zero templates**. `@a[*-$n]` and `@a[*-(1+2)]` work free (full `expr` offset). **Zero conflict delta.** ⚠ **Bare `@a[*]` is LEXICALLY BLOCKED** — `raku.l:164` owns `"[*]"` as the `OP_REDUCE` metaop, so flex longest-match makes the whole-list slice unreachable from the grammar; needs lexer context, its own rung (`@a[*-1]` is safe — `"[*]"` needs a literal `]`).
+
+**RUNG 2 — `@a[i,j,k]` COMMA MULTI-ELEMENT SUBSCRIPT (`64b2573a`, +9).** Canonical `array_slice.rakumod:117` (`Iterable:D \positions`): positions consumed IN ORDER, repeats honored — `@a[2,0]`→`30,10`, `@a[0,0,0]`→`10,10,10`. Helper `rk_arr_pick` + variadic runtime fold `__rk_arr_pick` mirroring the `__rk_arr_slice` SOH-walk (NO-DUP-LOGIC), registered in `rt_builtin_is_known` for mode-4 `@PLT`. **Zero conflict delta.** Runtime `.c` touched → rebuilt BOTH `scrip` and `libscrip_rt` per KEY GOTCHA.
+
+**RUNG 3 — `@a = LIST` BARE WHOLE-ARRAY REASSIGNMENT (`fa6171cb`, +7).** No `VAR_ARRAY '=' …` statement production existed at all — even `@a = 9;` was a parse error. Canonical `Array.rakumod STORE`: fresh `IterationBuffer` (REPLACE, never append); `Mu \item` arm → 1-element array. Mirrors the four proven `my`-forms minus `KW_MY`. **+1 s/r, characterized:** `-Wcounterexamples` OOM-killed in-container (tool limit, recorded not skipped), so evidence is (1) behavioral on the exact ambiguous shape — `@b = (1+2)` → elems **1** vs `@a = (7,8,9)` → 3, both correct, proving the default shift resolves right; (2) the conflicting rule-shape multiset from `--report=all` is IDENTICAL to baseline (no new conflict KIND); (3) 627/627 both modes.
+
+**RUNG 4 — TRAILING COMMA (`9e873067`, +6).** ONE production `arg_list: arg_list ','` fixes declarations, parenthesized lists, **call arguments** and subscripts simultaneously (all share `arg_list`). Trailing comma correctly adds no element. **+1 s/r** — textbook list-trailing-separator (shift when an `expr` follows, reduce on `)`/`;`/`]`, which cannot begin an `expr`). ⚠ **DROPPED — do not re-add naively:** four single-element forms (`my @a = 42,;` etc.) cost **+2 uncharacterized s/r** and buy nothing (`my @a = 42,;` ≡ `my @a = 42;`, already working), so they were REVERTED per the same discipline s2026-07-22c applied to `++`/`--`. Isolation measured for the next session: HEAD 91 → `arg_list ','` only **92** → +the four forms 94.
+
+**⚠ PRE-EXISTING, MEASURED (not introduced here):** out-of-range array read SILENTLY UNWINDS the statement sequence — falsified against clean HEAD, where plain `@a[3]` on a 3-element array behaves identically. It is `arr_get` returning `FAILDESCR` on the ω spine. Raku wants Nil/(Any) for past-the-end. Fix shape already in tree: `__rk_arr_at` (NULVCL, minted s2026-07-22c). Recommended next rung.
+
+**TOUCHED THIS SESSION:** SCRIP — `src/parser/raku/raku.y` (+`rk_arr_end_index`/`rk_arr_pick` helpers, +7 productions net, regen `.tab.c`/`.tab.h`; `.lex.c` byte-identical/untouched), `src/runtime/by_name_dispatch.c` (+`__rk_arr_pick` fold + known-list entry), `scripts/test_smoke_raku.sh` (+32 smokes). `.github` — this cursor + `FINDING-2026-07-25-CLAUDE-RK-SUBSCRIPT-TAILS-AND-LIST-ASSIGN.md`.
+
+## ▶ PRIOR CURSOR — s2026-07-23c (RAKU-100: value-position range materialization + array range-slice — Claude Opus 4.8)
 
 **[THIS SESSION] CODE LANDED (tree green, both modes). Push state is NOT recorded here — run `scripts/handoff_status.sh` LIVE for ground truth (STALE-ORIENTATION rule (a)).**
 
