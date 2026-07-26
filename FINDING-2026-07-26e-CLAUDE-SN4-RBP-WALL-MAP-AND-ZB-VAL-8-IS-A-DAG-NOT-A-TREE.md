@@ -120,11 +120,54 @@ decision needs BOTH"*), so it is inherent, not an artifact. Depth simulation:
 ZB-VAL-4/5/6 proved shape-invariant — and it violates it in a STATICALLY KNOWN way (operands at idx 1 and 0
 while d=3). This is not a reason to decline; it is the reason the mechanism must generalize.
 
-**THE REQUIRED GENERALIZATION (= the directive's own words).** Replace the fixed top-two assumption with
-PER-NODE OPERAND DEPTH INDICES computed at registration, so a consumer reads `[rsp + (d_now − 1 − idx)*16]`.
-Trees become the special case where idx is always the top two. This is precisely Lon's *"keep track of sliding
-offsets and index operands from RSP"* — the landed rungs implemented a SPECIAL CASE of it that happened to
-suffice for trees.
+**THE REQUIRED GENERALIZATION — ⛔ SUPERSEDED LATER THE SAME SESSION, SEE §5b. MEASURED: NO NEW MECHANISM IS
+NEEDED.** (Retained for the reasoning trail: the initial reading was that the fixed top-two assumption must be
+replaced with per-node operand DEPTH INDICES so a consumer reads `[rsp + (d_now − 1 − idx)*16]`. That was
+wrong about the mechanism, though right about the requirement — see below, where the existing map turns out to
+already BE the sliding-offset indexing.)
+
+---
+
+## 5b. ⭐ THE FLAT-ORDER ASSUMPTION WAS TESTED AND IT HOLDS — RUNG 8a IS UNNECESSARY
+
+§5 flagged one assumption as the single place the DAG could produce a wrong offset SILENTLY: the rebase map
+`off − op_fc_base` is LINEAR, which presumes flat-layout order matches rsp push order. **TESTED THIS SESSION.
+IT HOLDS.** Compiled `lt1.sno` (`--compile`, ungranted ⇒ COERCE/CMP still address `[rbp+off]`, which exposes
+the FLAT layout directly):
+
+| node (γ-chain / push order) | flat offset |
+|---|---|
+| leaf A | `[rbp+128]` |
+| leaf B | `[rbp+112]` |
+| C0 (coerce self=A other=B) | `[rbp+96]` |
+| C1 (coerce self=B other=A) | `[rbp+80]` |
+| T (cmp) | `[rbp+64]` |
+
+**MONOTONICALLY DESCENDING AT 16-BYTE STRIDE, IN PUSH ORDER — which is exactly how rsp moves.** So the linear
+map is correct for the DAG. Verified per node against the live cell geometry:
+
+| node | own flat | operand flats | rebased `off − base` | actual rsp geometry at its α | agrees? |
+|------|----------|---------------|----------------------|------------------------------|---------|
+| C0 | 96 | B=112, A=128 | +16, +32 | C0`[rsp+0]` B`[rsp+16]` A`[rsp+32]` | ✅ |
+| C1 | 80 | B=112, A=128 | +32, +48 | C1`[rsp+0]` C0`[rsp+16]` B`[rsp+32]` A`[rsp+48]` | ✅ |
+| T | 64 | C0=96, C1=80 | +32, +16 | T`[rsp+0]` C1`[rsp+16]` C0`[rsp+32]` | ✅ |
+
+Cross-checked against the LANDED tree path (`tree1.sno`, `X = 2 * (A + 3) - A`, runs correct = 10): it emits
+`[rsp+0/8/16/24]` — operand differences of 16 and 32, i.e. the SAME map, with the operands merely adjacent.
+
+⭐ **CONCLUSION: THE "TOP TWO CELLS" FRAMING WAS A DESCRIPTION OF WHAT TREES HAPPEN TO PRODUCE, NOT A
+CONSTRAINT THE MECHANISM IMPOSES.** The rebase is FLAT-OFFSET-DIFFERENCE based, not position based — it is
+ALREADY the "sliding offsets indexed from RSP" the directive asks for. The DAG needs differences up to 48
+where trees needed 32. **That is a WIDER WINDOW, not a new mechanism**, and the window-only width already
+exists as `op_fc_wbytes` (`emit.h:455`; feeds the FR/FRQ rebase, never arms the α-sub/ω-add hook; sole client
+`IR_MATCH_HEAD` at width 24). Per-node width = (deepest operand flat offset − own flat offset + 16); for the
+quintet that is C0:48, C1:64, T:48.
+
+**PROPOSED RUNG 8a (the depth-index refactor) IS THEREFORE DELETED FROM THE PLAN.** It would have built a
+second mechanism to do what the first already does. BLOCKER 2 is downgraded from "invariant violation" to
+"window sizing." **BLOCKER 1 (the registrar has no entry point for a predicate statement, and the release
+owner is a GOTO) IS UNAFFECTED AND REMAINS THE REAL WORK**, together with the shared-ω wpop total.
+
 
 **MECHANISM NOTE for whoever takes this:** the rebase already lives in ONE place —
 `FR`/`FRQ` (`x86_asm.h:828/853`) call `x86_fc_hit(off)` (`:306`), and a flat offset inside the granted window
@@ -156,14 +199,19 @@ deliverable.** Tree is untouched and green.
 
 ## 7. NEXT RUNG (proposed, in this order)
 
-1. **ZB-VAL-8a — DEPTH-INDEX MECHANISM AS A BYTE-IDENTICAL REFACTOR.** Compute and store per-node operand
-   depth indices at registration; point the EXISTING tree cases at them; prove `.s` output byte-identical
-   across the demo + benchmark corpora. Zero behavioral risk, cheaply verifiable, and it is the actual
-   prerequisite for the DAG. **Do this before touching COERCE/CMP at all.**
-2. **ZB-VAL-8b — the predicate-statement entry predicate + shared-ω release story.** Design first, on paper,
-   because the release owner is a GOTO and not an assign.
-3. **ZB-VAL-8c — grant COERCE_NUMERIC / COERCE_REAL / CMP_TEST**, DAG-aware, on the 8a mechanism.
-4. Only then the remaining straight-line leaf tail (`bb_var`, `bb_lit_scalar`, `bb_deref`, `bb_subject`, the
+1. ⛔ **RUNG 8a DELETED — see §5b.** The depth-index mechanism is unnecessary; the existing flat-offset-difference
+   rebase already IS the sliding-offset indexing, measured and verified per node on the DAG. Building 8a would
+   have added a second mechanism duplicating the first.
+2. **ZB-VAL-8b — the predicate-statement entry predicate + shared-ω release story. THIS IS THE REAL WORK.**
+   `zls_build` needs an entry that is not an `IR_ASSIGN`-with-global-target, and a release owner that is not
+   `bb_assign_global`. Design on paper first: when the consumer is a wiring GOTO, WHO releases the cells on the
+   success edge, and does the five-way-shared ω land at one depth or several? (Registration proving
+   single-depth arrival is the s178 fence that made uniform `wpop=d*16` safe — re-establish it here or the
+   mechanism does not transfer.)
+3. **ZB-VAL-8c — grant `IR_COERCE_NUMERIC` / `IR_COERCE_REAL` / `IR_CMP_TEST`** with per-node `op_fc_wbytes`
+   = (deepest operand flat offset − own flat offset + 16); measured for the quintet: C0:48, C1:64, T:48.
+   Widening the window is the whole of the addressing change.
+4. Then the remaining straight-line leaf tail (`bb_var`, `bb_lit_scalar`, `bb_deref`, `bb_subject`, the
    1–4-ref files), which should fall mechanically.
 5. **Wall-collision rung** — a pattern statement carrying value cells, i.e. spine meets wall 2. Fresh session;
    this is where the s178 sighting becomes a hit.
