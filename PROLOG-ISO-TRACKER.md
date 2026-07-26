@@ -9,12 +9,12 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | metric | count |
 |--------|-------|
 | gprolog public exports (total) | 312 |
-| DONE (SCRIP admits) | 139 (44%) |
-| RUNG-ASSIGNED | 173 |
+| DONE (SCRIP admits) | 141 (45%) |
+| RUNG-ASSIGNED | 171 |
 | **UNASSIGNED** | **0** |
 | core scope | 237 |
 | gprolog-ext scope | 75 |
-| **core still open** | **99** |
+| **core still open** | **97** |
 
 ## Per-file coverage
 
@@ -35,7 +35,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `assert.pl` | core | 6 | 6 | 0 |
 | `file.pl` | gprolog-ext | 0 | 6 | 6 |
 | `flag.pl` | core | 2 | 6 | 4 |
-| `sort.pl` | core | 3 | 6 | 3 |
+| `sort.pl` | core | 5 | 6 | 1 |
 | `stat.pl` | gprolog-ext | 0 | 6 | 6 |
 | `pretty.pl` | core | 5 | 5 | 0 |
 | `consult.pl` | core | 0 | 4 | 4 |
@@ -56,7 +56,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 
 *(none)*
 
-## RUNG-ASSIGNED — owned, not yet landed  (173)
+## RUNG-ASSIGNED — owned, not yet landed  (171)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -168,8 +168,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `socket_connect/4` | `sockets.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `socket_listen/2` | `sockets.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `keysort/1` | `sort.pl` | core | PL-ISO-11 |
-| `msort/1` | `sort.pl` | core | PL-ISO-11 |
-| `sort/1` | `sort.pl` | core | PL-ISO-11 |
 | `sr_change_options/2` | `src_rdr.pl` | core | PL-ISO-7b |
 | `sr_close/1` | `src_rdr.pl` | core | PL-ISO-7b |
 | `sr_current_descriptor/1` | `src_rdr.pl` | core | PL-ISO-7b |
@@ -234,7 +232,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `term_hash/4` | `term_inl.pl` | core | PL-ISO-11 |
 | `term_ref/2` | `term_inl.pl` | core | PL-ISO-11 |
 
-## DONE — admitted by SCRIP  (139)
+## DONE — admitted by SCRIP  (141)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -343,7 +341,9 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `read_term/2` | `read.pl` | core |  |
 | `read_term/3` | `read.pl` | core |  |
 | `keysort/2` | `sort.pl` | core |  |
+| `msort/1` | `sort.pl` | core |  |
 | `msort/2` | `sort.pl` | core |  |
+| `sort/1` | `sort.pl` | core |  |
 | `sort/2` | `sort.pl` | core |  |
 | `at_end_of_stream/0` | `stream.pl` | core |  |
 | `at_end_of_stream/1` | `stream.pl` | core |  |
