@@ -77,10 +77,44 @@ Consequence for the reviewer: **m4 `.s` 22/22 byte-identical proves the TEXT bra
 
 `.s` regeneration was **not** run as a committing script: the equivalent check was performed directly (compile all 22 bench `.pl` -> `cmp` against committed `.s`) and the delta is provably zero, so the regen would be a no-op by construction.
 
+---
+
+## 7. ⭐⭐⭐ CORRECTION TO s149 §2 — "FOUR DEAD ARMS" IS WRONG; `NOFILL` IS THE BUSIEST ARM IN THE FILE (2354 SNOBOL4 HITS)
+
+s149 measured arm reachability by sweeping **Prolog and Icon only** and concluded four arms were dead, recommending deletion as "cheaper." **Acting on that would have deleted live SNOBOL4 code.** This session instrumented ALL arms with stable names and swept all three languages:
+
+| arm | Prolog (192 rung) | SNOBOL4 (180 corpus) | Icon (bench+test) | state |
+|---|---|---|---|---|
+| **LEXPREP2** | **279** | 0 | **229** | CONVERTED s150 |
+| **FRAME_RSP** | **185** | **152** | **18** | CONVERTED s149 |
+| **NOFILL** | 0 | **2354** | 0 | ⚠ **STILL RAW BYTES** |
+| JMP_EAGER | 0 | 0 | 0 | unreached |
+| JMP_NONRSP | 0 | 0 | 0 | unreached |
+| GEN_RESUMABLE | 0 | 0 | 0 | unreached |
+| FRAME_NONRSP | 0 | 0 | 0 | unreached |
+| BARE | 0 | 0 | 0 | unreached |
+
+**THERE ARE THREE LIVE ARMS, NOT TWO, AND THE ONE STILL ON RAW BYTES IS THE HIGHEST-TRAFFIC ARM IN THE TREE.** NOFILL is the SPD-NOFILL lane (s139) whose own comment names its citizens — *PAT$ patprocs / LBL__ / EVAL-CODE chains / DYN procs* — i.e. **SNOBOL4 pattern machinery**, precisely the language s149's sweep did not cover. s139 measured the blanket `rep stosb` it replaces at **63% of json-match's TOTAL Ir**, so deleting it would also have discarded a large landed optimization.
+
+⭐ **THE RULE THIS EARNS (third sibling of s147's "prove the `.s` reaches the code" and s149's "a green gate proves nothing unless the changed code executes"): A REACHABILITY MEASUREMENT IS ONLY AS BROAD AS ITS CORPUS, AND "DEAD" IS A CLAIM ABOUT EVERY LANGUAGE, NOT THE ONE YOU SWEPT.** `xa_flat.cpp` is language-blind by design — it is reached by Prolog, Icon AND SNOBOL4 — so any deletion argument for it MUST sweep all three. The failure mode is asymmetric and that is why the rule is worth having: a false "live" costs one wasted conversion, a false "dead" costs deleted working code.
+
+**COROLLARY, AND THE HONEST LIMIT OF THE TABLE ABOVE:** the five zero rows are **"unreached by these corpora,"** NOT "dead." That is exactly what the NOFILL row said one session ago. They are candidates for investigation, not for deletion. Raku/Rebus/Pascal/Snocone were not swept at all here; `GEN_RESUMABLE` in particular guards `g_gen_proc_active || g_resumable_callable_active` and its own comment describes a PL-GEN-RSP fix for generator procs, which the rung corpus may simply not exercise.
+
+**MY RULING (Lon delegated, "all your choices"): DO NOT DELETE ANY ARM. CONVERT `NOFILL` NEXT** — it is live, it is the busiest arm in the file, and it is the last live raw-byte arm in the tree. The four-arm deletion question is **withdrawn, not deferred**: its premise was a measurement artifact.
+
+## 8. THE INSTRUMENT IS NOW PERMANENT AND NAMED
+
+The markers are consolidated into `xaf_mark(const char *)` — one env-resolved-once static, inert by default, emit-time only, one call per arm with a **stable name** (the s150 first cut used `ARM@<line>` tags, which drift the moment anyone edits the file). **Kept deliberately, not left behind as debug residue:** it is the instrument that decides convert-vs-delete per arm, and it has now demonstrably prevented a destructive deletion. Method:
+`SCRIP_XAF_MARK=1 <sweep corpus> 2>&1 | grep -o "XAFMARK [A-Z0-9_]*" | sort | uniq -c`
+
+## 9. SNOBOL4 WAS GATED — AND THE PRE-EXISTING FAILURES WERE PROVEN PRE-EXISTING
+
+The `mov32` fix of §3 lands in **FRAME_RSP, which SNOBOL4 hits 152 times**, so this session's change is NOT Prolog-local and the Prolog gates alone were insufficient. Added: SNOBOL4 smoke **7/7 both modes**, and `test_crosscheck_snobol4.sh` = m3 **314 PASS / 1 FAIL**, m4 **309 PASS / 4 FAIL**, 3 DIVERGE (`test_case`, `214/215/216_indirect_goto*`). **PROVEN PRE-EXISTING by the s146 method** — `git checkout HEAD~1` + full rebuild + re-run produced **byte-identical counts and the same named failures** on the untouched tree. Not mine; not introduced here; left for GOAL-SNOBOL4-BB.
+
 ## 6. NEXT
 
 1. **The gate's remaining 104 in `xa_flat.cpp` is now ALL DEAD-ARM + EPILOGUE + TEXT-branch residue.** With `FRAME_RSP` (s149) and `LEXPREP2` (s150) converted, **every arm measured live is off the raw-byte family.** The ~20% callee-prologue sink is UNBLOCKED and is now an ordinary SINK rung (inline the non-variadic `rt_frame_bind_args` arm + the lexprep2 guards).
-2. **LON RULING STILL WANTED (carried from s149, now cheaper):** the four dead arms (NOFILL / GEN_RESUMABLE / FRAME_NONRSP / BARE) — convert or **DELETE**? Deletion also retires the raw `hdr` and a large block of the remaining 104.
+2. ⭐ **CONVERT `NOFILL` — IT IS LIVE (2354 SNOBOL4 hits) AND IS NOW THE LAST LIVE RAW-BYTE ARM IN THE TREE (§7).** The s149 "delete the four dead arms" recommendation is WITHDRAWN — its premise was a Prolog+Icon-only sweep. Design: `hdr` -> `xaf_jmp_hdr_x86()` (already built); needs an `x86()` twin of `xaf_slot0_seed_bin` (mem64<-imm32 store) and of the poison/suffix `rep stosb` lanes (`mov rdi,rsp` / `add rdi,imm` / `mov32 ecx,span` / `mov al,0xA5` or `xor eax,eax` / `rep_stosb`); the cap-zero and short-suffix loops fold in as R6 `FOR` combinators. VERIFY the mem64-imm and 8-bit-reg-imm encoder forms exist before starting — they are the only shapes this file has not already needed.
 3. **LON RULING (new, §3):** fix the ~24 cross-language `mov`->`mov32` sites, or leave them to their owning goals?
 4. Epilogue conversion needs the external-DEFINE path (tag `E`) at three `out_def = true` + `flat_fail_p` sites — and per s149 §1, `E`/`F` are **already decoded** at `x86_asm.h:1867-1868`; verify before designing.
 5. REGAIN-1 slice C (the spine, ~36%) remains the big untouched rung.
