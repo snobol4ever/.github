@@ -205,6 +205,14 @@ by-name cursor-movers had NO saved-δ slot at all, so their β was a bare `jmp �
 regenerates `do_ops.icn` (611 lines) and `interface.icn` (415 lines, **byte-identical to oracle**). No Java
 installed, JVM never run (s121 ABSOLUTE); build script step [7/7] skipped deliberately.
 
+**⌚ 2026-07-26 (Claude Sonnet 4.6 · SCRIP `048cd87a` · corpus unchanged · .github this entry) — SELF-HOST GATE: SCRIP-jtran compiles irgen.icn → 113 valid JVM class files (target 114). Exit SEGV after last file written — teardown, not translation. No codegen changed this session.**
+
+**NEXT RUNG:** (1) Pin the exit SEGV: run under `CSN_NO_SEGV_HANDLER=1` for a clean backtrace — likely co-expression/pthread teardown in `jtran_main.icn`'s pipeline stages.  (2) Build oracle-jtran (17-module list only, NOT the full tran/ glob which pulls in linker/oplexgen/interfacegen extra `main`s): `cd jcon-master/tran && icont -s -o /tmp/oracle_jtran dump.icn preprocessor.icn lexer.icn ast.icn parse.icn ir.icn keyword.icn irgen.icn gen_bc.icn gen_symbolic.icn gen_dot.icn gen_ucode.icn optimize.icn interface.icn bytecode.icn jtran_main.icn`. Run oracle-jtran on irgen.icn → compare class files byte-for-byte (DATA comparison only — no Java, no JVM, per s121 ABSOLUTE). **Current gate: 113 classes written, all `CAFEBABE`-valid.** Note: COEXPSIZE=1000000 required (pipeline stages are co-expressions).
+
+**STANDING NEGATIVE RESULT (s167, do not retry):** calling `icn_retag_scan_body(pg, 0)` over the whole procedure graph (instead of only inside `lower_scan`) converts ambient 1-arg scan builtins into `IR_SCAN_*` boxes — but outside a `?` body there is no scan environment to resume into, so their β port re-runs the match and immediately re-succeeds → **infinite β loop + SEGV**. The retag is correct only inside a lexical `?` body where `in_scan=1`. Do NOT attempt the whole-graph retag path again without first adding a per-node `in_scan` guard.
+
+**BUILD STATE (all from scratch this session):** `icont`/`iconx` 9.5.25a · oracle `jtran` (17-mod) blocked on glob fix above · `scrip`+`libscrip_rt.so` -O0 @ HEAD `048cd87a` · **SCRIP-jtran 17 modules 0 bombs 514,301 asm lines** · SCRIP-jlink 0 bombs · `hw.icn` end-to-end 2 classes + links ✅ · `irgen.icn` self-host **113 classes + links, all CAFEBABE-valid, exit SEGV** ⚠.
+
 **⌚ 2026-07-26 (Claude Sonnet 4.6 · SCRIP `9027445c` · corpus unchanged · .github this finding) — BOTH FACES OF THE `=s` β DEFECT CLOSED. SUITE 249/12/32. SELF-HOST GATE NOW UNBLOCKED — VERIFY NEXT SESSION.**
 
 **NEXT RUNG:** rebuild SCRIP-jtran (17 modules, workdir `/home/claude/jt`, corpus sources in
