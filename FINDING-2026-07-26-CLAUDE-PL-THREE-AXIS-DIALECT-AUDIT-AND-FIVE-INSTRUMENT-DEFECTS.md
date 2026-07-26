@@ -220,3 +220,33 @@ Rung suite **164/164 × 3 modes**; **mode-3 ≡ mode-4 byte-identical** on the `
 RT `-O0`, no `-O2` directive. No IR / lower / template / codegen touched.
 
 ISO 13211-1 axis moves **9 open → 8 open**.
+
+---
+
+## 11. ADDENDUM 2 — `PL-SYNTAX-1` SEAMS LOCATED (measurement NOT attempted; read this first)
+
+Second attempt at the operator axis. **Still not measured — and stopping again was the right call**,
+for the same reason as §7: each probe kept resolving to the WRONG table, and a number produced from
+any of them would have been wrong in a way no gate would catch. What this pass DID produce is the
+three seam locations, so the next session starts from source shapes instead of regex guesses:
+
+| dialect | default operator table lives in | shape |
+|---------|--------------------------------|-------|
+| **SCRIP** | `src/parser/prolog/prolog_parse.c:65+` | static rows `{ ":-", 1200, ASSOC_NONE }` — **43 rows**; fixity is a separate `Fixity` enum (`FIX_INFIX/PREFIX/POSTFIX`, :62), NOT stored in the row |
+| **gprolog** | `BipsPl/oper_c.c:179` `Pl_Create_Oper(atom_op, type, prec, left, right)` | built at RUNTIME by init code — the table is the CALLER's data, not a static array |
+| **SWI** | `src/pl-op.c:748` `defOperator(MODULE_system, …, OP_YFX, 100, true)` | C calls + exactly ONE `:- op(…)` directive in `boot/*.pl` |
+
+⚠ **THE TRAP THAT BURNED TWO PASSES: `g_uinfix[]` IS NOT THE DEFAULT TABLE.** It is SCRIP's
+USER-defined operator array (what `op/3` writes into). Diffing it against gprolog/SWI defaults
+compares an initially-empty runtime array against two full static tables and reports the entire
+standard operator set as missing. The builtin defaults are the separate static rows at :65.
+
+⭐ **METHOD NOTE FOR THE RUNG:** none of the three encodings is greppable by a single pattern, and
+two of the three are not static arrays at all. **Read each file directly; do not pattern-match across
+them.** SCRIP's split of priority (row) from fixity (enum) means the three-way key must be
+normalised to `(priority, fixity-type, name)` before any diff — comparing raw rows will mismatch on
+shape alone.
+
+**`PL-SYNTAX-1` remains OPEN and is still the next rung**, followed by reader escapes
+(`0'c 0x 0o 0b`, `{}/1`, `double_quotes`), `format/2` directives, `write_term/2` options, flags,
+and ISO error-term shapes.
