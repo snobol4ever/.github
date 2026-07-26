@@ -1,48 +1,24 @@
-# GOAL-ICON-BB.md — Icon, 100% Byrd Boxes, from zero
-
-## ⛔ FACT RULE — ASM-RUNTIME: THE RUNTIME GETS FAST BY BEING HAND-WRITTEN x86, NOT BY BEING COMPILED HARDER (Lon directive, 2026-07-25 s159)
-
-**The destination is a runtime built from hand-written x86 assembly fast paths shipped as `*.s` files and linked into `libscrip_rt.so` — registers and hand-chosen instruction sequences, NOT C that a compiler is asked to rescue.** C in the runtime is scaffolding: correct, readable, and the reference semantics for each operation. It is not the performance artifact. **THIS IS WHY THE BUILD STAYS AT `-O0` (or at most `-O1`) — the optimization level is not a lever we are declining to pull, it is a lever we are deliberately not building on.** A runtime whose speed comes from `-O2` is a runtime whose speed lives in GCC's inliner, evaporates under a compiler upgrade, and cannot be reasoned about register-by-register. A runtime whose speed comes from `*.s` leaves is one we own.
-
-**THE s159 MEASUREMENT IS THE EVIDENCE FOR THIS DIRECTION, NOT AGAINST IT.** s156/s157/s158 each deferred `-O2` on `libscrip_rt.so` as "the biggest untried lever." s159 ran it under the full s126 protocol and it delivered **1.15×** — see `FINDING-2026-07-25-CLAUDE-ICN-BID-1-BUILTIN-ID-DISPATCH-AND-O2-FALSIFIED.md`. Asking the compiler to optimize the C bought almost nothing, because what is slow is *what the code does* (an O(n) by-name scan, a `DESCR_t` copied by value through every call, a heap cell minted per subscript), not how tightly it is compiled. Those are fixed by choosing different instructions and keeping values in registers — which is what an `.s` leaf does and what `-O2` cannot do for you.
-
-**THE PROVEN PATTERN (s157, PERF-ASM-HELPERS, SCRIP `32ffde7f`) AND ITS PROVEN LIMIT:** `rt_deref` and `to_int` were rewritten as hand-written x86 (`+6%` nqueens n=10 at `-O0`), small-shape-inline / large-shape tail-jump to a C `*_slow` sibling, SysV AMD64 ABI verified against the emitted caller. **The limit found the same session: this works ONLY for leaves that make ZERO internal calls.** An asm `rt_subscript_var` came out ~3% SLOWER because two internal calls forced callee-saved push/pop around them, and the hand-written prologue lost to what the C already did. **So the rule for choosing an asm target is not "is it hot" — it is "is it hot AND a zero-internal-call leaf AND does it carry values that want to stay in registers across the whole body."**
-
-**HOW AN ASM LEAF IS ADDED (the shape to follow):**
-- The `.s` file lives beside the runtime source and is added to the Makefile's `RT_PIC_SRCS` so it links into `libscrip_rt.so` like any other TU. It must be `-fPIC`-clean (no absolute relocations into the `.so`).
-- SysV AMD64 ABI, verified against the ACTUAL emitted caller, not against the C prototype's appearance: `DESCR_t` (16 bytes) comes in `RDI:RSI` and returns in `RAX:RDX`. Confirm by reading the emitted box, per `ARCH-ICON.md`'s register contract.
-- **Honor the live register contract — it is NOT free real estate.** `RSP`=ζ under the `ZC_FRAME_RSP` default, `RBP`=ζ value-slot frame base, `R13`=Σ subject base, `R14`=δ cursor, `R15`=Δ subject length, `RBX` reserved as the WS/GC bump frontier under the HEAP arm. Clobbering any of these from a runtime leaf is a landmine that will not show up until a scan-heavy or GC-heavy program runs.
-- Small/hot shape inline in asm; every cold, large, or error shape **tail-jumps to a C `*_slow` sibling** that keeps the reference semantics. The C stays; it stops being the hot path.
-- Gate: full Icon suite unchanged (`PASS=249 FAIL=12 XFAIL=32` at s159) **plus** an A/B at identical emitted code — build one `P.o` and link it against two `.so` builds, per the DYNLINK recipe below.
-
-**WHAT THIS MEANS FOR THE PERF LADDER:** a rung is "make this operation cheaper in instructions and registers," never "raise the optimization level." Any perf number reported must still carry its `RT_OPT` label (s126), and the Makefile default stays `-O0`. **`-O2` is now documented as measured-and-declined, not untried — do not re-propose it as the big lever.**
-
-**LIMITATION (do not oversell — same honest shape as every rule here):** a markdown rule cannot make hand-written asm correct, and asm defects are far more expensive than C defects (wrong register saved, ABI mismatch, a clobber that only manifests under GC). The enforcement that works is the pairing: **zero-internal-call leaves only, a C `*_slow` sibling always retained, and the 293-program suite plus an identical-emitted-code A/B before any asm rung is called done.**
-
-## ⛔ FACT RULE — O0-DEV: FEATURE BUILDS ARE `-O0`; `-O1`/`-O2` ARE PERF-ONLY (Lon directive, 2026-07-21 s119)
-
-**While developing, debugging, or iterating on any FEATURE, EVERY build is `-O0`. `-O1` and `-O2` are FORBIDDEN during feature work and are reserved EXCLUSIVELY for perf/benchmark/release measurement.** The runtime `libscrip_rt.so` at `-O2` takes MINUTES (heavy template TUs), which is intolerable in a compile→test→fix loop and burned real session time repeatedly. `scrip` itself already builds `-O0` (Makefile `CBASE`/`CXXRT`); the offender was the runtime `.so`, whose `RT_OPT` default was `-O2`.
-
-**THE MECHANICAL ANCHOR (why this is a FACT RULE, not a convention):** the Makefile default is now `RT_OPT ?= -O0 …` (SCRIP `Makefile` lines ~33 + ~281), so a bare `make libscrip_rt` / `make scrip` / `build_scrip.sh` is `-O0` by DEFAULT — the fast path is the path you get for free. `-O2` is now EXPLICIT opt-in, used ONLY for measurement:
-```
-make RT_OPT="-O2 -g -fno-strict-aliasing -fwrapv -fno-omit-frame-pointer" libscrip_rt   # perf/bench ONLY
-PERF=1 bash scripts/jcon_selfhost_build.sh                                               # perf .so via the selfhost builder
-```
-Benchmark builders that need `-O2` already pass it explicitly (`jcon_selfhost_build.sh PERF=1`; the official-oracle trees build their own way), so the default flip does NOT silently corrupt any perf number — a perf run that forgets `-O2` is a mis-measurement the operator owns, not a default that lies.
-
-**COMPLETION TEST:** (a) `grep -nE 'RT_OPT *[?:]?= *-O0' Makefile` matches (default is `-O0`) and no un-opted `RT_OPT ?= -O2` remains; (b) session-setup / feature-dev build scripts (`build_scrip.sh`, smoke/crosscheck runners) invoke `make` with NO `RT_OPT` override (so they inherit `-O0`); (c) any `-O2` in a script is either a monitor/oracle-side helper (separate lib) or gated behind an explicit perf flag (`PERF=1`); (d) this FACT RULE body is byte-identical across the six GOAL-*-BB files (md5-locked, per the Prolog file's sibling-verbatim note).
-
-**LIMITATION (do not oversell — same honest shape as the other rules here):** a Makefile default and a markdown rule cannot COERCE a session to avoid typing `RT_OPT=-O2` during feature work; they make the fast path the default and the slow path a deliberate, visible choice. The human reviewer remains the real enforcer — **reject any feature-work handoff whose build log shows `-O2` on the runtime `.so`.**
-
-## ▶ LIVE CURSOR (updated every handoff — RULES.md STALE-ORIENTATION rule)
-
-**WATERMARK: SCRIP `fbce47dc` · suite PASS=249 FAIL=12 XFAIL=32 / 293 (NOT re-derived s165 — `test_icon_all_rungs.sh` was not run; carried forward from s162, treat as stale) · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness 6/8 byte-identical, geddump + rsg DIVERGE.**
+**WATERMARK: SCRIP `6c740055` · suite PASS=249 FAIL=12 XFAIL=32 / 293 (re-derived s165 from `test_icon_all_rungs.sh` — zero regression across the `not` fix) · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness **7/8 byte-identical**, `rsg` the SOLE remaining defect.**
 
 - **s165 (2026-07-25) — BENCH-HONESTY-2 + `geddump` ROOT-CAUSED. SCRIP `fbce47dc`. No codegen touched.**
   **THE CORRECTNESS HARNESS WAS GRADING `geddump` — a KNOWN LIVE DEFECT — AS A PASS.** `honest_icon_correctness.sh`'s `window()` extracts between post.icn's marker and the elapsed-time line; `geddump`/`micsum`/`tgrlink` DO NOT LINK post.icn, so the window came back EMPTY on both engines and `cmp` of two empty files printed IDENTICAL. Fixed: fall back to whole file when the marker is absent, and grade two empty windows `NO-OUTPUT`. Mirror defect fixed in `honest_icon_bench.sh`, which claimed a correctness verdict from a run whose output post.icn SUPPRESSES — a **false red on concord/deal/ipxref/queens, all four byte-identical to the oracle**; it now prints `n/a` and defers. ⚠ **This is s164's own lesson recurring one layer down — an EMPTY COMPARISON MUST NEVER BE A PASS. Worth auditing the Prolog/SNOBOL4 runners for the same shape.**
   **`geddump` ROOT CAUSE = A FAILING `not` DELIVERS SUCCESS.** Divergence is 1,077 lines present ONLY in SCRIP, ZERO missing — a strict superset, i.e. over-emission. Its line-54 guard `(p.r === gedref(fam,"HUSB")) | (not gedref(fam,"HUSB"))` must FAIL for the wife; instead the arm succeeds and every child prints twice.
   **⭐ `not` IS A ONE-LINE REPRO OF THE s164 SCAN/`else` DEFECT — USE IT INSTEAD OF THE SCAN ONE:** `procedure main(); if not (1 = 1) then write("THEN") else write("ELSE"); end` → iconx `ELSE`, SCRIP m3 AND m4 print **nothing**. No scan env, no subject, no procedure.
   **CANDIDATE UNIFIED ROOT CAUSE (INFERRED FROM IR DUMPS, NOT YET CONFIRMED IN `emit.cpp`):** both `not` and scan express arm-failure as a transition INTO the DISJUNCTION node itself (its β edge) — `not` repro node 5 γ=1, s164 scan dump node 14 γ=1 — and that node's own γ/ω are both FAIL. Plain failing comparisons do NOT take that path and work correctly. So the emitter appears to treat arm-failure re-entry at the DISJUNCTION as arm-list EXHAUSTION instead of advancing to the next arm. **LOWER is faithful to canonical `ir_a_Not` (verified against `refs/jcon-master/tran/irgen.icn` L142-159) — do not go back to `lower_icon.c`.** Full detail incl. the discriminating table: `FINDING-2026-07-25-CLAUDE-ICN-NOT-IS-A-ONE-LINE-REPRO-OF-THE-SCAN-ELSE-DEFECT-AND-GEDDUMP-ROOT-CAUSE.md`.
+
+- **s165b (2026-07-25) — `not` FAIL-CONDUIT LANDED. `geddump` BYTE-IDENTICAL. s164 SCAN REPRO FIXED. SCRIP `6c740055` + corpus `fcd7a9f0`. Suite 249/12/32 UNCHANGED.**
+  **ONE-LINE FIX IN `lower_not`.** Canonical `ir_a_Not` lowers the inner expr with succ=ω, so every γ edge landing ω means "inner succeeded ⇒ the not FAILED" — a fail conduit. `lower_not` never marked them, so the nary retag (L1045) saw only `γ.node == dj` and stamped **σ**, resolving the edge to the disjunction's SUCCESS glue `na_s` instead of `na_f`. Read straight off the emitted `.s`: `cmp rax,rcx / jne n7_α / jmp xchain0_n0_as`. The dj's own γ is its ω=FAIL, so NEITHER arm ran. Fix reuses the producer-marks-at-construction contract already at L692 (scan `leave_fail`).
+  **MEASURED WITH A REAL PRE-FIX BASELINE** (change stashed + rebuilt — not inferred):
+
+  | | pre | post | iconx |
+  |---|---|---|---|
+  | `if not (1=1) then A else B` | prints NOTHING | `ELSE` | `ELSE` |
+  | s164 2-line scan repro | `*** PROC FAILED ***` | `ELSE` | `ELSE` |
+  | `geddump` | 13,645L DIVERGE | **12,568L IDENTICAL** | — |
+  | suite | 249/12/32 | **249/12/32** | — |
+
+  ⚠ **`rsg` STILL DIVERGES (5,000L vs 1,000L). The scan repro was NECESSARY BUT NOT SUFFICIENT for it** — s164 asserted the repro was rsg's root cause; that is now falsified in the strict sense: the repro passes and rsg does not. rsg needs its own bracket; `defnon` is the place to instrument next.
+  ⚠ **WHY A `not` FIX MOVED THE SCAN REPRO IS NOT MECHANISTICALLY EXPLAINED.** Both are measured, both pre/post verified — but `sc.icn` contains no `not`, so the causal path is unproven. Do NOT cite this as understood; establish it before building on it.
 
 - **s164 (2026-07-25, Opus 4.5) — BENCH-HONESTY: oracle-diffed the whole Icon bench corpus; README grid replaced; `rsg` short-circuit named. SCRIP `54b047cc`. No codegen touched.**
   **Correctness 6/9 byte-identical to `iconx` 9.5.25a** (concord 1,345L · deal 17,000L · ipxref 1,208L · queens 16,653L · tgrlink 3,239L · micsum) — established with a NEW `OUTPUT=1` pass (`scripts/honest_icon_correctness.sh`), because the stock timing run has `post.icn`'s `write := 1` suppression active and **stdout therefore cannot validate a timing run at all**. `version` divergence is benign (`&version`). Live defects: `geddump`, `rsg`.
