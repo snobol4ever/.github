@@ -1,4 +1,6 @@
-# FINDING (2026-07-26) — JCON SELF-HOST BLOCKER: A FAILING CONJUNCTION AFTER A SUCCESSFUL `=` MATCH NEITHER RESTORES δ NOR RELEASES ITS ζ GRANT
+# FINDING (2026-07-26, supplementary) — JCON SELF-HOST BLOCKER: INITIAL SCAN-CONJUNCTION DIAGNOSIS + ORACLE COEXPSIZE NOTE + SANCTIONED key() DIFFERENCE
+
+⚠ **SUPERSEDED IN PART by `FINDING-2026-07-26-CLAUDE-ICN-SCAN-MATCH-BETA-RESUCCEEDS-INFINITE-BETA-LOOP-BLOCKS-JCON-SELFHOST.md`** which identifies the precise mechanism (infinite β loop in `=s` template, not a bare δ-restore gap). The `key()` ordering analysis, oracle COEXPSIZE note, and stale-diagnosis corrections below are not covered there and remain valid.
 
 **SCRIP `20aa255f` (no code changed) · RT_OPT=-O0 · oracle iconx 9.5.25a · oracle-jtran built via `icont -u -s`**
 
