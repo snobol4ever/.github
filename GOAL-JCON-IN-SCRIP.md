@@ -176,6 +176,35 @@ Group F — co-expressions & scan:
 
 ## ▶ LIVE CURSOR — NEXT SESSION START HERE
 
+**⌚ 2026-07-26b (Claude Opus 5 · SCRIP `048cd87a`+fix · corpus unchanged · .github this finding) — SELF-HOST GATE VERIFIED AND ADVANCED: `irgen.icn` 0 → 113 CLASS FILES. SUITE 249/12/32 → 250/11/32.**
+
+**NEXT RUNG: TABLE `key()` ITERATION ORDER.** It is the sole remaining self-host divergence and it is fully
+specified. All 113 `.class` bodies differ while the **file set is identical** and **`links` is byte-identical**;
+the `do_ops.icn` confound was TESTED AND EXCLUDED (rebuilding SCRIP-jtran from oracle-generated `do_ops.icn`
+gives the same 0/113). Repro: `every k := !"@-*$!+%/" do t[k] := 1; every k := key(t) do …` → iconx `@-*$!+%/`,
+SCRIP `%$!-/+*@`. `gen_bc.icn:1495 bc_initialize_tmps` walks `key(bc_tmp_table)`, so constant-pool/`astore`
+order shifts in nearly every method — matches `ir_a_Ident.class` (3515 bytes BOTH) first differing at char 253,
+inside the constant pool. Canonical: `rmisc.r:175` hash = Σ(char × 37^k) over first ≤10 chars + length;
+`rstruct.r:263` walks slots in index order, chains ascending by hashnum.
+
+**ALSO OPEN:** SEGV rc=139 fires at TEARDOWN, after all 113 classes + `links` are written — a shutdown-path
+fault, not a translation fault. Own bracket.
+
+⛔ **STALE — DO NOT CHASE: "expecting 114 class files."** The ORACLE emits **113** `.class` + `links`; 114 was
+the file count including `links`. 113 is the correct target and it is already met.
+
+⛔ **STALE — DO NOT CHASE: the TT_IDX/TT_SECTION rev-assign `if (rbeta)` hole as the lexer blocker.** MEASURED
+FALSE — `<-` is not an ingredient (removing it still reproduces) and neither is `suspend`. Real cause was that
+by-name cursor-movers had NO saved-δ slot at all, so their β was a bare `jmp ω`. FIXED this session (2 files:
+`zeta_storage.c` extra quad + `bb_call.cpp` α-save/β-restore). Full mechanism, repro table and proofs:
+`FINDING-2026-07-26-CLAUDE-ICN-BYNAME-CURSOR-MOVER-HAS-NO-DELTA-RESTORE-JCON-SELFHOST-REACHES-113.md`.
+
+**BUILD STATE (all from scratch this session):** `icont`/`iconx` 9.5.25a · oracle `jtran` (icont-built) ·
+`scrip` + `libscrip_rt.so` -O0 · **SCRIP-jtran 17 modules, 0 bombs, 514,301 asm lines, linked 5,098,616 B**
+(`/home/claude/jt`) · SCRIP-jlink 2 modules. SCRIP `--run` of JCON's own `oplexgen.icn`/`interfacegen.icn`
+regenerates `do_ops.icn` (611 lines) and `interface.icn` (415 lines, **byte-identical to oracle**). No Java
+installed, JVM never run (s121 ABSOLUTE); build script step [7/7] skipped deliberately.
+
 **⌚ 2026-07-26 (Claude Sonnet 4.6 · SCRIP `9027445c` · corpus unchanged · .github this finding) — BOTH FACES OF THE `=s` β DEFECT CLOSED. SUITE 249/12/32. SELF-HOST GATE NOW UNBLOCKED — VERIFY NEXT SESSION.**
 
 **NEXT RUNG:** rebuild SCRIP-jtran (17 modules, workdir `/home/claude/jt`, corpus sources in
