@@ -9,12 +9,12 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | metric | count |
 |--------|-------|
 | gprolog public exports (total) | 312 |
-| DONE (SCRIP admits) | 135 (43%) |
-| RUNG-ASSIGNED | 177 |
+| DONE (SCRIP admits) | 139 (44%) |
+| RUNG-ASSIGNED | 173 |
 | **UNASSIGNED** | **0** |
 | core scope | 237 |
 | gprolog-ext scope | 75 |
-| **core still open** | **103** |
+| **core still open** | **99** |
 
 ## Per-file coverage
 
@@ -37,14 +37,14 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `flag.pl` | core | 2 | 6 | 4 |
 | `sort.pl` | core | 3 | 6 | 3 |
 | `stat.pl` | gprolog-ext | 0 | 6 | 6 |
-| `pretty.pl` | core | 2 | 5 | 3 |
+| `pretty.pl` | core | 5 | 5 | 0 |
 | `consult.pl` | core | 0 | 4 | 4 |
 | `le_interf.pl` | gprolog-ext | 0 | 4 | 4 |
 | `random.pl` | gprolog-ext | 0 | 4 | 4 |
 | `arith_inl.pl` | core | 1 | 3 | 2 |
 | `call.pl` | core | 0 | 3 | 3 |
 | `control.pl` | core | 3 | 3 | 0 |
-| `print.pl` | core | 2 | 3 | 1 |
+| `print.pl` | core | 3 | 3 | 0 |
 | `format.pl` | core | 2 | 2 | 0 |
 | `oper.pl` | core | 2 | 2 | 0 |
 | `pred.pl` | core | 2 | 2 | 0 |
@@ -56,7 +56,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 
 *(none)*
 
-## RUNG-ASSIGNED — owned, not yet landed  (177)
+## RUNG-ASSIGNED — owned, not yet landed  (173)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -142,10 +142,6 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `wait/2` | `os_interf.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `working_directory/1` | `os_interf.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `syntax_error_info/4` | `pl_error.pl` | core | PL-ISO-13 |
-| `bind_variables/2` | `pretty.pl` | core | PL-ISO-9 |
-| `name_query_vars/2` | `pretty.pl` | core | PL-ISO-9 |
-| `name_singleton_vars/1` | `pretty.pl` | core | PL-ISO-9 |
-| `get_print_stream/1` | `print.pl` | core | PL-ISO-9 |
 | `get_seed/1` | `random.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `random/1` | `random.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
 | `random/3` | `random.pl` | gprolog-ext | PL-EXT (out of PL-100 core scope) |
@@ -238,7 +234,7 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `term_hash/4` | `term_inl.pl` | core | PL-ISO-11 |
 | `term_ref/2` | `term_inl.pl` | core | PL-ISO-11 |
 
-## DONE — admitted by SCRIP  (135)
+## DONE — admitted by SCRIP  (139)
 
 | predicate | file | scope | home |
 |-----------|------|-------|------|
@@ -334,8 +330,12 @@ Rung: GOAL-PROLOG-BB.md LADDER A → PL-ISO-10. **100% == UNASSIGNED 0 AND core-
 | `op/3` | `oper.pl` | core |  |
 | `current_predicate/1` | `pred.pl` | core |  |
 | `predicate_property/2` | `pred.pl` | core |  |
+| `bind_variables/2` | `pretty.pl` | core |  |
+| `name_query_vars/2` | `pretty.pl` | core |  |
+| `name_singleton_vars/1` | `pretty.pl` | core |  |
 | `numbervars/1` | `pretty.pl` | core |  |
 | `numbervars/3` | `pretty.pl` | core |  |
+| `get_print_stream/1` | `print.pl` | core |  |
 | `print/1` | `print.pl` | core |  |
 | `print/2` | `print.pl` | core |  |
 | `read/1` | `read.pl` | core |  |
