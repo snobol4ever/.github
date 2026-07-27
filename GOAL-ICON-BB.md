@@ -1,10 +1,10 @@
-**WATERMARK: SCRIP `f0e1e011` · suite PASS=250 FAIL=11 XFAIL=32 / 293 · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness **8/8 byte-identical** (rsg CLOSED).**
+**WATERMARK: SCRIP `c98ce1c9` · suite PASS=250 FAIL=11 XFAIL=32 / 293 · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness 8/8 byte-identical · JCON self-host 17/17 class-count parity.**
 
-## ▶ LIVE CURSOR (s167, 2026-07-26)
+## ▶ LIVE CURSOR (s168, 2026-07-27)
 
-**NEXT RUNG:** FZ-B1 / FZ-B2 cluster or XFAIL-ZERO sweep — rsg is closed, bench is 8/8. Suite at 250/11/32; 11 remaining FAILs are Cluster A (env math-drift, 5), Cluster B (emit-time IR aborts, 2), Cluster C (SEGV, 3), Cluster D (parse errors, 2) per FAIL-ZERO table below. Re-derive counts fresh from `test_icon_all_rungs.sh` before attacking.
-**WATERMARK:** SCRIP `f0e1e011` · suite 250/11/32 · bench correctness 8/8 IDENTICAL.
-**LAST SESSION:** s167 — rsg FIXED (ICN-CASE-ALT alpha-force gate widened to check entry-node generator-kind, not just source-tree is_resumable); bench correctness 7/8 → 8/8; suite 249/12/32 → 250/11/32. Also: JCON self-host tested across all 17 modules (10/17 COMPLETE, 7 SHORT); `many`/`any` elided-startpos defect root-caused and causally proven; `ir.class` 9.6× blowup flagged; perf benchmark 2.22× SCRIP slower (geomean, RT_OPT=-O0 vs iconx -O, verified-equal-work modules only). See `FINDING-2026-07-26-CLAUDE-ICN-RSG-CASE-ARM-ALPHA-FORCE-GATE-WIDENED-AND-SELFHOST-7MODULE-GAP.md`.
+**NEXT RUNG:** FZ-B1 / FZ-B2 cluster (emit-time IR aborts) or XFAIL-ZERO sweep. Suite 250/11/32 unchanged. JCON self-host now 17/17 at class-count parity; byte-identity remains open (key() ordering + ir.class 9.6× blowup). Re-derive suite counts fresh from `test_icon_all_rungs.sh` before attacking.
+**WATERMARK:** SCRIP `c98ce1c9` · suite 250/11/32 · bench 8/8 IDENTICAL · JCON self-host 17/17.
+**LAST SESSION:** s168 — JCON self-host 10/17 → **17/17** class-count parity. Two root causes: (1) `str_anal` elided-slot defaulting: elided args arrive as DT_SNUL; old arms read `.i=0` → fail; subject-elided path (`s=null → &subject, i=null → &pos`) was missing entirely — `any`/`many`/`upto`/`match` rewritten through canonical `bn_str_anal`/`bn_cvpos` helpers (closes preprocessor 8→29, lexer 6→8, gen_bc 42→87, optimize 3→17). (2) Coexpr pthread stack 1MB → 8MB + `SCRIP_COEXP_STACK` override: native C stack exhausted on deep Icon recursion in co-expression threads (closes do_ops 0→4, interface 0→65, bytecode 9→50). 64MB was tried first — costs 7.7× on irgen because `ZC_COEXPR_STACK_GCHEAP=1` registers stacks as GC root ranges; 8MB costs nothing. Perf vs iconx: geomean **2.69× slower** (17 modules, RT_OPT=-O0 vs iconx -O, best-of-3). Suite 250/11/32 unchanged (zero regression, measured 3×). See `FINDING-2026-07-27-CLAUDE-ICN-JCON-SELFHOST-17-OF-17-STR-ANAL-ELIDED-SLOT-AND-COEXPR-STACK-1MB-CEILING.md`.
 
 ⛔ **s164/s165's `rsg` pointers (`defnon`, `syms` `nsym=0`, "grammar table never populates") are STALE and
 MEASURED FALSE — s165b's fix cascaded further than credited. Do NOT re-chase them; the grammar table is
