@@ -78,7 +78,7 @@ Both agree with the SPITBOL oracle (`sbl -b`). **The opcode is `IR_CMP_TEST` (op
 
 ## NEXT RUNGS
 
-1. ⛔ **`test_gate_fc_no_residual_rbp.sh` FIRST.** Blocks further whitelist widening.
+1. ✅ **`test_gate_fc_no_residual_rbp.sh` LANDED s182** — baseline 0 misses / 52 programs. `x86_fc_hit` separates GRANTED from HIT; `SCRIP_FC_AUDIT=1` narrates each. Widening is now falsifiable.
 2. **Widen the use predicate to the remaining dead 28.7%.** Method is now mechanical: census → identify dead kinds → confirm `zls_grant_locals` returns 0 → admit → crosscheck. Each kind is one line + an audit.
 3. **The write-side consumer for the assign family** — `bb_assign_global/local/var` fold their `FRQ(op_off)` stores behind `_.op_res_live` exactly as `bb_cmp_test` now does. Slot elide landed; store elision did not.
 4. **ZB-VAL-8c** — per-node computed `op_fc_wbytes` (never a constant; `lt1`≠`lt2` layout proves it).
