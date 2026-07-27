@@ -1,6 +1,7 @@
 # ARCH-SNOBOL4-RTX.md — The SNOBOL4 Runtime in Optimized x86-64 Assembly
 
-**Minted s162 (2026-07-25, Claude + Lon). READ THIS BEFORE ANY RTX RUNG. It is the register/ABI/build contract; the ladder lives in `GOAL-SNOBOL4-BB.md` §SN4-RTX.**
+**Minted s162 (2026-07-25, Claude + Lon). READ THIS BEFORE ANY RTX RUNG. It is the register/ABI/build contract; the ladder lives in `GOAL-SNOBOL4-RTX.md`.**
+**⛔ POINTER CORRECTED s186 (2026-07-27):** this line previously read *"the ladder lives in `GOAL-SNOBOL4-BB.md` §SN4-RTX"*. **That section had been deleted** at `.github` `0c595551` (s176), taking 8 unchecked rungs with it, while this pointer kept naming it — so anyone following this file's own instruction landed on nothing and could reasonably conclude RTX had never had a ladder. The ladder is recovered verbatim from `950e6a9f` and now lives in its own goal file, run concurrently with the ζ-storage ladder. **This is the (a)-class rot named in RULES.md's STALE-ORIENTATION rule: a document asserting a location it cannot know is still true.** Same lesson as §7 step 0 — a pointer, like a symbol name, must be verified against the tree, not inherited from prose.
 
 ## 1. RULINGS OF RECORD (Lon, s162 — all four forks resolved)
 1. **SYNTAX: Intel, one project-wide.** GNU `as` with `.intel_syntax noprefix` — registers on the left, exactly what `scrip --compile` already emits (verified: `claws5.s` line 1). ONE assembler (as, via `gcc -c`), ONE syntax, everywhere. nasm remains oracle-tooling only (`build_spitbol_archive.sh`).
