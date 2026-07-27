@@ -176,19 +176,40 @@ Group F — co-expressions & scan:
 
 ## ▶ LIVE CURSOR — NEXT SESSION START HERE
 
-**⌚ 2026-07-26b (Claude Opus 5 · SCRIP `048cd87a`+fix · corpus unchanged · .github this finding) — SELF-HOST GATE VERIFIED AND ADVANCED: `irgen.icn` 0 → 113 CLASS FILES. SUITE 249/12/32 → 250/11/32.**
+**⌚ 2026-07-26 s167 (Claude Sonnet 4.6 · SCRIP `f0e1e011` · corpus unchanged · .github this entry) — 17-MODULE SELFHOST AUDIT: 10/17 COMPLETE, 7 SHORT. `many`/`any` elided-startpos ROOT-CAUSED. RSG FIXED (bench 8/8). See FINDING-2026-07-26-CLAUDE-ICN-RSG-CASE-ARM-ALPHA-FORCE-GATE-WIDENED-AND-SELFHOST-7MODULE-GAP.md.**
 
-**NEXT RUNG: TABLE `key()` ITERATION ORDER.** It is the sole remaining self-host divergence and it is fully
-specified. All 113 `.class` bodies differ while the **file set is identical** and **`links` is byte-identical**;
-the `do_ops.icn` confound was TESTED AND EXCLUDED (rebuilding SCRIP-jtran from oracle-generated `do_ops.icn`
-gives the same 0/113). Repro: `every k := !"@-*$!+%/" do t[k] := 1; every k := key(t) do …` → iconx `@-*$!+%/`,
-SCRIP `%$!-/+*@`. `gen_bc.icn:1495 bc_initialize_tmps` walks `key(bc_tmp_table)`, so constant-pool/`astore`
-order shifts in nearly every method — matches `ir_a_Ident.class` (3515 bytes BOTH) first differing at char 253,
-inside the constant pool. Canonical: `rmisc.r:175` hash = Σ(char × 37^k) over first ≤10 chars + length;
-`rstruct.r:263` walks slots in index order, chains ascending by hashnum.
+**NEXT RUNG: FIX `many`/`any` ELIDED START-POSITION.** This is the primary blocker for 7 of the 7 short modules. Repro:
+```icon
+write(image(many('ab', "aab", , 0)));  # iconx: 4  SCRIP: fails (error 500)
+write(image(any('a',  "aab", , 0)));   # iconx: 2  SCRIP: fails
+write(image(upto('b', "aab", , 0)));   # iconx: 3  SCRIP: 3 CORRECT — upto unaffected
+```
+Causal proof: replacing the two elided `many(cset,,,limit)` calls in `lex_quoted` with explicit
+`many(cset,&subject,&pos,limit)` takes `lexer.icn` from **6 → 8 classes** (oracle parity).
+The error 500 is JCON's own `default: runerr(500, p)` in `ast2ir` seeing a corrupted parse result.
+Fix lives in the runtime builtin implementations of `many`/`any` — the 3-arg form with slot 3 (&null)
+must default to `&pos`. The prior fix (FINDING-2026-07-24-...-ANY-MANY-UPTO-2ARG-STARTPOS-FIXED)
+covered 2-arg; elided-slot (3+ args with interior &null) was not covered.
 
-**ALSO OPEN:** SEGV rc=139 fires at TEARDOWN, after all 113 classes + `links` are written — a shutdown-path
-fault, not a translation fault. Own bracket.
+**ALSO OPEN — `ir.class` 9.6× SIZE BLOWUP:** `ir.class` is **142,605 bytes (SCRIP) vs 14,860 (oracle)**;
+total `irgen.icn` output 625KB vs 451KB. Constant-pool reordering (`key()` defect) cannot produce
+size changes of this magnitude — a separate JVM bytecode generation defect exists. Diagnose AFTER
+the `many`/`any` fix lands (the blowup may interact with the 7-module failures).
+
+**`key()` ORDERING DEFECT STILL PRESENT** (confirmed s167): all 113 `irgen.icn` class bodies differ
+because `key(bc_tmp_table)` emits in SCRIP's hash order vs oracle's. This was the s166b "sole remaining
+divergence" claim — now known to be one of at least three defects.
+
+⛔ **STALE — DO NOT CHASE: "expecting 114 class files."** The ORACLE emits **113** `.class` + `links`; 114 was
+the file count including `links`. 113 is the correct target and it is already met.
+
+⛔ **STALE — DO NOT CHASE: the TT_IDX/TT_SECTION rev-assign `if (rbeta)` hole as the lexer blocker.** MEASURED
+FALSE — `<-` is not an ingredient (removing it still reproduces) and neither is `suspend`. Real cause was that
+by-name cursor-movers had NO saved-δ slot at all, so their β was a bare `jmp ω`. FIXED (2 files:
+`zeta_storage.c` extra quad + `bb_call.cpp` α-save/β-restore). Full mechanism, repro table and proofs:
+`FINDING-2026-07-26-CLAUDE-ICN-BYNAME-CURSOR-MOVER-HAS-NO-DELTA-RESTORE-JCON-SELFHOST-REACHES-113.md`.
+
+**TEARDOWN SEGV:** rc=139 fires after all 113 classes + `links` written — shutdown-path, not translation. Own bracket; lower priority than the `many`/`any` fix.
 
 ⛔ **STALE — DO NOT CHASE: "expecting 114 class files."** The ORACLE emits **113** `.class` + `links`; 114 was
 the file count including `links`. 113 is the correct target and it is already met.
