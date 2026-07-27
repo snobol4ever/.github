@@ -1,4 +1,54 @@
-# FINDING 2026-07-26 (s154) — PL-SINK-FENCE RE-BASELINED: 14% → 78.3% EMITTED, AND THE LADDER ORDER IS FALSIFIED BY MEASUREMENT
+# FINDING 2026-07-26 (s154) — PL-SINK-FENCE RE-BASELINED: EMITTED SHARE IS **58.3%**, THE LADDER ORDER IS FALSIFIED, AND **GC IS THE #1 RUNTIME COST AND OWNED BY NO RUNG**
+
+## 0. ⛔⛔ SELF-CORRECTION — THE 78.3% BELOW IS WRONG. THE NUMBER IS 58.3%. READ THIS FIRST.
+
+The 60-sample run reported **78.3% emitted / 21.7% runtime**. Re-measured at **420 samples: 58.3%
+emitted / 41.7% runtime (SE 2.4%)**. The true value sits **outside the 60-sample run's own stated
+95% interval** (11–32% runtime). Everything in §1–§3 below was computed from the 60-sample run and
+is superseded; it is kept UNEDITED as the evidence trail.
+
+**ROOT CAUSE — WORKLOAD-DEPENDENT, AND I CHANGED THE WORKLOAD.** The 60-sample run used
+`between(1,200000,_)`; the 420-sample run used `between(1,2000000,_)`. At 10x the iterations the
+program **enters a GC regime the short run never reaches** — `gc_collect_ex` is absent from all 60
+early samples and is the **single largest runtime leaf** in the long run. The short bench measured a
+warm-up, not the steady state.
+
+⭐⭐ **RULE EARNED — A PROFILE IS A FUNCTION OF ITS WORKLOAD, AND "LONG ENOUGH TO SAMPLE" IS NOT
+"LONG ENOUGH TO BE REPRESENTATIVE."** I sized the bench so the sampler would not run out of process,
+which is a sampler constraint, not a workload-validity argument. Any FENCE number must state its
+iteration count and be shown STABLE across at least one 10x scale-up before it is quoted. The s141
+baseline of 14% carries the same unanswered question — its workload size is not recorded, so
+**14% -> 58.3% is a soft comparison, not a clean one.**
+
+⚠ **SECOND DEFECT, MINE: THE 420 IS A MIXED POPULATION.** I appended the 60 early `big_bin` samples
+to the 360 `huge_bin` samples — two different workloads in one denominator. `huge_bin` ALONE is
+**198 emitted / 162 runtime = 55.0% emitted**, i.e. the mixing biased the headline ~3 points
+OPTIMISTIC. **Quote 55.0% (single workload, 360 samples) or re-run clean; do not quote the 58.3%.**
+
+## 0b. THE CORRECTED PICTURE (420 samples, per-plane)
+
+| Plane | Samples | of runtime | of wall | Owning rung |
+|---|---|---|---|---|
+| **GARBAGE COLLECTION** | `gc_collect_ex`27 `rt_gc_point_arr`3 = **30** | 17% | **7.1%** | ⛔ **NONE — NOT ON THE LADDER** |
+| **BACKTRACK** | `pl_trail_unwind`20 `plc_dead_cstack`9 `pl_trail_push`4 = **33** | 19% | **7.9%** | **PL-SINK-9** |
+| **CALL/RETURN** | `rt_jmp_frame_lexprep2`16 `rt_frame_bind_args`8 `rt_proc_call_prologue_lex`6 = **30** | 17% | **7.1%** | callee-prologue sink |
+| **TERM CONSTRUCTION / ALLOC** | `plw_mkc_kids`17 `rt_gcheap_alloc`4 `rt_gcheap_carve`3 = **24** | 14% | 5.7% | SINK-3 follow-on |
+| **UNIFY / DEREF** | `plw_cell_deref_slow`8 `dop_unify_lst`5 `plw_unify_cells`4 = **17** | 10% | 4.0% | SINK-1/2 residue |
+
+⭐⭐ **THE REAL HEADLINE: `gc_collect_ex` IS THE LARGEST SINGLE RUNTIME LEAF (27) AND NO RUNG ON THE
+PL-SINK LADDER OWNS IT.** The ladder sinks `dop_*` data-plane leaves; GC is not one. At the KPI
+target of >=90% emitted, GC alone (7.1% of wall) very nearly exhausts the entire 10% runtime budget.
+**The ladder as written CANNOT reach its own KPI** — closing every remaining sinkable plane still
+leaves GC. Either the KPI needs a stated GC carve-out, or a GC rung must be added. **This is a
+Lon decision, not the assistant's.**
+
+⭐ **PL-SINK-9 IS CONFIRMED #1 SINKABLE** (33 samples, 7.9% of wall) — and this time the count is
+significant, not a 1-2 sample hint. The 60-sample run's leaf ranking was directionally right about
+SINK-9 and about SINK-5 being negligible (`plw_unify_vals` does not appear at all in 420 samples),
+but it invented a call/return lead that does not survive.
+
+---
+
 
 ## 1. THE HEADLINE — THE LADDER'S FOUNDING PREMISE WAS 12 SESSIONS STALE
 
