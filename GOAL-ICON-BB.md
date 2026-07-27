@@ -1,12 +1,10 @@
-**WATERMARK: SCRIP `6c740055` · suite PASS=249 FAIL=12 XFAIL=32 / 293 (re-derived s165 from `test_icon_all_rungs.sh` — zero regression across the `not` fix) · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness **7/8 byte-identical**, `rsg` the SOLE remaining defect.**
+**WATERMARK: SCRIP `f0e1e011` · suite PASS=250 FAIL=11 XFAIL=32 / 293 · RT_OPT=-O0 · Icon bench vs iconx 9.5.25a: correctness **8/8 byte-identical** (rsg CLOSED).**
 
-## ▶ LIVE CURSOR (s166, 2026-07-25)
+## ▶ LIVE CURSOR (s167, 2026-07-26)
 
-**NEXT RUNG:** fix the emitter's nary-DISJUNCTION arm selection — see
-`FINDING-2026-07-25-CLAUDE-ICN-RSG-IS-CASE-ARM-DISJUNCTION-SELECTING-LAST-ARM.md`.
-**WATERMARK:** SCRIP `6c740055` · suite 249/12/32 · bench correctness 7/8, `rsg` sole defect.
-**LAST SESSION:** s166 — benchmarks rebuilt from scratch and re-verified; `rsg` ROOT-CAUSED to a 12-line
-minimal repro. No code changed.
+**NEXT RUNG:** FZ-B1 / FZ-B2 cluster or XFAIL-ZERO sweep — rsg is closed, bench is 8/8. Suite at 250/11/32; 11 remaining FAILs are Cluster A (env math-drift, 5), Cluster B (emit-time IR aborts, 2), Cluster C (SEGV, 3), Cluster D (parse errors, 2) per FAIL-ZERO table below. Re-derive counts fresh from `test_icon_all_rungs.sh` before attacking.
+**WATERMARK:** SCRIP `f0e1e011` · suite 250/11/32 · bench correctness 8/8 IDENTICAL.
+**LAST SESSION:** s167 — rsg FIXED (ICN-CASE-ALT alpha-force gate widened to check entry-node generator-kind, not just source-tree is_resumable); bench correctness 7/8 → 8/8; suite 249/12/32 → 250/11/32. Also: JCON self-host tested across all 17 modules (10/17 COMPLETE, 7 SHORT); `many`/`any` elided-startpos defect root-caused and causally proven; `ir.class` 9.6× blowup flagged; perf benchmark 2.22× SCRIP slower (geomean, RT_OPT=-O0 vs iconx -O, verified-equal-work modules only). See `FINDING-2026-07-26-CLAUDE-ICN-RSG-CASE-ARM-ALPHA-FORCE-GATE-WIDENED-AND-SELFHOST-7MODULE-GAP.md`.
 
 ⛔ **s164/s165's `rsg` pointers (`defnon`, `syms` `nsym=0`, "grammar table never populates") are STALE and
 MEASURED FALSE — s165b's fix cascaded further than credited. Do NOT re-chase them; the grammar table is
