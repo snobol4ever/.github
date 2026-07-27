@@ -136,16 +136,51 @@ Faulting write `0x7fff92bffff8` is immediately below the page boundary `0x7fff92
 byte-identical (`0x7fff92bffff0`) and the emitted output is byte-identical (49,343 bytes). This is NOT an
 undersized stack. Under `ZC_COEXPR_STACK_GCHEAP=1` the stack is carved from the **bump allocator at a fixed
 arena base**, so `lo` and the guard page land at the SAME address regardless of requested size — only the top
-moves. Consuming the whole window down to the guard at BOTH 8 MB and 64 MB is the signature of **runaway
-recursion**, not exhaustion. (256 MB is WORSE — 0 classes; the gcheap carve fails outright.)
+moves. (256 MB is WORSE — 0 classes; the gcheap carve fails outright.)
 
-GC is NOT the recursive party: `gc_mark_agg` only sets a flag and marking closes over a `changed` fixpoint
-loop — it is iterative. SCRIP's emitted boxes recurse on the native C stack, so the runaway is in Icon-level
-execution inside a co-expression.
+### ⛔ MECHANISM CORRECTED — IT IS NOT RECURSION. IT IS A ζ-GRANT LEAK. (measured, supersedes first draft)
 
-**LIKELY THE SAME FAMILY AS** `FINDING-2026-07-26-CLAUDE-ICN-SCAN-MATCH-BETA-RESUCCEEDS-INFINITE-BETA-LOOP-BLOCKS-JCON-SELFHOST.md`
-— an infinite β loop that, in a coexpr thread, also recurses and so ends in guard-page SEGV rather than a hang.
-⚠ **THIS LINK IS INFERRED, NOT MEASURED.** Do not build on it before bracketing the loop directly.
+An earlier draft of this finding said "runaway recursion." **That is FALSIFIED — do not cite it.** Measured by
+dumping 400 KB of raw stack at the fault (`dump binary memory`) and histogramming it:
+
+```
+stack words dumped : 50,000      nonzero: 49,996
+words in ANY code range (exe 0x400000-0x800000, so 0x7ffff4-f6): 3
+```
+
+**THREE return addresses in 400 KB.** A deep call chain would show tens of thousands. The stack is not frames —
+it is bulk DATA. Autocorrelation gives a perfect 16-byte period (2,977 matches / 3,000 at stride 2 words):
+
+```
++0064  0x0000000000000001   <- DESCR_t.v = DT_S
++0072  0x00007fff9664c220   <- string pointer, IDENTICAL every period
+... repeating to the guard page
+```
+
+8 MB / 16 B ≈ **524,288 identical string descriptors**. `x/s` on that pointer: **`"\t\f "`** — the sorted
+materialization of the cset `' \t\f'` (0x09, 0x0c, 0x20). Exactly three characters, so it is `lexer.icn`
+**L248 `tab(many(' \t\f'))`**, NOT L72's four-character `' \t\f\r'`.
+
+So the mechanism is a **re-succeeding loop whose per-iteration ζ grant is never released** — under the
+`ZC_PORT_FORTH` default a grant spends as `sub rsp,K`, so each iteration marches RSP down 16 bytes until it
+walks off the bottom of the window into the guard page. More stack only buys more iterations, which is exactly
+why the fault address never moves. This is the `ARCH-ICON` ζ/FORTH carve discipline failing to give back on β.
+
+**Related prior art (this is the same family, now with a concrete cset and site):**
+`FINDING-2026-07-26-CLAUDE-ICN-SCAN-CONJ-BACKTRACK-DELTA-NOT-RESTORED-AND-ZETA-GRANT-LEAK.md` (the grant leak)
+and `FINDING-2026-07-26-CLAUDE-ICN-SCAN-MATCH-BETA-RESUCCEEDS-INFINITE-BETA-LOOP-BLOCKS-JCON-SELFHOST.md`
+(the β re-succeed). ⚠ The *linkage* to those two is still INFERRED; the stack evidence above is MEASURED.
+
+### ⚠ NOT YET ISOLATED — two repros that DO NOT reproduce it (do not re-try these)
+
+Both run CORRECTLY under `scrip --run`, so the defect needs more context than `tab(many(cset))` alone:
+1. straight-line — `s ? { tab(many(' \t\f')); ... }` → correct, pos=4, terminates.
+2. forced backtrack into tab's β — `s ? { tab(many(' \t\f')) & ="ZZZ" }` under both `if` and `every`
+   → correctly takes ELSE / yields nothing / terminates.
+
+The live case additionally sits **inside a co-expression** and inside `yylex`'s generator/`suspend` structure.
+The next rung is to add the coexpr + suspend wrapper to repro 2, one ingredient at a time, in the s164
+by-removal style — each ingredient's necessity measured, not assumed.
 
 ---
 
