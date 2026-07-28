@@ -107,3 +107,26 @@ SPITBOL v3.7 manual p.65–66 shows `'FIX' ? @OUTPUT 'B'` printing `0` `1` `2` t
 (e) `$` capture-START (MARKER-CAPTURE) — pre-existing, blocks the natural ZHEAP-7 witness.
 
 **NOT DONE THIS SESSION:** watermark not re-proven (no emitter change survived; the only landed edits are the driver + runtime setter, and default-port `.s` byte-identity was verified instead). No `.s` artifact regen — handoff step 4 not triggered, since `cca948c5` touches neither `emit.cpp`/`emit.h`/`src/templates/*` nor `lower_snobol4.c`.
+
+---
+
+## 7. LATE MEASUREMENT (same session) — 🔴 MODE-3/MODE-4 DIVERGE ON PORT 7, AND THE DEFECT IS A **FAMILY**
+
+Verifying §1(a)'s mode-4 claim end-to-end (it was asserted from the `.s` bake, never run) produced NEW information that changes the diagnosis.
+
+**MEASURED.** `--zeta-port=heap`, `.s` → `gcc -no-pie` + `libscrip_rt.so`, `-O0`:
+
+| program | m3 (`--run`) | m4 (linked binary) | bake present |
+|---|---|---|---|
+| `t1_nomatch` | rc=0 | rc=0 | yes |
+| `t4_len` | **rc=139 SEGV** | **rc=0, output `ABC` (CORRECT)** | yes |
+
+**The mode-4 binary really is in port 7** — `SCRIP_ZETA_TELEM=1` prints `[ZETA] port=7`, which ALSO confirms the `cca948c5` clamp fix is live in the `.so` (pre-fix it would have printed 6). So this is not a stale-artifact illusion.
+
+⇒ **`GOAL-MODE34-IDENTICAL.md`'s 1:1 correspondence is BROKEN on port 7**, and in the surprising direction: the *standalone* mode is correct and the *in-process* mode crashes. Since the emitted code is byte-identical modulo the bake, the differing variable is **process/workspace state**: m3 runs the heap-carved code inside the compiler process (workspace already populated, `RT_WS_TOP`/`RT_WS_LIMIT` mid-flight), m4 in a fresh process. **⇒ the SEGV is plausibly workspace-INITIALIZATION-dependent, not purely a codegen displacement bug.** That is a different hypothesis from §2 and it is cheap to separate: run m3 on port 7 with a forced-fresh workspace, and re-check whether `rt_cap_push`'s slot is garbage because it was never written or because the frontier moved under it.
+
+**⭐ AND THE UNIFYING DEFECT — THIS IS A FAMILY, NOT THREE COINCIDENCES.** `rt_zeta_cstack()` (`zeta_alloc.c:270`) reads
+`return (rt_zeta_port_mode() == ZC_PORT_CSTACK || rt_zeta_port_mode() == ZC_PORT_FORTH) ? 1 : 0;`
+— **HEAP(7) is omitted**, exactly like the setter clamp (§1a) and exactly like the `x86_fc_*` gates (§2). Three sites, one disease: **port predicates that ENUMERATE PORTS BY NAME and were never revisited when `ZC_PORT_HEAP` was added.** Each fails SILENTLY (clamps, or answers "not a stack port"), and each makes the runtime disagree with the emitted code.
+
+**⇒ REVISED NEXT RUNG, AHEAD OF (c): CENSUS EVERY PORT PREDICATE.** `grep -rn 'ZC_PORT_' src/` and classify each site as (i) correctly port-specific or (ii) a stale enumeration missing HEAP. Do this BEFORE the ζ_self ruling is implemented — otherwise the register work lands on a runtime that still disagrees with it in an unknown number of places, and the next SEGV will be misattributed to the addressing change. This census is rulings-free and is now the cheapest high-value act on the ladder.
