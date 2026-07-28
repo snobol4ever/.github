@@ -100,3 +100,37 @@ Worktree `f7de3863` (s65 R12-ERAD, the anchor the COMMIT-SELECTION LAW predicted
 
 ## NEXT
 Z4-1 remains OPEN for its documentation deliverable (`EXTRACT-Z4-R12.md`: island-cursor mechanics, zr/fb accessor shapes, and the era-arm → HEAD-arm PAIRING TABLE with a fresh recount of the s202 "17 arms" claim). The build/run/measure half is DONE and recorded above. Z4-3's cross-epoch table is effectively pre-populated by this addendum; Z4-2 (cstack anchor, `879a0d37..be4bb739^`) is the remaining unmeasured column.
+
+---
+
+# ADDENDUM 2 — Z4-2 DONE: THE TABLE IS COMPLETE, AND THE CALL PATH HAS DEGRADED MONOTONICALLY ACROSS ALL THREE GENERATIONS
+
+**Anchor chosen: `d79a427a`, NOT `879a0d37`.** The COMMIT-SELECTION LAW says "last commit at which the config was PROVEN green"; `d79a427a` is the LAST `ZC_PORT_CSTACK`-default commit before the OWNED per-BB pivot and its own message carries the proof (crosscheck byte-identical m3 284/7 · m4 283/7/1; smokes sno 7/7, icon 12/12×2, prolog 5/5×2). The plan's provisional `879a0d37` was merely the FIRST such commit. Builds clean on today's toolchain with `libgc-dev`; scrip + libscrip_rt paired from the same tree.
+
+## THE COMPLETE CROSS-EPOCH TABLE (m3, RT_OPT=-O0, best-of-3, identical probe bytes + oracle refs)
+| probe | CONFIG 1 R12 `f7de3863` | CONFIG 2 CSTACK `d79a427a` | CONFIG 3 CELL-STACK HEAD | SPITBOL |
+|---|---|---|---|---|
+| z4_arith | 46 OK | 47 OK | **43 OK** | 221 |
+| z4_span | 380 OK | 358 OK | **116 OK** | 98 |
+| z4_arbno | 35 OK | 33 OK | **23 OK** | 45 |
+| z4_fib | **71 OK** | 83 OK | 98 OK | 43 |
+| z4_capture | **105 OK** | 120 OK | 27 **DIFF** | 23 |
+| **correct** | **5/5** | **5/5** | 4/5 | 5/5 |
+
+## ⭐ THE FINDING THAT REFRAMES THE CAMPAIGN
+**`z4_fib` (DEFINE recursion) has regressed MONOTONICALLY across every storage generation: 71 → 83 → 98 ms.** Not one bad pivot — a consistent, cumulative drift, each generation paying call cost to buy pattern-matching speed. Over the same three generations `z4_span` improved 380 → 358 → 116 (**3.3×**) and `z4_arbno` 35 → 33 → 23 (**1.5×**). Against SPITBOL, HEAD is **5.1× faster on arithmetic** and **2.3× slower on calls**.
+
+**CONSEQUENCE FOR THE FOUR-CONFIG END STATE:** the campaign's premise ("CELL is more performant than FRAME") is TRUE for pattern work and FALSE for calls, and the falsity is now quantified across three independent trees rather than inferred. The activation/call path is where the remaining performance lives; `z4_fib` is its instrument and belongs in Z4-10's gate as a RATCHET, not merely a pass/fail — a config that regresses it should have to say so out loud.
+
+**BOTH FRAME CONFIGS ARE 5/5 CORRECT; THE CELL CONFIG IS 4/5.** Configs 1 and 2 both compute SPITBOL-exact `capture 1500000`. This independently corroborates ADDENDUM 1's regression claim from a SECOND tree 130+ commits later: the capture defect entered AFTER `d79a427a`, tightening the bisect range from `f7de3863..cca948c5` to **`d79a427a..cca948c5`**.
+
+## RULINGS TAKEN (Lon: "All your choices", 2026-07-28) — record, and overturn freely
+- **R-A ACCEPTED — ONE 4-value selector.** Mixed regimes must be unrepresentable (the s188 disease); one enum buys that structurally, and the `SCRIP_CELLS`×`SCRIP_ZMODE` matrix that `GOAL-SN4-CELL-MACHINE.md` flags UNSPECIFIED collapses to four named points.
+- **R-B ACCEPTED, ANCHOR CORRECTED — config 2 = the CSTACK embodiment at `d79a427a`** (measured 5/5 above), not `879a0d37`.
+- **R-C ACCEPTED — config 1 via the parameterized `ZC_FRAME_R12` form**, re-expressed under current `x86()` rules. Justified beyond history: it is a 5/5 correctness ORACLE.
+- **R-D ACCEPTED — coexpr = loud decline under configs 1-2** (their documented historical limit; never a silent wrong answer).
+- **R-E STILL OPEN — ζ_self/VSP is Lon's architectural call.** Blocks Z4-8 only; deliberately NOT self-ruled, since it decides where results live rather than merely how the existing code is packaged.
+- **R-F — keep `GOAL-ZETA-FOUR.md`; PLAN.md's Active-Goals row is Lon's edit** (RULES.md forbids editing that table on routine handoff).
+
+## NEXT SESSION STARTS HERE
+Z4-1's remaining deliverable is documentation only (`EXTRACT-Z4-R12.md` — island-cursor mechanics, zr/fb accessors, era-arm→HEAD-arm PAIRING TABLE, fresh recount of the s202 "17 arms"). Then **Z4-4 (selector spine, additive)** — all three rulings it depends on are now settled, and both worktrees exist and build, so the reconstruction has working reference implementations on disk rather than only in git.
