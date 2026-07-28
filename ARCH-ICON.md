@@ -69,9 +69,18 @@ PER BOX: **GOAL-ICON-BB.md → "ICN-SCAN LADDER"** (ICN-SCAN-0 … ICN-SCAN-FENC
 2026-06-30 table said R12=ζ and RBX=GVA base; BOTH are superseded):** ζ frame selection is the `ZC_FRAME`
 BUILD CONSTANT (`src/contracts/zeta_choices.h`), **default `ZC_FRAME_RSP` since s65 R12-ERAD**. Under it:
 `x86_zr()` = **RSP** (control-flow-lifetime ζ rides the machine stack — FORTH port cells + carve
-discipline, shared with the C call stack) and `x86_fb()` = **RBP** (the ζ value-slot frame base, seeded at
-every activation boundary; all `FR`/`FRQ` spellings resolve `[rbp+off]`, no depth compensation — REG-7 U3,
-sealed U5 s87). **R12 is FREE** (residuals: the six-register coexpr save in `bb_create.cpp` covers it
+discipline, shared with the C call stack) and `x86_fb()` = **PER-GRAPH since s197 (FLATDISP-8)**:
+**RBP for graphs whose prologue pins it** — `emit_jmp_pin_rbp()` = `flat_deep_arrival || flat_pat ||
+flat_gen`, i.e. suspended generators, pattern blobs, and deep-arrival graphs, where `xa_flat` emits
+`mov [rsp+kt-8], rbp; mov rbp, rsp` and rbp is therefore the depth-immune activation base — and
+**RSP for depth-static determinate graphs**, which never touch rbp at all (a free GPR for the whole
+activation) and carry LOWER's `op_flat_disp` compensation instead. ONE selector, `x86_fb_pinned()`,
+feeds all five accessors in BOTH media, so the base a reference NAMES is always the base the
+prologue ESTABLISHES. (History: REG-7 U3/U5 seeded rbp unconditionally; s188/s189 forced rsp
+unconditionally and BROKE both Icon generators and SNOBOL4 pat blobs by leaving the seed in place
+while the accessors stopped naming it; s197 made the selection per-graph rather than a build
+constant. All `FR`/`FRQ` spellings resolve `[fb+off]`, depth-compensated ONLY on the rsp arm.)
+**R12 is FREE** (residuals: the six-register coexpr save in `bb_create.cpp` covers it
 regardless; the `ZC_FRAME_R12` accessor arm survives as compile-time-selectable history only). Subject
 registers unchanged: **R13=Σ subject base · R14=δ cursor (0-based; `&pos = δ+1`) · R15=Δ subject length**
 (live in `bb_gen_scan.cpp`'s scan-env swap). RO constants sealed `[rip+disp]`; the membership test is the
