@@ -69,3 +69,34 @@ Unanchored, a capture PRECEDED by another element starts too EARLY instead: `S B
 
 ## 5. NEXT
 Z4-0 is COMPLETE except the R-* rulings (Lon). Next rung Z4-1 (R12 archaeology worktree at `f7de3863`). **Newly load-bearing for Z4-9/Z4-10:** the cut must not keep a config the gate does not cover — §1 shows exactly what unguarded configs become.
+
+---
+
+# ADDENDUM — Z4-1 STARTED SAME SESSION: THE R12 EPOCH BUILDS, RUNS, AND IS THE ONLY 5/5-CORRECT CONFIG MEASURED
+
+Worktree `f7de3863` (s65 R12-ERAD, the anchor the COMMIT-SELECTION LAW predicted). **It builds on today's toolchain** after installing `libgc-dev` — the epoch's OWN dependency, which HEAD dropped at GC-U-4 s67 (`REPO-SCRIP.md` records the removal). Extraction-by-reading was NOT needed. Both `scrip` and `libscrip_rt.so` built; each epoch's compiler was paired with its own runtime, never mixed across epochs.
+
+## THE CROSS-EPOCH TABLE (RT_OPT=-O0, best-of-3, mode 3, same probe bytes, same oracle refs)
+| probe | CONFIG 1 R12 (s65) | FRAME-RSP (s65 default) | CELL-STACK (HEAD) | SPITBOL |
+|---|---|---|---|---|
+| z4_arith | 46 OK | 45 OK | **43 OK** | 221 |
+| z4_span | 380 OK | 346 OK | **116 OK** | 98 |
+| z4_arbno | **35 OK** | **SEGV** | 23 OK | 45 |
+| z4_fib | 71 OK | **60 OK** | **98 OK** | 43 |
+| z4_capture | 105 OK | 96 OK | 27 **DIFF** | 23 |
+| **correct** | **5/5** | 4/5 | 4/5 | 5/5 |
+
+## WHAT THIS SAYS, PLAINLY
+1. **⭐ CONFIG 1 (R12 island frames) IS THE ONLY 5/5-CORRECT CONFIGURATION MEASURED.** It passes `z4_arbno`, which SEGVs under the SAME epoch's RSP default, and it passes `z4_capture`, which is WRONG at HEAD. Reconstructing it is therefore worth more than a historical curiosity — it is a correctness reference oracle for the other three.
+2. **⭐ THE CELL PIVOT'S LEDGER IS MIXED, AND BOTH HALVES ARE REAL.** WINS: span 380→116 (**3.3×**), capture 105→27 (**3.9×**), arbno fixed-and-faster. LOSS: **z4_fib 60→98 — DEFINE-recursion activation cost regressed 1.6× against the frame technique.** The "CELL is more performant than FRAME" premise holds decisively for pattern work and is FALSE for calls. Whichever config the campaign ends on, the call path is the thing to fix; `z4_fib` is its instrument.
+3. **⭐ THE CAPTURE DEFECT IS A REGRESSION, BISECTABLE.** s65 computes `capture 1500000` (SPITBOL-exact) under BOTH its bases; HEAD computes 1350000. The defect entered between `f7de3863` and `cca948c5`, and the `.ref` is vindicated as truth rather than a probe-authoring error. Handing `GOAL-SNOBOL4-BB.md` a known-good epoch + a 4-line repro + a bisect range is worth more than any patch this session could have attempted.
+4. **R12→RSP was a genuine perf win at s65** (~8-15% across every probe: 46/380/71/105 → 45/346/60/96), which is exactly the "hunt of faster" motive Lon described — and it cost `z4_arbno`, which SEGVs under RSP at that epoch. The trade was real and was paid in correctness.
+
+## MECHANICS WORTH INHERITING (Z4-2 will need all four)
+- `git worktree add <dir> <sha>` + `apt-get install libgc-dev` for any pre-s67 epoch.
+- The R12 basis is selected by editing `#define ZC_FRAME ZC_FRAME_R12` in `src/contracts/zeta_choices.h`, then `rm -f scrip && make -j4 scrip && make libscrip_rt` — BOTH, or the compiler and runtime disagree about the basis.
+- Old-epoch `--run` needs `< /dev/null` (RULES.md) and best-of-3 (cold start).
+- Do NOT chase contemporaneous corpus SHAs: identical probe bytes across epochs is what makes the table legitimate.
+
+## NEXT
+Z4-1 remains OPEN for its documentation deliverable (`EXTRACT-Z4-R12.md`: island-cursor mechanics, zr/fb accessor shapes, and the era-arm → HEAD-arm PAIRING TABLE with a fresh recount of the s202 "17 arms" claim). The build/run/measure half is DONE and recorded above. Z4-3's cross-epoch table is effectively pre-populated by this addendum; Z4-2 (cstack anchor, `879a0d37..be4bb739^`) is the remaining unmeasured column.
