@@ -142,3 +142,37 @@ Build was `-O0` throughout; no `-O1`/`-O2` was used or directed.
 **NEXT:** Lon's ruling on §4 (harness) — and the AGG fork from s200 (§RTX-5) is still open and
 still should not be decided on opinion. Owed before quoting any `table_churn` ratio: step 0(d)
 dynamic counts via the LD_PRELOAD interposer.
+
+## 8. INCIDENTAL — THE COMMITTED PATTERN-FAMILY `.s` ARTIFACTS ON ORIGIN WERE STALE AND ENCODED A BROKEN COMPILER
+
+Adding a benchmark obliges a `.s` regen (every `.sno` in the benchmark corpus carries one).
+`util_regen_benchmark_s_artifacts.sh` is idempotent by construction, so the expected result was
+**one new file**. Actual result: `table_churn.s` **plus three pre-existing artifacts changed** —
+`mixed_workload.s`, `pattern_bt.s`, `string_pattern.s`. All three are pattern-family.
+
+The diff is not cosmetic:
+
+```
+-                        pop              rsp
++                        pop              rbp
+-                        jmp   qword ptr [rsp + 128]
++                        jmp   qword ptr [rbp + 128]
+```
+
+⛔ **`pop rsp` destroys the stack pointer.** The artifacts committed on origin had frozen a
+compiler state from BEFORE the frame-base-follows-the-pin fix; current `main` emits the corrected
+`rbp` form. **The fix landed and its artifacts were never regenerated**, so the corpus has been
+advertising broken codegen for three pattern programs.
+
+⭐ **This is precisely the drift RULES.md handoff step 4 exists to prevent**, and it is a fourth
+instance of this repo's dominant failure mode: **a committed document (here, an emitted artifact)
+asserting a state of the world that stopped being true and was never corrected.** Same shape as the
+push-status banners (RULES.md (a)), the stale `LIVE CURSOR` (b), and s200's inherited board numbers.
+⚠ Note the direction of the error is the *safe* one here — the artifacts were worse than reality,
+not better — but the mechanism is identical and could as easily have run the other way.
+
+⚠ **CONCURRENCY:** these three programs are ζ/SN4-PAT territory and both `string_pattern` and
+`mixed_workload` segfault on pristine main. This commit records the *honest current output* of the
+compiler as the script is designed to do; `.s` byte-sameness is explicitly NOT a gate, so this
+cannot break the ζ session. **Flagging it rather than silently absorbing it** — if the ζ session
+is mid-flight on the frame-base work, they should know their artifacts just moved.
