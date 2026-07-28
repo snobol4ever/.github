@@ -163,4 +163,38 @@ correctness before a codegen-quality metric — but it is Lon's call.
 real object was the granted-window LIFO discipline (`fc_leaf`), and `test_gate_fc_no_residual_rbp.sh`
 is STILL GREEN under variant B. The ratchet is the only red.
 
+
+---
+
+## 10. ⛔ MEASURED INTERACTION: SN4 DEFER-STAR (`9b19bb5a`) COSTS 27 TESTS ONCE THE PIN IS LOAD-BEARING
+
+Rebased again onto `9b19bb5a` *"SN4 DEFER-STAR (s199): deep-arrival narrowed to star-sourced defer
+only -- rbp census 113 -> 48"*. It touches NEITHER `x86_asm.h` NOR `emit.h` (no textual conflict);
+it narrows `flat_deep_arrival` in `emit.cpp`/`lower_snobol4.c` — which FEEDS `emit_jmp_pin_rbp()`,
+which feeds this session's selector.
+
+**Same FLATDISP-8 commit, two bases, clean builds both:**
+
+| base | Icon | Prolog rung | SNOBOL4 m3/m4 |
+|---|---|---|---|
+| on `84ea9f85` (pre-DEFER-STAR) | 250 | 164/0 | **295 / 294** FAIL=20/19 |
+| on `9b19bb5a` (post-DEFER-STAR) | 250 | 164/0 | **268 / 267** FAIL=47/46 |
+
+⭐ **DEFER-STAR costs 27/27 SNOBOL4 tests — but ONLY in combination.** Neither change is wrong
+alone. The premise *"deep arrival can be narrowed to star-sourced defer only"* was measured on a
+base where `x86_fb()` was unconditionally rsp, so the pin affected NOTHING but a dead save/seed
+pair — narrowing it looked free (census 113→48) because it WAS free there. Under FLATDISP-8 the pin
+is **load-bearing for addressing**: narrowing it puts genuinely deep-arriving graphs back on an rsp
+base that is not their frame base.
+
+⚠ **THIS IS THE CONCURRENCY HAZARD IN ITS EXACT FORM, AND IT IS NOT DETECTABLE BY EITHER SESSION
+ALONE.** No file conflicts. Both sessions' own suites stay green in their own trees. The loss
+appears only when the two land together, because one session changed the MEANING of a predicate the
+other session started depending on mid-flight. Grepping for file overlap would not have caught it.
+
+Combination is still a large net win over the true baseline (SNOBOL4 221/219 → 268/267, +47/+48;
+Icon +14; Prolog +44). **Recommend the SNOBOL4 session re-derive DEFER-STAR's narrowing ON TOP OF
+FLATDISP-8** — the 27 are the graphs whose deep arrival is real; the census target should be
+re-established against a correct frame, not the broken one. ⛔ Lon's call.
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude

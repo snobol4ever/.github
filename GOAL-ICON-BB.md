@@ -1,4 +1,4 @@
-**WATERMARK: SCRIP `039f8d40` (rebased on SN4 `84ea9f85`) · Icon suite PASS=250 FAIL=11 XFAIL=32 / 293 · RT_OPT=-O0 · SNOBOL4 crosscheck m3 295 FAIL=20 / m4 294 FAIL=19 DIVERGE=3 · **Prolog rung 164/0 all three arms (was 120/44)** (was 221/219 FAIL=94 DIVERGE=1 — that number was the s188/s189 BREAKAGE, not a healthy baseline; see s197). Prolog 189/0 · Raku 51/0 · Rebus 4/0 · Snocone 8/0.**
+**WATERMARK: SCRIP `8d0665c8` (rebased on SN4 DEFER-STAR `9b19bb5a`) · ⛔ SNOBOL4 reads 268/267 HERE but 295/294 on the pre-DEFER-STAR base — DEFER-STAR costs 27 once the pin is load-bearing, see FINDING SS10 · · Icon suite PASS=250 FAIL=11 XFAIL=32 / 293 · RT_OPT=-O0 · SNOBOL4 crosscheck m3 295 FAIL=20 / m4 294 FAIL=19 DIVERGE=3 · **Prolog rung 164/0 all three arms (was 120/44)** (was 221/219 FAIL=94 DIVERGE=1 — that number was the s188/s189 BREAKAGE, not a healthy baseline; see s197). Prolog 189/0 · Raku 51/0 · Rebus 4/0 · Snocone 8/0.**
 
 ## ▶ LIVE CURSOR (s197, 2026-07-27)
 
