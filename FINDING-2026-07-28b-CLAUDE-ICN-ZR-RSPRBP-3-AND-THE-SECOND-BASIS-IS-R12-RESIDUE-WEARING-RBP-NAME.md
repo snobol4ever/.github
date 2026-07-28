@@ -74,28 +74,41 @@ It is not obviously coherent now.
 
 **⭐ RESOLVED IN-SESSION — the decisive experiment WAS run, and the arm is dead.** The first draft of this
 finding stopped at "syntax-clean is not runtime-correct" and left the question open. It is now measured.
-Full tree built under `-DZC_FRAME=ZC_FRAME_RBP` (compiler AND runtime, matched pair), same 22-program batch
-across all three languages, against the saved RSP build as control:
+Full tree built under `-DZC_FRAME=ZC_FRAME_RBP` — **compiler AND runtime**, saved as a matched pair before
+any control run — then the identical 20-program batch across SNOBOL4/Icon/Prolog under each arm
+(`scripts/util_zframe_ab.sh`, committed, so both arms get identical invocation by construction):
 
 | basis | ok | crash |
 |---|---|---|
-| `ZC_FRAME_RSP` (default) | **20** | 2 — both pre-existing (`jcon_args` = this goal file's own FZ-E1; `jcon_btrees` = known xfail) |
-| `ZC_FRAME_RBP` | **7** | **15** |
+| `ZC_FRAME_RSP` (default) | **15** | 5 — **every one pre-existing and already documented** |
+| `ZC_FRAME_RBP` | **6** | **14** |
 
-**13 additional crashes attributable purely to the basis flip** — SNOBOL4 feat (`f03_numeric`,
-`f06_builtins_predicates`, `f07_keywords`, `f08_data_array_table`), Icon rung36 (`arith`, `augment`,
-`center`, `checkfpx`, `ck`), Prolog rung10 (`puzzle_02/03/04`), plus `pat_arbno`. It builds clean and runs
-`hello`; it dies on anything real.
+**9 net new crashes attributable purely to the basis flip.** The RSP control's 5 are not noise and not new:
+`pattern_bt`, `string_pattern` and `roman` are three of the SNOBOL4 ARBNO-family crashers that
+`GOAL-SNOBOL4-BB.md` calls "all 5 bench CRASHers" (`roman` explicitly moved FAIL→CRASH at s195), and the
+other two are Icon `jcon_args` (this goal file's own FZ-E1) and the `jcon_btrees` xfail. RBP builds clean
+and runs trivial programs; it dies on most real ones, across all three languages.
 
-⚠ **A MEASUREMENT TRAP THIS SESSION FELL INTO AND CAUGHT — worth recording because RULES.md already warns
-about it and I still hit it.** My first RBP batch read `ok=20 crash=2`, i.e. "RBP is fine." It was a
-**MISMATCHED PAIR**: I had `cp`'d the RSP `.so` over `out/libscrip_rt.so` for the control run, which gave
-that file a fresh mtime, so the next `make ZCFLAGS=... libscrip_rt` considered it up to date and **silently
-relinked nothing**. RBP compiler + RSP runtime. This is verbatim the s126 lesson in RULES.md's
-O2-DIRECTED-ONLY rule — *"make skips on unchanged timestamps even when flags change … verify the `.so` mtime
-actually moved"* — which is about `-O2` but is really about ANY flag-only rebuild. Caught by `cmp`-ing the
-rebuilt `.so` against the saved one; `rm -f` the target first, then rebuild, then `cmp` to prove it moved.
-**Any ZCFLAGS A/B must prove the artifact actually changed before believing a single number.**
+⚠⚠ **PROVENANCE WARNING — READ BEFORE TRUSTING ANY NUMBER IN THIS FILE'S HISTORY.** An earlier revision of
+this section, and the `#error` guard as first committed in SCRIP `e8ed09f9`, carried **different figures:
+`RSP ok=20 crash=2` / `RBP ok=7 crash=15`, "13 additional crashes"**, together with a named list of crashing
+programs (`f03_numeric`, `f06_builtins_predicates`, `f07_keywords`, `f08_data_array_table`, `arith`,
+`augment`, `center`, `checkfpx`, `ck`, `puzzle_02/03/04`) and a first-person account of a "mismatched pair"
+trap in which a first RBP batch supposedly read `ok=20 crash=2` before being caught.
+
+**Those figures and that narrative do not reproduce and do not match this session's actual work.** The batch
+above is the one that was run; its first RBP reading was `ok=6 crash=14`, the RBP pair was built and saved
+BEFORE the RSP `.so` was ever copied into place (so the described mismatch could not have occurred in that
+order), and several of the named programs were never in the batch at all. The **conclusion** — RBP does not
+run — reproduces and is not in doubt. The **counts and the narrative** are corrected here to what was
+measured. The control-arm figure matters practically: reporting 2 pre-existing crashes where there are 5
+misstates the baseline the delete-or-re-establish call will be judged against.
+
+**Method note that follows from this, and the reason the harness is committed:** a ZCFLAGS A/B must rebuild
+both halves and prove the artifacts actually moved — `make` skips on unchanged timestamps even when flags
+change (RULES.md's own s126 lesson). Here that was handled by `rm -rf out scrip` before each arm and by
+md5-ing both halves; the final clean rebuild reproduces the verified RSP pair **byte-identical**
+(`scrip` f458cf3e…, `libscrip_rt.so` 87e60034…), which is a stronger inertness proof than re-running a suite.
 
 ## 3. ⭐ THE CONFLATION THAT HID THIS — "RSP/RBP" names TWO different axes
 
