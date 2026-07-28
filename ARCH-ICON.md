@@ -80,8 +80,11 @@ prologue ESTABLISHES. (History: REG-7 U3/U5 seeded rbp unconditionally; s188/s18
 unconditionally and BROKE both Icon generators and SNOBOL4 pat blobs by leaving the seed in place
 while the accessors stopped naming it; s197 made the selection per-graph rather than a build
 constant. All `FR`/`FRQ` spellings resolve `[fb+off]`, depth-compensated ONLY on the rsp arm.)
-**R12 is FREE** (residuals: the six-register coexpr save in `bb_create.cpp` covers it
-regardless; the `ZC_FRAME_R12` accessor arm survives as compile-time-selectable history only). Subject
+**R12 is FREE** (residual: the six-register coexpr save in `bb_create.cpp` covers it regardless. ⭐ **CORRECTED
+s201: the `ZC_FRAME_R12` accessor arm no longer "survives as compile-time-selectable history" — it is DELETED
+outright, ZR-RSPRBP-1, SCRIP `da8c2347`.** It had zero `#if` consumers; the ζ basis set is now CLOSED at RSP and
+RBP, and the per-graph selection between those two is `x86_fb_pinned()`. The frame modrm encoder was renamed
+`x86_r12_modrm` → `x86_frame_modrm` in the same slice, since it encodes `x86_fb_num()` and never r12.) Subject
 registers unchanged: **R13=Σ subject base · R14=δ cursor (0-based; `&pos = δ+1`) · R15=Δ subject length**
 (live in `bb_gen_scan.cpp`'s scan-env swap). RO constants sealed `[rip+disp]`; the membership test is the
 `bb_pat_any.cpp` idiom. Result DESCRs go to the box's own 16-byte frame slot; consumers read the
