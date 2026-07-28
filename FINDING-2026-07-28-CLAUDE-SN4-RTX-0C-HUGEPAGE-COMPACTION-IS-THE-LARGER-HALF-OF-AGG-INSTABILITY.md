@@ -100,9 +100,31 @@ quoting the board). Design properties, each one load-bearing:
 - **0(b) spelling round-trips byte-identically** against the tree. PASS.
 - **0(e) not already asm** (the s200 check, run *with* `--include=*.S`): only `.c/.h/.cpp` hits plus
   the emitted call in `templates/bb_subscript.cpp:21`. PASS — `rt_subscript_var` is genuinely C.
-- **0(d) relevance:** NOT yet re-measured this session. The LD_PRELOAD interposer was not built;
-  the AGG:STR:ARITH call-density ratio of `table_churn` is **owed** before any ratio it produces is
-  quoted. ⛔ Say this plainly rather than let the new benchmark inherit `table_access`'s counts.
+- **0(d) relevance — DISCHARGED, MEASURED, AND THE INTERPOSER WAS VALIDATED FIRST.**
+  ⭐ **POSITIVE CONTROL BEFORE TRUSTING THE INSTRUMENT:** `table_access` counted
+  `subscript=5,001,000 deref=2,500,500` — **byte-exact against s188's recorded numbers.** The
+  interposer is therefore proven, and s188's inherited counts *hold*. ⭐ Say so plainly:
+  **inherited claims are not always stale, and confirming one is as informative as voiding one.**
+
+  | program | subscript | deref | concat | arith | AGG:STR density |
+  |---|---|---|---|---|---|
+  | `table_churn` P=10000 | 8,000,800 | 4,000,400 | 4,010,802 | 0 | **2.99 : 1** |
+  | `table_churn` P=1000 | 800,800 | 400,400 | 401,802 | 0 | 2.99 : 1 |
+  | `table_access` | 5,001,000 | 2,500,500 | 5,006,002 | 0 | 1.50 : 1 |
+
+  - **COUNT MATCHES DESIGN EXACTLY:** 10000 passes × 400 cells × 2 subscripts (one read, one
+    write) + 800 for fill/sumup = 8,000,800. Predicted from the source before the run.
+  - **SCALES LINEARLY — the actual step-0(d) requirement, at two loop counts:** the variable part
+    goes 800,000 → 8,000,000 (exactly ×10) with the constant 800 preserved. ⭐ **This is the
+    direct opposite of `rt_call_arr`, which sat flat at 8 from N=1 to N=64 and made its rung
+    vacuous by construction.** `table_churn` is not vacuous.
+  - **AGG DENSITY IS 2× `table_access`'s** (2.99:1 vs 1.50:1), so the loop-guard `SNUL⊕I` concat
+    idiom dilutes the AGG signal half as much. That is the second reason to prefer it, independent
+    of variance.
+  - **`arith=0` in BOTH** — `rt_num_arith` is not on this path at all, so there is no ARITH
+    contamination to subtract. Recorded because it was assumed otherwise when the rung was written.
+  - Interposer: `/home/claude/rtxprof.c` → `.so`, `dlsym(RTLD_NEXT,…)` chaining. Session tool,
+    **NOT committed, NOT a gate**, per the s188 convention.
 
 ⭐ Incidental confirmation of why `LD_PRELOAD` reaches mode 3: `bb_subscript.cpp:21` bakes the
 address with `x86("call","rt_subscript_var",(uint64_t)(uintptr_t)rt_subscript_var)`.
