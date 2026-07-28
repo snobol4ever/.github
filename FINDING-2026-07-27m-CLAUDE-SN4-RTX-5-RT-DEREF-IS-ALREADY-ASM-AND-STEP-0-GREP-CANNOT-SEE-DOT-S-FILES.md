@@ -98,3 +98,69 @@ RTX-5 carries a fork awaiting Lon's ruling: integer-keyed table access does `tbl
 ⚠ **AND STATE THE EXPECTED BOARD FIRST, per s187/s188:** if step 2 returns ~1.00, that is not a failed measurement, it is **the answer**, and it falsifies option (i) outright.
 
 ⚠ **CONCURRENCY UNCHANGED AND NOW SHARPER:** `rt_subscript_var` and `rt_field_var` both live in `pattern_match.c` — the ζ session's active file **and** the home of all 47 current board failures. `rt_asm_helpers.S` does **not**, which makes RTX-5a additionally attractive: **it is the one piece of this rung that cannot collide with the parallel session.**
+
+---
+
+## 7. ⭐⭐ RTX-5a — THE COMPLETE RECONSTRUCTION SPEC (LANDED s200, SCRIP `94452610`, **UNPUSHED AT TIME OF WRITING**)
+
+**WHY THIS SECTION EXISTS, STATED PLAINLY:** at the moment this is written the commit lives only in a disposable sandbox. s190 lost a finished port exactly this way, and s199 recovered it in one session **only because the rung carried the full spec — guard order, return convention, exact `mov`s.** This session's own cursor draws the conclusion: **a well-written rung is a backup.** So the entire change is reproduced below. If `94452610` never reaches origin, RTX-5a is re-creatable from this section alone in minutes, with no archaeology.
+
+**Total footprint: 18 added lines across 2 files. Nothing else changed.**
+
+### (1) `src/runtime/rt/rt_asm_helpers.S` — gate byte, defined once, AT&T syntax to match the file
+
+```asm
+    .data
+    .align 1
+    .globl rtx_gate_leaf
+    .hidden rtx_gate_leaf
+    .type  rtx_gate_leaf, @object
+    .size  rtx_gate_leaf, 1
+rtx_gate_leaf:
+    .byte  0
+    .text
+```
+⚠ Initial value **0 (= route to C)** matches `RTX_GATE_DEF`: if the constructor somehow does not run, the runtime falls back to C rather than to ungated asm. **Fail safe, not fail fast.** `.hidden` is load-bearing — `scrip` links dynamically against `libscrip_rt.so`, so there is exactly ONE runtime copy and hidden visibility keeps `(%rip)` direct and interposition-proof.
+
+### (2) Gate prologue at each entry — inserted as the FIRST instructions of each symbol
+
+```asm
+rt_deref:
+    cmpb   $0, rtx_gate_leaf(%rip)
+    jne    .Lrd_asm
+    jmp    rt_deref_slow@PLT
+.Lrd_asm:
+    <existing body unchanged, starting at `movl %edi, %eax`>
+
+to_int:
+    cmpb   $0, rtx_gate_leaf(%rip)
+    jne    .Lti_asm
+    jmp    to_int_slow@PLT
+.Lti_asm:
+    <existing body unchanged, starting at `cmpl $6, %edi`>
+```
+⭐ **WHY THE INVERTED FORM (`jne` over a `jmp`) RATHER THAN `je target@PLT` DIRECTLY:** it reuses only the `jmp sym@PLT` idiom already proven in this file, avoiding a conditional branch to a PLT entry. Two instructions on the taken path either way; zero risk on the relocation.
+
+### (3) `src/runtime/rtx/rtx_init.c` — two lines, alongside the existing four families
+
+```c
+extern __attribute__((visibility("hidden"))) unsigned char rtx_gate_leaf;
+/* ...and appended inside rtx_gates_init(): */
+rtx_gate_leaf = rtx_env_on("SCRIP_RTX_LEAF", 1);
+```
+
+### (4) THE PRECONDITION THAT MAKES A 2-INSTRUCTION GATE LEGITIMATE — VERIFY IT BEFORE REUSING THIS PATTERN
+
+Both fallbacks are **COMPLETE implementations, not cold-shape handlers.** This was checked, not assumed:
+- `rt_deref_slow` (`pattern_match.c:1173`) — lines 1174/1175/1176/1177-8 handle the same four shapes the asm inlines (`.Lrd_name0`, `.Lrd_ptr`, `.Lrd_retd`, `.Lrd_ntrap`) **plus** the cold table and varref cases.
+- `to_int_slow` (`core/core.c:1991`) — handles `DT_I` as well as the coercions.
+
+⛔ **If a future leaf's C companion only handles COLD shapes, this pattern is WRONG for it** — gating would route hot shapes into a function that cannot service them. Check first, every time.
+
+### (5) GATES THAT MUST BE RE-PROVEN AFTER ANY RECONSTRUCTION
+- crosscheck `SCRIP_RTX_LEAF=1` **and** `=0`: both **m3 268/47 · m4 267/46**, failure sets identical to each other and to baseline.
+- `test_rtx_unit.sh`: 21/21 · 36/36 · STR 8426/0.
+- **TWO-SIDED FALSIFICATION — invert the `DT_N` test (`jne .Lrd_retd` → `je`), rebuild, expect `LEAF=1` ⇒ 247/68 (21 movers, proving the asm executes) and `LEAF=0` ⇒ 268/47 (exact baseline, proving the gate reaches C). Restore and re-verify green.** A probe that moves only ONE side has proven only half the gate.
+
+### (6) STILL UNGATED AFTER RTX-5a — THE REST OF THE HOLE
+`rt_sg_scan_member` · `rt_sg_scan_nonmember` · `rt_sg_member` (`rt/rt_sg_scan.S`) · `rk_gram_enter_box` (`rt_gram_trampoline.S`, Raku). Same treatment, same precondition check (§4) — **confirm each C companion is complete before gating.**
