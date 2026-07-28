@@ -1,6 +1,30 @@
-**WATERMARK: SCRIP `da8c2347` · corpus `d706b860` · Icon **252/11/30** (re-derived fresh s201 ×2, before AND after the change) · RT_OPT=-O0 · Raku 51/0 · SNOBOL4 crosscheck m3 268/47 m4 267/46 DIVERGE=2 (⛔ s200 A/B: 267/267 DIVERGE=3 measured TWICE at unmodified HEAD — the "295/294" and "268/267" readings in older prose are NOT reproducible on this base; re-derive, never cite) · Prolog 164/0 all three arms · Rebus 4/0 · Snocone 8/0.**
+**WATERMARK: SCRIP `<see handoff — s202 local>` · corpus `bd61a95f` · Icon **252/11/30** (re-derived fresh s202 ×2, before AND after the change) · RT_OPT=-O0 · census gate GREEN unseeded=0, NET=57, seeded=30.**
+⛔ **s201's watermark hashes `da8c2347` / `d706b860` DO NOT EXIST** — `git cat-file -t` fails on both in their own repos (measured s202, first act of the session). The real ZR-RSPRBP commit is SCRIP `c26a398a`. A hash TYPED into prose is the STALE-ORIENTATION rot one layer below the push-status banner the rule already names. **Watermarks should be computed like `handoff_status.sh`, never hand-copied.**
 
-## ▶ LIVE CURSOR (s201, 2026-07-28)
+## ▶ LIVE CURSOR (s202, 2026-07-28)
+
+**LAST SESSION:** s202 — **ZR-RSPRBP-3 LANDED INERT, AND THE ζ BASIS IS NOT "CLOSED AT TWO" — IT IS CLOSED AT ONE.**
+
+**⭐ FIRST: TWO THINGS s201's CURSOR SAYS ARE OPEN ARE ALREADY DONE.** (a) The overdue `.s` regen that s201 calls "the missing mechanism … it simply was not run" **IS landed** — corpus HEAD `bd61a95f` is exactly that commit. (b) All four RULES step-4 regens re-run clean this session with **zero** changed artifacts. Do not go hunting either.
+
+**⭐ ZR-RSPRBP-3 — the slice ZR-RSPRBP-1 missed.** `bb_match_arbno.cpp:13`'s `zv()` carried the SAME three-basis ternary that ZR-RSPRBP-1 collapsed in `x86_zr`/`x86_zr_num`. With ζ closed at {RSP,RBP} both arms yielded `"rbp"` (RSP arm literally; RBP arm via `x86_zr()`'s own else-arm). Collapsed to a constant. **8/8 emitted `.s` byte-identical, 3 languages, pinned + unpinned. Falsifiability PROVEN, not assumed:** injecting `zv()->"r13"` makes `pat_arbno.s` differ by 14 lines while the other 7 correctly stay identical — so the witness set can see a `zv()` change and its silence is evidence. Harness committed: `scripts/util_zr_capture.sh`.
+
+**⭐⭐ THE REAL FINDING — `ZC_FRAME_RBP` DOES NOT RUN, MEASURED.** Full matched-pair build under `-DZC_FRAME=ZC_FRAME_RBP`, same 22-program batch, RSP build as control: **RSP ok=20/crash=2** (both pre-existing: `jcon_args` FZ-E1, `jcon_btrees` xfail) vs **RBP ok=7/crash=15** — **13 extra crashes from the basis flip alone**, across SNOBOL4 feat, Icon rung36 AND Prolog rung10. ROOT CAUSE: the 17 `ZC_FRAME != ZC_FRAME_RSP` arms (6 files) were written for **R12** — `bb_call_proc_staged.cpp:281` says so verbatim, *"configs where r12 IS the ζ frame"* — and ZR-RSPRBP-1 deleted R12's LABEL while leaving that CODE, so the arms silently re-pointed at RBP. Under RBP `x86_zr()` and `x86_fb()` are BOTH rbp, so `push x86_zr()` / `mov x86_zr(),rsp` push and repoint the frame base itself; and `x86_align_save()`, the helper that made the dance frame-safe under an rbp frame, has **zero definitions**.
+**LANDED: a `#error` guard** in `zeta_choices.h` (third of the house idiom beside `ZC_COL_GC` / `ZC_PROMOTE_ON`), carrying the measurement. **The guard is NOT the fix** — it turns a silent 13-crash trap into a loud one. Plus 3 stale-prose corrections (`x86_asm.h:1435`, `bb_call_proc_staged.cpp:121/281`) that had been advertising the dead arm as maintained.
+
+**⭐ WHY THIS HID — "RSP/RBP" NAMES TWO CONFLATED AXES.** `ZC_FRAME` (BUILD CONSTANT, the ζ *register*) is what s201 closed. `x86_fb_pinned()` (**PER-GRAPH**, FLATDISP-8 s197, the frame *base*: rbp for pinned graphs, rsp for depth-static) is the duality that actually runs — **and it is already COMPLETE** (FLATDISP-9: ~285,000 refs, unseeded=0; re-measured green s202). s201 operated on the first axis and reported it as finishing the second. **There is no unfinished per-graph fb work.**
+
+⚠ **MEASUREMENT TRAP, recorded because RULES already warns of it and s202 still hit it:** the first RBP batch read a reassuring `ok=20 crash=2` — it was a **MISMATCHED PAIR**. A `cp` of the control `.so` gave it a fresh mtime, so `make ZCFLAGS=… libscrip_rt` silently relinked nothing. Verbatim the s126 lesson in RULES.md O2-DIRECTED-ONLY (*"make skips on unchanged timestamps even when flags change"*) — which is written about `-O2` but governs **any flag-only rebuild**. `rm -f` the target, rebuild, then `cmp` to prove it moved, BEFORE believing a number.
+
+**NEXT RUNG — pick either; #1 is now a decision, not an investigation:**
+1. ⭐ **`ZC_FRAME`'s dead second arm — Lon's call.** Either re-establish the 17 RBP arms against the current register contract, or delete them and retire `ZC_FRAME` entirely, leaving `x86_fb_pinned()` as the whole ζ RSP/RBP story. Evidence favors deletion. ⛔ **Do NOT half-land it** — several arms sit inside suspend/resume protocols (`bb_call_proc_staged` spine-gen, `xa_flat` γ/ω epilogues); the BID-AT-LOWER ruling applies. See `FINDING-2026-07-28b-…`.
+2. **`&pos` READS GARBAGE (4287849)** — closes `subjpos` outright and one `kwds` line. Untouched by s201/s202; full root cause in the s200 cursor below.
+3. **`mathfunc`'s residual 16 lines** — `BINOP_CONCAT` coercion must be carried in the IR by LOWER; read at 10 sites. Dedicated rung.
+4. Then the FZ-E scan cluster and XFAIL-ZERO.
+⚠ `options`/`post`/`shuffle` Icon benchmarks remain compile-err — **pre-existing**, confirmed still so s202.
+
+### ▶ PRIOR CURSOR (s201, 2026-07-28)
+
 
 **LAST SESSION:** s201 — **ζ BASIS CLOSED AT RSP/RBP (`da8c2347`), AND THE `.s` ARTIFACTS HAD BEEN LYING SINCE s168 (`d706b860`).** Lon: "finish new ZETA storage based from RSP and RBP."
 
