@@ -1,3 +1,14 @@
+# ⛔⭐ DEMOTED TO SECOND — s205 (2026-07-28, LON PIVOT DIRECTIVE).
+**`GOAL-SNOBOL4-BB.md` RUNG ZHEAP is now #1, TOP AND FIRST: ζ LOCALS → GC HEAP, ζ RESULTS → MMAP VALUE STACK.** This ladder is SECOND and INHERITS the storage regime from it. Read the s205 block at the top of `GOAL-SNOBOL4-BB.md` before touching this file.
+**⚠ THE COLLISION IS REAL, NOT HYPOTHETICAL — CELL-0 (`63ee4164`) and CELL-1a (`04defc9f`) ARE ALREADY LANDED:**
+- **CHOICE CELLS ARE CONTROL AND STAY ON RSP.** No conflict; the two-stack ruling puts return addresses, call frames and C interop on RSP, and a choice cell is control bookkeeping. CELL-0's push/cut encoders are not invalidated by the pivot.
+- **CELL-4's LAW IS INVALIDATED AS WRITTEN.** *"carve 16 THEN push header; at extend entry locals are `[rsp+0..16)`"* puts ζ LOCALS on RSP — exactly what ZHEAP clause (1) moves to the RBX heap. Every cell rung that CARVES LOCALS (CELL-4 BAL depth counter, CELL-5 mark cells, CELL-7 defer entry) must be re-read against `ZHEAP-0`'s ζ-medium switch BEFORE it is written, or it lands legacy-shaped and is rewritten later.
+- **s203's SEQ/ALT PREFIX-ALLOCATED 16B RESULT SLOTS *ARE* THE ζ RESULTS OF ZHEAP CLAUSE (2).** Same objects. ZHEAP-6 says they live in their own mmap region, reached via `x86("vsp_carve"/"vsp_operand")`, NOT on RSP. The s203 ruling (SEQ/ALT carry the arity that sizes allocation) SURVIVES intact — only the REGION changes. Do not re-derive it; re-target it.
+- **PER-GRAPH ALL-OR-NOTHING STILL HOLDS ON BOTH SIDES.** `SCRIP_CELLS={auto,0,1}` and `SCRIP_ZMODE={heap,stack}` are two independent per-graph regimes; a blob mixing either is the s188 disease. Their INTERACTION MATRIX (cells×zmode = 4 combinations) is UNSPECIFIED — name the supported cells before the first combined build.
+- **UNCHANGED AND STILL BINDING:** the HAND EMBODIMENT FIRST rule at the bottom of this file applies to ZHEAP too — `seed/test_sno_cell_*.s` is the precedent, and a heap-carve/mmap-results embodiment should be executed and oracle-checked before any encoder learns the shape.
+
+---
+
 # ⛔ LADDER IMPACT — s203 (2026-07-28). The CELL-0..7 ladder below is RE-SEQUENCED.
 Contract `DESIGN-SN4-CELL-MACHINE.md` now carries a CORRECTION BANNER; read it first. Effects on THIS ladder:
 - **CELL-2 (ALT → choice cells) and CELL-3 (SEQ → nothing, delete template) are CONTRADICTED** by Lon's s203 ruling: SEQ/ALT carry the arity that sizes allocation and become PREFIX allocators. Do NOT delete `bb_match_sequence.cpp` on the old rationale. (CELL-3 may yet be reinstated verbatim if the turning-point anchor proves out — see below.)
