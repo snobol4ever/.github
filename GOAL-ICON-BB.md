@@ -1,6 +1,24 @@
-**WATERMARK: SCRIP `210fe6b8` · corpus `117da220` · Icon **252/11/30** (re-derived fresh s200, ×3) · RT_OPT=-O0 · Raku 51/0 · SNOBOL4 crosscheck m3 268/47 m4 267/46 DIVERGE=2 (⛔ s200 A/B: 267/267 DIVERGE=3 measured TWICE at unmodified HEAD — the "295/294" and "268/267" readings in older prose are NOT reproducible on this base; re-derive, never cite) · Prolog 164/0 all three arms · Rebus 4/0 · Snocone 8/0.**
+**WATERMARK: SCRIP `da8c2347` · corpus `d706b860` · Icon **252/11/30** (re-derived fresh s201 ×2, before AND after the change) · RT_OPT=-O0 · Raku 51/0 · SNOBOL4 crosscheck m3 268/47 m4 267/46 DIVERGE=2 (⛔ s200 A/B: 267/267 DIVERGE=3 measured TWICE at unmodified HEAD — the "295/294" and "268/267" readings in older prose are NOT reproducible on this base; re-derive, never cite) · Prolog 164/0 all three arms · Rebus 4/0 · Snocone 8/0.**
 
-## ▶ LIVE CURSOR (s200, 2026-07-28)
+## ▶ LIVE CURSOR (s201, 2026-07-28)
+
+**LAST SESSION:** s201 — **ζ BASIS CLOSED AT RSP/RBP (`da8c2347`), AND THE `.s` ARTIFACTS HAD BEEN LYING SINCE s168 (`d706b860`).** Lon: "finish new ZETA storage based from RSP and RBP."
+
+**⭐ THE CONVERSION NEEDED NOTHING — MEASURED FIRST.** s200's FLATDISP-9 census reproduces exactly on a clean build: Icon programs 110,928 seeded / **0 unseeded**, Icon bench 38,115 / **0**, Prolog bench 44,411 / **0**, SNOBOL4 bench 30 / **0**. `test_gate_rbp_census_ratchet.sh` is GREEN and already carries the census zero-assert internally — **s200 had ALREADY retired the broken file-count ratchet inside that same script; do not go looking for that work, it is done.**
+
+**⭐ WHAT WAS UNFINISHED: the tree advertised THREE ζ bases while only two were reachable.** `ZC_FRAME_R12` survived as selectable history long after R12-ERAD s65. Two slices, both inert: **ZR-RSPRBP-1** deleted `ZC_FRAME_R12` (ZERO `#if` consumers, measured) and collapsed the dead third ternary arm in `x86_zr`/`x86_zr_num`; **ZR-RSPRBP-2** renamed `x86_r12_modrm` → `x86_frame_modrm` (20 sites), whose own comment had long carried the correction *"r12 in the name now means the ζ frame register"* — it encodes `x86_fb_num()`. **Proven inert: 8/8 emitted `.s` byte-identical before-vs-after, 3 languages, pinned + unpinned.** RBP/RSP keep values 1/2 — nothing passes `ZC_FRAME` numerically.
+
+⚠⚠ **EVERY `.s` ARTIFACT FOR AN rbp-PINNED GRAPH WAS STALE SINCE s168 — AND IT WAS NOT THIS SESSION'S CHANGE.** Measured, not argued: ZR-RSPRBP was byte-identical on `tgrlink`/`pattern_bt`, yet the COMMITTED artifacts differ from BOTH pre- and post-edit compilers. `benchmarks/icon/*.s` last regenerated at corpus `7f8ef9c5` (s168); **s196 `8d9b8d50` (dual-entry, deleted exactly the `add rbp,16` they still carried) and s197 FLATDISP-8 never reached them.** One committed SNOBOL4 line read **`pop rsp`** and now reads `pop rbp`.
+⭐ **REUSABLE DIAGNOSTIC — census seeded-count predicts staleness PERFECTLY: `seeded>0` ⟺ artifact STALE, `seeded==0` ⟺ CURRENT.** That is also WHY it hid for four sessions: FLATDISP-8 moved codegen ONLY for pinned graphs (3 of 16 SNOBOL4 benchmarks), so spot-checking almost anything showed a current artifact. Invisible to sampling, visible only to a sweep.
+⛔ **DO NOT "fix" this with a `.s` byte-identity gate — RULES step 4 forbids it explicitly** ("would fight the design churn the artifacts exist to track"); bomb stubs are committed as-is BY DESIGN. The missing mechanism is not a gate: **step 4 already mandates the regen and it simply was not run.** See `FINDING-2026-07-28-CLAUDE-ICN-ZR-RSPRBP-BASIS-CLOSED-AND-ARTIFACTS-STALE-SINCE-S168.md`.
+
+**NEXT RUNG — unchanged from s200, both still open and already root-caused, pick either:**
+1. ⭐ **`&pos` READS GARBAGE (4287849) — closes `subjpos` OUTRIGHT and one `kwds` line.** See s200 cursor below for the full root cause; nothing in s201 touched it.
+2. **`mathfunc`'s residual 16 lines** — `BINOP_CONCAT` coercion must be carried in the IR by LOWER; read at 10 sites. Dedicated rung.
+3. Then the FZ-E scan cluster and XFAIL-ZERO.
+⚠ `options`/`post`/`shuffle` Icon benchmarks remain compile-err — **pre-existing**, recorded as such in corpus `9e7f0d83`/`31d44729`, NOT investigated s201.
+
+### ▶ PRIOR CURSOR (s200, 2026-07-28) — superseded by s201 above; kept for its root-cause detail
 
 **LAST SESSION:** s200 — **THREE RUNGS LANDED, AND THREE OF THIS CURSOR'S OWN NUMBERS WERE MEASURED FALSE.** SCRIP `c956b897` (FLATDISP-9) · `9087c202` (ICN-REALSTR) · `210fe6b8` (ICN-KWDS). Icon held **252/11/30** across all three (re-derived fresh from `test_icon_all_rungs.sh` after every one), Raku 51/0 held, SNOBOL4 unmoved by an A/B with the change stashed AND rebuilt.
 ⛔ **CORRECTIONS TO THE PROSE BELOW — each was believed, then measured, and each was wrong. Trust the gate, not the paragraph:**
