@@ -1,7 +1,9 @@
-**WATERMARK: SCRIP `<see handoff — s202 local>` · corpus `bd61a95f` · Icon **252/11/30** (re-derived fresh s202 ×2, before AND after the change) · RT_OPT=-O0 · census gate GREEN unseeded=0, NET=57, seeded=30.**
+**WATERMARK: SCRIP `04d55ab6` · corpus `bd61a95f` · Icon **252/11/30** (re-derived fresh s202 ×2, before AND after the change) · RT_OPT=-O0 · census gate GREEN unseeded=0, NET=57, seeded=30.**
 ⛔ **s201's watermark hashes `da8c2347` / `d706b860` DO NOT EXIST** — `git cat-file -t` fails on both in their own repos (measured s202, first act of the session). The real ZR-RSPRBP commit is SCRIP `c26a398a`. A hash TYPED into prose is the STALE-ORIENTATION rot one layer below the push-status banner the rule already names. **Watermarks should be computed like `handoff_status.sh`, never hand-copied.**
 
 ## ▶ LIVE CURSOR (s202, 2026-07-28)
+
+⚠ **PARALLEL SESSIONS (s202, Lon directive):** SNOBOL4-BB and Prolog-BB sessions are running CONCURRENTLY with this ICON-BB session. Per RULES.md (STALE-ORIENTATION, concurrency note s47): this is safe for code (different files, git rebases cleanly) but PLAN.md's step column is stale by design. Trust each goal file's own `LIVE CURSOR`, never PLAN.md's table. If this clone is behind on `git pull --rebase`, a parallel session pushed mid-flight.
 
 **LAST SESSION:** s202 — **ZR-RSPRBP-3 LANDED INERT, AND THE ζ BASIS IS NOT "CLOSED AT TWO" — IT IS CLOSED AT ONE.**
 
