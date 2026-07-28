@@ -108,4 +108,59 @@ is the second instance and the first where the collateral was a **74-test IMPROV
 concurrency hazard is not only breakage, it is that a parallel session's baseline silently stops
 meaning what it says.
 
+
+---
+
+## 8. ⭐ POST-REBASE: THE FIX IS CROSS-LANGUAGE, AND THE s196 PROPOSAL WAS INSUFFICIENT
+
+Rebased onto the parallel sessions' pushes (SCRIP `84ea9f85` SN4-SCANBASE, `.github` `3360c13c`
+PROLOG s157) and re-measured everything. **All three languages were broken by the SAME drift and
+three separate sessions were independently chasing it.**
+
+### A/B — gating on raw `flat_gen` (what s196 proposed) is NOT enough
+
+| variant | Icon | SNOBOL4 m3/m4 | Prolog rung (x3 arms) | rbp ratchet |
+|---|---|---|---|---|
+| baseline (`84ea9f85`) | 236 | 221 / 219 FAIL=94 | 120 FAIL=44 | 113 = 113 PASS |
+| **A — `flat_gen` only** | **239** (+3) | 221 / 219 (+0) | not run | 113 PASS |
+| **B — `emit_jmp_pin_rbp()`** ⬅ LANDED | **250** (+14) | **295 / 294** (+74/+75) | **164 FAIL=0** (+44) | 1100 vs 113 FAIL |
+
+⭐ **Raw `flat_gen` closes only 3 of the 14.** The other 11 need `flat_pat` / `flat_deep_arrival`
+too — Icon scanning programs (`scan_alt`, `jcon_recogn`) go through pat blobs. Had this session
+implemented the s196 next-rung note literally, it would have measured +3, concluded the class was
+harder than believed, and missed a 132-test cross-language fix. **The predicate that repairs the
+drift is the predicate that CAUSES the pin — nothing narrower.**
+
+### Prolog: `120 FAIL=44` → `164 FAIL=0`, all three arms
+
+Measured at the parent and at the fix, clean builds both times. This is the regression
+`GOAL-PROLOG-BB` s157 is bisecting — its own cursor names `62aaf9ff` BAD, the same FLATDISP range.
+Prolog's crosscheck was ALREADY green (189/0) and hid it; the rung suite is where it shows.
+
+### SNOBOL4's own s198 note describes this defect
+
+`a9d5a189`: *"stored-pattern segv localized (bb_match_release RSP cross-box read, dynamic 16-byte
+depth mismatch, fix-attempt reverted)"* — an RSP cross-box read with a dynamic depth mismatch IS
+this defect. That fix-attempt was reverted; this one is the root-cause form.
+
+## 9. ⛔ OPEN — NOT MINE TO DECIDE: `test_gate_rbp_census_ratchet.sh`
+
+`84ea9f85` tightened the ratchet 119 → 113. Variant B measures **NET=1100**. **GATE FAILS.**
+
+This is a real conflict of DIRECTION, not a bug in either change. The SNOBOL4 FC-conversion ladder
+drives rbp references DOWN; restoring the pin drives them UP for `flat_pat`. The honest reading:
+**the 113 baseline was achieved while the configuration was broken** — some of that rbp→rsp
+conversion moved reads onto a register that is NOT the base for a suspending activation, which is
+exactly why 74 SNOBOL4 tests were failing. Optimizing toward 113 was optimizing a broken frame.
+
+⛔ **The ratchet belongs to the SNOBOL4 goal. A session must not silently re-baseline another
+session's gate.** Options for Lon: (a) re-baseline the ratchet and keep +132 tests; (b) narrow to
+`flat_gen` and forfeit +74 SNOBOL4 / +44 Prolog / 11 of 14 Icon; (c) split the ratchet so
+`flat_pat` graphs are counted separately from FC-converted boxes. **Recommend (a) or (c)** —
+correctness before a codegen-quality metric — but it is Lon's call.
+
+⚠ Note also that rbp-relative addressing is not inherently slower than rsp-relative; the FC ladder's
+real object was the granted-window LIFO discipline (`fc_leaf`), and `test_gate_fc_no_residual_rbp.sh`
+is STILL GREEN under variant B. The ratchet is the only red.
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
