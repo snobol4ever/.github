@@ -86,6 +86,39 @@ On main-before-this, **`rt_deref` was ungated hand-written asm — permanently O
 - **s201's cursor contradicts itself on step 0(d):** its line 9 says DISCHARGED with counts measured; its NEXT line and the RTX-0c rung both say still OWED. Unresolved here; read the s201 FINDING rather than its cursor.
 - **PLAN.md's RTX row still says "PARKED since s171 — unparking is Lon's call."** RTX was unparked at s187 and has run through s202. Per RULES.md s47 ⚠ CONCURRENCY the Step column is stale *by design*, so this is not a defect — but a first-time reader routes off it. The goal file's LIVE CURSOR is the only orientation source.
 
-## 8. STATUS
+## 9. s201's PRE-STATED NOHUGE PREDICTION — TESTED. CONFIRMED ON ITS OWN TERMS, BUT THE RATIONALE IS HALF WRONG AND THE COST IS LARGER THAN A TYPICAL RUNG WIN
+
+s201 did the right thing: it stated a falsifiable expectation **in advance** and declined to touch the harness — *"the AGG null must stay inside ±3% with a visibly tighter spread."* That experiment needs no ruling, so s202 ran it. Mechanism re-proven live first (`gc_heap.c:149`, `SCRIP_NOHUGE` read there); harness NOT modified — `run1` uses `env "$GATE=$gv"`, so an exported `SCRIP_NOHUGE` reaches both arms for free.
+
+**AGG NULL CONTROL** (`SCRIP_RTX_AGG` is not a real gate ⇒ both arms are *identical code* ⇒ this measures pure noise floor). R=5, mode 3, `RT_OPT=-O0`:
+
+| | `table_access` | `table_churn` | worst deviation |
+|---|---|---|---|
+| DEFAULT | 0.972 | 1.003 | **2.8%** |
+| `SCRIP_NOHUGE=1` both arms | 1.005 | 0.999 | **0.5%** |
+
+✅ **PREDICTION CONFIRMED.** The null tightens ~5–6× and stays well inside ±3%.
+
+**INTERLEAVED DIRECT SAMPLING** (alternating rounds — see the design note below), median ms:
+
+| program | DEFAULT | NOHUGE | spread max/min (DEF → NOHUGE) | median ratio |
+|---|---|---|---|---|
+| `table_churn` | 1174 | 1283 | 1.254 → **1.116** | **0.915** |
+| `table_access` | 1238 | 1305 | 1.113 → **1.098** | **0.949** |
+
+⛔⛔ **THREE CORRECTIONS TO THE s201 READING, ALL MEASURED:**
+
+**(1) NOHUGE IS 5–10% *SLOWER*, NOT FASTER.** s201's phrasing — *"`SCRIP_NOHUGE=1` BUYS MORE ON `table_access` THAN REDESIGNING THE PROGRAM DOES"*, *"takes `table_access` 3.9×→1.62×"* — reads as a speed gain. Those figures are **spread ratios, not throughput ratios.** Measured three independent ways (two interleaved samplings + the harness's own medians, 1081→1238 and 1188→1302), NOHUGE **costs** 5–10% of median throughput. It buys *precision* and pays *speed*. ⚠ **The cost is LARGER THAN A TYPICAL RUNG WIN** — RTX-3b's `func_call` is 1.080×. So adopting NOHUGE as the basis would shift every number by more than the size of the effects the ladder is trying to detect.
+
+**(2) s201's INSTABILITY MAGNITUDES DO NOT REPRODUCE.** s201 recorded `table_churn` default **7.5×** (367…2764ms) and `table_access` default **3.9×**. Measured s202: **1.254×** and **1.113×**. The pathological bimodality is simply *absent in this container*. ⇒ **The mechanism is real and its DIRECTION reproduces (NOHUGE tightens, every time), but its MAGNITUDE is itself environment-dependent** — it is not a stable property of the benchmark. This *strengthens* s201's own standing order (**"⛔ Do NOT retro-fit it onto recorded numbers"**): the correction factor does not exist as a number, so there is nothing to retro-fit *with*. ⭐ Note the one figure that DID reproduce almost exactly: s201's NOHUGE spread **1.12×** vs s202's **1.116×**. **The floor is stable; the ceiling is not.** That asymmetry is the whole finding.
+
+**(3) ⛔ DEFAULT IS THE SHIPPING CONFIGURATION.** No user exports `SCRIP_NOHUGE`. Measuring the ladder *exclusively* under NOHUGE would tune the runtime against a mode nobody runs — a subtler cousin of s188's blind-instrument class, where the instrument is now precise but pointed at the wrong configuration.
+
+**⇒ RECOMMENDATION FOR LON'S §4 FORK (a) vs (b) — a third option the fork did not contain:**
+**(c) KEEP DEFAULT AS THE BASIS OF RECORD; ADD NOHUGE AS A SECOND LABELLED ARM, used to CONFIRM a result, never to produce it.** Rationale: NOHUGE is a *precision instrument*, not a basis. When a rung's ratio is close to the noise floor, re-run under NOHUGE — if the effect survives a 5–10% basis shift and a 5× tighter null, it is real. This gets option (a)'s discriminating power without option (a)'s stated cost ("changes the basis of every recorded number"), and without invalidating the pre-s202 board. Both arms labelled alongside `RT_OPT`, per the O2-DIRECTED-ONLY precedent.
+
+⭐ **DESIGN NOTE — MY FIRST ATTEMPT WAS WRONG AND THE WAY IT WAS WRONG IS INSTRUCTIVE.** Sampling all DEFAULT runs and then all NOHUGE runs gave `NOHUGE spread 112%` with values 2445, 2662 decaying to ~1250 — an **order effect**, the prior arm's compaction still resolving into the next arm's window. It would have been read as "NOHUGE is catastrophically unstable," the exact opposite of the truth. `bench_sno_rtx.sh` already encodes the fix in its own header (*"R interleaved rounds, per-round ON/OFF alternation to cancel drift"*) and I did not apply it until the data forced me to. **A/B arms measured in blocks rather than interleaved are not an A/B; hugepage state is CARRIED ACROSS PROCESSES, so the previous arm is part of the next arm's environment.**
+
+## 10. STATUS
 
 Local `main` carries the three commits; tree clean; every gate above re-proven after restore. **Push not yet performed — a credential is required. Per the HANDOFF-COMPLETE FACT RULE this handoff is INCOMPLETE until `git push` succeeds and `scripts/handoff_status.sh` itself prints `HANDOFF COMPLETE`.** No terminal doneness claim is made here.
