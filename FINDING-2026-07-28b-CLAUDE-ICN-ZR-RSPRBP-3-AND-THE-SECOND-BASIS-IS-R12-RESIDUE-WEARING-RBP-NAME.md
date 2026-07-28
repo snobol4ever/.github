@@ -72,14 +72,30 @@ assignment (r12-as-ζ) and a helper (`x86_align_save`) that no longer exist. Und
 frame base itself. That shape was coherent when `x86_zr()` was `r12` and rbp was the align-save register.
 It is not obviously coherent now.
 
-**⛔ WHAT I DID NOT PROVE — stated plainly rather than implied.** I did **not** build the full tree under
-`ZC_FRAME_RBP` and run the corpus. Syntax-clean is not runtime-correct, and I am NOT claiming the arm is
-broken — only that **its correctness argument has been voided by deletions elsewhere and nothing has
-re-established it.** The decisive experiment is one full `-DZC_FRAME=ZC_FRAME_RBP` build + crosscheck run.
-It is cheap (~4 min build) and I stopped short of it deliberately: if it fails, the remedy is deleting 17
-arms across 6 template files, and that is a design call, not a cleanup.
+**⭐ RESOLVED IN-SESSION — the decisive experiment WAS run, and the arm is dead.** The first draft of this
+finding stopped at "syntax-clean is not runtime-correct" and left the question open. It is now measured.
+Full tree built under `-DZC_FRAME=ZC_FRAME_RBP` (compiler AND runtime, matched pair), same 22-program batch
+across all three languages, against the saved RSP build as control:
 
----
+| basis | ok | crash |
+|---|---|---|
+| `ZC_FRAME_RSP` (default) | **20** | 2 — both pre-existing (`jcon_args` = this goal file's own FZ-E1; `jcon_btrees` = known xfail) |
+| `ZC_FRAME_RBP` | **7** | **15** |
+
+**13 additional crashes attributable purely to the basis flip** — SNOBOL4 feat (`f03_numeric`,
+`f06_builtins_predicates`, `f07_keywords`, `f08_data_array_table`), Icon rung36 (`arith`, `augment`,
+`center`, `checkfpx`, `ck`), Prolog rung10 (`puzzle_02/03/04`), plus `pat_arbno`. It builds clean and runs
+`hello`; it dies on anything real.
+
+⚠ **A MEASUREMENT TRAP THIS SESSION FELL INTO AND CAUGHT — worth recording because RULES.md already warns
+about it and I still hit it.** My first RBP batch read `ok=20 crash=2`, i.e. "RBP is fine." It was a
+**MISMATCHED PAIR**: I had `cp`'d the RSP `.so` over `out/libscrip_rt.so` for the control run, which gave
+that file a fresh mtime, so the next `make ZCFLAGS=... libscrip_rt` considered it up to date and **silently
+relinked nothing**. RBP compiler + RSP runtime. This is verbatim the s126 lesson in RULES.md's
+O2-DIRECTED-ONLY rule — *"make skips on unchanged timestamps even when flags change … verify the `.so` mtime
+actually moved"* — which is about `-O2` but is really about ANY flag-only rebuild. Caught by `cmp`-ing the
+rebuilt `.so` against the saved one; `rm -f` the target first, then rebuild, then `cmp` to prove it moved.
+**Any ZCFLAGS A/B must prove the artifact actually changed before believing a single number.**
 
 ## 3. ⭐ THE CONFLATION THAT HID THIS — "RSP/RBP" names TWO different axes
 
@@ -101,19 +117,37 @@ isn't any.** The open question is only whether `ZC_FRAME`'s second arm should co
 
 ---
 
-## 4. Recommended next rung — needs Lon's call, one question
+## 4. What landed instead of a 17-arm deletion — a LOUD guard
 
-**Run the `-DZC_FRAME=ZC_FRAME_RBP` full build + crosscheck.** Then one of:
+The remedy for a dead selectable value is not to leave it silently selectable. `zeta_choices.h` already has
+a house idiom for exactly this — `#error` guards on `ZC_COL_GC` and `ZC_PROMOTE_ON`, both non-working
+selectable values. `ZC_FRAME_RBP` now has the third, carrying the measurement above and pointing at this
+finding.
 
-- **(a) It runs clean** → the second basis is real; fix the stale prose (`x86_asm.h:1435`,
-  `bb_call_proc_staged.cpp:121/281`) so it stops describing r12 and `x86_align_save()` as live, and keep both.
-- **(b) It does not** → `ZC_FRAME` has one reachable value. Collapse it the way `ZC_FRAME_R12` was
-  collapsed: delete the 17 `!= ZC_FRAME_RSP` arms, retire the constant, and let `x86_fb_pinned()` be the
-  whole ζ RSP/RBP story. Provably inert under the default by construction, same as ZR-RSPRBP-1/2/3.
+**Why a guard and not the deletion.** The deletion is 17 arms across 6 files, several inside suspend/resume
+protocols (`bb_call_proc_staged`'s spine-gen arm, `xa_flat`'s γ/ω epilogues). This goal file's own
+BID-AT-LOWER ruling says half-landing a change to an emitted call's shape is worse than not starting, and
+that judgment is unchanged by knowing the arm is dead. The guard is the proportionate move: it converts a
+**silent 13-crash trap into a compile-time error that names the evidence**, costs zero emitted bytes, and
+leaves the real decision clean and fully-evidenced for Lon.
 
-⚠ **Do not half-land (b).** 17 arms across 6 template files, several inside suspend/resume protocols
-(`bb_call_proc_staged`'s spine-gen arm, `xa_flat`'s epilogues) — this goal file's own BID-AT-LOWER ruling
-applies: half-landing a change to an emitted call's shape is worse than not starting.
+Also corrected — three prose sites that made the dead arm look alive and maintained:
+- `x86_asm.h:1435` certified the dance "FRAME-SAFE under ZC_FRAME_RBP" via `x86_align_save()`, a function
+  with **zero definitions**. Rewritten to describe the push-based dance that actually exists, with the old
+  claim quoted and refuted rather than silently dropped.
+- `bb_call_proc_staged.cpp:121` — same dead helper, "while the ζ frame is r12".
+- `bb_call_proc_staged.cpp:281` — "configs where r12 IS the ζ frame", now marked dead-code-awaiting-decision.
+
+**Proof the whole change set is inert:** 8/8 emitted `.s` byte-identical, census gate green (unseeded=0),
+**Icon 252/11/30 re-derived fresh**, guard verified to fire under `-DZC_FRAME=ZC_FRAME_RBP` and not under
+the default.
+
+## 5. Next rung — Lon's call, one question
+
+Either **re-establish** the 17 RBP arms against the current register contract (under RBP, `x86_zr()` and
+`x86_fb()` are both rbp — every `push x86_zr()` / `mov x86_zr(),rsp` arm needs rethinking), or **delete**
+them and retire `ZC_FRAME` entirely, leaving the per-graph `x86_fb_pinned()` selection as the whole ζ
+RSP/RBP story. The evidence now favors deletion, but it is a design call, not a cleanup.
 
 ---
 
