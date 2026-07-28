@@ -62,6 +62,7 @@ git clone https://github.com/snobol4ever/x64 /home/claude/x64
 | **ICN-GVA-M3** | `GOAL-ICN-GVA-M3.md` | Extend Icon globals to `[rbx+k*16]` in mode-3 (in-process RX slab). 4 steps: M3-ARENA-1/2/3/4. Prereq: ICN-GVA (mode-4) DONE. |
 | **ICON-BB** | `GOAL-ICON-BB.md` | See goal file for live state. |
 | **Prolog BB** | `GOAL-PROLOG-BB.md` | See goal file for live state. |
+| **SN4 CELL MACHINE** ⬅ NEW (Lon 2026-07-28 "get this going") | `GOAL-SN4-CELL-MACHINE.md` | ζ-CELL MACHINE: per-BB self-allocation × WAM/FORTH cells; contract `DESIGN-SN4-CELL-MACHINE.md`. Supersedes SNOBOL4-BB s200 rungs (b)/(c), absorbs (a) as CELL-7. Next: CELL-0. |
 | **SNOBOL4 BB** | `GOAL-SNOBOL4-BB.md` | ζ-storage / value-spine ladder (ZB-VAL, ZLS, FC). See goal file's `LIVE CURSOR`. |
 | **SNOBOL4 RTX** ⬅ SPLIT OUT s186 (2026-07-27) | `GOAL-SNOBOL4-RTX.md` | Runtime rewritten in optimized x86-64 asm, per-family kill-switch, then eradicate C. **PARKED since s171 — unparking is Lon's call.** Ladder was orphaned by the s176 shrink of `GOAL-SNOBOL4-BB.md`; recovered from `950e6a9f` and re-homed so it can run CONCURRENTLY with the ζ ladder above. Contract: `ARCH-SNOBOL4-RTX.md`. Next: RTX-4 SLICE 2. ⛔ RTX-11/12 are NOT concurrency-safe — they touch `x86_asm.h` + fire `.s` regen ×3. |
 | **Raku BB** | `GOAL-RAKU-BB.md` | See the Raku BB (OOP) row above and the OO LADDER in the goal file. |
