@@ -170,7 +170,7 @@ my number and must be re-decided, not reversed.**
 | `rt_call_proc_descr` | 542 | ICNCALL | ⛔ `BLOCKED:MEASURED-ZERO` |
 | `to_int` | 286 | — | `DONE:pre-RTX:rt_asm_helpers.S` (LEAF) |
 | `rt_bomb` | 215 | error | ⛔ `BLOCKED:COLD-BY-DESIGN` |
-| `rt_jct_relop` | 163 | COERCE | `FREE` |
+| `rt_jct_relop` | 163 | COERCE | `OUT:ICON-RTX:s212` |
 | `rt_keyword_read` | 136 | KWD | ⛔ `BLOCKED:PORT-IS-NOT-FIX` (fragile allowlist, silent omission) |
 | `rt_proc_value` | 126 | ICNCALL | `FREE` |
 | `rt_scan_leave` | 120 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
