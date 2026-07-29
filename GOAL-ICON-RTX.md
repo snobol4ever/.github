@@ -138,6 +138,23 @@ ANCESTRY** exactly as RTX-6/6b are. `scripts/handoff_status.sh` will say BLOCKED
 ⚠ `rung36_jcon_mindfa` (25 static sites, top-ranked) **times out under the interposer** and was
 EXCLUDED from 0(d), not counted as a zero — s212's rule.
 
+⭐⭐ **THE CONCURRENCY CONTRACT WAS EXERCISED FOR REAL THIS SESSION AND IT WORKED — RECORDED BECAUSE
+s211 recorded the same thing and it is now a PATTERN, not an anecdote.** A parallel SN4-RTX session
+pushed `origin/main` at **22:44:38** while my clone sat at **22:12:25**; `handoff_status.sh` caught it
+(local vs origin mismatch), and the diagnosis was **divergent, 1 commit each way in SCRIP, 2-vs-3 in
+`.github`** — NOT a stale clone and NOT a bad push. **Measured file overlap: ZERO in both repos.**
+They touched `scripts/util_rtx_arm_census.sh` + `ARCH-SNOBOL4-RTX.md` + `GOAL-SNOBOL4-RTX.md` + their
+own FINDING; I touched `src/runtime/rtx/rtx_icnagg.S` + `src/driver/driver_data.c` +
+`GOAL-ICON-RTX.md` + `RTX-CLAIMS.md` + my own FINDING. `git pull --rebase` was **clean on all three
+repos, no conflicts**, and the Icon watermark **re-derives 252/11/30 on the COMBINED tree** with the
+`.so` md5 unchanged (`2930bddd3fc5`) — their commit touched no `src/`. ⇒ **the by-SYMBOL partition in
+`ARCH-ICON-RTX.md` §7 is holding under genuine parallel load, twice now.**
+⭐ **AND THE REBASE PAID A DIVIDEND, WHICH IS THE ARGUMENT FOR REBASING BEFORE CLAIMING DONE RATHER
+THAN AFTER:** their push contained a **newly minted step-0 ARM CHECK**, which I then applied to my own
+fresh rung (0(j) above, 25.6M commits / 0 bails). Had I pushed without pulling, this rung would have
+landed without the newest check in the project — **the check would have existed and my rung would not
+have met it.**
+
 ---
 
 ## ⛔ PRIOR CURSOR — s214-ICN (2026-07-29): **THREE RUNGS LANDED ON A COMPLETENESS DIRECTIVE (`rt_gen_spine_*` trio, `rt_proc_value`, `rt_str_coerce`). ⭐⭐ AND THE HEADLINE IS A CORRECTION TO 0(d)'s OWN DOCTRINE: A DYNAMICALLY *FLAT* SYMBOL CAN BE MAXIMALLY LOAD-BEARING.**
@@ -632,6 +649,14 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   Falsification two-sided, a RESULT not a route (force field index 0 — a type-valid cell, so no
   crash): **247/16 ON vs 252/11 OFF.** Isolation arm discharged **by counting, not a third build**:
   `dat_field_get=320000 rt_size_d=0 rt_list_bang_at=0` in the window.
+  ⭐⭐ **STEP 0(j) — THE ARM CHECK SN4-RTX MINTED THE SAME DAY — WAS APPLIED RETROACTIVELY AND PASSES
+  EMPHATICALLY: `dat_field_get` ENTRIES 25,600,000 · BAILED_C 0 · COMMITS 25,600,000 (100%).** Zero
+  bails: every entry was handled end to end by the asm. That is the exact inverse of the vacuous
+  `rt_cap_push` case the check was minted for (57,578 entries, **0** commits). ⭐ Their
+  `util_rtx_arm_census.sh` **works on `.icn` unchanged** and, in the same run, **re-confirms the
+  isolation arm independently** — `rt_size_d`/`rt_list_bang_at` appear with zero entries and are
+  omitted. Adopted into `ARCH-ICON-RTX.md` §8 as **0(j)**, since **(f) is already the `@PLT` check on
+  this ladder** — same check, different letter, deliberately not renumbered.
   ⛔ **SCOPE: 1.333× is an ISOLATION benchmark** (ten-field record, late fields over-represented) —
   **no corpus-wide impact is claimed**; 117 static sites and a 5-program falsification reach are not a
   corpus-wide story. ⛔ **AND PORT ≠ FIX — see RTX-13-ICN, which outranks this rung architecturally.**
