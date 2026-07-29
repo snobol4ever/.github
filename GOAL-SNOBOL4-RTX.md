@@ -44,6 +44,9 @@ Checksum `60000001` unchanged throughout. ⭐ **BOTH NEW2 BANDS PRE-STATED, BOTH
 
 ---
 
+⛔⛔ **SYMBOL OWNERSHIP IS NOT IN THIS FILE — IT IS IN `RTX-CLAIMS.md`.** The runtime is SHARED (19,962 lines, one `.so`, six languages); two RTX ladders work it from two directions. **25 symbols are called by both Icon and SNOBOL4 live artifacts.** Check a symbol OUT in that ledger — and PUSH the claim — BEFORE writing code. Run `scripts/util_rtx_claims.sh` at session start and session close; it derives symbol truth from the tree, so the ledger cannot rot silently. This ladder is `SN4-RTX`.
+
+
 ## ⛔ PRIOR CURSOR — s203 (2026-07-29): **RTX-6 LANDED — `rt_cmp_d` in asm behind `SCRIP_RTX_ARITH`. TARGET SELECTED BY MEASUREMENT: STEP 0(d) FALSIFIED THE RUNG'S OWN NAMED TARGET.**
 **⭐⭐ STEP 0(d) RESULT: `rt_num_arith` measures ZERO calls in `arith_loop` at BOTH N=100000 and N=200000.** Integer arithmetic is fully inlined by the emitter and never reaches the C runtime. `rt_cmp_d` instead measured as the #1 hottest C runtime call in every stable benchmark: var_access/func_call **10,000,001**/run · string_manip 5,000,001 · table_access 5,016,003 · fibonacci 2,692,537 — and was entirely unported and ungated (zero references in `src/runtime/rtx/`).
 **✅ LANDED SCRIP `70198a9d`.** Gate `SCRIP_RTX_ARITH`. C body renamed `c_rt_cmp_d` same commit. Gates: m3 268/47 · m4 267/46 · DIVERGE=2 at gate ON and OFF, byte-identical to s202 baseline. Two-sided falsification: corrupted DT_I result ⇒ gate ON **245/70 (23 movers)**; gate OFF ⇒ exact watermark. STR 8426/0 · RTX UNIT ALL PASS.
