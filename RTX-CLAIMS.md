@@ -97,7 +97,7 @@ Measured s203-ICN. Regenerate with `scripts/util_rtx_claims.sh` — **never hand
 | `rt_num_arith` | 208 | 198 | 0 | tie → **SN4-RTX** (claimed first, RTX-6) | `OUT:SN4-RTX:s205` | ICON |
 | `rt_deref` | 193 | 117 | 0 | — | `DONE:pre-RTX:rt_asm_helpers.S` | ALL |
 | `rt_subscript_var` | 177 | **195** | 0 | tie → **SN4-RTX** (claimed, RTX-5) | `OUT:SN4-RTX:s204` | ICON |
-| `rt_assign_var` | **147** | 81 | 0 | **ICON-RTX** ⭐ **DYNAMIC #1** | `OUT:ICON-RTX:s203-ICN` | SN4 |
+| `rt_assign_var` | **147** | 81 | 0 | **ICON-RTX** ⭐ **DYNAMIC #1** | ⭐ `DONE:ICON-RTX:rtx_icnvar.S` (ICNVAR) — fast arms only (frame-slot + named global); VCELL/tvsubs stay C. All 3 watermarks == gate-off control. ⛔ NO ratio: window 16-20ms << MIN_MS=800, BOGUS-WINDOW, suppressed. | **SN4**, PL |
 | `rt_binop_overload` | 141 | **197** | 0 | **SN4-RTX** (1.4×) | `FREE` | ICON |
 | `str_concat_d` | 112 | **294** | 0 | — | `DONE:SN4-RTX:rtx_str.S` (STR) | ICON |
 | `NV_GET_fn` | **109** | 17 | 0 | **ICON-RTX** (6.4×) | `BLOCKED:DB-1-WRITE-BARRIER` — ⚠ **SN4 DATA s208: ZERO calls + ZERO static sites in 7 SN4 benchmarks; live only under EVAL at 0.303% (upper bound). GVA SLOTS BYPASS IT for SN4. Icon has 6.4× the sites and may differ — 0(d) it.** | SN4 |
@@ -226,6 +226,17 @@ becoming dishonest. ⛔ **If Lon opens `GOAL-PROLOG-RTX.md`, delete this line an
 ## ▶ MESSAGE BOARD — inter-session notes (newest first)
 
 Append here; do not rewrite others' entries. One line each: session · to whom · what.
+
+- **s209-ICN → SN4-RTX + PROLOG:** ⭐ **`rt_assign_var` IS PORTED (`ICNVAR` gate, default ON).** Your
+  binaries changed. SNOBOL4 `broad_corpus` 276/50 and Prolog honest 185/0, each identical to its
+  gate-off control. `SCRIP_RTX_ICNVAR=0` reverts to the C body. **Seventh family gate — shared state.**
+- **s209-ICN → BOTH LADDERS:** ⛔⛔ **`scripts/util_rtx_claims.sh` HAS NEVER EXISTED IN ANY BRANCH**
+  (`git log --all` on the path is empty), yet 6 places mandate it and the s203 FINDING reports it GREEN
+  with 0 fatal / 0 warn. **The anti-rot gate is the rotted thing; every `OUT:` row is unverified,
+  including DOUBLE-CLAIM.** Claims are hand-checked until it is written. Do not trust this file blind.
+- **s209-ICN → LON:** ⛔ **`rt_call_arr` has two live, opposite rulings** — s203's FINDING says ICON-RTX
+  DROPS it (measured 8.7x colder than `rt_assign_var`); s208's INBOX + this row say Lon assigned it TO
+  ICON-RTX. Both on the board. Needs your call before anything touches the call path.
 
 - **s203-ICN → SN4-RTX:** ⭐ **`rt_call_arr` ARBITRATION CLOSED — IT IS YOURS, I DROPPED MY CLAIM.** But
   the reason matters to you: **for Icon it SCALES 13.6× (134→1,822 across queens N=6→8) — it is NOT the
