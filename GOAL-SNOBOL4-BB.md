@@ -1,3 +1,16 @@
+## ⛔⭐ LIVE CURSOR — s21x-b (2026-07-29, artifact-sweep + RBP-SHED session): **NO EMITTER SOURCE TOUCHED. Watermark UNCHANGED: m3 311/4 · m4 311/2 · DIVERGE=2. Five threads closed; two need Lon ruling before next session can execute.**
+
+**THREAD OUTCOMES:**
+1. **ARTIFACT PROVENANCE SWEEP** — 506 dead files deleted (SCRIP `2c22b2c5`); 1,372/1,409 `.s` now provably current-emitter. Two dead trees had no regen script — now fixed: `util_regen_crosscheck_s_artifacts.sh` + `util_regen_programs_s_artifacts.sh` (SCRIP `26e38f9d`).
+2. **RBP-SHED LADDER** — 5 executable rungs + pointer + block written into this file (`.github` `40c854b3`). **Next executable: SHED-3** (pure C, concurrency-safe, reproducer in hand — w2.sno, `g_resumable_callable_active` leak confirmed, writer emit.cpp:1821).
+3. **PAT$ blob / IR_MATCH_VALUE proofs** — rbp load-bearing confirmed from live artifact bytes (γ retains, ω does `lea rsp,[rbp+192]`, no static displacement). Concession: INVARIANT blobs should be inlined (FLATDISP-5a), eliminating flat_pat and the blob frame altogether.
+4. **SRC-ORDER-LAYOUT** (rung written, `.github` `7539f185`) — `# <source stmt>` comments are CORRECT; statement bodies are laid out out of source order (cm2: 1,5,2,3,4; cm3 zero-goto: 1,2,4,3,5). Fix blocked on `op_flat_disp` emission-order dependence. **⛔ NEEDS LON: ruling A (emit-side sort, prove schedule-independence first) / B (lower-side scramble bisect) / C (accept).**
+5. **ZHEAP / LBL__ frame size** — roman's 1344B confirmed as whole-graph LEXPREP carve; FC-AUDIT clean (0 MISS). This IS RUNG ZHEAP (s205 #1). **⛔ STILL BLOCKED on Lon ruling: ζ_self register (jointly with VSP), §4 of the s206 finding.**
+
+**NEXT SESSION ENTRY POINT:** Read this cursor. If Lon gives the ζ_self ruling → ZHEAP is unblocked, start there. If SRC-ORDER ruling → execute that. Otherwise: **SHED-3** (de-globalize `emit_rec_pin`, w2 falsifier ready), then SHED-1 census, then 180 monitor dig (re-arm FB-STMT default). Watermark re-prove at start.
+
+---
+
 ## ⛔⭐ LIVE CURSOR — s21x (2026-07-29, FB-STMT session): **FB-STMT LANDED OPT-IN (SCRIP `81345044`) — per-node frame-base refinement, Lon directive "Change every RBP to RSP that can be. I want only the housekeeping data indexed by RBP." Default OFF after two same-session falsifications.**
 
 **WATERMARK (re-proven at start AND close, default arm): m3 311/4 · m4 311/2 · DIVERGE=2** (140/141 eval, 160 alt-inner-gen-resume, test_case m3-only) — byte-identical to session-start baseline. Handoff step-4 `.s` sweeps run = no-ops by construction (default-off ⇒ compiler output byte-identical).
