@@ -49,9 +49,14 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 ## ⛔ LIVE CURSOR — s216-ICN (2026-07-29): **RTX-8c-ICN LANDED — `dat_field_get` IS ASM AT 1.333× ON/PRISTINE, DISJOINT DISTRIBUTIONS. ⭐⭐ AND THE HEADLINE IS THAT THIS LADDER'S SIZE-RANKED INVENTORY IS BLIND TO AN ENTIRE DIRECTORY.**
 
-**NEXT RUNG: `rt_make_list` (171 real sites, AGG, Icon-EXCLUSIVE, `FREE`, body 8 lines,
-`by_name_dispatch.c:4733`)** — reuses `SCRIP_RTX_ICNAGG` again, so still no new gate. Then
-`subscript_get2` (52 real sites, body 42 lines, `pattern_match.c:350`).
+**NEXT RUNG: `subscript_get2`** (52 real sites, body 42 lines, `pattern_match.c:350`, AGG,
+Icon-EXCLUSIVE, `FREE`) — reuses `SCRIP_RTX_ICNAGG`, so still no new gate.
+⛔⛔ **DO NOT TAKE `rt_make_list` — RTX-8d-ICN REFUSED IT ON MEASUREMENT s216, AND IT IS THE NEXT ROW BY
+SIZE, SO IT WILL LOOK ATTRACTIVE AGAIN.** See the rung below; the ledger row is `FREE` because it was
+*released*, not because it is *available*. ⭐ **SIZE IS A CHEAP ORDERING KEY, NOT A PREDICATE OF
+PORTABILITY:** an 8-line body whose two statements are `rt_ws_alloc` and a variadic `DATCON_fn` has
+almost NO portable fraction, while `dat_field_get`'s 13 lines were almost ENTIRELY portable. **Lon's
+small-to-large directive orders the queue; it does not decide the rung — the portable fraction does.**
 
 ⛔⛔ **DO NOT USE THE FOUR-NAME CANDIDATE LIST s214 LEFT HERE — TWO OF ITS FOUR ARE PHANTOMS.**
 Re-derived from the compiler this session: `dat_field_get` **117** (exact, ported this rung) ·
@@ -662,6 +667,42 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   corpus-wide story. ⛔ **AND PORT ≠ FIX — see RTX-13-ICN, which outranks this rung architecturally.**
   ⚠ **`[x]` PENDING THE s202 ANCESTRY CHECK** — no credential s216; all commits LOCAL ONLY.
   See `FINDING-2026-07-29-CLAUDE-ICN-RTX-8C-DAT-FIELD-GET-LANDED-1p333X-…`.
+- [x] **RTX-8d-ICN — ⛔⛔ `rt_make_list` REFUSED ON MEASUREMENT s216. NO ASM WRITTEN, AND THAT IS THE
+  RUNG'S RESULT — NOT A FAILURE TO REACH ONE.** Ledger row released to `FREE` the same session
+  (ABANDON rule). It was next by body size (8 lines) under Lon's small-to-large directive; **it is
+  ceremony-only and structurally ungradeable, and both were established BEFORE any asm existed.**
+  ⭐ **PREDICTED IN ADVANCE, THEN CONFIRMED — RTX-4's "state the expectation so a null is informative"
+  rule used prospectively for the first time on this ladder.** Stated before measuring: the port can
+  only remove the static-init test, an element memcpy and `-O0` ceremony, because the body's two real
+  statements are `rt_ws_alloc` and `DATCON_fn`. Measured after: **`rt_ws_alloc` fires 3× PER CALL**
+  (15,188 → 60,188 at N → 4N) while **the body performs only ONE of the three** — the other two are
+  inside **`DATCON_fn`, which is VARIADIC and which the port does not touch.**
+  ⭐ **0(d) PASSED CLEANLY AND DID NOT LICENSE THE PORT: 5,000 → 20,000 at N → 4N, exactly 4×.** This is
+  the s216 arm check's own thesis reaching the same conclusion one step earlier — **the symbol is hot,
+  scaling, uncontested, small, and still not worth porting, because its PORTABLE FRACTION is ~nil.**
+  ⛔ **STRUCTURALLY UNGRADEABLE, WHICH IS INDEPENDENT OF THE ABOVE AND EQUALLY DECISIVE:** window is
+  **89 ms at N=300,000**, and **the allocation CANNOT be hoisted out of the timed loop because
+  allocation IS the construct.** s211's refusal condition, and **no larger N fixes it — the spread is
+  multiplicative.** ⇒ a number produced here would measure the allocator, not the port.
+  ⚠ **Hand-asm hazard for no reward:** `DATCON_fn` takes four 16-byte descriptor pairs variadically
+  (9 eightbytes ⇒ stack spill). **Do not re-open as a `.S` port.**
+  ⭐ **THE REAL TARGET IS THE DESIGN ⇒ RTX-14-ICN below**, same class as RTX-13.
+  ⭐⭐ **AND A CORRECTION TO 0(j), THE CHECK MINTED THIS SAME DAY: IT CANNOT LITERALLY RUN "BEFORE
+  WRITING ANY ASM" FOR A VIRGIN SYMBOL.** `util_rtx_arm_census.sh` counts `sym` vs **`c_sym`**, and
+  `c_sym` does not exist until the port renames the C body — so for an unported symbol the census can
+  only run *before CLAIMING the rung*, not *before writing the asm*. **The prospective instrument for a
+  virgin symbol is 0(d) PLUS A COST DECOMPOSITION of the body's callees** (count each callee's arrivals
+  per entry, as here: 3 `rt_ws_alloc` per call, 1 attributable to the body). That reached the refusal
+  with zero asm written. ⇒ **amend 0(j) to say: census for an ALREADY-PORTED family; cost-decompose for
+  a virgin symbol.**
+- [ ] **RTX-14-ICN — ⭐ LIST CONSTRUCTION ALLOCATES THREE TIMES PER LIST. MINTED s216.** Measured:
+  every `rt_make_list` costs **3 `rt_ws_alloc` calls** — one for the element vector, two inside
+  `DATCON_fn` building the DATA record. Icon's canonical `list()`
+  (`refs/icon-master/src/runtime/fstruct.r:264`) allocates a `b_list` header plus ONE `b_lelem` block
+  with a `MinListSlots` floor. ⇒ **fusing SCRIP's three allocations toward one is a real win and it is
+  a DESIGN change in `core.c`/`by_name_dispatch.c`, not an asm port** — and unlike RTX-13 it is
+  **runtime-side, so it does NOT collide with the ζ ladder and needs no `.s` regen.** ⚠ Shared runtime
+  ⇒ `DATCON_fn` serves every language; owes all three watermarks.
 - [ ] **RTX-13-ICN — ⭐⭐ FIELD ACCESS BY INTEGER INDEX, NOT BY NAME. MINTED s216-ICN, AND IT OUTRANKS
   EVERY REMAINING `.S` PORT ON THIS LADDER ARCHITECTURALLY.** `FINDING-2026-07-25-CLAUDE-ICN-BID-1-…`
   §2 already specified it: `bb_field_get.cpp` emits `dat_field_get(fname, obj)` **BY NAME**, and the
