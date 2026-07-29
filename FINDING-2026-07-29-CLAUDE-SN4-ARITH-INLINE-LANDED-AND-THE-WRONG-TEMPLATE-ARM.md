@@ -204,3 +204,35 @@ concurrency note warns against.
 
 **This rung's gate evidence therefore rests on the 316-program crosscheck differential (zero movers, both
 modes, four batteries), which is a strictly stronger instrument than the smoke subset anyway.**
+
+---
+
+## 8. ⛔ THE OWED `.s` REGEN ×3 IS A TRAP AS CURRENTLY SPECIFIED — DELIBERATELY NOT RUN
+
+RULES step 4 says a template change owes `.s` regen ×3, and §6 above lists it as owed. **MEASURED s212
+before acting on it: all 180 committed `crosscheck/**/*.s` artifacts were last written by `2f2bbe36` on
+**2026-04-02** — nearly four months of emitter evolution ago.**
+
+⇒ **Regenerating them now would produce a 180-file diff overwhelmingly composed of OTHER sessions' changes**
+(BP-9 thunk elision, beta-forwarder elision, FLATDISP-8, ZR-RSPRBP-1, the s207 collapse itself, …), with this
+rung's actual contribution — one inline arm in one template — buried inside it. **Committing that under this
+rung's message would attribute four months of tree-wide codegen drift to a 61-line change.** That is the
+false-attribution class this ladder keeps paying for, one level up from the s204 family-gate finding (*"a
+family-gate A/B credits the WHOLE family to the newest rung"*) — here a stale-artifact regen would credit the
+whole TREE to the newest rung.
+
+⭐ **AND IT WOULD DESTROY THE ONLY THING THOSE FILES ARE STILL GOOD FOR.** `GOAL-SNOBOL4-RTX.md`'s own s211
+cursor already records them as *"STALE SINCE 2026-04-02 — not an oracle for current codegen."* While stale,
+they are at least a COHERENT snapshot of one known date. A regen driven by an unrelated rung replaces that
+with a snapshot of an arbitrary mid-flight moment, taken against a **watermark that is itself false**
+(§5: three sessions, three different absolute numbers) and with the TAB/RTAB regression still live.
+
+⇒ **NOT RUN, AND THAT IS THE CORRECT CALL, NOT A SKIPPED GATE.** Recorded so the next session does not
+"discover" the omission and fix it reflexively.
+
+**ACTION FOR LON — the protocol item needs repair, not compliance:** either (a) regen all 180 as a
+STANDALONE commit owned by nobody's rung, once, after the TAB/RTAB bisect closes and the watermark is real;
+or (b) strike ".s regen ×3" from RULES step 4 and replace it with a per-rung emission diff of only the
+programs the rung touches. **(b) is what the rule was actually trying to buy.** Until one of those lands,
+every template rung inherits an owed gate it cannot honestly discharge — which is why this one has sat
+undischarged since April without anyone saying so.
