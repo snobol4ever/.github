@@ -12,7 +12,56 @@
 
 **ALSO NAMED THIS SESSION:** `g_resumable_callable_active` LEAKS from PAT$ blob emission into outer mains (refreshed only at the jmp-entry arm, emit.cpp ~1821; measured on w1 — mixed_workload escaped only because RSUM's proc emission reset it). FB-STMT's guard reads the graph-own `resumable_callable` field as the workaround; the stale-emission-global class deserves its own sweep rung.
 
-**NEXT RUNGS IN ORDER:** (a) **180 monitor dig → re-arm FB-STMT default** (the license above). (b) **FLATDISP-5a frameless invariant PAT$ blobs** — the structural companion; flat_pat/flat_gen/gen-proc graphs keep whole-graph rbp until it lands. (c) stale-emission-global sweep.
+**NEXT RUNGS IN ORDER:** (a) **180 monitor dig → re-arm FB-STMT default** (the license above). (b) **FLATDISP-5a frameless invariant PAT$ blobs** — the structural companion; flat_pat/flat_gen/gen-proc graphs keep whole-graph rbp until it lands. (c) stale-emission-global sweep — now **RBP-SHED-3** in the ladder below. (d) **RBP-SHED LADDER** (added s21x-b, same day — Lon directive "Make a RUNG and STEPS to fix each occurrence… that are removable as you describe"): one rung per removable rbp outside the sanctioned four.
+
+## ⭐ RBP-SHED LADDER — s21x-b (2026-07-29). One rung per rbp occurrence OUTSIDE Lon's sanctioned four (STATEMENT / FUNCTION / ARBNO / FENCE1) that the s21x-b census found removable. The session that wrote this touched NO compiler source (artifact provenance sweep + regen scripts only — corpus/SCRIP artifact commits, scripts `util_regen_crosscheck_s_artifacts.sh` + `util_regen_programs_s_artifacts.sh`), so the s21x watermark (m3 311/4 · m4 311/2 · DIVERGE=2) carries by construction; EVERY rung below re-proves it at start AND close (shared state across 3–4 parallel sessions — RULES.md CONCURRENCY).
+⛔ **BB-CODEGEN DESIGN SET applies to SHED-1/2/4/5** (templates / `x86_asm.h` / encoder-adjacent emit): read `ARCH-ICON.md` + `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` FIRST — PLAN.md §6, NON-NEGOTIABLE.
+⛔ **CONCURRENCY:** SHED-1/2/5 touch templates/`x86_asm.h` and fire the `.s` regen sweeps (now ×5: benchmark + demo + feature + crosscheck + programs) — NOT safe alongside RTX-11/12 or each other. SHED-3 is emitter-C only and SHED-4 is byte-identical by design — both safe.
+**ORDER: 3 → 1 → 2 → 4 → 5.** (3 is pure C and un-starves FB-STMT coverage, measured on w1; 1 is the cheapest real pin removal; 2 widens FB-STMT eligibility; 4/5 are hygiene that make later deletion mechanical.) 6 = pointer only; 7 = ⛔ blocked on Lon.
+
+### RBP-SHED-1 — NPARAMS: retire the `g_flat_outer_nparams >= 1` pin conjunct (`xa_flat.cpp:171` `xaf_deep()`)
+CLAIM: a DEPTH-STATIC graph with parameters seeds rbp today only to bind params at `[rbp+16]/[rbp+24]` (`xa_flat.cpp:302`, both media; s193 gated the TEXT store). In a depth-static graph every read happens at static depth by definition, so rsp-relative binds suffice and the conjunct deletes. WHY THE CONJUNCT EXISTS IS UNRECORDED — recovering that provenance is the rung's first deliverable (its FINDING must say either "guarded nothing" or name the cross-depth read-back it guarded).
+- [ ] CENSUS FIRST (a census has a shelf life — s210 lesson: re-run, never cite): count graphs across crosscheck + benchmarks where `nparams>=1 && !flat_deep_arrival` — the pins THIS conjunct alone causes. Zero ⇒ close the rung as a no-op.
+- [ ] Inventory every reader of the +16/+24 param cells; classify FRQ-routed (rides `x86_fb_data`, converts for free) vs hand-spelled rbp (must move inside `x86()` encoders — R2/R7).
+- [ ] Convert binds + reads to frame-relative spellings; delete the conjunct; BOTH MEDIA.
+- [ ] GATES: watermark byte-baseline; `util_rbp_region_census.py` unseeded==0; rbp census NET drop recorded (context, not pass condition); `.s` regen sweeps (handoff step 4).
+RISK: if any crosscheck member churns, tripwire BOTH directions (the s193 HEAD discipline) before concluding.
+
+### RBP-SHED-2 — ABORT-REBALANCE: statement-bracket ABORT instead of graph-disqualifying it
+CLAIM: ABORT pins today because its seal path skips the ω-choke rebalance (`3ea60fc2` pat_seal note), so `emit_fb_stmt_scan` DISQUALIFIES any graph containing `IR_MATCH_ABORT` — killing per-node rsp refinement for EVERY node in that graph. SPITBOL semantics (manual Ch. 18: ABORT = immediate failure of the ENTIRE match, no alternatives sought; Ch. 9: backing up into ABORT kills the match) mean the statement's fail exit runs next regardless — routing abort's kill through the head-snapshot restore is semantics-preserving and restores the 058 rebalance law for abort-bearing statements.
+- [ ] Read `bb_match_abort` + the `3ea60fc2` FINDING; locate the seal path that skips the choke.
+- [ ] Baseline the 170/171 witness pair (the abort tripwire proven both directions at s193) + every crosscheck abort member; MONITOR-FIRST on any divergence (RULES.md, no exceptions).
+- [ ] Reroute abort kill → statement fail exit (release restore), BOTH MEDIA, template-only.
+- [ ] Move `IR_MATCH_ABORT` from `emit_fb_stmt_scan`'s disqualifier set into its bracketed-deep set; UNCHANGED in `emit_graph_has_deep_arrival` — the statement keeps its bracket rbp (Lon's STATEMENT sanction); only refinement eligibility widens.
+- [ ] GATES: 170/171 hold; watermark; census; `.s` regen sweeps.
+
+### RBP-SHED-3 — REC-PIN-OWN: `emit_rec_pin()` reads per-emission state; retire the leaky globals (ABSORBS s21x NEXT-RUNG (c))
+CLAIM: `emit.h:602`'s disjuncts `g_gen_proc_active || g_resumable_callable_active` are the stale-emission-global class named at s21x: refreshed only at the jmp-entry arm (`emit.cpp` ~1821), they LEAK from PAT$ blob emission into outer mains (measured on w1: FB-STMT hook-skip rc=1; mixed_workload masked only because RSUM's proc emission reset it). FB-STMT's guard already reads graph-own `resumable_callable`; the pin predicate must follow.
+- [ ] Inventory every reader of both globals; classify per-emission-correct vs stale-susceptible.
+- [ ] Graph-own state at the `emit_chain` choke point (single writer, s193 discipline): copy graph-own → a `g_emit` per-emission mirror; convert `emit_rec_pin` AND its `emit_rec_fb`/`emit_rec_fb_num` twins (R10: both media must pick the same register) to the mirror. If a gen-proc graph field is missing, `IR_graph_t` appends at struct end (s141 ABI law).
+- [ ] Falsify the fix on w1 (hook-skip rc flips 1→0) and mixed_workload (unchanged).
+- [ ] Demote the globals to the jmp-entry arm's file scope or delete; grep gate: zero readers outside the arm.
+- [ ] GATES: re-run the ZETA-FB-1 divergence instrument (the s160 tool: 0 disagreements over 592 corpus programs, four frontends) — the predicate change must be byte-neutral or the diff IS the finding; watermark.
+EFFECT: retires FALSE pins on outer mains emitted after blobs; un-starves FB-STMT refinement.
+
+### RBP-SHED-4 — HOOK-ENCODE: scanhit/scanfail hooks through `x86()` (`emit.cpp:2183/2197`)
+CLAIM: both hooks are the NAMED FORBIDDEN SHAPE (`GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`: a hand-written per-medium `if (g_is_text) {…} else {…}` pair) with hand-spelled `[rbp+N]` outside `x86_fb_data` — the last rbp OPERANDS the predicate cannot see. `scan_live` requires `flat_pat` ⇒ the graph pins ⇒ `fb_data==rbp` there, so rewriting through FRQ must be BYTE-IDENTICAL — which is the completion test.
+- [ ] Rewrite both hooks as one `x86(…)` concatenation each, operands via FRQ/FR (medium switched invisibly, in-band `L`/`J` record walk).
+- [ ] Byte-diff `pattern_bt.s` / `string_pattern.s` pre/post == empty (⇒ no `.s` regen fires); `test_gate_template_medium_invisible.sh --strict` green; watermark.
+EFFECT: zero rbp count change today; removes the special case so FLATDISP-5a needs none, and closes a RULES violation.
+
+### RBP-SHED-5 — ALIGN-DANCE-DELETE: retire the transient push-rbp alignment window (`x86_zeta_free_call` convention)
+CLAIM: `x86_asm.h:419`'s own comment names the death path ("waste 8 bytes to free rbp for good; the dance dies by deletion once this assert is clean"). These are class-A ceremony rbp instructions, not a frame — but they are rbp instructions, and they go.
+- [ ] Locate + run the referenced env-gated assert across crosscheck + benchmarks; record clean/dirty per call site.
+- [ ] Clean ⇒ delete the dance per the comment's named 8-byte alternative. Dirty ⇒ the failing sites ARE the rung: fix carve alignment there first, re-run, then delete.
+- [ ] GATES: watermark; `x86_asm.h` touched ⇒ `.s` regen sweeps; ⛔ NOT concurrency-safe.
+
+### RBP-SHED-6 — PL-DC seed gating: POINTER ONLY (belongs to `GOAL-PROLOG-BB.md`)
+`xa_flat.cpp:763` (PL-DC direct-call entry) seeds rbp unconditionally; a determinate predicate could classify like every other graph — the classifier is language-blind and already exists. Prolog witnesses and watermark live in the Prolog goal file; per RULES.md (read only the goal Lon names) this rung is NOT worked from here.
+- [ ] Copy this rung into `GOAL-PROLOG-BB.md` at the next Prolog session, then check this box and strike this text.
+
+### RBP-SHED-7 — ⛔ BLOCKED ON LON: downstream cosmetics — DO NOT START
+Coexpr save contract 6→5 registers (`bb_create`/`bb_save_restore`) and the head/release/replace +40 bracket both die only when ARBNO's `zv()` rbp borrow is replaced. ARBNO is one of Lon's sanctioned four, so this is out of scope until Lon directs otherwise.
 
 ## ⛔⭐ LIVE CURSOR — s206 (2026-07-28): **RUNG ZHEAP REMAINS #1 AND IS NOW BLOCKED ON ONE LON RULING (ζ_self register, jointly with VSP). Port 7 was NOT ACTUALLY SELECTABLE — two silent defects fixed, SCRIP `cca948c5`. The "keep locals flat" proving configuration is FALSIFIED: it does not exist.**
 
