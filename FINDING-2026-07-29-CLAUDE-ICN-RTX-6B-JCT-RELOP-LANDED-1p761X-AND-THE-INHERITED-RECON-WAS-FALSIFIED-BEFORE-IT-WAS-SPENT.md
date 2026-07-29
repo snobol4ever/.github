@@ -179,7 +179,7 @@ and is what I would pick absent a ruling.
 
 ## ⚠ THINGS I WOULD NOT WANT INHERITED SILENTLY
 
-1. **PROTOCOL DEVIATION, SAME AS s211.** The check-out (`c8d91ab7`) was **committed before** the port
+1. **PROTOCOL DEVIATION, SAME AS s211.** The check-out (`427b3ab4`) was **committed before** the port
    but **not pushed** before it — no credential was available at that point. The ordering is honest in
    history; **the protective property was not obtained.**
 2. **THE SNOBOL4 WATERMARK'S ABSOLUTE NUMBER DISAGREES WITH THE HANDOFF PROSE AGAIN.** s211 records
