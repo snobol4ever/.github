@@ -281,6 +281,67 @@ it closes a hole every prior 3-arm rung on this ladder left open.
 
 ---
 
+## ⭐⭐ STEP 0(j) — THE ARM CHECK, ADOPTED MID-SESSION FROM A PARALLEL LADDER AND APPLIED RETROACTIVELY
+
+**A parallel SN4-RTX session pushed `origin/main` at 22:44:38 while my clone sat at 22:12:25**, and its
+push contained a **newly minted step-0 check**: `scripts/util_rtx_arm_census.sh`, born from RTX-8 slice
+3, which *passed every step-0 check including a clean 0(d) and was still **VACUOUS*** — `rt_cap_push`
+took 57,578 dynamic calls, scaled exactly 2.00×, was the hottest unported symbol in its family, **and
+its ported path never executed once.** The gap: **0(d) counts entries to a SYMBOL, but a gated port is
+a symbol with ARMS, and the asm covers only the arm the author chose.**
+
+I rebased onto their push and ran it on my own rung's graded workload **before** claiming done:
+
+```
+SYMBOL             ENTRIES   BAILED_C    COMMITS  VERDICT
+dat_field_get     25600000          0   25600000  asm handles 25600000
+```
+
+**COMMITS = 25,600,000 = 100%. Zero bails.** Every entry was handled end to end by the asm — the exact
+inverse of the case the check exists to catch. (25,600,000 = 16 field reads × 1,600,000 iterations,
+reconciling exactly with 0(d)'s independent interposer count.)
+
+⭐ **THREE THINGS THIS SETTLES BEYOND THE RUNG:**
+1. **The tool is language-agnostic and needed NO Icon edit.** Its symbol list is derived from the tree
+   every run — the same design choice that keeps it out of the phantom/doc-rot class is what let it
+   transfer across ladders untouched.
+2. **It ALSO discharges s204's ISOLATION ARM, for free.** My family's already-ported siblings
+   (`rt_size_d`, `rt_list_bang_at`) appear with **zero entries and are omitted** — the isolation
+   property stated *directly* rather than inferred from a rebuild. This independently reproduces the
+   result my own interposer got, by a different instrument.
+3. ⚠ **LETTER COLLISION BETWEEN THE TWO CONTRACTS.** SN4-RTX files it as step **(f)**; ICON-RTX's
+   **(f)** is already the `@PLT` check. I adopted it as **0(j)** in `ARCH-ICON-RTX.md` §8 rather than
+   renumber either contract. ⇒ **the two contracts' step LETTERS have forked, so a shared check needs a
+   shared NAME — "THE ARM CHECK" — not a shared letter.** Left as a note to both ladders.
+
+⭐ **AND THE PROCESS LESSON, WHICH IS THE REUSABLE ONE: REBASE BEFORE CLAIMING DONE, NOT AFTER.** Had I
+pushed without pulling, this rung would have landed **without the newest check in the project** — the
+check would have existed and my rung would not have met it. `handoff_status.sh` is what surfaced the
+divergence in the first place, which is a second, unadvertised value of that script: **it is not only a
+push gate, it is a "has the world moved under you" detector.**
+
+---
+
+## ⭐ THE CONCURRENCY CONTRACT HELD UNDER GENUINE PARALLEL LOAD — SECOND TIME RECORDED
+
+s211 recorded a clean rebase against a parallel ζ session. This is the second, so it is a **pattern,
+not an anecdote**. Measured, not assumed:
+
+| | SN4-RTX (parallel) | ICON-RTX (this session) |
+|---|---|---|
+| SCRIP | `scripts/util_rtx_arm_census.sh` | `src/runtime/rtx/rtx_icnagg.S`, `src/driver/driver_data.c` |
+| `.github` | `ARCH-SNOBOL4-RTX.md`, `GOAL-SNOBOL4-RTX.md`, own FINDING | `GOAL-ICON-RTX.md`, `RTX-CLAIMS.md`, own FINDING |
+| **overlap** | **ZERO** | **ZERO** |
+
+Divergence was **1 commit each way in SCRIP, 2-vs-3 in `.github`** — not a stale clone, not a bad push.
+`git pull --rebase` clean on all three repos, no conflicts. **Icon watermark re-derives 252/11/30 on
+the COMBINED tree**, `.so` md5 unchanged at `2930bddd3fc5` (their commit touched no `src/`).
+⇒ **§7's by-SYMBOL partition is working.** Notably, neither session touched `RTX-CLAIMS.md`
+simultaneously — the one file guaranteed to collide eventually. That it did not this time is luck, not
+structure, and the ledger's own check-out protocol is what will have to absorb it when it does.
+
+---
+
 ## FILES
 
 | file | change |

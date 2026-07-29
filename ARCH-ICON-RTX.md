@@ -245,8 +245,32 @@ SN4-RTX's contract is two-way (RTX ‖ ζ). With ICON-RTX there are **three** li
    **(c)** `nm` the linkage of every global touched (exported `B`/`D` ⇒ `@GOTPCREL`; hidden ⇒ direct) ·
    **(d)** ⭐⭐ **prove the symbol EXECUTES in the window you intend to move**, at two loop counts,
    confirm it SCALES · **(e)** confirm it is **not already assembly** (grep **with `--include=*.S`**) ·
-   **(f)** ⭐⭐ **NEW — confirm it is a RUNTIME symbol and not a locally emitted label: it must appear as
+   **(f)** ⭐⭐ **confirm it is a RUNTIME symbol and not a locally emitted label: it must appear as
    `call sym@PLT` in a LIVE artifact.** See §5(ii).
+   **(i)** ⭐ **derive static counts from `scrip --compile`, NEVER from a stored `.s` tree** (s213: 255 of
+   265 "live" Icon artifacts are frozen a month stale and RULES.md forbids regenerating them).
+   ⭐ **AMENDED s216: the intersection must ALSO scan `src/driver/**` and `src/parser/**`, or better be
+   driven by `nm -D out/libscrip_rt.so`.** `dat_field_get` is bodied in `src/driver/driver_data.c`, so a
+   sweep restricted to `src/runtime/**/*.c` ranked 67 rows **without it** while the same run's call tally
+   showed 117 sites. **Every driver-bodied symbol is invisible to a runtime-only glob.**
+   **(j)** ⭐⭐ **THE ARM CHECK — ADOPTED s216 FROM SN4-RTX, WHICH MINTED IT THE SAME DAY.** It is
+   `ARCH-SNOBOL4-RTX.md`'s step **(f)**; ⚠ **that letter is ALREADY TAKEN on this ladder by the `@PLT`
+   check above, so ICON-RTX files it as (j). Same check, different letter — do not renumber (f).**
+   ⛔⛔ **0(d) COUNTS ENTRIES TO A SYMBOL; A GATED PORT IS A SYMBOL WITH ARMS, AND THE ASM COVERS ONLY
+   THE ARM THE AUTHOR CHOSE — SO 0(d) CAN PASS IN FULL WHILE THE PORTED ARM IS DEAD.** SN4-RTX's proof:
+   `rt_cap_push` took 57,578 dynamic calls, scaled exactly 2.00×, was the hottest unported symbol in its
+   family — **and its ported path never executed once.** Run
+   `bash scripts/util_rtx_arm_census.sh <prog>` on the workload the rung will be GRADED on, **before
+   writing any asm**; it counts `sym` vs `c_sym` and prints `COMMITS = entries − bailed`.
+   **`COMMITS == 0` ⇒ the port is unfalsifiable there and MUST NOT be written.**
+   ⭐ **The tool is language-agnostic and works on `.icn` unchanged** (verified s216 on
+   `bench_icnagg_field_isolate.icn`): its symbol list is derived from the tree every run, so it needs no
+   Icon-specific edit. ⭐ **It also discharges s204's ISOLATION ARM for free** — sibling symbols in an
+   already-ported family show up with zero entries and are omitted, which is the isolation property
+   stated directly rather than inferred from a rebuild.
+   ⚠ **PREFER A HARD PROBE (`ud2`/crash) OVER A VALUE PROBE when a silent result would be readable two
+   ways** — a value probe conflates "the asm did not run" with "this value does not reach the output".
+   A value probe that is NOT silent (it moves the board) remains unambiguous and sufficient.
 1. **READ FIRST:** this file → `ARCH-ICON.md` (register contract + scan semantics) → the family's C
    source in full → **the ICON and JCON sources for every construct the family implements**
    (`refs/icon-master/src/runtime/fstranl.r` + `fscan.r` for scan; `refs/jcon-master/tran/irgen.icn`'s
