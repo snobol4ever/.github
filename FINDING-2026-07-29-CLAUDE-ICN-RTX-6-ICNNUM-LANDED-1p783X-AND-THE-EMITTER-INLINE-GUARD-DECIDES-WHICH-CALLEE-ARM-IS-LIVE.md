@@ -1,7 +1,7 @@
 # FINDING — ICN-RTX-6 ICNNUM LANDED AT 1.783×, AND STEP 0(g) HAS A SECOND HALF: THE CALLER TEMPLATE'S INLINE GUARD DECIDES WHICH CALLEE ARM IS LIVE — AND IT IS SYSTEMATICALLY THE EXPENSIVE ONE
 
 **Session:** s211-ICN · **Ladder:** `GOAL-ICON-RTX.md` · **Rung:** RTX-6-ICN (re-targeted) + RTX-0b-ICN (first half)
-**Landed:** SCRIP `56b8752d` · corpus `97499dae` · `.github` `4c952538` (check-out)
+**Landed:** SCRIP `eb81508d` · corpus `97499dae` · `.github` `4c952538` (check-out)
 **Gates at close:** Icon **252/11/30** (re-derived fresh 3×) · SNOBOL4 **m3 280/54 · m4 276/50/8** ·
 Prolog **185/0/0** — each identical gate ON and OFF. Pristine `.so` md5 `9a83beff3e8ab0586df34f83c0f660cd`.
 
@@ -148,7 +148,7 @@ of them.
 
 ⚠ **PROTOCOL DEVIATION, STATED PLAINLY:** `RTX-CLAIMS.md` requires the check-out to be **pushed before
 the work**. No credential was available this session, so the claim was committed ahead of the port
-(`4c952538` precedes `56b8752d`) but **not pushed ahead of it**. The ordering is honest in the history;
+(`4c952538` precedes `eb81508d`) but **not pushed ahead of it**. The ordering is honest in the history;
 the protective property — another session seeing the claim before spending its own — was not obtained.
 Per the s202 rule a rung is `[x]` only when its commits are ancestors of `origin/main`, which is not
 yet checkable, so the ladder rows are left accordingly and `scripts/handoff_status.sh` remains the only

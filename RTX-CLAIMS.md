@@ -113,8 +113,8 @@ Measured s203-ICN. Regenerate with `scripts/util_rtx_claims.sh` — **never hand
 | `rt_proc_set_nparams` | 210 | **238** | 121 | tie → **SN4-RTX** | `FREE` | ICON, PL |
 | `rt_proc_set_jmpentry` | 210 | **238** | 113 | tie → **SN4-RTX** | `FREE` | ICON, PL |
 | `rt_proc_set_frame_bytes` | 209 | **238** | 121 | tie → **SN4-RTX** | `FREE` | ICON, PL |
-| `rt_coerce_num2_d` | **209** | 124 | 0 | **ICON-RTX** (1.7×) | ⭐ **`DONE:ICON-RTX:56b8752d`** (gate `SCRIP_RTX_ICNNUM`) — 1.783× ON/PRISTINE on an ISOLATION bench. ⚠ **s202 ancestry check not yet satisfiable** (no credential s211) | SN4 |
-| `rt_parse_num_d` | *static* | *static* | 0 | **ICON-RTX** (callee of the above) | ⭐ **`DONE:ICON-RTX:56b8752d`** — **ABSORBED into the wrapper's asm, NOT exposed.** ⇒ the `static`-has-no-kill-switch contract question needs **no §4 amendment**: gate the exported caller, leave the static in C for the fallback. | SN4 |
+| `rt_coerce_num2_d` | **209** | 124 | 0 | **ICON-RTX** (1.7×) | ⭐ **`DONE:ICON-RTX:eb81508d`** (gate `SCRIP_RTX_ICNNUM`) — 1.783× ON/PRISTINE on an ISOLATION bench. ⚠ **s202 ancestry check not yet satisfiable** (no credential s211) | SN4 |
+| `rt_parse_num_d` | *static* | *static* | 0 | **ICON-RTX** (callee of the above) | ⭐ **`DONE:ICON-RTX:eb81508d`** — **ABSORBED into the wrapper's asm, NOT exposed.** ⇒ the `static`-has-no-kill-switch contract question needs **no §4 amendment**: gate the exported caller, leave the static in C for the fallback. | SN4 |
 | `rt_num_arith` | 208 | 198 | 0 | tie → **SN4-RTX** (claimed first, RTX-6) | `OUT:SN4-RTX:s205` | ICON |
 | `rt_deref` | 193 | 117 | 0 | — | `DONE:pre-RTX:rt_asm_helpers.S` | ALL |
 | `rt_subscript_var` | 177 | **195** | 0 | tie → **SN4-RTX** (claimed, RTX-5) | `OUT:SN4-RTX:s204` | ICON |

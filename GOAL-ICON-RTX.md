@@ -313,7 +313,7 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   SNOBOL4 m3 280/54, m4 276/50/8 · Prolog 185/0/0, each identical ON and OFF.
   See `FINDING-2026-07-29-CLAUDE-ICN-RTX-6-ICNNUM-LANDED-1p783X-…`.
   ⚠ **`[x]` PENDING THE s202 ANCESTRY CHECK** (`git rev-list --count origin/main..HEAD` == 0) — SCRIP
-  `56b8752d` is committed locally and that check is not yet satisfiable; no credential this session.
+  `eb81508d` is committed locally and that check is not yet satisfiable; no credential this session.
 - [ ] **RTX-6b-ICN — the coercion family's REMAINDER: `rt_binop_overload` (141) + `rt_jct_relop` (163).**
   ⚠ `rt_cmp_d` is already ported (ARITH gate) — **isolation arm required.** ⚠ `rt_num_arith` (208) is
   **SN4-RTX's**, excluded pending the ruling. ⭐ **Apply 0(g)'s second half FIRST** (read
