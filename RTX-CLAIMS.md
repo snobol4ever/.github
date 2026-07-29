@@ -181,7 +181,7 @@ my number and must be re-decided, not reversed.**
 | `rt_substr` | 109 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
 | `rt_make_list` | 95 | AGG | `FREE` |
 | `rt_size_d` | 93 stale / **119 real** | AGG | ⛔ `DONE-BUT-NULL:ICON-RTX:2511c53a` — ported arms (DT_SNUL, DT_S/slen≠0) are **MEASURED DEAD**: corrupting BOTH moves the board by ZERO. Real Icon strings carry `slen==0` (lazy) ⇒ bail to C. **LIVE arm is DT_DATA/list, still C ⇒ RTX-8b.** ⚠ A cset bug was introduced and fixed here: `IS_CSET_fn` = `DT_S && slen==0xFFFFFFFF` is tested BEFORE `DT_S` in the C body |
-| `dat_field_get` | 85 | AGG | `FREE` |
+| `dat_field_get` | 85 stale / **117 real** | AGG | `OUT:ICON-RTX:s216` — compiler-derived count (step 0(i)); defined in `src/driver/driver_data.c`, NOT `src/runtime/` (which is why the size sweep must scan the driver too). Absorbs the exported-but-Icon-only workhorse `data_field_ptr`'s linear scan; that C body STAYS (other C callers: `dat_field_set`, `rt_field_var`, `by_name_dispatch`) |
 | `rt_scan_enter` | 69 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
 | `rt_relop_overload` | 51 | COERCE | `FREE` |
 | `subscript_set` / `subscript_get2` | 41 / 41 | AGG | `FREE` |
