@@ -14,13 +14,13 @@
 | reg | role |
 |---|---|
 | rbx | arena heap top — DESCR mint pointer (16-byte DESCR in 64-bit) |
-| r12 | conditional-assignment stack pointer — its own mmap area (Lon s162; REGISTER-LAYOUT.md's "ζ frame base" entry is an era behind) |
+| r12 | ⛔ **FREE — NOT A PIN (corrected s205).** `ZC_FRAME_R12` was DELETED outright at ZR-RSPRBP-1 (Lon directive 2026-07-27, SCRIP `da8c2347`), zero `#if` consumers. ζ basis set is CLOSED at RSP and RBP. The prior entry ("conditional-assignment stack pointer — its own mmap area") is DEAD HISTORY. |
 | r13 | Σ subject base ptr |
 | r14 | δ subject cursor |
 | r15 | Δ subject length/end |
 | rsp | ζ + C stack (ONE stack — we do NOT adopt SPITBOL's compsp/osisp two-stack switch; our ζ frames already live on rsp, s157) |
-| rbp | ζ frame base |
-**These six GP pins are exactly the SysV callee-saved set — the historical reason C runtime interop was free. RTX routines called via C signatures inherit that safety automatically; hand-written entries that clobber any pin must save/restore it explicitly.**
+| rbp | ζ frame base IN PINNED GRAPHS ONLY (suspended generators, pattern blobs, deep-arrival — prologue seeds `mov rbp,rsp`); **rsp** for depth-static determinate graphs (free GPR; `op_flat_disp` compensation). ⛔ **CORRECTED s205: prior entry said "ζ frame base" unconditionally — WRONG since FLATDISP-8 (s197) made the selection per-graph.** ONE selector: `x86_fb_pinned()` = `emit_rec_pin()`. **NEVER hardcode `[rbp+off]` or `[rsp+off]` in RTX asm or templates — use `FR(off)`/`FRQ(off)` which resolve via `x86_fb()` → `x86_fb_pinned()`.** Verified from `x86_asm.h:347-361`. |
+**These six GP pins are exactly the SysV callee-saved set — the historical reason C runtime interop was free. RTX routines called via C signatures inherit that safety automatically; hand-written entries that clobber any pin must save/restore it explicitly. ⛔ r12 is NOT in this set (see above) — it is free.**
 
 **RTX working set (free at every blob→runtime entry, zero boundary cost):** rax rcx rdx rsi rdi r8 r9 r10 r11 + xmm0-15. Internal role conventions (SPITBOL lessons, adopted):
 | reg | RTX internal role |
