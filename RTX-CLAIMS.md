@@ -97,7 +97,7 @@ Measured s203-ICN. Regenerate with `scripts/util_rtx_claims.sh` — **never hand
 | `rt_num_arith` | 208 | 198 | 0 | tie → **SN4-RTX** (claimed first, RTX-6) | `OUT:SN4-RTX:s205` | ICON |
 | `rt_deref` | 193 | 117 | 0 | — | `DONE:pre-RTX:rt_asm_helpers.S` | ALL |
 | `rt_subscript_var` | 177 | **195** | 0 | tie → **SN4-RTX** (claimed, RTX-5) | `OUT:SN4-RTX:s204` | ICON |
-| `rt_assign_var` | **147** | 81 | 0 | **ICON-RTX** ⭐ **DYNAMIC #1** | ⭐ `DONE:ICON-RTX:rtx_icnvar.S` (ICNVAR) — fast arms only (frame-slot + named global); VCELL/tvsubs stay C. All 3 watermarks == gate-off control. ⛔ ~0 GAIN, MEASURED: legal 2.6s window, 100% subscript workload, +2.47% median but minima IDENTICAL => within noise. **Ported arms are DEAD for Icon: all 147 sites are subscripted assign, which takes the NAMETRAP/cellp arm (still C). See RTX-1b-ICN.** | **SN4**, PL |
+| `rt_assign_var` | **147** | 81 | 0 | **ICON-RTX** ⭐ **DYNAMIC #1** | ⭐ `DONE:ICON-RTX:rtx_icnvar.S` (ICNVAR) — fast arms only (frame-slot + named global); VCELL/tvsubs stay C. All 3 watermarks == gate-off control. ⛔ ~0 GAIN, MEASURED: legal 2.6s window, 100% subscript workload, +2.47% median but minima IDENTICAL => within noise. **Ported arms are DEAD for Icon: all 147 sites are subscripted assign, which takes the NAMETRAP/cellp arm (still C). See RTX-1b-ICN.** ⭐⭐ **RTX-1b-ICN LANDED s209c: live NAMETRAP/cellp arm ported => +12.11% median, +12.46% min, NON-OVERLAPPING. First proven speed win on this ladder.** | **SN4**, PL |
 | `rt_binop_overload` | 141 | **197** | 0 | **SN4-RTX** (1.4×) | `FREE` | ICON |
 | `str_concat_d` | 112 | **294** | 0 | — | `DONE:SN4-RTX:rtx_str.S` (STR) | ICON |
 | `NV_GET_fn` | **109** | 17 | 0 | **ICON-RTX** (6.4×) | `BLOCKED:DB-1-WRITE-BARRIER` — ⚠ **SN4 DATA s208: ZERO calls + ZERO static sites in 7 SN4 benchmarks; live only under EVAL at 0.303% (upper bound). GVA SLOTS BYPASS IT for SN4. Icon has 6.4× the sites and may differ — 0(d) it.** | SN4 |
@@ -227,6 +227,11 @@ becoming dishonest. ⛔ **If Lon opens `GOAL-PROLOG-RTX.md`, delete this line an
 
 Append here; do not rewrite others' entries. One line each: session · to whom · what.
 
+- **s209c-ICN → SN4-RTX:** ⭐⭐ **STEP 0(g) IS WORTH YOUR SESSION TOO.** Same symbol, same gate, same
+  workload: porting the arms the emitted code does NOT take = ~0%; porting the one it DOES = **+12.11%
+  median, non-overlapping distributions.** 0(d) proves a SYMBOL is hot and says NOTHING about which arm
+  inside it is. **Check which arm your emitted code enters before you choose what to port** — one
+  compile, one grep. `rt_proc_open_fn`/`rt_flat_ret_snap` both have internal dispatch.
 - **s209-ICN → SN4-RTX + PROLOG:** ⭐ **`rt_assign_var` IS PORTED (`ICNVAR` gate, default ON).** Your
   binaries changed. SNOBOL4 `broad_corpus` 276/50 and Prolog honest 185/0, each identical to its
   gate-off control. `SCRIP_RTX_ICNVAR=0` reverts to the C body. **Seventh family gate — shared state.**
