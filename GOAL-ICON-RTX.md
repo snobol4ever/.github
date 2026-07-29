@@ -47,7 +47,46 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 ---
 
-## ⛔ LIVE CURSOR — s203-ICN (2026-07-29): **RTX-0a SURVEY LANDED AS MEASUREMENT ONLY. NO CODE. ⭐⭐ AND THE SURVEY FALSIFIED ITS OWN FIRST TWO INVENTORIES BEFORE PRODUCING THE THIRD.**
+## ⛔ LIVE CURSOR — s211-ICN (2026-07-29): **RTX-6-ICN LANDED — `rt_coerce_num2_d` IS ASM AT 1.783× ON/PRISTINE, WITH ITS `static` CALLEE ABSORBED. ⭐⭐ AND THE RUNG WAS WON BY READING THE EMITTING TEMPLATE, NOT THE C FILE.**
+
+**⭐⭐ STEP 0(g) HAS A SECOND HALF AND IT INVERTS THE INSTINCT: THE CALLER TEMPLATE'S INLINE GUARD
+DECIDES WHICH CALLEE ARM IS LIVE — AND IT IS SYSTEMATICALLY THE EXPENSIVE ONE.**
+`bb_coerce_numeric.cpp:18-31` already inlines DT_I+DT_I and DT_R and reaches γ **without calling
+anything**; the emitted `call rt_coerce_num2_d@PLT` sits on the arm that guard REJECTS. Measured:
+pure-integer arithmetic enters the symbol **0 times**; string→numeric enters it **60,000 times /
+120,000 parse entries**, live arms **STR_INT + DT_I**, with **STR_REAL / SNUL / FAIL all ZERO**.
+⇒ `rt_parse_num_d`'s two textually-first arms — the ones the C reads first and the ones s210's handoff
+points at — **are unreachable from Icon, and porting them would have measured ~0.** That is
+RTX-1-ICN's exact error one rung over. ⭐ **RULE: read the EMITTING TEMPLATE before the callee; if it
+guards the call with an inline tag `cmp`/`je`, port the arm the guard REJECTS.** One grep.
+
+**⭐ THE `static` CONTRACT QUESTION s210 RAISED IS ANSWERED WITHOUT A CONTRACT CHANGE.** `rt_parse_num_d`
+has no `@PLT` and no exported symbol, so the kill-switch idiom does not apply to it — **so do not apply
+it to it. ABSORB the callee into the exported wrapper's asm body.** The gate lives on the wrapper,
+which already has one; the static stays static and stays in C for the fallback. **No `ARCH-ICON-RTX.md`
+§4 amendment is owed.** The port replaces libc `strtoll` on the live arm with an inline decimal scan —
+a deleted libc call, **not `-O0` ceremony removal**, which answers inbox gap #1 concretely.
+
+**⭐ RTX-0b's FIRST HALF IS DISCHARGED, AND THE FIX WAS NOT A BIGGER N — IT IS `&time`.** A self-timed
+window measured INSIDE the Icon program excludes the compile phase **by construction**, so the ~20:1
+confound s210 had to cancel arithmetically never enters. Benchmarks committed to
+`corpus/benchmarks/icon/rtx/` (`97499dae`). ⚠ **RTX-0b IS NOT CLOSED:** mode 3 still does not forward
+argv (`cannot open '-n8'`), so N is edited into the source.
+
+**⭐ SECONDARY, AND IT RETRO-QUALIFIES s209's "noisy box": THE ALLOCATOR WAS THE BIMODALITY.** The first
+benchmark was **refused by the harness** (intra-arm spread 1.566× > gap 1.188×) and its samples were
+bimodal. More rounds cannot fix that — the spread is multiplicative. **Hoisting the per-iteration
+allocation out of the loop took spreads 1.57× → 1.04×.** ⇒ **when a benchmark comes back ungradeable,
+suspect the allocator in the window before suspecting the box.**
+
+⛔ **UNTOUCHED, STILL LON'S:** RTX-0-RULING(a) ownership · RTX-0-RULING(b) SCAN destination (still
+blocks RTX-2-ICN) · `rt_subscript_var` (315k, SN4-RTX's). ⚠ **PROTOCOL DEVIATION:** no credential was
+available, so the check-out was committed ahead of the port but **not pushed** ahead of it; the
+protective property was not obtained. `scripts/handoff_status.sh` is the only completion truth.
+
+---
+
+## ⛔ PRIOR CURSOR — s203-ICN: **RTX-0a SURVEY LANDED AS MEASUREMENT ONLY. NO CODE. ⭐⭐ AND THE SURVEY FALSIFIED ITS OWN FIRST TWO INVENTORIES BEFORE PRODUCING THE THIRD.**
 
 **⭐⭐ THE HEADLINE, AND IT REFRAMES THE WHOLE LADDER: ICON HAS NO RUNTIME OF ITS OWN.** Measured, not
 assumed: Icon-specific runtime C in the entire tree is **`src/parser/icon/icon_runtime.c`, 67 lines,
@@ -261,9 +300,25 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   = `{0,1}`; `upto`/`find`/`bal` = `{*}` generators) leave δ untouched; **cursor-movers** (`tab`/`move`)
   write δ and **restore the saved δ on β then fail**. Blurring them is a correctness bug, not a perf one.
   ⚠ Σ/δ/Δ are live INPUT on this path, never scratch.
-- [ ] **RTX-6-ICN — COERCION: `rt_coerce_num2_d` (209) + `rt_binop_overload` (141) + `rt_jct_relop` (163).**
-  ⚠ `rt_cmp_d` is already ported (ARITH gate) — isolation arm required. ⚠ `rt_num_arith` (208) is
-  **SN4-RTX's**, excluded pending the ruling.
+- [x] **RTX-6-ICN — ⭐⭐ `rt_coerce_num2_d` LANDED s211-ICN AT 1.783× ON/PRISTINE (gate `SCRIP_RTX_ICNNUM`,
+  eighth family gate), WITH THE `static` CALLEE `rt_parse_num_d` ABSORBED RATHER THAN EXPOSED.**
+  3-arm interleaved, round 1 discarded: **ON 861ms (841-922) · PRISTINE 1535ms (1523-1583) · OFF 1580ms**,
+  spreads 1.04-1.10× against a **1.783× gap, ON and PRISTINE non-overlapping**, kill-switch tax 0.972×,
+  `RT_OPT=-O0`. PRISTINE `.so` verified **byte-identical to the session baseline md5**.
+  ⛔ **SCOPE — DO NOT LET THE NUMBER TRAVEL WITHOUT IT: 1.783× is an ISOLATION benchmark** (allocation
+  hoisted out of the loop). The allocation-mixed variant was **REFUSED by the harness**; its 1.188× is
+  recorded as **not-a-result** and is not claimed.
+  Falsification two-sided and self-confirming: corrupting the live arm shifts the result by **exactly
+  60,000 == the independently measured call count**; gate OFF correct. Gates: Icon 252/11/30 ·
+  SNOBOL4 m3 280/54, m4 276/50/8 · Prolog 185/0/0, each identical ON and OFF.
+  See `FINDING-2026-07-29-CLAUDE-ICN-RTX-6-ICNNUM-LANDED-1p783X-…`.
+  ⚠ **`[x]` PENDING THE s202 ANCESTRY CHECK** (`git rev-list --count origin/main..HEAD` == 0) — SCRIP
+  `56b8752d` is committed locally and that check is not yet satisfiable; no credential this session.
+- [ ] **RTX-6b-ICN — the coercion family's REMAINDER: `rt_binop_overload` (141) + `rt_jct_relop` (163).**
+  ⚠ `rt_cmp_d` is already ported (ARITH gate) — **isolation arm required.** ⚠ `rt_num_arith` (208) is
+  **SN4-RTX's**, excluded pending the ruling. ⭐ **Apply 0(g)'s second half FIRST** (read
+  `bb_binop_relop.cpp` / `bb_cmp_test.cpp` for an inline tag guard before choosing an arm) — that is
+  what made RTX-6-ICN a 1.783× instead of a null.
 - [ ] **RTX-7-ICN — `rt_jmp_frame_lexprep2` (209) + `rt_pl_dc_prep` (202).** ⛔⛔ **DUAL-ENTRY TERRITORY —
   HIGHEST-RISK RUNG ON THIS LADDER.** Icon compiles ONE shared body with TWO entries (`proc_X_α` and
   `proc_X_dcα`); `GOAL-ICON-BB.md` s196 records that this exact area broke Icon at HEAD for four
