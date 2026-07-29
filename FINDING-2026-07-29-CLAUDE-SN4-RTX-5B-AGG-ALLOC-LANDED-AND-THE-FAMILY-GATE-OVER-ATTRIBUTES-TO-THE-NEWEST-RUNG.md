@@ -34,6 +34,27 @@ Quoting either as "RTX-5b's win" would have been a FALSE CLAIM, and a *plausible
 
 ---
 
+## 1b. ⛔⛔ SELF-CORRECTION, SAME SESSION: THE ERROR HAS **NO KNOWN SIGN**. "OVER-ATTRIBUTES" WAS TOO WEAK A CLAIM, AND I PROVED IT WRONG BY RUNNING THE ARM I HAD JUST QUEUED
+
+§1 was written after ONE isolation, on ALLOC, where the family gate flattered the rung. I then ran the RTX-3b isolation arm in the same session — the one §1 recommended as NEXT — and it came back the **other way**. Both measurements are on one base, RT_OPT=-O0, R=5 interleaved, round 0 discarded as the s201 hugepage warmup.
+
+**METHOD:** `.Lsc_null` (RTX-3b's whole null-operand arm in `rtx_str.S`) routed straight to `.Lsc_slow`, which is exactly the pre-RTX-3b behaviour — the SNUL shapes fall to `c_str_concat_d`. **RTX-3's two-plain-strings fast path left LIVE.** Two `.so`s swapped per round.
+
+| program | family gate | rung ISOLATED | residual for the OTHER rungs | family-gate error |
+|---|---|---|---|---|
+| `var_access` (STR) | 1.494× | **1.513×** | ≈ 1.00 (RTX-3 ≈ nothing here) | **UNDER-credits the rung** |
+| `func_call` (STR) | 1.065× | **1.031×** | ≈ 1.03 (about half each) | over-credits |
+| `table_churn` (ALLOC) | 1.028× | 1.022× | ≈ 1.01 | ≈ accurate |
+| `table_access` (ALLOC) | 1.039× | 1.002× | ≈ 1.04 (all RTX-2) | **over-credits heavily** |
+
+⇒ **CORRECTED STANDING RULE — supersedes §1's wording:** a family gate does not "over-attribute"; **it answers a DIFFERENT QUESTION (RTX-12's: is this family faster than pristine C) and its disagreement with the rung's own ratio has NO KNOWN SIGN AND NO KNOWN BOUND.** It ran from −3pp to +2pp across four programs measured the same day on the same machine. **You cannot correct for it, sign it, or bound it — you can only measure the rung directly.** ⭐ This is strictly stronger than §1 and it kills the tempting shortcut §1 left open: "the family number is an upper bound on the rung" is FALSE — `var_access` breaks it.
+
+**⚠ RTX-3b's ATTRIBUTION HOLDS, AND ON `var_access` IT WAS UNDERSTATED.** The s204 cursor's flag on RTX-3b's headline numbers is **DISCHARGED, not by argument but by the arm**: the rung alone delivers 1.513× where the family reads 1.494×. ⭐ **An inherited claim CONFIRMED — and s200's own note applies: confirming one is as informative as voiding one.** The s188 pre/post pair (var_access 1.018 under the STR gate BEFORE RTX-3b, 1.366× after) is now corroborated by direct isolation on a current base rather than by cross-session inference.
+
+**MY PRE-STATED BOARD WAS HALF WRONG, AND THE HALF THAT WAS WRONG IS THE INFORMATIVE HALF.** I predicted `var_access` ≥ 1.25× (**confirmed**, 1.513×) and `func_call` ≥ 1.05× (**FALSIFIED**, 1.031×). `func_call` makes the same 10.0M `str_concat_d` calls as `var_access` yet keeps only ~40% of its family win from this rung. ⇒ **s188's standing observation survives another test: CALL COUNT DOES NOT PREDICT BENEFIT.** Two programs, identical call density, 1.513× vs 1.031× from the identical port. The shape of the operands decides, not the count of the calls.
+
+---
+
 ## 2. RTX-5b — WHAT LANDED (SCRIP `320d212a`)
 
 **`rt_agg_alloc` in asm** (`src/runtime/rtx/rtx_alloc.S`), gate `SCRIP_RTX_ALLOC`, C body renamed `c_rt_agg_alloc` in the same commit per §7 step 2.
