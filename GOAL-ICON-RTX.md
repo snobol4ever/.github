@@ -212,12 +212,17 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   ⛔ **HALF-RUNG: NO SPEED CLAIM.** Window 16-20 ms vs `MIN_MS=800` ⇒ `BOGUS-WINDOW`, ratio suppressed.
   **The ladder cannot currently time its own landed work — RTX-0b-ICN is now blocking twice over.**
   See `FINDING-2026-07-29-CLAUDE-ICN-RTX-1-ASSIGN-VAR-LANDED-…`.
-- [ ] **RTX-1b-ICN — ⭐⭐ THE ARM THAT IS ACTUALLY LIVE: NAMETRAP → `vc->cellp` STORE.** s209b measured
+- [x] **RTX-1b-ICN — ⭐⭐ LANDED s209c: +12.11% MEDIAN / +12.46% MIN, NON-OVERLAPPING DISTRIBUTIONS. THE ARM THAT IS ACTUALLY LIVE: NAMETRAP → `vc->cellp` STORE.** s209b measured
   that **all 147 of Icon's `rt_assign_var` sites are SUBSCRIPTED assignment** (`L[i] := v`); local,
   global, augmented and swap assignment are all emitted inline and never call the symbol. A subscript
   lvalue is a NAMETRAP over a `VCELL_t`, so it takes **neither** arm RTX-1-ICN ported — proven by probe
   (corrupt fast-path B ⇒ 4M-store workload still correct). ⇒ port the `vc->cellp` store. It is the only
   live arm and RTX-1-ICN wrongly excluded it as cold.
+  **RESULT: on=2519ms (2455-2753) vs off=2824ms (2761-2916), ZERO overlap, output byte-identical,
+  window >> MIN_MS=800. Falsification 243/20 on vs 252/11 off (9 tests, vs 5 for the dead arm).**
+  ⭐⭐ **THIS IS THE LADDER'S FIRST PROVEN SPEED WIN, AND ITS LESSON IS STEP 0(g):** the SAME symbol,
+  the SAME gate, the SAME workload — wrong arms ~0%, right arm +12%. **Asm porting works for Icon; the
+  arm selection is the whole game.**
 - [ ] **RTX-2-ICN — `rt_arg_stage` (897, #2).** ⚠ Step 0(d) first — same trap class.
 - [ ] **RTX-3-ICN — `rt_call_proc_descr` (542) + `rt_proc_value` (126) + `rt_frame` (255).** The live
   call path, distinct from the setup family. ⚠ `rt_proc_call_epilogue_γ/ω` are **already ported** —
