@@ -86,7 +86,7 @@ past the 1.3× tie bar). **Only `rt_jct_relop` was ported** — an Icon-EXCLUSIV
 arbitration. ⇒ **re-assign `rt_binop_overload`, or re-mint the remainder around `rt_relop_overload`**
 (51, COERCE, Icon-EXCLUSIVE, FREE), which is the legal same-family companion.
 
-⚠ **PROTOCOL DEVIATION (same as s211):** check-out `c8d91ab7` was **committed** before the port,
+⚠ **PROTOCOL DEVIATION (same as s211):** check-out `427b3ab4` was **committed** before the port,
 **not pushed** before it — no credential. ⚠ **SNOBOL4's absolute watermark disagrees with s211's prose
 again** (measured **284/42**, prose says 276/50/8) — graded on the ON/OFF differential, **no culprit
 asserted**. ⚠ **`scripts/util_rtx_claims.sh` STILL DOES NOT EXIST**; every ledger row remains
