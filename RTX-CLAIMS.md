@@ -174,10 +174,10 @@ my number and must be re-decided, not reversed.**
 | `rt_keyword_read` | 136 | KWD | ⛔ `BLOCKED:PORT-IS-NOT-FIX` (fragile allowlist, silent omission) |
 | `rt_proc_value` | 126 | ICNCALL | `FREE` |
 | `rt_scan_leave` | 120 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
-| `rt_list_bang_at` | 110 | AGG | `FREE` |
+| `rt_list_bang_at` | 110 stale / **123 real** | AGG | ⭐ `DONE:ICON-RTX:2511c53a` (gate `SCRIP_RTX_ICNAGG`, tenth family gate) — asm wrapper, **falsification MOVED THE BOARD 229/34 vs 252/11 ⇒ provably executes.** ⛔ **No speed claim**: the elephant is inside `list_bang_at` (still C) — 3× `FIELD_GET_fn` linear scans + `strcmp` per element. That is RTX-8b. ⚠ s202 ancestry check not satisfiable (no credential s213) |
 | `rt_substr` | 109 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
 | `rt_make_list` | 95 | AGG | `FREE` |
-| `rt_size_d` | 93 | AGG | `FREE` |
+| `rt_size_d` | 93 stale / **119 real** | AGG | ⛔ `DONE-BUT-NULL:ICON-RTX:2511c53a` — ported arms (DT_SNUL, DT_S/slen≠0) are **MEASURED DEAD**: corrupting BOTH moves the board by ZERO. Real Icon strings carry `slen==0` (lazy) ⇒ bail to C. **LIVE arm is DT_DATA/list, still C ⇒ RTX-8b.** ⚠ A cset bug was introduced and fixed here: `IS_CSET_fn` = `DT_S && slen==0xFFFFFFFF` is tested BEFORE `DT_S` in the C body |
 | `dat_field_get` | 85 | AGG | `FREE` |
 | `rt_scan_enter` | 69 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
 | `rt_relop_overload` | 51 | COERCE | `FREE` |
