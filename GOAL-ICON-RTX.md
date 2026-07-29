@@ -166,6 +166,11 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
 
 ### ▶ PHASE 0 — SURVEY AND INSTRUMENT
 
+- [ ] **STEP 0(g) — PROPOSED s209b, ⭐ ADOPT INTO `ARCH-ICON-RTX.md` §8.** For any symbol with internal
+  dispatch, **identify which ARM the emitted code takes before choosing what to port.** 0(d) proves a
+  SYMBOL is hot; it says nothing about which arm inside it is. RTX-1-ICN ported two arms that its own
+  caller never enters. The check is one compile + one grep, exactly like 0(f).
+
 - [x] **RTX-0a-ICN — SURFACE MEASURED, s203-ICN.** 265 live artifacts; full ranked inventory in
   `ARCH-ICON-RTX.md` §5. Two inventory defects found and corrected (live-marker filter; `@PLT` filter).
   Step 0(f) minted. Icon-specific runtime C measured at 67 lines / 3 functions. Nine symbols found
@@ -207,6 +212,12 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   ⛔ **HALF-RUNG: NO SPEED CLAIM.** Window 16-20 ms vs `MIN_MS=800` ⇒ `BOGUS-WINDOW`, ratio suppressed.
   **The ladder cannot currently time its own landed work — RTX-0b-ICN is now blocking twice over.**
   See `FINDING-2026-07-29-CLAUDE-ICN-RTX-1-ASSIGN-VAR-LANDED-…`.
+- [ ] **RTX-1b-ICN — ⭐⭐ THE ARM THAT IS ACTUALLY LIVE: NAMETRAP → `vc->cellp` STORE.** s209b measured
+  that **all 147 of Icon's `rt_assign_var` sites are SUBSCRIPTED assignment** (`L[i] := v`); local,
+  global, augmented and swap assignment are all emitted inline and never call the symbol. A subscript
+  lvalue is a NAMETRAP over a `VCELL_t`, so it takes **neither** arm RTX-1-ICN ported — proven by probe
+  (corrupt fast-path B ⇒ 4M-store workload still correct). ⇒ port the `vc->cellp` store. It is the only
+  live arm and RTX-1-ICN wrongly excluded it as cold.
 - [ ] **RTX-2-ICN — `rt_arg_stage` (897, #2).** ⚠ Step 0(d) first — same trap class.
 - [ ] **RTX-3-ICN — `rt_call_proc_descr` (542) + `rt_proc_value` (126) + `rt_frame` (255).** The live
   call path, distinct from the setup family. ⚠ `rt_proc_call_epilogue_γ/ω` are **already ported** —
