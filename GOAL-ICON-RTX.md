@@ -47,7 +47,100 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 ---
 
-## ⛔ LIVE CURSOR — s214-ICN (2026-07-29): **THREE RUNGS LANDED ON A COMPLETENESS DIRECTIVE (`rt_gen_spine_*` trio, `rt_proc_value`, `rt_str_coerce`). ⭐⭐ AND THE HEADLINE IS A CORRECTION TO 0(d)'s OWN DOCTRINE: A DYNAMICALLY *FLAT* SYMBOL CAN BE MAXIMALLY LOAD-BEARING.**
+## ⛔ LIVE CURSOR — s216-ICN (2026-07-29): **RTX-8c-ICN LANDED — `dat_field_get` IS ASM AT 1.333× ON/PRISTINE, DISJOINT DISTRIBUTIONS. ⭐⭐ AND THE HEADLINE IS THAT THIS LADDER'S SIZE-RANKED INVENTORY IS BLIND TO AN ENTIRE DIRECTORY.**
+
+**NEXT RUNG: `rt_make_list` (171 real sites, AGG, Icon-EXCLUSIVE, `FREE`, body 8 lines,
+`by_name_dispatch.c:4733`)** — reuses `SCRIP_RTX_ICNAGG` again, so still no new gate. Then
+`subscript_get2` (52 real sites, body 42 lines, `pattern_match.c:350`).
+
+⛔⛔ **DO NOT USE THE FOUR-NAME CANDIDATE LIST s214 LEFT HERE — TWO OF ITS FOUR ARE PHANTOMS.**
+Re-derived from the compiler this session: `dat_field_get` **117** (exact, ported this rung) ·
+`rt_make_list` **171** · `subscript_get2` **52** · **`subscript_set` 0** · **`rt_case_eq` 0**. The
+last two have live C bodies but the current compiler emits **zero `call …@PLT`** for either across all
+316 Icon programs — they are reached from inside C, fail step 0(f), and are **NOT-A-TARGET**.
+⭐ **WHY THIS RECURRED ONE SESSION AFTER STEP 0(i) WAS MINTED TO STOP IT: 0(i) prevents a stale INPUT
+and does nothing about a stale OUTPUT.** s214 ran the sweep correctly and then wrote its *result* —
+four names and four numbers — into prose, which the next session inherits instead of the sweep.
+⇒ **THE CURSOR MUST CARRY THE COMMAND, NOT THE NUMBERS.** Reproduce, every session:
+
+```bash
+# static surface, compiler-derived (step 0(i)), byte-class pattern (step 0(f) Greek trap)
+for f in /home/claude/corpus/programs/icon/*.icn /home/claude/corpus/benchmarks/icon/*.icn; do
+  timeout 25 ./scrip --compile "$f" 2>/dev/null | grep -aoE 'call[[:space:]]+[^[:space:],;]+@PLT'
+done | sed -E 's/^call[[:space:]]+//; s/@PLT$//' | sort | uniq -c | sort -rn
+```
+
+⭐⭐ **THE METHOD DEFECT, AND IT IS THE MOST REUSABLE THING IN THIS SESSION: THE SIZE SWEEP CANNOT SEE
+`src/driver/`.** This cursor's own recipe says *"intersect with C bodies in `src/runtime/**/*.c`"*.
+**`dat_field_get` is defined in `src/driver/driver_data.c:387`.** I implemented the recipe literally and
+it produced 67 ranked rows with `dat_field_get` **absent from every one** — while the same run's
+call-site tally listed it at 117. `src/driver/` holds runtime-role C reached by `@PLT` exactly like
+`src/runtime/` does (`dat_field_get`, `dat_field_set`, `data_field_ptr`, `_builtin_DATA`), so **every
+symbol bodied in the driver TU is unrankable by the current method.** ⭐ **The only reason this rung
+happened is that s214 named the symbol BY HAND — a hand-carried name rescued a mechanical method's
+omission, the exact inverse of this ladder's usual failure mode.**
+⇒ **STEP 0(i) AMENDMENT OWED:** intersect over `src/driver/**` and `src/parser/**` too, or better,
+drive the intersection from `nm -D out/libscrip_rt.so` — the honest definition of "callable by emitted
+code", independent of source directory.
+
+⭐ **0(g)'s FIRST REPEATABLE SUB-RULE, AFTER FOUR RUNGS OF NON-TRANSFERABLE REGIMES.**
+`bb_field_get.cpp` emits the call with **NO inline tag guard** (it tests `eax==99` only *after*), so the
+cheap arm is dominant at **80,000/80,000 = 100%**. RTX-6: first arms dead. RTX-6b: both ends live,
+middle cold. s214 `rt_str_coerce`: unguarded, cheap arm 93.1%. This: unguarded, 100%. ⇒ the regime
+still **cannot** be inherited, **but "UNGUARDED CALL ⇒ CHEAP ARM DOMINANT" has now held twice** — the
+first predictive sub-rule 0(g) has produced. Guarded calls remain unpredictable in both directions.
+
+⭐⭐ **THE ISOLATION ARM WAS DISCHARGED BY COUNTING, NOT BY A THIRD BUILD — PROPOSE THIS AS THE DEFAULT.**
+s204 requires an isolation arm when a rung lands in an already-ported family, and ICNAGG already gates
+`rt_size_d` + `rt_list_bang_at`. Instead of a fourth `.so`, one interposer over the whole family in the
+benchmark window: **`dat_field_get=320000  rt_size_d=0  rt_list_bang_at=0`.** The siblings are
+arithmetically absent, so the entire ICNAGG differential is this symbol's. **Strictly stronger than a
+rebuild:** a rebuild proves the other code is *gone*; the count proves it was *never reached*, which is
+the property the isolation arm actually needs — and it costs one build fewer.
+
+⛔ **PORT ≠ FIX, AND A PRIOR FINDING ALREADY SPECIFIED THE RIGHT FIX.**
+`FINDING-2026-07-25-CLAUDE-ICN-BID-1-…` §2 already called for a **per-record-type field-number table so
+`dat_field_get` takes an int index, not a name scan** — which is what canonical Icon does at translate
+time. **My asm makes the wrong design fast.** 1.333× on a name scan is real; an int-indexed field
+access deletes the scan outright. That fix is LOWER+template territory (fires `.s` regen ×3, collides
+with the ζ ladder), so it does **not** block a Phase-1 `.S` port, but it **outranks this rung
+architecturally** and is minted below as **RTX-13-ICN**. Same class as RTX-9's `rt_keyword_read`
+standing warning.
+
+⭐ **THE PROLOG WATERMARK-VS-PROSE DISAGREEMENT s212/s213/s214 KEPT RECORDING IS RESOLVED — AND IT WAS
+NEVER A REGRESSION.** Measured: `test_smoke_prolog.sh` = **5/0 + 5/0**; `test_prolog_rung_suite.sh` =
+**164/0 + 164/0**. ⇒ **164/0, 5/0 and the prose's 185/188 are three different INSTRUMENTS, not three
+states of one battery.** **A watermark is meaningless without its script name attached, and this file
+has been carrying bare numbers.** Every figure below is now script-labelled.
+
+⭐ **LD_DEBUG IS THE MISSING INSTRUMENT FOR 3-ARM A/B HONESTY.** With no `gdb`/`perf`/`ltrace`/`strace`
+here, swapping arms via `LD_LIBRARY_PATH` rests on an assumption about loader search order.
+`readelf -d scrip` shows **`RUNPATH`** (searched *after* `LD_LIBRARY_PATH`, unlike `RPATH`), and
+`LD_DEBUG=libs` prints `calling init: /tmp/so_port/libscrip_rt.so` — **proving** the swap. Free, and it
+closes a hole every prior 3-arm rung on this ladder left open.
+
+**GATES — ALL THREE LANGUAGES, ON AND OFF, IDENTICAL, EACH WITH ITS SCRIPT NAMED:**
+Icon `test_icon_all_rungs.sh` **252/11/30** (= fresh pre-edit baseline, re-derived not copied) ·
+SNOBOL4 `test_smoke_snobol4.sh` **7/0**, `test_broad_corpus_snobol4.sh` m3 **329/5** m4 **324/2/8** ·
+Prolog `test_prolog_rung_suite.sh` interp **164/0** compile **164/0**.
+Falsification two-sided and NOT silent — broke a RESULT (force field index 0; a type-valid cell, so no
+crash, not the vacuous s187 route break): **247/16 gate ON vs 252/11 gate OFF.**
+⚠ **BATTERY COVERAGE IS STILL THIN RELATIVE TO ARRIVALS:** 320,000 arrivals in one benchmark, and the
+corruption moves **5** graded programs. That is a statement about the batteries, not the port.
+**Build determinism verified:** port `.so` md5 `2930bddd3fc5` reproduced across two independent full
+rebuilds; PRISTINE `8793847346ea` from `git checkout`-clean sources. ⚠ **Honest gap: I did not md5 the
+session's first `.so` before editing**, so PRISTINE==baseline rests on source identity + determinism,
+not a recorded hash. **Record the baseline md5 at session start.**
+⚠ **PROTOCOL DEVIATION (fifth session running): no credential ⇒ the check-out (`.github` `e27ef9fb`)
+was committed before the work but NOT PUSHED before it; the protective property was not obtained.**
+All commits are LOCAL ONLY; the s202 ancestry check is not satisfiable, so RTX-8c is `[x]` **PENDING
+ANCESTRY** exactly as RTX-6/6b are. `scripts/handoff_status.sh` will say BLOCKED.
+⚠ `rung36_jcon_mindfa` (25 static sites, top-ranked) **times out under the interposer** and was
+EXCLUDED from 0(d), not counted as a zero — s212's rule.
+
+---
+
+## ⛔ PRIOR CURSOR — s214-ICN (2026-07-29): **THREE RUNGS LANDED ON A COMPLETENESS DIRECTIVE (`rt_gen_spine_*` trio, `rt_proc_value`, `rt_str_coerce`). ⭐⭐ AND THE HEADLINE IS A CORRECTION TO 0(d)'s OWN DOCTRINE: A DYNAMICALLY *FLAT* SYMBOL CAN BE MAXIMALLY LOAD-BEARING.**
 
 **LON'S DIRECTIVE THIS SESSION CHANGED THE ORDERING KEY:** *"Replace SCRIP's C runtime with ASM code.
 Do one at a time from small to large."* ⇒ the sort key is **C BODY SIZE, not dynamic share.** Every
@@ -523,7 +616,37 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   `FINDING-2026-07-27-CLAUDE-ICN-FLATDISP-BROKE-ICON-DUAL-ENTRY…` **in full** before touching it.
 - [ ] **RTX-8-ICN — `rt_assign_var` (147) + `rt_list_bang_at` (110) + `rt_make_list` (95) +
   `rt_size_d` (93).** ⚠ `rt_subscript_var` (177) is SN4-RTX's — excluded pending the ruling.
-- [ ] **RTX-9-ICN — `rt_keyword_read` (136).** ⛔ **PORT ≠ FIX.** Its failure allowlist
+- [x] **RTX-8c-ICN — ⭐⭐ `dat_field_get` LANDED s216-ICN AT 1.333× ON/PRISTINE, DISTRIBUTIONS FULLY
+  DISJOINT. Gate `SCRIP_RTX_ICNAGG` REUSED — no eleventh gate, NOT a gate ledger event** (the s214
+  `rt_str_coerce` ruling). 3-arm interleaved via `scripts/bench_rtx_3arm.sh`, round 1 discarded:
+  **ON 711ms (706-733) · PRISTINE 947.5ms (938-973) · OFF 923.5ms (915-940)**, arm spreads
+  1.027-1.038× against a **1.333×** gap, **ON's worst sample beats both other arms' best**,
+  kill-switch tax 1.026×, `RT_OPT=-O0`, window 933ms > `MIN_MS=800`. All three arms byte-identical
+  and **verified non-empty** (the s214 empty-`cmp` trap).
+  **What is deleted is a libc `strcmp` PER FIELD** — `data_field_ptr`'s linear scan, absorbed into the
+  wrapper's asm as an inline byte compare. **Removable at any `-O` level**, same shape as RTX-6's
+  `strtoll` and RTX-6b's `strcmp`; answers the s208 inbox's gap #1 concretely.
+  ⭐ **`data_field_ptr` is ABSORBED, NOT DELETED — s211's `static`-callee ruling now also covers an
+  EXPORTED callee:** it is `nm -D` `T` with other C callers (`dat_field_set`, `rt_field_var`,
+  `by_name_dispatch` ×4), so absorb the logic, leave the symbol. **No §4 amendment owed.**
+  Falsification two-sided, a RESULT not a route (force field index 0 — a type-valid cell, so no
+  crash): **247/16 ON vs 252/11 OFF.** Isolation arm discharged **by counting, not a third build**:
+  `dat_field_get=320000 rt_size_d=0 rt_list_bang_at=0` in the window.
+  ⛔ **SCOPE: 1.333× is an ISOLATION benchmark** (ten-field record, late fields over-represented) —
+  **no corpus-wide impact is claimed**; 117 static sites and a 5-program falsification reach are not a
+  corpus-wide story. ⛔ **AND PORT ≠ FIX — see RTX-13-ICN, which outranks this rung architecturally.**
+  ⚠ **`[x]` PENDING THE s202 ANCESTRY CHECK** — no credential s216; all commits LOCAL ONLY.
+  See `FINDING-2026-07-29-CLAUDE-ICN-RTX-8C-DAT-FIELD-GET-LANDED-1p333X-…`.
+- [ ] **RTX-13-ICN — ⭐⭐ FIELD ACCESS BY INTEGER INDEX, NOT BY NAME. MINTED s216-ICN, AND IT OUTRANKS
+  EVERY REMAINING `.S` PORT ON THIS LADDER ARCHITECTURALLY.** `FINDING-2026-07-25-CLAUDE-ICN-BID-1-…`
+  §2 already specified it: `bb_field_get.cpp` emits `dat_field_get(fname, obj)` **BY NAME**, and the
+  callee resolves it with a **string compare per field at run time**. Canonical Icon resolves fields
+  to integer indices at TRANSLATE time (`refs/icon-master/src/runtime/fstruct.r` + `oref.r`).
+  ⇒ **a per-record-type field-number table computed in LOWER makes the scan DISAPPEAR**, where
+  RTX-8c only made it fast. ⛔ **PHASE 2 / TEMPLATE TERRITORY:** changes the emitted call sequence,
+  fires `.s` regen ×3, and **collides head-on with the ICON-BB ζ ladder — SERIALIZE WITH LON.**
+  ⚠ Read `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` first: ONE `x86(...)` concatenation, medium switched
+  invisibly, never a hand-written `IF(MEDIUM_TEXT,…)+IF(MEDIUM_BINARY,…)` pair.
   (`keywords.c:213`) is **FRAGILE BY CONSTRUCTION** and its omissions are SILENT — that is how
   `&interval`/`&meta`/`&shift` hid (`GOAL-ICON-BB.md`). **Porting the body in asm preserves the defect
   and makes it faster.** Land the `kw_read`-returns-a-distinct-not-a-keyword-signal reshape FIRST, or
