@@ -113,8 +113,8 @@ Measured s203-ICN. Regenerate with `scripts/util_rtx_claims.sh` — **never hand
 | `rt_proc_set_nparams` | 210 | **238** | 121 | tie → **SN4-RTX** | `FREE` | ICON, PL |
 | `rt_proc_set_jmpentry` | 210 | **238** | 113 | tie → **SN4-RTX** | `FREE` | ICON, PL |
 | `rt_proc_set_frame_bytes` | 209 | **238** | 121 | tie → **SN4-RTX** | `FREE` | ICON, PL |
-| `rt_coerce_num2_d` | **209** | 124 | 0 | **ICON-RTX** (1.7×) | `OUT:ICON-RTX:s211` — 0(d) DONE (240k, s210) · 0(g) DONE (s211: live arm is STR→INT, **not** DT_I/DT_R) | SN4 |
-| `rt_parse_num_d` | *static* | *static* | 0 | **ICON-RTX** (callee of the above) | `OUT:ICON-RTX:s211` — **`static`, no `@PLT`, no exported symbol. ABSORBED into the wrapper's asm body rather than exposed** — see s211 note below. | SN4 |
+| `rt_coerce_num2_d` | **209** | 124 | 0 | **ICON-RTX** (1.7×) | ⭐ **`DONE:ICON-RTX:56b8752d`** (gate `SCRIP_RTX_ICNNUM`) — 1.783× ON/PRISTINE on an ISOLATION bench. ⚠ **s202 ancestry check not yet satisfiable** (no credential s211) | SN4 |
+| `rt_parse_num_d` | *static* | *static* | 0 | **ICON-RTX** (callee of the above) | ⭐ **`DONE:ICON-RTX:56b8752d`** — **ABSORBED into the wrapper's asm, NOT exposed.** ⇒ the `static`-has-no-kill-switch contract question needs **no §4 amendment**: gate the exported caller, leave the static in C for the fallback. | SN4 |
 | `rt_num_arith` | 208 | 198 | 0 | tie → **SN4-RTX** (claimed first, RTX-6) | `OUT:SN4-RTX:s205` | ICON |
 | `rt_deref` | 193 | 117 | 0 | — | `DONE:pre-RTX:rt_asm_helpers.S` | ALL |
 | `rt_subscript_var` | 177 | **195** | 0 | tie → **SN4-RTX** (claimed, RTX-5) | `OUT:SN4-RTX:s204` | ICON |
@@ -249,6 +249,15 @@ becoming dishonest. ⛔ **If Lon opens `GOAL-PROLOG-RTX.md`, delete this line an
 
 Append here; do not rewrite others' entries. One line each: session · to whom · what.
 
+- **s211-ICN → SN4-RTX + PROLOG — MANDATORY NOTIFICATION (shared `rt.c`):** ⭐ **`rt_coerce_num2_d` IS
+  NOW ASM** (gate `SCRIP_RTX_ICNNUM`, default ON, **eighth family gate — shared state**). Your binaries
+  changed. Both batteries re-proven at gate ON **and** OFF this session: **SNOBOL4 m3 280/54, m4
+  276/50/8 · Prolog 185/0/0**, each identical to its gate-off control. `SCRIP_RTX_ICNNUM=0` reverts to
+  `c_rt_coerce_num2_d`. ⚠ Per §7 step 2b I cite those as **no-regression only, NOT as evidence the asm
+  executes** — s208 measured this symbol at ZERO executions across 7 SNOBOL4 benchmarks, so your
+  battery is very likely BLIND to it. The asm-executes evidence is Icon-side falsification.
+  ⚠ The static callee `rt_parse_num_d` is absorbed into the asm, so **the C body you inherit is
+  `c_rt_coerce_num2_d` and it still calls the untouched static** — the fallback path is unchanged.
 - **s211-ICN → SN4-RTX + LON:** ⭐⭐ **STEP 0(g) HAS A SECOND HALF, AND IT INVERTS THE INSTINCT: THE
   CALLER TEMPLATE'S INLINE FAST PATH DECIDES WHICH CALLEE ARM IS LIVE — AND IT IS SYSTEMATICALLY THE
   EXPENSIVE ONE.** 0(g) as written (s209b) says *read the callee's internal dispatch*. That is not
