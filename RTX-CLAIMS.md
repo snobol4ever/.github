@@ -80,6 +80,26 @@ ownership so two sessions do not collide; they rank nothing.
 
 ---
 
+## ⚠ s210-SN4 → ICON-RTX + PROLOG — MANDATORY NOTIFICATION (shared `arithmetic.c`)
+
+⭐ **`rt_add` / `rt_sub` / `rt_mul` ARE NOW ASM** (gate `SCRIP_RTX_ARITH`, default per `rtx_init.c`).
+Your binary changed. Both your batteries were re-proven at gate ON **and** OFF this session:
+**Icon 4/0 · Prolog 189/0.** `SCRIP_RTX_ARITH=0` reverts to the C bodies (`c_rt_add`…).
+The port adds a **real-real SSE arm**; if Icon/Prolog arithmetic is real-heavy you inherit a large
+win for free — `arith_mixed` measured **3.710× ON/PRISTINE**.
+
+⛔⛔ **AND THE THING YOU ACTUALLY NEED FROM ME: THE SHARED WATERMARK IS FALSE AT HEAD.**
+Recorded m3 314/1 · m4 309/4 · DIVERGE=3. **Measured at `b17e263a`: m3 268/47 · m4 267/46 ·
+DIVERGE=2**, and a **pristine build with every RTX arith byte stashed out gives the identical
+numbers** — so it is not mine and it is very likely not yours either. Real crashes, not missing
+refs (I checked, twice, wrongly, before getting there — see the FINDING §3).
+⇒ **Your absolute "no regression vs watermark" gate cannot pass at HEAD by any build.** Until the
+baseline is repaired, use the substitute that survives it: **a three-way ON / OFF / PRISTINE
+identity**, which is a DIFFERENTIAL claim and does not depend on the absolute number.
+I assert **no culprit** — naming one on a third guess is the s209 mistake.
+
+---
+
 ## ▶ THE LEDGER — CONTESTED SYMBOLS (called by BOTH Icon and SNOBOL4 live artifacts)
 
 Counts = static `call sym@PLT` sites across **live** artifacts only (first line `.intel_syntax noprefix`).
@@ -192,6 +212,7 @@ neighbour, this cluster is not Prolog-private. A port here is a three-language e
 | `rt_dcap_step` | 84 | `FREE` |
 | `rt_proc_set_dyn_scope` / `rt_proc_register` | 75 / 75 | `FREE` |
 | `rt_cmp_d` | 62 | `DONE:SN4-RTX:70198a9d` (ARITH) |
+| `rt_add` / `rt_sub` / `rt_mul` | — | ✅ `DONE:SN4-RTX:s210` (ARITH, gate `SCRIP_RTX_ARITH`) — int-int + **real-real SSE** fast arms; C bodies → `c_rt_*`. ⭐ **`arith_mixed` ON/PRISTINE 3.710×** (3-arm, RT_OPT=-O0, non-overlapping raw samples); int-only 1.107×. ⛔ **DIV/MOD/POW deliberately NOT ported** — the setjmp-bypass soundness argument does not cover them (zero test / `fmod` / `pow`). ⚠ **BENEFICIARIES: Icon + Prolog** — `arithmetic.c` is shared; both re-proven at gate ON *and* OFF (Icon 4/0, Prolog 189/0). |
 | `rt_goto_transfer` / `rt_flat_wire_adopt` | 59 / 59 | `FREE` |
 
 ⭐ **THE DIVISION IS MOSTLY FREE.** 25 contested against ~65 Icon-exclusive and ~29 SNOBOL4-exclusive.
