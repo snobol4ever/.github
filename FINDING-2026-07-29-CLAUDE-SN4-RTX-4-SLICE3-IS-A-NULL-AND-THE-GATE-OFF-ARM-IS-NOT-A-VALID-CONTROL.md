@@ -82,6 +82,42 @@ the mistake this very headline records.**
 
 ---
 
+## ⭐⭐⭐ HEADLINE 2b — **I RE-GRADED RTX-3b WITH THE HARNESS AND IT IS VINDICATED. MY OWN DOUBT WAS THE THING THAT DID NOT SURVIVE — SECOND SELF-CORRECTION THIS SESSION.**
+
+HEADLINE 2 marked RTX-3b's numbers "unsafe to inherit." **I then did the work instead of leaving the doubt
+hanging on landed work, and the doubt lost.** Pristine-STR arm built by REMOVING `rtx_str.S` from the link
+entirely and renaming `c_str_concat_d` → `str_concat_d` (verified: `nm` shows one `str_concat_d`, no asm,
+no `c_` body; both arms produce `result: 60000012`, matching `var_access.ref`).
+
+| program | RTX-3b CLAIMED (2-arm) | **ON/PRISTINE (3-arm)** | ON/OFF | gate tax (OFF/PRISTINE) |
+|---|---|---|---|---|
+| `var_access` | 1.366× | **1.262×** | 1.186× | 1.064× |
+| `func_call` | 1.080× | **1.061×** | 1.063× | 0.998× |
+
+⭐⭐ **RTX-3b IS A REAL WIN. BOTH NUMBERS SURVIVE, SLIGHTLY LOWER, SAME CONCLUSION.** And the one I
+specifically impugned — `func_call` 1.080× — measures **1.061× against a genuine pristine build**, where
+**the two-arm and three-arm numbers differ by 0.002.** ⇒ **THE ARTIFACT I PREDICTED IS NOT THERE.
+WITHDRAW THE "UNSAFE TO INHERIT" FLAG ON RTX-3b.** It should never have been raised on the strength of a
+magnitude coincidence.
+
+⛔⛔ **THIS FORCES THE REAL DIAGNOSIS, AND IT IS NOT THE ONE HEADLINE 2 REACHED FOR EITHER.** Across every
+3-arm measurement now taken, the kill-switch tax is **1.002× · 0.998× · 1.064×** — i.e. **≈ nothing, and
+not even consistently signed** (on `var_access` the OFF arm came out *faster* than pristine, which a gate
+that only ADDS instructions cannot cause — that is a link-layout difference, exactly s200's confound,
+since removing `rtx_str.S` moves the whole `.so`). The single outlier is CALL/`fibonacci` at 0.905×.
+⇒ **THE DOMINANT ERROR SOURCE ON THIS BOX IS RUN-TO-RUN NOISE, NOT THE CONTROL'S STRUCTURE.**
+Look at the raw `var_access` PRISTINE samples: **717 · 595 · 587 · 737** — a **25% spread within one arm**,
+while its ON arm was **518 · 522 · 514 · 525**, tight. A denominator that noisy is what makes a ratio
+swing, and it is why the 1.262× above should be read as "a large real win, roughly 1.13×–1.26×"
+(fastest-pristine vs slowest-ON gives the floor), **not as a precise number.**
+
+⇒ **CORRECTED PRESCRIPTION — WEAKER THAN HEADLINE 2's AND ACTUALLY SUPPORTED:** the value of
+`bench_rtx_3arm.sh` is **(i)** it includes a true baseline so a rung learns what it really bought, and
+**(ii)** it prints EVERY raw sample so a 25% intra-arm spread is impossible to hide behind a median.
+It is **NOT** true that two-arm numbers are systematically inflated — measured, they mostly are not.
+**The honest rule is: replicate, publish raw samples, and distrust any ratio whose arms overlap —
+regardless of how many arms you ran.**
+
 ## ⭐⭐ HEADLINE 3 — NEW STEP-0(c) REFINEMENT: `nm` ON THE `.so` CONFLATES `static` WITH `hidden`, AND THE DIFFERENCE IS LINK-OR-FAIL
 
 s208's step 0(c) reported: *"all four globals (`g_pcall` `g_pcall_top` `g_pcall_wires` `g_flat_ret_snapbuf`)
