@@ -12,6 +12,41 @@ Contract: **`ARCH-ICON-RTX.md`** — read it before any rung. Ladder runs CONCUR
 ⛔⛔ **SYMBOL OWNERSHIP IS NOT IN THIS FILE — IT IS IN `RTX-CLAIMS.md`.** The runtime is SHARED (19,962 lines, one `.so`, six languages); two RTX ladders work it from two directions. **25 symbols are called by both Icon and SNOBOL4 live artifacts.** Check a symbol OUT in that ledger — and PUSH the claim — BEFORE writing code. Run `scripts/util_rtx_claims.sh` at session start and session close; it derives symbol truth from the tree, so the ledger cannot rot silently. This ladder is `ICON-RTX`.
 
 
+## 📨 INBOX FROM SN4-RTX (s208, 2026-07-29) — `rt_call_arr` IS YOURS, AND HERE IS THE MEASUREMENT WITH IT
+
+**Lon ruled option (a) at s208: `rt_call_arr` → ICON-RTX. SN4-RTX has CLOSED RTX-4 slice 3, vacated the
+ledger row, and become BENEFICIARY.** SN4 took `rt_flat_ret_snap` + `rt_proc_open_fn` from its exclusive
+set instead. The contested row is now uncontested — `RTX-CLAIMS.md` is updated, that file is the truth.
+
+⭐ **THE HANDOVER CARRIES A NUMBER YOU DID NOT HAVE: `rt_call_arr` = 87.334% of the `string_manip`
+window** (10,000,004 calls, mode 3, RT_OPT=`-O0`, `rdtsc` interposer). **This is the first SHARE ever
+taken on this symbol.** s188 had the count; s204 rejected the target holding that count. By s188's own
+law a count cannot predict benefit — **a share can, and 87% is not a rejection.**
+
+⛔ **DO NOT INHERIT ANY OF THIS AS SETTLED — three named gaps:**
+1. **87.3% is the WHOLE CALL TREE**, everything the symbol reaches. **The PORTABLE fraction (dispatch
+   prologue vs. callee work) is UNMEASURED. Splitting it is your first job, before any asm.**
+2. **`-O0` only.** The `-O2` arm was not built (O2-DIRECTED-ONLY rule) and `-O0` frame ceremony is
+   precisely what `-O2` shrinks. Never quote 87.3% without the `-O0` clause.
+3. **It is a SNOBOL4 window.** Your 2157 static sites are the same class of evidence as the 232 that
+   already misfired — **RTX-0d-ICN still owes its own dynamic 0(d) on an Icon workload.**
+**s204's body-level rejection** (*needs fusion with `try_call_builtin_by_name`, already hash + inline
+cache + jump table*) **is untouched by my number. Re-decide it against measurement; do not reverse it.**
+
+⚠ **TWO MORE SN4 MEASUREMENTS ON SYMBOLS THE RULE ALLOCATES TO YOU — both say COLD *FOR SNOBOL4*, and
+neither transfers to Icon without your own 0(d):**
+- **`rt_coerce_num2_d`** (yours, 1.7×): **56 static sites, ZERO executions** across 7 SN4 benchmarks.
+- **`NV_GET_fn`** (yours, 6.4×): **ZERO calls and ZERO static sites** in 7 SN4 benchmarks; live only
+  under EVAL at **0.303%** (upper bound). Cause for SN4 is the **GVA slot island** — it removed the
+  emitter's call sites, not the function. ⭐ **If Icon has no equivalent slot optimization, your 109
+  sites may well be hot where SN4's 17 are dead. Same symbol, different answer — measure it.**
+
+⭐ **THE GENERAL WARNING THIS SESSION PAID FOR: A RUNG'S PREMISE DECAYS WHEN AN UNRELATED RUNG SUCCEEDS.**
+SN4's RTX-7 was correct when written and was invalidated by GVA landing — every check except 0(d) still
+passed, including live C call sites. **Re-run 0(d) on any rung written more than a few sessions ago.**
+
+---
+
 ## ⛔ LIVE CURSOR — s203-ICN (2026-07-29): **RTX-0a SURVEY LANDED AS MEASUREMENT ONLY. NO CODE. ⭐⭐ AND THE SURVEY FALSIFIED ITS OWN FIRST TWO INVENTORIES BEFORE PRODUCING THE THIRD.**
 
 **⭐⭐ THE HEADLINE, AND IT REFRAMES THE WHOLE LADDER: ICON HAS NO RUNTIME OF ITS OWN.** Measured, not

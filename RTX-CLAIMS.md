@@ -87,20 +87,20 @@ Measured s203-ICN. Regenerate with `scripts/util_rtx_claims.sh` — **never hand
 
 | symbol | ICON | SNO | PL | owner (rule) | state | beneficiary |
 |---|---:|---:|---:|---|---|---|
-| `rt_call_arr` | **2157** | 578 | 161 | **SN4-RTX** (ruled s203-ICN) | `OUT:SN4-RTX:RTX-4-SLICE-3` | ICON, PL |
+| `rt_call_arr` | **2157** | 578 | 161 | ⭐ **ICON-RTX (LON RULING s208)** | `OUT:ICON-RTX` | **SN4**, PL |
 | `rt_arg_stage` | **897** | 149 | 395 | **ICON-RTX** | ⛔ `BLOCKED:MEASURED-ZERO` | SN4, PL |
 | `rt_proc_set_fn` | 361 | 238 | 121 | **ICON-RTX** | ⛔ `BLOCKED:MEASURED-FLAT` | SN4, PL |
 | `rt_proc_set_nparams` | 210 | **238** | 121 | tie → **SN4-RTX** | `FREE` | ICON, PL |
 | `rt_proc_set_jmpentry` | 210 | **238** | 113 | tie → **SN4-RTX** | `FREE` | ICON, PL |
 | `rt_proc_set_frame_bytes` | 209 | **238** | 121 | tie → **SN4-RTX** | `FREE` | ICON, PL |
-| `rt_coerce_num2_d` | **209** | 124 | 0 | **ICON-RTX** (1.7×) | `FREE` | SN4 |
+| `rt_coerce_num2_d` | **209** | 124 | 0 | **ICON-RTX** (1.7×) | `FREE` — ⚠ **SN4 DATA s208: ZERO executions in 7 SNOBOL4 benchmarks despite 56 static sites. Cold for SN4; Icon UNMEASURED — do your own 0(d).** | SN4 |
 | `rt_num_arith` | 208 | 198 | 0 | tie → **SN4-RTX** (claimed first, RTX-6) | `OUT:SN4-RTX:s205` | ICON |
 | `rt_deref` | 193 | 117 | 0 | — | `DONE:pre-RTX:rt_asm_helpers.S` | ALL |
 | `rt_subscript_var` | 177 | **195** | 0 | tie → **SN4-RTX** (claimed, RTX-5) | `OUT:SN4-RTX:s204` | ICON |
 | `rt_assign_var` | **147** | 81 | 0 | **ICON-RTX** ⭐ **DYNAMIC #1** | `OUT:ICON-RTX:s203-ICN` | SN4 |
 | `rt_binop_overload` | 141 | **197** | 0 | **SN4-RTX** (1.4×) | `FREE` | ICON |
 | `str_concat_d` | 112 | **294** | 0 | — | `DONE:SN4-RTX:rtx_str.S` (STR) | ICON |
-| `NV_GET_fn` | **109** | 17 | 0 | **ICON-RTX** (6.4×) | `BLOCKED:DB-1-WRITE-BARRIER` | SN4 |
+| `NV_GET_fn` | **109** | 17 | 0 | **ICON-RTX** (6.4×) | `BLOCKED:DB-1-WRITE-BARRIER` — ⚠ **SN4 DATA s208: ZERO calls + ZERO static sites in 7 SN4 benchmarks; live only under EVAL at 0.303% (upper bound). GVA SLOTS BYPASS IT for SN4. Icon has 6.4× the sites and may differ — 0(d) it.** | SN4 |
 | `rt_proc_call_epilogue_γ` | 38 | **390** | 171 | — | `DONE:SN4-RTX:881ea03d` (CALL) | ICON, PL |
 | `rt_proc_call_epilogue_ω` | 38 | **390** | 171 | — | `DONE:SN4-RTX:881ea03d` (CALL) | ICON, PL |
 | `record_register` | **30** | 3 | 0 | **ICON-RTX** (10×) | `FREE` | SN4 |
@@ -119,6 +119,24 @@ Two live claims, one symbol. Options: (a) reassign to ICON-RTX and close SN4's s
 keeps it and ICON-RTX becomes beneficiary; (c) **neither, until RTX-0d-ICN measures whether it is hot
 for Icon at all** — 2157 static sites is the same kind of evidence as the 232 that already misfired.
 **Recommendation: (c) then (a).** Measure first; the ownership question may dissolve.
+
+⭐⭐ **RULED s208 BY LON: OPTION (a). `rt_call_arr` GOES TO ICON-RTX; SN4-RTX CLOSES RTX-4 SLICE 3 AND
+BECOMES BENEFICIARY.** Directive of record: *"Choose another one versus rt_call_arr since GOAL-ICON-RTX
+is working on that one. There are two sessions doing RTX work, SNOBOL4 and Icon. Coordinate."*
+⇒ SN4-RTX has vacated the symbol and taken `rt_flat_ret_snap` + `rt_proc_open_fn` from its EXCLUSIVE set
+instead, per this file's own advice that both ladders should stay inside their exclusive sets.
+
+⚠ **SN4 HANDS ICON A MEASUREMENT WITH THE SYMBOL, AND IT CUTS BOTH WAYS.** s208 measured `rt_call_arr`
+at **87.334% of the `string_manip` window** (10,000,004 calls, RT_OPT=`-O0`) — *for SNOBOL4*. This is the
+first share number anyone has taken on it; s188 had the count only, and s204 rejected the target holding
+that count (*"wins only `-O0` ceremony"*). **The count could not settle it — by s188's own law a count
+does not predict benefit. A share can, and 87% is not a rejection.** ⛔ **BUT THREE THINGS ARE NOT
+ESTABLISHED AND ICON MUST NOT INHERIT THEM AS SETTLED:** (1) 87.3% is the WHOLE CALL TREE, not the
+portable prologue — **the portable fraction is UNMEASURED and splitting it is the first job**; (2) `-O0`
+only, `-O2` arm not built per O2-DIRECTED-ONLY, and `-O0` frame ceremony is exactly what `-O2` shrinks;
+(3) it is a SNOBOL4 window — **Icon's 2157 static sites are the same class of evidence as the 232 that
+already misfired**, so RTX-0d-ICN still owes its own 0(d). **s204's body-level rejection is untouched by
+my number and must be re-decided, not reversed.**
 
 ---
 
@@ -163,14 +181,14 @@ neighbour, this cluster is not Prolog-private. A port here is a three-language e
 
 | symbol | sites | state |
 |---|---:|---|
-| `rt_proc_open_fn` | 522 | `FREE` |
+| `rt_proc_open_fn` | 522 | ⭐ `OUT:SN4-RTX:s208` — 0(d) DONE: 10.0M calls in `func_call` = **9.2–10.1%** of window, scaling proven 1:1 at two counts |
 | `rt_defer_step` | 432 | `FREE` |
 | `rt_defer_close` | 229 | `FREE` |
 | `rt_defer_open` | 216 | `FREE` |
 | `dtp_fn_of` | 200 | `FREE` |
 | `rt_proc_call_open_slim` / `rt_proc_call_open` | 132 / 132 | `FREE` |
 | `rt_proc_call_epilogue_slim_γ` / `rt_proc_call_epilogue_slim_ω` | 132 / 132 | `DONE:SN4-RTX:881ea03d` (CALL) |
-| `rt_flat_ret_snap` | 102 | `FREE` |
+| `rt_flat_ret_snap` | 102 | ⭐⭐ `OUT:SN4-RTX:s208` — 0(d) DONE: 10.0M calls in `func_call` = **17.0–18.4%** of window, share STABLE across 2 scales; **all 4 globals linker-hidden ⇒ direct `[rip+sym]`, no GOT** |
 | `rt_dcap_step` | 84 | `FREE` |
 | `rt_proc_set_dyn_scope` / `rt_proc_register` | 75 / 75 | `FREE` |
 | `rt_cmp_d` | 62 | `DONE:SN4-RTX:70198a9d` (ARITH) |
