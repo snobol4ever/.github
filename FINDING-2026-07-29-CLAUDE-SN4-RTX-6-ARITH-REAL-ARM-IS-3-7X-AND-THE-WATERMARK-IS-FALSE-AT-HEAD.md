@@ -166,3 +166,29 @@ falsify on `arith_mixed` or the direct probe.
    (`by_name_dispatch.c`) — a separate 0(d) is owed before touching it.
 4. The real-real SSE arm generalises: `rt_cmp_d` already has an int arm and could take a `ucomisd`
    real arm by the same argument, inside the same gate, with no `x86_asm.h` change.
+
+---
+
+## 8. ADDENDUM — ONE ALTERNATIVE EXPLANATION RULED OUT (still no culprit named)
+
+Before leaving the watermark to the next session, the cheapest competing hypothesis was tested:
+**were the 46 extra failures simply NEW tests, added ahead of the feature they exercise?** If so
+there is no regression at all and the recorded watermark was merely taken on a smaller suite.
+
+**RULED OUT.** The failing programs are OLD:
+
+| program | added |
+|---|---|
+| `crosscheck/strings/word1.sno` | `ff2af249` 2026-03-11 |
+| `crosscheck/control/expr_eval.sno` | `ce148ba7` 2026-03-11 |
+| `crosscheck/patterns/047_pat_rtab.sno` | `3d321764` 2026-03-13 |
+| `crosscheck/patterns/120_pat_calc_add.sno` | `b794c7c2` 2026-04-29 |
+
+All predate the 314/1 watermark's own sessions by months. ⇒ **these are long-standing tests that
+used to pass and now segfault. It is a REGRESSION.**
+
+⛔ **STILL NO CULPRIT ASSERTED.** This narrows the question, it does not answer it. What is now
+established: (i) the failures are real crashes, (ii) they are not the RTX ladder's, (iii) they are
+not corpus growth. The next session inherits a well-posed bisect: the suite passed at the watermark's
+recording and fails at `b17e263a`, with `crosscheck/patterns/047_pat_rtab.sno` as a clean segv repro
+needing no `.input`. **Per RULES, the monitor owns that hunt, not a reading of the diff.**
