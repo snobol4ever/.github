@@ -1,3 +1,19 @@
+## ⛔⭐ LIVE CURSOR — s21x (2026-07-29, FB-STMT session): **FB-STMT LANDED OPT-IN (SCRIP `81345044`) — per-node frame-base refinement, Lon directive "Change every RBP to RSP that can be. I want only the housekeeping data indexed by RBP." Default OFF after two same-session falsifications.**
+
+**WATERMARK (re-proven at start AND close, default arm): m3 311/4 · m4 311/2 · DIVERGE=2** (140/141 eval, 160 alt-inner-gen-resume, test_case m3-only) — byte-identical to session-start baseline. Handoff step-4 `.s` sweeps run = no-ops by construction (default-off ⇒ compiler output byte-identical).
+
+**MECHANISM:** `emit_fb_stmt_scan` (eligibility: pin sourced ONLY from statement-bracketed kinds DEFER/ARBNO/FENCE1/VALUE; any suspend/generator class, ABORT or CALLOUT disqualifies) + per-node bit map built at the `emit_chain` choke point; `x86_fb_data()` consulted ONLY by the five data accessors + FRQB (`x86_asm.h` ~363-367, ~873). Ceremony, record protocol and epilogues read `emit_jmp_pin_rbp`/`emit_rec_pin` UNTOUCHED — data spelling only; mixed spellings address identical bytes (rbp==base; static reader rsp==base−live, `x86_frame_off` compensates). Arm with `SCRIP_FB_STMT=1`; env-gated diagnostics under `SCRIP_FB_DEBUG=1`.
+
+**MEASURED UNDER THE FLAG:** pinned-benchmark `[rbp+N]` value refs **1015 → 220**; survivors = match-family housekeeping ONLY (head Σ/δ/Δ/capgen/mark/bracket, release/replace, break/alternate/span/defer quads). call/binop/op75/op77/var/lit/assign/subscript/deref = **ZERO**. All four pinned benchmarks (mixed_workload/roman/pattern_bt/string_pattern — all pin via stored-pattern DEFER) output-correct; w1 witness oracle-exact BOTH modes vs `sbl`; census-gate unseeded=0 held.
+
+**🔴 FALSIFIED PREMISE (why default OFF — do not flip without the license):** "statement exits rebalance rsp" (the 058 law) is FALSE on two measured paths: (a) **ARBNO hit-path element retention** — interior carves survive γ by design (t1.s; the free-on-final-success rung banked in `3ea60fc2`'s FINDING is the same fact) — `180_pat_arbno_defer_nonrecursive` SEGVs on the statement AFTER a successful arbno; (b) **DEFER/VALUE-alt backtrack re-pump** of a retained blob — `072_pat_star_var_alt_backtrack`. Default-on regressed 7 crosscheck programs (also 143/164/165/181/183); reverted to opt-in same session.
+
+**RE-ARM LICENSE:** monitor-first on 180 then 072; either extend the bit map downstream of any retaining statement until its `release_to` provably sweeps, or land **free-on-final-success** first (restores the rebalance law outright) — then flip the default ON and this conversion completes.
+
+**ALSO NAMED THIS SESSION:** `g_resumable_callable_active` LEAKS from PAT$ blob emission into outer mains (refreshed only at the jmp-entry arm, emit.cpp ~1821; measured on w1 — mixed_workload escaped only because RSUM's proc emission reset it). FB-STMT's guard reads the graph-own `resumable_callable` field as the workaround; the stale-emission-global class deserves its own sweep rung.
+
+**NEXT RUNGS IN ORDER:** (a) **180 monitor dig → re-arm FB-STMT default** (the license above). (b) **FLATDISP-5a frameless invariant PAT$ blobs** — the structural companion; flat_pat/flat_gen/gen-proc graphs keep whole-graph rbp until it lands. (c) stale-emission-global sweep.
+
 ## ⛔⭐ LIVE CURSOR — s206 (2026-07-28): **RUNG ZHEAP REMAINS #1 AND IS NOW BLOCKED ON ONE LON RULING (ζ_self register, jointly with VSP). Port 7 was NOT ACTUALLY SELECTABLE — two silent defects fixed, SCRIP `cca948c5`. The "keep locals flat" proving configuration is FALSIFIED: it does not exist.**
 
 **NEXT RUNG = (a) LON RULING on §4 of the finding.** Watermark NOT re-proven this session (no emitter edit survived; default-port `.s` byte-identity verified instead — 256 lines, non-empty guard honored). No `.s` regen: `cca948c5` touches only `src/driver/scrip.c` + `src/runtime/rt/zeta_alloc.c`, so handoff step 4 is not triggered.
