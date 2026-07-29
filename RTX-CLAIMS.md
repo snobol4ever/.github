@@ -170,7 +170,7 @@ my number and must be re-decided, not reversed.**
 | `rt_call_proc_descr` | 542 | ICNCALL | ⛔ `BLOCKED:MEASURED-ZERO` |
 | `to_int` | 286 | — | `DONE:pre-RTX:rt_asm_helpers.S` (LEAF) |
 | `rt_bomb` | 215 | error | ⛔ `BLOCKED:COLD-BY-DESIGN` |
-| `rt_jct_relop` | 163 | COERCE | `OUT:ICON-RTX:s212` |
+| `rt_jct_relop` | 163 | COERCE | ⭐ **`DONE:ICON-RTX:s212`** (gate `SCRIP_RTX_ICNREL`, ninth family gate) — **1.761× ON/PRISTINE** on an isolation bench, PRISTINE `.so` byte-identical to the session baseline. Ported arms: the **textually-LAST** `strcmp` tail (59.8% of arrivals) + the **textually-FIRST** EQV/NEQV block (24.8%); numeric middle bails to C. ⛔ **Corpus reach is only 4,308 calls across all 303 programs — the speed is real, the corpus-wide impact is NOT claimed.** ⚠ s202 ancestry check not yet satisfiable (no credential s212) |
 | `rt_keyword_read` | 136 | KWD | ⛔ `BLOCKED:PORT-IS-NOT-FIX` (fragile allowlist, silent omission) |
 | `rt_proc_value` | 126 | ICNCALL | `FREE` |
 | `rt_scan_leave` | 120 | **SCAN** | `BLOCKED:DESTINATION-RULING` |

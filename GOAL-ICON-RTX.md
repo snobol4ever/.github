@@ -47,7 +47,55 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 ---
 
-## ⛔ LIVE CURSOR — s211-ICN (2026-07-29): **RTX-6-ICN LANDED — `rt_coerce_num2_d` IS ASM AT 1.783× ON/PRISTINE, WITH ITS `static` CALLEE ABSORBED. ⭐⭐ AND THE RUNG WAS WON BY READING THE EMITTING TEMPLATE, NOT THE C FILE.**
+## ⛔ LIVE CURSOR — s212-ICN (2026-07-29): **RTX-6b-ICN LANDED — `rt_jct_relop` IS ASM AT 1.761× ON/PRISTINE. ⭐⭐ AND THE RUNG WAS WON BY RE-RUNNING THE RECON s211 HANDED ME, WHICH WAS WRONG IN BOTH HALVES.**
+
+**⭐⭐ A RECON HANDED FORWARD IS A CLAIM, NOT A MEASUREMENT — STEP 0(h) MUST COVER PROSE, NOT JUST CHECKBOXES.**
+s211 recorded, as a free gift, that `bb_binop_relop.cpp` has **NO inline tag guard** and calls
+`rt_jct_relop` at **five** sites. Measured s212 at the same HEAD: it **HAS** `DT_DATA`+`DT_I` guards
+(lines 23-32, 107-116) and calls the symbol at **FOUR** sites. Acting on the inherited version means
+porting the int-int arm — and the `DT_I` guard means int-int is **inlined by the template and reaches
+the symbol ZERO times** (positive control: 2,000 `i < 1000` comparisons ⇒ 0 arrivals, while the same
+program's string and real comparisons ⇒ 8,000). **That port would have measured ~0 — RTX-1-ICN's error
+for the THIRD time.** ⭐ **RULE: re-run an inherited grep; it is exactly as perishable as an inherited
+checkbox and exactly as cheap to redo.**
+
+**⭐⭐ 0(g) RETURNS A DISTRIBUTION, NOT A BINARY — AND THIS IS A THIRD REGIME.** Interposer over the
+**whole 303-program corpus**, binned by tag pair and op: **S/S 67.1%** of arrivals; ops **SEQ 46.7% ·
+EQV 18.7% · SNE 9.6%**. Mapped onto the arm chain: the **textually-LAST** `VARVAL_fn`+`strcmp` tail is
+**59.8%**, the **textually-FIRST** EQV/NEQV block is **24.8%**, the numeric middle is **~15%**.
+⇒ **BOTH ENDS LIVE, MIDDLE COLD.** RTX-6 found first-arms *dead*; s211 predicted *"the opposite
+regime, first arms live"*; **neither describes it.** The regime is a property of the specific
+guard/callee pair and **cannot be predicted from the previous rung in either direction.**
+
+**⭐ WHAT WAS ACTUALLY REMOVED, AND IT IS NOT `-O0` CEREMONY:** the exported wrapper ran a **`setjmp`
+on EVERY call**; the dominant arm additionally made **2 `junction_is` + 2 `VARVAL_fn` + 1 libc
+`strcmp`** and ~24 dispatch compares. All deleted on the fast path. **A deleted `setjmp` and a deleted
+libc call are removable at any `-O` level** — same shape as RTX-6's deleted `strtoll`.
+
+**⛔⛔ SIX OF THIRTEEN ICON BENCHMARKS HAVE NEVER RUN THEIR WORKLOAD — A NEW NAMED HALF OF RTX-0b.**
+`concord · deal · ipxref · queens · rsg · tgrlink` carry `link options, post`; **neither IPL file
+exists in `corpus/`**, so they die at link and print the `&features` banner. **My own first 0(d) sweep
+read five zeros off dead programs before I checked.** ⭐ **RULE: a ZERO from 0(d) is not a result until
+the program is proven to have RUN** — a dead benchmark and a cold symbol emit the same `0`.
+`options.icn` **exists** in `refs/icon-master/ipl/procs/`; `post.icn` does not. Not chased, per the
+goal file's standing "exclude, do not investigate".
+
+⛔ **THE RUNG AS MINTED IS HALF-ILLEGAL AND THE REMAINDER IS LON'S.** RTX-6b paired `rt_jct_relop` with
+`rt_binop_overload`, but the ledger allocates the latter to **SN4-RTX at 1.4×** (197 SNO vs 141 ICON,
+past the 1.3× tie bar). **Only `rt_jct_relop` was ported** — an Icon-EXCLUSIVE row needing no
+arbitration. ⇒ **re-assign `rt_binop_overload`, or re-mint the remainder around `rt_relop_overload`**
+(51, COERCE, Icon-EXCLUSIVE, FREE), which is the legal same-family companion.
+
+⚠ **PROTOCOL DEVIATION (same as s211):** check-out `c8d91ab7` was **committed** before the port,
+**not pushed** before it — no credential. ⚠ **SNOBOL4's absolute watermark disagrees with s211's prose
+again** (measured **284/42**, prose says 276/50/8) — graded on the ON/OFF differential, **no culprit
+asserted**. ⚠ **`scripts/util_rtx_claims.sh` STILL DOES NOT EXIST**; every ledger row remains
+hand-asserted — including the one that caught this session's cross-ladder conflict.
+`scripts/handoff_status.sh` is the only completion truth.
+
+---
+
+## ⛔ PRIOR CURSOR — s211-ICN (2026-07-29): **RTX-6-ICN LANDED — `rt_coerce_num2_d` IS ASM AT 1.783× ON/PRISTINE, WITH ITS `static` CALLEE ABSORBED. ⭐⭐ AND THE RUNG WAS WON BY READING THE EMITTING TEMPLATE, NOT THE C FILE.**
 
 **⭐⭐ STEP 0(g) HAS A SECOND HALF AND IT INVERTS THE INSTINCT: THE CALLER TEMPLATE'S INLINE GUARD
 DECIDES WHICH CALLEE ARM IS LIVE — AND IT IS SYSTEMATICALLY THE EXPENSIVE ONE.**
@@ -236,6 +284,22 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   self-timed windows · ×4 N auto-ranging · **`MIN_MS=800`, a shorter window is reported `BOGUS-WINDOW`
   and its ratio SUPPRESSED, not printed small** · R interleaved rounds, **first round discarded**
   (hugepage compaction warmup, s201/s202) · medians · ON/OFF output byte-identity or the run is fatal.
+  ⛔⛔ **s212 NAMED THE CAUSE OF THE DEAD-CORPUS HALF, AND IT IS NOT A FRONT-END GAP: SIX OF THE
+  THIRTEEN BENCHMARKS DIE AT LINK.** `concord · deal · ipxref · queens · rsg · tgrlink` all carry
+  `link options, post`, and **neither `options.icn` nor `post.icn` exists anywhere in `corpus/`** ⇒
+  `icon: link: cannot open ./options.icn`, the program prints the `&features` banner and **never
+  reaches its workload**. ⭐ `options.icn` **DOES** exist in `refs/icon-master/ipl/procs/`; `post.icn`
+  does not. Vendoring the IPL procs (or stubbing `Init__`/`Term__`) is the cheapest unblock and would
+  make six benchmarks profilable at a stroke. Not chased s212 per the standing "exclude, do not
+  investigate" on `options`/`post`/`shuffle` — **but that note describes a symptom and this is the
+  cause, so the exclusion is worth re-deciding.**
+  ⭐⭐ **RULE MINTED s212: A ZERO FROM 0(d) IS NOT A RESULT UNTIL THE PROGRAM IS PROVEN TO HAVE RUN.**
+  A dead benchmark and a genuinely cold symbol emit the identical `0`. s212 read five zeros off dead
+  programs before checking that the output was the program's own and not a banner. Cost: one `head`.
+  ⭐ **A working self-timed pattern now exists for authored workloads:**
+  `corpus/benchmarks/icon/rtx/bench_icnrel_isolate.icn` (s212) and `bench_icnnum_isolate.icn` (s211) —
+  `&time` opened INSIDE the program, allocation hoisted OUT of the timed loop, prints `ms: <n>` for
+  `scripts/bench_rtx_3arm.sh`. s212's clears `MIN_MS=800` at ~1.9 s with arm spreads 1.03-1.10×.
   ⚠ `options`/`post`/`shuffle` are compile-err **pre-existing** — exclude, do not investigate.
 - [x] **RTX-0d-ICN — ⭐ CLOSED s203-ICN, RE-CONFIRMED AND EXTENDED s210-ICN. `rt_call_arr` IS NOT THE
   TARGET.** s203-ICN: static rank's top three execute ZERO; hottest unported symbol was `rt_assign_var`
@@ -314,17 +378,34 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   See `FINDING-2026-07-29-CLAUDE-ICN-RTX-6-ICNNUM-LANDED-1p783X-…`.
   ⚠ **`[x]` PENDING THE s202 ANCESTRY CHECK** (`git rev-list --count origin/main..HEAD` == 0) — SCRIP
   `eb81508d` is committed locally and that check is not yet satisfiable; no credential this session.
-- [ ] **RTX-6b-ICN — the coercion family's REMAINDER: `rt_binop_overload` (141) + `rt_jct_relop` (163).**
-  ⭐⭐ **0(g)-SECOND-HALF RECON ALREADY DONE (s211, free): `bb_binop_relop.cpp` HAS NO INLINE TAG GUARD**
-  — zero `cmp DT_*`/`je` before any call, and `rt_jct_relop` is called **unconditionally at five sites**.
-  ⇒ **THIS RUNG IS IN THE OPPOSITE REGIME FROM RTX-6.** No guard means the callee's own internal
-  dispatch is the whole story, so **0(g) as originally written (s209b) applies unmodified** and the
-  textually-first arms may genuinely be live here. ⛔ **DO NOT CARRY RTX-6'S CONCLUSION ACROSS** — its
-  "the live arm is the expensive one" is a property of a GUARDED call site, not of coercion.
-  ⚠ `rt_cmp_d` is already ported (ARITH gate) — **isolation arm required.** ⚠ `rt_num_arith` (208) is
-  **SN4-RTX's**, excluded pending the ruling. ⭐ **Apply 0(g)'s second half FIRST** (read
-  `bb_binop_relop.cpp` / `bb_cmp_test.cpp` for an inline tag guard before choosing an arm) — that is
-  what made RTX-6-ICN a 1.783× instead of a null.
+- [x] **RTX-6b-ICN — ⭐⭐ `rt_jct_relop` LANDED s212-ICN AT 1.761× ON/PRISTINE (gate `SCRIP_RTX_ICNREL`,
+  ninth family gate). `rt_binop_overload` NOT PORTED — SEE THE OWNERSHIP NOTE BELOW.**
+  3-arm interleaved, round 1 discarded: **ON 1063.5ms (1026-1130) · PRISTINE 1872.5ms (1846-1892) ·
+  OFF 1811ms**, spreads 1.03-1.10× against a **1.761× gap, distributions nowhere near overlapping**,
+  kill-switch tax 1.034×, `RT_OPT=-O0`. PRISTINE `.so` **byte-identical to the session baseline md5**.
+  Falsification two-sided and NOT silent: corrupting the SEQ RESULT on the hottest arm ⇒ **244/19 gate
+  ON, 252/11 gate OFF**. Gates: Icon **252/11/30** · SNOBOL4 m4 **284/42** · Prolog **188/0/1**, each
+  identical ON and OFF. Ported arms = the **textually-LAST** `strcmp` tail (59.8%) + the
+  **textually-FIRST** EQV/NEQV block (24.8%); numeric middle bails to C.
+  ⛔ **SCOPE: 1.761× is an ISOLATION benchmark and the corpus reach is only 4,308 calls across all 303
+  programs.** The 163 static sites are the **sixth falsification of static ranking on this ladder**.
+  The speed is real on a legal window; **no corpus-wide impact is claimed.**
+  ⛔⛔ **THE s211 RECON RECORDED ON THIS RUNG WAS FALSIFIED — IT IS DELETED ABOVE, NOT LEFT TO MISLEAD.**
+  It claimed `bb_binop_relop.cpp` has NO inline tag guard and FIVE call sites. It **HAS** `DT_DATA`+`DT_I`
+  guards and **FOUR** call sites, so this rung was in the SAME regime as RTX-6, not the opposite, and
+  the int-int arm it pointed at reaches the symbol **ZERO** times.
+  See `FINDING-2026-07-29-CLAUDE-ICN-RTX-6B-JCT-RELOP-LANDED-1p761X-…`.
+  ⚠ **`[x]` PENDING THE s202 ANCESTRY CHECK** (`git rev-list --count origin/main..HEAD` == 0) — no
+  credential this session.
+- [ ] **RTX-6c-ICN — THE COERCION FAMILY'S LEGAL REMAINDER. ⛔ BLOCKED ON LON, ONE LINE.**
+  RTX-6b as minted paired `rt_jct_relop` with **`rt_binop_overload` (141)** — but `RTX-CLAIMS.md`
+  allocates that symbol to **SN4-RTX at 1.4×** (197 SNO vs 141 ICON, past the 1.3× tie bar). It is
+  `FREE` but it is **not this ladder's to take**, same class as `rt_call_arr`. ⇒ **either re-assign it
+  to ICON-RTX, or re-mint this rung around `rt_relop_overload`** (51, COERCE, **Icon-EXCLUSIVE**,
+  `FREE`) — the legal same-family companion, and the one I would pick absent a ruling.
+  ⚠ `rt_cmp_d` is already asm (ARITH) ⇒ **isolation arm required** (s204: a family gate's error has no
+  known sign and no known bound). ⭐ **Re-run 0(g) from scratch on whichever symbol is chosen** — s212
+  proved the arm regime does not transfer between rungs in EITHER direction.
 - [ ] **RTX-7-ICN — `rt_jmp_frame_lexprep2` (209) + `rt_pl_dc_prep` (202).** ⛔⛔ **DUAL-ENTRY TERRITORY —
   HIGHEST-RISK RUNG ON THIS LADDER.** Icon compiles ONE shared body with TWO entries (`proc_X_α` and
   `proc_X_dcα`); `GOAL-ICON-BB.md` s196 records that this exact area broke Icon at HEAD for four
