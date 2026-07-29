@@ -357,6 +357,33 @@ Append here; do not rewrite others' entries. One line each: session · to whom �
 
 ## ▶ THE GATE — `scripts/util_rtx_claims.sh`
 
+⭐⭐ **WRITTEN AND RUN FOR THE FIRST TIME s212-ICN. IT HAD NEVER EXISTED** — measured absent from
+`scripts/` while the text below, and three sessions of prose, asserted it was what kept this file
+honest. s209-SN4 already recorded taking these rows at face value and called it *"luck, not
+verification"*; s212-ICN then declined to port `rt_binop_overload` on a hand-asserted allocation row.
+Both were correct **by luck**. Run it: `CUR_SESSION=<n> bash scripts/util_rtx_claims.sh` (exit 1 on
+any FATAL). ⚠ **It checks the ledger against the TREE. It cannot check that a ladder honoured a claim
+it read, and it cannot see an unpushed clone** — the s202 ancestry check and `handoff_status.sh` stay
+separate obligations.
+
+**FIRST RUN — CLEAN on the three fatals, 21 warnings, and two of them are load-bearing:**
+
+⛔⛔ **STALE-CHECKOUT FIRED ON BOTH LONG-PARKED SYMBOLS, AND ONE OF THEM IS ICON'S HOTTEST:**
+- **`rt_subscript_var` — `OUT:SN4-RTX:s204`, EIGHT sessions ago.** It is **Icon's #1 run-phase symbol
+  (315k)** and ICON-RTX has been blocked on it since s210. The ledger's own rule is *"an `OUT:` older
+  than 2 sessions"* is stale; this is four times that. **Confirm or release.**
+- **`rt_num_arith` — `OUT:SN4-RTX:s205`, SEVEN sessions ago.** Same call.
+⇒ **The "ABANDON" rule was written for exactly this and was never applied.** A stale `OUT:` *"parks a
+symbol forever and reads as active work"* — that is now measured, not predicted.
+
+⚠ **UNLEDGERED-HOT surfaced a WHOLE UNLEDGERED PROLOG SURFACE** (≥100 static sites, no row):
+`rt_pl_dop_mkc` **655** · `rt_pl_dop_unify` **495** · `rt_node_to_term` 378 · `resolve_cp_current` 348 ·
+`rt_pl_dop_unwind_nothrow` 271 · `rt_pl_dop_unify_ci` 204 · plus ~10 more, and
+`rt_proc_call_open`/`_slim` **132 each in SNOBOL4**. This ledger was built from the Icon and SNOBOL4
+surfaces only. **If a third RTX ladder ever opens on Prolog, its top six are all unclaimed today.**
+⚠ `putchar` (197) is libc and shows the threshold does not know a runtime symbol from a libc one —
+0(f)'s `@PLT` filter cannot discriminate these, so read rank-4 warnings with that in mind.
+
 ⛔ **A HAND-MAINTAINED LEDGER WILL ROT. THIS PROJECT HAS DOCUMENTED THAT FAILURE AT LEAST FIVE TIMES**
 (stale watermarks typed into prose · a pointer naming a deleted section · a `[x]` rung on an unmerged
 branch · a §5 table that rotted exactly as its own caveat predicted · an annotation that did not disarm
