@@ -195,4 +195,45 @@ than the tree. A sweep that disagrees with a hand-run of one of its own members 
    more than one whose probe comes back silent** (the s204 lesson).
 5. Do **not** re-open the TAB/RTAB bisect. It is closed by measurement, above.
 
+
+---
+
+## ▶ 8. THE CLASS IS BOUNDED AT ONE INSTANCE, AND IS NOW GATED STATICALLY (added later in s214)
+
+Ran the sweep this FINDING recommended, rather than leaving it as advice. **18 hidden-visibility globals
+exist in the runtime; exactly ONE was named in emitted text** — `g_cap_gen`, fixed at `488ecb73`. No
+unfired second instance. Recorded because a bounded class is worth much more than an open worry.
+
+⚠ **`g_pcall` / `g_pcall_top` LOOK LIKE A SECOND INSTANCE AND ARE NOT.** Both are hidden AND both are
+named in `bb_call_proc_staged.cpp` — a template. **The reference is a COMMENT, at line 375.** The grep
+that finds it cannot tell a comment from an emitted operand; only reading the line can. ⭐ These are the
+same two globals ARCH §7 step 0(c) already singles out as *"differ only in an attribute you cannot see
+at the use site"* — so the near-miss landed on exactly the pair the doc warns about, which is either
+a good sign for the doc or a bad sign for my luck.
+
+**GATE LANDED — SCRIP `e72da270`, `scripts/test_gate_no_hidden_global_in_emitted.sho`:** ~1 second,
+static, runnable every session. **Static is the point.** The dynamic instrument for this class is the
+mode-4 crosscheck, mode 4 is the expensive half, and skipping it is precisely how the defect survived
+≥11 commits. A class only one medium can express needs a gate that does not require running that medium.
+
+⛔⛔ **THE GATE'S FIRST VERSION FALSE-POSITIVED ON ITS OWN FIX — FIFTH INSTRUMENT DEFECT OF s214, AND THE
+SECOND CAUSED BY MY OWN TEXT RATHER THAN THE TREE.** It harvested by grepping `visibility("hidden")`
+across the `.c` files. My warning comment on `g_cap_gen`'s declaration — *"DO NOT re-add
+visibility(\"hidden\")"* — contains that exact string, so the gate reported the one symbol it had been
+written to protect. Now harvested from ELF:
+
+```bash
+readelf -sW out/rt_pic/*.o | awk '$4=="OBJECT" && $5=="GLOBAL" && $6=="HIDDEN" {print $8}'
+```
+
+⭐ **A GATE THAT READS PROSE INHERITS EVERY DEFECT PROSE HAS.** This project has documented prose rot
+at least six times; the fix is never a better-worded document, it is deriving the answer from the
+artifact. The ELF symbol table cannot be made stale by a comment.
+
+**FALSIFICATION TWO-SIDED, because a gate never observed to fail is not a gate:** re-added
+`visibility("hidden")` to `g_cap_gen`, recompiled `pattern_match.o` → **GATE FAILED**, naming the symbol
+and the required fix. Restored → **GATE CLEAN**, source byte-identical (`git diff` empty), and
+`libscrip_rt.so` relinked to md5 `718277e8bbce472ff1d8277fb9bd0d3f` — **identical to the pre-probe
+build**, which is the kill-switch byte-identity discipline applied to a probe rather than a port.
+
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
