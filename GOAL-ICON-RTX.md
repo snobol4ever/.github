@@ -315,6 +315,12 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   ⚠ **`[x]` PENDING THE s202 ANCESTRY CHECK** (`git rev-list --count origin/main..HEAD` == 0) — SCRIP
   `eb81508d` is committed locally and that check is not yet satisfiable; no credential this session.
 - [ ] **RTX-6b-ICN — the coercion family's REMAINDER: `rt_binop_overload` (141) + `rt_jct_relop` (163).**
+  ⭐⭐ **0(g)-SECOND-HALF RECON ALREADY DONE (s211, free): `bb_binop_relop.cpp` HAS NO INLINE TAG GUARD**
+  — zero `cmp DT_*`/`je` before any call, and `rt_jct_relop` is called **unconditionally at five sites**.
+  ⇒ **THIS RUNG IS IN THE OPPOSITE REGIME FROM RTX-6.** No guard means the callee's own internal
+  dispatch is the whole story, so **0(g) as originally written (s209b) applies unmodified** and the
+  textually-first arms may genuinely be live here. ⛔ **DO NOT CARRY RTX-6'S CONCLUSION ACROSS** — its
+  "the live arm is the expensive one" is a property of a GUARDED call site, not of coercion.
   ⚠ `rt_cmp_d` is already ported (ARITH gate) — **isolation arm required.** ⚠ `rt_num_arith` (208) is
   **SN4-RTX's**, excluded pending the ruling. ⭐ **Apply 0(g)'s second half FIRST** (read
   `bb_binop_relop.cpp` / `bb_cmp_test.cpp` for an inline tag guard before choosing an arm) — that is
