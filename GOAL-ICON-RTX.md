@@ -198,6 +198,15 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   sequence and is therefore PHASE 2**, template territory. Phase 1 = five `.S` bodies, signatures
   unchanged. ⚠ Step 0(d) first: per-procedure setup may be **setup-only**, i.e. the `rt_call_arr` trap
   in a different costume.
+- [x] **RTX-1-ICN — ⭐ RE-TARGETED AND LANDED s209-ICN: `rt_assign_var`, NOT the proc-setup family.**
+  The proc-setup target was falsified before it was written (`rt_proc_set_fn` measures FLAT 10@N=6 /
+  10@N=8 — the s188 setup-only signature). `rt_assign_var` is the dynamic #1 unported symbol from
+  static rank 20. Ported fast arms only behind new gate `SCRIP_RTX_ICNVAR`; C body → `c_rt_assign_var`.
+  Icon 252/11/30 · SNOBOL4 276/50 · Prolog 185/0, each == its gate-off control. Falsification two-sided
+  and NOT silent (broke a result ⇒ 247/16 gate-on, 252/11 gate-off).
+  ⛔ **HALF-RUNG: NO SPEED CLAIM.** Window 16-20 ms vs `MIN_MS=800` ⇒ `BOGUS-WINDOW`, ratio suppressed.
+  **The ladder cannot currently time its own landed work — RTX-0b-ICN is now blocking twice over.**
+  See `FINDING-2026-07-29-CLAUDE-ICN-RTX-1-ASSIGN-VAR-LANDED-…`.
 - [ ] **RTX-2-ICN — `rt_arg_stage` (897, #2).** ⚠ Step 0(d) first — same trap class.
 - [ ] **RTX-3-ICN — `rt_call_proc_descr` (542) + `rt_proc_value` (126) + `rt_frame` (255).** The live
   call path, distinct from the setup family. ⚠ `rt_proc_call_epilogue_γ/ω` are **already ported** —
