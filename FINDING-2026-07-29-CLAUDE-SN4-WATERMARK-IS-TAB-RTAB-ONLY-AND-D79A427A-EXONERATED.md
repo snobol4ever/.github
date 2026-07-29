@@ -110,3 +110,32 @@ on this ladder.** Comparing raw counts across sessions is exactly the trap. Veri
 The watermark is still FALSE at HEAD and every RTX rung's absolute gate is still ungradeable. The
 three-way ON/OFF/PRISTINE differential remains the substitute that survives a broken baseline (s210).
 **This finding narrows the question from "46 programs" to "one pattern family"; it does not answer it.**
+
+---
+
+## 8. ⛔ ADDENDUM (same session, after `git pull --rebase`): THE UPSTREAM FLATDISP FIX DOES **NOT** CLOSE THIS
+
+Mid-session a parallel session pushed SCRIP `30ee3fe6` / `57a7b598` — **"Z4 s8 fix 1: capture-start
+regression — FLATDISP parse prefix collision. Unpinned `x86_fr32_prefix()` IS the plain `[rsp + ` spelling,
+so raw FORTH-cell operands parsed `XK_FR32` and gained `op_flat_disp` … capture `COND(64)->SAVE(48)`
+double-counted the 16"** — and it explicitly claims to close the `d79a427a..cca948c5` range.
+
+**It looked like a direct hit on §3's lead**: same axis (`op_flat_disp` vs a template-local `sub rsp,K`), and
+`64`/`48` are the exact offsets in REM's and RTAB's emitted scratch stores. **Rebuilt at `57a7b598` and
+MEASURED — TAB/RTAB STILL SEGV:**
+
+| program | rc at `57a7b598` |
+|---|---|
+| `RTAB(2) . V` · `RTAB(0) . V` | **139** |
+| `TAB(4)` bare · `RTAB(2)` bare | **139** (correct output printed first, then death) |
+| `LEN(2) . V` · `REM . V` | 0, oracle-identical |
+
+⭐ **SECOND FALSIFIED SUSPECT THIS SESSION, AND THE MORE INSTRUCTIVE ONE: it was not my guess — it was a
+LANDED FIX ON THE EXACT AXIS I HAD NOMINATED, WITH MATCHING MAGIC NUMBERS, AND IT IS STILL NOT THIS BUG.**
+Had I written §3's lead as a cause instead of a lead, this commit would have "confirmed" it and the real
+defect would have been closed as fixed while 46 programs kept failing. **The `sub rsp,K` + `FR(off)` shape
+evidently hosts MORE THAN ONE defect; sharing a mechanism class is not sharing a bug.**
+
+⇒ **BISECT ENDPOINTS UPDATED: GOOD `d79a427a` (verified) · BAD `57a7b598` (verified, this addendum).**
+⚠ And note what this does to §4's narrowing: the upstream fix landed AFTER `FINDING-2026-07-27k`'s
+`FAIL=20/19`, so that count cannot be reconciled with `FAIL=47` by pointing at this commit either.
