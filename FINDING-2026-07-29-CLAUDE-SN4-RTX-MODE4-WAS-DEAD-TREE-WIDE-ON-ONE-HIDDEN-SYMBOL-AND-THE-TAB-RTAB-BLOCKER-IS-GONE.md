@@ -211,7 +211,7 @@ same two globals ARCH §7 step 0(c) already singles out as *"differ only in an a
 at the use site"* — so the near-miss landed on exactly the pair the doc warns about, which is either
 a good sign for the doc or a bad sign for my luck.
 
-**GATE LANDED — SCRIP `e72da270`, `scripts/test_gate_no_hidden_global_in_emitted.sho`:** ~1 second,
+**GATE LANDED — SCRIP `e72da270`, `scripts/test_gate_no_hidden_global_in_emitted.sh`:** ~1 second,
 static, runnable every session. **Static is the point.** The dynamic instrument for this class is the
 mode-4 crosscheck, mode 4 is the expensive half, and skipping it is precisely how the defect survived
 ≥11 commits. A class only one medium can express needs a gate that does not require running that medium.
