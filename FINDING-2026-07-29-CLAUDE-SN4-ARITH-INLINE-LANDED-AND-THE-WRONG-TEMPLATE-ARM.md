@@ -169,3 +169,38 @@ emitted bytes changed ⇒ this IS owed**) · `test_gate_template_medium_invisibl
 
 **PUSH STATE: NOT ASSERTED HERE.** Per RULES STALE-ORIENTATION (a), a push-status banner in a committed doc
 is structurally incapable of being true. `scripts/handoff_status.sh` is the only ground truth.
+
+---
+
+## 7. ⛔⛔ INCIDENTAL BUT SERIOUS: `test_smoke_all_frontend_backend_matrix.sh` HAS **NEVER** WORKED
+
+ARCH §7 step 3 requires *"smokes 7/7×2"* on every rung. Running it this session:
+
+```
+scripts/test_smoke_all_frontend_backend_matrix.sh: line 50: syntax error: unexpected end of file
+```
+
+**The file is 48 lines and ends mid-token** — `case "$status" in / PASS) PASS_SU` — i.e. **TRUNCATED**, not
+merely buggy. The matrix body does not exist.
+
+**MEASURED, and my first attribution was WRONG and is recorded as wrong:** I attributed it to `c3348619`
+(the one4all rename sweep, 2026-05-31) because that was the last commit to touch it. **Falsified by checking
+the parent: 48 lines both before AND after.** Tracing the full history — **only two commits have ever touched
+this file, both on 2026-05-31, and it is 48 lines in both.** ⇒ **the script was COMMITTED TRUNCATED at
+`713c581b` and has never run, for two months.**
+
+⭐ **THE FAILURE MODE IS THE INTERESTING PART AND IT IS A NEW ONE FOR THIS LADDER: A GATE THAT DIES WITH A
+SHELL SYNTAX ERROR READS AS AN ENVIRONMENT PROBLEM, NOT AS A MISSING GATE.** `rc=2` plus a bash parse error
+looks like a container/toolchain complaint — the same reflex that made s188 blame a non-UTF-8 `core.c` for a
+grep-filter defect. Every rung since 2026-05-31 that recorded "smokes 7/7×2" either ran a *different* script
+or did not run one. **Which it was is unknown and should be established before the next rung quotes that
+gate.** ⚠ Same class as the (a)-rot in RULES STALE-ORIENTATION: a document asserting a check it cannot know
+was performed.
+
+⇒ **ACTION FOR LON:** either restore the matrix script or strike "smokes 7/7×2" from the ARCH §7 step-3 list
+and name the script that actually serves that role. **Not fixed here** — it is a shared `scripts/` file with
+3–4 parallel sessions live, and inventing a replacement gate mid-rung is exactly the unserialized edit the
+concurrency note warns against.
+
+**This rung's gate evidence therefore rests on the 316-program crosscheck differential (zero movers, both
+modes, four batteries), which is a strictly stronger instrument than the smoke subset anyway.**
