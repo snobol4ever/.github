@@ -47,7 +47,55 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 ---
 
-## ⛔ LIVE CURSOR — s212-ICN (2026-07-29): **RTX-6b-ICN LANDED — `rt_jct_relop` IS ASM AT 1.761× ON/PRISTINE. ⭐⭐ AND THE RUNG WAS WON BY RE-RUNNING THE RECON s211 HANDED ME, WHICH WAS WRONG IN BOTH HALVES.**
+## ⛔ LIVE CURSOR — s213-ICN (2026-07-29): **RTX-8-ICN LANDED SPLIT — `rt_list_bang_at` IS ASM AND PROVABLY EXECUTES; `rt_size_d`'s PORTED ARMS ARE A MEASURED NULL. ⭐⭐ AND THE WHOLE LADDER'S STATIC INVENTORY IS COMPUTED ON A PERMANENTLY-FROZEN STALE TREE.**
+
+**NEXT RUNG: RTX-8b-ICN** — port the DT_DATA/list arm of `rt_size_d` + the body of `list_bang_at`,
+using the fixed field layout (`fields[0]`=frame_elems, `[1]`=frame_size, `[2]`=gen_type) and the
+proven type-pointer cache idiom at `pattern_match.c:24` (`rt_list_view`). **That deletes 3 `FIELD_GET_fn`
+LINEAR SCANS (`strcasecmp` per field) + 1 libc `strcmp` PER `!L` ELEMENT ACCESS** — removable at ANY
+`-O` level, so it answers inbox gap #1 concretely. Offsets measured: `DESCR_t` 16B (v@0 slen@4 val@8),
+`DATBLK_t` nfields@8 fields@16, DT_DATA=100 DT_S=1 DT_SNUL=0 DT_I=6, FAILDESCR = {99, 0}.
+
+**⭐⭐ THE FINDING THAT OUTRANKS THE PORT: `ARCH-ICON-RTX.md` §5's METHOD SWEEPS A TREE `RULES.md`
+FORBIDS MAINTAINING, AND 96% OF THE ARTIFACT COUNT IS FROZEN A MONTH STALE.**
+`corpus/programs/icon/*.s` = **255 of the 265 "live" artifacts**, last regenerated **2026-06-27**;
+`corpus/benchmarks/icon/*.s` = 10 files, regenerated **2026-07-28**. RULES.md step 4 forbids ever
+regenerating the former and `update_icon_bench_asm.sh` actively REFUSES it ⇒ **those 255 files are
+frozen FOREVER.** PROOF: all 255 call `rt_frame@PLT`, **a symbol deleted at RUNG ZS-1 s57** — absent
+from `src/`, absent from `nm -D` on the `.so`, and the current compiler emits it **ZERO** times. It sits
+in the ledger as `FREE`, 255 sites, ICNCALL: a legal-looking claim on a symbol that cannot be ported
+because it does not exist.
+
+**⭐ CORRECTED SURFACE (compiler sweep, 263 programs — RULES.md: "sweep the COMPILER, never the artifacts"):**
+| symbol | ledger | compiler | verdict |
+|---|---:|---:|---|
+| `rt_write_any_nl` | 566 (rank 3) | **0** | ⛔ PHANTOM — **RTX-4-ICN's ENTIRE TARGET** |
+| `rt_call_proc_descr` | 542 (rank 4) | **0** | ⛔ PHANTOM — **RTX-3-ICN's primary target** |
+| `rt_arg_stage` | 897 (rank 2) | **57** | 15.7× overstated — RTX-2-ICN's target |
+| `rt_frame` | 255 | **0** | ⛔ symbol does not exist |
+| `rt_relop_overload` | 51 | **185** | 3.6× UNDERstated |
+⇒ **RTX-2/3/4 were minted against stale numbers.** The ladder recorded six "static counts don't
+predict dynamic behaviour" falsifications; that diagnosis is WRONG — the INPUT TREE was stale.
+⚠ SNOBOL4's artifact trees were regenerated **today**, so the ICON-vs-SNO allocation rule is biased
+on both sides. ⭐ **STEP 0(i) MINTED: derive static counts from `scrip --compile`, never from stored `.s`.**
+
+**⭐⭐ RTX-6c DISSOLVES — NO LON RULING IS OWED.** It was blocked arbitrating `rt_binop_overload` vs
+`rt_relop_overload`. Measured: **`rt_binop_overload` — Icon emits it ZERO times** (its 141 "Icon sites"
+are pure stale-tree; not contested at all). **`rt_relop_overload` — 185 REAL sites and ZERO dynamic
+arrivals** across 296 running programs; 0(g) predicted it, since the template guards the call with
+`cmp eax, DT_DATA; je` and these programs never compare records. ⇒ **CLOSE RTX-6c as NOT-A-TARGET.**
+
+⚠ **`util_rtx_claims.sh` HAS A HOLE THAT LET THIS SURVIVE:** its PHANTOM-LEDGER check is
+*"no definition **AND** no call site"* — so `rt_frame`, which has 255 call sites and NO definition,
+passes CLEAN. Make it an OR.
+⚠ **PROTOCOL DEVIATION:** no credential this session ⇒ the check-out was **not pushed before the work**.
+SCRIP `2511c53a` is committed, NOT pushed. `scripts/handoff_status.sh` is the only completion truth.
+⚠ 5 segfaults surfaced during the corpus sweep — consistent with the documented harness blind spot
+(`test_icon_all_rungs.sh` grades stdout, discards exit code).
+
+---
+
+## ⛔ PRIOR CURSOR — s212-ICN (2026-07-29): **RTX-6b-ICN LANDED — `rt_jct_relop` IS ASM AT 1.761× ON/PRISTINE. ⭐⭐ AND THE RUNG WAS WON BY RE-RUNNING THE RECON s211 HANDED ME, WHICH WAS WRONG IN BOTH HALVES.**
 
 **⭐⭐ A RECON HANDED FORWARD IS A CLAIM, NOT A MEASUREMENT — STEP 0(h) MUST COVER PROSE, NOT JUST CHECKBOXES.**
 s211 recorded, as a free gift, that `bb_binop_relop.cpp` has **NO inline tag guard** and calls
