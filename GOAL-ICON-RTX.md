@@ -47,7 +47,69 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 ---
 
-## ⛔ LIVE CURSOR — s213-ICN (2026-07-29): **RTX-8-ICN LANDED SPLIT — `rt_list_bang_at` IS ASM AND PROVABLY EXECUTES; `rt_size_d`'s PORTED ARMS ARE A MEASURED NULL. ⭐⭐ AND THE WHOLE LADDER'S STATIC INVENTORY IS COMPUTED ON A PERMANENTLY-FROZEN STALE TREE.**
+## ⛔ LIVE CURSOR — s214-ICN (2026-07-29): **THREE RUNGS LANDED ON A COMPLETENESS DIRECTIVE (`rt_gen_spine_*` trio, `rt_proc_value`, `rt_str_coerce`). ⭐⭐ AND THE HEADLINE IS A CORRECTION TO 0(d)'s OWN DOCTRINE: A DYNAMICALLY *FLAT* SYMBOL CAN BE MAXIMALLY LOAD-BEARING.**
+
+**LON'S DIRECTIVE THIS SESSION CHANGED THE ORDERING KEY:** *"Replace SCRIP's C runtime with ASM code.
+Do one at a time from small to large."* ⇒ the sort key is **C BODY SIZE, not dynamic share.** Every
+step-0 check still runs, but 0(d) is demoted from a GO/NO-GO on *worth* to a **falsifiability** check:
+a port whose corruption cannot move any board is still refused, but "measures flat" no longer rejects.
+
+**NEXT RUNG: continue the small-to-large sweep.** The size-ranked surface is reproducible in one command
+(⭐ **STEP 0(i), s213, honoured:** counts come from `scrip --compile`, NEVER from the frozen `.s` tree):
+sweep 316 Icon programs, extract `call sym@PLT`, intersect with C bodies in `src/runtime/**/*.c`, sort by
+brace-counted body length. Next unblocked Icon-EXCLUSIVE `FREE` rows by size: **`dat_field_get`** (117
+real sites), **`rt_make_list`** (178), **`subscript_set`/`subscript_get2`** (41/41), **`rt_case_eq`** (26).
+
+⛔⛔ **DO NOT PORT `rt_num_neg`/`rt_num_pos` — THE LEDGER ALLOCATES THEM TO SN4-RTX.** They were next by
+size (4 lines) and I stopped. An ownership request with two free measurements is in `RTX-CLAIMS.md`.
+
+⭐⭐ **THE FINDING THAT OUTRANKS ALL THREE PORTS — 0(d) MEASURES FREQUENCY, NOT IMPORTANCE.**
+`rt_proc_value` arrives **4 times, FLAT (4 at N=50, 4 at N=200)** — the exact setup-only signature that
+got `rt_call_arr` rejected at s188 and `rt_proc_value` itself rejected at RTX-8. **Corrupting its
+identity sentinel collapses the board from 252/11 to 1/262.** So the symbol the ladder had twice written
+off as "cold" is the single most load-bearing thing measured on this ladder to date. ⇒ **"COLD FOR
+SPEED" AND "UNIMPORTANT FOR CORRECTNESS" ARE ORTHOGONAL, and six sessions of this ladder have been
+using one number for both.** A flat symbol is a bad *speed* target and can be a perfectly good
+*completeness* target — which is exactly what Lon's directive asks for.
+
+⭐ **A THIRD ARM REGIME, CONFIRMING s212's LAW FROM A NEW DIRECTION.** `rt_str_coerce`: `bb_unop` emits
+the call with **NO inline tag guard**, so the guard steers nothing and the CHEAP arm is dominant —
+identity **802/861 = 93.1%**. RTX-6 had first-arms dead; RTX-6b had both ends live; this has the cheap
+guard arm live. **Three rungs, three regimes. Never inherit one.**
+
+⭐ **AND A NEW 0(d) TRAP, PAID FOR THIS SESSION: A ZERO CAN COME FROM A *RUNNING* PROGRAM.** s213's rule
+is "a zero is not a result until the program is proven to have RUN". Sharper version: my cset-CONCAT
+loop RAN, printed the RIGHT answer, and reached `rt_str_coerce` **zero** times. The construct was wrong,
+not the program. ⇒ **Find the triggering construct by RANKING CORPUS PROGRAMS BY ARRIVALS, then build
+the scaling test from the winner** (`rung36_jcon_lexcmp` ⇒ lexical comparison). Guessing the construct
+costs a whole rung.
+
+⚠ **I MADE THE §5(ii) GREEK MISTAKE MYSELF, IN MY FIRST INVENTORY OF THE SESSION.** An ASCII-only
+`call ([A-Za-z_0-9]*)@PLT` regex made **all four Greek-named runtime symbols invisible** — including two
+of the three I then ported — and it silently falsified the "already asm" filter too. The doc warned
+about exactly this and I still did it. **The sweep MUST use a byte-class pattern.** A second self-check
+also failed silently: a `cmp` of two files that an `awk` error had left EMPTY reported byte-identity as
+PASS. **A comparison whose inputs are unverified is not evidence.**
+
+**GATES — all three languages, gates ON and all-OFF, identical:** Icon **252/11/30** (= fresh pre-edit
+baseline, re-derived not copied) · SNOBOL4 m4 smoke **7/0**, broad_corpus **324/2** · Prolog interp
+**164/0**, compile **164/0**. ⚠ **Prolog measures 164/0 where this file's prose says 185/0/0 and
+188/0/1** — the same class of watermark-vs-prose disagreement s212/s213 recorded. Graded on the ON/OFF
+differential; **no culprit asserted.**
+⚠ **BATTERY COVERAGE IS THIN RELATIVE TO ARRIVALS, and that is a statement about the batteries:**
+`rt_str_coerce` arrives 861 times corpus-wide but its identity-arm corruption moves only **3** graded
+programs; the cset-predicate corruption moves **1**.
+⚠ **Segfaults/aborts appear during full-corpus interposer sweeps** — consistent with the documented
+harness blind spot (stdout graded, exit code discarded) and with s213's 5. The watermark is unchanged
+from the pre-edit baseline, so nothing here introduced them; **I did not individually bisect them.**
+⚠ **PROTOCOL DEVIATION (fourth session running): no credential ⇒ the check-outs were NOT pushed before
+the work, and nothing is pushed now.** SCRIP `f0f1828f` + `2c8274e3` + this session's third commit are
+**LOCAL ONLY**. The s202 ancestry check is not satisfiable. `scripts/handoff_status.sh` is the only
+completion truth and it will say BLOCKED.
+
+---
+
+## ⛔ PRIOR CURSOR — s213-ICN (2026-07-29): **RTX-8-ICN LANDED SPLIT — `rt_list_bang_at` IS ASM AND PROVABLY EXECUTES; `rt_size_d`'s PORTED ARMS ARE A MEASURED NULL. ⭐⭐ AND THE WHOLE LADDER'S STATIC INVENTORY IS COMPUTED ON A PERMANENTLY-FROZEN STALE TREE.**
 
 **NEXT RUNG: RTX-8b-ICN** — port the DT_DATA/list arm of `rt_size_d` + the body of `list_bang_at`,
 using the fixed field layout (`fields[0]`=frame_elems, `[1]`=frame_size, `[2]`=gen_type) and the

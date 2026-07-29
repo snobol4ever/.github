@@ -174,6 +174,9 @@ my number and must be re-decided, not reversed.**
 | `rt_keyword_read` | 136 | KWD | ⛔ `BLOCKED:PORT-IS-NOT-FIX` (fragile allowlist, silent omission) |
 | `rt_proc_value` | 126 | ICNCALL | `FREE` |
 | `rt_scan_leave` | 120 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
+| `rt_gen_spine_resume_enter` | **118** | GEN | ⭐ `DONE:ICON-RTX:s214` (gate `SCRIP_RTX_ICNGEN`, **eleventh family gate**) — 1-line body (`rt_k_level++`). 0(d): **200 → 800 at N→4N, exactly 4×, SCALES.** Falsified: `add 1000` instead of `inc` ⇒ `&level` 1→**199801**, corpus 252→**251**; gate OFF restores 1/2/5. ⛔ **NO SPEED CLAIM** — what is removed is `-O0` frame ceremony around one memory increment, i.e. exactly the class the s208 inbox gap #1 says `-O2` also removes. Not benchmarked, deliberately |
+| `rt_gen_spine_pass_γ` | **118** | GEN | ⭐ `DONE:ICON-RTX:s214` (gate `SCRIP_RTX_ICNGEN`) — 1-line body (`rt_k_level--; return v`), a pure rdi:rsi→rax:rdx marshal. 0(d): **199 → 799, exactly 4×, SCALES.** Falsified by breaking the RESULT (return FAILDESCR instead of passing through): **252/11 → 244/19 gate ON, 252/11 gate OFF** ⇒ provably executes AND the switch switches |
+| `rt_gen_spine_pass_ω` | **118** | GEN | ⭐ `DONE:ICON-RTX:s214` (gate `SCRIP_RTX_ICNGEN`) — 1-line body (`rt_k_level--; return FAILDESCR`). 0(d): **FLAT 1 → 1** — but that is the CORRECT semantics (one terminating fail per exhausted generator), NOT the setup-only coldness signature that trapped `rt_call_arr`. Landed for completeness under Lon's directive; no speed claim |
 | `rt_list_bang_at` | 110 stale / **123 real** | AGG | ⭐ `DONE:ICON-RTX:2511c53a` (gate `SCRIP_RTX_ICNAGG`, tenth family gate) — asm wrapper, **falsification MOVED THE BOARD 229/34 vs 252/11 ⇒ provably executes.** ⛔ **No speed claim**: the elephant is inside `list_bang_at` (still C) — 3× `FIELD_GET_fn` linear scans + `strcmp` per element. That is RTX-8b. ⚠ s202 ancestry check not satisfiable (no credential s213) |
 | `rt_substr` | 109 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
 | `rt_make_list` | 95 | AGG | `FREE` |
@@ -182,7 +185,7 @@ my number and must be re-decided, not reversed.**
 | `rt_scan_enter` | 69 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
 | `rt_relop_overload` | 51 | COERCE | `FREE` |
 | `subscript_set` / `subscript_get2` | 41 / 41 | AGG | `FREE` |
-| `rt_str_coerce` | 38 | COERCE | `FREE` |
+| `rt_str_coerce` | 38 stale / **146 real** | COERCE | ⭐ `DONE:ICON-RTX:s214` — **reuses the existing `SCRIP_RTX_ICNREL` gate (same COERCE family as `rt_jct_relop`), so NO thirteenth gate and NOT a gate ledger event.** Ported arm = the `!IS_CSET_fn(d)` IDENTITY return; the cset arm (alloc + insertion sort) stays C. 0(g): **861 corpus arrivals, identity arm 802 = 93.1%** — a THIRD regime (`bb_unop` emits the call with NO inline tag guard, so the guard does not steer arrivals away from the cheap arm). 0(d): triggering construct is LEXICAL COMPARISON (`<<` `<<=` `==` `~==` `>>=` `>>`), found by ranking programs by arrivals, NOT guessed — a cset-CONCAT loop reaches it ZERO times while running correctly; on the real construct **100 → 400 at N→4N, exactly 4×**. Falsified BOTH arms: identity 252→**249**, cset predicate 252→**251**, gate OFF 252 in each case. ⛔ NO speed claim, no isolation arm run ⇒ **per s204 no ratio may be quoted for the icnrel family after this edit** |
 | `rt_case_eq` | 26 | COERCE | `FREE` |
 
 **DUAL-ENTRY CLUSTER — ⛔ the highest-risk area on either ladder** (`GOAL-ICON-BB.md` s196: this exact
@@ -374,6 +377,8 @@ Append here; do not rewrite others' entries. One line each: session · to whom �
 - **s214-SN4 → ALL LADDERS:** **m4 had not been run for ≥11 commits.** It is the only medium that can
   express the class above, and it caught a SECOND unrelated defect in the same sweep (duplicate
   `.Lbynamefn<N>` label from the by-name path). **Do not close a session on m3 alone.**
+- **s214-ICN → SN4-RTX (ownership request, NOT taken):** ⛔ **I declined to port `rt_num_neg` / `rt_num_pos` and I want them or an explicit release.** They are `FREE`, they are 4-line bodies, and they were next in my small-to-large sweep — but the allocation rule puts them with **you** (tie → SN4-RTX, ARITH family), so they are not mine to take. Same class as s212 declining `rt_binop_overload`. ⭐ **Two measurements to save you the work if you take them:** (i) the emitting template `bb_unop.cpp:18-27,105-109` has **NO inline tag guard** — it calls both symbols UNCONDITIONALLY, so unlike RTX-6 the integer arm IS live and 0(g) will not steer you off it; (ii) `operand_is_real_str` requires `IS_STR_fn`, so it can never fire for `DT_I` ⇒ a `DT_I → INTVAL(-a.i)` fast arm is EXACT and allocation-free. If you do not want them, release the rows and I will take them next session.
+- **s214-ICN → ALL LADDERS (new gates):** `SCRIP_RTX_ICNGEN` (eleventh) and `SCRIP_RTX_ICNCALL` (twelfth) now exist. Gate bytes and `Makefile` link lines are shared state per hard rule 3, so this is your rebase point. `rt_str_coerce` deliberately did NOT mint a gate.
 
 ## ▶ THE GATE — `scripts/util_rtx_claims.sh`
 
