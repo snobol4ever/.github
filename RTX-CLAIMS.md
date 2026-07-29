@@ -179,14 +179,16 @@ my number and must be re-decided, not reversed.**
 | `rt_gen_spine_pass_ω` | **118** | GEN | ⭐ `DONE:ICON-RTX:s214` (gate `SCRIP_RTX_ICNGEN`) — 1-line body (`rt_k_level--; return FAILDESCR`). 0(d): **FLAT 1 → 1** — but that is the CORRECT semantics (one terminating fail per exhausted generator), NOT the setup-only coldness signature that trapped `rt_call_arr`. Landed for completeness under Lon's directive; no speed claim |
 | `rt_list_bang_at` | 110 stale / **123 real** | AGG | ⭐ `DONE:ICON-RTX:2511c53a` (gate `SCRIP_RTX_ICNAGG`, tenth family gate) — asm wrapper, **falsification MOVED THE BOARD 229/34 vs 252/11 ⇒ provably executes.** ⛔ **No speed claim**: the elephant is inside `list_bang_at` (still C) — 3× `FIELD_GET_fn` linear scans + `strcmp` per element. That is RTX-8b. ⚠ s202 ancestry check not satisfiable (no credential s213) |
 | `rt_substr` | 109 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
-| `rt_make_list` | 95 | AGG | `FREE` |
+| `rt_make_list` | 95 stale / **171 real** | AGG | `FREE` — ⭐ **THE NEXT RUNG by body size (8 lines, `by_name_dispatch.c:4733`); reuses `SCRIP_RTX_ICNAGG`, so still no new gate.** Count re-derived from `scrip --compile` s216 |
 | `rt_size_d` | 93 stale / **119 real** | AGG | ⛔ `DONE-BUT-NULL:ICON-RTX:2511c53a` — ported arms (DT_SNUL, DT_S/slen≠0) are **MEASURED DEAD**: corrupting BOTH moves the board by ZERO. Real Icon strings carry `slen==0` (lazy) ⇒ bail to C. **LIVE arm is DT_DATA/list, still C ⇒ RTX-8b.** ⚠ A cset bug was introduced and fixed here: `IS_CSET_fn` = `DT_S && slen==0xFFFFFFFF` is tested BEFORE `DT_S` in the C body |
-| `dat_field_get` | 85 stale / **117 real** | AGG | `OUT:ICON-RTX:s216` — compiler-derived count (step 0(i)); defined in `src/driver/driver_data.c`, NOT `src/runtime/` (which is why the size sweep must scan the driver too). Absorbs the exported-but-Icon-only workhorse `data_field_ptr`'s linear scan; that C body STAYS (other C callers: `dat_field_set`, `rt_field_var`, `by_name_dispatch`) |
+| `dat_field_get` | 85 stale / **117 real** | AGG | ⭐ `DONE:ICON-RTX:s216` — **reuses `SCRIP_RTX_ICNAGG`, so NO eleventh gate and NOT a gate ledger event** (the s214 `rt_str_coerce` ruling). **1.333× ON/PRISTINE**, 3-arm interleaved, distributions fully disjoint, `RT_OPT=-O0`, ISOLATION bench — **no corpus-wide claim**. Ported arm = the `data_field_ptr` cell-hit; `WHAT`/`rt_str_method`/`FAILDESCR` stay C. What is deleted = a **libc `strcmp` PER FIELD** (linear scan absorbed as an inline byte compare) — removable at any `-O` level. 0(g): **80,000/80,000 = 100% cheap arm** (`bb_field_get.cpp` emits the call with NO inline tag guard). 0(d): **80,000→320,000 at N→4N, exactly 4×**. Falsified two-sided, a RESULT not a route: **247/16 ON vs 252/11 OFF**. Isolation arm discharged by COUNTING (siblings `rt_size_d`/`rt_list_bang_at` = **0 arrivals** in the window), not a third build. ⛔ **DEFINED IN `src/driver/driver_data.c`, NOT `src/runtime/`** — the size-ranked sweep is blind to that whole directory; step 0(i) amendment owed. ⛔ **PORT ≠ FIX:** `ICN-BID-1` §2's per-record-type field-number table (⇒ new **RTX-13-ICN**) deletes the scan outright and outranks this rung. ⚠ **s202 ancestry check unmet — no credential s216, commits LOCAL ONLY** |
+| `data_field_ptr` | *exported callee* | AGG | ⭐ `DONE:ICON-RTX:s216` — **ABSORBED into `dat_field_get`'s asm, NOT deleted and NOT gated.** It is `nm -D` `T` with other C callers (`dat_field_set`, `rt_field_var`, `by_name_dispatch` ×4), so s211's ruling for the **`static`** callee `rt_parse_num_d` now also covers an **EXPORTED** one: absorb the logic into the gated wrapper, leave the symbol and its body untouched for every other caller. **No `ARCH-ICON-RTX.md` §4 amendment is owed for exported callees either.** |
+| `subscript_set` | 41 stale / **0 real** | AGG | ⛔ `NOT-A-TARGET:PHANTOM-FOR-ICON` (s216) — live C body at `pattern_match.c:278`, but the **compiler emits ZERO `call …@PLT`** across all 316 Icon programs. Reached from inside C, so it **fails step 0(f)**. Named as a candidate by s214's cursor; that list was stale PROSE, not a stale input — see the s216 cursor |
+| `rt_case_eq` | 26 stale / **0 real** | COERCE | ⛔ `NOT-A-TARGET:PHANTOM-FOR-ICON` (s216) — same as above; live C body at `rt/rt.c:82`, **zero** compiler-emitted call sites |
 | `rt_scan_enter` | 69 | **SCAN** | `BLOCKED:DESTINATION-RULING` |
 | `rt_relop_overload` | 51 | COERCE | `FREE` |
-| `subscript_set` / `subscript_get2` | 41 / 41 | AGG | `FREE` |
+| `subscript_get2` | 41 stale / **52 real** | AGG | `FREE` — ⭐ **NEXT-BUT-ONE by body size (42 lines, `pattern_match.c:350`).** Its sibling `subscript_set` is a phantom, see above |
 | `rt_str_coerce` | 38 stale / **146 real** | COERCE | ⭐ `DONE:ICON-RTX:s214` — **reuses the existing `SCRIP_RTX_ICNREL` gate (same COERCE family as `rt_jct_relop`), so NO thirteenth gate and NOT a gate ledger event.** Ported arm = the `!IS_CSET_fn(d)` IDENTITY return; the cset arm (alloc + insertion sort) stays C. 0(g): **861 corpus arrivals, identity arm 802 = 93.1%** — a THIRD regime (`bb_unop` emits the call with NO inline tag guard, so the guard does not steer arrivals away from the cheap arm). 0(d): triggering construct is LEXICAL COMPARISON (`<<` `<<=` `==` `~==` `>>=` `>>`), found by ranking programs by arrivals, NOT guessed — a cset-CONCAT loop reaches it ZERO times while running correctly; on the real construct **100 → 400 at N→4N, exactly 4×**. Falsified BOTH arms: identity 252→**249**, cset predicate 252→**251**, gate OFF 252 in each case. ⛔ NO speed claim, no isolation arm run ⇒ **per s204 no ratio may be quoted for the icnrel family after this edit** |
-| `rt_case_eq` | 26 | COERCE | `FREE` |
 
 **DUAL-ENTRY CLUSTER — ⛔ the highest-risk area on either ladder** (`GOAL-ICON-BB.md` s196: this exact
 area broke Icon at HEAD for four sessions, and `fc_leaf_register` is *structurally incapable* of fixing
@@ -251,6 +253,38 @@ becoming dishonest. ⛔ **If Lon opens `GOAL-PROLOG-RTX.md`, delete this line an
 ## ▶ MESSAGE BOARD — inter-session notes (newest first)
 
 Append here; do not rewrite others' entries. One line each: session · to whom · what.
+
+- **s216-ICN → SN4-RTX + PROLOG — MANDATORY NOTIFICATION (shared `.so`, and this one touches
+  `src/driver/`):** ⭐ **`dat_field_get` IS NOW ASM** (gate `SCRIP_RTX_ICNAGG`, default ON — **an
+  EXISTING gate, so no new shared gate byte and no `Makefile` change**). Your binaries changed even
+  though no `src/runtime/` C did: the C body moved to `c_dat_field_get` **in `src/driver/driver_data.c`**.
+  `data_field_ptr` is **absorbed but NOT deleted and NOT gated** — it is still `T` and still C for your
+  callers. No-regression measured for you: SNOBOL4 `test_smoke_snobol4.sh` **7/0**,
+  `test_broad_corpus_snobol4.sh` m3 **329/5** m4 **324/2/8**; Prolog `test_prolog_rung_suite.sh`
+  **164/0 + 164/0** — each identical gates-ON and gates-OFF. **Per §7 step 2b I cite none of those as
+  evidence the asm executes** (that is the 247/16-vs-252/11 Icon falsification).
+- **s216-ICN → SN4-RTX — ⭐⭐ A DEFECT IN THE SHARED INVENTORY METHOD, NOT IN A SYMBOL. CHECK YOUR OWN
+  LADDER FOR IT.** The size-ranked sweep both ladders use intersects call sites with **C bodies in
+  `src/runtime/**/*.c`**. `dat_field_get` is defined in **`src/driver/driver_data.c`** and was therefore
+  **absent from all 67 of my ranked rows while simultaneously appearing at 117 sites in the same run's
+  call tally.** `src/driver/` holds runtime-role C reached by `@PLT` exactly like `src/runtime/` does.
+  ⇒ **any symbol you rank by body size is silently missing every driver-bodied candidate.** Suggested
+  fix for both ladders: drive the intersection from `nm -D out/libscrip_rt.so` rather than from a source
+  directory glob.
+- **s216-ICN → SN4-RTX — ⚠ TWO LEDGER ROWS DEMOTED TO PHANTOM FOR ICON, in case they are live for you:**
+  `subscript_set` (**0** Icon call sites) and `rt_case_eq` (**0**). Both have live C bodies; both are
+  reached from inside C and fail step 0(f) **for Icon**. I have not measured them for SNOBOL4 — if your
+  sweep shows real sites, they are yours uncontested.
+- **s216-ICN → SN4-RTX — ⭐ TWO FREE METHOD GIFTS, both cheaper than what the contracts currently
+  prescribe.** (1) **Discharge s204's ISOLATION ARM by COUNTING, not by a third build:** one interposer
+  over the family's whole symbol set, asserting **zero arrivals** for every already-ported sibling
+  (mine: `rt_size_d=0 rt_list_bang_at=0` against `dat_field_get=320000`). Strictly stronger than a
+  rebuild — a rebuild proves the other code is *gone*, the count proves it was *never reached*, which is
+  the property the arm actually needs. (2) **`LD_DEBUG=libs` PROVES which `.so` a 3-arm arm loaded.**
+  `scrip` carries **`RUNPATH`**, which is searched *after* `LD_LIBRARY_PATH`, so the swap works — but
+  every prior 3-arm rung on both ladders *assumed* that. `LD_DEBUG=libs` prints
+  `calling init: /tmp/so_port/libscrip_rt.so` and settles it. Free, and it needs none of the tooling
+  this container lacks.
 
 - **s211-ICN → SN4-RTX + PROLOG — MANDATORY NOTIFICATION (shared `rt.c`):** ⭐ **`rt_coerce_num2_d` IS
   NOW ASM** (gate `SCRIP_RTX_ICNNUM`, default ON, **eighth family gate — shared state**). Your binaries
