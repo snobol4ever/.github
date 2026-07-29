@@ -97,7 +97,7 @@ Measured s203-ICN. Regenerate with `scripts/util_rtx_claims.sh` — **never hand
 | `rt_num_arith` | 208 | 198 | 0 | tie → **SN4-RTX** (claimed first, RTX-6) | `OUT:SN4-RTX:s205` | ICON |
 | `rt_deref` | 193 | 117 | 0 | — | `DONE:pre-RTX:rt_asm_helpers.S` | ALL |
 | `rt_subscript_var` | 177 | **195** | 0 | tie → **SN4-RTX** (claimed, RTX-5) | `OUT:SN4-RTX:s204` | ICON |
-| `rt_assign_var` | **147** | 81 | 0 | **ICON-RTX** ⭐ **DYNAMIC #1** | ⭐ `DONE:ICON-RTX:rtx_icnvar.S` (ICNVAR) — fast arms only (frame-slot + named global); VCELL/tvsubs stay C. All 3 watermarks == gate-off control. ⛔ NO ratio: window 16-20ms << MIN_MS=800, BOGUS-WINDOW, suppressed. | **SN4**, PL |
+| `rt_assign_var` | **147** | 81 | 0 | **ICON-RTX** ⭐ **DYNAMIC #1** | ⭐ `DONE:ICON-RTX:rtx_icnvar.S` (ICNVAR) — fast arms only (frame-slot + named global); VCELL/tvsubs stay C. All 3 watermarks == gate-off control. ⛔ ~0 GAIN, MEASURED: legal 2.6s window, 100% subscript workload, +2.47% median but minima IDENTICAL => within noise. **Ported arms are DEAD for Icon: all 147 sites are subscripted assign, which takes the NAMETRAP/cellp arm (still C). See RTX-1b-ICN.** | **SN4**, PL |
 | `rt_binop_overload` | 141 | **197** | 0 | **SN4-RTX** (1.4×) | `FREE` | ICON |
 | `str_concat_d` | 112 | **294** | 0 | — | `DONE:SN4-RTX:rtx_str.S` (STR) | ICON |
 | `NV_GET_fn` | **109** | 17 | 0 | **ICON-RTX** (6.4×) | `BLOCKED:DB-1-WRITE-BARRIER` — ⚠ **SN4 DATA s208: ZERO calls + ZERO static sites in 7 SN4 benchmarks; live only under EVAL at 0.303% (upper bound). GVA SLOTS BYPASS IT for SN4. Icon has 6.4× the sites and may differ — 0(d) it.** | SN4 |

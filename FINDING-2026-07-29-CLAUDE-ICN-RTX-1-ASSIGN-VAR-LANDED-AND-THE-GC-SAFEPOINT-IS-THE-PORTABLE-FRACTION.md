@@ -1,7 +1,8 @@
 # FINDING-2026-07-29-CLAUDE-ICN-RTX-1-ASSIGN-VAR-LANDED-AND-THE-GC-SAFEPOINT-IS-THE-PORTABLE-FRACTION
 
 **Session:** s209-ICN · **Rung:** RTX-1-ICN (re-targeted per the s203 0(d) re-order) · **Landed:** asm
-port of `rt_assign_var` behind new family gate `SCRIP_RTX_ICNVAR`. **⛔ NO SPEED CLAIM — see §4.**
+port of `rt_assign_var` behind new family gate `SCRIP_RTX_ICNVAR`. **⛔ NO SPEED CLAIM — see §4, and
+§7, which falsifies this rung's own design premise and names the arm that should have been ported.**
 
 ---
 
@@ -112,5 +113,65 @@ will block the next one that touches the call path.
 
 ⚠ **NEW GATE = LEDGER EVENT** (`RTX-CLAIMS.md` hard rule 3): `SCRIP_RTX_ICNVAR` is the **seventh** family
 gate and is shared state across all six languages.
+
+---
+
+## 7. ⭐⭐ ADDENDUM s209b — THE PORT'S OWN PREMISE IS FALSIFIED, AND I FALSIFIED IT MYSELF
+
+**§4 said the ladder could not time its own work. It can now — and the first legal window says the two
+arms this rung ported are DEAD for Icon's emitted code.**
+
+**(a) WHICH CONSTRUCT ACTUALLY EMITS THE SYMBOL — MEASURED, NOT ASSUMED.** Compiled five assignment
+forms and counted `call rt_assign_var@PLT` in the emitted `.s`:
+
+| Icon source | sites |
+|---|---:|
+| `b := a` (local) | **0** |
+| `g := 2` (global) | **0** |
+| `a +:= 1` (augmented) | **0** |
+| `a :=: b` (swap) | **0** |
+| **`L[1] := 3` (subscripted)** | **1** |
+
+⇒ **All 147 of Icon's static sites are SUBSCRIPTED assignment.** Every other assignment form is emitted
+inline by its own BB template and never reaches the runtime symbol at all.
+
+**(b) AND SUBSCRIPTED ASSIGNMENT TAKES NEITHER PORTED ARM.** A subscript lvalue arrives as a NAMETRAP
+(`slen==2`) over a `VCELL_t`, so it falls straight through `.Lav_c` into `c_rt_assign_var` and stores via
+`vc->cellp`. **Proven by probe, not by reading:** fast-path B was corrupted to store a `DT_FAIL` tag and
+the 4M-iteration subscript workload **still printed the correct answer**, while the rung battery still
+broke to 247/16 on the same build. ⇒ **fast path B is never entered by subscripted assignment**; it and
+fast path A are reached only by the runtime's own internal callers (`pattern_match.c:713/804`,
+`rt_swap_var`) — which is also why the falsification only ever moved five battery tests.
+
+**(c) THE FIRST LEGAL A/B ON THIS LADDER.** Workload: 100-element list, 4M subscripted stores — i.e. the
+symbol's **maximum possible exposure**. Interleaved, first round discarded, 6 rounds, medians:
+
+| | median | range |
+|---|---:|---|
+| `SCRIP_RTX_ICNVAR=on` | **2587 ms** | 2566–2804 |
+| `off` | **2651 ms** | 2566–2789 |
+
+Window ≫ `MIN_MS=800` ⇒ **legal, not BOGUS**. Output md5 identical both arms.
+Median ratio **1.0247 (+2.47%)** — ⛔ **but the two distributions overlap heavily and the MINIMA are
+IDENTICAL (2566 both), which is the cleanest estimator here. This is reported as ≤2.5% and WITHIN NOISE,
+not as a speedup.** A 240 ms sub-scale run of the same program gave −0.41%. **No speed claim survives.**
+
+**(d) WHAT THIS MEANS FOR THE LADDER, AND IT IS BIGGER THAN ONE RUNG.** On a workload that is *100%* the
+ported symbol, the measured effect is ~0. That is not a failure of the port — the port is correct, gated,
+and provably executing — it is **evidence that porting a C body's fast arms to asm is worth ~nothing when
+the emitted code does not take those arms.** The `-O0` frame ceremony that `-O0` RTX ports are supposed
+to win is, here, entirely inside a callee the real caller reaches anyway.
+
+⭐ **THE ACTIONABLE TARGET IS NOW NAMED AND MEASURED: the NAMETRAP → `vc->cellp` store.** That is the arm
+Icon's 147 sites actually take, it is currently C, and §1 explicitly and wrongly excluded it as "cold".
+**It is the opposite of cold — it is the only live arm.** Next rung ports it.
+
+⚠ **THE GENERAL LESSON, AND IT IS THE SAME ONE THIS LADDER KEEPS PAYING FOR:** step 0(d) proved the
+*symbol* was hot (15,871 calls, scales 14.2×) and that was TRUE. It said nothing about **which arm inside
+the symbol** was hot, and the port was designed against an assumption about that. ⇒ **STEP 0(g) PROPOSED:
+for any symbol with internal dispatch, identify which ARM the emitted code takes before choosing what to
+port.** The check is one compile and one grep, exactly like 0(f).
+
+---
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
