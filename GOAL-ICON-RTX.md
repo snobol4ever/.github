@@ -100,9 +100,20 @@ stackless templates with Σ/δ/Δ pinned in r13/r14/r15, so `call rt_scan_enter@
 precisely the registers the design pins. **Porting that to `.S` would make the wrong thing faster.**
 ⛔ Template work fires `.s` regen ×3 and collides head-on with the live ICON-BB session — **sequence it.**
 
-**NEXT:** RTX-0b-ICN (interposer + Icon benchmark famsets) → **RTX-0d-ICN on `rt_call_arr`** — the
-measurement that decides whether this ladder's headline target is real or is s188 repeating.
-**⛔ BLOCKED PENDING LON: the §7 symbol-ownership amendment, and the SCAN-family template ruling.**
+**NEXT (REWRITTEN s210-ICN — the old pointer sent a session at a rung closed at s203):**
+**RTX-0b-ICN is the blocker and it is BIGGER than "write famsets": the Icon corpus has NO legal window
+and NO profilable program.** All 10 runnable benchmarks are **6–30 ms vs `MIN_MS=800`** (27×–133× under),
+and at that size **compilation dominates a whole-process profile ~20:1**. `scrip --run prog.icn -n8`
+⇒ `cannot open '-n8'` — **mode 3 does not forward argv**, so the corpus's own scaling knobs are
+unreachable. ⇒ 0b owes: **(a) argv forwarding in mode 3 OR famsets carrying N internally, and (b)
+authored scaled workloads, because none exist.** Until then this ladder can measure COUNTS (scaling
+suffices) but not TIME (needs a legal window) — the half-rung state RTX-1-ICN landed in.
+**THEN RTX-2-ICN := `rt_substr`** (240k run-phase, ICON-OWN, uncontested) — ⛔ but its destination is
+**RTX-0-RULING(b)**, still open, and §6 rules the SCAN family to TEMPLATE.
+**⛔ BLOCKED PENDING LON: (1) RTX-0-RULING(b) SCAN destination. (2) ⭐ NEW — `rt_subscript_var` is
+Icon's #1 run-phase symbol (315k) and is checked out to SN4-RTX on a STATIC near-tie; the allocation rule
+is written over static counts, which this ladder has now falsified three times. Amend the rule to
+allocate on DYNAMIC count where one exists?** (§7 symbol-ownership amendment otherwise unchanged.)
 **`handoff_status.sh` is the push truth — not this block.**
 
 ---
@@ -187,12 +198,22 @@ used freely; System V binds ONLY at (a) libc call boundaries and (b) the m3 driv
   and its ratio SUPPRESSED, not printed small** · R interleaved rounds, **first round discarded**
   (hugepage compaction warmup, s201/s202) · medians · ON/OFF output byte-identity or the run is fatal.
   ⚠ `options`/`post`/`shuffle` are compile-err **pre-existing** — exclude, do not investigate.
-- [ ] **RTX-0d-ICN — ⭐ THE DECIDING MEASUREMENT: IS `rt_call_arr` HOT FOR ICON?** LD_PRELOAD interposer,
-  **validated against a positive control first** (s201 discipline), counted at **two loop counts** with
-  scaling confirmed. **Pre-state the expected board so a null is informative** (s188 rule). Outcomes:
-  **HOT ⇒** it becomes the ladder's headline and the ownership ruling is urgent. **COLD ⇒** s188 repeats
-  at 9× the static count, the finding is worth more than the port, and the ladder re-targets to the
-  proc-setup family. ⛔ Either way this is a MEASUREMENT rung — it lands no asm.
+- [x] **RTX-0d-ICN — ⭐ CLOSED s203-ICN, RE-CONFIRMED AND EXTENDED s210-ICN. `rt_call_arr` IS NOT THE
+  TARGET.** s203-ICN: static rank's top three execute ZERO; hottest unported symbol was `rt_assign_var`
+  at static rank 20 (⇒ RTX-1/1b). s210-ICN re-measured independently (`deal`=126, identical) and found
+  **the MECHANISM: `rt_call_arr` scales 1:1 with `write()`, not with calls.** Determinate procs,
+  generator procs and inline builtins all bypass it (1 call, flat, 200k→800k). ⇒ claim stays dropped.
+  ⛔ **s210-ICN ALSO FOUND THE RANK ITSELF WAS CONTAMINATED:** whole-process profiles of `queens`/`deal`
+  are **COMPILE-PHASE dominated ~20:1** (`rt_zeta_storage_get` &c. are the EMITTER). Rank only by
+  `count(4N)−count(N)`, which cancels it exactly. See
+  `FINDING-2026-07-29c-CLAUDE-ICN-RTX-0D-ROUND-2-…`.
+  ⭐ **POST-RTX-1b RUN-PHASE RANK:** `rt_subscript_var` 315k (⛔ SN4-RTX's) · `rt_coerce_num2_d` 240k
+  (ICON-RTX, FREE) · `rt_substr` 240k (ICON-OWN, SCAN) · proc-call path = **six C calls per call**,
+  none of them `rt_call_arr`.
+- [ ] **STEP 0(h) — PROPOSED s210-ICN, ⭐ ADOPT INTO `ARCH-ICON-RTX.md` §8.** Before opening a rung,
+  **grep the FINDING set for the rung name** (`grep -l "Rung:.*RTX-0d-ICN" FINDING-*.md`). A `- [ ]` in
+  this ladder is NOT evidence the rung is open — this checkbox was stale and caused s210-ICN to redo a
+  landed measurement in full. **The FINDING set is truth; the checkbox is a claim.** Free, like 0(f).
 
 ### ▶ PHASE 1 — PORTS (each behind a family gate; C body → `c_*` in the same commit)
 
