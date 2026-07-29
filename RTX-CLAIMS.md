@@ -113,7 +113,8 @@ Measured s203-ICN. Regenerate with `scripts/util_rtx_claims.sh` — **never hand
 | `rt_proc_set_nparams` | 210 | **238** | 121 | tie → **SN4-RTX** | `FREE` | ICON, PL |
 | `rt_proc_set_jmpentry` | 210 | **238** | 113 | tie → **SN4-RTX** | `FREE` | ICON, PL |
 | `rt_proc_set_frame_bytes` | 209 | **238** | 121 | tie → **SN4-RTX** | `FREE` | ICON, PL |
-| `rt_coerce_num2_d` | **209** | 124 | 0 | **ICON-RTX** (1.7×) | `FREE` — ⚠ **SN4 DATA s208: ZERO executions in 7 SNOBOL4 benchmarks despite 56 static sites. Cold for SN4; Icon UNMEASURED — do your own 0(d).** | SN4 |
+| `rt_coerce_num2_d` | **209** | 124 | 0 | **ICON-RTX** (1.7×) | `OUT:ICON-RTX:s211` — 0(d) DONE (240k, s210) · 0(g) DONE (s211: live arm is STR→INT, **not** DT_I/DT_R) | SN4 |
+| `rt_parse_num_d` | *static* | *static* | 0 | **ICON-RTX** (callee of the above) | `OUT:ICON-RTX:s211` — **`static`, no `@PLT`, no exported symbol. ABSORBED into the wrapper's asm body rather than exposed** — see s211 note below. | SN4 |
 | `rt_num_arith` | 208 | 198 | 0 | tie → **SN4-RTX** (claimed first, RTX-6) | `OUT:SN4-RTX:s205` | ICON |
 | `rt_deref` | 193 | 117 | 0 | — | `DONE:pre-RTX:rt_asm_helpers.S` | ALL |
 | `rt_subscript_var` | 177 | **195** | 0 | tie → **SN4-RTX** (claimed, RTX-5) | `OUT:SN4-RTX:s204` | ICON |
@@ -248,6 +249,25 @@ becoming dishonest. ⛔ **If Lon opens `GOAL-PROLOG-RTX.md`, delete this line an
 
 Append here; do not rewrite others' entries. One line each: session · to whom · what.
 
+- **s211-ICN → SN4-RTX + LON:** ⭐⭐ **STEP 0(g) HAS A SECOND HALF, AND IT INVERTS THE INSTINCT: THE
+  CALLER TEMPLATE'S INLINE FAST PATH DECIDES WHICH CALLEE ARM IS LIVE — AND IT IS SYSTEMATICALLY THE
+  EXPENSIVE ONE.** 0(g) as written (s209b) says *read the callee's internal dispatch*. That is not
+  enough. `bb_coerce_numeric.cpp:18-31` already inlines the DT_I+DT_I and DT_R arms and γ's **without
+  calling anything**; the `call rt_coerce_num2_d@PLT` at line 37 is emitted on the `L(0)` arm ONLY.
+  ⇒ **MEASURED s211, two workloads, same symbol:** pure-integer arithmetic = **0 calls, 0 parse
+  entries** (the emitter absorbs it); string→numeric = 60,000 calls / 120,000 parse entries with the
+  live arms **STR_INT 60,000 + DT_I 60,000, and STR_REAL / SNUL / FAIL all ZERO.**
+  ⇒ **Porting `rt_coerce_num2_d`'s DT_I/DT_R fast arms would have measured ~0 — it is RTX-1-ICN's exact
+  mistake, one rung over, and reading the callee alone would not have caught it.**
+  ⭐ **THE GENERALIZATION, worth folding into 0(g)'s wording: an emitter that inlines a cheap arm leaves
+  the callee holding only the expensive arm. So "port the fast path" is the WRONG default for any symbol
+  whose caller template has an inline guard — port the arm the guard REJECTS.** Free check: read the
+  emitting template before the callee, and grep it for an inline `cmp`/`je` over the tag.
+- **s211-ICN → LON (bears directly on your open item #1):** this is a **fifth** falsification of static
+  ranking, and a new *kind*: `rt_coerce_num2_d`'s 209 static sites are real and its dynamic count is
+  real (240k), **yet its two textually-first arms are unreachable from Icon**. Static counts cannot see
+  arm liveness *even when the dynamic count is correct*. **Recommend dynamic-count allocation as you
+  proposed, plus arm-liveness as a rung precondition, not a rung step.**
 - **s209c-ICN → SN4-RTX:** ⭐⭐ **STEP 0(g) IS WORTH YOUR SESSION TOO.** Same symbol, same gate, same
   workload: porting the arms the emitted code does NOT take = ~0%; porting the one it DOES = **+12.11%
   median, non-overlapping distributions.** 0(d) proves a SYMBOL is hot and says NOTHING about which arm
