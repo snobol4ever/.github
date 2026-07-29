@@ -1,6 +1,6 @@
 # FINDING 2026-07-29 — Z4-6 slice 1: ONE grant authority lands; frame-rsp 2/5 → 4/5; the fc_leaf_disp sentinel trap
 
-**SCRIP `db840bbe` · goal `GOAL-ZETA-FOUR.md` rung Z4-6 · all numbers m3 unless stated, RT_OPT=-O0, relative-only.**
+**SCRIP `5202ff08` · goal `GOAL-ZETA-FOUR.md` rung Z4-6 · all numbers m3 unless stated, RT_OPT=-O0, relative-only.**
 
 ## 1. The rot reproduced and split
 Under `--zeta-storage=frame-rsp` at HEAD (pre-fix): z4_arith OK · z4_fib OK · **z4_span/z4_arbno/z4_capture SEGV**. The split is exactly "statements with fixed-cell-family boxes die" — the s206 defect class (FINDING-2026-07-28 ZHEAP: port-blind grant vs port-gated consumption) firing under CSTACK, not just HEAP. Mechanism confirmed by census: `fc_geom` granted on node KIND alone; `x86_fc_on`/`x86_fc_hit` were FORTH-only; `zls_fc_cell` (the layout twin) netted out the flat locals quad the ungranted-consumer path then needed; `fc_vwpop` counted ω pops for cells never pushed; `lower_snobol4.c:1704` asked `fc_save_active` directly and routed capture to the cell path.
