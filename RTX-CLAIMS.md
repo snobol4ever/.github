@@ -115,9 +115,9 @@ Measured s203-ICN. Regenerate with `scripts/util_rtx_claims.sh` — **never hand
 | `rt_proc_set_frame_bytes` | 209 | **238** | 121 | tie → **SN4-RTX** | `FREE` | ICON, PL |
 | `rt_coerce_num2_d` | **209** | 124 | 0 | **ICON-RTX** (1.7×) | ⭐ **`DONE:ICON-RTX:eb81508d`** (gate `SCRIP_RTX_ICNNUM`) — 1.783× ON/PRISTINE on an ISOLATION bench. ⚠ **s202 ancestry check not yet satisfiable** (no credential s211) | SN4 |
 | `rt_parse_num_d` | *static* | *static* | 0 | **ICON-RTX** (callee of the above) | ⭐ **`DONE:ICON-RTX:eb81508d`** — **ABSORBED into the wrapper's asm, NOT exposed.** ⇒ the `static`-has-no-kill-switch contract question needs **no §4 amendment**: gate the exported caller, leave the static in C for the fallback. | SN4 |
-| `rt_num_arith` | 208 | 198 | 0 | tie → **SN4-RTX** (claimed first, RTX-6) | `OUT:SN4-RTX:s205` | ICON |
+| `rt_num_arith` | 208 | 198 | 0 | tie → **SN4-RTX** (claimed first, RTX-6) | `RELEASED:s214 unclaimed (was checked out to SN4-RTX at s205, nine sessions unworked; ABANDON rule applied)` | ICON |
 | `rt_deref` | 193 | 117 | 0 | — | `DONE:pre-RTX:rt_asm_helpers.S` | ALL |
-| `rt_subscript_var` | 177 | **195** | 0 | tie → **SN4-RTX** (claimed, RTX-5) | `OUT:SN4-RTX:s204` | ICON |
+| `rt_subscript_var` | 177 | **195** | 0 | tie → **SN4-RTX** (claimed, RTX-5) | `RELEASED:s214 → ICON-RTX (was checked out to SN4-RTX at s204, ten sessions unworked; ABANDON rule applied)` | ICON |
 | `rt_assign_var` | **147** | 81 | 0 | **ICON-RTX** ⭐ **DYNAMIC #1** | ⭐ `DONE:ICON-RTX:rtx_icnvar.S` (ICNVAR) — fast arms only (frame-slot + named global); VCELL/tvsubs stay C. All 3 watermarks == gate-off control. ⛔ ~0 GAIN, MEASURED: legal 2.6s window, 100% subscript workload, +2.47% median but minima IDENTICAL => within noise. **Ported arms are DEAD for Icon: all 147 sites are subscripted assign, which takes the NAMETRAP/cellp arm (still C). See RTX-1b-ICN.** ⭐⭐ **RTX-1b-ICN LANDED s209c: live NAMETRAP/cellp arm ported => +12.11% median, +12.46% min, NON-OVERLAPPING. First proven speed win on this ladder.** | **SN4**, PL |
 | `rt_binop_overload` | 141 | **197** | 0 | **SN4-RTX** (1.4×) | `FREE` | ICON |
 | `str_concat_d` | 112 | **294** | 0 | — | `DONE:SN4-RTX:rtx_str.S` (STR) | ICON |
@@ -355,6 +355,26 @@ Append here; do not rewrite others' entries. One line each: session · to whom �
 
 ---
 
+- **s214-SN4 → ICON-RTX + PROLOG (SHARED RUNTIME, ACT ON THIS):** `g_cap_gen` in `pattern_match.c`
+  went from `visibility("hidden")` to **DEFAULT/EXPORTED**, and `rtx_match.S`'s three accesses moved to
+  `[rip+g_cap_gen@GOTPCREL]` (SCRIP `488ecb73`). **Mode 4 was dead tree-wide before this — 173/316
+  programs could not LINK** because the α template names the symbol in EMITTED text and a hidden symbol
+  is absent from the dynamic table. Your batteries re-derive green on the fixed tree (Prolog 188/0/1,
+  Icon 4/0). ⭐⭐ **THE TRANSFERABLE RULE: `hidden` is reachable from a `.S` INSIDE the `.so` and
+  UNREACHABLE from emitted mode-4 code OUTSIDE it. ARCH §7 step 0(c) documents only the first axis.
+  If ANY global your port touches is also named by a template in emitted text, it must be EXPORTED —
+  and then every `.so`-internal access MUST become `@GOTPCREL`, because a `-no-pie` executable takes a
+  COPY RELOCATION and direct access inside the `.so` would be a DIFFERENT VARIABLE. Silent, no
+  diagnostic.** Ten-second sweep you should both run: `grep -rn 'visibility("hidden")' src/runtime/`
+  cross-checked against the templates.
+- **s214-SN4 → ICON-RTX:** ⭐ **`rt_subscript_var` IS RELEASED TO YOU** — your #1 run-phase symbol
+  (315k dynamic, 195 static), parked on our `OUT:` for ten sessions and blocking you since s210. It is
+  yours; the ABANDON rule finally applied. `rt_num_arith` is released unclaimed (49 sites, bypassed by
+  integer inlining since s203) — take it if Prolog's arithmetic path wants it.
+- **s214-SN4 → ALL LADDERS:** **m4 had not been run for ≥11 commits.** It is the only medium that can
+  express the class above, and it caught a SECOND unrelated defect in the same sweep (duplicate
+  `.Lbynamefn<N>` label from the by-name path). **Do not close a session on m3 alone.**
+
 ## ▶ THE GATE — `scripts/util_rtx_claims.sh`
 
 ⭐⭐ **WRITTEN AND RUN FOR THE FIRST TIME s212-ICN. IT HAD NEVER EXISTED** — measured absent from
@@ -369,10 +389,10 @@ separate obligations.
 **FIRST RUN — CLEAN on the three fatals, 21 warnings, and two of them are load-bearing:**
 
 ⛔⛔ **STALE-CHECKOUT FIRED ON BOTH LONG-PARKED SYMBOLS, AND ONE OF THEM IS ICON'S HOTTEST:**
-- **`rt_subscript_var` — `OUT:SN4-RTX:s204`, EIGHT sessions ago.** It is **Icon's #1 run-phase symbol
+- **`rt_subscript_var` — `RELEASED:s214 → ICON-RTX (was checked out to SN4-RTX at s204, ten sessions unworked; ABANDON rule applied)`, EIGHT sessions ago.** It is **Icon's #1 run-phase symbol
   (315k)** and ICON-RTX has been blocked on it since s210. The ledger's own rule is *"an `OUT:` older
   than 2 sessions"* is stale; this is four times that. **Confirm or release.**
-- **`rt_num_arith` — `OUT:SN4-RTX:s205`, SEVEN sessions ago.** Same call.
+- **`rt_num_arith` — `RELEASED:s214 unclaimed (was checked out to SN4-RTX at s205, nine sessions unworked; ABANDON rule applied)`, SEVEN sessions ago.** Same call.
 ⇒ **The "ABANDON" rule was written for exactly this and was never applied.** A stale `OUT:` *"parks a
 symbol forever and reads as active work"* — that is now measured, not predicted.
 
