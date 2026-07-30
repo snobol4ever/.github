@@ -28,3 +28,13 @@ The legacy body statement (`ADD3 = N + 3`) ALREADY emits per-BB self-carves with
 1. **Witness 2 = recursion + FRETURN** (factorial-shaped: `F(N) = LT(N,1) 1 :S(RETURN)` else `F = N * F(N - 1)`), same hand method — proves re-entrancy and the ω wire before any encoder learns the shape.
 2. **Additive encoders** in `x86_asm.h` (BB-CODEGEN DESIGN SET binds: R2/R7/R9/R10, one medium invisible): statement bracket pair, IR_CALL header, RETURN/FRETURN floaters, save-slot carve.
 3. **Per-graph all-or-nothing regime** (classifier + env switch) — mixed regimes inside one graph are the s188 disease; the watermark may only add passes; fail-set membership diffed programmatically against the baseline above.
+
+## WITNESS 2 (same session) — RECURSION + FRETURN: ORACLE-GREEN FIRST TRY
+`SCRIP/seed/test_sno_stmt_frame_2.{sno,s}` — factorial(5) + a zero-param always-FRETURN function; oracle `120` then `7`, matched exactly (legacy emission also verified oracle-exact first: 1056 lines, in-subset). Proven live, first assembly:
+- **RECURSION**: five nested activations = fresh 32B save slots + fresh 32B IR_CALL header per call, pure machine-stack LIFO. No .bss depth arenas, no counters, no frame_bytes. **Dynamic scoping correct by construction**: per-BB operand cells snapshot the globals BEFORE the inner call rebinds them — the left `N` cell survives the recursive rebind untouched.
+- **FRETURN / ω wire**: NOPE() FRETURNs; ω wire restores the fname save slot; the failing call fails its statement; the STATEMENT bracket cut reclaims every live cell (zero hand-counted pops); the next statement runs.
+- **Per-call return wires**: each call site owns its γ/ω labels; wires ride the frame header, so recursion needs nothing further.
+- **nparams=0 IR_SAVE_RESTORE variant**: one 16B slot (fname only); on γ the slot is REUSED as the call's RESULT cell — net +16 for a zero-arg call.
+- **Two constant-folded DEFINEs** emit nothing at runtime. **Both floaters** (RETURN + FRETURN) now exercised.
+- New runtime shapes taken verbatim from the legacy emission: `rt_cmp_d(&a,&b)→sign` (LE fails on `jg`), `rt_sub` (rt_add mirror). SCOPE NOTE recorded in the seed: LE emitted as the int/real fast shape only — the op75 coercion tower is emitter work, out of embodiment scope.
+STILL UNPROVEN: multi-arg (>1) and prototype-locals save sets (mechanical extensions of the slot block); pattern statements; ARBNO/FENCE1 brackets; string-descr literals.
