@@ -47,7 +47,126 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 ---
 
-## ⛔ LIVE CURSOR — s216-ICN (2026-07-29): **RTX-8c-ICN LANDED — `dat_field_get` IS ASM AT 1.333× ON/PRISTINE, DISJOINT DISTRIBUTIONS. ⭐⭐ AND THE HEADLINE IS THAT THIS LADDER'S SIZE-RANKED INVENTORY IS BLIND TO AN ENTIRE DIRECTORY.**
+## ⛔ LIVE CURSOR — s218-ICN (2026-07-29): **⭐⭐ LON RE-KEYED THE QUEUE: SLOWEST-FIRST, NOT SMALLEST-FIRST. MEASURED ONCE, AND THE ANSWER IS THAT THE WORKSPACE ALLOCATOR FAMILY IS THE ELEPHANT — WHICH IS EXACTLY WHERE THE LAST TWO REFUSED RUNGS BOTTOMED OUT.**
+
+**LON'S DIRECTIVE OF RECORD (s218), SUPERSEDING s214's SIZE KEY:** *"Choose a good order to do the
+functions. Maybe from smallest to largest. Actually better, from the most slow to the less slower. That
+way we get better performance faster. But do not waste time re measuring; measure once or a few times
+maybe."*
+⇒ **ORDERING KEY IS NOW SELF-TIME, DESCENDING.** Body size is retired as the sort key (it remains a
+cheap tiebreak). ⭐ **AND "MEASURE ONCE" IS NOW A RULE, NOT A CONVENIENCE:** the queue below is a
+COMMITTED ARTIFACT. Do not re-derive it per rung. Re-derive it only when a port LANDS (which moves the
+ranking) or when Lon changes the workload set.
+
+⛔ **THE CURSOR CARRIES THE COMMAND, NOT THE NUMBERS** (the s216 rule). Reproduce the whole ranking in
+one pass — signature-free, no per-symbol prototypes, no hand list:
+```bash
+# 1. instrumented runtime (-O0 per O2-DIRECTED-ONLY; -finstrument-functions touches no Makefile)
+rm -rf out /tmp/si_objs
+make -j$(nproc) RT_OPT="-O0 -g -fno-strict-aliasing -fwrapv -fno-omit-frame-pointer -finstrument-functions"
+# 2. self-cycle profiler (shadow stack; enter/exit pair calibrated in-process and subtracted)
+gcc -O2 -fPIC -shared -o /tmp/selftime.so tools/rtx_icn_selftime.c -ldl
+# 3. ONE pass over the workload set
+for f in /home/claude/corpus/benchmarks/icon/*.icn; do
+  RTXS_OUT=/tmp/self.tsv LD_PRELOAD=/tmp/selftime.so timeout 90 ./scrip --run "$f" </dev/null >/dev/null 2>&1
+done
+# 4. runtime-role filter derived from out/rt_pic/*.d (object->source), so it cannot rot
+```
+⭐ **WHY THIS INSTRUMENT AND NOT THE OTHERS:** `-finstrument-functions` instruments **C and only C**, so
+the 32 symbols already in `src/runtime/**/*.S` are **invisible by construction** ⇒ step 0(e) is
+satisfied MECHANICALLY, not by a grep that can miss a Greek codepoint (the s214 trap). And unlike
+`tools/rtx_icn_profile.c` (counts only, by its own header) this yields TIME, which is what a slowness
+key requires — this ladder has six recorded falsifications of count-as-cost.
+
+⛔⛔ **READ THE LIMITS BEFORE QUOTING ANY NUMBER: THE RANKING IS ORDINAL, NOT RATIO.** Hook pair
+measured at **91 cycles** and subtracted as a MEAN, so a tiny leaf called 5,777 times is still
+over-charged against a fat body called 105 times. **USE THE ORDER. Never derive a speedup target from
+these figures, and never quote a share.** `-O0` only. 16 workloads, of which **1 timed out and 3
+aborted** (the documented harness blind spot) ⇒ their data is PARTIAL, not absent.
+
+### ▶ THE QUEUE — CLASS A, STEADY-STATE (calls ≥ 100), SLOWEST FIRST
+
+| # | symbol | self cyc | calls | cyc/call | note |
+|---|---|---:|---:|---:|---|
+| 1 | **`rt_ws_alloc`** | 1,642,716 | 4,063 | 404 | ⭐⭐ workspace allocator |
+| 2 | `NV_SET_fn` | 1,014,698 | 308 | 3,295 | ⛔ SN4-RTX's row, `BLOCKED:DB-1` |
+| 3 | **`c_str_concat_d`** | 1,007,432 | 390 | 2,583 | ⛔⛔ **a FALLBACK — see CLASS C** |
+| 4 | **`rt_ws_strdup_c`** | 844,636 | 224 | 3,771 | fattest body in the set |
+| 5 | **`NV_GET_fn`** | 582,409 | 1,232 | 473 | ⭐ **MINE. Answers the s208 question — see below** |
+| 6 | **`rt_ws_strdup`** | 561,253 | 5,777 | 97 | highest call count measured |
+| 7 | `DEFINE_fn` | 408,073 | 1,500 | 272 | |
+| 8 | `rt_proc_register` | 143,268 | 105 | 1,365 | |
+| 9 | `rt_proc_index_of` | 116,933 | 177 | 661 | |
+| 10 | `NV_PTR_fn` | 97,745 | 139 | 703 | NV family |
+| 11 | `list_bang_at` | 96,521 | 406 | 238 | ⭐ **RTX-8b's named target, confirmed live** |
+| 12 | `DATCON_fn` | 67,388 | 143 | 471 | the variadic that made RTX-8d unportable |
+
+⚠ **`ast_attr_int` / `ast_attr_leaf` / `ast_stmt_new` were in the raw Class A and are EXCLUDED as the
+already-named COMPILE-PHASE CONFOUND** (`FINDING-2026-07-29c-…-COMPILE-PHASE-CONFOUND-AND-THE-RUN-PHASE-RANK`)
+— mode 3 compiles and runs in one process. **Checked the finding rather than re-discovering it.**
+
+### ⭐⭐ THE HEADLINE: FOUR OF THE TOP SIX ARE ONE FAMILY, AND IT IS THE FAMILY THAT KILLED THE LAST TWO RUNGS
+
+`rt_ws_alloc` + `rt_ws_strdup_c` + `rt_ws_strdup` = **3,048,605 self cycles**, the largest single
+concentration measured, ahead of every individual row. And:
+- **RTX-8d (`rt_make_list`) was refused** because its cost was `rt_ws_alloc` ×3 per call, which the port
+  could not touch.
+- **RTX-9 (`subscript_get2`) was refused** because what remained after the arithmetic was `rt_str_alloc`
+  + the allocator path.
+⇒ **THE SLOWNESS RANKING AND THE TWO REFUSALS INDEPENDENTLY NAME THE SAME CULPRIT.** Two rungs were
+spent proving that the thing under the symbol was the cost; this ranking says so directly from the top.
+**⭐ THE ALLOCATOR IS NOT A STEP ON THE LADDER — IT IS THE LADDER'S FLOOR, AND EVERY `.S` PORT ABOVE IT
+INHERITS ITS COST.** Take it FIRST.
+
+### ▶ NEXT RUNGS, IN ORDER — AND #0 COSTS NO NEW ASM AT ALL
+
+- [ ] **RTX-17-ICN — ⭐⭐ WIDEN `str_concat_d`'s ASM ARM. DO THIS FIRST; IT IS THE CHEAPEST WIN ON THE
+  BOARD.** `c_str_concat_d` is **rank 3 overall at 2,583 cyc/call over 390 calls** — that is the C
+  FALLBACK of a symbol already marked `DONE:SN4-RTX:rtx_str.S` (STR gate). **The asm exists, is linked,
+  and is being declined on a hot path.** No new file, no new gate, no ledger event — only an arm
+  widening. ⛔ **SN4-RTX's symbol: NOTIFY AND REQUEST, do not edit.** Message posted to `RTX-CLAIMS.md`.
+  ⭐ **GENERAL RULE THIS EXPOSES: A LANDED PORT IS NOT A FINISHED PORT.** Nothing on this ladder has ever
+  measured the c_* fallbacks; five of them execute (CLASS C). **`util_rtx_arm_census.sh` answers this per
+  program — run it across the whole board, not just the rung under test.**
+- [ ] **RTX-18-ICN — `rt_ws_alloc` + the `rt_ws_strdup`/`rt_ws_strdup_c` pair. THE #1 SLOWNESS TARGET.**
+  ⚠ Check `RTX-CLAIMS.md` first: the family neighbours `rt_gcheap_alloc`/`rt_agg_alloc`/`rt_str_alloc`
+  are already `DONE:SN4-RTX` under the **ALLOC** gate, so this is very likely **arm widening inside an
+  existing family, not a new port** — the same shape as RTX-17. ⛔ Shared runtime ⇒ owes all three
+  watermarks. ⭐ **AND IT UNBLOCKS THE TWO REFUSED RUNGS**: cheapen the allocator and `rt_make_list` /
+  `subscript_get2` stop being ceremony-dominated.
+- [ ] **RTX-10-ICN — `NV_GET_fn`. ⭐⭐ THE s208 STANDING QUESTION IS NOW ANSWERED, AND ICON IS THE
+  OPPOSITE OF SNOBOL4.** SN4-RTX measured **ZERO calls and ZERO static sites** across 7 benchmarks and
+  wrote: *"If Icon has no equivalent slot optimization, your 109 sites may well be hot where SN4's 17
+  are dead. Same symbol, different answer — measure it."* **MEASURED s218: 1,232 calls, 582,409 self
+  cycles, rank 5, plus `NV_PTR_fn` at rank 10 and `NV_bind_gva` live.** ⇒ **Icon has no GVA-slot
+  bypass; the NV dictionary is genuinely hot for Icon.** ⛔ Still `BLOCKED:DB-1-WRITE-BARRIER` in the
+  ledger — **this measurement is the case for unblocking it; it is a Lon call.**
+
+### ▶ CLASS B — STARTUP, AND IT IS NOT AN RTX TARGET BUT IT IS ENORMOUS
+
+`polyglot_init` **1,384,203 cycles PER CALL** (16.6M over 12 programs) · `core_lib_init` 142,432/call ·
+`kw_read` 32,160/call · `rt_slab_get` 30,940/call · `sm_preamble` 43,126/call.
+⇒ **For a short Icon program, per-process INITIALIZATION dominates everything the program does.** This
+is `STARTUP-LOAD-BLOAT.md`'s subject and it is a **lazy-init / design** rung, not an asm port — asm
+cannot fix work that should not happen. **Flagged for Lon: it may outrank the whole RTX ladder for
+perceived speed on small programs.**
+
+### ▶ CLASS C — ⚠ FIVE `c_*` FALLBACKS ARE EXECUTING (already-paid-for asm being declined)
+
+| fallback | self cyc | calls | cyc/call |
+|---|---:|---:|---:|
+| `c_str_concat_d` | 1,007,432 | 390 | 2,583 |
+| `c_rt_gcheap_alloc` | 225,594 | 11 | 20,509 |
+| `c_rt_size_d` | 91,940 | 239 | 385 |
+| `c_rt_agg_alloc` | 25,498 | 9 | 2,833 |
+| `c_rt_str_alloc` | 2,012 | 1 | 2,012 |
+
+⭐ `c_rt_size_d` at 239 calls **independently confirms s213's own conclusion** that `rt_size_d`'s ported
+arms are dead and the live arm is still C — arrived at from a completely different instrument.
+
+---
+
+## ⛔ PRIOR CURSOR — s216-ICN (2026-07-29): **RTX-8c-ICN LANDED — `dat_field_get` IS ASM AT 1.333× ON/PRISTINE, DISJOINT DISTRIBUTIONS. ⭐⭐ AND THE HEADLINE IS THAT THIS LADDER'S SIZE-RANKED INVENTORY IS BLIND TO AN ENTIRE DIRECTORY.**
 
 **NEXT RUNG: `subscript_get2`** (52 real sites, body 42 lines, `pattern_match.c:350`, AGG,
 Icon-EXCLUSIVE, `FREE`) — reuses `SCRIP_RTX_ICNAGG`, so still no new gate.
