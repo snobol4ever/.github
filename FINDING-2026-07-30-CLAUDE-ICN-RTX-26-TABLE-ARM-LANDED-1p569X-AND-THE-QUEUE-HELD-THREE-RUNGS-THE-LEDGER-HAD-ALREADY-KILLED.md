@@ -134,3 +134,47 @@ function. **Still do not tidy that** — reconfirmed by reading the C, s223.
 ---
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
+
+---
+
+## 8. ⭐⭐⭐ ADDENDUM — RTX-27-ICN, AND THE CLEANEST NATURAL EXPERIMENT THIS LADDER HAS RUN
+
+The `DT_S` substring-trap arm landed in the same session, on the same gate, in the same file, written
+to the same standard (SCRIP `a4df13c4`). Census **2,000,000 entries / 0 bailed / 2,000,000 commits**;
+two-sided falsification by RESULT break (`len` 1→2 ⇒ ON `abx`, OFF `abxdefgh`). It **executes**.
+
+And it graded at an **overlapping 1.118×** where RTX-26 graded at a **disjoint 1.569×**.
+
+**That difference is not a difference in the asm. It is entirely a difference in what the two windows
+are made of**, and the expectation was recorded before either was measured:
+
+| arm | what dominates its window | result |
+|---|---|---|
+| `DT_T` table | `_tbl_hash` + chain `strcmp` — **dispatch** | **1.569× disjoint** |
+| `DT_S` string | 4,000,000 `rt_str_alloc` + 2,000,000 VCELL carves — **allocation** | 1.118×, **overlapping** |
+
+⇒ **This is the sharpest available proof of the s221 (d2) rule, obtained by accident: two arms of ONE
+symbol, ported the same way in one session, differing 1.4× in measured benefit purely by window
+composition.** (d2) was inferred at s221 from one fix measured on two programs; this is the same
+finding with the confound removed, because here the *asm author, the file, the gate and the session*
+are all held constant.
+
+**AND IT LOCATES THE FAMILY'S CEILING.** RTX-26 could win big because its window's cost was a hash
+and a string compare — things asm can delete. RTX-27 could not, because its window's cost is
+**allocation** — which no `.S` port can reach, because the allocation is in the C body's *contract*,
+not its implementation. §6's measurement (`rt_agg_alloc` firing exactly 2,000,000× in all three
+windows) said the allocation was universal; §8 now says it is also **the binding constraint**.
+
+⇒ **RTX-25-ICN is not merely the bigger prize, it is the ONLY remaining prize in this family**, and
+two independent measurements from opposite directions now say so. Everything an `.S` port can win
+here has been won. ⛔ It stays **BLOCKED ON LON**: `bb_subscript.cpp` is a template ⇒ both-medium ⇒
+`.s` regen ×3 ⇒ head-on ζ-ladder collision. **DECLINED s223 despite a standing "all your choices"
+grant** — not for lack of authority, but because the remaining session budget could start it and not
+finish it, and a half-converted template is the poisoned-tree class `RULES.md`'s O2 rule already
+paid for once (s126). A rung that cannot be finished should not be opened.
+
+⚠ **One more defect surfaced and NOT fixed:** `s[i]` in an RVALUE context allocates a one-character
+string on every deref, which is what makes the rvalue string window 9.5× bimodal. Canonical Icon
+allocates nothing there — `refs/icon-master/src/runtime/oref.r` returns
+`string(1, (char *)&allchars[ch & 0xFF])`, an index into a static 256-entry table. That is a
+separate, cheap, runtime-side rung (no template, no ζ collision) and it is not yet on the ladder.
