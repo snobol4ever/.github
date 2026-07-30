@@ -136,3 +136,34 @@ Both are currently **benign** (fail sets identical to baseline) but both are lat
 **Fallback if the premise fails:** a tagged registry — mark subject-registered nodes at registration, gate only those at emit.cpp:889 (`op_fc_disp`) and emit.cpp:1281 (`op_subj_cell`). ⚠ Gating consumption alone is not sufficient by itself: the cell lifecycle has claim/pop touch points (`fc_vwpop_register` and the pop hooks), and gating reads without gating pops desynchronizes rsp. Enumerate every touch point before choosing this arm.
 
 **Premise already proven this session (it is what makes an emitter-side fix possible at all):** under SUBJ_CELL a declined graph's prologue carve is **unchanged** (232 both regimes on `039_pat_any`) and the subject producer's flat slot is merely **orphaned** (`[rsp+176]` refs 2 → 0). The storage form changes; the allocation does not. So a declined graph can be returned to the flat slot without re-planning its frame.
+
+---
+
+## 11. ZLEAK-3 PREMISE RESOLVED — and the guard caught what the measurement missed (SCRIP `30c96e72`)
+
+**Instrument:** `g=%p entry=%p` added to the `[STF]` choke line, inside the existing `SCRIP_STF_DEBUG` gate (zero default-path cost). Everything below follows from it.
+
+**Measured: 317 programs · 595 choke decisions · 527 distinct (program,graph) pairs.**
+
+| premise | result |
+|---|---|
+| plan-time entry ≡ emit-time entry (**the strong form §10 asked for**) | ⛔ **FALSE** — 32 graphs emitted from MULTIPLE entries, up to **11** (`test_string`); all DEFINE / indirect-goto / EVAL shapes |
+| **verdict stability** per graph | ✅ **0 violations / 32** |
+| **arming implies single entry** | ✅ **44 armed decisions / 44 distinct armed graphs, 1:1**; ZERO multi-entry graphs armed |
+
+**So §10 asked for the wrong premise.** The fixpoint does not need entry equality. It needs (a) the verdict to be stable per graph and (b) arming to imply a single entry — and both hold. One plan-time decision then matches every emission: scan from `g->entry` (IR.h:232); for a graph the planner would arm that is the only entry, and a graph it declines is declined at all of them.
+
+**The guard.** Rather than trust an empirical regularity, it is now enforced: a per-graph verdict/entry table checked at the choke, regime-gated on `_stf` so the default path never executes it. **Warn-only by default** — a currently-benign violation must not become a hard failure — with `SCRIP_STF_STRICT=1` aborting for anyone working the rung.
+
+### ⭐ It earned its keep immediately
+
+Under `SCRIP_CALL2BB=1` the guard fires on **`1014_func_freturn`: VERDICT STABILITY VIOLATED, verdict 0 then 1.** The same graph declines at one emission and arms at another — latent **s188 mixed-regime disease**. It is invisible by every other signal: 1014 still matches its ref, and the CALL2BB m4 fail set is still identical to baseline.
+
+**I had proven the premise under `SUBJ_CELL` and was one step from assuming it for `CALL2BB`.** It does not carry.
+
+**Consequences:**
+1. ZLEAK-3's fixpoint is **scoped to STF + SUBJ_CELL**. Do not extend it to CALL2BB until the instability is fixed.
+2. **`1014_func_freturn` is the named reproducer** — `SCRIP_STMT_FRAME=1 SCRIP_CALL2BB=1 SCRIP_STF_STRICT=1 ./scrip --compile <it>` aborts on demand.
+3. There is a **real latent ALL-OR-NOTHING PER GRAPH violation at the EMISSION level** (not just the planner level) sitting under CALL2BB, benign today. It should be fixed before the FLIP + DELETE defaults the two-BB world — which is otherwise the best-evidenced next rung (§7: CALL2BB fixes 140/141, DIVERGE 3→1).
+
+**LAW (companion to §9):** a premise measured under one gate combination is not proven for another. Enforce premises with a guard at the choke rather than a census in a session log — the census cannot fire six months later, and the guard can. Watermarks unchanged by the guard: DEFAULT m3 265/52 · m4 265/50/2 · DIV=3; STF+CALL2BB m3 268/49 · m4 265/50/2 · DIV=1.
