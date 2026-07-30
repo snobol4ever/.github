@@ -51,7 +51,7 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 **FINDING:** `FINDING-2026-07-30b-CLAUDE-ICN-RTX-16-SLEN-IS-A-TEMPLATE-DEFECT-NOT-A-C-FIX-AND-A-BAIL-COUNT-CANNOT-PREDICT-BENEFIT.md` — read it before the queue below.
 
-**NEXT RUNG: RTX-23-ICN, BUT SEED A DISPATCH-DOMINANT INTEGER-OPERAND WINDOW FIRST (see §7 of the finding).**
+**NEXT RUNG: RTX-23-ICN. ✅ BOTH PREREQS NOW DONE — RTX-16 landed AND its grading window is seeded and characterized. ⛔ READ THE RUNG FIRST: the window is only ~⅓ dispatch, so a tag-only arm captures ~⅓ and the arm must format the integer in asm.**
 
 **WATERMARKS, re-derived fresh s221 and unmoved by RTX-16** (each vs a PRISTINE REBUILD, not inherited):
 Icon **252/11/30** · SNOBOL4 m3 **329/5**, m4 **324/2/8** · Prolog **164/0** interp + **164/0** compile.
@@ -117,16 +117,23 @@ nullptr/cset/unexplained **0**.
   ACTIVATES ASM THAT IS ALREADY WRITTEN, LINKED AND GATE-GREEN.** Nothing else here has that leverage.
   ⛔ It was never prioritized only because it was found on the compile-dominated corpus, where no
   run-phase win was measurable. **Grade it on `bench_icnstr_concat_table.icn` (96% run phase).**
-- [ ] **RTX-23-ICN — `DT_S || DT_I` CONCAT ARM. ⬅ NEXT RUNG.** The other 40,000. String-concat-integer is
-  a top Icon idiom and `rtx_str.S` has no arm for it. ✅ **RTX-16 IS DONE, so the prerequisite is met and
-  the `a` operand (`"k"`) now passes the slen guard — only the `DT_I` `b` operand still bails.**
-  ⛔⛔ **BUT DO NOT GRADE IT ON `bench_icnstr_concat_table`. s221 §4 PROVED THAT WINDOW CANNOT GRADE A
-  DISPATCH PORT** — its 40,000 remaining bails sit in an O(n²)-growth + 119,999-`rt_str_alloc` window where
-  RTX-16 converted 40,000 bails for a MEASURED NULL. **Seed a dispatch-dominant integer-operand window
-  first** (constant-size operands, no growth, result discarded — clone
-  `corpus/benchmarks/icon/bench_icnstr_concat_dispatch.icn` and make one operand `(i % 97)`), or RTX-23
-  will report a null for reasons that have nothing to do with its asm. ⚠ `rtx_str.S` is **SN4-RTX's file**
-  — the arm needs the same §7 re-assignment RTX-17 needs.
+- [ ] **RTX-23-ICN — `DT_S || DT_I` CONCAT ARM. ⬅ NEXT RUNG. ✅ PREREQS DONE: RTX-16 LANDED AND THE
+  GRADING WINDOW IS SEEDED AND CHARACTERIZED (s221).** `corpus/benchmarks/icon/bench_icnstr_concat_int_dispatch.icn`
+  isolates the `tag` bail cleanly — **2,000,000 entries / 2,000,000 bailed / 0 commits**, and with RTX-16
+  landed the left operand `"abcdefgh"` carries `slen=8`, so **the `DT_I` right operand is the ONLY remaining
+  bail cause.** (`ON==OFF` on it today is EXPECTED — it bails 100% in both configs; there is nothing to
+  compare until the arm exists.)
+  ⛔⛔ **DESIGN CONSTRAINT, MEASURED s221 AND IT DECIDES WHETHER THIS RUNG IS WORTH WRITING: THE WINDOW IS
+  ONLY ~⅓ DISPATCH.** `str||str` OFF 148–151ms / ON 62–63ms ⇒ ~86ms recoverable of ~148ms. `str||int` totals
+  ~260ms with the same ~86ms of concat dispatch ⇒ **~⅓**, because the other ~⅔ is the integer→string
+  coercion **and its extra allocation — `rt_str_alloc` fires 4,000,000 (2 per iteration) here vs 2,000,000
+  (1 per iteration) in `str||str`.** ⇒ **AN ARM THAT ONLY CLEARS THE `tag` GUARD AND THEN CALLS C TO
+  STRINGIFY THE INTEGER CAPTURES ~⅓ AT BEST. The arm must format the integer into the result buffer in asm,
+  which also removes one of the two allocations.** ⭐ Write that expectation down BEFORE measuring (RTX-4's
+  rule): a tag-only arm should land near 1.15×, a formatting arm near 2×+. **If a tag-only arm measures
+  ~1.15×, that is the PREDICTED result, not a refusal.**
+  ⚠ **Variance:** a 781ms outlier appeared in 3 rounds — use more rounds than 3 on this window.
+  ⚠ `rtx_str.S` is **SN4-RTX's file** — the arm needs the same §7 re-assignment RTX-17 needs.
 - [ ] **RTX-21-ICN — extend the run-phase workload set** (list/set/scan/IO), seeds landed s220.
 - [ ] **RTX-17-ICN — `str_concat_d` arm widening.** ⛔ SN4-RTX's symbol; §7 rule 2 needs **LON TO
   RE-ASSIGN**. ⭐ **But note §7's consequence: RTX-16 removes half its bails WITHOUT touching SN4's file
