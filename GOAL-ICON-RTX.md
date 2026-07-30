@@ -118,6 +118,40 @@ spent proving that the thing under the symbol was the cost; this ranking says so
 **⭐ THE ALLOCATOR IS NOT A STEP ON THE LADDER — IT IS THE LADDER'S FLOOR, AND EVERY `.S` PORT ABOVE IT
 INHERITS ITS COST.** Take it FIRST.
 
+### ⛔⛔ RTX-18-ICN OPENED AND IS BLOCKED ON A PREREQUISITE — STEP 0(c) HAS AN UNENUMERATED THIRD CASE
+
+**`rt_ws_alloc` (rank 1) was taken this session and NO ASM WAS WRITTEN. 0(c) failed.** The contract
+enumerates two linkage cases — *exported `B`/`D` ⇒ `@GOTPCREL`; hidden ⇒ direct.* Measured:
+
+```
+nm out/libscrip_rt.so | grep g_wsi
+  b g_wsi_base    b g_wsi_ws    b g_wsi_wss    b g_wsi_blocks
+```
+
+**Lowercase `b` = FILE-STATIC in `gc_heap.c`. That is a THIRD case: not exported, not hidden-global,
+but `static` — and a `.S` file in another translation unit CANNOT REFERENCE IT AT ALL, at any linkage.**
+Five `g_wsi*` statics; the bump allocator's entire state is invisible to asm.
+⇒ **STEP 0(c) AMENDMENT OWED:** three cases, not two — exported ⇒ `@GOTPCREL`, hidden ⇒ direct,
+**STATIC ⇒ NOT PORTABLE UNTIL DE-STATICED, and that is a C edit to shared runtime state, i.e. a
+prerequisite rung, not part of the port.** ⭐ This is the first time on either ladder that 0(c) has
+*blocked* a rung rather than merely selected an addressing mode; it has been treated as a formality.
+
+⭐⭐ **AND PORT ≠ FIX FOR THE FOURTH TIME — THIS ONE IS A THREE-LINE C CHANGE, NOT A DESIGN PROJECT.**
+`rt_ws_alloc`'s body is align → bounds-check → write a 16-byte header → **`memset` the whole payload** →
+bump. At 404 cyc/call the `memset` is the cost. **`FINDING-2026-07-25-CLAUDE-ICN-MEM-1-HUGEPAGE-VIRGIN-ZERO-ELIDE`
+ALREADY SPECIFIES THE FIX AND ITS SIBLING ALREADY HAS IT** — that finding records skipping *"the carve
+`memset` for fully-virgin blocks"*, because a bump allocator carving from a fresh `mmap` slab is
+handing back pages the kernel already zeroed. **`rt_ws_alloc` does the `memset` unconditionally and
+`rt_gcheap_alloc` does not.** ⇒ **RTX-19-ICN: extend virgin-zero elision to the WSI allocator.** It is
+the cheapest large win identified on this ladder: no asm, no gate, no `.s` regen, and it attacks the
+rank-1 symbol at its actual cost.
+
+⇒ **REVISED ORDER FOR THE NEXT SESSION:** (1) **RTX-19** virgin-zero elide on `rt_ws_alloc` — C only,
+attacks rank 1 directly; (2) **RTX-17** widen `str_concat_d`'s arm (rank 3, asm already exists — needs
+SN4's assent); (3) **RTX-18a** de-static the five `g_wsi*` globals to hidden-extern, THEN the `.S` port
+of the ceremony, whose remaining portable fraction is much smaller once (1) lands — **measure again
+after (1), because (1) changes what is left to port.**
+
 ### ▶ NEXT RUNGS, IN ORDER — AND #0 COSTS NO NEW ASM AT ALL
 
 - [ ] **RTX-17-ICN — ⭐⭐ WIDEN `str_concat_d`'s ASM ARM. DO THIS FIRST; IT IS THE CHEAPEST WIN ON THE
