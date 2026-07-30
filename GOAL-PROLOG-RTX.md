@@ -81,7 +81,9 @@ uninitialised memory (poisons every `.s` byte-identity sweep); engine-wide silen
 predicates; int/float standard-order conflation; lexer escape three-site/two-behaviour; NO-LCO segfault;
 nested-`\+` binding leak; `retractall/1` gaps.
 
-**NEXT:** the §SCOPE ruling from Lon, then **RTX-1-PL on `rt_proc_call_open_det`** (step 0 partially
+8. ⚠⚠ **NARROWED, NOT RESOLVED — AND IT MAY OUTRANK RTX-1-PL, SO IT GOES FIRST (⇒ RTX-13-PL).** `_det0`…`_det4` all measure **ZERO** while generic `_det` measures **430,081** ⇒ `det_fuse` is false at Prolog's hot sites, which also forces `dc` false (PL-DC requires it). **ESTABLISHED:** `lower_prolog.c:388` sets `IR_LIT(nd).sval = pl_pi_name("$call", t->n)`, and `pl_pi_name` is `snprintf("%s/%d")` ⇒ Prolog's `IR_CALL_PROC_STAGED` sites carry the **synthetic arity-qualified name `"$call/N"`, NOT the callee predicate's own registered name.** ⛔ **NOT ESTABLISHED — DO NOT QUOTE A CAUSE YET:** `det_fuse = (det_idx >= 0 && x86_zc_frame() == ZC_FRAME_RSP && det_nA >= 0 && det_nA <= 4)`, and I did **not** determine which conjunct fails. `"$call` does appear 3× in `scrip.c`/`lower_prolog.c`, so `$call/N` **may well be a registered dispatcher** and `det_idx` may resolve fine — in which case the failing conjunct is the FRAME REGIME or the ARITY, not the name. **I ran out of session before instrumenting it and I am not guessing: naming a cause on a partial read is the s209 mistake this project has recorded twice.** ⇒ **RTX-13-PL STEP 1 IS A ONE-LINE EMIT-TIME INSTRUMENT** printing the three conjuncts at each Prolog `IR_CALL_PROC_STAGED` site. **If the fuse can be made to fire, it lights up TWO already-built optimizations (PL-REGAIN-4 + PL-DC) for Prolog at once and removes the crossing that RTX-1-PL would merely make faster — a LOWERING fix that beats an ASM fix.** Measure it before writing any asm.
+
+**NEXT:** ⭐ **(0) RTX-13-PL step 1 — the `det_fuse` conjunct instrument (item 8). It may make RTX-1-PL moot; do it FIRST.** Then the §SCOPE ruling from Lon, then **RTX-1-PL on `rt_proc_call_open_det`** (step 0 partially
 done — 0(c), 0(f-pre), 0(g) all owed before asm).
 
 ---
