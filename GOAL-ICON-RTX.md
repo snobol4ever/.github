@@ -47,7 +47,57 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 ---
 
-## ⛔ LIVE CURSOR — s218-ICN (2026-07-29): **⭐⭐ LON RE-KEYED THE QUEUE: SLOWEST-FIRST, NOT SMALLEST-FIRST. MEASURED ONCE, AND THE ANSWER IS THAT THE WORKSPACE ALLOCATOR FAMILY IS THE ELEPHANT — WHICH IS EXACTLY WHERE THE LAST TWO REFUSED RUNGS BOTTOMED OUT.**
+## ⛔ LIVE CURSOR — s220-ICN (2026-07-30): **⭐⭐⭐ THE QUEUE BELOW IS INVALID AS A PRIORITY RANKING — IT WAS DERIVED FROM 16 WORKLOADS THAT ARE ~100% COMPILE. AND THE REAL TARGET IS CONFIRMED: `str_concat_d` BAILS 80,000 OF 80,000 IN A WINDOW THAT IS 95% RUN PHASE.**
+
+**FINDING:** `FINDING-2026-07-30-CLAUDE-ICN-RTX-20-THE-CORPUS-HAS-NO-RUN-PHASE-AND-STR-CONCAT-BAILS-80000-OF-80000.md`
+— read it before touching the queue below.
+
+**MEASURED s220, three results, in order of consequence:**
+1. **`--compile` costs the SAME OR MORE than `--run`** on every corpus benchmark (trivial 7/6, queens
+   19/17, tgrlink 37/32, concord 19/18 ms). ⇒ **the corpus has NO run phase.** s211's "gradeability
+   floor" and RTX-19's "31 ms window" were COMPILE windows.
+2. **An integer loop scales 4.18× at N→4N but makes ONE runtime entry per 2,000,000 iterations** — the
+   emitted code guards each call with an inline type test. ⭐ **0(g) DUAL: GUARDED CALL ⇒ THE CALL IS THE
+   COLD ARM** (s216's unguarded rule, inverted; predicts arm liveness from one template grep).
+3. ⭐⭐⭐ **A string/table loop is the INVERSE: compile 7 ms, run 160–208 ms (~95% run phase), and it
+   bails to C 80,000 times.** ⇒ **the ladder's premise is SOUND; its WORKLOAD SET was the defect.**
+
+### ▶ NEXT RUNGS, IN ORDER
+
+- [ ] **RTX-21-ICN — ⭐⭐ BUILD A RUN-PHASE-DOMINANT ICON WORKLOAD SET. PREREQUISITE FOR EVERY FUTURE
+  `.S` PORT ON THIS LADDER.** Seeds committed to `corpus/benchmarks/icon/` this session
+  (`bench_icnstr_concat_table.icn`, `bench_icnint_loop.icn` as the negative control). ⛔ **Do NOT
+  re-derive s218's queue on the old 16 — re-derive it on these.** "Measure once" still holds; the
+  workload set CHANGED, which is one of the two conditions that licenses re-deriving.
+- [ ] **RTX-17-ICN — `str_concat_d` ARM WIDENING. THE LARGEST CONFIRMED TARGET THIS LADDER HAS HAD.**
+  **80,000 entries / 80,000 bails / ZERO commits** in a 160 ms window that is 95% run phase. The asm
+  exists, is linked, and is declined on every call. ⛔ **SN4-RTX's symbol** (`DONE:SN4-RTX:rtx_str.S`,
+  STR gate) — §7 rule 2 requires **LON TO RE-ASSIGN**; the finding is the case for it. I did not touch it.
+- [ ] **RTX-22-ICN — `rt_gcheap_alloc`: 29,582 BAILS against 98 entries** (negative COMMITS). Same
+  evidence class, same session, ALLOC gate.
+- [ ] ⛔ **DO NOT TAKE `rt_ws_alloc` (queue rank 1). PROBED TWICE, NULL BOTH TIMES** — RTX-19's elide
+  (zero delta) and s220's poison. Its 404 cyc/call is hook-inflated and its window was compile time.
+  RTX-18a de-staticed the `g_wsi*` globals so the port is now *possible*; nothing measured says it is
+  *worth* it. **Re-rank on RTX-21's workloads first.**
+
+### ⛔ TWO CONTRACT AMENDMENTS OWED (both proven, both cheap)
+
+1. **Step 0(c) MUST be run on the `.o`, NEVER the `.so`.** The linker localizes hidden symbols, so on a
+   linked `.so` `static` and `hidden` are indistinguishable — the exact command s218 used to BLOCK
+   RTX-18 returns identical output before and after the fix that unblocked it. Same-TU control:
+   `nm gc_heap.o` → `B g_wsi_*` (GLOBAL HIDDEN) vs `b g_hp_arena` (still static).
+2. **Step 0(d)/0(j) must name the PHASE.** A window is not a run-phase window until `--compile` has been
+   subtracted from it. Add the compile/run split to step 0(d).
+
+⚠ **METHOD NOTE WORTH MORE THAN EITHER AMENDMENT:** §1+§2 above led me to a confident, well-evidenced
+draft recommending the ladder be PARKED. §4 — a control I ran against my own stated weakest caveat —
+reversed it. **State the weakest point of your own conclusion as a named experiment, and RUN it before
+publishing.** ⚠ Also: `micro` and `deal` are **nondeterministic in both configs** (3 hashes in 3 runs);
+output-md5 differential is not a valid instrument on them.
+
+---
+
+## ⛔ PRIOR CURSOR — s218-ICN (2026-07-29): **⭐⭐ LON RE-KEYED THE QUEUE: SLOWEST-FIRST, NOT SMALLEST-FIRST. MEASURED ONCE, AND THE ANSWER IS THAT THE WORKSPACE ALLOCATOR FAMILY IS THE ELEPHANT — WHICH IS EXACTLY WHERE THE LAST TWO REFUSED RUNGS BOTTOMED OUT.** ⛔ **SUPERSEDED s220: the ranking below is COMPILE-PHASE-CONTAMINATED. Keep for method, not for priority.**
 
 **LON'S DIRECTIVE OF RECORD (s218), SUPERSEDING s214's SIZE KEY:** *"Choose a good order to do the
 functions. Maybe from smallest to largest. Actually better, from the most slow to the less slower. That
