@@ -47,7 +47,36 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 
 ---
 
-## ⛔ LIVE CURSOR — s220-ICN (2026-07-30): **⭐⭐⭐ THE QUEUE BELOW IS INVALID AS A PRIORITY RANKING — IT WAS DERIVED FROM 16 WORKLOADS THAT ARE ~100% COMPILE. AND THE REAL TARGET IS CONFIRMED: `str_concat_d` BAILS 80,000 OF 80,000 IN A WINDOW THAT IS 95% RUN PHASE.**
+## ⛔ LIVE CURSOR — s221-ICN (2026-07-30): **⭐⭐⭐ RTX-16-ICN LANDED. `str_concat_d` GOES 0 → 1,999,999 COMMITS AND 194ms → 59ms ON A DISPATCH-DOMINANT WINDOW, VIA ONE LINE IN A TEMPLATE. AND IT FALSIFIED TWO OF s220's CLAIMS: `slen` IS AN EMITTER DEFECT (THE C SIDE WAS ALREADY CORRECT), AND A BAIL COUNT CANNOT PREDICT BENEFIT.**
+
+**FINDING:** `FINDING-2026-07-30b-CLAUDE-ICN-RTX-16-SLEN-IS-A-TEMPLATE-DEFECT-NOT-A-C-FIX-AND-A-BAIL-COUNT-CANNOT-PREDICT-BENEFIT.md` — read it before the queue below.
+
+**NEXT RUNG: RTX-23-ICN, BUT SEED A DISPATCH-DOMINANT INTEGER-OPERAND WINDOW FIRST (see §7 of the finding).**
+
+**WATERMARKS, re-derived fresh s221 and unmoved by RTX-16** (each vs a PRISTINE REBUILD, not inherited):
+Icon **252/11/30** · SNOBOL4 m3 **329/5**, m4 **324/2/8** · Prolog **164/0** interp + **164/0** compile.
+
+**MEASURED s221, three results, in order of consequence:**
+1. ⛔ **RTX-16 IS NOT "A C-SIDE FIX" — `c_str_concat_d` ALREADY RETURNS `BSTRVAL(buf, al+bl)`.** The defect
+   is `src/templates/bb_lit_scalar.cpp`'s `IR_LIT_STRING` arm writing `slen=0` for a literal whose length
+   is a compile-time constant. ⇒ **RTX-16 was TEMPLATE work, not concurrency-safe C work** — landed only
+   under Lon's explicit §7 grant. Fix = one line mirroring the `IR_LIT_CHARSET` arm 3 lines below.
+2. ⭐⭐ **0 → 1,999,999 COMMITS.** Census before/after on two windows; `concat_table` 80,000/80,000/**0** →
+   80,000/40,001/**39,999**, `concat_dispatch` 2,000,000/2,000,000/**0** → 2,000,000/1/**1,999,999**.
+3. ⭐⭐⭐ **A BAIL COUNT CANNOT PREDICT BENEFIT — s188's law extended to bails.** Same fix, same symbol:
+   `concat_table` **NULL** (198→195ms, overlapping) vs `concat_dispatch` **~2.4–3.3×** (194–231→59–62ms,
+   disjoint). Cause: `concat_table`'s bails were `strlen("x")`, O(1); its real cost is O(n²) growth +
+   119,999 `rt_str_alloc`. ⇒ **RUN-PHASE-DOMINANT IS NECESSARY AND NOT SUFFICIENT. The window must be
+   dominated by the THING BEING PORTED.** `bench_icnstr_concat_dispatch.icn` landed as the first such
+   window (RTX-21's first member).
+
+⚠ **LEDGER ROT AT SESSION START, PRE-EXISTING, NOT FIXED:** `util_rtx_claims.sh` = **BLOCKED, 3 fatal** —
+`rt_frame` is a PHANTOM (no `.so` definition AND no live `@PLT`, despite rank 7 / 255 sites at s203);
+`rt_defer_open`/`rt_defer_close` are asm with rows not `DONE`. The `rt_defer_*` rows are SN4-RTX's to close.
+
+---
+
+## ⛔ PRIOR CURSOR — s220-ICN (2026-07-30): **⭐⭐⭐ THE QUEUE BELOW IS INVALID AS A PRIORITY RANKING — IT WAS DERIVED FROM 16 WORKLOADS THAT ARE ~100% COMPILE. AND THE REAL TARGET IS CONFIRMED: `str_concat_d` BAILS 80,000 OF 80,000 IN A WINDOW THAT IS 95% RUN PHASE.** ⛔ **AMENDED s221: `concat_table` is run-phase-dominant but ALLOCATION-dominant, so it cannot grade a DISPATCH port — see s221's §4.**
 
 **FINDING:** `FINDING-2026-07-30-CLAUDE-ICN-RTX-20-THE-CORPUS-HAS-NO-RUN-PHASE-AND-STR-CONCAT-BAILS-80000-OF-80000.md`
 — read it before touching the queue below.
@@ -68,16 +97,36 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 `SLEN0` **40,000** (`s := s || "x"`) · `tag` **40,000** (`"k" || (i % 97)`, an INTEGER operand) ·
 nullptr/cset/unexplained **0**.
 
-- [ ] **RTX-16-ICN — ⭐⭐⭐ POPULATE `slen`. THE KEYSTONE. DO THIS FIRST; IT WRITES NO ASM AT ALL.**
+- [x] **RTX-16-ICN — ⭐⭐⭐ LANDED s221 (SCRIP `93912f64`). POPULATED `slen`; 0 → 1,999,999 COMMITS;
+  ~2.4–3.3× ON A DISPATCH-DOMINANT WINDOW; ALL THREE WATERMARKS UNMOVED.** ⛔⛔ **AND THE RUNG'S OWN
+  DESCRIPTION BELOW WAS WRONG IN A WAY THAT WOULD MISROUTE A SESSION — CORRECTED, NOT DELETED, SO THE
+  ERROR IS INSPECTABLE: it is NOT "a C-side descriptor fix that writes no asm."** `c_str_concat_d` already
+  returns `BSTRVAL(buf, al+bl)`; **the defect was `src/templates/bb_lit_scalar.cpp`'s `IR_LIT_STRING` arm**,
+  i.e. TEMPLATE territory (§7 ζ collision, `.s` regen ×3), landed only under Lon's explicit grant. The fix
+  is one line mirroring the `IR_LIT_CHARSET` arm three lines below it. **"Writes no asm" was true;
+  "C-side" and "concurrency-safe" were not.** ⚠ It serves ALL SIX languages — string literals are
+  universal — so it is a system-wide invariant change, which is why all three watermarks were owed and
+  taken against pristine rebuilds. See `FINDING-2026-07-30b-…-BAIL-COUNT-CANNOT-PREDICT-BENEFIT.md`.
+  ⛔ **The third symptom it was minted to cure was MIS-ATTRIBUTED:** `rt_size_d`'s arms were ALREADY
+  committing (1/0/1 both sides), because their operand came from `BSTRVAL`. The literal was the only live
+  symptom. **Two of three symptoms were real; state that, do not inherit "three symptoms, one defect".**
+- [x] ~~**RTX-16-ICN — ⭐⭐⭐ POPULATE `slen`. THE KEYSTONE. DO THIS FIRST; IT WRITES NO ASM AT ALL.**~~ (original text, superseded — see above)
   Already minted in `RTX-CLAIMS.md` as RTX-9's root cause, already known to *"retroactively activate
   `rt_size_d`'s dead arms and remove `strlen` in five other languages"* — and s220 adds a **third**
   independent symptom: **half of `str_concat_d`'s bails.** ⭐ **THREE SYMPTOMS, ONE DEFECT, AND THE FIX
   ACTIVATES ASM THAT IS ALREADY WRITTEN, LINKED AND GATE-GREEN.** Nothing else here has that leverage.
   ⛔ It was never prioritized only because it was found on the compile-dominated corpus, where no
   run-phase win was measurable. **Grade it on `bench_icnstr_concat_table.icn` (96% run phase).**
-- [ ] **RTX-23-ICN — `DT_S || DT_I` CONCAT ARM.** The other 40,000. String-concat-integer is a top Icon
-  idiom and `rtx_str.S` has no arm for it. ⚠ **Sequence AFTER RTX-16** — with `slen` populated the
-  surviving bail population changes, so measure against the real remainder, not today's 50%.
+- [ ] **RTX-23-ICN — `DT_S || DT_I` CONCAT ARM. ⬅ NEXT RUNG.** The other 40,000. String-concat-integer is
+  a top Icon idiom and `rtx_str.S` has no arm for it. ✅ **RTX-16 IS DONE, so the prerequisite is met and
+  the `a` operand (`"k"`) now passes the slen guard — only the `DT_I` `b` operand still bails.**
+  ⛔⛔ **BUT DO NOT GRADE IT ON `bench_icnstr_concat_table`. s221 §4 PROVED THAT WINDOW CANNOT GRADE A
+  DISPATCH PORT** — its 40,000 remaining bails sit in an O(n²)-growth + 119,999-`rt_str_alloc` window where
+  RTX-16 converted 40,000 bails for a MEASURED NULL. **Seed a dispatch-dominant integer-operand window
+  first** (constant-size operands, no growth, result discarded — clone
+  `corpus/benchmarks/icon/bench_icnstr_concat_dispatch.icn` and make one operand `(i % 97)`), or RTX-23
+  will report a null for reasons that have nothing to do with its asm. ⚠ `rtx_str.S` is **SN4-RTX's file**
+  — the arm needs the same §7 re-assignment RTX-17 needs.
 - [ ] **RTX-21-ICN — extend the run-phase workload set** (list/set/scan/IO), seeds landed s220.
 - [ ] **RTX-17-ICN — `str_concat_d` arm widening.** ⛔ SN4-RTX's symbol; §7 rule 2 needs **LON TO
   RE-ASSIGN**. ⭐ **But note §7's consequence: RTX-16 removes half its bails WITHOUT touching SN4's file
