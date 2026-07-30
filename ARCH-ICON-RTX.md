@@ -253,6 +253,18 @@ SN4-RTX's contract is two-way (RTX ‖ ζ). With ICON-RTX there are **three** li
    driven by `nm -D out/libscrip_rt.so`.** `dat_field_get` is bodied in `src/driver/driver_data.c`, so a
    sweep restricted to `src/runtime/**/*.c` ranked 67 rows **without it** while the same run's call tally
    showed 117 sites. **Every driver-bodied symbol is invisible to a runtime-only glob.**
+   **(d2)** ⭐⭐⭐ **THE WINDOW-DOMINANCE RULE — ADDED s221, AND IT SUPERSEDES "RUN-PHASE-DOMINANT" AS THE
+   GRADING CRITERION.** s220 established that a window must be RUN PHASE, not compile. **That is necessary
+   and NOT sufficient: the window must additionally be dominated by THE THING BEING PORTED.** Proof, one
+   fix measured on two run-phase windows: RTX-16 converted 40,000 bails in `bench_icnstr_concat_table`
+   (95% run phase) for a **MEASURED NULL** (198→195 ms, overlapping), and 2,000,000 bails in
+   `bench_icnstr_concat_dispatch` for **~2.4–3.3×** (194–231→59–62 ms, disjoint). `concat_table`'s run
+   phase is O(n²) byte copy + 119,999 `rt_str_alloc`; its `str_concat_d` bails cost `strlen("x")` — O(1).
+   ⇒ **A BAIL COUNT CANNOT PREDICT BENEFIT, exactly as s188 proved a CALL count cannot.** The instrument is
+   **bail COST SHARE**: build the grading window from constant-size operands, no growth, no allocation
+   scaling, result discarded, so the ported operation's own dispatch IS the measured cost.
+   ⛔ **Never grade a dispatch port on an allocation-dominated window; the null is an artifact of the
+   window and will be misread as a refusal of the asm.**
    **(j)** ⭐⭐ **THE ARM CHECK — ADOPTED s216 FROM SN4-RTX, WHICH MINTED IT THE SAME DAY.** It is
    `ARCH-SNOBOL4-RTX.md`'s step **(f)**; ⚠ **that letter is ALREADY TAKEN on this ladder by the `@PLT`
    check above, so ICON-RTX files it as (j). Same check, different letter — do not renumber (f).**
