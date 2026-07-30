@@ -62,23 +62,35 @@ passed, including live C call sites. **Re-run 0(d) on any rung written more than
 3. ⭐⭐⭐ **A string/table loop is the INVERSE: compile 7 ms, run 160–208 ms (~95% run phase), and it
    bails to C 80,000 times.** ⇒ **the ladder's premise is SOUND; its WORKLOAD SET was the defect.**
 
-### ▶ NEXT RUNGS, IN ORDER
+### ▶ NEXT RUNGS, IN ORDER — ⭐⭐ RE-ORDERED s220 AFTER THE BAIL DECOMPOSITION (§7 of the finding)
 
-- [ ] **RTX-21-ICN — ⭐⭐ BUILD A RUN-PHASE-DOMINANT ICON WORKLOAD SET. PREREQUISITE FOR EVERY FUTURE
-  `.S` PORT ON THIS LADDER.** Seeds committed to `corpus/benchmarks/icon/` this session
-  (`bench_icnstr_concat_table.icn`, `bench_icnint_loop.icn` as the negative control). ⛔ **Do NOT
-  re-derive s218's queue on the old 16 — re-derive it on these.** "Measure once" still holds; the
-  workload set CHANGED, which is one of the two conditions that licenses re-deriving.
-- [ ] **RTX-17-ICN — `str_concat_d` ARM WIDENING. THE LARGEST CONFIRMED TARGET THIS LADDER HAS HAD.**
-  **80,000 entries / 80,000 bails / ZERO commits** in a 160 ms window that is 95% run phase. The asm
-  exists, is linked, and is declined on every call. ⛔ **SN4-RTX's symbol** (`DONE:SN4-RTX:rtx_str.S`,
-  STR gate) — §7 rule 2 requires **LON TO RE-ASSIGN**; the finding is the case for it. I did not touch it.
-- [ ] **RTX-22-ICN — `rt_gcheap_alloc`: 29,582 BAILS against 98 entries** (negative COMMITS). Same
-  evidence class, same session, ALLOC gate.
-- [ ] ⛔ **DO NOT TAKE `rt_ws_alloc` (queue rank 1). PROBED TWICE, NULL BOTH TIMES** — RTX-19's elide
-  (zero delta) and s220's poison. Its 404 cyc/call is hook-inflated and its window was compile time.
-  RTX-18a de-staticed the `g_wsi*` globals so the port is now *possible*; nothing measured says it is
-  *worth* it. **Re-rank on RTX-21's workloads first.**
+**The 80,000 bails split EXACTLY 50/50 and each half maps to one source statement:**
+`SLEN0` **40,000** (`s := s || "x"`) · `tag` **40,000** (`"k" || (i % 97)`, an INTEGER operand) ·
+nullptr/cset/unexplained **0**.
+
+- [ ] **RTX-16-ICN — ⭐⭐⭐ POPULATE `slen`. THE KEYSTONE. DO THIS FIRST; IT WRITES NO ASM AT ALL.**
+  Already minted in `RTX-CLAIMS.md` as RTX-9's root cause, already known to *"retroactively activate
+  `rt_size_d`'s dead arms and remove `strlen` in five other languages"* — and s220 adds a **third**
+  independent symptom: **half of `str_concat_d`'s bails.** ⭐ **THREE SYMPTOMS, ONE DEFECT, AND THE FIX
+  ACTIVATES ASM THAT IS ALREADY WRITTEN, LINKED AND GATE-GREEN.** Nothing else here has that leverage.
+  ⛔ It was never prioritized only because it was found on the compile-dominated corpus, where no
+  run-phase win was measurable. **Grade it on `bench_icnstr_concat_table.icn` (96% run phase).**
+- [ ] **RTX-23-ICN — `DT_S || DT_I` CONCAT ARM.** The other 40,000. String-concat-integer is a top Icon
+  idiom and `rtx_str.S` has no arm for it. ⚠ **Sequence AFTER RTX-16** — with `slen` populated the
+  surviving bail population changes, so measure against the real remainder, not today's 50%.
+- [ ] **RTX-21-ICN — extend the run-phase workload set** (list/set/scan/IO), seeds landed s220.
+- [ ] **RTX-17-ICN — `str_concat_d` arm widening.** ⛔ SN4-RTX's symbol; §7 rule 2 needs **LON TO
+  RE-ASSIGN**. ⭐ **But note §7's consequence: RTX-16 removes half its bails WITHOUT touching SN4's file
+  at all** — so the re-assignment may not be needed to capture most of the win.
+- [ ] **RTX-22-ICN — `rt_gcheap_alloc`: 29,582 bails / 98 entries.** Also SN4's, ALLOC gate.
+- [ ] ⛔ **DO NOT TAKE `rt_ws_alloc` (queue rank 1). PROBED TWICE, NULL BOTH TIMES** — RTX-19's elide and
+  s220's poison. 404 cyc/call is hook-inflated and its window was compile time. RTX-18a de-staticed the
+  `g_wsi*` globals so the port is *possible*; nothing measured says it is *worth* it.
+
+⭐⭐ **THE ORDER ABOVE INVERTS THE LADDER: the top two rungs are a C-side descriptor fix that writes no
+asm, and a new arm on an already-ported symbol. Neither is "port a C function to `.S`" — which is every
+rung this ladder has attempted and every rung that came back null. Lon's *"just ASM code not C code"* is
+best served by making the ASM THAT ALREADY EXISTS actually execute.**
 
 ### ⛔ TWO CONTRACT AMENDMENTS OWED (both proven, both cheap)
 
