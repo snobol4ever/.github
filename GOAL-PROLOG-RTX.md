@@ -26,65 +26,27 @@ governing constraint.
 
 ---
 
-## ⛔ LIVE CURSOR — s221-PL (2026-07-30): **⭐⭐ LADDER OPENED. THE SURFACE IS MEASURED, STATIC RANKING IS INVERTED ACROSS A 400× SPREAD, TWO LEDGER-NAMED TOP SYMBOLS ARE PHANTOMS, AND NINE OF THE TOP ELEVEN COLLIDE WITH AN OPEN PL-SINK RUNG. NO ASM WRITTEN — DELIBERATELY.**
+## ⛔ LIVE CURSOR — s223-PL (2026-07-30): **⭐⭐ RTX-1-PL LANDED. THE ASM EXECUTES IN BOTH MODES AND BAILS TO C ZERO TIMES. THE PERF ANSWER IS A NULL — AND THE REASON IS THAT ALL THREE SHARED RTX INSTRUMENTS FAIL ON PROLOG, SO THE CLAIM IS UNFALSIFIABLE, NOT DISPROVEN.**
 
-SCRIP `b1ca896e` **UNMODIFIED (zero source edits — measurement session).** RT_OPT=`-O0` throughout.
-FINDING: `FINDING-2026-07-30-CLAUDE-PL-RTX-0-LADDER-OPENED-AND-SINK-MAKES-RTX-VACUOUS-BY-CONSTRUCTION.md`
+SCRIP `b1ca896e` + this session. RT_OPT=`-O0`.
+FINDING: `FINDING-2026-07-30-CLAUDE-PL-RTX-1-LANDED-GREEN-AND-VACUOUS-BY-VOLUME-AND-ALL-THREE-SHARED-RTX-INSTRUMENTS-FAIL-ON-PROLOG.md`
 
-1. ⭐⭐ **THE GOVERNING FACT: A LANDED PL-SINK RUNG MAKES THE CORRESPONDING PL-RTX RUNG VACUOUS BY
-   CONSTRUCTION.** SINK makes the EMITTER inline a fast path; RTX rewrites the CALLEE in asm. An inline
-   fast path **removes the arrivals an asm port would accelerate.** Proof, measured not argued:
-   `rt_pl_dop_trail_mark` has **5,814 static sites** (static rank 5) and **22 dynamic calls across all 22
-   van Roy benchmarks** = exactly 1/program = **the setup floor** (`hello.pl` also measures 1), because
-   `src/templates/bb_call_fn.cpp:347` is PL-SINK-8's emitted fast path and its own comment calls
-   `rt_pl_dop_trail_mark` *"the slow-path oracle."* ⇒ **fourth shape of the bypassed-family disease and a
-   new one: s211-ICN's rule "port the arm the guard REJECTS" does not apply, because the callee is left
-   holding NOTHING.** ⛔ Also falsifies PL-SINK-8's own *"pairs 1:1 with SINK-9"* — **22 vs 2,114,931.**
-2. ⭐⭐ **STATIC RANKING FALSIFIED, SIXTH TIME ON THE PROJECT, WORST SPREAD YET.** `rt_pl_dop_cmp_ne`:
-   **102 static sites → rank 5 by execution (880,792 calls).** `rt_pl_dop_mkc`: **40,854 sites (400×
-   more) → rank 4.** Three more phantoms-by-execution totalling ~11,300 sites: `rt_proc_call_open`
-   (5,626 sites, **0 calls in 22/22**), `rt_call_arr_gen` (498, 0), `rt_faildescr` (171, 0).
-3. ⛔⛔ **TWO SYMBOLS `RTX-CLAIMS.md`'s PROSE NAMES AS PROLOG'S #3 AND #4 ARE DECLARATION-ONLY
-   PHANTOMS.** `rt_node_to_term` = 2 tree occurrences, **both declarations** (`rt/rt.h:60`,
-   `bb_common.h:24`); `resolve_cp_current` = **1 declaration** (`builtins/resolution.h:52`). Zero
-   definitions, zero call sites, absent from the `.so`. **The repaired gate correctly omits both — the
-   PROSE in the same file was never re-derived from it.** ⭐ And it falsifies that prose's own caveat
-   *"presence is robust (corruption drops matches, it does not invent symbol names)"*: **presence was not
-   robust**, because a *different* defect (matching header declarations) invents names that corruption
-   never would.
-4. ⭐ **THE COMPILE-PHASE CONFOUND IS FAMILY-SPECIFIC, NOT UNIVERSAL — MEASURED.** ICON-RTX voided its
-   s218 ranking at s220 as ~100% compile phase and adopted `count(4N) − count(N)`. I used that method
-   AND measured the floor: **every `rt_pl_dop_*` symbol counts ZERO on `hello.pl`** ⇒ the `dop` family is
-   emitted-code-only, so for Prolog absolute counts already ARE run-phase counts. Delta stays correct,
-   is not load-bearing here. **Measure the floor (one `hello` run); do not inherit either verdict.**
-5. ⛔⛔ **0(d) SCALING IS A PROPERTY OF THE (SYMBOL, WORKLOAD) PAIR, NOT OF THE SYMBOL — AND THIS ONE
-   SHOULD CHANGE BOTH OTHER LADDERS' PRACTICE.** I ranked twice on hand-picked scaled workloads with
-   exact scaling verified (`nrev` 4.00×, `fib` 2.62× = φ² exactly). **The corpus rank-1 symbol
-   `rt_pl_dop_trail_unwind` measured ZERO on BOTH.** A clean 4.00× proves a symbol is hot *there*, not
-   that it matters. Both other ladders rank on one workload; the failure is silent.
-6. ⚠ **CORPUS CONCENTRATION — QUOTE IT WITH EVERY NUMBER.** `queensn` + `queens` = **~78% of all
-   counted arrivals** across 22 programs. The ranking is substantially a statement about two
-   backtracking-search programs. **Reach (programs-touched) is reported beside every count for this
-   reason, and it is why rung 1 is the rank-2 symbol.**
-7. **GATES:** Prolog watermark **ESTABLISHED GREEN — `test_prolog_rung_suite.sh` 164/164 interp +
-   164/164 compile, FAIL=0**, full build `-O0`. Ledger gate `CUR_SESSION=221`: **3 FATAL / 36 WARN**, and
-   ⛔ **all 3 fatals are pre-existing on OTHER ladders' rows — I edited none** (`rt_frame` = ICON-RTX
-   rot; `rt_defer_close` + `rt_defer_open` = SN4-RTX rows non-`DONE` while already asm, **reported by
-   s216-ICN five sessions ago and still open**). Surface: 1,367 icon / 211 snobol4 / **839 prolog**
-   programs.
+1. ⭐⭐ **RTX-1-PL IS ASSEMBLY.** `src/runtime/rtx/rtx_plcall.S`, family gate `PLCALL`, C body → `c_rt_proc_call_open_det`. **Three of four C levels absorbed ⇒ the success path has NO CALL:** `prologue_lex`'s `fbytes` is discarded by every caller on this path so its computation is ELIDED entirely; `rt_pcall_grow` inlined as a capacity compare with a cold out-of-line arm (hot path frameless); `rt_value_trail_mark` inlined as one load. `rt_pcall_grow` de-static'd → `visibility("hidden")` (the s187 `rt_nret_fix` precedent). Linkage split read from `rt.o`, never the `.so` (s209): 7 hidden globals rip-direct, 4 exported via `@GOTPCREL`. Every baked offset anchored by `_Static_assert` in the owning TU ⇒ **a struct move breaks the COMPILE, not the runtime.**
+2. **GATES ALL GREEN.** Prolog watermark **164/164 interp + 164/164 compile at PRISTINE *and* at ON**. SNOBOL4 **7/0**, Icon **14/14 m3 + 14/14 m4** (cited as no-regression for the C-side de-static ONLY). Arm census `queens.pl`: ENTRIES **12,957** / BAILED_C **0** / COMMITS **12,957**.
+3. ⭐⭐ **THE FALSIFICATION PROBE IS THE EVIDENCE, NOT THE GREENNESS** (§7 step 2b). Deliberately broken asm moves the Prolog battery **164/0 → 111/53 in BOTH modes** ⇒ the asm executes, coverage is **53/164 = 32 percent**, and **m4 is real evidence** — the s214 "never close on m3 alone" trap is discharged by measurement rather than assumed.
+4. ⭐⭐ **s221 ITEM 8 / PROPOSED RTX-13-PL IS SETTLED AND WAS MISCONCEIVED.** `_det0…_det4` measure zero **not** because a `det_fuse` conjunct fails but because the hot sites **never evaluate `det_fuse` at all**: `bcps_spine_gen_arm` — whose own in-tree comment says every nondet Prolog predicate is dispatched there — has **no fused family and no fuse test**, only `gi_idx >= 0 ? rt_proc_call_open_det : rt_proc_call_open`. ⇒ the arity, `"$call/N"`-name and frame-regime hypotheses all have no referent. ⭐ **And it RAISES this rung: the generator arm calls the ported symbol directly BY INDEX, so RTX-1-PL is the live hot arm and cannot be mooted by any det-arm eligibility fix.** The real successor rung is "extend the fused family to the generator arm."
+5. ⛔⛔ **I NEARLY REPORTED 3.4×.** `queens.pl` first read PRISTINE 204 ms → ON 60 ms. That was **entirely cold page-cache on whichever arm ran first.** Warmed and interleaved, the same program reads 53 / 51 / 52 ms. **Nothing but re-measuring caught it.** ⇒ never report a number from a non-interleaved loop; this is why the contract mandates the harness.
+6. **THE HONEST NUMBER** (`chat_parser.pl` ~576 ms, 7 warmed interleaved rounds, medians, `RT_OPT=-O0`): PRISTINE **576** · OFF **583** · ON **569** ⇒ **ON/PRISTINE 1.01× = NULL**; kill-switch tax **0.99× ≈ 0**, so the port is **FREE TO KEEP**. Census reports only **12,957** arrivals on the `queens.pl` it can grade vs the board's **430,081** — a **33× disagreement**, most likely two different files both named `queens`. At ~13 k arrivals × ~10 instructions saved the port is invisible **by construction**.
+7. ⛔⛔ **THE REAL BLOCKER — ALL THREE SHARED RTX INSTRUMENTS FAIL ON PROLOG, THREE DIFFERENT WAYS.** (a) `test_gate_rtx_killswitch_sets.sh` was hardcoded `*.sno` ⇒ **no Prolog and no Icon arm at all** — ✅ FIXED, added an `EXT` parameter (default `sno`, every existing invocation byte-unmoved); ⚠ the Prolog sweep was launched and **NOT COMPLETED**, still owed. (b) `bench_rtx_3arm.sh` requires a self-timed `ms:` window and **no Prolog program emits one** ⇒ it prints `NOT GRADED` for every program; item 6's table is hand-rolled wall clock and is labelled as such rather than dressed up as the harness's output. (c) `util_rtx_arm_census.sh` **SIGABRTs (rc=134) under `LD_PRELOAD` on the van Roy corpus** (`chat_parser`, `boyer` — 2 of 2 tried; it works on `corpus/programs/prolog/queens.pl`) ⇒ **the census cannot grade the corpus the s221 ranking was built from**, so the 2,060,043 board figure is single-instrument and item 6's 33× gap is unresolvable until this is fixed. ⇒ **RTX-1-PL's PERF claim is UNFALSIFIABLE; its CORRECTNESS claim is fully discharged. ⛔ Do NOT read the null as "the port does not help" — read it as "this tree cannot yet measure whether it helps."**
 
-**WATERMARK:** SCRIP `b1ca896e` UNMODIFIED / corpus `<none>` / `.github` FINDING + this file +
-`ARCH-PROLOG-RTX.md` + `RTX-CLAIMS.md` edits — **PUSH BLOCKED, credential needed.**
+**WATERMARK:** SCRIP local commit (6 files) / corpus `<none>` / `.github` FINDING + this file + `RTX-CLAIMS.md` — **PUSH BLOCKED, credential needed.**
+
+**NEXT:** ⭐ **(0) Diagnose the arm-census SIGABRT on the van Roy corpus — instrument (c). Until it is fixed, no Prolog perf claim is falsifiable and every ranking on that corpus rests on one uncorroborated instrument.** Then (1) complete `test_gate_rtx_killswitch_sets.sh PLCALL <prolog corpus> 4 both pl`; (2) name the exact file behind each of 12,957 and 430,081; (3) give `bench_rtx_3arm.sh` a Prolog timing arm (or self-time the Prolog benchmarks); (4) then rule on whether RTX-1-PL stays — note it is FREE to keep at a 0.99× tax; (5) the §SCOPE ruling is still open and still not blocking.
 
 **BANKED (inherited from `GOAL-PROLOG-BB.md`, all still live):** `unary_not.sno` emits a `.string` from
 uninitialised memory (poisons every `.s` byte-identity sweep); engine-wide silent-fail on undefined
 predicates; int/float standard-order conflation; lexer escape three-site/two-behaviour; NO-LCO segfault;
 nested-`\+` binding leak; `retractall/1` gaps.
-
-8. ⚠⚠ **NARROWED, NOT RESOLVED — AND IT MAY OUTRANK RTX-1-PL, SO IT GOES FIRST (⇒ RTX-13-PL).** `_det0`…`_det4` all measure **ZERO** while generic `_det` measures **430,081** ⇒ `det_fuse` is false at Prolog's hot sites, which also forces `dc` false (PL-DC requires it). **ESTABLISHED:** `lower_prolog.c:388` sets `IR_LIT(nd).sval = pl_pi_name("$call", t->n)`, and `pl_pi_name` is `snprintf("%s/%d")` ⇒ Prolog's `IR_CALL_PROC_STAGED` sites carry the **synthetic arity-qualified name `"$call/N"`, NOT the callee predicate's own registered name.** ⛔ **NOT ESTABLISHED — DO NOT QUOTE A CAUSE YET:** `det_fuse = (det_idx >= 0 && x86_zc_frame() == ZC_FRAME_RSP && det_nA >= 0 && det_nA <= 4)`, and I did **not** determine which conjunct fails. `"$call` does appear 3× in `scrip.c`/`lower_prolog.c`, so `$call/N` **may well be a registered dispatcher** and `det_idx` may resolve fine — in which case the failing conjunct is the FRAME REGIME or the ARITY, not the name. **I ran out of session before instrumenting it and I am not guessing: naming a cause on a partial read is the s209 mistake this project has recorded twice.** ⇒ **RTX-13-PL STEP 1 IS A ONE-LINE EMIT-TIME INSTRUMENT** printing the three conjuncts at each Prolog `IR_CALL_PROC_STAGED` site. **If the fuse can be made to fire, it lights up TWO already-built optimizations (PL-REGAIN-4 + PL-DC) for Prolog at once and removes the crossing that RTX-1-PL would merely make faster — a LOWERING fix that beats an ASM fix.** Measure it before writing any asm.
-
-**NEXT:** ⭐ **(0) RTX-13-PL step 1 — the `det_fuse` conjunct instrument (item 8). It may make RTX-1-PL moot; do it FIRST.** Then the §SCOPE ruling from Lon, then **RTX-1-PL on `rt_proc_call_open_det`** (step 0 partially
-done — 0(c), 0(f-pre), 0(g) all owed before asm).
 
 ---
 
@@ -128,7 +90,7 @@ satisfies both.
 
 ## THE LADDER
 
-### - [ ] RUNG RTX-1-PL — `rt_proc_call_open_det` (the deterministic predicate-call open)
+### - [x] ✅ RUNG RTX-1-PL — `rt_proc_call_open_det` — **LANDED s223-PL. Green both modes, 12,957 commits / 0 bails, perf NULL-AND-UNFALSIFIABLE (cursor items 6-7).**
 **WHY IT IS FIRST, AND IT IS FIRST UNDER EVERY SCOPE OPTION:** rank **2** by execution (2,060,043),
 rank **1 by REACH (19/22 programs — the broadest of any Prolog symbol)**, **no PL-SINK rung**, **not a
 `dop`** so structurally outside SINK's `$op` territory, **Prolog-dominant** (5,291 static sites),
