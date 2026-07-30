@@ -115,3 +115,24 @@ Both are currently **benign** (fail sets identical to baseline) but both are lat
 ## 9. LAW PROPOSED
 
 **NO PROCESS-SCOPE FLAG MAY DRIVE A GRAPH-SCOPE REGIME.** If a planner decision must agree with an emit-time per-graph verdict, it is computed per graph or deferred to the late pass — never cached in a `static` from `getenv`. A `static int on = getenv(...)` inside a function taking an `IR_graph_t * g` is the greppable signature of the defect class. Completion test = the §4 sweep reporting 0 leaking declined graphs under every gate combination the session touches.
+
+---
+
+## 10. ZLEAK-3 SPECIFIED (SUBJ_CELL + fc_call_ok) — measured, de-risked, deliberately NOT implemented this session
+
+**Why it is not the ZLEAK-1/2 shape.** SEQ-CELL had zero armed customers, so opt-in cost nothing. SUBJ_CELL and `fc_call_ok` arm 44 and 58 graphs respectively and **all of them differ** — a polarity flip would delete a live feature.
+
+**Why a blanket consumption gate is wrong.** The ASSIGN value-spine loop is **not** env-gated: it populates the same `fvr` registry on the DEFAULT path (12 cell refs in default `039_pat_any`, 5 in `023_arith_add`). The SUBJECT loop calls the **same** `fc_vlit_register` / `fc_vread_register`. Nothing at emit time distinguishes a subject-registered node from an assign-registered one, so gating `fc_vread_fp`'s consumers on `g_emit.flat_stmt_frame` would break the default path.
+
+**The circularity, named.** `emit_stmt_frame_scan` queries `fc_vread_fp` to DECIDE arming — under SUBJ-ARM-1 a head carrying a subject-cell registration is precisely what licenses the match statement to arm. The registration would need the arming verdict to avoid leaking. **Registry ⇄ verdict.** This is why the leak survived: it cannot be removed by moving a flag.
+
+**The resolution: plan-time fixpoint — register → scan → unregister on decline.**
+`emit_stmt_frame_scan(g, entry)` is a pure function of (graph, entry, registry): a BFS over the closed kind whitelist consulting the registry, with no emit-time globals in its body. It is therefore callable at plan time. Unregistration is already an established mechanism (the PS-3 s153 late pass declines wholesale and unregisters SEQ). The registry becomes a **proposal**; the verdict remains the **authority**.
+
+⭐ **MEASURED — the fixpoint is complete, not partial.** Across the leaking declined graphs: **150 declined by the SCAN, 0 declined by a conjunct.** So the plan-time scan reproduces the emit-time verdict for 100% of the leaking population; there is no residue for the emit-only conjuncts (`flat_pat`/`flat_gen`/`flat_jmp_entry`/`gp`/`rc`/`np`) to mop up.
+
+**⛔ PROVE THIS BEFORE CODING (the one blocking premise).** *Plan-time entry ≡ emit-time entry, and one graph gets at most ONE choke decision.* `emit_chain` runs per graph EMISSION and is called from several places (driver loops, `runtime_eval.c`, `bb_pat_build.cpp` — emit.cpp ~2531 names them); the census counted ~592 choke decisions across 316 programs. If a single graph is ever emitted twice, or entered at a different node, one plan-time decision cannot match every emission and the fixpoint mis-decides — which is precisely the s188 "mixed regimes inside one graph" disease. **Instrument the choke with a graph id and count decisions per graph first.**
+
+**Fallback if the premise fails:** a tagged registry — mark subject-registered nodes at registration, gate only those at emit.cpp:889 (`op_fc_disp`) and emit.cpp:1281 (`op_subj_cell`). ⚠ Gating consumption alone is not sufficient by itself: the cell lifecycle has claim/pop touch points (`fc_vwpop_register` and the pop hooks), and gating reads without gating pops desynchronizes rsp. Enumerate every touch point before choosing this arm.
+
+**Premise already proven this session (it is what makes an emitter-side fix possible at all):** under SUBJ_CELL a declined graph's prologue carve is **unchanged** (232 both regimes on `039_pat_any`) and the subject producer's flat slot is merely **orphaned** (`[rsp+176]` refs 2 → 0). The storage form changes; the allocation does not. So a declined graph can be returned to the flat slot without re-planning its frame.
