@@ -13,7 +13,20 @@
 
 **RELATION TO LADDERS BELOW:** the RBP-SHED sanctioned four stand unchanged; SHED rungs proceed only insofar as they serve this end state. The whole-graph carve (thread 5 / ZHEAP block) is not to be re-plumbed — it is to be REPLACED by per-BB carves.
 
-**NEXT (s21x-c state):** HAND EMBODIMENT LANDED, ORACLE-GREEN FIRST TRY — `SCRIP/seed/test_sno_stmt_frame_1.{sno,s}`; full record + re-measured baseline in `FINDING-2026-07-29-CLAUDE-SN4-STMT-FRAME-EMBODIMENT-ORACLE-GREEN-FIRST-TRY.md` (334 programs at HEAD: m3 329/5 · m4 324/2 SKIP=8 — the 311 counts in the s21x-b cursor below are STALE, corpus grew). ⭐ DISCOVERY: the value spine ALREADY self-carves per-BB in the live emitter (the s191 machinery) — the directive is half-landed; the graph carves + zero-fills + the function-level linkage family are the remaining half. WITNESS 2 LANDED, ORACLE-GREEN FIRST TRY (`SCRIP/seed/test_sno_stmt_frame_2.{sno,s}`): recursion depth 5 + FRETURN/ω wire + nparams=0 save/restore variant + per-call return wires riding the frame — dynamic scoping correct by construction (operand cells snapshot globals before the inner rebind); both floaters exercised. ENCODER SLICE LANDED INERT (SCRIP `39dfa674`, all gates green — watermark identical, fail sets identical, corpus-wide byte-identity via the step-4 sweeps): `x86_stmt_enter/leave` · `x86_call_frame_enter` · `x86_return/freturn_floater`, zero new byte encodings. NEXT EXECUTABLE: the per-graph all-or-nothing regime — classifier (straight-line int-only statement graphs first) + env switch, then first consumer wiring of the four encoders + per-BB carves at the emit choke point; watermark may only add passes, fail-set membership diffed programmatically.
+**NEXT (s21x-c state):** superseded by the s21x-d LIVE CURSOR immediately below — the per-graph regime named here is LANDED OPT-IN GREEN.
+
+---
+
+## ⛔⭐ LIVE CURSOR — s21x-d (2026-07-29, STMT-FRAME slice-1 session): **THE PER-GRAPH ALL-OR-NOTHING REGIME IS LANDED OPT-IN, CORPUS-GREEN BOTH ARMS.** `SCRIP_STMT_FRAME=1`, default OFF. Watermark BOTH ARMS: m3 329/5 · m4 324/2 SKIP=8, fail-set membership diffed programmatically EMPTY vs baseline (default arm additionally byte-identical: witness diff + all FIVE `.s` regen sweeps = 0 changed / 1,144 artifacts).
+
+**WHAT RUNS UNDER THE FLAG:** classifier `emit_stmt_frame_scan` at the `emit_chain` choke (reachability-scoped whitelist {LIT_INTEGER, VAR, BINOP, ASSIGN} + the **fc-flavor conjunct**: every producer must be in zeta_storage's fc registry — `fc_geom` is the authority, final post-`zls_fct_finalize`); drive-loop head stubs `st_x` (leave) → `st_pre` (enter) at every `bb_src_of` head with first-head st_x exemption; chain-exit leave cuts `_stγ/_stω`; xa_flat pad-only prologue/epilogue arms both media. **Zero templates touched** — legacy inline pops on retargeted edges are dead-but-harmless under the cut. Armed census: **7/316 crosscheck** (023/024/025/029/010/002/007), all green both modes. Compiler-emitted regime seed: `SCRIP/seed/test_sno_stmt_frame_3.{sno,s}`, oracle-exact.
+
+**TWO DEFECTS FOUND AND FIXED IN-SESSION** (full record `FINDING-2026-07-29-CLAUDE-SN4-STMT-FRAME-SLICE1-LANDED-AND-THE-FC-FLAVOR-CONJUNCT.md`): (1) 026/027 m4 SEGV — flat-flavor lits shot the caller's return address at `[rsp+40]`==B+24 under the carve-free prologue; the kind whitelist and the storage planner are independent authorities, so the license reads `fc_geom` per producer (first zls_off≥0 attempt over-rejected: grants exist on fc nodes too). (2) statement-crossing edges must LEAVE-then-enter (16B bracket leak per transition otherwise) — hence the st_x split.
+
+**NEXT EXECUTABLE, IN ORDER:** (a) whitelist widen one construct per rung — IR_LIT_STRING/string globals, then the **IR_CALL slice** consuming `x86_call_frame_enter` + RETURN/FRETURN floaters + `IR_SAVE_RESTORE` roles (the seeds' full DEFINE shape; retires proc-linkage for admitted graphs). (b) ⛔ **NEEDS LON: default-flip license** — corpus-green opt-in at 7/316 coverage; flip now or widen first. (c) inert-companion sweep note: lower seeds 2×IR_SAVE_RESTORE + `SNO$NRET` per graph, unreachable without DEFINE — the IR_CALL slice should consume, not re-mint.
+
+---
+
 
 ---
 
