@@ -185,3 +185,30 @@ and 0% commit-able are compatible, and this rung is the proof.
   three fast paths. ⛔ **GATED ON RTX-16** — a view is not NUL-terminated at its own end.
 - **`subscript_get2` itself: NOT-A-SPEED-TARGET** at 141 corpus arrivals. Revisit only as a
   *completeness* rung after RTX-16, when the fast arm can actually commit.
+
+---
+
+## 8. ⭐⭐ THE CONCURRENCY CONTRACT HELD FOR A THIRD CONSECUTIVE SESSION — AND THE REBASE PAID A DIVIDEND AGAIN
+
+`handoff_status.sh` caught it, exactly as at s211 and s216: SCRIP local `3feab736` vs origin
+`58bcaf2f`, **0 ahead / 4 behind** — a parallel session pushed mid-flight. **Measured file overlap:
+ZERO** (I modified no SCRIP source this session). Clean fast-forward, no conflicts.
+
+⇒ **the by-SYMBOL partition in `ARCH-ICON-RTX.md` §7 is now holding under genuine parallel load three
+times.** Recorded because s211 and s216 both recorded it, which makes it a **pattern, not an anecdote.**
+
+⭐ **AND THE DIVIDEND, WHICH IS THE ARGUMENT FOR FETCHING BEFORE CLAIMING DONE RATHER THAN AFTER:**
+their push touched **`src/templates/x86_asm.h`** and `src/runtime/rtx/rtx_match.S`. Per this ladder's
+own permanent note, **`x86_asm.h` IS A HEADER AND `make` DOES NOT TRACK IT** — so my session-start
+baseline md5 `6f71f2b5843c2057c7b940347f61b1ff` **became stale the moment they pushed**, and any later
+A/B against it would have been a false comparison with no visible symptom.
+
+**Re-derived on the COMBINED tree after `rm -rf out /tmp/si_objs` + full rebuild:**
+- **Icon `test_icon_all_rungs.sh` = 252 PASS / 11 FAIL / 30 XFAIL (293) — UNCHANGED.**
+- `.so` md5 moved `6f71f2b5843c…` → **`e7be27a1ad7b…`**, which is *correct and expected* given the
+  header change — and is precisely why a baseline hash must be re-taken, never carried forward.
+
+⇒ **STEP-0 AMENDMENT OWED: `git fetch` BEFORE recording the baseline md5, not just before pushing.**
+s216's owed action was "record the baseline md5 at session start". That is necessary and **not
+sufficient** — a baseline recorded at session start is invalidated by any parallel push that touches an
+untracked header. **Record it, and re-record it after the pre-claim fetch.**
