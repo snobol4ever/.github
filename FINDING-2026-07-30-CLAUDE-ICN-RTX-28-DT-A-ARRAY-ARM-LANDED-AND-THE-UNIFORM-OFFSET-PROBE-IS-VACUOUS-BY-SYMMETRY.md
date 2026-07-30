@@ -187,3 +187,93 @@ so.**
 ---
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
+
+---
+
+# ADDENDUM — RTX-29-ICN, and a NEW self-concealing failure mode
+
+## 7. RTX-29-ICN LANDED — `DT_T` table keyed by `DT_I` (`t[3]`)
+
+Chosen by measurement, not by static rank. Three Icon table workloads were censused first:
+
+| workload | entries | bailed | commits |
+|---|---|---|---|
+| `t[i]` integer key | 400,008 | **400,008** | **0** |
+| fresh-key insert (MISS path) | 200,000 | **200,000** | **0** |
+| `t["kk"]` string key (RTX-26 control) | 400,001 | 1 | 400,000 |
+
+⭐ **Two hot unported shapes, and one of them refuted my own prior reasoning.** I had proposed skipping
+the MISS path as ceremony because s223's census showed **1** bail in 2,000,001. That 1 was a property of
+**that window** (one fresh key), not of the path: a table-BUILDING workload takes 200,000 misses. **A
+cold reading on one window is not a cold path.** Same disease as the static-count trap, one level down.
+
+`t[i]` was taken first because it is **ICON-NATIVE** (RTX-28's arrays are SNOBOL4's traffic on an
+Icon-owned symbol) and because the entry block routed to the table arm **only on a `DT_S` subscript**, so
+every integer key fell through every arm to `.Lsub_bail`.
+
+**After: 400,008 / 8 bailed / 400,000 commits.** ⭐ The 8 bails were PREDICTED before the build — they are
+exactly the 8 fresh-key inserts from `every i := 1 to 8 do t[i] := i*10`, which must reach C's key-INSERT
+trap. **A port showing 0 bails would have been WRONG.**
+
+**1.296× median / 1.276× min-min** on a **97.6%-dominant** run-phase window (164 ms with the subscript
+loop vs 4 ms without — the cleanest (d2) figure of the session, and it discharges s220's compile-phase
+confound outright). Expectation was stated before measuring (1.25–1.60×) and the median landed inside it.
+⚠ An earlier 1.222× reading on a 20 ms window is **void**: at that size an Icon run is compile-dominated,
+which is exactly what (d2) forbids grading on. ⚠ One 1324 ms ON outlier against 163–182 for the other
+nine — the bimodal class s222/s223 documented; **disclosed, not discarded**, so the label is OVERLAPPING
+even though 9/10 ON rounds are disjoint from all ten OFF rounds.
+
+Implementation notes worth keeping: the key is built **BACKWARDS** from the top of the scratch slab, so
+the division loop's digit order is already correct and C's reverse pass disappears; the arm then
+**re-enters `.Lsub_hash_init` and reuses RTX-26's hash + chain + strcmp + hit verbatim**. C's
+`(unsigned long long)(-(v+1)) + 1ull` magnitude trick is a single `neg rax` — exactly equivalent, and
+INT64_MIN-safe rather than accidentally safe. Frame 56 → 88, the same congruence class (88 ≡ 8 mod 16),
+all eight adjustment sites enumerated by grep before the resize, slots 0..47 unmoved so RTX-24/26/27/28
+are byte-untouched.
+
+---
+
+## 8. ⭐⭐⭐ THE FINDING: A KEY-FORMATTING ERROR IN A LOOKUP PORT IS **SELF-CONCEALING** UNDER OUTPUT DIFFERENTIAL TESTING
+
+This is a **new** entry in the ladder's failure taxonomy and it is worth more than either arm.
+
+I corrupted **one byte** of the new arm — the `\001` discriminator became `\002`, i.e. exactly the class of
+mistake a hand-reproduced key format invites. Result:
+
+| instrument | verdict |
+|---|---|
+| output differential, gate ON vs OFF, all edge cases | ⚠ **100% IDENTICAL — reads PASS** |
+| Icon / SNOBOL4 watermarks | ⚠ would be **unmoved** |
+| `util_rtx_arm_census.sh` | ⛔ **400,008 entries / 400,008 bailed / 0 commits — arm DEAD** |
+
+**THE MECHANISM: a wrong key MISSES, the miss BAILS to C, and C recomputes the correct key and returns
+the right answer.** The program is perfectly correct and the port is entirely dead. **Output identity
+certifies it green.**
+
+⛔⛔ **THE RULE: for any port whose commit path is gated on MATCHING A VALUE COMPUTED ELSEWHERE — a hash
+key, an interned string, a cache tag, a memo lookup — OUTPUT DIFFERENTIAL TESTING IS STRUCTURALLY BLIND
+TO FORMATTING ERRORS, because the failure mode degrades to a bail rather than to a wrong answer.** The
+arm census is therefore **mandatory AFTER the port, not merely before it.** ARCH §8 step 0(j) already
+says *"and again after"*; **this is the first measured demonstration of WHY that clause is load-bearing,
+and it should be cited there.**
+
+⭐ Note this is also why the 400,000 commits are themselves a correctness proof: a commit is only
+reachable through a successful `strcmp` against the key **C** stored at insert time, so the census
+attests byte-for-byte agreement between my asm itoa and `tbl_key_str` — something no output test can
+distinguish from a bail.
+
+⚠ And it is why the falsification probe for this arm had to make the key **hit the WRONG entry** (off-by-
+one ⇒ ON `FOUR` / OFF `THREE`) rather than merely be wrong: a merely-wrong key is a route degradation,
+not a RESULT break, which is §8's own distinction arriving from a new direction. **Combined with §2, this
+session found TWO probe shapes that look like falsification and are not.**
+
+---
+
+## 9. LEDGER / STATE AT CLOSE
+
+`rt_subscript_var` now carries **FIVE arms** on one gate: `DT_DATA` list (RTX-24) · `DT_T`/`DT_S` table
+(RTX-26) · `DT_S` substring trap (RTX-27) · `DT_A` array (RTX-28) · **`DT_T`/`DT_I` table (RTX-29)**.
+Still C: the table MISS/insert path (**measured HOT at 200,000 — next rung**), `DT_SNUL`, `slen==0`/`slen==2`
+VARREF forms, non-integer non-string keys (`DT_R`, `DT_DATA`, `DT_A`, `DT_T` as keys).
+
+All three watermarks re-derived after both rungs: Icon **252/11/30** · SNOBOL4 **m3 329/5** · **m4 324/2**.
