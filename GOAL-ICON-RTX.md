@@ -6,13 +6,17 @@
 
 ---
 
-## ⛔ LIVE CURSOR — s224-ICN (2026-07-30)
+## ⛔ LIVE CURSOR — s225-ICN (2026-07-30)
 
-**NEXT RUNG: RTX-30-ICN — table MISS / key-INSERT path.** ⭐ MEASURED HOT: 200,000 arrivals / 200,000 bailed / 0 commits on a table-building workload. ⛔ Must MINT C's key-insert trap (`vc->cellp=0`, `vc->key=rt_ws_strdup_c(ks)`, `vc->tbl=tb`) — returning `FAILDESCR` silently breaks `t[k]:=v` on a fresh key (s223 finding 3). Calls `rt_ws_strdup_c`; ceiling is allocation-dominated — state that expectation before measuring.
+**NEXT RUNG: RTX-21-ICN** — extend run-phase workload set (list/set/scan/IO). First unblocked survey rung.
+RTX-23-ICN: ⛔ BLOCKED ON LON (§7 re-assignment of `str_concat_d`/`rtx_str.S` from SN4-RTX).
+RTX-25-ICN: ⛔ BLOCKED ON LON (design rung + template territory, fires `.s` regen ×3).
 
-**RTX-25-ICN: ⛔ BLOCKED ON LON** (design rung + template territory).
+**s225 landed RTX-30-ICN** — `rt_subscript_var` table MISS / key-INSERT trap, same gate `SCRIP_RTX_ICNSUB`, sixth arm. SCRIP `b85f0303`. 0(j) **2,000,001 / 0 bailed / 2,000,001 commits** (was 200,001/200,001/**0**). **1.164× median / 1.154× min-min, OVERLAPPING — ⛔ NO DISJOINT SPEED CLAIM.** (d2) dominance ~94%; ratio is the two-allocation floor (`rt_agg_alloc` + `rt_ws_strdup_c`). Serves both key shapes (DT_S and RTX-29 DT_I) from `.Lsub_hash_init`. Full write-up: `FINDING-2026-07-30-CLAUDE-ICN-RTX-30-TABLE-MISS-KEY-INSERT-TRAP-LANDED-AND-THE-OBVIOUS-KEY-SHIFT-PROBE-IS-VACUOUS-BY-SYMMETRY.md`.
 
-**Watermarks** (re-derived s224, fresh clone + full rebuild, unmoved after edits): Icon **252/11/30** · SNOBOL4 **m3 329/5 · m4 324/2**. ⚠ Prolog harness FAILs identically ON and OFF — pre-existing/environmental; use ON/OFF/PRISTINE differential until repaired.
+⚠ **SNOBOL4 watermarks NOT confirmed s225:** m4 read 332/2 vs documented 324/2, m3 did not complete. No pristine SN4 baseline taken. **Re-derive SN4 m3 329/5 and m4 324/2 from pristine at next session start before any edit.**
+
+**Watermarks:** Icon **252/11/30** (re-derived s225 from pristine stash before edit and after — unmoved). SNOBOL4 m3/m4: ⚠ UNCONFIRMED s225, use s224 values (m3 329/5 · m4 324/2) until re-derived. Prolog: harness FAILs identically ON and OFF — pre-existing/environmental (fourth consecutive session).
 
 **s224 transferable finding:** ⛔ **UNIFORM-OFFSET FALSIFICATION PROBE IS VACUOUS BY SYMMETRY** on any NAMETRAP-minting symbol (confirmed on `DT_A` arm). A shift moves the WRITE and READ together; use an ASYMMETRIC break instead (collapse two subscripts to slot 0). Applies to `rt_assign_var`, `rt_field_var`, `rt_list_bang_var_at` — boarded to SN4-RTX. Full write-up: `FINDING-2026-07-30-CLAUDE-ICN-RTX-28-DT-A-ARRAY-ARM-LANDED-AND-THE-UNIFORM-OFFSET-PROBE-IS-VACUOUS-BY-SYMMETRY.md`.
 
@@ -40,7 +44,7 @@
 
 ### ▶ RTX-26/29 REMAINDER — triaged s224, 0(h) pre-done; do not re-derive
 
-- [ ] ⭐⭐ **RTX-30-ICN — table MISS / key-INSERT. ⬅ NEXT.** 200,000/200,000 bailed/0 commits on table-building workload. Must mint C's insert trap, not FAILDESCR. Calls `rt_ws_strdup_c` (do not port it). Expect allocation-dominated ceiling — state before measuring.
+- [x] ⭐ **RTX-30-ICN — table MISS / key-INSERT.** s225. SCRIP `b85f0303`. 1.164× OVERLAPPING. See LIVE CURSOR + FINDING doc.
 - [ ] ⛔⛔ **DO NOT PORT `DT_R` or `DT_DATA` table keys.** CLOSED BY MEASUREMENT s224 (200K arrivals each, 100% bailing). `tbl_key_str` routes both through `snprintf` formatters — reproducing `%.17g` in asm is high-risk and self-concealing on miss. Keep C at the libc formatting boundary.
 - [ ] ⚠ **`DT_SNUL`/`slen==0` string subscript — LIVE BUT PURE FAILURE PATH.** 200,000/200,000 bailed/0 commits on `s:=""; s[1]` (fails by construction). Take for completeness only; claim no speed.
 - [ ] ⚠ **`slen==2` VARREF / non-integer subscripts** — unmeasured; run 0(h) before opening.
@@ -60,6 +64,8 @@
 ---
 
 ## Landed
+
+- [x] ⭐ **RTX-30-ICN** s225 — `rt_subscript_var` table MISS / key-INSERT trap, sixth arm on `SCRIP_RTX_ICNSUB`. SCRIP `b85f0303`. 0(j) **2,000,001 / 0 / 2,000,001**. **1.164× median / 1.154× min-min, OVERLAPPING.** Two-allocation floor (`rt_agg_alloc` + `rt_ws_strdup_c`). Serves DT_S and DT_I key shapes from `.Lsub_hash_init`. Falsified by asymmetric result break (`vc->tbl := 0`); key-shift probe reasoned vacuous by symmetry before use. Icon 252/11/30 unmoved. SN4 unconfirmed — re-derive at next session start.
 
 - [x] ⭐ **RTX-24-ICN** s222 — `rt_subscript_var` DT_DATA list arm, gate `SCRIP_RTX_ICNSUB` (14th gate). 1.376×/1.373× DISJOINT. 0(j) 2M/0/2M. Inlines `rt_list_view` (two strcmps → inline compare).
 - [x] ⭐ **RTX-26-ICN** s223 — `rt_subscript_var` DT_T table arm (DT_S key). SCRIP `8ae3483a`. 1.569×/1.567× DISJOINT. 0(j) 2,000,001/1/2,000,000 (the 1 bail is the MISS path, deliberately left to C).
