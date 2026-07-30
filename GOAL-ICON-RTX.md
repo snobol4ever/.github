@@ -8,9 +8,21 @@
 
 ## ⛔ LIVE CURSOR — s224-ICN (2026-07-30)
 
-**NEXT RUNG: RTX-26-ICN's remaining arms — the table MISS/insert path is the one with real semantic
-content left (it must BAIL, not FAIL; see s223 finding 3). `DT_SNUL`/`slen==0` and non-integer subscripts
-are cheap completeness. RTX-25-ICN remains ⛔ BLOCKED ON LON (design rung + template territory).**
+**NEXT RUNG: the table MISS / key-INSERT path — ⭐ MEASURED HOT (200,000 arrivals / 200,000 bailed / 0
+commits on a table-BUILDING workload). ⛔ It must BAIL-equivalent, i.e. it must MINT C's key-insert trap,
+NOT return FAILDESCR (s223 finding 3) — and it calls `rt_ws_strdup_c`, so expect an allocation-dominated
+ceiling. RTX-25-ICN remains ⛔ BLOCKED ON LON (design rung + template territory).**
+
+⛔ **CORRECTION TO MY OWN s224 REASONING, RECORDED SO IT IS NOT REPEATED:** I proposed skipping the MISS
+path as ceremony because s223's census showed **1** bail in 2,000,001. **That 1 was a property of that
+WINDOW (one fresh key), not of the path.** A table-building workload takes 200,000 misses. **A cold
+reading on one window is not a cold path** — the static-count trap one level down.
+
+**s224 landed TWO rungs on `rt_subscript_var`, which now carries FIVE arms on one gate:**
+**RTX-28-ICN** (`DT_A` array, SNOBOL4 traffic, 1.160× OVERLAPPING, no disjoint claim) and
+**RTX-29-ICN** (`DT_T` table keyed by `DT_I` — `t[3]` — **ICON-NATIVE**, 400,008/8 bailed/400,000 commits,
+**1.296× median / 1.276× min-min** on a **97.6%-dominant** window, one bimodal ON outlier disclosed ⇒
+labelled OVERLAPPING though 9/10 ON rounds are disjoint).
 
 **Watermarks** (re-derived s224 from a fresh clone + full rebuild before any edit, never hand-copied):
 Icon **252/11/30** · SNOBOL4 **m3 329/5 · m4 324/2**. All three re-derived AFTER the s224 edit and
