@@ -94,6 +94,34 @@ rounds, warmup discarded; expectation stated before measuring (1.05–1.35×) an
 - [ ] ⭐⭐ **RTX-25-ICN — THE RVALUE SUBSCRIPT ALLOCATES A VCELL IT THROWS AWAY. ⬅ RECOMMENDED NEXT; worth multiples of RTX-24.** `t := L[i]` in an RVALUE context calls `rt_subscript_var`, which carves a **72-byte `VCELL_t` purely to NAME a cell**, and `bb_subscript`'s consumer immediately `rt_deref`s it and discards it. Measured s222: 2,000,000 subscripts ⇒ **2,000,000 `rt_agg_alloc` calls**, none needed, and at 8M iterations the resulting ~576 MB of carve makes the window BIMODAL (finding 4 above). Canonical Icon does not allocate to fetch a list element (`refs/icon-master/src/runtime/fstruct.r`, `oasgn.r`). ⛔ **This is a DESIGN rung of the RTX-14-ICN class, not an asm port** — an rvalue arm that returns the VALUE and never mints a VCELL. Runtime-side + template-side; ⚠ `bb_subscript.cpp` is a template ⇒ `.s` regen ×3 and ζ-ladder collision ⇒ **SERIALIZE WITH LON.** RTX-24's asm arm is not wasted by this: it remains the lvalue path (`L[i] := v`).
 - [ ] **RTX-26-ICN — the remaining `rt_subscript_var` arms.** ⭐ **s223 LANDED THE `DT_T` TABLE ARM (`DT_S` key), 1.569× disjoint, SCRIP `8ae3483a`, AND THE `DT_S` SUBSTRING-TRAP ARM (RTX-27-ICN, SCRIP `a4df13c4`, completeness only, no disjoint claim).** ⭐ **s224 LANDED THE `DT_A` ARRAY ARM (RTX-28-ICN) — measured SNOBOL4-only for this symbol (0 Icon arrivals, 2,000,001 SNOBOL4), 1.160× OVERLAPPING, no disjoint claim.** Remaining: non-integer subscripts · the `slen==2`/`slen==0` VARREF forms · the table MISS/insert path (`rt_ws_strdup_c`) · `DT_SNUL`. RTX-24 ported VARREF(slen==1)→DT_DATA-list with a DT_I subscript. Still C: **DT_A** arrays · **DT_T** tables (`tbl_key_str` + `table_find_pair` + `rt_ws_strdup_c`) · **DT_S/DT_SNUL** string subscripting · non-integer subscripts · the `slen==2`/`slen==0` VARREF forms. ⚠ **Measure which are live before porting any — s222's whole lesson.** ⚠ The DT_S arm wraps on `i <= 0` while the DT_DATA arm wraps on `i < 0`; two arms, two rules, one function. Do not "tidy" that.
 
+### ▶ RTX-26/29 REMAINDER — TRIAGED BY MEASUREMENT s224 (step 0(h) done IN ADVANCE, do not re-derive)
+
+All four remaining `rt_subscript_var` shapes were censused s224 so the next session spends its budget
+porting, not surveying. **Ranked by measurement, not by static count.**
+
+- [ ] ⭐⭐ **RTX-30-ICN — THE TABLE MISS / KEY-INSERT PATH. ⬅ RECOMMENDED NEXT; the only remaining arm
+  with real semantic content.** Measured **200,000 entries / 200,000 bailed / 0 commits** on a
+  table-BUILDING workload (`every i := 1 to 200000 do t[string(i)] := i`). ⛔⛔ **IT MUST MINT C's
+  key-INSERT trap (`vc->key = rt_ws_strdup_c(ks)`, `vc->cellp = 0`), NOT return `FAILDESCR`** — an arm
+  that fails reads correct on every rvalue workload and **silently breaks `t[k] := v` on a fresh key**
+  (s223 finding 3). ⚠ It calls `rt_ws_strdup_c`, so the window is allocation-dominated and the ceiling is
+  the allocation, exactly as with RTX-27/28 — **state that expectation before measuring; do not expect
+  RTX-29's 1.296×.** ⚠ `rt_ws_alloc` is separately marked DO-NOT-TAKE; this rung CALLS it, it does not
+  port it.
+- [ ] ⛔⛔ **DO NOT PORT `DT_R` OR `DT_DATA` TABLE KEYS — CLOSED BY MEASUREMENT s224, NOT BY EFFORT.**
+  Both are LIVE (200,000 arrivals each, 100% bailing) so a static or dynamic count will keep nominating
+  them. **The reason to refuse is the FORMATTER:** `tbl_key_str` routes `DT_R` through
+  `snprintf("\001r%.17g")` and `DT_DATA` through `snprintf("\001d%s#%ld")`. Reproducing IEEE-754
+  shortest-round-trip `%.17g` in assembly is a large, high-risk correctness surface for **zero**
+  architectural gain, and getting it wrong is **self-concealing** (a mis-formatted key MISSES, bails, and
+  C returns the right answer — see the §8 finding). This is the `rt_write_any_nl` ruling one family over:
+  **keep C at the libc formatting boundary.** ⇒ Port only key shapes whose formatter is a hand-rolled
+  integer/string path, as `DT_I` was.
+- [ ] ⚠ **`DT_SNUL` / `slen==0` string subscript — LIVE BUT A PURE FAILURE PATH. LOW VALUE.** Measured
+  200,000 entries / 200,000 bailed / 0 commits on `s := ""; s[1]`, but every one of those arrivals
+  **FAILS by construction** (`i=1 > slen=0`), so the arm would port a `FAILDESCR` return. Cold by design,
+  same class as `rt_bomb`. Take it for completeness only, and claim no speed.
+
 ### ▶ PHASE 0 — SURVEY (open items)
 
 - [ ] **RTX-0-RULING** ⛔ LON'S CALL: (a) `rt_call_arr` — 87% of `string_manip` window (SN4 measurement; portable fraction unmeasured, Icon 0(d) still owed); (b) SCAN family destination (blocks RTX-5/RTX-2).
