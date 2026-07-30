@@ -121,3 +121,44 @@ queue does not rank run-phase cost and must be re-derived on run-phase-dominant 
 ---
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
+
+---
+
+## 7. ⭐⭐⭐ THE 80,000 BAILS DECOMPOSED: TWO CAUSES, EXACTLY 50/50, AND ONE OF THEM ALREADY HAS A MINTED FIX
+
+**Measured s220 by histogramming the guards inside `c_str_concat_d`** (temporary probe, reverted; tree
+verified clean). Read-only on SN4-RTX's `.S` — no ownership breach.
+
+```
+[SCPROBE] tot=80000  tag=40000  nullptr=0  SLEN0=40000  csetm1=0  other=0
+```
+
+**Each half maps to exactly one source statement in the workload, and the counts equal the loop count:**
+
+| cause | count | asm guard | statement |
+|---|---:|---|---|
+| **`SLEN0`** — `a.slen==0 \|\| b.slen==0` | **40,000** | `rtx_str.S` *"slen 0 => unknown length, C strlens"* | `s := s \|\| "x"` |
+| **`tag`** — either operand not `DT_S` | **40,000** | *"not two plain strings -> null arm"* | `"k" \|\| (i % 97)` — **integer** operand |
+| nullptr / cset-`-1` / unexplained | **0** | — | — |
+
+**⇒ FIX 1 — `SLEN0` (50% of bails): THIS IS RTX-16-ICN, ALREADY MINTED, AND IT IS THE LADDER'S KEYSTONE.**
+`RTX-CLAIMS.md` minted RTX-16-ICN (*populate `slen`*) as the root cause of RTX-9's refusal
+(*"`arr.slen == 0` on 100% of arrivals"*), and it was already known to *"retroactively activate
+`rt_size_d`'s dead arms and remove `strlen` in five other languages."* **s220 adds a third independent
+symptom: half of `str_concat_d`'s bails.** ⭐ **THREE SYMPTOMS, ONE DEFECT — and the fix needs NO NEW ASM.
+It activates asm that is already written, already linked, already gate-green, in three symbols and five
+languages.** Nothing else on this ladder has that leverage. ⛔ **It was never prioritized because it was
+discovered on the compile-dominated corpus (§1), where no run-phase win could be measured at all.**
+
+**⇒ FIX 2 — `tag` (50% of bails): A MISSING `DT_S || DT_I` ARM, WHICH IS A DESIGN GAP, NOT A BUG.**
+`"k" || (i % 97)` — string concatenated with an integer — is among the most common idioms in Icon, and
+`rtx_str.S` has no arm for it, so C performs the coercion every time. ⇒ **RTX-23-ICN: integer-operand
+concat arm** (`to_int`'s inverse is already asm, so the pieces exist). ⚠ Sequence it AFTER RTX-16: with
+`slen` populated the surviving bail population changes, and the arm should be measured against the real
+remainder, not against today's 50%.
+
+⭐ **THE ORDER THIS IMPLIES, AND IT INVERTS THE WHOLE LADDER:** the two highest-leverage rungs on
+ICON-RTX are now **(1) a C-side descriptor fix that writes no asm** and **(2) a new arm on a symbol
+already ported.** Neither is "port a C function to `.S`" — which is every rung this ladder has attempted
+and every rung that came back null. **Lon's directive *"just ASM code not C code"* is best served by
+making the ASM THAT ALREADY EXISTS actually execute.**
