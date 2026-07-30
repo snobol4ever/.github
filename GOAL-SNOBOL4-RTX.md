@@ -1,6 +1,20 @@
 # GOAL-SNOBOL4-RTX.md — The SNOBOL4 Runtime in Optimized x86-64 Assembly
 
-## ⛔ LIVE CURSOR — s226 (2026-07-30): **RTX-4 SLICE 3A LANDED (`rt_flat_wire_adopt`). THE RESULT THAT OUTRANKS THE PORT: THE STATIC CENSUS RANKED THIS SYMBOL 16th OF 46; STEP 0(d) RANKS IT 4th OF 20 AT 23,743,053 ENTRIES. THIRD ANTI-CORRELATION IN THREE SESSIONS — AND THE FIRST IN THE **FALSE-NEGATIVE** DIRECTION.**
+## ⛔ LIVE CURSOR — s227 (2026-07-30): **WATERMARK DOES NOT REPRODUCE ON A FRESH CLONE OF HEAD. BLOCKER — NO PORT LANDED.**
+**MEASURED: fresh clone HEAD 2220cb19, clean build (make scrip + make libscrip_rt, RT_OPT=-O0, 5m39s), crosscheck → m3 211/105/0 · m4 208/72/36 · DIVERGE=3. RECORDED s226: m3 312/4/0 · m4 312/2/2 · DIVERGE=2. 101 EXTRA m3 FAILURES. All ARRAY/TABLE/DATA/GC/pattern families red.**
+**MINIMAL REPRO: `a = ARRAY(3); x = a<1>` → `** Error 1 in statement 0 / Illegal data type`. SPITBOL oracle correct. ARRAY construction and DATATYPE() fine; subscript read is the fault. Basic arith/concat/output all pass (211 green programs explain themselves).**
+**RULED OUT BY MEASUREMENT:**
+**⭐ NOT THE RTX ASM — all 16 SCRIP_RTX_* forced to 0 (gates-off, pure-C path) fails byte-identically. The kill-switch bisected clean.**
+**⭐ NOT THE THREE ICN `rt_subscript_var` COMMITS (ea7f237b DT_A · 809f5dab DT_T · b85f0303 table-miss) — `git show --stat` confirms all three are asm-only, zero C touched. Exonerated.**
+**⭐ NOT MODE-SPECIFIC — m3 and m4 fail identically on the repro.**
+**⭐ NOT A MISSING SNO_LIB — fails unset, auto-resolved, and with explicit `corpus/lib`.**
+**⭐ NOT STRUCT LAYOUT DRIFT — every _Static_assert in rtx_init.c compiled clean.**
+**⚠ OPEN THREAD: mode-4 links produce `DT_TEXTREL in a PIE` warnings; pin_va.h requires non-PIE for m4. Likely explains 36 m4 SKIPs and the `Aborted` crashes in --compile, but does NOT explain the m3 failure.**
+**DELIVERABLE THIS SESSION: `scripts/util_rtx_whole_surface_census.sh` (SCRIP da50a451) — whole-surface 0(d) over all 21 SNOBOL4 benchmarks, derives still-C surface from the tree, ranks by dynamic entry count. Implements the s226 rule: no static shortlist, no false negatives. Committed, NOT yet run (blocker).**
+**NEXT SESSION: (1) ⛔⛔ IDENTIFY AND FIX THE ARRAY SUBSCRIPT REGRESSION BEFORE ANY PORT — bisect between a known-green ancestor and HEAD 2220cb19 to bracket the fault, or Lon names the missing environment step; (2) once green, run util_rtx_whole_surface_census.sh over all 21 benchmarks and use that ranking (not static) as the port queue; (3) then the s226 NEXT RUNG queue: rail min-of-N, goto_transfer lookup rung, RTX-7 re-measure, Icon/Prolog surface audit, slen population.**
+**FINDING: blocker documented in this cursor. `handoff_status.sh` is the push truth — NOT this block.**
+
+## ⛔ PRIOR CURSOR — s226 (2026-07-30): **RTX-4 SLICE 3A LANDED (`rt_flat_wire_adopt`). THE RESULT THAT OUTRANKS THE PORT: THE STATIC CENSUS RANKED THIS SYMBOL 16th OF 46; STEP 0(d) RANKS IT 4th OF 20 AT 23,743,053 ENTRIES. THIRD ANTI-CORRELATION IN THREE SESSIONS — AND THE FIRST IN THE **FALSE-NEGATIVE** DIRECTION.**
 **⭐⭐ (1) s188 AND s225 WERE FALSE POSITIVES (a hot-looking symbol that is cold); THIS IS A FALSE NEGATIVE, WHICH IS WORSE BECAUSE IT IS SILENT. A wasted port announces itself; a symbol that never reaches a queue never does. `rt_flat_wire_adopt` has SIX static sites — below `rt_call_arr` (99), `NV_SET_fn` (43) and all five `rt_proc_set_*` (16 each), every one of which is colder. ⇒ **RULE: 0(d) IS NOT A FILTER OVER A STATIC SHORTLIST — run it over the WHOLE still-C surface or the symbols it would promote are never candidates.**
 **✅ (2) s225's OWED GATES ARE DISCHARGED — the correction banner worked as designed: `MATCH` kill-switch `MODE=both` 317 progs N=4 ⇒ m3 316/1/**0** · m4 313/1/**0**/SKIP 3 GATE PASS · unit ALL PASS (8426/0) · store-width PASS. ⇒ **RTX-8 SLICE 10 IS NOW GATE-COMPLETE.**
 **⭐⭐ (3) THE REGRESSION BASE IS ENUMERATED AND IS THE FIRST HEALTHY ONE IN FOUR SLICES: 27 of 317 programs REACH; census run on ALL 27 (not a sample) ⇒ **23 COMMIT, 0 BAIL, 412 commits**, top carrier `088_define_recursive_fib` 204. **ZERO programs show the `entries−1=commits` lazy shape** that left slice 9 resting on one oracle-failing program. 0(f) on `func_call`: **10,000,000 entries / 0 bailed / 10,000,000 commits = 100% asm, no cold arm.**
