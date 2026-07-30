@@ -55,15 +55,23 @@ This is not a new law — it is **emit.cpp:808's own law firing**: *"a BB may be
 
 **Why `n7_match_release_α` is byte-identical between regimes** (s21x-p's own static proof, now explained): release's rsp-based reads compensate by `op_flat_disp + op_zdepth`, and BOTH are regime-invariant for this kind — `op_zdepth` is 0 either way because the 48 never entered `op_fc_bytes`. The reads did not "fail to learn about the carve"; **there was nothing in the ledger for them to learn.**
 
-## 4. THE WELD, RESPECIFIED (next rung — do this, not the missing-arm hunt)
+## 4. ⛔⭐⭐ MEASURED, LATE IN SESSION — §3's WELD IS A FIX TO DEAD CODE. THE stfh MATCH ARM IS DORMANT AT HEAD.
 
-Per s21x-c law 1 ("ONE instruction: `sub rsp, K`") and Lon's roman directive ("There should be ONE RSP decrement"), the 48 should **not be a second self-managed carve at all**:
+**§3's mechanism is real as source reading and IRRELEVANT as a root cause, because the path does not execute.** Measured, not reasoned:
 
-> **Move the head's 48 into the STATEMENT's framed-glue grant** — `bb_glue_framed_enter` at **K=48** instead of K=0 — so it is ledgered once through the same `op_fc_bytes` the accessor already reads via `op_zdepth`, addressed through rbp exactly as `HKQ` already does, and released by the matching glue leave.
+| Measurement | Result |
+|---|---|
+| Programs emitting the HKQ bracket map (`[rbp − 48/40/32/24/16]`) under `SCRIP_STMT_FRAME=1` | **0 / 317** |
+| Programs with ≥1 graph where `flat_stmt_frame` goes live (`SCRIP_STF_DEBUG=1` → `live=1`) | **31 / 317** — and they are **arithmetic** graphs (023–027 `arith_*` …), **not match graphs** |
+| CONTROL — is the gate actually on? | **YES**: `[STF] choke stf=1 …` confirms the env is read, and the gated `.s` differs from ungated by 220 lines on `085_define_two_args`. The null is NOT vacuous. |
 
-One decrement · one authority · one predicate (`stfh`) · one layout map (`[rbp−48+8k]`). GLUE-4 already wired STATEMENT as the framed glue's first customer at K=0, so this is a K change plus deleting the `x86_zclaim(48)` at `bb_match_head.cpp:32` — **not** new machinery.
+**⇒ `bb_match_head`'s `stfh()` arm — and therefore `x86_zclaim(48)` and the entire HKQ bracket — NEVER FIRES anywhere in the crosscheck corpus.** The statement-frame regime arms on ordinary arithmetic statements only.
 
-⚠ **VERIFY WITH THE MONITOR, NOT BY READING** (RULES monitor-first): the gated regime heap-exhausts (`rt_dcap_pump` on garbage), so the reproducer is s21x-p's 5-line probe (`DEFINE('F(N)T')` + capture match + one call; oracle `"A"`) under `SCRIP_STMT_FRAME=1`, bracketed by `test_monitor_2way_sync_step_bin.sh`. Commit the probe into corpus with its ref in the same slice.
+**CONSEQUENCE FOR s21x-p's D2 ROOT CAUSE (this is the actionable correction):** s21x-p named the root as *"`bb_match_head`'s `stfh()` arm carves 48 bracket bytes that are LIVE at RELEASE.α, and `bb_match_release` never got the matching arm."* **Both halves are about a dormant path.** Release's "missing arm" is not missing (§3), and the head carve it was supposed to match does not execute. **The `SCRIP_STMT_FRAME=1` heap-exhaustion must originate in the ARMED path — the arithmetic/statement graphs — not in the match head/release bracket.** The `!flat_pat` conjunct (NEXT 2) is not the only gate keeping match graphs out; the live/dormant split measured here is the instrument for finding which conjunct actually decides.
+
+**THE WELD (K=48) IS THEREFORE WITHDRAWN AS THE NEXT RUNG.** Landing it would have changed code that never runs — a "vacuous by construction" port of exactly the kind the RTX ladder keeps catching. It becomes relevant only *after* the match family is admitted to the regime, and at that point §3's mechanism is a **pre-identified landmine to fix in the same slice**, not a bug to hunt.
+
+**HOW THIS WAS CAUGHT, because the instrument lied first:** the initial arming scan used `grep -cE "sub +rsp, *48"`, which matched **`sub rsp, 488`** and reported 101 false-armed programs. The anchored form (`sub +rsp, +48$`) plus the HKQ cross-check is what exposed it. **LAW: an arming census keyed on an immediate operand MUST anchor the operand end; a bare digit prefix silently counts every wider carve.**
 
 ## 5. WATERMARK — re-derived at START and CLOSE, UNCHANGED
 
@@ -74,12 +82,23 @@ One decrement · one authority · one predicate (`stfh`) · one layout map (`[rb
 | DIVERGE | 3 | 3 | 3 |
 | killswitch `SCRIP_BB_ALLOC=0` | — | **m3 312/4 · m4 312/2/2 · DIV=2** | EXACT |
 
-⭐ **DIVERGE MEMBERSHIP CAPTURED** (s21x-p closed with "membership not re-captured — re-derive"; it is now derived):
+⭐ **DIVERGE MEMBERSHIP CAPTURED** (s21x-p closed with "membership not re-captured — re-derive"):
 **{`140_pat_eval_double_fn_trick`, `141_pat_eval_double_fn_arbno`, `W04_arbno_basic`}**.
-Killswitch DIV=2 = {140, 141} — so **`W04_arbno_basic` is the one divergence the killswitch removes**, i.e. it is allocator-induced, unlike 140/141 which survive into the killswitch baseline. That is a free bisect hint for the residual-spine rung (NEXT 4) and it is not recorded anywhere prior.
+Killswitch DIV=2 = {140, 141} ⇒ **`W04_arbno_basic` is the one divergence the killswitch removes** — allocator-induced, unlike 140/141 which survive into the killswitch baseline. Free bisect hint for the residual-spine rung (NEXT 4); not recorded anywhere prior.
 
-## 6. HONEST LIMITS OF THIS SESSION
+## 6. HONEST LIMITS
 
-- The weld itself is **NOT landed** — only respecified. §4 is a design claim derived from reading `emit.cpp:811/820` + `x86_asm.h:373` + `bb_match_head.cpp:32`; it has **not** been confirmed by running the gated regime under the monitor. Treat it as the strongest available hypothesis with a named falsifier, not as a measured fact.
-- ZREL-2's byte-identity is measured (317/317 + three regen scripts). The §2 ledger is a **classification**, i.e. a judgement about intent per site, and is reviewable — the four legitimate classes are the reviewable claim.
-- The SPITBOL manual was not available this session (upload did not attach), so no construct's semantics were checked against it. Nothing in ZREL-2 is semantic — it is a pure spelling retirement — but §4's weld touches the match family's storage protocol and **should** be checked against the manual's Ch.18 scan/unwind text before landing.
+- **ZREL-2 is measured** (317/317 byte-identical + three regen scripts committing nothing). The §2 ledger is a **classification** — a judgement of intent per site; the four legitimate classes are the reviewable claim.
+- **§3 is source reading, not execution.** It correctly describes what the code *would* do; §4 measures that it does not currently do it. Both are kept deliberately: §3 is the landmine map for when the match family is admitted.
+- **§4's null is bounded by its corpus.** It proves the stfh match arm is dormant across the 317 crosscheck programs with the gate on. It does not prove unreachability in principle, and it does **not** identify the real cause of the STF heap-exhaustion — that is now genuinely open, and narrowed to the armed arithmetic path.
+- **The SPITBOL manual was unavailable this session** (upload did not attach), so no construct was checked against it. Nothing in ZREL-2 is semantic. Any future work on the match family's storage protocol should check Ch.18 scan/unwind first.
+- **31/317 vs the cursor's "armed 44/316"**: different units (programs-with-a-live-graph vs armed statements), so not a contradiction — but nobody has reconciled them, and the next session should not treat either as the other.
+
+Per s21x-c law 1 ("ONE instruction: `sub rsp, K`") and Lon's roman directive ("There should be ONE RSP decrement"), the 48 should **not be a second self-managed carve at all**:
+
+> **Move the head's 48 into the STATEMENT's framed-glue grant** — `bb_glue_framed_enter` at **K=48** instead of K=0 — so it is ledgered once through the same `op_fc_bytes` the accessor already reads via `op_zdepth`, addressed through rbp exactly as `HKQ` already does, and released by the matching glue leave.
+
+One decrement · one authority · one predicate (`stfh`) · one layout map (`[rbp−48+8k]`). GLUE-4 already wired STATEMENT as the framed glue's first customer at K=0, so this is a K change plus deleting the `x86_zclaim(48)` at `bb_match_head.cpp:32` — **not** new machinery.
+
+⚠ **VERIFY WITH THE MONITOR, NOT BY READING** (RULES monitor-first): the gated regime heap-exhausts (`rt_dcap_pump` on garbage), so the reproducer is s21x-p's 5-line probe (`DEFINE('F(N)T')` + capture match + one call; oracle `"A"`) under `SCRIP_STMT_FRAME=1`, bracketed by `test_monitor_2way_sync_step_bin.sh`. Commit the probe into corpus with its ref in the same slice.
+
