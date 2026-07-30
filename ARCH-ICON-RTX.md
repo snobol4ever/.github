@@ -280,6 +280,25 @@ SN4-RTX's contract is two-way (RTX ‖ ζ). With ICON-RTX there are **three** li
    Icon-specific edit. ⭐ **It also discharges s204's ISOLATION ARM for free** — sibling symbols in an
    already-ported family show up with zero entries and are omitted, which is the isolation property
    stated directly rather than inferred from a rebuild.
+   ⭐⭐⭐ **AMENDED s224 — TWO PROBE SHAPES THAT LOOK LIKE FALSIFICATION AND ARE NOT, AND THE MEASURED
+   REASON THE "and again after" CLAUSE ABOVE IS LOAD-BEARING.** Both found on `rt_subscript_var`:
+   **(1) A UNIFORM-OFFSET PROBE IS VACUOUS BY SYMMETRY on any symbol that both READS and WRITES the cell
+   it names.** Shifting the computed element address by one — RTX-24's own recorded probe — moved the
+   board by ZERO on the `DT_A` arm while the census showed 3/3 commits and `objdump` showed the probe live
+   in the `.o`, because `A<i> := v` and `x := A<i>` shift TOGETHER and still agree. RTX-24's version only
+   worked by accident of its workload (its list was built by a constructor that bypasses the arm). Use an
+   ASYMMETRIC break — make two distinct inputs collide, or push an in-range access out of range. Applies
+   to every `NAMETRAP`-minting symbol: `rt_assign_var`, `rt_field_var`, `rt_list_bang_var_at`.
+   **(2) A KEY-FORMATTING ERROR IS SELF-CONCEALING UNDER OUTPUT DIFFERENTIAL TESTING.** Corrupting ONE
+   byte of RTX-29's key discriminator left gate-ON output **100% identical to gate-OFF on every edge case
+   AND both watermarks unmoved**, while the census read **400,008 entries / 400,008 bailed / 0 commits** —
+   port entirely dead, program entirely correct. **A wrong key MISSES, the miss BAILS to C, and C
+   recomputes the right answer**, so the failure degrades to a bail instead of to a wrong result.
+   ⇒ **For ANY port whose commit path is gated on matching a value computed elsewhere — hash key,
+   interned string, cache tag, memo lookup — output differential testing is STRUCTURALLY BLIND, and (j)
+   MUST be re-run AFTER the port.** Corollary worth having: a nonzero commit count on such a port is
+   itself a byte-for-byte correctness proof against the C-side producer, which no output test can
+   distinguish from a bail. Full write-up: `FINDING-2026-07-30-CLAUDE-ICN-RTX-28-...-VACUOUS-BY-SYMMETRY.md` §2 and §8.
    ⚠ **PREFER A HARD PROBE (`ud2`/crash) OVER A VALUE PROBE when a silent result would be readable two
    ways** — a value probe conflates "the asm did not run" with "this value does not reach the output".
    A value probe that is NOT silent (it moves the board) remains unambiguous and sufficient.
