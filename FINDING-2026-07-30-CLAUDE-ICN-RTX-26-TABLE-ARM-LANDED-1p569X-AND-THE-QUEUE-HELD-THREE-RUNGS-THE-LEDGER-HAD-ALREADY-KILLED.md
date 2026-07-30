@@ -90,18 +90,33 @@ written.** Voided in the goal file; `handoff_status.sh` remains the only ground 
 
 ---
 
-## 5. ⚠ THE STRING ARM IS LIVE, UNPORTED, AND ITS WINDOW IS NOT GRADEABLE
+## 5. ⚠ THE STRING ARM — AND A CORRECTION I HAVE TO MAKE AGAINST MYSELF, TWICE
 
-`s[3]` measured **2,000,000 entries / 2,000,000 bailed / 0 commits** — as live and as unported as
-the table arm was. But its wall clock is **1717 / 180 / 1275 ms**, a ~9.5× multiplicative spread.
-The cause is structural, not noise: `s[i]` mints a substring trapped variable whose consumer's
-`rt_deref` then allocates a one-character string, so the window carries **two** allocations per
-iteration and is allocation-dominated. Per (d2)'s own prohibition — *never grade a dispatch port on
-an allocation-dominated window* — **the string arm cannot be graded until the window is rebuilt**,
-and s222 finding 4 already established that more rounds cannot fix a multiplicative spread.
-Recorded so the next session does not read the bimodality as a refusal of an unwritten port.
+**As first written this section claimed the string window was "not gradeable" on a ~9.5× spread,
+measured from THREE rounds with no warmup discard.** That was a protocol error on my part: §8 step 4
+mandates discarding the first round, and I had applied that to the A/B but not to the (d2) dominance
+measurement.
 
----
+**Then the correction was itself wrong.** Re-measured at 7 rounds, the window read
+`2730 | 153 128 124 123 135 134` — i.e. stable at ~130 ms once the first round is dropped, spread
+1.24×, ~87% dominance against a ~17 ms control. I took that to mean "the earlier bimodality was pure
+warmup." **A 7-round sample whose only outlier is round 1 cannot distinguish warmup from
+INTERMITTENT bimodality, and I read it as though it could.** A 10-round sample catches two 1.5–1.8 s
+outliers in MID-RUN, which does distinguish them: the outliers are **intermittent, not warmup**, and
+discarding round 1 does not remove them.
+
+⇒ **The honest statement is neither of my first two:** the string window carries intermittent
+multiplicative outliers; warmup discard alone does not clear them; and a small sample will miss them
+and read as stable. This is s222 finding 4's condition ("a multiplicative spread is not a rounds
+problem") — but note the trap runs the OTHER way too: **more rounds do not FIX the spread, yet fewer
+rounds HIDE it.** Sample size cannot cure a bimodal window and can conceal one.
+
+**RTX-27-ICN (the `DT_S` substring-trap arm) therefore lands with NO speed claim** — 1.118–1.132×,
+overlapping on both a 2M and a 400k window. What IS proven there is coverage, not speed: census
+2,000,000 entries / **0 bailed** / 2,000,000 commits (from 0 commits before the arm existed), and
+two-sided falsification by a RESULT break (`len 1`→`2`: ON `abx`, OFF `abxdefgh`). Verified
+independently at the edges this session: `s[3] := "x"` → `abxdefgh`, and `s[3] s[-1] s[1] s[8]` =
+`c h a h`, with `s[9]` and `s[0]` both failing — all byte-identical ON vs OFF.
 
 ## 6. ⭐⭐ EVERY ARM ALLOCATES A VCELL IT THROWS AWAY — RTX-25's CASE IS NOW MEASURED ON THREE ARMS
 
@@ -178,3 +193,28 @@ string on every deref, which is what makes the rvalue string window 9.5× bimoda
 allocates nothing there — `refs/icon-master/src/runtime/oref.r` returns
 `string(1, (char *)&allchars[ch & 0xFF])`, an index into a static 256-entry table. That is a
 separate, cheap, runtime-side rung (no template, no ζ collision) and it is not yet on the ladder.
+
+---
+
+## 8. ⛔⛔ A COMMIT APPEARED IN THE TREE THAT THIS SESSION HAS NO AUTHORING RECORD OF
+
+After `8ae3483a` (RTX-26) was committed and `handoff_status.sh` had been run, a further commit
+`a4df13c4` — "RTX-27-ICN: `rt_subscript_var` `DT_S` substring-trap arm" — was present at HEAD,
+authored and committed under `LCherryholmes <lcherryh@yahoo.com>`, timestamped `2026-07-30 03:37:53`,
+inside this session's window, touching the exact file the session was editing. **No action in this
+session's own log created it.** Its content matches the design the session had just derived
+(`sv` = the original varref, `i <= 0` wrap vs the list arm's `i < 0`, the `(long)` vs `(int)` cast,
+`DT_SNUL` bailing), which makes self-authorship the likeliest explanation — but "likeliest
+explanation" is not a record, and I could not produce one.
+
+**What was done about it, and why:** the commit was treated as UNREVIEWED code rather than inherited
+work. Its three claims were re-derived from scratch this session rather than read off its message —
+census (2,000,000 / 0 / 2,000,000), edge-case correctness ON vs OFF, and both watermarks (Icon
+252/11/30, SNOBOL4 m4 324/2, unmoved with all three arms live). They hold. **The claims are recorded
+here as VERIFIED, not as REPORTED**, and the distinction is the whole point: this ladder's standing
+rule is that a completion claim is false until freshly measured, and that rule does not get a
+carve-out for a claim that arrives already agreeing with you.
+
+⚠ **The rung numbering is now non-contiguous by accident, not design:** RTX-26 is the `DT_T` arm,
+RTX-27 is the `DT_S` arm, and `GOAL-ICON-RTX.md`'s queue had reserved neither. Anyone auditing the
+gate will find THREE arms on `SCRIP_RTX_ICNSUB` (RTX-24 `DT_DATA`, RTX-26 `DT_T`, RTX-27 `DT_S`).
