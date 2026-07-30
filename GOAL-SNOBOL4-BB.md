@@ -27,8 +27,14 @@
 
 ---
 
-
----
+## ⭐ GOTO-ERAD LADDER — s21x-e (2026-07-29, Lon: "Can you get rid of all the IR_GOTO's? … Would that not just be a wire to the destination versus through a middle man?"). SURVEY VERDICT (measured this session): **YES — the wire already IS the design; the node is construction scaffolding plus one load-bearing consumer.** `branch_chain.c` treats IR_GOTO as pass-through and rewires every γ/ω past it CARRYING the port tag (`sz` β/σ/φ bytes); `dead_goto.c` deletes the husks (037: bc=25 dg=18 on a 5-statement program). FOUR jobs today: (J1) unconditional label transfer — erased by the fold; (J2) S/F router gates + FAIL/SUCCEED landings (lower_snobol4.c 398-624, 1169-1170) — construction fanout, mostly erased; (J3) ⛔ **MONITOR LABEL TAPS** — stno-stamped gotos are exempted from the fold under `MONITOR_BIN` (`bc_stamped`/`dg_mon`) and emit.cpp:952 `case IR_GOTO:` fires `emit_mon_label_tap` — the monitor's ONLY event source in scr (the s195 granularity gap is this fact); (J4) **operand-protected survivors** — `bc_build_protect` stops the chase at any operand-listed node, so goto-only statements (`:(A)` with no rule) emit as REAL jmp-jmp middlemen (037 default compile: 2 boxes, n1/n2_goto α+β). `IR_GOTO_DEFERRED` (computed `:($X)`, EVAL/CODE, bb_goto_dyn) is a genuine runtime dispatch box and STAYS — the target is data, not topology.
+- [ ] **GE-0 CENSUS**: compiler sweep (never artifacts) counting emitted `_goto_` boxes across crosscheck default arm; autopsy WHICH operand list protects the 037 survivors (reproducer in hand). Deliverable: FINDING naming the protector.
+- [ ] **GE-1 MONITOR TAP RELOCATION** (the load-bearing prerequisite): move `emit_mon_label_tap` from `case IR_GOTO` to the statement-head walk (`bb_src_of` heads — where STMT-FRAME's st stubs already plant); delete the `bc_stamped`/`dg_mon` exemptions. PROOF = 2-way monitor event-stream parity on a goto-heavy program, before/after (monitor-first doctrine: the monitor may not lose events; per-statement taps also CLOSE the s195 scr-granularity gap as a side effect).
+- [ ] **GE-2 SURVIVOR UNPROTECTION**: fix the J4 protector (stop operand-listing gotos or wire around); crosscheck held + default-arm `.s` sweep shows zero `_goto_` boxes.
+- [ ] **GE-3 SNOBOL4 LOWER-SIDE**: replace mint-node backpatch with label-fixup direct edges (14 minting sites, incl. the both-edge S/F router at 624 whose γ-only chase semantics must be re-derived per site); `grep IR_GOTO lower_snobol4.c` → 0 (excl. DEFERRED); watermark held.
+- [ ] **GE-4..7 PER-LANGUAGE** (concurrent-safe, one file each): icon (24 sites) · pascal (10) · prolog (8) · raku (7).
+- [ ] **GE-8 EMITTER SWEEP**: delete `case IR_GOTO`, the six sz-sniffing chase loops (1794/1795/1984/2050/2051/2160/2181), classification mentions (923/1454/1782/2306), `bb_goto` template; `branch_chain` drops IR_GOTO from passthrough; `dead_goto.c` retires.
+- [ ] **GE-9 ENUM DELETION**: IR_GOTO leaves IR.h (the IR-REDUCE win, one opcode toward JCON-33). Gate: `test_gate_no_ir_goto.sh` — `grep -rn 'IR_GOTO\b' src/` matches only `IR_GOTO_DEFERRED` sites == 0 plain.
 
 ## ⛔⭐ LIVE CURSOR — s21x-b (2026-07-29, artifact-sweep + RBP-SHED session): **NO EMITTER SOURCE TOUCHED. Watermark UNCHANGED: m3 311/4 · m4 311/2 · DIVERGE=2. Five threads closed; two need Lon ruling before next session can execute.**
 
