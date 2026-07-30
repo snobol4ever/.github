@@ -6,28 +6,57 @@
 
 ---
 
-## ⛔ LIVE CURSOR — s223-ICN (2026-07-30)
+## ⛔ LIVE CURSOR — s224-ICN (2026-07-30)
 
-**NEXT RUNG: RTX-25-ICN (⛔ BLOCKED ON LON — template territory, must be serialized) or RTX-26-ICN's remaining arms (unblocked, but see the string-window caveat below).**
+**NEXT RUNG: RTX-26-ICN's remaining arms — the table MISS/insert path is the one with real semantic
+content left (it must BAIL, not FAIL; see s223 finding 3). `DT_SNUL`/`slen==0` and non-integer subscripts
+are cheap completeness. RTX-25-ICN remains ⛔ BLOCKED ON LON (design rung + template territory).**
 
-**Watermarks** (re-derived s223 from a fresh clone + full rebuild, never hand-copied): Icon **252/11/30** · SNOBOL4 **m4 324/2** (m3 329/5).
-⚠ **Prolog watermark NOT obtained:** `scripts/test_corpus_prolog_parser.sh` FAILs (crash rate > 5%) at gate **ON and OFF alike** ⇒ the differential is an **identity**, pre-existing/environmental, **not s223's**. s222's condition, reproduced not inherited. Use the ON/OFF/PRISTINE differential until that harness is repaired.
+**Watermarks** (re-derived s224 from a fresh clone + full rebuild before any edit, never hand-copied):
+Icon **252/11/30** · SNOBOL4 **m3 329/5 · m4 324/2**. All three re-derived AFTER the s224 edit and
+**unmoved**.
+⚠ **Prolog watermark NOT obtained (third consecutive session):** `scripts/test_corpus_prolog_parser.sh`
+FAILs at gate ON and OFF alike ⇒ the differential is an **identity**, pre-existing/environmental, not
+s224's. Use ON/OFF/PRISTINE differentials until that harness is repaired.
 
-**s223 also landed RTX-27-ICN — `rt_subscript_var` `DT_S` substring-trap arm, same gate, SCRIP `a4df13c4`. FOR COMPLETENESS; ⛔ NO DISJOINT SPEED CLAIM.** 0(j) 2,000,000 entries / 0 bailed / 2,000,000 commits (was 2,000,000/2,000,000/0). Falsified two-sided by RESULT break (len 1→2: ON `abx`, OFF `abxdefgh`). **Expectation was stated BEFORE measuring — 1.05–1.25× — because the window carries 4,000,000 `rt_str_alloc` (2×/iteration write-back) + 2,000,000 VCELL carves the arm does NOT remove.** Measured on two independent windows: 2M iterations **1.132×** median but BIMODAL on the ON arm (two 1.5–1.8 s outliers/10 rounds, spread 9.49×); 400k iterations **1.118×** median, stable (1.23×/1.14×). **Both OVERLAPPING.** ⇒ Per §8 (d2) that is a statement about the WINDOW, not a refusal of the asm — the census and the falsification both prove it runs. ⚠ **Do not re-open this expecting RTX-26's 1.57×; the ceiling here is the allocation, not the dispatch.** ⚠ `DT_SNUL`, `slen==0` and NULL-bytes shapes deliberately bail to C.
+**s224 landed RTX-28-ICN — `rt_subscript_var` `DT_A` array arm, same gate `SCRIP_RTX_ICNSUB`, which now
+carries FOUR arms.** 0(j) **2,000,001 entries / 0 bailed / 2,000,001 commits** (was 200,001/200,001/**0**).
+**1.160× median / 1.152× min-min, OVERLAPPING — ⛔ NO DISJOINT SPEED CLAIM**, RT_OPT=-O0, 10 interleaved
+rounds, warmup discarded; expectation stated before measuring (1.05–1.35×) and the result fell inside it.
+(d2) window dominance **~78%** (104 ms with the subscript vs 23 ms with it deleted) ⇒ the modest ratio is
+**not** a window artifact. Full write-up:
+`FINDING-2026-07-30-CLAUDE-ICN-RTX-28-DT-A-ARRAY-ARM-LANDED-AND-THE-UNIFORM-OFFSET-PROBE-IS-VACUOUS-BY-SYMMETRY.md`
 
-⭐ **THE SUBSCRIPT FAMILY'S REAL CEILING IS NOW MEASURED FROM TWO DIRECTIONS AND BOTH POINT AT RTX-25.** RTX-26's table arm got 1.569× because a hash+strcmp dominated its window; RTX-27's string arm got an overlapping 1.12× because ALLOCATION dominates its window. Same symbol, same gate, same quality of asm — **the difference is entirely what the window is made of, and the allocation is the half no `.S` port can reach.**
-
-**s223 landed RTX-26-ICN and RTX-27-ICN — `SCRIP_RTX_ICNSUB` now carries THREE arms** (RTX-24 `DT_DATA` list · RTX-26 `DT_T` table, 1.569× disjoint, SCRIP `8ae3483a` · RTX-27 `DT_S` substring-trap, SCRIP `a4df13c4`, **NO speed claim**, coverage only). ⛔ **`a4df13c4` HAS NO AUTHORING RECORD IN THE SESSION LOG** — treated as unreviewed, its claims RE-DERIVED not inherited (census 2,000,000/0/2,000,000; edge correctness ON==OFF; both watermarks unmoved). See §8 of the FINDING. ⚠ Rung numbers 26/27 are non-contiguous with the queue by accident.
-
-**s223 originally landed RTX-26-ICN — `rt_subscript_var` `DT_T` table arm (`DT_S` key), same gate `SCRIP_RTX_ICNSUB`, 1.569× disjoint.** SCRIP `8ae3483a`. Full write-up: `FINDING-2026-07-30-CLAUDE-ICN-RTX-26-TABLE-ARM-LANDED-1p569X-AND-THE-QUEUE-HELD-THREE-RUNGS-THE-LEDGER-HAD-ALREADY-KILLED.md`.
-
-**s223 key findings:**
-1. ⭐⭐⭐ **THE QUEUE LISTED THREE RUNGS AS OPEN THAT THE LEDGER HAD ALREADY MEASURED DEAD.** RTX-1/2/3-ICN all carry "Step 0(d) first" in PHASE 1 while `RTX-CLAIMS.md` records `rt_arg_stage` = `BLOCKED:MEASURED-ZERO`, `rt_proc_set_fn` = `BLOCKED:MEASURED-FLAT`, `rt_call_proc_descr` = `BLOCKED:MEASURED-ZERO`. A session orienting off this ladder would have opened RTX-2 as the rank-2 prize and spent its 0(d) budget re-deriving a zero. **Third consecutive session to find the ladder disagreeing with the ledger** (s222 finding 7, different rows). Queue rows corrected inline below. ⇒ **PROPOSED, needs Lon: the queue should stop restating step-0 status entirely and point at `util_rtx_claims.sh`, the way §Concurrency was demoted at s222. Two files that both hold status will disagree.**
-2. ⛔ **s222's "LOCAL COMMIT ONLY — NOT ON origin" BANNER ON RTX-24 WAS FALSE.** Measured s223 from a fresh clone before any edit: `rtx_icnsub.S` present, adding commit `b38e31d8`, `git rev-list --count origin/main..HEAD` == **0**, `rtx_icnsub.o` in the `.so` link line. **RTX-24 IS on origin.** This is `RULES.md` s47 rule (a) exactly — push status written into a doc is structurally incapable of being true and nobody edits it afterward. The banner has **no correct form**; it must not be written. `handoff_status.sh` is the only ground truth. Banner voided.
-3. ⭐⭐ **THE TABLE MISS MUST BAIL, NOT FAIL, AND `FAILDESCR` WOULD HAVE BEEN SILENT.** On a chain miss the C body does not fail — it mints a key-**INSERT** trap (`key = rt_ws_strdup_c(ks)`) so `t[k] := v` on a fresh key has somewhere to land. An arm returning `FAILDESCR` reads correct on every rvalue workload and silently breaks lvalue insert. Census after the port: **2,000,001 entries / 1 bailed / 2,000,000 commits** — that one bail IS the fresh-key insert. A port showing 0 bails would have been wrong.
-4. ⚠ **THE STRING ARM IS LIVE, UNPORTED, AND UNGRADEABLE.** `s[3]` measures 2,000,000 entries / 2,000,000 bailed / **0 commits** — as live as the table arm was — but its wall clock is **1717/180/1275 ms**, ~9.5× multiplicative spread, because `s[i]` mints a substring trapped variable whose deref allocates a 1-char string ⇒ **two** allocations per iteration ⇒ allocation-dominated. Per (d2)'s own prohibition, do not grade a dispatch port there. Rebuild the window first; more rounds cannot fix a multiplicative spread (s222 finding 4).
-5. ⭐⭐ **RTX-25's PREMISE IS NOW MEASURED ON THREE ARMS AND IT DOMINATES RTX-26 BY CONSTRUCTION.** `rt_agg_alloc` fires **exactly 2,000,000 times in all three windows** (list, table, string) — one thrown-away 72-byte VCELL per rvalue subscript on **every** arm. Canonical `oref.r`'s `operator{0,1} [] subsc` returns `struct_var(&bp->lelem.lslots[i], bp)`, a pointer into the existing block — **canonical Icon does not allocate to fetch an element.** (The table arm is the one place it legitimately does: `alctvtbl`.) RTX-26 makes dispatch 1.57× cheaper and leaves the allocation; **RTX-25 removes it.** RTX-24/26 asm is not wasted — both remain the lvalue path.
-6. ⚠ **`DT_T` IS defined in `rtx_abi.inc:63`** — checked, not assumed, because s222 finding 5 proved an undefined tag compare assembles cleanly as a relocation. It was **unpinned**; now pinned, with `TBPAIR_t`, `TBBLK_t.buckets` and `TABLE_BUCKETS == 256` (the `movzx eax, al` hash fold is valid only for 256).
+**s224 key findings:**
+1. ⭐⭐⭐ **THE UNIFORM-OFFSET FALSIFICATION PROBE IS VACUOUS BY SYMMETRY ON THIS SYMBOL — AND IT IS
+   RTX-24's OWN RECORDED PROBE.** Shifting the computed cell address by one element (verbatim RTX-24's
+   *"dropped the `dec`"*) moved the board by ZERO: ON 22, OFF 22. It was NOT a dead arm — census 3/3
+   commits, `objdump` showed the `inc` live in the `.o`. **Cause: `rt_subscript_var` serves BOTH the
+   lvalue and rvalue path, so a uniform shift moves the WRITE and the READ together and they still
+   agree.** RTX-24's identical probe only worked because its list was built by a constructor that
+   bypasses the arm. Fixed with an ASYMMETRIC break (collapse all subscripts to slot 0 ⇒ two indices
+   alias ⇒ ON 33 / OFF 22). ⛔ **Applies to every `NAMETRAP`-minting symbol either ladder ports —
+   `rt_assign_var`, `rt_field_var`, `rt_list_bang_var_at`. Message-boarded to SN4-RTX.**
+2. ⭐⭐ **THE ARM WAS DEAD FOR THE EXACT OPPOSITE REASON RTX-24's WAS.** Traffic arrives `base.v=4`
+   (**bare DT_A**), never the `DT_N` varref shape, so it died at the first pre-frame `cmp edi, DT_N`.
+   RTX-24 had to stop REJECTING varrefs; this arm had to stop REQUIRING them. ⇒ The transferable rule is
+   neither slogan: **the entry gate's shape is an EMPIRICAL question per arm, and the instrument is the
+   arriving descriptor, not the C source read top-to-bottom.**
+3. ⚠ **THE INDEX RULE IS NOW THE THIRD DISTINCT ONE IN ONE FUNCTION.** list wraps on `i < 0`, string on
+   `i <= 0`, **array NOT AT ALL** (`off = i - lo`, fail if `off < 0 || off >= hi-lo+1`). Explicitly
+   regression-tested. **Do not "tidy" these into one.** `ndim != 1` bails (C ignores `ndim`; a bail
+   re-enters the same C body so the flat 2-D path is preserved exactly).
+4. ⭐⭐ **RTX-25's PREMISE NOW HOLDS ON A FOURTH ARM.** `rt_agg_alloc` fires 2,000,001× in the array
+   window too. The four arms form a measured series that is a statement about WINDOWS, not asm quality:
+   table 1.569× (hash+strcmp) · list 1.376× (two strcmp) · **array 1.160× (nothing to remove but the
+   allocation)** · string 1.132× (allocation ×2). **The array arm is the cheapest-dispatch arm, so it
+   sits nearest the allocation floor. RTX-25 dominates this family by construction — fourth independent
+   measurement saying so.**
+5. ⭐ **`rt_frame` FATAL CLOSED WITH ITS CAUSE NAMED** (gate 3 fatal → 2). Not merely "phantom":
+   **eradicated at RUNG ZS-1 s57** when the main ζ frame moved from an arena memo to the driver stack —
+   the only two references left in the tree are comments recording the removal. ⛔ The other two fatals
+   (`rt_defer_open`/`rt_defer_close`, already asm with non-`DONE` rows) are **SN4-RTX's and were not
+   touched** — hard rule 1 includes *"I'm only reading it."*
 
 ## Queue
 
@@ -51,7 +80,7 @@
 - [ ] **RTX-13-ICN — field access by integer index, not by name.** `bb_field_get.cpp` emits `dat_field_get(fname, obj)` with a per-field string compare at runtime. Canonical Icon resolves to integer indices at translate time. ⛔ PHASE 2 / TEMPLATE TERRITORY — fires `.s` regen ×3, collides with ζ ladder. SERIALIZE WITH LON.
 
 - [ ] ⭐⭐ **RTX-25-ICN — THE RVALUE SUBSCRIPT ALLOCATES A VCELL IT THROWS AWAY. ⬅ RECOMMENDED NEXT; worth multiples of RTX-24.** `t := L[i]` in an RVALUE context calls `rt_subscript_var`, which carves a **72-byte `VCELL_t` purely to NAME a cell**, and `bb_subscript`'s consumer immediately `rt_deref`s it and discards it. Measured s222: 2,000,000 subscripts ⇒ **2,000,000 `rt_agg_alloc` calls**, none needed, and at 8M iterations the resulting ~576 MB of carve makes the window BIMODAL (finding 4 above). Canonical Icon does not allocate to fetch a list element (`refs/icon-master/src/runtime/fstruct.r`, `oasgn.r`). ⛔ **This is a DESIGN rung of the RTX-14-ICN class, not an asm port** — an rvalue arm that returns the VALUE and never mints a VCELL. Runtime-side + template-side; ⚠ `bb_subscript.cpp` is a template ⇒ `.s` regen ×3 and ζ-ladder collision ⇒ **SERIALIZE WITH LON.** RTX-24's asm arm is not wasted by this: it remains the lvalue path (`L[i] := v`).
-- [ ] **RTX-26-ICN — the remaining `rt_subscript_var` arms.** ⭐ **s223 LANDED THE `DT_T` TABLE ARM (`DT_S` key), 1.569× disjoint, SCRIP `8ae3483a`, AND THE `DT_S` SUBSTRING-TRAP ARM (RTX-27-ICN, SCRIP `a4df13c4`, completeness only, no disjoint claim).** Remaining: **DT_A** arrays (probably SNOBOL4-only for this symbol — MEASURE before opening) · non-integer subscripts · the `slen==2`/`slen==0` VARREF forms · the table MISS/insert path (`rt_ws_strdup_c`) · `DT_SNUL`. RTX-24 ported VARREF(slen==1)→DT_DATA-list with a DT_I subscript. Still C: **DT_A** arrays · **DT_T** tables (`tbl_key_str` + `table_find_pair` + `rt_ws_strdup_c`) · **DT_S/DT_SNUL** string subscripting · non-integer subscripts · the `slen==2`/`slen==0` VARREF forms. ⚠ **Measure which are live before porting any — s222's whole lesson.** ⚠ The DT_S arm wraps on `i <= 0` while the DT_DATA arm wraps on `i < 0`; two arms, two rules, one function. Do not "tidy" that.
+- [ ] **RTX-26-ICN — the remaining `rt_subscript_var` arms.** ⭐ **s223 LANDED THE `DT_T` TABLE ARM (`DT_S` key), 1.569× disjoint, SCRIP `8ae3483a`, AND THE `DT_S` SUBSTRING-TRAP ARM (RTX-27-ICN, SCRIP `a4df13c4`, completeness only, no disjoint claim).** ⭐ **s224 LANDED THE `DT_A` ARRAY ARM (RTX-28-ICN) — measured SNOBOL4-only for this symbol (0 Icon arrivals, 2,000,001 SNOBOL4), 1.160× OVERLAPPING, no disjoint claim.** Remaining: non-integer subscripts · the `slen==2`/`slen==0` VARREF forms · the table MISS/insert path (`rt_ws_strdup_c`) · `DT_SNUL`. RTX-24 ported VARREF(slen==1)→DT_DATA-list with a DT_I subscript. Still C: **DT_A** arrays · **DT_T** tables (`tbl_key_str` + `table_find_pair` + `rt_ws_strdup_c`) · **DT_S/DT_SNUL** string subscripting · non-integer subscripts · the `slen==2`/`slen==0` VARREF forms. ⚠ **Measure which are live before porting any — s222's whole lesson.** ⚠ The DT_S arm wraps on `i <= 0` while the DT_DATA arm wraps on `i < 0`; two arms, two rules, one function. Do not "tidy" that.
 
 ### ▶ PHASE 0 — SURVEY (open items)
 
@@ -71,6 +100,7 @@
 
 - [x] ⭐ **RTX-24-ICN** s222 — `rt_subscript_var` asm, gate `SCRIP_RTX_ICNSUB` (**fourteenth family gate**). **1.376× median / 1.373× min-min, DISJOINT** (ON 83-110 ms vs OFF 114-336 ms, 10 interleaved rounds, warmup discarded, RT_OPT=-O0). Ported arm: VARREF(slen==1) → `rt_deref` → DT_DATA list, DT_I subscript; the inlined `rt_list_view` replaces **two `strcmp` calls per subscript** with inline compares (the RTX-13 by-name disease in a second family). 0(j) **2,000,000 / 0 bailed / 2,000,000 commits**; two-sided falsification by RESULT break (ON 22, OFF 11). Icon 252/11/30 and SNOBOL4 m4 324/2 both unmoved. ✅ **VOIDED s223 — THIS BANNER WAS FALSE. RTX-24 IS on `origin/main`:** adding commit `b38e31d8`, verified from a fresh clone before any s223 edit, `git rev-list --count origin/main..HEAD` == 0, `rtx_icnsub.o` in the `.so` link line. Push status must never be written into a doc (`RULES.md` s47 rule (a)); `handoff_status.sh` is the only ground truth. ⚠ Expectation was stated before measuring (1.3-1.8×) and the result fell inside it; the allocation is NOT removed, which is why the ceiling is what it is — see RTX-25-ICN.
 
+- [x] ⭐ **RTX-28-ICN** s224 — `rt_subscript_var` `DT_A` array arm, existing gate `SCRIP_RTX_ICNSUB` (**no new gate**), fourth arm on the symbol. 0(j) **2,000,001 / 0 bailed / 2,000,001 commits** (was 200,001/200,001/**0** — the arm died at the first pre-frame `cmp edi, DT_N` because the traffic arrives **bare DT_A**, RTX-24's error inverted). **1.160× median / 1.152× min-min, OVERLAPPING — ⛔ NO DISJOINT SPEED CLAIM**; (d2) dominance ~78%, so the ratio is the ALLOCATION floor, not a window artifact. Falsified two-sided by an **asymmetric** RESULT break (slot-0 collapse: ON 33 / OFF 22) **after the uniform-offset probe proved VACUOUS BY SYMMETRY** — see finding §2, this is owed to every NAMETRAP-minting port. Icon 252/11/30 · SNOBOL4 m3 329/5 · m4 324/2 all re-derived and unmoved. `ARBLK_t` offsets + `DT_A` pinned by new `_Static_assert`s in `rtx_init.c`.
 - [x] **RTX-1b-ICN** s209c — `rt_assign_var` asm, `SCRIP_RTX_ICNVAR`. +12% median.
 - [x] **RTX-6-ICN** s211 — `rt_coerce_num2_d` asm, `SCRIP_RTX_ICNNUM`. 1.783×.
 - [x] **RTX-6b-ICN** s212 — `rt_jct_relop` asm, `SCRIP_RTX_ICNREL`. 1.761×.
