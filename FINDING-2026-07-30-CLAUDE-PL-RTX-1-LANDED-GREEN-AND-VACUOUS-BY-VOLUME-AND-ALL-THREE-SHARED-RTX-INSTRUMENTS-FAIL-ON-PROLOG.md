@@ -164,16 +164,74 @@ finding; the null is a symptom of it.** ⛔ **Do NOT read §3's 1.01× as "the p
 
 ---
 
-## 6. STATE
+
+---
+
+## 7. ⛔⛔ SAME-SESSION CORRECTION — §3 AND §4(c) ARE BOTH WRONG, AND THE RUNG IS A MEASURED WIN
+
+Written later the same session, after the diagnosis §4(c) called "the next rung" was actually run. **Two of
+this document's own claims are hereby VOID. Read this section before believing §3 or §4(c).**
+
+### (i) THE ARM CENSUS IS EXONERATED. THE PROGRAMS ABORT.
+`chat_parser.pl` exits **rc=134 with NO `LD_PRELOAD` AT ALL**: `[IBB] FATAL: mode-3 driver: main BB graph not
+found`. Reproduced on **boyer, browse, crypt, derive — 5 of 5 van Roy programs tried.** ⇒ **`util_rtx_arm_census.sh`
+was never broken.** Its message — *"NO DATA — the run counted nothing (rc=134). Check that the program runs at
+all"* — **was literally, exactly correct, and I read a true report as an instrument defect** because two
+programs failed under an instrument I had just started using. ⭐ **THE LESSON, and it is the sharper one: when
+a tool reports a failure IN THE PROGRAM, test that claim before promoting it to a failure OF THE TOOL.** The
+bisect that settled it cost ONE command (run it with no preload) and I published a false accusation against a
+shared instrument for want of it. §4(c) is struck; only §4(a) and §4(b) stand.
+
+### (ii) ⛔⛔ §3's PERF TABLE IS VOID — IT TIMED A CRASHING PROGRAM, i.e. ~100% COMPILE PHASE
+The 576 / 583 / 569 ms table was measured on `chat_parser.pl`, which **aborts before the Prolog program runs.**
+Those milliseconds are parse + lower + emit, then a fatal error. `rt_proc_call_open_det` is emitted-code-only,
+so its arrival count on that run is **structurally zero**, which is why all three arms agreed to 1%.
+⭐⭐ **THIS IS EXACTLY THE ICON-RTX s220 COMPILE-PHASE CONFOUND, REPRODUCED ON THE ONE FAMILY MY OWN CONTRACT
+WARNED WAS NOT COVERED.** `ARCH-PROLOG-RTX.md` §2 says the zero-floor result holds for `rt_pl_dop_*` and that
+*"Non-`dop` targets (`rt_proc_*`, `rt_arg_stage`, `core_lib_init`) are **not** covered by this result — re-measure
+per family."* `rt_proc_call_open_det` is `rt_proc_*`. **I wrote that caveat into the contract at s221 and then
+walked into it at s223.** ⛔ And note the sequence: I caught the cold-cache artifact, corrected it, and shipped
+a SECOND artifact inside the correction — **fixing one confound is not evidence the number is now clean.**
+⇒ **RULE: verify rc==0 AND that the workload reaches the symbol BEFORE timing anything.** A crashing program is
+a perfectly stable, perfectly reproducible, perfectly meaningless benchmark.
+
+### (iii) ⭐⭐ THE REAL NUMBER: RTX-1-PL IS A ~1.05× WIN, NOT A NULL
+The van Roy corpus cannot be graded by `--run` at all (item i), so the ladder needed a workload that both
+runs and is long enough. **`corpus/programs/prolog/rung10_programs_puzzle_19.pl`: rc=0, ~2.5 s.**
+
+| instrument | result |
+|---|---|
+| arm census | ENTRIES **13,850,337** · BAILED_C **0** · COMMITS **13,850,337** (≈1000× `queens.pl`) |
+| 3-arm, warmed + interleaved, 5 rounds, medians (r1 discarded), `RT_OPT=-O0` | PRISTINE **2557 ms** · OFF **2536 ms** · ON **2424 ms** |
+| **ON/PRISTINE** | **≈ 1.055×** — and ON is fastest in **5 of 5 rounds**, no exceptions |
+| OFF/PRISTINE | **1.008×** ⇒ the `PLCALL` kill-switch tax is ~nil |
+
+⚠ **1.05× sits just under the contract's ~1.10× two-arm trust floor, so it is reported with its basis, not as
+a headline:** what makes it credible is not the magnitude but (a) three arms rather than two, (b) 5/5
+directional consistency, (c) a gate tax measured at ~0 so ON/PRISTINE is not absorbing it, and (d) an
+independent arithmetic bracket — ~10 instructions saved × 13.85 M arrivals ≈ 139 M instructions, which on a
+2.5 s `-O0` run is ~2–4%, straddling the measured 5.5%. **Four weak agreements, not one strong claim.**
+⇒ **§3's "VACUOUS-BY-VOLUME" verdict is WITHDRAWN. The rung is a modest, real, corroborated win.**
+
+### (iv) THE FINDING THAT OUTLIVES THIS RUNG
+**The 22-program van Roy corpus that the entire PL-RTX ranking rests on does not execute in mode 3.** The s221
+board reports 2,060,043 arrivals across 19/22 of those programs — so **that ranking was NOT measured through
+`--run`**, and every RTX rung is graded through `--run`. ⛔ **The ranking and the grading instrument are not
+in the same mode**, which is a defect one level above any individual rung and is now this ladder's #1 item:
+either establish which mode the board's counts came from and whether they transfer, or re-rank on programs
+that actually run. `rung10_programs_puzzle_19.pl` is the first known-good member of that set.
+
+---
+
+## 8. STATE
 
 **LANDED (local commits only — ⛔ PUSH BLOCKED, CREDENTIAL NEEDED, NOTHING IS ON ORIGIN):**
 SCRIP — `src/runtime/rtx/rtx_plcall.S` (new), `src/runtime/rt/rt.c`, `src/runtime/builtins/resolution.c`,
 `src/runtime/rtx/rtx_init.c`, `Makefile`, `scripts/test_gate_rtx_killswitch_sets.sh`.
 `.github` — this FINDING, `GOAL-PROLOG-RTX.md`, `RTX-CLAIMS.md`.
 
-**OWED, in priority order:**
-1. **Diagnose the arm-census SIGABRT on the van Roy corpus** (instrument 3). Until then no Prolog perf claim
-   is falsifiable and every ranking on that corpus is single-instrument.
+**OWED, in priority order (REVISED by §7):**
+1. ⭐ **Establish which mode the s221 van Roy ranking was measured in, given those programs abort under `--run`** — the ranking and the grading instrument are not in the same mode (§7 iv). Re-rank on programs that execute if they do not transfer.
 2. Complete `test_gate_rtx_killswitch_sets.sh PLCALL <prolog corpus> 4 both pl`.
 3. Reconcile the 12,957 vs 430,081 `queens` discrepancy by naming the exact file each number came from.
 4. Give `bench_rtx_3arm.sh` a Prolog-capable timing arm (or self-time the Prolog benchmarks).
