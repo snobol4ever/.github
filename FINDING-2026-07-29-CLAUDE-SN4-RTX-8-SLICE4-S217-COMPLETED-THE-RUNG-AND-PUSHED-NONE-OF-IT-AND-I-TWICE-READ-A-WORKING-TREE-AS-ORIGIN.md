@@ -107,4 +107,16 @@ s217's FINDING, cursor move and ARCH edit are committed **as s217 wrote them**, 
 5. ⭐ **NEW: `_Static_assert` the `g_cap_gen` / `g_cap_gen_next` adjacency** (and the `Σ`/`Σlen` pair) so a widened store or a reordered declaration fails the build instead of corrupting capture generation silently.
 6. **`rtx_abi.inc` lines 10-15 stale r12 pin** — still uncorrected since s215; ARCH §2 has said "r12 is FREE — NOT A PIN" since s205. Not triggered this session (this port uses `r10`). ⛔ It sits inside the *executable* half of the contract, where an asm author will trust it.
 
+---
+
+## ✅ POST-REBASE RE-PROOF — GATES RE-DERIVED ON THE TREE ACTUALLY BEING PUSHED
+
+Origin moved **twice during this session** (`26e38f9d` → `3feab736`, including `util_rtx_claims.sh`'s five repairs and RTX-8c-ICN's `dat_field_get` asm). Per the concurrency rule **the watermark is shared state**, so every gate above was taken against a baseline that no longer existed by the time of the push. Re-derived on the rebased tree (`9126d05e` on `3feab736`), incremental rebuild **5 s**:
+
+- **Watermark: m3 `PASS=311 FAIL=4` · m4 `PASS=311 FAIL=2 SKIP=2` · `DIVERGE=2`** — failure sets **line-by-line identical** (`FAIL(m3)`: `test_case 140_pat_eval_double_fn_trick 141_pat_eval_double_fn_arbno 160_pat_alt_inner_gen_resume`; `FAIL(m4)`: `test_case 160_pat_alt_inner_gen_resume`). **ZERO MOVERS** across the rebase.
+- **0(f) arm census: entries 500,001 · bailed 0 · COMMITS 500,001** — unchanged.
+- **`.so` md5 `db2d87ab0b7a236fe6226e12c68de4fa`** on the rebased tree, vs `9fd91f67b711e7e8124814d625631331` pre-rebase. ⚠ **The difference is EXPECTED and is NOT this port**: origin's two commits changed other runtime objects that link into the same `.so`. Stated explicitly because an unexplained md5 change is exactly what a later session would mis-attribute — the s188 "plausible neighbouring anomaly absorbs the blame" class. The pre-rebase md5 remains correct as the figure s217's own FINDING quotes for its post-port build.
+
+⭐ **This re-proof cost 30 seconds and is the direct application of the cost-model correction above** — under the old ~9-min assumption it would plausibly have been skipped, and the push would have carried gates measured against a dead baseline.
+
 **⚠ `scripts/handoff_status.sh` is the push truth — not this block.**
