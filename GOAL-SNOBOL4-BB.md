@@ -4,7 +4,28 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⛔⭐ LIVE CURSOR — s21x-p (2026-07-30, Claude: FOUR RUNGS LANDED + THE D2 AUTOPSY — CALL2BB IS HEALTHY (recursive roman CORRECT under it alone); the parked defect is STF-side, one named weld from fixed).
+## ⛔⭐ LIVE CURSOR — s21x-q (2026-07-30, Claude: ζ-CELL SPELLING SWEEP **CLOSED** (44→41, all 41 classified NOT-ζ, byte-identical 317/317) + THE STF DEFECT RE-DIAGNOSED — it is NOT a missing release arm; the stfh 48 carves OUTSIDE the grant where `op_zdepth` cannot see it).
+
+**LON DIRECTIVE (s21x-q):** "Complete the ZETA CELLS on the RSP stack."
+
+**LANDED (ZREL-2 — SCRIP, byte-identical over 317 crosscheck programs; all three `.s` regen scripts committed NOTHING):**
+- `bb_match_head.cpp` ~40 and ~54: the two `hfc()` FORTH-cell window carves → `x86_zclaim(32)` (both frame arms).
+- `bb_match_defer.cpp` ~168: the ε-resume zero-guard leaf SUSP pop → `x86_zrelease((long)_.op_defer_leaf_susp)`.
+
+**⭐ THE SWEEP IS CLOSED, NOT PAUSED — the remaining 41 raw-rsp sites are ALL classified NOT-ζ. DO NOT "finish" it by converting them** (naming them ζ would lie — ZREL-1's own words): capture 3 · defer 3 · release 3 = CSTACK swap arms (`push zr; sub rsp,8` … `pop zr` — C-ABI pad paired with a register save, dead under the default) · bb_arith 1 = C-ABI align · call_proc_staged 9 = frame dance/pcall (law 7, FUNCTION's rung) · glue_flat 2 + glue_framed 1 = **THE GLUE PAIR, role-distinct by design** (granted cell K=`op_fc_bytes` at the ports vs mid-body verbs) · arbno 10 = ARBNO's own rung · xa_flat 9 = prologue + ICNBENCH align.
+**NEW LAW:** the ζ gate is not "zero rsp in templates", it is "**zero rsp that is a MID-BODY CELL**". Four legitimate raw-rsp classes: GLUE · C-ABI ALIGN · CSTACK SWAP ARM · PROLOGUE. A site outside those four is a defect.
+
+**⭐⭐ THE STF DEFECT — s21x-p's characterization is HALF RIGHT, and the wrong half is the actionable one.** s21x-p said "`bb_match_release` never got the matching arm". **AT HEAD IT ALREADY HAS ONE:** release carries `stfh()` + its own `HKQ(k)`=`[rbp−48+8k]` and reads all five head fields through it (~73/74/75/78/80). A session hunting "the missing arm" will find it already there and burn its budget. **THE REAL MECHANISM:** `x86_frame_off` compensates rsp refs by `op_flat_disp + op_zdepth` (x86_asm.h:373); `op_zdepth` is set at ONE place, `emit.cpp:820`, from **`op_fc_bytes` — the GRANTED extent only**; `IR_MATCH_HEAD` is **excluded by kind** from the universal carve (emit.cpp:811, the self-managed four) so its `op_fc_bytes` is never set ⇒ `op_zdepth`=0; yet under `stfh()` `bb_match_head.cpp:32` fires **`x86_zclaim(48)` OUTSIDE the grant**. The 48 moves rsp while being structurally invisible to every `[rsp+off]` ref — non-HKQ refs (`FRQ(_.op_off+8/16/24)`, in BOTH head and release) are displaced by exactly 48. This is **emit.cpp:808's own law** firing, and the s21x-o root cause ("allocator and operand address were two authorities that could not see each other") one level out. It also EXPLAINS s21x-p's static proof that `n7_match_release_α` is byte-identical between regimes: the reads did not fail to learn about the carve — **there was nothing in the ledger to learn.**
+
+**THE WELD, RESPECIFIED (NEXT 1 — do this, not the missing-arm hunt):** per law 1 + Lon's "ONE RSP decrement", the 48 must not be a second self-managed carve. **Move it into the STATEMENT's framed-glue grant — `bb_glue_framed_enter` at K=48 instead of K=0** — ledgered once through the `op_fc_bytes`→`op_zdepth` authority the accessor already reads, addressed via rbp exactly as HKQ does, released by the matching glue leave. GLUE-4 already made STATEMENT the framed glue's first customer at K=0, so this is a K change + deleting the `x86_zclaim(48)` at head:32 — NOT new machinery. ⚠ MONITOR-FIRST: the gated regime heap-exhausts (`rt_dcap_pump` on garbage); reproducer = s21x-p's 5-line probe (`DEFINE('F(N)T')` + capture match + one call, oracle `"A"`) under `SCRIP_STMT_FRAME=1`, bracketed by `test_monitor_2way_sync_step_bin.sh`; commit the probe + ref into corpus in the same slice. **⚠ §4 of the FINDING is a design claim from source reading, NOT yet monitor-confirmed — strongest hypothesis with a named falsifier, not a measured fact.**
+
+**NEXT, DEPENDENCY ORDER (carried, renumbered):** (1) ⭐ THE WELD as respecified above. (2) Retire the discriminator's `!flat_pat` conjunct (emit.cpp ~2535) once the match family's head-cell readers all speak the bracket authority. (3) **FLIP + DELETE:** default the two-BB world, delete the legacy proc jmp-entry carve arm (Lon: "DELETE that stupidity"). (4) Residual spine bisect — **free hint below.** (5) Framed-glue customers ARBNO/FUNCTION/FENCE1 (ARBNO = the variable-extent anchor).
+
+FINDING-2026-07-30-CLAUDE-SN4-ZREL-2-ZETA-SPELLING-CLOSED-AND-THE-STFH-48-IS-AN-UNLEDGERED-SECOND-ALLOCATION-AUTHORITY.md
+
+---
+
+## ⛔ PRIOR CURSOR — s21x-p (2026-07-30, retained: the D2 autopsy exonerating CALL2BB is still live context)
 
 **LON DIRECTIVES (s21x-p):** "Complete the ZETA cells on the RBP/RSP stack" · [roman.s double-add] "There should be ONE RSP decrement" · "that box [LEN] needs ZERO bytes" · "[proc_LBL__ROMAN_α] DELETE that stupidity. It should be a BB_SAVE_RESTORE and BB_CALL_* from the CONSTANT FOLDED DEFINE statement with proper glue. There is no frame operands offset from RBP anymore, just RSP." · "All your choices. I'm with you on this."
 
@@ -28,9 +49,10 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⛔⭐ WATERMARK OF RECORD (2026-07-30, s21x-p close)
+## ⛔⭐ WATERMARK OF RECORD (2026-07-30, s21x-q close — RE-DERIVED at start AND close, UNCHANGED by ZREL-2)
 
-**DEFAULT = RSP ACTIVATED:** **m3 PASS=264 FAIL=52** *(m3 flaps ±1 run-to-run; m4 is authoritative)* · **m4 PASS=264 FAIL=50 SKIP=2** · **DIVERGE=3** *(membership not re-captured at close — re-derive)*. This is the LADDER.  *(s21x-p: 251/65 -> 264/52 and 248/32/36 -> 264/50/2 across LEN-GHOST + js/jns; GLUE-4 and ZREL-1 byte-identical.)*
+**DEFAULT = RSP ACTIVATED:** **m3 PASS=264 FAIL=52** *(m3 flaps ±1 run-to-run — measured 265/51 at s21x-q start, 264/52 at close; m4 is authoritative)* · **m4 PASS=264 FAIL=50 SKIP=2** *(EXACT, both ends)* · **DIVERGE=3**. This is the LADDER.
+⭐ **DIVERGE MEMBERSHIP NOW CAPTURED** (s21x-p left it unknown): **{`140_pat_eval_double_fn_trick`, `141_pat_eval_double_fn_arbno`, `W04_arbno_basic`}**. Killswitch DIV=2 = {140, 141} ⇒ **`W04_arbno_basic` is the ONE divergence the killswitch removes — it is allocator-induced, unlike 140/141 which survive into the killswitch baseline. Free bisect hint for NEXT 4 (residual spine); not recorded anywhere prior.**  *(s21x-p: 251/65 -> 264/52 and 248/32/36 -> 264/50/2 across LEN-GHOST + js/jns; GLUE-4 and ZREL-1 byte-identical.)*
 **KILLSWITCH `SCRIP_BB_ALLOC=0`:** **m3 PASS=312 FAIL=4** {test_case · 140 · 141 · 160} · **m4 PASS=312 FAIL=2 SKIP=2** {test_case · 160} · **DIVERGE=2** {140 · 141} — UNCHANGED through all four s21x-p rungs.
 Runner: `scripts/test_crosscheck_snobol4.sh` (~25s/arm). ⛔ CENSUS ENVS (corrected s21x-p): `SCRIP_CALL2BB=1` ALONE is HEALTHY (probe + recursive roman correct). Any combo including `SCRIP_STMT_FRAME=1` remains OFF-LIMITS until the RELEASE stfh weld (the defect s21x-i mis-attributed to CALL2BB lives there).
 
@@ -121,6 +143,7 @@ Runner: `scripts/test_crosscheck_snobol4.sh` (~25s/arm). ⛔ CENSUS ENVS (correc
 ---
 
 ## HISTORY INDEX (one line per session; full text = FINDING docs + git)
+- s21x-q (07-30) ZREL-2: ζ-cell SPELLING sweep CLOSED — head:40/54 hfc carves → x86_zclaim(32), defer:168 leaf-SUSP → x86_zrelease; byte-identical 317/317 + all three .s regen scripts committed nothing; the remaining 41 raw-rsp sites ALL classified NOT-ζ (four legitimate classes: GLUE · C-ABI ALIGN · CSTACK SWAP ARM · PROLOGUE). STF defect RE-DIAGNOSED: release ALREADY has the stfh/HKQ arm; the real mechanism is head:32's x86_zclaim(48) carving OUTSIDE the grant, so op_zdepth (emit.cpp:820, set from op_fc_bytes only; HEAD excluded by kind at :811) is 0 and every non-HKQ [rsp+off] ref is displaced by 48 — emit.cpp:808's own law. Weld respecified as framed-glue K=48. Watermark UNCHANGED both ends; DIV membership captured {140,141,W04_arbno_basic}. FINDING-2026-07-30-CLAUDE-SN4-ZREL-2-ZETA-SPELLING-CLOSED-AND-THE-STFH-48-IS-AN-UNLEDGERED-SECOND-ALLOCATION-AUTHORITY.md
 - s21x-p (07-30) GLUE-4 framed-glue wired (`4c375fe2`) + ZREL-1 zclaim/zrelease (`a42ac31f`) + LEN-GHOST liveness fix (`42e81405`, the roman double-add root: COND/IMM operands[0] is wiring) + js/jns default-path compile bomb (`2aec9a4b`); D2 AUTOPSY: CALL2BB exonerated (recursive roman correct under it alone), defect is STF-side = bb_match_head stfh 48B carve vs bb_match_release un-welded reads; roman-ref ms-line correction. m3 251/65 -> 264/52, m4 248/32/36 -> 264/50/2, killswitch EXACT. FINDING-2026-07-30-CLAUDE-SN4-S21XP-LEN-GHOST-AND-D2-IS-STF-NOT-CALL2BB.md
 - s21x-o (07-30) ZTOS-1 sliding offsets (`b5754902`) + GLUE-3 wired byte-identical (`785e3a41`) + ZTOS-2 live depth on the rsp frame arm, one line, +37 both arms (`e064482e`); depth-displacement root cause found = allocator and operand address were two authorities that could not see each other; arming frontier proven to be a property of a box's READERS not the box; residual spine blocker measured and left NAMED-UNKNOWN. m3 211/105 -> 250/66, m4 208/72 -> 248/32, DIV=3 throughout. FINDING-2026-07-30-CLAUDE-SN4-ZTOS-1-SLIDING-OFFSETS-AND-THE-ARMING-FRONTIER-IS-THE-READERS-NOT-THE-BOX.md
 - s21x-m (07-30) UNIVERSAL PER-BB RSP CARVE ACTIVATED BY DEFAULT (Lon directive); zw_node_k K-authority; two glue codes; SCRIP_BB_ONLY/SKIP bisect keys; three laws (four-port bracket · spine-is-already-the-cell-machine · pin-is-a-layout-contract). Ladder opens at m3 210/106, m4 208/72/36, DIV=3.
