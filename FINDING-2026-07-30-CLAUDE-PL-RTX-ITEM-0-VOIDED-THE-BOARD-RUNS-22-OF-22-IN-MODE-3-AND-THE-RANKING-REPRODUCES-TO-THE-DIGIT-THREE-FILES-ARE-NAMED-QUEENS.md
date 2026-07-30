@@ -92,3 +92,57 @@ and I hit them **while reading s223's retraction of that identical mistake, and 
 immediately before writing.** For (a) that is one `git diff`; for (b) one `view` of the cursor.
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude Sonnet
+
+---
+
+## 7. ⭐⭐⭐ ADDENDUM — THE TWO "FALSIFIED" LEDGER ROWS ARE NOT FALSE. ALL FOUR NUMBERS ARE CORRECT, AND THE DEFECT IS ONE LEVEL DEEPER THAN BASENAMES.
+
+s224 recorded: *"⛔⛔ `RTX-CLAIMS.md` row `rt_call_arr_gen` reads `0` arrivals, `0/22`, `NOT-A-TARGET:PHANTOM-BY-EXECUTION`. MEASURED THIS SESSION: **2,815,800**"* and *"row `rt_arg_stage` reads `8` / `1/22` / `BLOCKED:MEASURED-ZERO`. MEASURED: **812,824**"* — two shared-ledger verdicts *"falsified by 5–6 orders of magnitude."*
+
+**MEASURED BOTH WAYS, `util_rtx_count_syms.sh`, gate ON, `-O0`:**
+
+| symbol | on the 22-program BOARD (`bench/`) | on `rung10_programs_puzzle_19.pl` |
+|---|---|---|
+| `rt_call_arr_gen` | **0 arrivals, reach 0/22** | **2,815,800** |
+| `rt_arg_stage` | **8 arrivals, reach 1/22** (all 8 in `crypt.pl`) | **812,824** |
+
+⇒ **the board columns reproduce the ledger rows EXACTLY** — `0`/`0/22` and `8`/`1/22`, digit for digit.
+⇒ **s224's two figures also reproduce EXACTLY** — verified here independently: 2,815,800 and 812,824.
+⇒ **NOTHING WAS FALSIFIED. All four numbers are true.** The ledger's columns are **board-wide arrivals and
+reach-out-of-22**; s224 measured a **different workload** (`puzzle_19`, md5 `de5c1c9f…`) and compared its
+count against a board-keyed row. **Two correct measurements of two different things.**
+
+⛔ **THIS IS s224'S OWN DEFECT ONE LEVEL UP, AND IT SUBSUMES IT.** s224 named the disease *"measurement
+keyed on basename"* — file identity not recorded. The ledger episode is **workload identity not recorded.**
+Same disease, next level: **a count was written down without the thing it was a count OF.**
+⇒ **THE FACT RULE SHOULD BE STATED ONCE, GENERALLY, NOT TWICE NARROWLY:** every recorded measurement
+carries **(a) full path + `md5sum` of the program(s)** *and* **(b) the workload set and its size.** A bare
+integer in a ranking column is unfalsifiable and, worse, *refutable-looking* — which is exactly how two
+correct rows came to be marked false.
+
+⭐ **THE INTERESTING FINDING THE "FALSIFICATION" WAS HIDING:** the board takes `rt_call_arr_gen` **zero
+times in 22/22 programs** while `puzzle_19` takes it **2.8 M times.** That is not a bad ledger row — it is a
+**coverage hole in the ranking corpus**, and it is far more actionable than a wrong verdict would have been.
+The board cannot see an entire dispatch path that one rung-test program hammers.
+
+⛔ **CONSEQUENCE FOR s224'S LANDED HOIST — IT IS WORKLOAD-SPECIFIC AND MUST BE LABELLED, NOT RETRACTED.**
+The 1.047× (base 2844 → hoist 2716) was measured on `puzzle_19`, where the symbol takes 2.8 M calls. **On
+the board the hoist is invisible by construction: 0 calls, 0/22.** The change is one line of C, free, and
+correct — **keep it** — but its win belongs to `puzzle_19`'s workload and may not be quoted board-wide.
+
+⛔⛔ **CROSS-LADDER HAZARD, AND IT IS THE URGENT PART.** `rt_arg_stage`'s `BLOCKED:MEASURED-ZERO` row is
+**ICON-RTX's**. If *"falsified at 812,824"* reaches that ladder unqualified, it invites unblocking and
+porting a symbol that takes **8 calls across the entire board.** The row is right. **Do not unblock it on
+this evidence** — unblock it only if `puzzle_19`-class workloads are added to the board *as board members*,
+which is a corpus decision, not a measurement.
+
+### IDENTITY KEYS (the owed FACT RULE, applied to this session's disputed files)
+```
+de5c1c9f2321e5d678abb71cda4f47f1  corpus/programs/prolog/rung10_programs_puzzle_19.pl
+fd781da367ab354c819f19b812218ad7  corpus/benchmarks/prolog/bench/queens.pl      = 430,081 (the board figure)
+4b27b1d9004df817f4b73b34d87b2edd  corpus/benchmarks/prolog/vanroy/queens.pl     = looped wrapper, rc=124
+c77a63aad44b535ce947463e20000ab9  corpus/programs/prolog/queens.pl              = N=6, 12,957
+588e35e93b0bb9a830eb2fcd3ec2abea  corpus/benchmarks/prolog/bench/crypt.pl       = the only rt_arg_stage site on the board
+```
+⚠ Note `4b27b1d9…` is the md5 **s224 cited for the 430,081 file**; it is in fact the looped `vanroy` variant
+it had itself clocked at rc=124. The 430,081 file is `fd781da3…`. **The keys settle it; prose could not.**
