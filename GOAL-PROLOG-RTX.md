@@ -26,7 +26,139 @@ governing constraint.
 
 ---
 
-## ⛔ LIVE CURSOR — s223-PL (2026-07-30): **⭐⭐ RTX-1-PL LANDED. THE ASM EXECUTES IN BOTH MODES AND BAILS TO C ZERO TIMES. THE PERF ANSWER IS A NULL — AND THE REASON IS THAT ALL THREE SHARED RTX INSTRUMENTS FAIL ON PROLOG, SO THE CLAIM IS UNFALSIFIABLE, NOT DISPROVEN.**
+## ⛔ LIVE CURSOR — s225-PL (2026-07-30) — **ADDENDUM TO s224 BELOW, WHICH IT DOES *NOT* SUPERSEDE: THE s221 BOARD IS A FIFTH DIRECTORY, `benchmarks/prolog/bench/` (22 FILES), AND IT REPRODUCES 2,060,043 / 19-OF-22 TO THE DIGIT. PLCALL KILL-SWITCH GATE NOW PASSES ON PROLOG, BOTH MODES.**
+
+SCRIP `8437c3d7` on origin + s224's local `440f7d6d` (**left untouched — another session's live work in a shared container**). RT_OPT=`-O0`. **Zero source edits s225.** Watermark re-proved at start: **Prolog 164/164 interp + 164/164 compile, FAIL=0.**
+FINDING: `FINDING-2026-07-30-CLAUDE-PL-RTX-ITEM-0-VOIDED-THE-BOARD-RUNS-22-OF-22-IN-MODE-3-AND-THE-RANKING-REPRODUCES-TO-THE-DIGIT-THREE-FILES-ARE-NAMED-QUEENS.md`
+
+⛔ **PRIORITY: s224 (below) STRUCK ITEM 0 FIRST, with the better method.** s225 reached it independently and **second**, in the same container, and claims none of s224's results. s225 discharges exactly one of s224's NEXT items — *"re-rank the s221 board with full-path+md5 keys"* — and adds three things:
+
+1. ⭐⭐ **THE BOARD IS `benchmarks/prolog/bench/` — 22 files, 22/22 rc=0 in mode 3.** s224 measured `vanroy/` (**21** files) and *inferred* the match from reach (*"19/21 matches 19/22 exactly"*). No inference needed: census over all 22 of `bench/` gives **ENTRIES 2,060,043 · reach 19/22 · BAILED_C 0** — the s221 figures **to the digit**. ⇒ the board was measured in mode 3 from `bench/`; **item 0 is closed twice over, by two instruments.** ⇒ s224's four-directory census is really **five**. ⇒ **PERF VEHICLE: `bench/queensn.pl` = 1,596,708 arrivals = 78% of board traffic**, one rc=0 program.
+2. ⭐ **SMALL CORRECTION TO s224(2)(a) — THREE files are named `queens.pl`, not two.** 430,081 belongs to **`bench/queens.pl`** (measured exactly), not `vanroy/queens.pl` — the latter is the **looped** wrapper s224 itself clocked at rc=124. s224's N=6-vs-N=16 explanation of the 33× **stands**; only the path label moves. ⭐ **The session that discovered basename-keyed measurement was itself off by one directory on a basename** — the sharpest possible case for its own owed FACT RULE (full path + `md5sum`, always).
+3. ⭐ **`meta_qsort`'s "real banked defect" is PATH-SPECIFIC.** s224 banked `vanroy/meta_qsort.pl` rc=134 `rt_pl_cterm: island exhausted`. **`bench/meta_qsort.pl` ⇒ rc=0, 3,656 arrivals.** ⛔ Re-bank narrowly as *"exhausts the cterm island under the loop wrapper"* — **fourth consequence of the basename habit.**
+4. ✅ **OWED ITEM DISCHARGED — PLCALL KILL-SWITCH GATE PASSES ON PROLOG.** s223 added the `EXT` param but never completed the sweep; it appears in no later cursor. `… PLCALL <bench> 4 both pl` ⇒ **m3 IDENTICAL=22 · m4 IDENTICAL=22 · MOVER=0 · QUARANTINE=0 · SKIP=0 · GATE PASS.** With s223's falsification probe, **RTX-1-PL's correctness case is closed.**
+
+**NEXT (s224's three rulings still govern and are unchanged — see its NEXT below).** s225 adds only: re-key the board table by full path + `md5sum` now that the board directory is known; and if `bench/queensn.pl` is used for a 3-arm measurement, note it needs a PRISTINE rebuild (the `.so` in the tree is s224's).
+
+**WATERMARK (s225):** `.github` = this addendum + FINDING + ledger inbox note. SCRIP/corpus = **untouched.** Per `RULES.md`, INCOMPLETE until `handoff_status.sh` prints HANDOFF COMPLETE.
+
+---
+
+## ⛔ LIVE CURSOR — s224-PL (2026-07-30): **⭐⭐⭐ ITEM 0 IS FALSE AND STRUCK. THE VAN ROY CORPUS RUNS 19/21 IN MODE 3. TWO LEDGER VERDICTS ARE FALSIFIED BY 5–6 ORDERS OF MAGNITUDE. THE LADDER'S REAL DEFECT IS BASENAME-KEYED MEASUREMENT, AND IT HAS NOW PRODUCED FOUR SEPARATE FALSE CLAIMS.**
+
+SCRIP `440f7d6d` (local; PUSH OWED — see WATERMARK). RT_OPT=`-O0`. Watermark re-proven at session
+start: **Prolog 164/164 interp + 164/164 compile, FAIL=0.**
+
+⭐⭐ **(0) ITEM 0 (s223's #1 NEXT) IS FALSE — STRUCK.** *"The van Roy corpus does not execute in mode 3"*
+is wrong. Measured with `scrip`'s OWN exit status: **19 of 21 `benchmarks/prolog/vanroy/*.pl` return
+rc=0** with correct output. The two non-zero are `meta_qsort.pl` (rc=134 `rt_pl_cterm: island exhausted`
+— ⛔ **CORRECTED BY s225: this is PATH-SPECIFIC, not a general defect — `bench/meta_qsort.pl` runs rc=0
+with 3,656 arrivals. Bank it narrowly.**) and `queens.pl` (rc=**124** = my own 60 s `timeout`, *after* it printed the
+correct 16-queens answer). **19/21 matches the s221 board's 19/22 reach exactly** ⇒ the ranking and the
+grading instrument WERE always in the same mode. ⚠ **MY FIRST PASS AT THIS MEASUREMENT WAS ALSO WRONG**
+and I caught it: I read `$?` after a pipeline, so `rc` was `tail`'s status and every program read rc=0.
+**A pipeline destroys the exit status you are trying to measure.**
+
+⭐⭐⭐ **(1) ROOT CAUSE OF ITEM 0, AND OF THREE OTHER FALSE CLAIMS: MEASUREMENT KEYED ON BASENAME.**
+s223 ran `chat_parser`/`boyer`/`browse`/`crypt`/`derive` and reported rc=134 as a property of *"the van
+Roy corpus."* Those files live in **`benchmarks/prolog/src/{swi-vanroy,gnu-examplespl}/`** — the
+**PRISTINE UPSTREAM IMPORTS**, which carry **no entry-point harness** — not the adapted, runnable
+`benchmarks/prolog/vanroy/` set. `chat_parser`/`boyer`/`browse` exist ONLY under `src/`. **PROVED with
+the SAME basename:** `src/swi-vanroy/crypt.pl` ⇒ rc=134 `[IBB] FATAL: mode-3 driver: main BB graph not
+found`, **0** harness directives; `vanroy/crypt.pl` ⇒ **rc=0**, correct output, **3** harness directives.
+⛔ **`crypt.pl` and `derive.pl` each exist in FOUR directories.**
+⇒ **FACT RULE OWED: A MEASUREMENT RECORDS THE FULL PATH + `md5sum`, NEVER THE BASENAME.** Four false
+claims so far trace to this one habit: item 0; the 33× queens gap; and the two ledger verdicts in (2).
+
+⭐⭐ **(2) ITEM (2) SOLVED, AND TWO SHARED-LEDGER VERDICTS FALSIFIED.**
+**(a) The 12,957 vs 430,081 "33× disagreement" is two different files**, as s223 guessed — now proved:
+`programs/prolog/queens.pl` md5 `c77a63aa…` is **N=6** (44 lines, the rung test, = 12,957);
+**N=16 ⇒ 430,081 is `benchmarks/prolog/bench/queens.pl`.** N=6 vs N=16 backtracking search fully accounts
+for 33×, and **no instrument was broken** — but ⛔⛔ **s225 CAUGHT ME COMMITTING THE EXACT DISEASE I WAS
+DIAGNOSING: I attributed 430,081 to `vanroy/queens.pl`, which is the LOOPED wrapper I had myself clocked
+at rc=124. THREE distinct files are named `queens.pl`. My N=6-vs-N=16 explanation stands; only the path
+label moves. Writing the rule did not make me follow it.**
+**(b) ⛔⛔ `RTX-CLAIMS.md` row `rt_call_arr_gen` reads `0` arrivals, `0/22` reach,
+`NOT-A-TARGET:PHANTOM-BY-EXECUTION`. MEASURED THIS SESSION: 2,815,800 arrivals** on a validated rc=0
+workload. **(c) ⛔ row `rt_arg_stage` reads `8` arrivals / `1/22` and `BLOCKED:MEASURED-ZERO`
+(OUT: ICON-RTX). MEASURED: 812,824.** Both are **other ladders' rows — NOT EDITED**, filed to the
+ledger inbox per discipline.
+
+⭐⭐ **(3) THE SINK-FREE HOT SURFACE IS EMPTY — MEASURED, AND THAT IS THIS LADDER'S REAL BLOCKER.**
+Full dynamic sweep on `rung10_programs_puzzle_19.pl` (rc=0, ~2.8 s): `rt_gen_spine_resume_enter`
+**18,132,718** (already asm — ICON-RTX s214) · `rt_proc_call_open_det` **13,850,337** (RTX-1-PL ✅) ·
+`rt_jmp_frame_lexprep2` **13,850,337** · `rt_pl_dop_trail_unwind` **13,702,135** (SINK-9 ⏳) ·
+`rt_pl_dop_unwind_nothrow` **13,609,578** (SINK-9 ⏳) · `rt_call_arr_gen` **2,815,800** ·
+`rt_pl_dop_unify` **1,775,371** · `rt_arg_stage` **812,824** · `rt_proc_set_*` **0–20** (startup only)
+· `rt_pl_dop_trail_mark` **1** (confirms VESTIGIAL). ⇒ **every hot Prolog symbol is now ported,
+SINK-claimed, or ledger-blocked.** ⛔ `rt_jmp_frame_lexprep2` is **13.85 M and exactly 1:1 with
+`open_det`** but sits in the **DUAL-ENTRY cluster — "the highest-risk area on either ladder"** (it broke
+Icon at HEAD for four sessions) and a port there is a **three-language event** ⇒ **I did NOT take it
+unilaterally. It needs a ruling.**
+
+⭐⭐⭐ **(4) THE RUNG I DID LAND IS NOT ASM, AND THAT IS THE FINDING.** `rt_call_arr_gen` is a **14-arm
+`strcmp` chain with NO fast path** — 2,815,800 arrivals, and `rt_pl_between_gen` takes **2,815,800 =
+100.0% of them, on the arm sitting 11th in the chain** ⇒ ~28 M failing `strcmp`s per run to reach one
+destination. **`ARCH-PROLOG-RTX.md` hazard (a) does NOT apply, and the reason is measured, not argued:**
+that hazard holds for the `dop` family because `rt_pl_dop_ax_*` **fast-path int×int and return BEFORE
+the dispatch is entered**; here **the dispatch IS the entry.** Hoisting the hot arm to the head =
+**one line of C**: warmed interleaved 5 rounds, medians, two `.so` arms swapped per round, base **2844**
+→ hoist **2716** ⇒ **1.047×**, faster in **4/5**, and independently bracketed (28 M × ~5 ns ≈ 140 ms
+predicted vs **128 ms** measured — the estimate and the stopwatch agree). ⇒ **THE DISPATCH COST WAS
+REMOVABLE IN C. An asm port of this symbol would have claimed a win a one-line reorder already took;
+its residual prize is call overhead only.** ⛔ **Generalized: on this ladder, MEASURE WHETHER C CAN TAKE
+THE WIN BEFORE WRITING ASM — "replace C with asm" is a means, not the goal.**
+
+⭐⭐⭐ **(5) THE SUCCESSOR RUNG IS EMITTER-SIDE AND DOMINATES ANY ASM PORT HERE.** `bb_call.cpp` **bakes
+the callee name as a `.string` literal into the emitted code** (`.LbynamegenfnNN: .string "$between"`)
+and passes `lea rdi, [rip + …]`. **The name is a COMPILE-TIME CONSTANT.** So 2.8 M crossings per program
+run a by-name string dispatch to re-derive a fact the emitter already had; it could emit
+`call rt_pl_between_gen` **directly**, deleting the dispatch AND one crossing rather than making it
+cheaper. That is SINK-shaped, and it is the real prize.
+
+⛔⛔ **(6) CONCURRENCY — TWO SESSIONS ARE ON THIS ONE GOAL FILE, AND I DUPLICATED WORK BECAUSE OF IT.**
+`.github` HEAD advanced mid-session to **`4b1dd1b0` — `PL-RTX s225`** (parallel session, same ladder).
+`RULES.md` sanctions parallel sessions **on DIFFERENT goal files**; two on `PL-RTX` is outside that.
+**s225 had ALREADY struck item 0, already found the basename root cause, already identified the real
+s221 board as `benchmarks/prolog/bench/` (22 files, 22/22 rc=0, reproducing 2,060,043 / 19-of-22 TO THE
+DIGIT), and already completed the kill-switch sweep at m3 IDENTICAL=22 / m4 IDENTICAL=22.**
+⇒ ✅ **My 6-program subset sweep is SUPERSEDED — cite s225's 22/22, not mine.**
+⛔ **MY ERROR, AND IT COST MOST OF THIS SESSION'S BUDGET: I trusted this file's `LIVE CURSOR` (s223) and
+never read `RTX-CLAIMS.md`'s MESSAGE BOARD, even though §SYMBOL OWNERSHIP tells me to check the ledger.
+I ran `util_rtx_claims.sh` (the GATE) and mistook that for reading the LEDGER.** ⇒ **FACT RULE OWED:
+ORIENTATION READS THE MESSAGE BOARD, NOT JUST THE GATE'S EXIT CODE. The gate reports rot; the board
+reports WHAT OTHER SESSIONS ALREADY DID.**
+⚠ **AND s225 DID NOT MOVE THIS CURSOR** — it committed a FINDING + one board line and left the header at
+s223, which is `RULES.md` FACT RULE (b) firing **again**, in the very session that correctly lectured
+three ladders about measurement discipline. **That omission is what routed me into duplicate work.**
+
+**GATES (s224):** Prolog **164/164 interp + 164/164 compile** at the hoist. **No-regression proven
+against a MEASURED baseline, not assumed:** Icon **251/12/30 identical** across all three modes base vs
+hoist; SNOBOL4 identical, same single **pre-existing** `zb_arena_collection_grow` FAIL in both arms.
+⛔ Ledger gate reports **BLOCKED — 3 fatal**, ALL PRE-EXISTING AND NONE PROLOG'S: `rt_defer_open` /
+`rt_defer_close` (SN4-RTX, asm in `rtx_match.S`, rows not DONE — **now reported for the sixth session**)
+and `rt_frame` (ICON-RTX ledger rot). Not my rows; not edited.
+
+⚠ **s223's "PUSH BLOCKED, credential needed" BANNER WAS FALSE AT HEAD** — `ff6947e5` (RTX-1-PL) is on
+origin, verified by `git log origin/main`. That is `RULES.md` FACT RULE (a) firing **again**, one session
+after it was written. **VOIDED.**
+
+**WATERMARK:** SCRIP `440f7d6d` **local, PUSH OWED (credential needed)** / corpus `<none>` / `.github`
+this cursor + ledger inbox — **PUSH OWED.** Per RULES.md this handoff is **INCOMPLETE until
+`handoff_status.sh` prints HANDOFF COMPLETE.**
+
+**NEXT:** ⭐ **Three rulings are needed and this ladder cannot legally proceed on hot symbols without
+them: (i) the §SCOPE ruling (unblocks `trail_unwind` 13.7 M + `unwind_nothrow` 13.6 M, the two biggest
+remaining prizes, both SINK-9 ⏳); (ii) DUAL-ENTRY — may PL-RTX take `rt_jmp_frame_lexprep2` (13.85 M,
+1:1 with `open_det`, three-language, highest-risk cluster)?; (iii) arbitration with ICON-RTX over
+`rt_arg_stage`, whose `BLOCKED:MEASURED-ZERO` this session falsified at 812,824.** Unblocked meanwhile:
+**(5) the emitter-side direct-call rung** (no ruling needed, dominates the asm port); **RTX-0d-PL** is
+now substantially advanced (workload set validated: 19/21 van Roy + `puzzle_19` known-good);
+**re-rank the s221 board with full-path+md5 keys** and re-audit every verdict derived from it.
+
+---
+
+## ⛔ SUPERSEDED — s223-PL CURSOR (retained for the corrections it recorded; items 0/6/7 now amended by s224 above)
 
 SCRIP `b1ca896e` + this session. RT_OPT=`-O0`.
 FINDING: `FINDING-2026-07-30-CLAUDE-PL-RTX-1-LANDED-GREEN-AND-VACUOUS-BY-VOLUME-AND-ALL-THREE-SHARED-RTX-INSTRUMENTS-FAIL-ON-PROLOG.md`
