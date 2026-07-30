@@ -2,7 +2,7 @@
 
 **Session:** s21x-o · SNOBOL4-BB · Lon directive "Finish the RSP/RBP once and for all. We've been struggling for unknown reasons for the last few sessions."
 **Commits:** SCRIP `b5754902` (ZTOS-1), `785e3a41` (GLUE-3), `5c0576cb` (feature .s) · corpus `aafe071e` (benchmark .s), `066cc232` (demo .s)
-**Watermark:** m3 211/105 → **214/102** · m4 208/72/36 → **211/69/36** · DIVERGE=3 unchanged. Reproduced at session start before any edit.
+**Watermark:** m3 211/105 → **250/66** · m4 208/72/36 → **248/32/36** · DIVERGE=3 unchanged throughout. Reproduced at session start before any edit.
 
 ---
 
@@ -71,9 +71,33 @@ The spine kinds themselves are fine. `OUTPUT = 1 + 2` still prints `3`, and the 
 
 This is why widening the arming set BY KIND kept producing the "unknown reasons" of s21x-j..m: **the property that decides whether a box can be armed does not live on that box.** The exclusion is restored with this reason recorded in `emit.cpp`, replacing the wrong one.
 
+## 4b. ZTOS-2 — the same law on the frame arm, one line, +37 both arms (SCRIP `e064482e`)
+
+The blocker section 4 identified was discharged in the same session, and the fix was one line in `x86_frame_off` — *the* one offset function:
+
+```c
+return (x86_isle() || x86_fb_data()) ? off : off + (int)_.op_flat_disp + _.op_zdepth;
+```
+
+The rsp whole-graph arm carried only `op_flat_disp`, LOWER's **static** distance from rsp to the flat frame base. The box's own alpha carve moves rsp down by K *after* that distance was computed, so every such reference read K bytes too low — **the identical ZTOS-1 defect, on the frame arm instead of the spine.** Arms 1 and 3 (island r12, pinned rbp) are depth-immune bases and are deliberately excluded; compensating a base that does not move is the FRQ/FRQB double-add class.
+
+**m3 214 → 251, m4 211 → 248, DIVERGE=3 flat.**
+
+This discharges the s21x-n cursor's NEXT(1) — "`op_flat_disp` must become the live authority as carves deepen the stack" — and generalises the law:
+
+> **A box compensates for exactly what IT carved, whichever base its references name.**
+
+Both halves of this session are the same one-sentence law applied at two sites. That is the useful takeaway: the subsystem did not need a new mechanism, it needed the two existing authorities (what a box allocates, and where a box reads) to be forced to agree.
+
+## 4c. ⛔ The spine arming has a SECOND blocker — measured, not identified
+
+With arm 4 live, `_spine = 0` was retried: **m3 251 → 192, m4 248 → 191.** Far better than the pre-ZTOS-2 collapse to 108, so ZTOS-2 removed one of two causes — but a second remains and this session did **not** identify it. Reverted; the exclusion stands.
+
+⚠ This experiment has now been run twice with two different results. The next session's job is to **name** the residual class — bisect with `SCRIP_BB_ONLY`/`SCRIP_BB_SKIP` (nid csv), which is precisely what that instrument exists for — not to re-observe that it regresses.
+
 ## 5. Next, in dependency order
 
-1. ⭐ **Migrate the match family off `op_flat_disp` onto `op_zdepth`.** This is the ONE blocker between here and "every single BB". The `_spine` list then retires by itself rather than by directive. Start at `bb_match_head`, monitor-first per RULES.md.
+1. ⭐ **Bisect the residual spine blocker** (§4c) with `SCRIP_BB_ONLY`, one kind at a time, against the 251/248 baseline. The fail set is now roughly a third of what it was at session start.
 2. The remaining 11 templates spelling `"rsp"` directly. `bb_match_capture`'s deliberate raw `rsp#` marker is load-bearing inside the SAVE/COND protocol and wants the splice ruling first.
 3. `bb_binop_arith`'s own mid-body `add rsp,16` (pops its second operand cell) — traced, composes correctly with `op_zdepth`, but still a raw rsp reference in a template.
 4. **Wire `bb_glue_framed_*`** — the RBP half. Customers closed by the s21x-c four constructs. ⛔ LAYOUT CONTRACT, not a spelling switch (s21x-m measured SEGV): whoever wires it wires the prologue's rbp save/seed in the same breath.
