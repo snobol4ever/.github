@@ -18,6 +18,29 @@ Boxes are wired **statically** (label / rel32) or, where the target is data, **d
 
 **THE CARVE THAT EXISTS TODAY IS A CORPSE, NOT INFRASTRUCTURE.** `flat_frame_bytes` is debt. The **1057 `FR`/`FRQ`/`FRQB` reader sites across 108 templates** are debt. They are what is left of the pre-BB world, and the per-BB cells are currently running *alongside* them (301/317 programs carry both). The job is not to reason about the frame, tune it, shrink it, or decide which constructs "need" it. **The job is to delete its customers until it has none, then delete it.**
 
+### ⛔⭐⭐ HEAD RUNG — CARVE-ERAD: DELETE IT. THE MANIFEST IS ~62 SITES AND ONE LINE. (Lon directive, s21x-r, stated three times)
+
+**Lon: "Remove the whole-graph carve code. Eradicate it from the source. We would not want you to continue getting confused for days at a time. You keep calling the function even though I keep telling you not to."** The directive is correct and the reason is correct: while the frame exists, sessions reason about it.
+
+⭐ **THE 1065 `FR`/`FRQ`/`FRQB` READER SITES NEED ZERO EDITS.** They already resolve through ONE function, and that function carries BOTH authorities on one line:
+```c
+x86_asm.h:373  inline int x86_frame_off(int off) { return (...) ? off : off + (int)_.op_flat_disp + _.op_zdepth; }
+```
+`op_flat_disp` is LOWER's STATIC prefix sum — the carve's ADDRESS side. `op_zdepth` is the live per-BB side. **Delete the static term and every reader converts for free.** s21x-r twice proposed converting templates by hand (108 files / 1065 sites) — WRONG both times; that is the failure mode this section exists to name.
+
+**MANIFEST (measured s21x-r):** `flat_frame_bytes` **31 sites** · `op_flat_disp` **24 sites** · carve/`jcon_value_region` emission **7 sites** · `x86_frame_off` **1 line**. That is the whole eradication.
+
+**⛔ ORDER MATTERS — THESE ARE ONE OPERATION, NOT THREE.** `op_zdepth` today is **per-node, not cumulative** (`emit.cpp:821  g_emit.op_zdepth = x86_fc_on() ? (int)g_emit.op_fc_bytes : 0;` — the box's OWN K). Box A carves K, jumps to B; B's rsp is K deeper and B cannot see it. So:
+1. **Make `op_zdepth` the RUNNING SUM of live carves at each node** (ZTOS-1's stated design — *"the emitter tracks live depth at compile time"* — is HALF BUILT: allocator spends per box, accessor compensates per box, nobody sums). Well-definedness at merges and β re-entry is the real design content; the SUSPENDED-CELL law (s21x-l) is the constraint.
+2. **Drop `op_flat_disp` from `x86_frame_off`**, then delete its 24 sites.
+3. **Delete `flat_frame_bytes`, the 7 carve sites, and the five-kind exclusion list** (emit.cpp:811) together.
+
+**EVIDENCE THE HOOK IS ALREADY RIGHT (s21x-r, `SCRIP_BB_ALLOC_ALL=1`, committed):** with the exclusions dropped so EVERY box self-allocates through the α hook, **all 31 boxes already on the live-depth authority pass 31/31**. No template was converted. Corpus-wide it is m4 214/101 DIV=21 purely because the newly-armed boxes displace consumers still reading the static term — i.e. step 1 above, and nothing else.
+
+**GATE:** `SCRIP_BB_ALLOC_ALL=1` passes **317/317 both modes** → then the deletion is a no-op removal of dead code rather than a regression. Bisect instruments already committed: `SCRIP_BB_ALLOC_ALL=1`, `SCRIP_NO_GRAPH_CARVE=1`, `SCRIP_BB_ALLOC=0`.
+
+⚠ **DO NOT cut the 62 sites before step 1 lands.** Deleting the static authority while `op_zdepth` is still per-node regresses ~38-50 programs with no path back to green — a half-finished eradication is the one outcome worse than the frame existing. Step 1 IS the eradication; steps 2-3 are the cleanup that follows it in the same slice.
+
 ### ⛔ THE FAILURE MODE, NAMED — s21x-r hit every one of these in one session
 
 - **Treating the frame as a design element to be reasoned about.** It is legacy. When a rung starts asking "which constructs need the frame?", the rung is already wrong.
