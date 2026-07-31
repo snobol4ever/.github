@@ -170,3 +170,24 @@ The §1 flake is only the **m4 face**. Measured:
 ⚠ **ENVIRONMENT FACT THE METHODOLOGY DEPENDS ON: `gdb` IS NOT INSTALLED IN THIS CONTAINER.** RULES.md's bracket protocol step 2 ("gdb breakpoint at the bracketed location, with a SPIN/IGNORE COUNTER") is unavailable as written until someone installs it. `scripts/install_system_packages.sh` installs `libgmp-dev m4 nasm wabt bison flex` — no gdb. Either add it there or plan on the `probe.py` / monitor route.
 
 **REVISED NEXT (2):** debug `151` against the **m3 SIGSEGV**, which is deterministic 6/6 and in-process, rather than the m4 face. The m4 SIGBUS under `setarch -R` is the confirming second witness. Both are free; neither needs the coin flip.
+
+---
+
+## 7 ⚠ SHELF-LIFE CAVEAT — A PARALLEL SESSION LANDED **ZD-9** ON THE FAMILY B GATE WHILE THIS SESSION RAN
+
+Every number above is HEAD-STAMPED **SCRIP `417add3c`** (the s22k close), per the CENSUS SHELF LIFE law. At handoff,
+`handoff_status.sh` showed **SCRIP origin had moved to `5c1f99bf`** — this clone was BEHIND, not ahead (0 unpushed):
+
+```
+5c1f99bf  ZD-9: refine zd_plan's BLANKET jmp-entry decline to admit DEFINE stubs   (emit.cpp, 2 insertions 2 deletions)
+```
+
+⛔ **ZD-9 TOUCHES EXACTLY THE GATE §2's FAMILY B IS DEFINED BY.** Family B is "declined WHOLESALE at graph level by
+`flat_jmp_entry`" — and ZD-9 refines that blanket decline. **So §2's A=15 / B=6 split is stamped to a HEAD that no
+longer exists, and the B members are the ones most likely to have moved.** §1 (the `151` flake) and §3 (the arm
+census) are far more likely to survive — neither depends on the jmp-entry gate; §3 is a property of which arms the
+DEFINE protocol emits, and §6's `151` reproducers are properties of a program that never enters the blob regime.
+
+**RE-RUN, DO NOT CITE.** Before spending the Family A rung: `git pull --rebase`, rebuild, and re-take §2's
+`SCRIP_NOFC=1` A/B set-diff at the new HEAD — remembering §1, i.e. **repeat the m4 run or exclude `151`**, or the
+±1 will be misread as a rung result.
