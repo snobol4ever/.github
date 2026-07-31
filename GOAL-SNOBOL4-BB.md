@@ -61,7 +61,21 @@ The frame is *present in every `.s` file*, so it looks like infrastructure holdi
 
 ---
 
-## ⛔⭐ LIVE CURSOR — s21x-r (2026-07-30, Claude: ⭐⭐ **THE STF "DEFECT" WAS A PROCESS-SCOPE PLANNER FLAG, AND THE ARMED PATH WAS NEVER BROKEN.** ZLEAK-1 + ZLEAK-2 landed; declined-graph leaks 285 → 24 → **0**; ALL-OR-NOTHING PER GRAPH now provably holds corpus-wide. STF=1 is watermark-NEUTRAL. D2 and roman-under-gates both RETIRED by measurement.)
+## ⛔⭐ LIVE CURSOR — s21x-s (2026-07-31, Claude: ⭐⭐ **WHOLE-GRAPH CARVE DELETED** (Lon directive). `flat_frame_bytes = 48` permanently; `SCRIP_NO_GRAPH_CARVE` deleted. `zw_carve_k` one-authority extracted. Two plan claims falsified. WATERMARK m3 229/88 m4 227/88/2 DIV=1. NEXT: emit-time ζ-depth running sum — the one remaining step to turn the 88 reds green.)
+
+**⭐⭐ SCRIP `1c0124f1` CARVE-ERAD landed.** The value-region (`rg = jcon_value_region`) is deleted from `g_emit.flat_frame_bytes`. The residual 48 = wire header only (outside-γ/ω wires + saved rbp, this box's own four-port protocol). `SCRIP_NO_GRAPH_CARVE` bisect flag deleted — it simulated this and is now permanent.
+
+**TWO PLAN-OF-RECORD CLAIMS FALSIFIED, WRITTEN INTO SOURCE (do not re-attempt):**
+1. **"Drop op_flat_disp from x86_frame_off and every reader converts for free"** — WRONG. A/B: dropping the term costs 3 programs (226/91 vs 229/88 both modes). `op_flat_disp` is the prefix sum over **fc_geom-GRANTED suspended cells** (S10c) + 32B HEAD constant — those survive the carve deletion and still need compensating. The 24 sites are a **narrowing** not a deletion; term retained.
+2. **"Teach the static prefix about per-BB carves at lower time"** — WRONG. `fc_leaf_walk` runs at `lower_snobol4.c:1771`; `zls_build` arrives at `:2411` — 640 lines later, same pass. `zw_carve_k` returns 0 for every node when called from the prefix walk. The static authority cannot be taught per-BB sizes at any price; the sizes haven't been decided yet. DO-NOT-RETRY note in source.
+
+**LIVE BUG LOGGED:** `test_string` segfaults nondeterministically (rc=139, ~27% of environment sizes, ASLR + rsp sensitivity). Same multi-entry graph s21x-r measured at 11 entries. Not chased; likely cured by step 1.
+
+**⭐ THE PROBE INSTRUMENT** (`SCRIP_ZPROBE=1`): instruments `walk_bb_node` with nesting depth + per-node K. Used to prove emission is FLAT (max nesting depth 0; all 85 FILL sites in the driver, templates never recurse). Retained in source, gated, zero cost when off.
+
+**NEXT — STEP 1 = EMIT-TIME ζ-DEPTH RUNNING SUM.** The 88 reds go green when this lands. Shape: abstract interpretation over the four-port graph computing depth-on-entry per box. NOT a lower-side prefix (falsified above). NOT a save/restore around the emission walk (emission is flat). Must handle merges (γ→next) and β re-entry under the SUSPENDED-CELL law. The one function that matters is `walk_bb_node_inner` at the choke; `op_zdepth` is already the right field (set unconditionally from `op_fc_bytes` at emit.cpp:821). The question is what `op_zdepth` for a given box should be when other boxes have already carved on the same spine.
+
+## ⛔⭐ PRIOR CURSOR — s21x-r (2026-07-30, Claude: ⭐⭐ **THE STF "DEFECT" WAS A PROCESS-SCOPE PLANNER FLAG, AND THE ARMED PATH WAS NEVER BROKEN.** ZLEAK-1 + ZLEAK-2 landed; declined-graph leaks 285 → 24 → **0**; ALL-OR-NOTHING PER GRAPH now provably holds corpus-wide. STF=1 is watermark-NEUTRAL. D2 and roman-under-gates both RETIRED by measurement.)
 
 ⛔ **ROUTING: READ `THE MODEL` AT THE TOP OF THIS FILE FIRST — every rung below assumes it.**
 
@@ -110,17 +124,16 @@ FINDING-2026-07-30-CLAUDE-SN4-ZLEAK-PROCESS-SCOPE-FLAGS-DRIVING-GRAPH-SCOPE-REGI
 
 ---
 
-## ⛔⭐ WATERMARK OF RECORD (2026-07-30, s21x-r close — 317 programs, incl. the new D2 probe `097_define_capture_return_d2probe`)
+## ⛔⭐ WATERMARK OF RECORD (2026-07-31, s21x-s close — 317 programs, SCRIP `1c0124f1`)
 
-| regime | m3 | m4 | DIVERGE | armed |
+| regime | m3 | m4 | DIVERGE | note |
 |---|---|---|---|---|
-| **DEFAULT** | 266/51 | **265/50/2** | 3 {140,141,W04} | — |
-| `SCRIP_STMT_FRAME=1` | 265/52 | **265/50/2 — fail set IDENTICAL** | 3 (same) | 31 |
-| `+SCRIP_SUBJ_CELL=1` | 265/52 | **265/50/2 — fail set IDENTICAL** | 3 (same) | 44 |
-| `+SCRIP_CALL2BB=1` | **268/49 (+2)** | **265/50/2 — fail set IDENTICAL** | **1 {W04}** | 58 |
-| `SCRIP_BB_ALLOC=0` killswitch | 312/4 | 312/2/2 | 2 {140,141} | — |
+| **DEFAULT (post-CARVE-ERAD)** | **229/88** | **227/88/2** | **1 {W04}** | carve deleted |
+| `SCRIP_BB_ALLOC_ALL=1` | 237/80 | 215/100/2 | 21 | unchanged from s21x-r |
 
-*(pre-fix contrast: STF=1 was m3 230/86 · m4 223/91/2 · DIV=6.)* Default path byte-identical; benchmark/feature/demo `.s` regen committed NOTHING. Runner: `scripts/test_crosscheck_snobol4.sh` (~75s/arm). ⛔ **The "STF is OFF-LIMITS" census rule is LIFTED** — all three gate combos are m4-neutral with identical fail sets.
+Runner: `scripts/test_crosscheck_snobol4.sh` (~75s/arm). 88 reds = debt counter (FR/FRQ readers displaced from deleted region; go green when emit-time depth sum lands). DIV improved 3→1 as side effect of deletion.
+
+**s21x-r close (retained for context):** DEFAULT m3 266/51 · m4 265/50/2 · DIV=3 · killswitch m3 312/4 · m4 312/2/2 · DIV=2.
 
 ---
 
