@@ -81,7 +81,7 @@ ANSWERS rather than crashing): `add rsp` sites on the 023 witness fall **8 → 5
 
 The pops in `bb_assign_global` (×2), `bb_binop_arith` (×2), `bb_binop_concat_slot` (×1) are gated
 `IF(!stf(), …)`. They are the **UNARMED-graph fallback** and remain load-bearing.
-MEASURED THIS SESSION: **96 of 317** compiled crosscheck programs emit an rbp bracket, so ~221
+MEASURED THIS SESSION: **31 of 318** graphs are STF-armed, so ~287
 graphs still have no bracket to cut back to. That is why s21x-z's deletion experiment broke
 transfer programs with `armed=0` — the pop was standing in for a bracket that was never built.
 
@@ -93,7 +93,7 @@ a half-finished arming widen is the one outcome worse than the pops existing.
 
 1. ⭐⭐ **STF ARMING WIDEN** — the real rung, and the gate on everything below. Weld the s21x-q
    `stfh` 48B carve vs `bb_match_release`'s fixed head-cell reads FIRST, then admit `flat_pat` at
-   `emit.cpp:2657`. Success metric is the bracket census **96/317 → higher**, not the watermark.
+   `emit.cpp:2657`. Success metric is the STF-armed census **31/318 → higher**, not the watermark.
 2. Delete the five `IF(!stf())` consumer pops — mechanical ONCE (1) lands, worthless before.
 3. **`st_first_seen` AUDIT** (`emit.cpp:2103`) — exonerated as this session's cause but still a
    layout-order-keyed invariant. Correct rule is a graph property ("is this head reachable only by
