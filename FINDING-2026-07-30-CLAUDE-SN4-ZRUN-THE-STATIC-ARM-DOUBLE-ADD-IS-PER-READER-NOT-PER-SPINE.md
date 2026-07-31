@@ -98,7 +98,27 @@ Rationale: if `fc_leaf_register(x, pfx+own)` already carries own K, the static a
 
 ⚠ **THE PREDICATE IS NOT SIMPLY `op_fc_base >= 0`, AND THIS IS THE OPEN QUESTION.** The `SCRIP_ZPROBE` census reports `n1_unop` with `k=16` under `fc_geom(nd,&_d) ? -1 : zw_node_k(nd)` — i.e. **`fc_geom` DECLINED** for n1, which by the rule above should mean "add `op_zdepth`", yet adding it is exactly what emits the wrong `[rsp+32]`. So either (a) `op_sa` for a cross-box operand read is already expressed in the producer's granted frame and the reader's class is the wrong key, or (b) `fc_leaf_register` is reached for n1 through the pair/ALT recursion arms (:1057/:1062) at a `pfx` that differs from the linear-spine walk. **Resolve which BEFORE writing the conditional** — the fastest instrument is a one-line dump of `(nid, op, op_sa, op_flat_disp, op_zdepth, op_fc_base)` at the `x86_frame_off` call site on this 3-node program; it is decisive in one run and the program is small enough to read whole.
 
-## WHAT THIS MEANS FOR "20 SESSIONS OF STRUGGLING FOR UNKNOWN REASONS" (Lon, s21x-t)
+## ⭐⭐ RESOLVED SAME SESSION — THE ZDUMP RUN. `op_flat_disp` IS NOT INVOLVED, AND `op_zdepth`'S VALUE IS DECIDED BY ASSIGNMENT ORDER.
+
+The FINDING's named instrument was built and run. Full tuple at the one offset authority, witness `028`:
+
+```
+[ZDUMP] nid=1 off=0/8   disp=0 zdepth=0  fcbase=32 fcbytes=16  -> 0/8    (lit,    fc_geom GRANTED)
+[ZDUMP] nid=2 off=16/24 disp=0 zdepth=16 fcbase=-1 fcbytes=16  -> 32/40  (unop,   zw CARVE-ONLY)  ⛔
+[ZDUMP] nid=3 off=0/8   disp=0 zdepth=0  fcbase=-1 fcbytes=0   -> 0/8    (assign, no carve)
+```
+
+**THREE RESULTS, ALL OVERTURNING SOMETHING:**
+
+1. **`op_flat_disp` IS ZERO ON EVERY NODE.** The static prefix contributes **nothing** to this defect. Every hypothesis above framed around `op_flat_disp` — including this document's own "static plan already reserved a slot" narration and the s21x-s claim-1 narrowing — is **misattributed on this witness**. The double-add is `off` **+** `op_zdepth`, and `off` alone is already correct.
+
+2. **LOWER's `op_sa` FOR A CROSS-BOX READ IS ALREADY CARVE-INCLUSIVE.** `n1_unop` reads its operand at `off=16` — not 0. LOWER already placed the producer's value 16 below, i.e. **the slot number itself encodes the producer's suspended cell**. Adding the reader's own `op_zdepth=16` on top is the whole error. This answers the FINDING's suspect (a) — YES, `op_sa` is expressed in the producer's granted frame — and retires suspect (b) (the pair/ALT recursion arms are not reached here; `disp=0` proves it).
+
+3. **⭐ `op_zdepth` IS DECIDED BY WHICH OF TWO WRITERS SET `op_fc_bytes` FIRST — A PURE ORDERING ARTIFACT.** `emit.cpp:825` computes `op_zdepth = x86_fc_on() ? op_fc_bytes : 0`. `zw_carve_k` sets `op_fc_bytes` at **:818-819, BEFORE** that line; the per-kind `fc_geom` grants set it in the case arms at **:872+, AFTER** it. Hence, measured: a **granted** node carries `fcbytes=16` yet `zdepth=0` (nid=1), while a **carve-only** node with the identical 16 bytes carries `zdepth=16` (nid=2). **The allocator and the accessor hold two opinions, decided by source line order** — precisely what `op_zdepth`'s own field comment and the ZTOS-1 comment each assert is impossible by construction ("Set unconditionally from the same field the allocator spends, so the allocator and the accessor CANNOT hold two opinions"). **That claim is FALSE at HEAD and is the mechanism under this whole rung.**
+
+**WHY EXPERIMENT 2 STILL LOST 36 PROGRAMS, AND WHAT THAT NOW MEANS.** Since granted nodes already carry `zdepth=0`, deleting the term from the static arm can only change **carve-only** readers. It fixed `028` and cost 36 elsewhere ⇒ **there exist carve-only FRQ readers whose `off` is NOT carve-inclusive** and for which `op_zdepth` is load-bearing. So the discriminator is **not** the node's carve class (both nid=2 and those 36 are carve-only) — it is **what the offset MEANS**: a CROSS-BOX read of a producer's planned slot (carve-inclusive ⇒ must not add) versus an OWN-CELL read at the box's own frontier (0-based ⇒ must add). Carve-only nodes have `fcbase=-1`, so `x86_fc_hit` arm 2 never rebases them and **both meanings collide in arm 4 today, indistinguishable.**
+
+**NEXT RUNG, RESTATED AND NARROWED TWICE:** fix the ordering defect first — make `op_zdepth` be set from the FINAL `op_fc_bytes` (after the case arms), so granted and carve-only nodes stop differing by accident; that alone is a real change of behaviour and must be measured on its own before anything else. Then separate the two offset MEANINGS in arm 4 (the honest split is at the call sites: a cross-box operand read is `op_sa`-derived, an own-cell read is `op_off`/`x86_scratch_off`-derived — they are already distinct fields, so the discriminator may be readable without new plumbing). **Do NOT reason about `op_flat_disp` on this witness: it is measured 0.**
 
 The reasons are no longer unknown, and the tree already says so at `x86_asm.h:865` (ZOP-1): four coherent operand regimes were, before that rung, the cartesian product of five independent booleans — 32 representable states per node, decided **per node inside one graph**. ZOP-1 named the arms; **it did not make the arms agree on who compensates for what.** This finding is the next step down that path: the disagreement is now localized to ONE function (`x86_frame_off`) and ONE binary question (which carve authority granted this node), on a two-reader witness that fits on a screen.
 
