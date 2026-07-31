@@ -40,7 +40,19 @@ An experiment that removes the carve proves nothing while readers remain. **The 
 
 ---
 
-## ⛔⭐⭐ LIVE CURSOR — s21x-y (2026-07-31, Claude: ⭐⭐⭐ **THE VALUE SPINE IS FULLY CLOSED AND THE OCCASIONAL C-STYLE RBP IS NOW THE SHIPPED DEFAULT.** SCRIP `072b8fa0` (ZD-2m) + `6316f8a9` (STF-FLIP) + artifact commits `6e45fb6d` (SCRIP feature) / corpus `ed1937ae` (demo). Crosscheck **m3 232/85 · m4 229/86/2 · DIV=1 {W04_arbno_basic}** and broad **m3 244/92 · m4 238/90/8** — fail sets **BYTE-IDENTICAL by SET in BOTH corpora BOTH modes** across both commits. Declines 794 → 790.)
+## ⛔⭐⭐ LIVE CURSOR — s21x-z (2026-07-31, Claude: FOUR FINDINGS, NO COMMITS, TREE GREEN at `6e45fb6d`. Watermark UNCHANGED: crosscheck m3 231/86 · m4 229/86/2 · DIV=1 {W04_arbno_basic}.)
+
+⭐ **FINDING 1 — STF-FLIP IS CEREMONY. HKQ NEVER FIRES.** Swept 318 programs: 31 armed, **0 rbp data refs, 0 HKQ refs** in every one. `IF(stfh(), x86_zclaim(48))` in `bb_match_head` fires **0/318**. Root cause: arming requires `!flat_pat`; match heads live in `flat_pat` graphs. The two sets are disjoint by construction. The bracket arms only on graphs that cannot contain its only customer.
+
+⭐ **FINDING 2 — ZD-5a-PRE IS VACUOUS. ZD-5 PREMISE IS FALSE.** The s21x-y cursor's *"depth-immune base NOW EXISTS"* claim is wrong — it cannot reach match-bearing graphs. Do not spend a rung on ZD-5a-PRE as written.
+
+⭐ **FINDING 3 — CONSUMER POPS IN bb_assign_global VIOLATE PORT DISCIPLINE.** `bb_assign_global.cpp` lines 48/60: `IF(!stf(), x86_zrelease(16))` pops the **producer's** cell. Law: γ = SUSPEND, ω = own-K; consumers never release producers. Deletion tested: m4 222/93/2 DIV=7, all new failures are transfer programs (`armed=0`). Root cause: pop was counterfeit FINAL SUCCESS for unarmed graphs. Missing half: `add rsp, ΣK` on transfer/goto edges for unarmed graphs. Same defect in `bb_binop_arith` (×2) and `bb_binop_concat_slot` (×1). Tree reverted to green; no commit.
+
+⭐ **FINDING 4 — .s SCRAMBLE IS BFS FILL at emit.cpp:1988.** Statement boxes interleave because `nodes[]` is FIFO BFS — sibling subtrees enter queue at same level. Source comments misalign with their boxes. Fix is option (B): reorder `nodes[]` by statement membership (γ-wire walk from each `bb_src_of` head) BEFORE the `g_flat_node_id` labeling loop. `op_flat_disp` must be recomputed on the new order.
+
+**⭐ NEXT — ORDERED:** (1) Transfer-edge FINAL SUCCESS release for unarmed graphs (read seed `.s` first: `SCRIP/seed/test_sno_stmt_frame_1.s` + `_2.s`; emit `add rsp, ΣK` on goto/transfer edges; then delete the five consumer pops; gate m4 229/86/2). (2) SRC-ORDER-LAYOUT (B) lower-side id fix (γ-wire walk membership sort before labeling). (3) STF-FLIP audit (revert or fix predicate to admit `flat_pat`).
+
+## ⛔⭐⭐ PRIOR CURSOR — s21x-y (2026-07-31, Claude: ⭐⭐⭐ **THE VALUE SPINE IS FULLY CLOSED AND THE OCCASIONAL C-STYLE RBP IS NOW THE SHIPPED DEFAULT.** SCRIP `072b8fa0` (ZD-2m) + `6316f8a9` (STF-FLIP) + artifact commits `6e45fb6d` (SCRIP feature) / corpus `ed1937ae` (demo). Crosscheck **m3 232/85 · m4 229/86/2 · DIV=1 {W04_arbno_basic}** and broad **m3 244/92 · m4 238/90/8** — fail sets **BYTE-IDENTICAL by SET in BOTH corpora BOTH modes** across both commits. Declines 794 → 790.)
 
 ⭐⭐ **STF-FLIP: `flat_stmt_frame` DEFAULT OFF → ON; `SCRIP_STMT_FRAME=0` IS NOW THE KILLSWITCH.** Lon's directive was to *complete the FORTH-style RSP ζ stack with a C-style RBP used occasionally* — and the RBP half was **already built and dormant since s192**. `bb_match_head.cpp:20` `HKQ(k) = [rbp-48+8k]` holds the five POST-UNWIND-lifetime head fields (deep-rbp twin, r13/r14/r15, capgen) on a base that is **depth-free by construction**, gated on `stfh()`. The flip ships it: value spine on RSP, unwind-surviving housekeeping on RBP. That is law 4, shipped rather than scaffolded. **WITNESSED IN MACHINE CODE:** `023_arith_add` emits `push rbp`/`mov rbp,rsp` + two `mov rsp,rbp`/`pop rbp` chain-exit cuts by default, **ZERO** rbp instructions under the killswitch.
 
