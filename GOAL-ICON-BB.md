@@ -1,4 +1,59 @@
-## ▶ LIVE CURSOR (s203, 2026-07-31)
+## ▶ LIVE CURSOR (s204, 2026-07-31)
+
+**LAST SESSION:** s204 — **THE JCC-INVERT GAP WAS 23 OF ZW-1's 30, AND FB-STMT IS STRUCTURALLY SNOBOL4-ONLY.**
+Full detail: `FINDING-2026-07-31-CLAUDE-ICN-JCC-INVERT-GAP-WAS-23-OF-ZW1S-30-AND-FB-STMT-IS-STRUCTURALLY-SNOBOL4-ONLY.md`.
+⚠ SCRIP `7b974446` + `ed3d95a9` are **LOCAL ONLY, NOT PUSHED** (no credential this session). Run `scripts/handoff_status.sh`.
+
+⭐⭐⭐ **ICN-JCC LANDED — Icon suite 215 → 238, benchmarks 2/10 → 6/10 both modes.** `x86_jcc_invert` and
+`x86_jcc_op` are ONE vocabulary spelled twice and had drifted: jcc_op encodes the full set incl. aliases,
+jcc_invert knew 4 pairs, everything else hit its abort. The consumer is `x86_fc_jcc_omega`, the ZB-FC-0
+**conditional-omega pop synth** — so the FORTH RSP ζ pop synth was unreachable for every `x86_omega("jz")`
+speller: bb_binop_relop, bb_case_arm, bb_to, bb_match_arbno/defer/value (Icon's relop + generator families).
+
+| | default | `SCRIP_BB_ALLOC=0` |
+|---|---|---|
+| control | **215/48/30** (= s203 ledger) | **245/18/30** (= s203 ledger) |
+| fixed | **238/25/30** | 245/18/30 (inert) |
+
+⭐⭐ **ZW-1 REFRAMED: 23 of its 30-program Icon "carve cost" was never a carve cost** — ZW-1 EXPOSED the table
+gap by making the pop synth live. Genuine residual ZW-1 cost = 7. ⛔ **That 7 is NOT the cursor's residual-7**
+(mine = 245−238; s203's = 252−245). Do not merge them; the s203 residual-7 bisect is STILL OPEN.
+
+⭐⭐⭐ **WHY RBP IS STILL EVERYWHERE (Lon's s204 question, answered with a census).** 20 Icon benchmarks:
+**data refs `[rbp±N]` = 39,193 (95.3%)** · ceremony ≈830 (2.0%) · scratch 0. FB-STMT took SNOBOL4 data refs
+−44%; on Icon it did **nothing**, and it CANNOT: `emit_fb_stmt_scan` (emit.cpp:2662) bails to 0 on a
+disqualifying-kind list that IS Icon's vocabulary — `IR_SUSPEND · IR_SCAN* · IR_TO · IR_TO_BY · IR_LIMIT ·
+IR_REPALT · IR_PROC_GEN · IR_CREATE · IR_ITERATE · IR_DISJUNCTION · IR_CALL_BUILTIN_GEN · IR_KEYWORD_ICON_GEN`
+— so any generator/scan/`to`/`every`/alternation disqualifies the WHOLE graph, and its per-node bit map marks
+only `IR_MATCH_LIT..IR_MATCH_ADVANCE`. **FB-STMT is a SNOBOL4-only rung by construction, not a bug.**
+
+**⭐ NEXT RUNGS — ORDERED:**
+1. ⭐⭐⭐ **ICN-FB-1 — Icon's OWN bracketing analysis** (the real "finish the RSP/RBP conversion" rung). FB-STMT's
+   question — "does this deep kind's exit rebalance rsp through a head snapshot, so nodes outside arrive at
+   static depth?" — has an Icon answer; ground truth is `refs/jcon-master/tran/irgen.icn`, 43 `ir_a_*` procs,
+   each an explicit `ir_info(start,resume,failure,success)` topology. ⛔ Do NOT try to relax
+   `emit_fb_stmt_scan`'s bail list — that list is its correctness condition, and the per-node map returns 0 for
+   every Icon kind anyway. This is a NEW analysis beside it.
+2. ⭐⭐ **Residual-7 bisect** (s203's, unchanged) — `#113..#177`, predicate proven discriminating at BOTH ends
+   first. GOOD anchor = `SCRIP_BB_ALLOC=0` 245/18/30.
+3. ⭐ **`SCRIP_BB_ALLOC` default — Lon's call.** Case for keeping ZW-1 active is now much stronger (most of its
+   apparent cost was the table gap), but still needs SNOBOL4 + Prolog watermark re-prove. ⛔ Do not flip blind.
+4. **`IR_CALL_BUILTIN_ICON`** — 68 ZD declines, absent from the whitelist; likely one template ZD arm.
+5. **The generator family (67 declines)** — no SNOBOL4 counterpart; same irgen.icn ground truth as rung 1.
+6. **ZD-2h-ICN is LANDED INERT** (`SCRIP_ZD_PINLOCAL=1`). Armed = 238/25/30, no delta, structurally explained:
+   `pinned` is the NEGATION of three of `zd_stub_ok()`'s conjuncts, so a jmp-entry pinned graph returns at the
+   top of `zd_plan` before the arm is consulted. Reachable only on `pinned && !flat_jmp_entry`. Predicate is
+   `x86_fb_data()` (data-ref base), NOT `x86_fb_pinned()` (prologue pin) — they are not synonyms.
+
+⚠ Benchmarks: `concord`/`geddump`/`tgrlink` moved PAST the abort → now rc=139 at RUNTIME (geddump/tgrlink =
+the known `git revert 7aade169` pair). `micro` = TIMEOUT on the 30s harness cap vs a 14.7s oracle.
+⚠ The bench harness compares a 30-line head — "30L OK" is NOT a whole-output match; `rsg`'s s164
+short-circuit finding is NOT retired.
+⚠ `refs/icon-master` / `refs/jcon-master` do NOT exist in the SCRIP clone though ARCH-ICON.md cites them;
+satisfied s204 by symlinking the uploaded archives. Oracle at `/home/claude/icon-build`. `nproc=1`: a
+both-halves rebuild is ~4 min.
+
+### ▶ PRIOR CURSOR (s203, 2026-07-31)
 
 ⚠ **PARALLEL SESSIONS (s203):** SNOBOL4-BB sessions are running concurrently. Per RULES.md STALE-ORIENTATION: trust each goal file's own LIVE CURSOR, never PLAN.md's table.
 
