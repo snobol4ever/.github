@@ -85,3 +85,17 @@ s21x-z's FINDING 3 deletion test (m4 222/93/2, DIV=7) was run BEFORE s22b's WPOP
 - **`SCRIP_NOFC=1`** (`bb_assign_global.cpp` / `bb_binop_arith.cpp` / `bb_binop_concat_slot.cpp`) — forces `vfc`/`vfcb`/`vfcc` to 0, killing the FC arm corpus-wide. Inertness verified byte-identical over **318/318** programs. This is the A/B that gates step 3 above.
 
 Watermark at close, default path: **m3 232/85 · m4 229/86/2 · DIV=1 {W04_arbno_basic}** — EXACT, fail sets identical by SET both modes.
+
+---
+
+## ⛔⭐ ADDENDUM (same session) — SAVE_RESTORE/GOTO_DEFERRED ARE NOT INDEPENDENT RUNGS, AND THE OBVIOUS ZD-7 SIZING INSTRUMENT IS FORBIDDEN BY THE UNION TAG
+
+**(a) The two cheap blockers are CALL-co-resident — measured, so they are not a shortcut.** Programs declining on `IR_SAVE_RESTORE` (17) or `IR_GOTO_DEFERRED` (6): **19 programs, of which 18 ALSO decline on `IR_CALL`** (the sole exception, `161_pat_defer_fn_nested_match`, is a pattern program). Clearing either would only PROMOTE `IR_CALL` behind it — the s21x-x law ("a decline count is a frontier reading, never a backlog"), now confirmed for these two kinds specifically. **Do not open them as standalone rungs.**
+
+**(b) ⛔ INSTRUMENT LAW EARNED THE HARD WAY — `IR_LIT(nd).sval` IS NOT TAG-SAFE AT PLAN TIME AND CRASHES 17 PROGRAMS.** To size ZD-7 the obvious move is to partition the 519 `IR_CALL` declines by callee. Two attempts were made at the `zd_plan` decline site and **BOTH were reverted**:
+- attempt 1 called `bb_call_route_classify(nd)` at plan time → **18 nonzero exits vs a baseline of 1**;
+- attempt 2 dropped the classifier and read only `IR_LIT(nodes[i]).sval` → **still 18**.
+
+So the fault is the **union accessor itself**: `IR_LIT` is a tagged union and for `IR_CALL` nodes the `.sval` arm need not be live, so the `%s` dereferences a garbage pointer. This is the same union-tag law s21x-g recorded, re-earned in a new place. ⚠ **THE CALLEE HISTOGRAM THIS PRODUCED (`SNO$MKPAT` 145, `DIFFER` 56, `DUPL` 41, `SNO$NAME` 38, …) IS THEREFORE UNTRUSTED AND IS RECORDED HERE ONLY SO THE NEXT SESSION DOES NOT RE-DERIVE IT AND BELIEVE IT.** The names look plausible — which is exactly what makes it dangerous. It was collected from a run that crashed on 17 of 318 programs, so it is at best partial and at worst reading unrelated memory.
+
+✅ **WHAT ZD-7 SIZING ACTUALLY NEEDS FIRST:** a **tag-safe callee accessor** for `IR_CALL` (check the union discriminant before reading `.sval`, or read the callee through the operand/lit path `bb_call` itself uses at emit time). That accessor is a genuine prerequisite sub-rung of ZD-7 and did not previously exist on the ladder. Tree was reverted to the committed state and re-verified: **1 nonzero exit corpus-wide, matching baseline.**
