@@ -253,3 +253,64 @@ Probe reverted from `emit.cpp` (`grep INJECTION PROBE` = 0), `bb_call_fn.cpp` re
 - ❌ It does **NOT** license admitting any Prolog kind. `IR_MOVE_LABEL` still has no ZD arm (arming it was part of the *probe*, and the probe's programs are not proof of its correctness — only of the planner's arithmetic). ZD-PL-B must give `IR_MOVE_LABEL` a real arm first.
 - ❌ No wall-time claim is made. The A/B is **instruction selection**, not time.
 - ⚠ The inline sinks (`sink_unify2_str` et al.) still live only on the legacy arm — they address operands through `FRQ`. Lifting them needs the addressing parameterized: **ZD-PL-A slice 2**, not this slice. Today an armed dop call gets the *direct leaf* but not the *inline* fast path.
+
+---
+
+# ADDENDUM 2 (s163c) — ZD-PL-A ALREADY COVERS TWO THIRDS OF `main`'S DOP TRAFFIC, AND THE LARGEST REMAINING GAP IS **NOT AN ADDRESSING PROBLEM**
+
+The s163b NEXT put "ZD-PL-A slice 2 — parameterize sink addressing" at the head. **Measured, that ranking is wrong**, for the same reason the s162 ranking was wrong: it was derived from the *shape* of the code rather than from the callee population that actually flows through it.
+
+## THE MISSING DISTINCTION
+
+Not every dop-eligible builtin has an INLINE sink. The legacy `else if` chain is:
+
+| builtin | inline sink? | legacy path |
+|---|---|---|
+| `$unify` (2) | **yes** — SINK-1 + the `cui` const-head-unify | inline |
+| `$unify_lst` (3) | **yes** — SINK-2 | inline |
+| `$trail_mark` (0) | **yes** — SINK-8 | inline |
+| `$ix_g` (3) | **yes** — SINK-4 | inline |
+| `$mkc`, `$is_v`, `$ax_*`, `$cmp_*`, `$trail_unwind`, `$unwind_nothrow` | **no** | generic `else if (dfp)` direct leaf |
+
+**ZD-PL-A replicates the generic direct-leaf arm exactly.** So for every builtin in the bottom row it is already at FULL PARITY — no slice 2 needed, ever. Slice 2 only concerns the four in the top row.
+
+## THE CENSUS (instrument extended one line: `SCRIP_ZD_GAP` now reports `callee=`)
+
+Callee population across all **185 `main` runs**:
+
+```
+438 $mkc      395 $nl0     340 $write    213 $trail_mark    40 $writeq
+ 32 $unify     32 $open     32 $dyn_assertz   29 $is_v      27 $close ...
+```
+
+Dop-eligible subtotal = **712**. Classified against ZD-PL-A:
+
+| class | callees | count | share |
+|---|---|---|---|
+| **FULL PARITY** (generic direct leaf, ZD-PL-A already replicates it) | `$mkc` 438, `$is_v` 29 | **467** | **65.6%** |
+| **PARTIAL** (gets the direct leaf under ZD, loses the *inline* sink) | `$unify` 32 | 32 | 4.5% |
+| **NO DOP AT ALL** (falls to `rt_call_arr`) | `$trail_mark` 213 | **213** | **29.9%** |
+
+`$ix_g` and `$unify_lst`: **zero occurrences in any `main` run.** They are pure predicate-body constructs, consistent with the s163b sub-finding.
+
+## ⭐ THE HEADLINE: THE BIGGEST GAP IS THE `nargs == 0` GUARD, NOT ADDRESSING
+
+`$trail_mark` is **213 of 712 = 30%** of `main`'s dop traffic — the single largest remaining gap — and it is stranded by ZD-PL-A's deliberate `(nargs > 0)` guard, **not** by `FRQ` addressing. Slice 2 as scoped (parameterize sink addressing) would not fix it at all.
+
+⭐ **AND IT IS THE CHEAPEST OF THE FOUR TO LIFT.** Read `sink_trail_mark_str`: its inline fast path touches **no operand storage whatsoever** — it reads `g_plw_cellws_on`, `g_zeta_mode` and `g_pl_trail` through `[rip+…]`, and yields `rdx`/`eax` directly. Only the slow-path fallback at label 100 uses `FRQ(argbase)`. So lifting SINK-8 to the ZD arm needs **no addressing parameterization** — it needs only a valid pointer for the fallback's `rdi`, and the fast path is storage-free by construction.
+
+## RE-RANKED LADDER
+
+| was | now | why |
+|---|---|---|
+| slice 2: parameterize sink addressing | **slice 2a: lift SINK-8 `$trail_mark` into the ZD arm** | 30% of main's dop traffic; fast path is storage-free; no addressing work |
+| — | slice 2b: `$unify` (32 in main, the elephant in predicates) — this one *does* need the addressing parameterized | 4.5% of main, but SINK-1 is the 1.86× rung |
+| — | `$ix_g` / `$unify_lst` — **defer to after gate A falls** | zero occurrences in main; predicate-only |
+
+## ⛔ NOT IMPLEMENTED THIS SESSION — AND WHY
+
+Slice 2a is **specified, not landed.** The fallback's `rdi` currently receives `FRQ(argbase)`; under ZD with `nargs == 0` there is no arg array, and whether `rt_pl_dop_trail_mark` dereferences that pointer when `esi == 0` was **not verified**. Landing it on the assumption that it does not would be exactly the unverified-shortcut class this session spent its budget catching. It needs the runtime read plus an injection probe to confirm — a next-session rung, not a tail-end guess.
+
+## GATES (all `-O0`)
+
+Instrument extension is one line, env-gated, file-static-cached: **43/43 benchmark `.s` byte-identical with the env var off** · rung suite **164/164 interp + 164/164 compile FAIL=0** · `test_gate_emit_no_lang.sh` **OK** · `test_gate_pl_no_new_global.sh` **PASS** 14/floor 14. SCRIP `1cc10758`.
