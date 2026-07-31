@@ -40,7 +40,43 @@ An experiment that removes the carve proves nothing while readers remain. **The 
 
 ---
 
-## ⛔⭐⭐ LIVE CURSOR — s22f (2026-07-31, Claude: ⭐⭐⭐ **THE NON-POPPING RUNG IS OPENED AND ITS INHERITED GATE IS FALSIFIED. THE FIVE POPS ARE THE GEN-1 FC CONSUME ARM; THE GATE IS ZD-7 (IR_CALL), NOT THE STF ARMING WIDEN.** Watermark EXACT both ends: **m3 232/85 · m4 229/86/2 · DIV=1 {W04_arbno_basic}**, fail sets **IDENTICAL BY SET in BOTH modes** vs session-start baseline. Two instruments landed, both env-gated and both verified byte-identical inert when off. NO behavioural change shipped — this rung is a MEASUREMENT that redirects the ladder. Full text: `FINDING-2026-07-31d-CLAUDE-SN4-THE-FIVE-POPS-ARE-THE-GEN1-FC-CONSUME-ARM-AND-THE-GATE-IS-ZD-7-NOT-STF.md`)
+## ⛔⭐⭐ LIVE CURSOR — s22g (2026-07-31, Claude: ⭐⭐⭐ **ZD-7 TAG-SAFE CALLEE CENSUS LANDED. IR_CALL RUNS ARE NOT SINGLE-NODE — PREDECESSORS IN THE SAME RUN REQUIRE ZOPQ, NOT FLAT SLOTS. ADMISSION ARM REVERTED CLEANLY; NEXT RUNG IS ZD-7 SLICE 2 WITH CORRECT ZOPQ PROTOCOL.** Watermark EXACT both ends: **m3 232/85 · m4 229/86/2 · DIV=1 {W04_arbno_basic}**. SCRIP `cebcb320`. Full text: `FINDING-2026-07-31e-CLAUDE-SN4-ZD7-CALL-CENSUS-AND-ADMISSION-GAP.md`)
+
+⭐⭐⭐ **WHAT WAS PROVEN THIS SESSION (s22g):**
+
+**1. TAG-SAFE CALLEE ACCESSOR VERIFIED.** `IR_LIT(nd).sval` is safe for bare `IR_CALL` — all lower_snobol4.c IR_CALL nodes write sval. The prior 18-program crash was `IR_CALL_VALUE` (lower_icon.c:399, no sval written). Safe predicate: `op == IR_CALL || (op != IR_CALL_VALUE && ir_is_call_kind(op))`. Instrument `SCRIP_CALL_DIAG=1` landed in zd_plan decline path, env-gated, byte-identical inert.
+
+**2. FULL CALLEE PARTITION (318 programs):** SNO$MKPAT 145 · DIFFER 57 · DUPL 41 · SNO$NAME 38 · SNO$KWSET 22 · ARRAY 16 · SIZE 15 · EVAL/CODE 12 (jmp-entry excluded) · TABLE/REPLACE/DATATYPE/CONVERT/TRIM/etc. · user procs (roman, fib, build, …). Most are builtins routed through bb_call_fn_str or bb_call_byname_str.
+
+**3. IR_CALL RUNS ARE NOT SINGLE-NODE — THE CRITICAL STRUCTURAL FACT.** Extended instrument (rl + badi + narg fields) proves: `SIZE('hello')` → run [LIT_STRING → IR_CALL → IR_ASSIGN], rl=3, badi=1 (call at position 1, LIT_STRING is a ZD-eligible predecessor at position 0). `REMDR(A, B)` → rl=6, badi=22 (instrument index; run has predecessors). **IR_CALL's operands[j] ARE the same nodes as the run members** (confirmed via ir_call_arg → nd->operands[j] directly). So `zd_nops(IR_CALL) = n_operands` triggers the correct predecessor-in-run check.
+
+**4. ADMISSION ATTEMPT REVERTED CLEANLY.** The naive ZD arm (ZRES for result, argbase unchanged) regressed m3 232→169 (−63). Root cause: `FRQ(argbase)` under ZD adds `op_zdepth=16` compensation, shifting arg addresses by K=16 into wrong flat-frame locations. Tree fully green after revert.
+
+**5. THE FIX IS DESIGNED.** Read `DESIGN-SN4-CELL-MACHINE.md § DL` before coding.
+
+⛔⭐⭐ **ZD-7 SLICE 2 — THE CORRECT ADMISSION ARM:**
+
+Three changes, all necessary and sufficient:
+
+**(a)** `zd_nops(IR_CALL) = (int)nd->n_operands` — triggers operand-predecessor check in zd_plan; for SIZE('hello') the LIT_STRING at position 0 IS operands[0], so the check finds it in the run and stages op_zread[0] = δ_out(call) − δ_out(LIT_STRING).
+
+**(b)** `zd_wl_kind`: add `if (op == IR_CALL) return 1;` — jmp-entry already excluded at graph level by flat_jmp_entry gate; EVAL/CODE excluded thereby. IR_CALL_VALUE excluded by not being bare IR_CALL.
+
+**(c)** `bb_call_fn_str` / `bb_call_byname_str` ZD arm: when `_.op_zres`:
+- Read arg i from `ZOPQ(i, 0)` / `ZOPQ(i, 8)` instead of `marshal_call_arg → FRQ(argbase + i*16)` — this reads the predecessor's suspended cell at the staged delta offset
+- Store result to `ZRES(0)` / `ZRES(8)` instead of `FRQ(resoff)` / `FRQ(resoff+8)`
+- Use `x86_beta_trampoline()` not `x86_beta()` + `x86_omega()`
+- The `x86_alpha()` carve uses K=16 (op_fc_bytes set by zd_plan); no argbase needed
+
+**SUCCESS METRIC:** `SCRIP_NOFC=1` watermark improves from m3 211/106 → closer to 232/85. Each admitted callee reduces the FC firing count by 1, reducing the NOFC=1 loss. When all IR_CALL statements are armed, NOFC=1 reaches the watermark and FC deletion is mechanical.
+
+⛔ **DO NOT** use FRQ for arg reads in the ZD arm — FRQ adds op_zdepth compensation which shifts addresses by K, placing them in wrong flat-frame territory. ZOPQ uses op_zread[k] which is the DIFFERENCE between producer and consumer depths — correct regardless of absolute K.
+
+⛔ **DO NOT** widen the ζ cell (K = 16 + narg×16) — this was an earlier hypothesis, superseded by the ZOPQ approach. zd_nops gives the planner the operand count; the planner stages op_zread correctly; K stays 16 (result only).
+
+(4) CARVE-ERAD per THE MODEL's three-step order (unchanged). (5) `claws5`/`json` assembler-rejected codegen. (6) the 130/131 clean-HEAD segv, still unchased.
+
+## ⛔⭐⭐ PRIOR CURSOR — s22f (2026-07-31, Claude: ⭐⭐⭐ THE NON-POPPING RUNG IS OPENED. THE FIVE POPS ARE GEN-1 FC; THE GATE IS ZD-7 (IR_CALL), NOT STF ARMING WIDEN. Watermark EXACT. SCRIP `345aa08f`. Full text: `FINDING-2026-07-31d-CLAUDE-SN4-THE-FIVE-POPS-ARE-THE-GEN1-FC-CONSUME-ARM-AND-THE-GATE-IS-ZD-7-NOT-STF.md`)
 
 ⛔⭐⭐ **THE s22a/s22e GATE "STF ARMING WIDEN" IS THE WRONG GATE — FALSIFIED TWO INDEPENDENT WAYS, BOTH MEASURED.** (1) **Three of the five pops have NO `stf()` term at all**: only `bb_assign_global:48`/`:60` are `IF(!stf(), …)`; `bb_binop_arith:66`(in `fc_tail()`)/`:107` and `bb_binop_concat_slot:40` are UNCONDITIONAL `x86_zrelease(16)` — STF widening cannot reach them, and the cursor's "five `IF(!stf())` pops" mis-describes three of its own sites. (2) **All 119 ASSIGN FC firings carry `stf=0`**, so suppressing the two sites STF *can* reach means arming the bracket on all of them = **universal rbp**, the exact opposite of "a C-style RBP used occasionally only when absolutely necessary."
 
