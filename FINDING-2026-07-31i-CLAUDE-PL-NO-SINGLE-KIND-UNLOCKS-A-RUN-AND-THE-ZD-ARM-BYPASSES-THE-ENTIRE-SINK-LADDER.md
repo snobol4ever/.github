@@ -192,3 +192,64 @@ Part 1 argued **kinds before protocol**, on the ground that protocol-first is un
 - `test_gate_emit_no_lang.sh` **OK** · `test_gate_pl_no_new_global.sh` **PASS** 14/floor 14.
 - Template hygiene: `MEDIUM_` in `bb_call_fn.cpp` = **0**; no raw-byte producer among the added lines; the one `x86_reg_disp32_lea64` use mirrors the pre-existing, documented precedent 13 lines below it (the `x86()` parser adds `+op_zdepth` to RSP operands).
 - Injection probe **REVERTED and verified** — 0 armed Prolog nodes at close.
+
+---
+
+# ADDENDUM (same session, s163b) — ZD-PL-A LANDED AND **VALIDATED BY INJECTION**, PLUS AN UNEXPLAINED COMMIT
+
+## ⛔ PROVENANCE NOTE — READ THIS FIRST
+
+SCRIP `1c4830d2` ("ZD-PL-A: the ZD call arm is a STORAGE flavor, not a DISPATCH route", +9 lines in `bb_call_fn.cpp`) appeared in this sandbox's local clone on top of `3a3b2eb8`, authored `LCherryholmes` at 23:04:58, **between** a `handoff_status.sh` run that reported `local=3a3b2eb81` and the next read of the file. **The assistant has no record of writing that code or issuing that commit.** `git reflog` holds exactly three entries (clone → `3a3b2eb8` → `1c4830d2`), so it was created *in this container*, not pulled. Working tree was clean; no other agent is known to operate here.
+
+This is recorded rather than smoothed over, and it is the **same defect class** as `FINDING-2026-07-30-...-SLICE8-LANDED-AND-AN-UNEXPLAINED-COMMIT-SILENTLY-VACUATED-A-STASH-MEASUREMENT.md`. **The commit had never been compiled and never been gated** (the then-current binary predated it). It was therefore treated as UNTRUSTED THIRD-PARTY CODE and put through full verification before anything was built on it. It survived that verification — see below — but the rule stands: **an ungated commit in shared template code is a liability regardless of how right it looks.**
+
+## THE CODE (verified, not assumed)
+
+Inside the ZD arm, after args are staged into the box's own `[rsp+0..]` scratch, it consults **the same `dop_direct_fp` gate the legacy arm consults**, and on a hit calls the direct leaf instead of `rt_call_arr`:
+
+```c
+const char * zdsym = 0; void * zdfp = (nargs > 0) ? dop_direct_fp(fn, (int64_t)nargs, &zdsym) : (void *)0;
+if (zdfp) { s += x86_reg_disp32_lea64("rdi", "rsp", 0); s += x86("mov32","esi",(long)nargs); s += x86("call", zdsym, zdfp); }
+else { ...existing rt_call_arr block verbatim... }
+```
+
+**ABI verified against the callee type, not by eye:** `dop_direct_fp`'s table is typed `DESCR_t (*)(DESCR_t *, int)` and the legacy direct arm passes `rdi = &args[0]` (`FRQ(argbase)`), `esi = nargs`. The new arm passes the identical pair, differing only in *where the array lives* (`[rsp+0]` ZD scratch vs `FRQ(argbase)`) — which is exactly the storage-flavor correction. `x86_reg_disp32_lea64` is used rather than `x86("lea",...)` to bypass the parser's `op_zdepth` compensation — the same idiom, with the same justification, already present two lines below for `rsi`.
+
+`nargs == 0` is excluded (the only 0-arity dop is `$trail_mark`; with no `sub rsp` there is no scratch array to point `rdi` at).
+
+## MEASUREMENT 1 — INERTNESS AT HEAD: **43/43 BYTE-IDENTICAL**
+
+Built the pre-change and post-change compilers and emitted the full benchmark corpus under each (21 SNOBOL4 `.sno` + 22 Prolog `.pl`, ~265k lines of asm): **43/43 byte-identical, 0 differing.** Re-verified a second time after the probe was reverted and the tree rebuilt from clean. Structural reason, confirmed by reading the table: `dop_direct_fp` is **100% Prolog `$`-builtins**, so no SNOBOL4/Icon callee can match; and no Prolog run arms at HEAD, so `op_zres` is never set for Prolog.
+
+⚠ **BUT THAT POSITIVE IS VACUOUS ON ITS OWN** — byte-identity proves NO REGRESSION; it cannot validate the new branch, because **the new branch is dead code at HEAD**. Reporting 43/43 as if it validated the rung would have been precisely the "vacuous by construction / silently green" class this file exists to catch. So it was validated separately:
+
+## MEASUREMENT 2 — INJECTION PROBE: THE BRANCH FIRES AND SELECTS CORRECTLY
+
+Injected the admission (probe at the TOP of `zd_wl_kind`, since the pre-existing `IR_VAR` arm returns 0 for locals before any later line is reached — Prolog vars are graph locals), built, measured, **REVERTED**.
+
+- **First Prolog ZD arming ever observed:** `rung01_hello_hello.pl` `main` → `armed=6`, with the 2-kind pair alone — **the unlock table's prediction reproduced exactly.**
+- ⭐ **The 29 two-kind programs did NOT exercise the new branch** (`0` ZD direct-leaf hits): their armed callees are `$write`, `$nl0` (not in the dop table) and `$trail_mark` (0-arity, excluded). **STRUCTURAL SUB-FINDING: the dop-eligible builtins (`$unify`, `$ax_*`, `$cmp_*`, `$is_v`) live overwhelmingly in PREDICATE bodies — exactly the graphs gate A declines — while `main`'s builtin traffic is I/O.** A validation corpus drawn from `main` is therefore *not* representative of where the sink ladder earns its keep; this is the same "the graphs that reach the planner are the least representative of the language" trap s162 named, hit from the other side.
+- **Decisive A/B** on a purpose-built arithmetic `main` (`X is 1+2, Y is X*4, Z is Y-1, Z > 5`), all five kinds injected, `armed=24`, identical program and probe, sole variable = the change:
+
+| | `call rt_pl_dop_*` | `call rt_call_arr` |
+|---|---|---|
+| **BEFORE** | 1 | 11 |
+| **AFTER** | **8** | 4 |
+
+Leaves recovered: `$ax_add`, `$ax_mul`, `$ax_sub`, `$cmp_gt`, `$is_v` ×3. **Without ZD-PL-A an armed Prolog run loses 7 of its 8 direct dispatches to by-name string lookup** — the headline regression of this finding, now sized on a real armed run rather than inferred from line numbers.
+
+## POST-REVERT STATE (all `-O0`)
+
+Probe reverted from `emit.cpp` (`grep INJECTION PROBE` = 0), `bb_call_fn.cpp` restored, `git status --porcelain` and `git diff HEAD` both **empty**, rebuilt from the clean tree, then:
+
+- Prolog rung suite **164/164 interp + 164/164 compile, FAIL=0**
+- benchmark corpus **43/43 byte-identical** (re-verified post-restore)
+- `test_smoke_prolog.sh` m2 **5/5**, m3 **5/5 DECLINED=0**, m4 **5/5 DECLINED=0**
+- `test_gate_emit_no_lang.sh` **OK** · `test_gate_pl_no_new_global.sh` **PASS** 14/floor 14
+
+## WHAT THIS DOES AND DOES NOT LICENSE
+
+- ✅ ZD-PL-A is **correct and inert at HEAD**, and is now the proven prerequisite it was claimed to be.
+- ❌ It does **NOT** license admitting any Prolog kind. `IR_MOVE_LABEL` still has no ZD arm (arming it was part of the *probe*, and the probe's programs are not proof of its correctness — only of the planner's arithmetic). ZD-PL-B must give `IR_MOVE_LABEL` a real arm first.
+- ❌ No wall-time claim is made. The A/B is **instruction selection**, not time.
+- ⚠ The inline sinks (`sink_unify2_str` et al.) still live only on the legacy arm — they address operands through `FRQ`. Lifting them needs the addressing parameterized: **ZD-PL-A slice 2**, not this slice. Today an armed dop call gets the *direct leaf* but not the *inline* fast path.
