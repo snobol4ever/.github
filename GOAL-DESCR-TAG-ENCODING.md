@@ -60,7 +60,7 @@ The `cmp` and the `ja` are on **SEPARATE LINES**, so a line-oriented grep cannot
 
 ## 5. FEASIBILITY — SMALLER THAN IT LOOKS
 
-✅ **The asm is SYMBOLIC.** `DT_*` are `#define`s in `src/runtime/rtx/rtx_abi.inc`, pulled into every `.S` through cpp. Renumber `descr.h` + `rtx_abi.inc` in lockstep and the assembly follows automatically. No hand-edited immediates.
+⛔⛔ **FALSIFIED FIVE TIMES — THIS LINE WAS WRONG. (s229 found 2, s230 found 3 more: `rt_asm_helpers.S`, `rtx_icnsub.S` with the tag FUSED in a packed 64-bit literal, and 32 emitter sites.) Root cause is STRUCTURAL: AT&T files cannot include the Intel `rtx_abi.inc`. CLASS CLOSED s230 by `src/contracts/descr_tags.inc` (syntax-neutral). Original claim follows.** ~~The asm is SYMBOLIC.~~ `DT_*` are `#define`s in `src/runtime/rtx/rtx_abi.inc`, pulled into every `.S` through cpp. Renumber `descr.h` + `rtx_abi.inc` in lockstep and the assembly follows automatically. No hand-edited immediates.
 ✅ 12 `_Static_assert`s in `rtx_init.c` already reference DT_/tag and will catch some drift.
 ⛔ **NOT CONCURRENCY-SAFE.** Touches `descr.h`, `rtx_abi.inc`, every `.S`, and the templates, while the ζ ladder holds 41 red pattern programs.
 
@@ -78,7 +78,7 @@ s203 recorded that integer inlining made `rt_num_arith` go **cold** — the emit
 
 ## 8. STEPS
 
-- [ ] **TAG-0** 0(d) on the three arith benchmarks — is the dispatcher entered at all? If no, STOP and re-aim.
+- [x] **TAG-0 DONE s230 — AND ITS STOP CONDITION IS FALSIFIED.** `rt_num_arith` IS cold (0 on all three, 0 at both loop counts). **But STOP would have been WRONG:** the BOTH-INT test migrated into `rt_add`/`rt_cmp_d` (already asm, 100M+100M entries, 2.00× scaling, `c_rt_add`=0 bails). ⭐ **A 0(d) GATE MUST NAME THE PREDICATE, NOT A FUNCTION** — RTX-7's bypassed-family class inverted, and the false-STOP direction is the silent one. TAG-4 aims at `rtx_arith.S`, NOT the C dispatcher.
 - [ ] **TAG-1** Read `sbl.asm`'s mixed-mode arithmetic dispatch; record the shape.
 - [ ] **TAG-2** Two-line-window audit of EVERY relational/range assumption on `.v` (§4 — the single-line grep lies).
 - [ ] **TAG-3** Renumber `descr.h` + `rtx_abi.inc` in ONE commit; move `DT_A` off 4; move `DT_FAIL` off 99. Watermark must hold EXACTLY.
