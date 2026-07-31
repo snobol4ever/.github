@@ -4,9 +4,45 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
+## ⛔⭐⭐ THE MODEL — READ THIS BEFORE ANYTHING ELSE. IT IS THE ONE THING SESSIONS KEEP GETTING WRONG. (Lon, s21x-r)
+
+**THERE IS NO GRAPH FRAME. THERE IS NOT SUPPOSED TO BE ONE. NOT ONE PROGRAM REQUIRES PRE-ALLOCATION.**
+
+Every BB, without exception:
+1. **allocates its own storage at α** — one `sub rsp, K`, K = a few bytes, *its own*;
+2. **reads and writes ONLY its own cell** — never `[rsp + graph_offset]`, never a slot someone else allocated;
+3. **releases at γ/ω**;
+4. **jumps to the next box.**
+
+Boxes are wired **statically** (label / rel32) or, where the target is data, **dynamically** (indirect through a cell). They just run and allocate their own memory. **That is the entire execution model.** No pre-allocation. No whole-graph carve. No prefix-summed prologue. No zero-fill. No layout pass. No "region."
+
+**THE CARVE THAT EXISTS TODAY IS A CORPSE, NOT INFRASTRUCTURE.** `flat_frame_bytes` is debt. The **1057 `FR`/`FRQ`/`FRQB` reader sites across 108 templates** are debt. They are what is left of the pre-BB world, and the per-BB cells are currently running *alongside* them (301/317 programs carry both). The job is not to reason about the frame, tune it, shrink it, or decide which constructs "need" it. **The job is to delete its customers until it has none, then delete it.**
+
+### ⛔ THE FAILURE MODE, NAMED — s21x-r hit every one of these in one session
+
+- **Treating the frame as a design element to be reasoned about.** It is legacy. When a rung starts asking "which constructs need the frame?", the rung is already wrong.
+- **Clamping/removing the carve while readers still address into it, then reading the breakage as necessity.** This is TAUTOLOGICAL: shrink the backing store, unconverted readers fault. s21x-r ran exactly this, got 38 failures, and wrote "38 programs still NEED the whole-graph carve." **VOID.** The 38 is a **DEBT COUNTER** — programs that reach a box nobody has converted yet.
+- **Inventing an architectural rationale for the debt.** s21x-r claimed Ch.18 backtracking "needs a stable base to unwind to." **WRONG.** Backtracking is the FOUR PORTS plus LIFO per-box claim/release. `test_icon.c`, the reference embodiment: *state lives in the per-box ζ block, allocated fresh per α-entry; code is shared.* No frame. A suspended box keeps its own cell and re-enters at β — that is all "unwinding" is.
+- **Misreading law 4's four RBP constructs as licensing a graph frame.** They name **which BASE REGISTER a construct uses for its OWN housekeeping** (ARBNO's children are variable-length). Law 1 forbids a graph frame outright: *never a site allocating more than a few bytes for one BB.*
+- **Mistaking the SPELLING sweep for the CONVERSION.** s21x-q closed the ζ-spelling sweep (raw rsp → `x86_zclaim`/`x86_zrelease`, remainder classified NOT-ζ) and that closure is sound — but spelling closure is **not** conversion. 6 of 140 templates self-allocate; 108 still read the frame.
+
+### ✅ THE ONLY DISCRIMINATING TEST
+
+An experiment that removes the carve proves nothing while readers remain. **The discriminating move is the converse: convert one box's readers to its own cell, then watch the carve requirement DROP.** Progress = monotone decrease of the `SCRIP_NO_GRAPH_CARVE=1` failure count. Each failure names the box it is waiting on.
+
+**COMPLETION GATE:** `SCRIP_NO_GRAPH_CARVE=1` passes **317/317 both modes** → then DELETE the carve and `flat_frame_bytes`, do not shrink them. This supersedes "zero raw rsp in templates" as the ζ gate: that one measured spelling, this one measures the thing actually wanted.
+
+### WHY IT KEEPS GETTING MISREAD
+
+The frame is *present in every `.s` file*, so it looks like infrastructure holding the program up. It is not. It is a corpse the new machinery is running beside, and every session that reasons about "when do we need it" has already accepted a premise the design rejects.
+
+---
+
 ## ⛔⭐ LIVE CURSOR — s21x-r (2026-07-30, Claude: ⭐⭐ **THE STF "DEFECT" WAS A PROCESS-SCOPE PLANNER FLAG, AND THE ARMED PATH WAS NEVER BROKEN.** ZLEAK-1 + ZLEAK-2 landed; declined-graph leaks 285 → 24 → **0**; ALL-OR-NOTHING PER GRAPH now provably holds corpus-wide. STF=1 is watermark-NEUTRAL. D2 and roman-under-gates both RETIRED by measurement.)
 
-**LON DIRECTIVE (s21x-r):** "Complete ZETA CELLS on the RSP FORTH-style STACK." · "All your choices. I'm with you on this."
+⛔ **ROUTING: READ `THE MODEL` AT THE TOP OF THIS FILE FIRST — every rung below assumes it.**
+
+**LON DIRECTIVE (s21x-r):** "Complete ZETA CELLS on the RSP FORTH-style STACK." · "Remove the whole graph carve. We will not need any more." · "All your choices. I'm with you on this."
 
 **LANDED (SCRIP `efb72d69` ZLEAK-1 · `ed9ea588` ZLEAK-2 · corpus `8cfe632c` D2 probe+ref):**
 - **ZLEAK-1 (`zeta_storage.c:507`):** the STF elide-off was `static int eon` read ONCE from `getenv` — process scope driving a graph-scope regime. It applied to all 316 programs while emit.cpp:2536 armed 31; the 285 DECLINED graphs got `zls_grant` instead of `zls_grant_elide` + a skipped `zls_mark_value_refs`. **This was the ENTIRE 41-program m4 regression.** s21x-e's rationale (hole-free accumulated-offset traversal) is NOT load-bearing at HEAD → retired to killswitch `SCRIP_STF_ELIDE_OFF=1`.
