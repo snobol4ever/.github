@@ -142,3 +142,55 @@ It cannot be used as a per-node group key. Membership must be walked from each h
 
 **CARRY UNCHANGED:** test_string m3 flake (nondeterministic, both regimes). 130/131
 clean-HEAD segv (deterministic, unchased). COMPARE m4, NEVER m3, when gating.
+
+---
+
+## FINDING 5 (added at handoff) — RPO-FILL LANDED BUT IS PREORDER, NOT RPO; JCON USES POST-ORDER
+
+**Landed:** SCRIP `4c4fdd98`. BFS `nodes[]` fill (emit.cpp:1985-2036) replaced with γ-first DFS.
+Statement boxes contiguous; source comments aligned with their own boxes.
+Crosscheck m3 232/85 · m4 229/86/2 · DIV=1 (m4 exact vs baseline, m3 +1 flake direction).
+
+**DEFECT IN THE LANDED WORK — the macros lie.** Named `RPO_*`, commit says reverse-post-order.
+Implemented is **PREORDER DFS**: LIFO stack, node appended to nodes[] on FIRST visit, γ pushed
+last so it pops first. True RPO = complete a post-order walk, then reverse it.
+
+**They diverge at MERGE nodes.** Graph `A→B, A→C, B→D, C→D`:
+- preorder (as implemented): `A, B, D, C` — D placed BEFORE its predecessor C
+- true RPO:                  `A, C, B, D` — D last, after both predecessors
+
+RPO guarantees every node precedes all its successors. Preorder does not. The corpus did not
+catch this because the arithmetic/assign shapes that exercise the new path have no merges.
+**That is coverage, not correctness** — same class as the ZD-2k vacuous-arm lesson.
+
+**THE REFERENCE IS POST-ORDER — `jcon_irgen.icn:472 ir_a_Binop`:**
+```
+suspend ir(p.left,  st, inuse, lv, &null, ...)   # left subtree's chunks
+suspend ir(p.right, st, inuse, rv, &null, ...)   # right subtree's chunks
+suspend ir_chunk(p.ir.start, [ir_Goto(..., p.left.ir.start)])    # THEN own chunks
+suspend ir_chunk(p.left.ir.success,  [ir_Goto(..., p.right.ir.start)])
+suspend ir_chunk(p.left.ir.failure,  [ir_Goto(..., p.ir.failure)])
+suspend ir_chunk(p.right.ir.failure, [ir_Goto(..., p.left.ir.resume)])
+```
+Children before parent, recursively. Consequence: when the parent emits `goto p.left.ir.start`
+the child's labels already exist. Post-order also places a statement's operand boxes before the
+operator consuming them (var, var, binop, assign) — precisely the contiguity requirement.
+
+**PROEBSTING — GENERATION AND LAYOUT ARE SEPARATE PASSES.**
+`8_Simple_Translation_of_Goal_Directed_Evaluation.pdf` §5: the naive expansion *"suffers from
+generating many simple copies and many branches to branches. Propagating copies and eliminating
+branches to branches (by branch chaining and reordering the code) optimizes the code well."*
+§7 repeats it. Figure 1 = generation order (chunks grouped per operator). Figure 2 = layout
+order (threaded along control flow for fall-through).
+
+**Therefore "best fall-through order" is NOT the fill's job.** The fall-through argument used
+this session to justify preorder over post-order was a LAYOUT argument applied to the GENERATION
+pass. The paper decouples them by design; so should the emitter.
+
+**NEXT RUNG (now #1):** convert the fill to true post-order per `jcon_irgen.icn:472`, rename the
+macros. Then layout/fall-through as its OWN later rung over generated chunks (Fig 1 -> Fig 2),
+with `op_flat_disp` recomputed on the new order.
+
+**Both PDFs are session inputs, not in the repo:** `1-spitbol-manual-v3_7.pdf` (Ch.18 pattern-match
+algorithm = the bb_match_head retry loop; &ANCHOR sampled at runtime per retry) and
+`8_Simple_Translation_of_Goal_Directed_Evaluation.pdf` (Byrd four-port translation, Figs 1/2).

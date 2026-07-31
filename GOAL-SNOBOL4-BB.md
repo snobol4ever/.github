@@ -50,7 +50,22 @@ An experiment that removes the carve proves nothing while readers remain. **The 
 
 ⭐ **FINDING 4 — .s SCRAMBLE IS BFS FILL at emit.cpp:1988.** Statement boxes interleave because `nodes[]` is FIFO BFS — sibling subtrees enter queue at same level. Source comments misalign with their boxes. Fix is option (B): reorder `nodes[]` by statement membership (γ-wire walk from each `bb_src_of` head) BEFORE the `g_flat_node_id` labeling loop. `op_flat_disp` must be recomputed on the new order.
 
-**⭐ NEXT — ORDERED:** (1) Transfer-edge FINAL SUCCESS release for unarmed graphs (read seed `.s` first: `SCRIP/seed/test_sno_stmt_frame_1.s` + `_2.s`; emit `add rsp, ΣK` on goto/transfer edges; then delete the five consumer pops; gate m4 229/86/2). (2) SRC-ORDER-LAYOUT (B) lower-side id fix (γ-wire walk membership sort before labeling). (3) STF-FLIP audit (revert or fix predicate to admit `flat_pat`).
+✅ **FINDING 4 CLOSED — RPO-FILL LANDED (SCRIP `4c4fdd98`), WATERMARK NEUTRAL.** BFS `nodes[]` fill at `emit.cpp:1985-2036` replaced with a γ-first DFS. Statement boxes now CONTIGUOUS and source comments sit above their own code (`arithmetic.sno`: `OUTPUT = A + B` → n4 var, n5 var, n6 binop, n7 assign, consecutive). Crosscheck **m3 232/85 · m4 229/86/2 · DIV=1** — m4 exact, m3 +1 (flake direction).
+
+⛔⭐⭐ **BUT THE TRAVERSAL IS WRONG AND MUST BE CORRECTED — IT IS PREORDER, NOT RPO, AND JCON USES POST-ORDER.** The macros are named `RPO_*` and the commit message says reverse-post-order; **what is implemented is PREORDER DFS** (LIFO stack, append on first visit, γ pushed last so it pops first). RPO requires a completed post-order walk then a reversal. They differ at MERGES: for `A→B, A→C, B→D, C→D`, preorder gives `A,B,D,C` (D before its predecessor C); true RPO gives `A,C,B,D`. RPO guarantees every node precedes all its successors; **preorder does not**. Nothing broke because the arithmetic shapes have no merges — that is coverage, not correctness.
+
+⭐⭐ **THE REFERENCE IMPLEMENTATION IS POST-ORDER — `jcon_irgen.icn:472 ir_a_Binop` (children before parent):**
+```
+suspend ir(p.left, ...)             <- left subtree's chunks emitted
+suspend ir(p.right, ...)            <- right subtree's chunks emitted
+suspend ir_chunk(p.ir.start, ...)   <- ONLY NOW this node's own four chunks
+suspend ir_chunk(p.left.ir.success, ...) / .failure / p.right.ir.failure
+```
+By the time the parent emits `goto p.left.ir.start` the child's labels already exist. Post-order also puts a statement's operand boxes before the operator consuming them (var, var, binop, assign) — exactly the contiguity Lon requires.
+
+⭐ **PROEBSTING (`8_Simple_Translation_of_Goal_Directed_Evaluation.pdf`) — GENERATION ORDER AND LAYOUT ORDER ARE TWO SEPARATE PASSES, NOT ONE.** §5: the naive expansion *"suffers from generating many simple copies and many branches to branches. Propagating copies and eliminating branches to branches (by branch chaining and reordering the code) optimizes the code well."* §7 repeats it. Figure 1 = generation order, chunks grouped PER OPERATOR (leaves then operators). Figure 2 = layout order, threaded along control flow for fall-through. **So "best fall-through order" is NOT the fill's job — it is a later reordering pass over generated chunks.** The fall-through argument used to justify preorder over post-order was an argument about layout applied to the generation pass; the two are decoupled by design.
+
+**⭐ NEXT — ORDERED:** (1) ⭐⭐ **POST-ORDER FILL** — convert the `RPO_*` walk to true post-order (children before parent) per `jcon_irgen.icn:472`; rename the macros (they lie today). Spec = the paper + JCON. Gate: watermark + statement contiguity + `.s` regen. (2) Transfer-edge FINAL SUCCESS release for unarmed graphs (read seed `.s` first: `SCRIP/seed/test_sno_stmt_frame_1.s` + `_2.s`; emit `add rsp, ΣK` on goto/transfer edges; then delete the five consumer pops; gate m4 229/86/2). (3) STF-FLIP audit (revert, or fix the predicate to admit `flat_pat` so the match family gets the depth-immune base ZD-5 needs). (4) LAYOUT PASS as its own rung — branch-chaining + fall-through reorder over generated chunks, per Proebsting Figure 1→2, strictly AFTER generation and with `op_flat_disp` recomputed on the new order.
 
 ## ⛔⭐⭐ PRIOR CURSOR — s21x-y (2026-07-31, Claude: ⭐⭐⭐ **THE VALUE SPINE IS FULLY CLOSED AND THE OCCASIONAL C-STYLE RBP IS NOW THE SHIPPED DEFAULT.** SCRIP `072b8fa0` (ZD-2m) + `6316f8a9` (STF-FLIP) + artifact commits `6e45fb6d` (SCRIP feature) / corpus `ed1937ae` (demo). Crosscheck **m3 232/85 · m4 229/86/2 · DIV=1 {W04_arbno_basic}** and broad **m3 244/92 · m4 238/90/8** — fail sets **BYTE-IDENTICAL by SET in BOTH corpora BOTH modes** across both commits. Declines 794 → 790.)
 
