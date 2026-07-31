@@ -144,3 +144,29 @@ touching them is unmeasurable by this corpus and was 5/7 of the old size estimat
    `bb_assign_global` / `bb_binop_arith` / `bb_binop_concat_slot`).
 5. ZD-5 / `IR_MATCH_HEAD` (4 first-blockers in THIS break set, 247 corpus-wide) · CARVE-ERAD per THE MODEL's
    three-step order.
+
+---
+
+## 6 ⭐⭐⭐ ADDENDUM (same session, Lon grant "all your choices") — `151` HAS **TWO DETERMINISTIC REPRODUCERS**, AND THE PATTERN-BLOB LEAD IS **EXONERATED**
+
+The §1 flake is only the **m4 face**. Measured:
+
+| mode | signal | determinism |
+|---|---|---|
+| **m3 `--run`** | **SIGSEGV (139)** | **6/6 — fully deterministic** |
+| m4 `--compile`, ASLR on | SIGBUS (135) | 5/10 (the coin flip) |
+| **m4 `--compile`, `setarch -R`** | **SIGBUS (135)** | **0/10 — fully deterministic** |
+
+⭐ **THE BUG WAS NEVER UNHUNTABLE.** It was recorded as a nondeterministic red, but **m3 reproduces it 6/6 right now**, and **ASLR-off makes the m4 face reproduce 10/10**. The nondeterminism is **address-layout dependence**, not timing/GC/scheduling — `setarch -R` converts it to a hard failure, which is the standard signature of a read or write whose validity depends on what happens to be mapped at a computed address. **Anyone can bracket this today; no monitor barrier is required to get a stable failure.**
+
+⛔ **THE s22j PATTERN-BLOB LINK I FLAGGED AS UNTESTED IN §4 IS NOW FALSIFIED — DO NOT INHERIT IT.** `151`'s emitted `.s` contains **ZERO `proc_PAT$` labels**: it does not route through the pattern-blob RBP regime at all, so s22j's `proc_PAT$0_α` carve-48-address-past-it defect cannot be its mechanism. I recorded that link as a *possibility* and it is worth exactly nothing now; the next session should not spend a probe on it.
+
+**FOUR MECHANISMS TESTED AND KILLED (record them so they are not re-derived):**
+1. **Aligned-SSE fault in emitted code** — `movaps`/`movdqa`/`movapd` count in `151.s` is **0**.
+2. **Misaligning carve** — the only non-multiples of 16 are `8` and `344`, and BOTH are correct ABI entry fix-ups: at `main_α` entry rsp ≡ 8 (mod 16) after the call pushed its return address, so a carve ≡ 8 (mod 16) restores rsp ≡ 0 for outbound calls. Every per-BB carve (16/32/48/592) preserves alignment. **Alignment is right.**
+3. **Frame zero-fill overrun** — `main_α` emits `sub rsp,344` / `mov rdi,rsp` / `mov ecx,344` / `xor eax,eax` / **`rep stosb`**. That is a BYTE count into a 344-byte frame: exact, no overrun. (Worth stating because a `rep stosq` with the same count would have written 2752 bytes and been a perfect explanation — it is not what is emitted.)
+4. **`[rbp+N]` past frame end** — max reference is `[rbp+296]`, saved rbp sits at `[rbp+336]`, frame is 344. In range.
+
+⚠ **ENVIRONMENT FACT THE METHODOLOGY DEPENDS ON: `gdb` IS NOT INSTALLED IN THIS CONTAINER.** RULES.md's bracket protocol step 2 ("gdb breakpoint at the bracketed location, with a SPIN/IGNORE COUNTER") is unavailable as written until someone installs it. `scripts/install_system_packages.sh` installs `libgmp-dev m4 nasm wabt bison flex` — no gdb. Either add it there or plan on the `probe.py` / monitor route.
+
+**REVISED NEXT (2):** debug `151` against the **m3 SIGSEGV**, which is deterministic 6/6 and in-process, rather than the m4 face. The m4 SIGBUS under `setarch -R` is the confirming second witness. Both are free; neither needs the coin flip.
