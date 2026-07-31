@@ -40,7 +40,42 @@ An experiment that removes the carve proves nothing while readers remain. **The 
 
 ---
 
-## ⛔⭐⭐ LIVE CURSOR — s22g (2026-07-31, Claude: ⭐⭐⭐ **ZD-7 TAG-SAFE CALLEE CENSUS LANDED. IR_CALL RUNS ARE NOT SINGLE-NODE — PREDECESSORS IN THE SAME RUN REQUIRE ZOPQ, NOT FLAT SLOTS. ADMISSION ARM REVERTED CLEANLY; NEXT RUNG IS ZD-7 SLICE 2 WITH CORRECT ZOPQ PROTOCOL.** Watermark EXACT both ends: **m3 232/85 · m4 229/86/2 · DIV=1 {W04_arbno_basic}**. SCRIP `cebcb320`. Full text: `FINDING-2026-07-31e-CLAUDE-SN4-ZD7-CALL-CENSUS-AND-ADMISSION-GAP.md`)
+## ⛔⭐⭐ LIVE CURSOR — s22h (2026-07-31, Claude: ⭐⭐ **ZD-7 SLICE 2 — THREE STRUCTURAL FACTS PROVEN, TEMPLATE ARM NOT YET LANDED. Watermark EXACT: m3 232/85 · m4 229/86/2 · DIV=1 {W04_arbno_basic}. SCRIP `b30e96d9` (unchanged — all changes reverted clean).** Full text: this session's inline findings below.)
+
+⭐⭐ **WHAT WAS PROVEN THIS SESSION (s22h):**
+
+**1. PROC_STAGED EXCLUSION IS MANDATORY (measured, not assumed).** `zd_wl_kind` must exclude `rt_proc_is_registered(fn)` for bare `IR_CALL` nodes. User-defined procs (DEFINE'd functions: `add`, `roman`, `fib`, etc.) route `CALL_ROUTE_PROC_STAGED` via `bb_call_route_classify` → `bb_call_proc_staged_str`. That template has ZERO ZD arm. Handing it `op_zres=1` causes it to write result via `FRQ(resoff)` where `FRQ` adds `op_zdepth=K=16` displacement → wrong flat-frame address. Consumers then read ZOPQ expecting a suspended cell never written there. **Verified by live regression: 085_define_two_args / 086_define_locals / 087_define_freturn all produced blank output until this exclusion was added, then all three passed.** The correct predicate: `if (rt_proc_is_registered(fn)) return 0; else return 1;` with TAG-SAFE `IR_LIT(nd).sval` read (proven safe for bare IR_CALL in s22g).
+
+**2. PLANNER CHANGES (a)+(b) ARE NOT BYTE-IDENTICAL-INERT WITHOUT TEMPLATE ARM (c).** When `zd_wl_kind` admits `IR_CALL` and `zd_nops(IR_CALL) = nd->n_operands`, the planner stages `op_zres=1` and `op_zdepth=K=16` for the call node. The flat-path templates (`bb_call_fn_str`, `bb_call_byname_str`) do NOT check `op_zres` — they proceed with the existing flat arm but now read `FRQ(resoff)` with `op_zdepth=16` added, shifting the result address by 16B into wrong territory. **MEASURED: planner-only (no template arm) regressed m3 232→188 (−44).** Changes (a)+(b)+(c) must land together as one atomic commit.
+
+**3. THE `lea rsi` ENCODER GAP IS THE ONE REMAINING BLOCKER.** The ZD arm sub+adjust+write loop is correct. The call itself marshals correctly. The failure is: `x86("lea", "rsi", "qword ptr [rsp + 0]")` emits `lea rsi, [rsp + 16]` instead of `lea rsi, [rsp + 0]`. Root cause identified: `XK_RSP64` with `off=0` dispatches to `x86_reg_disp32_lea64("rsi", "rsp", 0+16)` — the `+16` is the ZD cell depth being added somewhere in the RSP operand path. **The correct encoder call is `x86_reg_disp32_lea64("rsi", "rsp", 0)` emitting `lea rsi, [rsp + 0]` directly** — bypassing x86() parser by calling the encoder function directly in the template, same idiom used elsewhere for special-purpose addressing.
+
+⛔⭐⭐ **ZD-7 SLICE 2 — THE THREE CHANGES, ALL NECESSARY AND SUFFICIENT:**
+
+**(a)** `emit.cpp zd_nops`: `if (op == IR_CALL) return (int)nd->n_operands;` — first line of the function.
+
+**(b)** `emit.cpp zd_wl_kind`: after `IR_SUBSCRIPT` line, add:
+```c
+if (op == IR_CALL) {
+    extern int rt_proc_is_registered(const char *);
+    const char * fn = IR_LIT(nd).sval;
+    if (!fn || !fn[0]) return 1;
+    if (rt_proc_is_registered(fn)) return 0;
+    return 1;
+}
+```
+
+**(c)** Template arms in `bb_call_fn_str` AND `bb_call_byname_str` — add `if (_.op_zres) { ... return s; }` block at top of each, before the existing flat path. The ZD arm structure (proven correct for SIZE/DIFFER/DUPL with one remaining encoder bug):
+- `x86_alpha()` (glue already carved K=16 for result cell)
+- `sub rsp, nargs*16` (extra arg scratch)
+- For each arg i: read `[rsp + op_zread[i] + 0 + nargs*16]` and `[rsp + op_zread[i] + 8 + nargs*16]` into r10/r11, write to `[rsp + i*16 + 0]` and `[rsp + i*16 + 8]` — use raw `std::string("[rsp + ") + std::to_string(N) + "]"` operands with `x86("mov", ..., ...)` — these parse as `XK_RSP64/RSP32` correctly with the numeric offsets
+- Call `rt_call_arr` with `rdi = fn_name`, `rsi = &args[0]`. **THE BLOCKER:** `rsi` must be set to `[rsp + 0]` = start of arg scratch. Use `x86_reg_disp32_lea64("rsi", "rsp", 0)` DIRECTLY (bypassing `x86()` parser) — this emits `lea rsi, [rsp + 0]` in text mode and correct MOD10 SIB encoding in binary mode. Do NOT use `x86("lea", "rsi", "qword ptr [rsp + 0]")` — the RSP parser adds +16 displacement via a path not yet traced.
+- `add rsp, nargs*16` (release arg scratch)
+- `cmp eax, 99` + `x86_omega("je")`
+- `x86("mov", ZRES(0), "rax")` + `x86("mov", ZRES(8), "rdx")`
+- `x86_gamma()` + `x86_beta_trampoline()`
+
+**SUCCESS METRIC:** SIZE('hello') → 5 (currently 0 with broken arm, N/A without arm). Full crosscheck watermark must be measured against baseline BEFORE claiming success — the planner+template must be neutral on existing programs and move the decline census toward zero.
 
 ⭐⭐⭐ **WHAT WAS PROVEN THIS SESSION (s22g):**
 
