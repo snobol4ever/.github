@@ -95,3 +95,16 @@ The gap census appended **raw stderr** for 250 programs, of which **185 fail to 
 - **(e) ⚠ RECONCILE WITH THE LIVE CURSOR.** s161's NEXT (a) is ζ-FB-4, an rbp-pin probe **on the flat carve**. If (a)+(b) land, a large part of the ζ-FB ladder becomes **vacuous by construction** — the same shape as `FINDING-2026-07-30-CLAUDE-PL-RTX-0`'s "SINK makes RTX vacuous for Prolog". Lon ruling wanted before spending a session refining the base register of a carve we are deleting.
 
 **BANKED (carried, unchanged):** `unary_not.sno` uninitialised-`.string` non-determinism; engine-wide silent-fail on undefined predicates; int/float standard-order conflation (two-oracle); lexer escape three-site/two-behaviour; NO-LCO segfault; nested-`\+` binding leak; retractall/1 gaps.
+
+---
+
+## ⛔⭐ REBASED MID-SESSION — THE SUBSTRATE MOVED ONTO THIS RUNG'S OWN CONJUNCT, AND EVERY NUMBER WAS RE-MEASURED
+
+At close, `handoff_status.sh` reported origin ahead on SCRIP and `.github`. The incoming SCRIP commit is **`5c1f99bf` "ZD-9: refine zd_plan's BLANKET jmp-entry decline to admit DEFINE stubs"** — a parallel session landed a refinement of **the exact `flat_jmp_entry` conjunct this rung measured against**, changing it to `flat_jmp_entry && !zd_stub_ok()`.
+
+Per the s159 rule (*a claim without the SHA it was measured on silently expires under parallel sessions*), the pre-rebase figures — taken on `417add3c` — could not be carried. **RE-MEASURED on the rebased tree (`f88ce472`, SCRIP now `5c1f99bf`+):**
+
+- Prolog **ARMED_NODES = 0 · DECLINED_RUNS = 65** — **IDENTICAL to the pre-rebase measurement.**
+- Gates re-run: rung suite **164/164 interp + 164/164 compile FAIL=0** · `emit_no_lang` **OK** · `pl_no_new_global` **PASS** ratchet 14/floor 14.
+
+**The headline survives, and the reason is informative:** ZD-9's `zd_stub_ok()` admits **DEFINE stubs** — a SNOBOL4 construct. It widens the jmp-entry gate along the SNOBOL4 axis and moves Prolog by exactly zero. That is this finding's thesis reproduced by an independent session's commit: **work aimed at SNOBOL4's shape of the jmp-entry problem does not reach Prolog's shape of it.** ZD-9 is correct and welcome; it is also evidence that ZD-PL-0 is a genuinely separate rung and will not arrive as a side effect of the SNOBOL4 ladder.
