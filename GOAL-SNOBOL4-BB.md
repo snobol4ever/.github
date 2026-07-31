@@ -40,7 +40,7 @@ An experiment that removes the carve proves nothing while readers remain. **The 
 
 ---
 
-## ⛔⭐⭐ LIVE CURSOR — s22h (2026-07-31, Claude: ⭐⭐ **ZD-7 SLICE 2 — THREE STRUCTURAL FACTS PROVEN, TEMPLATE ARM NOT YET LANDED. Watermark EXACT: m3 232/85 · m4 229/86/2 · DIV=1 {W04_arbno_basic}. SCRIP `b30e96d9` (unchanged — all changes reverted clean).** Full text: this session's inline findings below.)
+## ⛔⭐⭐ LIVE CURSOR — s22i (2026-07-31, Claude: ⭐⭐ **ZD-7 SLICE 2 LANDED. Watermark HELD: m3 232/85 · m4 230/86/1 · DIV=1 {W04_arbno_basic}. SCRIP `a70f0632`. IR_CALL decline census 519→58 (58 = PROC_STAGED exclusions, correct). SIZE('hello')→5 ✅. Residual declines: IR_MATCH_HEAD 247 · IR_SAVE_RESTORE 25 · IR_GOTO_DEFERRED 8.** Full text: FINDING to be written.)
 
 ⭐⭐ **WHAT WAS PROVEN THIS SESSION (s22h):**
 
