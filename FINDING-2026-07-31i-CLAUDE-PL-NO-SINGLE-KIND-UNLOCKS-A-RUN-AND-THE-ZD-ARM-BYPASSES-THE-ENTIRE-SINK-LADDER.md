@@ -128,3 +128,67 @@ The census filters **at the source** (`grep '^\[ZD-GAP\]'` inside the per-progra
 - The unlock table is measured on the **185-program rung corpus** (100% compile). s162's figures were over a different 250-program set with a 185/250 compile-failure rate; the two are **not** the same denominator and should not be compared digit-to-digit. What reproduces exactly is the **structure**: armed = 0, one run per program, predicates declined before the run loop.
 - The sink-bypass regression is **structural + sized, not yet A/B-measured in wall time** — measuring it requires admitting the kind, which needs ZD-PL-A first. No perf claim is made beyond the emitted-symbol census (65 vs 2).
 - Nothing about push state is claimed here. `scripts/handoff_status.sh`, run live, is the only ground truth.
+
+---
+
+# PART 2 — ZD-PL-A LANDED, AND THE SEQUENCING RESULT THAT CORRECTS PART 1
+
+Lon grant: *"All your choices. I'm with you on this. Continue."*
+
+## LANDED: ZD-PL-A (SCRIP `1c4830d2`) — dispatch shared, storage differs
+
+`bb_call_fn_str`'s ZD arm now consults the **same** `dop_direct_fp` gate the legacy arm consults. The dispatch DECISION is spelled once; only STORAGE differs (args from this box's `rsp` scratch built out of the ZOPQ predecessor cells rather than `FRQ(argbase)`; result to `ZRES` rather than `FRQ(resoff)`). `nargs==0` is excluded deliberately — the only 0-arity dop is `$trail_mark`, and with no `sub rsp` there is no scratch array to point `rdi` at. Diff: +9 lines, one file.
+
+## ⭐ THIS RUNG IS A PRECONDITION, NOT A WIN — ITS OBSERVABLE EFFECT TODAY IS ZERO
+
+Stated plainly so no later session reads it as a perf landing:
+
+**SNOBOL4 — 300-program `.s` A/B, BYTE-IDENTICAL** (`1cc27d45f408817e66909a6c3a217d7e` both sides; same binary rebuilt across a `git stash` of the one file). And the control is **SUBSTANTIVE, not vacuous** — `SCRIP_ZD_DIAG` counts **106 armed `IR_CALL` nodes in the first 40 programs alone**. Because `dop_direct_fp`'s table is 100% Prolog `$`-builtins, no SNOBOL4 callee can match, so `zdfp` stays 0 and the legacy `rt_call_arr` block is reached verbatim. **The byte-identity MEASURES that inertness instead of assuming it.**
+
+⚠ **A VACUOUS CONTROL WAS CAUGHT MID-FLIGHT.** The first inertness probe grepped emitted `.s` for the arm's own marker string `BOX IR_CALL ZD-7` and found **0 in 300 programs** — which looked like "the arm never fires" and would have made the whole A/B meaningless. The real cause: `x86("comment", …)` does **not** render into the `.s` text output at all, so the probe was measuring the wrong signal. `SCRIP_ZD_DIAG` (which reads `zd_plan`'s actual `zon[]` verdicts) then showed 106 armed calls. **A marker that never reaches the artifact cannot certify anything about the artifact** — same disease as the s162 first-blocker histogram: an instrument answering a different question than the one asked.
+
+**Prolog — unreachable today.** Zero runs arm, so the new path cannot fire. An **injection probe** (admit `IR_CALL_BUILTIN_PROLOG` + `IR_MOVE_LABEL`, **REVERTED**, `git diff` verified back to the committed rung, 0 armed nodes re-confirmed) armed a Prolog run **for the first time in the language's history** — `rung01_hello_hello.pl`: **3 `IR_CALL_BUILTIN_PROLOG` + 2 `IR_LIT_STRING` + 1 `IR_MOVE_LABEL`** — which independently confirms Part 1's pair census. But the A/B across that program (with vs without ZD-PL-A, injection held constant) came out **identical: dop=1 call_arr=3 both sides**. Cause: `rung01`'s armed callees are `write`/`nl`, which are **not dop table entries**. Honest verdict: **that A/B is VACUOUS and proves nothing about ZD-PL-A's effect.**
+
+## ⭐⭐ THE MEASUREMENT THAT CORRECTS PART 1's SEQUENCING ARGUMENT
+
+Why no armed Prolog call could reach a dop — attributing the 65 dop calls in emitted `nrev.s` to their owning graph:
+
+| Graph | `call rt_pl_dop_*` |
+|---|---|
+| `proc_reverse$2F2_res` | 12 |
+| `proc_nrev$2F2_res` | 12 |
+| `proc_data$2F1_res` | 11 |
+| `proc_$reverse_$2F3_res` | 11 |
+| `proc_append$2F3_res` | 10 |
+| `proc_data$2F2_res` | 3 |
+| **`main`** | **2** |
+| (unattributed) | 4 |
+
+**`main` holds 2 of 65. The predicate graphs hold 59 — ~97% of the dop/sink data plane sits behind gate A (the jmp-entry structural decline).**
+
+### CONSEQUENCE — I WAS HALF WRONG IN PART 1, AND THE MEASUREMENT SAYS SO
+
+Part 1 argued **kinds before protocol**, on the ground that protocol-first is unfalsifiable (armed stays 0 either way). That reasoning is still correct *about falsifiability*. But it silently implied the kind ladder was where the value was, and **that is false by measurement**: arming all five kinds reaches `main` only, and `main` owns **3%** of the dop traffic. **The s162 cursor's ⭐⭐ instinct — that the protocol rung is the prize — was right about VALUE and wrong only about FALSIFIABILITY.** Both halves of the disagreement were partly right; the corpus settled it.
+
+### THE DEADLOCK RESOLVES BECAUSE ZD-PL-A EXISTS
+
+- **Without ZD-PL-A**, landing the protocol rung and then admitting kinds converts **59 dop calls into `rt_call_arr`** — silently, with every gate green.
+- **With ZD-PL-A**, an armed call keeps its dop dispatch by construction, so the protocol rung becomes **falsifiable in the right direction**: its check is *"do the predicate graphs' dop calls survive arming?"* — a byte-level property of the emitted `.s`, not a wall-clock argument.
+
+**ZD-PL-A is therefore a TRIPWIRE laid before the rung that needs it**, which is why it was worth landing while its own effect is zero.
+
+## CORRECTED LADDER
+
+| Rung | State |
+|---|---|
+| **ZD-PL-A** | ✅ LANDED `1c4830d2`. Precondition/tripwire. Observable effect today: zero, by measurement. |
+| ⭐⭐ **ZD-PL-0** (protocol, the 94% of graphs / **97% of dop traffic**) | **NOW THE HEAD RUNG.** Teach the jmp-entry 32B-wire-header protocol the cell convention. Falsifiable now: predicate dop calls must survive arming. ⛔ Still DO NOT merely delete the conjunct. |
+| **ZD-PL-B/C** (admit the 5 kinds) | Behind ZD-PL-0. Pair census: `{CBP,MOVE_LABEL}`→29, `+{VAR,VAR_REF}`→94, `+PROC_STAGED`→185. Worth ~3% of dop traffic on its own. |
+| **ZD-PL-A slice 2** | Lift the INLINE sinks (`sink_unify2_str` et al) into the ZD arm — needs their `FRQ` addressing parameterized. Only after ZD-PL-0 makes them reachable. |
+
+## GATES AT PART-2 CLOSE (all `-O0`)
+
+- Prolog rung suite **164/164 interp + 164/164 compile FAIL=0** (baseline held across every rebuild in the session).
+- `test_gate_emit_no_lang.sh` **OK** · `test_gate_pl_no_new_global.sh` **PASS** 14/floor 14.
+- Template hygiene: `MEDIUM_` in `bb_call_fn.cpp` = **0**; no raw-byte producer among the added lines; the one `x86_reg_disp32_lea64` use mirrors the pre-existing, documented precedent 13 lines below it (the `x86()` parser adds `+op_zdepth` to RSP operands).
+- Injection probe **REVERTED and verified** — 0 armed Prolog nodes at close.
