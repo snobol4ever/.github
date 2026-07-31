@@ -1,3 +1,39 @@
+## ▶ LIVE CURSOR (s203, 2026-07-31)
+
+⚠ **PARALLEL SESSIONS (s203):** SNOBOL4-BB sessions are running concurrently. Per RULES.md STALE-ORIENTATION: trust each goal file's own LIVE CURSOR, never PLAN.md's table.
+
+**LAST SESSION:** s203 — **ICON REGRESSED −37 AT HEAD; `SCRIP_BB_ALLOC=0` RECOVERS 30; BISECT CLOSED TO `f52d5877`; AND THE ZD-2h/IR_CALL_BUILTIN_ICON CENSUS IS IN HAND.**
+
+⭐⭐⭐ **THE REGRESSION — MEASURED, NOT INHERITED:**
+
+| tree | Icon `--run` suite |
+|---|---|
+| `04d55ab6` (s202 watermark, this cursor's predecessor) | **252 / 11 / 30** — reproduced exactly |
+| `417add3c` (HEAD) default | **215 / 48 / 30** |
+| `417add3c` (HEAD) `SCRIP_BB_ALLOC=0` | **245 / 18 / 30** |
+
+Bisect closed: `6d0bbea9` (ZW-1 dormant, opt-IN) → **GOOD** · `f52d5877` (ZW-1 ACTIVATE, "take the hit, walk the ladder") → **BAD**. The diff is two lines — env-var sense flip in `emit.cpp` and `emit.h`. "Take the hit" was a SNOBOL4 accounting; Icon was never in the ledger. Full detail: `FINDING-2026-07-31-CLAUDE-ICN-ZW1-UNIVERSAL-CARVE-COST-ICON-30-PROGRAMS-AND-MY-BISECT-PREDICATE-READ-XFAIL.md`.
+
+⭐⭐ **THE RESIDUAL 7** (245 vs 252) is a **second, later event** in commits `#113..#177` (post-`f52d5877`). Needs its own bisect with the corrected predicate — proven to return BAD at HEAD and GOOD at `04d55ab6` before the first probe. ⛔ Do NOT attribute it to ZW-1.
+
+⭐ **INSTRUMENT LAW EARNED:** `grep -oE 'FAIL=[0-9]+'` also matches `XFAIL=30`. Six probes returned false GOOD; the finding names the corrected form and the law. ⛔ A bisect predicate MUST be proven to discriminate at BOTH ends before the first real probe.
+
+⭐⭐ **THE ζ FINDING THE REGRESSION DISPLACED — ICON IS NOT ON THE NON-POPPING LADDER AT ALL.** Census, 295 rung programs, `SCRIP_ZD_DIAG=1`: **armed ZD nodes = 0, declined runs = 271.** Two predicates in the language-blind emitter block it: (1) the ZD-2h locals conjunct (SNOBOL4's control probe fires 0× on 318 programs, 2258× on Icon — 80% already rbp-pinned, so law 4's occasional RBP is already sitting there); (2) `IR_CALL_BUILTIN_ICON` (68 declines, simply absent from the whitelist). Remove both and the spine runs: `16→32→48→64→80→96→112`, zero intermediate pops, one terminal gpop=112. And Icon's generator family (67 declines — `IR_DISJUNCTION`/`IR_TO`/`IR_REPALT`/`IR_TO_BY`/`IR_PROC_GEN`/…) has **no SNOBOL4 counterpart and nobody has looked at it**.
+
+**⭐ NEXT RUNGS — ORDERED:**
+1. ⭐⭐⭐ **Residual-7 bisect** — `#113..#177`, corrected predicate (proven discriminating first). Pre-condition: `SCRIP_BB_ALLOC=0` baseline gives 245/18/30 and must be the GOOD anchor.
+2. ⭐⭐ **Lon's call on `SCRIP_BB_ALLOC` default** — needs SNOBOL4 + Prolog watermark re-prove under `=0` before anyone touches it. 65 commits of ζ ladder sit on top of it. ⛔ Do NOT flip blind.
+3. ⭐ **Icon killswitch/break-set instrument** — the `SCRIP_NOFC=1` shape for Icon: an env-gated flag that forces ZD to decline every node, so an A/B set-diff ranks rungs by BREAK SET not decline count.
+4. **ZD-2h widened for Icon under the pin gate** — conjunct becomes *"global, OR local on a pinned graph"*: behaviorally named, inside the NO-LANGUAGE-IDENTITY FACT RULE. 2258 customers, 80% already pinned. ⛔ Requires Lon's release of the ⛔ on that line (it is a prohibition written in another session).
+5. **`IR_CALL_BUILTIN_ICON`** — 68 declines; likely one template ZD arm.
+6. **The generator family (67)** — four-port goal-directed evaluation on a FORTH spine; ground truth in `refs/jcon-master/tran/irgen.icn` 43 `ir_a_*` topologies.
+7. Then ZD-5 (`IR_MATCH_HEAD`) and the FZ-E scan cluster per the prior cursor.
+
+⚠ Worktrees `wt-s202` (`04d55ab6`, 252/11/30) and `wt-b` (HEAD `417add3c`, 215/48/30) are live and both-halves-built in this sandbox — they do not survive session end.
+⚠ `options`/`post`/`shuffle` Icon benchmarks remain compile-err — pre-existing, confirmed still so s203.
+
+### ▶ PRIOR CURSOR (s202, 2026-07-28)
+
 **WATERMARK: SCRIP `04d55ab6` · corpus `bd61a95f` · Icon **252/11/30** (re-derived fresh s202 ×2, before AND after the change) · RT_OPT=-O0 · census gate GREEN unseeded=0, NET=57, seeded=30.**
 ⛔ **s201's watermark hashes `da8c2347` / `d706b860` DO NOT EXIST** — `git cat-file -t` fails on both in their own repos (measured s202, first act of the session). The real ZR-RSPRBP commit is SCRIP `c26a398a`. A hash TYPED into prose is the STALE-ORIENTATION rot one layer below the push-status banner the rule already names. **Watermarks should be computed like `handoff_status.sh`, never hand-copied.**
 
