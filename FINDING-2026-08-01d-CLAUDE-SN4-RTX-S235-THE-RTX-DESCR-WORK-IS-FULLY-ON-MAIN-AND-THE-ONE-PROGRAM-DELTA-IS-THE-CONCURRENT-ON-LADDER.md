@@ -83,3 +83,39 @@ Everything the ladder owed to main is present and gated:
 - **`setsid` survives a tool-call boundary; plain `&`/`nohup` does not** (s234's fact — re-confirmed, four detached builds completed cleanly).
 - `Makefile` uses `ROOT := $(shell pwd)`, so an in-place `git checkout` A/B is path-safe; **save `scrip` + `out/libscrip_rt.so` aside and restore rather than rebuilding twice** (the ARCH §7 step-4 pristine-arm recipe, applied to commit A/B).
 - The full crosscheck is **46 s** for both modes, so N=4 costs ~3 min. **There is no excuse for an N=1 watermark in this container.**
+
+---
+
+# PART II (same session, s235) — `152` BISECTED TO ONE COMMIT, AND ITS "MODE-3 UNTOUCHED BY CONSTRUCTION" CLAIM IS FALSIFIED BY A ONE-LINE PROBE
+
+## 8. ⭐⭐ THE GUILTY COMMIT IS `154a3fa8` (ON-3 ARG-NOTE), ALONE
+
+`154a3fa8`'s parent is exactly `afbcab9b`, so one build isolates it. Measured, `setarch -R`:
+
+| tree | m3 | DIVERGE | `152` |
+|---|---|---|---|
+| `afbcab9b` (parent) | 295/22/0 | 16 | **PASS** |
+| `154a3fa8` (ON-3 alone) | **294/23/0** | **17** | **FAIL** |
+
+⇒ **ON-3 alone. `efc11e5f` (ON-5 CLAIM-ZERO) is EXONERATED** — it was a coin-flip suspect and it is now ruled out by measurement, not by argument.
+
+## 9. ⭐ THE SYMPTOM IS A DETERMINISTIC SEGV, AND THE PROGRAM PAIR IS THE TELL
+
+`152_pat_json_keyvalue_renamed` **SEGVs** in m3 (expected `k=age s= n=42 b=`). It differs from `127_pat_json_keyvalue` in **NOTHING BUT CAPTURE-VARIABLE NAMES** (`K/S/N/B` → `KVAL/SVAL/NVAL/BVAL`); `152` exists precisely because `127`'s `S` collides with input `s` under case folding. Both now SEGV; `127` was already in the fail set, so **the gate is STRUCTURALLY BLIND to `127` degrading from wrong-value to SEGV** — a failure-mode change among already-failing programs is invisible to a pass/fail count. ⚠ Do not assume the blast radius is one program.
+
+**NOT s231's ASLR/load-address class — FALSIFIED:** 8 runs `setarch -R` + 12 runs ASLR ON = **20/20 identical empty output**. The fault is DETERMINISTIC. My own layout-perturbation hypothesis died in one experiment.
+
+## 10. ⭐⭐⭐ THE ONE-LINE PROBE — AN UNREACHABLE CALL BREAKS MODE 3
+
+ON-3 is **558 insertions, ZERO deletions**; only two files compile (`x86_arg_roles.h` +134 table, `x86_asm.h` +61). The whole `x86_asm.h` delta is `x86_argnote()` plus ONE call site at `:1384`, and that call sits **inside `x86_4col`, whose FIRST LINE is `:1343` `if (MEDIUM_BINARY || MEDIUM_MACRO_DEF || !PLATFORM_X86) return s;`**. The commit's own comment states: *"TEXT-only: x86_4col returns early for BINARY, so mode-3 bytes are untouched BY CONSTRUCTION."*
+
+**PROBE: comment out `x86_argnote(o);` at `:1384` and NOTHING ELSE. Rebuild. Result: `152` prints `k=age s= n=42 b=` correctly, rc=0, 3/3.**
+
+⇒ ⭐⭐ **THE CLAIM IS FALSE. A call guarded behind a `MEDIUM_BINARY` early-return demonstrably changes mode-3 behaviour.** Deleting it, and only it, converts a deterministic SEGV into the correct answer.
+
+⇒ ⭐⭐ **NEW RULE — "BY CONSTRUCTION" IS A HYPOTHESIS UNTIL A PROBE KILLS THE ARM.** This is the SIXTH failure of a same-shaped claim in this tree (`GOAL-DESCR-TAG-ENCODING §5`'s "the asm is symbolic" failed five times; s230 §48 records that class). The pattern is identical: **a safety property asserted from reading the guard, never tested by removing the guarded code.** ⚠ The reasoning is seductive because the guard IS there and I verified it by reading at `:1343` — reading was not enough. **A one-line deletion plus one rebuild is the whole cost of knowing.**
+
+**LEADING HYPOTHESIS, NOT MEASURED, DO NOT INHERIT AS FACT:** `x86()` returns a string that in BINARY carries the **in-band `L`/`J`/`D`/`E`/`F` records** `bb_emit_x86` later walks (RULES.md TEMPLATE-ONLY EMISSION). `x86_argnote` MUTATES that string — it splits on `'\n'`, appends `#` annotations with 88-column padding, and does `o.swap(out)`. If `g_medium` is ever TEXT during a mode-3 emission (runtime EVAL/CODE chain, artifact path, or a dual-label/STNO desync of the class `FINDING-2026-07-25-...MONITOR-DARK-FOR-SN4-DUAL-LABEL-EMITTERS-AND-STNO-DESYNC` names), the guard does not hold and the record stream is corrupted → wrong bytes → SEGV. ⇒ **Next step is MONITOR-FIRST per RULES.md, plus printing `g_medium` at `:1343` on a mode-3 run of `152`.**
+
+## 11. ⛔ ROUTING — THIS IS NOT MINE TO LAND
+The defect, the file (`src/templates/x86_asm.h`), and the gates all belong to the **ζ/ON ladder**, not SNOBOL4-RTX. Per RULES.md ("DO NOT READ UNRELATED GOAL FILES") I stopped at diagnosis and did **NOT** land the one-line fix: it touches `x86_asm.h`, which fires `.s` regen ×3 and needs that ladder's own gates and watermark. **The probe is reproducible in two commands and is recorded above.** ⛔ **The probe was REVERTED; the tree is clean at `03cecd87` and the committed artifacts are the pristine main build.** Lon routes it.
