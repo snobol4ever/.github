@@ -128,3 +128,45 @@ m3 **199** vs m4 **186**. The inversion is new — every prior cursor has m4 ahe
 - `.s` artifact regens run at HEAD after EXIT-ALIGN (benchmark, feature, demo) — SCRIP `19f54aac`, corpus `2f99acba` + `98ee1ad9`. The ONE-SHOT-BRIDGE-M3 commit owed none (runtime-thunk only; emitted `.s` proven byte-identical by diff, not assumed).
 - Both `.github` and `corpus` needed `git config user.name/email` set locally before their first commit (`root@vm.(none)` otherwise). Only SCRIP's was pre-set.
 - ⚠ **`bb_glue_outer_γ/ω` still carries the `IF(MEDIUM_TEXT,…) + IF(MEDIUM_BINARY,…)` split**, which RULES.md calls an absolute violation and `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` names as the forbidden shape. s22p took it knowingly for the PLT/preamble asymmetry. **The preamble half of that justification is now GONE** (EXIT-ALIGN deleted the `add rsp,24`), so the only remaining asymmetry is `exit@PLT` vs `ret` — a genuine medium difference that belongs **inside** an encoder. Collapsing it is now a smaller job than when s22p wrote it. Not attempted this session.
+
+---
+
+## 9. ⭐⭐⭐ ADDENDUM — m3 IS NOT CORRECT, IT IS CUSHIONED; AND `max_rsp_off` vs HEADROOM IS A STATIC TRIAGE INSTRUMENT
+
+### 9.1 The headroom asymmetry IS the DIVERGE class
+
+Measured, `W06_pos`, distance from graph-entry rsp to the `envp` array:
+
+| mode | headroom |
+|------|----------|
+| m3 | **20,048 bytes** |
+| m4 | **344 bytes** |
+
+The stray writes happen in **BOTH** modes. m3 enters the graph from deep inside the C driver (`rt_outer_call` ← `scrip.c`), so ~20KB of live driver frames sit above α and absorb everything the unarmed readers throw. m4 `jmp`s in from `main` with only a 24-byte preamble, argv, and then `envp`.
+
+⛔⭐⭐ **THEREFORE: m3's PASS COUNT IS INFLATED, AND `DIVERGE` HAS BEEN PARTLY MEASURING HEADROOM RATHER THAN CORRECTNESS.** A program that "passes" m3 may be scribbling through the driver's own live frames and getting away with it. This does not retract ONE-SHOT-BRIDGE-M3 (§1) — the parity defect was real, the fix is right, and +126 programs genuinely changed behaviour — but **199/118 should be read as an upper bound, not a correctness statement.** The same caution the s22l-B cursor applied to exit-status-blind PASSes applies here, one level deeper.
+
+### 9.2 The static predictor, and its limits
+
+`max_rsp_off` = the largest `[rsp + N]` in a program's `.s`. Threshold = the 344-byte m4 headroom. Full crosscheck corpus, 318 programs, one binary at HEAD:
+
+| max_rsp_off | m4 PASS | m4 FAIL |
+|-------------|---------|---------|
+| ≤ 344 | 173 | 57 |
+| **> 344** | 10 | **76** |
+
+⭐ **THIS SPLITS THE m4 FAIL SET INTO TWO CLASSES WITH A GREP.** ~**76 of 130** are corruption-class and share ONE authority (the unarmed readers of §4) — they should fall in a block as readers convert, not singly. The remaining ~**54** are a different problem and need individual work; `1016_eval` (max_rsp_off = 104, fails rc=0 with wrong output) is the type specimen.
+
+⛔ **DO NOT OVERSELL THIS — IT IS A TRIAGE INSTRUMENT, NOT A LAW.** Two honest error bars, both explained by the mechanism rather than explained away:
+- **10 programs exceed 344 and PASS.** Expected: `max_rsp_off` is a STATIC maximum over the whole `.s`; the site may sit on a path that never executes, or execute at a depth where `rsp+N` still lands below `envp`. Static offset over-approximates dynamic reach.
+- **57 programs are under 344 and FAIL.** Expected: staying inside the headroom means you do not corrupt `envp`; it says nothing about being correct.
+
+⭐ **WHY IT IS STILL WORTH HAVING:** it costs one `grep` per program, needs no debugger, and gives the carve-eradication rung a **monotone progress metric that THE MODEL explicitly asks for** ("Progress = monotone decrease of the declined-statement census"). Watch `max_rsp_off` fall toward the per-BB cell sizes as readers convert; when the >344 bucket empties, the 76 should be gone. If it does not empty, or the 76 do not move with it, the mechanism in §4 is wrong and should be re-derived rather than patched.
+
+### 9.3 ⛔ THE TEMPTING WRONG FIX, NAMED BEFORE SOMEBODY TRIES IT
+
+Giving `main` a large `sub rsp, K` cushion before `jmp main_α` would move m4's headroom from 344 to whatever m3 enjoys and would turn most of those 76 green **immediately**. **DO NOT.** That is the whole-graph carve re-entering through the driver's door, it papers over live-state corruption instead of removing it, and it would make the >344 bucket stop predicting anything — destroying the one cheap instrument this addendum just established. THE MODEL's job is unchanged: **delete the customers, then delete the frame.**
+
+### 9.4 Instrument note
+
+`< /dev/null` on BOTH the `scrip` call and the compiled program, in any sweep loop that reads its file list from stdin — RULES.md says this for `scrip` and the reason generalizes. A compiled SNOBOL4 program reads stdin; the first one silently swallowed a 318-entry work list and the sweep reported a 1-program corpus with `skipped=0`, which looks like a correct run of an empty set rather than a broken one.
