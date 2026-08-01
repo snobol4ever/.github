@@ -40,7 +40,22 @@ An experiment that removes the carve proves nothing while readers remain. **The 
 
 ---
 
-## ⛔⭐⭐ LIVE CURSOR — s22o (2026-08-01, Claude: ⛔⛔ **EMERGENCY HANDOFF — THE EPILOGUE IS NOW DELETED TOO. PRO/EPI ARE BOTH GONE. THE TREE IS INTENTIONALLY RED: m3 5/312 · m4 0 PASS / 317 SKIP (`--compile` produces no assemblable `.s`) · DIV 0.** Lon directive this session: *"Delete the prolog and epilog … We want a nice broken system to build from with just the BB's to build around,"* and, on the proposal to split the prologue's six regimes into six IR kinds + six templates, *"do not create the six new templates. We'll do without them. We'll just the simple glue and all other code must slide into their proper places. This whole pro/epi violates my principle. I want flat BB's and some dynamic glue to jump between them as one shot or pass through."*)
+## ⛔⭐⭐ LIVE CURSOR — s22p (2026-08-01, Claude: ⭐⭐ **ONE-SHOT BRIDGE + NON-POPPING WHACK LANDED. m4 64/252 → 186/130 (+122). SCRIP `05d250bd`.**
+
+⭐⭐⭐ **THE THREE CHANGES (atomic, mutually load-bearing):**
+(1) **main jmps into the graph** — `jmp main_α`, not `call main_α / ret`. No eax status code. The graph's γ/ω ports jmp back into labels inside main. scrip.c + bb_glue_flat.cpp.
+(2) **Outermost box owns its γ/ω ports** as glue: TEXT = whack + `add rsp,24` + `exit(0/1)`; BINARY = whack + `eax=1/99` + `ret`. Medium-split because mode-3 runs in a JIT slab (no PLT) and mode-4 has a 24-byte driver preamble mode-3 does not.
+(3) **`bb_glue_outer_whack()` = true**, gated by `bb_glue_framed_enter()` at `main_α_body` (emit.cpp, g_flat_outer_nparams==0 guard). rbp pinned at α; framed_leave at γ/ω discards the activation at whatever depth the non-popping FORTH spine reached. THE ORDER LAW: enter fires FIRST, leave fires LAST — reversing corrupts rsp (the 058 disease).
+
+⭐ **DIVERGE 15→125 IS EXPECTED, NOT A REGRESSION.** m4 changed its exit path (exit() vs ret); m3 still returns eax to C. The programs m4 now passes that m3 fails are the next work order for m3.
+
+⭐ **`add rsp, 24` in the TEXT gamma/omega is the one fragile constant.** It matches the driver preamble: `sub rsp,8` + `push rdi` + `push rsi` = 24 bytes between main's entry rsp and the rbp pin. If the preamble changes, this number changes too. ONE AUTHORITY: `bb_glue_outer_whack()` + the TEXT arm of `bb_glue_outer_γ/ω`.
+
+**⭐ NEXT — ORDERED:**
+(1) **m3 DIVERGE sweep** — 125 programs pass m4 but fail m3 with eax=1/ret still in place. The fix is landing the same one-shot bridge in mode-3 (a `call exit` via `x86_call_ro` using the runtime's own exit symbol, or a raw syscall). Measure first: how many of the 125 are genuinely broken vs how many are the same programs that were already failing before s22p.
+(2) **NOFC symmetric default-ON** (s22l finding: +32/+33 programs). Now that the spine is non-popping and the bridge is clean, flip `SCRIP_NOFC` default. This is Lon's call — s22l left it explicitly.
+(3) **Pattern-blob ZD family** (~1054 FR/FRQ sites, the unarmed mass). The non-popping spine is the prerequisite; now the cells survive to their natural release point.
+(4) **JOIN-POINT RULE** — δ_out well-defined only if every path into a box arrives at the same accumulated depth. Success paths do; the FAIL edge from deep inside a pattern back to an earlier alternative is still unnamed. Write the rule before it manifests as a 16-byte skew.
 
 ⭐⭐⭐ **THE MEASURED FINDING — THE EPILOGUE WAS NOT ONLY THE CARVE'S OTHER HALF; IT WAS EMITTING THE γ/ω PORT LANDINGS.** s22n deleted the prologue and left the epilogue, which then read `[rbp+kt-24]` (γ wire), `[rbp+kt-16]` (ω wire), `[rbp+kt-8]` (caller rbp) and `lea rsp,[rbp+kt]` against a frame nobody established — HEAD measured **m3 77/240 · m4 5/311**, not the 276/41 the older cursors quote. Deleting the epilogue drops m4 to **0 PASS / 317 SKIP**: with no epilogue a graph has NO success or failure exit at all, so the `.s` will not assemble. ⭐ **THAT CONTENT IS THE "SLIDE INTO THEIR PROPER PLACES" WORK ORDER:** the γ/ω landings and the two wire registers (rcx = γ-return, rdx = ω-return) belong to the OUTERMOST BOX's own ports and to the dynamic glue, never to a graph-level epilogue.
 
