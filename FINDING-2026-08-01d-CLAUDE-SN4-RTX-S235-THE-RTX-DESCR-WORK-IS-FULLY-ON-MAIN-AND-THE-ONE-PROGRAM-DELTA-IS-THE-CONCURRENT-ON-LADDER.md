@@ -119,3 +119,12 @@ ON-3 is **558 insertions, ZERO deletions**; only two files compile (`x86_arg_rol
 
 ## 11. ⛔ ROUTING — THIS IS NOT MINE TO LAND
 The defect, the file (`src/templates/x86_asm.h`), and the gates all belong to the **ζ/ON ladder**, not SNOBOL4-RTX. Per RULES.md ("DO NOT READ UNRELATED GOAL FILES") I stopped at diagnosis and did **NOT** land the one-line fix: it touches `x86_asm.h`, which fires `.s` regen ×3 and needs that ladder's own gates and watermark. **The probe is reproducible in two commands and is recorded above.** ⛔ **The probe was REVERTED; the tree is clean at `03cecd87` and the committed artifacts are the pristine main build.** Lon routes it.
+
+## 12. ⛔⛔ STILL BROKEN FIVE COMMITS LATER — THE LADDER IS BUILDING ON IT (measured at session end)
+
+Origin moved DURING this session. SCRIP `03cecd87` → **`7ba87345`**, five commits, **all from the same note-column family**: `39cfbbbc` (ON-1 operand-kind + ON-3 restore side), `f3e3fe3a` (s23e ON-4 partial), `47936e39` (s23f note column, "three defects"), plus two `.s` artifact commits.
+
+**Rebuilt at `7ba87345` and re-tested: `152` AND `127` BOTH STILL SEGV.** The regression is NOT fixed, and four further annotation commits have landed on top of a note path that is **measured** not mode-3-safe.
+
+⇒ ⭐⭐ **THE WATERMARK NUMBERS IN PART I DESCRIBE `03cecd87` AND NOTHING ELSE** — stated per this session's own new rule. The `152` fault, the bisect to `154a3fa8`, and the `:1384` probe all still reproduce at `7ba87345`.
+⇒ ⚠ **URGENCY: the family is under active development while broken.** The one-line probe in §10 is the fastest known reproduction and costs one rebuild.
