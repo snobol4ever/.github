@@ -79,3 +79,23 @@ WIREREG is a **proof of method for CARVE-ERAD**, on the smallest possible instan
 
 1. ⭐⭐⭐ **The α/γ whack asymmetry.** `α`'s rbp pin is guarded (`emit.cpp:2153`); the `γ/ω` whack (`emit.cpp:2512-2513`, `bb_glue_outer_γ/ω` → unconditional `bb_glue_framed_leave()`) is **not guarded at all**. A jmp-entry DEFINE stub therefore never pins rbp and whacks through it anyway — which is the literal source of the `mov rsp,rbp; pop rbp; ...; call exit@PLT` Lon read in `roman.s`, and is the trap `bb_glue_flat.cpp`'s own comment names (*"omitting (1) while keeping (3) loads the CRT caller's rbp into rsp"*). **Both sites are inside one function** (`codegen_flat_chain_body`), so the cure is a function-local capture — compute the predicate once at α, consume it at γ/ω — i.e. law-4 RBP enforced as a matched pair under ONE authority. ⚠ Suppressing the whack alone still leaves `exit@PLT` on a proc graph; the live `n0_goto_β → proc_LBL__ROMAN_ω` edge ought to route to the ω wire (an FRETURN), not kill the process. That is a semantics decision, not a codegen tweak.
 2. **`roman` now runs but its arguments are unbound** — every line prints `" -> "`; m3 dies `Error 101 ... eq first argument is not numeric`. The wild jmp is gone, so this is the next bracket and it is MONITOR territory. Suspect the staged-arg install / nparams registration: `proc_startup` registers `LBL__ROMAN` with **nparams=0** and `ROMAN` with **nparams=2** (pnames `N`,`UNITS`) although `DEFINE('ROMAN(N)UNITS')` declares ONE formal and ONE local.
+
+---
+
+## ⛔⭐⭐⭐ ADDENDUM — RBPPAIR TRIED AND FALSIFIED IN THE SAME SESSION: THERE IS A SECOND RBP-PINNING AUTHORITY AND THE EMITTER CANNOT SEE IT
+
+Open item (1) above was implemented, measured, and **reverted**. The tree ships WIREREG only.
+
+**What was built.** `bb_glue_outer_whack()` returned an unconditional `true`. It was changed to read a verdict recorded at the α site (`emit.cpp:2153`) — whack IFF we pinned — so the law-4 RBP pin and unpin become a matched pair under one authority. Positive control confirmed the change was **correctly selective**: `proc_LBL__ROMAN_γ` lost its `mov rsp,rbp; pop rbp` while `main_γ` kept both its pin and its whack.
+
+**What it measured.** Crosscheck 318, set-diffed against the WIREREG arm, both `.so`s snapshotted per the instrument law above:
+
+- **m4: IDENTICAL BY SET.** Zero movement.
+- **m3: fixes NOTHING and breaks `1016_eval`** — `PPP → FFF`, three runs per arm under bare exec.
+- `042_pat_break` appeared as a second break and is **voided** (FFF in both arms bare — the cushioning class, caught for the second time this session).
+
+**Why the premise was wrong.** The α-site guard is **not a complete account of who pinned rbp**. EVAL/CODE chains are jmp-entry citizens whose enter/exit protocol is `rt_chain_enter` on the **C driver side** — s21x-h named this class explicitly (*"their enter/exit protocol ... is NOT the pcall record's"*) — so for those graphs rbp **is** established, by an authority living outside the emitter, and the unguarded whack was legitimately unwinding to it. Making the whack mirror only the α guard took `1016_eval`'s unwind away.
+
+**The finding that outlives the rung.** This is an **unledgered second pin authority**, structurally the same shape as ZREL-2's *"the STFH 48 is an unledgered second allocation authority"* — and, like that one, it was discovered by a regression rather than by a grep, because nothing in the source declares it. The real next rung is therefore **not** the whack predicate but its prerequisite: make `rt_chain_enter`'s pin **readable by the emitter**, so the predicate can be `pinned-by-α OR pinned-by-chain-enter`. Until that exists, **the unmatched pair must stay** — it is load-bearing for exactly the citizens the α guard excludes.
+
+**Method note, and it is the session's second instance of the same law.** The cure was cheap, obviously-correct-looking, and directly licensed by the source's own warning comment. It still failed. A one-program regression that only appears in one mode is invisible to a count (m3 203→201 reads like noise) and invisible to a single sweep run (`042` polluted the same diff). **Only the per-program set-diff plus a three-run bare-exec repeat separated the real regression from the cushioning artifact.** Both instruments were needed; either alone would have given the wrong verdict.
