@@ -40,7 +40,25 @@ An experiment that removes the carve proves nothing while readers remain. **The 
 
 ---
 
-## ⛔⭐⭐ LIVE CURSOR — s22p (2026-08-01, Claude: ⭐⭐ **ONE-SHOT BRIDGE + NON-POPPING WHACK LANDED. m4 64/252 → 186/130 (+122). SCRIP `05d250bd`.**
+## ⛔⭐⭐ LIVE CURSOR — s22q (2026-08-01, Claude: ⭐⭐⭐ **THE m3 HALF OF THE ONE-SHOT BRIDGE IS ARRIVAL PARITY, NOT THE EXIT PATH. m3 73/244 → 199/118 (+126, ZERO regressions). DIVERGE 125 → 13.** SCRIP `150e903e`.)
+
+⭐⭐⭐ **THE FINDING — s22p's NEXT(1) NAMED THE WRONG END OF THE BRIDGE.** It proposed giving mode-3 an `exit()` bridge (`x86_call_ro` / raw syscall). That would not have moved a single program. The one-shot bridge changed the rsp parity at which the graph's α is **ENTERED**, and only mode-4 was updated:
+- **m4**: `main` moves 24B (`sub rsp,8` + `push rdi` + `push rsi`) then **`jmp main_α`** → α arrives **rsp ≡ 0 (mod 16)**
+- **m3**: `rt_outer_call` does `sub $8` then **`call *%rax`** (pushes 8 more) → α arrives **rsp ≡ 8 (mod 16)**
+
+Both modes then run the SAME α preamble (`bb_glue_framed_enter`'s `push rbp` + `sub rsp,8`), so **mode-3 carried an 8-byte skew into every C call the graph makes** and died in the first glibc routine using `movaps`. ⭐ **THE 244 m3 FAILURES WERE ONE AUTHORITY, NOT 244 DEFECTS** — the same shape as s22n's "311 m4 failures is ONE missing authority."
+
+⭐⭐ **THE MEASUREMENT THAT LOCALIZED IT (do this before touching a spine bug again):** break on the C sink the graph calls and read `rsp % 16` at entry, in BOTH modes, in the SAME process. Witness `002_output_integer_literal` / `NV_SET_fn`: **m3 = 8 → SIGSEGV in `dl_iterate_phdr` via `gc_static_segs_init`; m4 = 0 → prints 42.** Decisive because the **C-side `core_lib_init` calls in that same m3 process measured 0** — that is what separates "the graph is skewed" from "the runtime is broken." gdb needs `apt-get update` FIRST (the bare install 404s on `libc6-dbg`).
+
+⭐ **FIX = ONE CONSTANT.** `rt_outer_call`'s adjuster is **16, not 8** (`src/runtime/rt/rt.c`). The 8 was correct only for the pre-bridge parity — its own comment names it the alignment adjuster, sized when the deleted prologue owned α. Mode-3 KEEPS `ret` (no PLT in the JIT slab) and now agrees with mode-4 on arrival: **the bridge's parity contract is ONE law across both media.**
+
+⭐⭐ **MEASURED (crosscheck 317, `setarch -R`):** m3 **73/244 → 199/118** · m4 **186/130/1 → 186/130/1 IDENTICAL BY SET** (diffed programmatically, not by count) · **DIVERGE 125 → 13**. Emitted `.s` **byte-identical** (runtime-thunk-only change) → **no artifact regen owed**, verified by diff, not assumed.
+
+⛔ **NOTE FOR THE NEXT SPINE RUNG: PARITY IS NOW A CONTRACT WITH TWO SIGNATORIES.** Anything that changes how α is reached — a new dynamic-glue entry, the DYNAMIC BOX, a `jmp`-entry flavor, or moving `framed_enter` — must state which parity it delivers and be checked in BOTH modes. This is exactly the class the TREEBANK H11 `Pop_list` finding (`mod16=8`, rsp rose +104) belongs to; that hunt may now be a parity question rather than a release-accounting one.
+
+**⭐ NEXT — ORDERED:** (1) **The 13 remaining DIVERGE** — down from 125 and now a tractable set: `098_keyword_anchor 064_replace_multi_arm 142_pat_arbno_fence_arbno 153_pat_operand_edge_matrix 170_pat_abort_kills_match 177_pat_bal_unbalanced_rejected 1016_eval W06_pos W06_rpos W06_tab W07_capt_cond W07_capt_cur W07_capt_imm`. The three `W06_*` and three `W07_capt_*` clusters suggest two shared authorities, not 13 defects. (2) **m4 is now the LAGGING mode (186 vs m3's 199)** — the inversion is new information; the m4-only fail set is the work order. (3) **NOFC symmetric default-ON** (s22l: +32/+33) — still Lon's call, still one line. (4) Pattern-blob ZD family (~1054 FR/FRQ readers, zero ZD arms). (5) JOIN-POINT RULE — δ_out well-defined only if every path into a box arrives at the same accumulated depth; the FAIL edge out of a deep pattern is still unnamed.
+
+## ⛔⭐⭐ PRIOR CURSOR — s22p (2026-08-01, Claude: ⭐⭐ **ONE-SHOT BRIDGE + NON-POPPING WHACK LANDED. m4 64/252 → 186/130 (+122). SCRIP `05d250bd`.**
 
 ⭐⭐⭐ **THE THREE CHANGES (atomic, mutually load-bearing):**
 (1) **main jmps into the graph** — `jmp main_α`, not `call main_α / ret`. No eax status code. The graph's γ/ω ports jmp back into labels inside main. scrip.c + bb_glue_flat.cpp.
