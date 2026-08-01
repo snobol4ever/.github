@@ -4,7 +4,38 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23b (2026-08-01) — OBJ-NOTE: object references name themselves in the GOTO column
+## ⭐⭐⭐ LIVE CURSOR — s23c (2026-08-01) — ON-3: the self-cell has a name, and the annotation found a real bug
+
+**Directive (Lon, this session):** *"Work on annotating the generated S code"* then *"All your choices. I'm with you on this."* — i.e. the OBJ-NOTE ladder, my pick of rung. Took **ON-3** (housekeeping-term sweep); **ON-1/ON-2 remain blocked on the shared-params ruling**, unchanged.
+
+**LANDED (SCRIP `816b1cf6`, templates only):**
+- **`ZRESN()`** (x86_asm.h, beside ZRES/ZOPQ) — the box's OWN result cell named with the same lowercase spelling its `n<uid>_<kind>` label uses. ⭐ **Universal with ZERO per-template plumbing**: `op_node_kind` is staged at emit.cpp's SINGLE dispatch point (`:861`) for EVERY node. This is the ON-3 analogue of CARVE-ERAD's "the ~1054 reader sites need zero edits" — find the choke point, don't hand-edit 100 files.
+- ⚠ **ROTATING buffer, deliberately**: `bb_kind_name`'s own buffer is a SINGLE static (unlike RDQ/ABSQ/ROQ which already rotate). Two differing kind names alive in one `+` chain would collapse onto the last writer. `ZRESN()` copies into an 8-slot rotor. NULL-safe (the `"note"` arm renders empty on a null name).
+- **41 sites / 15 templates**, scripted per the s23b GVA pattern: 24 ZRES DESCR-pair stores · 3 `lea` address-of-out-param (coerce_integer/numeric/string) · 10 `bb_lit_scalar` DESCR-construction stores (DESCR layout confirmed against `contracts/descr.h` — 16B, v+slen at 0, value at 8, so both halves name ONE object) · 4 `bb_var_global` result stores, whose **GVA arm takes `gva_name()` not `ZRESN()`** (the variable's own name beats "var", matching what s23b established for the GVA reads two lines above).
+- **CLAIM-ZERO pass named `stmt_claim`** (x86_asm.h:1951) — the single largest opaque class in the `.s`.
+
+**PROOF — behavior-neutral BY MEASUREMENT, not merely by construction:**
+- roman.s **CODE IDENTICAL modulo comments** vs pre-session baseline (strip-and-diff). Not one instruction moved.
+- line count **3614 → 3614**; notes **270 → 776**.
+- **M3 == M4** on 12 pattern programs, zero diverge.
+- Gate sweep **262 programs**: 0 stray `#@`, 0 notes on jump lines, 42230 notes. as-fail = **2** == the named pre-existing 2L pair (1017_arg_local, library/test_string). emit-fail = **1** (coverage_sno_nodes) = pre-existing LOWER SN4-PAT subset limit, **fails identically in mode-3** (verified, not assumed).
+- mode-3 untouched by construction (notes are BINARY-empty).
+
+**⭐⭐⭐ THE RUNG PAID FOR ITSELF: ON-5 IS ROOT-CAUSED AND IT IS NOT COSMETIC.** Full write-up in `FINDING-2026-08-01-CLAUDE-SN4-ON5-IS-NOT-DUPLICATE-ZEROING-...md`. Summary: naming the zero pass showed both runs are the SAME producer; hook instrumentation showed it fires ONCE per statement head; the offset census showed **30 stores / 26 distinct** per claimed statement — 4 cells written twice AND **4 cells (the TOP 32 BYTES of the claim) NEVER written**. Cause: the loop spells plain `RDQ("rsp",_zi)`, which `x86_frame_off` re-resolves through `zvo_resolve` — **the ARGREAD hazard documented at x86_asm.h:874, 1077 lines above the offending loop**. CLAIM-ZERO therefore only partially discharges the `rt_cap_push` zero-fresh contract it was landed (s23a) to guarantee, and the unzeroed window is at the TOP of the claim where a PIN-REBASE-relocated cap slot is most likely to land. Fix spec = the `[rsp#]` raw escape, one line. ⛔ **NOT LANDED — it changes emitted code and needs a watermark bracket.**
+
+**WATERMARK: NOT re-proven this session** (annotation rung is provably code-identical; budget went to the ON-5 root-cause instead). Carried unchanged = s23a close **m3 280/27/10 · m4 266/39/10/2L**. ⚠ **This is now TWO sessions stale (s23b also carried it). ON-0 is overdue and should bracket the ON-5 fix.**
+
+**Artifacts NOT regenerated s23c** — deliberate: the four regen scripts would rewrite every `.s` with pure note-tail deltas, and the ON-5 fix (next rung) will rewrite them again with REAL deltas. Regen once, after ON-5 lands.
+
+**NEXT — ORDERED:**
+1. ⭐⭐⭐ **ON-5 fix + ON-0 watermark bracket** (they go together — see the FINDING's gate list). Re-test 066/165/183/053 and the PIN-REBASE 7 against a claim-zero that actually zeroes the whole claim; s23a's killswitch exoneration of 165 was against a mechanism covering only 26/30 of its range.
+2. ⭐⭐ **ON-1 operand-kind plumbing** — still needs the Lon ruling on `op_zkind[]` in the shared params struct. Interim operand-a-only path via `_.op_a_node_kind` remains available without a ruling.
+3. ⭐ **ON-3 continuation** — biggest remaining opaque family is the **189 `call rt_*` sites' argument loads** (`mov rdi/rsi/rdx, …` before the call); literal role terms per callee. Then `[rbp+N]` statement-region slots.
+4. **ON-4 srccomment echo repair** — Lon's original readability complaint, still untouched.
+
+---
+
+## ⛔⭐⭐ PRIOR CURSOR — s23b (2026-08-01) — OBJ-NOTE: object references name themselves in the GOTO column
 
 **Directive (Lon, verbatim, this session — a PIVOT off CARVE-ERAD):** *"What I need is a comment at the end of most x86/x64 instructions with one term, the name of the object being referenced. … In every case where some object is being referenced, I want to see it's name sharing the 4th column as the GOTO (JMP, JE, etc...) column. Do not put comments on lines that are a jump instruction since it takes the space of the fourth column."* Context: the `.s` files were unreadable (srccomment echoes out-of-order + duplicated; GVA accesses bare absolute addresses) so Lon could not direct deletions.
 
@@ -350,9 +381,9 @@ Lon directive ×3: DELETE `xa_flat_prologue_str`. 311 m4 failures is ONE missing
 - [ ] **ON-0 WATERMARK REPROVE** (protocol — carried-not-proven since s23b; xc.sh in FOREGROUND CHUNKS of 80, background jobs die between tool calls). Baseline before touching anything.
 - [ ] **ON-1 operand-kind plumbing** (⛔ needs Lon ruling FIRST — shared params struct): add `op_zkind[]` beside `op_zread[]` in the emit params, populated where `op_zread` is staged with each operand producer's IR op; templates then speak `x86("note", bb_kind_name(_.op_zkind[k])) +` before each `ZOPQ(k,·)` read. Interim without the ruling: operand-a only via existing `_.op_a_node_kind`.
 - [ ] **ON-2 operand-read sweep:** scripted insertion (the s23b pattern — python regex per file, see `eb0c08a8`'s 34-site GVA pass) across the `ZOPQ(`/operand-FRQ consumer sites; verify recipe per batch.
-- [ ] **ON-3 housekeeping-term sweep:** remaining ~100 templates' RBP/rsp housekeeping stores/loads get literal terms, batched by family (match_*, pat_*, call_*, save/restore, defer); bb_match_head is the reference embodiment.
+- [~] **ON-3 housekeeping-term sweep — BATCH 1 LANDED s23c (`816b1cf6`)**: the SELF-CELL class is done via `ZRESN()` (41 sites/15 templates) + the CLAIM-ZERO pass named `stmt_claim`. ⭐ THE LESSON: `op_node_kind` at emit.cpp:861 is a CHOKE POINT — one accessor named every box's own result cell tree-wide, no per-template plumbing. Look for the choke point before batching by family. REMAINING: the **189 `call rt_*` argument loads** (biggest opaque family left — literal role terms per callee), then `[rbp+N]` statement-region slots, then the match_*/pat_*/defer housekeeping. bb_match_head stays the reference embodiment.
 - [ ] **ON-4 srccomment echo repair:** the statement source echoes are OUT OF ORDER + DUPLICATED (Lon's original complaint) — root the echo emission order in emit.cpp's BFS layout vs source stno order; one echo per statement, source order.
-- [ ] **ON-5 n1_var duplicate zeroing:** `[rsp+0..24]` zeroed TWICE at α (observed s23b, roman.s) — find the two producers, delete one.
+- [ ] **ON-5 — ROOT-CAUSED s23c, REFRAMED, NOT LANDED.** ⛔ The s23b framing ("find the two producers, delete one") is FALSIFIED: there is ONE producer, it fires ONCE per statement head, and the defect is a **misresolution**, not a duplicate. Census per claimed statement = **30 stores / 26 distinct**: 4 cells written twice AND **4 cells (top 32 BYTES of the claim) NEVER written**. Cause: `RDQ("rsp",_zi)` spells plain `[rsp+N]`, re-resolved by `x86_frame_off`→`zvo_resolve` — the ARGREAD hazard already documented at x86_asm.h:874. CLAIM-ZERO thus only partially discharges the `rt_cap_push` zero-fresh contract it was landed for. Fix = the `[rsp#]` raw escape, one line. **Changes emitted code → land it WITH the ON-0 watermark bracket.** Full write-up + gate list: `FINDING-2026-08-01-CLAUDE-SN4-ON5-IS-NOT-DUPLICATE-ZEROING-...md`.
 
 ### ⭐⭐ LADDER ZD
 
