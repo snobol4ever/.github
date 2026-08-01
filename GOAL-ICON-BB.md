@@ -40,10 +40,30 @@ rooted at `bb_src_of` heads with `zgpop`/`zwpop` at γ/ω · four modes = `ZC_ST
 **The gap is per-template ZD arms**, plus 123 `"rsp"` spellings in 17 of 157 templates and the result-use
 predicate `ZB-VAL-8B` already found the IR cannot answer (no use count).
 
-**⭐ NEXT RUNGS — ORDERED:**
-1. ⭐⭐⭐ **`IR_CALL_BUILTIN_ICON` ZD arm** — 68 declines, largest named gap, "likely one template arm."
-2. ⭐⭐ **Rank the remaining kinds by `SCRIP_ZD_TOTAL` delta** — the probe exists now; census, don't guess.
-3. ⭐ **Generator-family arm** (`IR_DISJUNCTION`/`IR_TO`/`IR_REPALT`/`IR_TO_BY`/`IR_PROC_GEN`, 67 declines).
+⭐⭐⭐ **THE CENSUS WAS RUN AND IT FALSIFIED THIS SESSION'S OWN FIRST RANKING — USE THESE NUMBERS, NOT THE
+INHERITED ONES.** `SCRIP_ZD_DIAG=1`, 80 Icon corpus programs, `--compile`, decline-reason counts:
+
+| rank | blocker | count | note |
+|---|---|---|---|
+| 1 | **`IR_ASSIGN`** | **23** | ⚠ **ALREADY WHITELISTED** — declines on the **ZD-2h `is_global` conjunct**, i.e. Icon LOCALS. NOT a missing arm. |
+| 2 | `IR_DISJUNCTION` | 14 | generator family |
+| 3 | `IR_TO` | 11 | generator family |
+| 4 | `IR_CALL_PROC_STAGED` | 10 | call family |
+| 5 | `IR_SCAN_ENTER` | 8 | scan family |
+| 6 | `IR_CALL_BUILTIN_ICON` | **6** | ⛔ the inherited "68 declines / largest gap" claim **DOES NOT REPRODUCE** as top rank |
+| 7 | `IR_PROC_GEN` 4 · `IR_TO_BY` 2 · `IR_CALL_BUILTIN_GEN` 2 | | |
+
+⛔ **THE #1 BLOCKER IS NOT A TEMPLATE-ARM PROBLEM.** `zd_wl_kind` admits `IR_ASSIGN`/`IR_VAR` only when
+`is_global(vn) && !graph_has_local(...)`. Icon's locals fail that conjunct — the s203 census already measured
+this asymmetry (SNOBOL4 control fires 0× on 318 programs, **2258× on Icon**, 80% already rbp-pinned). So the
+largest single ZD gain on Icon is **widening ZD-2h**, which is behaviorally "global, OR local on a pinned
+graph" — and that line carries a ⛔ prohibition written in another session. **IT NEEDS LON'S RELEASE BEFORE
+IT CAN BE TOUCHED.** Ask for it first; it dominates every arm below.
+
+**⭐ NEXT RUNGS — ORDERED (re-ranked by the census above):**
+1. ⭐⭐⭐ **ZD-2h WIDENING for `IR_ASSIGN`/`IR_VAR` locals** — 23 of 80, the top blocker. ⛔ BLOCKED ON LON'S RELEASE of the prohibition on that conjunct.
+2. ⭐⭐ **Generator-family arms** (`IR_DISJUNCTION` 14 + `IR_TO` 11 + `IR_PROC_GEN` 4 + `IR_TO_BY` 2 = 31) — ground truth `refs/jcon-master/tran/irgen.icn`.
+3. ⭐ **`IR_CALL_PROC_STAGED` (10) and `IR_SCAN_ENTER` (8)** — then `IR_CALL_BUILTIN_ICON` (6), demoted by measurement.
 4. **Convex-region arming** — only after 1–3, only with a consumer-edge check.
 5. **`SCRIP_ZD_NOGRAPH` default-on** — free once arms exist; inert today.
 6. **Residual-7 bisect** (s203's, still open) — `#113..#177`, predicate proven discriminating at BOTH ends first.
