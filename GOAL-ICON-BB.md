@@ -1,4 +1,56 @@
-## ▶ LIVE CURSOR (s205, 2026-07-31)
+## ▶ LIVE CURSOR (s206, 2026-08-01)
+
+**LAST SESSION:** s206 — **THE OUTER WHACK OUTLIVED ITS ENTER, AND FOUR CURSOR NUMBERS BELOW DO NOT
+REPRODUCE AT ORIGIN HEAD.** Full detail:
+`FINDING-2026-08-01-CLAUDE-ICN-THE-WHACK-OUTLIVED-ITS-ENTER-AND-FOUR-CURSOR-NUMBERS-DO-NOT-REPRODUCE.md`.
+⚠ SCRIP edits are **LOCAL ONLY, NOT PUSHED** (no credential this session). Run `scripts/handoff_status.sh`.
+
+⛔⭐⭐⭐ **RE-DERIVE EVERY NUMBER BELOW BEFORE TRUSTING IT.** Measured fresh on `dda156eb`, from-scratch
+`-O0` build: **Icon suite 184/79/30** (cursor said 238/25/30) · **`SCRIP_BB_ALLOC=0` 184/79/30, INERT**
+(cursor said 245/18/30) · **rbp data refs 37,872** (cursor said 39,193) · **unseeded 6,264** (s200 said 0)
+· `SCRIP_NOFC=0` moves 96 of 37,872 refs (0.25%), `SCRIP_NOFC_CARVE=1` inert. **ROOT CAUSE OF THE
+DISCREPANCY: all four s204/s205 SCRIP hashes are ABSENT FROM ORIGIN** — those numbers were measured on
+trees carrying unpushed local commits (RULES.md STALE-ORIENTATION (a)). ⚠ ICN-JCC is nonetheless AT HEAD:
+a third session re-landed it (`91b623a0`), a fourth hit it from js/jns (`2aec9a4b`) — **paid for 3×.**
+
+⭐⭐⭐ **THE 6,264 UNSEEDED REFS ARE NOT A DEFECT — THEY ARE THE CONVERSION WORK LIST.** `CARVE-KILL`
+(`ef9a7d2c`/`1ba33ea6`, Lon: *"Delete the prolog and epilog … a nice broken system to build from with just
+the BB's"*, **"Breakage accepted by explicit instruction"**) deleted `xa_flat_prologue` — the thing that
+used to seed rbp. Any instrument zero-asserting them asserts the WRONG CONTRACT on this tree.
+
+⭐⭐⭐ **BUT THE WHACK KEPT FIRING.** `bb_glue_outer_whack()` returned **`true` unconditionally** while its
+enter (`emit.cpp:2153`) is guarded by `!flat_jmp_entry && !flat_pat && !flat_gen && !g_gen_proc_active` —
+logical complements. Every pat/gen/jmp-entry graph emitted `mov rsp,rbp; pop rbp` against a base it never
+established, **the exact shape `bb_glue_framed.cpp`'s own header names as the failure mode.**
+**7-LINE REPRO:** `procedure g(); suspend 1; suspend 2; end` + `every write(g())` → proc_g carries
+**push=0 / whack=2 / pop=3**, rc=139. `suspend`→`return` gives seed=YES / rbp_data=0.
+
+⛔ **THE OBVIOUS FIX IS FALSIFIED — DO NOT RE-DERIVE.** Forcing the ENTER to fire for those classes scored
+**184/79/30 → 181/82/30, 3 WORSE**: their base is established by the CALLER (jmp-entry) or `rt_pl_dc_prep`
+(dc), so an extra push shifts rsp under offsets computed against the real base. **The enter is right.**
+**LANDED opt-in `SCRIP_GLUE_SYM=1`** (`g_glue_entered` recorded at the enter, read by the whack — one
+authority, the `zc_nofc`/`x86_jcc_invert` shape): **Icon 184/79/30 → 184/79/30 EXACTLY INERT**, repro whack
+2→0, pop 3→1. Correct but dominated. Default flip needs SN4 + Prolog watermarks (shared emitter).
+
+**⭐ NEXT RUNGS — s206 ORDER:**
+1. ⭐⭐⭐ **The residual stray pop** — repro still SEGVs at push=0/pop=1 with the flag on. Deterministic
+   7-line witness in hand; MONITOR→bracket→gdb it. This is the live bug.
+2. ⭐⭐ **Route every Icon graph to ONE glue** (flat = rsp per-BB grant, framed = rbp seeded at outermost α).
+   6,264 refs currently get NEITHER. Per-file target list = the census output.
+3. ⭐ **Convert flat-glue graphs' `[rbp+N]` → `[rsp+off−fc_base]`.** Generators/pat/deep-arrival keep rbp —
+   that IS the directive's "absolutely necessary" set.
+4. **Rewrite the ICN-FB-0 gate's drift ZERO-ASSERT as a DESCENDING RATCHET** before using it as a gate.
+
+**INSTRUMENT LANDED (ICN-FB-0):** `scripts/util_icn_rbp_census.py` + `test_gate_icn_rbp_census_ratchet.sh`.
+A/C/D + per-region seed split; **falsifiability proven at BOTH ends on 4 fixtures** before first use.
+Class D = 0. ⚠ `ENTRY_RE` matches neither `main_α:` nor `proc_*_dcα:` — those regions get absorbed, so a
+seed can be attributed to the wrong region. **Verify by reading the `.s`, never by a second instrument.**
+⚠ Benchmark rc is NOT a correctness signal: `options`/`post`/`shuffle` are LINK-DEP LIBRARIES with no
+`main`, and `bench_icnint_loop` prints its correct answer then dies on teardown.
+
+---
+
+### ▶ PRIOR CURSOR (s205, 2026-07-31) — ⛔ ITS NUMBERS DO NOT REPRODUCE; SEE s206 ABOVE
 
 **LAST SESSION:** s205 — **ICN-JCC RE-LANDED FROM SCRATCH (+23), PREFIX ARMING FALSIFIED AS UNSOUND, AND
 `zd_wl_kind` IS A CAPABILITY REGISTRY — NOT A WHITELIST ANYONE WAS BEING SHY WITH.**
