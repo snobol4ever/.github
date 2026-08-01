@@ -53,6 +53,114 @@ short-circuit finding is NOT retired.
 satisfied s204 by symlinking the uploaded archives. Oracle at `/home/claude/icon-build`. `nproc=1`: a
 both-halves rebuild is ~4 min.
 
+
+---
+
+# ⭐⭐⭐ RUNG LADDER: ICN-FB (RSP-ONLY DATA SPINE) + ICN-CARVE (GRADUAL PER-BB ALLOCATION)
+
+**LON DIRECTIVE, 2026-07-31 s204, VERBATIM:** *"For Icon, ensure that ALL operands in EVERY BB is accessed via
+RSP, NOT RBP. The only purpose sanctioned for RBP indexing is HOUSEKEEPING. ... We want Icon to almost identical
+to SNOBOL4 except the LOCAL variables and a few other specialties. We want allocations to happen gradually not
+in ONE BIG FRAME. It eats TOO MUCH memory."*
+
+**THE LAW (state it once, here).** Icon's DATA SPINE is RSP-indexed. `[rbp+N]` is legal ONLY for HOUSEKEEPING —
+prologue seed, epilogue restore, frame-chain walk, rsp rebalance, record/coexpr protocol (class A ceremony).
+Every operand read/write in every BB resolves `[rsp + off - fc_base]` on the non-popping FORTH ζ spine. Storage
+is granted GRADUALLY, per BB at α, released at γ/ω — never one whole-graph carve. This is SNOBOL4's model
+(`GOAL-SNOBOL4-BB.md` → THE MODEL: *"there is NO graph frame; every BB allocates its own storage at α, releases
+at γ/ω, and jumps; the whole-graph carve is LEGACY DEBT"*). Icon differs ONLY in the named specialties:
+lexical LOCALS (frame slots, ARCH-ICON.md), the generator/scan families, and co-expressions.
+
+**MEASURED BASELINE s204 — both halves of the complaint are real and sized:**
+
+| instrument | value | note |
+|---|---|---|
+| Icon data refs `[rbp±N]` | **39,193 (95.3%)** | 20 benchmarks; the conversion target |
+| Icon ceremony (class A) | ~830 (2.0%) | the ONLY sanctioned population |
+| Icon rbp-as-scratch (class D) | 0 | nothing to do |
+| **largest single `sub rsp, K`** | **141,056 bytes** | ONE carve. Then 13712 / 9032 / 8096 / 6520 |
+| distinct `sub rsp,K` sites | 4,166 | |
+
+⛔ **ROOT CAUSE, PROVEN s204 — DO NOT RE-DERIVE IT AND DO NOT TRY TO WIDEN FB-STMT.** `x86_fb_data()` consults
+`_.flat_fb_refine`, set at `emit.cpp:2662` from `emit_fb_stmt_scan(g)`. That scan BAILS TO 0 on a
+disqualifying-kind list that IS Icon's whole vocabulary — `IR_SUSPEND · IR_SCAN* · IR_TO · IR_TO_BY · IR_LIMIT ·
+IR_REPALT · IR_PROC_GEN · IR_CREATE · IR_ITERATE · IR_DISJUNCTION · IR_CALL_BUILTIN_GEN · IR_KEYWORD_ICON_GEN` —
+and its per-node bit map marks only `IR_MATCH_LIT..IR_MATCH_ADVANCE`. FB-STMT is a **SNOBOL4-only rung by
+construction**; its bail list is its CORRECTNESS CONDITION, not an oversight. Icon needs its OWN classifier
+BESIDE it. Relaxing the list yields a per-node map that returns 0 for every Icon kind anyway.
+
+⛔ **`x86_fb_pinned()` ≠ `x86_fb_data()`.** The pin says the PROLOGUE established rbp; fb_data says a DATA REF
+resolves against rbp. Under FB-STMT (default-on) they diverge. Every step below gates on **fb_data**.
+
+---
+
+## ▶ ICN-FB — the RSP-only data spine
+
+- [ ] **ICN-FB-0 — THE INSTRUMENT COMES FIRST.** `scripts/test_gate_icn_rbp_census_ratchet.sh`, modelled on
+  `test_gate_rbp_census_ratchet.sh` (which sweeps the COMPILER, never committed `.s` — RULES.md handoff step 4).
+  Classify A (ceremony) / C (`[rbp±N]` data) / D (scratch); RATCHET on C only; baseline **39,193**.
+  ⛔ **FALSIFIABILITY BEFORE FIRST USE** (the s203 instrument law: a predicate must discriminate at BOTH ends
+  before the first real probe): inject one known `[rbp+N]` data ref and prove the count MOVES; the s204
+  `grep -oE 'FAIL=[0-9]+'`-matches-`XFAIL=30` lesson says an unfalsified instrument reports false GOOD.
+  **No conversion step may land before this gate exists.**
+
+- [ ] **ICN-FB-1 — THE ICON ARRIVAL-DEPTH CLASSIFIER** (`emit_fb_icn_scan`, beside `emit_fb_stmt_scan`, NOT
+  inside it). FB-STMT's question has an Icon answer: *for each deep kind, does its resume/failure edge return
+  rsp to a depth that is STATIC at the reference site?* GROUND TRUTH: `refs/jcon-master/tran/irgen.icn`, 43
+  `ir_a_*` procedures, each an explicit `ir_info(start, resume, failure, success)` four-port record —
+  ARCH-ICON.md already names this the port-topology source of truth. Deliverable = a table, one row per Icon
+  deep kind, each row citing its `ir_a_*` topology and a verdict STATIC / DYNAMIC.
+  ⛔ NO-LANGUAGE-IDENTITY FACT RULE: the classifier is named for WHAT it decides (arrival depth), never for the
+  language; it lives on the IR graph and platform only.
+
+- [ ] **ICN-FB-2 — PER-NODE BIT MAP for the STATIC rows.** The `g_fbm_bit` analogue. Today it marks only
+  `IR_MATCH_LIT..IR_MATCH_ADVANCE`, so every Icon kind gets 0. Populate from ICN-FB-1's table.
+  GATE: `.s` byte-identical while the eligibility flag stays 0 — the map lands INERT and is proven inert.
+
+- [ ] **ICN-FB-3 — ELIGIBILITY FLIP, env-gated.** `flat_fb_refine` consults `emit_fb_icn_scan`.
+  `SCRIP_ICN_FB=1` opt-IN first (the house idiom, and the s203 ZW-1 lesson: an opt-OUT flip of a shared default
+  is what cost Icon 30 programs while the ledger recorded a SNOBOL4 accounting).
+  GATE: Icon suite ≥ 238/25/30 AND class-C census strictly DOWN AND ceremony count EXACTLY UNCHANGED — the
+  s22c proof shape: if ceremony moves by even one instruction, the step touched a class the directive protects.
+
+- [ ] **ICN-FB-4 — THE GENERATOR β RE-PUMP (the hard case; expect this to be most of the work).** A suspended
+  generator resumes with rsp at the DEEP frontier — no static displacement exists (the FLATDISP-5 wall), which
+  is exactly why `flat_gen`/`flat_deep_arrival` pin rbp today. These rows are ICN-FB-1's DYNAMIC verdicts and
+  are the residue that legitimately keeps rbp — but they must be the MINIMUM set, per-node, not per-graph.
+  ⛔ Do NOT half-land: `bb_call_proc_staged` spine-gen and `xa_flat` γ/ω epilogues sit inside suspend/resume
+  protocols; the BID-AT-LOWER ruling applies.
+
+- [ ] **ICN-FB-5 — DEFAULT ON + CEREMONY-ONLY ASSERTION.** Flip `SCRIP_ICN_FB` default after a SNOBOL4 +
+  Prolog watermark re-prove (shared emitter). Then ratchet baseline → the residual, and assert class C ⊆
+  ICN-FB-4's DYNAMIC set. Killswitch retained.
+
+## ▶ ICN-CARVE — gradual per-BB allocation (kills the 141 KB frame)
+
+- [ ] **ICN-CARVE-0 — SIZE IT.** Per-graph histogram of `sub rsp,K` (K, site count, peak live depth). s204
+  measured max **141,056** in ONE carve, 4,166 sites. Report peak RSS alongside — the directive's complaint is
+  MEMORY, so the gate must measure memory, not just instruction counts (s204 lesson: a byte-count instrument
+  cannot see a memory claim).
+
+- [ ] **ICN-CARVE-1 — α-GRANT / γω-RELEASE per BB**, the ZD non-popping spine Icon is not yet on: `16→32→48→…`,
+  zero intermediate pops, ONE terminal `gpop`. Prereqs already censused s203/s204: **`IR_CALL_BUILTIN_ICON`**
+  (68 declines, absent from the `zd_wl_kind` whitelist — likely one template ZD arm) and the **generator family**
+  (67 declines: `IR_DISJUNCTION`/`IR_TO`/`IR_REPALT`/`IR_TO_BY`/`IR_PROC_GEN`) which shares ICN-FB-1's ground truth.
+
+- [ ] **ICN-CARVE-2 — THE `zd_stub_ok` TENSION MUST BE RESOLVED HERE, NOT WORKED AROUND.** Measured s204:
+  `pinned = (flat_pat||flat_gen||flat_deep_arrival)` is the NEGATION of three of `zd_stub_ok()`'s six conjuncts,
+  so a jmp-entry pinned graph RETURNS AT THE TOP of `zd_plan` (queens: 10/10 graphs `deep=1`, `stub_ok=0`) and no
+  per-node arm downstream is ever consulted. ZD-2h-ICN (`SCRIP_ZD_PINLOCAL=1`, landed inert s204) is blocked on
+  exactly this and is the ready-made A/B once it lifts.
+
+- [ ] **ICN-CARVE-3 — WHOLE-GRAPH CARVE ERADICATION.** Mirrors SNOBOL4's CARVE-ERAD. Only after ICN-FB-5:
+  reader sites must speak rsp before the frame they read can be dissolved.
+
+**LOCALS — the sanctioned Icon specialty.** Lexical locals stay frame slots (ARCH-ICON.md; they are NOT SNOBOL4
+globals-on-a-stack). They ride the RSP spine like every other operand; the only question is depth-immunity, which
+is ICN-FB-1's verdict per referencing node. ZD-2h-ICN's corrected reading applies: the failing conjunct is
+`is_global`, NOT `graph_has_local`.
+
+
 ### ▶ PRIOR CURSOR (s203, 2026-07-31)
 
 ⚠ **PARALLEL SESSIONS (s203):** SNOBOL4-BB sessions are running concurrently. Per RULES.md STALE-ORIENTATION: trust each goal file's own LIVE CURSOR, never PLAN.md's table.
