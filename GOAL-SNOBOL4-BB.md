@@ -26,9 +26,32 @@ Convert one box's readers to its own cell; watch the carve requirement DROP. Pro
 
 ---
 
-## ⛔⭐⭐ LIVE CURSOR — s22y (2026-08-01)
+## ⛔⭐⭐ LIVE CURSOR — s22z (2026-08-01)
 
-Directive: s22x NEXT item 1 under Lon grant "All your choices. I'm with you on this." — SUBJECT-CELL rung.
+Directive: s22y NEXT item 1 under Lon grant "All your choices. I'm with you on this." — blob/fence subject arming, decline retirement.
+
+⭐⭐⭐ **FOUR LANDINGS, ZERO BROKEN BY SET. m3 233→284 (+51) · m4 229→278 (+49) — the largest single-session gain of the campaign.** The fence family (062-150), star-var/defer families, and grammar core collapsed into the pass column.
+
+**THE CAUSAL CHAIN, each link measured:** (1) **BLOB-GRANT** (emit.cpp α, gated `scan_live && flat_jmp_entry`): CARVE-KILL had deleted the xa_flat jmp-entry seed and nothing replaced it for PAT$ blobs — no frame, no wire adopt, SCANBASE scribbling into the invoker's spine, rcx/rdx wires dropped. Re-landed verbatim (ef9a7d2c~1): `sub rsp,kt` + wires [kt-24]/[kt-16] + caller-rbp [kt-8] + pin, both media. (2) **CLASS D** at the exit-class ledger — the fourth citizen (`!wire_stub && flat_jmp_entry && flat_pat`): γ suspends (ZS-2 record {res-landing, rbp}, jmp γ-wire), ω unwinds absolutely (`lea rsp,[rbp+kt]`, jmp ω-wire); retires the CLASS O `exit(0)` disease on pattern blobs (1ba33ea6~1 spellings; BINARY lea rides `bb_emit_patch_rel32`, backward-resolve proven). 105/108 flipped PASS both modes on (1)+(2) alone. (3) **DECLINE RETIRED** (zeta_storage.c, killswitch `SCRIP_SUBJ_DYN=0`): the s22y casualties were BLOB defects wearing subject-arming's clothes, and the declined fence passes were VACUOUS (fail-branch refs — 061's own ref is the f-branch). (4) **HEAD-PIN + CUT-RESTORE** (`SCRIP_HEAD_PIN=0`): post-CARVE-KILL the law-4 statement slots `[rbp+N]` resolved against main's pin (m4: dead CRT territory, survived by LUCK) / rt_chain_enter's ambient frame (m3: LIVE — 061 armed = statement re-execution loop, gdb-sampled). The match CONSTRUCT now establishes its own base — `rbp := region base` at head α after the subject pop (rsp==base by the PATCTX invariant), old rbp saved rsp-relatively into op_off+40 — licensed by STF-UNFLIP's own words (construct housekeeping that survives an unwind; NOT a statement bracket). The restore rides the SOLE RELEASE AUTHORITY: `op_stmt_pin` (= the slot's region offset, staged at bb_match_head template top, retired at the next `bb_src_of` statement head in the drive walk) prepends `mov rbp,[rbp+off]` at zgpop cuts and `op_wterm`-discriminated wpop cuts (planner-terminal only — a mid-statement trampoline-ΣK restore would corrupt the live pin); head/release +40 tail restores gated off under the pin, since the direct af/β fail cuts bypass those tails entirely (the 061 slab witness: `add rsp,0xe0; jmp NO` with rbp left on the region → chain-γ whack against region base → wild ret → tail loop).
+
+**FALSIFIED SPELLINGS, kept so nobody re-derives them:** (a) pin-slot at fixed region [rbp+8] — unsafe, SLOT-ELIDE can move a whitelisted run-head's locals to offset 0; the head's op_off+40 is the reserved slot (HEAD is elide-EXCLUDED). (b) op_stmt_pin cleared at uclaim staging — SEGV'd every armed program: unclaimed statements (bare `NO OUTPUT=...`) never stage one, the stale pin rode into THEIR cuts; lifetime authority is the bb_src_of statement head. (c) Exit-tail restores kept alongside cut restores — order conflict: tail restores old rbp, cut's `[rbp+off]` then reads the OLD frame.
+
+**Instrument notes (gdb, hard-won):** batch-mode `break SYM` set BEFORE `run` on .so symbols silently never binds — every no-hit conclusion drawn that way this session was WRONG (cost: one full false root-cause). Bind after `start`/attach, or trace. `ni` at the `call *%rax` into the slab swallows the entire slab execution. The working recipe: `tbreak rt_outer_call; run; x/520i $rdi` = full static slab listing, no stepping; loop-PC sampling via repeated attach/`x/1i $rip`/detach.
+
+**WATERMARK:** open m3 233/74/10/1 · m4 229/77/10/1 (REPROVEN at s22z open) → close **m3 284/23/10/1 · m4 278/28/10/1+LERR1**, ZERO regressions by set. DIVERGE 4→10: 164/170 RESOLVED; test_stack/1016 carried; NEW m4-only SEGV six {066,122,161,165,179,183} + m3-only {053(m4 now green!),127}. Residual shared core: 068/069, 070-075 (arbno-star-var), 121/126/131/140/141/143/145 (grammar), 160/180/181, 1012/1019. Artifacts regenerated s22z (bench+feature+demo+crosscheck, corpus committed; 15 pre-existing emit-fails noted in rg4 log).
+
+**NEXT — ORDERED:**
+1. ⭐⭐⭐ **m4-only SEGV six** (066 witness, rc=139): matches under DEFINE'd functions / defer replay — the TEXT-medium twins of paths m3's BINARY just proved green. Prime suspects: a TEXT-only defect in the three new emission sites (BLOB-GRANT text, CLASS D γ/ω text, cut-restore text) or proc-graph (floor>0) interaction with HEAD-PIN. Small, clean bracket.
+2. ⭐⭐ **arbno-star-var shared core** (070-075): both-modes, the next family.
+3. **053 m3 rt_cap_push SEGV** — carried (m4 side resolved this session).
+4. **FENCE whack-at-mark refinement**: fence1 `as` whacks `mov rsp,rbp` (region base) — over-discards pre-fence element cells; correct target is the α mark cell; witnesses 130/150. Carried until after (1).
+5. ZD-5a admission · glue backlog · JOIN-POINT RULE · TREEBANK Pop_list — carried. One-off anomaly: m3 stderr `BENCH exec=1641307ms` on an instant run (timer artifact, unchased).
+
+---
+
+## ⛔⭐⭐ PRIOR CURSOR — s22y (2026-08-01)
+
+Directive (s22y): s22x NEXT item 1 under Lon grant "All your choices. I'm with you on this." — SUBJECT-CELL rung.
 
 ⭐⭐⭐ **SUBJECT-CELL LANDED DEFAULT-ON. m3 220→233 · m4 217→229, ZERO BROKEN BY SET, BOTH MODES.**
 
