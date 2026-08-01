@@ -38,14 +38,14 @@ Directive: s22w NEXT items 1+3 under Lon grant "All your choices. I'm with you o
 
 **WATERMARK:** open m3 217/99/1 · m4 214/101/1 → close **m3 220/96/1 · m4 217/98/1** · DIVERGE 3 {170, 1016, test_stack} unchanged.
 
-**REMAINING-FAIL DECOMPOSITION (fresh, s22x close):** (a) **arbno/alt capture-start** — 052/054/065-class, rc=0 wrong capture (V='' where oracle 'aaa'), PRE-EXISTING (rc unchanged across s22x), the dcap start-clobber family; (b) **stored-pattern rt_cap_push SEGV** — 053-class, `P = ('a'|'b'|'c'); X P . V` crashes INSIDE rt_cap_push (C side, rsp sane) from n19_match_assign_save under the DT_P match_value path — the s22 localized stored-pattern class; (c) fence-via-var family (~15 programs); (d) DIVERGE 3 carried.
+**REMAINING-FAIL DECOMPOSITION (fresh, s22x close; (a) CORRECTED by event trace — see FINDING-2026-08-01-CLAUDE-SN4-ARBNO-CLASS-IS-SUBJECT-DELIVERY-NOT-CAPTURE):** (a) **SUBJECT-DELIVERY class** — 052/054/065-family, rc=0 wrong output. THREE suspects acquitted by breakpoint event trace (capture append/retract balanced-and-correct topology · arbno re-yield through n12 · rpos semantics exact); the tell was **r15=0 at the rpos check** — the head's legacy `!subjc()` flat-slot subject read handed rt_match_enter garbage (rdi=0x401125, a code address), so the whole match ran honestly against an EMPTY subject and V='' is the truthful 0-rep capture. Fix surface = the s22s SUBJECT-CELL rung (subjc TOS pop; consumer arm exists in bb_match_head, PRODUCER-side gate still unlocated); (b) **stored-pattern rt_cap_push SEGV** — 053-class, C-side fault, rsp sane; (c) fence-via-var family (~15); (d) DIVERGE 3 carried.
 
 **Instrument note (my own misattribution this session):** general-arm `RSP(fc_disp+8)` with fc_disp=0 and tail-arm `RSP(fc_disp+0)` with fc_disp=8 emit IDENTICAL bytes — verify which ARM fired from the template conditions, never from the emitted shape.
 
 **Residue flagged, not converted:** release's dval≠0 arm (end-cursor stash) still speaks `fc_disp`-relative spellings — same disease class, convert when a dval witness fails on it.
 
 **NEXT — ORDERED:**
-1. ⭐⭐ **Arbno/alt capture-start** (052/054/065): dcap start recorded per-iteration or clobbered — monitor-bracket the first divergent capture event.
+1. ⭐⭐⭐ **SUBJECT-CELL rung** (the 052-class unlock, s22s carried): locate the producer-side gate that keeps the subject VAR on flat stores while `subj_on` arms the head's TOS pop; arm producer+consumer ATOMICALLY (the s22s bare-decouple falsification: consumer-only arming displaced ~52 pattern programs). The consumer arm already exists in bb_match_head (`subjc()`); the event-trace ladder in the FINDING doc is the verification instrument.
 2. ⭐⭐ **Stored-pattern rt_cap_push SEGV** (053): C-side fault, gdb bt into rt_cap_push internals.
 3. **ZD-5a admission proper** (IR_MATCH_HEAD into zd_wl_kind + zd_k/zd_nops) — the marker made the unwind depth-free, so admission no longer needs the disp model for the release.
 4. Glue backlog residue: need-FOUR emitted glue behind label-redefinition gate + role-0 emitted one-shot open — carried.
