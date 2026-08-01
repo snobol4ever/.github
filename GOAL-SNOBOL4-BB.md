@@ -26,7 +26,30 @@ Convert one box's readers to its own cell; watch the carve requirement DROP. Pro
 
 ---
 
-## ⛔⭐⭐ LIVE CURSOR — s22x (2026-08-01)
+## ⛔⭐⭐ LIVE CURSOR — s22y (2026-08-01)
+
+Directive: s22x NEXT item 1 under Lon grant "All your choices. I'm with you on this." — SUBJECT-CELL rung.
+
+⭐⭐⭐ **SUBJECT-CELL LANDED DEFAULT-ON. m3 220→233 · m4 217→229, ZERO BROKEN BY SET, BOTH MODES.**
+
+**THE PRODUCER-SIDE GATE IS LOCATED AND NAMED:** `zeta_storage.c` fc_geom vlit line's `!zc_nofc()` term (landed s22l to retire the ASSIGN-pair producer half) — it took the SUBJECT producer with it after s22r's NOFC default-flip, while the head's `fc_vread_fp` promotion carries no NOFC term. Consumer-armed/producer-flat, the exact s22s displacement. **Fix = fvs[] subject-membership table; the grant line becomes `(!zc_nofc() || fc_subj_member(nd))`.** Gate decoupled to ONE env (`SCRIP_SUBJ_CELL`, STMT_FRAME conjunct dropped — it rode the dead s21x STF-default era), then DEFAULT-FLIPPED (killswitch `=0`) on the s22r proof shape: strictly-better-by-set. Gate-off `.s` byte-identical (proven on 052); armed delta is surgical (producer `sub rsp,16` + rebased `[rsp+0/8]` writes via the fc_hit mechanism, ZERO template edits; head TOS pop replaces the corpse `[fb+op_sa]` read). Binop-tree subject branch now requires `!zc_nofc()` so it can never arm consumer-only. Fixed: the whole 052/054/065/W04 ARBNO family + 151/158/162/163/166/167 (+164 m3).
+
+**DECLINE SET (measured, degrade never die):** graphs bearing IR_MATCH_DEFER / IR_MATCH_PATREF / IR_MATCH_FENCE1 stay flat-verbatim. Casualties that forced it: (a) **117/142 both-modes** — blob re-entry class: the *cmd / stored-eps blob's deep-repoint (`mov rbp,rsp; add rbp,-248` — a STATIC depth-model constant) and wire glue predate the subject grant; m3 died at ARBNO iteration 2 (rip=0x1000, rbp=0x100001 = DESCR-shaped restore, r15=Δ=3 proving the subject itself arrived correct), m4 silent-exit rc=0 with rt_match_ctx_restore NEVER called, frame chain into statement-1's slab region. (b) **061/107 m3-only** — inline-FENCE fail-path: OUTPUT CORRECT then hang (rc=124 at 20s) — the m3 exit-path scan spins at a 16-sensitive boundary. Blob/fence arming is the named follow-on; its first audit is the deep-repoint constant + the exit-scan termination predicate.
+
+**Instrument notes:** (1) rt_defer_open/step breakpoints never fire on 117 — the defer rides the compiled-blob arm; do not bracket stored-pattern bugs at the rt_defer surface. (2) The 2-way monitor is DARK for this build (scr emits zero trace events) — MON-RE is prerequisite before monitor-first applies here. (3) `grep -l "\*"` on .sno matches comment lines — worthless as a defer detector.
+
+**WATERMARK:** open m3 220/97/1 · m4 217/100/1 (REPROVEN at s22y open) → close **m3 233/84/1 · m4 229/88/1** · DIVERGE 4 {test_stack, 164_pat_arbno_nested (m3-fixed, m4 pre-existing fail), 170, 1016}.
+
+**NEXT — ORDERED:**
+1. ⭐⭐⭐ **Blob/fence subject arming** (retire the decline set): audit the deep-repoint `rbp=rsp−K` static model + wire-glue depth assumptions against the +16 grant; the m3 exit-scan spin (061 witness, output-correct-then-hang) is the cheap first bracket.
+2. ⭐⭐ **Stored-pattern rt_cap_push SEGV** (053) — carried, C-side, gdb bt into rt_cap_push.
+3. **ZD-5a admission proper** — carried.
+4. Glue backlog residue + proc-shape admission + DYNAMIC BOX · FENCE whack-at-checkpoint · JOIN-POINT RULE · TREEBANK Pop_list — carried.
+5. `.s` artifact regen NOT run this session (judgment call: `zeta_storage.c` is contracts, not on the RULES codegen file list, and the default flip changes armed-program `.s` broadly — next codegen session should regen).
+
+---
+
+## ⛔⭐⭐ PRIOR CURSOR — s22x (2026-08-01)
 
 Directive: s22w NEXT items 1+3 under Lon grant "All your choices. I'm with you on this." — GLUE formalization + match-family FORTH-cell conversion.
 
@@ -289,10 +312,10 @@ Lon directive ×3: DELETE `xa_flat_prologue_str`. 311 m4 failures is ONE missing
 
 ---
 
-## ⛔⭐ WATERMARK OF RECORD (s22x close)
+## ⛔⭐ WATERMARK OF RECORD (s22y close)
 
 | runner | m3 | m4 | DIVERGE |
 |---|---|---|---|
-| **crosscheck 318, TIMEOUT=8** | **220/96/1** | **217/98/1** | **3 {170, 1016, test_stack}** |
+| **crosscheck 318, TIMEOUT=8** | **233/84/1** | **229/88/1** | **4 {test_stack, 164, 170, 1016}** |
 
-Harness: `/tmp/xc.sh` (lean resumable 2-arm runner from .github, bare container exec). Prior record s22w: 217/99/1 · 214/101/1 · DIV=3 — REPROVEN at s22x open before any edit; s22x +3/+3 (GLUE-SYM proven byte-identical 0/318; CAS-MARKER-CARRY did the +3).
+Harness: `/tmp/xc.sh` (lean resumable 2-arm runner from .github, bare container exec). Prior record s22x: 220/96/1 · 217/98/1 · DIV=3 — REPROVEN at s22y open before any edit (fail/timeout split shifts with container speed; pass sets and diverge set exact); s22y +13/+12 (SUBJECT-CELL default-on; 164 joins DIVERGE as m3-fixed over a pre-existing m4 fail).
