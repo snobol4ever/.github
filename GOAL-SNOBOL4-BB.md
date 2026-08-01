@@ -4,7 +4,80 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23d (2026-08-01) — ON-3 ARG-NOTE CLOSED + ON-0 RE-PROVEN + ⭐⭐⭐ ON-5 LANDED (the claim is finally zeroed end to end)
+## ⭐⭐⭐ LIVE CURSOR — s23e (2026-08-01) — ⭐⭐⭐ ON-1 LANDED (the ruling was smaller than its billing) + ON-3 RESTORE SIDE CLOSED
+
+**Directive (Lon, this session):** *"Finish annotations of the generated code. Continue."* then, on being asked
+what the ON-1 ruling needed: *"Is it a big decision, if not you got this."* — measured, it was not; see below.
+
+**⭐⭐⭐ THE ON-1 RULING IS DISCHARGED — IT WAS NEVER A BIG DECISION, AND THE BLOCKER WAS A MISREADING.**
+It sat blocked across s23b/s23c/s23d as "SHARED STRUCT — needs Lon ruling." Measured at HEAD:
+- **The PEERS RULE does not apply.** It governs `BB_t`/`IR_t`. `op_zread[6]` lives in **`sm_emit_t`**, the
+  emitter params struct, which carries **26 precedents** of the same move and an explicit law for it
+  (`APPENDED AT STRUCT END per the s141 ABI law`; mid-struct insertion shifts baked offsets — op_arbno_zq's scar).
+- **The staging site already held the answer.** `emit.cpp`'s zd_plan loop computing `op_zread[k]` already has
+  `IR_t * _p = nodes[i]->operands[_zj]` in hand for the depth difference. The kind is a read of a pointer it
+  already resolved — not a second walk. ⭐ **BEFORE ESCALATING A "NEEDS A RULING", CHECK WHETHER THE DATA IS
+  ALREADY IN SCOPE AT THE SITE. Twice now the expensive-looking rung was one expression inside an existing loop.**
+
+**LANDED (SCRIP `45e44f0f`):**
+- **`op_zkind[6]`** appended at `sm_emit_t` end; staged in lockstep with `op_zread[]`; **cleared to −1 at the
+  per-node reset** beside op_zread's zeroing. ⛔ That sentinel is load-bearing: without it a stale kind leaks
+  into the next node and prints a **WRONG name**, which is worse than no name.
+- **`ZOPN(k)`** (x86_asm.h) is a **STRICT SUPERSET of the ZOPAN interim, deliberately** — `op_zkind[]` stages
+  ONLY on the ZD-armed arm while `op_a_node_kind` stages for every node, so a bare `ZOPAN()→ZOPN(0)` swap would
+  have **silently dropped operand-a names on every unarmed node**. The `k==0` fallback keeps them. ⭐ **A
+  "general form" that replaces an interim must be checked for COVERAGE REGRESSION, not just correctness.**
+- **25 ZOPAN sites retired → ZOPN(0); 11 new operand-b..n notes; 12 templates. `ZOPAN` grep == 0.** Both
+  operands of a binop now name their producers; a 3-arg call reads `# var / # var / # coerce_numeric`.
+- **ON-3 restore side (the asymmetry s23c/s23d left):** the saves were annotated and **every restore was bare**
+  — four sites, three files, five slots. **`HKN(k)`** is now the ONE naming authority (head-save, head-restore,
+  `bb_match_release`, `bb_match_replace` all read it), so a term cannot drift from its twin.
+- ⛔ **`bb_rev_swap` deliberately does NOT inherit those names** — it reuses `op_off+48/56` for a different
+  thing (spilling live scan registers across the `<->` call), so it gets `scan_δ/scan_Δ`. **Same offset ≠ same
+  object; inheriting `outer_δ` there would have been a confident lie in the generated code.**
+- **The unanchored-retry loop is legible:** `start_δ` init/bump/test + `patstk_mark` + `rsp_mark`. Vocabulary
+  anchored to the **SPITBOL manual pp.66–68** (the retry advances the cursor; `&ANCHOR` forbids it); named
+  `start_δ` not "counter" because it is a cursor value in δ's units landing in `r14d` — distinct from `outer_δ`,
+  the ENCLOSING match's cursor one slot family over. Reasoning recorded in the template, not just here.
+
+**PROOF — annotation-only BY MEASUREMENT:**
+- ⭐ **The plumbing landed INERT first** (`.s` byte-identical *including* comments), so every later delta is
+  attributable to template wiring alone. **Land a shared-struct field and its consumers as two steps.**
+- **163 programs CODE-IDENTICAL** to committed artifacts modulo comments: 21 bench + 20 demo + **122 pattern
+  crosschecks (the family edited)**. roman 3614→3614 lines, notes 990→1054, 0 stray `#@`, 0 notes on jumps.
+- **M4 == M3**, output identical to the pre-session binary. `test_gate_argnote_sweep.sh` **GATE GREEN**.
+- **Regen ×4 all insertions == deletions** (bench 597/597 · demo 1007/1007 · crosscheck 6434/6434, 391 files):
+  **zero line drift**. `emit-fail=15 · as-fail=2` — the named watermark values, unmoved.
+- m3 pattern crosscheck 37/40; the 3 fails are the goal file's own named `op_flat_disp` class
+  (063/064/065_pat_fence_fn_*), pre-existing since s23a.
+
+**⛔ WATERMARK: NOT re-proven this session** (budget went to ON-1 + the regen ×4). Carried = s23d close
+**m3 279/27/11 · m4 266/39/10/2L**. Behaviour-neutrality rests on the 163-program code-identity sweep + regen
+zero-drift above, which is stronger evidence than a count. Next session MUST re-prove per protocol.
+
+**⭐⭐ TWO PRE-EXISTING DEFECTS FOUND, NEITHER CHASED — full write-up in
+`FINDING-2026-08-01c-CLAUDE-SN4-TWO-DEMO-ARTIFACTS-FROZE-ON-A-DUPLICATE-LABEL-AND-THE-GRACEFUL-SKIP-IS-WHY-NOBODY-NOTICED.md`:**
+1. ⭐⭐ **`demo/json.s` + `demo/claws5.s` have been LYING since s22z.** Both `--compile` clean but are
+   **assembler-rejected on a duplicate label** (`.Lbynamefnzd8` / `.Lbynamefnzd83`) — the live
+   **BYNAMEFN-DUP-LABELS class** — so the regen script's graceful-skip correctly leaves the OLD bytes committed.
+   They still show the deleted whole-graph `[rsp+2480]` carve model. ⛔ **DO NOT hand-refresh them; they cannot
+   assemble.** The fix is the dup-label mint (`zd8` vs `zd83` smells like a non-injective concatenation).
+   ⭐ THE LESSON: **a graceful-skip converts a loud failure into a quiet lie** — the flag scrolls past once, the
+   stale file persists forever and does not look stale.
+2. **`demo/roman.sno` emits empty numerals at HEAD** (oracle `1 -> I`, SCRIP `1 -> `). Proven to predate s23e by
+   assembling and running the pre-change `.s`. Monitor-first applies.
+
+**NEXT — ORDERED:**
+1. ⭐⭐ **ON-0 WATERMARK RE-PROVE** — carried, not re-proven here; do this FIRST, it brackets everything below.
+2. ⭐ **ON-3 remainder** — the two statement-terminal `rbp` restores in `x86_asm.h` (~2023/2030, `op_stmt_pin`;
+   they fire on EVERY statement cut, highest remaining value), `x86_zls2_mark_save`'s `FRQ(off)` stores, and the
+   `[rbp+368]` cursor save in match_sequence. Census after s23e: **`[rsp]` 294 · `[rip]` 155 · `[rbp]` 26.**
+3. **ON-4 srccomment echo repair** — Lon's ORIGINAL complaint, still untouched across s23b–s23e.
+4. ⛔ **PENDING LON RULING:** the ~21 column-1 corpus files — repair (add leading blank) or mark `.xfail`?
+
+---
+
+## ⛔⭐⭐ PRIOR CURSOR — s23d (2026-08-01) — ON-3 ARG-NOTE CLOSED + ON-0 RE-PROVEN + ⭐⭐⭐ ON-5 LANDED (the claim is finally zeroed end to end)
 
 **Directive (Lon, this session):** *"Finish annotations. Continue."* then *"All your choices. I'm with you on this."* — the OBJ-NOTE ladder, my pick of rung. Took **ON-3 continuation** (the 189 `call rt_*` argument loads, the biggest opaque family left), then **ON-0**.
 
@@ -419,9 +492,9 @@ Lon directive ×3: DELETE `xa_flat_prologue_str`. 311 m4 failures is ONE missing
 
 **STEPS:**
 - [x] **ON-0 WATERMARK REPROVE — DONE s23d: `m3 279/27/11 · m4 266/39/10/2L`.** m4 EXACT vs carried s23a; LERR = the named 2L pair; the lone m3 delta is `213_gc_exhaustion_churn`, the LAWS-named harness-only m3 flake. BY SET, never by count. ⭐ This is a FRESH bracket — ON-5 should land against it.
-- [ ] **ON-1 operand-kind plumbing** (⛔ STILL needs Lon ruling — the s23c `ZOPAN()` interim covers operand-a ONLY and does NOT discharge this step — shared params struct): add `op_zkind[]` beside `op_zread[]` in the emit params, populated where `op_zread` is staged with each operand producer's IR op; templates then speak `x86("note", bb_kind_name(_.op_zkind[k])) +` before each `ZOPQ(k,·)` read. Interim without the ruling: operand-a only via existing `_.op_a_node_kind`.
-- [~] **ON-2 operand-read sweep — OPERAND-A DONE s23c (`afbcab9b`, 25 sites/12 templates via `ZOPAN()`); operands b..n await ON-1.** scripted insertion (the s23b pattern — python regex per file, see `eb0c08a8`'s 34-site GVA pass) across the `ZOPQ(`/operand-FRQ consumer sites; verify recipe per batch.
-- [~] **ON-3 housekeeping-term sweep — BATCH 1 LANDED s23c (`816b1cf6`); ARGUMENT-LOAD FAMILY CLOSED s23d (`154a3fa8`)**: the SELF-CELL class is done via `ZRESN()` (41 sites/15 templates) + the CLAIM-ZERO pass named `stmt_claim`. ⭐ THE LESSON: `op_node_kind` at emit.cpp:861 is a CHOKE POINT — one accessor named every box's own result cell tree-wide, no per-template plumbing. Look for the choke point before batching by family. ⭐ ARG-NOTE (s23d) closed the **189 `call rt_*` argument loads** via a TEMPORAL choke point — `x86_argnote` walks BACKWARD from each `call` in the 4col pass, where `bb_emit_x86`'s whole-body handoff has already made loads and callee visible together; roles GENERATED from real prototypes, RTX asm ports read from their own non-C-ABI banner contract. REMAINING: `[rbp+N]` statement-region slots, then the match_*/pat_*/defer housekeeping. bb_match_head stays the reference embodiment.
+- [x] **ON-1 operand-kind plumbing — LANDED s23e (SCRIP `45e44f0f`). THE RULING WAS DISCHARGED, NOT GRANTED:** the PEERS RULE governs BB_t/IR_t, NOT `sm_emit_t` (26 precedents + the s141 append-at-end law), and zd_plan's loop already held the producer node. `op_zkind[6]` staged in lockstep with `op_zread[]`, cleared to −1 at the per-node reset (a stale kind prints a WRONG name — worse than none). `ZOPN(k)` is a STRICT SUPERSET of ZOPAN via a `k==0` fallback, because op_zkind stages only on the ZD-armed arm and a bare swap would have silently dropped operand-a names on unarmed nodes. ~~(⛔ STILL needs Lon ruling — the s23c `ZOPAN()` interim covers operand-a ONLY and does NOT discharge this step — shared params struct): add `op_zkind[]` beside `op_zread[]` in the emit params, populated where `op_zread` is staged with each operand producer's IR op; templates then speak `x86("note", bb_kind_name(_.op_zkind[k])) +` before each `ZOPQ(k,·)` read. Interim without the ruling: operand-a only via existing `_.op_a_node_kind`.~~
+- [x] **ON-2 operand-read sweep — CLOSED s23e:** 25 ZOPAN sites retired onto ZOPN(0) + 11 new operand-b..n notes across 12 templates; `ZOPAN` grep == 0. Both operands of a binop now name their producers. (Was: OPERAND-A DONE s23c (`afbcab9b`, 25 sites/12 templates via `ZOPAN()`); operands b..n await ON-1.** scripted insertion (the s23b pattern — python regex per file, see `eb0c08a8`'s 34-site GVA pass) across the `ZOPQ(`/operand-FRQ consumer sites; verify recipe per batch.
+- [~] **ON-3 housekeeping-term sweep — BATCH 1 LANDED s23c (`816b1cf6`); ARGUMENT-LOAD FAMILY CLOSED s23d (`154a3fa8`)**: the SELF-CELL class is done via `ZRESN()` (41 sites/15 templates) + the CLAIM-ZERO pass named `stmt_claim`. ⭐ THE LESSON: `op_node_kind` at emit.cpp:861 is a CHOKE POINT — one accessor named every box's own result cell tree-wide, no per-template plumbing. Look for the choke point before batching by family. ⭐ ARG-NOTE (s23d) closed the **189 `call rt_*` argument loads** via a TEMPORAL choke point — `x86_argnote` walks BACKWARD from each `call` in the 4col pass, where `bb_emit_x86`'s whole-body handoff has already made loads and callee visible together; roles GENERATED from real prototypes, RTX asm ports read from their own non-C-ABI banner contract. ⭐ **s23e CLOSED THE RESTORE SIDE:** the saves were annotated and every RESTORE was bare (4 sites/3 files/5 slots) — `HKN(k)` in x86_asm.h is now the ONE naming authority so a term cannot drift from its twin, and the unanchored-retry loop reads `start_δ`/`patstk_mark`/`rsp_mark` (vocabulary anchored to SPITBOL manual pp.66–68). ⛔ `bb_rev_swap` reuses `op_off+48/56` for a DIFFERENT object and got its own `scan_δ/scan_Δ` — SAME OFFSET ≠ SAME OBJECT. REMAINING: the two statement-terminal `rbp` restores in `x86_asm.h` (~2023/2030, `op_stmt_pin` — they fire on EVERY statement cut), `x86_zls2_mark_save`'s `FRQ(off)` stores, `[rbp+368]` in match_sequence. Census after s23e: `[rsp]` 294 · `[rip]` 155 · `[rbp]` 26. bb_match_head stays the reference embodiment.
 - [ ] **ON-4 srccomment echo repair:** the statement source echoes are OUT OF ORDER + DUPLICATED (Lon's original complaint) — root the echo emission order in emit.cpp's BFS layout vs source stno order; one echo per statement, source order.
 - [x] **ON-5 — LANDED s23d (`efc11e5f`); census 6/12 runs collapsed → 0, watermark unmoved BY SET, regen ×4 done. Original s23c analysis below.** ⛔ The s23b framing ("find the two producers, delete one") is FALSIFIED: there is ONE producer, it fires ONCE per statement head, and the defect is a **misresolution**, not a duplicate. Census per claimed statement = **30 stores / 26 distinct**: 4 cells written twice AND **4 cells (top 32 BYTES of the claim) NEVER written**. Cause: `RDQ("rsp",_zi)` spells plain `[rsp+N]`, re-resolved by `x86_frame_off`→`zvo_resolve` — the ARGREAD hazard already documented at x86_asm.h:874. CLAIM-ZERO thus only partially discharges the `rt_cap_push` zero-fresh contract it was landed for. Fix = the `[rsp#]` raw escape, one line. **Changes emitted code → land it WITH the ON-0 watermark bracket.** Full write-up + gate list: `FINDING-2026-08-01-CLAUDE-SN4-ON5-IS-NOT-DUPLICATE-ZEROING-...md`.
 
