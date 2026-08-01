@@ -33,13 +33,27 @@ authority, the `zc_nofc`/`x86_jcc_invert` shape): **Icon 184/79/30 → 184/79/30
 2→0, pop 3→1. Correct but dominated. Default flip needs SN4 + Prolog watermarks (shared emitter).
 
 **⭐ NEXT RUNGS — s206 ORDER:**
-1. ⭐⭐⭐ **The residual stray pop** — repro still SEGVs at push=0/pop=1 with the flag on. Deterministic
-   7-line witness in hand; MONITOR→bracket→gdb it. This is the live bug.
-2. ⭐⭐ **Route every Icon graph to ONE glue** (flat = rsp per-BB grant, framed = rbp seeded at outermost α).
+1. ⭐⭐⭐ **THERE IS NO PROCEDURE RETURN PROTOCOL — THIS DOMINATES EVERYTHING BELOW.** `proc_g_γ` is
+   `xor edi,edi; call exit@PLT` and `ret` count across the whole procedure region is **0**, in BOTH the
+   `suspend` and `return` variants. `bb_glue_outer_γ/ω` (written for the OUTERMOST graph, where whack+exit
+   is right) are emitted **unconditionally at `emit.cpp:2512/2513` for every graph**, so every CALLEE
+   inherits program-termination. ⇒ **`bb_glue_outer_γ/ω` need a CALLEE FLAVOR** (return to caller) distinct
+   from the outermost flavor, selected per graph. Lon's design call: it is glue, not a template family
+   ("do not create the six new templates … all other code must slide into their proper places").
+   ⚠ **The 184/79/30 watermark is measuring only what survives WITHOUT procedure calls.** Expect a correct
+   callee-γ rung to move it in bulk; do not attribute that movement to anything landing alongside it.
+2. ⭐⭐ **The `_res` stray pop is SUBSUMED by (1), not a separate bug.** `emit.cpp:2482` emits
+   `add rsp,8; pop <fb>` presuming a 16B frontier record γ never leaves; `bb_suspend.cpp` pushes no header
+   and the region has **zero pushes of any register**. Header push + rbp seed + resume pop were all halves
+   of the deleted `xa_flat_prologue`/epilogue. ⛔ Its `n==0` guard's reasoning still HOLDS (the body does
+   `jmp proc_g_ω` immediately before the res label) — this is NOT the fall-through case.
+3. ⭐ **Route every Icon graph to ONE glue** (flat = rsp per-BB grant, framed = rbp seeded at outermost α).
    6,264 refs currently get NEITHER. Per-file target list = the census output.
-3. ⭐ **Convert flat-glue graphs' `[rbp+N]` → `[rsp+off−fc_base]`.** Generators/pat/deep-arrival keep rbp —
+4. **Convert flat-glue graphs' `[rbp+N]` → `[rsp+off−fc_base]`.** Generators/pat/deep-arrival keep rbp —
    that IS the directive's "absolutely necessary" set.
-4. **Rewrite the ICN-FB-0 gate's drift ZERO-ASSERT as a DESCENDING RATCHET** before using it as a gate.
+5. **Rewrite the ICN-FB-0 gate's drift ZERO-ASSERT as a DESCENDING RATCHET** before using it as a gate.
+6. ⚠ `emit.cpp:2483` is a hand-written `if (g_is_text) {snprintf…} else {ef_b4…}` pair — one instruction
+   spelled twice per medium, the named FORBIDDEN SHAPE of `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md`. Own rung.
 
 **INSTRUMENT LANDED (ICN-FB-0):** `scripts/util_icn_rbp_census.py` + `test_gate_icn_rbp_census_ratchet.sh`.
 A/C/D + per-region seed split; **falsifiability proven at BOTH ends on 4 fixtures** before first use.

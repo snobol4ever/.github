@@ -138,3 +138,50 @@ deliberately rather than silently re-baselined, so the next session sees the rea
    therefore be attributed to the wrong region. **Verify by reading the .s, not by a second run.**
 
 **Authors:** Lon Jones Cherryholmes · Jeffrey Cooper M.D. · Claude
+
+---
+
+## ⭐⭐⭐ HEADLINE 3 (LATE, AND IT DOMINATES HEADLINES 1–2) — **THERE IS NO PROCEDURE RETURN PROTOCOL**
+
+Chasing the residual stray pop bottomed out on the real structural gap:
+
+```
+proc_g_γ:                     main_γ:
+    xor  edi, edi                 mov  rsp, rbp
+    call exit@PLT                 pop  rbp
+                                  xor  edi, edi
+                                  call exit@PLT
+```
+
+**A CALLEE PROCEDURE'S SUCCESS PORT CALLS `exit(0)`.** `ret` count across the whole `proc_g`
+region = **0**, in BOTH the `suspend` and the `return` variants. `bb_glue_outer_γ/ω` — written
+for the OUTERMOST graph, where whack+`exit` is correct — are emitted **unconditionally at
+`emit.cpp:2512/2513` for every graph**, so every callee inherits the program-termination flavor.
+
+**THIS SUBSUMES THE STRAY POP.** `proc_g_res`'s `add rsp,8; pop <fb>` (`emit.cpp:2482`, guarded
+by `flat_jmp_entry`) presumes a 16B frontier record that γ was supposed to leave; the suspend
+template pushes no header (`bb_suspend.cpp` has no push/sub emission) and the region contains
+**zero pushes of any register**. Header push, rbp seed, and resume pop were all halves of the
+same deleted `xa_flat_prologue`/epilogue. ⛔ **The n==0 guard's stated reasoning at `emit.cpp:2469`
+("a non-empty body's last node always JMPs to γ/ω explicitly, so this guard is n==0-only") is
+still TRUE for fall-through** — the body does `jmp proc_g_ω` immediately before the res label —
+so the res landing is reached only by an explicit resume jump. It is not the fall-through case.
+
+**WHY GLUE-SYM MEASURED INERT IS NOW EXPLAINED, NOT MYSTERIOUS.** Repairing the whack cannot
+move a watermark when the callee never returns at all: anything with a procedure call fails
+upstream of the whack. HEADLINE 2's fix is still correct and still worth keeping — it removes a
+real ABI violation — but it was never going to be the number-mover, and the "correct but
+dominated" label was more literally true than I knew when I wrote it.
+
+**⭐ THE RUNG THIS OPENS (needs Lon's design call — it is the epilogue's job, restated):**
+`bb_glue_outer_γ/ω` need a **CALLEE FLAVOR** distinct from the OUTERMOST flavor — return to
+caller vs terminate the process — selected per graph, not per program. This is precisely the
+OUTER-EXIT-1 comment's own claim ("the outermost box owns its OWN two ports, as glue — this is
+the whole of what the deleted epilogue did in the ordinary case") applied to the case that is
+NOT ordinary: a callee. Per Lon's CARVE-KILL directive ("do not create the six new templates.
+We'll just the simple glue and all other code must slide into their proper places"), this is
+glue, not a template family.
+
+**MEASUREMENT NOTE:** with no return protocol, the Icon `--run` watermark of 184/79/30 is
+measuring only what survives without procedure calls. Expect any correct callee-γ rung to move
+it in bulk, and do NOT attribute that movement to whatever else lands alongside it.
