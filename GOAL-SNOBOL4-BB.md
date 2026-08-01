@@ -4,7 +4,40 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23c (2026-08-01) — ON-3: the self-cell has a name, and the annotation found a real bug
+## ⭐⭐⭐ LIVE CURSOR — s23d (2026-08-01) — ON-3 ARG-NOTE CLOSED THE ARGUMENT-LOAD FAMILY + ON-0 WATERMARK RE-PROVEN
+
+**Directive (Lon, this session):** *"Finish annotations. Continue."* then *"All your choices. I'm with you on this."* — the OBJ-NOTE ladder, my pick of rung. Took **ON-3 continuation** (the 189 `call rt_*` argument loads, the biggest opaque family left), then **ON-0**.
+
+**LANDED (SCRIP `154a3fa8`, templates + two scripts):**
+- **`x86_argnote()`** (x86_asm.h, hooked at `x86_4col`'s return) — argument loads now read `mov rdi, [rsp+96]  # slot`, the callee's OWN parameter name. ⭐ **189 sites, ZERO template edits.**
+- ⭐⭐⭐ **THE CHOKE POINT IS TEMPORAL, NOT STRUCTURAL — the generalization of s23c's lesson.** The role CANNOT be known when the mov is emitted: the callee is unnamed until the `call` several instructions later, and the `+` chains evaluate in UNSPECIFIED ORDER, so no stateful lookahead is legal. But `bb_emit_x86` hands `emit_text_n` the WHOLE template body in ONE call, so when `x86_4col` runs, loads and `call` are both present — one backward walk names all of them. **When a fact is unknowable at emit time, ask which LATER PASS already sees it.** Reach for this whenever the blocker is "the templates evaluate in unspecified order."
+- **`x86_arg_roles.h` GENERATED** (`scripts/gen_callee_arg_roles.py`) from the REAL runtime prototypes — no term invented. SysV slot arithmetic: `DESCR_t` = **TWO** slots (verified empirically, `a`→rdi:rsi / `b`→rdx:rcx), both halves naming the one object; floats skip GPRs; >16B by-value return takes slot 0 as hidden `sret`.
+- ⛔ **THE RTX ASM PORTS ARE NOT C-ABI** — `rt_sg_scan.S` says so outright ("LEAN CUSTOM CONVENTION — NOT the C ABI"). C-derived roles would be WRONG for that family; theirs come from their own `.S` banner contract. **Any future register→meaning tooling must special-case them.**
+- **124/143 tabled; 19 REFUSED rather than guessed** (`rax` = indirect call; `rt_make_list`/`rt_proc_value`/`rt_section_var` = CONFLICTING declarations; rest = no reachable prototype).
+- **Two generator bugs caught before landing:** `return foo(a,b);` parsed as a declaration (would have invented roles from LOCAL VARIABLES); and no conflict detection (would have taken whichever declaration `os.walk` reached first — order-dependent, unreproducible names).
+
+**PROOF — behaviour-neutral BY MEASUREMENT, not merely by construction:**
+- roman.s **CODE IDENTICAL modulo comments** (strip-and-diff); 3614 → 3614 lines; notes 977 → 1165.
+- ⭐ The **PRE-CHANGE `.s` was assembled and run** — output identical to post-change. **M4 == M3** identical.
+- Gate sweep **931 programs: 0 stray `#@`, 0 notes on jump lines** (the GOTO column stays the jumps'). `scripts/test_gate_argnote_sweep.sh` added.
+- mode-3 untouched by construction: `x86_4col` returns early for BINARY *before* `x86_argnote` runs.
+
+**⭐⭐ ON-0 WATERMARK RE-PROVEN — `m3 279/27/11 · m4 266/39/10/2L`** (xc.sh, all 318, foreground chunks). **m4 EXACT vs carried s23a**; LERR set = the named 2L pair. The single m3 delta (280/10→279/11) is **`213_gc_exhaustion_churn`**, the harness-only m3 flake the LAWS name by name; m4's TIMEOUT set is the same list minus exactly it. **BY SET, never by count.**
+
+**⛔⭐ TWO TRAPS RECORDED — full write-up in `FINDING-2026-08-01-CLAUDE-SN4-ARG-NOTE-RODE-THE-4COL-CHOKE-POINT-AND-MY-SWEEP-MISCOUNTED-266-PHANTOM-FAILS.md`:**
+1. **A `find . -name '*.sno'` SWEEP IS NOT A WATERMARK.** Mine read `emit-fail=266/931` and I nearly handed it off as a regression. ~120 were a **CWD artifact** (relative includes), 67 CRLF, 21 §2 below, 6 the known LOWER subset. The gate now prints `emit-decline` with the warning inline so it cannot be misread.
+2. **`hello.sno` IS MALFORMED, NOT A PARSER DEFECT.** `OUTPUT` sits in COLUMN 1, which the SPITBOL manual (p.37/p.45) makes a **LABEL**, leaving body `= 'HELLO WORLD'` with no subject. Oracle-anchored both ways: corpus file → `sbl -b` **SEGFAULTS**; one leading tab → prints `HELLO WORLD`. **SCRIP's rejection is CORRECT. DO NOT "fix" the parser to accept these ~21 files.**
+
+**NEXT — ORDERED:**
+1. ⭐⭐⭐ **ON-5 fix** — root-caused s23c, still NOT landed; claim-zero discharges only 26/30 cells (top 32 bytes never written). It changes emitted code and **ON-0 above is now a FRESH bracket** to land it against.
+2. ⭐⭐ **ON-1 operand-kind plumbing** — still blocked on the Lon `op_zkind[]` ruling.
+3. ⭐ **ON-3 remainder** — `[rbp+N]` statement-region slots, then match_*/pat_*/defer housekeeping. **The argument-load family is CLOSED.**
+4. **ON-4 srccomment echo repair** — Lon's original complaint, still untouched.
+5. ⛔ **PENDING LON RULING:** the ~21 column-1 corpus files — repair (add leading blank) or mark `.xfail`?
+
+---
+
+## ⛔⭐⭐ PRIOR CURSOR — s23c (2026-08-01) — ON-3: the self-cell has a name, and the annotation found a real bug
 
 **Directive (Lon, this session):** *"Work on annotating the generated S code"* then *"All your choices. I'm with you on this."* — i.e. the OBJ-NOTE ladder, my pick of rung. Took **ON-3** (housekeeping-term sweep); **ON-1/ON-2 remain blocked on the shared-params ruling**, unchanged.
 
@@ -379,10 +412,10 @@ Lon directive ×3: DELETE `xa_flat_prologue_str`. 311 m4 failures is ONE missing
 - **Verify recipe per step:** `scrip --compile probe.sno` → notes at col 89, ZERO on `j*` lines, `grep -c '^#@'` == 0 stray markers; assemble+link (`gcc -no-pie X.s -LSCRIP/out -lscrip_rt -Wl,-rpath,…/SCRIP/out`), run, diff vs `--run` output (**M4 == M3**); then the four regen scripts (`util_regen_{benchmark,feature,demo,crosscheck}_s_artifacts.sh "<step>"`) — equal insert/delete counts = pure in-line annotation; emit-fail must hold at 15 and as-fail at the 2L pair unless the watermark itself moved.
 
 **STEPS:**
-- [ ] **ON-0 WATERMARK REPROVE** (protocol — carried-not-proven since s23b; xc.sh in FOREGROUND CHUNKS of 80, background jobs die between tool calls). Baseline before touching anything.
+- [x] **ON-0 WATERMARK REPROVE — DONE s23d: `m3 279/27/11 · m4 266/39/10/2L`.** m4 EXACT vs carried s23a; LERR = the named 2L pair; the lone m3 delta is `213_gc_exhaustion_churn`, the LAWS-named harness-only m3 flake. BY SET, never by count. ⭐ This is a FRESH bracket — ON-5 should land against it.
 - [ ] **ON-1 operand-kind plumbing** (⛔ STILL needs Lon ruling — the s23c `ZOPAN()` interim covers operand-a ONLY and does NOT discharge this step — shared params struct): add `op_zkind[]` beside `op_zread[]` in the emit params, populated where `op_zread` is staged with each operand producer's IR op; templates then speak `x86("note", bb_kind_name(_.op_zkind[k])) +` before each `ZOPQ(k,·)` read. Interim without the ruling: operand-a only via existing `_.op_a_node_kind`.
 - [~] **ON-2 operand-read sweep — OPERAND-A DONE s23c (`afbcab9b`, 25 sites/12 templates via `ZOPAN()`); operands b..n await ON-1.** scripted insertion (the s23b pattern — python regex per file, see `eb0c08a8`'s 34-site GVA pass) across the `ZOPQ(`/operand-FRQ consumer sites; verify recipe per batch.
-- [~] **ON-3 housekeeping-term sweep — BATCH 1 LANDED s23c (`816b1cf6`)**: the SELF-CELL class is done via `ZRESN()` (41 sites/15 templates) + the CLAIM-ZERO pass named `stmt_claim`. ⭐ THE LESSON: `op_node_kind` at emit.cpp:861 is a CHOKE POINT — one accessor named every box's own result cell tree-wide, no per-template plumbing. Look for the choke point before batching by family. REMAINING: the **189 `call rt_*` argument loads** (biggest opaque family left — literal role terms per callee), then `[rbp+N]` statement-region slots, then the match_*/pat_*/defer housekeeping. bb_match_head stays the reference embodiment.
+- [~] **ON-3 housekeeping-term sweep — BATCH 1 LANDED s23c (`816b1cf6`); ARGUMENT-LOAD FAMILY CLOSED s23d (`154a3fa8`)**: the SELF-CELL class is done via `ZRESN()` (41 sites/15 templates) + the CLAIM-ZERO pass named `stmt_claim`. ⭐ THE LESSON: `op_node_kind` at emit.cpp:861 is a CHOKE POINT — one accessor named every box's own result cell tree-wide, no per-template plumbing. Look for the choke point before batching by family. ⭐ ARG-NOTE (s23d) closed the **189 `call rt_*` argument loads** via a TEMPORAL choke point — `x86_argnote` walks BACKWARD from each `call` in the 4col pass, where `bb_emit_x86`'s whole-body handoff has already made loads and callee visible together; roles GENERATED from real prototypes, RTX asm ports read from their own non-C-ABI banner contract. REMAINING: `[rbp+N]` statement-region slots, then the match_*/pat_*/defer housekeeping. bb_match_head stays the reference embodiment.
 - [ ] **ON-4 srccomment echo repair:** the statement source echoes are OUT OF ORDER + DUPLICATED (Lon's original complaint) — root the echo emission order in emit.cpp's BFS layout vs source stno order; one echo per statement, source order.
 - [ ] **ON-5 — ROOT-CAUSED s23c, REFRAMED, NOT LANDED.** ⛔ The s23b framing ("find the two producers, delete one") is FALSIFIED: there is ONE producer, it fires ONCE per statement head, and the defect is a **misresolution**, not a duplicate. Census per claimed statement = **30 stores / 26 distinct**: 4 cells written twice AND **4 cells (top 32 BYTES of the claim) NEVER written**. Cause: `RDQ("rsp",_zi)` spells plain `[rsp+N]`, re-resolved by `x86_frame_off`→`zvo_resolve` — the ARGREAD hazard already documented at x86_asm.h:874. CLAIM-ZERO thus only partially discharges the `rt_cap_push` zero-fresh contract it was landed for. Fix = the `[rsp#]` raw escape, one line. **Changes emitted code → land it WITH the ON-0 watermark bracket.** Full write-up + gate list: `FINDING-2026-08-01-CLAUDE-SN4-ON5-IS-NOT-DUPLICATE-ZEROING-...md`.
 
