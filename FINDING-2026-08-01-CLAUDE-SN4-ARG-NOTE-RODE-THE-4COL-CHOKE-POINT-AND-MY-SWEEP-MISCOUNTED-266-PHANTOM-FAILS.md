@@ -60,10 +60,21 @@ The first ARG-NOTE gate sweep read **emit-fail=266/931**, including `hello.sno`.
 
 Behaviour-neutrality of the rung itself is **MEASURED, not merely constructed**: roman.s code-identical modulo comments (3614 → 3614 lines), and the PRE-CHANGE `.s` was assembled and run to confirm identical output. M4 == M3. mode-3 is untouched by construction — `x86_4col` returns early for BINARY before `x86_argnote` runs.
 
+## 7. ⭐⭐⭐ ON-5 LANDED SAME SESSION — AND THE CENSUS WAS WORSE THAN s23c RECORDED
+
+With the ON-0 bracket fresh, ON-5's one-line fix landed (SCRIP `efc11e5f`): CLAIM-ZERO now spells its destination RAW via `x86_zref` (`[rsp# + N]`) so nothing re-resolves.
+
+⚠ **RE-TAKING A CENSUS IS NOT CEREMONY.** s23c recorded ONE witness — 30 stores / 26 distinct, "4 cells never written." Re-running it across roman's twelve claim-zero runs showed the defect **scales with claim size**: **(30,26)**, **(62,40)**, **(78,56)** — 22 collapsed cells in the larger two — with **six of twelve runs collapsed**, not one. Had I trusted the recorded figure I would have under-stated the blast radius by a factor of five. This is the CENSUS SHELF LIFE law (*"re-run, never cite"*) paying for itself inside one session, on a census only one session old.
+
+After: every run is `total == distinct` and monotone; collapsed-runs **6 → 0**.
+
+**All four s23c gates addressed.** Watermark `m3 279/27/11 · m4 266/39/10/2L` — identical to the pre-fix baseline **and diffed BY SET across all 318 programs: zero verdicts moved in either mode.** Equal counts alone would not have shown that; the set diff is what rules out a fixed/broken swap. Witnesses 066 + 053 pass both modes; 165/183 remain m4-SEGV, consistent with s22z/s23a having already proven 165 claim-zero-**independent** by killswitch. Artifact regen ×4 done (crosscheck 482 · demo 20 · benchmark 21 · feature) with **insertions == deletions in every one** — pure in-line destination changes, zero line drift, because the store *count* was always right and only the destinations were wrong.
+
+⚠ Unlike the ON-3 annotation this **changes emitted code in BOTH modes** — the raw spelling bypasses re-resolution for BINARY too, which is correct: both media carried the identical defect.
+
 ## 6. NEXT
 
-1. ⭐⭐⭐ **ON-5 fix + its watermark bracket** — root-caused s23c, still NOT landed; it changes emitted code, and ON-0 above is now a fresh bracket to land it against. The claim-zero pass discharges only 26 of 30 cells; the top 32 bytes of the claim are never written.
-2. ⭐⭐ **ON-1 operand-kind plumbing** — still blocked on the Lon `op_zkind[]` ruling for the shared params struct. Operand-a remains covered by s23c's `ZOPAN()`.
-3. ⭐ **ON-3 remainder** — `[rbp+N]` statement-region slots, then the match_*/pat_*/defer housekeeping. The argument-load family is now CLOSED.
-4. **ON-4 srccomment echo repair** — Lon's original readability complaint, still untouched.
-5. **Lon ruling:** the ~21 column-1 corpus files (§4) — repair or `.xfail`.
+1. ⭐⭐ **ON-1 operand-kind plumbing** — still blocked on the Lon `op_zkind[]` ruling for the shared params struct. Operand-a remains covered by s23c's `ZOPAN()`.
+2. ⭐ **ON-3 remainder** — `[rbp+N]` statement-region slots, then the match_*/pat_*/defer housekeeping. The argument-load family is now CLOSED.
+3. **ON-4 srccomment echo repair** — Lon's original readability complaint, still untouched.
+4. **Lon ruling:** the ~21 column-1 corpus files (§4) — repair or `.xfail`.
