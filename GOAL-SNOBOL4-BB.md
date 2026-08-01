@@ -26,7 +26,34 @@ Convert one box's readers to its own cell; watch the carve requirement DROP. Pro
 
 ---
 
-## ⛔⭐⭐ LIVE CURSOR — s22w (2026-08-01)
+## ⛔⭐⭐ LIVE CURSOR — s22x (2026-08-01)
+
+Directive: s22w NEXT items 1+3 under Lon grant "All your choices. I'm with you on this." — GLUE formalization + match-family FORTH-cell conversion.
+
+⭐⭐⭐ **TWO LANDINGS, ZERO BROKEN BY SET, BOTH MODES.**
+
+**(1) GLUE-SYM — SCRIP `8aceaaef`.** All 10 hand-rolled pass-through wire trios (`lea rcx,<γ>; lea rdx,<ω>; jmp rax`) → `bb_glue_pass_wires(gid,wid)`, ONE spelling tree-wide: bb_call_proc_staged ×5 · bb_call_value (+ missing bb_templates.h include) · bb_match_capture · bb_match_release · bb_match_defer L7 · **bb_match_value (the backlog's unlisted 6th member)**. Dormant legacy zr-anchor IF-arms hoisted above the glue (lea rcx/rdx touch neither rsp nor zr). PROVEN: `.s` byte-identical **0/318**, crosscheck IDENTICAL BY SET both modes. Glue taxonomy now symmetric: `flat/framed_enter+leave` (storage) · `outer_γ/ω` (CLASS O) · `wire_γ/ω` (CLASS P one-shot) · `pass_wires` (pass-through). Grid item FOUR stays dynamic per s22v Ch.9 ruling.
+
+**(2) CAS-MARKER-CARRY — SCRIP `b016019d`. The match unwind is DEPTH-FREE.** The head's tag-0 sentinel (24B, 16 unused) now carries the rsp mark (+8) and patstk snapshot (+16); tail RELEASE, general RELEASE (RSP+rfc arm), and the head fail exit recover both off the marker they already scan to — the second variable-depth reach the original CAS-MARKER note promised deleted, is deleted. **ROOT CAUSE (041 class, gdb + static audit):** `op_fc_disp` counts fc_geom grants but NOT the ZW-1 alpha carves the non-popping γ spine leaves live — release entered 32 deep of its spellings, `[rsp+16]` read the assign_save leaf cell (dword cursor 0 under 0x7fff residue), one-mov unwind loaded rsp=0x7fff00000000, push SEGV. Backtrack path was immune (leaf βs pop); ONLY the success path exposed it. Fixed +3 (041_pat_span, 042_pat_break, 047_pat_rtab — the linear head→leaf→capture→release shapes). Non-default regimes byte-preserved (marker arms gated `ZC_FRAME_RSP && rfc()`).
+
+**WATERMARK:** open m3 217/99/1 · m4 214/101/1 → close **m3 220/96/1 · m4 217/98/1** · DIVERGE 3 {170, 1016, test_stack} unchanged.
+
+**REMAINING-FAIL DECOMPOSITION (fresh, s22x close):** (a) **arbno/alt capture-start** — 052/054/065-class, rc=0 wrong capture (V='' where oracle 'aaa'), PRE-EXISTING (rc unchanged across s22x), the dcap start-clobber family; (b) **stored-pattern rt_cap_push SEGV** — 053-class, `P = ('a'|'b'|'c'); X P . V` crashes INSIDE rt_cap_push (C side, rsp sane) from n19_match_assign_save under the DT_P match_value path — the s22 localized stored-pattern class; (c) fence-via-var family (~15 programs); (d) DIVERGE 3 carried.
+
+**Instrument note (my own misattribution this session):** general-arm `RSP(fc_disp+8)` with fc_disp=0 and tail-arm `RSP(fc_disp+0)` with fc_disp=8 emit IDENTICAL bytes — verify which ARM fired from the template conditions, never from the emitted shape.
+
+**Residue flagged, not converted:** release's dval≠0 arm (end-cursor stash) still speaks `fc_disp`-relative spellings — same disease class, convert when a dval witness fails on it.
+
+**NEXT — ORDERED:**
+1. ⭐⭐ **Arbno/alt capture-start** (052/054/065): dcap start recorded per-iteration or clobbered — monitor-bracket the first divergent capture event.
+2. ⭐⭐ **Stored-pattern rt_cap_push SEGV** (053): C-side fault, gdb bt into rt_cap_push internals.
+3. **ZD-5a admission proper** (IR_MATCH_HEAD into zd_wl_kind + zd_k/zd_nops) — the marker made the unwind depth-free, so admission no longer needs the disp model for the release.
+4. Glue backlog residue: need-FOUR emitted glue behind label-redefinition gate + role-0 emitted one-shot open — carried.
+5. Proc-shape admission (OUTPUT-in-body × zero-locals) + DYNAMIC BOX · FENCE whack-at-checkpoint · JOIN-POINT RULE · TREEBANK Pop_list — carried.
+
+---
+
+## ⛔⭐⭐ PRIOR CURSOR — s22w (2026-08-01)
 
 Directive: "NON-POPPING FORTH-style RSP ZETA stack, C-style RBP occasionally only when absolutely necessary; allocate on ALPHA, free on OMEGA, WHACK-FREE at completion / FENCE checkpoint / known sync point; dynamic glue for one-shot and pass-through access to completed one-entry-one-exit BB graphs."
 
@@ -262,10 +289,10 @@ Lon directive ×3: DELETE `xa_flat_prologue_str`. 311 m4 failures is ONE missing
 
 ---
 
-## ⛔⭐ WATERMARK OF RECORD (s22w close)
+## ⛔⭐ WATERMARK OF RECORD (s22x close)
 
 | runner | m3 | m4 | DIVERGE |
 |---|---|---|---|
-| **crosscheck 318, TIMEOUT=8** | **217/99/1** | **214/101/1** | **3 {170, 1016, test_stack}** |
+| **crosscheck 318, TIMEOUT=8** | **220/96/1** | **217/98/1** | **3 {170, 1016, test_stack}** |
 
-Harness: `/tmp/xc.sh` (lean resumable 2-arm runner from .github, bare container exec). Prior record s21x-y: 232/85 · 229/86/2 · DIV=1 — held through s22b/c/r/u/v; s22w +15/+14.
+Harness: `/tmp/xc.sh` (lean resumable 2-arm runner from .github, bare container exec). Prior record s22w: 217/99/1 · 214/101/1 · DIV=3 — REPROVEN at s22x open before any edit; s22x +3/+3 (GLUE-SYM proven byte-identical 0/318; CAS-MARKER-CARRY did the +3).
