@@ -18,7 +18,7 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 **Artifacts regenerated s23b under rung "OBJ-NOTE":** bench (21 files) + feature (SCRIP) + demo (19 files, corpus `ce100cbb`) + crosscheck (357 files) — all pure in-line annotation or note-tail deltas, deterministic on rerun (changed=0 verify pass).
 
-**NEXT — ORDERED:**
+**NEXT — ORDERED (formalized as ⭐⭐ LADDER OBJ-NOTE under ## LADDERS — executable steps ON-0…ON-5 + the usage doc; route follow-on sessions THERE):**
 1. ⭐⭐ **Operand-BB reads (directive case 2):** `ZOPQ(k,·)` consumers need per-operand kind names — either `op_zkind[]` in the emit params struct (emit.cpp plumbing, SHARED STRUCT — needs Lon ruling) or operand-a-only via existing `_.op_a_node_kind` now. `bb_kind_name()` is ready either way.
 2. ⭐ **Housekeeping-term sweep** across the remaining ~100 templates — mechanical, idiom proven (`x86("note","term") +` prefix).
 3. **Duplicate frame-zeroing in n1_var** ([rsp+0..24] zeroed twice at α) — observed s23b, unchased.
@@ -337,6 +337,22 @@ Lon directive ×3: DELETE `xa_flat_prologue_str`. 311 m4 failures is ONE missing
 ---
 
 ## LADDERS
+
+### ⭐⭐ LADDER OBJ-NOTE — one-term object names in the GOTO column (mechanism landed s23b, SCRIP `eb0c08a8`; Lon directive 2026-08-01)
+
+**HOW TO USE THE SYSTEM (read before any step):**
+- **The idiom:** prefix the instruction's `x86(...)` call with `x86("note", <name>) + ` inside the same `+` chain. The note renders `# <name>` at the GOTO column (col 89) on the NEXT instruction line. Jump lines (`j*`) silently DROP it — Lon: never comment a jump, the GOTO column is theirs. BINARY medium = empty string, so mode-3 bytes are untouched BY CONSTRUCTION — no mode-identity risk from any note you add.
+- **Name sources:** `gva_name(k)` — GVA slot → variable name (gva_collect.c registry, extern"C"'d in x86_asm.h beside ABSQ) · `bb_kind_name(op)` — IR op → lowercase kind, the same spelling the `n<uid>_<kind>` labels use (exported from emit.cpp) · string literals for housekeeping terms (`"old_rbp"`, `"cas_top"`, …; bb_match_head's 11 are the reference vocabulary).
+- **Mechanics (do NOT re-derive):** the note is an in-band `#@name` marker line folded by `x86_4col`; stateless across the templates' unspecified-evaluation-order `+` chains (it travels in the string, never a global); idempotent under the sink's second 4col pass; markers unmatched at chunk end re-emit so the sink completes cross-call folds. Implementation lives ONLY in x86_asm.h (`"note"` arm in `x86_core_` + the fold in `x86_4col`).
+- **Verify recipe per step:** `scrip --compile probe.sno` → notes at col 89, ZERO on `j*` lines, `grep -c '^#@'` == 0 stray markers; assemble+link (`gcc -no-pie X.s -LSCRIP/out -lscrip_rt -Wl,-rpath,…/SCRIP/out`), run, diff vs `--run` output (**M4 == M3**); then the four regen scripts (`util_regen_{benchmark,feature,demo,crosscheck}_s_artifacts.sh "<step>"`) — equal insert/delete counts = pure in-line annotation; emit-fail must hold at 15 and as-fail at the 2L pair unless the watermark itself moved.
+
+**STEPS:**
+- [ ] **ON-0 WATERMARK REPROVE** (protocol — carried-not-proven since s23b; xc.sh in FOREGROUND CHUNKS of 80, background jobs die between tool calls). Baseline before touching anything.
+- [ ] **ON-1 operand-kind plumbing** (⛔ needs Lon ruling FIRST — shared params struct): add `op_zkind[]` beside `op_zread[]` in the emit params, populated where `op_zread` is staged with each operand producer's IR op; templates then speak `x86("note", bb_kind_name(_.op_zkind[k])) +` before each `ZOPQ(k,·)` read. Interim without the ruling: operand-a only via existing `_.op_a_node_kind`.
+- [ ] **ON-2 operand-read sweep:** scripted insertion (the s23b pattern — python regex per file, see `eb0c08a8`'s 34-site GVA pass) across the `ZOPQ(`/operand-FRQ consumer sites; verify recipe per batch.
+- [ ] **ON-3 housekeeping-term sweep:** remaining ~100 templates' RBP/rsp housekeeping stores/loads get literal terms, batched by family (match_*, pat_*, call_*, save/restore, defer); bb_match_head is the reference embodiment.
+- [ ] **ON-4 srccomment echo repair:** the statement source echoes are OUT OF ORDER + DUPLICATED (Lon's original complaint) — root the echo emission order in emit.cpp's BFS layout vs source stno order; one echo per statement, source order.
+- [ ] **ON-5 n1_var duplicate zeroing:** `[rsp+0..24]` zeroed TWICE at α (observed s23b, roman.s) — find the two producers, delete one.
 
 ### ⭐⭐ LADDER ZD
 
