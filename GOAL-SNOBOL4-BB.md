@@ -4,7 +4,28 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23e (2026-08-01) — ⭐⭐⭐ ON-1 LANDED (the ruling was smaller than its billing) + ON-3 RESTORE SIDE CLOSED
+## ⭐⭐⭐ LIVE CURSOR — s23f (2026-08-01) — ⛔⭐⭐⭐ THE NOTE COLUMN HAS A RULE NOW: NAME THE OBJECT AT THAT INSTRUCTION, ONCE
+
+**Directive (Lon, verbatim, correcting s23c/s23e):** *"You put a comment with the same name as the BB box you are in. How silly stupid. So that is not an operand and the label should not imply such. That should say 'result.' This bug is rampant everywhere."* then *"Also do not repeat that comment. Just one will do."* — his second example exposed a THIRD defect I had not seen.
+
+**⛔⭐⭐⭐ THE RULE (binding; every future note obeys it):** the fourth column names **the object being referenced AT THAT INSTRUCTION**.
+- load from a variable's storage → **the VARIABLE** · store into this box's own cell → **`result`** · operand read → **the PRODUCER's kind**
+- **ONE note per OBJECT, never one per 8-byte half.**
+
+**LANDED (SCRIP `5bf9f2f7`) — three defects, all at choke points, zero per-site edits:**
+1. ⭐⭐ **`ZRESN` was SELF-NAMING** (39 sites, fixed in ONE line at the accessor). It rendered `bb_kind_name(op_node_kind)` — the CURRENT node's kind — so a store to the box's own cell inside `n0_lit_integer_α:` printed `# lit_integer`. **TWO defects in one:** it restated the label the reader is already standing in (zero information), AND it was **TYPOGRAPHICALLY IDENTICAL to an operand note, which names a DIFFERENT box** — so the one distinction this column exists to draw, MY cell vs SOMEONE ELSE'S, was precisely the one it erased.
+2. ⭐ **`bb_var_global` put the VARIABLE's name on the RESULT stores** — the same category error with the operands reversed, the GVA name leaking past the load onto the destination.
+3. ⭐⭐ **RUN-DEDUP in `x86_4col`**: a note identical to the one on the previous INSTRUCTION line is suppressed. A DESCR_t is two halves and every template annotates both, so one object printed its name twice running. Tracked on instruction lines only (an intervening jump takes no note by drop-on-jump so cannot break a run; a different name ends it and re-arms); `prevnote` declared beside `note` so both reset per chunk and a run cannot leak across a `bb_emit_x86` boundary. **MEASURED: roman notes 1054 → 464 — 56% of the column was repetition.**
+
+**⭐ THE LESSON FOR THE WHOLE LADDER:** s23c/s23e kept ADDING names without asking what a name is FOR. A note that repeats the enclosing label is not a weak annotation, it is a **WRONG** one — it spends the operand-note typography on a self-reference. **Before adding a note, ask what a reader could not already see from the label.**
+
+**PROOF:** 163 programs CODE-IDENTICAL with ALL comments stripped (21 bench + 20 demo + 122 pattern crosschecks; the 2 demo diffs stay json/claws5, the assembler-rejected pair). M4 == M3, output identical to the pre-session binary. `test_gate_argnote_sweep.sh` GREEN. m3 pattern crosscheck 37/40, same 3 named pre-existing `op_flat_disp` fails. Regen ×4 **insertions == deletions across 523 files**.
+
+**NEXT:** ⭐⭐ ON-0 watermark re-prove (carried since s23d, still owed) · ON-3 remainder (`x86_asm.h` statement-terminal `rbp` restores ~2023/2030, `x86_zls2_mark_save`, `[rbp+368]`) · ON-4 pileup (⛔ GATED — moves code via `zd_plan` segmentation, needs the watermark bracket) · ⛔ PENDING LON: the ~21 column-1 files, repair or `.xfail`?
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s23e (2026-08-01) — ⭐⭐⭐ ON-1 LANDED (the ruling was smaller than its billing) + ON-3 RESTORE SIDE CLOSED
 
 **Directive (Lon, this session):** *"Finish annotations of the generated code. Continue."* then, on being asked
 what the ON-1 ruling needed: *"Is it a big decision, if not you got this."* — measured, it was not; see below.
