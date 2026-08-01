@@ -4,6 +4,28 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
+## ⭐⭐⭐ LIVE CURSOR — s23a (2026-08-01) — CARVE-DATA-ERAD: the whole-graph DATA is GONE
+
+**Directives (Lon, verbatim, this session):** the s22w standing order (NON-POPPING FORTH RSP ζ, RBP only when absolutely necessary), then: *"How about just delete the whole-graph carve function? … I do not want ONE piece of code calling it EVER AGAIN."* and *"Alternatively delete the ENTIRE data structure that stores the whole-graph data. Either one will do, delete the CODE or the DATA, your choice. But it is GONE NOW!"* — **the watermark drop below is pre-accepted by these words; this section is the sign-off record.**
+
+**LANDED (SCRIP commits):**
+- `24ee32a8` **PIN-REBASE + CLAIM-ZERO** — the m4-SEGV-six root. x86_frame_off pinned-statement arm: under HEAD-PIN the pinned rbp IS the statement claim base → claimed flat offs rebase (off−umin), ZERO depth terms, gated `op_stmt_pin>0`; bb_match_head `hoff()` resolves pin save + staged op_stmt_pin together. CLAIM-ZERO: UCLAIM hook zeroes the claim at the run head (ZC_INIT_ZERO's first live class; rt_cap_push contract). Killswitch `SCRIP_CLAIM_ZERO=0`. Root evidence in commit (software watchpoint → rt_cap_push dword store zeroing environ[0] hi-half through [stale_rbp+0x190]; claim [256,432) K=176 vs quartet 320..344 / cap 384). **Software watchpoints WORK in this container** (066 recipe in transcript) — the HW-watchpoint ban stands, this is the substitute.
+- `e3677e73` **CARVE-DATA-ERAD** — op_flat_disp producer DELETED (field permanently 0; fc_leaf_disp caller-less); zd_plan jmp-entry whole-graph veto + SCRIP_ZD_NOGRAPH gate DELETED (blob statements claim unconditionally).
+
+**WATERMARK:** open = s22z close **m3 284/23/10/1 · m4 278/28/10/1+LERR1** (fresh open-baseline attempt was killed by the environment — nohup/background jobs DIE between tool calls; run xc.sh in FOREGROUND CHUNKS of 80, it is resumable). Mid (post-fix): 285/275, attribution EXACT vs stashed pre-edit build (`/tmp/s22z_bin`). **CLOSE (post-deletion): m3 280/27/10 · m4 266/39/10/2L.**
+
+**DELETION PRICE (fix-forward punch list, all attributed by set-diff):**
+1. ⭐⭐⭐ **op_flat_disp class** {061_capture_in_arbno TMO, 063/064/065_pat_fence_fn_*, 153/154} both-modes — fc_geom granted-cell INTRA-CLAIM compensation rode the deleted term. FIX SPEC: carry the granted prefix in zvo_resolve's dout terms — the ⛔ step-2 "narrowing" relocated INTO the claim authority. This is the head rung.
+2. ⭐⭐ **PIN-REBASE debt** 7 m4 {056,162,164,173,W02_seq_basic/fail_propagate/nested} — bisected to the rebase (claim-zero exonerated via killswitch). LEAD: cut-site restores resolve through the CUT box's op_uhead/op_udout while hoff staged through the HEAD's — per-node owner-resolution mismatch, sequence/arbno shapes.
+3. ⭐⭐ **NOGRAPH set** {1017_arg_local m4 LERR, 135/136_pat_balanced_parens m4}; win held: 1012_func_locals m3 FIXED; test_case TMO→FAIL (now diagnosable).
+4. **m4-six residue** 161 (wrong output rc=0, monitor-first) · 165/183 (rc=139): 165 proven claim-zero-INDEPENDENT; main_γ epilogue rbp=0, zero output — defer-replay `dtp_fn_of`→`jmp rax` runtime chain suspected of repinning rbp without restoring the match pin (slab-level gdb needed).
+5. **JANITORIAL (delete-the-code half):** dead `+op_flat_disp` terms (24-site manifest), fc_leaf_disp body, zd_stub_ok, the `_ng` remnant in zd_plan, then the **blob kt grant** once blob claims prove out. `zw_carve_k` is the per-BB REVIVAL candidate — despite the name it is NOT old code.
+6. Carried: arbno-star-var 070-075 · FENCE whack-at-mark (130/150) · ZD-5a admission · glue backlog · JOIN-POINT · TREEBANK Pop_list.
+
+**s22z NEXT list is SUPERSEDED by the above** (item 1 partially resolved: 066/122/179 green + 053/121; remainder folded into 2/4).
+
+---
+
 ## ⛔⭐⭐ THE MODEL
 
 **THERE IS NO GRAPH FRAME.** Every BB: **allocates at α** (`sub rsp,K`, *its own* K) · **reads/writes only its own cell** · **releases at γ/ω** · **jumps**. No pre-allocation, no whole-graph carve, no prefix-summed prologue.
