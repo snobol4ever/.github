@@ -1,4 +1,60 @@
-## ▶ LIVE CURSOR (s204, 2026-07-31)
+## ▶ LIVE CURSOR (s205, 2026-07-31)
+
+**LAST SESSION:** s205 — **ICN-JCC RE-LANDED FROM SCRATCH (+23), PREFIX ARMING FALSIFIED AS UNSOUND, AND
+`zd_wl_kind` IS A CAPABILITY REGISTRY — NOT A WHITELIST ANYONE WAS BEING SHY WITH.**
+Full detail: `FINDING-2026-07-31-CLAUDE-ICN-ZD-PREFIX-ARMING-IS-UNSOUND-AND-THE-WHITELIST-IS-A-CAPABILITY-REGISTRY.md`.
+⚠ SCRIP `85fc743e` + `8f1a1a21` are **LOCAL ONLY, NOT PUSHED** (no credential this session). Run `scripts/handoff_status.sh`.
+
+⭐⭐⭐ **s204's ICN-JCC FIX WAS GENUINELY LOST — HEAD MEASURED 215/48/30, NOT 238/25/30.** Its commits
+`7b974446`/`ed3d95a9` do not exist in origin's history; `x86_jcc_invert` still carried the 4-pair table.
+**RE-LANDED BY DERIVATION:** the low bit of the jcc opcode IS the negation bit, so `x86_jcc_invert` is now
+`x86_jcc_canon(x86_jcc_op(m) ^ 1)` — total by construction, the two spellings can never drift again.
+**MEASURED 215/48/30 → 238/25/30**, s204's number reproduced exactly. Prolog 5/5/5 green.
+
+⚠ **A 1-PROGRAM SNOBOL4 `--compile` DELTA WAS THE DOCUMENTED FLAKE, NOT A REGRESSION** — baseline re-run
+on IDENTICAL BYTES oscillates **275↔276**. Do not attribute m4 single-program deltas without a re-run.
+
+⛔⭐⭐ **PREFIX ARMING IS UNSOUND — MEASURED, DO NOT RE-DERIVE IT.** Arming the maximal passing prefix of a
+statement run scores **238/25/30 → 78/185/30** with **SILENT WRONG ANSWERS at rc=0**: `x := 1 + 2; write(x)`
+prints NOTHING; `every i := 1 to 3 do write(i)` prints `0`. ⭐ The first probe has **no backtracking**, so
+resume-into-released-storage is falsified as the mechanism. **ROOT CAUSE: the operand loop checks only that
+an armed node's OPERANDS are armed, never that its CONSUMERS are.** An armed producer writes its rsp cell
+while an unarmed consumer reads the flat frame slot. The all-or-nothing gate is what holds the
+producer/consumer STORAGE-REGIME agreement across a run. Partial arming needs a **CONVEX region closed under
+BOTH operand and consumer edges**, never a prefix. Counterexample recorded verbatim in `emit.cpp`.
+
+⭐⭐ **`zd_wl_kind` IS A CAPABILITY REGISTRY.** Default-admitting scores **130/133/30**. It records which kinds
+have a **ZD arm implemented in their template**; flipping it makes the function LIE (node arms, nobody writes
+the cell, consumer reads an unwritten slot). **THE UNIT OF WORK IS A TEMPLATE ARM, ONE KIND AT A TIME.**
+`SCRIP_ZD_TOTAL` retained as a **probe whose delta sizes the remaining gap and ranks the next arm** — never ship it.
+
+⭐ **THE FUNCTION-LEVEL VETO IS REAL BUT DOMINATED.** `SCRIP_ZD_NOGRAPH` (drops the whole-graph
+`flat_jmp_entry && !zd_stub_ok()` return — the ONLY-statement-scoping clause) is **EXACTLY INERT on Icon:
+238/25/30, zero delta**, because the per-run registry already declines every Icon run downstream.
+⛔ **Do not spend a rung on ICN-CARVE-2's `zd_stub_ok` tension until the arms exist — it is dominated.**
+
+⭐ **THE DIRECTIVE'S INFRASTRUCTURE IS ALREADY BUILT** (`op_zres`'s comment at emit.h:605 quotes it verbatim):
+α/β grant seam = `x86_deflabel(X86P_ALPHA)` → `x86_port_hook` (**323 α sites inherit free**) · one instruction =
+`x86_sub("rsp",k16)` · one traversal = `zd_plan`'s `zout[i]=zd+K` sliding offsets · statement scoping = runs
+rooted at `bb_src_of` heads with `zgpop`/`zwpop` at γ/ω · four modes = `ZC_STORAGE_*` + `x86_zop_regime()` 1–4.
+**The gap is per-template ZD arms**, plus 123 `"rsp"` spellings in 17 of 157 templates and the result-use
+predicate `ZB-VAL-8B` already found the IR cannot answer (no use count).
+
+**⭐ NEXT RUNGS — ORDERED:**
+1. ⭐⭐⭐ **`IR_CALL_BUILTIN_ICON` ZD arm** — 68 declines, largest named gap, "likely one template arm."
+2. ⭐⭐ **Rank the remaining kinds by `SCRIP_ZD_TOTAL` delta** — the probe exists now; census, don't guess.
+3. ⭐ **Generator-family arm** (`IR_DISJUNCTION`/`IR_TO`/`IR_REPALT`/`IR_TO_BY`/`IR_PROC_GEN`, 67 declines).
+4. **Convex-region arming** — only after 1–3, only with a consumer-edge check.
+5. **`SCRIP_ZD_NOGRAPH` default-on** — free once arms exist; inert today.
+6. **Residual-7 bisect** (s203's, still open) — `#113..#177`, predicate proven discriminating at BOTH ends first.
+
+⚠ `refs/icon-master` / `refs/jcon-master` do NOT exist in a fresh SCRIP clone; satisfied s205 by symlinking
+the uploaded archives (RULES.md CONSULT CANONICAL SOURCES). `test_icon_all_rungs.sh` needs corpus at
+`/home/claude/corpus` — symlink it or the suite SKIPs silently.
+
+---
+
+### ▶ PRIOR CURSOR (s204, 2026-07-31)
 
 **LAST SESSION:** s204 — **THE JCC-INVERT GAP WAS 23 OF ZW-1's 30, AND FB-STMT IS STRUCTURALLY SNOBOL4-ONLY.**
 Full detail: `FINDING-2026-07-31-CLAUDE-ICN-JCC-INVERT-GAP-WAS-23-OF-ZW1S-30-AND-FB-STMT-IS-STRUCTURALLY-SNOBOL4-ONLY.md`.
