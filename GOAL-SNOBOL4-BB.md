@@ -4,7 +4,29 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23a (2026-08-01) — CARVE-DATA-ERAD: the whole-graph DATA is GONE
+## ⭐⭐⭐ LIVE CURSOR — s23b (2026-08-01) — OBJ-NOTE: object references name themselves in the GOTO column
+
+**Directive (Lon, verbatim, this session — a PIVOT off CARVE-ERAD):** *"What I need is a comment at the end of most x86/x64 instructions with one term, the name of the object being referenced. … In every case where some object is being referenced, I want to see it's name sharing the 4th column as the GOTO (JMP, JE, etc...) column. Do not put comments on lines that are a jump instruction since it takes the space of the fourth column."* Context: the `.s` files were unreadable (srccomment echoes out-of-order + duplicated; GVA accesses bare absolute addresses) so Lon could not direct deletions.
+
+**LANDED (SCRIP, one commit + regen commits):**
+- **x86_asm.h OBJ-NOTE mechanism:** `x86("note", name)` → in-band `#@name` marker line, folded by `x86_4col` onto the NEXT instruction line at the GOTO column (col 89, display-width-correct for Greek); jump lines NEVER take it (drop-on-jump); BINARY = empty string by construction; STATELESS across the templates' unspecified-evaluation-order `+` chains (the marker travels in the string, not a global); idempotent under the sink's second 4col pass (fold guarded on existing `#`); markers unmatched at chunk end re-emit so the sink pass (marker+instruction adjacent in one string) completes cross-call folds.
+- **Name sources:** `gva_name(k)` (pre-existing gva_collect.c registry, now extern"C" to templates beside ABSQ) · `bb_kind_name(op)` exported (emit.cpp wrapper over flat_label_kind, same lowercase spelling as the `n<uid>_<kind>` labels) ready for the operand-BB case.
+- **Wired:** all 34 `ABSQ(RT_GVA_VA…)` GVA sites (7 templates, scripted uniform insertion) + `bb_var_ref` address-of-GVA immediate + `bb_match_head` housekeeping ×11 (`outer_Σ/δ/Δ`, `cap_gen`, `old_rbp`, `stmt_base`, `cas_top`, `cas_rsp_mark`, `cas_patstk`). roman.s = 266 notes; the opaque `[1879052304]` pair is parameter N's GVA slot, now self-naming.
+- **PROOF:** annotated .s assembles/links/runs; **M4 == M3 byte-identical** (roman + green GVA/capture probe `HELLO ABC`); zero stray `#@` markers; mode-3 untouched by construction (notes are BINARY-empty; 4col untouched for BINARY).
+
+**WATERMARK: NOT re-proven this session** (Lon-directed pivot + handoff on a tight budget); carried = s23a close **m3 280/27/10 · m4 266/39/10/2L**. Behavior-neutrality evidence: regen sweep emit-fail=15 == s22z's 15 pre-existing; as-fail=2 == the watermark's 2L class (1017_arg_local + library/test_string, both named pre-existing); M4==M3 spot-proofs above. Next session MUST re-prove per protocol.
+
+**Artifacts regenerated s23b under rung "OBJ-NOTE":** bench (21 files) + feature (SCRIP) + demo (19 files, corpus `ce100cbb`) + crosscheck (357 files) — all pure in-line annotation or note-tail deltas, deterministic on rerun (changed=0 verify pass).
+
+**NEXT — ORDERED:**
+1. ⭐⭐ **Operand-BB reads (directive case 2):** `ZOPQ(k,·)` consumers need per-operand kind names — either `op_zkind[]` in the emit params struct (emit.cpp plumbing, SHARED STRUCT — needs Lon ruling) or operand-a-only via existing `_.op_a_node_kind` now. `bb_kind_name()` is ready either way.
+2. ⭐ **Housekeeping-term sweep** across the remaining ~100 templates — mechanical, idiom proven (`x86("note","term") +` prefix).
+3. **Duplicate frame-zeroing in n1_var** ([rsp+0..24] zeroed twice at α) — observed s23b, unchased.
+4. **srccomment statement echoes out-of-order + duplicated** — the original readability complaint; carried.
+
+---
+
+## ⛔⭐⭐ PRIOR CURSOR — s23a (2026-08-01) — CARVE-DATA-ERAD: the whole-graph DATA is GONE
 
 **Directives (Lon, verbatim, this session):** the s22w standing order (NON-POPPING FORTH RSP ζ, RBP only when absolutely necessary), then: *"How about just delete the whole-graph carve function? … I do not want ONE piece of code calling it EVER AGAIN."* and *"Alternatively delete the ENTIRE data structure that stores the whole-graph data. Either one will do, delete the CODE or the DATA, your choice. But it is GONE NOW!"* — **the watermark drop below is pre-accepted by these words; this section is the sign-off record.**
 
