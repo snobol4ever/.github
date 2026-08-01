@@ -19,3 +19,6 @@ The >344 writers in the W06 witness are the head's PATCTX quartet (`FRQ(op_off+4
 
 ## 6. Manual grounding (Ch.18/19, consulted before design)
 The scanner's pushdown stack of (alternative, cursor) pairs IS the FORTH RSP zeta spine; non-popping is semantically required (alternative cells live until the match commits or dies). POS/RPOS verify-only; TAB/RTAB one-shot cursor movers failing when cursor is past target. FENCE = fails on back-up = discard-to-checkpoint (the whack, NEXT-3).
+
+## s22s-b addendum (same session)
+Trio-transparent (HEAD/SEQ/RELEASE, K=0) + decouple: net m3 -20 / m4 -12, REVERTED. Two-channel asymmetry CONFIRMED (W06 m3 cured). Split by set: 16 fixes ALL ARBNO-family (incl. 2 of the 15) vs ~28 breaks ALL simple-leaf blobs PLUS 033/035_goto (non-pattern) -- edge-pop/zgpop staging is suspect #1, not depth. Close watermark identical-by-set re-proven post-revert.
