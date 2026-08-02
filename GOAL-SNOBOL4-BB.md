@@ -4,7 +4,21 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23h (2026-08-02) — ZD-5 MATCH-SPINE ARMS · CLAIM-AT-HEAD · DEFAULT FLIPPED ON
+## ⭐⭐⭐ LIVE CURSOR — s23i (2026-08-02) — STATIC-SHAPE DEFER/PATREF ARMS · THE CAP-SLOT CRASH IS STACK PLACEMENT
+
+**Directive (Lon):** complete the NON-POPPING FORTH-style RSP ZETA stack, C-style RBP only when absolutely necessary; *"All your choices. I'm with you on this. Continue."*
+
+**LANDED (SCRIP; full text: `FINDING-2026-08-02b-...STATIC-SHAPE-ARMING...md`):**
+1. ⭐⭐⭐ **`pat_static`** (new IR_t field) = lower's TRANSITIVE DEFER-FREE proof over `g_sno_seal`, stamped at the DEFER-of-VAR + PATREF sites; zd_plan's dynamic-box scan lets a static-shape DEFER/PATREF stop vetoing the quartet. Spine-vs-argument VAR distinction is load-bearing (LEN(N)'s N is a value read). FENCE1-in-statement still declines. `SCRIP_ZD_DYNARM` mask: =0 ≡ s23h regime byte-identical (proven vs committed artifacts); bits force-arm for A/B.
+2. ⭐⭐ **Armed population 17/122** (fence-via-var 108–113, non-recursive star-vars, calc/regex/json-literal, 117); recursive 135/136 + statement-FENCE1 142 byte-verbatim declined.
+3. ⭐⭐⭐ **CAP-SLOT BRACKET (core.3397, 127):** armed capture-in-blob died at `rt_cap_push(slot=rsp+176)` — the raw claim spelling is ENTRY-REGIME-DEPENDENT (blob compiled once, armed statements enter at shifted depth; slot lands on stale residue). Flip variable = ABSOLUTE STACK PLACEMENT: `SCRIP_NO_SEGV_HANDLER` is READ BY NOTHING — it merely shifts initial rsp by strlen; any dummy env flips 127 to 3/3 pass. Names 126/131/145/180/181's baseline reds as the same defect elsewhere. Narrowing = capture-bearing targets decline (25→17); the REAL fix is the r9/wire-carried claim base (CARRIED-OPEN), which also retires raw blob `[rsp+K]` spellings.
+4. ⭐ **WATERMARK:** m3 281/26/10 · m4 266/39/10/2L — m4 EXACT BY SET incl. LERR pair {test_string, 1017_arg_local}; m3 +1 = the LAWS-named 213 flake (absent from non-pass set); armed-17 zero attributable P→F. Regen ×4: only crosscheck churned, exactly the 17, net −69 lines; emit-fail 15 / as-fail 2 held.
+
+**NEXT:** ⭐ r9/wire claim-base rung (re-admits capture-bearing targets; retires raw blob spellings) · ZD-7 IR_CALL user-proc remainder · ON-4 pileup (⛔ GATED) · ⛔ PENDING LON: the ~21 column-1 files.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s23h (2026-08-02) — ZD-5 MATCH-SPINE ARMS · CLAIM-AT-HEAD · DEFAULT FLIPPED ON
 
 **Directive (Lon):** complete the NON-POPPING FORTH-style RSP zeta stack for the match quartet — *"a var just needs a little space"*, subject read must not pop — then the s22y grant, twice: *"All your choices. I'm with you on this. Continue."*
 
@@ -22,7 +36,7 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23g (2026-08-01/02) — CARVE CALCULATION DELETED + THE ARTIFACTS WERE ASSERTING A COMPILER THAT WASN'T HEAD
+## ⭐⭐⭐ PRIOR CURSOR — s23g (2026-08-01/02) — CARVE CALCULATION DELETED + THE ARTIFACTS WERE ASSERTING A COMPILER THAT WASN'T HEAD
 
 **Directive (Lon):** house-clean the doc pile; *"Ensure the code which was calculating whole-graph ZETA frames versus per-BB ZETA cells has been deleted as previously directed. If not, stop and DELETE it now"*; then *"All your choices. I'm with you on this. Continue."*
 
@@ -39,141 +53,6 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 5. ⭐ **ON-3 CLOSED (SCRIP, this session):** the two statement-terminal `old_rbp` restores (x86_asm.h γ/ω jmp hooks, `HKN(0)`) + `x86_zls2_mark_save`'s three port-arm stores AND the release twin's read locked to new `HKN(5)="zls2_mark"` — save/read cannot drift, per the s23e one-authority law. ⛔ **`[rbp+368]` VOIDED:** absent from the tree AND from emitted output — cursor prose that outlived the code (RULES rot-class (a) wearing an offset). PROOF: `test_gate_argnote_sweep.sh` GREEN · notes col-89, zero on `j*`, zero stray `#@` · M3==M4 on probe · regen ×4 = 138 artifacts changed, insertions==deletions, **0/138 code-different after comment+trailing-ws strip** · 121 artifacts now carry `zls2_mark` (the corpus exercises all three arms). ⚠ INSTRUMENT: a naive `sed 's/#.*//'` strip-proof reports 138/138 false-different — the note's column padding leaves trailing whitespace; normalize `[[:space:]]*$` too.
 
 **NEXT:** ON-4 pileup HAS its fresh bracket (the one genuinely open ON rung) · ⛔ PENDING LON: the ~21 column-1 files · push of 11 local commits awaits credential.
-
----
-
-## ⭐⭐⭐ PRIOR CURSOR — s23f (2026-08-01) — ⛔⭐⭐⭐ THE NOTE COLUMN HAS A RULE NOW: NAME THE OBJECT AT THAT INSTRUCTION, ONCE
-
-**Directive (Lon, verbatim, correcting s23c/s23e):** *"You put a comment with the same name as the BB box you are in. How silly stupid. So that is not an operand and the label should not imply such. That should say 'result.' This bug is rampant everywhere."* then *"Also do not repeat that comment. Just one will do."* — his second example exposed a THIRD defect I had not seen.
-
-**⛔⭐⭐⭐ THE RULE (binding; every future note obeys it):** the fourth column names **the object being referenced AT THAT INSTRUCTION**.
-- load from a variable's storage → **the VARIABLE** · store into this box's own cell → **`result`** · operand read → **the PRODUCER's kind**
-- **ONE note per OBJECT, never one per 8-byte half.**
-
-**LANDED (SCRIP `5bf9f2f7`) — three defects, all at choke points, zero per-site edits:**
-1. ⭐⭐ **`ZRESN` was SELF-NAMING** (39 sites, fixed in ONE line at the accessor). It rendered `bb_kind_name(op_node_kind)` — the CURRENT node's kind — so a store to the box's own cell inside `n0_lit_integer_α:` printed `# lit_integer`. **TWO defects in one:** it restated the label the reader is already standing in (zero information), AND it was **TYPOGRAPHICALLY IDENTICAL to an operand note, which names a DIFFERENT box** — so the one distinction this column exists to draw, MY cell vs SOMEONE ELSE'S, was precisely the one it erased.
-2. ⭐ **`bb_var_global` put the VARIABLE's name on the RESULT stores** — the same category error with the operands reversed, the GVA name leaking past the load onto the destination.
-3. ⭐⭐ **RUN-DEDUP in `x86_4col`**: a note identical to the one on the previous INSTRUCTION line is suppressed. A DESCR_t is two halves and every template annotates both, so one object printed its name twice running. Tracked on instruction lines only (an intervening jump takes no note by drop-on-jump so cannot break a run; a different name ends it and re-arms); `prevnote` declared beside `note` so both reset per chunk and a run cannot leak across a `bb_emit_x86` boundary. **MEASURED: roman notes 1054 → 464 — 56% of the column was repetition.**
-
-**⭐ THE LESSON FOR THE WHOLE LADDER:** s23c/s23e kept ADDING names without asking what a name is FOR. A note that repeats the enclosing label is not a weak annotation, it is a **WRONG** one — it spends the operand-note typography on a self-reference. **Before adding a note, ask what a reader could not already see from the label.**
-
-**PROOF:** 163 programs CODE-IDENTICAL with ALL comments stripped (21 bench + 20 demo + 122 pattern crosschecks; the 2 demo diffs stay json/claws5, the assembler-rejected pair). M4 == M3, output identical to the pre-session binary. `test_gate_argnote_sweep.sh` GREEN. m3 pattern crosscheck 37/40, same 3 named pre-existing `op_flat_disp` fails. Regen ×4 **insertions == deletions across 523 files**.
-
-**NEXT:** ⭐⭐ ON-0 watermark re-prove (carried since s23d, still owed) · ON-3 remainder (`x86_asm.h` statement-terminal `rbp` restores ~2023/2030, `x86_zls2_mark_save`, `[rbp+368]`) · ON-4 pileup (⛔ GATED — moves code via `zd_plan` segmentation, needs the watermark bracket) · ⛔ PENDING LON: the ~21 column-1 files, repair or `.xfail`?
-
----
-
-## ⭐⭐⭐ PRIOR CURSOR — s23e (2026-08-01) — ⭐⭐⭐ ON-1 LANDED (the ruling was smaller than its billing) + ON-3 RESTORE SIDE CLOSED
-
-**Directive (Lon, this session):** *"Finish annotations of the generated code. Continue."* then, on being asked
-what the ON-1 ruling needed: *"Is it a big decision, if not you got this."* — measured, it was not; see below.
-
-**⭐⭐⭐ THE ON-1 RULING IS DISCHARGED — IT WAS NEVER A BIG DECISION, AND THE BLOCKER WAS A MISREADING.**
-It sat blocked across s23b/s23c/s23d as "SHARED STRUCT — needs Lon ruling." Measured at HEAD:
-- **The PEERS RULE does not apply.** It governs `BB_t`/`IR_t`. `op_zread[6]` lives in **`sm_emit_t`**, the
-  emitter params struct, which carries **26 precedents** of the same move and an explicit law for it
-  (`APPENDED AT STRUCT END per the s141 ABI law`; mid-struct insertion shifts baked offsets — op_arbno_zq's scar).
-- **The staging site already held the answer.** `emit.cpp`'s zd_plan loop computing `op_zread[k]` already has
-  `IR_t * _p = nodes[i]->operands[_zj]` in hand for the depth difference. The kind is a read of a pointer it
-  already resolved — not a second walk. ⭐ **BEFORE ESCALATING A "NEEDS A RULING", CHECK WHETHER THE DATA IS
-  ALREADY IN SCOPE AT THE SITE. Twice now the expensive-looking rung was one expression inside an existing loop.**
-
-**LANDED (SCRIP `45e44f0f`):**
-- **`op_zkind[6]`** appended at `sm_emit_t` end; staged in lockstep with `op_zread[]`; **cleared to −1 at the
-  per-node reset** beside op_zread's zeroing. ⛔ That sentinel is load-bearing: without it a stale kind leaks
-  into the next node and prints a **WRONG name**, which is worse than no name.
-- **`ZOPN(k)`** (x86_asm.h) is a **STRICT SUPERSET of the ZOPAN interim, deliberately** — `op_zkind[]` stages
-  ONLY on the ZD-armed arm while `op_a_node_kind` stages for every node, so a bare `ZOPAN()→ZOPN(0)` swap would
-  have **silently dropped operand-a names on every unarmed node**. The `k==0` fallback keeps them. ⭐ **A
-  "general form" that replaces an interim must be checked for COVERAGE REGRESSION, not just correctness.**
-- **25 ZOPAN sites retired → ZOPN(0); 11 new operand-b..n notes; 12 templates. `ZOPAN` grep == 0.** Both
-  operands of a binop now name their producers; a 3-arg call reads `# var / # var / # coerce_numeric`.
-- **ON-3 restore side (the asymmetry s23c/s23d left):** the saves were annotated and **every restore was bare**
-  — four sites, three files, five slots. **`HKN(k)`** is now the ONE naming authority (head-save, head-restore,
-  `bb_match_release`, `bb_match_replace` all read it), so a term cannot drift from its twin.
-- ⛔ **`bb_rev_swap` deliberately does NOT inherit those names** — it reuses `op_off+48/56` for a different
-  thing (spilling live scan registers across the `<->` call), so it gets `scan_δ/scan_Δ`. **Same offset ≠ same
-  object; inheriting `outer_δ` there would have been a confident lie in the generated code.**
-- **The unanchored-retry loop is legible:** `start_δ` init/bump/test + `patstk_mark` + `rsp_mark`. Vocabulary
-  anchored to the **SPITBOL manual pp.66–68** (the retry advances the cursor; `&ANCHOR` forbids it); named
-  `start_δ` not "counter" because it is a cursor value in δ's units landing in `r14d` — distinct from `outer_δ`,
-  the ENCLOSING match's cursor one slot family over. Reasoning recorded in the template, not just here.
-
-**PROOF — annotation-only BY MEASUREMENT:**
-- ⭐ **The plumbing landed INERT first** (`.s` byte-identical *including* comments), so every later delta is
-  attributable to template wiring alone. **Land a shared-struct field and its consumers as two steps.**
-- **163 programs CODE-IDENTICAL** to committed artifacts modulo comments: 21 bench + 20 demo + **122 pattern
-  crosschecks (the family edited)**. roman 3614→3614 lines, notes 990→1054, 0 stray `#@`, 0 notes on jumps.
-- **M4 == M3**, output identical to the pre-session binary. `test_gate_argnote_sweep.sh` **GATE GREEN**.
-- **Regen ×4 all insertions == deletions** (bench 597/597 · demo 1007/1007 · crosscheck 6434/6434, 391 files):
-  **zero line drift**. `emit-fail=15 · as-fail=2` — the named watermark values, unmoved.
-- m3 pattern crosscheck 37/40; the 3 fails are the goal file's own named `op_flat_disp` class
-  (063/064/065_pat_fence_fn_*), pre-existing since s23a.
-
-**⛔ WATERMARK: NOT re-proven this session** (budget went to ON-1 + the regen ×4). Carried = s23d close
-**m3 279/27/11 · m4 266/39/10/2L**. Behaviour-neutrality rests on the 163-program code-identity sweep + regen
-zero-drift above, which is stronger evidence than a count. Next session MUST re-prove per protocol.
-
-**⭐⭐ TWO PRE-EXISTING DEFECTS FOUND, NEITHER CHASED — full write-up in
-`FINDING-2026-08-01c-CLAUDE-SN4-TWO-DEMO-ARTIFACTS-FROZE-ON-A-DUPLICATE-LABEL-AND-THE-GRACEFUL-SKIP-IS-WHY-NOBODY-NOTICED.md`:**
-1. ⭐⭐ **`demo/json.s` + `demo/claws5.s` have been LYING since s22z.** Both `--compile` clean but are
-   **assembler-rejected on a duplicate label** (`.Lbynamefnzd8` / `.Lbynamefnzd83`) — the live
-   **BYNAMEFN-DUP-LABELS class** — so the regen script's graceful-skip correctly leaves the OLD bytes committed.
-   They still show the deleted whole-graph `[rsp+2480]` carve model. ⛔ **DO NOT hand-refresh them; they cannot
-   assemble.** The fix is the dup-label mint (`zd8` vs `zd83` smells like a non-injective concatenation).
-   ⭐ THE LESSON: **a graceful-skip converts a loud failure into a quiet lie** — the flag scrolls past once, the
-   stale file persists forever and does not look stale.
-2. **`demo/roman.sno` emits empty numerals at HEAD** (oracle `1 -> I`, SCRIP `1 -> `). Proven to predate s23e by
-   assembling and running the pre-change `.s`. Monitor-first applies.
-
-**⭐⭐ ON-4 (partial) LANDED LATE-SESSION — SCRIP `31300b3a`.** Lon's ORIGINAL complaint, untouched since s23b, finally opened. **Dedup landed inert; the pileup cure was BUILT, MEASURED TO MOVE CODE (9/21 bench + 5/122 patterns), AND REVERTED** — `bb_src_of` drives zd_plan's statement segmentation, so a "comment" fix relocates statement boundaries. ⭐ **THE TRANSFERABLE LESSON: before calling a rung annotation-only, grep who ELSE reads the thing you are relocating. Two of s23e's three fixes were inert; the third only looked it.**
-
-**NEXT — ORDERED:**
-1. ⭐⭐ **ON-0 WATERMARK RE-PROVE** — carried, not re-proven here; do this FIRST, it brackets everything below.
-2. ⭐ **ON-3 remainder** — the two statement-terminal `rbp` restores in `x86_asm.h` (~2023/2030, `op_stmt_pin`;
-   they fire on EVERY statement cut, highest remaining value), `x86_zls2_mark_save`'s `FRQ(off)` stores, and the
-   `[rbp+368]` cursor save in match_sequence. Census after s23e: **`[rsp]` 294 · `[rip]` 155 · `[rbp]` 26.**
-3. **ON-4 srccomment echo repair** — Lon's ORIGINAL complaint, still untouched across s23b–s23e.
-4. ⛔ **PENDING LON RULING:** the ~21 column-1 corpus files — repair (add leading blank) or mark `.xfail`?
-
----
-
-## ⛔⭐⭐ PRIOR CURSOR — s23d (2026-08-01) — ON-3 ARG-NOTE CLOSED + ON-0 RE-PROVEN + ⭐⭐⭐ ON-5 LANDED (the claim is finally zeroed end to end)
-
-**Directive (Lon, this session):** *"Finish annotations. Continue."* then *"All your choices. I'm with you on this."* — the OBJ-NOTE ladder, my pick of rung. Took **ON-3 continuation** (the 189 `call rt_*` argument loads, the biggest opaque family left), then **ON-0**.
-
-**LANDED (SCRIP `154a3fa8`, templates + two scripts):**
-- **`x86_argnote()`** (x86_asm.h, hooked at `x86_4col`'s return) — argument loads now read `mov rdi, [rsp+96]  # slot`, the callee's OWN parameter name. ⭐ **189 sites, ZERO template edits.**
-- ⭐⭐⭐ **THE CHOKE POINT IS TEMPORAL, NOT STRUCTURAL — the generalization of s23c's lesson.** The role CANNOT be known when the mov is emitted: the callee is unnamed until the `call` several instructions later, and the `+` chains evaluate in UNSPECIFIED ORDER, so no stateful lookahead is legal. But `bb_emit_x86` hands `emit_text_n` the WHOLE template body in ONE call, so when `x86_4col` runs, loads and `call` are both present — one backward walk names all of them. **When a fact is unknowable at emit time, ask which LATER PASS already sees it.** Reach for this whenever the blocker is "the templates evaluate in unspecified order."
-- **`x86_arg_roles.h` GENERATED** (`scripts/gen_callee_arg_roles.py`) from the REAL runtime prototypes — no term invented. SysV slot arithmetic: `DESCR_t` = **TWO** slots (verified empirically, `a`→rdi:rsi / `b`→rdx:rcx), both halves naming the one object; floats skip GPRs; >16B by-value return takes slot 0 as hidden `sret`.
-- ⛔ **THE RTX ASM PORTS ARE NOT C-ABI** — `rt_sg_scan.S` says so outright ("LEAN CUSTOM CONVENTION — NOT the C ABI"). C-derived roles would be WRONG for that family; theirs come from their own `.S` banner contract. **Any future register→meaning tooling must special-case them.**
-- **124/143 tabled; 19 REFUSED rather than guessed** (`rax` = indirect call; `rt_make_list`/`rt_proc_value`/`rt_section_var` = CONFLICTING declarations; rest = no reachable prototype).
-- **Two generator bugs caught before landing:** `return foo(a,b);` parsed as a declaration (would have invented roles from LOCAL VARIABLES); and no conflict detection (would have taken whichever declaration `os.walk` reached first — order-dependent, unreproducible names).
-
-**PROOF — behaviour-neutral BY MEASUREMENT, not merely by construction:**
-- roman.s **CODE IDENTICAL modulo comments** (strip-and-diff); 3614 → 3614 lines; notes 977 → 1165.
-- ⭐ The **PRE-CHANGE `.s` was assembled and run** — output identical to post-change. **M4 == M3** identical.
-- Gate sweep **931 programs: 0 stray `#@`, 0 notes on jump lines** (the GOTO column stays the jumps'). `scripts/test_gate_argnote_sweep.sh` added.
-- mode-3 untouched by construction: `x86_4col` returns early for BINARY *before* `x86_argnote` runs.
-
-**⭐⭐ ON-0 WATERMARK RE-PROVEN — `m3 279/27/11 · m4 266/39/10/2L`** (xc.sh, all 318, foreground chunks). **m4 EXACT vs carried s23a**; LERR set = the named 2L pair. The single m3 delta (280/10→279/11) is **`213_gc_exhaustion_churn`**, the harness-only m3 flake the LAWS name by name; m4's TIMEOUT set is the same list minus exactly it. **BY SET, never by count.**
-
-**⛔⭐ TWO TRAPS RECORDED — full write-up in `FINDING-2026-08-01-CLAUDE-SN4-ARG-NOTE-RODE-THE-4COL-CHOKE-POINT-AND-MY-SWEEP-MISCOUNTED-266-PHANTOM-FAILS.md`:**
-1. **A `find . -name '*.sno'` SWEEP IS NOT A WATERMARK.** Mine read `emit-fail=266/931` and I nearly handed it off as a regression. ~120 were a **CWD artifact** (relative includes), 67 CRLF, 21 §2 below, 6 the known LOWER subset. The gate now prints `emit-decline` with the warning inline so it cannot be misread.
-2. **`hello.sno` IS MALFORMED, NOT A PARSER DEFECT.** `OUTPUT` sits in COLUMN 1, which the SPITBOL manual (p.37/p.45) makes a **LABEL**, leaving body `= 'HELLO WORLD'` with no subject. Oracle-anchored both ways: corpus file → `sbl -b` **SEGFAULTS**; one leading tab → prints `HELLO WORLD`. **SCRIP's rejection is CORRECT. DO NOT "fix" the parser to accept these ~21 files.**
-
-**⭐⭐⭐ ON-5 LANDED (SCRIP `efc11e5f`) — CLAIM-ZERO now spells its destination RAW via `x86_zref` (`[rsp# + N]`).** Plain `RDQ("rsp",N)` text was RE-RESOLVED at encode time by `x86_frame_off`→`zvo_resolve` against the UCLAIM owner table, which rebased raw claim offsets as if they were FLAT and collapsed the upper ones onto the lower cells — the ARGREAD hazard at x86_asm.h:874, same remedy.
-- ⚠ **WORSE THAN s23c RECORDED.** s23c had ONE witness at 30 stores/26 distinct. Re-taking the census across roman's 12 runs: the defect **SCALES WITH CLAIM SIZE** — (30,26) max 200 on a 240B claim (top 32 BYTES never written), plus **(62,40)** and **(78,56)**, 22 collapsed cells each. **SIX OF TWELVE runs collapsed.** AFTER: every run total==distinct and monotone; collapsed-runs **6 → 0**.
-- **GATE 1 WATERMARK BRACKET — `m3 279/27/11 · m4 266/39/10/2L`, IDENTICAL to the pre-fix s23d baseline, and diffed BY SET across all 318: ZERO verdicts moved in either mode.** Equal counts alone would not show this; the set diff is what rules out a fixed/broken swap.
-- **GATE 3 WITNESSES:** 066 + 053 PASS both modes. 165/183 remain m4 SEGV — consistent with s22z/s23a having already proven 165 **claim-zero-INDEPENDENT** by killswitch; this fix never claimed them.
-- **GATE 4 ARTIFACT REGEN ×4 DONE** (the regen s23c deliberately deferred to this rung): crosscheck 482 · demo 20 · benchmark 21 · feature. **Insertions == deletions in every one** (55712/55712, 28141/28141, 4640/4640) — pure in-line destination changes, ZERO line drift, because the store COUNT was always right and only the destinations were wrong. emit-fail held at **15**, as-fail at the named **2L** pair.
-- ⚠ Unlike ON-3 this **DOES change emitted code, in BOTH modes** — the raw spelling bypasses re-resolution for BINARY too, which is correct: both media carried the defect.
-
-**NEXT — ORDERED:**
-1. ⭐⭐ **ON-1 operand-kind plumbing** — root-caused s23c, still NOT landed; claim-zero discharges only 26/30 cells (top 32 bytes never written). It changes emitted code and **ON-0 above is now a FRESH bracket** to land it against.
-2. ⭐ **ON-3 remainder** — `[rbp+N]` statement-region slots, then match_*/pat_*/defer housekeeping. **The argument-load family is CLOSED.**
-4. **ON-4 srccomment echo repair** — Lon's original complaint, still untouched.
-5. ⛔ **PENDING LON RULING:** the ~21 column-1 corpus files — repair (add leading blank) or mark `.xfail`?
 
 ---
 
