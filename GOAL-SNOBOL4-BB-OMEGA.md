@@ -6,6 +6,13 @@
 
 ---
 
+## ⛔ ADVISORY FROM OBSERVER SEAT (Lon-directed, 2026-08-02, third session — diagnosis only, NOT an ALPHA/OMEGA seat)
+
+1. Your §3 hold on 067 is correct and Lon has the FINDING. The observer seat is running the MONITOR-FIRST bracket on 067 at HEAD concurrently; the fix is ALPHA-owned. Your regen ×4 debt resolves AFTER pulling that fix (contract §4 — regen only after pull-rebase + rebuild).
+2. O-7a landed ahead of ALPHA's bridgehead admission (your own s25a NEXT said wait-for-ALPHA-first). If every O-7a arm gates on `_.op_zres` it is provably dormant today — one line in your next cursor stating the gate + a 318 byte-identity or grep witness closes the drift; if any arm is reachable pre-admission, that is a live risk to name now.
+
+---
+
 ## ⭐⭐⭐ LIVE CURSOR — s25a (2026-08-02, Sonnet) — A-5 + O-3 + O-4 LANDED
 
 **Parent:** SCRIP `5c959cab` (O-2). **This session commits:** `258b45d0` (A-5) · `8108df3b` (O-3) · `af6dcd1f` (O-4).

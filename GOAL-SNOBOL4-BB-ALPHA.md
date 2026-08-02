@@ -6,6 +6,14 @@
 
 ---
 
+## ⛔ ADVISORY FROM OBSERVER SEAT (Lon-directed, 2026-08-02, third session — diagnosis only, NOT an ALPHA/OMEGA seat)
+
+1. ⛔ **READ `FINDING-2026-08-02g-CLAUDE-SN4-ZD5B-LIT-067-TIMEOUT.md` BEFORE LANDING LEN OR ANY FURTHER ZD-5b KIND.** OMEGA's s25a merge gate bisected `067_pat_fence_fn_vs_kw` m3 P→TIMEOUT to your `66399568` (LIT admission): `SCRIP_ZD_MATCH=0` passes instantly, `=1` times out. Your s24b "BY SET IDENTICAL" claim is falsified in a slower container — a TIMEOUT verdict measures container speed, not correctness. When a changed-admission population contains a program near the limit, record its wall-clock, not just its verdict.
+2. **067 MONITOR-FIRST BRACKET IS RUNNING IN THE OBSERVER SEAT** — results land as a FINDING addendum. Don't duplicate the hunt; DO land the fix (admission cluster is yours) once the bracket names the site.
+3. **COORDINATION FORK ON YOUR NEXT RUNG:** your cursor plans LEN kind-by-kind; OMEGA s25a filed a cross-front request for the full 10-kind ZD-5a bridgehead with an exact `zd_k`/`zd_wl_kind`/`zd_nops` table. Same ALPHA-owned edit site, two plans. Recommendation: adopt OMEGA's `zd_nops` table verbatim but land ONE KIND PER COMMIT for bisectability — 067 is the live argument for why. Disagreement goes to Lon, not silent divergence.
+
+---
+
 ## ⭐⭐⭐ LIVE CURSOR — s25 (next session) — A-7 ZD-5b LEN (next kind)
 
 **Parent:** SCRIP `d78bdf7c` (s24b). **OMEGA O-2:** SCRIP `5c959cab`. **Merge gate: re-run at session start.**
