@@ -6,9 +6,11 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23t (2026-08-02, fourth ALPHA session; parent SCRIP `2fea8565`; no new code commits this session)
+## ⭐⭐⭐ LIVE CURSOR — s24a (2026-08-02, Sonnet) — REBASE ON O-2 NEEDED
 
-**NEXT: A-8/131 blocked on ZW-6 (OMEGA). A-GE GE-8 blocked on OMEGA GE-3. A-5 cross-front request filed s23s (OMEGA-owned files). A-9 RECONCILIATION when both fronts done. Awaiting Lon ruling on DESIGN-SN4-ZD5B-BRANCHING-RUN-PROPOSAL.md before A-7 implementation begins; O-7 consumes the ruling.**
+**Parent:** SCRIP `2fea8565` (s23s). **OMEGA O-2 landed:** SCRIP `47395290`. **⛔ MERGE GATE: `git pull --rebase` then rebuild + re-run full §3 gate before any ALPHA code work.**
+
+**NEXT: A-7 (ZD-5b) awaiting Lon ruling on `DESIGN-SN4-ZD5B-BRANCHING-RUN-PROPOSAL.md` §8 three questions. A-8/131 blocked on OMEGA ZW-6 (O-6). A-GE GE-8 blocked on OMEGA GE-3. A-5 cross-front request filed s23s (OMEGA-owned files). A-9 RECONCILIATION when both fronts done.**
 
 **LANDED s23t:**
 1. ⭐ **A-7 · ZD-5b WRITTEN PROPOSAL DELIVERED** — `DESIGN-SN4-ZD5B-BRANCHING-RUN-PROPOSAL.md` in `.github`. Three ruling questions: (1) ALTERNATE depth model (every arm at ALTERNATE.α depth, φ restores before next arm); (2) CAPTURE pair law (SAVE+COND/IMM together, op_zread[0]=D_C−D_S); (3) ARBNO out of scope (INDETERMINABLE class, OMEGA terrain). Measured population: 198 declined runs / 103 programs first-blocked by blob-interior kinds (57% of 349 total declined). Implementation sequence: [ALPHA] zd_plan subtree descent + wl_kind additions (kind by kind); [OMEGA via cross-front] template ZD arms in bb_match_*.cpp.
