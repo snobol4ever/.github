@@ -14,7 +14,7 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 3. ⭐⭐⭐ **CAP-SLOT BRACKET (core.3397, 127):** armed capture-in-blob died at `rt_cap_push(slot=rsp+176)` — the raw claim spelling is ENTRY-REGIME-DEPENDENT (blob compiled once, armed statements enter at shifted depth; slot lands on stale residue). Flip variable = ABSOLUTE STACK PLACEMENT: `SCRIP_NO_SEGV_HANDLER` is READ BY NOTHING — it merely shifts initial rsp by strlen; any dummy env flips 127 to 3/3 pass. Names 126/131/145/180/181's baseline reds as the same defect elsewhere. Narrowing = capture-bearing targets decline (25→17); the REAL fix is the r9/wire-carried claim base (CARRIED-OPEN), which also retires raw blob `[rsp+K]` spellings.
 4. ⭐ **WATERMARK:** m3 281/26/10 · m4 266/39/10/2L — m4 EXACT BY SET incl. LERR pair {test_string, 1017_arg_local}; m3 +1 = the LAWS-named 213 flake (absent from non-pass set); armed-17 zero attributable P→F. Regen ×4: only crosscheck churned, exactly the 17, net −69 lines; emit-fail 15 / as-fail 2 held.
 
-**NEXT:** ⭐ r9/wire claim-base rung (re-admits capture-bearing targets; retires raw blob spellings) · ZD-7 IR_CALL user-proc remainder · ON-4 pileup (⛔ GATED) · ⛔ PENDING LON: the ~21 column-1 files.
+**NEXT:** ⭐ ZD-7c USER-PROC ARM (SPEC BELOW in LADDER ZD — sized, site-anchored, ~20min) · r9/wire claim-base rung (re-admits capture-bearing targets; retires raw blob spellings) · ON-4 pileup (⛔ GATED) · ⛔ PENDING LON: the ~21 column-1 files.
 
 ---
 
@@ -182,6 +182,7 @@ Convert one box's readers to its own cell; watch the carve requirement DROP. Pro
   - [ ] **5b** Planner extension for branching runs (alt, arbno cycles, defer). ⛔ The ONE genuinely design-tier item.
   - [ ] **5c** Per-template conversions, smallest-first.
 - [ ] **ZD-7** `IR_CALL` (519) + `IR_SAVE_RESTORE` (18) — the protocol rung, law 4's other genuine RBP citizen.
+- [ ] **ZD-7c USER-PROC ARM — SPEC'D s23i, sized ~20min, DO NOT RE-DERIVE.** The `rt_proc_is_registered` exclusion in zd_wl_kind (emit.cpp ~1884) exists because `bb_call_proc_staged.cpp` lacks ZD spellings; the staging authority ALREADY EXISTS (`zd_nops(IR_CALL)=n_operands` stages `op_zread[k]` per arg — its own comment says so). Three spelling families, all conditional on `_.op_zres`, sibling idiom = bb_deref.cpp:13-22 verbatim (ZRES/ZOPQ + notes): (1) FOUR result-write pairs `rax:rdx → FRQ(off)/FRQ(off+8)` at :392/:485/:552/:562 → `ZRES(0)/ZRES(8)`; (2) per-arg stage reads `FRQ(slot)/FRQ(slot+8)` at :58 (slow) + :64-65 (GC-fast inline) → `ZOPQ(k,0)/ZOPQ(k,8)`; (3) the PL-REGAIN-4 FUSED-OPEN cell-address leas (~:196+, "leas each arg's CALLER-FRAME CELL ADDRESS into rsi rdx rcx r8") → lea of the arg's ZD cell. Then flip the zd_wl_kind exclusion to admit (killswitch `SCRIP_ZD_PROC=0` per ZD-SR precedent). ⚠ TRAPS recorded in advance: role-0 SR stays declined (CALL2BB-only, unmeasured); the naive-admission falsification (085/086/087 blank via FRQ(resoff)+op_zdepth) is the CONTROL — those three MUST flip green; dyn-scope (SNOBOL4) vs det (Icon/Raku) both route here, watermark both. Verify ladder: 085/086/087 + func_call bench + full 318 BY SET + regen ×4.
 - [ ] **ZD-6** Standalone: 130/131 clean-HEAD segv · DIV member W04_arbno_basic · bb_op_name entries for ops 14/73–77.
 
 ### GOTO-ERAD
