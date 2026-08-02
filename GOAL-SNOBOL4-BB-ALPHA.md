@@ -6,15 +6,19 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s24b (next session) — A-7 ZD-5b PARTIAL
+## ⭐⭐⭐ LIVE CURSOR — s25 (next session) — A-7 ZD-5b LEN (next kind)
 
-**Parent:** SCRIP `bd08c7a3` (s24a). **OMEGA O-2:** SCRIP `5c959cab`. **Merge gate PASSED s24a** (m3 282/34/1 · m4 273/43/1 BY SET, bench 18/21 EXACT HOLD).
+**Parent:** SCRIP `d78bdf7c` (s24b). **OMEGA O-2:** SCRIP `5c959cab`. **Merge gate: re-run at session start.**
 
-**LANDED s24a:**
-1. ⭐ **A-7 PARTIAL — has_blob gate + ZD-5b design comment** (`bd08c7a3`): `nblob == 0` on `zws` replaced with `!has_blob` (covers both off-run AND in-run blob members; load-bearing for ZD-5b when template arms land). ZD-5b planner walk (`SCRIP_ZD_5B`) is a no-op killswitch pre-cached; the two-phase walk was measured, discovered the **blob-closure ordering blocker** (arm-interior phase-2 claims steal nodes from OTHER statements' γ-chain walks — caused 3 P→F), and reverted. **CROSS-FRONT REQUEST TO OMEGA (s24a):** add ZD arm to each `bb_match_*.cpp` leaf kind template in order: LIT → LEN → ANY → NOTANY → SPAN → TAB → RTAB → POS → RPOS → REM → ARB → BAL → SEQUENCE → ALTERNATE → ASSIGN_SAVE/COND/IMM. Once OMEGA delivers a template arm, ALPHA adds that kind to `zd_wl_kind` + runs byte-identity sweep, one kind per rung.
-2. **GATES:** m3 282/34/1 · m4 273/43/1 BY SET identical to merge-gate bracket. Bench 18/21 EXACT HOLD. `SCRIP_ZD_5B=0` byte-identical to `SCRIP_ZD_5B=1` (no behavior change yet — correct, all deferred to per-kind landings).
+**LANDED s24b:**
+1. ⭐ **A-1/GE-A — IR_GOTO admission** (`3dc36147`): `IR_GOTO` added to `zd_wl_kind` as K=0 transparent relay (`bb_goto()` emits only `x86_alpha()+x86_pair_loop()`, no cell). 2 IR_GOTO-headed runs in roman unblocked (armed 58→59). GATES: m3 295/22 BY SET IDENTICAL · m4 287/29 BY SET IDENTICAL (test_string SKIP→FAIL is harness edge, `.s` byte-identical) · bench 18/21 EXACT HOLD.
+2. ⭐⭐⭐ **A-7 ZD-5b IR_MATCH_LIT — THREE FIXES + ADMISSION** (`66399568`):
+   - **FIX-1 wpop beta-tag** (`emit.cpp` `zd_plan` armed oin block): blob-interior K=0 leaf omega wires to MATCH_BEGIN.beta (`0xce 0xb2`) force `oin=1` → `wpop=0`. Subject VAR cell stays live for scanner retry. Without this: `zwpop=16` released subject before beta re-entry → segfault on W01_pat_lit_basic.
+   - **FIX-2 Kc `has_blob` gate** (`emit.cpp` `zd_plan`): `has_blob` hoisted before Kc block; gate changed `nblob>0` → `nblob>0 || has_blob`. When LIT enters `run[]`, `nblob` drops to 0 but PATCTX claim (sub_lo/sub_hi/outer_Σ/δ/Δ at `[rsp+96..168]`) still needed. Filter: `cm[k] || (rpos[k]>=0 && zd_k(nodes[k])==0)`. Without this: `Kc=0`, MATCH_BEGIN wrote PATCTX fields into unallocated stack → corrupted `sub_lo/sub_hi` → wrong replacement output on 062_capture_replacement.
+   - **FIX-3 bb_match_lit ZD arm + admission**: `bb_match_lit_body()` extracted; `bb_match_lit()` gates on `_.op_zres`. `IR_MATCH_LIT` added to `zd_wl_kind` + `zd_k` K=0 list. Body scanner-register-only (r14d/r15d/r13), identical in both regimes.
+   - **GATES: m3 295/22 BY SET IDENTICAL · m4 288/28 (one better than 287/29 baseline; 173 FAIL→PASS; 127 placement-flicker `.s` byte-identical) · bench 18/21 EXACT HOLD.** Regen ×4 committed.
 
-**NEXT: A-7 continued (ZD-5b kind-by-kind) — blocked on OMEGA delivering first template ZD arm (bb_match_lit.cpp). A-8/131 blocked on OMEGA ZW-6. A-GE GE-8 blocked on OMEGA GE-3. A-5 cross-front (OMEGA-owned files). A-9 RECONCILIATION when both fronts done.**
+**NEXT: A-7 continued — LEN (16 first-blockers, same scanner-register-only pattern). Template arm + wl_kind + zd_k K=0 entry. wpop and Kc fixes already in place (carry forward, no re-work). Same pattern as LIT: extract body fn, gate on `_.op_zres`, body identical. Then: ANY → NOTANY → SPAN → TAB → RTAB → POS → RPOS → REM. A-8/131 blocked on OMEGA ZW-6. A-GE GE-8 blocked on OMEGA GE-3. A-5 OMEGA-owned. A-9 RECONCILIATION when both fronts done.**
 
 **LANDED s23t:**
 1. ⭐ **A-7 · ZD-5b WRITTEN PROPOSAL DELIVERED** — `DESIGN-SN4-ZD5B-BRANCHING-RUN-PROPOSAL.md` in `.github`. Three ruling questions: (1) ALTERNATE depth model (every arm at ALTERNATE.α depth, φ restores before next arm); (2) CAPTURE pair law (SAVE+COND/IMM together, op_zread[0]=D_C−D_S); (3) ARBNO out of scope (INDETERMINABLE class, OMEGA terrain). Measured population: 198 declined runs / 103 programs first-blocked by blob-interior kinds (57% of 349 total declined). Implementation sequence: [ALPHA] zd_plan subtree descent + wl_kind additions (kind by kind); [OMEGA via cross-front] template ZD arms in bb_match_*.cpp.
