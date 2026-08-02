@@ -6,9 +6,19 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23p (2026-08-02, opened by Fable; no OMEGA session has run yet)
+## ⭐⭐⭐ LIVE CURSOR — s23q (2026-08-02, first OMEGA session; Opus) — O-1 MINT LANDED DORMANT, LIGHTING BLOCKED ON ALPHA
 
-**NEXT: O-1 (ZW-5 slice 2 — the parent cursor's own NEXT).** Parent bracket to beat: crosscheck 318 m3 280/27/10 · m4 266/39/10/2L BY SET (s23o record) · bench 18/21. Parent SCRIP hash: record YOURS at open (`git log origin/main -1` after clone).
+**Parent:** SCRIP `bed9244` (ZW-5 slice 1). **Open bracket REPROVEN before any edit:** crosscheck 318 m3 **280**/36/1/1N · m4 **266**/48/1/2L/1N — PASS counts and the LERR pair reproduce the s23o record EXACTLY; the fail/timeout split moved (36/1 vs 27/10) as RULES predicts for container speed, hence BY SET. **Census at parent:** stmt_claim 193 programs / 377 sites · fused-terminal proxy **1,064** · rbp-bearing 317/318.
+
+**LANDED (dormant, `SCRIP_ZW5=1` opt-IN; full text: `FINDING-2026-08-02f-...OMEGA-O1-THE-STATEMENT-BOX-IS-A-TRAILER-NOT-A-BRACKET...md` — READ IT BEFORE TOUCHING ZW-5):**
+1. ⭐⭐⭐ **SHAPE CORRECTION — THE BOX IS A TRAILER, NOT A BRACKET.** `x86_alpha()` DEFINES a label (`x86_asm.h:544`) but `x86_gamma()` IS A JMP (`:547`), so the box body has ONE entry and control can never return into it — a bracket is not expressible here. The box is the statement's SUCCESS TRAILER; the slice-1 α→body bomb is DELETED, not replaced. Rung text, template comment and the `IR.h` kind comment all carried the bracket reading; the template + `IR.h`-adjacent prose are corrected in this commit.
+2. ⭐⭐ **MINT = ONE EDIT** at `lower_snobol4.c:1850` (the ONE continuation derivation point every statement form threads through). **The staging migration needs NO staging code:** the box joins the run via the γ chase, so the planner sets `zgpop[last_op]=0` and `zgpop[box]=K_total` by construction — ZERO HAND-COUNTED POPS honored for free.
+3. ⭐⭐ **SLICE 1'S DISPATCH CASE WAS IN THE WRONG DISPATCHER** — found by running: `emit_drive` FATAL'd `op=124 has no template` while a case plainly existed, because the case was in `walk_bb_node_inner` only. `emit_drive` case added (shape copied from `IR_SUCCEED`/`IR_CUT` = the trailer contract). ⛔ `walk_bb_node_inner`'s `op_zgpop = nd->ival` is a LATENT SECOND RELEASE SPELLING (s22k disease), inert only because lower never stamps ival — the new case deliberately leaves `op_zgpop` to the staging choke; reconcile at lighting.
+4. **GATE:** **318/318 `--compile` byte-identical to parent with the gate off**, re-proven after all three edits. Build green, `-O0`.
+
+**⛔ CROSS-FRONT REQUEST → ALPHA (2026-08-02, contract item 2):** **add `IR_STATEMENT` to `zd_wl_kind` (+ `zd_nops` → 0).** It is in `zd_k` (slice 0) but NOT the whitelist, so a minted box first-blocks and declines its ENTIRE run — MEASURED: probe1 goes 5×`sub rsp,16` → a 128/64/48 claim block with stmt_claim 0→3, and a 59-program m3 sample goes 55→51 with 4 segv. `zd_wl_kind` is ALPHA's region and item 9 forbids OMEGA touching an admission verdict, so this is a request, not an edit. **This dependency is named nowhere in the O-1 rung text and is why the killswitch ships opt-IN rather than the rung's `=0`-reverts polarity.**
+
+**NEXT: O-1 to lit** — (1) ALPHA's whitelist entry above; (2) reconcile the `walk_bb_node_inner` second spelling; (3) add the depth-0 fail-arrival admission gate to the mint (it currently mints for EVERY statement — that is the 4-program segv); (4) flip `SCRIP_ZW5` polarity, full PLAYBOOK §3 gate set, census proxy pre/post on the 1,064. Then O-2.
 
 ---
 
