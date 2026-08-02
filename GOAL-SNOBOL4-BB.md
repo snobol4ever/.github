@@ -18,7 +18,9 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 **⭐ LESSON:** an artifact regen proves the compiler THAT RAN IT, not HEAD — regen-after-fresh-clone is the only artifact truth (this is RULES prose-rot rule (a) wearing a `.s` extension). Also: `xc.sh` needs an ABSOLUTE binary path (it cd's to a workdir; `./scrip` = 127 = universal phantom CERR).
 
-**NEXT:** ON-3 remainder (`x86_asm.h` statement-terminal rbp restores ~2023/2030 · `x86_zls2_mark_save` · `[rbp+368]`) · ON-4 pileup now HAS its fresh bracket · ⛔ PENDING LON: the ~21 column-1 files · push of 7 local commits awaits credential.
+5. ⭐ **ON-3 CLOSED (SCRIP, this session):** the two statement-terminal `old_rbp` restores (x86_asm.h γ/ω jmp hooks, `HKN(0)`) + `x86_zls2_mark_save`'s three port-arm stores AND the release twin's read locked to new `HKN(5)="zls2_mark"` — save/read cannot drift, per the s23e one-authority law. ⛔ **`[rbp+368]` VOIDED:** absent from the tree AND from emitted output — cursor prose that outlived the code (RULES rot-class (a) wearing an offset). PROOF: `test_gate_argnote_sweep.sh` GREEN · notes col-89, zero on `j*`, zero stray `#@` · M3==M4 on probe · regen ×4 = 138 artifacts changed, insertions==deletions, **0/138 code-different after comment+trailing-ws strip** · 121 artifacts now carry `zls2_mark` (the corpus exercises all three arms). ⚠ INSTRUMENT: a naive `sed 's/#.*//'` strip-proof reports 138/138 false-different — the note's column padding leaves trailing whitespace; normalize `[[:space:]]*$` too.
+
+**NEXT:** ON-4 pileup HAS its fresh bracket (the one genuinely open ON rung) · ⛔ PENDING LON: the ~21 column-1 files · push of 11 local commits awaits credential.
 
 ---
 
