@@ -76,6 +76,15 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ⭐ **THE ONE REFINEMENT (law 4):** value spine rides RSP FORTH-style; housekeeping that must survive an unwind (ARBNO/FENCE1/CALL) rides a depth-immune RBP. `flat_stmt_frame` default is OFF (`SCRIP_STMT_FRAME=1` = opt-in); `op_zgpop` is the SOLE statement-terminal release authority.
 
+### ⛔⭐⭐ THE WHACK CONTRACT (Lon ruling s23k, 2026-08-02) — supersedes ALL prior whack-placement prose, including the s22v glue-exit ledger's whack clauses
+
+1. **WHACK-FREE has exactly TWO mechanisms:** (1) **DETERMINABLE** (extent known at compile time): ONE `add rsp, K_total` after the γ exit at FINAL SUCCESS — the whole extent freed at once. (2) **INDETERMINABLE** (runtime-variable extents — ARBNO/DEFER class): open an EMPTY RBP/RSP frame at the indeterminacy boundary; whack = `mov rsp, rbp` + `pop rbp`.
+2. **WHACK SITES are exactly:** end of STATEMENT · end of PATTERN MATCH (`S ? P`) · FENCE0/FENCE1 commit points. Nowhere else.
+3. **THE GLUE DOES NOT WHACK.** Glue is one-shot JUMP-IN/JUMP-BACK or pass-through — nothing more. Measured debt at ruling time (s23k compiler sweep, 338 programs): 1,264 glue whacks — `main_γ/ω` 676 · `proc_PAT$N_scanfail/ω` 302 · proc chain exits ~22 — ALL misplaced, to relocate into release BBs.
+4. **BB_END_STATEMENT IS A MISSING FIRST-CLASS BB** — the statement-scope twin of BB_MATCH_RELEASE, the SOLE statement whack authority (`op_zgpop`'s emission home). Today the whack is FUSED INTO THE LAST OPERATOR BB (assign, call, …) — WRONG. That fusion is the 5,923-site edge-over-free census (s23k audit: assign 2,000 · call 1,660 · match_head 262 · binop 257 · cmp_test 240 · assign_var 206 · subscript 168 · …).
+5. **OPERATOR RULE:** a binary/unary/nullary operator BB frees ONLY its own result, ONLY at ω — NEVER its operands. Consumers read; the whack releases. (Measured head-of-family violation: `bb_match_head` α pops its subject cell `add rsp,16` before pinning stmt_base.)
+6. **BB α-alloc range:** a BB's own α claim is ~16–64B (one result descriptor + a couple of locals). A statement head carrying the whole statement claim (`n1_var_α: sub rsp, 240`-class; s23k census: 223 of 2,490 statement heads, K up to 496) is INVALID under this contract — it is UCLAIM legacy debt, drained by the ZD ladder.
+
 **THE WHOLE-GRAPH CARVE IS A CORPSE.** `flat_frame_bytes` is debt; so are ~1054 `FR`/`FRQ`/`FRQB` reader sites across ~109 templates. **The job is to delete their customers until there are none, then delete the carve.**
 
 ### ✅ CARVE-ERAD — CLOSED s23g (overtaken by Lon's s22n/s165 rulings; the staged manifest above is history)
