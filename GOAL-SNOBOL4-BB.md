@@ -4,7 +4,21 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23i (2026-08-02) — STATIC-SHAPE DEFER/PATREF ARMS · THE CAP-SLOT CRASH IS STACK PLACEMENT
+## ⭐⭐⭐ LIVE CURSOR — s23j (2026-08-02) — REPL-PIN · BENCHMARKS 18/21 · FENCE-DENIED HEADS JOIN LAW-4
+
+**Directive (Lon):** *"Get benchmarks working using NON-POPPING FORTH-style RSP ZETA stack with a C-style RBP used occasionally only when absolutely necessary. Continue."* + "All your choices."
+
+**LANDED (SCRIP `0fdf7932`; full text: `FINDING-2026-08-02c-...S23J-REPL-PIN...md`):**
+1. ⭐⭐⭐ **REPL-PIN** — replacement statements (fence-denied subjc, PATREF-vetoed zres) were the UNPINNED deep-arrival population: rbp-flavored FRQ slots against the ambient C frame + raw `op_sa` spelling the deleted carve while the producer wrote through zvo. `rpin() = deep && hpin && (subjc || zres || !jmp_entry)`, ONE authority ×4 sites; pinned legacy subject read respells `RDQ("rsp", hoff(op_sa))` (hoffb falsified — resolved into outer_Σ). `bb_match_replace:33` gains release:78's `!op_stmt_pin` twin gate (measured: correct output then SEGV without).
+2. ⭐⭐ **Benchmarks 16→18/21**: string_pattern + mixed_workload fixed, M3==M4 all 21 verdicts. Bisect law: the broken construct was STORED-pattern replacement exactly; inline+replace and stored+match-only were both green.
+3. ⭐⭐ **jmp-entry containment**: roman (proc_LBL__ROMAN, LP jmp=1) crashed at 3 iters under unconditioned widening — runtime-transfer entry depth invalidates hoff's compile-time spelling by construction. jmp-entry keeps pre-session regime verbatim; roman back to known baseline-red DIFF. The named fix remains the r9/wire claim base.
+4. ⭐ **WATERMARK:** m3 **282/25/10** (+127_pat_json_keyvalue) · m4 **266/39/10/2L EXACT** — zero P→F BY SET both modes, proven by parent-binary A/B (stash/rebuild), not remembered counts. 127/152 = ONE placement-flicker pair (env-pad reconfirmed), the s23i cap-slot class, not a regression. Regen ×4 (corpus `bd5be761`/`49350480`/`e6950c05`).
+
+**NEXT:** ⭐ eval_fixed/eval_dynamic bracket (deferred-eval family — the last two benchmark reds with roman) · r9/wire claim-base rung (retires roman + 127/152 + capture-bearing declines) · ZD-7c USER-PROC ARM (spec'd s23i, unspent) · ON-4 pileup (⛔ GATED) · ⛔ PENDING LON: the ~21 column-1 files · push awaits credential.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s23i (2026-08-02) — STATIC-SHAPE DEFER/PATREF ARMS · THE CAP-SLOT CRASH IS STACK PLACEMENT
 
 **Directive (Lon):** complete the NON-POPPING FORTH-style RSP ZETA stack, C-style RBP only when absolutely necessary; *"All your choices. I'm with you on this. Continue."*
 
