@@ -6,20 +6,25 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23q (2026-08-02, Sonnet s23q-b) — O-1 FULLY LIT, NEXT: O-2
+## ⭐⭐⭐ LIVE CURSOR — s23r (2026-08-02, Sonnet s23r) — O-2 IN PROGRESS, M4 REGRESSION TO FIX
 
-**Parent:** SCRIP `3ed1982c` (O-1 lighting). **Open bracket:** crosscheck 318 m3 **280**/27/10 · m4 **266**/39/10/2L EXACT s23o record (measured at session open before any edit). **Census at parent:** stmt_claim **193** programs · fused-terminal proxy **1,064** · rbp-bearing **317**.
+**Parent before this session:** SCRIP `343f3471` (O-1). **Origin advanced during session:** SCRIP origin now `2fea8565` (ALPHA s23s). **Pull --rebase before touching code.**
 
-**LANDED (SCRIP `3ed1982c`, FOUR EDITS across three files — `SCRIP_ZW5=0` reverts byte-identical; GATE: BY SET ZERO REGRESSIONS, m3 281/26/10 · m4 270/35/10/2L, improvements m3+1/m4+4):**
-1. ⭐⭐⭐ **`zd_wl_kind` ← `IR_STATEMENT` admitted** (`emit.cpp`): the cross-front ALPHA dependency resolved in the same session under Lon's "all your choices" grant. K=0, zero operands, no cell — pure whack home. Template's `x86_gamma()` X86H_JMP hook already carries `op_zgpop`; admission registers an existing capability. `zd_nops` default 0 is already correct.
-2. ⭐⭐ **`SCRIP_ZW5` polarity flipped** (`lower_snobol4.c`): `=1`-enables → `=0`-reverts (default ON). Valid now that admission is in place.
-3. ⭐⭐ **`emit_drive` `op_zgpop = nd->ival` DELETED** (`emit.cpp`): the s22k SECOND-SPELLING DISEASE — `nd->ival = lc_build` default 0 (lower never stamps it; K_total comes from the planner via `zd_gp[]→g_zd_gpop`). The direct read overwrote the staging choke's K_total with 0, silencing the release on every UCLAIM (declined) run that contained an IR_STATEMENT. Staging choke is now the ONE authority.
-4. ⭐⭐⭐ **`IR_STATEMENT` added to `zls_is_wiring`** (`zeta_storage.c`): the phantom-slot root cause. `zls_grant()` calls `zls_entry()` and `zls_field(result,16)` BEFORE the switch — so `case IR_ASSIGN/IR_STATEMENT: return 0` in the switch was too late; it prevented k from incrementing but left a 16-byte result field registered. `zls_node_off` returned the non-sentinel offset; `zls_node_bytes` returned 16; the UCLAIM span included `[off, off+16)`. This shifted every subsequent node's zls offset by +16, inflated the UCLAIM span by 16 bytes, and corrupted the `old_rbp` field in the match frame (stored at `[rsp+88]` before fix, `[rsp+104]` after — 16 bytes into stale residue → `pop rbp` at `main_γ` segvd). `zls_is_wiring` is checked BEFORE `zls_entry` fires; IR_STATEMENT is semantically wiring (pure control, no value produced).
+**O-2 STATUS: INCOMPLETE — m3 clean, m4 has 22-program segfault regression. WORKING TREE ONLY (uncommitted). Read `FINDING-2026-08-02f-CLAUDE-SN4-OMEGA-O2-WIP-M4-REGRESSION-AND-STUB-EMISSION-ROOT-CAUSE.md` for full state, root cause, and six bugs already fixed.**
 
-**Census post-O-1:** stmt_claim **193** (unchanged — UCLAIM-head programs unchanged, O-2 will drain them) · fused-terminal proxy **1,094** (slight increase expected: new statement boxes for the LAST statement of each graph fire `add rsp,K; jmp main_γ`, adding new proxy hits; the non-last boxes fire `add rsp,K; jmp n_statement_α` which the proxy doesn't count; net improvement is the m4+4 programs now passing) · rbp-bearing **317** (unchanged).
+**Watermark with O-2 WIP (NOT LANDED — do not treat as committed):** m3 **282**/25/10 · m4 **250**/40/9/LERR18 — 22 programs newly segfaulting in m4 only. Census unchanged: stmt_claim 193 · fused-terminal 1,094 · rbp-bearing 317.
 
-**NEXT: O-2** — ZW-5 SLICE 3: ω per-depth stub ladder + planner, ATOMIC (s22h law). Per PLAYBOOK §4/ZW-5s3: per admitted statement, compute the SET of distinct fail-arrival depths; emit one `s<stno>_ω_d<K>` stub per depth (`add rsp,K; jmp shared ω tail`). Then LIFT slice-2's depth-0-only admission gate. `zd_wp`/`op_wterm` semantics must keep meaning "restores to statement entry." Instrument: `SCRIP_ZETA_OMEGA_TRACE` diff pre/post. Gates: full §3. The fence/arbno family (17 m4 + 2 m3 programs still failing BY SET) expects improvement here as depth>0 fail arrivals gain their stub.
+**O-2 IMPLEMENTATION (4 files, 84 lines, uncommitted in working tree):** emit.h (+2 fields: op_omega_depths[8], op_n_omega_depths) · emit.cpp (staging globals; choke clear/copy; zd_plan depth collection in ok=1 path; codegen_flat_chain_body 128-slot stub pool + per-run-head look-ahead + node_ω redirect with !omega_is_beta guard + stub body emission after IR_STATEMENT drive) · lower_snobol4.c (stno stamp unconditional; IR_STATEMENT ival stamp; fJ comment) · bb_statement.cpp (comment update). Killswitch `SCRIP_ZW5=0` reverts byte-identical to O-1.
 
+**M4 REGRESSION (root cause in FINDING):** `emit_label_define_bb` + `bb_emit_x86` called from `codegen_flat_chain_body` drive loop for stub bodies; in TEXT mode (m4) `x86_jmp_ext(node_ω)` uses `node_ω->name` which may be NULL/stale when `_saved_node_ω` is restored. Investigate first: print `node_ω->name` at stub emission time under `SCRIP_ZETA_OMEGA_TRACE=1` for a failing m4 program.
+
+**NEXT: Fix m4. Gate (crosscheck-318 BY SET both modes + bench 18/21 hold). Commit `[OMEGA] ZW-5 O-2: per-depth omega stub ladder + planner, s23r`. Regen ×4. Push. `bash scripts/handoff_status.sh`.**
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s23q (2026-08-02, Sonnet s23q-b) — O-1 FULLY LIT
+
+**Parent:** SCRIP `3ed1982c` → **`343f3471`** (O-1 SCRIP commit). **Gate: BY SET ZERO REGRESSIONS, m3 281/26/10 · m4 270/35/10/2L.**
 ---
 
 ## ⛔ CONCURRENCY CONTRACT (identical in the ALPHA twin apart from the front tag in item 7; any OTHER divergence between the copies = STOP and reconcile before any code)
