@@ -4,6 +4,24 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
+## ⭐⭐⭐ LIVE CURSOR — s23h (2026-08-02) — ZD-5 MATCH-SPINE ARMS · CLAIM-AT-HEAD · DEFAULT FLIPPED ON
+
+**Directive (Lon):** complete the NON-POPPING FORTH-style RSP zeta stack for the match quartet — *"a var just needs a little space"*, subject read must not pop — then the s22y grant, twice: *"All your choices. I'm with you on this. Continue."*
+
+**LANDED (SCRIP, default `SCRIP_ZD_MATCH` now ON; `=0` = byte-identical declined escape hatch):**
+1. ⭐⭐⭐ **CLAIM-AT-HEAD v2** — `zuk` staged on the MATCH_HEAD member: the claim carves at the head's α (the match owns its scanner storage), pre-head producer cells ride ABOVE it, rsp at head-α IS the claim base at zero instruction cost — the blob's raw shift-fragile claim spellings (ON-5/ARGREAD escapes, gdb-bracketed as a wild `rt_cap_push` slot in 156) hold by construction. Pure non-popping; supersedes the same-session HEAD-FOLD. **The var carves ONLY its 16** — the complaint verbatim (strip probe: `n3_var ALLOC 16`, `n4_match_head ALLOC 240`).
+2. ⭐⭐ **The coordinate laws, each with a witness:** pin arm = pure rebase (`zvo_resolve_base`/`zvo_owner_dout`; recovered 46/50) · blob dout delta ZERO (174 BAL counter corruption) · mirror gated `!subjc()` (054 clobber) · subject read = `op_uclaim + op_zread[0]` general form (061 read a coerce cell as the subject under a `+0` hardcode) · exit pops position-gated at hpos · span shrink excludes armed value members' dead extents (subjkeep exception).
+3. ⭐⭐ **REPLACE seats measured:** op_sa = SUBJECT, replacement BY ADDRESS (armed r9 = lea of rv's cell). The inversion was invisible without the .s diff.
+4. ⭐ **Dynamic-box decline** mirrors s22y (DEFER/PATREF/FENCE1 → declined regime verbatim). PATREF measured both ways: 117/142 arm GREEN (**the named next rung**), 135/136 crash → stays declined, degrade never die.
+5. ⭐ **WATERMARK:** full 318 identical BY SET both modes (m3 280/27/10 · m4 266/39/10/2C == s23g record) · pattern-131 identical by set · zero P→F any arm. Regen ×4 auto-committed (corpus `e814a248`/`126b3c7f` + SCRIP feature) — artifacts assert HEAD with the armed default.
+6. **FLAKE LEDGER +{135,136,164,165,183}:** identical-bytes ASLR/stdout-flush flicker, proven (same OFF binary, same path, P then rc=139; 165 armed ≡ OFF bytes, both die AFTER flushing correct output). Sweep law: BY SET + re-roll singleton flips.
+
+**HONEST RESIDUE:** roman is baseline-RED at HEAD (never a valid vehicle; `/tmp/strip.sno` is the demonstration, green ×4) · 061_capture_in_arbno red→red both regimes (baseline POS(N) overrun loop, out of scope) · PATREF/roman class = next rung via the 117/142 green.
+
+**NEXT:** ⭐ PATREF arming rung (static-shape stored patterns; bracket the recursive re-entry class 135/136 first) · ON-4 pileup (⛔ GATED, unchanged) · ⛔ PENDING LON: the ~21 column-1 files · push awaits credential (11 prior dotgithub commits + this session).
+
+---
+
 ## ⭐⭐⭐ LIVE CURSOR — s23g (2026-08-01/02) — CARVE CALCULATION DELETED + THE ARTIFACTS WERE ASSERTING A COMPILER THAT WASN'T HEAD
 
 **Directive (Lon):** house-clean the doc pile; *"Ensure the code which was calculating whole-graph ZETA frames versus per-BB ZETA cells has been deleted as previously directed. If not, stop and DELETE it now"*; then *"All your choices. I'm with you on this. Continue."*
