@@ -93,3 +93,22 @@ Then run the PLAYBOOK §3 watermark bracket + census one-liners and paste the nu
 
 ## Handoff
 Per RULES: update THIS cursor (rung + watermark + parent/rebased hashes) · delete completed rungs · regen ×4 (contract §4) · commit `[ALPHA] ...` · pull-rebase (MERGE GATE if twin landed) · push code repos then `.github` · `bash scripts/handoff_status.sh` and paste verbatim — its output, not yours, says COMPLETE.
+
+
+---
+
+## ⭐⭐⭐ s23t IMPLEMENTATION NOTES (append to A-7 ruling brief)
+
+**ZD-5b PROTOTYPE RUN s23t — KEY FINDINGS (no commit, reverted, but findings are load-bearing for implementation):**
+
+1. ⭐⭐ **K=0 IS CORRECT FOR ALL BLOB-INTERIOR KINDS.** Confirmed empirically: LIT/LEN/SPAN/ANY/NOTANY/BREAK etc. operate through scanner registers (r14/r15/r13) and claim-relative FRQ flat slots — NOT through 16B DESCR value cells. `zd_k` returns 0 for them; `x86_alpha` emits no `sub rsp` for K=0 kinds; templates work unchanged. The proposal's "K=16 (one position/match cell)" claim is **WRONG** — amend ruling question (1) accordingly.
+
+2. ⭐⭐ **ELEMENT WIRING: SEQUENCE/ALTERNATE arms do NOT chain γ directly between elements.** Each arm element has `succ=S, fail=S`; its γ is re-tagged "σ" (→ success-glue) and ω re-tagged "φ" (→ fail-glue). Both point back to the envelope node. The subtree descent in zd_plan must therefore traverse `operands[2i]` (entry_i) and follow each arm entry's γ-chain until it hits an already-claimed node (the envelope S which is claimed first by the outer walk). This was implemented and functionally correct.
+
+3. ⭐⭐ **CLAIM SPAN: `nblob > 0` gate must become `has_blob` (covering both off-run AND in-run blob members).** When ZD-5b moves blob members into the run[], `nblob` (off-run operand-closure count) drops to 0, killing the claim span computation (Kc=0). The span walk must run whenever any blob-interior kind appears — whether in or out of the run. Fix: hoist `has_blob = nblob > 0 || (any run member is a blob-interior kind)` and gate the span walk and the `zws` (ZW-12 canonical frame) on `!has_blob`.
+
+4. ⭐ **ZW-12 CANONICAL FRAME: blob-in-run blocks it identically to off-run blob.** The old `nblob == 0` gate on `zws` must become `!has_blob`. Both blob-in-run and off-run blob carry the shift-fragile raw-claim-spelling hazard (s23i CAP-SLOT lesson). With the fix: zws correctly stays 0 for all blob runs, preventing the ZW_FRAME_TOTAL phantom depth insertion that was generating `zout=80` instead of `zout=16` for LIT.
+
+5. **REMAINING REGRESSIONS AFTER BOTH FIXES: 16/20 P→F (see s23t session).** The first two fixes (claim span + zws gate) eliminate the segfaults on simple programs. Remaining failures cluster in: RPOS, ALT two/three, fence-fn-fail, capture-replacement, pat_bal, W01-anchor, W03-alt-both-fail, W05-any, W07-capt-imm. These require MONITOR-FIRST per RULES. Common pattern: programs with RPOS, capture `.`, or ALT+fail paths. Suspected: the operand check `f >= r` (operand must be an EARLIER run member) may fail for some arm-expansion orderings (an ASSIGN_SAVE inside arm_1 may reference an operand added to the run at position r=6 while being checked at r=5). Not confirmed — requires monitor bracket. CODE REVERTED, not committed.
+
+**IMPLEMENTATION STATUS: prototype demonstrated correct basic operation (W01_pat_lit_basic, simple ALT, simple LEN). Three code edits identified and written. Two bugs fixed (Kc=0, phantom zws depth). Remaining 16 P→F regressions need MONITOR-FIRST diagnosis. Recommend: begin next session with the three edits (already written in this session's log) + MONITOR on the first regressing program (`045_pat_rpos` or `W01_pat_lit_anchor`).**
