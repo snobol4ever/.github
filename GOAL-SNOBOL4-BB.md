@@ -4,7 +4,21 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23n (2026-08-02) — ZW-0-S2 + ZW-4 PARTIAL (g_anchor ACCESSOR)
+## ⭐⭐⭐ LIVE CURSOR — s23o (2026-08-02) — ZW-4 FULL LANDED
+
+**Directive (Lon):** *"Complete, once and for all, the NON-POPPING FORTH-style RSP ZETA stack with a C-style RBP used occasionally only when absolutely necessary. Continue."* + "All your choices. I'm with you on this. Continue."
+
+**LANDED (SCRIP `7b209188` + `61bacbba` feature-.s; corpus `b3f08a4a`/`d24b2bbb` + crosscheck regen; full text: `FINDING-2026-08-02e-...S23O-ZW4-LANDS...md` — READ IT before touching any x86() cell-operand mnemonic or demoting any runtime data cell):**
+1. ⭐⭐ **ZW-4 FULL** — SPD-2 scanhit/scanfail per-medium pair (the named forbidden shape) → single medium-invisible `x86()` chains; `g_anchor` → keywords.c-private `static`, `rt_anchor_g` alias = the ONE exported name, ALL emitted references GOT-indirect (`x86_load_got`, `XK_RIPGOT`); new encoders `x86_reg_disp32_cmp_imm` + `x86_inc_r`; `rbp#` raw-cell escape; loud cmp guard.
+2. ⭐⭐⭐ **TWO LAWS MEASURED (FINDING §2/§3):** (a) pinned fr-prefix captures raw-rbp spellings → a guardless mnemonic (cmp) SILENTLY DROPPED both retry guard-cmps, probes stayed green on stale flags, ONLY the .s region diff caught it — probe suites cannot certify emission rewrites; (b) static demotion of a .so data cell with emitted TEXT refs REQUIRES the GOT form — the exported-global era worked only via copy-reloc interposition (the rtx_match.S 0(c) rule, now front-end-reachable).
+3. **WATERMARK (s23o):** crosscheck 318 **BY SET IDENTICAL both modes vs parent binary (stash A/B)** — m3 280/27/10 · m4 266/39/10/2L, non-pass sets byte-equal · bench board **18/21 record hold** (roman + eval pair = pre-existing residue) · regen ×4 all insertions==deletions · SNAPSHOT-AT-BEGIN (SPITBOL manual: &ANCHOR read only at match start) deliberately deferred to ZW-1's anchor_snapshot cell — this rung preserved live-read behavior.
+4. ⛔ **ZW-4's g_patstk_sp half stays with ZW-1/2** (six live template readers, bb_match_begin ×4 + bb_match_end ×2; rung text's own "die via ZW-1/2 regen"). Observed out-of-scope: core.c `kw_anchor` = a SECOND anchor cell beside keywords.c's — candidate ONE-AUTHORITY sweep.
+
+**NEXT:** **ZW-5 IR_STATEMENT** (the s23k addendum design — statement bracket box, retires the 5,923 fused pops) → **ZW-6** glue-whack relocation → then r9/wire rung → m4-EVAL · ZD-7c.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s23n (2026-08-02) — ZW-0-S2 + ZW-4 PARTIAL (g_anchor ACCESSOR)
 
 **Directive (Lon):** *"Complete, once and for all, the NON-POPPING FORTH-style RSP ZETA stack with a C-style RBP used occasionally only when absolutely necessary. Continue."* + "All your choices. I'm with you on this. Continue."
 
@@ -13,7 +27,7 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 2. ⭐ **ZW-4 PARTIAL** (`cd7f54c8`) — `rt_anchor_ptr()` accessor added in `keywords.c`; `bb_match_begin` + `emit.cpp` binary arm use it instead of `extern long g_anchor`. ⛔ **BLOCKER for full static demotion:** SPD-2 TEXT arm in `emit.cpp:2515` uses `g_anchor` as a linker symbol in an inline asm string — static demotion requires either a named export alias or rewriting that TEXT arm as `x86()` calls (the RULES-compliant fix; TEXT arm is a MEDIUM_TEXT-only path = forbidden shape under BOTH-MEDIUM rule). **Full demotion deferred.**
 3. **WATERMARK (s23n):** m4 BY SET IDENTICAL to s23l/s23m open bracket both landings. Regen ×3 zero changes both commits.
 
-**NEXT:** **ZW-4 full** (SPD-2 TEXT arm rewrite as `x86()` calls to eliminate linker-symbol dependency → then `g_anchor` → `static` + `g_patstk_sp` deletion + lazy-init arm removal from `rtx_match.S`) → **ZW-5 IR_STATEMENT** → **ZW-6** glue-whack relocation. Then: **r9/wire** rung → m4-EVAL · ZD-7c. ⛔ PUSH PENDING: SCRIP `eb1f574b`+`cd7f54c8` + `.github 95af2430`+this await credential.
+**NEXT (superseded by s23o above):** ZW-4 full ✅ DELIVERED s23o. (The former PUSH PENDING line here is deleted per RULES rot-rule (a) — `handoff_status.sh` is the only push ground truth.)
 
 ---
 
@@ -223,7 +237,7 @@ Convert one box's readers to its own cell; watch the carve requirement DROP. Pro
 - [ ] **ZW-1 MATCH_BEGIN CANONICAL FRAME** — `push rbp; mov rbp,rsp; sub rsp,K≤64`; own cell = {outer_Σ/δ/Δ, cas_base, anchor_snapshot, start_δ}; subject read IN PLACE (no pop — fixes the ZD-armed pop); dual marks DELETED; old_rbp slot ceremony DELETED; retire the emit.cpp:2509/2521 per-medium retry-blob pair into `x86()` encoders (named forbidden shape).
 - [ ] **ZW-2 MATCH_END = FRAME-POP WHACK** — γ: apply-walk cas_base→r12, r12←cas_base, restore Σ/δ/Δ, `mov rsp,rbp; pop rbp`; ω: same minus walk. rsp_mark/patstk_mark/marker-scan DELETED.
 - [ ] **ZW-3 R12 CAS LIVE = the R12-FREE-1 REVERSAL** (resized s23k on the dcap correction, FINDING §6.1): the slab already IS the CAS — `rt_dcap_e` records γ-pushed by bb_match_capture, pumped by bb_match_end. Do: reverse s5's 6 emitted sites + 2 m4 wrapper seeds + `rt_outer_call` thunk (r12 = live top, callee-saved coherence, cell = lazy-init seed only) · `rtx_match.S` r12-direct · fail-discard `r12←cas_base` (needs ZW-1/2 frame) · THEN cap_gen deletion; ⛔ stacklets (pattern_match.c:1313 iteration-reuse axis) AUDIT-first, separate.
-- [ ] **ZW-4 GLOBAL DELETIONS LAND** — g_patstk_sp + island + lazy-init arms (C + rtx_match.S) + the 1,112 emitted marks (die via ZW-1/2 regen); g_anchor → keywords.c-private static (SNAPSHOT-AT-BEGIN semantics of record).
+- [~] **ZW-4 GLOBAL DELETIONS** — ✅ g_anchor half DONE s23o (static + rt_anchor_g GOT alias, SCRIP `7b209188`); SNAPSHOT-AT-BEGIN semantics move to ZW-1's anchor_snapshot cell. ⛔ g_patstk_sp + island + lazy-init arms (C + rtx_match.S) + the 1,112 emitted marks REMAIN WITH ZW-1/2 (six live template readers, FINDING s23o §4).
 - [ ] **ZW-5 IR_STATEMENT** — the ENTIRE-statement bracket box per the s23k addendum design (α bare label · γ one-whack `add rsp,K_total` · ω per-depth stub ladder · `s<stno>_` labels · K=0 in `zd_k` emit.cpp:1908 · lower builds it first, body lowers with succ:=γ-side, threaded `cx` fail continuations := the matching ω stubs; fence-run shared targets lower:1444 route naturally). Retires the 5,923 fused pops.
 - [ ] **ZW-6 FENCE + GLUE RELOCATION** — FENCE0 (SNO$PB0 blob element) commit-whack probe + wiring; FENCE1 whack canonicalized; glue whacks relocated (main_γ/ω 676 → terminal END_STATEMENT; PAT$N shared exits 302 → match machinery).
 
