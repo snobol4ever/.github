@@ -14,7 +14,7 @@
 | reg | role |
 |---|---|
 | rbx | arena heap top — DESCR mint pointer (16-byte DESCR in 64-bit) |
-| r12 | ⛔ **FREE — NOT A PIN (corrected s205).** `ZC_FRAME_R12` was DELETED outright at ZR-RSPRBP-1 (Lon directive 2026-07-27, SCRIP `da8c2347`), zero `#if` consumers. ζ basis set is CLOSED at RSP and RBP. The prior entry ("conditional-assignment stack pointer — its own mmap area") is DEAD HISTORY. |
+| r12 | ⛔ **REINSTATED s23k (Lon directive 2026-08-02): r12 = CONDITIONAL-ASSIGNMENT STACK TOP.** CAS BASE is a MATCH_BEGIN frame slot, NOT a register (R10/R11 rejected: caller-saved + RTX scratch roles). CAS law: push at γ, pop on backward traversal. Design of record: `GOAL-SNOBOL4-BB.md` LADDER ZW + `FINDING-2026-08-02d` §7. Lands at ZW-3; until then r12 remains unused (zero emitted uses, measured s23k). Superseded history: **FREE — NOT A PIN (corrected s205).** `ZC_FRAME_R12` was DELETED outright at ZR-RSPRBP-1 (Lon directive 2026-07-27, SCRIP `da8c2347`), zero `#if` consumers. ζ basis set is CLOSED at RSP and RBP. The prior entry ("conditional-assignment stack pointer — its own mmap area") is DEAD HISTORY. |
 | r13 | Σ subject base ptr |
 | r14 | δ subject cursor |
 | r15 | Δ subject length/end |

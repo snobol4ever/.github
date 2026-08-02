@@ -4,7 +4,23 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23j (2026-08-02) — REPL-PIN · BENCHMARKS 18/21 · FENCE-DENIED HEADS JOIN LAW-4
+## ⭐⭐⭐ LIVE CURSOR — s23k (2026-08-02) — WHACK CONTRACT RULED · MATCH_BEGIN/MATCH_END RENAME · MARKER MACHINERY IS CARGO-FREE · LADDER ZW OPENED
+
+**Directive (Lon):** PIVOT from the eval bracket into ζ-cell design. *"Scan all the generated code and report violations"* → the four-principle census; then the WHACK CONTRACT; then *"lock in the design… Just complete the work."*
+
+**LANDED (full text: `FINDING-2026-08-02d-...S23K-THE-MARKER-MACHINERY-CARRIES-NO-CARGO...md` — READ IT BEFORE ANY ZW RUNG):**
+1. ⭐⭐⭐ **WHACK CONTRACT** ruled + recorded in THE MODEL below (`.github 28f8ccac`): two mechanisms, four sites, GLUE NEVER WHACKS, BB_END_STATEMENT is the missing box, operator rule.
+2. ⭐⭐⭐ **Census (338-program compiler sweep):** stmt heads 2,267 ok / **223 claim-at-head** (K≤496) · **5,923 operator over-frees** (assign 2,000, call 1,660…) · in-BB whacks 982 · glue whacks 1,264 (main_γ/ω 676, PAT$N exits 302) · fence1 whacks exist, FENCE0 rides the SNO$PB0 blob.
+3. ⭐⭐ **RENAME LANDED** (SCRIP `51ba262b`): IR_MATCH_BEGIN / IR_MATCH_END, bb_match_begin/end.cpp, 35 files. Neutral: 100_pat exact both modes; roman BY SET {cc208bbc,e9af39a8} both arms (bistable pre-existing).
+4. ⭐⭐⭐ **Marker machinery carries NO cargo:** patstk = 1,112 mark-only emitted sites, zero pushers ever; the 0x70000000 slab holds only nesting markers; captures are per-slot gen-gated stacklets (NOT a central CAS). r12 = zero uses corpus-wide.
+5. ⭐⭐⭐ **MATCH-STATE DESIGN OF RECORD LOCKED** (FINDING §7): r12=CAS TOP · r13/14/15=Σ/δ/Δ · rbp=match frame · **cas_base = frame slot, no fifth pin** (R10 considered, set aside: caller-saved + idiv scratch) · **CAS LAW: push at γ, pop on backward traversal (pop homed at β re-entry)** · choice points need NO snapshots · MATCH_END pops the frame AS the whack · deletions: g_patstk_* entire, g_cap_gen+stacklets, g_anchor demoted keywords-private with SNAPSHOT-AT-BEGIN semantics (ruled) · ZC_FRAME's 17 stale arms: DELETE (guard option 2, delegated choice exercised).
+6. ⭐ **Eval bracket (pre-pivot, findings stand):** benchmarks 18/21 reproven exact; both eval reds are `EVAL(string)`; S234 §6 confirmed at HEAD (deferred-ARITH m3 SEGV; 1016 m4 silent-empty rc=0 while the .so carries the full pipeline as T symbols). Rung re-queued behind ZW.
+
+**NEXT:** **ZW-0** ZC_FRAME retirement → **ZW-1/2** MATCH_BEGIN canonical frame + MATCH_END frame-pop whack → **ZW-3** r12 CAS live → **ZW-4** deletions → **ZW-5** BB_END_STATEMENT → **ZW-6** FENCE/glue relocation. Ladder + gates: FINDING §8 and LADDER ZW below. Then: m4-EVAL rung · ZD-7c · r9/wire. ⛔ Push of s23k commits awaits credential.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s23j (2026-08-02) — REPL-PIN · BENCHMARKS 18/21 · FENCE-DENIED HEADS JOIN LAW-4
 
 **Directive (Lon):** *"Get benchmarks working using NON-POPPING FORTH-style RSP ZETA stack with a C-style RBP used occasionally only when absolutely necessary. Continue."* + "All your choices."
 
@@ -190,6 +206,16 @@ Convert one box's readers to its own cell; watch the carve requirement DROP. Pro
   - **OPEN — the pileup:** convergent GOTO chains bundle several statements onto one node (roman stacks 5 above n129, 4 attributed to the WRONG head). Needs the watermark bracket.
   - **OPEN — the ordering:** ⛔ NOT attemptable here at all. The `.s` lays chains out BFS, so reordering echoes means reordering CODE = **SRC-ORDER-LAYOUT, awaiting Lon's A/B/C ruling.**
 - [x] **ON-5 — LANDED s23d (`efc11e5f`); census 6/12 runs collapsed → 0, watermark unmoved BY SET, regen ×4 done. Original s23c analysis below.** ⛔ The s23b framing ("find the two producers, delete one") is FALSIFIED: there is ONE producer, it fires ONCE per statement head, and the defect is a **misresolution**, not a duplicate. Census per claimed statement = **30 stores / 26 distinct**: 4 cells written twice AND **4 cells (top 32 BYTES of the claim) NEVER written**. Cause: `RDQ("rsp",_zi)` spells plain `[rsp+N]`, re-resolved by `x86_frame_off`→`zvo_resolve` — the ARGREAD hazard already documented at x86_asm.h:874. CLAIM-ZERO thus only partially discharges the `rt_cap_push` zero-fresh contract it was landed for. Fix = the `[rsp#]` raw escape, one line. **Changes emitted code → land it WITH the ON-0 watermark bracket.** Full write-up + gate list: `FINDING-2026-08-01-CLAUDE-SN4-ON5-IS-NOT-DUPLICATE-ZEROING-...md`.
+
+### ⭐⭐⭐ LADDER ZW — THE WHACK CONTRACT IMPLEMENTATION (opened s23k; design of record = FINDING-2026-08-02d §7; gates every rung: full crosscheck BY SET both modes · benchmark board · regen ×4 · monitor on any diverge)
+
+- [ ] **ZW-0 ZC_FRAME RETIREMENT** — delete the 17 `ZC_FRAME != ZC_FRAME_RSP` arms (bb_match_end/capture/begin, bb_call_proc_staged, xa_flat, zeta_storage) + the zeta_choices.h:288 guard; FLATDISP-8 per-graph rsp/rbp selection stands alone. ⛔ Do NOT half-land: several arms sit inside suspend/resume protocols (the guard's own warning). Prerequisite for r12's new role.
+- [ ] **ZW-1 MATCH_BEGIN CANONICAL FRAME** — `push rbp; mov rbp,rsp; sub rsp,K≤64`; own cell = {outer_Σ/δ/Δ, cas_base, anchor_snapshot, start_δ}; subject read IN PLACE (no pop — fixes the ZD-armed pop); dual marks DELETED; old_rbp slot ceremony DELETED; retire the emit.cpp:2509/2521 per-medium retry-blob pair into `x86()` encoders (named forbidden shape).
+- [ ] **ZW-2 MATCH_END = FRAME-POP WHACK** — γ: apply-walk cas_base→r12, r12←cas_base, restore Σ/δ/Δ, `mov rsp,rbp; pop rbp`; ω: same minus walk. rsp_mark/patstk_mark/marker-scan DELETED.
+- [ ] **ZW-3 R12 CAS LIVE** — pin r12 as CAS TOP (slab at RT_PIN_BASE becomes the arena, r12 seeded at init); capture templates: PUSH record at γ, POP at β re-entry (the law, seam per FINDING §7); MATCH_END apply (RTX leaf `rt_cas_apply` or inline); DELETE g_cap_gen/_next + rt_cap_stk_t stacklets + rt_cap_push/pop/top.
+- [ ] **ZW-4 GLOBAL DELETIONS LAND** — g_patstk_sp + island + lazy-init arms (C + rtx_match.S) + the 1,112 emitted marks (die via ZW-1/2 regen); g_anchor → keywords.c-private static (SNAPSHOT-AT-BEGIN semantics of record).
+- [ ] **ZW-5 BB_END_STATEMENT** — new IR kind + lower-side insertion per statement + template; method-1 (`add rsp,K`) / method-2 (frame) whacks; both success and fail edges join through it before transfer; retires the 5,923 fused pops; interacts with the 223 UCLAIM heads (ZD ladder).
+- [ ] **ZW-6 FENCE + GLUE RELOCATION** — FENCE0 (SNO$PB0 blob element) commit-whack probe + wiring; FENCE1 whack canonicalized; glue whacks relocated (main_γ/ω 676 → terminal END_STATEMENT; PAT$N shared exits 302 → match machinery).
 
 ### ⭐⭐ LADDER ZD
 
