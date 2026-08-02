@@ -8,7 +8,7 @@
 
 ## ⭐⭐⭐ LIVE CURSOR — s24a (2026-08-02, Sonnet) — REBASE ON O-2 NEEDED
 
-**Parent:** SCRIP `2fea8565` (s23s). **OMEGA O-2 landed:** SCRIP `47395290`. **⛔ MERGE GATE: `git pull --rebase` then rebuild + re-run full §3 gate before any ALPHA code work.**
+**Parent:** SCRIP `2fea8565` (s23s). **OMEGA O-2 landed:** SCRIP `5c959cab`. **⛔ MERGE GATE: `git pull --rebase` then rebuild + re-run full §3 gate before any ALPHA code work.**
 
 **NEXT: A-7 (ZD-5b) awaiting Lon ruling on `DESIGN-SN4-ZD5B-BRANCHING-RUN-PROPOSAL.md` §8 three questions. A-8/131 blocked on OMEGA ZW-6 (O-6). A-GE GE-8 blocked on OMEGA GE-3. A-5 cross-front request filed s23s (OMEGA-owned files). A-9 RECONCILIATION when both fronts done.**
 

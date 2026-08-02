@@ -10,7 +10,7 @@
 
 **Parent:** SCRIP `2fea8565` (ALPHA s23s). **O-2 commit:** SCRIP `47395290`. **Regen ×4 committed (benchmark/feature/demo/crosscheck).**
 
-**LANDED (SCRIP `47395290`):**
+**LANDED (SCRIP `5c959cab`):**
 1. ⭐⭐ **O-2 FULLY GREEN** — per-depth ω stub pool: 128-slot `bb_label_t` pool pre-computed from `zd_plan` output after RPO; stubs named `"${prefix}_zw5s${stno}_ω_d${K}"` (chain-prefix for cross-DEFINE uniqueness); `node_ω` redirect for uclaim-free armed nodes with `zd_wp>0` (`!omega_is_beta && !omega_is_phi`); `g_zd_wpop` zeroed when stub fires (template emits bare jmp, stub owns `add rsp,K`); stub bodies emitted after IR_STATEMENT `emit_drive` with no `x86_begin()`. Lower: stno stamp unconditional (was MONITOR_BIN-gated); `stb->ival = stno` for stub name generation. Killswitch `SCRIP_ZW5=0`.
 2. ⭐⭐ **THREE NEW BUGS FOUND AND FIXED:** (7) IR_STATEMENT itself excluded from node_ω redirect — its ω IS fT, the stub target; (8) double-release prevented by zeroing g_zd_wpop when redirect fires; (9) cross-DEFINE symbol collision fixed by including chain prefix in stub label names.
 3. ⭐ **UCLAIM INSIGHT:** UCLAIM statements (match, wpop=176/368) have a different depth model — stub redirect gated on `zd_uk[h]==0` (uclaim-free). UCLAIM runs continue with depth-0-only regime (harmless: their fail depth math is non-trivial and belongs to O-3/O-4 which build the canonical frame).
