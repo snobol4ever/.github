@@ -2,6 +2,10 @@
 
 Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compile`). Protocol: RULES.md; template/encoder work requires ARCH-ICON.md + GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md FIRST. Watermark is SHARED STATE — re-prove at session start AND close. History pruned 2026-07-30; full text in FINDING docs + git (pre-shrink = `.github` `2f3fd45a`).
 
+## ⛔⭐⭐⭐ SPLIT FOR THE CONCURRENT FINAL STRETCH (s23p, Lon directive 2026-08-02) — THIS FILE IS FROZEN
+
+The remaining work runs as TWO CONCURRENT FRONTS with a file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit). Execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. An executing session works from ITS front file's cursor, never this one. This file stays the source of truth for THE MODEL, THE WHACK CONTRACT, LAWS & TRAPS, and the s23-era history below; it is edited again only at the fronts' shared RECONCILIATION rung. The LADDER sections below are SUPERSEDED by the front files (rung text was re-measured and staleness-corrected there and in the playbook — e.g. ZW-0 is DONE both stages, ZW-1's per-medium-pair item is already converted).
+
 ---
 
 ## ⭐⭐⭐ LIVE CURSOR — s23o (2026-08-02) — ZW-4 FULL LANDED
@@ -234,6 +238,8 @@ Convert one box's readers to its own cell; watch the carve requirement DROP. Pro
 - [x] **ON-5 — LANDED s23d (`efc11e5f`); census 6/12 runs collapsed → 0, watermark unmoved BY SET, regen ×4 done. Original s23c analysis below.** ⛔ The s23b framing ("find the two producers, delete one") is FALSIFIED: there is ONE producer, it fires ONCE per statement head, and the defect is a **misresolution**, not a duplicate. Census per claimed statement = **30 stores / 26 distinct**: 4 cells written twice AND **4 cells (top 32 BYTES of the claim) NEVER written**. Cause: `RDQ("rsp",_zi)` spells plain `[rsp+N]`, re-resolved by `x86_frame_off`→`zvo_resolve` — the ARGREAD hazard already documented at x86_asm.h:874. CLAIM-ZERO thus only partially discharges the `rt_cap_push` zero-fresh contract it was landed for. Fix = the `[rsp#]` raw escape, one line. **Changes emitted code → land it WITH the ON-0 watermark bracket.** Full write-up + gate list: `FINDING-2026-08-01-CLAUDE-SN4-ON5-IS-NOT-DUPLICATE-ZEROING-...md`.
 
 ### ⭐⭐⭐ LADDER ZW — THE WHACK CONTRACT IMPLEMENTATION (opened s23k; design of record = FINDING-2026-08-02d §7; gates every rung: full crosscheck BY SET both modes · benchmark board · regen ×4 · monitor on any diverge)
+
+**⭐ EXECUTION PLAYBOOK: `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md` (s23p) — per-rung steps/gates/traps for ZW + ZD + SHED, re-measured against HEAD (grep anchors, live census commands, staleness ledger §8). Executing sessions read it AFTER this ladder, before coding.**
 
 - [~] **ZW-0** — **STAGE 1 LANDED s23k (`b8ee3d6c`; ruling resolved by Lon: island retired, r12=CAS).** Selector choke cut ×3, 338/338 `.s` byte-identical, CLI loud rc=2. **STAGE 2 REMAINS:** delete the 17 now-dead routed arms (16 files, `x86_zc_frame\|rt_zc_frame_live` census) + `ZC_FRAME_ISLE` + the stale :288 guard; several sit inside suspend/resume protocols — whole-arm excision with the byte-identity sweep gate.
 - [ ] **ZW-1 MATCH_BEGIN CANONICAL FRAME** — `push rbp; mov rbp,rsp; sub rsp,K≤64`; own cell = {outer_Σ/δ/Δ, cas_base, anchor_snapshot, start_δ}; subject read IN PLACE (no pop — fixes the ZD-armed pop); dual marks DELETED; old_rbp slot ceremony DELETED; retire the emit.cpp:2509/2521 per-medium retry-blob pair into `x86()` encoders (named forbidden shape).
