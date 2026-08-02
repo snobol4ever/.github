@@ -4,15 +4,16 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23m (2026-08-02) — ZW-0 STAGE 2: ALL ISLAND ARMS DELETED
+## ⭐⭐⭐ LIVE CURSOR — s23n (2026-08-02) — ZW-0-S2 + ZW-4 PARTIAL (g_anchor ACCESSOR)
 
 **Directive (Lon):** *"Complete, once and for all, the NON-POPPING FORTH-style RSP ZETA stack with a C-style RBP used occasionally only when absolutely necessary. Continue."* + "All your choices. I'm with you on this. Continue."
 
-**LANDED (SCRIP `eb1f574b`; gate: m4 crosscheck BY SET IDENTICAL to pre-edit HEAD, zero regressions, zero fixes; regen ×3 zero .s changes — pure dead-code deletion):**
-1. ⭐⭐ **ZW-0 STAGE 2** — all `ZC_FRAME_ISLE` / `x86_isle()` dead arms excised from 9 files (-39 lines net). `x86_isle()` definition deleted; island arms stripped from `x86_zr/zr_num/fb/fb_num/fr32/fr64_prefix/frame_off/zop_regime/zop-bump/UCLAIM-hook` inlines in `x86_asm.h`; `bb_match_begin` island zls-mark arm, `bb_match_end` 3 push/dance/release arms, `bb_match_capture` 3 push/dance arms, `bb_glue_flat` r12 wire-snap restore, `bb_save_restore` `rt_flat_wire_adopt_isle` arm, `xa_flat` anchor branch collapsed to `anchor=-1`, `bb_call_proc_staged` `ZC_FRAME_ISLE` conjunct stripped. `zeta_alloc.c` comment updated: stage 2 complete.
-2. **WATERMARK (s23m):** m4 BY SET IDENTICAL to s23l open bracket (274/40/1/2AFAIL measured at regen time; set unchanged vs pre-edit). Regen ×3 zero changes — compiler output byte-identical as expected.
+**LANDED (SCRIP `eb1f574b` ZW-0-s2, `cd7f54c8` ZW-4-partial; both BY SET IDENTICAL m4; regen ×3 zero .s changes both):**
+1. ⭐⭐ **ZW-0 STAGE 2** (`eb1f574b`) — all `ZC_FRAME_ISLE`/`x86_isle()` dead arms excised from 9 files (−39 lines). `x86_isle()` deleted; island arms stripped from all `x86_asm.h` inlines + 6 template files. Stage 2 COMPLETE.
+2. ⭐ **ZW-4 PARTIAL** (`cd7f54c8`) — `rt_anchor_ptr()` accessor added in `keywords.c`; `bb_match_begin` + `emit.cpp` binary arm use it instead of `extern long g_anchor`. ⛔ **BLOCKER for full static demotion:** SPD-2 TEXT arm in `emit.cpp:2515` uses `g_anchor` as a linker symbol in an inline asm string — static demotion requires either a named export alias or rewriting that TEXT arm as `x86()` calls (the RULES-compliant fix; TEXT arm is a MEDIUM_TEXT-only path = forbidden shape under BOTH-MEDIUM rule). **Full demotion deferred.**
+3. **WATERMARK (s23n):** m4 BY SET IDENTICAL to s23l/s23m open bracket both landings. Regen ×3 zero changes both commits.
 
-**NEXT:** **ZW-4** (g_patstk_* deletion + g_anchor demotion, 1,112 mark sites die via regen) → **ZW-5 IR_STATEMENT** lower-side insertion per s23k design → **ZW-6** (glue-whack relocation, 1,264 sites). Then: **r9/wire** rung (retires roman + 127/152 + capture-bearing declines; ALSO unblocks blob ZD arming which fires the ZW frame for the first time in practice) → m4-EVAL rung · ZD-7c.
+**NEXT:** **ZW-4 full** (SPD-2 TEXT arm rewrite as `x86()` calls to eliminate linker-symbol dependency → then `g_anchor` → `static` + `g_patstk_sp` deletion + lazy-init arm removal from `rtx_match.S`) → **ZW-5 IR_STATEMENT** → **ZW-6** glue-whack relocation. Then: **r9/wire** rung → m4-EVAL · ZD-7c. ⛔ PUSH PENDING: SCRIP `eb1f574b`+`cd7f54c8` + `.github 95af2430`+this await credential.
 
 ---
 
