@@ -6,19 +6,17 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s23r (2026-08-02, Sonnet s23r) — O-2 IN PROGRESS, M4 REGRESSION TO FIX
+## ⭐⭐⭐ LIVE CURSOR — s24a (2026-08-02, Sonnet) — O-2 LANDED
 
-**Parent before this session:** SCRIP `343f3471` (O-1). **Origin advanced during session:** SCRIP origin now `2fea8565` (ALPHA s23s). **Pull --rebase before touching code.**
+**Parent:** SCRIP `2fea8565` (ALPHA s23s). **O-2 commit:** SCRIP `47395290`. **Regen ×4 committed (benchmark/feature/demo/crosscheck).**
 
-**O-2 STATUS: INCOMPLETE — m3 clean, m4 has 22-program segfault regression. WORKING TREE ONLY (uncommitted). Read `FINDING-2026-08-02f-CLAUDE-SN4-OMEGA-O2-WIP-M4-REGRESSION-AND-STUB-EMISSION-ROOT-CAUSE.md` for full state, root cause, and six bugs already fixed.**
+**LANDED (SCRIP `47395290`):**
+1. ⭐⭐ **O-2 FULLY GREEN** — per-depth ω stub pool: 128-slot `bb_label_t` pool pre-computed from `zd_plan` output after RPO; stubs named `"${prefix}_zw5s${stno}_ω_d${K}"` (chain-prefix for cross-DEFINE uniqueness); `node_ω` redirect for uclaim-free armed nodes with `zd_wp>0` (`!omega_is_beta && !omega_is_phi`); `g_zd_wpop` zeroed when stub fires (template emits bare jmp, stub owns `add rsp,K`); stub bodies emitted after IR_STATEMENT `emit_drive` with no `x86_begin()`. Lower: stno stamp unconditional (was MONITOR_BIN-gated); `stb->ival = stno` for stub name generation. Killswitch `SCRIP_ZW5=0`.
+2. ⭐⭐ **THREE NEW BUGS FOUND AND FIXED:** (7) IR_STATEMENT itself excluded from node_ω redirect — its ω IS fT, the stub target; (8) double-release prevented by zeroing g_zd_wpop when redirect fires; (9) cross-DEFINE symbol collision fixed by including chain prefix in stub label names.
+3. ⭐ **UCLAIM INSIGHT:** UCLAIM statements (match, wpop=176/368) have a different depth model — stub redirect gated on `zd_uk[h]==0` (uclaim-free). UCLAIM runs continue with depth-0-only regime (harmless: their fail depth math is non-trivial and belongs to O-3/O-4 which build the canonical frame).
+4. **WATERMARK (s24a):** m3 **281**/26/10 BY SET identical to parent `2fea8565` · m4 **273**/32/10/2L zero P→F (164_pat_arbno_nested newly passes in m4) · bench **18/21 EXACT HOLD** · regen ×4 honest (benchmark 21/21 changed, crosscheck 446/482 changed).
 
-**Watermark with O-2 WIP (NOT LANDED — do not treat as committed):** m3 **282**/25/10 · m4 **250**/40/9/LERR18 — 22 programs newly segfaulting in m4 only. Census unchanged: stmt_claim 193 · fused-terminal 1,094 · rbp-bearing 317.
-
-**O-2 IMPLEMENTATION (4 files, 84 lines, uncommitted in working tree):** emit.h (+2 fields: op_omega_depths[8], op_n_omega_depths) · emit.cpp (staging globals; choke clear/copy; zd_plan depth collection in ok=1 path; codegen_flat_chain_body 128-slot stub pool + per-run-head look-ahead + node_ω redirect with !omega_is_beta guard + stub body emission after IR_STATEMENT drive) · lower_snobol4.c (stno stamp unconditional; IR_STATEMENT ival stamp; fJ comment) · bb_statement.cpp (comment update). Killswitch `SCRIP_ZW5=0` reverts byte-identical to O-1.
-
-**M4 REGRESSION (root cause in FINDING):** `emit_label_define_bb` + `bb_emit_x86` called from `codegen_flat_chain_body` drive loop for stub bodies; in TEXT mode (m4) `x86_jmp_ext(node_ω)` uses `node_ω->name` which may be NULL/stale when `_saved_node_ω` is restored. Investigate first: print `node_ω->name` at stub emission time under `SCRIP_ZETA_OMEGA_TRACE=1` for a failing m4 program.
-
-**NEXT: Fix m4. Gate (crosscheck-318 BY SET both modes + bench 18/21 hold). Commit `[OMEGA] ZW-5 O-2: per-depth omega stub ladder + planner, s23r`. Regen ×4. Push. `bash scripts/handoff_status.sh`.**
+**NEXT: O-3 — ZW-1: light the MATCH_BEGIN canonical frame** (the `op_zw` arm already exists in `bb_match_begin.cpp` behind `zw_frame_on()`; playbook §4/ZW-1 is the HOW). Cross-front requests pending: A-5 (vfc/vfcu arm deletion) and GE-3 (lower_snobol4.c goto-erad) from ALPHA. See concurrency contract §2 — land them before O-3 to keep the file-ownership law clean.
 
 ---
 
