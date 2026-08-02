@@ -25,6 +25,10 @@
 - **`zd_nops`**: `IR_MATCH_LEN` → 1 · `IR_MATCH_TAB` → 1 · `IR_MATCH_RTAB` → 1 · `IR_MATCH_ANY` → 1 · `IR_MATCH_NOTANY` → 1 · `IR_MATCH_SPAN` → 1 (variable N/cset from the value spine via ZOPQ(0)). `IR_MATCH_LIT/POS/RPOS/REM` → 0 (constant or register-only; flat slot `op_sa`/`op_sb` remains the convention). Template bodies: NO changes needed for the bridgehead — all flat-slot reads (`FRQ(op_sa+8)`, `FR(x86_scratch_off)`) resolve correctly within the claim at K=0.
 - **Expected outcome:** `SCRIP_ZWS_DIAG=1` will report armed runs; the ZW-12 canonical frame will fire for the 65 rbp-extra-bearing programs.
 
+**⛔ MERGE GATE BLOCKED (s25a close):** Two ALPHA commits arrived during session (`3dc36147` IR_GOTO admission + `66399568` LIT admission). Per contract §3 MERGE GATE, rebuilt + re-ran full §3 gate. Result: **067_pat_fence_fn_vs_kw P→T regression under SCRIP_ZD_MATCH=1** (LIT admission). Bisected to ALPHA's code (SCRIP_ZD_MATCH=0 passes). 173_pat_fence_kw_blocks_backup improved FAIL→PASS. FINDING filed: `FINDING-2026-08-02g-CLAUDE-SN4-ZD5B-LIT-067-TIMEOUT.md`. **Cannot push per §3 until ALPHA resolves 067 or Lon rules.**
+
+**⭐ FINDING (s25a):** `has_blob` gate in ALPHA's FIX-2 correctly blocks the ZW-12 canonical frame for runs containing blob-interior kinds (IR_MATCH_LIT etc). The ZWS diag will remain at 0 until CAPTURE/ARBNO/ALTERNATION kinds are admitted to ZD-5b — those are the pure-spine matches where no has_blob fires and the canonical frame can safely apply. OMEGA's O-7a ZD arms are correct in the UCLAIM regime (blob-interior kinds with K=0, no own cell, claim still holds PATCTX).
+
 **NEXT: O-7 template arms for N/cset-bearing members** (LEN/TAB/RTAB/ANY/NOTANY/SPAN need `op_zres` branches reading `ZOPQ(0,8)` for the variable-operand case once `zd_nops` adds them — wait for ALPHA to land the request first) **→ O-5 (ZW-3 r12 CAS live) → O-6 (ZW-6 glue relocation) → O-8 (RBP-SHED)**.
 
 ---
