@@ -38,19 +38,19 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s40 (2026-08-03, "Complete the ZETA CELLS") — U-GATE CENSUS LANDED
+## ⭐⭐⭐ LIVE CURSOR — s40 (2026-08-03, "Complete the ZETA CELLS / all your choices") — U-GATE + U-SCOPE + U-SHY LANDED
 
-**SCRIP HEAD: `0a05b2d3`** (U-GATE census script). Parent: `8ec8dfa2` (ZD-PATREF fix). Corpus: `0c2b0df7` (untouched — zero codegen edits, byte-neutral).
+**SCRIP HEAD: `799488f7`** (U-SCOPE fix). Parent chain: `0a05b2d3` (U-GATE) ← `8ec8dfa2` (ZD-PATREF fix). Corpus: `0c2b0df7` (untouched — zero codegen regen, gate-off byte-identical).
 
-**LANDED s40:** `scripts/test_gate_omega_own_k.sh` — U-GATE census instrument v1.
+**LANDED s40:**
 
-- Scans 506 .s files (crosscheck/**/*.s + benchmarks/snobol4/*.s). Per file: α count, K>0 boxes, ω-release ownership (own _ω add OR DRIVE_PAIR β-alias), orphan-adds (whitelist: rsp,8 + mov rsp,rbp restores; ΣK fold in own column), rbp-op-refs, proc_LBL__ >5-line check.
-- **POSITIVE CONTROL VERIFIED:** roman.s (benchmark) 134α / 62 K>0 / 50 covered (81%) / 12 miss / 0 orphan. Crosscheck ≥200B-carve files 132/485 — **exact spec baseline match**.
-- **WATERMARK: ω-cov 1839/8857 · orphan 206 · rbp-refs 14207** (own-ω=69, β-alias=1770, uncovered=7018).
-- **GATE:** m3 281/25/11 · m4 274/32(1L)/10 BY SET identical to s39 — script is byte-neutral.
-- **NOTE on spec baseline:** spec's "35ω for roman" was written at s23p HEAD; s40 HEAD measures 50 covered (81%) for roman — β-alias coverage grew 35→50 between s23p and now. LBL duplication noted: crosscheck 100_roman_numeral.s (5913 lines) vs benchmark roman.s (2713 lines) are distinct files.
+1. **U-GATE:** `scripts/test_gate_omega_own_k.sh` census instrument v1. 506 .s files, per-file: α count, K>0 boxes, ω-release ownership (own _ω OR DRIVE_PAIR β-alias), orphan-adds (rsp,8 + mov rsp,rbp whitelisted; ΣK fold separate column), rbp-op-refs, proc_LBL__ >5-line check. Positive control: roman.s 134α/62 K>0/50 cov(81%)/12 miss/0 orphan; ≥200B-carve 132/485 exact. **WATERMARK: ω-cov 1839/8857 · orphan 206 · rbp-refs 14207.**
 
-**NEXT (per e-3 re-charter):** U-SCOPE (owner-table cross-stmt contamination fix) · U-SHY (every admitted kind defaults ON → produce table) · U-AUTH (post-U-2 verification, concurrent with U-SCOPE) · RECON with OMEGA after U-2 lands.
+2. **U-SCOPE (SCRIP `799488f7`):** UCLAIM `mem[]` cross-statement exclusion (SCRIP_ZD_SCOPE, default ON). In the UCLAIM declined-run span walk, skip nodes where `claim[k]>=0 && claim[k]!=hi` (owned by a different statement's run head). Prevents cross-stmt contamination from inflating UCLAIM K when operand-tree expansion reaches foreign zls slots. ARMED Kc span fix was attempted and **rejected** — armed spans legitimately read cross-stmt blob nodes via FRQ (regression on 173_pat_fence_kw_blocks_backup proved it). UCLAIM path is safe. Gate-off byte-identical; gate-on zero .s changes (contamination class currently empty in corpus — preventive fix for future admission widening). BY SET m3 281/25/11 · m4 274/32(1L)/10 — exact to s39.
+
+3. **U-SHY (read-only audit):** Every admitted kind in `zd_wl_kind` is **default-ON**. One named exception: IR_MATCH_PATREF/IR_MATCH_DEFER (default OFF, reason: bb_match_defer.cpp has no op_zres arm — 017 falsification shape; flip rung = O-PB-3 OMEGA). Table committed to FINDING doc. Directive satisfied: zero kinds "OFF — reason: unknown."
+
+**NEXT:** U-AUTH (post-U-2 verification, can run now) · RECON with OMEGA after U-2 lands · O-PB-2a cross-stmt closure coordination with OMEGA (the ARMED Kc span contamination, which U-SCOPE confirmed is a feature not a bug for the armed path — OMEGA should audit whether their O-PB-2a PATREF exclusion is sufficient for all cases).
 
 ## ⭐⭐⭐ PRIOR CURSOR — s39 (2026-08-03, "all your choices") — ZD-PATREF INFLATION FIX · RECON NEXT
 
