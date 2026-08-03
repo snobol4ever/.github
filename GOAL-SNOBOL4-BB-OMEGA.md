@@ -6,7 +6,24 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s33b (2026-08-03, Sonnet) — ZW-14 · 74 ARMED · +51 vs ZW-13 · REGEN ×4 CLEAN
+## ⭐⭐⭐ LIVE CURSOR — s35 (2026-08-03, Sonnet) — SEAL AUDIT · ALL 12 CORRECTLY SEALED · r9/WIRE IS NEXT
+
+**Parent:** SCRIP `4bba30c4` (ZW-14 s33b). **This session commits:** `.github` finding + cursor only.
+
+**⭐ s35 SEAL AUDIT (see `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S35-*`):** Full audit of 12 `seal/no-END/window` declines at HEAD. All correctly sealed — no false positives:
+- FENCE0 programs (058/067/173/cross): bare `FENCE` keyword lowers to `IR_CALL(SNO$PB0)`, triggering the `zdyn` dynamic-box veto. Not a bug.
+- FENCE(P) programs (061/068/069/101/107): window-integrity scan zeroes `zws` — FENCE1 exit edges genuinely escape the run. Correct by construction.
+- 161 (DEFER): graph-scope DEFER seal. LAWS DEFER-DEEP-LOAD-BEARING verbatim. Needs Lon nested-frame ruling.
+
+**GATE (s35, measured):** m3 unchanged at ZW-14 head · m4 unchanged · bench **18/21 EXACT HOLD**.
+
+**NEXT: r9/wire rung** — 101 `blob-clause` declines all have `nblob_real>0` (genuine live FRQ-slot blob members: ARBNO 68 FR/FRQ, BREAK/BREAKX/SPAN_VAR/SPAN/BAL, ALTERNATE/SEQUENCE, DEFER, CAPTURE). The rung: pass r9=blob-claim-base from `bb_match_begin` op_zw arm after the `sub rsp,ZW_FRAME_K`; add `op_zw` arms to each blob template using `[r9 + off - blob_base]` instead of `FR(off)`. ~1 full session. Push needs credentials.
+
+**WATERMARK (s35):** same as s33b · armed **49** · push_rbp **326** · rsp_mark **132** · SCRIP parent: `4bba30c4`.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s33b (2026-08-03, Sonnet) — ZW-14 · 74 ARMED · +51 vs ZW-13 · REGEN ×4 CLEAN
 
 **Parent:** SCRIP `2c4dbcf1` (s33 O-5 r12-direct). **This session commits:** `90574b19` (ZW-14) + `149fda13` (feature regen), rebased to `4bba30c4`. Corpus: `66e244c7` (demo regen). Push: SCRIP `4bba30c4` · corpus `66e244c7` — ON ORIGIN.
 
