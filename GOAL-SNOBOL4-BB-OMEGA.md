@@ -1,5 +1,7 @@
 # GOAL-SNOBOL4-BB-OMEGA — the RELEASE/FRAME front (concurrent final stretch, twin = GOAL-SNOBOL4-BB-ALPHA.md)
 
+## ⛔⛔⛔ CLOSED — ABSORBED INTO GOAL-SNOBOL4-BB.md LADDER W (Lon directive 2026-08-03f: "This alpha and omega is just not working... Take back ALL the split tasks and bring them back into this one GOAL.") Do NOT open a seat from this file. Open items re-homed per the TAKE-BACK TABLE in the parent. Cursors below are FROZEN history.
+
 **Charter (Lon s23p, 2026-08-02):** finish "free on ω" — the whack moves home. Statement releases relocate from last-operator fusion into the IR_STATEMENT box (ZW-5), the match family gets its canonical RBP frame with MATCH_END as the frame-pop whack (ZW-1/2), r12 becomes the live CAS (ZW-3), glue stops whacking (ZW-6), and the residual RBP ceremony sheds (SHED 3→1→2→4→5). This front edits WHERE plans emit (staging, templates, encoders, lower). It NEVER edits admission verdicts — that is ALPHA's side. The formal interface between the fronts is zd_plan's output arrays; ALPHA widens the population, OMEGA moves the emission.
 
 **⛔ READ ORDER:** `PLAN.md` → `RULES.md` (full) → `GOAL-SNOBOL4-BB.md` (FROZEN parent — THE MODEL, WHACK CONTRACT, LAWS & TRAPS, cursors s23g–s23o) → `GOAL-TEMPLATE-REVAMP-RULES-DRAFT.md` + `ARCH-ICON.md` (you WILL touch x86_asm.h — non-negotiable prereqs) → `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md` (the HOW) → `FINDING-2026-08-02d` (§7 design of record) + the FINDING your rung names.
