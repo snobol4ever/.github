@@ -15,7 +15,7 @@
 
 ## ⭐⭐⭐ LIVE CURSOR — s27 (next session) — A-5 BLOCKED · A-8 blocked on ZW-6 · A-9 RECONCILIATION when both fronts done
 
-**Parent:** SCRIP `(s26 commit — fill hash at push)`. **OMEGA O-2:** SCRIP `5c959cab`. **Merge gate: re-run at session start.**
+**Parent:** SCRIP `78aba74d` (s26 BREAK/BREAKX). **OMEGA O-2:** SCRIP `5c959cab`. **Merge gate: re-run at session start.**
 
 **LANDED s26:**
 4. ⭐⭐ **A-7 ZD-5b IR_MATCH_BREAK / BREAKX** (this commit): ZD arms added to `bb_match_break.cpp` + `bb_match_breakx.cpp` (dynamic-charset path, `op_zres && op_sa >= 0`). `zd_wl_kind` BREAK+BREAKX admitted behind `SCRIP_ZD_BREAK` killswitch (default ON). `zd_nops` → `nd->n_operands` (0 static, 1 dynamic). `has_blob` kind-list extended. K=16 (default — scratch slot `_.x86_scratch_off` saves old cursor across β). BREAK ZD arm: `rt_sg_scan_nonmember` → eax; ≥r15d → ω; save r14d in scratch, advance r14d → γ; restore at β/ω. BREAKX ZD arm: two-gamma shape — first-stop `rt_sg_scan_member`; on β, bump+1 and retry; extended-stop γ; L(4) ω-sink restores FR(scratch+4). GATES: **m3 281/26/10 BY SET IDENTICAL modulo named 127/152 env-pad flake · m4 272/34/10/1L BY SET IDENTICAL · bench 18/21 EXACT HOLD**.
