@@ -6,19 +6,34 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s32 (2026-08-03, Sonnet) — ZW-13 CANONICAL FRAME RESTORED · 23 PROGRAMS ARMED · REGEN ×4 CLEAN
+## ⭐⭐⭐ LIVE CURSOR — s33 (2026-08-03, Sonnet) — LADDER AUDIT · NO CODE COMMITS · SHED/O-5/O-6 STATE CONFIRMED
+
+**Parent:** SCRIP `7ba079e8` (ZW-13 s32). **This session commits:** `.github` finding + cursor only — no SCRIP code changes (audit session).
+
+**⭐ s33 LADDER AUDIT (see `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S33-*`):** Full measured audit of O-4/O-5/O-6/O-8 against HEAD `7ba079e8`. Key findings:
+- **O-5 r12 wiring is further done than the cursor showed:** both m4 wrapper seeds (`scrip.c` ~1242/1439) and `rt_outer_call` thunk (`rt.c`) are LANDED. All 6 `bb_match_capture.cpp` emission sites are already split by `_.op_zw`. STACKLETS audit complete: `rt_zcol_push` (ARBNO iteration-reuse) has zero interaction with r12/CAS. Remaining: `rtx_match.S` `g_patstk_sp` cold-path (3 instructions, deferred), cap_gen deletion (deferred).
+- **SHED-3/1/5 are DONE** at HEAD. SHED-2's per-depth stub mechanism superseded by STF rbp bracket (ZW-5 O-2 DEFAULT OFF per `FINDING-2026-08-02h`; `mov rsp,rbp` is the depth-independent cut). SHED-4 is a no-op under `ZC_FRAME_RSP` (default).
+- **O-6 slice 2 (GLUEO default flip) is DONE** — `_gluo = (e && *e == '0') ? 0 : 1` confirmed default ON.
+- **O-4 deferral is CORRECT** — `op_zw` arm already omits `rsp_mark`/`patstk_mark`; legacy arm readers are live for 144 unarmed programs.
+- **ZW-5 O-2 DEPRECATED** (per `FINDING-2026-08-02h`; `_zw5_on` default OFF confirmed in `emit.cpp:2215`).
+
+**GATE (s33, measured):** m3 **281P/35F/2T** · m4 **275P/42F/1T** · bench **18/21 EXACT HOLD** · rbp-bearing **166** (crosscheck scope) · push_rbp **310** · armed (cas_base) **38 programs in census** (23 per s32 crosscheck scope).
+
+**NEXT:** Widen canonical frame armed population. Two paths: (a) ALPHA A-9 reconciliation then O-9 close; (b) fast-path flag in `rtx_match.S` to skip `g_patstk_sp` lazy-init for armed programs (measurable, bounded). Immediate candidate: `g_zw_armed` process-scope flag set at first `op_zw` emission, consulted by `rt_match_enter`. Push needs credentials.
+
+**WATERMARK (s33):** m3 **281P/35F/2T** · m4 **275P/42F/1T** · bench **18/21** · rbp bearing **166/318** (harness scope) · push_rbp **310** · r12 **959** · match_frame sites **32** · armed programs **23** (crosscheck scope). No SCRIP commits this session.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s32 (2026-08-03, Sonnet) — ZW-13 CANONICAL FRAME RESTORED · 23 PROGRAMS ARMED · REGEN ×4 CLEAN
 
 **Parent:** SCRIP `a2cd7b09` (merged head after ALPHA A-5+s31). **This session commits:** `96ddd335` (ZW-13: restore nblob==0 blob clause, arm 23 programs, default ON).
 
 **⭐⭐ ZW-13 FINDING + FIX (`96ddd335`):** The ZW-12 canonical frame has been dark since ALPHA s24a (`bd08c7a3`). ALPHA substituted `!has_blob` on this OMEGA-owned `zws` planner line. `has_blob` is true for every real match run, so `zws` has been permanently zero — meaning O-3/O-4/O-5s2/O-7 all landed into a dead arm and their BY-SET-IDENTICAL gates were literally zero-emission no-ops. See `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-ZW13-*`. Fix: `zw_nblob_ok()` gate in `emit.h` (default ON, killswitch `SCRIP_ZW_NBLOB=0`); DEFER/PATREF sealed at graph scope (measured: run-scope insufficient). `SCRIP_ZWS_DIAG` now attributes declines with failing conjunct. **23 programs / 32 match sites now emit canonical frame by default.** All 23 PASS m3; 22 PASS m4 (161 pre-existing FAIL unchanged).
 
-**⛔ CROSS-FRONT NOTE FOR ALPHA:** O-3/O-4/O-5s2/O-7 prior rungs delivered correct code into a dead arm. The armed population is now live. ALPHA's A-9 reconciliation should be updated before O-9 closes both ladders — the "done" checkmarks on O-3/O-4/O-5s2/O-7 are mechanically accurate (code is there, correct, now executing) but the gate history for those rungs was zero-emission, not real measurement.
+**GATE:** m3 **282/24F/11T/1N** BY SET IDENTICAL to bracket · m4 **275/30F/11T/1N/1L** BY SET IDENTICAL · bench **18/21 EXACT HOLD** · regen ×4: 8 feature + 29 crosscheck artifacts changed.
 
-**GATE:** m3 **282/24F/11T/1N** BY SET IDENTICAL to bracket · m4 **275/30F/11T/1N/1L** BY SET IDENTICAL · bench **18/21 EXACT HOLD** (eval_dynamic+eval_fixed+roman pre-existing) · regen ×4: 8 feature + 29 crosscheck artifacts changed.
-
-**NEXT:** O-4 REMAINING — delete `rsp_mark`/`patstk_mark` reads + marker scans from ZW-armed population (23 programs now confirmed canonical-frame). O-5 ZW-3 R12-CAS-LIVE: `[rbp-32]=cas_base` already saved in op_zw arm; can now measure against real armed population. Push needs credentials.
-
-**WATERMARK (s32):** m3 **282/24F/11T/1N** · m4 **275/30F/11T/1N/1L** · rbp bearing **132/318** (push_rbp=283 — +31 from canonical frame push rbp × ~23 armed) · r12 **317** · match_frame sites **32** (was 0) · legacy-marker programs **156** (was 175) · fused-terminal proxy **0**. Unpushed: SCRIP `d5033669`+`4cc19670`+`c4b486d6`+`96ddd335` · corpus `4ab53b68`+regen-21+`2a3701f3` · .github this commit.
+**WATERMARK (s32):** m3 **282/24F/11T/1N** · m4 **275/30F/11T/1N/1L** · rbp bearing **132/318** (push_rbp=283) · r12 **317** · match_frame sites **32** · legacy-marker programs **156** · fused-terminal proxy **0**. Unpushed: SCRIP `d5033669`+`4cc19670`+`c4b486d6`+`96ddd335` · corpus `4ab53b68`+regen-21+`2a3701f3` · .github this commit.
 
 ---
 
