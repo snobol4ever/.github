@@ -38,6 +38,19 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
+## ⭐⭐⭐ LIVE CURSOR — s39 (2026-08-03, "all your choices") — ZD-PATREF INFLATION FIX · RECON NEXT
+
+**SCRIP HEAD: `8bc49a93`** (ZD-PATREF inflation fix). Parent: `a9823228` (HQ/U-1b). Corpus: `0c2b0df7` (untouched — zero regen changes, gate-off byte-identical).
+
+**LANDED s39:** ZD-PATREF Kc inflation root-caused and fixed. Three edits in emit.cpp, all gated on zd_patref_on() (DEFAULT OFF), 318/318 .s byte-identical off.
+
+1. ⭐⭐⭐ **ROOT CAUSE: stale-rpos cross-contamination.** ARMED path does NOT reset rpos[] (only UCLAIM else-path does at ~line 2088). With PATREF gate ON, h=0 goes armed and leaves rpos[2]=2 (h=0 MATCH_BEGIN) set. h=6's Kc span walk finds rpos[2]>=0 && K==0, includes h=0's MATCH_BEGIN at zls offset 0, drives umin=0, inflates Kc 224->480. Fix: claim[k]==hi guard on the rpos path, gated on zd_patref_on().
+2. ⭐⭐ **BLOB-CLOSURE SPAN EXCLUSION:** PATREF/DEFER blob members (cm[k]=1, rpos[k]<0) excluded from Kc span walk. Their defer.pad slot is depth-immune FRQ, not rsp-claim.
+3. ⭐ **SPAN SHRINK extension:** skip armed K=0 PATREF/DEFER run members. Inert for diagnosed case but correct.
+4. **GATE:** m3 282/24F/11T BY SET IDENTICAL-OR-BETTER (127/152 env-pad flake recovered, zero regressions) · m4 274/32F/10T/1L BY SET IDENTICAL · bench 18/21 EXACT HOLD · regen x4 zero changes.
+
+**NEXT: RECON with OMEGA after U-2 lands. ALPHA admission ladder complete.**
+
 ## ⭐⭐⭐ LIVE CURSOR — s38 (2026-08-03c, Lon "all your choices") — ZD-DEPTH CENSUS LANDED · THE WALL IS MEASURED
 
 **SCRIP HEAD: `a9823228`** (U-1b UNWIND value-spine roll, HQ seat). Parent: `b8b53450`. Corpus: `0c2b0df7` (untouched — gate-off codegen unchanged, no regen owed).
