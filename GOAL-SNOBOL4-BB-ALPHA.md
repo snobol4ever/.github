@@ -13,19 +13,17 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s25 (next session) — A-7 ZD-5b LEN (next kind)
+## ⭐⭐⭐ LIVE CURSOR — s26 (next session) — A-7 ZD-5b: ALTERNATE/SEQUENCE envelope kinds (next, OMEGA-owned templates) · then A-5 · A-8 post-ZW-6 · A-9 RECONCILIATION
 
-**Parent:** SCRIP `d78bdf7c` (s24b). **OMEGA O-2:** SCRIP `5c959cab`. **Merge gate: re-run at session start.**
+**Parent:** SCRIP `2e853233` (s25 regen). **OMEGA O-2:** SCRIP `5c959cab`. **Merge gate: re-run at session start.**
 
-**LANDED s24b:**
-1. ⭐ **A-1/GE-A — IR_GOTO admission** (`3dc36147`): `IR_GOTO` added to `zd_wl_kind` as K=0 transparent relay (`bb_goto()` emits only `x86_alpha()+x86_pair_loop()`, no cell). 2 IR_GOTO-headed runs in roman unblocked (armed 58→59). GATES: m3 295/22 BY SET IDENTICAL · m4 287/29 BY SET IDENTICAL (test_string SKIP→FAIL is harness edge, `.s` byte-identical) · bench 18/21 EXACT HOLD.
-2. ⭐⭐⭐ **A-7 ZD-5b IR_MATCH_LIT — THREE FIXES + ADMISSION** (`66399568`):
-   - **FIX-1 wpop beta-tag** (`emit.cpp` `zd_plan` armed oin block): blob-interior K=0 leaf omega wires to MATCH_BEGIN.beta (`0xce 0xb2`) force `oin=1` → `wpop=0`. Subject VAR cell stays live for scanner retry. Without this: `zwpop=16` released subject before beta re-entry → segfault on W01_pat_lit_basic.
-   - **FIX-2 Kc `has_blob` gate** (`emit.cpp` `zd_plan`): `has_blob` hoisted before Kc block; gate changed `nblob>0` → `nblob>0 || has_blob`. When LIT enters `run[]`, `nblob` drops to 0 but PATCTX claim (sub_lo/sub_hi/outer_Σ/δ/Δ at `[rsp+96..168]`) still needed. Filter: `cm[k] || (rpos[k]>=0 && zd_k(nodes[k])==0)`. Without this: `Kc=0`, MATCH_BEGIN wrote PATCTX fields into unallocated stack → corrupted `sub_lo/sub_hi` → wrong replacement output on 062_capture_replacement.
-   - **FIX-3 bb_match_lit ZD arm + admission**: `bb_match_lit_body()` extracted; `bb_match_lit()` gates on `_.op_zres`. `IR_MATCH_LIT` added to `zd_wl_kind` + `zd_k` K=0 list. Body scanner-register-only (r14d/r15d/r13), identical in both regimes.
-   - **GATES: m3 295/22 BY SET IDENTICAL · m4 288/28 (one better than 287/29 baseline; 173 FAIL→PASS; 127 placement-flicker `.s` byte-identical) · bench 18/21 EXACT HOLD.** Regen ×4 committed.
+**LANDED s25:**
+1. ⭐⭐ **A-7 ZD-5b IR_MATCH_LEN** (`193cfc36`): `bb_match_len_body()` extracted; ZD arm reads `ZOPQ(0,8)` for dynamic `LEN(var)` (static uses `op_ival`). `zd_wl_kind` + `zd_k` K=0 + `zd_nops` `nd->n_operands` (0 static, 1 dynamic). GATES: m3/m4 BY SET IDENTICAL, bench 18/21 hold.
+2. ⭐⭐ **A-7 ZD-5b IR_MATCH_ANY / NOTANY / POS / RPOS** (`1b8f4fb9`): Body functions extracted, `op_zres` gate. Dynamic charset arms read `ZOPQ(0,8)/ZOPD(0,4)` (ptr/len). POS/RPOS zero-width, `x86_beta_trampoline`, no scratch. `zd_k` K=0 all four. `zd_nops` `nd->n_operands`. GATES: m3 280/26/11 BY SET IDENTICAL (127=named env-pad flake, 152=genuine F→P win) · m4 274/32/10 BY SET IDENTICAL · bench 18/21 EXACT HOLD.
+3. ⭐⭐ **A-7 ZD-5b IR_MATCH_TAB / RTAB / REM / SPAN** (`bc4e94c6`): K=16 (need cursor save across β; no downstream consumer reads the cell). TAB/RTAB/REM: `ZRESD(0)` = old-r14d scratch. SPAN: `ZRESD(0)` = scan counter, `ZRESD(4)` = old-r14d (scratch slot INVERSION BUG caught by 127 segfault and fixed). Dynamic args `ZOPQ(0,8)`. `zd_nops` TAB/RTAB/SPAN→`nd->n_operands`, REM→0 default. GATES: same as above. Regen ×4 committed (`2e853233`).
+- **WATERMARK (s25 close):** m3 280/26/11 · m4 274/32/10 · bench 18/21 EXACT HOLD · UCLAIM-head 175 (unchanged — blob-interior admission doesn't drain heads until MATCH_BEGIN's Kc is drained; that is OMEGA terrain). 152 is genuine F→P win.
 
-**NEXT: A-7 continued — LEN (16 first-blockers, same scanner-register-only pattern). Template arm + wl_kind + zd_k K=0 entry. wpop and Kc fixes already in place (carry forward, no re-work). Same pattern as LIT: extract body fn, gate on `_.op_zres`, body identical. Then: ANY → NOTANY → SPAN → TAB → RTAB → POS → RPOS → REM. A-8/131 blocked on OMEGA ZW-6. A-GE GE-8 blocked on OMEGA GE-3. A-5 OMEGA-owned. A-9 RECONCILIATION when both fronts done.**
+**NEXT: A-7 remaining blob-interior kinds.** The full sequence per the original proposal: LIT✅ LEN✅ ANY✅ NOTANY✅ SPAN✅ TAB✅ RTAB✅ POS✅ RPOS✅ REM✅. **REMAINING** (OMEGA-owned templates, need CROSS-FRONT REQUEST per §2): IR_MATCH_ALTERNATE, IR_MATCH_SEQUENCE envelope nodes (the plan subwalk already handles them but the template ZD arms live in OMEGA files). File a dated `⛔ CROSS-FRONT REQUEST` in this cursor and move to A-5. Then A-8/131 blocked on OMEGA ZW-6. A-9 RECONCILIATION when both fronts done.
 
 **LANDED s23t:**
 1. ⭐ **A-7 · ZD-5b WRITTEN PROPOSAL DELIVERED** — `DESIGN-SN4-ZD5B-BRANCHING-RUN-PROPOSAL.md` in `.github`. Three ruling questions: (1) ALTERNATE depth model (every arm at ALTERNATE.α depth, φ restores before next arm); (2) CAPTURE pair law (SAVE+COND/IMM together, op_zread[0]=D_C−D_S); (3) ARBNO out of scope (INDETERMINABLE class, OMEGA terrain). Measured population: 198 declined runs / 103 programs first-blocked by blob-interior kinds (57% of 349 total declined). Implementation sequence: [ALPHA] zd_plan subtree descent + wl_kind additions (kind by kind); [OMEGA via cross-front] template ZD arms in bb_match_*.cpp.
