@@ -38,21 +38,21 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s40 (2026-08-03, "Complete the ZETA CELLS / all your choices") — U-GATE + U-SCOPE + U-SHY LANDED
+## ⭐⭐⭐ LIVE CURSOR — s41 (2026-08-03, "all your choices / continue") — U-1b DEFAULT ON
 
-**SCRIP HEAD: `799488f7`** (U-SCOPE fix). Parent chain: `0a05b2d3` (U-GATE) ← `8ec8dfa2` (ZD-PATREF fix). Corpus: `67e3810a` (uw2/uw3 witnesses committed to probe/).
+**SCRIP HEAD: `0e83f90b`** (feature .s regen). Code commit: `300aba62` (U-1b default ON). Corpus: `bf1f0f69` (crosscheck .s regen).
 
-**LANDED s40:**
+**LANDED s41:**
 
-1. **U-GATE:** `scripts/test_gate_omega_own_k.sh` census instrument v1. 506 .s files, per-file: α count, K>0 boxes, ω-release ownership (own _ω OR DRIVE_PAIR β-alias), orphan-adds (rsp,8 + mov rsp,rbp whitelisted; ΣK fold separate column), rbp-op-refs, proc_LBL__ >5-line check. Positive control: roman.s 134α/62 K>0/50 cov(81%)/12 miss/0 orphan; ≥200B-carve 132/485 exact. **WATERMARK: ω-cov 1839/8857 · orphan 206 · rbp-refs 14207.**
+1. **U-1b DEFAULT ON (SCRIP `300aba62`):** SCRIP_UNWIND flipped from opt-in (`'1'`) to opt-out (`'0'`) at both emit.cpp gates (lines 2371 `_uwl` and 2606 `_uw`). Value-spine fail edges now roll own-K β trampolines by default. Killswitch: `SCRIP_UNWIND=0` restores byte-identical accumulated-whack legacy. Gate: m3 282/24/11 · m4 274/31/11/1E **BY SET IDENTICAL-OR-BETTER** vs s40 baseline. Positive control: `uw3.sno` diff confirms `jmp n4_coerce_numeric_β` chain (gate-ON) vs `add rsp,64; jmp statement_begin_α` (gate-OFF). ⭐ Two env-pad flakes (127/152) both PASS this run — additional evidence they are alignment-sensitive, not correctness regressions.
 
-2. **U-SCOPE (SCRIP `799488f7`):** UCLAIM `mem[]` cross-statement exclusion (SCRIP_ZD_SCOPE, default ON). In the UCLAIM declined-run span walk, skip nodes where `claim[k]>=0 && claim[k]!=hi` (owned by a different statement's run head). Prevents cross-stmt contamination from inflating UCLAIM K when operand-tree expansion reaches foreign zls slots. ARMED Kc span fix was attempted and **rejected** — armed spans legitimately read cross-stmt blob nodes via FRQ (regression on 173_pat_fence_kw_blocks_backup proved it). UCLAIM path is safe. Gate-off byte-identical; gate-on zero .s changes (contamination class currently empty in corpus — preventive fix for future admission widening). BY SET m3 281/25/11 · m4 274/32(1L)/10 — exact to s39.
+2. **ZW_RB CROSS-FRONT FILED TO OMEGA:** `SCRIP_ZW_RB=1` (MECHANISM-2 MATCH_BEGIN RBP frame for blob-bearing runs) regresses **40 programs** (all pattern class). Root cause bracketed without monitor: in `bb_match_begin.cpp`'s `op_zres` arm of the MECHANISM-2 branch, subject is loaded via `x86_zref(op_uclaim + op_zread[0] + 0, 1)` = `[rsp# + uclaim + zread]`. Under gate-OFF (no MECH2), rsp = α_base − uclaim so the read lands at `α_base + zread` = correct. Under gate-ON (MECH2), `push rbp` fires first (no sub rsp,uclaim), so rsp = α_base − 8 and `[rsp# + uclaim + zread]` = `[α_base − 8 + uclaim + zread]` — 8 bytes off + uclaim phantom offset = garbage. Fix: in the `op_zres` path, read `[rbp + 8 + zread[0]]` (post-push rbp-relative, consistent with the `!op_zres` paths' `[rbp + 8 + op_sa + N]` spelling). OMEGA owns `bb_match_begin.cpp` per contract §1. ⛔ DO NOT flip `zw_rb_on()` default until OMEGA lands this fix and gate is BY SET green.
 
-3. **U-SHY (read-only audit):** Every admitted kind in `zd_wl_kind` is **default-ON**. One named exception: IR_MATCH_PATREF/IR_MATCH_DEFER (default OFF, reason: bb_match_defer.cpp has no op_zres arm — 017 falsification shape; flip rung = O-PB-3 OMEGA). Table committed to FINDING doc. Directive satisfied: zero kinds "OFF — reason: unknown."
+3. **REGEN ×4 COMMITTED:** benchmark 21 files, feature files, demo corpus (`aee8114e`), crosscheck 306 files (`bf1f0f69`). All honest — compiler output after U-1b default flip.
 
-4. **U-WIT (corpus `67e3810a`):** uw2 + uw3 U-1b acceptance witnesses committed to `corpus/probe/`. uw2 = success-path control (OUTPUT = A + B, always passes both gates). uw3 = fail-side behavioral witness (GT comparisons with :F exits; .s diff confirms U-1b law: gate-OFF emits `add rsp,64` accumulated whack, gate-ON emits `jmp n4_coerce_numeric_β` own-K roll). Both pass SPITBOL oracle and both scrip gates at HEAD. Positive-control law satisfied.
+**NEXT:** RECON with OMEGA after ZW_RB fix + U-2 lands · U-AUTH (verify `grep -rn 'x86_zclaim(' src/templates/bb_*.cpp | wc -l` = 0 after U-2) · O-PB-2a cross-stmt ARMED Kc contamination.
 
-**NEXT:** U-AUTH (post-U-2 verification — verify `grep -rn 'x86_zclaim(' src/templates/bb_*.cpp | wc -l` = 0 after U-2 lands) · RECON with OMEGA after U-2 lands · O-PB-2a cross-stmt ARMED Kc contamination coordination.
+**WATERMARK s41:** m3 282/24/11 · m4 274/31/11/1E. Named flakes: 127/152 env-pad class (both PASS this run — alignment-variable). Bench: not re-run (no pattern-family codegen change warranting it; UNWIND flip is value-spine only).
 
 ## ⭐⭐⭐ PRIOR CURSOR — s39 (2026-08-03, "all your choices") — ZD-PATREF INFLATION FIX · RECON NEXT
 
