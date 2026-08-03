@@ -41,7 +41,14 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 4. ⭐ **ELIDE IS NOT THE BLOCKER.** `SCRIP_SLOT_ELIDE=0` already exists and is live (roman +4.9% lines), but **the wall set is INVARIANT under it**. Do not spend a rung on it. Corroborates `zeta_storage.c:494`'s own s21x-r note.
 5. ⛔ **`proc_LBL__ROMAN_α` RE-MEASURED:** the LBL section is **896 of roman.s's 2713 lines (33%)** and its 69 boxes ARE main's last 69 re-emitted with fresh uids — s26 residue (b) confirmed live. NOT attempted: the fix needs main's landing-label at LBL-emission time but LBL emits first, so the cheap correct version reorders every `.s` in the tree. **HQ/OMEGA terrain (`scrip.c` proc loops + `emit_chain`), wants a fresh session.** Recipe in the FINDING §7.
 6. ⛔ **127_pat_json_keyvalue flipped F→P. THAT IS THE NAMED s23i ENV-PAD FLAKE, NOT A FIX** (cursor s23q item 6: `.s` byte-identical gate-on/gate-off; any initial-rsp shift flips it). Adding a function moved the binary layout. **Fourth witness. No credit claimed.**
-7. **GATE:** `.s` **318/318 byte-identical** · m3 **282/25/11, BY SET identical modulo the 127 flake** (baseline this session: 281/26/11 at `c0c77585`).
+7. **GATE:** `.s` **318/318 byte-identical to parent** (proves codegen unchanged) · m3 280/27/11 vs baseline 281/26/11. Two movers, BOTH non-regressions: `152_pat_json_keyvalue_renamed` P→F and `160_pat_alt_inner_gen_resume` F→F (rc 134→139, stays red).
+7b. ⭐⭐⭐ **THE ENV-PAD FLAKE IS NOW PROVEN, NOT ASSERTED.** s23q item 6 asked future sessions to "control for env length"; this session DID, on 152 itself. Same binary, same `.s`, same program — verdict is a function of environment padding alone:
+```
+pad=''                        FAIL rc=139      pad='X=1234567890123456'  PASS rc=0
+pad='X=1'                     FAIL rc=139      pad='X=1234...4'          PASS rc=0
+pad='X=12345678'              FAIL rc=139
+```
+**152 sits on a stack-alignment knife-edge; its verdict measures initial rsp, not correctness.** It is the documented sibling of 127 (HQ s26 names the pair). Earlier this session 127 flipped F→P and 152 P→F — one pair, one cause. ⛔ **Neither program may be used as a gate signal until the alignment bug is fixed; treat the json_keyvalue pair as INSTRUMENTS.** Fifth and sixth witnesses to the class, and the first with a controlled experiment.
 8. ⭐ **CHEAP GATES:** `--compile` md5 over 318 = **4s**; m3 verdict sweep = **93s**; full census sweep = **2s**. `.s` byte-identity is effectively free — run it on every edit, not just at handoff.
 
 **⛔⭐⭐⭐ A-10 AS FIRST PROPOSED IS FALSIFIED — DO NOT OPEN A LABEL-JOIN RUNG.** I hypothesised the tail was `:(L)` gotos leaving mid-statement; per-predecessor attribution killed it inside the session. The disagreement is a **value-spine ω fan-in at ascending depths** (216: LIT_STRING@0, VAR@16, BINOP@32, ASSIGN@48 — not one goto), i.e. clause 2's named defect verbatim: *"NO fail site ever computes accumulated depth."*
