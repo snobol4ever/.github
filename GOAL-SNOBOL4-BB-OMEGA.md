@@ -6,7 +6,21 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s33 (2026-08-03, Sonnet) — LADDER AUDIT · NO CODE COMMITS · SHED/O-5/O-6 STATE CONFIRMED
+## ⭐⭐⭐ LIVE CURSOR — s33b (2026-08-03, Sonnet) — ZW-14 · 74 ARMED · +51 vs ZW-13 · REGEN ×4 CLEAN
+
+**Parent:** SCRIP `2c4dbcf1` (s33 O-5 r12-direct). **This session commits:** `90574b19` (ZW-14) + `149fda13` (feature regen), rebased to `4bba30c4`. Corpus: `66e244c7` (demo regen). Push: SCRIP `4bba30c4` · corpus `66e244c7` — ON ORIGIN.
+
+**⭐⭐ ZW-14 (`90574b19`, rebased `4bba30c4`):** `zw_nblob_ok()` blocked canonical frame for programs whose off-run PAT$ blob members are all dead-result K=0 nodes (IR_MATCH_LIT/etc.). Root cause: `zls_grant_elide` stamps first dead leaf as shared scratch at offset 0 with `live=0`; `zls_node_off` returns 0 (non-sentinel) rather than the sentinel. Fix: `nblob_real` counter (blob closure members with non-sentinel zls_node_off **AND** `zls_result_live() != 0`), passed to `zw_nblob_ok()`. Both exclusion classes carry zero FRQ emission and are safe under canonical frame. **74 match sites armed (was 23). 12 programs shed rsp_mark/patstk_mark. 49 programs emit # match_frame (was 38). Regen ×4 clean.**
+
+**GATE vs bracket `7ba079e8`:** m3 **282/24F/11T** BY SET +1 new PASS (127 bistable flip) · m4 **275/31F/10T/1L** BY SET IDENTICAL · bench **18/21 EXACT HOLD**.
+
+**WATERMARK (s33b):** m3 **282/24F/11T** · m4 **275/31F/10T/1L** · rbp-bearing **173/318** · canonical match_frame **49** (was 38) · push_rbp **326** · rbp data refs **9842** · rsp_mark/patstk_mark **132** (was 144) · UCLAIM-head **174** · fused-terminal **0**.
+
+**NEXT:** 101 blob-clause declines have nblob_real>0 (genuine live FRQ-slot blob members — r9/wire rung). 12 seal/no-END/window: DEFER/PATREF seal + FENCE window-integrity. O-8 SHED-2 (ABORT rebalance, monitor-first). O-9 RECONCILIATION waits on ALPHA A-9.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s33 (2026-08-03, Sonnet) — LADDER AUDIT · NO CODE COMMITS · SHED/O-5/O-6 STATE CONFIRMED
 
 **Parent:** SCRIP `7ba079e8` (ZW-13 s32). **This session commits:** `.github` finding + cursor only — no SCRIP code changes (audit session).
 
