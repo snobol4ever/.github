@@ -6,21 +6,25 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s30 (2026-08-03, Sonnet) — O-7/ZD-5b FENCE1 ZD ARM LANDED · REGEN ×4 CLEAN · +3 m4 PASSES
+## ⭐⭐⭐ LIVE CURSOR — s32 (2026-08-03, Sonnet) — ZW-13 CANONICAL FRAME RESTORED · 23 PROGRAMS ARMED · REGEN ×4 CLEAN
 
-**Parent:** SCRIP `d5033669` (s29 ALTERNATE+O-5s2). **This session commits:** `c4b486d6` (O-7: FENCE1 ZD arm).
+**Parent:** SCRIP `a2cd7b09` (merged head after ALPHA A-5+s31). **This session commits:** `96ddd335` (ZW-13: restore nblob==0 blob clause, arm 23 programs, default ON).
 
-**⭐ O-7/ZD-5b FENCE1 ZD ARM LANDED (`c4b486d6`):** 4 edits in `emit.cpp` + `bb_match_fence1.cpp`:
-1. **`emit.cpp` `_seal` gate (ZW-12 verdict):** `IR_MATCH_FENCE1` removed from seal exclusion under `SCRIP_ZD_FENCE1` (default ON) + `!g_emit.flat_pat` (blob guard — PAT$ blob interior keeps the veto; their geometry predates cells-above-claim). ABORT stays sealed unconditionally.
-2. **`emit.cpp` `zdyn` veto:** FENCE1 veto lifted under `SCRIP_ZD_FENCE1 && !g_emit.flat_pat`. Without the blob guard, PAT$0 blob runs in 066_pat_fence_fn_nested armed 7 statements and SEGVd — measured and fixed this session.
-3. **`emit.cpp` `zd_wl_kind` + `zd_k`:** `IR_MATCH_FENCE1` admitted as K=0 (no own result cell; watermark quad is granted FRQ/rbp-relative, depth-free under ZW canonical frame). ONE AUTHORITY per s22k law.
-4. **`bb_match_fence1.cpp` `fence_whack_commit`:** under `_.op_zw`, emits `mov rsp, [rbp+0]` (activation floor = old rbp pushed by match_begin) instead of `mov rsp, rbp` (match frame base). The ZW canonical frame's `push rbp; mov rbp,rsp` stores the pre-match activation rbp at [rbp+0]; FENCE1 bulk-whack must target that floor.
+**⭐⭐ ZW-13 FINDING + FIX (`96ddd335`):** The ZW-12 canonical frame has been dark since ALPHA s24a (`bd08c7a3`). ALPHA substituted `!has_blob` on this OMEGA-owned `zws` planner line. `has_blob` is true for every real match run, so `zws` has been permanently zero — meaning O-3/O-4/O-5s2/O-7 all landed into a dead arm and their BY-SET-IDENTICAL gates were literally zero-emission no-ops. See `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-ZW13-*`. Fix: `zw_nblob_ok()` gate in `emit.h` (default ON, killswitch `SCRIP_ZW_NBLOB=0`); DEFER/PATREF sealed at graph scope (measured: run-scope insufficient). `SCRIP_ZWS_DIAG` now attributes declines with failing conjunct. **23 programs / 32 match sites now emit canonical frame by default.** All 23 PASS m3; 22 PASS m4 (161 pre-existing FAIL unchanged).
 
-**GATE:** m3 **280/26F/11T** (127/152 bistable swap = 0 real regressions BY SET) · m4 **275/30F/11T/1L** (+3 vs open: 135_pat_balanced_parens_shallow + 136_pat_balanced_parens_deep + 173_pat_fence_kw_blocks_backup now PASS) · bench **18/21 EXACT HOLD** (eval_dynamic, eval_fixed, roman = pre-existing residue) · regen ×4: 21 crosscheck artifacts changed (173_pat_fence_kw_blocks_backup.s principal delta; 20 others from FENCE1 ZW frame emission changes).
+**⛔ CROSS-FRONT NOTE FOR ALPHA:** O-3/O-4/O-5s2/O-7 prior rungs delivered correct code into a dead arm. The armed population is now live. ALPHA's A-9 reconciliation should be updated before O-9 closes both ladders — the "done" checkmarks on O-3/O-4/O-5s2/O-7 are mechanically accurate (code is there, correct, now executing) but the gate history for those rungs was zero-emission, not real measurement.
 
-**NEXT:** cap_gen deletion from non-ZW arm (70 programs, gated on ZD-5a — ALPHA must land linear-match bridgehead first). Then O-4 remaining: rsp_mark/patstk_mark deletion from non-ZW armed population + g_patstk_sp retirement probe. Then O-8 SHED-2 ABORT-REBALANCE. Then push (needs credentials).
+**GATE:** m3 **282/24F/11T/1N** BY SET IDENTICAL to bracket · m4 **275/30F/11T/1N/1L** BY SET IDENTICAL · bench **18/21 EXACT HOLD** (eval_dynamic+eval_fixed+roman pre-existing) · regen ×4: 8 feature + 29 crosscheck artifacts changed.
 
-**WATERMARK (s30):** m3 **280/26/11T/1N** · m4 **275/30/11T/1N/1L** · rbp bearing **105/318** · push_rbp **252** · r12 **317** · statement boxes **2937** · fused-terminal proxy **0**. Unpushed: SCRIP `d5033669`+`4cc19670`+`c4b486d6` · corpus `4ab53b68`+regen-21 · .github this commit.
+**NEXT:** O-4 REMAINING — delete `rsp_mark`/`patstk_mark` reads + marker scans from ZW-armed population (23 programs now confirmed canonical-frame). O-5 ZW-3 R12-CAS-LIVE: `[rbp-32]=cas_base` already saved in op_zw arm; can now measure against real armed population. Push needs credentials.
+
+**WATERMARK (s32):** m3 **282/24F/11T/1N** · m4 **275/30F/11T/1N/1L** · rbp bearing **132/318** (push_rbp=283 — +31 from canonical frame push rbp × ~23 armed) · r12 **317** · match_frame sites **32** (was 0) · legacy-marker programs **156** (was 175) · fused-terminal proxy **0**. Unpushed: SCRIP `d5033669`+`4cc19670`+`c4b486d6`+`96ddd335` · corpus `4ab53b68`+regen-21+`2a3701f3` · .github this commit.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s30 (2026-08-03, Sonnet) — O-7/ZD-5b FENCE1 ZD ARM LANDED · REGEN ×4 CLEAN · +3 m4 PASSES
+
+**Parent:** SCRIP `d5033669` (s29 ALTERNATE+O-5s2). **This session commits:** `c4b486d6` (O-7: FENCE1 ZD arm). GATE: m3 280/26/11T · m4 275/30/11T/1L BY SET. Bench 18/21. Regen ×4: 21 crosscheck changed.
 
 ---
 
