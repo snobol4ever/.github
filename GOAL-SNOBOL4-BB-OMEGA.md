@@ -252,6 +252,30 @@ Then run the PLAYBOOK §3 watermark bracket + census one-liners and paste the nu
 
 ---
 
+## ⛔⭐⭐⭐ THE FUNDAMENTAL LAW — READ BEFORE TOUCHING ANY TEMPLATE OR RUNG
+
+**NORMAL FREE IS ON OMEGA, FROM EACH BB, FOR THAT BB'S OWN K ONLY.**
+
+Every BB that carves storage at α (`sub rsp,K`) frees EXACTLY that storage at its own ω (`add rsp,K`) before jumping to its predecessor's β. No more, no less. This is the per-BB allocation model and the UNWIND ruling in one sentence:
+
+```
+n_foo_α:   sub rsp,K          ← carve own result cell + locals
+           ... body ...
+n_foo_γ:   jmp <successor_α>  ← success: DO NOT FREE, successor reads [rsp+Δ]
+n_foo_ω:   add rsp,K          ← failure: free OWN K, then roll to predecessor β
+           jmp n_pred_β
+```
+
+**γ (success) NEVER frees.** The successor reads this box's result at `[rsp + accumulated_Δ]` — a non-popping RSP-relative read. The result stays live on the stack until the statement terminal (`IR_STATEMENT_END`) issues the one `add rsp,K_total` that collapses the whole statement's cells at once.
+
+**ω (failure) frees OWN K ONLY.** Not the whole statement. Not the predecessor's cells. Just this box's own carve. Then it jumps to the predecessor's β, which does the same for its own K, and so on back up the chain until `STATEMENT_BEGIN`'s β (the sole fail terminus) is reached.
+
+**RBP is ONLY for constructs with indeterminate extent at the success exit** — where the `add rsp,K` whack cannot be written because K is not known at emit time: STATEMENT (when pattern-bearing), FUNCTION call frame, ARBNO (unknown iteration count), FENCE1 (backtrack depth unknown). These use `push rbp; mov rbp,rsp` at entry and `mov rsp,rbp; pop rbp` at the forward whack. The ω (failure) path STILL does the per-BB `add rsp,K` unwind — it never uses the RBP frame for release.
+
+**This law is already live for 100 of 120 sampled programs (measured s39).** The remaining 20 are the pattern class blocked by the zdyn veto (O-PB-1) and the PATREF first-blocker (O-PB-2/3). The rungs below close that gap.
+
+---
+
 ## LADDER (top-down; dependency spine is REAL — do not reorder; PLAYBOOK section is the HOW; gates = PLAYBOOK §3 full set + the rung's named controls)
 
 - [x] **O-1 · ZW-5 SLICE 2 — LOWER MINTS IR_STATEMENT** ✅ CONFIRMED DONE s29 (2,937 boxes minted; fused-terminal proxy=0; default ON via zw5_on(); killswitch SCRIP_ZW5=0) — PLAYBOOK §4/ZW-5s2. Template + dispatch are LANDED DORMANT (SCRIP `bed92446`/`45e9a1b1`); this rung: lower mints per statement (admission gate: all fail edges arrive at depth 0 — degrade never die for the rest), body lowers with succ:=γ-side, threaded `cx` fail continuations → the box's ω, K_total stamped into `nd->ival` FROM THE PLANNER (never hand-summed — the seed's ZERO-HAND-COUNTED-POPS law), α→body wire replaces the slice-1 bomb, last-operator `op_zgpop` staging migrates to the box (staging site only; the x86_asm.h emission arm is UNTOUCHED — one authority). Killswitch `SCRIP_ZW5=0`. ⛔ jmp-entry/EVAL fragments NOT admitted (the recorded s193 falsification). Expected: fused `add rsp,K + jmp main_γ` pairs move off operator boxes for the admitted class — count with the census proxy pre/post.
