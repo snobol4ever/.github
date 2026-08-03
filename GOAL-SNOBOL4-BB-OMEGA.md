@@ -20,7 +20,33 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s38 (HQ revamp, 2026-08-03b) — U LADDER IS THE ACTIVE FRONT · READ THE RULING RELAY ABOVE FIRST
+## ⭐⭐⭐ LIVE CURSOR — s39 (2026-08-03c, Opus) — PER-BB ALLOCATION IS ALREADY LIVE FOR 100/120 · THE REMAINING 20 ARE THE PATTERN CLASS · PATREF IS THE FIRST BLOCKER
+
+**Lon grant this session: "All your choices."** Directive = finish RSP/RBP: every BB self-allocates RESULT (if used) + LOCALS (if any) via one `sub rsp`; operands slide off RSP never RBP; RBP added only at a measured brick wall (STATEMENT/FUNCTION/ARBNO/FENCE1); two glues (FLAT, FRAMED); ONE offset traversal; statement-level scoping only.
+
+**Parent:** SCRIP `c0c77585`. **This session commits:** SCRIP `4e2ba87d` (ZD-PATREF measurement gate, DEFAULT OFF). **FULL FINDING:** `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S39-THE-ZDYN-VETO-COSTS-ONE-PROGRAM-AND-PATREF-IS-THE-FIRST-BLOCKER-*.md` — read it before spending the next cursor.
+
+**FOUR MEASURED CORRECTIONS TO STANDING PROSE:**
+1. **The model is already live for 100 of 120 programs.** `sub rsp,16` per α + `add rsp,16` per β is the default emission. `x86_alpha_carve` (the one-instruction carve), `zls_build` (the ONE offset traversal), and `SCRIP_SLOT_ELIDE=0` (the elide killswitch) all already exist. The per-BB model and the UNWIND ruling are THE SAME MODEL — β already frees own K and rolls to pred.
+2. **The remaining 20 are the PATTERN class, not the function class** — 15 of 20 have zero DEFINEs (alt1/any/len/match are plain top-level pattern statements). PLAYBOOK §0 generalized ZD-4/ZD-7 from roman alone, n=1. Corrected.
+3. **`proc_LBL__ROMAN_α` is ALREADY EMPTY** (two labels, zero instructions). The 240B is `n2_match_begin_α` = the UCLAIM wholesale arm. `IR_SAVE_RESTORE` already exists as a real BB (`n38_save_restore_α`); its CALL half is a C call (`rt_flat_ret_snap`) — a medium complaint, not an absence.
+4. **The FLAT glue already exists and is proven:** `bb_glue_pass_wires` = `lea rcx,γ + lea rdx,ω + jmp rax`, zero frame, consumed by 5 templates. `bb_match_defer` already has the fast(FLAT)/slow(C-framed) two-arm shape. **Only GLUE #2 needs building.**
+
+**⭐ THE HEADLINE: the `zdyn` veto's justification set is EMPTY except one program.** `SCRIP_ZD_DYNARM=7` (all three dynamic classes force-armed) vs bracket, crosscheck-318 BY SET: the ENTIRE delta is `066_pat_fence_fn_nested` P→F (both modes) and `152_pat_json_keyvalue_renamed` m3 F→**P**. The comment at emit.cpp:1977 justifies the veto with flip set `{135,136,164,165,183}+{117}` — **all six now pass armed.** RULES rot-class (a): a decline whose evidence expired and was never re-measured.
+
+**⛔ TWO GATES IN SERIES — the trap that cost this session an hour:** `SCRIP_ZD_DYNARM` controls ONLY the statement-level quartet veto (`zdyn`). The `[ZD-GAP] admit=0` on PATREF is a SEPARATE per-node capability gate (`zd_wl_kind`, where PATREF/DEFER are absent entirely and fall to `return 0`). Opening either alone moves nothing.
+
+**GATE (s39):** bracket m3 **280P/35F/2T** · m4 **274P/40F/2T/1L** at `c0c77585`. ZD-PATREF gate OFF = **318/318 `.s` byte-identical to the pre-edit binary**, verified by stash/build/compare, not inferred. ⚠ This bracket's F/T split differs from s38's (281/25F/11T) — PASS counts agree, the F-vs-TIMEOUT split is container-speed sensitive; BY SET within-session is sound, cross-session T/F splits are not.
+
+**WHY DEFAULT OFF (measured, not caution):** `bb_match_defer.cpp` has NO `op_zres` arm (grep=0). With both gates open, claims HALVE where the template absorbs the verdict (alt1 1→0 stores, nqueens 6→2, sudoku 12→6) and INFLATE where it cannot (any 256→496B, len 176→368B, roman 240→416B). The 017 falsification shape, measured.
+
+**NEXT (ordered, dependency-real):** (1) hunt **066_pat_fence_fn_nested** MONITOR-FIRST under `SCRIP_ZD_DYNARM=7` — it is the ONLY thing the veto still buys; (2) `bb_match_defer.cpp` **op_zres arm** — tripwire = any/len/roman carve must go DOWN or stay flat, never up; (3) flip `SCRIP_ZD_PATREF` default ON, own commit; (4) delete the `zdyn` veto once (1) is green; (5) **GLUE #2 (FRAMED)** = emitted `push rbp; mov rbp,rsp` + pass_wires + `mov rsp,rbp; pop rbp`, replacing the `rt_defer_open`/`rt_proc_open_fn` C pair — FLAT stays default for constant-folded targets.
+
+⛔ **CROSS-FRONT NOTE:** `zd_wl_kind`/`zd_k` are ALPHA-owned by the §1 contract. This session edited them under Lon's explicit "all your choices" grant with the wall down. ALPHA must be told: the gate is default-OFF and byte-identical off, so no ALPHA rung is disturbed at HEAD.
+
+---
+
+## ⭐⭐ PRIOR CURSOR — s38 (HQ revamp, 2026-08-03b) — U LADDER · READ THE RULING RELAY ABOVE FIRST
 
 **⛔ ARCHITECTURAL SUPERSESSION:** The Lon UNWIND RULING (relay above, full law in GOAL-SNOBOL4-BB.md top cursor) voids the ZW-16 s38 four-part recipe as written. The s38 plan assumed failure whacks at a computed depth — the ruling deletes that assumption entirely. **Do not execute the s38 `op_zw2` / `bb_glue_framed_leave` recipe until U-1 is green**; mechanism-2 RBP frames survive (law-4, clause 3 FENCE whack), but their interaction with the unwind chain must be designed under the new model, not patched under the old one.
 
