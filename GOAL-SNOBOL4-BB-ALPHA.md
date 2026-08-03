@@ -40,7 +40,7 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ## ⭐⭐⭐ LIVE CURSOR — s40 (2026-08-03, "Complete the ZETA CELLS / all your choices") — U-GATE + U-SCOPE + U-SHY LANDED
 
-**SCRIP HEAD: `799488f7`** (U-SCOPE fix). Parent chain: `0a05b2d3` (U-GATE) ← `8ec8dfa2` (ZD-PATREF fix). Corpus: `0c2b0df7` (untouched — zero codegen regen, gate-off byte-identical).
+**SCRIP HEAD: `799488f7`** (U-SCOPE fix). Parent chain: `0a05b2d3` (U-GATE) ← `8ec8dfa2` (ZD-PATREF fix). Corpus: `67e3810a` (uw2/uw3 witnesses committed to probe/).
 
 **LANDED s40:**
 
@@ -50,7 +50,9 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 3. **U-SHY (read-only audit):** Every admitted kind in `zd_wl_kind` is **default-ON**. One named exception: IR_MATCH_PATREF/IR_MATCH_DEFER (default OFF, reason: bb_match_defer.cpp has no op_zres arm — 017 falsification shape; flip rung = O-PB-3 OMEGA). Table committed to FINDING doc. Directive satisfied: zero kinds "OFF — reason: unknown."
 
-**NEXT:** U-AUTH (post-U-2 verification, can run now) · RECON with OMEGA after U-2 lands · O-PB-2a cross-stmt closure coordination with OMEGA (the ARMED Kc span contamination, which U-SCOPE confirmed is a feature not a bug for the armed path — OMEGA should audit whether their O-PB-2a PATREF exclusion is sufficient for all cases).
+4. **U-WIT (corpus `67e3810a`):** uw2 + uw3 U-1b acceptance witnesses committed to `corpus/probe/`. uw2 = success-path control (OUTPUT = A + B, always passes both gates). uw3 = fail-side behavioral witness (GT comparisons with :F exits; .s diff confirms U-1b law: gate-OFF emits `add rsp,64` accumulated whack, gate-ON emits `jmp n4_coerce_numeric_β` own-K roll). Both pass SPITBOL oracle and both scrip gates at HEAD. Positive-control law satisfied.
+
+**NEXT:** U-AUTH (post-U-2 verification — verify `grep -rn 'x86_zclaim(' src/templates/bb_*.cpp | wc -l` = 0 after U-2 lands) · RECON with OMEGA after U-2 lands · O-PB-2a cross-stmt ARMED Kc contamination coordination.
 
 ## ⭐⭐⭐ PRIOR CURSOR — s39 (2026-08-03, "all your choices") — ZD-PATREF INFLATION FIX · RECON NEXT
 
