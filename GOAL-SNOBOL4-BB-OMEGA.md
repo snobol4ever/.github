@@ -6,6 +6,11 @@
 
 ---
 
+## ⛔⭐⭐⭐ HQ RULING RELAY — THE UNWIND (Lon, 2026-08-03b) — READ BEFORE SPENDING ANY FAIL-SIDE CURSOR
+Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and rolls to pred's β, until STATEMENT_BEGIN's β (the sole fail terminus) jumps to the :F target/next statement. Whacks are FORWARD-path only: FENCE0/1 commit, MATCH_END (SN4 language fence), STATEMENT_END final success. VOIDED: zd_wp accumulated fail staging, the ZW-5 O-2 per-depth stub ladder, ENDJMP steal/op_wsteal, mid-extent depth guards. SURVIVES: the trivial-beta ZPOP fold (legal fusion of the unwind), law-4 RBP for success-side indeterminable whacks + match housekeeping. Full four-clause law + LADDER U = GOAL-SNOBOL4-BB.md top HQ cursor. U-1 opened at HQ behind SCRIP_UNWIND (default OFF).
+
+---
+
 ## ⛔⭐⭐⭐ HQ RULING RELAY (Lon, 2026-08-03 HQ session) — READ BEFORE SPENDING THE "r9/WIRE IS NEXT" CURSOR BELOW
 
 1. **RBP IS THE BASE. r9/wire IS RETIRED.** Lon's ruling, delivered at HQ this session — and his point stands that it was in the standing directive at every prompt ("…with a C-style RBP used occasionally only when absolutely necessary"): the depth-immune base at every indeterminacy boundary is a C-style RBP frame (`push rbp; mov rbp,rsp`, old_rbp in the frame; nested indeterminacy = nested frames), whack = `mov rsp,rbp; pop rbp`. The STF bracket ("already exists as STF", `FINDING-2026-08-02h`) is the existing embodiment to point at the boundaries. The s23i "the REAL fix is r9/wire" cursor prose is inherited-recon rot — RULES rot-class in a new costume — and is VOIDED.

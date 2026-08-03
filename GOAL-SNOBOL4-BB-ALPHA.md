@@ -13,6 +13,11 @@
 
 ---
 
+## ⛔⭐⭐⭐ HQ RULING RELAY — THE UNWIND (Lon, 2026-08-03b) — READ BEFORE SPENDING ANY FAIL-SIDE CURSOR
+Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and rolls to pred's β, until STATEMENT_BEGIN's β (the sole fail terminus) jumps to the :F target/next statement. Whacks are FORWARD-path only: FENCE0/1 commit, MATCH_END (SN4 language fence), STATEMENT_END final success. VOIDED: zd_wp accumulated fail staging, the ZW-5 O-2 per-depth stub ladder, ENDJMP steal/op_wsteal, mid-extent depth guards. SURVIVES: the trivial-beta ZPOP fold (legal fusion of the unwind), law-4 RBP for success-side indeterminable whacks + match housekeeping. Full four-clause law + LADDER U = GOAL-SNOBOL4-BB.md top HQ cursor. U-1 opened at HQ behind SCRIP_UNWIND (default OFF).
+
+---
+
 ## ⛔⭐⭐ HQ RULING RELAY (Lon, 2026-08-03 HQ session — post-your-A-9; diagnosis + ruling, cursor untouched)
 
 1. **RBP IS THE BASE AT EVERY INDETERMINABLE BOUNDARY; r9/wire IS RETIRED** (Lon ruling — the directive's "C-style RBP used occasionally only when absolutely necessary" was the standing answer all along). A `pat_static=0` decline is a ROUTING to mechanism 2 (empty C-style RBP frame + few-instruction whack), never a terminal verdict — your A-9 census ("all declined at pat_static=0 correct") is therefore the mechanism-2 FRAME WORKLIST, correctly sealed, not a ceiling. "Semantic ceiling" is retired vocabulary.
