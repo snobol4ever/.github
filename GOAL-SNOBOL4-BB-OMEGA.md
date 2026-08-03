@@ -17,7 +17,7 @@
 
 ## ⭐⭐⭐ LIVE CURSOR — s37 (2026-08-03, Sonnet) — ZW-16 FINDING: blob-context op_zw staging unsafe; mechanism-2 ALTERNATE frame is next
 
-**Parent:** SCRIP `53705cf1` (ZW-15 s36). **This session commits:** `.github` FINDING + cursor only — no SCRIP code changes (revert; HEAD stays at `53705cf1`). Push needs credentials.
+**Parent:** SCRIP `53705cf1` (ZW-15 s36). **This session commits:** `.github` FINDING + cursor only — no SCRIP code changes this session. **SCRIP merged HEAD (pulled during handoff):** `fa007877` = Lon's mechanism-2 infrastructure (SCRIP_ZW_RB default OFF, `op_zw2` field, planner + templates for the RBP boundary arm). MERGE GATE: m3 281/25F/11T · m4 274/31F/11T/1L BY SET IDENTICAL to bracket. Push needs credentials.
 
 **⭐⭐ ZW-16 FINDING (full doc: `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-ZW16-BLOB-CONTEXT-OP-ZW-STAGING-UNSAFE-R12-NOT-COHERENT-ACROSS-BACKTRACK.md`):**
 
@@ -29,11 +29,11 @@ Blob-context `op_zw` staging attempted (emit.cpp zd_plan blob-member loop: propa
 
 **Architectural verdict:** Both root causes require mechanism-2 (Lon HQ ruling 2026-08-03 verbatim): a nested RBP frame at each indeterminacy boundary inside the blob. ALTERNATE = one boundary; ARBNO = another. The `nblob_real>0` population (73 programs) is the mechanism-2 worklist. The `nblob_real==0` gate (49 armed programs) is correct and stays.
 
-**NEXT:** Mechanism-2 for ALTERNATE — `bb_match_alternate.cpp` gets an RBP frame at α saving r12 (current CAS top at arm-entry); each arm-entry restores from frame cell; ALTERNATE-ω whacks. Same structure as MATCH_BEGIN's ZW-15 frame one level deeper. Once ALTERNATE's frame coherently maintains r12 across arm retries, CAPTURE_COND's β is safe and the arm-interior becomes a plannable sub-run.
+**NEXT:** Lon's mechanism-2 infrastructure (`fa007877`) already landed the planner verdict (`op_zw2`), the `SCRIP_ZW_RB` killswitch (default OFF), and template arms in `bb_match_begin.cpp` / `bb_match_end.cpp`. Per Lon's own session note: the boundary must be at the STATEMENT HEAD (pre-all-cells), not at MATCH_BEGIN (post-VAR-claim), so the whack correctly returns to statement entry rsp. Next: extend `emit_stmt_frame_scan` to admit `flat_pat=1` graphs (match-bearing); remove the `!flat_pat` guard at emit.cpp ~2847 when mechanism-2 is active. Then flip `SCRIP_ZW_RB` default ON and gate the 73 blob-clause programs.
 
 **GATE (s37, HEAD `53705cf1`, measured):** m3 **281/25F/11T** · m4 **274/31F/11T/1L** · bench **18/21 EXACT HOLD** · BY SET identical to s36 bracket.
 
-**WATERMARK (s37):** armed **49** · push_rbp **326** · rsp_mark **132** · blob-clause declined **73** · fused-terminal **0** · SCRIP commit: `53705cf1` (unchanged) · bracket parent: `4bba30c4`.
+**WATERMARK (s37, merged HEAD `fa007877`):** armed **49** · push_rbp **326** · rsp_mark **132** · blob-clause declined **73** · fused-terminal **0** · SCRIP merged HEAD: `fa007877` · bracket parent: `4bba30c4`.
 
 ---
 
