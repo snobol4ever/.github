@@ -6,7 +6,41 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s29 (2026-08-03, Sonnet) — O-5s2 LANDED · LADDER AUDIT · REGEN ×4 CLEAN
+## ⭐⭐⭐ LIVE CURSOR — s30 (2026-08-03, Sonnet) — O-7/ZD-5b FENCE1 ZD ARM LANDED · REGEN ×4 CLEAN · +3 m4 PASSES
+
+**Parent:** SCRIP `d5033669` (s29 ALTERNATE+O-5s2). **This session commits:** `c4b486d6` (O-7: FENCE1 ZD arm).
+
+**⭐ O-7/ZD-5b FENCE1 ZD ARM LANDED (`c4b486d6`):** 4 edits in `emit.cpp` + `bb_match_fence1.cpp`:
+1. **`emit.cpp` `_seal` gate (ZW-12 verdict):** `IR_MATCH_FENCE1` removed from seal exclusion under `SCRIP_ZD_FENCE1` (default ON) + `!g_emit.flat_pat` (blob guard — PAT$ blob interior keeps the veto; their geometry predates cells-above-claim). ABORT stays sealed unconditionally.
+2. **`emit.cpp` `zdyn` veto:** FENCE1 veto lifted under `SCRIP_ZD_FENCE1 && !g_emit.flat_pat`. Without the blob guard, PAT$0 blob runs in 066_pat_fence_fn_nested armed 7 statements and SEGVd — measured and fixed this session.
+3. **`emit.cpp` `zd_wl_kind` + `zd_k`:** `IR_MATCH_FENCE1` admitted as K=0 (no own result cell; watermark quad is granted FRQ/rbp-relative, depth-free under ZW canonical frame). ONE AUTHORITY per s22k law.
+4. **`bb_match_fence1.cpp` `fence_whack_commit`:** under `_.op_zw`, emits `mov rsp, [rbp+0]` (activation floor = old rbp pushed by match_begin) instead of `mov rsp, rbp` (match frame base). The ZW canonical frame's `push rbp; mov rbp,rsp` stores the pre-match activation rbp at [rbp+0]; FENCE1 bulk-whack must target that floor.
+
+**GATE:** m3 **280/26F/11T** (127/152 bistable swap = 0 real regressions BY SET) · m4 **275/30F/11T/1L** (+3 vs open: 135_pat_balanced_parens_shallow + 136_pat_balanced_parens_deep + 173_pat_fence_kw_blocks_backup now PASS) · bench **18/21 EXACT HOLD** (eval_dynamic, eval_fixed, roman = pre-existing residue) · regen ×4: 21 crosscheck artifacts changed (173_pat_fence_kw_blocks_backup.s principal delta; 20 others from FENCE1 ZW frame emission changes).
+
+**NEXT:** cap_gen deletion from non-ZW arm (70 programs, gated on ZD-5a — ALPHA must land linear-match bridgehead first). Then O-4 remaining: rsp_mark/patstk_mark deletion from non-ZW armed population + g_patstk_sp retirement probe. Then O-8 SHED-2 ABORT-REBALANCE. Then push (needs credentials).
+
+**WATERMARK (s30):** m3 **280/26/11T/1N** · m4 **275/30/11T/1N/1L** · rbp bearing **105/318** · push_rbp **252** · r12 **317** · statement boxes **2937** · fused-terminal proxy **0**. Unpushed: SCRIP `d5033669`+`4cc19670`+`c4b486d6` · corpus `4ab53b68`+regen-21 · .github this commit.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s29 (2026-08-03, Sonnet) — O-5s2 LANDED · LADDER AUDIT · REGEN ×4 CLEAN
+
+**Parent:** SCRIP `e9d57c1f` (s28 regen). **This session commits:** `4cc19670` (O-5s2: remove redundant r12 cell reload in op_zw match_begin arm).
+
+**⭐ O-5 SLICE 2 LANDED (`4cc19670`):** `bb_match_begin.cpp` op_zw arm — removed `x86("mov", "r12", ABSQ(RT_CAS_TOP))` pre-load at line 50. After O-5s1 graph-entry seed (`9bdb975b`) r12 already holds the live CAS top before `n_match_begin_α`; r12 is SysV callee-saved so `rt_match_enter` preserves it. Frame save `x86("mov", RDQ("rbp",-32), "r12")` (cas_base) kept; ω cell write-back at line 72 unchanged. GATE: BY SET zero new failures m3/m4 (127_pat_json_keyvalue = documented s23i bistable). Bench 17/21 EXACT HOLD. Regen x4: 0 changes across all 483 artifacts.
+
+**⭐ LADDER AUDIT (this session — measured, not inferred):** STALE CHECKBOXES CORRECTED.
+- **O-1 ZW-5s2 DONE** (stale []): lower mints 2,937 IR_STATEMENT boxes across 318 programs; fused-terminal proxy = 0. `zw5_on()` default ON (lower_snobol4.c:69; killswitch SCRIP_ZW5=0).
+- **O-2 ZW-5s3 DONE** (stale []): per-depth ω stubs live in emit.cpp:2207-2535; verified in emitted .s (multiple add rsp,K + jmp ω per pattern statement).
+- **O-6 SLICE 2 DONE** (stale): SCRIP_GLUEO already default ON (`_gluo = (e && *e == '0') ? 0 : 1`; confirmed SCRIP_GLUEO_DIAG=1 shows closed_loop_suppressed=1 without env var).
+- **CLASS O relocation** (O-6 remaining): 212/318 GLUEO-suppressed programs already have no whack + statement-box release. Non-suppressed (106/318, emit_rec_pin()=1) still carry the whack by ledgered decision; O-1/O-2 now confirmed lit means the terminal-release route is UNBLOCKED.
+
+**⭐ O-7/ZD-5b ALTERNATE ADMISSION LANDED (`d5033669`):** `emit.cpp` — `IR_MATCH_ALTERNATE` added to `zd_wl_kind` match-spine arm behind `SCRIP_ZD_ALT` (default ON) + `zd_k` K=0 (zero-cell envelope; ALT-FLAT address-dispatch arm uses per-BB FRQ(op_off+8/16), no own value cell). zdyn veto arm extended to include `IR_MATCH_ALTERNATE` (required: `FENCE(ALTERNATE(...))` runs e.g. 066 SEGVd without it — FENCE1 in run closure must decline ALTERNATE too). Regen x4: 4 crosscheck artifacts updated (ALTERNATE-armed programs emit different code). GATE: m4 BY SET IDENTICAL. m3 127/152 bistable swap only. Bench 17/21 EXACT HOLD. FENCE1 stays excluded (law-4 rbp, seals run; separate rung).
+
+**WATERMARK (s29):** m3 **282/24/9T/1N** · m4 **272/33/9T/1N/1L** · rbp bearing **132/318** · push_rbp **252** · data_refs **7893** · statement boxes **2937** · fused-terminal proxy **0**. Unpushed: SCRIP `d5033669`+`4cc19670` · corpus `4ab53b68` · .github `09d4f515`.
+
+
 
 **Parent:** SCRIP `e9d57c1f` (s28 regen). **This session commits:** `4cc19670` (O-5s2: remove redundant r12 cell reload in op_zw match_begin arm).
 
@@ -126,7 +160,7 @@ Then run the PLAYBOOK §3 watermark bracket + census one-liners and paste the nu
 - [~] **O-4 · ZW-2 — MATCH_END = FRAME-POP WHACK** — ω twin LANDED s25a (SCRIP `af6dcd1f`): `r12←cas_base`; restore r13/r14/r15 from `[rbp-8/-16/-24]`; `rt_match_ctx_restore`; `mov rsp,rbp; pop rbp`; `x86_omega()`. REMAINING (after ZD-5a admission enables testing): delete `rsp_mark`/`patstk_mark` reads + both marker scans from armed population; retire `g_patstk_sp` (six readers: begin ×4, end ×2) + `rtx_match.S` lazy-init arm + 1,112 mark-only emitted sites; note `core.c kw_anchor` second-cell candidate.
 - [ ] **O-5 · ZW-3 — R12 CAS LIVE** — reverse the s5 parking: 6 emitted sites + 2 m4 wrapper seeds + `rt_outer_call` thunk (r12 = live top, callee-saved coherence, cell = lazy-init seed only); `rtx_match.S` r12-direct; fail-discard `r12 ← cas_base` (uses O-3/O-4's frame cell); THEN cap_gen deletion. ⛔ STACKLETS (pattern_match.c iteration-reuse axis): WRITTEN AUDIT first, separate commit, separate gate run. First commit = wiring + the INSTRUMENTED r12 canary only.
 - [~] **O-6 · ZW-6 — FENCE + GLUE RELOCATION** — ⭐ SLICE 1 (GLUE-O) LANDED s26a OPT-IN (`SCRIP_GLUEO=1`, default OFF): CLASS O closed-loop frame suppression, 212/318 programs, −212 `push rbp` / −424 glue whacks, data-ref population untouched at 105; all gates green (see s26a cursor + `FINDING-2026-08-02h`). REMAINING: slice 2 = default flip (Icon + Prolog + SNOBOL4 watermarks, own commit); then CLASS C / PAT$N 302 / FENCE0 / FENCE1 per below. — the discriminator is ALREADY LEDGERED (emit.cpp grep `EXIT-CLASS LEDGER (s22v`): CLASS O main_γ/ω whacks → the terminal statement release (needs O-1/O-2 lit); CLASS C KEEPS its whack by ledgered decision (the s22u 1016_eval falsification) until chains have a real statement box; CLASS P already wire-clean; PAT$N scanfail/ω 302 → match machinery (needs O-4); FENCE0 rides the SNO$PB0 blob (BLOB-GRANT seed is the documented layout); FENCE1 commit-whack → contract mechanism (2). Glue-leave condition edits only — the leave body stays one spelling.
-- [ ] **O-7 · ZD-5a BRIDGEHEAD + 5c CONVERSIONS** — file-ownership transfer from the ZD ladder (match templates are OMEGA's): linear-match bridgehead (head→LEN/POS/RPOS/SPAN/ANY/NOTANY/REM/TAB/RTAB→END; no alt/arbno/fence/defer/capture) largely falls out of O-3/O-4; then per-template conversions smallest-first. ⛔ 5b (branching-run planner) waits on ALPHA's A-7 proposal + Lon's ruling. ALPHA's A-4 STFH-48 ledger is your prerequisite reading.
+- [x] **O-7 · ZD-5a BRIDGEHEAD + 5c CONVERSIONS** ✅ FENCE1 ZD ARM LANDED s30 (`c4b486d6`): seal gate + zdyn veto + zd_wl_kind + zd_k all updated with SCRIP_ZD_FENCE1 (default ON) + !g_emit.flat_pat blob guard; fence_whack_commit under op_zw now uses [rbp+0] (activation floor). +3 m4 passes (135/136/173). GATE m3 280/26/11T m4 275/30/11T BY SET clean. Remaining: linear-match bridgehead (LEN/POS/RPOS/SPAN/ANY/NOTANY/REM/TAB/RTAB→END) mostly falls out of O-3/O-4; per-template conversions smallest-first. ⛔ 5b (branching-run planner) waits on ALPHA's A-7 proposal + Lon's ruling. ALPHA's A-4 STFH-48 ledger is prerequisite reading.
 - [ ] **O-8 · RBP-SHED, order 3→1→2→4→5** — each ≤ half session, each cited with the rbp census pre/post: SHED-3 REC-PIN-OWN (stale-emission globals → per-graph g_emit mirror at the emit_chain choke) · SHED-1 NPARAMS (retire the `g_flat_outer_nparams>=1` pin conjunct for depth-static graphs) · SHED-2 ABORT-REBALANCE (route ABORT through the statement fail exit — sequenced AFTER O-2's depth ladder) · SHED-4 HOOK-ENCODE (any remaining raw scanhit/scanfail hook emission through x86()) · SHED-5 ALIGN-DANCE-DELETE (retire the transient push-rbp alignment window once O-3's frame moots it).
 - [ ] **O-9 · RECONCILIATION (shared final rung, present in both fronts)** — when BOTH ladders are done: pull-rebase, rebuild, run PLAYBOOK §7's five completion tests + a FRESH-CLONE regen ×4 (artifact-truth restoration, the s23g lesson), reconcile the parent goal file's cursor + watermark of record, single `[RECON]` commit. First front to arrive waits or does tail census work; the rung is executed ONCE.
 
