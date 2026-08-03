@@ -13,7 +13,13 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s32 (this session) — A-9 NEXT: RECONCILIATION (both fronts done)
+## ⭐⭐⭐ LIVE CURSOR — s34 (this session) — A-9 RECONCILIATION COMPLETE
+
+**LANDED s34 (this session):**
+- **A-9 RECONCILIATION EXECUTED.** Pull-rebase at OMEGA HEAD `4bba30c4` (ZW-14 s33b). Rebuild green. §7 full gate: m3 295/22 · m4 289/27 BY SET IDENTICAL to s32 open bracket · bench 18/21 EXACT HOLD · regen ×4 zero changes (tree already honest). DEFER/PATREF census: all 105 declined runs have `pat_static=0` — graph-scope ZW-13 seal correct for 161 and cross (genuinely re-entrant); 10 remaining seal/no-END/window sites are FENCE window-integrity (OMEGA-owned). No actionable ALPHA items remain. COMMIT: `.github` `[RECON]` only — no SCRIP code changes this session.
+- **Parent:** SCRIP `4bba30c4` (OMEGA ZW-14 s33b). Corpus: `66e244c7`.
+
+## ⭐⭐⭐ PRIOR CURSOR — s32 (this session) — A-9 WAS NEXT: RECONCILIATION (both fronts done)
 
 **LANDED s32 (this session):**
 - **ZD-CAP DEFAULT FLIP — CLOSED.** `SCRIP_ZD_CAP` default flipped OFF→ON. Template ZD arms (SAVE/COND/IMM) and staging-loop COND/IMM special-case both present at HEAD (s27 OMEGA delivery). BY SET IDENTICAL m3 290/28, bench 18/21 EXACT HOLD. Declined runs 141→105. ASSIGN_SAVE 41→0 fully drained. Regen ×4: 34 crosscheck + 12 feature. COMMIT: SCRIP `550915ff`.
@@ -145,7 +151,7 @@ Then run the PLAYBOOK §3 watermark bracket + census one-liners and paste the nu
 - [x] **A-7 · ZD-5b WRITTEN PROPOSAL — DELIVERED s23t** (`DESIGN-SN4-ZD5B-BRANCHING-RUN-PROPOSAL.md`). Population: 198 declined runs / 103 programs (57% of total 349). Three ruling questions: ALTERNATE depth model; CAPTURE pair law; ARBNO out of scope. AWAITING LON RULING before implementation. O-7 consumes the ruling.
 - [x] **A-7.cap · ZD-5b ASSIGN_SAVE/COND/IMM default ON — CLOSED s32.** SCRIP_ZD_CAP flipped OFF→ON. Template arms + staging special-case confirmed present at HEAD (s27 OMEGA delivery). BY SET identical m3 290/28. ASSIGN_SAVE 41→0 first-blockers. 141→105 total declined runs. SCRIP `550915ff`.
 - [~] **A-8 · ZD-6 STANDALONES — PARTIALLY CLOSED s28.** Measured at HEAD: (1) **130 PASSES** — clean m3 exit, output matches ref, no segv; the prior "clean-HEAD segv" was stale. (2) **W04 all PASS** — W04_arbno_basic/zero/backtrack all green rc=0; "DIV member" stale. (3) **bb_op_name complete** — runtime sweep of all 125 ops (IR_OP_COUNT): zero IR_UNKNOWN returns; the "ops 14/73–77" gap was stale. (4) **131 CROSS-FRONT REQUEST TO OMEGA (s28):** `131_pat_boolean_expr_grammar` segvs at step 1 (before first trace event). Monitor (csn vs scr): SCRIP crashes in `rt_cap_push` at `0x7fffffff9840` — stack overflow. Root cause: statement `s POS(0) expr RPOS(0)` emits `n103_var_α: sub rsp,528` (33 zero-fill stores) because the nested FENCE/ALTERNATE/CAPTURE pattern (`atom=FENCE(...)`, `op=FENCE(...)`, `expr=atom.A ws (op.OP ws atom.B | eps)`) is declined by dynamic veto (IR_MATCH_FENCE1 in closure). The 528B UCLAIM plus rt_cap_push recursion overflows the 8MB stack (`ulimit -s 8192`). Fix requires ZD-5b ALTERNATE/SEQUENCE/FENCE1 ZD arms (OMEGA-owned `bb_match_alternate.cpp`, `bb_match_sequence.cpp`, `bb_match_fence1.cpp`) to arm those statements and replace the UCLAIM with per-BB cells. 131 stays red until OMEGA ZD-5b FENCE1/ALTERNATE lands. **REMAINING ALPHA WORK IN A-8:** none — all sub-items resolved or cross-fronted.
-- [ ] **A-9 · RECONCILIATION (shared final rung, present in both fronts)** — when BOTH ladders are done: pull-rebase, rebuild, run PLAYBOOK §7's five completion tests + a FRESH-CLONE regen ×4 (artifact-truth restoration, the s23g lesson), reconcile the parent goal file's cursor + watermark of record, single `[RECON]` commit. First front to arrive waits or does tail census work; the rung is executed ONCE.
+- [x] **A-9 · RECONCILIATION — COMPLETE s34.** Pull-rebase to OMEGA `4bba30c4`. Rebuild green. §7 full gate: m3 295/22 · m4 289/27 BY SET IDENTICAL · bench 18/21 EXACT HOLD · regen ×4 zero changes. DEFER/PATREF census completed: no actionable ALPHA item remains. `.github` `[RECON]` commit is the handoff artifact.
 
 ## Handoff
 Per RULES: update THIS cursor (rung + watermark + parent/rebased hashes) · delete completed rungs · regen ×4 (contract §4) · commit `[ALPHA] ...` · pull-rebase (MERGE GATE if twin landed) · push code repos then `.github` · `bash scripts/handoff_status.sh` and paste verbatim — its output, not yours, says COMPLETE.
