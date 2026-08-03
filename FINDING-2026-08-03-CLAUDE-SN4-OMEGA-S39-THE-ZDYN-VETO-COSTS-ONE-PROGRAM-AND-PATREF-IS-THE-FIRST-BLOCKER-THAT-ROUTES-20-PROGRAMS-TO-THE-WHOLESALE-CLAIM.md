@@ -112,10 +112,39 @@ Three instructions, **zero frame** — γ-wire in rcx, ω-wire in rdx, jump. Alr
 
 Claims halve where the template can absorb the verdict and **inflate where it cannot**. The gate exists to measure that gap; closing it is the template arm, which is the next rung.
 
+
+## 8b. ⛔ THE K-CHOICE HYPOTHESIS IS FALSIFIED — MEASURED A/B, DO NOT SPEND A RUNG ON IT
+
+The obvious diagnosis of §8's inflation was: `emit.cpp` SPAN SHRINK (grep `SPAN SHRINK`) drops an armed member from the claim extent only when `zd_k(nd) > 0`, so a K=0 PATREF leaves its zls watermark slot inside the claim and inflates it. Under Lon's "have each BB allocate its LOCAL STORAGE needs, IF it has any" the fix looked like K=16 self-carve.
+
+**A/B'd with `SCRIP_ZD_PATREF=2` (arm with K=16) vs `=1` (arm with K=0), both under `SCRIP_ZD_DYNARM=7`. THE TWO ARE BYTE-FOR-BYTE IDENTICAL on every program tested:**
+
+```
+prog        OFF        K=0        K=16       (max carve / stmt_claim stores)
+any         256/2      496/2      496/2
+len         176/1      368/1      368/1
+roman       240/4      416/4      416/4
+alt1        384/1      384/0      384/0
+nqueens     1872/6     1872/2     1872/2
+sudoku      4944/12    4944/6     4944/6
+match/ops/breakx    unchanged in all three arms
+```
+
+**The K choice is NOT the lever. The inflation mechanism is UNIDENTIFIED and remains open.**
+
+What the emitted `.s` does show (any.sno, statement 1) is that the RELOCATION half works correctly:
+```
+GATES OFF:  n1_keyword_snobol4_α: sub rsp,256   <- claim carved at statement head
+            n2_match_begin_α:     (no carve)
+GATES ON:   n1_keyword_snobol4_α: sub rsp,16    <- n1 SELF-CARVES, per-BB model working
+            n2_match_begin_α:     sub rsp,256   <- claim relocates to the new declined head
+```
+So arming converts the head node to per-BB correctly and the claim moves to the first still-declined node. The defect is that in statement 2 the relocated claim is 496B where the original was 256B — it GREW on relocation. Candidate mechanisms NOT yet tested: (a) claim extent = `max_extent − claim_base` where the new base shifts the span rather than shrinking it; (b) `op_zdepth` compensation for the newly-armed prefix being added into the claim rather than netted out; (c) `zvo_resolve` owner-table base moving under the relocated head. **Bisect these before writing any template arm** — the s39 lesson is that the plausible-looking K fix was vacuous, and a template arm written against the wrong mechanism is the same wasted rung one level down.
+
 ## 9. NEXT RUNG (ordered, dependency-real)
 
 1. **Hunt 066_pat_fence_fn_nested MONITOR-FIRST** under `SCRIP_ZD_DYNARM=7`. It is the sole thing the veto still buys.
-2. **`bb_match_defer.cpp` op_zres arm** — the FLAT-glue fast arm needs its ZD spelling so an armed PATREF stops inflating the claim (§8's `any`/`len`/`roman` rows are the tripwire; they must go DOWN or stay flat, never up).
+2. **Bisect the §8b relocation-inflation mechanism FIRST** (a/b/c candidates named there) — the K hypothesis is already falsified; only then the **`bb_match_defer.cpp` op_zres arm** — the FLAT-glue fast arm needs its ZD spelling so an armed PATREF stops inflating the claim (§8's `any`/`len`/`roman` rows are the tripwire; they must go DOWN or stay flat, never up).
 3. **Flip `SCRIP_ZD_PATREF` default ON** — own commit, own gate, per the s22h law.
 4. **Delete the `zdyn` veto** once (1) is green.
 5. **GLUE #2 (FRAMED)** — emitted `push rbp; mov rbp,rsp` + `bb_glue_pass_wires` + `mov rsp,rbp; pop rbp`, replacing the `rt_defer_open`/`rt_proc_open_fn` C pair on the slow arm. FLAT stays the default for constant-folded targets: a folded pattern is the same pattern folded or not, and gets no frame.
