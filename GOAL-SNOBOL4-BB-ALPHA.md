@@ -6,6 +6,18 @@
 
 ---
 
+## ⛔⭐⭐⭐ ADVISORY + RE-CHARTER — 2026-08-03e (Lon-directed HQ/advisory seat; SUPERSEDES the s38 "NEXT RUNG: RECON with OMEGA after U-2 lands" line below): YOUR NEXT = U-GATE
+
+**Re-charter (Lon this session: "get those two sessions back on the proper track to completion"):** your admission ladder is complete (A-9) and your seat was idling while the U ladder's missing INSTRUMENT went unbuilt. You built ZD-DEPTH; the census seat is now yours. **NEXT = U-GATE: `scripts/test_gate_omega_own_k.sh`** — concurrent-safe by construction (ONE NEW FILE in `scripts/`, zero `src/` edits, collides with no contract-owned file).
+
+**SPEC v1 (census first, gate later — your own ZD-DEPTH maturity path; full text FINDING 2026-08-03e §5):** over `corpus/crosscheck/**/*.s` + `corpus/benchmarks/snobol4/*.s`, per file: (a) BOX = label `^(n[0-9]+|proc)_.*_α:`, K = first `sub rsp, K` before the next α (0 if none); (b) **ω-coverage** = fraction of K>0 boxes owning a release site — an emitted `_ω` body `add rsp,K_own`, OR the DRIVE_PAIR alias β (`add rsp,K_own` + `jmp *_β`), the ruling's own alias clause; (c) **orphan-adds** = `add rsp,J` where J matches no single carve size — WHITELIST rsp,8 alignment (until SHED-5) + framed `mov rsp,rbp` restores + migration-era END staged pops, and a J equal to a CONTIGUOUS carve-run sum is the ΣK FOLD: its own column, never the orphan bucket. ⛔ **MODEL THE POP YOU AUDIT** — your s38 lesson 2b verbatim; skip the fold model and you mint 100+ false orphans and reproduce [ZD-GAP] in a new costume. (d) Output per-file + rollup + worst-10; **NOT pass/fail in v1**; never wire `.s` byte-identity into it. (e) **Hand-measured baseline to confirm on first run:** roman **135α/123β/35ω** · orphan sizes {64,80,96,112,128,144,256,272} = 34 instructions · crosscheck ≥200B-carve files **132/485**. LBL duplication inflates roman both sides until finishing-plan Step 5 — note, don't chase. (f) **Watermark gains `ω-cov X/Y · orphan N` permanently.**
+
+⛔ **DENOMINATOR LAW — the error that produced "already done" upstairs:** never report a fraction whose denominator is the admitted/armed subset without saying so in the same sentence. (OMEGA s39's "100 of 120" excluded exactly the 132 UCLAIM-bearing files the directive targets.)
+
+**Queued after U-GATE:** OMEGA's s40 closure-scoping request (O-PB-2a cross-stmt contamination — your zvo_resolve/zd_plan terrain) · ratify-or-refer the O-PB-1 edit at emit.cpp:1995 sitting in your zdyn block (edit is correct; ownership line owed at RECON) · RECON after U-2 + U-GATE.
+
+---
+
 ## ⛔ ADVISORY FROM OBSERVER SEAT (Lon-directed, 2026-08-02, third session — diagnosis only, NOT an ALPHA/OMEGA seat)
 
 1. ⛔ **067 RESOLVED — ATTRIBUTION CORRECTED, YOU ARE EXONERATED.** Read `FINDING-2026-08-02h` (supersedes 2026-08-02g's attribution): the hang was O-2's zw5 per-depth stub machinery (rsp mispositioned into the runtime, gdb-bracketed), which your LIT admission merely exposed by widening its population. `SCRIP_ZW5` now defaults OFF (SCRIP `542776a5`); 067 green in default env. No hunt owed on your side. STILL YOURS: the container-speed lesson stands — a TIMEOUT verdict measures container speed, not correctness; record wall-clock on changed-population programs near the limit.

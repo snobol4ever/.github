@@ -6,6 +6,18 @@
 
 ---
 
+## ⛔⭐⭐⭐ ADVISORY + COURSE CORRECTION — 2026-08-03e (Lon-directed HQ/advisory seat; SUPERSEDES the s40 "NEXT (ordered)" list below): NEXT = U-2 · O-PB PARKED
+
+**The "already done" reported to Lon (s39 correction #1: "the per-BB model and the UNWIND ruling are THE SAME MODEL — β already frees own K") is a three-error compound — read FINDING 2026-08-03e before spending any cursor:** (1) **β ≠ ω** — the β-alias covers one-shot value-spine boxes only; generators need a real β (retry) AND a real ω (exhausted → free own K → roll to pred's β), and most boxes today emit NEITHER port body: roman at HEAD = **135 α / 35 ω labels (≈26% raw)**. (2) **The denominator was the admitted subset** — "100 of 120" excludes exactly the **132/485** crosscheck `.s` still carrying ≥200B UCLAIM heads, the population where the model is NOT live. (3) **`SCRIP_UNWIND` defaults OFF** (emit.cpp:2370/:2605) — a gated prototype proven on uw3 is not the emitter. And roman's release multiset still carries **8 sizes matching no single carve (34 accumulated-pop instructions)** — clause 2's named defect, in the flagship benchmark, today. The claim wasn't a lie; it was THE MODEL's existence reported as THE DIRECTIVE's completion. The DEFINITION OF DONE now lives at the top of `GOAL-SNOBOL4-BB.md` — six conditions; before all six, report the fraction, never the word.
+
+**NEXT = U-2** (HQ ladder, reaffirmed by Lon this session): match-family βs join the unwind chain (ALTERNATE arms · ARBNO extension · cursor-mover restores as fail-capable members) + MATCH_BEGIN/ARBNO/FENCE1 `bb_glue_framed_enter` frames + MATCH_BEGIN.β owns the unanchored start bump + ABORT = O(1) frame-restore to the pinned floor — the ONE legal fail-side rsp reset, legal because RBP pins it, never because anything computes depth. **O-PB-4 is SUBSUMED by U-2** (it IS finishing-plan Step 2; it lands AS U-2, not before it). **PARKED until U-2 + U-GATE (ALPHA's new census rung) land: O-PB-2b/3 · the PATREF default flip · the O-PB-2a closure-scoping thread** (queues to ALPHA).
+
+⛔ **ACCEPTANCE INVERSION — stop gating migration on identity.** U-2's gates: byte-CHANGE in the predicted direction + witnesses (141/183 m3 green · nested-ARBNO-in-FENCE inner-frame-closes-first control, per finishing-plan Step 2) + census movement (walls → four-construct core) + BY-SET no-regression. **BY-SET-IDENTICAL certifies ONLY the killswitch-OFF arm.** An identity gate on the migration itself selects for never migrating.
+
+**Contract note — reconcile, don't relitigate:** your O-PB-1 edit at emit.cpp:1995 sits inside the zdyn veto block the contract greps to ALPHA (`DYNAMIC-BOX DECLINE`). The edit is correct and stands; the ownership line is owed a sentence — ALPHA ratifies at RECON or HQ redraws the grep boundary.
+
+---
+
 ## ⛔⭐⭐⭐ HQ RULING RELAY — THE UNWIND (Lon, 2026-08-03b) — READ BEFORE SPENDING ANY FAIL-SIDE CURSOR
 Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and rolls to pred's β, until STATEMENT_BEGIN's β (the sole fail terminus) jumps to the :F target/next statement. Whacks are FORWARD-path only: FENCE0/1 commit, MATCH_END (SN4 language fence), STATEMENT_END final success. VOIDED: zd_wp accumulated fail staging, the ZW-5 O-2 per-depth stub ladder, ENDJMP steal/op_wsteal, mid-extent depth guards. SURVIVES: the trivial-beta ZPOP fold (legal fusion of the unwind), law-4 RBP for success-side indeterminable whacks + match housekeeping. Full four-clause law + LADDER U = GOAL-SNOBOL4-BB.md top HQ cursor. U-1 opened at HQ behind SCRIP_UNWIND (default OFF).
 
