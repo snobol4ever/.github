@@ -13,9 +13,14 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s27 (next session) — A-5 BLOCKED · A-8 blocked on ZW-6 · A-9 RECONCILIATION when both fronts done
+## ⭐⭐⭐ LIVE CURSOR — s28 (next session) — A-5 BLOCKED · A-8 blocked on ZW-6 · A-9 RECONCILIATION when both fronts done
 
-**Parent:** SCRIP `78aba74d` (s26 BREAK/BREAKX). **OMEGA O-2:** SCRIP `5c959cab`. **Merge gate: re-run at session start.**
+**Parent:** SCRIP `e098b324` (s27 CAPTURE/VALUE pre-wiring + rebase onto HQ `fae9001b`). **HQ landed:** `fae9001b` LBL-chain de-proc + IR_GOTO → zd_k K=0 (force-pushed onto `542776a5`; our s25–s27 rebased on top). **Merge gate: re-run at session start.**
+
+**LANDED s27:**
+1. ⭐ **A-7 ZD-5b IR_MATCH_ASSIGN_SAVE/COND/IMM + IR_MATCH_VALUE pre-wiring** (`a9db96d6`, rebased `e098b324`): `zd_wl_kind` admits all four behind `SCRIP_ZD_CAP=1` (default OFF). `zd_k`: COND/IMM/VALUE join K=0; SAVE K=16. `zd_nops`: COND/IMM/VALUE join `nd->n_operands`. Default OFF required: `rt_cap_push` fallback uses `FR(op_off)` which indexes the flat PATCTX block absent under ZD — segfaults `043_pat_len`. GATES (default OFF): **m3 293/23 BY SET identical-to-better vs s26 cursor · m4 286/30 BY SET identical · bench 18/21 EXACT HOLD**. Frontier after: ASSIGN_SAVE 17→0, VALUE 2→0 (ALTERNATE 13 now first, OMEGA-owned). ⛔ **CROSS-FRONT TO OMEGA (s27):** (1) `bb_match_capture.cpp` needs `op_zres`-gated ZD arm — SAVE: `x86_alpha() + x86("mov", ZRESD(0), "r14d") + x86_gamma() + x86_beta_trampoline()`; COND/IMM: read `ZOPQ(1,8)` (SAVE cursor via depth-diff) replacing `cfc() rspd(op_fc_disp)`, then `r14d - ZOPQ(1,8)` = match delta, pend-push/CAS store unchanged. (2) Staging loop `emit.cpp:2526` must special-case COND/IMM to stage `operands[1]` (SAVE box) not the generic `operands[0..nops-1]` walk (COND/IMM have `n_operands=2` but only `operands[1]` is a value-spine run-predecessor).
+2. ⭐ **REBASE ONTO HQ `fae9001b`**: all 7 s24b–s27 commits cleanly rebased. The one-authority `IR_GOTO` K=0 addition from HQ merged into each commit's `zd_k` line. Conflict shape: HQ touched only `zd_k`; our commits touched `zd_k` + `zd_wl_kind` + `zd_nops` — took OURS for the latter two, merged `IR_GOTO` into our `zd_k`. Full gate clean post-rebase. Regen ×4 committed.
+- **WATERMARK (s27 close):** m3 293/23 · m4 286/30 · bench 18/21 EXACT HOLD · UCLAIM-head 195. Named flake pair: 127/152 (env-pad class, container-speed variance — present or absent per run). **HQ movers now in baseline:** `test_case` TIMEOUT (honest infinite loop post-LBL-deproc), `127`/`152` F→P improvement (container-dependent).
 
 **LANDED s26:**
 4. ⭐⭐ **A-7 ZD-5b IR_MATCH_BREAK / BREAKX** (this commit): ZD arms added to `bb_match_break.cpp` + `bb_match_breakx.cpp` (dynamic-charset path, `op_zres && op_sa >= 0`). `zd_wl_kind` BREAK+BREAKX admitted behind `SCRIP_ZD_BREAK` killswitch (default ON). `zd_nops` → `nd->n_operands` (0 static, 1 dynamic). `has_blob` kind-list extended. K=16 (default — scratch slot `_.x86_scratch_off` saves old cursor across β). BREAK ZD arm: `rt_sg_scan_nonmember` → eax; ≥r15d → ω; save r14d in scratch, advance r14d → γ; restore at β/ω. BREAKX ZD arm: two-gamma shape — first-stop `rt_sg_scan_member`; on β, bump+1 and retry; extended-stop γ; L(4) ω-sink restores FR(scratch+4). GATES: **m3 281/26/10 BY SET IDENTICAL modulo named 127/152 env-pad flake · m4 272/34/10/1L BY SET IDENTICAL · bench 18/21 EXACT HOLD**.
