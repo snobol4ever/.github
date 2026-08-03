@@ -32,15 +32,24 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s42 (2026-08-03, Sonnet) — U-2a: flat_unwind_beta widened ALTERNATE+ARBNO · fire set empty (blob-interior) · structural half next
+## ⭐⭐⭐ LIVE CURSOR — s43 (2026-08-03, Sonnet) — U-2 structural: ARBNO view-restore + outer-rbp save, FENCE1 own frame landed (SCRIP_U2 default OFF); one-instruction sigma fix open
 
-**Parent:** SCRIP `5bb623fe`. **This session commits:** SCRIP `e4f95963` (U-2a: flat_unwind_beta widened, gate-off byte-identical, gate-on fire-set empty). Gate: m3 **296P/40F** · m4 **289P/41F** BY SET identical (+1P flake, zero P->F). **Full FINDING:** `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-U2A-WHITELIST-PREDICATE-FIRE-SET-EMPTY-AND-ARBNO-ALTERNATE-ARE-BLOB-INTERIOR.md`
+**Parent:** SCRIP `e4f95963`. **This session commits:** SCRIP `b6441ed1` (U-2 structural: 3 files, gate-off byte-identical). Gate-OFF: m3 **281/25/11T** · m4 **274/32/10T** BY SET identical (one diff = documented 127/152 bistable). Gate-ON (SCRIP_U2=1): 141 still rc=139 — root cause fully diagnosed, one-instruction fix identified. **Full FINDING:** `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-U2-STRUCTURAL-ARBNO-VIEW-RESTORE-FENCE1-FRAME.md`
 
-**DIAGNOSIS:** ALTERNATE/ARBNO do not appear in `nodes[]` as flat run members — they are blob-interior kinds (nblob=10 in ZD_DIAG trace on 054). The unwind pre-pass and drive loop only walk `nodes[]`, so `flat_unwind_beta` is never consulted for them. Fire set provably empty. Whitelist expansion is the PREDICATE HALF; `bb_glue_framed_enter` calls in ARBNO/FENCE1 templates are the STRUCTURAL HALF.
+**WHAT LANDED (SCRIP `b6441ed1`):**
+- `zeta_storage.c`: ARBNO grant 2→3 slots (48B) under SCRIP_U2=1; new slot op_off+32 = saved_outer_rbp (ZK_RAW).
+- `bb_match_arbno.cpp` chain arm: (1) α saves outer rbp → FRQ(op_off+32); (2) PAIR(2) σ entry: `lea rbp,[rsp+(24-op_sa)]` view-restore after body clobbers zv(); (3) PAIR(3) φ entry: same view-restore; (4) L(2) exhaust: restore rbp from FRQ(op_off+32) before rsp restore.
+- `bb_match_fence1.cpp`: FENCE1 own independent RBP frame at α/PAIR(2)/PAIR(3), gated on fence_u2_frame() (SCRIP_U2=1, x86_port_cstack()). Structurally correct per HQ ruling O-PB-4.
 
-**roman wrong output** (`result: VI`) is **U-CALL class** — recursive DEFINE activation state lost. Belongs to SAVE_RESTORE/CALL frame shape (U-CALL rung), same mechanism-2 applied to function boundary.
+**SIGMA BUG DIAGNOSED (gate-on, one fix open):** At PAIR(2) success path, after view-restore `lea rbp,[rsp+(24-op_sa)]`, the code does `mov rbp,FRQ(op_sa-24)` (loads element[0]=prev-view into rbp). For element 0: prev-view = match_begin flat rbp → `FR(op_off+N)` correct ✓. For element 1+: prev-view = previous element's view → `FR(op_off+N)` reads wrong address → SEGV on 2nd iteration. Pre-existing design tension in chain arm; not introduced by U-2.
 
-**NEXT (structural half of U-2):** Add `bb_glue_framed_enter()` at K=0 to `bb_match_arbno_nary` beta path (before `sub rsp,op_sb`) and FENCE1 commit path. Once those nested RBP frames exist, the predicate fires and 141/183 become testable. Read FINDING before touching bb_match_arbno.cpp.
+**NEXT = ONE INSTRUCTION at PAIR(2):** After counter/cursor writes, before `jmp PAIR(0)`, add:
+```cpp
++ IF(arbno_u2_frame(), x86("mov", zv(), FRQ(_.op_off + 32)))
+```
+Restores flat-frame base (saved at α in FRQ(op_off+32)) before body re-entry so all `FR/FRQ(op_off+N)` accesses on subsequent σ/φ returns use correct flat-frame coords. Read FINDING §4 before touching bb_match_arbno.cpp. Then rebuild → 141 under SCRIP_U2=1 → full BY-SET gate (≥282/24/10T · 274/32/9T) → regen ×4 → flip SCRIP_U2 default ON.
+
+**WITNESSES:** 141 (`out=e`, gate-on rc=139 currently) · 183 (m4 FAIL gate-on) · eval_fixed (rc=139).
 
 **Parent:** SCRIP `c9d84615` (O-PB-2a). **This session commits:** `.github` FINDING + cursor only — no SCRIP code changes. Gate: m3 **281P/25F/11T** · m4 **274P/32F/10T** · BY SET identical to s40 bracket (281 vs 282 is 127 flake, confirmed by 3 direct reruns). Bench not re-run (no codegen change). Full FINDING: `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S41-TWO-FALSIFICATIONS-CLAMP-AND-OPZRES-ARM.md`.
 
