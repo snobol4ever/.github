@@ -6,7 +6,19 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s26a (2026-08-02, Opus) — O-6 SLICE 1 (GLUE-O) LANDED OPT-IN · 212 CLOSED-LOOP FRAMES FOUND
+## ⭐⭐⭐ LIVE CURSOR — s27b (2026-08-02, Sonnet) — O-6 SLICE 2 GLUEO DEFAULT-ON AT MERGED HEAD
+
+**Parent:** SCRIP `a131b7a8` (O-6 slice 1 GLUEO opt-in). **Rebased onto:** ALPHA merged head `e098b324` (A-7 ZD-5b ASSIGN_SAVE/COND/IMM/VALUE, s27). **This session commits:** `8816252c` (O-6 s26a+s26b GLUEO re-land at merged head) · `6afc126e` (regen ×4).
+
+**⭐ O-6 SLICE 2 — GLUEO DEFAULT-ON LANDED:** flip SCRIP_GLUEO from opt-in to opt-out; three-language watermark (SNOBOL4/Icon/Prolog) re-proven before flip. GATES at merged head: BY SET m3 +127_bistable / test_case FAIL→TIMEOUT · m4 test_case FAIL→TIMEOUT · both GLUEO-invariant (A/B confirmed) · test_case TIMEOUT is ALPHA A-7 s27. rbp census: bearing **317→132** · push_rbp **464→252 (−212)** · data_refs **7893→7893** (law-4 population untouched). Regen ×4 committed (`6afc126e`, 384 crosscheck files). ⛔ REBASE LESSON: during conflict resolution `git checkout HEAD -- emit.cpp` silently dropped s26a GLUEO block; re-applied at `8816252c`. Rule: grep for session's own key changes before `git rebase --continue`.
+
+**NEXT:** (1) ALPHA CROSS-FRONT s27 request — `bb_match_capture.cpp` op_zres-gated ZD arm + staging-loop COND/IMM operands[1] special-case, both behind SCRIP_ZD_CAP=1. (2) SHED-1 NPARAMS — `xa_flat.cpp:142` `xaf_deep` nparams conjunct retirement for depth-static graphs. (3) O-5 cap_gen path gated on ZD-5a admission (1080 mentions / 175 programs, all old-arm).
+
+**WATERMARK (s27b):** m3 **282/24/11** · m4 **272/33/11/1L** · rbp bearing **132/318** · push_rbp **252** · data_refs **7893**.
+
+---
+
+## ⭐⭐ PRIOR CURSOR — s26a (2026-08-02, Opus) — O-6 SLICE 1 (GLUE-O) LANDED OPT-IN · 212 CLOSED-LOOP FRAMES FOUND
 
 **Parent:** SCRIP `1e0ba4ae` (SHED-3). **Grant:** Lon "all your choices" (s26a). **Rung taken:** O-6 · ZW-6 CLASS O, ahead of O-5 — O-6's stated dependency is ZW-5 lit (O-1 `343f3471` + O-2 `5c959cab`, both landed), NOT O-5, and the census put the directive's remaining value there.
 
