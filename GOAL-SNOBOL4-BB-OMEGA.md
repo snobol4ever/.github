@@ -6,6 +6,15 @@
 
 ---
 
+## ⛔⭐⭐⭐ HQ RULING RELAY (Lon, 2026-08-03 HQ session) — READ BEFORE SPENDING THE "r9/WIRE IS NEXT" CURSOR BELOW
+
+1. **RBP IS THE BASE. r9/wire IS RETIRED.** Lon's ruling, delivered at HQ this session — and his point stands that it was in the standing directive at every prompt ("…with a C-style RBP used occasionally only when absolutely necessary"): the depth-immune base at every indeterminacy boundary is a C-style RBP frame (`push rbp; mov rbp,rsp`, old_rbp in the frame; nested indeterminacy = nested frames), whack = `mov rsp,rbp; pop rbp`. The STF bracket ("already exists as STF", `FINDING-2026-08-02h`) is the existing embodiment to point at the boundaries. The s23i "the REAL fix is r9/wire" cursor prose is inherited-recon rot — RULES rot-class in a new costume — and is VOIDED.
+2. **A decline for indeterminable extent is a ROUTING to mechanism 2, never a terminal verdict.** Your 101 blob-clause declines + your 12 sealed + ALPHA's DEFER/PATREF `pat_static=0` census ARE the worklist, boundary by boundary — "semantic ceiling" is retired vocabulary.
+3. **A-9 LANDED AFTER YOUR s35** (`.github 7f92a607`): ALPHA ladder complete (m3 295/22 · m4 289/27 BY SET, bench 18/21, regen ×4 zero). O-9 is unblocked.
+4. 131 re-measured at HEAD by HQ (2026-08-03): your ALT (s29) + FENCE1 (s30) arms lifted its named vetoes; residual = one run vetoed by `IR_MATCH_PATREF pat_static=0` carrying the 528B UCLAIM — one more mechanism-2/RBP boundary on the same worklist.
+
+---
+
 ## ⭐⭐⭐ LIVE CURSOR — s35 (2026-08-03, Sonnet) — SEAL AUDIT · ALL 12 CORRECTLY SEALED · r9/WIRE IS NEXT
 
 **Parent:** SCRIP `4bba30c4` (ZW-14 s33b). **This session commits:** `.github` finding + cursor only.
