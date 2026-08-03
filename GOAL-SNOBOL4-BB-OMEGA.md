@@ -32,7 +32,15 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s41 (2026-08-03, Sonnet) — TWO FALSIFICATIONS: umin CLAMP and naive op_zres ARM · SCRIP HEAD UNCHANGED · O-PB-3 REQUIRES GLUE #2 FIRST
+## ⭐⭐⭐ LIVE CURSOR — s42 (2026-08-03, Sonnet) — U-2a: flat_unwind_beta widened ALTERNATE+ARBNO · fire set empty (blob-interior) · structural half next
+
+**Parent:** SCRIP `5bb623fe`. **This session commits:** SCRIP `e4f95963` (U-2a: flat_unwind_beta widened, gate-off byte-identical, gate-on fire-set empty). Gate: m3 **296P/40F** · m4 **289P/41F** BY SET identical (+1P flake, zero P->F). **Full FINDING:** `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-U2A-WHITELIST-PREDICATE-FIRE-SET-EMPTY-AND-ARBNO-ALTERNATE-ARE-BLOB-INTERIOR.md`
+
+**DIAGNOSIS:** ALTERNATE/ARBNO do not appear in `nodes[]` as flat run members — they are blob-interior kinds (nblob=10 in ZD_DIAG trace on 054). The unwind pre-pass and drive loop only walk `nodes[]`, so `flat_unwind_beta` is never consulted for them. Fire set provably empty. Whitelist expansion is the PREDICATE HALF; `bb_glue_framed_enter` calls in ARBNO/FENCE1 templates are the STRUCTURAL HALF.
+
+**roman wrong output** (`result: VI`) is **U-CALL class** — recursive DEFINE activation state lost. Belongs to SAVE_RESTORE/CALL frame shape (U-CALL rung), same mechanism-2 applied to function boundary.
+
+**NEXT (structural half of U-2):** Add `bb_glue_framed_enter()` at K=0 to `bb_match_arbno_nary` beta path (before `sub rsp,op_sb`) and FENCE1 commit path. Once those nested RBP frames exist, the predicate fires and 141/183 become testable. Read FINDING before touching bb_match_arbno.cpp.
 
 **Parent:** SCRIP `c9d84615` (O-PB-2a). **This session commits:** `.github` FINDING + cursor only — no SCRIP code changes. Gate: m3 **281P/25F/11T** · m4 **274P/32F/10T** · BY SET identical to s40 bracket (281 vs 282 is 127 flake, confirmed by 3 direct reruns). Bench not re-run (no codegen change). Full FINDING: `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S41-TWO-FALSIFICATIONS-CLAMP-AND-OPZRES-ARM.md`.
 
