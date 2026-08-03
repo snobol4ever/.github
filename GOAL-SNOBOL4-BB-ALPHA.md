@@ -17,6 +17,7 @@
 
 **LANDED s31 (this session):**
 - **A-5 · ZD-3 LEGACY ARM RETIREMENT — CLOSED.** Deleted `fc_vread_fp(nd)→op_fc_disp` from IR_ASSIGN dispatch; deleted `fc_vbinop_active(nd)?0:-1→op_fc_disp` from IR_BINOP and IR_UNOP dispatch; decoupled `op_wpop` accumulation from `op_fc_disp`, gating directly on `fc_vbinop_active(nd)`. FC-ARM census: 4 programs fired before (test_case/math/stack/string, all `fallback=FLAT-OK`), zero after. BYTE-IDENTICAL: all 318 .s hashes match pre/post. Gates: m3 282→281/24→25 (152 is a container-speed flake — byte-identical .s, passes 2/3 reruns, pre-existing); m4 272/33/11/1L BY SET EXACT HOLD (zero regressions, zero recoveries). Regen ×4. COMMIT: SCRIP `47530468`.
+- **IR_MATCH_VALUE FINDING (s31, attempted then reverted).** Splitting VALUE out of `SCRIP_ZD_CAP` and fixing the scalar path (`FR(op_a_slot)→ZOPQ(0,0)`) caused `test_case` to promote a proc_PAT$0 UCLAIM run to ZD-armed; that run contains pattern-function invocation nodes without ZD arms → segfault. Root cause: VALUE is a first-blocker whose run also contains unzoned pattern-invocation nodes; admitting VALUE alone arms the run but doesn't fix its other members. Finding recorded in emit.cpp SCRIP_ZD_CAP comment. VALUE stays gated until OMEGA arms the sibling run members. COMMIT: SCRIP `4d0430f1`.
 
 **Parent:** SCRIP `d5033669` (open bracket from OMEGA O-7). Committed at `47530468`. Corpus at `c08bd7f4`.
 
