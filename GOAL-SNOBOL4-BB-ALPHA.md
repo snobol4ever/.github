@@ -26,7 +26,26 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s36 (HQ revamp, 2026-08-03b) — U LADDER IS THE ACTIVE FRONT · ALPHA LADDER COMPLETE · READ THE RULING RELAY ABOVE FIRST
+## ⭐⭐⭐ LIVE CURSOR — s38 (2026-08-03c, Lon "all your choices") — ZD-DEPTH CENSUS LANDED · THE WALL IS MEASURED
+
+**SCRIP HEAD: `d2146360`** (ZD-DEPTH census, default OFF). Parent: `c0c77585`. Corpus: `0c2b0df7` (untouched — no regen owed, `.s` byte-identical).
+
+**NEXT RUNG: A-10 · TAIL-CLASS (a) LABEL-JOIN UNWIND** — see below.
+
+**LANDED s38:** `SCRIP_ZD_DEPTH=1` read-only brick-wall census in `emit.cpp` beside `zd_plan` (ALPHA diag territory per contract §1). Full text: `FINDING-2026-08-03-CLAUDE-SN4-ALPHA-THE-BRICK-WALL-IS-A-GRAPH-PROPERTY-AND-THE-TAIL-IS-THE-SEGV-CLASS.md`.
+
+1. ⭐⭐⭐ **THE WALL IS A GRAPH PROPERTY, NOT A CONSTRUCT LIST.** A wall = a JOIN whose predecessors arrive at DIFFERENT accumulated depths. Arrival model taken verbatim from the UNWIND four-clause law (γ arrives at `zout[i]`, ω at `zout[i]−K`) so the census cannot drift from the emission it audits. The four-construct list is now the OUTPUT of a test, not its input.
+2. ⭐⭐ **MEASURED 318 programs:** 12510 joins, **1410 walls**. `IR_STATEMENT_BEGIN` 1197 (85%) · `IR_MATCH_BEGIN` 85 · `IR_SAVE_RESTORE` 58 · `IR_MATCH_ASSIGN_SAVE` 31 — **top three = 95%**. **88.7% of joins already agree on depth.** Lon's four-construct list is CONFIRMED as the dominant answer; roman's 10 walls are ALL STATEMENT_BEGIN/SAVE_RESTORE, zero on the value spine.
+3. ⭐⭐⭐ **THE 2.8% TAIL IS THE rc=139 CLASS.** 39 walls / **14 programs** outside the list, three classes: (a) label-join @depth 0 (EVAL/CODE/indirect-goto), (b) matcher backtrack @128/160, (c) call/lit. **Those 14 carry rc=139 at 64% vs 14% for the other 304 — 4.6× enrichment.** `test_stack` = PASS with rc=139, the exact "correct output then segv" shape HQ named as U-1's target.
+4. ⭐ **ELIDE IS NOT THE BLOCKER.** `SCRIP_SLOT_ELIDE=0` already exists and is live (roman +4.9% lines), but **the wall set is INVARIANT under it**. Do not spend a rung on it. Corroborates `zeta_storage.c:494`'s own s21x-r note.
+5. ⛔ **`proc_LBL__ROMAN_α` RE-MEASURED:** the LBL section is **896 of roman.s's 2713 lines (33%)** and its 69 boxes ARE main's last 69 re-emitted with fresh uids — s26 residue (b) confirmed live. NOT attempted: the fix needs main's landing-label at LBL-emission time but LBL emits first, so the cheap correct version reorders every `.s` in the tree. **HQ/OMEGA terrain (`scrip.c` proc loops + `emit_chain`), wants a fresh session.** Recipe in the FINDING §7.
+6. ⛔ **127_pat_json_keyvalue flipped F→P. THAT IS THE NAMED s23i ENV-PAD FLAKE, NOT A FIX** (cursor s23q item 6: `.s` byte-identical gate-on/gate-off; any initial-rsp shift flips it). Adding a function moved the binary layout. **Fourth witness. No credit claimed.**
+7. **GATE:** `.s` **318/318 byte-identical** · m3 **282/25/11, BY SET identical modulo the 127 flake** (baseline this session: 281/26/11 at `c0c77585`).
+8. ⭐ **CHEAP GATES:** `--compile` md5 over 318 = **4s**; m3 verdict sweep = **93s**; full census sweep = **2s**. `.s` byte-identity is effectively free — run it on every edit, not just at handoff.
+
+**A-10 · TAIL-CLASS (a) LABEL-JOIN UNWIND (proposed next):** class (a) says a `:(L)` goto leaving mid-statement without unwinding to statement-entry depth is the defect — a third statement exit, which UNWIND clause 4 forbids. Forward `:(L)` needs the same treatment as the fail side: whack to statement-entry depth, then jump, making every label target arrive at depth 0 uniformly. That is *why* STATEMENT_BEGIN is 85% of walls — it is already where the whack lands. Gate the fix on the 14-program tail set; the census is the instrument (`SCRIP_ZD_DEPTH=1`, walls should drop to 0 outside the four constructs). ⛔ Confirm seat with Lon first: the `:(L)` emission site is OMEGA/HQ terrain, not the ALPHA admission cluster.
+
+## ⭐⭐⭐ PRIOR CURSOR — s36 (HQ revamp, 2026-08-03b) — U LADDER IS THE ACTIVE FRONT · ALPHA LADDER COMPLETE · READ THE RULING RELAY ABOVE FIRST
 
 **⛔ ARCHITECTURAL SUPERSESSION:** The Lon UNWIND RULING (relay above, full law in GOAL-SNOBOL4-BB.md top cursor) changes the sequencing for this front. ALPHA's admission ladder is **COMPLETE** at A-9 (m3 295/22 · m4 289/27, bench 18/21). There are no more ALPHA admission rungs to cut. **The mechanism-2 STF extension infrastructure landed in s35 is correct and survives**; the `SCRIP_ZW_RB=1` regressions are a SEQUENCING issue (β emission must precede mechanism-2 frame integration), not an ALPHA defect.
 
