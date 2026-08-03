@@ -28,27 +28,29 @@ Two edges into one target at unequal depth = **WALL**.
 
 ⛔ **DECLINED nodes (`zon=0`) are SKIPPED, not assumed depth 0.** Their depth lives in the UCLAIM wholesale claim — the very regime this census exists to help retire. Counting them as 0 would manufacture disagreements that are artifacts of the claim, not of the graph.
 
-## 3. MEASURED — 318 crosscheck programs
+## 3. ⛔⭐⭐⭐ MEASURED — AND MY FIRST NUMBER WAS WRONG BY 3x (self-caught, same session)
+
+**FIRST PASS (BIASED, superseded): 1410 walls.** The arrival model omitted the STAGED WHACK. `zd_plan` computes `zgpop[i]`/`zwpop[i]` — the `add rsp, N` an edge LEAVING its run emits before jumping — so an edge that whacks does NOT arrive at `zout[i]`; it arrives at the whacked depth. `IR_STATEMENT_END`'s γ is the SOLE success release (clause 4) and deliberately resets to statement-entry depth: **it was being scored as a disagreement while working exactly as designed.** That artifact was 1098 of the 1100 γ-side disagreeing edges.
+
+⛔ **This is the [ZD-GAP] disease reproduced in a brand-new instrument, inside one session.** A census that reports a fact without modelling the mechanism it audits will misattribute — and this one would have sent the next rung hunting a 3x-inflated wall population. Corrected by passing `zgpop`/`zwpop` in: `arrival_gamma = zout[i] - zgpop[i]`, `arrival_omega = zout[i] - K - zwpop[i]`.
+
+**CORRECTED — 318 crosscheck programs:**
 
 ```
-nodes 17115 · armed 13397 · joins 12510 · walls 1410
+joins 12510 · walls 469   (was 1410 -- 941 were the whack working correctly, 67% phantom)
 ```
 
-**88.7% of all joins already agree on depth — they are RSP-flat-safe today.** Lon's "99.999%" is directionally right; the measured figure is ~89% of joins, and ~92% of programs carry no tail wall at all.
-
-Wall concentration:
+⭐ **96.3% of all joins already agree on depth — they are RSP-flat-safe TODAY.** Lon's "99.999%" is far closer to right than the biased pass suggested.
 
 | kind | walls | share |
 |---|---|---|
-| `IR_STATEMENT_BEGIN` | 1197 | 84.9% |
-| `IR_MATCH_BEGIN` | 85 | 6.0% |
-| `IR_SAVE_RESTORE` | 58 | 4.1% |
-| `IR_MATCH_ASSIGN_SAVE` | 31 | 2.2% |
-| **tail (8 kinds)** | **39** | **2.8%** |
+| `IR_STATEMENT_BEGIN` | 259 | 55.2% |
+| `IR_MATCH_BEGIN` | 86 | 18.3% |
+| `IR_SAVE_RESTORE` | 58 | 12.4% |
+| `IR_MATCH_ASSIGN_SAVE` | 31 | 6.6% |
+| tail (7 kinds) | 35 | 7.5% |
 
-**Top three = 95%.** They map onto Lon's list almost exactly: STATEMENT_BEGIN → STATEMENT, SAVE_RESTORE → FUNCTION, MATCH_BEGIN → the match head where ARBNO/FENCE1 live. **The four-construct list is CONFIRMED as the dominant answer.**
-
-On roman specifically: 10 walls, **every one** of them `IR_STATEMENT_BEGIN` or `IR_SAVE_RESTORE`. Not one value-spine box, not one matcher leaf, not one LIT/VAR/BINOP. The spine is already flat.
+**Top four = 92.5%**, mapping onto STATEMENT / the match head (ARBNO+FENCE1 live there) / FUNCTION / capture. `IR_LIT_INTEGER` dropped OUT of the wall set entirely under the correction. On roman: all walls are STATEMENT_BEGIN or SAVE_RESTORE; zero on the value spine.
 
 ## 4. ⭐⭐⭐ THE TAIL IS NOT NOISE — IT IS THE SEGFAULT CLASS
 
@@ -69,11 +71,31 @@ On roman specifically: 10 walls, **every one** of them `IR_STATEMENT_BEGIN` or `
 
 ⛔ This makes the census an **instrument, not just a design note**: a depth disagreement outside the four constructs is a *predictor* of the segfault class. Class (a) in particular is the one the four-name list does not cover at all, and SNOBOL4 is built on label gotos.
 
+
+## 4b. ⭐⭐⭐ THE WALLS ARE NOT AN RBP REQUISITION — THEY ARE THE UNWIND GAP
+
+**A-10 AS I FIRST PROPOSED IT IS FALSIFIED.** I hypothesised the tail was `:(L)` gotos leaving mid-statement. Attribution says otherwise. `216_indirect_goto_computed`, verbatim:
+
+```
+[ZD-DEPTH] WALL main IR_GOTO_DEFERRED preds=5 first_depth=0
+[ZD-DEPTH]   pred ω IR_LIT_STRING   depth=0
+[ZD-DEPTH]   pred ω IR_VAR          depth=16   <-- DISAGREES
+[ZD-DEPTH]   pred ω IR_BINOP        depth=32   <-- DISAGREES
+[ZD-DEPTH]   pred γ IR_ASSIGN       depth=48   <-- DISAGREES
+[ZD-DEPTH]   pred ω IR_ASSIGN       depth=48   <-- DISAGREES
+```
+
+Not one goto. A **value-spine ω fan-in at ascending depths 0/16/32/48** — every box failing DIRECTLY to the statement terminus carrying its own accumulated depth. That is clause 2's named defect verbatim: *"NO fail site ever computes accumulated depth."*
+
+**CORPUS-WIDE: 1152 of 1342 disagreeing edges (86%) are ω.** γ-side residual is 190. Disagreeing ω predecessors are exactly the kinds HQ's U-1a cursor measured as having NO emitted β: `IR_ASSIGN` 941, `IR_CALL` 431, `IR_LIT_INTEGER` 359, `IR_BINOP` 308, `IR_LIT_STRING` 229, `IR_VAR` 221, `IR_COERCE_NUMERIC` 138.
+
+⭐ **CONCLUSION: 86% of the remaining depth disagreement is DELETED BY CONSTRUCTION when U-1b lands.** Under clause 2 each box's ω frees own K and jumps to pred's β, so a terminus receives ONE edge at ONE depth. **The walls are not evidence that RBP is needed; they are evidence that the unwind is not yet wired.** U-1b is therefore not merely the rc=139 fix — it is the precondition that makes sliding RSP offsets legal at all, which is exactly the architecture Lon is asking for.
+
+**REVISED SEQUENCING:** do NOT open a label-join rung. Land U-1b, then re-run this census. Predicted residual: the γ-side 190 plus the match-family, collapsing toward Lon's four constructs. **The census is the acceptance test for U-1b** — walls should fall from 469 toward ~200, and the value-spine kinds should vanish from the disagreeing-pred list entirely.
+
 ## 5. WHAT THIS SAYS ABOUT SEQUENCING
 
-Class (a) says: a `:(L)` goto that leaves mid-statement without unwinding to statement-entry depth is the defect. The UNWIND law already prescribes the fix on the fail side (ω → pred β → STATEMENT_BEGIN.β). The forward `:(L)` side needs the same treatment: **whack to statement-entry depth, then jump**, which makes every label target arrive at depth 0 uniformly — and that is *why* STATEMENT_BEGIN is 85% of walls. It is already the place the whack lands.
-
-So the wall reduces, essentially, to **ONE construct (the statement bracket) plus the match head**, and the tail is programs where the goto does not whack first.
+**SUPERSEDED BY §4b — kept as the record of a falsified hypothesis.** I proposed the tail was gotos failing to whack. Attribution falsified it within the session: the disagreement is the value-spine ω fan-in, not the goto. Read §4b for the standing conclusion.
 
 ## 6. ELIDE — THE KILLSWITCH ALREADY EXISTS AND IS NOT THE BLOCKER
 
