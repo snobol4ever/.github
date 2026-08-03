@@ -19,9 +19,9 @@
 
 **GATE (s33, measured):** m3 **281P/35F/2T** · m4 **275P/42F/1T** · bench **18/21 EXACT HOLD** · rbp-bearing **166** (crosscheck scope) · push_rbp **310** · armed (cas_base) **38 programs in census** (23 per s32 crosscheck scope).
 
-**NEXT:** Widen canonical frame armed population. Two paths: (a) ALPHA A-9 reconciliation then O-9 close; (b) fast-path flag in `rtx_match.S` to skip `g_patstk_sp` lazy-init for armed programs (measurable, bounded). Immediate candidate: `g_zw_armed` process-scope flag set at first `op_zw` emission, consulted by `rt_match_enter`. Push needs credentials.
+**NEXT:** Widen canonical frame armed population. ALPHA A-9 reconciliation then O-9 close. Immediate remaining O-5: `g_patstk_sp` cold-path skip for armed programs (process-scope flag is NOT safe — patstk still needed by 144 unarmed programs running in same process; needs per-call signal or two-variant `rt_match_enter`). Push needs credentials.
 
-**WATERMARK (s33):** m3 **281P/35F/2T** · m4 **275P/42F/1T** · bench **18/21** · rbp bearing **166/318** (harness scope) · push_rbp **310** · r12 **959** · match_frame sites **32** · armed programs **23** (crosscheck scope). No SCRIP commits this session.
+**WATERMARK (s33):** m3 **282P/34F/2T** (+1 pass vs bracket) · m4 **275P/42F/1T** · bench **18/21 EXACT HOLD** · push_rbp **310** · armed programs **23**. SCRIP commit: `2c4dbcf1` (O-5 r12-direct in `rt_match_enter`).
 
 ---
 
