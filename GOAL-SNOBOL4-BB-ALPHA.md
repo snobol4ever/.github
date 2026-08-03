@@ -21,7 +21,15 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s34 (this session) — A-9 RECONCILIATION COMPLETE
+## ⭐⭐⭐ LIVE CURSOR — s35 (this session) — MECHANISM-2 STF EXTENSION INFRASTRUCTURE
+
+**LANDED s35 (this session):**
+- **MECHANISM-2 STF EXTENSION — THREE EDITS, DEFAULT OFF.** SCRIP `6d6a2416`. Three edits in `emit.cpp`, all gated on `zw_rb_on()` (i.e., `SCRIP_ZW_RB=1`, default OFF): (1) `emit_stmt_frame_scan` ~2817: `IR_STATEMENT_BEGIN` + `IR_STATEMENT_END` added to inert-wiring exempt set alongside `IR_GOTO` — both K=0 wiring nodes with no frame reads; without this, STF scan rejects every pattern graph; (2) STF choke ~2859: `_pat_ok` variable relaxes `!flat_pat` when `zw_rb_on()`, enabling `flat_pat=1` graphs to get `flat_stmt_frame=1` (STF outer frame at statement head, pre-all-cells); (3) `zwr` predicate in `zd_plan` ~2024: `!flat_stmt_frame` guard removed — under the nested model (HQ ruling: nested indeterminacy = nested frames) the outer STF frame and inner mechanism-2 MATCH_BEGIN frame coexist correctly.
+- **GATE (default `SCRIP_ZW_RB=0`):** m3 280/26/10 BY SET IDENTICAL to open bracket · m4 274/32/10 BY SET IDENTICAL (test_case bistable FAIL↔TIMEOUT) · bench 18/21 EXACT HOLD · regen ×4: benchmark 0, feature 0, demo 0, crosscheck 66 (ZW-15 honest updates — OMEGA s36 regen had missed these programs; now current).
+- **KNOWN ISSUE CARRIED (from OMEGA s36 `8cae6d56`):** `SCRIP_ZW_RB=1` has pre-existing regressions (~37 programs: pos/tab/rem/arb/arbno/capture class) because mechanism-2's `push rbp` fires at MATCH_BEGIN *after* VAR cells are carved; whack misses pre-match cells. These regressions predate this session's edits and are confirmed pre-existing by binary revert test. **Next rung:** extend `bb_match_begin.cpp` `op_zw2` arm to detect `flat_stmt_frame=1` and skip its own `push rbp` (the STF outer frame already establishes rbp at statement head before all cells).
+- **Parent:** SCRIP `fa007877` (merge of OMEGA s36 ZW-15 + mechanism-2 infra). Corpus: `0c2b0df7`.
+
+## ⭐⭐⭐ PRIOR CURSOR — s34 (this session) — A-9 RECONCILIATION COMPLETE
 
 **LANDED s34 (this session):**
 - **A-9 RECONCILIATION EXECUTED.** Pull-rebase at OMEGA HEAD `4bba30c4` (ZW-14 s33b). Rebuild green. §7 full gate: m3 295/22 · m4 289/27 BY SET IDENTICAL to s32 open bracket · bench 18/21 EXACT HOLD · regen ×4 zero changes (tree already honest). DEFER/PATREF census: all 105 declined runs have `pat_static=0` — graph-scope ZW-13 seal correct for 161 and cross (genuinely re-entrant); 10 remaining seal/no-END/window sites are FENCE window-integrity (OMEGA-owned). No actionable ALPHA items remain. COMMIT: `.github` `[RECON]` only — no SCRIP code changes this session.
