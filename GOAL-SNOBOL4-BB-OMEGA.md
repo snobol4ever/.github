@@ -20,22 +20,13 @@
 
 ---
 
-## ⭐⭐⭐ PRIOR CURSOR — s33 (2026-08-03, Sonnet) — LADDER AUDIT · NO CODE COMMITS · SHED/O-5/O-6 STATE CONFIRMED
+## ⭐⭐⭐ PRIOR CURSOR — s34 (2026-08-03, Sonnet) — GATE MEASUREMENT · O-8 CLOSED · ALPHA S32 ZD-CAP +10P
 
-**Parent:** SCRIP `7ba079e8` (ZW-13 s32). **This session commits:** `.github` finding + cursor only — no SCRIP code changes (audit session).
+**Parent:** SCRIP `2c4dbcf1` (O-5 ZW-3 r12-direct, s33). **This session commits:** `.github` finding + cursor only — no SCRIP code changes (concurrent measurement session, superseded by s33b ZW-14).
 
-**⭐ s33 LADDER AUDIT (see `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S33-*`):** Full measured audit of O-4/O-5/O-6/O-8 against HEAD `7ba079e8`. Key findings:
-- **O-5 r12 wiring is further done than the cursor showed:** both m4 wrapper seeds (`scrip.c` ~1242/1439) and `rt_outer_call` thunk (`rt.c`) are LANDED. All 6 `bb_match_capture.cpp` emission sites are already split by `_.op_zw`. STACKLETS audit complete: `rt_zcol_push` (ARBNO iteration-reuse) has zero interaction with r12/CAS. Remaining: `rtx_match.S` `g_patstk_sp` cold-path (3 instructions, deferred), cap_gen deletion (deferred).
-- **SHED-3/1/5 are DONE** at HEAD. SHED-2's per-depth stub mechanism superseded by STF rbp bracket (ZW-5 O-2 DEFAULT OFF per `FINDING-2026-08-02h`; `mov rsp,rbp` is the depth-independent cut). SHED-4 is a no-op under `ZC_FRAME_RSP` (default).
-- **O-6 slice 2 (GLUEO default flip) is DONE** — `_gluo = (e && *e == '0') ? 0 : 1` confirmed default ON.
-- **O-4 deferral is CORRECT** — `op_zw` arm already omits `rsp_mark`/`patstk_mark`; legacy arm readers are live for 144 unarmed programs.
-- **ZW-5 O-2 DEPRECATED** (per `FINDING-2026-08-02h`; `_zw5_on` default OFF confirmed in `emit.cpp:2215`).
+**⭐ s34 GATE MEASUREMENT (see `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S34-*`):** Full §3 gate at HEAD `2c4dbcf1` after ALPHA s32 merge. +10 passes on both modes vs s33 cursor, attributed to ALPHA s32 `SCRIP_ZD_CAP` default ON. O-8 FORMALLY CLOSED (all five SHED rungs measured done at s33; checkbox was stale). RSP/RBP FORTH discipline confirmed complete for the 38-program admitted population at this HEAD; s33b ZW-14 expanded that to 49.
 
-**GATE (s33, measured):** m3 **281P/35F/2T** · m4 **275P/42F/1T** · bench **18/21 EXACT HOLD** · rbp-bearing **166** (crosscheck scope) · push_rbp **310** · armed (cas_base) **38 programs in census** (23 per s32 crosscheck scope).
-
-**NEXT:** Widen canonical frame armed population. ALPHA A-9 reconciliation then O-9 close. Immediate remaining O-5: `g_patstk_sp` cold-path skip for armed programs (process-scope flag is NOT safe — patstk still needed by 144 unarmed programs running in same process; needs per-call signal or two-variant `rt_match_enter`). Push needs credentials.
-
-**WATERMARK (s33):** m3 **282P/34F/2T** (+1 pass vs bracket) · m4 **275P/42F/1T** · bench **18/21 EXACT HOLD** · push_rbp **310** · armed programs **23**. SCRIP commit: `2c4dbcf1` (O-5 r12-direct in `rt_match_enter`).
+**GATE (s34, measured at `2c4dbcf1`):** m3 **291P/25F/2T** · m4 **285P/32F/1T** · bench **18/21 EXACT HOLD**.
 
 ---
 
@@ -194,7 +185,7 @@ Then run the PLAYBOOK §3 watermark bracket + census one-liners and paste the nu
 - [ ] **O-5 · ZW-3 — R12 CAS LIVE** — reverse the s5 parking: 6 emitted sites + 2 m4 wrapper seeds + `rt_outer_call` thunk (r12 = live top, callee-saved coherence, cell = lazy-init seed only); `rtx_match.S` r12-direct; fail-discard `r12 ← cas_base` (uses O-3/O-4's frame cell); THEN cap_gen deletion. ⛔ STACKLETS (pattern_match.c iteration-reuse axis): WRITTEN AUDIT first, separate commit, separate gate run. First commit = wiring + the INSTRUMENTED r12 canary only.
 - [~] **O-6 · ZW-6 — FENCE + GLUE RELOCATION** — ⭐ SLICE 1 (GLUE-O) LANDED s26a OPT-IN (`SCRIP_GLUEO=1`, default OFF): CLASS O closed-loop frame suppression, 212/318 programs, −212 `push rbp` / −424 glue whacks, data-ref population untouched at 105; all gates green (see s26a cursor + `FINDING-2026-08-02h`). REMAINING: slice 2 = default flip (Icon + Prolog + SNOBOL4 watermarks, own commit); then CLASS C / PAT$N 302 / FENCE0 / FENCE1 per below. — the discriminator is ALREADY LEDGERED (emit.cpp grep `EXIT-CLASS LEDGER (s22v`): CLASS O main_γ/ω whacks → the terminal statement release (needs O-1/O-2 lit); CLASS C KEEPS its whack by ledgered decision (the s22u 1016_eval falsification) until chains have a real statement box; CLASS P already wire-clean; PAT$N scanfail/ω 302 → match machinery (needs O-4); FENCE0 rides the SNO$PB0 blob (BLOB-GRANT seed is the documented layout); FENCE1 commit-whack → contract mechanism (2). Glue-leave condition edits only — the leave body stays one spelling.
 - [x] **O-7 · ZD-5a BRIDGEHEAD + 5c CONVERSIONS** ✅ FENCE1 ZD ARM LANDED s30 (`c4b486d6`): seal gate + zdyn veto + zd_wl_kind + zd_k all updated with SCRIP_ZD_FENCE1 (default ON) + !g_emit.flat_pat blob guard; fence_whack_commit under op_zw now uses [rbp+0] (activation floor). +3 m4 passes (135/136/173). GATE m3 280/26/11T m4 275/30/11T BY SET clean. Remaining: linear-match bridgehead (LEN/POS/RPOS/SPAN/ANY/NOTANY/REM/TAB/RTAB→END) mostly falls out of O-3/O-4; per-template conversions smallest-first. ⛔ 5b (branching-run planner) waits on ALPHA's A-7 proposal + Lon's ruling. ALPHA's A-4 STFH-48 ledger is prerequisite reading.
-- [ ] **O-8 · RBP-SHED, order 3→1→2→4→5** — each ≤ half session, each cited with the rbp census pre/post: SHED-3 REC-PIN-OWN (stale-emission globals → per-graph g_emit mirror at the emit_chain choke) · SHED-1 NPARAMS (retire the `g_flat_outer_nparams>=1` pin conjunct for depth-static graphs) · SHED-2 ABORT-REBALANCE (route ABORT through the statement fail exit — sequenced AFTER O-2's depth ladder) · SHED-4 HOOK-ENCODE (any remaining raw scanhit/scanfail hook emission through x86()) · SHED-5 ALIGN-DANCE-DELETE (retire the transient push-rbp alignment window once O-3's frame moots it).
+- [x] **O-8 · RBP-SHED, order 3→1→2→4→5** ✅ CONFIRMED DONE s34 (all five SHED rungs measured at HEAD; see `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S34-*`) — each ≤ half session, each cited with the rbp census pre/post: SHED-3 REC-PIN-OWN (stale-emission globals → per-graph g_emit mirror at the emit_chain choke) · SHED-1 NPARAMS (retire the `g_flat_outer_nparams>=1` pin conjunct for depth-static graphs) · SHED-2 ABORT-REBALANCE (route ABORT through the statement fail exit — sequenced AFTER O-2's depth ladder) · SHED-4 HOOK-ENCODE (any remaining raw scanhit/scanfail hook emission through x86()) · SHED-5 ALIGN-DANCE-DELETE (retire the transient push-rbp alignment window once O-3's frame moots it).
 - [ ] **O-9 · RECONCILIATION (shared final rung, present in both fronts)** — when BOTH ladders are done: pull-rebase, rebuild, run PLAYBOOK §7's five completion tests + a FRESH-CLONE regen ×4 (artifact-truth restoration, the s23g lesson), reconcile the parent goal file's cursor + watermark of record, single `[RECON]` commit. First front to arrive waits or does tail census work; the rung is executed ONCE.
 
 ## Handoff
