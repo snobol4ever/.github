@@ -119,3 +119,33 @@ O-6 slice 2 = the **default flip**, gated on re-proving Icon + Prolog + SNOBOL4 
 Then the residue this rung does not touch: `old_rbp` ceremony (256 sites) dies with ZW-1's arm; `cap_gen`
 (1 080 mentions / 175 programs) dies with **O-5 / ZW-3**, whose premise is re-confirmed at HEAD — **r12 is
 still 0 mentions, 0/318 programs**, so its first commit is wiring + canary exactly as the playbook scopes it.
+
+---
+
+## 10. ADDENDUM (s26a close) — MERGE GATE AT `3473ecc8`, AND THE ZW5 FLIP IS A 1-FOR-2 TRADE
+
+Twin commits arrived mid-session: ALPHA's A-7 ZD-5b bridgehead (LEN/ANY/NOTANY/POS/RPOS/TAB/RTAB/REM/SPAN)
+and OBSERVER `542776a5`, which flipped `SCRIP_ZW5` to default OFF and recorded *"Full 318x2+bench owed next
+session."* Rebuilt and re-ran the full §3 set at the merged head.
+
+**GLUE-O is unaffected:** A/B **BY SET IDENTICAL both modes** (m3 281/26/10, m4 272/34/10/1L — zero newly
+failing AND zero newly passing), bench **18/21 EXACT HOLD** both arms, census unchanged (317→132, `push rbp`
+464→252, whacks 953→529, `[rbp+N]` programs 105→105, fused-terminal 0). The finding is therefore **robust to
+Lon's ZW5 ruling**: the CLASS O outer glue frame is a different citizen from the ZW-5 statement box, which is
+why the ruling and this rung do not collide.
+
+**The owed measurement, discharged.** Re-bracketing open (`1e0ba4ae`) → merged head on the DEFAULT arm:
+
+| mode | fixed by the merge | broken by the merge |
+|---|---|---|
+| m3 | `067_pat_fence_fn_vs_kw`, `127_pat_json_keyvalue` (bistable, §6) | — |
+| m4 | — | `164_pat_arbno_nested`, `173_pat_fence_kw_blocks_backup` |
+
+**ATTRIBUTED BY DIRECT A/B, NOT INFERRED:** both m4 losses return to PASS under `SCRIP_ZW5=1` at this same
+head. They belong to the FLIP — not to ALPHA's ZD-5b admissions, and not to GLUE-O.
+
+⭐ Worth Lon's eye: `164_pat_arbno_nested` was O-2's own cited witness (*"m4 … zero P→F, 164 passes"*) and
+`173` was s25a's LIT-admission gain; the flip surrenders both. The cure it buys (`067`) was a HANG; the two it
+costs are wrong-output. Whether that is the trade wanted is a ruling, not a measurement. **Not reverted** —
+`SCRIP_ZW5`'s default is Lon's ruling in the OBSERVER seat, not OMEGA's to undo. Recorded here so the next
+session inherits the number instead of the impression.
