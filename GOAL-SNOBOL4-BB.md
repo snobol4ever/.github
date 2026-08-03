@@ -6,6 +6,78 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
+## ⛔⭐⭐⭐ THE WHOLESALE PLAN — LADDER W (Lon directive 2026-08-03f, HQ seat, Fable planning session): FRONTS CLOSED, ONE GOAL, ONE SEAT
+
+**Directive (Lon, verbatim this session):** *"ARBNO is not a family. It is one function. It seems we must change the way things are done. This alpha and omega is just not working. This is easy. Why not switch ALL the BB's at once and set the RBP frame for the unbounded case. And then debug that?"* · *"Alloc on alpha, free on omega, whack free on final success and on fenced success."* · *"Take back ALL the split tasks and bring them back into this one GOAL. We are on the home stretch with Opus taking us to the finish line."*
+
+**⛔ FRONTS CLOSED.** `GOAL-SNOBOL4-BB-ALPHA.md` and `GOAL-SNOBOL4-BB-OMEGA.md` are ABSORBED here (banner in each). ONE seat executes LADDER W top-down; the concurrency contract is retired (this work touches `x86_asm.h` + fires regen ×4, so the single-seat rule was already forced — the SN4-RTX ban stands). Cursor lives HERE. Opus executes; stop at the first failing step; MONITOR-FIRST on every divergence per RULES.
+
+### THE MODEL (one statement; sources: THE MODEL §below, WHACK CONTRACT, THE UNWIND four-clause law, STF-UNFLIP comment emit.cpp:2945, O-PB-4 Lon-confirmed frame independence)
+Every BB allocates its own K at α (`sub rsp,K`) — blob-interior scanner kinds are K=0 BY DESIGN (s23t finding 1: they ride r13/r14/r15 + frame slots, never 16B spine cells). γ NEVER frees. Failure is an UNWIND: ω frees OWN K only and rolls to pred's β; no fail site ever computes accumulated depth. Whacks are FORWARD/COMMIT only: STATEMENT_END final success (mechanism 1 `add rsp,ΣK` when extent is compile-time determinable, mechanism 2 frame-pop when not) · MATCH_END (SN4 language fence) · FENCE(P) commit (manual: "alternatives within P are only visible moving forward") · FUNCTION return. RBP frames fire at exactly FIVE construct kinds, ONLY where extent is indeterminable: STATEMENT · MATCH_BEGIN (canonical ZW-1 frame, housekeeping at fixed rbp offsets) · ARBNO (manual: shy, null first, one more instance of P per retry — unbounded by definition) · FENCE1 · FUNCTION (SAVE_RESTORE). Frames are INDEPENDENT and nested via the saved-RBP chain (Lon s39 ruling in O-PB-4): ARBNO/FENCE1 never touch MATCH_BEGIN's frame data. Frame interiors address `[rbp+8+off]` (the ZW_RB spelling), never rsp+uclaim phantoms. Bare FENCE backward = O(1) unwind to the match frame floor; ARBNO exhaustion = own frame restore + roll to pred β. `push rbp;mov rbp,rsp` / `mov rsp,rbp;pop rbp` via `bb_glue_framed_enter/leave` ONLY — x86_asm.h:1751's own instruction: "ARBNO/FUNCTION/FENCE1 conversions parameterize the same pair instead of minting new shapes."
+
+### WHY WHOLESALE IS LEGAL WHERE PER-NODE WAS REJECTED (answer the emit.cpp:2068 else-branch BEFORE Opus re-litigates it)
+The UCLAIM branch's two diseases: (1) blob interiors re-enter α per backtrack retry → static per-node claims re-carve and leak; (2) head-exhaust release under-frees downstream claims. Under W neither applies: blob-interior kinds carve NOTHING (K=0), so there is no per-retry carve to leak; releases are own-K on ω + frame restore at the construct boundary, so no aggregate release exists to under-free. The UCLAIM head-claim was a stand-in for frames that didn't exist yet. Now they do.
+
+### GATE POLICY DURING MIGRATION (ACCEPTANCE LAW, HQ 2026-08-03e — binding)
+Master killswitch **`SCRIP_WHOLESALE`** (=0 → legacy verbatim; default OFF through W-1, flipped ON in W-2's own commit). Killswitch-OFF arm must stay byte-identical every rung through W-4 (that is the safety net; regen no-ops prove it). The migration arm is gated by LADDER PROGRESSION + WITNESSES + CENSUS MOVEMENT — **never BY-SET identity; an identity gate on the migration selects for never migrating.** The watermark WILL crater at the flip and recover through W-4; report the fraction honestly, per-session, vs the W-0 baseline. BY SET ≥ baseline both modes is the W-6 END condition, not a per-commit gate. DoD = the six conditions at the top of this file, unchanged.
+
+### LADDER W (top-down; every rung ends with: cursor update here, regen ×4 if codegen touched, commit, U-GATE census line in watermark)
+
+- [x] **W-0a · TAKE-BACK (THIS SESSION, docs only)** — this section + front banners + PLAN.md row collapse + take-back table below. Landed with this commit.
+- [ ] **W-0b · RE-BRACKET AT MERGED HEAD (Opus session 1, step 0 — the RECON step 0 owed since 2026-08-03e-2)** — ONE shared baseline: fresh pull-rebase all repos, rebuild, `setarch -R` 318×2 BY SET (record the set, the env, the exact program list — the Z4 +14 changed the denominator) + bench board 21 + U-GATE census + killswitch inventory table (all `SCRIP_*` gates: name/default/owner-rung). Record parent hashes AS-PUSHED. Everything downstream brackets against THIS.
+- [ ] **W-1 · FRAME THE CONSTRUCTS (construction; SCRIP_WHOLESALE minted, default OFF)**
+  1. Land the ratified ZW_RB fix (Lon exception 2026-08-03, this session): `bb_match_begin.cpp` MECH-2 `op_zres` arm reads `[rbp+8+zread[0]]`, mirroring the `!op_zres` arms' `[rbp+8+op_sa+N]` spelling — full spec in ALPHA s41 cursor. Acceptance: `SCRIP_ZW_RB=1` recovers the 40 pattern regressions; gate-OFF byte-identical.
+  2. ARBNO + FENCE1 own frames = **O-PB-4 verbatim** (spec already written there, Lon-confirmed): framed_enter at construct α before element entry; framed_leave at commit whack on success; β unwind pops own K only, NO frame restore on fail-side roll (exhaustion ω restores own frame then rolls). FENCE1: verify `[rbp+0]` commit-whack (O-7 landing) reads the CONSTRUCT's own saved base, never MATCH_BEGIN's.
+  3. FUNCTION = the U-CALL two-box shape: `IR_SAVE_RESTORE` → framed_enter ONLY; `IR_CALL` → args + call + framed_leave. Strip `bb_call_proc_staged.cpp` toward that shape (full spec: LADDER U → U-CALL).
+  4. `bb_match_defer.cpp` op_zres arm = **O-PB-3 verbatim** (fast arm stays FLAT 3-instruction wire; slow arm = GLUE #2 framed; constant-folded PAT$N targets get NO frame — s39 measurement). This closes the named PATREF template gap (grep op_zres = 0 today).
+  5. Template-arm census BEFORE W-2 (the 017/VALUE falsification shape — a staged verdict handed to a template that ignores it, recorded twice): grep every `bb_match_*.cpp` + `bb_call*`/`bb_save_restore.cpp` for armed-arm presence; K=0 kinds are safe by construction; land any missing arm HERE, not after the flip.
+  - Acceptance: gate-OFF 318×2 byte-identical (regen no-op) · gate-ON witnesses compile AND run: uw2/uw3 · W04_arbno_basic/zero/backtrack · 141/183 nested-ARBNO-in-FENCE (inner frame closes first) · 131_pat_boolean_expr_grammar (the 528B-UCLAIM stack-overflow class MUST run — the frame is its cure) · 066_pat_fence_fn_nested.
+- [ ] **W-2 · ARM ALL — THE FLIP**
+  1. Delete the admission VERDICT in `zd_plan`: every run armed; `zd_wl_kind` + the veto tree (residual zdyn quartet, PATREF `pat_static=0`, FENCE-in-closure, DEFER) become ROUTING (flat vs frame at the nearest of the five boundaries) — a decline ceases to exist as an outcome (HQ ruling: "a decline is a ROUTING to mechanism 2, never a terminal verdict").
+  2. The UCLAIM else-branch (emit.cpp:2068) routes to mechanism-2 under the gate: head = `push rbp` (the existing `!zwr` path), never `sub rsp,Kc`. `zvo_uclaim_k` returns 0 every run BY CONSTRUCTION → DoD condition 4.
+  3. Land s23t's three written edits (s23t IMPLEMENTATION NOTES, ALPHA file tail): `has_blob` span gate (in-run OR off-run) · `zws` gated `!has_blob` · arm-element γ-chain descent via `operands[2i]`.
+  4. O-PB-2 inflation bisect (three candidates + method already written there) — run it gate-ON; tripwire: `any.sno` max carve gate-ON ≤ gate-OFF; `sudoku` stmt_claim stores < 12.
+  5. **THE FLIP: `SCRIP_WHOLESALE` default ON — its OWN commit.** Watermark craters here; record it.
+  - Acceptance: UCLAIM census = 0 under gate (loose-whitespace grep `sub\s+rsp,\s*[2-9][0-9][0-9]` = 0 over regen'd SN4 `.s` — ⛔ the DoD's literal single-space grep is a FALSE INSTRUMENT against real emitter whitespace, measured 2026-08-03f) · killswitch-OFF byte-identical · witness set from W-1 still green.
+- [ ] **W-3 · UNWIND UNIVERSAL (the U-2 content, simplified by frames)**
+  1. Match-family fail-capable members join the chain: ALTERNATE arm β = retry next arm · ARBNO β = supply one more instance (manual's own words) · cursor-mover restores. Exhaustion ω = own-K free (mostly 0) + own-frame restore where the member owns one + `jmp pred_β`.
+  2. MATCH_BEGIN.β owns the unanchored start bump; bare-FENCE-first = anchored regardless of &ANCHOR (manual pg §FENCE); ABORT = O(1) restore to the match frame floor (mechanism 2 as unwind, never a statement whack).
+  3. Retire the r12 CAS parking (O-5) if the monitor demands live CAS coherence across backtrack (ZW16 finding is the hazard record); else defer to W-5.
+  - Acceptance: monitor-bracketed vs SPITBOL on pattern rungs 6–7 · **prediction witnesses: roman prints MDCCLXXVI · eval_fixed rc=0** — if either does NOT flip, MONITOR-FIRST names the next bug (that is the instrument working, not the plan failing).
+- [ ] **W-4 · DEBUG THE LADDER** — canonical rungs 1→12 (REPO-corpus.md), stop at first fail, MONITOR-FIRST only, one FINDING per land-mine. Known shakeout queue (s23t): 045_pat_rpos · W01_pat_lit_anchor · W03_alt_both_fail · W05_any · W07_capt_imm · pat_bal · capture-replacement · fence-fn-fail. The 127/152 env-pad class must become IMPOSSIBLE (frames kill absolute-sensitivity — the HQ beacon note); if either flakes post-W-3, that is a lead, not a flake. rc=139 tail (14 programs) cleared here. Exit: BY SET ≥ W-0b baseline BOTH modes.
+- [ ] **W-5 · DELETE LEGACY (U-3 + the gate forest)** — the UCLAIM head-claim machinery + owner-table declined path + veto diagnostics + ENDJMP/op_wsteal residue + ZW-5 depth stubs (already deprecated) + `g_patstk_sp` six readers + marker scans (O-4 residue) + A-GE goto trampolines IF cheap (demoted: its frontier-noise motivation died with admission). Killswitch disposition table from W-0b executed: SCRIP_ZD_PROC/CAP/FENCE1/PATREF/DYNSCOPE/DYNARM/ZW_RB/ZW5/UNWIND/STMT_FRAME/ARBNO_LATCH/ZPOP_FOLD_OFF fold into SCRIP_WHOLESALE or die; diagnostics (ZD_DIAG/ZD_DEPTH/ZETA_TELEM/GLUEO) and non-SN4 gates survive. U-SHY is MOOT by construction — record it. Completion greps: `grep -rn 'x86_zclaim(' src/templates/bb_*.cpp` = 0 (U-AUTH) · veto strings = 0 · per-kind gate names = 0 outside this doc.
+- [ ] **W-6 · CENSUS TO DoD** — U-GATE drives it: ω-cov 100% of K>0 boxes (DENOMINATOR LAW: always name the denominator) · orphan 0 (⛔ audit the whitelist first — SHED-5 landed s34, so the rsp,8 entry may already be stale-permissive) · UCLAIM 0 · wall census == framed-enter count over exactly {STATEMENT, MATCH, ARBNO, FENCE1, FUNCTION} · BY SET ≥ baseline both modes · bench 18/21 hold-or-better · regen ×4 · `rbp-op-refs` trend DOWN recorded (14198 at 2026-08-03f).
+- [ ] **W-7 · FINISH** — U-LBL (proc_LBL 2-line trampolines; roman 2713→~1818 lines; kills the double-count in every roman measurement) · U-CALL verify (roman already flipped at W-3 or the monitor said why) · U-IDSP timing line · FINDING + this file's cursor + HISTORY INDEX one-liners. U-BENCH stays PARKED (O2-DIRECTED-ONLY rule — opens only on Lon's word).
+
+### TAKE-BACK TABLE (every open split task → its W home; ✓ = already landed pre-consolidation)
+| From | Item | Disposition |
+|---|---|---|
+| HQ U | U-1a/b unwind | ✓ landed, default ON (ALPHA s41) |
+| HQ U | U-2 match-family | → W-3 |
+| HQ U | U-3 deletions | → W-5 |
+| HQ U | U-GATE census | ✓ landed s40 — the W-6 instrument |
+| HQ U | U-WIT uw2/uw3 | ✓ committed corpus/probe |
+| HQ U | U-SCOPE | ✓ landed byte-neutral-gated s40 — verify under W-2 |
+| HQ U | U-SHY | MOOT at W-5 (gate forest deleted) — record table anyway |
+| HQ U | U-AUTH | → W-5 completion grep |
+| HQ U | U-CALL | → W-1.3 + W-7 verify |
+| HQ U | U-LBL | → W-7 |
+| HQ U | U-BENCH | PARKED (Lon-directed only) |
+| HQ U | U-IDSP | → W-7 |
+| OMEGA | O-PB-2 inflation | → W-2.4 (method as written) |
+| OMEGA | O-PB-3 defer arm + PATREF | → W-1.4 (flip moot — no admission to flip) |
+| OMEGA | O-PB-4 ARBNO/FENCE1 frames | → W-1.2 (spec verbatim, Lon-confirmed) |
+| OMEGA | O-4 residue (markers, g_patstk_sp) | → W-5 |
+| OMEGA | O-5 ZW-3 r12 CAS | → W-3.3 or W-5 (monitor decides) |
+| OMEGA | O-6 remainder (CLASS C, PAT$N 302, FENCE0) | → W-3/W-5 |
+| OMEGA | O-9 RECON | → W-0b (executed once, now) |
+| OMEGA/HQ | ZW_RB ratified-exception fix | → W-1.1 (exception honored inside W) |
+| ALPHA | A-GE goto-erad | DEMOTED → W-5 optional (motivation was decline-noise; declines cease to exist) |
+| ALPHA | RECON / U-AUTH / O-PB-2a thread | → W-0b / W-5 / W-2 |
+
+### WITNESS SET (the board Opus reports against, every session)
+uw2 · uw3 · W04_arbno_* · 131 · 141 · 183 · 066 · the 40 ZW_RB pattern programs · 045_pat_rpos + s23t queue · roman (MDCCLXXVI) · eval_fixed (rc=0) · test_case (honest wedge, promotable) · 127/152 (must become impossible).
+
 ## ⛔⭐⭐⭐ HQ ADVISORY CURSOR — 2026-08-03e (Lon-directed advisory seat): "ALREADY DONE" FALSIFIED AT HEAD · DEFINITION OF DONE · ONE NEXT — U-2 (OMEGA) + U-GATE (ALPHA) · O-PB PARKED
 
 **Directive (Lon, verbatim this session):** *"I wanted to see OMEGA for every box, and it tells me already done. I think they are so confused. Help them."* / *"get those two sessions back on the proper track to completion."* Full measurement + decomposition + U-GATE spec: `FINDING-2026-08-03-CLAUDE-SN4-HQ-ADVISORY-OMEGA-COVERAGE-IS-26PCT-AND-ALREADY-DONE-WAS-A-DENOMINATOR-ERROR.md`. **Receipts, measured at HEAD:** roman.s = **135 α labels · 123 β · 35 ω** (raw ω-coverage ≈26%); its release multiset carries **8 sizes matching no single carve** (64/80/96/112/128/144/256/272 — 34 accumulated-pop instructions, clause-2's named defect, alive in the flagship benchmark, plus the 2×240 + 2×192 UCLAIM verbatim); **132 of 485** crosscheck `.s` still carry a ≥200B UCLAIM head; `SCRIP_UNWIND` defaults **OFF** (emit.cpp:2370/:2605). The s39 claim *"the per-BB model and the UNWIND ruling are THE SAME MODEL — β already frees own K"* is a three-error compound: (1) β-alias-for-one-shot ≠ ω-on-every-box; (2) "100 of 120" is the ADMITTED subset, not the corpus; (3) a default-OFF gate proven on one witness is a prototype, not the emitter.

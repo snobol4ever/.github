@@ -1,5 +1,7 @@
 # GOAL-SNOBOL4-BB-ALPHA — the ALLOCATION/ADMISSION front (concurrent final stretch, twin = GOAL-SNOBOL4-BB-OMEGA.md)
 
+## ⛔⛔⛔ CLOSED — ABSORBED INTO GOAL-SNOBOL4-BB.md LADDER W (Lon directive 2026-08-03f: "This alpha and omega is just not working... Take back ALL the split tasks and bring them back into this one GOAL.") Do NOT open a seat from this file. Open items re-homed per the TAKE-BACK TABLE in the parent. Cursors below are FROZEN history.
+
 **Charter (Lon s23p, 2026-08-02):** finish "alloc on α" — every statement that today falls to a UCLAIM head claim (the `n1_var_α: sub rsp,240` class) gets ADMITTED to the per-cell regime so each BB carves its own K. This front edits WHO gets planned (zd_plan's admission inputs). It NEVER edits where plans emit — that is OMEGA's side. The formal interface between the fronts is zd_plan's output arrays; ALPHA widens the population, OMEGA moves the emission.
 
 **⛔ READ ORDER:** `PLAN.md` → `RULES.md` (full) → `GOAL-SNOBOL4-BB.md` (FROZEN parent — THE MODEL, WHACK CONTRACT, LAWS & TRAPS, cursors s23g–s23o) → `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md` (the HOW; this file carries ORDER + OWNERSHIP + STATE) → the FINDING doc your rung names.
