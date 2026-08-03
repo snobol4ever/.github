@@ -20,25 +20,35 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s37 (2026-08-03, Sonnet) — ZW-16 FINDING: blob-context op_zw staging unsafe; mechanism-2 ALTERNATE frame is next
+## ⭐⭐⭐ LIVE CURSOR — s38 (HQ revamp, 2026-08-03b) — U LADDER IS THE ACTIVE FRONT · READ THE RULING RELAY ABOVE FIRST
 
-**Parent:** SCRIP `53705cf1` (ZW-15 s36). **This session commits:** `.github` FINDING + cursor only — no SCRIP code changes this session. **SCRIP merged HEAD (pulled during handoff):** `fa007877` = Lon's mechanism-2 infrastructure (SCRIP_ZW_RB default OFF, `op_zw2` field, planner + templates for the RBP boundary arm). MERGE GATE: m3 281/25F/11T · m4 274/31F/11T/1L BY SET IDENTICAL to bracket. Push needs credentials.
+**⛔ ARCHITECTURAL SUPERSESSION:** The Lon UNWIND RULING (relay above, full law in GOAL-SNOBOL4-BB.md top cursor) voids the ZW-16 s38 four-part recipe as written. The s38 plan assumed failure whacks at a computed depth — the ruling deletes that assumption entirely. **Do not execute the s38 `op_zw2` / `bb_glue_framed_leave` recipe until U-1 is green**; mechanism-2 RBP frames survive (law-4, clause 3 FENCE whack), but their interaction with the unwind chain must be designed under the new model, not patched under the old one.
 
-**⭐⭐ ZW-16 FINDING (full doc: `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-ZW16-BLOB-CONTEXT-OP-ZW-STAGING-UNSAFE-R12-NOT-COHERENT-ACROSS-BACKTRACK.md`):**
+**SCRIP HEAD: `c0c77585`** (U-1a skeleton landed by HQ this session, `SCRIP_UNWIND` default OFF, byte-identical off). **Baseline witness:** value-spine fail-path programs (uw3 shape: `GT(A,0) LT(A,B) A+B :F(FA)`, A=5) print correct output then **rc=139 at HEAD gate-off** — the UNWIND disease, the ruling's target.
 
-Blob-context `op_zw` staging attempted (emit.cpp zd_plan blob-member loop: propagate `zzw[k]=1` when `zws=1`, behind `SCRIP_ZW_BLOB=1`; emit.h: widen `zw_nblob_ok` to admit `nblob_real>0`). Gate: m3 −2 / m4 −1 net, with two new correctness regressions.
+**ACTIVE WORK — LADDER U, rung U-1b (β emission for the value spine):**
 
-**Root cause 1 (156_pat_cap_alt_abandon_pop FAIL):** Under ALTERNATE backtrack cycling, CAPTURE_COND's β arm (`sub r12, 24`) fires before MATCH_BEGIN-β restores `r12 ← [rbp-40]`. r12 is not coherent at COND-β. The CAS stack undershoots; subsequent arms write at wrong r12 position.
+This is OMEGA-owned. Full recipe in `FINDING-2026-08-03-CLAUDE-SN4-HQ-UNWIND-RULING-U1A-SKELETON-INERT-AND-THE-VALUE-SPINE-HAS-NO-BETAS-TO-UNWIND-INTO.md` §6. Three-part slice, all behind `SCRIP_UNWIND=1`:
 
-**Root cause 2 (156+162):** Blob-member CAPTURE_SAVE is not ZD-admitted (`zd_on[k]=0`); it uses `rt_cap_push` (C array). COND's `ZOPD(1,0)` read of SAVE's "cell" hits an uninitialised claim slot — wrong match length computed.
+1. **β trampolines for fail-capable value-spine kinds** — `IR_COERCE_NUMERIC` and `IR_CMP_TEST` dispatch cases call `DRIVE_FILL` with no `DRIVE_PAIR_DEF_JMP`, so their β labels are never emitted. `IR_BINOP`/`IR_CALL` class DO emit β via pair-def — verify their pair-flush path fires the X86H_JMP hook (x86_pair_loop line 2192: raw `jmp <name>`, NO hook — same hole). Fix for all four: stage a per-node flag at the choke (e.g. `g_zd_uwbeta` → `_.op_uw_beta`) for gate-on armed members; template edit in OMEGA-owned `bb_cmp_test.cpp` / `bb_coerce_numeric.cpp` (and BINOP/CALL equivalents if confirmed hookless): `+ IF(_.op_uw_beta, x86_beta_trampoline())`. R2/R6-compliant, medium-invisible. The β body under staged `wpop`/`wsteal`: `add rsp, staged_pop; jmp node_ω` — for a U-armed member `staged_pop` is the LOCAL DIFFERENCE (pred's β gets the rest); for the earliest member it is the full `(zd_k+zd_wp)` remainder to the fail target (the BEGIN.β terminus, already fused over BEGIN's K=0 relay by the U-1a arm).
+2. **Widen the pred whitelist** in the U-1a choke arm from `flat_trivial_beta` (currently POS/RPOS/ABORT/SAVE only) to the kinds from step 1 whose β now exists: {CMP_TEST, COERCE_NUMERIC, BINOP set, CALL set}. The arm's other guards (in-bracket, `!omega_is_beta/phi`, `!scan_live`, `!flat_stmt_frame`, armed non-UCLAIM, `op_wpop==0`) remain.
+3. **U-1c** (lower shim): wire `IR_STATEMENT_BEGIN.ω` in `lower_snobol4.c` ~2017 (`lc_build(g, IR_STATEMENT_BEGIN, fb, NULL)` — ω is NULL today) to the statement fail continuation label → BEGIN.β becomes the literal terminus; the earliest-member full-pop fusion in the U-1a arm then becomes a clean wire rather than an approximation.
 
-**Architectural verdict:** Both root causes require mechanism-2 (Lon HQ ruling 2026-08-03 verbatim): a nested RBP frame at each indeterminacy boundary inside the blob. ALTERNATE = one boundary; ARBNO = another. The `nblob_real>0` population (73 programs) is the mechanism-2 worklist. The `nblob_real==0` gate (49 armed programs) is correct and stays.
+**GATE for U-1b landing:** uw2 PASS (success path unchanged) · uw3 rc=139→0 (the witness pair — if uw3 stays 139, MONITOR-FIRST bracket the fail exit, divergence pins the double-whack site) · full 318 BY SET both modes (bracket: m3 281/25F/11T · m4 274/31F/11T/1L at `fa007877`) · bench 18/21 HOLD · regen ×4 (10 stale artifacts pre-attributed to `fa007877` merge — regen will resolve them; delta vs bracket is the honest measure).
 
-**NEXT (s38):** Four-part fix, all behind `SCRIP_ZW_RB=1 SCRIP_STMT_FRAME=1`. See `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-ZWR-STF-BOUNDARY-DESIGN.md`. Summary: (1) emit.cpp ~2859 — admit `flat_pat=1` to STF when `zw_rb_on()` (new `_stf_pat` conjunct); (2) `bb_match_begin.cpp` `op_zw2` arm — remove `push rbp; mov rbp,rsp` since STF does it at statement head; switch `[rbp+8+off]` → FRQ spellings; (3) emit.cpp ~2031 — remove `if (zwr && r==hpos) zd += 8` (push is now outside chain, invisible to zd_plan); (4) `bb_glue_framed_leave()` — add `IF(!_.op_zw2, ...)` guard to suppress STF leave when mechanism-2 already whacked mid-statement. Gate then: ZWR diag on 060_capture_multiple, full 318×2, bench 18/21 hold → flip SCRIP_ZW_RB default ON → 73 blob-clause programs armed.
+**ZW-16 / mechanism-2 status (not abandoned, sequenced after U-1):** The ZW-16 root-cause diagnosis stands and is correct — ALTERNATE backtrack fires CAPTURE_COND's β before MATCH_BEGIN-β restores r12 (root cause 1), and CAPTURE_SAVE's C-array cell is read via ZOPD as if ZD-admitted (root cause 2). Both require mechanism-2 RBP frames, which the ruling preserves (law-4, clause 3). The s38 four-part fix recipe survives in intent but must be re-expressed under the unwind model: specifically, the whack at `bb_glue_framed_leave` is a FENCE-point whack (forward path, MATCH_END boundary), not a fail-path whack — it is law-compliant as-is. **Sequence: U-1 green → re-examine s38 recipe for compliance → U-2 (match-family βs join the unwind chain) covers ALTERNATE/ARBNO β emission, which is the prerequisite the s38 recipe was actually missing.**
 
-**GATE (s37, HEAD `53705cf1`, measured):** m3 **281/25F/11T** · m4 **274/31F/11T/1L** · bench **18/21 EXACT HOLD** · BY SET identical to s36 bracket.
+**WATERMARK (s37 / merged HEAD `fa007877`):** armed **49** · push_rbp **326** · rsp_mark **132** · blob-clause declined **73** · fused-terminal **0**.
 
-**WATERMARK (s37, merged HEAD `fa007877`):** armed **49** · push_rbp **326** · rsp_mark **132** · blob-clause declined **73** · fused-terminal **0** · SCRIP merged HEAD: `fa007877` · bracket parent: `4bba30c4`.
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s37 (2026-08-03, Sonnet) — ZW-16 FINDING: blob-context op_zw staging unsafe; mechanism-2 ALTERNATE frame is next (SUPERSEDED by UNWIND RULING — see live cursor above)
+
+**Parent:** SCRIP `53705cf1` (ZW-15 s36). **This session commits:** `.github` FINDING + cursor only — no SCRIP code changes this session. **SCRIP merged HEAD (pulled during handoff):** `fa007877` = Lon's mechanism-2 infrastructure (SCRIP_ZW_RB default OFF, `op_zw2` field, planner + templates for the RBP boundary arm). MERGE GATE: m3 281/25F/11T · m4 274/31F/11T/1L BY SET IDENTICAL to bracket.
+
+**ZW-16 FINDING (full doc: `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-ZW16-BLOB-CONTEXT-OP-ZW-STAGING-UNSAFE-R12-NOT-COHERENT-ACROSS-BACKTRACK.md`):** Blob-context `op_zw` staging attempted. Gate: m3 −2 / m4 −1 net, two correctness regressions. Root cause 1: CAPTURE_COND's β fires before MATCH_BEGIN-β restores r12 under ALTERNATE backtrack (r12 incoherent at COND-β). Root cause 2: CAPTURE_SAVE not ZD-admitted; COND's ZOPD read hits uninitialised claim slot. Architectural verdict: mechanism-2 nested RBP frame needed at each indeterminacy boundary. `nblob_real>0` population (73 programs) = mechanism-2 worklist. `nblob_real==0` gate (49 programs) correct and stays.
+
+**GATE (s37):** m3 **281/25F/11T** · m4 **274/31F/11T/1L** · bench **18/21 EXACT HOLD** · BY SET identical to s36 bracket.
 
 ---
 

@@ -26,13 +26,31 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s35 (this session) — MECHANISM-2 STF EXTENSION INFRASTRUCTURE
+## ⭐⭐⭐ LIVE CURSOR — s36 (HQ revamp, 2026-08-03b) — U LADDER IS THE ACTIVE FRONT · ALPHA LADDER COMPLETE · READ THE RULING RELAY ABOVE FIRST
+
+**⛔ ARCHITECTURAL SUPERSESSION:** The Lon UNWIND RULING (relay above, full law in GOAL-SNOBOL4-BB.md top cursor) changes the sequencing for this front. ALPHA's admission ladder is **COMPLETE** at A-9 (m3 295/22 · m4 289/27, bench 18/21). There are no more ALPHA admission rungs to cut. **The mechanism-2 STF extension infrastructure landed in s35 is correct and survives**; the `SCRIP_ZW_RB=1` regressions are a SEQUENCING issue (β emission must precede mechanism-2 frame integration), not an ALPHA defect.
+
+**SCRIP HEAD: `c0c77585`** (U-1a skeleton from HQ this session + s35 STF extension, both default OFF). Corpus: `0c2b0df7`.
+
+**ALPHA'S ROLE IN THE U LADDER:**
+
+ALPHA owns the admission cluster (`zd_wl_kind` / `zd_nops` / `zd_k` in `emit.cpp`). The U ladder needs no new admission kinds — the value-spine kinds that lack β trampolines (CMP_TEST, COERCE_NUMERIC) are already admitted. ALPHA's contribution to U-1b is therefore **nil on code** and **one cross-front verification**: confirm that the admitted population for CMP_TEST/COERCE_NUMERIC is complete and correct (no spurious `zd_on[i]=0` nodes in the uw3 witness chain that would leave a gap in the unwind pred walk). Use `SCRIP_ZD_DIAG=1` on uw3 — all 16 members of the target statement should show `zd_on=1` for CMP_TEST/COERCE_NUMERIC entries.
+
+**ALPHA's forward work (sequenced after U-1 green):**
+
+The `pat_static=0` declines (105 programs at A-9) are the mechanism-2 frame worklist per the HQ ruling — a `pat_static=0` decline is a ROUTING to mechanism-2, never a terminal verdict. These programs become ALPHA-relevant again once U-2 lands (match-family βs join the unwind chain, ALTERNATE/ARBNO extension βs emitted), because that is when the mechanism-2 frame's interaction with the unwind chain is defined. The A-9 census is correctly sealed — it IS the worklist, boundary by boundary. No new admission rungs needed until U-2 opens the boundary integration question.
+
+**GATE (bracket for next landing):** m3 **281/25F/11T** · m4 **274/31F/11T/1L** at `fa007877` / `c0c77585` — BY SET is the measure; absolute counts may shift as U-1b repairs the rc=139 fail-path class.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — s35 (this session) — MECHANISM-2 STF EXTENSION INFRASTRUCTURE (SEQUENCED after U-1 — see live cursor above)
 
 **LANDED s35 (this session):**
-- **MECHANISM-2 STF EXTENSION — THREE EDITS, DEFAULT OFF.** SCRIP `6d6a2416`. Three edits in `emit.cpp`, all gated on `zw_rb_on()` (i.e., `SCRIP_ZW_RB=1`, default OFF): (1) `emit_stmt_frame_scan` ~2817: `IR_STATEMENT_BEGIN` + `IR_STATEMENT_END` added to inert-wiring exempt set alongside `IR_GOTO` — both K=0 wiring nodes with no frame reads; without this, STF scan rejects every pattern graph; (2) STF choke ~2859: `_pat_ok` variable relaxes `!flat_pat` when `zw_rb_on()`, enabling `flat_pat=1` graphs to get `flat_stmt_frame=1` (STF outer frame at statement head, pre-all-cells); (3) `zwr` predicate in `zd_plan` ~2024: `!flat_stmt_frame` guard removed — under the nested model (HQ ruling: nested indeterminacy = nested frames) the outer STF frame and inner mechanism-2 MATCH_BEGIN frame coexist correctly.
-- **GATE (default `SCRIP_ZW_RB=0`):** m3 280/26/10 BY SET IDENTICAL to open bracket · m4 274/32/10 BY SET IDENTICAL (test_case bistable FAIL↔TIMEOUT) · bench 18/21 EXACT HOLD · regen ×4: benchmark 0, feature 0, demo 0, crosscheck 66 (ZW-15 honest updates — OMEGA s36 regen had missed these programs; now current).
-- **KNOWN ISSUE CARRIED (from OMEGA s36 `8cae6d56`):** `SCRIP_ZW_RB=1` has pre-existing regressions (~37 programs: pos/tab/rem/arb/arbno/capture class) because mechanism-2's `push rbp` fires at MATCH_BEGIN *after* VAR cells are carved; whack misses pre-match cells. These regressions predate this session's edits and are confirmed pre-existing by binary revert test. **Next rung:** extend `bb_match_begin.cpp` `op_zw2` arm to detect `flat_stmt_frame=1` and skip its own `push rbp` (the STF outer frame already establishes rbp at statement head before all cells).
-- **Parent:** SCRIP `fa007877` (merge of OMEGA s36 ZW-15 + mechanism-2 infra). Corpus: `0c2b0df7`.
+- **MECHANISM-2 STF EXTENSION — THREE EDITS, DEFAULT OFF.** SCRIP `6d6a2416`. Three edits in `emit.cpp`, all gated on `zw_rb_on()` (i.e., `SCRIP_ZW_RB=1`, default OFF): (1) `emit_stmt_frame_scan` ~2817: `IR_STATEMENT_BEGIN` + `IR_STATEMENT_END` added to inert-wiring exempt set alongside `IR_GOTO`; (2) STF choke ~2859: `_pat_ok` relaxes `!flat_pat` when `zw_rb_on()`; (3) `zwr` predicate in `zd_plan` ~2024: `!flat_stmt_frame` guard removed — outer STF frame and inner mechanism-2 MATCH_BEGIN frame coexist correctly under the nested model.
+- **GATE (default `SCRIP_ZW_RB=0`):** m3 280/26/10 BY SET IDENTICAL · m4 274/32/10 BY SET IDENTICAL · bench 18/21 EXACT HOLD · regen ×4: crosscheck 66 (ZW-15 honest updates).
+- **KNOWN ISSUE CARRIED:** `SCRIP_ZW_RB=1` has ~37 pre-existing regressions (pos/tab/rem/arb/arbno/capture class) because mechanism-2's `push rbp` fires at MATCH_BEGIN *after* VAR cells are carved. **Sequenced after U-1:** once β trampolines exist for the value spine, the interaction between the unwind chain and the mechanism-2 frame can be designed cleanly (U-2 scope).
+- **Parent:** SCRIP `fa007877`. Corpus: `0c2b0df7`.
 
 ## ⭐⭐⭐ PRIOR CURSOR — s34 (this session) — A-9 RECONCILIATION COMPLETE
 
