@@ -216,3 +216,11 @@ Then run the PLAYBOOK §3 watermark bracket + census one-liners and paste the nu
 
 ## Handoff
 Per RULES: update THIS cursor (rung + watermark + parent/rebased hashes) · delete completed rungs · regen ×4 (contract §4) · commit `[OMEGA] ...` · pull-rebase (MERGE GATE if twin landed) · push code repos then `.github` · `bash scripts/handoff_status.sh` and paste verbatim — its output, not yours, says COMPLETE.
+
+## ⭐⭐⭐ SESSION NOTE s36 (2026-08-03, Sonnet) — r9/WIRE BUILT AND REVERTED PER LON RULING
+
+**SCRIP trajectory this session:** `4bba30c4` → `471e73d9` (r9/wire infra, gate default OFF) → `3e0e8669` (revert — per HQ ruling above). SCRIP HEAD on origin: `3e0e8669` = ZW-14 baseline restored, BY SET identical m3 295/22 m4 289/27.
+
+**What was built and why it was reverted:** Full r9/wire scaffold (emit.h `op_zw_blob_base` + `zw_r9_on`, emit.cpp umin staging, x86_asm.h ZWB/ZWBQ/ZWR/ZWRQ helpers, bb_match_arbno NARY op_zw arm). Gate was default OFF; gate=1 regressions confirmed that ALL blob templates need op_zw arms before widening fires safely. Reverted because Lon's HQ ruling (above) voids r9/wire: **RBP is the base, mechanism-2 (nested RBP frames) is the correct path for blob members**, not a separate r9 wire.
+
+**Key technical finding preserved (not lost with the revert):** ZWR vs ZWB distinction — run-member slots (ARBNO header at op_off+N) need `[r9 + op_off + N]` directly; blob-closure member slots need `[r9 + off - umin]`; heap-element-relative slots (ARBNO view at op_sa-N) are already rbp-pinned and need no change. This classification is correct regardless of mechanism — if mechanism-2 is ever revisited, this is the access audit.
