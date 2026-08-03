@@ -38,7 +38,21 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s39 (2026-08-03, "all your choices") — ZD-PATREF INFLATION FIX · RECON NEXT
+## ⭐⭐⭐ LIVE CURSOR — s40 (2026-08-03, "Complete the ZETA CELLS") — U-GATE CENSUS LANDED
+
+**SCRIP HEAD: `0a05b2d3`** (U-GATE census script). Parent: `8ec8dfa2` (ZD-PATREF fix). Corpus: `0c2b0df7` (untouched — zero codegen edits, byte-neutral).
+
+**LANDED s40:** `scripts/test_gate_omega_own_k.sh` — U-GATE census instrument v1.
+
+- Scans 506 .s files (crosscheck/**/*.s + benchmarks/snobol4/*.s). Per file: α count, K>0 boxes, ω-release ownership (own _ω add OR DRIVE_PAIR β-alias), orphan-adds (whitelist: rsp,8 + mov rsp,rbp restores; ΣK fold in own column), rbp-op-refs, proc_LBL__ >5-line check.
+- **POSITIVE CONTROL VERIFIED:** roman.s (benchmark) 134α / 62 K>0 / 50 covered (81%) / 12 miss / 0 orphan. Crosscheck ≥200B-carve files 132/485 — **exact spec baseline match**.
+- **WATERMARK: ω-cov 1839/8857 · orphan 206 · rbp-refs 14207** (own-ω=69, β-alias=1770, uncovered=7018).
+- **GATE:** m3 281/25/11 · m4 274/32(1L)/10 BY SET identical to s39 — script is byte-neutral.
+- **NOTE on spec baseline:** spec's "35ω for roman" was written at s23p HEAD; s40 HEAD measures 50 covered (81%) for roman — β-alias coverage grew 35→50 between s23p and now. LBL duplication noted: crosscheck 100_roman_numeral.s (5913 lines) vs benchmark roman.s (2713 lines) are distinct files.
+
+**NEXT (per e-3 re-charter):** U-SCOPE (owner-table cross-stmt contamination fix) · U-SHY (every admitted kind defaults ON → produce table) · U-AUTH (post-U-2 verification, concurrent with U-SCOPE) · RECON with OMEGA after U-2 lands.
+
+## ⭐⭐⭐ PRIOR CURSOR — s39 (2026-08-03, "all your choices") — ZD-PATREF INFLATION FIX · RECON NEXT
 
 **SCRIP HEAD: `8ec8dfa2`** (ZD-PATREF inflation fix). Parent: `a9823228` (HQ/U-1b). Corpus: `0c2b0df7` (untouched — zero regen changes, gate-off byte-identical).
 
@@ -48,8 +62,6 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 2. ⭐⭐ **BLOB-CLOSURE SPAN EXCLUSION:** PATREF/DEFER blob members (cm[k]=1, rpos[k]<0) excluded from Kc span walk. Their defer.pad slot is depth-immune FRQ, not rsp-claim.
 3. ⭐ **SPAN SHRINK extension:** skip armed K=0 PATREF/DEFER run members. Inert for diagnosed case but correct.
 4. **GATE:** m3 282/24F/11T BY SET IDENTICAL-OR-BETTER (127/152 env-pad flake recovered, zero regressions) · m4 274/32F/10T/1L BY SET IDENTICAL · bench 18/21 EXACT HOLD · regen x4 zero changes.
-
-**NEXT: RECON with OMEGA after U-2 lands. ALPHA admission ladder complete.**
 
 ## ⭐⭐⭐ LIVE CURSOR — s38 (2026-08-03c, Lon "all your choices") — ZD-DEPTH CENSUS LANDED · THE WALL IS MEASURED
 
