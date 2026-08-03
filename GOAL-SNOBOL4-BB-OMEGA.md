@@ -18,9 +18,11 @@
 - **O-6 SLICE 2 DONE** (stale): SCRIP_GLUEO already default ON (`_gluo = (e && *e == '0') ? 0 : 1`; confirmed SCRIP_GLUEO_DIAG=1 shows closed_loop_suppressed=1 without env var).
 - **CLASS O relocation** (O-6 remaining): 212/318 GLUEO-suppressed programs already have no whack + statement-box release. Non-suppressed (106/318, emit_rec_pin()=1) still carry the whack by ledgered decision; O-1/O-2 now confirmed lit means the terminal-release route is UNBLOCKED.
 
-**NEXT:** O-6 CLASS O terminal-release wiring for non-suppressed population (106 programs, emit_rec_pin()=1). Then cap_gen deletion (1080 mentions / 175 programs, old-arm only, gated on ZD-5a). Then O-7 ZD-5a bridgehead.
+**⭐ O-7/ZD-5b ALTERNATE ADMISSION LANDED (`d5033669`):** `emit.cpp` — `IR_MATCH_ALTERNATE` added to `zd_wl_kind` match-spine arm behind `SCRIP_ZD_ALT` (default ON) + `zd_k` K=0 (zero-cell envelope; ALT-FLAT address-dispatch arm uses per-BB FRQ(op_off+8/16), no own value cell). zdyn veto arm extended to include `IR_MATCH_ALTERNATE` (required: `FENCE(ALTERNATE(...))` runs e.g. 066 SEGVd without it — FENCE1 in run closure must decline ALTERNATE too). Regen x4: 4 crosscheck artifacts updated (ALTERNATE-armed programs emit different code). GATE: m4 BY SET IDENTICAL. m3 127/152 bistable swap only. Bench 17/21 EXACT HOLD. FENCE1 stays excluded (law-4 rbp, seals run; separate rung).
 
-**WATERMARK (s29):** m3 **282/24/9T/1N** · m4 **272/33/9T/1N/1L** · rbp bearing **132/318** · push_rbp **252** · data_refs **7893** · statement boxes **2937** · fused-terminal proxy **0**. (9T vs 11T = container speed variation; pass/fail sets BY SET identical to s28.)
+**NEXT:** ZD-5b FENCE1 ZD arm (separate rung; needs FENCE1 removed from the seal exclusion in zw_frame_on, or a per-run "fence-only" admission track). Then cap_gen deletion (1080 mentions / 175 programs, old-arm only, gated on ZD-5a). Then push (needs credentials).
+
+**WATERMARK (s29):** m3 **282/24/9T/1N** · m4 **272/33/9T/1N/1L** · rbp bearing **132/318** · push_rbp **252** · data_refs **7893** · statement boxes **2937** · fused-terminal proxy **0**. Unpushed: SCRIP `d5033669`+`4cc19670` · corpus `4ab53b68` · .github `09d4f515`.
 
 ---
 
