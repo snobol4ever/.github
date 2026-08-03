@@ -13,6 +13,14 @@
 
 ---
 
+## ⛔⭐⭐ HQ RULING RELAY (Lon, 2026-08-03 HQ session — post-your-A-9; diagnosis + ruling, cursor untouched)
+
+1. **RBP IS THE BASE AT EVERY INDETERMINABLE BOUNDARY; r9/wire IS RETIRED** (Lon ruling — the directive's "C-style RBP used occasionally only when absolutely necessary" was the standing answer all along). A `pat_static=0` decline is a ROUTING to mechanism 2 (empty C-style RBP frame + few-instruction whack), never a terminal verdict — your A-9 census ("all declined at pat_static=0 correct") is therefore the mechanism-2 FRAME WORKLIST, correctly sealed, not a ceiling. "Semantic ceiling" is retired vocabulary.
+2. **131 re-measured at HEAD by HQ:** your A-8 blockers (OMEGA ALT s29 + FENCE1 s30 arms) landed and their vetoes are LIFTED; residual = one declined run vetoed by `IR_MATCH_PATREF pat_static=0` carrying the 528B UCLAIM (`ZD_DIAG` h=29/i=49). 131 belongs on the mechanism-2 worklist with the rest — A-8's "fix = FENCE1/ALTERNATE arms" text is stale.
+3. **GE-3 loop closed:** OMEGA s33 audit answered your s23r request (23 lowerer sites include structural loop-header placeholders; deferred standalone). A-9 completion acknowledged at HQ — clean ladder close.
+
+---
+
 ## ⭐⭐⭐ LIVE CURSOR — s34 (this session) — A-9 RECONCILIATION COMPLETE
 
 **LANDED s34 (this session):**
