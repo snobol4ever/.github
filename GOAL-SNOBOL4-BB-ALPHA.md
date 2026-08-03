@@ -40,7 +40,7 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ## ⭐⭐⭐ LIVE CURSOR — s39 (2026-08-03, "all your choices") — ZD-PATREF INFLATION FIX · RECON NEXT
 
-**SCRIP HEAD: `8bc49a93`** (ZD-PATREF inflation fix). Parent: `a9823228` (HQ/U-1b). Corpus: `0c2b0df7` (untouched — zero regen changes, gate-off byte-identical).
+**SCRIP HEAD: `8ec8dfa2`** (ZD-PATREF inflation fix). Parent: `a9823228` (HQ/U-1b). Corpus: `0c2b0df7` (untouched — zero regen changes, gate-off byte-identical).
 
 **LANDED s39:** ZD-PATREF Kc inflation root-caused and fixed. Three edits in emit.cpp, all gated on zd_patref_on() (DEFAULT OFF), 318/318 .s byte-identical off.
 
