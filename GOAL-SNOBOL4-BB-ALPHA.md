@@ -13,7 +13,23 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s29 (next session) — A-5 BLOCKED · A-9 RECONCILIATION when both fronts done
+## ⭐⭐⭐ LIVE CURSOR — s30 (next session) — HQ s26b PATCH: r0 GUARD LANDED, FENCE DEPTH-ACCT BLOCK REMAINS
+
+**LANDED s29 (this session):**
+- **OPEN BRACKET at HEAD `e9d57c1f` (OMEGA s27+SHED-1+O-5, rebased after clone):** m3 282/33/2 · m4 272/42/2/1L · bench 18/21 HOLD · UCLAIM-head 175/318 · admission 73.8% (9005/12186 non-jmp-entry nodes).
+- **HQ s26b PATCH APPLIED + CONFLICT RESOLVED:** `git apply --3way PATCH-s26b-stmt-begin-end.patch` applied cleanly to IR.h / scrip_ir.c / zeta_storage.c / lower_snobol4.c. Single conflict in `emit.cpp` zd_k: resolved by taking OURS (HEAD s25/s27 full K=0 list: LEN/ANY/NOTANY/POS/RPOS/ASSIGN_COND/IMM/VALUE) and merging theirs (IR_STATEMENT_BEGIN/END additions). Result: `IR_STATEMENT_BEGIN || IR_STATEMENT_END` added to both `zd_wl_kind` and `zd_k` one-authority line.
+- **r0 GUARD APPLIED at `zd_plan` UCLAIM placement site (`emit.cpp` line ~2057):** `int _r0 = (rl > 1 && nodes[run[0]]->op == IR_STATEMENT_BEGIN) ? 1 : 0; zuk[run[_r0]] = K;` — skips IR_STATEMENT_BEGIN at run[0] and stamps the claim on the real head run[1]. This fixes the placement (the `[ZD-U] h=5 r=7 i=12 IR_STATEMENT_BEGIN K=288` misplacement the HQ cursor diagnosed).
+- **BUILD GREEN. GATE PARTIAL:** BY SET m3 +1 new fail (127 = named env-pad flake, container noise). BY SET m4 +13 new failures, all fence/arbno-fence class (058/061_seal/067/102/107/118/119/129/130/148/149/150/test_stack) + 1 new pass (W02_seq_fail_propagate). The 13 m4 fence failures are NOT fixed by the r0 guard alone: `SCRIP_ZW5=0` restores all 13 (confirmed on 058). Root cause: the +1 index shift from BEGIN joining `run[]` still propagates into `zgpop[]`/`zwpop[]` depth computations for members AFTER the head — fence exit paths read wrong release depths. **NOT a new bug: identical class to the HQ s26b revert diagnosis ("index shifts +1 → array-parallel planner arrays bake wrong depth/exit constants").**
+- **WORK STASHED** (not committed): `git stash` at `e9d57c1f` preserves the 5-file patch + r0 guard. Tree is clean. Pop with `git stash pop` at next session start.
+
+**NEXT SESSION RECIPE (s30):**
+1. `git stash pop` to restore the patch + r0 guard.
+2. MONITOR-FIRST on 058 m4 vs m3: `scripts/test_monitor_2way_sync_step_bin.sh corpus/crosscheck/patterns/058_pat_fence_keyword.sno`. Bracket the first divergent event.
+3. The suspect: in `zd_plan`'s run walk, when `run[0]` is `IR_STATEMENT_BEGIN`, the depth model adds ZW_FRAME_TOTAL at `r == hpos` (line ~2026: `if (zws && r == hpos) zd += ZW_FRAME_TOTAL`) and subtracts at END (line ~2024). But `hpos` is the index of `IR_MATCH_BEGIN` within the run — with BEGIN at run[0], hpos shifts by +1 relative to what it was before, so the ZW frame insertion point moves. The fence abort exit (which is a mid-run exit at `r < epos`) computes its `zgpop[i]` as `(int)K` — this K is the UCLAIM K, now correctly on run[1], but the depth at the abort exit may not equal K if the +1 shift caused a different zd accumulation. Specifically: the exit-release test `if (!gin) zgpop[i] = (int)K` fires on run members whose γ exits the run — if BEGIN is now a run member with no γ exit inside the run (it always jumps to the next real node which IS in the run), this adds a spurious zgpop on BEGIN itself. Check whether BEGIN's γ is inside the run's mem[] closure (it should be, since it points to the first real body node which is a run member) — if not, BEGIN gets a spurious zgpop.
+4. Fix: either (a) exclude `IR_STATEMENT_BEGIN` from the exit-release sweep (`if (nodes[i]->op == IR_STATEMENT_BEGIN) continue;` in the gpop/wpop loop), or (b) more surgically, verify the mem[] closure correctly contains BEGIN's γ-target and `gin` is 1 for BEGIN (no spurious release). Use MONITOR bracket to confirm which.
+5. Re-gate: xc318 BY SET both modes — target BY SET IDENTICAL or better vs open bracket.
+
+**Parent:** SCRIP `e9d57c1f` (HEAD, no new commits this session).
 
 **LANDED s28 (this session):**
 - ⭐ **A-1 ZD-4 JMP-ENTRY LIFT — CLOSED VACUOUS.** Gate deleted s23a; roman armed=19/34; remaining 15 declines are PATREF (OMEGA work).
