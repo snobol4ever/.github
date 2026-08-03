@@ -14,7 +14,7 @@
 
 ⛔ **ACCEPTANCE INVERSION — stop gating migration on identity.** U-2's gates: byte-CHANGE in the predicted direction + witnesses (141/183 m3 green · nested-ARBNO-in-FENCE inner-frame-closes-first control, per finishing-plan Step 2) + census movement (walls → four-construct core) + BY-SET no-regression. **BY-SET-IDENTICAL certifies ONLY the killswitch-OFF arm.** An identity gate on the migration itself selects for never migrating.
 
-**Contract note — reconcile, don't relitigate:** your O-PB-1 edit at emit.cpp:1995 sits inside the zdyn veto block the contract greps to ALPHA (`DYNAMIC-BOX DECLINE`). The edit is correct and stands; the ownership line is owed a sentence — ALPHA ratifies at RECON or HQ redraws the grep boundary.
+**Contract note — reconcile, don't relitigate:** your O-PB-1 edit at emit.cpp:1995 sits inside the zdyn veto block the contract greps to ALPHA (`DYNAMIC-BOX DECLINE`). The edit is correct and stands; the ownership line is owed a sentence — ALPHA ratifies at RECON or HQ redraws the grep boundary. **NEW HQ RUNGS ASSIGNED TO THIS SEAT (e-3):** U-WIT (commit uw2/uw3 witnesses to `corpus/probe/` — pre-U-2 prerequisite) · U-AUTH (post-U-2 verify in-template zclaims gone) · U-LBL (proc_LBL trampoline, own session) · U-CALL (IR_CALL/IR_SAVE_RESTORE minimal frame shape, post-U-2) · U-IDSP (indirect_dispatch timing line). Full rung specs in GOAL-SNOBOL4-BB.md LADDER U.
 
 ---
 

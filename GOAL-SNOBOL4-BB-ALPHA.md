@@ -14,7 +14,7 @@
 
 ⛔ **DENOMINATOR LAW — the error that produced "already done" upstairs:** never report a fraction whose denominator is the admitted/armed subset without saying so in the same sentence. (OMEGA s39's "100 of 120" excluded exactly the 132 UCLAIM-bearing files the directive targets.)
 
-**Queued after U-GATE:** OMEGA's s40 closure-scoping request (O-PB-2a cross-stmt contamination — your zvo_resolve/zd_plan terrain) · ratify-or-refer the O-PB-1 edit at emit.cpp:1995 sitting in your zdyn block (edit is correct; ownership line owed at RECON) · RECON after U-2 + U-GATE.
+**Queued after U-GATE:** OMEGA's s40 closure-scoping request (O-PB-2a cross-stmt contamination — your zvo_resolve/zd_plan terrain) · ratify-or-refer the O-PB-1 edit at emit.cpp:1995 sitting in your zdyn block (edit is correct; ownership line owed at RECON) · RECON after U-2 + U-GATE. **NEW HQ RUNGS ASSIGNED TO THIS SEAT (e-3):** U-SCOPE (owner-table cross-stmt contamination fix, post-U-GATE) · U-SHY (post-green audit: every admitted kind defaults ON, produce the table) · U-AUTH is a post-U-2 verification you can run concurrently with U-SCOPE.
 
 ---
 
