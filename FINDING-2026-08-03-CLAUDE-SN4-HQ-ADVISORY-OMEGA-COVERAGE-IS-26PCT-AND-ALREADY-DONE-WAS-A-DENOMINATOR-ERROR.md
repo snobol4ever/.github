@@ -62,3 +62,23 @@ Concurrent-safe by construction: ONE NEW FILE in `scripts/`, collides with no co
 ## 8 · WHAT THIS SESSION DID NOT DO
 
 No SCRIP/corpus edits. No rewriting of either front's cursor blocks in place — supersession blocks at top only, per house convention. No PLAN.md table edit (RULES step 3). Push pending Lon's credential; until pushed, the fronts cannot see any of this.
+
+---
+
+## 9 · PRE-HANDOFF SCAN ADDENDUM (2026-08-03e-2) — measured against origin before push
+
+**S-1 · CONFIRMED — OMEGA s40's cursor hashes are pre-rebase GHOSTS.** origin/main: O-PB-1 = **`bf489b89`**, O-PB-2a = **`c9d84615`**, rebased ON TOP of U-1b `a9823228` (ancestry verified: `a9823228` IS an ancestor of HEAD; the cursor's `7f8e95dd`/`39833281` are NOT on origin — `git merge-base --is-ancestor` says NO). The cursor also names parent `c0c77585` (U-1a) though the pushed parent is U-1b, and records NO post-rebase gate re-run — contract §3's merge-gate rebuild is unverifiable from the cursor. Any session stashing/reverting against the recorded hashes hits unknown-object. **RULE (add to contract §3): the cursor records hashes AS-PUSHED (post-rebase), and when the rebase moved the base, the post-rebase gate line is mandatory. OMEGA: correct the s40 hash line at your next handoff.**
+
+**S-2 · WATERMARK SLIDE, invisible by construction.** Own-cursor arithmetic: m3 passes **295 (A-9) → 289 (HQ U-1b) → 280 (OMEGA s40 baseline)**, m4 **289 → 282 → 274**, with T≈2 at both ends — ~15 passes lost across landings that were nominally default-OFF/BY-SET-identical. Every bracket is vs-OWN-parent, so a monotone cross-session slide is structurally invisible to every seat. Could be harness/env variance (the 127/152 lesson) — which is precisely why the fix is procedural: **RECON step 0 = ONE shared re-bracket at merged HEAD, same harness, recorded env pad; bisect if the slide is real.**
+
+**S-3 · CONFIRMED — the uw2/uw3 acceptance witnesses are committed NOWHERE.** `find SCRIP corpus -iname "*uw[23]*"` = empty. U-1b's acceptance ("uw3 rc=0 both") and U-2's gate cite files that lived only in the HQ session's /tmp. **Commit the pair to `corpus/probe/` (with .ref) before U-2 lands** — an uncommitted acceptance witness is unreproducible prose.
+
+**S-4 · ZW-13 IS THE SECOND WITNESS OF BOTH DISEASES.** OMEGA's own s32-era finding (cursor line ~135): the ZW-12 canonical frame was DARK since ALPHA s24a — ALPHA substituted `!has_blob` on the OMEGA-owned `zws` planner line, `zws` was permanently zero, and **O-3/O-4/O-5s2/O-7 all "landed" into a dead arm with BY-SET-IDENTICAL certifying zero-emission no-ops.** That is (a) the acceptance-inversion disease (§4.1) with a prior conviction, and (b) an ALPHA→OMEGA ownership edit mirroring O-PB-1's OMEGA→ALPHA edit (§4.4). Two witnesses each; the e-cursor's acceptance law and ownership reconciliation are not hypothetical.
+
+**S-5 · φ-GLUE AUDIT OWED BEFORE U-2 BUILDS ON s29/s30.** The landed ALTERNATE/SEQUENCE (s29) + FENCE1 (s30) arms implement the ZD-5b proposal's depth model ("every arm at ALTERNATE.α depth; φ restores before next arm") — written BEFORE the UNWIND ruling. If any φ fail-glue restores by computed depth, it is voided-class under clause 2. One read-only pass over `bb_match_alternate/sequence/fence1.cpp` fail paths, first item of U-2.
+
+**S-6 · THE 127/152 ALIGNMENT KNIFE-EDGE HAS SIX WITNESSES AND NO OWNER.** An rsp%16 ABI bug at some call site (verdict = f(initial rsp parity)) is a bug, not weather. Assign an owner — natural home: U-2's framed-enter work standardizes alignment; make the fix (or a `test rsp,15` canary) an explicit U-2 sub-item or an HQ rung.
+
+**S-7 · nit:** both fronts' READ ORDER lines still call the parent "FROZEN" post-unfreeze (s26). Fix at next front handoff.
+
+**Also verified clean:** .github origin did NOT move during this session (local ahead only); this session's three GOAL-file insertions render intact (markers present ×2 per file, UNWIND heading whole); `scripts/handoff_status.sh` present and executable.
