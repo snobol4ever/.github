@@ -6,15 +6,19 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s27b (2026-08-02, Sonnet) — O-6 SLICE 2 GLUEO DEFAULT-ON AT MERGED HEAD
+## ⭐⭐⭐ LIVE CURSOR — s28 (2026-08-03, Sonnet) — s27 CROSS-FRONT + SHED-1 + O-5 ZW-3 WIRING
 
-**Parent:** SCRIP `a131b7a8` (O-6 slice 1 GLUEO opt-in). **Rebased onto:** ALPHA merged head `e098b324` (A-7 ZD-5b ASSIGN_SAVE/COND/IMM/VALUE, s27). **This session commits:** `8816252c` (O-6 s26a+s26b GLUEO re-land at merged head) · `6afc126e` (regen ×4).
+**Parent:** SCRIP `6afc126e` (O-6 s27b regen). **This session commits:** `79959b67` (s27 cross-front ZD arms SAVE/COND/IMM/VALUE + staging loop) · `eb1a72ec` (SHED-1 nparams conjunct retired) · `9bdb975b` (O-5 ZW-3 wiring main_α m4 seed) · `e9d57c1f` (regen ×4 on origin).
 
-**⭐ O-6 SLICE 2 — GLUEO DEFAULT-ON LANDED:** flip SCRIP_GLUEO from opt-in to opt-out; three-language watermark (SNOBOL4/Icon/Prolog) re-proven before flip. GATES at merged head: BY SET m3 +127_bistable / test_case FAIL→TIMEOUT · m4 test_case FAIL→TIMEOUT · both GLUEO-invariant (A/B confirmed) · test_case TIMEOUT is ALPHA A-7 s27. rbp census: bearing **317→132** · push_rbp **464→252 (−212)** · data_refs **7893→7893** (law-4 population untouched). Regen ×4 committed (`6afc126e`, 384 crosscheck files). ⛔ REBASE LESSON: during conflict resolution `git checkout HEAD -- emit.cpp` silently dropped s26a GLUEO block; re-applied at `8816252c`. Rule: grep for session's own key changes before `git rebase --continue`.
+**⭐ s27 CROSS-FRONT DISCHARGED (`79959b67`):** `bb_match_capture.cpp` — op_zres-gated ZD arms for SAVE (ZRESD(0)=r14d, beta trampoline), COND (ZOPD(1,0) reads SAVE cursor, pend/CAS push inline), IMM (same delta, rt_cap_open + proc epilogue). `bb_match_value.cpp` — ZOPQ(0,0) replaces FR(op_a_slot) under op_zres. `emit.cpp` staging loop — COND/IMM skip operands[0] (blob inner-pattern, outside run), stage only operands[1] (SAVE cursor cell) into g_zd_read[1]. GATE: default OFF 318/318 byte-identical · ZD_CAP=1 m3/m4 BY SET zero new failures · bench 18/21 EXACT HOLD.
 
-**NEXT:** (1) ALPHA CROSS-FRONT s27 request — `bb_match_capture.cpp` op_zres-gated ZD arm + staging-loop COND/IMM operands[1] special-case, both behind SCRIP_ZD_CAP=1. (2) SHED-1 NPARAMS — `xa_flat.cpp:142` `xaf_deep` nparams conjunct retirement for depth-static graphs. (3) O-5 cap_gen path gated on ZD-5a admission (1080 mentions / 175 programs, all old-arm).
+**⭐ SHED-1 LANDED (`eb1a72ec`):** `xa_flat.cpp` `xaf_deep()` — nparams conjunct `flat_outer_nparams>=1` retired under killswitch SCRIP_SHED_NP (default ON=retired). Every graph with nparams>=1 is a jmp-entry DEFINE proc (flat_deep_arrival=1 already); conjunct was dead for entire crosscheck corpus. GATE: 318/318 byte-identical both arms · m4 BY SET zero new failures · bench 18/21 EXACT HOLD.
 
-**WATERMARK (s27b):** m3 **282/24/11** · m4 **272/33/11/1L** · rbp bearing **132/318** · push_rbp **252** · data_refs **7893**.
+**⭐ O-5 ZW-3 WIRING (`9bdb975b`):** `scrip.c` main_α m4 preamble — added `mov r12, qword ptr [0x70000000]` before `jmp main_α` (mirror of existing flat_α seed at line 1438; R12-FREE-1 deletion reversed). r12 is the live CAS/dcap top register (s23l ruling). Mode-3 path already correct via rt_outer_call thunk. GATE: BY SET zero new failures m3/m4 · bench 18/21 EXACT HOLD · 317/318 .s differ (one seed line each; coverage_sno_nodes unchanged = empty compile both arms).
+
+**NEXT:** O-5 slice 2 — remove the redundant cell reload `x86("mov", "r12", ABSQ(RT_CAS_TOP))` from `bb_match_begin.cpp:50` (r12 is now seeded at graph entry; r12 is callee-saved through C calls so C-transit is safe). Then cap_gen deletion (1080 mentions / 175 programs, all old-arm, gated on ZD-5a admission). Then O-6 slice 3 (CLASS C / PAT$N / FENCE0 / FENCE1 per ledger). Then O-7 ZD-5a bridgehead.
+
+**WATERMARK (s28):** m3 **282/24/11** · m4 **272/33/11/1L** · rbp bearing **132/318** · push_rbp **252** · data_refs **7893** (census unchanged — O-5 wiring is m4-only; mode-3 was already seeded via rt_outer_call).
 
 ---
 
