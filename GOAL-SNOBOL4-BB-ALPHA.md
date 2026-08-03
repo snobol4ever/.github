@@ -8,6 +8,16 @@
 
 ---
 
+## ⛔⭐⭐⭐ LIVE CURSOR — 2026-08-03 (this session)
+
+**NEXT: ZW-RB-1** — implement mechanism-2 blob-carve fix. Full spec in `FINDING-2026-08-03-CLAUDE-SN4-ALPHA-ZW-RB-MECHANISM2-BLOB-CARVE-DIAGNOSIS.md`. Execute §3 Parts 1–4 in order, respect §4 ordering law for cas_rsp_mark.
+
+**Baseline watermark (HEAD, ZW_RB=0):** m3 281/25/11 · m4 274/32/10 (318 crosscheck). Acceptance: SCRIP_ZW_RB=1 → `044_pat_pos` PASS + full crosscheck at-or-above baseline both modes. Then flip `zw_rb_on()` default from 0→1 in emit.h.
+
+**What this session did (diagnostic only, no commits to SCRIP):** Measured SCRIP_ZW_RB=1 regression (−43 programs: 238/63/16). Root cause: bb_match_begin mech2 arm emits only `push rbp; mov rbp,rsp` with NO `sub rsp,Kc` carve → blob interior FRQ slots unallocated → SEGV. Secondary: blob closure members (`cm[]`, not `run[]`) never get `zzwr[k]=1` so `op_zw2=0` at the choke → depth compensation cannot fire. Ordering trap: `cas_rsp_mark` must store RSP AFTER `sub rsp,Kc`, not before. MATCH_END mech2 arm FRQ restores must become RBP-relative. All four edits documented in FINDING §3–4.
+
+---
+
 ## ⛔⭐⭐⭐ ADVISORY + RE-CHARTER — 2026-08-03e (Lon-directed HQ/advisory seat; SUPERSEDES the s38 "NEXT RUNG: RECON with OMEGA after U-2 lands" line below): YOUR NEXT = U-GATE
 
 **Re-charter (Lon this session: "get those two sessions back on the proper track to completion"):** your admission ladder is complete (A-9) and your seat was idling while the U ladder's missing INSTRUMENT went unbuilt. You built ZD-DEPTH; the census seat is now yours. **NEXT = U-GATE: `scripts/test_gate_omega_own_k.sh`** — concurrent-safe by construction (ONE NEW FILE in `scripts/`, zero `src/` edits, collides with no contract-owned file).
