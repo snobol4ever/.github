@@ -15,21 +15,25 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s36 (2026-08-03, Sonnet) — ZW-15: rbp=claim_base · fence1 [rbp+0]→[rbp-8] · blob-gate STAYS
+## ⭐⭐⭐ LIVE CURSOR — s37 (2026-08-03, Sonnet) — ZW-16 FINDING: blob-context op_zw staging unsafe; mechanism-2 ALTERNATE frame is next
 
-**Parent:** SCRIP `4bba30c4` (ZW-14 s33b). **This session commits:** SCRIP `1b2535b1` (ZW-15) + feature regen; corpus `e23ddf68` (demo regen); `.github` FINDING + cursor.
+**Parent:** SCRIP `53705cf1` (ZW-15 s36). **This session commits:** `.github` FINDING + cursor only — no SCRIP code changes (revert; HEAD stays at `53705cf1`). Push needs credentials.
 
-**⭐⭐ ZW-15 (`1b2535b1`):** `push rbp; mov rbp,rsp; lea rbp,[rbp+8]` (rbp# escape) makes `rbp=claim_base` in `bb_match_begin.cpp` op_zw arm. Old_rbp at `[rbp-8]` (was `[rbp+0]`). Frame cell offsets shift −8: r13 `−16`, r14 `−24`, r15 `−32`, cas_base `−40`, anchor `−48`, start_δ `−56`, cap_gen `−64`. Whacks: `lea rsp,[rbp-8]; pop rbp` in begin-ω and end-γ/ω. `ZW_FRAME_K=56`, `ZW_FRAME_TOTAL=64` UNCHANGED (lea is register-only, no rsp change).
+**⭐⭐ ZW-16 FINDING (full doc: `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-ZW16-BLOB-CONTEXT-OP-ZW-STAGING-UNSAFE-R12-NOT-COHERENT-ACROSS-BACKTRACK.md`):**
 
-**⭐ FENCE1 FIX (same commit):** `bb_match_fence1.cpp` `fence_whack_commit` op_zw read old_rbp from `[rbp+0]`. Fixed to `[rbp-8]` (rbp# escape → XK_REGDISP → `x86_reg_disp32_lea64`). Without this fix: 25 regressions (capture-bearing programs using fence arm).
+Blob-context `op_zw` staging attempted (emit.cpp zd_plan blob-member loop: propagate `zzw[k]=1` when `zws=1`, behind `SCRIP_ZW_BLOB=1`; emit.h: widen `zw_nblob_ok` to admit `nblob_real>0`). Gate: m3 −2 / m4 −1 net, with two new correctness regressions.
 
-**⭐ BLOB-GATE STAYS at nblob_real==0:** Lifting the gate caused CAS mismatch — blob-member CAPTURE_COND sees op_zw=0 at invocation (off-run, unstaged at choke) and writes to RT_CAS_TOP; match_end op_zw reads r12. Result: captures lost (V="" instead of "hel" on 044_pat_pos). Reverted. Next rung: stage op_zw to blob-member invocation contexts to unify the CAS top source.
+**Root cause 1 (156_pat_cap_alt_abandon_pop FAIL):** Under ALTERNATE backtrack cycling, CAPTURE_COND's β arm (`sub r12, 24`) fires before MATCH_BEGIN-β restores `r12 ← [rbp-40]`. r12 is not coherent at COND-β. The CAS stack undershoots; subsequent arms write at wrong r12 position.
 
-**GATE (s36, measured):** m3 281/25F/11T · m4 274/32F/10T/1L · bench **18/21 EXACT HOLD**. BY SET vs bracket: zero new failures (062 bistable ASLR flicker confirmed pre-existing). FINDING: `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S36-ZW15-*`.
+**Root cause 2 (156+162):** Blob-member CAPTURE_SAVE is not ZD-admitted (`zd_on[k]=0`); it uses `rt_cap_push` (C array). COND's `ZOPD(1,0)` read of SAVE's "cell" hits an uninitialised claim slot — wrong match length computed.
 
-**NEXT:** blob-context op_zw staging — when CAPTURE_COND executes as a blob member under the op_zw frame, it must write to r12 not RT_CAS_TOP. This unblocks ~101 blob-clause declines. Push needs credentials.
+**Architectural verdict:** Both root causes require mechanism-2 (Lon HQ ruling 2026-08-03 verbatim): a nested RBP frame at each indeterminacy boundary inside the blob. ALTERNATE = one boundary; ARBNO = another. The `nblob_real>0` population (73 programs) is the mechanism-2 worklist. The `nblob_real==0` gate (49 armed programs) is correct and stays.
 
-**WATERMARK (s36):** armed **49** · push_rbp **326** · rsp_mark **132** · SCRIP commit: `1b2535b1` · bracket parent: `4bba30c4`.
+**NEXT:** Mechanism-2 for ALTERNATE — `bb_match_alternate.cpp` gets an RBP frame at α saving r12 (current CAS top at arm-entry); each arm-entry restores from frame cell; ALTERNATE-ω whacks. Same structure as MATCH_BEGIN's ZW-15 frame one level deeper. Once ALTERNATE's frame coherently maintains r12 across arm retries, CAPTURE_COND's β is safe and the arm-interior becomes a plannable sub-run.
+
+**GATE (s37, HEAD `53705cf1`, measured):** m3 **281/25F/11T** · m4 **274/31F/11T/1L** · bench **18/21 EXACT HOLD** · BY SET identical to s36 bracket.
+
+**WATERMARK (s37):** armed **49** · push_rbp **326** · rsp_mark **132** · blob-clause declined **73** · fused-terminal **0** · SCRIP commit: `53705cf1` (unchanged) · bracket parent: `4bba30c4`.
 
 ---
 
