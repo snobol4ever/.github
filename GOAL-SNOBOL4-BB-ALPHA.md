@@ -16,14 +16,16 @@
 ## ⭐⭐⭐ LIVE CURSOR — s32 (this session) — A-9 NEXT: RECONCILIATION (both fronts done)
 
 **LANDED s32 (this session):**
-- **ZD-CAP DEFAULT FLIP — CLOSED.** `SCRIP_ZD_CAP` default flipped OFF→ON in emit.cpp admission gate. Template ZD arms (SAVE/COND/IMM) and staging-loop COND/IMM special-case had both landed s27 (OMEGA delivery + emit.cpp:2533). Pre-flip census confirmed both present at HEAD; blocker was only the default env. BY SET IDENTICAL: m3 290/28 vs pre-flip baseline in same-process comparison; bench 18/21 EXACT HOLD. Declined runs 141→105 (ASSIGN_SAVE 41→0, fully drained). `SCRIP_ZD_CAP=0` killswitch reverts; produces different `.s` (non-vacuous confirmed). VALUE excluded per s31 FINDING. Regen ×4: 34 crosscheck artifacts changed, 12 feature test artifacts. COMMIT: SCRIP `550915ff`.
+- **ZD-CAP DEFAULT FLIP — CLOSED.** `SCRIP_ZD_CAP` default flipped OFF→ON. Template ZD arms (SAVE/COND/IMM) and staging-loop COND/IMM special-case both present at HEAD (s27 OMEGA delivery). BY SET IDENTICAL m3 290/28, bench 18/21 EXACT HOLD. Declined runs 141→105. ASSIGN_SAVE 41→0 fully drained. Regen ×4: 34 crosscheck + 12 feature. COMMIT: SCRIP `550915ff`.
+- **STALE flat_pat FIX.** Non-jmp-entry chains inherited `flat_pat=1` from preceding PAT$ blob; `zd_plan`'s FENCE1 veto read the stale value. Fix: `if (!g_emit.flat_jmp_entry) g_emit.flat_pat = 0` before `zd_plan`. BY SET identical. FENCE1 vetoes remain (correctly inside PAT$ blobs per LP_DIAG: jmp=1 pat=1). Correctness improvement, no decline reduction. COMMIT: SCRIP `1c86922b`.
 
-**FINDINGS this session (measurement-first, two hypotheses falsified):**
-- **"classifier dead" FALSIFIED:** all vetoing nodes show `pat_static=0`, but 177/354 stamps succeed. The tautology: only `pat_static=0` nodes veto, so the veto log is blind to successes.
-- **"literal-valued names are the gap" FALSIFIED:** prototype showed 141→140 (~1 run). Dominant dfree=0 cause is genuinely-recursive DEFER (84 firings) + bracketed capture (28 firings); correctly declined.
-- **veto anatomy confirmed:** DEFER/PATREF veto governs 72 of 141 declined runs (51%). Force-arm probe (SCRIP_ZD_DYNARM=3) confirms: 141→69, MATCH_BEGIN 62→0. These are semantic declines, not capability gaps.
+**FINDINGS this session (measurement-first, three hypotheses falsified):**
+- **"classifier dead" FALSIFIED.** 177/354 `pat_static` stamps succeed. Tautology: only `pat_static=0` nodes veto.
+- **"literal-valued names are the gap" FALSIFIED.** Prototype 141→140. Dominant dfree=0: DEFER 84 (recursive), CAPTURE 28 (bracketed s23i).
+- **"stale flat_pat causes FENCE1 declines" FALSIFIED.** 10 FENCE1 vetoes are inside PAT$ blobs (LP_DIAG confirms jmp=1 pat=1). The veto is correct. Fix is safe but neutral.
+- **FRONTIER IS SEMANTIC CEILING.** 105 declined runs: all veto-class (DEFER/PATREF/FENCE1 pat_static=0). Zero pure capability gaps. 263/318 programs fully armed.
 
-**Parent:** SCRIP `a2cd7b09`. Committed at `550915ff`. Corpus at `d472c9e2` + regen commits.
+**Parent:** SCRIP `a2cd7b09`. Committed at `1c86922b`. Corpus regen at HEAD.
 
 **Parent:** SCRIP `d5033669` (open bracket from OMEGA O-7). Committed at `47530468`. Corpus at `c08bd7f4`.
 
