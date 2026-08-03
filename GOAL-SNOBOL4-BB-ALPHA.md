@@ -54,7 +54,37 @@ pad='X=12345678'              FAIL rc=139
 **⛔⭐⭐⭐ A-10 AS FIRST PROPOSED IS FALSIFIED — DO NOT OPEN A LABEL-JOIN RUNG.** I hypothesised the tail was `:(L)` gotos leaving mid-statement; per-predecessor attribution killed it inside the session. The disagreement is a **value-spine ω fan-in at ascending depths** (216: LIT_STRING@0, VAR@16, BINOP@32, ASSIGN@48 — not one goto), i.e. clause 2's named defect verbatim: *"NO fail site ever computes accumulated depth."*
 **CORPUS-WIDE: 1152/1342 disagreeing edges (86%) are ω**, and the disagreeing ω preds are exactly the kinds HQ's U-1a measured as having NO emitted β (ASSIGN 941 · CALL 431 · LIT_INTEGER 359 · BINOP 308 · LIT_STRING 229 · VAR 221 · COERCE_NUMERIC 138).
 ⭐ **THEREFORE: the walls are not an RBP requisition — they are the UNWIND GAP. 86% of them are deleted BY CONSTRUCTION when U-1b lands.** U-1b is not merely the rc=139 fix; it is the precondition that makes sliding RSP offsets legal at all.
-**NEXT = U-1b (OMEGA/HQ seat), then RE-RUN THIS CENSUS AS ITS ACCEPTANCE TEST.** Predicted: walls 469 → ~200, value-spine kinds gone from the disagreeing-pred list. ALPHA has no admission rung here — confirm seat with Lon.
+
+---
+
+## ⭐⭐⭐ FINISHING PLAN (Lon directive 2026-08-03c — "make sure your idea what needs to be done is listed in the GOAL file")
+
+**Five steps, in order. Each is a bounded edit with a named acceptance test.**
+
+### Step 1 · U-1b — WIRE VALUE-SPINE β TRAMPOLINES (OMEGA/HQ seat)
+**What:** every admitted value-spine box (IR_VAR, IR_LIT_INTEGER, IR_LIT_STRING, IR_BINOP, IR_UNOP, IR_ASSIGN, IR_CALL, IR_CMP_TEST, IR_COERCE_NUMERIC, IR_COERCE_STRING, IR_DEREF, IR_SUBSCRIPT, IR_FIELD_VAR) gets an emitted β: `add rsp, K; jmp pred_β`. `STATEMENT_BEGIN.β` is the sole terminus — no pred means jump to `:F` / next statement. The `SCRIP_UNWIND` skeleton in `bb_statement.cpp` + the choke arm in `emit.cpp` are the home. Inert until the gate flips.
+**Acceptance test:** re-run `SCRIP_ZD_DEPTH=1` on 318 programs. Walls **469 → ~60** (the non-value-spine residual: MATCH_BEGIN 86 + SAVE_RESTORE 58 + ASSIGN_SAVE 31 + tail 35 ≈ 210, minus any that resolve as side-effects). Value-spine kinds (ASSIGN/CALL/LIT_INTEGER/BINOP/LIT_STRING/VAR/COERCE_NUMERIC) must be **ABSENT** from the disagreeing-ω-pred list. rc=139 class clears.
+**⛔ ALPHA's contribution is a verification only:** confirm `zd_on[i]=1` for every CMP_TEST/COERCE_NUMERIC in the uw3 witness chain (`SCRIP_ZD_DIAG=1`). No admission edit needed — they are already admitted.
+
+### Step 2 · U-2 — MATCH_BEGIN / ARBNO / FENCE1 OWN FRAMES (OMEGA/HQ seat)
+**What:** MATCH_BEGIN α gets `bb_glue_framed_enter()` — this pins the inner RBP for the match scope. ARBNO α and FENCE1 α each get their own `bb_glue_framed_enter()`. Each construct's success exit gets `mov rsp, rbp; pop rbp` (the two-instruction whack, cost-independent of depth). **ARBNO and FENCE1 NEVER touch the MATCH_BEGIN frame** — they see it as an opaque floor. The cursor registers (r14/r15/r13) are registers, not frame slots, so there is no ownership question on them.
+**Acceptance test:** census walls fall further toward the four-construct core. ARBNO recursive cases (`141_pat_eval_double_fn_arbno`, `183_pat_arbno_defer_recursive_carry`) must pass m3. Controlled experiment: a program with nested ARBNO in FENCE must show the inner frame closing before the outer.
+
+### Step 3 · STATEMENT_END / MATCH_END WHACK (OMEGA/HQ seat)
+**What:** `STATEMENT_END.γ` emits `mov rsp, rbp; pop rbp` — the sole statement-scope success release (UNWIND clause 4). `MATCH_END.γ` emits the same for the match-scope inner frame (clause 3 — MATCH_END is the language fence). These are **two instructions each, depth-independent by construction.** The wholesale `op_zgpop / add rsp, K_total` at the terminal cut becomes dead — it is replaced by the whack.
+**Acceptance test:** roman.s `n2_match_begin_α: sub rsp, 240` → sub rsp for MATCH_BEGIN's own small cell only (scanner housekeeping). The 30-entry zero-fill loop disappears. `.s` byte-change is expected and desirable here — this is the payoff.
+
+### Step 4 · RETIRE THE UCLAIM CRUTCH (OMEGA/HQ seat)
+**What:** once every box self-allocates (Steps 1–3), `zvo_uclaim_k` returns 0 for every run and the `op_uclaim > 0` arm in `x86_asm.h` never fires. Delete the wholesale pre-carve, the OWNER TABLE (`zvo_ent_t`), `zvo_resolve`, and the zero-fill loop. The `sub rsp, 240` at MATCH_BEGIN goes away because it IS the UCLAIM; MATCH_BEGIN's own cell is small (cursor/anchor/bounds — call it 32–48B, not 240).
+**Acceptance test:** `grep "sub.*rsp.*240" corpus/benchmarks/snobol4/roman.s` → zero. `grep "sub.*rsp.*192"` → zero. Every `sub rsp` in roman.s should be ≤ 64 (each box's own K). The census should show 0 walls from value-spine kinds and the count of walls should equal the count of framed-enter sites (STATEMENT, MATCH, ARBNO, FENCE1, FUNCTION).
+
+### Step 5 · `proc_LBL__ROMAN_α` — EMIT MAIN FIRST, LBL AS TRAMPOLINE (HQ/OMEGA seat, `scrip.c`)
+**What:** in both proc-emission loops in `scrip.c` (~:887, ~:1348), emit the main chain first, then LBL-prefixed entries as a 2-line trampoline: `proc_LBL__FOO_α: / jmp n<landing>_α` where `n<landing>` is the node the LBL's jmp-entry chain actually binds to. This requires collecting the landing-node label before the LBL loop rather than deriving it at LBL-emission time. The `_α_body` alias (s26 residue (a)) and the full 69-box duplicate body (s26 residue (b)) both vanish.
+**Acceptance test:** `wc -l corpus/benchmarks/snobol4/roman.s` drops from 2713 to ~1820 (896-line LBL section replaced by 2 lines). All 318 crosscheck programs by-set identical. Every `proc_LBL__*` section in the corpus is ≤ 5 lines.
+
+---
+
+**SEQUENCING NOTE:** Steps 1–3 must land in order (β trampolines before frames, frames before whack). Steps 4–5 can land in either order after Step 3. **The `SCRIP_ZD_DEPTH=1` census is the acceptance instrument for every step** — run it after each landing and verify the wall count moves in the predicted direction before committing.
 
 ## ⭐⭐⭐ PRIOR CURSOR — s36 (HQ revamp, 2026-08-03b) — U LADDER IS THE ACTIVE FRONT · ALPHA LADDER COMPLETE · READ THE RULING RELAY ABOVE FIRST
 
