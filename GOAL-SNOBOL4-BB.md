@@ -23,9 +23,24 @@ The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS conti
 - U-2 · match family: generator βs (ALTERNATE arms, ARBNO extension, cursor-mover restores) join the chain as fail-capable members; MATCH_BEGIN.β owns the unanchored start bump; ABORT = unwind-to-match-boundary via the frame restore (mechanism 2 as O(1) unwind, not a whack of the statement).
 - U-3 · delete voided machinery once green at the merged head: ω depth ladder, ENDJMP/op_wsteal, aggregate wpop staging.
 
-**HQ CURSOR (this session, 2026-08-03b):** Ruling recorded (this block + relays in both fronts). **U-1a LANDED INERT** — the choke arm compiles, gate-off byte-identical to parent `fa007877` by stash A/B, gate-on fire set MEASURED EMPTY: the value spine (LIT/VAR/COERCE/CMP_TEST) has NO emitted βs to unwind into (no pair-def in dispatch; `x86_pair_loop`'s jmp is raw, hook-less), which is Lon's opening observation made mechanical. **NEXT = U-1b** (β trampolines for CMP_TEST/COERCE + pred-whitelist widen + BEGIN.ω wire) — full recipe + witness pair in `FINDING-2026-08-03-CLAUDE-SN4-HQ-UNWIND-RULING-U1A-SKELETON-INERT-...md`. ⚠ 10 crosscheck `.s` measured STALE at `fa007877` (merge landed without regen; parent-exonerated by stash A/B) — regen ×4 owed at the next code landing. ⚠ Baseline witness: value-spine fail-path programs (uw3 shape) print correct output then rc=139 at HEAD gate-off — the disease itself, the ruling's target.
+**HQ CURSOR (2026-08-03c, Lon directive "get every BB to FREE on OMEGA / all your choices"):**
 
-**NEXT (as of this close):** MECHANISM-2 RUNG — point the STF rbp bracket at the veto worklist (OMEGA terrain: 101 blob-clause declines + 12 sealed + 131's class), seat per Lon's next directive; O-9 RECONCILIATION pending on OMEGA (unblocked — A-9 landed `7f92a607`). **WATERMARK OF RECORD (HQ ENDJMP):** m3 **282/24/11** · m4 **274/32/10+1L** · PASS sets EXACT both modes · bench **18/21 HOLD** · regen ×4 clean. ⚠ Container note: x64 SPITBOL-oracle clone died mid-transfer TWICE (network flake); re-clone fresh and verify `bin/sbl` before trusting refs-style paths.
+**⭐⭐⭐ U-1b LANDED — SCRIP `a9823228`, parent `b8b53450`, corpus untouched.**
+
+THREE EDITS behind `SCRIP_UNWIND` (default OFF, gate-off byte-identical stash A/B):
+1. `flat_unwind_beta()` — widened pred whitelist: VAR/LIT_INTEGER/LIT_STRING/BINOP/UNOP/ASSIGN/ASSIGN_VAR/CMP_TEST/COERCE_NUMERIC/COERCE_STRING/COERCE_INTEGER/COERCE_REAL/DEREF/SUBSCRIPT/FIELD_VAR + the four flat_trivial_beta kinds.
+2. U-1b β LIVENESS pre-pass — conservative over-mark (never under-mark = wild jump), breaks the circular prophecy that kept value-spine βs elided.
+3. U-1a retarget widened: `flat_trivial_beta` → `flat_unwind_beta`.
+
+MEASURED on uw3 (FINDING-2026-08-03 baseline witness): `n9_cmp_test` ω gate-OFF = `add rsp,16 / add rsp,64 / jmp n30_stmt_begin_α` (accumulated whack). Gate-ON = `add rsp,16 / jmp n8_coerce_numeric_β` (own-K free + roll). The law is emitted verbatim. Fire set 0→17 jmp-to-β.
+
+ACCEPTANCE: gate-off byte-identical · m3 BY SET IDENTICAL (excl. documented 127/152 alignment-flake instruments) · m4 BY SET IDENTICAL · uw3 rc=0 both.
+
+**CENSUS SCOPE NOTE:** ZD-DEPTH wall census reads 469 both gates — not a regression. It measures multi-depth joins WITHIN the armed set; U-1b resolves non-join ω edges escaping to :F targets outside nodes[]. Those never appeared as joins. Census is correct; the acceptance instrument for U-1b is BY SET + uw3 behavioral, not wall count.
+
+**NEXT = U-2** (match family: ALTERNATE/ARBNO/FENCE1/MATCH_BEGIN βs join the chain; OMEGA seat per the ladder). ALPHA and HQ recon owed once OMEGA O-9 lands. **WATERMARK (U-1b):** m3 **289/26/2** · m4 **282/36** · BY SET both modes · 127/152 flake instruments excluded per s38 ruling · regen ×4 owed (codegen gate-off unchanged; deferred to next code landing per RULES).
+
+**HQ CURSOR (2026-08-03b — U-1a):** Ruling recorded (this block + relays in both fronts). U-1a LANDED INERT — gate-on fire set empty (no emitted βs to retarget into). U-1b recipe in `FINDING-2026-08-03-CLAUDE-SN4-HQ-UNWIND-RULING-U1A-SKELETON-INERT-...md`.
 
 ## ⭐⭐⭐ HQ LIVE CURSOR — 2026-08-03 (Lon-directed): ENDJMP STEAL — SCRIP `a571c6bc`, corpus `f34d76b6`
 
