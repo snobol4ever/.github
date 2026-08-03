@@ -59,6 +59,26 @@ pad='X=12345678'              FAIL rc=139
 
 ## ⭐⭐⭐ FINISHING PLAN (Lon directive 2026-08-03c — "make sure your idea what needs to be done is listed in the GOAL file")
 
+### ⛔⛔⛔ THE ONE LAW EVERY STEP BELOW DEPENDS ON — READ THIS FIRST
+
+**THE NORMAL FREE IS ON OMEGA, FROM EVERY SINGLE BB BOX, NO EXCEPTIONS.**
+
+```
+box_α:   sub rsp, K          ← carve OWN K only
+         ...box body...
+box_ω:   add rsp, K          ← free OWN K only
+         jmp pred_β          ← roll back to predecessor's beta
+```
+
+- α carves exactly K bytes for this box. Nothing else. No other box's storage.
+- ω frees exactly K bytes — the same K — and jumps to the predecessor's β. It does NOT know accumulated depth. It does NOT compute a total. It does NOT whack the statement.
+- β is the resume/retry port. For a deterministic (one-shot) box, β IS effectively ω-continuation: same `add rsp, K; jmp pred_β`.
+- γ suspends the cell (leaves rsp where it is, the cell stays live for downstream boxes).
+- **The ONLY places that whack more than own-K are the four framed constructs on their SUCCESS path** (STATEMENT_END γ, MATCH_END γ, FENCE commit, ARBNO/FENCE1 success): `mov rsp, rbp; pop rbp` — two instructions, depth-independent.
+- **Failure NEVER whacks.** Failure unwinds one box at a time via ω → pred_β → ... → STATEMENT_BEGIN.β → :F target.
+
+This law is why the UCLAIM wholesale pre-carve (`sub rsp, 240`) must die: it was a workaround for not having per-BB ω frees. Once every box owns its own free on ω, the wholesale carve is not just redundant — it is wrong.
+
 **Five steps, in order. Each is a bounded edit with a named acceptance test.**
 
 ### Step 1 · U-1b — WIRE VALUE-SPINE β TRAMPOLINES (OMEGA/HQ seat)
