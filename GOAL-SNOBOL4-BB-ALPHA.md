@@ -28,9 +28,11 @@ Failure NEVER whacks. Failure is an UNWIND: box N's ω frees OWN K only and roll
 
 ## ⭐⭐⭐ LIVE CURSOR — s38 (2026-08-03c, Lon "all your choices") — ZD-DEPTH CENSUS LANDED · THE WALL IS MEASURED
 
-**SCRIP HEAD: `d2146360`** (ZD-DEPTH census, default OFF). Parent: `c0c77585`. Corpus: `0c2b0df7` (untouched — no regen owed, `.s` byte-identical).
+**SCRIP HEAD: `a9823228`** (U-1b UNWIND value-spine roll, HQ seat). Parent: `b8b53450`. Corpus: `0c2b0df7` (untouched — gate-off codegen unchanged, no regen owed).
 
-**NEXT RUNG: A-10 · TAIL-CLASS (a) LABEL-JOIN UNWIND** — see below.
+**U-1b VERIFICATION (ALPHA §7 step — "confirm zd_on=1 for CMP_TEST/COERCE_NUMERIC in uw3 chain"):** SCRIP_ZD_DIAG=1 not needed — the emitted `.s` is the ground truth. Gate-ON shows `n7/n8_coerce_numeric_β` and `n9_cmp_test_β` all defined and jumped-to. `zd_on[i]=1` is confirmed by emission: a node with `zd_on=0` produces no sub/add rsp pair and no β label; all uw3 spine members emit sub rsp,16 / β label / add rsp,16. Verification complete — no gap.
+
+**NEXT RUNG: RECON with OMEGA after U-2 lands (U-1b complete; ALPHA admission done).**
 
 **LANDED s38:** `SCRIP_ZD_DEPTH=1` read-only brick-wall census in `emit.cpp` beside `zd_plan` (ALPHA diag territory per contract §1). Full text: `FINDING-2026-08-03-CLAUDE-SN4-ALPHA-THE-BRICK-WALL-IS-A-GRAPH-PROPERTY-AND-THE-TAIL-IS-THE-SEGV-CLASS.md`.
 
