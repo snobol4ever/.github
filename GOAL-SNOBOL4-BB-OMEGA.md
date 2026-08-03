@@ -15,20 +15,21 @@
 
 ---
 
-## ⭐⭐⭐ LIVE CURSOR — s35 (2026-08-03, Sonnet) — SEAL AUDIT · ALL 12 CORRECTLY SEALED · r9/WIRE IS NEXT
+## ⭐⭐⭐ LIVE CURSOR — s36 (2026-08-03, Sonnet) — ZW-15: rbp=claim_base · fence1 [rbp+0]→[rbp-8] · blob-gate STAYS
 
-**Parent:** SCRIP `4bba30c4` (ZW-14 s33b). **This session commits:** `.github` finding + cursor only.
+**Parent:** SCRIP `4bba30c4` (ZW-14 s33b). **This session commits:** SCRIP `1b2535b1` (ZW-15) + feature regen; corpus `e23ddf68` (demo regen); `.github` FINDING + cursor.
 
-**⭐ s35 SEAL AUDIT (see `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S35-*`):** Full audit of 12 `seal/no-END/window` declines at HEAD. All correctly sealed — no false positives:
-- FENCE0 programs (058/067/173/cross): bare `FENCE` keyword lowers to `IR_CALL(SNO$PB0)`, triggering the `zdyn` dynamic-box veto. Not a bug.
-- FENCE(P) programs (061/068/069/101/107): window-integrity scan zeroes `zws` — FENCE1 exit edges genuinely escape the run. Correct by construction.
-- 161 (DEFER): graph-scope DEFER seal. LAWS DEFER-DEEP-LOAD-BEARING verbatim. Needs Lon nested-frame ruling.
+**⭐⭐ ZW-15 (`1b2535b1`):** `push rbp; mov rbp,rsp; lea rbp,[rbp+8]` (rbp# escape) makes `rbp=claim_base` in `bb_match_begin.cpp` op_zw arm. Old_rbp at `[rbp-8]` (was `[rbp+0]`). Frame cell offsets shift −8: r13 `−16`, r14 `−24`, r15 `−32`, cas_base `−40`, anchor `−48`, start_δ `−56`, cap_gen `−64`. Whacks: `lea rsp,[rbp-8]; pop rbp` in begin-ω and end-γ/ω. `ZW_FRAME_K=56`, `ZW_FRAME_TOTAL=64` UNCHANGED (lea is register-only, no rsp change).
 
-**GATE (s35, measured):** m3 unchanged at ZW-14 head · m4 unchanged · bench **18/21 EXACT HOLD**.
+**⭐ FENCE1 FIX (same commit):** `bb_match_fence1.cpp` `fence_whack_commit` op_zw read old_rbp from `[rbp+0]`. Fixed to `[rbp-8]` (rbp# escape → XK_REGDISP → `x86_reg_disp32_lea64`). Without this fix: 25 regressions (capture-bearing programs using fence arm).
 
-**NEXT: r9/wire rung** — 101 `blob-clause` declines all have `nblob_real>0` (genuine live FRQ-slot blob members: ARBNO 68 FR/FRQ, BREAK/BREAKX/SPAN_VAR/SPAN/BAL, ALTERNATE/SEQUENCE, DEFER, CAPTURE). The rung: pass r9=blob-claim-base from `bb_match_begin` op_zw arm after the `sub rsp,ZW_FRAME_K`; add `op_zw` arms to each blob template using `[r9 + off - blob_base]` instead of `FR(off)`. ~1 full session. Push needs credentials.
+**⭐ BLOB-GATE STAYS at nblob_real==0:** Lifting the gate caused CAS mismatch — blob-member CAPTURE_COND sees op_zw=0 at invocation (off-run, unstaged at choke) and writes to RT_CAS_TOP; match_end op_zw reads r12. Result: captures lost (V="" instead of "hel" on 044_pat_pos). Reverted. Next rung: stage op_zw to blob-member invocation contexts to unify the CAS top source.
 
-**WATERMARK (s35):** same as s33b · armed **49** · push_rbp **326** · rsp_mark **132** · SCRIP parent: `4bba30c4`.
+**GATE (s36, measured):** m3 281/25F/11T · m4 274/32F/10T/1L · bench **18/21 EXACT HOLD**. BY SET vs bracket: zero new failures (062 bistable ASLR flicker confirmed pre-existing). FINDING: `FINDING-2026-08-03-CLAUDE-SN4-OMEGA-S36-ZW15-*`.
+
+**NEXT:** blob-context op_zw staging — when CAPTURE_COND executes as a blob member under the op_zw frame, it must write to r12 not RT_CAS_TOP. This unblocks ~101 blob-clause declines. Push needs credentials.
+
+**WATERMARK (s36):** armed **49** · push_rbp **326** · rsp_mark **132** · SCRIP commit: `1b2535b1` · bracket parent: `4bba30c4`.
 
 ---
 
