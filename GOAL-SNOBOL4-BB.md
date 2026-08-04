@@ -6,15 +6,26 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session 3 — SE-4…SE-6 attempted + REVERTED; frame geometry blocker found; gate 95/46/0 confirmed at HEAD)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session 4 — SE-4 LANDED `a9be14d`; SE-5 diagnosis complete; gate 95/46/0)
 
-**NEXT RUNG: SEQ-ERAD SE-6a** — attempt node deletion again, accept regressions, then SE-6b brackets via monitor. See FINDING-2026-08-04e for the full blocker diagnosis and the alternative safer path (SE-4/SE-5 only first).
+**NEXT RUNG: SEQ-ERAD SE-5** — delete S node from `sno_seq_nary`; wire elements directly via sigma/phi tags to a minimal S-free rendezvous, OR keep S as a pure K=0 wiring relay and remove it only from ZLS slot lists. See SE-5 DIAGNOSIS below.
 
 ⭐⭐ **LON RULING #1: GRANTED (2026-08-04 Sonnet session 3, "eradicate them / continue").** SE-4…SE-6 are unblocked.
 
-⭐⭐ **SE-4…SE-6 ATTEMPTED AND REVERTED (Sonnet session 3).** Build was GREEN. Gate: **73/36/10 XPASS/22 REGRESSION.** All 22 regressions are capture SEGVs — frame geometry: `ASSIGN_SAVE`'s `op_off` lands at wrong depth when the `IR_MATCH_SEQUENCE` chain anchor is removed. The lower rewrite logic is directionally correct (10 genuine XPASS probes). FINDING-2026-08-04e. Working tree restored to `f5389c0c`. Gate: 95/46/0.
+⭐⭐ **SE-4 LANDED (Sonnet session 4, SCRIP `a9be14d`).** Counter arm deleted from `bb_match_sequence.cpp`. Entire `seqclean` prepass deleted (CHAIN walk, DAG fence, FOREIGN walk, SEQVERDICT, SCRIP_SEQSTATIC_MAX). `g_seq_static_cur`, `op_seq_static` removed. H1b simplified. `fc_seq_register`/`fc_arbno_member_register`/`fc_linear` removed from `sno_seq_nary`. Gate: **95/46/0.** S node still built as tagged-edge rendezvous only.
 
-**LAST SESSION: 2026-08-04 (Sonnet session 3).** SE-6 attempt revealed that node deletion shifts ZLS slot assignments for ASSIGN_SAVE/ASSIGN_COND pairs → capture SEGV. Monitor-bracket A05 to find exact frame depth divergence before next attempt.
+**SE-5 DIAGNOSIS (Sonnet session 4).** Three direct-wiring approaches failed:
+1. Range-scan re-point (all nodes in element range with ω→fail): broke forward path — 51 regressions.
+2. Entry-only re-point (entries[i]->γ/ω only): broke compound elements — 51 regressions.
+3. Sentinel IR_GOTO nodes (unique ss[i]/sf[i] per element): RPO walk doesn't chase IR_GOTO ω edges → sf[i] label never defined → crash on any backtrack.
+
+**ROOT CAUSE:** The emitter's σ/φ redirection system (`fc_seq_sigma_tgt`/`fc_seq_phi_tgt`) resolves inter-element edges at EMIT time using β labels that don't exist until emit. S is needed as the tagged-edge rendezvous. **The correct SE-5 is to keep S as a K=0 pure wiring node and remove it ONLY from ZLS slot-contributing lists** (`zls_locals_shifted`, `zls_grant`, `zls_s4_ok`, operand-scan skip lists). This makes S free (zero stack, zero ZLS slots, zero instructions via H1b) without the RPO-walk problems of sentinel nodes.
+
+**ZLS changes needed for SE-5:** remove `IR_MATCH_SEQUENCE` from: `zls_locals_shifted` · `zls_s4_ok` · `case IR_MATCH_SEQUENCE` in `zls_grant` · COND/IMM operand skip list · operand traversal skip list · `fc_seq_unregister` loop in finalize-decline. Also remove `fc_seq_register`/`fc_arbno_member_register` calls from `sno_seq_nary` (already done in SE-4). Also remove SEQ-CELL `if (nd->op == IR_MATCH_SEQUENCE)` block in `zls_grant`. These changes are ZLS-only — no template, no emit dispatch changes needed for SE-5.
+
+**LAST SESSION: 2026-08-04 (Sonnet session 4).** SE-4 landed. SE-5 diagnosis complete: direct-wiring is blocked by RPO-walk + beta-label ordering constraints. Correct path: keep S, strip its ZLS footprint. Gate re-confirmed 95/46/0 on SE-4 commit.
+
+**WATERMARK: unchanged from W-1b** (no codegen change for clean path — H1b was already aliasing S's trampolines dead). Carried: gate-OFF 290/317 · gate-ON 278/317 · 11 wrong-output regressions. Probe suite: **95 pass / 46 xfail / 0 XPASS / 0 REGRESSION.**
 
 2. ✅ **DISSOLVED (prior session).** Was: *the 26 DAG sequences — call-with-frame or
    tree-ify?* **Both options assumed the DAG is real. It is not.** A SNOBOL4 statement's stage 2 **BUILDS**
