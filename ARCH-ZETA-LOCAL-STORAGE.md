@@ -142,7 +142,7 @@ never an NV round-trip for an intermediate.
 * **Cons:** none — but note it ratified the ADDRESSING, not the ALLOCATION. It says `[r12+off]`; it does
   not say what r12 points AT or when that changes. M5's mistake was reading it as "r12 is set once."
 
-### M4 — The seed ladder (SCRIP/seed/test_sno_1..6.c + test_icon.c — the golden designs)
+### M4 — The seed ladder (corpus/probe/bb/test_sno_1..6.c + test_icon.c — the golden designs)
 
 Hand-written C goldens, each pinning one allocation law (commits `2ede32bd`, `dd17db1a` document 5/6):
 
@@ -801,7 +801,7 @@ from telemetry.
 
 ## 10. Reading List (the primary sources, all verified on disk this session)
 
-Seeds: `SCRIP/seed/test_sno_1..6.c`, `test_icon.c`. 4/28 era (one4all@`4757bbcd`):
+Seeds: `corpus/probe/bb/test_sno_1..6.c`, `test_icon.c`. 4/28 era (one4all@`4757bbcd`):
 `artifacts/asm/beauty_prog.s` (fn_upr site ~:8437; box_*_data_template field maps),
 `archive/backend/snobol4_asm.mac:2040-2077` (ARBNO), `archive/backend/blk_alloc.c`,
 `archive/backend/emit_emitters/emit_x64.c`. Current-tree study set:

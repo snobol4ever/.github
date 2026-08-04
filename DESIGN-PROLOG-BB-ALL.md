@@ -297,7 +297,7 @@ calls into the C runtime `rt_*` helpers and (b) the predicate-call closure-resum
 **Verified in-tree (not asserted):** `grep g_vstack src/ = 0`; zero `rt_push`/`rt_pop` in any
 `bb_cell_*.cpp`; no choice-point-stack in the GZ runtime. State lives in `[r12+GZ_CELL_OFF(slot)]`.
 
-**The canonical proof — the ARBNO box** (`SCRIP/bench/test_sno_1.c`). ARBNO (`*P`, match a
+**The canonical proof — the ARBNO box** (`corpus/probe/bb/test_sno_1.c`). ARBNO (`*P`, match a
 sub-pattern zero-or-more times) is the ONE construct that genuinely needs unbounded depth, because
 each repetition backtracks independently. The naive WAM/Icon answer is a runtime stack of generator
 frames (push per repetition, pop on backtrack). Here that stack is a **flat indexed frame array**:

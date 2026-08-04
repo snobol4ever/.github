@@ -24,6 +24,14 @@ All paths are absolute, rooted at the standard checkout layout
 | Rebus    | `/home/claude/corpus/programs/rebus/`    | varies                             | — |
 | Pascal   | `/home/claude/corpus/programs/pascal/`   | reference compiler (pcom.pas/pint.pas) + `.pas` probes; no suite yet | ref |
 | Icon TIMING benchmarks | `/home/claude/corpus/benchmarks/icon/` | 10 link-heavy programs + support + `.dat`; NOT byte-diffable (timing scaffold output) — full map, reference-impl build recipes, and runner traps: `GOAL-ICON-BB.md` §ICON BENCHMARK MAP | 10 |
+| **BB reference embodiments** ⬅ SINGLE COPY (2026-08-04) | `/home/claude/corpus/probe/bb/` | `test_sno_*.c` · `test_icon*.c` · `test_sno_cell_*.s` · `test_sno_stmt_frame_*.{s,sno}` · `test_sno_call2bb_*.sno` · the 141-probe suite | one home |
+
+⛔ **THE BB EMBODIMENTS HAVE EXACTLY ONE HOME: `corpus/probe/bb/` (Lon directive 2026-08-04).** They
+previously existed as 2–4 divergent copies across `SCRIP/seed/`, `SCRIP/bench/`, and `.github/`, and the
+ARCH docs pointed at three different ones — so a session reading "the golden design" got whichever copy its
+doc happened to name. `SCRIP/seed/` and `SCRIP/bench/` no longer contain any `test_sno_*`/`test_icon*`.
+Anything that consumes them takes a path into `corpus/probe/bb/` (see `scripts/test_gate_call2bb_stub_regime.sh`,
+which reads `$PROBE` with that default). **Do not re-create a second copy for convenience.**
 
 **Each `.icn` (or `.sno`, etc.) program has a sibling `.expected`
 file** with the canonical SPITBOL/oracle output.  The corpus runner

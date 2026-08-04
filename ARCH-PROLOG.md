@@ -9,8 +9,8 @@ The prior framing below leaned on GNU Prolog's WAM CP-frame **stack** (`pl_choic
 four-port translation (`SCRIP/bench/Simple Translation of Goal Directed Evaluation.pdf`):
 each operator is four labeled code chunks (`α/β/γ/ω`) threaded by `goto`, with each box's value in
 a FLAT per-activation home — NOT a pushed/popped value stack, and NOT a save/restore of shared
-mutable node slots. See `SCRIP/bench/test_icon.c` (flat scalar per box, one C activation) and
-`SCRIP/bench/test_sno_1.c` (the one unbounded-repetition construct uses an explicit indexed frame
+mutable node slots. See `corpus/probe/bb/test_icon.c` (flat scalar per box, one C activation) and
+`corpus/probe/bb/test_sno_1.c` (the one unbounded-repetition construct uses an explicit indexed frame
 array `_1[64]`/`ζ`, the solved form of the EVAL/CODE/`*P`-deferred problem). The original static
 Prolog emitter `SCRIP/archive/frontend/prolog/prolog_emit.c` already had this shape: a predicate
 is a C function with a flat α/β/γ/ω body whose only surviving dynamic state across backtracking is a
