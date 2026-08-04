@@ -6,7 +6,7 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Opus session 3 — SEQUENCE proof, DAG counterexample, ONE-COPY consolidation)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Opus session 4 — bb_match_sequence.cpp simplified; ZB-FC-3b merged into SEQ-STATIC arm; DAG counter kept; gate 95/46/0)
 
 **NEXT RUNG: W-1c.0** — UNCHANGED, still open. Fix sequence-capture crash. ⭐ **NEW THIS SESSION: a WORKING
 oracle-exact reference for this exact shape now exists — `corpus/probe/bb/test_sno_L13_nested_capture.c`**
@@ -39,7 +39,9 @@ only 2 emitter sites do this; both optimizer passes protect stamped gotos). Defe
 does NOT apply). Carried from W-1b: gate-OFF 290/317 · gate-ON 278/317 · 11 wrong-output regressions.
 Probe suite re-run before AND after the consolidation: **95 pass / 46 xfail / 0 XPASS / 0 REGRESSION.**
 
-**LAST SESSION: 2026-08-04 (Opus session 3).** Zero SCRIP `src/` commits. Deliverables = (1) independent
+**LAST SESSION: 2026-08-04 (Opus session 4). `bb_match_sequence.cpp` simplified: ZB-FC-3b arm (op_fc_seq) merged into the SEQ-STATIC arm (same four trampolines, H1b aliases them dead). DAG counter arm kept for the 26 dirty sequences including beauty.sno. Build green; gate 95/46/0 both before and after. No codegen change for the clean path — H1b aliasing was already making them dead.
+
+**LAST SESSION BEFORE THAT: 2026-08-04 (Opus session 3).** Zero SCRIP `src/` commits. Deliverables = (1) independent
 re-proof of SEQUENCE-is-wiring + the 39-instruction measurement; (2) nested/L13 embodiment; (3) the DAG
 counterexample, measured; (4) IR_GOTO verdict; (5) ⭐ **ONE-COPY consolidation** — all BB embodiments moved
 to `corpus/probe/bb/` (25 artifacts), `seq_*` labels now **0** everywhere, every edited file byte-identical
