@@ -6,6 +6,32 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (HQ seat, Lon hands-on design session; Opus)
+
+**NEXT RUNG: W-1c** — but its content CHANGED this session. See the four rulings in `ARCH-SNOBOL4.md` § "SESSION 2026-08-04 — FOUR RULINGS FROM THE C REFERENCE LADDER" (design of record; read it before coding W-1c).
+
+**WATERMARK: unchanged, NOT re-proved this session** — no code was touched in SCRIP. Carried from W-1b: gate-OFF 290/317 · gate-ON 278/317 · 11 wrong-output regressions. Session was design + C-reference ladder only.
+
+**LAST SESSION: 2026-08-04.** Zero SCRIP commits by design. Deliverables = `.github` docs + `corpus/probe/bb/` C references.
+
+### WHAT CHANGED — four rulings, each measured against the SPITBOL oracle, not reasoned
+1. **NO CONSTRUCT NEEDS AN RBP FRAME** (Lon: "prove me wrong" — conceded). RBP *is* a linked list; two ζ cells are the same structure with the head in memory. At ARBNO's β, rsp already points at the current iteration cell. ⭐ **This dissolves Bug 6**: the five-way rbp collision only existed because five constructs each claimed the register. Answer to the A/B/C register question = **D: nobody holds a frame base.** Precondition: exact unwind (== 100% ω-coverage, U-GATE's number).
+2. **ARBNO's local storage is ONE datum — the cursor at α.** No counter, no depth, no accumulator. Result/null/exhaustion all derived as `str(Σ+Δ0, Δ−Δ0)`.
+3. **DERIVE, DON'T ACCUMULATE** — general law. Accumulators double-count on β re-entry (measured: 11× in Lon's own reference, right answer by accident).
+4. ⛔ **CAS STAYS A SEPARATE ARENA; WHACK-FREE ON FENCE0/FENCE1 IS MANDATORY** (Lon directive, verbatim in ARCH). Whack mandatory for memory + pending entry must survive it ⇒ entry cannot live in the whacked region. Witness `f1.sno`: capture behind a fence does NOT commit when the match later fails. Narrowing that survives: CAS becomes **match-scoped**, not the process-wide 8MB pin at `RT_CAS_TOP`.
+
+### W-1c — REVISED CONTENT (do these in order)
+- [ ] **W-1c.1 · FLIP THE FENCE WHACK.** `fence_u2_frame()` reads `SCRIP_U2` (**default OFF**) and `bb_match_fence1.cpp`'s header already states Lon's O(activations)→O(depth) argument verbatim. The mechanism is BUILT and DARK. Flipping it is the cheapest real win on the board. Acceptance: 318 BY SET no regression both modes · retention measurably down on a nested-fence witness · regen ×4.
+- [ ] **W-1c.2 · EVICT `zv()="rbp"` from `bb_match_arbno.cpp:15`** → `[rsp+0]` (the current iteration cell) per RULING 1. This is the Bug-6 root fix, not the r12-parking patch W-1b applied. Acceptance: the 11 ZWR wrong-output regressions fall; MONITOR-FIRST on any that don't.
+- [ ] **W-1c.3 · CAS scope narrowing** — carve/reset at MATCH_BEGIN, release at MATCH_END; retire the process-wide `RT_CAS_TOP` pin. ⛔ Do NOT attempt to fold CAS into ζ — RULING 4 prices three schemes and all fail.
+- [ ] **W-1c.4 · one-line `CAS` definition at `pin_va.h:9`** (undocumented in-tree; collides with Compare-And-Swap).
+
+### BB CHALLENGE LADDER (new instrument, this session) — `corpus/probe/bb/BB-CHALLENGE-LADDER.md`
+One construct, one problem, one oracle-exact witness. Simple→complex. **Cases 1 and 4 are GREEN (C byte-identical to SPITBOL).** Case 1 = ARBNO⊗ALT (three bugs found and fixed in Lon's reference, incl. the missing shy-null yield). Case 4 = **conditional capture INSIDE the ARBNO body — the shape that reverted ZW16.** Cases 5 (variable-extent SPAN arm) · 6 (FENCE backward-abort; oracle proves ARBNO is never retried) · 7 (`ARBNO(*P)` deferred) have oracle ground truth, no C reference yet. Cases 8/9 = Lon's treebank + expression-grammar references (nested ARBNO, mutual recursion), unrun. Case 10 = claws5/json at scale.
+⛔ **OWED NEXT: case 6b** — capture inside an ARBNO body **plus** a FENCE, so a whack fires with entries pending. That is the witness for RULING 4 and the acceptance test for W-1c.1+W-1c.3.
+
+---
+
 ## ⛔⭐⭐⭐ THE WHOLESALE PLAN — LADDER W (Lon directive 2026-08-03f, HQ seat, Fable planning session): FRONTS CLOSED, ONE GOAL, ONE SEAT
 
 **Directive (Lon, verbatim this session):** *"ARBNO is not a family. It is one function. It seems we must change the way things are done. This alpha and omega is just not working. This is easy. Why not switch ALL the BB's at once and set the RBP frame for the unbounded case. And then debug that?"* · *"Alloc on alpha, free on omega, whack free on final success and on fenced success."* · *"Take back ALL the split tasks and bring them back into this one GOAL. We are on the home stretch with Opus taking us to the finish line."*
