@@ -13,11 +13,30 @@ oracle-exact reference for this exact shape now exists — `corpus/probe/bb/test
 (nested sequence + deferred `.` capture via CAS, byte-identical to `sbl -b` on 7 subjects incl. all failure
 paths). Diff SCRIP's behaviour against it. MONITOR-FIRST still governs.
 
-⛔ **TWO LON RULINGS OWED — they block the BB_SEQUENCE cut (see FINDING-2026-08-04b):**
-1. **Stage the SEQUENCE deletion after W-1c.0 + W-2's flip, or now** and accept voiding the W-0b baseline
-   + the killswitch-OFF byte-identity net that W-1..W-4 rests on?
-2. **The 26 DAG sequences** (shared pattern subtree — includes `beauty.sno`, the Milestone-1 program):
-   call-with-frame (the `test_sno_5/6.c` model) or tree-ify (duplicate per occurrence)?
+⭐⭐ **LADDER SEQ-ERAD OPENED + SE-0/SE-1 LANDED (Lon directive, 2026-08-04 session 5).**
+**SE-1 FALSIFIED THE LADDER'S OWN PREMISE:** swept all 211 programs with all three dirtying paths instrumented —
+**CHAIN 0 · DAG 0 · FOREIGN 32 events / 24 nodes / 8 files**, origins **26 `IR_CALL` + 6 `IR_LIT_INTEGER`**,
+**32/32 on the ω (FAIL) side**. The shared-subtree DAG fires ZERO times corpus-wide. SE-2a/SE-2b deleted;
+**SE-2 is now the FOREIGN-ω rung**. FINDING-2026-08-04c. **NEXT: SE-2 step 1** (rule out σ/φ mark
+mis-attribution through the 128-hop GOTO chase before treating `origin` as external).
+
+Eight rungs SE-0…SE-7 to delete `IR_MATCH_SEQUENCE` + `bb_match_sequence.cpp` completely. **SE-0…SE-3 are
+runnable NOW under either answer to ruling #1** (diagnose + un-share; no opcode, template or arm deleted, W-0b
+baseline intact). SE-4…SE-6 are the deletion and need the ruling.
+
+⛔ **LON RULINGS — #1 STILL OWED, #2's PREMISE IS FALSIFIED (see FINDING-2026-08-04b):**
+1. **STILL OWED. Stage the SEQUENCE deletion after W-1c.0 + W-2's flip, or now** and accept voiding the W-0b
+   baseline + the killswitch-OFF byte-identity net that W-1..W-4 rests on? Gates SE-4 and below ONLY.
+2. ✅ **DISSOLVED, not answered (Lon, this session).** Was: *the 26 DAG sequences — call-with-frame or
+   tree-ify?* **Both options assumed the DAG is real. It is not.** A SNOBOL4 statement's stage 2 **BUILDS**
+   the pattern; a build yields a fresh object, so `A P B` and `X P Y` are two builds each stitching their own
+   copy of P's material. The shared subtree is manufactured by LOWER, not present in the semantics — the 26
+   are a DEFECT SIGNATURE. `sno_seal_pat(nm)` already returns a `const tree_t *` (**AST**, not IR), so the
+   per-site copy is free at the seal; something downstream reuses lowered IR instead of re-lowering. SE-1
+   classifies all 26 as **(a) VARIABLE** (memoized pattern reference) or **(b) FLATTEN** (inner/outer S
+   sharing an element in one statement — no pattern variable involved at all). ⚠ The old option-A pointer
+   named `test_sno_5/6.c`, which was the RETIRED frame-pointer design and is now DELETED (this session);
+   the live call-unit embodiment is `corpus/probe/bb/test_sno_cell_5.s`.
 
 **BB_SEQUENCE / IR_MATCH_SEQUENCE IS *NOT* ERADICATED — DELIBERATELY UNCUT.** 45 refs across 10 files
 (`emit.cpp` 19 · `zeta_storage.c` 9 · `lower_snobol4.c` 7 · `emit.h`/`IR.h`/audit 2 each · template,
@@ -102,6 +121,254 @@ Three candidates in cheapness order if W-1c.0 is blocked:
 ### BB CHALLENGE LADDER — `corpus/probe/bb/BB-CHALLENGE-LADDER.md`
 One construct, one problem, one oracle-exact witness. **Cases 1 and 4 are GREEN (C byte-identical to SPITBOL). Case 5 is GREEN in SCRIP (no C reference needed).** Case 1 = ARBNO⊗ALT (4 bugs found total, incl. missing shy-null + harness double-newline). Case 4 = conditional capture INSIDE the ARBNO body.
 ⛔ **OWED NEXT: W-1c.0 (sequence-capture crash) → re-measure ladder → re-derive bracket → W-1c.2.**
+
+---
+
+## ⛔⭐⭐ LADDER SEQ-ERAD — delete `IR_MATCH_SEQUENCE` and `bb_match_sequence.cpp` completely
+
+**Thesis (Lon, this session):** a SNOBOL4 statement's stage 2 **BUILDS** the pattern. A build yields a fresh
+object, so `A P B` and `X P Y` are two builds each stitching their own copy of P's material. The DAG the
+fence detects is therefore **manufactured by LOWER, not present in the semantics** — and the 26 dirty
+sequences are a defect signature, not a requirement.
+
+**Already proved (do not re-litigate):** SEQUENCE is wiring — box deleted, output byte-identical to `sbl -b`,
+twice, including the ω→β backtrack chain and every failure path; **39 instructions cheaper per sequence**
+(412→373, `-O0`). Nesting proved; n=1 degenerates to a pure alias. `seq_static_on()` already returns TRUE
+for every node, and its own comment calls the counter *"pure glue-dispatch bookkeeping."*
+
+**NOT proved, and SE-6 is where it gets tested:** every proof so far was about the **box**. The **node** does
+separate structural work in LOWER (port-identity anchor + 2N operand container). Nothing on record has
+tested its removal.
+
+---
+
+### ⛔ SCOPE FENCE
+
+`IR_SCAN_SEQUENCE` (Icon, 18 refs) and `src/templates/bb_scan_sequence.cpp` are **OUT OF SCOPE** and are not
+touched by any rung here. Named explicitly because a careless `grep SEQUENCE` hits both families and the
+FACT RULE forbids the emitter knowing which language it serves — these are two kinds, not one kind with a
+language flag.
+
+### ⛔ `beauty.sno` IS NOT A GATE (Lon, 2026-08-04 session 5)
+
+**`beauty.sno` is the FINAL FINAL DESTINATION** — it becomes SCRIP's new SNOBOL4 parser, `parser_snobol4.sc`
+in Snocone source. It is the thing the compiler is being built *to run*, not an instrument to measure the
+compiler *with*. **No rung in this ladder may depend on it.** It appears here only as one of the eight files
+whose sequences the fence dirties — a datum, never an acceptance criterion.
+
+⚠ **MEASURED SE-0, and it is why this rule is written down:** `beauty.sno` does not compile under the SPITBOL
+oracle in a fresh checkout — `semantic.inc(16) : ERROR 217 -- syntax error: duplicate label`, with the listing
+printing source line 588 **twice** while the sources hold exactly one `shift` label and exactly one
+`-INCLUDE 'semantic.inc'`. SCRIP m3 additionally SIGSEGVs on it with empty output. Logged as its own finding;
+**not this ladder's problem.** Had the first draft's `beauty.sno md5 EXACT` criterion survived into SE-4, every
+rung below would have failed for a reason unrelated to its own change.
+
+**The instrument is `beauty_suite/`** — 63 files, driver `.sno` + `.ref` golden pairs, per-module so a failure
+names which module moved.
+
+## ⛔ RULING #1 IS THE LADDER'S OWN SEAM
+
+The owed ruling — *"stage the SEQUENCE deletion after W-1c.0 + W-2's flip, or now and accept voiding the
+W-0b baseline + the killswitch-OFF byte-identity net that W-1..W-4 rests on?"* — gates **SE-4 and below only**.
+
+- **SE-0 … SE-3 are safe to run NOW under either answer.** They diagnose and un-share; they delete no
+  opcode, no template, no arm. The W-0b baseline survives intact.
+- **SE-4 … SE-6 need the ruling.** They are the deletion.
+
+If the ruling comes back "after W-1c.0," this ladder still runs to SE-3 and parks there with the DAG fixed
+and the counter proved customerless — which is strictly better ground for W-1c.0 to stand on.
+
+---
+
+### STANDING FACTS — measured at SCRIP HEAD `f5389c0c`, **RE-RUN BEFORE CITING** (CENSUS SHELF LIFE)
+
+| Symbol | Refs | Files |
+|---|---|---|
+| `IR_MATCH_SEQUENCE` | 46 | emit.cpp 19 · zeta_storage.c 9 · lower_snobol4.c 7 · emit.h/IR.h/audit 2 each · pat_fold.c, ir_query.c, scrip_ir.c, template, `.bak` 1 each |
+| `BB_MATCH_SEQUENCE` / `bb_match_sequence` | 7 | emit.cpp 3 · bb_templates.h · template · zeta_storage.c · `.bak` |
+
+- `src/templates/bb_match_sequence.cpp.bak` **is tracked in git.** A committed `.bak` beside a live template
+  gets read as authority later. Dies at SE-0.
+- DAG fence = `emit.cpp:2430`. Claim algorithm: for each clean sequence, walk its 2N operands; if an operand
+  node is already claimed by a *different* sequence, mark **both** dirty.
+- Dirty: **26 of 1087** corpus nodes in **8 files** — `Gen.sno` · `Gen_driver.sno` · `omega.sno` ·
+  `omega_driver.sno` · `TDump_driver.sno` · **`beauty.sno`** · `treebank-list.sno` · `treebank-array.sno`.
+  Probes: **0 of 150**.
+
+### BASELINE TO CARRY THROUGH EVERY RUNG
+
+- 318-program gate: **gate-OFF 290/317 · gate-ON 278/317 · 11 wrong-output regressions** (carried from W-1b).
+- Probe suite: **95 pass / 46 xfail / 0 XPASS / 0 regression.**
+- **`beauty_suite/` driver goldens** — `Gen_driver` · `omega_driver` · `TDump_driver` (**three of the eight
+  DAG files**) plus `Qize_driver` · `ReadWrite_driver` · `ShiftReduce_driver` · `XDump_driver`. Verified
+  reproducing byte-exact under `sbl -b` at SE-0. This is the ladder's oracle.
+- Run under `setarch -R`; ASLR is ±2 noise on every m4 figure.
+
+### ⛔ LAW FOR THIS LADDER
+
+Every rung ships a **killswitch giving byte-identical revert**, md5-verified against the committed artifact.
+**Do not half-land.** `zeta_choices.h:288` is the standing example: ZR-RSPRBP-1 deleted `ZC_FRAME_R12`'s
+*label* while leaving its *code*, and 17 arms silently re-pointed at a basis they were never designed for —
+nine net-new crashes, still unfixed. Delete the label and the code in the same slice or neither.
+
+---
+
+### SE-0 · HYGIENE + BASELINE  *(no behavior change)*
+
+- [ ] `git rm src/templates/bb_match_sequence.cpp.bak`
+- [ ] Re-run the census above; HEAD-stamp it. Do **not** cite the table — reproduce it.
+- [ ] Re-run probe suite + 318 gate both modes; record the watermark.
+- [ ] Confirm the `beauty_suite` driver goldens reproduce under `sbl -b`.
+
+**Acceptance:** zero source change beyond the `.bak`; baseline reproduced, or the delta explained before
+anything else starts.
+
+### SE-1 · THE DIAGNOSTIC — classify the 26  ⬅ **GATE FOR EVERYTHING BELOW**
+
+The fence already computes the collision pair at `emit.cpp:2432` and throws it away. Print it.
+
+- [ ] In the collision branch, under `SCRIP_BLOB_MAP=1`, emit: shared node (index, op) + **both** claiming
+      S nodes (index, statement number, source line).
+- [ ] Run the 8 files. Classify every collision:
+  - **(a) VARIABLE** — shared node reached from a `TT_VAR` pattern reference. Two builds memoized into one
+        IR subtree. *The stage-2 violation.*
+  - **(b) FLATTEN** — both claimants are S nodes in the **same statement**. `sno_seq_flatten_pat` flattens
+        nested `TT_SEQ` into one element list while nested S nodes still exist, so one element is an operand
+        of both inner and outer S. *No pattern variable involved at all.*
+- [ ] Record the (a)/(b) split per file.
+
+**Acceptance:** all 26 classified. **NO CODE FIX UNTIL THIS LANDS.** Instrument only — prove zero codegen
+change by running regen and showing zero artifact churn.
+
+### ⛔ SE-1 RESULT (2026-08-04 s5) — **THE DAG PREMISE IS FALSIFIED. ALL 24 ARE FOREIGN-ω.**
+
+Three paths dirty a sequence, not one; the ladder's first draft knew only the DAG one. Instrumented all
+three (`SCRIP_SEQDAG=1`, env-gated, zero codegen change) and swept **all 211 SNOBOL4 corpus + benchmark
+programs**:
+
+| path | site | events | files |
+|---|---|---|---|
+| CHAIN — element entry/resume root absent from this chain | `emit.cpp:2422` | **0** | 0 |
+| DAG — one operand claimed by two sequences | `emit.cpp:2433` | **0** | 0 |
+| **FOREIGN — σ/φ edge from a non-element-root origin** | `emit.cpp:2443` | **32** | **8** |
+
+**32 events / 24 distinct nodes** (HEAD-stamped `f5389c0c`; the inherited "26" was never re-derived).
+Origins: **26 `IR_CALL` + 6 `IR_LIT_INTEGER`**. **Side: 32/32 ω — every one is a FAIL edge.**
+Files: `beauty.sno` 14 · `omega_driver` 4 · `treebank-list` 4 · `Gen`/`Gen_driver`/`TDump_driver`/`omega`/
+`treebank-array` 2 each.
+
+⛔ **CONSEQUENCE:** *"patterns are values → shared subtree → DAG"* is a real property of the compiler and the
+claim algorithm at `emit.cpp:2430` implements it correctly — but **it is not why any sequence needs the
+counter.** The stage-2 BUILD argument stands as semantics; it is not the live defect. The fence's own comment
+named the real class and we read past it: *"GOTO-chased marks from foreign protocol glue — DEFER return,
+ARBNO seal — must keep the counter."*
+
+⚠ **The original SE-2a (un-share the flattener) and SE-2b (copy at the seal) are DELETED, not parked.** Both
+targeted the DAG. Neither would have moved one of the 24, and both would have scored trivially green — the
+vacuous-rung shape this file records four times over.
+
+### SE-2 · THE FOREIGN-ω RUNG  *(replaces the deleted SE-2a/SE-2b)*
+
+**The defect in one line:** a σ/φ-marked **ω** edge enters a sequence from a node that is not in its 2N
+element-root list, so the static φ re-point has no legal target and the counter is retained as the runtime
+disambiguator. 26 of 32 origins are `IR_CALL` — this is the `:F()` fail protocol re-entering the pattern
+spine.
+
+- [ ] **First, rule out mark mis-attribution.** The fence GOTO-chases up to 128 hops and *inherits* `mk` from
+      any chased node's `γ.sz` (`emit.cpp:2438`). A mark inherited mid-chain may attribute the σ/φ to the
+      wrong origin node. Establish whether `origin` is the true edge source before treating it as external.
+- [ ] **Then classify each of the 24:** is the origin **semantically an element** of that sequence (lowered as
+      part of it but never pushed to the 2N operand list), or **genuinely external** (a foreign construct's
+      fail edge landing on the spine)?
+- [ ] **If semantically an element** — the bug is in LOWER's operand registration, not the emitter. Register
+      it; `seqclean` flips to 1 and the counter loses that customer with no protocol change. **Expect this
+      for the `IR_CALL` majority:** a call inside a pattern element is still that element.
+- [ ] **If genuinely external** — the counter is holding a **return point for a foreign re-entry**. That is the
+      call unit's job (`corpus/probe/bb/test_sno_cell_5.s`: `resume = MY continuation`, carved per entry), not
+      the sequence's. Route it there; do not preserve the counter to serve it.
+- [ ] **The 6 `IR_LIT_INTEGER` origins are a separate sub-class** — a literal with an ω edge is a *deferred*
+      integer. Check against the open D07/D08 defect (`LEN(*N)` deferred integer fails to evaluate); they may
+      be the same bug and should not be fixed twice.
+- [ ] Killswitch `SCRIP_SEQ_FOREIGN=0` → byte-identical.
+
+**Acceptance:** dirty events **32 → 0**, or every survivor characterized and named · 318 BY SET no regression
+both modes · probe 95/46/0 · `beauty_suite` goldens EXACT · regen ×4.
+
+⚠ **`beauty.sno` holds 14 of the 32 — nearly half — and is NOT a gate** (see the exclusion above). Its events
+are a *datum* that the class is real and concentrated in the destination program; measure it, never gate on it.
+
+### SE-3 · PROVE THE COUNTER HAS ZERO CUSTOMERS
+
+- [ ] `seqclean` == N/N on all three corpora: 141 probes · `corpus/programs/snobol4` ·
+      `benchmarks/snobol4`. Report per corpus with node totals.
+- [ ] Explicit re-check of the 8 files; report `beauty.sno`'s node count but **do not gate on it**.
+
+**Acceptance:** zero dirty nodes tree-wide. **If ANY remain, STOP and report** — a residue is a third class
+we have not named, not a rounding error, and SE-4 must not run on top of it.
+
+---
+*Everything below needs ruling #1.*
+
+### SE-4 · DELETE THE COUNTER ARM
+
+- [ ] Cut the DAG-counter arm from `bb_match_sequence.cpp`; SEQ-STATIC becomes the only arm.
+- [ ] Cut the fence machinery (`claim[]` walk, `emit.cpp:2430`) and `SCRIP_SEQSTATIC_MAX`.
+- [ ] `fc_seq_*` in `zeta_storage.c` (9 refs) — footprint arithmetic with no customer once every SEQ is
+      static. Verify no live caller, then cut in the same slice.
+
+**Acceptance:** 318 BY SET · probe 95/46/0 · `beauty_suite` goldens EXACT · regen ×4.
+
+### SE-5 · DELETE THE BOX
+
+- [ ] LOWER wires elements directly: σ = `elem_i → elem_{i+1}.α`, φ = `elem_i → elem_{i-1}.β`.
+- [ ] Remove `bb_match_sequence.cpp`, its `bb_templates.h` entry, and the 3 `BB_MATCH_SEQUENCE` dispatch
+      refs in `emit.cpp`.
+- [ ] **Expect an instruction-count DROP.** Record the corpus-wide delta; a flat or rising count means the
+      static edges are not replacing what the box was doing.
+
+**Acceptance:** as SE-4, plus the measured size delta.
+
+### SE-6 · DELETE THE NODE  ⬅ the untested half
+
+The node's remaining job: **port-identity anchor** — S is first-allocated, so S.β *is* the construct's
+resume surface and S.ω *is* the leftward exhaust, "zero chase machinery" — plus the 2N `(entry_i, resume_i)`
+operand container.
+
+- [ ] `sno_seq_nary` returns **(first, last)** instead of S. Parent wires α→`first.α`, β→`last.β`, receives
+      γ from `last`, ω from `first`.
+- [ ] The inside-edge TAG scheme goes with it: elements no longer rendezvous at S for σ/φ retagging (γ→S
+      retagged σ, ω→S retagged φ, FAIL-goto's γ→S also φ). Wire neighbours at lower time instead.
+- [ ] **Fence seams — preserve verbatim.** Each maximal fence-free run of ≥2 elements currently gets its own
+      S with the run's shared fail target; a run right of a fence fails to the SEAL target, **never back
+      across the fence**. This is the one behavior the node deletion is most likely to silently break.
+- [ ] Delete `IR_MATCH_SEQUENCE` from `IR.h`, `scrip_ir.c`, `emit.h`, `ir_query.c`, `pat_fold.c`, the audit
+      tool — **label and code in the same slice.**
+
+**Acceptance:** census == **0** · 318 BY SET · probe 95/46/0 · `beauty_suite` goldens EXACT · regen ×4.
+
+### SE-7 · CLOSE
+
+- [ ] Repoint the LIVE CURSOR's ruling-#2 text — it names *"the `test_sno_5/6.c` model"*, which is the
+      retired frame-pointer design and now a dangling reference. The live embodiment is
+      `corpus/probe/bb/test_sno_cell_5.s` (call unit, `resume = MY continuation`, carved per entry).
+- [ ] Fix `test_sno_cell_5.s:8`'s dangling `test_sno_5/6` reference.
+- [ ] FINDING doc.
+- [ ] Update LIVE CURSOR: next rung + watermark + last session. *(Handoff step 0 — if the cursor didn't
+      move, the handoff didn't happen.)*
+
+---
+
+### ⛔ KNOWN HAZARDS
+
+- **The transit guarantee is the correctness core.** Every element must transit its **own β** on the retreat
+  — captures pop, generators resume, deterministic boxes undo-and-fail. Static edges must preserve this. A
+  bug here shows up as a wrong *value*, not a crash.
+- **MONITOR-FIRST.** Any divergence gets bracketed by the 2-way sync-step monitor before anyone reads code.
+- **`.s` artifacts are honest current output, never goldens.** Never wire `.s` byte-identity into a gate.
+- **Compare m4, never m3.** Diff fail sets BY SET, never by count.
+- **A rung that turns green trivially is suspect.** Four OMEGA rungs ran vacuous s24a→s32 under
+  trivially-green gates. If SE-2's fix scores identical everywhere, prove the arm actually fired.
+
 
 ---
 
