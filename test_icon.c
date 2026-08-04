@@ -56,6 +56,22 @@ void write_flush(output_t * out)      {}
 #endif
 #endif
 
+/*----------------------------------------------------------------------------*/
+/*  ICON SOURCE:                                                              */
+/*                                                                            */
+/*      every write(5 > ((1 to 2) * (3 to 4)))                                */
+/*                                                                            */
+/*  This is Proebsting's own worked example, "Simple Translation of Goal-      */
+/*  Directed Evaluation" (1997) section 5: the first pass below is Figure 1    */
+/*  (naive template expansion, one four-port box per AST operator), the        */
+/*  second pass is Figure 2 (after copy propagation and branch chaining).      */
+/*                                                                            */
+/*  Note what this file does NOT contain: any stack, any allocation, any       */
+/*  free.  Every operator owns exactly ONE static temporary (x5_V, to1_I,      */
+/*  to1_V, mult_V, ...) because no node here is ever live in more than one     */
+/*  instance at a time.  Compare test_sno_1.c, where ARBNO -- the one          */
+/*  multiply-live construct -- needs an indexed array of instance frames.      */
+/*----------------------------------------------------------------------------*/
 __kernel void icon(
     __global const unsigned char * in,
     __global       unsigned char * buffer,
