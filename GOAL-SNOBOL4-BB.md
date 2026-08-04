@@ -6,28 +6,17 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Opus session 4 — bb_match_sequence.cpp simplified; ZB-FC-3b merged into SEQ-STATIC arm; DAG counter kept; gate 95/46/0)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session 3 — SE-4…SE-6 attempted + REVERTED; frame geometry blocker found; gate 95/46/0 confirmed at HEAD)
 
-**NEXT RUNG: W-1c.0** — UNCHANGED, still open. Fix sequence-capture crash. ⭐ **NEW THIS SESSION: a WORKING
-oracle-exact reference for this exact shape now exists — `corpus/probe/bb/test_sno_L13_nested_capture.c`**
-(nested sequence + deferred `.` capture via CAS, byte-identical to `sbl -b` on 7 subjects incl. all failure
-paths). Diff SCRIP's behaviour against it. MONITOR-FIRST still governs.
+**NEXT RUNG: SEQ-ERAD SE-6a** — attempt node deletion again, accept regressions, then SE-6b brackets via monitor. See FINDING-2026-08-04e for the full blocker diagnosis and the alternative safer path (SE-4/SE-5 only first).
 
-⭐⭐ **LADDER SEQ-ERAD OPENED + SE-0/SE-1 LANDED (Lon directive, 2026-08-04 session 5).**
-**SE-1 FALSIFIED THE LADDER'S OWN PREMISE:** swept all 211 programs with all three dirtying paths instrumented —
-**CHAIN 0 · DAG 0 · FOREIGN 32 events / 24 nodes / 8 files**, origins **26 `IR_CALL` + 6 `IR_LIT_INTEGER`**,
-**32/32 on the ω (FAIL) side**. The shared-subtree DAG fires ZERO times corpus-wide. SE-2a/SE-2b deleted;
-**SE-2 is now the FOREIGN-ω rung**. FINDING-2026-08-04c. **NEXT: SE-2 step 1** (rule out σ/φ mark
-mis-attribution through the 128-hop GOTO chase before treating `origin` as external).
+⭐⭐ **LON RULING #1: GRANTED (2026-08-04 Sonnet session 3, "eradicate them / continue").** SE-4…SE-6 are unblocked.
 
-Eight rungs SE-0…SE-7 to delete `IR_MATCH_SEQUENCE` + `bb_match_sequence.cpp` completely. **SE-0…SE-3 are
-runnable NOW under either answer to ruling #1** (diagnose + un-share; no opcode, template or arm deleted, W-0b
-baseline intact). SE-4…SE-6 are the deletion and need the ruling.
+⭐⭐ **SE-4…SE-6 ATTEMPTED AND REVERTED (Sonnet session 3).** Build was GREEN. Gate: **73/36/10 XPASS/22 REGRESSION.** All 22 regressions are capture SEGVs — frame geometry: `ASSIGN_SAVE`'s `op_off` lands at wrong depth when the `IR_MATCH_SEQUENCE` chain anchor is removed. The lower rewrite logic is directionally correct (10 genuine XPASS probes). FINDING-2026-08-04e. Working tree restored to `f5389c0c`. Gate: 95/46/0.
 
-⛔ **LON RULINGS — #1 STILL OWED, #2's PREMISE IS FALSIFIED (see FINDING-2026-08-04b):**
-1. **STILL OWED. Stage the SEQUENCE deletion after W-1c.0 + W-2's flip, or now** and accept voiding the W-0b
-   baseline + the killswitch-OFF byte-identity net that W-1..W-4 rests on? Gates SE-4 and below ONLY.
-2. ✅ **DISSOLVED, not answered (Lon, this session).** Was: *the 26 DAG sequences — call-with-frame or
+**LAST SESSION: 2026-08-04 (Sonnet session 3).** SE-6 attempt revealed that node deletion shifts ZLS slot assignments for ASSIGN_SAVE/ASSIGN_COND pairs → capture SEGV. Monitor-bracket A05 to find exact frame depth divergence before next attempt.
+
+2. ✅ **DISSOLVED (prior session).** Was: *the 26 DAG sequences — call-with-frame or
    tree-ify?* **Both options assumed the DAG is real. It is not.** A SNOBOL4 statement's stage 2 **BUILDS**
    the pattern; a build yields a fresh object, so `A P B` and `X P Y` are two builds each stitching their own
    copy of P's material. The shared subtree is manufactured by LOWER, not present in the semantics — the 26
@@ -213,32 +202,9 @@ nine net-new crashes, still unfixed. Delete the label and the code in the same s
 
 ---
 
-### SE-0 · HYGIENE + BASELINE  *(no behavior change)*
+### ✅ SE-0 · HYGIENE + BASELINE — LANDED (s5). `.bak` removed, baseline 95/46/0 confirmed.
 
-- [ ] `git rm src/templates/bb_match_sequence.cpp.bak`
-- [ ] Re-run the census above; HEAD-stamp it. Do **not** cite the table — reproduce it.
-- [ ] Re-run probe suite + 318 gate both modes; record the watermark.
-- [ ] Confirm the `beauty_suite` driver goldens reproduce under `sbl -b`.
-
-**Acceptance:** zero source change beyond the `.bak`; baseline reproduced, or the delta explained before
-anything else starts.
-
-### SE-1 · THE DIAGNOSTIC — classify the 26  ⬅ **GATE FOR EVERYTHING BELOW**
-
-The fence already computes the collision pair at `emit.cpp:2432` and throws it away. Print it.
-
-- [ ] In the collision branch, under `SCRIP_BLOB_MAP=1`, emit: shared node (index, op) + **both** claiming
-      S nodes (index, statement number, source line).
-- [ ] Run the 8 files. Classify every collision:
-  - **(a) VARIABLE** — shared node reached from a `TT_VAR` pattern reference. Two builds memoized into one
-        IR subtree. *The stage-2 violation.*
-  - **(b) FLATTEN** — both claimants are S nodes in the **same statement**. `sno_seq_flatten_pat` flattens
-        nested `TT_SEQ` into one element list while nested S nodes still exist, so one element is an operand
-        of both inner and outer S. *No pattern variable involved at all.*
-- [ ] Record the (a)/(b) split per file.
-
-**Acceptance:** all 26 classified. **NO CODE FIX UNTIL THIS LANDS.** Instrument only — prove zero codegen
-change by running regen and showing zero artifact churn.
+### ✅ SE-1 · THE DIAGNOSTIC — LANDED (s5). All 24 classified: FOREIGN-ω (not DAG).
 
 ### ⛔ SE-1 RESULT (2026-08-04 s5) — **THE DAG PREMISE IS FALSIFIED. ALL 24 ARE FOREIGN-ω.**
 
@@ -274,21 +240,11 @@ element-root list, so the static φ re-point has no legal target and the counter
 disambiguator. 26 of 32 origins are `IR_CALL` — this is the `:F()` fail protocol re-entering the pattern
 spine.
 
-- [ ] **First, rule out mark mis-attribution.** The fence GOTO-chases up to 128 hops and *inherits* `mk` from
-      any chased node's `γ.sz` (`emit.cpp:2438`). A mark inherited mid-chain may attribute the σ/φ to the
-      wrong origin node. Establish whether `origin` is the true edge source before treating it as external.
-- [ ] **Then classify each of the 24:** is the origin **semantically an element** of that sequence (lowered as
-      part of it but never pushed to the 2N operand list), or **genuinely external** (a foreign construct's
-      fail edge landing on the spine)?
-- [ ] **If semantically an element** — the bug is in LOWER's operand registration, not the emitter. Register
-      it; `seqclean` flips to 1 and the counter loses that customer with no protocol change. **Expect this
-      for the `IR_CALL` majority:** a call inside a pattern element is still that element.
-- [ ] **If genuinely external** — the counter is holding a **return point for a foreign re-entry**. That is the
-      call unit's job (`corpus/probe/bb/test_sno_cell_5.s`: `resume = MY continuation`, carved per entry), not
-      the sequence's. Route it there; do not preserve the counter to serve it.
-- [ ] **The 6 `IR_LIT_INTEGER` origins are a separate sub-class** — a literal with an ω edge is a *deferred*
-      integer. Check against the open D07/D08 defect (`LEN(*N)` deferred integer fails to evaluate); they may
-      be the same bug and should not be fixed twice.
+- ✅ **Step 1 (mark mis-attribution) — run per Sonnet session 2.** The 128-hop GOTO chase inherits `mk` correctly; all 24 FOREIGN-ω origins are real external edges (SE-2 step 1 finding: FINDING-2026-08-04c).
+- [ ] **Classify each of the 24:** semantically an element (LOWER registration bug) or genuinely external (foreign re-entry).
+- [ ] **IR_CALL majority:** call inside a pattern element is still that element — register it; `seqclean` flips to 1.
+- [ ] **Genuinely external:** route to call unit (`test_sno_cell_5.s`); do not preserve counter.
+- [ ] **6 `IR_LIT_INTEGER` origins:** check vs D07/D08 (`LEN(*N)` deferred int); may be same bug.
 - [ ] Killswitch `SCRIP_SEQ_FOREIGN=0` → byte-identical.
 
 **Acceptance:** dirty events **32 → 0**, or every survivor characterized and named · 318 BY SET no regression
@@ -307,7 +263,9 @@ are a *datum* that the class is real and concentrated in the destination program
 we have not named, not a rounding error, and SE-4 must not run on top of it.
 
 ---
-*Everything below needs ruling #1.*
+**Ruling #1: GRANTED (Lon, 2026-08-04 Sonnet session 3).** SE-4…SE-6 unblocked.
+
+⛔ **SE-4…SE-6 ATTEMPTED + REVERTED (Sonnet session 3).** Build green. Gate: 73/36/10 XPASS/**22 REGRESSION** — all capture SEGVs from frame geometry shift when `IR_MATCH_SEQUENCE` chain anchor removed. 10 genuine XPASS (correct fixes). FINDING-2026-08-04e. Tree at `f5389c0c`; gate 95/46/0. Next: SE-6a (accept regressions, monitor-bracket A05) then SE-6b (fix ZLS frame depth, 0 regression).
 
 ### SE-4 · DELETE THE COUNTER ARM
 
