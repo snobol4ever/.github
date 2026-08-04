@@ -1,19 +1,19 @@
-## ▶ LIVE CURSOR (s208, 2026-08-04)
+## ▶ LIVE CURSOR (s208 continued, 2026-08-04)
 
-**LAST SESSION:** s208 — **ZD-ICN-CALL TWO-EDIT RUNG LANDED IN emit.cpp; write("hello") GETS CORRECT ARGS; BLOCKED ON STALE DT_E IN by_name_dispatch.o.** Two edits to `src/emitter/emit.cpp` only — no template changes needed:
+**LAST SESSION:** s208 cont. — **ICON SUITE 1→157/293. TWO BUGS FOUND AND FIXED. SCRIP `6cc3c955`, PUSH PENDING CREDENTIAL.**
 
-1. **`zd_wl_kind` — admit `IR_CALL_BUILTIN_ICON`** (non-generator known builtins; generators excluded, same reason as ZD-7 IR_CALL generators — suspended RSP incompatible with ZD depth arithmetic). Converted hard SEGV → silent-wrong-answer, exactly as predicted.
+**Bug 1 (lower_icon.c — one token):** `lower_proc_body` initialized `succ = PFAIL`. The last statement's γ wired to the graph failure node → `write("hello")` succeeded, printed nothing, exited rc=1. Fix: `succ = PSUCC`. Icon semantics: a procedure that falls off its body succeeds.
 
-2. **`zd_nops` — add `IR_CALL_BUILTIN_ICON` to nd->n_operands arm** — the ONE AUTHORITY. Absent → nops=0 → op_zread[k]=0 all k → ZD arm read `[rsp + 0 + nargs*16]` = node's own uninitialized result cell. After fix: assembly correctly reads `[rsp+32]`/`[rsp+40]` = n0 predecessor cell. Confirmed in emitted `.s`.
+**Bug 2 (make clean):** `by_name_dispatch.o` was stale — compiled against an old `descr.h`. The write fast-path bypass (`ICN-WRITE-FAST`) was already correctly written; it needed no change. `make clean && make` rebuilt it.
 
-**Current state:** `write("hello")` reaches `rt_call_arr` with correct args (`v=DT_S=2, slen=5, p=valid`), confirmed by LD_PRELOAD trace. NV_GET_fn("write") returns `{v=DT_E=11, slen=0xFFFFFFFEu, s="write"}` — `_is_self_default` SHOULD be 1, but the compiled binary checks `cmp $0x58,%eax` (DT_X) instead of `cmp $0x0b,%eax` (DT_E). The `by_name_dispatch.o` object was compiled against a stale `descr.h` where DT_E had a different value (pre-s229 zero-preserving tag renumber). The write handler falls to `rt_call_value(_wv, args, nargs)` instead of the direct print path → returns DT_FAIL → no output.
+**Watermark: 157 PASS / 99 FAIL / 30 XFAIL** (up from 1/262/30 at s207 HEAD).
 
-**⭐ NEXT RUNG — s208 ORDER:**
-1. ⭐⭐⭐ **`make clean && make`** — full clean rebuild forces `by_name_dispatch.c` to recompile against the current `descr.h` DT_E=0x0b. After this: `_is_self_default=1`, write handler fires direct path, `out_write_descr` runs, "hello\n" prints. THEN run `test_icon_all_rungs.sh` to measure the new watermark.
-2. ⭐⭐ **Bisect `dda156eb`..`4d902148`** remains open (s207 order). After the clean build establishes a new baseline, bisect to find which shared-emitter commit broke Icon. Predicate: `write("hello")` prints `hello` && rc==0.
-3. ⭐ **Process rung**: any `src/emitter/` + `src/templates/` commit must carry an Icon watermark, or shared-emitter defaults stay opt-IN. (s207 lesson promoted to FACT RULE candidate — identical failure recurred twice.)
+**⭐ NEXT RUNGS:**
+1. ⭐⭐ **Bisect `dda156eb`..`4d902148`** — 40 commits × ~25s build. Predicate proven at both ends: `write("hello")` prints `hello` && rc==0. May be multiple independent events.
+2. ⭐ **Process rung** — any `src/emitter/` + `src/templates/` commit must carry an Icon watermark. Identical failure recurred twice (s203 ZW-1, s207); promote to FACT RULE.
+3. ⭐ After bisect baseline, resume ICN-FB / ICN-CARVE ladder — re-derive every number from the new 157/99/30 base.
 
-⚠ `make clean` is needed before any measurement — `by_name_dispatch.o` is stale by discovered evidence (binary checks DT_X=0x58 where source says DT_E). Do NOT inherit any watermark number from this session without a clean build first.
+⚠ `refs/` not in a fresh SCRIP clone — set up per CONSULT CANONICAL SOURCES RULE before any irgen.icn reads.
 
 ---
 
