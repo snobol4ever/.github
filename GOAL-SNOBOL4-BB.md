@@ -36,11 +36,19 @@ Master killswitch **`SCRIP_WHOLESALE`** (=0 → legacy verbatim; default OFF thr
 
   **Bug 3 — Inflated kc** (`emit.cpp` line ~2063): `kc = (hpos >= 0 && r >= hpos) ? Kc : 0` included the UCLAIM blob span `Kc` for mech-2 members. Under mech-2 no UCLAIM head claim exists (push_rbp is the boundary). Fix: gate `!zwr`. Also removed `_ms` zeroing of STATEMENT_END/STATEMENT zgpop (was compensating for wrong kc; correct value now flows through).
 
-  **OPEN — Bug 4 (W-1b next rung):** Stale CAS/patstk state on unanchored retry. The mech-2 β retry loop (`jmp L(0)`) is missing CAS pop-to-sentinel + patstk/zls2 restore that ZW-12 does via `r12→RT_CAS_TOP` discard on each restart. BAL/ARBNO push COND entries during a failed attempt; on retry those entries remain, corrupting match extent (174: `BAL=AB+(14-2)` instead of `BAL=(14-2)`). FINDING: the reset requires moving `rsp` inside the retry loop — the exact sequencing is tricky (must not disturb the SAVE cells' residue or the Forth spine above the frame). MONITOR-FIRST on the 6 remaining ZWR regressions.
+  **LANDED W-1b (SCRIP `2a12b8fe` — Bug4 CAS-reset + ARBNO-rbp r12-save):**
 
-  **ZWR regressions (6, all BAL/ARBNO/multi-iter):** `064_replace_multi_arm` · `127_pat_json_keyvalue` · `157_pat_cap_arb_alt_keep` · `162_pat_arbno_null_body_guard` · `174_pat_bal_manual_example` · `176_pat_bal_balanced_forms`.
+  **Bug 4 — Stale CAS/patstk on mech-2 retry** (`bb_match_begin.cpp`): The mech-2 retry loop (`jmp L(0)`) was missing CAS pop-to-sentinel + patstk/rsp restore. Fix: save post-push `RT_CAS_TOP` (=sentinel_base+24) to `[rbp-72]` at α; at retry restore `RT_CAS_TOP←[rbp-72]`, `g_patstk_sp←[rbp-56]`, `rsp←[rbp-64]`. Two attempts: first saved sentinel_base (pre-push) causing new COND pushes to overwrite the sentinel tag=0 → scan ran off into garbage → SEGV in `rt_dcap_pump`. Corrected to save post-push value → sentinel preserved at sentinel_base[0..23], new entries go at sentinel_base+24 and above.
 
-  Parent hashes: `.github`=`45edc7b0` · corpus=`8411e48f` · SCRIP=`1b38958d`.
+  **Bug 5 — ARBNO trashes rbp, mech-2 whack reads garbage** (`bb_match_begin.cpp` + `bb_match_end.cpp`): ARBNO uses `rbp` as element-view register (`zv()="rbp"`). After any ARBNO β, `rbp ≠ α-8`. MATCH_BEGIN fail-exit and MATCH_END γ/ω both read `[rbp-N]` header slots and then whack via `mov rsp,rbp`. Fix: save mech-2 frame base `α-8` into `r12` immediately after `mov rbp,rsp` at α (r12 is free per R12-ERAD/ARCH-ICON, callee-saved by C ABI). Restore `rbp←r12` before the first `[rbp-N]` header read; use `mov rsp,r12` for the whack instead of `mov rsp,rbp`.
+
+  **Gate-OFF: 290/317 (was 289/318). Gate-ON: 278/317 (was 155/161 — +123 passes).**
+
+  **OPEN — Bug 6 (W-1c next rung): STF+mech-2 nested frame conflict.** All 11 remaining gate-ON regressions are wrong-output (no crashes) in patterns that combine `flat_stmt_frame=1` (STF outer RBP frame) with mech-2 inner frame + multi-attempt. Gdb autopsy on 162: after mech-2 whack (`mov rsp,r12; pop rbp`), `rbp = STF's outer caller frame` (the value push saved). STATEMENT_END then reads `[rbp+328]` expecting the STF base — but rbp is the STF's parent, not the STF base. Root cause: `pop rbp` in mech-2 destroys the STF's rbp save. Fix direction: mech-2's push/pop must NOT clobber the STF rbp; or STATEMENT_END must recover STF rbp from a saved slot. MONITOR-FIRST on the 11 regressions once the STF/mech-2 nesting is resolved.
+
+  **ZWR regressions (11, all wrong-output):** `064_replace_multi_arm` · `157_pat_cap_arb_alt_keep` · `162_pat_arbno_null_body_guard` · `164_pat_arbno_nested` · `174_pat_bal_manual_example` · `176_pat_bal_balanced_forms` · `W06_pos` · `W06_rpos` · `W06_tab` · `test_stack` · `209_gc_big_strings` (last 2 may be pre-existing).
+
+  Parent hashes: `.github`=`cdfe4cd0` · corpus=`8411e48f` · SCRIP=`2a12b8fe`.
 
 - [ ] **W-2 · ARM ALL — THE FLIP**
   1. Delete the admission VERDICT in `zd_plan`: every run armed; `zd_wl_kind` + the veto tree (residual zdyn quartet, PATREF `pat_static=0`, FENCE-in-closure, DEFER) become ROUTING (flat vs frame at the nearest of the five boundaries) — a decline ceases to exist as an outcome (HQ ruling: "a decline is a ROUTING to mechanism 2, never a terminal verdict").
