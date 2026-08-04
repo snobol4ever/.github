@@ -1,4 +1,57 @@
-## ▶ LIVE CURSOR (s206, 2026-08-01)
+## ▶ LIVE CURSOR (s207, 2026-08-03)
+
+**LAST SESSION:** s207 — **ICON IS 1/293 AT HEAD. THE UNARMED PATH ADDRESSES A FRAME CARVE-KILL DELETED,
+AND "ARM EVERY BB" IS MEASURED EXACTLY INERT.** Full detail:
+`FINDING-2026-08-03-CLAUDE-ICN-ICON-IS-1-OF-293-AT-HEAD-AND-THE-UNARMED-PATH-ADDRESSES-A-DELETED-FRAME.md`.
+Tree clean at SCRIP `4d902148` == origin (`handoff_status.sh` verified). No code landed this session.
+
+⛔⭐⭐⭐ **EVERY NUMBER IN THE s206 CURSOR AND IN THE ICN-FB / ICN-CARVE LADDER BELOW WAS MEASURED ON A TREE
+WHERE ICON RAN. RE-DERIVE ALL OF THEM.** Measured fresh at HEAD, corrected anchored predicate:
+**Icon suite 1 / 262 / 30** (s206 cursor said 184/79/30). `procedure main(); write("hello"); end` **SEGVs.**
+⛔ NO killswitch recovers it — `GLUEO=0` (rc=134) · `GLUE_SYM=1` · `BB_ALLOC=0` · `STMT_FRAME=1` ·
+`UNWIND=0` · `U2=0` · `ZD_SCOPE=0` · `ZD_ENDJMP=0` · `ZD_DYNARM=7` all still fail. Hard regression.
+
+⭐⭐⭐ **SNOBOL4 IS FINE AT THE SAME BINARY** (` OUTPUT = "hello"` → `hello`, rc=0). The commits since the
+s206 watermark are concurrent **SNOBOL4** ALPHA/OMEGA work on the SHARED emitter (`U-1b default ON`, `U-2`,
+`ZW-12`, `U-SCOPE default ON`, `ENDJMP`), gated on SNOBOL4 crosscheck sets. **This is s203's ZW-1 lesson
+recurring verbatim — Icon was not in the ledger again.** The lesson was already written down and the
+identical failure recurred, which is the RULES.md test for promoting it to a FACT RULE.
+
+⭐⭐⭐ **ROOT CAUSE, READ OFF THE EMITTED `.s`, NOT INFERRED.** For `write("hello")`: `n0_lit_string_α` does
+`sub rsp,16` and writes `[rsp+0]/[rsp+8]` — **the per-BB FORTH spine WORKS.** `n1_call_builtin_icon_α` does
+**NO `sub rsp` at all** yet writes `[rsp+16]`/`[rsp+24]` and passes `lea rsi,[rsp+16]` to `rt_call_arr`.
+With `R` = entry retaddr slot: `sub rsp,8`→`R-8`, `push rdi`→`R-16`, `push rsi`→`R-24`, `n0`→`R-40`, so
+`[rsp+16]`=`R-24` and `[rsp+24]`=`R-16` — **exactly the pushed `rsi`/`rdi` slots.** The call box scribbles
+the caller's saved registers and hands the runtime a pointer into them.
+**WHY:** `IR_CALL_BUILTIN_ICON` is absent from `zd_wl_kind`, so it declines; arming is all-or-nothing per
+run; the declined node falls back to **legacy flat-frame offsets naming the whole-graph carve CARVE-KILL
+deleted.** This is the directive's own diagnosis confirmed in machine code — n0 obeys "each BB allocates its
+own storage", n1 cannot until its template grows a ZD arm.
+
+⛔⭐⭐ **"TURN ON ALLOCATION FOR EVERY BB, NO NEED TO BE SHY" — TESTED, NOT ASSUMED, AND IT IS INERT.**
+The inherited prohibition was measured against a WORKING unarmed path, so the trade-off plausibly inverted;
+it did not. `SCRIP_ZD_TOTAL=1` → **1/262/30, byte-for-byte the same suite**, and on the repro it converts a
+LOUD SEGV into **rc=0 printing NOTHING** — the silent-wrong-answer failure `bb_glue_flat.cpp`'s header calls
+the one thing this subsystem keeps re-learning. **The blanket flip is not the lever.** Arming a kind whose
+template has no ZD arm makes `zd_wl_kind` LIE. **THE UNIT OF WORK REMAINS ONE TEMPLATE ARM, ONE KIND AT A TIME.**
+
+**⭐ NEXT RUNGS — s207 ORDER:**
+1. ⭐⭐⭐ **`IR_CALL_BUILTIN_ICON` ZD ARM** (`bb_call.cpp`) — the FIRST node of the simplest Icon program is
+   unarmed; nothing downstream is measurable until it lands. Arg window from its own α carve (`ZOPQ`/`ZRES`),
+   never flat offsets. ⛔ **FULL-BUDGET RUNG, BOTH-MEDIUM MANDATORY** — it changes an emitted call's argument
+   shape, so this file's own BID-AT-LOWER ruling applies verbatim: half-landing is worse than not starting.
+2. ⭐⭐ **Bisect `dda156eb`..`4d902148`**, predicate proven discriminating at BOTH ends FIRST (s203 law):
+   `write("hello")` prints `hello` && rc==0. ~40 commits × ~25 s build. ⚠ May be MULTIPLE independent events.
+3. ⭐ **Process rung:** Icon watermark required on any `src/emitter/`+`src/templates/` commit, or shared-emitter
+   defaults stay opt-IN.
+4. Only then the ICN-FB / ICN-CARVE ladder below — **after re-deriving its every number.**
+
+⚠ `refs/` is NOT in a fresh SCRIP clone; **`proebsting/jcon` is the correct upstream** (every session
+re-derives this — record it). `test_icon_all_rungs.sh` SKIPs silently without corpus at `/home/claude/corpus`.
+
+---
+
+### ▶ PRIOR CURSOR (s206, 2026-08-01) — ⛔ ITS NUMBERS DO NOT REPRODUCE; SEE s207 ABOVE
 
 **LAST SESSION:** s206 — **THE OUTER WHACK OUTLIVED ITS ENTER, AND FOUR CURSOR NUMBERS BELOW DO NOT
 REPRODUCE AT ORIGIN HEAD.** Full detail:
