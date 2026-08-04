@@ -1,19 +1,30 @@
-## ▶ LIVE CURSOR (s208 continued, 2026-08-04)
+## ▶ LIVE CURSOR (s209, 2026-08-03)
 
-**LAST SESSION:** s208 cont. — **ICON SUITE 1→157/293. TWO BUGS FOUND AND FIXED. SCRIP `6cc3c955`, PUSH PENDING CREDENTIAL.**
+**LAST SESSION:** s209 — **ICON SUITE 1→161/293. THREE BUGS FIXED. SCRIP `6cc3c955` ON ORIGIN.**
 
-**Bug 1 (lower_icon.c — one token):** `lower_proc_body` initialized `succ = PFAIL`. The last statement's γ wired to the graph failure node → `write("hello")` succeeded, printed nothing, exited rc=1. Fix: `succ = PSUCC`. Icon semantics: a procedure that falls off its body succeeds.
+Three root causes fixed this session:
 
-**Bug 2 (make clean):** `by_name_dispatch.o` was stale — compiled against an old `descr.h`. The write fast-path bypass (`ICN-WRITE-FAST`) was already correctly written; it needed no change. `make clean && make` rebuilt it.
+1. **`make clean && make`** — stale `by_name_dispatch.o` compiled against old `descr.h`; clean rebuild forced recompile. s208 cursor predicted this correctly.
 
-**Watermark: 157 PASS / 99 FAIL / 30 XFAIL** (up from 1/262/30 at s207 HEAD).
+2. **`lower_proc_body` wrong terminal γ (lower_icon.c, one token):** `succ = PFAIL` → `succ = PSUCC`. The last statement's γ wired to the graph failure node — `write("hello")` succeeded, printed nothing, exited rc=1. Icon semantics: a procedure that falls off its body succeeds.
 
-**⭐ NEXT RUNGS:**
-1. ⭐⭐ **Bisect `dda156eb`..`4d902148`** — 40 commits × ~25s build. Predicate proven at both ends: `write("hello")` prints `hello` && rc==0. May be multiple independent events.
-2. ⭐ **Process rung** — any `src/emitter/` + `src/templates/` commit must carry an Icon watermark. Identical failure recurred twice (s203 ZW-1, s207); promote to FACT RULE.
-3. ⭐ After bisect baseline, resume ICN-FB / ICN-CARVE ladder — re-derive every number from the new 157/99/30 base.
+3. **ICN-WRITE-FAST (by_name_dispatch.c):** `NV_GET_fn("write")` returns SNUL on a miss (no DT_E self-sentinel for Icon builtins — they are not SNOBOL4 NV-variables). The `_is_self_default` guard was structurally always false → `rt_call_value(SNUL) → FAIL`, no output. Bypass via `g_icon_write_reassignable` (already scanned at lower time; false unless program assigns `write := x`). ⚠ This guard exists for SNOBOL4 reassignment semantics; bypass is safe ONLY when the scanner cleared it.
 
-⚠ `refs/` not in a fresh SCRIP clone — set up per CONSULT CANONICAL SOURCES RULE before any irgen.icn reads.
+**Watermark: PASS=161 FAIL=102 XFAIL=30 TOTAL=293** (up from 1/293 at s207 HEAD). SCRIP `6cc3c955` == origin, verified.
+
+**⭐ NEXT RUNG — ICN-PROC-FRAME:**
+
+All 102 failures SEGV on the same root cause: Icon proc params and locals resolve through `NV_GET_fn` (global NV dictionary), but nothing writes them there at proc entry. `proc_add_α` (jmp-entry) goes straight to the body with params in registers and no receiver. The `proc_add_dcα` (direct-call) path correctly pins rbp and installs params — the jmp-entry path needs the same treatment.
+
+**Design (per Lon s209 directive — Icon ZETA is PROCEDURE-scoped):**
+- Icon proc activation = ONE framed bracket at proc α, released at return/fail. Identical in role to SNOBOL4's statement bracket, but scoped at the procedure not the statement.
+- `lower_icon_proc`: when nparams > 0 or nlocals > 0, prepend `IR_CALLEE_FRAME` (role-0) as the graph's first node. It emits `bb_glue_framed_enter()` + param install from calling-convention registers into `[rbp - 16*k]` slots.
+- `TT_VAR` in `lower()` (lower_icon.c:415): when `icn_is_local(cx, name)`, emit `IR_VAR_FRAME` with `op_ival = slot_index` instead of `IR_VAR` (NV-global). Matching assign → `IR_ASSIGN_LOCAL`.
+- Proc exit: `IR_RETURN` → `bb_glue_framed_leave()` + ret. `bb_callee_frame` role-1/role-2 already emits `pop x86_zr(); ret` — change to `pop rbp; ret` under the framed protocol (or call `bb_glue_framed_leave()` directly).
+- `every` = ARBNO twin: generator proc's rbp frame persists through the `every` loop, living above the caller's FORTH frontier. Suspension record `{resume_label, saved_rbp}` at `[rsp - 8]`; β restores rbp and re-enters.
+- `scan` (`?`) = SNOBOL4 MATCH twin: Σ/δ/Δ env swap, same `bb_gen_scan.cpp` discipline.
+
+⚠ `refs/` not in a fresh SCRIP clone — set up per CONSULT CANONICAL SOURCES RULE before any irgen.icn reads. `proebsting/jcon` is the correct upstream.
 
 ---
 
