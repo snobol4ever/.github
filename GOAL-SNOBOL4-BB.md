@@ -48,7 +48,7 @@ Master killswitch **`SCRIP_WHOLESALE`** (=0 → legacy verbatim; default OFF thr
 
   **ZWR regressions (11, all wrong-output):** `064_replace_multi_arm` · `157_pat_cap_arb_alt_keep` · `162_pat_arbno_null_body_guard` · `164_pat_arbno_nested` · `174_pat_bal_manual_example` · `176_pat_bal_balanced_forms` · `W06_pos` · `W06_rpos` · `W06_tab` · `test_stack` · `209_gc_big_strings` (last 2 may be pre-existing).
 
-  Parent hashes: `.github`=`cdfe4cd0` · corpus=`8411e48f` · SCRIP=`2a12b8fe`.
+  Parent hashes: `.github`=`7625ffa6` · corpus=`a330e8b7` · SCRIP=`35794222`.
 
 - [ ] **W-2 · ARM ALL — THE FLIP**
   1. Delete the admission VERDICT in `zd_plan`: every run armed; `zd_wl_kind` + the veto tree (residual zdyn quartet, PATREF `pat_static=0`, FENCE-in-closure, DEFER) become ROUTING (flat vs frame at the nearest of the five boundaries) — a decline ceases to exist as an outcome (HQ ruling: "a decline is a ROUTING to mechanism 2, never a terminal verdict").
