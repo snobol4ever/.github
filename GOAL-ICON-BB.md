@@ -1,30 +1,105 @@
-## ▶ LIVE CURSOR (s209, 2026-08-03)
+## ▶ LIVE CURSOR (s210, 2026-08-04)
 
-**LAST SESSION:** s209 — **ICON SUITE 1→161/293. THREE BUGS FIXED. SCRIP `6cc3c955` ON ORIGIN.**
+**LAST SESSION:** s210 — **ORIENTATION + FULL ROOT-CAUSE ARCHAEOLOGY FOR ICN-PROC-FRAME. NO CODE LANDED. SCRIP `2a81e5a6` == ORIGIN (no code changes).** (Note: `2a81e5a6` is an RTX-STR commit from a parallel session — HEAD advanced since s209's `6cc3c955`; suite count re-derive fresh before touching code.)
 
-Three root causes fixed this session:
+**Watermark: PASS=161 FAIL=102 XFAIL=30 TOTAL=293** — re-confirmed fresh build at HEAD, matches s209.
 
-1. **`make clean && make`** — stale `by_name_dispatch.o` compiled against old `descr.h`; clean rebuild forced recompile. s208 cursor predicted this correctly.
+**⭐ NEXT RUNG — ICN-PROC-FRAME (complete implementation design, ready to code):**
 
-2. **`lower_proc_body` wrong terminal γ (lower_icon.c, one token):** `succ = PFAIL` → `succ = PSUCC`. The last statement's γ wired to the graph failure node — `write("hello")` succeeded, printed nothing, exited rc=1. Icon semantics: a procedure that falls off its body succeeds.
+All 102 failures SEGV on the same root cause, now fully traced to machine code: Icon proc graphs with params/locals have `flat_jmp_entry=1` (set by `emit_jmp_entry_for_proc`) but `emit_jmp_pin_rbp()=0` (requires `flat_deep_arrival || flat_pat || flat_gen`). The BLOB-GRANT prologue (`emit.cpp:2307`) only fires for `flat_pat`. Plain lexical proc bodies with locals get NO wire-header save, NO `push rbp; mov rbp,rsp` seed, NO param install — every `[rbp±N]` data ref in those procs reads the caller's frame. The ICN-FB-0 gate confirms: DRIFT=6264, all from jmp-entry proc regions with no rbp seed.
 
-3. **ICN-WRITE-FAST (by_name_dispatch.c):** `NV_GET_fn("write")` returns SNUL on a miss (no DT_E self-sentinel for Icon builtins — they are not SNOBOL4 NV-variables). The `_is_self_default` guard was structurally always false → `rt_call_value(SNUL) → FAIL`, no output. Bypass via `g_icon_write_reassignable` (already scanned at lower time; false unless program assigns `write := x`). ⚠ This guard exists for SNOBOL4 reassignment semantics; bypass is safe ONLY when the scanner cleared it.
+**Args arrive via `g_call_args[]` global (NOT registers).** `rt_proc_enter` (rt.c:1317) delivers `rcx`=γ-wire, `rdx`=ω-wire, then `jmp *rax` into α. Args were staged into `g_call_args[0..nargs-1]` by the caller before the open. The wire header layout is canonical: `[rsp+kt-24]`=γ-wire `[rsp+kt-16]`=ω-wire `[rsp+kt-8]`=caller-rbp.
 
-**Watermark: PASS=161 FAIL=102 XFAIL=30 TOTAL=293** (up from 1/293 at s207 HEAD). SCRIP `6cc3c955` == origin, verified.
+**Five-file implementation — BOTH MEDIUM MANDATORY throughout:**
 
-**⭐ NEXT RUNG — ICN-PROC-FRAME:**
+**1. `emit.h`** — add one field at struct end (APPENDED AT STRUCT END per s141 ABI law):
+```
+int flat_lcl_proc; /* ICN-PROC-FRAME (s210): jmp-entry graph with lexical locals/params requiring rbp seed + g_call_args install. Named for WHAT it decides (depth-immune-base local frame), never for a language. APPENDED AT STRUCT END per s141 ABI law. */
+```
 
-All 102 failures SEGV on the same root cause: Icon proc params and locals resolve through `NV_GET_fn` (global NV dictionary), but nothing writes them there at proc entry. `proc_add_α` (jmp-entry) goes straight to the body with params in registers and no receiver. The `proc_add_dcα` (direct-call) path correctly pins rbp and installs params — the jmp-entry path needs the same treatment.
+**2. `emit.cpp` emit_chain choke** (after `g_emit.flat_outer_nparams = g_flat_outer_nparams` at line ~2953) — populate the new flag:
+```
+g_emit.flat_lcl_proc = (g_emit.flat_jmp_entry && !g_emit.flat_pat && !g_emit.flat_gen && g_emit_cfg && (g_emit_cfg->nparams > 0 || g_emit_cfg->nlocals > 0)) ? 1 : 0;
+```
+Also update `emit_jmp_entry_clear` to zero `flat_lcl_proc`.
 
-**Design (per Lon s209 directive — Icon ZETA is PROCEDURE-scoped):**
-- Icon proc activation = ONE framed bracket at proc α, released at return/fail. Identical in role to SNOBOL4's statement bracket, but scoped at the procedure not the statement.
-- `lower_icon_proc`: when nparams > 0 or nlocals > 0, prepend `IR_CALLEE_FRAME` (role-0) as the graph's first node. It emits `bb_glue_framed_enter()` + param install from calling-convention registers into `[rbp - 16*k]` slots.
-- `TT_VAR` in `lower()` (lower_icon.c:415): when `icn_is_local(cx, name)`, emit `IR_VAR_FRAME` with `op_ival = slot_index` instead of `IR_VAR` (NV-global). Matching assign → `IR_ASSIGN_LOCAL`.
-- Proc exit: `IR_RETURN` → `bb_glue_framed_leave()` + ret. `bb_callee_frame` role-1/role-2 already emits `pop x86_zr(); ret` — change to `pop rbp; ret` under the framed protocol (or call `bb_glue_framed_leave()` directly).
-- `every` = ARBNO twin: generator proc's rbp frame persists through the `every` loop, living above the caller's FORTH frontier. Suspension record `{resume_label, saved_rbp}` at `[rsp - 8]`; β restores rbp and re-enters.
-- `scan` (`?`) = SNOBOL4 MATCH twin: Σ/δ/Δ env swap, same `bb_gen_scan.cpp` discipline.
+**3. `emit.cpp` BLOB-GRANT block** (`if (g_emit.flat_jmp_entry)` at line 2307) — add new `else if` arm after the `flat_pat` arm:
+```
+} else if (g_emit.flat_lcl_proc) {
+    int kt = g_emit.flat_frame_bytes;
+    int np = g_emit_cfg ? g_emit_cfg->nparams : 0;
+    int nl = g_emit_cfg ? g_emit_cfg->nlocals : 0;
+    /* ICN-PROC-FRAME: wire header + rbp seed + param install from g_call_args + null-init locals */
+    extern DESCR_t g_call_args[];
+    bb_emit_x86(
+        x86("sub", "rsp", (long)(kt + (np + nl) * 16))
+      + x86("mov", FRQ(kt - 24), "rcx")
+      + x86("mov", FRQ(kt - 16), "rdx")
+      + x86("mov", FRQ(kt - 8),  "rbp")
+      + x86("mov", "rbp", "rsp")
+      + FOR(0, np, [&](int i) {
+            uint64_t src0 = (uint64_t)(uintptr_t)&((DESCR_t *)g_call_args)[i];
+            uint64_t src8 = src0 + 8;
+            return x86("mov", "rax", (long)(int64_t)src0)
+                 + x86("mov", "rax", FRQ_ABS_RAX(0))
+                 + x86("mov", FR(-(i+1)*16), "rax")
+                 + x86("mov", "rax", (long)(int64_t)src8)
+                 + x86("mov", "rax", FRQ_ABS_RAX(0))
+                 + x86("mov", FR(-(i+1)*16+8), "rax");
+        })
+      + FOR(0, nl, [&](int i) {
+            return x86("mov", FR(-(np+i+1)*16),   0L)
+                 + x86("mov", FR(-(np+i+1)*16+8), 0L);
+        })
+    );
+}
+```
+⚠ The exact x86() macro forms for absolute-address loads must match `x86_asm.h`'s existing patterns — verify against the `ABSQ`/`bb_assign_global` idiom already in use. BOTH-MEDIUM MANDATORY.
+
+**4. `scrip_ir.c` `ir_varslot_of`** — after the vslots loop, add Icon lexical-local lookup returning negative offsets:
+```
+/* ICN-PROC-FRAME (s210): Icon lexical locals live at [rbp - 16*(i+1)]; negative offset signals depth-immune-base slot to the emitter. Only consulted when no vslots (Icon procs have none via zls). */
+if (g->n_vslots == 0) {
+    for (int i = 0; i < g->nparams; i++)
+        if (g->pnames && g->pnames[i] && strcmp(g->pnames[i], name) == 0)
+            return -(i + 1) * 16;
+    for (int i = 0; i < g->nlocals; i++)
+        if (g->lnames && g->lnames[i] && strcmp(g->lnames[i], name) == 0)
+            return -(g->nparams + i + 1) * 16;
+}
+```
+Then in `emit.cpp` `IR_VAR`/`IR_ASSIGN` dispatch: `bb_varslot_peek` already calls `ir_varslot_of`; a negative `voff` signals a local. The existing `op_sa = voff` path used for SNOBOL4 frame slots carries the value; templates render `FR(op_sa)` = `[rbp + voff]` = `[rbp - 16*k]`. ⚠ Verify that `FR()` with a negative argument produces the correct addressing — it should since `FRQ(off)` = `[rbp+off]` with negative off. Check the existing `bb_var_frame` / `bb_assign_frame` template arms or add them if absent.
+
+**5. `zd_wl_kind` in `emit.cpp` (ZD-2h-ICN)** — widen the `IR_VAR`/`IR_ASSIGN` admission for locals on pinned graphs (grants Lon's release of the ⛔ on that line — the `graph_has_local` conjunct was VACUOUS for SNOBOL4 only; Icon now has customers):
+```
+/* CURRENT: */
+return (vn && is_global(vn) && !graph_has_local(g_emit_cfg, vn)) ? 1 : 0;
+/* BECOMES (ZD-2h-ICN, s210): global-non-local OR local-on-pinned (depth-immune base) */
+return (vn && ((is_global(vn) && !graph_has_local(g_emit_cfg, vn))
+             || (graph_has_local(g_emit_cfg, vn) && x86_fb_pinned()))) ? 1 : 0;
+/* Named for WHAT: "global, OR local on a depth-immune-base graph". SNOBOL4 invisible: graph_has_local returns 0 for all SN4 programs — zero customers, zero behavior change, MEASURED s203. */
+```
+
+**Gate sequence:**
+1. Build (`make`), run `rung01` repro: `procedure main(); write("hello"); end` → `hello`, rc=0 (still passes from s209).
+2. Run a proc-with-param repro: `procedure f(x); write(x); end` + `f("hello")` → `hello`, rc=0.
+3. Run `test_icon_all_rungs.sh` — expect 161 → substantially higher (102 SEGV targets).
+4. Run `test_gate_icn_rbp_census_ratchet.sh` — expect DRIFT to drop from 6264 toward 0 (proc bodies now seeded).
+5. SNOBOL4 crosscheck watermark re-prove (shared emitter edit touches `zd_wl_kind`).
+6. Commit; push.
+
+**Key code locations (verified this session):**
+- `emit.cpp:2307` — BLOB-GRANT `if (g_emit.flat_jmp_entry)` block
+- `emit.cpp:2953` — `g_emit.flat_outer_nparams = g_flat_outer_nparams` choke
+- `emit.cpp:2863` — `emit_jmp_entry_clear` (add `flat_lcl_proc = 0`)
+- `emit.cpp:1897` — `zd_wl_kind` `IR_VAR`/`IR_ASSIGN` line
+- `emit.h:623` — last APPENDED field before `flat_lcl_proc` goes
+- `scrip_ir.c:251` — `ir_varslot_of`
+- `rt.c:1317` — `rt_proc_enter` asm (ABI: rcx=γ rdx=ω args in `g_call_args[]`)
+- `rt.c:622` — `g_call_args[]` declaration (`DESCR_t g_call_args[CALL_ARGS_MAX]`)
 
 ⚠ `refs/` not in a fresh SCRIP clone — set up per CONSULT CANONICAL SOURCES RULE before any irgen.icn reads. `proebsting/jcon` is the correct upstream.
+⚠ HEAD is `2a81e5a6` (RTX-STR parallel session), NOT s209's `6cc3c955` — re-derive suite count fresh before touching any file.
 
 ---
 
