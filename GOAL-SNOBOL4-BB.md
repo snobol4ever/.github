@@ -6,13 +6,18 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session — instrument + false-green elimination)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session 2 — 141-probe suite, theory results, defect classification)
 
-**NEXT RUNG: W-1c** — content unchanged from prior session's four rulings. BUT read the revised diagnosis below before coding **W-1c.2**: the bracket changed.
+**NEXT RUNG: W-1c.0** — fix sequence-capture crash. Minimal reproducer `L13` (`'abcd' ? ((LEN(2) . A) LEN(2)) . B`, SIGSEGV, correct output). Passing neighbour `L12` (inner member capture, no outer parens) brackets it: trigger is a capture whose operand is a **parenthesized group**. MONITOR-FIRST.
+
+Three candidates in cheapness order if W-1c.0 is blocked:
+1. **H01** — `FENCE(P)` implemented as bare `FENCE`. Wrong output, exit 0, deterministic, three passing neighbours. No crash in the way.
+2. **D07/D08** — `LEN(*N)` deferred integer fails to evaluate. Wrong output, exit 0.
+3. **W-1c.0** — sequence-capture crash (MONITOR-FIRST).
 
 **WATERMARK: unchanged, NOT re-proved this session** — SCRIP code untouched. Carried from W-1b: gate-OFF 290/317 · gate-ON 278/317 · 11 wrong-output regressions.
 
-**LAST SESSION: 2026-08-04 (Sonnet).** Zero SCRIP code commits. Deliverables = `corpus/probe/bb/bb_witness_ladder.sh` (new instrument) + corrected `test_sno_1.c` (4th bug found via re-proof) + updated `BB-CHALLENGE-LADDER.md` + 6-file cross-repo sync.
+**LAST SESSION: 2026-08-04 (Sonnet session 2).** Zero SCRIP code commits. Deliverables = 141-probe BB test suite (`corpus/probe/bb/`, commit `04cc6415`) with SPITBOL goldens, XFAIL baseline (95 pass / 46 xfail / 0 regression), gate scripts `run_suite.sh` + `mkrefs.sh`. Theory results: (1) SEQUENCE is pure LOWER wiring — no box, no ports, no cell, proved by deletion; (2) leaf boxes carry no value cells — consumer derives from own entry cursor; (3) ALTERNATE irreducibly needs one word — proved negative with two-subject discriminator. New defects found by suite: H01 (FENCE1=FENCE0, wrong output), D07/D08 (LEN(*N) deferred int), false green in bb_witness_ladder.sh (trailing-statement canary exposes N07-class crash the 9-row ladder misses). FINDING: `FINDING-2026-08-04-CLAUDE-SN4-BB-PROBE-SUITE-141-PROBES-SEQUENCE-IS-WIRING-FENCE1-IS-FENCE0.md`.
 
 ### WHAT THIS SESSION ADDED / CHANGED
 
