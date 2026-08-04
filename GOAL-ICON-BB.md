@@ -1,4 +1,23 @@
-## ▶ LIVE CURSOR (s207, 2026-08-03)
+## ▶ LIVE CURSOR (s208, 2026-08-04)
+
+**LAST SESSION:** s208 — **ZD-ICN-CALL TWO-EDIT RUNG LANDED IN emit.cpp; write("hello") GETS CORRECT ARGS; BLOCKED ON STALE DT_E IN by_name_dispatch.o.** Two edits to `src/emitter/emit.cpp` only — no template changes needed:
+
+1. **`zd_wl_kind` — admit `IR_CALL_BUILTIN_ICON`** (non-generator known builtins; generators excluded, same reason as ZD-7 IR_CALL generators — suspended RSP incompatible with ZD depth arithmetic). Converted hard SEGV → silent-wrong-answer, exactly as predicted.
+
+2. **`zd_nops` — add `IR_CALL_BUILTIN_ICON` to nd->n_operands arm** — the ONE AUTHORITY. Absent → nops=0 → op_zread[k]=0 all k → ZD arm read `[rsp + 0 + nargs*16]` = node's own uninitialized result cell. After fix: assembly correctly reads `[rsp+32]`/`[rsp+40]` = n0 predecessor cell. Confirmed in emitted `.s`.
+
+**Current state:** `write("hello")` reaches `rt_call_arr` with correct args (`v=DT_S=2, slen=5, p=valid`), confirmed by LD_PRELOAD trace. NV_GET_fn("write") returns `{v=DT_E=11, slen=0xFFFFFFFEu, s="write"}` — `_is_self_default` SHOULD be 1, but the compiled binary checks `cmp $0x58,%eax` (DT_X) instead of `cmp $0x0b,%eax` (DT_E). The `by_name_dispatch.o` object was compiled against a stale `descr.h` where DT_E had a different value (pre-s229 zero-preserving tag renumber). The write handler falls to `rt_call_value(_wv, args, nargs)` instead of the direct print path → returns DT_FAIL → no output.
+
+**⭐ NEXT RUNG — s208 ORDER:**
+1. ⭐⭐⭐ **`make clean && make`** — full clean rebuild forces `by_name_dispatch.c` to recompile against the current `descr.h` DT_E=0x0b. After this: `_is_self_default=1`, write handler fires direct path, `out_write_descr` runs, "hello\n" prints. THEN run `test_icon_all_rungs.sh` to measure the new watermark.
+2. ⭐⭐ **Bisect `dda156eb`..`4d902148`** remains open (s207 order). After the clean build establishes a new baseline, bisect to find which shared-emitter commit broke Icon. Predicate: `write("hello")` prints `hello` && rc==0.
+3. ⭐ **Process rung**: any `src/emitter/` + `src/templates/` commit must carry an Icon watermark, or shared-emitter defaults stay opt-IN. (s207 lesson promoted to FACT RULE candidate — identical failure recurred twice.)
+
+⚠ `make clean` is needed before any measurement — `by_name_dispatch.o` is stale by discovered evidence (binary checks DT_X=0x58 where source says DT_E). Do NOT inherit any watermark number from this session without a clean build first.
+
+---
+
+### ▶ PRIOR CURSOR (s207, 2026-08-03)
 
 **LAST SESSION:** s207 — **ICON IS 1/293 AT HEAD. THE UNARMED PATH ADDRESSES A FRAME CARVE-KILL DELETED,
 AND "ARM EVERY BB" IS MEASURED EXACTLY INERT.** Full detail:
