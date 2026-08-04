@@ -6,17 +6,17 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session 5 — SE-5 LANDED `3baa8a5d`; gate 95/46/0)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session 6 — SE-5/SE-6 WIP `a1caa5b6`; gate 78/31/15XPASS/17REG — NOT GREEN)
 
-**NEXT RUNG: W-1c.0** — fix sequence-capture crash (`SUBJ ? (POS(0) LEN(4) RPOS(0)) $ OUTPUT` → correct output then SIGSEGV). MONITOR-FIRST. See W-1c section below.
+**NEXT RUNG: SE-5/SE-6 φ-FIXUP** — fix 17 regressions in `sno_seq_nary`. IR_MATCH_SEQUENCE is gone from the enum and `bb_match_sequence.cpp` is deleted (15 genuine XPASS landed). The blocker: the φ-fixup in `sno_seq_nary` uses a range-based scan `lo[i]..hi[i]` that misses tagged edges allocated by nested sub-calls (ARBNO body sequences, FENCE seam sub-runs). A global scan by S-pointer identity was added as a second pass but the wrong-output and crash regressions persist. Root cause still to isolate: N03 (`ARBNO retried, $ INSIDE body`) outputs `a a b c d` instead of `a b c d` — first element doubled, suggesting the σ edge for the inner ARBNO body's first element resolves to ARBNO.α instead of ASSIGN_SAVE.α. MONITOR-FIRST per RULES.md. The 17 failing probes: A05 A06 G04 G05 G08 G09 G21 G22 G23 H24 H25 L16 N03 N04 X02 X06 X11. ⚠ GATE IS NOT GREEN — do not build on this commit.
 
 ⭐⭐ **LON RULING #1: GRANTED (2026-08-04 Sonnet session 3, "eradicate them / continue").** SE-4…SE-6 are unblocked.
 
-⭐⭐ **SE-5 LANDED (Sonnet session 5, SCRIP `3baa8a5d`).** Three surgical ZLS-only changes to `src/contracts/zeta_storage.c`: (1) `zls_grant_locals` case `IR_MATCH_SEQUENCE` → `return 0` — template uses zero FR/FRQ, pure wiring. (2) `IR_MATCH_SEQUENCE` removed from `zls_locals_shifted` — no locals, no front-quad shift. (3) `IR_MATCH_SEQUENCE` removed from `zls_s4_ok` — no dead front quad to elide. S node stays structurally as the σ/φ tagged-edge rendezvous; contributes zero ZLS slots. Gate: **95/46/0.** Crosscheck mode-3: 295/317 (up from 278). Demo artifact regen: 16 files, 4556 deletions (frame layout shrinkage measured). W02_seq_fail_propagate mode-4 DIVERGE confirmed pre-existing (segfaults identically at SE-4 HEAD).
+⭐⭐ **SE-5 ZLS LANDED (Sonnet session 5, SCRIP `3baa8a5d`).** Three ZLS-only changes: `zls_grant_locals` case `IR_MATCH_SEQUENCE` → `return 0`; removed from `zls_locals_shifted`; removed from `zls_s4_ok`. Gate was 95/46/0.
 
-⭐⭐ **SE-4 LANDED (Sonnet session 4, SCRIP `a9be14d`).** Counter arm deleted from `bb_match_sequence.cpp`. Entire `seqclean` prepass deleted. Gate: **95/46/0.** S node still built as tagged-edge rendezvous only.
+⭐⭐ **SE-4 LANDED (Sonnet session 4, SCRIP `a9be14d`).** Counter arm and seqclean prepass deleted. Gate: 95/46/0.
 
-**WATERMARK: unchanged from W-1b** (ZLS-only change — no codegen change for clean path). Carried: gate-OFF 290/317 · gate-ON 278/317 · 11 wrong-output regressions. Probe suite: **95 pass / 46 xfail / 0 XPASS / 0 REGRESSION.**
+**WATERMARK: BROKEN at WIP commit `a1caa5b6`.** gate-OFF 290/317 · gate-ON 278/317 carried from W-1b. Probe suite at WIP: **78 pass / 31 xfail / 15 XPASS / 17 REGRESSION.** Do not use WIP commit for performance measurement.
 
 2. ✅ **DISSOLVED (prior session).** Was: *the 26 DAG sequences — call-with-frame or
    tree-ify?* **Both options assumed the DAG is real. It is not.** A SNOBOL4 statement's stage 2 **BUILDS**
