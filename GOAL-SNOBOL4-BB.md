@@ -6,29 +6,46 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (HQ seat, Lon hands-on design session; Opus)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session — instrument + false-green elimination)
 
-**NEXT RUNG: W-1c** — but its content CHANGED this session. See the four rulings in `ARCH-SNOBOL4.md` § "SESSION 2026-08-04 — FOUR RULINGS FROM THE C REFERENCE LADDER" (design of record; read it before coding W-1c).
+**NEXT RUNG: W-1c** — content unchanged from prior session's four rulings. BUT read the revised diagnosis below before coding **W-1c.2**: the bracket changed.
 
-**WATERMARK: unchanged, NOT re-proved this session** — no code was touched in SCRIP. Carried from W-1b: gate-OFF 290/317 · gate-ON 278/317 · 11 wrong-output regressions. Session was design + C-reference ladder only.
+**WATERMARK: unchanged, NOT re-proved this session** — SCRIP code untouched. Carried from W-1b: gate-OFF 290/317 · gate-ON 278/317 · 11 wrong-output regressions.
 
-**LAST SESSION: 2026-08-04.** Zero SCRIP commits by design. Deliverables = `.github` docs + `corpus/probe/bb/` C references.
+**LAST SESSION: 2026-08-04 (Sonnet).** Zero SCRIP code commits. Deliverables = `corpus/probe/bb/bb_witness_ladder.sh` (new instrument) + corrected `test_sno_1.c` (4th bug found via re-proof) + updated `BB-CHALLENGE-LADDER.md` + 6-file cross-repo sync.
 
-### WHAT CHANGED — four rulings, each measured against the SPITBOL oracle, not reasoned
-1. **NO CONSTRUCT NEEDS AN RBP FRAME** (Lon: "prove me wrong" — conceded). RBP *is* a linked list; two ζ cells are the same structure with the head in memory. At ARBNO's β, rsp already points at the current iteration cell. ⭐ **This dissolves Bug 6**: the five-way rbp collision only existed because five constructs each claimed the register. Answer to the A/B/C register question = **D: nobody holds a frame base.** Precondition: exact unwind (== 100% ω-coverage, U-GATE's number).
-2. **ARBNO's local storage is ONE datum — the cursor at α.** No counter, no depth, no accumulator. Result/null/exhaustion all derived as `str(Σ+Δ0, Δ−Δ0)`.
-3. **DERIVE, DON'T ACCUMULATE** — general law. Accumulators double-count on β re-entry (measured: 11× in Lon's own reference, right answer by accident).
-4. ⛔ **CAS STAYS A SEPARATE ARENA; WHACK-FREE ON FENCE0/FENCE1 IS MANDATORY** (Lon directive, verbatim in ARCH). Whack mandatory for memory + pending entry must survive it ⇒ entry cannot live in the whacked region. Witness `f1.sno`: capture behind a fence does NOT commit when the match later fails. Narrowing that survives: CAS becomes **match-scoped**, not the process-wide 8MB pin at `RT_CAS_TOP`.
+### WHAT THIS SESSION ADDED / CHANGED
+
+**`bb_witness_ladder.sh`** — 9-row SCRIP-vs-oracle instrument in `corpus/probe/bb/`. Hardened against SCRIP's swallowed-SIGSEGV hazard (handler exits 0 on crash; shell's "Segmentation fault" text never enters child stderr; any gate reading only stdout or `$?` is measuring nothing). Measures the ARBNO/capture frontier, full output compare, no prefix clipping.
+
+**4th bug in test_sno_1.c found and fixed** — `ARBNO_γ` called `write_str(out, ARBNO)` *and* `write_nl(out)`, but `write_str` already terminates with `\n`. 24 lines emitted where oracle emits 13. The prior "GREEN" for case 1 was scored against a stale binary. `sbl -b` re-proof now required on every GREEN claim. All 4 repo copies (`corpus/probe/bb/`, `SCRIP/seed/`, `SCRIP/bench/`, `.github/`) are byte-identical, each verified against `sbl -b`.
+
+**SCRIP measured state (bb_witness_ladder.sh, 5 pass / 4 fail):**
+- ✅ ARBNO retried, no capture
+- ✅ ARBNO retried, capture INSIDE body
+- ✅ ARBNO not retried + outer capture
+- ✅ case 1 inner (ARBNO⊗ALT, 11 of 12 yields byte-exact)
+- ✅ case 5 (variable-extent SPAN arm — already green, no C reference needed)
+- ❌ outer capture, no ARBNO — **correct output THEN CRASH** (the false green the hardened instrument caught)
+- ❌ ARBNO retried + outer `$ OUTPUT` — heap exhaustion
+- ❌ ARBNO retried + outer `. VAR` — empty result
+- ❌ case 1 FULL (outer `$ OUTPUT`) — right inner yields, crashes on the outer
+
+**⛔ REVISED BRACKET (supersedes prior session's "retried construct" diagnosis):**
+"outer capture, no ARBNO" crashes with correct output — ARBNO is NOT the trigger. It is an amplifier: without it the value is right and only the process dies; with it the value is also lost. TWO defects stacked. **Fix the sequence-capture crash FIRST; re-run bb_witness_ladder.sh; then re-derive the ARBNO bracket from scratch.**
+
+**W-1c.1 FALSIFIED for this class** — `SCRIP_U2=1` is inert on all 9 rows. "Cheapest real win on the board" does not apply to this defect class. (It also gates `arbno_u2_frame()`'s σ/φ view-restore, so it was never a fence-only switch.)
 
 ### W-1c — REVISED CONTENT (do these in order)
-- [ ] **W-1c.1 · FLIP THE FENCE WHACK.** `fence_u2_frame()` reads `SCRIP_U2` (**default OFF**) and `bb_match_fence1.cpp`'s header already states Lon's O(activations)→O(depth) argument verbatim. The mechanism is BUILT and DARK. Flipping it is the cheapest real win on the board. Acceptance: 318 BY SET no regression both modes · retention measurably down on a nested-fence witness · regen ×4.
-- [ ] **W-1c.2 · EVICT `zv()="rbp"` from `bb_match_arbno.cpp:15`** → `[rsp+0]` (the current iteration cell) per RULING 1. This is the Bug-6 root fix, not the r12-parking patch W-1b applied. Acceptance: the 11 ZWR wrong-output regressions fall; MONITOR-FIRST on any that don't.
-- [ ] **W-1c.3 · CAS scope narrowing** — carve/reset at MATCH_BEGIN, release at MATCH_END; retire the process-wide `RT_CAS_TOP` pin. ⛔ Do NOT attempt to fold CAS into ζ — RULING 4 prices three schemes and all fail.
+- [ ] **W-1c.0 · FIX sequence-capture crash** — "outer capture, no ARBNO" crashes (`SUBJ ? (POS(0) LEN(4) RPOS(0)) $ OUTPUT` → segv, correct output then die). This is the deeper defect. Fix it, re-run `bb_witness_ladder.sh`, update the bracket before touching ARBNO. MONITOR-FIRST.
+- [ ] **W-1c.1 · FLIP THE FENCE WHACK.** `fence_u2_frame()` reads `SCRIP_U2` (**default OFF**) and `bb_match_fence1.cpp`'s header already states Lon's O(activations)→O(depth) argument verbatim. The mechanism is BUILT and DARK. Acceptance: 318 BY SET no regression both modes · retention measurably down on a nested-fence witness · regen ×4. ⚠ `SCRIP_U2` is inert on the ARBNO/capture class; this rung is about fence whack, not ARBNO.
+- [ ] **W-1c.2 · EVICT `zv()="rbp"` from `bb_match_arbno.cpp:15`** — only after W-1c.0 lands and the bracket is re-derived. Do not code against the superseded "retried construct" paragraph.
+- [ ] **W-1c.3 · CAS scope narrowing** — carve/reset at MATCH_BEGIN, release at MATCH_END; retire the process-wide `RT_CAS_TOP` pin. ⛔ Do NOT fold CAS into ζ — RULING 4 prices three schemes and all fail.
 - [ ] **W-1c.4 · one-line `CAS` definition at `pin_va.h:9`** (undocumented in-tree; collides with Compare-And-Swap).
 
-### BB CHALLENGE LADDER (new instrument, this session) — `corpus/probe/bb/BB-CHALLENGE-LADDER.md`
-One construct, one problem, one oracle-exact witness. Simple→complex. **Cases 1 and 4 are GREEN (C byte-identical to SPITBOL).** Case 1 = ARBNO⊗ALT (three bugs found and fixed in Lon's reference, incl. the missing shy-null yield). Case 4 = **conditional capture INSIDE the ARBNO body — the shape that reverted ZW16.** Cases 5 (variable-extent SPAN arm) · 6 (FENCE backward-abort; oracle proves ARBNO is never retried) · 7 (`ARBNO(*P)` deferred) have oracle ground truth, no C reference yet. Cases 8/9 = Lon's treebank + expression-grammar references (nested ARBNO, mutual recursion), unrun. Case 10 = claws5/json at scale.
-⛔ **OWED NEXT: case 6b** — capture inside an ARBNO body **plus** a FENCE, so a whack fires with entries pending. That is the witness for RULING 4 and the acceptance test for W-1c.1+W-1c.3.
+### BB CHALLENGE LADDER — `corpus/probe/bb/BB-CHALLENGE-LADDER.md`
+One construct, one problem, one oracle-exact witness. **Cases 1 and 4 are GREEN (C byte-identical to SPITBOL). Case 5 is GREEN in SCRIP (no C reference needed).** Case 1 = ARBNO⊗ALT (4 bugs found total, incl. missing shy-null + harness double-newline). Case 4 = conditional capture INSIDE the ARBNO body.
+⛔ **OWED NEXT: W-1c.0 (sequence-capture crash) → re-measure ladder → re-derive bracket → W-1c.2.**
 
 ---
 
