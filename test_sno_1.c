@@ -82,7 +82,23 @@ __kernel void snobol(
     int Ω = len(Σ);
     goto main1_α;
     /*------------------------------------------------------------------------*/
-    /*          POS(0) ARBNO('Bird' | 'Blue' | LEN(1)) $ OUTPUT RPOS(0)       */
+    /*  SNOBOL4 SOURCE (verified byte-identical against sbl -b, 2026-08-04):   */
+    /*                                                                        */
+    /*      SUBJ = 'BlueGoldBirdFish'                                         */
+    /*      SUBJ ? (POS(0) ARBNO('Bird' | 'Blue' | LEN(1)) $ OUTPUT           */
+    /*             RPOS(0)) $ OUTPUT                        :F(FAILED)        */
+    /*      OUTPUT = 'Success!'                             :(END)            */
+    /*  FAILED  OUTPUT = 'Failure.'                                           */
+    /*  END                                                                   */
+    /*                                                                        */
+    /*  Oracle output: an EMPTY line (ARBNO's shy null match), then Blue,     */
+    /*  BlueG ... BlueGoldBirdFish, BlueGoldBirdFish, Success!  (13 lines).   */
+    /*                                                                        */
+    /*  DERIVE, DON'T ACCUMULATE (ruling 3, 2026-08-04): every result is      */
+    /*  str(Σ+Δ0, Δ-Δ0) from the cursor saved at α -- never cat() onto a      */
+    /*  running total.  γ is re-entered once per retry, so an accumulator     */
+    /*  double-counts (measured: 11x, right answer by accident).  This is     */
+    /*  why the per-iteration cell is {int alt_i;} and nothing more.          */
     /*------------------------------------------------------------------------*/
     str_t       POS0;
     POS0_α:     if (Δ != 0)                         goto POS0_ω;
@@ -112,7 +128,7 @@ __kernel void snobol(
                 LEN1 = str(Σ+Δ,1); Δ+=1;            goto LEN1_γ;
     LEN1_β:     Δ-=1;                               goto LEN1_ω;
     /*------------------------------------------------------------------------*/
-    typedef struct _1 { str_t ARBNO; str_t alt; int alt_i; } _1_t;
+    typedef struct _1 { int alt_i; } _1_t;
     _1_t _1[64];
     _1_t * ζ = &_1[0];
     /*------------------------------------------------------------------------*/
@@ -121,28 +137,27 @@ __kernel void snobol(
                 if (ζ->alt_i == 2)                  goto BLUE_β;
                 if (ζ->alt_i == 3)                  goto LEN1_β;
                                                     goto alt_ω;
-    BIRD_γ:     ζ->alt = BIRD;                      goto alt_γ;
+    BIRD_γ:                                         goto alt_γ;
     BIRD_ω:     ζ->alt_i++;                         goto BLUE_α;
-    BLUE_γ:     ζ->alt = BLUE;                      goto alt_γ;
+    BLUE_γ:                                         goto alt_γ;
     BLUE_ω:     ζ->alt_i++;                         goto LEN1_α;
-    LEN1_γ:     ζ->alt = LEN1;                      goto alt_γ;
+    LEN1_γ:                                         goto alt_γ;
     LEN1_ω:                                         goto alt_ω;
     /*------------------------------------------------------------------------*/
     str_t       ARBNO;
     int         ARBNO_i;
-    ARBNO_α:    ζ = &_1[ARBNO_i=0];
-                ζ->ARBNO = str(Σ+Δ, 0);             goto alt_α;
-    ARBNO_β:    ζ = &_1[++ARBNO_i];
-                ζ->ARBNO = ARBNO;                   goto alt_α;
-    alt_γ:      ARBNO = cat(ζ->ARBNO, ζ->alt);      goto ARBNO_γ;
+    int         ARBNO_Δ0;
+    ARBNO_α:    ARBNO_Δ0 = Δ; ARBNO_i = -1;
+                ARBNO = str(Σ+ARBNO_Δ0, 0);         goto ARBNO_γ;
+    ARBNO_β:    ζ = &_1[++ARBNO_i];                 goto alt_α;
+    alt_γ:      ARBNO = str(Σ+ARBNO_Δ0,Δ-ARBNO_Δ0); goto ARBNO_γ;
     alt_ω:      if (ARBNO_i <= 0)                   goto ARBNO_ω;
-                ARBNO_i--; ζ = &_1[ARBNO_i];        goto alt_β;
+                ζ = &_1[--ARBNO_i];                 goto alt_β;
     /*------------------------------------------------------------------------*/
     str_t       assign;
     assign_α:                                       goto ARBNO_α;
     assign_β:                                       goto ARBNO_β;
-    ARBNO_γ:    assign = write_str(out, ARBNO);
-                write_nl(out);                      goto assign_γ;
+    ARBNO_γ:    assign = write_str(out, ARBNO);     goto assign_γ;
     ARBNO_ω:                                        goto assign_ω;
     /*------------------------------------------------------------------------*/
     str_t       RPOS0;
@@ -151,13 +166,14 @@ __kernel void snobol(
     RPOS0_β:                                        goto RPOS0_ω;
     /*------------------------------------------------------------------------*/
     str_t       seq;
-    seq_α:      seq = str(Σ+Δ, 0);                  goto POS0_α;
+    int         seq_Δ0;
+    seq_α:      seq_Δ0 = Δ; seq = str(Σ+Δ, 0);      goto POS0_α;
     seq_β:                                          goto RPOS0_β;
-    POS0_γ:     seq = cat(seq, POS0);               goto assign_α;
+    POS0_γ:     seq = str(Σ+seq_Δ0, Δ-seq_Δ0);      goto assign_α;
     POS0_ω:                                         goto seq_ω;
-    assign_γ:   seq = cat(seq, BIRD);               goto RPOS0_α;
+    assign_γ:   seq = str(Σ+seq_Δ0, Δ-seq_Δ0);      goto RPOS0_α;
     assign_ω:                                       goto POS0_β;
-    RPOS0_γ:    seq = cat(seq, RPOS0);              goto seq_γ;
+    RPOS0_γ:    seq = str(Σ+seq_Δ0, Δ-seq_Δ0);      goto seq_γ;
     RPOS0_ω:                                        goto assign_β;
     /*------------------------------------------------------------------------*/
     str_t       write;
