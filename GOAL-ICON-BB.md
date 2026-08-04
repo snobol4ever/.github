@@ -1,8 +1,28 @@
-## ▶ LIVE CURSOR (s210, 2026-08-04)
+## ▶ LIVE CURSOR (s211, 2026-08-04)
 
-**LAST SESSION:** s210 — **ORIENTATION + FULL ROOT-CAUSE ARCHAEOLOGY FOR ICN-PROC-FRAME. NO CODE LANDED. SCRIP `2a81e5a6` == ORIGIN (no code changes).** (Note: `2a81e5a6` is an RTX-STR commit from a parallel session — HEAD advanced since s209's `6cc3c955`; suite count re-derive fresh before touching code.)
+**LAST SESSION:** s211 — **ICN-PROC-FRAME PARTIAL LAND: flat_lcl_proc flag, BLOB-GRANT arm, wire-exit fix, rt_lcl_proc_args_install, ZD-2h-ICN, bb_to ZD arm scaffold. SCRIP `ef4841f1` on origin.** Build clean. Watermark unchanged PASS=1 FAIL=262 XFAIL=30. `f("hello")` still fails — gamma/omega exit reads rt_flat_ret_snap (pcall wire array) instead of frame header [rbp+kt-24/-16]. Next rung: fix wire exit for flat_lcl_proc to read frame header directly.
 
-**Watermark: PASS=161 FAIL=102 XFAIL=30 TOTAL=293** — re-confirmed fresh build at HEAD, matches s209.
+**Watermark: PASS=1 FAIL=262 XFAIL=30 TOTAL=293** — fresh build at HEAD `ef4841f1`.
+
+**⭐ NEXT RUNG — ICN-PROC-FRAME-2: fix flat_lcl_proc gamma/omega wire return**
+
+The BLOB-GRANT prologue saves γ-wire at [rbp+kt-24] and ω-wire at [rbp+kt-16] (same layout as PAT$ blobs). But `_wire_stub=1` routes to `bb_glue_wire_γ/ω` which calls `rt_flat_ret_snap` — that reads from `g_pcall_wires[g_pcall_top-1]`, not from the frame header. For Icon lexical procs entered via `CALL_PROC_STAGED` → `proc_f_dcα` (the direct-call stub), the pcall wire array may not be populated, so the wire read fails and the proc returns with Error 18.
+
+**Fix:** Emit the wire return directly from the frame header in the flat_lcl_proc arm. In `emit.cpp` around the `_wire_stub` γ/ω dispatch (~line 2734), add a separate arm for `flat_lcl_proc` that emits:
+```
+proc_f_γ:
+    mov rsp, rbp          ; unwind all FORTH cells
+    lea rcx, [rbp+kt-24]  ; γ wire address in frame
+    mov rcx, [rcx]        ; load γ wire
+    mov rbp, [rbp+kt-8]   ; restore caller rbp from frame
+    jmp rcx               ; return via γ wire
+proc_f_ω: (same with kt-16 for ω wire)
+```
+kt = `g_emit.flat_frame_bytes` at emit time. BOTH-MEDIUM mandatory. Then `f("hello")` → `hello` rc=0.
+
+**After that:** full suite target ≥161. Then ICN-FB-0 instrument, then ICN-CARVE-1 (`bb_to` ZD arm already scaffolded at `ef4841f1` — needs admission in `zd_wl_kind` for IR_TO and `zd_nops` update).
+
+### ▶ PRIOR CURSOR (s210, 2026-08-04)
 
 **⭐ NEXT RUNG — ICN-PROC-FRAME (complete implementation design, ready to code):**
 
