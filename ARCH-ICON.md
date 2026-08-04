@@ -25,7 +25,7 @@ boxes' slots directly (operands known at emit time via α/β), exactly as Proebs
 specifies (`plus.value ← E1.value + E2.value`). Unbounded-depth backtrack state
 (ARBNO, recursion) lives in a **per-box .bss arena** indexed by depth — never a
 global stack. Inter-box transitions are direct `jmp`. The reference embodiment is
-`SCRIP/refs/bb/test_icon.c` (and the archived stackless emitter
+`corpus/probe/bb/test_icon.c` (and the archived stackless emitter
 `SCRIP/archive/backend/emit_emitters/emit_x64.c`, which benchmarked faster than
 SPITBOL because there is no stack). The prior mode-3 build that introduced an SM
 value stack is SUPERSEDED — see `GOAL-ICON-BB.md` → "GROUND ZERO 3".
@@ -113,7 +113,7 @@ Reuse = the Σ/δ/Δ register walk + the cset test loop; the value contract and 
 
 ---
 
-## Box structure for Icon constructs (from .github/test_icon.c)
+## Box structure for Icon constructs (from corpus/probe/bb/test_icon.c)
 
   construct_alpha:  initialize state; compute first value; goto gamma or omega
   construct_beta:   advance state; compute next value; goto gamma or omega

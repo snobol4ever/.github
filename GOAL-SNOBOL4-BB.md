@@ -6,7 +6,56 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session 2 — 141-probe suite, theory results, defect classification)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Opus session 3 — SEQUENCE proof, DAG counterexample, ONE-COPY consolidation)
+
+**NEXT RUNG: W-1c.0** — UNCHANGED, still open. Fix sequence-capture crash. ⭐ **NEW THIS SESSION: a WORKING
+oracle-exact reference for this exact shape now exists — `corpus/probe/bb/test_sno_L13_nested_capture.c`**
+(nested sequence + deferred `.` capture via CAS, byte-identical to `sbl -b` on 7 subjects incl. all failure
+paths). Diff SCRIP's behaviour against it. MONITOR-FIRST still governs.
+
+⛔ **TWO LON RULINGS OWED — they block the BB_SEQUENCE cut (see FINDING-2026-08-04b):**
+1. **Stage the SEQUENCE deletion after W-1c.0 + W-2's flip, or now** and accept voiding the W-0b baseline
+   + the killswitch-OFF byte-identity net that W-1..W-4 rests on?
+2. **The 26 DAG sequences** (shared pattern subtree — includes `beauty.sno`, the Milestone-1 program):
+   call-with-frame (the `test_sno_5/6.c` model) or tree-ify (duplicate per occurrence)?
+
+**BB_SEQUENCE / IR_MATCH_SEQUENCE IS *NOT* ERADICATED — DELIBERATELY UNCUT.** 45 refs across 10 files
+(`emit.cpp` 19 · `zeta_storage.c` 9 · `lower_snobol4.c` 7 · `emit.h`/`IR.h`/audit 2 each · template,
+`pat_fold.c`, `ir_query.c`, `scrip_ir.c` 1 each) + `IR_SCAN_SEQUENCE` 18 (Icon). Both template files intact.
+
+**PROVED (C embodiments, oracle-exact): SEQUENCE IS WIRING — and it is a 39-INSTRUCTION WIN, not neutral**
+(412→373, `-O0`). Nesting proved too (n=1 degenerates to a pure alias). ⛔ **BUT "NEVER" IS QUALIFIED: the
+DAG fence (`emit.cpp:2430`) is the real counterexample** — SNOBOL4 patterns are VALUES, a reused pattern
+variable lowers as a SHARED SUBTREE, and the counter is that DAG's runtime disambiguator (a return-address
+problem in a sequence-counter costume). MEASURED: probes 150/150 clean, 0 need the counter; full corpus
+1061/1087 clean, **26 need it**, in 8 files incl. `beauty.sno`. Precise claim: **BB_SEQUENCE is never
+required FOR SEQUENCING.**
+
+**IR_GOTO: DO NOT DELETE — it is the 2-way monitor's trace anchor** (`emit.cpp:992` `emit_mon_label_tap`;
+only 2 emitter sites do this; both optimizer passes protect stamped gotos). Deferred/indirect targets
+(EVAL/CODE, `$X`) cannot be edges. Redundant instances are ALREADY folded by the optimizer. Opcode STAYS.
+
+**WATERMARK: unchanged, NOT re-proved — zero SCRIP `src/` changes, NO codegen file touched** (so regen ×4
+does NOT apply). Carried from W-1b: gate-OFF 290/317 · gate-ON 278/317 · 11 wrong-output regressions.
+Probe suite re-run before AND after the consolidation: **95 pass / 46 xfail / 0 XPASS / 0 REGRESSION.**
+
+**LAST SESSION: 2026-08-04 (Opus session 3).** Zero SCRIP `src/` commits. Deliverables = (1) independent
+re-proof of SEQUENCE-is-wiring + the 39-instruction measurement; (2) nested/L13 embodiment; (3) the DAG
+counterexample, measured; (4) IR_GOTO verdict; (5) ⭐ **ONE-COPY consolidation** — all BB embodiments moved
+to `corpus/probe/bb/` (25 artifacts), `seq_*` labels now **0** everywhere, every edited file byte-identical
+to baseline. FINDING: `FINDING-2026-08-04b-CLAUDE-SN4-SEQUENCE-PROVED-WIRING-IN-C-BUT-THE-DAG-FENCE-IS-THE-COUNTEREXAMPLE-AND-SCRIP-IS-UNCUT.md`.
+
+⛔ **TWO RED FLAGS, NEITHER CAUSED BY THIS SESSION:** (a) `scripts/test_gate_call2bb_stub_regime.sh` is RED
+at HEAD (`m4 gated stub kt: got [8] want [48]`) — PROVED pre-existing by re-running against the original
+bytes restored from `git show HEAD:`; (b) `ARCH-ICON.md` pointed at `SCRIP/refs/bb/test_icon.c`, a path in
+the gitignored `refs/` tree absent from any fresh clone — dead reference, repointed.
+
+⚠ **ONE COPY IS NOW LAW: `corpus/probe/bb/` (see `CORPUS-LOCATIONS.md`).** `SCRIP/seed/` keeps only
+`beauty_prog_0428.s`; `SCRIP/bench/` and `.github/` hold no embodiments. Two non-mechanical resolutions:
+`test_sno_2/3.c` genuinely diverged (the `seed` copies are strict supersets — they won), and
+`test_sno_4.c` was a NAME COLLISION not a duplicate (seed's is a different program, moved in as
+**`test_sno_4_seed.c`** — ⚠ PROVISIONAL NAME, rename at will).
+
 
 **NEXT RUNG: W-1c.0** — fix sequence-capture crash. Minimal reproducer `L13` (`'abcd' ? ((LEN(2) . A) LEN(2)) . B`, SIGSEGV, correct output). Passing neighbour `L12` (inner member capture, no outer parens) brackets it: trigger is a capture whose operand is a **parenthesized group**. MONITOR-FIRST.
 

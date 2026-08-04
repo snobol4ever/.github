@@ -20,7 +20,7 @@ DATA block.
 > `bb_restore_state`s the node slots in and out — that copy-in/copy-out IS the
 > "push/pop of working state" this section forbids. The fix (GOAL-PROLOG-BB.md →
 > PLG ladder) restores per-activation DATA: the references are
-> `SCRIP/bench/test_icon.c`, `SCRIP/bench/test_sno_1.c` (the `_1[64]`/`ζ`
+> `corpus/probe/bb/test_icon.c`, `corpus/probe/bb/test_sno_1.c` (the `_1[64]`/`ζ`
 > per-invocation array), and `SCRIP/archive/frontend/prolog/prolog_emit.c`
 > (flat α/β/γ/ω body, `_cs` cursor + trail mark as the only surviving state).
 
