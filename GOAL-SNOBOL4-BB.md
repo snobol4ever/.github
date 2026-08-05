@@ -62,7 +62,18 @@ before this session (instrumented); all four static ALT wirings "passed." Use th
 every gap between that and a finalized RSP FORTH-style stack. **⛔ NOT READY TO FINALIZE UNTIL CSL-6.** Each rung is
 falsifiable and ships a killswitch per the ladder law. Contract: `ARCH-SNOBOL4.md` §THE THREE COMBINATORS + §3b.
 
-- [ ] **CSL-1 — NESTED-ARBNO EMBODIMENT (decisive; do FIRST).** Embody **X02** (`POS(0) ARBNO('(' ARBNO(NOTANY(')')) ')') RPOS(0)`
+- [~] **CSL-1 — PARTIAL 2026-08-05b: DEFECT CLASS REPRODUCED IN C. ⛔ NON-ZERO GRANTS ARE NECESSARY BUT NOT SUFFICIENT.**
+      `test_sno_arbno_csl1_nested.c` embodies X02. On the FAILING subject `'(ab)(c'` (forces full unwind; oracle `=F`)
+      the cursor at `OARB_ω` is **WRONG FOR ALL FOUR GRANT COMBINATIONS**: IG=0/OG=0 → Δ=5 · IG=1/OG=0 → Δ=4 ·
+      IG=0/OG=1 → Δ=5 · **IG=1/OG=1 → Δ=2** (correct: 0). So CSL-1a's non-zero-grant fix does NOT close nested ARBNO —
+      **there is a SECOND defect.** ⚠ **ALL FOUR PRINT THE ORACLE-CORRECT `=F` — fifth vacuity; output is fully blind here.**
+      ⚠ The SUCCEEDING subject `'(ab)(c)'` never reaches `OARB_ω` at all (greedy path wins) — **a passing X02 CANNOT
+      exercise the unwind. Probe nested ARBNO with the FAILING subject.**
+      SUSPECT (matches the s10 cursor's own diagnosis): `IARB_α` resets the inner frontier per outer iteration, so when the
+      outer retract resumes `RP_β → IARB_β`, the previous outer iteration's inner cells have been clobbered — the
+      "second outer element's body window overlaps first-iteration frame slots" reading, now reproduced in C.
+      NEXT: bisect which of the two ARBNOs loses the cursor (instrument Δ at IARB_ω and at each outer retract).
+      ORIGINAL RUNG TEXT: NESTED-ARBNO EMBODIMENT (decisive; do FIRST). Embody **X02** (`POS(0) ARBNO('(' ARBNO(NOTANY(')')) ')') RPOS(0)`
       on `'(ab)(c)'` → `=S`) as a C probe in `corpus/probe/bb/`, oracle-anchored. This is the exact shape of all 5 open
       SIGSEGVs. **FALSIFIES OR CONFIRMS the two-tier verdict on the case that is actually broken.** Sub-question raised at
       close of s-b and NOT yet answered: **X02's body contains NO stateful combinator (no ALT), so nothing allocates —
