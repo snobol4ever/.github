@@ -6,7 +6,52 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Opus session 7 — MON-RE; gate 78/31/15XPASS/17REG UNCHANGED — STILL NOT GREEN)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Opus session 8 — SEQ-ERAD BISECT; gate 78→81 pass, 17→14 REG — STILL NOT GREEN)
+
+**NEXT RUNG: the 14 — but FINISH MON-RE DEFECT C FIRST.** Full detail + both of this session's own falsifications:
+`FINDING-2026-08-04g-CLAUDE-SN4-SEQ-ERAD-THE-17-BISECT-TO-SE6-AND-THREE-DIE-TO-AN-OVER-DELETED-SWITCH-IN-FC-WALK-RANGE.md`.
+
+⭐ **THE 17 ARE SE-6's, PROVED BY BISECT (real builds + real gate runs, not inference):** `f5389c0c` 95/46/0/0 ·
+`3baa8a5d` (SE-5, parent of the deletion) 95/46/0/0 · `a1caa5b6` (SE-6) 78/31/15/**17**. SE-0…SE-5 are CLEAN;
+the whole set enters at the node deletion.
+
+⭐ **3 CLEARED — `fc_walk_range` had TEN case labels, a `break`, and the `lit_ok` arm over-deleted** (only
+`IR_MATCH_SEQUENCE` should have gone). What was left fell through to `default: lin = 0`, so the function
+returned 0 unconditionally — dead. Its twin `fc_tail_walk`, edited in the NEXT HUNK of the same commit, was
+edited correctly; **the two siblings disagreeing is the defect signature.** Fixed → **81/34/12/14, zero newly
+broken** (L16 N03 N04). ⚠ **N03 is the probe the prior session burned its whole budget on with five falsified
+design hypotheses** — the cause was a typo-class over-deletion two functions away. DIFF THE DELETION FOR
+OVER-REACH BEFORE THEORIZING ABOUT ITS SEMANTICS.
+
+⭐ **MON-RE DEFECT A FIXED** (one line, `SCRIP_TRACE="${SCRIP_TRACE:-99999}"` in the `want_scr` block).
+**B and C remain OPEN; C is still where the next seat starts.**
+
+**THE REMAINING 14, all SIGSEGV, all NESTING:** FENCE0 ×7 (G04 G05 G08 G09 G21 G22 G23) · nested ARBNO ×5
+(H24 H25 X02 X06 X11) · ALT3+capture ×2 (A05 A06). MEASURED on G05: prints CORRECT output `=S` THEN crashes;
+crash PC `0x200000002` (descriptor-shaped, `ret` into garbage, stack corrupt) ⇒ RSP imbalance at statement
+exit. **Box-inventory delta vs the green parent is EXACTLY the two `match_sequence_α` boxes**; FENCE emission
+(`mov rsp,rbp`) byte-identical. So the ladder's own untested question — box (proved pure wiring) vs NODE
+(port-identity anchor + 2N operand container) — is LIVE. Not resolved: could still be a second over-deletion
+of the HEADLINE-2 class.
+
+⛔ **DO NOT RETRY (falsified BY MEASUREMENT this session):** (1) `res[i]` picks up the inner call's IR_GOTO
+sentinel on nested elements — instrumented, `res_is_sentinel=0` on failing probes AND the passing control.
+(2) Divergent `add rsp,N` sizes are the pass/crash discriminator — passing N02 has TWO distinct large releases,
+crashing A05 has ONE. Family total is now **seven falsifications across two sessions** — that is the argument
+for finishing the monitor, not for a smarter guess.
+
+⛔ **STANDING FACTS TABLE BELOW IS STALE:** live census is 11 textual `IR_MATCH_SEQUENCE` refs, **0 live** (all
+in comments, proved by comment-stripping); `BB_MATCH_SEQUENCE`/`bb_match_sequence` = 0; template file gone; kind
+absent from every header; build clean; Icon `IR_SCAN_SEQUENCE` scope fence HELD (18 refs, template intact).
+
+⛔ **THE LADDER'S LAW IS STILL VIOLATED — LON RULING NEEDED.** *"Every rung ships a killswitch giving
+byte-identical revert. Do not half-land."* SE-6's deletion is UNCONDITIONAL: `seq_static_on` = 0 refs, only
+`SCRIP_SEQ_FOLD` survives and is unrelated. **No byte-identical revert path exists.** Retrofit a killswitch, or
+rule the ladder unrevertable and green it forward.
+
+---
+
+## ⭐⭐⭐ PRIOR CURSOR — 2026-08-04 (Opus session 7 — MON-RE; gate 78/31/15XPASS/17REG UNCHANGED — STILL NOT GREEN)
 
 **NEXT RUNG: MON-RE — FINISH REINSTATING THE 2-WAY MONITOR, THEN attack the 17.** Full detail + all falsifications:
 `FINDING-2026-08-04f-CLAUDE-SN4-SEQ-ERAD-SE6-THE-CURSORS-BLOCKER-IS-FALSE-AND-THE-MONITOR-WAS-DARK-ON-THREE-DEFECTS.md`.
