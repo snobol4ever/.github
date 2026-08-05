@@ -6,7 +6,91 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-05 (Sonnet s10 — SEQ-ERAD ROOT CAUSE DIAGNOSED; gate 90 pass, 5 REG — STILL NOT GREEN)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-05b (Opus — COMBINATOR STORAGE LAWS SETTLED BY DELETION; Lon-directed)
+
+**⛔ READ `ARCH-SNOBOL4.md` §THE THREE COMBINATORS BEFORE PROPOSING ANY ERADICATION RUNG FOR SEQUENCE / ALTERNATE / ARBNO.**
+Evidence: `FINDING-2026-08-05b-CLAUDE-SN4-ALT-SHELL-IS-WIRING-...md`. Embodiment: `test_sno_1.c` **341 → 312 insns** (-O0), oracle-exact.
+
+| combinator | IR node | ports | **local storage** |
+|---|---|---|---|
+| SEQUENCE | NO | NO | **ZERO** — wiring. A "zipper" node may exist but is **worthless and slower.** |
+| **ALTERNATE** | NO | NO | ⛔ **ONE PER-ITERATION DATUM — REQUIRED. IT IS A BOX.** |
+| ARBNO | NO | NO | **ZERO** — every datum it appears to touch belongs to ALT. |
+
+⭐ **ALT CHAIN IS `β → NEXT α` (Lon's form).** `Mi_ω` and `Mi_β` land on the SAME target — one edge set, not two.
+`alt_i` written at **γ** (live arm known), not `++`-walked at ω. Measured 322→316 vs the ω-chain on probe d0.
+
+⛔ **ALT's β ENTRY IS NOT WIRING — FALSIFIED BY EXHAUSTION.** Static target set is CLOSED (each arm's β, or A_ω);
+every element fails against two probes whose live arm differs (`test_sno_alt_d0.c` → arm 2, `test_sno_alt_d5.c` → arm 1).
+Perfect diagonal, none passes both. Selector = **DATA, not CONTROL**; integer or resume address, **must be a BB-local of ALT.**
+
+⛔⛔ **THE TRAP FOR THE NEXT RUNG:** dropping the ALT kind while keeping the datum leaves the claim **UNOWNED** —
+`zls_grant_locals` dispatches on KIND and would have no case to fire on. **That is the SE-6 defect verbatim** (the very
+thing the 5 open SIGSEGVs are). Collapse ALT's ports if you want the −19 insns, but **NAME THE SURVIVING CLAIM AUTHORITY FIRST.**
+
+⭐ **ARBNO ζ-STORAGE IS TWO-TIER (Lon question 2026-08-05).** **STATIC-depth ARBNO: ZERO — pure wiring, remove the box.**
+**UNBOUNDED-depth (nested, or via a RECURSIVE pattern): exactly ONE slot** — the saved entry frontier. Not a list, not per-iteration.
+⛔ **THE WHACK IS REQUIRED** (measured leak 0→10→20→30 over 3 successive matches; ζ=rsp ⇒ stack leak) but is **O(1): ONE STORE, +2 insns**,
+because the region is **LIFO**. **NO LIST WALK FREES ANYTHING.** ⚠ The single-match probe CANNOT see the leak — probe the whack with ≥2 matches.
+⭐ **The `cas_top → cap.prev` chain is the CAPTURE's, not ARBNO's, and it COMMITS rather than frees** (`test_sno_4.c`: *"READ AT EXACTLY ONE
+PLACE — the commit on match success"*, `RPOS0_γ: commit(cas_top)`). Order is **COMMIT-THEN-WHACK**.
+⛔ **The emitter stores `rsp_mark` UNCONDITIONALLY at every `match_arbno_α` — including the static case where the target is a constant and no slot
+is needed. That store IS `mov [rbp+248],rsp` in `n19_match_arbno_α`, i.e. the thing aliasing in H24 H25 X02 X06 X11.**
+
+⛔⛔ **CSL-1a DONE — "ARBNO OWNS ZERO BYTES" IS FALSIFIED AS STATED.** It was PARASITIC on the body claiming.
+Body claims nothing ⇒ frontier never moves ⇒ `ζ==base` true on first pop ⇒ **retract exits immediately, cursor left CORRUPTED**
+(measured Δ=3 vs correct Δ=0 on `POS(0) ARBNO(LEN(1)) 'z' RPOS(0)` / `'abc'`). ⚠ **BOTH variants print the oracle-correct
+`Failure.` — ONLY THE CURSOR DISCRIMINATES.** Fourth vacuity: **assert Δ at ω, never output alone.**
+⭐ **CORRECTED LAW: ARBNO owns zero bytes IFF its body claims a non-zero cell**; else ARBNO must supply the advance.
+`test_sno_1.c`'s 341→312 STANDS — because ALT pays, not because ARBNO is free.
+⛔ **EMITTER: `zls_grant_locals` must guarantee a NON-ZERO grant per ARBNO iteration.** A body of pure {0,1} matchers
+(LEN/LIT/ANY/NOTANY — no ALT, no capture) claims zero and **silently corrupts the cursor.**
+
+⭐ **ARBNO's remaining true content.** `ARBNO_Δ0` → consumer derives (DERIVE-DON'T-ACCUMULATE). `ARBNO_i` → WAS the ζ frontier
+(= rsp under per-BB self-alloc), moved by ALT's own grant/release. Result member → derived. α is a **pure edge**.
+**This re-aims the s146 ARBNO-frame eradication:** the per-iteration frame is the BODY's claim, not ARBNO's.
+
+⚠ **SCOPE:** single-entry ARBNO only. Frontier **self-restores on ω** (measured); on **γ** cells stay live by design
+(measured offset 10 at success exit) so re-entry needs the caller-side restore. **NESTED ARBNO NOT PROVED — it is the live defect below.**
+
+⚠ **PROBE HYGIENE — `test_sno_1.c` alone returns a FALSE GREEN on any of this.** Its β selector fired **ZERO times**
+before this session (instrumented); all four static ALT wirings "passed." Use the two `test_sno_alt_d*.c` probes.
+
+## ⭐⭐⭐ LADDER CSL — COMBINATOR STORAGE LAWS → RSP FORTH STACK (opened 2026-08-05b, Lon: "make any undone items part of the work list")
+
+**PURPOSE:** the three storage laws are proved at SINGLE DEPTH on standalone C embodiments only. This ladder closes
+every gap between that and a finalized RSP FORTH-style stack. **⛔ NOT READY TO FINALIZE UNTIL CSL-6.** Each rung is
+falsifiable and ships a killswitch per the ladder law. Contract: `ARCH-SNOBOL4.md` §THE THREE COMBINATORS + §3b.
+
+- [ ] **CSL-1 — NESTED-ARBNO EMBODIMENT (decisive; do FIRST).** Embody **X02** (`POS(0) ARBNO('(' ARBNO(NOTANY(')')) ')') RPOS(0)`
+      on `'(ab)(c)'` → `=S`) as a C probe in `corpus/probe/bb/`, oracle-anchored. This is the exact shape of all 5 open
+      SIGSEGVs. **FALSIFIES OR CONFIRMS the two-tier verdict on the case that is actually broken.** Sub-question raised at
+      close of s-b and NOT yet answered: **X02's body contains NO stateful combinator (no ALT), so nothing allocates —
+      does the outer ARBNO's `ζ--` depth test still work when the frontier never moves?** If not, the "ARBNO owns zero
+      bytes" law was PARASITIC on the body having storage, and must be restated. **CSL-1a below is the cheap version of
+      exactly this question — run it before building X02.**
+- [x] **CSL-1a — DONE 2026-08-05b: LAW FALSIFIED, RESTATED. See cursor above.** ARBNO OVER A NON-ALLOCATING BODY. `POS(0) ARBNO(LEN(1)) RPOS(0)`. Body is a
+      pure {0,1} matcher with zero storage. If ARBNO still needs zero storage → law holds. If the depth test breaks →
+      **the law is qualified: ARBNO needs its own depth datum whenever the body allocates nothing.**
+- [ ] **CSL-2 — DEFER-IN-BODY EMBODIMENT.** The O(1) whack assumes EVERYTHING above the mark is dead at final success.
+      `ARCH-SNOBOL4.md` §s146 says retained suspensions **interleave their carves between iteration frames**. If anything
+      above the mark must SURVIVE, blanket `mov rsp,mark` destroys it and reclamation must become selective. **UNTESTED —
+      this is the case that would break the mechanism §3b recommends.**
+- [ ] **CSL-3 — RECURSIVE-PATTERN EMBODIMENT.** Manual p.65: `ITEM = SPAN(...) | *LIST` / `LIST = "(" ITEM ARBNO("," ITEM) ")"`.
+      Runtime-unbounded ARBNO nesting via `*VAR`. Confirms the unbounded tier is real and not just lexical nesting.
+- [ ] **CSL-4 — BUILD SCRIP; ESTABLISH THE REAL WATERMARK.** No `scrip` binary has been built this session; the
+      90/11/35/5 figure is INHERITED from a cursor, not measured. Build, run the probe suite, record what is actually true.
+- [ ] **CSL-5 — NAME THE FIVE CONSTRUCTS.** PLAN.md's LADDER W says "RBP frames at the five constructs for the unbounded
+      case" but names only the count. Three are surveyed (SEQUENCE / ALTERNATE / ARBNO). **Identify and survey the other two.**
+- [ ] **CSL-6 — EMITTER RUNG (LAST).** Only after CSL-1…5. Requires: a NAMED CLAIM AUTHORITY surviving any port collapse
+      (the SE-6 trap — `zls_grant_locals` dispatches on KIND), a killswitch giving byte-identical revert, and the gate green.
+      ⛔ **The C embodiments are STRUCTURALLY BLIND to claim ownership** (`_slab[65]` is a literal array; C allocates it
+      regardless of what claims it). **No embodiment result transfers to the emitter without this rung's own proof.**
+
+**NEXT RUNG: unchanged — the 5 nested-ARBNO SIGSEGVs (H24 H25 X02 X06 X11). See the prior cursor below.**
+The combinator laws above are a *constraint* on how that gets fixed, not a replacement for fixing it.
+
+## ⭐⭐⭐ PRIOR CURSOR — 2026-08-05 (Sonnet s10 — SEQ-ERAD ROOT CAUSE DIAGNOSED; gate 90 pass, 5 REG — STILL NOT GREEN)
 
 **NEXT RUNG: break at n21_match_arbno_β in X02 binary, print rbp and [rsp+0] after `mov [rsp],rbp` at each inner β firing. Confirm whether `[outer_view2 + 248]` (inner ARBNO saved_rsp slot in second outer iteration) overlaps with a slot from the first outer iteration's stack frames. Overlap = the bug.**
 
