@@ -131,7 +131,142 @@ variable patterns rebuild/defer per match. See GOAL-SNOBOL4-BB.md rung PB-RB for
 
 ---
 
+## ⭐⭐⭐ THE THREE COMBINATORS — WHAT EACH ACTUALLY REQUIRES (PROVED BY DELETION, 2026-08-05, Lon-directed)
+
+**Settled by experiment on the `corpus/probe/bb/` C embodiments against the `sbl -b` oracle, not by argument.**
+Full evidence: `FINDING-2026-08-05b-CLAUDE-SN4-ALT-SHELL-IS-WIRING-...md`. Reference embodiment: `test_sno_1.c`
+(341 → **312** insns, `-O0`, oracle-exact). **Read this before proposing ANY eradication rung for these three.**
+
+| combinator | IR node? | ports? | **local storage** | verdict |
+|---|---|---|---|---|
+| **SEQUENCE** | **NO** | **NO** | **ZERO** | pure wiring — a "zipper" node may exist but is **worthless and slower** |
+| **ALTERNATE** | **NO** | **NO** (α/γ/ω collapse; β's outbound edge collapses too) | ⛔ **ONE PER-ITERATION DATUM — REQUIRED** | **IS A BOX** by the only definition the emitter implements |
+| **ARBNO** | **NO** | **NO** | **ZERO** | pure wiring — every datum it appears to touch belongs to ALT |
+
+### 1. SEQUENCE — wiring. A node is possible but worthless.
+`P_α→M1_α · P_β→Mn_β · Mi_γ→M(i+1)_α · Mn_γ→P_γ · Mi_ω→M(i-1)_β · M1_ω→P_ω`. Eight edges, no third party;
+P's four ports ARE the consumer's. Member order is fixed at compile time, so **there is no choice to remember.**
+
+### 2. ALTERNATE — the box is REQUIRED, and here is exactly why.
+⭐ **THE CHAIN IS `β → NEXT α` (Lon's form, measured better than the ω-chain: 322→316 on probe d0).**
+`Mi_ω` and `Mi_β` land on **the same target** — one edge set, not two. ω = *"arm never matched, try next"*;
+β = *"arm matched, want another — give back, try next"*. The give-back is a static per-arm constant. The live
+arm is recorded at **γ** (where it is known), never walked forward by `++` at ω.
+
+⛔ **BUT THE ENTRY IS NOT WIRING.** The consumer has ONE β edge and must land on the LIVE arm's β. **The static
+target set is CLOSED — each arm's β, or A_ω — and EVERY element was falsified** against two probes built so the
+live arm differs (`test_sno_alt_d0.c` → arm 2; `test_sno_alt_d5.c` → arm 1). Perfect diagonal: each static
+choice passes exactly the probe whose live arm it happens to name; none passes both.
+
+**MECHANISM:** ARBNO's depth is unbounded and **each live iteration bound a DIFFERENT alternative.** Static
+wiring is ONE copy of the code; it cannot carry N independent "which arm" facts. **The selector is DATA, not
+CONTROL.** Either an integer or a resume address, and it **MUST be a BB-local of the ALT box** — re-encoding it
+as a label pointer is the same datum at 8 bytes instead of 4, not an elimination.
+
+⛔⛔ **THEREFORE ALT IS A BOX.** In `test_sno_1.c` the cell struct has EXACTLY ONE member, `alt_i`; delete it and
+the whole slab goes with it. **This tree's operative definition of a box is STORAGE — what `zls_grant_locals`
+decides — not ports.** An emitter rung that drops the ALT kind while keeping the datum leaves the claim
+**UNOWNED**: `zls_grant_locals` dispatches on kind and would have no case to fire on. **That is the SE-6 defect
+verbatim.** Collapse ALT's ports if you like (−19 insns), but **name the surviving claim authority first.**
+
+### 3. ARBNO — ZERO local storage. Proved by deletion.
+**All three of its apparent locals are gone**, and the whole construct is four edges:
+```
+    ARBNO_α:      goto ARBNO_γ;      /* PURE EDGE — no work at all (the shy null match) */
+    ARBNO_β:      ζ++;               /* ALT's GRANT, sitting on the sole edge into ALT   */
+    ARBNO_retract: ζ--;              /* ALT's RELEASE                                    */
+                  if (ζ == base)     /* COMPILE-TIME CONSTANT offset — an addressing     */
+                      goto ARBNO_ω;  /*   mode, not a stored datum                       */
+                  <ALT's own selector>
+```
+- **`ARBNO_Δ0` deleted** — the CONSUMER derives from ITS OWN entry cursor (`str(Σ+Δ0, Δ−Δ0)`), which is what
+  DERIVE-DON'T-ACCUMULATE already required; the capture in `test_sno_4.c` was always doing this.
+- **`ARBNO_i` deleted** — the "depth counter" WAS the ζ frontier. Under per-BB self-allocation it is `rsp`,
+  moved by ALT's own grant/release. ARBNO was book-keeping someone else's allocator.
+- **the ARBNO result member deleted** — derived, never stored.
+
+⭐ **ARBNO OWNS ZERO BYTES — ⛔ FALSIFIED AS STATED, CSL-1a 2026-08-05b. CORRECTED LAW BELOW.**
+
+⛔⛔ **CSL-1a RESULT — THE ZERO-STORAGE LAW WAS PARASITIC ON THE BODY.** ARBNO counts its iterations by the
+FRONTIER MOVING. That movement is the BODY's claim, not ARBNO's — so when the body claims **nothing**, the
+frontier never moves, `ζ == base` is true on the FIRST pop, and **ARBNO exits its retract immediately, skipping
+every live iteration and leaving the CURSOR CORRUPTED.** Measured on `POS(0) ARBNO(LEN(1)) 'z' RPOS(0)` / `'abc'`:
+
+| body claim | cursor at `ARBNO_ω` | printed output |
+|---|---|---|
+| **CELLSZ = 0** (body allocates nothing) | **Δ=3 — NOT RESTORED** ⛔ | `Failure.` |
+| CELLSZ = 1 (body claims) | Δ=0 — correct ✓ | `Failure.` |
+
+⚠ **BOTH PRINT THE ORACLE-CORRECT ANSWER. ONLY THE CURSOR DISCRIMINATES.** Fourth vacuity of this family — an
+output-only probe passes a build that corrupts Δ. **Any ARBNO storage test MUST assert the cursor at ω, never
+just the output.**
+
+### ⭐ CORRECTED LAW — ARBNO REQUIRES A NON-ZERO PER-ITERATION FRONTIER ADVANCE
+**ARBNO owns zero bytes IFF its body claims a non-zero cell.** Otherwise ARBNO must supply the advance itself —
+either its own depth datum, or a forced minimum grant for the body. Either way **the bytes exist**; the only
+question is who is billed. For `test_sno_1.c` the body is ALT (4 bytes) so the 341→312 measurement STANDS — but
+it stands *because ALT pays*, not because ARBNO is free.
+
+⛔ **EMITTER CONSEQUENCE:** `zls_grant_locals` must **guarantee a non-zero grant per ARBNO iteration**, or ARBNO
+must carry its own counter. A body of pure {0,1} matchers (LEN/LIT/ANY/NOTANY, no ALT, no capture) claims zero —
+**that is the shape that silently corrupts the cursor.**
+
+### 3b. ARBNO and the WHACK — the TWO-TIER verdict (Lon question, 2026-08-05: *"is ζ storage required for the ARBNO BB box?"*)
+
+**There is no single yes/no. The answer turns on ONE thing: is ARBNO's ENTRY FRONTIER a compile-time constant?**
+
+| case | entry frontier | ζ storage | verdict |
+|---|---|---|---|
+| **static-depth** ARBNO (outermost; entry statically known) | compile-time constant | **ZERO** | **PURE WIRING — remove the box** |
+| **unbounded-depth** ARBNO (nested in another ARBNO, or reached through a RECURSIVE pattern — manual p.65 `LIST = "(" ITEM ARBNO("," ITEM) ")"` with `ITEM = SPAN \| *LIST`) | runtime-variable | **exactly ONE slot** (saved entry frontier) | box |
+
+**MEASURED (all three, this session):**
+1. ⛔ **THE WHACK IS REQUIRED — proved by leak.** With no whack the frontier ran **0 → 10 → 20 → 30** across
+   three successive matches of the same pattern, monotonic. Under ζ = rsp that is an unbounded STACK LEAK.
+   ⚠ The single-match probe could not see this (program exits at success with 10 cells live) — **a third
+   vacuity in the same family; the whack must be probed with ≥2 successive matches.**
+2. ⭐ **THE WHACK IS O(1): ONE STORE, +2 insns (312 → 314), oracle-exact.** The region is **LIFO**, so
+   restoring the frontier to a mark frees everything above it at once. **NO LIST WALK IS NEEDED TO FREE.**
+3. ⛔ **BUT THE MARK IS ONLY FREE WHEN IT IS A CONSTANT.** The frontier at any interior point is
+   runtime-variable (measured stepping 1,2,…,10 with outer iterations), so a **NESTED** ARBNO's whack target
+   **cannot** be a compile-time constant and **must be saved per activation** — ONE slot, not a list, not
+   per-iteration. **This is exactly the live code's `rsp_mark` (`mov qword ptr [rbp+248], rsp` in
+   `n19_match_arbno_α`) and exactly what aliases in H24 H25 X02 X06 X11.**
+
+⭐ **THE LINKED LIST IS REAL BUT IT IS NOT ARBNO'S AND IT DOES NOT FREE.** `cas_top → cap.prev → …` is a member
+of the **CAPTURE's** cell, stitched at the CAPTURE's γ, and `test_sno_4.c` says so in its own header: *"That
+chain is READ AT EXACTLY ONE PLACE — the commit on match success"* (`RPOS0_γ: commit(cas_top);`). It dives the
+unknown iteration depth **to COMMIT captured values**, because SPITBOL commits its CAS in push order. **ARBNO
+contributes nothing to it. Reclamation is the O(1) mark restore, a separate mechanism.**
+⚠ Order is therefore **COMMIT-THEN-WHACK**: the chain lives in the region the whack releases.
+
+⛔ **CONSEQUENCE FOR THE OPEN DEFECT.** The emitter stores `rsp_mark` **UNCONDITIONALLY** at every
+`match_arbno_α`, including the static case where the target is a constant and NO SLOT IS NEEDED. The two-tier
+rule is: **do not claim it when static; price it properly when nested.** Same shape as the two-tier static-body
+verdict named in §ARBNO iteration frames below — now with a MEASURED LOWER BOUND OF ZERO.
+
+⚠ **SCOPE — SINGLE-ENTRY, PROVED; NESTED, NOT PROVED.** α is a pure edge because the frontier is at base on
+entry. On the **ω** path that **SELF-RESTORES** (the retract walks ζ back to base exactly when ARBNO_ω fires —
+measured). On the **γ** path cells stay LIVE BY DESIGN, since ARBNO must be resumable — **measured frontier
+offset 10 at success exit.** So re-entry after a γ-exit needs a caller-side restore: PLAN.md's
+*"free-delineation: CALLER-side, both γ/ω return edges."* **Nested ARBNO is NOT proved here and is the live
+SEQ-ERAD defect (H24 H25 X02 X06 X11).**
+
+⚠ **PROBE HYGIENE — `test_sno_1.c` COULD NOT PROVE ANY OF THIS ALONE.** Before the fix its β selector fired
+**ZERO times** (instrumented). All four static ALT wirings passed it. **Any counter-elimination test run only
+against `test_sno_1.c` returns a FALSE GREEN.** Use `test_sno_alt_d0.c` / `test_sno_alt_d5.c`.
+
+---
+
 ## ARBNO iteration frames — ERADICATION GOAL (Lon ruling, 2026-07-24 s146)
+
+⭐ **2026-08-05 UPDATE — SEE THE COMBINATOR SECTION ABOVE: ARBNO ITSELF NEEDS ZERO LOCAL STORAGE.** The
+per-iteration frame is not ARBNO's at all — it is the BODY's (ALT's) claim, and ARBNO merely rides the
+frontier. This re-aims the eradication: the target is not "ARBNO's iteration frame" but **the body combinator's
+per-instance claim**, which for ALT is irreducible (one datum) and for a SEQUENCE-only body is ZERO. **A body
+with no ALT and no other stateful combinator should need NO per-iteration frame at all** — that is the
+two-tier static-body verdict named below, now with a proved lower bound.
+
 
 The rsp linked-frame chain for ARBNO iterations (FORTH-flavor linkage headers, chain walk on unwind) is TO BE ELIMINATED — not settled architecture. Desired end state: FAST, IMMEDIATE γ processing — an iteration's success transitions with zero per-iteration linkage ceremony. Obstacle on record: a DEFER inside the body makes per-iteration extent runtime-variable (which PAT$ blob arrives at a `*VAR` site is decided at match time; retained suspensions interleave their carves between iteration frames, so even inter-frame DISTANCE varies) — uniform count×size arithmetic fails in general. This is an obstacle to SOLVE, not an accepted end state ("I want it gone for the record. That does not mean I get my wish." — keep hunting). Candidates: two-tier static-body verdict (SEQ-STATIC precedent — bodies with no dynamic construct get pure arithmetic; degrade never die) · per-blob registered frame geometry · patchable-γ/ω external linkage to cut the activation ceremony meanwhile. Until a solution lands, the chain is tolerated, not endorsed.
 
