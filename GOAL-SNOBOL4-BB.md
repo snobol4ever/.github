@@ -6,7 +6,17 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-05 (Sonnet s9 — SEQ-ERAD AFTERMATH; gate 81→90 pass, 14→5 REG — STILL NOT GREEN)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-05 (Sonnet s10 — SEQ-ERAD ROOT CAUSE DIAGNOSED; gate 90 pass, 5 REG — STILL NOT GREEN)
+
+**NEXT RUNG: break at n21_match_arbno_β in X02 binary, print rbp and [rsp+0] after `mov [rsp],rbp` at each inner β firing. Confirm whether `[outer_view2 + 248]` (inner ARBNO saved_rsp slot in second outer iteration) overlaps with a slot from the first outer iteration's stack frames. Overlap = the bug.**
+
+⭐ **ROOT CAUSE CONFIRMED BY GDB (rsp=0x3 at MATCH_END).** Two hypotheses falsified — see FINDING-2026-08-05-CLAUDE-SN4-SEQ-ERAD-S10. The crash is NOT a geometry offset error (mn hypothesis falsified) and NOT a missing view-restore (view-restore approach produced 11–17 regressions, falsified). True cause: RSP is corrupted with value 0x3 (STRING type tag) BEFORE inner ARBNO L(2) exhaust fires. The inner ARBNO saved_rsp slot at `[outer_view + 248]` reads as 0 at L(2), and rbp at the start of n21_af may have been corrupted before the `mov rsp,[rbp+0xf8]`. Suspect: when outer ARBNO β fires for the second outer iteration with first-iteration inner elements still live on the stack, the second outer element's body window (`[outer_view2 + 192 .. outer_view2 + 296)`) may overlap with first-iteration frame slots. **Next session: measure overlaps of slot addresses across iterations.**
+
+⭐ **SCAFFOLD IN TREE (SCRIP `18e65150`):** `op_body_has_arbno` flag in `g_emit` (emit.h + emit.cpp); false WIP geometry-buffer blocks removed from zeta_storage.c. Template (`bb_match_arbno.cpp`) unchanged.
+
+⭐ **GATE UNCHANGED: 90 pass / 11 xfail / 35 XPASS / 5 REGRESSION. The 5: H24 H25 X02 X06 X11 (all SIGSEGV nested ARBNO).**
+
+## ⭐⭐⭐ PRIOR CURSOR — 2026-08-05 (Sonnet s9 — SEQ-ERAD AFTERMATH; gate 81→90 pass, 14→5 REG — STILL NOT GREEN)
 
 **NEXT RUNG: fix nested-ARBNO ZLS geometry (H24 H25 X02 X06 X11 — 5 remaining SIGSEGV).** Full detail + all falsifications: `FINDING-2026-08-05-CLAUDE-SN4-SEQ-ERAD-S9-TWO-DEFECTS-ZD-CLAIM-9-OF-14-AND-NESTED-ARBNO-ZLS-GEOMETRY.md`.
 
