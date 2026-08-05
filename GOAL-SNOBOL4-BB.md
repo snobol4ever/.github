@@ -6,7 +6,23 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Opus session 8 — SEQ-ERAD BISECT; gate 78→81 pass, 17→14 REG — STILL NOT GREEN)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-05 (Sonnet s9 — SEQ-ERAD AFTERMATH; gate 81→90 pass, 14→5 REG — STILL NOT GREEN)
+
+**NEXT RUNG: fix nested-ARBNO ZLS geometry (H24 H25 X02 X06 X11 — 5 remaining SIGSEGV).** Full detail + all falsifications: `FINDING-2026-08-05-CLAUDE-SN4-SEQ-ERAD-S9-TWO-DEFECTS-ZD-CLAIM-9-OF-14-AND-NESTED-ARBNO-ZLS-GEOMETRY.md`.
+
+⭐ **9 OF 14 FIXED.** `SCRIP_ZD_MATCH` default flipped OFF in `emit.cpp`. SE-6 deleted the SEQ container, which was keeping pattern elements (POS/LEN/FENCE1/RPOS/capture pairs) off the ZD run as blob-interior operand-closure members. With the container gone, those elements sit directly on the spine and are admitted individually — the claim-depth arithmetic prices a partition that no longer exists. Fix: default-off cures 9 of 14 (FENCE0 ×7 G04 G05 G08 G09 G21 G22 G23 + ALT3-capture ×2 A05 A06). Killswitch `SCRIP_ZD_MATCH=1` restores prior 81/34/12/14 byte-identically — the ladder's killswitch law is now SATISFIED. Re-arming requires a fresh evidence base against the container-free spine.
+
+⭐ **GATE: 90 pass / 11 xfail / 35 XPASS / 5 REGRESSION.** 125 programs correct vs 93. Beats the green parent (95 correct). The 15 XPASS still need dropping from `corpus/probe/bb/XFAIL.run` — deferred to the rung that clears the 5.
+
+⭐ **ROOT CAUSE OF REMAINING 5 — MEASURED (asm comparison HEAD vs `3baa8a5d`).** The inner ARBNO's rsp_mark store (`mov qword ptr [rbp+248], rsp` in `n19_match_arbno_α` for X02) aliases the claim's first qword (`stmt_base + 0`). This overwrites the outer statement claim's data with RSP. On inner ARBNO exhaust, `n19_match_arbno_af` reads back `[rbp+248]` to restore RSP — the slot was modified by iteration bookkeeping, corrupting RSP. In green, the SEQ container's 16B zls slot provided geometric separation; that separation is now missing. Fix belongs in `zeta_storage.c` — either price a 16B buffer into nested ARBNO body claim, or recompute outer ARBNO β frame layout.
+
+⛔ **MON-RE DEFECT C STILL OPEN** but bracketed: monitor on comment-stripped X02 shows "PARTIAL EOF step 3: scr done, spl still emitting stno=2" — confirms crash is post-success. Defect B (stno numbering) needs fixing before monitor is fully usable.
+
+⛔ **KILLSWITCH LAW WAS VIOLATED (prior cursor).** NOW SATISFIED: `SCRIP_ZD_MATCH=1` restores prior regime byte-identically. LON DECISION STILL NEEDED on re-arming timeline.
+
+**WATERMARK: 90 pass / 11 xfail / 35 XPASS / 5 REGRESSION. The 5: H24 H25 X02 X06 X11 (all SIGSEGV nested ARBNO).**
+
+## ⭐⭐⭐ PRIOR CURSOR — 2026-08-04 (Opus session 8 — SEQ-ERAD BISECT; gate 78→81 pass, 17→14 REG — STILL NOT GREEN)
 
 **NEXT RUNG: the 14 — but FINISH MON-RE DEFECT C FIRST.** Full detail + both of this session's own falsifications:
 `FINDING-2026-08-04g-CLAUDE-SN4-SEQ-ERAD-THE-17-BISECT-TO-SE6-AND-THREE-DIE-TO-AN-OVER-DELETED-SWITCH-IN-FC-WALK-RANGE.md`.
