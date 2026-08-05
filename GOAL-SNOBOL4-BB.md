@@ -6,9 +6,46 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Sonnet session 6 — SE-5/SE-6 WIP `a1caa5b6`; gate 78/31/15XPASS/17REG — NOT GREEN)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-04 (Opus session 7 — MON-RE; gate 78/31/15XPASS/17REG UNCHANGED — STILL NOT GREEN)
 
-**NEXT RUNG: SE-5/SE-6 φ-FIXUP** — fix 17 regressions in `sno_seq_nary`. IR_MATCH_SEQUENCE is gone from the enum and `bb_match_sequence.cpp` is deleted (15 genuine XPASS landed). The blocker: the φ-fixup in `sno_seq_nary` uses a range-based scan `lo[i]..hi[i]` that misses tagged edges allocated by nested sub-calls (ARBNO body sequences, FENCE seam sub-runs). A global scan by S-pointer identity was added as a second pass but the wrong-output and crash regressions persist. Root cause still to isolate: N03 (`ARBNO retried, $ INSIDE body`) outputs `a a b c d` instead of `a b c d` — first element doubled, suggesting the σ edge for the inner ARBNO body's first element resolves to ARBNO.α instead of ASSIGN_SAVE.α. MONITOR-FIRST per RULES.md. The 17 failing probes: A05 A06 G04 G05 G08 G09 G21 G22 G23 H24 H25 L16 N03 N04 X02 X06 X11. ⚠ GATE IS NOT GREEN — do not build on this commit.
+**NEXT RUNG: MON-RE — FINISH REINSTATING THE 2-WAY MONITOR, THEN attack the 17.** Full detail + all falsifications:
+`FINDING-2026-08-04f-CLAUDE-SN4-SEQ-ERAD-SE6-THE-CURSORS-BLOCKER-IS-FALSE-AND-THE-MONITOR-WAS-DARK-ON-THREE-DEFECTS.md`.
+
+⛔ **THE PREVIOUS CURSOR'S BLOCKER WAS FALSE — DO NOT SPEND BUDGET ON `sno_seq_nary`.** It named the φ-fixup's
+nested-allocation scan. MEASURED (env-gated `SCRIP_SEQDBG` dump): `sno_seq_nary` fires EXACTLY ONCE on N03 — the
+top-level spine — and its wiring is CORRECT. The ARBNO body never reaches it: `LEN(1) $ OUTPUT` parses as ONE
+`TT_CAPT_IMMED_ASGN` node, NOT a `TT_SEQ` (`--dump-ast` proves it). The capture-pair arm (`lower_snobol4.c:1349`)
+is the site. ⚠ ALSO: `res[i] = g->all[before]` is ALREADY CORRECT — `lc_build` mints the CONSTRUCT first and the arm
+RETURNS the ARGUMENT, so first-allocated IS the resume surface; "fixing" it to `ei` scores **17→30 regressions**
+(measured, reverted). And `--dump-ir` is SPINE-ordered, not `g->all`-ordered — do not read allocation order off it.
+
+**MONITOR-FIRST is BLOCKED until MON-RE lands.** The monitor reported `DIVERGE step 1` on PASSING programs (N02)
+identically to failing ones — it could bracket nothing. Three independent defects, all root-caused this session:
+- **A ✅ cause found, fix NOT applied (ONE LINE):** the `want_scr` block of `test_monitor_3way_sync_step_auto.sh`
+  never sets `SCRIP_TRACE`, so `kw_trace==0` and `comm_var` returns before emitting VALUE — even though the script's
+  own header says the catch-all needs it. Add `SCRIP_TRACE="${SCRIP_TRACE:-99999}"`. With it, steps 1–2 agree BYTE-FOR-BYTE.
+- **B ✅ root-caused, not fixed:** `snobol4.y:233` (`s->stno = ++pp->prog->nstmts`) numbers only grammar-reduced
+  statements; SPITBOL counts every line except `*`/`-` **including BLANKS** (`scripts/monitor/build_stno_map.py` is
+  the canonical rule). All 169 probes open with comments+blank ⇒ all diverge at step 1 on numbering alone.
+- **C ⛔ OPEN — START HERE. EMITTER IS EXONERATED:** on comment-free `nc.sno`, spl says `LABEL stno=2`, scr says `6`.
+  `SCRIP_TAPDBG` inside `emit_mon_label_tap` proves all five taps bake CORRECTLY AND IN ORDER (1,2,3,4,5). So the
+  wrong stno is a RUNTIME/WIRE fact, not codegen. Two sub-hypotheses already dead: the `IR_GOTO` tap is NOT the source
+  (gated it, no change), and the wire is NOT spine-vs-source ordered (STATEMENT_BEGIN nodes are in source order).
+
+**LANDED (both codegen-NEUTRAL — proved by byte-compare vs pristine HEAD):** (1) `emit.cpp:858` `op_stno` promotion
+restricted to the statement-bracket kinds — it was promoted from `IR_LIT(nd).ival` for EVERY kind, but that field is
+the shared payload union, so `op_stno` was clobbered all walk long and the tap's `>0` guard selected accidents. Real
+defect, keep. (2) `emit.cpp:991` `IR_GOTO` tap gated behind `MONITOR_GOTO_TAP` — ⚠ **LON DECISION NEEDED**, RULES.md
+calls that site the monitor's trace anchor, it did NOT fix defect C, and it is a reversion candidate.
+
+**WATERMARK: UNCHANGED, RE-PROVED at close — gate 78 pass / 31 xfail / 15 XPASS / 17 REGRESSION.** The 17:
+A05 A06 G04 G05 G08 G09 G21 G22 G23 H24 H25 L16 N03 N04 X02 X06 X11 (all SIGSEGV, rc=139). The 15 XPASS still
+need dropping from `corpus/probe/bb/XFAIL.run` — NOT done this session (gate not green, left for the rung that greens it).
+⚠ GATE IS NOT GREEN — do not build on this commit for performance measurement.
+
+⚠ **PRE-EXISTING DEBT PAID:** step-4 regen produced large `.s` diffs (benchmark 5 / feature 27 / demo 18 files).
+NOT from this session — proved by byte-compare at pristine HEAD (`roman.s`: pristine compiler 2463 lines vs committed
+artifact 2533, already disagreeing). Session s6 left the tree not-green AND skipped step 4; this handoff pays it.
 
 ⭐⭐ **LON RULING #1: GRANTED (2026-08-04 Sonnet session 3, "eradicate them / continue").** SE-4…SE-6 are unblocked.
 
