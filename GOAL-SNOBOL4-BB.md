@@ -6,23 +6,29 @@ Frontend: SNOBOL4 → shared IR → BB emitter (mode-3 `--run` / mode-4 `--compi
 
 The s23p freeze is LIFTED by Lon's direct order. The TWO CONCURRENT FRONTS continue under their file-ownership contract: **`GOAL-SNOBOL4-BB-ALPHA.md`** (allocation/admission side — the ZD ladder: who gets planned) and **`GOAL-SNOBOL4-BB-OMEGA.md`** (release/frame side — the ZW ladder + SHED: where plans emit); execution HOW = `DESIGN-SN4-ZW-ZD-OPUS-PLAYBOOK.md`. But THIS file is HQ: Lon-directed work executes and lands from here, and this file's LIVE CURSOR records it so the fronts rebase with eyes open. THE MODEL, THE WHACK CONTRACT, and LAWS & TRAPS remain binding on all three seats. The LADDER sections below remain superseded by the front files except where an HQ cursor entry says otherwise.
 
-## ⭐⭐⭐ LIVE CURSOR — 2026-08-06i (Sonnet — W-1c.1 FENCE-WHACK-ON + W-1c.2 ARBNO view-restore LANDED)
+## ⭐⭐⭐ LIVE CURSOR — 2026-08-06j (Sonnet — W-1c.3 NO-SCAN + W-1c.4 RT_DCAP_TOP LANDED)
 
-⭐ **SESSION WORK (Sonnet, 2026-08-06i):**
+⭐ **SESSION WORK (Sonnet, 2026-08-06j):**
 
-**W-1c.1 FENCE-WHACK-ON (SCRIP `b07fe2c9`):** `fence_u2_frame` was sharing `SCRIP_U2` with `arbno_u2_frame`. `SCRIP_U2=1` triggered both, and the arbno rbp save/restore had 18 nested-ARBNO regressions. Fix: decoupled — `fence_u2_frame` now reads `SCRIP_U2_FENCE` (default ON, `=0` to disable); `arbno_u2_frame` kept `SCRIP_U2` (now dead). Witness ladder 9/9, gate clean.
+**W-1c.4 `RT_CAS_TOP` → `RT_DCAP_TOP` rename (SCRIP `a07e4143`):** Mechanical rename across 11 files, 28 occurrences. Byte-neutral (symbol names only, zero instruction change). Consistent with existing `g_dcap_top` alias in `pattern_match.c`. Regen ×3 zero delta. Gate 118/23/0.
 
-**W-1c.2 ARBNO view-restore (SCRIP `f11a59b2`, corpus `2ddec3d7`):** Chain arm used `zv()=rbp` as element view. DEFINE function calls inside the ARBNO body clobber rbp (their own frame base), breaking the callee-saved ABI contract at exhaust. Fix: unconditional rbp save into slot+32 at α; unconditional rbp restore from slot+32 at L(2) exhaust before rsp restore. Sigma/phi paths intentionally have NO view-restore — the chain-link walk terminates with rbp=MATCH_BEGIN-rbp by invariant, and FRQ reads are pinned-rbp-relative (depth-immune). `zeta_storage.c` slot+32 grant made unconditional (was `SCRIP_U2` gated). `arbno_u2_frame()` deleted — `SCRIP_U2=1` now has zero consumers and no longer regresses. Gate: run OFF=118/23/0 ON=118/23/0 SCRIP_U2=1=118/23/0 compile=0/141/0 all green. Regen ×3: benchmark 0 delta, feature 4 files, demo 14 files (slot+32 shifts ARBNO node sizes).
+**W-1c.3 NO-SCAN — failure exits (SCRIP `a897764e`, corpus `1579ab74`):** The tag-0 sentinel scan at `IR_MATCH_BEGIN`'s failure exits (both hfc and non-hfc arms) is DELETED — replaced by `sub r12,24` (one instruction). Lon ruling: at the failure exit the un-match cascade has already popped every entry this match pushed via `bb_match_capture`'s COND β (`sub r12,24` UNGUARDED, "sound by the LIFO cascade"), so r12 arrives at marker+24 BY INVARIANT. The walk stopped on its first test in the common case — pure ceremony — and was WRONG in the seal classes (ABORT/FENCE-seal/ARBNO abandon, where a pushed COND's β never fires): it would halt on an orphaned live entry and read that entry's `saved_delta`/`len` as the rsp mark and patstk. Register arithmetic is depth-free; a frame-slot route to the marker is not (rsp at failure depth, not α depth — MEASURED crash on 40+ probes). Gates: 118/23/0 · witness 9/9 · xc318 m3 zero new regressions by set · mode-4 A/B all 122 pattern programs byte-identical. Regen ×3 real deltas (loop → one insn), idempotent.
 
-**GATES:** run-suite OFF=118/23/0 · ON (`SCRIP_ZW_RB=1`) 118/23/0 · compile-suite 0/141/0. All three green. Witness ladder 9/9.
+**W-1c.3 NO-SCAN — L(6) post-pump pop (SCRIP `e65ff67d`, corpus `794c24bf`):** The L(6) loop inside `release_pump` (post-pump wholesale pop) is DELETED — replaced by `sub r12,24`. After the pump has consumed every entry via `rt_dcap_step`, r12 is at marker+24 BY INVARIANT (nested matches inside pumped assignments push balanced markers; r12 callee-saved through pump's C calls). L(5) (pre-pump range-locator scan) is KEPT — it runs before the pump when the count of live captures above the marker is runtime-variable; LIFO cannot locate it there. Gates: 118/23/0 · witness 9/9 · xc318 m3 zero new regressions by set. Regen ×3 real deltas, idempotent.
+
+**MEASURED NEGATIVE RESULT ON RECORD (do not retry):** Routing the marker through a carried frame slot (`head.dcap_mark`, `op_off+32` — the slot `zeta_storage.c` grants and documents for exactly this) CRASHES 40+ probes across ALT/SEQ/FENCE. At the failure exit rsp sits at the failure depth, not α depth, so every `FRQ` spelling of the marker reads garbage. Register arithmetic (`sub r12,24`) is the only formulation that is both scan-free and depth-free.
+
+**GATES:** run-suite 118/23/0 · compile-suite 0/141/0 · witness ladder 9/9. All green.
 
 **NEXT RUNGS (in order):**
 1. ✅ **XFAIL.compile birth** — DONE (corpus `10c87a40`).
 2. ✅ **FENCE-WHACK-ON (W-1c.1)** — DONE (SCRIP `b07fe2c9`). `SCRIP_U2_FENCE=0` killswitch.
 3. ✅ **ARBNO view-restore (W-1c.2)** — DONE (SCRIP `f11a59b2`). Slot+32 unconditional; `SCRIP_U2` retired.
-4. **CAS-R12 phase 2 / W-1c.3** — `g_patstk_sp` eradication with C-scanner retirement; then RULING 4's match-scoping of the ARENA (carve/reset at MATCH_BEGIN, release at MATCH_END, retire the process-wide 8MB pin + the W-1c.4 one-line `CAS` definition at pin_va.h:9).
-5. **DELETE legacy chain arm** (K16 census done) + dead op_zw2/op_zw arms ride W-5.
-6. **W-2 ARM-ALL/flip** → W-4 xc318 reds → W-5 legacy forest.
+4. ✅ **W-1c.4 `RT_CAS_TOP` rename** — DONE (SCRIP `a07e4143`). `RT_DCAP_TOP` everywhere.
+5. ✅ **W-1c.3 NO-SCAN failure exits** — DONE (SCRIP `a897764e`). LIFO `sub r12,24`; scan deleted.
+6. ✅ **W-1c.3 NO-SCAN L(6) post-pump** — DONE (SCRIP `e65ff67d`). LIFO `sub r12,24`; L(5) pre-pump scan kept.
+7. **DELETE legacy chain arm** (K16 census done) + dead op_zw2/op_zw arms ride W-5.
+8. **W-2 ARM-ALL/flip** → W-4 xc318 reds → W-5 legacy forest.
 
 ## ⭐⭐ CURSOR HISTORY — 2026-08-06f (Sonnet — STMT-BETA-LAND R1 LANDED + m4 -o flag; SCRIP `169ad6b4`, corpus `91659735`)
 
